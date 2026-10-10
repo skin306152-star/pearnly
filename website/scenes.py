@@ -70,6 +70,7 @@ def face(ex, ey, r=5, gap=24):
 # 每个产品的小单穿不同的衣服（与 website/mascot.py 里的产品形象一致，这里是铅笔画版）：
 #   cowork：头顶一道黄条、戴圆眼镜、身上印着金额（会计）
 #   dms：身体就是一张蓝色身份证，举着一台黑色小相机
+#   ai（Tomo）：一朵云，头顶一颗小星光
 #   erp：戴黄色小店遮阳帽，身上一段条码带红色扫描线，提着黄色购物篮
 def costume(kind):
     if kind == "mrerp":   # MR.ERP：蓝色大账本，书脊深蓝、右边一排彩色书签、白框眼镜、黄领带，封面一块 MR.ERP 名牌
@@ -88,14 +89,17 @@ def costume(kind):
                 '<path class="hm-mouth" d="M0 -48 q5 5 10 0" stroke="#fffdf6" stroke-width="2.4"/>'
                 '<path d="M1 -40 h8 l-2 6 l4 22 l-6 7 l-6 -7 l4 -22 Z" fill="#ffd84d" stroke-width="2"/>')
         return body, (-40, -52), (40, -52), 16, 50
-    if kind == "ai":    # 智能体：薄荷绿的对话泡身体（小尾巴在左下角，往外侧斜出去），头顶天线挑着一颗会闪的黄色星光，胸前三个「正在输入」的点
-        body = ('<path d="M0 -92 Q-3 -102 0 -112" stroke-width="2.6"/>'
-                '<g class="hm-spark"><path d="M0 -136 Q2.6 -124 14 -121 Q2.6 -118 0 -106 Q-2.6 -118 -14 -121 Q-2.6 -124 0 -136 Z" fill="#ffd84d" stroke-width="2.2"/>'
-                '<path d="M15 -134 l5 -5 M19 -121 h7 M-15 -134 l-5 -5" stroke-width="2.2"/></g>'
-                '<path d="M-26 -92 H26 Q46 -92 46 -72 V-20 Q46 0 26 0 H-28 L-58 7 L-46 -16 V-72 Q-46 -92 -26 -92 Z" fill="#dff2e6"/>'
-                + face(-12, -68, 4.4)
-                + ''.join(f'<circle class="hm-typing t{i}" cx="{-14 + i * 14}" cy="-26" r="4.4" fill="#2e8a55" stroke="none"/>' for i in range(3)))
-        return body, (-46, -46), (46, -46), 14, 50
+    if kind == "ai":    # Tomo：一朵软软的云，头顶冒一颗会闪的小星光（在想事情），空着手；
+        # 平时是 .hm-calm（眼睛跟着鼠标、会眨眼），笑起来换成 .hm-laugh（眯眼 + 张嘴笑），由 CSS 定时 / 悬停 / .hm-laughing 切换
+        body = ('<g class="hm-spark"><path d="M30 -128 Q32 -119 40 -117 Q32 -115 30 -106 Q28 -115 20 -117 Q28 -119 30 -128 Z" fill="#ffd84d" stroke-width="2"/></g>'
+                '<path d="M-40 0 H40 Q62 0 60 -22 Q74 -44 52 -60 Q52 -92 20 -90 Q4 -112 -20 -98 Q-46 -102 -50 -74 Q-70 -62 -60 -40 Q-72 -14 -50 -2 Z" fill="#eef3fb"/>'
+                '<g class="hm-calm">' + face(-12, -62, 4.4, 24) + '</g>'
+                '<g class="hm-laugh"><path d="M-18 -60 q6 -8 12 0 M6 -60 q6 -8 12 0" stroke-width="2.8"/>'
+                '<ellipse cx="-23" cy="-48" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+                '<ellipse cx="23" cy="-48" rx="7.5" ry="4.2" fill="#ff9ba3" stroke="none" opacity=".85"/>'
+                '<path d="M-9 -45 H9 Q9 -33 0 -33 Q-9 -33 -9 -45 Z" fill="#7a3b3b" stroke-width="2.4"/>'
+                '<path d="M-5 -36.5 Q0 -40 5 -36.5 Q3 -33.6 0 -33.6 Q-3 -33.6 -5 -36.5 Z" fill="#ff9ba3" stroke="none"/></g>')
+        return body, (-58, -34), (62, -30), 16, 52
     if kind == "cowork":
         body = (f'<path d="{zigzag(-100)}" fill="{PAPER}"/>'
                 '<path d="M-39 -88 Q-39 -100 -27 -100 H27 Q39 -100 39 -88 V-86 H-39 Z" fill="#ffd84d"/>'
@@ -133,10 +137,8 @@ def prop_svg(kind):
                 '<rect x="-20" y="-15" width="40" height="28" rx="7" fill="#3d362c"/><rect x="-12" y="-21" width="12" height="7" rx="2" fill="#3d362c"/>'
                 '<circle cx="3" cy="-1" r="9" fill="#ffd84d"/><circle cx="3" cy="-1" r="3.5" fill="#fffdf6" stroke="none"/>'
                 '<g class="hm-flash" stroke="#f0b400" stroke-width="3"><path d="M24 -24 l9 -9 M30 -10 h12 M16 -30 v-12"/></g></g>')
-    if kind == "plane":                       # 智能体：一架纸飞机（交出去，就帮你办），机头朝右上
-        return ('<g transform="translate(30 20) rotate(-14) scale(1.25)" stroke-width="2.2">'
-                f'<path d="M24 -8 L-20 -3 L-3 3 Z" fill="{PAPER}"/><path d="M24 -8 L-3 3 L-8 14 Z" fill="#e6effb"/>'
-                '<path d="M-3 3 L-6 9" stroke-width="1.8"/></g>')
+    if kind == "none":                        # Tomo：空着手
+        return ""
     if kind == "stamp":                       # MR.ERP：审批用的橡皮章（红色章面朝下）
         return ('<g transform="translate(20 30)" stroke-width="2.6">'
                 '<path d="M-5 -14 Q-5 -22 0 -22 Q5 -22 5 -14 Z" fill="#c49a6b"/><rect x="-3" y="-14" width="6" height="10" fill="#c49a6b"/>'
@@ -505,7 +507,7 @@ def mrerp(L):
 
 # ---------------- 首页产品卡片角上的小单（手绘版，替代 mascot.py 的粗线版） ----------------
 
-PROPS = {"cowork": "pencil", "dms": "camera", "erp": "basket", "ai": "plane"}
+PROPS = {"cowork": "pencil", "dms": "camera", "erp": "basket", "ai": "none"}
 
 
 def badge(kind, cls="poster-mascot"):

@@ -10,10 +10,10 @@ if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.
 document.addEventListener('visibilitychange',function(){if(!document.hidden)requestAnimationFrame(draw)})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
-function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
-window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000)},i*120)})};
+function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
+window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000);play(m,'hm-laughing',2000)},i*120)})};
 if(!reduce){setInterval(function(){var m=all[Math.floor(Math.random()*all.length)];if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
-all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700)})});
+all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700);play(m,'hm-laughing',1400)})});
 document.addEventListener('focusin',function(e){if(scene&&e.target.type==='password')scene.classList.add('shy')});
 document.addEventListener('focusout',function(e){if(scene&&e.target.type==='password')scene.classList.remove('shy')});
 var looks=[].slice.call(document.querySelectorAll('.hm .m-look')),px=0,py=0,q=false;

@@ -6,18 +6,18 @@
 // 站点只属于一个产品：工具按本站产品来；欢迎处的形象是智能体自己的（lib/profile.ts）。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
 import {
   CheckIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
+  CloudIcon,
   ExternalLinkIcon,
   FilesIcon,
   GlobeIcon,
   InfoIcon,
   LogOutIcon,
-  MessageSquareIcon,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -37,6 +37,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
+import { useDesktopBridge } from "@/lib/desktop";
+import { isBusy } from "@/lib/managed-agents/reducer";
 import { assistantMascot, useProfile, type Profile } from "@/lib/profile";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
@@ -181,9 +183,9 @@ function AppSidebar() {
       <SidebarHeader className="flex-row items-center justify-between px-3 pt-3">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <MessageSquareIcon className="size-4" />
+            <CloudIcon className="size-4" />
           </div>
-          <span className="font-semibold">Pearnly</span>
+          <span className="font-semibold">Tomo</span>
         </div>
         <SidebarTrigger aria-label={t("sidebar")} />
       </SidebarHeader>
@@ -232,6 +234,14 @@ function useResultsPanel() {
   return { sessionId, files, selected, setSelected, openFile, open: open && files.length > 0, setOpen };
 }
 
+// 桌面端快捷提问、回复完成通知、整窗拖文件（lib/desktop.ts）
+function DesktopBridge() {
+  const snapshot = useActiveSessionSnapshot();
+  const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  useDesktopBridge(isBusy(snapshot), snapshot.messages, title);
+  return null;
+}
+
 function Workspace() {
   const aui = useAui({ tools: Tools({ toolkit }) });
   const results = useResultsPanel();
@@ -242,6 +252,7 @@ function Workspace() {
   return (
     <AuiProvider value={aui}>
       <ResultsContext.Provider value={context}>
+      <DesktopBridge />
       <SidebarProvider>
         <div className="flex h-dvh w-full">
           <AppSidebar />

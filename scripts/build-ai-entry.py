@@ -23,7 +23,7 @@ LINE_URL = "https://line.me/R/ti/p/@pearnly"
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sriracha&display=swap" rel="stylesheet">')
 BRAND_ICON = ('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" '
-              'stroke-linejoin="round" aria-hidden="true"><path d="M7 18l-4 3V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7z"/></svg>')
+              'stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>')
 MAIL_ICON = ('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f5e5a" stroke-width="1.9" stroke-linecap="round" '
              'stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>')
 YOUTUBE_ICON = ('<svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4.5" fill="#ff0033"/>'
@@ -90,14 +90,14 @@ SCENE = scene("wide", "0 0 1200 300", "M40 286 H1160", [
     sparkle(96, 120, 0.9, "s1"), sparkle(470, 74, 0.7, "s2"), sparkle(660, 128, 0.9, "s3"), sparkle(1160, 160, 0.8, "s4"),
     receipt(628, 204, -14, "r1"), receipt(1128, 214, 12, "r2"), plane(860, 30, "p1"),
     stand(150, 286, 0.95, "pencil", "cowork"), stand(345, 286, 0.95, "camera", "dms"),
-    stand(535, 286, 0.95, "basket", "erp"), stand(745, 286, 1.2, "plane", "ai"),
+    stand(535, 286, 0.95, "basket", "erp"), stand(745, 286, 1.2, "none", "ai"),
     stand(985, 286, 1.55, "stamp", "mrerp")]) + scene(
     "phone", "0 0 620 330", "M10 316 H610", [
     bubble(66, 150, 70, 38, DOTS, "typing"), bubble(186, 170, 66, 44, PHOTO, "b2"), bubble(286, 120, 92, 42, MONEY, "b3"),
     bubble(566, 40, 70, 44, CHART, "b4"), sparkle(26, 150, 0.8, "s1"), sparkle(452, 110, 0.7, "s2"), sparkle(608, 130, 0.7, "s4"),
     plane(430, 62, "p1"),
     stand(52, 316, 0.74, "pencil", "cowork", 7), stand(160, 316, 0.74, "camera", "dms", 7),
-    stand(270, 316, 0.74, "basket", "erp", 7), stand(390, 316, 0.95, "plane", "ai", 7),
+    stand(270, 316, 0.74, "basket", "erp", 7), stand(390, 316, 0.95, "none", "ai", 7),
     stand(530, 316, 1.18, "stamp", "mrerp", 7)])
 
 # ---------------- 样式：宣传页的底色、点阵、记号笔与按钮；也给 Keycloak 流程页的表单类名上样式 ----------------
@@ -141,9 +141,11 @@ box-shadow:0 1px 2px rgba(20,20,19,.2),inset 0 1px 0 rgba(255,255,255,.08);trans
 .contacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px}
 .contacts a{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-size:13px;text-decoration:none;padding:2px 0;border-bottom:1px solid transparent}
 .contacts a:hover{border-bottom-color:var(--line-strong)}
-.hm-typing,.hm-spark{transform-box:fill-box;transform-origin:center}
-.hm-typing{animation:typing 1.2s infinite}.hm-typing.t1{animation-delay:.15s}.hm-typing.t2{animation-delay:.3s}
+.hm-spark{transform-box:fill-box;transform-origin:center}
 .hm-spark{animation:twinkle 2.2s ease-in-out infinite}
+.hm-laugh{opacity:0}.hm-ai .hm-calm,.hm-ai .hm-laugh{animation:tomo-calm 8s infinite}.hm-ai .hm-laugh{animation-name:tomo-laugh}
+@keyframes tomo-calm{0%,72%,92%,100%{opacity:1}75%,89%{opacity:0}}@keyframes tomo-laugh{0%,72%,92%,100%{opacity:0}75%,89%{opacity:1}}
+.hm-ai:hover .hm-calm,.hm.hm-laughing .hm-calm{animation:none;opacity:0}.hm-ai:hover .hm-laugh,.hm.hm-laughing .hm-laugh{animation:none;opacity:1}
 .or{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:var(--faint);font-size:12.5px}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .who{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 6px 0 14px;border-radius:12px;background:var(--soft);margin-bottom:10px;font-size:15px;color:var(--ink)}
@@ -212,10 +214,10 @@ if(!reduce){addEventListener('pointermove',function(e){mouse.tx=e.clientX;mouse.
 document.addEventListener('visibilitychange',function(){if(!document.hidden)requestAnimationFrame(draw)})}}
 var scene=document.querySelector('.scene'),all=[].slice.call(document.querySelectorAll('.hm'));
 function play(m,cls,ms){m.classList.remove(cls);void m.getBoundingClientRect();m.classList.add(cls);setTimeout(function(){m.classList.remove(cls)},ms||1200)}
-function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
-window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000)},i*120)})};
+function act(m){var k=m.getAttribute('class');if(k.indexOf('hm-ai')>=0)return 'hm-laughing';if(k.indexOf('hm-dms')>=0)return 'hm-snap';if(k.indexOf('hm-erp')>=0)return 'hm-beep';return Math.random()<.5?'hm-hopping':'hm-cheer'}
+window.pearnlyCheer=function(){all.forEach(function(m,i){setTimeout(function(){play(m,'hm-cheer',2000);play(m,'hm-laughing',2000)},i*120)})};
 if(!reduce){setInterval(function(){var m=all[Math.floor(Math.random()*all.length)];if(m&&m.getBoundingClientRect().width)play(m,act(m),1400)},2600)}
-all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700)})});
+all.forEach(function(m){m.style.cursor='pointer';m.addEventListener('click',function(){play(m,'hm-hopping',700);play(m,'hm-laughing',1400)})});
 document.addEventListener('focusin',function(e){if(scene&&e.target.type==='password')scene.classList.add('shy')});
 document.addEventListener('focusout',function(e){if(scene&&e.target.type==='password')scene.classList.remove('shy')});
 var looks=[].slice.call(document.querySelectorAll('.hm .m-look')),px=0,py=0,q=false;
@@ -232,13 +234,13 @@ GENERATED = "生成文件：改设计请改 scripts/build-ai-entry.py 后重新�
 PAGE_HTML = """<!doctype html>
 <!-- """ + GENERATED + """ -->
 <html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pearnly</title><meta name="robots" content="noindex">""" + FONTS + """
+<title>Tomo</title><meta name="robots" content="noindex">""" + FONTS + """
 <style>""" + CSS + """</style></head>
 <body>
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand"><span class="mark">""" + BRAND_ICON + """</span>Pearnly</span>
+    <span class="brand"><span class="mark">""" + BRAND_ICON + """</span>Tomo</span>
     <nav class="langs" aria-label="Language">{% for code, label in langs %}<a href="#" data-lang="{{ code }}"{% if code == lang %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</nav>
   </header>
   <section class="hero">
@@ -308,7 +310,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false resetResult=false>
 <!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pearnly</title><meta name="robots" content="noindex">""" + FONTS + """
+<title>Tomo</title><meta name="robots" content="noindex">""" + FONTS + """
 <link href="${url.resourcesPath}/css/ai.css" rel="stylesheet" />
 <#if scripts??><#list scripts as script><script src="${script}" type="text/javascript"></script></#list></#if>
 <script src="${url.resourcesPath}/js/ai.js" defer></script>
@@ -317,7 +319,7 @@ TEMPLATE_FTL = """<#-- """ + GENERATED + """ -->
 <canvas class="dots" aria-hidden="true"></canvas>""" + DEFS + """
 <div class="page">
   <header class="top">
-    <span class="brand"><span class="mark">""" + BRAND_ICON + """</span>Pearnly</span>
+    <span class="brand"><span class="mark">""" + BRAND_ICON + """</span>Tomo</span>
     <#if realm.internationalizationEnabled && locale.supported?size gt 1>
     <nav class="langs" aria-label="Language"><#list ["th", "zh-CN", "en"] as want><#list locale.supported as l><#if l.languageTag == want><a href="${l.url}" class="<#if l.languageTag == locale.currentLanguageTag>on</#if>">${pnLangShort(l.languageTag)}</a></#if></#list></#list></nav>
     </#if>
