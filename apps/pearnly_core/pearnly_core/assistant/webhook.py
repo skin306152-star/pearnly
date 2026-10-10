@@ -33,7 +33,8 @@ def _reply(status: int, text: str):
 def receive():
     secret = frappe.conf.get("pearnly_assistant_webhook_secret")
     if not secret:
-        return _reply(404, "not_configured")
+        # 还没配密钥（刚在控制台登记、密钥还没写进站点配置）：回 200，免得引擎把连续失败的地址自动停用
+        return {"status": "not_configured"}
     body = frappe.request.get_data(as_text=True)
     headers = dict(frappe.request.headers)
     try:
