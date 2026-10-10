@@ -11,6 +11,7 @@
 - 只推给会话主人自己的房间，内容与「列出事件」相同，另加回复的逐字预览。推送带的是浏览器认的对话编号
   （分段接续后远端会话换了，对话编号不变，见 `sessions`）。
 - 顺手记下每次模型请求的输入量（`context.note`），供计价分档的接续判断。
+- 智能体停下来等 Pearnly 工具结果时，直接在服务端以会话主人的身份执行（`toolrun`），不靠页面开着。
 """
 import threading
 import time
@@ -18,7 +19,7 @@ import uuid
 
 import frappe
 
-from pearnly_core.assistant import context, engine
+from pearnly_core.assistant import context, engine, toolrun
 
 EVENT = "pearnly_assistant_event"
 LOCK_TTL = 120
@@ -51,12 +52,22 @@ def finished(event: dict) -> bool:
     return kind == "session.status_idle" and (event.get("stop_reason") or {}).get("type") != "requires_action"
 
 
+def pending_tools(event: dict) -> list[str]:
+    """停下来等结果的调用编号（空闲且原因是等待处理）。"""
+    stop = event.get("stop_reason") or {}
+    if event.get("type") != "session.status_idle" or stop.get("type") != "requires_action":
+        return []
+    return [str(i) for i in stop.get("event_ids") or []]
+
+
 def _run(site, sites_path, conversation, remote, user, key, token, ready):
     frappe.init(site=site, sites_path=sites_path)
     try:
         frappe.connect()
+        frappe.set_user(user)  # 工具以会话主人的身份执行
         api = engine.adapter()
         deadline = time.monotonic() + MAX_SECONDS
+        calls = {}
         for _attempt in range(RECONNECTS + 1):
             try:
                 for event in api.stream(remote, ready.set):
@@ -64,6 +75,11 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
                     frappe.cache.expire(key, LOCK_TTL)
                     if event.get("type") == "span.model_request_end" and context.note(conversation, [event]):
                         frappe.db.commit()
+                    if event.get("type") == "agent.custom_tool_use":
+                        calls[event.get("id")] = event
+                    for use_id in pending_tools(event):
+                        if use_id in calls:
+                            toolrun.execute(conversation, remote, calls.pop(use_id))
                     if finished(event) or time.monotonic() > deadline:
                         return
             except Exception as err:

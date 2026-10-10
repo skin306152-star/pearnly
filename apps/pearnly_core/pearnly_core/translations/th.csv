@@ -657,6 +657,7 @@ The service account could not exchange its token: {0},บัญชีบริ�
 The subscription could not be activated,ไม่สามารถเปิดใช้แพ็กเกจได้
 "The target environment is incomplete: URL, realm, client ID and secret are all required","การตั้งค่าสภาพแวดล้อมเป้าหมายไม่ครบ: ต้องกรอกที่อยู่, realm, Client ID และ Secret"
 The test for a duplicate upload of the same document,เกณฑ์ตรวจการอัปโหลดเอกสารเดิมซ้ำ
+The tool failed. Try again later.,เครื่องมือทำงานไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
 The total is calculated automatically.,ระบบคำนวณยอดรวมอัตโนมัติ
 "The truth is in erp_push_logs, trigger=id_card",ยึดตาม erp_push_logs (trigger=id_card)
 The truth is in erp_push_logs; this is only a display reference,ยึดตาม erp_push_logs ที่นี่ใช้แสดงผลเท่านั้น

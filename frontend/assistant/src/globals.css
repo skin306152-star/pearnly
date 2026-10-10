@@ -151,3 +151,15 @@
 .hm-laser { opacity: .35; }
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
+
+/* 等待中的三个点（components/typing-dots.tsx）：同智能体小人胸前的三个点，黑色深 → 浅，依次跳起 */
+.typing-dots { display: inline-flex; align-items: center; gap: 6px; height: 1.65rem; vertical-align: middle; }
+.typing-dots i { width: 9px; height: 9px; border-radius: 50%; background: #1a1a18; animation: typing-hop 1.2s ease-in-out infinite; }
+.typing-dots i:nth-child(2) { opacity: .72; animation-delay: .15s; }
+.typing-dots i:nth-child(3) { opacity: .42; animation-delay: .3s; }
+.typing-dots-sm { gap: 3px; height: auto; }
+.typing-dots-sm i { width: 5px; height: 5px; }
+@keyframes typing-hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+.typing-dots-sm i { animation-name: typing-hop-sm; }
+@keyframes typing-hop-sm { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .typing-dots i { animation: none; } }

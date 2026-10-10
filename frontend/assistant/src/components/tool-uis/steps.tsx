@@ -11,7 +11,6 @@ import {
   FilePlusIcon,
   FolderSearchIcon,
   GlobeIcon,
-  LoaderIcon,
   ScanSearchIcon,
   SearchIcon,
   TerminalIcon,
@@ -23,6 +22,7 @@ import { useToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 import { steps } from "@/i18n";
 import { ApprovalBar } from "./approval-bar";
+import { TypingDots } from "@/components/typing-dots";
 
 type Args = Record<string, unknown> | undefined;
 type Step = { icon: typeof FileIcon; verb: string; target?: string; input?: string; showOutput: boolean };
@@ -103,7 +103,7 @@ export const StepRow: ToolCallMessagePartComponent = ({
         className="group/step flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left text-[#5b5950] text-sm enabled:hover:bg-[#f5f4ef]"
       >
         {running ? (
-          <LoaderIcon className="size-3.5 shrink-0 animate-spin" />
+          <TypingDots size="sm" className="w-3.5 shrink-0 justify-center" />
         ) : (
           <Icon className={cn("size-3.5 shrink-0", errored && "text-red-500")} />
         )}
@@ -166,7 +166,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
         onClick={() => setOpen((o) => !o)}
         className="flex max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-[#5b5950] text-sm enabled:hover:text-[#1a1a18]"
       >
-        {running && <LoaderIcon className="size-3.5 shrink-0 animate-spin" />}
+        {running && <TypingDots size="sm" className="shrink-0" />}
         <span className="truncate">{title}</span>
         {tools.length > 0 && <ChevronRightIcon className={cn("size-3.5 shrink-0 transition", open && "rotate-90")} />}
       </button>

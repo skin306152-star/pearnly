@@ -657,6 +657,7 @@ The service account could not exchange its token: {0},サービスアカウン�
 The subscription could not be activated,プランを有効化できませんでした
 "The target environment is incomplete: URL, realm, client ID and secret are all required",対象環境の設定が不完全です。URL、realm、クライアントID、シークレットのすべてが必要です
 The test for a duplicate upload of the same document,同じ伝票を二重アップロードしたときの判定基準
+The tool failed. Try again later.,ツールの実行に失敗しました。しばらくしてからもう一度お試しください。
 The total is calculated automatically.,合計金額は自動計算されます。
 "The truth is in erp_push_logs, trigger=id_card",真値は erp_push_logs、trigger=id_card
 The truth is in erp_push_logs; this is only a display reference,真値は erp_push_logs。ここは表示用の参照のみ

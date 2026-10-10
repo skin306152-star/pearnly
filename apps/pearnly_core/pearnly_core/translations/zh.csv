@@ -657,6 +657,7 @@ The service account could not exchange its token: {0},服务账号换取令牌�
 The subscription could not be activated,套餐未能开通
 "The target environment is incomplete: URL, realm, client ID and secret are all required",目标环境配置不完整：地址、realm、客户端 ID 和密钥均为必填项
 The test for a duplicate upload of the same document,判定同一单据重复上传的依据
+The tool failed. Try again later.,工具执行失败，请稍后再试。
 The total is calculated automatically.,合计金额自动计算。
 "The truth is in erp_push_logs, trigger=id_card",以 erp_push_logs（trigger=id_card）为准
 The truth is in erp_push_logs; this is only a display reference,以 erp_push_logs 为准，此处仅作展示

@@ -8,10 +8,11 @@ import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-s
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
 import { StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { t } from "@/i18n";
+import { steps, t } from "@/i18n";
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -358,15 +359,7 @@ const AssistantMessage: FC = () => {
               case "data":
                 return part.dataRendererUI;
               case "indicator":
-                return (
-                  <span
-                    data-slot="aui_assistant-message-indicator"
-                    className="animate-pulse font-sans"
-                    aria-label="Assistant is working"
-                  >
-                    {"●"}
-                  </span>
-                );
+                return <TypingDots label={steps.thinking} />;
               default:
                 return null;
             }

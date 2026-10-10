@@ -105,7 +105,7 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("config", "tools", "definition", "engine", "context", "relay"):
+    for part in ("config", "tools", "definition", "engine", "context", "toolrun", "relay"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -286,11 +286,23 @@ class RelayTests(unittest.TestCase):
 
     def test_user_side_actions_attach_the_relay_before_posting(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
-        for name in ("send", "confirm", "run_tool"):
+        for name, action in (("send", ".post("), ("confirm", ".post("), ("run_tool", "toolrun.execute(")):
             body = source.split(f"def {name}(", 1)[1].split("\ndef ", 1)[0]
-            self.assertLess(body.index("relay.ensure("), body.index(".post("), name)
+            self.assertLess(body.index("relay.ensure("), body.index(action), name)
         relay_source = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
         self.assertNotIn("sessions", relay_source.split('"""', 2)[2])  # 不与 sessions 互相导入
+
+    def test_relay_runs_pending_tools_itself(self):
+        relay = sys.modules["pearnly_core.assistant.relay"]
+        idle = {"type": "session.status_idle", "stop_reason": {"type": "requires_action", "event_ids": ["sevt_a1b2c3d4"]}}
+        self.assertEqual(relay.pending_tools(idle), ["sevt_a1b2c3d4"])
+        self.assertEqual(relay.pending_tools({"type": "session.status_idle", "stop_reason": {"type": "end_turn"}}), [])
+        source = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
+        self.assertIn("frappe.set_user(user)", source)  # 以会话主人的身份执行
+        self.assertIn("toolrun.execute(", source)
+        run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
+        self.assertIn("DuplicateEntryError", run)  # 推送线程与页面兜底谁先到谁执行，只执行一遍
+        self.assertIn("except Exception", run)  # 意外出错也回结果，不让会话卡住
 
     def test_new_turns_and_uploads_go_to_the_current_segment(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")

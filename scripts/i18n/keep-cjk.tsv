@@ -161,3 +161,5 @@ apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	_ผลลัพ�
 apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py	_Pearnly結果	约定：结果文件夹四语名，按建规则的人的网页语言取一个、记在规则上；小助手扫描时一律跳过，所以不放翻译包（译文改了，盘上已有的文件夹仍要认得）
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/defaults.py	*	数据：MR.ERP 导入报告里「主档找不到」的泰文原文（按原字面比对）与 Pearnly 自建的现金客户 / 供应商码，不进界面
 apps/pearnly_cowork/pearnly_cowork/targets/mrerp_masters.py	เงินฝาก	数据：按科目名称前缀认出存款科目（MR.ERP 科目表原文），不进界面
+apps/pearnly_control/pearnly_control/www/ai.py	ไทย	语言切换里用该语言自己的文字写的语言名，不翻译（智能体入口 ADR-019）
+apps/pearnly_control/pearnly_control/www/ai.py	中文	语言切换里用该语言自己的文字写的语言名，不翻译（智能体入口 ADR-019）

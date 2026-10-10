@@ -655,6 +655,7 @@ The service account could not exchange its token: {0},The service account could 
 The subscription could not be activated,The subscription could not be activated
 "The target environment is incomplete: URL, realm, client ID and secret are all required","The target environment is incomplete: URL, realm, client ID and secret are all required"
 The test for a duplicate upload of the same document,The test for a duplicate upload of the same document
+The tool failed. Try again later.,The tool failed. Try again later.
 The total is calculated automatically.,The total is calculated automatically.
 "The truth is in erp_push_logs, trigger=id_card","The truth is in erp_push_logs, trigger=id_card"
 The truth is in erp_push_logs; this is only a display reference,The truth is in erp_push_logs; this is only a display reference

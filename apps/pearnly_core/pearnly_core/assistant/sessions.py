@@ -5,8 +5,8 @@
 - 聊天记录本身存在引擎那边的会话里：网页、桌面、手机打开的是同一个会话，所以天然同步。
   后台换了引擎，旧引擎的会话不再列出（编号在新引擎里没有意义）。
 - 新事件经实时通道推给会话主人（`relay`）：每次用户一侧发出前先确保本会话的转发已接上。
-- 工具调用由服务端执行（`tools`），浏览器只负责「提醒有待办」；同一次调用靠 `Pearnly Assistant Tool Run`
-  的唯一编号只执行一遍。
+- 工具调用由服务端执行（`toolrun`）：推送线程看到就直接执行，页面提醒只作兜底；同一次调用靠
+  `Pearnly Assistant Tool Run` 的唯一编号只执行一遍。
 
 上下文接续（计价分档）：一个对话在引擎那边可以由几段会话接成（`remote_ids`，旧 → 新），浏览器始终只认第一段的
 编号。所选模型有计价分档（`engines.context_limit`）时，记下最近一次模型请求的输入量（`context_tokens`）；
@@ -18,10 +18,9 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import config, context, contracts, engine, engines, relay, tools
+from pearnly_core.assistant import config, context, contracts, engine, engines, relay, toolrun
 
 SESSION = context.SESSION
-TOOL_RUN = "Pearnly Assistant Tool Run"
 LIST_LIMIT = 100
 FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry"]
@@ -193,27 +192,15 @@ def interrupt(session_id) -> None:
 
 
 def run_tool(session_id, tool_use_id) -> dict:
-    """执行一次自定义工具调用。调用内容从引擎读回，不信浏览器传来的工具名或参数。"""
+    """兜底：页面提醒执行一次自定义工具调用（通常推送线程已先执行）。调用内容从引擎读回，不信浏览器给的工具名或参数。"""
     row = owned(session_id)
     use_id = _guard(contracts.event_id, tool_use_id)
-    api = engine.adapter()
     remote = current(row)
-    recent = contracts.since(api.events(remote, newest_first=True), use_id) or []
+    recent = contracts.since(engine.adapter().events(remote, newest_first=True), use_id) or []
     call = recent[0] if recent and recent[0].get("type") == "agent.custom_tool_use" else None
     if not call:
         frappe.throw(_("Tool call not found"), frappe.DoesNotExistError)
     if use_id in contracts.answered_tool_uses(recent):
         return {"status": "answered"}
-    try:
-        run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": row.session_id,
-                              "user": frappe.session.user, "tool": call.get("name") or "", "status": "running"})
-        run.insert(ignore_permissions=True)
-        frappe.db.commit()
-    except frappe.DuplicateEntryError:
-        frappe.db.rollback()
-        return {"status": "running"}
-    text, is_error = tools.run(call.get("name"), call.get("input"))
     relay.ensure(row.session_id, remote, frappe.session.user)
-    api.post(remote, [contracts.tool_result(use_id, text, is_error)])
-    frappe.db.set_value(TOOL_RUN, run.name, "status", "error" if is_error else "done")
-    return {"status": "error" if is_error else "done"}
+    return {"status": toolrun.execute(row.session_id, remote, call)}
