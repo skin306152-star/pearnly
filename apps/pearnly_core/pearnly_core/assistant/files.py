@@ -104,9 +104,27 @@ def add_to_conversation(filename: str, content: bytes, mime: str) -> str:
     return api.attach(sessions.current(row), name, content, mime)["path"]
 
 
+def _resolve(ref) -> str:
+    """模型给的可能是编号，也可能是沙箱里的挂载路径（`/mnt/session/uploads/<编号>/<文件名>`）或文件名
+    （2026-10-10 测试：先传路径被拒、再传编号，多绕一轮）：按本对话的附件认成编号；认不出原样返回。"""
+    text = str(ref or "").strip()
+    known = attachments()
+    ids = {item["file_id"] for item in known}
+    if text in ids:
+        return text
+    parts = [part for part in text.split("/") if part]
+    for part in parts:
+        if part in ids:
+            return part
+    name = parts[-1] if parts else text
+    named = [item["file_id"] for item in known if item["filename"] == name]
+    return named[-1] if named else text
+
+
 def attachment(file_id) -> tuple[str, bytes]:
-    """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。"""
-    fid = sessions._guard(contracts.file_id, file_id)
+    """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。
+    编号、挂载路径、文件名都认（`_resolve`）。"""
+    fid = sessions._guard(contracts.file_id, _resolve(file_id))
     for entry, read in _kept(fid):
         if entry.startswith(fid + "--"):
             return entry[len(fid) + 2:], read()

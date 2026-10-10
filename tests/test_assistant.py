@@ -354,6 +354,9 @@ class RelayTests(unittest.TestCase):
             files._keep(types.SimpleNamespace(name="row2"), "file_B", "6800951.jpg", b"jpeg-bytes")  # 同内容再发一次
             frappe.local.pearnly_assistant = {"session_id": "s1"}
             self.assertEqual(files.attachment("file_A"), ("6800951.jpg", b"jpeg-bytes"))
+            # 挂载路径、文件名也认成本对话的那个附件
+            self.assertEqual(files.attachment("/mnt/session/uploads/file_A/6800951.jpg")[0], "6800951.jpg")
+            self.assertEqual(files.attachment("6800951.jpg")[0], "6800951.jpg")
             self.assertEqual(files.attachments(), [{"file_id": "file_A", "filename": "6800951.jpg"}])
             with self.assertRaises(Exception):
                 files.attachment("file_B")  # 另一个对话的附件拿不到
