@@ -216,6 +216,8 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertFalse(out["needs_review"])
         self.assertNotIn("billing", out)  # 刚存完那一刻的「待扣」会被模型说成扣了两次
         self.assertNotIn("currency", doc)  # 空项不给
+        self.assertEqual(doc["push_target"], "not chosen yet")  # 仅识别不说成「不推送」
+        self.assertNotIn("intake_target", doc)
 
     def test_wrong_ids_and_unsupported_files_are_explained_not_attempted(self):
         missing = json.loads(tools.recognize_attachments({"files": ["file_gone"]}))["results"][0]

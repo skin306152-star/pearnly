@@ -109,7 +109,9 @@ function useSessionThreadRuntime() {
     adapters: { attachments },
 
     onNew: async (message: AppendMessage) => {
-      const isFirst = !sessionId;
+      // 按「还没有用户消息」判断首条：先加附件时会话在上传那一刻就建好了，按「有没有会话」判断会漏掉取标题，
+      // 侧栏一直是「新对话」（2026-10-10 测试）。
+      const isFirst = !snapshot.messages.some((m) => m.role === "user");
       const id = await ensureSession();
       const text = textOf(message);
       await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments));

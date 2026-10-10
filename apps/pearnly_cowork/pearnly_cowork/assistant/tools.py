@@ -218,6 +218,11 @@ def _admit(file_id, choices) -> dict:
     return {"file": file_id, "filename": filename, "batch": batch["name"]}
 
 
+def _push_target(doc) -> dict:
+    """录入口径里「仅识别」在库里记作 intake_target=none，模型会说成「推送目标：不推送」；只说还没选推送去哪。"""
+    return {} if doc.get("push_connection") else {"push_target": "not chosen yet"}
+
+
 def _filled(values: dict) -> dict:
     """空值不给：模型会把「币种：未识别到」之类的空项当成要说的事。"""
     return {key: value for key, value in values.items() if value not in (None, "", [], {})}
@@ -240,8 +245,8 @@ def _document(name) -> dict:
     doc = storage.project(storage.read(name))
     page = history_contracts.primary_page_fields(doc.get("pages") or [])
     out = {key: doc.get(key) for key in ("name", "invoice_no", "invoice_date", "seller_name", "total_amount",
-                                          "posting_kind", "intake_target", "push_connection", "push_account_set",
-                                          "duplicate_warning")}
+                                          "posting_kind", "push_connection", "push_account_set", "duplicate_warning")}
+    out.update(_push_target(doc))
     out.update({key: page.get(key) for key in ("document_type", "seller_tax", "seller_branch", "buyer_name",
                                                 "buyer_tax", "subtotal", "vat", "discount", "wht_amount", "currency")})
     out["items"] = (page.get("items") or [])[:ITEMS_SHOWN]
@@ -355,7 +360,7 @@ def _detail(doc) -> dict:
     out = {"document": doc.get("name"), "version": doc.get("record_version"), "filename": doc.get("filename"),
            "push_status": doc.get("last_push_status"), "push_reason": doc.get("last_push_reason"),
            "push_connection": doc.get("push_connection"), "push_account_set": doc.get("push_account_set"),
-           "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages)}
+           "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages), **_push_target(doc)}
     out.update({key: fields.get(key) for key in DETAIL_FIELDS})
     out["items"] = [_filled({key: row.get(key) if key != "subtotal" else row.get("subtotal", row.get("amount"))
                              for key in ITEM_COLUMNS}) for row in (fields.get("items") or [])[:ITEMS_SHOWN]
