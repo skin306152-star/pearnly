@@ -20,6 +20,7 @@ import {
   getSession,
   listSessions,
   renameSession,
+  starSession,
 } from "./api";
 import type { SessionSummary } from "./events";
 import { dropSessionController } from "./session-controller";
@@ -30,6 +31,7 @@ const toThreadMetadata = (s: SessionSummary) => ({
   externalId: s.id,
   title: s.title ?? undefined,
   lastMessageAt: s.updated_at ? new Date(s.updated_at) : undefined,
+  custom: { starred: !!s.starred },
 });
 
 export const sessionListAdapter: RemoteThreadListAdapter = {
@@ -51,6 +53,11 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
 
   async rename(remoteId, newTitle) {
     await renameSession(remoteId, newTitle);
+  },
+
+  // 加星标存在本站会话表（只是整理标记）；列表按它把会话放进「已加星标」分组。
+  async updateCustom(remoteId, custom) {
+    await starSession(remoteId, !!custom?.starred);
   },
 
   async archive(remoteId) {

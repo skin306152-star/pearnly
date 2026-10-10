@@ -7,7 +7,8 @@
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
-import { FilesIcon, MessageSquareIcon } from "lucide-react";
+import { ChevronsUpDownIcon, FilesIcon, LogOutIcon, MessageSquareIcon } from "lucide-react";
+import { DropdownMenu } from "radix-ui";
 import { useEffect, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { Mascot } from "@/components/mascot";
@@ -58,18 +59,49 @@ function SessionStatusBar() {
   );
 }
 
+async function signOut() {
+  // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出）。
+  const res = await fetch("/api/method/pearnly_core.identity.sign_out", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+  });
+  const body = (await res.json().catch(() => null)) as { message?: { redirect_url?: string } } | null;
+  location.href = body?.message?.redirect_url || "/";
+}
+
 function UserFooter() {
   const profile = useProfile();
   if (!profile) return null;
   const initials = (profile.full_name || profile.user).trim().slice(0, 2).toUpperCase();
   return (
-    <div className="flex items-center gap-2.5 px-1 py-1">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-xs">{initials}</div>
-      <div className="min-w-0 truncate text-sm">
-        {profile.full_name || profile.user}
-        <span className="text-muted-foreground"> · {profile.product_label}</span>
-      </div>
-    </div>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger className="flex w-full items-center gap-2.5 rounded-md px-1 py-1 text-start outline-none hover:bg-muted data-[state=open]:bg-muted">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-xs">{initials}</div>
+        <div className="min-w-0 flex-1 truncate text-sm">
+          {profile.full_name || profile.user}
+          <span className="text-muted-foreground"> · {profile.product_label}</span>
+        </div>
+        <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          side="top"
+          align="start"
+          sideOffset={6}
+          className="z-[60] min-w-(--radix-dropdown-menu-trigger-width) rounded-xl border bg-white p-1.5 shadow-lg"
+        >
+          <div className="truncate px-2.5 py-1.5 text-muted-foreground text-xs">{profile.user}</div>
+          <DropdownMenu.Item
+            onSelect={() => void signOut()}
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted"
+          >
+            <LogOutIcon className="size-4" />
+            {t("logout")}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

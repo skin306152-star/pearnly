@@ -260,6 +260,9 @@ class PageTests(unittest.TestCase):
             meta = json.loads((CORE / f"pearnly_core/doctype/{name}/{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(meta["permissions"], [{"role": "System Manager", "read": 1}])
             self.assertTrue(any(f.get("unique") for f in meta["fields"]))
+        session = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_session/pearnly_assistant_session.json")
+                             .read_text(encoding="utf-8"))
+        self.assertIn("starred", [f["fieldname"] for f in session["fields"]])
 
 
 class BrandAndLoginTests(unittest.TestCase):

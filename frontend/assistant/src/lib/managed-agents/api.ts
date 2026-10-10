@@ -21,6 +21,10 @@ export async function renameSession(id: string, title: string): Promise<void> {
   await post("rename", { session_id: id, title });
 }
 
+export async function starSession(id: string, starred: boolean): Promise<void> {
+  await post("star", { session_id: id, starred: starred ? 1 : 0 });
+}
+
 export async function archiveSession(id: string): Promise<void> {
   await post("archive", { session_id: id });
 }

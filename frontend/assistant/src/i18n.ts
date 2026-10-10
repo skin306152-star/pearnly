@@ -2,6 +2,11 @@
 
 const MESSAGES = {
   en: {
+    starred: "Starred",
+    star: "Star",
+    unstar: "Unstar",
+    rename: "Rename",
+    logout: "Log out",
     files: "Files",
     preview: "Preview",
     source: "Code",
@@ -41,6 +46,11 @@ const MESSAGES = {
     sidebar: "Toggle sidebar",
   },
   zh: {
+    starred: "已加星标",
+    star: "加星标",
+    unstar: "取消星标",
+    rename: "重命名",
+    logout: "退出登录",
     files: "文件",
     preview: "预览",
     source: "代码",
@@ -80,6 +90,11 @@ const MESSAGES = {
     sidebar: "切换侧栏",
   },
   th: {
+    starred: "ติดดาว",
+    star: "ติดดาว",
+    unstar: "เลิกติดดาว",
+    rename: "เปลี่ยนชื่อ",
+    logout: "ออกจากระบบ",
     files: "ไฟล์",
     preview: "ตัวอย่าง",
     source: "โค้ด",

@@ -109,9 +109,13 @@ function useSessionThreadRuntime() {
     adapters: { attachments },
 
     onNew: async (message: AppendMessage) => {
+      const isFirst = !sessionId;
       const id = await ensureSession();
       const text = textOf(message);
       await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments));
+      // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；
+      // 服务端在第一条消息时已定好标题，这里直接取回，侧栏立刻显示。
+      if (isFirst) void aui.threadListItem().generateTitle();
     },
 
     // Stop button: a real interrupt, not just dropping the response.

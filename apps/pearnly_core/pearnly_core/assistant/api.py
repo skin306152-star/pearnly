@@ -25,6 +25,11 @@ def rename(session_id, title):
 
 
 @frappe.whitelist(methods=["POST"])
+def star(session_id, starred=0):
+    sessions.star(session_id, frappe.utils.cint(starred) == 1)
+
+
+@frappe.whitelist(methods=["POST"])
 def archive(session_id):
     sessions.archive(session_id)
 

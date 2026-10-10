@@ -58,7 +58,7 @@ export type RelayEnvelope =
 export type SessionSummary = Pick<
   ManagedAgentsSession,
   "id" | "title" | "status" | "created_at" | "updated_at" | "archived_at"
->;
+> & { starred?: boolean };
 
 export const CUSTOM_TOOL_ACK_TEXT = "Rendered to the user in the chat.";
 

@@ -34,21 +34,21 @@ def _user() -> str:
 def owned(session_id, allow_archived=False) -> dict:
     sid = _guard(contracts.session_id, session_id)
     row = frappe.db.get_value(SESSION, {"session_id": sid, "user": _user()},
-                              ["name", "session_id", "title", "archived", "creation", "modified"], as_dict=True)
+                              ["name", "session_id", "title", "starred", "archived", "creation", "modified"], as_dict=True)
     if not row or (row.archived and not allow_archived):
         frappe.throw(_("Conversation not found"), frappe.DoesNotExistError)
     return row
 
 
 def _summary(row, status="idle") -> dict:
-    return {"id": row.session_id, "title": row.title or "", "status": status,
+    return {"id": row.session_id, "title": row.title or "", "status": status, "starred": bool(row.get("starred")),
             "created_at": str(row.creation), "updated_at": str(row.modified),
             "archived_at": str(row.modified) if row.archived else None}
 
 
 def listing(archived=False) -> dict:
     rows = frappe.get_all(SESSION, filters={"user": _user(), "archived": 1 if archived else 0},
-                          fields=["name", "session_id", "title", "archived", "creation", "modified"],
+                          fields=["name", "session_id", "title", "starred", "archived", "creation", "modified"],
                           order_by="modified desc", limit=LIST_LIMIT)
     return {"sessions": [_summary(row) for row in rows], "nextCursor": None}
 
@@ -75,6 +75,12 @@ def rename(session_id, title) -> None:
     title = contracts.title_from(title)
     frappe.db.set_value(SESSION, row.name, "title", title)
     anthropic_client.client().beta.sessions.update(row.session_id, title=title)
+
+
+def star(session_id, starred) -> None:
+    """加星标 / 取消：只是本站的整理标记，不动 Anthropic 那边的会话。"""
+    row = owned(session_id)
+    frappe.db.set_value(SESSION, row.name, "starred", 1 if starred else 0, update_modified=False)
 
 
 def archive(session_id) -> None:
