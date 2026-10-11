@@ -582,12 +582,24 @@ class ReconTests(unittest.TestCase):
         jobs.status = lambda job: {"state": "done", "stage": "done", "task": "T1",
                                    "files": [{"pages": 3, "done": 3}]}
         api = types.ModuleType("pearnly_cowork.recon_center.api")
-        rows = [{"match_status": "matched", "record_id": "r"}] * 250 + [{"match_status": "stmt_deposit_only", "amount": 5}]
+        rows = ([{"match_status": "matched", "record_id": "r", "match_layer": 1, "stmt_deposit": 10, "gl_debit": 10}] * 247
+                # L6：两笔刷卡毛额 − 总账实际手续费 = 银行到账（同一组）
+                + [{"match_status": "matched", "match_layer": 6, "group_no": 7, "stmt_deposit": "14782.29"},
+                   {"match_status": "matched", "match_layer": 6, "group_no": 7, "gl_debit": "15093.58"},
+                   {"match_status": "matched", "match_layer": 6, "group_no": 7, "gl_credit": "311.29"}]
+                + [{"match_status": "stmt_deposit_only", "amount": 5}])
         api.detail = lambda kind, task, start, limit: {"rows": rows[start:start + limit], "total": len(rows),
                                                        "summary": {"matched_count": 250}}
         sheets = types.ModuleType("pearnly_cowork.recon_center.sheets")
         sheets.load = lambda kind, task, lang: {"task": {"name": task, "title": "BBL Feb", "status": "completed",
                                                          "questions": [{"rule": "card_fee"}]}, "sheets": ["big"]}
+        labels = types.ModuleType("pearnly_cowork.reconciliation.export.labels")
+        labels.layer_label = lambda layer, lang: {1: "L1-วันที่ตรงกัน", 6: "L6-card net (ledger)"}.get(layer, "")
+        export = types.ModuleType("pearnly_cowork.reconciliation.export")
+        export.labels = labels
+        sys.modules["pearnly_cowork.reconciliation.export"] = export
+        sys.modules["pearnly_cowork.reconciliation.export.labels"] = labels
+        mods["pearnly_cowork.reconciliation"].export = export
         bank = types.ModuleType("pearnly_cowork.reconciliation.bank_recon_service")
         bank.export = lambda task, lang: ("BBL Feb.xlsx", b"PK")
         chat = sys.modules.get("pearnly_core.assistant.files") or types.ModuleType("pearnly_core.assistant.files")
@@ -659,6 +671,14 @@ class ReconTests(unittest.TestCase):
         self.assertEqual(out["unmatched"], [{"match_status": "stmt_deposit_only", "amount": 5}])
         self.assertNotIn("sheets", out)
         self.assertEqual(out["questions"], [{"rule": "card_fee"}])
+
+    def test_bank_result_sums_matched_lines_by_how_they_matched(self):
+        """两边合计的差额要能从配上的组里讲清楚（2026-10-11 TTB：总账贷方多出的是 L6 组里总账记的刷卡手续费）。"""
+        out = json.loads(tools.recon_result({"kind": "bank", "task": "T1"}))
+        self.assertEqual(out["matched_by_kind"], [
+            {"kind": "L1-วันที่ตรงกัน", "groups": 0, "lines": 247, "bank_deposits": "2470.00", "gl_debits": "2470.00"},
+            {"kind": "L6-card net (ledger)", "groups": 1, "lines": 3, "bank_deposits": "14782.29",
+             "gl_debits": "15093.58", "gl_credits": "311.29"}])
 
     def test_list_reads_the_tasks_the_page_lists(self):
         """列表接口回 {"tasks", "total"}（2026-10-10 测试：读错字段，三种对账都列成空的）。"""

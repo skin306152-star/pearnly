@@ -1007,6 +1007,8 @@ def recon_result(tool_input) -> str:
         unmatched = [r for r in rows if not _recon_row_matched(kind, r)]
         out.update({"summary": summary, "rows_total": total, "unmatched_total": len(unmatched),
                     "unmatched": [_recon_row(r) for r in unmatched[:RECON_ROWS_SHOWN]]})
+        if kind == "bank":
+            out["matched_by_kind"] = _recon_matched_by_kind(rows)
     else:
         # 销项核查：逐张对照由存下的两边输入现算（同结果页、导出）；只给有问题的（2026-10-10 测试：没有明细，
         # 智能体只好先导出工作簿再读）
@@ -1047,6 +1049,36 @@ def _recon_row_matched(kind, row) -> bool:
     if kind == "bank":
         return str(row.get("match_status") or "") == "matched"
     return bool(row.get("has_gl_match")) and not Decimal(str(row.get("diff") or 0))
+
+
+RECON_SIDES = (("bank_deposits", "stmt_deposit"), ("bank_withdrawals", "stmt_withdrawal"),
+               ("gl_debits", "gl_debit"), ("gl_credits", "gl_credit"))
+
+
+def _recon_matched_by_kind(rows) -> list:
+    """银行对账配上的行按匹配依据（L1–L6，同结果页「匹配依据」栏）分类：每类几组、几行、两边各多少钱。
+    两边合计对不上的数，多半就是某一类组里另一边的金额：2026-10-11 TTB 总账贷方比银行支出多 5,306.04，是 L6 组里
+    总账实际记的刷卡手续费；只给没配上的行时，智能体看不到这一层，猜成冲销或转账。"""
+    from pearnly_cowork.reconciliation.export import labels
+
+    kinds = {}
+    for row in rows:
+        if str(row.get("match_status") or "") != "matched":
+            continue
+        layer = row.get("match_layer")
+        item = kinds.setdefault(layer, {"groups": set(), "lines": 0, **{name: Decimal(0) for name, _f in RECON_SIDES}})
+        item["lines"] += 1
+        if row.get("group_no"):
+            item["groups"].add(row["group_no"])
+        for name, field in RECON_SIDES:
+            item[name] += Decimal(str(row.get(field) or 0))
+    out = []
+    for layer in sorted(kinds, key=lambda value: (value is None, value or 0)):
+        item = kinds[layer]
+        out.append({"kind": labels.layer_label(layer, frappe.local.lang or "th") or str(layer or ""),
+                    "groups": len(item["groups"]), "lines": item["lines"],
+                    **{name: f"{item[name]:.2f}" for name, _f in RECON_SIDES if item[name]}})
+    return out
 
 
 def _recon_row(row) -> dict:
@@ -1815,7 +1847,10 @@ TOOLS = [
                     "scan and must be checked on the page before export), notes, questions to answer once "
                     "(cowork_recon_answer), the summary counts and amounts, rows_total, unmatched_total and the first 30 "
                     "rows that did not match (for vat: invoices and report lines with a difference or missing on one "
-                    "side, with which fields differ). The reconciliation compares the "
+                    "side, with which fields differ). For bank, matched_by_kind sums the matched lines by how they "
+                    "were matched (groups, lines and the amounts on each side); when the two sides' totals differ, explain the "
+                    "difference from it (for example ledger credits above bank withdrawals that are card fees the ledger "
+                    "recorded in the card net-of-fee groups) instead of guessing. The reconciliation compares the "
                     "bank with one GL account only; report its figures as they are and do not tell the user to post "
                     "entries from them (for example fees the user says are booked in another account).",
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."}, "task": {"type": "string"}},
