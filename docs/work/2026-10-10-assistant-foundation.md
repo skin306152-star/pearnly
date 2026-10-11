@@ -438,8 +438,9 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 
 **E. 收尾**
 
-- [ ] 25. 清理：本机预览服务（5199 Vite、5201 静态预览）、`pearnly-ai-theme-preview` 容器、测试机环境变量 `PEARNLY_TOMO_ENTRY`、测试机 `C:\Users\Public\tomo-test` 与计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`（本窗口截图用，计划任务 `CCLoginCheck` 已删）；合入后删本工作树与本地 / 远端分支（AGENTS.md「收工清理」）。生产父主题目录里的 `._*` 苹果隐藏文件（旧上传带进去的，非本任务）删除需用户同意。生产 testai 隧道 `^/assets/` 路由已无用途，下次改隧道时去掉。
+- [x] 25. 清理：本机预览服务（5199 Vite、5201 静态预览）、`pearnly-ai-theme-preview` 容器、测试机环境变量 `PEARNLY_TOMO_ENTRY`、测试机 `C:\Users\Public\tomo-test` 与计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`（本窗口截图用，计划任务 `CCLoginCheck` 已删）；合入后删本工作树与本地 / 远端分支（AGENTS.md「收工清理」）。生产父主题目录里的 `._*` 苹果隐藏文件（旧上传带进去的，非本任务）删除需用户同意。生产 testai 隧道 `^/assets/` 路由已无用途，下次改隧道时去掉。
   - 进度（2026-10-11 凌晨，上线后）：已清本机 5199 / 5201 预览服务、`pearnly-ai-theme-preview` 容器、测试机 `C:\Users\Public\tomo-test`、计划任务 `TomoTestInstall`、`C:\Users\Public\cc-check`、WSL `/opt/cc-candidate`；测试机环境变量 `PEARNLY_TOMO_ENTRY` 已不存在。工作树与分支见下「收尾登记」（第 17a 项还要用，暂留）。
+  - 结果（2026-10-11 晚，用户说「收工清理」）：17a 已合入并上线；本机管理后台改挂主目录 `/Users/skin/pearnly`（`PEARNLY_CONTROL_SOURCE=/Users/skin/pearnly`，只重建 control-web / worker / scheduler / bench 四个容器，`ping` 正常、回调签名密钥仍在站点配置）；随后删本工作树与本地 / 远端分支，见下「收尾登记」。
 
 ### 规矩（用户今天强调的）
 
@@ -463,6 +464,15 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 4. 各产品第一批业务工具（只调现有服务）；桌面端由小助手内嵌；LINE 桥接。
 
 ## 收尾登记
+
+- 2026-10-11 晚收工（main 7f841503 起，本条文档提交合入后以远端 main 为准）：
+  - 已删：工作树 `/Users/skin/pearnly-agent-foundation`、本地分支 `pearnly/agent-foundation`、远端同名分支（删前核对无独有提交、无未提交改动、已无容器挂载）；桌面 App 为本会话建的工作树 `.claude/worktrees/beautiful-merkle-8ade02` 与分支 `pearnly/beautiful-merkle-8ade02`；生产 `/opt/pearnly/state/deploy-8cfdeba6.sh`、`deploy-891ec645.sh`（日志保留）。
+  - 本机管理后台 `pearnly-sample-control-*`：已改挂主目录（见第 25 项结果），不再引用本工作树。
+  - 测试机 cowork 实时源码：是同步过去的副本（最新同步与 main 代码一致），不依赖本机工作树；下次 `testenv.sh live cowork` 用主目录或下一个任务的工作树。测试站 testcowork 仍指测试机实验栈，继续测 CC 用；生产验收时 `testenv.sh lab-stop cowork`。
+  - 保留：引擎控制台两个回调地址——「CC testcowork」（测试站）与「CC production (fatcc.com)」（生产，`wep_01Y2kxFQihR1V6L1qBjRPxLg`）；签名密钥在本机 `~/.config/pearnly-testenv/assistant-webhook-secret`、`~/.config/pearnly-production/assistant-webhook-secret`、生产 `runtime.env`、fatcc.com 与本机管理后台站点配置。长期使用，不删。
+  - 保留：生产 `/opt/pearnly/secrets/runtime.env.bak-20261011-webhook`（加回调密钥前的备份，600）。解除条件：下一次生产部署成功读回后删除。
+  - 保留：testcowork 测试数据、Express 测试账套 T9SINCER 的 IV69/00095、IV69/00076、测试机 skin3「下载」里 7 个文件（共享目录，由用户定）——理由同下方旧条目。
+  - 未完成（不属清理）：生产租户还没填智能体密钥，要用户自己建、自己填。
 
 - 2026-10-11 上线后（main f3450a4b，已推送、远端回读一致）：
   - 工作树 `/Users/skin/pearnly-agent-foundation`、分支 `pearnly/agent-foundation`（本地与远端，与 main 同一提交）：**交接保留**。用途：第 17a 项（对账引擎）还在这里做；本机管理后台（`pearnly-sample-control-*`）与测试环境实时源码都挂着这个工作树。解除条件：17a 合入后，把本机管理后台与测试环境改挂主目录或下一个任务的工作树，再删工作树与本地 / 远端分支。
