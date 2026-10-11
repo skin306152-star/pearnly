@@ -179,6 +179,22 @@ class ProductDeclarations(unittest.TestCase):
         errors = guard.check_cloud_run_image(self.root)
         self.assertTrue(any("contracts/rules.py" in error for error in errors), errors)
 
+    def test_every_uploaded_artifact_is_kept_for_one_day(self):
+        # 2026-10-11：安装包附件留 7 天，几天就用满账户 0.5 GB 的 Actions 存储，上传被拒
+        workflows = self.root / ".github/workflows"
+        workflows.mkdir(parents=True)
+        step = ("jobs:\n  build:\n    steps:\n      - name: Upload\n"
+                "        uses: actions/upload-artifact@043fb46d  # v7.0.1\n        with:\n"
+                "          name: installer\n          path: dist/Setup.exe\n{retention}"
+                "      - name: Next\n        run: echo retention-days: 1\n")
+        (workflows / "build.yml").write_text(step.format(retention="          retention-days: 1\n"))
+        self.assertEqual(guard.check_artifact_retention(self.root), [])
+        for retention in ("", "          retention-days: 7\n", "          retention-days: '14'\n"):
+            (workflows / "build.yml").write_text(step.format(retention=retention))
+            self.assertEqual(guard.check_artifact_retention(self.root),
+                             [".github/workflows/build.yml:5: upload-artifact must set retention-days: 1 "
+                              "(the account has 0.5 GB of Actions storage)"], retention)
+
     def test_a_product_declares_its_own_catalog_menu_and_glossary(self):
         self.assertEqual(guard.check(self.root), [])
 

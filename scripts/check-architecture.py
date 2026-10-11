@@ -164,6 +164,36 @@ def check_cloud_run_image(root):
     return errors
 
 
+# GitHub Actions 附件全账户只有 0.5 GB 存储额度，按每小时累计计费；一个小助手安装包约 150 MB。
+# 2026-10-10 起每次推送都上传安装包并留 7 天，几天就把额度用满、上传被拒（用户 2026-10-11 定：一律只留 1 天）。
+ARTIFACT_RETENTION_DAYS = "1"
+_UPLOAD_ARTIFACT = re.compile(r"\buses:\s*actions/upload-artifact@")
+_RETENTION = re.compile(r"^\s*retention-days:\s*['\"]?([^'\"\s#]+)")
+
+
+def check_artifact_retention(root):
+    """每个 upload-artifact 步骤都写明 retention-days: 1，不写就是 GitHub 默认的 90 天。"""
+    errors = []
+    base = root / ".github/workflows"
+    if not base.is_dir():
+        return errors
+    for path in sorted([*base.glob("*.yml"), *base.glob("*.yaml")]):
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            if not _UPLOAD_ARTIFACT.search(line):
+                continue
+            start = next((i for i in range(index, -1, -1) if re.match(r"^\s*-\s", lines[i])), index)
+            indent = len(lines[start]) - len(lines[start].lstrip())
+            end = start + 1
+            while end < len(lines) and (not lines[end].strip() or len(lines[end]) - len(lines[end].lstrip()) > indent):
+                end += 1
+            values = [m.group(1) for m in map(_RETENTION.match, lines[start:end]) if m]
+            if values != [ARTIFACT_RETENTION_DAYS]:
+                errors.append(f"{path.relative_to(root).as_posix()}:{index + 1}: upload-artifact must set "
+                              f"retention-days: {ARTIFACT_RETENTION_DAYS} (the account has 0.5 GB of Actions storage)")
+    return errors
+
+
 SITE_CONFIG_KEY = re.compile(r"""conf(?:\.get\(|\[)\s*["'](pearnly_[a-z0-9_]+)["']""")
 
 
@@ -315,6 +345,7 @@ def check(root=ROOT):
     errors.extend(check_ocr_replay(root))
     errors.extend(check_site_config_keys(root, policy))
     errors.extend(check_cloud_run_image(root))
+    errors.extend(check_artifact_retention(root))
     return errors
 
 
