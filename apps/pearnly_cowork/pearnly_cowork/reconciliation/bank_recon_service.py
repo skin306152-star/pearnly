@@ -17,6 +17,7 @@ from pearnly_cowork.reconciliation import (
 	bank_warnings,
 	bank_groups,
 	bank_card_fee,
+	bank_net_settlement,
 	messages,
 	preset_store,
 	presets,
@@ -135,6 +136,10 @@ def _match(rows, header_values, rules=None):
 		results, count = bank_groups.accept(results)
 		if count:
 			summary = bank_matching.summarize(results, statement, ledger, **amounts)
+	# 刷卡净额按总账里实际记的手续费配（不用预设）；配上的就不再按费率估手续费（见 `bank_net_settlement`）
+	results, count = bank_net_settlement.accept(results)
+	if count:
+		summary = bank_matching.summarize(results, statement, ledger, **amounts)
 	rate = (rules or {}).get(presets.CARD_FEE)
 	if rate and rate != presets.NO:
 		# 刷卡净额（预设了手续费率）：到账净额配刷卡毛额，手续费单列一行「银行已扣、总账未记」，公式照样平
@@ -292,14 +297,21 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	# （换了总账 / 预设不适用）照旧自己挑，挑不出再问。
 	account_scope = presets.account_scope(statement["bank_code"], presets.account_tail(
 		_account_of(result).get("account", "") for _name, result in statements if result.get("ok")))
-	codes = {row.account_code for _name, result in ledgers if result.get("ok") for row in result.get("rows") or []
-		if row.account_code}
+	# 单一账户的明细账（余额一条链连下来、跨过「科目」栏的变化）：那一栏印的是对方科目，整份都是这个账户的，
+	# 不按它拆、不问选哪个（2026-10-11 B02 TTB：Express「Monthly G/L By Account Code」把对方科目印在行上，
+	# 原来只取 C1111，丢了 2402010 的 918,544.48 入账和 10003 的实际刷卡手续费，34 笔对不上、还提示补记手续费）。
+	single = any(result.get("ok") for _name, result in ledgers) and all(
+		single_account_ledger(result.get("rows") or []) for _name, result in ledgers if result.get("ok"))
+	codes = set() if single else {row.account_code for _name, result in ledgers if result.get("ok")
+		for row in result.get("rows") or [] if row.account_code}
 	# 只有一个科目的总账不用选（也就不查预设）。
 	preset = ("" if gl_account_code or not account_scope or len(codes) < 2
 		else preset_rules(workspace, account_scope).get(presets.GL_ACCOUNT, ""))
 	preset = preset if preset and any(code == preset or code.startswith(preset) for code in codes) else ""
-	scores = [] if gl_account_code or preset else account_scores(statement["rows"], [result for _n, result in ledgers])
-	chosen = preset or ("" if gl_account_code else likely_account(statement["rows"], [result for _n, result in ledgers]))
+	scores = [] if gl_account_code or preset or single else account_scores(statement["rows"],
+		[result for _n, result in ledgers])
+	chosen = preset or ("" if gl_account_code or single else likely_account(statement["rows"],
+		[result for _n, result in ledgers]))
 	questions = []
 	if chosen:
 		# 全科目总账、没指定科目：用与银行流水最吻合的那个科目（旧线上把所有科目的行都拿来对，Mr.erp 全科目
@@ -852,6 +864,23 @@ def _merged_statement(results, period=None, excluded=()):
 
 
 MATCH_DAYS = 5
+CHAIN_TOLERANCE = 0.01
+CHAIN_SHARE = 0.9
+
+
+def single_account_ledger(rows) -> bool:
+	"""总账是不是同一个账户的明细：按读出的先后，上一行余额 + 借 − 贷 = 本行余额，而且在「科目」栏换值的地方也照样
+	接得上（那一栏是对方科目）。真正的多科目总账每个科目的余额各自从头算，换科目处接不上，不会被认成一个账户。
+	没有余额列、或从头到尾只有一个科目的，不在这里下结论（照旧）。"""
+	rows = [row for row in rows if getattr(row, "balance_read", False)]
+	pairs = list(zip(rows, rows[1:]))
+	if len(pairs) < 2:
+		return False
+	chained = [abs(round(prev.balance + row.debit - row.credit, 2) - round(row.balance, 2)) <= CHAIN_TOLERANCE
+		for prev, row in pairs]
+	switches = [ok for ok, (prev, row) in zip(chained, pairs)
+		if prev.account_code and row.account_code and prev.account_code != row.account_code]
+	return bool(switches) and sum(switches) / len(switches) >= CHAIN_SHARE and sum(chained) / len(chained) >= CHAIN_SHARE
 
 
 def likely_account(statement_rows, ledgers):

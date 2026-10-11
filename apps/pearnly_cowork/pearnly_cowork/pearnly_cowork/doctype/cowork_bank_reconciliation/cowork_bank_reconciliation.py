@@ -207,7 +207,9 @@ def enterprise_rows(legacy, document_type, filename, account_code=""):
 				rows.append(GlRow(date=_entry_date(entry), doc_no=entry.get("voucher_no") or "",
 					account_code=_account(entry.get("account_code")), description=entry.get("description") or "",
 					debit=bank_parse.to_float(entry.get("debit")), credit=bank_parse.to_float(entry.get("credit")),
-					balance=bank_parse.to_float(entry.get("balance")), source_file=filename))
+					balance=bank_parse.to_float(entry.get("balance")), source_file=filename,
+					# 印了余额的行：判断是不是单一账户的明细账（`bank_recon_service.single_account_ledger`）
+					balance_read=bool(str(entry.get("balance") or "").strip())))
 	_same_month_years(rows)
 	_neighbour_years(rows)
 	if document_type == "bank_statement":

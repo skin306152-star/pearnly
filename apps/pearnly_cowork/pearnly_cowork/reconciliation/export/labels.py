@@ -171,6 +171,13 @@ I18N_EXPORT: Dict[str, Dict[str, str]] = {
         "zh": "L5-刷卡净额（按预设）",
         "ja": "L5-カード手数料控除後（プリセット）",
     },
+    # 刷卡净额按总账里实际记的手续费配上（2026-10-11，`bank_net_settlement`）。
+    "layer_6": {
+        "th": "L6-ยอดสุทธิหลังหักค่าธรรมเนียมบัตร (ตามบัญชีแยกประเภท)",
+        "en": "L6 - Card Net of Fee (Ledger)",
+        "zh": "L6-刷卡净额（按总账手续费）",
+        "ja": "L6-カード手数料控除後（元帳）",
+    },
     # Status labels
     "st_gl_debit_only": {
         "th": "มีเฉพาะเดบิตในบัญชีแยกประเภท",
@@ -415,6 +422,8 @@ def layer_label(layer: Optional[int], lang: str) -> str:
         return t("layer_4", lang)
     if layer == 5:
         return t("layer_5", lang)
+    if layer == 6:
+        return t("layer_6", lang)
     return ""
 
 

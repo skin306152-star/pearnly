@@ -398,7 +398,7 @@ def _hidden(lang):
         "columns": {t("col_confidence"), t("col_source_file"), t("col_source_stmt"), t("col_source_gl"),
                     vat["h_inv"][source]},
         "sections": {t("lbl_ocr_check"), t("sh_fileinfo")},
-        "layers": tuple(t(f"layer_{n}") for n in (1, 2, 3, 4, 5)),
+        "layers": tuple(t(f"layer_{n}") for n in (1, 2, 3, 4, 5, 6)),
         "notes": [vat_check_core.diff_labels(lang)["ocr_incomplete"]],
     }
 

@@ -284,6 +284,8 @@ def gl_rows_from_pages(pages_legacy: Dict[str, Any]) -> List[GlRow]:
 					debit=debit,
 					credit=credit,
 					source_file="",
+					**({"balance": to_float(entry.get("balance")), "balance_read": True}
+						if str(entry.get("balance") or "").strip() else {}),
 				)
 			)
 	return rows

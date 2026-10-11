@@ -56,6 +56,8 @@ class GlRow:
 	source_file: str = ""
 	balance: float = 0.0
 	row_hash: str = ""
+	# 余额是从文件里读出的（不是 `gl_sheets.attach_running_balance` 现算的）：判断是不是单一账户的明细账只看读出的
+	balance_read: bool = False
 
 	def __post_init__(self):
 		if not self.row_hash:
