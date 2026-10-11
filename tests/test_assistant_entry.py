@@ -215,14 +215,18 @@ class WiringTests(unittest.TestCase):
 
     def test_registration_carries_site_and_pool(self):
         plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
-        self.assertIn("site=dep.site_name, issuer=_issuer_url(issue.target, dep.product)", plan)
+        # 账号池按本单实际建号的池，不按产品推算（2026-10-11 testcowork：拆池前开的户账号在业务池）
+        self.assertIn("pool = identity_pools.site_pool(issue, dep.product)", plan)
+        self.assertIn("site=dep.site_name, issuer=_issuer_url(issue.target, pool)", plan)
         self.assertIn("registry.record(", (CONTROL / "billing_control.py").read_text(encoding="utf-8"))
 
     def test_existing_tenants_are_registered_the_same_way_as_onboarding(self):
         # 入口上线前开通的云端部署：补登记用开户计划同一个调用（可重复），只补登记不重跑开户
         backfill = (CONTROL / "assistant_entry/backfill.py").read_text(encoding="utf-8")
         self.assertIn("billing_remote.provision_scope(", backfill)
-        self.assertIn("site=dep.site_name, issuer=provisioning._issuer_url(issue.target, dep.product)", backfill)
+        self.assertIn("pool = identity_pools.site_pool(issue, dep.product)", backfill)
+        self.assertIn("site=dep.site_name, issuer=provisioning._issuer_url(issue.target, pool)", backfill)
+        self.assertIn("owner_subject=identity_pools.subject_of(issue, pool)", backfill)
         self.assertIn("infra.is_cloud(issue.target)", backfill)
         # 生产入口站点只建 fatcc.com，令牌不打印
         entry = (ROOT / "infrastructure/production/bootstrap-ai-entry.py").read_text(encoding="utf-8")

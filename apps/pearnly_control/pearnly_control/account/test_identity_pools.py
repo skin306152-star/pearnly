@@ -33,6 +33,16 @@ class TestPools(unittest.TestCase):
         self.assertTrue(identity_pools.issued(Issue(status="issued", cowork_identity_subject="cw")))
         self.assertFalse(identity_pools.issued(Issue(status="draft", identity_subject="biz")))
 
+    def test_site_pool_follows_where_the_account_was_made(self):
+        # 拆池前开的 Cowork 户：账号只在业务池，入口要登记业务池与那个身份（2026-10-11 testcowork）
+        old_cowork = Issue(identity_subject="biz")
+        self.assertEqual(identity_pools.site_pool(old_cowork, "cowork"), "erp")
+        self.assertEqual(identity_pools.subject_of(old_cowork, identity_pools.site_pool(old_cowork, "cowork")), "biz")
+        both = Issue(identity_subject="biz", cowork_identity_subject="cw")
+        self.assertEqual([identity_pools.site_pool(both, p) for p in ("erp", "dms", "cowork")], ["erp", "erp", "cowork"])
+        self.assertEqual(identity_pools.site_pool(Issue(cowork_identity_subject="cw"), "cowork"), "cowork")
+        self.assertEqual(identity_pools.site_pool(Issue(), "cowork"), "cowork")  # 还没建号：按产品自己的池
+
 
 class TestClientForTarget(unittest.TestCase):
     def run_for(self, row, product):

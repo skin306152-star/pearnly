@@ -83,7 +83,8 @@ class DeployToolingMatch(unittest.TestCase):
 
 
 class Activation(unittest.TestCase):
-    def run_activation(self, failure='', source_file=SOURCE, product='dms', records=None):
+    def run_activation(self, failure='', source_file=SOURCE, product='dms', records=None, themes=('pearnly', 'pearnly-ai'),
+                       themes_record=None):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = source_file.read_text().replace('/opt/pearnly', str(root))
@@ -95,6 +96,12 @@ class Activation(unittest.TestCase):
             for name, value in records.items():
                 (root / 'deploy' / name).write_text(json.dumps(value) + '\n')
             self.records_before = {name: (root / 'deploy' / name).read_bytes() for name in records}
+            for theme in themes:
+                target = root / 'deploy/infrastructure/keycloak/themes' / theme / 'login/theme.properties'
+                target.parent.mkdir(parents=True)
+                target.write_text('parent=keycloak\n')
+            if themes_record is not None:
+                (root / 'state/keycloak-themes.sha256').write_text(themes_record + '\n')
             (root / 'secrets').mkdir()
             (root / 'secrets/member-identity.json').write_text('{}')
             script = root / 'activate.sh'
@@ -134,6 +141,8 @@ elif 'ps' in args:
             trace = [json.loads(line) for line in (root/'trace').read_text().splitlines()]
             self.records_after = {path.name: path.read_bytes() for path in (root / 'deploy').glob('active-image*.json')}
             self.record_temporaries = list((root / 'deploy').glob('.active-image-*'))
+            record = root / 'state/keycloak-themes.sha256'
+            self.themes_record = record.read_text().strip() if record.exists() else None
             return result, trace
 
     def test_drain_and_old_version_backup_before_migration(self):
@@ -273,6 +282,29 @@ class FoundationActivation(unittest.TestCase):
         self.assertLess(find('bench --site billing.internal migrate'), find('up -d --no-deps billing-web'))
         # billing 没有后台进程：迁移不排网站搜索索引任务（否则永远滞留在共用队列）
         self.assertIn('--skip-search-index', calls[find('bench --site billing.internal migrate')])
+
+    def test_missing_login_theme_stops_before_keycloak_is_touched(self):
+        """主题目录空着 Keycloak 会悄悄用默认登录页（2026-10-11 pearnly-ai）：缺了就不激活。"""
+        result, trace = self.run_activation(source_file=SOURCE.with_name('activate-foundation.sh'), themes=('pearnly',))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('login theme pearnly-ai is missing', result.stderr)
+        self.assertFalse(any('keycloak' in row['args'] and 'up' in row['args'] for row in trace))
+
+    def test_keycloak_restarts_only_when_the_themes_changed(self):
+        script = SOURCE.with_name('activate-foundation.sh')
+        result, trace = self.run_activation(source_file=script)  # 第一次：只记下
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any('restart' in row['args'] for row in trace))
+        digest = self.themes_record
+        self.assertRegex(digest, r'^[0-9a-f]{64}$')
+        result, trace = self.run_activation(source_file=script, themes_record=digest)  # 没变：不重启
+        self.assertFalse(any('restart' in row['args'] for row in trace))
+        result, trace = self.run_activation(source_file=script, themes_record='0' * 64)  # 变了：清压缩缓存再重启
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        find = lambda text: next(i for i, call in enumerate(calls) if text in call)
+        self.assertLess(find('rm -rf /opt/keycloak/data/tmp/kc-gzip-cache'), find('restart keycloak'))
+        self.assertEqual(self.themes_record, digest)
 
     def test_failed_backup_or_migration_never_reopens_private_endpoint(self):
         for failure in ('backup', 'migrate'):

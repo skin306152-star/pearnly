@@ -123,6 +123,9 @@ RUN cd /home/frappe/frappe-bench && \
 # 为什么不省这一步：镜像和 `/opt/pearnly/deploy` 是**两份拷贝**，发布时两半都要换。
 # 只换一半不会立刻报错（站点跑新代码、开户还用旧脚本），所以激活脚本会把这里的内容
 # 和服务器上那份逐文件比对（scripts/production/check-deploy-image.py），不同源就拒绝激活。
-# 这里只放"部署拷贝真正包含"的两个目录，其他（compose/、docs/、示例脚本）不进镜像。
-COPY --chown=frappe:frappe infrastructure/production /opt/pearnly/deploy-src/infrastructure/production
-COPY --chown=frappe:frappe scripts/production          /opt/pearnly/deploy-src/scripts/production
+# 这里只放"部署拷贝真正包含"的目录，其他（compose/、docs/、示例脚本）不进镜像。
+# Keycloak 登录主题也在内：生产 compose 从部署拷贝挂载它（2026-10-11 之前没带，pearnly-ai 目录一直是空的，
+# 容器重建后 CC 登录退回 Keycloak 默认页）。
+COPY --chown=frappe:frappe infrastructure/production      /opt/pearnly/deploy-src/infrastructure/production
+COPY --chown=frappe:frappe infrastructure/keycloak/themes /opt/pearnly/deploy-src/infrastructure/keycloak/themes
+COPY --chown=frappe:frappe scripts/production             /opt/pearnly/deploy-src/scripts/production

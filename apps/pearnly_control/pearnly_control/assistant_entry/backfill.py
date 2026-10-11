@@ -19,9 +19,11 @@ def run() -> list[str]:
         issue = frappe.get_doc("Pearnly Issue", dep.issue)
         if not infra.is_cloud(issue.target):
             continue
+        # 账号池按本单实际建号的池（`site_pool`），不按产品推算：拆池前开的 Cowork 户账号在业务池
+        pool = identity_pools.site_pool(issue, dep.product)
         billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name,
-                                       owner_subject=identity_pools.subject_of(issue, dep.product),
-                                       site=dep.site_name, issuer=provisioning._issuer_url(issue.target, dep.product),
+                                       owner_subject=identity_pools.subject_of(issue, pool),
+                                       site=dep.site_name, issuer=provisioning._issuer_url(issue.target, pool),
                                        owner_username=issue.account_username, owner_email=issue.account_email)
         done.append(dep.site_name)
     print("registered", done)

@@ -30,7 +30,34 @@ if [[ -n "$billing_container" ]]; then
     run --rm --no-deps billing-web bench --site billing.internal backup --with-files
 fi
 docker volume create pearnly-production_sites-billing >/dev/null
+# Keycloak 的登录主题从部署拷贝挂载（compose）。目录空着 Keycloak 不报错、悄悄换成默认登录页（2026-10-11：pearnly-ai
+# 一直是空目录，Keycloak 重建后 CC 登录跳到默认页、第一页的密码也带不过去），所以缺了就不激活。
+themes="$root/infrastructure/keycloak/themes"
+for theme in pearnly pearnly-ai; do
+  test -s "$themes/$theme/login/theme.properties" || { echo "login theme $theme is missing under $themes" >&2; exit 1; }
+done
+themes_digest=$(python3 - "$themes" <<'PY'
+import hashlib, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+digest = hashlib.sha256()
+for path in sorted(p for p in root.rglob("*") if p.is_file() and not p.name.startswith("._") and p.name != ".DS_Store"):
+    digest.update(path.relative_to(root).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
+print(digest.hexdigest())
+PY
+)
+keycloak_before=$(docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" ps -q keycloak)
 docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" up -d mariadb redis-cache redis-queue keycloak
+keycloak_after=$(docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" ps -q keycloak)
+themes_record=/opt/pearnly/state/keycloak-themes.sha256
+themes_before=$(cat "$themes_record" 2>/dev/null || true)
+if [[ -n "$themes_before" && "$themes_before" != "$themes_digest" && -n "$keycloak_before" && "$keycloak_before" == "$keycloak_after" ]]; then
+  # 主题文件变了、容器没重建：Keycloak 缓存着已加载的主题和压缩过的资源，清掉压缩缓存再重启才生效（停登约 40 秒）。
+  # 第一次（还没有记录）只记下、不重启。
+  docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" exec -T keycloak rm -rf /opt/keycloak/data/tmp/kc-gzip-cache
+  docker compose --env-file /opt/pearnly/state/sizing.env --env-file /opt/pearnly/secrets/runtime.env -f "$compose" restart keycloak
+fi
+printf '%s\n' "$themes_digest" > "$themes_record"
 docker run --rm --user 0 --network pearnly-production_runtime \
   -v pearnly-production_sites-billing:/home/frappe/frappe-bench/sites \
   -v "$root/infrastructure/production/bootstrap-billing.py:/run/bootstrap-billing.py:ro" \

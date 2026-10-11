@@ -633,9 +633,11 @@ def _billing_payload(issue, dep) -> dict:
 
     from pearnly_control import billing_remote
     if infra.is_cloud(issue.target):
+        # 入口登记的账号池与身份取本单实际建号的池（同补登记，`identity_pools.site_pool`）
+        pool = identity_pools.site_pool(issue, dep.product)
         scope = billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name,
-                                               owner_subject=identity_pools.subject_of(issue, dep.product),
-                                               site=dep.site_name, issuer=_issuer_url(issue.target, dep.product),
+                                               owner_subject=identity_pools.subject_of(issue, pool),
+                                               site=dep.site_name, issuer=_issuer_url(issue.target, pool),
                                                owner_username=issue.account_username, owner_email=issue.account_email)
         return {
             "site": dep.site_name, "group": dep.bench_group, "tenant": issue.tenant,

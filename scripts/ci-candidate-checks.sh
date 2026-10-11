@@ -29,7 +29,7 @@ offline() {
     -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
     "$IMAGE" /candidate/tests/test_dms_entrypoints.py
   offline_py "$IMAGE" -m unittest pearnly_erp_portal.integrations.test_line_intake pearnly_erp_portal.team.test_identity \
-    pearnly_control.account.test_member_service pearnly_core.account.test_line_login pearnly_core.account.test_identity_callback pearnly_core.ocr_models.test_orient pearnly_core.execution.test_job_language \
+    pearnly_control.account.test_member_service pearnly_control.account.test_identity_pools pearnly_core.account.test_line_login pearnly_core.account.test_identity_callback pearnly_core.ocr_models.test_orient pearnly_core.execution.test_job_language \
     pearnly_core.execution.test_pool pearnly_core.execution.test_recycle pearnly_core.execution.test_provider_wait \
     pearnly_core.execution.test_vertex_overflow pearnly_core.execution.test_admission pearnly_core.execution.test_pages \
     pearnly_core.execution.test_call_progress pearnly_core.execution.test_wake pearnly_core.execution.test_run_timing pearnly_core.execution.test_notify_result pearnly_core.execution.test_replay pearnly_core.execution.test_worker \

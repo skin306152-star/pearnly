@@ -6,8 +6,8 @@
 两份不同源时当时不会报错：站点在跑新代码、开户还在用旧脚本（或者反过来），
 要等下一次开户或某次 `compose up -d` 才以很奇怪的方式暴露出来。
 
-所以把"两份同源"变成激活的前置条件：只比部署拷贝真正包含的两个目录
-（`infrastructure/production/` 与 `scripts/production/`），逐文件比内容和可执行位，
+所以把"两份同源"变成激活的前置条件：只比部署拷贝真正包含的目录
+（`infrastructure/production/`、`infrastructure/keycloak/themes/` 与 `scripts/production/`），逐文件比内容和可执行位，
 缺文件、内容不同、多出不属于这一版的文件都直接失败，并打印差异。
 
 用法：check-deploy-image.py <image> <deploy-root>
@@ -18,7 +18,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-PAYLOAD = ("infrastructure/production", "scripts/production")
+# 登录主题：生产 compose 从部署拷贝挂给 Keycloak（2026-10-11 起随镜像带来，之前靠手工上传，pearnly-ai 一直缺）
+PAYLOAD = ("infrastructure/production", "infrastructure/keycloak/themes", "scripts/production")
 CONTAINER = "pearnly-deploy-check"
 
 

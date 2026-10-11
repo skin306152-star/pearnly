@@ -34,6 +34,17 @@ def subject_of(issue, product):
     return _value(issue, subject_field(product))
 
 
+def site_pool(issue, product) -> str:
+    """这个产品的站点实际按哪个池登录，回那个池的代表产品（给 `subject_of`、签发方地址用）：本单在产品自己的池里建过账号
+    就是它；没建过、只在另一个池里建过的（拆池前开的户，Cowork 账号还在业务池、站点也按业务池登录），用那个池。
+    2026-10-11：testcowork 被按产品推算成 Cowork 池登记进入口，CC 入口把人送去没有这个账号的池。"""
+    own = pool_of(product)
+    if _value(issue, SUBJECT_FIELDS[own]):
+        return REPRESENTATIVE[own]
+    held = [pool for pool, field in SUBJECT_FIELDS.items() if _value(issue, field)]
+    return REPRESENTATIVE[held[0]] if len(held) == 1 else REPRESENTATIVE[own]
+
+
 def pools_for(products) -> list:
     """所选产品要在哪几个池里建号，按 业务、Cowork 的固定顺序，每个池给一个代表产品。"""
     wanted = {pool_of(product) for product in products if product}
