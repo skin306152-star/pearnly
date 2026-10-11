@@ -93,5 +93,55 @@ class AccessToken(unittest.TestCase):
         self.assertFalse(line.start_loading_background("U" + "a" * 32)())
 
 
+def unsent(reason_type=None):
+    """requests 在连上之前失败时的真实形状：ConnectionError(MaxRetryError(reason=NewConnectionError…))。"""
+    from urllib3.exceptions import MaxRetryError, NameResolutionError
+    reason = (reason_type or NameResolutionError)("api.line.me", None, OSError(-2, "Name or service not known"))
+    return requests.exceptions.ConnectionError(MaxRetryError(None, "/v2/bot/message/push", reason=reason))
+
+
+class ConnectRetry(unittest.TestCase):
+    """还没连上 LINE 就失败（解析不到域名）才重试；可能已送达的失败不重试，免得用户收到两条（2026-10-11）。"""
+
+    def setUp(self):
+        self.conf = {"pearnly_line_channel_access_token": "long-lived", "pearnly_line_channel_secret": "s"}
+        self.enterContext(patch.object(line.frappe, "conf", self.conf))
+        self.enterContext(patch.object(line.frappe, "cache", Cache(), create=True))
+        self.enterContext(patch.object(line, "mirroring", return_value=False))
+        self.enterContext(patch.object(line, "_count"))
+        self.sleep = self.enterContext(patch.object(line.time, "sleep"))
+
+    def test_a_lookup_failure_is_retried_and_the_push_lands(self):
+        post = self.enterContext(patch.object(line.requests, "post",
+                                              side_effect=[unsent(), answer(200, {})]))
+        self.assertTrue(line.push("U1", [{"type": "text", "text": "hi"}]))
+        self.assertEqual(post.call_count, 2)
+        self.sleep.assert_called_once_with(line.CONNECT_RETRY_DELAYS[0])
+
+    def test_a_reply_that_may_have_reached_line_is_not_resent(self):
+        post = self.enterContext(patch.object(line.requests, "post",
+                                              side_effect=requests.exceptions.ReadTimeout("read")))
+        ok, status, _why = line._post_reply("token", [{"type": "text", "text": "hi"}])
+        self.assertEqual((ok, status), (False, 0))
+        self.assertEqual(post.call_count, 1)
+        self.sleep.assert_not_called()
+
+    def test_retries_are_bounded(self):
+        post = self.enterContext(patch.object(line.requests, "post", side_effect=unsent()))
+        self.assertFalse(line.push("U1", [{"type": "text", "text": "hi"}]))
+        self.assertEqual(post.call_count, len(line.CONNECT_RETRY_DELAYS) + 1)
+
+    def test_api_requests_retry_lookups_and_keep_the_token_out_of_the_error(self):
+        request = self.enterContext(patch.object(line.requests, "request",
+                                                 side_effect=[unsent(), answer(200, {})]))
+        self.assertEqual(line.request("GET", "https://api.line.me/v2/bot/info").status_code, 200)
+        self.assertEqual(request.call_count, 2)
+        request.side_effect = unsent()
+        with self.assertRaises(requests.RequestException) as caught:
+            line.request("GET", "https://api.line.me/v2/bot/info")
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertNotIn("long-lived", str(caught.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

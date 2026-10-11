@@ -18,14 +18,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-#: 任何一家 DMS 都有的模块（使用记录里按它计数）。
+#: 任何一家 DMS 都有的模块（试读它最新的一行使用记录）。
 _EVENT_MODULE = "ลูกค้า"
 
 
 def _can_read_events(client) -> bool:
     from pearnly_dms.client import eventlog_reader
 
-    eventlog_reader.count(client, _EVENT_MODULE)
+    eventlog_reader.head(client, _EVENT_MODULE)
     return True
 
 

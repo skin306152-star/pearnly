@@ -22,6 +22,7 @@ import hmac
 import json
 import logging
 import threading
+import time
 from urllib.parse import quote
 
 import frappe
@@ -36,6 +37,10 @@ DOWNLOAD_TIMEOUT = 60
 # LIFF `id_token` 的验签端点（见 `verify_id_token`）
 _VERIFY_ENDPOINT = "https://api.line.me/oauth2/v2.1/verify"
 EVENT = "Pearnly LINE Event"
+# "还没连上 LINE 就失败"（域名解析不到、连接被拒）时重试的间隔。这种失败请求根本没发出去，重发不会让
+# 用户收到两条。2026-10 宿主机 DNS 偶尔超时，回复撞上就改推送、推送同一瞬间也失败，消息就丢了。
+# 建连超时、读超时、对方断开都不在内：那些情况请求可能已经到了 LINE。
+CONNECT_RETRY_DELAYS = (0.5, 1.5)
 
 
 def _conf(key: str, default: str = "") -> str:
@@ -76,8 +81,9 @@ def access_token() -> str:
     if cached:
         return cached
     try:
-        response = requests.post(_TOKEN_API, data={"grant_type": "client_credentials", "client_id": channel,
-                                                   "client_secret": secret}, timeout=TIMEOUT)
+        response = _retry_unsent(lambda: requests.post(
+            _TOKEN_API, data={"grant_type": "client_credentials", "client_id": channel,
+                              "client_secret": secret}, timeout=TIMEOUT))
     except requests.RequestException as exc:
         raise _without_request(exc) from None
     token = ""
@@ -174,9 +180,32 @@ def request(method: str, url: str, *, headers: dict | None = None, session=None,
     不带原异常链的新异常，requests 内部各层（带着请求头）就不会进错误日志。`headers` 只放额外的头（如图片类型）。
     """
     try:
-        return (session or requests).request(method, url, headers={**_headers(), **(headers or {})}, **kwargs)
+        return _retry_unsent(lambda: (session or requests).request(
+            method, url, headers={**_headers(), **(headers or {})}, **kwargs))
     except requests.RequestException as exc:
         raise _without_request(exc) from None
+
+
+def _never_sent(exc) -> bool:
+    """这次失败是不是发生在连上 LINE 之前（解析不到域名、连接被拒），请求一个字节都没发出去。"""
+    if not isinstance(exc, requests.exceptions.ConnectionError) or not exc.args:
+        return False
+    from urllib3.exceptions import NewConnectionError  # requests 自带的依赖；用到时才导入（离线检查替换了 requests）
+
+    return isinstance(getattr(exc.args[0], "reason", None), NewConnectionError)
+
+
+def _retry_unsent(send):
+    """调 `send()` 发一次请求；只有"还没连上就失败"才隔一会儿再试（见 `CONNECT_RETRY_DELAYS`）。"""
+    for delay in CONNECT_RETRY_DELAYS:
+        try:
+            return send()
+        except requests.RequestException as exc:
+            if not _never_sent(exc):
+                raise
+            logger.warning("[line] 还没连上 LINE（%s），%.1f 秒后重试", type(exc).__name__, delay)
+            time.sleep(delay)
+    return send()
 
 
 def _without_request(exc):
@@ -334,12 +363,12 @@ def _post_reply(reply_token: str, messages: list):
     if mirroring():
         return bool(_mirror("reply", reply_token, messages)), 200, "mirror"
     try:
-        resp = requests.post(
+        resp = _retry_unsent(lambda: requests.post(
             "https://api.line.me/v2/bot/message/reply",
             headers=_headers(),
             json={"replyToken": reply_token, "messages": messages},
             timeout=TIMEOUT,
-        )
+        ))
     except Exception as exc:  # noqa: BLE001 —— 超时/连接失败：**不知道发出去没有**
         _count("reply_unknown")
         logger.warning("[line] reply 请求异常（不确定是否送达）: %s", type(exc).__name__)
@@ -368,12 +397,12 @@ def push(to: str, messages: list, *, retry_key: str = "") -> bool:
         headers = _headers()
         if retry_key:
             headers["X-Line-Retry-Key"] = retry_key
-        resp = requests.post(
+        resp = _retry_unsent(lambda: requests.post(
             "https://api.line.me/v2/bot/message/push",
             headers=headers,
             json={"to": to, "messages": messages},
             timeout=TIMEOUT,
-        )
+        ))
     except Exception as exc:  # noqa: BLE001
         _count("push_failed")
         logger.warning("[line] push 请求异常: %s", type(exc).__name__)

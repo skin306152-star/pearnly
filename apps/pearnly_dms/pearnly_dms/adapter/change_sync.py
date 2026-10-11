@@ -8,21 +8,23 @@
 
 ## 唯一的两个时点
 
-1. **绑定成功** → 建一次基线（`seed`）：记下每个模块此刻的事件总数与流水号，
+1. **绑定成功** → 建一次基线（`seed`）：记下每个模块此刻最新一行的流水号，
    本轮不补任何东西 —— 底座由同一次绑定的四组全量读取负责。
-2. **操作员每次真实使用 DMS** → `catch_up`：拿事件总数和上次比，变了才翻流水，
+2. **操作员每次真实使用 DMS** → `catch_up`：拿最新流水号和上次比，变了才翻流水，
    把被点名的记录补读回来。没变化时每个模块只花 1 个请求。
 
 除此之外没有定时任务、没有手动按钮、没有第二个账号。
 
 ## 判断规则（宁可不判断，也不猜）
 
-* **读不到＝新鲜度未知**：任何一个模块的计数读不到，本轮立刻停手，绝不把"读不到"
+* **读不到＝新鲜度未知**：任何一个模块的最新流水号读不到，本轮立刻停手，绝不把"读不到"
   当成"没变化"（对方的数据端点没有权限校验，随时可能被收紧）。
 * **点名不到具体记录**（标识为空、或动作我们不认识）→ 不逐条猜，登记一次整组重读。
 * **删除** → 不在这里猜"删掉了谁"，同样交给整组重读（按原生列表的真实成员收敛）。
 * **积压太多**（一轮页数上限还没追上游标）→ 整组重读，不逐页硬啃。
-* **计数变小**（可能被保留窗口截断）→ 同样按"未知"处理，整组重读。
+* **最新流水号比水位还小**、或翻到底没碰到水位（记录被删、被保留窗口截断）→ 同样按"未知"处理，整组重读。
+* 为什么看流水号不看总数：2026-10-11 对方不再回总数、分页还多给一行（见 `client/eventlog_reader`），
+  而且对方加了"按日期删除使用记录"，总数本来就会被删记录打乱；流水号只增不减。
 
 ## 并发与代价
 
@@ -74,8 +76,6 @@ PENDING_MAX = 10
 #: 服务自身的动作以谁的名义登记（Frappe 的 Administrator 具备全部角色）。
 SERVICE_ACTOR = "Administrator"
 
-#: 读"最新一条"用的最小请求（1 页 1 条）。
-HEAD_LIMITS = EventLogLimits(page_size=1, max_pages=1, max_seconds=10.0)
 #: 补读单个客户时的读取上限。
 RECORD_LIMITS = SnapshotLimits(max_seconds=15)
 
@@ -179,15 +179,13 @@ def _establish_baseline(endpoint, *, client, actor, base=None, expected_scope=No
     complete = True
     for module, _dataset, _records in MODULES:
         try:
-            total, usage = eventlog_reader.count(client, module, limits=limits, usage=usage)
-            head, usage = eventlog_reader.page(client, module, page_number=1,
-                                               limits=HEAD_LIMITS, usage=usage)
-        except Exception:
+            seq, usage = eventlog_reader.head(client, module, limits=limits, usage=usage)
+        except Exception as exc:
             # 读不到就先别写：没有基线比"错的基线"安全得多。
+            logger.warning("[dms changes] 基线读不到（模块 %s）：%s", module, exc)
             complete = False
             break
-        modules[module] = {"count": total, "seq": head[0].seq if head else 0,
-                           "dirty_since": 0, "checked_at": time.time()}
+        modules[module] = {"seq": seq, "dirty_since": 0, "checked_at": time.time()}
     now = time.time()
     incoming = {**base, "version": VERSION, "actor": base.get("actor") or actor,
                 "modules": modules, "seed_attempt": now,
@@ -246,16 +244,17 @@ def _pull(endpoint, *, client, state, expected_scope):
             break
         entry = dict(modules.get(module) or {})
         try:
-            total, usage = eventlog_reader.count(client, module, limits=limits, usage=usage)
-        except Exception:
-            # 读不到就整轮停手：**绝不把"读不到"当成"没变化"**。
-            logger.warning("[dms changes] 使用记录读不到，本轮停止（模块 %s）", module)
+            head, usage = eventlog_reader.head(client, module, limits=limits, usage=usage)
+        except Exception as exc:
+            # 读不到就整轮停手：**绝不把"读不到"当成"没变化"**。原因写进日志（错误文字不带响应正文），
+            # 2026-10-11 对方改版时这里只说"读不到"，查了一晚上才知道是格式变了。
+            logger.warning("[dms changes] 使用记录读不到，本轮停止（模块 %s）：%s", module, exc)
             next_index = (start + index) % len(MODULES)
             break
         try:
             advance = _advance_records if per_record else _advance
             entry, usage = advance(endpoint, client=client, module=module, dataset=dataset,
-                                   entry=entry, total=total, limits=limits, usage=usage,
+                                   entry=entry, head=head, limits=limits, usage=usage,
                                    actor=actor, expected_scope=expected_scope)
         except Exception:
             # 这一模块没处理成功：留着旧水位，下一轮再来；别的模块照常。
@@ -268,58 +267,49 @@ def _pull(endpoint, *, client, state, expected_scope):
     store.merge_change_state(endpoint, incoming, base=state, expected_scope=expected_scope)
 
 
-def _advance(endpoint, *, client, module, dataset, entry, total,
+def _advance(endpoint, *, client, module, dataset, entry, head,
              limits, usage, actor, expected_scope):
     """把一个整组模块（车型、公司、地址……）推进到"此刻"。返回 `(新的水位条目, 用量)`。
 
-    这些组小、整组重读几分钟就完，所以"有变化就登记整组重读、落地前不再翻流水"。
-    客户组按记录补读，走 `_advance_records`。"""
+    `head` 是这个模块此刻最新一行的流水号。这些组小、整组重读几分钟就完，所以
+    "有变化就登记整组重读、落地前不再翻流水"。客户组按记录补读，走 `_advance_records`。"""
     now = time.time()
     dirty = float(entry.get("dirty_since") or 0)
     if dirty:
         if _refreshed(endpoint, dataset, since=dirty):
-            head, usage = eventlog_reader.page(client, module, page_number=1,
-                                               limits=HEAD_LIMITS, usage=usage)
-            return {"count": total, "seq": head[0].seq if head else int(entry.get("seq") or 0),
+            return {"seq": head or int(entry.get("seq") or 0),
                     "dirty_since": 0, "checked_at": now}, usage
         if now - dirty > REFRESH_COOLDOWN_SECONDS and _request_refresh(endpoint, dataset, actor=actor):
             dirty = now
-        return {"count": total, "seq": entry.get("seq") or 0,
+        return {"seq": entry.get("seq") or 0,
                 "dirty_since": dirty, "checked_at": now}, usage
 
     if entry.get("seq") is None:
         # 还没有基线（例如基线任务没跑成）：先记下此刻的水位，本轮不补东西。
-        head, usage = eventlog_reader.page(client, module, page_number=1,
-                                           limits=HEAD_LIMITS, usage=usage)
-        return {"count": total, "seq": head[0].seq if head else 0,
-                "dirty_since": 0, "checked_at": now}, usage
+        return {"seq": head, "dirty_since": 0, "checked_at": now}, usage
 
     cursor = int(entry.get("seq") or 0)
-    previous = entry.get("count")
-    if previous == total:
+    if head == cursor:
         return {**entry, "checked_at": now}, usage
-    if previous is None:
-        # 上一次的总数不明（例如半份基线）：这一段没法判断少了什么，按"未知"处理。
-        return {"count": total, "seq": cursor,
+    if head < cursor:
+        # 最新一行比水位还旧（记录被删）：这一段少了什么没法判断，按"未知"处理。
+        return {"seq": head,
                 "dirty_since": _note_dirty(endpoint, dataset, entry, now, actor),
                 "checked_at": now}, usage
 
-    events, newest, truncated = _new_events(client, module, cursor=cursor, limits=limits,
-                                            usage=usage)
-    # 总数说应该有几条新事件，实际只翻到几条：翻不完或对不上账 —— 都是"未知"。
-    short = len(events) < max(0, int(total) - int(previous))
-    if truncated or short or not events:
-        return {"count": total, "seq": cursor,
+    events, newest, complete = _new_events(client, module, cursor=cursor, limits=limits,
+                                           usage=usage)
+    if not complete or not events:
+        return {"seq": cursor,
                 "dirty_since": _note_dirty(endpoint, dataset, entry, now, actor),
                 "checked_at": now}, usage
     if _request_refresh(endpoint, dataset, actor=actor):
         # 整组重读已登记：水位推进到最新，dirty 标记等它落地才对账。
-        return {"count": total, "seq": newest, "dirty_since": now,
-                "checked_at": now}, usage
+        return {"seq": newest, "dirty_since": now, "checked_at": now}, usage
     return {**entry, "checked_at": now}, usage
 
 
-def _advance_records(endpoint, *, client, module, dataset, entry, total,
+def _advance_records(endpoint, *, client, module, dataset, entry, head,
                      limits, usage, actor, expected_scope):
     """客户组：**每条改动各自补读，一条认不出不连累别的，也不冻结之后的改动**（2026-10-06）。
 
@@ -339,24 +329,22 @@ def _advance_records(endpoint, *, client, module, dataset, entry, total,
         dirty, pending = 0.0, {}   # 整组重读已经覆盖了这之前的一切
 
     if entry.get("seq") is None:
-        head, usage = eventlog_reader.page(client, module, page_number=1,
-                                           limits=HEAD_LIMITS, usage=usage)
-        return {"count": total, "seq": head[0].seq if head else 0, "dirty_since": dirty,
+        return {"seq": head, "dirty_since": dirty,
                 "pending": pending, "checked_at": now}, usage
 
     cursor = int(entry.get("seq") or 0)
-    previous = entry.get("count")
     events, newest, gap = [], cursor, False
-    if previous != total:
-        events, newest, truncated = _new_events(client, module, cursor=cursor, limits=limits,
-                                                usage=usage)
-        short = previous is not None and len(events) < max(0, int(total) - int(previous))
-        gap = previous is None or truncated or short or not events
+    if head < cursor:
+        newest, gap = head, True   # 最新一行比水位还旧（记录被删）：按"未知"处理
+    elif head > cursor:
+        events, newest, complete = _new_events(client, module, cursor=cursor, limits=limits,
+                                               usage=usage)
+        gap = not complete or not events
     retry = {code: since for code, since in pending.items() if now - float(since) <= PENDING_SECONDS}
     expired = len(retry) < len(pending)
     if not events and not retry and not gap and not expired:
         # 没有新改动、也没有待重试的：只记一下检查时刻（不加载整份客户缓存）。
-        return {"count": total, "seq": cursor, "dirty_since": dirty, "pending": {},
+        return {"seq": cursor, "dirty_since": dirty, "pending": {},
                 "checked_at": now}, usage
     unresolved, needs_group = _apply_customers(client, events, endpoint=endpoint,
                                                expected_scope=expected_scope, retry=list(retry))
@@ -371,7 +359,7 @@ def _advance_records(endpoint, *, client, module, dataset, entry, total,
             return {**entry, "dirty_since": dirty, "pending": dict(entry.get("pending") or {}),
                     "checked_at": now}, usage
         dirty = marked
-    return {"count": total, "seq": newest, "dirty_since": dirty, "pending": pending,
+    return {"seq": newest, "dirty_since": dirty, "pending": pending,
             "checked_at": now}, usage
 
 
@@ -384,22 +372,28 @@ def _note_dirty(endpoint, dataset, entry, now, actor):
 
 
 def _new_events(client, module, *, cursor, limits, usage):
-    """游标之后的新事件。返回 `(事件, 见到的最新流水号, 是否还没追完)`。"""
-    events, newest, pages = [], cursor, 0
-    while pages < MAX_NEW_PAGES:
-        pages += 1
-        page, usage = eventlog_reader.page(client, module, page_number=pages,
+    """游标之后的新事件（从新到旧，按流水号去重）。返回 `(事件, 见到的最新流水号, 是否完整)`。
+
+    "完整"＝翻到了流水号不大于游标的那一行。翻到底都没碰到游标（游标为 0 的除外）说明游标
+    那段记录已经被删，中间少了什么不知道；页数用满还没追到游标是积压太多 —— 两种都算不完整。
+    对方分页会多给一行、页与页重叠一行（2026-10-11），所以按流水号去重，不按行数推断。
+    """
+    events, seen, newest = [], set(), cursor
+    for number in range(1, MAX_NEW_PAGES + 1):
+        rows, usage = eventlog_reader.page(client, module, page_number=number,
                                            limits=limits, usage=usage)
-        if not page:
-            return events, newest, False
-        newest = max(newest, max(event.seq for event in page))
-        events.extend(event for event in page if event.seq > cursor)
-        if min(event.seq for event in page) <= cursor:
-            return events, newest, False
-        if len(page) < limits.page_size:
-            return events, newest, False
-    # 页数用满还是没追到游标：说明积压太多。
-    return events, newest, True
+        if not rows:
+            return events, newest, cursor == 0
+        newest = max(newest, rows[0].seq)
+        for event in rows:
+            if event.seq > cursor and event.seq not in seen:
+                seen.add(event.seq)
+                events.append(event)
+        if rows[-1].seq <= cursor:
+            return events, newest, True
+        if len(rows) < limits.page_size:
+            return events, newest, cursor == 0
+    return events, newest, False
 
 
 # ── 按记录补读（目前只有客户） ──────────────────────────────────────────

@@ -6,11 +6,21 @@ name: pearnly-production
 #   PEARNLY_{DMS,ERP,COWORK}_WEB_WORKERS / _WEB_MEM、PEARNLY_BILLING_WEB_THREADS / _WORKERS、PEARNLY_MARIADB_MEM / _MAX_CONNECTIONS / _BUFFER_POOL。
 # 进程数和内存要一起改：capacity.py 按每个进程的最低内存把关，只加进程不加内存会被拒绝启动。
 
+# 外部域名解析直接问这三台（Docker 内置 DNS 按顺序换台），不经宿主机的 systemd-resolved：2026-10 宿主那一跳
+# 偶尔超时（它当时用的是 IPv6 上游），Docker 等不到就回"查不到"——LINE 菜单同步 3 次 `api.line.me` 解析失败，
+# 外部 DMS 域名的 IPv6 查询超时 28 次（每次多等几秒）。服务名（mariadb、redis-*）照旧由 Docker 自己解析。
+# 网络里出不去这几台时（例如测试机所在局域网）用 runtime.env 的 PEARNLY_DNS_1/2/3 换掉。
+x-dns: &dns
+  - ${PEARNLY_DNS_1:-8.8.8.8}
+  - ${PEARNLY_DNS_2:-1.1.1.1}
+  - ${PEARNLY_DNS_3:-8.8.4.4}
+
 x-runtime: &runtime
   image: ${PEARNLY_IMAGE:?Set the verified image digest}
   restart: unless-stopped
   init: true
   networks: [runtime]
+  dns: *dns
   logging: &logging
     driver: json-file
     options: {max-size: 10m, max-file: '3'}
@@ -142,6 +152,7 @@ services:
     ports: ['127.0.0.1:8180:8080', '127.0.0.1:9180:9000']
     volumes: ['../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro', '../keycloak/themes/pearnly-ai:/opt/keycloak/themes/pearnly-ai:ro']
     networks: [runtime]
+    dns: *dns  # LINE 登录要从这里解析 LINE 的域名
     logging: *logging
     depends_on:
       mariadb: {condition: service_healthy}

@@ -27,31 +27,48 @@ CODE = "9112"
 
 
 def row(seq, module, action=ACTION_EDIT, target=CODE, account="sale02"):
-    spans = "".join(f"<span>{value}</span>" for value in
-                    (account, "25/09/2569", "10:00:00", "10.0.0.1", module, action, target))
-    return (f'<div data-val="{seq}||2" data-allo="" data-cf="">'
-            f'<div class="detaildata"><p>{spans}</p></div></div>')
+    """2026-10-11 改版后的行形状：每项一个 `<p>`，标识 `<流水号>||`。"""
+    def pair(a, b):
+        return f"<div><p>{a}</p><p>{b}</p></div>"
+    return (f'<div data-val="{seq}||" data-allo="" data-cf=""><div class="detaildata">'
+            f'<div>{pair(account, "10.0.0.1")}{pair("25/09/2569", "10:00:00")}</div>'
+            f'<div>{pair(module, action)}<div><p>{target}</p></div></div></div></div>')
+
+
+def _seq(html):
+    return int(html.split('data-val="', 1)[1].split("||", 1)[0])
 
 
 class FakeEventLog:
-    """只认计数（无 sdtamt）与分页两个形状，与实测的原生响应一致。"""
+    """照 2026-10-11 改版后的原生行为：不回总数；`sdtamt=n&sdtpage=p` 从第 (p-1)·n 行起回 n+1 行
+    （页与页重叠一行）；不传 `sdtamt` 只回最新一行。
 
-    def __init__(self, modules=None, *, failing=()):
+    `rows` 只写"新"的那几行；水位所在那一行（历史）由 `history` 自动补在最后 —— 真实流水里它一直在。
+    """
+
+    def __init__(self, modules=None, *, failing=(), history=None):
         self.modules = modules or {}
         self.failing = set(failing)
+        self.history = history
         self.calls = []
+
+    def rows_of(self, module):
+        rows = list((self.modules.get(module) or {}).get("rows", []))
+        old = (self.history or {}).get(module)
+        if old and old not in {_seq(item) for item in rows}:
+            rows.append(row(old, module))
+        return sorted(rows, key=_seq, reverse=True)
 
     def _post_text(self, path, data):
         self.calls.append((path, dict(data)))
         module = (data.get("ftd") or "").split("||")[0]
         if module in self.failing:
             raise RuntimeError("transport down")
-        spec = self.modules.get(module) or {"count": 0, "rows": []}
-        if "sdtamt" not in data:
-            return "dt::%d" % spec["count"]
-        size, page = int(data["sdtamt"]), int(data["sdtpage"])
-        rows = spec["rows"][(page - 1) * size: page * size]
-        return "dt::\t\t\t\t\t" + "".join(rows) if rows else "ndt::"
+        rows = self.rows_of(module)
+        size = int(data.get("sdtamt") or 0)
+        page = int(data.get("sdtpage") or 1)
+        rows = rows[(page - 1) * size: (page - 1) * size + size + 1]
+        return "dt::\t\t\t\t" + "".join(rows) if rows else "ndt::"
 
 
 class FakeStore:
@@ -165,13 +182,21 @@ class ChangeSyncTests(unittest.TestCase):
 
     def baseline(self, **overrides):
         """一个已建好的水位：默认每个模块都是"零事件、水位 1"，可逐个改。"""
-        modules = {module: {"count": 0, "seq": 1, "dirty_since": 0}
+        modules = {module: {"seq": 1, "dirty_since": 0}
                    for module, _dataset, _records in self.sync.MODULES}
         modules.update(overrides)
         return {"version": 1, "actor": "Administrator", "seeded_at": 1.0,
                 "seed_attempt": 1.0, "next_index": 0, "modules": modules}
 
+    def history_without(self, module):
+        """水位所在那一行只对 `module` 不在了（别的模块照常）。"""
+        return {name: entry.get("seq") for name, entry in self.store.state["modules"].items()
+                if name != module}
+
     def catch_up(self, log):
+        if log.history is None:
+            log.history = {module: entry.get("seq") for module, entry in
+                           ((self.store.state or {}).get("modules") or {}).items()}
         return self.sync.catch_up("PRIMARY", client=log)
 
     def test_unchanged_counts_cost_one_request_per_module(self):
@@ -181,29 +206,30 @@ class ChangeSyncTests(unittest.TestCase):
         self.catch_up(log)
 
         self.assertEqual(len(log.calls), len(self.sync.MODULES))
-        self.assertTrue(all("sdtamt" not in data for _path, data in log.calls),
-                        "没有变化就只读计数，不翻流水")
+        self.assertTrue(all((data.get("sdtamt"), data.get("sdtpage")) == ("1", "1")
+                            for _path, data in log.calls),
+                        "没有变化就只读最新一行，不翻流水")
         self.assertEqual(self.store.verified, [])
         self.assertEqual(self.manual.requests, [])
         self.assertEqual(self.store.written[-1]["next_index"], 0)
         self.assertEqual(self.store.written[-1]["modules"], self.store.state["modules"])
 
     def test_named_customer_change_is_read_back_per_record(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS)]}})
 
         self.catch_up(log)
 
         self.assertEqual(self.store.verified, [("59", {"customer_id": "59", "cuscode": CODE, "people_id": ID_CARD})])
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual((entry["count"], entry["seq"], entry["dirty_since"]), (231, 832, 0))
+        self.assertEqual((entry["seq"], entry["dirty_since"]), (832, 0))
         self.assertEqual(self.manual.requests, [], "按记录补上了就不该整组重读")
 
     def test_new_customer_named_by_its_dealer_code_is_found_and_cached(self):
         """2026-10-06：新增客户 134 在使用记录里是「เพิ่ม | 9112」，缓存里还没有它。"""
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 281, "seq": 981, "dirty_since": 0}})
-        log = FakeEventLog({CUSTOMERS: {"count": 282, "rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 981, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
         self.read.return_value = {"customer_id": "134", "cuscode": CODE, "people_id": "1310200999112"}
         with patch.object(self.sync, "_search_customer", return_value="134") as search:
             self.catch_up(log)
@@ -216,8 +242,8 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_customer_the_read_account_cannot_see_is_retried_not_frozen(self):
         """认不出：挂进 pending 之后每轮再试，水位照常前进，不马上整组重读。"""
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 281, "seq": 981, "dirty_since": 0}})
-        log = FakeEventLog({CUSTOMERS: {"count": 282, "rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 981, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(982, CUSTOMERS, "เพิ่ม", CODE)]}})
         with patch.object(self.sync, "_search_customer", return_value=""), \
                 self.assertLogs(self.sync.logger, "WARNING") as logs:
             self.catch_up(log)
@@ -231,32 +257,32 @@ class ChangeSyncTests(unittest.TestCase):
     def test_daytime_leaves_a_big_group_read_for_the_night(self):
         """白天点不出记录：客户组只标记待重读、水位推进，不马上登记一个多小时的整组读取。"""
         self.defer.side_effect = lambda dataset: dataset == "customers"
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS, target="")]}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS, target="")]}})
 
         self.catch_up(log)
 
         self.assertEqual(self.manual.requests, [])
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual((entry["count"], entry["seq"]), (231, 832))
+        self.assertEqual(entry["seq"], 832)
         self.assertGreater(entry["dirty_since"], 0, "留着待重读标记，凌晨全量读完才清")
 
     def test_change_without_an_identified_record_falls_back_to_a_group_read(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS, target="")]}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS, target="")]}})
 
         self.catch_up(log)
 
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual(entry["count"], 231, "读到的位置要记下，避免反复翻同一页")
+        self.assertEqual(entry["seq"], 832, "读到的位置要记下，避免反复翻同一页")
         self.assertEqual(entry["seq"], 832)
         self.assertTrue(entry["dirty_since"], "没真正补上之前，整组重读的义务要一直挂着")
 
     def test_delete_is_not_guessed_per_record(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
-        log = FakeEventLog({CUSTOMERS: {"count": 231,
+        log = FakeEventLog({CUSTOMERS: {
                                         "rows": [row(832, CUSTOMERS, ACTION_DELETE)]}})
 
         self.catch_up(log)
@@ -268,8 +294,8 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
 
     def test_delete_without_a_local_customer_has_nothing_to_forget(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        log = FakeEventLog({CUSTOMERS: {"count": 231,
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {
                                         "rows": [row(832, CUSTOMERS, ACTION_DELETE)]}})
 
         self.catch_up(log)
@@ -278,10 +304,10 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
 
     def test_an_edit_and_a_delete_in_the_same_batch_both_land(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
         self.store.customers["1000001205453"] = "60"
-        log = FakeEventLog({CUSTOMERS: {"count": 232, "rows": [
+        log = FakeEventLog({CUSTOMERS: {"rows": [
             row(832, CUSTOMERS, ACTION_EDIT, CODE),
             row(833, CUSTOMERS, ACTION_DELETE, "1000001205453"),
         ]}})
@@ -293,7 +319,7 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
 
     def test_unreadable_log_stops_without_moving_any_watermark(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         before = {key: dict(value) for key, value in self.store.state["modules"].items()}
         log = FakeEventLog(failing={CUSTOMERS})
 
@@ -305,15 +331,15 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual(log.calls[0][1]["ftd"], CUSTOMERS + "||2", "按模块逐个查，没有全局过滤器")
 
     def test_record_read_failure_is_retried_on_the_next_pull(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
         self.read.side_effect = RuntimeError("read failed")
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS)]}})
 
         self.catch_up(log)
 
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual((entry["count"], entry["seq"], list(entry["pending"])), (231, 832, [CODE]),
+        self.assertEqual((entry["seq"], list(entry["pending"])), (832, [CODE]),
                          "水位前进，这一条挂起下一轮重试")
         self.assertEqual(self.manual.requests, [], "一次读失败不等于要整组重读")
 
@@ -324,10 +350,10 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual(entry["pending"], {})
 
     def test_readback_identity_mismatch_is_never_written(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
         self.read.return_value = {"customer_id": "59", "cuscode": "0001", "people_id": ID_CARD}
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS)]}})
 
         self.catch_up(log)
 
@@ -336,35 +362,35 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual((entry["seq"], list(entry["pending"])), (832, [CODE]), "挂起重试，过期交整组重读")
 
     def test_truncated_backlog_asks_for_a_group_read(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 100, "seq": 1, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 1, "dirty_since": 0}})
         self.store.customers[CODE] = "59"
-        rows = [row(1000 - index, CUSTOMERS) for index in range(200)]
-        log = FakeEventLog({CUSTOMERS: {"count": 400, "rows": rows}})
+        rows = [row(5000 - index, CUSTOMERS) for index in range(1000)]
+        log = FakeEventLog({CUSTOMERS: {"rows": rows}})
 
         self.catch_up(log)
 
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
         entry = self.store.written[-1]["modules"][CUSTOMERS]
-        self.assertEqual((entry["seq"], entry["count"]), (1000, 400),
+        self.assertEqual(entry["seq"], 5000,
                          "翻到的照常补、水位前进，翻不到的那一段交整组重读")
         self.assertTrue(entry["dirty_since"])
         self.assertEqual(self.read.call_count, 1, "翻到的那批（同一客户）照常补读")
 
     def test_dirty_dataset_clears_once_the_group_read_actually_landed(self):
-        self.store.state = self.baseline(**{CARS: {"count": 20, "seq": 900, "dirty_since": 50.0}})
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": 50.0}})
         self.manual.completed["vehicles"] = 100.0
-        log = FakeEventLog({CARS: {"count": 20, "rows": [row(902, CARS)]}})
+        log = FakeEventLog({CARS: {"rows": [row(902, CARS)]}})
 
         self.catch_up(log)
 
         entry = self.store.written[-1]["modules"][CARS]
-        self.assertEqual((entry["count"], entry["seq"], entry["dirty_since"]), (20, 902, 0))
+        self.assertEqual((entry["seq"], entry["dirty_since"]), (902, 0))
         self.assertEqual(self.manual.requests, [], "已经落地就不用再登记")
 
     def test_dirty_dataset_is_not_re_requested_inside_the_cooldown(self):
         now = 1_000_000.0
-        self.store.state = self.baseline(**{CARS: {"count": 20, "seq": 900, "dirty_since": now}})
-        log = FakeEventLog({CARS: {"count": 20, "rows": [row(902, CARS)]}})
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": now}})
+        log = FakeEventLog({CARS: {"rows": [row(902, CARS)]}})
 
         with patch.object(self.sync.time, "time", return_value=now + 5):
             self.catch_up(log)
@@ -389,28 +415,27 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_missing_baseline_is_established_without_applying_anything(self):
         self.store.state = None
-        log = FakeEventLog({CUSTOMERS: {"count": 230, "rows": [row(831, CUSTOMERS)]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(831, CUSTOMERS)]}})
 
         self.catch_up(log)
 
         state = self.store.written[-1]
         self.assertTrue(state["seeded_at"])
-        self.assertEqual(state["modules"][CUSTOMERS]["count"], 230)
         self.assertEqual(state["modules"][CUSTOMERS]["seq"], 831)
         self.assertEqual(self.store.verified, [], "建基线不补数据")
         self.assertEqual(self.read.call_count, 0)
 
     def test_half_built_baseline_is_not_marked_seeded(self):
         self.store.state = None
-        log = FakeEventLog({CARS: {"count": 20, "rows": []}}, failing={CARS})
+        log = FakeEventLog({CARS: {"rows": []}}, failing={CARS})
 
         self.catch_up(log)
 
         self.assertFalse(self.store.written[-1]["seeded_at"], "没读全就不能算基线，下一轮还得重来")
 
     def test_group_read_registration_uses_the_service_actor(self):
-        self.store.state = self.baseline(**{CARS: {"count": 20, "seq": 900, "dirty_since": 0}})
-        log = FakeEventLog({CARS: {"count": 21, "rows": [row(901, CARS)]}})
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": 0}})
+        log = FakeEventLog({CARS: {"rows": [row(901, CARS)]}})
 
         self.catch_up(log)
 
@@ -418,9 +443,9 @@ class ChangeSyncTests(unittest.TestCase):
                          [{"dataset": "vehicles", "reader": "authority", "actor": "Administrator"}])
 
     def test_registration_failure_keeps_the_old_watermark(self):
-        self.store.state = self.baseline(**{PROVINCES: {"count": 3, "seq": 800, "dirty_since": 0}})
+        self.store.state = self.baseline(**{PROVINCES: {"seq": 800, "dirty_since": 0}})
         self.manual.fail = True
-        log = FakeEventLog({PROVINCES: {"count": 4, "rows": [row(801, PROVINCES, target="99")]}})
+        log = FakeEventLog({PROVINCES: {"rows": [row(801, PROVINCES, target="99")]}})
 
         self.catch_up(log)
 
@@ -428,9 +453,9 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_a_group_waiting_for_the_night_still_takes_new_edits_per_record(self):
         """2026-10-06：待重读期间不再冻结——之后的客户改动照常一分钟内补进缓存。"""
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 500.0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 500.0}})
         self.store.customers[CODE] = "59"
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS)]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS)]}})
 
         self.catch_up(log)
 
@@ -440,10 +465,10 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual(self.manual.requests, [])
 
     def test_the_landed_group_read_clears_the_mark_and_the_pending_codes(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 500.0,
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 500.0,
                                                         "pending": {"OLD-1": 400.0}}})
         self.manual.completed["customers"] = 900.0
-        log = FakeEventLog({CUSTOMERS: {"count": 230, "rows": []}})
+        log = FakeEventLog({CUSTOMERS: {"rows": []}})
 
         self.catch_up(log)
 
@@ -452,9 +477,9 @@ class ChangeSyncTests(unittest.TestCase):
 
     def test_a_code_still_unresolved_after_the_window_goes_to_the_night(self):
         now = 1_000_000.0
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0,
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0,
             "pending": {CODE: now - self.sync.PENDING_SECONDS - 1}}})
-        log = FakeEventLog({CUSTOMERS: {"count": 230, "rows": []}})
+        log = FakeEventLog({CUSTOMERS: {"rows": []}})
 
         with patch.object(self.sync.time, "time", return_value=now):
             self.catch_up(log)
@@ -464,31 +489,68 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual([r["dataset"] for r in self.manual.requests], ["customers"])
 
     def test_customer_group_registration_failure_keeps_the_watermark(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         self.manual.fail = True
-        log = FakeEventLog({CUSTOMERS: {"count": 231, "rows": [row(832, CUSTOMERS, target="")]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS, target="")]}})
 
         self.catch_up(log)
 
         self.assertEqual(self.store.written[-1]["modules"][CUSTOMERS]["seq"], 831, "下一轮从原处重来")
 
     def test_an_idle_minute_does_not_load_the_customer_cache(self):
-        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
-        self.catch_up(FakeEventLog({CUSTOMERS: {"count": 230, "rows": []}}))
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
+        self.catch_up(FakeEventLog({CUSTOMERS: {"rows": []}}))
         self.assertEqual(self.store.code_reads, 0, "没有改动就不读整份客户缓存（ris 1.5 万位）")
 
     def test_seed_records_the_current_head_and_applies_nothing(self):
         self.store.state = None
-        log = FakeEventLog({CUSTOMERS: {"count": 230, "rows": [row(831, CUSTOMERS)]}})
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(831, CUSTOMERS)]}})
 
         result = self.sync._establish_baseline("PRIMARY", client=log, actor="admin@example.test")
 
         self.assertTrue(result["seeded"])
         state = self.store.written[-1]
         self.assertEqual(state["actor"], "admin@example.test")
-        self.assertEqual(state["modules"][CUSTOMERS]["count"], 230)
         self.assertEqual(state["modules"][CUSTOMERS]["seq"], 831)
         self.assertEqual(self.store.verified, [])
+
+    def test_overlapping_native_pages_yield_each_event_once(self):
+        # 2026-10-11 起对方每页多给一行、第 2 页从上一页最后一行开始。
+        from pearnly_dms.client.eventlog_reader import EventLogLimits, Usage
+        rows = [row(seq, CUSTOMERS, target=f"C{seq}") for seq in range(20, 10, -1)]
+        log = FakeEventLog({CUSTOMERS: {"rows": rows}}, history={CUSTOMERS: 10})
+        limits = EventLogLimits(page_size=3)
+
+        events, newest, complete = self.sync._new_events(log, CUSTOMERS, cursor=10, limits=limits,
+                                                         usage=Usage(limits))
+
+        self.assertEqual([event.seq for event in events], list(range(20, 10, -1)))
+        self.assertEqual((newest, complete), (20, True))
+
+    def test_head_older_than_the_watermark_is_unknown(self):
+        # 记录被删（对方新增"按日期删除使用记录"）：最新一行比水位还旧 → 整组重读，不当没变化。
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": 0}})
+        log = FakeEventLog({CARS: {"rows": [row(850, CARS)]}}, history=self.history_without(CARS))
+
+        self.catch_up(log)
+
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["vehicles"])
+        self.assertEqual(self.store.written[-1]["modules"][CARS]["seq"], 850)
+
+    def test_reaching_the_end_without_the_watermark_is_unknown(self):
+        # 新事件都在，但水位那一行已经不在了：中间少没少不知道 → 整组重读，能认出的照常补。
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
+        self.store.customers[CODE] = "59"
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(833, CUSTOMERS), row(832, CUSTOMERS)]}},
+                           history=self.history_without(CUSTOMERS))
+
+        self.catch_up(log)
+
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual(entry["seq"], 833)
+        self.assertTrue(entry["dirty_since"])
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
+        self.assertEqual(self.store.verified[0][0], "59")
 
 
 if __name__ == "__main__":
