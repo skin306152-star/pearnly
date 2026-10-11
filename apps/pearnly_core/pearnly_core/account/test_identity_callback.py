@@ -127,10 +127,20 @@ class Callback(unittest.TestCase):
         self.assertEqual(self.native.local.response["location"], "/desk/x")
         self.mocks["_begin_login"].assert_called_once()
 
-    def test_unknown_state_is_still_refused(self):
+    def test_unknown_or_expired_state_never_logs_in_and_starts_over_once(self):
+        """state 查不到（伪造、或在登录页停了超过 10 分钟已过期）：绝不用这次回跳的凭据登录；重新走一遍登录
+        （身份服务刚登录过会立刻回来），60 秒内第二次仍然拒绝，免得来回跳（2026-10-11 ris 停了 12 分钟报 417）。"""
+        self.native.local.cookie_manager = MagicMock()
+        self.native.request = SimpleNamespace(cookies={})
+        identity.callback(code="c", state="never-issued")
+        self.mocks["_login_as"].assert_not_called()
+        self.mocks["_begin_login"].assert_called_once_with(None)
+        self.native.local.cookie_manager.set_cookie.assert_called_once()
+        self.native.request = SimpleNamespace(cookies={identity.RETRY_COOKIE: "1"})
         with self.assertRaises(Exception):
             identity.callback(code="c", state="never-issued")
         self.mocks["_login_as"].assert_not_called()
+        self.mocks["_begin_login"].assert_called_once()
 
 
 if __name__ == "__main__":

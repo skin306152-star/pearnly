@@ -158,6 +158,26 @@ def _resume(saved: dict):
     _begin_login(saved.get("redirect_to"), idp_hint=saved.get("idp_hint"))
 
 
+RETRY_COOKIE = "pearnly_login_retry"
+RETRY_SECONDS = 60
+
+
+def _restart():
+    """回跳时 state 已过期（在登录页停了超过 STATE_TTL）或查不到：已经登录就去目标页；没有就重新走一遍登录
+    （身份服务那边刚登录过，会立刻回来，不用再输密码）。以前直接报「state 无效或已过期」，用户只看到服务器错误、
+    刷新还是同一个死地址（2026-10-11 ris.pearnly.com：登录页停了 12 分钟）。60 秒内只重来一次，免得状态存储出问题时来回跳。"""
+    if frappe.session.user != "Guest":
+        from pearnly_core import workspace as workspace_mod
+
+        frappe.local.response["type"] = "redirect"
+        frappe.local.response["location"] = workspace_mod.resolve_after_login(None)
+        return
+    if frappe.request and frappe.request.cookies.get(RETRY_COOKIE):
+        frappe.throw(_("state is invalid or has expired"))
+    frappe.local.cookie_manager.set_cookie(RETRY_COOKIE, "1", max_age=RETRY_SECONDS, httponly=True)
+    _begin_login(None)
+
+
 def _refuse(reason: str):
     """登录被拒：不建本地会话；说明页上的"请登录"先经浏览器注销结束身份服务那边这次会话。
 
@@ -184,7 +204,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if saved.get("consumed"):
         return _resume(saved)
     if not saved:
-        frappe.throw(_("state is invalid or has expired"))
+        return _restart()
 
     claims = _exchange_and_verify(code, saved)
     subject = claims.get("sub")
