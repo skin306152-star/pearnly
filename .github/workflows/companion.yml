@@ -32,7 +32,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q -p no:cacheprovider tests
       # 2026-10-10 起带 Tomo 窗口（网页内核）打成文件夹：每次都真打一次包，核对网页内核进了包；
-      # 安装包只作为这次运行的附件（7 天），不发布，供测试机试装。正式发布仍走 companion-release.yml（只发 main）。
+      # 安装包只作为这次运行的附件（1 天，Actions 存储额度只有 0.5 GB，一个包约 150 MB），不发布，供测试机试装。正式发布仍走 companion-release.yml（只发 main）。
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
       - name: Build the installer (not published)
@@ -54,5 +54,5 @@ jobs:
           path: |
             companion/dist/PearnlyCompanion-Setup.exe
             companion/dist/release.json
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error

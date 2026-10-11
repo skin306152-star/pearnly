@@ -78,7 +78,7 @@ jobs:
             companion/dist/PearnlyCompanion-Setup.exe
             companion/dist/release.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
 
   publish:
     needs: build
