@@ -109,9 +109,10 @@ class Adapter(base.Adapter):
     # 控制台 Manage → Webhooks 订阅这几类；通知只带类型与会话编号，等的是哪些调用再读事件列表（`contracts.pending_calls`）
     WAKE_EVENTS = ("session.status_idled", "session.requires_action", "session.idled")
 
-    def wake(self, event: dict) -> str | None:
+    @classmethod
+    def wake(cls, event: dict) -> str | None:
         data = event.get("data") or {}
-        return str(data.get("id") or "") or None if data.get("type") in self.WAKE_EVENTS else None
+        return str(data.get("id") or "") or None if data.get("type") in cls.WAKE_EVENTS else None
 
     def metadata(self, conversation: str) -> dict:
         return dict(self.api.beta.sessions.retrieve(conversation).metadata or {})

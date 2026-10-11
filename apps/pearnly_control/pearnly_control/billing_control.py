@@ -15,6 +15,8 @@ from pearnly_control.billing_auth import PRODUCTS, tenant_token
 SERVICE_METHODS = frozenset({
     "service_status", "service_charge", "service_wallet", "service_topup_request",
     "service_topup_status", "service_home", "service_subscribe", "service_records",
+    # 智能体（ADR-019）：租户站点登记远端会话归属，入口转发引擎回调用
+    "service_assistant_route",
 })
 
 

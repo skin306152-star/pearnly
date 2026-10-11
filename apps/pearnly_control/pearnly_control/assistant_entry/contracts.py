@@ -34,6 +34,17 @@ def site(value) -> str:
     return text
 
 
+SESSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
+
+
+def session(value) -> str:
+    """引擎的远端会话编号（同 pearnly_core.assistant.contracts.session_id 的规则）。"""
+    text = str(value or "").strip()
+    if not SESSION.match(text):
+        raise ContractError("invalid session")
+    return text
+
+
 def issuer(value) -> str:
     text = str(value or "").strip().rstrip("/")
     if not ISSUER.match(text):

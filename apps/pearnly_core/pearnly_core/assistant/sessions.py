@@ -76,11 +76,25 @@ def _metadata(user, product) -> dict:
     return {"pearnly_site": frappe.local.site, "pearnly_product": product, "pearnly_user": user}
 
 
+def _route(remote: str) -> None:
+    """告诉计费服务这段远端会话属于本站：生产的引擎回调只登记一个地址（入口 fatcc.com），由它按这份登记转给本站
+    （`webhook`）。只为转发，登记不上不挡对话（页面开着照常执行；关着时这一段等页面再开）。"""
+    from pearnly_core import billing_client
+
+    if not billing_client.configured():
+        return
+    try:
+        billing_client.assistant_route(remote)
+    except Exception:
+        frappe.log_error(title="Assistant route not recorded")
+
+
 def create() -> dict:
     user, product = _user(), config.product()
     api = engine.adapter()
     sid, status = api.open(engine.prepared(api), _metadata(user, product))
     engine.tools_current(sid)
+    _route(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": ""}).insert(ignore_permissions=True)
     return _summary(doc, status)
@@ -135,6 +149,7 @@ def segment_for_turn(row, api) -> str:
     fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
                                                      "pearnly_conversation": row.session_id})
     engine.tools_current(fresh)
+    _route(fresh)
     remote_ids = json.dumps(segments(row) + [fresh])
     frappe.db.set_value(SESSION, row.name, {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})
     row.update({"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})

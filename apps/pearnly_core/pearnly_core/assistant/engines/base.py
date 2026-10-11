@@ -27,7 +27,8 @@ class Adapter(abc.ABC):
     def open(self, handle: dict, metadata: dict) -> tuple[str, str]:
         """新建一个会话，返回 (会话编号, 状态)。"""
 
-    def wake(self, event: dict) -> str | None:
+    @classmethod
+    def wake(cls, event: dict) -> str | None:
         """引擎回调（已验签的通知）若意味着某个会话可能在等工具结果，回那个会话编号；其余回 None。
         厂商没有回调就一直回 None（只靠推送线程与页面兜底）。"""
         return None

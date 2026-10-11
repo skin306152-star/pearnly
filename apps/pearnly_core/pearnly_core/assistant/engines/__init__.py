@@ -38,6 +38,18 @@ ENGINES = (
 )
 
 
+def wake(event: dict) -> str | None:
+    """不知道是哪家引擎发来的回调（入口 fatcc.com 统一接收）：逐个问登记的适配器认不认，认出就回会话编号。"""
+    import importlib
+
+    for engine in ENGINES:
+        module, _, name = engine.adapter.rpartition(".")
+        session = getattr(importlib.import_module(module), name).wake(event)
+        if session:
+            return session
+    return None
+
+
 class EngineError(ValueError):
     pass
 

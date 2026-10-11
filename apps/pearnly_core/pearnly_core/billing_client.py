@@ -55,6 +55,11 @@ def _conf() -> dict:
     }
 
 
+def assistant_route(session_id: str) -> None:
+    """登记「这段智能体远端会话是本站的」（ADR-019）：入口 fatcc.com 收到引擎回调后据此转给本站。"""
+    _call("service_assistant_route", {"site": frappe.local.site, "session_id": session_id})
+
+
 def configured() -> bool:
     c = _conf()
     return bool(c["tenant"] and c["api"] and c["token"])

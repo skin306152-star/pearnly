@@ -139,6 +139,61 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(self.registry.sites_for(ISSUER, "sub-unknown", "somchai"), [])  # 有身份登记时不按账号名
 
 
+class RouteTests(unittest.TestCase):
+    """生产引擎回调只登记入口 fatcc.com：租户站点登记会话归属，入口按它转发（ADR-019）。"""
+
+    def setUp(self):
+        sites = {"acme-cowork.pearnly.com": "T-1", "other-erp.pearnly.com": "T-2"}
+        self.routes = {}
+        outer = self
+
+        class Doc:
+            def __init__(self, values):
+                self.values = values
+
+            def insert(self, ignore_permissions=False):
+                outer.routes[self.values["session_id"]] = dict(self.values)
+
+        def get_value(doctype, name, field):
+            if doctype == "Pearnly Tenant Site":
+                return sites.get(name)
+            return (outer.routes.get(name) or {}).get(field)
+
+        fake = types.ModuleType("frappe")
+        fake.db = types.SimpleNamespace(get_value=get_value, exists=lambda doctype, name: name in outer.routes,
+                                        set_value=lambda doctype, name, values: outer.routes[name].update(values))
+        fake.get_doc = Doc
+        sys.modules["frappe"] = fake
+        sys.modules.setdefault("pearnly_control", types.ModuleType("pearnly_control"))
+        sys.modules.setdefault("pearnly_control.assistant_entry", types.ModuleType("pearnly_control.assistant_entry"))
+        sys.modules["pearnly_control.assistant_entry"].contracts = contracts
+        sys.modules["pearnly_control.assistant_entry.contracts"] = contracts
+        self.module = _load("entry_routes", CONTROL / "assistant_entry/routes.py")
+
+    def test_a_tenant_can_only_route_its_own_registered_sites(self):
+        self.module.record("T-1", "acme-cowork.pearnly.com", "sesn_abcd1234")
+        self.assertEqual(self.module.site_for("sesn_abcd1234"), "acme-cowork.pearnly.com")
+        for tenant, site in (("T-1", "other-erp.pearnly.com"), ("T-1", "unknown.pearnly.com")):
+            with self.assertRaises(contracts.ContractError):
+                self.module.record(tenant, site, "sesn_wxyz9876")
+        self.assertEqual(self.module.site_for("sesn_never"), "")
+
+    def test_sites_register_sessions_and_the_entry_forwards_callbacks(self):
+        sessions = (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8")
+        for name in ("def create(", "def segment_for_turn("):
+            self.assertIn("_route(", sessions.split(name, 1)[1].split("\ndef ", 1)[0], name)
+        guard = (CONTROL / "billing_control.py").read_text(encoding="utf-8")
+        self.assertIn('"service_assistant_route"', guard.split("SERVICE_METHODS", 1)[1].split("})", 1)[0])
+        entry = (CONTROL / "assistant_entry/entry.py").read_text(encoding="utf-8")
+        self.assertIn('"/api/method/pearnly_control.assistant_entry.webhook.receive"', entry.split("ALLOWED_PATHS", 1)[1])
+        hook = (CONTROL / "assistant_entry/webhook.py").read_text(encoding="utf-8")
+        for needle in ("verify_webhook(", "engines.wake(", 'entry._billing("route"', "allow_redirects=False",
+                       '"X-Pearnly-Forwarded": "1"'):
+            self.assertIn(needle, hook)
+        plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
+        self.assertIn('secret = (frappe.conf.get("pearnly_assistant_webhook_secret") or "") if settings["engine"] else ""', plan)
+
+
 class WiringTests(unittest.TestCase):
     def test_billing_stays_private_except_the_entry_lookup(self):
         guard = (CONTROL / "billing_control.py").read_text(encoding="utf-8")

@@ -403,7 +403,9 @@ def main():
         engine = model = key = ""
         if p.get("configured"):
             engine, key, model = engines.check(p.get("engine"), p.get("api_key"), p.get("model"))
-        config(pearnly_assistant_engine=engine, pearnly_assistant_model=model, pearnly_assistant_api_key=key)
+        config(pearnly_assistant_engine=engine, pearnly_assistant_model=model, pearnly_assistant_api_key=key,
+               # 引擎回调的签名密钥（入口 fatcc.com 统一接收后转来，本站再验）；未开通就清空
+               pearnly_assistant_webhook_secret=str(p.get("webhook_secret") or "") if engine else "")
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()

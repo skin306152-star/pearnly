@@ -16,7 +16,7 @@
   new_site      {site, group, admin_password}
   install_app   {site, group, app}
   set_config    {site, group, key, value}
-  set_assistant {site, group, configured, engine, model, api_key}   智能体设置（ADR-019），租户改设置时单独重排
+  set_assistant {site, group, configured, engine, model, api_key, webhook_secret}   智能体设置（ADR-019），租户改设置时单独重排
   restart_web   {group}
   bind_user     {site, group, email, full_name, subject, issuer}
   mark_active   {deployment}
@@ -543,8 +543,11 @@ def _assistant_payload(dep) -> dict:
     settings = {"engine": "", "model": "", "api_key": ""}
     if dep.tenant and frappe.db.exists("Pearnly Tenant", dep.tenant):
         settings = assistant.read(frappe.get_doc("Pearnly Tenant", dep.tenant))
+    # 引擎回调的签名密钥（全平台一个，生产回调地址只登记入口 fatcc.com，由它转给各站点；见 assistant_entry.webhook）：
+    # 开通了智能体的站点都带上，站点用它验证入口转来的回调。没配就不带（页面开着照常执行）。
+    secret = (frappe.conf.get("pearnly_assistant_webhook_secret") or "") if settings["engine"] else ""
     return {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
-            "configured": bool(settings["engine"]), **settings}
+            "configured": bool(settings["engine"]), "webhook_secret": secret, **settings}
 
 
 def queue_assistant_config(tenant: str) -> int:

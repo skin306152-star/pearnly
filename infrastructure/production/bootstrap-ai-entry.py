@@ -57,6 +57,8 @@ for key, value in {
     "pearnly_assistant_entry_billing_host": BILLING,
     "pearnly_assistant_entry_token": contracts.entry_token(root),
     "pearnly_assistant_entry_default_issuer": DEFAULT_ISSUER,
+    # 引擎回调的签名密钥（控制台登记回调地址 https://fatcc.com/... 时生成，放在 runtime.env；没有就不收回调）
+    "pearnly_assistant_webhook_secret": (config.get("PEARNLY_ASSISTANT_WEBHOOK_SECRET") or "").strip(),
 }.items():
     update_site_config(key, value)
 frappe.db.set_single_value("Website Settings", "home_page", "ai")

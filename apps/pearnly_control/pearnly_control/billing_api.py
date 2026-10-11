@@ -108,6 +108,21 @@ def service_wallet(tenant: str) -> dict:
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+def service_assistant_route(tenant: str, site: str, session_id: str) -> dict:
+    """租户站点建智能体对话时登记「这段远端会话是本站的」（ADR-019）：入口 fatcc.com 收到引擎回调后按它转发。"""
+    _require_service(tenant)
+    tenant = _tenant_or_throw(tenant)
+    from pearnly_control.assistant_entry import contracts, routes
+
+    try:
+        routes.record(tenant, site, session_id)
+    except contracts.ContractError:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    frappe.db.commit()
+    return {"ok": True}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def service_topup_request(tenant: str, amount_thb: float, note: str = "",
                           payer_name: str = "", proof=None) -> dict:
     """租户在产品站点上点「充值」→ 在这里落一条待审核申请。

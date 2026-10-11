@@ -1,14 +1,14 @@
 """计费服务给智能体入口站点的内部查询接口（ADR-019）。
 
 只在计费站点上可用，走 compose 内网，用专用令牌（由计费服务根密钥派生，见 `contracts.entry_token`）：
-与产品站点的计费令牌、管理令牌都分开，拿到它也只能做这两种只读查询。
+与产品站点的计费令牌、管理令牌都分开，拿到它也只能做这几种只读查询。
 """
 import secrets
 
 import frappe
 from frappe import _
 
-from pearnly_control.assistant_entry import contracts, registry
+from pearnly_control.assistant_entry import contracts, registry, routes
 
 HEADER = "X-Pearnly-Assistant-Entry"
 
@@ -36,6 +36,9 @@ def resolve(action: str, payload=None):
             if not subject:
                 raise contracts.ContractError("missing subject")
             return {"sites": registry.sites_for(payload.get("issuer"), subject, str(payload.get("username") or ""))}
+        if action == "route":
+            # 引擎回调转发（`assistant_entry.webhook`）：这段远端会话属于哪个站点
+            return {"site": routes.site_for(payload.get("session"))}
     except contracts.ContractError:
         pass
     frappe.throw(_("Not permitted"), frappe.PermissionError)

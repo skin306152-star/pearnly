@@ -32,9 +32,11 @@ def enabled() -> bool:
     return bool(frappe.conf.get("pearnly_assistant_entry"))
 
 
-# 入口站点只开放这几个地址：入口页与三个登录接口。Frappe 自带的登录页、后台、通用接口一律拒绝（同计费站点的做法）。
-ALLOWED_PATHS = frozenset({"/", "/ai"} | {f"/api/method/pearnly_control.assistant_entry.api.{name}"
-                                          for name in ("start", "callback", "choose")})
+# 入口站点只开放这几个地址：入口页、三个登录接口与引擎回调（`webhook`，验签后转给租户站点）。
+# Frappe 自带的登录页、后台、通用接口一律拒绝（同计费站点的做法）。
+ALLOWED_PATHS = frozenset({"/", "/ai", "/api/method/pearnly_control.assistant_entry.webhook.receive"}
+                          | {f"/api/method/pearnly_control.assistant_entry.api.{name}"
+                             for name in ("start", "callback", "choose")})
 
 
 def allowed(path: str) -> bool:

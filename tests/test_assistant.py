@@ -396,9 +396,9 @@ class RelayTests(unittest.TestCase):
         self.assertTrue(contracts.site_host("testcowork.pearnly.com"))
         for bad in ("http://x.com", "x.com/a", "x.com:8000", "localhost", ""):
             self.assertFalse(contracts.site_host(bad), bad)
-        self.assertEqual(claude.Adapter.wake(claude.Adapter, {"data": {"type": "session.status_idled", "id": "sesn_abcd1234"}}),
+        self.assertEqual(claude.Adapter.wake({"data": {"type": "session.status_idled", "id": "sesn_abcd1234"}}),
                          "sesn_abcd1234")
-        self.assertIsNone(claude.Adapter.wake(claude.Adapter, {"data": {"type": "agent.created", "id": "agent_1234"}}))
+        self.assertIsNone(claude.Adapter.wake({"data": {"type": "agent.created", "id": "agent_1234"}}))
         self._receive_flow()
         source = (CORE / "assistant/webhook.py").read_text(encoding="utf-8")
         run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
@@ -800,7 +800,9 @@ class ControlPlaneSettingsTests(unittest.TestCase):
         branch = source.split('elif action == "set_assistant":', 1)[1].split("elif action", 1)[0]
         self.assertIn("engines.check(", branch)
         self.assertIn("config(pearnly_assistant_engine=engine, pearnly_assistant_model=model, "
-                      "pearnly_assistant_api_key=key)", branch)
+                      "pearnly_assistant_api_key=key,", branch)
+        # 引擎回调签名密钥随开通一起写；未开通就清空
+        self.assertIn('pearnly_assistant_webhook_secret=str(p.get("webhook_secret") or "") if engine else ""', branch)
         self.assertNotIn("restart", branch)
 
     def test_plan_requeue_and_onboarding_carry_the_settings(self):
