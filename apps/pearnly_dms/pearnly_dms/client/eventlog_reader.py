@@ -21,6 +21,9 @@
 * **不再回总数**：不传 `sdtamt` 时回的是最新一行，不是 `dt::<总数>`。
 * **分页多给一行、页与页重叠**：`sdtamt=3&sdtpage=1` 回 4 行，第 2 页从第 4 行起（实测流水号
   991–988、988–985）。所以调用方一律按流水号去重，不按"这一页有几行"推断。
+* **按日期时间排序，不按流水号**：同一秒的几行先后不定，而且每次请求都可能不一样（测试 DMS 实测：
+  每页 50 行时回 990、991、989……，每页 3 行时回 991、990、989……）。所以一页读回来按流水号重排；
+  跨页时同一秒的几行可能有一行两页都没出现 —— 调用方据此把"要翻第二页"当成不完整（见 `change_sync`）。
 
 于是"有没有新变化"改看**最新一行的流水号**（`head`），不再比总数 —— 对方能按日期删旧记录之后，
 总数本来也不可靠，流水号只增不减。
@@ -226,15 +229,19 @@ def _body_text(body):
     return head
 
 
+#: 取"最新流水号"时读最上面几行：对方按日期时间排、同一秒先后不定，只读 1 行可能拿到同一秒里较小的那个。
+HEAD_ROWS = 10
+
+
 def head(client, module, *, limits=None, usage=None):
-    """这个模块最新一行的流水号（没有任何记录为 0）。返回 `(流水号, 用量)`。
+    """这个模块最新的流水号（没有任何记录为 0）。返回 `(流水号, 用量)`。
 
     取代原先的"事件总数"（2026-10-11 对方不再回总数）：流水号只增不减，对方按日期删旧记录
-    也不影响它。只要 1 页、每页 1 行（对方会多给一行，取最大的那个）。
+    也不影响它。读第 1 页最上面 `HEAD_ROWS` 行（对方会多给一行），取最大的流水号。
     """
     limits = limits or EventLogLimits()
     events, usage = page(client, module, page_number=1,
-                         limits=EventLogLimits(page_size=1, max_pages=1,
+                         limits=EventLogLimits(page_size=HEAD_ROWS, max_pages=1,
                                                max_response_bytes=limits.max_response_bytes,
                                                max_seconds=limits.max_seconds),
                          usage=usage or Usage(limits))
@@ -242,7 +249,7 @@ def head(client, module, *, limits=None, usage=None):
 
 
 def page(client, module, *, page_number=1, limits=None, usage=None):
-    """一页流水（从新到旧）。`ndt::` 或没有行都返回 `[]`。"""
+    """一页流水，按流水号从新到旧排好。`ndt::` 返回 `[]`。"""
     limits = limits or EventLogLimits()
     usage = usage or Usage(limits)
     if page_number < 1 or page_number > limits.max_pages:
@@ -274,7 +281,7 @@ def page(client, module, *, page_number=1, limits=None, usage=None):
             # 过滤器没被遵守 —— 继续会把别的模块的变化记到错的游标上。
             _fail("row module does not match the requested module")
         events.append(Event(seq=int(matched.group(1)), **event))
-    if any(newer.seq <= older.seq for newer, older in zip(events, events[1:])):
-        # 原生是严格从新到旧；乱序时"翻到游标为止"的判断就不成立。
-        _fail("rows are not newest first")
-    return events, usage
+    if len({event.seq for event in events}) != len(events):
+        _fail("duplicate rows in one page")
+    # 对方按日期时间排、同一秒先后不定（2026-10-11）：这里按流水号重排，调用方只认流水号。
+    return sorted(events, key=lambda event: event.seq, reverse=True), usage

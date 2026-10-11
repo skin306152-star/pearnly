@@ -372,28 +372,33 @@ def _note_dirty(endpoint, dataset, entry, now, actor):
 
 
 def _new_events(client, module, *, cursor, limits, usage):
-    """游标之后的新事件（从新到旧，按流水号去重）。返回 `(事件, 见到的最新流水号, 是否完整)`。
+    """游标之后的新事件（按流水号从新到旧、去重）。返回 `(事件, 见到的最新流水号, 是否完整)`。
 
-    "完整"＝翻到了流水号不大于游标的那一行。翻到底都没碰到游标（游标为 0 的除外）说明游标
-    那段记录已经被删，中间少了什么不知道；页数用满还没追到游标是积压太多 —— 两种都算不完整。
-    对方分页会多给一行、页与页重叠一行（2026-10-11），所以按流水号去重，不按行数推断。
+    "完整"＝**第 1 页**里就碰到了流水号不大于游标的行。对方按日期时间排、同一秒先后不定，分页又是按偏移
+    （2026-10-11）：要翻到第 2 页时，压在页边的同一秒几行可能有一行两页都没出现，所以只要翻过第 1 页就算
+    不完整（照常补翻到的，再交整组重读）。翻到底都没碰到游标（游标为 0 的除外）说明游标那段记录已被删，
+    页数用满还没追到游标是积压太多 —— 也都不完整。平时每分钟的新改动远少于一页，碰不到这些情况。
     """
     events, seen, newest = [], set(), cursor
     for number in range(1, MAX_NEW_PAGES + 1):
         rows, usage = eventlog_reader.page(client, module, page_number=number,
                                            limits=limits, usage=usage)
         if not rows:
-            return events, newest, cursor == 0
+            return events, newest, cursor == 0 and number == 1
         newest = max(newest, rows[0].seq)
         for event in rows:
             if event.seq > cursor and event.seq not in seen:
                 seen.add(event.seq)
                 events.append(event)
         if rows[-1].seq <= cursor:
-            return events, newest, True
+            return _newest_first(events), newest, number == 1
         if len(rows) < limits.page_size:
-            return events, newest, cursor == 0
-    return events, newest, False
+            return _newest_first(events), newest, cursor == 0 and number == 1
+    return _newest_first(events), newest, False
+
+
+def _newest_first(events):
+    return sorted(events, key=lambda event: event.seq, reverse=True)
 
 
 # ── 按记录补读（目前只有客户） ──────────────────────────────────────────

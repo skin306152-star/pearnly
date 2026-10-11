@@ -98,12 +98,20 @@ class EventLogReaderTests(unittest.TestCase):
         self.assertEqual((first.module, first.action, first.target), (CUSTOMERS, reader.ACTION_EDIT, "9121"))
         self.assertTrue(first.names_record)
 
-    def test_head_reads_one_row_and_takes_the_newest(self):
-        # 对方现在每页多给一行：要 1 行回 2 行，取最大的流水号。
-        client = FakeClient(NEW_PAGE)
+    def test_head_reads_the_top_rows_and_takes_the_newest(self):
+        # 对方按日期时间排、同一秒先后不定：读最上面几行取最大的流水号，不只读第 1 行。
+        client = FakeClient("dt::" + _new_row(990, "23:58:51", "9112") + _new_row(991, "23:58:51", "9121"))
         seq, _usage = reader.head(client, CUSTOMERS)
         self.assertEqual(seq, 991)
-        self.assertEqual((client.calls[0][1]["sdtamt"], client.calls[0][1]["sdtpage"]), ("1", "1"))
+        self.assertEqual((client.calls[0][1]["sdtamt"], client.calls[0][1]["sdtpage"]),
+                         (str(reader.HEAD_ROWS), "1"))
+
+    def test_same_second_rows_come_back_newest_sequence_first(self):
+        # 测试 DMS 实测（每页 50 行）：990 排在 991 前面。读回来按流水号重排。
+        body = "dt::" + _new_row(990, "23:58:51", "9112") + _new_row(991, "23:58:51", "9121") \
+            + _new_row(989, "23:58:42", "9121")
+        events, _usage = reader.page(FakeClient(body), CUSTOMERS)
+        self.assertEqual([event.seq for event in events], [991, 990, 989])
         self.assertEqual(reader.head(FakeClient(PAGE), CUSTOMERS)[0], 831, "旧形状照样认")
 
     def test_empty_module_heads_at_zero(self):
@@ -143,7 +151,7 @@ class EventLogReaderTests(unittest.TestCase):
             "new_bad_identity": NEW_PAGE.replace('data-val="991||"', 'data-val="991||1"', 1),
             "new_other_module": NEW_PAGE.replace("<p>ลูกค้า</p>", "<p>ใบจอง</p>", 1),
             "new_empty_account": NEW_PAGE.replace("<p>dmstest003</p>", "<p></p>", 1),
-            "not_newest_first": "dt::" + _new_row(990, "23:58:51", "9112") + _new_row(991, "23:58:51", "9121"),
+            "duplicate_row": "dt::" + _new_row(991, "23:58:51", "9121") + _new_row(991, "23:58:51", "9121"),
             "p_outside_row": "<p>orphan</p>" + NEW_PAGE,
         }
         for name, body in cases.items():

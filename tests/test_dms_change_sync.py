@@ -206,9 +206,8 @@ class ChangeSyncTests(unittest.TestCase):
         self.catch_up(log)
 
         self.assertEqual(len(log.calls), len(self.sync.MODULES))
-        self.assertTrue(all((data.get("sdtamt"), data.get("sdtpage")) == ("1", "1")
-                            for _path, data in log.calls),
-                        "没有变化就只读最新一行，不翻流水")
+        self.assertTrue(all(data.get("sdtpage") == "1" for _path, data in log.calls),
+                        "没有变化就只读最上面几行，不翻流水")
         self.assertEqual(self.store.verified, [])
         self.assertEqual(self.manual.requests, [])
         self.assertEqual(self.store.written[-1]["next_index"], 0)
@@ -514,8 +513,9 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual(state["modules"][CUSTOMERS]["seq"], 831)
         self.assertEqual(self.store.verified, [])
 
-    def test_overlapping_native_pages_yield_each_event_once(self):
-        # 2026-10-11 起对方每页多给一行、第 2 页从上一页最后一行开始。
+    def test_overlapping_native_pages_yield_each_event_once_but_count_as_incomplete(self):
+        # 2026-10-11 起对方每页多给一行、第 2 页从上一页最后一行开始，并且按日期时间排：
+        # 翻过第 1 页时同一秒压页边的行可能两页都没出现 —— 照常补翻到的，但算不完整（交整组重读）。
         from pearnly_dms.client.eventlog_reader import EventLogLimits, Usage
         rows = [row(seq, CUSTOMERS, target=f"C{seq}") for seq in range(20, 10, -1)]
         log = FakeEventLog({CUSTOMERS: {"rows": rows}}, history={CUSTOMERS: 10})
@@ -525,7 +525,18 @@ class ChangeSyncTests(unittest.TestCase):
                                                          usage=Usage(limits))
 
         self.assertEqual([event.seq for event in events], list(range(20, 10, -1)))
-        self.assertEqual((newest, complete), (20, True))
+        self.assertEqual((newest, complete), (20, False))
+
+    def test_new_events_found_on_the_first_page_are_complete(self):
+        from pearnly_dms.client.eventlog_reader import EventLogLimits, Usage
+        rows = [row(seq, CUSTOMERS, target=f"C{seq}") for seq in (13, 12, 11)]
+        log = FakeEventLog({CUSTOMERS: {"rows": rows}}, history={CUSTOMERS: 10})
+        limits = EventLogLimits(page_size=5)
+
+        events, newest, complete = self.sync._new_events(log, CUSTOMERS, cursor=10, limits=limits,
+                                                         usage=Usage(limits))
+
+        self.assertEqual(([event.seq for event in events], newest, complete), ([13, 12, 11], 13, True))
 
     def test_head_older_than_the_watermark_is_unknown(self):
         # 记录被删（对方新增"按日期删除使用记录"）：最新一行比水位还旧 → 整组重读，不当没变化。
