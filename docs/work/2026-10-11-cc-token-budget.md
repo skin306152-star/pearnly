@@ -1,6 +1,6 @@
 # 2026-10-11 CC 降成本：大文件不整本读进上下文、沙箱内置工具一律放行
 
-- 状态：进行中
+- 状态：已合入 main `aa6d1804` 并部署生产（见 [上线记录](2026-10-11-release-aa6d1804.md)）
 - 仓库 / 分支：本仓 `pearnly/cc-token-budget`，基线 `ddbe85dc1bc445f70f993b15ae59c09f3c441ca4`（当时的 `origin/main`）
 - 工作树：`/Users/skin/pearnly/.claude/worktrees/inspiring-bouman-13c87e`（桌面 App 为本会话建的，分支已改名）
 - 决策：ADR-019；用户 2026-10-11「肯定要改」，两项都做
@@ -51,3 +51,6 @@
 | 7e623e22 工作树源码（实时源码挂在线上同一镜像 20087d9b） | 测试站 testcowork（Haiku 5.5） | 远端智能体读回 | 第 19 版：工具集 `default_config.permission_policy = always_allow`，网页搜索 / 抓取 enabled=false |
 | 同上 | 同上 | 实测 1（UTC 15:08–15:09）：同一组 TTB 5 月流水 29 页 + 总账 7 页、10-10 原样的话（没提 Pearnly） | 44 秒、6 次请求、单次输入最大 25,686（10-10：21 万、12 次超线、约 5.5 分钟）；改用 `cowork_recon_*`；结果同 10-10（银行有总账没有 2 笔共 4,803.87）；内置工具 2 次调用 `evaluation = always_allow` |
 | 同上 | 同上 | 实测 2（UTC 15:10）：明确「不用 Pearnly 对账、你直接算」每日存入 / 支出并出 Excel | 36 秒、6 次请求、最大 25,143；先 `pdfinfo` 看页数、`pdftotext` 抽文本、脚本计算，未整本读入；全月存入 2,157,003.53 / 支出 107.00 与流水一致；内置工具 5 次全 `always_allow` |
+| aa6d1804（变基后，含主线 99869814） | 测试机线上镜像 807723b7，挂载本分支 5 个 App | `ci-candidate-checks.sh offline` | 62 组全过（EXIT 0）。第一次没挂 App 目录：测的是镜像里的旧共用层，主线新测试 `test_core_line_token.py` 因此报错，作废重跑 |
+| aa6d1804 | GitHub | Development checks；`build-production.yml` 候选三条并行检查 | 通过 |
+| 20112ef4 镜像 | 生产 | 部署回读 | 见上线记录 |
