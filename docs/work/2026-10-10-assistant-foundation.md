@@ -468,7 +468,7 @@ Cowork 侧边栏：录入工作台、银行对账、收入对账、销项税报�
 - 2026-10-11 晚收工（main 7f841503 起，本条文档提交合入后以远端 main 为准）：
   - 已删：工作树 `/Users/skin/pearnly-agent-foundation`、本地分支 `pearnly/agent-foundation`、远端同名分支（删前核对无独有提交、无未提交改动、已无容器挂载）；桌面 App 为本会话建的工作树 `.claude/worktrees/beautiful-merkle-8ade02` 与分支 `pearnly/beautiful-merkle-8ade02`；生产 `/opt/pearnly/state/deploy-8cfdeba6.sh`、`deploy-891ec645.sh`（日志保留）。
   - 本机管理后台 `pearnly-sample-control-*`：已改挂主目录（见第 25 项结果），不再引用本工作树。
-  - 测试机 cowork 实时源码：是同步过去的副本（最新同步与 main 代码一致），不依赖本机工作树；下次 `testenv.sh live cowork` 用主目录或下一个任务的工作树。测试站 testcowork 仍指测试机实验栈，继续测 CC 用；生产验收时 `testenv.sh lab-stop cowork`。
+  - 测试机 cowork 实时源码：是同步过去的副本（最新同步与 main 代码一致），不依赖本机工作树；下次 `testenv.sh live cowork` 用主目录或下一个任务的工作树。2026-10-11 晚已 `testenv.sh lab-stop cowork`：testcowork 切回生产（公共 DNS 解析到生产服务器、生产站点 ping 200、生产 testcowork 定时任务已开），测试机 cowork 栈已停、数据卷保留。
   - 保留：引擎控制台两个回调地址——「CC testcowork」（测试站）与「CC production (fatcc.com)」（生产，`wep_01Y2kxFQihR1V6L1qBjRPxLg`）；签名密钥在本机 `~/.config/pearnly-testenv/assistant-webhook-secret`、`~/.config/pearnly-production/assistant-webhook-secret`、生产 `runtime.env`、fatcc.com 与本机管理后台站点配置。长期使用，不删。
   - 保留：生产 `/opt/pearnly/secrets/runtime.env.bak-20261011-webhook`（加回调密钥前的备份，600）。解除条件：下一次生产部署成功读回后删除。
   - 保留：testcowork 测试数据、Express 测试账套 T9SINCER 的 IV69/00095、IV69/00076、测试机 skin3「下载」里 7 个文件（共享目录，由用户定）——理由同下方旧条目。
