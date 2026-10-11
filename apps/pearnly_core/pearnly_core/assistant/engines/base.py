@@ -10,6 +10,8 @@
 （`tools.run`），这里都不碰。纯接口，不依赖 Frappe。
 """
 import abc
+import hashlib
+import json
 from collections.abc import Callable, Iterable, Iterator
 
 
@@ -22,6 +24,10 @@ class Adapter(abc.ABC):
     def prepare(self, brief: dict) -> dict:
         """按智能体说明（`definition.brief`）在厂商账号里备好所需资源，返回可缓存的纯 JSON 句柄。
         要幂等：同一说明重复调用不新建；说明变了就更新。"""
+
+    def shape(self, brief: dict) -> str:
+        """按这份说明要在厂商那边配成的样子的指纹：变了（说明变了，或适配器自己的配置变了）站点就重新 `prepare`。"""
+        return hashlib.sha256(json.dumps([self.model, brief], sort_keys=True).encode()).hexdigest()[:16]
 
     @abc.abstractmethod
     def open(self, handle: dict, metadata: dict) -> tuple[str, str]:

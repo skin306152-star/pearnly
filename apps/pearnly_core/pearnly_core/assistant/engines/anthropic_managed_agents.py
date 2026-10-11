@@ -29,7 +29,12 @@ create it as a file in {OUTPUTS}/ (tables and lists as .xlsx, documents as .docx
 and reply with a short summary of what the file contains instead of repeating its full content.
 - When you mention a file, give only its file name (the user clicks it in the chat or opens it from the panel beside \
 the chat, so do not call it a folder); never show paths such as {OUTPUTS} or {UPLOADS}.
-- In spreadsheets write the calculated values; use formulas only when the user asks for them."""
+- In spreadsheets write the calculated values; use formulas only when the user asks for them.
+- Files can be large. Check a file's size first (pages, rows, bytes); never open a whole PDF of more than a few pages, \
+a whole spreadsheet or a long text file with the read tool or by printing it. Extract it with a script in the sandbox \
+into a working file (for example pdftotext, pypdf, openpyxl) and print only the totals, matches and the few rows you \
+need, a few pages or a few hundred lines at a time. Never retype file contents yourself; let scripts copy and convert \
+them."""
 # 浏览器等着这些请求，不能挂太久；SDK 自己会对 429 / 5xx / 超时重试。
 TIMEOUT = 30
 RETRIES = 2
@@ -57,8 +62,11 @@ def spec(brief: dict, model: str) -> dict:
         "system": brief["system"] + WORKSPACE,
         "tools": [
             # 沙箱自带的读写文件、执行命令；联网工具关闭，业务数据只经 Pearnly 工具取得。
+            # 一律放行（用户 2026-10-11）：auto 由平台逐次评估每个调用，10-10 测试夜每次约 4.5 万 token 的 Sonnet 用量；
+            # 沙箱是本会话独享的、没有凭据、网络受限。Pearnly 工具不受这项管（自定义工具由站点执行），
+            # 要授权的仍走站点自己的「允许」（`tools.needs_approval` → `toolrun.decide`）。
             {"type": "agent_toolset_20260401",
-             "default_config": {"enabled": True, "permission_policy": {"type": "auto"}},
+             "default_config": {"enabled": True, "permission_policy": {"type": "always_allow"}},
              "configs": [{"name": "web_fetch", "enabled": False}, {"name": "web_search", "enabled": False}]},
             *({"type": "custom", **tool} for tool in brief["tools"]),
         ],
@@ -73,6 +81,9 @@ class Adapter(base.Adapter):
     def __init__(self, api_key: str, model: str):
         super().__init__(api_key, model)
         self.api = anthropic.Anthropic(api_key=api_key, timeout=TIMEOUT, max_retries=RETRIES)
+
+    def shape(self, brief: dict) -> str:
+        return spec(brief, self.model)["metadata"]["pearnly_spec"]
 
     def prepare(self, brief: dict) -> dict:
         return {"agent": self._agent(spec(brief, self.model)), "environment": self._environment()}

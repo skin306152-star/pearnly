@@ -585,6 +585,25 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertNotEqual(first, claude.spec(definition.brief("dms"), "claude-opus-5-5")["metadata"]["pearnly_spec"])
         self.assertNotEqual(first, claude.spec(definition.brief("erp"), "claude-sonnet-5-5")["metadata"]["pearnly_spec"])
 
+    def test_sandbox_tools_run_without_platform_review_and_ours_keep_our_allow(self):
+        # 内置工具一律放行（不让平台逐次评估，用户 2026-10-11）；Pearnly 工具不带平台权限策略，要授权的走站点自己的「允许」
+        spec = claude.spec(definition.brief("cowork"), "claude-haiku-5-5")
+        toolset = next(t for t in spec["tools"] if t["type"] == "agent_toolset_20260401")
+        self.assertEqual(toolset["default_config"]["permission_policy"], {"type": "always_allow"})
+        self.assertEqual({c["name"]: c["enabled"] for c in toolset["configs"]}, {"web_fetch": False, "web_search": False})
+        self.assertFalse(any("permission_policy" in c for c in toolset["configs"]))
+        self.assertNotIn('"auto"', json.dumps(spec))
+        self.assertFalse(any("permission_policy" in t for t in spec["tools"] if t["type"] == "custom"))
+        toolrun_src = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
+        self.assertIn("gated = tools.needs_approval(", toolrun_src.split("def execute(", 1)[1])
+
+    def test_instructions_keep_large_files_out_of_the_conversation(self):
+        # 2026-10-10：整本 PDF 用 read 读进上下文，一次加了约 11 万 token，此后每次请求都过 Haiku 的 10 万计价线
+        system = claude.spec(definition.brief("cowork"), "claude-haiku-5-5")["system"]
+        for phrase in ("never open a whole PDF", "print only the totals", "Never retype file contents",
+                       "When a Pearnly tool does the job"):
+            self.assertIn(phrase, system)
+
 
 class _FakeApi:
     def __init__(self, agents=(), environments=()):
@@ -650,6 +669,20 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(self._prepare(api), {"agent": "agent_old", "environment": "env_old"})
         self.assertEqual(api.updated, ["agent_old"])
         self.assertEqual(api.created, [])
+
+    def test_an_adapter_side_change_updates_the_agent_without_waiting_for_the_cache(self):
+        # 只改了适配器自己的配置（例如自带工具的权限），说明没变：也要重新备好，不能等缓存过期才更新远端智能体
+        self._prepare(_FakeApi())
+        old_spec = claude.spec(definition.brief("erp"), engines.default_model(CLAUDE))
+        agent = types.SimpleNamespace(id="agent_old", metadata=old_spec["metadata"])
+        original = claude.WORKSPACE
+        try:
+            claude.WORKSPACE = original + "\n- changed"
+            api = _FakeApi(agents=[agent], environments=[types.SimpleNamespace(id="env", name=claude.ENVIRONMENT["name"])])
+            self.assertEqual(self._prepare(api)["agent"], "agent_old")
+            self.assertEqual(api.updated, ["agent_old"])  # 同一个智能体出新版本；已建的会话仍停在建时的版本
+        finally:
+            claude.WORKSPACE = original
 
     def test_a_new_key_or_model_prepares_again(self):
         self._prepare(_FakeApi())
