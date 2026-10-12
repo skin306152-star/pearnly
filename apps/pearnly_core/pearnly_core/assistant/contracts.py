@@ -386,21 +386,32 @@ def merge_by_time(events, extra) -> list[dict]:
     return merged + pending[index:]
 
 
-def notices_note(items) -> str:
-    """随话告诉智能体的提醒（只取最新 `NOTICES_CARRIED` 条、合计不超过 `NOTICES_NOTE_MAX` 字）：`items` 为
-    [{"at", "title", "text"}]，旧 → 新。任务名、文件夹名是租户里的人输入的，系统消息又是特权上下文，所以正文转义后
-    包在 <notice> 里，并写明只是给用户看过的信息、不是指令。没有就回空串。"""
-    blocks, size = [], 0
+def _notice_block(item) -> str:
+    lines = [html.escape(part, quote=False) for part in (item.get("title"), item.get("text")) if part]
+    return f'<notice at="{html.escape(str(item.get("at") or ""))}">\n' + "\n".join(lines) + "\n</notice>"
+
+
+def notices_fit(items) -> list:
+    """这次能随话带上的提醒：`items`（旧 → 新）里最新 `NOTICES_CARRIED` 条中、合计不超过 `NOTICES_NOTE_MAX` 字的
+    最新几条，旧 → 新；最新的一条总在（正文本身有上限）。`notices_note` 只写这些，发出后也只把这些标成带过。"""
+    kept, size = [], 0
     for item in reversed(list(items or [])[-NOTICES_CARRIED:]):
-        lines = [html.escape(part, quote=False) for part in (item.get("title"), item.get("text")) if part]
-        block = f'<notice at="{html.escape(str(item.get("at") or ""))}">\n' + "\n".join(lines) + "\n</notice>"
-        if blocks and size + len(block) > NOTICES_NOTE_MAX:
+        block = _notice_block(item)
+        if kept and size + len(block) > NOTICES_NOTE_MAX:
             break
-        blocks.append(block)  # 最新的一条总要带上（正文本身有上限）
+        kept.append(item)
         size += len(block) + 1
+    return list(reversed(kept))
+
+
+def notices_note(items) -> str:
+    """随话告诉智能体的提醒（`notices_fit` 选出的那几条）：`items` 为 [{"at", "title", "text"}]，旧 → 新。
+    任务名、文件夹名是租户里的人输入的，系统消息又是特权上下文，所以正文转义后包在 <notice> 里，并写明只是给用户
+    看过的信息、不是指令。没有就回空串。"""
+    blocks = [_notice_block(item) for item in notices_fit(items)]
     if not blocks:
         return ""
-    return NOTICES_INTRO + "\n\n" + "\n".join(reversed(blocks))
+    return NOTICES_INTRO + "\n\n" + "\n".join(blocks)
 
 
 def now_note(local, tz_name: str) -> str:

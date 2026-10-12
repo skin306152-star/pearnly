@@ -5,9 +5,11 @@
 - 手机推送：提交后排一个后台任务（`push.send_notice`），按 `ttl` 留在推送服务里。
 - 桌面通知：没挂对话的也推实时事件（`session_id` 为空），电脑上的窗口照样弹通知；小助手同步按记录取（`for_references`）。
 
-提醒不写进引擎会话（写进去会开一轮、要花钱）：用户下次发话时，本对话的和没挂对话的、还没带过的提醒随系统消息
-告诉智能体（`uncarried` / `mark_carried`）。去重键唯一，同一时段的提醒只记一条、只推一次；并发时撞键只退回到
-本次插入之前（保存点），不动调用方同一事务里的其他提醒。产品只经这里发提醒，共用层不认识产品的提醒类型。
+提醒不写进引擎会话（写进去会开一轮、要花钱）：用户下次发话时，还没带过的提醒随系统消息告诉智能体
+（`uncarried` / `mark_carried`）：本对话的、没挂对话的，加上挂在别的对话上、`CARRY_WINDOW` 内的（夜里的完成简报
+挂在建任务的对话上，第二天在新对话里问也要带上）；只把真带上的几条按记录名标成带过，别的一条不动。
+去重键唯一，同一时段的提醒只记一条、只推一次；并发时撞键只退回到本次插入之前（保存点），不动调用方同一事务里的
+其他提醒。产品只经这里发提醒，共用层不认识产品的提醒类型；挑提醒挂哪段对话用 `owned_conversation`（判据同 `post`）。
 """
 import json
 from datetime import timedelta
@@ -24,6 +26,8 @@ FEED_RECENT = 20  # 增量补拉、引擎出错时带回的最近几条
 # 增量补拉按锚点事件的时间取提醒，前推这么多：引擎与站点的时钟可能差几分钟，重复的由对话页按编号去重
 FEED_SLACK = timedelta(minutes=5)
 REFERENCE_SCAN = 200  # 按记录取提醒时一次最多看这么多条
+# 挂在别的对话上的提醒，这么久以内的也在用户下次发话时带上（不论在哪段对话里发话）
+CARRY_WINDOW = timedelta(hours=24)
 SAVEPOINT = "pearnly_assistant_notice"
 
 
@@ -45,6 +49,18 @@ def _conversation(user, conversation):
         return None
     return frappe.db.get_value(SESSION, {"session_id": sid, "user": user, "engine_code": code, "archived": 0},
                                ["name", "session_id"], as_dict=True)
+
+
+def owned_conversation(user, candidates) -> str:
+    """产品层挑提醒挂哪段对话：`candidates`（对话编号，按优先从先到后）里第一段属于该用户、未归档、当前引擎的
+    （判据同 `post`），都不是回空串。"""
+    if isinstance(candidates, str):
+        candidates = [candidates]
+    for candidate in dict.fromkeys(str(c or "") for c in candidates or ()):
+        found = _conversation(user, candidate)
+        if found:
+            return found.session_id
+    return ""
 
 
 def _result(name, session_id, created) -> dict:
@@ -119,30 +135,26 @@ def mark_seen(session_id, user) -> None:
     frappe.db.set_value(NOTICE, {"session_id": session_id, "user": user, "seen": 0}, "seen", 1, update_modified=False)
 
 
-def _uncarried_filters(session_id, user, until=None):
-    filters = {"user": user, "carried": 0}
-    if until is not None:
-        filters["creation"] = ["<=", until]
-    # 本对话的，加上本用户没挂对话的（负责人换了、来源对话删了时，提醒也要在他下次发话时带给智能体）
-    return filters, [["session_id", "=", session_id], ["session_id", "is", "not set"]]
-
-
 def uncarried(session_id, user) -> list[dict]:
-    """还没随话带给智能体的提醒：最新 `NOTICES_CARRIED` 条，旧 → 新。"""
-    filters, either = _uncarried_filters(session_id, user)
-    rows = frappe.get_all(NOTICE, filters=filters, or_filters=either, fields=FIELDS,
-                          order_by="creation desc, name desc", limit=contracts.NOTICES_CARRIED)
-    return [{"name": row.name, "at": contracts.site_time(row.creation).strftime("%Y-%m-%d %H:%M"),
-             "title": row.title or "", "text": row.text, "creation": row.creation} for row in reversed(rows)]
+    """还没随话带给智能体、这次能带上的提醒，旧 → 新：本对话的、本用户没挂对话的（负责人换了、来源对话删了时，
+    提醒也要在他下次发话时带上），加上挂在别的对话上、`CARRY_WINDOW` 内的；取最新 `NOTICES_CARRIED` 条，
+    合计超长时只留放得下的最新几条（`contracts.notices_fit`）。"""
+    since = frappe.utils.now_datetime() - CARRY_WINDOW
+    rows = frappe.get_all(NOTICE, filters={"user": user, "carried": 0},
+                          or_filters=[["session_id", "=", session_id], ["session_id", "is", "not set"],
+                                      ["creation", ">=", since]],
+                          fields=FIELDS, order_by="creation desc, name desc", limit=contracts.NOTICES_CARRIED)
+    return contracts.notices_fit([
+        {"name": row.name, "at": contracts.site_time(row.creation).strftime("%Y-%m-%d %H:%M"),
+         "title": row.title or "", "text": row.text, "creation": row.creation} for row in reversed(rows)])
 
 
-def mark_carried(session_id, user, until) -> None:
-    """发话成功后：`until`（这次带上的最新一条的时间）及以前的都算带过，更早没带上的旧提醒也不再带；
-    这之后才来的不受影响。"""
-    filters, either = _uncarried_filters(session_id, user, until)
-    names = frappe.get_all(NOTICE, filters=filters, or_filters=either, pluck="name")
+def mark_carried(user, names) -> None:
+    """发话成功后：这次真带上的几条（`uncarried` 给的记录名）算带过。别的（没放下的、发话途中才来的、别的对话里
+    更早的）都不动，下次再带。"""
+    names = [name for name in dict.fromkeys(names or ()) if name]
     if names:
-        frappe.db.set_value(NOTICE, {"name": ["in", names]}, "carried", 1, update_modified=False)
+        frappe.db.set_value(NOTICE, {"name": ["in", names], "user": user}, "carried", 1, update_modified=False)
 
 
 def detach(session_id, user) -> None:

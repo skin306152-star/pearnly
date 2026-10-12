@@ -1002,6 +1002,14 @@ class NoticeTests(unittest.TestCase):
         capped = contracts.notices_note([{"at": "x", "title": "", "text": "y" * 4000} for _ in range(10)])
         self.assertLessEqual(len(capped) - len(contracts.NOTICES_INTRO), contracts.NOTICES_NOTE_MAX)
         self.assertGreaterEqual(capped.count("<notice "), 1)
+        # 系统消息里写的正好是 notices_fit 选出的那几条（发出后只把这些标成带过）：最新的连续几条，旧 → 新
+        long = [{"at": f"a{i}", "title": "", "text": str(i) * 4000} for i in range(4)]
+        self.assertEqual(contracts.notices_fit(long), long[-2:])
+        self.assertEqual(contracts.notices_note(long), contracts.notices_note(contracts.notices_fit(long)))
+        self.assertEqual(contracts.notices_fit(items), items[-contracts.NOTICES_CARRIED:])
+        self.assertEqual(contracts.notices_fit([{"at": "x", "title": "", "text": "z" * 20000}])[0]["at"], "x")
+        self.assertEqual(contracts.notices_fit([]), [])
+        self.assertEqual(contracts.notices_fit(None), [])
 
     def test_now_note_gives_the_local_day_timezone_and_buddhist_year(self):
         # F8（交接）：CC 不知道今天几号；写曼谷当地日期时间与佛历年，不改智能体说明
@@ -1100,7 +1108,7 @@ class NoticeTests(unittest.TestCase):
         self.db.add("m2", 2, session_id="sesn_mine1", seen=1)
         self.db.add("u1", 3, session_id="")  # 没挂对话的：也要在他下次发话时带给智能体
         self.db.add("u2", 4, session_id=None)  # 库里的空值也算没挂
-        self.db.add("o1", 5, session_id="sesn_xxxx1")  # 别的对话
+        self.db.add("o1", -24 * 60, session_id="sesn_xxxx1")  # 别的对话、早于一天：只在那段对话里带
         self.db.add("b1", 6, session_id="", user="bob@example.com")  # 别人的
         self.db.add("c1", 7, session_id="sesn_mine1", carried=1)
         self.assertEqual(notices.unread_sessions("a@example.com", ["sesn_mine1", "sesn_xxxx1", "sesn_none1", ""]),
@@ -1112,16 +1120,20 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual([n["name"] for n in shown], ["m1", "m2", "u1", "u2"])
         self.assertEqual((shown[0]["at"], shown[0]["text"]), ("2026-10-12 08:01", "t"))
         self.db.add("m3", 8, session_id="sesn_mine1")  # 发话途中又来一条：这次没带上，下次再带
-        notices.mark_carried("sesn_mine1", "a@example.com", shown[-1]["creation"])
+        notices.mark_carried("a@example.com", [n["name"] for n in shown])
         self.assertEqual([n["name"] for n in notices.uncarried("sesn_mine1", "a@example.com")], ["m3"])
         self.assertEqual((self.db.row("o1").carried, self.db.row("b1").carried), (0, 0))
-        # 只带最新 10 条；更早没带上的随这次一起算带过，不再积到下一次
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_xxxx1", "a@example.com")], ["o1", "m3"])
+        # 只带最新 10 条；只把这 10 条标成带过，更早没带上的下次再带（不丢）
         for i in range(12):
             self.db.add(f"c{i:02d}", 20 + i, user="c@example.com")
         shown = notices.uncarried("sesn_cccc1", "c@example.com")
         self.assertEqual([n["name"] for n in shown], [f"c{i:02d}" for i in range(2, 12)])
-        notices.mark_carried("sesn_cccc1", "c@example.com", shown[-1]["creation"])
-        self.assertEqual(notices.uncarried("sesn_cccc1", "c@example.com"), [])
+        notices.mark_carried("c@example.com", [n["name"] for n in shown])
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_cccc1", "c@example.com")], ["c00", "c01"])
+        notices.mark_carried("bob@example.com", ["c00"])  # 只标自己的
+        self.assertEqual(self.db.row("c00").carried, 0)
+        notices.mark_carried("c@example.com", [])
         # 删对话：提醒不再挂这段对话，行与去重键留着
         before = len(self.db.tables[notices.NOTICE])
         notices.detach("sesn_mine1", "a@example.com")
@@ -1130,6 +1142,44 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual(len(self.db.tables[notices.NOTICE]), before)
         notices.detach("", "a@example.com")  # 空编号什么都不动
         self.assertIsNone(self.db.row("u2").session_id)
+
+    def test_recent_notices_of_other_conversations_come_along(self):
+        # 交接 F3：夜里 21:10 的完成简报挂在建任务的对话 A 上；第二天早上在新对话 B 里问「昨晚的结果」，也要带给智能体
+        self.now = datetime.datetime(2026, 10, 13, 8, 30)
+        self.db.add("brief", 13 * 60 + 10, session_id="sesn_aaaa1", kind="cowork.folder.brief")
+        self.db.add("old", -20 * 60, session_id="sesn_aaaa1")  # 10-11 12:00，早于一天：只在 A 里带
+        self.db.add("bob", 13 * 60 + 20, session_id="sesn_aaaa1", user="bob@example.com")  # 别人的
+        self.db.add("done", 13 * 60 + 30, session_id="sesn_aaaa1", carried=1)  # 已带过
+        shown = notices.uncarried("sesn_bbbb1", "a@example.com")
+        self.assertEqual([n["name"] for n in shown], ["brief"])
+        self.assertEqual(shown[0]["at"], "2026-10-12 21:10")
+        notices.mark_carried("a@example.com", [n["name"] for n in shown])
+        self.assertEqual(notices.uncarried("sesn_bbbb1", "a@example.com"), [])
+        # 回到 A：早于一天、没带过的还在（不因在 B 里发话被一起标掉）
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_aaaa1", "a@example.com")], ["old"])
+        self.assertEqual(self.db.row("bob").carried, 0)
+
+    def test_only_the_notices_that_fit_are_carried_and_marked(self):
+        # 正文很长时系统消息只放得下最新几条：没放下的不能被标成带过
+        for i in range(4):
+            self.db.add(f"L{i}", i, text=str(i) * 4000)
+        shown = notices.uncarried("sesn_mine1", "a@example.com")
+        self.assertEqual([n["name"] for n in shown], ["L2", "L3"])
+        self.assertEqual(contracts.notices_note(shown).count("<notice "), 2)
+        notices.mark_carried("a@example.com", [n["name"] for n in shown])
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_mine1", "a@example.com")], ["L0", "L1"])
+
+    def test_owned_conversation_picks_the_first_one_a_notice_can_attach_to(self):
+        # 产品层（定时任务提醒）挑挂哪段对话：判据同 post —— 本人的、未归档、当前引擎的
+        self.assertEqual(notices.owned_conversation(
+            "a@example.com", ["sesn_bob01", "", None, "bad id", "sesn_old01", "sesn_gone1", "sesn_nope1", "sesn_mine1"]),
+            "sesn_mine1")
+        self.assertEqual(notices.owned_conversation("a@example.com", "sesn_mine1"), "sesn_mine1")
+        self.assertEqual(notices.owned_conversation("bob@example.com", ["sesn_mine1", "sesn_bob01"]), "sesn_bob01")
+        for candidates in (["sesn_bob01"], [], None, ""):
+            self.assertEqual(notices.owned_conversation("a@example.com", candidates), "", candidates)
+        with mock.patch.object(notices.config, "engine_code", return_value=""):
+            self.assertEqual(notices.owned_conversation("a@example.com", ["sesn_mine1"]), "")
 
     def test_for_references_matches_any_listed_record(self):
         rule = "Cowork Folder Intake Rule"
@@ -1183,7 +1233,7 @@ class NoticeTests(unittest.TestCase):
             # F8：每次都带上用户当地的日期时间（站点时区），放在同一条系统消息的最后
             self.assertTrue(note.endswith("\n\n" + contracts.now_note(self.now, BANGKOK)))
             self.assertIn("Monday 2026-10-12 09:30 (Asia/Bangkok; Thai Buddhist year 2569)", note)
-            self.assertEqual(carried, [("sesn_mine1", "a@example.com", START)])  # 发出成功才算带过
+            self.assertEqual(carried, [("a@example.com", ["n1"])])  # 发出成功才算带过，只标带上的那几条
             self.assertIn(("Pearnly Assistant Session", "row1", "pending_carry", ""), writes)
             # 发不出去：不标带过、接续的前文也留着，下次再带
             api.post = mock.Mock(side_effect=RuntimeError("busy"))
