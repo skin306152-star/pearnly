@@ -9,6 +9,8 @@ export type PendingSend = { text: string; files: string[] } | null;
 
 let pending: PendingSend = null;
 let draft = "";
+let sentAt = 0;        // 最近一次按下发送的时刻
+let handoff = false;   // 临时气泡刚被正式气泡接替：那条正式气泡不再弹一次
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -22,6 +24,7 @@ export function setDraft(text: string) {
 
 /** 附件还在上传时就发送了：先显示发送中的气泡。 */
 export function beginPending(filename: string) {
+  if (!pending) sentAt = Date.now();
   pending = { text: pending?.text ?? draft, files: [...(pending?.files ?? []), filename] };
   emit();
 }
@@ -29,12 +32,25 @@ export function beginPending(filename: string) {
 /** 新对话的第一条消息：建会话期间先显示发送中的气泡。 */
 export function beginPendingText(text: string) {
   pending = { text, files: pending?.files ?? [] };
+  sentAt = Date.now();
   emit();
+}
+
+export function lastSendAt(): number {
+  return sentAt;
+}
+
+/** 正式气泡挂上时问一次：是不是接替了刚才的临时气泡（是就不再弹）。 */
+export function takeHandoff(): boolean {
+  const value = handoff;
+  handoff = false;
+  return value;
 }
 
 export function clearPending() {
   if (!pending) return;
   pending = null;
+  handoff = true;
   emit();
 }
 

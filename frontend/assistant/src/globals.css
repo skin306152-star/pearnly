@@ -98,6 +98,10 @@
   --cc-brand-ink: #ffffff;        /* 橘黄底上的字 */
   --cc-brand-soft: #fdecd9;       /* 用户气泡底 */
   --cc-brand-soft-ink: #4a2a0c;   /* 用户气泡字 */
+  --cc-bubble-bg: linear-gradient(135deg, #fdead6 0%, #fbdcbc 100%);   /* 用户气泡：CC 橘的柔和渐变 */
+  --cc-bubble-shadow: 0 6px 18px -10px rgb(242 140 40 / 0.55);
+  --cc-bubble-glow: rgb(242 140 40 / 0.4);   /* 发出那一下外圈扩散的光晕 */
+  --cc-bubble-sheen: rgb(255 255 255 / 0.55); /* 发送中扫过气泡的浅光 */
   --cc-focus-ring: rgb(20 20 19 / 0.08);   /* 聚焦外框：中性灰（同 Claude，不用品牌色） */
 
   --cc-bg-app: #faf9f5;           /* 主区域 */
@@ -152,6 +156,7 @@
   --cc-dur-fast: 120ms;
   --cc-dur: 200ms;
   --cc-dur-slow: 320ms;
+  --cc-dur-pop: 480ms;
 
   --radius: var(--cc-radius-md);
 }
@@ -162,6 +167,10 @@
   --cc-brand-ink: #1f1e1d;
   --cc-brand-soft: #4a2f17;
   --cc-brand-soft-ink: #fde3c6;
+  --cc-bubble-bg: linear-gradient(135deg, #5c3618 0%, #472910 100%);
+  --cc-bubble-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.7);
+  --cc-bubble-glow: rgb(245 150 58 / 0.45);
+  --cc-bubble-sheen: rgb(255 255 255 / 0.12);
   --cc-focus-ring: rgb(250 249 245 / 0.1);
 
   --cc-bg-app: #262624;
@@ -312,9 +321,22 @@
 
   /* 对话气泡：用户一侧是 CC 橘黄的浅底，出现时轻弹一下（同 Claude 的气泡形状） */
   .cc-bubble-user {
-    border-radius: var(--cc-radius-bubble); background: var(--cc-brand-soft); color: var(--cc-brand-soft-ink);
-    padding: 0.625rem 1rem; overflow-wrap: anywhere; white-space: pre-wrap;
-    animation: cc-bubble-in var(--cc-dur-slow) var(--cc-ease-spring) both; transform-origin: bottom right;
+    position: relative; isolation: isolate; border-radius: var(--cc-radius-bubble); background: var(--cc-bubble-bg);
+    color: var(--cc-brand-soft-ink); box-shadow: var(--cc-bubble-shadow);
+    padding: 0.625rem 1rem; overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
+  }
+  /* 发出：从右下角带回弹弹出，外圈扩散一道橘色光晕再淡出 */
+  .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
+  .cc-bubble-user[data-enter]::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+    animation: cc-send-glow 900ms var(--cc-ease) 120ms both;
+  }
+  /* 发送中（还没送达服务端）：一道浅光从左往右扫过气泡 */
+  .cc-bubble-user[data-sending] { overflow: hidden; }
+  .cc-bubble-user[data-sending]::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, var(--cc-bubble-sheen) 50%, transparent 70%);
+    background-size: 220% 100%; animation: cc-sheen 1.4s var(--cc-ease) infinite;
   }
   .cc-reply {
     color: var(--cc-ink); font-family: var(--cc-font-serif); font-variant-numeric: lining-nums tabular-nums;
@@ -420,12 +442,18 @@
 /* 抽屉标题（同 Claude 手机端的「Claude」：常规字重的衬线字） */
 .cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 2.25rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }
 
-@keyframes cc-bubble-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes cc-send-pop {
+  0% { opacity: 0; transform: translateY(14px) scale(0.88); }
+  60% { opacity: 1; transform: translateY(-2px) scale(1.02); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes cc-send-glow { from { box-shadow: 0 0 0 0 var(--cc-bubble-glow); } to { box-shadow: 0 0 0 12px transparent; } }
+@keyframes cc-sheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .cc-bubble-user, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in { animation: none; }
+  .cc-bubble-user, .cc-bubble-user::before, .cc-bubble-user::after, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
@@ -448,17 +476,25 @@
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes, .hm-cc .hm-calm, .hm-cc .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
 
-/* 等待中的三个点（components/typing-dots.tsx）：同智能体小人胸前的三个点，黑色深 → 浅，依次跳起 */
-.typing-dots { display: inline-flex; align-items: center; gap: 6px; height: 1.65rem; vertical-align: middle; }
-.typing-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--cc-ink); animation: typing-hop 1.2s ease-in-out infinite; }
-.typing-dots i:nth-child(2) { opacity: .72; animation-delay: .15s; }
-.typing-dots i:nth-child(3) { opacity: .42; animation-delay: .3s; }
+/* 等待回复（components/typing-dots.tsx）：三个 CC 橘的点波浪起伏、深浅交替；旁边的状态字上有一道橘色光泽扫过（同 Claude 的发光状态字） */
+.typing-dots { display: inline-flex; align-items: center; gap: 0.625rem; height: 1.65rem; vertical-align: middle; }
+.typing-dots-marks { display: inline-flex; align-items: center; gap: 5px; }
+.typing-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--cc-brand); animation: cc-wave 1.25s var(--cc-ease) infinite; }
+.typing-dots i:nth-child(2) { animation-delay: .16s; }
+.typing-dots i:nth-child(3) { animation-delay: .32s; }
+.typing-dots-label {
+  font-family: var(--cc-font-sans); font-size: 0.875rem;
+  background: linear-gradient(90deg, var(--cc-ink-3) 0%, var(--cc-ink-3) 35%, var(--cc-brand) 50%, var(--cc-ink-3) 65%, var(--cc-ink-3) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: cc-shimmer-text 2.2s linear infinite;
+}
 .typing-dots-sm { gap: 3px; height: auto; }
-.typing-dots-sm i { width: 5px; height: 5px; }
-@keyframes typing-hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
-.typing-dots-sm i { animation-name: typing-hop-sm; }
-@keyframes typing-hop-sm { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) { .typing-dots i { animation: none; } }
+.typing-dots-sm .typing-dots-marks { gap: 3px; }
+.typing-dots-sm i { width: 5px; height: 5px; animation-name: cc-wave-sm; }
+@keyframes cc-wave { 0%, 70%, 100% { transform: translateY(0) scale(1); opacity: .55; } 35% { transform: translateY(-5px) scale(1.15); opacity: 1; } }
+@keyframes cc-wave-sm { 0%, 70%, 100% { transform: translateY(0); opacity: .45; } 35% { transform: translateY(-3px); opacity: 1; } }
+@keyframes cc-shimmer-text { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .typing-dots i, .typing-dots-label { animation: none; } .typing-dots-label { color: var(--cc-ink-3); background: none; } }
 
 /* 对话文字大小（设置 → 常规，lib/desktop.ts 写在 <html data-text-size>）：只缩放对话记录 */
 html[data-text-size="small"] [data-slot="aui_message-group"] { zoom: 0.92; }

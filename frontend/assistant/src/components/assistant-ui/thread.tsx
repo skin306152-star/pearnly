@@ -41,12 +41,13 @@ import {
   SquareIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
-import { setDraft, usePendingSend } from "@/lib/managed-agents/pending-send";
+import { lastSendAt, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
 import {
   createContext,
   useContext,
   useEffect,
   useMemo,
+  useState,
   type ComponentType,
   type FC,
   type PropsWithChildren,
@@ -168,7 +169,7 @@ const PendingSendBubble: FC = () => {
         ))}
       </div>
       {pending.text && (
-        <div className="cc-bubble-user">{pending.text}</div>
+        <div className="cc-bubble-user" data-enter="" data-sending="">{pending.text}</div>
       )}
       <div className="col-span-full col-start-1 pt-4">
         <ThinkingMark />
@@ -375,7 +376,7 @@ const AssistantMessage: FC = () => {
 /** 生成中：三个跳动的点（不放标志，用户 2026-10-12）。 */
 const ThinkingMark: FC = () => (
   <span className="inline-flex items-center font-sans">
-    <TypingDots label={steps.thinking} />
+    <TypingDots label={steps.thinking} showLabel />
   </span>
 );
 
@@ -451,6 +452,13 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+/** 新发出的那条气泡弹一下；接替「发送中」临时气泡的正式气泡、翻历史时出现的旧气泡不弹（只看挂上那一刻）。 */
+function useEnterOnce(): boolean {
+  const isLast = useAuiState((s) => s.message.isLast);
+  const [enter] = useState(() => isLast && !takeHandoff() && Date.now() - lastSendAt() < 4000);
+  return enter;
+}
+
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -461,7 +469,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content cc-bubble-user peer empty:hidden">
+        <div className="aui-user-message-content cc-bubble-user peer empty:hidden" data-enter={useEnterOnce() || undefined}>
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
