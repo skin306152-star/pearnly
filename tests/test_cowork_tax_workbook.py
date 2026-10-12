@@ -5,6 +5,7 @@
 `test_cowork_tax_service.py` 的内存替身。
 """
 import csv
+from datetime import date
 import importlib.util
 from io import BytesIO
 from pathlib import Path
@@ -104,6 +105,24 @@ class WhtBook(fakes.Base):
         self.assertEqual([row[0] for row in subtotals], [1, 2])
         self.assertEqual([row[12] for row in subtotals], [300.0, 100.0])
         self.assertEqual(attachment[-1][1], "รวม")
+        self.assertEqual(MISSING, [])
+
+    def test_rows_that_may_be_the_same_payment_name_each_other(self):
+        fakes.frappe.lists["Cowork OCR History"] = [
+            {"name": "HIS-A", "seller_tax": fakes.SUPPLIER, "buyer_tax": fakes.COMPANY, "invoice_date": date(2026, 9, 2),
+             "pages": fakes.history_page(document_type="tax_invoice", invoice_number="A1", date="2026-09-02",
+                                         seller_tax=fakes.SUPPLIER, buyer_tax=fakes.COMPANY, subtotal="10000",
+                                         wht_amount="300")}]
+        certificate = {"ref": "REF-A", "origin": "reference", "fields": {
+            "document_flag": "withholding_certificate", "date": "2026-09-20", "seller_tax": fakes.COMPANY,
+            "buyer_tax": fakes.SUPPLIER, "subtotal": "9000", "wht_amount": "270"}}
+        with mock.patch.object(fakes.certificates, "listing", return_value=[certificate]):
+            summary = fakes.service.wht_draft(fakes.COMPANY, "2026-09")
+        _filename, content = fakes.service.workbook(summary, "th")
+        review = values(load_workbook(BytesIO(content))["ต้องตรวจ"])
+        checks = {row[8]: row[0] for row in review if row[8] in ("HIS-A", "REF-A")}
+        self.assertEqual(checks, {"HIS-A": "เอกสารกับหนังสือรับรองไม่ตรงกัน (REF-A), ยังไม่ระบุประเภทเงินได้",
+                                  "REF-A": "เอกสารกับหนังสือรับรองไม่ตรงกัน (HIS-A), ยังไม่ระบุประเภทเงินได้"})
         self.assertEqual(MISSING, [])
 
 

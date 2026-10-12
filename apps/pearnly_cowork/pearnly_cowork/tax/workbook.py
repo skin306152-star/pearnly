@@ -97,7 +97,9 @@ def _save(book) -> bytes:
 
 
 def _issue_text(sheet, issue) -> str:
-    return sheet.t("cowork.tax.issue." + issue["code"])
+    """问题名；配不上的票与凭证后面带上可能是同一笔的记录名。"""
+    text = sheet.t("cowork.tax.issue." + issue["code"])
+    return f"{text} ({', '.join(issue['candidates'])})" if issue.get("candidates") else text
 
 
 def _month(value) -> str:
@@ -226,7 +228,7 @@ def _attachment(book, lang, form, data):
         name_cells = ([line.get("name_title", ""), line.get("name_first", ""), line.get("name_last", "")]
                       if form == "pnd3" else [line["payee_name"]])
         worst = _worst([item for item in line.get("issues") or [] if item["level"] != "info"])
-        checks = ", ".join(dict.fromkeys(sheet.t("cowork.tax.issue." + item["code"]) for item in line.get("issues") or []))
+        checks = ", ".join(dict.fromkeys(_issue_text(sheet, item) for item in line.get("issues") or []))
         sheet.line([line["sheet"], line["seq"] if first else "", line["payee_tax_id"] if first else "",
                     (line["payee_branch"] or "00000") if first else "", *(name_cells if first else [""] * len(names)),
                     line["payee_address"] if first else "", periods.be(line["date"]), _income(sheet, line),
@@ -288,7 +290,7 @@ def wht_book(summary, lang) -> bytes:
                        "cowork.tax.col.paid", "cowork.tax.col.withheld", "cowork.tax.col.source"])
         for row in rows:
             issues = [item for item in row.get("issues") or [] if item["level"] != "info"] or row.get("issues") or []
-            review.line([", ".join(dict.fromkeys(review.t("cowork.tax.issue." + item["code"]) for item in issues)),
+            review.line([", ".join(dict.fromkeys(_issue_text(review, item) for item in issues)),
                          periods.be(row["date"]), row["payee_tax_id"], row["payee_name"], _income(review, row),
                          row["rate"], row["base"] or None, row["tax"] or None, ", ".join(row["refs"])],
                         money=(7, 8), status=_worst(issues), status_column=1)

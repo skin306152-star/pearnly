@@ -1,6 +1,10 @@
 """报税草稿的编排：读数据 → 纯计算（`pp30` / `input_vat` / `wht`）→ 存草稿 → 回摘要与工作簿。
 
 - 同一公司（税号 + 分店）同月同类只留一份草稿（``Cowork Tax Draft``），重出时刷新数字、保留会计的选项与逐行改动。
+  草稿表只存各栏、合计与问题计数（加选项与逐行改动）：行级明细（回读的对方名称、税号、金额，识别记录派生的收款方）
+  不长期存，工作簿由本次请求当场算出的摘要排版。草稿可删（`delete`）。
+- 先读数据、做完计算，写之前才锁，且只锁这份草稿（已有时锁行；两个请求同时首次写同一份时，后到的撞主键，
+  回到保存点按已有的那份重算再写）；不锁工作空间行（推送准备也要锁它）。
 - 确定性计算、零费用：不调模型、不识别、不扣费；只出草稿，不写 Express、不代为申报。
 - ภ.พ.30 用当前用户该账套该月最近一次 Express 回读；没有就回 ``readback_needed``（先回读）。
 - ภ.ง.ด.3 / 53 用识别记录与 50 ทวิ 参考记录；所得类型问一次记住（`memory`）。
@@ -17,9 +21,18 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.tax import access, documents, input_vat, memory, periods, pp30, sources, wht
 
 DOCTYPE = access.TASK
-VAT, WHT = "vat_return", "withholding"
+VAT, WHT = access.VAT, access.WHT
 EDITS_MAX = 200
 ANSWERS_MAX = 50
+DELETE_MAX = 50
+SAVEPOINT = "cowork_tax_draft"
+# 草稿表里留的：各栏、合计、问题计数与来源说明；行级明细不留
+KEPT = {VAT: ("status", "draft", "kind", "period", "company", "connection", "account_set_key", "readback", "boxes",
+              "outcome", "options", "sales", "purchases", "claimable_if_fixed", "previous_excess", "deadlines",
+              "documents_checked", "issues_by_code", "tax_total"),
+        WHT: ("status", "draft", "kind", "period", "company", "deadlines", "issues_by_code", "totals",
+              "documents_read", "truncated", "tax_total")}
+KEPT_FORM = ("payees", "sheets", "base", "tax", "sheet_totals")
 
 
 def _period(text):
@@ -53,6 +66,15 @@ def _stored(doc) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def kept(summary) -> dict:
+    """草稿表里存的摘要：各栏、合计与问题计数（见 ``KEPT``）。"""
+    out = {key: summary[key] for key in KEPT[summary["kind"]] if key in summary}
+    if summary["kind"] == WHT:
+        out["forms"] = {form: {key: data.get(key) for key in KEPT_FORM}
+                        for form, data in (summary.get("forms") or {}).items()}
+    return out
+
+
 def _store(doc, name, workspace, kind, summary, options, **values):
     if doc is None:
         doc = frappe.get_doc({"doctype": DOCTYPE, "record_id": name, "workspace": workspace, "kind": kind,
@@ -63,23 +85,35 @@ def _store(doc, name, workspace, kind, summary, options, **values):
                 "issue_count": sum((summary.get("issues_by_code") or {}).values()),
                 "tax_total": summary.get("tax_total") or "",
                 "options_json": json.dumps(options, ensure_ascii=False, sort_keys=True),
-                "summary_json": json.dumps(summary, ensure_ascii=False, default=str),
+                "summary_json": json.dumps(kept(summary), ensure_ascii=False, default=str),
                 "updated_at": now_datetime(), **values})
     documents.persist(doc)
     return doc
 
 
-def _lock(workspace):
-    # 同一工作空间的草稿与记忆串行写（并发两次重出同一份草稿不撞唯一键）
-    frappe.db.get_value("Cowork Workspace", workspace, "name", for_update=True)
+def _write(name, workspace, kind, build) -> dict:
+    """存草稿：``build(已存的选项)`` → (摘要, 选项, 其他字段)，纯计算，在这份草稿的行锁里做（选项不丢更新）。"""
+    existing = _load(name)
+    if existing is None:
+        summary, options, values = build({})
+        frappe.db.savepoint(SAVEPOINT)
+        try:
+            _store(None, name, workspace, kind, summary, options, **values)
+            return summary
+        except frappe.DuplicateEntryError:
+            # 另一个请求刚写了同一份：回到保存点，锁住它（当前读看得到刚提交的行），按它存的选项重算再写
+            frappe.db.rollback(save_point=SAVEPOINT)
+            existing = frappe.get_doc(DOCTYPE, name, for_update=True)
+    summary, options, values = build(_stored(existing))
+    _store(existing, name, workspace, kind, summary, options, **values)
+    return summary
 
 
 # ---------------- ภ.พ.30 ----------------
 
-def _vat_options(given, stored) -> dict:
-    out = {"exempt_sales": stored.get("exempt_sales") or "0.00",
-           "excess_brought_forward": stored.get("excess_brought_forward") or "0.00",
-           "zero_vat_as": stored.get("zero_vat_as") or "zero_rated"}
+def _vat_given(given) -> dict:
+    """本次给的选项（核过）；没给的不出现。"""
+    out = {}
     for key in ("exempt_sales", "excess_brought_forward"):
         if (given or {}).get(key) not in (None, ""):
             value = pp30.money(given[key])
@@ -91,6 +125,12 @@ def _vat_options(given, stored) -> dict:
             frappe.throw(_("tax.option_invalid"))
         out["zero_vat_as"] = given["zero_vat_as"]
     return out
+
+
+def _vat_options(given, stored) -> dict:
+    return {"exempt_sales": stored.get("exempt_sales") or "0.00",
+            "excess_brought_forward": stored.get("excess_brought_forward") or "0.00",
+            "zero_vat_as": stored.get("zero_vat_as") or "zero_rated", **given}
 
 
 def _previous_excess(workspace, tax_id, branch, year, month) -> str:
@@ -112,17 +152,15 @@ def vat_draft(connection, account_set_key, period, options=None) -> dict:
     connection, account_set_key = str(connection or "").strip(), str(account_set_key or "").strip()
     if not connection or not account_set_key:
         frappe.throw(_("tax.request_invalid"))
+    given = _vat_given(options)
     data = sources.vat_readback(connection, account_set_key, year, month)
     if data is None:
         return {"status": "readback_needed", "period": periods.text(year, month), "connection": connection,
                 "account_set_key": account_set_key}
     header = data.get("header") or {}
     tax_id, branch = wht.tax_id(header.get("tax_id")), str(header.get("branch") or "").strip()[:10]
-    _lock(workspace)
     name = record_id(workspace, VAT, tax_id, branch, periods.text(year, month),
                      fallback=f"{connection}|{account_set_key}")
-    existing = _load(name)
-    chosen = _vat_options(options, _stored(existing))
     rows, unreadable = pp30.records(data.get("records") or [])
     selection = pp30.select(rows, year, month)
     checked = sources.can_read_documents()
@@ -131,33 +169,39 @@ def vat_draft(connection, account_set_key, period, options=None) -> dict:
     if not checked:  # 没有读识别记录的权限：票种与买方没核，不说「没有识别记录」
         issues = [item for item in issues if item["code"] != "input_no_document"]
     issues += input_vat.unreadable(unreadable)
-    boxes = pp30.boxes(selection["sales"], selection["purchases"], **chosen)
     claim_amount, claim_vat = input_vat.claimable(selection["purchases"], issues)
     sales_amount, sales_vat = pp30.total(selection["sales"])
     purchase_amount, purchase_vat = pp30.total(selection["purchases"])
     due = periods.deadlines("pp30", year, month)
-    summary = {
-        "status": "drafted", "draft": name, "kind": VAT, "period": periods.text(year, month),
-        "company": {"name": str(header.get("company") or "")[:200], "tax_id": tax_id, "branch": branch},
-        "connection": connection, "account_set_key": account_set_key,
-        "readback": {"ref": str(data.get("ref") or ""), "read_at": str(data.get("read_at") or "")},
-        "boxes": {key: "" if value is None else str(value) for key, value in boxes.items()},
-        "outcome": pp30.outcome(boxes), "options": chosen,
-        "sales": {"rows": len(selection["sales"]), "amount": str(sales_amount), "vat": str(sales_vat)},
-        "purchases": {"rows": len(selection["purchases"]), "amount": str(purchase_amount), "vat": str(purchase_vat)},
-        "claimable_if_fixed": {"amount": str(claim_amount), "vat": str(claim_vat)},
-        "previous_excess": _previous_excess(workspace, tax_id, branch, year, month),
-        "deadlines": {key: value.isoformat() if value else "" for key, value in due.items()},
-        "documents_checked": checked, "issues_by_code": input_vat.counts(issues), "issues": issues,
-        "unreadable_rows": unreadable,
-        "sales_rows": [record.as_dict() for record in selection["sales"]],
-        "purchase_rows": [record.as_dict() for record in selection["purchases"]],
-        "excluded_rows": [{**record.as_dict(), "reason": reason} for record, reason in selection["excluded"]],
-        "tax_total": str(boxes["11"] - boxes["12"]),  # 应缴为正、多缴为负
-    }
-    _store(existing, name, workspace, VAT, summary, chosen, connection=connection[:140],
-           account_set=account_set_key[:500], source_ref=str(data.get("ref") or "")[:140])
-    return summary
+    previous = _previous_excess(workspace, tax_id, branch, year, month)
+
+    def build(stored):
+        chosen = _vat_options(given, stored)
+        boxes = pp30.boxes(selection["sales"], selection["purchases"], **chosen)
+        summary = {
+            "status": "drafted", "draft": name, "kind": VAT, "period": periods.text(year, month),
+            "company": {"name": str(header.get("company") or "")[:200], "tax_id": tax_id, "branch": branch},
+            "connection": connection, "account_set_key": account_set_key,
+            "readback": {"ref": str(data.get("ref") or ""), "read_at": str(data.get("read_at") or "")},
+            "boxes": {key: "" if value is None else str(value) for key, value in boxes.items()},
+            "outcome": pp30.outcome(boxes), "options": chosen,
+            "sales": {"rows": len(selection["sales"]), "amount": str(sales_amount), "vat": str(sales_vat)},
+            "purchases": {"rows": len(selection["purchases"]), "amount": str(purchase_amount),
+                          "vat": str(purchase_vat)},
+            "claimable_if_fixed": {"amount": str(claim_amount), "vat": str(claim_vat)},
+            "previous_excess": previous,
+            "deadlines": {key: value.isoformat() if value else "" for key, value in due.items()},
+            "documents_checked": checked, "issues_by_code": input_vat.counts(issues), "issues": issues,
+            "unreadable_rows": unreadable,
+            "sales_rows": [record.as_dict() for record in selection["sales"]],
+            "purchase_rows": [record.as_dict() for record in selection["purchases"]],
+            "excluded_rows": [{**record.as_dict(), "reason": reason} for record, reason in selection["excluded"]],
+            "tax_total": str(boxes["11"] - boxes["12"]),  # 应缴为正、多缴为负
+        }
+        return summary, chosen, {"connection": connection[:140], "account_set": account_set_key[:500],
+                                 "source_ref": str(data.get("ref") or "")[:140]}
+
+    return _write(name, workspace, VAT, build)
 
 
 # ---------------- ภ.ง.ด.3 / ภ.ง.ด.53 ----------------
@@ -200,29 +244,30 @@ def wht_draft(company_tax_id, period, edits=None, company_name="", company_branc
     year, month = _period(period)
     branch = str(company_branch or "").strip()[:10] or "00000"
     start, end = periods.bounds(year, month)
-    _lock(workspace)
     name = record_id(workspace, WHT, tax_id, branch, periods.text(year, month))
-    existing = _load(name)
-    stored = _stored(existing)
     found, truncated = sources.wht_documents(workspace, tax_id, start, end)
     remembered = memory.choices(workspace)
     payees = [key.split(":", 1)[1] for key in remembered if key.startswith("payee:")]
     payments, notes = wht.collect(found, tax_id, payees)
     known = {ref for payment in payments for ref in payment["refs"]}
-    overrides, rejected = _edits(edits, stored.get("overrides") or {}, known)
-    result = wht.draft(payments, notes, year, month, remembered, overrides)
     due = periods.deadlines("pnd", year, month)
-    shown_name = str(company_name or stored.get("company_name") or _company_name(found, tax_id))[:200]
-    summary = {
-        "status": "drafted", "draft": name, "kind": WHT, "period": periods.text(year, month),
-        "company": {"name": shown_name, "tax_id": tax_id, "branch": branch}, **result,
-        "deadlines": {key: value.isoformat() if value else "" for key, value in due.items()},
-        "documents_read": len(found), "truncated": truncated, "edits_rejected": rejected,
-        "tax_total": result["totals"]["tax"],
-    }
-    options = {"overrides": overrides, "company_name": str(company_name or stored.get("company_name") or "")[:200]}
-    _store(existing, name, workspace, WHT, summary, options)
-    return summary
+
+    def build(stored):
+        overrides, rejected = _edits(edits, stored.get("overrides") or {}, known)
+        result = wht.draft(payments, notes, year, month, remembered, overrides)
+        shown_name = str(company_name or stored.get("company_name") or _company_name(found, tax_id))[:200]
+        summary = {
+            "status": "drafted", "draft": name, "kind": WHT, "period": periods.text(year, month),
+            "company": {"name": shown_name, "tax_id": tax_id, "branch": branch}, **result,
+            "deadlines": {key: value.isoformat() if value else "" for key, value in due.items()},
+            "documents_read": len(found), "truncated": truncated, "edits_rejected": rejected,
+            "tax_total": result["totals"]["tax"],
+        }
+        options = {"overrides": overrides,
+                   "company_name": str(company_name or stored.get("company_name") or "")[:200]}
+        return summary, options, {}
+
+    return _write(name, workspace, WHT, build)
 
 
 def answer(answers, draft="") -> dict:
@@ -232,7 +277,6 @@ def answer(answers, draft="") -> dict:
     items = list(answers or [])[:ANSWERS_MAX]
     if not items:
         frappe.throw(_("tax.answer_invalid"))
-    _lock(workspace)
     saved = []
     for item in items:
         item = item or {}
@@ -251,6 +295,28 @@ def forget(payee_tax_id="", category="") -> dict:
 
 def remembered() -> list:
     return memory.listing(_workspace())
+
+
+def delete(drafts) -> dict:
+    """删草稿（连同存着的选项与逐行改动）：[草稿名]；ภ.ง.ด. 草稿同读一样要读识别记录的权限。回删掉的与没找到的。"""
+    workspace = _workspace()
+    names = [str(name or "").strip()[:140] for name in list(drafts or [])[:DELETE_MAX]]
+    names = [name for name in dict.fromkeys(names) if name]
+    if not names:
+        frappe.throw(_("tax.request_invalid"))
+    deleted, missing = [], []
+    for name in names:
+        row = frappe.db.get_value(DOCTYPE, name, ["workspace", "kind"], as_dict=True, for_update=True)
+        if not row:
+            missing.append(name)
+            continue
+        if row.workspace != workspace:
+            frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        if row.kind == WHT:
+            scope.require_read()
+        frappe.db.delete(DOCTYPE, {"name": name})
+        deleted.append(name)
+    return {"status": "deleted", "deleted": deleted, "missing": missing}
 
 
 def workbook(summary, lang) -> tuple[str, bytes]:

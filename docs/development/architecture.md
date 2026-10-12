@@ -64,7 +64,7 @@
 | `ocr` | 抽取：引擎、表引擎、校验闸、执行批次与计费、反馈 | `engine.runner`（本切片只承接 `invoice`/`auto`）、`execution.service`；依赖 `contracts` 与 `pearnly_core` 的计量 |
 | `reconciliation` | 银行与收入对账：解码、配对、原生落库、导出 | `bank_recon_service` / `income_recon_service`；收调用方已解码的内容，子进程不读文件、不调模型 |
 | `roundtrip` | 往返单契约与解析 | `service` / `parser` |
-| `tax` | 报税草稿（2026-10-13）：ภ.พ.30 与进项可抵扣核查、ภ.ง.ด.3 / ภ.ง.ด.53 | `service` 是唯一入口（CC 工具 `cowork_vat_draft` / `cowork_wht_draft` / `cowork_wht_answer`，没有 Desk 页面）；纯计算在 `periods` / `pp30` / `input_vat` / `wht`（不连库、不读文件）；ภ.พ.30 只读 Express 回读（`readback.service.vat_records`，函数内延迟导入），预扣税只读识别记录与 50 ทวิ 参考记录（`history`）；草稿表 `Cowork Tax Draft` 只经 `service` 写（对账同款写入闸），所得类型记忆 `Cowork WHT Choice` 只经 `memory` 写；确定性、零费用，不写 Express、不代为申报；功能码 `tax_drafts`、角色 Cowork Tax Filing |
+| `tax` | 报税草稿（2026-10-13）：ภ.พ.30 与进项可抵扣核查、ภ.ง.ด.3 / ภ.ง.ด.53 | `service` 是唯一入口（CC 工具 `cowork_vat_draft` / `cowork_wht_draft` / `cowork_wht_answer` / `cowork_tax_draft_delete`，没有 Desk 页面）；纯计算在 `periods` / `pp30` / `input_vat` / `wht`（不连库、不读文件）；ภ.พ.30 只读 Express 回读（`readback.service.vat_records`，函数内延迟导入），预扣税只读识别记录与 50 ทวิ 参考记录（`history`）；草稿表 `Cowork Tax Draft` 只经 `service` 写（对账同款写入闸，只存各栏、合计与问题计数，不存行级明细；写前只锁这份草稿、不锁工作空间行），所得类型记忆 `Cowork WHT Choice` 只经 `memory` 写；确定性、零费用，不写 Express、不代为申报；功能码 `tax_drafts`、角色 Cowork Tax Filing |
 | `push` | 推送装配、试算、幂等与写者锁 | `application.service` / `native`；外部写只在目标域 |
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
 | `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |

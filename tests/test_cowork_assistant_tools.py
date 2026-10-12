@@ -786,6 +786,8 @@ class TaxDraftTests(unittest.TestCase):
         tax_service.forget = lambda payee, category: self.calls.append(("forget", payee, category)) or {
             "status": "removed"}
         tax_service.remembered = lambda: [{"scope": "payee:1", "income_type": "rent"}]
+        tax_service.delete = lambda drafts: self.calls.append(("delete", drafts)) or {
+            "status": "deleted", "deleted": drafts, "missing": []}
         tax_service.workbook = lambda summary, lang: (f"PP30-{summary['period']}.xlsx", b"PK")
         chat = types.ModuleType("pearnly_core.assistant.files")
         chat.add_to_conversation = lambda name, content, mime: self.calls.append(("attach", name, mime)) or "/mnt/x/" + name
@@ -873,6 +875,30 @@ class TaxDraftTests(unittest.TestCase):
                          {"remembered": [{"scope": "payee:1", "income_type": "rent"}]})
         json.loads(tools.wht_answer({"action": "remove", "category": "ค่าเช่า"}))
         self.assertEqual(self.calls[-1], ("forget", "", "ค่าเช่า"))
+
+    def test_rows_that_may_be_the_same_payment_name_each_other(self):
+        line = {"row": "C1", "issues": [{"code": "pairing_unclear", "level": "warn", "candidates": ["I1", "I2"]},
+                                        {"code": "income_type_missing", "level": "warn"}]}
+        self.assertEqual(tools._tax_line(line), {"row": "C1", "issues": ["pairing_unclear", "income_type_missing"],
+                                                 "check_with": ["I1", "I2"]})
+        description = {tool["name"]: tool for tool in tools.TOOLS}["cowork_wht_draft"]["description"]
+        for code in ("pairing_unclear", "buyer_unconfirmed", "check_with", "include true"):
+            self.assertIn(code, description)
+
+    def test_drafts_are_deleted_through_the_service(self):
+        declared = {tool["name"]: tool for tool in tools.TOOLS}["cowork_tax_draft_delete"]
+        self.assertEqual(declared["input_schema"]["required"], ["drafts"])
+        out = json.loads(tools.tax_draft_delete({"drafts": ["CTD-1", "CTD-2"]}))
+        self.assertEqual((out["deleted"], self.calls[-1]), (["CTD-1", "CTD-2"], ("delete", ["CTD-1", "CTD-2"])))
+        self.assertEqual(frappe.commits, 1)
+
+        def refuse(drafts):
+            raise frappe.PermissionError("Not Permitted")
+
+        sys.modules["pearnly_cowork.tax.service"].delete = refuse
+        self.assertEqual(json.loads(tools.tax_draft_delete({"drafts": ["CTD-1"]})),
+                         {"status": "not_deleted", "reason": "Not Permitted"})
+        self.assertEqual(frappe.rollbacks, 1)
 
 
 class StocktakeAndWorkTests(unittest.TestCase):

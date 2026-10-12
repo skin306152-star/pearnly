@@ -1,9 +1,10 @@
 """ภ.ง.ด.3 / ภ.ง.ด.53 草稿（`tax.wht`）的纯函数检查：不连库、不依赖 Frappe。
 
-归哪张表（0 开头 → 53，0991 / 0992 → 3）、ชื่อ / ชื่อสกุล、付款金额与税额、50 ทวิ 的付款方判断与配对、
+归哪张表（0 开头 → 53，0991 / 0992 → 3）、ชื่อ / ชื่อสกุล、付款金额与税额、50 ทวิ 的付款方判断与配对
+（一对一、几张票一张凭证、一张票几张凭证；配不上待核；跨月只计一次）、票面没有本公司税号的待核、
 按付款日落月、所得类型「记住」与兜底、逐行改动、建议补扣不进合计、ใบแนบ 分页（每页 6 名、每名 3 行）。
 """
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 import sys
@@ -13,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "apps" / "pearnly_cowork"), str(ROOT / "apps" / "pearnly_core")]
 
 from pearnly_cowork.contracts import document_policy  # noqa: E402
-from pearnly_cowork.tax import wht  # noqa: E402
+from pearnly_cowork.tax import periods, wht  # noqa: E402
 
 COMPANY = "0105556000009"
 TRANSPORT = "0105546015062"     # 法人
@@ -91,6 +92,18 @@ class Amounts(unittest.TestCase):
         self.assertTrue(wht.paid_at_issue({"document_type": "receipt"}))
         self.assertTrue(wht.paid_at_issue({"posting_payment_manual": "cash"}))
         self.assertFalse(wht.paid_at_issue({"document_type": "tax_invoice"}))
+        # 录入时人工选的赊账优先于票面印的付款方式与票种
+        self.assertFalse(wht.paid_at_issue({"posting_payment_manual": "credit", "payment_method": "transfer",
+                                            "document_type": "receipt"}))
+        line = all_lines(draft([invoice("H1", payment_method="transfer", posting_payment_manual="credit")]))[0]
+        self.assertEqual((line["date_source"], line["issues"][0]["code"]), ("invoice_date", "payment_date_assumed"))
+
+    def test_rates_are_written_without_exponents(self):
+        self.assertEqual([wht.rate_text(Decimal(value)) for value in ("10", "1.50", "3.00", "15")],
+                         ["10", "1.5", "3", "15"])
+        result = draft([invoice("D1", subtotal="50000", vat="0", wht_amount="5000")])
+        self.assertEqual([line["rate"] for line in all_lines(result)], ["10"])
+        self.assertEqual([question["rates"] for question in result["questions"]], [["10"]])
 
 
 class Collect(unittest.TestCase):
@@ -135,6 +148,50 @@ class Collect(unittest.TestCase):
         self.assertEqual(all_lines(result), [])
         self.assertEqual([i["code"] for i in result["review"][0]["issues"]][:1], ["amount_unreadable"])
 
+    def test_an_unreadable_certificate_counts_once_the_amounts_are_entered(self):
+        overrides = {"C1": wht.clean_edit({"base": "20000", "tax": "1000"})}
+        result = draft([certificate("C1", base="", tax="")], remembered=[LANDLORD], overrides=overrides)
+        line, = all_lines(result)
+        self.assertEqual((line["base"], line["tax"], line["rate"]), ("20000.00", "1000.00", "5"))
+        self.assertNotIn("amount_unreadable", [item["code"] for item in line["issues"]])
+        self.assertEqual(result["review"], [])
+
+    def test_a_partner_that_buys_and_sells_needs_the_accountant(self):
+        documents = [invoice("P1", wht_amount="", date_="2026-08-10"),                    # 本公司向 TRANSPORT 买过
+                     invoice("S1", seller=COMPANY, buyer=TRANSPORT, number="S1", wht_amount=""),  # 也卖给它
+                     certificate("C9", payee=TRANSPORT, base="40000", tax="1200")]
+        for documents_ in (documents, documents[:2] + [certificate("C9", payee=TRANSPORT, payee_side="seller",
+                                                                   base="40000", tax="1200")]):
+            payments, notes = wht.collect(documents_, COMPANY)
+            self.assertEqual([(p["row"], p["include"], [i["code"] for i in p["issues"]]) for p in payments],
+                             [("C9", False, ["certificate_direction_unclear"])])
+            self.assertEqual(notes, [])
+        self.assertEqual(draft(documents)["totals"]["tax"], "0.00")
+        # 与本公司印了预扣税的费用票配上了即认定本公司付款
+        paired = documents + [invoice("P2", subtotal="40000", vat="2800", wht_amount="1200", date_="2026-09-10")]
+        payments, _ = wht.collect(paired, COMPANY)
+        self.assertEqual([(p["row"], p["source"], p["include"], p["issues"]) for p in payments],
+                         [("P2", "both", True, [])])
+
+    def test_documents_filed_under_the_company_without_its_tax_id_wait_for_the_accountant(self):
+        receipt = invoice("R1", seller=LANDLORD, buyer="", document_type="receipt", subtotal="10000", vat="0",
+                          wht_amount="500", seller_name="นายสมชาย ใจดี")
+        receipt["match"] = wht.MATCH_CLIENT
+        sale = invoice("S1", seller="", buyer="", direction="sales")
+        sale["match"] = wht.MATCH_WORKSPACE
+        unknown = invoice("U1", seller=LANDLORD, buyer="", number="U1")   # 没有归属：不取
+        result = draft([receipt, sale, unknown])
+        self.assertEqual(all_lines(result), [])
+        self.assertEqual([(row["row"], [item["code"] for item in row["issues"]]) for row in result["review"]],
+                         [("R1", ["buyer_unconfirmed", "income_type_missing"])])
+        result = draft([receipt], overrides={"R1": wht.clean_edit({"include": True})})
+        line, = result["forms"]["pnd3"]["lines"]
+        self.assertEqual((line["row"], [item["code"] for item in line["issues"]]), ("R1", ["income_type_missing"]))
+        # 与写着本公司的 50 ทวิ 配上了即确认
+        paired = [receipt, certificate("C1", payee=LANDLORD, date_="2026-09-10", base="10000", tax="500")]
+        line, = all_lines(draft(paired))
+        self.assertEqual((line["refs"], line["source"]), (["R1", "C1"], "both"))
+
     def test_duplicates_count_once(self):
         documents = [invoice("H1", number="INV-1"), invoice("H2", number=" inv-1"),
                      certificate("C1"), certificate("C2")]
@@ -174,6 +231,88 @@ class Pairing(unittest.TestCase):
         documents = [invoice("H1", wht_amount=""), certificate("C1", payee=TRANSPORT, base="10000", tax="300")]
         payments, _ = wht.collect(documents, COMPANY, [TRANSPORT])
         self.assertEqual([(p["source"], p["include"], p["tax"]) for p in payments], [("both", True, Decimal("300.00"))])
+
+    def test_several_invoices_paid_with_one_certificate_count_once(self):
+        documents = [invoice("I1", date_="2026-09-02"), invoice("I2", date_="2026-09-05"),
+                     certificate("C1", payee=TRANSPORT, date_="2026-09-20", base="20000", tax="600")]
+        result = draft(documents)
+        line, = all_lines(result)
+        self.assertEqual((line["row"], line["refs"], line["source"], line["base"], line["tax"], line["rate"],
+                          line["date"]), ("C1", ["C1", "I1", "I2"], "both", "20000.00", "600.00", "3", "2026-09-20"))
+        self.assertEqual((result["totals"]["tax"], result["review"]), ("600.00", []))
+
+    def test_one_invoice_paid_in_two_instalments(self):
+        documents = [invoice("I1", subtotal="20000", vat="1400", wht_amount="600", date_="2026-09-01"),
+                     certificate("C1", payee=TRANSPORT, date_="2026-09-10", base="12000", tax="360"),
+                     certificate("C2", payee=TRANSPORT, date_="2026-10-10", base="8000", tax="240")]
+        self.assertEqual([(line["row"], line["refs"], line["tax"]) for line in all_lines(draft(documents))],
+                         [("C1", ["C1", "I1"], "360.00")])
+        self.assertEqual([(line["row"], line["tax"]) for line in all_lines(draft(documents, month=10))],
+                         [("C2", "240.00")])
+
+    def test_a_certificate_next_month_is_counted_once_in_its_month(self):
+        documents = [invoice("I1", date_="2026-08-20"),
+                     certificate("C1", payee=TRANSPORT, date_="2026-09-05", base="10000", tax="300")]
+
+        def fetched(month):  # 同 `sources.wht_documents`：票 [月初 − 90 天, 月末]，凭证到月末 + 45 天
+            start, end = periods.bounds(2026, month)
+            last = {"invoice": end, "certificate": end + timedelta(days=wht.FORWARD_DAYS)}
+            return [item for item in documents if start - timedelta(days=wht.LOOKBACK_DAYS)
+                    <= periods.parse_date(item["fields"]["date"])
+                    <= last["certificate" if item["fields"].get("document_flag") else "invoice"]]
+
+        self.assertEqual(draft(fetched(8), month=8)["totals"]["tax"], "0.00")
+        self.assertEqual(draft(fetched(9), month=9)["totals"]["tax"], "300.00")
+
+    def test_unmatched_invoice_and_certificate_of_one_payee_wait_for_the_accountant(self):
+        documents = [invoice("I1", date_="2026-09-02"),
+                     certificate("C1", payee=TRANSPORT, date_="2026-09-20", base="9000", tax="270")]
+        result = draft(documents)
+        self.assertEqual((all_lines(result), result["totals"]["tax"]), ([], "0.00"))
+        unclear = {row["row"]: next(item for item in row["issues"] if item["code"] == "pairing_unclear")
+                   for row in result["review"]}
+        self.assertEqual({row: item["candidates"] for row, item in unclear.items()}, {"I1": ["C1"], "C1": ["I1"]})
+        self.assertEqual(unclear["I1"]["level"], "warn")
+        # 会计确认凭证这一笔：只计入它，提示去掉
+        result = draft(documents, overrides={"C1": wht.clean_edit({"include": True})})
+        line, = all_lines(result)
+        self.assertEqual((line["row"], line["tax"]), ("C1", "270.00"))
+        self.assertNotIn("pairing_unclear", [item["code"] for item in line["issues"]])
+        self.assertEqual([row["row"] for row in result["review"]], ["I1"])
+        # 日期远的不算可能重复
+        far = [invoice("I1", date_="2026-07-01"), certificate("C1", payee=TRANSPORT, date_="2026-09-20", base="9000",
+                                                              tax="270")]
+        self.assertEqual([line["row"] for line in all_lines(draft(far))], ["C1"])
+
+    def test_an_invoice_near_another_payments_certificate_waits_for_the_accountant(self):
+        # 那张凭证配上了别的票；但各月取到的单据不同时也可能配到这张票：先不按票据日计入
+        documents = [invoice("I1", date_="2026-07-08", subtotal="2000", wht_amount="100"),
+                     invoice("I2", date_="2026-07-20", subtotal="3000", wht_amount="90"),
+                     certificate("C1", payee=TRANSPORT, date_="2026-08-02", base="3000", tax="90")]
+        july = draft(documents, month=7)
+        self.assertEqual(all_lines(july), [])
+        (row,) = july["review"]
+        self.assertEqual((row["row"], [(item["code"], item.get("candidates")) for item in row["issues"]][:1]),
+                         ("I1", [("pairing_unclear", ["C1"])]))
+        line, = all_lines(draft(documents, month=8))
+        self.assertEqual((line["refs"], line["tax"], [item["code"] for item in line["issues"]]),
+                         (["I2", "C1"], "90.00", ["income_type_missing"]))
+
+    def test_edits_on_a_merged_invoice_keep_the_certificate_amounts_and_date(self):
+        documents = [invoice("I1", date_="2026-09-02"), invoice("I2", date_="2026-09-05"),
+                     certificate("C1", payee=TRANSPORT, date_="2026-09-20", base="20000", tax="600")]
+        overrides = {"I1": wht.clean_edit({"base": "1", "tax": "1", "payment_date": "2026-10-01",
+                                           "income_type": "service"})}
+        line, = all_lines(draft(documents, overrides=overrides))
+        self.assertEqual((line["base"], line["tax"], line["date"], line["income_type"]),
+                         ("20000.00", "600.00", "2026-09-20", "service"))
+
+    def test_the_sum_search_is_bounded(self):
+        rows = [{"tax": Decimal(7 + 2 * index)} for index in range(40)]
+        self.assertEqual(wht._subset(rows, "tax", Decimal("16.00")), [0, 1])
+        self.assertEqual(wht._subset(rows, "tax", Decimal("1.00")), [])
+        evens = [{"tax": Decimal("2.00")} for _ in range(40)]
+        self.assertEqual(wht._subset(evens, "tax", Decimal("41.00")), [])   # 步数上限，不会一直搜
 
 
 class Draft(unittest.TestCase):

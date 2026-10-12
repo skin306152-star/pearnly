@@ -13,6 +13,7 @@ from pearnly_cowork.history import certificates
 from pearnly_cowork.tax import input_vat, wht
 
 HISTORY = "Cowork OCR History"
+CLIENT = "Cowork Client"
 PAGE = 200
 SCAN_MAX = 5000
 CHUNK = 200
@@ -69,32 +70,70 @@ def purchase_documents(purchases) -> dict:
     return found
 
 
-def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
-    """这家公司（付款方税号）在 [start − 90 天, end] 的识别记录与 50 ทวิ 参考记录：
-    ([{ref, origin, fields}], 是否只看了最新的 SCAN_MAX 张)。按票据日取：付款日只会等于或晚于票据日。"""
-    scope.require_read()
-    company = wht.tax_id(company_tax_id)
-    window = start - timedelta(days=wht.LOOKBACK_DAYS)
-    heads, offset, truncated = [], 0, False
+def _owner(workspace, company) -> tuple[set, bool]:
+    """票面没有本公司税号时认归属：(税号是本公司的客户档案名, 工作空间本身就是这家公司)。"""
+    clients = {row.name for row in frappe.get_all(CLIENT, filters={"workspace": workspace}, fields=["name", "tax_id"],
+                                                  limit_page_length=0) if wht.tax_id(row.get("tax_id")) == company}
+    return clients, wht.tax_id(frappe.db.get_value("Cowork Workspace", workspace, "tax_id")) == company
+
+
+def _match(row, company, clients, own_workspace) -> str:
+    """这条识别记录算不算这家公司的：票面有本公司税号（tax_id）；票面没有 / 读错，但归在本公司的客户档案（client）；
+    单一公司的工作空间里买方税号空着、没挂客户的（workspace）。都不是回空串。"""
+    seller, buyer = wht.tax_id(row.get("seller_tax")), wht.tax_id(row.get("buyer_tax"))
+    if company in (seller, buyer):
+        return "tax_id"
+    if row.get("client") and row.get("client") in clients:
+        return wht.MATCH_CLIENT
+    if own_workspace and not buyer and not row.get("client"):
+        return wht.MATCH_WORKSPACE
+    return ""
+
+
+def _heads(window, order, company, owner) -> tuple[dict, bool]:
+    """票据日在 window 内、算这家公司的识别记录：({记录名: 怎么认的}, 是否只看了 SCAN_MAX 张)。"""
+    heads, offset = {}, 0
     while True:
-        rows = frappe.get_list(HISTORY, filters={"invoice_date": ["between", [window, end]]},
-                               fields=["name", "seller_tax", "buyer_tax"], order_by="invoice_date desc, name desc",
-                               limit_start=offset, limit_page_length=PAGE)
-        heads += [row.name for row in rows
-                  if company in (wht.tax_id(row.get("seller_tax")), wht.tax_id(row.get("buyer_tax")))]
+        rows = frappe.get_list(HISTORY, filters={"invoice_date": ["between", list(window)]},
+                               fields=["name", "seller_tax", "buyer_tax", "client"],
+                               order_by=f"invoice_date {order}, name {order}", limit_start=offset,
+                               limit_page_length=PAGE)
+        for row in rows:
+            found = _match(row, company, *owner)
+            if found:
+                heads[row.name] = found
         offset += PAGE
         if len(rows) < PAGE:
-            break
+            return heads, False
         if offset >= SCAN_MAX:
-            truncated = True
-            break
+            return heads, True
+
+
+def _documents(heads, certificates_only=False) -> list:
     documents = []
     for chunk in _chunks(heads):
         for row in frappe.get_list(HISTORY, filters={"name": ["in", chunk]}, fields=["name", "pages"],
                                    limit_page_length=0):
             fields = _fields(row.get("pages"))
-            documents.append({"ref": row.name, "origin": "history",
+            if certificates_only and fields.get("document_flag") != wht.CERTIFICATE:
+                continue
+            documents.append({"ref": row.name, "origin": "history", "match": heads[row.name],
                               "fields": {key: fields.get(key) for key in WHT_FIELDS if fields.get(key) not in (None, "")}})
+    return documents
+
+
+def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
+    """这家公司（付款方）票据日在 [start − 90 天, end] 的识别记录，与凭证日在 (end, end + 45 天] 的 50 ทวิ（本月的票
+    可能下个月才付款开凭证，配上了就按凭证日落月），加上同一区间的 50 ทวิ 参考记录：
+    ([{ref, origin, fields, match}], 是否只看了 SCAN_MAX 张)。按票据日取：付款日只会等于或晚于票据日。"""
+    scope.require_read()
+    company = wht.tax_id(company_tax_id)
+    window = start - timedelta(days=wht.LOOKBACK_DAYS)
+    ahead = end + timedelta(days=wht.FORWARD_DAYS)
+    owner = _owner(workspace, company)
+    heads, truncated = _heads((window, end), "desc", company, owner)
+    later, later_truncated = _heads((end + timedelta(days=1), ahead), "asc", company, owner)
+    documents = _documents(heads) + _documents(later, certificates_only=True)
     documents.sort(key=lambda item: (str(item["fields"].get("date") or ""), item["ref"]))
-    documents += certificates.listing(workspace, window, end)
-    return documents, truncated
+    documents += certificates.listing(workspace, window, ahead)
+    return documents, truncated or later_truncated

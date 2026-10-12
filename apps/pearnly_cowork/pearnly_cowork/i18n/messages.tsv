@@ -928,6 +928,8 @@ Payment date assumed	付款日为推定	วันที่จ่ายเป็�
 Payer not clear	付款方不明	ไม่ชัดเจนว่าใครเป็นผู้จ่าย	支払者が不明	cowork.tax.issue.certificate_direction_unclear
 Certificate received from a customer	客户开给本公司的凭证	หนังสือรับรองที่ได้รับจากลูกค้า	顧客から受け取った証明書	cowork.tax.issue.certificate_received
 Parties not read	双方未读出	อ่านข้อมูลคู่สัญญาไม่ได้	当事者を読めない	cowork.tax.issue.certificate_parties_unreadable
+Invoice and certificate do not match	票据与凭证对不上	เอกสารกับหนังสือรับรองไม่ตรงกัน	請求書と証明書が合わない	cowork.tax.issue.pairing_unclear
+Company tax ID not on the document	票面无本公司税号	ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร	書類に自社の納税者番号なし	cowork.tax.issue.buyer_unconfirmed
 Duplicate	重复	รายการซ้ำ	重複	cowork.tax.issue.duplicate_document
 Form	表	แบบ	様式	cowork.tax.col.form
 Payees	收款方数	จำนวนราย	受取人数	cowork.tax.col.payees
@@ -1968,6 +1970,7 @@ Deleted reconciliations	删除了对账	ลบการกระทบยอด�
 Drafted a VAT return	起草了增值税申报表	ร่างแบบ ภ.พ.30 แล้ว	付加価値税申告の下書きを作成しました
 Drafted a withholding tax return	起草了预扣税申报表	ร่างแบบ ภ.ง.ด.3 / ภ.ง.ด.53 แล้ว	源泉徴収税申告の下書きを作成しました
 Answered a withholding tax question	回答了预扣税的问题	ตอบคำถามภาษีหัก ณ ที่จ่ายแล้ว	源泉徴収税の質問に回答しました
+Deleted tax drafts	删除了报税草稿	ลบร่างแบบภาษีแล้ว	税務申告の下書きを削除しました
 Deleted documents	删除了单据	ลบเอกสารแล้ว	書類を削除しました
 Exported the review workbook	导出了复核工作簿	ส่งออกสมุดงานตรวจทานแล้ว	確認用ワークブックを書き出しました
 Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました

@@ -5,11 +5,16 @@
   คณะบุคคล / ห้างหุ้นส่วนสามัญ）按个人所得税 → ภ.ง.ด.3；其余 → ภ.ง.ด.3。会计可按收款方改一次并记住。
 - 所得类型按收款方问一次并记住（`memory`，工作空间内）；收款方没记过时按识别出的分类（category）记的类型兜底；
   都没有就列进 questions，不猜。按税率推的类型只作建议。
-- 申报期间按付款日：有 50 ทวิ 用凭证上的付款日；票据当场已付（现金 / 印了付款方式 / 收据、简易税票）用票据日；
-  其余也先用票据日并标「付款日为推定」，会计可逐行改。
-- 50 ทวิ 的付款方 / 收款方：本公司是其中一方，另一方为对方。对方是本公司费用票的卖方、或记过所得类型 → 本公司付款，
-  进本表；对方是本公司销售票的买方 → 是客户扣了我们的，不进本表；都判不出 → 列出待会计确认，不计入。
-- 一张票与一张 50 ทวิ 收款方相同、金额（或税额）差不超过 0.01、日期差不超过 45 天 → 同一笔付款，金额与日期取凭证。
+- 申报期间按付款日：有 50 ทวิ 用凭证上的付款日；票据当场已付（录入选了现金 / 印了付款方式 / 收据、简易税票，
+  录入选了赊账的除外）用票据日；其余也先用票据日并标「付款日为推定」，会计可逐行改。
+- 50 ทวิ 的付款方 / 收款方：本公司是其中一方，另一方为对方。对方只是本公司费用票的卖方、或记过所得类型 → 本公司付款，
+  进本表；只是本公司销售票的买方 → 是客户扣了我们的，不进本表；两边都是或都判不出 → 列出待会计确认，不计入
+  （与本公司的费用票配上了即认定本公司付款）。
+- 同一收款方的票与 50 ทวิ 配成同一笔付款（日期差不超过 45 天，金额或税额每张容差 0.01）：一对一；几张票合计等于
+  一张凭证；一张票等于几张凭证合计。金额与日期取凭证。取数时凭证往月末后多看 45 天：票配上了下个月的凭证就按凭证日
+  落月，不再按票据日计入本月。配不上的票，前后 45 天内有同一收款方的凭证（配上了别的票的也算）就放进待核，
+  配不上的那些凭证也一起放进待核，都不进合计，会计确认后计入。
+- 票面没有本公司税号、但归在本公司名下（客户档案或单一公司的工作空间）的费用票：列出待会计确认，不计入。
 - ใบแนบ：每页 6 名收款方，每名下最多 3 行付款明细（多出的另起一个序号）；ภ.ง.ด.3 分 ชื่อ / ชื่อสกุล，
   条件码 ภ.ง.ด.3 为 1/2/3、ภ.ง.ด.53 为 1/2。
 - e-WHT：2569-01-01 至 2570-12-31 经电子预扣（e-Withholding Tax）付款的，多数所得税率为 1%，且由银行代缴、
@@ -61,6 +66,10 @@ LINES_PER_PAYEE = 3
 PAYEES_PER_SHEET = 6
 PAIR_DAYS = 45
 LOOKBACK_DAYS = 90
+FORWARD_DAYS = PAIR_DAYS  # 凭证往月末后多看几天：本月的票可能下个月才付款开凭证
+SUBSET_CANDIDATES = 12    # 合计配对时每笔最多看日期最近的几张
+SUBSET_STEPS = 20000      # 合计配对的搜索步数上限（找不到就当配不上，进待核）
+MATCH_CLIENT, MATCH_WORKSPACE = "client", "workspace"  # 票面没有本公司税号、按归属取到的记录
 THRESHOLD = Decimal(1000)
 # 只作建议（questions 里的 suggested），不代替会计选：同一税率可能是几种所得
 SUGGEST_BY_RATE = {Decimal(5): "rent", Decimal(2): "advertising", Decimal(1): "transport", Decimal(3): "service",
@@ -82,10 +91,18 @@ ISSUES = {
     "certificate_direction_unclear": "warn",
     "certificate_received": "info",
     "certificate_parties_unreadable": "warn",
+    "pairing_unclear": "warn",
+    "buyer_unconfirmed": "warn",
     "duplicate_document": "info",
 }
 # 这几项在会计改正之前不能计入（改了 include 也不行）
 BLOCKING = ("payee_tax_missing", "amount_unreadable")
+# 这几项让行先不计入；会计逐行设 include = true 即确认，提示随之去掉
+CONFIRMED_BY_INCLUDE = ("certificate_direction_unclear", "pairing_unclear", "buyer_unconfirmed")
+# 取数时判的、改了金额后要按改后的值重判的
+RECHECKED = ("amount_unreadable",)
+# 只从行本身的记录名取的改动（合并进来的其他记录上的日期、金额改动不套到合并后的这一笔）
+ROW_ONLY_KEYS = ("payment_date", "base", "tax", "rate")
 EDIT_KEYS = ("include", "payment_date", "income_type", "income_text", "rate", "base", "tax", "condition",
              "payee_tax_id", "form")
 
@@ -98,6 +115,11 @@ def money(value):
     except (InvalidOperation, ValueError):
         return None
     return number.quantize(CENT, rounding=ROUND_HALF_UP) if number.is_finite() else None
+
+
+def rate_text(value) -> str:
+    """税率写成「3」「1.5」「10」：去掉尾零、不用指数（Decimal("10").normalize() 是 1E+1）。"""
+    return "" if value is None else format(value.normalize(), "f")
 
 
 def tax_id(value) -> str:
@@ -189,7 +211,11 @@ def withheld(fields: Mapping, base) -> tuple:
 
 
 def paid_at_issue(fields: Mapping) -> bool:
-    if str(fields.get("posting_payment_manual") or "") == "cash" or str(fields.get("payment_method") or "").strip():
+    """票据日就是付款日吗：录入时人工选的现金 / 赊账优先（`contracts.push` 的人工裁决层），其次票面印的付款方式、票种。"""
+    manual = str(fields.get("posting_payment_manual") or "").strip().lower()
+    if manual in ("cash", "credit"):
+        return manual == "cash"
+    if str(fields.get("payment_method") or "").strip():
         return True
     return tax_rules.paid_hint(fields.get("document_type")) is True
 
@@ -228,42 +254,181 @@ def _near(first, second) -> bool:
     return abs(first - second) <= CENT
 
 
-def _pair(invoice_rows, certificate_rows) -> list:
-    used, out = set(), []
-    for row in invoice_rows:
-        match = None
-        for position, certificate in enumerate(certificate_rows):
-            if position in used or certificate["payee_tax_id"] != row["payee_tax_id"] or not row["payee_tax_id"]:
+def _within(invoice_date, certificate_date) -> bool:
+    if invoice_date is None or certificate_date is None:
+        return True
+    return abs((certificate_date - invoice_date).days) <= PAIR_DAYS
+
+
+def _distance(invoice_date, certificate_date) -> tuple:
+    """配对时谁更近：凭证日在票据日当天或之后的优先，再按相差天数；缺日期的排最后。"""
+    if invoice_date is None or certificate_date is None:
+        return (2, 0)
+    gap = (certificate_date - invoice_date).days
+    return (0 if gap >= 0 else 1, abs(gap))
+
+
+def _total(values):
+    values = list(values)
+    return None if not values or any(value is None for value in values) else sum(values, ZERO)
+
+
+def _subset(rows, key, target) -> list:
+    """rows 里至少两张、``key`` 合计等于 ``target``（每张容差 0.01）的一组，回位置；找不到或超过搜索步数回 []。
+    金额从大到小深搜：加上超出目标的跳过，剩下的全加上也够不着就停。"""
+    if target is None or target <= 0:
+        return []
+    items = sorted(((row[key], position) for position, row in enumerate(rows)
+                    if row[key] is not None and row[key] > 0), key=lambda item: (-item[0], item[1]))
+    rest = [ZERO] * (len(items) + 1)
+    for index in range(len(items) - 1, -1, -1):
+        rest[index] = rest[index + 1] + items[index][0]
+    chosen, steps = [], [SUBSET_STEPS]
+
+    def search(start, total) -> bool:
+        steps[0] -= 1
+        if steps[0] < 0:
+            return False
+        if len(chosen) >= 2 and abs(total - target) <= CENT * len(chosen):
+            return True
+        for index in range(start, len(items)):
+            if total + rest[index] + CENT * len(items) < target:
+                return False
+            value = items[index][0]
+            if total + value > target + CENT * (len(chosen) + 1):
                 continue
-            if not (_near(row["base"], certificate["base"]) or (row["tax"] and _near(row["tax"], certificate["tax"]))):
-                continue
-            if row["date"] and certificate["date"] and abs((certificate["date"] - row["date"]).days) > PAIR_DAYS:
-                continue
-            match = position
-            break
-        if match is None:
-            out.append(row)
+            chosen.append(items[index][1])
+            if search(index + 1, total + value):
+                return True
+            chosen.pop()
+        return False
+
+    return sorted(chosen) if search(0, ZERO) else []
+
+
+def _sum_match(rows, target) -> list:
+    """几张合计等于 target 的一组（先按税额，再按金额）。"""
+    for key in ("tax", "base"):
+        found = _subset(rows, key, target[key])
+        if found:
+            return found
+    return []
+
+
+def _merged(invoices, certificate, split=False) -> dict:
+    """票与 50 ทวิ 是同一笔付款：金额、日期取凭证（凭证没读出的由票据合计补上），收款方名址缺的用票据补。
+    一张票配一张凭证：这一行仍以票的记录名为准；几张票一张凭证、或一张票分几张凭证（``split``）：每张凭证一行。"""
+    first = invoices[0]
+    own = len(invoices) == 1 and not split
+    base, tax, rate = certificate["base"], certificate["tax"], certificate["rate"]
+    if not split:
+        if base is None:
+            base = _total(row["base"] for row in invoices)
+        if not tax:
+            tax = _total(row["tax"] for row in invoices)
+        if rate is None:
+            rate = first["rate"] if len(invoices) == 1 else (snap_rate(tax * HUNDRED / base) if base and tax else None)
+    numbers = [row["invoice_number"] for row in invoices if row["invoice_number"]]
+    merged = {**(first if own else certificate),
+              **{key: first[key] or certificate[key] for key in ("payee_branch", "payee_name", "payee_address")},
+              "refs": first["refs"] + certificate["refs"] if own
+              else certificate["refs"] + [ref for row in invoices for ref in row["refs"]],
+              "source": "both", "include": True, "date": certificate["date"] or first["date"],
+              "date_source": "certificate", "base": base, "rate": rate, "tax": tax,
+              "invoice_number": ", ".join(dict.fromkeys(numbers))[:60],
+              "category": first["category"] or certificate["category"]}
+    # 票据证实了是本公司付的款；凭证上没读出的金额由票据补上
+    resolved = {"certificate_direction_unclear"} | ({"amount_unreadable"} if base is not None and tax else set())
+    merged["issues"] = [item for item in certificate["issues"] if item["code"] not in resolved]
+    return merged
+
+
+def _unclear(row, others):
+    """配不上而日期相近：先不计入，列出可能是同一笔的记录名，会计确认（include）后计入。"""
+    row["include"] = False
+    refs = [ref for other in others for ref in other["refs"]]
+    for item in row["issues"]:
+        if item["code"] == "pairing_unclear":
+            item["candidates"] = list(dict.fromkeys(item["candidates"] + refs))
+            return
+    row["issues"].append(_issue("pairing_unclear", candidates=refs))
+
+
+def _pair_payee(invoices, certificates) -> list:
+    """同一收款方：一对一 → 几张票一张凭证 → 一张票几张凭证；剩下的票（印了预扣税的）日期前后 45 天内有这个收款方的
+    凭证（配上了别的票的也算）就标「对不上」先不计入：那张凭证可能就付了这张票，各月取到的单据不同、配法不同时，
+    这样一张票不会这个月按票据日计入、另一个月又随凭证计入。"""
+    free_invoices, free_certificates, out = set(range(len(invoices))), set(range(len(certificates))), []
+
+    def nearest(row, pool):
+        return sorted(pool, key=lambda c: (_distance(row["date"], certificates[c]["date"]), c))
+
+    # 一对一：金额与税额都相同的先配，再是印了税额的票、凭证日在票据日之后、相差天数少的
+    pairs = []
+    for i, row in enumerate(invoices):
+        for c, certificate in enumerate(certificates):
+            base_ok = _near(row["base"], certificate["base"])
+            tax_ok = bool(row["tax"]) and _near(row["tax"], certificate["tax"])
+            if (base_ok or tax_ok) and _within(row["date"], certificate["date"]):
+                pairs.append(((not (base_ok and tax_ok), row["source"] != "invoice",
+                               *_distance(row["date"], certificate["date"]), i, c), i, c))
+    for _rank, i, c in sorted(pairs):
+        if i in free_invoices and c in free_certificates:
+            free_invoices.discard(i)
+            free_certificates.discard(c)
+            out.append(_merged([invoices[i]], certificates[c]))
+    for c in sorted(free_certificates):
+        certificate = certificates[c]
+        pool = sorted((i for i in free_invoices if _within(invoices[i]["date"], certificate["date"])),
+                      key=lambda i: (_distance(invoices[i]["date"], certificate["date"]), i))[:SUBSET_CANDIDATES]
+        picked = sorted(pool[position] for position in _sum_match([invoices[i] for i in pool], certificate))
+        if picked:
+            free_invoices.difference_update(picked)
+            free_certificates.discard(c)
+            out.append(_merged([invoices[i] for i in picked], certificate))
+    for i in sorted(free_invoices):
+        row = invoices[i]
+        pool = nearest(row, [c for c in free_certificates if _within(row["date"], certificates[c]["date"])])
+        pool = pool[:SUBSET_CANDIDATES]
+        picked = sorted(pool[position] for position in _sum_match([certificates[c] for c in pool], row))
+        if picked:
+            free_invoices.discard(i)
+            free_certificates.difference_update(picked)
+            out.extend(_merged([row], certificates[c], split=True) for c in picked)
+    left_invoices = [invoices[i] for i in sorted(free_invoices)]
+    left_certificates = [certificates[c] for c in sorted(free_certificates)]
+    for row in left_invoices:
+        if row["source"] != "invoice":
             continue
-        used.add(match)
-        certificate = certificate_rows[match]
-        merged = {**row, "refs": row["refs"] + certificate["refs"], "source": "both", "include": True,
-                  "date": certificate["date"] or row["date"], "date_source": "certificate",
-                  "base": certificate["base"] or row["base"], "rate": certificate["rate"] or row["rate"],
-                  "tax": certificate["tax"] or row["tax"]}
-        # 票据证实了是本公司付的款；凭证上没读出的金额由票据补上
-        resolved = {"certificate_direction_unclear"} | (
-            {"amount_unreadable"} if merged["base"] is not None and merged["tax"] else set())
-        merged["issues"] = [item for item in certificate["issues"] if item["code"] not in resolved]
-        out.append(merged)
-    out.extend(certificate for position, certificate in enumerate(certificate_rows) if position not in used)
+        near = [certificate for certificate in certificates if _within(row["date"], certificate["date"])]
+        if near:
+            _unclear(row, near)
+            for certificate in near:
+                if any(certificate is left for left in left_certificates):
+                    _unclear(certificate, [row])
+    return out + left_invoices + left_certificates
+
+
+def _pair(invoice_rows, certificate_rows) -> list:
+    """按收款方税号分组配对；没有税号的原样留着（进待核）。"""
+    groups, out = {}, []
+    for kind, rows in ((0, invoice_rows), (1, certificate_rows)):
+        for row in rows:
+            if row["payee_tax_id"]:
+                groups.setdefault(row["payee_tax_id"], ([], []))[kind].append(row)
+            else:
+                out.append(row)
+    for invoices, certificates in groups.values():
+        out.extend(_pair_payee(invoices, certificates))
     return out
 
 
 def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list]:
     """识别记录 → (付款行, 文档级说明)。
 
-    ``documents``：[{ref, origin: history|reference, fields: 主页字段}]；同一张票（卖方 + 票号 + 合计）或同一张凭证
-    （对方 + 日期 + 金额）重复上传只算一次；
+    ``documents``：[{ref, origin: history|reference, fields: 主页字段, match?}]；``match`` 是 client / workspace 的，
+    是票面没有本公司税号、按归属取到的记录（`sources.wht_documents`），先不计入、待会计确认；
+    同一张票（卖方 + 票号 + 合计）或同一张凭证（对方 + 日期 + 金额）重复上传只算一次；
     ``remembered_payees``：记过所得类型的收款方税号（判 50 ทวิ 方向与列出建议补扣的依据）。"""
     company = tax_id(company_tax_id)
     remembered = {tax_id(value) for value in remembered_payees or ()}
@@ -274,26 +439,39 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
         seller, buyer = tax_id(fields.get("seller_tax")), tax_id(fields.get("buyer_tax"))
         if str(fields.get("document_flag") or "") == CERTIFICATE:
             certificates.append((document, fields, seller, buyer))
-        elif buyer == company and seller != company:
+            continue
+        if buyer == company and seller != company:
+            unconfirmed = False
             if seller:
                 purchase_sellers.add(seller)
-            key = _invoice_key(seller, fields)
-            if key and key in seen:
-                notes.append(_issue("duplicate_document", ref=document["ref"], of=seen.get(key, "")))
-                continue
-            if key:
-                seen[key] = document["ref"]
-            invoices.append((document, fields, seller))
-        elif seller == company and buyer and buyer != company:
-            sales_buyers.add(buyer)
+        elif (document.get("match") in (MATCH_CLIENT, MATCH_WORKSPACE) and company not in (seller, buyer)
+              and str(fields.get("direction") or "") != "sales"):
+            unconfirmed = True
+        else:
+            if seller == company and buyer and buyer != company:
+                sales_buyers.add(buyer)
+            continue
+        key = _invoice_key(seller, fields)
+        if key and key in seen:
+            notes.append(_issue("duplicate_document", ref=document["ref"], of=seen.get(key, "")))
+            continue
+        if key:
+            seen[key] = document["ref"]
+        invoices.append((document, fields, seller, unconfirmed))
     invoice_rows = []
-    for document, fields, seller in invoices:
+    for document, fields, seller, unconfirmed in invoices:
         base = base_of(fields)
         rate, tax = withheld(fields, base)
         if tax and tax > 0:
-            invoice_rows.append(_payment(document, fields, "invoice", "seller", base, rate, tax))
+            row = _payment(document, fields, "invoice", "seller", base, rate, tax)
         elif seller in remembered and base is not None and base >= THRESHOLD:
-            invoice_rows.append(_payment(document, fields, "suggested", "seller", base, None, None))
+            row = _payment(document, fields, "suggested", "seller", base, None, None)
+        else:
+            continue
+        if unconfirmed:
+            row["include"] = False
+            row["issues"].append(_issue("buyer_unconfirmed"))
+        invoice_rows.append(row)
     certificate_rows, seen_certificates = [], {}
     for document, fields, seller, buyer in certificates:
         if company not in (seller, buyer):
@@ -303,8 +481,10 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
         if not counterparty or counterparty == company:
             notes.append(_issue("certificate_parties_unreadable", ref=document["ref"]))
             continue
-        payer = counterparty in purchase_sellers or counterparty in remembered
-        if counterparty in sales_buyers and not payer:
+        # 对方只是供应商（或记过所得类型）才认定本公司付款；也是客户的，交会计确认（与费用票配上了即认定）
+        bought = counterparty in purchase_sellers or counterparty in remembered
+        sold = counterparty in sales_buyers
+        if sold and not bought:
             notes.append(_issue("certificate_received", ref=document["ref"], counterparty=counterparty))
             continue
         base = certificate_base(fields)
@@ -317,7 +497,7 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
         seen_certificates[key] = document["ref"]
         if base is None or not tax:
             row["issues"].append(_issue("amount_unreadable"))
-        if not payer:
+        if sold or not bought:
             row["include"] = False
             row["issues"].append(_issue("certificate_direction_unclear"))
         certificate_rows.append(row)
@@ -325,9 +505,12 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
 
 
 def _edit_for(row, overrides: Mapping) -> dict:
+    """这一行的改动：合并进来的其他记录上的先套（日期、金额除外），行本身记录名上的最后套。"""
     edit = {}
     for ref in row["refs"]:
-        edit.update(overrides.get(ref) or {})
+        if ref != row["row"]:
+            edit.update({key: value for key, value in (overrides.get(ref) or {}).items() if key not in ROW_ONLY_KEYS})
+    edit.update(overrides.get(row["row"]) or {})
     return edit
 
 
@@ -381,12 +564,15 @@ def _choice(memory: Mapping, row) -> tuple[dict, str]:
 
 
 def _apply(row, edit, memory) -> dict:
-    row = {**row, "issues": list(row["issues"])}
+    # 读不出金额由 `_checks` 按改后的值重判
+    row = {**row, "issues": [item for item in row["issues"] if item["code"] not in RECHECKED]}
     for key in ("base", "tax", "rate"):
         if key in edit:
             row[key] = money(edit[key])
     if "rate" in edit and "tax" not in edit and row["base"] is not None:
         row["tax"] = (row["base"] * row["rate"] / HUNDRED).quantize(CENT, rounding=ROUND_HALF_UP)
+    if row["rate"] is None and row["base"] and row["tax"]:  # 读不出金额、会计补了金额与税额的
+        row["rate"] = snap_rate(row["tax"] * HUNDRED / row["base"])
     if "payment_date" in edit:
         row["date"], row["date_source"] = periods.parse_date(edit["payment_date"]), "edited"
     if "payee_tax_id" in edit:
@@ -405,6 +591,8 @@ def _apply(row, edit, memory) -> dict:
             row["tax"] = (row["base"] * row["rate"] / HUNDRED).quantize(CENT, rounding=ROUND_HALF_UP)
     if "include" in edit:
         row["include"] = edit["include"]
+        if edit["include"]:
+            row["issues"] = [item for item in row["issues"] if item["code"] not in CONFIRMED_BY_INCLUDE]
     row["edited"] = sorted(edit)
     return row
 
@@ -416,8 +604,7 @@ def _checks(row) -> list:
     elif not valid_tax_id(row["payee_tax_id"]):
         found.append(_issue("payee_tax_invalid"))
     if row["base"] is None or not row["tax"]:
-        if not any(item["code"] == "amount_unreadable" for item in row["issues"]):
-            found.append(_issue("amount_unreadable"))
+        found.append(_issue("amount_unreadable"))
     if row["date_source"] == "invoice_date":
         found.append(_issue("payment_date_assumed"))
     kind, rate = row["income_type"], row["rate"]
@@ -450,7 +637,7 @@ def _shown(row) -> dict:
     out = {key: value for key, value in row.items() if key not in ("base", "rate", "tax", "date")}
     for key in ("base", "rate", "tax"):
         value = row.get(key)
-        out[key] = "" if value is None else (str(value.normalize()) if key == "rate" else str(value))
+        out[key] = rate_text(value) if key == "rate" else ("" if value is None else str(value))
     out["date"] = row["date"].isoformat() if row.get("date") else ""
     if row.get("form") == PND3:
         out["name_title"], out["name_first"], out["name_last"] = split_name(row["payee_name"])
@@ -543,7 +730,7 @@ def draft(payments, notes, year: int, month: int, memory=None, overrides=None) -
         rates = sorted(question.pop("rates"))
         suggested = SUGGEST_BY_RATE.get(rates[0]) if len(rates) == 1 else None
         shown_questions.append({**question, "base": str(question["base"]), "tax": str(question["tax"]),
-                                "rates": [str(rate.normalize()) for rate in rates], "suggested": suggested or ""})
+                                "rates": [rate_text(rate) for rate in rates], "suggested": suggested or ""})
     return {"period": periods.text(year, month), "forms": forms, "questions": shown_questions,
             "review": [_shown(row) for row in sorted(review, key=_order)],
             "suggestions": [_shown(row) for row in sorted(suggestions, key=_order)],

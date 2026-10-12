@@ -474,10 +474,11 @@ def _render_page(source, number):
 
 
 ACTIVE_BATCH = ("admitted", "recognizing")
+WHT_CERTIFICATE = "Cowork WHT Certificate"
 
 
 def purge(source_names):
-    """删掉这些原件：原件记录、它的识别批次、服务器上的文件、原件桶里的原件与预览。
+    """删掉这些原件：原件记录、它的识别批次与 50 ทวิ 参考记录、服务器上的文件、原件桶里的原件与预览。
 
     调用方（`history/removal.py`）已核过权限并删掉了引用它的票；这里再核一次：还有票在用、或还有识别没结束的原件不删。
     数据库行当场删；磁盘文件与桶里的对象等事务提交后再删（回滚时不丢文件），桶里的放后台任务，不拖慢删除请求。
@@ -502,6 +503,12 @@ def purge(source_names):
             if row.file_url and not frappe.db.exists("File", {"file_url": row.file_url}):
                 parts = [part for part in row.file_url.split("/") if part and part != ".."]
                 paths.append(frappe.get_site_path(*(parts if parts[:1] == ["private"] else ["public", *parts])))
+        # 50 ทวิ 参考记录（`history.certificates`）随原件与它的识别批次一起删，不再进报税草稿
+        batches = frappe.get_all("Cowork OCR Batch", filters={"source_file": name}, pluck="name",
+                                 ignore_permissions=True)
+        frappe.db.delete(WHT_CERTIFICATE, {"source_file": name})
+        if batches:
+            frappe.db.delete(WHT_CERTIFICATE, {"batch": ["in", batches]})
         frappe.db.delete("Cowork OCR Batch", {"source_file": name})
         frappe.db.delete(access.SOURCE, {"name": name})
         removed += 1

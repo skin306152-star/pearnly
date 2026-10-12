@@ -1282,16 +1282,16 @@ TAX_LINE_KEYS = ("row", "source", "payee_tax_id", "payee_name", "date", "date_so
 TAX_LEVELS = {"error": 0, "warn": 1, "info": 2}
 
 
-def _tax_call(fn, *args, **kwargs):
-    """调报税服务；业务拒绝回 not_drafted 与原因（已翻译），不抛给模型。"""
+def _tax_call(fn, *args, refused="not_drafted"):
+    """调报税服务；业务拒绝回 ``refused`` 与原因（已翻译），不抛给模型。"""
     try:
-        result = fn(*args, **kwargs)
+        result = fn(*args)
         frappe.db.commit()
         return result
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
-        return {"status": "not_drafted", "reason": str(error)[:300]}
+        return {"status": refused, "reason": str(error)[:300]}
 
 
 def _tax_file(summary, wanted) -> str:
@@ -1315,6 +1315,9 @@ def _tax_line(line) -> dict:
     out = _filled({key: line.get(key) for key in TAX_LINE_KEYS})
     if line.get("issues"):
         out["issues"] = [item["code"] for item in line["issues"]]
+        related = [ref for item in line["issues"] for ref in item.get("candidates") or []]
+        if related:
+            out["check_with"] = list(dict.fromkeys(related))
     return out
 
 
@@ -1376,6 +1379,14 @@ def wht_answer(tool_input) -> str:
     if result.get("status") == "saved":
         result["note"] = "Call cowork_wht_draft again to apply."
     return _json(result)
+
+
+def tax_draft_delete(tool_input) -> str:
+    from pearnly_cowork.tax import service as tax_service
+
+    raw = tool_input.get("drafts") or []
+    drafts = [raw] if isinstance(raw, str) else [str(name) for name in raw]
+    return _json(_tax_call(tax_service.delete, drafts, refused="not_deleted"))
 
 
 # ---------------- 库存盘点（同盘点页，`stocktake.desk_api`） ----------------
@@ -2439,11 +2450,17 @@ TOOLS = [
                     "returns of one paying company (its 13-digit tax ID) for the month the payments were made, from "
                     "recognized expense invoices with tax withheld and 50 Tawi certificates (including those kept "
                     "only as references when certificates are set not to be entered). A payee tax ID starting with 0 "
-                    "goes to P.N.D.53, except 0991/0992 which go to P.N.D.3. The payment date is the certificate's, "
-                    "else the invoice date (payment_date_assumed: it may have been paid later). questions lists "
+                    "goes to P.N.D.53, except 0991/0992 which go to P.N.D.3. Invoices and certificates of one payee "
+                    "are matched into one payment (one to one, several invoices to one certificate, one invoice to "
+                    "several certificates). The payment date is the certificate's, else the invoice date "
+                    "(payment_date_assumed: it may have been paid later). questions lists "
                     "payees whose income type is not known: ask the user once, answer with cowork_wht_answer, then "
-                    "draft again. review lists rows left out (certificate_direction_unclear: ask whether the company "
-                    "paid them; amount_unreadable; payee_tax_missing). suggestions are invoices from known payees "
+                    "draft again. review lists rows left out until the user confirms them with include true: "
+                    "certificate_direction_unclear (ask whether the company paid them), pairing_unclear (an invoice "
+                    "and a certificate of the same payee that do not add up; check_with names the rows that may be "
+                    "the same payment: include only one side), buyer_unconfirmed (filed under the company but its tax "
+                    "ID is not on the document); amount_unreadable and payee_tax_missing need base/tax or "
+                    "payee_tax_id first. suggestions are invoices from known payees "
                     "with nothing withheld; include one only when the user says so. ewht_check: 1% applies only to "
                     "payments through e-Withholding Tax, which are not filed on these forms; ask the user. edits "
                     "change rows of this draft and are kept: row (as listed), include, payment_date, income_type, "
@@ -2482,6 +2499,13 @@ TOOLS = [
          "draft": {"type": "string"}, "payee_tax_id": {"type": "string"}, "category": {"type": "string"}},
          "required": []},
      "handler": "pearnly_cowork.assistant.tools.wht_answer"},
+    {"name": "cowork_tax_draft_delete", "label": "Deleted tax drafts",
+     "description": "Delete VAT or withholding tax drafts the user clearly named (the draft from cowork_vat_draft or "
+                    "cowork_wht_draft) with their kept options and row edits; ask only when unclear which.",
+     "input_schema": {"type": "object", "properties": {
+         "drafts": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 50}},
+         "required": ["drafts"]},
+     "handler": "pearnly_cowork.assistant.tools.tax_draft_delete"},
     {"name": "cowork_stocktake_list", "label": "Listed stock counts",
      "description": "The company's stock counts (stocktakes), newest first.",
      "input_schema": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": []},

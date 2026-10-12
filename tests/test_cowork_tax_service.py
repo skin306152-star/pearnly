@@ -1,7 +1,9 @@
 """报税草稿服务层（`tax.access` / `tax.service` / `tax.sources` / `tax.memory`）与 50 ทวิ 参考记录
 （`history.certificates`）的离线检查：Frappe 用内存替身，读回（L1）用假模块注入。
 
-权限（功能码、角色、管理员）；没有回读回 readback_needed；同一公司同月刷新同一份草稿并保留选项与逐行改动；
+权限（功能码、角色、管理员；预扣税草稿还要读识别记录的权限）；没有回读回 readback_needed；同一公司同月刷新同一份草稿并
+保留选项与逐行改动；草稿表只存各栏与合计、不存行级明细；不锁工作空间行，同时首次写同一份草稿 / 记忆时按已有的那份重算；
+草稿可删；凭证往月末后多看 45 天、票面没有本公司税号的按客户档案 / 单一公司工作空间取；
 所得类型记住后重出即套用；识别记录按票据日区间、经权限查询读；参考记录只在「不录入」时写、重放不重复写、
 写失败不连累票据入库；识别存档在保存批次前写参考记录。
 """
@@ -53,6 +55,8 @@ class Doc:
 
     def insert(self, **kwargs):
         name = self.data.get("name") or next(self.data[key] for key in self.KEYS if self.data.get(key))
+        if (self.data["doctype"], name) in self._f.store:  # 主键已有（别的请求刚写了）
+            raise self._f.DuplicateEntryError(name)
         self.data["name"] = name
         self._f.store[(self.data["doctype"], name)] = self
         self.__dict__["new"] = False
@@ -78,6 +82,9 @@ class FakeFrappe(types.ModuleType):
     class DoesNotExistError(Exception):
         pass
 
+    class DuplicateEntryError(Exception):
+        pass
+
     class QueryDeadlockError(Exception):
         pass
 
@@ -92,9 +99,11 @@ class FakeFrappe(types.ModuleType):
         self.flags = Flags()
         self.roles = {"Cowork Tax Filing"}
         self.store, self.writes, self.lists, self.list_calls, self.logged = {}, [], {}, [], []
-        self.savepoints, self.rolled_back = [], []
+        self.savepoints, self.rolled_back, self.value_calls = [], [], []
+        self.workspace_tax = ""
         self.db = types.SimpleNamespace(exists=self._exists, get_value=self._get_value, commit=lambda: None,
-                                        rollback=self._rollback, savepoint=self.savepoints.append)
+                                        rollback=self._rollback, savepoint=self.savepoints.append,
+                                        delete=self._delete)
 
     def _rollback(self, save_point=None):
         self.rolled_back.append(save_point)
@@ -102,13 +111,22 @@ class FakeFrappe(types.ModuleType):
     def _exists(self, doctype, name=None):
         return (doctype, name) in self.store
 
-    def _get_value(self, doctype, name, field="name", for_update=False, **kwargs):
+    def _delete(self, doctype, filters):
+        self.store.pop((doctype, filters["name"]), None)
+
+    def _get_value(self, doctype, name, field="name", for_update=False, as_dict=False, **kwargs):
+        self.value_calls.append((doctype, name, field, for_update))
         if doctype == "User":
             return 1
         if doctype == "Cowork Workspace":
-            return name
+            return self.workspace_tax if field == "tax_id" else name
         doc = self.store.get((doctype, name))
-        return doc.get(field) if doc else None
+        if doc is None:
+            return None
+        if isinstance(field, (list, tuple)):
+            row = Row({key: doc.get(key) for key in field})
+            return row if as_dict else tuple(row.values())
+        return doc.get(field)
 
     @staticmethod
     def _(text, lang=None):
@@ -142,6 +160,8 @@ class FakeFrappe(types.ModuleType):
         for key, value in (filters or {}).items():
             if isinstance(value, list) and value[0] == "in":
                 rows = [row for row in rows if row.get(key) in value[1]]
+            if isinstance(value, list) and value[0] == "between":  # 没写日期的行不按日期筛
+                rows = [row for row in rows if key not in row or value[1][0] <= row[key] <= value[1][1]]
         rows = rows[limit_start:limit_start + limit_page_length if limit_page_length else None]
         return [Row({field: row.get(field) for field in fields}) for row in rows]
 
@@ -254,15 +274,25 @@ class Access(Base):
             access.require()
 
     def test_generic_delete_and_share_are_refused(self):
-        doc = types.SimpleNamespace(workspace="WS1")
+        doc = types.SimpleNamespace(workspace="WS1", kind="vat_return")
         self.assertTrue(access.has_permission(doc, "read"))
         for ptype in ("delete", "share", "submit"):
             with self.assertRaises(frappe.PermissionError):
                 access.has_permission(doc, ptype)
         with self.assertRaises(frappe.PermissionError):
-            access.has_permission(types.SimpleNamespace(workspace="WS2"), "read")
+            access.has_permission(types.SimpleNamespace(workspace="WS2", kind="vat_return"), "read")
         frappe.roles = set()
         self.assertEqual(access.task_query(), "1=0")
+
+    def test_withholding_drafts_need_read_access_to_recognition_records(self):
+        withholding = types.SimpleNamespace(workspace="WS1", kind="withholding")
+        self.assertTrue(access.has_permission(withholding, "read"))
+        self.assertNotIn("kind", access.task_query())
+        scope.read_allowed = False
+        with self.assertRaises(frappe.PermissionError):
+            access.has_permission(withholding, "read")
+        self.assertTrue(access.has_permission(types.SimpleNamespace(workspace="WS1", kind="vat_return"), "read"))
+        self.assertTrue(access.task_query().endswith("AND `tabCowork Tax Draft`.kind = 'vat_return'"))
 
 
 class VatDraft(Base):
@@ -296,6 +326,15 @@ class VatDraft(Base):
         self.assertEqual((stored.kind, stored.period, stored.company_tax_id, stored.source_ref),
                          ("vat_return", "2026-09", COMPANY, "RB-1"))
         self.assertEqual(stored.flags.get("tax_draft_write") is not None, True)
+        # 草稿表只留各栏、合计与问题计数：回读的行（对方名称、税号、金额）只在本次的摘要与工作簿里
+        kept = json.loads(stored.summary_json)
+        self.assertEqual((kept["boxes"], kept["issues_by_code"]), (summary["boxes"], summary["issues_by_code"]))
+        for key in ("issues", "sales_rows", "purchase_rows", "excluded_rows", "unreadable_rows"):
+            self.assertIn(key, summary)
+            self.assertNotIn(key, kept)
+        self.assertNotIn(SUPPLIER, stored.summary_json)
+        # 不锁工作空间行（推送准备也锁它）
+        self.assertFalse([call for call in frappe.value_calls if call[0] == "Cowork Workspace" and call[3]])
         # 同一公司同月再出：同一份草稿，选项保留
         again = self.draft(records)
         self.assertEqual(again["draft"], summary["draft"])
@@ -340,19 +379,20 @@ class WhtDraft(Base):
     def setUp(self):
         super().setUp()
         frappe.lists["Cowork OCR History"] = [
-            {"name": "HIS-1", "seller_tax": SUPPLIER, "buyer_tax": COMPANY,
+            {"name": "HIS-1", "seller_tax": SUPPLIER, "buyer_tax": COMPANY, "invoice_date": date(2026, 9, 5),
              "pages": history_page(document_type="tax_invoice", invoice_number="INV1", date="2026-09-05",
                                    seller_name="Transport", seller_tax=SUPPLIER, buyer_name="Our Co",
                                    buyer_tax=COMPANY, subtotal="10000", vat="700", total_amount="10700",
                                    wht_amount="100")},
-            {"name": "HIS-9", "seller_tax": "0105536000011", "buyer_tax": "0105556999995", "pages": history_page()}]
+            {"name": "HIS-9", "seller_tax": "0105536000011", "buyer_tax": "0105556999995",
+             "invoice_date": date(2026, 9, 7), "pages": history_page()}]
         self.certificates = [{"ref": "REF-1", "origin": "reference", "fields": {
             "document_flag": "withholding_certificate", "date": "2026-09-20", "seller_tax": COMPANY,
             "buyer_tax": LANDLORD, "buyer_name": "นายสมชาย ใจดี", "subtotal": "20000", "wht_amount": "1000"}}]
 
-    def draft(self, edits=None, tax_id=COMPANY):
+    def draft(self, edits=None, tax_id=COMPANY, period="2026-09"):
         with mock.patch.object(certificates, "listing", return_value=list(self.certificates)) as listed:
-            summary = service.wht_draft(tax_id, "2026-09", edits)
+            summary = service.wht_draft(tax_id, period, edits)
         self.listed = listed
         return summary
 
@@ -360,13 +400,99 @@ class WhtDraft(Base):
         summary = self.draft()
         first = frappe.list_calls[0]
         self.assertEqual(first["filters"], {"invoice_date": ["between", [date(2026, 6, 3), date(2026, 9, 30)]]})
-        self.assertEqual(frappe.list_calls[1]["filters"], {"name": ["in", ["HIS-1"]]})
-        self.listed.assert_called_once_with("WS1", date(2026, 6, 3), date(2026, 9, 30))
+        self.assertIn("client", first["fields"])
+        # 凭证往月末后多看 45 天（本月的票下个月才付款开凭证）
+        self.assertEqual(frappe.list_calls[1]["filters"],
+                         {"invoice_date": ["between", [date(2026, 10, 1), date(2026, 11, 14)]]})
+        self.assertEqual(frappe.list_calls[2]["filters"], {"name": ["in", ["HIS-1"]]})
+        self.assertEqual(len(frappe.list_calls), 3)
+        self.listed.assert_called_once_with("WS1", date(2026, 6, 3), date(2026, 11, 14))
         self.assertEqual(summary["company"], {"name": "Our Co", "tax_id": COMPANY, "branch": "00000"})
         self.assertEqual([line["row"] for line in summary["forms"]["pnd53"]["lines"]], ["HIS-1"])
         # 50 ทวิ 的对方没有往来、也没记过：先放待确认
         self.assertEqual([row["row"] for row in summary["review"]], ["REF-1"])
         self.assertEqual(summary["deadlines"], {"paper": "2026-10-07", "efiling": "2026-10-15"})
+        # 草稿表不存收款方明细（识别记录派生的），只存各表合计
+        stored = frappe.store[("Cowork Tax Draft", summary["draft"])]
+        kept = json.loads(stored.summary_json)
+        self.assertEqual(kept["forms"]["pnd53"], {"payees": 1, "sheets": 1, "base": "10000.00", "tax": "100.00",
+                                                  "sheet_totals": [{"sheet": 1, "base": "10000.00", "tax": "100.00"}]})
+        self.assertNotIn("review", kept)
+        for text in (SUPPLIER, LANDLORD, "Transport"):
+            self.assertNotIn(text, stored.summary_json)
+        self.assertFalse([call for call in frappe.value_calls if call[0] == "Cowork Workspace" and call[3]])
+
+    def test_a_certificate_paid_next_month_moves_the_invoice_to_that_month(self):
+        self.certificates = []
+        frappe.lists["Cowork OCR History"] += [
+            {"name": "HIS-2", "seller_tax": COMPANY, "buyer_tax": SUPPLIER, "invoice_date": date(2026, 10, 10),
+             "pages": history_page(document_flag="withholding_certificate", date="2026-10-10", seller_tax=COMPANY,
+                                   buyer_tax=SUPPLIER, buyer_name="Transport", subtotal="10000", wht_amount="100")},
+            {"name": "HIS-3", "seller_tax": SUPPLIER, "buyer_tax": COMPANY, "invoice_date": date(2026, 10, 2),
+             "pages": history_page(document_type="tax_invoice", invoice_number="INV3", date="2026-10-02",
+                                   seller_tax=SUPPLIER, buyer_tax=COMPANY, subtotal="5000", wht_amount="50")}]
+        september = self.draft()
+        self.assertEqual(september["forms"]["pnd53"]["lines"], [])
+        self.assertEqual(september["documents_read"], 2)  # HIS-1 与下个月的凭证 HIS-2；下个月的票 HIS-3 不取
+        october = self.draft(period="2026-10")
+        line, = [line for line in october["forms"]["pnd53"]["lines"] if line["source"] == "both"]
+        self.assertEqual((line["refs"], line["date"], line["tax"]), (["HIS-1", "HIS-2"], "2026-10-10", "100.00"))
+
+    def test_documents_without_the_company_tax_id_are_found_through_the_client(self):
+        self.certificates = []
+        client = Doc(frappe, {"doctype": "Cowork Client", "name": "CL-1", "workspace": "WS1",
+                              "tax_id": "0-1055-56000-00-9"})
+        frappe.store[("Cowork Client", "CL-1")] = client
+        receipt = history_page(document_type="receipt", invoice_number="R1", date="2026-09-08", seller_tax=LANDLORD,
+                               seller_name="นายสมชาย ใจดี", subtotal="10000", wht_amount="500")
+        frappe.lists["Cowork OCR History"] += [
+            {"name": "HIS-4", "seller_tax": LANDLORD, "buyer_tax": "", "client": "CL-1",
+             "invoice_date": date(2026, 9, 8), "pages": receipt},
+            {"name": "HIS-5", "seller_tax": LANDLORD, "buyer_tax": "", "client": "",
+             "invoice_date": date(2026, 9, 9), "pages": receipt.replace("R1", "R2")}]
+        summary = self.draft()
+        review = {row["row"]: [item["code"] for item in row["issues"]] for row in summary["review"]}
+        self.assertIn("buyer_unconfirmed", review["HIS-4"])
+        self.assertNotIn("HIS-5", review)  # 没挂客户、工作空间也不是这家公司
+        frappe.workspace_tax = COMPANY      # 单一公司的工作空间：没挂客户、买方税号空着的也取
+        summary = self.draft(edits=[{"row": "HIS-4", "include": True}])
+        self.assertEqual([line["row"] for line in summary["forms"]["pnd3"]["lines"]], ["HIS-4"])
+        self.assertNotIn("buyer_unconfirmed", [item["code"] for item in summary["forms"]["pnd3"]["lines"][0]["issues"]])
+        self.assertIn("buyer_unconfirmed", [item["code"] for row in summary["review"] if row["row"] == "HIS-5"
+                                            for item in row["issues"]])
+
+    def test_two_first_drafts_at_once_keep_one_draft_and_its_edits(self):
+        name = service.record_id("WS1", "withholding", COMPANY, "00000", "2026-09")
+        other = Doc(frappe, {"doctype": "Cowork Tax Draft", "name": name, "record_id": name, "workspace": "WS1",
+                             "kind": "withholding", "options_json": json.dumps(
+                                 {"overrides": {"HIS-1": {"include": False}}, "company_name": "Kept Co"})})
+        other.__dict__["new"] = False
+        frappe.store[("Cowork Tax Draft", name)] = other  # 另一个请求刚写了同一份
+        with mock.patch.object(service, "_load", return_value=None):
+            summary = self.draft()
+        self.assertEqual(frappe.rolled_back, [service.SAVEPOINT])
+        self.assertEqual([row["row"] for row in summary["review"]], ["HIS-1", "REF-1"])  # 按它存的改动重算
+        self.assertEqual(summary["company"]["name"], "Kept Co")
+        self.assertIs(frappe.store[("Cowork Tax Draft", name)], other)
+        self.assertEqual(json.loads(other.summary_json)["totals"]["review"], 2)
+
+    def test_drafts_can_be_deleted(self):
+        withholding = self.draft()["draft"]
+        with mock.patch.dict(sys.modules, readback_module([isvat()])):
+            vat = service.vat_draft("CONN-1", "ACC-2026", "2026-09")["draft"]
+        self.assertEqual(service.delete([vat, "CTD-none", vat]),
+                         {"status": "deleted", "deleted": [vat], "missing": ["CTD-none"]})
+        self.assertNotIn(("Cowork Tax Draft", vat), frappe.store)
+        scope.read_allowed = False
+        with self.assertRaises(frappe.PermissionError):
+            service.delete([withholding])
+        scope.read_allowed = True
+        self.assertEqual(service.delete([withholding])["deleted"], [withholding])
+        with self.assertRaises(frappe.ValidationError):
+            service.delete([])
+        frappe.roles = set()
+        with self.assertRaises(frappe.PermissionError):
+            service.delete([withholding])
 
     def test_answers_are_remembered_and_applied_next_time(self):
         self.assertEqual(service.answer([{"payee_tax_id": LANDLORD, "income_type": "rent", "payee_name": "สมชาย"},
@@ -383,6 +509,15 @@ class WhtDraft(Base):
             service.answer([{"payee_tax_id": LANDLORD, "income_type": "salary"}])
         with self.assertRaises(frappe.ValidationError):
             service.answer([{"income_type": "rent"}])
+
+    def test_two_first_answers_for_one_payee_keep_one_choice(self):
+        service.answer([{"payee_tax_id": LANDLORD, "income_type": "rent"}])
+        with mock.patch.object(frappe.db, "exists", return_value=False):  # 另一个请求刚记了同一收款方
+            service.answer([{"payee_tax_id": LANDLORD, "income_type": "service"}])
+        self.assertEqual(frappe.rolled_back, [memory.SAVEPOINT])
+        self.assertEqual(memory.choices("WS1")["payee:" + LANDLORD]["income_type"], "service")
+        self.assertEqual(len([key for key in frappe.store if key[0] == "Cowork WHT Choice"]), 1)
+        self.assertFalse([call for call in frappe.value_calls if call[0] == "Cowork Workspace" and call[3]])
 
     def test_edits_are_kept_on_the_draft(self):
         summary = self.draft(edits=[{"row": "REF-1", "include": True}, {"row": "NOPE", "include": True},

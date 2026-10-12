@@ -4,6 +4,7 @@
 
 写：识别存档（`ocr.execution.workflow._persist`）在同一事务里调用 :func:`keep_skipped`，用保存点包住，存不了只记日志、
 不影响票据入库；按「识别批次 + 读数序号」定名，重放、重试不重复写。读：:func:`listing` 给报税草稿，先核读识别记录的权限。
+删：随原件一起删（`files.service.purge` 删原件与识别批次时按原件、批次删掉这些行；录入工作台删票即走这条）。
 原生接口的读、建、改、删、分享一律拒绝（hooks）。
 """
 import hashlib

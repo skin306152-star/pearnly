@@ -16,6 +16,7 @@ from pearnly_cowork.tax import access, wht
 
 DOCTYPE = "Cowork WHT Choice"
 FIELDS = ("income_type", "income_text", "form", "condition")
+SAVEPOINT = "cowork_wht_choice"
 _WRITE = object()
 
 
@@ -74,23 +75,36 @@ def remember(workspace, scope, income_type, income_text="", form="", condition="
             or condition not in ("", *wht.CONDITIONS[wht.PND3]) or not scope or len(scope) > 140):
         _invalid()
     name = _key(workspace, scope)
-    frappe.db.get_value("Cowork Workspace", workspace, "name", for_update=True)
-    doc = (frappe.get_doc(DOCTYPE, name, for_update=True) if frappe.db.exists(DOCTYPE, name)
-           else frappe.get_doc({"doctype": DOCTYPE, "choice_key": name, "workspace": workspace, "scope": scope}))
-    doc.update({"income_type": income_type, "income_text": str(income_text or "").strip()[:140] if income_type == "other" else "",
-                "form": form or "", "condition": condition, "set_by": frappe.session.user, "set_at": now_datetime()})
+    values = {"income_type": income_type,
+              "income_text": str(income_text or "").strip()[:140] if income_type == "other" else "",
+              "form": form or "", "condition": condition, "set_by": frappe.session.user, "set_at": now_datetime()}
     if payee_name:
-        doc.payee_name = str(payee_name).strip()[:200]
+        values["payee_name"] = str(payee_name).strip()[:200]
     if draft:
-        doc.source_draft = str(draft)[:140]
+        values["source_draft"] = str(draft)[:140]
+    # 只锁这一条（不锁工作空间行）；两个请求同时首次记同一范围时，后到的撞主键，回到保存点改写已有的那条
+    if frappe.db.exists(DOCTYPE, name):
+        doc = frappe.get_doc(DOCTYPE, name, for_update=True)
+    else:
+        doc = frappe.get_doc({"doctype": DOCTYPE, "choice_key": name, "workspace": workspace, "scope": scope})
+        _stamp(doc, values)
+        frappe.db.savepoint(SAVEPOINT)
+        try:
+            doc.insert(ignore_permissions=True)
+            return name
+        except frappe.DuplicateEntryError:
+            frappe.db.rollback(save_point=SAVEPOINT)
+            doc = frappe.get_doc(DOCTYPE, name, for_update=True)
+    _stamp(doc, values)
+    doc.save(ignore_permissions=True)
+    return name
+
+
+def _stamp(doc, values):
+    doc.update(values)
     doc.flags.cowork_wht_choice_write = _WRITE
     doc.flags.ignore_permissions = True
     doc.flags.ignore_version = True
-    if doc.is_new():
-        doc.insert(ignore_permissions=True)
-    else:
-        doc.save(ignore_permissions=True)
-    return name
 
 
 def forget(workspace, scope) -> bool:

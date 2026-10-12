@@ -1,7 +1,7 @@
 """删除就删干净（用户 2026-10-08「删就删除所有记录和储存，不要给服务器带来负担」）：不连库、不依赖 Frappe。
 
 - 录入记录：推送记录 / 尝试 / 通知、纠错样本一起删；只有推送没出结论的不删；
-- 原件：没有别的票再用时，原件记录、识别批次、服务器文件、原件桶里的原件与预览一起删；
+- 原件：没有别的票再用时，原件记录、识别批次、50 ทวิ 参考记录、服务器文件、原件桶里的原件与预览一起删；
 - 自动录入规则：规则、运行记录、文件进度一起删，网页直传的暂存文件提交后清。
 """
 import importlib.util
@@ -171,7 +171,12 @@ class OriginalPurge(unittest.TestCase):
             "Cowork OCR History": {"H9": {"source_file": "CWS-c"}},  # 同一份原件里还有没删的票
             "Cowork OCR Batch": {"B1": {"source_file": "CWS-a", "phase": "saved"},
                                  "B2": {"source_file": "CWS-b", "phase": "saved"},
+                                 "B3": {"source_file": "CWS-c", "phase": "saved"},
                                  "B4": {"source_file": "CWS-d", "phase": "recognizing"}},  # 还在识别
+            # 50 ทวิ 参考记录跟着原件与批次走（批次上没记原件的按批次删）
+            "Cowork WHT Certificate": {"W1": {"source_file": "CWS-a", "batch": "B1"},
+                                       "W2": {"source_file": "", "batch": "B2"},
+                                       "W3": {"source_file": "CWS-c", "batch": "B3"}},
             "File": {"F1": {"file_url": "/private/files/a.pdf", "attached_to_doctype": "Cowork Source File",
                             "attached_to_name": "CWS-a"},
                      "F2": {"file_url": "/private/files/a.pdf", "attached_to_doctype": "Other", "attached_to_name": "x"},
@@ -181,7 +186,8 @@ class OriginalPurge(unittest.TestCase):
         files, frappe = self._files(db)
         self.assertEqual(files.purge(["CWS-a", "CWS-b", "CWS-c", "CWS-d", "CWS-a"]), 2)
         self.assertEqual(set(db.tables["Cowork Source File"]), {"CWS-c", "CWS-d"})
-        self.assertEqual(set(db.tables["Cowork OCR Batch"]), {"B4"})
+        self.assertEqual(set(db.tables["Cowork OCR Batch"]), {"B3", "B4"})
+        self.assertEqual(set(db.tables["Cowork WHT Certificate"]), {"W3"})  # 原件还有票在用：参考记录也留着
         self.assertEqual(set(db.tables["File"]), {"F2", "F3"})
         # a.pdf 还有别的文件记录指着（框架按内容去重）：磁盘文件留着
         removed = []
