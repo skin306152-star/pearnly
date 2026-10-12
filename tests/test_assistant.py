@@ -805,6 +805,9 @@ class PageTests(unittest.TestCase):
         self.assertEqual(sorted(re.findall(r"\{\{\s*(\w+)\s*\}\}", html)), ["csrf_token", "lang"])
         self.assertEqual(html.count("{{"), 2)
         self.assertNotIn("{%", html)
+        # 注释用 Jinja 的 {# #}，渲染时去掉；HTML 注释会原样发给浏览器（查看源代码就能看到）
+        self.assertNotIn("<!--", html)
+        self.assertTrue(html.split("#}", 1)[1].lstrip().startswith("<!doctype html>"))
 
     def test_boot_screen_shows_the_brand_mascot_until_the_page_renders(self):
         # 2026-10-12：主屏幕 app、安卓、桌面端启动时不再空白；猫放在 #root 里，React 第一次渲染就把它替换掉

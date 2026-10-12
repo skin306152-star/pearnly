@@ -1,47 +1,97 @@
 // 「把 CC 装到这台设备」的入口（lib/install.ts 决定装什么）：欢迎页一条可关掉的提示 + 用户菜单里一项（同 Claude 的「获取应用」）。
-// iPhone 不能一键安装，点了给两步指引。样式在 globals.css 的 .cc-install / .cc-install-guide。
+// 按钮文字和图标跟着设备走；浏览器调不起安装（iPhone、Mac Safari）时点了给它自己菜单里的准确步骤。
+// 样式在 globals.css 的 .cc-install / .cc-install-guide。
 
-import { DownloadIcon, MonitorDownIcon, ShareIcon, SquarePlusIcon, XIcon } from "lucide-react";
+import {
+  AppWindowMacIcon,
+  ChevronDownIcon,
+  DockIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  MenuIcon,
+  MonitorDownIcon,
+  ShareIcon,
+  SquarePlusIcon,
+  XIcon,
+} from "lucide-react";
 import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { t } from "@/i18n";
-import { dismissInstall, install, installDismissed, type InstallTarget, useInstallTarget } from "@/lib/install";
+import {
+  canPrompt,
+  dismissInstall,
+  install,
+  installDismissed,
+  installGuide,
+  type InstallGuide,
+  type InstallTarget,
+  useInstallTarget,
+} from "@/lib/install";
 import { useProfile } from "@/lib/profile";
 
-const LABEL: Record<Exclude<InstallTarget, null>, () => string> = {
+type Target = Exclude<InstallTarget, null>;
+
+const LABEL: Record<Target, () => string> = {
   desktop: () => t("getDesktopApp"),
   pwa: () => t("installApp"),
+  mac: () => t("addToDock"),
   ios: () => t("addToHome"),
+  browser: () => t("openInBrowser"),
 };
 
-function TargetIcon({ target }: { target: Exclude<InstallTarget, null> }) {
-  if (target === "desktop") return <MonitorDownIcon />;
-  if (target === "ios") return <SquarePlusIcon />;
-  return <DownloadIcon />;
-}
+const ICON: Record<Target, typeof DownloadIcon> = {
+  desktop: MonitorDownIcon,
+  pwa: DownloadIcon,
+  mac: DockIcon,
+  ios: SquarePlusIcon,
+  browser: ExternalLinkIcon,
+};
+
+// 每套步骤：[图标, 文案]；图标画成浏览器里那个按钮的样子，照着找
+const STEPS: Record<InstallGuide, [typeof DownloadIcon, () => string][]> = {
+  "safari-menu": [
+    [MenuIcon, () => t("guideSafariMenu")],
+    [ChevronDownIcon, () => t("guideViewMore")],
+    [SquarePlusIcon, () => t("addToHomeStep2")],
+  ],
+  "chrome-ios": [
+    [ShareIcon, () => t("guideChromeShare")],
+    [ChevronDownIcon, () => t("guideViewMore")],
+    [SquarePlusIcon, () => t("addToHomeStep2")],
+  ],
+  share: [
+    [ShareIcon, () => t("addToHomeStep1")],
+    [SquarePlusIcon, () => t("addToHomeStep2")],
+  ],
+  "mac-safari": [
+    [AppWindowMacIcon, () => t("guideMacFile")],
+    [DockIcon, () => t("guideMacDock")],
+  ],
+};
 
 const GuideContext = createContext<() => void>(() => undefined);
 
-/** 包住页面：提供 iPhone 指引对话框（菜单项、欢迎页提示共用一个）。 */
+/** 包住页面：提供「添加」步骤对话框（菜单项、欢迎页提示共用一个）。 */
 export function InstallProvider({ children }: { children: ReactNode }) {
-  const [guide, setGuide] = useState(false);
+  const [guide, setGuide] = useState<InstallGuide | null>(null);
   return (
-    <GuideContext.Provider value={() => setGuide(true)}>
+    <GuideContext.Provider value={() => setGuide(installGuide())}>
       {children}
-      <DialogPrimitive.Root open={guide} onOpenChange={setGuide}>
+      <DialogPrimitive.Root open={guide !== null} onOpenChange={(open) => !open && setGuide(null)}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content aria-describedby={undefined} className="cc-install-guide">
-            <DialogPrimitive.Title className="cc-install-guide-title">{t("addToHome")}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-install-guide-title">
+              {guide === "mac-safari" ? t("addToDock") : t("addToHome")}
+            </DialogPrimitive.Title>
             <ol>
-              <li>
-                <span className="cc-install-guide-icon"><ShareIcon /></span>
-                {t("addToHomeStep1")}
-              </li>
-              <li>
-                <span className="cc-install-guide-icon"><SquarePlusIcon /></span>
-                {t("addToHomeStep2")}
-              </li>
+              {guide &&
+                STEPS[guide].map(([Icon, text]) => (
+                  <li key={text()}>
+                    <span className="cc-install-guide-icon"><Icon /></span>
+                    {text()}
+                  </li>
+                ))}
             </ol>
             <DialogPrimitive.Close className="cc-btn self-end">{t("close")}</DialogPrimitive.Close>
           </DialogPrimitive.Content>
@@ -54,15 +104,8 @@ export function InstallProvider({ children }: { children: ReactNode }) {
 function useInstall() {
   const target = useInstallTarget(useProfile()?.product);
   const showGuide = useContext(GuideContext);
-  const run = () => {
-    if (target !== "ios") return void install(target);
-    // iPhone：直接弹系统分享面板（里面有「添加到主屏幕」），少找一步；浏览器不给分享面板时才显示两步指引
-    if (navigator.share) {
-      navigator.share({ title: "CC", url: `${location.origin}/assistant` }).catch(() => undefined);
-    } else {
-      showGuide();
-    }
-  };
+  // iPhone 一律给步骤；Mac 上 Chrome、Edge 能一键，Safari 给步骤
+  const run = () => (target === "ios" || (target === "mac" && !canPrompt()) ? showGuide() : void install(target));
   return { target, run };
 }
 
@@ -70,9 +113,10 @@ function useInstall() {
 export function InstallMenuItem() {
   const { target, run } = useInstall();
   if (!target) return null;
+  const Icon = ICON[target];
   return (
     <DropdownMenu.Item className="cc-menu-item" onSelect={run}>
-      <TargetIcon target={target} />
+      <Icon />
       <span className="flex-1">{LABEL[target]()}</span>
     </DropdownMenu.Item>
   );
@@ -83,10 +127,11 @@ export function InstallBanner() {
   const { target, run } = useInstall();
   const [hidden, setHidden] = useState(installDismissed);
   if (!target || hidden) return null;
+  const Icon = ICON[target];
   return (
     <div className="cc-install cc-enter">
       <button type="button" className="cc-install-main" onClick={run}>
-        <TargetIcon target={target} />
+        <Icon />
         {LABEL[target]()}
       </button>
       <button

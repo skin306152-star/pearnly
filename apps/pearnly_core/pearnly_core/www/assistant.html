@@ -1,9 +1,10 @@
-<!doctype html>
-<!-- 智能体对话页（ADR-019）。产物带内容哈希，标签不抄在这里：运行时读产物里那份 index.html，
+{# 智能体对话页（ADR-019）。产物带内容哈希，标签不抄在这里：运行时读产物里那份 index.html，
      把 script / link 逐个 createElement 搬过来（innerHTML 塞的 script 不执行，见 pearnly-app.html 的说明）。
      图标与 manifest 的地址也带内容指纹（vite.config.ts 的 ccIcons），同样从产物搬，不在这里写死。
 
-     ⚠️ 本文件过 Jinja 渲染：正文（含注释）不能出现双层花括号，除了下面两处真要渲染的变量。 -->
+     ⚠️ 本文件过 Jinja 渲染：正文（含注释）不能出现双层花括号，除了下面两处真要渲染的变量。
+     注释一律用 Jinja 注释，渲染时去掉，不发给浏览器（2026-10-12 用户在「查看源代码」里看到中文注释）。 #}
+<!doctype html>
 <html lang="{{ lang }}">
   <head>
     <meta charset="utf-8" />
@@ -12,9 +13,9 @@
     <meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>CC</title>
-    <!-- 启动画面：页面代码下载、运行之前就显示（主屏幕 app、安卓、桌面端启动时不再是一片空白）；
+    {# 启动画面：页面代码下载、运行之前就显示（主屏幕 app、安卓、桌面端启动时不再是一片空白）；
          React 第一次渲染会替换掉 #root 里的内容，它自然消失。猫与 frontend/assistant/src/brand/cc.svg 一致（tests/test_assistant.py 比对）。
-         颜色同 globals.css 的 --cc-bg-app（电脑 #fbfbfb、手机 #f9f9f7、深色 #262624）。 -->
+         颜色同 globals.css 的 --cc-bg-app（电脑 #fbfbfb、手机 #f9f9f7、深色 #262624）。 #}
     <style>
       html, body { margin: 0; height: 100%; background: #fbfbfb; }
       @media (max-width: 767px) { html, body { background: #f9f9f7; } }
