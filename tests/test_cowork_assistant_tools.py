@@ -888,7 +888,8 @@ class TaxDraftTests(unittest.TestCase):
             "status": "deleted", "deleted": drafts, "missing": []}
         tax_service.workbook = lambda summary, lang: (f"PP30-{summary['period']}.xlsx", b"PK")
         chat = types.ModuleType("pearnly_core.assistant.files")
-        chat.add_to_conversation = lambda name, content, mime: self.calls.append(("attach", name, mime)) or "/mnt/x/" + name
+        chat.add_to_conversation = lambda name, content, mime, origin="user": self.calls.append(
+            ("attach", name, mime, origin)) or "/mnt/x/" + name
         for name, module in {"pearnly_cowork.tax.service": tax_service, "pearnly_core.assistant.files": chat}.items():
             sys.modules[name] = module
             parent, _, child = name.rpartition(".")
@@ -937,6 +938,8 @@ class TaxDraftTests(unittest.TestCase):
         self.assertNotIn("index", out["issues"][0])
         self.assertNotIn("sales_rows", out)
         self.assertEqual(out["file"], "/mnt/x/PP30-2026-09.xlsx")
+        # 草稿工作簿是工具产出：对账工具能取，识别工具不收（L3）
+        self.assertEqual([call[3] for call in self.calls if call[0] == "attach"], ["tool"])
         self.assertEqual(frappe.commits, 1)
         self.calls.clear()
         out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09",

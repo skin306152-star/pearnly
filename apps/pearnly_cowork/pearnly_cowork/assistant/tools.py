@@ -1441,7 +1441,8 @@ def _tax_call(fn, *args, refused="not_drafted"):
 
 
 def _tax_file(summary, wanted) -> str:
-    """草稿工作簿放进对话（结果面板下载）；wanted 为 False 时不出（反复改的时候）。"""
+    """草稿工作簿放进对话（结果面板下载）；wanted 为 False 时不出（反复改的时候）。是工具产出（``origin="tool"``）：
+    对账等工具能直接取，识别工具不收。"""
     if wanted is False:
         return ""
     from pearnly_core.assistant import files as chat_files
@@ -1449,7 +1450,7 @@ def _tax_file(summary, wanted) -> str:
     from pearnly_cowork.tax import service as tax_service
 
     filename, content = tax_service.workbook(summary, frappe.local.lang or "th")
-    return chat_files.add_to_conversation(filename, content, XLSX)
+    return chat_files.add_to_conversation(filename, content, XLSX, origin="tool")
 
 
 def _tax_issues(issues) -> list:
