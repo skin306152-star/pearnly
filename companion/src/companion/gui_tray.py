@@ -12,6 +12,7 @@ Express / MR.ERP 的连接与设置留在「连接与设置」主窗口，取任
 from __future__ import annotations
 
 import sys
+import time
 from collections import OrderedDict
 from pathlib import Path
 
@@ -134,6 +135,9 @@ MENU_TEXT_MAX = 48
 # 弹过的对话提醒记多少条（按 notice:<编号> 去重：页面实时收到与文件夹同步带来的是同一条）
 NOTICE_MEMORY = 500
 NOTICE_TAG = "notice:"
+# 刚弹出、还没点的带点击动作的通知（对话提醒等）这么久之内，「有新版本」不另弹通知——托盘点击只记得住最后一条的动作，
+# 新版提示会把它冲掉；托盘菜单里照样有「更新到最新版」。
+NOTICE_HOLD_SECONDS = 120
 
 
 def _menu_text(text: str) -> str:
@@ -218,6 +222,7 @@ class TrayApp(QObject):
         # Tomo：窗口第一次打开时才建（开机自启不加载网页内核）；快捷输入条、全局快捷键、「再打开一次」的管道一开始就在。
         self._tomo = None
         self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知 / 对话提醒才有）
+        self._message_at = 0.0        # 那条带动作的通知什么时候弹的（单调时钟）
         self.tray.messageClicked.connect(self._on_message_clicked)
         from .gui_tomo import QuickAsk
         from .tomo_hotkey import GlobalHotkey
@@ -318,12 +323,13 @@ class TrayApp(QObject):
             self._update_action.setText(t("tray_update_to", self.lang, ver=version))
             self._update_action.setVisible(True)
         activity("log_update_found", lang=self.lang, ver=version)
-        self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
-        self.tray.showMessage(
-            t("update_avail_title", self.lang),
-            t("update_avail_body", self.lang, ver=version),
-            pearnly_icon(),
-        )
+        if not self._holding_message():
+            self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
+            self.tray.showMessage(
+                t("update_avail_title", self.lang),
+                t("update_avail_body", self.lang, ver=version),
+                pearnly_icon(),
+            )
         if not self._auto_timer.isActive():
             self._auto_timer.start(15000)
         QTimer.singleShot(0, self._auto_update_tick)
@@ -435,12 +441,16 @@ class TrayApp(QObject):
             self._on_update_failed()
 
     def _busy(self) -> bool:
-        """有连接正在推送、等账套锁或扫账套：不换版本。小助手的窗口开着（有人正在用）也先不自动装，
-        等窗口关了再装；有人点了「立即更新」就不等窗口（2026-10-08：自动更新别打断正在用的人）。"""
+        """有连接正在推送、等账套锁或扫账套：不换版本。小助手的窗口开着（有人正在用）、文件夹线程正在逐份上传
+        （一次运行或补传）也先不自动装，等窗口关了、这一轮跑完再装；有人点了「立即更新」就不等这两样（2026-10-08：
+        自动更新别打断正在用的人；运行被叫停也只停在两份文件之间，下次启动同一时刻接着跑）。"""
         if any(state[0] in ("working", "waiting_lock", "indexing")
                for state in self._profile_states.values()):
             return True
-        return _window_open() and not self._update_requested
+        if getattr(self, "_update_requested", False):
+            return False
+        folders = getattr(self, "_folders", None)
+        return bool(folders is not None and folders.busy()) or _window_open()
 
     def _start_download(self, version: str, url: str) -> None:
         from .updater import DOWNLOAD_SITE
@@ -567,28 +577,55 @@ class TrayApp(QObject):
         self._tomo_window().open_conversation(url, session)
 
     def _on_folder_notices(self, site: str, items) -> None:
-        """文件夹同步带来的对话提醒（folder_worker._notices 已校验形状）：逐条弹系统通知，同一条只弹一次。"""
+        """文件夹同步带来的对话提醒（folder_worker._notices 已校验形状），同一条只弹一次。一批只弹一条（托盘点击只记得住
+        最后一条的动作，连弹几条会点错）：只有一条就点开那段对话；不止一条合成一条——标题带条数与最新一条的标题，
+        点开定时任务页。"""
+        fresh = []
         for item in items or []:
             try:
-                self._notify(item["title"] or "CC", item["text"],
-                             lambda s=site, c=item["session"]: self.open_conversation(s, c),
-                             tag=NOTICE_TAG + item["id"])
+                if self._first_time(NOTICE_TAG + item["id"]):
+                    fresh.append(item)
             except Exception:
                 log.exception("对话提醒通知失败")
+        if not fresh:
+            return
+        try:
+            newest = max(fresh, key=lambda item: item.get("created") or 0)
+            title = newest["title"] or "CC"
+            if len(fresh) == 1:
+                self._show(title, newest["text"], lambda s=site, c=newest["session"]: self.open_conversation(s, c))
+            else:
+                self._show(f"({len(fresh)}) {title}", newest["text"], lambda s=site: self.open_conversation(s, ""))
+        except Exception:
+            log.exception("对话提醒通知失败")
 
     def _notify(self, title: str, body: str, on_click=None, tag: str = "") -> None:
-        if str(tag or "").startswith(NOTICE_TAG):
-            # 对话提醒按编号只弹一次（页面实时收到、文件夹同步又带来）；测试里 TrayApp 不走 __init__，这里现建
-            seen = getattr(self, "_seen_notices", None)
-            if seen is None:
-                seen = self._seen_notices = OrderedDict()
-            if tag in seen:
-                return
-            seen[tag] = True
-            while len(seen) > NOTICE_MEMORY:
-                seen.popitem(last=False)
+        # 对话提醒按编号只弹一次（页面实时收到、文件夹同步又带来）
+        if str(tag or "").startswith(NOTICE_TAG) and not self._first_time(tag):
+            return
+        self._show(title, body, on_click)
+
+    def _first_time(self, tag: str) -> bool:
+        """这条对话提醒还没弹过（记下）。测试里 TrayApp 不走 __init__，去重记忆这里现建。"""
+        seen = getattr(self, "_seen_notices", None)
+        if seen is None:
+            seen = self._seen_notices = OrderedDict()
+        if tag in seen:
+            return False
+        seen[tag] = True
+        while len(seen) > NOTICE_MEMORY:
+            seen.popitem(last=False)
+        return True
+
+    def _show(self, title: str, body: str, on_click=None) -> None:
         self._message_action = on_click
+        self._message_at = time.monotonic()
         self.tray.showMessage(title, body, pearnly_icon(), 8000)
+
+    def _holding_message(self) -> bool:
+        """刚弹出（NOTICE_HOLD_SECONDS 内）、还没点的带点击动作的通知。"""
+        return (getattr(self, "_message_action", None) is not None
+                and time.monotonic() - getattr(self, "_message_at", 0.0) < NOTICE_HOLD_SECONDS)
 
     def _on_message_clicked(self) -> None:
         action, self._message_action = self._message_action, None

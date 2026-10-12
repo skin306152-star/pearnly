@@ -12,6 +12,10 @@
 - 各文件夹现有几份（根目录行的 ``counts`` / ``partial``）与各任务待处理几份（``rule_pending``），给网页卡片与任务列表；
 - 云端随回复带来的对话提醒（``notices``，请求带 ``notices_after`` 才有）交给托盘弹系统通知；
 - 回复里的最新版本（``companion_latest``）：只读文件夹的成员没有心跳，也从这里收到新版。
+
+一次运行中途被叫停（自动更新、退出、关机）不算这个时刻处理过：运行记录照报但不带 ``scanned``（``note`` 为
+``interrupted``），下次启动同一时刻照样到点，接着用同一个运行号（云端是同一条运行记录、同一份完成简报），
+已传过的文件台账认得、不再传。叫停只在两份文件之间生效，正在传的那一份传完。
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import math
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -37,7 +42,8 @@ log = get_logger(__name__)
 IDLE_SECONDS = 60
 # 根目录下的文件夹名与各文件夹现有几份一起重扫，间隔看上一次花了多久（2026-10）：一秒内看全就每轮都刷（放进文件后一两分钟
 # 网页就看得到）；更慢就每 2 分钟（原只报文件夹名时的节奏，10-09 由 15 分钟改来：新建的子文件夹要等很久才出现在网页下拉）；
-# 数不完（太大、网络共享太慢，见 folder_plan.SURVEY_*）就每 10 分钟，免得每分钟把整棵树数一遍。
+# 数不完（太大、网络共享太慢，见 folder_plan.SURVEY_*）就每 10 分钟才重数，免得每分钟把整棵树数一遍——这期间文件夹名
+# 仍每 2 分钟刷新，计数沿用上一次的。
 FOLDER_REPORT_SECONDS = 2 * 60
 FOLDER_REPORT_CHEAP_SECONDS = 1.0
 FOLDER_REPORT_PARTIAL_SECONDS = 10 * 60
@@ -84,6 +90,10 @@ class FolderIntake:
         # 已告诉云端「这条连接没有文件夹」的连接（本次运行内）。文件夹删光后、以及每次启动，都要报一次空的，
         # 否则云端一直留着上一次报的文件夹（缓存 7 天），网页「连接」与定时任务还能选到已删掉的文件夹（2026-10-10 测试机）。
         self._told_empty: set[str] = set()
+        # _seen 只留落在任务文件夹里的文件：留了哪些（{连接: {根目录编号: {规则文件夹比较键}}}；None = 刚数过、全留着）。
+        self._seen_scope: dict[str, Optional[dict]] = {}
+        # 正在跑一次运行或补传（逐份上传中）：托盘的自动更新等它跑完（busy）。
+        self._working = False
 
     # ── 线程 ──────────────────────────────────────────────────────────────
 
@@ -110,6 +120,18 @@ class FolderIntake:
     def running(self) -> bool:
         """线程还在（停下要等它做完手上这一步，例如一份正在上传的文件）。"""
         return bool(self._thread and self._thread.is_alive())
+
+    def busy(self) -> bool:
+        """正在跑一次运行或补传（逐份上传中）：自动更新等这一轮跑完再装。"""
+        return self._working
+
+    @contextmanager
+    def _work(self):
+        self._working = True
+        try:
+            yield
+        finally:
+            self._working = False
 
     def _active(self) -> list:
         try:
@@ -158,7 +180,7 @@ class FolderIntake:
                                     "runs": list(ledger.runs), "watch": ledger.watch(),
                                     "rule_health": self._health.get(key, {}),
                                     "rule_pending": self._rule_pending.get(key, {}),
-                                    "notices_after": ledger.notices_after})
+                                    "notices_after": ledger.notices_after or 0.0})
             if not response.get("ok"):
                 return
             if local_roots:
@@ -171,6 +193,12 @@ class FolderIntake:
             self._offer(response)
             now = self._clock()
             offset = float(response.get("server_time") or now) - now
+            # 记下这一次回复里出现的任务；回复带了这台电脑读的全部任务名（rule_names，含停用的）时，才清掉很久没再出现的
+            # 任务（已删除、换到别的电脑读）在台账里的行（folder_store.Ledger.saw_rules）。
+            every = response.get("rule_names")
+            ledger.saw_rules([rule.get("name") for rule in response.get("rules") or [] if isinstance(rule, dict)]
+                             + ([name for name in every if isinstance(name, str)] if isinstance(every, list) else []),
+                             now, complete=isinstance(every, list))
             by_id = {row["id"]: row for row in local_roots}
             self._health[key] = {rule["name"]: _folder_health(rule, by_id.get(rule.get("root_id")))
                                  for rule in response.get("rules") or [] if rule.get("name")}
@@ -193,11 +221,13 @@ class FolderIntake:
                     self._baseline(state, rule, root, offset)
                 due = plan.due(rule, state, now + offset)
                 if due:
-                    self._run(client, cfg, ledger, rule, root, due, offset)
+                    with self._work():
+                        self._run(client, cfg, ledger, rule, root, due, offset)
                     ledger.save()
                     touched = True
                 elif root is not None:
-                    touched = self._retry(client, cfg, ledger, rule, root) or touched
+                    with self._work():
+                        touched = self._retry(client, cfg, ledger, rule, root) or touched
             self._deliver(client, ledger, response.get("entries") or {}, by_id)
             if not self._stop.is_set():
                 self._count_pending(key, ledger, response.get("rules") or [], touched)
@@ -208,19 +238,33 @@ class FolderIntake:
     def _report(self, key: str, local_roots: list) -> list:
         """根目录、下级文件夹名与各文件夹现有几份（``counts`` / ``partial``）；间隔按上一次花的时间定（见
         FOLDER_REPORT_*），根目录变了立即重扫。几个根目录共用一份时限与条数（folder_plan.SURVEY_*），用完就停：
-        没轮到的根目录不带 ``counts``（网页不显示几份，不用 0 冒充）。"""
+        没轮到的根目录不带 ``counts``（网页不显示几份，不用 0 冒充）；根目录本身读不到的也不带。上一次数不全时
+        计数 10 分钟才重数，文件夹名照样每 2 分钟刷新（计数沿用上一次的）。"""
         now = self._clock()
         ids = [row["id"] for row in local_roots]
+
+        def build(row, folders, measured):
+            line = {"id": row["id"], "label": row["label"], "folders": folders, "share": plan.share_path(row["path"])}
+            if measured is not None:
+                line["counts"], line["partial"] = measured
+            return line
+
         cached = self._folders.get(key)
-        if cached and cached["ids"] == ids and now - cached["at"] < _report_interval(cached["cost"], cached["complete"]):
-            return cached["report"]
+        if cached and cached["ids"] == ids:
+            recount = _report_interval(cached["cost"], cached["complete"])
+            if now - cached["counted"] < recount:
+                if now - cached["at"] < min(recount, FOLDER_REPORT_SECONDS):
+                    return cached["report"]
+                report = [build(row, plan.folders_of(Path(row["path"])), cached["measured"].get(row["id"]))
+                          for row in local_roots]
+                cached.update(at=now, report=report)
+                return report
         started = self._timer()
         deadline, budget = started + plan.SURVEY_SECONDS, [plan.SURVEY_ENTRIES]
-        report, seen, complete = [], {}, True
+        report, seen, measured, complete = [], {}, {}, True
         for row in local_roots:
             path = Path(row["path"])
             folders = plan.folders_of(path)
-            line = {"id": row["id"], "label": row["label"], "folders": folders, "share": plan.share_path(row["path"])}
             if complete:
                 try:
                     files, complete = plan.survey(path, deadline=deadline, budget=budget, clock=self._timer)
@@ -228,19 +272,22 @@ class FolderIntake:
                     log.exception("文件夹计数失败")
                     complete = False
                 else:
-                    line["counts"] = plan.folder_counts(files, ["", *folders])
-                    line["partial"] = not complete
-                    seen[row["id"]] = files
-            report.append(line)
-        self._folders[key] = {"at": now, "ids": ids, "report": report, "cost": self._timer() - started,
-                              "complete": complete}
+                    if files is not None:  # None：根目录本身读不到，不知道几份
+                        measured[row["id"]] = (plan.folder_counts(files, ["", *folders]), not complete)
+                        seen[row["id"]] = files
+            report.append(build(row, folders, measured.get(row["id"])))
+        self._folders[key] = {"at": now, "counted": now, "ids": ids, "report": report, "measured": measured,
+                              "cost": self._timer() - started, "complete": complete}
         self._seen[key] = seen
+        self._seen_scope[key] = None
         self._surveyed[key] = self._surveyed.get(key, 0) + 1
         return report
 
     def _count_pending(self, key: str, ledger: Ledger, rules: list, touched: bool) -> None:
         """各任务还有几份没处理（不在台账、也不在老任务的拍底里），下一次同步报给云端。只在文件夹重新数过、这一轮传过
-        文件或任务变了时重算（文件多时逐份比对台账也要时间）；根目录没数到的任务不报（网页不显示，不用 0 冒充）。"""
+        文件或任务变了时重算（文件多时逐份比对台账也要时间；同一根目录下的几条任务一起、文件只走一遍）；根目录没数到的
+        任务不报（网页不显示，不用 0 冒充）。数过之后只留落在某个任务文件夹里的文件；之后新加的任务落在没留的文件夹里，
+        这次先不报，下一轮重新数。"""
         basis = (self._surveyed.get(key, 0),
                  tuple((rule.get("name"), rule.get("root_id"), rule.get("folder"), bool(rule.get("existing")),
                         rule.get("active_since"), (ledger.rules.get(rule.get("name")) or {}).get("baseline_since"))
@@ -249,10 +296,14 @@ class FolderIntake:
             return
         self._rule_pending_basis[key] = basis
         seen = self._seen.get(key) or {}
-        pending = {}
+        scope = self._seen_scope.get(key)
+        by_root: dict[str, list] = {}
         for rule in rules:
-            name, files = rule.get("name"), seen.get(rule.get("root_id"))
-            if not name or files is None:
+            name, root = rule.get("name"), rule.get("root_id")
+            if not name or root not in seen:
+                continue
+            if scope is not None and not _covered(plan.folder_key(rule.get("folder") or ""), scope.get(root) or ()):
+                self._folders.pop(key, None)  # 下一轮整个重数
                 continue
             state = ledger.rules.get(name) or {}
             if rule.get("existing"):
@@ -261,11 +312,21 @@ class FolderIntake:
                 baseline = set(state.get("baseline") or [])
             else:
                 continue  # 老任务还没拍底（负责人还没准备好，规则没跑过）：不知道几份
-            pending[name] = plan.pending_count(
-                files, rule.get("folder") or "",
+            by_root.setdefault(root, []).append((
+                name, rule.get("folder") or "",
                 lambda relpath, size, mtime, rule_name=name: ledger.known(rule_name, relpath, size, mtime) is not None,
-                baseline)
+                baseline))
+        pending = {}
+        for root, members in by_root.items():
+            pending.update(plan.pending_counts(seen[root], members))
         self._rule_pending[key] = pending
+        if scope is None:
+            folders: dict[str, set] = {}
+            for rule in rules:
+                if rule.get("name") and rule.get("root_id") in seen:
+                    folders.setdefault(rule["root_id"], set()).add(plan.folder_key(rule.get("folder") or ""))
+            self._seen[key] = {root: plan.within(files, folders.get(root) or ()) for root, files in seen.items()}
+            self._seen_scope[key] = folders
 
     def _notices(self, cfg, ledger: Ledger, items) -> None:
         """云端随同步回复带来的对话提醒（请求带了 notices_after 才有；最多 20 条、12 小时内，按时间先后）：合形状的
@@ -273,10 +334,16 @@ class FolderIntake:
         if not isinstance(items, list):
             return
         fresh = [notice for notice in (_notice(row) for row in items[:NOTICE_LIMIT]) if notice]
+        first = ledger.notices_after is None
         if not fresh:
+            if first:
+                ledger.notices_after = 0.0  # 收到过回复了：之后带来的都是新的
             return
-        ledger.notices_after = max(ledger.notices_after, *(notice["created"] for notice in fresh))
+        ledger.notices_after = max(ledger.notices_after or 0.0, *(notice["created"] for notice in fresh))
         ledger.save()  # 马上记下：后面的运行可能要传很久，中途退出也不再重弹
+        if first:
+            # 这条连接第一次收到（刚装、刚升级、重新配对）：最近 12 小时的多半已在手机或网页上看过，只弹最新一条
+            fresh = [max(fresh, key=lambda notice: notice["created"])]
         if self._on_notices is None:
             return
         try:
@@ -342,21 +409,37 @@ class FolderIntake:
 
     def _run(self, client, cfg, ledger: Ledger, rule: dict, root: Optional[dict], due: plan.Due,
              offset: float) -> None:
-        run_key = uuid.uuid4().hex
-        record = {"rule": rule["name"], "run_key": run_key, "trigger": due.trigger, "found": 0, "new_files": 0,
-                  "skipped": 0, "upload_failed": 0}
+        state = ledger.rule_state(rule["name"])
+        # 同一个时刻 / 同一次立即运行上次中途停下了：接着用那一次的运行号（云端同一条运行记录、同一份简报），
+        # 已传上的份数接着算（这次扫描时台账认得它们，不再传）。
+        current = state.get("open_run")
+        if not (isinstance(current, dict) and current.get("run_key") and current.get("slot") == due.slot
+                and current.get("request") == due.request):
+            current = {"run_key": uuid.uuid4().hex, "slot": due.slot, "request": due.request, "new_files": 0}
+        state["open_run"] = current
+        record = {"rule": rule["name"], "run_key": current["run_key"], "trigger": due.trigger, "found": 0,
+                  "new_files": int(current.get("new_files") or 0), "skipped": 0, "upload_failed": 0}
         if due.slot is not None:
             # 这次运行属于哪个定时时刻（epoch 秒；立即运行没有）：云端按它把同一时刻的结果合成一份简报
             record["slot"] = due.slot
-        state = ledger.rule_state(rule["name"])
 
         def handled():
-            # 只有这一次真的跑完才记「这个时刻处理过」；中途被拒（服务端暂时不认）下一轮重跑。
+            # 只有这一次真的跑完才记「这个时刻处理过」；中途被拒（服务端暂时不认）、被叫停，下一轮重跑。
             if due.slot is not None:
                 state["last_slot"] = due.slot
             if due.request is not None:
                 state["last_request"] = due.request
+            state.pop("open_run", None)
 
+        try:
+            self._run_folder(client, cfg, ledger, rule, root, record, handled)
+        finally:
+            current["new_files"] = record["new_files"]
+
+    def _run_folder(self, client, cfg, ledger: Ledger, rule: dict, root: Optional[dict], record: dict,
+                    handled: Callable[[], None]) -> None:
+        state = ledger.rule_state(rule["name"])
+        run_key = record["run_key"]
         if root is None:
             record.update(note="root_missing", scanned=True)
             ledger.runs.append(record)
@@ -373,11 +456,12 @@ class FolderIntake:
         waiting: list[plan.Candidate] = []
         seen: set[str] = set()
         errors: list = []
-        complete = True
         for candidate in plan.scan(folder, errors):
             if self._stop.is_set():
-                complete = False
-                break
+                # 被叫停（只在两份文件之间）：不算处理过、不带 scanned，下次启动同一时刻接着跑（同一个运行号）
+                record["note"] = "interrupted"
+                ledger.runs.append(record)
+                return
             seen.add(candidate.relpath.casefold())
             record["found"] += 1
             if candidate.relpath.casefold() in baseline:
@@ -407,9 +491,9 @@ class FolderIntake:
             record["note"] = f"still_writing:{len(waiting)}"
             for candidate in waiting:
                 self._pending(ledger, rule, candidate, "still_writing")
-        if complete and not errors:
-            # 整个文件夹都看过了：文件已不在的墓碑与「不收」记录清掉（读不全时不清，免得网络抖一下就把墓碑丢了）
-            ledger.forget_missing(rule["name"], seen)
+        # 整个文件夹都看过了：文件已不在的墓碑与「不收」记录清掉；这次读不了的文件夹 / 文件下面的照留（网络抖一下
+        # 不把墓碑丢了），别处照清
+        ledger.forget_missing(rule["name"], seen, _unreadable(folder, errors))
         record["scanned"] = True
         ledger.runs.append(record)
         handled()
@@ -471,10 +555,11 @@ class FolderIntake:
     # ── 结果表格 ────────────────────────────────────────────────────────────
 
     def _deliver(self, client, ledger: Ledger, entries: dict, by_id: dict) -> None:
+        index = ledger.entry_index() if entries else {}
         for name, status in entries.items():
             if self._stop.is_set():
                 return
-            row = ledger.by_entry(name)
+            row = index.get(name)
             if row is None or not isinstance(status, dict):
                 continue
             row["state"] = status.get("state") or row.get("state")
@@ -532,6 +617,25 @@ def _report_interval(cost: float, complete: bool) -> float:
     if not complete:
         return FOLDER_REPORT_PARTIAL_SECONDS
     return 0.0 if cost <= FOLDER_REPORT_CHEAP_SECONDS else FOLDER_REPORT_SECONDS
+
+
+def _unreadable(folder: Path, errors: list) -> set:
+    """这次扫描读不了的文件夹 / 文件（相对规则文件夹、casefold）；说不清是哪里（错误没带路径、就是规则文件夹本身、
+    不在规则文件夹下）记 ``""``（整个规则文件夹）。"""
+    found = set()
+    for error in errors:
+        name = getattr(error, "filename", None)
+        try:
+            parts = Path(name).relative_to(folder).parts if name else ()
+        except (TypeError, ValueError):
+            parts = ()
+        found.add("\\".join(parts).casefold())
+    return found
+
+
+def _covered(folder: str, scope) -> bool:
+    """规则文件夹（比较键）落在留下的文件夹（比较键）之一里面。"""
+    return any(not kept or folder == kept or folder.startswith(kept + "\\") for kept in scope)
 
 
 def _notice(row) -> Optional[dict]:

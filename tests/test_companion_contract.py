@@ -182,6 +182,21 @@ class FolderSync(unittest.TestCase):
         self.assertNotIn("sorted(", round_source)
         self.assertNotIn(".sort(", round_source)
 
+    def test_an_interrupted_run_is_reported_without_scanned(self):
+        # 小助手一次运行中途被叫停（note=interrupted）不带 scanned，下次启动接着跑、用同一个运行号：云端只在带了 scanned
+        # 时记扫描完成，同一运行号的后一次上报更新同一条运行记录（完成简报等它跑完，不按不全的数字先发）。
+        tree = ast.parse((FOLDER_SERVER / "machine.py").read_text(encoding="utf-8"))
+        record = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_record_run")
+        writes = [node for node in ast.walk(record) if isinstance(node, ast.Assign)
+                  and any(ast.unparse(target) == "doc.scanned_at" for target in node.targets)]
+        guards = [node for node in ast.walk(record) if isinstance(node, ast.If)
+                  and ast.unparse(node.test) == "row.get('scanned')"]
+        self.assertEqual(len(writes), 1)
+        self.assertTrue(guards and writes[0] in list(ast.walk(guards[0])))
+        self.assertIn("frappe.db.exists(RUN, key)", ast.unparse(record))
+        run = method_source(COMPANION / "folder_worker.py", "FolderIntake", "_run_folder")
+        self.assertIn("record['note'] = 'interrupted'", run)
+
     def test_reminder_links_match_the_shared_deep_link(self):
         # 托盘提醒点开的地址 = 共用层 assistant/contracts.deep_link（网页推送点开的同一个地址）接在公司站点上。
         spec = importlib.util.spec_from_file_location(
