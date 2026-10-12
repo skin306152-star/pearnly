@@ -22,6 +22,11 @@ async → 同步。它是"提交登记"（`dms_booking_attempt`）的**唯一调
 · **客户主档缺项、系统也补不上**（`booking.service._fill_customer_gaps`）：同收款不完整，
   回预览卡（答案都在，换新确认号），第一行写明缺哪几项，点「แก้ไข」补完再确认；只发这一条。
 · **建单成功但附件没挂全要如实补一句**，绝不谎报附件成功。
+· **提交过（本确认号的登记还在）之后只有三种结局**，都由系统自己收口（`_settle`）：
+  核实成功 → 回执；DMS 明确拒收（回读也确认没有这张单）→ 摘掉登记、原预览卡带失败提示
+  还回去，改了再确认就是一次全新的提交；其余一律"结果未知"（含被顶下线、顺号重新登记失败）
+  → 台账记"人工处理"、证据转存成持久记录（`recovery.hold`）、LINE 立刻可用，只拦同一客户
+  再下单（`recovery.unverified_booking_no`，核到或满 23 小时解除）。绝不重放未知写入。
 
 新平台的接口差异：async → 同步；后台任务走 `dms_out.enqueue`（webhook 立刻返回）；
 多 OA 那层（`binding_guard`）去掉 —— 一个站点一条 OA，绑定随事件带进来。
@@ -161,6 +166,15 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
     endpoint = resolve_dms_endpoint(user_id, qa.get("endpoint_id"))
     if not endpoint:
         raise ValueError("Booking endpoint is unavailable")
+    held = recovery.unverified_booking_no(endpoint, qa)
+    if held:
+        # 同一客户还有一张结果未知、正在后台核对的订车单：这次不碰 DMS，把预览卡还回去，
+        # 第一行是现有的"结果未知"提示加原单号。核到或满 23 小时自动解除。
+        nonce = secrets.token_hex(8)
+        if _arm_retry(tenant, line_user_id, payload, nonce):
+            _send(line_user_id, qa_cards.preview_card(qa, nonce,
+                                                     notice=booking_attempt.message({"booking_no": held})))
+        return
     attach_files, attach_failed = _download_attach_files(qa)
     result = book_in_session(
         endpoint,
@@ -179,13 +193,21 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
         _resume_after_customer_change(line_user_id, payload, result)
         return
     qa = payload.get("qa") or {}
+    result, released = _settle(line_user_id, payload, result)
     booking_ledger.log_booking(endpoint=endpoint, payload=payload, result=result, actor=user_id)
     if result.get("ok"):
         recovery.finish(line_user_id, payload.get("nonce"), qa, result)
         return
 
     friendly = result.get("error_friendly") or {}
+    if released:
+        # DMS 明确拒收、单确实没建：原预览卡（答案都在、新确认号）第一行写现有的失败提示，只发这一条。
+        _send(line_user_id, qa_cards.preview_card(qa, released, notice=friendly.get(i18n.line_lang())
+                                                  or cards.TXT_BOOKING_FAIL))
+        return
     if result.get("error_code") == booking_attempt.UNKNOWN:
+        # 先转存证据（先落盘、后清会话），LINE 立刻可用；再推现有的未知提示（带单号）。
+        recovery.hold(line_user_id, payload.get("nonce"))
         _push(line_user_id, booking_attempt.message(result))
         return
     if result.get("error_code") == "ERR_DMS_PAYMENT_INCOMPLETE":
@@ -216,6 +238,29 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
             )
             return
     _push(line_user_id, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL)
+
+
+def _settle(line_user_id: str, payload: dict, result: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[str]]:
+    """没有成功、而本确认号的提交登记还在（说明已经跨过写边界）时，按类别定结局。
+
+    返回 `(结果, 新确认号)`：只有 DMS 明确拒收（`response_body.rejected` 且单号与登记一致）
+    并且登记已被原子摘掉时才有新确认号；摘不掉、或任何别的失败（被顶下线、顺号重新登记
+    失败……）一律换成"结果未知"，不按错误码给重试。没登记过（建单之前就失败）原样返回。
+    """
+    if result.get("ok"):
+        return result, None
+    pending = booking_attempt.pending(None, line_user_id, payload)
+    if not pending:
+        return result, None
+    number = str(pending.get("booking_no") or "")
+    body = result.get("response_body") or {}
+    if body.get("rejected") and str(body.get("booking_no") or "") == number:
+        nonce = secrets.token_hex(8)
+        if store.release_rejected_booking_attempt(line_user_id, payload.get("nonce"), number,
+                                                  {**payload, "nonce": nonce},
+                                                  ttl_minutes=_RETRY_TTL_MINUTES):
+            return result, nonce
+    return booking_attempt.as_unknown(result, number), None
 
 
 def _with_missing(text: str, result: Dict[str, Any]) -> str:

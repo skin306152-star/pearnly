@@ -67,6 +67,8 @@ class DmsFixture:
         self.orders = []
         self.fail_before_submit = False
         self.unknown_after_submit = False
+        self.reject_submit = False
+        self.posts = 0
         self.attach_available = True
         self.attach_calls = 0
         self.form = {}
@@ -83,7 +85,8 @@ class DmsFixture:
             self.callback_results.append(copy.deepcopy(result))
             return result
         except DmsClientError as exc:
-            return intake_service.err(exc.error_code)
+            # Same as operations.run_logged_in: the error keeps its submission evidence.
+            return intake_service.err(exc.error_code, response_body=getattr(exc, "response_body", None))
         except requests.RequestException:
             return intake_service.err("ERR_DMS_TECHNICAL")
 
@@ -115,6 +118,12 @@ class DmsFixture:
         number = self.label + "-" + str(len(self.orders) + 1)
         fields = {"txtdocno": number, "cusval": customer_id, "txttel": card.phone}
         on_attempt.capture_submission(number, fields)
+        self.posts += 1
+        if self.reject_submit:
+            # DMS answered err:: and a read-only readback found no such order.
+            exc = DmsClientError("fixture rejected", "ERR_DMS_IMPORT")
+            exc.response_body = {"submitted": False, "rejected": True, "booking_no": number}
+            raise exc
         self.orders.append({"number": number, "customer": customer_id, "booking": booking})
         self.form = {"stsel": "e", "idsel": str(len(self.orders)), **fields}
         if self.unknown_after_submit:
@@ -172,7 +181,8 @@ class NativeFlow(unittest.TestCase):
         if getattr(frappe.local, "site", None):
             frappe.db.rollback()
             for row in self.deliveries():
-                if row.status == "Pending":
+                # Unverified records would also hold back later fixtures' same customer.
+                if row.status in ("Pending", delivery.UNVERIFIED):
                     frappe.db.set_value(delivery.DT, row.name, {"status": "Review", "last_error": "lab_test_finished"})
             for job_id in self.snapshot_jobs:
                 queue = get_queue("dms_sync")
@@ -450,19 +460,62 @@ class NativeFlow(unittest.TestCase):
         self.assertFalse(self.dms.orders)
         self.assertFalse(self.deliveries())
 
+    def messages(self):
+        return [json.dumps(data.get("json") or {}, ensure_ascii=False) for _, url, data in self.http
+                if url.endswith(("/push", "/reply"))]
+
     def test_submitted_unknown_result_retains_evidence_and_never_replays(self):
         self.dms.unknown_after_submit = True
         nonce = self.review()
         self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=nonce)
         self.assertEqual(self.drain(), 1)
-        payload = store.get_session(self.uid)["payload"]
-        self.assertFalse(payload.get("nonce"))
-        self.assertEqual(payload["booking_attempt"]["booking_no"], self.dms.orders[0]["number"])
-        self.assertTrue(payload["booking_attempt"]["context"]["submitted"])
+        number = self.dms.orders[0]["number"]
+        # The evidence moved to a durable record; the conversation (the whole LINE) is free at once.
+        self.assertIsNone(store.get_session(self.uid))
+        record, = self.deliveries()
+        self.assertEqual(record.status, delivery.UNVERIFIED)
+        marker = json.loads(record.attempt)
+        self.assertEqual(marker["booking_no"], number)
+        self.assertTrue(marker["context"]["submitted"])
+        self.assertTrue(any(number in text for text in self.messages()))  # the notice carries the number
+        self.assertEqual(frappe.db.get_value("Pearnly Push Log", {"actor": self.user, "business_key": number},
+                                             "status"), "manual")
         self.send(action=cards.ACT_RETRY_BOOKING, nonce=nonce)
         self.assertEqual(self.drain(), 0)
         self.assertEqual(len(self.dms.orders), 1)
+        self.send(text="เมนู")
+        self.send(action=cards.ACT_MENU_CUSTOMER)
+        self.assertEqual(store.get_session(self.uid)["state"], "collecting")
+        # The same customer cannot be booked again while that order is being checked: no DMS call.
+        self.dms.unknown_after_submit = False
+        fresh = self.review()
+        self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=fresh)
+        self.assertEqual(self.drain(), 1)
+        self.assertEqual((len(self.dms.orders), self.dms.posts), (1, 1))
+        rearmed = store.get_session(self.uid)["payload"]
+        self.assertNotIn(rearmed["nonce"], (None, fresh))
+        self.assertIn(number, self.messages()[-1])
+        self.assertEqual(len(self.deliveries()), 1)
+
+    def test_rejected_booking_returns_the_card_then_a_new_confirmation_books_once(self):
+        self.dms.reject_submit = True
+        nonce = self.review()
+        self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=nonce)
+        self.assertEqual(self.drain(), 1)
+        session = store.get_session(self.uid)
+        payload = session["payload"]
+        self.assertEqual(session["state"], "booking_review")
+        self.assertFalse(payload.get("booking_attempt") or payload.get("booking_claim"))
+        self.assertNotIn(payload["nonce"], (None, nonce))
+        self.assertIn(payload["nonce"], self.messages()[-1])  # one card, its confirm button armed
         self.assertFalse(self.deliveries())
+        self.assertEqual(frappe.db.get_value("Pearnly Push Log", {"actor": self.user}, "status"), "failed")
+        self.dms.reject_submit = False
+        self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=payload["nonce"])
+        self.assertEqual(self.drain(), 1)
+        self.assertEqual((len(self.dms.orders), self.dms.posts), (1, 2))  # one rejected, one created
+        self.assertEqual(self.deliveries()[0].status, "Delivered")
+        self.assertIsNone(store.get_session(self.uid))
 
     def test_master_rename_returns_one_updated_card_without_submitting(self):
         from pearnly_dms.booking.conversation import qa_cards

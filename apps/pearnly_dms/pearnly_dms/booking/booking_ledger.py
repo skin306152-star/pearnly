@@ -10,6 +10,8 @@
 ## 两条必须保持的规矩
 
 1. **结果如实记**：成功记 `success`/200，失败记 `failed`/0 + 错误码 —— 台账不是宣传栏。
+   提交了但结果没核出来记 `manual`（记录页"人工处理"）+ 单号；后台核实成功后**改同一行**
+   为 `success`，一张单只有一行。
 2. **台账失败不能影响业务结果**（用户那单已经推成功了）—— 写台账的异常一律吞掉并留日志。
 
 ## 与老产品的两处差异（有意，别照抄回去）
@@ -36,6 +38,13 @@ from pearnly_dms.contracts.endpoint import endpoint_name
 logger = logging.getLogger(__name__)
 
 LOG = "Pearnly Push Log"
+# 与 `booking_attempt.UNKNOWN` 同一个码（这里不 import 它：台账不该依赖 LINE 会话层）。
+_UNKNOWN = "ERR_DMS_BOOKING_OUTCOME_UNKNOWN"
+
+
+def _booking_no(result: Dict[str, Any]) -> str:
+    """单号：成功结果在顶层；失败结果（`err()`）顶层没有，在 `response_body` 里。"""
+    return str(result.get("booking_no") or (result.get("response_body") or {}).get("booking_no") or "")
 
 
 def booking_log_request_body(qa: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,7 +90,8 @@ def booking_log_response_body(result: Dict[str, Any]) -> Dict[str, Any]:
     body: Dict[str, Any] = {
         **(result.get("response_body") or {}),
         "booking_id": result.get("booking_id", ""),
-        "booking_no": result.get("booking_no", ""),
+        # 顶层没有单号时不能拿空值盖掉 `response_body` 里的那个
+        "booking_no": _booking_no(result),
     }
     if "attach_ok" in result:
         body["attach_ok"] = result.get("attach_ok")
@@ -105,27 +115,36 @@ def log_booking(
     """
     result = result or {}
     ok = bool(result.get("ok"))
+    unknown = not ok and result.get("error_code") == _UNKNOWN
+    number = _booking_no(result)
     qa = (payload or {}).get("qa") or {}
     try:
         import frappe
 
-        if ok and result.get("booking_no"):
+        if number and (ok or unknown):
+            # 一张单一行：核实成功找"成功"或"人工处理"那行（结果未知时记下的）改成成功；
+            # 同一张未知单再记一次（补登、重复转存）只认已有的"人工处理"行。
             existing = frappe.db.get_value(LOG, {
-                "status": "success", "business_key": str(result["booking_no"]),
+                "status": ["in", ["success", "manual"]] if ok else "manual",
+                "business_key": number,
                 "endpoint": endpoint_name(endpoint), "actor": actor,
             }, "name")
             if existing:
-                frappe.db.set_value(LOG, existing, "response_body", json.dumps(
-                    booking_log_response_body(result), ensure_ascii=False, default=str))
-                frappe.db.commit()
+                if ok:
+                    frappe.db.set_value(LOG, existing, {
+                        "status": "success", "http_status": 200, "error_msg": "",
+                        "response_body": json.dumps(booking_log_response_body(result),
+                                                    ensure_ascii=False, default=str),
+                    })
+                    frappe.db.commit()
                 return existing
         doc = frappe.new_doc(LOG)
-        doc.status = "success" if ok else "failed"
+        doc.status = "success" if ok else ("manual" if unknown else "failed")
         doc.endpoint = endpoint_name(endpoint) or None
         # 触发方式取本平台台账的 Select 选项（manual/line/auto）—— 这条是 LINE 推的。
         doc.trigger = "line"
         doc.attempt = 1
-        doc.business_key = str(result.get("booking_no") or "")
+        doc.business_key = number
         doc.http_status = 200 if ok else 0
         doc.elapsed_ms = int(result.get("elapsed_ms") or 0)
         doc.request_body = json.dumps(booking_log_request_body(qa), ensure_ascii=False, default=str)

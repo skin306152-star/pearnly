@@ -473,3 +473,66 @@ def clear_booking_attempt(line_user_id: str, nonce: str) -> bool:
         return False
     finally:
         _unlock_scope(line_user_id, lock)
+
+
+def release_rejected_booking_attempt(
+    line_user_id: str,
+    nonce: str,
+    booking_no: str,
+    payload: dict,
+    ttl_minutes: Optional[int] = None,
+) -> bool:
+    """DMS **明确拒收**了这张订车单：摘掉提交登记，把草稿换上新确认号放回待确认态。
+
+    只给"DMS 回了拒收、同一会话只读回读也确认没有这张单"那一种结局用 —— 那时单确实没建，
+    操作员应当拿回原来的预览卡、改了再确认。判据全部对上才写（任一条不符 → False，不动会话）：
+
+    1. 会话在 `booking_review`、`payload.nonce` 已被消费；
+    2. 认领标记 `booking_claim` 与登记用的 nonce 都是这个 `nonce`；
+    3. 登记的单号就是被拒的 `booking_no`（换过号的登记不认）；
+    4. 登记里**还没有任何结果**（核实过的单绝不能被摘掉）。
+
+    新草稿必须带**新 nonce**；`booking_claim` / `booking_claimed_at` / `booking_attempt`
+    三个内部标记一律不带过去。之后再点确认就是一次全新的提交：重新认领、提交前重新登记。
+    与 `record_booking_attempt` 同一把会话锁 + 行锁；现有函数一个不改，`set_session`
+    仍然拒绝覆盖任何带登记的会话。
+    """
+    if not nonce or not booking_no or not (payload or {}).get("nonce"):
+        return False
+    lock = _lock_scope(line_user_id)
+    if not lock:
+        logger.warning("[line_session] 会话被占用，跳过拒收后的草稿放回")
+        return False
+    try:
+        sess = _row(line_user_id, for_update=True)
+        current = (sess or {}).get("payload") or {}
+        marker = current.get("booking_attempt") or {}
+        if not sess or sess.get("state") != "booking_review":
+            return False
+        if current.get("nonce") is not None:
+            return False
+        if str(current.get("booking_claim") or "") != str(nonce):
+            return False
+        if str(marker.get("nonce") or "") != str(nonce):
+            return False
+        if str(marker.get("booking_no") or "") != str(booking_no) or marker.get("result"):
+            return False
+        clean = {
+            key: value
+            for key, value in payload.items()
+            if key not in {"booking_claim", "booking_claimed_at", "booking_attempt"}
+        }
+        ttl = state_ttl_minutes("booking_review") if ttl_minutes is None else int(ttl_minutes)
+        name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
+        frappe.db.set_value(DT, name, {
+            "state": "booking_review",
+            "payload": json.dumps(clean, ensure_ascii=False),
+            "expires_at": _expires_at(ttl),
+        })
+        frappe.db.commit()
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_session] 拒收后的草稿放回失败", exc_info=True)
+        return False
+    finally:
+        _unlock_scope(line_user_id, lock)

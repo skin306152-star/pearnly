@@ -38,6 +38,7 @@ from pearnly_dms.line.identity import current
 SNAPSHOT_LAB = os.environ.get("PEARNLY_DMS_SNAPSHOT_LAB") == "1"
 SITE = "dms-snapshot-lab.localhost" if SNAPSHOT_LAB else "dms-flow-lab.localhost"
 RECOVER = "pearnly_dms.booking.recovery.reconcile"
+CHECK = "pearnly_dms.booking.recovery.reconcile_record"
 DELIVER = "pearnly_dms.booking.delivery.deliver"
 
 
@@ -107,7 +108,7 @@ class NativeRecovery(unittest.TestCase):
             else:
                 store.clear_session(self.uid)
         for row in self.deliveries():
-            if row.status == "Pending":
+            if row.status in ("Pending", delivery.UNVERIFIED):
                 frappe.db.set_value(delivery.DT, row.name,
                                     {"status": "Review", "last_error": "lab_test_finished"})
         frappe.db.set_value("Pearnly LINE Binding", {"line_user_id": self.uid}, "status", "unbound")
@@ -178,7 +179,7 @@ class NativeRecovery(unittest.TestCase):
             raise AssertionError("Recovery attempted a non-read DMS endpoint")
         return Resp(200, body, body.encode())
 
-    def seed_unknown(self, *, attachments=False):
+    def seed_unknown(self, *, attachments=False, minutes=20):
         qa = {"customer": {"id": "customer-fixture"}, "advisor": {"id": "advisor-fixture", "name": "Local"},
               "answers": {"car": {"id": "car-fixture", "label": "Local car"},
                           "delivery_date_be": "30/09/2569"},
@@ -193,7 +194,7 @@ class NativeRecovery(unittest.TestCase):
         self.assertTrue(store.consume_nonce(self.uid, "booking_review", self.nonce))
         # Timestamp is immutable after registration. Simulate the original
         # worker's clock at registration, never rewrite its persisted evidence.
-        with patch.object(frappe.utils, "now", return_value=str(frappe.utils.add_to_date(minutes=-20))):
+        with patch.object(frappe.utils, "now", return_value=str(frappe.utils.add_to_date(minutes=-minutes))):
             self.assertTrue(store.record_booking_attempt(self.uid, self.nonce, self.number,
                                                          "fixture-worker", context=context))
         self.assertTrue(recovery.ready(store.get_session(self.uid)["payload"]["booking_attempt"]))
@@ -214,7 +215,7 @@ class NativeRecovery(unittest.TestCase):
         args = envelope.get("kwargs") or {}
         return bool(envelope.get("site") == SITE and (
             (envelope.get("method") == RECOVER and args.get("line_user_id") == self.uid)
-            or (envelope.get("method") == DELIVER
+            or (envelope.get("method") in (DELIVER, CHECK)
                 and args.get("name") == delivery.name_for(self.uid, self.nonce))))
 
     def execute_queued(self, schedule, target):
@@ -249,6 +250,21 @@ class NativeRecovery(unittest.TestCase):
     def delivery_queued(self, name):
         self.execute_queued(lambda: frappe.enqueue(DELIVER, name=name, queue="long", timeout=600), DELIVER)
 
+    def check_queued(self):
+        """The record path: what reconcile_due enqueues for a due Unverified record (only ours)."""
+        name = delivery.name_for(self.uid, self.nonce)
+        self.execute_queued(lambda: frappe.enqueue(CHECK, name=name, queue="long", timeout=600), CHECK)
+        return name
+
+    def hold_queued(self):
+        """Conversation path: the evidence moves to a durable record without any DMS request."""
+        self.reconcile_queued()
+        self.assertIsNone(store.get_session(self.uid))
+        self.assertFalse(self.dms_calls)
+        record, = self.deliveries()
+        self.assertEqual(record.status, delivery.UNVERIFIED)
+        return record
+
     def deliveries(self):
         return frappe.get_all(delivery.DT, filters={"line_user_id": self.uid},
                               fields=["name", "status", "last_error", "attempt"])
@@ -258,28 +274,36 @@ class NativeRecovery(unittest.TestCase):
                               fields=["status", "endpoint", "actor", "response_body"])
 
     def assert_unknown_retained(self):
-        marker = store.get_session(self.uid)["payload"]["booking_attempt"]
+        """Still unverified: the evidence stays durable, no success, no receipt, never a new order."""
+        record, = self.deliveries()
+        self.assertEqual((record.status, record.booking_id or ""), (delivery.UNVERIFIED, ""))
+        marker = json.loads(record.attempt)
         self.assertEqual(marker["context"]["submitted"], self.submitted)
         self.assertFalse(marker.get("result"))
-        self.assertFalse(self.deliveries())
-        self.assertFalse(self.logs())
-        self.assertFalse(self.http)
+        self.assertEqual([log.status for log in self.logs()], ["manual"])
+        self.assertEqual(len(self.http), 1)  # only the one unknown notice from holding
+        self.assertIsNone(store.get_session(self.uid))
+        return record
 
     def test_unknown_exact_html_readback_completes_native_ledger_and_delivery_once(self):
         self.seed_unknown()
-        self.reconcile_queued()
-        self.assertIsNone(store.get_session(self.uid))
+        self.hold_queued()
+        # A crashed worker sent nothing, so holding tells the operator once, with the number.
+        self.assertEqual(len(self.http), 1)
+        self.assertIn(self.number, str(self.http[0][2]["json"]))
+        self.assertEqual([log.status for log in self.logs()], ["manual"])
+        self.check_queued()
         rows = self.deliveries()
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].status, "Delivered")
         self.assertEqual(json.loads(rows[0].attempt)["result"]["booking_id"], "fixture-order")
         logs = self.logs()
-        self.assertEqual(len(logs), 1)
+        self.assertEqual(len(logs), 1)  # the manual row became the success row
         self.assertEqual((logs[0].status, logs[0].endpoint, logs[0].actor), ("success", self.endpoint, self.user))
         self.assertEqual(json.loads(logs[0].response_body)["booking_id"], "fixture-order")
-        self.assertEqual(len(self.http), 1)
-        self.assertIn(self.number, str(self.http[0][2]["json"]))
-        self.assertEqual(self.http[0][2]["headers"]["X-Line-Retry-Key"], json.loads(rows[0].attempt)["receipt"]["key"])
+        self.assertEqual(len(self.http), 2)
+        self.assertIn(self.number, str(self.http[1][2]["json"]))
+        self.assertEqual(self.http[1][2]["headers"]["X-Line-Retry-Key"], json.loads(rows[0].attempt)["receipt"]["key"])
         self.assertEqual(sum(url.endswith("form.php") for url, _, _ in self.dms_calls), 2)
         io_counts = (len(self.http), len(self.dms_calls))
         self.delivery_queued(rows[0].name)
@@ -289,14 +313,19 @@ class NativeRecovery(unittest.TestCase):
     def test_unknown_critical_mismatch_keeps_evidence_without_success_or_receipt(self):
         self.seed_unknown()
         self.forms["fixture-order"]["txtprice"] = "1001"
-        self.reconcile_queued()
+        self.hold_queued()
+        self.check_queued()
         self.assertTrue(any(url.endswith("form.php") for url, _, _ in self.dms_calls))
-        self.assert_unknown_retained()
+        record = self.assert_unknown_retained()
+        # Checked again later (5, 10, 20, 40 minutes, then hourly), never at once.
+        self.assertGreater(frappe.utils.get_datetime(frappe.db.get_value(delivery.DT, record.name, "next_attempt_at")),
+                           frappe.utils.add_to_date(minutes=9))
 
     def test_unknown_two_exact_candidates_never_selects_first_order(self):
         self.seed_unknown()
         self.forms["other-order"] = {**self.forms["fixture-order"], "idsel": "other-order"}
-        self.reconcile_queued()
+        self.hold_queued()
+        self.check_queued()
         self.assertEqual(sum(url.endswith("form.php") for url, _, _ in self.dms_calls), 2)
         self.assert_unknown_retained()
 
@@ -304,9 +333,35 @@ class NativeRecovery(unittest.TestCase):
         self.seed_unknown()
         frappe.db.set_value("Pearnly ERP Endpoint", self.endpoint, "username", "different-fixture-identity")
         frappe.db.commit()
-        self.reconcile_queued()
+        self.hold_queued()
+        self.check_queued()
         self.assertFalse(self.dms_calls)
-        self.assert_unknown_retained()
+        self.assertEqual(self.assert_unknown_retained().last_error, "endpoint_changed")
+
+    def test_unknown_after_rebind_is_read_back_and_parked_for_review(self):
+        # Old bug: a rebind (even of the same employee) changed the binding revision; recovery
+        # then skipped this order forever and the evidence kept that LINE locked.
+        self.seed_unknown()
+        frappe.db.set_value("Pearnly LINE Binding", {"line_user_id": self.uid}, "status", "active")
+        frappe.db.commit()
+        self.assertNotEqual(current(self.uid)["binding_revision"], self.binding_revision)
+        self.hold_queued()
+        self.assertFalse(self.http)  # nothing for the newly bound identity
+        self.check_queued()
+        record, = self.deliveries()
+        self.assertEqual((record.status, record.last_error), ("Review", "binding_changed"))
+        self.assertEqual(json.loads(record.attempt)["result"]["booking_id"], "fixture-order")
+        self.assertEqual([log.status for log in self.logs()], ["success"])
+        self.assertFalse(self.http)
+
+    def test_unknown_stops_after_23_hours_without_reading_dms(self):
+        self.seed_unknown(minutes=23 * 60 + 1)
+        self.hold_queued()
+        self.check_queued()
+        self.assertFalse(self.dms_calls)
+        record, = self.deliveries()
+        self.assertEqual((record.status, record.last_error), ("Review", "unverified_expired"))
+        self.assertEqual([log.status for log in self.logs()], ["manual"])
 
     def test_attachment_endpoint_identity_change_refuses_download_and_write(self):
         name = self.seed_delivery()

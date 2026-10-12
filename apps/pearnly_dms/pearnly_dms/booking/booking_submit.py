@@ -7,7 +7,10 @@
 1. **只有"明确的单号重复"才允许再写一次。** 其它任何错误（被拒、超时、断连）都不重发 ——
    超时/断连可能发生在**提交之后**，此时回读是安全的、再 POST 不是。
 2. **结果没核出来就不许说成功**：抛 `DmsBookingOutcomeUnknown`（`submitted=True`、
-   `retry_safe=False`），由调用方保留草稿并禁止新的 POST。
+   `retry_safe=False`），由调用方转存提交证据、禁止新的 POST。
+3. **DMS 明确拒收（非重号的 `err::`）也先只读回读一轮**再下结论：核实就是本单 → 按成功；
+   搜不到 → 明确拒收（`response_body.rejected`，调用方把原预览卡还给操作员，再确认是一次
+   全新的提交）；对不上、多张或读不到 → 按结果未知。重号顺延用尽也算明确拒收。
 
 回读全程只读（列表搜索 + 详情表单），**绝不重发 `drfcbc/new.php`**。
 
@@ -63,7 +66,7 @@ _MAX_SEARCH_PAGES = 2
 
 
 class DmsBookingOutcomeUnknown(DmsClientError):
-    """已经**写过一次**、但结果没核出来。调用方必须保留草稿并禁止再次 POST。"""
+    """已经**写过一次**、但结果没核出来。调用方必须保留提交证据并禁止再次 POST。"""
 
     def __init__(
         self,
@@ -285,6 +288,38 @@ def verify_created_booking(
     return None
 
 
+def _rejected(docno: str, body: str) -> DmsClientError:
+    """DMS 明确拒收、这张单确实没建：带上 `rejected` 与单号（写法同客户写入的拒收出口）。"""
+    exc = DmsClientError(f"booking create rejected: {body[:300]!r}", "ERR_DMS_IMPORT")
+    exc.response_body = {"submitted": False, "rejected": True, "booking_no": docno}
+    return exc
+
+
+def _confirm_rejected(client, docno: str, submitted: dict, status, body: str) -> str:
+    """非重号 `err::` 之后，同一会话只读回读**一轮**（`showdata` + `form.php`，绝不碰 `new.php`）。
+
+    拒收之后允许操作员改了再确认 —— 那是一次新的 POST，所以"没建单"不能只凭 `err::`：
+    核实就是本单 → 返回单据 id（按成功）；搜不到 → 抛明确拒收；读到对不上的单、多张，
+    或读取本身出错 → 抛结果未知（宁可当未知，也不给出可能重复建单的路）。
+    """
+    try:
+        booking_id, stage, fields, warnings, pages = _readback_once(client, docno, submitted)
+        source = "sales"
+    except Exception as exc:  # 只读也会失败：读不到不等于没有
+        logger.warning("[dms] 拒单后的回读失败：%s", type(exc).__name__)
+        booking_id, stage, fields, warnings, pages, source = None, "", (), (), 0, "sales_unreadable"
+    if booking_id:
+        _log_readback(STAGE_VERIFIED, source, pages, 1, (), warnings)
+        return booking_id
+    if stage == STAGE_SEARCH_EMPTY:
+        logger.info("[dms] DMS 拒收订车单，回读确认没有这张单")
+        raise _rejected(docno, body)
+    _log_readback(stage or STAGE_SEARCH_EMPTY, source, pages, 1, fields, warnings)
+    raise DmsBookingOutcomeUnknown(
+        docno, http_status=status, body=body, stage=stage, source=source, readback_attempts=1
+    )
+
+
 def submit_booking(
     client,
     base: dict,
@@ -321,6 +356,7 @@ def submit_booking(
         build_readback = build_write
 
     last_body = ""
+    docno = state.docno
     for _ in range(dms_docno.BOOKING_DOCNO_MAX_TRIES):
         docno = state.docno
         data = build_write(state)
@@ -347,7 +383,8 @@ def submit_booking(
             if dms_docno.is_duplicate_docno_error(last_body):
                 state = state.with_docno(dms_docno.bump_docno(docno))
                 continue
-            raise DmsClientError(f"booking create rejected: {last_body[:300]!r}", "ERR_DMS_IMPORT")
+            # 非重号拒收：只读回读一轮再定是"真没建"、"其实建了"还是"不知道"。
+            return _confirm_rejected(client, docno, readback_input, status, last_body), docno
         readback = {}
         booking_id = verify_created_booking(client, docno, readback_input, stage_out=readback)
         if booking_id:
@@ -360,4 +397,5 @@ def submit_booking(
             source=str(readback.get("vendor") or ""),
             readback_attempts=int(readback.get("attempts") or 0),
         )
-    raise DmsClientError(f"booking create rejected: {last_body[:300]!r}", "ERR_DMS_IMPORT")
+    # 重号顺延用尽：每个号都被 DMS 以"号重复"拒收，说明这些号都不是我们的单 —— 明确拒收。
+    raise _rejected(docno, last_body)

@@ -83,10 +83,14 @@ try:
         frappe.db.set_value(store.DT, uid, 'payload', json.dumps(session['payload']))
         frappe.db.commit()
         with patch.object(delivery.line, 'push', return_value=False) as send:
+            # Conversation path holds the evidence (no DMS read); the record path reads it back.
             recovery.reconcile(uid)
+            check('unknown evidence held, conversation freed', store.get_session(uid) is None and
+                  frappe.db.get_value(delivery.DT, delivery.name_for(uid, nonce), 'status') == delivery.UNVERIFIED)
+            recovery.reconcile_record(delivery.name_for(uid, nonce))
             check('existing external order recovered without a new submission', json.loads(frappe.get_doc(delivery.DT, delivery.name_for(uid, nonce)).attempt)['result'].get('ok'))
             check('receipt failure preserves actual external ID', json.loads(frappe.get_doc(delivery.DT, delivery.name_for(uid, nonce)).attempt)['result']['booking_id'] == previous['booking_id'])
-            check('receipt was attempted', send.call_count == 1)
+            check('unknown notice and receipt were attempted once each', send.call_count == 2)
         check('success ledger not duplicated', frappe.db.count('Pearnly Push Log', {
             'actor': binding['user_id'], 'business_key': number, 'status': 'success'}) == 1)
     else:

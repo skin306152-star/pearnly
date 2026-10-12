@@ -7,7 +7,9 @@
 · 单号等价要吃"前缀 + 数字主体"两格（只比一格必得假阴性）；
 · 判据分三层：身份 → 关键 → 展示镜像（展示差异**不能**推翻结论）；
 · `on_attempt` 必须在**跨过写边界之前**调用（POST 后崩溃不能变成第二张单）；
-· **只有明确的单号重复**才允许重写；结果不明 → `OUTCOME_UNKNOWN` 且 `retry_safe=False`。
+· **只有明确的单号重复**才允许重写；结果不明 → `OUTCOME_UNKNOWN` 且 `retry_safe=False`；
+· DMS 明确拒收（非重号 `err::`）先只读回读一轮：搜不到才是"明确拒收"（带 `rejected` 与单号），
+  核实是本单按成功，对不上 / 读不到按结果不明；重号顺延用尽也是明确拒收。都只 POST 一次。
 
 用法（容器里）：
     /home/frappe/frappe-bench/env/bin/python /tmp/dmscheck/verify_booking_readback.py
@@ -213,13 +215,79 @@ def main():
     bid, docno = submit.submit_booking(cl, IDENT, "BK2606000001")
     check("明确重复号 → 顺号重写（BK2606000002）", docno == "BK2606000002", (seen, docno))
 
-    # 5.4 非重复的 err:: → 直接报错，不重写
+    # 5.4 非重复的 err:: → 只读回读一轮；DMS 里确实没有这张单 → 明确拒收，不重写
+    # （旧行为：不回读、直接 ERR_DMS_IMPORT 且不带任何"已拒收"标识，调用方只能把 LINE 锁住）
+    def posts(t):
+        return sum(1 for m, u, _, _ in t.calls if "drfcbc/new.php" in u)
+
+    def writes(t):
+        return [u for m, u, _, _ in t.calls if "new.php" in u or "edit" in u or "del" in u]
+
+    set_form()
+    cl, t = make_client(lambda d: "err::something else", showdata="")
+    (ok, detail), exc = raises(lambda: submit.submit_booking(cl, IDENT, "BK1"))
+    check("非重复的 err:: + 回读搜不到 → 明确拒收 ERR_DMS_IMPORT（不重发）",
+          ok and "ERR_DMS_IMPORT" in detail
+          and getattr(exc, "response_body", None) == {"submitted": False, "rejected": True, "booking_no": "BK1"},
+          (detail, getattr(exc, "response_body", None)))
+    check("非重复错误只 POST 一次", posts(t) == 1)
+    check("拒收后的回读只读（列表 + 表单），没有别的写入",
+          writes(t) == [u for m, u, _, _ in t.calls if "drfcbc/new.php" in u]
+          and any("showdata.php" in u for m, u, _, _ in t.calls), [u for m, u, _, _ in t.calls])
+
+    # 5.4b err:: 但回读核实就是本单 → 按成功（DMS 说错了也不能报失败让人再建一张）
     set_form()
     cl, t = make_client(lambda d: "err::something else")
-    (ok, detail), _ = raises(lambda: submit.submit_booking(cl, IDENT, "BK1"))
-    check("非重复的 err:: → 直接报错，不重写（不重发）", ok and "ERR_DMS_IMPORT" in detail, detail)
-    check("非重复错误只 POST 一次",
-          sum(1 for m, u, _, _ in t.calls if "drfcbc/new.php" in u) == 1)
+    (ok, detail), got = raises(lambda: submit.submit_booking(cl, IDENT, "BK1"))
+    check("err:: + 回读核实本单 → 按成功返回 (id, 单号)", not ok and got == ("R1", "BK1"), (detail, got))
+    check("核实成功也只 POST 一次", posts(t) == 1)
+
+    # 5.4c err:: 但回读读到对不上的同号单 → 结果未知（不给能重复建单的路）
+    set_form(txtprice="999")
+    cl, t = make_client(lambda d: "err::something else")
+    exc = None
+    try:
+        submit.submit_booking(cl, {**IDENT, "txtprice": "1000"}, "BK1")
+    except submit.DmsBookingOutcomeUnknown as e:
+        exc = e
+    check("err:: + 回读对不上 → 结果未知，不算拒收",
+          exc is not None and not exc.response_body.get("rejected")
+          and exc.response_body.get("readback_stage") == rb.STAGE_CRITICAL_MISMATCH,
+          exc.response_body if exc else None)
+    check("对不上也只 POST 一次", posts(t) == 1)
+
+    # 5.4d err:: 但回读本身出错 → 结果未知（读不到不等于没有）
+    set_form()
+
+    def broken(d):
+        raise TimeoutError("readback dropped")
+
+    t = FakeTransport({"drfcbc/new.php": lambda d: "err::something else",
+                       "drfcbc/component/showdata.php": broken,
+                       "drfcbc/view.php": lambda d: ""})
+    cl = DmsClient(t, "https://x/dms/")
+    exc = None
+    try:
+        submit.submit_booking(cl, IDENT, "BK1")
+    except submit.DmsBookingOutcomeUnknown as e:
+        exc = e
+    check("err:: + 回读出错 → 结果未知（submitted=True、不可重发）",
+          exc is not None and exc.response_body.get("submitted") is True
+          and exc.response_body.get("readback_source") == "sales_unreadable",
+          exc.response_body if exc else None)
+    check("回读出错也只 POST 一次", posts(t) == 1)
+
+    # 5.4e 重号顺延用尽 → 明确拒收（每个号都被说"重复"，都不是我们的单），每个号只 POST 一次
+    from pearnly_dms.client import docno as dms_docno
+    tried = []
+    cl, t = make_client(lambda d: (tried.append(d.get("txtdocno")), 'err::"เลขที่ใบจอง" ซ้ำ')[1], showdata="")
+    (ok, detail), exc = raises(lambda: submit.submit_booking(cl, IDENT, "BK2606000001"))
+    body = getattr(exc, "response_body", None) or {}
+    check("重号顺延用尽 → 明确拒收，单号是最后试的那个",
+          ok and "ERR_DMS_IMPORT" in detail and body.get("rejected") is True
+          and body.get("booking_no") == tried[-1], (detail, body, tried[-1:]))
+    check("顺延的每个号只 POST 一次",
+          len(tried) == dms_docno.BOOKING_DOCNO_MAX_TRIES == len(set(tried)) == posts(t), (len(tried), posts(t)))
 
     # 5.5 传输异常（可能已提交）→ 回读；回读不出来 → OUTCOME_UNKNOWN 且不许重发
     def boom(d):

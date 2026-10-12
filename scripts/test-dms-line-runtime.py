@@ -82,7 +82,9 @@ class RecoveryContract(unittest.TestCase):
         cache = Mock()
         rows = [frappe._dict(name=f'{i:03}', line_user_id=f'U{i}', payload='{}') for i in range(50)]
         with patch.object(frappe, 'cache', return_value=cache), \
-             patch.object(frappe, 'db', new=Mock()) as db, patch.object(recovery, 'request') as dispatch:
+             patch.object(frappe, 'db', new=Mock()) as db, patch.object(recovery, 'request') as dispatch, \
+             patch.object(frappe, 'get_all', return_value=[]) as held, \
+             patch.object(frappe.utils, 'now', return_value='2026-10-13 09:00:00.000000'):
             cache.get_value.return_value = ''
             db.sql.return_value = rows
             dispatch.side_effect = RuntimeError('one corrupt/unqueuable attempt must not end scan')
@@ -95,6 +97,9 @@ class RecoveryContract(unittest.TestCase):
             recovery.reconcile_due()
             self.assertEqual(db.sql.call_args.args[1], ('049',))
             self.assertEqual(cache.set_value.call_args.args[1], '')
+            # Held unknown results are checked from their own durable records, due ones only.
+            self.assertEqual(held.call_args.args[0], 'DMS Booking Delivery')
+            self.assertEqual(held.call_args.kwargs['filters']['status'], 'Unverified')
 
     def test_exact_readback_contract_is_recorded_before_external_post(self):
         from pearnly_dms.booking import booking_submit
@@ -1172,9 +1177,11 @@ class BookingService(unittest.TestCase):
             name = booking_ledger.log_booking(endpoint={"id": "EP-lab"}, payload=self.payload,
                 actor="operator-local", result={"ok": True, "booking_id": "external-lab-1", "booking_no": "LAB-1"})
         self.assertEqual(name, "PL-existing")
-        self.assertEqual(get.call_args.args[1], {"status": "success", "business_key": "LAB-1",
+        # One order, one row: the "manual" row an unknown result left is the one turned into success.
+        self.assertEqual(get.call_args.args[1], {"status": ["in", ["success", "manual"]], "business_key": "LAB-1",
             "endpoint": "EP-lab", "actor": "operator-local"})
         new.assert_not_called()
+        self.assertEqual(frappe.db.set_value.call_args.args[2]["status"], "success")
 
 
 class OCRDispatcherRecovery(unittest.TestCase):

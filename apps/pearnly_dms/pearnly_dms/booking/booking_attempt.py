@@ -44,6 +44,21 @@ def unknown_result(booking_no) -> Dict[str, Any]:
     }
 
 
+def as_unknown(result, booking_no) -> Dict[str, Any]:
+    """提交过（本确认号的登记还在）却没有成功、也不是明确拒收 → 一律按"结果未知"。
+
+    被顶下线（`ERR_DMS_CONCURRENT_LOGIN`）、顺号重新登记失败这些码本身看不出单有没有建，
+    按它们分流会给出重试（重复建单）或把整个 LINE 锁住。原来的码留在 `cause` 里备查。
+    """
+    result = result or {}
+    unknown = unknown_result(booking_no)
+    body = {**(result.get("response_body") or {}), **unknown["response_body"],
+            "booking_no": unknown["booking_no"]}
+    if result.get("error_code") and result.get("error_code") != UNKNOWN:
+        body["cause"] = result["error_code"]
+    return {**result, **unknown, "response_body": body}
+
+
 def pending(tenant, line_user_id, payload) -> Optional[Dict[str, Any]]:
     """这张草稿**已经登记过且号一样** → 直接回"结果未知"，不再提交一次。
 
@@ -110,7 +125,9 @@ def clear_completed(tenant, line_user_id, payload) -> bool:
 def message(result) -> str:
     """"结果未知"要说给用户听的那句话；有单号就把单号带上。"""
     text = dms_errors.friendly(UNKNOWN)[i18n.line_lang()]
-    number = str((result or {}).get("booking_no") or "")
+    # 失败结果（`err()`）顶层不带单号，单号在 `response_body` 里：取不到顶层就从那里取。
+    number = str((result or {}).get("booking_no")
+                 or ((result or {}).get("response_body") or {}).get("booking_no") or "")
     # 单号标签也按收件人的语言取（原来写死泰文，2026-10-08 全部改走语言包）
     return f"{text}\n{i18n.t('dms.card.TXT_BOOKING_REF', i18n.line_lang(), booking_no=number)}" if number else text
 

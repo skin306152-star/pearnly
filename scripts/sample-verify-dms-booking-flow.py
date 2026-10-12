@@ -203,6 +203,27 @@ def main():
     flow._execute_booking(binding, uid8, {"nonce": n8, "qa": QA})
     ck("结果未知 → 只说结果未知（**不给重试卡**，重放未知写入是双单）",
        pushed and not sent_structured and "BK900" in pushed[-1], (pushed[-1:], len(sent_structured)))
+    held = frappe.get_doc(delivery.DT, delivery.name_for(uid8, n8))
+    ck("结果未知 → 证据转存成待核对记录、会话清掉（LINE 立刻可用，不再整个锁住）",
+       store.get_session(uid8) is None and held.status == delivery.UNVERIFIED and held.booking_no == "BK900"
+       and not held.booking_id, (store.get_session(uid8), held.status))
+
+    # 同一客户在核对期间再下单：不碰 DMS，预览卡带原单号还回去
+    book_calls.clear()
+    sent_structured.clear()
+    uid8b = "verify-flow-" + secrets.token_hex(4)
+    store.clear_session(uid8b)
+    n8b = secrets.token_hex(8)
+    store.set_session(uid8b, "booking_review", {"nonce": n8b, "qa": QA})
+    store.consume_nonce(uid8b, "booking_review", n8b)
+    flow._execute_booking(binding, uid8b, {"nonce": n8b, "qa": QA})
+    rearmed8b = (store.get_session(uid8b) or {}).get("payload") or {}
+    ck("同一客户还有结果未知的单 → 不建单，预览卡带原单号还回去（新确认号）",
+       not book_calls and len(sent_structured) == 1 and "BK900" in str(sent_structured[0])
+       and rearmed8b.get("nonce") not in (None, n8b), (len(book_calls), len(sent_structured)))
+    # 后面的用例用同一位客户：把这条测试记录收掉，不让它继续拦
+    frappe.delete_doc(delivery.DT, held.name, ignore_permissions=True)
+    frappe.db.commit()
 
     pushed.clear()
     sent_structured.clear()
@@ -317,7 +338,7 @@ def main():
        (store.get_session(uid13) or {}).get("state") == "booking_qa" and len(calls) == 1,
        (store.get_session(uid13) or {}).get("state"), )
 
-    for leftover in (uid, uid2, uid3, uid4, uid5, uid6, uid7, uid8, uid9, uid10, uid11, uid12, uid13):
+    for leftover in (uid, uid2, uid3, uid4, uid5, uid6, uid7, uid8, uid8b, uid9, uid10, uid11, uid12, uid13):
         marker = ((store.get_session(leftover) or {}).get("payload") or {}).get("booking_attempt") or {}
         store.clear_session(leftover, completed_booking_nonce=marker.get("nonce", ""))
         for delivery_name in frappe.get_all(flow.recovery.delivery.DT, filters={"line_user_id": leftover}, pluck="name"):

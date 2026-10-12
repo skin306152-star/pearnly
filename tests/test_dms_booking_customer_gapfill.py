@@ -516,7 +516,8 @@ class Routing(unittest.TestCase):
         stub("pearnly_dms.booking.booking_attempt", UNKNOWN="ERR_DMS_BOOKING_UNKNOWN",
              pending=lambda *a: None, recorder=lambda *a, **kw: None)
         stub("pearnly_dms.booking.booking_ledger", log_booking=lambda **kw: None)
-        stub("pearnly_dms.booking.recovery", endpoint_fingerprint=lambda endpoint: "fp")
+        stub("pearnly_dms.booking.recovery", endpoint_fingerprint=lambda endpoint: "fp",
+             unverified_booking_no=lambda endpoint, qa: "")
         stub("pearnly_dms.booking.attachments", download=lambda qa: ([], []))
         stub("pearnly_dms.line.out", push_text=lambda uid, text: self.pushed.append(text),
              reply_text=Mock(), enqueue=Mock(), send=lambda uid, msg, token=None: self.sent.append(msg),

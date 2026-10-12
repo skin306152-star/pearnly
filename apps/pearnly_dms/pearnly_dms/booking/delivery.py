@@ -3,6 +3,11 @@
 Detaching this evidence from the editable conversation allows a new draft even
 when LINE is unavailable. Expired/changed-identity receipts remain in Review,
 never silently marked Delivered and never retried with a fresh key.
+
+A submission whose result is still unknown is detached the same way, as an
+``Unverified`` record with no ``booking_id`` (``hold``): the conversation is free
+at once and ``recovery.reconcile_record`` keeps reading it back. Only ``retain``
+turns it into ``Pending`` (in place, same record) once the order is verified.
 """
 import hashlib
 import json
@@ -22,6 +27,10 @@ from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
 
 DT = "DMS Booking Delivery"
 WINDOW_SECONDS = 23 * 3600
+#: 结果未知、正在后台核对的提交证据（`booking_id` 为空；`schedule_due` 只取 Pending，不碰它）。
+UNVERIFIED = "Unverified"
+#: 第一次后台核对：登记后 5 分钟（执行体里已经核过一轮；崩溃后才转存的，下一轮扫描就核）。
+FIRST_CHECK_SECONDS = 300
 logger = logging.getLogger(__name__)
 
 def _state_store():
@@ -48,11 +57,41 @@ def name_for(line_user_id, nonce):
     return hashlib.sha256(f"{line_user_id}:{nonce}".encode()).hexdigest()
 
 
+def hold(line_user_id, marker):
+    """结果未知：把会话里的提交证据原样转存成 `Unverified` 记录并**先提交**。
+
+    返回 `(记录名, 是否本次新建)`。记录名就是 `name_for(uid, nonce)`，重复调用只有一条；
+    调用方必须在这之后才清会话（先落盘、后清会话，与 `recovery.finish` 同一顺序）。
+    """
+    name = name_for(line_user_id, marker["nonce"])
+    if frappe.db.exists(DT, name):
+        if frappe.db.get_value(DT, name, "booking_no") != marker["booking_no"]:
+            raise ValueError("Unverified booking evidence conflicts with delivery record")
+        return name, False
+    first = frappe.utils.add_to_date(marker.get("recorded_at") or frappe.utils.now(),
+                                     seconds=FIRST_CHECK_SECONDS)
+    doc = frappe.get_doc({"doctype": DT, "name": name, "line_user_id": line_user_id,
+        "nonce": marker["nonce"], "booking_no": marker["booking_no"], "booking_id": "",
+        "status": UNVERIFIED, "attempt": json.dumps(marker, ensure_ascii=False),
+        "next_attempt_at": first})
+    doc.insert(ignore_permissions=True, set_name=name)
+    frappe.db.commit()  # Must survive before the conversation may be cleared.
+    return name, True
+
+
 def retain(line_user_id, marker):
     name = name_for(line_user_id, marker["nonce"])
     if frappe.db.exists(DT, name):
         saved = frappe.get_doc(DT, name)
-        if saved.booking_no != marker["booking_no"] or saved.booking_id != str(marker["result"]["booking_id"]):
+        booking_id = str(marker["result"]["booking_id"])
+        if saved.booking_no == marker["booking_no"] and saved.status == UNVERIFIED and not saved.booking_id:
+            # 后台核实了那张结果未知的单：就地补上单据 id、转待送达（一张单只有一条记录）。
+            frappe.db.set_value(DT, name, {"booking_id": booking_id, "status": "Pending",
+                "attempt": json.dumps(marker, ensure_ascii=False), "last_error": "",
+                "next_attempt_at": frappe.utils.now()})
+            frappe.db.commit()
+            return name
+        if saved.booking_no != marker["booking_no"] or saved.booking_id != booking_id:
             raise ValueError("Completed booking evidence conflicts with delivery record")
         return name
     doc = frappe.get_doc({"doctype": DT, "name": name, "line_user_id": line_user_id,
