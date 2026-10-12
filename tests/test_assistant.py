@@ -528,6 +528,64 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(contracts.title_from(note.strip()), "r.jpg")
         self.assertEqual(contracts.title_from("a   b"), "a b")
 
+    def test_long_first_messages_get_a_short_title_like_the_claude_apps(self):
+        # 2026-10-12 用户：侧栏显示的是首条消息全文，要像 Claude 那样显示简短标题
+        note = "\n\n[Attached file, mounted read-only in the sandbox:\n- r.jpg → /mnt/session/uploads/file_1/r.jpg]"
+        self.assertEqual(contracts.summary_source("你好"), "")  # 短的原文就是标题，不多花一次调用
+        self.assertEqual(contracts.summary_source(note.strip()), "")  # 只有附件：用文件名
+        long = "帮我把这个月所有供应商的发票   汇总成一张表，按税号分组"
+        self.assertEqual(contracts.summary_source(long + note), " ".join(long.split()))
+        self.assertLessEqual(len(contracts.summary_source("x" * 5000)), contracts.TITLE_SOURCE_MAX)
+        for raw, want in (("「供应商发票汇总」", "供应商发票汇总"), ('"Supplier invoice summary."', "Supplier invoice summary"),
+                          ("标题：本月发票汇总。\n其余说明", "本月发票汇总"), ("**Title: Bank reconciliation**", "Bank reconciliation"),
+                          ("", ""), (None, ""), ("x" * 200, "")):
+            self.assertEqual(contracts.short_title(raw), want, raw)
+
+    def test_the_short_title_is_made_in_the_background_and_never_overrides_a_rename(self):
+        sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("files"))
+        sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        db, pushed = {"row1": "原文标题"}, []
+        fake_db = types.SimpleNamespace(get_value=lambda dt, name, field: db.get(name),
+                                        set_value=lambda dt, name, field, value, update_modified=True: db.__setitem__(name, value),
+                                        commit=lambda: None)
+        calls = []
+        adapter = types.SimpleNamespace(summarize=lambda text, model: calls.append((text, model)) or "「发票汇总」")
+        with mock.patch.object(sessions.frappe, "db", fake_db, create=True), \
+                mock.patch.object(sessions.frappe, "publish_realtime", lambda event, data, user=None, after_commit=False:
+                                  pushed.append((event, data, user)), create=True), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True), \
+                mock.patch.object(sessions.engine, "adapter", return_value=adapter):
+            _configure()
+            sessions.retitle("row1", "sesn_1", "帮我把发票汇总", "原文标题", "a@example.com")
+            self.assertEqual(db["row1"], "发票汇总")
+            self.assertEqual(calls, [("帮我把发票汇总", engines.get(CLAUDE).title_model)])
+            self.assertEqual(pushed[-1], (sessions.TITLE_EVENT, {"session_id": "sesn_1", "title": "发票汇总"}, "a@example.com"))
+            db["row1"] = "我自己改的名"  # 概括期间用户改了名：不覆盖，推回用户的名字
+            sessions.retitle("row1", "sesn_1", "帮我把发票汇总", "原文标题", "a@example.com")
+            self.assertEqual(db["row1"], "我自己改的名")
+            self.assertEqual(pushed[-1][1]["title"], "我自己改的名")
+            adapter.summarize = mock.Mock(side_effect=RuntimeError("timeout"))  # 模型出错：保留原文，侧栏照样收到标题
+            db["row1"] = "原文标题"
+            sessions.retitle("row1", "sesn_1", "帮我把发票汇总", "原文标题", "a@example.com")
+            self.assertEqual((db["row1"], pushed[-1][1]["title"]), ("原文标题", "原文标题"))
+        send = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("def send(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(send.index("api.post("), send.index("frappe.enqueue("))  # 不拖慢发送
+        self.assertIn("enqueue_after_commit=True", send)
+
+    def test_title_summary_uses_the_registered_cheap_model(self):
+        for e in engines.ENGINES:
+            self.assertIn(e.title_model, ("",) + e.models, e.code)
+        created = []
+        api = types.SimpleNamespace(messages=types.SimpleNamespace(create=lambda **kw: created.append(kw) or types.SimpleNamespace(
+            content=[types.SimpleNamespace(type="text", text="Invoice summary")])))
+        api.with_options = lambda **kw: api
+        sdk.api = api
+        adapter = claude.Adapter(KEY, "claude-opus-5-5")
+        self.assertEqual(adapter.summarize("Please summarise all invoices", "claude-haiku-5-5"), "Invoice summary")
+        self.assertEqual(created[0]["model"], "claude-haiku-5-5")
+        self.assertEqual(created[0]["system"], engines.base.TITLE_INSTRUCTION)
+        self.assertIn("<message>\nPlease summarise all invoices\n</message>", created[0]["messages"][0]["content"])
+
     def test_new_turns_and_uploads_go_to_the_current_segment(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         send = source.split("def send(", 1)[1].split("\ndef ", 1)[0]

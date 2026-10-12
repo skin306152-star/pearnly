@@ -8,8 +8,10 @@
 //   rename      → sessions.update title
 //   archive     → sessions.archive
 //   delete      → sessions.delete
-//   generateTitle → the first user message without the attachment note
-//                   (the server writes the same title when the message is sent)
+//   generateTitle → the short title the server pushes after the first message
+//                   (a cheap model summarises long first messages, like the
+//                   Claude apps); falls back to the stored title, then to the
+//                   first user message without the attachment note
 
 import type { RemoteThreadListAdapter } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -23,9 +25,12 @@ import {
   starSession,
 } from "./api";
 import { type SessionSummary, splitAttachmentNote } from "./events";
+import { listen, pushedTitle } from "./realtime";
 import { dropSessionController } from "./session-controller";
 
 const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
+// 等短标题最多这么久（模型概括通常一两秒）；等不到就读一次会话表，再不行用原文。
+const TITLE_WAIT_MS = 12_000;
 
 const toThreadMetadata = (s: SessionSummary) => ({
   status: (s.archived_at ? "archived" : "regular") as "archived" | "regular",
@@ -49,6 +54,7 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     // Called once, on the first message (or first attachment) of a new
     // chat. The returned id becomes both remoteId and externalId, so
     // every later call keys straight off the session id.
+    listen();
     const session = await createSession();
     return { remoteId: session.id, externalId: session.id };
   },
@@ -82,13 +88,14 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
   },
 
   async generateTitle(remoteId, messages) {
-    // 标题取用户第一句原文（不含给智能体看的附件说明，同服务端 contracts.title_from），不另调模型。
-    // 服务端在发消息时写同样的标题；这里不等它，免得读得太早拿到空标题、侧栏一直是「新对话」。
-    const first = messages.find((m) => m.role === "user");
-    const text = (first?.content ?? []).map((part) => (part.type === "text" ? part.text : "")).join(" ");
-    const { text: body, files } = splitAttachmentNote(text);
-    let title = (body.replace(/\s+/g, " ").trim() || files[0]?.filename || "").slice(0, TITLE_MAX);
-    if (!title) title = (await getSession(remoteId)).title || "";
+    // 侧栏显示简短标题（同 Claude）：服务端把较长的首条消息概括成几个词后推过来；在那之前侧栏显示「新对话」。
+    let title = (await pushedTitle(remoteId, TITLE_WAIT_MS)) || (await getSession(remoteId).catch(() => null))?.title || "";
+    if (!title) {
+      const first = messages.find((m) => m.role === "user");
+      const text = (first?.content ?? []).map((part) => (part.type === "text" ? part.text : "")).join(" ");
+      const { text: body, files } = splitAttachmentNote(text);
+      title = (body.replace(/\s+/g, " ").trim() || files[0]?.filename || "").slice(0, TITLE_MAX);
+    }
     return createAssistantStream((controller) => {
       controller.appendText(title || "New chat");
       controller.close();

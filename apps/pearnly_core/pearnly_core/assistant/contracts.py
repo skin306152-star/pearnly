@@ -9,6 +9,10 @@ import re
 # 会话、事件、文件编号：引擎生成的不透明编号。
 OPAQUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
 TITLE_MAX = 60
+# 首条消息比这长才概括成短标题（`summary_source`）；短的原文本身就是标题，不多花一次模型调用。
+TITLE_SHORT = 12
+# 概括时只给模型看开头这么多字：标题只看开头就够，输入短、花费小。
+TITLE_SOURCE_MAX = 1_000
 TEXT_MAX = 20_000
 DENY_MAX = 2_000
 TOOL_RESULT_MAX = 50_000
@@ -60,6 +64,27 @@ def title_from(text) -> str:
         first = re.match(r"- (.+) → ", note.group(1))
         text = body if body.strip() else (first.group(1) if first else "")
     return " ".join(text.split())[:TITLE_MAX]
+
+
+def summary_source(text) -> str:
+    """要概括成短标题的原文（去掉附件说明、合并空白）；原文已经够短或只有附件时回空串，直接用 `title_from`。"""
+    text = str(text or "")
+    note = ATTACHMENT_NOTE.search(text)
+    body = " ".join((text[:note.start()] if note else text).split())
+    return body[:TITLE_SOURCE_MAX] if len(body) > TITLE_SHORT else ""
+
+
+# 模型给的标题常带引号、书名号、句末标点或「标题：」前缀，这里统一去掉。
+TITLE_WRAP = re.compile(r"^[\s\"'“”‘’「」『』《》*#`]+|[\s\"'“”‘’「」『』《》*#`。．.!！?？,，、;；:：]+$")
+TITLE_LABEL = re.compile(r"^(?:title|标题|題名|ชื่อเรื่อง)\s*[:：]\s*", re.I)
+
+
+def short_title(value) -> str:
+    """模型概括出的标题 → 侧栏标题：只取第一行，去掉包装与前缀；不像标题（空的、过长的）回空串，由调用方保留原标题。"""
+    line = next((part for part in str(value or "").splitlines() if part.strip()), "")
+    line = TITLE_WRAP.sub("", TITLE_LABEL.sub("", TITLE_WRAP.sub("", line)))
+    line = " ".join(line.split())
+    return line if 0 < len(line) <= TITLE_MAX else ""
 
 
 def confirmations(items) -> list[dict]:

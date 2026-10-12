@@ -22,6 +22,9 @@ from pearnly_core.assistant import config, context, contracts, engine, engines, 
 
 SESSION = context.SESSION
 LIST_LIMIT = 100
+# 短标题生成后推给会话主人（侧栏等着它，见对话页 session-list-adapter）
+TITLE_EVENT = "pearnly_assistant_title"
+TITLE_JOB_TIMEOUT = 60
 FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry"]
 
@@ -208,8 +211,38 @@ def send(session_id, text) -> None:
     if row.get("pending_carry"):
         frappe.db.set_value(SESSION, row.name, "pending_carry", "")
     if not row.title:
-        # 首条消息当标题：只写本站（会话列表读本站表）；不再多一次远端请求拖慢发送。
-        frappe.db.set_value(SESSION, row.name, "title", contracts.title_from(text))
+        # 首条消息原文先当标题（只写本站，会话列表读本站表），不拖慢发送；长的再在后台概括成短标题（`retitle`）。
+        title = contracts.title_from(text)
+        frappe.db.set_value(SESSION, row.name, "title", title)
+        source = contracts.summary_source(text)
+        if source:
+            frappe.enqueue("pearnly_core.assistant.sessions.retitle", queue="short", timeout=TITLE_JOB_TIMEOUT,
+                           enqueue_after_commit=True, name=row.name, conversation=row.session_id, source=source,
+                           title=title, user=frappe.session.user)
+        else:
+            _announce_title(row.session_id, title, frappe.session.user, after_commit=True)
+
+
+def retitle(name, conversation, source, title, user) -> None:
+    """后台任务：用引擎目录登记的便宜模型把首条消息概括成短标题（同各家对话应用的侧栏）。用户在这期间改过名就不动；
+    概括不出来保留原文。无论成败都把当前标题推给会话主人，侧栏不用干等。"""
+    short = ""
+    try:
+        short = contracts.short_title(engine.adapter().summarize(source, config.settings().engine.title_model))
+    except Exception:
+        frappe.log_error(title="Assistant title summary failed")
+    current = frappe.db.get_value(SESSION, name, "title")
+    if short and current == title:
+        frappe.db.set_value(SESSION, name, "title", short, update_modified=False)
+        frappe.db.commit()
+        current = short
+    if current is not None:
+        _announce_title(conversation, current, user)
+
+
+def _announce_title(conversation, title, user, after_commit=False) -> None:
+    frappe.publish_realtime(TITLE_EVENT, {"session_id": conversation, "title": title}, user=user,
+                            after_commit=after_commit)
 
 
 def confirm(session_id, confirmations) -> int:

@@ -23,6 +23,7 @@ class Engine:
     models: tuple[str, ...]  # 后台可选的模型（经该厂商接口实测可用），第一个是默认
     package: str  # 运行镜像里装的 SDK（锁定版本，见 infrastructure/images/frappe.Dockerfile）
     tiers: tuple[tuple[str, int], ...] = ()  # (模型, 单次请求输入超过多少 token 就按更高价计费)
+    title_model: str = ""  # 概括侧栏短标题用的最便宜模型（须在 models 里）；留空就不概括、用首条消息原文
 
 
 ENGINES = (
@@ -34,6 +35,8 @@ ENGINES = (
            # 官方价格页 2026-10-10：Haiku 5.5 单次请求输入（含缓存读写）超过 10 万 token，整次按 5 倍价计费；
            # 其余几个在 1M 上下文内同价。引擎自带的压缩要到接近 1M 才触发，所以分档由站点自己控制。
            tiers=(("claude-haiku-5-5", 100_000),),
+           # 每个新对话一次：输入一二百 token、输出十来个 token，用最便宜的一档。
+           title_model="claude-haiku-5-5",
            package="anthropic==1.8.0"),
 )
 

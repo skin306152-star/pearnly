@@ -123,7 +123,7 @@ function useSessionThreadRuntime() {
         clearPending();
       }
       // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；
-      // 服务端在第一条消息时已定好标题，这里直接取回，侧栏立刻显示。
+      // 这里自己取：服务端把首条消息概括成短标题后推过来（短消息原文即标题，随发送一起推），侧栏一收到就显示。
       if (isFirst) void aui.threadListItem().generateTitle();
     },
 
