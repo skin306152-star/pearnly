@@ -562,6 +562,12 @@ function System({ api }: { api: Desktop }) {
       <Row label={st.autostart}>
         <Switch checked={state.autostart} label={st.autostart} onChange={(on) => void run("autostart", "autostart", { enabled: on })} />
       </Row>
+      {/* 常驻模式：这台电脑当「CC 的电脑」——不睡眠、开机锁屏、不弹询问框（companion always_on.py）；打开时一并开机自启 */}
+      {state.always_on !== undefined && (
+        <Row label={st.alwaysOn}>
+          <Switch checked={state.always_on} label={st.alwaysOn} onChange={(on) => void run("always_on", "always_on", { enabled: on })} />
+        </Row>
+      )}
       <Row label={st.quickAsk}>
         {state.hotkey ? (
           <kbd className="rounded-md border bg-app px-2 py-0.5 font-sans text-muted-foreground text-xs">Ctrl + Alt + Space</kbd>

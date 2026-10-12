@@ -271,3 +271,36 @@ def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path,
     assert applied == [[r"T:\\EXP70", r"\\\\srv\\ACC\\EXP71"]]
     monkeypatch.setattr(desktop_settings, "rescan_roots", lambda fresh: [])
     assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}
+
+
+def test_always_on_turns_on_autostart_keeps_awake_and_restarts_the_worker(tmp_path, monkeypatch):
+    # 2026-10-12 方案 A：办公室一台电脑当「CC 的电脑」，自动登录后随登录启动；打开常驻模式也就打开开机自启
+    store = _store(tmp_path, monkeypatch)
+    calls = []
+    monkeypatch.setattr(desktop_settings.autostart, "enable", lambda: calls.append("autostart"))
+    monkeypatch.setattr(desktop_settings.autostart, "is_enabled", lambda: True)
+    settings = _settings(store, on_always_on=lambda on: calls.append(("awake", on)),
+                         on_profiles_changed=lambda: calls.append("restart"))
+
+    assert settings.snapshot()["always_on"] is False
+    assert settings.set_always_on(True) == {"ok": True}
+    assert calls == ["autostart", ("awake", True), "restart"]
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    assert reloaded.global_settings.always_on is True and reloaded.global_settings.autostart is True
+    assert all(cfg.always_on for cfg in reloaded.runtime_configs(include_paused=True))  # 取任务线程按它跳过询问框
+    assert settings.snapshot()["always_on"] is True
+
+    calls.clear()
+    settings.set_always_on(False)
+    assert calls == [("awake", False), "restart"]   # 关掉不动开机自启
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.always_on is False
+
+
+def test_older_settings_files_read_always_on_as_off(tmp_path, monkeypatch):
+    import json
+
+    store = _store(tmp_path, monkeypatch)
+    raw = json.loads(store.path.read_text(encoding="utf-8"))
+    raw["global"].pop("always_on", None)
+    store.path.write_text(json.dumps(raw), encoding="utf-8")
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.always_on is False
