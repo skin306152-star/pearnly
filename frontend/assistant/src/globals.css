@@ -592,6 +592,8 @@
 }
 /* 手机外壳在时整页不能被拉动（iOS 橡皮筋）：只有内容区滚动 */
 html:has(.cc-mshell), html:has(.cc-mshell) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* 抽屉打开时整页底色换成抽屉色：主屏幕 app 的状态栏那一条按页面底色上色，才能和抽屉连成一片（同 Claude 手机端） */
+html:has(.cc-mshell[data-open="true"]), html:has(.cc-mshell[data-open="true"]) body { background: var(--cc-bg-drawer); }
 .cc-mshell[data-open="true"] { --cc-mprogress: 1; }
 .cc-mdrawer { position: absolute; inset: 0 auto 0 0; width: var(--cc-sidebar-w-mobile); background: var(--cc-bg-drawer); color: var(--cc-ink); }
 .cc-mmain {
