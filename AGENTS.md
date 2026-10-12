@@ -16,7 +16,7 @@
 
 - 本仓是新平台代码的唯一权威位置。其他任务的分支、工作树、暂存内容和数据一律不动。
 - 来源仓库（`pearnly-app`、`pearnly-erp`）默认只读参考。确需在其中改动时单独说明归属，不改与本次无关的内容。
-- Windows 小助手 2026-09-27 起在本仓 `companion/`（旧 `pearnly-companion` 仓库停用、不再发布）；它与服务端的接口约定由 `tests/test_companion_contract.py` 守住，发布见 `companion/README.md`。
+- CC 桌面版（Windows 端）2026-09-27 起在本仓 `companion/`（旧 `pearnly-companion` 仓库停用、不再发布）；它与服务端的接口约定由 `tests/test_companion_contract.py` 守住，发布见 `companion/README.md`。
 - 采购、生产切换、数据删除、外部系统写入都不由本仓自主发起，需要用户明确授权。
 - 已有明确授权不重复询问；缺少授权时，先完成不依赖它的实现、检查与具体操作方案。
 - 不执行全局清理、卷清理或覆盖他人改动；只提交、清理本任务明确拥有的路径和资源。

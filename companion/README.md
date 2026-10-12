@@ -1,4 +1,4 @@
-# Pearnly 小助手（Windows，Express）
+# CC 桌面版（Windows，Express）
 
 装在客户做账的 Windows 电脑上：从 Pearnly 领取待录入的单据，直接写进 Express 账套（DBF），再回报结果。
 2026-09-27 起源码在本仓（原 `pearnly-companion` 仓库 v1.1.77 搬入，停用旧仓库）。服务端那一侧在
