@@ -123,3 +123,28 @@ def service_worker():
     return Response(body, mimetype="application/javascript",
                     headers={"Service-Worker-Allowed": "/assistant", "Cache-Control": "no-cache"})
 
+
+# 手机 / 电脑浏览器的网页推送（送达通道 2，见 `push`）：对话页取公钥、认领或退掉本设备的订阅。
+@frappe.whitelist(methods=["GET"])
+def push_key():
+    from pearnly_core.assistant import push
+
+    return {"key": push.public_key()}
+
+
+@frappe.whitelist(methods=["POST"])
+def push_subscribe(endpoint, p256dh, auth):
+    from pearnly_core.assistant import contracts, push
+
+    try:
+        return push.subscribe(endpoint, p256dh, auth)
+    except contracts.ContractError:
+        frappe.throw(_("This device cannot receive notifications."))
+
+
+@frappe.whitelist(methods=["POST"])
+def push_unsubscribe(endpoint):
+    from pearnly_core.assistant import push
+
+    push.unsubscribe(endpoint)
+

@@ -1270,6 +1270,20 @@ class PageTests(unittest.TestCase):
         worker = (CORE / "assistant/service_worker.js").read_text(encoding="utf-8")
         self.assertIn('event.request.mode !== "navigate"', worker)
         self.assertNotIn("caches.", worker)
+        # 2026-10-12 手机推送（送达通道 2）：每条推送都弹通知（在 waitUntil 里），点开只去对话页；
+        # 已有 CC 窗口（含还没受它控制的）就聚焦并交给页面切换，没有才新开
+        push = worker.split('addEventListener("push"', 1)[1].split("addEventListener(", 1)[0]
+        self.assertIn("event.waitUntil(", push)
+        self.assertIn("self.registration.showNotification(", push)
+        self.assertIn('|| "CC"', push)
+        self.assertIn("data: { url: target(data.url) }", push)
+        click = worker.split('addEventListener("notificationclick"', 1)[1]
+        self.assertIn("event.notification.close()", click)
+        self.assertIn('matchAll({ type: "window", includeUncontrolled: true })', click)
+        self.assertIn('postMessage({ type: "pearnly-open", url })', click)
+        self.assertIn("openWindow(new URL(url, self.location.origin).href)", click)
+        self.assertIn("const PAGE = /^\\/assistant(?:[/?#]|$)/;", worker)
+        self.assertIn("PAGE.test(url) ? url : HOME", worker)
         api = (CORE / "assistant/api.py").read_text(encoding="utf-8").split("def service_worker(", 1)[1]
         self.assertIn('"Service-Worker-Allowed": "/assistant"', api)
         self.assertIn("html.escape(", api)
@@ -1319,12 +1333,28 @@ class PageTests(unittest.TestCase):
             self.assertTrue((ROOT / "frontend/assistant/public" / name).exists())
 
     def test_doctypes_are_platform_records_not_customer_desk_pages(self):
-        for name in ("pearnly_assistant_session", "pearnly_assistant_tool_run", "pearnly_assistant_notice"):
+        for name in ("pearnly_assistant_session", "pearnly_assistant_tool_run", "pearnly_assistant_notice",
+                     "pearnly_assistant_push_subscription"):
             meta = json.loads((CORE / f"pearnly_core/doctype/{name}/{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(meta["permissions"], [{"role": "System Manager", "read": 1}])
             self.assertTrue(any(f.get("unique") for f in meta["fields"]))
             self.assertTrue(all(f.get("read_only") for f in meta["fields"]), name)
             self.assertEqual(meta["field_order"], [f["fieldname"] for f in meta["fields"]], name)
+        # 推送订阅按推送地址的 sha256 唯一（地址常超过 Data 的 140 字）；VAPID 密钥每站一对，私钥加密存放
+        sub = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_push_subscription/"
+                                 "pearnly_assistant_push_subscription.json").read_text(encoding="utf-8"))
+        fields = {f["fieldname"]: f for f in sub["fields"]}
+        self.assertEqual(sub["autoname"], "field:endpoint_key")
+        self.assertTrue(fields["endpoint_key"]["unique"])
+        self.assertEqual(fields["endpoint"]["fieldtype"], "Small Text")
+        self.assertEqual((fields["user"]["options"], fields["user"]["search_index"]), ("User", 1))
+        self.assertTrue(all(f.get("read_only") for f in sub["fields"]))
+        key = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_push_key/pearnly_assistant_push_key.json")
+                         .read_text(encoding="utf-8"))
+        self.assertEqual(key["issingle"], 1)
+        self.assertEqual(key["permissions"], [{"role": "System Manager", "read": 1}])
+        self.assertEqual({f["fieldname"]: f["fieldtype"] for f in key["fields"]},
+                         {"public_key": "Data", "private_key": "Password"})
         session = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_session/pearnly_assistant_session.json")
                              .read_text(encoding="utf-8"))
         self.assertIn("starred", [f["fieldname"] for f in session["fields"]])

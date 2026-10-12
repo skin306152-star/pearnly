@@ -23,8 +23,9 @@ LABEL org.pearnly.image.role="frappe-sample-base" \
 
 # OCR 走 Vertex 时要的认证库（服务账号 JSON → access token）。
 #
-# 为什么不自己签 JWT：那要再拖一个 `cryptography`（编译依赖、镜像更大），
-# 而 `google-auth` 是官方库、老产品生产也在用同一套认证语义。
+# 为什么用它而不自己签 JWT：`google-auth` 是官方库、老产品生产也在用同一套认证语义。
+# （`cryptography` 本来就随基础镜像带着，Frappe 的密码加密要用；手机网页推送 `pearnly_core.assistant.webpush` 也直接用它，
+# 版本随基础镜像 digest 间接锁定，见 docs/p1/01-version-matrix.md。）
 #
 # ⚠️ **凭据本身不进镜像**：这里只装库，服务账号 JSON 由运行时挂载进来
 # （本机开发见 `infrastructure/compose/04-dev-mounts.yml` 的 credentials 挂载；

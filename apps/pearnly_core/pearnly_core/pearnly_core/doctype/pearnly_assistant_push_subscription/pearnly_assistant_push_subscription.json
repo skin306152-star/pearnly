@@ -1,0 +1,86 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:endpoint_key",
+ "creation": "2026-10-12 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "endpoint_key",
+  "user",
+  "endpoint",
+  "p256dh",
+  "auth",
+  "last_ok",
+  "last_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "endpoint_key",
+   "fieldtype": "Data",
+   "label": "Endpoint Key",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "endpoint",
+   "fieldtype": "Small Text",
+   "label": "Endpoint",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "p256dh",
+   "fieldtype": "Data",
+   "label": "Device Key",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "auth",
+   "fieldtype": "Data",
+   "label": "Device Secret",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "last_ok",
+   "fieldtype": "Datetime",
+   "label": "Last Delivered",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_error",
+   "fieldtype": "Data",
+   "label": "Last Error",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-12 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly Assistant Push Subscription",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
