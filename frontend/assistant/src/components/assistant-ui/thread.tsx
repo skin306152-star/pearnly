@@ -248,8 +248,8 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC = () => {
-  // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）
-  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
   const placeholder = hasMessages ? t("reply") : t("placeholder");
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
