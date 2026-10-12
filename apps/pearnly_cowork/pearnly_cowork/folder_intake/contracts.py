@@ -2,12 +2,20 @@
 
 规则口径见 `docs/work/2026-10-06-cowork-folder-intake.md`：一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 +
 进项或销项 + 服务或存货；只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）由系统生成、不扫描。
+
+新旧任务两种口径（2026-10-12，`docs/work/2026-10-12-cc-closed-loop.md`）：新任务（规则上 `include_existing`，同步里
+下发 `existing=1`）到点处理文件夹（含子文件夹）里本任务还没处理过的所有文件，包括建任务前已有的；老任务照旧只收
+启用之后放进来的（小助手按创建时间拍底）。同步里缺 `existing` 或为 0 就按老任务办，新旧服务端与小助手任意搭配都不会多处理。
+
+先后（F7）：同一写入连接、同一账套里，存货销售文件等存货进货先写进 Express 再准备推送（`waits_for_purchases`）。
 """
 from __future__ import annotations
 
+import calendar
 import hashlib
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
 RESULT_FOLDER = "_Pearnly结果"
@@ -31,6 +39,10 @@ LAST_DAY = 0
 MAX_PATH = 500
 MAX_RELPATH = 1000
 MAX_WATCH = 500
+MAX_FOLDERS = 2000
+# 小助手报的文件夹计数、各任务待处理数的上限（防坏报文）
+MAX_COUNT = 10_000_000
+MAX_PENDING = 500
 _TIME = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 _ROOT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -211,7 +223,7 @@ def watch(value: Any) -> List[str]:
 
 
 def roots(value: Any) -> List[Dict[str, Any]]:
-    """小助手上报的本机允许读取的根目录（只报编号、显示名与下级文件夹名，不报文件）。"""
+    """小助手上报的本机允许读取的根目录（只报编号、显示名与下级文件夹名；1.4.4 起另报各文件夹的文件数，不报文件）。"""
     if value in (None, ""):
         return []
     if not isinstance(value, list) or len(value) > 20:
@@ -226,19 +238,48 @@ def roots(value: Any) -> List[Dict[str, Any]]:
             if not isinstance(folders, list):
                 folders = []
             clean = set()
-            for item in folders[:2000]:
+            for item in folders[:MAX_FOLDERS]:
                 try:
                     clean.add(folder(item))
                 except ContractError:
                     continue
             share = str(row.get("share") or "").strip()
-            result.append({"id": root_id(row.get("id")), "label": text(row.get("label"), maximum=255),
-                           "folders": sorted(clean - {""}),
-                           # 网络共享（含映射盘换算回的 \\服务器\共享…）：跨电脑比对文件夹是否重叠用；本机盘为空
-                           "share": share if share.startswith("\\\\") and len(share) <= 500 else ""})
+            report = {"id": root_id(row.get("id")), "label": text(row.get("label"), maximum=255),
+                      "folders": sorted(clean - {""}),
+                      # 网络共享（含映射盘换算回的 \\服务器\共享…）：跨电脑比对文件夹是否重叠用；本机盘为空
+                      "share": share if share.startswith("\\\\") and len(share) <= 500 else ""}
+            if isinstance(row.get("counts"), Mapping):
+                report["counts"] = _folder_counts(row["counts"], clean)
+                # 数到时间或条数上限还没数完：显示「N+」
+                report["partial"] = row.get("partial") is True
+            result.append(report)
         except ContractError:
             continue
     return result
+
+
+def _folder_counts(counts: Mapping, folders: set) -> Dict[str, int]:
+    """文件夹计数（新任务卡片与表单的「文件夹里现有 N 份」）：{文件夹: 会被录入的文件数（含子文件夹）}，
+    键只留上报的文件夹与根目录本身（""），按上报的写法存；0 不存。没带计数的根目录没有 `counts` 键 = 不知道，不用 0 冒充。"""
+    known = {name.casefold(): name for name in folders | {""}}
+    kept: Dict[str, int] = {}
+    for key, value in list(counts.items())[:MAX_FOLDERS + 1]:
+        try:
+            name = known.get(folder(key).casefold())
+        except ContractError:
+            continue
+        if name is not None and type(value) is int and 1 <= value <= MAX_COUNT:
+            kept[name] = value
+    return kept
+
+
+def pending(value: Any) -> Dict[str, int]:
+    """小助手上一轮算的各任务待处理数（{任务名: 份数}，1.4.4 起，`rule_pending`）：会被处理、但既不在本机台账也不在
+    基线里的文件数。不合形状的项丢掉，不让一次同步失败。"""
+    if not isinstance(value, Mapping):
+        return {}
+    return {name: count for name, count in list(value.items())[:MAX_PENDING]
+            if isinstance(name, str) and 0 < len(name) <= 140 and type(count) is int and 0 <= count <= MAX_COUNT}
 
 
 RULE_HEALTH = ("ok", "root_missing", "folder_missing")
@@ -289,3 +330,124 @@ def device(value) -> str:
     """小助手报的电脑名（只用于网页显示）：去掉控制字符，最多 60 字。"""
     text = "".join(ch for ch in str(value or "") if ch.isprintable()).strip()
     return text[:60]
+
+
+_SESSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
+
+
+def session_ref(value: Any) -> str:
+    """CC 对话编号（任务最近一次在哪段对话里建、改或启停，提醒挂回那段对话）：形状与共用层对话编号一致才认，否则当没有。"""
+    return value if isinstance(value, str) and _SESSION.fullmatch(value) else ""
+
+
+# ── 电脑通知（2026-10-12）：同步回复里带给小助手的定时任务提醒与完成简报 ─────────────────
+NOTICE_FIELDS = ("id", "title", "text", "created", "session")
+NOTICE_WINDOW = 12 * 3600
+NOTICE_LIMIT = 20
+
+
+def notices_after(value: Any, now: float) -> float:
+    """小助手上次收到的最新一条提醒时刻（epoch 秒，`notices_after`）：不是数字当 0；夹在最近 12 小时之内
+    （更早的不补发，未来的不信）。"""
+    number = float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0
+    if number != number:  # NaN
+        number = 0.0
+    return max(now - NOTICE_WINDOW, min(number, now))
+
+
+# ── 定时时刻：与小助手 `folder_plan._slot` / `latest_slot` 逐位一致（曼谷 UTC+7，泰国不用夏令时） ────────
+BANGKOK = timezone(timedelta(hours=7))
+# 小助手报的运行所属时刻（`runs[].slot`）离服务端此刻超过这么久就不认，改用服务端自己算的
+SLOT_RANGE = 40 * 86400
+
+
+def slot_at(year: int, month: int, day: int, at: str) -> float:
+    """某年某月按时开跑的时刻（epoch 秒）：0 = 月末，当月没有这一天（2 月的 29–31 日、小月的 31 日）就在月末。"""
+    last = calendar.monthrange(year, month)[1]
+    hour, minute = (int(part) for part in str(at)[:5].split(":"))
+    return datetime(year, month, last if day == 0 else min(day, last), hour, minute, tzinfo=BANGKOK).timestamp()
+
+
+def latest_slot(now: float, day: int, at: str) -> float:
+    """不晚于 ``now`` 的最近一次按时开跑时刻（epoch 秒）。"""
+    local = datetime.fromtimestamp(now, BANGKOK)
+    current = slot_at(local.year, local.month, day, at)
+    if current <= now:
+        return current
+    year, month = (local.year, local.month - 1) if local.month > 1 else (local.year - 1, 12)
+    return slot_at(year, month, day, at)
+
+
+def run_slot(value: Any, now: float) -> Optional[float]:
+    """小助手报的这次运行所属的定时时刻（`runs[].slot`，1.4.4 起，可缺）：是数字、且在服务端此刻前后 40 天内才认。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    value = float(value)
+    return value if abs(value - now) <= SLOT_RANGE else None
+
+
+# ── 处理中（2026-10-12）：还没走到 done / not_invoice / failed 的文件 ─────────────────────
+UNFINISHED = ("registered", "uploaded", "source_ready", "submitted", "recognized", "pushing")
+# 登记后这么久还停在 registered 的不算处理中：上传没完成、盘上文件又被删的残留，后台推进不处理它们，「处理中」永远不会归零。
+STALE_REGISTERED = timedelta(hours=24)
+
+
+def moving(state: Any, registered_at: Optional[datetime], now: datetime) -> bool:
+    """这份文件算不算「处理中」（列表、简报同一口径；时间用库里的站点时区裸时间，与 `now_datetime()` 同口径）。"""
+    if state not in UNFINISHED:
+        return False
+    if state != "registered":
+        return True
+    return registered_at is not None and now - registered_at <= STALE_REGISTERED
+
+
+# ── 存货先进后出（F7，2026-10-12）：同一连接、同一账套里，存货进货先写进 Express，存货销售后写 ──────
+# 只管存货任务；服务类与 MR.ERP 任务（posting_kind 为空）不等也不被等。进货停下待人（要人选、失败、转人工）就算有了结论，
+# 不拦销售（等人不知道要多久，整批销售不能跟着停一夜）。时间一律用库里的站点时区裸时间。
+ORDER_WAITING = UNFINISHED
+ORDER_LOOKBACK = timedelta(hours=12)      # 比销售早登记这么久之内的进货算同一批
+ORDER_MAX_WAIT = timedelta(hours=12)      # 销售最多等这么久
+ORDER_UPLOAD_GRACE = timedelta(hours=2)   # 只登记、没传完的进货，这么久之后不再等
+ORDER_RUN_GRACE = timedelta(minutes=60)   # 进货任务被立即运行、小助手还没报上这次运行，最多等这么久
+WAITING_PURCHASES = "cowork.folder.waiting_purchases"
+
+
+def stock_role(direction: Any, posting_kind: Any) -> str:
+    """'purchase' / 'sale' / ''：只有存货任务参与先后。"""
+    if posting_kind != "stock":
+        return ""
+    return {"purchase": "purchase", "sales": "sale"}.get(direction or "", "")
+
+
+def purchases_first(rows: List[Any], direction=lambda row: row["direction"]) -> List[Any]:
+    """同步下发顺序：进货任务在前，同方向内保持原顺序（稳定排序）。小助手按下发顺序逐个任务跑，同一时刻到点的进货文件先登记。"""
+    return sorted(rows, key=lambda row: direction(row) == "sales")
+
+
+def purchase_run_pending(run_request_at: Optional[datetime], last_reported_at: Optional[datetime],
+                         now: datetime) -> bool:
+    """存货进货任务刚被「立即运行」、小助手还没报上这次运行（只看非补传的运行记录）。"""
+    if run_request_at is None or now - run_request_at > ORDER_RUN_GRACE:
+        return False
+    return last_reported_at is None or last_reported_at < run_request_at
+
+
+def purchase_file_pending(state: Any, registered_at: Optional[datetime], sale_registered_at: datetime,
+                          now: datetime) -> bool:
+    """这份存货进货文件还在路上、且与这份销售算同一批。"""
+    if registered_at is None or state not in ORDER_WAITING:
+        return False
+    if registered_at < sale_registered_at - ORDER_LOOKBACK:
+        return False
+    return not (state == "registered" and now - registered_at > ORDER_UPLOAD_GRACE)
+
+
+def waits_for_purchases(sale_registered_at: Optional[datetime], files: List[Mapping], runs: List[Mapping],
+                        now: datetime) -> bool:
+    """这份存货销售文件是否还要等同账套的存货进货先写（files: [{state, registered_at}]，
+    runs: [{run_request_at, last_reported_at}]）；登记满 12 小时后不再等。"""
+    if sale_registered_at is None or now - sale_registered_at > ORDER_MAX_WAIT:
+        return False
+    return (any(purchase_run_pending(r.get("run_request_at"), r.get("last_reported_at"), now) for r in runs)
+            or any(purchase_file_pending(f.get("state"), f.get("registered_at"), sale_registered_at, now)
+                   for f in files))

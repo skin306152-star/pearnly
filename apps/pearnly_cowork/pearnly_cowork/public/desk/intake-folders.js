@@ -20,6 +20,8 @@
 		return {value, label: value};
 	});
 	const day_label = day => days().find(row => row.value === String(day))?.label || "";
+	// 「文件夹里现有 N 份，到点一起处理」（小助手 1.4.4 起报计数）：数到上限没数完显示「N+」；不知道（null）就不显示。
+	const files_hint = (count, partial) => (count == null ? "" : ft("cowork.folder.waiting", partial ? `${count}+` : count));
 
 	p.intake_folders = async ({page, t, still_current}) => {
 		const root = "pearnly-intake";
@@ -27,9 +29,11 @@
 		p.breadcrumbs({label: t("intake.title"), route: p.subroute(root), trail: [{label: ft("cowork.folder.title"), route: ""}]});
 		let data = {rules: [], connections: []};
 		// 文件夹不可用：小助手报这个任务的文件夹不在了（授权移除 / 改名 / 子文件夹删了），到点也不会跑。
+		// 处理中：这个任务还有文件在识别、推送的路上（`results.moving`，按文件数），走完自动刷新回「启用中」。
 		const status = row => (!row.enabled ? ["gray", ft("cowork.folder.off")]
 			: !row.agent_fresh ? ["orange", ft("cowork.folder.agentStale")]
 			: ["root_missing", "folder_missing"].includes(row.folder_state) ? ["red", ft("cowork.folder.folderMissing")]
+			: row.results?.moving ? ["blue", ft("cowork.folder.moving", row.results.moving)]
 			: ["green", ft("cowork.folder.on")]);
 		const edit = rule => void open_rule({t, rule, on_saved: () => list.reload()});
 		const create = () => page.set_primary_action(ft("cowork.folder.new"), () => edit(null));
@@ -90,7 +94,23 @@
 		});
 		create();
 		await list.ready;
-		return () => list.destroy();
+		// 自动刷新（`p.live`，与录入列表同一做法）：任务、运行记录、文件进度变了服务端推 `cowork_folder_changed`
+		// （`folder_intake/live.py`，推给负责人），收到就重拉；有处理中的每 10 秒兜底一次，没有就 60 秒；回到页面马上刷。
+		// 开着弹窗时不打断，下一次再刷。
+		const live = p.live({
+			refresh: async () => {
+				if (cur_dialog) return;
+				await list.reload();
+			},
+			events: ["cowork_folder_changed"],
+			busy: () => (data.rules || []).some(row => row.results?.moving),
+			busy_ms: 10000,
+			still_current,
+		});
+		return () => {
+			live.stop();
+			list.destroy();
+		};
 	};
 
 	/** 新建 / 编辑一个定时任务（原生弹窗）。
@@ -139,7 +159,7 @@
 			{fieldtype: "Section Break"},
 			// 文件夹：能读的小助手允许读取的根目录与其下文件夹，值是「小助手连接|根目录编号|相对路径」。
 			{fieldtype: "Select", fieldname: "folder", label: ft("cowork.folder.field.folder"), reqd: 1, options: [],
-				max_items: 2000, description: ft("cowork.folder.folderHint")},
+				max_items: 2000, description: ft("cowork.folder.folderHint"), onchange: () => paint_folder_hint()},
 			// 按钮一开始隐藏时 Frappe 还没建元素：点击写在字段定义上（同「新建录入」的「重新读取」）。
 			{fieldtype: "Button", fieldname: "connect_helper", label: ft("cowork.folder.connectHelper"), hidden: 1,
 				click: () => void connect_helper()},
@@ -149,6 +169,9 @@
 			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "run_time", label: ft("cowork.folder.field.time"), reqd: 1, options: times(),
 				default: rule?.run_time || "22:00"},
+			row(),
+			// 运行前一天 08:00 与 14:00 提醒负责人放资料（2026-10-12）；新任务默认关。
+			{fieldtype: "Check", fieldname: "remind", label: ft("cowork.folder.field.remind"), default: rule?.remind ? 1 : 0},
 			{fieldtype: "Section Break", fieldname: "defaults_section", label: ft("cowork.folder.section.defaults"),
 				collapsible: 1},
 			{fieldtype: "Select", fieldname: "d_payment", label: ft("cowork.folder.default.payment"),
@@ -181,7 +204,8 @@
 			await p.call(API + "save", {values: JSON.stringify({name: rule?.name || null, title: values.title,
 				connection: target.name, reader, account_set_key: values.account_set_key, direction: values.direction,
 				posting_kind: express() ? values.posting_kind : "", payment: express() ? "" : values.payment,
-				root_id, folder: folder.join("|"), run_day: Number(values.run_day), run_time: values.run_time, defaults})},
+				root_id, folder: folder.join("|"), run_day: Number(values.run_day), run_time: values.run_time, defaults,
+				remind: values.remind ? 1 : 0})},
 			"POST");
 			d.hide();
 			p.success(__("Saved"), "click");
@@ -190,8 +214,11 @@
 		d.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		if (rule) {
 			// 官方的自定义动作位（弹窗左下角，同 QuickEntryForm 的「全部编辑」）：停用 / 启用、运行记录。
+			// 启用的确认语按任务口径：新任务到点处理还没处理过的文件（含停用期间放进来的），老任务只收此后放入的。
+			const confirm_key = rule.enabled ? "cowork.folder.disableConfirm"
+				: rule.include_existing ? "cowork.folder.enableConfirmAll" : "cowork.folder.enableConfirm";
 			d.add_custom_action(rule.enabled ? ft("cowork.folder.disable") : ft("cowork.folder.enable"), () =>
-				frappe.confirm(p.escape(ft(rule.enabled ? "cowork.folder.disableConfirm" : "cowork.folder.enableConfirm")), async () => {
+				frappe.confirm(p.escape(ft(confirm_key)), async () => {
 					await p.call(API + "set_enabled", {name: rule.name, enabled: rule.enabled ? 0 : 1}, "POST");
 					d.hide();
 					await on_saved();
@@ -289,10 +316,28 @@
 			// 工作空间里一台小助手都没配过（只用 MR.ERP 的公司）→「连接小助手」，与「连接 Express」同一个弹窗。
 			const unpaired = Boolean(picked.target) && Boolean(state.options) && !readers.some(reader => reader.version);
 			d.set_df_property("connect_helper", "hidden", unpaired && !rule ? 0 : 1);
-			const hint = !state.options ? "cowork.folder.folderHint" : unpaired ? "cowork.folder.noRootsAny"
+			state.folder_hint = !state.options ? "cowork.folder.folderHint" : unpaired ? "cowork.folder.noRootsAny"
 				: !readers.some(reader => reader.fresh) ? "cowork.folder.agentStaleHint"
 				: !folders.length ? (express() ? "cowork.folder.noRoots" : "cowork.folder.noRootsAny") : "cowork.folder.folderHint";
-			d.set_df_property("folder", "description", ft(hint));
+			paint_folder_hint();
+		};
+		// 选中的文件夹现有几份（2026-10-12：新任务到点连已有的一起处理，只让人看得见，不加确认）：小助手报的文件夹计数；
+		// 编辑现有任务且文件夹没改时用这个任务的待处理数（老任务只算启用之后放进来的）。不知道或没有文件时照常显示说明。
+		const folder_files = () => {
+			const value = d.get_value("folder");
+			if (!value) return null;
+			if (rule && value === `${rule.reader}|${rule.root_id}|${rule.folder || ""}`) {
+				return rule.waiting == null ? null : {files: rule.waiting, partial: rule.waiting_partial};
+			}
+			const [reader, root_id, ...rest] = String(value).split("|");
+			const root = (state.options?.readers || []).find(row => row.connection === reader)?.roots
+				?.find(row => row.id === root_id);
+			return root?.counts ? {files: root.counts[rest.join("|")] || 0, partial: Boolean(root.partial)} : null;
+		};
+		const paint_folder_hint = () => {
+			const found = folder_files();
+			d.set_df_property("folder", "description", found?.files
+				? files_hint(found.files, found.partial) : ft(state.folder_hint || "cowork.folder.folderHint"));
 		};
 		const connect_helper = async () => {
 			const target = connection();

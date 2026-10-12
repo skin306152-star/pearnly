@@ -146,7 +146,9 @@ class Probe(unittest.TestCase):
         probe = body.index('if body.get("probe") is True:')
         self.assertLess(probe, body.index("agent.remember("))
         self.assertIn('return {"server_time": time.time(), "rules": [], "entries": {}, **identity}', body)
-        self.assertIn('return {"server_time": time.time(), "rules": rules, "entries": entries, **identity}', body)
+        # 2026-10-12 起回复另带新版提示与提醒（`companion_latest` / `notices`），身份两项照旧在每一次回复里
+        self.assertIn('reply = {"server_time": time.time(), "rules": rules, "entries": entries, **identity}', body)
+        self.assertIn("return reply", body)
 
 
 if __name__ == "__main__":

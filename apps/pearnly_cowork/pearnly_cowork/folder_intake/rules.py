@@ -3,6 +3,10 @@
 规则就是「新建录入」弹窗那一组前置条件（Express 连接、年度账套、进项 / 销项、服务 / 存货、存货科目组），
 外加文件夹、每月几号几点和「这一类以后都这样处理」的默认值。谁存或启用规则，谁就是负责人：自动推送以他的身份
 做与网页「提交」完全相同的事，每次推送前照现有判据重核他的录入权限与连接使用授权。
+
+2026-10-12 起新建的任务（`include_existing`）到点处理文件夹里本任务还没处理过的所有文件，含建任务前已有的；
+老任务照旧只收启用之后放进来的（口径见 `contracts` 文件头）。`remind`：运行前一天提醒负责人放资料（提醒本身见
+`notify`）；`cc_session`：最近一次在哪段 CC 对话里建、改或启停，只由 CC 工具以参数传入，网页报文传不进来。
 """
 import json
 
@@ -20,6 +24,9 @@ from pearnly_cowork.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
 MAX_RULES = 50
+# CC 一张「允许」卡片一次存几个任务：与共用层卡片行数上限（`pearnly_core.assistant.tools.PREVIEW_ROWS`）相同，
+# 卡片上一个任务一行，多出的行会被截掉、用户看不到。
+BATCH_MAX = 20
 
 
 def _error(error):
@@ -61,6 +68,36 @@ def _masters(doc, account_set_key):
             found)
 
 
+def account_label(connection, account_set_key):
+    """账套的显示名（与新建录入下拉同一份目录，CC 允许卡片预览用）；不在目录里或没有权限回空串，不报错。"""
+    try:
+        _require()
+        return _catalog_item(connection, account_set_key)[1]
+    except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        return ""
+
+
+def master_names(connection, account_set_key):
+    """账套主档里科目与部门的名称（小助手报过的，CC 允许卡片把默认科目 / 部门显示成「代码 · 名称」）：
+    ``{"accounts": {代码: 名称}, "departments": {代码: 名称}}``；没读过、不是 Express 或没有权限就是空的。"""
+    result = {"accounts": {}, "departments": {}}
+    try:
+        _require()
+        doc = _connection(connection)
+        if doc.adapter != "express" or not account_set_key:
+            return result
+        found = _masters(doc, account_set_key)[2]
+    except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        return result
+    for kind, field in (("accounts", "reported_accounts"), ("departments", "reported_departments")):
+        for row in found.get(field) or []:
+            if isinstance(row, dict) and row.get("code"):
+                result[kind][str(row["code"])] = str(row.get("name") or "")
+    return result
+
+
 def _readers(doc):
     """能给这个任务读文件夹的小助手（各自的连接）：Express 任务只能是它自己那台（写账套的也是它）；MR.ERP 任务可以是
     同一工作空间里任一台已配好的小助手 —— Express 的，或 MR.ERP 自己发配对码配的（2026-10-09：同时用两种 ERP 的
@@ -87,8 +124,13 @@ def _reader_view(doc):
         pass
     # 电脑名：小助手同步文件夹时报的（1.3.23 起）→ Express 心跳报的本机名 → 连接名。
     label = state.get("device") or (report.get("agent_device_name") if isinstance(report, dict) else "") or doc.label
+    fresh = agent.fresh(state)
+    roots = state.get("roots") or []
+    if not fresh:
+        # 各文件夹的文件数（`counts` / `partial`，1.4.4 起）：小助手好久没同步就是旧数，不显示（不知道，不用旧数冒充）。
+        roots = [{key: value for key, value in row.items() if key not in ("counts", "partial")} for row in roots]
     return {"connection": doc.name, "adapter": doc.adapter, "label": str(label or doc.name)[:80],
-            "fresh": agent.fresh(state), "version": state.get("version") or "", "roots": state.get("roots") or []}
+            "fresh": fresh, "version": state.get("version") or "", "roots": roots}
 
 
 def computers():
@@ -145,8 +187,16 @@ def _stock_ready(connection, account_set_key):
         frappe.throw(_("cowork.folder.stock_group_needed"))
 
 
-def save(values):
-    """建或改一条规则；改了去向或文件夹就升版本，小助手下一次同步换用新规则。"""
+def _flag(value):
+    return 1 if str(value).strip().lower() in ("1", "true", "yes", "on") else 0
+
+
+def save(values, *, cc_session=None):
+    """建或改一条规则；改了去向或文件夹就升版本，小助手下一次同步换用新规则。
+
+    新建的任务处理文件夹里已有的文件（`include_existing`）；老任务换了读文件夹的电脑、根目录或文件夹也改成这个口径
+    （原来拍的底本来就对不上新文件夹）。`remind` 带了才改（网页表单、CC 不带就保留原值，新任务默认关）；提醒开着时，
+    刚打开、换了负责人或改了运行日 / 时间，`remind_since` 记成现在（这之前的提醒时段不补发）。`cc_session` 只从参数取。"""
     _require()
     values = json.loads(values) if isinstance(values, str) else values
     if not isinstance(values, dict):
@@ -190,6 +240,8 @@ def save(values):
     if not name and _count(reader) >= MAX_RULES:
         frappe.throw(_("cowork.folder.too_many"))
     before = _routing(rule) if name else None
+    previous = _reminding(rule) if name else None
+    place = (_reader(rule), rule.root_id, rule.folder or "") if name else None
     rule.update({"title": title, "workspace": doc.workspace, "client": doc.client or "", "connection": doc.name,
                  "reader": reader, "rule_owner": frappe.session.user, "account_set_key": account_set_key,
                  "account_label": label,
@@ -199,10 +251,58 @@ def save(values):
         rule.enabled, rule.active_since = 1, now_datetime()
         # 结果文件夹按建规则这个人的网页语言起名，之后改语言也不变（不在盘上再长出第二个结果文件夹）
         rule.result_folder = contracts.result_folder_for(getattr(frappe.local, "lang", None))
+    if not name or place != (reader, root, folder):
+        rule.include_existing = 1
+    if values.get("remind") is not None:
+        rule.remind = _flag(values.get("remind"))
+    elif not name:
+        rule.remind = 0
+    if int(rule.remind or 0) and _reminding(rule) != previous:
+        rule.remind_since = now_datetime()
+    ref = contracts.session_ref(cc_session)
+    if ref:
+        rule.cc_session = ref
     if before != _routing(rule) or not name:
         rule.rule_revision = int(rule.rule_revision or 0) + 1
     write(rule)
     return project(rule)
+
+
+def _reminding(rule):
+    """提醒这一组：开着与否、负责人、运行日、运行时间 —— 任一变了（且提醒开着）就从现在起算，之前的时段不补发。"""
+    return [int(rule.get("remind") or 0), rule.get("rule_owner"), int(rule.get("run_day") or 0), rule.get("run_time")]
+
+
+def save_many(items, *, cc_session=None):
+    """一次建 / 改几个任务（CC 一张「允许」卡片，2026-10-12）：每个都走 `save` 同一套校验；任一个不通过就一个都不存，
+    回每个不通过的序号（从 1 起）、名称、原因。失败项之后的照样校验，一次报全（少点几次「允许」）。
+
+    同一事务里前面已存的任务对后面的「文件夹不能重叠」「一台电脑最多 50 个」可见，同一批里互相包含的文件夹也拦得住。
+    `save` 写库之前没有任何副作用（不提交、不排队），回滚到保存点是干净的（只剩提交后才发的「定时任务页重拉」实时事件，
+    回滚掉的任务最多让开着的页面多刷一次）；死锁等非业务异常不吞，整笔交给调用方回滚。"""
+    _require()
+    items = json.loads(items) if isinstance(items, str) else items
+    if not isinstance(items, list) or not items or len(items) > BATCH_MAX or not all(isinstance(item, dict) for item in items):
+        frappe.throw(_("cowork.folder.invalid"))
+    names = [item.get("name") for item in items if item.get("name")]
+    if len(names) != len(set(names)):
+        frappe.throw(_("cowork.folder.invalid"))
+    point = "cowork_folder_batch"
+    frappe.db.savepoint(point)
+    saved, failed = [], []
+    for index, values in enumerate(items):
+        item_point = f"{point}_{index}"
+        frappe.db.savepoint(item_point)
+        try:
+            saved.append(save(values, cc_session=cc_session))
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+            frappe.db.rollback(save_point=item_point)
+            frappe.clear_messages()
+            failed.append({"task": index + 1, "title": str(values.get("title") or "")[:140], "reason": str(error)[:300]})
+    if failed:
+        frappe.db.rollback(save_point=point)
+        return {"saved": [], "failed": failed}
+    return {"saved": saved, "failed": []}
 
 
 def _routing(rule):
@@ -250,19 +350,40 @@ def _share(connection, root):
                  if row.get("id") == root), "")
 
 
-def set_enabled(name, enabled):
-    """启用 / 停用。重新启用时「启用时刻」改成现在：这之前放进文件夹的文件不处理（用户 2026-10-07）。"""
+def set_enabled(name, enabled=None, *, remind=None, cc_session=None):
+    """启用 / 停用、开关提醒（``None`` = 不变；网页 `api.set_enabled(name, enabled)` 只管启停）。
+
+    重新启用时「启用时刻」改成现在、负责人换成启用的人。新任务（`include_existing`）不重新拍底：启用时刻只当排程下限
+    （启用当下不补跑已错过的时刻），到点照样处理停用期间放进来、还没处理过的文件；老任务照旧重新拍底，这之前放进
+    文件夹的文件不处理（用户 2026-10-07 的口径只对老任务保留）。提醒开着时，刚打开或重新启用，`remind_since` 记成现在。"""
     _require()
     rule = read(RULE, name, for_update=True)
     _connection(rule.connection)
-    enabled = 1 if str(enabled) in ("1", "true", "True") else 0
-    if enabled and not rule.enabled:
-        _no_overlap(_reader(rule), rule.root_id, rule.folder or "", rule.name)
-        rule.active_since = now_datetime()
-        rule.rule_owner = frappe.session.user
-    if enabled != int(rule.enabled or 0):
-        rule.enabled = enabled
-        rule.rule_revision = int(rule.rule_revision or 0) + 1
+    changed = False
+    previous = _reminding(rule)
+    if enabled is not None:
+        enabled = 1 if str(enabled) in ("1", "true", "True") else 0
+        if enabled and not rule.enabled:
+            _no_overlap(_reader(rule), rule.root_id, rule.folder or "", rule.name)
+            rule.active_since = now_datetime()
+            rule.rule_owner = frappe.session.user
+            # 重新启用：提醒也从现在起算（停用期间的时段不补发）
+            previous = None
+        if enabled != int(rule.enabled or 0):
+            rule.enabled = enabled
+            rule.rule_revision = int(rule.rule_revision or 0) + 1
+            changed = True
+    if remind is not None and _flag(remind) != int(rule.remind or 0):
+        rule.remind = _flag(remind)
+        changed = True
+    if int(rule.remind or 0) and _reminding(rule) != previous:
+        rule.remind_since = now_datetime()
+        changed = True
+    ref = contracts.session_ref(cc_session)
+    if ref and ref != rule.cc_session:
+        rule.cc_session = ref
+        changed = True
+    if changed:
         write(rule)
     return project(rule)
 
@@ -323,12 +444,41 @@ def listing():
             row = project(read(RULE, name))
             # 文件夹在不在、小助手在不在线，看的是读文件夹的那台小助手（`reader`）。
             state = agent.read(row["reader"])
-            fresh, labels = agent.fresh(state), {item["id"]: item["label"] for item in state.get("roots") or []}
-            row.update(connection_label=usable[-1]["label"], agent_fresh=fresh, root_label=labels.get(row["root_id"], ""),
+            roots = {item["id"]: item for item in state.get("roots") or []}
+            fresh, root = agent.fresh(state), roots.get(row["root_id"]) or {}
+            # 待处理数（1.4.4 起小助手报）：到点会处理、还没处理过的文件。停用的任务小助手不算；不知道就是 None（不用 0 冒充）。
+            files = (state.get("pending") or {}).get(name) if fresh and row["enabled"] else None
+            row.update(connection_label=usable[-1]["label"], agent_fresh=fresh, root_label=root.get("label", ""),
                        # 小助手报这条规则的文件夹不在了（授权移除 / 改名 / 子文件夹删了）：列表显示「文件夹不可用」
-                       folder_state=(state.get("health") or {}).get(name) if fresh else None)
+                       folder_state=(state.get("health") or {}).get(name) if fresh else None,
+                       waiting=files, waiting_partial=bool(root.get("partial")) if files is not None else False)
             rows.append(row)
     return {"rules": rows, "connections": usable}
+
+
+def waiting(reader, root_id, folder):
+    """文件夹计数（新任务的允许卡片与表单「文件夹里现有 N 份」）：``{"files": n, "partial": 数没数完}``；
+    小助手好久没同步、版本旧没报计数、文件夹不在上报里（深于 3 层）或没有这台小助手的使用权时回 None。"""
+    try:
+        _require()
+        _connection(reader)
+    except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        return None
+    state = agent.read(reader)
+    if not agent.fresh(state):
+        return None
+    root = next((row for row in state.get("roots") or [] if row.get("id") == root_id), None)
+    if not root or not isinstance(root.get("counts"), dict):
+        return None
+    try:
+        wanted = contracts.folder(folder).casefold()
+    except contracts.ContractError:
+        return None
+    name = next((item for item in ["", *(root.get("folders") or [])] if item.casefold() == wanted), None)
+    if name is None:
+        return None
+    return {"files": int(root["counts"].get(name) or 0), "partial": bool(root.get("partial"))}
 
 
 def project(rule):
@@ -342,13 +492,17 @@ def project(rule):
             "root_id": rule.root_id,
             "folder": rule.folder or "", "run_day": int(rule.run_day or 0), "run_time": rule.run_time,
             "defaults": json.loads(rule.defaults_json or "{}"), "rule_owner": rule.rule_owner,
-            "active_since": rule.active_since, "run_request": int(rule.run_request or 0),
+            "active_since": rule.active_since, "include_existing": int(rule.include_existing or 0),
+            "remind": int(rule.remind or 0), "remind_since": rule.remind_since,
+            "run_request": int(rule.run_request or 0),
             "last_run": last[0] if last else None, "counts": counts(rule.name), "results": results(rule.name)}
 
 
 def results(rule, run=None):
     """按发票算：已推成功几张、要人处理几张（停下待选、退回、失败的文件）、还在路上几份文件。
-    给了 `run` 就只算那一次运行的（运行记录与列表同一口径，10-09 实测 #20：运行记录按文件数、把退回的也算成已推送）。"""
+    给了 `run` 就只算那一次运行的（运行记录与列表同一口径，10-09 实测 #20：运行记录按文件数、把退回的也算成已推送）。
+
+    「处理中」不计登记后 24 小时还停在 registered 的（`contracts.moving`：上传没完成、盘上文件又删了的残留，永远不会走完）。"""
     entered = attention = 0
     sql, values = f"SELECT state, outcome_json FROM `tab{FILE}` WHERE rule=%s AND state IN ('done', 'failed')", [rule]
     if run:
@@ -361,7 +515,14 @@ def results(rule, run=None):
         for _name, status, _reason in json.loads(row.outcome_json or "{}").get("_signature") or []:
             entered += status == "success"
             attention += status != "success"
-    moving = sum(count for state, count in counts(rule, run).items() if state not in ("done", "failed", "not_invoice"))
+    sql = f"""SELECT COUNT(*) FROM `tab{FILE}` WHERE rule=%s
+        AND (state IN %s OR (state = 'registered' AND registered_at >= %s))"""
+    values = [rule, tuple(state for state in contracts.UNFINISHED if state != "registered"),
+              now_datetime() - contracts.STALE_REGISTERED]
+    if run:
+        sql += " AND run=%s"
+        values.append(run)
+    moving = int(frappe.db.sql(sql, values)[0][0] or 0)
     return {"entered": entered, "attention": attention, "moving": moving}
 
 

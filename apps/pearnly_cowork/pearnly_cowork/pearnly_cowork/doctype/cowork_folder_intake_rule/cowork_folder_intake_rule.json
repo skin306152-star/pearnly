@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-09 15:52:53.000610",
+ "modified": "2026-10-12 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -23,6 +23,7 @@
   "rule_owner",
   "enabled",
   "active_since",
+  "include_existing",
   "account_set_key",
   "account_label",
   "direction",
@@ -34,6 +35,9 @@
   "run_day",
   "run_time",
   "defaults_json",
+  "remind",
+  "remind_since",
+  "cc_session",
   "run_request",
   "run_request_at",
   "rule_revision"
@@ -97,6 +101,13 @@
    "label": "Active Since",
    "fieldtype": "Datetime",
    "read_only": 1
+  },
+  {
+   "fieldname": "include_existing",
+   "label": "Include Existing Files",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "default": "0"
   },
   {
    "fieldname": "account_set_key",
@@ -175,6 +186,26 @@
    "label": "Defaults",
    "fieldtype": "Long Text",
    "read_only": 1
+  },
+  {
+   "fieldname": "remind",
+   "label": "Reminder",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "remind_since",
+   "label": "Reminder Since",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cc_session",
+   "label": "CC Conversation",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
   },
   {
    "fieldname": "run_request",

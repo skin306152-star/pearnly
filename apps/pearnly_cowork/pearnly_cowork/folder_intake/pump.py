@@ -8,6 +8,9 @@
   给网页 / LINE / 对账留足名额；排不上的文件留在本表，下一分钟再看，不变成会过期的识别单；
 - 推送：每条连接同时「录入中」的文件夹票不超过 `push_pending`（默认 5），会计手动推的单最多排在这几张后面；
 - 推送前扣费已成功（用户 2026-10-07：扣费成功后才推送）。
+
+先后（F7，2026-10-12）：同一写入连接、同一账套里，存货销售文件等同账套的存货进货文件推送有了结论（写完或停下待人）
+再准备（`contracts.waits_for_purchases`，最多等 12 小时），否则销售会卖成负库存、不按进货的均价结转成本。
 """
 import json
 import time
@@ -18,9 +21,10 @@ import frappe
 from frappe.utils import add_to_date, now_datetime
 
 from pearnly_cowork.folder_intake import contracts, destinations, inbox, settings
-from pearnly_cowork.folder_intake.access import FILE, RULE, read, write
+from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.folder_intake.machine import owner_ready, request_key
 from pearnly_cowork.folder_intake.push import push_one
+from pearnly_cowork.targets.identity import normalize_express_account_key
 
 BATCH = "Cowork OCR Batch"
 WORK = "Pearnly OCR Work"
@@ -35,6 +39,8 @@ FOLLOW_DAYS = 30
 # 准备时小助手没报上账套（重启、断线）：每 10 分钟重推一次，6 小时后仍不行就照常记失败。
 OFFLINE_SECONDS = 600
 OFFLINE_RETRIES = 36
+# 存货销售等同账套的存货进货先写：每分钟再看一次
+ORDER_RECHECK_SECONDS = 60
 
 
 def kick():
@@ -293,7 +299,41 @@ def _pending_pushes(connection):
     return frappe.db.count(HISTORY, {"name": ["in", sent], "last_push_status": "pending"})
 
 
+def _order_key(connection, account_set_key):
+    return connection or "", normalize_express_account_key(account_set_key)
+
+
+def _purchases_in_progress(now):
+    """同账套还在路上的存货进货：{(连接, 账套): {"files": [...], "runs": [...]}}（每轮推送最多查一次）。"""
+    found = {}
+    for row in frappe.db.sql(f"""SELECT f.state, f.registered_at, r.connection, r.account_set_key
+            FROM `tab{FILE}` f INNER JOIN `tab{RULE}` r ON r.name = f.rule
+            WHERE f.state IN %s AND r.direction = 'purchase' AND r.posting_kind = 'stock'""",
+                             (contracts.ORDER_WAITING,), as_dict=True):
+        found.setdefault(_order_key(row.connection, row.account_set_key), {"files": [], "runs": []})["files"].append(row)
+    for row in frappe.db.sql(f"""SELECT r.connection, r.account_set_key, r.run_request_at,
+            (SELECT MAX(u.started_at) FROM `tab{RUN}` u WHERE u.rule = r.name AND IFNULL(u.note, '') != 'retry')
+                AS last_reported_at
+            FROM `tab{RULE}` r WHERE r.enabled = 1 AND r.direction = 'purchase' AND r.posting_kind = 'stock'
+              AND r.run_request_at >= %s""", (now - contracts.ORDER_RUN_GRACE,), as_dict=True):
+        found.setdefault(_order_key(row.connection, row.account_set_key), {"files": [], "runs": []})["runs"].append(row)
+    return found
+
+
+def _waits_for_purchases(entry, cache, now):
+    """这份文件是存货销售、同账套的存货进货还在路上：先不准备（停用的任务、负责人失效的照常走 `_push` 记停下，不拖）。"""
+    rule = frappe.db.get_value(RULE, entry.rule, ["enabled", "connection", "account_set_key", "direction",
+                                                  "posting_kind"], as_dict=True)
+    if not rule or not rule.enabled or contracts.stock_role(rule.direction, rule.posting_kind) != "sale":
+        return False
+    if "groups" not in cache:
+        cache["groups"] = _purchases_in_progress(now)  # 有存货销售要判时才查，空闲时开销不变
+    group = cache["groups"].get(_order_key(rule.connection, rule.account_set_key)) or {}
+    return contracts.waits_for_purchases(entry.registered_at, group.get("files") or [], group.get("runs") or [], now)
+
+
 def _push_step(cfg, deadline):
+    cache, now = {}, now_datetime()
     for name in _due("recognized", 100):
         if time.monotonic() > deadline:
             return
@@ -301,6 +341,13 @@ def _push_step(cfg, deadline):
         if _pending_pushes(entry.connection) >= cfg["push_pending"]:
             continue
         try:
+            if _waits_for_purchases(entry, cache, now):
+                _later(entry, ORDER_RECHECK_SECONDS, contracts.WAITING_PURCHASES)
+                continue
+            if entry.last_code == contracts.WAITING_PURCHASES:
+                entry.last_code = ""
+                write(entry)
+                frappe.db.commit()
             _push(entry, cfg, deadline)
         except frappe.QueryDeadlockError:
             frappe.db.rollback()
