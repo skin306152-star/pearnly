@@ -67,7 +67,7 @@ const MESSAGES = {
     zoomOut: "Zoom out",
     actualSize: "Actual size",
     resizePanel: "Drag to resize",
-    getDesktopApp: "Download CC for Windows",
+    getDesktopApp: "Download CC Desktop",
     loadingMessages: "Loading messages",
     installApp: "Install CC",
     addToHome: "Add to Home Screen",
@@ -241,7 +241,7 @@ const MESSAGES = {
     zoomOut: "ย่อขนาด",
     actualSize: "ขนาดจริง",
     resizePanel: "ลากเพื่อปรับความกว้าง",
-    getDesktopApp: "ดาวน์โหลด CC สำหรับ Windows",
+    getDesktopApp: "ดาวน์โหลด CC เดสก์ท็อป",
     loadingMessages: "กำลังโหลดข้อความ",
     installApp: "ติดตั้ง CC",
     addToHome: "เพิ่มไปยังหน้าจอโฮม",
@@ -326,7 +326,7 @@ export const LANGUAGES = [
   { code: "en", label: "English" },
 ];
 
-// 设置（左下角菜单 →「设置」，同 Claude）。「此电脑」一栏只在 Tomo 桌面端出现，用语沿用原小助手（companion/src/companion/i18n.py）。
+// 设置（左下角菜单 →「设置」，同 Claude）。「此电脑」一栏只在 Tomo 桌面端出现，用语沿用 CC 桌面版本身（companion/src/companion/i18n.py）。
 const SETTINGS = {
   en: {
     settings: "Settings", general: "General", thisComputer: "This computer", connections: "Connections", system: "System",
@@ -338,7 +338,7 @@ const SETTINGS = {
     change: "Change…", findAgain: "Find again", scanning: "Searching…",
     expressMissing: "Express not found. Click “Change…” and choose the Express data folder.",
     years: (path: string, n: number) => `${path} · ${n} years`,
-    expressFolder: "Express data folder", noFolders: "No folders yet.", noComputer: "No computer connected yet.", download: "Download CC",
+    expressFolder: "Express data folder", noFolders: "No folders yet.", noComputer: "No computer connected yet.", download: "Download CC Desktop",
     notConnected: "Not connected", connecting: "Connecting…", connect: "Connect", inUse: "Connected on another computer",
     useHere: "Use this computer", switchTo: (host: string) => `Switch to ${host}`, notAdmin: "Requires an admin account",
     linkFailed: "Could not connect", retry: "Try again", pause: "Pause", resume: "Resume", disconnect: "Disconnect", remove: "Remove",
@@ -360,7 +360,7 @@ const SETTINGS = {
     change: "更换…", findAgain: "重新查找", scanning: "正在查找…",
     expressMissing: "未找到 Express，请点击「更换…」选择 Express 数据所在文件夹。",
     years: (path: string, n: number) => `${path} 等 ${n} 个年度`,
-    expressFolder: "Express 数据文件夹", noFolders: "还没有文件夹。", noComputer: "还没有电脑连接。", download: "下载 CC",
+    expressFolder: "Express 数据文件夹", noFolders: "还没有文件夹。", noComputer: "还没有电脑连接。", download: "下载 CC 桌面版",
     notConnected: "未连接", connecting: "正在连接…", connect: "连接", inUse: "已在另一台电脑连接",
     useHere: "改用这台电脑", switchTo: (host: string) => `改连 ${host}`, notAdmin: "需要管理员账号",
     linkFailed: "连接失败", retry: "重试", pause: "暂停", resume: "恢复", disconnect: "断开连接", remove: "移除",
@@ -382,7 +382,7 @@ const SETTINGS = {
     change: "เปลี่ยน…", findAgain: "ค้นหาอีกครั้ง", scanning: "กำลังค้นหา…",
     expressMissing: "ไม่พบ Express กรุณากด «เปลี่ยน…» แล้วเลือกโฟลเดอร์ข้อมูล Express",
     years: (path: string, n: number) => `${path} รวม ${n} ปีบัญชี`,
-    expressFolder: "โฟลเดอร์ข้อมูล Express", noFolders: "ยังไม่มีโฟลเดอร์", noComputer: "ยังไม่มีคอมพิวเตอร์เชื่อมต่อ", download: "ดาวน์โหลด CC",
+    expressFolder: "โฟลเดอร์ข้อมูล Express", noFolders: "ยังไม่มีโฟลเดอร์", noComputer: "ยังไม่มีคอมพิวเตอร์เชื่อมต่อ", download: "ดาวน์โหลด CC เดสก์ท็อป",
     notConnected: "ยังไม่ได้เชื่อมต่อ", connecting: "กำลังเชื่อมต่อ…", connect: "เชื่อมต่อ", inUse: "เชื่อมต่ออยู่กับคอมพิวเตอร์เครื่องอื่น",
     useHere: "ใช้เครื่องนี้แทน", switchTo: (host: string) => `เปลี่ยนไปเชื่อมต่อ ${host}`, notAdmin: "ต้องใช้บัญชีผู้ดูแลระบบ",
     linkFailed: "เชื่อมต่อไม่สำเร็จ", retry: "ลองใหม่", pause: "พักการใช้งาน", resume: "กลับมาใช้งาน", disconnect: "ยกเลิกการเชื่อมต่อ", remove: "นำออก",

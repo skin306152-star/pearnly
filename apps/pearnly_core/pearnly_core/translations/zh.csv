@@ -227,7 +227,7 @@ Document date,单据日期
 Document no.,单据号
 Documents,单据数
 Done · {0} ok · {1} failed,完成 · 成功 {0} · 失败 {1}
-Download CC,下载 CC
+Download CC Desktop,下载 CC 桌面版
 Draft,草稿
 Due Date,到期日
 Duplicate skipped,重复已跳过
@@ -1036,7 +1036,7 @@ intake.status.recognized,已识别
 intake.status.recognizing,识别中
 intake.status.rejected,已退回
 intake.subtitle,核对并确认单据后即可推送。
-intake.target.download,下载 CC
+intake.target.download,下载 CC 桌面版
 intake.target.recognizeOnly,识别后导出
 intake.target.title,目标 ERP
 intake.target.year,年度

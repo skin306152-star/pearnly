@@ -994,7 +994,7 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
   );
 }
 
-// ── 连接：MR.ERP 填账号密码；Express / 小助手是「下载 CC」并等它连上（同 Cowork 的连接弹窗） ─────────────
+// ── 连接：MR.ERP 填账号密码；Express / CC 桌面版是「下载 CC 桌面版」并等它连上（同 Cowork 的连接弹窗） ─────────────
 
 function ConnectDialog({ tr, kind, connection, onClose }: { tr: Tr; kind: string; connection: Connection | null; onClose: () => void }) {
   if (kind === "mrerp") return <MrerpConnect tr={tr} connection={connection} onClose={onClose} />;
