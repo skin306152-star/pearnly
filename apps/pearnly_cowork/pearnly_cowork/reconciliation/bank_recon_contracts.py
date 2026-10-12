@@ -50,8 +50,9 @@ ANCHOR_KEYS = ("stmt_opening", "gl_opening", "gl_closing", "stmt_closing")
 PARSE_INFO_SECTIONS = {
 	# recognized：这份账单是识别读出的（照片 / 扫描件）；unread_pages：识别时抽取超时没读出的页；account：读出的
 	# 账号末四位（对账预设按账户记）；duplicate_sheets：逐行相同、只算一次的工作表 [复制的, 原来的]。都是 2026-09-30 加的，旧任务没有。
+	# account_read：这个尾号是账单上读出的、不是退回的工作表名（2026-10-13 加，认不出银行的对账预设只认这种）。
 	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code", "recognized", "unread_pages", "recovered_pages", "account",
-		"duplicate_sheets"),
+		"account_read", "duplicate_sheets"),
 	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
 }
 CONFIDENCE_LEVELS = ("high", "medium", "low")
@@ -168,6 +169,8 @@ def parse_info(value):
 					item["recovered_pages"] = list(recovered)
 				if record.get("account"):
 					item["account"] = _text(record.get("account"), f"{section}.account", limit=4)
+					if record.get("account_read"):
+						item["account_read"] = True
 				duplicates = record.get("duplicate_sheets") or []
 				if duplicates:
 					if (not isinstance(duplicates, list) or len(duplicates) > MAX_ACCOUNTS

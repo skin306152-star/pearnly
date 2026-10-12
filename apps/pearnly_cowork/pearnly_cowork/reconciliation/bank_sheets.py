@@ -338,9 +338,8 @@ def printed_no_data(raw_rows) -> bool:
 	return any(_NO_DATA_RE.search(str(cell_value or "")) for row in raw_rows[:40] for cell_value in row)
 
 
-def extract_sheet_account(raw_rows, header_idx: int, sheet_name: str = "") -> str:
-	"""账户号：表头上方那张 `Account No. : xxx` 标签行里右侧第一个非空值，找不到退回
-	sheet 名（KTB 把账户号当 sheet 名，如 984-2-99825-8）。"""
+def labelled_sheet_account(raw_rows, header_idx: int) -> str:
+	"""账单上印着的账号：表头上方那张 `Account No. : xxx` 标签行里右侧第一个非空值；没有标签回空。"""
 	for raw in raw_rows[: max(header_idx, 0)]:
 		cells = [str(cell or "").strip() for cell in raw]
 		for index, cell in enumerate(cells):
@@ -348,6 +347,15 @@ def extract_sheet_account(raw_rows, header_idx: int, sheet_name: str = "") -> st
 				for value in cells[index + 1:]:
 					if value:
 						return value
+	return ""
+
+
+def extract_sheet_account(raw_rows, header_idx: int, sheet_name: str = "") -> str:
+	"""账户号：表头上方标着的账号（``labelled_sheet_account``），找不到退回
+	sheet 名（KTB 把账户号当 sheet 名，如 984-2-99825-8）。"""
+	labelled = labelled_sheet_account(raw_rows, header_idx)
+	if labelled:
+		return labelled
 	name = str(sheet_name or "").strip()
 	return name if any(ch.isdigit() for ch in name) else ""
 
@@ -671,11 +679,12 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 			inferred = None if looks_like_ledger(raw_rows) else headerless_rows(raw_rows, filename)
 			if inferred is None:
 				continue  # 该 sheet 没有流水表头（汇总页/空页），跳过
-			account_no = extract_sheet_account(raw_rows, 0, sheet_name)
+			account_no, labelled = extract_sheet_account(raw_rows, 0, sheet_name), False
 			sheet_rows, sheet_opening = inferred
 			sheet_closing = sheet_rows[-1].balance if sheet_rows else None
 		else:
 			account_no = extract_sheet_account(raw_rows, header_idx, sheet_name)
+			labelled = bool(account_no) and account_no == labelled_sheet_account(raw_rows, header_idx)
 			sheet_rows, sheet_opening, sheet_closing = parse_statement_sheet(
 				raw_rows, header_idx, col_map, filename, account_no)
 		sheet_rows = [row for row in sheet_rows if not is_summary_row(row.description)]
@@ -706,6 +715,7 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 		accounts.append({
 			"sheet": sheet_name,
 			"account_no": account_no,
+			"account_labelled": labelled,
 			"rows": sheet_rows,
 			"opening": opening,
 			"closing": closing,
@@ -789,6 +799,9 @@ def read_statement_workbook(file_bytes: bytes, filename: str = "") -> Dict[str, 
 		"sheets_parsed": sheets_with_data,
 		"accounts": accounts,
 		"account_codes": [account["account_no"] for account in accounts if account["account_no"]],
+		# 账单上标着的账号（不含退回的 sheet 名：按月分表时 sheet 名是月份 / 年份）；认不出银行的对账预设只认这种。
+		"labelled_accounts": [account["account_no"] for account in accounts
+			if account["account_no"] and account.get("account_labelled")],
 		"multi_account": multi_account,
 		"duplicate_sheets": duplicates,
 		"completeness": {"ok": len(issues) == 0, "issues": issues},

@@ -47,6 +47,15 @@ class Scope(unittest.TestCase):
 		self.assertEqual(presets.account_scope("generic", "4821"), "bank|GENERIC|4821|-")
 		self.assertEqual(presets.account_scope("generic", ""), "")
 
+	def test_an_unknown_bank_counts_only_tails_read_from_the_statement(self):
+		# 表格账单退回工作表名当账号，按月分表时是 Jan 2026 这类：通用版式不拿它当尾号；有银行名的照旧（复查 2026-10-13）。
+		guessed, read = {"ok": True, "account": "2026"}, {"ok": True, "account": "4821", "account_read": True}
+		self.assertEqual(presets.statement_tail("generic", [guessed]), "")
+		self.assertEqual(presets.statement_tail("generic", [guessed, read]), "4821")
+		self.assertEqual(presets.statement_tail("generic", [{**read, "ok": False}]), "")
+		self.assertEqual(presets.statement_tail("KBANK", [guessed]), "2026")
+		self.assertEqual(presets.statement_tail("generic", None), "")
+
 	def test_the_most_common_tail_and_ledger_account_win(self):
 		self.assertEqual(presets.account_tail(["xxx-x-x4821-x", "4821", "12", "", "9999"]), "4821")
 		self.assertEqual(presets.ledger_account(["1112-01", "1112-01", "", "2100"]), "1112-01")
@@ -152,9 +161,11 @@ class Questions(unittest.TestCase):
 		{"date": "2026-03-20", "doc_no": "RE2", "account_code": "1112-01", "description": "", "debit": "500",
 		"credit": "0", "balance": None}]
 
-	def doc(self, bank_code="KBANK", account="4821"):
+	def doc(self, bank_code="KBANK", account="4821", read=True):
+		"""``read``：尾号是账单上读出的（``account_read``），不是退回的工作表名。"""
 		rows = bank_recon_contracts.decode_rows(self.STATEMENT, self.LEDGER)
-		read = {"file": "a.pdf", "ok": True, **({"account": account} if account else {})}
+		read = {"file": "a.pdf", "ok": True, **({"account": account} if account else {}),
+			**({"account_read": True} if account and read else {})}
 		return FakeDoc(name="CBR-9", workspace="W", status="completed", review_json="{}",
 			inputs_json=recon_contracts.inputs_json(statement=rows[0], gl=rows[1]),
 			parse_info_json=json.dumps({"stmt_files": [read]}),
@@ -220,6 +231,19 @@ class Questions(unittest.TestCase):
 		self.assertEqual(questions, [])
 		self.assertEqual({scope for _workspace, scope in calls}, {""})
 		self.assertFalse(any(row.group_no for row in results))
+
+	def test_an_unknown_bank_with_a_tail_taken_from_the_sheet_name_is_not_asked(self):
+		# 尾号是退回的工作表名（Jan 2026 → 2026），或这条之前建的通用版式任务：不问不记，免得套用别家公司的答案。
+		questions, results, calls = self.ask({presets.GROUPED: presets.YES}, card_fee=(1.95, 2, []),
+			bank_code="generic", account="2026", read=False)
+		self.assertEqual(questions, [])
+		self.assertEqual({scope for _workspace, scope in calls}, {""})
+		self.assertFalse(any(row.group_no for row in results))
+
+	def test_a_named_bank_keeps_its_tail_from_the_sheet_name(self):
+		# 有银行名的键不变：KTB 把账号当工作表名，照旧按它记。
+		_questions, _results, calls = self.ask({}, account="8258", read=False)
+		self.assertEqual(calls[0], ("W", "bank|KBANK|8258|1112-01"))
 
 
 # ── 收入：税报里一笔都对不上的收入科目参不参与对账 ─────────────────────────────
@@ -326,21 +350,35 @@ class LedgerAccount(unittest.TestCase):
 		return {"ok": True, "rows": rows, "row_count": len(rows), "accounts": sorted({row.account_code for row in rows}),
 			"opening": 1000.0, "closing": 1200.0, "source": "workbook", "needs_review": False}
 
-	def create(self, preset, **statement):
+	def workbook(self, *above):
+		"""真读一份通用版式的表格账单（statement.xlsx，工作表名 Jan 2026）；``above``：表头上方的行。"""
+		from openpyxl import Workbook
+
+		book = Workbook()
+		sheet = book.active
+		sheet.title = "Jan 2026"
+		for row in [*above, ["วันที่", "รายการ", "ถอนเงิน", "ฝากเงิน", "ยอดคงเหลือ"],
+				["03/05/2569", "", "100.00", "", "900.00"], ["05/05/2569", "", "", "300.00", "1200.00"]]:
+			sheet.append(row)
+		stream = io.BytesIO()
+		book.save(stream)
+		return bank_recon_service.bank_intake.read_statement_file(stream.getvalue(), "statement.xlsx")
+
+	def create(self, preset, parsed=None, **statement):
 		reads = []
+		parsed = parsed or self.statement(**statement)
 
 		def read_ledger(content, name, account_code="", model_rows=None):
 			reads.append(account_code)
 			return self.ledger(account_code or None)
 		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
-				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file",
-					return_value=self.statement(**statement)), \
+				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", return_value=parsed), \
 				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", side_effect=read_ledger), \
 				mock.patch.object(bank_recon_service, "preset_rules", return_value=preset) as rules, \
 				mock.patch.object(bank_recon_service, "_", side_effect=lambda text, **_kw: text + " {0}"), \
 				mock.patch.object(bank_recon_service, "create", return_value={"name": "T1"}) as create:
 			result = bank_recon_service.create_from_documents("ws", "t", "r", b"", "", b"", "",
-				statement_files=[(b"1", "statement.xlsx" if statement.get("bank_code") == "generic" else "kbank.xlsx")],
+				statement_files=[(b"1", "statement.xlsx" if parsed["bank_code"] == "generic" else "kbank.xlsx")],
 				gl_files=[(b"g", "gl.xlsx")])
 		self.scopes = [call.args[1] for call in rules.call_args_list]
 		return result, create.call_args, reads
@@ -382,6 +420,24 @@ class LedgerAccount(unittest.TestCase):
 		result, call, _reads = self.create({presets.GL_ACCOUNT: "1112-02"}, bank_code="generic", tail="")
 		self.assertEqual((result["questions"], self.scopes), ([], []))
 		self.assertEqual(call.args[5]["gl_account_code"], "")
+
+	def test_a_spreadsheet_named_by_month_is_not_known_by_its_sheet_name(self):
+		# 复查 2026-10-13：表头上方没有 Account No、工作表名 Jan 2026 —— 读出的「账号」是表名，2026 不是尾号；不查、不问、不记。
+		parsed = self.workbook()
+		self.assertEqual((parsed["bank_code"], {row.account_no for row in parsed["rows"]}), ("generic", {"Jan 2026"}))
+		result, call, _reads = self.create({presets.GL_ACCOUNT: "1112-02"}, parsed=parsed)
+		self.assertEqual((result["questions"], self.scopes), ([], []))
+		self.assertEqual(call.args[5]["gl_account_code"], "")
+		self.assertEqual(call.kwargs["parse_info"]["stmt_files"][0]["account"], "2026")
+		self.assertNotIn("account_read", call.kwargs["parse_info"]["stmt_files"][0])
+
+	def test_a_spreadsheet_with_a_labelled_account_is_known_by_its_tail(self):
+		parsed = self.workbook(["Account No.", "123-4-54821-0"])
+		result, call, _reads = self.create({}, parsed=parsed)
+		self.assertEqual([(item["rule"], item["scope"]) for item in result["questions"]],
+			[(presets.GL_ACCOUNT, "bank|GENERIC|8210|-")])
+		self.assertEqual({key: call.kwargs["parse_info"]["stmt_files"][0][key] for key in ("account", "account_read")},
+			{"account": "8210", "account_read": True})
 
 	def test_free_answers_are_account_codes(self):
 		self.assertTrue(presets.valid("bank", presets.GL_ACCOUNT, "1112-01"))

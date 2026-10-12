@@ -106,10 +106,9 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 
 
 def preset_scope(bank_code, parse_values, gl_account_code, gl_rows):
-	"""这份对账按哪个账户记预设（``presets.bank_scope``）：账号末四位取读成功的几份账单里最常见的，
+	"""这份对账按哪个账户记预设（``presets.bank_scope``）：账号末四位取读成功的几份账单里最常见的（``presets.statement_tail``），
 	总账科目取任务上的，没有就取总账行里最常见的。"""
-	tail = presets.account_tail(item.get("account") for item in (parse_values or {}).get("stmt_files") or []
-		if item.get("ok"))
+	tail = presets.statement_tail(bank_code, (parse_values or {}).get("stmt_files"))
 	account = gl_account_code or presets.ledger_account(
 		row.get("account_code") if isinstance(row, dict) else getattr(row, "account_code", "") for row in gl_rows)
 	return presets.bank_scope(bank_code, tail, account)
@@ -118,6 +117,12 @@ def preset_scope(bank_code, parse_values, gl_account_code, gl_rows):
 def task_scope(doc, gl_rows):
 	return preset_scope(doc.get("bank_code"), bank_recon_contracts.json_loads(doc.get("parse_info_json")) or {},
 		doc.get("gl_account_code"), gl_rows)
+
+
+def task_tail(doc):
+	"""任务记下的账号尾号（``presets.statement_tail``）；结果页存档的指纹按它收窄通用版式的预设。"""
+	return presets.statement_tail(doc.get("bank_code"),
+		(bank_recon_contracts.json_loads(doc.get("parse_info_json")) or {}).get("stmt_files"))
 
 
 def preset_rules(workspace, scope):
@@ -295,8 +300,8 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		warnings = list(warnings or []) + [_("reconciliation.files_unread", lang=_warning_lang(lang)).format("、".join(unread))]
 	# 这个账户（银行 + 账号尾号）定过对总账哪个科目（对账预设）：总账里真有这个科目就按它，不再猜；没有这个科目
 	# （换了总账 / 预设不适用）照旧自己挑，挑不出再问。
-	account_scope = presets.account_scope(statement["bank_code"], presets.account_tail(
-		_account_of(result).get("account", "") for _name, result in statements if result.get("ok")))
+	account_scope = presets.account_scope(statement["bank_code"], presets.statement_tail(statement["bank_code"],
+		[{"ok": True, **_account_of(result)} for _name, result in statements if result.get("ok")]))
 	# 单一账户的明细账（余额一条链连下来、跨过「科目」栏的变化）：那一栏印的是对方科目，整份都是这个账户的，
 	# 不按它拆、不问选哪个（2026-10-11 B02 TTB：Express「Monthly G/L By Account Code」把对方科目印在行上，
 	# 原来只取 C1111，丢了 2402010 的 918,544.48 入账和 10003 的实际刷卡手续费，34 笔对不上、还提示补记手续费）。
@@ -419,11 +424,19 @@ def _read_by_recognition(parsed):
 
 
 def _account_of(parsed):
-	"""读出的账号末四位（识别读出的账户身份，或表格账单每行的账号）；对账预设按账户记。"""
+	"""读出的账号末四位（识别读出的账户身份，或表格账单每行的账号）；对账预设按账户记。
+
+	``account_read``：这个尾号是账单上读出的（识别读出的账户，或表头上方标着「账号」的），不是退回的 sheet 名
+	（按月分表时是月份 / 年份）；认不出银行的通用版式只认这种（``presets.statement_tail``）。"""
 	identity = parsed.get("identity") or {}
-	tail = presets.account_tail([identity.get("last4") or identity.get("account") or ""]
-		+ [getattr(row, "account_no", "") for row in parsed.get("rows") or []])
-	return {"account": tail} if tail else {}
+	read = [identity.get("last4") or identity.get("account") or ""]
+	numbers = [getattr(row, "account_no", "") for row in parsed.get("rows") or []]
+	labelled = set(parsed.get("labelled_accounts") or ())
+	tail = presets.account_tail(read + numbers)
+	if not tail:
+		return {}
+	return {"account": tail, **({"account_read": True}
+		if presets.account_tail(read + [number for number in numbers if number in labelled]) == tail else {})}
 
 
 def _warning_lang(lang):
