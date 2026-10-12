@@ -18,6 +18,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fileUrl, listSessionFiles, previewFile, type SessionFile, type SheetPreview } from "@/lib/managed-agents/api";
 import { cn } from "@/lib/utils";
+import { SplitHandle, resultsSize, useStoredSize } from "@/components/split-handle";
 import { t } from "@/i18n";
 
 type Kind = "html" | "image" | "pdf" | "sheet" | "text" | "none";
@@ -284,9 +285,11 @@ export function ResultsPanel({
   className?: string;
 }) {
   const current = files.find((f) => f.id === selected) ?? files[files.length - 1];
+  const width = useStoredSize(resultsSize.key, resultsSize.cssVar, resultsSize.unit);
   if (!current) return null;
   return (
-    <aside className={cn("flex h-full min-w-0 flex-col border-l bg-surface", className)}>
+    <aside className={cn("cc-results flex h-full min-w-0 flex-col border-l bg-surface", className)} style={width.style}>
+      <SplitHandle size={resultsSize} edge="start" onChange={width.update} />
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <select
           value={current.id}

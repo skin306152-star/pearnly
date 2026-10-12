@@ -11,6 +11,7 @@
   "dependencies": {
     "@assistant-ui/react": "0.14.27",
     "@assistant-ui/react-markdown": "0.14.6",
+    "@fontsource-variable/source-serif-4": "5.3.0",
     "assistant-stream": "0.3.26",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",

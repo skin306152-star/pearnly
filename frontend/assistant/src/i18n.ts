@@ -64,6 +64,7 @@ const MESSAGES = {
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
     actualSize: "Actual size",
+    resizePanel: "Drag to resize",
   },
   zh: {
     language: "语言",
@@ -128,6 +129,7 @@ const MESSAGES = {
     zoomIn: "放大",
     zoomOut: "缩小",
     actualSize: "实际大小",
+    resizePanel: "拖动调整宽度",
   },
   th: {
     language: "ภาษา",
@@ -192,6 +194,7 @@ const MESSAGES = {
     zoomIn: "ขยาย",
     zoomOut: "ย่อขนาด",
     actualSize: "ขนาดจริง",
+    resizePanel: "ลากเพื่อปรับความกว้าง",
   },
 } as const;
 
