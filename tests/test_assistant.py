@@ -806,6 +806,12 @@ class PageTests(unittest.TestCase):
         self.assertEqual(html.count("{{"), 2)
         self.assertNotIn("{%", html)
 
+    def test_boot_screen_shows_the_brand_mascot_until_the_page_renders(self):
+        # 2026-10-12：主屏幕 app、安卓、桌面端启动时不再空白；猫放在 #root 里，React 第一次渲染就把它替换掉
+        html = (CORE / "www/assistant.html").read_text(encoding="utf-8")
+        mascot = (ROOT / "frontend/assistant/src/brand/cc.svg").read_text(encoding="utf-8").strip()
+        self.assertIn('<div id="root"><div class="cc-boot" role="status">' + mascot + "</div></div>", html)
+
     def test_icons_are_fingerprinted_not_fixed_addresses(self):
         # /assets 缓存一年（Cloudflare 照存）：图标与 manifest 的地址由构建带内容指纹，页面不写死。
         html = (CORE / "www/assistant.html").read_text(encoding="utf-8")
