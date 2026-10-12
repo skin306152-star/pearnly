@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-12 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -29,6 +29,7 @@
   "upload_failed",
   "note",
   "brief_state",
+  "brief_group",
   "brief_at",
   "brief_key"
  ],
@@ -132,6 +133,14 @@
    "fieldtype": "Select",
    "read_only": 1,
    "options": "pending\nsent\nskipped",
+   "search_index": 1
+  },
+  {
+   "fieldname": "brief_group",
+   "label": "Brief Group",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
    "search_index": 1
   },
   {

@@ -56,10 +56,11 @@ class Store:
     def sql(self, query, values=None, as_dict=False):
         if "COUNT(*)" in query:
             return [[sum(1 for row in self.rules.values() if self._reader(row) == values[0])]]
-        if "AND root_id = %s" in query:
-            root, reader = values
+        if "WHERE enabled = %s AND root_id = %s" in query:
+            enabled, root, reader = values
             return [Row(name=row["name"], title=row["title"], folder=row.get("folder")) for row in self.rules.values()
-                    if row.get("enabled") and row.get("root_id") == root and self._reader(row) == reader]
+                    if int(row.get("enabled") or 0) == enabled and row.get("root_id") == root
+                    and self._reader(row) == reader]
         raise AssertionError(query)
 
     def get_all(self, doctype, filters=None, pluck=None, **_ignored):
@@ -189,6 +190,38 @@ class SaveRules(Harness):
         self.rules.save(self.values(name="R1", folder="C"))
         self.assertEqual(self._saved()["include_existing"], 1)
 
+    def test_a_folder_name_that_differs_only_in_case_is_the_same_folder(self):
+        """business-logic-2：Windows 上「Purchases」与「purchases」是同一个文件夹，老任务不因此改成处理已有文件。"""
+        self.rules.save(self.values(folder="A"))
+        self.store.rules["R1"]["include_existing"] = 0
+        self.rules.save(self.values(name="R1", folder="a", remind=1))
+        self.assertEqual((self._saved()["include_existing"], self._saved()["folder"]), (0, "a"))
+
+    def test_a_new_task_on_a_paused_tasks_folder_continues_it(self):
+        """business-logic-1：照「请停用后新建定时任务」做 —— 新任务的文件夹与停用的任务重叠，就是接续它，只收此后放进来的
+        （小助手拍底），不把已入账的历史票据再识别、再推一遍；与停用任务不重叠的新任务照旧处理已有文件。"""
+        self.rules.save(self.values(title="Old purchases", folder="A"))
+        self.rules.set_enabled("R1", 0)
+        self.assertEqual(self.rules.continues_from("C1", ROOT_A, "A\\B"), "Old purchases")
+        self.assertEqual(self.rules.continues_from("C1", ROOT_A, "a"), "Old purchases")  # 不分大小写
+        self.assertIsNone(self.rules.continues_from("C1", ROOT_A, "C"))
+        self.assertIsNone(self.rules.continues_from("C1", ROOT_A, "A", current="R1"))  # 不比自己
+        self.assertIsNone(self.rules.continues_from("NOPE", ROOT_A, "A"))  # 没有这台小助手的使用权
+        self.assertIsNone(self.rules.continues_from("C1", ROOT_A, "..\\x"))
+        self.rules.save(self.values(title="New purchases", folder="A"))
+        self.assertEqual(self._saved("R2")["include_existing"], 0)
+        self.rules.save(self.values(title="Sales", folder="C", direction="sales"))
+        self.assertEqual(self._saved("R3")["include_existing"], 1)
+        # 一个已有任务换到停用任务的文件夹里：也只收此后放进来的，启用时刻记成现在（小助手按它重新拍底）
+        self.rules.set_enabled("R2", 0)
+        self.clock[0] = self.NOW + timedelta(days=2)
+        self.rules.save(self.values(name="R3", title="Sales", folder="A\\B", direction="sales"))
+        self.assertEqual((self._saved("R3")["include_existing"], self._saved("R3")["active_since"]),
+                         (0, self.NOW + timedelta(days=2)))
+        # 没换文件夹的改动不重算
+        self.rules.save(self.values(name="R3", title="Sales 2", folder="A\\B", direction="sales"))
+        self.assertEqual(self._saved("R3")["active_since"], self.NOW + timedelta(days=2))
+
     def test_the_reminder_is_kept_unless_given_and_restarts_when_its_time_or_owner_changes(self):
         self.rules.save(self.values(remind=1))
         self.clock[0] = self.NOW + timedelta(hours=1)
@@ -215,6 +248,21 @@ class SaveRules(Harness):
                          (1, 1, self.NOW + timedelta(hours=1), "sesn_cc_2", revision))
         self.rules.set_enabled("R1", 0)
         self.assertEqual((self._saved()["enabled"], self._saved()["rule_revision"]), (0, revision + 1))
+
+    def test_only_the_owners_own_conversation_is_kept(self):
+        """security-3：同事在自己的对话里替负责人开关提醒或停用，不把负责人的对话换成同事的（提醒卡片仍回负责人那段）；
+        同事重新启用就成了负责人，对话跟着换成他的。"""
+        self.rules.save(self.values(remind=1), cc_session="sesn_owner_1")
+        self.user.user = "colleague@example.com"
+        self.rules.set_enabled("R1", None, remind=True, cc_session="sesn_colleague_1")
+        self.rules.set_enabled("R1", None, remind=False, cc_session="sesn_colleague_1")
+        self.assertEqual((self._saved()["cc_session"], self._saved()["remind"], self._saved()["rule_owner"]),
+                         ("sesn_owner_1", 0, "owner@example.com"))
+        self.rules.set_enabled("R1", 0, cc_session="sesn_colleague_1")
+        self.assertEqual(self._saved()["cc_session"], "sesn_owner_1")
+        self.rules.set_enabled("R1", 1, cc_session="sesn_colleague_1")
+        self.assertEqual((self._saved()["cc_session"], self._saved()["rule_owner"]),
+                         ("sesn_colleague_1", "colleague@example.com"))
 
     def test_turning_back_on_restarts_the_schedule_floor_owner_and_reminder(self):
         self.rules.save(self.values(remind=1))

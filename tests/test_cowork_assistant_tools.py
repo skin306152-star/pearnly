@@ -76,7 +76,8 @@ def _install():
         "pearnly_cowork.folder_intake.agent": dict(read=lambda reader: {}),
         "pearnly_cowork.folder_intake.rules": dict(listing=lambda: {}, run_now=lambda n: {}, runs=lambda n: {},
                                                    waiting=lambda *a: None, account_label=lambda c, k: k,
-                                                   master_names=lambda c, k: {}),
+                                                   master_names=lambda c, k: {},
+                                                   continues_from=lambda reader, root, folder, current=None: None),
         "pearnly_cowork.history.push_state": dict(record_failure=lambda *a: None),
         "pearnly_cowork.history.storage": dict(read=lambda name: None),
         "pearnly_cowork.push.application.service": dict(),
@@ -568,13 +569,21 @@ class FolderTaskTests(unittest.TestCase):
         self.assertEqual(found["computers"][0]["roots"][0]["folders"], ["2026-07"])
 
     def test_options_give_the_reported_file_counts(self):
-        """小助手报了各文件夹现有几份就带上（CC 建任务前能说出来）；没报的不给，不拿 0 冒充。"""
+        """小助手报了各文件夹现有几份就带上（CC 建任务前能说出来）：数过的（有 counts 键，哪怕是空的）没文件的文件夹给 0；
+        没报过的（没有 counts 键）不给，不拿 0 冒充（interfaces-2）。"""
         tools.rules.options = lambda connection, key: {"readers": [{"connection": "EXP1", "label": "PC", "fresh": True, "roots": [
             {"id": "r1", "label": "C:\\Bills", "folders": ["Ice", "Mint"], "counts": {"": 9, "Ice": 7}, "partial": True},
-            {"id": "r2", "label": "D:\\Scan", "folders": ["A"]}]}]}
+            {"id": "r2", "label": "D:\\Scan", "folders": ["A"]},
+            {"id": "r3", "label": "E:\\Empty", "folders": ["2026-11"], "counts": {}}]}]}
         roots = json.loads(tools.folder_task_options({"connection": "EXP1"}))["computers"][0]["roots"]
-        self.assertEqual((roots[0]["files"], roots[0]["files_partial"]), ({"": 9, "Ice": 7}, True))
+        self.assertEqual((roots[0]["files"], roots[0]["files_partial"]), ({"": 9, "Ice": 7, "Mint": 0}, True))
         self.assertNotIn("files", roots[1])
+        self.assertEqual(roots[2]["files"], {"": 0, "2026-11": 0})
+        self.assertNotIn("files_partial", roots[2])
+        found = json.loads(tools.folder_task_options({"connection": "EXP1", "search": "mint"}))["computers"][0]["roots"]
+        self.assertEqual(found[0]["files"], {"": 9, "Mint": 0})  # 只给列出来的文件夹（与根目录）
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_folder_task_options")["description"]
+        self.assertIn("without files means that computer has not reported counts", description)
 
     def test_save_enable_delete_go_through_the_task_service(self):
         values = {"title": "Ice", "connection": "EXP1", "direction": "purchase", "posting_kind": "stock",
@@ -1013,6 +1022,27 @@ class FolderTaskBatchTests(unittest.TestCase):
             with mock.patch.object(tools.rules, "waiting", lambda *a: {"files": 0, "partial": False}):
                 rows = tools.preview_save_folder_task(self.new)
             self.assertEqual(rows[-1]["after"], "0 files in the folder now")
+
+    def test_a_task_that_continues_a_paused_one_says_so_instead_of_the_file_count(self):
+        """business-logic-1：新任务的文件夹与停用的任务重叠（任务服务会置成只收此后放进来的），卡片说接续哪个任务，
+        不说「现有 N 份，到点一起处理」；单个、批量两种卡片同一句。"""
+        asked = []
+
+        def continues_from(reader, root, folder, current=None):
+            asked.append((reader, root, folder, current))
+            return "Old purchases"
+
+        with mock.patch.object(tools, "_", lambda text: {"cowork.folder.continues": "Continues «{0}»"}.get(text, _term(text))), \
+                mock.patch.object(tools.rules, "continues_from", continues_from):
+            single = tools.preview_save_folder_task(self.new)
+            batch = tools.preview_save_folder_tasks({"tasks": [self.new, {"name": "R1", "folder": "Ice\\old"}]})
+        self.assertEqual(single[-1], {"field": "", "before": "", "after": "Continues «Old purchases»"})
+        self.assertNotIn("7+ files in the folder now", json.dumps(single))
+        self.assertEqual(batch[0]["after"].split(" · ")[-1], "Continues «Old purchases»")
+        self.assertEqual(batch[1]["after"].split(" · ")[-1], "Continues «Old purchases»")
+        # 改已有任务换文件夹：不拿它自己比
+        self.assertEqual(asked, [("EXP1", "r1", "Ice/expenses", None), ("EXP1", "r1", "Ice/expenses", None),
+                                 ("EXP1", "r1", "Ice\\old", "R1")])
 
     def test_single_save_passes_the_conversation_and_reports_defaults_not_kept(self):
         saved = []

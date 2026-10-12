@@ -56,7 +56,12 @@ class Notices:
     """共用层提醒服务的替身：同一去重键只记一条，再发回 created False（不再推送）。"""
 
     def __init__(self):
-        self.rows, self.fail = {}, set()
+        self.rows, self.fail, self.foreign, self.asked = {}, set(), set(), []
+
+    def owned_conversation(self, user, candidates):
+        """共用层判对话归属的替身：``foreign`` 里的对话不属于收件人（别人的、归档了、换了引擎），按给的先后取第一段。"""
+        self.asked.append((user, list(candidates)))
+        return next((sid for sid in candidates if sid not in self.foreign), "")
 
     def post(self, user, kind, text, dedup_key, *, title="", conversation="", reference_doctype="", reference_names=(),
              ttl=0):
@@ -184,7 +189,7 @@ class Reminders(Harness):
         self.assertEqual((sent[0].user, sent[0].kind, sent[0].title, sent[0].reference_doctype, sent[0].refs, sent[0].ttl),
                          (OWNER, "cowork.folder.reminder", "Scheduled task reminder", RULE, ("R1",), 6 * 3600))
         self.assertEqual(sent[0].text, "«Bills» starts tomorrow at 22:00 (1 d 13 h left). Put the documents in "
-                                       "D:\\Bills\\A and make sure they are complete.\n3 files in the folder now.")
+                                       "D:\\Bills\\A and make sure they are complete.\n3 files not processed yet.")
         checks = len(self.checked)
         for at in ("2026-10-13 08:10", "2026-10-13 13:55"):
             self.assertEqual(len(self.remind(at)), 1)
@@ -206,8 +211,34 @@ class Reminders(Harness):
         self.assertEqual(len(sent), 1)
         self.assertEqual(sent[0].text, "3 scheduled tasks start tomorrow at 22:00 (1 d 13 h left). Put the documents in "
                                        "these folders and make sure they are complete:\n"
-                                       "· Bills: D:\\Bills\\B (5+ files)\n· Cash: D:\\Bills\\C\n· Sales: D:\\Bills\\S")
+                                       "· Bills: D:\\Bills\\B (5+ not processed yet)\n· Cash: D:\\Bills\\C\n"
+                                       "· Sales: D:\\Bills\\S")
         self.assertEqual(sent[0].refs, ("R2", "R3", "R1"))
+
+    def test_tasks_read_by_another_pc_get_their_own_reminder(self):
+        """security-1：同一负责人、同一时刻，M1 读的客户 X 与 M2 读的客户 Y（\\\\srv 共享盘）各一条提醒，
+        各自只带本机的任务名与路径；去重键带电脑，两条都发。"""
+        self.rule("T1", title="Client X", folder="X")
+        self.rule("T2", title="Client Y", reader="C2", connection="C2", root_id="RB", folder="ClientY")
+        sent = self.remind("2026-10-13 08:05")
+        self.assertEqual(sorted(row.refs for row in sent), [("T1",), ("T2",)])
+        mine = next(row for row in sent if row.refs == ("T1",))
+        self.assertNotIn("Client Y", mine.text)
+        self.assertNotIn("server", mine.text)
+        self.assertEqual(len(self.remind("2026-10-13 09:00")), 2)  # 各自只发一次
+
+    def test_no_line_for_zero_files_waiting(self):
+        """interfaces-3：待处理数是 0（文件夹里可能留着处理过的文件）不写「0 份」。"""
+        self.rule("R1")
+        self.agents["C1"]["pending"] = {"R1": 0}
+        self.assertEqual(self.remind("2026-10-13 08:05")[0].text,
+                         "«Bills» starts tomorrow at 22:00 (1 d 13 h left). Put the documents in D:\\Bills\\A and make "
+                         "sure they are complete.")
+        self.rule("R2", title="Cash", folder="C", at="23:00")
+        self.rule("R3", title="Sales", folder="S", at="23:00")
+        self.agents["C1"]["pending"] = {"R2": 0, "R3": 2}
+        self.assertEqual(self.remind("2026-10-13 08:06")[1].text.split("\n")[1:],
+                         ["· Cash: D:\\Bills\\C", "· Sales: D:\\Bills\\S (2 not processed yet)"])
 
     def test_more_than_ten_tasks_list_ten_and_count_the_rest(self):
         for index in range(12):
@@ -258,7 +289,7 @@ class Reminders(Harness):
     def test_the_file_count_only_when_the_pc_synced_lately(self):
         self.rule("R1")
         self.fresh = False
-        self.assertNotIn("files in the folder", self.remind("2026-10-13 08:05")[0].text)
+        self.assertNotIn("not processed yet", self.remind("2026-10-13 08:05")[0].text)
         self.agents = {}  # 小助手一周没同步、记不得根目录：只写规则文件夹
         self.rule("R2", folder="Sales", at="23:00")
         self.assertIn("Put the documents in Sales and", self.remind("2026-10-13 08:06")[1].text)
@@ -269,7 +300,7 @@ class Reminders(Harness):
         sent = self.remind("2026-10-13 08:05")
         self.assertEqual(sent[0].title, "定时任务提醒")
         self.assertEqual(sent[0].text, "「Bills」明天 22:00 开始（还有 1 天 13 小时）。请将资料放入 D:\\Bills\\A，确保资料齐全。\n"
-                                       "文件夹里现有 3 份。")
+                                       "还有 3 份未处理。")
         self.assertEqual(self.local.lang, "en")
         self.langs[OWNER] = "th"
         text = self.remind("2026-10-13 14:05")[1].text
@@ -284,6 +315,14 @@ class Reminders(Harness):
         self.rule("R2", cc_session="sesn_new_1", modified=datetime(2026, 10, 5))
         self.rule("R3", cc_session="", modified=datetime(2026, 10, 9))
         self.assertEqual(self.remind("2026-10-13 08:05")[0].conversation, "sesn_new_1")
+        self.assertEqual(self.notices.asked[-1], (OWNER, ["sesn_new_1", "sesn_old_1"]))
+
+    def test_a_colleagues_conversation_does_not_hide_the_card(self):
+        """security-3：最近改过的那条挂着同事的对话（同事替负责人开关过提醒的旧数据）：退回负责人自己的那段对话。"""
+        self.rule("R1", cc_session="sesn_owner_1", modified=datetime(2026, 10, 1))
+        self.rule("R2", cc_session="sesn_colleague_1", modified=datetime(2026, 10, 5))
+        self.notices.foreign = {"sesn_colleague_1"}
+        self.assertEqual(self.remind("2026-10-13 08:05")[0].conversation, "sesn_owner_1")
 
     def test_only_cowork_sites(self):
         self.rule("R1")
@@ -317,9 +356,11 @@ class Briefs(Harness):
 
     def run_row(self, name, rule="R1", owner=OWNER, slot=SLOT, started=datetime(2026, 10, 14, 8, 1), scanned=True,
                 **extra):
-        row = Row(name=name, rule=rule, run_owner=owner, slot_at=slot, started_at=started,
+        reader = self.db.rules[rule].get("reader") if rule in self.db.rules else "C1"
+        row = Row(name=name, rule=rule, connection=reader or "C1", run_owner=owner, slot_at=slot, started_at=started,
                   scanned_at=started if scanned else None, new_files=0, upload_failed=0, note="",
-                  brief_state="pending", brief_at=None, brief_key="")
+                  brief_state="pending", brief_at=None, brief_key="",
+                  brief_group=self.contracts.slot_group(slot) if slot else name)
         row.update(extra)
         self.db.runs[name] = row
 
@@ -373,6 +414,37 @@ class Briefs(Harness):
         self.assertEqual([row.text.split("\n")[:2] for row in sent],
                          [["Scheduled run at 2026-10-14 08:00 (tasks: 1):", "· Bills: No new files"],
                           ["Run now (tasks: 1):", "· Bills: Entered 1"]])
+
+    def test_a_stuck_run_now_does_not_hold_back_a_later_one(self):
+        """interfaces-1 / frappe-runtime-1 / business-logic-4：09:00 立即运行存货销售 A，有一份等进货一直在路上；
+        15:00 立即运行服务任务 B 几分钟走完 —— B 15:10 单独一份、完整；A 到 22:00（满 13 小时）才带「处理中」发。"""
+        self.rule("R2", title="Service", folder="B")
+        self.run_row("A", slot=None, started=datetime(2026, 10, 14, 9, 0))
+        self.file_row("A", state="recognized", last_code="cowork.folder.waiting_purchases",
+                      registered=datetime(2026, 10, 14, 9, 1))
+        self.run_row("B", rule="R2", slot=None, started=datetime(2026, 10, 14, 15, 0))
+        self.file_row("B", ("sent", "", "success"), rule="R2", registered=datetime(2026, 10, 14, 15, 1))
+        sent = self.brief("2026-10-14 15:10")
+        self.assertEqual([(row.refs, row.text.split("\n")) for row in sent],
+                         [(("R2",), ["Run now (tasks: 1):", "· Service: Entered 1",
+                                     "  Results: D:\\Bills\\B\\_Pearnly Results\\2026-10"])])
+        self.assertEqual((self.db.runs["A"].brief_state, self.db.runs["B"].brief_state), ("pending", "sent"))
+        self.assertEqual(len(self.brief("2026-10-14 21:59")), 1)
+        late = self.brief("2026-10-14 22:00")[1]
+        self.assertEqual((late.refs, late.text.split("\n")[-1]), (("R1",), "Some files are still in progress."))
+
+    def test_each_pc_gets_its_own_brief(self):
+        """security-1：同一负责人同一时刻，M1（C1）读的客户 X 与 M2（C2）读的客户 Y 各一份，互不带对方的任务与路径。"""
+        self.rule("R2", title="Client Y", connection="C2", reader="C2", root_id="RB", folder="")
+        self.run_row("U1")
+        self.run_row("U2", rule="R2")
+        self.file_row("U2", ("sent", "", "success"), rule="R2")
+        sent = self.brief("2026-10-14 08:30")
+        self.assertEqual(sorted(row.refs for row in sent), [("R1",), ("R2",)])
+        mine = next(row for row in sent if row.refs == ("R1",))
+        self.assertNotIn("Client Y", mine.text)
+        self.assertNotIn("server", mine.text)
+        self.assertEqual({run.brief_state for run in self.db.runs.values()}, {"sent"})
 
     def test_missing_folders_and_files_not_uploaded(self):
         self.rule("R2", title="Cash", folder="C")
@@ -486,14 +558,16 @@ class SameNumbersAsTheTaskList(unittest.TestCase):
                    "_signature": [["H1", "success", ""], ["H2", "", ""], ["H3", "deleted", ""], ["H4", "manual", ""]]}
         rows = [Row(state="done", outcome_json=json.dumps(outcome), registered_at=now), Row(state="failed"),
                 Row(state="submitted", registered_at=now), Row(state="registered", registered_at=now - timedelta(days=2))]
-        queries = []
+        queries, stamp, store = [], [(4, datetime(2026, 10, 14, 8, 30), 1)], {}
 
         def sql(query, values=None, as_dict=False):
             queries.append((" ".join(query.split()), values))
-            return rows
+            return stamp if "COUNT(*)" in query else rows
 
         stub = types.SimpleNamespace
-        frappe = stub(db=stub(sql=sql), _=lambda key: key, throw=None)
+        cache = stub(get_value=lambda key: copy.deepcopy(store.get(key)),
+                     set_value=lambda key, value, expires_in_sec=None: store.__setitem__(key, copy.deepcopy(value)))
+        frappe = stub(db=stub(sql=sql), _=lambda key: key, throw=None, cache=cache)
         contracts = _load("folder_contracts_results", APP / "folder_intake/contracts.py")
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: now),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
@@ -504,14 +578,27 @@ class SameNumbersAsTheTaskList(unittest.TestCase):
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda value: value)}
         with mock.patch.dict(sys.modules, modules):
             rules = _load("folder_rules_results", APP / "folder_intake/rules.py")
+        tally = (f"SELECT state, last_code, outcome_json, registered_at FROM `tab{FILE}` WHERE rule=%s", ["R1"])
+        fingerprint = (f"SELECT COUNT(*), MAX(modified), SUM(state = 'registered' AND registered_at < %s) "
+                       f"FROM `tab{FILE}` WHERE rule=%s", (now - timedelta(hours=24), "R1"))
         self.assertEqual(rules.results("R1"), {"entered": 1, "attention": 3, "moving": 1})
         self.assertEqual(rules.results("R1", "U1"), {"entered": 1, "attention": 3, "moving": 1})
-        self.assertEqual(queries, [(f"SELECT state, last_code, outcome_json, registered_at FROM `tab{FILE}` WHERE rule=%s",
-                                    ["R1"]),
+        self.assertEqual(queries, [fingerprint, tally,
                                    (f"SELECT state, last_code, outcome_json, registered_at FROM `tab{FILE}` WHERE rule=%s "
                                     "AND run=%s", ["R1", "U1"])])
         found = contracts.tally(rows, now)
         self.assertEqual((found["pushed"], found["stopped"] + found["failed"], found["moving"]), (1, 3, 1))
+
+        # frappe-runtime-3 / business-logic-5：列表每 10 秒重拉，文件行没变就不再读全部推送结果逐行解析
+        queries.clear()
+        self.assertEqual(rules.results("R1"), {"entered": 1, "attention": 3, "moving": 1})
+        self.assertEqual(queries, [fingerprint])
+        # 文件行变了（后台推进存了一行：最晚修改时间变了），或有 registered 行满了 24 小时：重新统计
+        for changed in ((4, datetime(2026, 10, 14, 8, 31), 1), (4, datetime(2026, 10, 14, 8, 31), 2), (5, None, 2)):
+            stamp[0] = changed
+            queries.clear()
+            rules.results("R1")
+            self.assertEqual(queries, [fingerprint, tally], changed)
 
 
 if __name__ == "__main__":

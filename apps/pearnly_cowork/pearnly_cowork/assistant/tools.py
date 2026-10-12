@@ -1536,11 +1536,11 @@ def folder_task_options(tool_input) -> str:
             folders = [f for f in root.get("folders") or [] if not search or search in str(f).casefold()]
             item = {"root_id": root.get("id"), "label": root.get("label"), "folders_total": len(folders),
                     "folders": folders[:FOLDERS_SHOWN]}
-            # 小助手报的各文件夹（含子文件夹）现有几份会被录入的文件；没报过就不给，不拿 0 冒充
-            counts = root.get("counts") or {}
-            shown = {folder: counts[folder] for folder in [""] + item["folders"] if folder in counts}
-            if shown:
-                item["files"] = shown
+            # 小助手报的各文件夹（含子文件夹）现有几份会被录入的文件：报了计数（`counts` 键在，哪怕是空的）就是数过，
+            # 根目录与列出的每个文件夹都给，计数里没有的是 0；没报过（没有这个键）就不给，不拿 0 冒充「不知道」
+            counts = root.get("counts")
+            if isinstance(counts, dict):
+                item["files"] = {folder: int(counts.get(folder) or 0) for folder in [""] + item["folders"]}
                 if root.get("partial"):
                     item["files_partial"] = True
             roots.append(item)
@@ -1796,9 +1796,23 @@ def _waiting_text(values) -> str:
     return _("cowork.folder.waiting").format(f"{found['files']}+" if found.get("partial") else found["files"])
 
 
+def _folder_text(values, current) -> str:
+    """新建或换了文件夹的任务卡片上那一句：文件夹与停用的任务重叠时是接续它、只处理此后放入的（与任务服务同一判据，
+    `rules.continues_from`），不说现有几份；否则说文件夹里现有几份。"""
+    try:
+        continued = rules.continues_from(values.get("reader") or values.get("connection"), values.get("root_id"),
+                                         _shown(values.get("folder")), current=current.get("name") or None)
+    except Exception:
+        frappe.clear_messages()
+        continued = None
+    if continued:
+        return _("cowork.folder.continues").format(continued)
+    return _waiting_text(values)
+
+
 def _task_lines(item, rows, cache) -> tuple:
-    """卡片上一个任务要列的：（现值，[(字段, 现在, 改后)]，文件夹现有份数那一句）。新任务只列有值的项，改任务只列
-    变了的项；份数只在新建或换了文件夹时说（之后看任务列表的待处理数）。"""
+    """卡片上一个任务要列的：（现值，[(字段, 现在, 改后)]，文件夹那一句）。新任务只列有值的项，改任务只列变了的项；
+    文件夹那一句（现有几份，或接续哪个停用的任务）只在新建或换了文件夹时说（之后看任务列表的待处理数）。"""
     current = rows.get(str(item.get("name") or ""), {}) if item.get("name") else {}
     values = _task_values(item, rows)
     connection, key = values.get("connection"), values.get("account_set_key")
@@ -1834,7 +1848,7 @@ def _task_lines(item, rows, cache) -> tuple:
     after[REMIND_FIELD] = _remind_shown(values["remind"]) if "remind" in values else before[REMIND_FIELD]
     lines = [(field, _shown(before.get(field)), _shown(text)) for field, text in after.items()
              if _shown(text) != _shown(before.get(field))]
-    return current, lines, _waiting_text(values) if moved else ""
+    return current, lines, _folder_text(values, current) if moved else ""
 
 
 def preview_save_folder_task(tool_input) -> list:
@@ -2164,9 +2178,10 @@ TOOLS = [
                     "folders, whether it is online, the folders its CC desktop app opened to the website (root_id and "
                     "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
                     "and stock account group for defaults. files is how many photos and PDFs each folder holds now, "
-                    "subfolders included (\"\" is the root; files_partial: at least that many). Folders can only be "
-                    "added in the CC app on that computer; if the one the user wants is missing, tell them to add it "
-                    "there.",
+                    "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many); a root "
+                    "without files means that computer has not reported counts, so the number is not known. Folders "
+                    "can only be added in the CC app on that computer; if the one the user wants is missing, tell them "
+                    "to add it there.",
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"}, "search": {"type": "string"}},
          "required": ["connection"]},
@@ -2174,8 +2189,9 @@ TOOLS = [
     {"name": "cowork_save_folder_task", "label": "Saved a folder task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
                     "intake choices, the photos and PDFs in the folder (subfolders included) that it has not "
-                    "processed yet, including those already there when it is created. Same rules as the web form: "
-                    "Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
+                    "processed yet, including those already there when it is created; a task whose folder overlaps a "
+                    "paused task continues it and only handles files put in after it is saved. Same rules as the web "
+                    "form: Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
                     "target ERP of an existing task cannot change. When a task is changed (name given), values left "
                     "out keep their current ones. For two or more tasks use cowork_save_folder_tasks.",
      "input_schema": {"type": "object", "properties": FOLDER_TASK_PROPS,

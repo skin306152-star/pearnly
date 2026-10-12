@@ -1,6 +1,7 @@
 """文件夹自动录入：纯规则 + 「只新增、不改现有」的守护（不连库、不依赖 Frappe）。"""
 import ast
 import csv
+import hashlib
 import importlib.util
 import json
 import pathlib
@@ -328,6 +329,13 @@ class SessionsAndNotices(unittest.TestCase):
         self.assertEqual(contracts.NOTICE_FIELDS, ("id", "title", "text", "created", "session"))
         self.assertEqual((contracts.NOTICE_WINDOW, contracts.NOTICE_LIMIT), (12 * 3600, 20))
 
+    def test_a_pc_only_gets_notices_about_its_own_tasks(self):
+        """security-1：只要涉及一个不是本机读的任务，整条不给；说不清涉及谁（没有 refs）的也不给。"""
+        items = [{"id": "a", "refs": ["T1"]}, {"id": "b", "refs": ["T1", "T2"]}, {"id": "c", "refs": ["T2"]},
+                 {"id": "d", "refs": []}, {"id": "e"}, {"id": "f", "refs": "T1"}, "bad", {"id": "g", "refs": ["T1", "T3"]}]
+        self.assertEqual([item["id"] for item in contracts.machine_notices(items, ["T1", "T3", ""])], ["a", "g"])
+        self.assertEqual(contracts.machine_notices(items, []), [])
+
 
 class ScheduleSlots(unittest.TestCase):
     """服务端算的定时时刻与小助手 `folder_plan` 逐位一致（运行记录按它归属完成简报）。"""
@@ -401,11 +409,13 @@ class ScheduleSlots(unittest.TestCase):
         self.assertEqual(contracts.time_left(run + 60, run), (0, 0, 0))
         self.assertEqual((contracts.clock(run), contracts.stamp(run), contracts.month_of(run)),
                          ("22:00", "2026-10-14 22:00", "2026-10"))
-        key = contracts.remind_key("owner@example.com", run, "08")
+        key = contracts.remind_key("owner@example.com", run, "08", "C1")
         self.assertTrue(key.startswith("cowork.folder.remind:") and len(key) <= 140)
-        self.assertEqual(key, contracts.remind_key("owner@example.com", run + 0.4, "08"))
-        self.assertNotEqual(key, contracts.remind_key("owner@example.com", run, "14"))
-        self.assertNotEqual(key, contracts.remind_key("other@example.com", run, "08"))
+        self.assertEqual(key, contracts.remind_key("owner@example.com", run + 0.4, "08", "C1"))
+        self.assertNotEqual(key, contracts.remind_key("owner@example.com", run, "14", "C1"))
+        self.assertNotEqual(key, contracts.remind_key("other@example.com", run, "08", "C1"))
+        # 同一负责人同一时刻，另一台电脑读的任务另成一条（2026-10-13）
+        self.assertNotEqual(key, contracts.remind_key("owner@example.com", run, "08", "C2"))
         self.assertEqual(contracts.brief_key("o", ["b", "a"]), contracts.brief_key("o", ["a", "b"]))
         self.assertNotEqual(contracts.brief_key("o", ["a"]), contracts.brief_key("o", ["a", "b"]))
         self.assertRegex(contracts.brief_key("o", ["a"]), r"^cowork\.folder\.brief:[0-9a-f]{48}$")
@@ -419,6 +429,15 @@ class ScheduleSlots(unittest.TestCase):
         self.assertEqual([(g["owner"], g["run_at"], g["label"], [r["title"] for r in g["rules"]]) for g in groups],
                          [("a", 200.0, "08", ["Bills", "Sales"]), ("b", 200.0, "08", ["Other"]),
                           ("a", 200.0, "14", ["Bills 2"]), ("a", 300.0, "08", ["Later"])])
+
+    def test_reminders_never_mix_tasks_read_by_different_pcs(self):
+        """security-1：提醒会被读文件夹的那台电脑取回弹出，同一负责人同一时刻、不同电脑读的任务各成一条。"""
+        rows = [Row(name="T1", title="Client X", owner="a", run_at=200.0, label="08", reader="M1"),
+                Row(name="T2", title="Client Y", owner="a", run_at=200.0, label="08", reader="M2"),
+                Row(name="T3", title="Client X 2", owner="a", run_at=200.0, label="08", reader="M1")]
+        groups = contracts.reminder_groups(rows)
+        self.assertEqual([(g["reader"], [r["name"] for r in g["rules"]]) for g in groups],
+                         [("M1", ["T1", "T3"]), ("M2", ["T2"])])
 
     def test_full_path_on_the_pc(self):
         self.assertEqual(contracts.full_path("D:\\Bills\\", "冰厂\\进项", "_Pearnly结果", "2026-10"),
@@ -512,8 +531,9 @@ class ResultTally(unittest.TestCase):
         self.assertEqual(contracts.not_uploaded([Row(note="retry", new_files=5)]), 0)
 
     def _run(self, name, owner="o", slot=datetime(2026, 10, 14, 8, 0), started=datetime(2026, 10, 14, 8, 1),
-             scanned=True):
-        return Row(name=name, run_owner=owner, slot_at=slot, started_at=started, scanned_at=started if scanned else None)
+             scanned=True, **extra):
+        return Row(name=name, run_owner=owner, slot_at=slot, started_at=started, scanned_at=started if scanned else None,
+                   **extra)
 
     def test_a_brief_waits_for_every_file_and_ten_quiet_minutes(self):
         runs = [self._run("U1"), self._run("U2", started=datetime(2026, 10, 14, 8, 5))]
@@ -522,10 +542,19 @@ class ResultTally(unittest.TestCase):
         files["U2"][0]["state"] = "not_invoice"
         self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 14)), ([], []))
         ready, stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 15))
-        self.assertEqual((ready, stale), ([{"owner": "o", "slot_at": datetime(2026, 10, 14, 8, 0), "runs": ["U1", "U2"],
-                                            "complete": True}], []))
+        self.assertEqual((ready, stale), ([{"owner": "o", "slot_at": datetime(2026, 10, 14, 8, 0), "reader": "",
+                                            "runs": ["U1", "U2"], "complete": True}], []))
         runs[0]["scanned_at"] = None  # 还没扫描完的运行
         self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 15)), ([], []))
+
+    def test_ten_quiet_minutes_count_from_the_last_file_that_finished(self):
+        """business-logic-4：「全部到终态后再等 10 分钟」——最后一份文件 08:40 才走完，08:50 才发。"""
+        runs = [self._run("U1")]
+        files = {"U1": [Row(state="done", finished_at=datetime(2026, 10, 14, 8, 20)),
+                        Row(state="not_invoice", finished_at=datetime(2026, 10, 14, 8, 40))]}
+        self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 49)), ([], []))
+        ready, _stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 50))
+        self.assertEqual([(group["runs"], group["complete"]) for group in ready], [(["U1"], True)])
 
     def test_a_stuck_brief_goes_after_thirteen_hours_and_old_ones_are_dropped(self):
         self.assertEqual(contracts.BRIEF_MAX_WAIT, contracts.ORDER_MAX_WAIT + timedelta(hours=1))
@@ -538,14 +567,46 @@ class ResultTally(unittest.TestCase):
         self.assertEqual(contracts.brief_groups([self._run("U9", owner="")], {}, datetime(2026, 10, 14, 9, 0)), ([], ["U9"]))
         self.assertEqual(contracts.brief_groups([self._run("U8", started=None)], {}, datetime(2026, 10, 14, 9, 0)), ([], ["U8"]))
 
-    def test_one_brief_per_owner_and_slot_run_now_on_its_own(self):
+    def test_one_brief_per_owner_and_slot_and_each_batch_of_run_now_on_its_own(self):
+        """interfaces-1 / frappe-runtime-1：立即运行不再按负责人整个并成一份 —— 相隔一小时的 U3 / U4 各自一份；
+        同一批（分组记成第一次运行的名字）的 U6 / U7 仍是一份。"""
         runs = [self._run("U1"), self._run("U2", owner="p"), self._run("U3", slot=None),
-                self._run("U4", slot=None, started=datetime(2026, 10, 14, 7, 0)), self._run("U5", slot=datetime(2026, 9, 14, 8, 0))]
+                self._run("U4", slot=None, started=datetime(2026, 10, 14, 7, 0)), self._run("U5", slot=datetime(2026, 9, 14, 8, 0)),
+                self._run("U6", slot=None, started=datetime(2026, 10, 14, 7, 30), brief_group="U6"),
+                self._run("U7", slot=None, started=datetime(2026, 10, 14, 7, 35), brief_group="U6")]
         ready, stale = contracts.brief_groups(runs, {}, datetime(2026, 10, 14, 9, 0))
         self.assertEqual([(group["owner"], group["slot_at"], group["runs"]) for group in ready],
-                         [("o", None, ["U3", "U4"]), ("o", datetime(2026, 10, 14, 8, 0), ["U1"]),
-                          ("p", datetime(2026, 10, 14, 8, 0), ["U2"]), ("o", datetime(2026, 9, 14, 8, 0), ["U5"])])
+                         [("o", None, ["U4"]), ("o", None, ["U6", "U7"]), ("o", datetime(2026, 10, 14, 8, 0), ["U1"]),
+                          ("p", datetime(2026, 10, 14, 8, 0), ["U2"]), ("o", None, ["U3"]),
+                          ("o", datetime(2026, 9, 14, 8, 0), ["U5"])])
         self.assertEqual(stale, [])
+
+    def test_a_stuck_run_now_does_not_hold_back_a_later_one(self):
+        """interfaces-1：09:00 立即运行 A 有一份卡在 pushing（小助手离线 / 等进货），15:00 立即运行 B 几分钟走完 ——
+        B 15:10 照样单独发，完整；A 仍等到 13 小时才带「处理中」发。"""
+        runs = [self._run("A", slot=None, started=datetime(2026, 10, 14, 9, 0), brief_group="A"),
+                self._run("B", slot=None, started=datetime(2026, 10, 14, 15, 0), brief_group="B")]
+        files = {"A": [Row(state="pushing", registered_at=datetime(2026, 10, 14, 9, 1))],
+                 "B": [Row(state="done", finished_at=datetime(2026, 10, 14, 15, 0))]}
+        ready, _stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 15, 10))
+        self.assertEqual([(group["runs"], group["complete"]) for group in ready], [(["B"], True)])
+        ready, _stale = contracts.brief_groups(runs[:1], files, datetime(2026, 10, 14, 22, 0))
+        self.assertEqual([(group["runs"], group["complete"]) for group in ready], [(["A"], False)])
+
+    def test_scheduled_runs_of_one_slot_split_by_the_pc_that_read_them(self):
+        """security-1：同一负责人同一时刻，两台电脑读的任务各一份简报（简报会被那台电脑取回弹出）。"""
+        runs = [self._run("U1", connection="M1"), self._run("U2", connection="M2"), self._run("U3", connection="M1")]
+        ready, _stale = contracts.brief_groups(runs, {}, datetime(2026, 10, 14, 9, 0))
+        self.assertEqual([(group["reader"], group["runs"]) for group in ready], [("M1", ["U1", "U3"]), ("M2", ["U2"])])
+
+    def test_brief_group_keys(self):
+        slot = datetime(2026, 10, 14, 8, 0, 0, 123)
+        self.assertEqual(contracts.slot_group(slot), "2026-10-14T08:00:00")
+        self.assertEqual(contracts.slot_group("2026-10-14 08:00:00.000000"), "2026-10-14T08:00:00")
+        self.assertEqual(contracts.group_of(Row(name="U1", brief_group="G", slot_at=slot)), "G")
+        # 加字段前记下的运行：有所属时刻按时刻，立即运行自成一份
+        self.assertEqual(contracts.group_of(Row(name="U1", slot_at=slot)), "2026-10-14T08:00:00")
+        self.assertEqual(contracts.group_of(Row(name="U1", slot_at=None, brief_group="")), "U1")
 
 
 class StockOrderContracts(unittest.TestCase):
@@ -764,7 +825,14 @@ class LiveAndNotify(unittest.TestCase):
     def test_notify_writes_in_the_owner_language_and_picks_the_latest_conversation(self):
         job = types.SimpleNamespace(lang_resolved=False)
         local = types.SimpleNamespace(lang="en", job=job)
-        notify = self._notify(types.SimpleNamespace(), local)
+        asked = []
+
+        def owned_conversation(user, candidates):
+            # 共用层判对话归属的替身：sesn_not_mine_1 是别人的对话
+            asked.append((user, list(candidates)))
+            return next((sid for sid in candidates if sid != "sesn_not_mine_1"), "")
+
+        notify = self._notify(types.SimpleNamespace(owned_conversation=owned_conversation), local)
         with notify.in_lang("th@example.com"):
             self.assertEqual((local.lang, job.lang_resolved), ("th", True))
         self.assertEqual(local.lang, "en")
@@ -776,8 +844,15 @@ class LiveAndNotify(unittest.TestCase):
                  Row(cc_session="", modified=datetime(2026, 10, 9)),
                  Row(cc_session="sesn_new_1", modified=datetime(2026, 10, 5)),
                  Row(cc_session="bad id", modified=datetime(2026, 10, 8))]
-        self.assertEqual(notify.conversation(rules), "sesn_new_1")
-        self.assertEqual(notify.conversation(rules[1:2]), "")
+        self.assertEqual(notify.conversation("owner@example.com", rules), "sesn_new_1")
+        self.assertEqual(asked[-1], ("owner@example.com", ["sesn_new_1", "sesn_old_1"]))
+        # security-3：最近改过的那条挂着别人的对话（旧数据：同事替负责人开关过提醒）：退回负责人自己的那段，不是不挂
+        rules.append(Row(cc_session="sesn_not_mine_1", modified=datetime(2026, 10, 10)))
+        self.assertEqual(notify.conversation("owner@example.com", rules), "sesn_new_1")
+        self.assertEqual(asked[-1], ("owner@example.com", ["sesn_not_mine_1", "sesn_new_1", "sesn_old_1"]))
+        calls = len(asked)
+        self.assertEqual(notify.conversation("owner@example.com", rules[1:2]), "")
+        self.assertEqual(len(asked), calls)  # 没有候选：不问共用层
         self.assertEqual(notify.epoch(datetime(2026, 10, 14, 22, 0)),
                          datetime(2026, 10, 14, 22, 0, tzinfo=contracts.BANGKOK).timestamp())
 
@@ -786,8 +861,10 @@ class MachineSync(unittest.TestCase):
     """同步：下发 existing、进货任务在前、收待处理数、新版提示与提醒；运行记录归属简报（`_record_run`）。"""
     NOW = 1_760_000_000.0  # 2025-10-09 15:53 曼谷
 
-    def _machine(self, rules, *, latest=None, notices=None, before=None, pending_run=None):
-        calls = {"remember": [], "changed": [], "for_rules": [], "written": []}
+    def _machine(self, rules, *, latest=None, notices=None, before=None, pending_run=None, manual_run=None):
+        """``pending_run``：这条任务还没发简报的上一次非补传运行（补传并进它）；``manual_run``：同一负责人 10 分钟内
+        开始、还没发简报的上一次立即运行（并进它那一批）。"""
+        calls = {"remember": [], "changed": [], "for_rules": [], "written": [], "sql": []}
         tables = {"Cowork Folder Intake Rule": {row["name"]: Row(row) for row in rules}}
 
         class Doc(Row):
@@ -801,8 +878,11 @@ class MachineSync(unittest.TestCase):
                 self[key] = value
 
         def sql(query, values=None, as_dict=False):
+            calls["sql"].append((" ".join(query.split()), values))
+            if "`trigger` = 'manual'" in query:
+                return [manual_run] if manual_run else []
             if "brief_state = 'pending'" in query:
-                return [Row(slot_at=pending_run)] if pending_run else []
+                return [pending_run] if pending_run else []
             return [Row(name=row["name"], direction=row["direction"], enabled=row["enabled"]) for row in rules]
 
         db = types.SimpleNamespace(
@@ -862,7 +942,8 @@ class MachineSync(unittest.TestCase):
 
     def test_new_helpers_get_the_latest_version_and_their_notices(self):
         latest = {"version": "1.4.4", "url": "/downloads/companion/CC-Setup.exe"}
-        items = [{"id": "pnotice_1", "title": "T", "text": "x", "created": self.NOW - 5, "session": "", "user": "u"}]
+        items = [{"id": "pnotice_1", "title": "T", "text": "x", "created": self.NOW - 5, "session": "", "user": "u",
+                  "refs": ["P1", "S2"]}]
         machine, calls = self._machine([self._rule("P1"), self._rule("S2", "sales", enabled=0)], latest=latest,
                                        notices=items)
         reply = machine._sync(types.SimpleNamespace(connection="C1"), {"notices_after": self.NOW - 60})
@@ -871,6 +952,17 @@ class MachineSync(unittest.TestCase):
                                              "session": ""}])
         # 停用的任务的完成简报也要弹：按本机读的全部任务取
         self.assertEqual(calls["for_rules"], [(["P1", "S2"], self.NOW - 60, contracts.NOTICE_LIMIT)])
+
+    def test_a_notice_that_also_names_another_pcs_task_is_not_sent_here(self):
+        """security-1：M1 同步时，同一条提醒里只要带着别的电脑读的任务 T2（客户 Y 的任务名与 \\\\srv 路径），整条不给。"""
+        items = [{"id": "pnotice_mine", "title": "T", "text": "T1 only", "created": self.NOW - 9, "session": "",
+                  "refs": ["T1"]},
+                 {"id": "pnotice_mixed", "title": "T", "text": "T1 + T2 \\\\srv\\ClientY", "created": self.NOW - 5,
+                  "session": "", "refs": ["T1", "T2"]}]
+        machine, _calls = self._machine([self._rule("T1")], notices=items)
+        reply = machine._sync(types.SimpleNamespace(connection="M1"), {"notices_after": self.NOW - 60})
+        self.assertEqual([item["id"] for item in reply["notices"]], ["pnotice_mine"])
+        self.assertNotIn("ClientY", json.dumps(reply, ensure_ascii=False))
 
     def test_notice_errors_never_break_the_folder_sync(self):
         machine, calls = self._machine([self._rule("P1")], notices=Exception)
@@ -891,20 +983,43 @@ class MachineSync(unittest.TestCase):
     def test_scheduled_runs_belong_to_their_slot(self):
         slot = self.NOW - 3 * 86400
         written = self._run({"slot": slot})
-        self.assertEqual((written["run_owner"], written["brief_state"], written["slot_at"]),
-                         ("owner@example.com", "pending", self._naive(slot)))
+        self.assertEqual((written["run_owner"], written["brief_state"], written["slot_at"], written["brief_group"]),
+                         ("owner@example.com", "pending", self._naive(slot), contracts.slot_group(self._naive(slot))))
         # 旧小助手不报所属时刻（或报得离谱）：按任务的运行日与时间算最近一次
         expected = self._naive(contracts.latest_slot(self.NOW, 0, "08:00"))
         self.assertEqual(self._run({"trigger": "catch_up"})["slot_at"], expected)
-        self.assertEqual(self._run({"slot": self.NOW - 50 * 86400})["slot_at"], expected)
+        self.assertEqual(self._run({"slot": self.NOW - 50 * 86400})["brief_group"], contracts.slot_group(expected))
 
-    def test_run_now_has_no_slot_and_retries_join_only_an_unsent_brief(self):
-        written = self._run({"trigger": "manual"})
-        self.assertEqual((written["slot_at"], written["brief_state"]), (None, "pending"))
+    def test_run_now_starts_its_own_brief_or_joins_the_batch_of_the_last_ten_minutes(self):
+        """interfaces-1：立即运行不再都并进（负责人, 空）一份：10 分钟内没有同一负责人的立即运行就自己起一批（分组 =
+        自己的记录名）；有就并进那一批（CC 连着点几个任务仍是一份）。"""
+        key = hashlib.sha256(f"P1\0{'a' * 32}".encode()).hexdigest()
+        machine, calls = self._machine([self._rule("P1", run_day=0, run_time="08:00")])
+        machine._record_run(types.SimpleNamespace(connection="C1"),
+                            {"rule": "P1", "run_key": "a" * 32, "trigger": "manual", "found": 0, "new_files": 0,
+                             "skipped": 0, "upload_failed": 0})
+        written = calls["written"][-1]
+        self.assertEqual((written["slot_at"], written["brief_state"], written["brief_group"]), (None, "pending", key))
+        query, values = next(item for item in calls["sql"] if "`trigger` = 'manual'" in item[0])
+        self.assertIn("brief_state = 'pending' AND run_owner = %s", query)
+        self.assertEqual(values, ("owner@example.com", datetime(2026, 10, 12, 19, 50)))  # 此刻 20:00 往前 10 分钟
+        joined = self._run({"trigger": "manual"}, manual_run=Row(name="FIRST", slot_at=None, brief_group="FIRST"))
+        self.assertEqual((joined["slot_at"], joined["brief_group"]), (None, "FIRST"))
+        # 那一批的第一次运行是加字段前记下的（没有分组）：按它的记录名
+        legacy = self._run({"trigger": "manual"}, manual_run=Row(name="OLD", slot_at=None, brief_group=None))
+        self.assertEqual(legacy["brief_group"], "OLD")
+
+    def test_retries_join_only_an_unsent_brief_and_take_its_group(self):
         earlier = datetime(2026, 10, 1, 8, 0)
-        written = self._run({"trigger": "manual", "note": "retry", "new_files": 1}, pending_run=earlier)
-        self.assertEqual((written["slot_at"], written["brief_state"]), (earlier, "pending"))
-        written = self._run({"trigger": "manual", "note": "retry", "new_files": 0}, pending_run=earlier)
+        parent = Row(name="PARENT", slot_at=earlier, brief_group="2026-10-01T08:00:00")
+        written = self._run({"trigger": "manual", "note": "retry", "new_files": 1}, pending_run=parent)
+        self.assertEqual((written["slot_at"], written["brief_state"], written["brief_group"]),
+                         (earlier, "pending", "2026-10-01T08:00:00"))
+        # 补的是一次立即运行：跟着它那一批
+        written = self._run({"trigger": "manual", "note": "retry", "new_files": 1},
+                            pending_run=Row(name="RUNNOW", slot_at=None, brief_group="FIRST"))
+        self.assertEqual((written["slot_at"], written["brief_group"]), (None, "FIRST"))
+        written = self._run({"trigger": "manual", "note": "retry", "new_files": 0}, pending_run=parent)
         self.assertEqual((written["slot_at"], written["brief_state"]), (None, "skipped"))
         written = self._run({"trigger": "manual", "note": "retry", "new_files": 3})
         self.assertEqual(written["brief_state"], "skipped")
@@ -931,10 +1046,13 @@ class TaskSources(unittest.TestCase):
         state = self._field(run, "brief_state")
         self.assertEqual((state["options"], state["search_index"]), ("pending\nsent\nskipped", 1))
         self.assertEqual(self._field(run, "run_owner")["options"], "User")
+        group = self._field(run, "brief_group")  # 2026-10-13：简报分组（定时时刻 / 立即运行那一批 / 补传跟父运行）
+        self.assertEqual((group["fieldtype"], group["read_only"], group["search_index"]), ("Data", 1, 1))
         self.assertEqual(self._field("cowork_folder_intake_file", "source_file")["search_index"], 1)
-        for name in (rule, run, "cowork_folder_intake_file"):
+        # 改了字段就升 modified，migrate 才同步
+        for name, modified in ((rule, "2026-10-12"), (run, "2026-10-13"), ("cowork_folder_intake_file", "2026-10-12")):
             doctype = self._doctype(name)
-            self.assertEqual(doctype["modified"], "2026-10-12 12:00:00.000000")  # 改了字段就升 modified，migrate 才同步
+            self.assertEqual(doctype["modified"], modified + " 12:00:00.000000")
             self.assertEqual(doctype["field_order"], [field["fieldname"] for field in doctype["fields"]])
 
     def test_history_runs_get_no_brief(self):
@@ -945,7 +1063,10 @@ class TaskSources(unittest.TestCase):
 
     def test_rules_and_sync_follow_the_agreement(self):
         rules = (APP / "folder_intake/rules.py").read_text()
-        self.assertIn("if not name or place != (reader, root, folder):\n        rule.include_existing = 1", rules)
+        # 换没换文件夹不分大小写（Windows 上是同一个文件夹）；接续停用任务的只收此后放进来的
+        self.assertIn('place = (_reader(rule), rule.root_id, (rule.folder or "").casefold()) if name else None', rules)
+        self.assertIn("if not name or place != (reader, root, folder.casefold()):", rules)
+        self.assertIn("rule.include_existing = 0 if continued else 1", rules)
         self.assertIn("def save(values, *, cc_session=None):", rules)
         self.assertIn("def save_many(items, *, cc_session=None):", rules)
         self.assertIn("def set_enabled(name, enabled=None, *, remind=None, cc_session=None):", rules)
@@ -966,6 +1087,13 @@ class TaskSources(unittest.TestCase):
         self.assertIn('{fieldtype: "Check", fieldname: "remind", label: ft("cowork.folder.field.remind")', source)
         self.assertIn("remind: values.remind ? 1 : 0", source)
         self.assertIn('ft("cowork.folder.waiting", partial ? `${count}+` : count)', source)
+        # interfaces-3 / 4：列表与编辑弹窗（文件夹没改）说待处理数，不说「现有」；只有 >0 才说
+        self.assertIn('count > 0 ? ft("cowork.folder.pending", partial ? `${count}+` : count) : ""', source)
+        self.assertIn("row.enabled ? pending_hint(row.waiting, row.waiting_partial) : \"\"", source)
+        self.assertIn("{files: rule.waiting, partial: rule.waiting_partial, pending: true}", source)
+        self.assertIn("(found.pending ? pending_hint : files_hint)(found.files, found.partial)", source)
+        # business-logic-5：小助手离线时在途的票不会动，不进 10 秒兜底
+        self.assertIn("busy: () => (data.rules || []).some(row => row.results?.moving && row.agent_fresh),", source)
         live = (APP / "folder_intake/live.py").read_text()
         self.assertIn('EVENT = "cowork_folder_changed"', live)
         self.assertIn("after_commit=True", live)
@@ -975,11 +1103,20 @@ class TaskSources(unittest.TestCase):
             rows = {row["key"]: row for row in csv.DictReader(handle, delimiter="\t") if row.get("key")}
         for key in ("cowork.folder.waiting", "cowork.folder.moving", "cowork.folder.enableConfirmAll",
                     "cowork.folder.field.remind", "cowork.folder.remind.on", "cowork.folder.remind.off",
-                    "cowork.folder.waiting_purchases"):
+                    "cowork.folder.waiting_purchases", "cowork.folder.pending", "cowork.folder.continues"):
             for lang in ("en", "zh", "th", "ja"):
                 self.assertTrue(rows[key][lang].strip(), (key, lang))
                 self.assertNotIn("express", rows[key][lang].casefold(), (key, lang))
         self.assertIn("{0}", rows["cowork.folder.waiting"]["th"])
+        # 待处理数与接续停用任务各一个占位符（CC 任务页 `tr('cowork.folder.pending', n)` 同一条）
+        for key in ("cowork.folder.pending", "cowork.folder.continues"):
+            for lang in ("en", "zh", "th", "ja"):
+                self.assertEqual((rows[key][lang].count("{0}"), "{1}" in rows[key][lang]), (1, False), (key, lang))
+        self.assertEqual(rows["cowork.folder.pending"]["zh"], "还有 {0} 份未处理，到点处理")
+        self.assertEqual(rows["cowork.folder.continues"]["zh"], "接续定时任务「{0}」，只处理此后放入的文件")
+        # 提醒里的份数是待处理数，不说「现有」
+        for key in ("cowork.folder.remind.count", "cowork.folder.remind.lineCount", "cowork.folder.pending"):
+            self.assertNotIn("现有", rows[key]["zh"], key)
 
     def test_reminder_and_brief_terms_in_four_languages_without_express(self):
         import re

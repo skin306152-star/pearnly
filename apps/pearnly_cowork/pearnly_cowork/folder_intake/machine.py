@@ -172,6 +172,8 @@ def _notices(names, after):
         # 取提醒出错不拖垮文件夹同步（规则、上传都靠它）：这一轮不带，下一轮再取。
         frappe.log_error(title="Cowork folder notices failed", message=frappe.get_traceback()[-1500:])
         return []
+    # 只给涉及的任务全是本机读的那几条（提醒与简报已按电脑分开写；任务之后换了电脑读，旧提醒也不跟过去）
+    items = contracts.machine_notices(items, names)
     return [{key: item.get(key) for key in contracts.NOTICE_FIELDS} for item in items[:contracts.NOTICE_LIMIT]]
 
 
@@ -188,7 +190,7 @@ def _record_run(context, row):
         trigger = row.get("trigger") if row.get("trigger") in ("schedule", "manual", "catch_up") else "schedule"
         doc.update({"input_key": key, "rule": rule.name, "connection": context.connection, "trigger": trigger,
                     "started_at": now_datetime(), "run_owner": rule.rule_owner,
-                    **_brief_slot(rule, trigger, row, counts["new_files"])})
+                    **_brief_slot(rule, trigger, row, counts["new_files"], key)})
     doc.update(counts)
     if row.get("scanned"):
         doc.scanned_at = doc.scanned_at or now_datetime()
@@ -198,27 +200,35 @@ def _record_run(context, row):
     return doc.name
 
 
-def _brief_slot(rule, trigger, row, new_files):
-    """新运行记录归哪一份完成简报（简报 = 同一负责人 + 同一定时时刻；立即运行单独成一份，
-    `docs/work/2026-10-12-cc-closed-loop.md`）。
+def _brief_slot(rule, trigger, row, new_files, name):
+    """新运行记录（记录名 ``name``）归哪一份完成简报（`brief_group`，简报按（负责人, 分组, 电脑）合，
+    `contracts.brief_groups`；口径见 `docs/work/2026-10-12-cc-closed-loop.md`）。
 
     定时 / 补跑：所属时刻优先用小助手报的（`runs[].slot`，1.4.4 起；离现在 40 天内才认），旧小助手不报就按任务的
-    运行日与时间算不晚于现在的最近一次。立即运行没有所属时刻。补传（note=retry）只在真传上了新文件、且这条任务还有
-    没发的非补传运行时并进那一份（同一时刻），其余补传不出简报（免得每分钟一份）。"""
+    运行日与时间算不晚于现在的最近一次；分组就是这个时刻。立即运行没有所属时刻：同一负责人还没发简报、10 分钟之内
+    开始的上一次立即运行在哪一批就并进哪一批（CC 一口气点几个任务仍是一份），否则自己起一批（分组 = 自己的记录名）；
+    隔了几小时的立即运行各自一份，前一次卡住不拖后一次。补传（note=retry）只在真传上了新文件、且这条任务还有没发的
+    非补传运行时并进那一份（同一时刻、同一分组），其余补传不出简报（免得每分钟一份）。"""
     if row.get("note") == "retry":
         if new_files > 0:
-            found = frappe.db.sql(f"""SELECT slot_at FROM `tab{RUN}` WHERE rule = %s AND brief_state = 'pending'
-                AND IFNULL(note, '') != 'retry' ORDER BY started_at DESC LIMIT 1""", (rule.name,), as_dict=True)
+            found = frappe.db.sql(f"""SELECT name, slot_at, brief_group FROM `tab{RUN}` WHERE rule = %s
+                AND brief_state = 'pending' AND IFNULL(note, '') != 'retry' ORDER BY started_at DESC LIMIT 1""",
+                                  (rule.name,), as_dict=True)
             if found:
-                return {"slot_at": found[0].slot_at, "brief_state": "pending"}
-        return {"slot_at": None, "brief_state": "skipped"}
+                return {"slot_at": found[0].slot_at, "brief_state": "pending",
+                        "brief_group": contracts.group_of(found[0])}
+        return {"slot_at": None, "brief_state": "skipped", "brief_group": ""}
     if trigger == "manual":
-        return {"slot_at": None, "brief_state": "pending"}
+        found = frappe.db.sql(f"""SELECT name, slot_at, brief_group FROM `tab{RUN}` WHERE brief_state = 'pending'
+            AND run_owner = %s AND `trigger` = 'manual' AND IFNULL(note, '') != 'retry' AND started_at >= %s
+            ORDER BY started_at DESC LIMIT 1""", (rule.rule_owner, now_datetime() - contracts.BRIEF_SETTLE), as_dict=True)
+        return {"slot_at": None, "brief_state": "pending", "brief_group": contracts.group_of(found[0]) if found else name}
     now = time.time()
     slot = contracts.run_slot(row.get("slot"), now)
     if slot is None:
         slot = contracts.latest_slot(now, int(rule.run_day or 0), str(rule.run_time or "22:00"))
-    return {"slot_at": _naive(slot), "brief_state": "pending"}
+    slot_at = _naive(slot)
+    return {"slot_at": slot_at, "brief_state": "pending", "brief_group": contracts.slot_group(slot_at)}
 
 
 @frappe.whitelist(methods=["POST"])
