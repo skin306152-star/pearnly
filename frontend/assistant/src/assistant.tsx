@@ -417,7 +417,7 @@ function MobileDrawer() {
   return (
     <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between px-4 pt-1 pb-3">
-        <span className="cc-drawer-title ps-1">{APP_NAME}</span>
+        <span className="cc-drawer-title">{APP_NAME}</span>
         <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>

@@ -20,6 +20,7 @@ import {
   StarIcon,
   StarOffIcon,
   LoaderIcon,
+  MessageCircleIcon,
   PlusIcon,
   SearchIcon,
   TrashIcon,
@@ -366,6 +367,9 @@ export const ThreadListItem: FC = () => {
             data-slot="aui_thread-list-item-trigger"
             className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9 focus-visible:ring-[3px]"
           >
+            <span className="cc-row-icon" aria-hidden>
+              <MessageCircleIcon />
+            </span>
             <span
               data-slot="aui_thread-list-item-title"
               className="min-w-0 flex-1 truncate"

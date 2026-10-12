@@ -171,7 +171,9 @@
   /* 手机端（2026-10-12 按 Claude 手机端同比例镜像截图核对）：顶栏平时透明、按钮浮在页面上，内容滚到下面时才是白色磨砂 + 细线；
      圆按钮近白半透明、细描边轻阴影、约 44；抽屉底色比页面卡片深一档；对话行黑字、约 48 高 */
   --cc-mbar-bg: rgb(255 255 255 / 0.9);   /* 实测 #fefefc */
-  --cc-mbtn-bg: rgb(242 242 240 / 0.8);  /* 比页面略深的浅灰玻璃（镜像实测 #f5f6f4，页面 #f9f9f7） */
+  --cc-mbtn-bg: #f6f6f4;          /* 圆按钮、抽屉头像：固定的浅灰白（镜像实测 #f6f7f5，页面上略暗、抽屉上略亮） */
+  --cc-mcard-line: transparent;   /* 抽屉打开时页面卡片：浅色无边线、向抽屉投一道柔和阴影（镜像实测） */
+  --cc-mcard-shadow: 0.09;
   --cc-mbtn-size: 2.75rem;
   --cc-bg-drawer: #f3f3f1;        /* 实测 #f3f4f1（右边卡片 #f9faf7） */
   --cc-mrow-h: 3rem;
@@ -211,7 +213,9 @@
   --cc-bg-overlay: rgb(0 0 0 / 0.55);
   --cc-bg-selected: rgb(250 249 245 / 0.12);
   --cc-mbar-bg: rgb(38 38 36 / 0.9);
-  --cc-mbtn-bg: rgb(48 48 46 / 0.72);
+  --cc-mbtn-bg: #30302e;
+  --cc-mcard-line: var(--cc-line-strong);
+  --cc-mcard-shadow: 0;
   --cc-bg-drawer: #1a1a19;
   --cc-mscrim-bg: #000000;
   --cc-mscrim-max: 0.45;
@@ -567,6 +571,12 @@
 .cc-mshell .cc-greeting { font-size: 1.25rem; color: var(--cc-ink-2); }
 .cc-mshell .pearnly-mascot-host { height: 4.5rem; }
 .cc-drawer .cc-nav-item svg { width: 1.375rem; height: 1.375rem; }
+/* 抽屉里每个对话前面一个对话图标（同 Claude 手机端的类型图标），文字与上面「定时任务」对齐；电脑侧栏不显示 */
+.cc-row-icon { display: none; }
+.cc-drawer .cc-row-icon { display: inline-flex; flex-shrink: 0; width: 1.5rem; margin-inline-end: 0.875rem; color: var(--cc-ink-2); }
+.cc-drawer .cc-row-icon svg { width: 1.375rem; height: 1.375rem; }
+/* 抽屉左下头像：同圆按钮（浅灰白、细描边） */
+.cc-mdrawer .cc-avatar { background: var(--cc-mbtn-bg); border: 1px solid var(--cc-line-strong); color: var(--cc-ink); }
 /* 抽屉标题（同 Claude 手机端的「Claude」：常规字重的衬线字） */
 .cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 1.875rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }
 
@@ -585,8 +595,9 @@ html:has(.cc-mshell), html:has(.cc-mshell) body { height: 100%; overflow: hidden
   position: absolute; inset: 0; background: var(--cc-bg-app); overflow: hidden; border: 1px solid;
   transform: translateX(calc(var(--cc-mprogress) * var(--cc-sidebar-w-mobile)));
   border-radius: calc(var(--cc-mcard) * var(--cc-mcard-radius));
-  border-color: color-mix(in srgb, var(--cc-line-strong) calc(var(--cc-mcard) * 100%), transparent);
-  transition: transform var(--cc-dur-drawer) var(--cc-ease), border-radius var(--cc-dur-drawer) var(--cc-ease), border-color var(--cc-dur-drawer) var(--cc-ease);
+  border-color: color-mix(in srgb, var(--cc-mcard-line) calc(var(--cc-mcard) * 100%), transparent);
+  box-shadow: -4px 0 18px rgb(0 0 0 / calc(var(--cc-mcard-shadow) * var(--cc-mcard)));
+  transition: transform var(--cc-dur-drawer) var(--cc-ease), border-radius var(--cc-dur-drawer) var(--cc-ease), border-color var(--cc-dur-drawer) var(--cc-ease), box-shadow var(--cc-dur-drawer) var(--cc-ease);
   will-change: transform;
 }
 .cc-mscrim {
