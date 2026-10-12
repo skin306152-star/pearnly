@@ -25,6 +25,8 @@ REMEMBER_DAYS = 180
 ISSUER_COOKIE = "pearnly_ai_issuer"
 SITE_COOKIE = "pearnly_ai_site"
 LANG_COOKIE = "pearnly_locale"
+# 用户在入口页上点了语言才有（30 分钟）：这时进站点把这个语言写进账号；只是浏览器默认语言或很久前点的不算
+LANG_PICKED_COOKIE = "pearnly_locale_picked"
 _jwks: dict = {}
 
 
@@ -215,4 +217,6 @@ def choose(pick: str, site: str) -> None:
 
 def go(site: str) -> None:
     _remember(SITE_COOKIE, site)
-    return _redirect(contracts.site_entry_url(site))
+    request = getattr(frappe.local, "request", None)
+    picked = request is not None and bool(request.cookies.get(LANG_PICKED_COOKIE))
+    return _redirect(contracts.site_entry_url(site, lang() if picked else ""))

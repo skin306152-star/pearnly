@@ -188,7 +188,9 @@ if(!reduce)addEventListener('pointermove',function(e){px=e.clientX;py=e.clientY;
 })();
 (function(){
   document.querySelectorAll('[data-lang]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();
-    document.cookie='pearnly_locale='+a.getAttribute('data-lang')+'; path=/; max-age=31536000; samesite=lax; secure';location.reload()})});
+    document.cookie='pearnly_locale='+a.getAttribute('data-lang')+'; path=/; max-age=31536000; samesite=lax; secure';
+    // 点过语言才带这个（30 分钟）：进公司站点时把这个语言写进账号（entry.go）
+    document.cookie='pearnly_locale_picked=1; path=/; max-age=1800; samesite=lax; secure';location.reload()})});
   // 账号密码在同一个框里填（用户 2026-10-10 晚）。密码校验在账号所在账号池的登录服务（另一个域名）上：
   // 这里只问出该去哪个登录服务，密码放在跳转地址的 # 后面带过去（# 后面的内容浏览器不发给任何服务器），
   // 那边的登录页读出来、马上从地址栏抹掉、自动提交（THEME_JS）。「忘记密码」同样先找到账号池，再直接打开那边的找回密码页。

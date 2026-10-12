@@ -145,6 +145,21 @@ class TestPreferences(unittest.TestCase):
         oidc_session.logout_hint()
         self.native.cache.get_value.assert_called_with("pearnly_oidc_session:session-b")
 
+    def test_language_picked_before_login_beats_the_saved_one(self):
+        # 2026-10-12：入口页选了英文，账号里存的是中文、身份服务给的也是中文 → 以这次选的为准，并写回身份服务
+        self.native.defaults.get_user_default.return_value = "th"
+        with patch.object(preferences, "_sync_or_defer") as sync, \
+                patch.object(preferences, "apply_login_locale") as apply:
+            preferences.finish_login_locale("preview@example.test", "zh-CN", "en")
+        sync.assert_called_once_with("en")
+        apply.assert_called_once_with("preview@example.test", "en")
+        self.native.local.cookie_manager.set_cookie.assert_called_with("pearnly_locale", "en")
+        with patch.object(preferences, "_sync_or_defer") as sync, \
+                patch.object(preferences, "apply_login_locale") as apply:
+            preferences.finish_login_locale("preview@example.test", "zh-CN", "fr")  # 不认识的不算，按之前没同步的
+        sync.assert_called_once_with("th")
+        apply.assert_called_once_with("preview@example.test", "th")
+
     def test_unsupported_login_locale_does_not_overwrite_preference(self):
         preferences.apply_login_locale("preview@example.test", "unknown")
         self.native.get_doc.assert_not_called()

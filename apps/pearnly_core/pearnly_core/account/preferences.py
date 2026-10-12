@@ -62,8 +62,10 @@ def _sync_or_defer(language):
     frappe.defaults.set_user_default("pearnly_pending_locale", pending)
 
 
-def finish_login_locale(user, claim_locale):
-    pending = frappe.defaults.get_user_default("pearnly_pending_locale", user=user)
+def finish_login_locale(user, claim_locale, chosen=None):
+    # chosen：这次登录前在入口页上主动点的语言（2026-10-12 用户：登录页选了英文，进去却是账号里存的中文），
+    # 当作这个账号的新语言，与产品里改语言同一条路写回身份服务；其次是之前没同步成功的选择，最后才是账号里存的。
+    pending = chosen if chosen in LANGUAGES else frappe.defaults.get_user_default("pearnly_pending_locale", user=user)
     if pending in LANGUAGES:
         _sync_or_defer(pending)
         locale = LANGUAGES[pending]

@@ -74,6 +74,11 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(query["login_hint"], "somchai")
         self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com"),
                          "https://acme-cowork.pearnly.com/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant")
+        # 入口页上刚点选的语言带给站点，登录时写进账号；不认识的不带
+        self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com", "en"),
+                         "https://acme-cowork.pearnly.com/api/method/pearnly_core.identity.begin_login"
+                         "?redirect_to=/assistant&locale=en")
+        self.assertNotIn("locale", contracts.site_entry_url("acme-cowork.pearnly.com", "fr&x=1"))
 
 
 class _Frappe(types.ModuleType):

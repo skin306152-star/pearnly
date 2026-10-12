@@ -78,8 +78,9 @@ def _state_key(state: str) -> str:
 
 
 @frappe.whitelist(allow_guest=True)
-def begin_login(redirect_to: str | None = None):
-    return _begin_login(redirect_to)
+def begin_login(redirect_to: str | None = None, locale: str | None = None):
+    # locale：入口页上用户刚点选的语言（pearnly_control.assistant_entry），登录后写进账号
+    return _begin_login(redirect_to, locale=locale)
 
 
 @frappe.whitelist()
@@ -98,7 +99,8 @@ def end_session_endpoint() -> str:
     return _discovery()["end_session_endpoint"]
 
 
-def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
+def _begin_login(redirect_to=None, password_change=False, idp_hint=None, locale=None):
+    chosen = locale if locale in preferences.LANGUAGES else None
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
     verifier, challenge = _pkce_pair()
@@ -106,7 +108,7 @@ def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
     pearnly_state.store().set_value(
         _state_key(state),
         {"nonce": nonce, "verifier": verifier, "redirect_to": redirect_to, "idp_hint": idp_hint,
-         "expected_user": frappe.session.user if password_change else None},
+         "expected_user": frappe.session.user if password_change else None, "locale": chosen},
         expires_in_sec=STATE_TTL,
     )
 
@@ -121,6 +123,8 @@ def _begin_login(redirect_to=None, password_change=False, idp_hint=None):
         "code_challenge_method": "S256",
     }
     preferred = frappe.request.cookies.get("pearnly_locale") if frappe.request else None
+    if chosen:
+        preferred = preferences.LANGUAGES[chosen]
     if preferred in preferences.LANGUAGES.values():
         params["ui_locales"] = preferred
     if password_change:
@@ -143,7 +147,8 @@ def _take_state(state: str) -> dict:
         saved = store.get_value(key)
         if saved and not saved.get("consumed"):
             store.set_value(key, {"consumed": True, "redirect_to": saved.get("redirect_to"),
-                                  "idp_hint": saved.get("idp_hint")}, expires_in_sec=CONSUMED_TTL)
+                                  "idp_hint": saved.get("idp_hint"), "locale": saved.get("locale")},
+                            expires_in_sec=CONSUMED_TTL)
     return saved or {}
 
 
@@ -155,7 +160,7 @@ def _resume(saved: dict):
         frappe.local.response["type"] = "redirect"
         frappe.local.response["location"] = workspace_mod.resolve_after_login(saved.get("redirect_to"))
         return
-    _begin_login(saved.get("redirect_to"), idp_hint=saved.get("idp_hint"))
+    _begin_login(saved.get("redirect_to"), idp_hint=saved.get("idp_hint"), locale=saved.get("locale"))
 
 
 RETRY_COOKIE = "pearnly_login_retry"
@@ -240,13 +245,13 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     if source:
         # LINE 专用身份不是本站账号：只留注销凭据，不拿它的令牌改资料、不用它的用户名和语言。
         oidc_session.remember({"id_token": tokens["id_token"]}, subject)
-        preferences.finish_login_locale(user, None)
+        preferences.finish_login_locale(user, None, saved.get("locale"))
         identity_filters = {"issuer": token_issuer, "user": user, "status": "active"}
     else:
         oidc_session.remember(tokens, subject)
         from pearnly_core.account.profile import apply_login_username
         apply_login_username(user, claims)
-        preferences.finish_login_locale(user, claims.get("locale"))
+        preferences.finish_login_locale(user, claims.get("locale"), saved.get("locale"))
         identity_filters = {"issuer": token_issuer, "subject": subject}
 
     frappe.db.set_value(

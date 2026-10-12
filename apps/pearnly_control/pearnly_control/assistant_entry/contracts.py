@@ -93,6 +93,8 @@ def authorize_url(issuer_url: str, *, redirect_uri: str, state: str, nonce: str,
     return f"{issuer(issuer_url)}/protocol/openid-connect/auth?{urlencode(params)}"
 
 
-def site_entry_url(site_name: str) -> str:
-    """进入某个公司站点的智能体：交给站点自己的统一登录口，账号池里已有登录状态时不再要密码。"""
-    return f"https://{site(site_name)}/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant"
+def site_entry_url(site_name: str, locale: str = "") -> str:
+    """进入某个公司站点的智能体：交给站点自己的统一登录口，账号池里已有登录状态时不再要密码。
+    `locale` 是用户刚在入口页点选的语言：站点登录时写进账号（不点就用账号里存的）。"""
+    url = f"https://{site(site_name)}/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant"
+    return url + f"&locale={locale}" if locale in LANGS else url

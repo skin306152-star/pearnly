@@ -67,9 +67,16 @@ class Callback(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-    def begin(self, state="s1", redirect_to="/desk/x", idp_hint=None):
+    def begin(self, state="s1", redirect_to="/desk/x", idp_hint=None, locale=None):
         self.store.values[identity._state_key(state)] = {
-            "nonce": "n", "verifier": "v", "redirect_to": redirect_to, "idp_hint": idp_hint, "expected_user": None}
+            "nonce": "n", "verifier": "v", "redirect_to": redirect_to, "idp_hint": idp_hint, "expected_user": None,
+            "locale": locale}
+
+    def test_language_picked_at_the_entry_reaches_the_account(self):
+        self.begin(locale="en")
+        self.claims["locale"] = "zh-CN"
+        identity.callback(code="c", state="s1")
+        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", "zh-CN", "en")
 
     def test_password_login_resolves_by_subject(self):
         self.begin()
@@ -94,7 +101,7 @@ class Callback(unittest.TestCase):
         # 专用身份不是本站账号：不留刷新令牌、不拿它的用户名和语言。
         self.mocks["oidc_session"].remember.assert_called_once_with({"id_token": "id-token"}, "line-person")
         self.profile.apply_login_username.assert_not_called()
-        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", None)
+        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", None, None)
 
     def test_refused_login_ends_the_identity_session_and_explains(self):
         for line in (False, True):
@@ -120,7 +127,7 @@ class Callback(unittest.TestCase):
         # LINE 内置浏览器把同一个回调又发了一次，而且第一次的登录 cookie 没到手：重新走一遍。
         identity.callback(code="c", state="s1")
         self.mocks["_login_as"].assert_not_called()
-        self.mocks["_begin_login"].assert_called_once_with("/desk/x", idp_hint="line-2010411313")
+        self.mocks["_begin_login"].assert_called_once_with("/desk/x", idp_hint="line-2010411313", locale=None)
         # 已经登录了：直接去目标页。
         self.native.session.user = "owner@example.test"
         identity.callback(code="c", state="s1")
