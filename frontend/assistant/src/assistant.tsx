@@ -379,15 +379,15 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
             <TitleBarLeft nav={nav} />
           </div>
         ) : (
-          // 同 claude.ai：收起按钮在最左边、「图标 + CC」紧跟其后；收起后按钮留在原位（MainTopBar）
-          <div className="flex h-12 items-center gap-1.5">
-            <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
-              <PanelLeftIcon />
-            </button>
+          // 「图标 + CC」在左、收起按钮在右（用户 2026-10-12：放右边更顺手）；收起后只在左上角留展开按钮（MainTopBar）
+          <div className="flex h-12 items-center justify-between ps-1.5">
             <span className="flex items-center gap-2 font-semibold text-ink text-lg">
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               {APP_NAME}
             </span>
+            <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+              <PanelLeftIcon />
+            </button>
           </div>
         )}
         <ThreadListSearch value={search} onValueChange={setSearch} />
