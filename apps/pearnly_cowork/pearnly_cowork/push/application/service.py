@@ -114,6 +114,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     except TargetSelectionError as error:
         frappe.throw(_(error.code), frappe.PermissionError if error.status_code == 403 else frappe.ValidationError)
     selected = endpoint_with_account_choice(deepcopy(loaded.endpoint), choice)
+    fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
     own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id", for_update=True) or ""
     history_value = storage.project(doc)
     history_value.update(id=doc.name, client_id=doc.client or None,
@@ -203,6 +204,19 @@ def _require_matching_account(loaded, target, direction, fields, invoice_date):
         frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
 
 
+def _fixed(history, connection, account_set, fixed):
+    """这张票已定的选择（`{kind: value}`，优先于账套记忆、不写进账套记忆）。
+
+    调用方给了（文件夹后台推送，`{}` 也算给了）就照用；没给（None：网页复核页、手机、CC 重推）就按登记的提供者取
+    （`cowork_push_fixed_choices`，定时任务的默认处理）。push 域不导入提供者所在的域；对方档不在此列。"""
+    if fixed is not None:
+        return fixed
+    found = {}
+    for path in frappe.get_hooks("cowork_push_fixed_choices") or []:
+        found.update(frappe.get_attr(path)(history, connection, account_set) or {})
+    return {kind: value for kind, value in found.items() if kind != "party"} or None
+
+
 def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
@@ -232,6 +246,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         # 这类单据录不录还没定（或定了不录）：先不问对方档、科目这些，提交时停在口径那一步
         return {"needed": [], "options": {}}
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
+    fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
                           config, preparation, fixed)
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
@@ -244,7 +259,10 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     if "account" in kinds:
         options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
-    return {"needed": decision["needed"], "options": options, "account_set": target.account_set}
+    result = {"needed": decision["needed"], "options": options, "account_set": target.account_set}
+    if fixed:
+        result["fixed"] = dict(fixed)  # 这张票已定的（定时任务默认处理），不再问
+    return result
 
 
 def save_choices(history, connection, account_set_key, items):
@@ -256,6 +274,10 @@ def save_choices(history, connection, account_set_key, items):
     items = json.loads(items) if isinstance(items, str) else items
     if not isinstance(items, list) or not 1 <= len(items) <= 200:
         frappe.throw(_("connection.config_invalid"))
+    # 定时任务默认处理定下的类别只管这张票：不写进账套记忆（要改就改任务），整批不记。
+    covered = _fixed(doc.name, loaded.doc.name, target.account_set, None) or {}
+    if any(isinstance(item, dict) and str(item.get("kind") or "") in covered for item in items):
+        frappe.throw(_("cowork.choice.task_default"))
     allowed = {
         "party": None, "item": {r.get("code") for r in config.get("reported_products") or [] if isinstance(r, dict)},
         "account": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},

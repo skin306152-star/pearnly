@@ -1259,6 +1259,7 @@ Credit purchase	赊购	ซื้อเงินเชื่อ	掛仕入	cowork.
 Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื้อ	仕入税額控除する	cowork.choice.claim
 Count as expense	不抵扣，计入费用	ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย	控除せず費用に含める	cowork.choice.expense
 The chosen value is not in this account set. Choose again	所选项不在此账套中，请重新选择	รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
+This is set by the scheduled task's default handling. Change it in the task	此项由定时任务的默认处理决定，请在定时任务中修改	รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา	この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください	cowork.choice.task_default
 Choose the Express records for this invoice first, then submit again	请先为此发票选择 Express 中的对应项，再重新提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on	此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理	เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้	これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_payment_evidence
 This company does not enter transfer slips; this one is not sent	本公司不录入转账凭条，此单据不推送	บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้	この会社では振込明細を入力しないため、送信しません	intake.error.document_policy_skip_payment_evidence

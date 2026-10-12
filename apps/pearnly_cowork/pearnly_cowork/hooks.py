@@ -441,6 +441,9 @@ pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow
                         "cowork.recon_document": "pearnly_cowork.recon_center.document_ocr.run"}
 # LINE 发来的单据：识别落成票后推卡、最终失败时回一句（不是从 LINE 来的原件什么都不做）。
 cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized", "pearnly_cowork.folder_intake.events.recognized"]
+# 推送时这张票已定的选择（push/application/service.py 的 `_fixed`）：定时任务的票推往该任务的连接与账套时带任务默认处理，
+# 网页复核页、手机、CC 重推同一口径；取不到回 {}（2026-10-12）。
+cowork_push_fixed_choices = ["pearnly_cowork.folder_intake.push.fixed_for"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}
 # 续跑时遇到上一个进程留下的「结果不明」调用，由对账的识别任务自己处理：账单 / 总账 / 税报按有限次重发，发票当成这一页
 # 读不出交引擎按页兜底；不整份作废（2026-09-30 压测第 18 轮）。
