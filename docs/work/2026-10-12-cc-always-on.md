@@ -83,4 +83,4 @@
 ## 收尾状态
 
 - 2026-10-12 晚随 f518964c 合入 main 并上线（见 [发布记录](2026-10-12-release-f518964c.md)）；工作树 `pearnly-cc-always-on`、`pearnly-cc-claude-ui` 及其本地 / 远端分支在收尾时删除。
-- 测试机保留：`C:\Users\Public\pearnly-test\companion.json.before-always-on`（常驻模式前的原配置，等用户决定测试机是否继续常驻）；测试机 CC 1.4.3 常驻模式仍开。
+- 测试机（用户 2026-10-12 定）：保持常驻（CC 1.4.3，`always_on` 与开机自启都开）；常驻前的配置备份与 `C:\Users\Public\pearnly-test` 已删。
