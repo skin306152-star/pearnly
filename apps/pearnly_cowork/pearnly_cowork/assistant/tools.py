@@ -1568,6 +1568,8 @@ FOLDER_FILES_PAGE_MAX = 200
 FOLDER_FETCH_MAX = 5
 # 列出来的清单在这段对话里留 10 分钟：翻页不再请电脑重列
 FOLDER_LISTING_TTL = 600
+# 一次取几份、有的还在读时，已取进对话的那几份记 10 分钟（每次重调续期）：按提示重调不再取一遍
+FOLDER_FETCHED_TTL = 600
 FOLDER_STILL_READING = ("Still reading on the computer. Call again with the same input to get it; do not wait "
                         "with sleep.")
 # 取进对话的文件类型（同对话附件那一组）：不靠系统的 mime 表（容器里可能没有 xlsx / docx）
@@ -1674,6 +1676,29 @@ def folder_files(tool_input) -> str:
     return _json(out)
 
 
+def _fetched_key(reader, root, path):
+    """这段对话里取过的一份文件（路径按取文件的规则规整，`/` 与 `\\` 是同一份）；路径不合规的没有。"""
+    try:
+        normal = [folder_contracts.root_id(root), folder_contracts.fetch_path(path)]
+    except folder_contracts.ContractError:
+        return None
+    seed = json.dumps([frappe.session.user, _conversation(), reader, *normal], ensure_ascii=False)
+    return f"pearnly_assistant:folder_fetched:{frappe.local.site}:" + hashlib.sha256(seed.encode()).hexdigest()[:40]
+
+
+def _remember_fetched(results, keys) -> None:
+    """还有在读的：记下这次已取进对话的（按提示原样重调时直接回它们，电脑不再读、对话里不多一份）；都读完了就忘掉，
+    之后再要同一份是重新取（文件可能改过）。"""
+    reading = any(row.get("status") == "reading" for row in results.values())
+    for path, key in keys.items():
+        row = results[path]
+        if reading and row.get("status") == "added":
+            frappe.cache.set_value(key, {name: row[name] for name in ("status", "file", "filename", "size_bytes")},
+                                   expires_in_sec=FOLDER_FETCHED_TTL)
+        elif not reading:
+            frappe.cache.delete_value(key)
+
+
 def folder_fetch(tool_input) -> str:
     """把电脑上已授权文件夹里的几份文件取进这段对话（像用户附件一样给别的工具用）。只读，不识别、不扣费。"""
     from pearnly_core.assistant import files as chat_files
@@ -1684,8 +1709,15 @@ def folder_fetch(tool_input) -> str:
     if not paths:
         frappe.throw(_("No files were given."))
     reader, root = str(tool_input.get("reader") or ""), str(tool_input.get("root_id") or "")
-    results, pending = {}, {}
+    results, pending, keys = {}, {}, {}
     for path in paths:
+        key = _fetched_key(reader, root, path)
+        if key:
+            keys[path] = key
+            earlier = frappe.cache.get_value(key)
+            if isinstance(earlier, dict) and earlier.get("file"):
+                results[path] = {"path": path, **earlier}  # 上一次已取进对话
+                continue
         made = _folder_request(lambda path=path: fetch.fetch(reader, root, path, scope=_conversation() or ""))
         if made.get("status") == "waiting_for_cc":
             return _json(_waiting_for_cc(made))
@@ -1713,6 +1745,7 @@ def folder_fetch(tool_input) -> str:
                 outcome = {"status": "failed", "reason": str(error)[:300]}
         for path in asked:
             results[path] = {"path": path, **outcome}
+    _remember_fetched(results, keys)
     return _json({"files": [results[path] for path in paths]})
 
 
@@ -2371,8 +2404,9 @@ TOOLS = [
                     "(reader, root_id and paths as listed by cowork_folder_files). Use each returned file like a user "
                     "attachment: for cowork_recon_start (a bank statement, ledger or VAT report), "
                     "cowork_recognize_attachments or cowork_stocktake_create. Up to 30 MB each, the same types as chat "
-                    "attachments. Bringing a file in does not recognize it and is not charged. waiting_for_cc and "
-                    "reading as in cowork_folder_files.",
+                    "attachments. Bringing a file in does not recognize it and is not charged. waiting_for_cc as in "
+                    "cowork_folder_files; reading means that file is still coming: call again with the same input "
+                    "(files already added are not brought in twice), never wait with sleep.",
      "input_schema": {"type": "object", "properties": {
          "reader": {"type": "string"}, "root_id": {"type": "string"},
          "paths": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": FOLDER_FETCH_MAX}},

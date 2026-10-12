@@ -1247,7 +1247,8 @@ class FolderFilesTests(unittest.TestCase):
         sys.modules["pearnly_core.assistant.toolrun"] = toolrun
         sys.modules["pearnly_core.assistant"].toolrun = toolrun
         frappe.cache = types.SimpleNamespace(get_value=self.cache.get,
-                                             set_value=lambda key, value, expires_in_sec=None: self.cache.__setitem__(key, value))
+                                             set_value=lambda key, value, expires_in_sec=None: self.cache.__setitem__(key, value),
+                                             delete_value=lambda key: self.cache.pop(key, None))
         frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
 
     def tearDown(self):
@@ -1311,6 +1312,30 @@ class FolderFilesTests(unittest.TestCase):
         out = json.loads(tools.folder_fetch({"reader": "C1", "root_id": "r1", "paths": ["ACME/x.pdf", "ACME\\x.pdf"]}))
         self.assertEqual([row["status"] for row in out["files"]], ["added", "added"])
         self.assertEqual([call[0] for call in self.calls if call[0] in ("content", "attach")], ["content", "attach"])
+
+    def test_calling_again_while_some_are_still_reading_does_not_bring_the_added_ones_twice(self):
+        """一次取两份，一份已取进对话、一份还在传：按提示原样重调时，已取进的那份直接回原来的编号，电脑不再读、对话里
+        不多一份（识别按编号扣费，两份编号会扣两次）；都读完以后再要是重新取（文件可能改过）。"""
+        self.contents["F-ACME\\a.pdf"] = ("a.pdf", b"%PDF-a")
+        self.states["F-ACME\\b.pdf"] = {"request": "F-ACME\\b.pdf", "status": "leased", "code": ""}
+        ask = {"reader": "C1", "root_id": "r1", "paths": ["ACME\\a.pdf", "ACME\\b.pdf"]}
+        with mock.patch.object(tools, "FOLDER_FETCH_WAIT_SECONDS", 0), mock.patch.object(tools.time, "sleep"):
+            first = json.loads(tools.folder_fetch(ask))["files"]
+        self.assertEqual([row["status"] for row in first], ["added", "reading"])
+        self.assertIn("same input", tools.FOLDER_STILL_READING)
+        self.calls.clear()
+        self.states.pop("F-ACME\\b.pdf")
+        self.contents["F-ACME\\b.pdf"] = ("b.pdf", b"%PDF-b")
+        again = json.loads(tools.folder_fetch({**ask, "paths": ["ACME/a.pdf", "ACME\\b.pdf"]}))["files"]
+        self.assertEqual([row["status"] for row in again], ["added", "added"])
+        self.assertEqual({k: v for k, v in again[0].items() if k != "path"},
+                         {k: v for k, v in first[0].items() if k != "path"})  # 原来那份的编号
+        self.assertEqual([call[3] for call in self.calls if call[0] == "fetch"], ["ACME\\b.pdf"])
+        self.assertEqual([call[1] for call in self.calls if call[0] == "attach"], ["b.pdf"])
+        self.assertEqual(self.cache, {})  # 都读完了：不再记
+        self.calls.clear()
+        json.loads(tools.folder_fetch(ask))
+        self.assertEqual([call[3] for call in self.calls if call[0] == "fetch"], ["ACME\\a.pdf", "ACME\\b.pdf"])
 
     def test_fetch_stops_when_the_computer_cannot_take_it(self):
         self.made["ACME\\a.pdf"] = {"status": "waiting_for_cc", "reason": "update_needed", "version": "1.4.4",

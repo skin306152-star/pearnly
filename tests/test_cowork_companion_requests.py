@@ -12,6 +12,7 @@ import tempfile
 import types
 import unittest
 from datetime import datetime, timedelta
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
@@ -115,6 +116,7 @@ class FakeDB:
     def __init__(self, frappe):
         self.frappe = frappe
         self.rows, self.deleted, self.after = {}, [], []
+        self.snapshot = set()
         self.after_commit = types.SimpleNamespace(add=self.after.append)
         self.adapters = {"C1": "express", "M1": "mrerp"}
 
@@ -135,6 +137,9 @@ class FakeDB:
     def get_value(self, doctype, filters, field):
         if doctype == "Cowork ERP Connection":
             return self.adapters.get(filters)
+        # 普通读看本事务快照：`snapshot` 里登记的请求号读不到（别的事务刚提交的行）
+        if filters.get("request_key") in self.snapshot:
+            return None
         found = [row.name for row in self.rows.values() if all(row.get(k) == v for k, v in filters.items())]
         return found[0] if found else None
 
@@ -145,8 +150,18 @@ class FakeDB:
     def _ordered(self, rows):
         return sorted(rows, key=lambda row: (row.requested_at, row.name))
 
-    def sql(self, query, values=()):
+    def sql(self, query, values=(), as_dict=False):
         query = " ".join(query.split())
+        if "request_key = %s LOCK IN SHARE MODE" in query:
+            # 加锁读：看最新提交的（不受 `snapshot` 影响）
+            assert as_dict
+            return [row for row in self.rows.values() if row.request_key == values[0]]
+        if "status = 'leased' AND lease_expires_at > %s" in query:
+            connection, now = values
+            found = sorted((row for row in self.rows.values() if row.connection == connection
+                            and row.status == "leased" and row.lease_expires_at and row.lease_expires_at > now),
+                           key=lambda row: row.lease_expires_at, reverse=True)
+            return [(found[0].kind, found[0].companion_version)] if found else []
         if "COUNT(*)" in query:
             connection, actor = values
             return [[sum(1 for row in self.rows.values() if row.connection == connection and row.actor == actor
@@ -436,6 +451,9 @@ class ServiceTests(unittest.TestCase):
         presence = self.service.presence("C1")
         self.assertEqual((presence["seen"], presence["version"]), (True, "1.5.0"))
         self.assertEqual(presence["kinds"], ["folder_list", "folder_fetch", "express_read"])
+        # 领到的那件交了（手上没有没做完的）、之后 SEEN_SECONDS 没再来领：离线
+        self.service.complete(_machine(), {"request": second["request"], "handle": leased["request"]["handle"],
+                                           "ok": False, "code": "root_missing"})
         self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 1)
         self.assertFalse(self.service.presence("C1")["seen"])
         self.assertEqual(self.service.presence("M1"), {"seen": False, "version": "", "kinds": [], "at": None})
@@ -449,6 +467,68 @@ class ServiceTests(unittest.TestCase):
         self._lease(kinds=("folder_list",))
         self.assertEqual(self.service.waiting("C1", "folder_list", "1.4.4"), {})  # 正在来领：版本以它报的为准
         self.assertEqual(self.service.waiting("C1", "express_read")["reason"], "update_needed")  # 来领但不会做这种
+
+    def test_a_computer_busy_with_a_long_request_still_counts_as_online(self):
+        """小助手一次只做一件、做完才再来领：传 30MB、读账套的那几分钟里它没来领，但手上有租约没到期，就还算在线。"""
+        made = self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1")
+        leased = self._lease()
+        self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 10)
+        request = leased["request"]
+        self.assertEqual(self.service.complete(_machine(), {"request": request["id"], "handle": request["handle"],
+                                                            "ok": True, "offset": 0, "content": _b64(b"abcd"),
+                                                            "final": False}), {"status": "leased", "received": 4})
+        self.assertTrue(self.service.presence("C1")["seen"])
+        self.assertEqual(self.service.waiting("C1", "folder_fetch", "1.5.0"), {})
+        self.assertEqual(self.service.waiting("C1", "folder_list"), {})  # 别的请求也照常建，等它做完这件再领
+        # 原样重调：同一件，接着等
+        self.assertEqual(self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"},
+                                             "folder_fetch:k1")["request"], made["request"])
+        # 记的「来过」丢了（缓存清过）：按手上那一件的版本与种类
+        self.state.values.clear()
+        presence = self.service.presence("C1")
+        self.assertEqual((presence["seen"], presence["version"], presence["kinds"]), (True, "1.5.0", ["folder_fetch"]))
+        # 租约到期（电脑真的不在了）：离线
+        self.clock.now += timedelta(seconds=contracts.LEASE_SECONDS["folder_fetch"] + 1)
+        self.assertFalse(self.service.presence("C1")["seen"])
+        self.assertEqual(self.service.waiting("C1", "folder_fetch", "1.5.0")["reason"], "offline")
+
+    def test_find_returns_the_actors_open_request_without_making_one(self):
+        params = {"root_id": "r", "path": "a.pdf"}
+        self.assertIsNone(self.service.find("folder_fetch", "C1", "folder_fetch:k1"))
+        made = self.service.create("folder_fetch", "C1", params, "folder_fetch:k1")
+        self.assertEqual(self.service.find("folder_fetch", "C1", "folder_fetch:k1")["request"], made["request"])
+        self.assertIsNone(self.service.find("folder_list", "C1", "folder_fetch:k1"))  # 种类、连接不对不算
+        self.assertIsNone(self.service.find("folder_fetch", "M1", "folder_fetch:k1"))
+        self.frappe.session.user = "other@x.com"
+        self.assertIsNone(self.service.find("folder_fetch", "C1", "folder_fetch:k1"))  # 别人的不给
+        self.frappe.session.user = "acc@x.com"
+        leased = self._lease()
+        self._complete(leased, b"%PDF")
+        self.assertEqual(self.service.find("folder_fetch", "C1", "folder_fetch:k1")["status"], "done")
+        self.service.drop(made["request"])
+        self.assertIsNone(self.service.find("folder_fetch", "C1", "folder_fetch:k1"))
+        self.service.create("folder_fetch", "C1", params, "folder_fetch:k2")
+        self.clock.now += timedelta(seconds=contracts.CLAIM_SECONDS + 1)
+        self.assertIsNone(self.service.find("folder_fetch", "C1", "folder_fetch:k2"))  # 过期的不算
+        self.assertEqual(len(self.db.rows), 1)
+        with self.assertRaises(self.frappe.ValidationError):
+            self.service.find("folder_fetch", "C1", "bad key")
+
+    def test_the_same_key_made_at_the_same_moment_returns_the_first_row(self):
+        """两个相同的工具调用同时建同一件：后到的撞唯一键，普通读在可重复读快照里看不到先建成的行，要用加锁读。"""
+        first = self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1")
+        self.db.snapshot.add("folder_fetch:k1")  # 后到的事务开头时那一行还没提交
+        again = self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1")
+        self.assertEqual((again["request"], again["status"]), (first["request"], "requested"))
+        self.assertEqual(len(self.db.rows), 1)
+        self.frappe.session.user = "other@x.com"
+        with self.assertRaises(self.frappe.PermissionError):
+            self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1")
+        self.frappe.session.user = "acc@x.com"
+        with mock.patch.object(self.service, "_committed", return_value=None), \
+                self.assertRaises(self.frappe.ValidationError) as caught:
+            self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1")
+        self.assertIn("busy", str(caught.exception))  # 先建成的又被删了：稍后再试
 
     def test_an_mrerp_folder_member_never_gets_a_books_read(self):
         self.allowed.add(("acc@x.com", "M1"))
@@ -536,7 +616,9 @@ class FetchServiceTests(unittest.TestCase):
         self.waiting_reply, self.asked = {}, []
         self.results = {}
         self.statuses = {}
+        self.open, self.found = {}, []
         service = types.SimpleNamespace(
+            find=lambda kind, connection, key: self.found.append((kind, connection, key)) or self.open.get(key),
             waiting=lambda connection, kind, version="": self.asked.append((connection, kind, version))
             or self.waiting_reply,
             create=lambda kind, connection, params, key: self.created.append((kind, connection, params, key))
@@ -574,6 +656,25 @@ class FetchServiceTests(unittest.TestCase):
         self.assertEqual(self.asked, [("C1", "folder_list", "1.5.0"), ("C1", "folder_fetch", "1.4.4")])
         self.assertEqual(self.created, [])
         self.assertEqual(self.checked[:2], ["scope", "C1"])  # 先核权限
+
+    def test_an_open_request_is_picked_up_before_asking_whether_the_computer_is_there(self):
+        """电脑正忙着传这一件（好一阵没来领）：原样重调接着等这一件，不判离线、不另建。"""
+        self.fetch.fetch("C1", "root1", "ACME/a.pdf", scope="sesn_1")
+        key = self.created[0][3]
+        self.assertEqual(self.found[0], ("folder_fetch", "C1", key))  # 找的是建时用的同一请求号
+        self.open[key] = {"request": "r1", "status": "leased", "code": "", "params": {}}
+        self.waiting_reply = {"status": "waiting_for_cc", "reason": "offline"}
+        self.asked.clear()
+        self.assertEqual(self.fetch.fetch("C1", "root1", "ACME\\a.pdf", scope="sesn_1"),
+                         {"request": "r1", "status": "leased"})
+        self.assertEqual((self.asked, len(self.created)), ([], 1))
+        self.fetch.files("C1", "root1", scope="sesn_1")
+        list_key = self.found[-1][2]
+        self.open[list_key] = {"request": "r9", "status": "done", "code": "", "params": {}}
+        self.assertEqual(self.fetch.files("C1", "root1", scope="sesn_1"), {"request": "r9", "status": "done"})
+        # 换了一段对话是另一件：照常先问电脑在不在
+        self.assertEqual(self.fetch.fetch("C1", "root1", "ACME\\a.pdf", scope="sesn_2"),
+                         {"status": "waiting_for_cc", "reason": "offline"})
 
     def test_requests_carry_checked_params_and_a_stable_key_per_conversation(self):
         made = self.fetch.files("C1", "root1", "ACME/bank", search=" kbank ", extensions=["PDF"], scope="sesn_1")

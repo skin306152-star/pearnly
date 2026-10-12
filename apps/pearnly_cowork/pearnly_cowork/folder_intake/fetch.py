@@ -6,8 +6,8 @@
   符号链接 / 联接点跳出根目录），类型与大小同对话附件（`contracts.FETCH_EXTENSIONS`，30 MB）。
 - 那台电脑此刻没来领按需请求（离线），或它的 CC 桌面端还不会领（旧于 `request_contracts.MIN_COMPANION`），就不建请求，
   回 ``{"status": "waiting_for_cc", "reason": "offline" | "update_needed"}``。
-- 同一个人、同一段对话（``scope``）对同一份文件 / 同一组条件的请求用固定请求号：还在等、在做时再问一次是同一件，
-  不会让电脑重复读；取走结果即删（`listing` / `content`），下次再问是新的一件。
+- 同一个人、同一段对话（``scope``）对同一份文件 / 同一组条件的请求用固定请求号：还在等、在做、做完没取走时再问一次
+  是同一件（先找它，找到就不再问电脑在不在），不会让电脑重复读；取走结果即删（`listing` / `content`），下次再问是新的一件。
 """
 import hashlib
 import json
@@ -58,6 +58,12 @@ def _request(kind, doc, params, scope):
     return {"request": made["request"], "status": made["status"]}
 
 
+def _open(kind, doc, params, scope):
+    """同一请求号还在等、在做或做完没取走的那一件：电脑正在读、传它时可能好一阵不来领，不能因此判离线。"""
+    found = request_service.find(kind, doc.name, _key(kind, doc.name, params, scope))
+    return {"request": found["request"], "status": found["status"]} if found else None
+
+
 def files(reader, root_id, folder="", *, search="", extensions=None, scope="") -> dict:
     """请电脑列根目录（或其中一个文件夹，含子文件夹）里能取的文件：``{request, status}`` 或 waiting_for_cc。"""
     doc, root, state = _reader(reader, root_id)
@@ -67,7 +73,7 @@ def files(reader, root_id, folder="", *, search="", extensions=None, scope="") -
                   "extensions": contracts.fetch_extensions(extensions), "limit": contracts.FETCH_LIST_MAX}
     except contracts.ContractError as error:
         _error(error)
-    found = waiting(doc.name, "folder_list", state)
+    found = _open("folder_list", doc, params, scope) or waiting(doc.name, "folder_list", state)
     if found:
         return found
     _root_known(state, root)
@@ -81,7 +87,7 @@ def fetch(reader, root_id, path, *, scope="") -> dict:
         params = {"root_id": root, "path": contracts.fetch_path(path)}
     except contracts.ContractError as error:
         _error(error)
-    found = waiting(doc.name, "folder_fetch", state)
+    found = _open("folder_fetch", doc, params, scope) or waiting(doc.name, "folder_fetch", state)
     if found:
         return found
     _root_known(state, root)

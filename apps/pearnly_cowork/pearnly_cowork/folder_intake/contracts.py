@@ -211,9 +211,11 @@ FETCH_SEARCH_MAX = 100
 
 
 def _browse_parts(raw: str) -> List[str]:
-    parts = [part.strip() for part in re.split(r"[\\/]+", raw) if part.strip()]
+    # 每段原样保留（名字首尾带空格的文件夹 / 文件照样取得回），与小助手 `folder_fetch._parts` 同一规则：
+    # 整条路径去掉首尾空白、按分隔符拆段，只丢空段；全是空白的段不收
+    parts = [part for part in re.split(r"[\\/]+", raw) if part]
     for part in parts:
-        if part in (".", "..") or _BAD_PART.search(part) or part.endswith("."):
+        if part in (".", "..") or not part.strip() or _BAD_PART.search(part) or part.endswith("."):
             raise ContractError("cowork.folder.fetch_path_invalid")
     return parts
 

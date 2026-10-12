@@ -11,7 +11,8 @@ expired。结果字节分块交回（每块 ``CHUNK_BYTES``，base64 后仍在�
 加一种请求（kind）：
 1. 这里与小助手 ``companion/src/companion/request_contract.py`` 的 ``KINDS``、``MAX_BYTES``、``LEASE_SECONDS`` 各加一项
    （``tests/test_companion_contract.py`` 逐值比对）；只有 Express 连接能做的（读账套）不进 ``FOLDER_KINDS``；
-2. 发起它的业务域自己校验参数（这里只管是不是一个不大的 JSON 对象），调
+2. 发起它的业务域自己校验参数（这里只管是不是一个不大的 JSON 对象），先 ``request_service.find`` 同一请求号还没了结的
+   那一件（有就接着等），没有再问 ``waiting``（电脑离线 / 要升级就不建），最后
    ``request_service.create(kind, connection, params, request_key)``，再用 ``status`` / ``result`` / ``drop`` 取结果；
 3. 小助手在 ``request_worker.HANDLERS`` 登记处理函数 ``fn(cfg, params) -> Result``；结果字节的格式由这一种请求自己定
    （JSON 一律 gzip 后交），处理不了回 ``RequestFailed(code)``。

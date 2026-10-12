@@ -3,9 +3,11 @@
 用户一侧（业务域以当前用户身份调用，权限在业务域核过之后这里再核一次连接使用授权）：
 - ``create(kind, connection, params, request_key)``：建请求；同一请求号还在等、在做或做完没取走时原样返回（幂等），
   失败 / 过期的换一条新的；
+- ``find(kind, connection, request_key)``：同一请求号此刻还在等、在做或做完没取走的那一件（不建）；业务域先找它，
+  找到就接着等，不再问电脑在不在（电脑正忙着读、传这一件时可能好一阵不来领）；
 - ``status(name)`` / ``result(name)`` / ``drop(name)``：只给发起人；``drop`` 连行带结果字节一起删；
-- ``presence(connection)``：这条连接的电脑最近什么时候来领过、什么版本、能做哪几种；``waiting(connection, kind,
-  known_version)`` 据此回「能领」或 waiting_for_cc（离线 / 要升级），业务域建请求前先问。
+- ``presence(connection)``：这条连接的电脑最近什么时候来领过、什么版本、能做哪几种，手上有没做完的租约也算在线；
+  ``waiting(connection, kind, known_version)`` 据此回「能领」或 waiting_for_cc（离线 / 要升级），业务域建请求前先问。
 
 机器一侧（`request_api` 在配对码身份下调用，身份核对在 `http_auth`）：
 - ``lease_next(context, body)``：先把这条连接上等太久没人领、领了超时的标成过期，再按先来先做领一件（发起人此刻已
@@ -119,8 +121,43 @@ def create(kind, connection, params, request_key) -> dict:
         # 同一请求号同时建了两次：用先建成的那一条
         frappe.db.rollback(save_point=point)
         frappe.clear_messages()
-        return view(read(frappe.db.get_value(REQUEST, {"request_key": key}, "name")), now)
+        first = _committed(key)
+        if first is None:
+            _error("companion.on_demand_busy")  # 先建成的那条又被删了：稍后再试
+        if (first.actor, first.connection, first.kind) != (actor, connection, kind):
+            frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        return view(first, now)
     return view(row, now)
+
+
+_VIEW_FIELDS = ("name, actor, connection, kind, status, error_code, requested_at, lease_expires_at, received_bytes, "
+                "result_bytes, params_json, meta_json, companion_version")
+
+
+def _committed(key):
+    """撞上唯一键以后读先建成的那一行。普通读在可重复读下看的是本事务开头的快照，看不到别的事务刚提交的行；
+    加锁读看最新提交的。用共享锁：同一请求号同时撞上的几个调用互不等待、不互锁。"""
+    rows = frappe.db.sql(f"""SELECT {_VIEW_FIELDS} FROM `tab{REQUEST}` WHERE request_key = %s LOCK IN SHARE MODE""",
+                         (key,), as_dict=True)
+    return rows[0] if rows else None
+
+
+def find(kind, connection, request_key):
+    """这个人在这条连接上用这个请求号建的、此刻还在等、在做或做完没取走的那一件（``view``）；没有、不是本人的、
+    已失败或过期的回 None。只读，不建。调用方先核过连接权限。"""
+    try:
+        kind = contracts.kind(kind)
+        key = contracts.request_key(request_key)
+    except contracts.ContractError as error:
+        _error(error.code)
+    name = frappe.db.get_value(REQUEST, {"request_key": key}, "name")
+    if not name:
+        return None
+    row = read(name)
+    if (row.actor, row.connection, row.kind) != (frappe.session.user, connection, kind):
+        return None
+    current = view(row)
+    return current if current["status"] in ("requested", "leased", "done") else None
 
 
 def _sweep(connection, now):
@@ -158,21 +195,36 @@ def drop(name) -> None:
     _remove(_own(name).name)
 
 
+def _busy(connection, now):
+    """这条连接上电脑领了、租约还没到期的一件（kind, 版本）：小助手一次只做一件、做完才再来领，读得久、传得慢的时候
+    好一阵不来领，但它在线。"""
+    found = frappe.db.sql(f"""SELECT kind, companion_version FROM `tab{REQUEST}` WHERE connection = %s
+        AND status = 'leased' AND lease_expires_at > %s ORDER BY lease_expires_at DESC LIMIT 1""", (connection, now))
+    return tuple(found[0]) if found else None
+
+
 def presence(connection) -> dict:
-    """这条连接的电脑最近一次来领按需请求：{seen（SEEN_SECONDS 内来过）, version, kinds, at}；从没来过（旧版 CC 桌面端
-    不来领）是 seen 假、version 空。调用方先核过连接权限。"""
+    """这条连接的电脑最近一次来领按需请求：{seen（SEEN_SECONDS 内来过，或手上有一件租约没到期的）, version, kinds, at}；
+    从没来过（旧版 CC 桌面端不来领）是 seen 假、version 空。调用方先核过连接权限。"""
+    now = _now()
     try:
         value = pearnly_state.store().get_value(PRESENCE + connection, use_local_cache=False)
     except Exception:
         value = None
-    if not isinstance(value, dict) or not value.get("at"):
-        return {"seen": False, "version": "", "kinds": [], "at": None}
     try:
-        at = datetime.fromisoformat(str(value["at"]))
+        at = datetime.fromisoformat(str(value["at"])) if isinstance(value, dict) and value.get("at") else None
     except ValueError:
-        return {"seen": False, "version": "", "kinds": [], "at": None}
-    return {"seen": contracts.seen_recently(at, _now()), "version": str(value.get("version") or ""),
-            "kinds": [kind for kind in value.get("kinds") or [] if kind in contracts.KINDS], "at": value["at"]}
+        at = None
+    if at is None:
+        value = {}
+    seen = contracts.seen_recently(at, now)
+    busy = None if seen else _busy(connection, now)
+    if busy and not value:
+        # 记的「来过」丢了（缓存清过）：按它在做的那一件
+        value = {"version": busy[1] or "", "kinds": [busy[0]]}
+    return {"seen": seen or bool(busy), "version": str(value.get("version") or ""),
+            "kinds": [kind for kind in value.get("kinds") or [] if kind in contracts.KINDS],
+            "at": value.get("at") if at else None}
 
 
 def waiting(connection, kind, known_version="") -> dict:

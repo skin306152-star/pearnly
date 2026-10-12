@@ -135,6 +135,17 @@ class FetchContracts(unittest.TestCase):
         with self.assertRaises(contracts.ContractError):
             contracts.browse_folder("..")
 
+    def test_each_part_of_a_path_is_kept_as_it_is(self):
+        # 名字首尾带空格的文件夹 / 文件（经 SMB 从别的系统建的）：清单里怎么报就怎么取，与小助手 `_parts` 同一规则
+        self.assertEqual(contracts.fetch_path("ACME \\ scan.pdf"), "ACME \\ scan.pdf")
+        self.assertEqual(contracts.browse_folder("ACME /bank"), "ACME \\bank")
+        listed = contracts.fetched_listing({"files": [{"path": "ACME \\ scan.pdf", "size": 1, "modified": 1}]})
+        self.assertEqual([(row["path"], row["name"]) for row in listed["files"]], [("ACME \\ scan.pdf", " scan.pdf")])
+        for bad in ("ACME\\ \\a.pdf", "ACME\\ /a.pdf"):
+            with self.assertRaises(contracts.ContractError, msg=bad) as caught:
+                contracts.fetch_path(bad)
+            self.assertEqual(caught.exception.code, "cowork.folder.fetch_path_invalid")
+
     def test_types_and_the_returned_listing(self):
         self.assertEqual(contracts.fetch_extensions(["PDF", ".xlsx", "pdf"]), [".pdf", ".xlsx"])
         self.assertEqual(contracts.fetch_extensions(None), [])
