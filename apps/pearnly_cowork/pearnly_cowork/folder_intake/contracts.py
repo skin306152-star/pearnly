@@ -8,6 +8,9 @@
 启用之后放进来的（小助手按创建时间拍底）。同步里缺 `existing` 或为 0 就按老任务办，新旧服务端与小助手任意搭配都不会多处理。
 
 先后（F7）：同一写入连接、同一账套里，存货销售文件等存货进货先写进 Express 再准备推送（`waits_for_purchases`）。
+
+提醒与简报（F2 / F3）：定时时刻与小助手逐位一致（`latest_slot` / `next_slot`），前一天 08:00、14:00 两个提醒时段
+（`reminder_slot`）、合并与去重键，结果口径（`tally`，任务列表、运行记录、完成简报同一个）与简报分组（`brief_groups`）。
 """
 from __future__ import annotations
 
@@ -378,6 +381,16 @@ def latest_slot(now: float, day: int, at: str) -> float:
     return slot_at(year, month, day, at)
 
 
+def next_slot(now: float, day: int, at: str) -> float:
+    """晚于 ``now`` 的最近一次按时开跑时刻（epoch 秒）：``latest_slot(t) <= t < next_slot(t)``，两者之间没有别的时刻。"""
+    local = datetime.fromtimestamp(now, BANGKOK)
+    current = slot_at(local.year, local.month, day, at)
+    if current > now:
+        return current
+    year, month = (local.year, local.month + 1) if local.month < 12 else (local.year + 1, 1)
+    return slot_at(year, month, day, at)
+
+
 def run_slot(value: Any, now: float) -> Optional[float]:
     """小助手报的这次运行所属的定时时刻（`runs[].slot`，1.4.4 起，可缺）：是数字、且在服务端此刻前后 40 天内才认。"""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -451,3 +464,223 @@ def waits_for_purchases(sale_registered_at: Optional[datetime], files: List[Mapp
     return (any(purchase_run_pending(r.get("run_request_at"), r.get("last_reported_at"), now) for r in runs)
             or any(purchase_file_pending(f.get("state"), f.get("registered_at"), sale_registered_at, now)
                    for f in files))
+
+
+# ── 前一天提醒（F2，2026-10-12）：运行前一天 08:00 与 14:00（曼谷）各提醒负责人一次 ─────────────
+# 08:00 那条在前一天 [08:00, 14:00) 内发，14:00 那条在前一天 [14:00, 运行时刻) 内发；窗口长达几个小时、每 5 分钟看一次，
+# 部署停机跨过整点也不漏。
+REMIND_SLOTS = (("08", 8), ("14", 14))
+# 一条合并提醒 / 一份简报最多列这么多个任务，其余写「另有 N 项」
+LIST_MAX = 10
+
+
+def reminder_slot(now: float, day: int, at: str, since: float = 0.0) -> Optional[tuple]:
+    """此刻该发的提醒：``(运行时刻, "08" | "14", 时段开始)``（epoch 秒）。不在任一时段、或时段开始早于 ``since``
+    （打开提醒、换负责人、改运行日 / 时间、重新启用之前的时段不补发）时为 None。"""
+    run = next_slot(now, day, at)
+    eve = datetime.fromtimestamp(run, BANGKOK).date() - timedelta(days=1)
+    starts = [datetime(eve.year, eve.month, eve.day, hour, tzinfo=BANGKOK).timestamp() for _label, hour in REMIND_SLOTS]
+    for (label, _hour), start, end in zip(REMIND_SLOTS, starts, starts[1:] + [run]):
+        if start <= now < end:
+            return None if since and start < since else (run, label, start)
+    return None
+
+
+def day_word(now: float, run_at: float) -> str:
+    """'today' / 'tomorrow'：提醒只在运行前一天发出（14:00 那条可能跨过午夜，那时就是当天）。"""
+    same = datetime.fromtimestamp(now, BANGKOK).date() == datetime.fromtimestamp(run_at, BANGKOK).date()
+    return "today" if same else "tomorrow"
+
+
+def clock(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, BANGKOK).strftime("%H:%M")
+
+
+def stamp(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, BANGKOK).strftime("%Y-%m-%d %H:%M")
+
+
+def month_of(epoch: float) -> str:
+    """曼谷的年-月：与小助手放结果表格的月份文件夹（`folder_plan.month_of`）同一写法。"""
+    return datetime.fromtimestamp(epoch, BANGKOK).strftime("%Y-%m")
+
+
+def time_left(now: float, run_at: float) -> tuple:
+    """离开跑还有（天, 时, 分），向下取整。"""
+    minutes = max(0, int(run_at - now)) // 60
+    return minutes // 1440, minutes % 1440 // 60, minutes % 60
+
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False).encode()).hexdigest()[:48]
+
+
+def remind_key(owner: str, run_at: float, label: str) -> str:
+    """一条提醒的去重键：负责人 + 运行时刻 + 时段（同一人、同一运行时刻、同一时段只发一次）。"""
+    return "cowork.folder.remind:" + _digest([owner, int(run_at), label])
+
+
+def brief_key(owner: str, runs: List[str]) -> str:
+    """一份简报的去重键：负责人 + 这批运行记录。"""
+    return "cowork.folder.brief:" + _digest([owner, sorted(runs)])
+
+
+def reminder_groups(rows: List[Mapping]) -> List[Dict[str, Any]]:
+    """同一负责人、同一运行时刻、同一时段的任务合成一条（行带 owner / run_at / label / title / name）：
+    组内按任务名排，组按运行时刻、时段、负责人排。"""
+    groups: Dict[tuple, List[Mapping]] = {}
+    for row in rows:
+        groups.setdefault((row["owner"], row["run_at"], row["label"]), []).append(row)
+    ordered = sorted(groups.items(), key=lambda item: (item[0][1], item[0][2], item[0][0]))
+    return [{"owner": owner, "run_at": run_at, "label": label,
+             "rules": sorted(members, key=lambda row: (str(row.get("title") or ""), str(row.get("name") or "")))}
+            for (owner, run_at, label), members in ordered]
+
+
+def full_path(*parts: Any) -> str:
+    """电脑上的完整路径：根目录显示名（小助手报的本机完整路径，可能是 `\\\\服务器\\共享`）+ 规则文件夹 + …，
+    `\\` 分隔，空段跳过。"""
+    pieces = []
+    for index, part in enumerate(parts):
+        piece = str(part or "").strip()
+        piece = piece.rstrip("\\/") if index == 0 else piece.strip("\\/")
+        if piece:
+            pieces.append(piece)
+    return "\\".join(pieces)
+
+
+# ── 结果口径（任务列表、运行记录、完成简报同一个 `tally`，2026-10-12）──────────────────────────
+# 推送只有三种结局：录入中 / 成功 / 失败，转人工就是失败（用户 2026-09-26，录入列表同一口径）。另有自动推送没做、
+# 等人的「待处理」：要人选一次（choice）、人已经动过这张票（human）、任务停用或负责人无权（task_off）。
+# 票在录入工作台删了（deleted）与成功一样算有了结论，不计数。
+CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department")
+IN_FLIGHT = ("prepared", "pending", "leased")
+COMPANION_OFFLINE = "cowork.folder.companion_offline"
+MOVING_CODES = {"insufficient_balance": "low_balance", COMPANION_OFFLINE: "offline", WAITING_PURCHASES: "waiting_purchases"}
+
+
+def ticket_state(outcome: Any, status: Any) -> tuple:
+    """一张票的（类别, 原因）：类别 pushed / stopped / failed / moving / deleted，原因只在 stopped 时有
+    （``choice:<种类,…>`` / ``human`` / ``task_off``）。
+
+    ``outcome`` 是自动推送记下的这张票的去向（`push.push_one` 的 sent / held / human / failed / missing，
+    规则停用或负责人无权时 `pump` 记的 stopped）；``status`` 是票上现在的推送状态（结果签名里的 `last_push_status`，
+    人之后在网页推了会跟着变）。"""
+    if status == "success":
+        return "pushed", ""
+    if status == DELETED:
+        return "deleted", ""
+    if status in IN_FLIGHT:
+        return "moving", ""
+    if status == "manual":
+        return "failed", ""
+    outcome = outcome if isinstance(outcome, Mapping) else {}
+    kind = outcome.get("status")
+    if kind == "held":
+        reason = str(outcome.get("reason") or "")
+        return "stopped", "choice:" + (reason.split(":", 1)[1] if reason.startswith("choice_needed:") else "")
+    if kind == "human":
+        return "stopped", "human"
+    if kind == "stopped":
+        return "stopped", "task_off"
+    return "failed", ""
+
+
+def moving_reason(state: Any, last_code: Any) -> str:
+    """处理中的文件为什么还没走完（简报括号里写）：上传中、余额不足、电脑离线、等进货先录入；其余不写。"""
+    if state == "registered":
+        return "uploading"
+    return MOVING_CODES.get(str(last_code or ""), "")
+
+
+def _outcome(value: Any) -> Mapping:
+    if isinstance(value, Mapping):
+        return value
+    try:
+        parsed = json.loads(value or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, Mapping) else {}
+
+
+def tally(files: List[Mapping], now: datetime) -> Dict[str, Any]:
+    """一组文件（行带 state / last_code / outcome_json / registered_at）的结果。按票计：已推送、待处理（停下等人）、
+    失败（另加失败的文件）、录入中（算进处理中）；按文件计：不是发票、处理中（`moving`：24 小时前登记、一直没传完的不算）。
+    ``now`` 与 `registered_at` 同为站点时区裸时间。"""
+    result: Dict[str, Any] = {"files": 0, "pushed": 0, "stopped": 0, "failed": 0, "not_invoice": 0, "moving": 0,
+                              "stop_reasons": {}, "choice_kinds": [], "moving_reasons": {}}
+    kinds = set()
+    for row in files:
+        result["files"] += 1
+        state = row.get("state")
+        if state in ("not_invoice", "failed"):
+            result[state] += 1
+        elif state == "done":
+            outcome = _outcome(row.get("outcome_json"))
+            for item in outcome.get("_signature") or []:
+                if not isinstance(item, (list, tuple)) or len(item) < 2:
+                    continue
+                category, reason = ticket_state(outcome.get(item[0]), item[1])
+                if category == "deleted":
+                    continue
+                result[category] += 1
+                if category == "stopped":
+                    head, _sep, detail = reason.partition(":")
+                    result["stop_reasons"][head] = result["stop_reasons"].get(head, 0) + 1
+                    kinds.update(detail.split(","))
+        elif moving(state, row.get("registered_at"), now):
+            result["moving"] += 1
+            why = moving_reason(state, row.get("last_code"))
+            if why:
+                result["moving_reasons"][why] = result["moving_reasons"].get(why, 0) + 1
+    result["choice_kinds"] = [kind for kind in CHOICE_KINDS if kind in kinds]
+    return result
+
+
+def not_uploaded(runs: List[Mapping]) -> int:
+    """这几次运行没传上的文件数：上传失败 + 还没写完（`still_writing:N`）的，减去同一份简报里补传运行传上的。"""
+    missed = sent_later = 0
+    for run in runs:
+        note = str(run.get("note") or "")
+        if note == "retry":
+            sent_later += int(run.get("new_files") or 0)
+            continue
+        missed += int(run.get("upload_failed") or 0)
+        waiting = note.split(":", 1)[1] if note.startswith("still_writing:") else ""
+        missed += int(waiting) if waiting.isdigit() else 0
+    return max(0, missed - sent_later)
+
+
+# ── 完成简报（F3，2026-10-12）：一份 = 同一负责人 + 同一定时时刻，立即运行的单独一份 ─────────────────
+BRIEF_SETTLE = timedelta(minutes=10)   # 最近一次运行开始满这么久才发（等同一时刻的其他电脑报上来）
+BRIEF_MAX_WAIT = ORDER_MAX_WAIT + timedelta(hours=1)  # 最多等这么久，到时带「处理中」照发（存货销售最多等进货 12 小时）
+BRIEF_LOOKBACK = timedelta(days=3)     # 更早的不再发
+
+
+def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]], now: datetime, *,
+                 settle: timedelta = BRIEF_SETTLE, max_wait: timedelta = BRIEF_MAX_WAIT,
+                 lookback: timedelta = BRIEF_LOOKBACK) -> tuple:
+    """还没发简报的运行（行带 name / run_owner / slot_at / started_at / scanned_at）按（负责人, 定时时刻；立即运行为空）
+    分组，回 ``(ready, stale)``，时间都是站点时区裸时间。
+
+    ready 每项 ``{"owner", "slot_at", "runs", "complete"}``，按最早一次开始排：都扫描完、文件都不在路上（`moving`）、
+    最近一次开始满 ``settle`` 的是完整的；最早一次开始满 ``max_wait`` 的不完整也发。stale 是不再发的运行名：
+    最早一次开始超过 ``lookback``，或没有负责人、没有开始时间（排不进时间，留着只会每 5 分钟再看一遍）。"""
+    groups: Dict[tuple, List[Mapping]] = {}
+    for run in runs:
+        groups.setdefault((run.get("run_owner") or "", run.get("slot_at")), []).append(run)
+    ready, stale = [], []
+    for (owner, slot), members in groups.items():
+        started = [run["started_at"] for run in members if run.get("started_at")]
+        names = sorted(run["name"] for run in members)
+        if not owner or not started or now - min(started) > lookback:
+            stale += names
+            continue
+        complete = (all(run.get("scanned_at") for run in members)
+                    and not any(moving(row.get("state"), row.get("registered_at"), now)
+                                for name in names for row in files_by_run.get(name) or [])
+                    and now - max(started) >= settle)
+        if complete or now - min(started) >= max_wait:
+            ready.append((min(started), {"owner": owner, "slot_at": slot, "runs": names, "complete": complete}))
+    ready.sort(key=lambda item: item[0])
+    return [group for _at, group in ready], sorted(stale)

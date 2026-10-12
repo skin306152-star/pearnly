@@ -499,31 +499,17 @@ def project(rule):
 
 
 def results(rule, run=None):
-    """按发票算：已推成功几张、要人处理几张（停下待选、退回、失败的文件）、还在路上几份文件。
+    """按发票算：已推成功几张、要人处理几张（停下待选、失败的票与文件）、还在路上几份文件（及录入中的票）。
     给了 `run` 就只算那一次运行的（运行记录与列表同一口径，10-09 实测 #20：运行记录按文件数、把退回的也算成已推送）。
 
-    「处理中」不计登记后 24 小时还停在 registered 的（`contracts.moving`：上传没完成、盘上文件又删了的残留，永远不会走完）。"""
-    entered = attention = 0
-    sql, values = f"SELECT state, outcome_json FROM `tab{FILE}` WHERE rule=%s AND state IN ('done', 'failed')", [rule]
+    与完成简报同一个 `contracts.tally`（2026-10-12）：录入工作台里已删的票算有了结论、不再计入待处理；「处理中」不计
+    登记后 24 小时还停在 registered 的（上传没完成、盘上文件又删了的残留，永远不会走完）。"""
+    sql, values = f"SELECT state, last_code, outcome_json, registered_at FROM `tab{FILE}` WHERE rule=%s", [rule]
     if run:
         sql += " AND run=%s"
         values.append(run)
-    for row in frappe.db.sql(sql, values, as_dict=True):
-        if row.state == "failed":
-            attention += 1
-            continue
-        for _name, status, _reason in json.loads(row.outcome_json or "{}").get("_signature") or []:
-            entered += status == "success"
-            attention += status != "success"
-    sql = f"""SELECT COUNT(*) FROM `tab{FILE}` WHERE rule=%s
-        AND (state IN %s OR (state = 'registered' AND registered_at >= %s))"""
-    values = [rule, tuple(state for state in contracts.UNFINISHED if state != "registered"),
-              now_datetime() - contracts.STALE_REGISTERED]
-    if run:
-        sql += " AND run=%s"
-        values.append(run)
-    moving = int(frappe.db.sql(sql, values)[0][0] or 0)
-    return {"entered": entered, "attention": attention, "moving": moving}
+    found = contracts.tally(frappe.db.sql(sql, values, as_dict=True), now_datetime())
+    return {"entered": found["pushed"], "attention": found["stopped"] + found["failed"], "moving": found["moving"]}
 
 
 def counts(rule, since=None):

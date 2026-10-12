@@ -1490,6 +1490,37 @@ Folder results	结果	ผลลัพธ์	結果	cowork.folder.col.result
 One folder per scheduled task. PDF and image files only.	每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。	หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ	1 フォルダーに 1 定期タスク。PDF と画像のみ。	cowork.folder.folderHint
 No folders on this PC yet. Add them in CC Desktop on that PC.	此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น	この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。	cowork.folder.noRoots
 View the ones to check	查看待处理	ดูรายการรอดำเนินการ	要確認を見る	cowork.folder.viewAttention
+Scheduled task reminder	定时任务提醒	แจ้งเตือนงานตามกำหนดเวลา	定期タスクのリマインダー	cowork.folder.remind.title
+today at {0}	今天 {0}	วันนี้ เวลา {0} น.	今日 {0}	cowork.folder.remind.today
+tomorrow at {0}	明天 {0}	พรุ่งนี้ เวลา {0} น.	明日 {0}	cowork.folder.remind.tomorrow
+{0} d {1} h left	还有 {0} 天 {1} 小时	อีก {0} วัน {1} ชั่วโมง	あと {0} 日 {1} 時間	cowork.folder.remind.leftDays
+{0} h {1} min left	还有 {0} 小时 {1} 分钟	อีก {0} ชั่วโมง {1} นาที	あと {0} 時間 {1} 分	cowork.folder.remind.leftHours
+{0} min left	还有 {0} 分钟	อีก {0} นาที	あと {0} 分	cowork.folder.remind.leftMinutes
+«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.	「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。	«{0}» จะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ใน {3} และตรวจสอบให้ครบถ้วน	「{0}」は{1}に開始します（{2}）。{3} に書類を入れ、漏れがないか確認してください。	cowork.folder.remind.one
+{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:	{1} 有 {0} 个定时任务开始（{2}）。请将资料放入以下文件夹，确保资料齐全：	งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน	{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。	cowork.folder.remind.many
+{0} files in the folder now.	文件夹里现有 {0} 份。	ขณะนี้มี {0} ไฟล์ในโฟลเดอร์	フォルダーに現在 {0} 件あります。	cowork.folder.remind.count
+{0} ({1} files)	{0}（现有 {1} 份）	{0} (มี {1} ไฟล์)	{0}（{1} 件）	cowork.folder.remind.lineCount
+{0}: {1}	{0}：{1}	{0}: {1}	{0}：{1}	cowork.folder.line
+and {0} more	另有 {0} 项	และอีก {0} รายการ	ほか {0} 件	cowork.folder.more
+Scheduled task results	定时任务结果	ผลงานตามกำหนดเวลา	定期タスクの結果	cowork.folder.brief.title
+Scheduled run at {0} (tasks: {1}):	{0} 定时运行（{1} 个任务）：	รอบตามกำหนดเวลา {0} ({1} งาน):	{0} の定期実行（{1} 件）：	cowork.folder.brief.head
+Run now (tasks: {0}):	立即运行（{0} 个任务）：	ทำงานทันที ({0} งาน):	今すぐ実行（{0} 件）：	cowork.folder.brief.headManual
+Some files are still in progress.	部分文件仍在处理中。	บางไฟล์ยังอยู่ระหว่างดำเนินการ	一部のファイルはまだ処理中です。	cowork.folder.brief.stillMoving
+Entered {0}	已推送 {0}	ส่งแล้ว {0}	登録済み {0}	cowork.folder.brief.pushed
+To check {0}	待处理 {0}	รอดำเนินการ {0}	要確認 {0}	cowork.folder.brief.stopped
+Failed {0}	失败 {0}	ไม่สำเร็จ {0}	失敗 {0}	cowork.folder.brief.failed
+Not invoices {0}	不是发票 {0}	ไม่ใช่ใบกำกับภาษี {0}	請求書以外 {0}	cowork.folder.brief.notInvoice
+Not uploaded {0}	未上传 {0}	ยังไม่ได้อัปโหลด {0}	未アップロード {0}	cowork.folder.brief.notUploaded
+No new files	没有新文件	ไม่มีไฟล์ใหม่	新しいファイルはありません	cowork.folder.brief.nothing
+Results: {0}	结果：{0}	ผลลัพธ์: {0}	結果：{0}	cowork.folder.brief.results
+{0} ({1})	{0}（{1}）	{0} ({1})	{0}（{1}）	cowork.folder.brief.reasons
+choose {0}	待选{0}	ต้องเลือก{0}	{0}の選択待ち	cowork.folder.brief.why.choice
+changed by a person	已有人改动	มีผู้แก้ไขแล้ว	手動で変更済み	cowork.folder.brief.why.human
+task off or no access	任务已停用或无权限	งานปิดอยู่หรือไม่มีสิทธิ์	タスク停止中または権限なし	cowork.folder.brief.why.taskOff
+low balance	余额不足	ยอดคงเหลือไม่พอ	残高不足	cowork.folder.brief.why.lowBalance
+CC Desktop offline	CC 桌面版离线	CC เดสก์ท็อปออฟไลน์	CC デスクトップがオフライン	cowork.folder.brief.why.offline
+waiting for purchases	等进货先录入	รอบันทึกรายการซื้อก่อน	仕入の登録待ち	cowork.folder.brief.why.purchasesFirst
+contact record	对方档案	ข้อมูลคู่ค้า	取引先	cowork.folder.brief.why.party
 A client needs a name.	请填写客户名称。	กรุณากรอกชื่อลูกค้า	顧客名を入力してください。	
 A product needs a name.	请填写物料名称。	กรุณากรอกชื่อสินค้า	商品名を入力してください。	
 Account Codes	科目编码	รหัสบัญชี	勘定科目コード	

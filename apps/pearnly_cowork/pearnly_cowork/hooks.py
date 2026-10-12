@@ -505,7 +505,9 @@ pearnly_line_handlers = ["pearnly_cowork.line.handlers.handle"]
 scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.sweep",
                                              "pearnly_cowork.work.reminders.run",
                                              # 部署 / 重启时被杀的对账续跑（recon_center/jobs.py）
-                                             "pearnly_cowork.recon_center.jobs.resume_abandoned"],
+                                             "pearnly_cowork.recon_center.jobs.resume_abandoned",
+                                             # 定时任务的前一天提醒与完成简报（folder_intake/schedule.py）
+                                             "pearnly_cowork.folder_intake.schedule.notices"],
                              "* * * * *": [
                                  # 等识别的对账：提醒万一没送到、时限到了、开始读了、名额腾出来了，放回队列（recon_center/waiting.py）
                                  "pearnly_cowork.recon_center.waiting.tick",
