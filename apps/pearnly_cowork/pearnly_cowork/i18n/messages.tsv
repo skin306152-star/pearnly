@@ -1425,6 +1425,8 @@ CC Desktop on this PC has not synced recently. Update it to the latest version.	
 Entered {0} · to check {1}	已推送 {0} · 待处理 {1}	ส่งแล้ว {0} · รอดำเนินการ {1}	登録済み {0} · 要確認 {1}	cowork.folder.counts
 In progress {0}	处理中 {0}	กำลังดำเนินการ {0}	処理中 {0}	cowork.folder.moving
 {0} files in the folder now, processed at the run time	文件夹里现有 {0} 份，到点一起处理	ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา	フォルダーに現在 {0} 件、実行時刻にまとめて処理します	cowork.folder.waiting
+{0} files not processed yet, processed at the run time	还有 {0} 份未处理，到点处理	ยังไม่ได้ประมวลผล {0} ไฟล์ จะประมวลผลเมื่อถึงเวลา	未処理 {0} 件、実行時刻に処理します	cowork.folder.pending
+Continues the scheduled task «{0}»; only files put in from now on are processed	接续定时任务「{0}」，只处理此后放入的文件	ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้	定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します	cowork.folder.continues
 Day {0}	{0} 日	วันที่ {0}	{0} 日	cowork.folder.day
 Last day of the month	月末	วันสุดท้ายของเดือน	月末	cowork.folder.lastDay
 (the root folder itself)	（根目录本身）	(ตัวโฟลเดอร์หลัก)	（ルートフォルダー自体）	cowork.folder.rootItself
@@ -1499,8 +1501,8 @@ tomorrow at {0}	明天 {0}	พรุ่งนี้ เวลา {0} น.	明日
 {0} min left	还有 {0} 分钟	อีก {0} นาที	あと {0} 分	cowork.folder.remind.leftMinutes
 «{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.	「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。	«{0}» จะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ใน {3} และตรวจสอบให้ครบถ้วน	「{0}」は{1}に開始します（{2}）。{3} に書類を入れ、漏れがないか確認してください。	cowork.folder.remind.one
 {0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:	{1} 有 {0} 个定时任务开始（{2}）。请将资料放入以下文件夹，确保资料齐全：	งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน	{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。	cowork.folder.remind.many
-{0} files in the folder now.	文件夹里现有 {0} 份。	ขณะนี้มี {0} ไฟล์ในโฟลเดอร์	フォルダーに現在 {0} 件あります。	cowork.folder.remind.count
-{0} ({1} files)	{0}（现有 {1} 份）	{0} (มี {1} ไฟล์)	{0}（{1} 件）	cowork.folder.remind.lineCount
+{0} files not processed yet.	还有 {0} 份未处理。	ยังไม่ได้ประมวลผล {0} ไฟล์	未処理のファイルが {0} 件あります。	cowork.folder.remind.count
+{0} ({1} not processed yet)	{0}（还有 {1} 份未处理）	{0} (ยังไม่ได้ประมวลผล {1} ไฟล์)	{0}（未処理 {1} 件）	cowork.folder.remind.lineCount
 {0}: {1}	{0}：{1}	{0}: {1}	{0}：{1}	cowork.folder.line
 and {0} more	另有 {0} 项	และอีก {0} รายการ	ほか {0} 件	cowork.folder.more
 Scheduled task results	定时任务结果	ผลงานตามกำหนดเวลา	定期タスクの結果	cowork.folder.brief.title

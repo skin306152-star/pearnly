@@ -5,7 +5,8 @@
 做与网页「提交」完全相同的事，每次推送前照现有判据重核他的录入权限与连接使用授权。
 
 2026-10-12 起新建的任务（`include_existing`）到点处理文件夹里本任务还没处理过的所有文件，含建任务前已有的；
-老任务照旧只收启用之后放进来的（口径见 `contracts` 文件头）。`remind`：运行前一天提醒负责人放资料（提醒本身见
+老任务照旧只收启用之后放进来的（口径见 `contracts` 文件头）。新任务的文件夹与同一工作空间里一个停用的任务重叠时是
+接续它（`continues_from`），照老任务口径只收此后放进来的（2026-10-13）。`remind`：运行前一天提醒负责人放资料（提醒本身见
 `notify`）；`cc_session`：最近一次在哪段 CC 对话里建、改或启停，只由 CC 工具以参数传入，网页报文传不进来。
 """
 import json
@@ -27,6 +28,9 @@ MAX_RULES = 50
 # CC 一张「允许」卡片一次存几个任务：与共用层卡片行数上限（`pearnly_core.assistant.tools.PREVIEW_ROWS`）相同，
 # 卡片上一个任务一行，多出的行会被截掉、用户看不到。
 BATCH_MAX = 20
+# 任务列表的结果统计缓存（`results`）：键里带文件行的指纹，变了就换键；这里只管不用的键多久后清掉
+RESULTS_KEY = "cowork:folder:results:"
+RESULTS_TTL = 24 * 3600
 
 
 def _error(error):
@@ -195,7 +199,9 @@ def save(values, *, cc_session=None):
     """建或改一条规则；改了去向或文件夹就升版本，小助手下一次同步换用新规则。
 
     新建的任务处理文件夹里已有的文件（`include_existing`）；老任务换了读文件夹的电脑、根目录或文件夹也改成这个口径
-    （原来拍的底本来就对不上新文件夹）。`remind` 带了才改（网页表单、CC 不带就保留原值，新任务默认关）；提醒开着时，
+    （原来拍的底本来就对不上新文件夹；文件夹只是大小写不同不算换）。文件夹与同一工作空间里停用的任务重叠的是接续那个
+    任务：只收此后放进来的（`include_existing = 0`，换了文件夹的老任务启用时刻记成现在，小助手按它重新拍底）——
+    那些已有文件多半已由停用的任务处理过，台账按任务记、认不出来，再录一遍就重复记账。`remind` 带了才改（网页表单、CC 不带就保留原值，新任务默认关）；提醒开着时，
     刚打开、换了负责人或改了运行日 / 时间，`remind_since` 记成现在（这之前的提醒时段不补发）。`cc_session` 只从参数取。"""
     _require()
     values = json.loads(values) if isinstance(values, str) else values
@@ -241,7 +247,7 @@ def save(values, *, cc_session=None):
         frappe.throw(_("cowork.folder.too_many"))
     before = _routing(rule) if name else None
     previous = _reminding(rule) if name else None
-    place = (_reader(rule), rule.root_id, rule.folder or "") if name else None
+    place = (_reader(rule), rule.root_id, (rule.folder or "").casefold()) if name else None
     rule.update({"title": title, "workspace": doc.workspace, "client": doc.client or "", "connection": doc.name,
                  "reader": reader, "rule_owner": frappe.session.user, "account_set_key": account_set_key,
                  "account_label": label,
@@ -251,8 +257,11 @@ def save(values, *, cc_session=None):
         rule.enabled, rule.active_since = 1, now_datetime()
         # 结果文件夹按建规则这个人的网页语言起名，之后改语言也不变（不在盘上再长出第二个结果文件夹）
         rule.result_folder = contracts.result_folder_for(getattr(frappe.local, "lang", None))
-    if not name or place != (reader, root, folder):
-        rule.include_existing = 1
+    if not name or place != (reader, root, folder.casefold()):
+        continued = _overlapping(reader, root, folder, rule.name if name else None, 0)
+        rule.include_existing = 0 if continued else 1
+        if continued and name:
+            rule.active_since = now_datetime()
     if values.get("remind") is not None:
         rule.remind = _flag(values.get("remind"))
     elif not name:
@@ -320,29 +329,51 @@ def _count(reader):
 
 
 def _no_overlap(reader, root, folder, current):
-    """启用的任务，文件夹不能相同或互相包含：否则同一份文件会按两套口径各推一次（推进两个账套）。
+    """启用的任务，文件夹不能相同或互相包含：否则同一份文件会按两套口径各推一次（推进两个账套）。"""
+    found = _overlapping(reader, root, folder, current, 1)
+    if found:
+        frappe.throw(_("cowork.folder.overlap_with").format(found.title))
+
+
+def continues_from(reader, root_id, folder, current=None):
+    """新建（或换了文件夹）的任务是不是接续一个停用的任务（文件夹与它相同或互相包含，判据同「文件夹不能重叠」）：
+    回那个任务的名称，不是回 None。接续的任务只收此后放进来的文件（见 `save`），CC 允许卡片据此不说「现有 N 份」。
+    没有这台小助手的使用权、参数不合规时回 None。删掉的任务不留痕迹，认不出来。"""
+    try:
+        _require()
+        _connection(reader)
+        found = _overlapping(reader, contracts.root_id(root_id), contracts.folder(folder), current or None, 0)
+    except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError, contracts.ContractError):
+        frappe.clear_messages()
+        return None
+    return found.title if found else None
+
+
+def _overlapping(reader, root, folder, current, enabled):
+    """文件夹与之相同或互相包含的第一个任务（``enabled`` 1 = 启用的，0 = 停用的），没有回 None；不比 ``current`` 自己。
 
     按「读文件夹的小助手」比（`reader`，MR.ERP 任务可以借用 Express 的小助手，2026-10-09）。同一台电脑：小助手授权时
     就不许两个授权文件夹相同或互相包含（不分成员，`companion/folder_store.py`），这里再管同一个授权文件夹之内。
     不同电脑：本机盘（C:\…）是各自的文件夹，不算重叠；网络共享（含映射盘换算回的网络路径）可能是同一个文件夹 ——
     同一工作空间里其他小助手的任务按网络路径比对（2026-10-08）。同一个共享在一台电脑映射成盘符、另一台用网络路径
     但小助手读不到映射的（非持久映射），认不出来。"""
-    rows = frappe.db.sql(f"""SELECT name, title, folder FROM `tab{RULE}` WHERE enabled = 1 AND root_id = %s
-        AND IFNULL(NULLIF(reader, ''), connection) = %s""", (root, reader), as_dict=True)
+    rows = frappe.db.sql(f"""SELECT name, title, folder FROM `tab{RULE}` WHERE enabled = %s AND root_id = %s
+        AND IFNULL(NULLIF(reader, ''), connection) = %s""", (enabled, root, reader), as_dict=True)
     for row in rows:
         if row.name != current and contracts.nested(row.folder or "", folder):
-            frappe.throw(_("cowork.folder.overlap_with").format(row.title))
+            return row
     mine = contracts.share_path(_share(reader, root), folder)
     if not mine:
-        return
+        return None
     workspace = frappe.db.get_value(CONNECTION, reader, "workspace")
     others = frappe.db.sql(f"""SELECT name, title, connection, reader, root_id, folder FROM `tab{RULE}`
-        WHERE workspace = %s AND enabled = 1 AND IFNULL(NULLIF(reader, ''), connection) != %s""",
-                           (workspace, reader), as_dict=True)
+        WHERE workspace = %s AND enabled = %s AND IFNULL(NULLIF(reader, ''), connection) != %s""",
+                           (workspace, enabled, reader), as_dict=True)
     for row in others:
         theirs = contracts.share_path(_share(_reader(row), row.root_id), row.folder or "")
         if row.name != current and theirs and contracts.path_nested(mine, theirs):
-            frappe.throw(_("cowork.folder.overlap_with").format(row.title))
+            return row
+    return None
 
 
 def _share(connection, root):
@@ -355,7 +386,8 @@ def set_enabled(name, enabled=None, *, remind=None, cc_session=None):
 
     重新启用时「启用时刻」改成现在、负责人换成启用的人。新任务（`include_existing`）不重新拍底：启用时刻只当排程下限
     （启用当下不补跑已错过的时刻），到点照样处理停用期间放进来、还没处理过的文件；老任务照旧重新拍底，这之前放进
-    文件夹的文件不处理（用户 2026-10-07 的口径只对老任务保留）。提醒开着时，刚打开或重新启用，`remind_since` 记成现在。"""
+    文件夹的文件不处理（用户 2026-10-07 的口径只对老任务保留）。提醒开着时，刚打开或重新启用，`remind_since` 记成现在。
+    `cc_session` 只在操作的人就是（或这次重新启用后成了）负责人时记下：提醒挂回负责人自己的对话。"""
     _require()
     rule = read(RULE, name, for_update=True)
     _connection(rule.connection)
@@ -380,7 +412,8 @@ def set_enabled(name, enabled=None, *, remind=None, cc_session=None):
         rule.remind_since = now_datetime()
         changed = True
     ref = contracts.session_ref(cc_session)
-    if ref and ref != rule.cc_session:
+    # 对话只记负责人自己的（重新启用的人就是新负责人）：别人在自己的对话里替负责人开关提醒或停用，不把负责人的对话换掉
+    if ref and ref != rule.cc_session and rule.rule_owner == frappe.session.user:
         rule.cc_session = ref
         changed = True
     if changed:
@@ -503,12 +536,31 @@ def results(rule, run=None):
     给了 `run` 就只算那一次运行的（运行记录与列表同一口径，10-09 实测 #20：运行记录按文件数、把退回的也算成已推送）。
 
     与完成简报同一个 `contracts.tally`（2026-10-12）：录入工作台里已删的票算有了结论、不再计入待处理；「处理中」不计
-    登记后 24 小时还停在 registered 的（上传没完成、盘上文件又删了的残留，永远不会走完）。"""
+    登记后 24 小时还停在 registered 的（上传没完成、盘上文件又删了的残留，永远不会走完）。
+
+    整个任务的（列表每 10 秒可能重拉一次）按文件行的「条数 + 最晚修改时间 + 已满 24 小时的 registered 条数」缓存
+    （2026-10-13）：文件行一变（后台推进、跟进推送结果都经 `access.write` 存，修改时间跟着变）或有 registered 行满了
+    24 小时，键就变，重新逐行解析；没变就不再读全部推送结果。"""
+    if run:
+        return _results(rule, run)
+    now = now_datetime()
+    stamp = frappe.db.sql(f"""SELECT COUNT(*), MAX(modified), SUM(state = 'registered' AND registered_at < %s)
+        FROM `tab{FILE}` WHERE rule=%s""", (now - contracts.STALE_REGISTERED, rule))[0]
+    key = RESULTS_KEY + ":".join(str(part) for part in (rule, *stamp))
+    cached = frappe.cache.get_value(key)
+    if isinstance(cached, dict):
+        return dict(cached)
+    found = _results(rule, None, now)
+    frappe.cache.set_value(key, found, expires_in_sec=RESULTS_TTL)
+    return found
+
+
+def _results(rule, run=None, now=None):
     sql, values = f"SELECT state, last_code, outcome_json, registered_at FROM `tab{FILE}` WHERE rule=%s", [rule]
     if run:
         sql += " AND run=%s"
         values.append(run)
-    found = contracts.tally(frappe.db.sql(sql, values, as_dict=True), now_datetime())
+    found = contracts.tally(frappe.db.sql(sql, values, as_dict=True), now or now_datetime())
     return {"entered": found["pushed"], "attention": found["stopped"] + found["failed"], "moving": found["moving"]}
 
 

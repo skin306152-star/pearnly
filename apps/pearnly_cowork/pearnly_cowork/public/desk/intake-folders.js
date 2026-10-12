@@ -22,6 +22,8 @@
 	const day_label = day => days().find(row => row.value === String(day))?.label || "";
 	// 「文件夹里现有 N 份，到点一起处理」（小助手 1.4.4 起报计数）：数到上限没数完显示「N+」；不知道（null）就不显示。
 	const files_hint = (count, partial) => (count == null ? "" : ft("cowork.folder.waiting", partial ? `${count}+` : count));
+	// 「还有 N 份未处理，到点处理」：任务的待处理数（还没处理过、到点会处理的，不是文件夹里现有几份）；0 或不知道不显示。
+	const pending_hint = (count, partial) => (count > 0 ? ft("cowork.folder.pending", partial ? `${count}+` : count) : "");
 
 	p.intake_folders = async ({page, t, still_current}) => {
 		const root = "pearnly-intake";
@@ -66,8 +68,10 @@
 				{fieldname: "run_day", width: 110, min_width: 90, label: ft("cowork.folder.col.schedule"),
 					format: (value, row) => `${day_label(value)} ${row.run_time || ""}`},
 				// 「ส่งแล้ว 100 · รอดำเนินการ 20」约 178 像素：最窄也放得下，窄窗口时先收任务名、账套、文件夹（10-09 #21）。
+				// 启用中的任务另带待处理数（同 CC 任务页），不另加列，免得窄屏挤掉状态药丸。
 				{fieldname: "counts", width: 210, min_width: 200, label: ft("cowork.folder.col.result"),
-					format: (value, row) => ft("cowork.folder.counts", row.results?.entered || 0, row.results?.attention || 0)},
+					format: (value, row) => [ft("cowork.folder.counts", row.results?.entered || 0, row.results?.attention || 0),
+						row.enabled ? pending_hint(row.waiting, row.waiting_partial) : ""].filter(Boolean).join(" · ")},
 				// 状态列与对账任务列表同宽：泰文「เปิดใช้งานอยู่」等比中文长，90 宽会把药丸连圆角一起切掉（10-09）。
 				{fieldname: "enabled", width: 170, min_width: 140, label: t("intake.col.status"),
 					format: (value, row) => status(row)[1], cell_class: (value, row) => `indicator-pill ${status(row)[0]}`},
@@ -95,15 +99,15 @@
 		create();
 		await list.ready;
 		// 自动刷新（`p.live`，与录入列表同一做法）：任务、运行记录、文件进度变了服务端推 `cowork_folder_changed`
-		// （`folder_intake/live.py`，推给负责人），收到就重拉；有处理中的每 10 秒兜底一次，没有就 60 秒；回到页面马上刷。
-		// 开着弹窗时不打断，下一次再刷。
+		// （`folder_intake/live.py`，推给负责人），收到就重拉；有处理中、且读文件夹的小助手在线的每 10 秒兜底一次，
+		// 否则 60 秒（小助手离线时在途的票一直停着，10 秒刷也不会变）；回到页面马上刷。开着弹窗时不打断，下一次再刷。
 		const live = p.live({
 			refresh: async () => {
 				if (cur_dialog) return;
 				await list.reload();
 			},
 			events: ["cowork_folder_changed"],
-			busy: () => (data.rules || []).some(row => row.results?.moving),
+			busy: () => (data.rules || []).some(row => row.results?.moving && row.agent_fresh),
 			busy_ms: 10000,
 			still_current,
 		});
@@ -322,12 +326,13 @@
 			paint_folder_hint();
 		};
 		// 选中的文件夹现有几份（2026-10-12：新任务到点连已有的一起处理，只让人看得见，不加确认）：小助手报的文件夹计数；
-		// 编辑现有任务且文件夹没改时用这个任务的待处理数（老任务只算启用之后放进来的）。不知道或没有文件时照常显示说明。
+		// 编辑现有任务且文件夹没改时说这个任务的待处理数（「还有 N 份未处理」，老任务只算启用之后放进来的）。
+		// 不知道或没有文件时照常显示说明。
 		const folder_files = () => {
 			const value = d.get_value("folder");
 			if (!value) return null;
 			if (rule && value === `${rule.reader}|${rule.root_id}|${rule.folder || ""}`) {
-				return rule.waiting == null ? null : {files: rule.waiting, partial: rule.waiting_partial};
+				return rule.waiting == null ? null : {files: rule.waiting, partial: rule.waiting_partial, pending: true};
 			}
 			const [reader, root_id, ...rest] = String(value).split("|");
 			const root = (state.options?.readers || []).find(row => row.connection === reader)?.roots
@@ -337,7 +342,8 @@
 		const paint_folder_hint = () => {
 			const found = folder_files();
 			d.set_df_property("folder", "description", found?.files
-				? files_hint(found.files, found.partial) : ft(state.folder_hint || "cowork.folder.folderHint"));
+				? (found.pending ? pending_hint : files_hint)(found.files, found.partial)
+				: ft(state.folder_hint || "cowork.folder.folderHint"));
 		};
 		const connect_helper = async () => {
 			const target = connection();

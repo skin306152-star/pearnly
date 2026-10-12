@@ -4,12 +4,13 @@
 
 - 时段：08:00 那条在前一天 [08:00, 14:00) 内发，14:00 那条在 [14:00, 运行时刻) 内发（`contracts.reminder_slot`）；
   打开提醒、换负责人、改运行日 / 时间、重新启用之前的时段不补发（`remind_since`）。部署停机跨过整点也不漏。
-- 合并：同一负责人、同一运行时刻、同一时段的任务合成一条，最多列 10 个，其余写「另有 N 项」。
-- 只发一次：去重键 = 负责人 + 运行时刻 + 时段（`contracts.remind_key`）；先查键，已发的不再做权限复核。
+- 合并：同一负责人、同一运行时刻、同一时段、同一台读文件夹的电脑的任务合成一条，最多列 10 个，其余写「另有 N 项」。
+  按电脑分开（2026-10-13）：提醒会被那台电脑同步取回弹出，不能带上别的电脑的任务名与文件夹路径。
+- 只发一次：去重键 = 负责人 + 运行时刻 + 时段 + 电脑（`contracts.remind_key`）；先查键，已发的不再做权限复核。
 - 负责人此刻不能用这条连接录入的任务不提醒（与后台推进同一判据 `machine.owner_ready`），整组都不能就不发。
 - 文字在发出时按负责人的语言写好：任务名、开始时刻与剩余时间、完整文件夹路径；小助手近期同步过就带上待处理数
-  （数到上限写「N+」，不知道就不写，不用 0 冒充）。
-- 送达交给共用层（`notify`）：挂在组内最近在 CC 里建 / 改 / 启停过的那条任务的对话上，另有手机推送与电脑通知。
+  （还没处理过、到点会处理的文件数；数到上限写「N+」；不知道或是 0 就不写，不用 0 冒充）。
+- 送达交给共用层（`notify`）：挂在组内最近在 CC 里建 / 改 / 启停过、且仍是负责人自己的那段对话上，另有手机推送与电脑通知。
   一组一提交，一组出错只回滚这一组、记错误日志。不调模型、不扣费。
 """
 import frappe
@@ -32,11 +33,12 @@ def run(now=None):
     for rule in frappe.get_all(RULE, filters={"enabled": 1, "remind": 1}, fields=FIELDS, ignore_permissions=True):
         hit = _slot(rule, current)
         if hit:
-            rule.update({"owner": rule.rule_owner, "run_at": hit[0], "label": hit[1]})
+            rule.update({"owner": rule.rule_owner, "run_at": hit[0], "label": hit[1],
+                         "reader": rule.reader or rule.connection})
             due.append(rule)
     states = {}
     for group in contracts.reminder_groups(due):
-        key = contracts.remind_key(group["owner"], group["run_at"], group["label"])
+        key = contracts.remind_key(group["owner"], group["run_at"], group["label"], group["reader"])
         try:
             if notify.sent(key):
                 continue
@@ -67,7 +69,7 @@ def _send(group, key, current, states):
         title = _("cowork.folder.remind.title")
         text = _text(rules, group["run_at"], current, states)
     notify.send(owner, notify.KIND_REMIND, title, text, key, rules=[rule.name for rule in rules],
-                conversation=notify.conversation(rules), ttl=notify.REMIND_TTL)
+                conversation=notify.conversation(owner, rules), ttl=notify.REMIND_TTL)
 
 
 def _text(rules, run_at, current, states):
@@ -122,11 +124,12 @@ def _path(rule, states):
 
 
 def _pending(rule, states):
-    """待处理数（小助手上一轮算的、到点会处理的文件数）：近期同步过才有；数到上限写「N+」。"""
+    """待处理数（小助手上一轮算的、还没处理过、到点会处理的文件数，不是文件夹里现有几份）：近期同步过才有；
+    数到上限写「N+」；0 不写（文件夹里可能留着处理过的文件，写「0 份」会让人以为是空的）。"""
     state = _state(rule, states)
     if not agent.fresh(state):
         return None
     count = (state.get("pending") or {}).get(rule.name)
-    if type(count) is not int:
+    if type(count) is not int or count <= 0:
         return None
     return f"{count}+" if _root(state, rule.root_id).get("partial") else count

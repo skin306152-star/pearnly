@@ -2,10 +2,11 @@
 
 口径见 `docs/work/2026-10-12-cc-closed-loop.md`：
 
-- 一份简报 = 同一负责人（处理这批文件的人，`run_owner`）+ 同一定时时刻（`slot_at`）；立即运行的单独成一份。
-- 何时发（`contracts.brief_groups`）：这些运行都扫描完、文件都走到头、最近一次运行开始满 10 分钟（等同一时刻的其他
-  电脑报上来）；最多等 13 小时（存货销售最多等进货 12 小时，再加 1 小时），到时带「处理中」照发；3 天前的不再发。
-  没有新文件也发。
+- 一份简报 = 同一负责人（处理这批文件的人，`run_owner`）+ 同一定时时刻 + 同一台读文件夹的电脑（运行的 `connection`）；
+  立即运行按批：同一负责人相隔 10 分钟之内的算一批，隔得久的各自一份（`brief_group`，见 `machine._brief_slot`）。
+  按电脑分开是因为简报会被那台电脑同步取回弹出，不能带上别的电脑的任务（2026-10-13）。
+- 何时发（`contracts.brief_groups`）：这些运行都扫描完、文件都走到头、最近一次运行开始与最后一份文件走完都满 10 分钟；
+  最多等 13 小时（存货销售最多等进货 12 小时，再加 1 小时），到时带「处理中」照发；3 天前的不再发。没有新文件也发。
 - 每个任务一行：已推送、待处理（为什么）、失败、不是发票、未上传、处理中（为什么），与任务列表、运行记录同一口径
   （`contracts.tally`）；有结果表格的再写一行位置：<根目录>\\<文件夹>\\<结果文件夹>\\<年-月>。
 - 发给 run_owner，他此刻仍要能用这条连接录入（`machine.owner_ready`）；不能的那几个任务不写进简报、运行记成 skipped，
@@ -28,8 +29,8 @@ def run(now=None):
     if frappe.conf.get("pearnly_product") != "cowork":
         return
     moment = get_datetime(now) if now else now_datetime()
-    runs = frappe.db.sql(f"""SELECT name, rule, run_owner, slot_at, started_at, scanned_at, new_files, upload_failed, note
-        FROM `tab{RUN}` WHERE brief_state = 'pending'""", as_dict=True)
+    runs = frappe.db.sql(f"""SELECT name, rule, connection, run_owner, brief_group, slot_at, started_at, scanned_at,
+        new_files, upload_failed, note FROM `tab{RUN}` WHERE brief_state = 'pending'""", as_dict=True)
     if not runs:
         return
     ready, stale = contracts.brief_groups(runs, _files(runs), moment)
@@ -48,7 +49,8 @@ def run(now=None):
 
 def _files(runs, full=False):
     """这些运行登记的文件：{运行名: [行]}（按任务名走索引，再按运行筛）。判发没发只要进度；写简报才取推送结果。"""
-    fields = "name, rule, run, state, last_code, outcome_json, registered_at" if full else "run, state, registered_at"
+    fields = ("name, rule, run, state, last_code, outcome_json, registered_at" if full
+              else "run, state, registered_at, finished_at")
     found = {}
     rows = frappe.db.sql(f"SELECT {fields} FROM `tab{FILE}` WHERE rule IN %s AND run IN %s",
                          (tuple(sorted({row.rule for row in runs})), tuple(sorted({row.name for row in runs}))),
@@ -90,7 +92,7 @@ def _send(group, members, moment):
     key = contracts.brief_key(owner, [row.name for row in kept])
     # 共用层说这个键已发过（created 为 False）也照样记成 sent：发过了就不再发
     notify.send(owner, notify.KIND_BRIEF, title, text, key, rules=[rule.name for rule in rules],
-                conversation=notify.conversation(rules), ttl=notify.BRIEF_TTL)
+                conversation=notify.conversation(owner, rules), ttl=notify.BRIEF_TTL)
     _mark([row.name for row in kept], "sent", moment, key)
 
 

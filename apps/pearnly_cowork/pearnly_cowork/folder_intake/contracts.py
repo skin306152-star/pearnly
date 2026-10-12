@@ -358,6 +358,18 @@ def notices_after(value: Any, now: float) -> float:
     return max(now - NOTICE_WINDOW, min(number, now))
 
 
+def machine_notices(items: List[Mapping], names: Any) -> List[Mapping]:
+    """带给这台电脑的提醒只留「涉及的任务全是本机读的」（2026-10-13）：一条提醒里只要有一个任务不是本机读的
+    （别的电脑、别的客户的任务名与文件夹路径），整条不给；没有 `refs` 的也不给（说不清涉及谁）。"""
+    mine = {str(name) for name in names or [] if name}
+    kept = []
+    for item in items or []:
+        refs = item.get("refs") if isinstance(item, Mapping) else None
+        if isinstance(refs, (list, tuple)) and refs and {str(ref) for ref in refs} <= mine:
+            kept.append(item)
+    return kept
+
+
 # ── 定时时刻：与小助手 `folder_plan._slot` / `latest_slot` 逐位一致（曼谷 UTC+7，泰国不用夏令时） ────────
 BANGKOK = timezone(timedelta(hours=7))
 # 小助手报的运行所属时刻（`runs[].slot`）离服务端此刻超过这么久就不认，改用服务端自己算的
@@ -515,9 +527,9 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, ensure_ascii=False).encode()).hexdigest()[:48]
 
 
-def remind_key(owner: str, run_at: float, label: str) -> str:
-    """一条提醒的去重键：负责人 + 运行时刻 + 时段（同一人、同一运行时刻、同一时段只发一次）。"""
-    return "cowork.folder.remind:" + _digest([owner, int(run_at), label])
+def remind_key(owner: str, run_at: float, label: str, reader: str) -> str:
+    """一条提醒的去重键：负责人 + 运行时刻 + 时段 + 读文件夹的电脑（同一人、同一运行时刻、同一时段、同一台电脑只发一次）。"""
+    return "cowork.folder.remind:" + _digest([owner, int(run_at), label, str(reader or "")])
 
 
 def brief_key(owner: str, runs: List[str]) -> str:
@@ -526,15 +538,16 @@ def brief_key(owner: str, runs: List[str]) -> str:
 
 
 def reminder_groups(rows: List[Mapping]) -> List[Dict[str, Any]]:
-    """同一负责人、同一运行时刻、同一时段的任务合成一条（行带 owner / run_at / label / title / name）：
-    组内按任务名排，组按运行时刻、时段、负责人排。"""
+    """同一负责人、同一运行时刻、同一时段、同一台读文件夹的电脑的任务合成一条（行带 owner / run_at / label / reader /
+    title / name）：组内按任务名排，组按运行时刻、时段、负责人、电脑排。按电脑分开（2026-10-13）：这条提醒会被那台电脑
+    同步取回弹出，不能带上别的电脑的任务名与文件夹路径。"""
     groups: Dict[tuple, List[Mapping]] = {}
     for row in rows:
-        groups.setdefault((row["owner"], row["run_at"], row["label"]), []).append(row)
-    ordered = sorted(groups.items(), key=lambda item: (item[0][1], item[0][2], item[0][0]))
-    return [{"owner": owner, "run_at": run_at, "label": label,
+        groups.setdefault((row["owner"], row["run_at"], row["label"], str(row.get("reader") or "")), []).append(row)
+    ordered = sorted(groups.items(), key=lambda item: (item[0][1], item[0][2], item[0][0], item[0][3]))
+    return [{"owner": owner, "run_at": run_at, "label": label, "reader": reader,
              "rules": sorted(members, key=lambda row: (str(row.get("title") or ""), str(row.get("name") or "")))}
-            for (owner, run_at, label), members in ordered]
+            for (owner, run_at, label, reader), members in ordered]
 
 
 def full_path(*parts: Any) -> str:
@@ -651,36 +664,58 @@ def not_uploaded(runs: List[Mapping]) -> int:
     return max(0, missed - sent_later)
 
 
-# ── 完成简报（F3，2026-10-12）：一份 = 同一负责人 + 同一定时时刻，立即运行的单独一份 ─────────────────
-BRIEF_SETTLE = timedelta(minutes=10)   # 最近一次运行开始满这么久才发（等同一时刻的其他电脑报上来）
+# ── 完成简报（F3，2026-10-12）：一份 = 同一负责人 + 同一定时时刻（或同一批立即运行）+ 同一台电脑 ─────────────
+BRIEF_SETTLE = timedelta(minutes=10)   # 最近一次运行开始、最后一份文件走完都满这么久才发；立即运行相隔这么久之内算同一批
 BRIEF_MAX_WAIT = ORDER_MAX_WAIT + timedelta(hours=1)  # 最多等这么久，到时带「处理中」照发（存货销售最多等进货 12 小时）
 BRIEF_LOOKBACK = timedelta(days=3)     # 更早的不再发
+
+
+def slot_group(value: Any) -> str:
+    """定时 / 补跑运行的简报分组键（`brief_group`）：所属定时时刻（站点时区裸时间）的 ISO 串，精确到秒。"""
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None, microsecond=0).isoformat()
+    return str(value or "").strip()[:19].replace(" ", "T")
+
+
+def group_of(run: Mapping) -> str:
+    """一条运行记录归哪一份简报（`brief_group`，2026-10-13）：定时 / 补跑 = 所属时刻（`slot_group`），立即运行 = 同一负责人
+    相隔 10 分钟之内的那一批里第一次运行的记录名，补传 = 跟它补的那次运行。加这个字段之前记下的运行没有它：有所属时刻
+    按时刻，没有就自成一份（不把同一负责人的立即运行都并在一起）。"""
+    group = str(run.get("brief_group") or "")
+    if group:
+        return group
+    return slot_group(run.get("slot_at")) if run.get("slot_at") else str(run.get("name") or "")
 
 
 def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]], now: datetime, *,
                  settle: timedelta = BRIEF_SETTLE, max_wait: timedelta = BRIEF_MAX_WAIT,
                  lookback: timedelta = BRIEF_LOOKBACK) -> tuple:
-    """还没发简报的运行（行带 name / run_owner / slot_at / started_at / scanned_at）按（负责人, 定时时刻；立即运行为空）
-    分组，回 ``(ready, stale)``，时间都是站点时区裸时间。
+    """还没发简报的运行（行带 name / run_owner / connection / brief_group / slot_at / started_at / scanned_at）按
+    （负责人, 简报分组 `group_of`, 读文件夹的电脑 `connection`）分组，回 ``(ready, stale)``，时间都是站点时区裸时间。
+    按电脑分开（2026-10-13）：简报会被那台电脑同步取回弹出，不能带上别的电脑的任务。
 
-    ready 每项 ``{"owner", "slot_at", "runs", "complete"}``，按最早一次开始排：都扫描完、文件都不在路上（`moving`）、
-    最近一次开始满 ``settle`` 的是完整的；最早一次开始满 ``max_wait`` 的不完整也发。stale 是不再发的运行名：
-    最早一次开始超过 ``lookback``，或没有负责人、没有开始时间（排不进时间，留着只会每 5 分钟再看一遍）。"""
+    ready 每项 ``{"owner", "slot_at", "reader", "runs", "complete"}``，按最早一次开始排：都扫描完、文件（行带 state /
+    registered_at / finished_at）都不在路上（`moving`）、最近一次开始与最后一份文件走完（`finished_at`）都满 ``settle``
+    的是完整的；最早一次开始满 ``max_wait`` 的不完整也发。``slot_at`` 是组里的定时时刻（立即运行为 None）。stale 是
+    不再发的运行名：最早一次开始超过 ``lookback``，或没有负责人、没有开始时间（排不进时间，留着只会每 5 分钟再看一遍）。"""
     groups: Dict[tuple, List[Mapping]] = {}
     for run in runs:
-        groups.setdefault((run.get("run_owner") or "", run.get("slot_at")), []).append(run)
+        groups.setdefault((run.get("run_owner") or "", group_of(run), str(run.get("connection") or "")), []).append(run)
     ready, stale = [], []
-    for (owner, slot), members in groups.items():
+    for (owner, _group, reader), members in groups.items():
         started = [run["started_at"] for run in members if run.get("started_at")]
         names = sorted(run["name"] for run in members)
         if not owner or not started or now - min(started) > lookback:
             stale += names
             continue
+        rows = [row for name in names for row in files_by_run.get(name) or []]
+        quiet = max(started + [row["finished_at"] for row in rows if row.get("finished_at")])
         complete = (all(run.get("scanned_at") for run in members)
-                    and not any(moving(row.get("state"), row.get("registered_at"), now)
-                                for name in names for row in files_by_run.get(name) or [])
-                    and now - max(started) >= settle)
+                    and not any(moving(row.get("state"), row.get("registered_at"), now) for row in rows)
+                    and now - quiet >= settle)
         if complete or now - min(started) >= max_wait:
-            ready.append((min(started), {"owner": owner, "slot_at": slot, "runs": names, "complete": complete}))
+            slot = next((run["slot_at"] for run in members if run.get("slot_at")), None)
+            ready.append((min(started), {"owner": owner, "slot_at": slot, "reader": reader, "runs": names,
+                                         "complete": complete}))
     ready.sort(key=lambda item: item[0])
     return [group for _at, group in ready], sorted(stale)

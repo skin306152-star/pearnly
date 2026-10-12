@@ -40,12 +40,17 @@ def sent(dedup_key):
     return notices.exists(dedup_key)
 
 
-def conversation(rules):
-    """提醒挂在哪段 CC 对话上：这些任务里最近改过、且在 CC 里建 / 改 / 启停过的那一条的对话（`cc_session`）。"""
-    found = [rule for rule in rules if contracts.session_ref(rule.get("cc_session"))]
-    if not found:
+def conversation(owner, rules):
+    """提醒挂在哪段 CC 对话上：这些任务在 CC 里建 / 改 / 启停过的对话（`cc_session`），按任务最近改过的先后，取第一段
+    仍属于收件人 ``owner``、未归档、当前引擎的（共用层 `notices.owned_conversation` 判）；都不是就不挂（回空串）。"""
+    found = sorted((rule for rule in rules if contracts.session_ref(rule.get("cc_session"))),
+                   key=lambda rule: str(rule.get("modified") or ""), reverse=True)
+    candidates = list(dict.fromkeys(rule.get("cc_session") for rule in found))
+    if not candidates:
         return ""
-    return max(found, key=lambda rule: str(rule.get("modified") or "")).get("cc_session")
+    from pearnly_core.assistant import notices
+
+    return notices.owned_conversation(owner, candidates) or ""
 
 
 @contextmanager
@@ -72,7 +77,8 @@ def epoch(value):
 
 
 def for_rules(rule_names, since_epoch, limit=20):
-    """这些任务在 ``since_epoch`` 之后的提醒（按时间先后）：``[{"id", "title", "text", "created", "session"}]``。"""
+    """这些任务在 ``since_epoch`` 之后的提醒（按时间先后）：``[{"id", "title", "text", "created", "session", "refs"}]``，
+    ``refs`` 是这条提醒涉及的全部任务（小助手同步只给涉及的任务全是本机读的那几条，见 `contracts.machine_notices`）。"""
     names = [name for name in rule_names or [] if name]
     if not names:
         return []
