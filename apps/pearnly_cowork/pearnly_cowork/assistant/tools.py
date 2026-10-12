@@ -57,7 +57,7 @@ def companion_status(tool_input) -> str:
         item = {"connection": row["name"], "label": row.get("label"), "adapter": row.get("adapter"),
                 "enabled": row.get("enabled")}
         if row.get("adapter") == "express":
-            item["companion_online"] = destinations.online("express", row["name"])
+            item["cc_desktop_online"] = destinations.online("express", row["name"])
         try:
             targets = connections.targets(row["name"])
             item["account_sets_status"] = targets.get("status")
@@ -122,6 +122,17 @@ def _totals(rows) -> dict:
         if group["without"]:
             out[name]["without_value"] = group["without"]
     return out
+
+
+def _reason(value):
+    """存的推送原因 → 按用户语言的一句话，同网页 `p.intake_push_reason` 与结果表格 `export_facts.reason_text`。
+    原样交给模型的话，码（如 push.companion_account_unreported）和 10-12 前存下的旧英文原句里还是旧称，
+    模型会照着转述成「小助手」；筛选和请求号仍用库里的原值。"""
+    if not value:
+        return value
+    from pearnly_cowork.push import export_facts
+
+    return export_facts.reason_text(value)
 
 
 def list_documents(tool_input) -> str:
@@ -198,6 +209,8 @@ def list_documents(tool_input) -> str:
             out["note"] = (f"Only the newest {LIST_SCAN_MAX} documents were checked; narrow the dates to cover "
                            "the rest.")
     next_offset = offset + len(rows)
+    for row in rows:
+        row["last_push_reason"] = _reason(row.get("last_push_reason"))
     return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
                   "next_offset": next_offset if next_offset < total else None, **out})
 
@@ -314,7 +327,7 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
     sent = {"document": name, "status": "sent", "adapter": adapter}
     if adapter == "express":
         # Express 由那台电脑上的小助手写入：不在线就先排着，连上后自动写。
-        sent["companion_online"] = destinations.online(adapter, target)
+        sent["cc_desktop_online"] = destinations.online(adapter, target)
     return sent
 
 
@@ -651,7 +664,7 @@ def _target_state(row) -> str:
     if not row.get("enabled"):
         return "disabled"
     if row.get("adapter") == "express" and not destinations.online("express", row["name"]):
-        return "companion_offline"
+        return "cc_desktop_offline"
     return "ready"
 
 
@@ -849,7 +862,7 @@ def _detail(doc) -> dict:
     pages = doc.get("pages") or []
     fields = (pages[_primary(pages)].get("fields") or {}) if pages else {}
     out = {"document": doc.get("name"), "version": doc.get("record_version"), "filename": doc.get("filename"),
-           "push_status": doc.get("last_push_status"), "push_reason": doc.get("last_push_reason"),
+           "push_status": doc.get("last_push_status"), "push_reason": _reason(doc.get("last_push_reason")),
            "push_connection": doc.get("push_connection"), "push_account_set": doc.get("push_account_set"),
            "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages), **_push_target(doc)}
     out.update({key: fields.get(key) for key in DETAIL_FIELDS})
@@ -1765,7 +1778,7 @@ def folder_tasks(_input) -> str:
 def run_folder_task(tool_input) -> str:
     row = rules.run_now(str(tool_input.get("task") or ""))
     return _json({"task": row.get("name"), "title": row.get("title"), "requested": True,
-                  "note": "The companion picks this up on its next sync, usually within a minute."})
+                  "note": "CC Desktop picks this up on its next sync, usually within a minute."})
 
 
 def folder_task_runs(tool_input) -> str:
@@ -2515,6 +2528,13 @@ def preview_stock_group(tool_input) -> list:
 
 
 _OBJ = {"type": "object", "properties": {}}
+
+# Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：
+# 工具说明一直在模型的上下文里，写在 cowork_companion_status 一处就够；模型照用户的语言说这个名字，不自己意译。
+CC_DESKTOP = ("The Windows program on the user's computer that reads their folders and writes into Express is "
+              "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
+              + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
+              "never by a generic description.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
@@ -2574,7 +2594,7 @@ TOOLS = [
                     "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
                     "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
                     "where in this conversation, get the choices there first. Otherwise call it directly, without "
-                    "listing documents or checking the companion first. Waits up to about 90 seconds and returns the "
+                    "listing documents or checking CC Desktop first. Waits up to about 90 seconds and returns the "
                     "recognized documents; anything still running comes back with its batch for "
                     "cowork_recognition_results. Each attachment is charged once like a web upload; calling again "
                     "for the same attachment returns the same result at no extra charge, so never tell the user it "
@@ -2714,9 +2734,9 @@ TOOLS = [
          "account_set_key": {"type": "string"}, "answers": POS_ANSWERS_SCHEMA}},
      "handler": "pearnly_cowork.assistant.tools.pos_layout"},
     {"name": "cowork_companion_status", "label": "Checked CC Desktop",
-     "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether the Windows companion is "
-                    "online, and whether the account set list has been read. To find or choose an account set for "
-                    "recognition or pushing, use cowork_intake_options instead.",
+     "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether CC Desktop is online "
+                    "(cc_desktop_online), and whether the account set list has been read. " + CC_DESKTOP + " To find "
+                    "or choose an account set for recognition or pushing, use cowork_intake_options instead.",
      "input_schema": {"type": "object", "properties": {}},
      "handler": "pearnly_cowork.assistant.tools.companion_status"},
     {"name": "cowork_refresh_account_sets", "label": "Refreshed account sets",
@@ -2748,7 +2768,7 @@ TOOLS = [
          "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents",
-     "description": "Push recognized documents to their accounting target (Express through the companion, or MR.ERP), "
+     "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time; each "
                     "result says sent, needs_choice (get the choices with cowork_push_choices, ask the user, save them "
                     "and push again), failed with a reason, or already_success / already_pending (already entered or "
@@ -2813,13 +2833,13 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.export_review_workbook"},
     {"name": "cowork_folder_task_options", "label": "Checked folder task options",
      "description": "What a scheduled folder task can use, like the task form: each computer (reader) that reads "
-                    "folders, whether it is online, the folders its CC desktop app opened to the website (root_id and "
+                    "folders, whether it is online, the folders opened to the website in CC Desktop on it (root_id and "
                     "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
                     "and stock account group for defaults. files is how many photos and PDFs each folder holds now, "
                     "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many), "
                     "pos_files the POS exports (Excel / CSV) that a sales task into Express also enters; a root "
                     "without files means that computer has not reported counts, so the number is not known. Folders "
-                    "can only be added in the CC app on that computer; if the one the user wants is missing, tell them "
+                    "can only be added in CC Desktop on that computer; if the one the user wants is missing, tell them "
                     "to add it there.",
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"}, "search": {"type": "string"}},
@@ -3164,8 +3184,8 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_folder_tasks", "label": "Checked folder tasks",
      "description": "List the scheduled folder tasks (scan a folder on the user's PC, recognize new files and push them), "
-                    "with their schedule, default handling, reminder, last run and whether the companion reading the "
-                    "folder is online. waiting is how many files in the folder the task has not processed yet "
+                    "with their schedule, default handling, reminder, last run and whether CC Desktop on the computer "
+                    "that reads the folder is online. waiting is how many files in the folder the task has not processed yet "
                     "(waiting_partial: at least that many; null when not known). results counts invoices entered, "
                     "invoices needing attention, and files still moving.",
      "input_schema": _OBJ, "handler": "pearnly_cowork.assistant.tools.folder_tasks"},

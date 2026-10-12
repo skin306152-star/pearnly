@@ -83,6 +83,8 @@ def _install():
         "pearnly_cowork.history.storage": dict(read=lambda name: None),
         "pearnly_cowork.push.application.service": dict(),
         "pearnly_cowork.push.application.api": dict(),
+        # 推送原因按用户语言给模型（真的 reason_text 要查翻译表，这里标出「翻过了」）
+        "pearnly_cowork.push.export_facts": dict(reason_text=lambda reason: "said:" + reason),
     }
     for name, attrs in leaf.items():
         module = types.ModuleType(name)
@@ -182,6 +184,16 @@ class BehaviourTests(unittest.TestCase):
         data = json.loads(tools.companion_status({}))["connections"][0]
         self.assertEqual(data["account_sets_status"], "fresh")
         self.assertNotIn("account_sets", data)
+        self.assertIn("cc_desktop_online", data)  # 模型读到的键也不带旧称
+
+    def test_the_model_is_told_cc_desktop_names_once(self):
+        # 2026-10-13：模型从没被告知 Windows 端叫什么，又读到 companion，就转述成「小助手 / ผู้ช่วย / コンパニオン」
+        status = next(t for t in tools.TOOLS if t["name"] == "cowork_companion_status")
+        for name in ("CC Desktop", "CC 桌面版", "CC เดสก์ท็อป", "CC デスクトップ"):
+            self.assertIn(name, status["description"])
+        self.assertEqual(sum(tools.CC_DESKTOP in t["description"] for t in tools.TOOLS), 1)
+        run = json.loads(tools.run_folder_task({"task": "R1"}))
+        self.assertTrue(run["note"].startswith("CC Desktop "))
 
     def test_already_pushed_documents_are_not_pushed_again_and_each_is_settled(self):
         docs = {"A": types.SimpleNamespace(last_push_status="success"),
@@ -525,9 +537,9 @@ class IntakeChoiceTests(unittest.TestCase):
         self.assertEqual(out["last_used_unavailable"]["account_set_key"], "c:\\70exp\\gone")
         self.assertNotIn("_keys", out["targets"][0])
 
-    def test_offline_companion_is_not_ready(self):
+    def test_offline_cc_desktop_is_not_ready(self):
         tools.destinations.online = lambda adapter, name: False
-        self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "companion_offline")
+        self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "cc_desktop_offline")
 
     def test_stock_group_and_mrerp_choices_go_through_the_connection_services(self):
         calls = []
@@ -1437,6 +1449,18 @@ class ListAndRunsTests(unittest.TestCase):
         frappe.rows[1]["last_push_reason"] = "choice_needed:account"
         out = json.loads(tools.list_documents({"search": "Ice", "push_state": "failed"}))
         self.assertEqual([d["name"] for d in out["documents"]], ["D2"])
+        # 筛选按库里的原值，交给模型的是按用户语言翻好的那句（同网页与结果表格）
+        self.assertEqual(out["documents"][0]["last_push_reason"], "said:choice_needed:account")
+
+    def test_push_reasons_reach_the_model_in_the_users_words(self):
+        # 存的是码或 10-12 前的旧英文原句（里面还是旧称）；交给模型前翻成用户语言，模型就不会照着说旧称
+        frappe.rows[0]["last_push_reason"] = "push.companion_account_unreported"
+        docs = json.loads(tools.list_documents({"limit": 2}))["documents"]
+        self.assertEqual([d["last_push_reason"] for d in docs], ["said:push.companion_account_unreported", None])
+        detail = tools._detail({"name": "D1", "last_push_reason": "document_policy_needed_transfer_slip",
+                                "push_connection": "EXP1", "pages": []})
+        self.assertEqual(detail["push_reason"], "said:document_policy_needed_transfer_slip")
+        self.assertEqual(detail["handling_choice_needed"], "transfer_slip")  # 认码仍按原值
 
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},
