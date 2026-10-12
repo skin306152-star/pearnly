@@ -17,8 +17,17 @@
 
 ## 判断规则（宁可不判断，也不猜）
 
-* **读不到＝新鲜度未知**：任何一个模块的最新流水号读不到，本轮立刻停手，绝不把"读不到"
-  当成"没变化"（对方的数据端点没有权限校验，随时可能被收紧）。
+* **读不到＝新鲜度未知**：绝不把"读不到"当成"没变化"，读不到的模块水位一律不动
+  （对方的数据端点没有权限校验，随时可能被收紧）。最新流水号读不到时按原因分两种（2026-10-13，#11）：
+  - **连不上**（传输失败、非 200、让路给操作员等，凡不是下面这一种的）：本轮立刻停手，下一轮从它重来。
+  - **内容读不懂**（`ERR_DMS_SNAPSHOT_INCOMPLETE`：对方改版、`err::`、行形状不对、某行缺项）：
+    只跳过这一个模块、记下从何时起读不懂（`unreadable_since`，读懂了就清掉），其余模块照常；
+    连着两个模块都读不懂就当整体改版，本轮停在这两个之后，下一轮接着往后轮。
+  以前一个模块读不懂整轮就停，`next_index` 又一直指回它：2026-10-11 对方改版，白天同步静默停了约 10 小时。
+* **往回翻流水时读不懂** → 按"翻不完整"处理（见下），交整组重读，不让这个模块永远卡在旧水位。
+* **读不懂太久**（只在白天同步的后台任务里）→ 车辆、公司组有模块读不懂满 `STALL_SECONDS`，改走现有的
+  整组重读，每组至多 `STALL_REFRESH_SECONDS` 一次；客户、地址组白天不读（ADR-014），仍留给凌晨。
+  要恢复到分钟级仍得改解析代码 —— 这里只保证"降级但可用"。
 * **点名不到具体记录**（标识为空、或动作我们不认识）→ 不逐条猜，登记一次整组重读。
 * **删除** → 不在这里猜"删掉了谁"，同样交给整组重读（按原生列表的真实成员收敛）。
 * **积压太多**（一轮页数上限还没追上游标）→ 整组重读，不逐页硬啃。
@@ -75,6 +84,14 @@ PENDING_SECONDS = 1800
 PENDING_MAX = 10
 #: 服务自身的动作以谁的名义登记（Frappe 的 Administrator 具备全部角色）。
 SERVICE_ACTOR = "Administrator"
+#: 使用记录"内容读不懂"的错误码：只有它才跳过这个模块、接着往后轮；其余错误照旧整轮停手。
+UNREADABLE_CODE = "ERR_DMS_SNAPSHOT_INCOMPLETE"
+#: 一轮里连着几个模块读不懂就当整体改版，本轮停在它们之后。
+UNREADABLE_RUN = 2
+#: 一个模块读不懂满这么久，白天同步改走整组重读兜底（只车辆、公司这类小组）。
+STALL_SECONDS = 600
+#: 兜底整组重读的最短间隔（这一组读过或试过都算）：ris 车辆组一次约 10 分钟，不能一直占着账号。
+STALL_REFRESH_SECONDS = 3600
 
 #: 补读单个客户时的读取上限。
 RECORD_LIMITS = SnapshotLimits(max_seconds=15)
@@ -198,15 +215,18 @@ def _establish_baseline(endpoint, *, client, actor, base=None, expected_scope=No
 
 
 # ── 时点二：操作顺手同步 ───────────────────────────────────────────────
-def catch_up(endpoint, *, client):
-    """**从不抛异常**：同步是顺手做的，坏了也不能让操作员那一笔变成失败。"""
+def catch_up(endpoint, *, client, background=False):
+    """**从不抛异常**：同步是顺手做的，坏了也不能让操作员那一笔变成失败。
+
+    `background=True` 只由白天同步（`live_sync.pull`）传：读不懂太久时才做整组重读兜底。
+    操作员那一笔顺手同步时不传 —— 不在操作员的路径上新增重读。"""
     try:
-        _catch_up(endpoint, client=client)
+        _catch_up(endpoint, client=client, background=background)
     except Exception:
         logger.warning("[dms changes] 顺手同步没做完（不影响本次操作）", exc_info=True)
 
 
-def _catch_up(endpoint, *, client):
+def _catch_up(endpoint, *, client, background=False):
     try:
         expected_scope = store.scope(endpoint)
     except Exception:
@@ -222,12 +242,18 @@ def _catch_up(endpoint, *, client):
             _establish_baseline(endpoint, client=client, actor=SERVICE_ACTOR,
                                 base=state, expected_scope=expected_scope)
             return
-        _pull(endpoint, client=client, state=state, expected_scope=expected_scope)
+        _pull(endpoint, client=client, state=state, expected_scope=expected_scope,
+              background=background)
     finally:
         _release(expected_scope, token)
 
 
-def _pull(endpoint, *, client, state, expected_scope):
+def _unreadable(exc):
+    """使用记录回来了但内容读不懂（改版、`err::`、行形状不对）—— 只认这一个错误码（白名单）。"""
+    return isinstance(exc, DmsClientError) and exc.error_code == UNREADABLE_CODE
+
+
+def _pull(endpoint, *, client, state, expected_scope, background=False):
     started = time.monotonic()
     limits = EventLogLimits()
     usage = eventlog_reader.Usage(limits)
@@ -237,6 +263,7 @@ def _pull(endpoint, *, client, state, expected_scope):
     order = order[start:] + order[:start]
     actor = state.get("actor") or SERVICE_ACTOR
     next_index = 0
+    unreadable_run = 0
 
     for index, (module, dataset, per_record) in enumerate(order):
         if time.monotonic() - started > PULL_SECONDS or usage.requests >= PULL_REQUESTS:
@@ -246,11 +273,26 @@ def _pull(endpoint, *, client, state, expected_scope):
         try:
             head, usage = eventlog_reader.head(client, module, limits=limits, usage=usage)
         except Exception as exc:
-            # 读不到就整轮停手：**绝不把"读不到"当成"没变化"**。原因写进日志（错误文字不带响应正文），
+            # **绝不把"读不到"当成"没变化"**：水位不动。原因写进日志（错误文字不带响应正文），
             # 2026-10-11 对方改版时这里只说"读不到"，查了一晚上才知道是格式变了。
-            logger.warning("[dms changes] 使用记录读不到，本轮停止（模块 %s）：%s", module, exc)
-            next_index = (start + index) % len(MODULES)
-            break
+            if not _unreadable(exc):
+                # 连不上（或任何别的错误）：整轮停手，下一轮从它重来。
+                logger.warning("[dms changes] 使用记录读不到，本轮停止（模块 %s）：%s", module, exc)
+                next_index = (start + index) % len(MODULES)
+                break
+            # 内容读不懂：只跳过这一个模块，其余照常；记下从何时起读不懂（跨轮保留）。
+            logger.warning("[dms changes] 使用记录读不懂，跳过这个模块（模块 %s）：%s", module, exc)
+            modules[module] = {**entry, "unreadable_since":
+                               float(entry.get("unreadable_since") or 0) or time.time()}
+            unreadable_run += 1
+            if unreadable_run >= UNREADABLE_RUN:
+                # 连着几个都读不懂＝整体改版：本轮停在它们之后，下一轮接着往后轮（每轮只花这几个请求）。
+                next_index = (start + index + 1) % len(MODULES)
+                break
+            continue
+        unreadable_run = 0
+        if entry.pop("unreadable_since", None) is not None:
+            modules[module] = dict(entry)   # 又读得懂了：先清掉标记（后面增量处理失败也不该留着它）
         try:
             advance = _advance_records if per_record else _advance
             entry, usage = advance(endpoint, client=client, module=module, dataset=dataset,
@@ -265,6 +307,37 @@ def _pull(endpoint, *, client, state, expected_scope):
     incoming = {**state, "version": VERSION, "modules": modules,
                 "next_index": max(0, next_index), "checked_at": time.time()}
     store.merge_change_state(endpoint, incoming, base=state, expected_scope=expected_scope)
+    if background:
+        _fallback_refresh(endpoint, modules, actor=actor)
+
+
+def _fallback_refresh(endpoint, modules, *, actor):
+    """白天同步的兜底：车辆、公司组有模块读不懂满 `STALL_SECONDS`，就走现有的整组重读。
+
+    只扫内存里的模块条目；平时没有读不懂的模块，什么都不做（不读库、不登记）。
+    这一组正在读，或 `STALL_REFRESH_SECONDS` 内读过、试过（完成时刻与请求更新时刻取较晚的），就不再排。
+    客户、地址组白天绝不在这里重读（一次可能一个多小时，ADR-014），读不懂时仍留给凌晨全量。
+    """
+    from pearnly_dms.adapter.live_sync import HEAVY_DATASETS
+
+    now = time.time()
+    stalled = []
+    for module, dataset, _records in MODULES:
+        since = float((modules.get(module) or {}).get("unreadable_since") or 0)
+        if (since and now - since >= STALL_SECONDS and dataset not in HEAVY_DATASETS
+                and dataset not in stalled):
+            stalled.append(dataset)
+    for dataset in stalled:
+        try:
+            status = manual.status(endpoint, dataset, reader="authority")
+        except Exception:
+            logger.warning("[dms changes] 整组重读状态读不到（%s），这一轮不兜底", dataset)
+            continue
+        last = max(float(status.get("completed_at") or 0), float(status.get("updated_at") or 0))
+        if status.get("state") in manual.ACTIVE or now - last < STALL_REFRESH_SECONDS:
+            continue
+        logger.warning("[dms changes] 使用记录读不懂已满 %s 秒，整组重读兜底（%s）", STALL_SECONDS, dataset)
+        _request_refresh(endpoint, dataset, actor=actor)
 
 
 def _advance(endpoint, *, client, module, dataset, entry, head,
@@ -298,7 +371,7 @@ def _advance(endpoint, *, client, module, dataset, entry, head,
                 "checked_at": now}, usage
 
     events, newest, complete = _new_events(client, module, cursor=cursor, limits=limits,
-                                           usage=usage)
+                                           usage=usage, head=head)
     if not complete or not events:
         return {"seq": cursor,
                 "dirty_since": _note_dirty(endpoint, dataset, entry, now, actor),
@@ -338,7 +411,7 @@ def _advance_records(endpoint, *, client, module, dataset, entry, head,
         newest, gap = head, True   # 最新一行比水位还旧（记录被删）：按"未知"处理
     elif head > cursor:
         events, newest, complete = _new_events(client, module, cursor=cursor, limits=limits,
-                                               usage=usage)
+                                               usage=usage, head=head)
         gap = not complete or not events
     retry = {code: since for code, since in pending.items() if now - float(since) <= PENDING_SECONDS}
     expired = len(retry) < len(pending)
@@ -371,18 +444,29 @@ def _note_dirty(endpoint, dataset, entry, now, actor):
     return now if _request_refresh(endpoint, dataset, actor=actor) else since
 
 
-def _new_events(client, module, *, cursor, limits, usage):
+def _new_events(client, module, *, cursor, limits, usage, head=0):
     """游标之后的新事件（按流水号从新到旧、去重）。返回 `(事件, 见到的最新流水号, 是否完整)`。
 
     "完整"＝**第 1 页**里就碰到了流水号不大于游标的行。对方按日期时间排、同一秒先后不定，分页又是按偏移
     （2026-10-11）：要翻到第 2 页时，压在页边的同一秒几行可能有一行两页都没出现，所以只要翻过第 1 页就算
     不完整（照常补翻到的，再交整组重读）。翻到底都没碰到游标（游标为 0 的除外）说明游标那段记录已被删，
     页数用满还没追到游标是积压太多 —— 也都不完整。平时每分钟的新改动远少于一页，碰不到这些情况。
+
+    往回翻时某页**内容读不懂**（例如一行缺账号，挤出最新几行后还会在这 200 行里停很久）：同样算不完整，
+    最新流水号至少记到 `head`（这个模块此刻最新一行），交整组重读 —— 以前异常被上层吞掉，
+    这个模块就永远停在旧水位、每轮白翻一遍。连不上等其他错误照旧往上抛（保留旧水位，下一轮重来）。
     """
     events, seen, newest = [], set(), cursor
     for number in range(1, MAX_NEW_PAGES + 1):
-        rows, usage = eventlog_reader.page(client, module, page_number=number,
-                                           limits=limits, usage=usage)
+        try:
+            rows, usage = eventlog_reader.page(client, module, page_number=number,
+                                               limits=limits, usage=usage)
+        except DmsClientError as exc:
+            if not _unreadable(exc):
+                raise
+            logger.warning("[dms changes] 使用记录第 %s 页读不懂（模块 %s），按不完整交整组重读：%s",
+                           number, module, exc)
+            return _newest_first(events), max(newest, head or 0), False
         if not rows:
             return events, newest, cursor == 0 and number == 1
         newest = max(newest, rows[0].seq)

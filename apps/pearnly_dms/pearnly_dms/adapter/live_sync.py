@@ -20,6 +20,8 @@
 * 走专用 `dms_sync` 队列、只读批次（遇到操作员的交互会话就让路），同一连接同时只跑一个。
 * **白天不做大组整组重读**：日志点不出具体记录时，客户/地址两个大组只标记"待重读"，
   由凌晨全量完成；车辆、公司这类小组照常立即整组重读（`change_sync._request_refresh`）。
+* 某个模块的使用记录读不懂（对方改版）：只跳过它，其余模块照常；车辆、公司组读不懂满 10 分钟，
+  这一轮后台任务改走整组重读兜底，每组每小时至多一次（`change_sync._fallback_refresh`，2026-10-13）。
 * 读档账号的会话刚被人顶掉（有人拿它登录了网页）时，接下来一段时间不再为了同步去登录，
   免得每分钟把那个人踢下线一次。
 """
@@ -112,7 +114,8 @@ def pull(endpoint: str) -> dict:
         return {"ok": True, "skipped": "account_in_use"}
 
     def work(client, adapter):
-        change_sync.catch_up(endpoint, client=client)
+        # 后台这一轮才做"读不懂太久就整组重读车辆/公司"的兜底（操作员顺手同步不做）。
+        change_sync.catch_up(endpoint, client=client, background=True)
         return {"ok": True}
 
     try:
