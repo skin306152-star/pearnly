@@ -10,7 +10,7 @@ const scheme = window.matchMedia("(prefers-color-scheme: dark)");
 // 手机浏览器状态栏的颜色（<meta name="theme-color">）取当前底色；抽屉打开时取抽屉的颜色（assistant.tsx 的 MobileShell）
 function themeColor() {
   const drawer = document.querySelector('.cc-mshell[data-open="true"]');
-  const value = getComputedStyle(document.documentElement).getPropertyValue(drawer ? "--cc-bg-sidebar" : "--cc-bg-app").trim();
+  const value = getComputedStyle(document.documentElement).getPropertyValue(drawer ? "--cc-bg-drawer" : "--cc-bg-app").trim();
   if (!value) return;
   // 站点页面按深浅色各放了一个（首屏用）；这里统一改成当前值
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {

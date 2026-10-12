@@ -436,7 +436,7 @@ function MobileDrawer() {
         )}
         <ThreadList search={search} />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-sidebar via-sidebar to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {profile && (
           <UserMenu>
             <button type="button" className="cc-avatar pointer-events-auto size-12 text-sm" aria-label={profile.full_name || profile.user}>
@@ -461,6 +461,15 @@ function MobileDrawer() {
   );
 }
 
+/** 手机顶栏打开抽屉的图标（同 Claude 手机端）：三条线、最下面一条短。 */
+function DrawerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h10" />
+    </svg>
+  );
+}
+
 // 对话区顶部。
 // - 手机（同 Claude 手机端）：半透明一条盖在内容上，左边菜单、中间对话名、右边在跑时转圈、空闲时新建对话。
 // - 电脑（同 claude.ai）：对话有内容时左上角是对话名，点开加星标 / 改名 / 删除；右边是本对话的文件。
@@ -478,7 +487,7 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
     return (
       <div className="cc-mtopbar">
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
-          <MenuIcon />
+          <DrawerIcon />
         </button>
         <span className="cc-mtopbar-title">{view === "tasks" ? t("scheduledTasks") : inChat ? title || t("untitled") : ""}</span>
         {view === "chat" && isBusy(snapshot) ? (
