@@ -122,6 +122,36 @@ def test_a_refused_server_skips_the_round():
         request_worker.RequestWorker(lambda: [_cfg()], client_factory=Old()).round(_cfg())
 
 
+def test_a_server_without_these_methods_is_asked_again_only_after_a_while():
+    # 服务端还没部署新版（401 / 404）或总闸关着：不每 15 秒问一次、刷一次日志
+    asked = []
+
+    class Old(FakeClient):
+        def next(self, body):
+            asked.append(body)
+            raise Refused("404")
+
+    now = [1000.0]
+    worker = request_worker.RequestWorker(lambda: [_cfg()], client_factory=Old(), timer=lambda: now[0])
+    waits = []
+
+    def wait(seconds):
+        waits.append(seconds)
+        now[0] += seconds
+        if len(waits) >= 3:
+            worker._stop.set()
+        return worker._stop.is_set()
+
+    worker._stop.wait = wait
+    worker._loop()
+    assert len(asked) == 1 and len(waits) == 3  # 退避期内的两轮不再问
+    now[0] += request_worker.REFUSED_BACKOFF
+    worker._stop.clear()
+    waits.clear()
+    worker._loop()
+    assert len(asked) == 2
+
+
 def test_the_thread_only_starts_for_paired_connections_and_stays_off_the_push_line():
     worker = request_worker.RequestWorker(lambda: [SimpleNamespace(backend_url="", bearer_token="", paused=False)])
     worker.start()

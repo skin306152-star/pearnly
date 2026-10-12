@@ -15,8 +15,11 @@ from __future__ import annotations
 import base64
 import hashlib
 import threading
+import time
 from contextlib import contextmanager
 from typing import Callable, Iterable, Optional
+
+import httpx
 
 from . import folder_fetch
 from .logger import get_logger
@@ -35,15 +38,21 @@ HANDLERS: dict = {
 # 交一块失败（网络断了一下）最多重试几次；续传（服务端说已收到多少）也算在内。
 RETRIES = 3
 OFFSET_CODE = "companion.on_demand_offset"
+# 服务端不认这两个接口（还没部署新版）、总闸关着或配对失效（401 / 403 / 404）：这条连接隔这么久再问，不每 15 秒刷日志。
+REFUSED_BACKOFF = 600
 
 
 class RequestWorker:
     def __init__(self, configs: Callable[[], Iterable], *, client_factory=RequestClient,
-                 handlers: Optional[dict] = None, idle: float = POLL_SECONDS) -> None:
+                 handlers: Optional[dict] = None, idle: float = POLL_SECONDS,
+                 timer: Callable[[], float] = time.monotonic) -> None:
         self._configs = configs
         self._client_factory = client_factory
         self._handlers = dict(HANDLERS if handlers is None else handlers)
         self._idle = idle
+        self._timer = timer
+        # 被拒的连接（{服务器 + 密钥前缀: 下次再问的时刻}）
+        self._refused: dict = {}
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._working = False
@@ -92,10 +101,17 @@ class RequestWorker:
             for cfg in self._active():
                 if self._stop.is_set():
                     return
+                key = _key(cfg)
+                if self._refused.get(key, 0) > self._timer():
+                    continue
                 try:
                     worked = self.round(cfg) or worked
+                    self._refused.pop(key, None)
                 except Refused as error:
-                    log.info("按需请求本轮跳过: %s", error)
+                    self._refused[key] = self._timer() + REFUSED_BACKOFF
+                    log.info("按需请求暂不可用（%s 秒后再问）: %s", REFUSED_BACKOFF, error)
+                except httpx.TransportError as error:
+                    log.info("按需请求连不上服务器: %s", type(error).__name__)
                 except Exception:
                     log.exception("按需请求本轮失败")
             if not worked:
@@ -191,3 +207,9 @@ class RequestWorker:
                 continue
             log.info("按需请求结果不再交: %s", reply.get("code"))
             return
+
+
+def _key(cfg) -> str:
+    """连接的身份（服务器 + 密钥摘要），只用来记退避，不落盘、不记日志。"""
+    token = str(getattr(cfg, "bearer_token", "") or "")
+    return str(getattr(cfg, "backend_url", "") or "") + "|" + hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
