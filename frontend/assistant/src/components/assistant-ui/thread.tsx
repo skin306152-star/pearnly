@@ -48,6 +48,9 @@ import {
   type PropsWithChildren,
 } from "react";
 
+// 触屏设备（手机、平板）：没有悬停；打开页面不自动聚焦输入框
+const TOUCH = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
 /**
@@ -256,7 +259,7 @@ const Composer: FC = () => {
             placeholder={placeholder}
             className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent px-1 font-sans text-base outline-none"
             rows={1}
-            autoFocus
+            autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
             enterKeyHint="send"
             aria-label={placeholder}
           />
@@ -434,7 +437,6 @@ const MessageFiles: FC = () => {
 
 // 回复下的操作（同 Claude）：只放引擎真能做到的「复制」——会话记录改不了，重试 / 编辑做不到原样替换，就不摆个点了没反应的按钮。
 // 电脑上最后一条一直显示、其余悬停时显示；手机没有悬停，每条都显示（同 Claude 手机端）。
-const TOUCH = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
 const AssistantActionBar: FC = () => {
   return (
