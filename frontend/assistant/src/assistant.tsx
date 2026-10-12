@@ -26,6 +26,7 @@ import {
   LoaderIcon,
   LogOutIcon,
   MenuIcon,
+  MessageCirclePlusIcon,
   MinusIcon,
   MoreHorizontalIcon,
   PanelLeftIcon,
@@ -34,7 +35,6 @@ import {
   SearchIcon,
   SettingsIcon,
   SquareIcon,
-  SquarePenIcon,
   StarIcon,
   StarOffIcon,
   TrashIcon,
@@ -533,7 +533,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
   return (
     <div className="cc-mpill">
       <button type="button" aria-label={t("newChatPill")} onClick={onNew}>
-        <SquarePenIcon />
+        <MessageCirclePlusIcon />
       </button>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
