@@ -61,5 +61,18 @@ def apply_to_pages(pages, policy: Mapping[str, str]) -> None:
             page.setdefault("_validation_warnings", []).append(f"{WARNING_PREFIX} {policy.get(kind) or 'ask'} {kind}")
 
 
+def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
+    """这个租户选了「不录入」的预扣税凭证页：[(在读数里的序号, 页)]。只存一条参考记录给报税草稿读
+    （`history.certificates`，用户 2026-10-13），不成票、不进录入待办、不推送、不扣费。"""
+    if policy.get("withholding_certificate") != SKIP:
+        return []
+    found = []
+    for position, page in enumerate(pages or []):
+        fields = page.get("fields") if isinstance(page, dict) else None
+        if isinstance(fields, dict) and document_class(fields) == "withholding_certificate":
+            found.append((position, page))
+    return found
+
+
 __all__ = ["ENTER", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages",
-           "document_class", "normalize", "push_block"]
+           "document_class", "normalize", "push_block", "skipped_certificates"]

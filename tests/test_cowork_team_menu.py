@@ -30,6 +30,13 @@ class MenuCatalogTest(unittest.TestCase):
                           "Cowork VAT Check"} & set(offered))
         self.assertIn("Cowork Work", offered)
 
+    def test_tax_drafts_role_is_offered_only_when_bought(self):
+        # 报税草稿（2026-10-13）：没有页面（入口是 CC 工具），团队管理里照样单独勾选
+        self.assertEqual(menu.CATALOG["tax"], ("tax_drafts", "Cowork Tax Filing", None))
+        self.assertNotIn("Cowork Tax Filing", menu.offered({"intake", "recon"}, self.ALL))
+        offered = menu.offered({"intake", "recon", "tax_drafts"}, self.ALL)
+        self.assertEqual(offered.index("Cowork Tax Filing"), offered.index("Cowork VAT Check") + 1)
+
     def test_missing_role_is_not_offered(self):
         self.assertNotIn("Cowork LINE", menu.offered({"intake"}, self.ALL - {"Cowork LINE"}))
 

@@ -190,6 +190,7 @@
       "reconciliation",
       "roundtrip",
       "stocktake",
+      "tax",
       "work"
     ],
     "companion": [
@@ -282,6 +283,13 @@
     ],
     "tabular": [],
     "targets": [],
+    "tax": [
+      "access",
+      "contracts",
+      "history",
+      "readback",
+      "reconciliation"
+    ],
     "team": [
       "access"
     ],

@@ -16,6 +16,7 @@ MANIFEST = {
         "ocr_history",     # 识别记录
         "push_log",        # 推送日志
         "recon",           # 对账中心
+        "tax_drafts",      # 报税草稿（ภ.พ.30、ภ.ง.ด.3 / 53；入口是 CC 工具）
         "stocktake",       # 库存盘点
         "master_data",     # 主数据
         # 小助手（Companion）：装在商家会计电脑上的 Windows 程序。

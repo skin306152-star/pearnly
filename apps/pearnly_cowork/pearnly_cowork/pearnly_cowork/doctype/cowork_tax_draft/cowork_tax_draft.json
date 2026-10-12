@@ -1,0 +1,173 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Tax Draft",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-13 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.",
+ "field_order": [
+  "record_id",
+  "workspace",
+  "kind",
+  "period",
+  "company_tax_id",
+  "company_branch",
+  "company_name",
+  "connection",
+  "account_set",
+  "source_ref",
+  "issue_count",
+  "tax_total",
+  "options_json",
+  "summary_json",
+  "created_by",
+  "updated_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "label": "Record Id",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "kind",
+   "label": "Return Type",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "vat_return\nwithholding",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "period",
+   "label": "Tax Month",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 7,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company_tax_id",
+   "label": "Taxpayer ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 13,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company_branch",
+   "label": "Branch",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 10
+  },
+  {
+   "fieldname": "company_name",
+   "label": "Company Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "account_set",
+   "label": "Account Set",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "source_ref",
+   "label": "Readback",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "issue_count",
+   "label": "Issues",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_total",
+   "label": "Tax Amount",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 40,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "options_json",
+   "label": "Options",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "summary_json",
+   "label": "Summary",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "created_by",
+   "label": "Created By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "updated_at",
+   "label": "Updated At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Tax Filing",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

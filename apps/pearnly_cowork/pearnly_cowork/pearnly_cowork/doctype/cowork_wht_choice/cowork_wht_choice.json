@@ -1,0 +1,125 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork WHT Choice",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-13 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.",
+ "field_order": [
+  "choice_key",
+  "workspace",
+  "scope",
+  "payee_name",
+  "income_type",
+  "income_text",
+  "form",
+  "condition",
+  "source_draft",
+  "set_by",
+  "set_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "choice_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "scope",
+   "label": "Scope",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "payee_name",
+   "label": "Payee",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "income_type",
+   "label": "Income Type",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "service\nhire_of_work\nprofessional\nrent\nadvertising\npromotion\nprize\ntransport\ninsurance\ninterest\ndividend\ncommission\nother",
+   "reqd": 1
+  },
+  {
+   "fieldname": "income_text",
+   "label": "Income Description",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "form",
+   "label": "Return Form",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "\npnd3\npnd53"
+  },
+  {
+   "fieldname": "condition",
+   "label": "Condition",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "\n1\n2\n3"
+  },
+  {
+   "fieldname": "source_draft",
+   "label": "Source Draft",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "set_by",
+   "label": "Set By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "set_at",
+   "label": "Set At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

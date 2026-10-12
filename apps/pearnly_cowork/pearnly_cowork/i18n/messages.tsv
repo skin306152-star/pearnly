@@ -875,6 +875,164 @@ Saved	已保存	บันทึกแล้ว	保存しました	cowork.recon.s
 Someone else changed this reconciliation. Reload it before saving.	此对账已被其他用户修改，请刷新后再保存。	งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก	この照合は他の人が変更しました。再読み込みしてから保存してください。	reconciliation.edit_conflict
 Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	cowork.recon.vat.left
 Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	cowork.recon.vat.right
+P.P.30	ภ.พ.30	ภ.พ.30	ภ.พ.30	cowork.tax.sheet.pp30
+Output tax report	销项税报告	รายงานภาษีขาย	売上税報告	cowork.tax.sheet.sales
+Input tax report	进项税报告	รายงานภาษีซื้อ	仕入税報告	cowork.tax.sheet.purchases
+Checks	核查	ตรวจสอบ	チェック	cowork.tax.sheet.check
+Summary	汇总	สรุป	概要	cowork.tax.sheet.summary
+P.N.D.53 attachment	ภ.ง.ด.53 附表	ใบแนบ ภ.ง.ด.53	ภ.ง.ด.53 添付書類	cowork.tax.sheet.pnd53
+P.N.D.3 attachment	ภ.ง.ด.3 附表	ใบแนบ ภ.ง.ด.3	ภ.ง.ด.3 添付書類	cowork.tax.sheet.pnd3
+To check	待核对	ต้องตรวจ	要確認	cowork.tax.sheet.review
+P.N.D.53	ภ.ง.ด.53	ภ.ง.ด.53	ภ.ง.ด.53	cowork.tax.form.pnd53
+P.N.D.3	ภ.ง.ด.3	ภ.ง.ด.3	ภ.ง.ด.3	cowork.tax.form.pnd3
+Operator	经营者	ชื่อผู้ประกอบการ	事業者名	cowork.tax.head.operator
+Withholding agent	扣缴义务人	ผู้มีหน้าที่หักภาษี ณ ที่จ่าย	源泉徴収義務者	cowork.tax.head.payer
+Taxpayer ID	纳税人识别号	เลขประจำตัวผู้เสียภาษีอากร	納税者番号	cowork.tax.head.tax_id
+Branch	分支	สาขาที่	支店	cowork.tax.head.branch
+Tax month	税期	เดือนภาษี	課税月	cowork.tax.head.tax_month
+Month paid	支付月份	เดือนที่จ่ายเงินได้	支払月	cowork.tax.head.paid_month
+Read from Express	读自 Express	อ่านจาก Express	Express から読込	cowork.tax.head.read_at
+Due (paper)	申报期限（纸质）	กำหนดยื่นแบบกระดาษ	申告期限（紙）	cowork.tax.head.due_paper
+Due (e-Filing)	申报期限（网上）	กำหนดยื่นทางอินเทอร์เน็ต	申告期限（電子）	cowork.tax.head.due_online
+Item	项	ข้อ	項目	cowork.tax.col.item
+Description	内容	รายการ	内容	cowork.tax.col.description
+Amount	金额	จำนวนเงิน	金額	cowork.tax.col.amount
+Sales this month	本月销售额	ยอดขายในเดือนนี้	当月の売上高	cowork.tax.pp30.box.1
+Less zero-rated sales	减：零税率销售额	ลบ ยอดขายที่เสียภาษีในอัตราร้อยละ 0 (ถ้ามี)	控除：ゼロ税率の売上高	cowork.tax.pp30.box.2
+Less exempt sales	减：免税销售额	ลบ ยอดขายที่ได้รับยกเว้น (ถ้ามี)	控除：免税の売上高	cowork.tax.pp30.box.3
+Taxable sales (1 - 2 - 3)	应税销售额（1 - 2 - 3）	ยอดขายที่ต้องเสียภาษี (1. - 2. - 3.)	課税売上高（1 - 2 - 3）	cowork.tax.pp30.box.4
+Output tax this month	本月销项税额	ภาษีขายเดือนนี้	当月の売上税額	cowork.tax.pp30.box.5
+Purchases eligible for input tax credit this month	本月可抵扣进项税的购进额	ยอดซื้อที่มีสิทธินำภาษีซื้อมาหักในการคำนวณภาษีเดือนนี้	当月の仕入税額控除対象の仕入高	cowork.tax.pp30.box.6
+Input tax this month	本月进项税额	ภาษีซื้อเดือนนี้ (ตามหลักฐานใบกำกับภาษีของยอดซื้อตาม 6.)	当月の仕入税額	cowork.tax.pp30.box.7
+Tax payable this month (if 5 is more than 7)	本月应纳税额（5 大于 7 时）	ภาษีที่ต้องชำระเดือนนี้ (ถ้า 5. มากกว่า 7.)	当月の納付税額（5 が 7 より大きい場合）	cowork.tax.pp30.box.8
+Tax overpaid this month (if 5 is less than 7)	本月多缴税额（5 小于 7 时）	ภาษีที่ชำระเกินเดือนนี้ (ถ้า 5. น้อยกว่า 7.)	当月の超過納付額（5 が 7 より小さい場合）	cowork.tax.pp30.box.9
+Excess tax brought forward	上期结转的多缴税额	ภาษีที่ชำระเกินยกมา	繰越超過納付額	cowork.tax.pp30.box.10
+Net tax payable (if 8 is more than 10)	净应纳税额（8 大于 10 时）	ต้องชำระ (ถ้า 8. มากกว่า 10.)	差引納付税額（8 が 10 より大きい場合）	cowork.tax.pp30.box.11
+Net tax overpaid (10 more than 8, or 9 plus 10)	净多缴税额（10 大于 8 时，或 9 加 10）	ชำระเกิน ((ถ้า 10. มากกว่า 8.) หรือ (9. รวมกับ 10.))	差引超過納付額（10 が 8 より大きい場合、または 9 + 10）	cowork.tax.pp30.box.12
+Surcharge	附加费	เงินเพิ่ม	加算金	cowork.tax.pp30.box.13
+Penalty	罚款	เบี้ยปรับ	罰金	cowork.tax.pp30.box.14
+Total tax, surcharge and penalty payable	应缴税款、附加费与罚款合计	รวมภาษี เงินเพิ่ม และเบี้ยปรับที่ต้องชำระ ((11. + 13. + 14.) หรือ (13. + 14. - 12.))	納付すべき税額・加算金・罰金の合計	cowork.tax.pp30.box.15
+Total tax overpaid after surcharge and penalty	扣除附加费与罚款后的多缴税额	รวมภาษีที่ชำระเกิน หลังคำนวณเงินเพิ่มและเบี้ยปรับแล้ว (12. - 13. - 14.)	加算金・罰金控除後の超過納付額	cowork.tax.pp30.box.16
+Input tax without flagged rows	剔除标出行后的进项税	ภาษีซื้อหลังตัดรายการที่ตรวจพบ	指摘行を除いた仕入税	cowork.tax.pp30.claimable
+Overpaid in last month's draft	上月草稿的多缴税额	ภาษีที่ชำระเกินในร่างเดือนก่อน	前月下書きの超過納付額	cowork.tax.pp30.previous_excess
+No.	序号	ลำดับที่	番号	cowork.tax.col.seq
+Date	日期	วัน เดือน ปี	日付	cowork.tax.col.date
+Tax invoice no.	税票号	เลขที่ใบกำกับภาษี	税務インボイス番号	cowork.tax.col.invoice
+Express document	Express 单号	เลขที่เอกสาร Express	Express 伝票番号	cowork.tax.col.document
+Buyer	买方	ชื่อผู้ซื้อสินค้า/ผู้รับบริการ	購入者	cowork.tax.col.buyer
+Seller	卖方	ชื่อผู้ขายสินค้า/ผู้ให้บริการ	販売者	cowork.tax.col.seller
+Head office / branch	总部 / 分支	สถานประกอบการ	本店 / 支店	cowork.tax.col.place
+Value of goods or services	货物或服务金额	มูลค่าสินค้าหรือบริการ	商品・サービスの価額	cowork.tax.col.value
+VAT	增值税	จำนวนเงินภาษีมูลค่าเพิ่ม	付加価値税額	cowork.tax.col.vat
+Check	核查	ตรวจ	チェック	cowork.tax.col.check
+Total	合计	รวม	合計	cowork.tax.total
+Level	级别	ระดับ	レベル	cowork.tax.col.level
+Issue	问题	รายการที่ตรวจพบ	指摘	cowork.tax.col.issue
+Report	报告	รายงาน	レポート	cowork.tax.col.side
+Name	名称	ชื่อ	名称	cowork.tax.col.name
+Detail	明细	รายละเอียด	詳細	cowork.tax.col.detail
+Source	来源	ที่มา	出典	cowork.tax.col.source
+Fix	需修正	ต้องแก้	要修正	cowork.tax.level.error
+Check	请核对	ตรวจสอบ	要確認	cowork.tax.level.warn
+Note	备注	หมายเหตุ	備考	cowork.tax.level.info
+Invoice month	开票月	เดือนที่ออกใบกำกับภาษี	発行月	cowork.tax.detail.invoice_month
+Last month to claim	最晚抵扣月	เดือนสุดท้ายที่ใช้สิทธิ	控除の最終月	cowork.tax.detail.last_month
+Claimed in	抵扣月	เดือนที่ใช้สิทธิ	控除月	cowork.tax.detail.claimed_month
+Expected VAT	应为税额	ภาษีที่ควรเป็น	想定税額	cowork.tax.detail.expected_vat
+Rate %	税率 %	อัตราร้อยละ	税率 %	cowork.tax.detail.rate
+Usual rate %	常用税率 %	อัตราปกติร้อยละ	通常税率 %	cowork.tax.detail.expected
+Buyer tax ID	买方税号	เลขประจำตัวผู้ซื้อ	購入者の番号	cowork.tax.detail.buyer_tax_id
+Company tax ID	本公司税号	เลขประจำตัวบริษัท	自社の番号	cowork.tax.detail.company_tax_id
+Document type	票种	ประเภทเอกสาร	書類の種類	cowork.tax.detail.document_type
+Same as row	与此行重复	ซ้ำกับลำดับที่	重複元の行	cowork.tax.detail.first_row
+Same as	重复于	ซ้ำกับ	重複元	cowork.tax.detail.of
+Other party	对方	คู่สัญญา	相手方	cowork.tax.detail.counterparty
+Seller tax ID missing	缺卖方税号	ไม่มีเลขประจำตัวผู้เสียภาษีของผู้ขาย	販売者の納税者番号なし	cowork.tax.issue.input_tax_id_missing
+Seller tax ID invalid	卖方税号无效	เลขประจำตัวผู้เสียภาษีของผู้ขายไม่ถูกต้อง	販売者の納税者番号が無効	cowork.tax.issue.input_tax_id_invalid
+Claimed after the invoice month	晚于开票月抵扣	ใช้สิทธิหลังเดือนที่ออกใบกำกับภาษี	発行月より後に控除	cowork.tax.issue.input_claimed_later
+Past the 6-month claim period	超过 6 个月抵扣期限	เกินกำหนด 6 เดือน	6 か月の控除期限超過	cowork.tax.issue.input_over_six_months
+Claimed before the invoice month	早于开票月抵扣	ใช้สิทธิก่อนเดือนที่ออกใบกำกับภาษี	発行月より前に控除	cowork.tax.issue.input_before_invoice
+Abbreviated tax invoice	简易税票	ใบกำกับภาษีอย่างย่อ	簡易税務インボイス	cowork.tax.issue.input_abbreviated
+Not a tax invoice	不是税票	ไม่ใช่ใบกำกับภาษี	税務インボイスではない	cowork.tax.issue.input_not_tax_invoice
+Buyer not on the invoice	票面无买方	ไม่มีชื่อผู้ซื้อในใบกำกับภาษี	インボイスに購入者なし	cowork.tax.issue.input_buyer_missing
+Buyer is another company	买方是其他公司	ผู้ซื้อเป็นบริษัทอื่น	購入者が別の会社	cowork.tax.issue.input_buyer_other
+Duplicate	重复	รายการซ้ำ	重複	cowork.tax.issue.input_duplicate
+No recognition record	无识别记录	ไม่มีบันทึกการอ่านเอกสาร	認識記録なし	cowork.tax.issue.input_no_document
+Invoice date outside the tax month	开票日不在本税期	วันที่ใบกำกับภาษีไม่อยู่ในเดือนภาษี	発行日が課税月の外	cowork.tax.issue.output_outside_period
+VAT differs from the rate	税额与税率不符	ภาษีไม่ตรงกับอัตรา	税額が税率と合わない	cowork.tax.issue.output_rate
+Rate not confirmed for this date	该日期税率未确认	ยังไม่ยืนยันอัตราภาษีของวันที่นี้	この日付の税率は未確認	cowork.tax.issue.output_rate_unknown
+Zero VAT	零税额	ภาษีเป็นศูนย์	税額ゼロ	cowork.tax.issue.output_zero_vat
+Buyer tax ID invalid	买方税号无效	เลขประจำตัวผู้เสียภาษีของผู้ซื้อไม่ถูกต้อง	購入者の納税者番号が無効	cowork.tax.issue.output_tax_id_invalid
+Duplicate	重复	รายการซ้ำ	重複	cowork.tax.issue.output_duplicate
+Voided in Express	Express 中已作废	ยกเลิกใน Express	Express で取消	cowork.tax.issue.row_voided
+Deleted in Express	Express 中已删除	ลบใน Express	Express で削除	cowork.tax.issue.row_deleted
+In another tax month	属于其他税期	อยู่ในเดือนภาษีอื่น	別の課税月	cowork.tax.issue.row_other_period
+No tax month	无税期	ไม่มีเดือนภาษี	課税月なし	cowork.tax.issue.row_period_missing
+Row not read	无法读取的行	อ่านรายการไม่ได้	読めない行	cowork.tax.issue.row_unreadable
+Payee tax ID missing	缺收款方税号	ไม่มีเลขประจำตัวผู้เสียภาษีของผู้มีเงินได้	受取人の納税者番号なし	cowork.tax.issue.payee_tax_missing
+Payee tax ID invalid	收款方税号无效	เลขประจำตัวผู้เสียภาษีของผู้มีเงินได้ไม่ถูกต้อง	受取人の納税者番号が無効	cowork.tax.issue.payee_tax_invalid
+Income type not chosen	未选所得类型	ยังไม่ระบุประเภทเงินได้	所得の種類が未選択	cowork.tax.issue.income_type_missing
+Rate differs from the usual rate	税率与常用税率不同	อัตราไม่ตรงกับอัตราปกติ	通常の税率と異なる	cowork.tax.issue.rate_mismatch
+Unusual rate	非常用税率	อัตราไม่ปกติ	通常にない税率	cowork.tax.issue.rate_not_standard
+1% e-Withholding Tax rate	1% 电子预扣税率	อัตรา 1% (e-Withholding Tax)	1% 電子源泉徴収税率	cowork.tax.issue.ewht_check
+Under 1,000 baht	低于 1,000 泰铢	ต่ำกว่า 1,000 บาท	1,000 バーツ未満	cowork.tax.issue.below_threshold
+Condition code not allowed	条件码不适用	เงื่อนไขไม่ถูกต้อง	条件コードが無効	cowork.tax.issue.condition_invalid
+Income type not on this form	此表不含该所得类型	ประเภทเงินได้ไม่อยู่ในแบบนี้	この様式にない所得の種類	cowork.tax.issue.form_type_mismatch
+Name suggests P.N.D.3	名称显示应为 ภ.ง.ด.3	ชื่อบ่งว่าเป็น ภ.ง.ด.3	名称から ภ.ง.ด.3 の可能性	cowork.tax.issue.form_name_mismatch
+Amount not read	金额未读出	อ่านจำนวนเงินไม่ได้	金額を読めない	cowork.tax.issue.amount_unreadable
+Payment date assumed	付款日为推定	วันที่จ่ายเป็นวันที่สันนิษฐาน	支払日は推定	cowork.tax.issue.payment_date_assumed
+Payer not clear	付款方不明	ไม่ชัดเจนว่าใครเป็นผู้จ่าย	支払者が不明	cowork.tax.issue.certificate_direction_unclear
+Certificate received from a customer	客户开给本公司的凭证	หนังสือรับรองที่ได้รับจากลูกค้า	顧客から受け取った証明書	cowork.tax.issue.certificate_received
+Parties not read	双方未读出	อ่านข้อมูลคู่สัญญาไม่ได้	当事者を読めない	cowork.tax.issue.certificate_parties_unreadable
+Invoice and certificate do not match	票据与凭证对不上	เอกสารกับหนังสือรับรองไม่ตรงกัน	請求書と証明書が合わない	cowork.tax.issue.pairing_unclear
+Company tax ID not on the document	票面无本公司税号	ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร	書類に自社の納税者番号なし	cowork.tax.issue.buyer_unconfirmed
+Duplicate	重复	รายการซ้ำ	重複	cowork.tax.issue.duplicate_document
+Form	表	แบบ	様式	cowork.tax.col.form
+Payees	收款方数	จำนวนราย	受取人数	cowork.tax.col.payees
+Sheets	页数	จำนวนแผ่น	枚数	cowork.tax.col.sheets
+Total income paid	支付总额	รวมยอดเงินได้ทั้งสิ้น	支払総額	cowork.tax.col.total_paid
+Total tax remitted	代缴税额合计	รวมยอดภาษีที่นำส่งทั้งสิ้น	納付税額の合計	cowork.tax.col.total_tax
+Surcharge	附加费	เงินเพิ่ม	加算金	cowork.tax.col.surcharge
+Total tax and surcharge	税款与附加费合计	รวมยอดภาษีที่นำส่งทั้งสิ้น และเงินเพิ่ม	税額と加算金の合計	cowork.tax.col.total_due
+Sheet	页	แผ่นที่	シート	cowork.tax.col.sheet
+Payee tax ID	收款方税号	เลขประจำตัวผู้เสียภาษีอากร (ของผู้มีเงินได้)	受取人の納税者番号	cowork.tax.col.payee_tax_id
+Payee	收款方	ชื่อผู้มีเงินได้	受取人	cowork.tax.col.payee_name
+Title	称谓	คำนำหน้าชื่อ	敬称	cowork.tax.col.title
+First name	名	ชื่อ	名	cowork.tax.col.first_name
+Last name	姓	ชื่อสกุล	姓	cowork.tax.col.last_name
+Address	地址	ที่อยู่	住所	cowork.tax.col.address
+Date paid	支付日期	วัน เดือน ปี ที่จ่าย	支払日	cowork.tax.col.paid_on
+Type of income paid	所得类型	ประเภทเงินได้พึงประเมินที่จ่าย	支払った所得の種類	cowork.tax.col.income_type
+Tax rate %	税率 %	อัตราภาษีร้อยละ	税率 %	cowork.tax.col.rate
+Amount paid	支付金额	จำนวนเงินที่จ่ายในครั้งนี้	今回の支払額	cowork.tax.col.paid
+Tax withheld and remitted	代扣代缴税额	จำนวนเงินภาษีที่หักและนำส่งในครั้งนี้	今回の源泉徴収・納付税額	cowork.tax.col.withheld
+Condition	条件	เงื่อนไข	条件	cowork.tax.col.condition
+Total income and tax remitted	收入与代缴税额合计	รวมยอดเงินได้และภาษีที่นำส่ง	所得と納付税額の合計	cowork.tax.sheet_total
+Income type to choose	待选所得类型	ประเภทเงินได้ที่ต้องระบุ	選ぶ必要がある所得の種類	cowork.tax.review.questions
+Not included	未计入	ไม่ได้รวมในแบบ	未計上	cowork.tax.review.excluded
+Nothing withheld on the invoice	票面未扣税	ใบกำกับภาษีไม่ได้หักภาษี ณ ที่จ่าย	インボイスに源泉徴収なし	cowork.tax.review.suggestions
+Other records	其他记录	รายการอื่น	その他の記録	cowork.tax.review.notes
+Category	分类	หมวด	カテゴリ	cowork.tax.col.category
+Rows	笔数	จำนวนรายการ	件数	cowork.tax.col.rows
+Suggested	建议	ที่แนะนำ	候補	cowork.tax.col.suggested
+Service fees	服务费	ค่าบริการ	サービス料	cowork.tax.income.service
+Hire of work	承揽费	ค่าจ้างทำของ	請負料	cowork.tax.income.hire_of_work
+Professional fees	专业服务费	ค่าวิชาชีพอิสระ	専門職報酬	cowork.tax.income.professional
+Rent	租金	ค่าเช่า	賃借料	cowork.tax.income.rent
+Advertising	广告费	ค่าโฆษณา	広告費	cowork.tax.income.advertising
+Sales promotion	促销奖励	ส่งเสริมการขาย	販売促進	cowork.tax.income.promotion
+Prizes	奖金	ค่ารางวัล	賞金	cowork.tax.income.prize
+Transport	运费	ค่าขนส่ง	運送料	cowork.tax.income.transport
+Non-life insurance premiums	财产保险费	เบี้ยประกันวินาศภัย	損害保険料	cowork.tax.income.insurance
+Interest	利息	ดอกเบี้ย	利息	cowork.tax.income.interest
+Dividends	股息	เงินปันผล	配当	cowork.tax.income.dividend
+Commission	佣金	ค่านายหน้า	手数料	cowork.tax.income.commission
+Other	其他	อื่นๆ	その他	cowork.tax.income.other
+The tax month is not valid.	税期无效。	เดือนภาษีไม่ถูกต้อง	課税月が無効です。	tax.period_invalid
+Choose a connection and account set.	请选择连接与账套。	กรุณาเลือกการเชื่อมต่อและชุดบัญชี	接続と帳簿を選んでください。	tax.request_invalid
+The option is not valid.	选项无效。	ตัวเลือกไม่ถูกต้อง	オプションが無効です。	tax.option_invalid
+Enter the company's 13-digit tax ID.	请输入公司的 13 位税号。	กรุณาระบุเลขประจำตัวผู้เสียภาษี 13 หลักของบริษัท	会社の 13 桁の納税者番号を入力してください。	tax.company_invalid
+The answer is not valid.	回答无效。	คำตอบไม่ถูกต้อง	回答が無効です。	tax.answer_invalid
 {0} files	{0} 个文件	{0} ไฟล์	{0} 件のファイル	cowork.recon.files
 Period	期间	งวด	期間	cowork.recon.col.period
 Invoices	发票数	จำนวนใบกำกับภาษี	請求書数	cowork.recon.col.invoices
@@ -1376,6 +1534,35 @@ Value	值	ค่า	値
 Source Task	来源任务	งานต้นทาง	元のタスク	
 Set By	设定人	ตั้งโดย	設定者	
 Set At	设定时间	เวลาที่ตั้ง	設定日時	
+Cowork Tax Draft	Cowork 报税草稿	ร่างแบบยื่นภาษี Cowork	Cowork 税務申告の下書き
+Cowork WHT Choice	Cowork 预扣税所得类型	ประเภทเงินได้ภาษีหัก ณ ที่จ่าย Cowork	Cowork 源泉徴収の所得種類
+Cowork WHT Certificate	Cowork 预扣税凭证参考	หนังสือรับรองการหักภาษี ณ ที่จ่าย (อ้างอิง) Cowork	Cowork 源泉徴収票（参照）
+Cowork Tax Filing	报税草稿	ร่างแบบยื่นภาษี	税務申告の下書き
+A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.	一家公司一个月的增值税申报（ภ.พ.30）或预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿。	ร่างแบบ ภ.พ.30 หรือ ภ.ง.ด.3 / ภ.ง.ด.53 ของหนึ่งบริษัทในหนึ่งเดือน	1社・1か月分の付加価値税申告（ภ.พ.30）または源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書き。
+The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.	预扣税收款方的所得类型，问一次记住：按收款方税号，或按识别出的分类。	ประเภทเงินได้ของผู้มีเงินได้ ถามครั้งเดียวแล้วจำไว้ ตามเลขประจำตัวผู้เสียภาษีหรือตามหมวดที่อ่านได้	源泉徴収の受取人の所得種類。一度だけ確認して記憶します（受取人の納税者番号、または認識したカテゴリ別）。
+A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.	公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的已识别 50 ทวิ。不是票据：不推送、不计费。	หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ที่อ่านแล้ว เก็บไว้สำหรับร่าง ภ.ง.ด.3 / ภ.ง.ด.53 เมื่อบริษัทเลือกไม่บันทึกหนังสือรับรอง ไม่ใช่ใบกำกับภาษี ไม่ส่งข้อมูลและไม่คิดค่าบริการ	会社が源泉徴収票を取り込まない設定のとき、ภ.ง.ด.3 / ภ.ง.ด.53 の下書き用に保管する認識済みの 50 ทวิ。請求書ではないため、連携も課金もしません。
+Return Type	申报类型	ประเภทแบบ	申告の種類
+Tax Month	税期	เดือนภาษี	課税月
+Taxpayer ID	纳税人识别号	เลขประจำตัวผู้เสียภาษีอากร	納税者番号
+Company Name	公司名称	ชื่อบริษัท	会社名
+Connection	连接	การเชื่อมต่อ	接続
+Readback	回读	อ่านกลับ	読み戻し
+Issues	问题	ปัญหา	指摘
+Tax Amount	税额	จำนวนภาษี	税額
+Summary	汇总	สรุป	概要
+Payee	收款方	ผู้มีเงินได้	受取人
+Income Type	所得类型	ประเภทเงินได้	所得の種類
+Income Description	所得说明	รายละเอียดเงินได้	所得の説明
+Return Form	申报表	แบบที่ยื่น	申告様式
+Condition	条件	เงื่อนไข	条件
+Source Draft	来源草稿	ร่างต้นทาง	元の下書き
+Recognition Batch	识别批次	ชุดการอ่านเอกสาร	認識バッチ
+Page	页	หน้า	ページ
+Payment Date	付款日期	วันที่จ่าย	支払日
+Buyer Tax ID	买方税号	เลขประจำตัวผู้เสียภาษีของผู้ซื้อ	購入者の納税者番号
+Tax Withheld	已扣税额	ภาษีที่หักไว้	源泉徴収税額
+Recognized Fields	识别字段	ข้อมูลที่อ่านได้	認識した項目
+Created At	创建时间	เวลาที่สร้าง	作成日時
 Group	组	กลุ่ม	グループ	
 Does {0} post in batches?	{0} 是否汇总入账？	{0} ลงบัญชีแบบรวมยอดหรือไม่	{0} はまとめて入金されますか	reconciliation.preset.grouped_title
 Bank {0}: one line {1}	银行 {0} 一笔 {1}	ธนาคาร {0}: 1 รายการ {1}	銀行 {0}：1 件 {1}	reconciliation.preset.evidence_stmt
@@ -1847,6 +2034,10 @@ Answered a reconciliation question	回答了对账的问题	ตอบคำถ�
 Checked reconciliation presets	查看了对账预设	ตรวจสอบค่าที่ตั้งไว้ของการกระทบยอดแล้ว	照合の既定値を確認しました
 Exported a reconciliation	导出了对账结果	ส่งออกผลการกระทบยอดแล้ว	照合結果を書き出しました
 Deleted reconciliations	删除了对账	ลบการกระทบยอดแล้ว	照合を削除しました
+Drafted a VAT return	起草了增值税申报表	ร่างแบบ ภ.พ.30 แล้ว	付加価値税申告の下書きを作成しました
+Drafted a withholding tax return	起草了预扣税申报表	ร่างแบบ ภ.ง.ด.3 / ภ.ง.ด.53 แล้ว	源泉徴収税申告の下書きを作成しました
+Answered a withholding tax question	回答了预扣税的问题	ตอบคำถามภาษีหัก ณ ที่จ่ายแล้ว	源泉徴収税の質問に回答しました
+Deleted tax drafts	删除了报税草稿	ลบร่างแบบภาษีแล้ว	税務申告の下書きを削除しました
 Deleted documents	删除了单据	ลบเอกสารแล้ว	書類を削除しました
 Exported the review workbook	导出了复核工作簿	ส่งออกสมุดงานตรวจทานแล้ว	確認用ワークブックを書き出しました
 Checked push choices	查看了推送前要选的项	ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว	送信前の選択項目を確認しました

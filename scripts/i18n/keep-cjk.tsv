@@ -14,6 +14,7 @@
 #   3. **规格与元数据**：产品清单的"禁止事项"、app 描述 —— 不进任何界面，是给开发/审计看的。
 apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py	*	输入词：客户旧盘点表的表头别名（中/泰/日），按原字面认表，翻了就认不出；模板表头本身走词条
 apps/pearnly_cowork/pearnly_cowork/reconciliation/export/summary.py	*	规格：银行对账工作簿标题四语表，按导出语言取词
+apps/pearnly_cowork/pearnly_cowork/tax/thai_words.py	*	输入词：Express 摘要与票面名称里的泰文原词（อย่างย่อ、非法人前缀、称谓），按原字面认，翻了就认不出；界面文案走词条
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	解绑	输入词：同上，ERP 的 LINE 通道收同一组解绑词
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	ยกเลิกการผูก	输入词：同上，ERP 的 LINE 通道收同一组解绑词
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	ยกเลิกการเชื่อมต่อ	输入词：同上，ERP 的 LINE 通道收同一组解绑词

@@ -60,12 +60,12 @@ class CatalogContract(unittest.TestCase):
     def test_feature_counts_are_unchanged(self):
         self.assertEqual(
             {product: len(d["features"]) + 1 for product, d in DECLARATIONS.items()},
-            {"cowork": 9, "erp": 10, "dms": 6},
+            {"cowork": 10, "erp": 10, "dms": 6},
         )
 
     def test_cowork_codes_are_the_declared_set(self):
         self.assertEqual([item["code"] for item in DECLARATIONS["cowork"]["features"]],
-            ["intake", "ocr_history", "push_log", "recon", "master_data", "stocktake",
+            ["intake", "ocr_history", "push_log", "recon", "tax_drafts", "master_data", "stocktake",
              "companion", "express_guide"])
 
     def test_the_features_that_start_switched_off_are_the_declared_ones(self):
@@ -79,11 +79,13 @@ class CatalogContract(unittest.TestCase):
                        for product, d in DECLARATIONS.items() for item in d["features"]
                        if item["role"]}
         self.assertEqual(enforcement[("cowork", "intake")], ("Cowork Intake", ["Intake Record"]))
+        # 报税草稿（2026-10-13）：一个角色管 ภ.พ.30 与 ภ.ง.ด.3 / 53 草稿
+        self.assertEqual(enforcement[("cowork", "tax_drafts")], ("Cowork Tax Filing", ["Cowork Tax Draft"]))
         self.assertEqual(enforcement[("dms", "roster")], ("DMS Operator", ["DMS Operator"]))
         self.assertEqual(enforcement[("erp", "clients")],
             ("ERP Sales", ["ERP Customer", "ERP Company"]))
         self.assertEqual(enforcement[("erp", "cashier")][0], "ERP Cashier")
-        self.assertEqual(len(enforcement), 12)
+        self.assertEqual(len(enforcement), 13)
 
     def test_a_feature_without_a_role_does_not_pretend_to_have_one(self):
         for product, declaration in DECLARATIONS.items():

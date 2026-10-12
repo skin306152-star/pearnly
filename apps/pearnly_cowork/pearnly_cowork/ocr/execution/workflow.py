@@ -18,7 +18,7 @@ from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, preview_record, preview_spec, stored_original
 from pearnly_cowork.files.access import reference_count, reference_kind
-from pearnly_cowork.history import document_policy
+from pearnly_cowork.history import certificates, document_policy
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
@@ -205,11 +205,12 @@ def _persist(doc):
     if result.engine == roundtrip.ENGINE:
         require_links(result, doc.workspace, doc.client)
     with core_work.step("persist_prepare"):
+        policy = document_policy.read(doc.workspace)
         plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
             source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
             payment=doc.get("payment") or None,  # 库里的空值＝入口没选，不是非法值
             reference_kind=doc.get("reference_kind") or "physical_page",
-            document_policy=document_policy.read(doc.workspace))
+            document_policy=policy)
     previews = (getattr(doc, "flags", None) or {}).get("cowork_previews")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
@@ -222,6 +223,10 @@ def _persist(doc):
             if plan["groups"] else [])
     with core_work.step("persist_targets"):
         _copy_targets(doc, rows)
+    # 选了「不录入」的 50 ทวิ：同一事务里存参考记录给报税草稿（不成票、不推送、不改计费，用户 2026-10-13）
+    if result.engine != roundtrip.ENGINE:
+        with core_work.step("persist_certificates"):
+            certificates.keep_skipped(doc, plan.get("raw_pages") or [], policy)
     doc.history_records = store.encode([r["name"] for r in rows])
     doc.phase = "saved" if rows else "not_invoice"
     doc.billing_state = "pending" if rows else "not_billable"

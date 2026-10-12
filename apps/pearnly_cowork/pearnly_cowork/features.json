@@ -51,6 +51,17 @@
       "read_only": []
     },
     {
+      "code": "tax_drafts",
+      "label": "Tax Return Drafts",
+      "default_on": true,
+      "description": "VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks",
+      "role": "Cowork Tax Filing",
+      "doctypes": [
+        "Cowork Tax Draft"
+      ],
+      "read_only": []
+    },
+    {
       "code": "master_data",
       "label": "Master Data",
       "default_on": true,
