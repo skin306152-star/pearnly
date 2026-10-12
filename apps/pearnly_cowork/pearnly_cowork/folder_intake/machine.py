@@ -223,7 +223,7 @@ def _brief_slot(rule, trigger, row, new_files, name):
     if trigger == "manual":
         found = frappe.db.sql(f"""SELECT name, slot_at, brief_group FROM `tab{RUN}` WHERE brief_state = 'pending'
             AND run_owner = %s AND `trigger` = 'manual' AND IFNULL(note, '') != 'retry' AND started_at >= %s
-            ORDER BY started_at DESC LIMIT 1""", (rule.rule_owner, now_datetime() - contracts.BRIEF_SETTLE), as_dict=True)
+            ORDER BY started_at DESC LIMIT 1""", (rule.rule_owner, now_datetime() - contracts.BRIEF_BATCH), as_dict=True)
         return {"slot_at": None, "brief_state": "pending", "brief_group": contracts.group_of(found[0]) if found else name}
     now = time.time()
     slot = contracts.run_slot(row.get("slot"), now)

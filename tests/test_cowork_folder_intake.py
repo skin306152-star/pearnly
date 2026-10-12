@@ -535,25 +535,26 @@ class ResultTally(unittest.TestCase):
         return Row(name=name, run_owner=owner, slot_at=slot, started_at=started, scanned_at=started if scanned else None,
                    **extra)
 
-    def test_a_brief_waits_for_every_file_and_ten_quiet_minutes(self):
+    def test_a_brief_waits_for_every_file_and_three_quiet_minutes(self):
         runs = [self._run("U1"), self._run("U2", started=datetime(2026, 10, 14, 8, 5))]
         files = {"U1": [Row(state="done")], "U2": [Row(state="submitted", registered_at=datetime(2026, 10, 14, 8, 5))]}
         self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 9, 0)), ([], []))
         files["U2"][0]["state"] = "not_invoice"
-        self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 14)), ([], []))
-        ready, stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 15))
+        self.assertEqual(contracts.BRIEF_SETTLE, timedelta(minutes=3))
+        self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 7)), ([], []))
+        ready, stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 8))
         self.assertEqual((ready, stale), ([{"owner": "o", "slot_at": datetime(2026, 10, 14, 8, 0), "reader": "",
                                             "runs": ["U1", "U2"], "complete": True}], []))
         runs[0]["scanned_at"] = None  # 还没扫描完的运行
         self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 15)), ([], []))
 
-    def test_ten_quiet_minutes_count_from_the_last_file_that_finished(self):
-        """business-logic-4：「全部到终态后再等 10 分钟」——最后一份文件 08:40 才走完，08:50 才发。"""
+    def test_quiet_minutes_count_from_the_last_file_that_finished(self):
+        """business-logic-4：「全部到终态后再等几分钟」——最后一份文件 08:40 才走完，08:43 才发。"""
         runs = [self._run("U1")]
         files = {"U1": [Row(state="done", finished_at=datetime(2026, 10, 14, 8, 20)),
                         Row(state="not_invoice", finished_at=datetime(2026, 10, 14, 8, 40))]}
-        self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 49)), ([], []))
-        ready, _stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 50))
+        self.assertEqual(contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 42)), ([], []))
+        ready, _stale = contracts.brief_groups(runs, files, datetime(2026, 10, 14, 8, 43))
         self.assertEqual([(group["runs"], group["complete"]) for group in ready], [(["U1"], True)])
 
     def test_a_stuck_brief_goes_after_thirteen_hours_and_old_ones_are_dropped(self):

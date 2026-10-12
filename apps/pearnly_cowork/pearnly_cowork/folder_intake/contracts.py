@@ -665,7 +665,10 @@ def not_uploaded(runs: List[Mapping]) -> int:
 
 
 # ── 完成简报（F3，2026-10-12）：一份 = 同一负责人 + 同一定时时刻（或同一批立即运行）+ 同一台电脑 ─────────────
-BRIEF_SETTLE = timedelta(minutes=10)   # 最近一次运行开始、最后一份文件走完都满这么久才发；立即运行相隔这么久之内算同一批
+# 最近一次运行开始、最后一份文件走完都满这么久才发（2026-10-13 由 10 分钟缩短：简报已按电脑分开，同一台电脑同一轮的
+# 运行记录在下一次同步一起报上来，不再等别的电脑；留几分钟给补传与晚到的运行记录）
+BRIEF_SETTLE = timedelta(minutes=3)
+BRIEF_BATCH = timedelta(minutes=10)   # 同一负责人的立即运行相隔这么久之内算同一批（CC 一次点几个任务出一份简报）
 BRIEF_MAX_WAIT = ORDER_MAX_WAIT + timedelta(hours=1)  # 最多等这么久，到时带「处理中」照发（存货销售最多等进货 12 小时）
 BRIEF_LOOKBACK = timedelta(days=3)     # 更早的不再发
 

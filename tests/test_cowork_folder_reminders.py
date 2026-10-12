@@ -2,7 +2,7 @@
 
 - 提醒：运行前一天 08:00 / 14:00 各一次；同一负责人、同一运行时刻、同一时段合成一条，最多列 10 个；先查去重键再做权限复核；
   负责人没权限的任务不提醒；打开提醒之前的时段不补发；按负责人语言写好；挂在最近在 CC 里改过的那段对话上；
-- 简报：一份 = 同一负责人 + 同一定时时刻，立即运行单独一份；文件都走完且安静 10 分钟才发，最多等 13 小时带「处理中」；
+- 简报：一份 = 同一负责人 + 同一定时时刻，立即运行单独一份；文件都走完且安静 3 分钟才发，最多等 13 小时带「处理中」；
   3 天前的不发；按 run_owner 复核权限；同键已发过也记成 sent；数字与任务列表同一个口径；
 - 调度入口两样互不影响；只在 Cowork 站点跑。
 
@@ -383,7 +383,7 @@ class Briefs(Harness):
         stuck = self.file_row("U1", state="submitted")
         self.assertEqual(self.brief("2026-10-14 08:30"), [])
         stuck.state = "failed"
-        self.assertEqual(self.brief("2026-10-14 08:10"), [])  # 最近一次运行开始还不到 10 分钟
+        self.assertEqual(self.brief("2026-10-14 08:03"), [])  # 最近一次运行开始（08:01）还不到 3 分钟
         sent = self.brief("2026-10-14 08:30")
         self.assertEqual(len(sent), 1)
         self.assertEqual((sent[0].user, sent[0].kind, sent[0].title, sent[0].refs, sent[0].ttl, sent[0].conversation),
