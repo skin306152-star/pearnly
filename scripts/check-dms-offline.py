@@ -35,6 +35,7 @@ UNIT_TESTS = (
     "tests/test_dms_booking_customer_gapfill.py",
     "tests/test_dms_booking_outcome.py",
     "tests/test_dms_booking_attach_repair.py",
+    "tests/test_dms_login_retry.py",
 )
 
 if __name__ == "__main__":

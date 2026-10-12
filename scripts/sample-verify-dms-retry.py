@@ -112,6 +112,14 @@ def main():
                 parents[node.name] = getattr(base, "id", "")
     check("「连不上」是技术失败的子类（上层能靠码区分）",
           parents.get("DmsUnreachableError") == "DmsTechnicalError", parents.get("DmsUnreachableError"))
+    check("「登录页都没打开」是「连不上」的子类（码不变；只有它允许写入任务自动再试一次）",
+          parents.get("DmsLoginPageUnreachableError") == "DmsUnreachableError",
+          parents.get("DmsLoginPageUnreachableError"))
+    booking_rule = _func(_tree("apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py"),
+                         "_retryable_result")
+    check("订车的重试判据用的就是共用口径（建档与订车只有一份「连不上 / 网络异常」名单）",
+          booking_rule is not None and "is_retryable" in _called_names(booking_rule)
+          and "ERR_DMS_UNREACHABLE" not in ast.dump(booking_rule))
     login = _func(session, "_perform_login")
     budget_targets = [n.value.id for n in ast.walk(login)
                       if isinstance(n, ast.Assign) and isinstance(n.value, ast.BinOp)] if login else []
