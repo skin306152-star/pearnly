@@ -1446,6 +1446,7 @@ Same day	当天	วันเดียวกัน	当日	cowork.folder.remind.sa
 Day before	前 1 天	ล่วงหน้า 1 วัน	前日	cowork.folder.remind.dayBefore
 {0} days before	前 {0} 天	ล่วงหน้า {0} วัน	{0} 日前	cowork.folder.remind.daysBefore
 Add time	添加时间	เพิ่มเวลา	時間を追加	cowork.folder.remind.add
+A same-day reminder must be earlier than the run time.	当天提醒要早于运行时间	การแจ้งเตือนในวันเดียวกันต้องก่อนเวลาทำงาน	当日のリマインドは実行時刻より前にしてください	cowork.folder.remind_same_day
 Default handling for this folder	默认处理	การจัดการเริ่มต้น	既定の処理	cowork.folder.section.defaults
 When the document does not show cash or credit	票面未注明现购 / 赊购	เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ	現金・掛けが書類から分からない場合	cowork.folder.default.payment
 VAT on receipts and abbreviated tax invoices	收据、简易税票上的税额	ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ	領収書・簡易税請求書の税額	cowork.folder.default.vat

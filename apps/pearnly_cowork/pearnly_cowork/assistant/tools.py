@@ -1985,9 +1985,10 @@ FOLDER_TASK_PROPS = {
                               "folder; the reminder is posted in the latest chat it was saved or turned on from. Left "
                               "out keeps the current setting; new tasks start off."},
     "remind_times": {"type": "array", "maxItems": folder_contracts.REMIND_MAX,
-                     "description": "When to remind, Bangkok time: days_before the run day (0 = the run day itself) "
-                                    "and time HH:MM. Default: the day before at 08:00 and 14:00. Giving it turns the "
-                                    "reminder on; left out keeps the current times.",
+                     "description": "When to remind, Bangkok time: days_before the run day (0 = the run day itself, "
+                                    "then the time must be earlier than run_time) and time HH:MM. Default: the day "
+                                    "before at 08:00 and 14:00. Giving it turns the reminder on; left out keeps the "
+                                    "current times.",
                      "items": {"type": "object", "additionalProperties": False,
                                "properties": {"days_before": {"type": "integer", "minimum": 0,
                                                               "maximum": folder_contracts.REMIND_DAYS},

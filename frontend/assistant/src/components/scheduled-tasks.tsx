@@ -121,6 +121,10 @@ const days = (tr: Tr) => [
 const TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 const REMIND_MAX = 3;
 const DEFAULT_REMIND: RemindTime[] = [{ days_before: 1, time: "08:00" }, { days_before: 1, time: "14:00" }];
+// 「添加时间」依次给出还没有的那一个（Desk 空行同一顺序）；当天的要早于运行时间，服务端会拒，所以不拿当天当默认
+const REMIND_NEXT: RemindTime[] = [...DEFAULT_REMIND, { days_before: 2, time: "08:00" }, { days_before: 1, time: "18:00" }];
+const nextRemind = (rows: RemindTime[]) =>
+  REMIND_NEXT.find((c) => !rows.some((r) => r.days_before === c.days_before && r.time === c.time)) ?? REMIND_NEXT[0]!;
 const remindDays = (tr: Tr) => Array.from({ length: 8 }, (_, d) => ({
   value: String(d),
   label: d === 0 ? tr("cowork.folder.remind.sameDay") : d === 1 ? tr("cowork.folder.remind.dayBefore") : tr("cowork.folder.remind.daysBefore", d),
@@ -831,7 +835,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
                   type="button"
                   className="cc-btn self-start"
                   disabled={!enabled}
-                  onClick={() => setRemindTimes((rows) => [...rows, { days_before: 0, time: "08:00" }])}
+                  onClick={() => setRemindTimes((rows) => [...rows, nextRemind(rows)])}
                 >
                   <PlusIcon className="size-4" />
                   {tr("cowork.folder.remind.add")}

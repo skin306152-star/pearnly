@@ -436,6 +436,23 @@ class ScheduleSlots(unittest.TestCase):
         self.assertEqual([contracts.remind_label(item) for item in expected], ["3d16:45", "0d06:59", "0d07:05"])
         self.assertEqual(contracts.remind_label({"days_before": 1, "time": "08:30"}), "1d08:30")
 
+    def test_a_same_day_reminder_must_be_earlier_than_the_run_time(self):
+        """当天的提醒不早于运行时间就永远发不出：给了运行时间就拒（`cowork.folder.remind_same_day`），不静默存下；
+        前几天的提醒任何时间都行；不给运行时间（发提醒时读库）不查。"""
+        same_day = [{"days_before": 0, "time": "21:59"}, {"days_before": 1, "time": "23:30"}]
+        self.assertEqual(contracts.remind_times(same_day, "22:00"),
+                         [{"days_before": 1, "time": "23:30"}, {"days_before": 0, "time": "21:59"}])
+        self.assertEqual(len(contracts.remind_times(same_day, "22:00:00")), 2)  # 库里可能带秒
+        for late in ("22:00", "22:01", "23:59"):
+            with self.assertRaises(contracts.ContractError) as caught:
+                contracts.remind_times([{"days_before": 0, "time": late}], "22:00")
+            self.assertEqual(caught.exception.code, "cowork.folder.remind_same_day")
+        with self.assertRaises(contracts.ContractError):
+            contracts.remind_times([{"days_before": 0, "time": "00:00"}], "00:00")  # 运行在 00:00：当天没有更早的
+        self.assertEqual(len(contracts.remind_times([{"days_before": 0, "time": "23:00"}])), 1)
+        self.assertEqual(len(contracts.remind_times([{"days_before": 0, "time": "23:00"}], "")), 1)
+        self.assertEqual(contracts.remind_times(None, "00:00"), contracts.DEFAULT_REMIND_TIMES)
+
     def test_reminder_windows_for_chosen_times(self):
         def slot(*now, times, since=0.0, day=14, at="22:00"):
             hit = contracts.reminder_slot(self._at(*now), day, at, since, times)
@@ -1254,7 +1271,7 @@ class TaskSources(unittest.TestCase):
             rows = {row["key"]: row for row in csv.DictReader(handle, delimiter="\t") if row.get("key")}
         keys = ("cowork.folder.field.remind", "cowork.folder.field.remindDay", "cowork.folder.field.remindTime",
                 "cowork.folder.remind.sameDay", "cowork.folder.remind.dayBefore", "cowork.folder.remind.daysBefore",
-                "cowork.folder.remind.add", "cowork.folder.remind.date")
+                "cowork.folder.remind.add", "cowork.folder.remind.date", "cowork.folder.remind_same_day")
         for key in keys:
             placeholders = set(re.findall(r"\{\d\}", rows[key]["en"]))
             for lang in ("en", "zh", "th", "ja"):
@@ -1265,6 +1282,12 @@ class TaskSources(unittest.TestCase):
         self.assertEqual(rows["cowork.folder.field.remind"]["zh"], "提醒")
         self.assertEqual((rows["cowork.folder.remind.sameDay"]["zh"], rows["cowork.folder.remind.daysBefore"]["zh"]),
                          ("当天", "前 {0} 天"))
+        self.assertEqual(rows["cowork.folder.remind_same_day"]["zh"], "当天提醒要早于运行时间")
+        # 空行的提醒日按同一顺序取还没有的（同 CC 任务页「添加时间」），时间空着不存；不拿「当天」当默认
+        self.assertIn('const REMIND_NEXT = [...DEFAULT_REMIND, {days_before: 2, time: "08:00"}, {days_before: 1, time: "18:00"}];',
+                      source)
+        self.assertIn("while (rows.length < REMIND_MAX) rows.push({...next_remind(rows), spare: true});", source)
+        self.assertIn('default: item.spare ? "" : `${item.time}:00`},', source)
         self.assertEqual(rows["cowork.folder.remind.one"]["zh"], "「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。")
 
 

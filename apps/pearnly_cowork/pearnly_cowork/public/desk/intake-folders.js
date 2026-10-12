@@ -24,6 +24,10 @@
 	// 08:00、14:00（与服务端 `contracts.DEFAULT_REMIND_TIMES` 同一组）。
 	const REMIND_MAX = 3;
 	const DEFAULT_REMIND = [{days_before: 1, time: "08:00"}, {days_before: 1, time: "14:00"}];
+	// 空行的提醒日按这个顺序取还没有的那一个（同 CC 任务页「添加时间」）；当天的要早于运行时间，服务端会拒，不拿它当默认。
+	const REMIND_NEXT = [...DEFAULT_REMIND, {days_before: 2, time: "08:00"}, {days_before: 1, time: "18:00"}];
+	const next_remind = rows => REMIND_NEXT.find(item => !rows.some(row => row.days_before === item.days_before
+		&& row.time === item.time)) || REMIND_NEXT[0];
 	const remind_days = () => Array.from({length: 8}, (_, days) => ({value: String(days), label: days === 0
 		? ft("cowork.folder.remind.sameDay") : days === 1 ? ft("cowork.folder.remind.dayBefore")
 		: ft("cowork.folder.remind.daysBefore", days)}));
@@ -448,16 +452,19 @@
 		return d;
 	}
 
-	/** 提醒时刻的三行（勾上「提醒」才显示）：提醒日（当天 / 前 N 天）｜提醒时间（原生 Time 控件，分钟可任选）。 */
+	/** 提醒时刻的三行（勾上「提醒」才显示）：提醒日（当天 / 前 N 天）｜提醒时间（原生 Time 控件，分钟可任选）。
+	 * 没用上的行时间空着（空着就不存），提醒日按 `REMIND_NEXT` 的顺序预选。 */
 	function remind_fields(times) {
-		return Array.from({length: REMIND_MAX}, (_, i) => [
+		const rows = times.slice(0, REMIND_MAX);
+		while (rows.length < REMIND_MAX) rows.push({...next_remind(rows), spare: true});
+		return rows.flatMap((item, i) => [
 			{fieldtype: "Section Break", hide_border: 1, depends_on: "eval:doc.remind"},
 			{fieldtype: "Select", fieldname: `remind_day_${i}`, label: i ? "" : ft("cowork.folder.field.remindDay"),
-				options: remind_days(), default: String(times[i]?.days_before ?? 1)},
+				options: remind_days(), default: String(item.days_before)},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Time", fieldname: `remind_time_${i}`, label: i ? "" : ft("cowork.folder.field.remindTime"),
-				default: times[i] ? `${times[i].time}:00` : ""},
-		]).flat();
+				default: item.spare ? "" : `${item.time}:00`},
+		]);
 	}
 
 	/** 运行记录：每次扫了几份、传了几份；推完的按发票算已推送 / 待处理（与列表「结果」同一口径），

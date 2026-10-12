@@ -205,7 +205,8 @@ def save(values, *, cc_session=None):
     那些已有文件多半已由停用的任务处理过，台账按任务记、认不出来，再录一遍就重复记账。`remind` 带了才改（网页表单、
     CC 不带就保留原值，新任务默认关）；`remind_times` 带了才改，带了而没带 `remind` 就是要提醒（打开）。提醒开着时，
     刚打开、换了负责人、改了运行日 / 时间或提醒时刻，`remind_since` 记成现在（这之前的提醒时段不补发）。
-    `cc_session` 只从参数取。"""
+    提醒开着时每个提醒都要发得出：「当天」的要早于运行时间，改运行时间让已有的当天提醒发不出也一样拒
+    （`cowork.folder.remind_same_day`）。`cc_session` 只从参数取。"""
     _require()
     values = json.loads(values) if isinstance(values, str) else values
     if not isinstance(values, dict):
@@ -274,6 +275,8 @@ def save(values, *, cc_session=None):
         rule.remind = 0
     if times is not None:
         rule.remind_times = json.dumps(times)
+    if int(rule.remind or 0):
+        _fires(rule)
     if int(rule.remind or 0) and _reminding(rule) != previous:
         rule.remind_since = now_datetime()
     ref = contracts.session_ref(cc_session)
@@ -289,6 +292,14 @@ def _reminding(rule):
     """提醒这一组：开着与否、负责人、运行日、运行时间、提醒时刻 —— 任一变了（且提醒开着）就从现在起算，之前的时段不补发。"""
     return [int(rule.get("remind") or 0), rule.get("rule_owner"), int(rule.get("run_day") or 0), rule.get("run_time"),
             _times(rule)]
+
+
+def _fires(rule):
+    """提醒开着时每个提醒时刻都要发得出：「当天」的时间要早于运行时间（否则永远不发），不静默存下。"""
+    try:
+        contracts.remind_times(_times(rule), rule.get("run_time"))
+    except contracts.ContractError as error:
+        _error(error)
 
 
 def _times(rule):
@@ -400,7 +411,7 @@ def _share(connection, root):
 
 def set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_session=None):
     """启用 / 停用、开关提醒、改提醒时刻（``None`` = 不变；网页 `api.set_enabled(name, enabled)` 只管启停）。
-    给了 `remind_times` 而没给 `remind` 就是要提醒（打开）。
+    给了 `remind_times` 而没给 `remind` 就是要提醒（打开）；这次动了提醒而提醒开着时，当天的提醒要早于运行时间。
 
     重新启用时「启用时刻」改成现在、负责人换成启用的人。新任务（`include_existing`）不重新拍底：启用时刻只当排程下限
     （启用当下不补跑已错过的时刻），到点照样处理停用期间放进来、还没处理过的文件；老任务照旧重新拍底，这之前放进
@@ -436,6 +447,8 @@ def set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_sessio
     if remind is not None and _flag(remind) != int(rule.remind or 0):
         rule.remind = _flag(remind)
         changed = True
+    if remind is not None and int(rule.remind or 0):
+        _fires(rule)
     if int(rule.remind or 0) and _reminding(rule) != previous:
         rule.remind_since = now_datetime()
         changed = True

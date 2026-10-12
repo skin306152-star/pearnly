@@ -1239,7 +1239,7 @@ class FolderTaskDeclarationTests(unittest.TestCase):
         self.assertEqual((item["required"], item["additionalProperties"]), (["days_before", "time"], False))
         self.assertEqual((item["properties"]["days_before"]["minimum"], item["properties"]["days_before"]["maximum"]),
                          (0, tools.folder_contracts.REMIND_DAYS))
-        for text in ("Bangkok", "turns the reminder on", "keeps the current times"):
+        for text in ("Bangkok", "turns the reminder on", "keeps the current times", "earlier than run_time"):
             self.assertIn(text, single["description"])
         self.assertNotIn("08:00 and 14:00 Bangkok time, to put", batch["remind"]["description"])
         self.assertIn("remind_times", self._tool("cowork_set_folder_task_enabled")["description"])

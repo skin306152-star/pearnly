@@ -161,7 +161,9 @@
   运行日减天数的那个曼谷时间，从它发到同一任务下一个更晚的提醒时刻（最后一个到运行时刻），落在运行时刻当时或之后的不发；合并与去重键 =
   负责人 + 运行时刻 + 提醒时刻（`remind_label`：前一天整点沿用「08」「14」，其余「<天>d<HH:MM>」）+ 电脑。文字：今天 / 明天照旧，两天及以后
   写日期（`cowork.folder.remind.date`）。CC 三个任务工具都收 `remind_times`，卡片写「前 1 天 08:00 / 当天 07:05」；网页（CC 任务页
-  原生时间输入、Desk 原生 Select + Time）打开提醒后最多 3 行「当天 / 前 1–7 天｜任意时间」。
+  原生时间输入、Desk 原生 Select + Time）打开提醒后最多 3 行「当天 / 前 1–7 天｜任意时间」。永远发不出的不静默存：提醒开着时
+  「当天」的时间要早于运行时间，否则 `save` / `set_enabled` 拒（`cowork.folder.remind_same_day`「当天提醒要早于运行时间」），改运行时间让
+  已有的当天提醒发不出也同样拒；「添加时间」与 Desk 空行按 前 1 天 08:00、14:00、前 2 天 08:00、前 1 天 18:00 取还没有的那个。
 - 提醒与简报只经 `folder_intake/notify.py` 调用共用层 `notices.post`；调度入口 `pearnly_cowork.folder_intake.schedule.notices(now=None)`
   挂每 5 分钟；`now` 是站点时区时间字符串，给测试环境手动触发。
 - F6 钩子：`hooks.cowork_push_fixed_choices = ["pearnly_cowork.folder_intake.push.fixed_for"]`，

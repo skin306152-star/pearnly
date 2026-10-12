@@ -482,7 +482,8 @@ def waits_for_purchases(sale_registered_at: Optional[datetime], files: List[Mapp
 # ── 运行前提醒（F2，2026-10-12；2026-10-13 起提醒时刻由负责人自选）──────────────────────────────
 # 每个任务最多 3 个提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM；没选过（老任务、空）就是前一天 08:00 与 14:00。
 # 每个提醒从它的时刻发到同一任务下一个更晚的提醒时刻（最后一个到运行时刻）为止，只发一次；窗口长、每 5 分钟看一次，
-# 部署停机跨过整点也不漏。落在运行时刻当时或之后的提醒（例如「当天」、时间比运行时刻晚）不发。
+# 部署停机跨过整点也不漏。落在运行时刻当时或之后的提醒不发；「当天」的时间不早于运行时间就永远发不出，保存时就拒
+# （`remind_times(…, run_time)`，`cowork.folder.remind_same_day`），不静默存下。
 DEFAULT_REMIND_TIMES = [{"days_before": 1, "time": "08:00"}, {"days_before": 1, "time": "14:00"}]
 REMIND_MAX = 3
 REMIND_DAYS = 7
@@ -490,10 +491,11 @@ REMIND_DAYS = 7
 LIST_MAX = 10
 
 
-def remind_times(value: Any) -> List[Dict[str, Any]]:
+def remind_times(value: Any, run_time: Any = None) -> List[Dict[str, Any]]:
     """提醒时刻（规则字段 `remind_times` 的 JSON，或已解析的列表）：``[{"days_before": 0–7, "time": "HH:MM"}]``，
     去重后按离运行由远到近排（天数大的在前，同一天时间早的在前）；空或没有 = 默认（前一天 08:00、14:00）。
-    不是列表、超过 3 个、天数不在 0–7、时间不是 HH:MM 时抛 ContractError。"""
+    不是列表、超过 3 个、天数不在 0–7、时间不是 HH:MM 时抛 ContractError（`cowork.folder.invalid`）。给了任务的运行时间
+    ``run_time``（HH:MM）时，「当天」的提醒时间不早于它（永远发不出）抛 `cowork.folder.remind_same_day`。"""
     if isinstance(value, str):
         try:
             value = json.loads(value) if value.strip() else None
@@ -514,6 +516,9 @@ def remind_times(value: Any) -> List[Dict[str, Any]]:
                 or not _TIME.fullmatch(at.strip()):
             raise ContractError("cowork.folder.invalid")
         found.add((days, at.strip()))
+    limit = str(run_time or "").strip()[:5]
+    if _TIME.fullmatch(limit) and any(days == 0 and at >= limit for days, at in found):
+        raise ContractError("cowork.folder.remind_same_day")
     return [{"days_before": days, "time": at} for days, at in sorted(found, key=lambda pair: (-pair[0], pair[1]))]
 
 

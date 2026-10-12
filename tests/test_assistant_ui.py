@@ -262,6 +262,11 @@ class ScheduledTaskPageTests(unittest.TestCase):
         self.assertIn("useState<RemindTime[]>(rule?.remind_times?.length ? rule.remind_times : DEFAULT_REMIND)", page)
         self.assertIn("(!remind || remindTimes.every((row) => /^\\d{2}:\\d{2}$/.test(row.time)))", page)
         self.assertIn("...(remind ? { remind_times: remindTimes } : {}),", page)
+        # 「添加时间」依次给前 1 天 08:00、14:00、前 2 天 08:00、前 1 天 18:00 里还没有的那个，不拿「当天」当默认
+        self.assertIn('const REMIND_NEXT: RemindTime[] = [...DEFAULT_REMIND, { days_before: 2, time: "08:00" }, '
+                      '{ days_before: 1, time: "18:00" }];', page)
+        self.assertIn("onClick={() => setRemindTimes((rows) => [...rows, nextRemind(rows)])}", page)
+        self.assertNotIn('{ days_before: 0, time: "08:00" }', page)
         # 时间不再只能选整点 / 半点（运行时间那一个下拉照旧）
         self.assertNotIn("options={TIMES.map((v) => ({ value: v, label: v }))} onChange={(v) => setRemindTime", page)
 

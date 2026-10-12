@@ -272,6 +272,42 @@ class SaveRules(Harness):
         self.rules.save(self.values(folder="B", remind_times=[{"days_before": 0, "time": "06:00"}]))
         self.assertEqual((self._saved("R2")["remind"], self._saved("R2")["remind_since"]), (1, self.NOW + timedelta(hours=2)))
 
+    def test_a_same_day_reminder_that_can_never_fire_is_refused(self):
+        """当天的提醒要早于运行时间（22:00）：不早于的整条不存，CC 与两个表单都拿到同一句错；改运行时间让已有的当天提醒
+        发不出也一样拒；提醒关着时不查（表单关着提醒不摆提醒时刻），打开时再查。"""
+        self.rules.save(self.values())
+        writes = self.store.writes
+        for late in ("22:00", "23:15"):
+            with self.assertRaises(Exception) as caught:
+                self.rules.save(self.values(name="R1", remind_times=[{"days_before": 0, "time": late}]))
+            self.assertIn("cowork.folder.remind_same_day", str(caught.exception))
+            with self.assertRaises(Exception) as caught:
+                self.rules.set_enabled("R1", None, remind_times=[{"days_before": 0, "time": late}])
+            self.assertIn("cowork.folder.remind_same_day", str(caught.exception))
+        with self.assertRaises(Exception):  # 新任务也一样
+            self.rules.save(self.values(folder="B", remind=1, remind_times=[{"days_before": 0, "time": "22:30"}]))
+        self.assertEqual((self.store.writes, self._saved().get("remind_times"), self._saved()["remind"]), (writes, None, 0))
+        # 早于运行时间：存下
+        self.rules.save(self.values(name="R1", remind_times=[{"days_before": 0, "time": "21:30"}]))
+        self.assertEqual((self._saved()["remind"], json.loads(self._saved()["remind_times"])),
+                         (1, [{"days_before": 0, "time": "21:30"}]))
+        # 运行时间改到 21:00：那条当天 21:30 永远发不出，整条不存（同一句错）；连同提醒时刻一起改就行
+        with self.assertRaises(Exception) as caught:
+            self.rules.save(self.values(name="R1", run_time="21:00"))
+        self.assertIn("cowork.folder.remind_same_day", str(caught.exception))
+        self.assertEqual(self._saved()["run_time"], "22:00")
+        self.rules.save(self.values(name="R1", run_time="21:00", remind_times=[{"days_before": 0, "time": "20:00"}]))
+        self.assertEqual(self._saved()["run_time"], "21:00")
+        # 提醒关着：存下的当天提醒不查；再打开（启停接口）时查
+        self.rules.save(self.values(name="R1", remind=0, run_time="06:00"))
+        self.assertEqual((self._saved()["remind"], self._saved()["run_time"]), (0, "06:00"))
+        with self.assertRaises(Exception) as caught:
+            self.rules.set_enabled("R1", None, remind=True)
+        self.assertIn("cowork.folder.remind_same_day", str(caught.exception))
+        self.assertEqual(self._saved()["remind"], 0)
+        self.rules.set_enabled("R1", 0)  # 只停用：不因提醒拒
+        self.assertEqual(self._saved()["enabled"], 0)
+
     def test_set_enabled_changes_the_reminder_times(self):
         self.rules.save(self.values())
         self.clock[0] = self.NOW + timedelta(hours=1)
