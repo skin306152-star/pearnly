@@ -200,7 +200,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	成功：``{ok, rows, row_count, opening, closing, bank_code, source, parser_version,
 	completeness, balance_warn_count, low_conf_count, amount_fixed_count, printed_totals,
 	needs_review}``；走到换眼时另带 ``escalations``，两法分歧时另带 ``method_divergence``，
-	直读路另带 ``sheets_parsed/account_codes/multi_account``。
+	直读路另带 ``sheets_parsed/account_codes/labelled_accounts/multi_account``。
 	失败：``{ok: False, error_code, error, rows: []}``。
 	"""
 	ext = extension(filename)
@@ -229,7 +229,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 			completeness = direct["completeness"]
 			parser_version = direct["parser_version"]
 			accounts = {"sheets_parsed": direct["sheets_parsed"],
-				"account_codes": direct["account_codes"], "multi_account": direct["multi_account"]}
+				"account_codes": direct["account_codes"], "labelled_accounts": direct["labelled_accounts"],
+				"multi_account": direct["multi_account"]}
 			if direct.get("duplicate_sheets"):
 				accounts["duplicate_sheets"] = direct["duplicate_sheets"]
 		else:

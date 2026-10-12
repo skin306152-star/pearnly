@@ -8,7 +8,7 @@
 - 打开结果页先按指纹找存档，对得上就直接回；只是代码换了（部署）先回旧存档、后台重建一份；结果或预设变了现算一次再存（同一套
   同一时间只算一份）。没有存档的旧任务第一次打开时现算并补存。每次激活 Cowork 后补算一遍（`activate-product.sh`）。
 
-指纹包括：对账类型、任务、语言、任务的修改时间与修订号、可能影响这一套的预设（同一家银行 / 同一个本公司税号，条数与最后修改时间）、要用原文件重跑的
+指纹包括：对账类型、任务、语言、任务的修改时间与修订号、可能影响这一套的预设（同一家银行、通用版式按账号尾号 / 同一个本公司税号，条数与最后修改时间）、要用原文件重跑的
 问题记录的修改时间、生成结果页的代码本身（这些源文件的内容摘要）。所以存档只会在内容确实一样时被用上，与现算逐格一致。
 
 导出 Excel 不走这里：导出读的是任务完成时存下的结果行（各自的 `export`），本来就不重算对账。
@@ -48,13 +48,19 @@ def _code_fingerprint():
 def _preset_scope(kind, doc):
     """指纹里只算可能影响这一套的预设（``LIKE`` 模式）：银行按同一家银行（``bank|<银行>|…``，账户、科目对应都在下面），收入按
     同一个本公司税号（``income|<税号>|…``）；销项税没有预设（回 ``None``）。认不出银行 / 税号时退回本工作区这类对账的全部预设。
-    原来是整个工作区同类预设：同事答一次别的账户的预设，同类全部存档失效（独立复查 2026-10-01）。"""
+    原来是整个工作区同类预设：同事答一次别的账户的预设，同类全部存档失效（独立复查 2026-10-01）。
+    认不出银行的通用版式按尾号收窄（``bank|GENERIC|<尾号>|…``）：表格账单多是这一类，按银行算会让一个账户答题就作废全部通用版式
+    的存档；没有尾号的通用版式本来就没有预设（回 ``None``，复查 2026-10-13）。"""
     if kind == "vat":
         return None
+    from pearnly_cowork.reconciliation import bank_recon_service, presets, revision
+
     if kind == "bank":
         bank = str(doc.get("bank_code") or "").strip().upper().replace("\\", "").replace("%", "").replace("_", "\\_")
+        if bank == presets.GENERIC:
+            tail = bank_recon_service.task_tail(doc)
+            return f"bank|{presets.GENERIC}|{tail}|%" if tail else None
         return f"bank|{bank}|%" if bank else "%"
-    from pearnly_cowork.reconciliation import presets, revision
 
     try:
         prefix = presets.income_prefix(revision.income_tax_id(doc))

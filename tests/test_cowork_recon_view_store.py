@@ -128,6 +128,17 @@ class ViewStoreTest(unittest.TestCase):
         with patch.object(sheets.revision, "income_tax_id", return_value=""):
             self.assertEqual(view_store._preset_scope("income", self.doc), "%")
 
+    def test_an_unknown_bank_counts_only_presets_of_its_own_tail(self):
+        # 复查 2026-10-13：通用版式按尾号收窄，一个账户答题不作废别的通用版式存档；没有读出尾号的本来就没有预设。
+        self.doc.bank_code = "generic"
+        self.doc.parse_info_json = '{"stmt_files": [{"ok": true, "account": "4821", "account_read": true}]}'
+        sheets.load("bank", "CBR-1", "zh")
+        self.assertEqual(self.db.preset_scopes, ["bank|GENERIC|4821|%"])
+        self.doc.parse_info_json = '{"stmt_files": [{"ok": true, "account": "2026"}]}'
+        self.assertIsNone(view_store._preset_scope("bank", self.doc))
+        self.doc.bank_code = "kbank"
+        self.assertEqual(view_store._preset_scope("bank", self.doc), "bank|KBANK|%")
+
     def test_each_page_and_interface_language_has_its_own_archive(self):
         sheets.load("bank", "CBR-1", "zh")
         sheets.load("bank", "CBR-1", "th")

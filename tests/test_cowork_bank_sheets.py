@@ -86,6 +86,10 @@ class AccountAndOpening(unittest.TestCase):
 		self.assertEqual(bank_sheets.extract_sheet_account([HEADER], 0, "984-2-99825-8"),
 			"984-2-99825-8")
 		self.assertEqual(bank_sheets.extract_sheet_account([HEADER], 0, "Statement"), "")
+		# 只有标签旁的算印着的账号；sheet 名退回不算（按月分表时是 Jan 2026 这类）。
+		self.assertEqual(bank_sheets.labelled_sheet_account([["Account No.", "984-2-99825-8"], HEADER], 1),
+			"984-2-99825-8")
+		self.assertEqual(bank_sheets.labelled_sheet_account([HEADER], 0), "")
 
 	def test_a_labelled_opening_above_the_header_is_read(self):
 		rows = [["ยกมา", "", "-7,409,714.58"], HEADER]
@@ -177,6 +181,7 @@ class WholeWorkbook(unittest.TestCase):
 		self.assertTrue(result["ok"])
 		self.assertEqual(result["row_count"], 2)
 		self.assertEqual(result["account_codes"], ["8258"])
+		self.assertEqual(result["labelled_accounts"], ["8258"])
 		self.assertFalse(result["multi_account"])
 		self.assertEqual(result["parser_version"], bank_sheets.PARSER_VERSION)
 		self.assertEqual(result["bank_code"], "generic")
