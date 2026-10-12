@@ -1,14 +1,16 @@
 """Zero-I/O tests for the "顺手同步" engine (`adapter/change_sync`).
 
 替身只做三件事：假 frappe、假快照存储（store/manual）、假流水客户端。断言的是
-**判断规则**本身：没变化就只花一个请求、点不到记录就整组重读、读不到就停手且
-绝不推进水位、并发时不重复干、以及任何失败都不能冒泡给操作员那一笔。
+**判断规则**本身：没变化就只花一个请求、点不到记录就整组重读、连不上就停手且
+绝不推进水位、读不懂只跳过那一个模块（读不懂太久后台改走整组重读）、并发时不重复干、
+以及任何失败都不能冒泡给操作员那一笔。
 """
 from __future__ import annotations
 
 import importlib
 from pathlib import Path
 import sys
+import time
 import types
 import unittest
 from unittest.mock import Mock, patch
@@ -16,7 +18,8 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/pearnly_dms"))
 
-from pearnly_dms.client.eventlog_reader import ACTION_DELETE, ACTION_EDIT
+from pearnly_dms.client.eventlog_reader import ACTION_DELETE, ACTION_EDIT, HEAD_ROWS
+from pearnly_dms.contracts.client_base import DmsClientError
 
 CUSTOMERS = "ลูกค้า"
 CARS = "รุ่นรถ"
@@ -46,11 +49,18 @@ class FakeEventLog:
     `rows` 只写"新"的那几行；水位所在那一行（历史）由 `history` 自动补在最后 —— 真实流水里它一直在。
     """
 
-    def __init__(self, modules=None, *, failing=(), history=None):
+    def __init__(self, modules=None, *, failing=(), history=None, error=None, garbled=(),
+                 deep_error=None):
         self.modules = modules or {}
         self.failing = set(failing)
+        self.error = error              # `failing` 的模块抛什么（默认传输断开）
+        self.garbled = set(garbled)     # 这些模块回来的是我们不认识的结构（对方改版）
+        self.deep_error = dict(deep_error or {})   # 只在往回翻（每页 200 行）时抛
         self.history = history
         self.calls = []
+
+    def modules_called(self):
+        return [data["ftd"].split("||")[0] for _path, data in self.calls]
 
     def rows_of(self, module):
         rows = list((self.modules.get(module) or {}).get("rows", []))
@@ -63,9 +73,14 @@ class FakeEventLog:
         self.calls.append((path, dict(data)))
         module = (data.get("ftd") or "").split("||")[0]
         if module in self.failing:
-            raise RuntimeError("transport down")
-        rows = self.rows_of(module)
+            raise self.error or RuntimeError("transport down")
+        if module in self.garbled:
+            # 2026-10-11 那样的改版：回的还是 `dt::`，但一页里是我们不认识的结构。
+            return "dt::\t<table><tr><td>991</td><td>" + module + "</td></tr></table>"
         size = int(data.get("sdtamt") or 0)
+        if module in self.deep_error and size != HEAD_ROWS:
+            raise self.deep_error[module]
+        rows = self.rows_of(module)
         page = int(data.get("sdtpage") or 1)
         rows = rows[(page - 1) * size: (page - 1) * size + size + 1]
         return "dt::\t\t\t\t" + "".join(rows) if rows else "ndt::"
@@ -110,20 +125,26 @@ class FakeStore:
 
 class FakeManual:
     QUEUE = "dms_sync"
+    ACTIVE = {"queued", "running"}
 
     def __init__(self, *, completed=None, fail=False):
         self.requests = []
         self.completed = dict(completed or {})
+        self.statuses = {}      # dataset → {"state", "updated_at"}（与 `manual.status` 同名字段）
+        self.status_calls = []
         self.fail = fail
 
     def request(self, endpoint, dataset, *, reader="authority", params=None, actor=None):
         if self.fail:
             raise RuntimeError("queue unavailable")
         self.requests.append({"dataset": dataset, "reader": reader, "actor": actor})
+        self.statuses[dataset] = {"state": "queued", "updated_at": time.time()}
         return {"state": "queued"}
 
     def status(self, endpoint, dataset, *, reader="authority"):
-        return {"completed_at": self.completed.get(dataset, 0)}
+        self.status_calls.append(dataset)
+        return {"state": "idle", "updated_at": 0.0, "completed_at": self.completed.get(dataset, 0),
+                **self.statuses.get(dataset, {})}
 
 
 class FakeCache:
@@ -193,25 +214,35 @@ class ChangeSyncTests(unittest.TestCase):
         return {name: entry.get("seq") for name, entry in self.store.state["modules"].items()
                 if name != module}
 
-    def catch_up(self, log):
+    def catch_up(self, log, *, background=False):
         if log.history is None:
             log.history = {module: entry.get("seq") for module, entry in
                            ((self.store.state or {}).get("modules") or {}).items()}
-        return self.sync.catch_up("PRIMARY", client=log)
+        return self.sync.catch_up("PRIMARY", client=log, background=background)
 
     def test_unchanged_counts_cost_one_request_per_module(self):
-        self.store.state = self.baseline()
+        # 客户组平时的条目带 `pending`（每轮都写回空的），这里照实际的平稳状态建。
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 1, "dirty_since": 0, "pending": {}}})
+        before_state = dict(self.store.state)
+        before = {name: dict(entry) for name, entry in self.store.state["modules"].items()}
         log = FakeEventLog()
 
-        self.catch_up(log)
+        self.catch_up(log, background=True)
 
         self.assertEqual(len(log.calls), len(self.sync.MODULES))
         self.assertTrue(all(data.get("sdtpage") == "1" for _path, data in log.calls),
                         "没有变化就只读最上面几行，不翻流水")
         self.assertEqual(self.store.verified, [])
         self.assertEqual(self.manual.requests, [])
-        self.assertEqual(self.store.written[-1]["next_index"], 0)
-        self.assertEqual(self.store.written[-1]["modules"], self.store.state["modules"])
+        self.assertEqual(self.manual.status_calls, [], "平时不读整组重读的状态（不多查一次库）")
+        state = self.store.written[-1]
+        self.assertEqual(state["next_index"], 0)
+        self.assertEqual(set(state), set(before_state) | {"checked_at"}, "写回的状态不多一个键")
+        # 逐项和改前比（不能和刚写进去的自己比）：除了检查时刻，什么都不该变，也不多键。
+        self.assertEqual(set(state["modules"]), set(before))
+        for name, entry in state["modules"].items():
+            self.assertEqual({key: value for key, value in entry.items() if key != "checked_at"},
+                             before[name], name)
 
     def test_named_customer_change_is_read_back_per_record(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
@@ -318,6 +349,7 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
 
     def test_unreadable_log_stops_without_moving_any_watermark(self):
+        # 连不上（传输失败）：与以前完全一样 —— 只花 1 个请求就整轮停手，下一轮仍从它开始。
         self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
         before = {key: dict(value) for key, value in self.store.state["modules"].items()}
         log = FakeEventLog(failing={CUSTOMERS})
@@ -328,6 +360,245 @@ class ChangeSyncTests(unittest.TestCase):
         self.assertEqual(written[CUSTOMERS], before[CUSTOMERS])
         self.assertEqual(self.manual.requests, [])
         self.assertEqual(log.calls[0][1]["ftd"], CUSTOMERS + "||2", "按模块逐个查，没有全局过滤器")
+        self.assertEqual(len(log.calls), 1, "连不上就整轮停手，不去碰后面的模块")
+        self.assertEqual(self.store.written[-1]["next_index"], 0, "下一轮仍从它重来")
+
+    def test_only_unreadable_content_skips_a_module(self):
+        """白名单：只有"内容读不懂"才跳过；传输失败、非 200、让路给操作员都照旧整轮停手。"""
+        from pearnly_dms.adapter.read_priority import ReadDeferred
+        errors = (RuntimeError("transport down"),
+                  DmsClientError("eventlog/component/showdata.php http=502", "ERR_DMS_TECHNICAL"),
+                  ReadDeferred("The DMS account is busy"))
+        for error in errors:
+            with self.subTest(error=type(error).__name__):
+                self.store.state = self.baseline()
+                log = FakeEventLog(failing={CUSTOMERS}, error=error)
+
+                self.catch_up(log, background=True)
+
+                state = self.store.written[-1]
+                self.assertEqual((len(log.calls), state["next_index"]), (1, 0))
+                self.assertNotIn("unreadable_since", state["modules"][CUSTOMERS])
+                self.assertEqual(self.manual.requests, [])
+
+    def test_one_unreadable_module_is_skipped_and_the_rest_still_sync(self):
+        """#11：客户模块读不懂时，以前整轮停在它上面（28 个模块 0 个处理），一直到凌晨。"""
+        now = 1_000_000.0
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0},
+                                            CARS: {"seq": 900, "dirty_since": 0}})
+        log = FakeEventLog({CARS: {"rows": [row(901, CARS)]}}, garbled={CUSTOMERS})
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(log)   # 后台与操作员顺手同步共用这一段
+
+        self.assertEqual(set(log.modules_called()), {module for module, _d, _r in self.sync.MODULES},
+                         "其余 27 个模块照常检查")
+        state = self.store.written[-1]
+        entry = state["modules"][CUSTOMERS]
+        self.assertEqual((entry["seq"], entry["dirty_since"], entry["unreadable_since"]), (831, 0, now),
+                         "读不懂的模块水位不动（不当成没变化），只记下从何时起读不懂")
+        self.assertEqual(state["next_index"], 0)
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["vehicles"],
+                         "后面模块的改动照常处理")
+
+    def test_the_first_unreadable_time_is_kept_across_rounds(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0,
+                                                        "unreadable_since": 500.0}})
+        self.catch_up(FakeEventLog(garbled={CUSTOMERS}))
+        self.assertEqual(self.store.written[-1]["modules"][CUSTOMERS]["unreadable_since"], 500.0)
+
+    def test_two_unreadable_modules_in_a_row_stop_and_rotate_past_them(self):
+        """整体改版：每轮只花 2 个请求，停在这两个之后，下一轮接着往后轮（不再永远卡在第一个）。"""
+        names = [module for module, _dataset, _records in self.sync.MODULES]
+        self.store.state = self.baseline()
+        log = FakeEventLog(garbled=set(names))
+
+        self.catch_up(log)
+
+        self.assertEqual(log.modules_called(), names[:2])
+        state = self.store.written[-1]
+        self.assertEqual(state["next_index"], 2)
+        self.assertTrue(all(state["modules"][name].get("unreadable_since") for name in names[:2]))
+        self.assertTrue(all("unreadable_since" not in state["modules"][name] for name in names[2:]))
+
+        log.calls.clear()
+        self.catch_up(log)
+        self.assertEqual(log.modules_called(), names[2:4])
+        self.assertEqual(self.store.written[-1]["next_index"], 4)
+
+        for _round in range(len(names) // 2):
+            self.catch_up(log)
+        modules = self.store.written[-1]["modules"]
+        self.assertTrue(all(modules[name].get("unreadable_since") for name in names),
+                        "约 14 轮把全部模块都标上")
+        self.assertTrue(all(modules[name]["seq"] == 1 for name in names), "水位一个都没动")
+        self.assertEqual(self.manual.requests, [])
+
+    def test_a_module_readable_again_clears_the_mark_and_catches_up_from_the_old_watermark(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0,
+                                                        "unreadable_since": 500.0}})
+        self.store.customers[CODE] = "59"
+        log = FakeEventLog({CUSTOMERS: {"rows": [row(832, CUSTOMERS)]}})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.verified[-1][0], "59", "停摆期间的改动从旧水位接着补")
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual(entry["seq"], 832)
+        self.assertNotIn("unreadable_since", entry)
+
+    def test_the_mark_is_cleared_even_if_the_catch_up_after_it_fails(self):
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": 0,
+                                                   "unreadable_since": 500.0}})
+        log = FakeEventLog({CARS: {"rows": [row(901, CARS)]}},
+                           deep_error={CARS: DmsClientError("http=502", "ERR_DMS_TECHNICAL")})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.written[-1]["modules"][CARS], {"seq": 900, "dirty_since": 0},
+                         "读得懂了就清标记；翻流水连不上照旧保留旧水位、下一轮重来")
+
+    # ── 往回翻时读不懂 ──────────────────────────────────────────────────
+    def test_an_unreadable_older_customer_page_is_incomplete_not_a_frozen_module(self):
+        """最新几行读得懂、往回翻的那页里有一行缺账号：以前异常被吞掉，水位永远停在原处、每轮白翻一遍。"""
+        self.defer.side_effect = lambda dataset: dataset == "customers"   # 白天
+        self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
+        rows = [row(seq, CUSTOMERS, target=f"C{seq}") for seq in range(845, 833, -1)]
+        rows += [row(833, CUSTOMERS, account=""), row(832, CUSTOMERS)]   # 挤出最新几行之外
+        log = FakeEventLog({CUSTOMERS: {"rows": rows}})
+
+        self.catch_up(log)
+
+        entry = self.store.written[-1]["modules"][CUSTOMERS]
+        self.assertEqual(entry["seq"], 845, "水位记到此刻最新一行，读不到的那段交整组重读")
+        self.assertTrue(entry["dirty_since"])
+        self.assertNotIn("unreadable_since", entry)
+        self.assertEqual(self.manual.requests, [], "白天客户组的整组重读仍留给凌晨")
+
+        log.calls.clear()
+        self.catch_up(log)
+        self.assertEqual(log.modules_called().count(CUSTOMERS), 1, "下一轮不再白翻那几页")
+
+    def test_an_unreadable_older_page_of_a_small_group_asks_for_a_group_read(self):
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": 0}})
+        rows = [row(seq, CARS) for seq in range(915, 902, -1)]
+        rows += [row(902, CARS, account=""), row(901, CARS)]
+        log = FakeEventLog({CARS: {"rows": rows}})
+
+        self.catch_up(log)
+
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["vehicles"])
+        entry = self.store.written[-1]["modules"][CARS]
+        self.assertEqual(entry["seq"], 900, "车辆组照现有规则：整组重读落地前水位不动")
+        self.assertTrue(entry["dirty_since"])
+
+    def test_a_transport_failure_on_an_older_page_keeps_the_old_watermark(self):
+        self.store.state = self.baseline(**{CARS: {"seq": 900, "dirty_since": 0}})
+        log = FakeEventLog({CARS: {"rows": [row(901, CARS)]}},
+                           deep_error={CARS: DmsClientError("http=502", "ERR_DMS_TECHNICAL")})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.written[-1]["modules"][CARS], {"seq": 900, "dirty_since": 0})
+        self.assertEqual(self.manual.requests, [], "连不上不是读不懂：不交整组重读，下一轮重来")
+
+    # ── 读不懂太久：白天同步的后台兜底 ──────────────────────────────────
+    def stalled_since(self, since, *datasets):
+        datasets = datasets or ("customers", "vehicles", "company", "geo")
+        return {module: {"seq": 1, "dirty_since": 0, "unreadable_since": since}
+                for module, dataset, _records in self.sync.MODULES if dataset in datasets}
+
+    def everything_garbled(self):
+        return FakeEventLog(garbled={module for module, _dataset, _records in self.sync.MODULES})
+
+    def test_a_stall_shorter_than_ten_minutes_asks_for_no_group_read(self):
+        now = 1_000_000.0
+        self.store.state = self.baseline(**self.stalled_since(now - self.sync.STALL_SECONDS + 1))
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(self.everything_garbled(), background=True)
+
+        self.assertEqual(self.manual.requests, [])
+        self.assertEqual(self.manual.status_calls, [])
+
+    def test_a_ten_minute_stall_reads_vehicles_and_company_once_each_never_the_big_groups(self):
+        """10-11 那次：整体改版后车辆、公司选项一整天不变；现在每组每小时最多整组重读一次。
+        客户、地址按常量排除，与白天/夜里的判断无关（这里 `defer_heavy` 恒为 False）。"""
+        now = 1_000_000.0
+        self.store.state = self.baseline(**self.stalled_since(now - self.sync.STALL_SECONDS))
+        log = self.everything_garbled()
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(log, background=True)
+
+        self.assertEqual(len(log.calls), 2, "整体改版时每轮仍只花 2 个请求")
+        self.assertEqual(self.manual.requests, [
+            {"dataset": "vehicles", "reader": "authority", "actor": "Administrator"},
+            {"dataset": "company", "reader": "authority", "actor": "Administrator"}])
+
+        with patch.object(self.sync.time, "time", return_value=now + 60):
+            self.catch_up(log, background=True)
+        self.assertEqual(len(self.manual.requests), 2, "已登记（排队中）就不再重复排")
+
+        self.manual.statuses = {"vehicles": {"state": "done", "updated_at": now + 600},
+                                "company": {"state": "failed", "updated_at": now + 900}}
+        self.manual.completed["vehicles"] = now + 600
+        with patch.object(self.sync.time, "time", return_value=now + 600 + self.sync.STALL_REFRESH_SECONDS - 1):
+            self.catch_up(log, background=True)
+        self.assertEqual(len(self.manual.requests), 2, "一小时内读过、试过都不再排")
+
+        with patch.object(self.sync.time, "time", return_value=now + 900 + self.sync.STALL_REFRESH_SECONDS):
+            self.catch_up(log, background=True)
+        self.assertEqual([item["dataset"] for item in self.manual.requests[2:]], ["vehicles", "company"],
+                         "满一小时仍读不懂：再各排一次")
+
+    def test_a_group_already_being_read_is_not_queued_again(self):
+        now = 1_000_000.0
+        self.store.state = self.baseline(**self.stalled_since(now - 5000, "vehicles", "company"))
+        self.manual.statuses = {"vehicles": {"state": "running", "updated_at": now - 5000},
+                                "company": {"state": "queued", "updated_at": now - 5000}}
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(self.everything_garbled(), background=True)
+
+        self.assertEqual(self.manual.requests, [])
+
+    def test_the_big_groups_are_never_read_in_the_day_even_after_a_long_stall(self):
+        now = 1_000_000.0
+        self.store.state = self.baseline(**self.stalled_since(now - 86400, "customers", "geo"))
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(self.everything_garbled(), background=True)
+
+        self.assertEqual(self.manual.requests, [])
+        self.assertEqual(self.manual.status_calls, [])
+
+    def test_the_operator_path_never_adds_a_group_read(self):
+        now = 1_000_000.0
+        self.store.state = self.baseline(**self.stalled_since(now - 5000))
+
+        with patch.object(self.sync.time, "time", return_value=now):
+            self.catch_up(self.everything_garbled())
+
+        self.assertEqual(self.manual.requests, [])
+        self.assertEqual(self.manual.status_calls, [])
+
+    def test_the_daytime_round_is_the_one_that_turns_a_stall_into_group_reads(self):
+        """`live_sync.pull`（后台每分钟一轮）传 `background=True`，兜底才会发生。"""
+        from pearnly_dms.adapter import live_sync
+        now = 1_000_000.0
+        self.store.state = self.baseline(**self.stalled_since(now - self.sync.STALL_SECONDS))
+        log = self.everything_garbled()
+        log.history = {}
+        operations = types.ModuleType("pearnly_dms.adapter.operations")
+        operations.run_logged_in = lambda endpoint, fn, **_kwargs: fn(log, None)
+
+        with patch.dict(sys.modules, {"pearnly_dms.adapter.operations": operations}), \
+                patch.object(live_sync, "_admin_account_in_use", return_value=False), \
+                patch.object(self.sync.time, "time", return_value=now):
+            self.assertEqual(live_sync.pull("PRIMARY"), {"ok": True})
+
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["vehicles", "company"])
 
     def test_record_read_failure_is_retried_on_the_next_pull(self):
         self.store.state = self.baseline(**{CUSTOMERS: {"seq": 831, "dirty_since": 0}})
