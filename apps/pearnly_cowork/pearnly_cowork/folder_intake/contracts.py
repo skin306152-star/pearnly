@@ -2,12 +2,23 @@
 
 规则口径见 `docs/work/2026-10-06-cowork-folder-intake.md`：一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 +
 进项或销项 + 服务或存货；只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）由系统生成、不扫描。
+
+新旧任务两种口径（2026-10-12，`docs/work/2026-10-12-cc-closed-loop.md`）：新任务（规则上 `include_existing`，同步里
+下发 `existing=1`）到点处理文件夹（含子文件夹）里本任务还没处理过的所有文件，包括建任务前已有的；老任务照旧只收
+启用之后放进来的（小助手按创建时间拍底）。同步里缺 `existing` 或为 0 就按老任务办，新旧服务端与小助手任意搭配都不会多处理。
+
+先后（F7）：同一写入连接、同一账套里，存货销售文件等存货进货先写进 Express 再准备推送（`waits_for_purchases`）。
+
+提醒与简报（F2 / F3）：定时时刻与小助手逐位一致（`latest_slot` / `next_slot`），前一天 08:00、14:00 两个提醒时段
+（`reminder_slot`）、合并与去重键，结果口径（`tally`，任务列表、运行记录、完成简报同一个）与简报分组（`brief_groups`）。
 """
 from __future__ import annotations
 
+import calendar
 import hashlib
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
 RESULT_FOLDER = "_Pearnly结果"
@@ -31,6 +42,10 @@ LAST_DAY = 0
 MAX_PATH = 500
 MAX_RELPATH = 1000
 MAX_WATCH = 500
+MAX_FOLDERS = 2000
+# 小助手报的文件夹计数、各任务待处理数的上限（防坏报文）
+MAX_COUNT = 10_000_000
+MAX_PENDING = 500
 _TIME = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 _ROOT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -211,7 +226,7 @@ def watch(value: Any) -> List[str]:
 
 
 def roots(value: Any) -> List[Dict[str, Any]]:
-    """小助手上报的本机允许读取的根目录（只报编号、显示名与下级文件夹名，不报文件）。"""
+    """小助手上报的本机允许读取的根目录（只报编号、显示名与下级文件夹名；1.4.4 起另报各文件夹的文件数，不报文件）。"""
     if value in (None, ""):
         return []
     if not isinstance(value, list) or len(value) > 20:
@@ -226,19 +241,48 @@ def roots(value: Any) -> List[Dict[str, Any]]:
             if not isinstance(folders, list):
                 folders = []
             clean = set()
-            for item in folders[:2000]:
+            for item in folders[:MAX_FOLDERS]:
                 try:
                     clean.add(folder(item))
                 except ContractError:
                     continue
             share = str(row.get("share") or "").strip()
-            result.append({"id": root_id(row.get("id")), "label": text(row.get("label"), maximum=255),
-                           "folders": sorted(clean - {""}),
-                           # 网络共享（含映射盘换算回的 \\服务器\共享…）：跨电脑比对文件夹是否重叠用；本机盘为空
-                           "share": share if share.startswith("\\\\") and len(share) <= 500 else ""})
+            report = {"id": root_id(row.get("id")), "label": text(row.get("label"), maximum=255),
+                      "folders": sorted(clean - {""}),
+                      # 网络共享（含映射盘换算回的 \\服务器\共享…）：跨电脑比对文件夹是否重叠用；本机盘为空
+                      "share": share if share.startswith("\\\\") and len(share) <= 500 else ""}
+            if isinstance(row.get("counts"), Mapping):
+                report["counts"] = _folder_counts(row["counts"], clean)
+                # 数到时间或条数上限还没数完：显示「N+」
+                report["partial"] = row.get("partial") is True
+            result.append(report)
         except ContractError:
             continue
     return result
+
+
+def _folder_counts(counts: Mapping, folders: set) -> Dict[str, int]:
+    """文件夹计数（新任务卡片与表单的「文件夹里现有 N 份」）：{文件夹: 会被录入的文件数（含子文件夹）}，
+    键只留上报的文件夹与根目录本身（""），按上报的写法存；0 不存。没带计数的根目录没有 `counts` 键 = 不知道，不用 0 冒充。"""
+    known = {name.casefold(): name for name in folders | {""}}
+    kept: Dict[str, int] = {}
+    for key, value in list(counts.items())[:MAX_FOLDERS + 1]:
+        try:
+            name = known.get(folder(key).casefold())
+        except ContractError:
+            continue
+        if name is not None and type(value) is int and 1 <= value <= MAX_COUNT:
+            kept[name] = value
+    return kept
+
+
+def pending(value: Any) -> Dict[str, int]:
+    """小助手上一轮算的各任务待处理数（{任务名: 份数}，1.4.4 起，`rule_pending`）：会被处理、但既不在本机台账也不在
+    基线里的文件数。不合形状的项丢掉，不让一次同步失败。"""
+    if not isinstance(value, Mapping):
+        return {}
+    return {name: count for name, count in list(value.items())[:MAX_PENDING]
+            if isinstance(name, str) and 0 < len(name) <= 140 and type(count) is int and 0 <= count <= MAX_COUNT}
 
 
 RULE_HEALTH = ("ok", "root_missing", "folder_missing")
@@ -289,3 +333,354 @@ def device(value) -> str:
     """小助手报的电脑名（只用于网页显示）：去掉控制字符，最多 60 字。"""
     text = "".join(ch for ch in str(value or "") if ch.isprintable()).strip()
     return text[:60]
+
+
+_SESSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
+
+
+def session_ref(value: Any) -> str:
+    """CC 对话编号（任务最近一次在哪段对话里建、改或启停，提醒挂回那段对话）：形状与共用层对话编号一致才认，否则当没有。"""
+    return value if isinstance(value, str) and _SESSION.fullmatch(value) else ""
+
+
+# ── 电脑通知（2026-10-12）：同步回复里带给小助手的定时任务提醒与完成简报 ─────────────────
+NOTICE_FIELDS = ("id", "title", "text", "created", "session")
+NOTICE_WINDOW = 12 * 3600
+NOTICE_LIMIT = 20
+
+
+def notices_after(value: Any, now: float) -> float:
+    """小助手上次收到的最新一条提醒时刻（epoch 秒，`notices_after`）：不是数字当 0；夹在最近 12 小时之内
+    （更早的不补发，未来的不信）。"""
+    number = float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0
+    if number != number:  # NaN
+        number = 0.0
+    return max(now - NOTICE_WINDOW, min(number, now))
+
+
+# ── 定时时刻：与小助手 `folder_plan._slot` / `latest_slot` 逐位一致（曼谷 UTC+7，泰国不用夏令时） ────────
+BANGKOK = timezone(timedelta(hours=7))
+# 小助手报的运行所属时刻（`runs[].slot`）离服务端此刻超过这么久就不认，改用服务端自己算的
+SLOT_RANGE = 40 * 86400
+
+
+def slot_at(year: int, month: int, day: int, at: str) -> float:
+    """某年某月按时开跑的时刻（epoch 秒）：0 = 月末，当月没有这一天（2 月的 29–31 日、小月的 31 日）就在月末。"""
+    last = calendar.monthrange(year, month)[1]
+    hour, minute = (int(part) for part in str(at)[:5].split(":"))
+    return datetime(year, month, last if day == 0 else min(day, last), hour, minute, tzinfo=BANGKOK).timestamp()
+
+
+def latest_slot(now: float, day: int, at: str) -> float:
+    """不晚于 ``now`` 的最近一次按时开跑时刻（epoch 秒）。"""
+    local = datetime.fromtimestamp(now, BANGKOK)
+    current = slot_at(local.year, local.month, day, at)
+    if current <= now:
+        return current
+    year, month = (local.year, local.month - 1) if local.month > 1 else (local.year - 1, 12)
+    return slot_at(year, month, day, at)
+
+
+def next_slot(now: float, day: int, at: str) -> float:
+    """晚于 ``now`` 的最近一次按时开跑时刻（epoch 秒）：``latest_slot(t) <= t < next_slot(t)``，两者之间没有别的时刻。"""
+    local = datetime.fromtimestamp(now, BANGKOK)
+    current = slot_at(local.year, local.month, day, at)
+    if current > now:
+        return current
+    year, month = (local.year, local.month + 1) if local.month < 12 else (local.year + 1, 1)
+    return slot_at(year, month, day, at)
+
+
+def run_slot(value: Any, now: float) -> Optional[float]:
+    """小助手报的这次运行所属的定时时刻（`runs[].slot`，1.4.4 起，可缺）：是数字、且在服务端此刻前后 40 天内才认。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    value = float(value)
+    return value if abs(value - now) <= SLOT_RANGE else None
+
+
+# ── 处理中（2026-10-12）：还没走到 done / not_invoice / failed 的文件 ─────────────────────
+UNFINISHED = ("registered", "uploaded", "source_ready", "submitted", "recognized", "pushing")
+# 登记后这么久还停在 registered 的不算处理中：上传没完成、盘上文件又被删的残留，后台推进不处理它们，「处理中」永远不会归零。
+STALE_REGISTERED = timedelta(hours=24)
+
+
+def moving(state: Any, registered_at: Optional[datetime], now: datetime) -> bool:
+    """这份文件算不算「处理中」（列表、简报同一口径；时间用库里的站点时区裸时间，与 `now_datetime()` 同口径）。"""
+    if state not in UNFINISHED:
+        return False
+    if state != "registered":
+        return True
+    return registered_at is not None and now - registered_at <= STALE_REGISTERED
+
+
+# ── 存货先进后出（F7，2026-10-12）：同一连接、同一账套里，存货进货先写进 Express，存货销售后写 ──────
+# 只管存货任务；服务类与 MR.ERP 任务（posting_kind 为空）不等也不被等。进货停下待人（要人选、失败、转人工）就算有了结论，
+# 不拦销售（等人不知道要多久，整批销售不能跟着停一夜）。时间一律用库里的站点时区裸时间。
+ORDER_WAITING = UNFINISHED
+ORDER_LOOKBACK = timedelta(hours=12)      # 比销售早登记这么久之内的进货算同一批
+ORDER_MAX_WAIT = timedelta(hours=12)      # 销售最多等这么久
+ORDER_UPLOAD_GRACE = timedelta(hours=2)   # 只登记、没传完的进货，这么久之后不再等
+ORDER_RUN_GRACE = timedelta(minutes=60)   # 进货任务被立即运行、小助手还没报上这次运行，最多等这么久
+WAITING_PURCHASES = "cowork.folder.waiting_purchases"
+
+
+def stock_role(direction: Any, posting_kind: Any) -> str:
+    """'purchase' / 'sale' / ''：只有存货任务参与先后。"""
+    if posting_kind != "stock":
+        return ""
+    return {"purchase": "purchase", "sales": "sale"}.get(direction or "", "")
+
+
+def purchases_first(rows: List[Any], direction=lambda row: row["direction"]) -> List[Any]:
+    """同步下发顺序：进货任务在前，同方向内保持原顺序（稳定排序）。小助手按下发顺序逐个任务跑，同一时刻到点的进货文件先登记。"""
+    return sorted(rows, key=lambda row: direction(row) == "sales")
+
+
+def purchase_run_pending(run_request_at: Optional[datetime], last_reported_at: Optional[datetime],
+                         now: datetime) -> bool:
+    """存货进货任务刚被「立即运行」、小助手还没报上这次运行（只看非补传的运行记录）。"""
+    if run_request_at is None or now - run_request_at > ORDER_RUN_GRACE:
+        return False
+    return last_reported_at is None or last_reported_at < run_request_at
+
+
+def purchase_file_pending(state: Any, registered_at: Optional[datetime], sale_registered_at: datetime,
+                          now: datetime) -> bool:
+    """这份存货进货文件还在路上、且与这份销售算同一批。"""
+    if registered_at is None or state not in ORDER_WAITING:
+        return False
+    if registered_at < sale_registered_at - ORDER_LOOKBACK:
+        return False
+    return not (state == "registered" and now - registered_at > ORDER_UPLOAD_GRACE)
+
+
+def waits_for_purchases(sale_registered_at: Optional[datetime], files: List[Mapping], runs: List[Mapping],
+                        now: datetime) -> bool:
+    """这份存货销售文件是否还要等同账套的存货进货先写（files: [{state, registered_at}]，
+    runs: [{run_request_at, last_reported_at}]）；登记满 12 小时后不再等。"""
+    if sale_registered_at is None or now - sale_registered_at > ORDER_MAX_WAIT:
+        return False
+    return (any(purchase_run_pending(r.get("run_request_at"), r.get("last_reported_at"), now) for r in runs)
+            or any(purchase_file_pending(f.get("state"), f.get("registered_at"), sale_registered_at, now)
+                   for f in files))
+
+
+# ── 前一天提醒（F2，2026-10-12）：运行前一天 08:00 与 14:00（曼谷）各提醒负责人一次 ─────────────
+# 08:00 那条在前一天 [08:00, 14:00) 内发，14:00 那条在前一天 [14:00, 运行时刻) 内发；窗口长达几个小时、每 5 分钟看一次，
+# 部署停机跨过整点也不漏。
+REMIND_SLOTS = (("08", 8), ("14", 14))
+# 一条合并提醒 / 一份简报最多列这么多个任务，其余写「另有 N 项」
+LIST_MAX = 10
+
+
+def reminder_slot(now: float, day: int, at: str, since: float = 0.0) -> Optional[tuple]:
+    """此刻该发的提醒：``(运行时刻, "08" | "14", 时段开始)``（epoch 秒）。不在任一时段、或时段开始早于 ``since``
+    （打开提醒、换负责人、改运行日 / 时间、重新启用之前的时段不补发）时为 None。"""
+    run = next_slot(now, day, at)
+    eve = datetime.fromtimestamp(run, BANGKOK).date() - timedelta(days=1)
+    starts = [datetime(eve.year, eve.month, eve.day, hour, tzinfo=BANGKOK).timestamp() for _label, hour in REMIND_SLOTS]
+    for (label, _hour), start, end in zip(REMIND_SLOTS, starts, starts[1:] + [run]):
+        if start <= now < end:
+            return None if since and start < since else (run, label, start)
+    return None
+
+
+def day_word(now: float, run_at: float) -> str:
+    """'today' / 'tomorrow'：提醒只在运行前一天发出（14:00 那条可能跨过午夜，那时就是当天）。"""
+    same = datetime.fromtimestamp(now, BANGKOK).date() == datetime.fromtimestamp(run_at, BANGKOK).date()
+    return "today" if same else "tomorrow"
+
+
+def clock(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, BANGKOK).strftime("%H:%M")
+
+
+def stamp(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, BANGKOK).strftime("%Y-%m-%d %H:%M")
+
+
+def month_of(epoch: float) -> str:
+    """曼谷的年-月：与小助手放结果表格的月份文件夹（`folder_plan.month_of`）同一写法。"""
+    return datetime.fromtimestamp(epoch, BANGKOK).strftime("%Y-%m")
+
+
+def time_left(now: float, run_at: float) -> tuple:
+    """离开跑还有（天, 时, 分），向下取整。"""
+    minutes = max(0, int(run_at - now)) // 60
+    return minutes // 1440, minutes % 1440 // 60, minutes % 60
+
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False).encode()).hexdigest()[:48]
+
+
+def remind_key(owner: str, run_at: float, label: str) -> str:
+    """一条提醒的去重键：负责人 + 运行时刻 + 时段（同一人、同一运行时刻、同一时段只发一次）。"""
+    return "cowork.folder.remind:" + _digest([owner, int(run_at), label])
+
+
+def brief_key(owner: str, runs: List[str]) -> str:
+    """一份简报的去重键：负责人 + 这批运行记录。"""
+    return "cowork.folder.brief:" + _digest([owner, sorted(runs)])
+
+
+def reminder_groups(rows: List[Mapping]) -> List[Dict[str, Any]]:
+    """同一负责人、同一运行时刻、同一时段的任务合成一条（行带 owner / run_at / label / title / name）：
+    组内按任务名排，组按运行时刻、时段、负责人排。"""
+    groups: Dict[tuple, List[Mapping]] = {}
+    for row in rows:
+        groups.setdefault((row["owner"], row["run_at"], row["label"]), []).append(row)
+    ordered = sorted(groups.items(), key=lambda item: (item[0][1], item[0][2], item[0][0]))
+    return [{"owner": owner, "run_at": run_at, "label": label,
+             "rules": sorted(members, key=lambda row: (str(row.get("title") or ""), str(row.get("name") or "")))}
+            for (owner, run_at, label), members in ordered]
+
+
+def full_path(*parts: Any) -> str:
+    """电脑上的完整路径：根目录显示名（小助手报的本机完整路径，可能是 `\\\\服务器\\共享`）+ 规则文件夹 + …，
+    `\\` 分隔，空段跳过。"""
+    pieces = []
+    for index, part in enumerate(parts):
+        piece = str(part or "").strip()
+        piece = piece.rstrip("\\/") if index == 0 else piece.strip("\\/")
+        if piece:
+            pieces.append(piece)
+    return "\\".join(pieces)
+
+
+# ── 结果口径（任务列表、运行记录、完成简报同一个 `tally`，2026-10-12）──────────────────────────
+# 推送只有三种结局：录入中 / 成功 / 失败，转人工就是失败（用户 2026-09-26，录入列表同一口径）。另有自动推送没做、
+# 等人的「待处理」：要人选一次（choice）、人已经动过这张票（human）、任务停用或负责人无权（task_off）。
+# 票在录入工作台删了（deleted）与成功一样算有了结论，不计数。
+CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department")
+IN_FLIGHT = ("prepared", "pending", "leased")
+COMPANION_OFFLINE = "cowork.folder.companion_offline"
+MOVING_CODES = {"insufficient_balance": "low_balance", COMPANION_OFFLINE: "offline", WAITING_PURCHASES: "waiting_purchases"}
+
+
+def ticket_state(outcome: Any, status: Any) -> tuple:
+    """一张票的（类别, 原因）：类别 pushed / stopped / failed / moving / deleted，原因只在 stopped 时有
+    （``choice:<种类,…>`` / ``human`` / ``task_off``）。
+
+    ``outcome`` 是自动推送记下的这张票的去向（`push.push_one` 的 sent / held / human / failed / missing，
+    规则停用或负责人无权时 `pump` 记的 stopped）；``status`` 是票上现在的推送状态（结果签名里的 `last_push_status`，
+    人之后在网页推了会跟着变）。"""
+    if status == "success":
+        return "pushed", ""
+    if status == DELETED:
+        return "deleted", ""
+    if status in IN_FLIGHT:
+        return "moving", ""
+    if status == "manual":
+        return "failed", ""
+    outcome = outcome if isinstance(outcome, Mapping) else {}
+    kind = outcome.get("status")
+    if kind == "held":
+        reason = str(outcome.get("reason") or "")
+        return "stopped", "choice:" + (reason.split(":", 1)[1] if reason.startswith("choice_needed:") else "")
+    if kind == "human":
+        return "stopped", "human"
+    if kind == "stopped":
+        return "stopped", "task_off"
+    return "failed", ""
+
+
+def moving_reason(state: Any, last_code: Any) -> str:
+    """处理中的文件为什么还没走完（简报括号里写）：上传中、余额不足、电脑离线、等进货先录入；其余不写。"""
+    if state == "registered":
+        return "uploading"
+    return MOVING_CODES.get(str(last_code or ""), "")
+
+
+def _outcome(value: Any) -> Mapping:
+    if isinstance(value, Mapping):
+        return value
+    try:
+        parsed = json.loads(value or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, Mapping) else {}
+
+
+def tally(files: List[Mapping], now: datetime) -> Dict[str, Any]:
+    """一组文件（行带 state / last_code / outcome_json / registered_at）的结果。按票计：已推送、待处理（停下等人）、
+    失败（另加失败的文件）、录入中（算进处理中）；按文件计：不是发票、处理中（`moving`：24 小时前登记、一直没传完的不算）。
+    ``now`` 与 `registered_at` 同为站点时区裸时间。"""
+    result: Dict[str, Any] = {"files": 0, "pushed": 0, "stopped": 0, "failed": 0, "not_invoice": 0, "moving": 0,
+                              "stop_reasons": {}, "choice_kinds": [], "moving_reasons": {}}
+    kinds = set()
+    for row in files:
+        result["files"] += 1
+        state = row.get("state")
+        if state in ("not_invoice", "failed"):
+            result[state] += 1
+        elif state == "done":
+            outcome = _outcome(row.get("outcome_json"))
+            for item in outcome.get("_signature") or []:
+                if not isinstance(item, (list, tuple)) or len(item) < 2:
+                    continue
+                category, reason = ticket_state(outcome.get(item[0]), item[1])
+                if category == "deleted":
+                    continue
+                result[category] += 1
+                if category == "stopped":
+                    head, _sep, detail = reason.partition(":")
+                    result["stop_reasons"][head] = result["stop_reasons"].get(head, 0) + 1
+                    kinds.update(detail.split(","))
+        elif moving(state, row.get("registered_at"), now):
+            result["moving"] += 1
+            why = moving_reason(state, row.get("last_code"))
+            if why:
+                result["moving_reasons"][why] = result["moving_reasons"].get(why, 0) + 1
+    result["choice_kinds"] = [kind for kind in CHOICE_KINDS if kind in kinds]
+    return result
+
+
+def not_uploaded(runs: List[Mapping]) -> int:
+    """这几次运行没传上的文件数：上传失败 + 还没写完（`still_writing:N`）的，减去同一份简报里补传运行传上的。"""
+    missed = sent_later = 0
+    for run in runs:
+        note = str(run.get("note") or "")
+        if note == "retry":
+            sent_later += int(run.get("new_files") or 0)
+            continue
+        missed += int(run.get("upload_failed") or 0)
+        waiting = note.split(":", 1)[1] if note.startswith("still_writing:") else ""
+        missed += int(waiting) if waiting.isdigit() else 0
+    return max(0, missed - sent_later)
+
+
+# ── 完成简报（F3，2026-10-12）：一份 = 同一负责人 + 同一定时时刻，立即运行的单独一份 ─────────────────
+BRIEF_SETTLE = timedelta(minutes=10)   # 最近一次运行开始满这么久才发（等同一时刻的其他电脑报上来）
+BRIEF_MAX_WAIT = ORDER_MAX_WAIT + timedelta(hours=1)  # 最多等这么久，到时带「处理中」照发（存货销售最多等进货 12 小时）
+BRIEF_LOOKBACK = timedelta(days=3)     # 更早的不再发
+
+
+def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]], now: datetime, *,
+                 settle: timedelta = BRIEF_SETTLE, max_wait: timedelta = BRIEF_MAX_WAIT,
+                 lookback: timedelta = BRIEF_LOOKBACK) -> tuple:
+    """还没发简报的运行（行带 name / run_owner / slot_at / started_at / scanned_at）按（负责人, 定时时刻；立即运行为空）
+    分组，回 ``(ready, stale)``，时间都是站点时区裸时间。
+
+    ready 每项 ``{"owner", "slot_at", "runs", "complete"}``，按最早一次开始排：都扫描完、文件都不在路上（`moving`）、
+    最近一次开始满 ``settle`` 的是完整的；最早一次开始满 ``max_wait`` 的不完整也发。stale 是不再发的运行名：
+    最早一次开始超过 ``lookback``，或没有负责人、没有开始时间（排不进时间，留着只会每 5 分钟再看一遍）。"""
+    groups: Dict[tuple, List[Mapping]] = {}
+    for run in runs:
+        groups.setdefault((run.get("run_owner") or "", run.get("slot_at")), []).append(run)
+    ready, stale = [], []
+    for (owner, slot), members in groups.items():
+        started = [run["started_at"] for run in members if run.get("started_at")]
+        names = sorted(run["name"] for run in members)
+        if not owner or not started or now - min(started) > lookback:
+            stale += names
+            continue
+        complete = (all(run.get("scanned_at") for run in members)
+                    and not any(moving(row.get("state"), row.get("registered_at"), now)
+                                for name in names for row in files_by_run.get(name) or [])
+                    and now - max(started) >= settle)
+        if complete or now - min(started) >= max_wait:
+            ready.append((min(started), {"owner": owner, "slot_at": slot, "runs": names, "complete": complete}))
+    ready.sort(key=lambda item: item[0])
+    return [group for _at, group in ready], sorted(stale)

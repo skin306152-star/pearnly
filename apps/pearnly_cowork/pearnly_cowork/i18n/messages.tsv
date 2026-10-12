@@ -1415,12 +1415,15 @@ Run history	运行记录	ประวัติการทำงาน	実行履
 Turn off	停用	ปิดใช้งาน	停止	cowork.folder.disable
 Turn on	启用	เปิดใช้งาน	有効にする	cowork.folder.enable
 Turn this scheduled task on? Only files added to the folder from now on are processed.	确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。	ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้	この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。	cowork.folder.enableConfirm
+Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.	确定要启用此定时任务吗？到点处理文件夹里还没处理过的文件。	ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา	この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。	cowork.folder.enableConfirmAll
 Turn this scheduled task off? Documents already entered stay as they are.	确定要停用此定时任务吗？已推送的单据不受影响。	ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ	この定期タスクを停止しますか？登録済みの書類はそのままです。	cowork.folder.disableConfirm
 Rule is on	启用中	เปิดใช้งานอยู่	有効	cowork.folder.on
 Rule is off	已停用	ปิดใช้งานแล้ว	停止中	cowork.folder.off
 CC Desktop offline or needs update	CC 桌面版不在线或需升级	CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต	CC デスクトップがオフラインか更新が必要	cowork.folder.agentStale
 CC Desktop on this PC has not synced recently. Update it to the latest version.	此电脑的 CC 桌面版近期未同步，请升级至最新版本。	CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด	この PC の CC デスクトップが同期していません。最新版に更新してください。	cowork.folder.agentStaleHint
 Entered {0} · to check {1}	已推送 {0} · 待处理 {1}	ส่งแล้ว {0} · รอดำเนินการ {1}	登録済み {0} · 要確認 {1}	cowork.folder.counts
+In progress {0}	处理中 {0}	กำลังดำเนินการ {0}	処理中 {0}	cowork.folder.moving
+{0} files in the folder now, processed at the run time	文件夹里现有 {0} 份，到点一起处理	ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา	フォルダーに現在 {0} 件、実行時刻にまとめて処理します	cowork.folder.waiting
 Day {0}	{0} 日	วันที่ {0}	{0} 日	cowork.folder.day
 Last day of the month	月末	วันสุดท้ายของเดือน	月末	cowork.folder.lastDay
 (the root folder itself)	（根目录本身）	(ตัวโฟลเดอร์หลัก)	（ルートフォルダー自体）	cowork.folder.rootItself
@@ -1431,6 +1434,9 @@ Task name	任务名称	ชื่องาน	タスク名	cowork.folder.field.ti
 Folder to read	文件夹	โฟลเดอร์	フォルダー	cowork.folder.field.folder
 Run on day	每月运行日	วันที่ทำงานประจำเดือน	実行日	cowork.folder.field.day
 Run time	运行时间	เวลาทำงาน	実行時刻	cowork.folder.field.time
+Remind me the day before	前一天提醒	แจ้งเตือนล่วงหน้าหนึ่งวัน	前日にリマインド	cowork.folder.field.remind
+On	开	เปิด	オン	cowork.folder.remind.on
+Off	关	ปิด	オフ	cowork.folder.remind.off
 Default handling for this folder	默认处理	การจัดการเริ่มต้น	既定の処理	cowork.folder.section.defaults
 When the document does not show cash or credit	票面未注明现购 / 赊购	เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ	現金・掛けが書類から分からない場合	cowork.folder.default.payment
 VAT on receipts and abbreviated tax invoices	收据、简易税票上的税额	ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ	領収書・簡易税請求書の税額	cowork.folder.default.vat
@@ -1474,6 +1480,7 @@ The recognition task was not found.	识别任务不存在。	ไม่พบง�
 The file check is busy. It will be retried.	原件核对繁忙，将稍后重试。	ระบบตรวจไฟล์ไม่ว่าง ระบบจะลองใหม่ภายหลัง	ファイル確認が混み合っています。再試行します。	cowork.folder.inspect_busy
 A step failed and will be retried in ten minutes.	此步骤出错，将于十分钟后重试。	ขั้นตอนนี้ไม่สำเร็จ ระบบจะลองใหม่ในอีก 10 นาที	この手順が失敗しました。10 分後に再試行します。	cowork.folder.step_error
 CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.	推送时 CC 桌面版未连接，将于十分钟后重新推送。	CC เดสก์ท็อปไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีกสิบนาที	ヘルパーが接続されていなかったため、10 分後にもう一度送信します。	cowork.folder.companion_offline
+Waiting for this account set's stock purchases to be entered first.	等待同一账套的进货先录入。	รอบันทึกรายการซื้อสินค้าของชุดบัญชีนี้ก่อน	同じ会計データの仕入が先に登録されるのを待っています。	cowork.folder.waiting_purchases
 The result sheet is not ready yet.	结果表格尚未生成。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
 Original file name	原文件名	ชื่อไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file
 Invoice number on the document	发票号	เลขที่ใบกำกับภาษี	請求書番号	cowork.folder.wb.invoice
@@ -1483,6 +1490,37 @@ Folder results	结果	ผลลัพธ์	結果	cowork.folder.col.result
 One folder per scheduled task. PDF and image files only.	每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。	หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ	1 フォルダーに 1 定期タスク。PDF と画像のみ。	cowork.folder.folderHint
 No folders on this PC yet. Add them in CC Desktop on that PC.	此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น	この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。	cowork.folder.noRoots
 View the ones to check	查看待处理	ดูรายการรอดำเนินการ	要確認を見る	cowork.folder.viewAttention
+Scheduled task reminder	定时任务提醒	แจ้งเตือนงานตามกำหนดเวลา	定期タスクのリマインダー	cowork.folder.remind.title
+today at {0}	今天 {0}	วันนี้ เวลา {0} น.	今日 {0}	cowork.folder.remind.today
+tomorrow at {0}	明天 {0}	พรุ่งนี้ เวลา {0} น.	明日 {0}	cowork.folder.remind.tomorrow
+{0} d {1} h left	还有 {0} 天 {1} 小时	อีก {0} วัน {1} ชั่วโมง	あと {0} 日 {1} 時間	cowork.folder.remind.leftDays
+{0} h {1} min left	还有 {0} 小时 {1} 分钟	อีก {0} ชั่วโมง {1} นาที	あと {0} 時間 {1} 分	cowork.folder.remind.leftHours
+{0} min left	还有 {0} 分钟	อีก {0} นาที	あと {0} 分	cowork.folder.remind.leftMinutes
+«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.	「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。	«{0}» จะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ใน {3} และตรวจสอบให้ครบถ้วน	「{0}」は{1}に開始します（{2}）。{3} に書類を入れ、漏れがないか確認してください。	cowork.folder.remind.one
+{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:	{1} 有 {0} 个定时任务开始（{2}）。请将资料放入以下文件夹，确保资料齐全：	งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน	{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。	cowork.folder.remind.many
+{0} files in the folder now.	文件夹里现有 {0} 份。	ขณะนี้มี {0} ไฟล์ในโฟลเดอร์	フォルダーに現在 {0} 件あります。	cowork.folder.remind.count
+{0} ({1} files)	{0}（现有 {1} 份）	{0} (มี {1} ไฟล์)	{0}（{1} 件）	cowork.folder.remind.lineCount
+{0}: {1}	{0}：{1}	{0}: {1}	{0}：{1}	cowork.folder.line
+and {0} more	另有 {0} 项	และอีก {0} รายการ	ほか {0} 件	cowork.folder.more
+Scheduled task results	定时任务结果	ผลงานตามกำหนดเวลา	定期タスクの結果	cowork.folder.brief.title
+Scheduled run at {0} (tasks: {1}):	{0} 定时运行（{1} 个任务）：	รอบตามกำหนดเวลา {0} ({1} งาน):	{0} の定期実行（{1} 件）：	cowork.folder.brief.head
+Run now (tasks: {0}):	立即运行（{0} 个任务）：	ทำงานทันที ({0} งาน):	今すぐ実行（{0} 件）：	cowork.folder.brief.headManual
+Some files are still in progress.	部分文件仍在处理中。	บางไฟล์ยังอยู่ระหว่างดำเนินการ	一部のファイルはまだ処理中です。	cowork.folder.brief.stillMoving
+Entered {0}	已推送 {0}	ส่งแล้ว {0}	登録済み {0}	cowork.folder.brief.pushed
+To check {0}	待处理 {0}	รอดำเนินการ {0}	要確認 {0}	cowork.folder.brief.stopped
+Failed {0}	失败 {0}	ไม่สำเร็จ {0}	失敗 {0}	cowork.folder.brief.failed
+Not invoices {0}	不是发票 {0}	ไม่ใช่ใบกำกับภาษี {0}	請求書以外 {0}	cowork.folder.brief.notInvoice
+Not uploaded {0}	未上传 {0}	ยังไม่ได้อัปโหลด {0}	未アップロード {0}	cowork.folder.brief.notUploaded
+No new files	没有新文件	ไม่มีไฟล์ใหม่	新しいファイルはありません	cowork.folder.brief.nothing
+Results: {0}	结果：{0}	ผลลัพธ์: {0}	結果：{0}	cowork.folder.brief.results
+{0} ({1})	{0}（{1}）	{0} ({1})	{0}（{1}）	cowork.folder.brief.reasons
+choose {0}	待选{0}	ต้องเลือก{0}	{0}の選択待ち	cowork.folder.brief.why.choice
+changed by a person	已有人改动	มีผู้แก้ไขแล้ว	手動で変更済み	cowork.folder.brief.why.human
+task off or no access	任务已停用或无权限	งานปิดอยู่หรือไม่มีสิทธิ์	タスク停止中または権限なし	cowork.folder.brief.why.taskOff
+low balance	余额不足	ยอดคงเหลือไม่พอ	残高不足	cowork.folder.brief.why.lowBalance
+CC Desktop offline	CC 桌面版离线	CC เดสก์ท็อปออฟไลน์	CC デスクトップがオフライン	cowork.folder.brief.why.offline
+waiting for purchases	等进货先录入	รอบันทึกรายการซื้อก่อน	仕入の登録待ち	cowork.folder.brief.why.purchasesFirst
+contact record	对方档案	ข้อมูลคู่ค้า	取引先	cowork.folder.brief.why.party
 A client needs a name.	请填写客户名称。	กรุณากรอกชื่อลูกค้า	顧客名を入力してください。	
 A product needs a name.	请填写物料名称。	กรุณากรอกชื่อสินค้า	商品名を入力してください。	
 Account Codes	科目编码	รหัสบัญชี	勘定科目コード	
@@ -1494,8 +1532,12 @@ Archived	已归档	เก็บถาวรแล้ว	アーカイブ済み
 Archived At	归档时间	เวลาที่เก็บถาวร	アーカイブ日時	
 Bank Code	银行代码	รหัสธนาคาร	銀行コード	
 Batch	批次	ชุดงาน	バッチ	
+Brief Key	简报去重键	คีย์สรุปผล	サマリーキー	
+Brief Sent At	简报发送时间	เวลาส่งสรุปผล	サマリー送信日時	
+Brief Status	简报状态	สถานะสรุปผล	サマリーの状態	
 Buyer Name	买方名称	ชื่อผู้ซื้อ	買い手名	
 Byte Size	文件大小（字节）	ขนาดไฟล์ (ไบต์)	ファイルサイズ（バイト）	
+CC Conversation	CC 对话	บทสนทนา CC	CC の会話	
 Checklist Id	清单 ID	ID รายการตรวจสอบ	チェックリスト ID	
 Chinese Name	中文名称	ชื่อภาษาจีน	中国語名	
 Chosen At	选择时间	เวลาที่เลือก	選択日時	
@@ -1555,6 +1597,7 @@ GL Total Credit	总账贷方合计	ยอดรวมเครดิต GL	元�
 GL Total Debit	总账借方合计	ยอดรวมเดบิต GL	元帳借方合計	
 Has GL Match	有总账匹配	มีรายการ GL ที่ตรงกัน	元帳一致あり	
 Histories	识别记录	ประวัติการอ่านเอกสาร	読み取り履歴	
+Include Existing Files	处理已有文件	ประมวลผลไฟล์ที่มีอยู่	既存のファイルも処理	
 Inputs	输入参数	ข้อมูลนำเข้า	入力内容	
 Intake Target	录入目标	ปลายทางการบันทึก	取込先	
 Last Push Reason	最近推送原因	เหตุผลการส่งครั้งล่าสุด	最終送信理由	
@@ -1580,6 +1623,7 @@ Push Connection	推送连接	การเชื่อมต่อปลายท
 Registered At	登记时间	เวลาที่ลงทะเบียน	登録日時	
 Relative Path	相对路径	พาธสัมพัทธ์	相対パス	
 Reminder	提醒	การแจ้งเตือน	リマインダー	
+Reminder Since	提醒起算时间	แจ้งเตือนตั้งแต่	リマインダー開始日時	
 Repeat	重复	ทำซ้ำ	繰り返し	
 Report Count	报告数量	จำนวนรายงาน	レポート数	
 Request ID	请求 ID	รหัสคำขอ	リクエスト ID	
@@ -1593,12 +1637,14 @@ Rule Revision	规则版本	รุ่นของกฎ	ルール改訂番号
 Run	扫描批次	รอบการสแกน	スキャン回	
 Run Day	每月执行日	วันที่ทำงานของแต่ละเดือน	毎月の実行日	
 Run Info Json	运行信息	ข้อมูลการประมวลผล	実行情報	
+Run Owner	运行负责人	ผู้รับผิดชอบการทำงาน	実行担当者	
 Run Request	立即执行请求	คำขอให้ทำงานทันที	即時実行リクエスト	
 Run Requested At	请求执行时间	เวลาที่ขอให้ทำงาน	実行要求日時	
 Run Time	执行时间	เวลาทำงาน	実行時刻	
 SHA-256	SHA-256	SHA-256	SHA-256	
 SKU	SKU	SKU	SKU	
 Scanned At	扫描时间	เวลาที่สแกน	スキャン日時	
+Scheduled Time	定时时刻	เวลาตามกำหนด	予定時刻	
 Sell Units	销售单位	หน่วยขาย	販売単位	
 Selling Price	售价	ราคาขาย	販売価格	
 Show on Card	在卡片上显示	แสดงบนการ์ด	カードに表示	

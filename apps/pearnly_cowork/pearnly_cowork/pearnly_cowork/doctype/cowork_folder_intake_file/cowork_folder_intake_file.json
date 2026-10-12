@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-07 12:00:00.000000",
+ "modified": "2026-10-12 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -140,7 +140,8 @@
    "label": "Source File",
    "fieldtype": "Data",
    "read_only": 1,
-   "length": 140
+   "length": 140,
+   "search_index": 1
   },
   {
    "fieldname": "batch",

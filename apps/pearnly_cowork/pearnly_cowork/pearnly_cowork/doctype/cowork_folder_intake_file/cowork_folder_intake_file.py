@@ -1,6 +1,6 @@
 from frappe.model.document import Document
 
-from pearnly_cowork.folder_intake import access
+from pearnly_cowork.folder_intake import access, live
 
 
 class CoworkFolderIntakeFile(Document):
@@ -18,6 +18,11 @@ class CoworkFolderIntakeFile(Document):
 
     validate = before_validate
     before_insert = before_validate
+
+    def on_update(self):
+        # 文件走到下一步（或结果表格换了版本）：开着的定时任务页重拉「处理中」（`folder_intake.live`）
+        if self.has_value_changed("state") or self.has_value_changed("workbook_revision"):
+            live.changed(self.rule, self.actor)
 
     def on_trash(self):
         access.deny()

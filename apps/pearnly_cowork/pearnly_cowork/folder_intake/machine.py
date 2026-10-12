@@ -9,15 +9,16 @@ import base64
 import hashlib
 import time
 from contextlib import contextmanager
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import frappe
 from frappe.utils import get_datetime, get_system_timezone, now_datetime
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.companion import http_auth
+from pearnly_cowork.companion import http_auth, release
 from pearnly_cowork.connections import access as connection_access
-from pearnly_cowork.folder_intake import agent, contracts, inbox, settings, workbook
+from pearnly_cowork.folder_intake import agent, contracts, inbox, live, notify, settings, workbook
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 
 CONNECTION = "Cowork ERP Connection"
@@ -29,6 +30,11 @@ def _epoch(value):
     if not value:
         return None
     return get_datetime(value).replace(tzinfo=ZoneInfo(get_system_timezone())).timestamp()
+
+
+def _naive(epoch):
+    """epoch 秒 → 库里存的站点时区裸时间（`_epoch` 的反向）。"""
+    return datetime.fromtimestamp(epoch, ZoneInfo(get_system_timezone())).replace(tzinfo=None)
 
 
 def _released(operation):
@@ -115,29 +121,58 @@ def _sync(context, body):
         # 只问身份：不记本机情况、不取定时任务（配对时还没有授权文件夹，不能把已有的清掉）。
         return {"server_time": time.time(), "rules": [], "entries": {}, **identity}
     roots = contracts.roots(body.get("roots"))
+    pending = contracts.pending(body.get("rule_pending"))
+    before = agent.read(context.connection).get("pending") or {}
     agent.remember(context.connection, roots=roots, version=body.get("version"),
-                   health=contracts.health(body.get("rule_health")), device=contracts.device(body.get("device")))
+                   health=contracts.health(body.get("rule_health")), device=contracts.device(body.get("device")),
+                   pending=pending)
     for row in (body.get("runs") or [])[:50]:
         try:
             _record_run(context, row)
         except contracts.ContractError:
             # 规则已不在 / 记录不合形状：这一条不收，其余照收（不让一条坏记录堵住小助手每一次同步）。
             continue
+    # 本机读的全部任务（停用的也要：之后到的完成简报照样弹）；下发只发启用的，存货进货任务排在销售前面（F7：
+    # 小助手照下发顺序逐个任务跑，同一时刻到点的进货文件先登记、先识别、先推送）。
+    found = frappe.db.sql(f"""SELECT name, direction, enabled FROM `tab{RULE}`
+            WHERE IFNULL(NULLIF(reader, ''), connection) = %s ORDER BY creation""", (context.connection,), as_dict=True)
     rules = []
-    for name in frappe.db.sql_list(f"""SELECT name FROM `tab{RULE}` WHERE enabled = 1
-            AND IFNULL(NULLIF(reader, ''), connection) = %s ORDER BY creation""", (context.connection,)):
-        rule = read(RULE, name)
+    for row in contracts.purchases_first([row for row in found if row.enabled]):
+        rule = read(RULE, row.name)
         rules.append({"name": rule.name, "revision": int(rule.rule_revision or 0), "title": rule.title,
                       "root_id": rule.root_id, "folder": rule.folder or "", "run_day": int(rule.run_day or 0),
                       "run_time": rule.run_time, "active_since": _epoch(rule.active_since),
+                      # 1 = 新任务：到点处理文件夹里还没处理过的所有文件（不拍底）；缺这个键或 0 的照旧拍底（旧小助手不认它）
+                      "existing": int(rule.include_existing or 0),
                       "run_request": int(rule.run_request or 0), "ready": owner_ready(rule)})
+        if pending.get(rule.name) != before.get(rule.name):
+            live.changed(rule.name)  # 待处理数变了：开着的定时任务页重拉
     entries = {}
     for name in contracts.watch(body.get("watch")):
         if frappe.db.exists(FILE, name):
             entry = read(FILE, name)
             if entry.connection == context.connection:
                 entries[name] = workbook.status(entry)
-    return {"server_time": time.time(), "rules": rules, "entries": entries, **identity}
+    reply = {"server_time": time.time(), "rules": rules, "entries": entries, **identity}
+    # 我们最新发布的 CC 桌面版（同心跳回复的形状）：只读文件夹的 MR.ERP 成员没有心跳，也从这里拿到新版。
+    latest = release.latest()
+    if latest:
+        reply["companion_latest"] = latest
+    # 本机任务的提醒与完成简报（1.4.4 起小助手带 `notices_after` 才查，弹系统通知用）：最多 20 条、最近 12 小时。
+    if "notices_after" in body:
+        reply["notices"] = _notices([row.name for row in found], body.get("notices_after"))
+    return reply
+
+
+def _notices(names, after):
+    since = contracts.notices_after(after, time.time())
+    try:
+        items = notify.for_rules(names, since, contracts.NOTICE_LIMIT)
+    except Exception:
+        # 取提醒出错不拖垮文件夹同步（规则、上传都靠它）：这一轮不带，下一轮再取。
+        frappe.log_error(title="Cowork folder notices failed", message=frappe.get_traceback()[-1500:])
+        return []
+    return [{key: item.get(key) for key in contracts.NOTICE_FIELDS} for item in items[:contracts.NOTICE_LIMIT]]
 
 
 def _record_run(context, row):
@@ -145,14 +180,15 @@ def _record_run(context, row):
         raise contracts.ContractError("cowork.folder.invalid")
     rule = _rule(row.get("rule"), context)
     key = hashlib.sha256(f"{rule.name}\0{contracts.run_key(row.get('run_key'))}".encode()).hexdigest()
+    counts = {field: row.get(field) for field in ("found", "new_files", "skipped", "upload_failed")}
+    if any(type(value) is not int or value < 0 for value in counts.values()):
+        raise contracts.ContractError("cowork.folder.invalid")
     doc = read(RUN, key, for_update=True) if frappe.db.exists(RUN, key) else frappe.new_doc(RUN)
     if doc.is_new():
         trigger = row.get("trigger") if row.get("trigger") in ("schedule", "manual", "catch_up") else "schedule"
         doc.update({"input_key": key, "rule": rule.name, "connection": context.connection, "trigger": trigger,
-                    "started_at": now_datetime()})
-    counts = {field: row.get(field) for field in ("found", "new_files", "skipped", "upload_failed")}
-    if any(type(value) is not int or value < 0 for value in counts.values()):
-        raise contracts.ContractError("cowork.folder.invalid")
+                    "started_at": now_datetime(), "run_owner": rule.rule_owner,
+                    **_brief_slot(rule, trigger, row, counts["new_files"])})
     doc.update(counts)
     if row.get("scanned"):
         doc.scanned_at = doc.scanned_at or now_datetime()
@@ -160,6 +196,29 @@ def _record_run(context, row):
     doc.note = contracts.text(note, maximum=500, optional=True) if note else doc.note
     write(doc)
     return doc.name
+
+
+def _brief_slot(rule, trigger, row, new_files):
+    """新运行记录归哪一份完成简报（简报 = 同一负责人 + 同一定时时刻；立即运行单独成一份，
+    `docs/work/2026-10-12-cc-closed-loop.md`）。
+
+    定时 / 补跑：所属时刻优先用小助手报的（`runs[].slot`，1.4.4 起；离现在 40 天内才认），旧小助手不报就按任务的
+    运行日与时间算不晚于现在的最近一次。立即运行没有所属时刻。补传（note=retry）只在真传上了新文件、且这条任务还有
+    没发的非补传运行时并进那一份（同一时刻），其余补传不出简报（免得每分钟一份）。"""
+    if row.get("note") == "retry":
+        if new_files > 0:
+            found = frappe.db.sql(f"""SELECT slot_at FROM `tab{RUN}` WHERE rule = %s AND brief_state = 'pending'
+                AND IFNULL(note, '') != 'retry' ORDER BY started_at DESC LIMIT 1""", (rule.name,), as_dict=True)
+            if found:
+                return {"slot_at": found[0].slot_at, "brief_state": "pending"}
+        return {"slot_at": None, "brief_state": "skipped"}
+    if trigger == "manual":
+        return {"slot_at": None, "brief_state": "pending"}
+    now = time.time()
+    slot = contracts.run_slot(row.get("slot"), now)
+    if slot is None:
+        slot = contracts.latest_slot(now, int(rule.run_day or 0), str(rule.run_time or "22:00"))
+    return {"slot_at": _naive(slot), "brief_state": "pending"}
 
 
 @frappe.whitelist(methods=["POST"])
