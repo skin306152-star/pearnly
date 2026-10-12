@@ -10,6 +10,9 @@ import { initLiff, openExternal } from "../../lib/liff";
 const route = useRoute();
 const portal = route.query.action === "portal";
 const { t, load, locale, setLocale } = createTexts([], "dms.account.");
+// 存密码前服务端先试登录一次；被 DMS 拒绝的这两种原因直接用现成的 DMS 错误文案，本人改了再存。
+const SIGN_IN_REFUSED = ["dms.err.ERR_DMS_AUTH", "dms.err.ERR_DMS_CONCURRENT_LOGIN"];
+const signIn = createTexts(SIGN_IN_REFUSED);
 const username = ref("");
 const password = ref("");
 const ready = ref(false);
@@ -23,7 +26,7 @@ const api = "pearnly_dms.account.api.";
 onMounted(async () => {
   try {
     adoptAccountLocale(sessionStorage.getItem("pearnly_dms_lang") || "th");
-    await load();
+    await Promise.all([load(), signIn.load()]);
     const config = await call<{ csrf_token: string; liff_id?: string }>("pearnly_dms.editor.browser_api.browser_config");
     setCsrfToken(config.csrf_token);
     liffId = config.liff_id || "";
@@ -73,6 +76,8 @@ async function submit() {
     if (e instanceof ApiError && [401, 403].includes(e.status)) {
       ready.value = false;
       error.value = t("dms.account.expired");
+    } else if (SIGN_IN_REFUSED.includes(key)) {
+      error.value = signIn.t(key);
     } else {
       error.value = t(key === "dms.account.invalid" ? key : "dms.account.failed");
     }

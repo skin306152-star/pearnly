@@ -167,7 +167,8 @@
     "records": [],
     "account": [
       "editor",
-      "ocr"
+      "ocr",
+      "adapter"
     ],
     "snapshots": [
       "contracts"

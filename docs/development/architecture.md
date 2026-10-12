@@ -121,7 +121,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 `operators.endpoints` 负责花名册到本人 Endpoint 的事务内同步，通过原生 DocType 更新和共享连接 `on_update` hook 触发；不调用外部 DMS。公司配置与管理员读凭据继承到员工连接，员工销售密码和提成归属保持独立。新增 `operators → contracts` 仅复用纯常量 `PERSONAL_BOOKING_DEFAULT_KEYS`，防止继承老板的顾问身份；contracts 无框架、IO 或反向依赖，不产生循环。原生迁移补齐已有操作员连接，停用/删除保留 Endpoint 与 User 审计关联并撤销使用权。
 
-`account` 域恢复旧线上 LINE 菜单 3/4：依赖 `editor.browser_ticket` 的独立 account scope 与 `ocr.resolve_dms_endpoint` 的本人连接判据；不反向依赖 account。凭据修改走 DMS Operator 原生保存及上述同步 hook。门户只消费 60 秒单次票据并提交给配置的 HTTPS DMS。LINE 绑定变更以 core hook 通知 menu；menu 读取 query 权限，异步同步已经发布的菜单，不在文档保存时创建或切换默认菜单。
+`account` 域恢复旧线上 LINE 菜单 3/4：依赖 `editor.browser_ticket` 的独立 account scope 与 `ocr.resolve_dms_endpoint` 的本人连接判据；不反向依赖 account。凭据修改走 DMS Operator 原生保存及上述同步 hook。保存前经 `adapter.account_probe.probe(本人连接地址, 本人用户名, 新密码, "login")` 试登录一次（登上即登出，不读写资料，与花名册 operators → adapter 同一入口），失败不存；登记 account → adapter 单向依赖，adapter 不引用 account，不产生循环（2026-10-13）。门户只消费 60 秒单次票据并提交给配置的 HTTPS DMS。LINE 绑定变更以 core hook 通知 menu；menu 读取 query 权限，异步同步已经发布的菜单，不在文档保存时创建或切换默认菜单。
 
 ## 通用界面框架
 

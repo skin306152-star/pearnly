@@ -43,6 +43,25 @@ def _endpoint(who):
     return doc
 
 
+#: 试登录被 DMS 拒绝（密码错 / 账号正在别处登录）：本人改一下再存就行，回 400 并带上原因。
+#: 其余（连不上、技术错误）回 503。不能用 401/403：页面会当成"链接已失效"收起表单。
+SIGN_IN_REFUSED = ("ERR_DMS_AUTH", "ERR_DMS_CONCURRENT_LOGIN")
+
+
+def _sign_in_once(system_url: str, username: str, password: str) -> None:
+    """存新密码前只试登录一次，与花名册改密码同一口径（用户 2026-10-02）。
+
+    登上立即登出，不读不写任何资料；登不上就不存，站上原来的密码不动。
+    """
+    from pearnly_dms.adapter.account_probe import probe
+
+    result = probe(system_url, username, password, "login")
+    if result.get("ok"):
+        return
+    code = str(result.get("error_code") or "ERR_UNEXPECTED")
+    browser_api._fail("dms.err." + code, 400 if code in SIGN_IN_REFUSED else 503)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def authenticate(id_token: str = ""):
     line_user = browser_api._line_user_from_request(id_token)
@@ -71,7 +90,15 @@ def save_credentials(ticket: str, password: str, username: str = ""):
         browser_api._fail("dms.account.invalid", 400)
     if any(ch in password for ch in ("\r", "\n", "\x00")):
         browser_api._fail("dms.account.invalid", 400)
-    _endpoint(who)
+    endpoint = _endpoint(who)
+    # 先只读核对本人，再用新密码试登录一次，最后才进下面的行锁保存：试登录要几秒，不能拿着锁等。
+    own = frappe.db.get_value("DMS Operator", {"user": who["user"], "status": "active"},
+                              ["name", "dms_username"])
+    if not own:
+        browser_api._fail("dms_booking.not_bound", 403)
+    if str(username or "").strip() and str(username).strip() != (own[1] or ""):
+        browser_api._fail("dms.account.failed", 409)
+    _sign_in_once(endpoint.system_url, own[1] or "", password)
     # Lock the native binding through the update so concurrent unbind cannot
     # authorize a completed credentials change using a stale cached ticket.
     frappe.db.sql("select name from `tabPearnly LINE Binding` where line_user_id=%s for update",
