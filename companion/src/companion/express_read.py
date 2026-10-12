@@ -13,12 +13,15 @@
   字符串（DBF 浮点 → str → Decimal 四舍五入），日期 ISO；结果是 gzip 后的 JSON（``RESULT_VERSION``）。
 
 读出的内容（字段名见 ``collect``）：
-- company：ISINFO 公司名、税号、分店号；calendar：ISPRD 24 期（读不到为空）；
+- company：ISINFO 公司名、税号、分店号；settings：ISINFO 里推送写分录时会换用的几个默认科目（现金 ACCNUM00、存货 ACCNUM04、
+  购货 ACCNUM18）与是不是期末盘存制（ISPERPETUA = 'N'），服务端据此认出推送时换过的科目（``dbf_writer`` / ``dbf_sales``）；
+  calendar：ISPRD 24 期（读不到为空）；
 - accounts：GLACC；balances：GLBAL 每个科目 BEG* / DEBIT* / CREDIT* 各列的合计（同一科目多行相加，只给非 0 的列）；
 - movements：到本月为止、没作废的凭证的 GLJNLIT 行按（科目, 日历月, TRNTYP）相加——服务端据此算本月的期初；
 - journal：行的 VOUDAT 在当月、或单据号被点名的凭证，带凭证头（作废的也给，看 docstat）；
 - vat：ISVAT 里 VATPRD、DOCDAT 或 VATDAT 落在当月的行，以及被点名的单据号（不论月份）；软删的只给被点名的；
-- documents：APTRN / ARTRN 里 DOCDAT 在当月的单据，以及被点名的单据号（不论日期，软删的标 deleted），带对方名称与税号。
+- documents：APTRN / ARTRN 里 DOCDAT 在当月的单据，以及被点名的单据号（不论日期，软删的标 deleted），带对方名称、税号与
+  对方档上的科目（赊购 / 赊销的应付 / 应收行记它）。
 """
 
 from __future__ import annotations
@@ -285,9 +288,12 @@ def collect(folder: Path, period: str, first: dt.date, last: dt.date, docnums: f
     def named(docnum) -> bool:
         return docnum.upper() in docnums
 
-    infos = _rows(folder, "ISINFO", diag, lambda r, c, _g: {
-        "name": _text(_get(r, c, "THINAM")), "tax_id": _text(_get(r, c, "TAXID")), "branch": _branch(r, c)})
-    company = infos[0] if infos else {"name": "", "tax_id": "", "branch": ""}
+    infos = _rows(folder, "ISINFO", diag, lambda r, c, _g: (
+        {"name": _text(_get(r, c, "THINAM")), "tax_id": _text(_get(r, c, "TAXID")), "branch": _branch(r, c)},
+        {"cash": _text(_get(r, c, "ACCNUM00")), "stock": _text(_get(r, c, "ACCNUM04")),
+         "purchases": _text(_get(r, c, "ACCNUM18")), "periodic": _text(_get(r, c, "ISPERPETUA")).upper() == "N"}))
+    company, settings = infos[0] if infos else (
+        {"name": "", "tax_id": "", "branch": ""}, {"cash": "", "stock": "", "purchases": "", "periodic": False})
 
     try:
         calendar = fiscal_period.load(folder)
@@ -398,7 +404,8 @@ def collect(folder: Path, period: str, first: dt.date, last: dt.date, docnums: f
     for table, code_column, name_column in (("APMAS", "SUPCOD", "SUPNAM"), ("ARMAS", "CUSCOD", "CUSNAM")):
         found = {}
         for row in _rows(folder, table, diag, lambda r, c, _g, code_column=code_column, name_column=name_column: (
-                _text(_get(r, c, code_column)), _text(_get(r, c, name_column)), _text(_get(r, c, "TAXID")))):
+                _text(_get(r, c, code_column)), _text(_get(r, c, name_column)), _text(_get(r, c, "TAXID")),
+                _text(_get(r, c, "ACCNUM")))):
             if row[0]:
                 found.setdefault(row[0], row)
         parties[table] = found
@@ -412,10 +419,11 @@ def collect(folder: Path, period: str, first: dt.date, last: dt.date, docnums: f
             if not (named(docnum) or (not gone and month(docdat))):
                 return None
             party = _text(_get(rec, columns, code_column))
-            _code, name, tax_id = parties[masters].get(party, (party, "", ""))
+            _code, name, tax_id, account = parties[masters].get(party, (party, "", "", ""))
             return {"table": side, "rectyp": _text(_get(rec, columns, "RECTYP")), "docnum": docnum,
                     "docdat": _iso(docdat), "ref": _text(_get(rec, columns, ref_column)), "party": party,
-                    "party_name": name, "party_taxid": tax_id, "flgvat": _text(_get(rec, columns, "FLGVAT")),
+                    "party_name": name, "party_taxid": tax_id, "party_account": account,
+                    "flgvat": _text(_get(rec, columns, "FLGVAT")),
                     "amount": _shown(_money(_get(rec, columns, "AMOUNT"))),
                     "netval": _shown(_money(_get(rec, columns, "NETVAL"))),
                     "vatamt": _shown(_money(_get(rec, columns, "VATAMT"))),
@@ -426,7 +434,7 @@ def collect(folder: Path, period: str, first: dt.date, last: dt.date, docnums: f
         documents.extend(_rows(folder, table, diag, document, deleted=True))
 
     diag["read_seconds"] = round(time.monotonic() - started, 2)
-    return {"version": RESULT_VERSION, "period": period, "company": company, "calendar": periods,
+    return {"version": RESULT_VERSION, "period": period, "company": company, "settings": settings, "calendar": periods,
             "accounts": accounts, "balances": balances, "movements": movements, "journal": journal,
             "vat": vat_rows, "documents": documents, "diagnostics": diag}
 

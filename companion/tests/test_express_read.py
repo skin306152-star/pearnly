@@ -21,7 +21,7 @@ from companion.request_contract import RequestFailed
 
 D = dt.date
 _SCCOMP = "COMPNAM C(60); COMPCOD C(10); PATH C(150); GENDAT D; CANDEL C(1)"
-_ISINFO = "THINAM C(60); TAXID C(15); ORGNUM N(5,0)"
+_ISINFO = "THINAM C(60); TAXID C(15); ORGNUM N(5,0); ACCNUM00 C(15); ACCNUM04 C(15); ACCNUM18 C(15); ISPERPETUA C(1)"
 # GLBAL 的列名照测试机原型 xgl.py 读真表用的那几组（BEGLY、DEBIT{k}LY / CREDIT{k}LY、DEBIT{k} / CREDIT{k}、*CLS）
 _GLBAL = "ACCNUM C(15); BEGLY B; " + "; ".join(
     f"{side}{k}{suffix} B" for suffix in ("LY", "") for k in range(1, 13) for side in ("DEBIT", "CREDIT")
@@ -64,7 +64,9 @@ def books(tmp_path):
     acct = _synth_account.build(root / "T9SINCER")
     (root / "secure").mkdir()
     _table(root / "secure" / "SCCOMP.DBF", _SCCOMP, [{"COMPNAM": "T9 SINCERE", "COMPCOD": "T9", "PATH": "T9SINCER"}])
-    _table(acct / "ISINFO.DBF", _ISINFO, [{"THINAM": "บริษัท ซินเซียร์ จำกัด", "TAXID": "0315551000297", "ORGNUM": 0}])
+    _table(acct / "ISINFO.DBF", _ISINFO, [{"THINAM": "บริษัท ซินเซียร์ จำกัด", "TAXID": "0315551000297", "ORGNUM": 0,
+                                           "ACCNUM00": "11-01-01-00", "ACCNUM04": "11-04-00-00",
+                                           "ACCNUM18": "51-03-00-00", "ISPERPETUA": "N"}])
     _table(acct / "GLBAL.DBF", _GLBAL, [
         {"ACCNUM": "11-04-00-00", "BEGLY": 1.005, "DEBIT3LY": 200.0, "CREDIT3LY": 50.0, "DEBIT1": 999.0},
         {"ACCNUM": "11-04-00-00", "BEGLY": 10.0},  # 同一科目两行（按部门）：相加
@@ -103,7 +105,8 @@ def books(tmp_path):
         {"VATREC": "S", "RECTYP": "3", "VATPRD": D(2026, 5, 1), "VATDAT": D(2026, 5, 9), "DOCDAT": D(2026, 5, 9),
          "DOCNUM": "IV690509-001", "AMT01": 4.0, "VAT01": 0.28, "DOCSTAT": "N"},
     ], deleted=(3, 4))
-    _append(acct / "APMAS.DBF", [{"SUPCOD": "S001", "SUPNAM": "ร้าน A", "TAXID": "0105556012345"}])
+    _append(acct / "APMAS.DBF", [{"SUPCOD": "S001", "SUPNAM": "ร้าน A", "TAXID": "0105556012345",
+                                  "ACCNUM": "21-01-00-02"}])
     _append(acct / "APTRN.DBF", [
         {"RECTYP": "3", "DOCNUM": "RR690502-001", "DOCDAT": D(2026, 5, 2), "REFNUM": "INV-9", "SUPCOD": "S001",
          "NETVAL": 1000.0, "VATAMT": 70.0, "NETAMT": 1070.0, "DOCSTAT": "N", "USERID": "PEARNLY"},
@@ -147,10 +150,24 @@ def test_reads_the_month_without_touching_the_account_set(books):
     assert (data["period"], data["account_set"]) == ("2026-05", "T9SINCER")
     assert data["read_at"].endswith("Z")
     assert data["company"] == {"name": "บริษัท ซินเซียร์ จำกัด", "tax_id": "0315551000297", "branch": "00000"}
+    # 推送写分录时会换用的默认科目与盘存制（服务端据此认出推送时换过的科目）
+    assert data["settings"] == {"cash": "11-01-01-00", "stock": "11-04-00-00", "purchases": "51-03-00-00",
+                                "periodic": True}
     assert len(data["calendar"]) == 24 and data["calendar"][0] == {"index": 1, "slot": "", "beg": "2026-01-01",
                                                                     "end": "2026-01-31"}
     assert {"code": "41-01-00-00", "name": "รายได้จากการขาย", "name2": "", "group": "4", "level": "",
             "parent": "41-00-00-00"} in data["accounts"]
+
+
+def test_settings_are_empty_when_the_account_set_has_no_such_columns(books):
+    (books.acct / "ISINFO.DBF").unlink()
+    _table(books.acct / "ISINFO.DBF", "THINAM C(60); TAXID C(15)", [{"THINAM": "X", "TAXID": "1"}])
+    _result, data = _read(books)
+    assert data["settings"] == {"cash": "", "stock": "", "purchases": "", "periodic": False}
+    (books.acct / "ISINFO.DBF").unlink()
+    _result, data = _read(books)
+    assert data["settings"] == {"cash": "", "stock": "", "purchases": "", "periodic": False}
+    assert "ISINFO" in data["diagnostics"]["missing_tables"]
 
 
 def test_balances_add_rows_of_one_account_and_keep_two_decimals_from_the_printed_value(books):
@@ -201,6 +218,8 @@ def test_documents_of_the_month_and_named_ones_with_the_party_from_the_master(bo
     docs = {row["docnum"]: row for row in data["documents"]}
     assert set(docs) == {"RR690502-001", "RR690601-002", "RR690520-003", "IV690510-001"}
     assert docs["RR690502-001"]["party_name"] == "ร้าน A" and docs["RR690502-001"]["party_taxid"] == "0105556012345"
+    assert docs["RR690502-001"]["party_account"] == "21-01-00-02"  # 对方档上的科目（赊购的应付行记它）
+    assert docs["RR690601-002"]["party_account"] == ""  # 对方档里没有这家
     assert (docs["RR690502-001"]["table"], docs["RR690502-001"]["ref"], docs["RR690502-001"]["netamt"],
             docs["RR690502-001"]["userid"]) == ("AP", "INV-9", "1070.00", "PEARNLY")
     assert docs["RR690520-003"]["deleted"] is True and docs["RR690601-002"]["deleted"] is False
