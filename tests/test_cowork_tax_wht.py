@@ -265,7 +265,11 @@ class NameMatchAndExcluded(unittest.TestCase):
         placed |= {note["ref"] for note in result["notes"]} | {item["ref"] for item in result["excluded"]}
         this_month = {item["ref"] for item in documents if item["fields"]["date"].startswith("2026-09")}
         self.assertEqual(this_month - placed, set())
-        # 不给记录就不列（老调用方）
+        # 会计把付款日改到别的月：同样列出、带改后的付款日；不给记录就不列（老调用方）
+        moved = wht.draft(payments, notes, 2026, 9, {}, {"H1": wht.clean_edit({"payment_date": "2026-11-02"})},
+                          documents, skipped)
+        self.assertEqual([(item["ref"], item["reason"], item.get("payment_date")) for item in moved["excluded"]][:1],
+                         [("H1", "paid_in_other_month", "2026-11-02")])
         self.assertEqual(draft(documents)["excluded"], [])
 
 

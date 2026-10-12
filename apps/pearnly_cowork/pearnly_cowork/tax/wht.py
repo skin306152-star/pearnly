@@ -78,8 +78,8 @@ MATCH_CLIENT, MATCH_WORKSPACE = "client", "workspace"  # 票面没有本公司�
 MATCH_NAME = "name"  # 买方税号没读出、买方名称是本公司的名称（`sources._company_names`）
 UNCONFIRMED_MATCHES = (MATCH_CLIENT, MATCH_WORKSPACE, MATCH_NAME)
 # 读到了、不计入本月的本月单据的原因（``excluded``），按会计最可能要问的排前
-EXCLUDED_REASONS = ("paid_in_other_month", "certificate_other_company", "nothing_withheld", "not_this_company",
-                    "sales_document")
+EXCLUDED_REASONS = ("paid_in_other_month", "payment_date_missing", "certificate_other_company", "nothing_withheld",
+                    "not_this_company", "sales_document")
 THRESHOLD = Decimal(1000)
 # 只作建议（questions 里的 suggested），不代替会计选：同一税率可能是几种所得
 SUGGEST_BY_RATE = {Decimal(5): "rent", Decimal(2): "advertising", Decimal(1): "transport", Decimal(3): "service",
@@ -728,7 +728,8 @@ def _excluded(documents, skipped, elsewhere, result, target) -> list:
         entry = {"ref": ref, "reason": skipped.get(ref) or "not_this_company", "date": day.isoformat()}
         if ref in elsewhere:
             paid = elsewhere[ref]
-            entry.update(reason="paid_in_other_month", payment_date=paid.isoformat() if paid else "")
+            entry.update({"reason": "paid_in_other_month", "payment_date": paid.isoformat()} if paid
+                         else {"reason": "payment_date_missing"})
         for key in ("document_type", "invoice_number", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
                     "total_amount", "wht_amount"):
             value = str(fields.get(key) or "").strip()
