@@ -2,11 +2,14 @@
 (the root folder itself),（根目录本身）
 1 day before,1 天前
 1 hour before,1 小时前
+1% e-Withholding Tax rate,1% 电子预扣税率
 10 minutes before,10 分钟前
 15 minutes before,15 分钟前
 2 days before,2 天前
 2 hours before,2 小时前
 5 minutes before,5 分钟前
+A POS export can cover at most 100 days,一份 POS 导出最多 100 天
+A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.,一家公司一个月的增值税申报（ภ.พ.30）或预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿。
 A board needs at least one admin,看板至少需要一位管理员
 A board needs at least one list,看板至少需要保留一个列表
 A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,所选的值在 MR.ERP 中已不存在，请重新选择。
@@ -14,12 +17,17 @@ A client cannot be moved to another company.,客户不能转移到另一家公�
 A client needs a name.,请填写客户名称。
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
 A date could not be read. Check the date format in the file,部分日期无法读取，请检查文件中的日期格式
+A date in this POS export cannot be read,此 POS 导出中有日期无法读取
+A day has more than 20 payment methods,一天的付款方式超过 20 种
+A day has more than 999 item lines,一天的商品明细超过 999 行
+A day's sales total is zero or less,有一天的销售合计为零或负数
 "A document section exceeds 30,000 characters. Split the document before recognition.","文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
 A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
 A file is larger than 25 MB.,文件超过 25 MB。
 A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
 A name is required.,请填写名称。
+A non-cash payment method has a negative total for a day,有一天某种非现金付款方式的合计为负数
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
 A numeric value in the invoice is invalid. Correct it before exporting.,发票中有无效数值，请更正后再导出。
 A positive record revision is required.,记录版本必须是正整数。
@@ -27,13 +35,16 @@ A positive source page number is required.,源文件页码必须是正整数。
 A product code or barcode identifies more than one product.,产品编码或条形码对应了多个产品。
 A product needs a name.,请填写物料名称。
 A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,对账因程序错误未完成，错误已记录。重试将得到相同结果。
+A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.,公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的已识别 50 ทวิ。不是票据：不推送、不计费。
 A referenced history record is unavailable in the selected company and client.,所选公司和客户范围内无法访问引用的历史记录。
+A remembered column is not in this POS export. Choose the columns again,记住的列不在此 POS 导出中，请重新确认列
 A reported ERP action is invalid.,上报的 ERP 操作无效。
 A reported ERP field is invalid.,上报的 ERP 字段无效。
 A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 个字符。
 A required text field is empty. Fill it in and try again,必填文本字段为空，请填写后重试
 A review workbook must contain between 1 and 500 invoices.,复核工作簿须包含 1 至 500 张发票。
 A rule cannot move to another PC. Turn it off and create a new one.,规则无法转移至其他电脑，请停用后新建规则。
+A same-day reminder must be earlier than the run time.,当天提醒要早于运行时间
 A scheduled task cannot move to another PC. Turn it off and create a new one.,定时任务无法转移至其他电脑，请停用后新建定时任务。
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express 中已存在相似客户，请选择该客户或确认为新客户
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express 中已存在相似供应商，请选择该供应商或确认为新供应商
@@ -44,6 +55,7 @@ A timezone-aware UTC timestamp is required.,必须提供带时区的 UTC 时间�
 A value in the ERP data report exceeds the allowed length.,ERP 数据报告中的值超过允许长度。
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,部分支出或存入金额为负数，请检查支出 / 存入列
 Abbreviated Tax Invoice,简式税务发票
+Abbreviated tax invoice,简易税票
 Access to the CC Desktop queue has been revoked.,CC 桌面版队列的访问权限已撤销。
 Access to the Companion queue has been revoked.,小助手队列的访问权限已撤销。
 Account Codes,科目编码
@@ -51,6 +63,7 @@ Account Key,账套键
 Account Set,账套
 Account Set Key,账套选择键
 Account Set Label,账套名称
+Account Set Name,账套名称
 Account code,科目代码
 Account set,账套
 Ack Digest,回执摘要
@@ -77,10 +90,13 @@ Add label,添加标签
 Add member,添加成员
 Add photo,添加照片
 Add photos,添加照片
+Add time,添加时间
 Add watcher,添加关注人
 Added {0},已添加 {0}
 Address,地址
 Admins only,仅管理员
+Advertising,广告费
+"After refunds, an item's quantity for a day is zero or less, or its amount is negative",退款后有商品当天的数量为零或负数，或金额为负数
 All,全部
 All labels,全部标签
 All members,全部成员
@@ -89,10 +105,13 @@ Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
 Amount,金额
 Amount Tolerance,金额容差
+Amount not read,金额未读出
+Amount paid,支付金额
 An account needed for this invoice is not set. Check the account settings,缺少此发票所需的科目，请检查科目设置
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,所用科目不在 Express 科目表中，请检查科目设置
 An amount could not be read. Check the amount format in the file,部分金额无法读取，请检查文件中的金额格式
 An amount has too many decimal places. Check the file,部分金额小数位数过多，请检查文件
+An amount in this POS export cannot be read,此 POS 导出中有金额无法读取
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
 An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
 An original file is already stored for this source.,此来源已保存原始文件。
@@ -100,6 +119,7 @@ Anchor Date,参考日期
 Another active rule already uses this folder or a folder containing it.,已有启用中的规则使用此文件夹或其上级文件夹。
 Another push holds the writer lock.,另一笔推送正在占用写入锁。
 Answered a reconciliation question,回答了对账的问题
+Answered a withholding tax question,回答了预扣税的问题
 Any due date,全部到期日
 Archive,归档
 Archive all cards in this list,将此列表中的所有卡片归档
@@ -179,27 +199,37 @@ Branch No,分支机构编号
 Brief Key,简报去重键
 Brief Sent At,简报发送时间
 Brief Status,简报状态
+Brought files from a folder,从文件夹取来了文件
+Buyer,买方
 Buyer Client,买方客户
 Buyer Name,买方名称
+Buyer Tax ID,买方税号
 Buyer address,买方地址
 Buyer branch,买方分支机构
+Buyer is another company,买方是其他公司
+Buyer not on the invoice,票面无买方
 Buyer tax ID,买方税号
+Buyer tax ID invalid,买方税号无效
 "By preset, ledger account {0} is used for this bank account",按预设，此账户使用总账科目 {0}
 "By preset, these accounts are left out: {0}",按预设，这些科目不参与对账：{0}
 By preset: {0} groups matched by total,按预设：已按合计匹配 {0} 组多笔对一笔
 Byte Size,文件大小（字节）
 CC Conversation,CC 对话
 CC Desktop Report,CC 桌面版上报
+CC Desktop Request,CC 桌面版请求
+CC Desktop Version,CC 桌面版版本
 CC Desktop authentication failed.,CC 桌面版认证失败。
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
 CC Desktop could not write this invoice. It is retried automatically,CC 桌面版写入失败，将自动重试
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
+CC Desktop has not finished this yet.,CC 桌面版还没做完。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
 CC Desktop offline,CC 桌面版离线
 CC Desktop offline or needs update,CC 桌面版不在线或需升级
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
 CC Desktop on this PC has not synced recently. Update it to the latest version.,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
+CC Desktop sent back data that cannot be read.,CC 桌面版交回的数据读不了。
 CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,推送时 CC 桌面版未连接，将于十分钟后重新推送。
 "CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送
 Calendar,日历
@@ -218,6 +248,9 @@ Cash,现金
 Cash purchase,现购
 Cash sales,现金销售
 Catch-up after start,开机补运行
+Category,分类
+Certificate received from a customer,客户开给本公司的凭证
+Change,变动
 Change cards on the work board,请在工作看板上修改卡片
 Change cover,更改封面
 Change how this kind of document is handled?,要更改这类单据的处理方式吗？
@@ -226,8 +259,10 @@ Change members,变更成员
 Change the MR.ERP import settings?,要更改 MR.ERP 导入设置吗？
 Change the inventory account group?,要更改存货科目组吗？
 Change the stock account group?,要更改存货科目组吗？
+Changed,改过
 Changed At (UTC),修改时间（UTC）
 Changed By,修改人
+Changes,变动
 Check line by line,逐笔核对
 Check the ERP connection settings.,请检查 ERP 连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
@@ -235,6 +270,7 @@ Check the warehouse and location. A warehouse is required.,请检查仓库和位
 Checkbox,勾选
 Checked CC Desktop,查看了 CC 桌面版
 Checked MR.ERP import settings,查看了 MR.ERP 导入设置
+Checked a readback,查看了回读结果
 Checked a reconciliation's progress,查看了对账进度
 Checked folder task options,查看了文件夹任务可选项
 Checked folder task runs,查看了文件夹任务记录
@@ -251,12 +287,15 @@ Checked the stock account group,查看了存货科目组
 Checking,核对中
 Checklist,清单
 Checklist Id,清单 ID
+Checks,核查
 Checks Json,检查结果（JSON）
 Cheque,支票
 Chinese Name,中文名称
+Choose a connection and account set.,请选择连接与账套。
 Choose a day and time for the monthly run.,请选择每月运行的日期和时间。
 Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
+Choose an Express account set first,请先选择 Express 账套
 Choose an allowed root reported by CC Desktop.,请选择 CC 桌面版上报的根目录。
 Choose an allowed root reported by the Companion.,请选择小助手上报的根目录。
 Choose an image attached to this card,请选择此卡片的图片附件
@@ -267,11 +306,13 @@ Choose once for this account set,此账套仅需选择一次
 Choose purchase or sales for this invoice and submit again,请选择此发票为进项或销项后重新提交
 Choose service or stock for this invoice and submit again,请为此发票选择服务或存货后重新提交
 "Choose the Express records for this invoice first, then submit again",请先为此发票选择 Express 中的对应项，再重新提交
+Choose the columns of this POS export once,请确认一次此 POS 导出的列
 Choose the company,选择公司
 Choose the destination for these documents,选择单据推送目标
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
 Choose the inventory account group for this account set. Tap the number:,请为此账套选择存货科目组（点击序号选择）：
 Choose the payment method,选择付款方式
+Choose the receiving account of each payment method,请为每种付款方式选择收款科目
 Choose the sheet to import,请先选择要导入的表格
 Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
@@ -281,6 +322,9 @@ Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
 Claim as input VAT,抵扣进项税
+Claimed after the invoice month,晚于开票月抵扣
+Claimed before the invoice month,早于开票月抵扣
+Claimed in,抵扣月
 Client,客户
 Client Name,客户名称
 Close count,结束盘点
@@ -298,10 +342,14 @@ Commented on a task,评论了任务
 Commenting,评论权限
 Comments,评论
 Comments and activity,评论和活动
+Commission,佣金
 Companion Report,小助手上报
 Companion authentication failed.,小助手认证失败。
 Companion offline or needs update,小助手不在线或需升级
 Company,公司
+Company Name,公司名称
+Company tax ID,本公司税号
+Company tax ID not on the document,票面无本公司税号
 CompanyA-purchase-service,公司A-进项-服务
 CompanyA-sales,公司A-销项
 Complete,完成
@@ -311,12 +359,15 @@ Completed At,完成时间
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
 Completion Evidence,完成证据
+Condition,条件
+Condition code not allowed,条件码不适用
 Confirmation Request,确认请求
 Confirmation Revision,确认版本
 Confirmed,已确认
 Confirmed a push result,确认了推送结果
 Connect CC Desktop,连接 CC 桌面版
 Connect Companion,连接小助手
+Connection,连接
 Connection Configuration,连接配置
 Connection Name,连接名称
 Connection Revision,连接版本
@@ -361,11 +412,13 @@ Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
 Cowork Client,Cowork 买方客户
 Cowork Companion Delivery,Cowork CC 桌面版任务领取记录
+Cowork Companion Request,Cowork CC 桌面版请求
 Cowork ERP Connection,Cowork ERP 连接
 Cowork ERP Mapping,Cowork ERP 映射
 Cowork ERP Refresh,Cowork ERP 目录刷新
 Cowork ERP Snapshot,Cowork ERP 目录快照
 Cowork Express Agent Credential,Cowork Express CC 桌面版凭据
+Cowork Express Readback,Cowork Express 回读
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork 主数据
 Cowork OCR Batch,Cowork 识别批次
@@ -386,6 +439,10 @@ Cowork Stocktake Item,Cowork 盘点品项
 Cowork Stocktake Operation,Cowork 盘点操作记录
 Cowork Stocktake Task,Cowork 盘点任务
 Cowork Supplier Posting Profile,Cowork 供应商过账档案
+Cowork Tax Draft,Cowork 报税草稿
+Cowork Tax Filing,报税草稿
+Cowork WHT Certificate,Cowork 预扣税凭证参考
+Cowork WHT Choice,Cowork 预扣税所得类型
 Cowork Workspace,Cowork 公司账套
 Cowork menu,Cowork 菜单
 Create a new label,新建标签
@@ -396,6 +453,7 @@ Create from template,从模板创建
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Create it from the document,按票面新建
 Created,创建时间
+Created At,创建时间
 Created By,创建人
 Created a stock count,新建了盘点
 Created a task,新建了任务
@@ -416,11 +474,14 @@ Customer,客户
 Customer type,客户类型
 Cyan,青
 Daily,每天
+Data Version,数据版本
 Date,日期
 Date Diff Days,日期相差天数
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
+Date paid,支付日期
 Dates,日期
+Day before,前 1 天
 Day {0},{0} 日
 Days,天数
 Days later,天后
@@ -442,10 +503,14 @@ Delete {0},删除 {0} 项
 Delete {0} reconciliation(s)?,确定要删除 {0} 个对账任务吗？
 Delete {0} stock count(s)?,删除这 {0} 个盘点？
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
+Deleted,已删除
+Deleted a readback,删除了回读结果
 Deleted documents,删除了单据
 Deleted folder tasks,删除了文件夹任务
+Deleted in Express,Express 中已删除
 Deleted reconciliations,删除了对账
 Deleted stock counts,删除了盘点
+Deleted tax drafts,删除了报税草稿
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
 Delivery type,运输方式
@@ -474,7 +539,9 @@ Disabled,关闭
 Discount,折扣金额
 Discount Amount,折扣金额
 Display text (optional),显示文本（可选）
+Dividends,股息
 Document Key,单据防重键
+Document No.,单据号
 Document Policy,单据录入规则
 Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
@@ -488,8 +555,12 @@ Done List,完成列表
 Done list (cards moved here are complete),完成列表（移入即完成）
 Download template,下载模板
 Draft,草稿
+Drafted a VAT return,起草了增值税申报表
+Drafted a withholding tax return,起草了预扣税申报表
 Dropdown,下拉
 Due,到期
+Due (e-Filing),申报期限（网上）
+Due (paper),申报期限（纸质）
 Due Time,到期时间
 Due date,到期日
 Due later,以后到期
@@ -497,6 +568,7 @@ Due this week,7 天内到期
 Due time,到期时间
 Due today,今天到期
 Due today or tomorrow,今明两天到期
+Duplicate,重复
 Duplicate Check Status,查重状态
 Duplicate Match Level,重复匹配程度
 Duplicate Record Reference,重复记录
@@ -539,7 +611,10 @@ Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符�
 Enter a valid email,请填写正确的邮箱
 Enter a valid quantity with no more than six decimal places.,请输入有效数量，最多保留六位小数。
 Enter list name,输入列表名称
+Enter the company's 13-digit tax ID.,请输入公司的 13 位税号。
 Enter the user name,请填写用户名
+Entered by,录入人
+Entered in Express,Express 直接录入
 Entered into Express,已推送
 Entered {0},已推送 {0}
 Entered {0} · in progress {1},已推 {0} · 处理中 {1}
@@ -552,13 +627,17 @@ Entries — {0},记录 — {0}
 Entry,记录
 Entry saved,已记录
 Entry status,记录状态
+Error Code,错误码
 Event Key,事件标识
 Every unit needs a factor to the base unit.,请为每个单位填写与基本单位的换算系数。
 Every unit needs a name.,请为每个单位填写名称。
 Evidence Fingerprint,证据指纹
 Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
+Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送
 Excel/CSV exported from online banking or the electronic PDF is most accurate,建议使用网银导出的 Excel/CSV 或电子版 PDF
+Excess tax brought forward,上期结转的多缴税额
+Expected VAT,应为税额
 Expense account,费用科目
 Expense account when no category matches,未匹配科目的费用
 Expires At,到期时间
@@ -573,6 +652,7 @@ Express PC,Express 电脑
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 "Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，将自动重试
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
+Express document,Express 单号
 Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
 Express record,Express 对应档案
 External Docnum,ERP 凭证号
@@ -598,6 +678,8 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 Finished a stock count,结束了盘点
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
+First name,名
+Fix,需修正
 Folder,文件夹
 Folder and schedule,文件夹与时间
 Folder auto-intake is not turned on for this site.,本站没有开通文件夹自动录入。
@@ -609,6 +691,7 @@ Folder rules need an Express connection with the Pearnly Companion. Connect Expr
 Folder rules work with Express connections only.,自动录入只用于 Express 连接。
 Folder to read,文件夹
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",拍摄提示：请将单据摆正、文字朝上，完整拍入画面。
+Form,表
 Formula Diff,公式差额
 Formula Statement Closing,按公式计算的对账单期末余额
 Found {0} · new {1} · skipped {2} · upload failed {3},扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
@@ -639,12 +722,16 @@ General,常用功能
 General ledger,总账
 General ledger detail,总账明细
 Generation Key,凭据版本键
+Give a file path inside this folder.,请给出这个文件夹里的文件路径。
+Give the month as YYYY-MM.,月份请写成 YYYY-MM。
 Gray,灰
 Green,绿
 Group,组
 Handle these the same way every time,这一类以后都这样处理
 Has GL Match,有总账匹配
+Head office / branch,总部 / 分支
 Hide details,隐藏详情
+Hire of work,承揽费
 Histories,识别记录
 History,票据历史
 History Records,识别记录
@@ -656,7 +743,10 @@ IN,入账
 "If you have the electronic statement, upload it instead",如有电子版账单，建议上传电子版
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,图片和 PDF 发票暂不支持，请先用 Excel 或 CSV 格式的发票。
 Import result,导入结果
+Imported POS sales,导入了 POS 销售
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
+In Express,Express 现在
+In another tax month,属于其他税期
 In progress,进行中
 In progress ({0}),进行中（{0}）
 In progress {0},处理中 {0}
@@ -664,13 +754,22 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,已停用
 Include Existing Files,处理已有文件
 Included in total,计入合计
+Income Description,所得说明
 Income Reconciliation,收入对账
+Income Type,所得类型
 Income account,收入科目
+Income type not chosen,未选所得类型
+Income type not on this form,此表不含该所得类型
+Income type to choose,待选所得类型
 Initial Password,初始密码
+Input tax report,进项税报告
+Input tax this month,本月进项税额
+Input tax without flagged rows,剔除标出行后的进项税
 Inputs,输入参数
 Insert,插入
 Installed At (UTC),安装时间（UTC）
 Intake Target,录入目标
+Interest,利息
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
 Invalid checklist,清单无效
 Invalid color,颜色无效
@@ -692,12 +791,16 @@ Invoice Count,发票数量
 Invoice Date,发票日期
 Invoice Index,发票序号
 Invoice No,发票号码
+Invoice No.,票号
 Invoice Number,发票号码
 Invoice Pages,发票页面
 Invoice References Complete,发票关联已完整
 Invoice References Fingerprint,发票关联指纹
 Invoice Total,发票总额
+Invoice and certificate do not match,票据与凭证对不上
+Invoice date outside the tax month,开票日不在本税期
 Invoice detail,发票明细
+Invoice month,开票月
 Invoice no.,发票号
 Invoice number,单号
 Invoice number on the document,发票号
@@ -705,9 +808,11 @@ Invoice pages do not match the original page references.,发票页面与原件�
 Invoice recognition is busy. Try again in a moment.,发票识别繁忙，请稍后再试。
 Invoice recognition took too long. Try again later.,发票识别超时，请稍后再试。
 Invoices,发票数
+Issue,问题
 Issued At (UTC),签发时间（UTC）
 Issued By,签发人
 Issued Request Digest,签发请求摘要
+Issues,问题
 It was entered,已入账
 It was not entered,未入账
 Item,项目
@@ -735,8 +840,14 @@ Last Seen Generation,最近确认代次
 Last Used At,最近使用时间
 Last day of the month,月末
 Last modified by,最后修改人
+Last month to claim,最晚抵扣月
+Last name,姓
 Last used,上次使用
+Lease Credential,租约凭据
 Lease Expires At,租约到期时间
+Lease Expires At (UTC),租约到期时间（UTC）
+Lease Handle,租约标识
+Leased At (UTC),领取时间（UTC）
 Leave board,离开看板
 Ledger account,总账科目
 Ledger amount,总账金额
@@ -747,6 +858,9 @@ Ledger {0} {1}: one line {2},总账 {0} {1} 一笔 {2}
 Left out (not in the tax report),不参与对账（不在销项税报告里）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},已排除 {0} 行与主账单重复、疑似识别错误的行，请核对：{1}
 Legacy Status,旧状态
+Less exempt sales,减：免税销售额
+Less zero-rated sales,减：零税率销售额
+Level,级别
 Light,灯光
 Line {0} ({1}): balance off by {2} — {3},第 {0} 行（{1}）余额差 {2}：{3}
 List,列表
@@ -754,6 +868,7 @@ List actions,列表操作
 List archived,列表已归档
 List name,列表名称
 Listed documents,查看了单据
+Listed folder files,列出了文件夹里的文件
 Listed reconciliations,查看了对账列表
 Listed stock counts,查看了盘点列表
 Listed task boards,查看了任务看板
@@ -763,6 +878,7 @@ Location mismatch,仓位不符
 Lock Key,锁键
 Lock Kind,锁类型
 Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
+Lookup Key,查找键
 MR.ERP Import Menu Options Seen,已读取的 MR.ERP 导入菜单
 MR.ERP Import Menu per Account Set,各账套的 MR.ERP 导入菜单
 MR.ERP Master Defaults per Account Set,各账套的 MR.ERP 默认值
@@ -802,6 +918,8 @@ Mirror,镜像
 Mismatched,不一致
 Missing page,此处缺页
 Modified at (UTC),修改时间（UTC）
+Month,月份
+Month paid,支付月份
 Monthly,每月
 Monthly on {0} at {1},每月 {0} {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",大部分发票在时限内未读取完成（{1} 份中 {0} 份），以下差异多为发票未读取所致，请稍后重新提交。
@@ -811,8 +929,11 @@ Move list,移动列表
 Moved a task,移动了任务
 My cards,我的卡片
 Name,名称
+Name suggests P.N.D.3,名称显示应为 ภ.ง.ด.3
 Native Content Hash,原生文件内容哈希
 Needs review,待复核
+"Net tax overpaid (10 more than 8, or 9 plus 10)",净多缴税额（10 大于 8 时，或 9 加 10）
+Net tax payable (if 8 is more than 10),净应纳税额（8 大于 10 时）
 Never,从不
 New Files,新文件数
 New code,重新生成绑定码
@@ -826,6 +947,7 @@ Next Attempt At,下次重试时间
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No Companion credential has been issued for this connection.,此连接尚未签发小助手凭据。
 No ERP is ready to use,暂无可用的 ERP
+No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
@@ -833,6 +955,7 @@ No cards are assigned to you,暂无分配给你的卡片
 No changes were given.,没有指定要改的内容。
 No documents were given.,没有指定单据。
 No due date,无到期日
+No files were given.,没有指定文件。
 No folder rules yet. Create one and put the documents into its folder.,还没有规则。新建一条，把单据放进对应的文件夹即可。
 No folders on this PC yet. Add them in CC Desktop on that PC.,此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。
 No folders on this PC yet. Add them in the Companion on that PC.,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
@@ -849,22 +972,30 @@ No number_,无发票号_
 No presets yet,暂无预设
 No product in this count matches that code,这个盘点里没有这个编码的商品
 No product matches that code,未找到该编码对应的物料
+No recognition record,无识别记录
 No recognition tasks were given.,没有指定识别任务。
 No rules yet,还没有规则
 No runs yet,暂无运行记录
+No sales were found in this POS export,此 POS 导出中没有销售记录
 No tasks were given.,没有指定任务。
+No tax month,无税期
 No templates yet,暂无模板
 No warehouse matches that name,该仓库名不存在
 "No, check line by line",不是，逐笔核对
 "No, not in the tax report (interest, other income)",不参与（不开税票的收入，如利息）
+No.,序号
+Non-life insurance premiums,财产保险费
 None,无
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,账单行均不在总账期间（{1} 至 {2}）内，已全部参与对账，请核对两份文件是否为同一期间。
 Not Permitted,没有权限
+Not a tax invoice,不是税票
 Not an invoice file,不是发票
 Not bound,未绑定
 Not card deposits net of fee,不是刷卡净额
 Not counted,未盘点
 Not entered,不录入
+Not found,找不到
+Not included,未计入
 Not invoices {0},不是发票 {0}
 Not permitted,没有权限
 Not set,未填
@@ -872,6 +1003,7 @@ Not specified in books,账面未指定
 Not uploaded {0},未上传 {0}
 Note,说明
 Notes,备注
+Nothing withheld on the invoice,票面未扣税
 Notifications,提醒
 Number,数字
 OUT,出账
@@ -885,7 +1017,9 @@ On schedule,定时
 One folder per rule. PDF and image files only.,每个文件夹对应一条规则，仅支持 PDF 和图片文件。
 One folder per scheduled task. PDF and image files only.,每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。
 One of the default choices is not valid for this account set.,有一项默认处理在这份账套里不可用。
+Only Express account sets can be read back.,只有 Express 账套可以回读。
 Only PDF and image files are read.,仅支持 PDF 和图片文件。
+Only POS exports in Excel (.xlsx) or CSV can be imported,只能导入 Excel（.xlsx）或 CSV 格式的 POS 导出
 Only an active count can be deleted,只能删除进行中的盘点
 Only board admins can do this,仅看板管理员可执行此操作
 Only invoices in Thai baht can be sent to Express,仅泰铢发票可推送至 Express
@@ -894,6 +1028,7 @@ Only one sell unit can be the default.,只能设置一个默认销售单位。
 Open card,打开卡片
 Opened the original,查看了原件
 Opening Diff,期初差额
+Operator,经营者
 Options,选项
 Options (one per line),选项（每行一个）
 Orange,橙
@@ -913,29 +1048,56 @@ Original files cannot be changed.,原始文件不可更改。
 Original files cannot be deleted while invoice references may exist.,可能仍有关联发票时，不可删除原始文件。
 Original files cannot be shared separately from their invoices.,原始文件不能与其关联发票分开共享。
 Other,其他
+Other party,对方
+Other records,其他记录
 Outcome,执行结果
 Output VAT report,销项税报告
+Output tax report,销项税报告
+Output tax this month,本月销项税额
 Over,盘盈
 Over book quantity,盘盈
 Overdue,已过期
+Overpaid in last month's draft,上月草稿的多缴税额
 Owner ID,所有者 ID
 Owner Id,执行者编号
+P.N.D.3,ภ.ง.ด.3
+P.N.D.3 attachment,ภ.ง.ด.3 附表
+P.N.D.53,ภ.ง.ด.53
+P.N.D.53 attachment,ภ.ง.ด.53 附表
+P.P.30,ภ.พ.30
 PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
+POS daily sales can only be sent to Express,POS 日汇总只能推送到 Express
+POS export columns to choose,待确认 POS 导出的列
+POS exports can only be entered into Express,POS 导出只能录入 Express
+Page,页
 Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
 Page {0}/{1},第 {0}/{1} 页
+Parameters,参数
 Parse Info Json,解析信息
+Parties not read,双方未读出
+Party,对方
 Party Type,往来单位类型
 Password updated,密码已更新
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
+Past the 6-month claim period,超过 6 个月抵扣期限
 Paste a link,粘贴链接
 Payable account,应付科目
+Payee,收款方
+Payee tax ID,收款方税号
+Payee tax ID invalid,收款方税号无效
+Payee tax ID missing,缺收款方税号
+Payees,收款方数
+Payer not clear,付款方不明
 Payload Json,冻结载荷（JSON）
 Payment,付款方式
+Payment Date,付款日期
 Payment Evidence,付款凭证
 Payment Method,付款方式
+Payment date assumed,付款日为推定
 Payment method,付款方式
 Pearnly Cowork,Pearnly Cowork
+Penalty,罚款
 Pending,待处理
 Period,期间
 Phase,处理阶段
@@ -957,6 +1119,7 @@ Previous Json,更改前数据（JSON）
 Private,私有
 Private File,私有文件
 Private Storage URL,私有存储地址
+Prizes,奖金
 Product,商品
 Product Code,产品编码
 Product Name,产品名称
@@ -965,18 +1128,21 @@ Product codes and barcodes must be stored as text.,产品编码和条形码必�
 Product group,商品分类
 Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
+Professional fees,专业服务费
 Progress,进度
 PromptPay,PromptPay
 Provider Evidence,服务商调用证据
 Purchase (expense),采购（费用）
 Purchase (goods),采购（货品）
 Purchase or sales?,请选择进项或销项
+Purchases eligible for input tax credit this month,本月可抵扣进项税的购进额
 Purple,紫
 Push Account Set,推送账套
 Push Attempt,推送尝试
 Push Connection,推送连接
 Push Record,推送记录
 Push record not found.,找不到推送记录。
+Pushed,推送时
 Pushed documents,推送了单据
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。
 "Pushing is not enabled for this site, so nothing was sent.",本站点未启用推送，未发送任何内容。
@@ -987,13 +1153,21 @@ Questions,问题
 Queued,排队等待
 "Queued, {0} ahead",排队中 · 前面还有 {0} 份
 "Queued, {0} tasks ahead",排队中，前面还有 {0} 个任务
+Rate %,税率 %
+Rate differs from the usual rate,税率与常用税率不同
+Rate not confirmed for this date,该日期税率未确认
 Read,已读取
+Read At (UTC),读取时间（UTC）
 Read VAT report,读取销项税报告
 Read again,重新读取
+Read back the accounting books,回读了账套账目
 Read bank statement,读取银行对账单
 Read files,读取文件
+Read from Express,读自 Express
 Read general ledger,读取总账
 Read tax invoices,读取发票
+Readback,回读
+Readback ID,回读编号
 Reading files,读取文件
 Reading the MR.ERP menus…,正在读取 MR.ERP 菜单…
 Reading the VAT report,读取税表
@@ -1002,12 +1176,16 @@ Reading the company list from the ERP. Tap the menu again in a moment.,正在从
 Reading the general ledger,读取总账
 Reading the invoices,读取发票
 Reading the scanned or photographed document took too long. Try again later.,扫描件或照片读取超时，请稍后再试。
+Ready At (UTC),完成时间（UTC）
 Ready for the next product,可以盘下一个商品了
 Reason,原因
 Receipt,收据
 Receivable account,应收科目
+Received Bytes,已收字节数
+Receiving account,收款科目
 Recently read,最近读取
 Recognised {0} documents,已识别 {0} 张单据
+Recognition Batch,识别批次
 Recognition Confidence,识别置信度
 Recognition Quality,识别质量
 Recognition Reference,识别参考号
@@ -1016,6 +1194,7 @@ Recognition is busy. Try again in a moment.,识别服务繁忙，请稍后重试
 Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
 Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
 Recognition was interrupted (not charged). Upload this file again,识别已中断（未扣费），请重新上传此文件
+Recognized Fields,识别字段
 Recognized documents,识别了单据
 Recognized with high confidence,高置信识别
 "Recognized, waiting to enter",已识别
@@ -1053,16 +1232,22 @@ Reimporting review workbooks is not available on the new platform yet.,新平台
 Relative Path,相对路径
 Reload,刷新
 Remarks,备注
+Remind me,提醒
 Remind me the day before,前一天提醒
 Reminder,提醒
 Reminder Since,提醒起算时间
+Reminder Times,提醒时刻
+Reminder day,提醒日
+Reminder time,提醒时间
 Remove,移除
 Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Remove mirror,移除镜像
 Remove template,取消模板
+Rent,租金
 Repeat,重复
 Replaced by your later submission of the same files.,已被相同文件的后续提交取代。
+Report,报告
 Report Count,报告数量
 Report Credential,上报凭据
 Report Credential Generation,上报凭据版本
@@ -1081,12 +1266,17 @@ Reset Password,重置密码
 Response Json,回执（JSON）
 Restore,恢复
 Result,结果
+Result Bytes,结果字节数
+Result Details,结果说明
 Result Directory Revision,结果目录版本
 Result Folder,结果文件夹
 Result Json,识别结果（JSON）
+Result SHA-256,结果 SHA-256
 Result Unknown,结果未知
 Result in the ERP,ERP 里的结果
 Results: {0},结果：{0}
+Return Form,申报表
+Return Type,申报类型
 Review,复核
 Review JSON,复核记录 JSON
 Review Reasons,复核原因
@@ -1102,6 +1292,7 @@ Root,根目录
 Route,上传方式
 Row Count,行数
 Row Index,行号
+Row not read,无法读取的行
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格导入物料行与实盘数量；实盘数量可留空，稍后在线盘点。
@@ -1131,6 +1322,11 @@ SKU,SKU
 Sales area,销售区域
 Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票缺少未税金额明细，无法导出。
+Sales promotion,促销奖励
+Sales this month,本月销售额
+Same as,重复于
+Same as row,与此行重复
+Same day,当天
 Sample Key,修正例标识
 Save and next,保存并下一项
 Save these folder tasks?,要保存这些定时任务吗？
@@ -1160,11 +1356,14 @@ Select between 1 and 100 distinct history records to export.,请选择 1 至 100
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
 Select valid files to download.,请选择有效文件进行下载。
 Sell Units,销售单位
+Seller,卖方
 Seller Name,卖方名称
 Seller Tax ID,卖方税号
 Seller address,卖方地址
 Seller branch,卖方分支机构
 Seller tax ID,卖方税号
+Seller tax ID invalid,卖方税号无效
+Seller tax ID missing,缺卖方税号
 Selling Price,售价
 Send,发表
 Send anyway,仍然推送
@@ -1172,6 +1371,7 @@ Send documents to ERP,发送单据至 ERP
 Send the code from the Cowork page to bind,请发送 Cowork 页面上的绑定码
 Sending was cancelled because the account set was in use. Close Express and send again,账套正被占用，已终止推送，请关闭 Express 后重新推送
 Service,服务
+Service fees,服务费
 Service or stock?,请选择服务或存货
 Set At,设定时间
 Set By,设定人
@@ -1180,12 +1380,14 @@ Set by {0} on {1},{0} 于 {1} 设定
 Set due date,到期日设为 N 天后
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。
 Set reminder,设置提醒
+Set the POS export columns,设定了 POS 导出的列
 Settings Json,配置数据（JSON）
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",多个科目均有可匹配的流水。选择后将使用原文件重新核对（不重新识别）。
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",以下照片 / 扫描件识别的销项税报告页有多行与总账不一致，可能为识别错误（错位或漏行），请对照原件核对（括号内为不一致行数）：{0}
 Sheet,表格文件
+Sheets,页数
 Short,盘亏
 Short of book quantity,盘亏
 Show,显示
@@ -1205,7 +1407,9 @@ Some rows were skipped,部分行未导入
 Someone else changed this card. Close it and open it again.,此卡片已被其他用户修改，请关闭后重新打开。
 Someone else changed this reconciliation. Reload it before saving.,此对账已被其他用户修改，请刷新后再保存。
 Sort by,排序依据
+Source,来源
 Source Digest,来源摘要
+Source Draft,来源草稿
 Source File,原始文件
 Source Format,来源格式
 Source Hash,来源摘要
@@ -1259,9 +1463,12 @@ Stop watching,取消关注
 Stored Page Previews,已存页面预览
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,下级子文件夹随意分，文件名随意，一份 PDF 里几张发票都行。
 Submit,提交
+Suggested,建议
+Summary,汇总
 Summary Json,汇总信息
 Summary table import,汇总表导入
 Supplier type,供应商类型
+Surcharge,附加费
 Table,表格
 Tap Send documents to ERP in the menu first,请先点击菜单中的「发送单据至 ERP」
 Tap the menu to start,请点击菜单开始
@@ -1269,10 +1476,21 @@ Target Json,冻结目标（JSON）
 Task,任务
 Task Management,任务管理
 Task name,任务名称
+Tax Amount,税额
 Tax ID,税号
 Tax Invoice,税务发票
+Tax Month,税期
+Tax Withheld,已扣税额
+Tax invoice no.,税票号
+Tax month,税期
 Tax on this receipt,票面税额
+Tax overpaid this month (if 5 is less than 7),本月多缴税额（5 小于 7 时）
+Tax payable this month (if 5 is more than 7),本月应纳税额（5 大于 7 时）
+Tax rate %,税率 %
+Tax withheld and remitted,代扣代缴税额
+Taxable sales (1 - 2 - 3),应税销售额（1 - 2 - 3）
 Taxes and Charges,税费
+Taxpayer ID,纳税人识别号
 Team board,团队看板
 Team visible,团队可见
 Template,模板
@@ -1322,14 +1540,20 @@ The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to
 The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
 The PDF exceeds the allowed page count.,PDF 超过允许的页数上限。
 The PDF file cannot be read.,无法读取该 PDF 文件。
+The POS daily total is not in the expected form. Import the POS export again,POS 日汇总的数据格式不对，请重新导入 POS 导出
+The POS daily totals of this document are damaged. Import the POS export again,这张单据的 POS 日汇总数据已损坏，请重新导入 POS 导出
+The POS export columns are incomplete,POS 导出的列设定不完整
+The VAT column is more than 7% of a day's sales,增值税一栏超过当天销售额的 7%
 The VAT report content is invalid.,销项税报告内容无效。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",无法读取销项税报告，请使用 Excel、CSV 或带文字层的 PDF。
 The VAT report has no rows.,销项税报告中没有明细行。
 The account balance could not be checked right now. Try again in a moment.,暂时无法查询账户余额，请稍后重试。
+The account codes are invalid.,科目号无效。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up. Correct them and submit again,金额合计不一致，请更正后重新提交
+The answer is not valid.,回答无效。
 The bank statement could not be read.,无法读取银行账单。
 The billing receipt cannot be reverted.,计费回执不能撤回。
 The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},以下发票的买方为本公司，疑似进项发票，请确认是否放错：{0}
@@ -1342,6 +1566,7 @@ The chosen value is not in this account set. Choose again,所选项不在此账�
 The client fields are invalid.,客户字段无效。
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
+The computer on this connection cannot do this.,这条连接的电脑做不了这件事。
 The connection has changed. Reload and try again.,连接已更新，请重新加载后重试。
 The credential changed. Reload before resetting or revoking it.,凭据已变更，请刷新后再重置或撤销。
 The credential request is invalid.,凭据请求无效。
@@ -1400,6 +1625,7 @@ The import contains no product rows.,导入数据中没有产品行。
 The import file is too large.,导入文件过大。
 The import row is invalid or has missing required values.,导入行无效或缺少必填值。
 The import rows are invalid.,导入行无效。
+"The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.",预扣税收款方的所得类型，问一次记住：按收款方税号，或按识别出的分类。
 The invoice configuration does not match the OCR connection.,发票识别配置与服务连接不一致。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,发票包含 Excel 无法完整保存的文本，请检查长度和字符。
 The invoice data is invalid and cannot be exported.,发票数据无效，无法导出。
@@ -1411,12 +1637,14 @@ The invoice fields have an invalid format.,发票字段格式不正确。
 The invoice has changed. Prepare it again.,票据已修改，请重新准备。
 The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
 The invoice page data has an invalid format.,发票页面数据格式不正确。
+The item lines do not add up to the day's total,商品明细之和与当天合计不符
 The ledger file content is invalid.,总账内容无效。
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",此发票的明细金额、未税金额、税额与合计不一致，请在编辑页核对后再导出。
 The line items do not add up to the invoice amount. Fix the lines and submit again,明细合计与票面金额不一致，请修改明细后重新提交
 The lines cannot be written to Express. Check them and submit again.,明细无法写入 Express，请核对后重新提交
 The matching stock item is missing. Choose it and submit again.,缺少对应存货，请选择后重新提交
 The opening and closing values are invalid.,期初期末数值无效。
+The option is not valid.,选项无效。
 The original document manifest cannot be changed.,原件内容索引不能修改。
 The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
 The original document manifest is not ready.,原件内容索引尚未就绪。
@@ -1429,6 +1657,7 @@ The original invoice manifest is incomplete.,原始文件的发票关联清单�
 The original invoice reference is invalid or unavailable.,原票据引用无效或不可访问。
 The outdated unsent preparation was replaced.,已替换过期且尚未发送的推送准备。
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,单据上的本方税号与所选账套不一致，请核对账套后重新发送。
+The payment methods do not add up to the day's total. Import the POS export again,各付款方式之和与当天合计不符，请重新导入 POS 导出
 The preview is temporarily unavailable. Please try again.,预览暂时无法显示，请稍后再试。
 The printed invoice date cannot be read. Check the date shown on the document.,无法识别票面日期，请核对单据上的日期。
 The product fields are invalid.,物料字段无效。
@@ -1437,6 +1666,10 @@ The push data exceeds the size limit.,推送数据超过大小限制。
 The push record has changed. Reload and try again.,推送记录已更新，请重新加载后重试。
 The push target has changed. Prepare the invoice again.,推送目标已变更，请重新准备票据。
 The quantity is not a valid number,数量不是有效数字
+The readback is not ready yet.,回读还没完成。
+The readback request is invalid.,回读请求无效。
+The readback was not found.,找不到这份回读。
+The receiving account cannot be posted to in Express. Choose another account,收款科目在 Express 中不能记账，请重新选择
 The recognition task was not found.,识别任务不存在。
 The recognized content does not match the original references.,识别内容与原件关联不一致。
 The recognized invoice manifest cannot be replaced.,已识别的发票关联清单不能替换。
@@ -1453,6 +1686,8 @@ The reported ERP field definitions are invalid.,上报的 ERP 字段定义无效
 The reports belong to different sellers ({0}).,多份报告卖方不一致（税号：{0}），请检查。
 The reports cover different periods ({0}).,多份报告期间不一致（{0}），请检查。
 The request is invalid. Reload and try again.,请求无效，请刷新后重试。
+The request to CC Desktop is invalid.,发给 CC 桌面版的请求无效。
+The request to CC Desktop was not found.,找不到发给 CC 桌面版的请求。
 The requested page is not part of this invoice.,请求的页面不属于此发票。
 The result is not confirmed. Check in Express before sending again,结果未确认，请先在 Express 中核对，再决定是否重新推送
 The result sheet is not ready yet.,结果表格尚未生成。
@@ -1478,6 +1713,7 @@ The supplier is missing. Add it and submit again.,缺少供应商，请补充后
 The system is busy and the reconciliation was not finished. Please try again shortly.,系统繁忙，对账未完成，请稍后重试。
 The task owner can no longer enter documents with this connection.,定时任务负责人已无权使用此连接录入。
 The tax ID is not valid. Correct it and submit again,税号无效，请更正后重新提交
+The tax month is not valid.,税期无效。
 The unsent preparation was cancelled.,尚未发送的推送准备已撤销。
 The uploaded file does not match the file on the PC.,上传的内容与电脑上的文件不一致。
 The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限。
@@ -1506,8 +1742,11 @@ This ERP connection is disabled.,此 ERP 连接已停用。
 This MR.ERP menu cannot be chosen for this account set.,此账套不能选择该 MR.ERP 菜单。
 This PC already has the maximum number of folder rules.,此电脑的规则数量已达上限。
 This PC already has the maximum number of scheduled tasks.,此电脑的定时任务数量已达上限。
+This POS export has a status value that is not chosen yet,此 POS 导出有尚未确认的状态值
 This account cannot send documents,此账号无权发送单据
+This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
 This account set is not in the connection's list. Reload the list in New Intake.,此账套不在该连接的账套列表中，请在新建录入中重新读取。
+This account set is not on this connection.,这条连接上没有这本账套。
 This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This board no longer exists,该看板不存在
@@ -1525,10 +1764,12 @@ This delivery conflicts with the current task state.,此回执与任务当前状
 This document does not need this choice,此单据无需选择是否录入
 This document format is not supported.,不支持此文档格式。
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
+This file cannot be read,无法读取此文件
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",此文件为总账而非银行账单。请将其放在总账一侧，左侧放置银行账单或网银导出文件。
 This file is too large to send from this PC.,文件过大，无法从此电脑上传。
 This file record was not found.,文件记录不存在。
+This file type cannot be brought into the chat.,这种类型的文件不能取进对话。
 This file type is not supported.,不支持此文件类型。
 "This file type is not supported. Use PDF, Excel or CSV.",不支持此文件类型，请使用 PDF、Excel 或 CSV。
 This folder overlaps the folder of rule «{0}».,与规则「{0}」的文件夹重叠
@@ -1578,6 +1819,7 @@ This value cannot be chosen for this account set.,此账套不能选择该值。
 Time left {0},剩余 {0}
 Times Used,使用次数
 Title,标题
+To check,待核对
 To check {0},待处理 {0}
 To do,待办
 Token Digest,令牌摘要
@@ -1585,15 +1827,23 @@ Token Generation,令牌版本
 Token Tail,令牌末四位
 Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
+Too many requests are waiting for CC Desktop. Try again shortly.,等 CC 桌面版处理的请求太多，请稍后再试。
 Too many rows to import.,导入行数过多。
 Total,含税
 Total counted quantity,实盘数量合计
+Total income and tax remitted,收入与代缴税额合计
+Total income paid,支付总额
+Total tax and surcharge,税款与附加费合计
+Total tax overpaid after surcharge and penalty,扣除附加费与罚款后的多缴税额
+Total tax remitted,代缴税额合计
+"Total tax, surcharge and penalty payable",应缴税款、附加费与罚款合计
 Track Batch,按批次管理
 Track Expiry,按有效期管理
 Transaction Date,交易日期
 Transaction type,业务类型
 Transfer,转账
 Transfer slips,转账凭条
+Transport,运费
 Turn off,停用
 Turn on,启用
 Turn this folder task on or off?,要启用或停用这个定时任务吗？
@@ -1605,16 +1855,20 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Turned a folder task on or off,启用或停用了文件夹任务
 Type,类型
 Type a few letters of the company or account set name to find it,输入公司名称或账套名称的关键字查找账套
+Type of income paid,所得类型
 "Type or scan, then press Enter",输入或扫码后按回车
 Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确定要解绑 Pearnly Cowork LINE 吗？
+"Under 1,000 baht","低于 1,000 泰铢"
 Unit,单位
 Unknown reconciliation type.,未知的对账类型。
 Unmatched,未匹配
 Unmatched Count,未匹配笔数
 Unsupported ERP connection type.,不支持此 ERP 连接类型。
+Unusual rate,非常用税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
+Update this site before reading back with this CC Desktop.,请先更新本站，再用这个版本的 CC 桌面版回读。
 Updated At,更新时间
 Updated By,更新人
 Updated a task,修改了任务
@@ -1644,6 +1898,7 @@ Use the reconciliation workflow to change these records.,请通过对账流程�
 Use the stock count workflow to change these records.,请通过盘点流程更改这些记录。
 User Settings,用户菜单
 Username can only have letters and numbers,用户名只能包含英文字母和数字
+Usual rate %,常用税率 %
 VAT,VAT
 VAT Date,税票日期
 VAT Document No,税票号码
@@ -1652,13 +1907,18 @@ VAT Only Negative,仅销项税报告负数金额
 VAT Only Positive,仅销项税报告正数金额
 VAT Report Check,销项税报告核查
 VAT Total,销项税报告合计
+VAT differs from the rate,税额与税率不符
 VAT is not 7% of the base,税额≠税基×7%
 VAT on receipts and abbreviated tax invoices,收据、简易税票上的税额
+VAT record,税务记录
+VAT record VAT,税务记录的税额
+VAT record before VAT,税务记录的未税额
 VAT report amount,销项税报告金额
 VAT report detail,销项税报告明细
 VAT without a base amount,只有税额没有税基
 Valid,有效
 Value,值
+Value of goods or services,货物或服务金额
 Version,版本
 View differences,查看差异
 View photo,查看图片
@@ -1676,6 +1936,7 @@ Void this count of {0}?,确定要撤销 {0} 的这条记录吗？
 Void · no invoice needed,作废（无需发票）
 Voided,已作废
 Voided (excluded from total),已作废（不计入合计）
+Voided in Express,Express 中已作废
 "Voided, not in the total",已撤销，不计入合计
 Voucher no.,凭证号
 WHT amount,预扣税额
@@ -1700,6 +1961,7 @@ Why it is not in the review sheet,未生成复核表的原因
 Wire Attempt,发送尝试次数
 With differences,有差异
 Withdrawal,提款
+Withholding agent,扣缴义务人
 Withholding tax certificates,预扣税凭证
 Work Coordination,工作协调
 Work Name,后台任务标识
@@ -1713,6 +1975,7 @@ Yellow,黄
 "Yes, the card fee is {0}% (with or without 7% VAT on the fee)",是，刷卡手续费率 {0}%（手续费含或不含 7% 增值税均可）
 You are watching this card,已关注此卡片
 You do not have access to this ERP target.,无权访问此 ERP 目标。
+Zero VAT,零税额
 account,科目
 active,有效
 admitted,已受理
@@ -1736,6 +1999,11 @@ companion.credential_not_found,此连接尚未签发 CC 桌面版凭据。
 companion.delivery_invalid,CC 桌面版任务领取记录无效。
 companion.delivery_not_found,未找到 CC 桌面版任务领取记录。
 companion.generation_conflict,凭据已变更，请刷新后再重置或撤销。
+companion.on_demand_busy,等 CC 桌面版处理的请求太多，请稍后再试。
+companion.on_demand_invalid,发给 CC 桌面版的请求无效。
+companion.on_demand_missing,找不到发给 CC 桌面版的请求。
+companion.on_demand_not_ready,CC 桌面版还没做完。
+companion.on_demand_unsupported,这条连接的电脑做不了这件事。
 companion.queue_access_revoked,CC 桌面版队列的访问权限已撤销。
 companion.queue_conflict,此回执与任务当前状态冲突。
 companion.queue_request_invalid,CC 桌面版队列请求无效。
@@ -1778,6 +2046,7 @@ cowork.choice.item,存货
 cowork.choice.new,新建（按票面）
 cowork.choice.party,Express 对应档案
 cowork.choice.payment,付款方式
+cowork.choice.receipt,收款科目
 cowork.choice.task_default,此项由定时任务的默认处理决定，请在定时任务中修改
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
@@ -1803,6 +2072,7 @@ cowork.folder.brief.why.human,已有人改动
 cowork.folder.brief.why.lowBalance,余额不足
 cowork.folder.brief.why.offline,CC 桌面版离线
 cowork.folder.brief.why.party,对方档案
+cowork.folder.brief.why.posLayout,待确认 POS 导出的列
 cowork.folder.brief.why.purchasesFirst,等进货先录入
 cowork.folder.brief.why.taskOff,任务已停用或无权限
 cowork.folder.cardHint,设一个本机文件夹，每月自动识别推送
@@ -1833,10 +2103,14 @@ cowork.folder.enableConfirm,确定要启用此定时任务吗？仅处理此后�
 cowork.folder.enableConfirmAll,确定要启用此定时任务吗？到点处理文件夹里还没处理过的文件。
 cowork.folder.entry_missing,文件记录不存在。
 cowork.folder.express_only,自动录入只用于 Express 连接。
+cowork.folder.fetch_path_invalid,请给出这个文件夹里的文件路径。
+cowork.folder.fetch_type_invalid,这种类型的文件不能取进对话。
 cowork.folder.field.connection,Express 电脑
 cowork.folder.field.day,每月运行日
 cowork.folder.field.folder,文件夹
-cowork.folder.field.remind,前一天提醒
+cowork.folder.field.remind,提醒
+cowork.folder.field.remindDay,提醒日
+cowork.folder.field.remindTime,提醒时间
 cowork.folder.field.root,允许读取的根目录
 cowork.folder.field.time,运行时间
 cowork.folder.field.title,任务名称
@@ -1878,7 +2152,11 @@ cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 cowork.folder.pending,还有 {0} 份未处理，到点处理
+cowork.folder.remind.add,添加时间
 cowork.folder.remind.count,还有 {0} 份未处理。
+cowork.folder.remind.date,{0} 月 {1} 日 {2}
+cowork.folder.remind.dayBefore,前 1 天
+cowork.folder.remind.daysBefore,前 {0} 天
 cowork.folder.remind.leftDays,还有 {0} 天 {1} 小时
 cowork.folder.remind.leftHours,还有 {0} 小时 {1} 分钟
 cowork.folder.remind.leftMinutes,还有 {0} 分钟
@@ -1887,9 +2165,11 @@ cowork.folder.remind.many,{1} 有 {0} 个定时任务开始（{2}）。请将资
 cowork.folder.remind.off,关
 cowork.folder.remind.on,开
 cowork.folder.remind.one,「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。
+cowork.folder.remind.sameDay,当天
 cowork.folder.remind.title,定时任务提醒
 cowork.folder.remind.today,今天 {0}
 cowork.folder.remind.tomorrow,明天 {0}
+cowork.folder.remind_same_day,当天提醒要早于运行时间
 cowork.folder.rootItself,（根目录本身）
 cowork.folder.root_invalid,请选择 CC 桌面版上报的根目录。
 cowork.folder.rule_disabled,此定时任务已停用。
@@ -1953,6 +2233,35 @@ cowork.policy.skip,不录入（同类单据均不录入）
 cowork.policy.skipped,不录入
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
+cowork.readback.account_missing,这条连接上没有这本账套。
+cowork.readback.accounts_invalid,科目号无效。
+cowork.readback.change.changed,改过
+cowork.readback.change.deleted,已删除
+cowork.readback.change.missing,找不到
+cowork.readback.change.voided,已作废
+cowork.readback.col.change,变动
+cowork.readback.col.direction,方向
+cowork.readback.col.docnum,单据号
+cowork.readback.col.entered_by,录入人
+cowork.readback.col.field,项目
+cowork.readback.col.kind,单别
+cowork.readback.col.now,Express 现在
+cowork.readback.col.party,对方
+cowork.readback.col.pushed,推送时
+cowork.readback.data_invalid,CC 桌面版交回的数据读不了。
+cowork.readback.field.entries,分录
+cowork.readback.field.ref_no,票号
+cowork.readback.field.vat_amount,税务记录的税额
+cowork.readback.field.vat_before_vat,税务记录的未税额
+cowork.readback.field.vat_record,税务记录
+cowork.readback.invalid,回读请求无效。
+cowork.readback.missing,找不到这份回读。
+cowork.readback.not_express,只有 Express 账套可以回读。
+cowork.readback.not_ready,回读还没完成。
+cowork.readback.period_invalid,月份请写成 YYYY-MM。
+cowork.readback.sheet.changes,变动
+cowork.readback.sheet.direct,Express 直接录入
+cowork.readback.version_unsupported,请先更新本站，再用这个版本的 CC 桌面版回读。
 cowork.recon.bank.gl_credit_only,仅总账贷方
 cowork.recon.bank.gl_debit_only,仅总账借方
 cowork.recon.bank.left,银行账单
@@ -2287,6 +2596,159 @@ cowork.stocktake.export.updated_at,修改时间（UTC）
 cowork.stocktake.export.updated_by,最后修改人
 cowork.stocktake.export.warehouse,仓库
 cowork.stocktake.export.warehouse_comparison,仓库比对结果
+cowork.tax.col.address,地址
+cowork.tax.col.amount,金额
+cowork.tax.col.buyer,买方
+cowork.tax.col.category,分类
+cowork.tax.col.check,核查
+cowork.tax.col.condition,条件
+cowork.tax.col.date,日期
+cowork.tax.col.description,内容
+cowork.tax.col.detail,明细
+cowork.tax.col.document,Express 单号
+cowork.tax.col.first_name,名
+cowork.tax.col.form,表
+cowork.tax.col.income_type,所得类型
+cowork.tax.col.invoice,税票号
+cowork.tax.col.issue,问题
+cowork.tax.col.item,项
+cowork.tax.col.last_name,姓
+cowork.tax.col.level,级别
+cowork.tax.col.name,名称
+cowork.tax.col.paid,支付金额
+cowork.tax.col.paid_on,支付日期
+cowork.tax.col.payee_name,收款方
+cowork.tax.col.payee_tax_id,收款方税号
+cowork.tax.col.payees,收款方数
+cowork.tax.col.place,总部 / 分支
+cowork.tax.col.rate,税率 %
+cowork.tax.col.rows,笔数
+cowork.tax.col.seller,卖方
+cowork.tax.col.seq,序号
+cowork.tax.col.sheet,页
+cowork.tax.col.sheets,页数
+cowork.tax.col.side,报告
+cowork.tax.col.source,来源
+cowork.tax.col.suggested,建议
+cowork.tax.col.surcharge,附加费
+cowork.tax.col.title,称谓
+cowork.tax.col.total_due,税款与附加费合计
+cowork.tax.col.total_paid,支付总额
+cowork.tax.col.total_tax,代缴税额合计
+cowork.tax.col.value,货物或服务金额
+cowork.tax.col.vat,增值税
+cowork.tax.col.withheld,代扣代缴税额
+cowork.tax.detail.buyer_tax_id,买方税号
+cowork.tax.detail.claimed_month,抵扣月
+cowork.tax.detail.company_tax_id,本公司税号
+cowork.tax.detail.counterparty,对方
+cowork.tax.detail.document_type,票种
+cowork.tax.detail.expected,常用税率 %
+cowork.tax.detail.expected_vat,应为税额
+cowork.tax.detail.first_row,与此行重复
+cowork.tax.detail.invoice_month,开票月
+cowork.tax.detail.last_month,最晚抵扣月
+cowork.tax.detail.of,重复于
+cowork.tax.detail.rate,税率 %
+cowork.tax.form.pnd3,ภ.ง.ด.3
+cowork.tax.form.pnd53,ภ.ง.ด.53
+cowork.tax.head.branch,分支
+cowork.tax.head.due_online,申报期限（网上）
+cowork.tax.head.due_paper,申报期限（纸质）
+cowork.tax.head.operator,经营者
+cowork.tax.head.paid_month,支付月份
+cowork.tax.head.payer,扣缴义务人
+cowork.tax.head.read_at,读自 Express
+cowork.tax.head.tax_id,纳税人识别号
+cowork.tax.head.tax_month,税期
+cowork.tax.income.advertising,广告费
+cowork.tax.income.commission,佣金
+cowork.tax.income.dividend,股息
+cowork.tax.income.hire_of_work,承揽费
+cowork.tax.income.insurance,财产保险费
+cowork.tax.income.interest,利息
+cowork.tax.income.other,其他
+cowork.tax.income.prize,奖金
+cowork.tax.income.professional,专业服务费
+cowork.tax.income.promotion,促销奖励
+cowork.tax.income.rent,租金
+cowork.tax.income.service,服务费
+cowork.tax.income.transport,运费
+cowork.tax.issue.amount_unreadable,金额未读出
+cowork.tax.issue.below_threshold,"低于 1,000 泰铢"
+cowork.tax.issue.buyer_unconfirmed,票面无本公司税号
+cowork.tax.issue.certificate_direction_unclear,付款方不明
+cowork.tax.issue.certificate_parties_unreadable,双方未读出
+cowork.tax.issue.certificate_received,客户开给本公司的凭证
+cowork.tax.issue.condition_invalid,条件码不适用
+cowork.tax.issue.duplicate_document,重复
+cowork.tax.issue.ewht_check,1% 电子预扣税率
+cowork.tax.issue.form_name_mismatch,名称显示应为 ภ.ง.ด.3
+cowork.tax.issue.form_type_mismatch,此表不含该所得类型
+cowork.tax.issue.income_type_missing,未选所得类型
+cowork.tax.issue.input_abbreviated,简易税票
+cowork.tax.issue.input_before_invoice,早于开票月抵扣
+cowork.tax.issue.input_buyer_missing,票面无买方
+cowork.tax.issue.input_buyer_other,买方是其他公司
+cowork.tax.issue.input_claimed_later,晚于开票月抵扣
+cowork.tax.issue.input_duplicate,重复
+cowork.tax.issue.input_no_document,无识别记录
+cowork.tax.issue.input_not_tax_invoice,不是税票
+cowork.tax.issue.input_over_six_months,超过 6 个月抵扣期限
+cowork.tax.issue.input_tax_id_invalid,卖方税号无效
+cowork.tax.issue.input_tax_id_missing,缺卖方税号
+cowork.tax.issue.output_duplicate,重复
+cowork.tax.issue.output_outside_period,开票日不在本税期
+cowork.tax.issue.output_rate,税额与税率不符
+cowork.tax.issue.output_rate_unknown,该日期税率未确认
+cowork.tax.issue.output_tax_id_invalid,买方税号无效
+cowork.tax.issue.output_zero_vat,零税额
+cowork.tax.issue.pairing_unclear,票据与凭证对不上
+cowork.tax.issue.payee_tax_invalid,收款方税号无效
+cowork.tax.issue.payee_tax_missing,缺收款方税号
+cowork.tax.issue.payment_date_assumed,付款日为推定
+cowork.tax.issue.rate_mismatch,税率与常用税率不同
+cowork.tax.issue.rate_not_standard,非常用税率
+cowork.tax.issue.row_deleted,Express 中已删除
+cowork.tax.issue.row_other_period,属于其他税期
+cowork.tax.issue.row_period_missing,无税期
+cowork.tax.issue.row_unreadable,无法读取的行
+cowork.tax.issue.row_voided,Express 中已作废
+cowork.tax.level.error,需修正
+cowork.tax.level.info,备注
+cowork.tax.level.warn,请核对
+cowork.tax.pp30.box.1,本月销售额
+cowork.tax.pp30.box.10,上期结转的多缴税额
+cowork.tax.pp30.box.11,净应纳税额（8 大于 10 时）
+cowork.tax.pp30.box.12,净多缴税额（10 大于 8 时，或 9 加 10）
+cowork.tax.pp30.box.13,附加费
+cowork.tax.pp30.box.14,罚款
+cowork.tax.pp30.box.15,应缴税款、附加费与罚款合计
+cowork.tax.pp30.box.16,扣除附加费与罚款后的多缴税额
+cowork.tax.pp30.box.2,减：零税率销售额
+cowork.tax.pp30.box.3,减：免税销售额
+cowork.tax.pp30.box.4,应税销售额（1 - 2 - 3）
+cowork.tax.pp30.box.5,本月销项税额
+cowork.tax.pp30.box.6,本月可抵扣进项税的购进额
+cowork.tax.pp30.box.7,本月进项税额
+cowork.tax.pp30.box.8,本月应纳税额（5 大于 7 时）
+cowork.tax.pp30.box.9,本月多缴税额（5 小于 7 时）
+cowork.tax.pp30.claimable,剔除标出行后的进项税
+cowork.tax.pp30.previous_excess,上月草稿的多缴税额
+cowork.tax.review.excluded,未计入
+cowork.tax.review.notes,其他记录
+cowork.tax.review.questions,待选所得类型
+cowork.tax.review.suggestions,票面未扣税
+cowork.tax.sheet.check,核查
+cowork.tax.sheet.pnd3,ภ.ง.ด.3 附表
+cowork.tax.sheet.pnd53,ภ.ง.ด.53 附表
+cowork.tax.sheet.pp30,ภ.พ.30
+cowork.tax.sheet.purchases,进项税报告
+cowork.tax.sheet.review,待核对
+cowork.tax.sheet.sales,销项税报告
+cowork.tax.sheet.summary,汇总
+cowork.tax.sheet_total,收入与代缴税额合计
+cowork.tax.total,合计
 cowork.team.action.bulkDisable,停用 {0}
 cowork.team.action.bulkEnable,启用 {0}
 cowork.team.active,正常
@@ -2617,6 +3079,7 @@ intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+intake.error.ACCOUNT_NOT_POSTABLE,收款科目在 Express 中不能记账，请重新选择
 intake.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
 intake.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 intake.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
@@ -2644,6 +3107,7 @@ intake.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 intake.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
+intake.error.JOURNAL_BOOK_NOT_FOUND,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
 intake.error.MAPPING_MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 intake.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交
 intake.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
@@ -2651,6 +3115,7 @@ intake.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 intake.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 intake.error.NO_ACCOUNT_SELECTION,此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
 intake.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
+intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
 intake.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
@@ -2689,6 +3154,10 @@ intake.error.no_output_vat_account,缺少此发票所需的科目，请检查科
 intake.error.no_purchase_account,缺少此发票所需的科目，请检查科目设置
 intake.error.no_revenue_account,缺少此发票所需的科目，请检查科目设置
 intake.error.payload_version_outdated,CC 桌面版版本过旧，请更新后重新提交
+intake.error.pos_express_only,POS 日汇总只能推送到 Express
+intake.error.pos_facts_invalid,这张单据的 POS 日汇总数据已损坏，请重新导入 POS 导出
+intake.error.pos_payments_mismatch,各付款方式之和与当天合计不符，请重新导入 POS 导出
+intake.error.pos_receipt_account_missing,请为每种付款方式选择收款科目
 intake.error.posting_kind_needed,请为此发票选择服务或存货后重新提交
 intake.error.seller_buyer_same_tax,卖方和买方税号相同，请更正后重新提交
 intake.error.tax_id_invalid,税号无效，请更正后重新提交
@@ -2759,11 +3228,33 @@ ocr.table_units_invalid,文档逻辑单元不完整或无效。
 ocr.table_xml_declaration_not_allowed,文档包含不支持的 XML 声明。
 ocr.too_many_pages,PDF 超过允许的页数上限。
 ocr.unsupported_format,不支持此文件类型。
+on {1}/{0} at {2},{0} 月 {1} 日 {2}
 out,支出
 page {0},第 {0} 页
 pdf,PDF
 pending,待处理
 physical_page,物理页
+pos.amount_unreadable,此 POS 导出中有金额无法读取
+pos.column_missing,记住的列不在此 POS 导出中，请重新确认列
+pos.date_unreadable,此 POS 导出中有日期无法读取
+pos.day_not_positive,有一天的销售合计为零或负数
+pos.file_unreadable,无法读取此文件
+pos.items_mismatch,商品明细之和与当天合计不符
+pos.items_not_positive,退款后有商品当天的数量为零或负数，或金额为负数
+pos.layout_invalid,POS 导出的列设定不完整
+pos.layout_needed,请确认一次此 POS 导出的列
+pos.no_header,文件中找不到 POS 销售导出的表头
+pos.no_rows,此 POS 导出中没有销售记录
+pos.not_express,POS 导出只能录入 Express
+pos.payment_negative,有一天某种非现金付款方式的合计为负数
+pos.status_unknown,此 POS 导出有尚未确认的状态值
+pos.target_required,请先选择 Express 账套
+pos.too_many_days,一份 POS 导出最多 100 天
+pos.too_many_items,一天的商品明细超过 999 行
+pos.too_many_payments,一天的付款方式超过 20 种
+pos.type_unsupported,只能导入 Excel（.xlsx）或 CSV 格式的 POS 导出
+pos.vat_out_of_range,增值税一栏超过当天销售额的 7%
+pos.xls_not_supported,不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送
 probably {0},疑似应为 {0}
 push.adapter_not_connected,此 ERP 适配器尚未接通。
 push.branch_invalid,推送执行模式无效。
@@ -2953,6 +3444,11 @@ stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 subfolders are scanned too,下级子文件夹会一起扫
 summary_table_batch,汇总表导入
 task off or no access,任务已停用或无权限
+tax.answer_invalid,回答无效。
+tax.company_invalid,请输入公司的 13 位税号。
+tax.option_invalid,选项无效。
+tax.period_invalid,税期无效。
+tax.request_invalid,请选择连接与账套。
 today at {0},今天 {0}
 tomorrow at {0},明天 {0}
 total,含税
@@ -2980,6 +3476,7 @@ workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0} commented on {1},{0} 评论了卡片「{1}」
 {0} completed {1},{0} 完成了卡片「{1}」
 {0} d {1} h left,还有 {0} 天 {1} 小时
+{0} days before,前 {0} 天
 {0} files,{0} 个文件
 "{0} files in the folder now, processed at the run time",文件夹里现有 {0} 份，到点一起处理
 {0} files in the folder now.,文件夹里现有 {0} 份。

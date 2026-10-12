@@ -2,11 +2,14 @@
 (the root folder itself),（ルートフォルダー自体）
 1 day before,1日前
 1 hour before,1時間前
+1% e-Withholding Tax rate,1% 電子源泉徴収税率
 10 minutes before,10分前
 15 minutes before,15分前
 2 days before,2日前
 2 hours before,2時間前
 5 minutes before,5分前
+A POS export can cover at most 100 days,1 つの POS エクスポートは 100 日分までです
+A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.,1社・1か月分の付加価値税申告（ภ.พ.30）または源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書き。
 A board needs at least one admin,ボードには管理者が少なくとも1人必要です
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
 A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,選択した値は MR.ERP に存在しません。選び直してください。
@@ -14,12 +17,17 @@ A client cannot be moved to another company.,顧客を別の会社に移動す�
 A client needs a name.,顧客名を入力してください。
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
 A date could not be read. Check the date format in the file,読み取れない日付があります。ファイルの日付の書式を確認してください
+A date in this POS export cannot be read,この POS エクスポートの日付が読み取れません
+A day has more than 20 payment methods,1 日の支払方法が 20 種類を超えています
+A day has more than 999 item lines,1 日の品目が 999 行を超えています
+A day's sales total is zero or less,売上合計がゼロ以下の日があります
 "A document section exceeds 30,000 characters. Split the document before recognition.","文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
 A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
 A file is larger than 25 MB.,25MBを超えるファイルがあります。
 A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
 A name is required.,名前を入力してください。
+A non-cash payment method has a negative total for a day,現金以外の支払方法の日計がマイナスの日があります
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
 A numeric value in the invoice is invalid. Correct it before exporting.,請求書に無効な数値があります。修正してからエクスポートしてください。
 A positive record revision is required.,レコードの版には正の整数が必要です。
@@ -27,13 +35,16 @@ A positive source page number is required.,元ファイルのページ番号に�
 A product code or barcode identifies more than one product.,商品コードまたはバーコードが複数の商品に対応しています。
 A product needs a name.,商品名を入力してください。
 A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,プログラムのエラーにより今回の照合は完了しませんでした。自動で記録され、こちらで対応します。再試行しても同じ結果になります。
+A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.,会社が源泉徴収票を取り込まない設定のとき、ภ.ง.ด.3 / ภ.ง.ด.53 の下書き用に保管する認識済みの 50 ทวิ。請求書ではないため、連携も課金もしません。
 A referenced history record is unavailable in the selected company and client.,選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。
+A remembered column is not in this POS export. Choose the columns again,記憶した列がこの POS エクスポートにありません。列を指定し直してください
 A reported ERP action is invalid.,報告された ERP の操作が無効です。
 A reported ERP field is invalid.,報告された ERP フィールドが無効です。
 A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
 A required text field is empty. Fill it in and try again,必須の文字項目が空です。入力してからもう一度お試しください
 A review workbook must contain between 1 and 500 invoices.,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
 A rule cannot move to another PC. Turn it off and create a new one.,ルールは別の PC に移せません。停止して新しく作成してください。
+A same-day reminder must be earlier than the run time.,当日のリマインドは実行時刻より前にしてください
 A scheduled task cannot move to another PC. Turn it off and create a new one.,定期タスクは別の PC に移せません。停止して新しく作成してください。
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
@@ -44,6 +55,7 @@ A timezone-aware UTC timestamp is required.,タイムゾーン付きのUTC時刻
 A value in the ERP data report exceeds the allowed length.,ERP データレポート内の値が許容される長さを超えています。
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
+Abbreviated tax invoice,簡易税務インボイス
 Access to the CC Desktop queue has been revoked.,CC デスクトップのキューへのアクセス権が取り消されました。
 Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
 Account Codes,勘定科目コード
@@ -51,6 +63,7 @@ Account Key,会計データキー
 Account Set,会計データ
 Account Set Key,会計データ選択キー
 Account Set Label,会計データ名
+Account Set Name,会計データ名
 Account code,勘定科目コード
 Account set,会計データ
 Ack Digest,確認応答ダイジェスト
@@ -77,10 +90,13 @@ Add label,ラベルを追加
 Add member,メンバーを追加
 Add photo,写真を追加
 Add photos,写真を追加
+Add time,時間を追加
 Add watcher,ウォッチャーを追加
 Added {0},{0}を追加しました
 Address,住所
 Admins only,管理者のみ
+Advertising,広告費
+"After refunds, an item's quantity for a day is zero or less, or its amount is negative",返品後、数量がゼロ以下か金額がマイナスの品目がある日があります
 All,すべて
 All labels,すべてのラベル
 All members,すべてのメンバー
@@ -89,10 +105,13 @@ Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
 Amount,金額
 Amount Tolerance,金額許容差
+Amount not read,金額を読めない
+Amount paid,今回の支払額
 An account needed for this invoice is not set. Check the account settings,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
 An amount could not be read. Check the amount format in the file,読み取れない金額があります。ファイルの金額の書式を確認してください
 An amount has too many decimal places. Check the file,小数点以下の桁が多すぎる金額があります。ファイルを確認してください
+An amount in this POS export cannot be read,この POS エクスポートの金額が読み取れません
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
 An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
@@ -100,6 +119,7 @@ Anchor Date,基準日
 Another active rule already uses this folder or a folder containing it.,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
 Answered a reconciliation question,照合の質問に回答しました
+Answered a withholding tax question,源泉徴収税の質問に回答しました
 Any due date,すべての期日
 Archive,アーカイブ
 Archive all cards in this list,このリストのカードをすべてアーカイブ
@@ -179,27 +199,37 @@ Branch No,支店番号
 Brief Key,サマリーキー
 Brief Sent At,サマリー送信日時
 Brief Status,サマリーの状態
+Brought files from a folder,フォルダーからファイルを取り込みました
+Buyer,購入者
 Buyer Client,買い手顧客
 Buyer Name,買い手名
+Buyer Tax ID,購入者の納税者番号
 Buyer address,買い手住所
 Buyer branch,買い手支店
+Buyer is another company,購入者が別の会社
+Buyer not on the invoice,インボイスに購入者なし
 Buyer tax ID,買い手税番号
+Buyer tax ID invalid,購入者の納税者番号が無効
 "By preset, ledger account {0} is used for this bank account",プリセットにより、この口座には総勘定元帳の科目 {0} を使用
 "By preset, these accounts are left out: {0}",プリセットにより次の科目は照合に含めていません：{0}
 By preset: {0} groups matched by total,プリセットにより {0} 組を合計で照合済み
 Byte Size,ファイルサイズ（バイト）
 CC Conversation,CC の会話
 CC Desktop Report,CC デスクトップのレポート
+CC Desktop Request,CC デスクトップへのリクエスト
+CC Desktop Version,CC デスクトップのバージョン
 CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 CC Desktop could not write this invoice. It is retried automatically,CC デスクトップが書き込めませんでした。自動で再試行します
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
+CC Desktop has not finished this yet.,CC デスクトップの処理はまだ終わっていません。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
 CC Desktop offline,CC デスクトップがオフライン
 CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
 CC Desktop on this PC has not synced recently. Update it to the latest version.,この PC の CC デスクトップが同期していません。最新版に更新してください。
+CC Desktop sent back data that cannot be read.,CC デスクトップから返されたデータを読み取れません。
 CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
 "CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
 Calendar,カレンダー
@@ -218,6 +248,9 @@ Cash,現金
 Cash purchase,現金仕入
 Cash sales,現金売上
 Catch-up after start,起動後の追い実行
+Category,カテゴリ
+Certificate received from a customer,顧客から受け取った証明書
+Change,変更
 Change cards on the work board,作業ボードでカードを変更してください
 Change cover,カバーを変更
 Change how this kind of document is handled?,この種類の書類の扱いを変更しますか？
@@ -226,8 +259,10 @@ Change members,メンバーを変更
 Change the MR.ERP import settings?,MR.ERP の取込設定を変更しますか？
 Change the inventory account group?,在庫勘定グループを変更しますか？
 Change the stock account group?,在庫勘定グループを変更しますか？
+Changed,変更あり
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
+Changes,変更
 Check line by line,1 件ずつ照合
 Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
@@ -235,6 +270,7 @@ Check the warehouse and location. A warehouse is required.,倉庫と場所を確
 Checkbox,チェックボックス
 Checked CC Desktop,CC デスクトップを確認しました
 Checked MR.ERP import settings,MR.ERP の取り込み設定を確認しました
+Checked a readback,読み戻しの結果を確認しました
 Checked a reconciliation's progress,照合の進行状況を確認しました
 Checked folder task options,フォルダータスクの選択肢を確認しました
 Checked folder task runs,フォルダータスクの実行履歴を確認しました
@@ -251,12 +287,15 @@ Checked the stock account group,在庫勘定グループを確認しました
 Checking,照合中
 Checklist,チェックリスト
 Checklist Id,チェックリスト ID
+Checks,チェック
 Checks Json,検証結果JSON
 Cheque,小切手
 Chinese Name,中国語名
+Choose a connection and account set.,接続と帳簿を選んでください。
 Choose a day and time for the monthly run.,毎月の実行日と時刻を選んでください。
 Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
+Choose an Express account set first,先に Express の帳簿を選んでください
 Choose an allowed root reported by CC Desktop.,CC デスクトップが報告したルートを選んでください。
 Choose an allowed root reported by the Companion.,コンパニオンが報告したルートを選んでください。
 Choose an image attached to this card,このカードに添付した画像を選んでください
@@ -267,11 +306,13 @@ Choose once for this account set,この帳簿で一度だけ選択
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
 Choose service or stock for this invoice and submit again,この伝票がサービスか在庫かを選んで再送信してください
 "Choose the Express records for this invoice first, then submit again",先にこの伝票の Express 側の項目を選んでから再送信してください
+Choose the columns of this POS export once,この POS エクスポートの列を一度指定してください
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
 Choose the inventory account group for this account set first.,先にこの帳簿の在庫勘定グループを選んでください。
 Choose the inventory account group for this account set. Tap the number:,この会計データの在庫勘定グループを選択してください。番号をタップ：
 Choose the payment method,支払方法を選択
+Choose the receiving account of each payment method,支払方法ごとの入金勘定を選んでください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
@@ -281,6 +322,9 @@ Chose how a kind of document is handled,この種類の書類の扱いを設定�
 Chosen At,選択日時
 Chosen By,選択者
 Claim as input VAT,仕入税額控除する
+Claimed after the invoice month,発行月より後に控除
+Claimed before the invoice month,発行月より前に控除
+Claimed in,控除月
 Client,顧客
 Client Name,顧客名
 Close count,棚卸を終了
@@ -298,10 +342,14 @@ Commented on a task,タスクにコメントしました
 Commenting,コメント権限
 Comments,コメント
 Comments and activity,コメントとアクティビティ
+Commission,手数料
 Companion Report,Companion レポート
 Companion authentication failed.,アシスタント認証に失敗しました。
 Companion offline or needs update,コンパニオンがオフラインか更新が必要
 Company,会社
+Company Name,会社名
+Company tax ID,自社の番号
+Company tax ID not on the document,書類に自社の納税者番号なし
 CompanyA-purchase-service,会社A-仕入-サービス
 CompanyA-sales,会社A-売上
 Complete,完了
@@ -311,12 +359,15 @@ Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
 Completion Evidence,完了証跡
+Condition,条件
+Condition code not allowed,条件コードが無効
 Confirmation Request,確認リクエスト
 Confirmation Revision,確認リビジョン
 Confirmed,確認済み
 Confirmed a push result,送信結果を確定しました
 Connect CC Desktop,CC デスクトップを接続
 Connect Companion,コンパニオンを接続
+Connection,接続
 Connection Configuration,接続設定
 Connection Name,接続名
 Connection Revision,接続リビジョン
@@ -361,11 +412,13 @@ Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
+Cowork Companion Request,Cowork CC デスクトップへのリクエスト
 Cowork ERP Connection,Cowork ERP接続
 Cowork ERP Mapping,Cowork ERP マッピング
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
 Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
 Cowork Express Agent Credential,Cowork Express CC デスクトップ認証情報
+Cowork Express Readback,Cowork Express の読み戻し
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork マスタデータ
 Cowork OCR Batch,Cowork 認識バッチ
@@ -386,6 +439,10 @@ Cowork Stocktake Item,Cowork 棚卸品目
 Cowork Stocktake Operation,Cowork 棚卸操作記録
 Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
+Cowork Tax Draft,Cowork 税務申告の下書き
+Cowork Tax Filing,税務申告の下書き
+Cowork WHT Certificate,Cowork 源泉徴収票（参照）
+Cowork WHT Choice,Cowork 源泉徴収の所得種類
 Cowork Workspace,Cowork 会計対象会社
 Cowork menu,Coworkメニュー
 Create a new label,新しいラベルを作成
@@ -396,6 +453,7 @@ Create from template,テンプレートから作成
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
 Create it from the document,書類どおり新規作成
 Created,作成日時
+Created At,作成日時
 Created By,作成者
 Created a stock count,棚卸を作成しました
 Created a task,タスクを作成しました
@@ -416,11 +474,14 @@ Customer,顧客
 Customer type,顧客区分
 Cyan,水色
 Daily,毎日
+Data Version,データバージョン
 Date,日付
 Date Diff Days,日付差（日数）
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
+Date paid,支払日
 Dates,日付
+Day before,前日
 Day {0},{0} 日
 Days,日数
 Days later,日後
@@ -442,10 +503,14 @@ Delete {0},{0}件を削除
 Delete {0} reconciliation(s)?,{0}件の照合を削除しますか？
 Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
+Deleted,削除済み
+Deleted a readback,読み戻しの結果を削除しました
 Deleted documents,書類を削除しました
 Deleted folder tasks,フォルダータスクを削除しました
+Deleted in Express,Express で削除
 Deleted reconciliations,照合を削除しました
 Deleted stock counts,棚卸を削除しました
+Deleted tax drafts,税務申告の下書きを削除しました
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
@@ -474,7 +539,9 @@ Disabled,無効
 Discount,割引額
 Discount Amount,割引額
 Display text (optional),表示テキスト（任意）
+Dividends,配当
 Document Key,伝票重複防止キー
+Document No.,伝票番号
 Document Policy,書類の取扱ルール
 Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
@@ -488,8 +555,12 @@ Done List,完了リスト
 Done list (cards moved here are complete),完了リスト（移動すると完了）
 Download template,テンプレートをダウンロード
 Draft,下書き
+Drafted a VAT return,付加価値税申告の下書きを作成しました
+Drafted a withholding tax return,源泉徴収税申告の下書きを作成しました
 Dropdown,ドロップダウン
 Due,期日
+Due (e-Filing),申告期限（電子）
+Due (paper),申告期限（紙）
 Due Time,期限時刻
 Due date,期日
 Due later,それ以降
@@ -497,6 +568,7 @@ Due this week,7日以内が期限
 Due time,期限時刻
 Due today,今日が期限
 Due today or tomorrow,今日か明日が期日
+Duplicate,重複
 Duplicate Check Status,重複チェック状態
 Duplicate Match Level,重複一致レベル
 Duplicate Record Reference,重複レコード
@@ -539,7 +611,10 @@ Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～1
 Enter a valid email,正しいメールアドレスを入力してください
 Enter a valid quantity with no more than six decimal places.,有効な数量を小数点以下 6 桁以内で入力してください。
 Enter list name,リスト名を入力
+Enter the company's 13-digit tax ID.,会社の 13 桁の納税者番号を入力してください。
 Enter the user name,ユーザー名を入力してください
+Entered by,入力者
+Entered in Express,Express で直接入力
 Entered into Express,登録済み
 Entered {0},登録済み {0}
 Entered {0} · in progress {1},登録済み {0} · 処理中 {1}
@@ -552,13 +627,17 @@ Entries — {0},記録 — {0}
 Entry,エントリー
 Entry saved,記録しました
 Entry status,記録状態
+Error Code,エラーコード
 Event Key,イベント識別子
 Every unit needs a factor to the base unit.,すべての単位に基準単位への換算係数を入力してください。
 Every unit needs a name.,すべての単位に名前を入力してください。
 Evidence Fingerprint,証跡フィンガープリント
 Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
+Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 Excel/CSV exported from online banking or the electronic PDF is most accurate,ネットバンキングの Excel/CSV か電子版 PDF が最も正確です
+Excess tax brought forward,繰越超過納付額
+Expected VAT,想定税額
 Expense account,費用勘定
 Expense account when no category matches,区分が一致しない費用の勘定科目
 Expires At,有効期限
@@ -573,6 +652,7 @@ Express PC,Express の PC
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
+Express document,Express 伝票番号
 Express has this account set open. It is sent automatically once Express is closed,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 Express record,Express の取引先
 External Docnum,ERP伝票番号
@@ -598,6 +678,8 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 Finished a stock count,棚卸を終了しました
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
+First name,名
+Fix,要修正
 Folder,フォルダー
 Folder and schedule,フォルダーとスケジュール
 Folder auto-intake is not turned on for this site.,このサイトではフォルダー自動取込が有効になっていません。
@@ -609,6 +691,7 @@ Folder rules need an Express connection with the Pearnly Companion. Connect Expr
 Folder rules work with Express connections only.,Express 接続でのみ使えます。
 Folder to read,フォルダー
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
+Form,様式
 Formula Diff,計算式差額
 Formula Statement Closing,計算式による明細期末残高
 Found {0} · new {1} · skipped {2} · upload failed {3},検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}
@@ -639,12 +722,16 @@ General,一般
 General ledger,総勘定元帳
 General ledger detail,総勘定元帳明細
 Generation Key,認証情報世代キー
+Give a file path inside this folder.,このフォルダー内のファイルのパスを指定してください。
+Give the month as YYYY-MM.,月は YYYY-MM で指定してください。
 Gray,グレー
 Green,緑
 Group,グループ
 Handle these the same way every time,毎回この方法で処理
 Has GL Match,元帳一致あり
+Head office / branch,本店 / 支店
 Hide details,詳細を隠す
+Hire of work,請負料
 Histories,読み取り履歴
 History,伝票履歴
 History Records,認識記録
@@ -656,7 +743,10 @@ IN,入金
 "If you have the electronic statement, upload it instead",電子版の明細があればそちらをアップロードしてください
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,画像・PDF の請求書はまだ使えません。当面は Excel か CSV を使ってください。
 Import result,取り込み結果
+Imported POS sales,POS の売上を取り込みました
 "Imported {0} rows, {1} counted",{0}行を取り込み、{1}行に実数あり
+In Express,Express の現在
+In another tax month,別の課税月
 In progress,進行中
 In progress ({0}),進行中（{0}）
 In progress {0},処理中 {0}
@@ -664,13 +754,22 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,無効
 Include Existing Files,既存のファイルも処理
 Included in total,合計に含める
+Income Description,所得の説明
 Income Reconciliation,収益照合
+Income Type,所得の種類
 Income account,収入科目
+Income type not chosen,所得の種類が未選択
+Income type not on this form,この様式にない所得の種類
+Income type to choose,選ぶ必要がある所得の種類
 Initial Password,初期パスワード
+Input tax report,仕入税報告
+Input tax this month,当月の仕入税額
+Input tax without flagged rows,指摘行を除いた仕入税
 Inputs,入力内容
 Insert,挿入
 Installed At (UTC),インストール日時（UTC）
 Intake Target,取込先
+Interest,利息
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid checklist,チェックリストが無効です
 Invalid color,色が無効です
@@ -692,12 +791,16 @@ Invoice Count,請求書の件数
 Invoice Date,請求書の日付
 Invoice Index,請求書の順番
 Invoice No,伝票番号
+Invoice No.,請求書番号
 Invoice Number,請求書番号
 Invoice Pages,請求書のページ
 Invoice References Complete,請求書の関連付け完了
 Invoice References Fingerprint,請求書関連付けのフィンガープリント
 Invoice Total,請求書合計
+Invoice and certificate do not match,請求書と証明書が合わない
+Invoice date outside the tax month,発行日が課税月の外
 Invoice detail,請求書明細
+Invoice month,発行月
 Invoice no.,請求書番号
 Invoice number,伝票番号
 Invoice number on the document,請求書番号
@@ -705,9 +808,11 @@ Invoice pages do not match the original page references.,請求書のページ�
 Invoice recognition is busy. Try again in a moment.,請求書の読み取りが混み合っています。しばらくしてからもう一度お試しください。
 Invoice recognition took too long. Try again later.,請求書の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 Invoices,請求書数
+Issue,指摘
 Issued At (UTC),発行日時 (UTC)
 Issued By,発行者
 Issued Request Digest,発行リクエストのダイジェスト
+Issues,指摘
 It was entered,計上されている
 It was not entered,計上されていない（再送信可）
 Item,項目
@@ -735,8 +840,14 @@ Last Seen Generation,最終確認世代
 Last Used At,最終使用日時
 Last day of the month,月末
 Last modified by,最終更新者
+Last month to claim,控除の最終月
+Last name,姓
 Last used,前回使用
+Lease Credential,リースの認証情報
 Lease Expires At,リース有効期限
+Lease Expires At (UTC),リース有効期限（UTC）
+Lease Handle,リース識別子
+Leased At (UTC),取得日時（UTC）
 Leave board,ボードから退出
 Ledger account,総勘定元帳の科目
 Ledger amount,元帳金額
@@ -747,6 +858,9 @@ Ledger {0} {1}: one line {2},総勘定元帳 {0} {1}：1 件 {2}
 Left out (not in the tax report),照合に含めない（税報告にない）
 Left out {0} lines that repeat the main statement and look misread; check them: {1},メインの明細と重複し読み誤りと思われる {0} 行を除外しました。確認してください：{1}
 Legacy Status,旧ステータス
+Less exempt sales,控除：免税の売上高
+Less zero-rated sales,控除：ゼロ税率の売上高
+Level,レベル
 Light,ライト
 Line {0} ({1}): balance off by {2} — {3},{0} 行目（{1}）残高差 {2}：{3}
 List,リスト
@@ -754,6 +868,7 @@ List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
 Listed documents,書類を一覧しました
+Listed folder files,フォルダーのファイルを一覧しました
 Listed reconciliations,照合の一覧を確認しました
 Listed stock counts,棚卸の一覧を確認しました
 Listed task boards,タスクボードを確認しました
@@ -763,6 +878,7 @@ Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
+Lookup Key,検索キー
 MR.ERP Import Menu Options Seen,取得済みの MR.ERP 取込メニュー
 MR.ERP Import Menu per Account Set,会計データ別 MR.ERP 取込メニュー
 MR.ERP Master Defaults per Account Set,会計データ別 MR.ERP 既定値
@@ -802,6 +918,8 @@ Mirror,ミラー
 Mismatched,不一致
 Missing page,ページ欠落
 Modified at (UTC),更新日時（UTC）
+Month,月
+Month paid,支払月
 Monthly,毎月
 Monthly on {0} at {1},毎月 {0} {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
@@ -811,8 +929,11 @@ Move list,リストを移動
 Moved a task,タスクを移動しました
 My cards,自分のカード
 Name,名前
+Name suggests P.N.D.3,名称から ภ.ง.ด.3 の可能性
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
+"Net tax overpaid (10 more than 8, or 9 plus 10)",差引超過納付額（10 が 8 より大きい場合、または 9 + 10）
+Net tax payable (if 8 is more than 10),差引納付税額（8 が 10 より大きい場合）
 Never,なし
 New Files,新規ファイル数
 New code,新しいコード
@@ -826,6 +947,7 @@ Next Attempt At,次回再試行日時
 No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
+No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No attachments were given.,添付ファイルが指定されていません。
@@ -833,6 +955,7 @@ No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
 No documents were given.,書類が指定されていません。
 No due date,期日なし
+No files were given.,ファイルが指定されていません。
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
 No folders on this PC yet. Add them in CC Desktop on that PC.,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
 No folders on this PC yet. Add them in the Companion on that PC.,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
@@ -849,22 +972,30 @@ No number_,番号なし_
 No presets yet,プリセットはまだありません
 No product in this count matches that code,この棚卸にそのコードの商品はありません
 No product matches that code,そのコードの商品が見つかりません
+No recognition record,認識記録なし
 No recognition tasks were given.,読み取りタスクが指定されていません。
 No rules yet,ルールはまだありません
 No runs yet,実行履歴はまだありません
+No sales were found in this POS export,この POS エクスポートに売上がありません
 No tasks were given.,タスクが指定されていません。
+No tax month,課税月なし
 No templates yet,テンプレートはまだありません
 No warehouse matches that name,その倉庫名は存在しません
 "No, check line by line",いいえ、1 件ずつ照合
 "No, not in the tax report (interest, other income)",含めない（利息など税票を出さない収入）
+No.,番号
+Non-life insurance premiums,損害保険料
 None,なし
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,明細行がいずれも総勘定元帳の期間（{1}〜{2}）に入っていないため、すべて照合しました。同じ期間のファイルか確認してください。
 Not Permitted,適切な権限がありません
+Not a tax invoice,税務インボイスではない
 Not an invoice file,請求書以外
 Not bound,未連携
 Not card deposits net of fee,カード手数料控除後ではない
 Not counted,未棚卸
 Not entered,入力しない
+Not found,見つかりません
+Not included,未計上
 Not invoices {0},請求書以外 {0}
 Not permitted,権限がありません
 Not set,未入力
@@ -872,6 +1003,7 @@ Not specified in books,帳簿に指定なし
 Not uploaded {0},未アップロード {0}
 Note,メモ
 Notes,備考
+Nothing withheld on the invoice,インボイスに源泉徴収なし
 Notifications,通知
 Number,数値
 OUT,出金
@@ -885,7 +1017,9 @@ On schedule,スケジュール
 One folder per rule. PDF and image files only.,1 フォルダーに 1 ルール。PDF と画像のみ。
 One folder per scheduled task. PDF and image files only.,1 フォルダーに 1 定期タスク。PDF と画像のみ。
 One of the default choices is not valid for this account set.,既定の処理の一部がこの帳簿では使えません。
+Only Express account sets can be read back.,読み戻しできるのは Express の会計データだけです。
 Only PDF and image files are read.,読み取るのは PDF と画像だけです。
+Only POS exports in Excel (.xlsx) or CSV can be imported,取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです
 Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
@@ -894,6 +1028,7 @@ Only one sell unit can be the default.,既定の販売単位は 1 つだけ設�
 Open card,カードを開く
 Opened the original,原本を開きました
 Opening Diff,期首差額
+Operator,事業者名
 Options,オプション
 Options (one per line),選択肢（1行に1つ）
 Orange,橙
@@ -913,29 +1048,56 @@ Original files cannot be changed.,元ファイルは変更できません。
 Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
 Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
 Other,その他
+Other party,相手方
+Other records,その他の記録
 Outcome,実行結果
 Output VAT report,売上税報告
+Output tax report,売上税報告
+Output tax this month,当月の売上税額
 Over,過剰
 Over book quantity,帳簿超過
 Overdue,期限切れ
+Overpaid in last month's draft,前月下書きの超過納付額
 Owner ID,所有者 ID
 Owner Id,実行者ID
+P.N.D.3,ภ.ง.ด.3
+P.N.D.3 attachment,ภ.ง.ด.3 添付書類
+P.N.D.53,ภ.ง.ด.53
+P.N.D.53 attachment,ภ.ง.ด.53 添付書類
+P.P.30,ภ.พ.30
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
+POS daily sales can only be sent to Express,POS の日計は Express にのみ送信できます
+POS export columns to choose,POS エクスポートの列の指定待ち
+POS exports can only be entered into Express,POS エクスポートは Express にのみ入力できます
+Page,ページ
 Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
 Page {0}/{1},{0}/{1} ページ目
+Parameters,パラメーター
 Parse Info Json,解析情報
+Parties not read,当事者を読めない
+Party,取引先
 Party Type,取引先区分
 Password updated,パスワードを更新しました
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
+Past the 6-month claim period,6 か月の控除期限超過
 Paste a link,リンクを貼り付け
 Payable account,買掛金勘定
+Payee,受取人
+Payee tax ID,受取人の納税者番号
+Payee tax ID invalid,受取人の納税者番号が無効
+Payee tax ID missing,受取人の納税者番号なし
+Payees,受取人数
+Payer not clear,支払者が不明
 Payload Json,固定ペイロードJSON
 Payment,支払方法
+Payment Date,支払日
 Payment Evidence,支払証跡
 Payment Method,支払方法
+Payment date assumed,支払日は推定
 Payment method,支払方法
 Pearnly Cowork,Pearnly Cowork
+Penalty,罰金
 Pending,処理待ち
 Period,期間
 Phase,処理段階
@@ -957,6 +1119,7 @@ Previous Json,変更前のデータ（JSON）
 Private,非公開
 Private File,非公開ファイル
 Private Storage URL,非公開ストレージ URL
+Prizes,賞金
 Product,商品
 Product Code,商品コード
 Product Name,商品名
@@ -965,18 +1128,21 @@ Product codes and barcodes must be stored as text.,商品コードとバーコ�
 Product group,商品分類
 Product name,商品名
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
+Professional fees,専門職報酬
 Progress,進捗
 PromptPay,PromptPay
 Provider Evidence,プロバイダー呼び出し証跡
 Purchase (expense),仕入（経費）
 Purchase (goods),仕入（商品）
 Purchase or sales?,仕入ですか、売上ですか？
+Purchases eligible for input tax credit this month,当月の仕入税額控除対象の仕入高
 Purple,紫
 Push Account Set,送信先会計データ
 Push Attempt,送信試行
 Push Connection,送信先接続
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
+Pushed,送信時
 Pushed documents,書類を送信しました
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
 "Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
@@ -987,13 +1153,21 @@ Questions,質問
 Queued,順番待ち
 "Queued, {0} ahead",順番待ち · 前に {0} 件
 "Queued, {0} tasks ahead",待機中（前に {0} 件）
+Rate %,税率 %
+Rate differs from the usual rate,通常の税率と異なる
+Rate not confirmed for this date,この日付の税率は未確認
 Read,読み取り済み
+Read At (UTC),読み取り日時（UTC）
 Read VAT report,売上税報告の読み取り
 Read again,再読み込み
+Read back the accounting books,会計データを読み戻しました
 Read bank statement,銀行明細の読み取り
 Read files,ファイルの読み取り
+Read from Express,Express から読込
 Read general ledger,総勘定元帳の読み取り
 Read tax invoices,請求書の読み取り
+Readback,読み戻し
+Readback ID,読み戻し ID
 Reading files,ファイルを読み込み中
 Reading the MR.ERP menus…,MR.ERP のメニューを読み込み中…
 Reading the VAT report,税報告を読み込み中
@@ -1002,12 +1176,16 @@ Reading the company list from the ERP. Tap the menu again in a moment.,ERPから
 Reading the general ledger,総勘定元帳を読み込み中
 Reading the invoices,請求書を読み込み中
 Reading the scanned or photographed document took too long. Try again later.,スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。
+Ready At (UTC),完了日時（UTC）
 Ready for the next product,次の商品を棚卸できます
 Reason,理由
 Receipt,領収書
 Receivable account,売掛金勘定
+Received Bytes,受信バイト数
+Receiving account,入金勘定
 Recently read,最近の読み取り
 Recognised {0} documents,{0} 件の書類を読み取りました
+Recognition Batch,認識バッチ
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
 Recognition Reference,読み取り参照番号
@@ -1016,6 +1194,7 @@ Recognition is busy. Try again in a moment.,読み取りが混み合っていま
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
+Recognized Fields,認識した項目
 Recognized documents,書類を読み取りました
 Recognized with high confidence,高い信頼度で認識
 "Recognized, waiting to enter",読み取り済み
@@ -1053,16 +1232,22 @@ Reimporting review workbooks is not available on the new platform yet.,新プラ
 Relative Path,相対パス
 Reload,再読み込み
 Remarks,備考
+Remind me,リマインド
 Remind me the day before,前日にリマインド
 Reminder,リマインダー
 Reminder Since,リマインダー開始日時
+Reminder Times,リマインド時刻
+Reminder day,リマインド日
+Reminder time,リマインド時刻
 Remove,削除
 Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Rent,賃借料
 Repeat,繰り返し
 Replaced by your later submission of the same files.,同じファイルの後からの送信に置き換えられました。
+Report,レポート
 Report Count,レポート数
 Report Credential,レポート認証情報
 Report Credential Generation,レポート認証情報の世代
@@ -1081,12 +1266,17 @@ Reset Password,パスワードを再設定
 Response Json,確認応答JSON
 Restore,復元
 Result,結果
+Result Bytes,結果のバイト数
+Result Details,結果の詳細
 Result Directory Revision,結果ディレクトリリビジョン
 Result Folder,結果フォルダー
 Result Json,認識結果（JSON）
+Result SHA-256,結果の SHA-256
 Result Unknown,結果不明
 Result in the ERP,ERP での結果
 Results: {0},結果：{0}
+Return Form,申告様式
+Return Type,申告の種類
 Review,レビュー
 Review JSON,確認記録 JSON
 Review Reasons,確認理由
@@ -1102,6 +1292,7 @@ Root,ルートフォルダー
 Route,アップロード方式
 Row Count,行数
 Row Index,行番号
+Row not read,読めない行
 Row {0}: {1},{0} 行目：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,表の行と実数を登録します。実数を空欄にすると、後でオンラインで棚卸できます。
@@ -1131,6 +1322,11 @@ SKU,SKU
 Sales area,販売地域
 Sales invoices,売上請求書
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
+Sales promotion,販売促進
+Sales this month,当月の売上高
+Same as,重複元
+Same as row,重複元の行
+Same day,当日
 Sample Key,修正例識別子
 Save and next,保存して次へ
 Save these folder tasks?,これらの定期タスクを保存しますか？
@@ -1160,11 +1356,14 @@ Select between 1 and 100 distinct history records to export.,エクスポート�
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
 Sell Units,販売単位
+Seller,販売者
 Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
 Seller address,売り手住所
 Seller branch,売り手支店
 Seller tax ID,売り手税番号
+Seller tax ID invalid,販売者の納税者番号が無効
+Seller tax ID missing,販売者の納税者番号なし
 Selling Price,販売価格
 Send,送信
 Send anyway,このまま送信
@@ -1172,6 +1371,7 @@ Send documents to ERP,書類をERPへ送信
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Sending was cancelled because the account set was in use. Close Express and send again,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
 Service,サービス
+Service fees,サービス料
 Service or stock?,サービスですか、在庫品ですか？
 Set At,設定日時
 Set By,設定者
@@ -1180,12 +1380,14 @@ Set by {0} on {1},{0}（{1}）が設定
 Set due date,期日を N 日後に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
 Set reminder,リマインダー
+Set the POS export columns,POS エクスポートの列を設定しました
 Settings Json,設定データ（JSON）
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.",複数の科目に一致する明細があります。一度選ぶと同じファイルで照合し直します（再読み取りはしません）。
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}",写真・スキャンから読み取った次の税務報告のページで複数の行が元帳と一致しません。読み取り誤りの可能性が高いため、実際の差異と判断する前に原本と照合してください（括弧内は不一致の行数）：{0}
 Sheet,シート
+Sheets,枚数
 Short,不足
 Short of book quantity,帳簿不足
 Show,表示
@@ -1205,7 +1407,9 @@ Some rows were skipped,一部の行を取り込めませんでした
 Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
 Someone else changed this reconciliation. Reload it before saving.,この照合は他の人が変更しました。再読み込みしてから保存してください。
 Sort by,並べ替え
+Source,出典
 Source Digest,元データのダイジェスト
+Source Draft,元の下書き
 Source File,元ファイル
 Source Format,元データの形式
 Source Hash,ソースハッシュ
@@ -1259,9 +1463,12 @@ Stop watching,ウォッチをやめる
 Stored Page Previews,保存済みページプレビュー
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,サブフォルダー名・ファイル名は自由。1 つの PDF に複数の請求書があっても構いません。
 Submit,確定
+Suggested,候補
+Summary,概要
 Summary Json,集計情報
 Summary table import,集計表の取り込み
 Supplier type,仕入先区分
+Surcharge,加算金
 Table,テーブル
 Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
 Tap the menu to start,メニューを押して始めてください
@@ -1269,10 +1476,21 @@ Target Json,固定送信先JSON
 Task,タスク
 Task Management,タスク管理
 Task name,タスク名
+Tax Amount,税額
 Tax ID,納税者番号
 Tax Invoice,税務請求書
+Tax Month,課税月
+Tax Withheld,源泉徴収税額
+Tax invoice no.,税務インボイス番号
+Tax month,課税月
 Tax on this receipt,この領収書の税額
+Tax overpaid this month (if 5 is less than 7),当月の超過納付額（5 が 7 より小さい場合）
+Tax payable this month (if 5 is more than 7),当月の納付税額（5 が 7 より大きい場合）
+Tax rate %,税率 %
+Tax withheld and remitted,今回の源泉徴収・納付税額
+Taxable sales (1 - 2 - 3),課税売上高（1 - 2 - 3）
 Taxes and Charges,税金および諸費用
+Taxpayer ID,納税者番号
 Team board,チームボード
 Team visible,チームに公開
 Template,テンプレート
@@ -1322,14 +1540,20 @@ The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to
 The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
 The PDF exceeds the allowed page count.,PDF のページ数が上限を超えています。
 The PDF file cannot be read.,この PDF ファイルを読み取れません。
+The POS daily total is not in the expected form. Import the POS export again,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
+The POS daily totals of this document are damaged. Import the POS export again,この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください
+The POS export columns are incomplete,POS エクスポートの列の設定が不完全です
+The VAT column is more than 7% of a day's sales,消費税の列がその日の売上の 7% を超えています
 The VAT report content is invalid.,税報告の内容が無効です。
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.",税報告を読み取れません。Excel、CSV、またはテキスト付き PDF を使ってください。
 The VAT report has no rows.,税報告に明細行がありません。
 The account balance could not be checked right now. Try again in a moment.,現在、残高を確認できません。しばらくしてからもう一度お試しください。
+The account codes are invalid.,勘定科目コードが無効です。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
+The answer is not valid.,回答が無効です。
 The bank statement could not be read.,銀行明細を読み取れません。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
 The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},これらの請求書の買い手は自社です。仕入請求書のように見えます。誤って入れていないか確認してください：{0}
@@ -1342,6 +1566,7 @@ The chosen value is not in this account set. Choose again,選んだ値はこの�
 The client fields are invalid.,顧客の項目が正しくありません。
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
+The computer on this connection cannot do this.,この接続のパソコンではこの操作はできません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
 The credential changed. Reload before resetting or revoking it.,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
 The credential request is invalid.,認証情報のリクエストが無効です。
@@ -1400,6 +1625,7 @@ The import contains no product rows.,インポートデータに商品行があ�
 The import file is too large.,インポートファイルが大きすぎます。
 The import row is invalid or has missing required values.,インポート行が無効か、必須項目が不足しています。
 The import rows are invalid.,インポート行が正しくありません。
+"The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.",源泉徴収の受取人の所得種類。一度だけ確認して記憶します（受取人の納税者番号、または認識したカテゴリ別）。
 The invoice configuration does not match the OCR connection.,請求書の認識設定とサービスの接続設定が一致しません。
 The invoice contains text that Excel cannot store safely. Check its length and characters.,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
 The invoice data is invalid and cannot be exported.,請求書データが無効なため、エクスポートできません。
@@ -1411,12 +1637,14 @@ The invoice fields have an invalid format.,請求書の項目データの形式�
 The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
 The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
+The item lines do not add up to the day's total,品目の合計がその日の合計と一致しません
 The ledger file content is invalid.,元帳の内容が無効です。
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.",この書類の明細金額・税抜金額・税額・合計が合わないため、エクスポートすると金額が変わります。編集画面で確認してください。
 The line items do not add up to the invoice amount. Fix the lines and submit again,明細の合計が伝票の金額と合いません。明細を直して再送信してください
 The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
 The matching stock item is missing. Choose it and submit again.,対応する在庫品目がありません。選択して再送信してください
 The opening and closing values are invalid.,期首・期末の値が無効です。
+The option is not valid.,オプションが無効です。
 The original document manifest cannot be changed.,元文書の内容索引は変更できません。
 The original document manifest exceeds the 8 MiB limit.,元文書の内容索引が上限の 8 MiB を超えています。
 The original document manifest is not ready.,元文書の内容索引はまだ準備できていません。
@@ -1429,6 +1657,7 @@ The original invoice manifest is incomplete.,元ファイルの請求書関連�
 The original invoice reference is invalid or unavailable.,元の伝票の参照が無効か、アクセスできません。
 The outdated unsent preparation was replaced.,古い未送信の準備を置き換えました。
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
+The payment methods do not add up to the day's total. Import the POS export again,支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください
 The preview is temporarily unavailable. Please try again.,プレビューを一時的に表示できません。もう一度お試しください。
 The printed invoice date cannot be read. Check the date shown on the document.,請求書に記載された日付を読み取れません。書類の日付を確認してください。
 The product fields are invalid.,商品の項目が正しくありません。
@@ -1437,6 +1666,10 @@ The push data exceeds the size limit.,送信データがサイズ制限を超え
 The push record has changed. Reload and try again.,送信記録が更新されました。再読み込みしてお試しください。
 The push target has changed. Prepare the invoice again.,送信先が変更されました。伝票を再度準備してください。
 The quantity is not a valid number,数量が正しい数値ではありません
+The readback is not ready yet.,読み戻しはまだ終わっていません。
+The readback request is invalid.,読み戻しのリクエストが無効です。
+The readback was not found.,読み戻しの結果が見つかりません。
+The receiving account cannot be posted to in Express. Choose another account,この入金勘定は Express で記帳できません。別の勘定を選んでください
 The recognition task was not found.,読み取りタスクが見つかりません。
 The recognized content does not match the original references.,認識した内容が元ファイルの参照項目と一致しません。
 The recognized invoice manifest cannot be replaced.,認識済みの請求書関連付け一覧は置き換えられません。
@@ -1453,6 +1686,8 @@ The reported ERP field definitions are invalid.,報告された ERP フィール
 The reports belong to different sellers ({0}).,報告の売り手が異なります（{0}）。確認してください。
 The reports cover different periods ({0}).,報告の期間が異なります（{0}）。確認してください。
 The request is invalid. Reload and try again.,リクエストが無効です。再読み込みしてやり直してください。
+The request to CC Desktop is invalid.,CC デスクトップへのリクエストが無効です。
+The request to CC Desktop was not found.,CC デスクトップへのリクエストが見つかりません。
 The requested page is not part of this invoice.,指定したページはこの請求書に含まれていません。
 The result is not confirmed. Check in Express before sending again,結果が確認できません。Express で確認してから再送信してください
 The result sheet is not ready yet.,結果表はまだ準備できていません。
@@ -1478,6 +1713,7 @@ The supplier is missing. Add it and submit again.,仕入先がありません。
 The system is busy and the reconciliation was not finished. Please try again shortly.,システムが混み合っているため照合を完了できませんでした。しばらくしてからもう一度お試しください。
 The task owner can no longer enter documents with this connection.,定期タスクの担当者はこの接続で登録できなくなっています。
 The tax ID is not valid. Correct it and submit again,納税者番号が正しくありません。直して再送信してください
+The tax month is not valid.,課税月が無効です。
 The unsent preparation was cancelled.,未送信の準備を取り消しました。
 The uploaded file does not match the file on the PC.,アップロード内容が PC のファイルと一致しません。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
@@ -1506,8 +1742,11 @@ This ERP connection is disabled.,このERP接続は無効です。
 This MR.ERP menu cannot be chosen for this account set.,この会計データではこの MR.ERP メニューを選択できません。
 This PC already has the maximum number of folder rules.,この PC のルール数が上限に達しています。
 This PC already has the maximum number of scheduled tasks.,この PC の定期タスク数が上限に達しています。
+This POS export has a status value that is not chosen yet,この POS エクスポートにまだ指定していない状態の値があります
 This account cannot send documents,このアカウントは書類を送信できません
+This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 This account set is not in the connection's list. Reload the list in New Intake.,この帳簿は一覧にありません。新規取込で再読み込みしてください。
+This account set is not on this connection.,この接続にこの会計データはありません。
 This account set is unavailable.,この会計データは利用できません。
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
 This board no longer exists,このボードはもう存在しません
@@ -1525,10 +1764,12 @@ This delivery conflicts with the current task state.,この受領結果はタス
 This document does not need this choice,この伝票ではこの選択は不要です
 This document format is not supported.,この文書形式には対応していません。
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
+This file cannot be read,このファイルは読み取れません
 This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.",このファイルは総勘定元帳で、銀行明細ではありません。元帳側に置き、左側には銀行明細またはネットバンキングの出力をアップロードしてください。
 This file is too large to send from this PC.,このファイルは大きすぎて送信できません。
 This file record was not found.,このファイル記録が見つかりません。
+This file type cannot be brought into the chat.,この種類のファイルはチャットに取り込めません。
 This file type is not supported.,このファイル形式には対応していません。
 "This file type is not supported. Use PDF, Excel or CSV.",このファイル形式は使えません。PDF、Excel、CSV を使ってください。
 This folder overlaps the folder of rule «{0}».,ルール「{0}」のフォルダーと重なっています
@@ -1578,6 +1819,7 @@ This value cannot be chosen for this account set.,この帳簿ではこの値を
 Time left {0},残り {0}
 Times Used,使用回数
 Title,タイトル
+To check,要確認
 To check {0},要確認 {0}
 To do,未着手
 Token Digest,トークンダイジェスト
@@ -1585,15 +1827,23 @@ Token Generation,トークン世代
 Token Tail,トークン末尾
 Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。もう少し入力して絞り込んでください
+Too many requests are waiting for CC Desktop. Try again shortly.,CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。
 Too many rows to import.,インポートする行が多すぎます。
 Total,税込
 Total counted quantity,実地数量合計
+Total income and tax remitted,所得と納付税額の合計
+Total income paid,支払総額
+Total tax and surcharge,税額と加算金の合計
+Total tax overpaid after surcharge and penalty,加算金・罰金控除後の超過納付額
+Total tax remitted,納付税額の合計
+"Total tax, surcharge and penalty payable",納付すべき税額・加算金・罰金の合計
 Track Batch,ロット管理
 Track Expiry,有効期限管理
 Transaction Date,取引日
 Transaction type,取引区分
 Transfer,振込
 Transfer slips,振込明細
+Transport,運送料
 Turn off,停止
 Turn on,有効にする
 Turn this folder task on or off?,この定期タスクをオン／オフにしますか？
@@ -1605,16 +1855,20 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Turned a folder task on or off,フォルダータスクを有効化／停止しました
 Type,種別
 Type a few letters of the company or account set name to find it,会社名または会計データ名の一部を入力して検索してください
+Type of income paid,支払った所得の種類
 "Type or scan, then press Enter",入力またはスキャンして Enter
 Unbind LINE,LINE 連携を解除
 Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？
+"Under 1,000 baht","1,000 バーツ未満"
 Unit,単位
 Unknown reconciliation type.,不明な照合種別です。
 Unmatched,未照合
 Unmatched Count,未照合件数
 Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
+Unusual rate,通常にない税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
+Update this site before reading back with this CC Desktop.,この CC デスクトップで読み戻す前にサイトを更新してください。
 Updated At,更新日時
 Updated By,更新者
 Updated a task,タスクを更新しました
@@ -1644,6 +1898,7 @@ Use the reconciliation workflow to change these records.,照合の手順で変�
 Use the stock count workflow to change these records.,これらの記録は棚卸の操作から変更してください。
 User Settings,ユーザーメニュー
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
+Usual rate %,通常税率 %
 VAT,VAT
 VAT Date,税務請求書日付
 VAT Document No,税務請求書番号
@@ -1652,13 +1907,18 @@ VAT Only Negative,売上税報告のみ（マイナス）
 VAT Only Positive,売上税報告のみ（プラス）
 VAT Report Check,売上税報告チェック
 VAT Total,売上税報告合計
+VAT differs from the rate,税額が税率と合わない
 VAT is not 7% of the base,税額が課税標準の7%でない
 VAT on receipts and abbreviated tax invoices,領収書・簡易税請求書の税額
+VAT record,税務記録
+VAT record VAT,税務記録の税額
+VAT record before VAT,税務記録の税抜額
 VAT report amount,税報告金額
 VAT report detail,VAT 報告明細
 VAT without a base amount,課税標準がなく税額のみ
 Valid,有効
 Value,値
+Value of goods or services,商品・サービスの価額
 Version,バージョン
 View differences,差異を見る
 View photo,写真を表示
@@ -1676,6 +1936,7 @@ Void this count of {0}?,この {0} の記録を取り消しますか？
 Void · no invoice needed,取消 · 請求書不要
 Voided,無効化済み
 Voided (excluded from total),取消（合計に含めない）
+Voided in Express,Express で取消
 "Voided, not in the total",取消済み（合計に含まない）
 Voucher no.,伝票番号
 WHT amount,源泉税額
@@ -1700,6 +1961,7 @@ Why it is not in the review sheet,確認表がない理由
 Wire Attempt,送信試行回数
 With differences,差異あり
 Withdrawal,出金
+Withholding agent,源泉徴収義務者
 Withholding tax certificates,源泉徴収票
 Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
@@ -1713,6 +1975,7 @@ Yellow,黄
 "Yes, the card fee is {0}% (with or without 7% VAT on the fee)",はい、カード手数料率は {0}%（手数料に 7% VAT 加算・込みのどちらも可）
 You are watching this card,このカードをウォッチしています
 You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
+Zero VAT,税額ゼロ
 account,勘定科目
 active,有効
 admitted,受け付け済み
@@ -1736,6 +1999,11 @@ companion.credential_not_found,この接続には CC デスクトップの認証
 companion.delivery_invalid,CC デスクトップのタスク受領記録が無効です。
 companion.delivery_not_found,CC デスクトップのタスク受領記録が見つかりません。
 companion.generation_conflict,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
+companion.on_demand_busy,CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。
+companion.on_demand_invalid,CC デスクトップへのリクエストが無効です。
+companion.on_demand_missing,CC デスクトップへのリクエストが見つかりません。
+companion.on_demand_not_ready,CC デスクトップの処理はまだ終わっていません。
+companion.on_demand_unsupported,この接続のパソコンではこの操作はできません。
 companion.queue_access_revoked,CC デスクトップのキューへのアクセス権が取り消されました。
 companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
 companion.queue_request_invalid,CC デスクトップのキューリクエストが無効です。
@@ -1778,6 +2046,7 @@ cowork.choice.item,在庫品目
 cowork.choice.new,伝票どおり新規作成
 cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法
+cowork.choice.receipt,入金勘定
 cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
@@ -1803,6 +2072,7 @@ cowork.folder.brief.why.human,手動で変更済み
 cowork.folder.brief.why.lowBalance,残高不足
 cowork.folder.brief.why.offline,CC デスクトップがオフライン
 cowork.folder.brief.why.party,取引先
+cowork.folder.brief.why.posLayout,POS エクスポートの列の指定待ち
 cowork.folder.brief.why.purchasesFirst,仕入の登録待ち
 cowork.folder.brief.why.taskOff,タスク停止中または権限なし
 cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
@@ -1833,10 +2103,14 @@ cowork.folder.enableConfirm,この定期タスクを有効にしますか？今�
 cowork.folder.enableConfirmAll,この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。
 cowork.folder.entry_missing,このファイル記録が見つかりません。
 cowork.folder.express_only,Express 接続でのみ使えます。
+cowork.folder.fetch_path_invalid,このフォルダー内のファイルのパスを指定してください。
+cowork.folder.fetch_type_invalid,この種類のファイルはチャットに取り込めません。
 cowork.folder.field.connection,Express の PC
 cowork.folder.field.day,実行日
 cowork.folder.field.folder,フォルダー
-cowork.folder.field.remind,前日にリマインド
+cowork.folder.field.remind,リマインド
+cowork.folder.field.remindDay,リマインド日
+cowork.folder.field.remindTime,リマインド時刻
 cowork.folder.field.root,許可されたルートフォルダー
 cowork.folder.field.time,実行時刻
 cowork.folder.field.title,タスク名
@@ -1878,7 +2152,11 @@ cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
 cowork.folder.pending,未処理 {0} 件、実行時刻に処理します
+cowork.folder.remind.add,時間を追加
 cowork.folder.remind.count,未処理のファイルが {0} 件あります。
+cowork.folder.remind.date,{0}月{1}日 {2}
+cowork.folder.remind.dayBefore,前日
+cowork.folder.remind.daysBefore,{0} 日前
 cowork.folder.remind.leftDays,あと {0} 日 {1} 時間
 cowork.folder.remind.leftHours,あと {0} 時間 {1} 分
 cowork.folder.remind.leftMinutes,あと {0} 分
@@ -1887,9 +2165,11 @@ cowork.folder.remind.many,{1}に定期タスク {0} 件が開始します（{2}�
 cowork.folder.remind.off,オフ
 cowork.folder.remind.on,オン
 cowork.folder.remind.one,「{0}」は{1}に開始します（{2}）。{3} に書類を入れ、漏れがないか確認してください。
+cowork.folder.remind.sameDay,当日
 cowork.folder.remind.title,定期タスクのリマインダー
 cowork.folder.remind.today,今日 {0}
 cowork.folder.remind.tomorrow,明日 {0}
+cowork.folder.remind_same_day,当日のリマインドは実行時刻より前にしてください
 cowork.folder.rootItself,（ルートフォルダー自体）
 cowork.folder.root_invalid,CC デスクトップが報告したルートを選んでください。
 cowork.folder.rule_disabled,この定期タスクは停止中です。
@@ -1953,6 +2233,35 @@ cowork.policy.skip,入力しない（以後も同様）
 cowork.policy.skipped,入力しない
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
+cowork.readback.account_missing,この接続にこの会計データはありません。
+cowork.readback.accounts_invalid,勘定科目コードが無効です。
+cowork.readback.change.changed,変更あり
+cowork.readback.change.deleted,削除済み
+cowork.readback.change.missing,見つかりません
+cowork.readback.change.voided,取消済み
+cowork.readback.col.change,変更
+cowork.readback.col.direction,区分
+cowork.readback.col.docnum,伝票番号
+cowork.readback.col.entered_by,入力者
+cowork.readback.col.field,項目
+cowork.readback.col.kind,伝票区分
+cowork.readback.col.now,Express の現在
+cowork.readback.col.party,取引先
+cowork.readback.col.pushed,送信時
+cowork.readback.data_invalid,CC デスクトップから返されたデータを読み取れません。
+cowork.readback.field.entries,仕訳
+cowork.readback.field.ref_no,請求書番号
+cowork.readback.field.vat_amount,税務記録の税額
+cowork.readback.field.vat_before_vat,税務記録の税抜額
+cowork.readback.field.vat_record,税務記録
+cowork.readback.invalid,読み戻しのリクエストが無効です。
+cowork.readback.missing,読み戻しの結果が見つかりません。
+cowork.readback.not_express,読み戻しできるのは Express の会計データだけです。
+cowork.readback.not_ready,読み戻しはまだ終わっていません。
+cowork.readback.period_invalid,月は YYYY-MM で指定してください。
+cowork.readback.sheet.changes,変更
+cowork.readback.sheet.direct,Express で直接入力
+cowork.readback.version_unsupported,この CC デスクトップで読み戻す前にサイトを更新してください。
 cowork.recon.bank.gl_credit_only,元帳貸方のみ
 cowork.recon.bank.gl_debit_only,元帳借方のみ
 cowork.recon.bank.left,銀行明細
@@ -2287,6 +2596,159 @@ cowork.stocktake.export.updated_at,更新日時（UTC）
 cowork.stocktake.export.updated_by,最終更新者
 cowork.stocktake.export.warehouse,倉庫
 cowork.stocktake.export.warehouse_comparison,倉庫照合結果
+cowork.tax.col.address,住所
+cowork.tax.col.amount,金額
+cowork.tax.col.buyer,購入者
+cowork.tax.col.category,カテゴリ
+cowork.tax.col.check,チェック
+cowork.tax.col.condition,条件
+cowork.tax.col.date,日付
+cowork.tax.col.description,内容
+cowork.tax.col.detail,詳細
+cowork.tax.col.document,Express 伝票番号
+cowork.tax.col.first_name,名
+cowork.tax.col.form,様式
+cowork.tax.col.income_type,支払った所得の種類
+cowork.tax.col.invoice,税務インボイス番号
+cowork.tax.col.issue,指摘
+cowork.tax.col.item,項目
+cowork.tax.col.last_name,姓
+cowork.tax.col.level,レベル
+cowork.tax.col.name,名称
+cowork.tax.col.paid,今回の支払額
+cowork.tax.col.paid_on,支払日
+cowork.tax.col.payee_name,受取人
+cowork.tax.col.payee_tax_id,受取人の納税者番号
+cowork.tax.col.payees,受取人数
+cowork.tax.col.place,本店 / 支店
+cowork.tax.col.rate,税率 %
+cowork.tax.col.rows,件数
+cowork.tax.col.seller,販売者
+cowork.tax.col.seq,番号
+cowork.tax.col.sheet,シート
+cowork.tax.col.sheets,枚数
+cowork.tax.col.side,レポート
+cowork.tax.col.source,出典
+cowork.tax.col.suggested,候補
+cowork.tax.col.surcharge,加算金
+cowork.tax.col.title,敬称
+cowork.tax.col.total_due,税額と加算金の合計
+cowork.tax.col.total_paid,支払総額
+cowork.tax.col.total_tax,納付税額の合計
+cowork.tax.col.value,商品・サービスの価額
+cowork.tax.col.vat,付加価値税額
+cowork.tax.col.withheld,今回の源泉徴収・納付税額
+cowork.tax.detail.buyer_tax_id,購入者の番号
+cowork.tax.detail.claimed_month,控除月
+cowork.tax.detail.company_tax_id,自社の番号
+cowork.tax.detail.counterparty,相手方
+cowork.tax.detail.document_type,書類の種類
+cowork.tax.detail.expected,通常税率 %
+cowork.tax.detail.expected_vat,想定税額
+cowork.tax.detail.first_row,重複元の行
+cowork.tax.detail.invoice_month,発行月
+cowork.tax.detail.last_month,控除の最終月
+cowork.tax.detail.of,重複元
+cowork.tax.detail.rate,税率 %
+cowork.tax.form.pnd3,ภ.ง.ด.3
+cowork.tax.form.pnd53,ภ.ง.ด.53
+cowork.tax.head.branch,支店
+cowork.tax.head.due_online,申告期限（電子）
+cowork.tax.head.due_paper,申告期限（紙）
+cowork.tax.head.operator,事業者名
+cowork.tax.head.paid_month,支払月
+cowork.tax.head.payer,源泉徴収義務者
+cowork.tax.head.read_at,Express から読込
+cowork.tax.head.tax_id,納税者番号
+cowork.tax.head.tax_month,課税月
+cowork.tax.income.advertising,広告費
+cowork.tax.income.commission,手数料
+cowork.tax.income.dividend,配当
+cowork.tax.income.hire_of_work,請負料
+cowork.tax.income.insurance,損害保険料
+cowork.tax.income.interest,利息
+cowork.tax.income.other,その他
+cowork.tax.income.prize,賞金
+cowork.tax.income.professional,専門職報酬
+cowork.tax.income.promotion,販売促進
+cowork.tax.income.rent,賃借料
+cowork.tax.income.service,サービス料
+cowork.tax.income.transport,運送料
+cowork.tax.issue.amount_unreadable,金額を読めない
+cowork.tax.issue.below_threshold,"1,000 バーツ未満"
+cowork.tax.issue.buyer_unconfirmed,書類に自社の納税者番号なし
+cowork.tax.issue.certificate_direction_unclear,支払者が不明
+cowork.tax.issue.certificate_parties_unreadable,当事者を読めない
+cowork.tax.issue.certificate_received,顧客から受け取った証明書
+cowork.tax.issue.condition_invalid,条件コードが無効
+cowork.tax.issue.duplicate_document,重複
+cowork.tax.issue.ewht_check,1% 電子源泉徴収税率
+cowork.tax.issue.form_name_mismatch,名称から ภ.ง.ด.3 の可能性
+cowork.tax.issue.form_type_mismatch,この様式にない所得の種類
+cowork.tax.issue.income_type_missing,所得の種類が未選択
+cowork.tax.issue.input_abbreviated,簡易税務インボイス
+cowork.tax.issue.input_before_invoice,発行月より前に控除
+cowork.tax.issue.input_buyer_missing,インボイスに購入者なし
+cowork.tax.issue.input_buyer_other,購入者が別の会社
+cowork.tax.issue.input_claimed_later,発行月より後に控除
+cowork.tax.issue.input_duplicate,重複
+cowork.tax.issue.input_no_document,認識記録なし
+cowork.tax.issue.input_not_tax_invoice,税務インボイスではない
+cowork.tax.issue.input_over_six_months,6 か月の控除期限超過
+cowork.tax.issue.input_tax_id_invalid,販売者の納税者番号が無効
+cowork.tax.issue.input_tax_id_missing,販売者の納税者番号なし
+cowork.tax.issue.output_duplicate,重複
+cowork.tax.issue.output_outside_period,発行日が課税月の外
+cowork.tax.issue.output_rate,税額が税率と合わない
+cowork.tax.issue.output_rate_unknown,この日付の税率は未確認
+cowork.tax.issue.output_tax_id_invalid,購入者の納税者番号が無効
+cowork.tax.issue.output_zero_vat,税額ゼロ
+cowork.tax.issue.pairing_unclear,請求書と証明書が合わない
+cowork.tax.issue.payee_tax_invalid,受取人の納税者番号が無効
+cowork.tax.issue.payee_tax_missing,受取人の納税者番号なし
+cowork.tax.issue.payment_date_assumed,支払日は推定
+cowork.tax.issue.rate_mismatch,通常の税率と異なる
+cowork.tax.issue.rate_not_standard,通常にない税率
+cowork.tax.issue.row_deleted,Express で削除
+cowork.tax.issue.row_other_period,別の課税月
+cowork.tax.issue.row_period_missing,課税月なし
+cowork.tax.issue.row_unreadable,読めない行
+cowork.tax.issue.row_voided,Express で取消
+cowork.tax.level.error,要修正
+cowork.tax.level.info,備考
+cowork.tax.level.warn,要確認
+cowork.tax.pp30.box.1,当月の売上高
+cowork.tax.pp30.box.10,繰越超過納付額
+cowork.tax.pp30.box.11,差引納付税額（8 が 10 より大きい場合）
+cowork.tax.pp30.box.12,差引超過納付額（10 が 8 より大きい場合、または 9 + 10）
+cowork.tax.pp30.box.13,加算金
+cowork.tax.pp30.box.14,罰金
+cowork.tax.pp30.box.15,納付すべき税額・加算金・罰金の合計
+cowork.tax.pp30.box.16,加算金・罰金控除後の超過納付額
+cowork.tax.pp30.box.2,控除：ゼロ税率の売上高
+cowork.tax.pp30.box.3,控除：免税の売上高
+cowork.tax.pp30.box.4,課税売上高（1 - 2 - 3）
+cowork.tax.pp30.box.5,当月の売上税額
+cowork.tax.pp30.box.6,当月の仕入税額控除対象の仕入高
+cowork.tax.pp30.box.7,当月の仕入税額
+cowork.tax.pp30.box.8,当月の納付税額（5 が 7 より大きい場合）
+cowork.tax.pp30.box.9,当月の超過納付額（5 が 7 より小さい場合）
+cowork.tax.pp30.claimable,指摘行を除いた仕入税
+cowork.tax.pp30.previous_excess,前月下書きの超過納付額
+cowork.tax.review.excluded,未計上
+cowork.tax.review.notes,その他の記録
+cowork.tax.review.questions,選ぶ必要がある所得の種類
+cowork.tax.review.suggestions,インボイスに源泉徴収なし
+cowork.tax.sheet.check,チェック
+cowork.tax.sheet.pnd3,ภ.ง.ด.3 添付書類
+cowork.tax.sheet.pnd53,ภ.ง.ด.53 添付書類
+cowork.tax.sheet.pp30,ภ.พ.30
+cowork.tax.sheet.purchases,仕入税報告
+cowork.tax.sheet.review,要確認
+cowork.tax.sheet.sales,売上税報告
+cowork.tax.sheet.summary,概要
+cowork.tax.sheet_total,所得と納付税額の合計
+cowork.tax.total,合計
 cowork.team.action.bulkDisable,{0}件を無効化
 cowork.team.action.bulkEnable,{0}件を有効化
 cowork.team.active,正常
@@ -2617,6 +3079,7 @@ intake.catalog.reload,再読み込み
 intake.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+intake.error.ACCOUNT_NOT_POSTABLE,この入金勘定は Express で記帳できません。別の勘定を選んでください
 intake.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
 intake.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
@@ -2644,6 +3107,7 @@ intake.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再�
 intake.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
 intake.error.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
 intake.error.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
+intake.error.JOURNAL_BOOK_NOT_FOUND,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 intake.error.MAPPING_MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 intake.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。選択して再送信してください
 intake.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
@@ -2651,6 +3115,7 @@ intake.error.MISSING_REF_NO,請求書番号がありません。追加して再�
 intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 intake.error.NO_ACCOUNT_SELECTION,このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
 intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
@@ -2689,6 +3154,10 @@ intake.error.no_output_vat_account,この伝票に必要な勘定科目が設定
 intake.error.no_purchase_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.no_revenue_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.payload_version_outdated,CC デスクトップが古いバージョンです。更新して再送信してください
+intake.error.pos_express_only,POS の日計は Express にのみ送信できます
+intake.error.pos_facts_invalid,この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください
+intake.error.pos_payments_mismatch,支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください
+intake.error.pos_receipt_account_missing,支払方法ごとの入金勘定を選んでください
 intake.error.posting_kind_needed,この伝票がサービスか在庫かを選んで再送信してください
 intake.error.seller_buyer_same_tax,売手と買手の納税者番号が同じです。直して再送信してください
 intake.error.tax_id_invalid,納税者番号が正しくありません。直して再送信してください
@@ -2759,11 +3228,33 @@ ocr.table_units_invalid,文書の論理単位が不完全または無効です�
 ocr.table_xml_declaration_not_allowed,文書に対応していない XML 宣言が含まれています。
 ocr.too_many_pages,PDF のページ数が上限を超えています。
 ocr.unsupported_format,このファイル形式には対応していません。
+on {1}/{0} at {2},{0}月{1}日 {2}
 out,出金
 page {0},{0} ページ目
 pdf,PDF
 pending,処理待ち
 physical_page,物理ページ
+pos.amount_unreadable,この POS エクスポートの金額が読み取れません
+pos.column_missing,記憶した列がこの POS エクスポートにありません。列を指定し直してください
+pos.date_unreadable,この POS エクスポートの日付が読み取れません
+pos.day_not_positive,売上合計がゼロ以下の日があります
+pos.file_unreadable,このファイルは読み取れません
+pos.items_mismatch,品目の合計がその日の合計と一致しません
+pos.items_not_positive,返品後、数量がゼロ以下か金額がマイナスの品目がある日があります
+pos.layout_invalid,POS エクスポートの列の設定が不完全です
+pos.layout_needed,この POS エクスポートの列を一度指定してください
+pos.no_header,このファイルに POS 売上エクスポートの見出しがありません
+pos.no_rows,この POS エクスポートに売上がありません
+pos.not_express,POS エクスポートは Express にのみ入力できます
+pos.payment_negative,現金以外の支払方法の日計がマイナスの日があります
+pos.status_unknown,この POS エクスポートにまだ指定していない状態の値があります
+pos.target_required,先に Express の帳簿を選んでください
+pos.too_many_days,1 つの POS エクスポートは 100 日分までです
+pos.too_many_items,1 日の品目が 999 行を超えています
+pos.too_many_payments,1 日の支払方法が 20 種類を超えています
+pos.type_unsupported,取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです
+pos.vat_out_of_range,消費税の列がその日の売上の 7% を超えています
+pos.xls_not_supported,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 probably {0},おそらく {0}
 push.adapter_not_connected,このERPアダプターはまだ接続されていません。
 push.branch_invalid,送信実行モードが無効です。
@@ -2953,6 +3444,11 @@ stocktake.warehouse_required,倉庫と場所を確認してください。倉庫
 subfolders are scanned too,サブフォルダーも読み取ります
 summary_table_batch,集計表の取り込み
 task off or no access,タスク停止中または権限なし
+tax.answer_invalid,回答が無効です。
+tax.company_invalid,会社の 13 桁の納税者番号を入力してください。
+tax.option_invalid,オプションが無効です。
+tax.period_invalid,課税月が無効です。
+tax.request_invalid,接続と帳簿を選んでください。
 today at {0},今日 {0}
 tomorrow at {0},明日 {0}
 total,税込
@@ -2980,6 +3476,7 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0} commented on {1},{0} が「{1}」にコメントしました
 {0} completed {1},{0} が「{1}」を完了しました
 {0} d {1} h left,あと {0} 日 {1} 時間
+{0} days before,{0} 日前
 {0} files,{0} 件のファイル
 "{0} files in the folder now, processed at the run time",フォルダーに現在 {0} 件、実行時刻にまとめて処理します
 {0} files in the folder now.,フォルダーに現在 {0} 件あります。

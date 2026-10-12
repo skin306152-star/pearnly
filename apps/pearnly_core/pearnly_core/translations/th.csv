@@ -606,6 +606,7 @@ Suppliers,ผู้จำหน่าย
 System URL,ที่อยู่ระบบ
 System URL is not filled in,ต้องระบุที่อยู่ระบบ
 Target ERP,ERP ปลายทาง
+Tax Return Drafts,ร่างแบบยื่นภาษี
 Team,จัดการทีมงาน
 Tenant boot data,ข้อมูลเริ่มต้นของเว็บไซต์นี้
 Test connection,ทดสอบการเชื่อมต่อ
@@ -749,6 +750,7 @@ VAT %,อัตราภาษี %
 VAT Amount,ภาษีมูลค่าเพิ่ม
 VAT Included,รวมภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
+VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,ร่างแบบ ภ.พ.30 และ ภ.ง.ด.3 / ภ.ง.ด.53 พร้อมตรวจภาษีซื้อ
 Valid for {0},เหลืออายุ {0}
 WHT deducted,ภาษีหัก ณ ที่จ่าย
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}

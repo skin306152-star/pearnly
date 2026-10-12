@@ -2,11 +2,14 @@
 (the root folder itself),(the root folder itself)
 1 day before,1 day before
 1 hour before,1 hour before
+1% e-Withholding Tax rate,1% e-Withholding Tax rate
 10 minutes before,10 minutes before
 15 minutes before,15 minutes before
 2 days before,2 days before
 2 hours before,2 hours before
 5 minutes before,5 minutes before
+A POS export can cover at most 100 days,A POS export can cover at most 100 days
+A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.,A VAT return (P.P.30) or withholding tax (P.N.D.3 / P.N.D.53) draft for one company and month.
 A board needs at least one admin,A board needs at least one admin
 A board needs at least one list,A board needs at least one list
 A chosen MR.ERP value no longer exists in MR.ERP. Choose again.,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
@@ -14,12 +17,17 @@ A client cannot be moved to another company.,A client cannot be moved to another
 A client needs a name.,A client needs a name.
 A completed record cannot become a draft.,A completed record cannot become a draft.
 A date could not be read. Check the date format in the file,A date could not be read. Check the date format in the file
+A date in this POS export cannot be read,A date in this POS export cannot be read
+A day has more than 20 payment methods,A day has more than 20 payment methods
+A day has more than 999 item lines,A day has more than 999 item lines
+A day's sales total is zero or less,A day's sales total is zero or less
 "A document section exceeds 30,000 characters. Split the document before recognition.","A document section exceeds 30,000 characters. Split the document before recognition."
 A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A file is larger than 25 MB.,A file is larger than 25 MB.
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
 A name is required.,A name is required.
+A non-cash payment method has a negative total for a day,A non-cash payment method has a negative total for a day
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
 A numeric value in the invoice is invalid. Correct it before exporting.,A numeric value in the invoice is invalid. Correct it before exporting.
 A positive record revision is required.,A positive record revision is required.
@@ -27,13 +35,16 @@ A positive source page number is required.,A positive source page number is requ
 A product code or barcode identifies more than one product.,A product code or barcode identifies more than one product.
 A product needs a name.,A product needs a name.
 A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.,A program error stopped this reconciliation. It has been recorded for us to fix; trying again will give the same result.
+A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.,A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.
 A referenced history record is unavailable in the selected company and client.,A referenced history record is unavailable in the selected company and client.
+A remembered column is not in this POS export. Choose the columns again,A remembered column is not in this POS export. Choose the columns again
 A reported ERP action is invalid.,A reported ERP action is invalid.
 A reported ERP field is invalid.,A reported ERP field is invalid.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
 A required text field is empty. Fill it in and try again,A required text field is empty. Fill it in and try again
 A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
 A rule cannot move to another PC. Turn it off and create a new one.,A rule cannot move to another PC. Turn it off and create a new one.
+A same-day reminder must be earlier than the run time.,A same-day reminder must be earlier than the run time.
 A scheduled task cannot move to another PC. Turn it off and create a new one.,A scheduled task cannot move to another PC. Turn it off and create a new one.
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
@@ -44,6 +55,7 @@ A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is re
 A value in the ERP data report exceeds the allowed length.,A value in the ERP data report exceeds the allowed length.
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
+Abbreviated tax invoice,Abbreviated tax invoice
 Access to the CC Desktop queue has been revoked.,Access to the CC Desktop queue has been revoked.
 Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
 Account Codes,Account Codes
@@ -51,6 +63,7 @@ Account Key,Account Key
 Account Set,Account Set
 Account Set Key,Account Set Key
 Account Set Label,Account Set Label
+Account Set Name,Account Set Name
 Account code,Account code
 Account set,Account set
 Ack Digest,Ack Digest
@@ -77,10 +90,13 @@ Add label,Add label
 Add member,Add member
 Add photo,Add photo
 Add photos,Add photos
+Add time,Add time
 Add watcher,Add watcher
 Added {0},Added {0}
 Address,Address
 Admins only,Admins only
+Advertising,Advertising
+"After refunds, an item's quantity for a day is zero or less, or its amount is negative","After refunds, an item's quantity for a day is zero or less, or its amount is negative"
 All,All
 All labels,All labels
 All members,All members
@@ -89,10 +105,13 @@ Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
 Amount,Amount
 Amount Tolerance,Amount Tolerance
+Amount not read,Amount not read
+Amount paid,Amount paid
 An account needed for this invoice is not set. Check the account settings,An account needed for this invoice is not set. Check the account settings
 An account used for this invoice is not in the Express chart of accounts. Check the account settings,An account used for this invoice is not in the Express chart of accounts. Check the account settings
 An amount could not be read. Check the amount format in the file,An amount could not be read. Check the amount format in the file
 An amount has too many decimal places. Check the file,An amount has too many decimal places. Check the file
+An amount in this POS export cannot be read,An amount in this POS export cannot be read
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
@@ -100,6 +119,7 @@ Anchor Date,Anchor Date
 Another active rule already uses this folder or a folder containing it.,Another active rule already uses this folder or a folder containing it.
 Another push holds the writer lock.,Another push holds the writer lock.
 Answered a reconciliation question,Answered a reconciliation question
+Answered a withholding tax question,Answered a withholding tax question
 Any due date,Any due date
 Archive,Archive
 Archive all cards in this list,Archive all cards in this list
@@ -179,27 +199,37 @@ Branch No,Branch No
 Brief Key,Brief Key
 Brief Sent At,Brief Sent At
 Brief Status,Brief Status
+Brought files from a folder,Brought files from a folder
+Buyer,Buyer
 Buyer Client,Buyer Client
 Buyer Name,Buyer Name
+Buyer Tax ID,Buyer Tax ID
 Buyer address,Buyer address
 Buyer branch,Buyer branch
+Buyer is another company,Buyer is another company
+Buyer not on the invoice,Buyer not on the invoice
 Buyer tax ID,Buyer tax ID
+Buyer tax ID invalid,Buyer tax ID invalid
 "By preset, ledger account {0} is used for this bank account","By preset, ledger account {0} is used for this bank account"
 "By preset, these accounts are left out: {0}","By preset, these accounts are left out: {0}"
 By preset: {0} groups matched by total,By preset: {0} groups matched by total
 Byte Size,Byte Size
 CC Conversation,CC Conversation
 CC Desktop Report,CC Desktop Report
+CC Desktop Request,CC Desktop Request
+CC Desktop Version,CC Desktop Version
 CC Desktop authentication failed.,CC Desktop authentication failed.
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
 CC Desktop could not write this invoice. It is retried automatically,CC Desktop could not write this invoice. It is retried automatically
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
+CC Desktop has not finished this yet.,CC Desktop has not finished this yet.
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
 CC Desktop offline,CC Desktop offline
 CC Desktop offline or needs update,CC Desktop offline or needs update
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop","CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
 CC Desktop on this PC has not synced recently. Update it to the latest version.,CC Desktop on this PC has not synced recently. Update it to the latest version.
+CC Desktop sent back data that cannot be read.,CC Desktop sent back data that cannot be read.
 CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.
 "CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again","CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
 Calendar,Calendar
@@ -218,6 +248,9 @@ Cash,Cash
 Cash purchase,Cash purchase
 Cash sales,Cash sales
 Catch-up after start,Catch-up after start
+Category,Category
+Certificate received from a customer,Certificate received from a customer
+Change,Change
 Change cards on the work board,Change cards on the work board
 Change cover,Change cover
 Change how this kind of document is handled?,Change how this kind of document is handled?
@@ -226,8 +259,10 @@ Change members,Change members
 Change the MR.ERP import settings?,Change the MR.ERP import settings?
 Change the inventory account group?,Change the inventory account group?
 Change the stock account group?,Change the stock account group?
+Changed,Changed
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
+Changes,Changes
 Check line by line,Check line by line
 Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
@@ -235,6 +270,7 @@ Check the warehouse and location. A warehouse is required.,Check the warehouse a
 Checkbox,Checkbox
 Checked CC Desktop,Checked CC Desktop
 Checked MR.ERP import settings,Checked MR.ERP import settings
+Checked a readback,Checked a readback
 Checked a reconciliation's progress,Checked a reconciliation's progress
 Checked folder task options,Checked folder task options
 Checked folder task runs,Checked folder task runs
@@ -251,12 +287,15 @@ Checked the stock account group,Checked the stock account group
 Checking,Checking
 Checklist,Checklist
 Checklist Id,Checklist Id
+Checks,Checks
 Checks Json,Checks Json
 Cheque,Cheque
 Chinese Name,Chinese Name
+Choose a connection and account set.,Choose a connection and account set.
 Choose a day and time for the monthly run.,Choose a day and time for the monthly run.
 Choose a file,Choose a file
 "Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
+Choose an Express account set first,Choose an Express account set first
 Choose an allowed root reported by CC Desktop.,Choose an allowed root reported by CC Desktop.
 Choose an allowed root reported by the Companion.,Choose an allowed root reported by the Companion.
 Choose an image attached to this card,Choose an image attached to this card
@@ -267,11 +306,13 @@ Choose once for this account set,Choose once for this account set
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
 Choose service or stock for this invoice and submit again,Choose service or stock for this invoice and submit again
 "Choose the Express records for this invoice first, then submit again","Choose the Express records for this invoice first, then submit again"
+Choose the columns of this POS export once,Choose the columns of this POS export once
 Choose the company,Choose the company
 Choose the destination for these documents,Choose the destination for these documents
 Choose the inventory account group for this account set first.,Choose the inventory account group for this account set first.
 Choose the inventory account group for this account set. Tap the number:,Choose the inventory account group for this account set. Tap the number:
 Choose the payment method,Choose the payment method
+Choose the receiving account of each payment method,Choose the receiving account of each payment method
 Choose the sheet to import,Choose the sheet to import
 Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
@@ -281,6 +322,9 @@ Chose how a kind of document is handled,Chose how a kind of document is handled
 Chosen At,Chosen At
 Chosen By,Chosen By
 Claim as input VAT,Claim as input VAT
+Claimed after the invoice month,Claimed after the invoice month
+Claimed before the invoice month,Claimed before the invoice month
+Claimed in,Claimed in
 Client,Client
 Client Name,Client Name
 Close count,Close count
@@ -298,10 +342,14 @@ Commented on a task,Commented on a task
 Commenting,Commenting
 Comments,Comments
 Comments and activity,Comments and activity
+Commission,Commission
 Companion Report,Companion Report
 Companion authentication failed.,Companion authentication failed.
 Companion offline or needs update,Companion offline or needs update
 Company,Company
+Company Name,Company Name
+Company tax ID,Company tax ID
+Company tax ID not on the document,Company tax ID not on the document
 CompanyA-purchase-service,CompanyA-purchase-service
 CompanyA-sales,CompanyA-sales
 Complete,Complete
@@ -311,12 +359,15 @@ Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
 Completion Evidence,Completion Evidence
+Condition,Condition
+Condition code not allowed,Condition code not allowed
 Confirmation Request,Confirmation Request
 Confirmation Revision,Confirmation Revision
 Confirmed,Confirmed
 Confirmed a push result,Confirmed a push result
 Connect CC Desktop,Connect CC Desktop
 Connect Companion,Connect Companion
+Connection,Connection
 Connection Configuration,Connection Configuration
 Connection Name,Connection Name
 Connection Revision,Connection Revision
@@ -361,11 +412,13 @@ Cowork,Cowork
 Cowork Bank Evidence,Cowork Bank Evidence
 Cowork Client,Cowork Client
 Cowork Companion Delivery,Cowork Companion Delivery
+Cowork Companion Request,Cowork Companion Request
 Cowork ERP Connection,Cowork ERP Connection
 Cowork ERP Mapping,Cowork ERP Mapping
 Cowork ERP Refresh,Cowork ERP Refresh
 Cowork ERP Snapshot,Cowork ERP Snapshot
 Cowork Express Agent Credential,Cowork Express Agent Credential
+Cowork Express Readback,Cowork Express Readback
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork Master Data
 Cowork OCR Batch,Cowork OCR Batch
@@ -386,6 +439,10 @@ Cowork Stocktake Item,Cowork Stocktake Item
 Cowork Stocktake Operation,Cowork Stocktake Operation
 Cowork Stocktake Task,Cowork Stocktake Task
 Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
+Cowork Tax Draft,Cowork Tax Draft
+Cowork Tax Filing,Cowork Tax Filing
+Cowork WHT Certificate,Cowork WHT Certificate
+Cowork WHT Choice,Cowork WHT Choice
 Cowork Workspace,Cowork Workspace
 Cowork menu,Cowork menu
 Create a new label,Create a new label
@@ -396,6 +453,7 @@ Create from template,Create from template
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Create it from the document,Create it from the document
 Created,Created
+Created At,Created At
 Created By,Created By
 Created a stock count,Created a stock count
 Created a task,Created a task
@@ -416,11 +474,14 @@ Customer,Customer
 Customer type,Customer type
 Cyan,Cyan
 Daily,Daily
+Data Version,Data Version
 Date,Date
 Date Diff Days,Date Diff Days
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
+Date paid,Date paid
 Dates,Dates
+Day before,Day before
 Day {0},Day {0}
 Days,Days
 Days later,Days later
@@ -442,10 +503,14 @@ Delete {0},Delete {0}
 Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
 Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
+Deleted,Deleted
+Deleted a readback,Deleted a readback
 Deleted documents,Deleted documents
 Deleted folder tasks,Deleted folder tasks
+Deleted in Express,Deleted in Express
 Deleted reconciliations,Deleted reconciliations
 Deleted stock counts,Deleted stock counts
+Deleted tax drafts,Deleted tax drafts
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Delivery type,Delivery type
@@ -474,7 +539,9 @@ Disabled,Disabled
 Discount,Discount
 Discount Amount,Discount Amount
 Display text (optional),Display text (optional)
+Dividends,Dividends
 Document Key,Document Key
+Document No.,Document No.
 Document Policy,Document Policy
 Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
@@ -488,8 +555,12 @@ Done List,Done List
 Done list (cards moved here are complete),Done list (cards moved here are complete)
 Download template,Download template
 Draft,Draft
+Drafted a VAT return,Drafted a VAT return
+Drafted a withholding tax return,Drafted a withholding tax return
 Dropdown,Dropdown
 Due,Due
+Due (e-Filing),Due (e-Filing)
+Due (paper),Due (paper)
 Due Time,Due Time
 Due date,Due date
 Due later,Due later
@@ -497,6 +568,7 @@ Due this week,Due this week
 Due time,Due time
 Due today,Due today
 Due today or tomorrow,Due today or tomorrow
+Duplicate,Duplicate
 Duplicate Check Status,Duplicate Check Status
 Duplicate Match Level,Duplicate Match Level
 Duplicate Record Reference,Duplicate Record Reference
@@ -539,7 +611,10 @@ Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1
 Enter a valid email,Enter a valid email
 Enter a valid quantity with no more than six decimal places.,Enter a valid quantity with no more than six decimal places.
 Enter list name,Enter list name
+Enter the company's 13-digit tax ID.,Enter the company's 13-digit tax ID.
 Enter the user name,Enter the user name
+Entered by,Entered by
+Entered in Express,Entered in Express
 Entered into Express,Entered into Express
 Entered {0},Entered {0}
 Entered {0} · in progress {1},Entered {0} · in progress {1}
@@ -552,13 +627,17 @@ Entries — {0},Entries — {0}
 Entry,Entry
 Entry saved,Entry saved
 Entry status,Entry status
+Error Code,Error Code
 Event Key,Event Key
 Every unit needs a factor to the base unit.,Every unit needs a factor to the base unit.
 Every unit needs a name.,Every unit needs a name.
 Evidence Fingerprint,Evidence Fingerprint
 Evidence Owner,Evidence Owner
 Examples Json,Examples Json
+Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 Excel/CSV exported from online banking or the electronic PDF is most accurate,Excel/CSV exported from online banking or the electronic PDF is most accurate
+Excess tax brought forward,Excess tax brought forward
+Expected VAT,Expected VAT
 Expense account,Expense account
 Expense account when no category matches,Expense account when no category matches
 Expires At,Expires At
@@ -573,6 +652,7 @@ Express PC,Express PC
 "Express already has this invoice number with different content. Check it, or choose Send anyway","Express already has this invoice number with different content. Check it, or choose Send anyway"
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
+Express document,Express document
 Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
 Express record,Express record
 External Docnum,External Docnum
@@ -598,6 +678,8 @@ Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-
 Finished a stock count,Finished a stock count
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
+First name,First name
+Fix,Fix
 Folder,Folder
 Folder and schedule,Folder and schedule
 Folder auto-intake is not turned on for this site.,Folder auto-intake is not turned on for this site.
@@ -609,6 +691,7 @@ Folder rules need an Express connection with the Pearnly Companion. Connect Expr
 Folder rules work with Express connections only.,Folder rules work with Express connections only.
 Folder to read,Folder to read
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
+Form,Form
 Formula Diff,Formula Diff
 Formula Statement Closing,Formula Statement Closing
 Found {0} · new {1} · skipped {2} · upload failed {3},Found {0} · new {1} · skipped {2} · upload failed {3}
@@ -639,12 +722,16 @@ General,General
 General ledger,General ledger
 General ledger detail,General ledger detail
 Generation Key,Generation Key
+Give a file path inside this folder.,Give a file path inside this folder.
+Give the month as YYYY-MM.,Give the month as YYYY-MM.
 Gray,Gray
 Green,Green
 Group,Group
 Handle these the same way every time,Handle these the same way every time
 Has GL Match,Has GL Match
+Head office / branch,Head office / branch
 Hide details,Hide details
+Hire of work,Hire of work
 Histories,Histories
 History,History
 History Records,History Records
@@ -656,7 +743,10 @@ IN,IN
 "If you have the electronic statement, upload it instead","If you have the electronic statement, upload it instead"
 Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
 Import result,Import result
+Imported POS sales,Imported POS sales
 "Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
+In Express,In Express
+In another tax month,In another tax month
 In progress,In progress
 In progress ({0}),In progress ({0})
 In progress {0},In progress {0}
@@ -664,13 +754,22 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,Inactive
 Include Existing Files,Include Existing Files
 Included in total,Included in total
+Income Description,Income Description
 Income Reconciliation,Income Reconciliation
+Income Type,Income Type
 Income account,Income account
+Income type not chosen,Income type not chosen
+Income type not on this form,Income type not on this form
+Income type to choose,Income type to choose
 Initial Password,Initial Password
+Input tax report,Input tax report
+Input tax this month,Input tax this month
+Input tax without flagged rows,Input tax without flagged rows
 Inputs,Inputs
 Insert,Insert
 Installed At (UTC),Installed At (UTC)
 Intake Target,Intake Target
+Interest,Interest
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
 Invalid checklist,Invalid checklist
 Invalid color,Invalid color
@@ -692,12 +791,16 @@ Invoice Count,Invoice Count
 Invoice Date,Invoice Date
 Invoice Index,Invoice Index
 Invoice No,Invoice No
+Invoice No.,Invoice No.
 Invoice Number,Invoice Number
 Invoice Pages,Invoice Pages
 Invoice References Complete,Invoice References Complete
 Invoice References Fingerprint,Invoice References Fingerprint
 Invoice Total,Invoice Total
+Invoice and certificate do not match,Invoice and certificate do not match
+Invoice date outside the tax month,Invoice date outside the tax month
 Invoice detail,Invoice detail
+Invoice month,Invoice month
 Invoice no.,Invoice no.
 Invoice number,Invoice number
 Invoice number on the document,Invoice number on the document
@@ -705,9 +808,11 @@ Invoice pages do not match the original page references.,Invoice pages do not ma
 Invoice recognition is busy. Try again in a moment.,Invoice recognition is busy. Try again in a moment.
 Invoice recognition took too long. Try again later.,Invoice recognition took too long. Try again later.
 Invoices,Invoices
+Issue,Issue
 Issued At (UTC),Issued At (UTC)
 Issued By,Issued By
 Issued Request Digest,Issued Request Digest
+Issues,Issues
 It was entered,It was entered
 It was not entered,It was not entered
 Item,Item
@@ -735,8 +840,14 @@ Last Seen Generation,Last Seen Generation
 Last Used At,Last Used At
 Last day of the month,Last day of the month
 Last modified by,Last modified by
+Last month to claim,Last month to claim
+Last name,Last name
 Last used,Last used
+Lease Credential,Lease Credential
 Lease Expires At,Lease Expires At
+Lease Expires At (UTC),Lease Expires At (UTC)
+Lease Handle,Lease Handle
+Leased At (UTC),Leased At (UTC)
 Leave board,Leave board
 Ledger account,Ledger account
 Ledger amount,Ledger amount
@@ -747,6 +858,9 @@ Ledger {0} {1}: one line {2},Ledger {0} {1}: one line {2}
 Left out (not in the tax report),Left out (not in the tax report)
 Left out {0} lines that repeat the main statement and look misread; check them: {1},Left out {0} lines that repeat the main statement and look misread; check them: {1}
 Legacy Status,Legacy Status
+Less exempt sales,Less exempt sales
+Less zero-rated sales,Less zero-rated sales
+Level,Level
 Light,Light
 Line {0} ({1}): balance off by {2} — {3},Line {0} ({1}): balance off by {2} — {3}
 List,List
@@ -754,6 +868,7 @@ List actions,List actions
 List archived,List archived
 List name,List name
 Listed documents,Listed documents
+Listed folder files,Listed folder files
 Listed reconciliations,Listed reconciliations
 Listed stock counts,Listed stock counts
 Listed task boards,Listed task boards
@@ -763,6 +878,7 @@ Location mismatch,Location mismatch
 Lock Key,Lock Key
 Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
+Lookup Key,Lookup Key
 MR.ERP Import Menu Options Seen,MR.ERP Import Menu Options Seen
 MR.ERP Import Menu per Account Set,MR.ERP Import Menu per Account Set
 MR.ERP Master Defaults per Account Set,MR.ERP Master Defaults per Account Set
@@ -802,6 +918,8 @@ Mirror,Mirror
 Mismatched,Mismatched
 Missing page,Missing page
 Modified at (UTC),Modified at (UTC)
+Month,Month
+Month paid,Month paid
 Monthly,Monthly
 Monthly on {0} at {1},Monthly on {0} at {1}
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.","Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
@@ -811,8 +929,11 @@ Move list,Move list
 Moved a task,Moved a task
 My cards,My cards
 Name,Name
+Name suggests P.N.D.3,Name suggests P.N.D.3
 Native Content Hash,Native Content Hash
 Needs review,Needs review
+"Net tax overpaid (10 more than 8, or 9 plus 10)","Net tax overpaid (10 more than 8, or 9 plus 10)"
+Net tax payable (if 8 is more than 10),Net tax payable (if 8 is more than 10)
 Never,Never
 New Files,New Files
 New code,New code
@@ -826,6 +947,7 @@ Next Attempt At,Next Attempt At
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
+No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No attachments were given.,No attachments were given.
@@ -833,6 +955,7 @@ No cards are assigned to you,No cards are assigned to you
 No changes were given.,No changes were given.
 No documents were given.,No documents were given.
 No due date,No due date
+No files were given.,No files were given.
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
 No folders on this PC yet. Add them in CC Desktop on that PC.,No folders on this PC yet. Add them in CC Desktop on that PC.
 No folders on this PC yet. Add them in the Companion on that PC.,No folders on this PC yet. Add them in the Companion on that PC.
@@ -849,22 +972,30 @@ No number_,No number_
 No presets yet,No presets yet
 No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
+No recognition record,No recognition record
 No recognition tasks were given.,No recognition tasks were given.
 No rules yet,No rules yet
 No runs yet,No runs yet
+No sales were found in this POS export,No sales were found in this POS export
 No tasks were given.,No tasks were given.
+No tax month,No tax month
 No templates yet,No templates yet
 No warehouse matches that name,No warehouse matches that name
 "No, check line by line","No, check line by line"
 "No, not in the tax report (interest, other income)","No, not in the tax report (interest, other income)"
+No.,No.
+Non-life insurance premiums,Non-life insurance premiums
 None,None
 None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.,None of the statement lines fall in the ledger period ({1} to {2}); all of them were reconciled. Check that the files are for the same period.
 Not Permitted,Not Permitted
+Not a tax invoice,Not a tax invoice
 Not an invoice file,Not an invoice file
 Not bound,Not bound
 Not card deposits net of fee,Not card deposits net of fee
 Not counted,Not counted
 Not entered,Not entered
+Not found,Not found
+Not included,Not included
 Not invoices {0},Not invoices {0}
 Not permitted,Not permitted
 Not set,Not set
@@ -872,6 +1003,7 @@ Not specified in books,Not specified in books
 Not uploaded {0},Not uploaded {0}
 Note,Note
 Notes,Notes
+Nothing withheld on the invoice,Nothing withheld on the invoice
 Notifications,Notifications
 Number,Number
 OUT,OUT
@@ -885,7 +1017,9 @@ On schedule,On schedule
 One folder per rule. PDF and image files only.,One folder per rule. PDF and image files only.
 One folder per scheduled task. PDF and image files only.,One folder per scheduled task. PDF and image files only.
 One of the default choices is not valid for this account set.,One of the default choices is not valid for this account set.
+Only Express account sets can be read back.,Only Express account sets can be read back.
 Only PDF and image files are read.,Only PDF and image files are read.
+Only POS exports in Excel (.xlsx) or CSV can be imported,Only POS exports in Excel (.xlsx) or CSV can be imported
 Only an active count can be deleted,Only an active count can be deleted
 Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
@@ -894,6 +1028,7 @@ Only one sell unit can be the default.,Only one sell unit can be the default.
 Open card,Open card
 Opened the original,Opened the original
 Opening Diff,Opening Diff
+Operator,Operator
 Options,Options
 Options (one per line),Options (one per line)
 Orange,Orange
@@ -913,29 +1048,56 @@ Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
 Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
 Other,Other
+Other party,Other party
+Other records,Other records
 Outcome,Outcome
 Output VAT report,Output VAT report
+Output tax report,Output tax report
+Output tax this month,Output tax this month
 Over,Over
 Over book quantity,Over book quantity
 Overdue,Overdue
+Overpaid in last month's draft,Overpaid in last month's draft
 Owner ID,Owner ID
 Owner Id,Owner Id
+P.N.D.3,P.N.D.3
+P.N.D.3 attachment,P.N.D.3 attachment
+P.N.D.53,P.N.D.53
+P.N.D.53 attachment,P.N.D.53 attachment
+P.P.30,P.P.30
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
+POS daily sales can only be sent to Express,POS daily sales can only be sent to Express
+POS export columns to choose,POS export columns to choose
+POS exports can only be entered into Express,POS exports can only be entered into Express
+Page,Page
 Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
 Page {0}/{1},Page {0}/{1}
+Parameters,Parameters
 Parse Info Json,Parse Info Json
+Parties not read,Parties not read
+Party,Party
 Party Type,Party Type
 Password updated,Password updated
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
+Past the 6-month claim period,Past the 6-month claim period
 Paste a link,Paste a link
 Payable account,Payable account
+Payee,Payee
+Payee tax ID,Payee tax ID
+Payee tax ID invalid,Payee tax ID invalid
+Payee tax ID missing,Payee tax ID missing
+Payees,Payees
+Payer not clear,Payer not clear
 Payload Json,Payload Json
 Payment,Payment
+Payment Date,Payment Date
 Payment Evidence,Payment Evidence
 Payment Method,Payment Method
+Payment date assumed,Payment date assumed
 Payment method,Payment method
 Pearnly Cowork,Pearnly Cowork
+Penalty,Penalty
 Pending,Pending
 Period,Period
 Phase,Phase
@@ -957,6 +1119,7 @@ Previous Json,Previous Json
 Private,Private
 Private File,Private File
 Private Storage URL,Private Storage URL
+Prizes,Prizes
 Product,Product
 Product Code,Product Code
 Product Name,Product Name
@@ -965,18 +1128,21 @@ Product codes and barcodes must be stored as text.,Product codes and barcodes mu
 Product group,Product group
 Product name,Product name
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
+Professional fees,Professional fees
 Progress,Progress
 PromptPay,PromptPay
 Provider Evidence,Provider Evidence
 Purchase (expense),Purchase (expense)
 Purchase (goods),Purchase (goods)
 Purchase or sales?,Purchase or sales?
+Purchases eligible for input tax credit this month,Purchases eligible for input tax credit this month
 Purple,Purple
 Push Account Set,Push Account Set
 Push Attempt,Push Attempt
 Push Connection,Push Connection
 Push Record,Push Record
 Push record not found.,Push record not found.
+Pushed,Pushed
 Pushed documents,Pushed documents
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
 "Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
@@ -987,13 +1153,21 @@ Questions,Questions
 Queued,Queued
 "Queued, {0} ahead","Queued, {0} ahead"
 "Queued, {0} tasks ahead","Queued, {0} tasks ahead"
+Rate %,Rate %
+Rate differs from the usual rate,Rate differs from the usual rate
+Rate not confirmed for this date,Rate not confirmed for this date
 Read,Read
+Read At (UTC),Read At (UTC)
 Read VAT report,Read VAT report
 Read again,Read again
+Read back the accounting books,Read back the accounting books
 Read bank statement,Read bank statement
 Read files,Read files
+Read from Express,Read from Express
 Read general ledger,Read general ledger
 Read tax invoices,Read tax invoices
+Readback,Readback
+Readback ID,Readback ID
 Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
 Reading the VAT report,Reading the VAT report
@@ -1002,12 +1176,16 @@ Reading the company list from the ERP. Tap the menu again in a moment.,Reading t
 Reading the general ledger,Reading the general ledger
 Reading the invoices,Reading the invoices
 Reading the scanned or photographed document took too long. Try again later.,Reading the scanned or photographed document took too long. Try again later.
+Ready At (UTC),Ready At (UTC)
 Ready for the next product,Ready for the next product
 Reason,Reason
 Receipt,Receipt
 Receivable account,Receivable account
+Received Bytes,Received Bytes
+Receiving account,Receiving account
 Recently read,Recently read
 Recognised {0} documents,Recognised {0} documents
+Recognition Batch,Recognition Batch
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
 Recognition Reference,Recognition Reference
@@ -1016,6 +1194,7 @@ Recognition is busy. Try again in a moment.,Recognition is busy. Try again in a 
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
+Recognized Fields,Recognized Fields
 Recognized documents,Recognized documents
 Recognized with high confidence,Recognized with high confidence
 "Recognized, waiting to enter","Recognized, waiting to enter"
@@ -1053,16 +1232,22 @@ Reimporting review workbooks is not available on the new platform yet.,Reimporti
 Relative Path,Relative Path
 Reload,Reload
 Remarks,Remarks
+Remind me,Remind me
 Remind me the day before,Remind me the day before
 Reminder,Reminder
 Reminder Since,Reminder Since
+Reminder Times,Reminder Times
+Reminder day,Reminder day
+Reminder time,Reminder time
 Remove,Remove
 Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Remove mirror,Remove mirror
 Remove template,Remove template
+Rent,Rent
 Repeat,Repeat
 Replaced by your later submission of the same files.,Replaced by your later submission of the same files.
+Report,Report
 Report Count,Report Count
 Report Credential,Report Credential
 Report Credential Generation,Report Credential Generation
@@ -1081,12 +1266,17 @@ Reset Password,Reset Password
 Response Json,Response Json
 Restore,Restore
 Result,Result
+Result Bytes,Result Bytes
+Result Details,Result Details
 Result Directory Revision,Result Directory Revision
 Result Folder,Result Folder
 Result Json,Result Json
+Result SHA-256,Result SHA-256
 Result Unknown,Result Unknown
 Result in the ERP,Result in the ERP
 Results: {0},Results: {0}
+Return Form,Return Form
+Return Type,Return Type
 Review,Review
 Review JSON,Review JSON
 Review Reasons,Review Reasons
@@ -1102,6 +1292,7 @@ Root,Root
 Route,Route
 Row Count,Row Count
 Row Index,Row Index
+Row not read,Row not read
 Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
@@ -1131,6 +1322,11 @@ SKU,SKU
 Sales area,Sales area
 Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
+Sales promotion,Sales promotion
+Sales this month,Sales this month
+Same as,Same as
+Same as row,Same as row
+Same day,Same day
 Sample Key,Sample Key
 Save and next,Save and next
 Save these folder tasks?,Save these folder tasks?
@@ -1160,11 +1356,14 @@ Select between 1 and 100 distinct history records to export.,Select between 1 an
 Select between 1 and 500 records.,Select between 1 and 500 records.
 Select valid files to download.,Select valid files to download.
 Sell Units,Sell Units
+Seller,Seller
 Seller Name,Seller Name
 Seller Tax ID,Seller Tax ID
 Seller address,Seller address
 Seller branch,Seller branch
 Seller tax ID,Seller tax ID
+Seller tax ID invalid,Seller tax ID invalid
+Seller tax ID missing,Seller tax ID missing
 Selling Price,Selling Price
 Send,Send
 Send anyway,Send anyway
@@ -1172,6 +1371,7 @@ Send documents to ERP,Send documents to ERP
 Send the code from the Cowork page to bind,Send the code from the Cowork page to bind
 Sending was cancelled because the account set was in use. Close Express and send again,Sending was cancelled because the account set was in use. Close Express and send again
 Service,Service
+Service fees,Service fees
 Service or stock?,Service or stock?
 Set At,Set At
 Set By,Set By
@@ -1180,12 +1380,14 @@ Set by {0} on {1},Set by {0} on {1}
 Set due date,Set due date
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder
+Set the POS export columns,Set the POS export columns
 Settings Json,Settings Json
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
 "Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again.","Several accounts share lines with this statement. Choose it once and the reconciliation reruns from the same files, without reading them again."
 "Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}","Several lines on these recognised VAT report pages do not agree with the ledger; the page was read from a photo or scan and was most likely misread, so check it against the original before treating the lines as real differences (lines per page in brackets): {0}"
 Sheet,Sheet
+Sheets,Sheets
 Short,Short
 Short of book quantity,Short of book quantity
 Show,Show
@@ -1205,7 +1407,9 @@ Some rows were skipped,Some rows were skipped
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Someone else changed this reconciliation. Reload it before saving.,Someone else changed this reconciliation. Reload it before saving.
 Sort by,Sort by
+Source,Source
 Source Digest,Source Digest
+Source Draft,Source Draft
 Source File,Source File
 Source Format,Source Format
 Source Hash,Source Hash
@@ -1259,9 +1463,12 @@ Stop watching,Stop watching
 Stored Page Previews,Stored Page Previews
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.
 Submit,Submit
+Suggested,Suggested
+Summary,Summary
 Summary Json,Summary Json
 Summary table import,Summary table import
 Supplier type,Supplier type
+Surcharge,Surcharge
 Table,Table
 Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
 Tap the menu to start,Tap the menu to start
@@ -1269,10 +1476,21 @@ Target Json,Target Json
 Task,Task
 Task Management,Task Management
 Task name,Task name
+Tax Amount,Tax Amount
 Tax ID,Tax ID
 Tax Invoice,Tax Invoice
+Tax Month,Tax Month
+Tax Withheld,Tax Withheld
+Tax invoice no.,Tax invoice no.
+Tax month,Tax month
 Tax on this receipt,Tax on this receipt
+Tax overpaid this month (if 5 is less than 7),Tax overpaid this month (if 5 is less than 7)
+Tax payable this month (if 5 is more than 7),Tax payable this month (if 5 is more than 7)
+Tax rate %,Tax rate %
+Tax withheld and remitted,Tax withheld and remitted
+Taxable sales (1 - 2 - 3),Taxable sales (1 - 2 - 3)
 Taxes and Charges,Taxes and Charges
+Taxpayer ID,Taxpayer ID
 Team board,Team board
 Team visible,Team visible
 Template,Template
@@ -1322,14 +1540,20 @@ The MR.ERP menu settings changed: the chosen menu is gone or no longer linked to
 The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
 The PDF exceeds the allowed page count.,The PDF exceeds the allowed page count.
 The PDF file cannot be read.,The PDF file cannot be read.
+The POS daily total is not in the expected form. Import the POS export again,The POS daily total is not in the expected form. Import the POS export again
+The POS daily totals of this document are damaged. Import the POS export again,The POS daily totals of this document are damaged. Import the POS export again
+The POS export columns are incomplete,The POS export columns are incomplete
+The VAT column is more than 7% of a day's sales,The VAT column is more than 7% of a day's sales
 The VAT report content is invalid.,The VAT report content is invalid.
 "The VAT report could not be read. Use Excel, CSV or a PDF with a text layer.","The VAT report could not be read. Use Excel, CSV or a PDF with a text layer."
 The VAT report has no rows.,The VAT report has no rows.
 The account balance could not be checked right now. Try again in a moment.,The account balance could not be checked right now. Try again in a moment.
+The account codes are invalid.,The account codes are invalid.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
 The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
+The answer is not valid.,The answer is not valid.
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0},The buyer on these invoices is your own company; they look like purchase invoices. Check whether they were put here by mistake: {0}
@@ -1342,6 +1566,7 @@ The chosen value is not in this account set. Choose again,The chosen value is no
 The client fields are invalid.,The client fields are invalid.
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
+The computer on this connection cannot do this.,The computer on this connection cannot do this.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
 The credential changed. Reload before resetting or revoking it.,The credential changed. Reload before resetting or revoking it.
 The credential request is invalid.,The credential request is invalid.
@@ -1400,6 +1625,7 @@ The import contains no product rows.,The import contains no product rows.
 The import file is too large.,The import file is too large.
 The import row is invalid or has missing required values.,The import row is invalid or has missing required values.
 The import rows are invalid.,The import rows are invalid.
+"The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category.","The income type of a withholding tax payee, asked once: by the payee's tax ID, or by the recognized category."
 The invoice configuration does not match the OCR connection.,The invoice configuration does not match the OCR connection.
 The invoice contains text that Excel cannot store safely. Check its length and characters.,The invoice contains text that Excel cannot store safely. Check its length and characters.
 The invoice data is invalid and cannot be exported.,The invoice data is invalid and cannot be exported.
@@ -1411,12 +1637,14 @@ The invoice fields have an invalid format.,The invoice fields have an invalid fo
 The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
 The invoice number is missing. Add it and submit again.,The invoice number is missing. Add it and submit again.
 The invoice page data has an invalid format.,The invoice page data has an invalid format.
+The item lines do not add up to the day's total,The item lines do not add up to the day's total
 The ledger file content is invalid.,The ledger file content is invalid.
 "The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page.","The line amounts, net amount, VAT and total of this invoice do not add up, so exporting it would change the amounts. Check them on the edit page."
 The line items do not add up to the invoice amount. Fix the lines and submit again,The line items do not add up to the invoice amount. Fix the lines and submit again
 The lines cannot be written to Express. Check them and submit again.,The lines cannot be written to Express. Check them and submit again.
 The matching stock item is missing. Choose it and submit again.,The matching stock item is missing. Choose it and submit again.
 The opening and closing values are invalid.,The opening and closing values are invalid.
+The option is not valid.,The option is not valid.
 The original document manifest cannot be changed.,The original document manifest cannot be changed.
 The original document manifest exceeds the 8 MiB limit.,The original document manifest exceeds the 8 MiB limit.
 The original document manifest is not ready.,The original document manifest is not ready.
@@ -1429,6 +1657,7 @@ The original invoice manifest is incomplete.,The original invoice manifest is in
 The original invoice reference is invalid or unavailable.,The original invoice reference is invalid or unavailable.
 The outdated unsent preparation was replaced.,The outdated unsent preparation was replaced.
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.,The own tax ID on this document does not match the chosen account set. Check the account set and send it again.
+The payment methods do not add up to the day's total. Import the POS export again,The payment methods do not add up to the day's total. Import the POS export again
 The preview is temporarily unavailable. Please try again.,The preview is temporarily unavailable. Please try again.
 The printed invoice date cannot be read. Check the date shown on the document.,The printed invoice date cannot be read. Check the date shown on the document.
 The product fields are invalid.,The product fields are invalid.
@@ -1437,6 +1666,10 @@ The push data exceeds the size limit.,The push data exceeds the size limit.
 The push record has changed. Reload and try again.,The push record has changed. Reload and try again.
 The push target has changed. Prepare the invoice again.,The push target has changed. Prepare the invoice again.
 The quantity is not a valid number,The quantity is not a valid number
+The readback is not ready yet.,The readback is not ready yet.
+The readback request is invalid.,The readback request is invalid.
+The readback was not found.,The readback was not found.
+The receiving account cannot be posted to in Express. Choose another account,The receiving account cannot be posted to in Express. Choose another account
 The recognition task was not found.,The recognition task was not found.
 The recognized content does not match the original references.,The recognized content does not match the original references.
 The recognized invoice manifest cannot be replaced.,The recognized invoice manifest cannot be replaced.
@@ -1453,6 +1686,8 @@ The reported ERP field definitions are invalid.,The reported ERP field definitio
 The reports belong to different sellers ({0}).,The reports belong to different sellers ({0}).
 The reports cover different periods ({0}).,The reports cover different periods ({0}).
 The request is invalid. Reload and try again.,The request is invalid. Reload and try again.
+The request to CC Desktop is invalid.,The request to CC Desktop is invalid.
+The request to CC Desktop was not found.,The request to CC Desktop was not found.
 The requested page is not part of this invoice.,The requested page is not part of this invoice.
 The result is not confirmed. Check in Express before sending again,The result is not confirmed. Check in Express before sending again
 The result sheet is not ready yet.,The result sheet is not ready yet.
@@ -1478,6 +1713,7 @@ The supplier is missing. Add it and submit again.,The supplier is missing. Add i
 The system is busy and the reconciliation was not finished. Please try again shortly.,The system is busy and the reconciliation was not finished. Please try again shortly.
 The task owner can no longer enter documents with this connection.,The task owner can no longer enter documents with this connection.
 The tax ID is not valid. Correct it and submit again,The tax ID is not valid. Correct it and submit again
+The tax month is not valid.,The tax month is not valid.
 The unsent preparation was cancelled.,The unsent preparation was cancelled.
 The uploaded file does not match the file on the PC.,The uploaded file does not match the file on the PC.
 The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
@@ -1506,8 +1742,11 @@ This ERP connection is disabled.,This ERP connection is disabled.
 This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
 This PC already has the maximum number of folder rules.,This PC already has the maximum number of folder rules.
 This PC already has the maximum number of scheduled tasks.,This PC already has the maximum number of scheduled tasks.
+This POS export has a status value that is not chosen yet,This POS export has a status value that is not chosen yet
 This account cannot send documents,This account cannot send documents
+This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,This account set has no general journal book for the transfer vouchers. Add one in Express and submit again
 This account set is not in the connection's list. Reload the list in New Intake.,This account set is not in the connection's list. Reload the list in New Intake.
+This account set is not on this connection.,This account set is not on this connection.
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
 This board no longer exists,This board no longer exists
@@ -1525,10 +1764,12 @@ This delivery conflicts with the current task state.,This delivery conflicts wit
 This document does not need this choice,This document does not need this choice
 This document format is not supported.,This document format is not supported.
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
+This file cannot be read,This file cannot be read
 This file does not match the review workbook format.,This file does not match the review workbook format.
 "This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left.","This file is a general ledger export, not a bank statement. Put it on the ledger side and upload the bank statement or online-banking export on the left."
 This file is too large to send from this PC.,This file is too large to send from this PC.
 This file record was not found.,This file record was not found.
+This file type cannot be brought into the chat.,This file type cannot be brought into the chat.
 This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
 This folder overlaps the folder of rule «{0}».,This folder overlaps the folder of rule «{0}».
@@ -1578,6 +1819,7 @@ This value cannot be chosen for this account set.,This value cannot be chosen fo
 Time left {0},Time left {0}
 Times Used,Times Used
 Title,Title
+To check,To check
 To check {0},To check {0}
 To do,To do
 Token Digest,Token Digest
@@ -1585,15 +1827,23 @@ Token Generation,Token Generation
 Token Tail,Token Tail
 Too many items,Too many items
 Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
+Too many requests are waiting for CC Desktop. Try again shortly.,Too many requests are waiting for CC Desktop. Try again shortly.
 Too many rows to import.,Too many rows to import.
 Total,Total
 Total counted quantity,Total counted quantity
+Total income and tax remitted,Total income and tax remitted
+Total income paid,Total income paid
+Total tax and surcharge,Total tax and surcharge
+Total tax overpaid after surcharge and penalty,Total tax overpaid after surcharge and penalty
+Total tax remitted,Total tax remitted
+"Total tax, surcharge and penalty payable","Total tax, surcharge and penalty payable"
 Track Batch,Track Batch
 Track Expiry,Track Expiry
 Transaction Date,Transaction Date
 Transaction type,Transaction type
 Transfer,Transfer
 Transfer slips,Transfer slips
+Transport,Transport
 Turn off,Turn off
 Turn on,Turn on
 Turn this folder task on or off?,Turn this folder task on or off?
@@ -1605,16 +1855,20 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Turned a folder task on or off,Turned a folder task on or off
 Type,Type
 Type a few letters of the company or account set name to find it,Type a few letters of the company or account set name to find it
+Type of income paid,Type of income paid
 "Type or scan, then press Enter","Type or scan, then press Enter"
 Unbind LINE,Unbind LINE
 Unbind Pearnly Cowork LINE?,Unbind Pearnly Cowork LINE?
+"Under 1,000 baht","Under 1,000 baht"
 Unit,Unit
 Unknown reconciliation type.,Unknown reconciliation type.
 Unmatched,Unmatched
 Unmatched Count,Unmatched Count
 Unsupported ERP connection type.,Unsupported ERP connection type.
+Unusual rate,Unusual rate
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
+Update this site before reading back with this CC Desktop.,Update this site before reading back with this CC Desktop.
 Updated At,Updated At
 Updated By,Updated By
 Updated a task,Updated a task
@@ -1644,6 +1898,7 @@ Use the reconciliation workflow to change these records.,Use the reconciliation 
 Use the stock count workflow to change these records.,Use the stock count workflow to change these records.
 User Settings,User Settings
 Username can only have letters and numbers,Username can only have letters and numbers
+Usual rate %,Usual rate %
 VAT,VAT
 VAT Date,VAT Date
 VAT Document No,VAT Document No
@@ -1652,13 +1907,18 @@ VAT Only Negative,VAT Only Negative
 VAT Only Positive,VAT Only Positive
 VAT Report Check,VAT Report Check
 VAT Total,VAT Total
+VAT differs from the rate,VAT differs from the rate
 VAT is not 7% of the base,VAT is not 7% of the base
 VAT on receipts and abbreviated tax invoices,VAT on receipts and abbreviated tax invoices
+VAT record,VAT record
+VAT record VAT,VAT record VAT
+VAT record before VAT,VAT record before VAT
 VAT report amount,VAT report amount
 VAT report detail,VAT report detail
 VAT without a base amount,VAT without a base amount
 Valid,Valid
 Value,Value
+Value of goods or services,Value of goods or services
 Version,Version
 View differences,View differences
 View photo,View photo
@@ -1676,6 +1936,7 @@ Void this count of {0}?,Void this count of {0}?
 Void · no invoice needed,Void · no invoice needed
 Voided,Voided
 Voided (excluded from total),Voided (excluded from total)
+Voided in Express,Voided in Express
 "Voided, not in the total","Voided, not in the total"
 Voucher no.,Voucher no.
 WHT amount,WHT amount
@@ -1700,6 +1961,7 @@ Why it is not in the review sheet,Why it is not in the review sheet
 Wire Attempt,Wire Attempt
 With differences,With differences
 Withdrawal,Withdrawal
+Withholding agent,Withholding agent
 Withholding tax certificates,Withholding tax certificates
 Work Coordination,Work Coordination
 Work Name,Work Name
@@ -1713,6 +1975,7 @@ Yellow,Yellow
 "Yes, the card fee is {0}% (with or without 7% VAT on the fee)","Yes, the card fee is {0}% (with or without 7% VAT on the fee)"
 You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
+Zero VAT,Zero VAT
 account,account
 active,active
 admitted,admitted
@@ -1736,6 +1999,11 @@ companion.credential_not_found,No CC Desktop credential has been issued for this
 companion.delivery_invalid,The CC Desktop delivery record is invalid.
 companion.delivery_not_found,The CC Desktop delivery record was not found.
 companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
+companion.on_demand_busy,Too many requests are waiting for CC Desktop. Try again shortly.
+companion.on_demand_invalid,The request to CC Desktop is invalid.
+companion.on_demand_missing,The request to CC Desktop was not found.
+companion.on_demand_not_ready,CC Desktop has not finished this yet.
+companion.on_demand_unsupported,The computer on this connection cannot do this.
 companion.queue_access_revoked,Access to the CC Desktop queue has been revoked.
 companion.queue_conflict,This delivery conflicts with the current task state.
 companion.queue_request_invalid,The CC Desktop queue request is invalid.
@@ -1778,6 +2046,7 @@ cowork.choice.item,Stock item
 cowork.choice.new,"New, as on the invoice"
 cowork.choice.party,Express record
 cowork.choice.payment,Payment
+cowork.choice.receipt,Receiving account
 cowork.choice.task_default,This is set by the scheduled task's default handling. Change it in the task
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
@@ -1803,6 +2072,7 @@ cowork.folder.brief.why.human,changed by a person
 cowork.folder.brief.why.lowBalance,low balance
 cowork.folder.brief.why.offline,CC Desktop offline
 cowork.folder.brief.why.party,contact record
+cowork.folder.brief.why.posLayout,POS export columns to choose
 cowork.folder.brief.why.purchasesFirst,waiting for purchases
 cowork.folder.brief.why.taskOff,task off or no access
 cowork.folder.cardHint,Set a local folder once; documents are read and entered every month
@@ -1833,10 +2103,14 @@ cowork.folder.enableConfirm,Turn this scheduled task on? Only files added to the
 cowork.folder.enableConfirmAll,Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.
 cowork.folder.entry_missing,This file record was not found.
 cowork.folder.express_only,Folder rules work with Express connections only.
+cowork.folder.fetch_path_invalid,Give a file path inside this folder.
+cowork.folder.fetch_type_invalid,This file type cannot be brought into the chat.
 cowork.folder.field.connection,Express PC
 cowork.folder.field.day,Run on day
 cowork.folder.field.folder,Folder to read
-cowork.folder.field.remind,Remind me the day before
+cowork.folder.field.remind,Remind me
+cowork.folder.field.remindDay,Reminder day
+cowork.folder.field.remindTime,Reminder time
 cowork.folder.field.root,Allowed root folder on the PC
 cowork.folder.field.time,Run time
 cowork.folder.field.title,Task name
@@ -1878,7 +2152,11 @@ cowork.folder.owner_not_ready,The task owner can no longer enter documents with 
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
 cowork.folder.pending,"{0} files not processed yet, processed at the run time"
+cowork.folder.remind.add,Add time
 cowork.folder.remind.count,{0} files not processed yet.
+cowork.folder.remind.date,on {1}/{0} at {2}
+cowork.folder.remind.dayBefore,Day before
+cowork.folder.remind.daysBefore,{0} days before
 cowork.folder.remind.leftDays,{0} d {1} h left
 cowork.folder.remind.leftHours,{0} h {1} min left
 cowork.folder.remind.leftMinutes,{0} min left
@@ -1887,9 +2165,11 @@ cowork.folder.remind.many,{0} scheduled tasks start {1} ({2}). Put the documents
 cowork.folder.remind.off,Off
 cowork.folder.remind.on,On
 cowork.folder.remind.one,«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.
+cowork.folder.remind.sameDay,Same day
 cowork.folder.remind.title,Scheduled task reminder
 cowork.folder.remind.today,today at {0}
 cowork.folder.remind.tomorrow,tomorrow at {0}
+cowork.folder.remind_same_day,A same-day reminder must be earlier than the run time.
 cowork.folder.rootItself,(the root folder itself)
 cowork.folder.root_invalid,Choose an allowed root reported by CC Desktop.
 cowork.folder.rule_disabled,This scheduled task is turned off.
@@ -1953,6 +2233,35 @@ cowork.policy.skip,Don't enter (this kind from now on)
 cowork.policy.skipped,Not entered
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
+cowork.readback.account_missing,This account set is not on this connection.
+cowork.readback.accounts_invalid,The account codes are invalid.
+cowork.readback.change.changed,Changed
+cowork.readback.change.deleted,Deleted
+cowork.readback.change.missing,Not found
+cowork.readback.change.voided,Cancelled
+cowork.readback.col.change,Change
+cowork.readback.col.direction,Direction
+cowork.readback.col.docnum,Document No.
+cowork.readback.col.entered_by,Entered by
+cowork.readback.col.field,Field
+cowork.readback.col.kind,Type
+cowork.readback.col.now,In Express
+cowork.readback.col.party,Party
+cowork.readback.col.pushed,Pushed
+cowork.readback.data_invalid,CC Desktop sent back data that cannot be read.
+cowork.readback.field.entries,Entries
+cowork.readback.field.ref_no,Invoice No.
+cowork.readback.field.vat_amount,VAT record VAT
+cowork.readback.field.vat_before_vat,VAT record before VAT
+cowork.readback.field.vat_record,VAT record
+cowork.readback.invalid,The readback request is invalid.
+cowork.readback.missing,The readback was not found.
+cowork.readback.not_express,Only Express account sets can be read back.
+cowork.readback.not_ready,The readback is not ready yet.
+cowork.readback.period_invalid,Give the month as YYYY-MM.
+cowork.readback.sheet.changes,Changes
+cowork.readback.sheet.direct,Entered in Express
+cowork.readback.version_unsupported,Update this site before reading back with this CC Desktop.
 cowork.recon.bank.gl_credit_only,Ledger credit only
 cowork.recon.bank.gl_debit_only,Ledger debit only
 cowork.recon.bank.left,Bank statement
@@ -2287,6 +2596,159 @@ cowork.stocktake.export.updated_at,Modified at (UTC)
 cowork.stocktake.export.updated_by,Last modified by
 cowork.stocktake.export.warehouse,Warehouse
 cowork.stocktake.export.warehouse_comparison,Warehouse check
+cowork.tax.col.address,Address
+cowork.tax.col.amount,Amount
+cowork.tax.col.buyer,Buyer
+cowork.tax.col.category,Category
+cowork.tax.col.check,Check
+cowork.tax.col.condition,Condition
+cowork.tax.col.date,Date
+cowork.tax.col.description,Description
+cowork.tax.col.detail,Detail
+cowork.tax.col.document,Express document
+cowork.tax.col.first_name,First name
+cowork.tax.col.form,Form
+cowork.tax.col.income_type,Type of income paid
+cowork.tax.col.invoice,Tax invoice no.
+cowork.tax.col.issue,Issue
+cowork.tax.col.item,Item
+cowork.tax.col.last_name,Last name
+cowork.tax.col.level,Level
+cowork.tax.col.name,Name
+cowork.tax.col.paid,Amount paid
+cowork.tax.col.paid_on,Date paid
+cowork.tax.col.payee_name,Payee
+cowork.tax.col.payee_tax_id,Payee tax ID
+cowork.tax.col.payees,Payees
+cowork.tax.col.place,Head office / branch
+cowork.tax.col.rate,Tax rate %
+cowork.tax.col.rows,Rows
+cowork.tax.col.seller,Seller
+cowork.tax.col.seq,No.
+cowork.tax.col.sheet,Sheet
+cowork.tax.col.sheets,Sheets
+cowork.tax.col.side,Report
+cowork.tax.col.source,Source
+cowork.tax.col.suggested,Suggested
+cowork.tax.col.surcharge,Surcharge
+cowork.tax.col.title,Title
+cowork.tax.col.total_due,Total tax and surcharge
+cowork.tax.col.total_paid,Total income paid
+cowork.tax.col.total_tax,Total tax remitted
+cowork.tax.col.value,Value of goods or services
+cowork.tax.col.vat,VAT
+cowork.tax.col.withheld,Tax withheld and remitted
+cowork.tax.detail.buyer_tax_id,Buyer tax ID
+cowork.tax.detail.claimed_month,Claimed in
+cowork.tax.detail.company_tax_id,Company tax ID
+cowork.tax.detail.counterparty,Other party
+cowork.tax.detail.document_type,Document type
+cowork.tax.detail.expected,Usual rate %
+cowork.tax.detail.expected_vat,Expected VAT
+cowork.tax.detail.first_row,Same as row
+cowork.tax.detail.invoice_month,Invoice month
+cowork.tax.detail.last_month,Last month to claim
+cowork.tax.detail.of,Same as
+cowork.tax.detail.rate,Rate %
+cowork.tax.form.pnd3,P.N.D.3
+cowork.tax.form.pnd53,P.N.D.53
+cowork.tax.head.branch,Branch
+cowork.tax.head.due_online,Due (e-Filing)
+cowork.tax.head.due_paper,Due (paper)
+cowork.tax.head.operator,Operator
+cowork.tax.head.paid_month,Month paid
+cowork.tax.head.payer,Withholding agent
+cowork.tax.head.read_at,Read from Express
+cowork.tax.head.tax_id,Taxpayer ID
+cowork.tax.head.tax_month,Tax month
+cowork.tax.income.advertising,Advertising
+cowork.tax.income.commission,Commission
+cowork.tax.income.dividend,Dividends
+cowork.tax.income.hire_of_work,Hire of work
+cowork.tax.income.insurance,Non-life insurance premiums
+cowork.tax.income.interest,Interest
+cowork.tax.income.other,Other
+cowork.tax.income.prize,Prizes
+cowork.tax.income.professional,Professional fees
+cowork.tax.income.promotion,Sales promotion
+cowork.tax.income.rent,Rent
+cowork.tax.income.service,Service fees
+cowork.tax.income.transport,Transport
+cowork.tax.issue.amount_unreadable,Amount not read
+cowork.tax.issue.below_threshold,"Under 1,000 baht"
+cowork.tax.issue.buyer_unconfirmed,Company tax ID not on the document
+cowork.tax.issue.certificate_direction_unclear,Payer not clear
+cowork.tax.issue.certificate_parties_unreadable,Parties not read
+cowork.tax.issue.certificate_received,Certificate received from a customer
+cowork.tax.issue.condition_invalid,Condition code not allowed
+cowork.tax.issue.duplicate_document,Duplicate
+cowork.tax.issue.ewht_check,1% e-Withholding Tax rate
+cowork.tax.issue.form_name_mismatch,Name suggests P.N.D.3
+cowork.tax.issue.form_type_mismatch,Income type not on this form
+cowork.tax.issue.income_type_missing,Income type not chosen
+cowork.tax.issue.input_abbreviated,Abbreviated tax invoice
+cowork.tax.issue.input_before_invoice,Claimed before the invoice month
+cowork.tax.issue.input_buyer_missing,Buyer not on the invoice
+cowork.tax.issue.input_buyer_other,Buyer is another company
+cowork.tax.issue.input_claimed_later,Claimed after the invoice month
+cowork.tax.issue.input_duplicate,Duplicate
+cowork.tax.issue.input_no_document,No recognition record
+cowork.tax.issue.input_not_tax_invoice,Not a tax invoice
+cowork.tax.issue.input_over_six_months,Past the 6-month claim period
+cowork.tax.issue.input_tax_id_invalid,Seller tax ID invalid
+cowork.tax.issue.input_tax_id_missing,Seller tax ID missing
+cowork.tax.issue.output_duplicate,Duplicate
+cowork.tax.issue.output_outside_period,Invoice date outside the tax month
+cowork.tax.issue.output_rate,VAT differs from the rate
+cowork.tax.issue.output_rate_unknown,Rate not confirmed for this date
+cowork.tax.issue.output_tax_id_invalid,Buyer tax ID invalid
+cowork.tax.issue.output_zero_vat,Zero VAT
+cowork.tax.issue.pairing_unclear,Invoice and certificate do not match
+cowork.tax.issue.payee_tax_invalid,Payee tax ID invalid
+cowork.tax.issue.payee_tax_missing,Payee tax ID missing
+cowork.tax.issue.payment_date_assumed,Payment date assumed
+cowork.tax.issue.rate_mismatch,Rate differs from the usual rate
+cowork.tax.issue.rate_not_standard,Unusual rate
+cowork.tax.issue.row_deleted,Deleted in Express
+cowork.tax.issue.row_other_period,In another tax month
+cowork.tax.issue.row_period_missing,No tax month
+cowork.tax.issue.row_unreadable,Row not read
+cowork.tax.issue.row_voided,Voided in Express
+cowork.tax.level.error,Fix
+cowork.tax.level.info,Note
+cowork.tax.level.warn,Check
+cowork.tax.pp30.box.1,Sales this month
+cowork.tax.pp30.box.10,Excess tax brought forward
+cowork.tax.pp30.box.11,Net tax payable (if 8 is more than 10)
+cowork.tax.pp30.box.12,"Net tax overpaid (10 more than 8, or 9 plus 10)"
+cowork.tax.pp30.box.13,Surcharge
+cowork.tax.pp30.box.14,Penalty
+cowork.tax.pp30.box.15,"Total tax, surcharge and penalty payable"
+cowork.tax.pp30.box.16,Total tax overpaid after surcharge and penalty
+cowork.tax.pp30.box.2,Less zero-rated sales
+cowork.tax.pp30.box.3,Less exempt sales
+cowork.tax.pp30.box.4,Taxable sales (1 - 2 - 3)
+cowork.tax.pp30.box.5,Output tax this month
+cowork.tax.pp30.box.6,Purchases eligible for input tax credit this month
+cowork.tax.pp30.box.7,Input tax this month
+cowork.tax.pp30.box.8,Tax payable this month (if 5 is more than 7)
+cowork.tax.pp30.box.9,Tax overpaid this month (if 5 is less than 7)
+cowork.tax.pp30.claimable,Input tax without flagged rows
+cowork.tax.pp30.previous_excess,Overpaid in last month's draft
+cowork.tax.review.excluded,Not included
+cowork.tax.review.notes,Other records
+cowork.tax.review.questions,Income type to choose
+cowork.tax.review.suggestions,Nothing withheld on the invoice
+cowork.tax.sheet.check,Checks
+cowork.tax.sheet.pnd3,P.N.D.3 attachment
+cowork.tax.sheet.pnd53,P.N.D.53 attachment
+cowork.tax.sheet.pp30,P.P.30
+cowork.tax.sheet.purchases,Input tax report
+cowork.tax.sheet.review,To check
+cowork.tax.sheet.sales,Output tax report
+cowork.tax.sheet.summary,Summary
+cowork.tax.sheet_total,Total income and tax remitted
+cowork.tax.total,Total
 cowork.team.action.bulkDisable,Disable {0}
 cowork.team.action.bulkEnable,Enable {0}
 cowork.team.active,Active
@@ -2617,6 +3079,7 @@ intake.catalog.reload,Read again
 intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
+intake.error.ACCOUNT_NOT_POSTABLE,The receiving account cannot be posted to in Express. Choose another account
 intake.error.ACCOUNT_SET_UNREACHABLE,The account set cannot be reached right now. It will be sent automatically once connected.
 intake.error.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
 intake.error.BAD_SALES_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
@@ -2644,6 +3107,7 @@ intake.error.INVALID_DOC_DATE,The document date is invalid. Correct it and submi
 intake.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
 intake.error.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
 intake.error.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
+intake.error.JOURNAL_BOOK_NOT_FOUND,This account set has no general journal book for the transfer vouchers. Add one in Express and submit again
 intake.error.MAPPING_MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
 intake.error.MAPPING_MISSING_ITEM,The matching stock item is missing. Choose it and submit again.
 intake.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
@@ -2651,6 +3115,7 @@ intake.error.MISSING_REF_NO,The invoice number is missing. Add it and submit aga
 intake.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 intake.error.NO_ACCOUNT_SELECTION,"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
 intake.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
+intake.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
 intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
@@ -2689,6 +3154,10 @@ intake.error.no_output_vat_account,An account needed for this invoice is not set
 intake.error.no_purchase_account,An account needed for this invoice is not set. Check the account settings
 intake.error.no_revenue_account,An account needed for this invoice is not set. Check the account settings
 intake.error.payload_version_outdated,CC Desktop is out of date. Update CC Desktop and submit again
+intake.error.pos_express_only,POS daily sales can only be sent to Express
+intake.error.pos_facts_invalid,The POS daily totals of this document are damaged. Import the POS export again
+intake.error.pos_payments_mismatch,The payment methods do not add up to the day's total. Import the POS export again
+intake.error.pos_receipt_account_missing,Choose the receiving account of each payment method
 intake.error.posting_kind_needed,Choose service or stock for this invoice and submit again
 intake.error.seller_buyer_same_tax,The seller and buyer have the same tax ID. Correct it and submit again
 intake.error.tax_id_invalid,The tax ID is not valid. Correct it and submit again
@@ -2759,11 +3228,33 @@ ocr.table_units_invalid,The document sections are incomplete or invalid.
 ocr.table_xml_declaration_not_allowed,The document contains unsupported XML declarations.
 ocr.too_many_pages,The PDF exceeds the allowed page count.
 ocr.unsupported_format,This file type is not supported.
+on {1}/{0} at {2},on {1}/{0} at {2}
 out,out
 page {0},page {0}
 pdf,pdf
 pending,Pending
 physical_page,physical_page
+pos.amount_unreadable,An amount in this POS export cannot be read
+pos.column_missing,A remembered column is not in this POS export. Choose the columns again
+pos.date_unreadable,A date in this POS export cannot be read
+pos.day_not_positive,A day's sales total is zero or less
+pos.file_unreadable,This file cannot be read
+pos.items_mismatch,The item lines do not add up to the day's total
+pos.items_not_positive,"After refunds, an item's quantity for a day is zero or less, or its amount is negative"
+pos.layout_invalid,The POS export columns are incomplete
+pos.layout_needed,Choose the columns of this POS export once
+pos.no_header,No POS sales export headers were found in this file
+pos.no_rows,No sales were found in this POS export
+pos.not_express,POS exports can only be entered into Express
+pos.payment_negative,A non-cash payment method has a negative total for a day
+pos.status_unknown,This POS export has a status value that is not chosen yet
+pos.target_required,Choose an Express account set first
+pos.too_many_days,A POS export can cover at most 100 days
+pos.too_many_items,A day has more than 999 item lines
+pos.too_many_payments,A day has more than 20 payment methods
+pos.type_unsupported,Only POS exports in Excel (.xlsx) or CSV can be imported
+pos.vat_out_of_range,The VAT column is more than 7% of a day's sales
+pos.xls_not_supported,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 probably {0},probably {0}
 push.adapter_not_connected,This ERP adapter is not connected yet.
 push.branch_invalid,Invalid push execution mode.
@@ -2953,6 +3444,11 @@ stocktake.warehouse_required,Check the warehouse and location. A warehouse is re
 subfolders are scanned too,subfolders are scanned too
 summary_table_batch,Summary table import
 task off or no access,task off or no access
+tax.answer_invalid,The answer is not valid.
+tax.company_invalid,Enter the company's 13-digit tax ID.
+tax.option_invalid,The option is not valid.
+tax.period_invalid,The tax month is not valid.
+tax.request_invalid,Choose a connection and account set.
 today at {0},today at {0}
 tomorrow at {0},tomorrow at {0}
 total,total
@@ -2980,6 +3476,7 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} commented on {1},{0} commented on {1}
 {0} completed {1},{0} completed {1}
 {0} d {1} h left,{0} d {1} h left
+{0} days before,{0} days before
 {0} files,{0} files
 "{0} files in the folder now, processed at the run time","{0} files in the folder now, processed at the run time"
 {0} files in the folder now.,{0} files in the folder now.

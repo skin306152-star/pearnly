@@ -606,6 +606,7 @@ Suppliers,仕入先
 System URL,システムURL
 System URL is not filled in,システムURLが未入力です
 Target ERP,連携先 ERP
+Tax Return Drafts,税務申告の下書き
 Team,チーム
 Tenant boot data,このサイトの起動データ
 Test connection,接続テスト
@@ -749,6 +750,7 @@ VAT %,税率%
 VAT Amount,税額
 VAT Included,税込
 VAT Rate %,税率%
+VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,付加価値税申告（ภ.พ.30）と源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書きと仕入税チェック
 Valid for {0},残り有効時間 {0}
 WHT deducted,源泉徴収税額
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}

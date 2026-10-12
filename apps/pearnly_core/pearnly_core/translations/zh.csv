@@ -606,6 +606,7 @@ Suppliers,供应商
 System URL,系统地址
 System URL is not filled in,系统地址不能为空
 Target ERP,目标 ERP
+Tax Return Drafts,报税草稿
 Team,团队管理
 Tenant boot data,本站点启动数据
 Test connection,测试连接
@@ -749,6 +750,7 @@ VAT %,税率%
 VAT Amount,税额
 VAT Included,含增值税
 VAT Rate %,税率%
+VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,增值税申报（ภ.พ.30）与预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿及进项核查
 Valid for {0},剩余有效期 {0}
 WHT deducted,预扣税额
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}

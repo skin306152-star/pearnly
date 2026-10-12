@@ -604,6 +604,7 @@ Suppliers,Suppliers
 System URL,System URL
 System URL is not filled in,System URL is not filled in
 Target ERP,Target ERP
+Tax Return Drafts,Tax Return Drafts
 Team,Team
 Tenant boot data,Tenant boot data
 Test connection,Test connection
@@ -747,6 +748,7 @@ VAT %,VAT %
 VAT Amount,VAT Amount
 VAT Included,VAT Included
 VAT Rate %,VAT Rate %
+VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks,VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks
 Valid for {0},Valid for {0}
 WHT deducted,WHT deducted
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
