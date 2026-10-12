@@ -95,6 +95,8 @@ jobs:
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
         run: python3 tests/test_cowork_assistant_tools.py
+      - name: Keep the old Windows app names out of what users and CC read (only CC Desktop, CC calls itself CC)
+        run: python3 tests/test_cc_desktop_name.py
       - name: Verify the P.P.30 draft boxes and the input tax checks
         run: python3 tests/test_cowork_tax_pp30.py
       - name: Verify the P.N.D.3 / P.N.D.53 drafts (forms, payment dates, certificates, attachment sheets)
