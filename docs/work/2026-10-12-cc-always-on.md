@@ -41,7 +41,9 @@
 ## 验证
 
 - 本地：小助手全部测试 596 通过 / 42 跳过（Qt 界面类在 CI 的 Windows 跑）；新增 `tests/test_always_on.py`、`test_desktop_settings.py` 两条。
-- 待做：CI（Companion checks，Windows）通过并出安装包 → 装到办公室测试机 → 打开常驻模式后 `powercfg /requests` 看到 companion 的 SYSTEM 请求、开机自启后锁屏、账套被占用时不弹框且任务显示「等账套」、关掉后请求消失。
+- CI：Companion checks（Windows 测试 + 打包）与 Development checks 均通过（9acb268d）。
+- 测试机实装（2026-10-12 17:12）：以 skin3 静默安装 1.4.2（安装包 sha256 f55576df…c8ca 与 CI 产物一致），打开常驻模式（companion.json `always_on: true`，原配置备份在 `C:\Users\Public\pearnly-test\companion.json.before-always-on`）后按开机自启方式（`--background`）重启：`powercfg /requests` 的 DISPLAY 与 SYSTEM 均为 companion.exe；日志两条「保持不睡眠」「开机后已锁屏」；LogonUI 于 17:26:54 与 CC 同秒启动（已锁屏）。
+- 原待做：CI（Companion checks，Windows）通过并出安装包 → 装到办公室测试机 → 打开常驻模式后 `powercfg /requests` 看到 companion 的 SYSTEM 请求、开机自启后锁屏、账套被占用时不弹框且任务显示「等账套」、关掉后请求消失。
 - 真机：用户在手机上让 CC 录一张票，测试机锁着屏完成写入。
 
 ## 常驻电脑的一次性设置（到时与用户一起做）
