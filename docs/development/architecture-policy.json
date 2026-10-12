@@ -184,6 +184,7 @@
       "history",
       "ocr",
       "push",
+      "readback",
       "recon_center",
       "reconciliation",
       "roundtrip",
@@ -247,6 +248,13 @@
       "connections",
       "contracts",
       "history",
+      "targets"
+    ],
+    "readback": [
+      "access",
+      "companion",
+      "connections",
+      "push",
       "targets"
     ],
     "recon_center": [

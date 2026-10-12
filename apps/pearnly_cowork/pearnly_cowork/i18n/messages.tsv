@@ -446,6 +446,16 @@ Result Bytes	结果字节数	จำนวนไบต์ของผลลัพ
 Result SHA-256	结果 SHA-256	SHA-256 ของผลลัพธ์	結果の SHA-256
 Result Details	结果说明	รายละเอียดผลลัพธ์	結果の詳細
 CC Desktop Version	CC 桌面版版本	เวอร์ชัน CC เดสก์ท็อป	CC デスクトップのバージョン
+Cowork Express Readback	Cowork Express 回读	การอ่านข้อมูลบัญชี Express กลับของ Cowork	Cowork Express の読み戻し
+Readback ID	回读编号	รหัสการอ่านข้อมูลกลับ	読み戻し ID
+Lookup Key	查找键	คีย์ค้นหา	検索キー
+Account Set Name	账套名称	ชื่อชุดบัญชี	会計データ名
+Month	月份	เดือน	月
+CC Desktop Request	CC 桌面版请求	คำขอถึง CC เดสก์ท็อป	CC デスクトップへのリクエスト
+Changes	变动	การเปลี่ยนแปลง	変更
+Read At (UTC)	读取时间（UTC）	เวลาอ่านข้อมูล (UTC)	読み取り日時（UTC）
+Ready At (UTC)	完成时间（UTC）	เวลาเสร็จ (UTC)	完了日時（UTC）
+Data Version	数据版本	เวอร์ชันข้อมูล	データバージョン
 The CC Desktop report is invalid.	CC 桌面版上报内容无效。	รายงานจาก CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのレポートが無効です。	companion.report_invalid
 leased	已领取	รับไปดำเนินการแล้ว	取得済み	leased
 The ERP data report is missing a required value.	ERP 数据报告缺少必填值。	รายงานข้อมูล ERP ขาดค่าที่จำเป็น	ERP データレポートに必須の値がありません。	erp.target_projection_value_required
@@ -489,6 +499,35 @@ The computer on this connection cannot do this.	这条连接的电脑做不了�
 Too many requests are waiting for CC Desktop. Try again shortly.	等 CC 桌面版处理的请求太多，请稍后再试。	มีคำขอรอ CC เดสก์ท็อปมากเกินไป กรุณาลองใหม่ภายหลัง	CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。	companion.on_demand_busy
 The request to CC Desktop was not found.	找不到发给 CC 桌面版的请求。	ไม่พบคำขอถึง CC เดสก์ท็อป	CC デスクトップへのリクエストが見つかりません。	companion.on_demand_missing
 CC Desktop has not finished this yet.	CC 桌面版还没做完。	CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ	CC デスクトップの処理はまだ終わっていません。	companion.on_demand_not_ready
+The readback request is invalid.	回读请求无效。	คำขออ่านข้อมูลบัญชีกลับไม่ถูกต้อง	読み戻しのリクエストが無効です。	cowork.readback.invalid
+Give the month as YYYY-MM.	月份请写成 YYYY-MM。	กรุณาระบุเดือนเป็น YYYY-MM	月は YYYY-MM で指定してください。	cowork.readback.period_invalid
+The account codes are invalid.	科目号无效。	รหัสบัญชีไม่ถูกต้อง	勘定科目コードが無効です。	cowork.readback.accounts_invalid
+Only Express account sets can be read back.	只有 Express 账套可以回读。	อ่านข้อมูลกลับได้เฉพาะชุดบัญชี Express	読み戻しできるのは Express の会計データだけです。	cowork.readback.not_express
+This account set is not on this connection.	这条连接上没有这本账套。	ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้	この接続にこの会計データはありません。	cowork.readback.account_missing
+The readback was not found.	找不到这份回读。	ไม่พบผลการอ่านข้อมูลกลับ	読み戻しの結果が見つかりません。	cowork.readback.missing
+The readback is not ready yet.	回读还没完成。	การอ่านข้อมูลกลับยังไม่เสร็จ	読み戻しはまだ終わっていません。	cowork.readback.not_ready
+CC Desktop sent back data that cannot be read.	CC 桌面版交回的数据读不了。	ข้อมูลที่ CC เดสก์ท็อปส่งกลับมาอ่านไม่ได้	CC デスクトップから返されたデータを読み取れません。	cowork.readback.data_invalid
+Update this site before reading back with this CC Desktop.	请先更新本站，再用这个版本的 CC 桌面版回读。	กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้	この CC デスクトップで読み戻す前にサイトを更新してください。	cowork.readback.version_unsupported
+Changes	变动	การเปลี่ยนแปลง	変更	cowork.readback.sheet.changes
+Entered in Express	Express 直接录入	บันทึกใน Express โดยตรง	Express で直接入力	cowork.readback.sheet.direct
+Document No.	单据号	เลขที่เอกสาร	伝票番号	cowork.readback.col.docnum
+Direction	方向	ประเภทรายการ	区分	cowork.readback.col.direction
+Change	变动	การเปลี่ยนแปลง	変更	cowork.readback.col.change
+Field	项目	รายการ	項目	cowork.readback.col.field
+Pushed	推送时	ตอนส่ง	送信時	cowork.readback.col.pushed
+In Express	Express 现在	ใน Express ตอนนี้	Express の現在	cowork.readback.col.now
+Type	单别	ประเภทเอกสาร	伝票区分	cowork.readback.col.kind
+Party	对方	คู่ค้า	取引先	cowork.readback.col.party
+Entered by	录入人	ผู้บันทึก	入力者	cowork.readback.col.entered_by
+Changed	改过	แก้ไขแล้ว	変更あり	cowork.readback.change.changed
+Deleted	已删除	ลบแล้ว	削除済み	cowork.readback.change.deleted
+Not found	找不到	ไม่พบ	見つかりません	cowork.readback.change.missing
+Cancelled	已作废	ยกเลิกแล้ว	取消済み	cowork.readback.change.voided
+Invoice No.	票号	เลขที่ใบกำกับ	請求書番号	cowork.readback.field.ref_no
+VAT record	税务记录	รายการภาษี	税務記録	cowork.readback.field.vat_record
+VAT record before VAT	税务记录的未税额	มูลค่าก่อนภาษีในรายการภาษี	税務記録の税抜額	cowork.readback.field.vat_before_vat
+VAT record VAT	税务记录的税额	ภาษีในรายการภาษี	税務記録の税額	cowork.readback.field.vat_amount
+Entries	分录	รายการบัญชี	仕訳	cowork.readback.field.entries
 Cowork ERP Mapping	Cowork ERP 映射	การจับคู่ ERP ของ Cowork	Cowork ERP マッピング	
 Cowork Supplier Posting Profile	Cowork 供应商过账档案	โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork	Cowork 仕入先転記プロファイル	
 Cowork Bank Evidence	Cowork 银行佐证	หลักฐานธนาคารของ Cowork	Cowork 銀行取引の根拠	
@@ -1814,6 +1853,9 @@ Turned a folder task on or off	启用或停用了文件夹任务	เปิดห
 Deleted folder tasks	删除了文件夹任务	ลบงานโฟลเดอร์แล้ว	フォルダータスクを削除しました
 Listed folder files	列出了文件夹里的文件	แสดงรายการไฟล์ในโฟลเดอร์แล้ว	フォルダーのファイルを一覧しました
 Brought files from a folder	从文件夹取来了文件	นำไฟล์จากโฟลเดอร์มาแล้ว	フォルダーからファイルを取り込みました
+Read back the accounting books	回读了账套账目	อ่านข้อมูลบัญชีกลับมาแล้ว	会計データを読み戻しました
+Checked a readback	查看了回读结果	ตรวจสอบผลการอ่านข้อมูลกลับแล้ว	読み戻しの結果を確認しました
+Deleted a readback	删除了回读结果	ลบผลการอ่านข้อมูลกลับแล้ว	読み戻しの結果を削除しました
 No documents were given.	没有指定单据。	ไม่ได้ระบุเอกสาร	書類が指定されていません。
 No attachments were given.	没有指定附件。	ไม่ได้ระบุไฟล์แนบ	添付ファイルが指定されていません。
 No files were given.	没有指定文件。	ไม่ได้ระบุไฟล์	ファイルが指定されていません。

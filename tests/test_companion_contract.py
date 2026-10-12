@@ -304,5 +304,62 @@ class OnDemandRequests(unittest.TestCase):
         self.assertIn("requests.busy()", method_source(COMPANION / "gui_tray.py", "TrayApp", "_busy"))
 
 
+def method_source_of(path, name):
+    """模块里一个顶层函数的源码（只读 AST，不导入）。"""
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return ast.unparse(node)
+    raise AssertionError(f"{name} not found in {path}")
+
+
+class ExpressReadback(unittest.TestCase):
+    """回读 Express 账套（2026-10 CC 闭环 L1）：服务端 `readback` 发的读账参数、小助手 `express_read` 交回的读账结果，两边
+    同一组键、同一个结果版本与点名单据号上限；小助手读账不碰「等账套」。"""
+
+    READBACK = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "readback"
+
+    def test_the_helper_reads_the_parameters_the_server_sends(self):
+        tree = ast.parse((self.READBACK / "contracts.py").read_text(encoding="utf-8"))
+        builder = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "read_params")
+        sent = next(node.value for node in ast.walk(builder) if isinstance(node, ast.Return))
+        keys = {key.value for key in sent.keys}
+        self.assertEqual(keys, {"account_set", "account_root", "period", "docnums"})
+        helper = method_source_of(COMPANION / "express_read.py", "read_books")
+        self.assertEqual(set(re.findall(r"params\.get\('([a-z_]+)'\)", helper)), keys)
+
+    def test_both_sides_share_the_result_version_and_the_named_document_limits(self):
+        names = ("RESULT_VERSION", "DOCNUMS_MAX", "DOCNUM_MAX")
+        self.assertEqual(number_constants(COMPANION / "express_read.py", names),
+                         number_constants(self.READBACK / "contracts.py", names))
+        server = number_constants(SERVER / "request_contracts.py", ("PARAMS_MAX",))["PARAMS_MAX"]
+        # 点名单据号放满（每条最长）再加两条路径，仍在按需请求的参数上限之内
+        limits = number_constants(self.READBACK / "contracts.py", ("DOCNUMS_MAX", "DOCNUM_MAX", "PATH_MAX"))
+        self.assertLess(limits["DOCNUMS_MAX"] * (limits["DOCNUM_MAX"] + 4) + 2 * limits["PATH_MAX"] + 200, server)
+
+    def test_the_server_reads_every_part_the_helper_sends(self):
+        helper = method_source_of(COMPANION / "express_read.py", "collect")
+        returned = next(node for node in ast.walk(ast.parse(helper)) if isinstance(node, ast.Return)
+                        and isinstance(node.value, ast.Dict))
+        parts = {key.value for key in returned.value.keys} | {"account_set", "read_at"}
+        parser = (self.READBACK / "contracts.py").read_text(encoding="utf-8")
+        for part in parts - {"version", "period"}:
+            self.assertTrue(quoted(parser, part), part)
+        for part in ("version", "period"):
+            self.assertIn(f'raw.get("{part}")', parser)
+
+    def test_reading_never_waits_for_the_account_set_lock(self):
+        tree = ast.parse((COMPANION / "express_read.py").read_text(encoding="utf-8"))
+        imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+                    for alias in node.names} | {node.module or "" for node in ast.walk(tree)
+                                                if isinstance(node, ast.ImportFrom)}
+        self.assertFalse({"account_lock", "is_account_busy"} & imported)
+        called = {ast.unparse(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)}
+        self.assertFalse({name for name in called if "is_account_busy" in name or "account_lock" in name})
+        tables = number_constants(COMPANION / "express_read.py", ("TABLES",))["TABLES"]
+        self.assertNotIn("ISRUN", tables)
+        self.assertIn('"express_read": express_read.read_books', (COMPANION / "request_worker.py").read_text(
+            encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

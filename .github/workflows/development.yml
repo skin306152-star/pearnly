@@ -65,6 +65,8 @@ jobs:
         run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_companion_http_auth.py
       - name: Verify on-demand requests to CC Desktop and fetching files from authorised folders
         run: python3 tests/test_cowork_companion_requests.py
+      - name: Verify the Express readback (openings, ledger, VAT records, changes against pushes, keep only the latest)
+        run: python3 tests/test_cowork_readback.py
       - name: Verify folder auto-intake rules and that it only adds to existing paths
         run: python3 tests/test_cowork_folder_intake.py
       - name: Verify a batch of scheduled tasks saves all or nothing

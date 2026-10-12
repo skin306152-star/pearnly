@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.targets import stock_groups
@@ -19,6 +20,7 @@ from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
 from pearnly_cowork.push.express.prepare import prepare_express
 from pearnly_cowork.push.express.preflight import ExpressContext
@@ -482,3 +484,41 @@ def records(connection, start=0, limit=50):
         ORDER BY creation DESC, name DESC LIMIT %s OFFSET %s FOR UPDATE""",
         (connection, owner["workspace"], owner.get("client") or "", limit, start), as_dict=True)
     return {"records": [_view(ledger.project(frappe.get_doc("Cowork Push Record", row.name, for_update=True))) for row in rows]}
+
+
+PUSHED_MAX = 3000
+PUSHED_PAGE = 500
+
+
+def _loads(value):
+    try:
+        return json.loads(value) if value else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def pushed_express(connection, account_set_key, date_from=None, date_to=None, docnums=None):
+    """Express 回读比对用（2026-10 CC 闭环 L1，`readback` 域）：这条连接推进这本账套、推送成功的单据，单据日期落在
+    [date_from, date_to] 的，加上 Express 单号在 ``docnums`` 里的（不论日期）。同一单号推过几次取最后一次。
+
+    判据同推送：录入权限 + 这条连接的使用授权。只读，回 `push.express.pushed.project` 的形状，按单号排，最多
+    ``PUSHED_MAX`` 张。"""
+    scope.require("intake")
+    connection_access.require_connection(frappe.get_doc("Cowork ERP Connection", connection))
+    key = normalize_express_account_key(account_set_key)
+    wanted = {str(item or "").strip().upper() for item in docnums or () if str(item or "").strip()}
+    found, start = {}, 0
+    while key:
+        rows = frappe.db.sql("""SELECT name, history, external_docnum, payload_json, response_json
+            FROM `tabCowork Push Record` WHERE connection=%s AND account_key=%s AND status='success'
+            AND COALESCE(external_docnum, '') != '' ORDER BY creation, name LIMIT %s OFFSET %s""",
+            (connection, key, PUSHED_PAGE, start), as_dict=True)
+        if not rows:
+            break
+        start += len(rows)
+        for row in rows:
+            item = pushed_rules.project(row.name, row.history, row.external_docnum, _loads(row.payload_json),
+                                        _loads(row.response_json))
+            if item and (item["docnum"].upper() in wanted or pushed_rules.in_window(item, date_from, date_to)):
+                found[item["docnum"].upper()] = item
+    return [found[docnum] for docnum in sorted(found)][:PUSHED_MAX]

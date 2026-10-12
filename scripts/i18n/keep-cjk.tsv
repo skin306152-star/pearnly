@@ -123,6 +123,7 @@ apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_sheets.py	*	数据：银�
 apps/pearnly_cowork/pearnly_cowork/stocktake/export.py	*	规格：盘点导出表的泰文默认值；导出时按下载人语言从 cowork.stocktake.export.* 词条取词，取不到才用它
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/xlsx/purchase.py	*	数据：MR.ERP 采购导入模板泰文表头与写入的固定值，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/reconciliation/gl_sheets.py	*	数据：总账表头、期初关键词、期间起始标签词典，按原字面比对或写入外部系统，不进界面
+apps/pearnly_cowork/pearnly_cowork/readback/layout.py	*	规格：回读出的总账、税报照 Express 报表的泰文版式出表，对账解析器按原字面认列，不随界面语言翻译
 apps/pearnly_dms/pearnly_dms/intake/draft.py	*	数据：身份证称谓别名组与泰国地址缩写拼接，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/express/field_clean.py	*	数据：Express 字段清洗：卖家停用词、泰文字符正则、总部写法，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/express/merchant.py	*	数据：已知连锁品牌泰/英别名正则，按原字面比对或写入外部系统，不进界面
