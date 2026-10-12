@@ -2658,7 +2658,8 @@ TOOLS = [
                     "cowork_recognition_results. Each attachment is charged once like a web upload; calling again "
                     "for the same attachment returns the same result at no extra charge, so never tell the user it "
                     "was charged "
-                    "twice; only when its last recognition failed does calling again recognize it anew. needs_review true means the workbench flagged it for a person to check. Report the "
+                    "twice; only when its last recognition failed does calling again recognize it anew. "
+                    "needs_review true means the workbench flagged it for a person to check. Report the "
                     "recognized values, not your own reading of the image, and leave out fields that are not given.",
      "input_schema": {"type": "object", "properties": {
          "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX},
