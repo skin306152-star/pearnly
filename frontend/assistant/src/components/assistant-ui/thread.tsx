@@ -205,7 +205,7 @@ const ThreadMessage: FC = () => {
 
 type MessageLike = { metadata?: { custom?: Record<string, unknown> } };
 
-/** 本站提醒并进对话的那条（lib/managed-agents/reducer.ts 的 withNotices）。 */
+/** 本站提醒并进对话的那条（lib/managed-agents/reducer.ts 的 withNotices，system 消息）。 */
 const isNoticeMessage = (m: MessageLike) => Boolean(m.metadata?.custom?.notice);
 
 const noticeTime = (at: Date) =>
@@ -237,9 +237,12 @@ const NoticeMessage: FC = () => {
         </div>
       </div>
       {push.state === "off" && (
-        <button type="button" className="cc-btn" onClick={() => void push.enable()}>
-          {st.turnOnNotifications}
-        </button>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button type="button" className="cc-btn" onClick={() => void push.enable()}>
+            {st.turnOnNotifications}
+          </button>
+          {push.failure && <span className="text-danger text-sm">{push.failure}</span>}
+        </div>
       )}
     </MessagePrimitive.Root>
   );

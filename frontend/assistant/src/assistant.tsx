@@ -63,7 +63,8 @@ import {
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
-import { onNotice, setActiveSession } from "@/lib/managed-agents/activity";
+import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
+import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
 import { useDeepLinks, useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
 import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
@@ -72,6 +73,9 @@ import { Mascot } from "@/components/mascot";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
+
+// 提醒挂到侧栏没加载到的对话时，几条提醒合成一次重拉列表
+const NOTICE_RELOAD_MS = 1500;
 
 function firstName(profile: Profile | null): string {
   return (profile?.full_name || "").trim().split(/\s+/)[0] ?? "";
@@ -643,32 +647,37 @@ function useResultsPanel() {
 
 // 桌面端快捷提问、回复完成与提醒通知、整窗拖文件、登录后自动连接这台电脑（lib/desktop.ts）；推送通知（lib/push.ts）
 function DesktopBridge() {
-  const aui = useAui();
   const snapshot = useActiveSessionSnapshot();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const push = usePush();
-  useDesktopBridge(isBusy(snapshot), snapshot.messages, title, push.state === "on");
+  const { view } = useView();
+  useDesktopBridge(isBusy(snapshot), snapshot.messages, title, push.state === "on", snapshot.sessionId);
   useAutoConnect(useProfile()?.product);
   // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
   useEffect(() => listen(), []);
   useEffect(() => void syncPush(), []);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
-  // 提醒挂到的对话不在侧栏已加载的那几页里（较早的对话）：重新拉一次列表，它就排到最上面
-  useEffect(
-    () =>
-      onNotice((notice) => {
-        if (!notice.session) return;
-        const { threadIds, threadItems } = aui.threads().getState();
-        const listed = threadItems.some((item) => item.remoteId === notice.session && threadIds.includes(item.id));
-        if (!listed) void aui.threads().reload();
-      }),
-    [aui],
-  );
+  // 在定时任务页时当前对话不算「正看着」：推来的提醒留圆点、不报看过；回到对话页才算
+  useEffect(() => setChatView(view === "chat"), [view]);
+  useNoticeReload();
   // 浏览器标签页标题跟着对话名（同 Claude）
   useEffect(() => {
     document.title = title && snapshot.messages.length ? `${title} - ${APP_NAME}` : APP_NAME;
   }, [title, snapshot.messages.length]);
   return null;
+}
+
+// 提醒挂到侧栏没加载到的对话时重拉列表（lib/managed-agents/notice-reload.ts：合并、避开加载中与正在建的新对话）
+function useNoticeReload() {
+  const aui = useAui();
+  useEffect(() => {
+    const reloader = noticeReloader(() => aui.threads(), NOTICE_RELOAD_MS);
+    const off = onNotice((notice) => reloader.note(notice.session));
+    return () => {
+      off();
+      reloader.stop();
+    };
+  }, [aui]);
 }
 
 // 深链接：/assistant?c=<对话>、?view=tasks，推送通知与桌面端托盘通知点开（lib/nav.ts）

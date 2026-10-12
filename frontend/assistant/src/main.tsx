@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Assistant } from "./assistant";
 import "./globals.css";
@@ -28,10 +29,13 @@ scheme.addEventListener("change", applyScheme);
 window.addEventListener("cc-theme", applyScheme);
 new MutationObserver(themeColor).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-open"], childList: true });
 
+// 最外层错误边界：哪里抛错都不整页变白（components/error-boundary.tsx）
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <TooltipProvider>
-      <Assistant />
-    </TooltipProvider>
+    <ErrorBoundary>
+      <TooltipProvider>
+        <Assistant />
+      </TooltipProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );
