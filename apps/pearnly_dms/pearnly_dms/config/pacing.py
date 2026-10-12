@@ -9,7 +9,10 @@
 任务也会。所以"等多久、等不到怎么办"只写一次，所有入口共用：
 
     · 用户按的那条路（有人等着看结果）→ `budget_ms(attempt)`：30 → 60 → 90 秒，配合
-      LINE 那颗「重试」按钮，第三次仍失败才说「连不上第三方 DMS 系统，请联系管理员」；
+      LINE 那颗「重试」按钮，第三次仍失败才说「连不上第三方 DMS 系统，请联系管理员」
+      （还给按钮的前两次用现有的「连接 DMS 超时或网络异常 · 请稍后重试」）。订车、建档 / 改档
+      这两类写入任务里**登录页都没打开**时，系统先在同一个任务里自己用下一档再试一次
+      （`AUTO_RETRY_WITHIN_SECONDS`，2026-10-13 起），总次数仍不超过三次；
     · 后台那条路（没人等着）→ `budget_ms(background=True)`：一次给足 90 秒，不搞阶梯。
 
 ## 失败退避（熔断）
@@ -53,6 +56,11 @@ BACKGROUND_TIMEOUT_MS = 90_000
 #: 可以重试的错误码：**连不上对方系统**这一类（用户那颗「重试」按钮就按这个给）。
 # `ERR_DMS_BUSY`：等账号等到超时（人多排队）。锁没拿到就不会发出任何请求，重试是安全的。
 RETRYABLE = frozenset({"ERR_DMS_UNREACHABLE", "ERR_DMS_TECHNICAL", "ERR_DMS_BUSY"})
+
+#: LINE 写入任务（订车、建档 / 改档）里**登录页都没打开**（账号密码还没提交、业务还没开始）时，
+#: 同一个任务自动用下一档再试一次（用户 2026-10-13 同意；只此一次）。第一次失败时这一次已经
+#: 用掉这么多秒就不再试，免得把任务推向 600 秒的后台时限。见 `adapter.operations.run_logged_in`。
+AUTO_RETRY_WITHIN_SECONDS = 90
 
 # ── 熔断 ─────────────────────────────────────────────────────────────────────
 
@@ -218,7 +226,8 @@ def summary(endpoint: Any) -> Dict[str, Any]:
 
 
 __all__ = [
-    "ATTEMPT_TIMEOUT_MS", "MAX_ATTEMPTS", "BACKGROUND_TIMEOUT_MS", "RETRYABLE", "FAILURE_THRESHOLD",
+    "ATTEMPT_TIMEOUT_MS", "MAX_ATTEMPTS", "BACKGROUND_TIMEOUT_MS", "RETRYABLE", "AUTO_RETRY_WITHIN_SECONDS",
+    "FAILURE_THRESHOLD",
     "COOLDOWN_STEPS", "USED_TTL_SECONDS", "IDLE_MAX_AGE_SECONDS",
     "budget_ms", "clamp", "cooldown_left", "cooldown_seconds", "is_retryable",
     "mark_used", "note_failure", "note_success", "should_warm", "summary", "used_recently",

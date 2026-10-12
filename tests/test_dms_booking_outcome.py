@@ -259,7 +259,10 @@ class Harness(unittest.TestCase):
 
         self._stub("pearnly_dms.i18n", t=lambda key, lang=None, **kw: key + "".join(
             f"|{k}={v}" for k, v in sorted(kw.items())), line_lang=lambda: "th", line_language=line_language)
-        self._stub("pearnly_dms.line.errors", friendly=lambda code, lang=None: {"th": "dms.err." + code})
+        # retry_text: the sentence next to a Retry button (the real rule is pinned in test_dms_login_retry).
+        self._stub("pearnly_dms.line.errors", friendly=lambda code, lang=None: {"th": "dms.err." + code},
+                   retry_text=lambda code, text, lang: (
+                       "dms.err.ERR_DMS_TECHNICAL" if code == "ERR_DMS_UNREACHABLE" else text))
         self._stub("pearnly_dms.line.identity", matches=lambda binding, uid: self.bound,
                    current=lambda uid: {"user": "x"})
         self._stub("pearnly_dms.line.cards", ACT_CONFIRM_BOOKING="confirm", ACT_CANCEL_BOOKING="cancel",

@@ -53,6 +53,7 @@ from pearnly_dms.booking import booking_attempt as booking_attempt
 from pearnly_dms.booking import booking_ledger as booking_ledger
 from pearnly_dms.booking import recovery
 from pearnly_dms.booking.attachments import download as _download_attach_files
+from pearnly_dms.config import pacing
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.line import cards as cards
 from pearnly_dms.booking.conversation import qa_cards as qa_cards
@@ -228,14 +229,18 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
                 friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL, result)))
         return
     if _retryable_result(result):
+        from pearnly_dms.line.errors import retry_text
+
         retry_nonce = secrets.token_hex(8)
         if _arm_retry(tenant, line_user_id, payload, retry_nonce):
+            code = result.get("error_code") or ""
             _send(
                 line_user_id,
                 qa_cards.booking_retry_message(
-                    _with_missing(friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL, result),
+                    _with_missing(retry_text(code, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL,
+                                             i18n.line_lang()), result),
                     retry_nonce,
-                    code=result.get("error_code") or "",
+                    code=code,
                 ),
             )
             return
@@ -342,12 +347,13 @@ def _retryable_result(result: Dict[str, Any]) -> bool:
         return False
     if result.get("error_code") == "ERR_DMS_MASTER_UNMATCHED":
         return False
+    # 连不上 / 网络异常（含后台任务时限到点）/ 排队等账号超时：与建档**同一份**口径
+    # （`config/pacing.RETRYABLE`）。提交后的失败由上面 booking_id / submitted 与提交前登记
+    # （`_settle` 改判"结果未知"）拦下。以前订车自己一份名单、漏了网络异常：只回一句"请稍后
+    # 重试"却没有按钮，旧卡点了显示过期（2026-10-12 测试机复现）。
+    if pacing.is_retryable(result.get("error_code")):
+        return True
     if result.get("error_code") in (
-        "ERR_DMS_BUSY",  # 排队等账号超时：锁没拿到，什么都没提交
-        # 打不开登录页：还没进 DMS，更谈不上提交（提交后的失败由上面 booking_id / submitted
-        # 与提交前登记的尝试标记拦下）。以前不在名单里，一次网络抖动就把草稿卡死，
-        # 用户只能从头再录（2026-09-27 测试机实测）；与 `config/pacing` 的"给重试"口径一致。
-        "ERR_DMS_UNREACHABLE",
         "ERR_DMS_CONCURRENT_LOGIN",
         "ERR_DMS_MASTER_UNAVAILABLE",
         "ERR_DMS_CUSTOMER_LOOKUP",

@@ -109,6 +109,15 @@ class DmsUnreachableError(DmsTechnicalError):
     """
 
 
+class DmsLoginPageUnreachableError(DmsUnreachableError):
+    """**登录页都没打开**（打开登录页超时）：账号密码还没提交，对方那边不会留下会话。
+
+    与"点了登录、对方没回应"（同样报 `DmsUnreachableError`）分开：那时对方可能已经留下一个
+    会话，马上再登可能被判成重复登录。只有这一种，LINE 写入任务才会在同一个任务里自动用
+    下一档再试一次（`adapter.operations.run_logged_in(line_write=True)`，2026-10-13）。
+    """
+
+
 def is_timeout_error(exc: BaseException) -> bool:
     """Playwright 的超时异常。不 import playwright 也能认（它可能是可选依赖）：
     `playwright._impl._errors.TimeoutError` 的类名 + 文案里都带 Timeout。"""
@@ -508,7 +517,7 @@ class MrerpDmsAdapter:
             # 打不开首页 = 连不上对方系统（不是我们坏了、也不是账号错）。单独报，
             # 上层才有机会给"重试"并把超时拉长。
             if is_timeout_error(exc):
-                raise DmsUnreachableError(
+                raise DmsLoginPageUnreachableError(
                     f"打开 DMS 登录页超时（{budget}ms）：{self.login_url}"
                 ) from exc
             raise

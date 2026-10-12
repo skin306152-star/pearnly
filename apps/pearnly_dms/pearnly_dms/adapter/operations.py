@@ -5,6 +5,7 @@ timeouts and error contracts. Foreground previews must not call this module.
 """
 from __future__ import annotations
 import logging
+import time
 from typing import Any, Dict, Optional
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.adapter.push import build_adapter
@@ -43,7 +44,7 @@ def background_read_account():
 
 def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
                   background: bool = False, read_only_batch: bool = False,
-                  catch_up: bool = False):
+                  catch_up: bool = False, line_write: bool = False):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
@@ -71,7 +72,52 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
     `catch_up=True`：**操作员自己发起的那一次**（不是后台任务）在动作做完之后，
     顺手把 DMS 使用记录里的增量补回缓存（`snapshots/change_sync`）——用同一个会话，
     不额外登录、不额外抢账号；同步失败只记日志，绝不改这次动作的结果。
+
+    `line_write=True`：**只由**两个 LINE 写入执行体传（订车 `booking.service.book_in_session`、
+    建档 / 改档 `intake.service.push_idcard_fields`），其余调用方行为不变（2026-10-13）：
+
+    · **登录页都没打开**（`DmsLoginPageUnreachableError`：账号密码还没提交、业务函数还没开始）
+      时，同一个任务用下一档预算自动再试一次 —— 对方只是一时慢，操作员就看不到失败。只此一次，
+      而且要：当前档还没到第三档、第一次已用时间不超过 `pacing.AUTO_RETRY_WITHIN_SECONDS`、
+      再试前冷却没打开。"点了登录、对方没回应"不再试（对方可能已留下会话，马上再登可能被判
+      重复登录）；业务函数一旦开始，绝不自动再试。再试仍失败时结果带 `login_attempt`（实际用到
+      第几档），建档的重试阶梯据此接着走，总次数仍不超过三次。
+    · 后台任务时限（600 秒）到点打断这一次时，报可重试的 `ERR_DMS_TECHNICAL`，不说成
+      "服务器内部错误"，也不计入冷却。已经提交过的，订车与客户写入各自的登记会把它改成
+      "结果未知"并拦住重放，不会叫人重做。
     """
+    once = dict(authoritative_read=authoritative_read, background=background,
+                read_only_batch=read_only_batch, catch_up=catch_up, line_write=line_write)
+    if not line_write:
+        return _run_once(endpoint, fn, attempt=attempt, probe={}, **once)
+    from pearnly_dms.config import pacing
+
+    started, probe = time.monotonic(), {}
+    out = _run_once(endpoint, fn, attempt=attempt, probe=probe, **once)
+    if (not isinstance(out, dict) or out.get("ok") or out.get("error_code") != "ERR_DMS_UNREACHABLE"
+            or not probe.get("login_page_unopened") or probe.get("started")
+            or pacing.clamp(attempt) >= pacing.MAX_ATTEMPTS
+            or time.monotonic() - started > pacing.AUTO_RETRY_WITHIN_SECONDS
+            or pacing.cooldown_left(endpoint_name(endpoint))):
+        return out
+    following = pacing.clamp(attempt) + 1
+    logger.warning("[dms] DMS login page did not open; retrying once in the same job (budget %s ms)",
+                   pacing.budget_ms(following))
+    out = _run_once(endpoint, fn, attempt=following, probe={}, **once)
+    return out if not isinstance(out, dict) or out.get("ok") else {**out, "login_attempt": following}
+
+
+def _is_job_timeout(exc: BaseException) -> bool:
+    """后台任务时限到点（RQ 的 `JobTimeoutException`）。按类名认，不在这里 import rq。"""
+    return any(cls.__name__ == "JobTimeoutException" for cls in type(exc).__mro__)
+
+
+def _run_once(endpoint: Any, fn, *, authoritative_read: bool, attempt: int, background: bool,
+              read_only_batch: bool, catch_up: bool, line_write: bool, probe: Dict[str, bool]):
+    """`run_logged_in` 的一次完整尝试（建适配器 → 登录 → `fn`），从不抛异常。
+
+    `probe` 只给 `run_logged_in` 判断能不能自动再试：`login_page_unopened` = 主会话登录时
+    登录页都没打开；`started` = 业务函数已经开始。"""
     name = endpoint_name(endpoint)
     from pearnly_dms.config import pacing
 
@@ -103,6 +149,7 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
         from pearnly_dms.adapter.session import (
             DmsAdminAuthError,
             DmsAuthError,
+            DmsLoginPageUnreachableError,
             DmsTechnicalError,
             DmsUnreachableError,
         )
@@ -120,14 +167,17 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
                 if not skip_sales_login:
                     try:
                         adapter.login()
-                    except (DmsAuthError, DmsTechnicalError):
+                    except (DmsAuthError, DmsTechnicalError) as exc:
                         if adapter.concurrent_login_detected:
                             return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
+                        # 登录页都没打开：账号密码还没提交、业务函数也还没开始（见 `run_logged_in`）。
+                        probe["login_page_unopened"] = isinstance(exc, DmsLoginPageUnreachableError)
                         raise
                 try:
                     client = adapter.client()
 
                     def run_and_catch_up():
+                        probe["started"] = True  # 业务函数开始之后绝不自动再试
                         out = fn(client, adapter)
                         # 白天同步开着时（`adapter/live_sync`，每分钟看一次使用记录），
                         # 不在操作员等待的这条路上再顺手翻日志 —— 那最多要 6 秒、还占着账号。
@@ -191,5 +241,10 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
         if isinstance(exc, SessionLockUnavailable):
             # 等账号等到超时：是"人太多在排队"，不是我们服务器坏了。
             return {**err("ERR_DMS_BUSY", str(exc)), "busy": True}
+        if line_write and _is_job_timeout(exc):
+            # 后台任务时限到点：对方太慢，不是我们服务器坏了 —— 给可重试的码，不计入冷却。
+            # 已经提交过的由订车 / 客户写入各自的登记改判"结果未知"（见 `run_logged_in`）。
+            logger.warning("DMS write job reached the background time limit", exc_info=True)
+            return err("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
         logger.exception("DMS 操作意外失败")
         return err("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")

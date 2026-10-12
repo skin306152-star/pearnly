@@ -275,8 +275,15 @@ def main():
        flow._retryable_result({"error_code": "ERR_DMS_UNREACHABLE", "booking_id": "R1"}) is False)
     ck("公司银行主档没就绪（文本判据）→ 可以重试",
        flow._retryable_result({"raw_error": "company bank master did not become ready"}))
-    ck("其它错误 → 不重试",
-       flow._retryable_result({"error_code": "ERR_DMS_TECHNICAL"}) is False)
+    # 2026-10-13 起订车与建档同一份重试口径（`config/pacing.RETRYABLE`）：以前网络异常在这里
+    # 不给重试，只回一句没有按钮的"请稍后重试"，十几分钟后才冒出重试卡。
+    ck("网络异常（含后台任务时限到点）→ 可以重试（与建档同一份口径）",
+       flow._retryable_result({"error_code": "ERR_DMS_TECHNICAL"}) is True)
+    ck("网络异常但已经提交过 → 仍不许重试",
+       flow._retryable_result({"error_code": "ERR_DMS_TECHNICAL", "response_body": {"submitted": True}}) is False)
+    ck("其它错误（账号错 / 管理员账号错 / 意外错误）→ 不重试",
+       not any(flow._retryable_result({"error_code": c})
+               for c in ("ERR_DMS_AUTH", "ERR_DMS_ADMIN_AUTH", "ERR_UNEXPECTED")))
 
     # ── 10. 附件下载 ────────────────────────────────────────────────
     flow._out.download_content = lambda mid: b"\x89PNG\r\n\x1a\n" + b"x" * 10

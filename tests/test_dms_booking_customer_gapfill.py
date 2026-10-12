@@ -315,7 +315,8 @@ class BookingService(unittest.TestCase):
     def session(self, endpoint, fn, **kwargs):
         """``run_logged_in`` contract: one session, never raises (errors become ``err``)."""
         from pearnly_dms.adapter.operations import err
-        self.assertEqual((endpoint, kwargs), (EP, {"catch_up": True}))
+        # line_write: the booking job may retry a login page that never opened (G5, 2026-10-13).
+        self.assertEqual((endpoint, kwargs), (EP, {"catch_up": True, "line_write": True}))
         try:
             return fn(self.client, None)
         except DmsClientError as exc:
@@ -558,11 +559,20 @@ class Routing(unittest.TestCase):
         self.assertFalse(retryable({"error_code": "ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN", "booking_id": "R1"}))
 
     def test_other_retry_messages_are_unchanged(self):
-        self.result = {"ok": False, "error_code": "ERR_DMS_UNREACHABLE",
-                       "error_friendly": {"th": "unreachable"}, "response_body": {}}
+        self.result = {"ok": False, "error_code": "ERR_DMS_BUSY",
+                       "error_friendly": {"th": "busy"}, "response_body": {}}
         self.flow._execute_owned_booking({"tenant_id": "t", "user_id": USER}, "U1",
                                          {"nonce": "n-1", "qa": {}})
-        self.assertEqual(self.sent[0]["text"], "unreachable")
+        self.assertEqual(self.sent[0]["text"], "busy")
+        # "Cannot reach DMS" next to a Retry button says the existing network-error text, not the
+        # final "contact the administrator" one (G5, 2026-10-13; the rule is pinned in test_dms_login_retry).
+        errors = importlib.import_module("pearnly_dms.line.errors")
+        self.result = {"ok": False, "error_code": "ERR_DMS_UNREACHABLE",
+                       "error_friendly": {"th": "unreachable"}, "response_body": {}}
+        with patch.object(errors, "friendly", lambda code, lang=None: "dms.err." + code):
+            self.flow._execute_owned_booking({"tenant_id": "t", "user_id": USER}, "U1",
+                                             {"nonce": "n-1", "qa": {}})
+        self.assertEqual(self.sent[1]["text"], "dms.err.ERR_DMS_TECHNICAL")
 
 
 class Copy(unittest.TestCase):

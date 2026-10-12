@@ -331,4 +331,5 @@ def book_in_session(
         }
 
     # 操作员自己发起的一笔：做完顺手把 DMS 使用记录里的增量补回缓存。
-    return run_logged_in(endpoint, _do, catch_up=True)
+    # `line_write`：登录页都没打开时同一任务自动再试一次；任务时限到点报可重试的网络异常。
+    return run_logged_in(endpoint, _do, catch_up=True, line_write=True)

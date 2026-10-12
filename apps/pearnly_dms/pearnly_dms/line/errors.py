@@ -43,3 +43,16 @@ def friendly(code: str, lang: str | None = None):
     if not out or all(v == key for v in out.values()):
         out = i18n.all_languages(f"dms.err.{_FALLBACK_CODE}")
     return out
+
+
+def retry_text(code: str, text: str, lang: str) -> str:
+    """还给「重试」按钮时说的那句话（建档与订车同一条规则）。
+
+    "连不上"（`ERR_DMS_UNREACHABLE`）自己的文案是「连不上第三方 DMS 系统，请联系管理员」——
+    那是第三次仍失败、不再给按钮时才说的（用户 2026-09-23 口径）。还能点重试时改用现有的
+    `ERR_DMS_TECHNICAL`「连接 DMS 超时或网络异常 · 请稍后重试」，不一边叫人联系管理员、
+    一边叫人点重试。其余错误码原样。
+    """
+    if str(code or "") == "ERR_DMS_UNREACHABLE":
+        return friendly("ERR_DMS_TECHNICAL", lang=lang)
+    return text

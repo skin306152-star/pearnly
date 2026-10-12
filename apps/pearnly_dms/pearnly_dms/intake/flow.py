@@ -495,13 +495,17 @@ def _dms_failed(
 ) -> None:
     """连不上对方 DMS 时怎么回话（用户 2026-09-23 口径）。
 
-    · 前两次：**一句文案 + LINE 原生按键**（quick reply 的「重试」），不是卡片；
+    · 前两次：**一句文案 + LINE 原生按键**（quick reply 的「重试」），不是卡片；"连不上"
+      这时用现有的「连接 DMS 超时或网络异常 · 请稍后重试」（`errors.retry_text`），
+      「…请联系管理员」只留给第三次；
     · 第三次：只说「连不上第三方 DMS 系统，请联系管理员」，不再给按键；
     · 不是"连不上"类的失败（对方明确拒绝等）照旧直接说，不给重试 —— 再点几次
       还是同样的拒绝，只会让人白点。
 
     `kind` 记着"要重跑的是哪件事"（dedup / create / update），点了重试由
     `_run_retry` 按它再跑一次，并把超时按次数拉长（见 `pearnly_dms.config.pacing`）。
+    `attempt` 是这一次实际用到的档：写入任务里登录页没打开时系统已自动用下一档再试过
+    （`run_logged_in(line_write=True)` 带回的 `login_attempt`），阶梯接着它走。
     """
     if not dms_retry.is_retryable(code):
         _push(line_user_id, text, reply_token)
@@ -523,7 +527,9 @@ def _dms_failed(
         "payload": retry_payload,
     }
     store.set_session(line_user_id, state, payload)
-    _send(line_user_id, cards.retry_message(text), reply_token)
+    from pearnly_dms.line.errors import retry_text
+
+    _send(line_user_id, cards.retry_message(retry_text(code, text, i18n.line_lang())), reply_token)
 
 
 def _offer_check(line_user_id: str, *, kind: str, attempt: int, text: str,
@@ -740,7 +746,7 @@ def execute(
         fr = result.get("error_friendly") or {}
         # 连不上 DMS（超时/打不开）时不把锅甩给"我们内部错误"：给一次「重试」的机会，
         # 三次仍不行才说"联系管理员"。见 `_dms_failed`。
-        _dms_failed(binding, line_user_id, kind=retry_kind, attempt=attempt,
+        _dms_failed(binding, line_user_id, kind=retry_kind, attempt=result.get("login_attempt") or attempt,
                     code=result.get("error_code"), text=fr.get(i18n.line_lang()) or cards.TXT_SAVE_FAIL,
                     retry_payload=payload, reply_token=reply_token)
 

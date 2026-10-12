@@ -1036,8 +1036,9 @@ class BookingService(unittest.TestCase):
 
     def run_session(self, endpoint, fn, **kwargs):
         self.assertEqual(endpoint, "EP-lab")
-        # 操作员自己发起的那一笔：动作之外还要顺手把使用记录里的增量补回缓存。
-        self.assertEqual(kwargs, {"catch_up": True})
+        # 操作员自己发起的那一笔：动作之外还要顺手把使用记录里的增量补回缓存；
+        # 登录页都没打开时同一任务自动再试一次（`line_write`，2026-10-13）。
+        self.assertEqual(kwargs, {"catch_up": True, "line_write": True})
         return fn(self.client, object())
 
     @contextmanager

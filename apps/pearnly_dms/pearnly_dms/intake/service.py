@@ -358,7 +358,9 @@ def push_idcard_fields(
 
     # `catch_up=True`：这是操作员自己发起的一笔，动作做完顺手把 DMS 使用记录里的
     # 增量补回缓存（同一个会话，不多登一次、不多占一个账号）。
-    out = run_logged_in(endpoint, _do, attempt=attempt, catch_up=True)
+    # `line_write`：登录页都没打开时同一任务自动用下一档再试一次（结果带 `login_attempt`）；
+    # 任务时限到点报可重试的网络异常，已经发出的写入由 `marker.finish` 改判"结果未确认"。
+    out = run_logged_in(endpoint, _do, attempt=attempt, catch_up=True, line_write=True)
     if own_dispatch:
         out = {**out, "customer_write_log": marker.name}  # that row already records this request
     else:
