@@ -104,6 +104,72 @@ def test_reminders_pop_up_once_per_notice_and_open_their_conversation():
     assert len(app._seen_notices) == NOTICE_MEMORY
 
 
+def test_a_batch_of_reminders_pops_up_as_one_notice_that_opens_the_tasks_page():
+    # companion-2：托盘点击只记得住最后一条的动作，连弹几条会点错：一批不止一条时合成一条（标题带条数与最新一条的
+    # 标题，点开定时任务页）；只有一条时点开那段对话。已经弹过的（页面实时收到）不算进条数
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    shown, opened = [], []
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
+    app.open_conversation = lambda site, session: opened.append((site, session))
+    site = "https://acme.pearnly.com"
+    items = [{"id": f"p{n}", "title": f"T{n}", "text": f"text {n}", "created": float(n), "session": f"s-{n}"}
+             for n in (1, 3, 2)]
+    app._notify("T1", "text 1", None, tag="notice:p1")
+    shown.clear()
+    app._on_folder_notices(site, items)
+    assert shown == [("(2) T3", "text 3")]
+    app._on_message_clicked()
+    assert opened == [(site, "")]
+    app._on_folder_notices(site, items + [{"id": "p4", "title": "", "text": "only", "created": 4.0, "session": "s-4"}])
+    assert shown[-1] == ("CC", "only")
+    app._on_message_clicked()
+    assert opened[-1] == (site, "s-4")
+    app._on_folder_notices(site, items)
+    assert len(shown) == 2
+
+
+def test_a_new_version_toast_does_not_wipe_a_fresh_reminder(monkeypatch):
+    # companion-2：「有新版本」通知会把还没点的提醒的点击动作冲掉：提醒弹出两分钟内、还没点时，新版不另弹通知
+    # （托盘菜单里照样有更新项）；点过了或过了两分钟照常弹
+    from src.companion import gui_tray
+    from src.companion.gui_tray import NOTICE_HOLD_SECONDS, TrayApp
+
+    now = [1000.0]
+    monkeypatch.setattr(gui_tray, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    monkeypatch.setattr(gui_tray, "activity", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_tray, "QTimer", SimpleNamespace(singleShot=lambda *args: None))
+    app = TrayApp.__new__(TrayApp)
+    app.lang = "zh"
+    shown, opened = [], []
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[0]))
+    app._update_action = None
+    app._auto_timer = SimpleNamespace(isActive=lambda: True)
+    app._auto_update = SimpleNamespace(offer=lambda version, url: True)
+    app.open_conversation = lambda site, session: opened.append(session)
+    site = "https://acme.pearnly.com"
+
+    def remind(n):
+        app._on_folder_notices(site, [{"id": f"p{n}", "title": f"T{n}", "text": "x", "created": 1.0,
+                                       "session": f"s-{n}"}])
+
+    remind(1)
+    app._on_update_available("1.4.5", "/a.exe")
+    assert shown == ["T1"] and app._pending_update == ("1.4.5", "/a.exe")
+    app._on_message_clicked()
+    assert opened == ["s-1"]
+    app._on_update_available("1.4.6", "/b.exe")
+    assert shown[-1] == "有新版本"
+    remind(2)
+    now[0] += NOTICE_HOLD_SECONDS + 1
+    app._on_update_available("1.4.7", "/c.exe")
+    assert shown[-1] == "有新版本" and app._message_action is None
+
+
 def test_tray_opens_a_reminder_conversation_in_the_cc_window():
     from src.companion.gui_tray import TrayApp
 
@@ -203,6 +269,26 @@ def test_auto_update_waits_while_a_helper_window_is_open_unless_someone_asked(mo
     assert app._busy() is False
     app._profile_states = {"A": ("working", "INV-1")}
     assert app._busy() is True
+
+
+def test_auto_update_waits_for_a_folder_run_unless_someone_asked(monkeypatch):
+    # companion-1：文件夹线程正在逐份上传（一次运行或补传）时不自动装；有人点了「立即更新」就照装
+    # （叫停只停在两份文件之间，下次启动同一时刻接着跑）
+    from src.companion import gui_tray
+    from src.companion.gui_tray import TrayApp
+
+    app = TrayApp.__new__(TrayApp)
+    app._profile_states = {"A": ("idle", "")}
+    app._update_requested = False
+    monkeypatch.setattr(gui_tray, "_window_open", lambda: False)
+    busy = {"value": True}
+    app._folders = SimpleNamespace(busy=lambda: busy["value"])
+    assert app._busy() is True
+    busy["value"] = False
+    assert app._busy() is False
+    busy["value"] = True
+    app._update_requested = True
+    assert app._busy() is False
 
 
 def test_auto_update_only_waits_while_someone_is_using_the_tomo_window(monkeypatch):

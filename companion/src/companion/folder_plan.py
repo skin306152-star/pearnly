@@ -223,7 +223,7 @@ def folders_of(root: Path) -> list[str]:
     return found
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Seen:
     relpath: str  # 相对根目录（不是规则文件夹），`\\` 分隔
     size: int
@@ -231,16 +231,17 @@ class Seen:
 
 
 def survey(root: Path, *, deadline: float, budget: list, clock: Callable[[], float] = time.monotonic
-           ) -> tuple[list[Seen], bool]:
+           ) -> tuple[Optional[list[Seen]], bool]:
     """根目录（含全部下级）里会被录入的文件，判据与 :func:`scan` 相同（结果文件夹、隐藏与临时文件、非 PDF / 图片、
     0 字节都不算；不进符号链接的文件夹）。只列目录、用列目录时带回的大小与修改时间（Windows 上不再逐个文件问一次），
     不打开文件。
 
     ``deadline``（``clock`` 的读数）到了、或 ``budget``（``[剩余目录项数]``，一次上报的几个根目录共用一份）用完就停，
-    返回 ``(已看到的, False)``；看全了返回 ``(…, True)``。读不了的文件夹跳过（同 scan，那里的文件也不会被处理）。"""
+    返回 ``(已看到的, False)``；看全了返回 ``(…, True)``。读不了的下级文件夹跳过（同 scan，那里的文件也不会被处理）。
+    根目录本身读不到（不是文件夹、NAS / 映射盘掉线、列目录被拒）返回 ``(None, True)``：不知道几份，不用 0 冒充。"""
     found: list[Seen] = []
     if not root.is_dir():
-        return found, True
+        return None, True
     stack = [(str(root), "")]
     while stack:
         current, prefix = stack.pop()
@@ -267,6 +268,8 @@ def survey(root: Path, *, deadline: float, budget: list, clock: Callable[[], flo
                     if stat.st_size > 0:
                         found.append(Seen(relative, stat.st_size, stat.st_mtime))
         except OSError:
+            if not prefix:
+                return None, True  # 根目录这一层就读不了：不知道
             continue
     return found, True
 
@@ -287,22 +290,64 @@ def folder_counts(seen: Iterable[Seen], folders: Iterable[str]) -> dict[str, int
     return counts
 
 
-def pending_count(seen: Iterable[Seen], folder: str, known: Callable[[str, int, float], bool],
-                  baseline: set) -> int:
-    """一条规则还没处理的文件数：在规则文件夹（含下级）里、不在老任务的拍底里、本机台账也不认得的。
+def folder_key(folder: str) -> str:
+    """规则文件夹的比较键：分隔符统一成 ``\\``、逐段 casefold（Windows 不分大小写）；``""`` 是根目录本身。"""
+    return "\\".join(part.casefold() for part in re.split(r"[\\/]+", folder or "") if part)
 
-    ``known(相对规则文件夹的路径, 大小, 修改时间)`` 是台账的判断；``baseline`` 是拍底（相对规则文件夹、casefold）。"""
-    prefix = [part.casefold() for part in re.split(r"[\\/]+", folder or "") if part]
-    count = 0
+
+def _folder_keys(parts: list[str], deepest: int) -> Iterator[tuple[int, str]]:
+    """文件（相对根目录，按 ``\\`` 拆开的各段）所在的各层文件夹：``(层数, 比较键)``，从根目录本身起、最多 ``deepest`` 层。"""
+    key = ""
+    for depth in range(min(len(parts) - 1, deepest) + 1):
+        if depth:
+            part = parts[depth - 1].casefold()
+            key = f"{key}\\{part}" if depth > 1 else part
+        yield depth, key
+
+
+def _deepest(keys: Iterable[str]) -> int:
+    return max((key.count("\\") + 1 if key else 0 for key in keys), default=0)
+
+
+def pending_counts(seen: Iterable[Seen], rules: Iterable[tuple[str, str, Callable[[str, int, float], bool], set]]
+                   ) -> dict[str, int]:
+    """同一根目录下几条规则各自还没处理的文件数，文件只走一遍（不再逐条规则把整个根目录再走一遍）：在规则文件夹
+    （含下级）里、不在老任务的拍底里、本机台账也不认得的。
+
+    ``rules``：``(规则名, 规则文件夹, known, baseline)``；``known(相对规则文件夹的路径, 大小, 修改时间)`` 是台账的判断，
+    ``baseline`` 是拍底（相对规则文件夹、casefold）。"""
+    by_folder: dict[str, list] = {}
+    counts: dict[str, int] = {}
+    for name, folder, known, baseline in rules:
+        by_folder.setdefault(folder_key(folder), []).append((name, known, baseline))
+        counts[name] = 0
+    deepest = _deepest(by_folder)
     for item in seen:
         parts = item.relpath.split("\\")
-        if len(parts) <= len(prefix) or [part.casefold() for part in parts[:len(prefix)]] != prefix:
-            continue
-        relpath = "\\".join(parts[len(prefix):])
-        if relpath.casefold() in baseline or known(relpath, item.size, item.mtime):
-            continue
-        count += 1
-    return count
+        for depth, key in _folder_keys(parts, deepest):
+            owners = by_folder.get(key)
+            if not owners:
+                continue
+            relpath = "\\".join(parts[depth:])
+            folded = relpath.casefold()
+            for name, known, baseline in owners:
+                if folded not in baseline and not known(relpath, item.size, item.mtime):
+                    counts[name] += 1
+    return counts
+
+
+def pending_count(seen: Iterable[Seen], folder: str, known: Callable[[str, int, float], bool],
+                  baseline: set) -> int:
+    """一条规则还没处理的文件数（口径见 :func:`pending_counts`）。"""
+    return pending_counts(seen, [("", folder, known, baseline)])[""]
+
+
+def within(seen: Iterable[Seen], folders: Iterable[str]) -> list[Seen]:
+    """落在这几个规则文件夹（含下级；比较键见 :func:`folder_key`）里的文件：没有任务读的文件夹里的不留在内存里。"""
+    keys = set(folders)
+    deepest = _deepest(keys)
+    return [item for item in seen if keys and any(
+        key in keys for _depth, key in _folder_keys(item.relpath.split("\\"), deepest))]
 
 
 def result_path(folder: Path, month: str, filename: str, taken: set[str], result: str = RESULT_FOLDER) -> Path:

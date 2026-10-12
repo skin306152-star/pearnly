@@ -253,6 +253,7 @@ def test_stopping_for_an_update_waits_for_both_threads_and_never_respawns(monkey
     folders = SimpleNamespace(stopped=False, alive=True)
     folders.stop = lambda: setattr(folders, "stopped", True)
     folders.running = lambda: folders.alive
+    folders.busy = lambda: False  # 文件夹线程没在逐份上传
     app.worker = old
     app._folders = folders
     app._restart_pending = False
