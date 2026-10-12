@@ -47,6 +47,25 @@ export function MobileShell({
   const changeRef = useRef(onOpenChange);
   changeRef.current = onOpenChange;
 
+  // 弹出键盘时整页高度跟着可见区域缩（同 Claude 手机端：输入框顶在键盘上方）。安卓靠页面 meta 的 interactive-widget，
+  // iOS 不缩布局视口，这里按 visualViewport 把高度写进 --cc-vvh。
+  useEffect(() => {
+    const shell = shellRef.current;
+    const viewport = window.visualViewport;
+    if (!shell || !viewport) return;
+    const fit = () => {
+      shell.style.setProperty("--cc-vvh", `${viewport.height}px`);
+      if (viewport.offsetTop) window.scrollTo(0, 0); // iOS 会把整页往上推，推回来，顶栏不被顶出屏幕
+    };
+    fit();
+    viewport.addEventListener("resize", fit);
+    viewport.addEventListener("scroll", fit);
+    return () => {
+      viewport.removeEventListener("resize", fit);
+      viewport.removeEventListener("scroll", fit);
+    };
+  }, []);
+
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;

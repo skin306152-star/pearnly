@@ -65,6 +65,11 @@ const MESSAGES = {
     zoomOut: "Zoom out",
     actualSize: "Actual size",
     resizePanel: "Drag to resize",
+    reply: "Reply…",
+    running: "Running",
+    unread: "New reply",
+    dropFiles: "Drop files here to add them to the chat",
+    conversationMenu: "Conversation options",
   },
   zh: {
     language: "语言",
@@ -130,6 +135,11 @@ const MESSAGES = {
     zoomOut: "缩小",
     actualSize: "实际大小",
     resizePanel: "拖动调整宽度",
+    reply: "回复…",
+    running: "进行中",
+    unread: "有新回复",
+    dropFiles: "拖到这里添加到对话",
+    conversationMenu: "对话选项",
   },
   th: {
     language: "ภาษา",
@@ -195,6 +205,11 @@ const MESSAGES = {
     zoomOut: "ย่อขนาด",
     actualSize: "ขนาดจริง",
     resizePanel: "ลากเพื่อปรับความกว้าง",
+    reply: "ตอบกลับ…",
+    running: "กำลังทำงาน",
+    unread: "มีคำตอบใหม่",
+    dropFiles: "วางไฟล์ที่นี่เพื่อเพิ่มลงในแชท",
+    conversationMenu: "ตัวเลือกแชท",
   },
 } as const;
 

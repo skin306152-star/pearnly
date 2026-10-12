@@ -151,7 +151,7 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
 }
 
 function Heading({ children }: { children: ReactNode }) {
-  return <h3 className="mt-8 mb-1 font-medium text-[15px] first:mt-0">{children}</h3>;
+  return <h3 className="mt-8 mb-1 font-medium text-(length:--cc-text-heading) first:mt-0">{children}</h3>;
 }
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {

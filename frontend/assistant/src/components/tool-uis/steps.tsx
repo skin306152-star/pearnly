@@ -110,13 +110,13 @@ export const StepRow: ToolCallMessagePartComponent = ({
           <Icon className={cn("size-3.5 shrink-0", errored && "text-red-500")} />
         )}
         <span className="shrink-0">{asking ?? step.verb}</span>
-        {step.target && <span className="min-w-0 truncate font-mono text-ink-3 text-[12.5px]">{step.target}</span>}
+        {step.target && <span className="min-w-0 truncate font-mono text-ink-3 text-(length:--cc-text-sm)">{step.target}</span>}
         {expandable && (
           <ChevronRightIcon className={cn("ms-auto size-3.5 shrink-0 opacity-0 transition group-hover/step:opacity-100", open && "rotate-90 opacity-100")} />
         )}
       </button>
       {open && expandable && (
-        <div className="ms-7 mt-1 mb-2 overflow-hidden rounded-md border border-line bg-app font-mono text-[12px] text-ink-2 leading-5">
+        <div className="ms-7 mt-1 mb-2 overflow-hidden rounded-md border border-line bg-app font-mono text-(length:--cc-text-xs) text-ink-2 leading-5">
           {step.input && <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all px-3 py-2">{step.input}</pre>}
           {shownOutput && (
             <pre

@@ -12,29 +12,37 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
   ClockIcon,
   CopyIcon,
   ExternalLinkIcon,
+  FileUpIcon,
   FilesIcon,
   GlobeIcon,
   InfoIcon,
+  LoaderIcon,
   LogOutIcon,
   MenuIcon,
   MinusIcon,
   PanelLeftIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
   SquareIcon,
+  SquarePenIcon,
+  StarIcon,
+  StarOffIcon,
+  TrashIcon,
   XIcon,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
+import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { MobileShell } from "@/components/mobile-shell";
@@ -53,8 +61,10 @@ import {
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
+import { setActiveSession } from "@/lib/managed-agents/activity";
+import { listen } from "@/lib/managed-agents/realtime";
 import { useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
-import { assistantLogo, assistantMascot, useProfile, type Profile } from "@/lib/profile";
+import { APP_NAME, assistantLogo, assistantMascot, useProfile, type Profile } from "@/lib/profile";
 import { Mascot } from "@/components/mascot";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
@@ -91,7 +101,7 @@ function SessionStatusBar() {
   const message = transportError || (lastError?.retryStatus === "retrying" ? lastError.message : "");
   if (!message && !(isLoaded && !isTailing)) return null;
   return (
-    <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
+    <div data-slot="cc-status" className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
       {message || t("reconnecting")}
     </div>
   );
@@ -206,11 +216,11 @@ function UserFooter() {
     <UserMenu>
       <button type="button" className="cc-nav-item h-11">
         <span className="cc-avatar">{initials(profile)}</span>
-        <span className="min-w-0 flex-1 truncate">
+        <span className="cc-nav-label min-w-0 flex-1 truncate">
           {profile.full_name || profile.user}
           <span className="text-ink-3"> · {profile.product_label}</span>
         </span>
-        <ChevronsUpDownIcon className="text-ink-3" />
+        <ChevronsUpDownIcon className="cc-nav-label text-ink-3" />
       </button>
     </UserMenu>
   );
@@ -336,9 +346,9 @@ function SidebarNav() {
     <div className="flex flex-col gap-0.5">
       <ThreadListNew onClick={() => setView("chat")} />
       {hasScheduledTasks(profile) && (
-        <button type="button" className="cc-nav-item" data-active={view === "tasks" || undefined} onClick={() => setView("tasks")}>
+        <button type="button" className="cc-nav-item" title={t("scheduledTasks")} data-active={view === "tasks" || undefined} onClick={() => setView("tasks")}>
           <span className="cc-nav-icon"><ClockIcon /></span>
-          {t("scheduledTasks")}
+          <span className="cc-nav-label">{t("scheduledTasks")}</span>
         </button>
       )}
     </div>
@@ -369,21 +379,25 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
             <TitleBarLeft nav={nav} />
           </div>
         ) : (
-          <div className="flex h-12 items-center justify-between ps-1.5">
-            <span className="flex items-center gap-2 font-semibold text-ink text-lg">
+          <div className="cc-sidebar-head flex h-12 items-center justify-between ps-1.5">
+            <span className="cc-rail-hide flex items-center gap-2 font-semibold text-ink text-lg">
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
-              CC
+              {APP_NAME}
             </span>
             <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
           </div>
         )}
-        <ThreadListSearch value={search} onValueChange={setSearch} />
+        <div className="cc-rail-hide">
+          <ThreadListSearch value={search} onValueChange={setSearch} />
+        </div>
       </SidebarHeader>
       <SidebarContent className="px-2" onClickCapture={pick} data-cc-view={useView().view}>
         <SidebarNav />
-        <ThreadList search={search} />
+        <div className="cc-rail-hide">
+          <ThreadList search={search} />
+        </div>
       </SidebarContent>
       <SidebarFooter className="border-t border-line px-2">
         <UserFooter />
@@ -406,7 +420,7 @@ function MobileDrawer() {
   return (
     <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between px-4 pt-5 pb-3">
-        <span className="cc-drawer-title ps-1">CC</span>
+        <span className="cc-drawer-title ps-1">{APP_NAME}</span>
         <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>
@@ -450,37 +464,103 @@ function MobileDrawer() {
   );
 }
 
-// 对话区顶部：手机是圆形菜单按钮；电脑侧栏收起时是展开按钮（桌面端是整组标题栏按钮）；桌面端右边是窗口按钮
-function MainTopBar({ nav, window: win, chrome }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean }) {
-  const { open, isMobile, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
-  const { view } = useView();
-  const title = useAuiState((s) => (s.thread.messages.length ? s.threadListItem.title : "")) ?? "";
+// 对话区顶部。
+// - 手机（同 Claude 手机端）：半透明一条盖在内容上，左边菜单、中间对话名、右边在跑时转圈、空闲时新建对话。
+// - 电脑（同 claude.ai）：对话有内容时左上角是对话名，点开加星标 / 改名 / 删除；右边是本对话的文件。
+// - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
+function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; files: ReactNode }) {
+  const { open, isMobile, openMobile, setOpenMobile } = useSidebar();
+  const { view, setView } = useView();
+  const aui = useAui();
+  const snapshot = useActiveSessionSnapshot();
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  const inChat = view === "chat" && hasMessages;
   if (isMobile) {
     if (openMobile) return null;
     return (
-      <div className="flex shrink-0 items-center gap-3 bg-app px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+      <div className="cc-mtopbar">
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <MenuIcon />
         </button>
-        {view === "chat" && title && <span className="min-w-0 truncate font-medium text-ink text-base">{title}</span>}
+        <span className="cc-mtopbar-title">{view === "tasks" ? t("scheduledTasks") : inChat ? title || t("untitled") : ""}</span>
+        {view === "chat" && isBusy(snapshot) ? (
+          <span className="cc-round-btn" role="status" aria-label={t("running")}>
+            <LoaderIcon className="animate-spin" />
+          </span>
+        ) : inChat ? (
+          <button
+            type="button"
+            className="cc-round-btn"
+            aria-label={t("newChatPill")}
+            onClick={() => {
+              setView("chat");
+              aui.threads().switchToNewThread();
+            }}
+          >
+            <SquarePenIcon />
+          </button>
+        ) : (
+          <span className="cc-mtopbar-slot" />
+        )}
       </div>
     );
   }
   if (chrome) {
     return (
       <div className="cc-titlebar shrink-0 justify-between pe-0" {...dragHandlers(win.toggle)}>
-        <div>{!open && <TitleBarLeft nav={nav} />}</div>
-        <WindowButtons maximized={win.maximized} toggle={win.toggle} />
+        <div className="flex min-w-0 items-center gap-1">
+          {!open && <TitleBarLeft nav={nav} />}
+          {inChat && <ConversationMenu />}
+        </div>
+        <div className="flex items-center gap-1">
+          {files}
+          <WindowButtons maximized={win.maximized} toggle={win.toggle} />
+        </div>
       </div>
     );
   }
-  if (open) return null;
+  if (!inChat && !files) return null;
   return (
-    <div className="absolute top-3 left-3 z-10">
-      <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
-        <PanelLeftIcon />
-      </button>
+    <div className="cc-topbar">
+      {inChat && <ConversationMenu />}
+      <div className="ms-auto flex items-center">{files}</div>
     </div>
+  );
+}
+
+// 顶部对话名（同 claude.ai）：点开加星标、改名（就地改）、删除
+function ConversationMenu() {
+  const aui = useAui();
+  const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  const starred = useAuiState((s) => !!s.threadListItem.custom?.starred);
+  const [renaming, setRenaming] = useState(false);
+  if (renaming) return <ThreadListItemRename onDone={() => setRenaming(false)} className="w-72" />;
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className="cc-title-btn" aria-label={t("conversationMenu")} onDoubleClick={(e) => e.stopPropagation()}>
+          <span className="truncate">{title || t("untitled")}</span>
+          <ChevronDownIcon />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ starred: !starred })}>
+            {starred ? <StarOffIcon /> : <StarIcon />}
+            {starred ? t("unstar") : t("star")}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => setRenaming(true)}>
+            <PencilIcon />
+            {t("rename")}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+            <TrashIcon />
+            {t("delete")}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
@@ -514,6 +594,13 @@ function DesktopBridge() {
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   useDesktopBridge(isBusy(snapshot), snapshot.messages, title);
   useAutoConnect(useProfile()?.product);
+  // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
+  useEffect(() => listen(), []);
+  useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
+  // 浏览器标签页标题跟着对话名（同 Claude）
+  useEffect(() => {
+    document.title = title && snapshot.messages.length ? `${title} - ${APP_NAME}` : APP_NAME;
+  }, [title, snapshot.messages.length]);
   return null;
 }
 
@@ -523,22 +610,24 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const chrome = useFramelessWindow();
   const win = useMaximized(chrome);
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  // 本对话产出的文件（同 claude.ai 右上角）：面板关着时显示，点开右侧面板。手机上不放（同 Claude 手机端，对话里的文件卡片点开即可）
+  const filesButton =
+    view === "chat" && results.files.length > 0 && !results.open ? (
+      <button
+        type="button"
+        onClick={() => results.setOpen(true)}
+        title={t("files")}
+        aria-label={t("files")}
+        className="cc-icon-btn w-auto gap-1.5 px-2 text-sm"
+      >
+        <FilesIcon />
+        {results.files.length}
+      </button>
+    ) : null;
   const main = (
     <>
-      <MainTopBar nav={nav} window={win} chrome={chrome} />
+      <MainTopBar nav={nav} window={win} chrome={chrome} files={isMobile ? null : filesButton} />
       <div className="relative flex min-h-0 flex-1 flex-row">
-        {view === "chat" && results.files.length > 0 && !results.open && (
-          <button
-            type="button"
-            onClick={() => results.setOpen(true)}
-            title={t("files")}
-            aria-label={t("files")}
-            className="cc-icon-btn absolute top-3 right-3 z-10 w-auto gap-1.5 px-2 text-sm"
-          >
-            <FilesIcon />
-            {results.files.length}
-          </button>
-        )}
         {view === "tasks" ? (
           <ScheduledTasks />
         ) : (
@@ -565,7 +654,14 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   if (isMobile) return <MobileShell open={openMobile} onOpenChange={setOpenMobile} drawer={<MobileDrawer />} main={main} />;
   return (
     <div className="flex h-dvh w-full bg-app">
-      <Sidebar>
+      <div className="cc-dropzone" aria-hidden>
+        <div className="cc-dropzone-box">
+          <FileUpIcon />
+          {t("dropFiles")}
+        </div>
+      </div>
+      {/* 网页版收起后留一条图标栏（同 claude.ai）；桌面端整条收起（同 Claude 桌面端），展开按钮在标题栏 */}
+      <Sidebar collapsible={chrome ? "offcanvas" : "icon"}>
         <DesktopSidebar nav={nav} window={win} chrome={chrome} onResize={onSidebarResize} />
       </Sidebar>
       {/* min-w-0：右侧结果面板里的宽表格在面板内横向滚动，不把整页撑宽、把「下载」「关闭」挤出窗口 */}

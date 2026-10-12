@@ -107,7 +107,7 @@
   --cc-focus-ring: rgb(20 20 19 / 0.08);   /* 聚焦外框：中性灰（同 Claude，不用品牌色） */
 
   --cc-bg-app: #faf9f5;           /* 主区域 */
-  --cc-bg-sidebar: #f5f4ee;       /* 侧栏 / 抽屉 */
+  --cc-bg-sidebar: #faf9f5;       /* 侧栏 / 抽屉：同 Claude 网页版，与主区同一个暖白，只靠一条细线分开（2026-10-12 用户：原先深一档看着偏灰） */
   --cc-bg-surface: #ffffff;       /* 输入框、卡片、菜单 */
   --cc-bg-subtle: #f0eee6;        /* 选中、图标底、代码块 */
   --cc-bg-hover: rgb(20 20 19 / 0.05);
@@ -130,6 +130,7 @@
   --cc-status-offline: #c0392b;
   --cc-status-connecting: var(--cc-ink-4);
   --cc-status-paused: var(--cc-ink-4);
+  --cc-unread: #2c84db;           /* 侧栏「有新回复」小圆点（同 Claude，不用品牌色） */
 
   --cc-shadow-composer: 0 0.25rem 1.25rem rgb(0 0 0 / 0.035);   /* 同 Claude 输入框：极淡的中性灰 */
   --cc-shadow-composer-focus: 0 0.25rem 1.25rem rgb(0 0 0 / 0.075);
@@ -160,6 +161,19 @@
   --cc-results-min-w: 20rem;      /* 结果面板最窄 */
   --cc-chat-min-w: 24rem;         /* 结果面板打开时对话最窄 */
   --cc-split-hit: 12px;           /* 分隔条可按住的宽度（看得见的只有中间一条细线） */
+  --cc-topbar-h: 3rem;            /* 电脑上对话顶部那一行（对话名） */
+  --cc-mtopbar-h: 4.25rem;        /* 手机顶栏（不含刘海安全区） */
+  --cc-rail-w: 3.25rem;           /* 手机顶栏盖在内容上：对话、定时任务的滚动区和连接提示从它下面开始（不在 components 层，压过各自的 pt-* 工具类） */
+.cc-mmain [data-slot="aui_thread-viewport"],
+.cc-mmain [data-slot="cc-scroll"],
+.cc-mmain [data-slot="cc-status"] { padding-top: calc(var(--cc-mtopbar-h) + env(safe-area-inset-top)); }
+.cc-mmain [data-slot="cc-status"] ~ * [data-slot="aui_thread-viewport"] { padding-top: 0; }
+
+/* 网页版侧栏收起后的图标栏 */
+  --cc-results-in: 240ms;         /* 右侧面板滑入 */
+  --cc-text-xs: 0.75rem;          /* 步骤详情里的命令输出 */
+  --cc-text-sm: 0.8125rem;        /* 表格、代码块、源码预览、批准说明的小字 */
+  --cc-text-heading: 0.9375rem;   /* 设置里的小标题 */
   --cc-titlebar-h: 40px;          /* 桌面端自画标题栏 */
   --cc-win-close: #c42b1c;        /* Windows 关闭按钮的系统红（深浅色同一个） */
   --cc-win-close-ink: #ffffff;
@@ -205,6 +219,7 @@
   --cc-status-processing: #e0c04a;
   --cc-status-attention: #f08a4b;
   --cc-status-offline: #f07a7c;
+  --cc-unread: #4a9cf0;
 
   --cc-shadow-composer: 0 0.25rem 1.25rem rgb(0 0 0 / 0.25);
   --cc-shadow-composer-focus: 0 0.25rem 1.25rem rgb(0 0 0 / 0.35);
@@ -442,6 +457,44 @@
     position: absolute; inset-block: 0; inset-inline-start: calc(var(--cc-split-hit) / -2); z-index: 20;
     width: var(--cc-split-hit); cursor: col-resize; touch-action: none; outline: none;
   }
+  /* 侧栏对话行尾的状态：在跑转圈、跑完没看过一个小圆点 */
+  .cc-activity { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 1rem; height: 1rem; margin-inline-start: 0.5rem; color: var(--cc-ink-3); }
+  .cc-activity[data-activity="unread"]::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: var(--cc-radius-full); background: var(--cc-unread); }
+
+  /* 电脑上对话顶部：对话名 + 下拉（同 claude.ai） */
+  .cc-topbar { display: flex; flex-shrink: 0; align-items: center; gap: 0.5rem; height: var(--cc-topbar-h); padding-inline: 0.75rem; }
+  .cc-title-btn {
+    display: inline-flex; min-width: 0; max-width: 28rem; align-items: center; gap: 0.25rem; height: 2rem; padding-inline: 0.5rem;
+    border-radius: var(--cc-radius-sm); color: var(--cc-ink); font-size: 0.875rem; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-title-btn:hover, .cc-title-btn[data-state="open"], .cc-title-btn:focus-visible { background: var(--cc-bg-hover); }
+  .cc-title-btn svg { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--cc-ink-3); }
+
+  /* 手机顶栏（同 Claude 手机端）：盖在内容上的半透明一条，内容从下面滚过去 */
+  .cc-mtopbar {
+    position: absolute; inset: 0 0 auto 0; z-index: 20; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem;
+    padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.5rem;
+    background: color-mix(in srgb, var(--cc-bg-app) 78%, transparent); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  }
+  .cc-mtopbar-title { min-width: 0; text-align: center; color: var(--cc-ink); font-weight: 600; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-mtopbar-slot { width: 2.75rem; height: 2.75rem; }
+
+  /* 文件拖进窗口时的整窗提示（同 claude.ai） */
+  .cc-dropzone {
+    position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; pointer-events: none;
+    background: color-mix(in srgb, var(--cc-bg-app) 88%, transparent); backdrop-filter: blur(2px);
+  }
+  :root[data-cc-dropping] .cc-dropzone { display: flex; animation: cc-pop-in var(--cc-dur) var(--cc-ease) both; }
+  .cc-dropzone-box {
+    display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 2.5rem 3rem; border: 2px dashed var(--cc-line-strong);
+    border-radius: var(--cc-radius-xl); color: var(--cc-ink-2); font-size: 1rem;
+  }
+  .cc-dropzone-box svg { width: 2rem; height: 2rem; color: var(--cc-ink-3); }
+
+  /* 右侧结果面板打开时从右边滑进来 */
+  .cc-results { animation: cc-results-in var(--cc-results-in) var(--cc-ease) both; }
+
   .cc-split[data-edge="end"] { inset-inline-start: auto; inset-inline-end: calc(var(--cc-split-hit) / -2); }
   .cc-split::before {
     content: ""; position: absolute; inset-block: 0; inset-inline-start: 50%; width: 1px; translate: -50% 0;
@@ -476,7 +529,7 @@
 
 /* 手机抽屉（同 Claude 手机端）：抽屉在底下不动，页面是盖在上面的卡片，跟着手指往右推开（components/mobile-shell.tsx）。
    --cc-mprogress：0 收起 ~ 1 打开，拖动时由页面逐帧写入；一离开原位就是圆角细边（前 1/12 的路程里长满），越往右越暗。 */
-.cc-mshell { --cc-mprogress: 0; position: relative; height: 100dvh; width: 100%; overflow: hidden; background: var(--cc-bg-sidebar); }
+.cc-mshell { --cc-mprogress: 0; position: relative; height: var(--cc-vvh, 100dvh); width: 100%; overflow: hidden; background: var(--cc-bg-sidebar); }
 .cc-mshell[data-open="true"] { --cc-mprogress: 1; }
 .cc-mdrawer { position: absolute; inset: 0 auto 0 0; width: var(--cc-sidebar-w-mobile); background: var(--cc-bg-sidebar); color: var(--cc-ink); }
 .cc-mmain {
@@ -505,8 +558,9 @@
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes cc-results-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in { animation: none !important; }
+  .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-results, .cc-dropzone { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
@@ -550,4 +604,9 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 /* 拖动分隔条期间：整页保持左右箭头光标、不选中文字；面板里的预览（iframe）不抢鼠标，拖过它也不断。 */
 [data-cc-resizing] { cursor: col-resize; user-select: none; }
 [data-cc-resizing] iframe { pointer-events: none; }
+/* 网页版侧栏收起后的图标栏（同 claude.ai）：只留展开按钮、新建、定时任务和头像 */
+[data-collapsible="icon"] .cc-rail-hide, [data-collapsible="icon"] .cc-nav-label, [data-collapsible="icon"] .cc-split { display: none; }
+[data-collapsible="icon"] .cc-sidebar-head { justify-content: center; padding-inline: 0; }
+[data-collapsible="icon"] .cc-nav-item { justify-content: center; gap: 0; padding: 0; }
+[data-collapsible="icon"] [data-slot="sidebar-footer"] { padding-inline: 0.375rem; }
 [data-cc-resizing] [data-slot="sidebar-gap"], [data-cc-resizing] [data-slot="sidebar-container"] { transition: none; }

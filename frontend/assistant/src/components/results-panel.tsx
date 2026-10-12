@@ -155,7 +155,7 @@ const isAmount = (cell: string) => cell.length < 13 && /^-?(0|[1-9][\d,]*)(\.\d+
 function SheetTable({ rows }: { rows: string[][] }) {
   return (
     <div className="h-full overflow-auto">
-      <table className="border-collapse text-[13px]">
+      <table className="border-collapse text-(length:--cc-text-sm)">
         <tbody>
           {rows.map((row, r) => (
             <tr key={r} className={r === 0 ? "bg-subtle font-medium" : undefined}>
@@ -207,7 +207,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
     return <iframe title={file.filename} src={fileUrl(sessionId, file.id, true)} className="h-full w-full" />;
   }
   if (kind === "text") {
-    return <pre className="h-full overflow-auto p-4 font-mono text-[13px] whitespace-pre-wrap">{text ?? ""}</pre>;
+    return <pre className="h-full overflow-auto p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>;
   }
   if (kind === "sheet") {
     if (!sheets) {
@@ -261,7 +261,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
           <iframe title={file.filename} sandbox="allow-scripts allow-forms" srcDoc={text ?? ""} className="h-full w-full bg-surface" />
         </Tabs.Content>
         <Tabs.Content value="source" className="min-h-0 flex-1 overflow-auto">
-          <pre className="p-4 font-mono text-[13px] whitespace-pre-wrap">{text ?? ""}</pre>
+          <pre className="p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>
         </Tabs.Content>
       </Tabs.Root>
     );

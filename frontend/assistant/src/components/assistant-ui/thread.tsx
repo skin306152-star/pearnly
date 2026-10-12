@@ -17,7 +17,6 @@ import {
   ActionBarPrimitive,
   AuiIf,
   type AssistantState,
-  BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
   groupPartByType,
@@ -31,13 +30,9 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
   LoaderIcon,
-  PencilIcon,
-  RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
@@ -189,9 +184,7 @@ const ThreadMessage: FC = () => {
   const { AssistantMessage: AssistantMessageComponent = AssistantMessage } =
     useContext(ThreadComponentsContext);
   const role = useAuiState((s) => s.message.role);
-  const isEditing = useAuiState((s) => s.message.composer.isEditing);
 
-  if (isEditing) return <EditComposer />;
   if (role === "user") return <UserMessage />;
   return <AssistantMessageComponent />;
 };
@@ -247,6 +240,9 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC = () => {
+  // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const placeholder = hasMessages ? t("reply") : t("placeholder");
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
@@ -257,12 +253,12 @@ const Composer: FC = () => {
           <ComposerAttachments />
           <DraftWatcher />
           <ComposerPrimitive.Input
-            placeholder={t("placeholder")}
+            placeholder={placeholder}
             className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent px-1 font-sans text-base outline-none"
             rows={1}
             autoFocus
             enterKeyHint="send"
-            aria-label={t("placeholder")}
+            aria-label={placeholder}
           />
           <ComposerAction />
         </div>
@@ -366,7 +362,6 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-footer"
         className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
       >
-        <BranchPicker />
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
@@ -437,31 +432,34 @@ const MessageFiles: FC = () => {
   );
 };
 
+// 回复下的操作（同 Claude）：只放引擎真能做到的「复制」——会话记录改不了，重试 / 编辑做不到原样替换，就不摆个点了没反应的按钮。
+// 电脑上最后一条一直显示、其余悬停时显示；手机没有悬停，每条都显示（同 Claude 手机端）。
+const TOUCH = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
-      autohide="not-last"
-      className="aui-assistant-action-bar-root -ms-1 flex gap-0.5 text-ink-3 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100"
+      autohide={TOUCH ? "never" : "not-last"}
+      className="aui-assistant-action-bar-root -ms-1 flex gap-0.5 text-ink-3"
     >
-      <ActionBarPrimitive.Copy asChild>
-        <TooltipIconButton tooltip={t("copy")}>
-          <AuiIf condition={(s) => s.message.isCopied}>
-            <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
-          </AuiIf>
-          <AuiIf condition={(s) => !s.message.isCopied}>
-            <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
-          </AuiIf>
-        </TooltipIconButton>
-      </ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.Reload asChild>
-        <TooltipIconButton tooltip={t("retry")}>
-          <RefreshCwIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Reload>
+      <CopyAction />
     </ActionBarPrimitive.Root>
   );
 };
+
+const CopyAction: FC = () => (
+  <ActionBarPrimitive.Copy asChild>
+    <TooltipIconButton tooltip={t("copy")}>
+      <AuiIf condition={(s) => s.message.isCopied}>
+        <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+      </AuiIf>
+      <AuiIf condition={(s) => !s.message.isCopied}>
+        <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+      </AuiIf>
+    </TooltipIconButton>
+  </ActionBarPrimitive.Copy>
+);
 
 /** 新发出的那条气泡弹一下；接替「发送中」临时气泡的正式气泡、翻历史时出现的旧气泡不弹（只看挂上那一刻）。 */
 function useEnterOnce(): boolean {
@@ -483,89 +481,14 @@ const UserMessage: FC = () => {
         <div className="aui-user-message-content cc-bubble-user peer empty:hidden" data-enter={useEnterOnce() || undefined}>
           <MessagePrimitive.Parts />
         </div>
-        <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
-          <UserActionBar />
-        </div>
       </div>
 
-      <BranchPicker
-        data-slot="aui_user-branch-picker"
-        className="col-span-full col-start-1 row-start-3 -me-1 justify-end"
-      />
+      {/* 你发的消息悬停时在气泡下方右侧出现「复制」（同 claude.ai），位置先留好、出现时不跳；手机上长按选字即可 */}
+      <div className="-mt-1 -me-1 flex min-h-7 justify-end pointer-coarse:hidden">
+        <ActionBarPrimitive.Root autohide="always" className="flex text-ink-3">
+          <CopyAction />
+        </ActionBarPrimitive.Root>
+      </div>
     </MessagePrimitive.Root>
-  );
-};
-
-const UserActionBar: FC = () => {
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      className="aui-user-action-bar-root flex flex-col items-end"
-    >
-      <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip={t("edit")} className="aui-user-action-edit">
-          <PencilIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Edit>
-    </ActionBarPrimitive.Root>
-  );
-};
-
-const EditComposer: FC = () => {
-  return (
-    <MessagePrimitive.Root
-      data-slot="aui_edit-composer-wrapper"
-      className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
-    >
-      <ComposerPrimitive.Root className="aui-edit-composer-root cc-composer ms-auto max-w-[85%]">
-        <ComposerPrimitive.Input
-          className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent px-1 text-base outline-none"
-          autoFocus
-        />
-        <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
-          <ComposerPrimitive.Cancel asChild>
-            <button type="button" className="cc-btn">
-              {t("cancel")}
-            </button>
-          </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send asChild>
-            <button type="button" className="cc-btn" data-primary="">
-              {t("send")}
-            </button>
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
-    </MessagePrimitive.Root>
-  );
-};
-
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
-  className,
-  ...rest
-}) => {
-  return (
-    <BranchPickerPrimitive.Root
-      hideWhenSingleBranch
-      className={cn(
-        "aui-branch-picker-root text-ink-3 -ms-2 me-2 inline-flex items-center text-xs",
-        className,
-      )}
-      {...rest}
-    >
-      <BranchPickerPrimitive.Previous asChild>
-        <TooltipIconButton tooltip={t("previous")}>
-          <ChevronLeftIcon />
-        </TooltipIconButton>
-      </BranchPickerPrimitive.Previous>
-      <span className="aui-branch-picker-state font-medium">
-        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-      </span>
-      <BranchPickerPrimitive.Next asChild>
-        <TooltipIconButton tooltip={t("next")}>
-          <ChevronRightIcon />
-        </TooltipIconButton>
-      </BranchPickerPrimitive.Next>
-    </BranchPickerPrimitive.Root>
   );
 };

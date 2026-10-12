@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
+import { useActivity } from "@/lib/managed-agents/activity";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -17,6 +18,7 @@ import {
   PencilIcon,
   StarIcon,
   StarOffIcon,
+  LoaderIcon,
   PlusIcon,
   SearchIcon,
   TrashIcon,
@@ -182,11 +184,11 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
   ({ className, ...props }, ref) => {
     return (
       <ThreadListPrimitive.New asChild>
-        <button ref={ref} type="button" data-slot="aui_thread-list-new" className={cn("cc-nav-item", className)} {...props}>
+        <button ref={ref} type="button" data-slot="aui_thread-list-new" title={t("newChat")} className={cn("cc-nav-item", className)} {...props}>
           <span className="cc-nav-icon bg-subtle text-ink rounded-full">
             <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-3.5" />
           </span>
-          <span data-slot="aui_thread-list-new-label" className="whitespace-nowrap">
+          <span data-slot="aui_thread-list-new-label" className="cc-nav-label whitespace-nowrap">
             {t("newChat")}
           </span>
         </button>
@@ -239,6 +241,7 @@ export const ThreadListItem: FC = () => {
             >
               <ThreadListItemPrimitive.Title fallback={t("untitled")} />
             </span>
+            <ThreadActivity />
           </ThreadListItemPrimitive.Trigger>
           <ThreadListItemMore onRename={() => setRenaming(true)} />
         </>
@@ -247,8 +250,21 @@ export const ThreadListItem: FC = () => {
   );
 };
 
+/** 行尾状态（同 Claude）：在跑转圈，跑完没看过一个小圆点；正在看的那个不标（顶栏已经在转）；鼠标移上去让位给「更多」按钮。 */
+const ThreadActivity: FC = () => {
+  const id = useAuiState((s) => s.threadListItem.remoteId);
+  const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
+  const activity = useActivity(id);
+  if (!activity || isMain) return null;
+  return (
+    <span className="cc-activity group-hover:hidden group-has-data-[state=open]:hidden" data-activity={activity} aria-label={t(activity === "running" ? "running" : "unread")}>
+      {activity === "running" && <LoaderIcon className="size-3.5 animate-spin" />}
+    </span>
+  );
+};
+
 // 行内改名（同 claude.ai）：回车或离开输入框保存，Esc 放弃；空标题不保存。
-const ThreadListItemRename: FC<{ onDone: () => void }> = ({ onDone }) => {
+export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }> = ({ onDone, className }) => {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const [value, setValue] = useState(title);
@@ -269,7 +285,7 @@ const ThreadListItemRename: FC<{ onDone: () => void }> = ({ onDone }) => {
         if (e.key === "Enter") save();
         if (e.key === "Escape") onDone();
       }}
-      className="cc-input w-full"
+      className={cn("cc-input w-full", className)}
     />
   );
 };

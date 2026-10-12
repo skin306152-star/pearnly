@@ -51,7 +51,7 @@ export function ApprovalBar({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {approval.preview && approval.preview.length > 0 && (
-        <ul className="rounded-md border border-line bg-app px-3 py-2 text-[13px] text-ink-2 leading-6">
+        <ul className="rounded-md border border-line bg-app px-3 py-2 text-(length:--cc-text-sm) text-ink-2 leading-6">
           {approval.preview.map((change, i) => (
             <li key={i} className="break-words">
               <span className="me-2 text-ink-3">{change.field}</span>

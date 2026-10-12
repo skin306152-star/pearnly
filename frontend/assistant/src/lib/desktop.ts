@@ -7,6 +7,7 @@
 
 import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
+import { APP_NAME } from "@/lib/profile";
 
 type Message = { role?: string; content?: unknown };
 
@@ -60,15 +61,31 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
     wasRunning.current = isRunning;
     if (!finished || document.hasFocus() || typeof Notification === "undefined") return;
     if (Notification.permission !== "granted") return;
-    const note = new Notification(title || "CC", { body: lastReply(messages), tag: "tomo-reply" });
+    const note = new Notification(title || APP_NAME, { body: lastReply(messages), tag: "tomo-reply" });
     note.onclick = () => window.focus();
   }, [isRunning, messages, title]);
 
   useEffect(() => {
+    // 拖着文件进窗口时整窗出提示（同 claude.ai，样式 .cc-dropzone）；进出子元素会成对触发 enter / leave，按计数判断真正离开
+    let depth = 0;
+    const root = document.documentElement;
+    const show = (on: boolean) => (on ? root.setAttribute("data-cc-dropping", "") : root.removeAttribute("data-cc-dropping"));
+    const enter = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes("Files")) return;
+      depth += 1;
+      show(true);
+    };
+    const leave = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes("Files")) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) show(false);
+    };
     const over = (e: DragEvent) => {
       if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
     };
     const drop = (e: DragEvent) => {
+      depth = 0;
+      show(false);
       if (!e.dataTransfer?.files.length) return;
       // 拖到输入框上的已由输入框自己收下（它会标记 defaultPrevented），这里只收其他地方的
       const handled = e.defaultPrevented;
@@ -76,9 +93,14 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
       if (handled) return;
       for (const file of Array.from(e.dataTransfer.files)) void aui.thread().composer().addAttachment(file);
     };
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragleave", leave);
     window.addEventListener("dragover", over);
     window.addEventListener("drop", drop);
     return () => {
+      show(false);
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragleave", leave);
       window.removeEventListener("dragover", over);
       window.removeEventListener("drop", drop);
     };

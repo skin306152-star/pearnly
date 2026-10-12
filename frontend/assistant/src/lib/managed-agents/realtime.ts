@@ -3,6 +3,7 @@
 // 命名空间是站点名，Frappe 按请求的 Host 认站点，所以用当前页面的主机名；登录凭的是本站会话 cookie。
 
 import { io, type Socket } from "socket.io-client";
+import { noteEvent } from "./activity";
 import type { StreamEvent } from "./events";
 
 const EVENT = "pearnly_assistant_event";
@@ -22,6 +23,7 @@ function connect(): Socket {
   if (socket) return socket;
   socket = io(`${window.location.origin}/${window.location.hostname}`, { withCredentials: true });
   socket.on(EVENT, (push: Push) => {
+    if (push?.session_id && push.event) noteEvent(push.session_id, push.event);
     handlers.get(push?.session_id)?.forEach((handler) => handler(push.event));
   });
   socket.on(TITLE_EVENT, (push: { session_id: string; title: string }) => {
