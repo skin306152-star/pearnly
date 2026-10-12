@@ -82,4 +82,5 @@
 
 ## 收尾状态
 
-- 工作树：`/Users/skin/pearnly-cc-always-on`（分支 `pearnly/cc-always-on`），未合并、未推送。
+- 2026-10-12 晚随 f518964c 合入 main 并上线（见 [发布记录](2026-10-12-release-f518964c.md)）；工作树 `pearnly-cc-always-on`、`pearnly-cc-claude-ui` 及其本地 / 远端分支在收尾时删除。
+- 测试机保留：`C:\Users\Public\pearnly-test\companion.json.before-always-on`（常驻模式前的原配置，等用户决定测试机是否继续常驻）；测试机 CC 1.4.3 常驻模式仍开。
