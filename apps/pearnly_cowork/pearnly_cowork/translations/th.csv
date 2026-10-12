@@ -1826,7 +1826,6 @@ Turn this rule on? Only files added to the folder from now on are processed.,ต
 Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา
 Turn this scheduled task on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
-Turned a folder task on or off,เปิดหรือปิดงานโฟลเดอร์แล้ว
 Type,ประเภท
 Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
 Type of income paid,ประเภทเงินได้พึงประเมินที่จ่าย
@@ -1845,6 +1844,7 @@ Update invoice records through the Cowork review service.,กรุณาแก�
 Update this site before reading back with this CC Desktop.,กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
+Updated a folder task,อัปเดตงานตามกำหนดเวลาแล้ว
 Updated a task,แก้ไขงานแล้ว
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คนแล้ว
 Upload,อัปโหลด

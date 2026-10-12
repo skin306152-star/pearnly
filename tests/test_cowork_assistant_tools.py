@@ -758,6 +758,19 @@ class FolderTaskTests(unittest.TestCase):
         self.assertEqual(tool["ask"], "Change this folder task?")
         self.assertEqual(tool["ask_when"], {"enabled": "Turn this folder task on or off?"})
 
+    def test_the_enable_step_label_does_not_say_on_or_off(self):
+        # 2026-10-13 测试机：只改提醒，对话里的步骤却写「启用或停用了文件夹任务」——步骤名用中性的「更新了定时任务」
+        tool = next(t for t in tools.TOOLS if t["name"] == "cowork_set_folder_task_enabled")
+        self.assertEqual(tool["label"], "Updated a folder task")
+        root = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
+        rows = [line.split("\t") for line in (root / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()]
+        row, = [row for row in rows if row[0] == "Updated a folder task"]
+        self.assertEqual(row[1:4], ["更新了定时任务", "อัปเดตงานตามกำหนดเวลาแล้ว", "定期タスクを更新しました"])
+        for lang, text in (("zh", "更新了定时任务"), ("th", "อัปเดตงานตามกำหนดเวลาแล้ว"), ("ja", "定期タスクを更新しました")):
+            pack = (root / f"translations/{lang}.csv").read_text(encoding="utf-8").splitlines()
+            self.assertIn(f"Updated a folder task,{text}", pack)
+            self.assertFalse([line for line in pack if line.startswith("Turned a folder task on or off,")])
+
     def test_folder_task_tools_change_only_what_the_user_asked(self):
         # 2026-10-13：用户只让改提醒时刻，CC 却顺手把运行时间也改了
         described = {t["name"]: t["description"] for t in tools.TOOLS}

@@ -1826,7 +1826,6 @@ Turn this rule on? Only files added to the folder from now on are processed.,Tur
 Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.
 Turn this scheduled task on? Only files added to the folder from now on are processed.,Turn this scheduled task on? Only files added to the folder from now on are processed.
-Turned a folder task on or off,Turned a folder task on or off
 Type,Type
 Type a few letters of the company or account set name to find it,Type a few letters of the company or account set name to find it
 Type of income paid,Type of income paid
@@ -1845,6 +1844,7 @@ Update invoice records through the Cowork review service.,Update invoice records
 Update this site before reading back with this CC Desktop.,Update this site before reading back with this CC Desktop.
 Updated At,Updated At
 Updated By,Updated By
+Updated a folder task,Updated a folder task
 Updated a task,Updated a task
 Updated {0} user(s),Updated {0} user(s)
 Upload,Upload

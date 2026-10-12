@@ -3000,7 +3000,8 @@ TOOLS = [
      "ask": "Save these folder tasks?",
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.save_folder_tasks"},
-    {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
+    # 只改提醒时说「启用或停用」不对（2026-10-13 测试机）：步骤名用中性的「更新了定时任务」
+    {"name": "cowork_set_folder_task_enabled", "label": "Updated a folder task",
      "description": "Pause or resume a scheduled folder task, turn its reminder on or off, or change its reminder "
                     "times (give enabled, remind, remind_times or several; give only what the user asked to "
                     "change). After resuming, the next run handles the "

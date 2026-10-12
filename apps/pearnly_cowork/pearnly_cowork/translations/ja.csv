@@ -1826,7 +1826,6 @@ Turn this rule on? Only files added to the folder from now on are processed.,こ
 Turn this scheduled task off? Documents already entered stay as they are.,この定期タスクを停止しますか？登録済みの書類はそのままです。
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。
 Turn this scheduled task on? Only files added to the folder from now on are processed.,この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
-Turned a folder task on or off,フォルダータスクを有効化／停止しました
 Type,種別
 Type a few letters of the company or account set name to find it,会社名または会計データ名の一部を入力して検索してください
 Type of income paid,支払った所得の種類
@@ -1845,6 +1844,7 @@ Update invoice records through the Cowork review service.,Coworkの確認機能�
 Update this site before reading back with this CC Desktop.,この CC デスクトップで読み戻す前にサイトを更新してください。
 Updated At,更新日時
 Updated By,更新者
+Updated a folder task,定期タスクを更新しました
 Updated a task,タスクを更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
 Upload,アップロード
