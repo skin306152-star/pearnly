@@ -7,7 +7,9 @@
 - 路径拆段，拒绝空路径、``.``、``..``、盘符、以分隔符开头的绝对 / UNC 路径与 Windows 不认的字符；最终路径（解开符号链接与
   联接点之后）必须仍在根目录里面（outside_root）；
 - 只认 ``FETCH_EXTENSIONS``（与云端 ``folder_intake.contracts.FETCH_EXTENSIONS``、对话附件同一份），一份最多 30 MB；
-- 列文件跳过隐藏、临时与 Office 锁文件，不进符号链接 / 联接点，限时限量（看不完标 ``truncated``），新的在前。
+- 列文件跳过隐藏、临时与 Office 锁文件，限时限量限深（看不完、有更深的文件夹没进去都标 ``truncated``），新的在前；
+  不进符号链接 / 联接点：经它们到的文件要么在根目录外（取不了，outside_root），要么在根目录里、按真实路径已经列出，
+  所以不算没列完。
 """
 
 from __future__ import annotations
@@ -49,6 +51,7 @@ def _root(cfg, root_id) -> Path:
 
 
 def _parts(value, *, allow_empty: bool) -> list:
+    """整条路径去掉首尾空白、按分隔符拆段，每段原样保留（与服务端 ``folder_intake.contracts._browse_parts`` 同一规则）。"""
     if not isinstance(value, str) or len(value) > 1000:
         raise RequestFailed("path_invalid")
     text = value.strip()
@@ -57,7 +60,7 @@ def _parts(value, *, allow_empty: bool) -> list:
     parts = [part for part in re.split(r"[\\/]+", text) if part]
     if not parts and not allow_empty:
         raise RequestFailed("path_invalid")
-    if any(part in (".", "..") or _BAD.search(part) for part in parts):
+    if any(part in (".", "..") or not part.strip() or _BAD.search(part) for part in parts):
         raise RequestFailed("path_invalid")
     return parts
 
@@ -98,10 +101,10 @@ def list_files(cfg, params: dict, *, clock: Callable[[], float] = time.monotonic
     base_depth = len(start.parts)
     for current, dirs, names in os.walk(start):
         here = Path(current)
-        if len(here.parts) - base_depth >= DEPTH:
+        dirs[:] = sorted(d for d in dirs if not _skipped_name(d) and not _is_link(os.path.join(current, d)))
+        if dirs and len(here.parts) - base_depth >= DEPTH:
             dirs[:] = []
-        else:
-            dirs[:] = sorted(d for d in dirs if not _skipped_name(d) and not _is_link(os.path.join(current, d)))
+            truncated = True  # 更深的文件夹没进去：清单不全
         for name in sorted(names):
             scanned += 1
             if scanned > SCAN_ENTRIES or clock() > deadline:

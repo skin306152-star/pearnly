@@ -67,6 +67,54 @@ def test_folder_search_and_type_narrow_the_list(root):
     assert len(data["files"]) == 1 and data["truncated"] is True
 
 
+def test_folders_deeper_than_the_limit_mark_the_list_truncated(root):
+    deep = root / "ACME" / "deep"
+    chain = deep.joinpath(*[f"d{n}" for n in range(1, folder_fetch.DEPTH + 1)])
+    chain.mkdir(parents=True)
+    (chain / "last.pdf").write_bytes(b"x")  # 起点下第 DEPTH 层文件夹里的：列得到
+    rid = _root_id(root)
+    data = _listed(folder_fetch.list_files(_cfg(), {"root_id": rid, "folder": "ACME\\deep"}))
+    assert [row["name"] for row in data["files"]] == ["last.pdf"] and data["truncated"] is False
+    (chain / "more").mkdir()
+    (chain / "more" / "deeper.pdf").write_bytes(b"x")  # 再深一层：进不去，清单不全
+    data = _listed(folder_fetch.list_files(_cfg(), {"root_id": rid, "folder": "ACME\\deep"}))
+    assert [row["name"] for row in data["files"]] == ["last.pdf"] and data["truncated"] is True
+
+
+def test_names_with_spaces_at_either_end_are_listed_and_read_as_they_are(root):
+    (root / "ACME ").mkdir()
+    (root / "ACME " / " scan.pdf").write_bytes(b"%PDF spaced")
+    rid = _root_id(root)
+    data = _listed(folder_fetch.list_files(_cfg(), {"root_id": rid, "search": "scan"}))
+    assert [row["path"] for row in data["files"]] == ["ACME \\ scan.pdf"]
+    assert folder_fetch.read_file(_cfg(), {"root_id": rid, "path": "ACME \\ scan.pdf"}).content == b"%PDF spaced"
+    with pytest.raises(RequestFailed) as caught:
+        folder_fetch.read_file(_cfg(), {"root_id": rid, "path": "ACME\\ \\scan.pdf"})
+    assert caught.value.code == "path_invalid"  # 全是空白的一段不收（服务端同样）
+
+
+def test_paths_split_the_same_way_as_the_server():
+    import importlib.util
+    from pathlib import Path
+
+    server = Path(__file__).resolve().parents[2] / "apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py"
+    if not server.exists():
+        pytest.skip("server sources not in this checkout")
+    spec = importlib.util.spec_from_file_location("server_folder_contracts", server)
+    contracts = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contracts)
+    for path in ("ACME \\ scan.pdf", " ACME/bank\\kbank.pdf ", "ACME\\ \\a.pdf", "..\\x.pdf", "ACME//b.xlsx"):
+        try:
+            mine = "\\".join(folder_fetch._parts(path, allow_empty=False))
+        except RequestFailed:
+            mine = None
+        try:
+            theirs = contracts.fetch_path(path)
+        except contracts.ContractError:
+            theirs = None
+        assert mine == theirs, path
+
+
 def test_an_unknown_root_or_a_missing_folder_is_refused(root):
     for params, code in (({"root_id": "0123456789abcdef"}, "root_missing"),
                          ({"root_id": _root_id(root), "folder": "NOPE"}, "folder_missing"),
