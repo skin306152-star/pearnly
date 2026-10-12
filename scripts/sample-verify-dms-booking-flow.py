@@ -246,7 +246,7 @@ def main():
     ck("建单前就被挡住的那几类（含排队超时、打不开登录页）→ 可以重试",
        all(flow._retryable_result({"error_code": c}) for c in
            ("ERR_DMS_CONCURRENT_LOGIN", "ERR_DMS_MASTER_UNAVAILABLE", "ERR_DMS_CUSTOMER_LOOKUP",
-            "ERR_DMS_BUSY", "ERR_DMS_UNREACHABLE")))
+            "ERR_DMS_BUSY", "ERR_DMS_UNREACHABLE", "ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN")))
     ck("打不开登录页但已经提交过 → 仍不许重试",
        flow._retryable_result({"error_code": "ERR_DMS_UNREACHABLE", "booking_id": "R1"}) is False)
     ck("公司银行主档没就绪（文本判据）→ 可以重试",

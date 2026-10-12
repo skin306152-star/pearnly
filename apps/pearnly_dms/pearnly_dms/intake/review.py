@@ -15,11 +15,8 @@ def diff_card(user_id, display, has_admin, nonce, summary):
     """有差异的老客户卡：能改（本人 DMS 账号有写权，或花名册是管理员）就给「更新」，否则只给「用旧资料」。
 
     原来走审批（销售提审 → 管理员批）的那一支已删（用户 2026-10-05：审批不做）；审批策略本来就是关的，
-    这里就是原来实际走的那一支。"""
-    from pearnly_dms.operators import roster
-
-    role = (roster.get_profile(str(user_id)) or {}).get("dms_role") or ""
-    primary = "update" if (has_admin or role == "admin") else "none"
+    这里就是原来实际走的那一支。判据在 `draft.may_update_customer`（订车补空项用同一个）。"""
+    primary = "update" if draft.may_update_customer(user_id, has_admin) else "none"
     return cards.diff_card(display, nonce, primary=primary, summary=summary)
 
 

@@ -43,6 +43,8 @@ Delivery date: {delivery_date_be}","订车单已建立
 交车日期：{delivery_date_be}"
 Booking date,订车日期
 Booking failed · Retry,订车单建立失败 · 重试
+Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,订车尚未提交：DMS 中客户必填资料不全。请管理员在 DMS 中补全。
+"Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again.",订车尚未提交：DMS 中客户必填资料不全。请点击「编辑」补全后再次确认。
 Booking location,订车地点
 Booking location — choose below,订车地点 — 请在下方选择
 Booking no.: {booking_no},订车单号：{booking_no}
@@ -961,6 +963,8 @@ dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出
 dms.err.ERR_DMS_CUSTOMER_BRANCH,DMS 中不存在客户分店 00000（总公司），无法保存客户。请管理员在 DMS 中添加 00000 分店后重试。
 dms.err.ERR_DMS_CUSTOMER_CHANGED,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS 中已有此证号的客户，请重新核对差异并确认；资料未被自动覆盖。
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,订车尚未提交：DMS 中客户必填资料不全。请点击「编辑」补全后再次确认。
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,订车尚未提交：DMS 中客户必填资料不全。请管理员在 DMS 中补全。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。
 dms.err.ERR_DMS_CUSTOMER_SAVE,保存客户到 DMS 失败 · 请检查字段后重试
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,提交已发出，但结果尚未确认。请勿重复提交，先核实结果。

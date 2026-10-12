@@ -16,8 +16,11 @@ async → 同步。它是"提交登记"（`dms_booking_attempt`）的**唯一调
 · **取消**不清会话里的登记标记 —— 登记过就说明请求可能已经发出去了，这时说"已取消"
   是撒谎，要改说"结果未知、请让管理员按这个号核"。
 · **重试只对"明确发生在建单之前"的阻塞开放**（主档暂时读不到、并发挤下线、
-  客户查不到、改客户资料的写入结果未确认 —— 重试时先只读核对那次写入）。主档已变更、
+  客户查不到、改客户资料的写入结果未确认 —— 重试时先只读核对那次写入；客户主档缺项
+  而本人没有改资料的权限 —— 管理员在 DMS 补好后重试会实时重读）。主档已变更、
   以及任何"已经写下去过"的结果都**不重放**。
+· **客户主档缺项、系统也补不上**（`booking.service._fill_customer_gaps`）：同收款不完整，
+  回预览卡（答案都在，换新确认号），第一行写明缺哪几项，点「แก้ไข」补完再确认；只发这一条。
 · **建单成功但附件没挂全要如实补一句**，绝不谎报附件成功。
 
 新平台的接口差异：async → 同步；后台任务走 `dms_out.enqueue`（webhook 立刻返回）；
@@ -193,19 +196,35 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
         _push(line_user_id, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL)
         _send(line_user_id, qa_cards.preview_card(qa, nonce))
         return
+    if result.get("error_code") == "ERR_DMS_CUSTOMER_INCOMPLETE":
+        # 客户主档缺项、系统也补不上：回预览卡让人在编辑页补（轮换 nonce → 新卡能再确认）
+        nonce = secrets.token_hex(8)
+        if _arm_retry(tenant, line_user_id, payload, nonce):
+            _send(line_user_id, qa_cards.preview_card(qa, nonce, notice=_with_missing(
+                friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL, result)))
+        return
     if _retryable_result(result):
         retry_nonce = secrets.token_hex(8)
         if _arm_retry(tenant, line_user_id, payload, retry_nonce):
             _send(
                 line_user_id,
                 qa_cards.booking_retry_message(
-                    friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL,
+                    _with_missing(friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL, result),
                     retry_nonce,
                     code=result.get("error_code") or "",
                 ),
             )
             return
     _push(line_user_id, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL)
+
+
+def _with_missing(text: str, result: Dict[str, Any]) -> str:
+    """客户主档缺项时，在提示后逐行列出缺的字段（卡片上的字段名，按收件人语言）。"""
+    missing = (result.get("response_body") or {}).get("missing") or []
+    if not missing:
+        return text
+    labels = cards.field_labels()
+    return "\n".join([text, *(str(labels.get(field, field)) for field in missing)])
 
 
 def _resume_after_customer_change(line_user_id, payload, result):
@@ -285,6 +304,8 @@ def _retryable_result(result: Dict[str, Any]) -> bool:
         "ERR_DMS_CONCURRENT_LOGIN",
         "ERR_DMS_MASTER_UNAVAILABLE",
         "ERR_DMS_CUSTOMER_LOOKUP",
+        # 客户主档缺项、本人没有改资料的权限：只能等管理员在 DMS 补，补好后重试会实时重读。
+        "ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN",
     ):
         return True
     raw = str(result.get("raw_error") or "")

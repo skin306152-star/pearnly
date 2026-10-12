@@ -43,6 +43,8 @@ Delivery date: {delivery_date_be}","予約を作成しました
 納車日：{delivery_date_be}"
 Booking date,予約日
 Booking failed · Retry,予約作成に失敗 · 再試行
+Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,予約は未送信です。DMS の顧客情報に必須項目が不足しています。管理者に DMS で入力してもらってください。
+"Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again.",予約は未送信です。DMS の顧客情報に必須項目が不足しています。「編集」をタップして入力し、再度確定してください。
 Booking location,予約受付場所
 Booking location — choose below,予約受付場所 — 下から選択
 Booking no.: {booking_no},予約番号: {booking_no}
@@ -961,6 +963,8 @@ dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使
 dms.err.ERR_DMS_CUSTOMER_BRANCH,DMS に顧客支店 00000（本社）がないため、顧客を保存できません。管理者に DMS で支店 00000 を追加してもらってから再試行してください。
 dms.err.ERR_DMS_CUSTOMER_CHANGED,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,予約は未送信です。DMS の顧客情報に必須項目が不足しています。「編集」をタップして入力し、再度確定してください。
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,予約は未送信です。DMS の顧客情報に必須項目が不足しています。管理者に DMS で入力してもらってください。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。
 dms.err.ERR_DMS_CUSTOMER_SAVE,DMS への顧客保存に失敗しました · 項目を確認して再試行してください
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。

@@ -12,6 +12,11 @@
 3. **附件在同一会话挂**（少一次登录），且**建单成功但附件没挂全要如实说**，
    绝不谎报附件成功；
 4. 成功不自动刷新员工销售全量；不把部分复核资料冒充全量刷新成功。
+5. **老客户主档缺订车必填项**（生日、称谓、电话、门牌、四级地址）时，以前到建单前一步
+   必然失败、重试也一样。现在：本人有改客户资料的权限（与差异卡给「更新」同一判据），
+   就用本次草稿里的原值只补 DMS 空着的项，一次、单独登记，补齐后照常建单；补不齐不写，
+   退回预览卡写明缺项；没有权限就列出缺项、给重试（管理员在 DMS 补好后重试会实时重读）。
+   见 `_fill_customer_gaps`。资料齐全的单一步都不多走。
 """
 
 from __future__ import annotations
@@ -83,6 +88,76 @@ def card_payload(payload: dict):
     )
 
 
+#: 客户主档缺订车必填项：本人能补（退回预览卡改）/ 只能由管理员在 DMS 补（给重试）。
+CUSTOMER_INCOMPLETE = "ERR_DMS_CUSTOMER_INCOMPLETE"
+CUSTOMER_INCOMPLETE_ADMIN = "ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN"
+
+
+def _incomplete(missing, code: str = CUSTOMER_INCOMPLETE) -> Dict[str, Any]:
+    from pearnly_dms.adapter.operations import err
+
+    return err(code, response_body={"submitted": False, "missing": list(missing)})
+
+
+def _fill_customer_gaps(cl, endpoint: str, payload: dict, gap, *, guard, cache_scope) -> Optional[Dict[str, Any]]:
+    """确认订车时客户主档缺必填项：只补空项、写一次。返回 None = 已补，调用方重读后建单；
+    否则返回要交给 LINE 层的失败结果（订车单一律没开始建）。
+
+    · 权限：与差异卡给「更新」同一判据（`intake.draft.may_update_customer`）；没有就不写，
+      报 `ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN`（列缺项、给重试）；
+    · 取值：`booking_customer.gap_fill`（只补空项、地址只按整套），补不齐一项都不写；
+    · 写法与改客户资料那一步相同：独立登记号 ``booking-customer-fill:<确认号>``、先登记后提交、
+      提交前再核当前绑定、以最终那次权威读取为对照基准做三方合并、写后回读、写后更新本地快照；
+      被一次结果未确认的写入挡着时只读核对它，绝不重发；
+    · 提交前就被 DMS 表单的称谓/地址校验拒收（什么都没发出）按补不齐处理；读写之间被人改过
+      → 现有的冲突复核卡；结果不明 → 现有的"未确认"重试卡。
+    """
+    from pearnly_dms.adapter import snapshot_writeback
+    from pearnly_dms.adapter.operations import err
+    from pearnly_dms.booking.booking_customer import gap_fill
+    from pearnly_dms.contracts import customer_merge
+    from pearnly_dms.intake.customer_attempt import Attempt
+    from pearnly_dms.intake.draft import has_admin_creds, may_update_customer
+
+    qa = payload.get("qa") or {}
+    if not may_update_customer(qa.get("user_id"), has_admin_creds(endpoint)):
+        return _incomplete(gap.missing, CUSTOMER_INCOMPLETE_ADMIN)
+    values = gap_fill(gap.fields, qa.get("draft") or {})
+    if not values:
+        return _incomplete(gap.missing)
+    customer_id = str((qa.get("customer") or {}).get("id") or "")
+    fields, addresses = customer_merge.split(values)
+    marker = Attempt(endpoint, "booking-customer-fill:" + str(payload.get("nonce") or ""),
+                     qa.get("user_id"), fields=fields, mode="overwrite", customer_id=customer_id,
+                     addresses=addresses, baseline=gap.fields)
+
+    def begin_customer(verify):
+        if callable(guard):
+            import frappe
+            frappe.db.commit()  # live form reads must not freeze authority in an old RR view
+            guard()
+        marker.begin(verify)
+
+    try:
+        try:
+            done = marker.previous()
+        except customer_merge.DmsClientError as exc:
+            if exc.error_code != "ERR_DMS_CUSTOMER_UNCONFIRMED":
+                raise
+            marker.reconcile(cl)
+            done = marker.previous()
+        if not done:
+            cl.save_customer(fields=fields, mode="overwrite", customer_id=customer_id,
+                             addresses=addresses, baseline=gap.fields, on_attempt=begin_customer)
+            marker.finish({"ok": True, "success": True, "customer_id": customer_id, "mode": "overwrite"})
+    except customer_merge.DmsClientError as exc:
+        if exc.error_code == "ERR_DMS_MASTER_UNMATCHED" and not marker.dispatched():
+            return _incomplete(gap.missing)
+        return marker.finish(err(exc.error_code, response_body=getattr(exc, "response_body", None)))
+    snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
+    return None
+
+
 def book_in_session(
     endpoint: Any,
     payload: dict,
@@ -106,7 +181,7 @@ def book_in_session(
     真正的"登记先于写"判据在 `dms_booking_submit.submit_booking`（脚本 5.2 钉住）。
     """
     from pearnly_dms.adapter.push import booking_defaults_from_endpoint
-    from pearnly_dms.booking.booking_customer import card_from_customer
+    from pearnly_dms.booking.booking_customer import CustomerIncomplete, card_from_customer
     from pearnly_dms.booking.booking_org import resolve_booking_org
     from pearnly_dms.booking.booking_payload import build_booking_payload
     from pearnly_dms.booking.booking_preflight import local_preflight
@@ -206,7 +281,16 @@ def book_in_session(
                 result = err(exc.error_code, response_body=getattr(exc, "response_body", None))
                 return marker.finish(result)
             snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
-        master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
+        try:
+            master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
+        except CustomerIncomplete as gap:
+            failed = _fill_customer_gaps(cl, endpoint, payload, gap, guard=guard, cache_scope=cache_scope)
+            if failed:
+                return failed
+            try:  # 补完再按同一判据读一次；仍缺就退回预览卡，不再写第二次
+                master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
+            except CustomerIncomplete as still:
+                return _incomplete(still.missing)
         org = resolve_booking_org(cl, defaults.advisor_id, defaults)
         booking = build_booking_payload(
             defaults, masters=preflight["masters"], paints=preflight["paints"], org=org,

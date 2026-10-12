@@ -43,6 +43,8 @@ Model: {car}
 Delivery date: {delivery_date_be}"
 Booking date,Booking date
 Booking failed · Retry,Booking failed · Retry
+Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.
+"Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again.","Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again."
 Booking location,Booking location
 Booking location — choose below,Booking location — choose below
 Booking no.: {booking_no},Booking no.: {booking_no}
@@ -961,6 +963,8 @@ dms.err.ERR_DMS_CONCURRENT_LOGIN,This DMS account is being used elsewhere — si
 dms.err.ERR_DMS_CUSTOMER_BRANCH,"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again."
 dms.err.ERR_DMS_CUSTOMER_CHANGED,The customer record changed after you edited it. Review the current differences before confirming again.
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,"Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again."
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,"Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer."
 dms.err.ERR_DMS_CUSTOMER_SAVE,Failed to save the customer to DMS — check the fields and retry
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,"The submission was sent, but its result is unconfirmed. Do not submit again; check the result first."

@@ -208,6 +208,15 @@ def display_diffs(field_diffs: List[dict], geo: dict) -> List[Dict[str, str]]:
     return rows
 
 
+def may_update_customer(user_id: Any, has_admin: bool) -> bool:
+    """本人能不能改 DMS 客户资料：端点配了有修改权限的凭据组（``has_admin_creds``），
+    或花名册里本人是管理员。差异卡给不给「更新」、订车确认时补不补主档空项，同一个判据。"""
+    from pearnly_dms.operators import roster
+
+    role = (roster.get_profile(str(user_id)) or {}).get("dms_role") or ""
+    return bool(has_admin) or role == "admin"
+
+
 def has_admin_creds(endpoint: Any = None) -> bool:
     """端点是否配了"有修改权限"的凭据组 —— 决定差异卡给不给 [อัปเดตข้อมูล] 按钮。
 

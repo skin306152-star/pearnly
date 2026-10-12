@@ -43,6 +43,8 @@ Delivery date: {delivery_date_be}","เปิดใบจองสำเร็�
 วันที่ส่งมอบ: {delivery_date_be}"
 Booking date,วันที่จอง
 Booking failed · Retry,สร้างใบจองไม่สำเร็จ · ลองใหม่
+Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณาแจ้งผู้ดูแลระบบให้กรอกให้ครบใน DMS
+"Booking has not been submitted: required customer details are missing in DMS. Tap Edit to fill them in, then confirm again.",ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณากด «แก้ไข» เพื่อกรอกให้ครบ แล้วยืนยันอีกครั้ง
 Booking location,สถานที่รับจอง
 Booking location — choose below,สถานที่รับจอง — กรุณาเลือกด้านล่าง
 Booking no.: {booking_no},เลขที่รายการ: {booking_no}
@@ -961,6 +963,8 @@ dms.err.ERR_DMS_CONCURRENT_LOGIN,บัญชี DMS นี้กำลังถ
 dms.err.ERR_DMS_CUSTOMER_BRANCH,ใน DMS ไม่มีสาขาลูกค้า 00000 (สำนักงานใหญ่) จึงไม่สามารถบันทึกลูกค้าได้ กรุณาแจ้งผู้ดูแลระบบให้เพิ่มสาขา 00000 ใน DMS แล้วลองอีกครั้ง
 dms.err.ERR_DMS_CUSTOMER_CHANGED,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณากด «แก้ไข» เพื่อกรอกให้ครบ แล้วยืนยันอีกครั้ง
+dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณาแจ้งผู้ดูแลระบบให้กรอกให้ครบใน DMS
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่
 dms.err.ERR_DMS_CUSTOMER_SAVE,บันทึกลูกค้าเข้า DMS ไม่สำเร็จ — ตรวจสอบข้อมูลแล้วลองใหม่
 dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,ส่งข้อมูลแล้ว แต่ยังไม่สามารถยืนยันผลได้ กรุณาอย่าส่งซ้ำ และตรวจสอบผลก่อน
