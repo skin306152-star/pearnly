@@ -320,12 +320,6 @@
     color: var(--cc-ink); font-family: var(--cc-font-serif); font-variant-numeric: lining-nums tabular-nums;
     animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
   }
-  /* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
-  [data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active] { background: transparent; color: var(--cc-ink-2); }
-  /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
-  .cc-drawer [data-slot="aui_thread-list-item"] { height: 2.75rem; font-size: 1rem; }
-  .cc-drawer [data-slot="aui_thread-list-group-label"] { font-size: 0.8125rem; padding-top: 1.25rem; }
-
   .cc-card { background: var(--cc-bg-surface); border: 1px solid var(--cc-line); border-radius: var(--cc-radius-md); }
   .cc-card[data-selected] { border-color: var(--cc-ink-3); }
   .cc-card-hover { transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease); }
@@ -411,6 +405,20 @@
   .cc-enter { animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both; }
   .cc-drawer-in { animation: cc-drawer-in var(--cc-dur-slow) var(--cc-ease) both; }
 }
+
+/* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */
+/* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
+[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active] { background: transparent; color: var(--cc-ink-2); }
+/* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
+.cc-drawer { scrollbar-width: none; }
+.cc-drawer::-webkit-scrollbar { display: none; }
+.cc-drawer [data-slot="aui_thread-list-item"] { height: 3.25rem; font-size: 1.0625rem; border-radius: var(--cc-radius-lg); }
+.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline: 0.75rem; }
+.cc-drawer [data-slot="aui_thread-list-group-label"] { font-size: 0.9375rem; padding: 1.5rem 0.75rem 0.5rem; }
+.cc-drawer .cc-nav-item { height: 3.25rem; font-size: 1.0625rem; padding-inline: 0.75rem; gap: 0.875rem; }
+.cc-drawer .cc-nav-item svg { width: 1.375rem; height: 1.375rem; }
+/* 抽屉标题（同 Claude 手机端的「Claude」：常规字重的衬线字） */
+.cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 2.25rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }
 
 @keyframes cc-bubble-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

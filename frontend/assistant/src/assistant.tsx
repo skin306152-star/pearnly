@@ -402,8 +402,8 @@ function MobileDrawer() {
   const pick = useBackToChatOnPick(close);
   return (
     <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]">
-      <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <span className="cc-greeting font-semibold text-3xl">CC</span>
+      <div className="flex items-center justify-between px-4 pt-5 pb-3">
+        <span className="cc-drawer-title ps-1">CC</span>
         <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>
@@ -415,7 +415,7 @@ function MobileDrawer() {
       )}
       <div className="cc-drawer flex-1 overflow-y-auto px-3 pb-28" onClickCapture={pick}>
         {hasScheduledTasks(profile) && (
-          <button type="button" className="cc-nav-item h-12 text-base" onClick={() => { setView("tasks"); close(); }}>
+          <button type="button" className="cc-nav-item" onClick={() => { setView("tasks"); close(); }}>
             <ClockIcon />
             {t("scheduledTasks")}
           </button>
@@ -450,13 +450,16 @@ function MobileDrawer() {
 // 对话区顶部：手机是圆形菜单按钮；电脑侧栏收起时是展开按钮（桌面端是整组标题栏按钮）；桌面端右边是窗口按钮
 function MainTopBar({ nav, window: win, chrome }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean }) {
   const { open, isMobile, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  const { view } = useView();
+  const title = useAuiState((s) => (s.thread.messages.length ? s.threadListItem.title : "")) ?? "";
   if (isMobile) {
     if (openMobile) return null;
     return (
-      <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-4 z-10">
+      <div className="flex shrink-0 items-center gap-3 bg-app px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <MenuIcon />
         </button>
+        {view === "chat" && title && <span className="min-w-0 truncate font-medium text-ink text-base">{title}</span>}
       </div>
     );
   }

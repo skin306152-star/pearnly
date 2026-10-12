@@ -251,7 +251,7 @@ export function ScheduledTasks() {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-14 pb-10 md:pt-10">
+      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
         <div className="mb-6 flex items-center justify-between gap-3">
           <h1 className="cc-greeting text-3xl">{tr("cowork.folder.title")}</h1>
           <button type="button" className="cc-btn" data-primary="" onClick={() => setEditing("new")}>
