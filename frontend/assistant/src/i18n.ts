@@ -85,6 +85,8 @@ const MESSAGES = {
     unread: "New reply",
     dropFiles: "Drop files here to add them to the chat",
     conversationMenu: "Conversation options",
+    notice: "Notice",
+    newNotice: "New notice",
   },
   zh: {
     language: "语言",
@@ -170,6 +172,8 @@ const MESSAGES = {
     unread: "有新回复",
     dropFiles: "拖到这里添加到对话",
     conversationMenu: "对话选项",
+    notice: "提醒",
+    newNotice: "有新提醒",
   },
   th: {
     language: "ภาษา",
@@ -255,6 +259,8 @@ const MESSAGES = {
     unread: "มีคำตอบใหม่",
     dropFiles: "วางไฟล์ที่นี่เพื่อเพิ่มลงในแชท",
     conversationMenu: "ตัวเลือกแชท",
+    notice: "การแจ้งเตือน",
+    newNotice: "มีการแจ้งเตือนใหม่",
   },
 } as const;
 
@@ -327,6 +333,7 @@ const SETTINGS = {
     appearance: "Appearance", textSize: "Chat text size", small: "Small", medium: "Medium", large: "Large",
     theme: "Theme", themeSystem: "System", themeLight: "Light", themeDark: "Dark", chatFont: "Chat font", fontSerif: "Serif", fontSans: "System font",
     chatWidth: "Chat width", narrow: "Narrow", wide: "Wide", motion: "Motion", motionSystem: "System", motionReduce: "Reduced",
+    notifications: "Notifications", turnOnNotifications: "Turn on notifications", notificationsBlocked: "Blocked in browser settings",
     change: "Change…", findAgain: "Find again", scanning: "Searching…",
     expressMissing: "Express not found. Click “Change…” and choose the Express data folder.",
     years: (path: string, n: number) => `${path} · ${n} years`,
@@ -347,6 +354,7 @@ const SETTINGS = {
     appearance: "外观", textSize: "对话文字大小", small: "小号", medium: "中等", large: "大号",
     theme: "主题", themeSystem: "跟随系统", themeLight: "浅色", themeDark: "深色", chatFont: "对话字体", fontSerif: "衬线体", fontSans: "系统字体",
     chatWidth: "对话记录宽度", narrow: "窄版", wide: "宽幅", motion: "动效", motionSystem: "系统", motionReduce: "减弱",
+    notifications: "通知", turnOnNotifications: "打开通知", notificationsBlocked: "已在浏览器设置中关闭",
     change: "更换…", findAgain: "重新查找", scanning: "正在查找…",
     expressMissing: "未找到 Express，请点击「更换…」选择 Express 数据所在文件夹。",
     years: (path: string, n: number) => `${path} 等 ${n} 个年度`,
@@ -367,6 +375,7 @@ const SETTINGS = {
     appearance: "รูปลักษณ์", textSize: "ขนาดตัวอักษรในแชท", small: "เล็ก", medium: "กลาง", large: "ใหญ่",
     theme: "ธีม", themeSystem: "ตามระบบ", themeLight: "สว่าง", themeDark: "มืด", chatFont: "แบบอักษรในแชท", fontSerif: "แบบมีเชิง", fontSans: "ฟอนต์ระบบ",
     chatWidth: "ความกว้างของแชท", narrow: "แคบ", wide: "กว้าง", motion: "ภาพเคลื่อนไหว", motionSystem: "ตามระบบ", motionReduce: "ลดลง",
+    notifications: "การแจ้งเตือน", turnOnNotifications: "เปิดการแจ้งเตือน", notificationsBlocked: "ถูกปิดในการตั้งค่าเบราว์เซอร์",
     change: "เปลี่ยน…", findAgain: "ค้นหาอีกครั้ง", scanning: "กำลังค้นหา…",
     expressMissing: "ไม่พบ Express กรุณากด «เปลี่ยน…» แล้วเลือกโฟลเดอร์ข้อมูล Express",
     years: (path: string, n: number) => `${path} รวม ${n} ปีบัญชี`,

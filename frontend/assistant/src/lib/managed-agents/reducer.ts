@@ -15,8 +15,10 @@
 //   session.status_idle{requires_action} → approval:{id} on each blocked tool part
 //   session.status_running / idle       → whether the turn is live
 //   session.error                       → an error message + retry chip
+//   pearnly.notice                      → a notice card (本站提醒，记在 notices，不进 messages；
+//                                          页面经 withNotices 并进对话，见文件末尾)
 
-import type { StreamEvent, ToolUseEvent } from "./events";
+import type { FeedEvent, NoticeEvent, ToolUseEvent } from "./events";
 import { isPersisted, splitAttachmentNote } from "./events";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +85,12 @@ export type ThreadMessage = {
   status?: MessageStatus;
   /** Files the user attached, shown as chips in the bubble (parsed back out of the message text). */
   attachments?: MessageAttachment[];
+  /** 提醒卡片（withNotices 生成）：custom.notice = { kind, title } */
+  metadata?: { custom?: Record<string, unknown> };
 };
+
+/** 本站提醒（定时任务提醒、完成简报等），按时间先后。 */
+export type NoticeItem = { id: string; createdAt: Date; kind: string; title: string; text: string };
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp)$/i;
 
@@ -129,6 +136,8 @@ export type Projection = {
   toolUses: ReadonlyMap<string, ToolUseEvent>;
   /** Most recent session.error, cleared by the next running/message. */
   lastError: ProjectionError | null;
+  /** 本站提醒，按时间先后（不在 messages 里：接续、乐观气泡、批准都不受影响）。 */
+  notices: readonly NoticeItem[];
 };
 
 export const initialProjection = (): Projection => ({
@@ -145,6 +154,7 @@ export const initialProjection = (): Projection => ({
   previews: new Map(),
   toolUses: new Map(),
   lastError: null,
+  notices: [],
 });
 
 // ---------------------------------------------------------------------------
@@ -362,7 +372,7 @@ function withDerivedStatuses(state: Projection): Projection {
 // The fold
 // ---------------------------------------------------------------------------
 
-export function applyEvent(state: Projection, event: StreamEvent): Projection {
+export function applyEvent(state: Projection, event: FeedEvent): Projection {
   // Replay and tail overlap by design (the stream opens before history is
   // fetched, so no gap can appear); dedupe on the persisted event id.
   // Previews carry no id and are handled by their event_id instead.
@@ -373,8 +383,12 @@ export function applyEvent(state: Projection, event: StreamEvent): Projection {
   return withDerivedStatuses(applyEventInner(state, event));
 }
 
-function applyEventInner(state: Projection, event: StreamEvent): Projection {
+function applyEventInner(state: Projection, event: FeedEvent): Projection {
   switch (event.type) {
+    // -------------------------------------------------------------- notices
+    case "pearnly.notice":
+      return { ...state, notices: insertNotice(state.notices, event) };
+
     // ---------------------------------------------------------------- turns
     case "user.message": {
       const messages = draft(state.messages);
@@ -736,7 +750,7 @@ function applyEventInner(state: Projection, event: StreamEvent): Projection {
 }
 
 /** Fold a whole ordered event list. */
-export function project(events: Iterable<StreamEvent>, from = initialProjection()): Projection {
+export function project(events: Iterable<FeedEvent>, from = initialProjection()): Projection {
   let state = from;
   for (const event of events) state = applyEvent(state, event);
   return state;
@@ -832,4 +846,62 @@ export function evictOptimisticMessage(state: Projection, optimisticId: string):
   const messages = draft(state.messages);
   messages.splice(idx, 1);
   return withDerivedStatuses({ ...state, messages, isRunning: false });
+}
+
+// ---------------------------------------------------------------------------
+// Notices（本站提醒）：记在 Projection.notices，页面显示前才并进对话。
+// ---------------------------------------------------------------------------
+
+/** 按时间插入（同一时刻排在后面）。 */
+function insertNotice(notices: readonly NoticeItem[], event: NoticeEvent): readonly NoticeItem[] {
+  const item: NoticeItem = {
+    id: event.id,
+    createdAt: timeOf(event.processed_at),
+    kind: event.kind ?? "",
+    title: event.title ?? "",
+    text: event.text ?? "",
+  };
+  const at = item.createdAt.getTime();
+  const index = notices.findIndex((n) => n.createdAt.getTime() > at);
+  if (index < 0) return [...notices, item];
+  return [...notices.slice(0, index), item, ...notices.slice(index)];
+}
+
+// 同一条提醒每次给出同一个消息对象：组件库按对象缓存转换结果，换了对象就要重算、重画。
+const noticeMessages = new WeakMap<NoticeItem, ThreadMessage>();
+
+function noticeMessage(notice: NoticeItem): ThreadMessage {
+  let message = noticeMessages.get(notice);
+  if (!message) {
+    message = {
+      id: notice.id,
+      role: "assistant",
+      content: [{ type: "text", text: notice.text }],
+      createdAt: notice.createdAt,
+      status: { type: "complete", reason: "stop" },
+      metadata: { custom: { notice: { kind: notice.kind, title: notice.title } } },
+    };
+    noticeMessages.set(notice, message);
+  }
+  return message;
+}
+
+/** 提醒卡片并进对话：每条插在第一条比它晚的用户消息之前，没有就放最后。只插在用户消息前，不切开一轮回复；
+ *  刷新后位置不变（同一规则）。卡片是带 metadata.custom.notice 的 assistant 消息（组件库不合并相邻的 assistant 消息）。 */
+export function withNotices(
+  messages: readonly ThreadMessage[],
+  notices: readonly NoticeItem[],
+): readonly ThreadMessage[] {
+  if (!notices.length) return messages;
+  const out: ThreadMessage[] = [];
+  let next = 0;
+  for (const message of messages) {
+    if (message.role === "user") {
+      const at = message.createdAt.getTime();
+      while (next < notices.length && notices[next]!.createdAt.getTime() < at) out.push(noticeMessage(notices[next++]!));
+    }
+    out.push(message);
+  }
+  while (next < notices.length) out.push(noticeMessage(notices[next++]!));
+  return out;
 }

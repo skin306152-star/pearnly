@@ -19,10 +19,34 @@ export type StreamEvent = BetaManagedAgentsStreamSessionEvents;
 
 export type ManagedAgentsSession = BetaManagedAgentsSession;
 
+/** 本站自己的提醒（pearnly_core.assistant.notices）：定时任务提醒、完成简报等。只在站点与对话页之间，不进引擎会话；
+ *  整段回放时按时间并在引擎事件里，推送时 session 为空表示没挂在对话上（只弹系统通知）。编号带 pnotice_ 前缀。 */
+export type NoticeEvent = {
+  type: "pearnly.notice";
+  id: string;
+  processed_at: string;
+  kind: string;
+  title: string;
+  text: string;
+  session: string;
+};
+
+/** 对话页收到的全部事件：引擎事件 + 本站事件（类型以 pearnly. 开头）。 */
+export type FeedEvent = StreamEvent | NoticeEvent;
+
+/** 本站事件不在引擎的事件记录里：补拉不能拿它的编号当锚点（服务端找不到，会退回整段重放）。 */
+export function isLocalEvent(event: FeedEvent): boolean {
+  return String(event.type).startsWith("pearnly.");
+}
+
+export function isNotice(event: FeedEvent): event is NoticeEvent {
+  return event.type === "pearnly.notice";
+}
+
 export type EventOf<T extends StreamEvent["type"]> = Extract<StreamEvent, { type: T }>;
 
 /** Persisted events carry an id; the preview pair does not. */
-export function isPersisted(event: StreamEvent): event is Extract<StreamEvent, { id: string }> {
+export function isPersisted(event: FeedEvent): event is Extract<FeedEvent, { id: string }> {
   return event.type !== "event_start" && event.type !== "event_delta";
 }
 
@@ -50,8 +74,8 @@ export function isToolUse(event: StreamEvent): event is ToolUseEvent {
 // ---------------------------------------------------------------------------
 
 export type RelayEnvelope =
-  /** A Managed Agents event, passed through untouched. */
-  | { kind: "event"; event: StreamEvent }
+  /** A Managed Agents event (or one of this site's own notices), passed through untouched. */
+  | { kind: "event"; event: FeedEvent }
   /** The relay lost the upstream stream. The session keeps running
    *  server-side; the browser should replay history and reattach rather
    *  than treat this as a failed turn. */
@@ -61,7 +85,7 @@ export type RelayEnvelope =
 export type SessionSummary = Pick<
   ManagedAgentsSession,
   "id" | "title" | "status" | "created_at" | "updated_at" | "archived_at"
-> & { starred?: boolean };
+> & { starred?: boolean; /** 有没看过的提醒（侧栏圆点） */ unread?: boolean };
 
 export const CUSTOM_TOOL_ACK_TEXT = "Rendered to the user in the chat.";
 

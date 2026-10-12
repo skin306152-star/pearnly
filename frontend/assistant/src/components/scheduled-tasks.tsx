@@ -1,11 +1,12 @@
 // 定时任务（CC 侧栏「定时任务」，只在 Cowork 出现；用户 2026-10-12：功能同 Pearnly 那边，界面照 Claude）。
 //
 // 功能逐项对应 Cowork 网页的定时任务页（apps/pearnly_cowork/.../desk/intake-folders.js 与 targets.js）：
-//   列表：任务名、目标 ERP、账套、文件夹、每月几号几点、结果（已推送 / 待处理）、状态；立即运行、待处理的单据、编辑、
-//         运行记录、停用 / 启用、删除。
+//   列表：任务名、目标 ERP、账套、文件夹、每月几号几点、结果（已推送 / 待处理 / 处理中）、文件夹里还没处理的份数、状态；
+//         立即运行、待处理的单据、编辑、运行记录、停用 / 启用、删除。列表自己刷新（lib/live.ts：定时任务服务的实时事件
+//         cowork_folder_changed 为主，有处理中的每 10 秒、否则每 60 秒兜底，回到前台马上刷）。
 //   新建 / 编辑：目标卡片（MR.ERP / Express，状态与「连接」）→ 两级账套 → 进项销项 → 入账方式（Express 过账类型、
-//         MR.ERP 付款方式）→ 存货科目组（要选时）→ 文件夹 → 每月几号几点 → Express 的默认处理；保存前 MR.ERP 的
-//         菜单与默认值没定就问一次。
+//         MR.ERP 付款方式）→ 存货科目组（要选时）→ 文件夹（下面显示文件夹里现有几份）→ 每月几号几点 → 前一天提醒 →
+//         Express 的默认处理；保存前 MR.ERP 的菜单与默认值没定就问一次。
 // 接口与 Cowork 页面同一套（pearnly_cowork.folder_intake.api / connections.api / companion.api），权限由服务端判；
 // 词条取 Cowork 的术语表（folder_intake.api.terms），不另存翻译。样式只用 globals.css 的 .cc-* 与变量。
 
@@ -25,12 +26,16 @@ import {
 } from "lucide-react";
 import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Switch } from "@/components/settings";
 import { getMethod, postMethod } from "@/lib/frappe";
+import { useLiveRefresh } from "@/lib/live";
 import { t } from "@/i18n";
 
 const API = "pearnly_cowork.folder_intake.api.";
 const CONN = "pearnly_cowork.connections.api.";
 const COMPANION = "pearnly_cowork.companion.api.";
+// 定时任务服务的实时事件（folder_intake/live.py，载荷 {rule}）：文件状态、运行记录、待处理数有变化时推给负责人
+const FOLDER_EVENT = "cowork_folder_changed";
 
 // ── 词条 ────────────────────────────────────────────────────────────────────────────────────────
 
@@ -63,12 +68,17 @@ type Rule = {
   reader: string; account_set_key: string; account_label?: string; direction: string; posting_kind: string;
   payment: string; root_id: string; root_label?: string; folder: string; run_day: number; run_time: string;
   defaults: Record<string, string>; agent_fresh?: boolean; folder_state?: string | null;
-  results?: { entered?: number; attention?: number };
+  results?: { entered?: number; attention?: number; moving?: number };
+  // include_existing：到点处理文件夹里所有还没处理过的（新任务）；remind：前一天提醒；
+  // waiting：文件夹里还没处理的份数（不知道是 null），waiting_partial：数到上限（显示 N+）
+  include_existing?: number; remind?: number; waiting?: number | null; waiting_partial?: boolean;
 };
 type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string> };
 type Snapshot = { connections: Record<string, Connection | null>; agent: { online?: boolean } | null };
 type Group = { value: string; label: string; items: Array<{ value: string; label: string }> };
-type Reader = { connection: string; label: string; version?: string; fresh?: boolean; roots?: Array<{ id: string; label: string; folders?: string[] }> };
+// counts：文件夹（相对路径，"" 是根目录）里现有几份会被录入的文件，没数过就没有这个键；partial：数到上限
+type Root = { id: string; label: string; folders?: string[]; counts?: Record<string, number>; partial?: boolean };
+type Reader = { connection: string; label: string; version?: string; fresh?: boolean; roots?: Root[] };
 type StockGroup = { known?: boolean; chosen?: string; groups?: Array<{ acccod: string; label: string; used_by?: number }> };
 type Options = { readers?: Reader[]; accounts?: Array<{ code: string; name: string }>; departments?: Array<{ code: string; name: string }>; stock_group?: StockGroup };
 
@@ -106,6 +116,9 @@ const days = (tr: Tr) => [
   { value: "0", label: tr("cowork.folder.lastDay") },
 ];
 const TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+
+/** N 份（数到上限是 N+）。 */
+const plus = (n: number, partial?: boolean) => (partial ? `${n}+` : String(n));
 
 function status(rule: Rule, tr: Tr): { text: string; tone: "ok" | "bad" | "wait" | "" } {
   if (!rule.enabled) return { text: tr("cowork.folder.off"), tone: "" };
@@ -242,10 +255,12 @@ export function ScheduledTasks() {
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setRules([]);
+      // 自动刷新偶尔失败：已显示的列表留着，不闪成空的
+      setRules((prev) => prev ?? []);
     }
   }, []);
   useEffect(() => void reload(), [reload]);
+  useLiveRefresh(reload, { events: [FOLDER_EVENT], busy: Boolean(rules?.some((r) => (r.results?.moving ?? 0) > 0)) });
 
   const dayLabel = (d: number) => days(tr).find((x) => x.value === String(d))?.label ?? "";
 
@@ -297,7 +312,11 @@ export function ScheduledTasks() {
                     </div>
                     <div className="mt-1 text-ink-2 text-sm">
                       {tr("cowork.folder.counts", rule.results?.entered || 0, rule.results?.attention || 0)}
+                      {rule.results?.moving ? ` · ${tr("cowork.folder.moving", rule.results.moving)}` : ""}
                     </div>
+                    {rule.enabled && rule.waiting ? (
+                      <div className="mt-0.5 text-ink-3 text-sm">{tr("cowork.folder.waiting", plus(rule.waiting, rule.waiting_partial))}</div>
+                    ) : null}
                   </button>
                   {rule.enabled ? (
                     <button
@@ -341,7 +360,9 @@ export function ScheduledTasks() {
                           className="cc-menu-item"
                           onSelect={() =>
                             setConfirm({
-                              text: tr(rule.enabled ? "cowork.folder.disableConfirm" : "cowork.folder.enableConfirm"),
+                              // 新任务恢复后处理文件夹里所有还没处理过的（含停用期间放进来的）；老任务只收恢复之后放入的
+                              text: tr(rule.enabled ? "cowork.folder.disableConfirm"
+                                : rule.include_existing ? "cowork.folder.enableConfirmAll" : "cowork.folder.enableConfirm"),
                               label: tr(rule.enabled ? "cowork.folder.disable" : "cowork.folder.enable"),
                               run: async () => {
                                 await postMethod(API + "set_enabled", { name: rule.name, enabled: rule.enabled ? 0 : 1 });
@@ -480,6 +501,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
   const [folder, setFolder] = useState(rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : "");
   const [runDay, setRunDay] = useState(String(rule?.run_day ?? 1));
   const [runTime, setRunTime] = useState(rule?.run_time || "22:00");
+  const [remind, setRemind] = useState(Boolean(rule?.remind));
   const [defaults, setDefaults] = useState<Record<string, string>>(rule?.defaults || {});
   const [options, setOptions] = useState<Options | null>(null);
   const [busy, setBusy] = useState(false);
@@ -603,6 +625,17 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
   const folderHint = !options ? "cowork.folder.folderHint" : unpaired ? "cowork.folder.noRootsAny"
     : !readers.some((r) => r.fresh) ? "cowork.folder.agentStaleHint"
     : !folders.length ? (express ? "cowork.folder.noRoots" : "cowork.folder.noRootsAny") : "cowork.folder.folderHint";
+  // 选中的文件夹现有几份（小助手随文件夹上报数好的）；编辑没换文件夹时用这条任务还没处理的份数。不知道、0 份都不显示
+  const folderCount = ((): string => {
+    if (!folder) return "";
+    if (rule && folder === saved) return rule.enabled && rule.waiting ? plus(rule.waiting, rule.waiting_partial) : "";
+    const [reader, rootId, ...rest] = folder.split("|");
+    const root = readers.find((r) => r.connection === reader)?.roots?.find((item) => item.id === rootId);
+    if (!root?.counts) return "";
+    const path = rest.join("|");
+    const n = root.counts[path] ?? Object.entries(root.counts).find(([k]) => k.toLowerCase() === path.toLowerCase())?.[1] ?? 0;
+    return n > 0 ? plus(n, root.partial) : "";
+  })();
 
   // 默认处理只摆这条任务用得到的项（同服务端 contracts.applicable）；MR.ERP 整段不摆
   const showDefault: Record<string, boolean> = {
@@ -630,7 +663,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
         values: JSON.stringify({
           name: rule?.name || null, title: title.trim(), connection: connection.name, reader, account_set_key: accountSet,
           direction, posting_kind: express ? postingKind : "", payment: express ? "" : payment, root_id,
-          folder: rest.join("|"), run_day: Number(runDay), run_time: runTime, defaults: chosen,
+          folder: rest.join("|"), run_day: Number(runDay), run_time: runTime, defaults: chosen, remind: remind ? 1 : 0,
         }),
       });
       await onSaved();
@@ -721,7 +754,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
             </Field>
           </div>
 
-          <Field label={tr("cowork.folder.field.folder")} hint={tr(folderHint)}>
+          <Field label={tr("cowork.folder.field.folder")} hint={folderCount ? tr("cowork.folder.waiting", folderCount) : tr(folderHint)}>
             <Select value={folder} disabled={!enabled || !folders.length} options={folders} onChange={setFolder} />
           </Field>
           {unpaired && !rule && (
@@ -737,6 +770,11 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
             <Field label={tr("cowork.folder.field.time")}>
               <Select value={runTime} disabled={!enabled} options={TIMES.map((v) => ({ value: v, label: v }))} onChange={setRunTime} />
             </Field>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 text-ink-2 text-sm">
+            <span>{tr("cowork.folder.field.remind")}</span>
+            <Switch checked={remind} disabled={!enabled} label={tr("cowork.folder.field.remind")} onChange={setRemind} />
           </div>
 
           {express && (

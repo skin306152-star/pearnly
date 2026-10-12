@@ -517,7 +517,8 @@
   }
   /* 侧栏对话行尾的状态：在跑转圈、跑完没看过一个小圆点 */
   .cc-activity { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 1rem; height: 1rem; margin-inline-start: 0.5rem; color: var(--cc-ink-3); }
-  .cc-activity[data-activity="unread"]::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: var(--cc-radius-full); background: var(--cc-unread); }
+  .cc-activity[data-activity="unread"]::before,
+  .cc-activity[data-activity="notice"]::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: var(--cc-radius-full); background: var(--cc-unread); }
 
   /* 电脑上对话顶部：对话名 + 下拉（同 claude.ai） */
   .cc-topbar { display: flex; flex-shrink: 0; align-items: center; gap: 0.5rem; height: var(--cc-topbar-h); padding-inline: 0.75rem; }

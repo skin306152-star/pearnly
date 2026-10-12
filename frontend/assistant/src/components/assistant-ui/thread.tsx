@@ -12,7 +12,8 @@ import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { steps, t } from "@/i18n";
+import { usePush } from "@/lib/push";
+import { dayLabel, lang, st, steps, t } from "@/i18n";
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -29,6 +30,7 @@ import {
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  BellIcon,
   CheckIcon,
   CopyIcon,
   DownloadIcon,
@@ -192,9 +194,55 @@ const ThreadMessage: FC = () => {
   const { AssistantMessage: AssistantMessageComponent = AssistantMessage } =
     useContext(ThreadComponentsContext);
   const role = useAuiState((s) => s.message.role);
+  const notice = useAuiState((s) => isNoticeMessage(s.message));
 
   if (role === "user") return <UserMessage />;
+  if (notice) return <NoticeMessage />;
   return <AssistantMessageComponent />;
+};
+
+// ── 提醒卡片 ───────────────────────────────────────────────────────────────────────────────────────
+
+type MessageLike = { metadata?: { custom?: Record<string, unknown> } };
+
+/** 本站提醒并进对话的那条（lib/managed-agents/reducer.ts 的 withNotices）。 */
+const isNoticeMessage = (m: MessageLike) => Boolean(m.metadata?.custom?.notice);
+
+const noticeTime = (at: Date) =>
+  `${dayLabel(at)} ${new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit" }).format(at)}`;
+
+/** 定时任务提醒、完成简报等（同结果文件卡的卡片样式）：铃铛、标题、正文、时间；没有复制栏、不加说明文字。
+ *  这台浏览器还没开推送通知时卡片下方给「打开通知」：按提醒这类事件挂，不按哪个产品的工具。 */
+const NoticeMessage: FC = () => {
+  const title = useAuiState((s) => {
+    const notice = s.message.metadata?.custom?.notice as { title?: unknown } | undefined;
+    return typeof notice?.title === "string" ? notice.title : "";
+  });
+  const text = useAuiState((s) => {
+    const part = s.message.content[0];
+    return part?.type === "text" ? part.text : "";
+  });
+  const createdAt = useAuiState((s) => s.message.createdAt);
+  const push = usePush();
+  return (
+    <MessagePrimitive.Root data-slot="cc-notice" data-role="notice" className="flex flex-col items-start gap-2 px-2">
+      <div role="note" aria-label={t("notice")} className="cc-card flex w-full max-w-md gap-3 px-3 py-2.5 font-sans">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
+          <BellIcon className="size-4.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          {title && <div className="font-medium text-ink text-sm">{title}</div>}
+          <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
+          <div className="mt-1 text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+        </div>
+      </div>
+      {push.state === "off" && (
+        <button type="button" className="cc-btn" onClick={() => void push.enable()}>
+          {st.turnOnNotifications}
+        </button>
+      )}
+    </MessagePrimitive.Root>
+  );
 };
 
 const ThreadScrollToBottom: FC = () => {
@@ -394,7 +442,8 @@ const ThinkingMark: FC = () => {
   );
 };
 
-/** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定。 */
+/** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定；
+ *  「下一条」跳过提醒卡片（它可能排在一轮回复后面，但时间更早）。 */
 const MessageFiles: FC = () => {
   const { sessionId, files, openFile } = useResults();
   const id = useAuiState((s) => s.message.id);
@@ -403,7 +452,8 @@ const MessageFiles: FC = () => {
     const index = messages.findIndex((m) => m.id === id);
     if (index < 0) return [];
     const from = messages[index]!.createdAt.getTime();
-    const until = messages[index + 1]?.createdAt.getTime() ?? Number.POSITIVE_INFINITY;
+    const next = messages.slice(index + 1).find((m) => !isNoticeMessage(m));
+    const until = next?.createdAt.getTime() ?? Number.POSITIVE_INFINITY;
     return files.filter((f) => {
       const at = new Date(f.created_at).getTime();
       return at >= from && at < until;
