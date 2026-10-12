@@ -8,6 +8,7 @@
  "field_order": [
   "endpoint_key",
   "user",
+  "sid",
   "endpoint",
   "p256dh",
   "auth",
@@ -31,6 +32,12 @@
    "read_only": 1,
    "reqd": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "sid",
+   "fieldtype": "Data",
+   "label": "Session",
+   "read_only": 1
   },
   {
    "fieldname": "endpoint",
@@ -68,7 +75,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-12 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Push Subscription",

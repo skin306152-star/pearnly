@@ -5,6 +5,9 @@
   旧订阅都绑在旧公钥上，一并删掉，对话页下次打开时按新公钥重新订阅。
 - 订阅：`Pearnly Assistant Push Subscription`，按推送地址的 sha256 唯一。对话页每次打开都重新认领，同一台设备换人
   登录就覆盖成当前登录人；每人最多 MAX_PER_USER 台，多了删最久没认领的。只删自己的。
+- 订阅跟着认领它的那次登录走（`sid` 存登录会话编号的摘要，不存编号本身：它就是登录凭据，表又对管理员可读）：
+  退出登录时删掉（`on_logout` 钩子 `forget_session`）；身份服务统一登出、被踢、过期等不经钩子的，发出前核对会话
+  已不在就删掉、不发。共用的电脑或手机上，上一个人的提醒不会再弹给下一个人。
 - 发出：只发往白名单里的推送服务（`webpush.push_host`），不跟随跳转；推送服务回 404 / 410 表示订阅已失效，删掉；
   其余失败（含 403：签名写错也会 403，不能因此删掉好订阅）只记在订阅行上，并汇总记一次错误日志。
   日志与订阅行只写状态码（或异常类型）和推送服务主机，不写推送地址和密钥。
@@ -12,6 +15,7 @@
 
 只由本模块读写这两张表。
 """
+import hashlib
 import time
 
 import frappe
@@ -39,6 +43,14 @@ def _user() -> str:
     if not user or user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return user
+
+
+def session_key(sid) -> str:
+    """登录会话编号的摘要（订阅行的 `sid`）。没有真会话（访客、空）回空串。"""
+    sid = str(sid or "")
+    if not sid or sid == "Guest":
+        return ""
+    return hashlib.sha256(sid.encode()).hexdigest()
 
 
 def _lock():
@@ -109,7 +121,8 @@ def subscribe(endpoint, p256dh, auth) -> dict:
         sub = webpush.subscription(endpoint, p256dh, auth)
     except ValueError:
         raise contracts.ContractError("invalid push subscription") from None
-    values = {"user": user, "endpoint": sub["endpoint"], "p256dh": sub["p256dh"], "auth": sub["auth"], "last_error": ""}
+    values = {"user": user, "sid": session_key(frappe.session.sid), "endpoint": sub["endpoint"], "p256dh": sub["p256dh"],
+              "auth": sub["auth"], "last_error": ""}
     if frappe.db.exists(SUBSCRIPTION, sub["key"]):
         frappe.db.set_value(SUBSCRIPTION, sub["key"], values)
     else:
@@ -132,17 +145,47 @@ def unsubscribe(endpoint) -> None:
     frappe.db.delete(SUBSCRIPTION, {"name": webpush.endpoint_key(endpoint), "user": user})
 
 
+def forget_session(login_manager=None) -> None:
+    """`on_logout` 钩子（框架在删会话之前调）：这次登录认领的设备不再收这个人的推送。别人的、别的登录的都不动；
+    删不掉只记一条日志，不挡退出。"""
+    user, key = frappe.session.user, session_key(frappe.session.sid)
+    if not user or user == "Guest" or not key:
+        return
+    try:
+        frappe.db.delete(SUBSCRIPTION, {"user": user, "sid": key})
+    except Exception as exc:  # noqa: BLE001 —— 退出登录不能因为这里失败
+        frappe.log_error(title="Assistant push sign-out cleanup failed", message=type(exc).__name__)
+
+
+def _live_sessions(user) -> set:
+    """这个人现在还有效的登录会话（摘要）：退出、被登出、被踢的已删掉，过期的按框架同一条界线不算。"""
+    from frappe.sessions import get_expired_threshold
+
+    rows = frappe.db.sql("SELECT `sid` FROM `tabSessions` WHERE `user`=%s AND `lastupdate`>%s",
+                         (user, get_expired_threshold()))
+    return {session_key(row[0]) for row in rows} - {""}
+
+
 # ---- 发出 ----
 
 def send(user, *, title, body, url, tag, ttl=DEFAULT_TTL, urgency="high") -> dict:
     """把一条通知推到这个用户订阅过的每台设备，回各结果的台数；推送服务那边的失败不抛错。
 
     `url` 只能是对话页（`contracts.deep_link`）；`tag` 相同的通知在设备上互相覆盖；`ttl` 是推送服务替离线设备
-    保留的秒数。"""
+    保留的秒数（0 = 不保留，设备不在线就不送）。认领它的登录已结束的设备删掉、算在 `gone` 里。"""
     result = {"sent": 0, "gone": 0, "failed": 0}
     if not user or user == "Guest" or not frappe.db.get_value("User", user, "enabled"):
         return result
-    rows = frappe.get_all(SUBSCRIPTION, filters={"user": user}, fields=["name", "endpoint", "p256dh", "auth"])
+    rows = frappe.get_all(SUBSCRIPTION, filters={"user": user}, fields=["name", "endpoint", "p256dh", "auth", "sid"])
+    if not rows:
+        return result
+    # 认领它的那次登录已结束（统一登出、被踢、过期，或认领时没有登录会话）：删掉、不发
+    live = _live_sessions(user)
+    ended = [row.name for row in rows if row.sid not in live]
+    if ended:
+        frappe.db.delete(SUBSCRIPTION, {"name": ["in", ended]})
+        result["gone"] += len(ended)
+        rows = [row for row in rows if row.sid in live]
     if not rows:
         return result
     keys = _keys()
@@ -205,4 +248,4 @@ def send_notice(notice) -> dict:
     if not row:
         return {"sent": 0, "gone": 0, "failed": 0}
     return send(row.user, title=row.title or APP_NAME, body=row.text or "", url=contracts.deep_link(row.session_id),
-                tag="notice:pnotice_" + row.name, ttl=row.ttl or DEFAULT_TTL)
+                tag="notice:pnotice_" + row.name, ttl=DEFAULT_TTL if row.ttl is None else int(row.ttl))
