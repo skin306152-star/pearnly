@@ -188,8 +188,10 @@ def for_references(doctype, names, since_epoch, limit=20) -> list[dict]:
     for row in rows:
         if not set(wanted) & set(_refs(row)):
             continue
+        # refs 一并给：产品按它只把「涉及的记录全归这台电脑」的提醒交出去（Cowork `machine_notices`）
         found.append({"id": contracts.NOTICE_PREFIX + row.name, "title": row.title or "", "text": row.text,
-                      "created": contracts.epoch(row.creation, tz), "session": row.session_id or ""})
+                      "created": contracts.epoch(row.creation, tz), "session": row.session_id or "",
+                      "refs": _refs(row)})
         if len(found) >= cap:
             break
     return found

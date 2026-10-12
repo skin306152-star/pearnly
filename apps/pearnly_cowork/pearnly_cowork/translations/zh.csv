@@ -323,6 +323,7 @@ Connection Revision,连接版本
 Connection or directory record not found.,找不到此连接或目录记录。
 Contact Email,联系邮箱
 Content Hash,内容摘要
+Continues the scheduled task «{0}»; only files put in from now on are processed,接续定时任务「{0}」，只处理此后放入的文件
 Continuous counting,连续盘点
 Copy card,复制卡片
 Copy link,复制链接
@@ -1812,6 +1813,7 @@ cowork.folder.companion_offline,推送时 CC 桌面版未连接，将于十分�
 cowork.folder.connectHelper,连接 CC 桌面版
 cowork.folder.connection_fixed,定时任务无法转移至其他电脑，请停用后新建定时任务。
 cowork.folder.content_mismatch,上传的内容与电脑上的文件不一致。
+cowork.folder.continues,接续定时任务「{0}」，只处理此后放入的文件
 cowork.folder.counts,已推送 {0} · 待处理 {1}
 cowork.folder.day,{0} 日
 cowork.folder.default.account,未匹配科目的费用
@@ -1875,11 +1877,12 @@ cowork.folder.overlap_with,与定时任务「{0}」的文件夹重叠
 cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录入。
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
-cowork.folder.remind.count,文件夹里现有 {0} 份。
+cowork.folder.pending,还有 {0} 份未处理，到点处理
+cowork.folder.remind.count,还有 {0} 份未处理。
 cowork.folder.remind.leftDays,还有 {0} 天 {1} 小时
 cowork.folder.remind.leftHours,还有 {0} 小时 {1} 分钟
 cowork.folder.remind.leftMinutes,还有 {0} 分钟
-cowork.folder.remind.lineCount,{0}（现有 {1} 份）
+cowork.folder.remind.lineCount,{0}（还有 {1} 份未处理）
 cowork.folder.remind.many,{1} 有 {0} 个定时任务开始（{2}）。请将资料放入以下文件夹，确保资料齐全：
 cowork.folder.remind.off,关
 cowork.folder.remind.on,开
@@ -2970,6 +2973,7 @@ waiting for purchases,等进货先录入
 workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0} ({1} files),{0}（现有 {1} 份）
 {0} ({1} matching lines),{0}（匹配 {1} 笔）
+{0} ({1} not processed yet),{0}（还有 {1} 份未处理）
 {0} ({1}),{0}（{1}）
 {0} added you to {1},{0} 将你添加到卡片「{1}」
 {0} bank lines add up to it ({1} to {2}),银行 {0} 笔合计相等（{1} 至 {2}）
@@ -2979,6 +2983,8 @@ workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0} files,{0} 个文件
 "{0} files in the folder now, processed at the run time",文件夹里现有 {0} 份，到点一起处理
 {0} files in the folder now.,文件夹里现有 {0} 份。
+"{0} files not processed yet, processed at the run time",还有 {0} 份未处理，到点处理
+{0} files not processed yet.,还有 {0} 份未处理。
 {0} h {1} min left,还有 {0} 小时 {1} 分钟
 {0} ledger lines add up to it ({1} to {2}),总账 {0} 笔合计相等（{1} 至 {2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,总账中有 {0} 行不在销项税报告期间（{1} 至 {2}）内，未参与核对。

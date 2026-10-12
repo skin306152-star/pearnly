@@ -952,6 +952,10 @@ class MachineSync(unittest.TestCase):
                                              "session": ""}])
         # 停用的任务的完成简报也要弹：按本机读的全部任务取
         self.assertEqual(calls["for_rules"], [(["P1", "S2"], self.NOW - 60, contracts.NOTICE_LIMIT)])
+        # 本机读的全部任务名（含停用的）：小助手据此清掉久未出现任务的台账；旧小助手不带 notices_after 就不给
+        self.assertEqual(reply["rule_names"], ["P1", "S2"])
+        old_helper = machine._sync(types.SimpleNamespace(connection="C1"), {})
+        self.assertNotIn("rule_names", old_helper)
 
     def test_a_notice_that_also_names_another_pcs_task_is_not_sent_here(self):
         """security-1：M1 同步时，同一条提醒里只要带着别的电脑读的任务 T2（客户 Y 的任务名与 \\\\srv 路径），整条不给。"""

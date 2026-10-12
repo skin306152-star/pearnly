@@ -323,6 +323,7 @@ Connection Revision,Connection Revision
 Connection or directory record not found.,Connection or directory record not found.
 Contact Email,Contact Email
 Content Hash,Content Hash
+Continues the scheduled task «{0}»; only files put in from now on are processed,Continues the scheduled task «{0}»; only files put in from now on are processed
 Continuous counting,Continuous counting
 Copy card,Copy card
 Copy link,Copy link
@@ -1812,6 +1813,7 @@ cowork.folder.companion_offline,CC Desktop was not connected when this invoice w
 cowork.folder.connectHelper,Connect CC Desktop
 cowork.folder.connection_fixed,A scheduled task cannot move to another PC. Turn it off and create a new one.
 cowork.folder.content_mismatch,The uploaded file does not match the file on the PC.
+cowork.folder.continues,Continues the scheduled task «{0}»; only files put in from now on are processed
 cowork.folder.counts,Entered {0} · to check {1}
 cowork.folder.day,Day {0}
 cowork.folder.default.account,Expense account when no category matches
@@ -1875,11 +1877,12 @@ cowork.folder.overlap_with,This folder overlaps the folder of scheduled task «{
 cowork.folder.owner_not_ready,The task owner can no longer enter documents with this connection.
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
-cowork.folder.remind.count,{0} files in the folder now.
+cowork.folder.pending,"{0} files not processed yet, processed at the run time"
+cowork.folder.remind.count,{0} files not processed yet.
 cowork.folder.remind.leftDays,{0} d {1} h left
 cowork.folder.remind.leftHours,{0} h {1} min left
 cowork.folder.remind.leftMinutes,{0} min left
-cowork.folder.remind.lineCount,{0} ({1} files)
+cowork.folder.remind.lineCount,{0} ({1} not processed yet)
 cowork.folder.remind.many,{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:
 cowork.folder.remind.off,Off
 cowork.folder.remind.on,On
@@ -2970,6 +2973,7 @@ waiting for purchases,waiting for purchases
 workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} ({1} files),{0} ({1} files)
 {0} ({1} matching lines),{0} ({1} matching lines)
+{0} ({1} not processed yet),{0} ({1} not processed yet)
 {0} ({1}),{0} ({1})
 {0} added you to {1},{0} added you to {1}
 {0} bank lines add up to it ({1} to {2}),{0} bank lines add up to it ({1} to {2})
@@ -2979,6 +2983,8 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} files,{0} files
 "{0} files in the folder now, processed at the run time","{0} files in the folder now, processed at the run time"
 {0} files in the folder now.,{0} files in the folder now.
+"{0} files not processed yet, processed at the run time","{0} files not processed yet, processed at the run time"
+{0} files not processed yet.,{0} files not processed yet.
 {0} h {1} min left,{0} h {1} min left
 {0} ledger lines add up to it ({1} to {2}),{0} ledger lines add up to it ({1} to {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.

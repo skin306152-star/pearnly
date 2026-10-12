@@ -323,6 +323,7 @@ Connection Revision,เวอร์ชันการเชื่อมต่อ
 Connection or directory record not found.,ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี
 Contact Email,อีเมลติดต่อ
 Content Hash,แฮชเนื้อหา
+Continues the scheduled task «{0}»; only files put in from now on are processed,ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้
 Continuous counting,ตรวจนับต่อเนื่อง
 Copy card,คัดลอกการ์ด
 Copy link,คัดลอกลิงก์
@@ -1812,6 +1813,7 @@ cowork.folder.companion_offline,CC เดสก์ท็อปไม่ได้
 cowork.folder.connectHelper,เชื่อมต่อ CC เดสก์ท็อป
 cowork.folder.connection_fixed,ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่
 cowork.folder.content_mismatch,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
+cowork.folder.continues,ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้
 cowork.folder.counts,ส่งแล้ว {0} · รอดำเนินการ {1}
 cowork.folder.day,วันที่ {0}
 cowork.folder.default.account,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
@@ -1875,11 +1877,12 @@ cowork.folder.overlap_with,โฟลเดอร์ซ้อนกับงา�
 cowork.folder.owner_not_ready,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
-cowork.folder.remind.count,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
+cowork.folder.pending,ยังไม่ได้ประมวลผล {0} ไฟล์ จะประมวลผลเมื่อถึงเวลา
+cowork.folder.remind.count,ยังไม่ได้ประมวลผล {0} ไฟล์
 cowork.folder.remind.leftDays,อีก {0} วัน {1} ชั่วโมง
 cowork.folder.remind.leftHours,อีก {0} ชั่วโมง {1} นาที
 cowork.folder.remind.leftMinutes,อีก {0} นาที
-cowork.folder.remind.lineCount,{0} (มี {1} ไฟล์)
+cowork.folder.remind.lineCount,{0} (ยังไม่ได้ประมวลผล {1} ไฟล์)
 cowork.folder.remind.many,งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน
 cowork.folder.remind.off,ปิด
 cowork.folder.remind.on,เปิด
@@ -2970,6 +2973,7 @@ waiting for purchases,รอบันทึกรายการซื้อก�
 workspace.tax_id_duplicate,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
 {0} ({1} files),{0} (มี {1} ไฟล์)
 {0} ({1} matching lines),{0} (ตรงกัน {1} รายการ)
+{0} ({1} not processed yet),{0} (ยังไม่ได้ประมวลผล {1} ไฟล์)
 {0} ({1}),{0} ({1})
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
 {0} bank lines add up to it ({1} to {2}),ธนาคาร {0} รายการมียอดรวมเท่ากัน ({1} ถึง {2})
@@ -2979,6 +2983,8 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} files,{0} ไฟล์
 "{0} files in the folder now, processed at the run time",ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา
 {0} files in the folder now.,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
+"{0} files not processed yet, processed at the run time",ยังไม่ได้ประมวลผล {0} ไฟล์ จะประมวลผลเมื่อถึงเวลา
+{0} files not processed yet.,ยังไม่ได้ประมวลผล {0} ไฟล์
 {0} h {1} min left,อีก {0} ชั่วโมง {1} นาที
 {0} ledger lines add up to it ({1} to {2}),บัญชีแยกประเภท {0} รายการมียอดรวมเท่ากัน ({1} ถึง {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด

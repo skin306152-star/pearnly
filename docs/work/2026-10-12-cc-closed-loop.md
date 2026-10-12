@@ -115,7 +115,8 @@
 - 会话侧：`sessions.listing` 每行加 `unread: bool`（有 `seen=0` 的提醒）；`sessions.events` 整段回放按时间并入本对话提醒、增量补拉带上
   锚点时间之后的提醒；新白名单 `pearnly_core.assistant.api.notices_seen(session_id)`（POST）；删除对话时提醒的 `session_id` 置空（不删行，
   去重键留着）；`sessions.send` 批末附一条 `system.message`（接续 + 未带过的提醒 + 日期，见 F8），发出成功后标 `carried`。
-  未带过的提醒包括本对话的和本用户没挂对话的。
+  未带过的提醒包括本对话的、本用户没挂对话的，以及本用户挂在别的对话上、24 小时内的（复查 business-logic-3）；只把真带进系统消息的几条
+  按记录名标成 carried。`notices.owned_conversation(user, candidates)` 给产品挑出第一段仍归该用户的对话；`for_references` 每条带 `refs`。
 
 **B. 共用层手机网页推送（`assistant/webpush.py` 纯加密、`assistant/push.py` 服务）**
 
@@ -123,6 +124,7 @@
   `push_unsubscribe(endpoint)`（POST）。都要登录。
 - `push.send_notice(notice)`：读提醒，`push.send(user, title=title or "CC", body=text, url=contracts.deep_link(session_id), tag="notice:"+id, ttl=ttl)`。
 - 后台脚本点通知：已有 `/assistant` 窗口就聚焦并 `postMessage({type: "pearnly-open", url})`，没有就 `openWindow(url)`。
+- 订阅行记认领时登录会话编号的摘要（`sid`），退出登录（`on_logout`）删掉本会话的订阅，发送前核对会话还在（复查 security-2）。
 
 **C. 前端（`frontend/assistant`）**
 
@@ -135,7 +137,10 @@
 **D. Cowork 定时任务服务（`folder_intake`）**
 
 - Rule 新字段：`include_existing`（Check，默认 0，新建 = 1）、`remind`（Check，默认 0）、`remind_since`（Datetime）、`cc_session`（Data 140）。
-  Run 新字段：`run_owner`（Link User）、`slot_at`（Datetime）、`brief_state`（Select `pending/sent/skipped`，索引）、`brief_at`、`brief_key`。
+  Run 新字段：`run_owner`（Link User）、`slot_at`（Datetime）、`brief_state`（Select `pending/sent/skipped`，索引）、`brief_at`、`brief_key`、
+  `brief_group`（定时 = 时刻；立即运行 = 同一负责人 10 分钟内开始的一批；补传沿用父运行）。简报 = 负责人 + 分组 + 读文件夹的电脑；
+  提醒 = 负责人 + 时刻 + 时段 + 读文件夹的电脑（复查 interfaces-1 / security-1）。新任务的文件夹与同一工作空间的停用任务重叠时
+  `include_existing=0`（接续，只收此后放入的；`rules.continues_from`，卡片写明，复查 business-logic-1）。
   File：`source_file` 加索引。补丁 `v0_0_16_folder_run_briefs`（历史运行置 `skipped`）。
 - `rules.save(values, *, cc_session=None)`：`values` 可带 `remind`（0/1/bool），不带保留原值；`cc_session` 只从参数取，绝不从 values 取。
 - `rules.save_many(items, *, cc_session=None) -> {"saved": [project…], "failed": [{"task": 序号(1 起), "title", "reason"}]}`，`BATCH_MAX = 20`，
@@ -158,12 +163,13 @@
 
 - 同步请求新增：`rule_pending`（`{规则名: int}`，上一轮算的待处理数）、`roots[].counts`（`{文件夹: n}`）、`roots[].partial`（bool）、
   `notices_after`（epoch float，新版才带）、`runs[].slot`（该次运行所属定时时刻 epoch，可缺）。
-- 同步回复新增：`rules[].existing`（0/1，缺 = 0 = 照旧拍底）、规则下发顺序进货任务在前、`notices`（请求带了 `notices_after` 才回，
+- 同步回复新增：`rules[].existing`（0/1，缺 = 0 = 照旧拍底）、规则下发顺序进货任务在前、`rule_names`（本机读的全部任务名，含停用的，
+  小助手据此清掉久未出现任务的台账）、`notices`（只给涉及任务全归本机的那几条；请求带了 `notices_after` 才回，
   最多 20 条、12 小时窗，字段 `NOTICE_FIELDS = ("id", "title", "text", "created", "session")`）、`companion_latest`（同心跳的形状）。
 - 小助手 1.4.4：按 `existing` 决定拍不拍底；台账墓碑；托盘按 `"notice:"+id` 去重弹通知，点了打开那段对话（没有就定时任务页）；
   只读文件夹的成员也从同步回复拿新版提示。
 
-**F. 词条归属**（防止并行重复加）：`cowork.folder.*` 新词条与 `cowork.folder.waiting_purchases` 归定时任务服务；工具标签归工具；
+**F. 词条归属**（防止并行重复加）：待处理数用 `cowork.folder.pending`，文件夹计数用 `cowork.folder.waiting`，接续用 `cowork.folder.continues`；`cowork.folder.*` 新词条与 `cowork.folder.waiting_purchases` 归定时任务服务；工具标签归工具；
 `cowork.choice.task_default` 归 F6；共用层只加一条 `This device cannot receive notifications.`；前端词条只在 `frontend/assistant/src/i18n.ts`。
 翻译包 `translations/*.csv` 由合并后统一 `i18n-build.py` 生成。
 

@@ -81,8 +81,6 @@ jobs:
         run: python3 tests/test_website.py
       - name: Verify the assistant base (contracts, tool declarations, per-key agent provisioning)
         run: python3 tests/test_assistant.py
-      - name: Verify the assistant page notices, push opt-in, deep links and scheduled tasks page
-        run: python3 tests/test_assistant_ui.py
       - name: Verify the fatcc.com entry (lookup, private billing, Keycloak client, generated sign-in pages)
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
@@ -96,6 +94,8 @@ jobs:
             frontend/assistant/package-lock.json
       - name: Type-check and build the assistant frontend (ADR-019)
         run: npm ci --prefix frontend/assistant && npm --prefix frontend/assistant run build
+      - name: Verify the assistant page notices, push opt-in, deep links and scheduled tasks page
+        run: python3 tests/test_assistant_ui.py
       - name: Verify offline DMS editor snapshot rendering
         run: |
           npm ci --prefix frontend

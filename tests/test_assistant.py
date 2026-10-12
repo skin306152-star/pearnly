@@ -1194,7 +1194,9 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual([g["id"] for g in got], ["pnotice_r2", "pnotice_r4"])
         self.assertEqual(got[1], {"id": "pnotice_r4", "title": "", "text": "t",
                                   "created": contracts.epoch(START + datetime.timedelta(minutes=4), BANGKOK),
-                                  "session": "sesn_mine1"})
+                                  "session": "sesn_mine1", "refs": ["R2"]})
+        # refs 一并给出：产品据此只把涉及记录全归这台电脑的提醒交出去
+        self.assertEqual(notices.for_references(rule, ["R2"], 0)[0]["refs"], ["R1", "R2"])
         self.assertEqual([g["id"] for g in notices.for_references(rule, ["R2", "R3"], 0)],
                          ["pnotice_r1", "pnotice_r2", "pnotice_r4"])
         self.assertEqual([g["id"] for g in notices.for_references(rule, ["R2"], 0, limit=1)], ["pnotice_r1"])

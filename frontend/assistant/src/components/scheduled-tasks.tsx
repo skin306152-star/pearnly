@@ -260,7 +260,7 @@ export function ScheduledTasks() {
     }
   }, []);
   useEffect(() => void reload(), [reload]);
-  useLiveRefresh(reload, { events: [FOLDER_EVENT], busy: Boolean(rules?.some((r) => (r.results?.moving ?? 0) > 0)) });
+  useLiveRefresh(reload, { events: [FOLDER_EVENT], busy: Boolean(rules?.some((r) => (r.results?.moving ?? 0) > 0 && r.agent_fresh)) });
 
   const dayLabel = (d: number) => days(tr).find((x) => x.value === String(d))?.label ?? "";
 

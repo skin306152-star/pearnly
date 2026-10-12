@@ -161,6 +161,8 @@ def _sync(context, body):
     # 本机任务的提醒与完成简报（1.4.4 起小助手带 `notices_after` 才查，弹系统通知用）：最多 20 条、最近 12 小时。
     if "notices_after" in body:
         reply["notices"] = _notices([row.name for row in found], body.get("notices_after"))
+        # 这台电脑读的全部任务名（含停用的）：小助手据此清掉很久没再出现的任务的台账（1.4.4 起，旧版不认这个键）
+        reply["rule_names"] = [row.name for row in found]
     return reply
 
 

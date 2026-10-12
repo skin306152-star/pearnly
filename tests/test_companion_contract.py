@@ -164,13 +164,14 @@ class FolderSync(unittest.TestCase):
             self.assertTrue(quoted(self.server, key), key)
 
     def test_the_server_sends_the_new_reply_keys(self):
-        for key in ("existing", "notices", "companion_latest"):
+        for key in ("existing", "notices", "companion_latest", "rule_names"):
             self.assertTrue(quoted(self.server, key), key)
 
     def test_the_helper_reads_the_new_reply_keys(self):
         round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")
         self.assertIn("rule.get('existing')", round_source)
         self.assertIn("response.get('notices')", round_source)
+        self.assertIn("response.get('rule_names')", round_source)
         self.assertIn("self._offer(response)", round_source)
         self.assertIn("_offer_update(response", self.worker)
         self.assertIn('hb.get("companion_latest")', (COMPANION / "worker.py").read_text(encoding="utf-8"))

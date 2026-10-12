@@ -323,6 +323,7 @@ Connection Revision,接続リビジョン
 Connection or directory record not found.,接続またはディレクトリの記録が見つかりません。
 Contact Email,連絡先メールアドレス
 Content Hash,内容ハッシュ
+Continues the scheduled task «{0}»; only files put in from now on are processed,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 Continuous counting,連続棚卸
 Copy card,カードをコピー
 Copy link,リンクをコピー
@@ -1812,6 +1813,7 @@ cowork.folder.companion_offline,ヘルパーが接続されていなかったた
 cowork.folder.connectHelper,CC デスクトップを接続
 cowork.folder.connection_fixed,定期タスクは別の PC に移せません。停止して新しく作成してください。
 cowork.folder.content_mismatch,アップロード内容が PC のファイルと一致しません。
+cowork.folder.continues,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 cowork.folder.counts,登録済み {0} · 要確認 {1}
 cowork.folder.day,{0} 日
 cowork.folder.default.account,区分が一致しない費用の勘定科目
@@ -1875,11 +1877,12 @@ cowork.folder.overlap_with,定期タスク「{0}」のフォルダーと重な�
 cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登録できなくなっています。
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
-cowork.folder.remind.count,フォルダーに現在 {0} 件あります。
+cowork.folder.pending,未処理 {0} 件、実行時刻に処理します
+cowork.folder.remind.count,未処理のファイルが {0} 件あります。
 cowork.folder.remind.leftDays,あと {0} 日 {1} 時間
 cowork.folder.remind.leftHours,あと {0} 時間 {1} 分
 cowork.folder.remind.leftMinutes,あと {0} 分
-cowork.folder.remind.lineCount,{0}（{1} 件）
+cowork.folder.remind.lineCount,{0}（未処理 {1} 件）
 cowork.folder.remind.many,{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。
 cowork.folder.remind.off,オフ
 cowork.folder.remind.on,オン
@@ -2970,6 +2973,7 @@ waiting for purchases,仕入の登録待ち
 workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用されています。
 {0} ({1} files),{0}（{1} 件）
 {0} ({1} matching lines),{0}（一致 {1} 件）
+{0} ({1} not processed yet),{0}（未処理 {1} 件）
 {0} ({1}),{0}（{1}）
 {0} added you to {1},{0} があなたを「{1}」に追加しました
 {0} bank lines add up to it ({1} to {2}),銀行 {0} 件の合計が一致（{1}〜{2}）
@@ -2979,6 +2983,8 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0} files,{0} 件のファイル
 "{0} files in the folder now, processed at the run time",フォルダーに現在 {0} 件、実行時刻にまとめて処理します
 {0} files in the folder now.,フォルダーに現在 {0} 件あります。
+"{0} files not processed yet, processed at the run time",未処理 {0} 件、実行時刻に処理します
+{0} files not processed yet.,未処理のファイルが {0} 件あります。
 {0} h {1} min left,あと {0} 時間 {1} 分
 {0} ledger lines add up to it ({1} to {2}),総勘定元帳 {0} 件の合計が一致（{1}〜{2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,総勘定元帳の {0} 行は売上税報告の期間（{1}〜{2}）外のため、照合に含めていません。
