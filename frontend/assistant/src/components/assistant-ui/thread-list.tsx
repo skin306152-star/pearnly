@@ -243,8 +243,20 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
   }
 
   return groups.map((group) => {
-    // 搜索时不折叠：要看到所有命中的
-    const open = !!query || !collapsed.has(group.key);
+    // 搜索时不折叠：要看到所有命中的；手机上分组不能折叠（同 Claude 手机端），只是标题
+    const open = !!query || isMobile || !collapsed.has(group.key);
+    if (isMobile) {
+      return (
+        <Fragment key={group.key}>
+          <div data-slot="aui_thread-list-group-label" className="cc-section-label">
+            {group.label}
+          </div>
+          {group.indices.map((index) => (
+            <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />
+          ))}
+        </Fragment>
+      );
+    }
     return (
       <Fragment key={group.key}>
         <button
