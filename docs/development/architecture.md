@@ -151,7 +151,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 ### 已成功订车的后续交付
 
-`booking.delivery` 使用自有原生 `DMS Booking Delivery` 持久化已经独立回读确认的订单结果、原身份版本和稳定回执key。先保存后释放当前LINE草稿，后台只补附件及LINE回执，不调用建单入口。其权限仅System Manager只读，不新增产品导航；未核实订单仍保留原提交标记。`booking.attachments` 负责已选择消息的内容获取，`client.attachments` 负责原生完整表单上传与逐件回读，依赖方向不反转。
+`booking.delivery` 使用自有原生 `DMS Booking Delivery` 持久化已经独立回读确认的订单结果、原身份版本和稳定回执key。先保存后释放当前LINE草稿，后台只补附件及LINE回执，不调用建单入口。回执不等附件：缺附件时回执照常当场发，之后后台只补附件（补齐不发消息），补满6次仍失败才发一次“单号+附件失败”提示并转Review（2026-10-13有意变化，见[建单执行体](../p4/44-booking-flow.md)）。其权限仅System Manager只读，不新增产品导航；未核实订单仍保留原提交标记。`booking.attachments` 负责已选择消息的内容获取，`client.attachments` 负责原生完整表单上传与逐件回读，依赖方向不反转。
 
 ### 三产品共享识别执行
 

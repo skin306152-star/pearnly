@@ -8,6 +8,11 @@ A submission whose result is still unknown is detached the same way, as an
 ``Unverified`` record with no ``booking_id`` (``hold``): the conversation is free
 at once and ``recovery.reconcile_record`` keeps reading it back. Only ``retain``
 turns it into ``Pending`` (in place, same record) once the order is verified.
+
+回执从不等附件（2026-10-13 起，有意变化）：缺附件的单和附件齐全的单一样，当场发同一句回执；
+发出那一次不补附件，之后每一轮只把缺的附件补进同一张单（补齐不发任何消息）。
+补到第 ``REPAIR_LIMIT`` 次仍不行就停，先定好"单号 + 现有的附件失败提示"再发一次，
+LINE 接受了才转 Review；改绑一律直接转 Review、不发消息。
 """
 import hashlib
 import json
@@ -31,6 +36,8 @@ WINDOW_SECONDS = 23 * 3600
 UNVERIFIED = "Unverified"
 #: 第一次后台核对：登记后 5 分钟（执行体里已经核过一轮；崩溃后才转存的，下一轮扫描就核）。
 FIRST_CHECK_SECONDS = 300
+#: 回执送达后，缺的附件最多后台补这么多次（每次一整次 DMS 登录）；再不行只告诉操作员一次。
+REPAIR_LIMIT = 6
 logger = logging.getLogger(__name__)
 
 def _state_store():
@@ -154,6 +161,54 @@ def _receipt_text(doc, marker):
         str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""))
 
 
+def _attachment_notice(doc):
+    """补不上时那一条：单号 + 现有的"部分附件上传失败，请在 DMS 中补充上传"（收件人的手机语言）。"""
+    from pearnly_dms import i18n
+
+    with i18n.line_language(doc.line_user_id):
+        lang = i18n.line_lang()
+        return (i18n.t("dms.card.TXT_BOOKING_REF", lang, booking_no=doc.booking_no) + "\n"
+                + i18n.t("dms.card.qa.TXT_ATTACH_FAIL", lang))
+
+
+def _follow_up_files(doc, marker, binding):
+    """回执已经送达：只把缺的附件补进同一张单，绝不再发回执。"""
+    if not marker.get("notice"):
+        state = marker["delivery"]
+        state["repairs"] = state.get("repairs", 0) + 1  # 与回执重试分开计数
+        _save(doc, marker)  # Count this repair before the DMS login.
+        try:
+            repaired = _repair_files(doc, marker)
+        except Exception:
+            logger.warning("Attachment repair failed; counted towards the limit", exc_info=True)
+            repaired = False
+        if repaired:
+            booking_ledger.log_booking(endpoint=marker["context"]["endpoint"],
+                payload={"qa": marker["context"].get("qa") or {}}, result=marker["result"],
+                actor=binding["user_id"])
+            _save(doc, marker, status="Delivered")
+            return True
+        if not matches(binding, doc.line_user_id):
+            _save(doc, marker, status="Review", error="binding_changed")
+            return False
+        if state["repairs"] < REPAIR_LIMIT:
+            _save(doc, marker, error="attachments_pending")
+            return False
+        # 从这一刻起不再补（免得操作员手工补了系统又补一份）：先定好 key 和文字再发。
+        marker["notice"] = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(),
+                            "text": _attachment_notice(doc)}
+        _save(doc, marker, error="attachments_failed")
+    if not matches(binding, doc.line_user_id):
+        _save(doc, marker, status="Review", error="binding_changed")
+        return False
+    notice = marker["notice"]
+    if not line.push(doc.line_user_id, [{"type": "text", "text": notice["text"]}], retry_key=notice["key"]):
+        _save(doc, marker, error="notice_pending")  # Same key next round, never another repair.
+        return False
+    _save(doc, marker, status="Review", error="attachments_failed")
+    return False
+
+
 def deliver(name):
     cache, owner = _state_store(), uuid.uuid4().hex
     key = cache.make_key("pearnly:dms:delivery:" + name)
@@ -171,16 +226,12 @@ def deliver(name):
         if age(marker.get("completed_at") or marker["recorded_at"]) >= WINDOW_SECONDS:
             _save(doc, marker, status="Review", error="delivery_window_expired")
             return False
-        marker["delivery"] = {"attempts": (marker.get("delivery") or {}).get("attempts", 0) + 1}
+        state = marker.get("delivery") or {}
+        marker["delivery"] = {**state, "attempts": state.get("attempts", 0) + 1}
         _save(doc, marker)  # Persist next retry before any IO.
-        if not marker["result"].get("attach_ok"):
-            if not _repair_files(doc, marker):
-                _save(doc, marker, error="attachments_pending")
-                return False
-            booking_ledger.log_booking(endpoint=marker["context"]["endpoint"],
-                payload={"qa": marker["context"].get("qa") or {}}, result=marker["result"],
-                actor=binding["user_id"])
         receipt = marker.get("receipt")
+        if (receipt or {}).get("accepted_at"):
+            return _follow_up_files(doc, marker, binding)
         if not receipt:
             from pearnly_dms import i18n
 
@@ -197,6 +248,11 @@ def deliver(name):
             _save(doc, marker, status="Review", error="receipt_key_expired")
             return False
         accepted = line.push(doc.line_user_id, [{"type": "text", "text": receipt["text"]}], retry_key=receipt["key"])
+        if accepted and not marker["result"].get("attach_ok"):
+            # 回执不等附件：和正常成功同一刻、同一句送到；这一轮不补，缺的附件交给后面几轮。
+            receipt["accepted_at"] = frappe.utils.now()
+            _save(doc, marker, error="attachments_pending")
+            return True
         _save(doc, marker, status="Delivered" if accepted else "Pending", error="" if accepted else "receipt_pending")
         return bool(accepted)
     except Exception:
