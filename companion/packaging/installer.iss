@@ -21,6 +21,9 @@ PrivilegesRequired=lowest
 DefaultDirName={autopf}\Pearnly Companion
 ; 旧版按全机装在 Program Files:不沿用那个目录(当前用户写不进去),装到上面的用户目录
 UsePreviousAppDir=no
+; 不显示选目录页(2026-10-13):目录名为原地升级沿用旧名,不该亮给用户;不显示时 Ready 页也不列目录
+; (AlwaysShowDirOnReadyPage 默认 no),重装也不再弹「文件夹已存在」
+DisableDirPage=yes
 DefaultGroupName=CC
 UsePreviousGroup=no
 DisableProgramGroupPage=yes
@@ -69,8 +72,9 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Run]
 ; 自动更新(静默安装)装完在后台重启,不在别人干活时弹 CC 窗口;手动安装装完直接打开 CC
+; (完成页的勾选框写「Launch CC」,不写默认的「Run companion.exe」)
 Filename: "{app}\companion.exe"; Parameters: "--background"; Flags: nowait postinstall runasoriginaluser; Check: WizardSilent
-Filename: "{app}\companion.exe"; Flags: nowait postinstall runasoriginaluser skipifsilent
+Filename: "{app}\companion.exe"; Description: "{cm:LaunchProgram,CC}"; Flags: nowait postinstall runasoriginaluser skipifsilent
 
 [Code]
 { 托盘程序无顶层窗口,CloseApplications 的重启管理器可能关不掉它 → 真正开始安装时强制 taskkill,

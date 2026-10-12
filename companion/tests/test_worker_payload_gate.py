@@ -77,6 +77,8 @@ def test_unsupported_version_fails_honestly_zero_writes():
     fail = qc.failures[0]
     assert fail["error_code"] == "ERR_PAYLOAD_VERSION"
     assert fail["meta"] == {"got": 4, "supported": [1, 2, 3]}
+    # 原文会存进推送原因、交给 CC：只用正式名字（2026-10-13 起旧称不出现在用户看得到的地方）
+    assert "CC Desktop" in fail["error"] and "companion" not in fail["error"].lower()
     assert qc.successes == []
 
 
