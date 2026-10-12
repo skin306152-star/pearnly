@@ -29,17 +29,26 @@ class _Frappe(types.ModuleType):
 
     def __init__(self):
         super().__init__("frappe")
-        self.calls, self.commits = [], 0
+        self.calls, self.commits, self.rollbacks = [], 0, 0
+        self.rows = []
         self.session = types.SimpleNamespace(user="a@example.com")
-        self.db = types.SimpleNamespace(commit=self._commit, rollback=lambda: None,
+        self.local = types.SimpleNamespace(lang="en", site="s1", pearnly_assistant=None)
+        self.db = types.SimpleNamespace(commit=self._commit, rollback=self._rollback,
                                         get_value=lambda *a, **k: ("express", 3))
 
     def _commit(self):
         self.commits += 1
 
+    def _rollback(self):
+        self.rollbacks += 1
+
     def get_list(self, doctype, **kwargs):
+        """按 limit_start / limit_page_length 从 `rows` 切（每次给新副本：工具会改行）；数总数的查询回 total。"""
         self.calls.append(kwargs)
-        return []
+        if kwargs.get("fields") and isinstance(kwargs["fields"][0], dict):
+            return [{"total": len(self.rows)}]
+        start, size = kwargs.get("limit_start") or 0, kwargs.get("limit_page_length")
+        return [dict(row) for row in self.rows[start:start + size if size else None]]
 
     def clear_messages(self):
         pass
@@ -64,7 +73,10 @@ def _install():
         "pearnly_cowork.connections.api": dict(request_refresh=lambda *a: {}),
         "pearnly_cowork.connections.service": dict(records=lambda *a: [], targets=lambda name: {}),
         "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, of=lambda adapter: None),
-        "pearnly_cowork.folder_intake.rules": dict(listing=lambda: {}, run_now=lambda n: {}, runs=lambda n: {}),
+        "pearnly_cowork.folder_intake.agent": dict(read=lambda reader: {}),
+        "pearnly_cowork.folder_intake.rules": dict(listing=lambda: {}, run_now=lambda n: {}, runs=lambda n: {},
+                                                   waiting=lambda *a: None, account_label=lambda c, k: k,
+                                                   master_names=lambda c, k: {}),
         "pearnly_cowork.history.push_state": dict(record_failure=lambda *a: None),
         "pearnly_cowork.history.storage": dict(read=lambda name: None),
         "pearnly_cowork.push.application.service": dict(),
@@ -76,6 +88,12 @@ def _install():
         sys.modules[name] = module
         parent, _, child = name.rpartition(".")
         setattr(sys.modules[parent], child, module)
+    # 定时任务的纯规则（默认值各类、哪类适用）用真的：工具的说明与校验要与它一致
+    spec = importlib.util.spec_from_file_location("pearnly_cowork.folder_intake.contracts",
+                                                  COWORK / "folder_intake/contracts.py")
+    contracts = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contracts)
+    sys.modules[spec.name] = sys.modules["pearnly_cowork.folder_intake"].contracts = contracts
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tools)
@@ -139,7 +157,7 @@ class BehaviourTests(unittest.TestCase):
         self.assertIn(["seller_name", "like", "%0107-5650-00620%"], call["or_filters"])
         self.assertIn("seller_tax", call["fields"])
         tools.list_documents({"search": "Advice", "push_state": "failed"})
-        self.assertEqual(frappe.calls[-1]["limit_page_length"], tools.LIST_MAX)  # 失败条件改在取回后筛
+        self.assertEqual(frappe.calls[-1]["limit_page_length"], tools.LIST_SCAN_PAGE)  # 失败条件改在取回后筛
 
     def test_companion_status_leaves_account_set_lists_to_intake_options(self):
         tools.connections.records = lambda *a: [{"name": "C1", "label": "Office", "adapter": "express", "enabled": True}]
@@ -535,8 +553,10 @@ class FolderTaskTests(unittest.TestCase):
             "readers": [{"connection": "EXP1", "label": "DESKTOP-1", "fresh": True,
                          "roots": [{"id": "r1", "label": "C:\\Bills", "folders": [f"2026-{i:02d}" for i in range(1, 80)]}]}],
             "accounts": None, "departments": None, "stock_group": None}
-        tools.rules.save = lambda values: self.calls.append(("save", values)) or {"name": "R1", "title": values["title"], "enabled": 1}
-        tools.rules.set_enabled = lambda name, enabled: self.calls.append(("enabled", name, enabled)) or {"name": name, "enabled": enabled}
+        tools.rules.save = lambda values, cc_session=None: self.calls.append(("save", values)) or {
+            "name": "R1", "title": values["title"], "enabled": 1, "defaults": {}, "remind": 0}
+        tools.rules.set_enabled = lambda name, enabled=None, remind=None, cc_session=None: self.calls.append(
+            ("enabled", name, enabled)) or {"name": name, "enabled": enabled}
         tools.rules.delete = lambda names: self.calls.append(("delete", json.loads(names))) or {"deleted": 1}
 
     def test_options_list_the_open_folders_trimmed_and_searchable(self):
@@ -547,18 +567,27 @@ class FolderTaskTests(unittest.TestCase):
         found = json.loads(tools.folder_task_options({"connection": "EXP1", "search": "2026-07"}))
         self.assertEqual(found["computers"][0]["roots"][0]["folders"], ["2026-07"])
 
+    def test_options_give_the_reported_file_counts(self):
+        """小助手报了各文件夹现有几份就带上（CC 建任务前能说出来）；没报的不给，不拿 0 冒充。"""
+        tools.rules.options = lambda connection, key: {"readers": [{"connection": "EXP1", "label": "PC", "fresh": True, "roots": [
+            {"id": "r1", "label": "C:\\Bills", "folders": ["Ice", "Mint"], "counts": {"": 9, "Ice": 7}, "partial": True},
+            {"id": "r2", "label": "D:\\Scan", "folders": ["A"]}]}]}
+        roots = json.loads(tools.folder_task_options({"connection": "EXP1"}))["computers"][0]["roots"]
+        self.assertEqual((roots[0]["files"], roots[0]["files_partial"]), ({"": 9, "Ice": 7}, True))
+        self.assertNotIn("files", roots[1])
+
     def test_save_enable_delete_go_through_the_task_service(self):
         values = {"title": "Ice", "connection": "EXP1", "direction": "purchase", "posting_kind": "stock",
                   "root_id": "r1", "folder": "2026-10", "run_day": 0, "run_time": "22:00", "ignored": 1}
         out = json.loads(tools.save_folder_task(values))
-        self.assertEqual(out, {"status": "saved", "task": "R1", "title": "Ice", "enabled": 1})
+        self.assertEqual(out, {"status": "saved", "task": "R1", "title": "Ice", "enabled": 1, "defaults": {}, "remind": 0})
         self.assertNotIn("ignored", self.calls[0][1])
         tools.set_folder_task_enabled({"task": "R1", "enabled": False})
         tools.delete_folder_tasks({"tasks": ["R1"]})
         self.assertEqual(self.calls[1:], [("enabled", "R1", 0), ("delete", ["R1"])])
 
     def test_refusals_from_the_service_come_back_as_not_saved(self):
-        def overlap(values):
+        def overlap(values, cc_session=None):
             raise frappe.ValidationError("The folder overlaps task Ice")
 
         tools.rules.save = overlap
@@ -785,7 +814,7 @@ class ApprovalPreviewTests(unittest.TestCase):
         current = {"name": "R1", "title": "QA 月度进项（T9SINCER）", "connection": "EXP1", "account_label": "70EXP · T.7 SINCER",
                    "direction": "purchase", "run_day": 1, "run_time": "22:00:00", "root_label": "Docs", "folder": "CC-QA-empty"}
         with mock.patch.object(tools.rules, "listing", return_value={"rules": [current]}, create=True), \
-                mock.patch.object(tools.rules, "_catalog_item", return_value=("k9", "70EXP · T.9 SINCER"), create=True):
+                mock.patch.object(tools.rules, "account_label", return_value="70EXP · T.9 SINCER", create=True):
             rows = tools.preview_save_folder_task({"name": "R1", "account_set_key": "c:\\70exp\\t9sincer",
                                                    "run_time": "22:00", "direction": "purchase"})
         self.assertEqual([(r["before"], r["after"]) for r in rows],
@@ -799,7 +828,8 @@ class ApprovalPreviewTests(unittest.TestCase):
                    "run_time": "22:00:00", "defaults": {}}
         saved = []
         with mock.patch.object(tools.rules, "listing", return_value={"rules": [current]}, create=True), \
-                mock.patch.object(tools.rules, "save", lambda values: saved.append(values) or {"name": "R1"}, create=True):
+                mock.patch.object(tools.rules, "save", lambda values, cc_session=None: saved.append(values) or {"name": "R1"},
+                                  create=True):
             tools.save_folder_task({"name": "R1", "account_set_key": "k9"})
         self.assertEqual(saved[0]["account_set_key"], "k9")
         self.assertEqual((saved[0]["posting_kind"], saved[0]["folder"], saved[0]["run_time"]), ("service", "f", "22:00"))
@@ -838,6 +868,313 @@ class OriginalTests(unittest.TestCase):
             out = json.loads(tools.document_original({"document": "H1"}))
         self.assertEqual(added, [("IV69-00095-p1.jpg", "image/jpeg"), ("IV69-00095-p2.jpg", "image/jpeg")])
         self.assertEqual((out["pages_total"], len(logged)), (2, 2))
+
+
+# 卡片上的叫法：替身 `_` 原样返回词条键，这里给几条带占位符的，看拼出来的句子
+TERMS = {"cowork.folder.pair": "{0}: {1}", "cowork.folder.waiting": "{0} files in the folder now",
+         "cowork.folder.day": "Day {0}", "cowork.folder.lastDay": "Last day", "cowork.folder.remind.on": "On",
+         "cowork.folder.remind.off": "Off", "cowork.folder.field.remind": "Reminder", "intake.dir.purchase": "Purchase",
+         "cowork.folder.default.payment": "Payment", "cowork.folder.default.vat": "VAT",
+         "cowork.folder.default.account": "Account", "cowork.folder.vat.claim": "Claim",
+         "cowork.folder.vat.expense": "Expense", "cowork.folder.new": "New scheduled task"}
+
+
+def _term(text):
+    return TERMS.get(text, text)
+
+
+class FolderTaskBatchTests(unittest.TestCase):
+    """一次存几个定时任务（一张允许卡片）：任务列表只读一次、改任务以现值为底、默认值按类合并、提醒只在说了时带、
+    来源对话取自当前对话（不从表单取）；全有或全无，不通过的照实回；卡片一个任务一行、最多 20 行。"""
+
+    def setUp(self):
+        self.current = {"name": "R1", "title": "Ice purchases", "connection": "EXP1", "adapter": "express",
+                        "account_set_key": "c:\\70exp\\t9", "account_label": "70EXP · T.9", "direction": "purchase",
+                        "posting_kind": "service", "payment": "", "reader": "EXP1", "root_id": "r1",
+                        "root_label": "C:\\Bills", "folder": "Ice\\purchase", "run_day": 0, "run_time": "22:00:00",
+                        "defaults": {"payment": "cash", "vat": "claim"}, "remind": 0}
+        self.listed, self.calls = 0, []
+        self.result = {"saved": [], "failed": []}
+
+        def listing():
+            self.listed += 1
+            return {"rules": [dict(self.current)]}
+
+        def save_many(items, cc_session=None):
+            self.calls.append((items, cc_session))
+            return self.result
+
+        for name, value in {"listing": listing, "save_many": save_many,
+                            "account_label": lambda connection, key: "70EXP · T.8",
+                            "waiting": lambda reader, root, folder: {"files": 7, "partial": True},
+                            "master_names": lambda connection, key: {"accounts": {"5100": "Office supplies"}}}.items():
+            patcher = mock.patch.object(tools.rules, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for target, name, value in ((tools.agent, "read", lambda reader: {"roots": [{"id": "r1", "label": "C:\\Bills"}]}),
+                                    (frappe.local, "pearnly_assistant", {"session_id": "sesn_7"}),
+                                    (frappe.db, "get_value", lambda *a, **k: "express")):
+            patcher = mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.new = {"title": "Ice expenses", "connection": "EXP1", "account_set_key": "c:\\70exp\\t8",
+                    "direction": "purchase", "posting_kind": "service", "root_id": "r1", "folder": "Ice/expenses",
+                    "run_day": 0, "run_time": "22:00", "defaults": {"payment": "credit", "account": "5100",
+                                                                   "item": "__new__"}, "remind": True}
+
+    def test_the_list_is_read_once_and_each_task_is_merged(self):
+        self.result = {"saved": [{"name": "R1", "title": "Ice purchases", "enabled": 1, "remind": 1,
+                                  "defaults": {"payment": "cash", "account": "5100"}},
+                                 {"name": "R2", "title": "Ice sales", "enabled": 1, "remind": 0, "defaults": {}}],
+                       "failed": []}
+        commits, rollbacks = frappe.commits, frappe.rollbacks
+        out = json.loads(tools.save_folder_tasks({"tasks": [
+            {"name": "R1", "defaults": {"vat": "", "account": "5100"}, "remind": True, "cc_session": "sesn_other"},
+            {"title": "Ice sales", "connection": "EXP1", "direction": "sales", "posting_kind": "service",
+             "root_id": "r1", "folder": "Ice\\sales", "run_day": 5, "run_time": "09:30"}]}))
+        self.assertEqual(self.listed, 1)
+        (items, conversation), = self.calls
+        self.assertEqual(conversation, "sesn_7")  # 来源对话取自当前对话，模型给的不算
+        changed, created = items
+        self.assertEqual((changed["posting_kind"], changed["folder"], changed["run_time"], changed["run_day"]),
+                         ("service", "Ice\\purchase", "22:00", 0))
+        self.assertEqual(changed["defaults"], {"payment": "cash", "account": "5100"})  # 按类合并，空串清掉 vat
+        self.assertEqual(changed["remind"], 1)
+        self.assertNotIn("cc_session", changed)
+        self.assertNotIn("remind", created)  # 没说提醒就不带，由任务服务保留原值
+        self.assertNotIn("defaults", created)
+        self.assertEqual(out["status"], "saved")
+        self.assertEqual(out["tasks"][0], {"task": "R1", "title": "Ice purchases", "enabled": 1,
+                                           "defaults": {"payment": "cash", "account": "5100"}, "remind": 1})
+        self.assertEqual((frappe.commits - commits, frappe.rollbacks - rollbacks), (1, 0))
+
+    def test_a_refused_task_keeps_nothing_and_says_which(self):
+        self.result = {"saved": [], "failed": [{"task": 2, "title": "Ice sales", "reason": "overlaps «Ice purchases»"}]}
+        commits, rollbacks = frappe.commits, frappe.rollbacks
+        out = json.loads(tools.save_folder_tasks({"tasks": [self.new, {"title": "Ice sales"}]}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertEqual(out["failed"], self.result["failed"])
+        self.assertIn("whole list", out["reason"])
+        self.assertEqual((frappe.commits - commits, frappe.rollbacks - rollbacks), (0, 1))
+
+    def test_service_errors_come_back_as_not_saved(self):
+        def refuse(items, cc_session=None):
+            raise frappe.PermissionError("No access to this connection")
+
+        with mock.patch.object(tools.rules, "save_many", refuse):
+            out = json.loads(tools.save_folder_tasks({"tasks": [self.new]}))
+        self.assertEqual((out["status"], out["reason"]), ("not_saved", "No access to this connection"))
+
+    def test_too_many_tasks_or_misspelled_default_kinds_are_refused_before_saving(self):
+        out = json.loads(tools.save_folder_tasks({"tasks": [dict(self.new) for _i in range(21)]}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertIn("20", out["reason"])
+        out = json.loads(tools.save_folder_tasks({"tasks": [self.new, {"name": "R1", "defaults": {"acount": "5100"}}]}))
+        self.assertEqual(out["status"], "not_saved")
+        self.assertEqual((out["failed"][0]["task"], out["failed"][0]["title"]), (2, "R1"))
+        self.assertIn("acount", out["failed"][0]["reason"])
+        with mock.patch.object(tools.rules, "save", lambda *a, **k: self.fail("must not save"), create=True):
+            single = json.loads(tools.save_folder_task({"name": "R1", "defaults": {"acount": "5100"}}))
+        self.assertEqual(single["status"], "not_saved")
+        self.assertEqual(self.calls, [])
+        with self.assertRaises(frappe.ValidationError):
+            tools.save_folder_tasks({"tasks": []})
+
+    def test_the_card_has_one_row_per_task(self):
+        with mock.patch.object(tools, "_", _term):
+            rows = tools.preview_save_folder_tasks({"tasks": [self.new, {"name": "R1", "run_time": "23:00",
+                                                                         "defaults": {"vat": "expense"}}]})
+        self.assertEqual(self.listed, 1)
+        new, changed = rows
+        self.assertEqual((new["field"], new["before"]), ("Ice expenses", ""))
+        self.assertEqual(new["after"].split(" · "), [
+            "70EXP", "T.8", "Purchase", "Service", "C:\\Bills\\Ice\\expenses", "Last day", "22:00", "Payment: Credit",
+            "Account: 5100", "Office supplies", "Reminder: On", "7+ files in the folder now"])
+        # 改已有任务只写变了的；没换文件夹不说份数；不适用的默认值（服务类不用 item）不上卡片
+        self.assertEqual(changed, {"field": "Ice purchases", "before": "22:00 · VAT: Claim", "after": "23:00 · VAT: Expense"})
+        many = tools.preview_save_folder_tasks({"tasks": [dict(self.new) for _i in range(25)]})
+        self.assertEqual(len(many), tools.FOLDER_BATCH_MAX)
+
+    def test_single_card_lists_defaults_month_end_reminder_and_files(self):
+        with mock.patch.object(tools, "_", _term):
+            rows = tools.preview_save_folder_task(self.new)
+            shown = {row["field"]: (row["before"], row["after"]) for row in rows}
+            self.assertEqual(shown["cowork.folder.field.day"], ("", "Last day"))
+            self.assertEqual(shown["Payment"], ("", "Credit"))
+            self.assertEqual(shown["Account"], ("", "5100 · Office supplies"))
+            self.assertEqual(shown["Reminder"], ("Off", "On"))
+            self.assertEqual(rows[-1], {"field": "", "before": "", "after": "7+ files in the folder now"})
+            # 小助手没报过份数：不说，不拿 0 冒充；MR.ERP 任务没有默认处理
+            with mock.patch.object(tools.rules, "waiting", lambda *a: None), \
+                    mock.patch.object(frappe.db, "get_value", lambda *a, **k: "mrerp"):
+                rows = tools.preview_save_folder_task(self.new)
+            self.assertNotIn("", [row["field"] for row in rows])
+            self.assertFalse({"Payment", "Account"} & {row["field"] for row in rows})
+            with mock.patch.object(tools.rules, "waiting", lambda *a: {"files": 0, "partial": False}):
+                rows = tools.preview_save_folder_task(self.new)
+            self.assertEqual(rows[-1]["after"], "0 files in the folder now")
+
+    def test_single_save_passes_the_conversation_and_reports_defaults_not_kept(self):
+        saved = []
+        with mock.patch.object(tools.rules, "save", lambda values, cc_session=None: saved.append((values, cc_session))
+                               or {"name": "R3", "title": "Ice expenses", "enabled": 1, "remind": 1,
+                                   "defaults": {"payment": "credit", "account": "5100"}}, create=True):
+            out = json.loads(tools.save_folder_task({**self.new, "cc_session": "sesn_other"}))
+            values, conversation = saved[0]
+            self.assertEqual((conversation, values["remind"]), ("sesn_7", 1))
+            self.assertNotIn("cc_session", values)
+            self.assertEqual(out["defaults_not_applicable"], ["item"])
+            tools.save_folder_task({key: value for key, value in self.new.items() if key != "remind"})
+            self.assertNotIn("remind", saved[1][0])
+
+    def test_reminder_alone_can_be_turned_on(self):
+        calls = []
+        with mock.patch.object(tools.rules, "set_enabled", lambda name, enabled=None, remind=None, cc_session=None:
+                               calls.append((name, enabled, remind, cc_session)) or {"name": name, "enabled": 1,
+                                                                                      "remind": remind}, create=True):
+            out = json.loads(tools.set_folder_task_enabled({"task": "R1", "remind": True}))
+            self.assertEqual(calls, [("R1", None, 1, "sesn_7")])
+            self.assertEqual((out["status"], out["remind"]), ("saved", 1))
+            refused = json.loads(tools.set_folder_task_enabled({"task": "R1"}))
+            self.assertEqual((refused["status"], len(calls)), ("not_saved", 1))
+        with mock.patch.object(tools, "_", _term):
+            rows = tools.preview_set_folder_task_enabled({"task": "R1", "remind": True})
+        self.assertEqual([(r["field"], r["before"], r["after"]) for r in rows],
+                         [("cowork.folder.field.title", "", "Ice purchases"), ("Reminder", "Off", "On")])
+
+
+def _history_row(name, direction, kind, subtotal, vat, total):
+    fields = {"direction": direction, "document_type": kind, "subtotal": subtotal, "vat": vat}
+    return {"name": name, "total_amount": total, "push_connection": "EXP1", "pages": json.dumps([{"fields": fields}])}
+
+
+class ListAndRunsTests(unittest.TestCase):
+    """单据列表：翻页、按连接 / 账套筛、每行带识别出的税前额与税额、按方向筛与 Decimal 合计；运行记录带推送统计。"""
+
+    def setUp(self):
+        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
+        push = types.ModuleType("pearnly_cowork.contracts.push")
+        push.normalize_direction = lambda value: value if value in ("purchase", "sales") else None
+        contracts = sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts"))
+        patcher = mock.patch.dict(sys.modules, {"pearnly_cowork.contracts.history": history,
+                                                "pearnly_cowork.contracts.push": push})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for name, module in (("history", history), ("push", push)):
+            patcher = mock.patch.object(contracts, name, module, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        frappe.rows = [_history_row("D1", "purchase", "tax_invoice", "1,000.10", "70.00", "1,070.10"),
+                       _history_row("D2", "sales", "tax_invoice", "500", "35", "535"),
+                       _history_row("D3", "purchase", "credit_note", "100", "7", "107"),
+                       _history_row("D4", "", "receipt", "10", "", "10"),
+                       _history_row("D5", "purchase", "receipt", "200.20", None, "abc")]
+        self.addCleanup(setattr, frappe, "rows", [])
+        frappe.calls.clear()
+
+    def test_pages_and_target_filters(self):
+        out = json.loads(tools.list_documents({"offset": 2, "limit": 2, "connection": "EXP1",
+                                               "account_set_key": "c:\\70exp\\t9"}))
+        listed = frappe.calls[0]
+        self.assertEqual((listed["limit_start"], listed["limit_page_length"]), (2, 2))
+        self.assertEqual((listed["filters"]["push_connection"], listed["filters"]["push_account_set"]),
+                         ("EXP1", "c:\\70exp\\t9"))
+        self.assertEqual([d["name"] for d in out["documents"]], ["D3", "D4"])
+        self.assertEqual((out["total"], out["next_offset"]), (5, 4))  # 这一页装满了才数总数
+        self.assertEqual(frappe.calls[1]["fields"], [{"COUNT": "name", "as": "total"}])
+        third = out["documents"][0]
+        self.assertEqual((third["document_type"], third["direction"], third["subtotal"], third["vat"]),
+                         ("credit_note", "purchase", "100", "7"))
+        self.assertNotIn("pages", third)
+        last = json.loads(tools.list_documents({"offset": 4, "limit": 2}))
+        self.assertEqual(([d["name"] for d in last["documents"]], last["total"], last["next_offset"]), (["D5"], 5, None))
+
+    def test_direction_and_totals_are_summed_with_decimal(self):
+        out = json.loads(tools.list_documents({"direction": "purchase", "totals": True, "limit": 1}))
+        self.assertEqual(([d["name"] for d in out["documents"]], out["total"], out["next_offset"]), (["D1"], 3, 1))
+        self.assertEqual(out["without_direction"], 1)
+        self.assertEqual(out["totals"]["documents"], {"count": 2, "subtotal": "1200.30", "vat": "70.00",
+                                                      "total_amount": "1070.10",
+                                                      "without_value": {"vat": 1, "total_amount": 1}})
+        self.assertEqual(out["totals"]["credit_notes"], {"count": 1, "subtotal": "100.00", "vat": "7.00",
+                                                         "total_amount": "107.00"})
+        self.assertNotIn("complete", out)
+
+    def test_only_the_newest_documents_are_scanned(self):
+        with mock.patch.object(tools, "LIST_SCAN_MAX", 4), mock.patch.object(tools, "LIST_SCAN_PAGE", 2):
+            out = json.loads(tools.list_documents({"totals": True}))
+        self.assertEqual((out["total"], out["complete"]), (4, False))
+        self.assertIn("newest 4", out["note"])
+
+    def test_failed_and_search_are_filtered_after_reading(self):
+        frappe.rows[1]["last_push_reason"] = "choice_needed:account"
+        out = json.loads(tools.list_documents({"search": "Ice", "push_state": "failed"}))
+        self.assertEqual([d["name"] for d in out["documents"]], ["D2"])
+
+    def test_runs_and_tasks_carry_results(self):
+        run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},
+               "states": {"done": 3}}
+        task = {"name": "R1", "defaults": {"vat": "claim"}, "remind": 1, "include_existing": 1, "waiting": 5,
+                "waiting_partial": True, "rule_owner": "x@example.com"}
+        with mock.patch.object(tools.rules, "runs", lambda name: {"rule": {"name": name}, "runs": [run]}), \
+                mock.patch.object(tools.rules, "listing", lambda: {"rules": [task]}):
+            runs = json.loads(tools.folder_task_runs({"task": "R1"}))["runs"][0]
+            listed = json.loads(tools.folder_tasks({}))["tasks"][0]
+        self.assertEqual((runs["results"], runs["states"]), (run["results"], run["states"]))
+        self.assertNotIn("name", runs)
+        keys = ("defaults", "remind", "include_existing", "waiting", "waiting_partial")
+        self.assertEqual({key: listed[key] for key in keys}, {key: task[key] for key in keys})
+        self.assertNotIn("rule_owner", listed)
+
+
+class FolderTaskDeclarationTests(unittest.TestCase):
+    """工具说明与参数：默认值各类与任务规则同一组、批量上限不超过卡片行数、改字段说明与推送行为一致。"""
+
+    def _tool(self, name):
+        return next(t for t in tools.TOOLS if t["name"] == name)
+
+    def test_default_kinds_match_the_task_rules_on_both_save_tools(self):
+        single = self._tool("cowork_save_folder_task")["input_schema"]["properties"]["defaults"]
+        batch = self._tool("cowork_save_folder_tasks")["input_schema"]["properties"]["tasks"]["items"]["properties"]
+        for defaults in (single, batch["defaults"]):
+            self.assertEqual(set(defaults["properties"]), set(tools.folder_contracts.KINDS))
+            self.assertFalse(defaults["additionalProperties"])
+        self.assertIn("remind", batch)
+
+    def test_the_batch_fits_on_one_card(self):
+        import re
+
+        core = (ROOT / "apps/pearnly_core/pearnly_core/assistant/tools.py").read_text(encoding="utf-8")
+        rows = int(re.search(r"^PREVIEW_ROWS = (\d+)", core, re.M).group(1))
+        tool = self._tool("cowork_save_folder_tasks")
+        self.assertEqual(tool["input_schema"]["properties"]["tasks"]["maxItems"], tools.FOLDER_BATCH_MAX)
+        self.assertLessEqual(tools.FOLDER_BATCH_MAX, rows)
+        self.assertTrue(tool["approval"])
+        self.assertTrue(callable(getattr(tools, tool["preview"].rpartition(".")[2])))
+        switch = self._tool("cowork_set_folder_task_enabled")["input_schema"]
+        self.assertEqual((switch["required"], "remind" in switch["properties"]), (["task"], True))
+
+    def test_descriptions_match_what_the_tools_do(self):
+        edit = self._tool("cowork_edit_document")["description"]
+        self.assertNotIn("must be pushed again", edit)
+        self.assertIn("not pushed again", edit)
+        self.assertIn("already_success", self._tool("cowork_push_documents")["description"])
+        self.assertIn("task_defaults", self._tool("cowork_push_choices")["description"])
+        # 新任务处理文件夹里还没处理过的，包括建任务前已有的（不再说只收新放入的）
+        self.assertNotIn("new photos", self._tool("cowork_save_folder_task")["description"])
+        self.assertNotIn("only handles files put in the folder after now",
+                         self._tool("cowork_set_folder_task_enabled")["description"])
+
+    def test_task_defaults_come_back_with_push_choices(self):
+        doc = types.SimpleNamespace(push_connection="EXP1", push_account_set="K", posting_kind="service")
+        fixed = {"needed": [], "options": {}, "fixed": {"account": "5100"}}
+        with mock.patch.object(tools.storage, "read", lambda name: doc, create=True), \
+                mock.patch.object(tools.application, "choices_view", lambda *a: fixed, create=True):
+            out = json.loads(tools.push_choices({"document": "H1"}))
+            self.assertEqual(out["task_defaults"], {"account": "5100"})
+            fixed.pop("fixed")
+            self.assertNotIn("task_defaults", json.loads(tools.push_choices({"document": "H1"})))
 
 
 if __name__ == "__main__":

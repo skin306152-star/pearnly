@@ -1730,6 +1730,7 @@ This folder overlaps the folder of scheduled task «{0}».	与定时任务「{0}
 This connection does not support scheduled tasks.	此连接不支持定时任务。	การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา	この接続は定期タスクに対応していません。	cowork.folder.unsupported_connection
 No folders to choose yet. Add them in CC Desktop on the PC.	暂无可选文件夹，请在电脑的 CC 桌面版中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง	選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。	cowork.folder.noRootsAny
 Connect CC Desktop	连接 CC 桌面版	เชื่อมต่อ CC เดสก์ท็อป	CC デスクトップを接続	cowork.folder.connectHelper
+{0}: {1}	{0}：{1}	{0}: {1}	{0}：{1}	cowork.folder.pair
 Checked CC Desktop	查看了 CC 桌面版	ตรวจสอบ CC เดสก์ท็อปแล้ว	CC デスクトップを確認しました	
 Refreshed account sets	刷新了账套	รีเฟรชชุดบัญชีแล้ว	帳簿を更新しました
 Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
@@ -1764,6 +1765,7 @@ Change the inventory account group?	要更改存货科目组吗？	เปลี�
 Change the MR.ERP import settings?	要更改 MR.ERP 导入设置吗？	เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่	MR.ERP の取込設定を変更しますか？
 Change how this kind of document is handled?	要更改这类单据的处理方式吗？	เปลี่ยนวิธีจัดการเอกสารประเภทนี้หรือไม่	この種類の書類の扱いを変更しますか？
 Save this folder task?	要保存这个定时任务吗？	บันทึกงานตามกำหนดเวลานี้หรือไม่	この定期タスクを保存しますか？
+Save these folder tasks?	要保存这些定时任务吗？	บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを保存しますか？
 Turn this folder task on or off?	要启用或停用这个定时任务吗？	เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่	この定期タスクをオン／オフにしますか？
 Delete these folder tasks?	要删除这些定时任务吗？	ลบงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを削除しますか？
 Transfer slips	转账凭条	สลิปโอนเงิน	振込明細
@@ -1786,6 +1788,7 @@ Started a folder task	启动了文件夹任务	เริ่มงานโฟล
 Checked folder task runs	查看了文件夹任务记录	ตรวจสอบประวัติงานโฟลเดอร์แล้ว	フォルダータスクの実行履歴を確認しました
 Checked folder task options	查看了文件夹任务可选项	ตรวจสอบตัวเลือกงานโฟลเดอร์แล้ว	フォルダータスクの選択肢を確認しました
 Saved a folder task	保存了文件夹任务	บันทึกงานโฟลเดอร์แล้ว	フォルダータスクを保存しました
+Saved folder tasks	保存了多个文件夹任务	บันทึกงานโฟลเดอร์หลายงานแล้ว	複数のフォルダータスクを保存しました
 Turned a folder task on or off	启用或停用了文件夹任务	เปิดหรือปิดงานโฟลเดอร์แล้ว	フォルダータスクを有効化／停止しました
 Deleted folder tasks	删除了文件夹任务	ลบงานโฟลเดอร์แล้ว	フォルダータスクを削除しました
 No documents were given.	没有指定单据。	ไม่ได้ระบุเอกสาร	書類が指定されていません。

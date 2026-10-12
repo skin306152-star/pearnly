@@ -20,7 +20,8 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.folder_intake import destinations, rules
+from pearnly_cowork.folder_intake import agent, destinations, rules
+from pearnly_cowork.folder_intake import contracts as folder_contracts
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
 from pearnly_cowork.push.application import service as application
@@ -29,10 +30,16 @@ HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"
 PUSH_MAX = 20
 LIST_MAX = 50
+# 按方向筛、算合计时要看每张的主页面（方向、税前额、税额只在识别结果里）：在库里按页取、取一页丢一页的原文，
+# 最多看最新的这么多张；再多就说「只看了最新的」，请用日期缩小。
+LIST_SCAN_MAX = 2000
+LIST_SCAN_PAGE = 200
 DOC_FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
               "total_amount", "quality_status", "staged",
               "posting_kind", "intake_target", "push_connection", "push_account_set", "last_push_status",
               "last_push_reason", "last_pushed_at", "filename", "creation"]
+PAGE_SHOWN = ("document_type", "direction", "subtotal", "vat")
+SUMMED = ("subtotal", "vat", "total_amount")
 
 
 def _json(value) -> str:
@@ -68,6 +75,54 @@ def refresh_account_sets(tool_input) -> str:
 
 # ---------------- 单据与推送结果 ----------------
 
+def _number(value):
+    """识别结果里的金额 → Decimal；空的、读不出的为 None（不当 0 算）。"""
+    if value in (None, ""):
+        return None
+    try:
+        number = Decimal(str(value).replace(",", "").strip())
+    except InvalidOperation:
+        return None
+    return number if number.is_finite() else None
+
+
+def _with_page(row) -> dict:
+    """列表一行补上主页面的单据类型、方向、税前额、税额（识别结果；同复核页读的那一页），去掉整份页面原文。"""
+    from pearnly_cowork.contracts import history as history_contracts
+    from pearnly_cowork.contracts.push import normalize_direction
+
+    pages = row.pop("pages", None)
+    try:
+        pages = json.loads(pages) if isinstance(pages, str) else pages
+    except ValueError:
+        pages = None
+    page = history_contracts.primary_page_fields(pages if isinstance(pages, list) else [])
+    row.update({key: page.get(key) for key in PAGE_SHOWN})
+    row["direction"] = normalize_direction(page.get("direction"))
+    return row
+
+
+def _totals(rows) -> dict:
+    """合计（Decimal）：贷项单另算一组；某项没读到值的张数单独报，不当 0。"""
+    groups = {}
+    for row in rows:
+        group = groups.setdefault("credit_notes" if row.get("document_type") == "credit_note" else "documents",
+                                  {"count": 0, **{key: Decimal(0) for key in SUMMED}, "without": {}})
+        group["count"] += 1
+        for key in SUMMED:
+            value = _number(row.get(key))
+            if value is None:
+                group["without"][key] = group["without"].get(key, 0) + 1
+            else:
+                group[key] += value
+    out = {}
+    for name, group in groups.items():
+        out[name] = {"count": group["count"], **{key: f"{group[key]:.2f}" for key in SUMMED}}
+        if group["without"]:
+            out[name]["without_value"] = group["without"]
+    return out
+
+
 def list_documents(tool_input) -> str:
     scope.require_read()
     filters, or_filters = {}, None
@@ -85,7 +140,14 @@ def list_documents(tool_input) -> str:
                                                tool_input.get("invoice_date_to") or "2999-12-31"]]
     if tool_input.get("waiting_review") is not None:
         filters["staged"] = 1 if tool_input.get("waiting_review") else 0
+    # 推往哪条连接、哪份账套（键同 cowork_intake_options；库里比较不分大小写）
+    if tool_input.get("connection"):
+        filters["push_connection"] = str(tool_input["connection"])
+    if tool_input.get("account_set_key"):
+        filters["push_account_set"] = str(tool_input["account_set_key"])
     limit = max(1, min(int(tool_input.get("limit") or 20), LIST_MAX))
+    offset = max(0, int(tool_input.get("offset") or 0))
+    direction = tool_input.get("direction") if tool_input.get("direction") in ("purchase", "sales") else None
     search = str(tool_input.get("search") or "").strip()
     failed_only = or_filters is not None
     if search:
@@ -95,12 +157,48 @@ def list_documents(tool_input) -> str:
         if len(digits) >= 5:
             or_filters += [[field, "like", f"%{digits}%"] for field in ("seller_tax", "buyer_tax", "invoice_no")]
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
-    rows = frappe.get_list(HISTORY, filters=filters, or_filters=or_filters, fields=DOC_FIELDS,
-                           order_by="modified desc, name desc",
-                           limit_page_length=LIST_MAX if search and failed_only else limit)
-    if search and failed_only:
-        rows = [r for r in rows if r.get("last_push_status") == "manual" or r.get("last_push_reason")][:limit]
-    return _json({"documents": rows, "count": len(rows)})
+    query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages"],
+             "order_by": "modified desc, name desc"}
+    out = {}
+    if not (search and failed_only) and not direction and not tool_input.get("totals"):
+        rows = [_with_page(r) for r in frappe.get_list(HISTORY, limit_start=offset, limit_page_length=limit, **query)]
+        if len(rows) < limit and (rows or not offset):
+            total = offset + len(rows)
+        else:
+            counted = frappe.get_list(HISTORY, filters=filters, or_filters=or_filters,
+                                      fields=[{"COUNT": "name", "as": "total"}], order_by="", limit_page_length=0)
+            total = max(int((counted[0].get("total") if counted else 0) or 0), offset + len(rows))
+    else:
+        # 要在取回后筛（失败 + 搜索、方向）或要合计：按页看最新的最多 LIST_SCAN_MAX 张，筛完再切这一页
+        matched, scanned, complete, no_direction = [], 0, False, 0
+        while scanned < LIST_SCAN_MAX:
+            page = frappe.get_list(HISTORY, limit_start=scanned,
+                                   limit_page_length=min(LIST_SCAN_PAGE, LIST_SCAN_MAX - scanned), **query)
+            scanned += len(page)
+            for row in page:
+                row = _with_page(row)
+                if search and failed_only and not (row.get("last_push_status") == "manual"
+                                                   or row.get("last_push_reason")):
+                    continue
+                if direction and row.get("direction") != direction:
+                    no_direction += not row.get("direction")
+                    continue
+                matched.append(row)
+            if len(page) < LIST_SCAN_PAGE:
+                complete = True
+                break
+        rows, total = matched[offset:offset + limit], len(matched)
+        if tool_input.get("totals"):
+            out["totals"] = _totals(matched)
+        if no_direction:
+            out["without_direction"] = no_direction
+        if not complete:
+            out["complete"] = False
+            out["note"] = (f"Only the newest {LIST_SCAN_MAX} documents were checked; narrow the dates to cover "
+                           "the rest.")
+    next_offset = offset + len(rows)
+    return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
+                  "next_offset": next_offset if next_offset < total else None, **out})
 
 
 # 推送要证明这份账套的目录刚由小助手读过（`targets/freeze.py`）；网页选定账套时会先请小助手读一次，对话里没有这一步，
@@ -770,8 +868,12 @@ def push_choices(tool_input) -> str:
     for kind, rows in (view.get("options") or {}).items():
         found = [r for r in rows if not search or search in f"{r.get('code')} {r.get('name')}".casefold()]
         options[kind] = {"total": len(found), "shown": found[:CHOICE_OPTIONS_SHOWN]}
-    return _json({"document": name, "connection": connection, "account_set": view.get("account_set") or account_set,
-                  "needed": view.get("needed") or [], "options": options})
+    out = {"document": name, "connection": connection, "account_set": view.get("account_set") or account_set,
+           "needed": view.get("needed") or [], "options": options}
+    if view.get("fixed"):
+        # 来自定时任务、推往该任务账套的票：任务默认处理已定的类别（推送服务按任务取，不再问、不记进账套）
+        out["task_defaults"] = view["fixed"]
+    return _json(out)
 
 
 def save_push_choices(tool_input) -> str:
@@ -1375,10 +1477,22 @@ def work_search(tool_input) -> str:
 
 # ---------------- 文件夹定时任务 ----------------
 
+# 一次保存几个任务：允许卡片上一个任务一行，共用层卡片最多 20 行（`PREVIEW_ROWS`），多了会被截掉、用户看不到
+FOLDER_BATCH_MAX = 20
+TASK_KEYS = ("name", "title", "connection", "account_set_key", "direction", "posting_kind", "payment", "reader",
+             "root_id", "folder", "run_day", "run_time")
+
+
+def _conversation():
+    """这次调用所在的对话：在 CC 里存或启用的任务，提醒发回这段对话（任务服务只从参数取，不从表单取）。"""
+    return (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or None
+
+
 def folder_tasks(_input) -> str:
     listing = rules.listing()
     keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
-            "folder", "root_label", "run_day", "run_time", "last_run", "counts", "results", "agent_fresh", "folder_state")
+            "folder", "root_label", "run_day", "run_time", "defaults", "remind", "include_existing", "last_run",
+            "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state")
     return _json({"tasks": [{k: r.get(k) for k in keep} for r in listing.get("rules") or []]})
 
 
@@ -1390,16 +1504,17 @@ def run_folder_task(tool_input) -> str:
 
 def folder_task_runs(tool_input) -> str:
     data = rules.runs(str(tool_input.get("task") or ""))
-    keep = ("trigger", "started_at", "scanned_at", "found", "new_files", "skipped", "upload_failed", "note")
+    keep = ("trigger", "started_at", "scanned_at", "found", "new_files", "skipped", "upload_failed", "note",
+            "results", "states")
     return _json({"task": data.get("rule"), "runs": [{k: r.get(k) for k in keep} for r in data.get("runs") or []][:10]})
 
 
 FOLDERS_SHOWN = 50
 
 
-def _task_call(fn, *args):
+def _task_call(fn, *args, **kwargs):
     try:
-        result = fn(*args)
+        result = fn(*args, **kwargs)
         frappe.db.commit()
         return result
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
@@ -1419,8 +1534,16 @@ def folder_task_options(tool_input) -> str:
         roots = []
         for root in reader.get("roots") or []:
             folders = [f for f in root.get("folders") or [] if not search or search in str(f).casefold()]
-            roots.append({"root_id": root.get("id"), "label": root.get("label"), "folders_total": len(folders),
-                          "folders": folders[:FOLDERS_SHOWN]})
+            item = {"root_id": root.get("id"), "label": root.get("label"), "folders_total": len(folders),
+                    "folders": folders[:FOLDERS_SHOWN]}
+            # 小助手报的各文件夹（含子文件夹）现有几份会被录入的文件；没报过就不给，不拿 0 冒充
+            counts = root.get("counts") or {}
+            shown = {folder: counts[folder] for folder in [""] + item["folders"] if folder in counts}
+            if shown:
+                item["files"] = shown
+                if root.get("partial"):
+                    item["files_partial"] = True
+            roots.append(item)
         readers.append({"reader": reader.get("connection"), "computer": reader.get("label"), "online": reader.get("fresh"),
                         "roots": roots})
     out = {"computers": readers, "stock_group": data.get("stock_group")}
@@ -1431,24 +1554,121 @@ def folder_task_options(tool_input) -> str:
     return _json(_filled(out))
 
 
-def save_folder_task(tool_input) -> str:
-    keep = ("name", "title", "connection", "account_set_key", "direction", "posting_kind", "payment", "reader",
-            "root_id", "folder", "run_day", "run_time", "defaults")
-    # 改已有任务：以库里现值为底，只换这次说的几项（保存接口要整份表单；2026-10-10 测试只传了账套，缺入账方式被拒）
-    current = _task_row(str(tool_input.get("name") or "")) if tool_input.get("name") else {}
-    values = {key: current[key] for key in keep if current.get(key) not in (None, "")}
+def _task_rows(items) -> dict:
+    """要改的已有任务的现值（任务列表只读一次）；全是新任务就不读。"""
+    if not any(isinstance(item, dict) and item.get("name") for item in items):
+        return {}
+    return {row.get("name"): row for row in rules.listing().get("rules") or []}
+
+
+def _given_defaults(item):
+    """模型给的默认值：对象（或写成 JSON 字符串的对象）；没给为 None。"""
+    raw = item.get("defaults")
+    if isinstance(raw, str) and raw.strip():
+        try:
+            return json.loads(raw)
+        except ValueError:
+            return raw
+    return raw
+
+
+def _task_values(item, rows) -> dict:
+    """要存的一份任务表单。改已有任务：以库里现值为底，只换这次说的几项（保存接口要整份表单；2026-10-10 测试只传了
+    账套，缺入账方式被拒）；默认值按类合并、空串清掉这一类；提醒只在说了时带（不带由任务服务保留原值）。
+    来源对话不进表单（由 `_conversation` 作参数交给任务服务）。"""
+    current = rows.get(str(item.get("name") or ""), {}) if item.get("name") else {}
+    values = {key: current[key] for key in TASK_KEYS if current.get(key) not in (None, "")}
     if "run_time" in values:
         values["run_time"] = _time(values["run_time"])
-    values.update({key: tool_input[key] for key in keep if key in tool_input})
-    row = _task_call(rules.save, values)
-    return _json(row if row.get("status") == "not_saved" else {"status": "saved", "task": row.get("name"),
-                                                               "title": row.get("title"), "enabled": row.get("enabled")})
+    values.update({key: item[key] for key in TASK_KEYS if key in item})
+    given = _given_defaults(item)
+    if isinstance(given, dict):
+        merged = {**(current.get("defaults") or {}), **given}
+        values["defaults"] = {kind: value for kind, value in merged.items() if value not in (None, "")}
+    elif given not in (None, ""):
+        values["defaults"] = given  # 形状不对：交给任务服务照现有口径拒绝
+    elif current.get("defaults"):
+        values["defaults"] = dict(current["defaults"])
+    if item.get("remind") is not None:
+        values["remind"] = 1 if item["remind"] else 0
+    return values
+
+
+def _unknown_defaults(items) -> dict:
+    """默认值里不认识的类（模型拼错的键）：任务服务会把它们静默丢掉，这里先拒，指出第几个任务、哪个键。"""
+    failed = []
+    for number, item in enumerate(items, 1):
+        given = _given_defaults(item)
+        unknown = [str(kind) for kind in given if kind not in folder_contracts.KINDS] if isinstance(given, dict) else []
+        if unknown:
+            failed.append({"task": number, "title": str(item.get("title") or item.get("name") or "")[:140],
+                           "reason": "unknown default kind: " + ", ".join(unknown)})
+    if not failed:
+        return {}
+    return {"status": "not_saved", "reason": "Nothing was saved. Default kinds are only "
+                                            + ", ".join(folder_contracts.KINDS) + ".", "failed": failed}
+
+
+def _saved_task(row, values) -> dict:
+    """存下的任务回给模型：实际存下的默认值与提醒；说了却因不适用（方向、入账方式、ERP）没存的默认值另列。"""
+    saved = row.get("defaults") or {}
+    given = values.get("defaults") if isinstance(values.get("defaults"), dict) else {}
+    out = {"task": row.get("name"), "title": row.get("title"), "enabled": row.get("enabled"), "defaults": saved,
+           "remind": row.get("remind")}
+    skipped = [kind for kind, value in given.items() if value not in (None, "") and kind not in saved]
+    if skipped:
+        out["defaults_not_applicable"] = skipped
+    return {key: value for key, value in out.items() if value is not None}
+
+
+def save_folder_task(tool_input) -> str:
+    refused = _unknown_defaults([tool_input])
+    if refused:
+        return _json(refused)
+    values = _task_values(tool_input, _task_rows([tool_input]))
+    row = _task_call(rules.save, values, cc_session=_conversation())
+    return _json(row if row.get("status") == "not_saved" else {"status": "saved", **_saved_task(row, values)})
+
+
+def save_folder_tasks(tool_input) -> str:
+    """一次建 / 改几个任务（一张允许卡片）：全有或全无，任一个不通过就一个都不存，回每个不通过的序号、名称、原因。"""
+    items = tool_input.get("tasks")
+    if not isinstance(items, list) or not items:
+        frappe.throw(_("No tasks were given."))
+    if len(items) > FOLDER_BATCH_MAX:
+        return _json({"status": "not_saved", "reason": f"At most {FOLDER_BATCH_MAX} tasks at a time; split the list."})
+    if not all(isinstance(item, dict) for item in items):
+        return _json({"status": "not_saved", "reason": "Each task must be an object."})
+    refused = _unknown_defaults(items)
+    if refused:
+        return _json(refused)
+    rows = _task_rows(items)
+    values = [_task_values(item, rows) for item in items]
+    try:
+        result = rules.save_many(values, cc_session=_conversation())
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_saved", "reason": str(error)[:300]})
+    if result.get("failed"):
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"status": "not_saved", "reason": "Nothing was saved. Fix the tasks listed in failed and call "
+                                                       "again with the whole list.", "failed": result["failed"]})
+    frappe.db.commit()
+    return _json({"status": "saved", "tasks": [_saved_task(row, value)
+                                               for row, value in zip(result.get("saved") or [], values)]})
 
 
 def set_folder_task_enabled(tool_input) -> str:
-    row = _task_call(rules.set_enabled, str(tool_input.get("task") or ""), 1 if tool_input.get("enabled") else 0)
-    return _json(row if row.get("status") == "not_saved" else {"status": "saved", "task": row.get("name"),
-                                                               "enabled": row.get("enabled")})
+    enabled = None if tool_input.get("enabled") is None else (1 if tool_input["enabled"] else 0)
+    remind = None if tool_input.get("remind") is None else (1 if tool_input["remind"] else 0)
+    if enabled is None and remind is None:
+        return _json({"status": "not_saved", "reason": "Give enabled, remind or both."})
+    row = _task_call(rules.set_enabled, str(tool_input.get("task") or ""), enabled, remind=remind,
+                     cc_session=_conversation())
+    return _json(row if row.get("status") == "not_saved" else {
+        "status": "saved", "task": row.get("name"), "enabled": row.get("enabled"), "remind": row.get("remind")})
 
 
 def delete_folder_tasks(tool_input) -> str:
@@ -1484,9 +1704,16 @@ def _task_row(name) -> dict:
     return next((r for r in rules.listing().get("rules") or [] if r.get("name") == name), {}) if name else {}
 
 
+def _day(value) -> str:
+    """每月第几天；0 是月末（同任务页）。"""
+    text = _shown(value).strip()
+    if not text.isdigit():
+        return text
+    return _("cowork.folder.day").format(int(text)) if int(text) else _("cowork.folder.lastDay")
+
+
 def _task_shown(row, account=None, folder=None) -> dict:
     """定时任务各项的显示值（同任务页的叫法）。"""
-    day = row.get("run_day")
     return {"cowork.folder.field.title": row.get("title"),
             "intake.target.accountSet": account if account is not None else row.get("account_label"),
             "intake.field.direction": _(DIRECTION_LABELS.get(row.get("direction"), _shown(row.get("direction")))),
@@ -1494,53 +1721,167 @@ def _task_shown(row, account=None, folder=None) -> dict:
             "cowork.choice.payment": _(PAYMENT_LABELS[row["payment"]]) if row.get("payment") in PAYMENT_LABELS else _shown(row.get("payment")),
             "cowork.folder.field.folder": folder if folder is not None else "\\".join(
                 p for p in (row.get("root_label"), row.get("folder")) if p),
-            "cowork.folder.field.day": _("cowork.folder.day").format(day) if str(day or "").isdigit() and int(day) else _shown(day),
+            "cowork.folder.field.day": _day(row.get("run_day")),
             "cowork.folder.field.time": _time(row.get("run_time"))}
 
 
-INPUT_OF = {"cowork.folder.field.title": ("title",), "intake.target.accountSet": ("account_set_key",),
-            "intake.field.direction": ("direction",), "intake.field.itemType": ("posting_kind",),
-            "cowork.choice.payment": ("payment",), "cowork.folder.field.folder": ("reader", "root_id", "folder"),
-            "cowork.folder.field.day": ("run_day",), "cowork.folder.field.time": ("run_time",)}
+# 默认处理各类的取值叫法（同任务页的选项）；科目、部门显示「代码 · 名称」
+DEFAULT_VALUE_LABELS = {"payment": PAYMENT_LABELS,
+                        "vat": {"claim": "cowork.folder.vat.claim", "expense": "cowork.folder.vat.expense"},
+                        "item": {folder_contracts.NEW: "cowork.folder.item.new", "ask": "cowork.folder.item.ask"}}
+REMIND_FIELD = "cowork.folder.field.remind"
+PAIRED = tuple(f"cowork.folder.default.{kind}" for kind in folder_contracts.KINDS) + (REMIND_FIELD,)
+
+
+def _cached(cache, key, read):
+    if key not in cache:
+        try:
+            cache[key] = read()
+        except Exception:
+            # 卡片只是给人看：读不到名称就照原值显示，不让整张卡片退回逐个列参数
+            frappe.clear_messages()
+            cache[key] = None
+    return cache[key]
+
+
+def _folder_path(value) -> str:
+    """文件夹相对路径统一成「\\」分隔（同任务服务的写法）。"""
+    return "\\".join(part.strip() for part in re.split(r"[\\/]+", _shown(value)) if part.strip())
+
+
+def _same_place(row) -> tuple:
+    """读哪台电脑、哪个根目录下的哪个文件夹（比较用：分隔符、大小写不计）。"""
+    return (_shown(row.get("reader") or row.get("connection")), _shown(row.get("root_id")),
+            _folder_path(row.get("folder")).casefold())
+
+
+def _account_key(value) -> str:
+    return _shown(value).replace("/", "\\").rstrip("\\").casefold()
+
+
+def _kept_defaults(values, adapter) -> dict:
+    """会存下的默认值（同任务服务：只有 Express 有，只留这条任务用得到的类）。"""
+    given = values.get("defaults")
+    if adapter != "express" or not isinstance(given, dict):
+        return {}
+    kinds = folder_contracts.applicable(values.get("direction"), values.get("posting_kind"))
+    return {kind: _shown(given.get(kind)).strip() for kind in folder_contracts.KINDS
+            if kind in kinds and _shown(given.get(kind)).strip()}
+
+
+def _default_shown(kind, value, names) -> str:
+    if not value:
+        return ""
+    labels = DEFAULT_VALUE_LABELS.get(kind)
+    if labels:
+        return _(labels[value]) if value in labels else value
+    name = ((names or {}).get("accounts" if kind == "account" else "departments") or {}).get(value)
+    return f"{value} · {name}" if name else value
+
+
+def _remind_shown(value) -> str:
+    return _("cowork.folder.remind.on") if value else _("cowork.folder.remind.off")
+
+
+def _waiting_text(values) -> str:
+    """文件夹（含子文件夹）里现有几份会被录入的文件（小助手上报的数）：没报过不说，不拿 0 冒充；数到上限说「N+」。"""
+    try:
+        found = rules.waiting(values.get("reader") or values.get("connection"), values.get("root_id"),
+                              _shown(values.get("folder")))
+    except Exception:
+        frappe.clear_messages()
+        return ""
+    if not found or found.get("files") is None:
+        return ""
+    return _("cowork.folder.waiting").format(f"{found['files']}+" if found.get("partial") else found["files"])
+
+
+def _task_lines(item, rows, cache) -> tuple:
+    """卡片上一个任务要列的：（现值，[(字段, 现在, 改后)]，文件夹现有份数那一句）。新任务只列有值的项，改任务只列
+    变了的项；份数只在新建或换了文件夹时说（之后看任务列表的待处理数）。"""
+    current = rows.get(str(item.get("name") or ""), {}) if item.get("name") else {}
+    values = _task_values(item, rows)
+    connection, key = values.get("connection"), values.get("account_set_key")
+    if current and _account_key(key) == _account_key(current.get("account_set_key")):
+        account = current.get("account_label")
+    else:
+        account = (_cached(cache, ("account", connection, key), lambda: rules.account_label(connection, key))
+                   or _shown(key)) if key else ""
+    before = _task_shown(current) if current else {}
+    moved = not current or _same_place(values) != _same_place(current)
+    if moved:
+        reader = values.get("reader") or connection
+        roots = _cached(cache, ("roots", reader), lambda: {r.get("id"): r.get("label")
+                                                           for r in agent.read(reader).get("roots") or []}) or {}
+        folder = "\\".join(p for p in (roots.get(values.get("root_id")), _folder_path(values.get("folder"))) if p)
+    else:
+        folder = before.get("cowork.folder.field.folder", "")
+    after = _task_shown(values, account, folder)
+    adapter = current.get("adapter") or _cached(cache, ("adapter", connection),
+                                                lambda: frappe.db.get_value(CONNECTION, connection, "adapter"))
+    kept, had = _kept_defaults(values, adapter), (current.get("defaults") or {}) if current else {}
+    names = {}
+    for side, chosen, row in (("after", kept, values), ("before", had, current)):
+        if any(kind in chosen for kind in ("account", "department")):
+            pair = (row.get("connection"), row.get("account_set_key"))
+            names[side] = _cached(cache, ("names",) + pair, lambda: rules.master_names(*pair))
+    for kind in folder_contracts.KINDS:
+        field = f"cowork.folder.default.{kind}"
+        before[field] = _default_shown(kind, _shown(had.get(kind)), names.get("before"))
+        after[field] = _default_shown(kind, kept.get(kind, ""), names.get("after"))
+    # 新任务提醒默认关：卡片写「关 → 开」
+    before[REMIND_FIELD] = _remind_shown(current.get("remind"))
+    after[REMIND_FIELD] = _remind_shown(values["remind"]) if "remind" in values else before[REMIND_FIELD]
+    lines = [(field, _shown(before.get(field)), _shown(text)) for field, text in after.items()
+             if _shown(text) != _shown(before.get(field))]
+    return current, lines, _waiting_text(values) if moved else ""
 
 
 def preview_save_folder_task(tool_input) -> list:
-    current = _task_row(str(tool_input.get("name") or ""))
-    merged = {**current, **{k: v for k, v in tool_input.items() if v not in (None, "")}}
-    account = None
-    if tool_input.get("account_set_key"):
-        try:
-            account = rules._catalog_item(merged.get("connection"), tool_input["account_set_key"])[1]
-        except Exception:
-            frappe.clear_messages()
-            account = tool_input["account_set_key"]
-    folder = None
-    if any(tool_input.get(k) for k in ("reader", "root_id", "folder")):
-        reader = merged.get("reader") or merged.get("connection")
-        try:
-            roots = {r.get("id"): r.get("label") for r in rules.agent.read(reader).get("roots") or []}
-        except Exception:
-            frappe.clear_messages()
-            roots = {}
-        folder = "\\".join(p for p in (roots.get(merged.get("root_id"), ""), merged.get("folder")) if p)
-    before, after = (_task_shown(current) if current else {}), _task_shown(merged, account, folder)
-    rows = []
-    for field, keys in INPUT_OF.items():
-        if not any(k in tool_input for k in keys):
-            continue
-        if current and before.get(field) == after.get(field):
-            continue
-        rows.append(_change(field, before.get(field) if current else "", after.get(field)))
-    if current and not any(r["field"] == _("cowork.folder.field.title") for r in rows):
+    current, lines, waiting = _task_lines(tool_input, _task_rows([tool_input]), {})
+    rows = [_change(field, before, after) for field, before, after in lines]
+    if current and not any(line[0] == "cowork.folder.field.title" for line in lines):
         rows = [_change("cowork.folder.field.title", "", current.get("title"))] + rows
+    if waiting:
+        rows.append({"field": "", "before": "", "after": waiting})
     return rows
+
+
+def _part(field, text) -> str:
+    """批量卡片一行里的一段：默认处理与提醒带上项名（单看取值分不清是哪一项）。"""
+    if not text:
+        return ""
+    return _("cowork.folder.pair").format(_(field), text) if field in PAIRED else text
+
+
+def preview_save_folder_tasks(tool_input) -> list:
+    """一张卡片列全部任务，一个任务一行：新任务写全它的口径，改任务只写变了的（现在 → 改后）。"""
+    items = [item for item in tool_input.get("tasks") or [] if isinstance(item, dict)][:FOLDER_BATCH_MAX]
+    rows, cache, out = _task_rows(items), {}, []
+    for item in items:
+        current, lines, waiting = _task_lines(item, rows, cache)
+        if current:
+            title, shown = current.get("title"), lines
+        else:
+            title = next((after for field, _before, after in lines if field == "cowork.folder.field.title"), "")
+            shown = [line for line in lines if line[0] != "cowork.folder.field.title"]
+        before = [_part(field, text) for field, text, _after in shown] if current else []
+        after = [_part(field, text) for field, _before, text in shown] + [waiting]
+        out.append({"field": _shown(title) or _("cowork.folder.new"), "before": " · ".join(p for p in before if p),
+                    "after": " · ".join(p for p in after if p)})
+    return out
 
 
 def preview_set_folder_task_enabled(tool_input) -> list:
     row = _task_row(str(tool_input.get("task") or ""))
     state = lambda on: _("cowork.folder.on") if on else _("cowork.folder.off")
-    return [_change("cowork.folder.field.title", "", row.get("title") or tool_input.get("task")),
-            _change("intake.col.status", state(row.get("enabled")) if row else "", state(tool_input.get("enabled")))]
+    rows = [_change("cowork.folder.field.title", "", row.get("title") or tool_input.get("task"))]
+    if tool_input.get("enabled") is not None:
+        rows.append(_change("intake.col.status", state(row.get("enabled")) if row else "", state(tool_input["enabled"])))
+    if tool_input.get("remind") is not None:
+        rows.append(_change(REMIND_FIELD, _remind_shown(row.get("remind")) if row else "",
+                            _remind_shown(tool_input["remind"])))
+    return rows
 
 
 def preview_delete_folder_tasks(tool_input) -> list:
@@ -1571,6 +1912,42 @@ def preview_stock_group(tool_input) -> list:
 
 
 _OBJ = {"type": "object", "properties": {}}
+# 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
+FOLDER_TASK_PROPS = {
+    "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
+    "title": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+    "direction": {"type": "string", "enum": ["purchase", "sales"]},
+    "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."},
+    "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP; purchases are credit."},
+    "reader": {"type": "string", "description": "The computer (reader) whose folder is used."},
+    "root_id": {"type": "string"}, "folder": {"type": "string", "description": "Subfolder; empty for the root."},
+    "run_day": {"type": "integer", "minimum": 0, "maximum": 31, "description": "Day of month; 0 = last day."},
+    "run_time": {"type": "string", "description": "HH:MM, Bangkok time."},
+    "defaults": {"type": "object", "additionalProperties": False,
+                 "description": "Express only. How this task's documents are handled when the choice comes up; a kind "
+                                "is used only where it applies (payment and vat: purchases; account: service "
+                                "purchases; item: stock). A kind left out or empty stops and asks the first time. "
+                                "When changing a task, only the kinds given change; an empty string clears one.",
+                 "properties": {
+                     "payment": {"type": "string", "enum": ["cash", "credit", ""],
+                                 "description": "When the document does not show cash or credit; what the document "
+                                                "shows still wins."},
+                     "vat": {"type": "string", "enum": ["claim", "expense", ""],
+                             "description": "VAT on receipts and abbreviated tax invoices: claim as input VAT, or "
+                                            "record as expense."},
+                     "account": {"type": "string",
+                                 "description": "Expense account code from cowork_folder_task_options. It replaces "
+                                                "the account remembered for each supplier for every document of this "
+                                                "task (a category-to-account mapping still wins); set it only when the "
+                                                "user says they all go to one account."},
+                     "item": {"type": "string", "enum": ["__new__", "ask", ""],
+                              "description": "A stock item not found: __new__ creates it from the document; ask "
+                                             "stops for a choice."},
+                     "department": {"type": "string", "description": "Department code from cowork_folder_task_options."}}},
+    "remind": {"type": "boolean",
+               "description": "Remind the task owner the day before each run, at 08:00 and 14:00 Bangkok time, to put "
+                              "the documents in the folder; the reminder is posted in the latest chat it was saved or "
+                              "turned on from. Left out keeps the current setting; new tasks start off."}}
 TOOLS = [
     {"name": "cowork_recognize_attachments", "label": "Recognized documents",
      "description": "Recognize receipts and invoices the user attached in this chat with Pearnly's own recognition, "
@@ -1648,7 +2025,8 @@ TOOLS = [
                     "empty value clears it); date takes the date as written (Thai Buddhist years are fine); amounts "
                     "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
                     "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
-                    "and tell the user. A pushed document must be pushed again to change the ERP.",
+                    "and tell the user. This changes the record in Pearnly only: a document already entered into the "
+                    "ERP is not changed there and is not pushed again; tell the user to correct it in the ERP.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"},
          "version": {"type": "integer"},
@@ -1698,9 +2076,14 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.refresh_account_sets"},
     {"name": "cowork_list_documents", "label": "Listed documents",
      "description": "List recognized documents (receipts, tax invoices) the user can see, newest first, with both "
-                    "parties' names and tax IDs. Filter by push state (not_pushed, pending, success, failed), upload "
-                    "date, invoice date or waiting for review; search finds documents by invoice number, seller or "
-                    "buyer name, or tax ID across all documents, not only the latest ones.",
+                    "parties' names and tax IDs, document type, direction, and the recognized subtotal, VAT and "
+                    "total. Filter by push state (not_pushed, pending, success, failed), upload date, invoice date, "
+                    "waiting for review, where they are pushed (connection and account_set_key as listed by "
+                    "cowork_intake_options) or direction; search finds documents by invoice number, seller or buyer "
+                    "name, or tax ID across all documents, not only the latest ones. Up to 50 per call: total is how "
+                    "many match; pass next_offset as offset for the next page. totals adds the sums of all matching "
+                    "documents (credit notes summed separately; without_value counts documents with no recognized "
+                    "value). Amounts are as recognized, not the ERP's figures.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["not_pushed", "pending", "success", "failed"]},
@@ -1708,13 +2091,18 @@ TOOLS = [
          "invoice_date_from": {"type": "string", "description": "YYYY-MM-DD"},
          "invoice_date_to": {"type": "string", "description": "YYYY-MM-DD"},
          "waiting_review": {"type": "boolean"},
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "direction": {"type": "string", "enum": ["purchase", "sales"]},
+         "totals": {"type": "boolean"},
+         "offset": {"type": "integer", "minimum": 0},
          "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents",
      "description": "Push recognized documents to their accounting target (Express through the companion, or MR.ERP), "
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time; each "
                     "result says sent, needs_choice (get the choices with cowork_push_choices, ask the user, save them "
-                    "and push again), failed with a reason, or already pushed. connection and account_set_key choose "
+                    "and push again), failed with a reason, or already_success / already_pending (already entered or "
+                    "on its way; it is not pushed again). connection and account_set_key choose "
                     "where to push (from cowork_intake_options), e.g. for a recognize-only document; left out, the "
                     "target chosen at upload is used.",
      "input_schema": {"type": "object", "properties": {
@@ -1728,7 +2116,8 @@ TOOLS = [
                     "account set (party, product, expense account, payment, VAT claim, department; kinds in needed) "
                     "and the allowed values (up to 30 per kind; pass search to narrow by code or name). Use it when a "
                     "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
-                    "again.",
+                    "again. For a document from a scheduled folder task pushed to that task's account set, the "
+                    "task's default handling (task_defaults) is applied and not asked; to change it, change the task.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "posting_kind": {"type": "string", "enum": ["service", "stock"]}, "search": {"type": "string"}},
@@ -1774,37 +2163,52 @@ TOOLS = [
      "description": "What a scheduled folder task can use, like the task form: each computer (reader) that reads "
                     "folders, whether it is online, the folders its CC desktop app opened to the website (root_id and "
                     "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
-                    "and stock account group for defaults. Folders can only be added in the CC app on that computer; "
-                    "if the one the user wants is missing, tell them to add it there.",
+                    "and stock account group for defaults. files is how many photos and PDFs each folder holds now, "
+                    "subfolders included (\"\" is the root; files_partial: at least that many). Folders can only be "
+                    "added in the CC app on that computer; if the one the user wants is missing, tell them to add it "
+                    "there.",
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"}, "search": {"type": "string"}},
          "required": ["connection"]},
      "handler": "pearnly_cowork.assistant.tools.folder_task_options"},
     {"name": "cowork_save_folder_task", "label": "Saved a folder task",
-     "description": "Create or change a scheduled folder task: on run_day at run_time it recognizes the new photos and "
-                    "PDFs put in the folder with these intake choices. Same rules as the web form: Express needs "
-                    "posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the target ERP of an "
-                    "existing task cannot change.",
-     "input_schema": {"type": "object", "properties": {
-         "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
-         "title": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
-         "direction": {"type": "string", "enum": ["purchase", "sales"]},
-         "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."},
-         "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP; purchases are credit."},
-         "reader": {"type": "string", "description": "The computer (reader) whose folder is used."},
-         "root_id": {"type": "string"}, "folder": {"type": "string", "description": "Subfolder; empty for the root."},
-         "run_day": {"type": "integer", "minimum": 0, "maximum": 31, "description": "Day of month; 0 = last day."},
-         "run_time": {"type": "string", "description": "HH:MM, Bangkok time."},
-         "defaults": {"type": "object"}},
-         "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
+     "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
+                    "intake choices, the photos and PDFs in the folder (subfolders included) that it has not "
+                    "processed yet, including those already there when it is created. Same rules as the web form: "
+                    "Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
+                    "target ERP of an existing task cannot change. When a task is changed (name given), values left "
+                    "out keep their current ones. For two or more tasks use cowork_save_folder_tasks.",
+     "input_schema": {"type": "object", "properties": FOLDER_TASK_PROPS,
+                      "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
      "approval": True,
      "ask": "Save this folder task?",
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_task",
      "handler": "pearnly_cowork.assistant.tools.save_folder_task"},
+    {"name": "cowork_save_folder_tasks", "label": "Saved folder tasks",
+     "description": "Create or change several scheduled folder tasks at once with one Allow from the user, for example "
+                    "one task per folder (purchases, expenses, sales) for each company. Use it whenever two or more "
+                    "tasks are saved together. Each task follows the same rules as cowork_save_folder_task: a new "
+                    "task needs title, connection, direction, root_id, run_day and run_time; one folder holds one "
+                    "direction and one posting kind; folders of enabled tasks, including the others in this list, "
+                    "cannot be the same or inside each other. All or nothing: if any task is refused, nothing is "
+                    "saved and failed lists each refused task (its position, title and reason); fix them and call "
+                    "again with the whole list. Up to 20 tasks.",
+     "input_schema": {"type": "object", "properties": {
+         "tasks": {"type": "array", "minItems": 1, "maxItems": FOLDER_BATCH_MAX,
+                   "items": {"type": "object", "properties": FOLDER_TASK_PROPS}}},
+         "required": ["tasks"]},
+     "approval": True,
+     "ask": "Save these folder tasks?",
+     "preview": "pearnly_cowork.assistant.tools.preview_save_folder_tasks",
+     "handler": "pearnly_cowork.assistant.tools.save_folder_tasks"},
     {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
-     "description": "Pause or resume a scheduled folder task. Resuming only handles files put in the folder after now.",
-     "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"}},
-                      "required": ["task", "enabled"]},
+     "description": "Pause or resume a scheduled folder task, or turn its reminder on or off (give enabled, remind or "
+                    "both). After resuming, the next run handles the files in the folder it has not processed yet, "
+                    "including those put in while it was paused; a task with include_existing false only handles "
+                    "files put in after it is resumed.",
+     "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"},
+                                                        "remind": FOLDER_TASK_PROPS["remind"]},
+                      "required": ["task"]},
      "approval": True,
      "ask": "Turn this folder task on or off?",
      "preview": "pearnly_cowork.assistant.tools.preview_set_folder_task_enabled",
@@ -1951,18 +2355,24 @@ TOOLS = [
      "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
      "input_schema": {"type": "object", "properties": {
          "push_state": {"type": "string", "enum": ["pending", "success", "failed"]},
+         "offset": {"type": "integer", "minimum": 0},
          "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}, "required": ["push_state"]},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_folder_tasks", "label": "Checked folder tasks",
      "description": "List the scheduled folder tasks (scan a folder on the user's PC, recognize new files and push them), "
-                    "with their schedule, last run and whether the companion reading the folder is online.",
+                    "with their schedule, default handling, reminder, last run and whether the companion reading the "
+                    "folder is online. waiting is how many files in the folder the task has not processed yet "
+                    "(waiting_partial: at least that many; null when not known). results counts invoices entered, "
+                    "invoices needing attention, and files still moving.",
      "input_schema": _OBJ, "handler": "pearnly_cowork.assistant.tools.folder_tasks"},
     {"name": "cowork_run_folder_task", "label": "Started a folder task",
      "description": "Run one folder task now. Only when the user asked.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_cowork.assistant.tools.run_folder_task"},
     {"name": "cowork_folder_task_runs", "label": "Checked folder task runs",
-     "description": "Show the recent runs of one folder task: files found, uploaded, skipped and failed.",
+     "description": "Show the recent runs of one folder task: files found, uploaded, skipped and failed, and per run "
+                    "how many invoices were entered, need attention, or are still moving (results), and the files in "
+                    "each step (states).",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_cowork.assistant.tools.folder_task_runs"},
 ]
