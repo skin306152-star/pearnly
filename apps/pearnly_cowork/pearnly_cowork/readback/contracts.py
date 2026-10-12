@@ -369,7 +369,8 @@ def vat_records(data: Dict[str, Any], history: Optional[Dict[str, str]] = None) 
 
 
 def warnings(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """电脑读账时的异常与口径提示（不挡出表）：缺表、坏行、借贷不平、没有凭证头的行、认不出借贷的行、别的税率组有值。"""
+    """电脑读账时的异常与口径提示（不挡出表）：复制途中账套一直在变、缺表、坏行、借贷不平、没有凭证头的行、认不出借贷的行、
+    别的税率组有值。"""
     diag = data.get("diagnostics") if isinstance(data.get("diagnostics"), dict) else {}
 
     def listed(key):  # 电脑交回的诊断只当提示：形状不对的项当没有，不挡出表
@@ -377,6 +378,9 @@ def warnings(data: Dict[str, Any]) -> List[Dict[str, Any]]:
         return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
     out = []
+    if diag.get("snapshot_changed") is True:
+        # 电脑重读了几次，复制途中账套仍有人在写：可能有单据、税务记录在而凭证还没抄到的单，差异表与总账要复读确认
+        out.append({"code": "books_changed_while_reading"})
     missing = listed("missing_tables")
     if missing:
         out.append({"code": "tables_missing", "tables": missing[:20]})

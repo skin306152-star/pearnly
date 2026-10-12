@@ -241,6 +241,59 @@ def test_an_unbalanced_voucher_is_read_again_once_then_reported(books, monkeypat
     assert data["diagnostics"]["unbalanced"] == ["HP690503-001"]
 
 
+def _push_sale(acct: Path, docnum: str) -> None:
+    """照推送的写入顺序（dbf_sales._write_all：ARTRN → ISVAT → GLJNL → GLJNLIT）写进一张赊销单。"""
+    day = D(2026, 5, 20)
+    _append(acct / "ARTRN.DBF", [{"RECTYP": "3", "DOCNUM": docnum, "DOCDAT": day, "YOUREF": "S-9", "CUSCOD": "C1",
+                                  "NETVAL": 500.0, "VATAMT": 35.0, "NETAMT": 535.0, "DOCSTAT": "N",
+                                  "USERID": "PEARNLY"}])
+    _append(acct / "ISVAT.DBF", [{"VATREC": "S", "RECTYP": "3", "VATPRD": D(2026, 5, 1), "VATDAT": day,
+                                  "DOCDAT": day, "DOCNUM": docnum, "AMT01": 500.0, "VAT01": 35.0, "DOCSTAT": "N"}])
+    _append(acct / "GLJNL.DBF", [{"JNLTYP": "03", "VOUDAT": day, "VOUCHER": docnum, "DOCSTAT": "N",
+                                  "CREBY": "PEARNLY"}])
+    _append(acct / "GLJNLIT.DBF", [_line(docnum, "1", day, "11-03-01-00", "0", 535.0),
+                                   _line(docnum, "5", day, "41-01-00-00", "1", 500.0),
+                                   _line(docnum, "6", day, "21-04-00-00", "1", 35.0)])
+
+
+def test_a_push_landing_between_tables_while_copying_is_read_again(books, monkeypatch):
+    # 表按 TABLES 的顺序复制（凭证在前、单据在后），推送反过来写：抄完凭证行以后、抄单据以前写完一张单，副本里就有单据和
+    # 税务记录却没有凭证——借贷照样平、也没有孤行，只能靠「复制途中源文件变过」整份重读
+    real, sleeps, pushed = express_read._copy, [], []
+
+    def copy(source, target, waits, sleep):
+        real(source, target, waits, sleep)
+        if target.name == "GLJNLIT.DBF" and not pushed:
+            pushed.append(1)
+            _push_sale(books.acct, "IV690520-009")
+
+    monkeypatch.setattr(express_read, "_copy", copy)
+    result = express_read.read_books(_cfg(books), _params(books), sleep=sleeps.append)
+    data = json.loads(gzip.decompress(result.content).decode("utf-8"))
+    assert sleeps == [express_read.REREAD_WAIT]
+    assert "snapshot_changed" not in data["diagnostics"] and data["diagnostics"]["unbalanced"] == []
+    # 重读后单据、税务记录、凭证三样都在
+    assert "IV690520-009" in {row["docnum"] for row in data["documents"]}
+    assert "IV690520-009" in {row["docnum"] for row in data["vat"]}
+    assert [len(row["lines"]) for row in data["journal"] if row["voucher"] == "IV690520-009"] == [3]
+
+
+def test_books_that_keep_changing_while_copying_are_reported(books, monkeypatch):
+    real, sleeps, count = express_read._copy, [], []
+
+    def copy(source, target, waits, sleep):
+        real(source, target, waits, sleep)
+        if target.name == "GLJNLIT.DBF":
+            count.append(1)
+            _push_sale(books.acct, f"IV690520-{len(count):03d}")
+
+    monkeypatch.setattr(express_read, "_copy", copy)
+    result = express_read.read_books(_cfg(books), _params(books), sleep=sleeps.append)
+    data = json.loads(gzip.decompress(result.content).decode("utf-8"))
+    assert len(count) == express_read.READS and sleeps == [express_read.REREAD_WAIT] * (express_read.READS - 1)
+    assert data["diagnostics"]["snapshot_changed"] is True  # 读满次数仍在变：照读，交给服务端转成提示
+
+
 def test_reads_while_the_tables_are_open_elsewhere(books):
     held = dbf.Table(str(books.acct / "GLJNLIT.DBF"), codepage=S.CODEPAGE)
     held.open(dbf.READ_WRITE)  # 推送或 Express 开着这张表

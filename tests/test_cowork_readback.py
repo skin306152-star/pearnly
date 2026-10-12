@@ -211,15 +211,18 @@ class OpeningAndLedger(unittest.TestCase):
                          [("JV1", "2"), ("JV1", "10"), ("JV2", "2"), ("JV2", "10"), ("JV0", "2"), ("JV0", "10")])
 
     def test_warnings_from_the_computer_and_the_data(self):
-        diag = {"missing_tables": ["GLBAL"], "bad_rows": {"ISVAT": 2}, "unbalanced": ["HP1"], "orphan_lines": 3}
+        diag = {"missing_tables": ["GLBAL"], "bad_rows": {"ISVAT": 2}, "unbalanced": ["HP1"], "orphan_lines": 3,
+                "snapshot_changed": True}
         journal = raw()["journal"][:1]
         journal[0] = {**journal[0], "lines": journal[0]["lines"] + [{"seq": "9", "account": "1", "date": "2026-05-03",
                                                                    "descrp": "", "trntyp": "X", "amount": "1"}]}
         codes = [item["code"] for item in contracts.warnings(parsed(diagnostics=diag, journal=journal))]
-        self.assertEqual(codes, ["tables_missing", "unreadable_rows", "unbalanced_vouchers", "lines_without_voucher",
-                                 "unknown_debit_credit", "other_vat_columns"])
+        self.assertEqual(codes, ["books_changed_while_reading", "tables_missing", "unreadable_rows",
+                                 "unbalanced_vouchers", "lines_without_voucher", "unknown_debit_credit",
+                                 "other_vat_columns"])
         # 电脑交回的诊断形状不对：当没有，不挡出表（以前 bad_rows 是列表时抛 AttributeError，回读一直停在 reading）
-        odd = {"missing_tables": "GLBAL", "bad_rows": ["ISVAT"], "unbalanced": "HP1", "orphan_lines": "3"}
+        odd = {"missing_tables": "GLBAL", "bad_rows": ["ISVAT"], "unbalanced": "HP1", "orphan_lines": "3",
+               "snapshot_changed": "yes"}
         self.assertEqual([item["code"] for item in contracts.warnings(parsed(diagnostics=odd))], ["other_vat_columns"])
 
 
@@ -705,6 +708,10 @@ class ServiceHarness:
             found = sorted((row for row in self.rows.values() if row.lookup == lookup and row.actor == actor
                             and row.status in statuses), key=lambda row: row.requested_at, reverse=True)
             return [(found[0].name,)] if found else []
+        if "request = %s AND status = 'reading' AND name != %s" in query:
+            lookup, actor, request, name = values
+            return [(row.name,) for row in self.rows.values() if row.lookup == lookup and row.actor == actor
+                    and row.request == request and row.status == "reading" and row.name != name][:1]
         if "lookup = %s AND actor = %s AND request = %s AND status = 'reading'" in query:
             lookup, actor, request = values
             found = sorted((row for row in self.rows.values() if row.lookup == lookup and row.actor == actor
@@ -824,6 +831,45 @@ class Service(unittest.TestCase):
         self.assertNotEqual(again["readback"], adopted["readback"])
         self.assertEqual([call[0] for call in self.h.calls if call[0] in ("find", "waiting", "create")],
                          ["find", "waiting", "create"])
+
+    def _twin(self, row, seconds):
+        """同一请求号同时发了两次：第二次建请求撞上唯一键、拿到第一次建的那一件，另建了一份回读（共用一件请求）。"""
+        twin = Row(dict(row))
+        name = hashlib.sha256(f"{row.name}:{seconds}".encode()).hexdigest()[:32]
+        twin.update(name=name, readback_id=name, requested_at=row.requested_at + timedelta(seconds=seconds))
+        self.h.rows[twin.name] = twin
+        return twin
+
+    def test_two_readbacks_sharing_one_request_both_finish(self):
+        for later in (1, -1):  # 另一份晚发起 / 早发起
+            with self.subTest(later=later):
+                self.h.rows.clear()
+                self.h.requests.clear()
+                made, row = self._start()
+                twin = self._twin(row, later)
+                self.h.finish(row.request, raw())
+                self.assertEqual(self.service.status(made["readback"])["status"], "ready")
+                # 先读完的一份不删共用的请求，也不把另一份当旧的删掉
+                self.assertIn(row.request, self.h.requests)
+                self.assertEqual(self.h.rows[twin.name].status, "reading")
+                self.assertEqual(self.service.status(twin.name)["status"], "ready")
+                self.assertNotIn(row.request, self.h.requests)  # 最后一份了结时删
+
+    def test_a_failed_readback_leaves_the_shared_request_to_the_other(self):
+        made, row = self._start()
+        twin = self._twin(row, 1)
+        self.h.finish(row.request, raw(version=9))
+        self.assertEqual(self.service.status(made["readback"])["code"], "cowork.readback.version_unsupported")
+        self.assertIn(row.request, self.h.requests)
+        self.assertEqual(self.service.status(twin.name)["code"], "cowork.readback.version_unsupported")
+        self.assertNotIn(row.request, self.h.requests)
+        # 删掉还在读的一份也一样：另一份还在读就留着请求
+        again, again_row = self._start()
+        other = self._twin(again_row, 2)
+        self.service.delete(again["readback"])
+        self.assertIn(again_row.request, self.h.requests)
+        self.h.finish(again_row.request, raw())
+        self.assertEqual(self.service.status(other.name)["status"], "ready")
 
     def test_pos_day_vouchers_are_named_for_the_computer_to_read(self):
         self.h.pushed = [pushed_item(vouchers=[{"voucher": "JV690503-001", "acc": "11-01-03-06", "amount": "5.00"}])]

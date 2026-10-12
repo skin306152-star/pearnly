@@ -8,6 +8,9 @@
 - 不碰「等账套」：不探 ISRUN、不拿写者锁、不等推送（``account_lock`` 只给写入用）。要读的表先用普通的共享读打开（Express
   开着账套照样能读）整份复制到本机临时目录，再只读打开副本；复制时文件被独占（Express 在整理、压缩）就隔几秒再试，仍不行
   回 account_busy。读完即删副本，账套里的文件一个字节都不动。
+- 表是一张一张复制的：复制前后各记一次每个源文件的大小、修改时间和表头（记录数在表头里），有一个变了（复制途中推送或
+  Express 正存一张单，副本里可能只有单据和税务记录、没有凭证）就隔几秒整份重读；读满次数仍在变就照读，并在 diagnostics
+  报 ``snapshot_changed``（服务端转成提示）。
 - 当月有借贷不平的凭证（多半是复制那一刻 Express 或推送正写到一半）：整份隔几秒重读一次，仍不平照报在 diagnostics。
 - 只照表读、不算账：期初公式、总账与税报版式、与推送记录的比对都在服务端，改口径不用重发 CC 桌面版。金额一律两位小数的
   字符串（DBF 浮点 → str → Decimal 四舍五入），日期 ISO；结果是 gzip 后的 JSON（``RESULT_VERSION``）。
@@ -56,8 +59,11 @@ TABLES = ("GLACC", "GLBAL", "GLJNL", "GLJNLIT", "ISVAT", "ISINFO", "ISPRD", "APT
 REQUIRED = ("GLACC", "GLJNL", "GLJNLIT")
 # 复制时文件被独占（Express 整理 / 压缩账套）：隔这么久再试，都不行回 account_busy。
 COPY_WAITS = (3.0, 10.0, 20.0)
-# 读出借贷不平的凭证、或副本读到一半坏了：隔这么久整份重读。
+# 复制途中账套被写、读出借贷不平的凭证、或副本读到一半坏了：隔这么久整份重读；最多读这么多次。
 REREAD_WAIT = 5.0
+READS = 3
+# 比对源文件前后是否变过时读的表头长度（DBF 表头前 32 字节含记录数与最后修改日；网络盘上的大小与修改时间可能是缓存）。
+STAMP_HEAD = 32
 DOCNUMS_MAX = 2000
 DOCNUM_MAX = 20
 JOURNAL_LINES_MAX = 200_000
@@ -161,23 +167,47 @@ def _copy(source: Path, target: Path, waits, sleep) -> None:
         sleep(wait)
 
 
+def _stamp(path: Path):
+    """源文件此刻的大小、修改时间与表头；表被独占读不到表头时只比大小与时间。"""
+    try:
+        info = os.stat(path)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return "unreadable"
+    try:
+        with open(path, "rb") as reader:
+            head = reader.read(STAMP_HEAD)
+    except OSError:
+        head = None
+    return info.st_size, info.st_mtime_ns, head
+
+
+def _sources(account_dir) -> dict:
+    """账套文件夹里要读的表（含备注文件）：大写文件名 → (源路径, 此刻的戳)。"""
+    try:
+        found = {}
+        for entry in os.listdir(account_dir):
+            found.setdefault(entry.upper(), Path(account_dir) / entry)
+    except OSError:
+        raise RequestFailed("account_unreachable") from None
+    names = [table + extension for table in TABLES for extension in (".DBF", ".FPT")]
+    return {name: (found[name], _stamp(found[name])) for name in names if name in found}
+
+
 @contextmanager
-def snapshot(account_dir, *, waits=COPY_WAITS, sleep: Callable[[float], None] = time.sleep) -> Iterator[Path]:
-    """要读的表（含备注文件）复制到本机临时目录；出了 with 即删。文件名一律大写（读副本时按大写找）。"""
+def snapshot(account_dir, *, waits=COPY_WAITS, sleep: Callable[[float], None] = time.sleep) -> Iterator[tuple]:
+    """要读的表（含备注文件）复制到本机临时目录，给 (副本目录, 复制途中源文件变没变过)；出了 with 即删。文件名一律大写
+    （读副本时按大写找）。变过的副本可能只抄到一张单的一部分（单据有、凭证没有），由调用方决定重读。"""
     target = Path(tempfile.mkdtemp(prefix="pearnly-readback-"))
     try:
-        try:
-            found = {}
-            for entry in os.listdir(account_dir):
-                found.setdefault(entry.upper(), Path(account_dir) / entry)
-        except OSError:
-            raise RequestFailed("account_unreachable") from None
-        for table in TABLES:
-            for extension in (".DBF", ".FPT"):
-                source = found.get(table + extension)
-                if source is not None:
-                    _copy(source, target / (table + extension), waits, sleep)
-        yield target
+        before = _sources(account_dir)
+        for name, (source, _stamped) in before.items():
+            _copy(source, target / name, waits, sleep)
+        after = _sources(account_dir)
+        changed = {name: stamped for name, (_source, stamped) in before.items()} != \
+            {name: stamped for name, (_source, stamped) in after.items()}
+        yield target, changed
     finally:
         shutil.rmtree(target, ignore_errors=True)
 
@@ -448,16 +478,21 @@ def read_books(cfg, params: dict, *, sleep: Callable[[float], None] = time.sleep
     docnums = _docnums(params.get("docnums"))
     folder = resolve(cfg, params.get("account_set"), params.get("account_root"))
     data = None
-    for attempt in range(3):
+    for attempt in range(READS):
         try:
-            with snapshot(folder, sleep=sleep) as copy:
-                data = collect(copy, period, first, last, docnums)
+            with snapshot(folder, sleep=sleep) as (copy, changed):
+                read = collect(copy, period, first, last, docnums)
         except _Unreadable as error:
             log.info("账套副本读不全，稍后重读: %s", error)
-            data = None
-        if data is not None and (not data["diagnostics"]["unbalanced"] or attempt >= 1):
-            break
-        if attempt == 2:
+        else:
+            data = read
+            if changed:
+                # 复制途中有人在写：副本可能只有一张单的一部分（单据、税务记录有，凭证没有），借贷照样平，只能整份重读
+                log.info("复制账套途中有表变了，稍后重读")
+                data["diagnostics"]["snapshot_changed"] = True
+            elif not data["diagnostics"]["unbalanced"] or attempt >= 1:
+                break  # 借贷不平只重读一次，仍不平照报
+        if attempt == READS - 1:
             break
         sleep(REREAD_WAIT)
     if data is None:

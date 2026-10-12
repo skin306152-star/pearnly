@@ -180,9 +180,17 @@ def _own(name):
     return row
 
 
+def _sharing(row):
+    """另一份还在读、等着同一件按需请求的回读。模型同时发两次一样的回读时，第二次建请求撞上唯一键、拿到第一次建的那一件
+    （`request_service.create`），两份回读共用一件请求：先了结的一份不能删掉它，否则另一份就读不到了。"""
+    found = frappe.db.sql(f"""SELECT name FROM `tab{READBACK}` WHERE lookup = %s AND actor = %s AND request = %s
+        AND status = 'reading' AND name != %s LIMIT 1""", (row.lookup, row.actor, row.request, row.name))
+    return bool(found)
+
+
 def _drop_request(row):
-    if not row.request:
-        return
+    if not row.request or _sharing(row):
+        return  # 共用这件请求的另一份还在读：留给它，最后一份了结时再删
     try:
         request_service.drop(row.request)
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
@@ -339,10 +347,13 @@ def _build(row, raw, data):
 
 def _drop_older(row):
     """同一人、同一连接、同一账套、同一月只留最新一份：比这一份早发起的连文件删（提交以后再删文件）；比它晚发起、
-    还在读的那份不动（等它读完再删这一份）。"""
+    还在读的那份不动（等它读完再删这一份）；与这一份共用同一件请求、还在读的那份也不动（它读完自己出结果）。"""
     for (name,) in frappe.db.sql(f"""SELECT name FROM `tab{READBACK}` WHERE lookup = %s AND actor = %s AND name != %s
             AND requested_at <= %s LIMIT 50""", (row.lookup, row.actor, row.name, row.requested_at)):
-        _remove(read(name))
+        older = read(name)
+        if older.status == "reading" and older.request and older.request == row.request:
+            continue
+        _remove(older)
 
 
 def _remove(row):
