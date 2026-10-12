@@ -166,16 +166,6 @@
   --cc-split-hit: 12px;           /* 分隔条可按住的宽度（看得见的只有中间一条细线） */
   --cc-topbar-h: 3rem;            /* 电脑上对话顶部那一行（对话名） */
   --cc-mtopbar-h: 4.25rem;        /* 手机顶栏（不含刘海安全区） */
-  --cc-rail-w: 3.25rem;           /* 手机顶栏盖在内容上：对话、定时任务的滚动区和连接提示从它下面开始（不在 components 层，压过各自的 pt-* 工具类） */
-.cc-mmain [data-slot="aui_thread-viewport"],
-.cc-mmain [data-slot="cc-scroll"],
-.cc-mmain [data-slot="cc-status"] { padding-top: calc(var(--cc-mtopbar-h) + env(safe-area-inset-top)); }
-.cc-mmain [data-slot="cc-status"] ~ * [data-slot="aui_thread-viewport"] { padding-top: 0; }
-
-/* 手机上长按对话行弹菜单：不出系统的选字 / 放大镜 */
-@media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }
-
-/* 网页版侧栏收起后的图标栏 */
   --cc-results-in: 240ms;         /* 右侧面板滑入 */
   --cc-text-xs: 0.75rem;          /* 步骤详情里的命令输出 */
   --cc-text-sm: 0.8125rem;        /* 表格、代码块、源码预览、批准说明的小字 */
@@ -619,9 +609,13 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 /* 拖动分隔条期间：整页保持左右箭头光标、不选中文字；面板里的预览（iframe）不抢鼠标，拖过它也不断。 */
 [data-cc-resizing] { cursor: col-resize; user-select: none; }
 [data-cc-resizing] iframe { pointer-events: none; }
-/* 网页版侧栏收起后的图标栏（同 claude.ai）：只留展开按钮、新建、定时任务和头像 */
-[data-collapsible="icon"] .cc-rail-hide, [data-collapsible="icon"] .cc-nav-label, [data-collapsible="icon"] .cc-split { display: none; }
-[data-collapsible="icon"] .cc-sidebar-head { justify-content: center; padding-inline: 0; }
-[data-collapsible="icon"] .cc-nav-item { justify-content: center; gap: 0; padding: 0; }
-[data-collapsible="icon"] [data-slot="sidebar-footer"] { padding-inline: 0.375rem; }
+/* 手机顶栏盖在内容上：对话、定时任务的滚动区和连接提示从它下面开始（不在 components 层，压过各自的 pt-* 工具类） */
+.cc-mmain [data-slot="aui_thread-viewport"],
+.cc-mmain [data-slot="cc-scroll"],
+.cc-mmain [data-slot="cc-status"] { padding-top: calc(var(--cc-mtopbar-h) + env(safe-area-inset-top)); }
+.cc-mmain [data-slot="cc-status"] ~ * [data-slot="aui_thread-viewport"] { padding-top: 0; }
+
+/* 手机上长按对话行弹菜单：不出系统的选字 / 放大镜 */
+@media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }
+
 [data-cc-resizing] [data-slot="sidebar-gap"], [data-cc-resizing] [data-slot="sidebar-container"] { transition: none; }

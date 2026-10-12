@@ -379,25 +379,22 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
             <TitleBarLeft nav={nav} />
           </div>
         ) : (
-          <div className="cc-sidebar-head flex h-12 items-center justify-between ps-1.5">
-            <span className="cc-rail-hide flex items-center gap-2 font-semibold text-ink text-lg">
-              {logo && <img src={logo} alt="" className="cc-logo size-6" />}
-              {APP_NAME}
-            </span>
+          // 同 claude.ai：收起按钮在最左边、「图标 + CC」紧跟其后；收起后按钮留在原位（MainTopBar）
+          <div className="flex h-12 items-center gap-1.5">
             <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
+            <span className="flex items-center gap-2 font-semibold text-ink text-lg">
+              {logo && <img src={logo} alt="" className="cc-logo size-6" />}
+              {APP_NAME}
+            </span>
           </div>
         )}
-        <div className="cc-rail-hide">
-          <ThreadListSearch value={search} onValueChange={setSearch} />
-        </div>
+        <ThreadListSearch value={search} onValueChange={setSearch} />
       </SidebarHeader>
       <SidebarContent className="px-2" onClickCapture={pick} data-cc-view={useView().view}>
         <SidebarNav />
-        <div className="cc-rail-hide">
-          <ThreadList search={search} />
-        </div>
+        <ThreadList search={search} />
       </SidebarContent>
       <SidebarFooter className="border-t border-line px-2">
         <UserFooter />
@@ -469,7 +466,7 @@ function MobileDrawer() {
 // - 电脑（同 claude.ai）：对话有内容时左上角是对话名，点开加星标 / 改名 / 删除；右边是本对话的文件。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
 function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; files: ReactNode }) {
-  const { open, isMobile, openMobile, setOpenMobile } = useSidebar();
+  const { open, isMobile, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { view, setView } = useView();
   const aui = useAui();
   const snapshot = useActiveSessionSnapshot();
@@ -520,9 +517,14 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
       </div>
     );
   }
-  if (!inChat && !files) return null;
+  if (open && !inChat && !files) return null;
   return (
     <div className="cc-topbar">
+      {!open && (
+        <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+          <PanelLeftIcon />
+        </button>
+      )}
       {inChat && <ConversationMenu />}
       <div className="ms-auto flex items-center">{files}</div>
     </div>
@@ -660,8 +662,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
           {t("dropFiles")}
         </div>
       </div>
-      {/* 网页版收起后留一条图标栏（同 claude.ai）；桌面端整条收起（同 Claude 桌面端），展开按钮在标题栏 */}
-      <Sidebar collapsible={chrome ? "offcanvas" : "icon"}>
+      {/* 收起后整条侧栏消失，只在左上角留展开按钮（同 claude.ai 与 Claude 桌面端） */}
+      <Sidebar>
         <DesktopSidebar nav={nav} window={win} chrome={chrome} onResize={onSidebarResize} />
       </Sidebar>
       {/* min-w-0：右侧结果面板里的宽表格在面板内横向滚动，不把整页撑宽、把「下载」「关闭」挤出窗口 */}
