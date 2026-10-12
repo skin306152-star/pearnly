@@ -57,7 +57,6 @@ A withdrawal or deposit is negative. Check the withdrawal and deposit columns,�
 Abbreviated Tax Invoice,简式税务发票
 Abbreviated tax invoice,简易税票
 Access to the CC Desktop queue has been revoked.,CC 桌面版队列的访问权限已撤销。
-Access to the Companion queue has been revoked.,小助手队列的访问权限已撤销。
 Account Codes,科目编码
 Account Key,账套键
 Account Set,账套
@@ -282,7 +281,6 @@ Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
 Checked recognition results,查看了识别结果
 Checked reconciliation presets,查看了对账预设
-Checked the companion,查看了小助手
 Checked the stock account group,查看了存货科目组
 Checking,核对中
 Checklist,清单
@@ -297,7 +295,6 @@ Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 Choose an Express account set first,请先选择 Express 账套
 Choose an allowed root reported by CC Desktop.,请选择 CC 桌面版上报的根目录。
-Choose an allowed root reported by the Companion.,请选择小助手上报的根目录。
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少选择一个功能权限
 Choose both files first,请选择两份文件
@@ -343,9 +340,6 @@ Commenting,评论权限
 Comments,评论
 Comments and activity,评论和活动
 Commission,佣金
-Companion Report,小助手上报
-Companion authentication failed.,小助手认证失败。
-Companion offline or needs update,小助手不在线或需升级
 Company,公司
 Company Name,公司名称
 Company tax ID,本公司税号
@@ -366,7 +360,6 @@ Confirmation Revision,确认版本
 Confirmed,已确认
 Confirmed a push result,确认了推送结果
 Connect CC Desktop,连接 CC 桌面版
-Connect Companion,连接小助手
 Connection,连接
 Connection Configuration,连接配置
 Connection Name,连接名称
@@ -410,6 +403,8 @@ Cover Color,封面颜色
 Cover File,封面文件
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
+Cowork CC Desktop Delivery,Cowork CC 桌面版任务领取记录
+Cowork CC Desktop Request,Cowork CC 桌面版请求
 Cowork Client,Cowork 买方客户
 Cowork Companion Delivery,Cowork CC 桌面版任务领取记录
 Cowork Companion Request,Cowork CC 桌面版请求
@@ -418,6 +413,7 @@ Cowork ERP Mapping,Cowork ERP 映射
 Cowork ERP Refresh,Cowork ERP 目录刷新
 Cowork ERP Snapshot,Cowork ERP 目录快照
 Cowork Express Agent Credential,Cowork Express CC 桌面版凭据
+Cowork Express CC Desktop Credential,Cowork Express CC 桌面版凭据
 Cowork Express Readback,Cowork Express 回读
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork 主数据
@@ -687,7 +683,6 @@ Folder auto-intake rules,自动录入规则
 Folder not available,文件夹不可用
 Folder results,结果
 Folder rule name,规则名称
-Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
 Folder rules work with Express connections only.,自动录入只用于 Express 连接。
 Folder to read,文件夹
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",拍摄提示：请将单据摆正、文字朝上，完整拍入画面。
@@ -945,7 +940,6 @@ New task,新建任务
 "New, as on the invoice",新建（按票面）
 Next Attempt At,下次重试时间
 No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
-No Companion credential has been issued for this connection.,此连接尚未签发小助手凭据。
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
@@ -958,9 +952,7 @@ No due date,无到期日
 No files were given.,没有指定文件。
 No folder rules yet. Create one and put the documents into its folder.,还没有规则。新建一条，把单据放进对应的文件夹即可。
 No folders on this PC yet. Add them in CC Desktop on that PC.,此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。
-No folders on this PC yet. Add them in the Companion on that PC.,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
 No folders to choose yet. Add them in CC Desktop on the PC.,暂无可选文件夹，请在电脑的 CC 桌面版中添加。
-No folders to choose yet. Add them in the Companion on the PC.,暂无可选文件夹，请在电脑的小助手中添加。
 No invoice could be read.,未识别到任何发票。
 No invoice summary found,未识别到摘要
 No invoice was found in this document.,此单据中未识别到发票。
@@ -1315,7 +1307,6 @@ Run now,立即运行
 Run now (tasks: {0}):,立即运行（{0} 个任务）：
 Run on day,每月运行日
 Run requested. CC Desktop starts within a few minutes.,已请求运行，CC 桌面版将在几分钟内开始。
-Run requested. The Companion starts within a few minutes.,已请求运行，小助手将在几分钟内开始。
 Run time,运行时间
 SHA-256,SHA-256
 SKU,SKU
@@ -1507,16 +1498,6 @@ The CC Desktop queue request is invalid.,CC 桌面版队列请求无效。
 The CC Desktop queue response is invalid.,CC 桌面版队列响应无效。
 The CC Desktop report is invalid.,CC 桌面版上报内容无效。
 The CC Desktop service is temporarily unavailable. Try again shortly.,CC 桌面版服务暂时不可用，请稍后重试。
-The Companion delivery record is invalid.,小助手任务领取记录无效。
-The Companion delivery record was not found.,未找到小助手任务领取记录。
-The Companion identity is no longer valid. Authenticate again.,小助手身份已失效，请重新认证。
-The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,小助手还在读这份账套，稍后重新打开即可选科目。
-The Companion on this PC has not synced folders recently. Open it and update to the latest version.,这台电脑的小助手最近没有同步文件夹。请打开小助手并升级到最新版。
-The Companion on this PC has not synced recently. Update it to the latest version.,此电脑的小助手近期未同步，请升级至最新版本。
-The Companion queue request is invalid.,小助手队列请求无效。
-The Companion queue response is invalid.,小助手队列响应无效。
-The Companion report is invalid.,小助手上报内容无效。
-The Companion service is temporarily unavailable. Try again shortly.,小助手服务暂时不可用，请稍后重试。
 The ERP address is invalid or not allowed.,ERP 连接地址无效或不允许访问。
 The ERP data report contains a restricted field.,ERP 数据报告包含受限制的字段。
 The ERP data report contains an invalid number.,ERP 数据报告包含无效数值。
@@ -1609,14 +1590,7 @@ The general ledger could not be read.,无法读取总账。
 "The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.",总账期间长于银行流水，仅使用 {0} 至 {1} 的记录，此前发生额已结转至期初余额（{2}）。
 The general ledger has no revenue account rows.,总账中没有收入科目的行。
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.,总账中有多个科目，已选用与银行流水最匹配的科目 {0}。
-The helper could not read this invoice. Check the fields and submit again,小助手无法读取此发票，请核对字段后重新提交
-The helper could not write this invoice. It is retried automatically,小助手写入失败，将自动重试
-The helper has not been given this account set. Check the helper's account sets,小助手未获授权使用此账套，请检查小助手的账套设置
-The helper is not allowed to write to this account set. Check the helper's account set,小助手没有此账套的写入权限，请检查小助手所选账套
-The helper is out of date. Update the helper and submit again,小助手版本过旧，请更新后重新提交
-"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",此电脑的小助手中没有此账套或无写入权限，请检查小助手所选账套
-The helper was not connected when this invoice was ready to push; it will try again in ten minutes.,推送时小助手未连接，将于十分钟后重新推送。
-"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",准备推送时小助手不在线或尚未上报此账套。请确认小助手正在运行后重新推送
+"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送
 The image file cannot be read.,无法读取该图像文件。
 The import columns do not match the stock count template.,导入列与盘点模板不匹配。
 The import contains a repeated product code.,导入数据包含重复的产品编码。
@@ -1755,7 +1729,6 @@ This client still has {0} invoice record(s). Reassign them first.,该客户仍�
 This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
 This connection does not support an Express CC Desktop credential.,此连接不支持 Express CC 桌面版凭据。
-This connection does not support an Express Companion credential.,此连接不支持 Express 小助手凭据。
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
 This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
@@ -1979,7 +1952,6 @@ Zero VAT,零税额
 account,科目
 active,有效
 admitted,已受理
-"allowed root, set once on the Companion",允许读取的根目录（在小助手上设一次）
 amount,金额
 and {0} more,另有 {0} 项
 before VAT,未税
@@ -2119,7 +2091,6 @@ cowork.folder.folderMissing,文件夹不可用
 cowork.folder.guide.oneRule,一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 cowork.folder.guide.result,系统生成，别放单据
 cowork.folder.guide.resultRule,每张发票的结果表格放在 _Pearnly结果，第二天核对。
-cowork.folder.guide.root,允许读取的根目录（在小助手上设一次）
 cowork.folder.guide.rule,规则 {0}
 cowork.folder.guide.sampleA,公司A-进项-服务
 cowork.folder.guide.sampleB,公司A-销项
@@ -2135,11 +2106,9 @@ cowork.folder.item.ask,暂停并手动选择
 cowork.folder.item.new,按票面新建
 cowork.folder.lastDay,月末
 cowork.folder.line,{0}：{1}
-cowork.folder.mastersLoading,小助手还在读这份账套，稍后重新打开即可选科目。
 cowork.folder.more,另有 {0} 项
 cowork.folder.moving,处理中 {0}
 cowork.folder.new,新建定时任务
-cowork.folder.noExpress,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
 cowork.folder.noRoots,此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。
 cowork.folder.noRootsAny,暂无可选文件夹，请在电脑的 CC 桌面版中添加。
 cowork.folder.noRuns,暂无运行记录

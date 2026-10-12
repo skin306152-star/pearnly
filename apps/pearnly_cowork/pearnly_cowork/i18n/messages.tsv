@@ -401,7 +401,7 @@ Target Json	冻结目标（JSON）	ปลายทางที่ตรึงไ
 Token Digest	令牌摘要	แฮชโทเค็น	トークンダイジェスト	Token Digest
 Wire Attempt	发送尝试次数	จำนวนครั้งที่พยายามส่ง	送信試行回数	Wire Attempt
 Started At	开始时间	เริ่มเมื่อ	開始日時	Started At
-Cowork Express Agent Credential	Cowork Express CC 桌面版凭据	ข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express ของ Cowork	Cowork Express CC デスクトップ認証情報	Cowork Express Agent Credential
+Cowork Express CC Desktop Credential	Cowork Express CC 桌面版凭据	ข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express ของ Cowork	Cowork Express CC デスクトップ認証情報	Cowork Express Agent Credential
 Record ID	记录 ID	รหัสรายการ	レコード ID	Record ID
 Site Name	站点名称	ชื่อไซต์	サイト名	Site Name
 Issued By	签发人	ผู้ออก	発行者	Issued By
@@ -434,7 +434,7 @@ Refresh Lease Generation	刷新租约版本	เวอร์ชันสิทธ
 Refresh Lease Handle	刷新租约标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子	
 Refresh Lease Expires At (UTC)	刷新租约到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）	
 Refresh Error Code	刷新错误码	รหัสข้อผิดพลาดการรีเฟรช	更新エラーコード	
-Cowork Companion Request	Cowork CC 桌面版请求	คำขอถึง CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップへのリクエスト
+Cowork CC Desktop Request	Cowork CC 桌面版请求	คำขอถึง CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップへのリクエスト	Cowork Companion Request
 Parameters	参数	พารามิเตอร์	パラメーター
 Lease Handle	租约标识	รหัสสิทธิ์ถือครอง	リース識別子
 Lease Credential	租约凭据	ข้อมูลรับรองของสิทธิ์ถือครอง	リースの認証情報
@@ -482,7 +482,7 @@ The ERP report uses an unsupported adapter.	ERP 报告使用了不支持的适�
 The ERP report refresh status is invalid.	ERP 报告的刷新状态无效。	สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง	ERP レポートの更新状態が無効です。	erp.target_projection_refresh_status_invalid
 Collection is not connected for this ERP data type.	此 ERP 数据类型暂不支持采集。	ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้	この ERP データの種類には収集機能が接続されていません。	erp.target_projection_collector_not_connected
 The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面版服务暂时不可用，请稍后重试。	บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。	companion.report_busy
-Cowork Companion Delivery	Cowork CC 桌面版任务领取记录	Cowork บันทึกการรับงานของ CC เดสก์ท็อป	Cowork CC デスクトップのタスク受領記録	Cowork Companion Delivery
+Cowork CC Desktop Delivery	Cowork CC 桌面版任务领取记录	Cowork บันทึกการรับงานของ CC เดสก์ท็อป	Cowork CC デスクトップのタスク受領記録	Cowork Companion Delivery
 Credential ID	凭据 ID	รหัสข้อมูลรับรอง	認証情報 ID	Credential ID
 Owner ID	所有者 ID	รหัสเจ้าของ	所有者 ID	Owner ID
 Push Attempt	推送尝试	การพยายามส่ง	送信試行	Push Attempt
@@ -1520,8 +1520,9 @@ It was not entered	未入账	ยังไม่ลงบัญชี	計上さ�
 ERP document number	ERP 单号	เลขที่เอกสารใน ERP	ERP の伝票番号	cowork.unknown.docnum
 Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入账，可重新推送	ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้	ERP で確認済み：未計上。再送信できます	intake.error.confirmed_not_entered
 Recognition was interrupted (not charged). Upload this file again	识别已中断（未扣费），请重新上传此文件	การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
-CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
-CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
+CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
+CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
+CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again
 Add Row	添加行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認	
 An amount could not be read. Check the amount format in the file	部分金额无法读取，请检查文件中的金额格式	มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์	読み取れない金額があります。ファイルの金額の書式を確認してください	reconciliation.amount_invalid
@@ -1763,7 +1764,7 @@ Waiting for the recognition charge to complete.	正在等待扣费完成。	ก�
 The recognition task was not found.	识别任务不存在。	ไม่พบงานอ่านเอกสาร	読み取りタスクが見つかりません。	cowork.folder.batch_missing
 The file check is busy. It will be retried.	原件核对繁忙，将稍后重试。	ระบบตรวจไฟล์ไม่ว่าง ระบบจะลองใหม่ภายหลัง	ファイル確認が混み合っています。再試行します。	cowork.folder.inspect_busy
 A step failed and will be retried in ten minutes.	此步骤出错，将于十分钟后重试。	ขั้นตอนนี้ไม่สำเร็จ ระบบจะลองใหม่ในอีก 10 นาที	この手順が失敗しました。10 分後に再試行します。	cowork.folder.step_error
-CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.	推送时 CC 桌面版未连接，将于十分钟后重新推送。	CC เดสก์ท็อปไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีกสิบนาที	ヘルパーが接続されていなかったため、10 分後にもう一度送信します。	cowork.folder.companion_offline
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.	推送时 CC 桌面版未连接，将于十分钟后重新推送。	CC เดสก์ท็อปไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีกสิบนาที	CC デスクトップが接続されていなかったため、10 分後にもう一度送信します。	cowork.folder.companion_offline
 Waiting for this account set's stock purchases to be entered first.	等待同一账套的进货先录入。	รอบันทึกรายการซื้อสินค้าของชุดบัญชีนี้ก่อน	同じ会計データの仕入が先に登録されるのを待っています。	cowork.folder.waiting_purchases
 The result sheet is not ready yet.	结果表格尚未生成。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
 Original file name	原文件名	ชื่อไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file

@@ -42,7 +42,6 @@ Approval,การอนุมัติ
 Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
 Are you sure you want to sign out?,ต้องการออกจากระบบใช่หรือไม่
 Arguments,อาร์กิวเมนต์
-Assistant not connected,ผู้ช่วย Pearnly ยังไม่เชื่อมต่อ
 Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
 Auto Push,ส่งอัตโนมัติ
@@ -99,7 +98,6 @@ Client ID is required,ต้องระบุ Client ID
 Close,ปิด
 Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
 Collapse,ย่อ
-Companion,ผู้ช่วย Pearnly (Companion)
 Company,ข้อมูลบริษัท
 Company List,รายชื่อบริษัท
 Company Master,ข้อมูลหลักบริษัท
@@ -228,7 +226,6 @@ Document no.,เลขที่เอกสาร
 Documents,จำนวนเอกสาร
 Done · {0} ok · {1} failed,เสร็จสิ้น · สำเร็จ {0} · ล้มเหลว {1}
 Download CC,ดาวน์โหลด CC
-Download assistant,ดาวน์โหลดผู้ช่วย Pearnly
 Draft,ฉบับร่าง
 Due Date,วันครบกำหนด
 Duplicate skipped,ข้ามรายการซ้ำแล้ว
@@ -309,7 +306,6 @@ Image Fingerprint,ลายนิ้วมือภาพ
 Inbound = invoices received; outbound = invoices issued,ภาษีซื้อ = ใบกำกับภาษีที่ได้รับ ภาษีขาย = ใบกำกับภาษีที่ออก
 "Install it, then sign in with this account to connect.",ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
 "Install, pair, upgrade and uninstall guide for CC Desktop",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้ง CC เดสก์ท็อป
-"Install, pair, upgrade and uninstall guide for Companion",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย
 Intake Workbench,ศูนย์บันทึกเอกสาร
 Integrations,การเชื่อมต่อ
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.","ตัวกรองของฟิลด์ {0} ไม่ถูกต้อง: ตัวกรองต้องเป็นลิสต์ โดยแต่ละรายการมี 4 ค่า คือ doctype, ชื่อฟิลด์, ตัวดำเนินการ และค่า"
@@ -697,7 +693,6 @@ This photo could not be read. Save it as JPEG and upload it again.,ไม่ส�
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์ไว้มากกว่าหนึ่งรายการ: {0} การติดตั้งแต่ละชุดรองรับได้เพียงผลิตภัณฑ์เดียว
 This site has no CC Desktop installer address yet.,ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้ง CC เดสก์ท็อป
 "This site has no LINE access token configured, so it cannot send messages",เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงไม่สามารถส่งข้อความได้
-This site has no assistant installer address yet.,ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้งผู้ช่วย Pearnly
 This site has no product manifest installed; it cannot run as a business site.,เว็บไซต์นี้ไม่ได้ติดตั้งรายการผลิตภัณฑ์ใด ๆ จึงไม่สามารถทำงานเป็นเว็บไซต์ธุรกิจได้
 This site has no product workspace yet,เว็บไซต์นี้ยังไม่ได้สร้างพื้นที่ทำงานของผลิตภัณฑ์
 This system address is not allowed; only public addresses can be used.,ไม่อนุญาตให้ใช้ที่อยู่ระบบนี้ รองรับเฉพาะที่อยู่สาธารณะ
@@ -818,7 +813,6 @@ common.save,บันทึก
 common.saving,กำลังบันทึก…
 common.yes,ใช่
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC เดสก์ท็อปดึงข้อมูลบนเครื่องแล้วบันทึกที่นี่
-"companion = pulled outbound by Companion on the local machine, then stored here",companion = ผู้ช่วย Pearnly ดึงข้อมูลบนเครื่องแล้วบันทึกที่นี่
 connect.action.connect,เชื่อมต่อ DMS
 connect.action.connectSave,เชื่อมต่อและบันทึก
 connect.action.connecting,กำลังเชื่อมต่อ…

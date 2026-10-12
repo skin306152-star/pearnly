@@ -42,7 +42,6 @@ Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
-Assistant not connected,Assistant not connected
 Attempt,Attempt
 Attempts,Attempts
 Auto Push,Auto Push
@@ -99,7 +98,6 @@ Client ID is required,Client ID is required
 Close,Close
 Collaboration Boards (WeKan),Collaboration Boards (WeKan)
 Collapse,Collapse
-Companion,Companion
 Company,Company
 Company List,Company List
 Company Master,Company Master
@@ -228,7 +226,6 @@ Document no.,Document no.
 Documents,Documents
 Done · {0} ok · {1} failed,Done · {0} ok · {1} failed
 Download CC,Download CC
-Download assistant,Download assistant
 Draft,Draft
 Due Date,Due Date
 Duplicate skipped,Duplicate skipped
@@ -308,7 +305,6 @@ Image Fingerprint,Image Fingerprint
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
 "Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
 "Install, pair, upgrade and uninstall guide for CC Desktop","Install, pair, upgrade and uninstall guide for CC Desktop"
-"Install, pair, upgrade and uninstall guide for Companion","Install, pair, upgrade and uninstall guide for Companion"
 Intake Workbench,Intake Workbench
 Integrations,Integrations
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.","Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value."
@@ -695,7 +691,6 @@ This photo could not be read. Save it as JPEG and upload it again.,This photo co
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,This site has more than one product manifest installed: {0}. One deployment can host only one product.
 This site has no CC Desktop installer address yet.,This site has no CC Desktop installer address yet.
 "This site has no LINE access token configured, so it cannot send messages","This site has no LINE access token configured, so it cannot send messages"
-This site has no assistant installer address yet.,This site has no assistant installer address yet.
 This site has no product manifest installed; it cannot run as a business site.,This site has no product manifest installed; it cannot run as a business site.
 This site has no product workspace yet,This site has no product workspace yet
 This system address is not allowed; only public addresses can be used.,This system address is not allowed; only public addresses can be used.
@@ -816,7 +811,6 @@ common.save,Save
 common.saving,Saving…
 common.yes,Yes
 "companion = pulled outbound by CC Desktop on the local machine, then stored here","companion = pulled outbound by CC Desktop on the local machine, then stored here"
-"companion = pulled outbound by Companion on the local machine, then stored here","companion = pulled outbound by Companion on the local machine, then stored here"
 connect.action.connect,Connect DMS
 connect.action.connectSave,Connect and save
 connect.action.connecting,Connecting…

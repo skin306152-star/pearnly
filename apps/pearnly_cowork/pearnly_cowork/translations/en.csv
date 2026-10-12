@@ -57,7 +57,6 @@ A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A 
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Abbreviated tax invoice,Abbreviated tax invoice
 Access to the CC Desktop queue has been revoked.,Access to the CC Desktop queue has been revoked.
-Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
 Account Codes,Account Codes
 Account Key,Account Key
 Account Set,Account Set
@@ -282,7 +281,6 @@ Checked push choices,Checked push choices
 Checked push results,Checked push results
 Checked recognition results,Checked recognition results
 Checked reconciliation presets,Checked reconciliation presets
-Checked the companion,Checked the companion
 Checked the stock account group,Checked the stock account group
 Checking,Checking
 Checklist,Checklist
@@ -297,7 +295,6 @@ Choose a file,Choose a file
 "Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
 Choose an Express account set first,Choose an Express account set first
 Choose an allowed root reported by CC Desktop.,Choose an allowed root reported by CC Desktop.
-Choose an allowed root reported by the Companion.,Choose an allowed root reported by the Companion.
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
 Choose both files first,Choose both files first
@@ -343,9 +340,6 @@ Commenting,Commenting
 Comments,Comments
 Comments and activity,Comments and activity
 Commission,Commission
-Companion Report,Companion Report
-Companion authentication failed.,Companion authentication failed.
-Companion offline or needs update,Companion offline or needs update
 Company,Company
 Company Name,Company Name
 Company tax ID,Company tax ID
@@ -366,7 +360,6 @@ Confirmation Revision,Confirmation Revision
 Confirmed,Confirmed
 Confirmed a push result,Confirmed a push result
 Connect CC Desktop,Connect CC Desktop
-Connect Companion,Connect Companion
 Connection,Connection
 Connection Configuration,Connection Configuration
 Connection Name,Connection Name
@@ -410,14 +403,17 @@ Cover Color,Cover Color
 Cover File,Cover File
 Cowork,Cowork
 Cowork Bank Evidence,Cowork Bank Evidence
+Cowork CC Desktop Delivery,Cowork CC Desktop Delivery
+Cowork CC Desktop Request,Cowork CC Desktop Request
 Cowork Client,Cowork Client
-Cowork Companion Delivery,Cowork Companion Delivery
-Cowork Companion Request,Cowork Companion Request
+Cowork Companion Delivery,Cowork CC Desktop Delivery
+Cowork Companion Request,Cowork CC Desktop Request
 Cowork ERP Connection,Cowork ERP Connection
 Cowork ERP Mapping,Cowork ERP Mapping
 Cowork ERP Refresh,Cowork ERP Refresh
 Cowork ERP Snapshot,Cowork ERP Snapshot
-Cowork Express Agent Credential,Cowork Express Agent Credential
+Cowork Express Agent Credential,Cowork Express CC Desktop Credential
+Cowork Express CC Desktop Credential,Cowork Express CC Desktop Credential
 Cowork Express Readback,Cowork Express Readback
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork Master Data
@@ -687,7 +683,6 @@ Folder auto-intake rules,Folder auto-intake rules
 Folder not available,Folder not available
 Folder results,Folder results
 Folder rule name,Folder rule name
-Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
 Folder rules work with Express connections only.,Folder rules work with Express connections only.
 Folder to read,Folder to read
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
@@ -945,7 +940,6 @@ New task,New task
 "New, as on the invoice","New, as on the invoice"
 Next Attempt At,Next Attempt At
 No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
-No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
@@ -958,9 +952,7 @@ No due date,No due date
 No files were given.,No files were given.
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
 No folders on this PC yet. Add them in CC Desktop on that PC.,No folders on this PC yet. Add them in CC Desktop on that PC.
-No folders on this PC yet. Add them in the Companion on that PC.,No folders on this PC yet. Add them in the Companion on that PC.
 No folders to choose yet. Add them in CC Desktop on the PC.,No folders to choose yet. Add them in CC Desktop on the PC.
-No folders to choose yet. Add them in the Companion on the PC.,No folders to choose yet. Add them in the Companion on the PC.
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
@@ -1315,7 +1307,6 @@ Run now,Run now
 Run now (tasks: {0}):,Run now (tasks: {0}):
 Run on day,Run on day
 Run requested. CC Desktop starts within a few minutes.,Run requested. CC Desktop starts within a few minutes.
-Run requested. The Companion starts within a few minutes.,Run requested. The Companion starts within a few minutes.
 Run time,Run time
 SHA-256,SHA-256
 SKU,SKU
@@ -1507,16 +1498,6 @@ The CC Desktop queue request is invalid.,The CC Desktop queue request is invalid
 The CC Desktop queue response is invalid.,The CC Desktop queue response is invalid.
 The CC Desktop report is invalid.,The CC Desktop report is invalid.
 The CC Desktop service is temporarily unavailable. Try again shortly.,The CC Desktop service is temporarily unavailable. Try again shortly.
-The Companion delivery record is invalid.,The Companion delivery record is invalid.
-The Companion delivery record was not found.,The Companion delivery record was not found.
-The Companion identity is no longer valid. Authenticate again.,The Companion identity is no longer valid. Authenticate again.
-The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
-The Companion on this PC has not synced folders recently. Open it and update to the latest version.,The Companion on this PC has not synced folders recently. Open it and update to the latest version.
-The Companion on this PC has not synced recently. Update it to the latest version.,The Companion on this PC has not synced recently. Update it to the latest version.
-The Companion queue request is invalid.,The Companion queue request is invalid.
-The Companion queue response is invalid.,The Companion queue response is invalid.
-The Companion report is invalid.,The Companion report is invalid.
-The Companion service is temporarily unavailable. Try again shortly.,The Companion service is temporarily unavailable. Try again shortly.
 The ERP address is invalid or not allowed.,The ERP address is invalid or not allowed.
 The ERP data report contains a restricted field.,The ERP data report contains a restricted field.
 The ERP data report contains an invalid number.,The ERP data report contains an invalid number.
@@ -1609,14 +1590,7 @@ The general ledger could not be read.,The general ledger could not be read.
 "The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.","The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}."
 The general ledger has no revenue account rows.,The general ledger has no revenue account rows.
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.,The general ledger has several accounts; account {0} was used because it matches the bank statement best.
-The helper could not read this invoice. Check the fields and submit again,The helper could not read this invoice. Check the fields and submit again
-The helper could not write this invoice. It is retried automatically,The helper could not write this invoice. It is retried automatically
-The helper has not been given this account set. Check the helper's account sets,The helper has not been given this account set. Check the helper's account sets
-The helper is not allowed to write to this account set. Check the helper's account set,The helper is not allowed to write to this account set. Check the helper's account set
-The helper is out of date. Update the helper and submit again,The helper is out of date. Update the helper and submit again
-"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set","The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set"
-The helper was not connected when this invoice was ready to push; it will try again in ten minutes.,The helper was not connected when this invoice was ready to push; it will try again in ten minutes.
-"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again","The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again"
+"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again","CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
 The image file cannot be read.,The image file cannot be read.
 The import columns do not match the stock count template.,The import columns do not match the stock count template.
 The import contains a repeated product code.,The import contains a repeated product code.
@@ -1755,7 +1729,6 @@ This client still has {0} invoice record(s). Reassign them first.,This client st
 This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
 This connection does not support an Express CC Desktop credential.,This connection does not support an Express CC Desktop credential.
-This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
@@ -1979,7 +1952,6 @@ Zero VAT,Zero VAT
 account,account
 active,active
 admitted,admitted
-"allowed root, set once on the Companion","allowed root, set once on the Companion"
 amount,amount
 and {0} more,and {0} more
 before VAT,before VAT
@@ -2119,7 +2091,6 @@ cowork.folder.folderMissing,Folder not available
 cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 cowork.folder.guide.result,"made by the system, do not put documents here"
 cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
-cowork.folder.guide.root,"allowed root, set once on the Companion"
 cowork.folder.guide.rule,rule {0}
 cowork.folder.guide.sampleA,CompanyA-purchase-service
 cowork.folder.guide.sampleB,CompanyA-sales
@@ -2135,11 +2106,9 @@ cowork.folder.item.ask,Stop and let me choose
 cowork.folder.item.new,Create it from the document
 cowork.folder.lastDay,Last day of the month
 cowork.folder.line,{0}: {1}
-cowork.folder.mastersLoading,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
 cowork.folder.more,and {0} more
 cowork.folder.moving,In progress {0}
 cowork.folder.new,New scheduled task
-cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
 cowork.folder.noRoots,No folders on this PC yet. Add them in CC Desktop on that PC.
 cowork.folder.noRootsAny,No folders to choose yet. Add them in CC Desktop on the PC.
 cowork.folder.noRuns,No runs yet

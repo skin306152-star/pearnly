@@ -42,7 +42,6 @@ Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
 Are you sure you want to sign out?,确定要退出登录吗？
 Arguments,参数
-Assistant not connected,小助手未连接
 Attempt,尝试次数
 Attempts,尝试次数
 Auto Push,自动推送
@@ -99,7 +98,6 @@ Client ID is required,客户端 ID 不能为空
 Close,关闭
 Collaboration Boards (WeKan),协作看板（WeKan）
 Collapse,收起
-Companion,小助手（Companion）
 Company,公司
 Company List,公司列表
 Company Master,公司主档
@@ -228,7 +226,6 @@ Document no.,单据号
 Documents,单据数
 Done · {0} ok · {1} failed,完成 · 成功 {0} · 失败 {1}
 Download CC,下载 CC
-Download assistant,下载小助手
 Draft,草稿
 Due Date,到期日
 Duplicate skipped,重复已跳过
@@ -309,7 +306,6 @@ Image Fingerprint,影像指纹
 Inbound = invoices received; outbound = invoices issued,进项 = 收到的发票；销项 = 开出的发票
 "Install it, then sign in with this account to connect.",安装后用本账号登录即可连接。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC 桌面版的安装、配对、升级与卸载说明
-"Install, pair, upgrade and uninstall guide for Companion",小助手的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
 Integrations,集成
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",字段 {0} 的筛选无效：筛选必须是筛选列表，每个筛选是含四个值（doctype、字段名、运算符、值）的列表
@@ -697,7 +693,6 @@ This photo could not be read. Save it as JPEG and upload it again.,无法读取�
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,本站点安装了多个产品清单：{0}。每个部署仅可承载一个产品。
 This site has no CC Desktop installer address yet.,本站点未配置 CC 桌面版安装包地址。
 "This site has no LINE access token configured, so it cannot send messages",本站点未配置 LINE access token，无法发送消息
-This site has no assistant installer address yet.,本站点未配置小助手安装包地址。
 This site has no product manifest installed; it cannot run as a business site.,本站点没有安装任何产品清单，不能作为业务站点运行
 This site has no product workspace yet,本站点尚未创建产品工作区
 This system address is not allowed; only public addresses can be used.,不允许使用此系统地址，仅支持公网地址。
@@ -818,7 +813,6 @@ common.save,保存
 common.saving,提交中…
 common.yes,是
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = 由 CC 桌面版在本机拉取后写入
-"companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机拉取后写入
 connect.action.connect,连接 DMS
 connect.action.connectSave,连接并保存
 connect.action.connecting,连接中…

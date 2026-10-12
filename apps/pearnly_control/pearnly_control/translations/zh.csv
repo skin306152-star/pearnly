@@ -331,7 +331,6 @@ This request has already been handled (currently: {0}),该申请已处理（当�
 This tenant no longer exists.,该租户不存在。
 This top-up request was already reviewed; it cannot be handled twice,该充值申请已审核，不能重复处理
 Ticked means this feature is on by default; unticked ones are add-ons (for example CC Desktop).,勾选表示默认开通；未勾选表示需单独购买（如 CC 桌面版）。
-Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).,勾选表示默认开通；未勾选表示需单独购买（如小助手）。
 Top-up Review,充值审核
 Top-up approved · request {0},充值审核通过 · 申请 {0}
 Transfer Slip,转账凭证
@@ -360,7 +359,6 @@ Welcome to,欢迎使用
 Welcome to {0} — your account is ready,欢迎使用 {0}，您的账户已开通
 Your access domain,您的访问域名
 Your account is ready,已成功开通
-Your personal [[AI assistant]],您的个人[[智能体]]
 grant only handles money in (topup / adjustment); use charge() for deductions,grant 仅处理入账（topup / adjustment）；扣费请使用 charge()
 "{0} in-plan scan ({1} pages, within quota)",{0} 套餐内扫描（{1} 张，额度内）
 {0} out-of-plan scan ({1} over quota),{0} 套餐外扫描（超额 {1} 张）

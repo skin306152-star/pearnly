@@ -42,7 +42,6 @@ Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
-Assistant not connected,アシスタント未接続
 Attempt,試行回数
 Attempts,試行回数
 Auto Push,自動送信
@@ -99,7 +98,6 @@ Client ID is required,クライアントIDは必須です
 Close,閉じる
 Collaboration Boards (WeKan),コラボボード（WeKan）
 Collapse,閉じる
-Companion,コンパニオン
 Company,会社情報
 Company List,会社一覧
 Company Master,会社マスタ
@@ -228,7 +226,6 @@ Document no.,伝票番号
 Documents,伝票数
 Done · {0} ok · {1} failed,完了 · 成功 {0} · 失敗 {1}
 Download CC,CC をダウンロード
-Download assistant,アシスタントをダウンロード
 Draft,下書き
 Due Date,支払期日
 Duplicate skipped,重複のためスキップ
@@ -309,7 +306,6 @@ Image Fingerprint,画像フィンガープリント
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 "Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC デスクトップのインストール・ペアリング・更新・アンインストールガイド
-"Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
 Intake Workbench,取り込みワークベンチ
 Integrations,連携
 "Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",フィールド {0} のフィルタが無効です。フィルタはリストで、各項目は doctype・フィールド名・演算子・値の4値である必要があります
@@ -697,7 +693,6 @@ This photo could not be read. Save it as JPEG and upload it again.,この写真�
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
 This site has no CC Desktop installer address yet.,このサイトには CC デスクトップのインストーラーのアドレスがまだありません。
 "This site has no LINE access token configured, so it cannot send messages",このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
-This site has no assistant installer address yet.,このサイトにはアシスタントのインストーラーURLがまだありません。
 This site has no product manifest installed; it cannot run as a business site.,このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
 This site has no product workspace yet,このサイトにはまだ製品ワークスペースがありません
 This system address is not allowed; only public addresses can be used.,このシステムアドレスは使用できません。公開アドレスのみ使用できます。
@@ -818,7 +813,6 @@ common.save,保存
 common.saving,保存中…
 common.yes,はい
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC デスクトップがローカルで取得して保存
-"companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
 connect.action.connect,DMSに接続
 connect.action.connectSave,接続して保存
 connect.action.connecting,接続中…

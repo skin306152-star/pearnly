@@ -1355,10 +1355,11 @@ class TaskSources(unittest.TestCase):
         group = self._field(run, "brief_group")  # 2026-10-13：简报分组（定时时刻 / 立即运行那一批 / 补传跟父运行）
         self.assertEqual((group["fieldtype"], group["read_only"], group["search_index"]), ("Data", 1, 1))
         self.assertEqual(self._field("cowork_folder_intake_file", "source_file")["search_index"], 1)
-        # 改了字段就升 modified，migrate 才同步
-        for name, modified in ((rule, "2026-10-13"), (run, "2026-10-13"), ("cowork_folder_intake_file", "2026-10-12")):
+        # 改了字段就升 modified，migrate 才同步（规则、运行 2026-10-13 晚：描述改称 CC 桌面版）
+        for name, modified in ((rule, "2026-10-13 18:00"), (run, "2026-10-13 18:00"),
+                               ("cowork_folder_intake_file", "2026-10-12 12:00")):
             doctype = self._doctype(name)
-            self.assertEqual(doctype["modified"], modified + " 12:00:00.000000")
+            self.assertEqual(doctype["modified"], modified + ":00.000000")
             self.assertEqual(doctype["field_order"], [field["fieldname"] for field in doctype["fields"]])
 
     def test_history_runs_get_no_brief(self):

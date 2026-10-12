@@ -57,7 +57,6 @@ A withdrawal or deposit is negative. Check the withdrawal and deposit columns,�
 Abbreviated Tax Invoice,簡易税務請求書
 Abbreviated tax invoice,簡易税務インボイス
 Access to the CC Desktop queue has been revoked.,CC デスクトップのキューへのアクセス権が取り消されました。
-Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
 Account Codes,勘定科目コード
 Account Key,会計データキー
 Account Set,会計データ
@@ -227,11 +226,11 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
 CC Desktop offline,CC デスクトップがオフライン
 CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
-"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
+"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
 CC Desktop on this PC has not synced recently. Update it to the latest version.,この PC の CC デスクトップが同期していません。最新版に更新してください。
 CC Desktop sent back data that cannot be read.,CC デスクトップから返されたデータを読み取れません。
-CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
-"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,CC デスクトップが接続されていなかったため、10 分後にもう一度送信します。
+"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
 Calendar,カレンダー
 Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
@@ -282,7 +281,6 @@ Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
 Checked recognition results,読み取り結果を確認しました
 Checked reconciliation presets,照合の既定値を確認しました
-Checked the companion,アシスタントを確認しました
 Checked the stock account group,在庫勘定グループを確認しました
 Checking,照合中
 Checklist,チェックリスト
@@ -297,7 +295,6 @@ Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
 Choose an Express account set first,先に Express の帳簿を選んでください
 Choose an allowed root reported by CC Desktop.,CC デスクトップが報告したルートを選んでください。
-Choose an allowed root reported by the Companion.,コンパニオンが報告したルートを選んでください。
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose both files first,先に2つのファイルを選択してください
@@ -343,9 +340,6 @@ Commenting,コメント権限
 Comments,コメント
 Comments and activity,コメントとアクティビティ
 Commission,手数料
-Companion Report,Companion レポート
-Companion authentication failed.,アシスタント認証に失敗しました。
-Companion offline or needs update,コンパニオンがオフラインか更新が必要
 Company,会社
 Company Name,会社名
 Company tax ID,自社の番号
@@ -366,7 +360,6 @@ Confirmation Revision,確認リビジョン
 Confirmed,確認済み
 Confirmed a push result,送信結果を確定しました
 Connect CC Desktop,CC デスクトップを接続
-Connect Companion,コンパニオンを接続
 Connection,接続
 Connection Configuration,接続設定
 Connection Name,接続名
@@ -410,6 +403,8 @@ Cover Color,カバーの色
 Cover File,カバーファイル
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
+Cowork CC Desktop Delivery,Cowork CC デスクトップのタスク受領記録
+Cowork CC Desktop Request,Cowork CC デスクトップへのリクエスト
 Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
 Cowork Companion Request,Cowork CC デスクトップへのリクエスト
@@ -418,6 +413,7 @@ Cowork ERP Mapping,Cowork ERP マッピング
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
 Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
 Cowork Express Agent Credential,Cowork Express CC デスクトップ認証情報
+Cowork Express CC Desktop Credential,Cowork Express CC デスクトップ認証情報
 Cowork Express Readback,Cowork Express の読み戻し
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork マスタデータ
@@ -687,7 +683,6 @@ Folder auto-intake rules,フォルダー自動取込ルール
 Folder not available,フォルダーが見つかりません
 Folder results,結果
 Folder rule name,ルール名
-Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
 Folder rules work with Express connections only.,Express 接続でのみ使えます。
 Folder to read,フォルダー
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
@@ -945,7 +940,6 @@ New task,新規タスク
 "New, as on the invoice",伝票どおり新規作成
 Next Attempt At,次回再試行日時
 No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
-No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
@@ -958,9 +952,7 @@ No due date,期日なし
 No files were given.,ファイルが指定されていません。
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
 No folders on this PC yet. Add them in CC Desktop on that PC.,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
-No folders on this PC yet. Add them in the Companion on that PC.,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
 No folders to choose yet. Add them in CC Desktop on the PC.,選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。
-No folders to choose yet. Add them in the Companion on the PC.,選べるフォルダーがまだありません。PC のコンパニオンで追加してください。
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
@@ -1315,7 +1307,6 @@ Run now,今すぐ実行
 Run now (tasks: {0}):,今すぐ実行（{0} 件）：
 Run on day,実行日
 Run requested. CC Desktop starts within a few minutes.,実行を依頼しました。数分以内に開始します。
-Run requested. The Companion starts within a few minutes.,実行を依頼しました。数分以内に開始します。
 Run time,実行時刻
 SHA-256,SHA-256
 SKU,SKU
@@ -1507,16 +1498,6 @@ The CC Desktop queue request is invalid.,CC デスクトップのキューリク
 The CC Desktop queue response is invalid.,CC デスクトップのキューレスポンスが無効です。
 The CC Desktop report is invalid.,CC デスクトップのレポートが無効です。
 The CC Desktop service is temporarily unavailable. Try again shortly.,CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。
-The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
-The Companion delivery record was not found.,アシスタントのタスク受領記録が見つかりません。
-The Companion identity is no longer valid. Authenticate again.,アシスタントの認証が無効になりました。再認証してください。
-The Companion is still reading this account set. Reopen the rule in a minute to choose an account.,コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。
-The Companion on this PC has not synced folders recently. Open it and update to the latest version.,この PC のコンパニオンが最近フォルダーを同期していません。起動して最新版に更新してください。
-The Companion on this PC has not synced recently. Update it to the latest version.,この PC のコンパニオンが同期していません。最新版に更新してください。
-The Companion queue request is invalid.,アシスタントのキューリクエストが無効です。
-The Companion queue response is invalid.,アシスタントのキューレスポンスが無効です。
-The Companion report is invalid.,Companion レポートが無効です。
-The Companion service is temporarily unavailable. Try again shortly.,Companion サービスは一時的に利用できません。しばらくしてから再試行してください。
 The ERP address is invalid or not allowed.,ERPのアドレスが無効か、許可されていません。
 The ERP data report contains a restricted field.,ERP データレポートに制限対象のフィールドが含まれています。
 The ERP data report contains an invalid number.,ERP データレポートに無効な数値が含まれています。
@@ -1609,14 +1590,7 @@ The general ledger could not be read.,総勘定元帳を読み取れません。
 "The general ledger covers more than the bank statement; only {0} to {1} was used, with earlier entries carried into an opening balance of {2}.",総勘定元帳の期間が銀行明細より長いため、{0}〜{1} のみを使用し、それ以前の発生額は期首残高（{2}）に繰り越しました。
 The general ledger has no revenue account rows.,総勘定元帳に収益科目の行がありません。
 The general ledger has several accounts; account {0} was used because it matches the bank statement best.,総勘定元帳に複数の科目があるため、銀行明細と最も一致する科目 {0} を使用しました。
-The helper could not read this invoice. Check the fields and submit again,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
-The helper could not write this invoice. It is retried automatically,アシスタントが書き込めませんでした。自動で再試行します
-The helper has not been given this account set. Check the helper's account sets,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
-The helper is not allowed to write to this account set. Check the helper's account set,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
-The helper is out of date. Update the helper and submit again,アシスタントが古いバージョンです。更新して再送信してください
-"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
-The helper was not connected when this invoice was ready to push; it will try again in ten minutes.,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
-"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
+"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again",送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
 The image file cannot be read.,この画像ファイルを読み取れません。
 The import columns do not match the stock count template.,インポートする列が棚卸テンプレートと一致しません。
 The import contains a repeated product code.,インポートデータに重複する商品コードがあります。
@@ -1755,7 +1729,6 @@ This client still has {0} invoice record(s). Reassign them first.,この顧客�
 This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
 This connection does not support an Express CC Desktop credential.,この接続は Express 用の CC デスクトップ認証情報に対応していません。
-This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
 This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
@@ -1979,7 +1952,6 @@ Zero VAT,税額ゼロ
 account,勘定科目
 active,有効
 admitted,受け付け済み
-"allowed root, set once on the Companion",許可されたルート（コンパニオンで一度設定）
 amount,金額
 and {0} more,ほか {0} 件
 before VAT,税抜
@@ -2079,7 +2051,7 @@ cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月
 cowork.folder.catalogEmpty,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 cowork.folder.col.result,結果
 cowork.folder.col.schedule,実行日時
-cowork.folder.companion_offline,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
+cowork.folder.companion_offline,CC デスクトップが接続されていなかったため、10 分後にもう一度送信します。
 cowork.folder.connectHelper,CC デスクトップを接続
 cowork.folder.connection_fixed,定期タスクは別の PC に移せません。停止して新しく作成してください。
 cowork.folder.content_mismatch,アップロード内容が PC のファイルと一致しません。
@@ -2119,7 +2091,6 @@ cowork.folder.folderMissing,フォルダーが見つかりません
 cowork.folder.guide.oneRule,1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 cowork.folder.guide.result,システムが作成。書類を置かないでください
 cowork.folder.guide.resultRule,各請求書の結果表は _Pearnly结果 に保存され、翌日確認できます。
-cowork.folder.guide.root,許可されたルート（コンパニオンで一度設定）
 cowork.folder.guide.rule,ルール {0}
 cowork.folder.guide.sampleA,会社A-仕入-サービス
 cowork.folder.guide.sampleB,会社A-売上
@@ -2135,11 +2106,9 @@ cowork.folder.item.ask,止めて選択する
 cowork.folder.item.new,書類どおり新規作成
 cowork.folder.lastDay,月末
 cowork.folder.line,{0}：{1}
-cowork.folder.mastersLoading,コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。
 cowork.folder.more,ほか {0} 件
 cowork.folder.moving,処理中 {0}
 cowork.folder.new,定期タスクを作成
-cowork.folder.noExpress,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
 cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
 cowork.folder.noRootsAny,選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。
 cowork.folder.noRuns,実行履歴はまだありません
@@ -3113,7 +3082,7 @@ intake.error.MAPPING_MISSING_ITEM,対応する在庫品目がありません。�
 intake.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
 intake.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
-intake.error.NO_ACCOUNT_SELECTION,このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
+intake.error.NO_ACCOUNT_SELECTION,この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
 intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.POS_INVALID,POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
@@ -3258,7 +3227,7 @@ pos.xls_not_supported,旧形式の Excel（.xls）は使えません。.xlsx か
 probably {0},おそらく {0}
 push.adapter_not_connected,このERPアダプターはまだ接続されていません。
 push.branch_invalid,送信実行モードが無効です。
-push.companion_account_unreported,送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
+push.companion_account_unreported,送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
 push.disabled,このサイトでは送信が有効になっていないため、何も送信されていません。
 push.native_ack_conflict,確認応答が記録済みの結果と矛盾しています。
 push.native_history_changed,伝票が変更されました。再度準備してください。
