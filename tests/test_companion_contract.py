@@ -218,5 +218,91 @@ class FolderSync(unittest.TestCase):
                              (server.netloc, server.path, parse_qs(server.query)), session)
 
 
+def number_constants(path, names):
+    """模块顶层的几个常量（数字、元组、字典，可用前面定义过的常量拼）：只读 AST，不导入。"""
+    values = {}
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            try:
+                values[node.targets[0].id] = eval(compile(ast.Expression(node.value), str(path), "eval"),
+                                                  {"__builtins__": {}}, dict(values))
+            except Exception:
+                continue
+    return {name: values.get(name) for name in names}
+
+
+class OnDemandRequests(unittest.TestCase):
+    """CC 桌面端按需请求（2026-10 CC 闭环）：服务端 `companion/request_*` ↔ 小助手 `request_client` / `request_worker`
+    / `request_contract` / `folder_fetch`。"""
+
+    SHARED = ("KINDS", "CHUNK_BYTES", "MAX_BYTES", "LEASE_SECONDS", "POLL_SECONDS")
+
+    def test_the_helper_calls_exactly_the_request_paths_the_server_authenticates(self):
+        helper = module_constants(COMPANION / "request_client.py")
+        server = module_constants(SERVER / "http_auth.py")
+        self.assertEqual({helper["NEXT"], helper["COMPLETE"]},
+                         {"/api/method/" + method for method in server["REQUEST_METHODS"].values()})
+        for method in server["REQUEST_METHODS"].values():
+            module, function = method.rsplit(".", 1)
+            self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
+                                             function), method)
+
+    def test_both_sides_share_the_same_kinds_sizes_and_timings(self):
+        helper = number_constants(COMPANION / "request_contract.py", self.SHARED)
+        server = number_constants(SERVER / "request_contracts.py", self.SHARED)
+        self.assertEqual(helper, server)
+        self.assertEqual(set(server["MAX_BYTES"]), set(server["KINDS"]))
+        self.assertEqual(set(server["LEASE_SECONDS"]), set(server["KINDS"]))
+        # 一块 base64 后仍在 Frappe 默认 25MB 请求上限与租户 nginx 30m 之内
+        self.assertLess(4 * ((server["CHUNK_BYTES"] + 2) // 3) + 1024, 25 * 1024 * 1024)
+        self.assertEqual(server["MAX_BYTES"]["folder_fetch"],
+                         number_constants(ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py",
+                                          ("UPLOAD_MAX_BYTES",))["UPLOAD_MAX_BYTES"])
+
+    def test_the_helper_handles_only_known_kinds_and_resumes_on_the_servers_offset_code(self):
+        worker = (COMPANION / "request_worker.py").read_text(encoding="utf-8")
+        handlers = re.search(r"HANDLERS: dict = \{(.*?)\n\}", worker, re.S).group(1)
+        kinds = set(re.findall(r'"([a-z_]+)":', handlers))
+        self.assertTrue(kinds and kinds <= set(number_constants(SERVER / "request_contracts.py", ("KINDS",))["KINDS"]))
+        code = module_constants(COMPANION / "request_worker.py")["OFFSET_CODE"]
+        self.assertIn(f'"code": "{code}", "received": received', (SERVER / "request_service.py").read_text(encoding="utf-8"))
+        round_source = method_source(COMPANION / "request_worker.py", "RequestWorker", "round")
+        sent = next(node for node in ast.walk(ast.parse(round_source)) if isinstance(node, ast.Call)
+                    and ast.unparse(node.func) == "client.next")
+        self.assertEqual({key.value for key in sent.args[0].keys}, {"version", "kinds", "device"})
+        contracts = (SERVER / "request_contracts.py").read_text(encoding="utf-8")
+        for key in ("version", "kinds", "device", "request", "handle", "ok", "code", "offset", "content", "final",
+                    "size", "sha256", "meta"):
+            self.assertTrue(quoted(contracts, key), key)
+
+    def test_fetchable_types_are_the_same_on_the_helper_the_server_and_chat_attachments(self):
+        helper = module_constants(COMPANION / "folder_fetch.py")["FETCH_EXTENSIONS"]
+        server = module_constants(FOLDER_SERVER / "contracts.py")["FETCH_EXTENSIONS"]
+        self.assertEqual(helper, server)
+        spec = importlib.util.spec_from_file_location(
+            "assistant_contracts_for_requests", ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py")
+        shared = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(shared)
+        self.assertEqual(set(server), set(shared.UPLOAD_EXTENSIONS))
+
+    def test_folder_only_keys_may_take_requests_and_the_server_filters_by_erp(self):
+        auth = (SERVER / "http_auth.py").read_text(encoding="utf-8")
+        self.assertIn("if operation not in FOLDER_METHODS and operation not in REQUEST_METHODS and", auth)
+        server = number_constants(SERVER / "request_contracts.py", ("ADAPTER_KINDS", "FOLDER_KINDS", "KINDS"))
+        self.assertEqual(server["ADAPTER_KINDS"], {"express": server["KINDS"], "mrerp": server["FOLDER_KINDS"]})
+        self.assertNotIn("express_read", server["FOLDER_KINDS"])
+        self.assertIn("contracts.allowed_kinds(adapter", (SERVER / "request_service.py").read_text(encoding="utf-8"))
+
+    def test_the_request_thread_is_started_and_stopped_with_the_folder_thread(self):
+        tray = (COMPANION / "gui_tray.py").read_text(encoding="utf-8")
+        self.assertIn("self._requests = RequestWorker(lambda: self.configs)", tray)
+        for name in ("_stop_for_update", "_quit"):
+            self.assertIn("self._requests.stop()", method_source(COMPANION / "gui_tray.py", "TrayApp", name))
+        for name in ("_resume_after_update",):
+            self.assertIn("self._requests.start()", method_source(COMPANION / "gui_tray.py", "TrayApp", name))
+        self.assertIn("requests.running()", method_source(COMPANION / "gui_tray.py", "TrayApp", "_work_stopped"))
+        self.assertIn("requests.busy()", method_source(COMPANION / "gui_tray.py", "TrayApp", "_busy"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -106,6 +106,53 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(contracts.result_folder("..\\x"), "_Pearnly结果")
 
 
+class FetchContracts(unittest.TestCase):
+    """CC 从已授权文件夹列文件、取文件（2026-10 CC 闭环 L2）：路径规则、类型与对话附件同一份。"""
+
+    def test_fetch_types_are_the_chat_attachment_types(self):
+        shared = _load("assistant_contracts_for_fetch", ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py")
+        self.assertEqual(set(contracts.FETCH_EXTENSIONS), set(shared.UPLOAD_EXTENSIONS))
+        self.assertEqual(len(contracts.FETCH_EXTENSIONS), len(set(contracts.FETCH_EXTENSIONS)))
+        # 本模块按路径单独加载、不依赖共用层（字面值）
+        tree = ast.parse((APP / "folder_intake/contracts.py").read_text(encoding="utf-8"))
+        imported = {node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)} | {
+            alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
+        self.assertFalse([name for name in imported if name.startswith(("pearnly_", "frappe"))])
+
+    def test_a_fetch_path_stays_under_the_root_and_may_be_in_the_result_folder(self):
+        self.assertEqual(contracts.fetch_path(" ACME/bank\\kbank-09.PDF "), "ACME\\bank\\kbank-09.PDF")
+        self.assertEqual(contracts.fetch_path("ACME\\_Pearnly结果\\2026-10\\INV1.xlsx"), "ACME\\_Pearnly结果\\2026-10\\INV1.xlsx")
+        for bad in ("..\\x.pdf", "a\\..\\b.pdf", "C:\\x.pdf", "a|b.pdf", "", "\\\\", "a.\\b.pdf"):
+            with self.assertRaises(contracts.ContractError, msg=bad) as caught:
+                contracts.fetch_path(bad)
+            self.assertEqual(caught.exception.code, "cowork.folder.fetch_path_invalid")
+        for bad in ("a.exe", "a", "a.pdf.lnk"):
+            with self.assertRaises(contracts.ContractError, msg=bad) as caught:
+                contracts.fetch_path(bad)
+            self.assertEqual(caught.exception.code, "cowork.folder.fetch_type_invalid")
+        self.assertEqual(contracts.browse_folder(""), "")
+        self.assertEqual(contracts.browse_folder("ACME/_Pearnly Results"), "ACME\\_Pearnly Results")
+        with self.assertRaises(contracts.ContractError):
+            contracts.browse_folder("..")
+
+    def test_types_and_the_returned_listing(self):
+        self.assertEqual(contracts.fetch_extensions(["PDF", ".xlsx", "pdf"]), [".pdf", ".xlsx"])
+        self.assertEqual(contracts.fetch_extensions(None), [])
+        with self.assertRaises(contracts.ContractError):
+            contracts.fetch_extensions([".exe"])
+        listed = contracts.fetched_listing({"files": [
+            {"path": "ACME\\a.pdf", "size": 10, "modified": 1.5},
+            {"path": "..\\evil.pdf", "size": 1, "modified": 1},  # 不合规的丢掉
+            {"path": "ACME\\_ผลลัพธ์ Pearnly\\r.xlsx", "size": 2, "modified": 2},
+            {"path": "ACME\\b.pdf", "size": True, "modified": 2}, {"path": "ACME\\c.pdf", "size": 1, "modified": 1e300},
+            {"path": "ACME\\d.pdf", "size": 1, "modified": float("nan")}, "junk"], "truncated": True, "scanned": 9})
+        self.assertEqual([row["path"] for row in listed["files"]], ["ACME\\a.pdf", "ACME\\_ผลลัพธ์ Pearnly\\r.xlsx"])
+        self.assertEqual([row["result_folder"] for row in listed["files"]], [False, True])
+        self.assertEqual((listed["truncated"], listed["scanned"]), (True, 9))
+        with self.assertRaises(contracts.ContractError):
+            contracts.fetched_listing([])
+
+
 class AdditiveGuards(unittest.TestCase):
     """现有三个机器方法、复核表、录入列表脚本加载顺序都不因本功能改变。"""
 

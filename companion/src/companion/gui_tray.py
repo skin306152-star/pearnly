@@ -24,6 +24,7 @@ from . import toast, watchdog
 from .config import CompanionConfig
 from .auto_update import AutoUpdate
 from .folder_worker import FolderIntake
+from .request_worker import RequestWorker
 from .gui_font import qt_app
 from .gui_pairing_support import ProbeThread
 from .gui_tray_workers import (
@@ -235,6 +236,9 @@ class TrayApp(QObject):
                                      on_notices=lambda site, items: self.folder_notices.emit(site, items),
                                      on_update=lambda version, url: self.folder_update.emit(version, url))
         self._folders.start()
+        # 按需请求（CC 对话里读账套、列 / 取已授权文件夹的文件）：又一条独立守护线程，与推送线、看门狗无关（request_worker.py）。
+        self._requests = RequestWorker(lambda: self.configs)
+        self._requests.start()
         # Tomo：窗口第一次打开时才建（开机自启不加载网页内核）；快捷输入条、全局快捷键、「再打开一次」的管道一开始就在。
         self._tomo = None
         self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知 / 对话提醒才有）
@@ -460,7 +464,9 @@ class TrayApp(QObject):
         if getattr(self, "_update_requested", False):
             return False
         folders = getattr(self, "_folders", None)
-        return bool(folders is not None and folders.busy()) or _window_open()
+        requests = getattr(self, "_requests", None)
+        return (bool(folders is not None and folders.busy()) or bool(requests is not None and requests.busy())
+                or _window_open())
 
     def _start_download(self, version: str, url: str) -> None:
         from .updater import DOWNLOAD_SITE
@@ -487,6 +493,8 @@ class TrayApp(QObject):
         self._updating = True
         if getattr(self, "_folders", None) is not None:
             self._folders.stop()
+        if getattr(self, "_requests", None) is not None:
+            self._requests.stop()
         worker = self.worker
         if worker is not None and worker.isRunning():
             worker.stop(signal_offline=True)
@@ -494,7 +502,9 @@ class TrayApp(QObject):
     def _work_stopped(self) -> bool:
         worker = self.worker
         folders = getattr(self, "_folders", None)
-        return (worker is None or not worker.isRunning()) and not (folders is not None and folders.running())
+        requests = getattr(self, "_requests", None)
+        return ((worker is None or not worker.isRunning()) and not (folders is not None and folders.running())
+                and not (requests is not None and requests.running()))
 
     def _resume_after_update(self) -> None:
         self._updating = False
@@ -502,6 +512,8 @@ class TrayApp(QObject):
             self.worker = self._spawn_worker()
         if getattr(self, "_folders", None) is not None:
             self._folders.start()
+        if getattr(self, "_requests", None) is not None:
+            self._requests.start()
 
     def _install_update(self, path: str):
         from .updater import run_installer_silent
@@ -713,6 +725,8 @@ class TrayApp(QObject):
         self._restart_worker()
         if getattr(self, "_folders", None) is not None:
             self._folders.start()
+        if getattr(self, "_requests", None) is not None:
+            self._requests.start()
 
     def _start_folders(self) -> None:
         """主窗口里添加了文件夹：文件夹自动录入线程没在跑就起来（已在跑不重复）。"""
@@ -787,6 +801,8 @@ class TrayApp(QObject):
             self._auto_timer.stop()
         if getattr(self, "_folders", None) is not None:
             self._folders.stop()
+        if getattr(self, "_requests", None) is not None:
+            self._requests.stop()
         worker = self.worker
         if worker is not None and worker.isRunning():
             worker.stop(signal_offline=True)

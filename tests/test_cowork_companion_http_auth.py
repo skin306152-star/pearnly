@@ -15,7 +15,8 @@ SOURCE = Path(__file__).resolve().parents[1] / 'apps/pearnly_cowork/pearnly_cowo
 
 def pure_contract():
     tree = ast.parse(SOURCE.read_text())
-    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'MACHINE_METHODS', 'MACHINE_PATHS', '_HEADER'}
+    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'MACHINE_METHODS',
+             'MACHINE_PATHS', '_HEADER'}
     selected = [node for node in tree.body if
         isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in
             {'RequestContractError', '_machine_candidate', '_envelope'}
@@ -124,10 +125,13 @@ class FolderMachineMethods(unittest.TestCase):
 
     def test_tables(self):
         methods, folder = self.contract['METHODS'], self.contract['FOLDER_METHODS']
+        requests = self.contract['REQUEST_METHODS']
         self.assertEqual(set(methods), {'heartbeat', 'lease', 'ack'})
         self.assertFalse(set(methods) & set(folder))
-        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder})
+        self.assertFalse((set(methods) | set(folder)) & set(requests))
+        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests})
         self.assertEqual(set(self.contract['PATHS'].values()) & {'/api/method/' + m for m in folder.values()}, set())
+        self.assertEqual(len(set(self.contract['MACHINE_PATHS'].values())), len(methods) + len(folder) + len(requests))
 
     def test_folder_paths_use_the_same_envelope(self):
         for method in self.contract['FOLDER_METHODS'].values():
@@ -143,7 +147,32 @@ class FolderMachineMethods(unittest.TestCase):
                 with self.assertRaises(self.contract['RequestContractError']):
                     self.contract['_envelope'](**values)
 
-if __name__ == '__main__': unittest.main()
+
+class OnDemandRequestMethods(unittest.TestCase):
+    """CC 桌面端按需请求的两条机器方法（2026-10 CC 闭环）：又一张表，同一套信封与配对码身份。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = pure_contract()
+
+    def test_the_table_names_the_two_request_api_methods(self):
+        self.assertEqual(self.contract['REQUEST_METHODS'], {
+            'request_next': 'pearnly_cowork.companion.request_api.next_request',
+            'request_complete': 'pearnly_cowork.companion.request_api.complete_request'})
+
+    def test_request_paths_use_the_same_envelope(self):
+        for method in self.contract['REQUEST_METHODS'].values():
+            path = '/api/method/' + method
+            self.assertTrue(self.contract['_machine_candidate'](path, ''))
+            for alias in ('/api/v1/method/', '/api/v2/method/'):
+                self.assertTrue(self.contract['_machine_candidate'](alias + method, ''))
+            base = dict(path=path, method='POST', header='Bearer exp_CWEC-synthetic_Ab-c_d', cookies={}, query={},
+                        form={}, payload={'version': '1.5.0', 'kinds': []}, session_user='Guest')
+            self.assertEqual(self.contract['_envelope'](**base), 'exp_CWEC-synthetic_Ab-c_d')
+            for bad in ({'method': 'GET'}, {'session_user': 'someone@example.com'}, {'cookies': {'sid': 'x'}},
+                        {'payload': []}, {'payload': {'cmd': 'x'}}, {'header': ''}, {'path': path + '/'}):
+                with self.assertRaises(self.contract['RequestContractError']):
+                    self.contract['_envelope'](**{**base, **bad})
 
 
 class FolderOnlyKeys(unittest.TestCase):
@@ -154,7 +183,8 @@ class FolderOnlyKeys(unittest.TestCase):
         body = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == '_authenticate_request')
         text = ast.unparse(body)
         guard = text.index('credentials.FOLDER_ONLY_ADAPTERS')
-        self.assertIn('if operation not in FOLDER_METHODS and', text[text.rindex('if', 0, guard) - 4:guard])
+        self.assertIn('if operation not in FOLDER_METHODS and operation not in REQUEST_METHODS and',
+                      text[text.rindex('if', 0, guard) - 4:guard])
         self.assertLess(text.index('credentials.authenticate(token)'), guard)
         self.assertLess(guard, text.index('frappe.set_user(context.issuer)'))
         self.assertIn('_deny_permission()', text[guard:text.index('frappe.set_user(context.issuer)')])
@@ -164,3 +194,7 @@ class FolderOnlyKeys(unittest.TestCase):
         self.assertIn("HELPER_ADAPTERS = ('express', 'mrerp')", source)
         self.assertIn("FOLDER_ONLY_ADAPTERS = ('mrerp',)", source)
         self.assertNotIn("adapter != 'express'", source)
+
+
+if __name__ == '__main__':
+    unittest.main()

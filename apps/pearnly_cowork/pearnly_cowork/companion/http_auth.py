@@ -27,9 +27,14 @@ FOLDER_METHODS = {'folder_sync': 'pearnly_cowork.folder_intake.machine.sync',
                   'folder_begin': 'pearnly_cowork.folder_intake.machine.begin',
                   'folder_finish': 'pearnly_cowork.folder_intake.machine.finish',
                   'folder_workbook': 'pearnly_cowork.folder_intake.machine.workbook_file'}
-MACHINE_METHODS = {**METHODS, **FOLDER_METHODS}
+# CC 桌面端的按需请求（companion/request_api.py，2026-10 CC 闭环）：服务端请电脑读账套、列 / 取已授权文件夹里的文件，
+# 电脑领一件、交结果。又一张表，同一套信封与配对码身份；上面两张表逐字不变。
+REQUEST_METHODS = {'request_next': 'pearnly_cowork.companion.request_api.next_request',
+                   'request_complete': 'pearnly_cowork.companion.request_api.complete_request'}
+MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS}
 MACHINE_PATHS = {operation: '/api/method/' + method for operation, method in MACHINE_METHODS.items()}
-if len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS):
+if (len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) + len(REQUEST_METHODS)
+        or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS)):
     raise RuntimeError('companion machine methods must not overlap')
 _AUTHORITY = object()
 _HEADER = re.compile(r'(?i:Bearer) (exp_[A-Za-z0-9._-]+)')
@@ -277,8 +282,9 @@ def _authenticate_request(request):
             # An unexpected authentication failure is visible as retryable 503,
             # with a fixed/type-only diagnostic. Never log original token frames.
             raise_busy(error, stage='authenticate')
-    # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法，心跳 / 领任务 / 回执拒绝（403）。
-    if operation not in FOLDER_METHODS and frappe.db.get_value(
+    # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法与按需请求（只会领到文件夹的那几种，
+    # `request_service.lease_next` 按连接的 ERP 筛），心跳 / 领任务 / 回执拒绝（403）。
+    if operation not in FOLDER_METHODS and operation not in REQUEST_METHODS and frappe.db.get_value(
             'Cowork ERP Connection', context.connection, 'adapter') in credentials.FOLDER_ONLY_ADAPTERS:
         _deny_permission()
     body = deepcopy(payload)

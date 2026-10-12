@@ -1218,5 +1218,117 @@ class FolderTaskDeclarationTests(unittest.TestCase):
             self.assertNotIn("task_defaults", json.loads(tools.push_choices({"document": "H1"})))
 
 
+class FolderFilesTests(unittest.TestCase):
+    """L2：CC 从电脑上已授权的文件夹列文件、取文件进对话；只走 `folder_intake.fetch` 的公开入口，取来的文件标「从文件夹」，
+    电脑离线或版本太旧时照实说，还在读时不干等。"""
+
+    def setUp(self):
+        self.calls, self.cache = [], {}
+        self.states, self.listings, self.contents = {}, {}, {}
+        self.made = {}
+        fetch = types.ModuleType("pearnly_cowork.folder_intake.fetch")
+        fetch.files = lambda reader, root, folder="", **kw: self.calls.append(("files", reader, root, folder, kw)) \
+            or self.made.get("files", {"request": "L1", "status": "requested"})
+        fetch.fetch = lambda reader, root, path, **kw: self.calls.append(("fetch", reader, root, path, kw)) \
+            or self.made.get(path, {"request": "F-" + path, "status": "requested"})
+        fetch.state = lambda request: self.states.get(request, {"request": request, "status": "done", "code": ""})
+        fetch.listing = lambda request: self.calls.append(("listing", request)) or self.listings[request]
+        fetch.content = lambda request: self.calls.append(("content", request)) or self.contents[request]
+        sys.modules["pearnly_cowork.folder_intake.fetch"] = fetch
+        sys.modules["pearnly_cowork.folder_intake"].fetch = fetch
+        chat = sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("pearnly_core.assistant.files"))
+        self.chat = chat
+        chat.add_to_conversation = lambda name, content, mime, origin="tool": self.calls.append(
+            ("attach", name, content, mime, origin)) or f"/mnt/session/uploads/file_{len(self.calls)}/{name}"
+        sys.modules.setdefault("pearnly_core", types.ModuleType("pearnly_core"))
+        sys.modules.setdefault("pearnly_core.assistant", types.ModuleType("pearnly_core.assistant")).files = chat
+        toolrun = types.ModuleType("pearnly_core.assistant.toolrun")
+        toolrun.fresh = lambda: self.calls.append(("fresh",))
+        sys.modules["pearnly_core.assistant.toolrun"] = toolrun
+        sys.modules["pearnly_core.assistant"].toolrun = toolrun
+        frappe.cache = types.SimpleNamespace(get_value=self.cache.get,
+                                             set_value=lambda key, value, expires_in_sec=None: self.cache.__setitem__(key, value))
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+
+    def tearDown(self):
+        frappe.local.pearnly_assistant = None
+
+    def _listing(self, count):
+        return {"files": [{"path": f"ACME\\f{n}.pdf", "name": f"f{n}.pdf", "size": n, "modified": "2026-10-13 09:00",
+                           "result_folder": n == 0} for n in range(count)], "truncated": True, "scanned": count}
+
+    def test_files_are_listed_once_and_paged_from_the_same_listing(self):
+        self.listings["L1"] = self._listing(150)
+        out = json.loads(tools.folder_files({"reader": "C1", "root_id": "r1", "folder": "ACME", "search": "f",
+                                             "extensions": [".pdf"]}))
+        self.assertEqual(self.calls[0], ("files", "C1", "r1", "ACME", {"search": "f", "extensions": [".pdf"],
+                                                                         "scope": "sesn_1"}))
+        self.assertEqual((len(out["files"]), out["total"], out["next_offset"], out["truncated"]), (100, 150, 100, True))
+        self.assertEqual(out["files"][0], {"path": "ACME\\f0.pdf", "name": "f0.pdf", "size_bytes": 0,
+                                           "modified": "2026-10-13 09:00", "result_folder": True})
+        self.calls.clear()
+        page = json.loads(tools.folder_files({"reader": "C1", "root_id": "r1", "folder": "ACME", "search": "f",
+                                              "extensions": [".pdf"], "offset": 100}))
+        self.assertEqual(self.calls, [])  # 翻页不再请电脑重列
+        self.assertEqual((len(page["files"]), page["next_offset"]), (50, None))
+
+    def test_an_offline_computer_or_a_slow_listing_is_reported_without_waiting_forever(self):
+        self.made["files"] = {"status": "waiting_for_cc", "reason": "offline"}
+        out = json.loads(tools.folder_files({"reader": "C1", "root_id": "r1"}))
+        self.assertEqual((out["status"], out["reason"]), ("waiting_for_cc", "offline"))
+        self.assertIn("offline", out["note"])
+        self.made.pop("files")
+        self.states["L1"] = {"request": "L1", "status": "leased", "code": ""}
+        with mock.patch.object(tools, "FOLDER_LIST_WAIT_SECONDS", 0), mock.patch.object(tools.time, "sleep"):
+            out = json.loads(tools.folder_files({"reader": "C1", "root_id": "r1"}))
+        self.assertEqual(out["status"], "reading")
+        self.assertIn("same input", out["note"])
+        self.states["L1"] = {"request": "L1", "status": "failed", "code": "folder_missing"}
+        self.assertEqual(json.loads(tools.folder_files({"reader": "C1", "root_id": "r1"})),
+                         {"status": "failed", "reason": "folder_missing"})
+
+    def test_fetched_files_join_the_chat_as_folder_files(self):
+        self.contents["F-ACME\\kbank.pdf"] = ("kbank.pdf", b"%PDF")
+        self.contents["F-ACME\\gl.xlsx"] = ("gl.xlsx", b"PK")
+        self.states["F-ACME\\gone.pdf"] = {"request": "F-ACME\\gone.pdf", "status": "failed", "code": "not_found"}
+        out = json.loads(tools.folder_fetch({"reader": "C1", "root_id": "r1",
+                                             "paths": ["ACME\\kbank.pdf", "ACME\\gl.xlsx", "ACME\\gone.pdf",
+                                                       "ACME\\kbank.pdf"]}))
+        attached = [call for call in self.calls if call[0] == "attach"]
+        self.assertEqual([call[1:] for call in attached], [
+            ("kbank.pdf", b"%PDF", "application/pdf", "folder"),
+            ("gl.xlsx", b"PK", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "folder")])
+        files = out["files"]
+        self.assertEqual([row["status"] for row in files], ["added", "added", "failed"])
+        self.assertTrue(files[0]["file"].startswith("/mnt/session/uploads/") and files[0]["filename"] == "kbank.pdf")
+        self.assertEqual((files[0]["size_bytes"], files[2]["reason"]), (4, "not_found"))
+        self.assertEqual([call[4]["scope"] for call in self.calls if call[0] == "fetch"], ["sesn_1"] * 3)
+
+    def test_fetch_stops_when_the_computer_cannot_take_it(self):
+        self.made["ACME\\a.pdf"] = {"status": "waiting_for_cc", "reason": "update_needed", "version": "1.4.4",
+                                    "minimum": "1.5.0"}
+        out = json.loads(tools.folder_fetch({"reader": "C1", "root_id": "r1", "paths": ["ACME\\a.pdf", "ACME\\b.pdf"]}))
+        self.assertEqual((out["status"], out["reason"], out["version"]), ("waiting_for_cc", "update_needed", "1.4.4"))
+        self.assertEqual([call[0] for call in self.calls], ["fetch"])
+        with self.assertRaises(frappe.ValidationError):
+            tools.folder_fetch({"reader": "C1", "root_id": "r1", "paths": []})
+
+    def test_declarations_point_the_agent_to_the_next_tools(self):
+        by_name = {tool["name"]: tool for tool in tools.TOOLS}
+        files, fetch = by_name["cowork_folder_files"], by_name["cowork_folder_fetch"]
+        self.assertEqual(files["input_schema"]["required"], ["reader", "root_id"])
+        self.assertEqual(fetch["input_schema"]["properties"]["paths"]["maxItems"], tools.FOLDER_FETCH_MAX)
+        for name in ("cowork_recon_start", "cowork_recognize_attachments", "cowork_stocktake_create"):
+            self.assertIn(name, fetch["description"])
+        self.assertIn("cowork_folder_fetch", by_name["cowork_recon_start"]["description"])
+        self.assertIn("not charged", fetch["description"])
+        self.assertNotIn("approval", files)
+        self.assertNotIn("approval", fetch)  # 只读、不扣费：不弹「允许」卡
+        names = [tool["name"] for tool in tools.TOOLS]
+        self.assertEqual(names.index("cowork_folder_files"), names.index("cowork_folder_task_options") + 1)
+        # 每种能取的类型都有自己的 mime（容器里没有系统 mime 表时 xlsx / docx 也不变成 octet-stream）
+        self.assertEqual(set(tools.FOLDER_FILE_TYPES), set(tools.folder_contracts.FETCH_EXTENSIONS))
+
+
 if __name__ == "__main__":
     unittest.main()
