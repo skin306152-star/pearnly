@@ -90,6 +90,7 @@ class DesktopSettings:
                  on_update: Callable[[], None] = lambda: None,
                  on_profiles_changed: Callable[[], None] = lambda: None,
                  on_folders_changed: Callable[[], None] = lambda: None,
+                 on_always_on: Callable[[bool], None] = lambda enabled: None,
                  hotkey: Callable[[], bool] = lambda: False,
                  load_store: Callable[[], ProfileStore] = ProfileStore.load) -> None:
         self._states = states
@@ -97,6 +98,7 @@ class DesktopSettings:
         self._on_update = on_update
         self._on_profiles_changed = on_profiles_changed
         self._on_folders_changed = on_folders_changed
+        self._on_always_on = on_always_on
         self._hotkey = hotkey
         self._load_store = load_store
         self._detected: list[str] | None = None
@@ -133,6 +135,7 @@ class DesktopSettings:
             "express_roots": roots,
             "members": members,
             "autostart": self._autostart(store),
+            "always_on": bool(store.global_settings.always_on),
             "hotkey": bool(self._hotkey()),
             "update": {"state": update_state, "version": update_version},
         }
@@ -213,6 +216,19 @@ class DesktopSettings:
         cfg = store.new_runtime_config()
         cfg.update(autostart=bool(enabled))
         store.save_profile(cfg)
+        return {"ok": True}
+
+    def set_always_on(self, enabled: bool) -> dict:
+        """常驻模式（always_on.py）。打开时一并打开开机自启：常驻电脑靠自动登录后随登录启动。"""
+        store = self._store()
+        cfg = store.new_runtime_config()
+        if enabled:
+            autostart.enable()
+            cfg.update(autostart=True)
+        cfg.update(always_on=bool(enabled))
+        store.save_profile(cfg)
+        self._on_always_on(bool(enabled))   # 马上保持 / 恢复睡眠
+        self._on_profiles_changed()         # 取任务线程按新设置重启（询问框开关）
         return {"ok": True}
 
     def change_roots(self, picked: str, lang: str) -> dict:

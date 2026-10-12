@@ -132,8 +132,11 @@ class PollWorker(QThread):
                 batch["fail"] += 1
                 return "error"
             account_dir = self._account_dir(cfg)
+            # 常驻模式没人点询问框：不问，交给写入时的占用检查按「等账套」回报，空出来自动再写（always_on.py）
+            unattended = bool(getattr(cfg, "always_on", False))
             while (
-                not self._stop
+                not unattended
+                and not self._stop
                 and account_dir
                 and account_lock.is_account_busy(account_dir)
             ):

@@ -47,6 +47,7 @@ class GlobalSettings:
     heartbeat_interval_s: int
     autostart: bool
     ui_lang: str
+    always_on: bool = False
 
     @classmethod
     def from_config(cls, cfg: CompanionConfig) -> "GlobalSettings":

@@ -119,6 +119,7 @@ export type DesktopState = {
   express_roots: string[];
   members: DesktopMember[];
   autostart: boolean;
+  always_on?: boolean; // 常驻模式（companion always_on.py）；旧版桌面端没有这一项
   hotkey: boolean;
   update: { state: string; version: string };
 };
