@@ -1,0 +1,183 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Express Readback",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-13 18:00:00.000000",
+ "modified": "2026-10-13 18:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "One month of an Express account set read back through CC Desktop at a user's request, with its workbooks and the changes found against Pearnly's pushes. Only the latest per user, connection, account set and month is kept.",
+ "field_order": [
+  "readback_id",
+  "lookup",
+  "actor",
+  "connection",
+  "account_set_key",
+  "account_label",
+  "period",
+  "status",
+  "error_code",
+  "request",
+  "params_json",
+  "summary_json",
+  "changes_json",
+  "files_json",
+  "requested_at",
+  "read_at",
+  "ready_at",
+  "data_version"
+ ],
+ "fields": [
+  {
+   "fieldname": "readback_id",
+   "label": "Readback ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 32,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "lookup",
+   "label": "Lookup Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1,
+   "search_index": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "actor",
+   "label": "Actor",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "account_set_key",
+   "label": "Account Set",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_label",
+   "label": "Account Set Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "period",
+   "label": "Month",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 7,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "reading\nready\nfailed",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "error_code",
+   "label": "Error Code",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "request",
+   "label": "CC Desktop Request",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 32
+  },
+  {
+   "fieldname": "params_json",
+   "label": "Parameters",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "summary_json",
+   "label": "Summary",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "changes_json",
+   "label": "Changes",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "files_json",
+   "label": "Files",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "requested_at",
+   "label": "Requested At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "read_at",
+   "label": "Read At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ready_at",
+   "label": "Ready At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "data_version",
+   "label": "Data Version",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

@@ -1749,6 +1749,109 @@ def folder_fetch(tool_input) -> str:
     return _json({"files": [results[path] for path in paths]})
 
 
+# ---------------- 回读 Express 账套（只读、不识别、不扣费） ----------------
+
+READBACK_WAIT_SECONDS = 90
+READBACK_ROWS_SHOWN = 20
+# 回读的工作簿放进对话后记 7 天：同一段对话再查同一份回读不再放一遍
+READBACK_FILES_TTL = 7 * 86400
+READBACK_STILL_READING = ("Still reading the books on the computer. Check again with cowork_express_readback_status "
+                          "when the user asks; do not wait with sleep.")
+READBACK_WAITING = {"offline": "The computer with this account set is offline. Nothing was read; ask the user to turn "
+                               "it on or open CC Desktop there.",
+                    "update_needed": "CC Desktop on that computer must be updated before the books can be read back."}
+
+
+def _readback_call(fn, *args, failed="failed"):
+    """调回读服务（权限、账套、电脑在不在都由 `readback.service` 判）；不行回 ``{status: failed, reason}``。"""
+    try:
+        result = fn(*args)
+        frappe.db.commit()
+        return result
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"status": failed, "reason": str(error)[:300]}
+
+
+def _readback_wait(name) -> dict:
+    """等这份回读读完并处理好（或等满 READBACK_WAIT_SECONDS）；每次重新读（电脑交结果是别的请求提交的）。"""
+    from pearnly_core.assistant import toolrun
+
+    from pearnly_cowork.readback import service as readback
+
+    deadline = time.monotonic() + READBACK_WAIT_SECONDS
+    while True:
+        toolrun.fresh()
+        state = _readback_call(readback.status, name)
+        if state.get("status") != "reading" or time.monotonic() >= deadline:
+            return state
+        time.sleep(4)
+
+
+def _readback_files(state) -> dict:
+    """四份工作簿放进这段对话（同一段对话、同一份回读只放一次）：{kind: 智能体读到的位置}；之后的工具像附件一样取用。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.readback import service as readback
+
+    key = f"pearnly_assistant:readback:{frappe.local.site}:{_conversation() or ''}:{state['readback']}"
+    added = frappe.cache.get_value(key)
+    added = dict(added) if isinstance(added, dict) else {}
+    for kind in state.get("files") or ():
+        if kind not in added:
+            filename, content = readback.file(state["readback"], kind)
+            added[kind] = chat_files.add_to_conversation(filename, content, XLSX, origin="tool")
+            frappe.cache.set_value(key, added, expires_in_sec=READBACK_FILES_TTL)
+    return added
+
+
+def _readback_out(state) -> dict:
+    out = {key: state[key] for key in ("readback", "status", "period", "account_set", "code", "reason", "version",
+                                       "minimum") if state.get(key)}
+    if state.get("status") == "waiting_for_cc":
+        out["note"] = READBACK_WAITING.get(state.get("reason"), "")
+    elif state.get("status") == "reading":
+        out["note"] = READBACK_STILL_READING
+    elif state.get("status") == "ready":
+        try:
+            out["files"] = _readback_files(state)
+            frappe.db.commit()
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            out["files_error"] = str(error)[:300]
+        out["summary"] = state.get("summary") or {}
+        for kind in ("changes", "direct"):
+            rows = state.get(kind) or []
+            out[kind] = rows[:READBACK_ROWS_SHOWN]
+            if len(rows) > READBACK_ROWS_SHOWN:
+                out[kind + "_not_shown"] = len(rows) - READBACK_ROWS_SHOWN
+    return out
+
+
+def express_readback(tool_input) -> str:
+    """请那台电脑只读读回一本 Express 账套的一个月，出总账、销项 / 进项税报与差异表四份工作簿放进对话。"""
+    from pearnly_cowork.readback import service as readback
+
+    made = _readback_call(readback.request, str(tool_input.get("connection") or ""),
+                          str(tool_input.get("account_set_key") or ""), str(tool_input.get("period") or ""),
+                          tool_input.get("accounts") or None, failed="not_started")
+    if made.get("status") == "reading" and made.get("readback"):
+        made = _readback_wait(made["readback"])
+    return _json(_readback_out(made))
+
+
+def express_readback_status(tool_input) -> str:
+    return _json(_readback_out(_readback_wait(str(tool_input.get("readback") or ""))))
+
+
+def express_readback_delete(tool_input) -> str:
+    from pearnly_cowork.readback import service as readback
+
+    return _json(_readback_call(readback.delete, str(tool_input.get("readback") or "")))
+
+
 def _task_rows(items) -> dict:
     """要改的已有任务的现值（任务列表只读一次）；全是新任务就不读。"""
     if not any(isinstance(item, dict) and item.get("name") for item in items):
@@ -2268,7 +2371,8 @@ TOOLS = [
                     "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
                     "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
                     "and tell the user. This changes the record in Pearnly only: a document already entered into the "
-                    "ERP is not changed there and is not pushed again; tell the user to correct it in the ERP.",
+                    "ERP is not changed there and is not pushed again; only a person can change it in the ERP. "
+                    "For Express, read it back afterwards with cowork_express_readback.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"},
          "version": {"type": "integer"},
@@ -2344,7 +2448,8 @@ TOOLS = [
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time; each "
                     "result says sent, needs_choice (get the choices with cowork_push_choices, ask the user, save them "
                     "and push again), failed with a reason, or already_success / already_pending (already entered or "
-                    "on its way; it is not pushed again). connection and account_set_key choose "
+                    "on its way; it is not pushed again: a pushed document can only be changed by a person in "
+                    "Express, then read back with cowork_express_readback). connection and account_set_key choose "
                     "where to push (from cowork_intake_options), e.g. for a recognize-only document; left out, the "
                     "target chosen at upload is used.",
      "input_schema": {"type": "object", "properties": {
@@ -2444,6 +2549,37 @@ TOOLS = [
          "paths": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": FOLDER_FETCH_MAX}},
          "required": ["reader", "root_id", "paths"]},
      "handler": "pearnly_cowork.assistant.tools.folder_fetch"},
+    {"name": "cowork_express_readback", "label": "Read back the accounting books",
+     "description": "Read one month of an Express account set back from the computer through CC Desktop and add four "
+                    "workbooks in the Express report layout to this chat: general_ledger (bank reconciliation "
+                    "right_files; income reconciliation left_files), sales_vat (income reconciliation right_files; "
+                    "output VAT check left_files), purchase_vat (the input VAT report) and changes (documents Pearnly "
+                    "pushed that were changed, cancelled or deleted in Express, and entries made directly in Express). "
+                    "Read-only: Express may stay open, nothing is recognized or charged. Use it for the ERP's own "
+                    "figures, after the user corrected a pushed document in Express, and before reconciling or "
+                    "checking tax. connection and account_set_key as listed by cowork_intake_options; period is "
+                    "YYYY-MM; accounts narrows the general ledger to those account codes (prefixes), e.g. the bank "
+                    "account. Waits up to 90 seconds; reading means the computer is still reading: check with "
+                    "cowork_express_readback_status when the user asks, never wait with sleep. waiting_for_cc means "
+                    "that computer is offline or its CC Desktop needs an update. Only the latest readback of an "
+                    "account set and month is kept.",
+     "input_schema": {"type": "object", "properties": {
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "period": {"type": "string", "description": "YYYY-MM"},
+         "accounts": {"type": "array", "items": {"type": "string"}, "maxItems": 30}},
+         "required": ["connection", "account_set_key", "period"]},
+     "handler": "pearnly_cowork.assistant.tools.express_readback"},
+    {"name": "cowork_express_readback_status", "label": "Checked a readback",
+     "description": "A readback started by cowork_express_readback: reading, waiting_for_cc, failed with a reason, or "
+                    "ready with the summary, the changes and direct entries (the first 20; all are in the changes "
+                    "workbook) and the four workbooks, added to this chat once. Waits up to 90 seconds.",
+     "input_schema": {"type": "object", "properties": {"readback": {"type": "string"}}, "required": ["readback"]},
+     "handler": "pearnly_cowork.assistant.tools.express_readback_status"},
+    {"name": "cowork_express_readback_delete", "label": "Deleted a readback",
+     "description": "Delete a readback and its stored workbooks when the user asks. Files already added to a chat stay "
+                    "there.",
+     "input_schema": {"type": "object", "properties": {"readback": {"type": "string"}}, "required": ["readback"]},
+     "handler": "pearnly_cowork.assistant.tools.express_readback_delete"},
     {"name": "cowork_save_folder_task", "label": "Saved a folder task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
                     "intake choices, the photos and PDFs in the folder (subfolders included) that it has not "
@@ -2500,8 +2636,9 @@ TOOLS = [
     {"name": "cowork_recon_start", "label": "Started a reconciliation",
      "description": "Start a reconciliation like New on the reconciliation pages, with files in this chat: the "
                     "user's attachments, files brought from a folder with cowork_folder_fetch, or workbooks a tool "
-                    "added. bank: left_files = bank statements, right_files = general ledger. income: left_files "
-                    "= one general ledger, right_files = output VAT reports. vat: left_files = output VAT reports, "
+                    "added (such as those from cowork_express_readback). bank: left_files = bank statements, "
+                    "right_files = general ledger. income: left_files = one general ledger, right_files = output VAT "
+                    "reports. vat: left_files = output VAT reports, "
                     "right_files = sales invoices. Excel/CSV and text PDFs are read free; scanned PDFs and photos are "
                     "read with paid recognition per page like invoices, so say so before starting when files are "
                     "scanned. The bank, account and period are worked out from the files. Waits up to 90 seconds; "

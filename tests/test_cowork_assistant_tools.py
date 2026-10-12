@@ -1422,5 +1422,109 @@ class FolderFilesTests(unittest.TestCase):
         self.assertEqual(set(tools.FOLDER_FILE_TYPES), set(tools.folder_contracts.FETCH_EXTENSIONS))
 
 
+class ReadbackTests(unittest.TestCase):
+    """L1：回读 Express 账套只走 `readback.service` 的公开入口；读完把四份工作簿以「工具生成」放进对话（同一段对话、同一份
+    回读只放一次），还在读时不干等，电脑离线 / 版本太旧照实说；推送成功的单只能由人在 Express 里改、改完回读（L7）。"""
+
+    def setUp(self):
+        self.calls, self.cache, self.states = [], {}, []
+        service = types.ModuleType("pearnly_cowork.readback.service")
+        service.request = lambda *args: self.calls.append(("request", args)) or dict(self.made)
+        service.status = lambda name: self.calls.append(("status", name)) or (
+            self.states.pop(0) if len(self.states) > 1 else dict(self.states[0]))
+        service.file = lambda name, kind: self.calls.append(("file", name, kind)) or (f"T9-{kind}-2026-05.xlsx", b"PK")
+        service.delete = lambda name: self.calls.append(("delete", name)) or {"readback": name, "deleted": True}
+        package = sys.modules.setdefault("pearnly_cowork.readback", types.ModuleType("pearnly_cowork.readback"))
+        package.service = service
+        sys.modules["pearnly_cowork.readback.service"] = service
+        chat = sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("pearnly_core.assistant.files"))
+        chat.add_to_conversation = lambda name, content, mime, origin="tool": self.calls.append(
+            ("attach", name, mime, origin)) or f"/mnt/session/uploads/file_{len(self.calls)}/{name}"
+        sys.modules.setdefault("pearnly_core", types.ModuleType("pearnly_core"))
+        sys.modules.setdefault("pearnly_core.assistant", types.ModuleType("pearnly_core.assistant")).files = chat
+        toolrun = types.ModuleType("pearnly_core.assistant.toolrun")
+        toolrun.fresh = lambda: self.calls.append(("fresh",))
+        sys.modules["pearnly_core.assistant.toolrun"] = toolrun
+        sys.modules["pearnly_core.assistant"].toolrun = toolrun
+        frappe.cache = types.SimpleNamespace(
+            get_value=self.cache.get,
+            set_value=lambda key, value, expires_in_sec=None: self.cache.__setitem__(key, dict(value)))
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+        self.made = {"readback": "r" * 32, "status": "reading", "period": "2026-05", "account_set": "T9SINCER"}
+        sleeper = mock.patch.object(tools.time, "sleep", lambda _s: None)
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+
+    def tearDown(self):
+        frappe.local.pearnly_assistant = None
+
+    def _ready(self, changes=1):
+        return {"readback": "r" * 32, "status": "ready", "period": "2026-05", "account_set": "T9SINCER",
+                "summary": {"sales_vat": {"count": 3}}, "files": ["changes", "general_ledger", "purchase_vat",
+                                                                   "sales_vat"],
+                "changes": [{"docnum": f"RR690502-{n:03d}", "change": "changed", "field": "total"}
+                            for n in range(changes)], "direct": []}
+
+    def test_a_finished_readback_puts_the_four_workbooks_in_the_chat_once(self):
+        self.states = [{**self.made}, self._ready(changes=25)]
+        out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "S:\\EXP69\\T9",
+                                                 "period": "2026-05", "accounts": ["11-01"]}))
+        self.assertEqual(self.calls[0], ("request", ("EXP1", "S:\\EXP69\\T9", "2026-05", ["11-01"])))
+        attached = [call for call in self.calls if call[0] == "attach"]
+        self.assertEqual(sorted(call[1] for call in attached), [
+            "T9-changes-2026-05.xlsx", "T9-general_ledger-2026-05.xlsx", "T9-purchase_vat-2026-05.xlsx",
+            "T9-sales_vat-2026-05.xlsx"])
+        self.assertEqual({call[3] for call in attached}, {"tool"})  # 工具生成：识别工具不收、对账工具能取
+        self.assertEqual({call[2] for call in attached}, {tools.XLSX})
+        self.assertEqual(set(out["files"]), {"general_ledger", "sales_vat", "purchase_vat", "changes"})
+        self.assertTrue(out["files"]["general_ledger"].startswith("/mnt/session/uploads/"))
+        self.assertEqual((out["status"], len(out["changes"]), out["changes_not_shown"]), ("ready", 20, 5))
+        self.calls.clear()
+        again = json.loads(tools.express_readback_status({"readback": "r" * 32}))
+        self.assertEqual([call for call in self.calls if call[0] in ("attach", "file")], [])
+        self.assertEqual(again["files"], out["files"])
+
+    def test_still_reading_or_waiting_for_the_computer_is_said_without_waiting_forever(self):
+        self.states = [dict(self.made)]
+        with mock.patch.object(tools, "READBACK_WAIT_SECONDS", 0):
+            out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
+        self.assertEqual(out["status"], "reading")
+        self.assertIn("cowork_express_readback_status", out["note"])
+        self.made = {"status": "waiting_for_cc", "reason": "update_needed", "version": "1.4.4", "minimum": "1.5.0"}
+        self.calls.clear()
+        out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
+        self.assertEqual((out["status"], out["version"]), ("waiting_for_cc", "1.4.4"))
+        self.assertIn("updated", out["note"])
+        self.assertEqual([call[0] for call in self.calls], ["request"])  # 电脑领不了：不等、不查
+
+    def test_refusals_come_back_as_reasons_and_delete_goes_through_the_service(self):
+        def refuse(*args):
+            raise frappe.ValidationError("cowork.readback.account_missing")
+
+        sys.modules["pearnly_cowork.readback.service"].request = refuse
+        out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-5"}))
+        self.assertEqual(out, {"status": "not_started", "reason": "cowork.readback.account_missing"})
+        self.assertEqual(json.loads(tools.express_readback_delete({"readback": "r" * 32})),
+                         {"readback": "r" * 32, "deleted": True})
+
+    def test_declarations_say_which_file_feeds_which_reconciliation(self):
+        by_name = {tool["name"]: tool for tool in tools.TOOLS}
+        readback = by_name["cowork_express_readback"]
+        self.assertEqual(readback["input_schema"]["required"], ["connection", "account_set_key", "period"])
+        for words in ("general_ledger (bank reconciliation right_files; income reconciliation left_files)",
+                      "sales_vat (income reconciliation right_files; output VAT check left_files)", "Read-only",
+                      "nothing is recognized or charged", "waiting_for_cc", "cowork_express_readback_status"):
+            self.assertIn(words, readback["description"])
+        for name in ("cowork_express_readback", "cowork_express_readback_status", "cowork_express_readback_delete"):
+            self.assertNotIn("approval", by_name[name])  # 只读、不扣费：不弹「允许」卡
+        names = [tool["name"] for tool in tools.TOOLS]
+        self.assertEqual(names.index("cowork_express_readback"), names.index("cowork_folder_fetch") + 1)
+        # L7：推送成功的单只能由人在 Express 里改，改完用回读看
+        self.assertIn("cowork_express_readback", by_name["cowork_edit_document"]["description"])
+        self.assertIn("only a person can change it", by_name["cowork_edit_document"]["description"])
+        self.assertIn("cowork_express_readback", by_name["cowork_push_documents"]["description"])
+        self.assertIn("cowork_express_readback", by_name["cowork_recon_start"]["description"])
+
+
 if __name__ == "__main__":
     unittest.main()

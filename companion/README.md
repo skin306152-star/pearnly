@@ -15,8 +15,8 @@
   站点 ERP 推送总闸 `pearnly_cowork_erp_push_enabled` 没开时服务端拒绝（403）。
 - 按需请求（1.5.0 起，`request_worker.py`）：另一条守护线程每 15 秒问一次 `…request_api.next_request`，领到就做、
   分块交回 `…request_api.complete_request`。现有种类：列 / 取已授权文件夹里的文件（`folder_fetch.py`，只认本机加过的
-  根目录，挡 `..`、绝对路径与链接跳出，类型同对话附件、一份最多 30 MB）；读账套（`express_read`）预留。与推送线、
-  看门狗无关。加一种请求的做法见 `request_worker.py` 文件头与服务端 `request_contracts.py`。
+  根目录，挡 `..`、绝对路径与链接跳出，类型同对话附件、一份最多 30 MB）；只读读账套的一个月（`express_read.py`，只认
+  推送同一组授权的账套，要读的表先复制到本机临时目录再读，不碰「等账套」，读完即删副本）。与推送线、看门狗无关。加一种请求的做法见 `request_worker.py` 文件头与服务端 `request_contracts.py`。
 
 ## 本机测试
 

@@ -45,7 +45,8 @@ SEEN_SECONDS = 90
 KEEP_SECONDS = 7 * 86400
 # 同一个人在同一条连接上同时等着的请求最多这么多（防止一次排上几百个读文件）。
 OPEN_PER_ACTOR = 20
-PARAMS_MAX = 8 * 1024
+# 读账套要点名推送过的单据号（最多 2000 个，`readback.contracts.DOCNUMS_MAX`），参数要放得下。
+PARAMS_MAX = 64 * 1024
 META_MAX = 4 * 1024
 MIN_COMPANION = "1.5.0"
 _KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,140}$")

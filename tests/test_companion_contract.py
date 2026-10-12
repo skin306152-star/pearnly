@@ -304,5 +304,96 @@ class OnDemandRequests(unittest.TestCase):
         self.assertIn("requests.busy()", method_source(COMPANION / "gui_tray.py", "TrayApp", "_busy"))
 
 
+def method_source_of(path, name):
+    """模块里一个顶层函数的源码（只读 AST，不导入）。"""
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return ast.unparse(node)
+    raise AssertionError(f"{name} not found in {path}")
+
+
+class ExpressReadback(unittest.TestCase):
+    """回读 Express 账套（2026-10 CC 闭环 L1）：服务端 `readback` 发的读账参数、小助手 `express_read` 交回的读账结果，两边
+    同一组键、同一个结果版本与点名单据号上限；小助手读账不碰「等账套」。"""
+
+    READBACK = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "readback"
+
+    def test_the_helper_reads_the_parameters_the_server_sends(self):
+        tree = ast.parse((self.READBACK / "contracts.py").read_text(encoding="utf-8"))
+        builder = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "read_params")
+        sent = next(node.value for node in ast.walk(builder) if isinstance(node, ast.Return))
+        keys = {key.value for key in sent.keys}
+        self.assertEqual(keys, {"account_set", "account_root", "period", "docnums"})
+        helper = method_source_of(COMPANION / "express_read.py", "read_books")
+        self.assertEqual(set(re.findall(r"params\.get\('([a-z_]+)'\)", helper)), keys)
+
+    def test_both_sides_share_the_result_version_and_the_named_document_limits(self):
+        names = ("RESULT_VERSION", "DOCNUMS_MAX", "DOCNUM_MAX")
+        self.assertEqual(number_constants(COMPANION / "express_read.py", names),
+                         number_constants(self.READBACK / "contracts.py", names))
+        server = number_constants(SERVER / "request_contracts.py", ("PARAMS_MAX",))["PARAMS_MAX"]
+        # 点名单据号放满（每条最长）再加两条路径，仍在按需请求的参数上限之内
+        limits = number_constants(self.READBACK / "contracts.py", ("DOCNUMS_MAX", "DOCNUM_MAX", "PATH_MAX"))
+        self.assertLess(limits["DOCNUMS_MAX"] * (limits["DOCNUM_MAX"] + 4) + 2 * limits["PATH_MAX"] + 200, server)
+
+    def test_the_server_reads_every_part_the_helper_sends(self):
+        helper = method_source_of(COMPANION / "express_read.py", "collect")
+        returned = next(node for node in ast.walk(ast.parse(helper)) if isinstance(node, ast.Return)
+                        and isinstance(node.value, ast.Dict))
+        parts = {key.value for key in returned.value.keys} | {"account_set", "read_at"}
+        parser = (self.READBACK / "contracts.py").read_text(encoding="utf-8")
+        for part in parts - {"version", "period"}:
+            self.assertTrue(quoted(parser, part), part)
+        for part in ("version", "period"):
+            self.assertIn(f'raw.get("{part}")', parser)
+
+    def test_the_server_compares_with_what_the_helper_wrote(self):
+        """差异表按 CC 桌面版写进 Express 的样子比（2026-10-13）：进项票号的缩法两边同一个结果；分录换科目要的账套设置
+        （现金 / 存货 / 购货科目、盘存制）与对方档科目，读账交回、服务端认得，也正是写入时换科目用的那几个。"""
+        helper = helper_function(COMPANION / "purchase_adapter.py", "fit_ref_no", {"REF_NO_BYTES"})
+        spec = importlib.util.spec_from_file_location(
+            "pushed_for_contract", ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "express"
+            / "pushed.py")
+        pushed = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pushed)
+        for value in ("", None, "INV-9", " G0012-69-0045871 ", "AB/CD.EF GH-IJKLMNOPQ", "ใบกำกับภาษีเลขที่-12345",
+                      "x" * 40, "A B-C/D.E" * 3):
+            self.assertEqual(pushed.fit_ref_no(value), helper(value), value)
+
+        collect = ast.parse(method_source_of(COMPANION / "express_read.py", "collect"))
+        settings = next({key.value for key in node.keys} for node in ast.walk(collect) if isinstance(node, ast.Dict)
+                        and any(getattr(key, "value", None) == "cash" for key in node.keys))
+        server = number_constants(self.READBACK / "contracts.py", ("SETTINGS",))["SETTINGS"]
+        self.assertEqual(settings, set(server) | {"periodic"})
+        source = ast.unparse(collect)
+        for column in ("ACCNUM00", "ACCNUM04", "ACCNUM18", "ISPERPETUA"):
+            self.assertIn(f"'{column}'", source)
+        self.assertIn("'party_account'", source)
+        self.assertTrue(quoted((self.READBACK / "contracts.py").read_text(encoding="utf-8"), "party_account"))
+        writer = (COMPANION / "dbf_writer.py").read_text(encoding="utf-8")
+        sales = (COMPANION / "dbf_sales.py").read_text(encoding="utf-8")
+        for slot in ("ACCNUM00", "ACCNUM04", "ACCNUM18"):
+            self.assertIn(f'default_account(account_dir, "{slot}")', writer)
+        self.assertIn('default_account(account_dir, "ACCNUM00")', sales)
+        self.assertRegex(writer, r'control_account\(\s*account_dir, "APMAS"')
+        self.assertRegex(sales, r'control_account\(\s*account_dir, "ARMAS"')
+        self.assertIn('"ISPERPETUA"', (COMPANION / "account_rules.py").read_text(encoding="utf-8"))
+        self.assertIn('ref_no=fit_ref_no(payload.get("ref_no"))',
+                      (COMPANION / "purchase_adapter.py").read_text(encoding="utf-8"))
+
+    def test_reading_never_waits_for_the_account_set_lock(self):
+        tree = ast.parse((COMPANION / "express_read.py").read_text(encoding="utf-8"))
+        imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+                    for alias in node.names} | {node.module or "" for node in ast.walk(tree)
+                                                if isinstance(node, ast.ImportFrom)}
+        self.assertFalse({"account_lock", "is_account_busy"} & imported)
+        called = {ast.unparse(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)}
+        self.assertFalse({name for name in called if "is_account_busy" in name or "account_lock" in name})
+        tables = number_constants(COMPANION / "express_read.py", ("TABLES",))["TABLES"]
+        self.assertNotIn("ISRUN", tables)
+        self.assertIn('"express_read": express_read.read_books', (COMPANION / "request_worker.py").read_text(
+            encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()
