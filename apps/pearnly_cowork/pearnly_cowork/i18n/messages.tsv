@@ -1437,9 +1437,15 @@ Task name	任务名称	ชื่องาน	タスク名	cowork.folder.field.ti
 Folder to read	文件夹	โฟลเดอร์	フォルダー	cowork.folder.field.folder
 Run on day	每月运行日	วันที่ทำงานประจำเดือน	実行日	cowork.folder.field.day
 Run time	运行时间	เวลาทำงาน	実行時刻	cowork.folder.field.time
-Remind me the day before	前一天提醒	แจ้งเตือนล่วงหน้าหนึ่งวัน	前日にリマインド	cowork.folder.field.remind
+Remind me	提醒	แจ้งเตือน	リマインド	cowork.folder.field.remind
 On	开	เปิด	オン	cowork.folder.remind.on
 Off	关	ปิด	オフ	cowork.folder.remind.off
+Reminder day	提醒日	วันที่แจ้งเตือน	リマインド日	cowork.folder.field.remindDay
+Reminder time	提醒时间	เวลาแจ้งเตือน	リマインド時刻	cowork.folder.field.remindTime
+Same day	当天	วันเดียวกัน	当日	cowork.folder.remind.sameDay
+Day before	前 1 天	ล่วงหน้า 1 วัน	前日	cowork.folder.remind.dayBefore
+{0} days before	前 {0} 天	ล่วงหน้า {0} วัน	{0} 日前	cowork.folder.remind.daysBefore
+Add time	添加时间	เพิ่มเวลา	時間を追加	cowork.folder.remind.add
 Default handling for this folder	默认处理	การจัดการเริ่มต้น	既定の処理	cowork.folder.section.defaults
 When the document does not show cash or credit	票面未注明现购 / 赊购	เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ	現金・掛けが書類から分からない場合	cowork.folder.default.payment
 VAT on receipts and abbreviated tax invoices	收据、简易税票上的税额	ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ	領収書・簡易税請求書の税額	cowork.folder.default.vat
@@ -1496,6 +1502,7 @@ View the ones to check	查看待处理	ดูรายการรอดำเ�
 Scheduled task reminder	定时任务提醒	แจ้งเตือนงานตามกำหนดเวลา	定期タスクのリマインダー	cowork.folder.remind.title
 today at {0}	今天 {0}	วันนี้ เวลา {0} น.	今日 {0}	cowork.folder.remind.today
 tomorrow at {0}	明天 {0}	พรุ่งนี้ เวลา {0} น.	明日 {0}	cowork.folder.remind.tomorrow
+on {1}/{0} at {2}	{0} 月 {1} 日 {2}	วันที่ {1}/{0} เวลา {2} น.	{0}月{1}日 {2}	cowork.folder.remind.date
 {0} d {1} h left	还有 {0} 天 {1} 小时	อีก {0} วัน {1} ชั่วโมง	あと {0} 日 {1} 時間	cowork.folder.remind.leftDays
 {0} h {1} min left	还有 {0} 小时 {1} 分钟	อีก {0} ชั่วโมง {1} นาที	あと {0} 時間 {1} 分	cowork.folder.remind.leftHours
 {0} min left	还有 {0} 分钟	อีก {0} นาที	あと {0} 分	cowork.folder.remind.leftMinutes
@@ -1627,6 +1634,7 @@ Registered At	登记时间	เวลาที่ลงทะเบียน	登�
 Relative Path	相对路径	พาธสัมพัทธ์	相対パス	
 Reminder	提醒	การแจ้งเตือน	リマインダー	
 Reminder Since	提醒起算时间	แจ้งเตือนตั้งแต่	リマインダー開始日時	
+Reminder Times	提醒时刻	เวลาแจ้งเตือน	リマインド時刻	
 Repeat	重复	ทำซ้ำ	繰り返し	
 Report Count	报告数量	จำนวนรายงาน	レポート数	
 Request ID	请求 ID	รหัสคำขอ	リクエスト ID	

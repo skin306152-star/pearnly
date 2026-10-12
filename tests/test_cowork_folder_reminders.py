@@ -347,6 +347,73 @@ class Reminders(Harness):
         self.assertIn("(1 d 7 h left)", self.notices.sent()[0].text)
 
 
+class ChosenReminderTimes(Harness):
+    """2026-10-13（用户：提醒时间可自定义，哪天、什么时间都可以）：每个任务最多 3 个「运行日前 0–7 天 + 时间」，
+    各在自己的时刻发一次；库里存 JSON（`remind_times`），空的老任务照默认（前一天 08:00、14:00）。"""
+
+    TIMES = json.dumps([{"days_before": 3, "time": "16:45"}, {"days_before": 0, "time": "07:05"},
+                        {"days_before": 0, "time": "23:00"}])  # 当天 23:00 晚于运行（22:00）：不发
+
+    def remind(self, at):
+        self.reminders.run(at)
+        return self.notices.sent()
+
+    def test_each_chosen_time_fires_once_at_its_moment(self):
+        self.rule("R1", remind_times=self.TIMES)
+        self.assertEqual(self.remind("2026-10-11 16:40"), [])
+        sent = self.remind("2026-10-11 16:45")
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0].text, "«Bills» starts on 14/10 at 22:00 (3 d 5 h left). Put the documents in "
+                                       "D:\\Bills\\A and make sure they are complete.\n3 files not processed yet.")
+        for at in ("2026-10-12 09:00", "2026-10-13 08:05", "2026-10-13 14:05", "2026-10-14 07:00"):
+            self.assertEqual(len(self.remind(at)), 1, at)  # 默认的 08:00、14:00 不再发
+        sent = self.remind("2026-10-14 07:05")
+        self.assertEqual(len(sent), 2)
+        self.assertTrue(sent[1].text.startswith("«Bills» starts today at 22:00 (14 h 55 min left)."), sent[1].text)
+        for at in ("2026-10-14 21:59", "2026-10-14 23:05", "2026-10-15 08:00"):
+            self.assertEqual(len(self.remind(at)), 2, at)
+
+    def test_tasks_with_the_same_moment_merge_and_other_moments_stay_apart(self):
+        same = json.dumps([{"days_before": 1, "time": "09:30"}])
+        self.rule("R1", title="Sales", folder="S", remind_times=same)
+        self.rule("R2", title="Bills", folder="B", remind_times=same)
+        self.rule("R3", title="Cash", folder="C", remind_times=json.dumps([{"days_before": 1, "time": "10:00"}]))
+        self.rule("R4", title="Stock", folder="K")  # 没选过：前一天 08:00、14:00
+        self.rule("R5", title="Late", folder="L", at="23:00", remind_times=same)  # 同一提醒时刻、不同运行时刻
+        sent = self.remind("2026-10-13 09:30")
+        self.assertEqual(sorted(row.refs for row in sent), [("R2", "R1"), ("R4",), ("R5",)])
+        merged = next(row for row in sent if len(row.refs) == 2)
+        self.assertTrue(merged.text.startswith("2 scheduled tasks start tomorrow at 22:00 (1 d 12 h left)."), merged.text)
+        sent = self.remind("2026-10-13 10:00")
+        self.assertEqual((len(sent), sent[-1].refs), (4, ("R3",)))  # R3 自己一条
+        self.assertEqual(len(self.remind("2026-10-13 14:00")), 5)  # R4 的 14:00 那条
+
+    def test_moments_before_the_times_were_changed_are_not_sent(self):
+        self.rule("R1", remind_times=self.TIMES, remind_since=datetime(2026, 10, 12, 9, 0))
+        self.assertEqual(self.remind("2026-10-12 10:00"), [])  # 3 天前那条早于改提醒时刻
+        self.assertEqual(len(self.remind("2026-10-14 07:05")), 1)
+
+    def test_a_broken_stored_value_sends_nothing_for_that_task(self):
+        self.rule("R1", remind_times="not json")
+        self.rule("R2", title="Cash", folder="C")
+        self.assertEqual([row.refs for row in self.remind("2026-10-13 08:05")], [("R2",)])
+
+    def test_the_date_is_written_in_the_owner_language(self):
+        two_days = json.dumps([{"days_before": 2, "time": "09:00"}])
+        self.rule("R1", remind_times=two_days)
+        self.langs[OWNER] = "zh"
+        self.assertEqual(self.remind("2026-10-12 09:00")[0].text,
+                         "「Bills」10 月 14 日 22:00 开始（还有 2 天 13 小时）。请将资料放入 D:\\Bills\\A，确保资料齐全。\n"
+                         "还有 3 份未处理。")
+        self.rule("R2", title="Cash", folder="C", at="23:00", remind_times=two_days)
+        self.langs[OWNER] = "th"
+        self.assertTrue(self.remind("2026-10-12 09:01")[1].text.startswith(
+            "«Cash» จะเริ่มวันที่ 14/10 เวลา 23:00 น. (อีก 2 วัน 13 ชั่วโมง)"))
+        self.rule("R3", title="Sales", folder="S", at="21:00", remind_times=two_days)
+        self.langs[OWNER] = "ja"
+        self.assertTrue(self.remind("2026-10-12 09:02")[2].text.startswith("「Sales」は10月14日 21:00に開始します（あと 2 日 11 時間）。"))
+
+
 class Briefs(Harness):
     SLOT = datetime(2026, 10, 14, 8, 0)
 

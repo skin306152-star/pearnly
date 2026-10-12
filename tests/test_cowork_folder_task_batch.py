@@ -236,6 +236,61 @@ class SaveRules(Harness):
         self.rules.save(self.values(name="R1", remind="0"))
         self.assertEqual(self._saved()["remind"], 0)
 
+    def test_chosen_reminder_times_are_checked_stored_and_restart_the_reminder(self):
+        """2026-10-13：提醒时刻带了才改（存规范化后的 JSON），带了而没带 remind 就打开提醒；改了从现在起算，没改不重算；
+        不合规的整条不存。老任务没选过，生效的就是默认那组。"""
+        self.rules.save(self.values())
+        self.assertEqual((self._saved()["remind"], self._saved().get("remind_times")), (0, None))
+        self.assertEqual(self.rules._times(self._saved()), contracts.DEFAULT_REMIND_TIMES)
+        self.clock[0] = self.NOW + timedelta(hours=1)
+        times = [{"days_before": 0, "time": "07:05"}, {"days_before": 3, "time": "16:45"}]
+        self.rules.save(self.values(name="R1", remind_times=times))
+        row = self._saved()
+        self.assertEqual((row["remind"], json.loads(row["remind_times"]), row["remind_since"]),
+                         (1, [{"days_before": 3, "time": "16:45"}, {"days_before": 0, "time": "07:05"}],
+                          self.NOW + timedelta(hours=1)))
+        # 网页表单只改名（没带提醒时刻）：保留；同一组（换了顺序）：不重算起点
+        self.clock[0] = self.NOW + timedelta(hours=2)
+        self.rules.save(self.values(name="R1", title="Renamed"))
+        self.rules.save(self.values(name="R1", remind=1, remind_times=list(reversed(times))))
+        self.assertEqual((json.loads(self._saved()["remind_times"])[0]["time"], self._saved()["remind_since"]),
+                         ("16:45", self.NOW + timedelta(hours=1)))
+        # 换一组：从现在起算
+        self.rules.save(self.values(name="R1", remind_times=json.dumps([{"days_before": 1, "time": "09:30"}])))
+        self.assertEqual(self._saved()["remind_since"], self.NOW + timedelta(hours=2))
+        # 关提醒、同时带提醒时刻：照存，提醒保持关
+        self.rules.save(self.values(name="R1", remind=0, remind_times=times))
+        self.assertEqual((self._saved()["remind"], len(json.loads(self._saved()["remind_times"]))), (0, 2))
+        writes = self.store.writes
+        for bad in ([{"days_before": 8, "time": "08:00"}], [{"days_before": 1, "time": "8:00"}],
+                    [{"days_before": 1, "time": "08:00"}] * 2 + [{"days_before": 2, "time": "08:00"}] * 2, "x"):
+            with self.assertRaises(Exception, msg=bad) as caught:
+                self.rules.save(self.values(name="R1", remind_times=bad))
+            self.assertIn("cowork.folder.invalid", str(caught.exception))
+        self.assertEqual(self.store.writes, writes)
+        # 新任务只给提醒时刻：就是要提醒
+        self.rules.save(self.values(folder="B", remind_times=[{"days_before": 0, "time": "06:00"}]))
+        self.assertEqual((self._saved("R2")["remind"], self._saved("R2")["remind_since"]), (1, self.NOW + timedelta(hours=2)))
+
+    def test_set_enabled_changes_the_reminder_times(self):
+        self.rules.save(self.values())
+        self.clock[0] = self.NOW + timedelta(hours=1)
+        times = [{"days_before": 2, "time": "10:15"}]
+        self.rules.set_enabled("R1", None, remind_times=times, cc_session="sesn_cc_2")
+        row = self._saved()
+        self.assertEqual((row["remind"], json.loads(row["remind_times"]), row["remind_since"], row["cc_session"]),
+                         (1, times, self.NOW + timedelta(hours=1), "sesn_cc_2"))
+        writes = self.store.writes
+        self.clock[0] = self.NOW + timedelta(hours=2)
+        self.rules.set_enabled("R1", None, remind_times=json.dumps(times))  # 同一组：不写
+        self.assertEqual(self.store.writes, writes)
+        self.rules.set_enabled("R1", None, remind=False, remind_times=[])  # 空 = 默认那组，提醒关
+        row = self._saved()
+        self.assertEqual((row["remind"], json.loads(row["remind_times"])), (0, contracts.DEFAULT_REMIND_TIMES))
+        with self.assertRaises(Exception):
+            self.rules.set_enabled("R1", None, remind_times=[{"days_before": 1}])
+        self.assertEqual(self.rules._times({"remind_times": "{broken"}), contracts.DEFAULT_REMIND_TIMES)
+
     def test_set_enabled_changes_only_what_is_given(self):
         self.rules.save(self.values())
         revision, writes = self._saved()["rule_revision"], self.store.writes

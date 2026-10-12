@@ -1491,8 +1491,8 @@ def _conversation():
 def folder_tasks(_input) -> str:
     listing = rules.listing()
     keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
-            "folder", "root_label", "run_day", "run_time", "defaults", "remind", "include_existing", "last_run",
-            "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state")
+            "folder", "root_label", "run_day", "run_time", "defaults", "remind", "remind_times", "include_existing",
+            "last_run", "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state")
     return _json({"tasks": [{k: r.get(k) for k in keep} for r in listing.get("rules") or []]})
 
 
@@ -1574,7 +1574,7 @@ def _given_defaults(item):
 
 def _task_values(item, rows) -> dict:
     """要存的一份任务表单。改已有任务：以库里现值为底，只换这次说的几项（保存接口要整份表单；2026-10-10 测试只传了
-    账套，缺入账方式被拒）；默认值按类合并、空串清掉这一类；提醒只在说了时带（不带由任务服务保留原值）。
+    账套，缺入账方式被拒）；默认值按类合并、空串清掉这一类；提醒与提醒时刻只在说了时带（不带由任务服务保留原值）。
     来源对话不进表单（由 `_conversation` 作参数交给任务服务）。"""
     current = rows.get(str(item.get("name") or ""), {}) if item.get("name") else {}
     values = {key: current[key] for key in TASK_KEYS if current.get(key) not in (None, "")}
@@ -1591,6 +1591,8 @@ def _task_values(item, rows) -> dict:
         values["defaults"] = dict(current["defaults"])
     if item.get("remind") is not None:
         values["remind"] = 1 if item["remind"] else 0
+    if item.get("remind_times") is not None:
+        values["remind_times"] = item["remind_times"]
     return values
 
 
@@ -1614,7 +1616,7 @@ def _saved_task(row, values) -> dict:
     saved = row.get("defaults") or {}
     given = values.get("defaults") if isinstance(values.get("defaults"), dict) else {}
     out = {"task": row.get("name"), "title": row.get("title"), "enabled": row.get("enabled"), "defaults": saved,
-           "remind": row.get("remind")}
+           "remind": row.get("remind"), "remind_times": row.get("remind_times")}
     skipped = [kind for kind, value in given.items() if value not in (None, "") and kind not in saved]
     if skipped:
         out["defaults_not_applicable"] = skipped
@@ -1663,12 +1665,15 @@ def save_folder_tasks(tool_input) -> str:
 def set_folder_task_enabled(tool_input) -> str:
     enabled = None if tool_input.get("enabled") is None else (1 if tool_input["enabled"] else 0)
     remind = None if tool_input.get("remind") is None else (1 if tool_input["remind"] else 0)
-    if enabled is None and remind is None:
-        return _json({"status": "not_saved", "reason": "Give enabled, remind or both."})
+    # 提醒时刻只在说了时带（任务服务不带就保留原值）
+    times = {} if tool_input.get("remind_times") is None else {"remind_times": tool_input["remind_times"]}
+    if enabled is None and remind is None and not times:
+        return _json({"status": "not_saved", "reason": "Give enabled, remind or remind_times."})
     row = _task_call(rules.set_enabled, str(tool_input.get("task") or ""), enabled, remind=remind,
-                     cc_session=_conversation())
+                     cc_session=_conversation(), **times)
     return _json(row if row.get("status") == "not_saved" else {
-        "status": "saved", "task": row.get("name"), "enabled": row.get("enabled"), "remind": row.get("remind")})
+        "status": "saved", "task": row.get("name"), "enabled": row.get("enabled"), "remind": row.get("remind"),
+        "remind_times": row.get("remind_times")})
 
 
 def delete_folder_tasks(tool_input) -> str:
@@ -1779,8 +1784,22 @@ def _default_shown(kind, value, names) -> str:
     return f"{value} · {name}" if name else value
 
 
-def _remind_shown(value) -> str:
-    return _("cowork.folder.remind.on") if value else _("cowork.folder.remind.off")
+def _remind_day(days) -> str:
+    """提醒日：当天 / 前 1 天 / 前 N 天（同任务页的选项）。"""
+    if days == 0:
+        return _("cowork.folder.remind.sameDay")
+    return _("cowork.folder.remind.dayBefore") if days == 1 else _("cowork.folder.remind.daysBefore").format(days)
+
+
+def _remind_shown(value, times=None) -> str:
+    """提醒：关，或各提醒时刻（「前 1 天 08:00 / 前 1 天 14:00」，没选过的是默认的那两个）。"""
+    if not value:
+        return _("cowork.folder.remind.off")
+    try:
+        items = folder_contracts.remind_times(times)
+    except folder_contracts.ContractError:
+        return json.dumps(times, ensure_ascii=False)[:120]  # 形状不对：照原样给人看，保存时任务服务会拒
+    return " / ".join(_remind_day(item["days_before"]) + " " + item["time"] for item in items)
 
 
 def _waiting_text(values) -> str:
@@ -1843,9 +1862,10 @@ def _task_lines(item, rows, cache) -> tuple:
         field = f"cowork.folder.default.{kind}"
         before[field] = _default_shown(kind, _shown(had.get(kind)), names.get("before"))
         after[field] = _default_shown(kind, kept.get(kind, ""), names.get("after"))
-    # 新任务提醒默认关：卡片写「关 → 开」
-    before[REMIND_FIELD] = _remind_shown(current.get("remind"))
-    after[REMIND_FIELD] = _remind_shown(values["remind"]) if "remind" in values else before[REMIND_FIELD]
+    # 新任务提醒默认关：卡片写「关 → 各提醒时刻」；只给了提醒时刻也是打开（同任务服务）
+    before[REMIND_FIELD] = _remind_shown(current.get("remind"), current.get("remind_times"))
+    after[REMIND_FIELD] = _remind_shown(values.get("remind", 1 if "remind_times" in values else current.get("remind")),
+                                        values.get("remind_times", current.get("remind_times")))
     lines = [(field, _shown(before.get(field)), _shown(text)) for field, text in after.items()
              if _shown(text) != _shown(before.get(field))]
     return current, lines, _folder_text(values, current) if moved else ""
@@ -1892,9 +1912,11 @@ def preview_set_folder_task_enabled(tool_input) -> list:
     rows = [_change("cowork.folder.field.title", "", row.get("title") or tool_input.get("task"))]
     if tool_input.get("enabled") is not None:
         rows.append(_change("intake.col.status", state(row.get("enabled")) if row else "", state(tool_input["enabled"])))
-    if tool_input.get("remind") is not None:
-        rows.append(_change(REMIND_FIELD, _remind_shown(row.get("remind")) if row else "",
-                            _remind_shown(tool_input["remind"])))
+    times = tool_input.get("remind_times")
+    if tool_input.get("remind") is not None or times is not None:
+        on = tool_input["remind"] if tool_input.get("remind") is not None else True
+        rows.append(_change(REMIND_FIELD, _remind_shown(row.get("remind"), row.get("remind_times")) if row else "",
+                            _remind_shown(on, row.get("remind_times") if times is None else times)))
     return rows
 
 
@@ -1959,9 +1981,18 @@ FOLDER_TASK_PROPS = {
                                              "stops for a choice."},
                      "department": {"type": "string", "description": "Department code from cowork_folder_task_options."}}},
     "remind": {"type": "boolean",
-               "description": "Remind the task owner the day before each run, at 08:00 and 14:00 Bangkok time, to put "
-                              "the documents in the folder; the reminder is posted in the latest chat it was saved or "
-                              "turned on from. Left out keeps the current setting; new tasks start off."}}
+               "description": "Remind the task owner before each run, at remind_times, to put the documents in the "
+                              "folder; the reminder is posted in the latest chat it was saved or turned on from. Left "
+                              "out keeps the current setting; new tasks start off."},
+    "remind_times": {"type": "array", "maxItems": folder_contracts.REMIND_MAX,
+                     "description": "When to remind, Bangkok time: days_before the run day (0 = the run day itself) "
+                                    "and time HH:MM. Default: the day before at 08:00 and 14:00. Giving it turns the "
+                                    "reminder on; left out keeps the current times.",
+                     "items": {"type": "object", "additionalProperties": False,
+                               "properties": {"days_before": {"type": "integer", "minimum": 0,
+                                                              "maximum": folder_contracts.REMIND_DAYS},
+                                              "time": {"type": "string", "description": "HH:MM"}},
+                               "required": ["days_before", "time"]}}}
 TOOLS = [
     {"name": "cowork_recognize_attachments", "label": "Recognized documents",
      "description": "Recognize receipts and invoices the user attached in this chat with Pearnly's own recognition, "
@@ -2218,12 +2249,13 @@ TOOLS = [
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.save_folder_tasks"},
     {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
-     "description": "Pause or resume a scheduled folder task, or turn its reminder on or off (give enabled, remind or "
-                    "both). After resuming, the next run handles the files in the folder it has not processed yet, "
-                    "including those put in while it was paused; a task with include_existing false only handles "
-                    "files put in after it is resumed.",
+     "description": "Pause or resume a scheduled folder task, turn its reminder on or off, or change its reminder "
+                    "times (give enabled, remind, remind_times or several). After resuming, the next run handles the "
+                    "files in the folder it has not processed yet, including those put in while it was paused; a task "
+                    "with include_existing false only handles files put in after it is resumed.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"},
-                                                        "remind": FOLDER_TASK_PROPS["remind"]},
+                                                        "remind": FOLDER_TASK_PROPS["remind"],
+                                                        "remind_times": FOLDER_TASK_PROPS["remind_times"]},
                       "required": ["task"]},
      "approval": True,
      "ask": "Turn this folder task on or off?",

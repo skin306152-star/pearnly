@@ -20,6 +20,18 @@
 		return {value, label: value};
 	});
 	const day_label = day => days().find(row => row.value === String(day))?.label || "";
+	// 提醒时刻（2026-10-13 起负责人自选）：最多 3 个，运行日前几天（当天 / 前 1–7 天）+ 任意时间；没选过的任务是前一天
+	// 08:00、14:00（与服务端 `contracts.DEFAULT_REMIND_TIMES` 同一组）。
+	const REMIND_MAX = 3;
+	const DEFAULT_REMIND = [{days_before: 1, time: "08:00"}, {days_before: 1, time: "14:00"}];
+	const remind_days = () => Array.from({length: 8}, (_, days) => ({value: String(days), label: days === 0
+		? ft("cowork.folder.remind.sameDay") : days === 1 ? ft("cowork.folder.remind.dayBefore")
+		: ft("cowork.folder.remind.daysBefore", days)}));
+	// 原生 Time 控件的值是 HH:mm:ss，存 HH:MM（去掉秒）
+	const hhmm = value => {
+		const found = /^(\d{1,2}):(\d{2})/.exec(String(value || ""));
+		return found ? `${found[1].padStart(2, "0")}:${found[2]}` : "";
+	};
 	// 「文件夹里现有 N 份，到点一起处理」（小助手 1.4.4 起报计数）：数到上限没数完显示「N+」；不知道（null）就不显示。
 	const files_hint = (count, partial) => (count == null ? "" : ft("cowork.folder.waiting", partial ? `${count}+` : count));
 	// 「还有 N 份未处理，到点处理」：任务的待处理数（还没处理过、到点会处理的，不是文件夹里现有几份）；0 或不知道不显示。
@@ -174,8 +186,10 @@
 			{fieldtype: "Select", fieldname: "run_time", label: ft("cowork.folder.field.time"), reqd: 1, options: times(),
 				default: rule?.run_time || "22:00"},
 			row(),
-			// 运行前一天 08:00 与 14:00 提醒负责人放资料（2026-10-12）；新任务默认关。
+			// 运行前提醒负责人放资料（2026-10-12）；新任务默认关。勾上才摆提醒时刻：三行「提醒日｜提醒时间」，
+			// 时间清空的那一行不要（2026-10-13，用户：哪天、什么时间都可以自定义）。
 			{fieldtype: "Check", fieldname: "remind", label: ft("cowork.folder.field.remind"), default: rule?.remind ? 1 : 0},
+			...remind_fields(rule?.remind_times?.length ? rule.remind_times : DEFAULT_REMIND),
 			{fieldtype: "Section Break", fieldname: "defaults_section", label: ft("cowork.folder.section.defaults"),
 				collapsible: 1},
 			{fieldtype: "Select", fieldname: "d_payment", label: ft("cowork.folder.default.payment"),
@@ -205,11 +219,14 @@
 				if (express() && !d.fields_dict["d_" + kind].df.hidden && values["d_" + kind]) defaults[kind] = values["d_" + kind];
 			}
 			const [reader, root_id, ...folder] = String(values.folder || "").split("|");
+			const remind_times = Array.from({length: REMIND_MAX}, (_, i) => ({
+				days_before: Number(values[`remind_day_${i}`] || 0), time: hhmm(values[`remind_time_${i}`])}))
+				.filter(item => item.time);
 			await p.call(API + "save", {values: JSON.stringify({name: rule?.name || null, title: values.title,
 				connection: target.name, reader, account_set_key: values.account_set_key, direction: values.direction,
 				posting_kind: express() ? values.posting_kind : "", payment: express() ? "" : values.payment,
 				root_id, folder: folder.join("|"), run_day: Number(values.run_day), run_time: values.run_time, defaults,
-				remind: values.remind ? 1 : 0})},
+				remind: values.remind ? 1 : 0, ...(values.remind ? {remind_times} : {})})},
 			"POST");
 			d.hide();
 			p.success(__("Saved"), "click");
@@ -429,6 +446,18 @@
 		paint_targets();
 		open_steps();
 		return d;
+	}
+
+	/** 提醒时刻的三行（勾上「提醒」才显示）：提醒日（当天 / 前 N 天）｜提醒时间（原生 Time 控件，分钟可任选）。 */
+	function remind_fields(times) {
+		return Array.from({length: REMIND_MAX}, (_, i) => [
+			{fieldtype: "Section Break", hide_border: 1, depends_on: "eval:doc.remind"},
+			{fieldtype: "Select", fieldname: `remind_day_${i}`, label: i ? "" : ft("cowork.folder.field.remindDay"),
+				options: remind_days(), default: String(times[i]?.days_before ?? 1)},
+			{fieldtype: "Column Break"},
+			{fieldtype: "Time", fieldname: `remind_time_${i}`, label: i ? "" : ft("cowork.folder.field.remindTime"),
+				default: times[i] ? `${times[i].time}:00` : ""},
+		]).flat();
 	}
 
 	/** 运行记录：每次扫了几份、传了几份；推完的按发票算已推送 / 待处理（与列表「结果」同一口径），

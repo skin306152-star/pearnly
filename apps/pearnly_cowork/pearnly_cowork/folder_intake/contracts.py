@@ -9,8 +9,9 @@
 
 先后（F7）：同一写入连接、同一账套里，存货销售文件等存货进货先写进 Express 再准备推送（`waits_for_purchases`）。
 
-提醒与简报（F2 / F3）：定时时刻与小助手逐位一致（`latest_slot` / `next_slot`），前一天 08:00、14:00 两个提醒时段
-（`reminder_slot`）、合并与去重键，结果口径（`tally`，任务列表、运行记录、完成简报同一个）与简报分组（`brief_groups`）。
+提醒与简报（F2 / F3）：定时时刻与小助手逐位一致（`latest_slot` / `next_slot`），负责人自选的提醒时刻（`remind_times`，
+默认前一天 08:00、14:00）与提醒时段（`reminder_slot`）、合并与去重键，结果口径（`tally`，任务列表、运行记录、完成简报
+同一个）与简报分组（`brief_groups`）。
 """
 from __future__ import annotations
 
@@ -478,30 +479,81 @@ def waits_for_purchases(sale_registered_at: Optional[datetime], files: List[Mapp
                    for f in files))
 
 
-# ── 前一天提醒（F2，2026-10-12）：运行前一天 08:00 与 14:00（曼谷）各提醒负责人一次 ─────────────
-# 08:00 那条在前一天 [08:00, 14:00) 内发，14:00 那条在前一天 [14:00, 运行时刻) 内发；窗口长达几个小时、每 5 分钟看一次，
-# 部署停机跨过整点也不漏。
-REMIND_SLOTS = (("08", 8), ("14", 14))
+# ── 运行前提醒（F2，2026-10-12；2026-10-13 起提醒时刻由负责人自选）──────────────────────────────
+# 每个任务最多 3 个提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM；没选过（老任务、空）就是前一天 08:00 与 14:00。
+# 每个提醒从它的时刻发到同一任务下一个更晚的提醒时刻（最后一个到运行时刻）为止，只发一次；窗口长、每 5 分钟看一次，
+# 部署停机跨过整点也不漏。落在运行时刻当时或之后的提醒（例如「当天」、时间比运行时刻晚）不发。
+DEFAULT_REMIND_TIMES = [{"days_before": 1, "time": "08:00"}, {"days_before": 1, "time": "14:00"}]
+REMIND_MAX = 3
+REMIND_DAYS = 7
 # 一条合并提醒 / 一份简报最多列这么多个任务，其余写「另有 N 项」
 LIST_MAX = 10
 
 
-def reminder_slot(now: float, day: int, at: str, since: float = 0.0) -> Optional[tuple]:
-    """此刻该发的提醒：``(运行时刻, "08" | "14", 时段开始)``（epoch 秒）。不在任一时段、或时段开始早于 ``since``
-    （打开提醒、换负责人、改运行日 / 时间、重新启用之前的时段不补发）时为 None。"""
+def remind_times(value: Any) -> List[Dict[str, Any]]:
+    """提醒时刻（规则字段 `remind_times` 的 JSON，或已解析的列表）：``[{"days_before": 0–7, "time": "HH:MM"}]``，
+    去重后按离运行由远到近排（天数大的在前，同一天时间早的在前）；空或没有 = 默认（前一天 08:00、14:00）。
+    不是列表、超过 3 个、天数不在 0–7、时间不是 HH:MM 时抛 ContractError。"""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value) if value.strip() else None
+        except ValueError as error:
+            raise ContractError("cowork.folder.invalid") from error
+    if value is None or value == []:
+        return [dict(item) for item in DEFAULT_REMIND_TIMES]
+    if not isinstance(value, list) or len(value) > REMIND_MAX:
+        raise ContractError("cowork.folder.invalid")
+    found = set()
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise ContractError("cowork.folder.invalid")
+        days, at = item.get("days_before"), item.get("time")
+        if isinstance(days, str) and days.strip().isdigit():
+            days = int(days.strip())
+        if type(days) is not int or not 0 <= days <= REMIND_DAYS or not isinstance(at, str) \
+                or not _TIME.fullmatch(at.strip()):
+            raise ContractError("cowork.folder.invalid")
+        found.add((days, at.strip()))
+    return [{"days_before": days, "time": at} for days, at in sorted(found, key=lambda pair: (-pair[0], pair[1]))]
+
+
+def remind_label(item: Mapping) -> str:
+    """一个提醒时刻的标签（合并与去重键用）：前一天整点沿用原来的「08」「14」写法（上线前已发的那条不再发一次），
+    其余是「<天数>d<HH:MM>」。同一运行时刻下，标签相同就是同一个提醒时刻。"""
+    days, at = item["days_before"], item["time"]
+    return at[:2] if days == 1 and at.endswith(":00") else f"{days}d{at}"
+
+
+def reminder_slot(now: float, day: int, at: str, since: float = 0.0, times: Any = None) -> Optional[tuple]:
+    """此刻该发的提醒：``(运行时刻, 标签, 时段开始)``（epoch 秒，标签见 `remind_label`）。``times`` 是这条任务的提醒时刻
+    （`remind_times` 的输入，空 = 默认）。不在任一时段、或时段开始早于 ``since``（打开提醒、换负责人、改运行日 / 时间、
+    改提醒时刻、重新启用之前的时段不补发）时为 None。"""
     run = next_slot(now, day, at)
-    eve = datetime.fromtimestamp(run, BANGKOK).date() - timedelta(days=1)
-    starts = [datetime(eve.year, eve.month, eve.day, hour, tzinfo=BANGKOK).timestamp() for _label, hour in REMIND_SLOTS]
-    for (label, _hour), start, end in zip(REMIND_SLOTS, starts, starts[1:] + [run]):
+    run_date = datetime.fromtimestamp(run, BANGKOK).date()
+    moments = []
+    for item in remind_times(times):
+        date = run_date - timedelta(days=item["days_before"])
+        hour, minute = (int(part) for part in item["time"].split(":"))
+        start = datetime(date.year, date.month, date.day, hour, minute, tzinfo=BANGKOK).timestamp()
+        if start < run:
+            moments.append((start, remind_label(item)))
+    moments.sort()
+    for (start, label), end in zip(moments, [start for start, _label in moments[1:]] + [run]):
         if start <= now < end:
             return None if since and start < since else (run, label, start)
     return None
 
 
 def day_word(now: float, run_at: float) -> str:
-    """'today' / 'tomorrow'：提醒只在运行前一天发出（14:00 那条可能跨过午夜，那时就是当天）。"""
-    same = datetime.fromtimestamp(now, BANGKOK).date() == datetime.fromtimestamp(run_at, BANGKOK).date()
-    return "today" if same else "tomorrow"
+    """'today' / 'tomorrow' / 'later'（两天及以后，文字写日期）：按发出那一刻算（停机后补发的照实写）。"""
+    gap = (datetime.fromtimestamp(run_at, BANGKOK).date() - datetime.fromtimestamp(now, BANGKOK).date()).days
+    return "today" if gap <= 0 else "tomorrow" if gap == 1 else "later"
+
+
+def month_day(epoch: float) -> tuple:
+    """曼谷的（月, 日）。"""
+    moment = datetime.fromtimestamp(epoch, BANGKOK)
+    return moment.month, moment.day
 
 
 def clock(epoch: float) -> str:
@@ -528,7 +580,8 @@ def _digest(value: Any) -> str:
 
 
 def remind_key(owner: str, run_at: float, label: str, reader: str) -> str:
-    """一条提醒的去重键：负责人 + 运行时刻 + 时段 + 读文件夹的电脑（同一人、同一运行时刻、同一时段、同一台电脑只发一次）。"""
+    """一条提醒的去重键：负责人 + 运行时刻 + 提醒时刻（标签）+ 读文件夹的电脑（同一人、同一运行时刻、同一提醒时刻、
+    同一台电脑只发一次）。"""
     return "cowork.folder.remind:" + _digest([owner, int(run_at), label, str(reader or "")])
 
 
@@ -538,7 +591,7 @@ def brief_key(owner: str, runs: List[str]) -> str:
 
 
 def reminder_groups(rows: List[Mapping]) -> List[Dict[str, Any]]:
-    """同一负责人、同一运行时刻、同一时段、同一台读文件夹的电脑的任务合成一条（行带 owner / run_at / label / reader /
+    """同一负责人、同一运行时刻、同一提醒时刻、同一台读文件夹的电脑的任务合成一条（行带 owner / run_at / label / reader /
     title / name）：组内按任务名排，组按运行时刻、时段、负责人、电脑排。按电脑分开（2026-10-13）：这条提醒会被那台电脑
     同步取回弹出，不能带上别的电脑的任务名与文件夹路径。"""
     groups: Dict[tuple, List[Mapping]] = {}

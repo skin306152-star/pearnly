@@ -5,7 +5,8 @@
 //         立即运行、待处理的单据、编辑、运行记录、停用 / 启用、删除。列表自己刷新（lib/live.ts：定时任务服务的实时事件
 //         cowork_folder_changed 为主，有处理中的每 10 秒、否则每 60 秒兜底，回到前台马上刷）。
 //   新建 / 编辑：目标卡片（MR.ERP / Express，状态与「连接」）→ 两级账套 → 进项销项 → 入账方式（Express 过账类型、
-//         MR.ERP 付款方式）→ 存货科目组（要选时）→ 文件夹（下面显示文件夹里现有几份）→ 每月几号几点 → 前一天提醒 →
+//         MR.ERP 付款方式）→ 存货科目组（要选时）→ 文件夹（下面显示文件夹里现有几份）→ 每月几号几点 → 提醒（打开后
+//         最多 3 个提醒时刻：当天 / 前 1–7 天 + 任意时间）→
 //         Express 的默认处理；保存前 MR.ERP 的菜单与默认值没定就问一次。
 // 接口与 Cowork 页面同一套（pearnly_cowork.folder_intake.api / connections.api / companion.api），权限由服务端判；
 // 词条取 Cowork 的术语表（folder_intake.api.terms），不另存翻译。样式只用 globals.css 的 .cc-* 与变量。
@@ -69,10 +70,12 @@ type Rule = {
   payment: string; root_id: string; root_label?: string; folder: string; run_day: number; run_time: string;
   defaults: Record<string, string>; agent_fresh?: boolean; folder_state?: string | null;
   results?: { entered?: number; attention?: number; moving?: number };
-  // include_existing：到点处理文件夹里所有还没处理过的（新任务）；remind：前一天提醒；
-  // waiting：文件夹里还没处理的份数（不知道是 null），waiting_partial：数到上限（显示 N+）
-  include_existing?: number; remind?: number; waiting?: number | null; waiting_partial?: boolean;
+  // include_existing：到点处理文件夹里所有还没处理过的（新任务）；remind：运行前提醒，remind_times：提醒时刻（服务端给
+  // 生效的那组，没选过是前一天 08:00、14:00）；waiting：文件夹里还没处理的份数（不知道是 null），waiting_partial：数到上限（显示 N+）
+  include_existing?: number; remind?: number; remind_times?: RemindTime[]; waiting?: number | null; waiting_partial?: boolean;
 };
+// 提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM，最多 3 个（同服务端 contracts.remind_times）
+type RemindTime = { days_before: number; time: string };
 type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string> };
 type Snapshot = { connections: Record<string, Connection | null>; agent: { online?: boolean } | null };
 type Group = { value: string; label: string; items: Array<{ value: string; label: string }> };
@@ -116,6 +119,12 @@ const days = (tr: Tr) => [
   { value: "0", label: tr("cowork.folder.lastDay") },
 ];
 const TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+const REMIND_MAX = 3;
+const DEFAULT_REMIND: RemindTime[] = [{ days_before: 1, time: "08:00" }, { days_before: 1, time: "14:00" }];
+const remindDays = (tr: Tr) => Array.from({ length: 8 }, (_, d) => ({
+  value: String(d),
+  label: d === 0 ? tr("cowork.folder.remind.sameDay") : d === 1 ? tr("cowork.folder.remind.dayBefore") : tr("cowork.folder.remind.daysBefore", d),
+}));
 
 /** N 份（数到上限是 N+）。 */
 const plus = (n: number, partial?: boolean) => (partial ? `${n}+` : String(n));
@@ -502,6 +511,9 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
   const [runDay, setRunDay] = useState(String(rule?.run_day ?? 1));
   const [runTime, setRunTime] = useState(rule?.run_time || "22:00");
   const [remind, setRemind] = useState(Boolean(rule?.remind));
+  const [remindTimes, setRemindTimes] = useState<RemindTime[]>(rule?.remind_times?.length ? rule.remind_times : DEFAULT_REMIND);
+  const setRemindTime = (index: number, patch: Partial<RemindTime>) =>
+    setRemindTimes((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   const [defaults, setDefaults] = useState<Record<string, string>>(rule?.defaults || {});
   const [options, setOptions] = useState<Options | null>(null);
   const [busy, setBusy] = useState(false);
@@ -646,7 +658,8 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
   const setDefault = (kind: string, value: string) => setDefaults((d) => ({ ...d, [kind]: value }));
 
   const canSave = Boolean(connection && title.trim() && accountSet && direction && folder && runDay && runTime &&
-    (express ? postingKind : payment) && (!needsStockGroup || stockGroup));
+    (express ? postingKind : payment) && (!needsStockGroup || stockGroup) &&
+    (!remind || remindTimes.every((row) => /^\d{2}:\d{2}$/.test(row.time))));
 
   async function save() {
     if (!connection) return;
@@ -666,6 +679,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
           name: rule?.name || null, title: title.trim(), connection: connection.name, reader, account_set_key: accountSet,
           direction, posting_kind: express ? postingKind : "", payment: express ? "" : payment, root_id,
           folder: rest.join("|"), run_day: Number(runDay), run_time: runTime, defaults: chosen, remind: remind ? 1 : 0,
+          ...(remind ? { remind_times: remindTimes } : {}),
         }),
       });
       await onSaved();
@@ -781,6 +795,50 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
             <span>{tr("cowork.folder.field.remind")}</span>
             <Switch checked={remind} disabled={!enabled} label={tr("cowork.folder.field.remind")} onChange={setRemind} />
           </div>
+          {remind && (
+            <div className="flex flex-col gap-2">
+              {remindTimes.map((row, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select
+                    className="cc-input"
+                    aria-label={tr("cowork.folder.field.remindDay")}
+                    value={String(row.days_before)}
+                    disabled={!enabled}
+                    onChange={(e) => setRemindTime(i, { days_before: Number(e.target.value) })}
+                  >
+                    {remindDays(tr).map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="time"
+                    step={60}
+                    className="cc-input"
+                    aria-label={tr("cowork.folder.field.remindTime")}
+                    value={row.time}
+                    disabled={!enabled}
+                    onChange={(e) => setRemindTime(i, { time: e.target.value.slice(0, 5) })}
+                  />
+                  {remindTimes.length > 1 && (
+                    <button type="button" className="cc-icon-btn shrink-0" aria-label={t("removeFile")} onClick={() => setRemindTimes((rows) => rows.filter((_r, j) => j !== i))}>
+                      <XIcon />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {remindTimes.length < REMIND_MAX && (
+                <button
+                  type="button"
+                  className="cc-btn self-start"
+                  disabled={!enabled}
+                  onClick={() => setRemindTimes((rows) => [...rows, { days_before: 0, time: "08:00" }])}
+                >
+                  <PlusIcon className="size-4" />
+                  {tr("cowork.folder.remind.add")}
+                </button>
+              )}
+            </div>
+          )}
 
           {express && (
             <details className="cc-card px-4 py-3" open={Object.keys(defaults).length > 0}>
