@@ -2,11 +2,14 @@
 """文件夹自动录入的纯规则（不联网、不碰 Qt、不写账套）：什么时候该跑、哪些文件算新的、结果表格放哪。
 
 口径与云端 `apps/pearnly_cowork/pearnly_cowork/folder_intake/contracts.py` 一致：
-- 每月几号（1–28，0 = 月末）几点，按曼谷时间（UTC+7，泰国不用夏令时）；
+- 每月几号（1–31，当月没有这一天就在当月最后一天；0 = 月末）几点，按曼谷时间（UTC+7，泰国不用夏令时）；
 - 到点时电脑关着 / 小助手没开，下次启动补跑一次（错过几次也只补最近那一次）；
-- 只收规则启用之后放进文件夹的文件（按文件在本机的创建时间，先用云端时间校正本机时钟）；
+- 新任务（云端下发 ``existing`` 为 1，2026-10 起新建或改过文件夹的）处理文件夹里所有本任务还没处理过的文件，
+  包括建任务前就在的（「处理过」只看本机台账：路径 + 大小 + 修改时间）；老任务只收规则启用之后放进文件夹的文件
+  （启用时按文件在本机的创建时间拍底，先用云端时间校正本机时钟）；
 - 只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
-- 文件 2 分钟内没再变动才算写完（扫描仪、复制还没完成的先不传）。
+- 文件 2 分钟内没再变动才算写完（扫描仪、复制还没完成的先不传）；
+- 文件夹现有几份（`survey`，给网页卡片与任务列表）与 `scan` 同一判据，只列目录、限时限量，数不完就标「不全」。
 """
 
 from __future__ import annotations
@@ -17,9 +20,10 @@ import hashlib
 import ntpath
 import os
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Callable, Iterable, Iterator, Optional
 
 BANGKOK = dt.timezone(dt.timedelta(hours=7))
 RESULT_FOLDER = "_Pearnly结果"
@@ -33,6 +37,9 @@ STABLE_SECONDS = 120
 ON_TIME_SECONDS = 2 * 3600
 MAX_FOLDERS = 2000
 FOLDER_DEPTH = 3
+# 文件夹计数（survey）：一次上报所有根目录合计最多看这么久（秒）、这么多目录项，用完就停、标「不全」（网页显示 N+）。
+SURVEY_SECONDS = 5.0
+SURVEY_ENTRIES = 200_000
 
 
 def root_id(path: str) -> str:
@@ -158,11 +165,13 @@ class Candidate:
     created: float
 
 
-def scan(folder: Path) -> Iterator[Candidate]:
-    """规则文件夹（含下级子文件夹）里所有 PDF / 图片，跳过结果文件夹、隐藏与临时文件。"""
+def scan(folder: Path, errors: Optional[list] = None) -> Iterator[Candidate]:
+    """规则文件夹（含下级子文件夹）里所有 PDF / 图片，跳过结果文件夹、隐藏与临时文件。
+
+    ``errors``：给了就把读不了的文件夹 / 文件记进去（调用方据此判断这次扫描全不全，例如网络共享抖了一下）。"""
     if not folder.is_dir():
         return
-    for current, dirs, files in os.walk(folder):
+    for current, dirs, files in os.walk(folder, onerror=None if errors is None else errors.append):
         dirs[:] = sorted(d for d in dirs if not is_result_folder(d) and not _skipped_name(d))
         for name in sorted(files):
             if _skipped_name(name) or not name.lower().endswith(EXTENSIONS):
@@ -170,7 +179,9 @@ def scan(folder: Path) -> Iterator[Candidate]:
             path = Path(current) / name
             try:
                 stat = path.stat()
-            except OSError:
+            except OSError as error:
+                if errors is not None:
+                    errors.append(error)
                 continue
             if stat.st_size <= 0:
                 continue
@@ -179,7 +190,7 @@ def scan(folder: Path) -> Iterator[Candidate]:
 
 
 def is_new(candidate: Candidate, active_since: float, clock_offset: float) -> bool:
-    """规则启用之后放进来的（本机时钟按云端校正；留 2 分钟余量，免得启用当下拷进来的被漏掉）。"""
+    """规则启用之后放进来的（本机时钟按云端校正；留 2 分钟余量，免得启用当下拷进来的被漏掉）。只给老任务拍底用。"""
     return candidate.created + clock_offset >= float(active_since or 0) - 120
 
 
@@ -210,6 +221,88 @@ def folders_of(root: Path) -> list[str]:
             if len(found) >= MAX_FOLDERS:
                 return found
     return found
+
+
+@dataclass(frozen=True)
+class Seen:
+    relpath: str  # 相对根目录（不是规则文件夹），`\\` 分隔
+    size: int
+    mtime: float
+
+
+def survey(root: Path, *, deadline: float, budget: list, clock: Callable[[], float] = time.monotonic
+           ) -> tuple[list[Seen], bool]:
+    """根目录（含全部下级）里会被录入的文件，判据与 :func:`scan` 相同（结果文件夹、隐藏与临时文件、非 PDF / 图片、
+    0 字节都不算；不进符号链接的文件夹）。只列目录、用列目录时带回的大小与修改时间（Windows 上不再逐个文件问一次），
+    不打开文件。
+
+    ``deadline``（``clock`` 的读数）到了、或 ``budget``（``[剩余目录项数]``，一次上报的几个根目录共用一份）用完就停，
+    返回 ``(已看到的, False)``；看全了返回 ``(…, True)``。读不了的文件夹跳过（同 scan，那里的文件也不会被处理）。"""
+    found: list[Seen] = []
+    if not root.is_dir():
+        return found, True
+    stack = [(str(root), "")]
+    while stack:
+        current, prefix = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    budget[0] -= 1
+                    if budget[0] < 0 or clock() > deadline:
+                        return found, False
+                    name = entry.name
+                    if _skipped_name(name):
+                        continue
+                    relative = f"{prefix}\\{name}" if prefix else name
+                    try:
+                        if entry.is_dir():
+                            if not is_result_folder(name) and not entry.is_symlink():
+                                stack.append((entry.path, relative))
+                            continue
+                        if not name.lower().endswith(EXTENSIONS):
+                            continue
+                        stat = entry.stat()
+                    except OSError:
+                        continue
+                    if stat.st_size > 0:
+                        found.append(Seen(relative, stat.st_size, stat.st_mtime))
+        except OSError:
+            continue
+    return found, True
+
+
+def folder_counts(seen: Iterable[Seen], folders: Iterable[str]) -> dict[str, int]:
+    """上报的每个文件夹（``""`` 是根目录本身）里含下级子文件夹会被录入的文件数，键用上报时的写法；
+    没有文件的不列（云端：根目录行带了 ``counts`` 就是数过，不在里面的文件夹是 0）。"""
+    wanted: dict[str, str] = {}
+    for name in folders:
+        wanted.setdefault(str(name).casefold(), str(name))
+    counts: dict[str, int] = {}
+    for item in seen:
+        parts = item.relpath.casefold().split("\\")[:-1]
+        for depth in range(min(len(parts), FOLDER_DEPTH) + 1):
+            key = wanted.get("\\".join(parts[:depth]))
+            if key is not None:
+                counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def pending_count(seen: Iterable[Seen], folder: str, known: Callable[[str, int, float], bool],
+                  baseline: set) -> int:
+    """一条规则还没处理的文件数：在规则文件夹（含下级）里、不在老任务的拍底里、本机台账也不认得的。
+
+    ``known(相对规则文件夹的路径, 大小, 修改时间)`` 是台账的判断；``baseline`` 是拍底（相对规则文件夹、casefold）。"""
+    prefix = [part.casefold() for part in re.split(r"[\\/]+", folder or "") if part]
+    count = 0
+    for item in seen:
+        parts = item.relpath.split("\\")
+        if len(parts) <= len(prefix) or [part.casefold() for part in parts[:len(prefix)]] != prefix:
+            continue
+        relpath = "\\".join(parts[len(prefix):])
+        if relpath.casefold() in baseline or known(relpath, item.size, item.mtime):
+            continue
+        count += 1
+    return count
 
 
 def result_path(folder: Path, month: str, filename: str, taken: set[str], result: str = RESULT_FOLDER) -> Path:

@@ -25,8 +25,11 @@ from .pairing import _endpoint_id_from_token
 STATE_DIR = APPDATA_DIR / "folder_intake"
 ROOTS_FILE = "roots.json"
 _LOCK = threading.RLock()
-# 推送结论已定、表格也取过的文件，台账里留这么久后清掉（防台账无限变大；云端还认得同一份文件，不会重复扣费）。
+# 推送结论已定、表格也取过的文件，台账里留这么久后只留一条「墓碑」（规则、相对路径、大小、修改时间、结束时间），
+# 同一份文件仍认得：不再登记、结果表格也不会再写一份到当月（2026-10 起；以前整行删掉，删后会再登记一次）。
+# 墓碑在规则文件夹完整扫描一次、文件已不在时清掉（`Ledger.forget_missing`），台账以文件夹里现存的文件为上限。
 KEEP_SECONDS = 120 * 86400
+TOMBSTONE_FIELDS = ("rule", "relpath", "size", "mtime", "closed_at")
 
 
 def connection_key(cfg) -> str:
@@ -112,7 +115,8 @@ def _overlap(a: str, b: str) -> bool:
 
 
 class Ledger:
-    """一条连接的本机进度：各规则跑到哪（``rules``）、每份文件传到哪一步（``files``）、待上报的运行记录（``runs``）。"""
+    """一条连接的本机进度：各规则跑到哪（``rules``）、每份文件传到哪一步（``files``）、待上报的运行记录（``runs``），
+    以及云端对话提醒已经收到哪一刻为止（``notices_after``，epoch 秒，随同步上报）。"""
 
     def __init__(self, key: str) -> None:
         self.key = key
@@ -122,14 +126,28 @@ class Ledger:
         self.rules: dict = data.get("rules") or {}
         self.files: dict = data.get("files") or {}
         self.runs: list = data.get("runs") or []
+        try:
+            self.notices_after = max(0.0, float(data.get("notices_after") or 0))
+        except (TypeError, ValueError):
+            self.notices_after = 0.0
 
     def save(self) -> None:
         now = time.time()
         for name, row in list(self.files.items()):
-            if row.get("closed_at") and now - float(row["closed_at"]) > KEEP_SECONDS:
-                del self.files[name]
+            if row.get("entry") and row.get("closed_at") and now - float(row["closed_at"]) > KEEP_SECONDS:
+                self.files[name] = {field: row[field] for field in TOMBSTONE_FIELDS if field in row}
         with _LOCK:
-            _write(self.name, {"rules": self.rules, "files": self.files, "runs": self.runs[-50:]})
+            _write(self.name, {"rules": self.rules, "files": self.files, "runs": self.runs[-50:],
+                               "notices_after": self.notices_after})
+
+    def forget_missing(self, rule: str, seen: set) -> int:
+        """规则文件夹完整扫描一次之后（``seen``：扫到的相对路径，casefold）：清掉文件已不在的墓碑、「不收」与补传记录
+        （没有在途条目的行）；还在等结果的行照留。返回清掉几条。"""
+        gone = [name for name, row in self.files.items() if row.get("rule") == rule and not row.get("entry")
+                and str(row.get("relpath") or "").casefold() not in seen]
+        for name in gone:
+            del self.files[name]
+        return len(gone)
 
     def rule_state(self, rule: str) -> dict:
         return self.rules.setdefault(rule, {})

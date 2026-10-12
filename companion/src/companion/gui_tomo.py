@@ -4,6 +4,7 @@
 - 窗口里是网页版同一个对话页（入口 fatcc.com → 登录 → 公司自己的 /assistant），登录状态存在本机，
   下次打开直接回到上次的对话页；只开 Pearnly 自己的 https 页面，别的链接交给系统浏览器（tomo_links.py）。
 - 关窗口只是藏到托盘，后台的回复、Express 推送照常；回复完成时对话页发网页通知，这里转成系统通知，点一下回到窗口。
+- 定时任务的对话提醒（页面实时收到，或文件夹同步带来）按 ``notice:<编号>`` 只弹一次，点一下打开那段对话（open_conversation）。
 - 对话页里下载的文件存进「下载」文件夹，完成后通知，点一下在资源管理器里选中它。
 - 快捷输入条（Ctrl+Alt+Space，tomo_hotkey.py）：输入一句回车，Tomo 窗口开新对话发出去。
 - 网页内核只在第一次打开 Tomo 时加载（开机自启时不占内存），之后一直留着，通知才能在窗口关着时到达。
@@ -219,9 +220,10 @@ class TomoWindow(QMainWindow):
         global OPEN_WINDOW
         OPEN_WINDOW = self
         self.lang = lang
-        self._notify = notify          # notify(title, body, on_click)
+        self._notify = notify          # notify(title, body, on_click, tag="")
         self._pending_ask: str | None = None
         self._pending_settings: str | None = None
+        self._ready = False            # 页面至少打开成功过一次（之后才把「打开对话」交给页面脚本）
         self._settings = QSettings("Pearnly", "Tomo")
         self.setWindowTitle("CC")
         self.setWindowIcon(icon)
@@ -350,6 +352,18 @@ class TomoWindow(QMainWindow):
         else:
             self._pending_ask = text   # 还在登录 / 加载：进了对话页再交过去
 
+    def open_conversation(self, url: str, session: str = "") -> None:
+        """托盘的对话提醒点开：拿到前面并打开那段对话（``session`` 为空 = 定时任务页）。对话页已在同一站点开着就交给
+        页面（不重新加载），否则直接打开地址（刚建的窗口也一样，顶掉正在打开的上次页面）。"""
+        self.show_front()
+        current = self.page.url().toString()
+        if self._ready and tomo_links.is_chat(current) and tomo_links.same_site(current, url) \
+                and not self.page.isLoading():
+            self.page.runJavaScript(tomo_links.open_script(session, url))
+        else:
+            self._pending_ask = self._pending_settings = None
+            self.page.setUrl(QUrl(url))
+
     def open_settings(self, section: str = "") -> None:
         """托盘「连接与设置」/ Ctrl+,：拿到前面并打开对话页的设置（section 为空 = 常规）。"""
         self.show_front()
@@ -361,6 +375,7 @@ class TomoWindow(QMainWindow):
             self._pending_settings = script
 
     def _loaded(self, ok: bool) -> None:
+        self._ready = self._ready or ok
         zoom = float(self._settings.value("zoom", 1.0) or 1.0)
         if abs(self.view.zoomFactor() - zoom) > 0.001:
             self.view.setZoomFactor(zoom)
@@ -398,7 +413,8 @@ class TomoWindow(QMainWindow):
             self.show_front()
             n.click()
 
-        self._notify(notification.title() or "CC", notification.message(), clicked)
+        # 带上网页通知的 tag：对话提醒（notice:<编号>）页面实时收到一次、文件夹同步又带来一次，托盘只弹一次
+        self._notify(notification.title() or "CC", notification.message(), clicked, tag=notification.tag())
 
     def _download(self, request: QWebEngineDownloadRequest) -> None:
         folder = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or Path.home())

@@ -115,6 +115,7 @@ class FakeClient:
     def __init__(self, rules, *, route="inline"):
         self.rules, self.route, self.calls = rules, route, []
         self.entries = {}
+        self.extra = {}  # 回复里另带的键（notices、companion_latest…）
 
     def __call__(self, url, token):
         return self
@@ -125,7 +126,8 @@ class FakeClient:
     def sync(self, body):
         self.calls.append(("sync", body))
         return {"ok": True, "server_time": time.time(), "rules": self.rules,
-                "entries": {name: self.entries[name] for name in body["watch"] if name in self.entries}}
+                "entries": {name: self.entries[name] for name in body["watch"] if name in self.entries},
+                **self.extra}
 
     def begin(self, body):
         self.calls.append(("begin", body))
@@ -296,3 +298,317 @@ def test_rule_health_reports_missing_folders(tmp_path, monkeypatch):
     assert _folder_health({"folder": "ok"}, root) == "ok"
     assert _folder_health({"folder": "gone"}, root) == "folder_missing"
     assert _folder_health({"folder": "ok"}, None) == "root_missing"
+
+
+# ── 2026-10 CC 闭环第一批：新任务不拍底、文件夹计数与待处理数、台账墓碑、对话提醒与新版提示 ─────────────
+
+
+def _begins(fake):
+    return [c[1]["relpath"] for c in fake.calls if c[0] == "begin"]
+
+
+def _syncs(fake):
+    return [c[1] for c in fake.calls if c[0] == "sync"]
+
+
+def test_new_task_processes_files_already_in_the_folder(tmp_path, monkeypatch):
+    # 新任务（云端 existing=1）不拍底：建任务前就在文件夹（含子文件夹）里的也处理，「立即运行」也一样
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    (folder / "2026-09").mkdir()
+    for name in ("a.pdf", "b.jpg", "e.PDF", "2026-09/c.pdf", "2026-09/d.png"):
+        _old(folder / name, name.encode())
+    rule.update(existing=1, run_request=1)
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    assert sorted(_begins(fake)) == ["2026-09\\c.pdf", "2026-09\\d.png", "a.pdf", "b.jpg", "e.PDF"]
+    worker.round(cfg, key)
+    run = _syncs(fake)[-1]["runs"][0]
+    assert run["new_files"] == 5 and run["skipped"] == 0
+    assert "slot" not in run  # 立即运行不属于哪个定时时刻
+    assert "baseline" not in folder_store.Ledger(key).rule_state("R1")
+
+
+def test_old_task_keeps_its_baseline_even_when_run_now(tmp_path, monkeypatch):
+    # 老任务（existing 缺省或为 0）照旧：启用前就在的文件拍底，「立即运行」也不处理
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "before.pdf", b"before")
+    rule.update(existing=0, run_request=1)
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    worker.round(cfg, key)
+    assert _begins(fake) == []
+    assert _syncs(fake)[-1]["runs"][0]["skipped"] == 1
+
+
+def test_reenabled_new_task_is_not_rebaselined(tmp_path, monkeypatch):
+    # 新任务停用后再启用（active_since 变成现在）：不重新拍底；停用期间放进来的照常处理，处理过的不再传
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "a.pdf", b"aaa")
+    rule.update(existing=1, run_request=1)
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    assert _begins(fake) == ["a.pdf"]
+    fake.rules = []                              # 停用：云端不再下发
+    worker.round(cfg, key)
+    _old(folder / "b.pdf", b"bbbb")              # 停用期间放进来的
+    fake.rules = [{**rule, "active_since": time.time(), "run_request": 2}]
+    worker.round(cfg, key)
+    assert _begins(fake) == ["a.pdf", "b.pdf"]
+
+
+def test_switching_to_existing_drops_the_old_baseline(tmp_path, monkeypatch):
+    # 老任务改了文件夹，云端改下发 existing=1：旧底丢掉，文件夹里没处理过的都处理
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "a.pdf", b"aaa")
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    assert folder_store.Ledger(key).rule_state("R1")["baseline"] == ["a.pdf"]
+    rule.update(existing=1, run_request=1)
+    worker.round(cfg, key)
+    assert _begins(fake) == ["a.pdf"]
+    assert "baseline" not in folder_store.Ledger(key).rule_state("R1")
+
+
+def _tree(root):
+    """含隐藏、临时、0 字节、表格、结果文件夹、4 层深的一棵树。"""
+    for name in ("a.pdf", "A/b.jpg", "A/sub/c.png", "A/sub/deep/er/d.pdf", "A/sub/deep/er/e.heic", "B/f.PDF",
+                 "B/~$g.pdf", "B/.h.pdf", "B/i.tmp", "B/j.xlsx", ".hidden/k.pdf", "A/" + plan.RESULT_FOLDER + "/l.pdf",
+                 "B/" + plan.RESULT_FOLDERS[1] + "/2026-10/m.pdf"):
+        path = root.joinpath(*name.split("/"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(name.encode())
+    (root / "B" / "empty.pdf").write_bytes(b"")
+    (root / "C").mkdir()
+
+
+def test_survey_agrees_with_scan(tmp_path):
+    root = tmp_path / "S"
+    _tree(root)
+    folders = plan.folders_of(root)
+    seen, complete = plan.survey(root, deadline=time.monotonic() + 60, budget=[plan.SURVEY_ENTRIES])
+    assert complete
+    counts = plan.folder_counts(seen, ["", *folders])
+    for name in ["", *folders]:
+        assert counts.get(name, 0) == len(list(plan.scan(plan.rule_folder(str(root), name)))), name
+    assert counts == {"": 6, "A": 4, "A\\sub": 3, "A\\sub\\deep": 2, "B": 1}  # 没有文件的 C 不列；4 层深的算进上级
+    # 大小与修改时间与 scan 一致（台账靠它们认文件）
+    by_path = {item.relpath: item for item in seen}
+    for candidate in plan.scan(root):
+        assert (by_path[candidate.relpath].size, by_path[candidate.relpath].mtime) == (candidate.size, candidate.mtime)
+
+
+def test_survey_stops_at_the_entry_budget_or_the_deadline(tmp_path):
+    root = tmp_path / "S"
+    _tree(root)
+    seen, complete = plan.survey(root, deadline=time.monotonic() + 60, budget=[3])
+    assert not complete and len(seen) <= 3
+    ticks = iter(range(1000))
+    seen, complete = plan.survey(root, deadline=4, budget=[10 ** 6], clock=lambda: next(ticks))
+    assert not complete and len(seen) <= 4
+    assert plan.survey(tmp_path / "gone", deadline=0, budget=[0]) == ([], True)
+
+
+def test_folder_counts_roll_up_to_parents_and_keep_the_reported_spelling():
+    seen = [plan.Seen("a.pdf", 1, 1.0), plan.Seen("Ice\\Jan\\b.pdf", 1, 1.0), plan.Seen("ice\\c.pdf", 1, 1.0),
+            plan.Seen("Other\\x\\y\\z\\d.pdf", 1, 1.0)]
+    counts = plan.folder_counts(seen, ["", "ICE", "ice\\jan", "Other\\x\\y", "Empty"])
+    assert counts == {"": 4, "ICE": 2, "ice\\jan": 1, "Other\\x\\y": 1}
+
+
+def test_pending_count_skips_the_ledger_and_the_baseline():
+    seen = [plan.Seen("Ice\\a.pdf", 3, 10.0), plan.Seen("ice\\Jan\\b.pdf", 4, 20.0), plan.Seen("ice\\c.pdf", 5, 30.0),
+            plan.Seen("other\\d.pdf", 6, 40.0), plan.Seen("icebox\\e.pdf", 7, 50.0)]
+    known = {("a.pdf", 3, 10.0)}
+    count = plan.pending_count(seen, "ice", lambda relpath, size, mtime: (relpath, size, mtime) in known, {"c.pdf"})
+    assert count == 1  # 只剩 Jan\b.pdf；别的文件夹、名字前缀相同的 icebox 都不算
+    assert plan.pending_count(seen, "", lambda *_: False, set()) == 5
+
+
+def test_counts_and_rule_pending_are_reported_and_drop_after_a_run(tmp_path, monkeypatch):
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    for name in ("a.pdf", "b.pdf", "c.pdf"):
+        _old(folder / name, name.encode())
+    rule.update(existing=1)
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    first = _syncs(fake)[0]
+    assert first["rule_pending"] == {} and first["notices_after"] == 0
+    assert first["roots"][0]["counts"] == {"": 3, "ice": 3} and first["roots"][0]["partial"] is False
+    worker.round(cfg, key)                       # 上一轮算好的待处理数，下一次同步报
+    assert _syncs(fake)[-1]["rule_pending"] == {"R1": 3}
+    rule["run_request"] = 1
+    worker.round(cfg, key)
+    worker.round(cfg, key)
+    assert len(_begins(fake)) == 3 and _syncs(fake)[-1]["rule_pending"] == {"R1": 0}
+
+
+def test_old_task_pending_leaves_out_its_baseline(tmp_path, monkeypatch):
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "before.pdf", b"before")
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    _old(folder / "after.pdf", b"after!")
+    worker.round(cfg, key)
+    worker.round(cfg, key)
+    assert _syncs(fake)[-1]["rule_pending"] == {"R1": 1}
+    # 负责人还没准备好的老任务没拍过底：不知道几份，不报
+    fresh = {**rule, "name": "R2", "ready": False}
+    fake.rules = [rule, fresh]
+    worker.round(cfg, key)
+    worker.round(cfg, key)
+    assert _syncs(fake)[-1]["rule_pending"] == {"R1": 1}
+
+
+def test_report_cadence_follows_the_cost_of_the_last_survey(tmp_path, monkeypatch):
+    from companion import folder_worker as fw
+
+    assert fw._report_interval(0.3, True) == 0
+    assert fw._report_interval(2.5, True) == fw.FOLDER_REPORT_SECONDS
+    assert fw._report_interval(0.3, False) == fw.FOLDER_REPORT_PARTIAL_SECONDS
+    # 两个根目录共用一份条数：第一个数不完（不全），第二个没轮到就不带 counts；10 分钟内不再重数
+    first, second = tmp_path / "S", tmp_path / "T"
+    _tree(first)
+    (second / "x").mkdir(parents=True)
+    (second / "x" / "a.pdf").write_bytes(b"a")
+    cfg = _cfg()
+    key = folder_store.connection_key(cfg)
+    folder_store.set_roots(key, [str(first), str(second)])
+    monkeypatch.setattr(plan, "SURVEY_ENTRIES", 4)
+    now = [1000.0]
+    worker = FolderIntake(lambda: [cfg], client_factory=FakeClient([]), clock=lambda: now[0])
+    rows = worker._report(key, folder_store.roots(key))
+    assert rows[0]["partial"] is True and "counts" in rows[0]
+    assert "counts" not in rows[1] and "partial" not in rows[1] and rows[1]["folders"] == ["x"]
+    monkeypatch.setattr(plan, "SURVEY_ENTRIES", 10 ** 6)
+    now[0] += fw.FOLDER_REPORT_PARTIAL_SECONDS - 1
+    assert worker._report(key, folder_store.roots(key)) is rows
+    now[0] += 2
+    again = worker._report(key, folder_store.roots(key))
+    assert again[0]["partial"] is False and again[1]["counts"] == {"": 1, "x": 1}
+    assert worker._report(key, folder_store.roots(key)) is not again  # 一秒内看全了：每轮都刷
+
+
+def test_schedule_runs_carry_their_slot(tmp_path, monkeypatch):
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "a.pdf", b"aaa")
+    slot = plan.latest_slot(time.time(), 1, "22:00")
+    rule.update(existing=1, active_since=slot - 60)
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    worker.round(cfg, key)
+    run = _syncs(fake)[-1]["runs"][0]
+    assert run["slot"] == slot and run["trigger"] in ("schedule", "catch_up")
+
+
+def test_old_rows_leave_a_tombstone_and_are_not_sent_again(tmp_path, monkeypatch):
+    # 120 天后台账只留墓碑：同一份文件不再登记、结果表格不再写一份到当月；文件删了、完整扫描一次后墓碑清掉
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "a.pdf", b"aaa")
+    rule.update(existing=1, run_request=1)
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    entry = hashlib.sha256(b"a.pdf").hexdigest()
+    fake.entries[entry] = {"state": "done", "finished": True, "settled": True,
+                           "items": [{"history": "H1", "revision": 1, "filename": "INV-1_2808.xlsx"}]}
+    worker.round(cfg, key)
+    ledger = folder_store.Ledger(key)
+    file_key = ledger.file_key("R1", "a.pdf")
+    assert ledger.files[file_key]["closed_at"]
+    ledger.files[file_key]["closed_at"] -= 121 * 86400
+    ledger.save()
+    tomb = folder_store.Ledger(key).files[file_key]
+    assert set(tomb) == set(folder_store.TOMBSTONE_FIELDS) and "entry" not in tomb
+    rule["run_request"] = 2
+    worker.round(cfg, key)
+    assert _begins(fake) == ["a.pdf"] and len([c for c in fake.calls if c[0] == "workbook"]) == 1
+    assert entry not in _syncs(fake)[-1]["watch"]
+    (folder / "a.pdf").unlink()
+    rule["run_request"] = 3
+    worker.round(cfg, key)
+    assert file_key not in folder_store.Ledger(key).files
+
+
+def test_tombstones_stay_when_the_scan_could_not_read_everything(tmp_path, monkeypatch):
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    ledger = folder_store.Ledger(key)
+    ledger.files[ledger.file_key("R1", "gone.pdf")] = {"rule": "R1", "relpath": "gone.pdf", "size": 3, "mtime": 1.0,
+                                                       "closed_at": 1.0}
+    ledger.save()
+    real = plan.scan
+
+    def flaky(path, errors=None):
+        if errors is not None:
+            errors.append(OSError("network share hiccup"))
+        return real(path, errors)
+
+    monkeypatch.setattr(plan, "scan", flaky)
+    rule.update(existing=1, run_request=1)
+    worker = FolderIntake(lambda: [cfg], client_factory=FakeClient([rule]))
+    worker.round(cfg, key)
+    assert ledger.file_key("R1", "gone.pdf") in folder_store.Ledger(key).files
+    monkeypatch.setattr(plan, "scan", real)
+    rule["run_request"] = 2
+    worker.round(cfg, key)
+    assert ledger.file_key("R1", "gone.pdf") not in folder_store.Ledger(key).files
+
+
+def _notice(n, **extra):
+    return {"id": f"pnotice_{n}", "title": f"T{n}", "text": f"text {n}", "created": float(n), "session": "", **extra}
+
+
+def test_notices_reach_the_tray_once_and_move_the_cursor(tmp_path):
+    cfg = _cfg()
+    key = folder_store.connection_key(cfg)
+    fake = FakeClient([])
+    fake.extra = {"notices": [_notice(100, session="sess-1"), {"id": "pnotice_x", "title": "no text field"},
+                              _notice(200), {**_notice(300), "created": "late"}, {**_notice(400), "id": 7}]}
+    got = []
+    worker = FolderIntake(lambda: [cfg], client_factory=fake, on_notices=lambda site, items: got.append((site, items)))
+    worker.round(cfg, key)
+    assert got == [("https://a.pearnly.com", [_notice(100, session="sess-1"), _notice(200)])]
+    assert folder_store.Ledger(key).notices_after == 200.0
+    fake.extra = {"notices": []}
+    worker.round(cfg, key)
+    assert _syncs(fake)[-1]["notices_after"] == 200.0 and len(got) == 1
+    fake.extra = {"notices": "junk"}
+    worker.round(cfg, key)
+    assert len(got) == 1
+
+
+def test_folder_only_members_hear_about_new_versions_from_the_sync(tmp_path):
+    from companion.version import VERSION
+
+    cfg = _cfg()
+    cfg.kind = "folder"
+    key = folder_store.connection_key(cfg)
+    fake = FakeClient([])
+    offered = []
+    worker = FolderIntake(lambda: [cfg], client_factory=fake, on_update=lambda v, u: offered.append((v, u)))
+    fake.extra = {"companion_latest": {"version": VERSION, "url": "/same.exe"}}
+    worker.round(cfg, key)
+    fake.extra = {"companion_latest": {"version": "99.0.0", "url": "/new.exe"}}
+    worker.round(cfg, key)
+    fake.extra = {"companion_latest": "junk"}
+    worker.round(cfg, key)
+    assert offered == [("99.0.0", "/new.exe")]
+
+
+def test_rules_run_in_the_order_the_server_sends(tmp_path, monkeypatch):
+    # F7：同一账套的存货进货任务由云端排在销售之前，本机不另排序
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    (folder.parent / "sales").mkdir()
+    _old(folder / "p.pdf", b"purchase")
+    _old(folder.parent / "sales" / "s.pdf", b"sale")
+    purchase = {**rule, "name": "P", "existing": 1, "run_request": 1}
+    sale = {**rule, "name": "A-sale", "folder": "sales", "existing": 1, "run_request": 1}
+    fake = FakeClient([purchase, sale])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)
+    assert [c[1]["rule"] for c in fake.calls if c[0] == "begin"] == ["P", "A-sale"]
