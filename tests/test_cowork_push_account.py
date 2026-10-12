@@ -90,5 +90,51 @@ class ExpressStockGroupTest(unittest.TestCase):
         self.assertEqual(config, {})
 
 
+class FolderTaskDefaultsTest(unittest.TestCase):
+    """重推定时任务的票带任务默认处理（2026-10-12）：调用方给了 fixed（后台推送）照用；没给按钩子取、去掉对方档；
+    被任务默认值决定的类别不写进账套记忆。纯 Python 替身版见 `test_cowork_push_fixed.py`。"""
+
+    PROVIDERS = {"p.one": lambda *args: {"account": "5300", "party": "S001"}, "p.two": lambda *args: None}
+
+    def test_given_fixed_does_not_ask_the_hook(self):
+        with mock.patch.object(frappe, "get_hooks") as hooks:
+            self.assertEqual(service._fixed("H1", "C1", BOOK["source_id"], {}), {})
+            self.assertEqual(service._fixed("H1", "C1", BOOK["source_id"], {"payment": "cash"}), {"payment": "cash"})
+        hooks.assert_not_called()
+
+    def test_missing_fixed_merges_the_providers_without_the_party(self):
+        with mock.patch.object(frappe, "get_hooks", return_value=list(self.PROVIDERS)), \
+                mock.patch.object(frappe, "get_attr", side_effect=self.PROVIDERS.get):
+            self.assertEqual(service._fixed("H1", "C1", BOOK["source_id"], None), {"account": "5300"})
+        with mock.patch.object(frappe, "get_hooks", return_value=[]):
+            self.assertIsNone(service._fixed("H1", "C1", BOOK["source_id"], None))
+
+    def save(self, items):
+        self.record = mock.Mock(return_value=True)
+        loaded = mock.Mock(doc=frappe._dict(name="C1"))
+        facts = (mock.Mock(account_set=BOOK["source_id"]), {}, {}, "purchase", {},
+                 {"reported_accounts": [{"code": "5400"}], "reported_suppliers": [{"code": "S001"}]})
+        with mock.patch.object(service.scope, "require"), \
+                mock.patch.object(service.storage, "read", return_value=frappe._dict(name="H1", workspace="W1", client="")), \
+                mock.patch.object(service.connections, "read_for_push", return_value=loaded), \
+                mock.patch.object(service, "_express_facts", return_value=facts), \
+                mock.patch.object(service, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(frappe, "throw", side_effect=_throw), \
+                mock.patch.object(frappe, "get_hooks", return_value=list(self.PROVIDERS)), \
+                mock.patch.object(frappe, "get_attr", side_effect=self.PROVIDERS.get), \
+                mock.patch.object(service.choice_store, "record", self.record):
+            return service.save_choices("H1", "C1", BOOK["source_id"], json.dumps(items))
+
+    def test_save_choices_refuses_kinds_the_task_decides(self):
+        with self.assertRaisesRegex(frappe.ValidationError, "cowork.choice.task_default"):
+            self.save([{"kind": "party", "subject": "s", "value": "S001"},
+                       {"kind": "account", "subject": "s", "value": "5400"}])
+        self.record.assert_not_called()  # 整批不记，账套记忆不变
+
+    def test_save_choices_records_what_the_task_does_not_decide(self):
+        self.assertEqual(self.save([{"kind": "party", "subject": "s", "value": "S001"}]), {"saved": 1})
+        self.record.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

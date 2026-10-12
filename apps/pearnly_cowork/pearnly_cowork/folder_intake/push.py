@@ -13,6 +13,9 @@
 - 小助手没连上（重启、断线）是暂时的：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好断线的，撤掉这次准备再重来，
   重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。小助手连着但没报上这份账套，照现有规则记失败；
   ``final`` 时一律照现有规则走。
+
+人在网页复核页、手机或 CC 里重推停下的文件夹票，由推送服务经 `cowork_push_fixed_choices` 钩子（`fixed_for`）
+取同一份规则默认值，与这里同一口径（2026-10-12）。
 """
 import hashlib
 import json
@@ -25,6 +28,8 @@ from pearnly_cowork.push.application import service as application
 
 HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"
+FILE = "Cowork Folder Intake File"
+RULE = "Cowork Folder Intake Rule"
 
 
 OFFLINE = "cowork.folder.companion_offline"
@@ -33,6 +38,39 @@ OFFLINE = "cowork.folder.companion_offline"
 def push_key(entry, history, version, attempt=0):
     seed = f"{entry}\0{history}\0{version}" + (f"\0{attempt}" if attempt else "")
     return "folder:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
+
+
+def rule_fixed(defaults_json):
+    """规则里定的「这一类都这样处理」→ 推送用的 ``fixed``（``{kind: value}``；「停下选」与没设的不算）。"""
+    defaults = json.loads(defaults_json or "{}")
+    return {kind: value for kind in contracts.KINDS if (value := contracts.default_value(defaults, kind))}
+
+
+def fixed_for(history, connection, account_set):
+    """推送服务的钩子（``cowork_push_fixed_choices``）：这张票来自某个定时任务、且这次推往该任务的连接与账套时，
+    回该任务的默认处理，否则 ``{}``。调用方已核过这张票的读取范围。
+
+    任务停用仍套用（这批票就是按该任务口径识别的）；任务删除后不套用（删任务连文件进度一起删）；推往别的连接或账套
+    不套用（科目、部门代码按账套有效）；回导工作簿生成的新票原件是工作簿，查不到任务，不套用。
+    每次推送都会经过这里：取不到一律回 ``{}``、不抛错，推送照常问人。"""
+    from pearnly_cowork.targets.identity import normalize_express_account_key
+
+    try:
+        source = frappe.db.get_value(HISTORY, history, "source_file")
+        if not source or not connection:
+            return {}
+        key = normalize_express_account_key(account_set)
+        for row in frappe.get_all(FILE, filters={"source_file": source}, fields=["rule", "histories_json"],
+                                  ignore_permissions=True):
+            if history not in json.loads(row.histories_json or "[]"):
+                continue
+            rule = frappe.db.get_value(RULE, row.rule, ["connection", "account_set_key", "defaults_json"],
+                                       as_dict=True)
+            if rule and rule.connection == connection and normalize_express_account_key(rule.account_set_key) == key:
+                return rule_fixed(rule.defaults_json)
+    except Exception:
+        frappe.log_error(title="Cowork folder task defaults lookup failed", message=frappe.get_traceback()[-1500:])
+    return {}
 
 
 def push_one(entry, rule, history, attempt=0, final=True):
@@ -47,8 +85,8 @@ def push_one(entry, rule, history, attempt=0, final=True):
     frappe.db.commit()  # choices_view 只看不记，结束时整笔回滚：先把前面的落掉
     # 规则里定的「这一类都这样处理」只管这条规则自己的票：推送时当作这张票的选择用，优先于账套里记过的，
     # 不写进账套记忆（用户 2026-10-08：以前记成整份账套的选择，网页推送和同账套的其他规则都会跟着变）。
-    defaults = json.loads(rule.defaults_json or "{}")
-    fixed = {kind: value for kind in contracts.KINDS if (value := contracts.default_value(defaults, kind))}
+    # 显式传（没有默认值时是 {}）：推送服务就不再按钩子查一遍。
+    fixed = rule_fixed(rule.defaults_json)
     try:
         view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind or None,
                                         fixed=fixed)
