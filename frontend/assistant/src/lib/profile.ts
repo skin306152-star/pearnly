@@ -29,3 +29,8 @@ const BRANDS = import.meta.glob("../brand/*.svg", { query: "?url", import: "defa
 export function assistantMascot(): string | null {
   return BRANDS["../brand/cc.svg"] || null;
 }
+
+/** CC 的标志（橘色圆角方块，同登录页、任务栏图标）：放在 Claude 放星形标志的位置（问候、侧栏、生成中）。 */
+export function assistantLogo(): string | null {
+  return BRANDS["../brand/cc-icon.svg"] || null;
+}

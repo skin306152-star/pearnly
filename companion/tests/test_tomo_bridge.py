@@ -76,3 +76,28 @@ def test_removing_a_folder_keeps_the_others_and_language_follows_the_page():
     bridge.call("lang", json.dumps({"lang": "th"}))
     bridge.call("lang", json.dumps({"lang": "en"}))   # 小助手只有中文 / 泰文：英文页面不改托盘语言
     assert langs == ["th"]
+
+
+def test_window_buttons_drawn_by_the_chat_page_reach_the_window():
+    """对话页自画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放经桥交给窗口，只在对话页上应答。"""
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+
+    class _Window:
+        def __init__(self):
+            self.calls = []
+
+        def window_action(self, action, args):
+            self.calls.append((action, args.get("step")))
+            return {"ok": True, "maximized": action == "maximize"}
+
+    window = _Window()
+    bridge = TomoBridge(_Settings(), allowed=lambda: True, window=lambda: window, set_lang=lambda _l: None)
+    assert json.loads(bridge.state())["window"] == {"frameless": True}   # 页面据此画自己的标题栏
+    assert json.loads(bridge.call("window", json.dumps({"action": "maximize"}))) == {"ok": True, "maximized": True}
+    bridge.call("window", json.dumps({"action": "zoom", "step": -1}))
+    assert window.calls == [("maximize", None), ("zoom", -1)]
+    refused = TomoBridge(_Settings(), allowed=lambda: False, window=lambda: window, set_lang=lambda _l: None)
+    assert json.loads(refused.call("window", json.dumps({"action": "close"})))["refused"] is True
+    assert window.calls == [("maximize", None), ("zoom", -1)]

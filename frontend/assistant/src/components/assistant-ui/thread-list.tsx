@@ -1,10 +1,9 @@
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { dayLabel, t } from "@/i18n";
+import { t } from "@/i18n";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -29,51 +28,35 @@ import {
   useState,
   type ComponentPropsWithoutRef,
   type FC,
-  type ReactNode,
 } from "react";
 
-// trailing：搜索框同一行右边放的东西（侧栏的收起按钮；侧栏顶部不再单独占一行，用户 2026-10-10）
-export const ThreadList: FC<{ trailing?: ReactNode }> = ({ trailing }) => {
-  const [search, setSearch] = useState("");
-
+// 侧栏 / 手机抽屉里的对话列表：搜索框、「新建」「定时任务」由外面统一排版（assistant.tsx），这里只排对话。
+export const ThreadList: FC<{ search?: string }> = ({ search = "" }) => {
   return (
     <ThreadListRoot>
-      <div className="flex items-center gap-1">
-        <div className="min-w-0 flex-1">
-          <ThreadListSearch value={search} onValueChange={setSearch} />
-        </div>
-        {trailing}
-      </div>
-      <ThreadListNew />
       <ThreadListItems searchQuery={search} />
     </ThreadListRoot>
   );
 };
 
+/** 搜索框（同 Claude 侧栏顶部）：样式见 globals.css 的 .cc-search。 */
 export const ThreadListSearch = forwardRef<
   HTMLInputElement,
-  Omit<ComponentPropsWithoutRef<typeof Input>, "value" | "onChange"> & {
-    value: string;
-    onValueChange: (value: string) => void;
-  }
->(({ className, value, onValueChange, ...props }, ref) => {
+  { value: string; onValueChange: (value: string) => void; autoFocus?: boolean }
+>(({ value, onValueChange, autoFocus }, ref) => {
   return (
-    <div data-slot="aui_thread-list-search" className="relative px-0.5 py-1">
-      <SearchIcon
-        data-slot="aui_thread-list-search-icon"
-        className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-      />
-      <Input
+    <label data-slot="aui_thread-list-search" className="cc-search">
+      <SearchIcon data-slot="aui_thread-list-search-icon" className="size-4 shrink-0" />
+      <input
         ref={ref}
         type="search"
         value={value}
+        autoFocus={autoFocus}
         onChange={(event) => onValueChange(event.target.value)}
         aria-label={t("search")}
         placeholder={t("search")}
-        className={cn("h-8 ps-8 text-sm", className)}
-        {...props}
       />
-    </div>
+    </label>
   );
 });
 
@@ -118,17 +101,6 @@ export const ThreadListItems: FC<
   );
 };
 
-const DAY_IN_MS = 86_400_000;
-
-const dateGroupLabel = (
-  date: Date | undefined,
-  startOfToday: number,
-): string => {
-  if (!date || date.getTime() >= startOfToday) return t("today");
-  if (date.getTime() >= startOfToday - DAY_IN_MS) return t("yesterday");
-  return dayLabel(date);
-};
-
 type ThreadListGroup = { label: string; indices: number[] };
 
 const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
@@ -156,12 +128,6 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
       return { filteredIndices, groups: null };
     }
 
-    const now = new Date();
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    ).getTime();
     const time = (index: number) =>
       dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER;
     const sorted = [...filteredIndices].sort((a, b) => time(b) - time(a));
@@ -169,16 +135,8 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
     const result: ThreadListGroup[] = [];
     const starred = sorted.filter((index) => itemsById.get(threadIds[index]!)?.custom?.starred);
     if (starred.length) result.push({ label: t("starred"), indices: starred });
-    for (const index of sorted) {
-      if (starred.includes(index)) continue;
-      const label = dateGroupLabel(dates[index], startOfToday);
-      const lastGroup = result[result.length - 1];
-      if (lastGroup?.label === label) {
-        lastGroup.indices.push(index);
-      } else {
-        result.push({ label, indices: [index] });
-      }
-    }
+    const rest = sorted.filter((index) => !starred.includes(index));
+    if (rest.length) result.push({ label: t("recents"), indices: rest });
     return { filteredIndices, groups: result };
   }, [threadIds, threadItems, query]);
 
@@ -186,7 +144,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
     return (
       <div
         data-slot="aui_thread-list-empty"
-        className="text-muted-foreground px-2.5 py-4 text-sm"
+        className="text-ink-3 px-2.5 py-4 text-sm"
       >
         {t("noResults")}
       </div>
@@ -205,10 +163,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
 
   return groups.map((group) => (
     <Fragment key={group.label}>
-      <div
-        data-slot="aui_thread-list-group-label"
-        className="text-muted-foreground px-2.5 pt-3 pb-1 text-xs font-medium"
-      >
+      <div data-slot="aui_thread-list-group-label" className="cc-section-label">
         {group.label}
       </div>
       {group.indices.map((index) => (
@@ -232,18 +187,14 @@ export const ThreadListNew = forwardRef<
         ref={ref}
         variant="ghost"
         data-slot="aui_thread-list-new"
-        className={cn(
-          "hover:bg-muted data-active:bg-muted h-8 justify-start gap-2 rounded-md px-2.5 text-sm font-normal",
-          className,
-        )}
+        className={cn("cc-nav-item justify-start font-normal", className)}
         {...props}
       >
         {children ?? (
           <>
-            <PlusIcon
-              data-slot="aui_thread-list-new-icon"
-              className="size-4 shrink-0"
-            />
+            <span className="bg-subtle text-ink flex size-6 shrink-0 items-center justify-center rounded-full">
+              <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-3.5" />
+            </span>
             <span
               data-slot="aui_thread-list-new-label"
               className={cn("whitespace-nowrap", labelClassName)}
@@ -285,7 +236,7 @@ export const ThreadListItem: FC = () => {
   return (
     <ThreadListItemPrimitive.Root
       data-slot="aui_thread-list-item"
-      className="group hover:bg-muted focus-visible:bg-muted data-active:bg-muted has-focus-visible:bg-muted has-data-[state=open]:bg-muted relative flex h-8 items-center rounded-md transition-colors focus-visible:outline-none"
+      className="group hover:bg-hover focus-visible:bg-hover data-active:bg-active has-focus-visible:bg-hover has-data-[state=open]:bg-hover text-ink-2 data-active:text-ink relative flex h-8 items-center rounded-sm transition-colors focus-visible:outline-none"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
@@ -331,7 +282,7 @@ const ThreadListItemRename: FC<{ onDone: () => void }> = ({ onDone }) => {
         if (e.key === "Enter") save();
         if (e.key === "Escape") onDone();
       }}
-      className="h-8 w-full rounded-md border bg-white px-2.5 text-sm outline-none"
+      className="cc-input w-full"
     />
   );
 };
@@ -339,8 +290,7 @@ const ThreadListItemRename: FC<{ onDone: () => void }> = ({ onDone }) => {
 const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
   const aui = useAui();
   const starred = useAuiState((s) => !!s.threadListItem.custom?.starred);
-  const itemClass =
-    "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none";
+  const itemClass = "cc-menu-item";
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
       <ThreadListItemMorePrimitive.Trigger asChild>
@@ -348,7 +298,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
           variant="ghost"
           size="icon"
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-accent absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
+          className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
           <span className="sr-only">{t("more")}</span>
@@ -359,7 +309,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         align="start"
         sideOffset={6}
         data-slot="aui_thread-list-item-more-content"
-        className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[60] min-w-32 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm"
+        className="cc-menu !min-w-36"
       >
         <ThreadListItemMorePrimitive.Item
           className={itemClass}
@@ -375,7 +325,8 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         <ThreadListItemPrimitive.Delete asChild>
           <ThreadListItemMorePrimitive.Item
             data-slot="aui_thread-list-item-more-item"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+            data-danger=""
+            className="cc-menu-item"
           >
             <TrashIcon className="size-4" />
             {t("delete")}

@@ -9,8 +9,29 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, monospace;
+  --font-sans: var(--cc-font-sans);
+  --font-serif: var(--cc-font-serif);
+  --font-mono: var(--cc-font-mono);
+  --color-brand: var(--cc-brand);
+  --color-brand-hover: var(--cc-brand-hover);
+  --color-brand-ink: var(--cc-brand-ink);
+  --color-brand-soft: var(--cc-brand-soft);
+  --color-brand-soft-ink: var(--cc-brand-soft-ink);
+  --color-app: var(--cc-bg-app);
+  --color-surface: var(--cc-bg-surface);
+  --color-subtle: var(--cc-bg-subtle);
+  --color-hover: var(--cc-bg-hover);
+  --color-active: var(--cc-bg-active);
+  --color-overlay: var(--cc-bg-overlay);
+  --color-ink: var(--cc-ink);
+  --color-ink-2: var(--cc-ink-2);
+  --color-ink-3: var(--cc-ink-3);
+  --color-ink-4: var(--cc-ink-4);
+  --color-line: var(--cc-line);
+  --color-line-strong: var(--cc-line-strong);
+  --color-danger: var(--cc-danger);
+  --color-danger-soft: var(--cc-danger-soft);
+  --color-success: var(--cc-success);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -35,10 +56,12 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xs: var(--cc-radius-xs);
+  --radius-sm: var(--cc-radius-sm);
+  --radius-md: var(--cc-radius-md);
+  --radius-lg: var(--cc-radius-lg);
+  --radius-xl: var(--cc-radius-xl);
+  --radius-bubble: var(--cc-radius-bubble);
   --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both;
 
   @keyframes collapsible-down {
@@ -67,64 +90,136 @@
   }
 }
 
+/* ── CC 设计变量（唯一来源）：颜色、圆角、阴影、字体、动效都在这里，组件只引用变量 / 下面的共用样式类，不写死数值。
+   版式与配色照 Claude 客户端（暖白底、近黑字、细边线），强调色是 CC 的橘黄（logo 同色）。深浅色跟随系统（main.tsx 给 <html> 加 .dark）。 */
 :root {
-  --radius: 0.625rem;
-  /* 纯白底、近黑字；选中与悬停是浅灰 */
-  --background: #ffffff;
-  --foreground: #141413;
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: #f0f0f0;
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: oklch(0.705 0.015 286.067);
-  --sidebar: #ffffff;
-  --sidebar-foreground: #141413;
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: #f0f0f0;
-  --sidebar-accent-foreground: #141413;
-  --sidebar-border: #e5e5e5;
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  --cc-brand: #f28c28;            /* CC logo 橘黄 */
+  --cc-brand-hover: #e07a17;
+  --cc-brand-ink: #ffffff;        /* 橘黄底上的字 */
+  --cc-brand-soft: #fdecd9;       /* 用户气泡底 */
+  --cc-brand-soft-ink: #4a2a0c;   /* 用户气泡字 */
+  --cc-brand-ring: rgb(242 140 40 / 0.35);
+
+  --cc-bg-app: #faf9f5;           /* 主区域 */
+  --cc-bg-sidebar: #f5f4ee;       /* 侧栏 / 抽屉 */
+  --cc-bg-surface: #ffffff;       /* 输入框、卡片、菜单 */
+  --cc-bg-subtle: #f0eee6;        /* 选中、图标底、代码块 */
+  --cc-bg-hover: rgb(20 20 19 / 0.05);
+  --cc-bg-active: rgb(20 20 19 / 0.08);
+  --cc-bg-overlay: rgb(20 20 19 / 0.35);
+
+  --cc-ink: #141413;              /* 正文 */
+  --cc-ink-2: #3d3d3a;            /* 次要 */
+  --cc-ink-3: #73726c;            /* 说明、分组标题 */
+  --cc-ink-4: #a3a19a;            /* 占位、禁用 */
+  --cc-line: rgb(31 30 29 / 0.12);
+  --cc-line-strong: rgb(31 30 29 / 0.24);
+  --cc-danger: #c4373a;
+  --cc-danger-soft: #fdecec;
+  --cc-success: #2f7d4f;
+  --cc-on-danger: #ffffff;
+  --cc-status-online: #27ae60;
+  --cc-status-processing: #b7950b;
+  --cc-status-attention: #d35400;
+  --cc-status-offline: #c0392b;
+  --cc-status-connecting: var(--cc-ink-4);
+  --cc-status-paused: var(--cc-ink-4);
+
+  --cc-shadow-composer: 0 4px 20px -6px rgb(20 20 19 / 0.08), 0 1px 2px rgb(20 20 19 / 0.04);
+  --cc-shadow-pop: 0 10px 32px -8px rgb(20 20 19 / 0.18), 0 2px 6px rgb(20 20 19 / 0.06);
+  --cc-shadow-pill: 0 6px 18px -4px rgb(20 20 19 / 0.22);
+
+  --cc-radius-xs: 6px;
+  --cc-radius-sm: 8px;
+  --cc-radius-md: 12px;
+  --cc-radius-lg: 16px;
+  --cc-radius-xl: 20px;           /* 输入框 */
+  --cc-radius-bubble: 18px;
+  --cc-radius-full: 9999px;
+
+  --cc-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --cc-font-serif: "Tiempos Text", ui-serif, Georgia, "Noto Serif Thai", "Songti SC", "Noto Serif SC", serif;
+  --cc-font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+
+  --cc-sidebar-w: 18rem;          /* 侧栏宽（同 Claude 桌面端） */
+  --cc-sidebar-w-mobile: 84vw;    /* 手机抽屉宽 */
+  --cc-thread-w: 48rem;           /* 对话内容最大宽 */
+  --cc-titlebar-h: 40px;          /* 桌面端自画标题栏 */
+  --cc-win-close: #c42b1c;        /* Windows 关闭按钮的系统红（深浅色同一个） */
+  --cc-win-close-ink: #ffffff;
+  --cc-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cc-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --cc-dur-fast: 120ms;
+  --cc-dur: 200ms;
+  --cc-dur-slow: 320ms;
+
+  --radius: var(--cc-radius-md);
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+  --cc-brand: #f5963a;
+  --cc-brand-hover: #f7a654;
+  --cc-brand-ink: #1f1e1d;
+  --cc-brand-soft: #4a2f17;
+  --cc-brand-soft-ink: #fde3c6;
+  --cc-brand-ring: rgb(245 150 58 / 0.4);
+
+  --cc-bg-app: #262624;
+  --cc-bg-sidebar: #1f1e1d;
+  --cc-bg-surface: #30302e;
+  --cc-bg-subtle: #3a3a37;
+  --cc-bg-hover: rgb(250 249 245 / 0.06);
+  --cc-bg-active: rgb(250 249 245 / 0.1);
+  --cc-bg-overlay: rgb(0 0 0 / 0.55);
+
+  --cc-ink: #faf9f5;
+  --cc-ink-2: #e5e3da;
+  --cc-ink-3: #a6a39a;
+  --cc-ink-4: #75736c;
+  --cc-line: rgb(250 249 245 / 0.1);
+  --cc-line-strong: rgb(250 249 245 / 0.2);
+  --cc-danger: #f07a7c;
+  --cc-danger-soft: rgb(240 122 124 / 0.12);
+  --cc-success: #6cc28f;
+  --cc-on-danger: #1f1e1d;
+  --cc-status-online: #5cc489;
+  --cc-status-processing: #e0c04a;
+  --cc-status-attention: #f08a4b;
+  --cc-status-offline: #f07a7c;
+
+  --cc-shadow-composer: 0 4px 20px -6px rgb(0 0 0 / 0.4);
+  --cc-shadow-pop: 0 10px 32px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(250 249 245 / 0.06);
+  --cc-shadow-pill: 0 6px 18px -4px rgb(0 0 0 / 0.5);
+}
+
+/* shadcn / assistant-ui 自带组件用的变量，全部接到上面的 CC 变量（不另设一套数值） */
+:root, .dark {
+  --background: var(--cc-bg-app);
+  --foreground: var(--cc-ink);
+  --card: var(--cc-bg-surface);
+  --card-foreground: var(--cc-ink);
+  --popover: var(--cc-bg-surface);
+  --popover-foreground: var(--cc-ink);
+  --primary: var(--cc-ink);
+  --primary-foreground: var(--cc-bg-app);
+  --secondary: var(--cc-bg-subtle);
+  --secondary-foreground: var(--cc-ink);
+  --muted: var(--cc-bg-subtle);
+  --muted-foreground: var(--cc-ink-3);
+  --accent: var(--cc-bg-hover);
+  --accent-foreground: var(--cc-ink);
+  --destructive: var(--cc-danger);
+  --border: var(--cc-line);
+  --input: var(--cc-line);
+  --ring: var(--cc-brand-ring);
+  --sidebar: var(--cc-bg-sidebar);
+  --sidebar-foreground: var(--cc-ink);
+  --sidebar-primary: var(--cc-brand);
+  --sidebar-primary-foreground: var(--cc-brand-ink);
+  --sidebar-accent: var(--cc-bg-active);
+  --sidebar-accent-foreground: var(--cc-ink);
+  --sidebar-border: var(--cc-line);
+  --sidebar-ring: var(--cc-brand-ring);
 }
 
 @layer base {
@@ -132,7 +227,7 @@
     @apply border-border outline-ring/50;
     /* 细滚动条、不带上下箭头（Windows 桌面端默认是带箭头的粗条），同 claude.ai */
     scrollbar-width: thin;
-    scrollbar-color: rgb(0 0 0 / 0.18) transparent;
+    scrollbar-color: var(--cc-line-strong) transparent;
   }
   :root {
     color-scheme: light;
@@ -143,6 +238,190 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ── 共用样式类（组件只用这些 + 上面的变量）：同 Claude 客户端的尺寸、圆角与手感 ───────────────────────── */
+@layer components {
+  .cc-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 2rem; height: 2rem; border-radius: var(--cc-radius-sm); color: var(--cc-ink-3);
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-icon-btn:hover, .cc-icon-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-icon-btn:active { transform: scale(0.94); }
+  .cc-icon-btn:disabled { opacity: 0.35; pointer-events: none; }
+  .cc-icon-btn svg { width: 1.125rem; height: 1.125rem; }
+
+  /* 手机顶栏的圆形按钮（同 Claude 手机端） */
+  .cc-round-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 2.75rem; height: 2.75rem; border-radius: var(--cc-radius-full);
+    background: var(--cc-bg-surface); color: var(--cc-ink-2); border: 1px solid var(--cc-line); box-shadow: var(--cc-shadow-composer);
+    transition: transform var(--cc-dur-fast) var(--cc-ease), background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-round-btn:active { transform: scale(0.92); }
+  .cc-round-btn svg { width: 1.25rem; height: 1.25rem; }
+
+  .cc-nav-item {
+    display: flex; align-items: center; gap: 0.625rem; width: 100%; height: 2rem; padding: 0 0.625rem;
+    border-radius: var(--cc-radius-sm); color: var(--cc-ink-2); font-size: 0.875rem; text-align: start; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-nav-item:hover, .cc-nav-item:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-nav-item[data-active], .cc-nav-item[data-active="true"] { background: var(--cc-bg-active); color: var(--cc-ink); }
+  .cc-nav-item svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+  .cc-section-label { padding: 1rem 0.625rem 0.25rem; color: var(--cc-ink-3); font-size: 0.75rem; font-weight: 500; }
+
+  .cc-search {
+    display: flex; align-items: center; gap: 0.5rem; height: 2.25rem; padding: 0 0.75rem; border-radius: var(--cc-radius-sm);
+    background: var(--cc-bg-surface); border: 1px solid var(--cc-line); color: var(--cc-ink-3);
+    transition: border-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-search:focus-within { border-color: var(--cc-line-strong); }
+  .cc-search input { flex: 1; min-width: 0; background: transparent; outline: none; color: var(--cc-ink); font-size: 0.875rem; }
+  .cc-search input::placeholder { color: var(--cc-ink-4); }
+
+  .cc-composer {
+    display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding: 0.875rem 0.875rem 0.625rem;
+    background: var(--cc-bg-surface); border: 1px solid var(--cc-line); border-radius: var(--cc-radius-xl);
+    box-shadow: var(--cc-shadow-composer); transition: border-color var(--cc-dur) var(--cc-ease), box-shadow var(--cc-dur) var(--cc-ease);
+  }
+  .cc-composer:focus-within { border-color: var(--cc-line-strong); }
+  .cc-composer[data-dragging="true"] { border-style: dashed; border-color: var(--cc-brand); }
+  .cc-composer textarea { color: var(--cc-ink); }
+  .cc-composer textarea::placeholder { color: var(--cc-ink-4); }
+
+  .cc-send {
+    display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem;
+    border-radius: var(--cc-radius-sm); background: var(--cc-brand); color: var(--cc-brand-ink);
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease-spring), opacity var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-send:hover { background: var(--cc-brand-hover); }
+  .cc-send:active { transform: scale(0.9); }
+  .cc-send:disabled { opacity: 0.35; pointer-events: none; }
+  .cc-send svg { width: 1.125rem; height: 1.125rem; }
+
+  .cc-attach {
+    display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem;
+    border-radius: var(--cc-radius-full); border: 1px solid var(--cc-line); color: var(--cc-ink-2);
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-attach:hover { background: var(--cc-bg-hover); }
+  .cc-attach:active { transform: scale(0.92); }
+  .cc-attach svg { width: 1.125rem; height: 1.125rem; }
+
+  /* 对话气泡：用户一侧是 CC 橘黄的浅底，出现时轻弹一下（同 Claude 的气泡形状） */
+  .cc-bubble-user {
+    border-radius: var(--cc-radius-bubble); background: var(--cc-brand-soft); color: var(--cc-brand-soft-ink);
+    padding: 0.625rem 1rem; overflow-wrap: anywhere; white-space: pre-wrap;
+    animation: cc-bubble-in var(--cc-dur-slow) var(--cc-ease-spring) both; transform-origin: bottom right;
+  }
+  .cc-reply {
+    color: var(--cc-ink); font-family: var(--cc-font-serif); font-variant-numeric: lining-nums tabular-nums;
+    animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
+  }
+  /* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
+  [data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active] { background: transparent; color: var(--cc-ink-2); }
+  /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
+  .cc-drawer [data-slot="aui_thread-list-item"] { height: 2.75rem; font-size: 1rem; }
+  .cc-drawer [data-slot="aui_thread-list-group-label"] { font-size: 0.8125rem; padding-top: 1.25rem; }
+
+  .cc-card { background: var(--cc-bg-surface); border: 1px solid var(--cc-line); border-radius: var(--cc-radius-md); }
+  .cc-card-hover { transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease); }
+  .cc-card-hover:hover { border-color: var(--cc-line-strong); box-shadow: var(--cc-shadow-composer); }
+
+  .cc-menu {
+    z-index: 60; min-width: 14rem; padding: 0.375rem; background: var(--cc-bg-surface); color: var(--cc-ink);
+    border: 1px solid var(--cc-line); border-radius: var(--cc-radius-md); box-shadow: var(--cc-shadow-pop);
+    animation: cc-pop-in var(--cc-dur) var(--cc-ease) both;
+  }
+  .cc-menu-item {
+    display: flex; align-items: center; gap: 0.625rem; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-sm);
+    font-size: 0.875rem; cursor: pointer; outline: none; user-select: none;
+  }
+  .cc-menu-item:hover, .cc-menu-item:focus, .cc-menu-item[data-highlighted], .cc-menu-item[data-state="open"] { background: var(--cc-bg-hover); }
+  .cc-menu-item svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+  .cc-menu-item[data-danger] { color: var(--cc-danger); }
+  .cc-menu-item[data-danger]:hover, .cc-menu-item[data-danger]:focus { background: var(--cc-danger-soft); }
+  .cc-menu-sep { height: 1px; margin: 0.25rem 0; background: var(--cc-line); }
+
+  /* 手机抽屉底部「新建」胶囊（同 Claude 手机端：深色里白底黑字，浅色里黑底白字） */
+  .cc-pill {
+    display: inline-flex; align-items: center; gap: 0.5rem; height: 3rem; padding: 0 1.25rem; border-radius: var(--cc-radius-full);
+    background: var(--cc-ink); color: var(--cc-bg-app); font-size: 0.9375rem; font-weight: 500; box-shadow: var(--cc-shadow-pill);
+    transition: transform var(--cc-dur-fast) var(--cc-ease-spring);
+  }
+  .cc-pill:active { transform: scale(0.95); }
+  .cc-pill svg { width: 1.125rem; height: 1.125rem; }
+
+  .cc-avatar {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2rem; height: 2rem;
+    border-radius: var(--cc-radius-full); background: var(--cc-bg-subtle); color: var(--cc-ink-2); font-size: 0.75rem; font-weight: 600;
+  }
+  .cc-chip {
+    display: inline-flex; align-items: center; gap: 0.375rem; height: 1.5rem; padding: 0 0.5rem; border-radius: var(--cc-radius-full);
+    background: var(--cc-bg-subtle); color: var(--cc-ink-2); font-size: 0.75rem;
+  }
+  .cc-chip[data-tone="ok"] { color: var(--cc-success); }
+  .cc-chip[data-tone="bad"] { color: var(--cc-danger); background: var(--cc-danger-soft); }
+
+  .cc-switch {
+    position: relative; width: 2.25rem; height: 1.25rem; border-radius: var(--cc-radius-full); background: var(--cc-line-strong);
+    transition: background-color var(--cc-dur) var(--cc-ease); flex-shrink: 0;
+  }
+  .cc-switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 1rem; height: 1rem; border-radius: var(--cc-radius-full);
+    background: var(--cc-bg-surface); box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); transition: transform var(--cc-dur) var(--cc-ease-spring);
+  }
+  .cc-switch[data-on="true"] { background: var(--cc-brand); }
+  .cc-switch[data-on="true"]::after { transform: translateX(1rem); }
+
+  .cc-field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--cc-ink-2); }
+  .cc-input {
+    height: 2.25rem; padding: 0 0.75rem; border-radius: var(--cc-radius-sm); border: 1px solid var(--cc-line); background: var(--cc-bg-surface);
+    color: var(--cc-ink); font-size: 0.875rem; outline: none; transition: border-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-input:focus { border-color: var(--cc-brand); box-shadow: 0 0 0 3px var(--cc-brand-ring); }
+  .cc-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.875rem;
+    border-radius: var(--cc-radius-sm); font-size: 0.875rem; font-weight: 500; border: 1px solid var(--cc-line); color: var(--cc-ink);
+    background: var(--cc-bg-surface); transition: background-color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-btn:hover { background: var(--cc-bg-hover); }
+  .cc-btn:active { transform: scale(0.97); }
+  .cc-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); border-color: transparent; }
+  .cc-btn[data-primary]:hover { opacity: 0.88; }
+  .cc-btn[data-brand] { background: var(--cc-brand); color: var(--cc-brand-ink); border-color: transparent; }
+  .cc-btn[data-brand]:hover { background: var(--cc-brand-hover); }
+  .cc-btn[data-danger] { color: var(--cc-danger); }
+
+  /* 桌面端自画标题栏（同 Claude 桌面端：左边菜单 / 侧栏 / 后退 / 前进，右边最小化 / 最大化 / 关闭） */
+  .cc-titlebar { display: flex; align-items: center; height: var(--cc-titlebar-h); padding: 0 0.375rem; gap: 0.125rem; user-select: none; }
+  .cc-winbtn {
+    display: inline-flex; align-items: center; justify-content: center; width: 2.875rem; height: var(--cc-titlebar-h);
+    color: var(--cc-ink-2); transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-winbtn:hover { background: var(--cc-bg-hover); }
+  .cc-winbtn[data-close]:hover { background: var(--cc-win-close); color: var(--cc-win-close-ink); }
+  .cc-winbtn svg { width: 1rem; height: 1rem; }
+
+  .cc-greeting { font-family: var(--cc-font-serif); color: var(--cc-ink); font-weight: 400; letter-spacing: -0.01em; }
+  .cc-logo { flex-shrink: 0; border-radius: 22%; }
+
+  .cc-enter { animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both; }
+  .cc-drawer-in { animation: cc-drawer-in var(--cc-dur-slow) var(--cc-ease) both; }
+}
+
+@keyframes cc-bubble-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
+@keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+/* 生成中：CC 标志轻轻呼吸（同 Claude 回答时星形在转） */
+.cc-thinking-mark { animation: cc-breathe 1.6s var(--cc-ease) infinite; transform-origin: center; }
+@keyframes cc-breathe { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(0.86) rotate(-8deg); opacity: 0.7; } }
+@media (prefers-reduced-motion: reduce) {
+  .cc-bubble-user, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-thinking-mark { animation: none; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
@@ -167,7 +446,7 @@
 
 /* 等待中的三个点（components/typing-dots.tsx）：同智能体小人胸前的三个点，黑色深 → 浅，依次跳起 */
 .typing-dots { display: inline-flex; align-items: center; gap: 6px; height: 1.65rem; vertical-align: middle; }
-.typing-dots i { width: 9px; height: 9px; border-radius: 50%; background: #1a1a18; animation: typing-hop 1.2s ease-in-out infinite; }
+.typing-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--cc-brand); animation: typing-hop 1.2s ease-in-out infinite; }
 .typing-dots i:nth-child(2) { opacity: .72; animation-delay: .15s; }
 .typing-dots i:nth-child(3) { opacity: .42; animation-delay: .3s; }
 .typing-dots-sm { gap: 3px; height: auto; }

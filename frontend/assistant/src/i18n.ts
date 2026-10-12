@@ -30,8 +30,6 @@ const MESSAGES = {
     tools: "Tools",
     newChat: "New chat",
     search: "Search",
-    today: "Today",
-    yesterday: "Yesterday",
     untitled: "New chat",
     noResults: "No results",
     archive: "Archive",
@@ -51,6 +49,21 @@ const MESSAGES = {
     afternoon: "Good afternoon",
     evening: "Good evening",
     sidebar: "Toggle sidebar",
+    cancel: "Cancel",
+    scheduledTasks: "Scheduled tasks",
+    recents: "Recents",
+    newChatPill: "New chat",
+    menu: "Menu",
+    back: "Back",
+    forward: "Forward",
+    minimize: "Minimize",
+    maximize: "Maximize",
+    restore: "Restore",
+    closeWindow: "Close",
+    reload: "Reload",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    actualSize: "Actual size",
   },
   zh: {
     language: "语言",
@@ -81,8 +94,6 @@ const MESSAGES = {
     tools: "工具",
     newChat: "新建",
     search: "搜索",
-    today: "今天",
-    yesterday: "昨天",
     untitled: "新对话",
     noResults: "没有结果",
     archive: "归档",
@@ -102,6 +113,21 @@ const MESSAGES = {
     afternoon: "下午好",
     evening: "晚上好",
     sidebar: "切换侧栏",
+    cancel: "取消",
+    scheduledTasks: "定时任务",
+    recents: "最近",
+    newChatPill: "新建会话",
+    menu: "菜单",
+    back: "后退",
+    forward: "前进",
+    minimize: "最小化",
+    maximize: "最大化",
+    restore: "还原",
+    closeWindow: "关闭",
+    reload: "重新加载",
+    zoomIn: "放大",
+    zoomOut: "缩小",
+    actualSize: "实际大小",
   },
   th: {
     language: "ภาษา",
@@ -132,8 +158,6 @@ const MESSAGES = {
     tools: "เครื่องมือ",
     newChat: "สร้างใหม่",
     search: "ค้นหา",
-    today: "วันนี้",
-    yesterday: "เมื่อวาน",
     untitled: "แชทใหม่",
     noResults: "ไม่พบผลลัพธ์",
     archive: "เก็บถาวร",
@@ -153,6 +177,21 @@ const MESSAGES = {
     afternoon: "สวัสดีตอนบ่าย",
     evening: "สวัสดีตอนเย็น",
     sidebar: "เปิด/ปิดแถบด้านข้าง",
+    cancel: "ยกเลิก",
+    scheduledTasks: "งานตามกำหนดเวลา",
+    recents: "ล่าสุด",
+    newChatPill: "แชทใหม่",
+    menu: "เมนู",
+    back: "ย้อนกลับ",
+    forward: "ไปข้างหน้า",
+    minimize: "ย่อ",
+    maximize: "ขยายเต็มจอ",
+    restore: "คืนขนาด",
+    closeWindow: "ปิด",
+    reload: "โหลดใหม่",
+    zoomIn: "ขยาย",
+    zoomOut: "ย่อขนาด",
+    actualSize: "ขนาดจริง",
   },
 } as const;
 
@@ -162,11 +201,6 @@ export const lang = (document.documentElement.lang || "th").slice(0, 2);
 
 export function t(key: Key): string {
   return ((MESSAGES as Record<string, Record<Key, string>>)[lang] ?? MESSAGES.th)[key];
-}
-
-/** 历史分组标题里的日期：按站点语言显示「10月8日」这类。 */
-export function dayLabel(date: Date): string {
-  return new Intl.DateTimeFormat(lang, { month: "long", day: "numeric" }).format(date);
 }
 
 export function greeting(now = new Date()): string {

@@ -71,3 +71,21 @@ export async function upload<T>(method: string, args: Record<string, string>, fi
   });
   return parse<T>(res);
 }
+
+/** 其他 App 的白名单方法（例如 Cowork 的定时任务 `pearnly_cowork.folder_intake.api.*`），同一套登录与错误处理。 */
+export async function getMethod<T>(method: string, args: Record<string, string | number | undefined> = {}): Promise<T> {
+  const query = new URLSearchParams();
+  for (const [k, v] of Object.entries(args)) if (v !== undefined && v !== null) query.set(k, String(v));
+  const res = await fetch(`/api/method/${method}?${query}`, { cache: "no-store", credentials: "same-origin" });
+  return parse<T>(res);
+}
+
+export async function postMethod<T>(method: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`/api/method/${method}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+    body: JSON.stringify(args),
+  });
+  return parse<T>(res);
+}

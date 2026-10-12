@@ -9,6 +9,9 @@
 - 网页内核只在第一次打开 Tomo 时加载（开机自启时不占内存），之后一直留着，通知才能在窗口关着时到达。
 - 没有「文件 / 视图」菜单栏（同 Claude 桌面端）：设置在对话页左下角菜单里，「此电脑」一栏经 tomo_bridge 读写本机；
   快捷键 Ctrl+N 新对话、Ctrl+, 设置、Ctrl+R 重新加载、Ctrl+= / Ctrl+- / Ctrl+0 缩放。
+- 没有系统标题栏（同 Claude 桌面端，用户 2026-10-12）：对话页自己在顶上画菜单 / 侧栏 / 后退 / 前进与最小化 / 最大化 / 关闭，
+  按钮经 tomo_bridge 的 window 调这里的 `window_action`。登录页等别的页面没有那一排，由这里画一条简洁标题栏（_ChromeBar）；
+  四周留几像素给系统原生的拉伸（最大化时去掉），贴边分屏照常。
 """
 from __future__ import annotations
 
@@ -17,8 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QFile, QIODevice, QSettings, QStandardPaths, Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QFile, QIODevice, QPoint, QSettings, QStandardPaths, Qt, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication, QKeySequence, QPalette, QShortcut
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import (
     QWebEngineDownloadRequest,
@@ -36,6 +39,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -107,6 +112,106 @@ class TomoPage(QWebEnginePage):
 
 OPEN_WINDOW = None   # 进程内唯一的 Tomo 窗口（gui_tray._window_open 看它是否正在用）
 
+RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）
+# 窗口底色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app，浅 / 深各一个），拉伸边与登录页标题栏用它
+APP_BG = {"light": "#faf9f5", "dark": "#262624"}
+APP_INK = {"light": "#141413", "dark": "#faf9f5"}
+
+
+def _scheme() -> str:
+    try:
+        return "dark" if QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Dark else "light"
+    except AttributeError:
+        return "light"
+
+
+def _edges(widget: QWidget, pos: QPoint):
+    """鼠标在窗口哪条边 / 哪个角上（拉伸用）。"""
+    m, w, h = RESIZE_MARGIN, widget.width(), widget.height()
+    edges = Qt.Edge(0)
+    if pos.x() <= m:
+        edges |= Qt.Edge.LeftEdge
+    if pos.x() >= w - m:
+        edges |= Qt.Edge.RightEdge
+    if pos.y() <= m:
+        edges |= Qt.Edge.TopEdge
+    if pos.y() >= h - m:
+        edges |= Qt.Edge.BottomEdge
+    return edges
+
+
+_CURSORS = {
+    Qt.Edge.LeftEdge: Qt.CursorShape.SizeHorCursor, Qt.Edge.RightEdge: Qt.CursorShape.SizeHorCursor,
+    Qt.Edge.TopEdge: Qt.CursorShape.SizeVerCursor, Qt.Edge.BottomEdge: Qt.CursorShape.SizeVerCursor,
+    Qt.Edge.LeftEdge | Qt.Edge.TopEdge: Qt.CursorShape.SizeFDiagCursor,
+    Qt.Edge.RightEdge | Qt.Edge.BottomEdge: Qt.CursorShape.SizeFDiagCursor,
+    Qt.Edge.RightEdge | Qt.Edge.TopEdge: Qt.CursorShape.SizeBDiagCursor,
+    Qt.Edge.LeftEdge | Qt.Edge.BottomEdge: Qt.CursorShape.SizeBDiagCursor,
+}
+
+
+class _Frame(QWidget):
+    """窗口内容外面一圈：鼠标在边上时给拉伸光标，按下交给系统拉伸（窗口没有系统边框）。"""
+
+    def __init__(self, window: "TomoWindow") -> None:
+        super().__init__(window)
+        self._window = window
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event) -> None:
+        edges = Qt.Edge(0) if self._window.isMaximized() else _edges(self, event.position().toPoint())
+        self.setCursor(_CURSORS.get(edges, Qt.CursorShape.ArrowCursor))
+
+    def mousePressEvent(self, event) -> None:
+        edges = _edges(self, event.position().toPoint())
+        if event.button() == Qt.MouseButton.LeftButton and edges and not self._window.isMaximized():
+            self._window.windowHandle().startSystemResize(edges)
+
+
+class _ChromeBar(QWidget):
+    """登录页等非对话页上的简洁标题栏（对话页自己画标题栏，进了对话页这条就藏起来）。"""
+
+    def __init__(self, window: "TomoWindow", icon) -> None:
+        super().__init__(window)
+        self._window = window
+        self.setFixedHeight(36)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(12, 0, 0, 0)
+        row.setSpacing(8)
+        mark = QLabel(self)
+        mark.setPixmap(icon.pixmap(16, 16))
+        row.addWidget(mark)
+        self.title = QLabel("CC", self)
+        row.addWidget(self.title)
+        row.addStretch(1)
+        self.buttons = []
+        for glyph, action, name in (("\u2014", lambda: window.showMinimized(), "min"),
+                                    ("\u2610", window.toggle_maximized, "max"),
+                                    ("\u2715", window.close, "close")):
+            button = QToolButton(self)
+            button.setText(glyph)
+            button.setObjectName(name)
+            button.setFixedSize(46, 36)
+            button.clicked.connect(action)
+            row.addWidget(button)
+            self.buttons.append(button)
+        self.restyle()
+
+    def restyle(self) -> None:
+        scheme = _scheme()
+        self.setStyleSheet(
+            f"QWidget {{ background: {APP_BG[scheme]}; color: {APP_INK[scheme]}; }}"
+            "QToolButton { border: none; font-size: 12px; }"
+            "QToolButton:hover { background: rgba(127,127,127,0.18); }"
+            "QToolButton#close:hover { background: #c42b1c; color: #ffffff; }")
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._window.windowHandle().startSystemMove()
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        self._window.toggle_maximized()
+
 
 class TomoWindow(QMainWindow):
     def __init__(self, *, lang: str, icon, notify, bridge=None) -> None:
@@ -121,6 +226,7 @@ class TomoWindow(QMainWindow):
         self.setWindowTitle("CC")
         self.setWindowIcon(icon)
         self.setMinimumSize(420, 520)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
 
         folder = APPDATA_DIR / "tomo"
         self.profile = QWebEngineProfile("tomo", self)
@@ -140,8 +246,16 @@ class TomoWindow(QMainWindow):
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._context_menu)
         self.page.urlChanged.connect(self._remember)
+        self.page.urlChanged.connect(self._chrome_for)
         self.page.loadFinished.connect(self._loaded)
-        self.setCentralWidget(self.view)
+        self.frame = _Frame(self)
+        column = QVBoxLayout(self.frame)
+        column.setSpacing(0)
+        self.chrome = _ChromeBar(self, icon)
+        column.addWidget(self.chrome)
+        column.addWidget(self.view, 1)
+        self.setCentralWidget(self.frame)
+        self._fit_frame()
         if bridge is not None:
             self.channel = QWebChannel(self.page)
             self.channel.registerObject("tomoDesktop", bridge)
@@ -159,6 +273,47 @@ class TomoWindow(QMainWindow):
                              ("Ctrl++", lambda: self._zoom(0.1)), ("Ctrl+-", lambda: self._zoom(-0.1)),
                              ("Ctrl+0", lambda: self._zoom(0))):
             QShortcut(QKeySequence(keys), self, activated=action)
+
+    # ── 无边框窗口（页面画的标题栏经 tomo_bridge 调这里） ──
+    def window_action(self, action: str, args: dict) -> dict:
+        if action == "minimize":
+            self.showMinimized()
+        elif action == "maximize":
+            self.toggle_maximized()
+        elif action == "close":
+            self.close()
+        elif action == "move":
+            self.windowHandle().startSystemMove()
+        elif action == "zoom":
+            step = int(args.get("step") or 0)
+            self._zoom(0.1 * step if step else 0)
+        elif action != "state":
+            return {"ok": False}
+        return {"ok": True, "maximized": self.isMaximized()}
+
+    def toggle_maximized(self) -> None:
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
+    def _fit_frame(self) -> None:
+        margin = 0 if self.isMaximized() or self.isFullScreen() else RESIZE_MARGIN
+        self.frame.layout().setContentsMargins(margin, margin, margin, margin)
+        palette = self.frame.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(APP_BG[_scheme()]))
+        self.frame.setAutoFillBackground(True)
+        self.frame.setPalette(palette)
+        self.chrome.restyle()
+
+    def _chrome_for(self, url: QUrl) -> None:
+        self.chrome.setVisible(not tomo_links.is_chat(url.toString()))
+
+    def changeEvent(self, event) -> None:
+        if event.type() in (QEvent.Type.WindowStateChange, QEvent.Type.ThemeChange, QEvent.Type.PaletteChange) \
+                and hasattr(self, "chrome"):
+            self._fit_frame()
+        super().changeEvent(event)
 
     def _zoom(self, step: float) -> None:
         factor = 1.0 if not step else min(2.0, max(0.5, round(self.view.zoomFactor() + step, 2)))

@@ -47,7 +47,8 @@ class TomoBridge(QObject):
         if not self._allowed():
             return REFUSED
         try:
-            return json.dumps(self._settings.snapshot(), ensure_ascii=False)
+            # window.frameless：本版窗口没有系统标题栏，对话页要自己画（旧版桌面端没有这一项，页面就不画，免得两层标题栏）
+            return json.dumps({**self._settings.snapshot(), "window": {"frameless": True}}, ensure_ascii=False)
         except Exception:
             log.exception("读取本机设置失败")
             return json.dumps({"ok": False})
@@ -113,6 +114,10 @@ class TomoBridge(QObject):
             return self._changed(s.update())
         if method == "logs":
             return s.open_logs()
+        if method == "window":
+            # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
+            window = self._window()
+            return window.window_action(str(args.get("action") or ""), args) if window is not None else {"ok": False}
         return {"ok": False}
 
     @staticmethod

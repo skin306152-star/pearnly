@@ -50,3 +50,34 @@ def run_now(name):
 @frappe.whitelist()
 def runs(name):
     return rules.runs(name)
+
+
+# CC 对话页里的「定时任务」（frontend/assistant 的 scheduled-tasks，同本页功能，界面照 Claude，用户 2026-10-12）
+# 用到的词条：按前缀从已装 App 的术语表取键，按当前语言翻好一次给出，CC 不另存一份翻译。
+TERM_PREFIXES = ("cowork.folder.", "intake.target.", "intake.catalog.", "intake.agent.", "intake.mrerpMenu.",
+                 "intake.mrerpDefault.", "intake.dir.", "intake.field.direction", "intake.col.status",
+                 "intake.installerMissing", "connect.state.")
+TERM_WORDS = ("Company", "Posting Kind", "Service", "Stock", "Payment Method", "Inventory account group", "Credit",
+              "Cash", "Save", "Saved", "Delete", "Connect", "System URL", "Account", "Password", "used by {0} items",
+              "Delete {0} items permanently?", "Delete {0} item permanently?", "Cancel", "Edit")
+
+
+def _term_keys() -> list:
+    keys = set(TERM_WORDS)
+    for app in frappe.get_installed_apps():
+        path = frappe.get_app_path(app, "i18n", "messages.tsv")
+        try:
+            with open(path, encoding="utf-8") as handle:
+                rows = [line.rstrip("\n").split("\t") for line in handle][1:]
+        except OSError:
+            continue
+        for row in rows:
+            key = row[4] if len(row) > 4 and row[4] else row[0]
+            if key.startswith(TERM_PREFIXES):
+                keys.add(key)
+    return sorted(keys)
+
+
+@frappe.whitelist(methods=["GET"])
+def terms():
+    return {key: frappe._(key) for key in _term_keys()}

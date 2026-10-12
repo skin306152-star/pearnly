@@ -51,14 +51,14 @@ export function ApprovalBar({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {approval.preview && approval.preview.length > 0 && (
-        <ul className="rounded-md border border-[#e5e5e5] bg-[#fafafa] px-3 py-2 text-[13px] text-[#3d3d3a] leading-6">
+        <ul className="rounded-md border border-line bg-app px-3 py-2 text-[13px] text-ink-2 leading-6">
           {approval.preview.map((change, i) => (
             <li key={i} className="break-words">
-              <span className="me-2 text-[#8a887f]">{change.field}</span>
+              <span className="me-2 text-ink-3">{change.field}</span>
               {change.before ? (
                 <>
-                  <span className="line-through decoration-[#b5b3aa]">{change.before}</span>
-                  <span className="px-1.5 text-[#8a887f]">→</span>
+                  <span className="line-through decoration-ink-4">{change.before}</span>
+                  <span className="px-1.5 text-ink-3">→</span>
                 </>
               ) : null}
               <span className="font-medium">{change.after}</span>

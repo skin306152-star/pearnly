@@ -109,7 +109,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         <DialogTitle className="aui-sr-only sr-only">
           Image Attachment Preview
         </DialogTitle>
-        <div className="aui-attachment-preview bg-background relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden">
+        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
       </DialogContent>
@@ -185,7 +185,7 @@ const AttachmentUI: FC = () => {
           <TooltipTrigger asChild>
             <div
               className={cn(
-                "aui-attachment-tile bg-muted relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border transition-opacity hover:opacity-75",
+                "aui-attachment-tile bg-subtle border-line relative size-14 cursor-pointer overflow-hidden rounded-md border transition-opacity hover:opacity-75",
                 isError && "border-destructive",
               )}
               role="button"
@@ -198,7 +198,7 @@ const AttachmentUI: FC = () => {
               {isUploading && (
                 <div
                   aria-hidden="true"
-                  className="aui-attachment-tile-uploading bg-background/60 absolute inset-0 flex items-center justify-center backdrop-blur-[1px]"
+                  className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center backdrop-blur-[1px]"
                 >
                   <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
                 </div>
@@ -206,7 +206,7 @@ const AttachmentUI: FC = () => {
               {isError && (
                 <div
                   aria-hidden="true"
-                  className="aui-attachment-tile-error bg-destructive/10 absolute inset-0 flex items-center justify-center"
+                  className="aui-attachment-tile-error bg-danger-soft absolute inset-0 flex items-center justify-center"
                 >
                   <AlertCircleIcon className="text-destructive size-5" />
                 </div>
@@ -231,7 +231,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip={t("removeFile")}
-        className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute end-1.5 top-1.5 size-3.5 rounded-full bg-white opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black"
+        className="aui-attachment-tile-remove hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute end-1.5 top-1.5 size-3.5 rounded-full opacity-100 shadow-sm"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />
@@ -263,16 +263,9 @@ export const ComposerAttachments: FC = () => {
 export const ComposerAddAttachment: FC = () => {
   return (
     <ComposerPrimitive.AddAttachment asChild>
-      <TooltipIconButton
-        tooltip={t("attach")}
-        side="bottom"
-        variant="ghost"
-        size="icon"
-        className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold"
-        aria-label={t("attach")}
-      >
-        <PlusIcon className="aui-attachment-add-icon size-4.5 stroke-[1.5px]" />
-      </TooltipIconButton>
+      <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")}>
+        <PlusIcon className="aui-attachment-add-icon stroke-[1.5px]" />
+      </button>
     </ComposerPrimitive.AddAttachment>
   );
 };

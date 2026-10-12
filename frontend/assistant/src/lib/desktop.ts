@@ -6,7 +6,7 @@
 //   window.tomo.settings  — 桌面端托盘「连接与设置」/ Ctrl+, 打开设置
 
 import { useAui } from "@assistant-ui/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Message = { role?: string; content?: unknown };
 
@@ -286,3 +286,47 @@ export function setTextSize(size: TextSize) {
 }
 
 document.documentElement.dataset.textSize = textSize();
+
+// ---------------------------------------------------------------------------
+// 桌面端窗口（同 Claude 桌面端：没有系统标题栏，菜单 / 侧栏 / 后退 / 前进与最小化 / 最大化 / 关闭都画在页面里）。
+// 按钮经桥接调本机窗口（companion tomo_bridge 的 window 方法）；浏览器里这些都不出现。
+
+/** 是否在 CC 桌面端窗口里。 */
+export function isDesktopApp(): boolean {
+  return Boolean(window.qt?.webChannelTransport);
+}
+
+// 要不要自己画标题栏：只有声明了无边框窗口的桌面端（1.4.1 起，桥接状态 window.frameless）。旧版桌面端仍有系统标题栏，
+// 页面不画，免得两层标题栏、按钮点了没反应。
+let frameless: boolean | null = isDesktopApp() ? null : false;
+const framelessListeners = new Set<(value: boolean) => void>();
+if (frameless === null) {
+  void desktop()
+    .then((api) => api?.state())
+    .then((state) => (state as { window?: { frameless?: boolean } } | undefined)?.window?.frameless === true)
+    .catch(() => false)
+    .then((value) => {
+      frameless = value;
+      for (const cb of framelessListeners) cb(value);
+    });
+}
+
+export function useFramelessWindow(): boolean {
+  const [value, setValue] = useState(frameless === true);
+  useEffect(() => {
+    if (frameless !== null) return setValue(frameless);
+    framelessListeners.add(setValue);
+    return () => void framelessListeners.delete(setValue);
+  }, []);
+  return value;
+}
+
+export type WindowAction = "minimize" | "maximize" | "close" | "move" | "zoom" | "state";
+
+/** 窗口操作；回 { maximized } 给最大化按钮换图标。 */
+export async function windowAction(action: WindowAction, args: Record<string, unknown> = {}): Promise<{ maximized?: boolean }> {
+  const api = await desktop();
+  if (!api) return {};
+  const result = (await api.call("window", { action, ...args })) as { maximized?: boolean };
+  return result ?? {};
+}

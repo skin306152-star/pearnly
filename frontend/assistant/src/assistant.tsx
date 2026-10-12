@@ -1,60 +1,84 @@
-// 整个对话页：外层 assistant-ui，底下是 Managed Agents（ADR-019）。布局按 claude.ai：
+// 整个对话页：外层 assistant-ui，底下是 Managed Agents（ADR-019）。版式照 Claude 客户端（用户 2026-10-12）：
 //
-//   左侧导航（可收起）— 搜索、新建、按日期分组的历史、底部当前用户
-//   右侧              — 空对话时是产品形象 + 问候 + 输入框；有内容时是对话
+//   电脑 / 网页  — 左侧栏（标志或标题栏、搜索、新建、定时任务、最近对话、左下角账号）+ 右侧对话
+//   桌面端窗口   — 没有系统标题栏：侧栏顶上画菜单 / 侧栏开关 / 后退 / 前进，右上角画最小化 / 最大化 / 关闭
+//   手机         — 左上角圆形菜单按钮；抽屉里大号「CC」、搜索、定时任务、最近对话，底部头像与「新建会话」
 //
-// 站点只属于一个产品：工具按本站产品来；欢迎处的形象是智能体自己的（lib/profile.ts）。
+// 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
 import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
   CheckIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
+  ClockIcon,
+  CopyIcon,
   ExternalLinkIcon,
   FilesIcon,
   GlobeIcon,
   InfoIcon,
   LogOutIcon,
+  MenuIcon,
+  MinusIcon,
+  PanelLeftIcon,
+  PlusIcon,
+  SearchIcon,
   SettingsIcon,
+  SquareIcon,
+  XIcon,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
-import { Mascot } from "@/components/mascot";
+import { ThreadList, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { ScheduledTasks } from "@/components/scheduled-tasks";
 import { ManagedAgentsToolFallback, toolkit } from "@/components/tool-uis";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
-import { openSettings, useAutoConnect, useDesktopBridge } from "@/lib/desktop";
+import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
-import { assistantMascot, useProfile, type Profile } from "@/lib/profile";
+import { useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
+import { assistantLogo, useProfile, type Profile } from "@/lib/profile";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
+
+type Nav = ReturnType<typeof useNavHistory>;
 
 function firstName(profile: Profile | null): string {
   return (profile?.full_name || "").trim().split(/\s+/)[0] ?? "";
 }
 
+/** 有定时任务这个功能的产品（同 Pearnly 那边：目前只有 Cowork）。 */
+function hasScheduledTasks(profile: Profile | null): boolean {
+  return profile?.product === "cowork";
+}
+
+function Logo({ className }: { className?: string }) {
+  const logo = assistantLogo();
+  return logo ? <img src={logo} alt="" className={`cc-logo ${className ?? ""}`} /> : null;
+}
+
+// 空对话：CC 标志 + 衬线问候（同 Claude：电脑上标志在左，手机上在上）
 function Welcome() {
   const profile = useProfile();
-  const icon = assistantMascot();
   const name = firstName(profile);
   return (
-    <div className="aui-thread-welcome-root -mb-2 flex items-center justify-center gap-3 px-4 text-center">
-      {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
-      {icon && <Mascot src={icon} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
-      <h1 className="text-3xl text-foreground sm:text-4xl">
+    <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-4 px-4 text-center md:flex-row md:gap-3">
+      <Logo className="size-11 md:size-10" />
+      <h1 className="cc-greeting text-3xl md:text-4xl">
         {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
       </h1>
     </div>
@@ -67,7 +91,7 @@ function SessionStatusBar() {
   const message = transportError || (lastError?.retryStatus === "retrying" ? lastError.message : "");
   if (!message && !(isLoaded && !isTailing)) return null;
   return (
-    <div className="mx-auto w-full max-w-(--thread-max-width) px-4 pt-2 text-muted-foreground text-xs">
+    <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
       {message || t("reconnecting")}
     </div>
   );
@@ -94,86 +118,78 @@ async function setLanguage(code: string) {
   location.reload();
 }
 
-// 用户菜单（同 claude.ai）：账号、语言、帮助、了解更多、退出登录。外链都是宣传页上已有的页面。
-const menuItem =
-  "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted data-[state=open]:bg-muted";
-const menuContent = "z-[60] min-w-56 rounded-xl border bg-white p-1.5 shadow-lg";
-
-function MenuLink({ href, children }: { href: string; children: React.ReactNode }) {
+function MenuLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <DropdownMenu.Item asChild className={menuItem}>
+    <DropdownMenu.Item asChild className="cc-menu-item">
       <a href={href} target="_blank" rel="noopener">
         <span className="flex-1">{children}</span>
-        <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
+        <ExternalLinkIcon className="text-ink-3" />
       </a>
     </DropdownMenu.Item>
   );
 }
 
-function UserFooter() {
+function initials(profile: Profile) {
+  return (profile.full_name || profile.user).trim().slice(0, 2).toUpperCase();
+}
+
+// 用户菜单（同 Claude）：账号、设置、语言、帮助、了解更多、退出登录。外链都是宣传页上已有的页面。
+function UserMenu({ children }: { children: ReactNode }) {
   const profile = useProfile();
   if (!profile) return null;
-  const initials = (profile.full_name || profile.user).trim().slice(0, 2).toUpperCase();
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger className="flex w-full items-center gap-2.5 rounded-md px-1 py-1 text-start outline-none hover:bg-muted data-[state=open]:bg-muted">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-xs">{initials}</div>
-        <div className="min-w-0 flex-1 truncate text-sm">
-          {profile.full_name || profile.user}
-          <span className="text-muted-foreground"> · {profile.product_label}</span>
-        </div>
-        <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
-      </DropdownMenu.Trigger>
+      <DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side="top" align="start" sideOffset={6} className={menuContent}>
-          <div className="truncate px-2.5 py-1.5 text-muted-foreground text-sm">{profile.user}</div>
-          <DropdownMenu.Item onSelect={() => openSettings()} className={menuItem}>
-            <SettingsIcon className="size-4" />
+        <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu">
+          <div className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</div>
+          <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
+            <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
-            <span className="text-muted-foreground text-xs">Ctrl ,</span>
+            <span className="text-ink-3 text-xs">Ctrl ,</span>
           </DropdownMenu.Item>
           <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className={menuItem}>
-              <GlobeIcon className="size-4" />
+            <DropdownMenu.SubTrigger className="cc-menu-item">
+              <GlobeIcon />
               <span className="flex-1">{t("language")}</span>
-              <ChevronRightIcon className="size-4 text-muted-foreground" />
+              <ChevronRightIcon className="text-ink-3" />
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.SubContent sideOffset={8} className={menuContent}>
+              <DropdownMenu.SubContent sideOffset={8} className="cc-menu">
                 {LANGUAGES.map((l) => (
-                  <DropdownMenu.Item key={l.code} className={menuItem} onSelect={() => void setLanguage(l.code)}>
+                  <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void setLanguage(l.code)}>
                     <span className="flex-1">{l.label}</span>
-                    {l.code === lang && <CheckIcon className="size-4" />}
+                    {l.code === lang && <CheckIcon />}
                   </DropdownMenu.Item>
                 ))}
               </DropdownMenu.SubContent>
             </DropdownMenu.Portal>
           </DropdownMenu.Sub>
-          <DropdownMenu.Item asChild className={menuItem}>
+          <DropdownMenu.Item asChild className="cc-menu-item">
             <a href={HELP_URL} target="_blank" rel="noopener">
-              <CircleHelpIcon className="size-4" />
+              <CircleHelpIcon />
               <span className="flex-1">{t("help")}</span>
-              <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
+              <ExternalLinkIcon className="text-ink-3" />
             </a>
           </DropdownMenu.Item>
           <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className={menuItem}>
-              <InfoIcon className="size-4" />
+            <DropdownMenu.SubTrigger className="cc-menu-item">
+              <InfoIcon />
               <span className="flex-1">{t("learnMore")}</span>
-              <ChevronRightIcon className="size-4 text-muted-foreground" />
+              <ChevronRightIcon className="text-ink-3" />
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.SubContent sideOffset={8} className={menuContent}>
+              <DropdownMenu.SubContent sideOffset={8} className="cc-menu">
                 <MenuLink href={siteUrl("/about/")}>{t("about")}</MenuLink>
-                <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                <DropdownMenu.Separator className="cc-menu-sep" />
                 <MenuLink href={siteUrl("/privacy/")}>{t("privacy")}</MenuLink>
                 <MenuLink href={siteUrl("/terms/")}>{t("terms")}</MenuLink>
               </DropdownMenu.SubContent>
             </DropdownMenu.Portal>
           </DropdownMenu.Sub>
-          <DropdownMenu.Separator className="my-1 h-px bg-border" />
-          <DropdownMenu.Item onSelect={() => void signOut()} className={menuItem}>
-            <LogOutIcon className="size-4" />
+          <DropdownMenu.Separator className="cc-menu-sep" />
+          <DropdownMenu.Item onSelect={() => void signOut()} className="cc-menu-item">
+            <LogOutIcon />
             {t("logout")}
           </DropdownMenu.Item>
         </DropdownMenu.Content>
@@ -182,27 +198,283 @@ function UserFooter() {
   );
 }
 
-function AppSidebar() {
+// 侧栏左下角：头像 + 名字 · 产品（同 Claude）
+function UserFooter() {
+  const profile = useProfile();
+  if (!profile) return null;
   return (
-    <Sidebar>
-      {/* 侧栏顶部不放图标（用户 2026-10-10）：搜索框直接在最上面，收起按钮放在它同一行 */}
-      <SidebarContent className="px-2 pt-2">
-        <ThreadList trailing={<SidebarTrigger aria-label={t("sidebar")} />} />
-      </SidebarContent>
-      <SidebarFooter className="border-t">
-        <UserFooter />
-      </SidebarFooter>
-    </Sidebar>
+    <UserMenu>
+      <button type="button" className="cc-nav-item h-11">
+        <span className="cc-avatar">{initials(profile)}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {profile.full_name || profile.user}
+          <span className="text-ink-3"> · {profile.product_label}</span>
+        </span>
+        <ChevronsUpDownIcon className="text-ink-3" />
+      </button>
+    </UserMenu>
   );
 }
 
-// 侧栏收起时，左上角只留一个展开按钮（同 claude.ai）。
-function CollapsedTrigger() {
-  const { open, isMobile, openMobile } = useSidebar();
-  if (isMobile ? openMobile : open) return null;
+// ── 桌面端标题栏（同 Claude 桌面端）────────────────────────────────────────────────────────────────
+
+// 菜单「☰」：同 Claude 桌面端的应用菜单，只放 CC 已有的动作
+function AppMenu() {
+  const aui = useAui();
+  const { setView } = useView();
+  const zoom = (step: number) => void windowAction("zoom", { step });
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger className="cc-icon-btn" aria-label={t("menu")} title={t("menu")}>
+        <MenuIcon />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu">
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => { setView("chat"); aui.threads().switchToNewThread(); }}>
+            <span className="flex-1">{t("newChatPill")}</span>
+            <span className="text-ink-3 text-xs">Ctrl N</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => openSettings()}>
+            <span className="flex-1">{t("settings")}</span>
+            <span className="text-ink-3 text-xs">Ctrl ,</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="cc-menu-sep" />
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => location.reload()}>
+            <span className="flex-1">{t("reload")}</span>
+            <span className="text-ink-3 text-xs">Ctrl R</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => zoom(1)}>
+            <span className="flex-1">{t("zoomIn")}</span>
+            <span className="text-ink-3 text-xs">Ctrl =</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => zoom(-1)}>
+            <span className="flex-1">{t("zoomOut")}</span>
+            <span className="text-ink-3 text-xs">Ctrl -</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => zoom(0)}>
+            <span className="flex-1">{t("actualSize")}</span>
+            <span className="text-ink-3 text-xs">Ctrl 0</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="cc-menu-sep" />
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void windowAction("close")}>
+            <span className="flex-1">{t("closeWindow")}</span>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+/** 标题栏空白处：按住拖动窗口、双击最大化（同系统标题栏）。 */
+function dragHandlers(onToggle: () => void) {
+  return {
+    onMouseDown: (e: React.MouseEvent) => {
+      if (e.button !== 0 || e.detail > 1 || (e.target as HTMLElement).closest("button, a, input, [role=menu]")) return;
+      void windowAction("move");
+    },
+    onDoubleClick: (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest("button, a, input")) return;
+      onToggle();
+    },
+  };
+}
+
+function useMaximized(enabled: boolean) {
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    const sync = () => void windowAction("state").then((r) => setMaximized(Boolean(r.maximized)));
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, [enabled]);
+  const toggle = useCallback(() => void windowAction("maximize").then((r) => setMaximized(Boolean(r.maximized))), []);
+  return { maximized, toggle };
+}
+
+// 标题栏左半：菜单 / 侧栏开关 / 后退 / 前进（侧栏开着时在侧栏顶上，收起时在对话区左上角）
+function TitleBarLeft({ nav }: { nav: Nav }) {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <div className="flex items-center gap-0.5">
+      <AppMenu />
+      <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+        <PanelLeftIcon />
+      </button>
+      <button type="button" className="cc-icon-btn" onClick={nav.back} disabled={!nav.canBack} aria-label={t("back")} title={t("back")}>
+        <ArrowLeftIcon />
+      </button>
+      <button type="button" className="cc-icon-btn" onClick={nav.forward} disabled={!nav.canForward} aria-label={t("forward")} title={t("forward")}>
+        <ArrowRightIcon />
+      </button>
+    </div>
+  );
+}
+
+function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () => void }) {
+  return (
+    <div className="flex items-stretch self-stretch">
+      <button type="button" className="cc-winbtn" onClick={() => void windowAction("minimize")} aria-label={t("minimize")} title={t("minimize")}>
+        <MinusIcon />
+      </button>
+      <button type="button" className="cc-winbtn" onClick={toggle} aria-label={t(maximized ? "restore" : "maximize")} title={t(maximized ? "restore" : "maximize")}>
+        {maximized ? <CopyIcon className="!size-3.5 -scale-x-100" /> : <SquareIcon className="!size-3.5" />}
+      </button>
+      <button type="button" className="cc-winbtn" data-close="" onClick={() => void windowAction("close")} aria-label={t("closeWindow")} title={t("closeWindow")}>
+        <XIcon />
+      </button>
+    </div>
+  );
+}
+
+// ── 侧栏 ───────────────────────────────────────────────────────────────────────────────────────
+
+function SidebarNav() {
+  const profile = useProfile();
+  const { view, setView } = useView();
+  return (
+    <div className="flex flex-col gap-0.5">
+      <ThreadListNew onClick={() => setView("chat")} />
+      {hasScheduledTasks(profile) && (
+        <button type="button" className="cc-nav-item" data-active={view === "tasks" || undefined} onClick={() => setView("tasks")}>
+          <ClockIcon />
+          {t("scheduledTasks")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** 点了某个对话：回到对话视图（从「定时任务」切回来）。 */
+function useBackToChatOnPick(onNavigate?: () => void) {
+  const { setView } = useView();
+  return (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('[data-slot="aui_thread-list-item-trigger"]')) {
+      setView("chat");
+      onNavigate?.();
+    }
+  };
+}
+
+function DesktopSidebar({ nav, window: win, chrome }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean }) {
+  const [search, setSearch] = useState("");
+  const pick = useBackToChatOnPick();
+  const { toggleSidebar } = useSidebar();
+  return (
+    <>
+      <SidebarHeader className="gap-2 px-2 pt-0 pb-1">
+        {chrome ? (
+          <div className="cc-titlebar -mx-0.5" {...dragHandlers(win.toggle)}>
+            <TitleBarLeft nav={nav} />
+          </div>
+        ) : (
+          <div className="flex h-12 items-center justify-between ps-1.5">
+            <span className="flex items-center gap-2 font-semibold text-ink text-lg">
+              <Logo className="size-6" />
+              CC
+            </span>
+            <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+              <PanelLeftIcon />
+            </button>
+          </div>
+        )}
+        <ThreadListSearch value={search} onValueChange={setSearch} />
+      </SidebarHeader>
+      <SidebarContent className="px-2" onClickCapture={pick} data-cc-view={useView().view}>
+        <SidebarNav />
+        <ThreadList search={search} />
+      </SidebarContent>
+      <SidebarFooter className="border-t border-line px-2">
+        <UserFooter />
+      </SidebarFooter>
+    </>
+  );
+}
+
+// 手机抽屉（同 Claude 手机端）：大号「CC」+ 圆形搜索、定时任务、最近对话；底部头像与「新建会话」胶囊
+function MobileDrawer() {
+  const { setOpenMobile } = useSidebar();
+  const aui = useAui();
+  const profile = useProfile();
+  const { setView } = useView();
+  const [searching, setSearching] = useState(false);
+  const [search, setSearch] = useState("");
+  const close = () => setOpenMobile(false);
+  const pick = useBackToChatOnPick(close);
+  return (
+    <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]">
+      <div className="flex items-center justify-between px-5 pt-4 pb-2">
+        <span className="cc-greeting font-semibold text-3xl">CC</span>
+        <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
+          <SearchIcon />
+        </button>
+      </div>
+      {searching && (
+        <div className="cc-enter px-4 pb-2">
+          <ThreadListSearch value={search} onValueChange={setSearch} autoFocus />
+        </div>
+      )}
+      <div className="cc-drawer flex-1 overflow-y-auto px-3 pb-28" onClickCapture={pick}>
+        {hasScheduledTasks(profile) && (
+          <button type="button" className="cc-nav-item h-12 text-base" onClick={() => { setView("tasks"); close(); }}>
+            <ClockIcon />
+            {t("scheduledTasks")}
+          </button>
+        )}
+        <ThreadList search={search} />
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-sidebar via-sidebar to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {profile && (
+          <UserMenu>
+            <button type="button" className="cc-avatar pointer-events-auto size-12 text-sm" aria-label={profile.full_name || profile.user}>
+              {initials(profile)}
+            </button>
+          </UserMenu>
+        )}
+        <button
+          type="button"
+          className="cc-pill pointer-events-auto"
+          onClick={() => {
+            setView("chat");
+            aui.threads().switchToNewThread();
+            close();
+          }}
+        >
+          <PlusIcon />
+          {t("newChatPill")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 对话区顶部：手机是圆形菜单按钮；电脑侧栏收起时是展开按钮（桌面端是整组标题栏按钮）；桌面端右边是窗口按钮
+function MainTopBar({ nav, window: win, chrome }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean }) {
+  const { open, isMobile, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  if (isMobile) {
+    if (openMobile) return null;
+    return (
+      <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-4 z-10">
+        <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
+          <MenuIcon />
+        </button>
+      </div>
+    );
+  }
+  if (chrome) {
+    return (
+      <div className="cc-titlebar shrink-0 justify-between pe-0" {...dragHandlers(win.toggle)}>
+        <div>{!open && <TitleBarLeft nav={nav} />}</div>
+        <WindowButtons maximized={win.maximized} toggle={win.toggle} />
+      </div>
+    );
+  }
+  if (open) return null;
   return (
     <div className="absolute top-3 left-3 z-10">
-      <SidebarTrigger aria-label={t("sidebar")} />
+      <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+        <PanelLeftIcon />
+      </button>
     </div>
   );
 }
@@ -240,6 +512,57 @@ function DesktopBridge() {
   return null;
 }
 
+function Layout({ results }: { results: ReturnType<typeof useResultsPanel> }) {
+  const { view, setView } = useView();
+  const nav = useNavHistory(view, setView);
+  const chrome = useFramelessWindow();
+  const win = useMaximized(chrome);
+  const { isMobile } = useSidebar();
+  return (
+    <div className="flex h-dvh w-full bg-app">
+      <Sidebar>{isMobile ? <MobileDrawer /> : <DesktopSidebar nav={nav} window={win} chrome={chrome} />}</Sidebar>
+      {/* min-w-0：右侧结果面板里的宽表格在面板内横向滚动，不把整页撑宽、把「下载」「关闭」挤出窗口 */}
+      <SidebarInset className="relative min-w-0 flex-col bg-app">
+        <MainTopBar nav={nav} window={win} chrome={chrome} />
+        <div className="relative flex min-h-0 flex-1 flex-row">
+          {view === "chat" && results.files.length > 0 && !results.open && (
+            <button
+              type="button"
+              onClick={() => results.setOpen(true)}
+              title={t("files")}
+              aria-label={t("files")}
+              className="cc-icon-btn absolute top-3 right-3 z-10 w-auto gap-1.5 px-2 text-sm"
+            >
+              <FilesIcon />
+              {results.files.length}
+            </button>
+          )}
+          {view === "tasks" ? (
+            <ScheduledTasks />
+          ) : (
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <SessionStatusBar />
+              <div className="min-h-0 flex-1">
+                <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />
+              </div>
+            </div>
+          )}
+          {view === "chat" && results.open && results.sessionId && (
+            <ResultsPanel
+              sessionId={results.sessionId}
+              files={results.files}
+              selected={results.selected}
+              onSelect={results.setSelected}
+              onClose={() => results.setOpen(false)}
+              className="max-md:fixed max-md:inset-0 max-md:z-50 md:w-[45%]"
+            />
+          )}
+        </div>
+      </SidebarInset>
+    </div>
+  );
+}
+
 function Workspace() {
   const aui = useAui({ tools: Tools({ toolkit }) });
   const results = useResultsPanel();
@@ -247,49 +570,19 @@ function Workspace() {
     () => ({ sessionId: results.sessionId, files: results.files, openFile: results.openFile }),
     [results.sessionId, results.files, results.openFile],
   );
+  const [view, setView] = useState<View>("chat");
+  const viewContext = useMemo(() => ({ view, setView }), [view]);
   return (
     <AuiProvider value={aui}>
-      <ResultsContext.Provider value={context}>
-      <DesktopBridge />
-      <Settings />
-      <SidebarProvider>
-        <div className="flex h-dvh w-full">
-          <AppSidebar />
-          {/* min-w-0：右侧结果面板里的宽表格在面板内横向滚动，不把整页撑宽、把「下载」「关闭」挤出窗口 */}
-          <SidebarInset className="relative min-w-0 flex-row">
-            <CollapsedTrigger />
-            {results.files.length > 0 && !results.open && (
-              <button
-                type="button"
-                onClick={() => results.setOpen(true)}
-                title={t("files")}
-                aria-label={t("files")}
-                className="absolute top-3 right-3 z-10 flex h-8 items-center gap-1.5 rounded-md px-2 text-[#5b5950] text-sm hover:bg-muted"
-              >
-                <FilesIcon className="size-4" />
-                {results.files.length}
-              </button>
-            )}
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden" style={{ ["--thread-max-width" as string]: "48rem" }}>
-              <SessionStatusBar />
-              <div className="min-h-0 flex-1">
-                <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />
-              </div>
-            </div>
-            {results.open && results.sessionId && (
-              <ResultsPanel
-                sessionId={results.sessionId}
-                files={results.files}
-                selected={results.selected}
-                onSelect={results.setSelected}
-                onClose={() => results.setOpen(false)}
-                className="max-md:fixed max-md:inset-0 max-md:z-50 md:w-[45%]"
-              />
-            )}
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-      </ResultsContext.Provider>
+      <ViewContext.Provider value={viewContext}>
+        <ResultsContext.Provider value={context}>
+          <DesktopBridge />
+          <Settings />
+          <SidebarProvider>
+            <Layout results={results} />
+          </SidebarProvider>
+        </ResultsContext.Provider>
+      </ViewContext.Provider>
     </AuiProvider>
   );
 }

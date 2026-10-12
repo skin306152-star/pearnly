@@ -157,12 +157,12 @@ function SheetTable({ rows }: { rows: string[][] }) {
       <table className="border-collapse text-[13px]">
         <tbody>
           {rows.map((row, r) => (
-            <tr key={r} className={r === 0 ? "bg-[#f5f5f5] font-medium" : undefined}>
+            <tr key={r} className={r === 0 ? "bg-subtle font-medium" : undefined}>
               {row.map((cell, c) => (
                 <td
                   key={c}
                   className={cn(
-                    "max-w-72 truncate border border-[#e5e5e5] px-2.5 py-1.5",
+                    "max-w-72 truncate border border-line px-2.5 py-1.5",
                     isAmount(cell) && "text-right tabular-nums",
                   )}
                   title={cell}
@@ -257,7 +257,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
         </Tabs.List>
         <Tabs.Content value="preview" className="min-h-0 flex-1">
           {/* 无 allow-same-origin：页面里的脚本拿不到本站会话与接口 */}
-          <iframe title={file.filename} sandbox="allow-scripts allow-forms" srcDoc={text ?? ""} className="h-full w-full bg-white" />
+          <iframe title={file.filename} sandbox="allow-scripts allow-forms" srcDoc={text ?? ""} className="h-full w-full bg-surface" />
         </Tabs.Content>
         <Tabs.Content value="source" className="min-h-0 flex-1 overflow-auto">
           <pre className="p-4 font-mono text-[13px] whitespace-pre-wrap">{text ?? ""}</pre>
@@ -286,7 +286,7 @@ export function ResultsPanel({
   const current = files.find((f) => f.id === selected) ?? files[files.length - 1];
   if (!current) return null;
   return (
-    <aside className={cn("flex h-full min-w-0 flex-col border-l bg-white", className)}>
+    <aside className={cn("flex h-full min-w-0 flex-col border-l bg-surface", className)}>
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <select
           value={current.id}
@@ -303,7 +303,7 @@ export function ResultsPanel({
           href={fileUrl(sessionId, current.id)}
           title={t("download")}
           aria-label={t("download")}
-          className="flex size-8 items-center justify-center rounded-md text-[#5b5950] hover:bg-muted"
+          className="flex size-8 items-center justify-center rounded-md text-ink-2 hover:bg-muted"
         >
           <DownloadIcon className="size-4" />
         </a>
@@ -312,7 +312,7 @@ export function ResultsPanel({
           onClick={onClose}
           title={t("close")}
           aria-label={t("close")}
-          className="flex size-8 items-center justify-center rounded-md text-[#5b5950] hover:bg-muted"
+          className="flex size-8 items-center justify-center rounded-md text-ink-2 hover:bg-muted"
         >
           <XIcon className="size-4" />
         </button>

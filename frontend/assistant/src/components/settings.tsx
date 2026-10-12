@@ -30,14 +30,10 @@ import { lang, LANGUAGES, st, t } from "../i18n";
 
 type Section = "general" | "connections" | "system";
 
-const STATUS_COLOR: Record<string, string> = {
-  online: "#27ae60",
-  processing: "#b7950b",
-  attention: "#d35400",
-  offline: "#c0392b",
-  connecting: "#9a9893",
-  paused: "#9a9893",
-};
+// 连接状态色：取 globals.css 的 --cc-status-*（深浅色各一套）
+const STATUS_COLOR: Record<string, string> = Object.fromEntries(
+  ["online", "processing", "attention", "offline", "connecting", "paused"].map((k) => [k, `var(--cc-status-${k})`]),
+);
 
 async function saveLanguage(code: string) {
   await fetch("/api/method/pearnly_core.account.preferences.set_language", {
@@ -93,9 +89,9 @@ export function Settings() {
         <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-black/35" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 z-[71] flex h-[min(680px,92dvh)] w-[min(980px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-white text-[#1a1a18] shadow-2xl outline-none md:flex-row"
+          className="fixed top-1/2 left-1/2 z-[71] flex h-[min(680px,92dvh)] w-[min(980px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-surface text-ink shadow-2xl outline-none md:flex-row"
         >
-          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-[#fafafa] p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-app p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
             <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-xs md:block">
               {st.settings}
             </DialogPrimitive.Title>
@@ -145,7 +141,7 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
       onClick={onClick}
       className={cn(
         "flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-start text-sm [&_svg]:size-4",
-        active ? "bg-muted font-medium" : "hover:bg-[#f5f5f5]",
+        active ? "bg-muted font-medium" : "hover:bg-hover",
       )}
     >
       {icon}
@@ -175,7 +171,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={cn("rounded-md px-3 py-1 text-sm", value === key ? "bg-white shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          className={cn("rounded-md px-3 py-1 text-sm", value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground")}
         >
           {label}
         </button>
@@ -192,9 +188,9 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-6 w-10 rounded-full transition-colors", checked ? "bg-[#1a1a18]" : "bg-[#d4d4d4]")}
+      className={cn("relative h-6 w-10 rounded-full transition-colors", checked ? "bg-ink" : "bg-line-strong")}
     >
-      <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform", checked && "translate-x-4")} />
+      <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow transition-transform", checked && "translate-x-4")} />
     </button>
   );
 }
@@ -328,7 +324,7 @@ function Connections({ api }: { api: Desktop }) {
                 <MoreHorizontalIcon className="size-4" />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-white p-1.5 shadow-lg">
+                <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-surface p-1.5 shadow-lg">
                   <DropdownMenu.Item
                     className={menuItem}
                     onSelect={() => void Promise.all(members.map((m) => api.call("pause", { id: m.id, paused: !main.paused }))).then(refresh)}
@@ -337,7 +333,7 @@ function Connections({ api }: { api: Desktop }) {
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <DropdownMenu.Item
-                    className={cn(menuItem, "text-[#c0392b]")}
+                    className={cn(menuItem, "text-danger")}
                     onSelect={() => void Promise.all(members.map((m) => api.call("remove", { id: m.id }))).then(refresh)}
                   >
                     {st.disconnect}
@@ -360,7 +356,7 @@ function Connections({ api }: { api: Desktop }) {
 
       {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
-          <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-[#c0392b]")} title={express}>
+          <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
           </span>
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
@@ -401,7 +397,7 @@ function Connections({ api }: { api: Desktop }) {
           ))}
         </>
       )}
-      {error && <p className="mt-3 text-[#c0392b] text-sm">{error}</p>}
+      {error && <p className="mt-3 text-danger text-sm">{error}</p>}
     </>
   );
 }
@@ -422,7 +418,7 @@ function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?:
     );
   return (
     <>
-      {link.kind === "failed" ? note(link.message || st.linkFailed, "text-[#c0392b]") : note(st.notConnected)}
+      {link.kind === "failed" ? note(link.message || st.linkFailed, "text-danger") : note(st.notConnected)}
       <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect()}>
         {link.kind === "failed" ? st.retry : st.connect}
       </Button>
@@ -516,7 +512,7 @@ function System({ api }: { api: Desktop }) {
       </Row>
       <Row label={st.quickAsk}>
         {state.hotkey ? (
-          <kbd className="rounded-md border bg-[#fafafa] px-2 py-0.5 font-sans text-muted-foreground text-xs">Ctrl + Alt + Space</kbd>
+          <kbd className="rounded-md border bg-app px-2 py-0.5 font-sans text-muted-foreground text-xs">Ctrl + Alt + Space</kbd>
         ) : (
           <span className="text-muted-foreground text-sm">{st.hotkeyBusy}</span>
         )}
@@ -545,7 +541,7 @@ function System({ api }: { api: Desktop }) {
           <FolderIcon className="size-4" />
         </Button>
       </Row>
-      {error && <p className="mt-3 text-[#c0392b] text-sm">{error}</p>}
+      {error && <p className="mt-3 text-danger text-sm">{error}</p>}
     </>
   );
 }
