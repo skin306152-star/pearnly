@@ -498,7 +498,7 @@
   /* 手机顶栏（同 Claude 手机端）：盖在内容上的半透明一条，内容从下面滚过去 */
   .cc-mtopbar {
     position: absolute; inset: 0 0 auto 0; z-index: 20; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem;
-    padding: max(0.5rem, calc(env(safe-area-inset-top) - 0.25rem)) 1rem 0.5rem;
+    padding: max(0px, calc(env(safe-area-inset-top) - 0.25rem)) 1rem 0.5rem;
     background: transparent; border-bottom: 0.5px solid transparent;
     transition: background-color var(--cc-dur) var(--cc-ease), border-color var(--cc-dur) var(--cc-ease);
   }
@@ -555,9 +555,17 @@
 .cc-drawer .cc-nav-item { height: var(--cc-mrow-h); font-size: 1.0625rem; padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
 /* 手机顶栏与抽屉里的圆按钮：浅灰实心、无描边无阴影（同 Claude 手机端） */
 .cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {
-  width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); background: var(--cc-mbtn-bg); color: var(--cc-ink);
+  width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); background: var(--cc-mbtn-bg); color: var(--cc-ink-2);
+  border-color: var(--cc-line-strong); box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
+/* 手机（2026-10-12 用 iPhone 镜像与 Claude 手机 app 同屏逐项量过）：页面底色 #f9f9f7；输入框约 96 高、白底、描边明显、
+   「+」是浅灰实心圆；问候语约 20 号深灰、图标小 */
+@media (max-width: 767px) { :root:not(.dark) { --cc-bg-app: #f9f9f7; } }
+.cc-mshell .cc-composer { min-height: 6rem; justify-content: space-between; border-color: var(--cc-line-strong); border-radius: 1.5rem; box-shadow: 0 1px 3px rgb(0 0 0 / 0.04); }
+.cc-mshell .cc-attach { width: 2.125rem; height: 2.125rem; border-color: transparent; background: var(--cc-bg-subtle); }
+.cc-mshell .cc-greeting { font-size: 1.25rem; color: var(--cc-ink-2); }
+.cc-mshell .pearnly-mascot-host { height: 4.5rem; }
 .cc-drawer .cc-nav-item svg { width: 1.375rem; height: 1.375rem; }
 /* 抽屉标题（同 Claude 手机端的「Claude」：常规字重的衬线字） */
 .cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 1.875rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }

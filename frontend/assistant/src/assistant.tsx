@@ -464,7 +464,7 @@ function MobileDrawer() {
 /** 手机顶栏打开抽屉的图标（同 Claude 手机端）：三条线、最下面一条短。 */
 function DrawerIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
       <path d="M4 7h16M4 12h16M4 17h10" />
     </svg>
   );
