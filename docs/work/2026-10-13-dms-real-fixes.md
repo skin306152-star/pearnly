@@ -1,6 +1,6 @@
 # DMS 实际问题修复（G1–G8）
 
-- 状态：进行中
+- 状态：本次范围完成，已上线（main `69dd6e40`，2026-10-13 曼谷 04:25–04:33），见 [上线记录](2026-10-13-release-69dd6e40.md)；G7 三项真机待用户
 - 分支 / 工作树：`pearnly/dms-real-fixes` / `/Users/skin/pearnly-worktrees/dms-real-fixes`
 - 基线：`origin/main` `774b209d`（2026-10-13 开工时）
 - 集成目标：`main`。修完闭环后统一部署一次。
@@ -46,11 +46,11 @@
 | 实现 | 完成（分支 `pearnly/dms-real-fixes` `e79ba6c8`，基线 `774b209d`，G1–G8 共 20 个提交，含 4 个审查跟进） | 见下方"实现摘要" |
 | 本地离线检查（development.yml 全套） | 通过（`e79ba6c8`，本机 macOS，Python 3.11.16 / Node 22.23.2，2026-10-13） | development.yml 全部 35 个 Python 步骤通过（含 `check-architecture.py`、`check-dms-offline.py`、`test-dms-call-contracts.py`、`test-dms-customer-identity.py`、`i18n-build.py --check`、`check-i18n.py --strict`）；`npm ci` + 助手前端构建、`npm ci --prefix frontend`、`npm --prefix frontend run build`（vue-tsc + vite，含 G7 改的 AccountPage.vue）通过；15 个 node 步骤全部通过；`git diff --check` 无输出。新增 8 个离线测试已接入 `check-dms-offline.py`。CI 用 Ubuntu 24.04 自带 Python，本机版本不同，分支 CI 仍需单独看结果 |
 | 测试机：真实 LINE + 故障开关逐组验证 | 通过（G7 三项待用户真机） | 见下方"测试机验收"；2026-10-13 03:36–04:10，镜像 `bae26d0b`（线上 e8062353）+ 本分支 `b7a54177` 实时源码 + 不入库的验收故障开关，testdms 刷新导入线上最新数据 |
-| 分支 CI | 未执行 | |
-| 候选镜像离线检查（共用层） | 未执行 | |
-| 合入 main / 远端回读 | 未执行 | |
-| 生产部署 / 回读 | 未执行 | |
-| 用户验收 | 未执行 | |
+| 分支 CI | 通过 | Development checks run 38309323315（`69dd6e40`）architecture-and-offline success |
+| 候选镜像离线检查（共用层） | 通过 | 测试机线上镜像 `bae26d0b` 挂本分支 5 个 App 跑 `ci-candidate-checks.sh parallel`：offline / flow / snapshot 三车道全过；构建 run 38309631799 中同三车道再次通过 |
+| 合入 main / 远端回读 | 通过 | 变基到 `e8062353` 后快进；远端 main 读回 `69dd6e40` |
+| 生产部署 / 回读 | 通过 | 镜像 `f9bf6551`；ERP/Cowork/DMS/基础层激活；回读见上线记录 |
+| 用户验收 | 未执行 | 待用户；G7 编辑页交车日期、菜单 4 先试登录、花名册解绑三项需用户真机 |
 
 ## 实现摘要
 
