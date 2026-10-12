@@ -8,8 +8,10 @@
   包括建任务前就在的（「处理过」只看本机台账：路径 + 大小 + 修改时间）；老任务只收规则启用之后放进文件夹的文件
   （启用时按文件在本机的创建时间拍底，先用云端时间校正本机时钟）；
 - 收 PDF / 图片；推往 Express 的销售任务另收 POS 导出的 Excel / CSV（云端按任务下发 ``extensions``，
-  ``rule_extensions``；旧云端不发就只收 PDF / 图片；旧版 .xls 也收，云端登记即记失败、写明原因，不上传）；老任务
-  新收的扩展名先补拍底（此刻已在文件夹里的这类文件算启用前就在的），补好之前不扫（``taken_extensions``）；
+  ``rule_extensions``；旧云端不发就只收 PDF / 图片；旧版 .xls 也收，云端登记即记失败、写明原因，不上传）；任务
+  新收的扩展名先补拍底（此刻已在文件夹里的这类文件当作任务那时不收、可能已手工录过的），补好之前不扫
+  （``taken_extensions``）——老任务记在 ``baseline_exts``；新任务记在 ``seen_exts``：本机第一次见到的新任务（或换了
+  文件夹的老任务）收的扩展名都算一开始就收，现有文件照常处理；1.5 之前本机就见过的新任务只收过 PDF / 图片；
   结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
 - 文件 2 分钟内没再变动才算写完（扫描仪、复制还没完成的先不传）；
 - 文件夹现有几份（`survey`，给网页卡片与任务列表）与 `scan` 同一判据，只列目录、限时限量，数不完就标「不全」；
@@ -110,14 +112,21 @@ def baselined_extensions(state: dict) -> tuple:
     return tuple(ext for ext in KNOWN_EXTENSIONS if ext in wanted)
 
 
+def seen_extensions(state: dict) -> tuple:
+    """新任务在本机已经收着的扩展名（``seen_exts``）；1.5 之前就见过这条任务、没记的，那时只收 PDF / 图片。"""
+    sent = state.get("seen_exts") if isinstance(state, dict) else None
+    if not isinstance(sent, list):
+        return EXTENSIONS
+    wanted = {str(item).lower() for item in sent}
+    return tuple(ext for ext in KNOWN_EXTENSIONS if ext in wanted)
+
+
 def taken_extensions(rule: dict, state: dict) -> tuple:
-    """这一次真正扫（与数待处理）哪些扩展名：新任务按云端下发的；老任务只扫已经拍过底的——任务新收的扩展名（例如
-    升级后推往 Express 的销售任务开始收 POS 导出）先补拍底再扫，免得把早就在文件夹里、可能已经手工录过的表格当成
-    新放进来的再记一遍账。"""
+    """这一次真正扫（与数待处理）哪些扩展名：只扫已经收着的——任务新收的扩展名（例如升级后推往 Express 的销售任务
+    开始收 POS 导出）先补拍底再扫，免得把早就在文件夹里、可能已经手工录过的表格当成新放进来的再记一遍账。老任务看
+    ``baseline_exts``，新任务看 ``seen_exts``。"""
     extensions = rule_extensions(rule)
-    if rule.get("existing"):
-        return extensions
-    done = baselined_extensions(state)
+    done = seen_extensions(state) if rule.get("existing") else baselined_extensions(state)
     return tuple(ext for ext in extensions if ext in done)
 
 

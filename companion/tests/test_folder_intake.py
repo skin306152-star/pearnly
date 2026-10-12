@@ -300,6 +300,53 @@ def test_old_task_does_not_send_tables_already_there_when_it_starts_taking_them(
     assert _begins(fake) == ["pos-nov.xlsx"]
 
 
+def test_new_task_from_before_1_5_does_not_send_tables_already_there(tmp_path, monkeypatch):
+    """1.4.4 时建的新口径任务（existing=1，那时只收 PDF / 图片）：升级到 1.5、云端开始下发 POS 导出的扩展名后，
+    文件夹里早就在的表格（可能已手工录过）补进底里、不上传，待处理数也不算；之后放进来的照常处理，PDF 照旧不拍底。"""
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "bill.pdf", b"bill")
+    _old(folder / "pos-sep.xlsx", b"pos-sep-entered-by-hand")
+    rule.update(existing=1, run_request=1)
+    fake = FakeClient([rule])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)   # 1.4.4：任务只收 PDF / 图片
+    assert _begins(fake) == ["bill.pdf"]
+    ledger = folder_store.Ledger(key)
+    ledger.rule_state("R1").pop("seen_exts")                             # 1.4.4 的台账没记这个
+    ledger.save()
+    _old(folder / "late.pdf", b"late-bill")
+    rule.update(extensions=SALES_EXTENSIONS, run_request=2)
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    assert _begins(fake) == ["bill.pdf", "late.pdf"]
+    state = folder_store.Ledger(key).rule_state("R1")
+    assert state["added_baseline"] == ["pos-sep.xlsx"] and state["seen_exts"] == SALES_EXTENSIONS
+    assert "baseline" not in state
+    worker.round(cfg, key)
+    assert _syncs(fake)[-1]["rule_pending"] == {"R1": 0}
+    _old(folder / "pos-oct.xlsx", b"pos-oct-new")
+    rule["run_request"] = 3
+    worker.round(cfg, key)
+    assert _begins(fake) == ["bill.pdf", "late.pdf", "pos-oct.xlsx"]
+
+
+def test_new_task_takes_tables_already_there_when_first_seen_with_them(tmp_path, monkeypatch):
+    # 1.5 上第一次见到的新任务（网页数的「现有 N 份」含 POS 导出）、老任务换了文件夹转成新任务：现有表格都处理
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "pos-sep.xlsx", b"pos-sep")
+    rule.update(existing=1, run_request=1, extensions=SALES_EXTENSIONS)
+    fake = FakeClient([rule])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)
+    assert _begins(fake) == ["pos-sep.xlsx"]
+    moved = {**rule, "name": "R2", "existing": 0, "run_request": 0}
+    fake = FakeClient([moved])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)                                                # 老任务：拍底（含表格）
+    assert folder_store.Ledger(key).rule_state("R2")["baseline"] == ["pos-sep.xlsx"]
+    moved.update(existing=1, run_request=1)                               # 换了文件夹：转成新任务
+    worker.round(cfg, key)
+    assert _begins(fake) == ["pos-sep.xlsx"]
+
+
 def test_old_task_takes_new_extensions_only_once_the_folder_was_read_in_full(tmp_path, monkeypatch):
     cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
     _old(folder / "pos-sep.xlsx", b"pos-sep")

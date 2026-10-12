@@ -460,8 +460,9 @@ class PosExports(unittest.TestCase):
         self.assertEqual(folder_plan.taken_extensions({"extensions": sales}, {}), folder_plan.EXTENSIONS)
         self.assertEqual(folder_plan.taken_extensions({"extensions": sales}, {"baseline_exts": sales}),
                          folder_plan.rule_extensions({"extensions": sales}))
-        # 新任务不拍底：云端下发什么就扫什么
-        self.assertEqual(folder_plan.taken_extensions({"extensions": sales, "existing": 1}, {}),
+        # 新任务：本机已经收着的（seen_exts）才扫；1.5 之前就见过的新任务那时只收 PDF / 图片，后来多收的先补拍底
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales, "existing": 1}, {}), folder_plan.EXTENSIONS)
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales, "existing": 1}, {"seen_exts": sales}),
                          folder_plan.rule_extensions({"extensions": sales}))
 
     def test_the_pump_builds_days_before_recognition_and_keeps_tables_out_of_it(self):

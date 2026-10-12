@@ -210,15 +210,22 @@ class FolderIntake:
                 if not rule.get("ready"):
                     continue
                 state = ledger.rule_state(rule["name"])
+                # 本机第一次跑到这条任务（同步回复里出现过就记了 seen_at，以 last_request 为准：各版都在这里第一次记它）
+                first = "last_request" not in state
                 if "last_request" not in state:
                     state["last_request"] = 0
                 root = by_id.get(rule.get("root_id"))
                 if rule.get("existing"):
-                    # 新任务：不拍底，到点处理文件夹里本任务还没处理过的全部文件（改过文件夹的老任务也转成这样，旧底丢掉）。
+                    # 新任务：不拍底，到点处理文件夹里本任务还没处理过的全部文件（改过文件夹的老任务也转成这样，旧底丢掉）；
+                    # 只有任务后来多收的扩展名补拍底（见 _added_baseline）。
+                    moved = "baseline_since" in state
                     state.pop("baseline", None)
                     state.pop("baseline_since", None)
                     state.pop("baseline_exts", None)
+                    self._added_baseline(state, rule, root, first or moved)
                 else:
+                    state.pop("seen_exts", None)
+                    state.pop("added_baseline", None)
                     self._baseline(state, rule, root, offset)
                 due = plan.due(rule, state, now + offset)
                 if due:
@@ -311,7 +318,7 @@ class FolderIntake:
                 continue
             state = ledger.rules.get(name) or {}
             if rule.get("existing"):
-                baseline: set = set()
+                baseline: set = set(state.get("added_baseline") or [])
             elif state.get("baseline_since") == float(rule.get("active_since") or 0):
                 baseline = set(state.get("baseline") or [])
             else:
@@ -398,6 +405,32 @@ class FolderIntake:
         state["baseline"] = sorted(set(state.get("baseline") or ()) | found)
         state["baseline_exts"] = [ext for ext in plan.KNOWN_EXTENSIONS if ext in done or ext in added]
 
+    def _added_baseline(self, state: dict, rule: dict, root: Optional[dict], whole: bool) -> None:
+        """新任务（云端 ``existing`` 为真）后来多收的扩展名：此刻已在文件夹里的这类文件记进 ``added_baseline``、不处理，
+        之后放进来的才处理。1.5 之前建的新任务（2026-10-12 第一批起）那时只收 PDF / 图片，升级后云端给推往 Express 的
+        销售任务下发 POS 导出：文件夹里早就在的表格可能已手工录过，不能当 POS 导出再记一遍账（同老任务补拍底的理由）。
+
+        ``whole``：本机第一次见到这条任务、或老任务换了文件夹转成新任务——收的扩展名都算一开始就收（建任务时网页数的
+        「现有 N 份」含 POS 导出，到点一起处理），不拍底。已经收着的记在 ``seen_exts``；没读全就下一轮再补，补好之前
+        这几种扩展名不扫（`plan.taken_extensions`）。"""
+        extensions = plan.rule_extensions(rule)
+        if whole:
+            state["seen_exts"] = list(extensions)
+            state.pop("added_baseline", None)
+            return
+        seen = plan.seen_extensions(state)
+        kept = [ext for ext in extensions if ext in seen]
+        added = tuple(ext for ext in extensions if ext not in seen)
+        if added and root is not None:
+            folder = plan.rule_folder(root["path"], rule.get("folder") or "")
+            errors: list = []
+            found = {c.relpath.casefold() for c in plan.scan(folder, errors, extensions=added)} \
+                if folder.is_dir() else set()
+            if folder.is_dir() and not errors:
+                state["added_baseline"] = sorted(set(state.get("added_baseline") or ()) | found)
+                kept = list(extensions)
+        state["seen_exts"] = kept
+
     def _retry(self, client, cfg, ledger: Ledger, rule: dict, root: dict) -> bool:
         """上一次没传成的（网络断了、文件还没写完、服务端暂时不收）每一轮补传，不等到下个月。返回这一轮传过没有。"""
         pending = [row for row in ledger.files.values() if row.get("rule") == rule["name"] and row.get("retry")]
@@ -467,7 +500,8 @@ class FolderIntake:
             ledger.runs.append(record)
             handled()
             return
-        baseline = set(state.get("baseline") or [])
+        # 老任务的底；新任务只有后来多收的扩展名补拍的底
+        baseline = set(state.get("baseline") or []) | set(state.get("added_baseline") or [])
         folder = plan.rule_folder(root["path"], rule.get("folder") or "")
         if not folder.is_dir():  # 规则的子文件夹被删 / 改名:记明原因(网页运行记录显示「文件夹不可用」)
             record.update(note="folder_missing", scanned=True)
@@ -478,7 +512,7 @@ class FolderIntake:
         waiting: list[plan.Candidate] = []
         seen: set[str] = set()
         errors: list = []
-        # 老任务只扫拍过底的扩展名（新收的先补拍底，见 _baseline）
+        # 只扫已经收着的扩展名（新收的先补拍底，见 _baseline / _added_baseline）
         extensions = plan.taken_extensions(rule, state)
         for candidate in plan.scan(folder, errors, extensions=extensions):
             if self._stop.is_set():
