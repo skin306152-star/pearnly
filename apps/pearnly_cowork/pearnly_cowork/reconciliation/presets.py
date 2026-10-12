@@ -14,6 +14,9 @@ from collections import Counter
 
 YES, NO = "yes", "no"
 
+# 认不出银行的通用版式账单（读账单时的银行码 ``generic``）在范围里的写法。
+GENERIC = "GENERIC"
+
 # 银行：这个账户的「多笔对一笔」是汇总入账（总账逐笔、银行一笔合并入账；或反过来信用卡逐笔、总账一笔合计）。
 GROUPED = "grouped"
 
@@ -67,10 +70,13 @@ def ledger_account(codes):
 
 def bank_scope(bank_code, tail, gl_account_code):
     """银行预设按「银行 + 账号尾号 + 总账科目」记：一个工作区里有多家客户公司，同一银行、同一科目号可能是
-    不同公司的账户，所以至少要有尾号或科目号之一，否则不记（不问，照旧只提示）。"""
+    不同公司的账户，所以至少要有尾号或科目号之一，否则不记（不问，照旧只提示）。
+
+    认不出银行的通用版式（``GENERIC``：表格账单、文件名没写银行的照片）只有读出 4 位尾号才记：没有银行这一维，
+    只凭科目号会把同工作区别家公司的答案套过来。不用识别读出的银行名补银行码：逐月读法可能不一样，记忆键要稳定。"""
     bank = str(bank_code or "").strip().upper()
     tail, account = _digits(tail)[-4:], str(gl_account_code or "").strip()
-    if not bank or bank == "GENERIC" or not (tail or account):
+    if not bank or not (tail or account) or (bank == GENERIC and len(tail) < 4):
         return ""
     return "|".join(("bank", bank, tail or "-", account or "-"))
 
@@ -94,12 +100,12 @@ def account_scope(bank_code, tail):
 
 
 def scope_label(scope):
-    """给人看的范围：``KBANK ···4821 · 1112-01``、``0105556012345 · 4201``。"""
+    """给人看的范围：``KBANK ···4821 · 1112-01``、``0105556012345 · 4201``；通用版式不写银行：``···4821 · 1112-01``。"""
     parts = str(scope or "").split("|")
     if len(parts) == 3 and parts[0] == "income":
         return f"{parts[1]} · {parts[2]}"
     if len(parts) == 4 and parts[0] == "bank":
         _kind, bank, tail, account = parts
-        return " · ".join(item for item in (bank + (f" ···{tail}" if tail != "-" else ""),
-                                             account if account != "-" else "") if item)
+        head = " ".join(item for item in (bank if bank != GENERIC else "", f"···{tail}" if tail != "-" else "") if item)
+        return " · ".join(item for item in (head, account if account != "-" else "") if item)
     return str(scope or "")

@@ -339,7 +339,7 @@ EVIDENCE_GROUPS = 2
 def bank_questions(doc, inputs, results):
 	"""结果页要人定一次的问题（对账预设，见 ``presets``）。现在银行只有一类：多笔对一笔是不是汇总入账。
 
-	认不出账户（没有尾号也没有科目号）不问：答了也记不住，照旧只在标题旁提示。"""
+	认不出账户（没有尾号也没有科目号；通用版式没有尾号）不问：答了也记不住，照旧只在标题旁提示。"""
 	from pearnly_cowork.reconciliation.bank_groups import suspected_groups
 
 	scope = bank_recon_service.task_scope(doc, inputs.get("gl") or [])
