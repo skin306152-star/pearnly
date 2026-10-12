@@ -421,6 +421,18 @@ def _filled(values: dict) -> dict:
     return {key: value for key, value in values.items() if value not in (None, "", [], {})}
 
 
+FILES_ADDED_NOTE = ("Added to this conversation: the user opens them in the chat. They were not saved to any folder on "
+                    "the user's computer.")
+
+
+def _added_to_chat(out: dict, added) -> dict:
+    """工具把文件放进了这段对话：结果里明说（2026-10-13 测试机：CC 对用户说放进了「结果文件夹」，用户去电脑上找）。
+    ``added`` 为空（这次没放文件）就原样返回。"""
+    if not added:
+        return out
+    return {**out, "files_added_to_chat": True, "files_note": FILES_ADDED_NOTE}
+
+
 def _choices(tool_input) -> dict:
     target = tool_input.get("target") or None
     push = target in ("express", "mrerp") and tool_input.get("connection")
@@ -988,7 +1000,7 @@ def document_original(tool_input) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "not_available", "reason": str(error)[:300]})
-    return _json({"document": name, "pages_total": len(pages), "files": shown})
+    return _json(_added_to_chat({"document": name, "pages_total": len(pages), "files": shown}, shown))
 
 
 def choose_document_policy(tool_input) -> str:
@@ -1137,7 +1149,7 @@ def export_review_workbook(tool_input) -> str:
     # 站点时区的时间（容器里的 time.strftime 是 UTC，2026-10-11 测试：凌晨 2 点导出的文件名写成前一天 19 点）
     stamp = frappe.utils.now_datetime().strftime("%Y%m%d-%H%M%S")
     path = chat_files.add_to_conversation(f"cowork-review-{stamp}.xlsx", content, XLSX)
-    return _json({"status": "exported", "documents": len(names), "file": path})
+    return _json(_added_to_chat({"status": "exported", "documents": len(names), "file": path}, path))
 
 
 # ---------------- 对账：银行对账、收入对账、销项税核查（同一套 recon_center，按 kind） ----------------
@@ -1422,7 +1434,7 @@ def recon_export(tool_input) -> str:
         filename, content = None, built
     filename = str(filename or f"recon-{kind}-{task}.xlsx")
     path = chat_files.add_to_conversation(filename, content, XLSX)
-    return _json({"status": "exported", "file": path})
+    return _json(_added_to_chat({"status": "exported", "file": path}, path))
 
 
 def recon_delete(tool_input) -> str:
@@ -1524,7 +1536,7 @@ def vat_draft(tool_input) -> str:
                 "issues_total": len(summary.get("issues") or []), "issues": _tax_issues(summary.get("issues")),
                 "unreadable_rows": (summary.get("unreadable_rows") or [])[:10],
                 "file": _tax_file(summary, tool_input.get("workbook"))})
-    return _json(_filled(out))
+    return _json(_added_to_chat(_filled(out), out["file"]))
 
 
 def wht_draft(tool_input) -> str:
@@ -1553,7 +1565,7 @@ def wht_draft(tool_input) -> str:
                 "excluded_total": len(excluded), "excluded_by_reason": by_reason,
                 "excluded": excluded[:TAX_LINES_SHOWN],
                 "file": _tax_file(summary, tool_input.get("workbook"))})
-    return _json(_filled(out))
+    return _json(_added_to_chat(_filled(out), out["file"]))
 
 
 def wht_answer(tool_input) -> str:
@@ -1610,7 +1622,7 @@ def stocktake_template(_input) -> str:
     from pearnly_cowork.stocktake import upload
 
     path = chat_files.add_to_conversation("stocktake-template.xlsx", upload.template(), XLSX)
-    return _json({"status": "ready", "file": path})
+    return _json(_added_to_chat({"status": "ready", "file": path}, path))
 
 
 def stocktake_create(tool_input) -> str:
@@ -1696,8 +1708,8 @@ def stocktake_export(tool_input) -> str:
     title = frappe.db.get_value("Cowork Stocktake Task", count, "title") or "stocktake"
     name = re.sub(r'[\\/:*?"<>|]+', "-", str(title)).strip(" .-")[:80] or "stocktake"
     stamp = frappe.utils.now_datetime().strftime("%Y%m%d")
-    return _json({"status": "exported",
-                  "file": chat_files.add_to_conversation(f"{name}-{stamp}.xlsx", content, XLSX)})
+    path = chat_files.add_to_conversation(f"{name}-{stamp}.xlsx", content, XLSX)
+    return _json(_added_to_chat({"status": "exported", "file": path}, path))
 
 
 def stocktake_delete(tool_input) -> str:
@@ -2059,7 +2071,8 @@ def folder_fetch(tool_input) -> str:
         for path in asked:
             results[path] = {"path": path, **outcome}
     _remember_fetched(results, keys)
-    return _json({"files": [results[path] for path in paths]})
+    files = [results[path] for path in paths]
+    return _json(_added_to_chat({"files": files}, [item for item in files if item.get("file")]))
 
 
 # ---------------- 回读 Express 账套（只读、不识别、不扣费） ----------------
@@ -2130,6 +2143,7 @@ def _readback_out(state) -> dict:
         try:
             out["files"] = _readback_files(state)
             frappe.db.commit()
+            out = _added_to_chat(out, out["files"])
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()
             frappe.clear_messages()

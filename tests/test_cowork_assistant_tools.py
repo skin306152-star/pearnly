@@ -708,6 +708,7 @@ class DeleteAndExportTests(unittest.TestCase):
         self.assertEqual(self.calls[0], ("export", ["H1", "H2"]))
         self.assertEqual(self.calls[1][2], b"PK-xlsx")
         self.assertRegex(self.calls[1][1], r"^cowork-review-\d{8}-\d{6}\.xlsx$")  # 每次导出新名字，对话里出新卡片
+        self.assertTrue(out["files_added_to_chat"])
 
 
 
@@ -923,6 +924,7 @@ class ReconTests(unittest.TestCase):
     def test_export_goes_into_the_conversation_and_kinds_are_checked(self):
         out = json.loads(tools.recon_export({"kind": "bank", "task": "T1"}))
         self.assertEqual(out["file"], "/mnt/x/BBL Feb.xlsx")
+        self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
         with self.assertRaises(frappe.ValidationError):
             tools.recon_list({"kind": "payroll"})
 
@@ -1028,6 +1030,7 @@ class TaxDraftTests(unittest.TestCase):
         self.assertNotIn("index", out["issues"][0])
         self.assertNotIn("sales_rows", out)
         self.assertEqual(out["file"], "/mnt/x/PP30-2026-09.xlsx")
+        self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
         # 草稿工作簿是工具产出：对账工具能取，识别工具不收（L3）
         self.assertEqual([call[3] for call in self.calls if call[0] == "attach"], ["tool"])
         self.assertEqual(frappe.commits, 1)
@@ -1035,6 +1038,7 @@ class TaxDraftTests(unittest.TestCase):
         out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09",
                                           "workbook": False}))
         self.assertNotIn("file", out)
+        self.assertNotIn("files_added_to_chat", out)  # 这次没放文件就不说
         self.assertFalse([call for call in self.calls if call[0] == "attach"])
 
     def test_refusals_come_back_as_not_drafted(self):
@@ -1056,6 +1060,7 @@ class TaxDraftTests(unittest.TestCase):
                                              "tax": "0.03", "issues": ["payment_date_assumed"]})
         self.assertEqual(out["questions"][0]["suggested"], "service")
         self.assertTrue(out["file"].endswith(".xlsx"))
+        self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
         self.assertNotIn("excluded", out)
 
     def test_wht_draft_says_why_documents_read_were_not_counted(self):
@@ -1235,6 +1240,7 @@ class OriginalTests(unittest.TestCase):
             out = json.loads(tools.document_original({"document": "H1"}))
         self.assertEqual(added, [("IV69-00095-p1.jpg", "image/jpeg"), ("IV69-00095-p2.jpg", "image/jpeg")])
         self.assertEqual((out["pages_total"], len(logged)), (2, 2))
+        self.assertTrue(out["files_added_to_chat"])
 
 
 # 卡片上的叫法：替身 `_` 原样返回词条键，这里给几条带占位符的，看拼出来的句子
@@ -1723,6 +1729,7 @@ class FolderFilesTests(unittest.TestCase):
         self.assertTrue(files[0]["file"].startswith("/mnt/session/uploads/") and files[0]["filename"] == "kbank.pdf")
         self.assertEqual((files[0]["size_bytes"], files[2]["reason"]), (4, "not_found"))
         self.assertEqual([call[4]["scope"] for call in self.calls if call[0] == "fetch"], ["sesn_1"] * 3)
+        self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
 
     def test_two_spellings_of_one_file_are_fetched_once(self):
         for spelling in ("ACME/x.pdf", "ACME\\x.pdf"):
@@ -1839,6 +1846,9 @@ class ReadbackTests(unittest.TestCase):
         self.assertEqual(set(out["files"]), {"general_ledger", "sales_vat", "purchase_vat", "changes"})
         self.assertTrue(out["files"]["general_ledger"].startswith("/mnt/session/uploads/"))
         self.assertEqual((out["status"], len(out["changes"]), out["changes_not_shown"]), ("ready", 20, 5))
+        # 明说放进了这段对话、不在电脑上的哪个文件夹（2026-10-13 测试机：CC 说放进了「结果文件夹」）
+        self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
+        self.assertIn("not saved to any folder", tools.FILES_ADDED_NOTE)
         self.calls.clear()
         again = json.loads(tools.express_readback_status({"readback": "r" * 32}))
         self.assertEqual([call for call in self.calls if call[0] in ("attach", "file")], [])
@@ -1850,6 +1860,7 @@ class ReadbackTests(unittest.TestCase):
             out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
         self.assertEqual(out["status"], "reading")
         self.assertIn("cowork_express_readback_status", out["note"])
+        self.assertNotIn("files_added_to_chat", out)
         self.made = {"status": "waiting_for_cc", "reason": "update_needed", "version": "1.4.4", "minimum": "1.5.0"}
         self.calls.clear()
         out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
