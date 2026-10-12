@@ -998,6 +998,20 @@ class TaxDraftTests(unittest.TestCase):
                                              "tax": "0.03", "issues": ["payment_date_assumed"]})
         self.assertEqual(out["questions"][0]["suggested"], "service")
         self.assertTrue(out["file"].endswith(".xlsx"))
+        self.assertNotIn("excluded", out)
+
+    def test_wht_draft_says_why_documents_read_were_not_counted(self):
+        excluded = [{"ref": f"S{i}", "reason": "sales_document", "date": "2026-09-09"} for i in range(45)]
+        excluded.insert(0, {"ref": "R1", "reason": "nothing_withheld", "date": "2026-09-02", "seller_name": "Mali"})
+        base = self.wht_result
+        self.wht_result = lambda: {**base(), "excluded": excluded}
+        out = json.loads(tools.wht_draft({"company_tax_id": "0105556000009", "period": "2026-09"}))
+        self.assertEqual((out["excluded_total"], out["excluded_by_reason"]),
+                         (46, {"nothing_withheld": 1, "sales_document": 45}))
+        self.assertEqual(len(out["excluded"]), tools.TAX_LINES_SHOWN)
+        self.assertEqual(out["excluded"][0], excluded[0])
+        description = {tool["name"]: tool for tool in tools.TOOLS}["cowork_wht_draft"]["description"]
+        self.assertIn("excluded", description)
 
     def test_answers_list_and_remove(self):
         answers = [{"payee_tax_id": "0105546015062", "income_type": "transport"}]

@@ -1518,9 +1518,15 @@ def wht_draft(tool_input) -> str:
                        "lines": [_tax_line(line) for line in lines[:TAX_LINES_SHOWN]]}
     out = {key: summary.get(key) for key in ("draft", "period", "company", "totals", "questions", "issues_by_code",
                                              "deadlines", "edits_rejected", "truncated")}
+    excluded = summary.get("excluded") or []
+    by_reason = {}
+    for item in excluded:
+        by_reason[item["reason"]] = by_reason.get(item["reason"], 0) + 1
     out.update({"forms": forms, "review": [_tax_line(row) for row in (summary.get("review") or [])[:TAX_LINES_SHOWN]],
                 "suggestions": [_tax_line(row) for row in (summary.get("suggestions") or [])[:TAX_LINES_SHOWN]],
                 "notes": (summary.get("notes") or [])[:TAX_ISSUES_SHOWN],
+                "excluded_total": len(excluded), "excluded_by_reason": by_reason,
+                "excluded": excluded[:TAX_LINES_SHOWN],
                 "file": _tax_file(summary, tool_input.get("workbook"))})
     return _json(_filled(out))
 
@@ -3069,9 +3075,10 @@ TOOLS = [
                     "draft again. review lists rows left out until the user confirms them with include true: "
                     "certificate_direction_unclear (ask whether the company paid them), pairing_unclear (an invoice "
                     "and a certificate of the same payee that do not add up; check_with names the rows that may be "
-                    "the same payment: include only one side), buyer_unconfirmed (filed under the company but its tax "
-                    "ID is not on the document); amount_unreadable and payee_tax_missing need base/tax or "
-                    "payee_tax_id first. suggestions are invoices from known payees "
+                    "the same payment: include only one side), buyer_unconfirmed (filed under the company or naming it "
+                    "as buyer, but its tax ID is not on the document); amount_unreadable and payee_tax_missing need "
+                    "base/tax or payee_tax_id first. excluded lists this month's documents that were read but are "
+                    "not on the forms, each with its reason. suggestions are invoices from known payees "
                     "with nothing withheld; include one only when the user says so. ewht_check: 1% applies only to "
                     "payments through e-Withholding Tax, which are not filed on these forms; ask the user. edits "
                     "change rows of this draft and are kept: row (as listed), include, payment_date, income_type, "

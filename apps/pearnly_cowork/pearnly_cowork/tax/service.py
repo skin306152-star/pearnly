@@ -248,13 +248,14 @@ def wht_draft(company_tax_id, period, edits=None, company_name="", company_branc
     found, truncated = sources.wht_documents(workspace, tax_id, start, end)
     remembered = memory.choices(workspace)
     payees = [key.split(":", 1)[1] for key in remembered if key.startswith("payee:")]
-    payments, notes = wht.collect(found, tax_id, payees)
+    skipped = {}
+    payments, notes = wht.collect(found, tax_id, payees, skipped)
     known = {ref for payment in payments for ref in payment["refs"]}
     due = periods.deadlines("pnd", year, month)
 
     def build(stored):
         overrides, rejected = _edits(edits, stored.get("overrides") or {}, known)
-        result = wht.draft(payments, notes, year, month, remembered, overrides)
+        result = wht.draft(payments, notes, year, month, remembered, overrides, found, skipped)
         shown_name = str(company_name or stored.get("company_name") or _company_name(found, tax_id))[:200]
         summary = {
             "status": "drafted", "draft": name, "kind": WHT, "period": periods.text(year, month),

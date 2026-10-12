@@ -9,6 +9,7 @@ import frappe
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts.history import primary_page_fields
+from pearnly_cowork.contracts.recognized_names import name_key
 from pearnly_cowork.history import certificates
 from pearnly_cowork.tax import input_vat, wht
 
@@ -17,6 +18,8 @@ CLIENT = "Cowork Client"
 PAGE = 200
 SCAN_MAX = 5000
 CHUNK = 200
+# 认公司名用的名称至少这么长（比对键，去空白标点后）：读坏了只剩「บริษัท」「Co., Ltd.」的名称认不出是哪家
+NAME_MIN = 8
 WHT_FIELDS = ("document_type", "document_flag", "direction", "invoice_number", "date", "seller_name", "seller_tax",
               "seller_addr", "seller_branch", "buyer_name", "buyer_tax", "buyer_addr", "buyer_branch", "subtotal",
               "discount", "vat", "total_amount", "wht_rate", "wht_amount", "payment_method", "posting_payment_manual",
@@ -77,9 +80,10 @@ def _owner(workspace, company) -> tuple[set, bool]:
     return clients, wht.tax_id(frappe.db.get_value("Cowork Workspace", workspace, "tax_id")) == company
 
 
-def _match(row, company, clients, own_workspace) -> str:
+def _match(row, company, clients, own_workspace, names=frozenset()) -> str:
     """这条识别记录算不算这家公司的：票面有本公司税号（tax_id）；票面没有 / 读错，但归在本公司的客户档案（client）；
-    单一公司的工作空间里买方税号空着、没挂客户的（workspace）。都不是回空串。"""
+    单一公司的工作空间里买方税号空着、没挂客户的（workspace）；买方税号空着、买方名称就是本公司的名称（name，名称从本期
+    印了本公司税号的记录学来，见 ``_company_names``）。都不是回空串。后三种先不计入，待会计确认。"""
     seller, buyer = wht.tax_id(row.get("seller_tax")), wht.tax_id(row.get("buyer_tax"))
     if company in (seller, buyer):
         return "tax_id"
@@ -87,26 +91,48 @@ def _match(row, company, clients, own_workspace) -> str:
         return wht.MATCH_CLIENT
     if own_workspace and not buyer and not row.get("client"):
         return wht.MATCH_WORKSPACE
+    if names and not buyer and name_key(row.get("buyer_name")) in names:
+        return wht.MATCH_NAME
     return ""
 
 
-def _heads(window, order, company, owner) -> tuple[dict, bool]:
-    """票据日在 window 内、算这家公司的识别记录：({记录名: 怎么认的}, 是否只看了 SCAN_MAX 张)。"""
-    heads, offset = {}, 0
+def _company_names(rows, company) -> frozenset:
+    """这家公司的名称（比对键）：取到的记录里买方税号是本公司的那些买方名称；同一名称也印过别家税号的不算（认不准）。
+    2026-10-13 测试机：多公司工作空间里个人开的收据没读出买方税号、买方名称就是本公司，原先整张没取到。"""
+    ours, others = set(), set()
+    for row in rows:
+        key = name_key(row.get("buyer_name"))
+        buyer = wht.tax_id(row.get("buyer_tax"))
+        if len(key) < NAME_MIN or not buyer:
+            continue
+        (ours if buyer == company else others).add(key)
+    return frozenset(ours - others)
+
+
+def _scan(window, order) -> tuple[list, bool]:
+    """票据日在 window 内的识别记录（只取认归属用的几列）：(行, 是否只看了 SCAN_MAX 张)。"""
+    found, offset = [], 0
     while True:
         rows = frappe.get_list(HISTORY, filters={"invoice_date": ["between", list(window)]},
-                               fields=["name", "seller_tax", "buyer_tax", "client"],
+                               fields=["name", "seller_tax", "buyer_tax", "buyer_name", "client"],
                                order_by=f"invoice_date {order}, name {order}", limit_start=offset,
                                limit_page_length=PAGE)
-        for row in rows:
-            found = _match(row, company, *owner)
-            if found:
-                heads[row.name] = found
+        found.extend(rows)
         offset += PAGE
         if len(rows) < PAGE:
-            return heads, False
+            return found, False
         if offset >= SCAN_MAX:
-            return heads, True
+            return found, True
+
+
+def _heads(rows, company, owner, names) -> dict:
+    """算这家公司的识别记录：{记录名: 怎么认的}。"""
+    heads = {}
+    for row in rows:
+        found = _match(row, company, *owner, names)
+        if found:
+            heads[row.name] = found
+    return heads
 
 
 def _documents(heads) -> list:
@@ -130,8 +156,10 @@ def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
     window = start - timedelta(days=wht.LOOKBACK_DAYS)
     ahead = end + timedelta(days=wht.FORWARD_DAYS)
     owner = _owner(workspace, company)
-    heads, truncated = _heads((window, end), "desc", company, owner)
-    later, later_truncated = _heads((end + timedelta(days=1), ahead), "asc", company, owner)
+    rows, truncated = _scan((window, end), "desc")
+    later_rows, later_truncated = _scan((end + timedelta(days=1), ahead), "asc")
+    names = _company_names(rows + later_rows, company)
+    heads, later = _heads(rows, company, owner, names), _heads(later_rows, company, owner, names)
     documents = _documents(heads) + _documents(later)
     documents.sort(key=lambda item: (str(item["fields"].get("date") or ""), item["ref"]))
     documents += certificates.listing(workspace, window, ahead)

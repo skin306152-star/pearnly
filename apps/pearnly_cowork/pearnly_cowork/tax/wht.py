@@ -16,7 +16,9 @@
   票据日计入本月；以后的票也一起配，别的月配给它的凭证这个月也配给它。配不上的票，前后 45 天内有同一收款方的凭证、
   或（推定付款日的）90 天内有金额相同的凭证（配上了别的票的也算）就放进待核，配不上的那些凭证也一起放进待核，
   都不进合计，会计确认后计入。
-- 票面没有本公司税号、但归在本公司名下（客户档案或单一公司的工作空间）的费用票：列出待会计确认，不计入。
+- 票面没有本公司税号、但归在本公司名下（客户档案或单一公司的工作空间）、或买方名称就是本公司名称的费用票：列出待会计
+  确认，不计入（与本公司付款的 50 ทวิ 配上了即确认）。
+- 读到了却不计入本月的本月单据逐张列在 ``excluded``（销售单、没有预扣、凭证不是本公司的、付款落在别的月），不悄悄丢。
 - ใบแนบ：每页 6 名收款方，每名下最多 3 行付款明细（多出的另起一个序号）；ภ.ง.ด.3 分 ชื่อ / ชื่อสกุล，
   条件码 ภ.ง.ด.3 为 1/2/3、ภ.ง.ด.53 为 1/2。
 - e-WHT：2569-01-01 至 2570-12-31 经电子预扣（e-Withholding Tax）付款的，多数所得税率为 1%，且由银行代缴、
@@ -73,6 +75,11 @@ FORWARD_DAYS = CREDIT_DAYS  # 往月末后多看几天：本月的票可能以�
 SUBSET_CANDIDATES = 12    # 合计配对时每笔最多看日期最近的几张
 SUBSET_STEPS = 20000      # 合计配对的搜索步数上限（找不到就当配不上，进待核）
 MATCH_CLIENT, MATCH_WORKSPACE = "client", "workspace"  # 票面没有本公司税号、按归属取到的记录
+MATCH_NAME = "name"  # 买方税号没读出、买方名称是本公司的名称（`sources._company_names`）
+UNCONFIRMED_MATCHES = (MATCH_CLIENT, MATCH_WORKSPACE, MATCH_NAME)
+# 读到了、不计入本月的本月单据的原因（``excluded``），按会计最可能要问的排前
+EXCLUDED_REASONS = ("paid_in_other_month", "certificate_other_company", "nothing_withheld", "not_this_company",
+                    "sales_document")
 THRESHOLD = Decimal(1000)
 # 只作建议（questions 里的 suggested），不代替会计选：同一税率可能是几种所得
 SUGGEST_BY_RATE = {Decimal(5): "rent", Decimal(2): "advertising", Decimal(1): "transport", Decimal(3): "service",
@@ -445,13 +452,15 @@ def _pair(invoice_rows, certificate_rows) -> list:
     return out
 
 
-def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list]:
+def collect(documents, company_tax_id, remembered_payees=(), skipped=None) -> tuple[list, list]:
     """识别记录 → (付款行, 文档级说明)。
 
-    ``documents``：[{ref, origin: history|reference, fields: 主页字段, match?}]；``match`` 是 client / workspace 的，
-    是票面没有本公司税号、按归属取到的记录（`sources.wht_documents`），先不计入、待会计确认；
+    ``documents``：[{ref, origin: history|reference, fields: 主页字段, match?}]；``match`` 是 client / workspace / name
+    的，是票面没有本公司税号、按归属或买方名称取到的记录（`sources.wht_documents`），先不计入、待会计确认；
     同一张票（卖方 + 票号 + 合计）或同一张凭证（对方 + 日期 + 金额）重复上传只算一次；
-    ``remembered_payees``：记过所得类型的收款方税号（判 50 ทวิ 方向与列出建议补扣的依据）。"""
+    ``remembered_payees``：记过所得类型的收款方税号（判 50 ทวิ 方向与列出建议补扣的依据）；
+    ``skipped``：给了就填上不成付款行、也不进说明的记录 {记录名: 原因}（``EXCLUDED_REASONS``，草稿据此列 ``excluded``）。"""
+    skipped = {} if skipped is None else skipped
     company = tax_id(company_tax_id)
     remembered = {tax_id(value) for value in remembered_payees or ()}
     invoices, certificates, notes = [], [], []
@@ -466,12 +475,14 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
             unconfirmed = False
             if seller:
                 purchase_sellers.add(seller)
-        elif (document.get("match") in (MATCH_CLIENT, MATCH_WORKSPACE) and company not in (seller, buyer)
+        elif (document.get("match") in UNCONFIRMED_MATCHES and company not in (seller, buyer)
               and str(fields.get("direction") or "") != "sales"):
             unconfirmed = True
         else:
             if seller == company and buyer and buyer != company:
                 sales_buyers.add(buyer)
+            sale = seller == company or str(fields.get("direction") or "") == "sales"
+            skipped[document["ref"]] = "sales_document" if sale else "not_this_company"
             continue
         key = _invoice_key(seller, fields)
         if key and key in seen:
@@ -489,6 +500,7 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
         elif seller in remembered and base is not None and base >= THRESHOLD:
             row = _payment(document, fields, "suggested", "seller", base, None, None)
         else:
+            skipped[document["ref"]] = "nothing_withheld"
             continue
         if unconfirmed:
             row["include"] = False
@@ -497,6 +509,7 @@ def collect(documents, company_tax_id, remembered_payees=()) -> tuple[list, list
     certificate_rows, seen_certificates = [], {}
     for document, fields, seller, buyer in certificates:
         if company not in (seller, buyer):
+            skipped[document["ref"]] = "certificate_other_company"
             continue
         side = "buyer" if seller == company else "seller"
         counterparty = buyer if seller == company else seller
@@ -700,18 +713,49 @@ def sheets(lines) -> list:
     return pages
 
 
-def draft(payments, notes, year: int, month: int, memory=None, overrides=None) -> dict:
-    """付款行 → 本月草稿：{forms: {pnd53, pnd3}, questions, review, suggestions, notes, issues_by_code, totals}。
+def _excluded(documents, skipped, elsewhere, result, target) -> list:
+    """本月的单据（票据日 / 凭证日在本月）读到了，却不在两张表、待核、建议与说明里的：逐张给原因（``EXCLUDED_REASONS``），
+    CC 能告诉会计为什么没算（2026-10-13 测试机：一张收据悄悄没了）。"""
+    shown = {ref for form in result["forms"].values() for line in form["lines"] for ref in line["refs"]}
+    shown |= {ref for key in ("review", "suggestions") for row in result[key] for ref in row["refs"]}
+    shown |= {note.get("ref") for note in result["notes"]}
+    out = []
+    for document in documents or []:
+        ref, fields = document.get("ref"), document.get("fields") or {}
+        day = periods.parse_date(fields.get("date"))
+        if not ref or ref in shown or day is None or (day.year, day.month) != target:
+            continue
+        entry = {"ref": ref, "reason": skipped.get(ref) or "not_this_company", "date": day.isoformat()}
+        if ref in elsewhere:
+            paid = elsewhere[ref]
+            entry.update(reason="paid_in_other_month", payment_date=paid.isoformat() if paid else "")
+        for key in ("document_type", "invoice_number", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
+                    "total_amount", "wht_amount"):
+            value = str(fields.get(key) or "").strip()
+            if value:
+                entry[key] = value[:200]
+        if str(fields.get("document_flag") or "") == CERTIFICATE:
+            entry["document_type"] = CERTIFICATE
+        out.append(entry)
+    return sorted(out, key=lambda item: (EXCLUDED_REASONS.index(item["reason"]), item["date"], item["ref"]))
+
+
+def draft(payments, notes, year: int, month: int, memory=None, overrides=None, documents=None,
+          skipped=None) -> dict:
+    """付款行 → 本月草稿：{forms: {pnd53, pnd3}, questions, review, suggestions, notes, excluded, issues_by_code, totals}。
 
     ``memory``：{"payee:<税号>" / "category:<分类>": {income_type, income_text, form, condition}}；
-    ``overrides``：{识别记录名: 逐行改动（`clean_edit` 过的）}。"""
+    ``overrides``：{识别记录名: 逐行改动（`clean_edit` 过的）}；``documents`` / ``skipped``：交给 `collect` 的记录与它
+    填的原因，用来列 ``excluded``（不给就是空表）。"""
     memory, overrides = memory or {}, overrides or {}
     target = (year, month)
-    lines, review, suggestions, questions, counted = [], [], [], {}, {}
+    lines, review, suggestions, questions, counted, elsewhere = [], [], [], {}, {}, {}
     for payment in payments:
         row = _apply(payment, _edit_for(payment, overrides), memory)
         # 没有日期的记录本来就取不到（按票据日取数）；付款日不在本月的属于别的月
         if row["date"] is None or (row["date"].year, row["date"].month) != target:
+            for ref in row["refs"]:
+                elsewhere.setdefault(ref, row["date"])
             continue
         row["issues"] = row["issues"] + [item for item in _checks(row)
                                          if not any(old["code"] == item["code"] for old in row["issues"])]
@@ -753,10 +797,12 @@ def draft(payments, notes, year: int, month: int, memory=None, overrides=None) -
         suggested = SUGGEST_BY_RATE.get(rates[0]) if len(rates) == 1 else None
         shown_questions.append({**question, "base": str(question["base"]), "tax": str(question["tax"]),
                                 "rates": [rate_text(rate) for rate in rates], "suggested": suggested or ""})
-    return {"period": periods.text(year, month), "forms": forms, "questions": shown_questions,
-            "review": [_shown(row) for row in sorted(review, key=_order)],
-            "suggestions": [_shown(row) for row in sorted(suggestions, key=_order)],
-            "notes": list(notes or []), "issues_by_code": counted,
-            "totals": {"base": str(sum((Decimal(forms[form]["base"]) for form in FORMS), ZERO)),
-                       "tax": str(sum((Decimal(forms[form]["tax"]) for form in FORMS), ZERO)),
-                       "lines": len(lines), "review": len(review), "suggestions": len(suggestions)}}
+    result = {"period": periods.text(year, month), "forms": forms, "questions": shown_questions,
+              "review": [_shown(row) for row in sorted(review, key=_order)],
+              "suggestions": [_shown(row) for row in sorted(suggestions, key=_order)],
+              "notes": list(notes or []), "issues_by_code": counted,
+              "totals": {"base": str(sum((Decimal(forms[form]["base"]) for form in FORMS), ZERO)),
+                         "tax": str(sum((Decimal(forms[form]["tax"]) for form in FORMS), ZERO)),
+                         "lines": len(lines), "review": len(review), "suggestions": len(suggestions)}}
+    result["excluded"] = _excluded(documents, skipped or {}, elsewhere, result, target)
+    return result

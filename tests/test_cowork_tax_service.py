@@ -462,6 +462,49 @@ class WhtDraft(Base):
         self.assertIn("buyer_unconfirmed", [item["code"] for row in summary["review"] if row["row"] == "HIS-5"
                                             for item in row["issues"]])
 
+    def test_a_receipt_naming_the_company_without_its_tax_id_is_found_by_name(self):
+        # 2026-10-13 测试机：多公司工作空间，个人开的收据没读出买方税号、买方名称就是本公司 → 原先整张没取到
+        person = "1990100000029"
+        self.certificates = []
+        frappe.lists["Cowork OCR History"][0]["buyer_name"] = "บริษัท อาวร์ คอมพานี จำกัด"
+        receipt = history_page(document_type="receipt", invoice_number="R7", date="2026-09-12", seller_tax=person,
+                               seller_name="นางสาวมะลิ ดีงาม", buyer_name="บริษัท  อาวร์ คอมพานี จำกัด",
+                               subtotal="10000", wht_amount="300")
+        frappe.lists["Cowork OCR History"] += [
+            {"name": "HIS-7", "seller_tax": person, "buyer_tax": "", "buyer_name": "บริษัท  อาวร์ คอมพานี จำกัด",
+             "client": "", "invoice_date": date(2026, 9, 12), "pages": receipt},
+            {"name": "HIS-8", "seller_tax": person, "buyer_tax": "", "buyer_name": "Co., Ltd.", "client": "",
+             "invoice_date": date(2026, 9, 13), "pages": receipt.replace("R7", "R8")}]
+        summary = self.draft()
+        self.assertIn("buyer_name", frappe.list_calls[0]["fields"])
+        review = {row["row"]: [item["code"] for item in row["issues"]] for row in summary["review"]}
+        self.assertIn("buyer_unconfirmed", review["HIS-7"])
+        self.assertNotIn("HIS-8", review)  # 名称太短（只剩法人字样），认不出是哪家
+        # 写着本公司付款的 50 ทวิ 配上了即确认、计入 ภ.ง.ด.3
+        self.certificates = [{"ref": "REF-7", "origin": "reference", "fields": {
+            "document_flag": "withholding_certificate", "date": "2026-09-15", "seller_tax": COMPANY,
+            "buyer_tax": person, "buyer_name": "นางสาวมะลิ ดีงาม", "subtotal": "10000", "wht_amount": "300"}}]
+        line, = self.draft()["forms"]["pnd3"]["lines"]
+        self.assertEqual((line["refs"], line["source"]), (["HIS-7", "REF-7"], "both"))
+        # 同一名称也印过别家税号：认不准，不按名称取
+        frappe.lists["Cowork OCR History"].append(
+            {"name": "HIS-6", "seller_tax": SUPPLIER, "buyer_tax": "0105556999995",
+             "buyer_name": "บริษัทอาวร์คอมพานีจำกัด", "invoice_date": date(2026, 9, 6), "pages": history_page()})
+        self.certificates = []
+        summary = self.draft()
+        self.assertNotIn("HIS-7", [row["row"] for row in summary["review"]])
+
+    def test_documents_read_but_not_counted_are_listed_with_the_reason(self):
+        self.certificates = []
+        frappe.lists["Cowork OCR History"].append(
+            {"name": "HIS-S", "seller_tax": COMPANY, "buyer_tax": SUPPLIER, "invoice_date": date(2026, 9, 9),
+             "pages": history_page(document_type="tax_invoice", invoice_number="S1", date="2026-09-09",
+                                   seller_tax=COMPANY, buyer_tax=SUPPLIER, subtotal="1000", vat="70")})
+        summary = self.draft()
+        self.assertEqual([(item["ref"], item["reason"]) for item in summary["excluded"]], [("HIS-S", "sales_document")])
+        stored = json.loads(frappe.store[("Cowork Tax Draft", summary["draft"])].summary_json)
+        self.assertNotIn("excluded", stored)  # 行级明细不存
+
     def test_two_first_drafts_at_once_keep_one_draft_and_its_edits(self):
         name = service.record_id("WS1", "withholding", COMPANY, "00000", "2026-09")
         other = Doc(frappe, {"doctype": "Cowork Tax Draft", "name": name, "record_id": name, "workspace": "WS1",

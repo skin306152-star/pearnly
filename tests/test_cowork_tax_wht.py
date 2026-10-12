@@ -212,6 +212,63 @@ class Collect(unittest.TestCase):
                          [("duplicate_document", "H2", "H1"), ("duplicate_document", "C2", "C1")])
 
 
+class NameMatchAndExcluded(unittest.TestCase):
+    """2026-10-13 测试机：多公司工作空间里个人开的收据没读出买方税号、买方名称就是本公司 → 原先整张悄悄没了。"""
+
+    PERSON = "1990100000029"
+
+    def test_a_receipt_naming_the_company_as_buyer_waits_for_the_accountant_or_its_certificate(self):
+        receipt = invoice("R1", seller=self.PERSON, buyer="", document_type="receipt", subtotal="10000", vat="0",
+                          wht_amount="300", seller_name="นางสาวมะลิ ดีงาม")
+        receipt["match"] = wht.MATCH_NAME
+        result = draft([receipt])
+        self.assertEqual(all_lines(result), [])
+        self.assertEqual([(row["row"], [item["code"] for item in row["issues"]]) for row in result["review"]],
+                         [("R1", ["buyer_unconfirmed", "income_type_missing"])])
+        # 与写着本公司付款的 50 ทวิ 配上了即确认（同现有配对规则）
+        paired = [receipt, certificate("C1", payee=self.PERSON, date_="2026-09-12", base="10000", tax="300")]
+        line, = all_lines(draft(paired))
+        self.assertEqual((line["refs"], line["source"], line["form"]), (["R1", "C1"], "both", wht.PND3))
+        # 按名称认到、但是销售单的不取
+        sale = invoice("S1", seller="", buyer="", direction="sales")
+        sale["match"] = wht.MATCH_NAME
+        self.assertEqual(wht.collect([sale], COMPANY), ([], []))
+
+    def test_every_document_of_the_month_read_but_not_counted_says_why(self):
+        other = certificate("C9")
+        other["fields"]["seller_tax"] = "0105556000099"   # 别家公司的凭证
+        documents = [
+            invoice("H1"),                                                    # 计入
+            invoice("H1D", number="H1"),                                      # 重复：在说明里
+            invoice("H2", number="H2", wht_amount=""),                        # 没有预扣
+            invoice("S1", seller=COMPANY, buyer=CUSTOMER, number="S1"),       # 本公司的销售单
+            other,
+            invoice("I3", seller=LANDLORD, seller_name="นายสมชาย ใจดี", subtotal="5000", vat="0", wht_amount="250",
+                    date_="2026-09-25"),                                      # 10 月才付（凭证 10 月）
+            certificate("C3", payee=LANDLORD, date_="2026-10-05", base="5000", tax="250"),
+            invoice("H0", number="H0", wht_amount="", date_="2026-08-10"),    # 上个月的：不在本月列
+        ]
+        skipped = {}
+        payments, notes = wht.collect(documents, COMPANY, (), skipped)
+        result = wht.draft(payments, notes, 2026, 9, {}, {}, documents, skipped)
+        self.assertEqual([line["row"] for line in all_lines(result)], ["H1"])
+        self.assertEqual([(item["ref"], item["reason"]) for item in result["excluded"]],
+                         [("I3", "paid_in_other_month"), ("C9", "certificate_other_company"),
+                          ("H2", "nothing_withheld"), ("S1", "sales_document")])
+        paid_later = result["excluded"][0]
+        self.assertEqual((paid_later["payment_date"], paid_later["seller_tax"], paid_later["wht_amount"]),
+                         ("2026-10-05", LANDLORD, "250"))
+        self.assertEqual(result["excluded"][1]["document_type"], "withholding_certificate")
+        # 本月读到的每一张都有去处：表里、待核、建议、说明或 excluded
+        placed = {ref for line in all_lines(result) for ref in line["refs"]}
+        placed |= {ref for key in ("review", "suggestions") for row in result[key] for ref in row["refs"]}
+        placed |= {note["ref"] for note in result["notes"]} | {item["ref"] for item in result["excluded"]}
+        this_month = {item["ref"] for item in documents if item["fields"]["date"].startswith("2026-09")}
+        self.assertEqual(this_month - placed, set())
+        # 不给记录就不列（老调用方）
+        self.assertEqual(draft(documents)["excluded"], [])
+
+
 class Pairing(unittest.TestCase):
     def test_invoice_and_certificate_are_one_payment(self):
         documents = [invoice("H1", date_="2026-08-28", wht_amount="300"),
