@@ -1,6 +1,8 @@
 """Express 回读出的工作簿交给对账现有的解析器原样能读（2026-10 CC 闭环 L1）：总账给银行对账（`gl_sheets` /
 `bank_intake.read_ledger_file`）与收入对账（`income_parse`），销项 / 进项税报给 `vat_parse`（收入对账右口、销项核查左口），
-收入对账整套配得上、作废行认得出。解析器一行不改。要 openpyxl：在生产镜像跑（`scripts/ci-candidate-checks.sh` offline）。"""
+收入对账整套配得上、作废行认得出。总账解析只改了一处（2026-10-13，对 Express 自己导出的全科目总账同样适用）：科目名里的
+「ยกมา」不当期初标签、给了科目时别的科目段里的期初行不算。文字按文字存（「=」开头不变公式、控制字符去掉）。
+要 openpyxl：在生产镜像跑（`scripts/ci-candidate-checks.sh` offline）。"""
 import datetime as dt
 import io
 import sys
@@ -46,7 +48,7 @@ def vat_row(side, number, day, base, vat, ref="", name="ร้าน B", tax_id=
             "amt01": base, "vat01": vat, "extra": {}, "deleted": False}
 
 
-def readback():
+def readback_raw():
     journal = [
         sale("IV690503-001", "2026-05-03", "500.00", "35.00"),
         sale("IV690503-002", "2026-05-03", "200.00", "14.00"),  # 同一天第二张：日期只印一次
@@ -82,10 +84,11 @@ def readback():
                 vat_row("P", "RR690515-001", "2026-05-15", "50.00", "3.50", ref="B-2", name="ร้าน D")],
         "documents": [], "diagnostics": {},
     }
-    return contracts.parse(raw, "2026-05")
+    return raw
 
 
-DATA = readback()
+RAW = readback_raw()
+DATA = contracts.parse(RAW, "2026-05")
 GL = workbooks.general_ledger(DATA["company"]["name"], "2026-05", contracts.ledger(DATA), dt.date(2026, 10, 13))
 SALES_VAT = workbooks.vat_report("S", DATA["company"], "2026-05", contracts.vat_rows(DATA, "S"))
 PURCHASE_VAT = workbooks.vat_report("P", DATA["company"], "2026-05", contracts.vat_rows(DATA, "P"))
@@ -147,6 +150,63 @@ class BankReconciliation(unittest.TestCase):
         parsed = gl_sheets.parse_gl_workbook(GL, "gl.xlsx", OTHER)
         self.assertEqual((parsed["ok"], parsed["rows"], parsed["opening"], parsed["opening_found"]),
                          (True, [], 40.0, True))
+
+
+    def test_opening_words_in_other_accounts_do_not_replace_the_bank_opening(self):
+        # 泰国科目表里常见「กำไร(ขาดทุน)สะสมยกมา」「สินค้าคงเหลือยกมา」：以前段头或说明带「ยกมา」的那一行被当成整本的期初，
+        # 银行期初读成 −250,000 / 5,000（应为 1,100）
+        raw = dict(RAW, accounts=RAW["accounts"] + [
+            {"code": "32-01-00-00", "name": "กำไร(ขาดทุน)สะสมยกมา", "name2": "", "group": "3", "level": "",
+             "parent": ""},
+            {"code": "11-06-00-00", "name": "สินค้าคงเหลือ", "name2": "", "group": "1", "level": "", "parent": ""}],
+            balances=RAW["balances"] + [{"code": "32-01-00-00", "values": {"BEGLY": "-250000.00"}},
+                                        {"code": "11-06-00-00", "values": {"BEGLY": "3000.00"}}],
+            journal=RAW["journal"] + [voucher("JV690501-001", "00", "2026-05-01", "", [
+                line("1", "11-06-00-00", "2026-05-01", "0", "2000.00", "สินค้าคงเหลือยกมา"),
+                line("2", "32-01-00-00", "2026-05-01", "1", "2000.00", "opening b/f")])])
+        data = contracts.parse(raw, "2026-05")
+        book = workbooks.general_ledger(data["company"]["name"], "2026-05", contracts.ledger(data),
+                                        dt.date(2026, 10, 13))
+        for parsed in (gl_sheets.parse_gl_workbook(book, "gl.xlsx", BANK),
+                       bank_intake.read_ledger_file(book, "gl.xlsx", account_code=BANK)):
+            self.assertTrue(parsed["ok"], parsed)
+            self.assertEqual((parsed["opening"], parsed["closing"], len(parsed["rows"])), (1100.0, 2150.0, 6))
+        whole = gl_sheets.parse_gl_workbook(book, "gl.xlsx")
+        self.assertIn(BANK, whole["accounts"])
+        self.assertNotIn("32-01-00-00", [row.doc_no for row in whole["rows"]])
+
+
+class SafeText(unittest.TestCase):
+    def test_control_characters_are_dropped_and_formulas_stay_text(self):
+        # 说明、对方名来自 Express 与第三方发票的识别结果：Excel 不收的控制字符以前让出表报错，回读一直停在 reading
+        raw = dict(RAW, journal=[voucher("JV690531-009", "00", "2026-05-31", "x", [
+            line("1", FEES, "2026-05-31", "0", "20.00", "ค่า\x01ธรรม\x0bเนียม"),
+            line("2", BANK, "2026-05-31", "1", "20.00", '=HYPERLINK("http://x")')])],
+            vat=[vat_row("P", "RR690514-001", "2026-05-14", "1000.00", "70.00", ref="B\x1f-1",
+                         name='=HYPERLINK("http://x")')])
+        data = contracts.parse(raw, "2026-05")
+        ledger = load_workbook(io.BytesIO(workbooks.general_ledger("=1+1", "2026-05", contracts.ledger(data),
+                                                                   dt.date(2026, 10, 13)))).active
+        cells = {cell.value: cell for row in ledger.iter_rows() for cell in row if isinstance(cell.value, str)}
+        self.assertIn("ค่าธรรมเนียม", cells)
+        for text in ('=HYPERLINK("http://x")', "=1+1"):
+            self.assertEqual(cells[text].data_type, "s", text)
+        report = load_workbook(io.BytesIO(workbooks.vat_report("P", data["company"], "2026-05",
+                                                               contracts.vat_rows(data, "P")))).active
+        row = [cell for cell in report[6]]
+        self.assertEqual((row[2].value, row[4].value, row[4].data_type), ("B-1", '=HYPERLINK("http://x")', "s"))
+        parsed = vat_parse.decode({"kind": "excel", "cells": sheets(workbooks.vat_report(
+            "P", data["company"], "2026-05", contracts.vat_rows(data, "P")))[0]})
+        self.assertEqual([item["report_invoice_no"] for item in parsed["rows"]], ["B-1"])
+        found = {"changes": [{"docnum": "RR1", "direction": "purchase", "change": "changed", "field": "party",
+                              "pushed": "=cmd|' /C calc'!A0", "now": "S1 ร้าน\x02 A"}], "direct": []}
+        labels = {key: key for key in ("sheet_changes", "sheet_direct", "docnum", "direction", "change", "field",
+                                       "pushed", "now", "date", "kind", "party", "before_vat", "vat", "total",
+                                       "entered_by")}
+        labels.update(directions={}, changes={}, fields={})
+        sheet = load_workbook(io.BytesIO(workbooks.changes(found, labels)))["sheet_changes"]
+        self.assertEqual([(cell.value, cell.data_type) for cell in sheet[2]][4:],
+                         [("=cmd|' /C calc'!A0", "s"), ("S1 ร้าน A", "s")])
 
 
 class IncomeReconciliation(unittest.TestCase):

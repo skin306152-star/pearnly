@@ -6,8 +6,9 @@
 
 - ``request(connection, account_set_key, period, accounts=None)``：电脑此刻没来领按需请求（离线 / CC 桌面版太旧）回
   ``{"status": "waiting_for_cc", "reason"}``，什么都不建；同一份还在读就回那一份；否则带上推送过的单据号建一份 → ``reading``。
-- ``status(name)``：还在读就看请求：电脑做完了就当场处理（gunzip → `contracts.parse` → 推送记录再按本月单号补查 →
-  `diff.compare` → 四份工作簿 → 留存 → ready，删掉同一份的旧回读），失败 / 过期记 failed；电脑没来领回 waiting_for_cc。
+- ``status(name)``：还在读就看请求：电脑做完了就当场处理（gunzip → `contracts.parse` → 推送记录再按本月的单据、凭证与
+  税务记录的单号补查 → `diff.compare` → 四份工作簿 → 留存 → ready，删掉同一份的旧回读），失败 / 过期 / 处理出错记 failed；
+  电脑没来领回 waiting_for_cc。
 - ``file(name, kind)`` → (文件名, 内容)；``data(name)``：校验过的读账结果；``delete(name)``：连文件一起删。
 - ``vat_records(connection, account_set_key, year, month)``：给税务草稿（L4 / L5）的进销项记录，当前用户最近一次完成的回读；
   没有回 None（调用方提示先回读）。
@@ -240,41 +241,56 @@ def _labels():
 
 
 def _process(name):
-    """电脑交回的读账结果 → 四份工作簿 + 差异 + 留存 → ready。锁住这一行再判状态：同时来两次只处理一次。"""
+    """电脑交回的读账结果 → 四份工作簿 + 差异 + 留存 → ready。锁住这一行再判状态：同时来两次只处理一次。之后全是确定性的
+    计算：交回的内容不合规记 failed（码见 `contracts`），其余任何意外也记 failed（process_failed，留错误日志），不让这一份
+    一直停在 reading。"""
     row = read(name, for_update=True)
     if row.status != "reading":
         return row
     try:
         content, _meta = request_service.result(row.request)
-        raw = _gunzip(content)
-        data = contracts.parse(raw, row.period)
-    except contracts.ContractError as error:
-        return _fail(row.name, error.code)
-    except (frappe.ValidationError, frappe.DoesNotExistError):
+    except (frappe.ValidationError, frappe.DoesNotExistError, OSError):
         frappe.clear_messages()
         return _fail(row.name, "result_missing")
+    try:
+        raw = _gunzip(content)
+        _build(row, raw, contracts.parse(raw, row.period))
+    except contracts.ContractError as error:
+        storage.drop(row.name)
+        return _fail(row.name, error.code)
+    except Exception:  # noqa: BLE001 — 见上
+        frappe.log_error(title="Cowork readback processing failed", message=frappe.get_traceback()[-1500:])
+        frappe.clear_messages()
+        storage.drop(row.name)
+        return _fail(row.name, "process_failed")
+    write(row)
+    _drop_request(row)
+    _drop_older(row)
+    return row
+
+
+def _build(row, raw, data):
+    """出四份工作簿、存读账结果、把摘要与差异写进 ``row``（不存库，调用方存）。"""
     params = _json(row.params_json, {})
     first, last = contracts.month_range(row.period)
-    pushed = push_service.pushed_express(row.connection, row.account_set_key, first, last, diff.month_numbers(data))
+    # 推送记录：单据日在本月的，加上会计改到本月的单与本月税务记录的单（顺延抵扣的进项要带识别记录）
+    pushed = push_service.pushed_express(row.connection, row.account_set_key, first, last,
+                                         sorted(set(diff.month_numbers(data)) | set(diff.tax_numbers(data))))
     found = diff.compare(pushed, data)
     accounts = contracts.ledger(data, contracts.prefixes(params.get("accounts")))
     sales, purchases = contracts.vat_rows(data, "S"), contracts.vat_rows(data, "P")
     read_at = _read_at(data["read_at"])
     printed = read_at.replace(tzinfo=timezone.utc).astimezone(BANGKOK)
     names = _filenames(params.get("folder"), row.period)
-    try:
-        for kind, content in (
-                ("general_ledger", workbooks.general_ledger(data["company"]["name"], row.period, accounts,
-                                                            printed.date())),
-                ("sales_vat", workbooks.vat_report("S", data["company"], row.period, sales)),
-                ("purchase_vat", workbooks.vat_report("P", data["company"], row.period, purchases)),
-                ("changes", workbooks.changes(found, _labels()))):
-            storage.put(row.name, names[kind], content)
-        storage.put_data(row.name, {"readback": raw, "history": {item["docnum"]: item["history"]
-                                                                 for item in pushed if item.get("history")}})
-    except Exception:
-        storage.drop(row.name)
-        raise
+    for kind, content in (
+            ("general_ledger", workbooks.general_ledger(data["company"]["name"], row.period, accounts,
+                                                        printed.date())),
+            ("sales_vat", workbooks.vat_report("S", data["company"], row.period, sales)),
+            ("purchase_vat", workbooks.vat_report("P", data["company"], row.period, purchases)),
+            ("changes", workbooks.changes(found, _labels()))):
+        storage.put(row.name, names[kind], content)
+    storage.put_data(row.name, {"readback": raw, "history": {item["docnum"]: item["history"]
+                                                             for item in pushed if item.get("history")}})
     summary = {
         "company": data["company"]["name"], "tax_id": data["company"]["tax_id"],
         "account_set": row.account_label or data["account_set"], "period": row.period,
@@ -290,10 +306,6 @@ def _process(name):
                                             "direct": found["direct"][:CHANGES_KEPT]}, ensure_ascii=False),
                 "files_json": json.dumps(names, ensure_ascii=False), "read_at": read_at, "ready_at": _now(),
                 "data_version": DATA_VERSION})
-    write(row)
-    _drop_request(row)
-    _drop_older(row)
-    return row
 
 
 def _drop_older(row):

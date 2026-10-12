@@ -347,6 +347,40 @@ class ExpressReadback(unittest.TestCase):
         for part in ("version", "period"):
             self.assertIn(f'raw.get("{part}")', parser)
 
+    def test_the_server_compares_with_what_the_helper_wrote(self):
+        """差异表按 CC 桌面版写进 Express 的样子比（2026-10-13）：进项票号的缩法两边同一个结果；分录换科目要的账套设置
+        （现金 / 存货 / 购货科目、盘存制）与对方档科目，读账交回、服务端认得，也正是写入时换科目用的那几个。"""
+        helper = helper_function(COMPANION / "purchase_adapter.py", "fit_ref_no", {"REF_NO_BYTES"})
+        spec = importlib.util.spec_from_file_location(
+            "pushed_for_contract", ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "express"
+            / "pushed.py")
+        pushed = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pushed)
+        for value in ("", None, "INV-9", " G0012-69-0045871 ", "AB/CD.EF GH-IJKLMNOPQ", "ใบกำกับภาษีเลขที่-12345",
+                      "x" * 40, "A B-C/D.E" * 3):
+            self.assertEqual(pushed.fit_ref_no(value), helper(value), value)
+
+        collect = ast.parse(method_source_of(COMPANION / "express_read.py", "collect"))
+        settings = next({key.value for key in node.keys} for node in ast.walk(collect) if isinstance(node, ast.Dict)
+                        and any(getattr(key, "value", None) == "cash" for key in node.keys))
+        server = number_constants(self.READBACK / "contracts.py", ("SETTINGS",))["SETTINGS"]
+        self.assertEqual(settings, set(server) | {"periodic"})
+        source = ast.unparse(collect)
+        for column in ("ACCNUM00", "ACCNUM04", "ACCNUM18", "ISPERPETUA"):
+            self.assertIn(f"'{column}'", source)
+        self.assertIn("'party_account'", source)
+        self.assertTrue(quoted((self.READBACK / "contracts.py").read_text(encoding="utf-8"), "party_account"))
+        writer = (COMPANION / "dbf_writer.py").read_text(encoding="utf-8")
+        sales = (COMPANION / "dbf_sales.py").read_text(encoding="utf-8")
+        for slot in ("ACCNUM00", "ACCNUM04", "ACCNUM18"):
+            self.assertIn(f'default_account(account_dir, "{slot}")', writer)
+        self.assertIn('default_account(account_dir, "ACCNUM00")', sales)
+        self.assertRegex(writer, r'control_account\(\s*account_dir, "APMAS"')
+        self.assertRegex(sales, r'control_account\(\s*account_dir, "ARMAS"')
+        self.assertIn('"ISPERPETUA"', (COMPANION / "account_rules.py").read_text(encoding="utf-8"))
+        self.assertIn('ref_no=fit_ref_no(payload.get("ref_no"))',
+                      (COMPANION / "purchase_adapter.py").read_text(encoding="utf-8"))
+
     def test_reading_never_waits_for_the_account_set_lock(self):
         tree = ast.parse((COMPANION / "express_read.py").read_text(encoding="utf-8"))
         imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)

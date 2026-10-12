@@ -2,7 +2,8 @@
 进销项记录。不连库、不依赖框架。
 
 - 交回的内容与字段名见小助手 ``companion/src/companion/express_read.py``（``RESULT_VERSION``）；``parse`` 逐项校验类型与
-  长度，金额一律两位的 Decimal，日期为 date。
+  长度，金额一律两位的 Decimal，日期为 date。账套设置（``settings``）与单据的对方档科目（``party_account``）给差异表认出
+  CC 桌面版写分录时换过的科目（`diff._written`）；没交回就是空。
 - 期初（与测试机上已和 Express 打印件逐笔对过的原型 ``xmake.py`` 同一口径）：
   ``GLBAL.BEGLY + Σ(DEBIT{k}LY − CREDIT{k}LY) + 本月之前所有没作废的凭证的 GLJNLIT 行（借加贷减）``。原型的「从账套首年起
   累计」取的是读到的最早一年，等于更早的全部行。
@@ -26,6 +27,8 @@ DEBIT = ("0", "D")
 CREDIT = ("1", "C")
 CANCELLED = "C"
 SIDES = ("P", "S")
+# 账套设置（ISINFO）里推送写分录时会换用的默认科目：现金（现购 / 现销的收付款行）、存货与购货（期末盘存制的进项）
+SETTINGS = ("cash", "stock", "purchases")
 # 回读请求点名的单据号（推送过的单）、总账只出的科目前缀
 DOCNUMS_MAX = 2000
 DOCNUM_MAX = 20
@@ -107,11 +110,11 @@ def amount(value: Any) -> Decimal:
         raise ContractError("cowork.readback.data_invalid")
     try:
         number = Decimal(str(value).strip())
-    except InvalidOperation as error:
+        if not number.is_finite():
+            raise ContractError("cowork.readback.data_invalid")
+        return number.quantize(CENT, rounding=ROUND_HALF_UP)
+    except InvalidOperation as error:  # 解不出，或位数多到两位小数放不下（1E+30）
         raise ContractError("cowork.readback.data_invalid") from error
-    if not number.is_finite():
-        raise ContractError("cowork.readback.data_invalid")
-    return number.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def _text(value: Any, limit: int = TEXT_MAX) -> str:
@@ -162,9 +165,12 @@ def parse(raw: Any, expected_period: str) -> Dict[str, Any]:
     if raw.get("period") != period(expected_period):
         raise ContractError("cowork.readback.data_invalid")
     company = _dict(raw["company"]) if raw.get("company") is not None else {}
+    settings = _dict(raw["settings"]) if raw.get("settings") is not None else {}
     out: Dict[str, Any] = {
         "period": raw["period"], "account_set": _text(raw.get("account_set")), "read_at": _text(raw.get("read_at"), 40),
         "company": {key: _text(company.get(key)) for key in ("name", "tax_id", "branch")},
+        "settings": {**{key: _text(settings.get(key), 30) for key in SETTINGS},
+                     "periodic": settings.get("periodic") is True},
         "calendar": [], "accounts": {}, "balances": {}, "movements": [], "journal": [], "vat": [], "documents": [],
         "diagnostics": raw.get("diagnostics") if isinstance(raw.get("diagnostics"), dict) else {},
     }
@@ -227,8 +233,8 @@ def parse(raw: Any, expected_period: str) -> Dict[str, Any]:
             "table": row["table"], "rectyp": _text(row.get("rectyp"), 2), "docnum": _text(row.get("docnum"), 30),
             "docdat": _date(row.get("docdat")), "ref": _text(row.get("ref"), 60), "party": _text(row.get("party"), 30),
             "party_name": _text(row.get("party_name")), "party_taxid": _text(row.get("party_taxid"), 20),
-            "flgvat": _text(row.get("flgvat"), 2), **{key: amount(row.get(key, "0"))
-                                                       for key in ("amount", "netval", "vatamt", "netamt")},
+            "party_account": _text(row.get("party_account"), 30), "flgvat": _text(row.get("flgvat"), 2),
+            **{key: amount(row.get(key, "0")) for key in ("amount", "netval", "vatamt", "netamt")},
             "docstat": _text(row.get("docstat"), 2).upper(), "userid": _text(row.get("userid"), 20),
             "deleted": row.get("deleted") is True})
     return out
@@ -331,6 +337,11 @@ def vat_rows(data: Dict[str, Any], side: str) -> List[Dict[str, Any]]:
     return out
 
 
+def tax_month(row: Dict[str, Any], first: dt.date, last: dt.date) -> bool:
+    """这条 ISVAT 记录算不算本月的税务记录：VATPRD、VATDAT 或 DOCDAT 任一落在本月（顺延抵扣的进项单据日在别的月份）。"""
+    return row["vatrec"] in SIDES and any(_in(row[key], first, last) for key in ("vatprd", "vatdat", "docdat"))
+
+
 def vat_records(data: Dict[str, Any], history: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
     """给税务草稿（ภ.พ.30 与进项核查）的 ISVAT 记录：VATPRD、VATDAT 或 DOCDAT 落在本月的行，软删的标 deleted；
     金额两位小数的字符串；推送过的单带上 Pearnly 的识别记录（history）。"""
@@ -338,7 +349,7 @@ def vat_records(data: Dict[str, Any], history: Optional[Dict[str, str]] = None) 
     known = {str(key).upper(): value for key, value in (history or {}).items() if value}
     out = []
     for row in data["vat"]:
-        if row["vatrec"] not in SIDES or not any(_in(row[key], first, last) for key in ("vatprd", "vatdat", "docdat")):
+        if not tax_month(row, first, last):
             continue
         item = {"side": row["vatrec"], "rectyp": row["rectyp"],
                 "period": row["vatprd"].strftime("%Y-%m") if row["vatprd"] else "",
@@ -359,15 +370,21 @@ def vat_records(data: Dict[str, Any], history: Optional[Dict[str, str]] = None) 
 
 def warnings(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """电脑读账时的异常与口径提示（不挡出表）：缺表、坏行、借贷不平、没有凭证头的行、认不出借贷的行、别的税率组有值。"""
-    diag = data.get("diagnostics") or {}
+    diag = data.get("diagnostics") if isinstance(data.get("diagnostics"), dict) else {}
+
+    def listed(key):  # 电脑交回的诊断只当提示：形状不对的项当没有，不挡出表
+        value = diag.get(key)
+        return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
     out = []
-    missing = [name for name in diag.get("missing_tables") or [] if isinstance(name, str)]
+    missing = listed("missing_tables")
     if missing:
         out.append({"code": "tables_missing", "tables": missing[:20]})
-    bad = {name: count for name, count in (diag.get("bad_rows") or {}).items() if type(count) is int and count}
+    rows = diag.get("bad_rows") if isinstance(diag.get("bad_rows"), dict) else {}
+    bad = {name: count for name, count in rows.items() if isinstance(name, str) and type(count) is int and count}
     if bad:
         out.append({"code": "unreadable_rows", "rows": bad})
-    unbalanced = [item for item in diag.get("unbalanced") or [] if isinstance(item, str)]
+    unbalanced = listed("unbalanced")
     if unbalanced:
         out.append({"code": "unbalanced_vouchers", "vouchers": unbalanced[:20]})
     if type(diag.get("orphan_lines")) is int and diag["orphan_lines"]:

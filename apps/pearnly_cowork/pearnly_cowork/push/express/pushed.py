@@ -4,14 +4,34 @@
 - 日期取载荷的 ``docdate_be``（佛历 YYMMDD，写进 Express 的单据日期）；
 - 对方：载荷里的 supplier / customer，Express 里实际用的码以回执 ``meta.party_code`` 为准（新建的档载荷里没有码）；
 - 存货单（回执 ``line_modes`` 有存货行）：小助手会另写重分类分录，比对只比表头，不比分录。
+- 进项票号取写进 Express 时缩短后的（``fit_ref_no``）。
 """
 from __future__ import annotations
 
 import datetime as dt
+import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
 
 DIRECTIONS = {"purchase": "supplier", "sales": "customer"}
+REF_NO_BYTES = 15  # Express 的 REFNUM C(15)（APTRN / ISVAT），按账套编码 cp874 计
+
+
+def fit_ref_no(value: Any, limit: int = REF_NO_BYTES) -> str:
+    """进项票号写进 Express REFNUM 时 CC 桌面版的缩法（照 ``companion/src/companion/purchase_adapter.fit_ref_no``，
+    `tests/test_companion_contract.py` 锁住两边一致）：放得下原样；放不下先去掉分隔符（- / . 空格），还放不下保留后面
+    limit 字节。"""
+    text = str(value or "").strip()
+
+    def size(item: str) -> int:
+        return len(item.encode("cp874", "replace"))
+
+    if size(text) <= limit:
+        return text
+    compact = re.sub(r"[\s\-/.]", "", text)
+    while size(compact) > limit:
+        compact = compact[1:]
+    return compact
 
 
 def be_date(value: Any) -> Optional[dt.date]:
@@ -45,6 +65,7 @@ def project(name: str, history: Any, docnum: Any, payload: Any, response: Any) -
     party = payload.get(DIRECTIONS[direction]) if isinstance(payload.get(DIRECTIONS[direction]), dict) else {}
     meta = response.get("meta") if isinstance(response.get("meta"), dict) else {}
     day = be_date(payload.get("docdate_be"))
+    ref = str(payload.get("ref_no") or "").strip()
     modes = response.get("line_modes") if isinstance(response.get("line_modes"), list) else []
     lines = []
     for line in payload.get("lines") if isinstance(payload.get("lines"), list) else []:
@@ -52,7 +73,7 @@ def project(name: str, history: Any, docnum: Any, payload: Any, response: Any) -
             lines.append({"acc": str(line["acc"]).strip(), "side": line["side"], "amount": _amount(line.get("amount"))})
     return {"record": name, "history": str(history or ""), "docnum": docnum, "direction": direction,
             "doctype": str(payload.get("doctype") or "").upper(), "date": day.isoformat() if day else "",
-            "ref_no": str(payload.get("ref_no") or "").strip(),
+            "ref_no": fit_ref_no(ref) if direction == "purchase" else ref,
             "party_code": str(meta.get("party_code") or party.get("code") or "").strip(),
             "party_name": str(party.get("name") or "").strip(), "party_tax_id": str(party.get("tax_id") or "").strip(),
             "base": _amount(payload.get("base_amount")), "vat": _amount(payload.get("vat_amount")),

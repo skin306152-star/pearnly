@@ -14,7 +14,8 @@
 
 · 表头必须**同时**有日期列和钱列（借或贷）才算真表头 —— 只有日期+科目+余额不算
   （否则单列净额 GL 会解析出 0 行还一路跑到"完成"）；
-· 期初单独识别，且**扫该行前四格**而不是只看描述列：固定模板把"期初"标签放在日期列；
+· 期初单独识别，且**扫该行前四格**而不是只看描述列：固定模板把"期初"标签放在日期列；科目标题行的科目名不算标签，
+  给了科目时别的科目段里的期初行不算（全科目总账里「กำไรสะสมยกมา」这类科目、说明带「ยกมา」的行不顶掉要对的科目的期初）；
 · 期初优先读余额列（模板与 Mr.erp 把期初放在余额列），没有余额列才退回"借 − 贷"（旧线上是"贷 − 借"，
   与逐行余额方向相反，2026-09-29 有意改正，见下）；
 · 空日期沿用上一行的日期（Mr.erp 一天只印一次日期）；
@@ -214,8 +215,19 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 		if not any(row):
 			continue
 		row_list = [str(cell or "").strip() for cell in row]
+		cell = lambda key: row_list[col_map[key]] if key in col_map and col_map[key] < len(row_list) else ""  # noqa: E731
+		head = ACCOUNT_HEAD.match(row_list[0]) if row_list else None
+		heading = bool(head and parse_date(cell("date")) is None and not to_float(cell("debit") or 0)
+			and not to_float(cell("credit") or 0))
+		# 科目标题行的第一格是「科目号 科目名」：科目名不当行标签（「กำไร(ขาดทุน)สะสมยกมา」「สินค้าคงเหลือยกมา」不是期初，
+		# 2026-10-13：全科目总账里这种科目的期初把银行科目的期初顶掉了）。
+		labels = [""] + row_list[1:4] if heading else row_list[:4]
 		# 期初余额行：标签在日期列，所以扫该行前四格（四语：期初/Opening/ยอดยกมา/繰越）。
-		if any(keyword in " ".join(row_list[:4]).lower() for keyword in GL_OPENING_KEYWORDS):
+		if any(keyword in " ".join(labels).lower() for keyword in GL_OPENING_KEYWORDS):
+			if heading:
+				section = head.group(1)  # 标题行与期初标签在同一行：下面的行归这个科目
+			if account_code and section and not section.startswith(account_code):
+				continue  # 别的科目段里的期初 / 说明带「ยกมา」的行：不是要对的科目的
 			balance_idx = col_map.get("balance", -1)
 			if 0 <= balance_idx < len(row_list) and row_list[balance_idx]:
 				opening = to_float(row_list[balance_idx])
@@ -234,12 +246,9 @@ def parse_gl_workbook(file_bytes: bytes, filename: str = "",
 					opening = debit - credit
 					gl_opening_found = True
 			continue
-		if is_gl_skip_row(row_list):
+		if is_gl_skip_row(labels):
 			continue  # 其余汇总/结转行（ยอดยกไป/subtotal/总计）不是交易
-		cell = lambda key: row_list[col_map[key]] if key in col_map and col_map[key] < len(row_list) else ""  # noqa: E731
-		head = ACCOUNT_HEAD.match(row_list[0]) if row_list else None
-		if (head and parse_date(cell("date")) is None and not to_float(cell("debit") or 0)
-				and not to_float(cell("credit") or 0)):
+		if heading:
 			section = head.group(1)
 			section_openings.setdefault(section, to_float(cell("balance")) if cell("balance") else None)
 			continue

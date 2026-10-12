@@ -10,8 +10,9 @@ import sys
 import tempfile
 import types
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
@@ -139,6 +140,14 @@ class Parse(unittest.TestCase):
         self.assertEqual(data["journal"][0]["lines"][1]["amount"], D("500.00"))
         self.assertEqual(contracts.amount("1.005"), D("1.01"))
         self.assertEqual(data["accounts"]["41-01-00-00"]["name"], "รายได้จากการขาย")
+        # 账套设置与对方档科目：没交回就是空（CC 桌面版照载荷写的那种）
+        self.assertEqual(data["settings"], {"cash": "", "stock": "", "purchases": "", "periodic": False})
+        self.assertEqual(data["documents"][0]["party_account"], "")
+        settings = {"cash": "11-01-01-00", "stock": "11-04-00-00", "purchases": "51-03-00-00", "periodic": True}
+        document = dict(raw()["documents"][0], party_account="11-03-01-00")
+        data = parsed(settings=settings, documents=[document])
+        self.assertEqual((data["settings"], data["documents"][0]["party_account"]), (settings, "11-03-01-00"))
+        self.assertFalse(parsed(settings={"periodic": "N"})["settings"]["periodic"])
 
     def test_bad_results_are_refused(self):
         for override in ({"version": 2}, {"period": "2026-06"}, {"movements": [{"code": "1", "month": "2026-5",
@@ -146,6 +155,8 @@ class Parse(unittest.TestCase):
                          {"balances": [{"code": "1", "values": {"BEGLY": "abc"}}]},
                          {"balances": [{"code": "1", "values": {"BEGLY": "NaN"}}]},
                          {"balances": [{"code": "1", "values": {"BEGLY": 1.5}}]},
+                         {"balances": [{"code": "1", "values": {"BEGLY": "1E+30"}}]},
+                         {"settings": []}, {"settings": {"cash": "1" * 31}},
                          {"balances": [{"code": "1", "values": {"x y": "1"}}]},
                          {"documents": [{"table": "XX"}]}, {"vat": [{"vatdat": "2026-13-01"}]},
                          {"journal": [{"voucher": "V" * 31}]}, {"accounts": "x"}, {"company": []}):
@@ -207,6 +218,9 @@ class OpeningAndLedger(unittest.TestCase):
         codes = [item["code"] for item in contracts.warnings(parsed(diagnostics=diag, journal=journal))]
         self.assertEqual(codes, ["tables_missing", "unreadable_rows", "unbalanced_vouchers", "lines_without_voucher",
                                  "unknown_debit_credit", "other_vat_columns"])
+        # 电脑交回的诊断形状不对：当没有，不挡出表（以前 bad_rows 是列表时抛 AttributeError，回读一直停在 reading）
+        odd = {"missing_tables": "GLBAL", "bad_rows": ["ISVAT"], "unbalanced": "HP1", "orphan_lines": "3"}
+        self.assertEqual([item["code"] for item in contracts.warnings(parsed(diagnostics=odd))], ["other_vat_columns"])
 
 
 class VatRowsAndRecords(unittest.TestCase):
@@ -234,6 +248,8 @@ class VatRowsAndRecords(unittest.TestCase):
         self.assertEqual(records[2]["history"], "H-1")
         self.assertNotIn("history", records[3])
         self.assertEqual(records[3]["status"], "C")
+        # 本月税务记录的单号（顺延抵扣的进项 RR690430-004 单据日在 4 月）：按它找推送记录，记录才带得上 history
+        self.assertEqual(diff.tax_numbers(parsed()), ["IV690503-001", "IV690510-001", "RR690430-004", "RR690520-003"])
 
 
 def pushed_item(**override):
@@ -339,6 +355,85 @@ class Compare(unittest.TestCase):
                          ["HP690512-001", "HP690513-001", "IV690503-001", "IV690510-001", "JV690531-001"])
 
 
+    def test_a_push_found_only_for_its_tax_record_is_not_compared(self):
+        # 顺延抵扣的进项：单据日在 4 月，只因 5 月的税务记录按单号查来（为了 history），4 月的单不在这次读的账里
+        item = pushed_item(docnum="RR690430-004", direction="purchase", doctype="RR", date="2026-04-30", lines=[])
+        found = diff.compare([pushed_item(), item], parsed())
+        self.assertEqual((found["changes"], found["counts"]["pushed"], found["counts"]["missing"]), ([], 1, 0))
+
+
+def entry_case(doctype, pushed_lines, now_lines, settings=None, party_account=""):
+    """一张推送过的单（载荷的分录 pushed_lines）与它在 Express 里的凭证（now_lines：[(科目, 借正贷负)]）的比对结果。"""
+    purchase = doctype in ("RR", "HP")
+    number = f"{doctype}690512-001"
+    rectyp = "1" if doctype in ("HP", "HS") else "3"
+    document = {"table": "AP" if purchase else "AR", "rectyp": rectyp, "docnum": number, "docdat": "2026-05-12",
+                "ref": "A-77", "party": "P001", "party_name": "ร้าน A", "party_taxid": "",
+                "party_account": party_account, "flgvat": "1", "amount": "100.00", "netval": "100.00", "vatamt": "7.00", "netamt": "107.00",
+                "docstat": "N", "userid": "PEARNLY", "deleted": False}
+    vat = {"vatrec": "P" if purchase else "S", "rectyp": rectyp, "vatprd": "2026-05-01", "vatdat": "2026-05-12",
+           "docdat": "2026-05-12", "docnum": number, "refnum": "A-77", "descrp": "ร้าน A", "prenam": "", "taxid": "",
+           "branch": "00000", "docstat": "N", "amt01": "100.00", "vat01": "7.00", "extra": {}, "deleted": False}
+    voucher = {"voucher": number, "book": "01", "date": "2026-05-12", "descrp": "", "docstat": "N", "trnstat": "P",
+               "creby": "PEARNLY", "lines": [
+                   {"seq": str(seq), "account": account, "date": "2026-05-12", "descrp": "",
+                    "trntyp": "0" if value > 0 else "1", "amount": f"{abs(value):.2f}", "dept": ""}
+                   for seq, (account, value) in enumerate(now_lines)]}
+    item = pushed_item(docnum=number, direction="purchase" if purchase else "sales", doctype=doctype,
+                       date="2026-05-12", ref_no="A-77", party_code="P001", party_name="ร้าน A", base="100.00",
+                       vat="7.00", total="107.00",
+                       lines=[{"acc": acc, "side": side, "amount": amount} for acc, side, amount in pushed_lines])
+    found = diff.compare([item], parsed(documents=[document], vat=[vat], journal=[voucher], settings=settings or {}))
+    return [(row["field"], row["pushed"], row["now"]) for row in found["changes"]]
+
+
+CASH, BANK, AP, AP_SUPPLIER, AR, INPUT_VAT, OUTPUT_VAT = (
+    "11-01-01-00", "11-01-03-06", "21-02-01-00", "21-01-00-02", "11-03-01-00", "11-05-00-00", "21-04-00-00")
+SETTINGS = {"cash": CASH, "stock": "11-04-00-00", "purchases": "51-03-00-00", "periodic": False}
+PURCHASE = [("51-03-00-00", "D", "100.00"), (INPUT_VAT, "D", "7.00"), (AP, "C", "107.00")]
+SALE = [(AR, "D", "107.00"), ("41-01-00-00", "C", "100.00"), (OUTPUT_VAT, "C", "7.00")]
+
+
+class EntriesAsWritten(unittest.TestCase):
+    """分录按 CC 桌面版实际写进 Express 的科目比（`dbf_writer._write_all` / `dbf_sales._write_all` 的换法），没人动过的单
+    不报改过；新旧两种写法都认，换成别的科目照报。"""
+
+    def test_a_cash_purchase_and_a_cash_sale_paid_from_the_cash_account_are_unchanged(self):
+        self.assertEqual(entry_case("HP", PURCHASE, [("51-03-00-00", 100), (INPUT_VAT, 7), (CASH, -107)], SETTINGS), [])
+        self.assertEqual(entry_case("HS", SALE, [(CASH, 107), ("41-01-00-00", -100), (OUTPUT_VAT, -7)], SETTINGS), [])
+        # 2026-10-08 以前的 CC 桌面版照载荷写（贷应付）：也不算改过
+        self.assertEqual(entry_case("HP", PURCHASE, [("51-03-00-00", 100), (INPUT_VAT, 7), (AP, -107)], SETTINGS), [])
+
+    def test_credit_documents_use_the_partys_control_account(self):
+        now = [("51-03-00-00", 100), (INPUT_VAT, 7), (AP_SUPPLIER, -107)]
+        self.assertEqual(entry_case("RR", PURCHASE, now, SETTINGS, party_account=AP_SUPPLIER), [])
+        sale = [("11-03-02-00", 107), ("41-01-00-00", -100), (OUTPUT_VAT, -7)]
+        self.assertEqual(entry_case("IV", SALE, sale, SETTINGS, party_account="11-03-02-00"), [])
+        # 对方档上没挂这个科目：照报改过
+        self.assertEqual(entry_case("RR", PURCHASE, now, SETTINGS)[0][0], "entries")
+
+    def test_a_periodic_account_set_books_stock_purchases_to_the_purchases_account(self):
+        pushed = [("11-04-00-00", "D", "100.00"), (INPUT_VAT, "D", "7.00"), (AP, "C", "107.00")]
+        now = [("51-03-00-00", 100), (INPUT_VAT, 7), (AP, -107)]
+        self.assertEqual(entry_case("RR", pushed, now, dict(SETTINGS, periodic=True)), [])
+        self.assertEqual(entry_case("RR", pushed, [("11-04-00-00", 100), (INPUT_VAT, 7), (AP, -107)],
+                                    dict(SETTINGS, periodic=True)), [])
+        # 永续盘存的账套不换：记到购货科目是会计改的
+        self.assertEqual(entry_case("RR", pushed, now, SETTINGS), [
+            ("entries", "11-04-00-00 +100.00; 11-05-00-00 +7.00; 21-02-01-00 -107.00",
+             "11-05-00-00 +7.00; 21-02-01-00 -107.00; 51-03-00-00 +100.00")])
+
+    def test_a_payment_moved_to_another_account_or_a_reclassified_expense_is_a_change(self):
+        self.assertEqual(entry_case("HP", PURCHASE, [("51-03-00-00", 100), (INPUT_VAT, 7), (BANK, -107)], SETTINGS), [
+            ("entries", "11-01-01-00 -107.00; 11-05-00-00 +7.00; 51-03-00-00 +100.00",
+             "11-01-03-06 -107.00; 11-05-00-00 +7.00; 51-03-00-00 +100.00")])
+        self.assertEqual(entry_case("HP", PURCHASE, [("52-08-00-00", 100), (INPUT_VAT, 7), (CASH, -107)], SETTINGS), [
+            ("entries", "11-01-01-00 -107.00; 11-05-00-00 +7.00; 51-03-00-00 +100.00",
+             "11-01-01-00 -107.00; 11-05-00-00 +7.00; 52-08-00-00 +100.00")])
+        changed = entry_case("HP", PURCHASE, [("51-03-00-00", 100), (INPUT_VAT, 7), (CASH, -100)], SETTINGS)
+        self.assertEqual(changed[0][1], "11-01-01-00 -107.00; 11-05-00-00 +7.00; 51-03-00-00 +100.00")
+
+
 class PushedRecords(unittest.TestCase):
     def test_a_push_record_gives_what_the_comparison_needs(self):
         payload = {"direction": "purchase", "doctype": "rr", "docdate_be": "690515", "ref_no": " INV-9 ",
@@ -361,6 +456,25 @@ class PushedRecords(unittest.TestCase):
         self.assertTrue(pushed_rules.in_window(item, date(2026, 5, 1), date(2026, 5, 31)))
         self.assertFalse(pushed_rules.in_window(item, date(2026, 6, 1), date(2026, 6, 30)))
         self.assertFalse(pushed_rules.in_window(item, None, None))
+
+    def test_a_long_supplier_invoice_number_is_compared_as_written(self):
+        # REFNUM 只有 15 字节：CC 桌面版先去分隔符、还放不下留后 15 字节（`purchase_adapter.fit_ref_no`）
+        self.assertEqual(pushed_rules.fit_ref_no("G0012-69-0045871"), "G0012690045871")
+        self.assertEqual(pushed_rules.fit_ref_no(" INV-9 "), "INV-9")
+        self.assertEqual(pushed_rules.fit_ref_no("AB/CD.EF GH-IJKLMNOPQ"), "CDEFGHIJKLMNOPQ")
+        self.assertEqual(pushed_rules.fit_ref_no("ใบกำกับภาษีเลขที่-12345"), "ภาษีเลขที่12345")
+        payload = {"direction": "purchase", "doctype": "RR", "docdate_be": "690512", "ref_no": "G0012-69-0045871",
+                   "supplier": {"code": "S001"}, "lines": []}
+        item = pushed_rules.project("CWP-1", "H-1", "RR690512-001", payload, {})
+        self.assertEqual(item["ref_no"], "G0012690045871")
+        document = {"table": "AP", "rectyp": "3", "docnum": "RR690512-001", "docdat": "2026-05-12",
+                    "ref": "G0012690045871", "party": "S001", "party_name": "", "party_taxid": "", "flgvat": "1",
+                    "amount": "0", "netval": "0", "vatamt": "0", "netamt": "0", "docstat": "N", "userid": "PEARNLY",
+                    "deleted": False}
+        self.assertEqual(diff.compare([item], parsed(documents=[document]))["changes"], [])
+        # 销项的号是自家开的票：照原样（超长 CC 桌面版直接拦下，不缩）
+        sale = dict(payload, direction="sales", ref_no="IV-2026-05-000001", customer={"code": "C1"})
+        self.assertEqual(pushed_rules.project("CWP-2", "H", "IV1", sale, {})["ref_no"], "IV-2026-05-000001")
 
 
 # ── 服务（Frappe 与各域服务用替身） ────────────────────────────────────────
@@ -391,6 +505,7 @@ class ServiceHarness:
         self.calls = []
         self.presence = {}
         self.pushed = []
+        self.broken = False
         frappe = types.ModuleType("frappe")
 
         class ValidationError(Exception):
@@ -407,6 +522,8 @@ class ServiceHarness:
         frappe._ = lambda text: text
         frappe.session = types.SimpleNamespace(user=self.user)
         frappe.clear_messages = lambda: None
+        frappe.log_error = lambda title=None, message=None: self.calls.append(("log_error", title))
+        frappe.get_traceback = lambda: "Traceback"
 
         def throw(message, exc=None):
             raise (exc or ValidationError)(message)
@@ -440,8 +557,7 @@ class ServiceHarness:
                 detail=lambda name: {"config": {"companion_version": "1.5.0"}}),
             "pearnly_cowork.push.application.service": dict(pushed_express=self.pushed_express),
             "pearnly_cowork.readback.workbooks": dict(
-                general_ledger=lambda company, period, accounts, printed: json.dumps(
-                    ["GL", period, [a["code"] for a in accounts], printed.isoformat()]).encode(),
+                general_ledger=self.general_ledger,
                 vat_report=lambda side, company, period, rows: json.dumps(["VAT", side, len(rows)]).encode(),
                 changes=lambda found, labels: json.dumps(["CH", found["counts"], labels["sheet_changes"]]).encode()),
         }
@@ -509,8 +625,13 @@ class ServiceHarness:
 
     def pushed_express(self, connection, key, first, last, docnums=None):
         self.calls.append(("pushed", connection, key, first, last, docnums))
-        return [item for item in self.pushed if docnums is None or item["docnum"] in docnums
+        return [item for item in self.pushed if item["docnum"] in (docnums or ())
                 or first.isoformat() <= item["date"] <= last.isoformat()]
+
+    def general_ledger(self, company, period, accounts, printed):
+        if self.broken:  # 出表时的意外（例如说明里有 Excel 不收的控制字符）
+            raise ValueError("cannot write this cell")
+        return json.dumps(["GL", period, [a["code"] for a in accounts], printed.isoformat()]).encode()
 
 
 class Service(unittest.TestCase):
@@ -579,9 +700,9 @@ class Service(unittest.TestCase):
         self.assertEqual(name, "T9SINCER-GL-2026-05.xlsx")
         self.assertEqual(json.loads(content)[3], "2026-10-13")  # 打印日期按曼谷时间
         self.assertIn(("drop", row.request), self.h.calls)  # 结果取走即删
-        # 推送记录按本月回读到的单号再查一遍
+        # 推送记录按本月回读到的单据 / 凭证号与本月税务记录的单号再查一遍
         self.assertEqual(self.h.calls[-1 - [c[0] for c in reversed(self.h.calls)].index("pushed")][5],
-                         ["IV690503-001", "IV690510-001"])
+                         ["IV690503-001", "IV690510-001", "RR690430-004", "RR690520-003"])
         records = self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5)
         self.assertEqual((records["ref"], records["read_at"], records["header"]),
                          (made["readback"], "2026-10-13T05:00:00Z",
@@ -612,6 +733,38 @@ class Service(unittest.TestCase):
         del self.h.requests[third_row.request]
         self.assertEqual(self.service.status(third["readback"])["code"], "request_missing")
 
+    def test_a_carried_over_input_vat_record_gets_its_recognition_record(self):
+        # RR690430-004：单据日 4 月、税票日 5 月（税期 6 月），推送时按 4 月推的；发起时不点名，处理时按税务记录的单号补查
+        self.h.pushed.append(pushed_item(record="CWP-9", history="H-9", docnum="RR690430-004", direction="purchase",
+                                         doctype="RR", date="2026-04-30", lines=[]))
+        made, row = self._start()
+        create = next(call for call in self.h.calls if call[0] == "create")
+        self.assertEqual(create[3]["docnums"], ["IV690503-001"])
+        self.h.finish(row.request, raw())
+        ready = self.service.status(made["readback"])
+        self.assertEqual((ready["status"], ready["summary"]["pushed"]["pushed"], ready["changes"]), ("ready", 1, []))
+        records = {item["docnum"]: item for item in
+                   self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5)["records"]}
+        self.assertEqual((records["RR690430-004"]["history"], records["IV690503-001"]["history"]), ("H-9", "H-1"))
+        self.assertNotIn("history", records["RR690520-003"])
+
+    def test_a_processing_error_fails_the_readback_instead_of_leaving_it_reading(self):
+        made, row = self._start()
+        self.h.broken = True
+        self.h.finish(row.request, raw())
+        failed = self.service.status(made["readback"])
+        self.assertEqual((failed["status"], failed["code"]), ("failed", "process_failed"))
+        self.assertIn(("log_error", "Cowork readback processing failed"), self.h.calls)
+        self.assertIn(("drop", row.request), self.h.calls)
+        self.assertFalse(pathlib.Path(self.folder.name, "private", "cowork_readback", made["readback"]).exists())
+        self.assertEqual(self.service.status(made["readback"])["status"], "failed")  # 不再重算
+        # 同一月再请求：另读一份，不用等 7 天
+        self.h.broken = False
+        again, again_row = self._start()
+        self.assertNotEqual(again["readback"], made["readback"])
+        self.h.finish(again_row.request, raw(diagnostics={"bad_rows": ["ISVAT"], "missing_tables": "GLBAL"}))
+        self.assertEqual(self.service.status(again["readback"])["status"], "ready")
+
     def test_only_the_requester_sees_or_deletes_a_readback(self):
         made, row = self._start()
         self.h.finish(row.request, raw())
@@ -628,6 +781,77 @@ class Service(unittest.TestCase):
         self.assertFalse(pathlib.Path(self.folder.name, "private", "cowork_readback", made["readback"]).exists())
         with self.assertRaises(self.h.frappe.DoesNotExistError):
             self.service.status("x" * 32)
+
+
+def push_service(rows):
+    """按真实导入加载推送服务（依赖换成替身），``frappe.db.sql`` 记下每条查询、从 rows 里按条件取。"""
+    queries = []
+
+    def sql(query, values=(), as_dict=False):
+        query = " ".join(query.split())
+        queries.append((query, values))
+        assert "connection=%s AND account_key=%s AND status='success'" in query, query
+        if "creation >= %s" in query:
+            _connection, _key, since, limit, offset = values
+            return [row for row in rows if row.creation >= since][offset:offset + limit]
+        if "external_docnum IN" in query:
+            _connection, _key, *numbers = values
+            return [row for row in rows if row.external_docnum.upper() in numbers]
+        raise AssertionError(query)
+
+    frappe = types.ModuleType("frappe")
+    frappe._ = lambda text, *args, **kwargs: text
+    frappe.db = types.SimpleNamespace(sql=sql)
+    frappe.get_doc = lambda doctype, name, **kwargs: types.SimpleNamespace(doctype=doctype, name=name)
+    modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork")}
+    for name in ("access", "connections", "targets", "contracts", "contracts.history", "contracts.push", "history",
+                 "push", "push.application", "push.application.provenance", "push.express", "push.express.common",
+                 "push.express.prepare", "push.express.preflight", "push.express.history", "push.mrerp",
+                 "push.native", "push.receipts", "targets.choice", "targets.contracts", "targets.freeze",
+                 "targets.selection"):
+        modules["pearnly_cowork." + name] = mock.MagicMock()
+    modules["pearnly_cowork.push.express"].pushed = pushed_rules
+    modules["pearnly_cowork.push.express.pushed"] = pushed_rules
+    modules["pearnly_cowork.targets.identity"] = _load("targets_identity_for_readback", APP / "targets/identity.py")
+    with mock.patch.dict(sys.modules, modules):
+        service = _load("push_service_for_readback", APP / "push/application/service.py")
+    return service, queries
+
+
+def push_row(name, created, docnum, docdate_be, total="100.00", history="H"):
+    payload = {"direction": "purchase", "doctype": "RR", "docdate_be": docdate_be, "ref_no": "A",
+               "supplier": {"code": "S1"}, "total_amount": total, "lines": []}
+    return Row(name=name, creation=created, history=history, external_docnum=docnum,
+               payload_json=json.dumps(payload), response_json="{}")
+
+
+class PushedExpress(unittest.TestCase):
+    """推送记录不整表扫：按期间的只取月初前 92 天以后建立的，按单号的直接按单号查；同一单号取最后一次。"""
+
+    def test_window_by_creation_and_named_numbers_by_number(self):
+        rows = [push_row("P1", datetime(2026, 5, 20), "RR690512-001", "690512", "100.00", "H-1"),
+                push_row("P2", datetime(2026, 6, 2), "RR690512-001", "690512", "120.00", "H-2"),  # 再推一次
+                push_row("P3", datetime(2026, 5, 3), "RR690601-001", "690601"),  # 单据日不在本月
+                push_row("P4", datetime(2025, 11, 2), "RR681102-001", "681102", history="H-4"),  # 早就推的、被点名
+                push_row("P5", datetime(2025, 12, 1), "RR690515-009", "690515")]  # 月初前 92 天以前建的
+        service, queries = push_service(rows)
+        found = service.pushed_express("EXP1", "S:\\EXP69\\T9", date(2026, 5, 1), date(2026, 5, 31),
+                                       ["rr681102-001", "", None])
+        self.assertEqual([(item["docnum"], item["total"], item["history"]) for item in found],
+                         [("RR681102-001", "100.00", "H-4"), ("RR690512-001", "120.00", "H-2")])
+        window = [values for query, values in queries if "creation >= %s" in query]
+        self.assertEqual(window[0][2], datetime(2026, 5, 1) - timedelta(days=92))
+        named = [values for query, values in queries if "external_docnum IN" in query]
+        self.assertEqual(named, [("EXP1", "s:\\exp69\\t9", "RR681102-001")])
+
+    def test_many_named_numbers_are_asked_in_chunks_and_no_key_asks_nothing(self):
+        service, queries = push_service([])
+        service.pushed_express("EXP1", "S:\\EXP69\\T9", None, None, [f"RR{n:06d}" for n in range(501)])
+        self.assertEqual([len(values) - 2 for query, values in queries], [500, 1])
+        self.assertFalse(any("creation >= %s" in query for query, _values in queries))
+        queries.clear()
+        self.assertEqual(service.pushed_express("EXP1", "", date(2026, 5, 1), date(2026, 5, 31), ["X"]), [])
+        self.assertEqual(queries, [])
 
 
 if __name__ == "__main__":
