@@ -85,6 +85,14 @@ jobs:
         run: python3 tests/test_assistant_entry.py
       - name: Verify the Cowork assistant tools (declarations, translations, push request keys, filters)
         run: python3 tests/test_cowork_assistant_tools.py
+      - name: Verify the P.P.30 draft boxes and the input tax checks
+        run: python3 tests/test_cowork_tax_pp30.py
+      - name: Verify the P.N.D.3 / P.N.D.53 drafts (forms, payment dates, certificates, attachment sheets)
+        run: python3 tests/test_cowork_tax_wht.py
+      - name: Verify the tax draft service, its permissions and the withholding certificate references
+        run: python3 tests/test_cowork_tax_service.py
+      - name: Verify the Cowork team permission catalog
+        run: python3 tests/test_cowork_team_menu.py
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: '22.14.0'

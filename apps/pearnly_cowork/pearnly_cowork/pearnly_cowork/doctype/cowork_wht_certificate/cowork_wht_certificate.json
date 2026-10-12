@@ -1,0 +1,146 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork WHT Certificate",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-13 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "A recognized withholding tax certificate (50 Tawi) kept for the P.N.D.3 / P.N.D.53 draft when the company chose not to enter certificates. Not an invoice: never pushed or billed.",
+ "field_order": [
+  "certificate_key",
+  "workspace",
+  "client",
+  "batch",
+  "source_file",
+  "page_index",
+  "invoice_date",
+  "seller_name",
+  "seller_tax",
+  "buyer_name",
+  "buyer_tax",
+  "wht_amount",
+  "fields_json",
+  "created_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "certificate_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "client",
+   "label": "Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "batch",
+   "label": "Recognition Batch",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "source_file",
+   "label": "Original File",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "page_index",
+   "label": "Page",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_date",
+   "label": "Payment Date",
+   "fieldtype": "Date",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "seller_name",
+   "label": "Seller Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "seller_tax",
+   "label": "Seller Tax ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "buyer_name",
+   "label": "Buyer Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "buyer_tax",
+   "label": "Buyer Tax ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "wht_amount",
+   "label": "Tax Withheld",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "fields_json",
+   "label": "Recognized Fields",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "created_at",
+   "label": "Created At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

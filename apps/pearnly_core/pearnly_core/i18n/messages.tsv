@@ -9,6 +9,7 @@ Stock Count	库存盘点	ตรวจนับสินค้า	棚卸
 Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
 CC Desktop	CC 桌面版	CC เดสก์ท็อป	CC デスクトップ	
 Express Push Guide	Express 推送手册	คู่มือการส่งเข้า Express	Express プッシュガイド
+Tax Return Drafts	报税草稿	ร่างแบบยื่นภาษี	税務申告の下書き
 Products	物料	สินค้า	商品
 Stock In / Out	库存（入库/出库）	สินค้าคงคลัง (รับเข้า/จ่ายออก)	在庫（入出庫）
 Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表
@@ -62,6 +63,7 @@ Count tasks and variance records	盘点任务与差异记录	งานตรว�
 A board instance is created only when this is on	启用后创建看板实例	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
 Windows app on the merchant's accounting PC: installer, pairing, outbound pull	安装在商家会计电脑上的 Windows 程序，提供安装、配对与任务拉取	โปรแกรม Windows ที่ติดตั้งบนเครื่องคอมพิวเตอร์บัญชีของร้านค้า สำหรับติดตั้ง จับคู่ และดึงงาน	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Install, pair, upgrade and uninstall guide for CC Desktop	CC 桌面版的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้ง CC เดสก์ท็อป	CC デスクトップのインストール・ペアリング・更新・アンインストールガイド	
+VAT return (P.P.30) and withholding tax (P.N.D.3 / P.N.D.53) drafts with input tax checks	增值税申报（ภ.พ.30）与预扣税申报（ภ.ง.ด.3 / ภ.ง.ด.53）草稿及进项核查	ร่างแบบ ภ.พ.30 และ ภ.ง.ด.3 / ภ.ง.ด.53 พร้อมตรวจภาษีซื้อ	付加価値税申告（ภ.พ.30）と源泉徴収税申告（ภ.ง.ด.3 / ภ.ง.ด.53）の下書きと仕入税チェック
 Product master data	物料主数据	ข้อมูลหลักของสินค้า	商品マスタ
 Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票
 Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总	สรุปรับ-จ่าย-คงเหลือสินค้า	受払在庫の集計（維持項目。ERPマニフェスト参照）

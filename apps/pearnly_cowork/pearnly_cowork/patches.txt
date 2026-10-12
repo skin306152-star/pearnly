@@ -20,3 +20,4 @@ pearnly_cowork.patches.v0_0_13_agent_last_seen
 pearnly_cowork.patches.v0_0_14_folder_task_reader
 pearnly_cowork.patches.v0_0_15_push_reason_source
 pearnly_cowork.patches.v0_0_16_folder_run_briefs
+pearnly_cowork.patches.v0_0_17_tax_drafts_feature

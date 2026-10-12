@@ -1,5 +1,5 @@
 """Cowork 的智能体工具（ADR-019）：对话里发来的票据交给录入工作台识别、复核与修改、小助手状态与账套、
-单据推送到 Express、文件夹定时任务、推送结果。
+单据推送到 Express、文件夹定时任务、推送结果、报税草稿（ภ.พ.30、ภ.ง.ด.3 / 53）。
 
 - 工具以当前登录用户身份在服务端执行，只调用各域现有的公开服务（与网页同一入口），权限、作用域与连接的允许名单
   都由那些服务自己校验，这里不另开口子、不直接写表。
@@ -25,6 +25,7 @@ from pearnly_cowork.folder_intake import contracts as folder_contracts
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
 from pearnly_cowork.push.application import service as application
+from pearnly_cowork.tax import wht as tax_contracts
 
 HISTORY = "Cowork OCR History"
 CONNECTION = "Cowork ERP Connection"
@@ -1270,6 +1271,113 @@ def recon_delete(tool_input) -> str:
     return _json(result if isinstance(result, dict) else {"deleted": result})
 
 
+# ---------------- 报税草稿：ภ.พ.30 与进项核查、ภ.ง.ด.3 / ภ.ง.ด.53（`tax.service`，确定性、零费用） ----------------
+
+TAX_ISSUES_SHOWN = 30
+TAX_LINES_SHOWN = 40
+TAX_ISSUE_KEYS = ("code", "level", "side", "docnum", "refnum", "tax_id", "name", "amount", "vat", "date", "period",
+                  "history", "detail")
+TAX_LINE_KEYS = ("row", "source", "payee_tax_id", "payee_name", "date", "date_source", "income_type", "income_text",
+                 "rate", "base", "tax", "condition", "form", "category", "edited")
+TAX_LEVELS = {"error": 0, "warn": 1, "info": 2}
+
+
+def _tax_call(fn, *args, **kwargs):
+    """调报税服务；业务拒绝回 not_drafted 与原因（已翻译），不抛给模型。"""
+    try:
+        result = fn(*args, **kwargs)
+        frappe.db.commit()
+        return result
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"status": "not_drafted", "reason": str(error)[:300]}
+
+
+def _tax_file(summary, wanted) -> str:
+    """草稿工作簿放进对话（结果面板下载）；wanted 为 False 时不出（反复改的时候）。"""
+    if wanted is False:
+        return ""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.tax import service as tax_service
+
+    filename, content = tax_service.workbook(summary, frappe.local.lang or "th")
+    return chat_files.add_to_conversation(filename, content, XLSX)
+
+
+def _tax_issues(issues) -> list:
+    ordered = sorted(issues or [], key=lambda item: TAX_LEVELS.get(item.get("level"), 3))
+    return [_filled({key: item.get(key) for key in TAX_ISSUE_KEYS}) for item in ordered[:TAX_ISSUES_SHOWN]]
+
+
+def _tax_line(line) -> dict:
+    out = _filled({key: line.get(key) for key in TAX_LINE_KEYS})
+    if line.get("issues"):
+        out["issues"] = [item["code"] for item in line["issues"]]
+    return out
+
+
+def vat_draft(tool_input) -> str:
+    from pearnly_cowork.tax import service as tax_service
+
+    options = {key: tool_input.get(key) for key in ("exempt_sales", "excess_brought_forward", "zero_vat_as")
+               if tool_input.get(key) not in (None, "")}
+    summary = _tax_call(tax_service.vat_draft, tool_input.get("connection"), tool_input.get("account_set_key"),
+                        tool_input.get("period"), options)
+    if summary.get("status") == "readback_needed":
+        return _json({**summary, "note": "There is no Express readback of this account set and month yet. Run "
+                                         "cowork_express_readback for it first, then call this again."})
+    if summary.get("status") != "drafted":
+        return _json(summary)
+    out = {key: summary.get(key) for key in ("draft", "period", "company", "readback", "boxes", "outcome", "options",
+                                             "sales", "purchases", "claimable_if_fixed", "previous_excess",
+                                             "deadlines", "documents_checked", "issues_by_code")}
+    out.update({"issues_total": len(summary.get("issues") or []), "issues": _tax_issues(summary.get("issues")),
+                "unreadable_rows": (summary.get("unreadable_rows") or [])[:10],
+                "file": _tax_file(summary, tool_input.get("workbook"))})
+    return _json(_filled(out))
+
+
+def wht_draft(tool_input) -> str:
+    from pearnly_cowork.tax import service as tax_service
+
+    summary = _tax_call(tax_service.wht_draft, tool_input.get("company_tax_id"), tool_input.get("period"),
+                        tool_input.get("edits") or [], str(tool_input.get("company_name") or ""),
+                        str(tool_input.get("company_branch") or ""))
+    if summary.get("status") != "drafted":
+        return _json(summary)
+    forms = {}
+    for form, data in (summary.get("forms") or {}).items():
+        lines = data.get("lines") or []
+        forms[form] = {"payees": data.get("payees"), "sheets": data.get("sheets"), "base": data.get("base"),
+                       "tax": data.get("tax"), "lines_total": len(lines),
+                       "lines": [_tax_line(line) for line in lines[:TAX_LINES_SHOWN]]}
+    out = {key: summary.get(key) for key in ("draft", "period", "company", "totals", "questions", "issues_by_code",
+                                             "deadlines", "edits_rejected", "truncated")}
+    out.update({"forms": forms, "review": [_tax_line(row) for row in (summary.get("review") or [])[:TAX_LINES_SHOWN]],
+                "suggestions": [_tax_line(row) for row in (summary.get("suggestions") or [])[:TAX_LINES_SHOWN]],
+                "notes": (summary.get("notes") or [])[:TAX_ISSUES_SHOWN],
+                "file": _tax_file(summary, tool_input.get("workbook"))})
+    return _json(_filled(out))
+
+
+def wht_answer(tool_input) -> str:
+    from pearnly_cowork.tax import service as tax_service
+
+    action = tool_input.get("action") or "set"
+    if action == "list":
+        found = _tax_call(tax_service.remembered)
+        return _json(found if isinstance(found, dict) else {"remembered": found})
+    if action == "remove":
+        return _json(_tax_call(tax_service.forget, tool_input.get("payee_tax_id") or "",
+                               tool_input.get("category") or ""))
+    result = _tax_call(tax_service.answer, tool_input.get("answers") or [], str(tool_input.get("draft") or ""))
+    if result.get("status") == "saved":
+        result["note"] = "Call cowork_wht_draft again to apply."
+    return _json(result)
+
+
 # ---------------- 库存盘点（同盘点页，`stocktake.desk_api`） ----------------
 
 STOCK_ROWS_SHOWN = 40
@@ -2303,6 +2411,77 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
          "tasks": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["kind", "tasks"]},
      "handler": "pearnly_cowork.assistant.tools.recon_delete"},
+    {"name": "cowork_vat_draft", "label": "Drafted a VAT return",
+     "description": "Draft the P.P.30 VAT return of one Express account set and tax month from that month's "
+                    "Express readback (its input and output tax records), with the input tax check: seller tax ID "
+                    "missing or invalid, claimed before the invoice month or past the 6-month window, abbreviated "
+                    "tax invoices and non tax invoices (not claimable), buyer missing or another company, duplicates, "
+                    "voided, deleted or other-month rows, and output VAT against the rate. Boxes 1-12 equal the "
+                    "Express records; the checks never change them (claimable_if_fixed is the input tax without the "
+                    "flagged rows) and boxes 13-16 are only for late or additional filing. When it returns "
+                    "readback_needed, run cowork_express_readback for that account set and month first. "
+                    "exempt_sales, excess_brought_forward (box 10) and zero_vat_as come from the user and are kept "
+                    "for this draft; previous_excess is box 12 of last month's draft. Deterministic and free. Adds "
+                    "the workbook (form, output and input tax reports, checks) to this conversation; copy it into "
+                    "the results folder. It is a draft: never say it was filed.",
+     "input_schema": {"type": "object", "properties": {
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "period": {"type": "string", "description": "Tax month, YYYY-MM."},
+         "exempt_sales": {"type": "string", "description": "Exempt sales of the month (box 3), in baht."},
+         "excess_brought_forward": {"type": "string", "description": "Box 10, in baht."},
+         "zero_vat_as": {"type": "string", "enum": ["zero_rated", "exempt"],
+                         "description": "Where output rows with zero VAT go: box 2 (default) or box 3."},
+         "workbook": {"type": "boolean", "description": "false skips the workbook; default true."}},
+         "required": ["connection", "account_set_key", "period"]},
+     "handler": "pearnly_cowork.assistant.tools.vat_draft"},
+    {"name": "cowork_wht_draft", "label": "Drafted a withholding tax return",
+     "description": "Draft the P.N.D.53 (juristic payees) and P.N.D.3 (individuals) withholding tax "
+                    "returns of one paying company (its 13-digit tax ID) for the month the payments were made, from "
+                    "recognized expense invoices with tax withheld and 50 Tawi certificates (including those kept "
+                    "only as references when certificates are set not to be entered). A payee tax ID starting with 0 "
+                    "goes to P.N.D.53, except 0991/0992 which go to P.N.D.3. The payment date is the certificate's, "
+                    "else the invoice date (payment_date_assumed: it may have been paid later). questions lists "
+                    "payees whose income type is not known: ask the user once, answer with cowork_wht_answer, then "
+                    "draft again. review lists rows left out (certificate_direction_unclear: ask whether the company "
+                    "paid them; amount_unreadable; payee_tax_missing). suggestions are invoices from known payees "
+                    "with nothing withheld; include one only when the user says so. ewht_check: 1% applies only to "
+                    "payments through e-Withholding Tax, which are not filed on these forms; ask the user. edits "
+                    "change rows of this draft and are kept: row (as listed), include, payment_date, income_type, "
+                    "income_text, rate, base, tax, condition, payee_tax_id, form; reset true drops a row's edits. "
+                    "Deterministic and free. Adds the workbook (summary, both attachments with 6 payees a sheet, "
+                    "rows to check) to this conversation. It is a draft: never say it was filed.",
+     "input_schema": {"type": "object", "properties": {
+         "company_tax_id": {"type": "string", "description": "The paying company's 13-digit tax ID."},
+         "period": {"type": "string", "description": "Month paid, YYYY-MM."},
+         "company_name": {"type": "string"}, "company_branch": {"type": "string", "description": "00000 = head office."},
+         "edits": {"type": "array", "items": {"type": "object", "properties": {
+             "row": {"type": "string"}, "reset": {"type": "boolean"}, "include": {"type": "boolean"},
+             "payment_date": {"type": "string", "description": "YYYY-MM-DD"},
+             "income_type": {"type": "string", "enum": list(tax_contracts.INCOME_CODES)},
+             "income_text": {"type": "string"}, "rate": {"type": "string"}, "base": {"type": "string"},
+             "tax": {"type": "string"}, "condition": {"type": "string", "enum": ["1", "2", "3"]},
+             "payee_tax_id": {"type": "string"}, "form": {"type": "string", "enum": ["pnd3", "pnd53"]}},
+             "required": ["row"]}},
+         "workbook": {"type": "boolean", "description": "false skips the workbook; default true."}},
+         "required": ["company_tax_id", "period"]},
+     "handler": "pearnly_cowork.assistant.tools.wht_draft"},
+    {"name": "cowork_wht_answer", "label": "Answered a withholding tax question",
+     "description": "Remember payees' income types for withholding tax drafts (action set): answers with "
+                    "payee_tax_id (or category for payees without one), income_type, income_text for other, form to "
+                    "override pnd3/pnd53, condition (1 withheld, 2 paid by the payer every time, 3 paid by the payer "
+                    "once; P.N.D.53 has only 1 and 2). Remembered for the whole company workspace; call "
+                    "cowork_wht_draft again to apply. action list shows what is remembered; remove forgets one by "
+                    "payee_tax_id or category.",
+     "input_schema": {"type": "object", "properties": {
+         "action": {"type": "string", "enum": ["set", "list", "remove"]},
+         "answers": {"type": "array", "items": {"type": "object", "properties": {
+             "payee_tax_id": {"type": "string"}, "category": {"type": "string"}, "payee_name": {"type": "string"},
+             "income_type": {"type": "string", "enum": list(tax_contracts.INCOME_CODES)},
+             "income_text": {"type": "string"}, "form": {"type": "string", "enum": ["pnd3", "pnd53"]},
+             "condition": {"type": "string", "enum": ["1", "2", "3"]}}, "required": ["income_type"]}},
+         "draft": {"type": "string"}, "payee_tax_id": {"type": "string"}, "category": {"type": "string"}},
+         "required": []},
+     "handler": "pearnly_cowork.assistant.tools.wht_answer"},
     {"name": "cowork_stocktake_list", "label": "Listed stock counts",
      "description": "The company's stock counts (stocktakes), newest first.",
      "input_schema": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": []},

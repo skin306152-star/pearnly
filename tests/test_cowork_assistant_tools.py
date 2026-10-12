@@ -12,6 +12,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 COWORK = ROOT / "apps/pearnly_cowork/pearnly_cowork"
+CORE = ROOT / "apps/pearnly_core/pearnly_core"
 
 
 class _Frappe(types.ModuleType):
@@ -95,6 +96,21 @@ def _install():
     contracts = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(contracts)
     sys.modules[spec.name] = sys.modules["pearnly_cowork.folder_intake"].contracts = contracts
+    # 报税的纯规则（所得类型码）也用真的：工具的枚举取自它；共用票种规则一并按文件载入，不把整个共用层放上路径
+    for name in ("pearnly_core", "pearnly_core.tax_documents", "pearnly_cowork.tax"):
+        sys.modules[name] = types.ModuleType(name)
+    for name, path in (("pearnly_core.tax_documents.codes", CORE / "tax_documents/codes.py"),
+                       ("pearnly_core.tax_documents.amounts", CORE / "tax_documents/amounts.py"),
+                       ("pearnly_core.tax_documents.rules", CORE / "tax_documents/rules.py"),
+                       ("pearnly_cowork.tax.periods", COWORK / "tax/periods.py"),
+                       ("pearnly_cowork.tax.thai_words", COWORK / "tax/thai_words.py"),
+                       ("pearnly_cowork.tax.wht", COWORK / "tax/wht.py")):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        parent, _, child = name.rpartition(".")
+        setattr(sys.modules[parent], child, module)
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tools)
@@ -746,6 +762,117 @@ class ReconTests(unittest.TestCase):
         with self.assertRaises(frappe.ValidationError):
             tools.recon_list({"kind": "payroll"})
 
+
+
+class TaxDraftTests(unittest.TestCase):
+    """报税草稿：没有回读就叫 CC 先回读；回给模型的是要点（问题最多 30 条、按严重程度），工作簿放进对话；
+    业务拒绝回 not_drafted；所得类型的回答 / 列出 / 删除走同一个工具。工具层只委托 `tax.service`。"""
+
+    VAT = {"status": "drafted", "draft": "CTD-1", "kind": "vat_return", "period": "2026-09",
+           "company": {"tax_id": "0105556000009"}, "boxes": {"5": "700.00", "13": ""}, "outcome": "payable",
+           "issues_by_code": {"input_no_document": 40, "input_over_six_months": 1},
+           "issues": [{"code": "input_no_document", "level": "info", "index": i} for i in range(40)]
+           + [{"code": "input_over_six_months", "level": "error", "index": 99, "refnum": "T9",
+               "detail": {"invoice_month": "2026-01"}}],
+           "unreadable_rows": [], "sales_rows": [{"big": "x"}], "purchase_rows": [], "excluded_rows": []}
+
+    def setUp(self):
+        self.calls = []
+        tax_service = types.ModuleType("pearnly_cowork.tax.service")
+        tax_service.vat_draft = lambda *args: self.calls.append(("vat",) + args) or self.vat_result()
+        tax_service.wht_draft = lambda *args: self.calls.append(("wht",) + args) or self.wht_result()
+        tax_service.answer = lambda answers, draft: self.calls.append(("answer", answers, draft)) or {
+            "status": "saved", "saved": ["payee:1"]}
+        tax_service.forget = lambda payee, category: self.calls.append(("forget", payee, category)) or {
+            "status": "removed"}
+        tax_service.remembered = lambda: [{"scope": "payee:1", "income_type": "rent"}]
+        tax_service.workbook = lambda summary, lang: (f"PP30-{summary['period']}.xlsx", b"PK")
+        chat = types.ModuleType("pearnly_core.assistant.files")
+        chat.add_to_conversation = lambda name, content, mime: self.calls.append(("attach", name, mime)) or "/mnt/x/" + name
+        for name, module in {"pearnly_cowork.tax.service": tax_service, "pearnly_core.assistant.files": chat}.items():
+            sys.modules[name] = module
+            parent, _, child = name.rpartition(".")
+            setattr(sys.modules.setdefault(parent, types.ModuleType(parent)), child, module)
+        self.vat_result = lambda: dict(self.VAT)
+        self.wht_result = lambda: {
+            "status": "drafted", "draft": "CTD-2", "period": "2026-09", "company": {"tax_id": "0105556000009"},
+            "forms": {"pnd53": {"payees": 50, "sheets": 9, "base": "1.00", "tax": "0.03",
+                                "lines": [{"row": f"H{i}", "payee_tax_id": "0105546015062", "rate": "3", "base": "1.00",
+                                           "tax": "0.03", "issues": [{"code": "payment_date_assumed", "level": "info"}],
+                                           "refs": [f"H{i}"], "include": True} for i in range(50)]},
+                      "pnd3": {"payees": 0, "sheets": 0, "base": "0.00", "tax": "0.00", "lines": []}},
+            "questions": [{"payee_tax_id": "0105546015062", "suggested": "service"}], "review": [], "suggestions": [],
+            "notes": [], "totals": {"tax": "1.50"}, "issues_by_code": {}, "edits_rejected": []}
+        frappe.commits = frappe.rollbacks = 0
+
+    def test_the_three_tools_are_declared_and_delegate(self):
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        for name in ("cowork_vat_draft", "cowork_wht_draft", "cowork_wht_answer"):
+            self.assertIn(name, declared)
+            self.assertNotIn("approval", declared[name])
+        edits = declared["cowork_wht_draft"]["input_schema"]["properties"]["edits"]["items"]["properties"]
+        answers = declared["cowork_wht_answer"]["input_schema"]["properties"]["answers"]["items"]["properties"]
+        wht_rules = sys.modules["pearnly_cowork.tax.wht"]
+        self.assertEqual(edits["income_type"]["enum"], list(wht_rules.INCOME_CODES))
+        self.assertEqual(answers["income_type"]["enum"], list(wht_rules.INCOME_CODES))
+        self.assertEqual(set(edits) - {"row", "reset"}, set(wht_rules.EDIT_KEYS))
+        self.assertIn("cowork_express_readback", declared["cowork_vat_draft"]["description"])
+        self.assertIn("never say it was filed", declared["cowork_wht_draft"]["description"])
+
+    def test_vat_draft_without_readback_asks_for_one(self):
+        self.vat_result = lambda: {"status": "readback_needed", "period": "2026-09"}
+        out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09"}))
+        self.assertEqual(out["status"], "readback_needed")
+        self.assertIn("cowork_express_readback", out["note"])
+        self.assertFalse([call for call in self.calls if call[0] == "attach"])
+
+    def test_vat_draft_gives_the_points_and_the_workbook(self):
+        out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09",
+                                          "excess_brought_forward": "100", "zero_vat_as": ""}))
+        self.assertEqual(self.calls[0], ("vat", "C", "K", "2026-09", {"excess_brought_forward": "100"}))
+        self.assertEqual(out["boxes"], {"5": "700.00", "13": ""})
+        self.assertEqual(out["issues_total"], 41)
+        self.assertEqual(len(out["issues"]), tools.TAX_ISSUES_SHOWN)
+        self.assertEqual(out["issues"][0]["code"], "input_over_six_months")
+        self.assertNotIn("index", out["issues"][0])
+        self.assertNotIn("sales_rows", out)
+        self.assertEqual(out["file"], "/mnt/x/PP30-2026-09.xlsx")
+        self.assertEqual(frappe.commits, 1)
+        self.calls.clear()
+        out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09",
+                                          "workbook": False}))
+        self.assertNotIn("file", out)
+        self.assertFalse([call for call in self.calls if call[0] == "attach"])
+
+    def test_refusals_come_back_as_not_drafted(self):
+        def refuse(*args):
+            raise frappe.ValidationError("The tax month is not valid.")
+
+        sys.modules["pearnly_cowork.tax.service"].vat_draft = refuse
+        out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "x"}))
+        self.assertEqual(out, {"status": "not_drafted", "reason": "The tax month is not valid."})
+        self.assertEqual(frappe.rollbacks, 1)
+
+    def test_wht_draft_lists_forms_questions_and_trims_lines(self):
+        edits = [{"row": "H1", "include": False}]
+        out = json.loads(tools.wht_draft({"company_tax_id": "0105556000009", "period": "2026-09", "edits": edits}))
+        self.assertEqual(self.calls[0], ("wht", "0105556000009", "2026-09", edits, "", ""))
+        pnd53 = out["forms"]["pnd53"]
+        self.assertEqual((pnd53["lines_total"], len(pnd53["lines"])), (50, tools.TAX_LINES_SHOWN))
+        self.assertEqual(pnd53["lines"][0], {"row": "H0", "payee_tax_id": "0105546015062", "rate": "3", "base": "1.00",
+                                             "tax": "0.03", "issues": ["payment_date_assumed"]})
+        self.assertEqual(out["questions"][0]["suggested"], "service")
+        self.assertTrue(out["file"].endswith(".xlsx"))
+
+    def test_answers_list_and_remove(self):
+        answers = [{"payee_tax_id": "0105546015062", "income_type": "transport"}]
+        out = json.loads(tools.wht_answer({"answers": answers, "draft": "CTD-2"}))
+        self.assertEqual((out["status"], self.calls[-1]), ("saved", ("answer", answers, "CTD-2")))
+        self.assertIn("cowork_wht_draft", out["note"])
+        self.assertEqual(json.loads(tools.wht_answer({"action": "list"})),
+                         {"remembered": [{"scope": "payee:1", "income_type": "rent"}]})
+        json.loads(tools.wht_answer({"action": "remove", "category": "ค่าเช่า"}))
+        self.assertEqual(self.calls[-1], ("forget", "", "ค่าเช่า"))
 
 
 class StocktakeAndWorkTests(unittest.TestCase):

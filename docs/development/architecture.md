@@ -64,12 +64,13 @@
 | `ocr` | 抽取：引擎、表引擎、校验闸、执行批次与计费、反馈 | `engine.runner`（本切片只承接 `invoice`/`auto`）、`execution.service`；依赖 `contracts` 与 `pearnly_core` 的计量 |
 | `reconciliation` | 银行与收入对账：解码、配对、原生落库、导出 | `bank_recon_service` / `income_recon_service`；收调用方已解码的内容，子进程不读文件、不调模型 |
 | `roundtrip` | 往返单契约与解析 | `service` / `parser` |
+| `tax` | 报税草稿（2026-10-13）：ภ.พ.30 与进项可抵扣核查、ภ.ง.ด.3 / ภ.ง.ด.53 | `service` 是唯一入口（CC 工具 `cowork_vat_draft` / `cowork_wht_draft` / `cowork_wht_answer`，没有 Desk 页面）；纯计算在 `periods` / `pp30` / `input_vat` / `wht`（不连库、不读文件）；ภ.พ.30 只读 Express 回读（`readback.service.vat_records`，函数内延迟导入），预扣税只读识别记录与 50 ทวิ 参考记录（`history`）；草稿表 `Cowork Tax Draft` 只经 `service` 写（对账同款写入闸），所得类型记忆 `Cowork WHT Choice` 只经 `memory` 写；确定性、零费用，不写 Express、不代为申报；功能码 `tax_drafts`、角色 Cowork Tax Filing |
 | `push` | 推送装配、试算、幂等与写者锁 | `application.service` / `native`；外部写只在目标域 |
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
 | `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |
-| `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
+| `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api`；租户把预扣税凭证设成「不录入」时，识别存档同一事务里由 `history.certificates.keep_skipped` 存 50 ทวิ 参考记录（`Cowork WHT Certificate`，只给报税草稿读：不成票、不进录入待办、不推送、不改计费，用户 2026-10-13） |
 | `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；所有 Cowork 租户都有，不设站点开关（用户 2026-10-07）；2026-10-12 起新任务处理文件夹里已有的文件（`include_existing`，同步下发 `existing`，老任务照旧拍底）；任务、运行、文件进度变了经 `live` 在提交后推 `cowork_folder_changed`；前一天提醒与完成简报（`reminders` / `briefs`，每 5 分钟由 `schedule.notices` 触发）只算何时发、发给谁、写什么，统一经 `notify` 调用共用层 `pearnly_core.assistant.notices`，不调模型、不扣费；同一连接同一账套的存货销售等存货进货推送有了结论再准备（最多 12 小时） |
-| `assistant` | 智能体工具（ADR-019）：小助手状态与账套、单据推送、文件夹任务、推送结果 | 只声明工具（`pearnly_assistant_tools`）并调用 `connections` / `push.application` / `folder_intake` / `history` 的公开入口，以当前用户身份执行，不另写表、不绕过权限 |
+| `assistant` | 智能体工具（ADR-019）：小助手状态与账套、单据推送、文件夹任务、推送结果、报税草稿 | 只声明工具（`pearnly_assistant_tools`）并调用 `connections` / `push.application` / `folder_intake` / `history` / `tax` 的公开入口，以当前用户身份执行，不另写表、不绕过权限 |
 | `work` | 任务管理：多块看板（成员、可见范围、看板权限）、卡片、标签、评论与活动、附件（原生私有 File） | `contracts`（含看板权限矩阵）/ `access`（判据）/ `boards` / `service` / `api`；只依赖 `access`；原生资源只读且按看板过滤，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
 

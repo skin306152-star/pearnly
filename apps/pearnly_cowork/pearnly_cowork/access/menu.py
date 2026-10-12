@@ -20,6 +20,8 @@ CATALOG = {
     "recon_bank": ("recon", "Cowork Bank Reconciliation", "pearnly-recon-bank"),
     "recon_income": ("recon", "Cowork Income Reconciliation", "pearnly-recon-income"),
     "recon_vat": ("recon", "Cowork VAT Check", "pearnly-recon-vat"),
+    # 报税草稿（2026-10-13）：没有页面，入口是 CC 工具（`tax`），团队管理里显示角色名
+    "tax": ("tax_drafts", "Cowork Tax Filing", None),
     "stocktake": ("stocktake", "Cowork Stocktake", "pearnly-stocktake"),
     "work": (None, "Cowork Work", "pearnly-work"),
     "profile": (None, PROFILE_ROLE, "user"),
