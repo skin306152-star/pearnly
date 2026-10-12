@@ -5,8 +5,8 @@ from pearnly_core.assistant import files, sessions, tools
 
 
 @frappe.whitelist(methods=["GET"])
-def listing(archived=0):
-    return sessions.listing(archived=frappe.utils.cint(archived) == 1)
+def listing(archived=0, after=None):
+    return sessions.listing(archived=frappe.utils.cint(archived) == 1, after=after or None)
 
 
 @frappe.whitelist(methods=["POST"])

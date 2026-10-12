@@ -21,7 +21,9 @@ from frappe import _
 from pearnly_core.assistant import config, context, contracts, engine, engines, relay, toolrun, tools
 
 SESSION = context.SESSION
-LIST_LIMIT = 100
+LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
+PAGE_SIZE = 30  # 其余的每页条数
+SAME_TIME_SLACK = 10  # 翻页时多取几条，用来跳过与上一页最后一条同一时刻、已经给过的
 # 短标题生成后推给会话主人（侧栏等着它，见对话页 session-list-adapter）
 TITLE_EVENT = "pearnly_assistant_title"
 TITLE_JOB_TIMEOUT = 60
@@ -67,12 +69,27 @@ def _summary(row, status="idle") -> dict:
             "archived_at": str(row.modified) if row.archived else None}
 
 
-def listing(archived=False) -> dict:
-    rows = frappe.get_all(SESSION, filters={"user": _user(), "engine_code": config.engine_code(),
-                                            "archived": 1 if archived else 0},
-                          fields=["name", "session_id", "title", "starred", "archived", "creation", "modified"],
-                          order_by="modified desc", limit=LIST_LIMIT)
-    return {"sessions": [_summary(row) for row in rows], "nextCursor": None}
+def listing(archived=False, after=None) -> dict:
+    """侧栏列表，按最后活动时间从新到旧一页一页给（同 Claude：先显示一页，滚到底再加载）。
+    加星标的全部在第一页（侧栏顶上的「已加星标」一组要齐）；之后的页只翻其余的。"""
+    base = {"user": _user(), "engine_code": config.engine_code(), "archived": 1 if archived else 0}
+    fields = ["name", "session_id", "title", "starred", "archived", "creation", "modified"]
+    order = "modified desc, name desc"
+    rows = []
+    rest = {**base, "starred": 0}
+    if after:
+        modified, name = _guard(contracts.list_cursor, after)
+        rest["modified"] = ["<=", modified]
+        # 同一时刻的几条按记录名接着排：上一页已给到 name 为止
+        found = frappe.get_all(SESSION, filters=rest, fields=fields, order_by=order, limit=PAGE_SIZE + 1 + SAME_TIME_SLACK)
+        page = [row for row in found if not (str(row.modified) == modified and row.name >= name)][:PAGE_SIZE + 1]
+    else:
+        rows = frappe.get_all(SESSION, filters={**base, "starred": 1}, fields=fields, order_by=order, limit=LIST_LIMIT)
+        page = frappe.get_all(SESSION, filters=rest, fields=fields, order_by=order, limit=PAGE_SIZE + 1)
+    more = len(page) > PAGE_SIZE
+    page = page[:PAGE_SIZE]
+    cursor = f"{page[-1].modified}|{page[-1].name}" if more and page else None
+    return {"sessions": [_summary(row) for row in rows + page], "nextCursor": cursor}
 
 
 def _metadata(user, product) -> dict:

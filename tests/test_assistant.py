@@ -586,6 +586,41 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(created[0]["system"], engines.base.TITLE_INSTRUCTION)
         self.assertIn("<message>\nPlease summarise all invoices\n</message>", created[0]["messages"][0]["content"])
 
+    def test_sidebar_list_pages_by_last_activity_with_all_starred_first(self):
+        # 2026-10-12 用户：侧栏原先一次最多 100 条、再往前的看不到；改成同 Claude 先一页、滚到底再加载
+        self.assertEqual(contracts.list_cursor("2026-10-12 10:00:00.123456|abc12"), ("2026-10-12 10:00:00.123456", "abc12"))
+        for bad in ("", "x|y", "2026-10-12 10:00:00|a b", "2026-10-12|abc", "2026-10-12 10:00:00|' or 1=1"):
+            with self.assertRaises(contracts.ContractError, msg=bad):
+                contracts.list_cursor(bad)
+        sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("files"))
+        sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        import datetime
+        base = datetime.datetime(2026, 10, 12, 12, 0, 0)
+        row_type = type("Row", (dict,), {"__getattr__": dict.get})  # 同 frappe._dict
+        rows = [row_type(name=f"r{i:03d}", session_id=f"sesn_{i:03d}", title=f"t{i}", starred=1 if i in (5, 40) else 0,
+                                      archived=0, creation=base, modified=base - datetime.timedelta(minutes=i // 2 * 2))
+                for i in range(75)]
+
+        def get_all(doctype, filters=None, fields=None, order_by=None, limit=None):
+            found = [r for r in rows if r.starred == filters["starred"]]
+            if "modified" in filters:
+                found = [r for r in found if str(r.modified) <= filters["modified"][1]]
+            found.sort(key=lambda r: (r.modified, r.name), reverse=True)
+            return found[:limit]
+
+        seen = []
+        with mock.patch.object(sessions.frappe, "get_all", get_all, create=True), \
+                mock.patch.object(sessions.config, "engine_code", return_value=CLAUDE):
+            page = sessions.listing()
+            self.assertEqual([s["id"] for s in page["sessions"][:2]], ["sesn_005", "sesn_040"])  # 加星标的全在第一页
+            self.assertEqual(len(page["sessions"]), 2 + sessions.PAGE_SIZE)
+            seen += [s["id"] for s in page["sessions"]]
+            while page["nextCursor"]:
+                page = sessions.listing(after=page["nextCursor"])
+                seen += [s["id"] for s in page["sessions"]]
+        self.assertEqual(sorted(seen), sorted(r.session_id for r in rows))  # 同一时刻的几条跨页也不漏不重
+        self.assertEqual(len(seen), len(set(seen)))
+
     def test_new_turns_and_uploads_go_to_the_current_segment(self):
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         send = source.split("def send(", 1)[1].split("\ndef ", 1)[0]

@@ -52,6 +52,8 @@ const MESSAGES = {
     cancel: "Cancel",
     scheduledTasks: "Scheduled tasks",
     recents: "Recents",
+    today: "Today",
+    yesterday: "Yesterday",
     newChatPill: "New chat",
     menu: "Menu",
     back: "Back",
@@ -122,6 +124,8 @@ const MESSAGES = {
     cancel: "取消",
     scheduledTasks: "定时任务",
     recents: "最近",
+    today: "今天",
+    yesterday: "昨天",
     newChatPill: "新建会话",
     menu: "菜单",
     back: "后退",
@@ -192,6 +196,8 @@ const MESSAGES = {
     cancel: "ยกเลิก",
     scheduledTasks: "งานตามกำหนดเวลา",
     recents: "ล่าสุด",
+    today: "วันนี้",
+    yesterday: "เมื่อวาน",
     newChatPill: "แชทใหม่",
     menu: "เมนู",
     back: "ย้อนกลับ",
@@ -334,3 +340,14 @@ const SETTINGS = {
 };
 
 export const st = (SETTINGS as Record<string, (typeof SETTINGS)["en"]>)[lang] ?? SETTINGS.th;
+
+/** 侧栏日期分组的标题（同 Claude 网页版）：今天、昨天，再往前是「10月10日」，不是今年的带上年份。 */
+export function dayLabel(day: Date, now = new Date()): string {
+  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((start(now) - start(day)) / 86_400_000);
+  if (days <= 0) return t("today");
+  if (days === 1) return t("yesterday");
+  const options: Intl.DateTimeFormatOptions = { month: "long", day: "numeric" };
+  if (day.getFullYear() !== now.getFullYear()) options.year = "numeric";
+  return new Intl.DateTimeFormat(lang, options).format(day);
+}

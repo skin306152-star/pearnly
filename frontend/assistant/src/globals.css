@@ -169,6 +169,9 @@
 .cc-mmain [data-slot="cc-status"] { padding-top: calc(var(--cc-mtopbar-h) + env(safe-area-inset-top)); }
 .cc-mmain [data-slot="cc-status"] ~ * [data-slot="aui_thread-viewport"] { padding-top: 0; }
 
+/* 手机上长按对话行弹菜单：不出系统的选字 / 放大镜 */
+@media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }
+
 /* 网页版侧栏收起后的图标栏 */
   --cc-results-in: 240ms;         /* 右侧面板滑入 */
   --cc-text-xs: 0.75rem;          /* 步骤详情里的命令输出 */
@@ -514,8 +517,9 @@
 
 /* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */
 /* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
-[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active],
-[data-cc-view="tasks"] [data-slot="aui_thread-list-new"][data-active] { background: transparent; color: var(--cc-ink-2); }
+[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active] { background: transparent; color: var(--cc-ink-2); }
+/* 「新建」是动作不是页面（同 Claude）：新对话页上也不显示成选中，只有悬停底色 */
+[data-slot="aui_thread-list-new"][data-active]:not(:hover) { background: transparent; color: var(--cc-ink-2); }
 /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
 .cc-drawer { scrollbar-width: none; }
 .cc-drawer::-webkit-scrollbar { display: none; }

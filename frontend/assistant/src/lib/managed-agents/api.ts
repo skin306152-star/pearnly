@@ -5,8 +5,9 @@ import type { SessionSummary, StreamEvent } from "./events";
 
 export type EventsPage = { events: StreamEvent[]; full: boolean };
 
-export function listSessions(): Promise<{ sessions: SessionSummary[]; nextCursor: string | null }> {
-  return get("listing");
+/** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部加星标的）。 */
+export function listSessions(after?: string): Promise<{ sessions: SessionSummary[]; nextCursor: string | null }> {
+  return get("listing", { after });
 }
 
 export function createSession(): Promise<SessionSummary> {

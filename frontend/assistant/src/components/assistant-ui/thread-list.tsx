@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { t } from "@/i18n";
+import { dayLabel, t } from "@/i18n";
 import { useActivity } from "@/lib/managed-agents/activity";
 import {
   AuiIf,
@@ -26,7 +26,9 @@ import {
 import {
   forwardRef,
   Fragment,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentPropsWithoutRef,
   type FC,
@@ -98,7 +100,36 @@ export const ThreadListItems: FC<
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
         <ThreadListItemGroups searchQuery={searchQuery} />
+        <ThreadListMore searching={!!searchQuery.trim()} />
       </AuiIf>
+    </div>
+  );
+};
+
+/** 列表底部（同 Claude）：先显示一页，滚到这里再加载下一页；搜索时把剩下的都加载进来，较早的对话也搜得到。 */
+const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
+  const aui = useAui();
+  const hasMore = useAuiState((s) => s.threads.hasMore);
+  const loadingMore = useAuiState((s) => s.threads.isLoadingMore);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    if (searching) {
+      void aui.threads().loadMore();
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) void aui.threads().loadMore();
+    }, { rootMargin: "200px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [aui, hasMore, loadingMore, searching]);
+  if (!hasMore && !loadingMore) return null;
+  return (
+    <div ref={ref} className="flex h-8 items-center px-2.5 text-ink-3">
+      {loadingMore && <LoaderIcon className="size-3.5 animate-spin" />}
     </div>
   );
 };
@@ -110,6 +141,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
 }) => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
+  const { isMobile } = useSidebar();
 
   const query = searchQuery.trim().toLowerCase();
 
@@ -138,9 +170,22 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
     const starred = sorted.filter((index) => itemsById.get(threadIds[index]!)?.custom?.starred);
     if (starred.length) result.push({ label: t("starred"), indices: starred });
     const rest = sorted.filter((index) => !starred.includes(index));
-    if (rest.length) result.push({ label: t("recents"), indices: rest });
+    if (isMobile) {
+      // 手机（同 Claude 手机端）：其余的都在「最近」
+      if (rest.length) result.push({ label: t("recents"), indices: rest });
+    } else {
+      // 网页 / 桌面（同 Claude 网页版）：按最后活动的日子分组——今天、昨天、10月10日……
+      const byDay: ThreadListGroup[] = [];
+      for (const index of rest) {
+        const label = dates[index] ? dayLabel(dates[index]!) : t("today");
+        const last = byDay[byDay.length - 1];
+        if (last?.label === label) last.indices.push(index);
+        else byDay.push({ label, indices: [index] });
+      }
+      result.push(...byDay);
+    }
     return { filteredIndices, groups: result };
-  }, [threadIds, threadItems, query]);
+  }, [threadIds, threadItems, query, isMobile]);
 
   if (query && filteredIndices.length === 0) {
     return (
@@ -220,12 +265,53 @@ const ThreadListSkeleton: FC = () => {
   );
 };
 
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_SLOP = 10;
+
+/** 手机上长按一条对话弹出它的菜单（同 Claude 手机端）：手机没有悬停，「…」按钮不出现。手指一动就不算长按（在滚列表）。 */
+function useLongPress(onLongPress: () => void) {
+  const timer = useRef<number | null>(null);
+  const origin = useRef({ x: 0, y: 0 });
+  const fired = useRef(false);
+  const cancel = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return {
+    onTouchStart: (e: React.TouchEvent) => {
+      const p = e.touches[0];
+      fired.current = false;
+      cancel();
+      if (!p || e.touches.length > 1) return;
+      origin.current = { x: p.clientX, y: p.clientY };
+      timer.current = window.setTimeout(() => {
+        timer.current = null;
+        fired.current = true;
+        navigator.vibrate?.(10);
+        onLongPress();
+      }, LONG_PRESS_MS);
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      const p = e.touches[0];
+      if (p && Math.hypot(p.clientX - origin.current.x, p.clientY - origin.current.y) > LONG_PRESS_SLOP) cancel();
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      cancel();
+      if (fired.current) e.preventDefault(); // 长按松手不再算一次点击（不切到这个对话、不收起抽屉）
+    },
+    onTouchCancel: cancel,
+  };
+}
+
 export const ThreadListItem: FC = () => {
   const [renaming, setRenaming] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const press = useLongPress(() => setMenuOpen(true));
   return (
     <ThreadListItemPrimitive.Root
+      {...press}
       data-slot="aui_thread-list-item"
-      className="group hover:bg-hover focus-visible:bg-hover data-active:bg-active has-focus-visible:bg-hover has-data-[state=open]:bg-hover text-ink-2 data-active:text-ink relative flex h-8 items-center rounded-sm transition-colors focus-visible:outline-none"
+      className="group/item hover:bg-hover focus-visible:bg-hover data-active:bg-active has-focus-visible:bg-hover has-data-[state=open]:bg-hover text-ink-2 data-active:text-ink relative flex h-8 items-center rounded-sm transition-colors focus-visible:outline-none"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
@@ -233,7 +319,7 @@ export const ThreadListItem: FC = () => {
         <>
           <ThreadListItemPrimitive.Trigger
             data-slot="aui_thread-list-item-trigger"
-            className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-[3px]"
+            className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9 focus-visible:ring-[3px]"
           >
             <span
               data-slot="aui_thread-list-item-title"
@@ -243,7 +329,7 @@ export const ThreadListItem: FC = () => {
             </span>
             <ThreadActivity />
           </ThreadListItemPrimitive.Trigger>
-          <ThreadListItemMore onRename={() => setRenaming(true)} />
+          <ThreadListItemMore open={menuOpen} onOpenChange={setMenuOpen} onRename={() => setRenaming(true)} />
         </>
       )}
     </ThreadListItemPrimitive.Root>
@@ -257,7 +343,7 @@ const ThreadActivity: FC = () => {
   const activity = useActivity(id);
   if (!activity || isMain) return null;
   return (
-    <span className="cc-activity group-hover:hidden group-has-data-[state=open]:hidden" data-activity={activity} aria-label={t(activity === "running" ? "running" : "unread")}>
+    <span className="cc-activity group-hover/item:hidden group-has-data-[state=open]/item:hidden" data-activity={activity} aria-label={t(activity === "running" ? "running" : "unread")}>
       {activity === "running" && <LoaderIcon className="size-3.5 animate-spin" />}
     </span>
   );
@@ -290,18 +376,22 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
   );
 };
 
-const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
+const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => void; onRename: () => void }> = ({
+  open,
+  onOpenChange,
+  onRename,
+}) => {
   const aui = useAui();
   const starred = useAuiState((s) => !!s.threadListItem.custom?.starred);
   const itemClass = "cc-menu-item";
   return (
-    <ThreadListItemMorePrimitive.Root sharedFocusGroup>
+    <ThreadListItemMorePrimitive.Root sharedFocusGroup open={open} onOpenChange={onOpenChange}>
       <ThreadListItemMorePrimitive.Trigger asChild>
         <Button
           variant="ghost"
           size="icon"
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
+          className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
           <span className="sr-only">{t("more")}</span>

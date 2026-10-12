@@ -24,6 +24,10 @@ UPLOAD_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic"
                                ".xlsx", ".xls", ".csv", ".tsv", ".docx", ".txt", ".md", ".json"})
 
 
+# 侧栏列表的翻页位置：上一页最后一条的「最后活动时间|记录名」（同一时间的按记录名再排一次，不漏不重）。
+LIST_CURSOR = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})?)\|([A-Za-z0-9_-]{1,140})$")
+
+
 class ContractError(ValueError):
     pass
 
@@ -33,6 +37,13 @@ def session_id(value) -> str:
     if not OPAQUE_ID.match(text):
         raise ContractError("invalid session id")
     return text
+
+
+def list_cursor(value) -> tuple[str, str]:
+    match = LIST_CURSOR.match(str(value or "").strip())
+    if not match:
+        raise ContractError("invalid list cursor")
+    return match.group(1), match.group(2)
 
 
 def event_id(value) -> str:

@@ -3,7 +3,8 @@
 // over the Managed Agents session list: each thread IS a session, and the
 // thread id assistant-ui hands us (remoteId/externalId) is the session id.
 //
-//   list        → this site's own session table, the signed-in user's rows only
+//   list        → this site's own session table, the signed-in user's rows only,
+//                 a page at a time (the sidebar loads the next page on scroll)
 //   initialize  → sessions.create   (fires on the first message of a new chat)
 //   rename      → sessions.update title
 //   archive     → sessions.archive
@@ -42,8 +43,8 @@ const toThreadMetadata = (s: SessionSummary) => ({
 });
 
 export const sessionListAdapter: RemoteThreadListAdapter = {
-  async list() {
-    const { sessions, nextCursor } = await listSessions();
+  async list(params) {
+    const { sessions, nextCursor } = await listSessions(params?.after);
     return {
       threads: sessions.map(toThreadMetadata),
       nextCursor: nextCursor ?? undefined,
