@@ -1,9 +1,10 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
 import { get, post, upload } from "@/lib/frappe";
-import type { SessionSummary, StreamEvent } from "./events";
+import type { FeedEvent, SessionSummary } from "./events";
 
-export type EventsPage = { events: StreamEvent[]; full: boolean };
+/** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。 */
+export type EventsPage = { events: FeedEvent[]; full: boolean };
 
 /** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部加星标的）。 */
 export function listSessions(after?: string): Promise<{ sessions: SessionSummary[]; nextCursor: string | null }> {
@@ -32,6 +33,11 @@ export async function archiveSession(id: string): Promise<void> {
 
 export async function deleteSession(id: string): Promise<void> {
   await post("delete", { session_id: id });
+}
+
+/** 这段对话的提醒看过了（侧栏圆点消失；服务端记 seen）。 */
+export async function markNoticesSeen(id: string): Promise<void> {
+  await post("notices_seen", { session_id: id });
 }
 
 /** 不带 after：整段历史；带 after：只要它之后的新事件（锚点丢了服务端会退回整段，full=true）。 */

@@ -22,6 +22,7 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { noticesShown } from "./activity";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
 import { beginPendingText, clearPending } from "./pending-send";
 import { sessionListAdapter } from "./session-list-adapter";
@@ -30,7 +31,7 @@ import {
   type ControllerSnapshot,
   type SessionController,
 } from "./session-controller";
-import { initialProjection, isBusy } from "./reducer";
+import { initialProjection, isBusy, withNotices } from "./reducer";
 
 // ------------------------------------------------------------- state hookup
 const EMPTY: ControllerSnapshot = {
@@ -83,6 +84,12 @@ function useSessionThreadRuntime() {
     return () => controller.detach();
   }, [controller, isActive]);
 
+  // 当前对话里显示出了新的提醒（推送、补拉、整段回放带回来的都算）：交给 activity 告诉服务端看过了
+  const lastNotice = snapshot.notices.at(-1)?.id;
+  useEffect(() => {
+    if (isActive && sessionId && lastNotice) noticesShown(sessionId, lastNotice);
+  }, [isActive, sessionId, lastNotice]);
+
   /** Resolve the session id, creating the session for a brand-new chat. */
   const ensureSession = useMemo(
     () => async (): Promise<string> => {
@@ -98,10 +105,13 @@ function useSessionThreadRuntime() {
 
   const attachments = useMemo(() => createAttachmentAdapter(ensureSession), [ensureSession]);
 
+  // 本站提醒卡片在这里才并进对话（reducer.withNotices）：发送、批准、回复完成通知都只看引擎消息。
+  const messages = useMemo(() => withNotices(snapshot.messages, snapshot.notices), [snapshot.messages, snapshot.notices]);
+
   return useExternalStoreRuntime<ThreadMessageLike>({
     // Cast is safe: the reducer's message model is a structural subset of
     // ThreadMessageLike (see reducer.ts).
-    messages: snapshot.messages as readonly ThreadMessageLike[],
+    messages: messages as readonly ThreadMessageLike[],
     convertMessage: (m) => m,
     isLoading: !snapshot.isLoaded,
     // Busy = the agent is working, or a gate/custom tool is waiting on us.

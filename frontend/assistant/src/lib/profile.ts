@@ -10,7 +10,8 @@ export type Profile = { product: string; product_label: string; full_name: strin
 
 let cached: Promise<Profile> | null = null;
 
-function load(): Promise<Profile> {
+/** 当前用户与产品（只取一次）；不在组件里的流程（深链接）直接等它。 */
+export function loadProfile(): Promise<Profile> {
   cached ??= fetch("/api/method/pearnly_core.shell.describe", { credentials: "same-origin", cache: "no-store" })
     .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
     .then((body: { message: Profile }) => body.message);
@@ -20,7 +21,7 @@ function load(): Promise<Profile> {
 export function useProfile(): Profile | null {
   const [profile, setProfile] = useState<Profile | null>(null);
   useEffect(() => {
-    void load().then(setProfile, () => setProfile(null));
+    void loadProfile().then(setProfile, () => setProfile(null));
   }, []);
   return profile;
 }

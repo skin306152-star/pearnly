@@ -4,7 +4,8 @@
 // thread id assistant-ui hands us (remoteId/externalId) is the session id.
 //
 //   list        → this site's own session table, the signed-in user's rows only,
-//                 a page at a time (the sidebar loads the next page on scroll)
+//                 a page at a time (the sidebar loads the next page on scroll);
+//                 rows with unseen notices get the sidebar dot (activity.ts)
 //   initialize  → sessions.create   (fires on the first message of a new chat)
 //   rename      → sessions.update title
 //   archive     → sessions.archive
@@ -25,6 +26,7 @@ import {
   renameSession,
   starSession,
 } from "./api";
+import { seedUnread } from "./activity";
 import { type SessionSummary, splitAttachmentNote } from "./events";
 import { listen, pushedTitle } from "./realtime";
 import { dropSessionController } from "./session-controller";
@@ -45,6 +47,8 @@ const toThreadMetadata = (s: SessionSummary) => ({
 export const sessionListAdapter: RemoteThreadListAdapter = {
   async list(params) {
     const { sessions, nextCursor } = await listSessions(params?.after);
+    // 有没看过的提醒的对话留圆点（刷新后仍在，服务端记着）
+    for (const s of sessions) if (s.unread) seedUnread(s.id);
     return {
       threads: sessions.map(toThreadMetadata),
       nextCursor: nextCursor ?? undefined,

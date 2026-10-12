@@ -1,6 +1,6 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
-//   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）
+//   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）、通知（浏览器 / 手机推送）
 //   连接      — 只在浏览器里（Cowork 站点）出现：只读，连着哪台电脑、在不在线、网页可读取的文件夹；改只在电脑上的 CC 里
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
 //     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹、网页可读取的文件夹
@@ -24,8 +24,10 @@ import {
   type TextSize,
   textSize,
 } from "@/lib/desktop";
+import { useInstallGuide } from "@/components/install-prompt";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { useProfile } from "@/lib/profile";
+import { usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import { lang, LANGUAGES, st, t } from "../i18n";
 
@@ -188,15 +190,17 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   );
 }
 
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+/** 开关（同 Claude 设置）：定时任务表单的「前一天提醒」也用这一个。 */
+export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-6 w-10 rounded-full transition-colors", checked ? "bg-ink" : "bg-line-strong")}
+      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:opacity-50", checked ? "bg-ink" : "bg-line-strong")}
     >
       <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow transition-transform", checked && "translate-x-4")} />
     </button>
@@ -267,8 +271,38 @@ function General() {
       <Row label={t("language")}>
         <Segmented value={lang} options={LANGUAGES.map((l) => [l.code, l.label] as [string, string])} onChange={(code) => void saveLanguage(code)} />
       </Row>
+      <Notifications />
     </>
   );
+}
+
+// 推送通知（lib/push.ts）：开 / 关；浏览器里拒绝过就只能去浏览器设置改；iPhone 在浏览器页签里先添加到主屏幕。
+// 桌面端、不支持推送的浏览器不显示这一行。
+function Notifications() {
+  const push = usePush();
+  const showGuide = useInstallGuide();
+  if (push.state === "on" || push.state === "off")
+    return (
+      <Row label={st.notifications}>
+        {/* 打开要在点击里直接订阅（iPhone 的用户手势），不能先等别的 */}
+        <Switch checked={push.state === "on"} label={st.notifications} onChange={(on) => void (on ? push.enable() : push.disable())} />
+      </Row>
+    );
+  if (push.state === "denied")
+    return (
+      <Row label={<>{st.notifications}<div className="text-muted-foreground text-xs">{st.notificationsBlocked}</div></>}>
+        <Switch checked={false} disabled label={st.notifications} onChange={() => undefined} />
+      </Row>
+    );
+  if (push.state === "install")
+    return (
+      <Row label={st.notifications}>
+        <Button variant="outline" size="sm" onClick={showGuide}>
+          {t("addToHome")}
+        </Button>
+      </Row>
+    );
+  return null;
 }
 
 // ── 此电脑：本机状态（开着就每 2 秒刷新一次，本机有变化也马上刷新） ──

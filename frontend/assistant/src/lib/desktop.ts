@@ -4,22 +4,31 @@
 //   回复完成通知          — 窗口不在前台时回复完成，用网页原生通知提醒（桌面端已授权；浏览器只在用户授权过时弹）
 //   整窗拖文件            — 文件拖到对话页任何地方都加进输入框，不会被浏览器当成网页打开
 //   window.tomo.settings  — 桌面端托盘「连接与设置」/ Ctrl+, 打开设置
+//   window.tomo.open(id)  — 桌面端托盘通知点开：打开那段对话（空串 = 定时任务页），由 lib/nav.ts 的深链接接手
+//   提醒通知              — 本站提醒（定时任务提醒、完成简报）：桌面端窗口里弹系统通知（同一条与托盘按 notice:编号 去重）；
+//                           浏览器里开了推送就由后台脚本弹，没开才在页面不在前台时弹
 
 import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
+import { onNotice } from "@/lib/managed-agents/activity";
 import { APP_NAME } from "@/lib/profile";
 
 type Message = { role?: string; content?: unknown };
 
 declare global {
   interface Window {
-    tomo?: { ask: (text: string) => void; settings: (section?: string) => void };
+    tomo?: { ask: (text: string) => void; settings: (section?: string) => void; open: (target: string) => void };
   }
 }
 
 /** 打开设置（section：general / connections / system）；设置窗口在 components/settings.tsx 里听这个事件。 */
 export function openSettings(section = "") {
   window.dispatchEvent(new CustomEvent("tomo-settings", { detail: section }));
+}
+
+/** 打开某段对话（target 是对话编号，空串 = 定时任务页）；lib/nav.ts 的 useDeepLinks 听这个事件。 */
+export function openTarget(target: string) {
+  window.dispatchEvent(new CustomEvent("tomo-open", { detail: String(target ?? "") }));
 }
 
 function lastReply(messages: readonly Message[]): string {
@@ -30,8 +39,13 @@ function lastReply(messages: readonly Message[]): string {
   return flat.length > 120 ? `${flat.slice(0, 119)}…` : flat;
 }
 
-export function useDesktopBridge(isRunning: boolean, messages: readonly Message[], title: string) {
+/** pushOn：这台浏览器开着推送通知（lib/push.ts），提醒交给后台脚本弹。 */
+export function useDesktopBridge(isRunning: boolean, messages: readonly Message[], title: string, pushOn = false) {
   const aui = useAui();
+  const pushOnRef = useRef(pushOn);
+  useEffect(() => {
+    pushOnRef.current = pushOn;
+  }, [pushOn]);
 
   useEffect(() => {
     window.tomo = {
@@ -49,6 +63,7 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
         );
       },
       settings: (section?: string) => openSettings(section ?? ""),
+      open: (target: string) => openTarget(target),
     };
     return () => {
       delete window.tomo;
@@ -64,6 +79,22 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
     const note = new Notification(title || APP_NAME, { body: lastReply(messages), tag: "tomo-reply" });
     note.onclick = () => window.focus();
   }, [isRunning, messages, title]);
+
+  useEffect(
+    () =>
+      onNotice((notice) => {
+        // 桌面端：一律弹（托盘同一条按 tag 只弹一次）；浏览器：开了推送由后台脚本弹，没开且页面不在前台才弹
+        const desktopApp = isDesktopApp();
+        if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;
+        if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+        const note = new Notification(notice.title || APP_NAME, { body: notice.text, tag: `notice:${notice.id}` });
+        note.onclick = () => {
+          window.focus();
+          openTarget(notice.session || "");
+        };
+      }),
+    [],
+  );
 
   useEffect(() => {
     // 拖着文件进窗口时整窗出提示（同 claude.ai，样式 .cc-dropzone）；进出子元素会成对触发 enter / leave，按计数判断真正离开

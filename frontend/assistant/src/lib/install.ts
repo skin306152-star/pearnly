@@ -29,14 +29,15 @@ let installed = false;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((listener) => listener());
 
-function standalone(): boolean {
+/** 装成应用打开（主屏幕 app、安装的网页应用）。 */
+export function standalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
   );
 }
 
-function isIOS(): boolean {
+export function isIOS(): boolean {
   const ua = navigator.userAgent;
   // iPadOS 13 起自称 Mac：有触屏的「Mac」就是 iPad
   return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);

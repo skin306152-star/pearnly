@@ -101,6 +101,11 @@ export function InstallProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** 打开「添加到主屏幕」的步骤（设置里「通知」一行：iPhone 要装成主屏幕 app 才收得到推送）。 */
+export function useInstallGuide(): () => void {
+  return useContext(GuideContext);
+}
+
 function useInstall() {
   const target = useInstallTarget(useProfile()?.product);
   const showGuide = useContext(GuideContext);

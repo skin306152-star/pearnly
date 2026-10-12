@@ -63,10 +63,11 @@ import {
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
-import { setActiveSession } from "@/lib/managed-agents/activity";
+import { onNotice, setActiveSession } from "@/lib/managed-agents/activity";
 import { listen } from "@/lib/managed-agents/realtime";
-import { useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
-import { APP_NAME, assistantLogo, assistantMascot, useProfile, type Profile } from "@/lib/profile";
+import { useDeepLinks, useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
+import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
+import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
@@ -125,6 +126,8 @@ function SessionStatusBar() {
 }
 
 async function signOut() {
+  // 先让本站不再往这台设备推这个人的提醒（lib/push.ts；最多等 3 秒，不挡退出）
+  await forgetDevice().catch(() => undefined);
   // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出），退出后回到智能体入口。
   const res = await fetch("/api/method/pearnly_core.identity.sign_out?to=assistant", {
     method: "POST",
@@ -638,19 +641,40 @@ function useResultsPanel() {
   return { sessionId, files, selected, setSelected, openFile, open: open && files.length > 0, setOpen };
 }
 
-// 桌面端快捷提问、回复完成通知、整窗拖文件、登录后自动连接这台电脑（lib/desktop.ts）
+// 桌面端快捷提问、回复完成与提醒通知、整窗拖文件、登录后自动连接这台电脑（lib/desktop.ts）；推送通知（lib/push.ts）
 function DesktopBridge() {
+  const aui = useAui();
   const snapshot = useActiveSessionSnapshot();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
-  useDesktopBridge(isBusy(snapshot), snapshot.messages, title);
+  const push = usePush();
+  useDesktopBridge(isBusy(snapshot), snapshot.messages, title, push.state === "on");
   useAutoConnect(useProfile()?.product);
   // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
   useEffect(() => listen(), []);
+  useEffect(() => void syncPush(), []);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
+  // 提醒挂到的对话不在侧栏已加载的那几页里（较早的对话）：重新拉一次列表，它就排到最上面
+  useEffect(
+    () =>
+      onNotice((notice) => {
+        if (!notice.session) return;
+        const { threadIds, threadItems } = aui.threads().getState();
+        const listed = threadItems.some((item) => item.remoteId === notice.session && threadIds.includes(item.id));
+        if (!listed) void aui.threads().reload();
+      }),
+    [aui],
+  );
   // 浏览器标签页标题跟着对话名（同 Claude）
   useEffect(() => {
     document.title = title && snapshot.messages.length ? `${title} - ${APP_NAME}` : APP_NAME;
   }, [title, snapshot.messages.length]);
+  return null;
+}
+
+// 深链接：/assistant?c=<对话>、?view=tasks，推送通知与桌面端托盘通知点开（lib/nav.ts）
+function DeepLinks() {
+  const { setView } = useView();
+  useDeepLinks(setView, () => loadProfile().then(hasScheduledTasks));
   return null;
 }
 
@@ -735,8 +759,10 @@ function Workspace() {
       <ViewContext.Provider value={viewContext}>
         <ResultsContext.Provider value={context}>
           <DesktopBridge />
-          <Settings />
+          <DeepLinks />
+          {/* 设置在 InstallProvider 里：「通知」一行在 iPhone 浏览器里要打开「添加到主屏幕」的步骤 */}
           <InstallProvider>
+            <Settings />
             <SidebarProvider style={sidebarWidth.style}>
               <Layout results={results} onSidebarResize={sidebarWidth.update} />
             </SidebarProvider>

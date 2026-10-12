@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { dayLabel, t } from "@/i18n";
-import { useActivity } from "@/lib/managed-agents/activity";
+import { useActivity, useBumps } from "@/lib/managed-agents/activity";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -173,6 +173,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
 }) => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
+  const bumps = useBumps();
   const { isMobile } = useSidebar();
   const { collapsed, toggle } = useCollapsedGroups();
 
@@ -180,7 +181,13 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
 
   const { filteredIndices, groups } = useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    const dates = threadIds.map((id) => itemsById.get(id)?.lastMessageAt);
+    // 最后活动时间取列表给的与本页收到提醒的时间里较晚的一个：提醒到的对话浮到最上面
+    const dates = threadIds.map((id) => {
+      const item = itemsById.get(id);
+      const bumped = item?.remoteId ? bumps.get(item.remoteId) : undefined;
+      const listed = item?.lastMessageAt;
+      return bumped && (!listed || bumped > listed.getTime()) ? new Date(bumped) : listed;
+    });
     const filteredIndices = threadIds
       .map((id, index) => ({ id, index }))
       .filter(
@@ -219,7 +226,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
       result.push(...byDay);
     }
     return { filteredIndices, groups: result };
-  }, [threadIds, threadItems, query, isMobile]);
+  }, [threadIds, threadItems, bumps, query, isMobile]);
 
   if (query && filteredIndices.length === 0) {
     return (
@@ -397,14 +404,16 @@ export const ThreadListItem: FC = () => {
   );
 };
 
-/** 行尾状态（同 Claude）：在跑转圈，跑完没看过一个小圆点；正在看的那个不标（顶栏已经在转）；鼠标移上去让位给「更多」按钮。 */
+/** 行尾状态（同 Claude）：在跑转圈，跑完没看过、或有没看过的提醒，一个小圆点；正在看的那个不标（顶栏已经在转）；
+ *  鼠标移上去让位给「更多」按钮。 */
 const ThreadActivity: FC = () => {
   const id = useAuiState((s) => s.threadListItem.remoteId);
   const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
   const activity = useActivity(id);
   if (!activity || isMain) return null;
+  const label = activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread");
   return (
-    <span className="cc-activity group-hover/item:hidden group-has-data-[state=open]/item:hidden" data-activity={activity} aria-label={t(activity === "running" ? "running" : "unread")}>
+    <span className="cc-activity group-hover/item:hidden group-has-data-[state=open]/item:hidden" data-activity={activity} aria-label={label}>
       {activity === "running" && <LoaderIcon className="size-3.5 animate-spin" />}
     </span>
   );

@@ -4,9 +4,10 @@
 // - 补拉（兜底）：按间隔拉「上次之后的新事件」。实时通道连着时只低频补拉（推送丢了、进程重启时补齐）；
 //   断开时退回高频轮询。引擎的「列出事件」偶尔单次要 30 多秒，所以不能靠它出回复（2026-10-10 实测）。
 // 页面在后台时停止补拉。
+// 本站提醒（pearnly.notice）两路都会来，同样按编号去重；但它不在引擎的事件记录里，不能当补拉锚点。
 
 import { listEvents } from "./api";
-import type { RelayEnvelope, StreamEvent } from "./events";
+import { type FeedEvent, isLocalEvent, type RelayEnvelope } from "./events";
 import { isConnected, subscribe } from "./realtime";
 
 const FAST_MS = 1200;
@@ -65,7 +66,7 @@ export class PollingSource {
   }
 
   /** 推送来的事件：照常交给会话，但不拿它当补拉的锚点（补拉锚点只用从事件记录里读到的编号）。 */
-  private pushed(event: StreamEvent) {
+  private pushed(event: FeedEvent) {
     if (this.readyState === PollingSource.CLOSED) return;
     this.emit(event, false);
     const kind = event.type as string;
@@ -101,7 +102,7 @@ export class PollingSource {
     }
   }
 
-  private emit(event: StreamEvent, anchor: boolean) {
+  private emit(event: FeedEvent, anchor: boolean) {
     const id = (event as { id?: string }).id;
     const kind = event.type as string;
     if (kind === "event_start" || kind === "event_delta") {
@@ -111,7 +112,8 @@ export class PollingSource {
     }
     if (!id || this.seen.has(id)) return;
     this.seen.add(id);
-    if (anchor) this.lastId = id;
+    // 锚点只用引擎事件：本站编号服务端在事件记录里找不到，每轮都会退回整段重放
+    if (anchor && !isLocalEvent(event)) this.lastId = id;
     if (event.type === "session.status_running") this.running = true;
     if (event.type === "session.status_idle" || event.type === "session.status_terminated") this.running = false;
     const envelope: RelayEnvelope = { kind: "event", event };

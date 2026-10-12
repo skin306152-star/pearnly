@@ -12,7 +12,7 @@
 // React subscribes with useSyncExternalStore; nothing here touches React.
 
 import { confirmTools, interruptSession, listEvents, runTool, sendMessage as postMessage } from "./api";
-import { messageText, type RelayEnvelope, type StreamEvent } from "./events";
+import { type FeedEvent, messageText, type RelayEnvelope, type StreamEvent } from "./events";
 import { PollingSource } from "./poll-source";
 import {
   applyEvent,
@@ -64,7 +64,7 @@ export class SessionController {
   // succeeds (`backfilling`), and before the very first successful load
   // (`!replayed`), live events are buffered here and flushed after the
   // history folds. A FAILED replay keeps buffering and retries below.
-  private pendingTail: StreamEvent[] = [];
+  private pendingTail: FeedEvent[] = [];
   private backfilling = false;
   private replayRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private replayRetryDelay = 2000;
@@ -109,7 +109,7 @@ export class SessionController {
     if (this.state.isDead && this.source) this.detach();
   }
 
-  private fold(event: StreamEvent) {
+  private fold(event: FeedEvent) {
     const next = applyEvent(this.state, event);
     if (next === this.state) return;
     this.mergeProjection(next);
