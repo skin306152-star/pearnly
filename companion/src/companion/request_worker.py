@@ -21,7 +21,7 @@ from typing import Callable, Iterable, Optional
 
 import httpx
 
-from . import folder_fetch
+from . import express_read, folder_fetch
 from .logger import get_logger
 from .queue_client import _device_name
 from .request_client import Refused, RequestClient
@@ -32,6 +32,7 @@ log = get_logger(__name__)
 
 # 种类 → 处理函数 fn(cfg, params) -> Result。
 HANDLERS: dict = {
+    "express_read": express_read.read_books,
     "folder_list": folder_fetch.list_files,
     "folder_fetch": folder_fetch.read_file,
 }
