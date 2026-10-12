@@ -3,6 +3,7 @@
 税期与佛历、申报期限、税率表；ISVAT 回读行取数口径（税期、软删、作废、别的月）；第 1–16 栏；
 进项 6 个月期限、简易税票、买方、重复；销项期间与税率（POS 按天汇总行不逐行核税率）。
 """
+import ast
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -12,7 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "apps" / "pearnly_cowork"), str(ROOT / "apps" / "pearnly_core")]
 
-from pearnly_cowork.tax import input_vat, periods, pp30  # noqa: E402
+from pearnly_cowork.tax import input_vat, periods, pp30, thai_words  # noqa: E402
 
 COMPANY = "0105556000009"
 SELLER = "0105546015062"  # MOD-11 合法
@@ -257,6 +258,49 @@ class OutputChecks(unittest.TestCase):
         self.assertEqual(codes(issues), ["row_voided", "row_other_period"])
         self.assertEqual(next(i for i in issues if i["code"] == "row_other_period")["period"], "2026-10")
         self.assertEqual(input_vat.counts(issues), {"row_voided": 1, "row_other_period": 1})
+
+
+def companion_vat_description():
+    """CC 桌面版写 POS 日汇总销项税记录摘要的那几个纯函数（`companion/src/companion/pos_journal.py`），原样取来执行。"""
+    path = ROOT / "companion" / "src" / "companion" / "pos_journal.py"
+    wanted = {"VAT_DESCRIPTION", "_ISVAT_DESCRP", "fit", "range_text", "vat_description"}
+    body = [node for node in ast.parse(path.read_text(encoding="utf-8")).body
+            if (isinstance(node, ast.FunctionDef) and node.name in wanted)
+            or (isinstance(node, ast.Assign) and any(getattr(target, "id", "") in wanted for target in node.targets))]
+    namespace = {}
+    exec(compile(ast.Module(body=body, type_ignores=[]), str(path), "exec"), namespace)  # noqa: S102
+    return namespace["vat_description"]
+
+
+class PosDayRows(unittest.TestCase):
+    """L9 × L4：POS 导出按天写进 Express 的销项税行（摘要「ใบกำกับภาษีอย่างย่อ 起-止」由 CC 桌面版写）照常计入合计、
+    不逐行核税率——当天税额是逐票税额之和，与「净额 × 7%」会差；同一行换成普通摘要就会被核出差额。"""
+
+    def test_a_pos_day_row_is_summed_but_not_rate_checked(self):
+        from pearnly_cowork.pos_import import contracts as pos_rules
+
+        headers = ["วันที่", "เลขที่บิล", "ภาษีมูลค่าเพิ่ม", "ยอดสุทธิ", "ช่องทางชำระเงิน", "สถานะบิล"]
+        rows = [["13/09/2569", f"B{n:04d}", "0.65", "10.00", "เงินสด" if n % 3 else "พร้อมเพย์", "ปกติ"]
+                for n in range(1, 151)]
+        detection = pos_rules.detect(headers, rows)
+        self.assertEqual(detection.questions, [])
+        (day,), _voids = pos_rules.parse(headers, rows, detection.layout, anchor_year=2026)
+        self.assertEqual((day.net, day.vat), (Decimal("1402.50"), Decimal("97.50")))
+        self.assertGreater(abs(day.net * Decimal("0.07") - day.vat), input_vat.RATE_TOLERANCE)
+        description = companion_vat_description()(day.first, day.last)
+        self.assertEqual(description, "ใบกำกับภาษีอย่างย่อ B0001-B0150")
+        self.assertIn(thai_words.ABBREVIATED, description)
+        sale = row(side="S", tax_date=day.day.isoformat(), refnum=day.ref, name=description, tax_id="",
+                   amount=str(day.net), vat=str(day.vat), docnum="HS690913-001")
+        chosen, errors = selection(sale)
+        self.assertEqual(errors, [])
+        self.assertEqual(input_vat.check(chosen, {}, COMPANY, 2026, 9), [])
+        self.assertEqual(pp30.total(chosen["sales"]), (day.net, day.vat))
+        plain, _ = selection(dict(sale, name="ขายสด"))
+        self.assertEqual(codes(input_vat.check(plain, {}, COMPANY, 2026, 9)), ["output_rate"])
+        # 票号很长时摘要按 ISVAT.DESCRP 60 字节截，「อย่างย่อ」在最前面，截不掉
+        long_number = "POS-STORE-0001-" + "9" * 25
+        self.assertIn(thai_words.ABBREVIATED, companion_vat_description()(long_number, long_number + "1"))
 
 
 if __name__ == "__main__":
