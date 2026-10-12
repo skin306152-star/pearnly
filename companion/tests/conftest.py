@@ -25,6 +25,13 @@ def _disable_cdx_runner(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_windows_notifications(monkeypatch):
+    """Windows 应用通知（toast.py）：测试里一律当作没装 windows-toasts（CI 的 Windows 上装了，别真弹系统通知），
+    托盘照常退回气泡；专测发通知的用例自己放假模块。"""
+    monkeypatch.setitem(sys.modules, "windows_toasts", None)
+
+
+@pytest.fixture(autouse=True)
 def _write_backups_in_tmp(tmp_path, monkeypatch):
     """写前快照放本机(dbf_writer._local_backup_root):测试里放进本次的临时目录,不落到机器的公共临时目录。"""
     monkeypatch.setenv("PEARNLY_WRITE_BACKUP_DIR", str(tmp_path / "write-backups"))

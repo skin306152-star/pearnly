@@ -20,7 +20,7 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
-from . import watchdog
+from . import toast, watchdog
 from .config import CompanionConfig
 from .auto_update import AutoUpdate
 from .folder_worker import FolderIntake
@@ -138,12 +138,28 @@ NOTICE_TAG = "notice:"
 # 刚弹出、还没点的带点击动作的通知（对话提醒等）这么久之内，「有新版本」不另弹通知——托盘点击只记得住最后一条的动作，
 # 新版提示会把它冲掉；托盘菜单里照样有「更新到最新版」。
 NOTICE_HOLD_SECONDS = 120
+UPDATE_TAG = "update"  # 有新版 / 正在下载 / 更新失败：同一个 tag，通知中心里只留最新一条
 
 
 def _menu_text(text: str) -> str:
     """托盘菜单状态行：过长截断（完整内容在悬停提示里），不把菜单撑宽。"""
     value = " ".join(str(text or "").split())
     return value if len(value) <= MENU_TEXT_MAX else value[: MENU_TEXT_MAX - 1] + "…"
+
+
+class _ClickRelay(QObject):
+    """点 Windows 应用通知的回调在系统线程上：那边只发信号，这里排队回界面线程再执行点击动作。"""
+
+    clicked = Signal(object)
+
+    def __init__(self, run) -> None:
+        super().__init__()
+        self._run = run
+        self.clicked.connect(self._deliver, Qt.QueuedConnection)
+
+    def _deliver(self, action) -> None:
+        self._run(action)
+
 
 class TrayApp(QObject):
     worker_stopped = Signal(object)
@@ -224,6 +240,7 @@ class TrayApp(QObject):
         self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知 / 对话提醒才有）
         self._message_at = 0.0        # 那条带动作的通知什么时候弹的（单调时钟）
         self.tray.messageClicked.connect(self._on_message_clicked)
+        self._toast_relay = _ClickRelay(self._on_toast_clicked)   # 在界面线程建：点击排队回这里
         from .gui_tomo import QuickAsk
         from .tomo_hotkey import GlobalHotkey
         from . import instance_channel
@@ -325,11 +342,8 @@ class TrayApp(QObject):
         activity("log_update_found", lang=self.lang, ver=version)
         if not self._holding_message():
             self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
-            self.tray.showMessage(
-                t("update_avail_title", self.lang),
-                t("update_avail_body", self.lang, ver=version),
-                pearnly_icon(),
-            )
+            self._pop(t("update_avail_title", self.lang), t("update_avail_body", self.lang, ver=version),
+                      tag=UPDATE_TAG)
         if not self._auto_timer.isActive():
             self._auto_timer.start(15000)
         QTimer.singleShot(0, self._auto_update_tick)
@@ -354,7 +368,7 @@ class TrayApp(QObject):
             if len([cfg for cfg in self.configs if not cfg.paused]) > 1:
                 title = f"{self._profile_label(profile_id)} · {title}"
             self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
-            self.tray.showMessage(title, body, pearnly_icon())
+            self._pop(title, body)
         except Exception:
             log.exception("批次完成通知失败")
 
@@ -423,11 +437,7 @@ class TrayApp(QObject):
         if self._update_action:
             self._update_action.setEnabled(False)
         self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
-        self.tray.showMessage(
-            t("update_avail_title", self.lang),
-            t("update_downloading", self.lang),
-            pearnly_icon(),
-        )
+        self._pop(t("update_avail_title", self.lang), t("update_downloading", self.lang), tag=UPDATE_TAG)
         self._auto_update_tick()
 
     def _auto_update_tick(self) -> None:
@@ -502,11 +512,7 @@ class TrayApp(QObject):
         if self._update_action:
             self._update_action.setEnabled(True)  # 放回,允许重试
         self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
-        self.tray.showMessage(
-            t("update_avail_title", self.lang),
-            t("update_failed", self.lang),
-            pearnly_icon(),
-        )
+        self._pop(t("update_avail_title", self.lang), t("update_failed", self.lang), tag=UPDATE_TAG)
 
     def _profile_label(self, profile_id: str) -> str:
         for cfg in self.configs:
@@ -593,7 +599,8 @@ class TrayApp(QObject):
             newest = max(fresh, key=lambda item: item.get("created") or 0)
             title = newest["title"] or "CC"
             if len(fresh) == 1:
-                self._show(title, newest["text"], lambda s=site, c=newest["session"]: self.open_conversation(s, c))
+                self._show(title, newest["text"], lambda s=site, c=newest["session"]: self.open_conversation(s, c),
+                           tag=NOTICE_TAG + newest["id"])
             else:
                 self._show(f"({len(fresh)}) {title}", newest["text"], lambda s=site: self.open_conversation(s, ""))
         except Exception:
@@ -603,7 +610,7 @@ class TrayApp(QObject):
         # 对话提醒按编号只弹一次（页面实时收到、文件夹同步又带来）
         if str(tag or "").startswith(NOTICE_TAG) and not self._first_time(tag):
             return
-        self._show(title, body, on_click)
+        self._show(title, body, on_click, tag=tag)
 
     def _first_time(self, tag: str) -> bool:
         """这条对话提醒还没弹过（记下）。测试里 TrayApp 不走 __init__，去重记忆这里现建。"""
@@ -617,10 +624,32 @@ class TrayApp(QObject):
             seen.popitem(last=False)
         return True
 
-    def _show(self, title: str, body: str, on_click=None) -> None:
+    def _show(self, title: str, body: str, on_click=None, tag: str = "") -> None:
         self._message_action = on_click
         self._message_at = time.monotonic()
-        self.tray.showMessage(title, body, pearnly_icon(), 8000)
+        self._pop(title, body, on_click=on_click, tag=tag, msecs=8000)
+
+    def _pop(self, title: str, body: str, *, on_click=None, tag: str = "", msecs: int = 10000) -> None:
+        """弹桌面通知：先发 Windows 应用通知（锁屏时也留在通知中心，2026-10-13 测试机实测托盘气泡不留），
+        发不出来再用托盘气泡。应用通知各带各的点击动作：系统线程上只发信号，排队回界面线程执行（_ClickRelay）。"""
+        hook = None
+        if on_click is not None:
+            relay = getattr(self, "_toast_relay", None)
+            if relay is None:   # 测试里 TrayApp 不走 __init__：在这里（界面线程）现建
+                relay = self._toast_relay = _ClickRelay(self._on_toast_clicked)
+            hook = lambda emit=relay.clicked.emit, action=on_click: emit(action)  # noqa: E731
+        if toast.show(title, body, tag, hook):
+            return
+        self.tray.showMessage(title, body, pearnly_icon(), msecs)
+
+    def _on_toast_clicked(self, action) -> None:
+        """点了 Windows 应用通知（已回到界面线程）：和点托盘气泡一样执行它的动作。"""
+        if getattr(self, "_message_action", None) is action:
+            self._message_action = None   # 点过了：「有新版本」不再为它压着
+        try:
+            action()
+        except Exception:
+            log.exception("通知点击动作失败")
 
     def _holding_message(self) -> bool:
         """刚弹出（NOTICE_HOLD_SECONDS 内）、还没点的带点击动作的通知。"""
