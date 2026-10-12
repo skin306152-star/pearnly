@@ -74,6 +74,8 @@ Business number,Business number
 Buyer,Buyer
 Buyer Tax ID,Buyer Tax ID
 Bytes,Bytes
+CC Desktop,CC Desktop
+CC Desktop not connected,CC Desktop not connected
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
@@ -305,6 +307,7 @@ Identity Session,Identity Session
 Image Fingerprint,Image Fingerprint
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
 "Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
+"Install, pair, upgrade and uninstall guide for CC Desktop","Install, pair, upgrade and uninstall guide for CC Desktop"
 "Install, pair, upgrade and uninstall guide for Companion","Install, pair, upgrade and uninstall guide for Companion"
 Intake Workbench,Intake Workbench
 Integrations,Integrations
@@ -688,6 +691,7 @@ This operator's DMS account,This operator's DMS account
 This operator's DMS password,This operator's DMS password
 This photo could not be read. Save it as JPEG and upload it again.,This photo could not be read. Save it as JPEG and upload it again.
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,This site has more than one product manifest installed: {0}. One deployment can host only one product.
+This site has no CC Desktop installer address yet.,This site has no CC Desktop installer address yet.
 "This site has no LINE access token configured, so it cannot send messages","This site has no LINE access token configured, so it cannot send messages"
 This site has no assistant installer address yet.,This site has no assistant installer address yet.
 This site has no product manifest installed; it cannot run as a business site.,This site has no product manifest installed; it cannot run as a business site.
@@ -808,6 +812,7 @@ common.refresh,Refresh
 common.save,Save
 common.saving,Saving…
 common.yes,Yes
+"companion = pulled outbound by CC Desktop on the local machine, then stored here","companion = pulled outbound by CC Desktop on the local machine, then stored here"
 "companion = pulled outbound by Companion on the local machine, then stored here","companion = pulled outbound by Companion on the local machine, then stored here"
 connect.action.connect,Connect DMS
 connect.action.connectSave,Connect and save
@@ -943,7 +948,7 @@ intake.agent.key,Pairing code
 intake.agent.loginHint,"Install it, then sign in with this account to connect."
 intake.agent.reset,Regenerate
 intake.agent.resetConfirm,The old key stops working right away.
-intake.agent.state.missing,Assistant not connected
+intake.agent.state.missing,CC Desktop not connected
 intake.card.purchaseTotal,Purchases (confirmed and above)
 intake.card.readyToPush,Confirmed · ready to push
 intake.card.salesTotal,Sales (confirmed and above)
@@ -998,7 +1003,7 @@ intake.field.whtAmount,WHT deducted
 intake.filter.allDirections,All directions
 intake.filter.allStatuses,All statuses
 intake.hint.afterSave,Saved as a draft; confirm it before it can be pushed
-intake.installerMissing,This site has no assistant installer address yet.
+intake.installerMissing,This site has no CC Desktop installer address yet.
 intake.item.name,Goods / Service
 intake.itemType.expense,Expense
 intake.itemType.goods,Goods

@@ -7,7 +7,7 @@ Reconciliation	对账中心	ศูนย์กระทบยอด	照合セン
 Master Data	主数据	ข้อมูลหลัก	マスタデータ
 Stock Count	库存盘点	ตรวจนับสินค้า	棚卸
 Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
-Companion	小助手（Companion）	ผู้ช่วย Pearnly (Companion)	コンパニオン
+CC Desktop	CC 桌面版	CC เดสก์ท็อป	CC デスクトップ	
 Express Push Guide	Express 推送手册	คู่มือการส่งเข้า Express	Express プッシュガイド
 Products	物料	สินค้า	商品
 Stock In / Out	库存（入库/出库）	สินค้าคงคลัง (รับเข้า/จ่ายออก)	在庫（入出庫）
@@ -61,7 +61,7 @@ Customers, suppliers, accounts and other reference data	客户、供应商、科
 Count tasks and variance records	盘点任务与差异记录	งานตรวจนับและบันทึกส่วนต่าง	棚卸タスクと差異記録
 A board instance is created only when this is on	启用后创建看板实例	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
 Windows app on the merchant's accounting PC: installer, pairing, outbound pull	安装在商家会计电脑上的 Windows 程序，提供安装、配对与任务拉取	โปรแกรม Windows ที่ติดตั้งบนเครื่องคอมพิวเตอร์บัญชีของร้านค้า สำหรับติดตั้ง จับคู่ และดึงงาน	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
-Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順
+Install, pair, upgrade and uninstall guide for CC Desktop	CC 桌面版的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้ง CC เดสก์ท็อป	CC デスクトップのインストール・ペアリング・更新・アンインストールガイド	
 Product master data	物料主数据	ข้อมูลหลักของสินค้า	商品マスタ
 Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票
 Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总	สรุปรับ-จ่าย-คงเหลือสินค้า	受払在庫の集計（維持項目。ERPマニフェスト参照）
@@ -204,7 +204,7 @@ Currency	币种	สกุลเงิน	通貨
 Expense / Item Category	费用/物料类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
 Source Attachment	原始附件	ไฟล์แนบต้นฉบับ	元の添付ファイル
 Push Channel	推送渠道	ช่องทางส่ง	送信チャネル
-companion = pulled outbound by Companion on the local machine, then stored here	companion = 由小助手在本机拉取后写入	companion = ผู้ช่วย Pearnly ดึงข้อมูลบนเครื่องแล้วบันทึกที่นี่	companion = ローカルのコンパニオンが出站取得してから取り込み
+companion = pulled outbound by CC Desktop on the local machine, then stored here	companion = 由 CC 桌面版在本机拉取后写入	companion = CC เดสก์ท็อปดึงข้อมูลบนเครื่องแล้วบันทึกที่นี่	companion = CC デスクトップがローカルで取得して保存	
 Push Status	推送状态	สถานะการส่ง	送信ステータス
 The truth is in erp_push_logs; this is only a display reference	以 erp_push_logs 为准，此处仅作展示	ยึดตาม erp_push_logs ที่นี่ใช้แสดงผลเท่านั้น	真値は erp_push_logs。ここは表示用の参照のみ
 The truth is in erp_push_logs, trigger=id_card	以 erp_push_logs（trigger=id_card）为准	ยึดตาม erp_push_logs (trigger=id_card)	真値は erp_push_logs、trigger=id_card
@@ -793,10 +793,10 @@ Nothing to show	没有可显示的内容	ไม่มีข้อมูลให
 Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรียงตาม {0}	{0} で並べ替え
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Target ERP	目标 ERP	ERP ปลายทาง	連携先 ERP	intake.target.title
-Assistant not connected	小助手未连接	ผู้ช่วย Pearnly ยังไม่เชื่อมต่อ	アシスタント未接続	intake.agent.state.missing
+CC Desktop not connected	CC 桌面版未连接	CC เดสก์ท็อปยังไม่เชื่อมต่อ	CC デスクトップ未接続	intake.agent.state.missing
 Download CC	下载 CC	ดาวน์โหลด CC	CC をダウンロード	intake.target.download
 Install it, then sign in with this account to connect.	安装后用本账号登录即可连接。	ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ	インストール後、このアカウントでログインすると接続されます。	intake.agent.loginHint
-This site has no assistant installer address yet.	本站点未配置小助手安装包地址。	ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้งผู้ช่วย Pearnly	このサイトにはアシスタントのインストーラーURLがまだありません。	intake.installerMissing
+This site has no CC Desktop installer address yet.	本站点未配置 CC 桌面版安装包地址。	ไซต์นี้ยังไม่ได้ตั้งค่าที่อยู่ไฟล์ติดตั้ง CC เดสก์ท็อป	このサイトには CC デスクトップのインストーラーのアドレスがまだありません。	intake.installerMissing
 Connect	连接	เชื่อมต่อ	接続
 Fiscal year	年度	ปีบัญชี	年度	intake.target.year
 Reading companies and years from {0}…	正在从 {0} 读取公司和年度…	กำลังอ่านบริษัทและปีบัญชีจาก {0}…	{0} から会社と年度を読み込み中…	intake.catalog.loading

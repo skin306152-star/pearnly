@@ -48,7 +48,7 @@ def check_update(backend_url: str, current_version: str = VERSION, timeout: floa
 def download_installer(backend_url: str, rel_url: str, timeout: float = 180.0) -> str:
     """下载新安装包到临时文件,返回路径。"""
     full = rel_url if rel_url.startswith("http") else backend_url.rstrip("/") + rel_url
-    fd, path = tempfile.mkstemp(suffix=".exe", prefix="PearnlyCompanionSetup_")
+    fd, path = tempfile.mkstemp(suffix=".exe", prefix="CC-Setup_")
     os.close(fd)
     with httpx.Client(timeout=timeout, follow_redirects=True) as c:
         with c.stream("GET", full) as r:

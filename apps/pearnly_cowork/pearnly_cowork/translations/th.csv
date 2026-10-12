@@ -44,6 +44,7 @@ A timezone-aware UTC timestamp is required.,ต้องระบุเวลา
 A value in the ERP data report exceeds the allowed length.,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
+Access to the CC Desktop queue has been revoked.,สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว
 Access to the Companion queue has been revoked.,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
 Account Codes,รหัสบัญชี
 Account Key,คีย์ชุดบัญชี
@@ -184,6 +185,18 @@ Buyer tax ID,เลขประจำตัวผู้เสียภาษี�
 "By preset, these accounts are left out: {0}",ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}
 By preset: {0} groups matched by total,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 Byte Size,ขนาดไฟล์ (ไบต์)
+CC Desktop Report,รายงานจาก CC เดสก์ท็อป
+CC Desktop authentication failed.,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
+CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+CC Desktop could not write this invoice. It is retried automatically,CC เดสก์ท็อปไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+CC Desktop offline or needs update,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
+"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+CC Desktop on this PC has not synced recently. Update it to the latest version.,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,CC เดสก์ท็อปไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีกสิบนาที
+"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่
 Calendar,ปฏิทิน
 Camera,กล้อง
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
@@ -215,6 +228,7 @@ Check the ERP connection settings.,กรุณาตรวจสอบการ
 Check the statement balance differences before confirming.,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checkbox,ช่องทำเครื่องหมาย
+Checked CC Desktop,ตรวจสอบ CC เดสก์ท็อปแล้ว
 Checked MR.ERP import settings,ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว
 Checked a reconciliation's progress,ตรวจสอบความคืบหน้าการกระทบยอดแล้ว
 Checked folder task options,ตรวจสอบตัวเลือกงานโฟลเดอร์แล้ว
@@ -238,6 +252,7 @@ Chinese Name,ชื่อภาษาจีน
 Choose a day and time for the monthly run.,กรุณาเลือกวันและเวลาที่จะทำงานทุกเดือน
 Choose a file,เลือกไฟล์
 "Choose a folder inside the allowed root, without system folders.",กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
+Choose an allowed root reported by CC Desktop.,กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้
 Choose an allowed root reported by the Companion.,กรุณาเลือกโฟลเดอร์หลักที่ผู้ช่วยรายงานไว้
 Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
@@ -295,6 +310,7 @@ Confirmation Request,คำขอยืนยัน
 Confirmation Revision,เวอร์ชันที่ยืนยัน
 Confirmed,ยืนยันแล้ว
 Confirmed a push result,ยืนยันผลการส่งแล้ว
+Connect CC Desktop,เชื่อมต่อ CC เดสก์ท็อป
 Connect Companion,เชื่อมต่อผู้ช่วย
 Connection Configuration,การตั้งค่าการเชื่อมต่อ
 Connection Name,ชื่อการเชื่อมต่อ
@@ -338,12 +354,12 @@ Cover File,ไฟล์ปก
 Cowork,Cowork
 Cowork Bank Evidence,หลักฐานธนาคารของ Cowork
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
-Cowork Companion Delivery,Cowork บันทึกการรับงานของผู้ช่วย Pearnly
+Cowork Companion Delivery,Cowork บันทึกการรับงานของ CC เดสก์ท็อป
 Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
 Cowork ERP Mapping,การจับคู่ ERP ของ Cowork
 Cowork ERP Refresh,การรีเฟรชไดเรกทอรี ERP ของ Cowork
 Cowork ERP Snapshot,ภาพข้อมูลไดเรกทอรี ERP ของ Cowork
-Cowork Express Agent Credential,ข้อมูลรับรองผู้ช่วย Pearnly สำหรับ Express ของ Cowork
+Cowork Express Agent Credential,ข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express ของ Cowork
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork ข้อมูลหลัก
 Cowork OCR Batch,Cowork ชุดงานอ่านเอกสาร
@@ -797,6 +813,7 @@ New stock count,สร้างการตรวจนับ
 New task,สร้างงานใหม่
 "New, as on the invoice",สร้างใหม่ตามเอกสาร
 Next Attempt At,เวลาลองใหม่ครั้งถัดไป
+No CC Desktop credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
@@ -807,7 +824,9 @@ No changes were given.,ไม่ได้ระบุสิ่งที่จะ
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No folder rules yet. Create one and put the documents into its folder.,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
+No folders on this PC yet. Add them in CC Desktop on that PC.,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น
 No folders on this PC yet. Add them in the Companion on that PC.,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้
+No folders to choose yet. Add them in CC Desktop on the PC.,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง
 No folders to choose yet. Add them in the Companion on the PC.,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง
 No invoice could be read.,ไม่พบใบกำกับภาษีที่อ่านได้
 No invoice summary found,ไม่พบข้อมูลสรุปจากการอ่าน
@@ -1084,6 +1103,7 @@ Run at (Bangkok time),เวลาทำงาน (เวลากรุงเ�
 Run history,ประวัติการทำงาน
 Run now,เรียกใช้ทันที
 Run on day,วันที่ทำงานประจำเดือน
+Run requested. CC Desktop starts within a few minutes.,ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที
 Run requested. The Companion starts within a few minutes.,ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที
 Run time,เวลาทำงาน
 SHA-256,SHA-256
@@ -1235,6 +1255,13 @@ Text is too long,ข้อความยาวเกินไป
 Thai Name,ชื่อภาษาไทย
 That code is not valid,รหัสผูกบัญชีไม่ถูกต้อง
 That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
+The CC Desktop delivery record is invalid.,บันทึกการรับงานของ CC เดสก์ท็อปไม่ถูกต้อง
+The CC Desktop delivery record was not found.,ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป
+The CC Desktop identity is no longer valid. Authenticate again.,ตัวตนของ CC เดสก์ท็อปหมดอายุแล้ว กรุณายืนยันตัวตนใหม่
+The CC Desktop queue request is invalid.,คำขอคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
+The CC Desktop queue response is invalid.,การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
+The CC Desktop report is invalid.,รายงานจาก CC เดสก์ท็อปไม่ถูกต้อง
+The CC Desktop service is temporarily unavailable. Try again shortly.,บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
 The Companion delivery record was not found.,ไม่พบบันทึกการรับงานของผู้ช่วย
 The Companion identity is no longer valid. Authenticate again.,ตัวตนของผู้ช่วยหมดอายุแล้ว กรุณายืนยันตัวตนใหม่
@@ -1461,6 +1488,7 @@ This channel is not open yet,ช่องทางนี้ยังไม่เ
 This client still has {0} invoice record(s). Reassign them first.,ลูกค้ารายนี้ยังมีรายการใบกำกับภาษี {0} รายการ กรุณาย้ายไปยังลูกค้ารายอื่นก่อน
 This company does not enter transfer slips; this one is not sent,บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,บริษัทนี้ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
+This connection does not support an Express CC Desktop credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express
 This connection does not support an Express Companion credential.,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Pearnly สำหรับ Express
 This connection does not support scheduled tasks.,การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา
 This connection is disabled.,การเชื่อมต่อนี้ปิดใช้งานแล้ว
@@ -1574,8 +1602,10 @@ Uploading,กำลังอัปโหลด
 Uploading files,กำลังอัปโหลดไฟล์
 Uploading from the PC,กำลังอัปโหลด
 Use Count,จำนวนครั้งที่ใช้
-Use the Cowork Companion credential service to access credentials.,กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองผู้ช่วย Pearnly ของ Cowork
-Use the Cowork Companion service to access deliveries.,กรุณาเข้าถึงบันทึกการรับงานผ่านบริการผู้ช่วย Pearnly ของ Cowork
+Use the CC Desktop credential service to access credentials.,กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป
+Use the CC Desktop service to access deliveries.,กรุณาเข้าถึงบันทึกการรับงานผ่านบริการ CC เดสก์ท็อป
+Use the Cowork Companion credential service to access credentials.,กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป
+Use the Cowork Companion service to access deliveries.,กรุณาเข้าถึงบันทึกการรับงานผ่านบริการ CC เดสก์ท็อป
 Use the Cowork OCR service to access recognition tasks.,กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork OCR service to change recognition tasks.,กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
@@ -1667,22 +1697,22 @@ client,ลูกค้า
 client_import.file_too_large,ไฟล์ที่นำเข้ามีขนาดใหญ่เกินไป
 client_import.too_many_rows,จำนวนแถวที่นำเข้ามากเกินไป
 closed,ปิดแล้ว
-companion.context_invalid,ตัวตนของผู้ช่วยหมดอายุแล้ว กรุณายืนยันตัวตนใหม่
-companion.credential_not_found,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
-companion.delivery_invalid,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
-companion.delivery_not_found,ไม่พบบันทึกการรับงานของผู้ช่วย
+companion.context_invalid,ตัวตนของ CC เดสก์ท็อปหมดอายุแล้ว กรุณายืนยันตัวตนใหม่
+companion.credential_not_found,ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้
+companion.delivery_invalid,บันทึกการรับงานของ CC เดสก์ท็อปไม่ถูกต้อง
+companion.delivery_not_found,ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป
 companion.generation_conflict,ข้อมูลรับรองมีการเปลี่ยนแปลง กรุณารีเฟรชก่อนรีเซ็ตหรือยกเลิก
-companion.queue_access_revoked,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
+companion.queue_access_revoked,สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว
 companion.queue_conflict,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
-companion.queue_request_invalid,คำขอคิวงานของผู้ช่วยไม่ถูกต้อง
-companion.queue_response_invalid,การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง
+companion.queue_request_invalid,คำขอคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
+companion.queue_response_invalid,การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง
 companion.receipt_limit,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว
-companion.report_busy,บริการผู้ช่วย Pearnly ไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง
-companion.report_invalid,รายงานจากผู้ช่วย Pearnly ไม่ถูกต้อง
+companion.report_busy,บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง
+companion.report_invalid,รายงานจาก CC เดสก์ท็อปไม่ถูกต้อง
 companion.request_conflict,คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว
 companion.request_invalid,คำขอข้อมูลรับรองไม่ถูกต้อง
-companion.unauthorized,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
-companion.unsupported_connection,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Pearnly สำหรับ Express
+companion.unauthorized,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
+companion.unsupported_connection,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express
 confirmed,ยืนยันแล้ว
 connection.adapter_invalid,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 connection.config_invalid,กรุณาตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
@@ -1716,16 +1746,16 @@ cowork.choice.payment,วิธีชำระเงิน
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
 cowork.folder.account_set_invalid,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
-cowork.folder.agentStale,ผู้ช่วยออฟไลน์หรือต้องอัปเดต
-cowork.folder.agentStaleHint,ผู้ช่วยบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
+cowork.folder.agentStale,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
+cowork.folder.agentStaleHint,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
 cowork.folder.batch_missing,ไม่พบงานอ่านเอกสาร
 cowork.folder.billing_pending,กำลังรอการตัดค่าบริการให้เสร็จสิ้น
 cowork.folder.cardHint,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 cowork.folder.catalogEmpty,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 cowork.folder.col.result,ผลลัพธ์
 cowork.folder.col.schedule,กำหนดการ
-cowork.folder.companion_offline,ผู้ช่วยไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีก 10 นาที
-cowork.folder.connectHelper,เชื่อมต่อผู้ช่วย
+cowork.folder.companion_offline,CC เดสก์ท็อปไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีกสิบนาที
+cowork.folder.connectHelper,เชื่อมต่อ CC เดสก์ท็อป
 cowork.folder.connection_fixed,ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่
 cowork.folder.content_mismatch,ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง
 cowork.folder.counts,ส่งแล้ว {0} · รอดำเนินการ {1}
@@ -1775,8 +1805,8 @@ cowork.folder.lastDay,วันสุดท้ายของเดือน
 cowork.folder.mastersLoading,ผู้ช่วยกำลังอ่านชุดบัญชีนี้ เปิดกฎอีกครั้งในอีกสักครู่เพื่อเลือกบัญชี
 cowork.folder.new,สร้างงานตามกำหนดเวลา
 cowork.folder.noExpress,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
-cowork.folder.noRoots,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้
-cowork.folder.noRootsAny,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง
+cowork.folder.noRoots,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น
+cowork.folder.noRootsAny,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง
 cowork.folder.noRuns,ยังไม่มีประวัติการทำงาน
 cowork.folder.no_number_prefix,ไม่มีเลขที่_
 cowork.folder.off,ปิดใช้งานแล้ว
@@ -1786,11 +1816,11 @@ cowork.folder.overlap_with,โฟลเดอร์ซ้อนกับงา�
 cowork.folder.owner_not_ready,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 cowork.folder.rootItself,(ตัวโฟลเดอร์หลัก)
-cowork.folder.root_invalid,กรุณาเลือกโฟลเดอร์หลักที่ผู้ช่วยรายงานไว้
+cowork.folder.root_invalid,กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้
 cowork.folder.rule_disabled,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
 cowork.folder.rule_missing,ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้
 cowork.folder.runNow,เรียกใช้ทันที
-cowork.folder.runRequested,ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที
+cowork.folder.runRequested,ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที
 cowork.folder.runScan,พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}
 cowork.folder.runs,ประวัติการทำงาน
 cowork.folder.schedule,ทุกเดือน {0} เวลา {1}
@@ -2509,7 +2539,7 @@ in,ฝาก
 intake.catalog.reload,อ่านใหม่
 intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
-intake.error.ACCOUNT_DIR_NOT_ALLOWED,ผู้ช่วยไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 intake.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
 intake.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
@@ -2531,7 +2561,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมน�
 intake.error.ERR_MRERP_MENU_UNREADABLE,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
-intake.error.ERR_PAYLOAD_VERSION,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+intake.error.ERR_PAYLOAD_VERSION,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 intake.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
@@ -2542,8 +2572,8 @@ intake.error.MAPPING_MISSING_ITEM,ไม่มีสินค้าที่จ�
 intake.error.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 intake.error.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 intake.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
-intake.error.NO_ACCOUNT_SELECTION,ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์บันทึกข้อมูล กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย
-intake.error.PAYLOAD_INVALID,ผู้ช่วยไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
+intake.error.NO_ACCOUNT_SELECTION,CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+intake.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 intake.error.PRIOR_DOC_STILL_IN_ERP,"เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก ""ยืนยันการส่ง"""
 intake.error.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 intake.error.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
@@ -2553,8 +2583,8 @@ intake.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที�
 intake.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
 intake.error.USER_ABORTED_BUSY,ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่
 intake.error.account_not_in_chart,มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี
-intake.error.account_set_not_allowed,ผู้ช่วยยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจชุดบัญชีในผู้ช่วย
-intake.error.agent_failed,ผู้ช่วยไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
+intake.error.account_set_not_allowed,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
+intake.error.agent_failed,CC เดสก์ท็อปไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
 intake.error.already_success,เอกสารนี้ส่งสำเร็จแล้ว
 intake.error.amounts_not_consistent,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.bad_or_missing_date,ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่
@@ -2581,7 +2611,7 @@ intake.error.no_input_vat_account,ยังไม่ได้ตั้งรห�
 intake.error.no_output_vat_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
 intake.error.no_purchase_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
 intake.error.no_revenue_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี
-intake.error.payload_version_outdated,ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+intake.error.payload_version_outdated,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
 intake.error.seller_buyer_same_tax,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.tax_id_invalid,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
@@ -2659,7 +2689,7 @@ physical_page,หน้าจริงของเอกสาร
 probably {0},น่าจะเป็น {0}
 push.adapter_not_connected,อะแดปเตอร์ ERP นี้ยังไม่ได้เชื่อมต่อ
 push.branch_invalid,โหมดการส่งไม่ถูกต้อง
-push.companion_account_unreported,ขณะเตรียมส่ง ผู้ช่วยออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่าผู้ช่วยกำลังทำงานอยู่ แล้วส่งอีกครั้ง
+push.companion_account_unreported,ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่
 push.disabled,ไซต์นี้ยังไม่ได้เปิดใช้การส่งข้อมูล จึงไม่มีการส่งข้อมูลใด ๆ
 push.native_ack_conflict,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 push.native_history_changed,เอกสารมีการเปลี่ยนแปลง กรุณาเตรียมใหม่

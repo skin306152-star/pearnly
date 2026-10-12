@@ -61,6 +61,32 @@ if _use_obf:
     # 分析未见 pyarmor_runtime(混淆码后注入)→ 手动把运行时包打进 _MEIPASS(可 import 解密)。
     a.datas += Tree(os.path.join(_obf, "pyarmor_runtime_000000"), prefix="pyarmor_runtime_000000")
 
+# 程序的名称信息（2026-10-12 改名 CC）：任务管理器、开机启动列表、文件属性里显示「CC」，不再是文件名 companion.exe。
+# exe 文件名不改：已装的电脑自动更新时旧安装程序只会关掉 companion.exe，改名会出现两份、开机启动两次。
+import re as _re  # noqa: E402
+from PyInstaller.utils.win32.versioninfo import (  # noqa: E402
+    FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo, VarStruct, VSVersionInfo,
+)
+
+with open(os.path.join(SPECPATH, "..", "src", "companion", "version.py"), encoding="utf-8") as _f:
+    _ver = _re.search(r'VERSION = "([0-9.]+)"', _f.read()).group(1)
+_nums = tuple(int(x) for x in (_ver.split(".") + ["0", "0", "0"])[:4])
+_version_info = VSVersionInfo(
+    ffi=FixedFileInfo(filevers=_nums, prodvers=_nums),
+    kids=[
+        StringFileInfo([StringTable("040904B0", [
+            StringStruct("CompanyName", "Pearnly"),
+            StringStruct("FileDescription", "CC"),
+            StringStruct("FileVersion", _ver),
+            StringStruct("InternalName", "CC"),
+            StringStruct("OriginalFilename", "companion.exe"),
+            StringStruct("ProductName", "CC"),
+            StringStruct("ProductVersion", _ver),
+        ])]),
+        VarFileInfo([VarStruct("Translation", [0x0409, 1200])]),
+    ],
+)
+
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
@@ -68,7 +94,8 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="companion",
-    icon="../assets/cc.ico",  # 桌面/任务栏图标 = CC（各尺寸都带胡须，用户 2026-10-10 定）
+    icon="../assets/cc.ico",
+    version=_version_info,  # 桌面/任务栏图标 = CC（各尺寸都带胡须，用户 2026-10-10 定）
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

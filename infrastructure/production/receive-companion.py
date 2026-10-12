@@ -5,8 +5,9 @@ The CI caller (`.github/workflows/companion-release.yml`) sends one JSON line, t
 `size` bytes of the installer. Nothing else is accepted: no shell, no path, no file name.
 
 - staging: keeps the file under `staging/<publication>/<source>/` and changes nothing users see;
-- prod:    writes the immutable `releases/<version>/<source>/PearnlyCompanion-Setup.exe`, then
-           replaces the fixed-name download and `latest.json` (the helper's update check) atomically.
+- prod:    writes the immutable `releases/<version>/<source>/CC-Setup.exe`, then
+           replaces the fixed-name download (`CC-Setup.exe`, plus the old `PearnlyCompanion-Setup.exe`
+           so links handed out before the 2026-10-12 rename keep working) and `latest.json` atomically.
 
 A prod version can never go backwards, and an existing release path is never overwritten with
 different bytes. Staging copies older than seven days are removed on each call.
@@ -23,7 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path("/var/www/pearnly-downloads/companion")
-NAME = "PearnlyCompanion-Setup.exe"
+NAME = "CC-Setup.exe"
+LEGACY_NAME = "PearnlyCompanion-Setup.exe"  # 改名前发出去的固定下载链接
 URL = "/downloads/companion"
 MAX_BYTES = 300 * 1024 * 1024
 STAGING_DAYS = 7
@@ -133,6 +135,7 @@ def main():
             if version_tuple(version) < version_tuple(current):
                 fail(f"Refusing to go back from {current} to {version}")
         place(installer, ROOT / NAME)
+        place(installer, ROOT / LEGACY_NAME)
         latest = {"version": version, "url": f"{URL}/{relative}?v={source}", "sha256": manifest["sha256"],
                   "size": manifest["size"], "source_sha": source,
                   "published_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}

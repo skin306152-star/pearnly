@@ -44,6 +44,7 @@ A timezone-aware UTC timestamp is required.,必须提供带时区的 UTC 时间�
 A value in the ERP data report exceeds the allowed length.,ERP 数据报告中的值超过允许长度。
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,部分支出或存入金额为负数，请检查支出 / 存入列
 Abbreviated Tax Invoice,简式税务发票
+Access to the CC Desktop queue has been revoked.,CC 桌面版队列的访问权限已撤销。
 Access to the Companion queue has been revoked.,小助手队列的访问权限已撤销。
 Account Codes,科目编码
 Account Key,账套键
@@ -184,6 +185,18 @@ Buyer tax ID,买方税号
 "By preset, these accounts are left out: {0}",按预设，这些科目不参与对账：{0}
 By preset: {0} groups matched by total,按预设：已按合计匹配 {0} 组多笔对一笔
 Byte Size,文件大小（字节）
+CC Desktop Report,CC 桌面版上报
+CC Desktop authentication failed.,CC 桌面版认证失败。
+CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
+CC Desktop could not write this invoice. It is retried automatically,CC 桌面版写入失败，将自动重试
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
+CC Desktop offline or needs update,CC 桌面版不在线或需升级
+"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
+CC Desktop on this PC has not synced recently. Update it to the latest version.,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,推送时 CC 桌面版未连接，将于十分钟后重新推送。
+"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送
 Calendar,日历
 Camera,摄像头
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
@@ -215,6 +228,7 @@ Check the ERP connection settings.,请检查 ERP 连接配置。
 Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
 Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
 Checkbox,勾选
+Checked CC Desktop,查看了 CC 桌面版
 Checked MR.ERP import settings,查看了 MR.ERP 导入设置
 Checked a reconciliation's progress,查看了对账进度
 Checked folder task options,查看了文件夹任务可选项
@@ -238,6 +252,7 @@ Chinese Name,中文名称
 Choose a day and time for the monthly run.,请选择每月运行的日期和时间。
 Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
+Choose an allowed root reported by CC Desktop.,请选择 CC 桌面版上报的根目录。
 Choose an allowed root reported by the Companion.,请选择小助手上报的根目录。
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少选择一个功能权限
@@ -295,6 +310,7 @@ Confirmation Request,确认请求
 Confirmation Revision,确认版本
 Confirmed,已确认
 Confirmed a push result,确认了推送结果
+Connect CC Desktop,连接 CC 桌面版
 Connect Companion,连接小助手
 Connection Configuration,连接配置
 Connection Name,连接名称
@@ -338,12 +354,12 @@ Cover File,封面文件
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
 Cowork Client,Cowork 买方客户
-Cowork Companion Delivery,Cowork 小助手任务领取记录
+Cowork Companion Delivery,Cowork CC 桌面版任务领取记录
 Cowork ERP Connection,Cowork ERP 连接
 Cowork ERP Mapping,Cowork ERP 映射
 Cowork ERP Refresh,Cowork ERP 目录刷新
 Cowork ERP Snapshot,Cowork ERP 目录快照
-Cowork Express Agent Credential,Cowork Express 小助手凭据
+Cowork Express Agent Credential,Cowork Express CC 桌面版凭据
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork 主数据
 Cowork OCR Batch,Cowork 识别批次
@@ -797,6 +813,7 @@ New stock count,新建盘点
 New task,新建任务
 "New, as on the invoice",新建（按票面）
 Next Attempt At,下次重试时间
+No CC Desktop credential has been issued for this connection.,此连接尚未签发 CC 桌面版凭据。
 No Companion credential has been issued for this connection.,此连接尚未签发小助手凭据。
 No ERP is ready to use,暂无可用的 ERP
 No account set matches “{0}”,没有找到包含「{0}」的账套
@@ -807,7 +824,9 @@ No changes were given.,没有指定要改的内容。
 No documents were given.,没有指定单据。
 No due date,无到期日
 No folder rules yet. Create one and put the documents into its folder.,还没有规则。新建一条，把单据放进对应的文件夹即可。
+No folders on this PC yet. Add them in CC Desktop on that PC.,此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。
 No folders on this PC yet. Add them in the Companion on that PC.,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
+No folders to choose yet. Add them in CC Desktop on the PC.,暂无可选文件夹，请在电脑的 CC 桌面版中添加。
 No folders to choose yet. Add them in the Companion on the PC.,暂无可选文件夹，请在电脑的小助手中添加。
 No invoice could be read.,未识别到任何发票。
 No invoice summary found,未识别到摘要
@@ -1084,6 +1103,7 @@ Run at (Bangkok time),运行时间（曼谷时间）
 Run history,运行记录
 Run now,立即运行
 Run on day,每月运行日
+Run requested. CC Desktop starts within a few minutes.,已请求运行，CC 桌面版将在几分钟内开始。
 Run requested. The Companion starts within a few minutes.,已请求运行，小助手将在几分钟内开始。
 Run time,运行时间
 SHA-256,SHA-256
@@ -1235,6 +1255,13 @@ Text is too long,内容过长
 Thai Name,泰文名称
 That code is not valid,绑定码不正确
 That photo cannot be attached. Upload it again.,照片无法添加，请重新上传。
+The CC Desktop delivery record is invalid.,CC 桌面版任务领取记录无效。
+The CC Desktop delivery record was not found.,未找到 CC 桌面版任务领取记录。
+The CC Desktop identity is no longer valid. Authenticate again.,CC 桌面版身份已失效，请重新认证。
+The CC Desktop queue request is invalid.,CC 桌面版队列请求无效。
+The CC Desktop queue response is invalid.,CC 桌面版队列响应无效。
+The CC Desktop report is invalid.,CC 桌面版上报内容无效。
+The CC Desktop service is temporarily unavailable. Try again shortly.,CC 桌面版服务暂时不可用，请稍后重试。
 The Companion delivery record is invalid.,小助手任务领取记录无效。
 The Companion delivery record was not found.,未找到小助手任务领取记录。
 The Companion identity is no longer valid. Authenticate again.,小助手身份已失效，请重新认证。
@@ -1461,6 +1488,7 @@ This channel is not open yet,此渠道尚未开放
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
 This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
+This connection does not support an Express CC Desktop credential.,此连接不支持 Express CC 桌面版凭据。
 This connection does not support an Express Companion credential.,此连接不支持 Express 小助手凭据。
 This connection does not support scheduled tasks.,此连接不支持定时任务。
 This connection is disabled.,此连接已停用。
@@ -1574,8 +1602,10 @@ Uploading,上传中
 Uploading files,上传文件
 Uploading from the PC,上传中
 Use Count,使用次数
-Use the Cowork Companion credential service to access credentials.,请通过 Cowork 小助手凭据服务访问凭据。
-Use the Cowork Companion service to access deliveries.,请通过 Cowork 小助手服务访问任务领取记录。
+Use the CC Desktop credential service to access credentials.,请通过 CC 桌面版凭据服务访问凭据。
+Use the CC Desktop service to access deliveries.,请通过 CC 桌面版服务访问任务领取记录。
+Use the Cowork Companion credential service to access credentials.,请通过 CC 桌面版凭据服务访问凭据。
+Use the Cowork Companion service to access deliveries.,请通过 CC 桌面版服务访问任务领取记录。
 Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别服务访问识别任务。
 Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
 Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
@@ -1667,22 +1697,22 @@ client,客户
 client_import.file_too_large,导入文件过大。
 client_import.too_many_rows,导入行数过多。
 closed,已关闭
-companion.context_invalid,小助手身份已失效，请重新认证。
-companion.credential_not_found,此连接尚未签发小助手凭据。
-companion.delivery_invalid,小助手任务领取记录无效。
-companion.delivery_not_found,未找到小助手任务领取记录。
+companion.context_invalid,CC 桌面版身份已失效，请重新认证。
+companion.credential_not_found,此连接尚未签发 CC 桌面版凭据。
+companion.delivery_invalid,CC 桌面版任务领取记录无效。
+companion.delivery_not_found,未找到 CC 桌面版任务领取记录。
 companion.generation_conflict,凭据已变更，请刷新后再重置或撤销。
-companion.queue_access_revoked,小助手队列的访问权限已撤销。
+companion.queue_access_revoked,CC 桌面版队列的访问权限已撤销。
 companion.queue_conflict,此回执与任务当前状态冲突。
-companion.queue_request_invalid,小助手队列请求无效。
-companion.queue_response_invalid,小助手队列响应无效。
+companion.queue_request_invalid,CC 桌面版队列请求无效。
+companion.queue_response_invalid,CC 桌面版队列响应无效。
 companion.receipt_limit,凭据请求回执数量已达到上限。
-companion.report_busy,小助手服务暂时不可用，请稍后重试。
-companion.report_invalid,小助手上报内容无效。
+companion.report_busy,CC 桌面版服务暂时不可用，请稍后重试。
+companion.report_invalid,CC 桌面版上报内容无效。
 companion.request_conflict,此请求标识已用于其他凭据操作。
 companion.request_invalid,凭据请求无效。
-companion.unauthorized,小助手认证失败。
-companion.unsupported_connection,此连接不支持 Express 小助手凭据。
+companion.unauthorized,CC 桌面版认证失败。
+companion.unsupported_connection,此连接不支持 Express CC 桌面版凭据。
 confirmed,已确认
 connection.adapter_invalid,不支持此 ERP 连接类型。
 connection.config_invalid,请检查 ERP 连接配置。
@@ -1716,16 +1746,16 @@ cowork.choice.payment,付款方式
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
-cowork.folder.agentStale,小助手不在线或需升级
-cowork.folder.agentStaleHint,此电脑的小助手近期未同步，请升级至最新版本。
+cowork.folder.agentStale,CC 桌面版不在线或需升级
+cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
 cowork.folder.batch_missing,识别任务不存在。
 cowork.folder.billing_pending,正在等待扣费完成。
 cowork.folder.cardHint,设一个本机文件夹，每月自动识别推送
 cowork.folder.catalogEmpty,还没有账套目录。请先在新建录入里点重新读取。
 cowork.folder.col.result,结果
 cowork.folder.col.schedule,每月运行
-cowork.folder.companion_offline,推送时小助手未连接，将于十分钟后重新推送。
-cowork.folder.connectHelper,连接小助手
+cowork.folder.companion_offline,推送时 CC 桌面版未连接，将于十分钟后重新推送。
+cowork.folder.connectHelper,连接 CC 桌面版
 cowork.folder.connection_fixed,定时任务无法转移至其他电脑，请停用后新建定时任务。
 cowork.folder.content_mismatch,上传的内容与电脑上的文件不一致。
 cowork.folder.counts,已推送 {0} · 待处理 {1}
@@ -1775,8 +1805,8 @@ cowork.folder.lastDay,月末
 cowork.folder.mastersLoading,小助手还在读这份账套，稍后重新打开即可选科目。
 cowork.folder.new,新建定时任务
 cowork.folder.noExpress,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
-cowork.folder.noRoots,此电脑暂无可选文件夹，请在此电脑的小助手中添加。
-cowork.folder.noRootsAny,暂无可选文件夹，请在电脑的小助手中添加。
+cowork.folder.noRoots,此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。
+cowork.folder.noRootsAny,暂无可选文件夹，请在电脑的 CC 桌面版中添加。
 cowork.folder.noRuns,暂无运行记录
 cowork.folder.no_number_prefix,无发票号_
 cowork.folder.off,已停用
@@ -1786,11 +1816,11 @@ cowork.folder.overlap_with,与定时任务「{0}」的文件夹重叠
 cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录入。
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 cowork.folder.rootItself,（根目录本身）
-cowork.folder.root_invalid,请选择小助手上报的根目录。
+cowork.folder.root_invalid,请选择 CC 桌面版上报的根目录。
 cowork.folder.rule_disabled,此定时任务已停用。
 cowork.folder.rule_missing,此电脑上不存在该定时任务。
 cowork.folder.runNow,立即运行
-cowork.folder.runRequested,已请求运行，小助手将在几分钟内开始。
+cowork.folder.runRequested,已请求运行，CC 桌面版将在几分钟内开始。
 cowork.folder.runScan,扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
 cowork.folder.runs,运行记录
 cowork.folder.schedule,每月 {0} {1}
@@ -2509,7 +2539,7 @@ in,存入
 intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
-intake.error.ACCOUNT_DIR_NOT_ALLOWED,小助手没有此账套的写入权限，请检查小助手所选账套
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 intake.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
 intake.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 intake.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
@@ -2531,7 +2561,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已�
 intake.error.ERR_MRERP_MENU_UNREADABLE,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
-intake.error.ERR_PAYLOAD_VERSION,小助手版本过旧，请更新后重新提交
+intake.error.ERR_PAYLOAD_VERSION,CC 桌面版版本过旧，请更新后重新提交
 intake.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
 intake.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
@@ -2542,8 +2572,8 @@ intake.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交
 intake.error.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 intake.error.MISSING_REF_NO,缺少发票号，请补充后重新提交
 intake.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
-intake.error.NO_ACCOUNT_SELECTION,此电脑的小助手中没有此账套或无写入权限，请检查小助手所选账套
-intake.error.PAYLOAD_INVALID,小助手无法读取此发票，请核对字段后重新提交
+intake.error.NO_ACCOUNT_SELECTION,此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
+intake.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 intake.error.PRIOR_DOC_STILL_IN_ERP,此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」
 intake.error.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
 intake.error.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
@@ -2553,8 +2583,8 @@ intake.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选
 intake.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 intake.error.USER_ABORTED_BUSY,账套正被占用，已终止推送，请关闭 Express 后重新推送
 intake.error.account_not_in_chart,所用科目不在 Express 科目表中，请检查科目设置
-intake.error.account_set_not_allowed,小助手未获授权使用此账套，请检查小助手的账套设置
-intake.error.agent_failed,小助手写入失败，将自动重试
+intake.error.account_set_not_allowed,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
+intake.error.agent_failed,CC 桌面版写入失败，将自动重试
 intake.error.already_success,此发票已推送成功
 intake.error.amounts_not_consistent,金额合计不一致，请更正后重新提交
 intake.error.bad_or_missing_date,票面日期缺失或无法识别，请补填后重新提交
@@ -2581,7 +2611,7 @@ intake.error.no_input_vat_account,缺少此发票所需的科目，请检查科�
 intake.error.no_output_vat_account,缺少此发票所需的科目，请检查科目设置
 intake.error.no_purchase_account,缺少此发票所需的科目，请检查科目设置
 intake.error.no_revenue_account,缺少此发票所需的科目，请检查科目设置
-intake.error.payload_version_outdated,小助手版本过旧，请更新后重新提交
+intake.error.payload_version_outdated,CC 桌面版版本过旧，请更新后重新提交
 intake.error.posting_kind_needed,请为此发票选择服务或存货后重新提交
 intake.error.seller_buyer_same_tax,卖方和买方税号相同，请更正后重新提交
 intake.error.tax_id_invalid,税号无效，请更正后重新提交
@@ -2659,7 +2689,7 @@ physical_page,物理页
 probably {0},疑似应为 {0}
 push.adapter_not_connected,此 ERP 适配器尚未接通。
 push.branch_invalid,推送执行模式无效。
-push.companion_account_unreported,准备推送时小助手不在线或尚未上报此账套。请确认小助手正在运行后重新推送
+push.companion_account_unreported,准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送
 push.disabled,本站点未启用推送，未发送任何内容。
 push.native_ack_conflict,回执与已记录结果冲突。
 push.native_history_changed,票据已修改，请重新准备。

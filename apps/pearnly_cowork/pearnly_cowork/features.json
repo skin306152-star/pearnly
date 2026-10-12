@@ -70,7 +70,7 @@
     },
     {
       "code": "companion",
-      "label": "Companion",
+      "label": "CC Desktop",
       "default_on": false,
       "description": "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",
       "role": "",
@@ -81,7 +81,7 @@
       "code": "express_guide",
       "label": "Express Push Guide",
       "default_on": false,
-      "description": "Install, pair, upgrade and uninstall guide for Companion",
+      "description": "Install, pair, upgrade and uninstall guide for CC Desktop",
       "role": "",
       "doctypes": [],
       "read_only": []

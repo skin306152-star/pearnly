@@ -44,6 +44,7 @@ A timezone-aware UTC timestamp is required.,タイムゾーン付きのUTC時刻
 A value in the ERP data report exceeds the allowed length.,ERP データレポート内の値が許容される長さを超えています。
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
+Access to the CC Desktop queue has been revoked.,CC デスクトップのキューへのアクセス権が取り消されました。
 Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
 Account Codes,勘定科目コード
 Account Key,会計データキー
@@ -184,6 +185,18 @@ Buyer tax ID,買い手税番号
 "By preset, these accounts are left out: {0}",プリセットにより次の科目は照合に含めていません：{0}
 By preset: {0} groups matched by total,プリセットにより {0} 組を合計で照合済み
 Byte Size,ファイルサイズ（バイト）
+CC Desktop Report,CC デスクトップのレポート
+CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
+CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
+CC Desktop could not write this invoice. It is retried automatically,CC デスクトップが書き込めませんでした。自動で再試行します
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
+CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
+"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
+CC Desktop on this PC has not synced recently. Update it to the latest version.,この PC の CC デスクトップが同期していません。最新版に更新してください。
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
+"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください
 Calendar,カレンダー
 Camera,カメラ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
@@ -215,6 +228,7 @@ Check the ERP connection settings.,ERP接続設定を確認してください。
 Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checkbox,チェックボックス
+Checked CC Desktop,CC デスクトップを確認しました
 Checked MR.ERP import settings,MR.ERP の取り込み設定を確認しました
 Checked a reconciliation's progress,照合の進行状況を確認しました
 Checked folder task options,フォルダータスクの選択肢を確認しました
@@ -238,6 +252,7 @@ Chinese Name,中国語名
 Choose a day and time for the monthly run.,毎月の実行日と時刻を選んでください。
 Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
+Choose an allowed root reported by CC Desktop.,CC デスクトップが報告したルートを選んでください。
 Choose an allowed root reported by the Companion.,コンパニオンが報告したルートを選んでください。
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
@@ -295,6 +310,7 @@ Confirmation Request,確認リクエスト
 Confirmation Revision,確認リビジョン
 Confirmed,確認済み
 Confirmed a push result,送信結果を確定しました
+Connect CC Desktop,CC デスクトップを接続
 Connect Companion,コンパニオンを接続
 Connection Configuration,接続設定
 Connection Name,接続名
@@ -338,12 +354,12 @@ Cover File,カバーファイル
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork Client,Cowork 買い手顧客
-Cowork Companion Delivery,Cowork アシスタントのタスク受領記録
+Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
 Cowork ERP Connection,Cowork ERP接続
 Cowork ERP Mapping,Cowork ERP マッピング
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
 Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
-Cowork Express Agent Credential,Cowork Express アシスタント認証情報
+Cowork Express Agent Credential,Cowork Express CC デスクトップ認証情報
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork マスタデータ
 Cowork OCR Batch,Cowork 認識バッチ
@@ -797,6 +813,7 @@ New stock count,棚卸を作成
 New task,新規タスク
 "New, as on the invoice",伝票どおり新規作成
 Next Attempt At,次回再試行日時
+No CC Desktop credential has been issued for this connection.,この接続には CC デスクトップの認証情報がまだ発行されていません。
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No ERP is ready to use,使用できるERPがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
@@ -807,7 +824,9 @@ No changes were given.,変更内容が指定されていません。
 No documents were given.,書類が指定されていません。
 No due date,期日なし
 No folder rules yet. Create one and put the documents into its folder.,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
+No folders on this PC yet. Add them in CC Desktop on that PC.,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
 No folders on this PC yet. Add them in the Companion on that PC.,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
+No folders to choose yet. Add them in CC Desktop on the PC.,選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。
 No folders to choose yet. Add them in the Companion on the PC.,選べるフォルダーがまだありません。PC のコンパニオンで追加してください。
 No invoice could be read.,請求書を1件も読み取れませんでした。
 No invoice summary found,請求書の概要情報なし
@@ -1084,6 +1103,7 @@ Run at (Bangkok time),時刻（バンコク）
 Run history,実行履歴
 Run now,今すぐ実行
 Run on day,実行日
+Run requested. CC Desktop starts within a few minutes.,実行を依頼しました。数分以内に開始します。
 Run requested. The Companion starts within a few minutes.,実行を依頼しました。数分以内に開始します。
 Run time,実行時刻
 SHA-256,SHA-256
@@ -1235,6 +1255,13 @@ Text is too long,テキストが長すぎます
 Thai Name,タイ語名
 That code is not valid,コードが正しくありません
 That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
+The CC Desktop delivery record is invalid.,CC デスクトップのタスク受領記録が無効です。
+The CC Desktop delivery record was not found.,CC デスクトップのタスク受領記録が見つかりません。
+The CC Desktop identity is no longer valid. Authenticate again.,CC デスクトップの認証が無効になりました。もう一度認証してください。
+The CC Desktop queue request is invalid.,CC デスクトップのキューリクエストが無効です。
+The CC Desktop queue response is invalid.,CC デスクトップのキューレスポンスが無効です。
+The CC Desktop report is invalid.,CC デスクトップのレポートが無効です。
+The CC Desktop service is temporarily unavailable. Try again shortly.,CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
 The Companion delivery record was not found.,アシスタントのタスク受領記録が見つかりません。
 The Companion identity is no longer valid. Authenticate again.,アシスタントの認証が無効になりました。再認証してください。
@@ -1461,6 +1488,7 @@ This channel is not open yet,このチャンネルはまだ開放していませ
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
 This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
+This connection does not support an Express CC Desktop credential.,この接続は Express 用の CC デスクトップ認証情報に対応していません。
 This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
 This connection does not support scheduled tasks.,この接続は定期タスクに対応していません。
 This connection is disabled.,この接続は無効です。
@@ -1574,8 +1602,10 @@ Uploading,アップロード中
 Uploading files,ファイルをアップロード中
 Uploading from the PC,アップロード中
 Use Count,使用回数
-Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
-Use the Cowork Companion service to access deliveries.,タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。
+Use the CC Desktop credential service to access credentials.,CC デスクトップの認証情報サービスから認証情報にアクセスしてください。
+Use the CC Desktop service to access deliveries.,CC デスクトップのサービスからタスク受領記録にアクセスしてください。
+Use the Cowork Companion credential service to access credentials.,CC デスクトップの認証情報サービスから認証情報にアクセスしてください。
+Use the Cowork Companion service to access deliveries.,CC デスクトップのサービスからタスク受領記録にアクセスしてください。
 Use the Cowork OCR service to access recognition tasks.,認識タスクへのアクセスには Cowork 認識サービスを使用してください。
 Use the Cowork OCR service to change recognition tasks.,認識タスクの変更には Cowork 認識サービスを使用してください。
 Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
@@ -1667,22 +1697,22 @@ client,顧客
 client_import.file_too_large,インポートファイルが大きすぎます。
 client_import.too_many_rows,インポートする行が多すぎます。
 closed,クローズ済み
-companion.context_invalid,アシスタントの認証が無効になりました。再認証してください。
-companion.credential_not_found,この接続にはアシスタント認証情報が発行されていません。
-companion.delivery_invalid,アシスタントのタスク受領記録が無効です。
-companion.delivery_not_found,アシスタントのタスク受領記録が見つかりません。
+companion.context_invalid,CC デスクトップの認証が無効になりました。もう一度認証してください。
+companion.credential_not_found,この接続には CC デスクトップの認証情報がまだ発行されていません。
+companion.delivery_invalid,CC デスクトップのタスク受領記録が無効です。
+companion.delivery_not_found,CC デスクトップのタスク受領記録が見つかりません。
 companion.generation_conflict,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
-companion.queue_access_revoked,アシスタントのキューへのアクセス権が取り消されました。
+companion.queue_access_revoked,CC デスクトップのキューへのアクセス権が取り消されました。
 companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
-companion.queue_request_invalid,アシスタントのキューリクエストが無効です。
-companion.queue_response_invalid,アシスタントのキューレスポンスが無効です。
+companion.queue_request_invalid,CC デスクトップのキューリクエストが無効です。
+companion.queue_response_invalid,CC デスクトップのキューレスポンスが無効です。
 companion.receipt_limit,認証情報リクエストの受領記録が上限に達しました。
-companion.report_busy,Companion サービスは一時的に利用できません。しばらくしてから再試行してください。
-companion.report_invalid,Companion レポートが無効です。
+companion.report_busy,CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。
+companion.report_invalid,CC デスクトップのレポートが無効です。
 companion.request_conflict,このリクエストキーは別の認証情報操作に使用されています。
 companion.request_invalid,認証情報のリクエストが無効です。
-companion.unauthorized,アシスタント認証に失敗しました。
-companion.unsupported_connection,この接続は Express アシスタント認証情報に対応していません。
+companion.unauthorized,CC デスクトップの認証に失敗しました。
+companion.unsupported_connection,この接続は Express 用の CC デスクトップ認証情報に対応していません。
 confirmed,確認済み
 connection.adapter_invalid,このERP接続タイプはサポートされていません。
 connection.config_invalid,ERP接続設定を確認してください。
@@ -1716,8 +1746,8 @@ cowork.choice.payment,支払方法
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
 cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
-cowork.folder.agentStale,コンパニオンがオフラインか更新が必要
-cowork.folder.agentStaleHint,この PC のコンパニオンが同期していません。最新版に更新してください。
+cowork.folder.agentStale,CC デスクトップがオフラインか更新が必要
+cowork.folder.agentStaleHint,この PC の CC デスクトップが同期していません。最新版に更新してください。
 cowork.folder.batch_missing,読み取りタスクが見つかりません。
 cowork.folder.billing_pending,課金の完了待ち
 cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
@@ -1725,7 +1755,7 @@ cowork.folder.catalogEmpty,帳簿一覧がまだありません。先に新規�
 cowork.folder.col.result,結果
 cowork.folder.col.schedule,実行日時
 cowork.folder.companion_offline,ヘルパーが接続されていなかったため、10 分後にもう一度送信します。
-cowork.folder.connectHelper,コンパニオンを接続
+cowork.folder.connectHelper,CC デスクトップを接続
 cowork.folder.connection_fixed,定期タスクは別の PC に移せません。停止して新しく作成してください。
 cowork.folder.content_mismatch,アップロード内容が PC のファイルと一致しません。
 cowork.folder.counts,登録済み {0} · 要確認 {1}
@@ -1775,8 +1805,8 @@ cowork.folder.lastDay,月末
 cowork.folder.mastersLoading,コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。
 cowork.folder.new,定期タスクを作成
 cowork.folder.noExpress,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
-cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。
-cowork.folder.noRootsAny,選べるフォルダーがまだありません。PC のコンパニオンで追加してください。
+cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
+cowork.folder.noRootsAny,選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。
 cowork.folder.noRuns,実行履歴はまだありません
 cowork.folder.no_number_prefix,番号なし_
 cowork.folder.off,停止中
@@ -1786,7 +1816,7 @@ cowork.folder.overlap_with,定期タスク「{0}」のフォルダーと重な�
 cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登録できなくなっています。
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
 cowork.folder.rootItself,（ルートフォルダー自体）
-cowork.folder.root_invalid,コンパニオンが報告したルートを選んでください。
+cowork.folder.root_invalid,CC デスクトップが報告したルートを選んでください。
 cowork.folder.rule_disabled,この定期タスクは停止中です。
 cowork.folder.rule_missing,この PC にこの定期タスクはありません。
 cowork.folder.runNow,今すぐ実行
@@ -2509,7 +2539,7 @@ in,入金
 intake.catalog.reload,再読み込み
 intake.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
-intake.error.ACCOUNT_DIR_NOT_ALLOWED,アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 intake.error.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
 intake.error.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
 intake.error.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
@@ -2531,7 +2561,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年�
 intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
-intake.error.ERR_PAYLOAD_VERSION,アシスタントが古いバージョンです。更新して再送信してください
+intake.error.ERR_PAYLOAD_VERSION,CC デスクトップが古いバージョンです。更新して再送信してください
 intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
 intake.error.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
 intake.error.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
@@ -2543,7 +2573,7 @@ intake.error.MISSING_CUSTOMER,顧客がありません。顧客を選択して�
 intake.error.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
 intake.error.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
 intake.error.NO_ACCOUNT_SELECTION,このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
-intake.error.PAYLOAD_INVALID,アシスタントがこの伝票を読み取れません。項目を確認して再送信してください
+intake.error.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 intake.error.PRIOR_DOC_STILL_IN_ERP,この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください
 intake.error.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
 intake.error.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
@@ -2553,8 +2583,8 @@ intake.error.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。
 intake.error.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 intake.error.USER_ABORTED_BUSY,帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください
 intake.error.account_not_in_chart,使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください
-intake.error.account_set_not_allowed,アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください
-intake.error.agent_failed,アシスタントが書き込めませんでした。自動で再試行します
+intake.error.account_set_not_allowed,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
+intake.error.agent_failed,CC デスクトップが書き込めませんでした。自動で再試行します
 intake.error.already_success,この伝票は送信済みです
 intake.error.amounts_not_consistent,金額が合いません。直して再送信してください
 intake.error.bad_or_missing_date,伝票日付がないか読み取れません。入力して再送信してください
@@ -2581,7 +2611,7 @@ intake.error.no_input_vat_account,この伝票に必要な勘定科目が設定�
 intake.error.no_output_vat_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.no_purchase_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
 intake.error.no_revenue_account,この伝票に必要な勘定科目が設定されていません。科目設定を確認してください
-intake.error.payload_version_outdated,アシスタントが古いバージョンです。更新して再送信してください
+intake.error.payload_version_outdated,CC デスクトップが古いバージョンです。更新して再送信してください
 intake.error.posting_kind_needed,この伝票がサービスか在庫かを選んで再送信してください
 intake.error.seller_buyer_same_tax,売手と買手の納税者番号が同じです。直して再送信してください
 intake.error.tax_id_invalid,納税者番号が正しくありません。直して再送信してください

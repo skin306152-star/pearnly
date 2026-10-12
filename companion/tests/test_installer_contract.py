@@ -47,3 +47,14 @@ def test_tomo_installs_as_a_folder_and_silent_updates_restart_in_the_background(
     spec = (INSTALLER_SCRIPT.parent / "companion.spec").read_text(encoding="utf-8")
     assert "COLLECT(" in spec and "exclude_binaries=True" in spec
     assert '"PySide6.QtWebEngineCore"' not in spec and '"PySide6.QtNetwork"' not in spec
+
+
+def test_the_app_and_its_installer_are_named_cc():
+    # 2026-10-12 小助手统一改名 CC：任务管理器 / 开机启动 / 文件属性显示「CC」，安装包叫 CC-Setup.exe；
+    # exe 文件名与安装目录不改（已装的电脑原地升级）
+    spec = (INSTALLER_SCRIPT.parent / "companion.spec").read_text(encoding="utf-8")
+    assert 'StringStruct("FileDescription", "CC")' in spec and 'StringStruct("ProductName", "CC")' in spec
+    assert "version=_version_info" in spec
+    iss = INSTALLER_SCRIPT.read_text(encoding="utf-8")
+    assert "OutputBaseFilename=CC-Setup" in iss and "VersionInfoProductName=CC" in iss
+

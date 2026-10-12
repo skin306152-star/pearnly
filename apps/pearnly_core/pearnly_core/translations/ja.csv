@@ -74,6 +74,8 @@ Business number,業務番号
 Buyer,買い手
 Buyer Tax ID,買い手税番号
 Bytes,バイト数
+CC Desktop,CC デスクトップ
+CC Desktop not connected,CC デスクトップ未接続
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
@@ -306,6 +308,7 @@ Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 "Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
+"Install, pair, upgrade and uninstall guide for CC Desktop",CC デスクトップのインストール・ペアリング・更新・アンインストールガイド
 "Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
 Intake Workbench,取り込みワークベンチ
 Integrations,連携
@@ -690,6 +693,7 @@ This operator's DMS account,このオペレーターのDMSアカウント
 This operator's DMS password,このオペレーターのDMSパスワード
 This photo could not be read. Save it as JPEG and upload it again.,この写真を読み取れません。JPEG で保存してからアップロードし直してください。
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
+This site has no CC Desktop installer address yet.,このサイトには CC デスクトップのインストーラーのアドレスがまだありません。
 "This site has no LINE access token configured, so it cannot send messages",このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
 This site has no assistant installer address yet.,このサイトにはアシスタントのインストーラーURLがまだありません。
 This site has no product manifest installed; it cannot run as a business site.,このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
@@ -810,6 +814,7 @@ common.refresh,更新
 common.save,保存
 common.saving,保存中…
 common.yes,はい
+"companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC デスクトップがローカルで取得して保存
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
 connect.action.connect,DMSに接続
 connect.action.connectSave,接続して保存
@@ -945,7 +950,7 @@ intake.agent.key,ペアリングコード
 intake.agent.loginHint,インストール後、このアカウントでログインすると接続されます。
 intake.agent.reset,再生成
 intake.agent.resetConfirm,古いキーはすぐに使えなくなります。
-intake.agent.state.missing,アシスタント未接続
+intake.agent.state.missing,CC デスクトップ未接続
 intake.card.purchaseTotal,仕入合計（確認済み以上）
 intake.card.readyToPush,確認済み・送信可能
 intake.card.salesTotal,売上合計（確認済み以上）
@@ -1000,7 +1005,7 @@ intake.field.whtAmount,源泉徴収税額
 intake.filter.allDirections,全ての区分
 intake.filter.allStatuses,全てのステータス
 intake.hint.afterSave,保存すると下書きになります。確認してから送信できます
-intake.installerMissing,このサイトにはアシスタントのインストーラーURLがまだありません。
+intake.installerMissing,このサイトには CC デスクトップのインストーラーのアドレスがまだありません。
 intake.item.name,商品 / サービス
 intake.itemType.expense,経費
 intake.itemType.goods,商品

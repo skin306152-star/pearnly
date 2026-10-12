@@ -166,7 +166,7 @@ def _handle_dbf_task(
         supported = sorted(SUPPORTED_PAYLOAD_VERSIONS)
         msg = (
             f"payload_version {got!r} not supported by this companion "
-            f"(supports {supported}) — please update companion to the latest version"
+            f"(supports {supported}) — please update CC Desktop to the latest version"
         )
         log.warning(
             f"✗ dbf task {task.id} unsupported payload_version: got={got} supported={supported}"

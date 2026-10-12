@@ -1685,7 +1685,7 @@ TOOLS = [
          "batches": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX}},
          "required": ["batches"]},
      "handler": "pearnly_cowork.assistant.tools.recognition_results"},
-    {"name": "cowork_companion_status", "label": "Checked the companion",
+    {"name": "cowork_companion_status", "label": "Checked CC Desktop",
      "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether the Windows companion is "
                     "online, and whether the account set list has been read. To find or choose an account set for "
                     "recognition or pushing, use cowork_intake_options instead.",

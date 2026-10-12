@@ -2,7 +2,7 @@
 ; 装到当前用户的程序目录(%LOCALAPPDATA%\Programs),建快捷方式,装完启动(首次弹配对窗)。未签名(内部测试 · 签名记 backlog)。
 ; 按用户安装(2026-10-08):不要管理员权限,自动更新静默覆盖安装时不弹「用户账户控制」授权窗口
 ; (原来装在 Program Files,每次自动更新都弹授权,打断正在用电脑的人)。配置、配对在 %APPDATA% 里,不受影响。
-; 编译:ISCC.exe packaging\installer.iss → dist\PearnlyCompanion-Setup.exe
+; 编译:ISCC.exe packaging\installer.iss → dist\CC-Setup.exe（2026-10-12 起；旧名 PearnlyCompanion-Setup.exe 由下载站同时保留）
 #define AppName "CC"
 ; 版本号单一真相源 = src/companion/version.py。release.ps1 用 /DAppVersion=<ver> 注入;
 ; 直接 ISCC 编译时回落下方默认(手动保持与 version.py 一致)。
@@ -25,7 +25,9 @@ DefaultGroupName=CC
 UsePreviousGroup=no
 DisableProgramGroupPage=yes
 OutputDir=..\dist
-OutputBaseFilename=PearnlyCompanion-Setup
+OutputBaseFilename=CC-Setup
+VersionInfoProductName=CC
+VersionInfoDescription=CC Setup
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64

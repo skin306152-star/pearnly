@@ -53,11 +53,11 @@ if ($LASTEXITCODE -ne 0) { throw 'installer build failed' }
 # Inno 的 VersionInfo 由 AppVersion 派生。/DAppVersion 哪天没注入进去,打出来的包会内嵌
 # installer.iss 里的回落版本号,而外面一切照常绿。FileVersion 是空的,只能断 ProductVersion。
 # 断在这里而不是末尾:产物不匹配时阻断后续发布。
-$exeVer = ([string](Get-Item 'dist\PearnlyCompanion-Setup.exe').VersionInfo.ProductVersion).Trim()
+$exeVer = ([string](Get-Item 'dist\CC-Setup.exe').VersionInfo.ProductVersion).Trim()
 if ($exeVer -ne $ver) { throw "installer ProductVersion=$exeVer != version.py $ver" }
 
 
-$installer = Get-Item 'dist\PearnlyCompanion-Setup.exe'
+$installer = Get-Item 'dist\CC-Setup.exe'
 $manifest = [ordered]@{
     version = $ver
     product_version = $exeVer

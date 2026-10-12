@@ -401,7 +401,7 @@ Target Json	冻结目标（JSON）	ปลายทางที่ตรึงไ
 Token Digest	令牌摘要	แฮชโทเค็น	トークンダイジェスト	Token Digest
 Wire Attempt	发送尝试次数	จำนวนครั้งที่พยายามส่ง	送信試行回数	Wire Attempt
 Started At	开始时间	เริ่มเมื่อ	開始日時	Started At
-Cowork Express Agent Credential	Cowork Express 小助手凭据	ข้อมูลรับรองผู้ช่วย Pearnly สำหรับ Express ของ Cowork	Cowork Express アシスタント認証情報	Cowork Express Agent Credential
+Cowork Express Agent Credential	Cowork Express CC 桌面版凭据	ข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express ของ Cowork	Cowork Express CC デスクトップ認証情報	Cowork Express Agent Credential
 Record ID	记录 ID	รหัสรายการ	レコード ID	Record ID
 Site Name	站点名称	ชื่อไซต์	サイト名	Site Name
 Issued By	签发人	ผู้ออก	発行者	Issued By
@@ -414,17 +414,17 @@ Issued At (UTC)	签发时间（UTC）	เวลาออก (UTC)	発行日時 (
 Revoked At (UTC)	撤销时间（UTC）	เวลายกเลิก (UTC)	失効日時 (UTC)	Revoked At (UTC)
 Revoked By	撤销人	ผู้ยกเลิก	失効者	Revoked By
 Revocation Reason	撤销原因	เหตุผลที่ยกเลิก	失効理由	Revocation Reason
-Use the Cowork Companion credential service to access credentials.	请通过 Cowork 小助手凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองผู้ช่วย Pearnly ของ Cowork	認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。	Use the Cowork Companion credential service to access credentials.
+Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.
 The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
 This request key was used for another credential operation.	此请求标识已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict
 The credential changed. Reload before resetting or revoking it.	凭据已变更，请刷新后再重置或撤销。	ข้อมูลรับรองมีการเปลี่ยนแปลง กรุณารีเฟรชก่อนรีเซ็ตหรือยกเลิก	認証情報が変更されました。再読み込みしてからリセットまたは失効してください。	companion.generation_conflict
-No Companion credential has been issued for this connection.	此连接尚未签发小助手凭据。	ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้	この接続にはアシスタント認証情報が発行されていません。	companion.credential_not_found
-Companion authentication failed.	小助手认证失败。	การยืนยันตัวตนผู้ช่วยไม่สำเร็จ	アシスタント認証に失敗しました。	companion.unauthorized
-The Companion identity is no longer valid. Authenticate again.	小助手身份已失效，请重新认证。	ตัวตนของผู้ช่วยหมดอายุแล้ว กรุณายืนยันตัวตนใหม่	アシスタントの認証が無効になりました。再認証してください。	companion.context_invalid
-This connection does not support an Express Companion credential.	此连接不支持 Express 小助手凭据。	การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Pearnly สำหรับ Express	この接続は Express アシスタント認証情報に対応していません。	companion.unsupported_connection
+No CC Desktop credential has been issued for this connection.	此连接尚未签发 CC 桌面版凭据。	ยังไม่ได้ออกข้อมูลรับรอง CC เดสก์ท็อปสำหรับการเชื่อมต่อนี้	この接続には CC デスクトップの認証情報がまだ発行されていません。	companion.credential_not_found
+CC Desktop authentication failed.	CC 桌面版认证失败。	การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ	CC デスクトップの認証に失敗しました。	companion.unauthorized
+The CC Desktop identity is no longer valid. Authenticate again.	CC 桌面版身份已失效，请重新认证。	ตัวตนของ CC เดสก์ท็อปหมดอายุแล้ว กรุณายืนยันตัวตนใหม่	CC デスクトップの認証が無効になりました。もう一度認証してください。	companion.context_invalid
+This connection does not support an Express CC Desktop credential.	此连接不支持 Express CC 桌面版凭据。	การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express	この接続は Express 用の CC デスクトップ認証情報に対応していません。	companion.unsupported_connection
 The credential request receipt limit has been reached.	凭据请求回执数量已达到上限。	จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว	認証情報リクエストの受領記録が上限に達しました。	companion.receipt_limit
 The stocktake export snapshot is incomplete. Reload and try again.	盘点导出数据不完整，请刷新后重试。	ข้อมูลส่งออกการตรวจนับสินค้าไม่ครบถ้วน กรุณารีเฟรชแล้วลองอีกครั้ง	棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。	stocktake.export_incomplete
-Companion Report	小助手上报	รายงานจากผู้ช่วย Pearnly	Companion レポート	
+CC Desktop Report	CC 桌面版上报	รายงานจาก CC เดสก์ท็อป	CC デスクトップのレポート	
 Report Received At (UTC)	上报接收时间（UTC）	เวลารับรายงาน (UTC)	レポート受信日時（UTC）	
 Report Credential	上报凭据	ข้อมูลรับรองของรายงาน	レポート認証情報	
 Report Credential Generation	上报凭据版本	เวอร์ชันข้อมูลรับรองของรายงาน	レポート認証情報の世代	
@@ -434,7 +434,7 @@ Refresh Lease Generation	刷新租约版本	เวอร์ชันสิทธ
 Refresh Lease Handle	刷新租约标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子	
 Refresh Lease Expires At (UTC)	刷新租约到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）	
 Refresh Error Code	刷新错误码	รหัสข้อผิดพลาดการรีเฟรช	更新エラーコード	
-The Companion report is invalid.	小助手上报内容无效。	รายงานจากผู้ช่วย Pearnly ไม่ถูกต้อง	Companion レポートが無効です。	companion.report_invalid
+The CC Desktop report is invalid.	CC 桌面版上报内容无效。	รายงานจาก CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのレポートが無効です。	companion.report_invalid
 leased	已领取	รับไปดำเนินการแล้ว	取得済み	leased
 The ERP data report is missing a required value.	ERP 数据报告缺少必填值。	รายงานข้อมูล ERP ขาดค่าที่จำเป็น	ERP データレポートに必須の値がありません。	erp.target_projection_value_required
 A value in the ERP data report exceeds the allowed length.	ERP 数据报告中的值超过允许长度。	ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด	ERP データレポート内の値が許容される長さを超えています。	erp.target_projection_value_too_long
@@ -459,18 +459,18 @@ The ERP data report is invalid.	ERP 数据报告无效。	รายงานข�
 The ERP report uses an unsupported adapter.	ERP 报告使用了不支持的适配器。	รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ	ERP レポートに対応していないアダプターが指定されています。	erp.target_projection_adapter_invalid
 The ERP report refresh status is invalid.	ERP 报告的刷新状态无效。	สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง	ERP レポートの更新状態が無効です。	erp.target_projection_refresh_status_invalid
 Collection is not connected for this ERP data type.	此 ERP 数据类型暂不支持采集。	ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้	この ERP データの種類には収集機能が接続されていません。	erp.target_projection_collector_not_connected
-The Companion service is temporarily unavailable. Try again shortly.	小助手服务暂时不可用，请稍后重试。	บริการผู้ช่วย Pearnly ไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	Companion サービスは一時的に利用できません。しばらくしてから再試行してください。	companion.report_busy
-Cowork Companion Delivery	Cowork 小助手任务领取记录	Cowork บันทึกการรับงานของผู้ช่วย Pearnly	Cowork アシスタントのタスク受領記録	Cowork Companion Delivery
+The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面版服务暂时不可用，请稍后重试。	บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。	companion.report_busy
+Cowork Companion Delivery	Cowork CC 桌面版任务领取记录	Cowork บันทึกการรับงานของ CC เดสก์ท็อป	Cowork CC デスクトップのタスク受領記録	Cowork Companion Delivery
 Credential ID	凭据 ID	รหัสข้อมูลรับรอง	認証情報 ID	Credential ID
 Owner ID	所有者 ID	รหัสเจ้าของ	所有者 ID	Owner ID
 Push Attempt	推送尝试	การพยายามส่ง	送信試行	Push Attempt
 Attempt Secret	尝试密钥	ข้อมูลลับของการพยายาม	試行用シークレット	Attempt Secret
-Use the Cowork Companion service to access deliveries.	请通过 Cowork 小助手服务访问任务领取记录。	กรุณาเข้าถึงบันทึกการรับงานผ่านบริการผู้ช่วย Pearnly ของ Cowork	タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。	Use the Cowork Companion service to access deliveries.
-The Companion queue request is invalid.	小助手队列请求无效。	คำขอคิวงานของผู้ช่วยไม่ถูกต้อง	アシスタントのキューリクエストが無効です。	companion.queue_request_invalid
-The Companion queue response is invalid.	小助手队列响应无效。	การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง	アシスタントのキューレスポンスが無効です。	companion.queue_response_invalid
-The Companion delivery record is invalid.	小助手任务领取记录无效。	บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง	アシスタントのタスク受領記録が無効です。	companion.delivery_invalid
-The Companion delivery record was not found.	未找到小助手任务领取记录。	ไม่พบบันทึกการรับงานของผู้ช่วย	アシスタントのタスク受領記録が見つかりません。	companion.delivery_not_found
-Access to the Companion queue has been revoked.	小助手队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว	アシスタントのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
+Use the CC Desktop service to access deliveries.	请通过 CC 桌面版服务访问任务领取记录。	กรุณาเข้าถึงบันทึกการรับงานผ่านบริการ CC เดสก์ท็อป	CC デスクトップのサービスからタスク受領記録にアクセスしてください。	Use the Cowork Companion service to access deliveries.
+The CC Desktop queue request is invalid.	CC 桌面版队列请求无效。	คำขอคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのキューリクエストが無効です。	companion.queue_request_invalid
+The CC Desktop queue response is invalid.	CC 桌面版队列响应无效。	การตอบกลับคิวงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのキューレスポンスが無効です。	companion.queue_response_invalid
+The CC Desktop delivery record is invalid.	CC 桌面版任务领取记录无效。	บันทึกการรับงานของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのタスク受領記録が無効です。	companion.delivery_invalid
+The CC Desktop delivery record was not found.	未找到 CC 桌面版任务领取记录。	ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป	CC デスクトップのタスク受領記録が見つかりません。	companion.delivery_not_found
+Access to the CC Desktop queue has been revoked.	CC 桌面版队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว	CC デスクトップのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
 This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
 Cowork ERP Mapping	Cowork ERP 映射	การจับคู่ ERP ของ Cowork	Cowork ERP マッピング	
 Cowork Supplier Posting Profile	Cowork 供应商过账档案	โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork	Cowork 仕入先転記プロファイル	
@@ -1209,8 +1209,8 @@ The supplier is missing. Add it and submit again.	缺少供应商，请补充后
 Express already has this invoice number with different content. Check it, or choose Send anyway	Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」	ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก "ยืนยันการส่ง"	Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください	intake.error.DUPLICATE_CONTENT_DIFFERS
 The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway	此发票的上一版本仍在 Express 中，请先在 Express 中删除，或点击「仍然推送」	เอกสารฉบับก่อนหน้ายังอยู่ใน Express กรุณาลบใน Express ก่อน หรือเลือก "ยืนยันการส่ง"	この伝票の前の版が Express に残っています。Express で削除するか「このまま送信」を選んでください	intake.error.PRIOR_DOC_STILL_IN_ERP
 The chosen account set belongs to another company. Check the account set	所选账套属于其他公司，请核对账套	ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี	選んだ帳簿は別の会社のものです。帳簿を確認してください	intake.error.ACCOUNT_COMPANY_MISMATCH
-The helper is not allowed to write to this account set. Check the helper's account set	小助手没有此账套的写入权限，请检查小助手所选账套	ผู้ช่วยไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย	アシスタントはこの帳簿に書き込めません。アシスタントの帳簿設定を確認してください	intake.error.ACCOUNT_DIR_NOT_ALLOWED
-The helper could not read this invoice. Check the fields and submit again	小助手无法读取此发票，请核对字段后重新提交	ผู้ช่วยไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่	アシスタントがこの伝票を読み取れません。項目を確認して再送信してください	intake.error.PAYLOAD_INVALID
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop	CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください	intake.error.ACCOUNT_DIR_NOT_ALLOWED
+CC Desktop could not read this invoice. Check the fields and submit again	CC 桌面版无法读取此发票，请核对字段后重新提交	CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่	CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください	intake.error.PAYLOAD_INVALID
 This supplier is not in Express and could not be created. Check the supplier name and tax ID	Express 中不存在此供应商且无法创建，请核对供应商名称和税号	ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี	Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください	intake.error.SUPPLIER_NOT_IN_APMAS
 This customer is not in Express and could not be created. Check the customer name and tax ID	Express 中不存在此客户且无法创建，请核对客户名称和税号	ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี	Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください	intake.error.CUSTOMER_NOT_IN_ARMAS
 Writing to Express failed and was undone. It is retried automatically	写入 Express 失败，已撤回，将自动重试	บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ	Express への書き込みに失敗し、元に戻しました。自動で再試行します	intake.error.DBF_WRITE_FAILED
@@ -1220,7 +1220,7 @@ The stock lines could not be posted. Check the items, quantities and prices	无�
 The line items do not add up to the invoice amount. Fix the lines and submit again	明细合计与票面金额不一致，请修改明细后重新提交	ยอดรวมรายการไม่ตรงกับยอดในเอกสาร กรุณาแก้รายการแล้วส่งใหม่	明細の合計が伝票の金額と合いません。明細を直して再送信してください	intake.error.items_mismatch
 Some line items have no name or amount. Fix the lines and submit again	部分明细缺少品名或金额，请补全后重新提交	บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่	品名または金額のない明細があります。直して再送信してください	intake.error.items_incomplete
 This invoice was already sent successfully	此发票已推送成功	เอกสารนี้ส่งสำเร็จแล้ว	この伝票は送信済みです	intake.error.already_success
-The helper could not write this invoice. It is retried automatically	小助手写入失败，将自动重试	ผู้ช่วยไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ	アシスタントが書き込めませんでした。自動で再試行します	intake.error.agent_failed
+CC Desktop could not write this invoice. It is retried automatically	CC 桌面版写入失败，将自动重试	CC เดสก์ท็อปไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ	CC デスクトップが書き込めませんでした。自動で再試行します	intake.error.agent_failed
 The result is not confirmed. Check in Express before sending again	结果未确认，请先在 Express 中核对，再决定是否重新推送	ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่	結果が確認できません。Express で確認してから再送信してください	intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN
 The result is not confirmed. Check in Express before sending again	结果未确认，请先在 Express 中核对，再决定是否重新推送	ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่	結果が確認できません。Express で確認してから再送信してください	intake.error.confirmed_push_unacked
 Some fields are uncertain. Check them against the original and submit again	部分字段无法确认，请对照原件核对后重新提交	ข้อมูลบางช่องยังยืนยันไม่ได้ กรุณาตรวจสอบกับต้นฉบับแล้วส่งใหม่	不確かな項目があります。原本と照合して再送信してください	intake.error.low_confidence
@@ -1237,8 +1237,8 @@ Choose the year and account set first	请先选年度和账套	กรุณา�
 The entry does not balance. Check the amounts	分录借贷不平，请核对金额	ยอดเดบิตและเครดิตไม่เท่ากัน กรุณาตรวจสอบยอดเงิน	仕訳の貸借が合いません。金額を確認してください	intake.error.entry_not_balanced
 An account used for this invoice is not in the Express chart of accounts. Check the account settings	所用科目不在 Express 科目表中，请检查科目设置	มีรหัสบัญชีที่ไม่อยู่ในผังบัญชีของ Express กรุณาตรวจการตั้งค่าบัญชี	使う勘定科目が Express の勘定科目表にありません。科目設定を確認してください	intake.error.account_not_in_chart
 Choose purchase or sales for this invoice and submit again	请选择此发票为进项或销项后重新提交	กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่	この伝票が仕入か売上かを選んで再送信してください	intake.error.direction_unknown
-The helper is out of date. Update the helper and submit again	小助手版本过旧，请更新后重新提交	ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	アシスタントが古いバージョンです。更新して再送信してください	intake.error.payload_version_outdated
-The helper has not been given this account set. Check the helper's account sets	小助手未获授权使用此账套，请检查小助手的账套设置	ผู้ช่วยยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจชุดบัญชีในผู้ช่วย	アシスタントにこの帳簿が許可されていません。アシスタントの帳簿を確認してください	intake.error.account_set_not_allowed
+CC Desktop is out of date. Update CC Desktop and submit again	CC 桌面版版本过旧，请更新后重新提交	CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	CC デスクトップが古いバージョンです。更新して再送信してください	intake.error.payload_version_outdated
+CC Desktop has not been given this account set. Check the account sets in CC Desktop	CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置	CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป	CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください	intake.error.account_set_not_allowed
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_ap_account
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_ar_account
 An account needed for this invoice is not set. Check the account settings	缺少此发票所需的科目，请检查科目设置	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้กับเอกสารนี้ กรุณาตรวจการตั้งค่าบัญชี	この伝票に必要な勘定科目が設定されていません。科目設定を確認してください	intake.error.no_input_vat_account
@@ -1276,8 +1276,8 @@ It was not entered	未入账	ยังไม่ลงบัญชี	計上さ�
 ERP document number	ERP 单号	เลขที่เอกสารใน ERP	ERP の伝票番号	cowork.unknown.docnum
 Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入账，可重新推送	ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้	ERP で確認済み：未計上。再送信できます	intake.error.confirmed_not_entered
 Recognition was interrupted (not charged). Upload this file again	识别已中断（未扣费），请重新上传此文件	การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
-The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set	此电脑的小助手中没有此账套或无写入权限，请检查小助手所选账套	ผู้ช่วยในเครื่องนี้ไม่มีชุดบัญชีนี้ หรือไม่มีสิทธิ์บันทึกข้อมูล กรุณาตรวจสอบชุดบัญชีที่เลือกในผู้ช่วย	このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
-The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again	准备推送时小助手不在线或尚未上报此账套。请确认小助手正在运行后重新推送	ขณะเตรียมส่ง ผู้ช่วยออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่าผู้ช่วยกำลังทำงานอยู่ แล้วส่งอีกครั้ง	送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
+CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
+CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点でヘルパーがオフライン、またはこの会計データをまだ報告していませんでした。ヘルパーが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
 Add Row	添加行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認	
 An amount could not be read. Check the amount format in the file	部分金额无法读取，请检查文件中的金额格式	มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์	読み取れない金額があります。ファイルの金額の書式を確認してください	reconciliation.amount_invalid
@@ -1418,13 +1418,13 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Turn this scheduled task off? Documents already entered stay as they are.	确定要停用此定时任务吗？已推送的单据不受影响。	ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ	この定期タスクを停止しますか？登録済みの書類はそのままです。	cowork.folder.disableConfirm
 Rule is on	启用中	เปิดใช้งานอยู่	有効	cowork.folder.on
 Rule is off	已停用	ปิดใช้งานแล้ว	停止中	cowork.folder.off
-Companion offline or needs update	小助手不在线或需升级	ผู้ช่วยออฟไลน์หรือต้องอัปเดต	コンパニオンがオフラインか更新が必要	cowork.folder.agentStale
-The Companion on this PC has not synced recently. Update it to the latest version.	此电脑的小助手近期未同步，请升级至最新版本。	ผู้ช่วยบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด	この PC のコンパニオンが同期していません。最新版に更新してください。	cowork.folder.agentStaleHint
+CC Desktop offline or needs update	CC 桌面版不在线或需升级	CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต	CC デスクトップがオフラインか更新が必要	cowork.folder.agentStale
+CC Desktop on this PC has not synced recently. Update it to the latest version.	此电脑的 CC 桌面版近期未同步，请升级至最新版本。	CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด	この PC の CC デスクトップが同期していません。最新版に更新してください。	cowork.folder.agentStaleHint
 Entered {0} · to check {1}	已推送 {0} · 待处理 {1}	ส่งแล้ว {0} · รอดำเนินการ {1}	登録済み {0} · 要確認 {1}	cowork.folder.counts
 Day {0}	{0} 日	วันที่ {0}	{0} 日	cowork.folder.day
 Last day of the month	月末	วันสุดท้ายของเดือน	月末	cowork.folder.lastDay
 (the root folder itself)	（根目录本身）	(ตัวโฟลเดอร์หลัก)	（ルートフォルダー自体）	cowork.folder.rootItself
-Run requested. The Companion starts within a few minutes.	已请求运行，小助手将在几分钟内开始。	ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที	実行を依頼しました。数分以内に開始します。	cowork.folder.runRequested
+Run requested. CC Desktop starts within a few minutes.	已请求运行，CC 桌面版将在几分钟内开始。	ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที	実行を依頼しました。数分以内に開始します。	cowork.folder.runRequested
 Found {0} · new {1} · skipped {2} · upload failed {3}	扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}	พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}	検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}	cowork.folder.runScan
 No runs yet	暂无运行记录	ยังไม่มีประวัติการทำงาน	実行履歴はまだありません	cowork.folder.noRuns
 Task name	任务名称	ชื่องาน	タスク名	cowork.folder.field.title
@@ -1453,7 +1453,7 @@ Run now	立即运行	เรียกใช้ทันที	今すぐ実行	cow
 Catch-up after start	开机补运行	ทำงานที่ค้างหลังเปิดเครื่อง	起動後の追い実行	cowork.folder.trigger.catch_up
 The scheduled task is incomplete or invalid.	定时任务内容不完整或不正确。	ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง	定期タスクの内容が不完全または不正です。	cowork.folder.invalid
 Choose a folder inside the allowed root, without system folders.	请选择允许读取的根目录下的文件夹，不能选择系统文件夹。	กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ	許可されたルート内の、システム以外のフォルダーを選んでください。	cowork.folder.path_invalid
-Choose an allowed root reported by the Companion.	请选择小助手上报的根目录。	กรุณาเลือกโฟลเดอร์หลักที่ผู้ช่วยรายงานไว้	コンパニオンが報告したルートを選んでください。	cowork.folder.root_invalid
+Choose an allowed root reported by CC Desktop.	请选择 CC 桌面版上报的根目录。	กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้	CC デスクトップが報告したルートを選んでください。	cowork.folder.root_invalid
 Choose a day and time for the monthly run.	请选择每月运行的日期和时间。	กรุณาเลือกวันและเวลาที่จะทำงานทุกเดือน	毎月の実行日と時刻を選んでください。	cowork.folder.schedule_invalid
 One of the default choices is not valid for this account set.	有一项默认处理在这份账套里不可用。	มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้	既定の処理の一部がこの帳簿では使えません。	cowork.folder.defaults_invalid
 This account set is not in the connection's list. Reload the list in New Intake.	此账套不在该连接的账套列表中，请在新建录入中重新读取。	ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่	この帳簿は一覧にありません。新規取込で再読み込みしてください。	cowork.folder.account_set_invalid
@@ -1473,7 +1473,7 @@ Waiting for the recognition charge to complete.	正在等待扣费完成。	ก�
 The recognition task was not found.	识别任务不存在。	ไม่พบงานอ่านเอกสาร	読み取りタスクが見つかりません。	cowork.folder.batch_missing
 The file check is busy. It will be retried.	原件核对繁忙，将稍后重试。	ระบบตรวจไฟล์ไม่ว่าง ระบบจะลองใหม่ภายหลัง	ファイル確認が混み合っています。再試行します。	cowork.folder.inspect_busy
 A step failed and will be retried in ten minutes.	此步骤出错，将于十分钟后重试。	ขั้นตอนนี้ไม่สำเร็จ ระบบจะลองใหม่ในอีก 10 นาที	この手順が失敗しました。10 分後に再試行します。	cowork.folder.step_error
-The helper was not connected when this invoice was ready to push; it will try again in ten minutes.	推送时小助手未连接，将于十分钟后重新推送。	ผู้ช่วยไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีก 10 นาที	ヘルパーが接続されていなかったため、10 分後にもう一度送信します。	cowork.folder.companion_offline
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.	推送时 CC 桌面版未连接，将于十分钟后重新推送。	CC เดสก์ท็อปไม่ได้เชื่อมต่อขณะส่ง ระบบจะส่งใหม่ในอีกสิบนาที	ヘルパーが接続されていなかったため、10 分後にもう一度送信します。	cowork.folder.companion_offline
 The result sheet is not ready yet.	结果表格尚未生成。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
 Original file name	原文件名	ชื่อไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file
 Invoice number on the document	发票号	เลขที่ใบกำกับภาษี	請求書番号	cowork.folder.wb.invoice
@@ -1481,7 +1481,7 @@ Why it is not in the review sheet	未生成复核表的原因	สาเหตุ
 Schedule	每月运行	กำหนดการ	実行日時	cowork.folder.col.schedule
 Folder results	结果	ผลลัพธ์	結果	cowork.folder.col.result
 One folder per scheduled task. PDF and image files only.	每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。	หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ	1 フォルダーに 1 定期タスク。PDF と画像のみ。	cowork.folder.folderHint
-No folders on this PC yet. Add them in the Companion on that PC.	此电脑暂无可选文件夹，请在此电脑的小助手中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่องนี้	この PC にはまだ選べるフォルダーがありません。その PC のコンパニオンで追加してください。	cowork.folder.noRoots
+No folders on this PC yet. Add them in CC Desktop on that PC.	此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。	เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น	この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。	cowork.folder.noRoots
 View the ones to check	查看待处理	ดูรายการรอดำเนินการ	要確認を見る	cowork.folder.viewAttention
 A client needs a name.	请填写客户名称。	กรุณากรอกชื่อลูกค้า	顧客名を入力してください。	
 A product needs a name.	请填写物料名称。	กรุณากรอกชื่อสินค้า	商品名を入力してください。	
@@ -1653,7 +1653,7 @@ The import file is too large.	导入文件过大。	ไฟล์ที่นำ�
 Too many rows to import.	导入行数过多。	จำนวนแถวที่นำเข้ามากเกินไป	インポートする行が多すぎます。	client_import.too_many_rows
 This tax ID is already used by another company.	该税号已被其他公司使用。	เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว	この納税者番号は既に別の会社で使用されています。	workspace.tax_id_duplicate
 Sending was cancelled because the account set was in use. Close Express and send again	账套正被占用，已终止推送，请关闭 Express 后重新推送	ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่	帳簿が使用中のため送信を中止しました。Express を閉じてから再送信してください	intake.error.USER_ABORTED_BUSY
-The helper is out of date. Update the helper and submit again	小助手版本过旧，请更新后重新提交	ผู้ช่วยเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	アシスタントが古いバージョンです。更新して再送信してください	intake.error.ERR_PAYLOAD_VERSION
+CC Desktop is out of date. Update CC Desktop and submit again	CC 桌面版版本过旧，请更新后重新提交	CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่	CC デスクトップが古いバージョンです。更新して再送信してください	intake.error.ERR_PAYLOAD_VERSION
 No number_	无发票号_	ไม่มีเลขที่_	番号なし_	cowork.folder.no_number_prefix
 Result Folder	结果文件夹	โฟลเดอร์ผลลัพธ์	結果フォルダー
 MR.ERP settings	MR.ERP 设置	การตั้งค่า MR.ERP	MR.ERP 設定	intake.mrerpDefault.title
@@ -1681,9 +1681,9 @@ MR.ERP Master Options Seen	已读取的 MR.ERP 主档	ข้อมูลหล�
 Folder not available	文件夹不可用	ไม่พบโฟลเดอร์	フォルダーが見つかりません	cowork.folder.folderMissing
 This folder overlaps the folder of scheduled task «{0}».	与定时任务「{0}」的文件夹重叠	โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»	定期タスク「{0}」のフォルダーと重なっています	cowork.folder.overlap_with
 This connection does not support scheduled tasks.	此连接不支持定时任务。	การเชื่อมต่อนี้ไม่รองรับงานตามกำหนดเวลา	この接続は定期タスクに対応していません。	cowork.folder.unsupported_connection
-No folders to choose yet. Add them in the Companion on the PC.	暂无可选文件夹，请在电脑的小助手中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มในผู้ช่วยบนเครื่อง	選べるフォルダーがまだありません。PC のコンパニオンで追加してください。	cowork.folder.noRootsAny
-Connect Companion	连接小助手	เชื่อมต่อผู้ช่วย	コンパニオンを接続	cowork.folder.connectHelper
-Checked the companion	查看了小助手	ตรวจสอบผู้ช่วย Pearnly แล้ว	アシスタントを確認しました
+No folders to choose yet. Add them in CC Desktop on the PC.	暂无可选文件夹，请在电脑的 CC 桌面版中添加。	ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง	選べるフォルダーがまだありません。PC の CC デスクトップで追加してください。	cowork.folder.noRootsAny
+Connect CC Desktop	连接 CC 桌面版	เชื่อมต่อ CC เดสก์ท็อป	CC デスクトップを接続	cowork.folder.connectHelper
+Checked CC Desktop	查看了 CC 桌面版	ตรวจสอบ CC เดสก์ท็อปแล้ว	CC デスクトップを確認しました	
 Refreshed account sets	刷新了账套	รีเฟรชชุดบัญชีแล้ว	帳簿を更新しました
 Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
 Recognized documents	识别了单据	อ่านเอกสารแล้ว	書類を読み取りました

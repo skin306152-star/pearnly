@@ -9,7 +9,7 @@ LINE_ID = "@pearnly"
 EMAIL = "hello@pearnly.com"
 YOUTUBE_URL = "https://www.youtube.com/@pearnlyth"
 TUTORIALS_URL = YOUTUBE_URL + "/playlists"   # 顶栏「使用教程」：频道里按产品分的播放列表
-COMPANION_URL = "/downloads/companion/PearnlyCompanion-Setup.exe"
+COMPANION_URL = "/downloads/companion/CC-Setup.exe"
 # MR.ERP：同一家公司（MR. ERP COMPANY LIMITED）的专业版 ERP / DMS，官网与登录入口在 mrerp4sme.com。
 MRERP_URL = "https://www.mrerp4sme.com/"
 MRERP_LOGIN = "https://www.mrerp4sme.com/login/login.php"
@@ -319,13 +319,13 @@ PRODUCT = {
             "lead": "งานคีย์เอกสารและกระทบยอดที่ทำซ้ำทุกเดือน ให้ระบบช่วยทำ ทีมมีเวลาตรวจงานมากขึ้น",
             "features": [
                 ("บันทึกเอกสารเข้า ERP", "อัปโหลดใบกำกับภาษีและใบเสร็จ ทั้ง PDF และรูปถ่าย หรือส่งทาง LINE ระบบอ่านข้อมูล ตรวจยอด แล้วส่งเข้า ERP ที่คุณใช้อยู่ พร้อมตรวจผลกลับ"),
-                ("เชื่อมต่อ ERP ภายนอกแบบกำหนดเอง", "ปรับการเชื่อมต่อให้เข้ากับ ERP หรือโปรแกรมบัญชีที่สำนักงานใช้อยู่ รวมถึงโปรแกรมบนเครื่อง Windows ผ่านผู้ช่วย Windows"),
+                ("เชื่อมต่อ ERP ภายนอกแบบกำหนดเอง", "ปรับการเชื่อมต่อให้เข้ากับ ERP หรือโปรแกรมบัญชีที่สำนักงานใช้อยู่ รวมถึงโปรแกรมบนเครื่อง Windows ผ่าน CC เดสก์ท็อป"),
                 ("กระทบยอดธนาคาร", "นำ statement ธนาคารมาเทียบกับบัญชีแยกประเภท เห็นรายการที่ตรงและไม่ตรงทันที"),
                 ("กระทบยอดรายได้", "เทียบรายได้ในบัญชีแยกประเภทกับรายงานภาษีขาย หาจุดที่ไม่ตรงกัน"),
                 ("ตรวจรายงานภาษีขาย", "เทียบรายงานภาษีขายกับใบกำกับภาษีขายทีละใบ"),
                 ("บอร์ดงานของทีม", "มอบหมายงาน ติดตามสถานะ แนบไฟล์ และคอมเมนต์ในที่เดียว"),
             ],
-            "download": "ดาวน์โหลดผู้ช่วย Windows",
+            "download": "ดาวน์โหลด CC เดสก์ท็อป",
         },
         "en": {
             "name": "Cowork",
@@ -337,13 +337,13 @@ PRODUCT = {
             "lead": "Let the system take the monthly keying and reconciliation, so your team has more time to review.",
             "features": [
                 ("Enter documents into your ERP", "Upload tax invoices and receipts as PDFs or photos, or send them in LINE. Cowork reads and checks them, pushes them into your ERP and reads the result back."),
-                ("Custom third-party ERP integration", "The connection is fitted to the ERP or accounting software your firm uses, including desktop software on Windows through the Windows helper."),
+                ("Custom third-party ERP integration", "The connection is fitted to the ERP or accounting software your firm uses, including desktop software on Windows through CC Desktop."),
                 ("Bank reconciliation", "Match the bank statement against the general ledger and see what matches and what does not."),
                 ("Income reconciliation", "Compare ledger income with the output VAT report and find the gaps."),
                 ("Output VAT report check", "Check the output VAT report against each sales tax invoice."),
                 ("Team task boards", "Assign work, track status, attach files and comment in one place."),
             ],
-            "download": "Download the Windows helper",
+            "download": "Download CC Desktop",
         },
         "zh": {
             "name": "Cowork",
@@ -355,13 +355,13 @@ PRODUCT = {
             "lead": "每个月重复的录入和对账交给系统，团队把时间留给审核。",
             "features": [
                 ("单据录入 ERP", "上传 PDF 或照片形式的税务发票、收据，也可以用 LINE 发送。系统读取、核对后推送进你在用的 ERP，并回读结果。"),
-                ("定制接入第三方 ERP", "按事务所在用的 ERP 或会计软件定制接入；装在 Windows 电脑上的软件通过 Windows 小助手连接。"),
+                ("定制接入第三方 ERP", "按事务所在用的 ERP 或会计软件定制接入；装在 Windows 电脑上的软件通过 CC 桌面版连接。"),
                 ("银行对账", "银行流水对总账，哪些对上、哪些没对上一目了然。"),
                 ("收入对账", "总账收入对销项税报告，找出差异。"),
                 ("销项税报告核查", "销项税报告逐张对照销项税务发票。"),
                 ("团队任务看板", "分配任务、跟进状态、附件和评论都在一处。"),
             ],
-            "download": "下载 Windows 小助手",
+            "download": "下载 CC 桌面版",
         },
     },
     "dms": {
@@ -686,7 +686,7 @@ PRIVACY = {
                 "การใช้งาน: ที่อยู่ IP ข้อมูลเบราว์เซอร์ ประวัติการเข้าสู่ระบบ และประวัติการเปิดหรือดาวน์โหลดไฟล์ต้นฉบับ",
                 "เอกสารที่ส่งเข้าระบบ: ใบกำกับภาษี ใบเสร็จ สเตทเมนต์ธนาคาร สลิปโอนเงิน และข้อมูลที่อ่านได้จากเอกสารเหล่านั้น",
                 "บัตรประชาชน (Pearnly DMS): รูปบัตร เลขประจำตัวประชาชน ชื่อ-นามสกุล วันเกิด ที่อยู่ เพศ และวันออกบัตรและวันหมดอายุ",
-                "ผู้ช่วย Windows: ชื่อเครื่องคอมพิวเตอร์ โฟลเดอร์ที่คุณอนุญาตและที่อยู่โฟลเดอร์แชร์ในเครือข่าย ไฟล์เอกสารในโฟลเดอร์ที่ตรงตามกฎ และข้อมูลชุดบัญชีที่ใช้ส่งข้อมูลเข้า ERP หรือโปรแกรมบัญชีของคุณ (รายการชุดบัญชี ผังบัญชี ลูกค้า ผู้ขาย สินค้า และแผนก) ผู้ช่วย Windows ไม่เก็บรหัสผ่านของโปรแกรมบัญชี",
+                "CC เดสก์ท็อป: ชื่อเครื่องคอมพิวเตอร์ โฟลเดอร์ที่คุณอนุญาตและที่อยู่โฟลเดอร์แชร์ในเครือข่าย ไฟล์เอกสารในโฟลเดอร์ที่ตรงตามกฎ และข้อมูลชุดบัญชีที่ใช้ส่งข้อมูลเข้า ERP หรือโปรแกรมบัญชีของคุณ (รายการชุดบัญชี ผังบัญชี ลูกค้า ผู้ขาย สินค้า และแผนก) CC เดสก์ท็อป ไม่เก็บรหัสผ่านของโปรแกรมบัญชี",
                 "การเติมเงิน: สลิปโอนเงินที่คุณอัปโหลดเพื่อให้เจ้าหน้าที่ตรวจยอด เราไม่รับและไม่เก็บข้อมูลบัตรเครดิต",
             ]]),
             ("เราใช้ข้อมูลเพื่ออะไร", [[
@@ -713,14 +713,14 @@ PRIVACY = {
                 "ผลระหว่างทางจากการอ่านเอกสาร: ลบอัตโนมัติภายใน 7 วัน",
                 "ชุดสำรองข้อมูล: ชุดรายวันเก็บ 14 วัน ชุดรายสัปดาห์เก็บ 8 สัปดาห์ แล้วลบอัตโนมัติ ข้อมูลที่ลบแล้วจึงอาจยังอยู่ในชุดสำรองได้ไม่เกิน 8 สัปดาห์",
                 "บันทึกของระบบ: เก็บตามรอบหมุนเวียนของเซิร์ฟเวอร์เพื่อความปลอดภัย",
-                "ข้อมูลของผู้ช่วย Windows บนเครื่องของคุณ ได้แก่ บันทึกการทำงาน ประวัติการส่งข้อมูล และสำเนาชุดบัญชี (เก็บ 3 ชุดล่าสุดเป็นค่าเริ่มต้น) คุณเป็นผู้จัดการและลบได้เอง",
+                "ข้อมูลของ CC เดสก์ท็อป บนเครื่องของคุณ ได้แก่ บันทึกการทำงาน ประวัติการส่งข้อมูล และสำเนาชุดบัญชี (เก็บ 3 ชุดล่าสุดเป็นค่าเริ่มต้น) คุณเป็นผู้จัดการและลบได้เอง",
             ]]),
             ("เราดูแลข้อมูลอย่างไร", [[
                 "ทุกการเชื่อมต่อใช้ HTTPS",
                 "แต่ละบริษัทลูกค้ามีฐานข้อมูลแยกกัน",
                 "ไฟล์ต้นฉบับเก็บแบบส่วนตัว เปิดได้เฉพาะผู้มีสิทธิในบัญชีนั้น และมีบันทึกทุกครั้งที่เปิด",
                 "ชุดสำรองข้อมูลปิดการเข้าถึงจากภายนอก และไฟล์ตั้งค่าสำคัญถูกเข้ารหัส",
-                "รหัสเชื่อมต่อของผู้ช่วย Windows ถูกเข้ารหัสเก็บไว้บนเครื่องของคุณ",
+                "รหัสเชื่อมต่อของ CC เดสก์ท็อป ถูกเข้ารหัสเก็บไว้บนเครื่องของคุณ",
                 "พนักงานเข้าถึงข้อมูลได้เท่าที่จำเป็นต่อการให้บริการ",
             ]]),
             ("สิทธิของคุณ", [
@@ -750,7 +750,7 @@ PRIVACY = {
                 "Usage: IP address, browser details, sign-in history and a log of who opened or downloaded original files.",
                 "Documents you send: tax invoices, receipts, bank statements, transfer slips and the data read from them.",
                 "ID cards (Pearnly DMS): the card image, ID number, name, date of birth, address, gender, and issue and expiry dates.",
-                "Windows helper: the computer name, the folders you authorise and their network share paths, document files in those folders that match your rules, and the account-set data needed to send entries into your ERP or accounting software (account-set list, chart of accounts, customers, suppliers, products and departments). The Windows helper does not store your accounting software password.",
+                "CC Desktop: the computer name, the folders you authorise and their network share paths, document files in those folders that match your rules, and the account-set data needed to send entries into your ERP or accounting software (account-set list, chart of accounts, customers, suppliers, products and departments). CC Desktop does not store your accounting software password.",
                 "Top-ups: the transfer slip you upload so our staff can check the amount. We do not receive or store card details.",
             ]]),
             ("How we use it", [[
@@ -777,14 +777,14 @@ PRIVACY = {
                 "Intermediate document-reading results: deleted automatically within 7 days.",
                 "Backups: daily copies are kept 14 days and weekly copies 8 weeks, then deleted automatically, so deleted data may remain in backups for up to 8 weeks.",
                 "System logs: kept on the server's normal rotation for security.",
-                "Windows helper data on your computer, namely its logs, push history and account-set snapshots (the latest 3 by default), is managed and deleted by you.",
+                "CC Desktop data on your computer, namely its logs, push history and account-set snapshots (the latest 3 by default), is managed and deleted by you.",
             ]]),
             ("How we protect it", [[
                 "Every connection uses HTTPS.",
                 "Each business customer has its own separate database.",
                 "Original files are stored privately, open only to people with rights in that account, and every opening is logged.",
                 "Backups are closed to outside access and sensitive configuration files are encrypted.",
-                "The Windows helper's connection token is stored encrypted on your computer.",
+                "CC Desktop's connection token is stored encrypted on your computer.",
                 "Staff access only what they need to provide the service.",
             ]]),
             ("Your rights", [
@@ -814,7 +814,7 @@ PRIVACY = {
                 "使用记录：IP 地址、浏览器信息、登录记录，以及谁打开或下载过原件的记录。",
                 "你送进系统的单据：税票、收据、银行流水、转账单，以及从中读出的数据。",
                 "身份证（Pearnly DMS）：证件照片、身份证号、姓名、出生日期、地址、性别、签发和到期日期。",
-                "Windows 小助手：电脑名称、你授权的文件夹及其网络共享路径、文件夹中符合规则的单据文件，以及推送到你的 ERP 或会计软件所需的账套资料（账套列表、科目表、客户、供应商、商品、部门）。小助手不保存会计软件的登录密码。",
+                "CC 桌面版：电脑名称、你授权的文件夹及其网络共享路径、文件夹中符合规则的单据文件，以及推送到你的 ERP 或会计软件所需的账套资料（账套列表、科目表、客户、供应商、商品、部门）。CC 桌面版不保存会计软件的登录密码。",
                 "充值：你上传的转账单，用于人工核对金额。我们不接收、也不保存银行卡信息。",
             ]]),
             ("我们用数据做什么", [[
@@ -841,14 +841,14 @@ PRIVACY = {
                 "单据读取的中间结果：7 天内自动删除。",
                 "备份：每日备份保留 14 天、每周备份保留 8 周后自动删除，因此已删除的数据最多可能在备份中再保留 8 周。",
                 "系统日志：按服务器常规轮转保存，用于安全。",
-                "小助手在你电脑上的日志、推送记录和账套快照（默认保留最近 3 份）由你自行管理和删除。",
+                "CC 桌面版在你电脑上的日志、推送记录和账套快照（默认保留最近 3 份）由你自行管理和删除。",
             ]]),
             ("我们如何保护数据", [[
                 "所有连接都使用 HTTPS。",
                 "每家企业客户使用独立的数据库。",
                 "原件私密存储，只有该账号内有权限的人能打开，每次打开都有记录。",
                 "备份禁止外部访问，重要配置文件加密。",
-                "小助手的连接凭据在你的电脑上加密保存。",
+                "CC 桌面版的连接凭据在你的电脑上加密保存。",
                 "员工只能接触提供服务所必需的数据。",
             ]]),
             ("你的权利", [
@@ -868,13 +868,13 @@ TERMS_EFFECTIVE = "2026-10-08"
 TERMS = {
     "th": {
         "title": "ข้อกำหนดการใช้งาน | Pearnly",
-        "description": "ข้อกำหนดการใช้บริการ Pearnly Cowork, DMS, ERP และผู้ช่วย Windows: บัญชีผู้ใช้ ค่าบริการ การคืนเงิน ข้อมูล ผลการอ่านเอกสารด้วย AI ความรับผิด และกฎหมายที่ใช้บังคับ ให้บริการโดย MR. ERP COMPANY LIMITED",
+        "description": "ข้อกำหนดการใช้บริการ Pearnly Cowork, DMS, ERP และ CC เดสก์ท็อป: บัญชีผู้ใช้ ค่าบริการ การคืนเงิน ข้อมูล ผลการอ่านเอกสารด้วย AI ความรับผิด และกฎหมายที่ใช้บังคับ ให้บริการโดย MR. ERP COMPANY LIMITED",
         "h1": "ข้อกำหนดการใช้งาน",
         "effective": "มีผลตั้งแต่ 8 ตุลาคม 2569",
         "lead": "ข้อกำหนดนี้กำหนดสิทธิและหน้าที่ระหว่างคุณกับ MR. ERP COMPANY LIMITED ในการใช้บริการ Pearnly",
         "sections": [
             ("การยอมรับข้อกำหนด", [
-                "ข้อกำหนดนี้ใช้กับ Pearnly Cowork, Pearnly DMS, Pearnly ERP, ผู้ช่วย Windows ของ Pearnly และเว็บไซต์ pearnly.com (รวมเรียกว่า “บริการ”) ซึ่งให้บริการโดย MR. ERP COMPANY LIMITED (เลขทะเบียนนิติบุคคล 0315551000297 ต่อไปเรียกว่า “เรา”)",
+                "ข้อกำหนดนี้ใช้กับ Pearnly Cowork, Pearnly DMS, Pearnly ERP, CC เดสก์ท็อป และเว็บไซต์ pearnly.com (รวมเรียกว่า “บริการ”) ซึ่งให้บริการโดย MR. ERP COMPANY LIMITED (เลขทะเบียนนิติบุคคล 0315551000297 ต่อไปเรียกว่า “เรา”)",
                 "การใช้บริการถือว่าคุณยอมรับข้อกำหนดนี้และนโยบายความเป็นส่วนตัวในนามของธุรกิจของคุณ หากไม่ยอมรับ โปรดอย่าใช้บริการ",
             ]),
             ("บริการ", [
@@ -883,7 +883,7 @@ TERMS = {
             ("บัญชีผู้ใช้", [[
                 "เราเปิดบัญชีให้ลูกค้าธุรกิจ ไม่เปิดรับการสมัครด้วยตนเอง",
                 "ผู้ดูแลระบบของธุรกิจเป็นผู้จัดการบัญชีและสิทธิของสมาชิก และธุรกิจรับผิดชอบทุกการกระทำภายใต้บัญชีของตน",
-                "เมื่อได้รับรหัสผ่านเริ่มต้น โปรดเปลี่ยนทันที และเก็บรหัสผ่านและรหัสจับคู่ผู้ช่วย Windows เป็นความลับ หากพบว่ามีผู้อื่นใช้บัญชี โปรดแจ้งเราทันที",
+                "เมื่อได้รับรหัสผ่านเริ่มต้น โปรดเปลี่ยนทันที และเก็บรหัสผ่านและรหัสจับคู่ CC เดสก์ท็อป เป็นความลับ หากพบว่ามีผู้อื่นใช้บัญชี โปรดแจ้งเราทันที",
             ]]),
             ("ค่าบริการและการเติมเงิน", [[
                 "บริการใช้ยอดเงินคงเหลือแบบเติมเงินล่วงหน้า คุณโอนเงินผ่านธนาคารและอัปโหลดสลิป เราตรวจสอบแล้วจึงเพิ่มยอด โดยยึดยอดที่เข้าบัญชีธนาคารจริง ยอดคงเหลือไม่หมดอายุตลอดเวลาที่บัญชียังเปิดใช้งาน",
@@ -902,9 +902,9 @@ TERMS = {
             ("ผลการอ่านเอกสารด้วย AI", [
                 "เอกสารอ่านด้วย AI ผลลัพธ์อาจผิดพลาดหรือไม่ครบถ้วน โปรดตรวจสอบก่อนบันทึกบัญชี ยื่นภาษี หรือชำระเงิน บริการนี้ไม่ใช่คำแนะนำด้านบัญชี ภาษี หรือกฎหมาย การยื่นและการตัดสินใจที่อาศัยผลการอ่านเป็นความรับผิดชอบของคุณ",
             ]),
-            ("การส่งข้อมูลเข้าระบบและผู้ช่วย Windows", [[
+            ("การส่งข้อมูลเข้าระบบและ CC เดสก์ท็อป", [[
                 "เมื่อคุณสั่งส่งข้อมูล เราจะบันทึกข้อมูลเข้าระบบที่คุณเลือกตามคำสั่ง เอกสารเดียวกันส่งกี่ครั้งจะถูกบันทึกตามจำนวนครั้งนั้น",
-                "ผู้ช่วย Windows ติดตั้งบนเครื่องของคุณ อ่านโฟลเดอร์ที่คุณอนุญาต และบันทึกข้อมูลลงชุดบัญชีใน ERP หรือโปรแกรมบัญชีของคุณโดยตรง ผู้ช่วย Windows อัปเดตเป็นเวอร์ชันล่าสุดโดยอัตโนมัติ",
+                "CC เดสก์ท็อป ติดตั้งบนเครื่องของคุณ อ่านโฟลเดอร์ที่คุณอนุญาต และบันทึกข้อมูลลงชุดบัญชีใน ERP หรือโปรแกรมบัญชีของคุณโดยตรง CC เดสก์ท็อป อัปเดตเป็นเวอร์ชันล่าสุดโดยอัตโนมัติ",
                 "คุณรับผิดชอบความปลอดภัยและการสำรองข้อมูลของเครื่องและชุดบัญชีของคุณ",
             ]]),
             ("ข้อห้าม", [
@@ -943,13 +943,13 @@ TERMS = {
     },
     "en": {
         "title": "Terms of use | Pearnly",
-        "description": "Terms for using Pearnly Cowork, DMS, ERP and the Windows helper: accounts, fees, refunds, data, AI reading results, liability and governing law. Provided by MR. ERP COMPANY LIMITED.",
+        "description": "Terms for using Pearnly Cowork, DMS, ERP and CC Desktop: accounts, fees, refunds, data, AI reading results, liability and governing law. Provided by MR. ERP COMPANY LIMITED.",
         "h1": "Terms of use",
         "effective": "Effective 8 October 2026",
         "lead": "These terms set out the rights and obligations between you and MR. ERP COMPANY LIMITED for using Pearnly.",
         "sections": [
             ("Acceptance", [
-                "These terms apply to Pearnly Cowork, Pearnly DMS, Pearnly ERP, the Pearnly Windows helper and the pearnly.com website (together, the “service”), provided by MR. ERP COMPANY LIMITED (registration no. 0315551000297, “we”).",
+                "These terms apply to Pearnly Cowork, Pearnly DMS, Pearnly ERP, CC Desktop and the pearnly.com website (together, the “service”), provided by MR. ERP COMPANY LIMITED (registration no. 0315551000297, “we”).",
                 "By using the service, you accept these terms and the privacy policy on behalf of your business. If you do not agree, do not use the service.",
             ]),
             ("The service", [
@@ -958,7 +958,7 @@ TERMS = {
             ("Accounts", [[
                 "We open accounts for business customers. Self sign-up is not available.",
                 "Your business's administrators manage member accounts and permissions, and the business is responsible for all activity under its accounts.",
-                "Change the initial password as soon as you receive it, and keep passwords and Windows helper pairing codes confidential. Tell us immediately if someone else is using your account.",
+                "Change the initial password as soon as you receive it, and keep passwords and CC Desktop pairing codes confidential. Tell us immediately if someone else is using your account.",
             ]]),
             ("Fees and top-ups", [[
                 "The service uses a prepaid balance. You top up by bank transfer and upload the slip; we check it and then credit the amount actually received in our bank account. The balance does not expire while the account is active.",
@@ -977,9 +977,9 @@ TERMS = {
             ("AI reading results", [
                 "Documents are read by AI, and results may contain errors or omissions. Check them before recording, filing taxes or making payments. The service is not accounting, tax or legal advice; filings and decisions based on the results are your responsibility.",
             ]),
-            ("Sending data and the Windows helper", [[
+            ("Sending data and CC Desktop", [[
                 "When you instruct a push, we write the data into the system you choose as instructed. A document pushed several times is written that many times.",
-                "The Windows helper is installed on your computer, reads the folders you authorise and writes entries directly into the account set of your ERP or accounting software. The Windows helper updates itself to the latest version automatically.",
+                "CC Desktop is installed on your computer, reads the folders you authorise and writes entries directly into the account set of your ERP or accounting software. CC Desktop updates itself to the latest version automatically.",
                 "You are responsible for the security and backup of your computer and account sets.",
             ]]),
             ("Prohibited use", [
@@ -1018,13 +1018,13 @@ TERMS = {
     },
     "zh": {
         "title": "使用条款 | Pearnly",
-        "description": "使用 Pearnly Cowork、DMS、ERP 和 Windows 小助手的条款：账号、费用、退款、数据、AI 读取结果、责任与适用法律。由 MR. ERP COMPANY LIMITED 提供。",
+        "description": "使用 Pearnly Cowork、DMS、ERP 和 CC 桌面版的条款：账号、费用、退款、数据、AI 读取结果、责任与适用法律。由 MR. ERP COMPANY LIMITED 提供。",
         "h1": "使用条款",
         "effective": "自 2026 年 10 月 8 日起生效",
         "lead": "本条款规定你与 MR. ERP COMPANY LIMITED 之间使用 Pearnly 服务的权利与义务。",
         "sections": [
             ("接受条款", [
-                "本条款适用于 Pearnly Cowork、Pearnly DMS、Pearnly ERP、Pearnly Windows 小助手和 pearnly.com 网站（统称“服务”）。服务由 MR. ERP COMPANY LIMITED（企业注册号 0315551000297，以下称“我们”）提供。",
+                "本条款适用于 Pearnly Cowork、Pearnly DMS、Pearnly ERP、CC 桌面版和 pearnly.com 网站（统称“服务”）。服务由 MR. ERP COMPANY LIMITED（企业注册号 0315551000297，以下称“我们”）提供。",
                 "使用服务即表示你代表所属企业接受本条款和隐私政策。不同意的，请不要使用服务。",
             ]),
             ("服务内容", [
@@ -1033,7 +1033,7 @@ TERMS = {
             ("账号", [[
                 "账号由我们为企业客户开设，不接受自助注册。",
                 "企业管理员负责管理本企业成员的账号和权限，企业对其账号下的全部操作负责。",
-                "收到初始密码后请立即修改，并妥善保管密码和小助手配对码。发现账号被他人使用时，请立即通知我们。",
+                "收到初始密码后请立即修改，并妥善保管密码和CC 桌面版配对码。发现账号被他人使用时，请立即通知我们。",
             ]]),
             ("费用与充值", [[
                 "服务采用预付余额。你通过银行转账充值并上传转账单，我们核对后入账，入账金额以银行实际到账为准。余额在账号存续期间不过期。",
@@ -1052,9 +1052,9 @@ TERMS = {
             ("AI 读取结果", [
                 "单据由 AI 读取，结果可能有错漏。入账、申报或付款前，请自行核对。服务不构成会计、税务或法律意见；依据读取结果作出的申报和决定，由你负责。",
             ]),
-            ("推送与 Windows 小助手", [[
+            ("推送与 CC 桌面版", [[
                 "你下达推送指令后，我们按指示把数据写入你选择的系统。同一单据推送几次，就写入几次。",
-                "小助手安装在你的电脑上，读取你授权的文件夹，并把数据直接写入你的 ERP 或会计软件账套。小助手会自动更新到最新版本。",
+                "CC 桌面版安装在你的电脑上，读取你授权的文件夹，并把数据直接写入你的 ERP 或会计软件账套。CC 桌面版会自动更新到最新版本。",
                 "你负责电脑和账套的安全与备份。",
             ]]),
             ("禁止行为", [

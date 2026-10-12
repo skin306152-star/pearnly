@@ -74,6 +74,8 @@ Business number,业务编号
 Buyer,买方
 Buyer Tax ID,买方税号
 Bytes,字节数
+CC Desktop,CC 桌面版
+CC Desktop not connected,CC 桌面版未连接
 Cancel,取消
 Cannot confirm while the status is {0},当前状态为 {0}，无法确认
 Cannot match while the status is {0},当前状态为 {0}，无法匹配
@@ -306,6 +308,7 @@ Identity Session,身份会话
 Image Fingerprint,影像指纹
 Inbound = invoices received; outbound = invoices issued,进项 = 收到的发票；销项 = 开出的发票
 "Install it, then sign in with this account to connect.",安装后用本账号登录即可连接。
+"Install, pair, upgrade and uninstall guide for CC Desktop",CC 桌面版的安装、配对、升级与卸载说明
 "Install, pair, upgrade and uninstall guide for Companion",小助手的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
 Integrations,集成
@@ -690,6 +693,7 @@ This operator's DMS account,该操作员的 DMS 账号
 This operator's DMS password,该操作员的 DMS 密码
 This photo could not be read. Save it as JPEG and upload it again.,无法读取此照片，请另存为 JPEG 后重新上传。
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,本站点安装了多个产品清单：{0}。每个部署仅可承载一个产品。
+This site has no CC Desktop installer address yet.,本站点未配置 CC 桌面版安装包地址。
 "This site has no LINE access token configured, so it cannot send messages",本站点未配置 LINE access token，无法发送消息
 This site has no assistant installer address yet.,本站点未配置小助手安装包地址。
 This site has no product manifest installed; it cannot run as a business site.,本站点没有安装任何产品清单，不能作为业务站点运行
@@ -810,6 +814,7 @@ common.refresh,刷新
 common.save,保存
 common.saving,提交中…
 common.yes,是
+"companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = 由 CC 桌面版在本机拉取后写入
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机拉取后写入
 connect.action.connect,连接 DMS
 connect.action.connectSave,连接并保存
@@ -945,7 +950,7 @@ intake.agent.key,配对码
 intake.agent.loginHint,安装后用本账号登录即可连接。
 intake.agent.reset,重新生成
 intake.agent.resetConfirm,原配对码将立即失效。
-intake.agent.state.missing,小助手未连接
+intake.agent.state.missing,CC 桌面版未连接
 intake.card.purchaseTotal,进项合计（已确认及以上）
 intake.card.readyToPush,已确认 · 可推送
 intake.card.salesTotal,销项合计（已确认及以上）
@@ -1000,7 +1005,7 @@ intake.field.whtAmount,预扣税额
 intake.filter.allDirections,全部方向
 intake.filter.allStatuses,全部状态
 intake.hint.afterSave,保存为草稿，确认后方可推送
-intake.installerMissing,本站点未配置小助手安装包地址。
+intake.installerMissing,本站点未配置 CC 桌面版安装包地址。
 intake.item.name,商品 / 服务
 intake.itemType.expense,费用
 intake.itemType.goods,货品

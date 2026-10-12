@@ -7,7 +7,7 @@ from pearnly_cowork.connections import access
 
 from . import contracts, credentials
 
-INSTALLER_URL = 'https://pearnly.com/downloads/companion/PearnlyCompanion-Setup.exe'
+INSTALLER_URL = 'https://pearnly.com/downloads/companion/CC-Setup.exe'
 
 
 def _local_transaction(function, *args, **kwargs):

@@ -55,18 +55,21 @@ class Receiver(unittest.TestCase):
     def test_prod_writes_release_fixed_name_and_latest(self):
         body = installer(b"v120")
         result = self.publish(body)
-        release = self.root / "releases/1.2.0" / SHA / "PearnlyCompanion-Setup.exe"
+        release = self.root / "releases/1.2.0" / SHA / "CC-Setup.exe"
         self.assertEqual(release.read_bytes(), body)
+        self.assertEqual((self.root / "CC-Setup.exe").read_bytes(), body)
+        # 2026-10-12 改名 CC：改名前发出去的固定下载链接也拿到同一份
         self.assertEqual((self.root / "PearnlyCompanion-Setup.exe").read_bytes(), body)
         latest = json.loads((self.root / "latest.json").read_text())
         self.assertEqual(latest["version"], "1.2.0")
-        self.assertEqual(latest["url"], f"/downloads/companion/releases/1.2.0/{SHA}/PearnlyCompanion-Setup.exe?v={SHA}")
+        self.assertEqual(latest["url"], f"/downloads/companion/releases/1.2.0/{SHA}/CC-Setup.exe?v={SHA}")
         self.assertEqual(result["sha256"], hashlib.sha256(body).hexdigest())
 
     def test_staging_changes_nothing_users_see(self):
         result = self.publish(installer(b"staging"), target="staging")
         self.assertIn("/downloads/companion/staging/36300000000-1/", result["url"])
         self.assertFalse((self.root / "latest.json").exists())
+        self.assertFalse((self.root / "CC-Setup.exe").exists())
         self.assertFalse((self.root / "PearnlyCompanion-Setup.exe").exists())
 
     def test_republishing_the_same_bytes_is_fine_different_bytes_are_refused(self):

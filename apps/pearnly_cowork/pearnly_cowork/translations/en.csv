@@ -44,6 +44,7 @@ A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is re
 A value in the ERP data report exceeds the allowed length.,A value in the ERP data report exceeds the allowed length.
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
+Access to the CC Desktop queue has been revoked.,Access to the CC Desktop queue has been revoked.
 Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
 Account Codes,Account Codes
 Account Key,Account Key
@@ -184,6 +185,18 @@ Buyer tax ID,Buyer tax ID
 "By preset, these accounts are left out: {0}","By preset, these accounts are left out: {0}"
 By preset: {0} groups matched by total,By preset: {0} groups matched by total
 Byte Size,Byte Size
+CC Desktop Report,CC Desktop Report
+CC Desktop authentication failed.,CC Desktop authentication failed.
+CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
+CC Desktop could not write this invoice. It is retried automatically,CC Desktop could not write this invoice. It is retried automatically
+CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
+CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
+CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
+CC Desktop offline or needs update,CC Desktop offline or needs update
+"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop","CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
+CC Desktop on this PC has not synced recently. Update it to the latest version.,CC Desktop on this PC has not synced recently. Update it to the latest version.
+CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.,CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.
+"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again","CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
 Calendar,Calendar
 Camera,Camera
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
@@ -215,6 +228,7 @@ Check the ERP connection settings.,Check the ERP connection settings.
 Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
 Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
 Checkbox,Checkbox
+Checked CC Desktop,Checked CC Desktop
 Checked MR.ERP import settings,Checked MR.ERP import settings
 Checked a reconciliation's progress,Checked a reconciliation's progress
 Checked folder task options,Checked folder task options
@@ -238,6 +252,7 @@ Chinese Name,Chinese Name
 Choose a day and time for the monthly run.,Choose a day and time for the monthly run.
 Choose a file,Choose a file
 "Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
+Choose an allowed root reported by CC Desktop.,Choose an allowed root reported by CC Desktop.
 Choose an allowed root reported by the Companion.,Choose an allowed root reported by the Companion.
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
@@ -295,6 +310,7 @@ Confirmation Request,Confirmation Request
 Confirmation Revision,Confirmation Revision
 Confirmed,Confirmed
 Confirmed a push result,Confirmed a push result
+Connect CC Desktop,Connect CC Desktop
 Connect Companion,Connect Companion
 Connection Configuration,Connection Configuration
 Connection Name,Connection Name
@@ -797,6 +813,7 @@ New stock count,New stock count
 New task,New task
 "New, as on the invoice","New, as on the invoice"
 Next Attempt At,Next Attempt At
+No CC Desktop credential has been issued for this connection.,No CC Desktop credential has been issued for this connection.
 No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
 No ERP is ready to use,No ERP is ready to use
 No account set matches “{0}”,No account set matches “{0}”
@@ -807,7 +824,9 @@ No changes were given.,No changes were given.
 No documents were given.,No documents were given.
 No due date,No due date
 No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
+No folders on this PC yet. Add them in CC Desktop on that PC.,No folders on this PC yet. Add them in CC Desktop on that PC.
 No folders on this PC yet. Add them in the Companion on that PC.,No folders on this PC yet. Add them in the Companion on that PC.
+No folders to choose yet. Add them in CC Desktop on the PC.,No folders to choose yet. Add them in CC Desktop on the PC.
 No folders to choose yet. Add them in the Companion on the PC.,No folders to choose yet. Add them in the Companion on the PC.
 No invoice could be read.,No invoice could be read.
 No invoice summary found,No invoice summary found
@@ -1084,6 +1103,7 @@ Run at (Bangkok time),Run at (Bangkok time)
 Run history,Run history
 Run now,Run now
 Run on day,Run on day
+Run requested. CC Desktop starts within a few minutes.,Run requested. CC Desktop starts within a few minutes.
 Run requested. The Companion starts within a few minutes.,Run requested. The Companion starts within a few minutes.
 Run time,Run time
 SHA-256,SHA-256
@@ -1235,6 +1255,13 @@ Text is too long,Text is too long
 Thai Name,Thai Name
 That code is not valid,That code is not valid
 That photo cannot be attached. Upload it again.,That photo cannot be attached. Upload it again.
+The CC Desktop delivery record is invalid.,The CC Desktop delivery record is invalid.
+The CC Desktop delivery record was not found.,The CC Desktop delivery record was not found.
+The CC Desktop identity is no longer valid. Authenticate again.,The CC Desktop identity is no longer valid. Authenticate again.
+The CC Desktop queue request is invalid.,The CC Desktop queue request is invalid.
+The CC Desktop queue response is invalid.,The CC Desktop queue response is invalid.
+The CC Desktop report is invalid.,The CC Desktop report is invalid.
+The CC Desktop service is temporarily unavailable. Try again shortly.,The CC Desktop service is temporarily unavailable. Try again shortly.
 The Companion delivery record is invalid.,The Companion delivery record is invalid.
 The Companion delivery record was not found.,The Companion delivery record was not found.
 The Companion identity is no longer valid. Authenticate again.,The Companion identity is no longer valid. Authenticate again.
@@ -1461,6 +1488,7 @@ This channel is not open yet,This channel is not open yet
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
 This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
+This connection does not support an Express CC Desktop credential.,This connection does not support an Express CC Desktop credential.
 This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
 This connection does not support scheduled tasks.,This connection does not support scheduled tasks.
 This connection is disabled.,This connection is disabled.
@@ -1574,8 +1602,10 @@ Uploading,Uploading
 Uploading files,Uploading files
 Uploading from the PC,Uploading from the PC
 Use Count,Use Count
-Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
-Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
+Use the CC Desktop credential service to access credentials.,Use the CC Desktop credential service to access credentials.
+Use the CC Desktop service to access deliveries.,Use the CC Desktop service to access deliveries.
+Use the Cowork Companion credential service to access credentials.,Use the CC Desktop credential service to access credentials.
+Use the Cowork Companion service to access deliveries.,Use the CC Desktop service to access deliveries.
 Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
 Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
 Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
@@ -1667,22 +1697,22 @@ client,client
 client_import.file_too_large,The import file is too large.
 client_import.too_many_rows,Too many rows to import.
 closed,closed
-companion.context_invalid,The Companion identity is no longer valid. Authenticate again.
-companion.credential_not_found,No Companion credential has been issued for this connection.
-companion.delivery_invalid,The Companion delivery record is invalid.
-companion.delivery_not_found,The Companion delivery record was not found.
+companion.context_invalid,The CC Desktop identity is no longer valid. Authenticate again.
+companion.credential_not_found,No CC Desktop credential has been issued for this connection.
+companion.delivery_invalid,The CC Desktop delivery record is invalid.
+companion.delivery_not_found,The CC Desktop delivery record was not found.
 companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
-companion.queue_access_revoked,Access to the Companion queue has been revoked.
+companion.queue_access_revoked,Access to the CC Desktop queue has been revoked.
 companion.queue_conflict,This delivery conflicts with the current task state.
-companion.queue_request_invalid,The Companion queue request is invalid.
-companion.queue_response_invalid,The Companion queue response is invalid.
+companion.queue_request_invalid,The CC Desktop queue request is invalid.
+companion.queue_response_invalid,The CC Desktop queue response is invalid.
 companion.receipt_limit,The credential request receipt limit has been reached.
-companion.report_busy,The Companion service is temporarily unavailable. Try again shortly.
-companion.report_invalid,The Companion report is invalid.
+companion.report_busy,The CC Desktop service is temporarily unavailable. Try again shortly.
+companion.report_invalid,The CC Desktop report is invalid.
 companion.request_conflict,This request key was used for another credential operation.
 companion.request_invalid,The credential request is invalid.
-companion.unauthorized,Companion authentication failed.
-companion.unsupported_connection,This connection does not support an Express Companion credential.
+companion.unauthorized,CC Desktop authentication failed.
+companion.unsupported_connection,This connection does not support an Express CC Desktop credential.
 confirmed,Confirmed
 connection.adapter_invalid,Unsupported ERP connection type.
 connection.config_invalid,Check the ERP connection settings.
@@ -1716,16 +1746,16 @@ cowork.choice.payment,Payment
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
 cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
-cowork.folder.agentStale,Companion offline or needs update
-cowork.folder.agentStaleHint,The Companion on this PC has not synced recently. Update it to the latest version.
+cowork.folder.agentStale,CC Desktop offline or needs update
+cowork.folder.agentStaleHint,CC Desktop on this PC has not synced recently. Update it to the latest version.
 cowork.folder.batch_missing,The recognition task was not found.
 cowork.folder.billing_pending,Waiting for the recognition charge to complete.
 cowork.folder.cardHint,Set a local folder once; documents are read and entered every month
 cowork.folder.catalogEmpty,No account sets yet. Use Reload in New Intake first.
 cowork.folder.col.result,Folder results
 cowork.folder.col.schedule,Schedule
-cowork.folder.companion_offline,The helper was not connected when this invoice was ready to push; it will try again in ten minutes.
-cowork.folder.connectHelper,Connect Companion
+cowork.folder.companion_offline,CC Desktop was not connected when this invoice was ready to push; it will try again in ten minutes.
+cowork.folder.connectHelper,Connect CC Desktop
 cowork.folder.connection_fixed,A scheduled task cannot move to another PC. Turn it off and create a new one.
 cowork.folder.content_mismatch,The uploaded file does not match the file on the PC.
 cowork.folder.counts,Entered {0} · to check {1}
@@ -1775,8 +1805,8 @@ cowork.folder.lastDay,Last day of the month
 cowork.folder.mastersLoading,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
 cowork.folder.new,New scheduled task
 cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
-cowork.folder.noRoots,No folders on this PC yet. Add them in the Companion on that PC.
-cowork.folder.noRootsAny,No folders to choose yet. Add them in the Companion on the PC.
+cowork.folder.noRoots,No folders on this PC yet. Add them in CC Desktop on that PC.
+cowork.folder.noRootsAny,No folders to choose yet. Add them in CC Desktop on the PC.
 cowork.folder.noRuns,No runs yet
 cowork.folder.no_number_prefix,No number_
 cowork.folder.off,Rule is off
@@ -1786,11 +1816,11 @@ cowork.folder.overlap_with,This folder overlaps the folder of scheduled task «{
 cowork.folder.owner_not_ready,The task owner can no longer enter documents with this connection.
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
 cowork.folder.rootItself,(the root folder itself)
-cowork.folder.root_invalid,Choose an allowed root reported by the Companion.
+cowork.folder.root_invalid,Choose an allowed root reported by CC Desktop.
 cowork.folder.rule_disabled,This scheduled task is turned off.
 cowork.folder.rule_missing,This scheduled task no longer exists for this PC.
 cowork.folder.runNow,Run now
-cowork.folder.runRequested,Run requested. The Companion starts within a few minutes.
+cowork.folder.runRequested,Run requested. CC Desktop starts within a few minutes.
 cowork.folder.runScan,Found {0} · new {1} · skipped {2} · upload failed {3}
 cowork.folder.runs,Run history
 cowork.folder.schedule,Monthly on {0} at {1}
@@ -2509,7 +2539,7 @@ in,in
 intake.catalog.reload,Read again
 intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
-intake.error.ACCOUNT_DIR_NOT_ALLOWED,The helper is not allowed to write to this account set. Check the helper's account set
+intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 intake.error.ACCOUNT_SET_UNREACHABLE,The account set cannot be reached right now. It will be sent automatically once connected.
 intake.error.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
 intake.error.BAD_SALES_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
@@ -2531,7 +2561,7 @@ intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a jou
 intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
-intake.error.ERR_PAYLOAD_VERSION,The helper is out of date. Update the helper and submit again
+intake.error.ERR_PAYLOAD_VERSION,CC Desktop is out of date. Update CC Desktop and submit again
 intake.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
 intake.error.INVALID_DOC_DATE,The document date is invalid. Correct it and submit again.
 intake.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
@@ -2542,8 +2572,8 @@ intake.error.MAPPING_MISSING_ITEM,The matching stock item is missing. Choose it 
 intake.error.MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
 intake.error.MISSING_REF_NO,The invoice number is missing. Add it and submit again.
 intake.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
-intake.error.NO_ACCOUNT_SELECTION,"The helper on this PC does not have this account set, or cannot write to it. Check the helper's account set"
-intake.error.PAYLOAD_INVALID,The helper could not read this invoice. Check the fields and submit again
+intake.error.NO_ACCOUNT_SELECTION,"CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
+intake.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 intake.error.PRIOR_DOC_STILL_IN_ERP,"The earlier version of this invoice is still in Express. Delete it in Express, or choose Send anyway"
 intake.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
 intake.error.STOCK_IN_FAILED,"The stock lines could not be posted. Check the items, quantities and prices"
@@ -2553,8 +2583,8 @@ intake.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Expres
 intake.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
 intake.error.USER_ABORTED_BUSY,Sending was cancelled because the account set was in use. Close Express and send again
 intake.error.account_not_in_chart,An account used for this invoice is not in the Express chart of accounts. Check the account settings
-intake.error.account_set_not_allowed,The helper has not been given this account set. Check the helper's account sets
-intake.error.agent_failed,The helper could not write this invoice. It is retried automatically
+intake.error.account_set_not_allowed,CC Desktop has not been given this account set. Check the account sets in CC Desktop
+intake.error.agent_failed,CC Desktop could not write this invoice. It is retried automatically
 intake.error.already_success,This invoice was already sent successfully
 intake.error.amounts_not_consistent,The amounts do not add up. Correct them and submit again
 intake.error.bad_or_missing_date,The invoice date is missing or unreadable. Fill it in and submit again
@@ -2581,7 +2611,7 @@ intake.error.no_input_vat_account,An account needed for this invoice is not set.
 intake.error.no_output_vat_account,An account needed for this invoice is not set. Check the account settings
 intake.error.no_purchase_account,An account needed for this invoice is not set. Check the account settings
 intake.error.no_revenue_account,An account needed for this invoice is not set. Check the account settings
-intake.error.payload_version_outdated,The helper is out of date. Update the helper and submit again
+intake.error.payload_version_outdated,CC Desktop is out of date. Update CC Desktop and submit again
 intake.error.posting_kind_needed,Choose service or stock for this invoice and submit again
 intake.error.seller_buyer_same_tax,The seller and buyer have the same tax ID. Correct it and submit again
 intake.error.tax_id_invalid,The tax ID is not valid. Correct it and submit again
@@ -2659,7 +2689,7 @@ physical_page,physical_page
 probably {0},probably {0}
 push.adapter_not_connected,This ERP adapter is not connected yet.
 push.branch_invalid,Invalid push execution mode.
-push.companion_account_unreported,"The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again"
+push.companion_account_unreported,"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
 push.disabled,"Pushing is not enabled for this site, so nothing was sent."
 push.native_ack_conflict,The acknowledgement conflicts with the recorded result.
 push.native_history_changed,The invoice has changed. Prepare it again.

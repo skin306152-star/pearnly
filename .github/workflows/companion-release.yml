@@ -75,7 +75,7 @@ jobs:
         with:
           name: companion-installer
           path: |
-            companion/dist/PearnlyCompanion-Setup.exe
+            companion/dist/CC-Setup.exe
             companion/dist/release.json
           if-no-files-found: error
           retention-days: 1
@@ -100,7 +100,7 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.PRODUCTION_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-          installer=dist/PearnlyCompanion-Setup.exe
+          installer=dist/CC-Setup.exe
           sha256=$(sha256sum "$installer" | cut -d' ' -f1)
           size=$(stat -c %s "$installer")
           manifest=$(python3 - "$sha256" "$size" <<'EOF'
@@ -127,8 +127,10 @@ jobs:
           downloaded=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://pearnly.com$url" | sha256sum | cut -d' ' -f1)
           [ "$downloaded" = "$sha256" ] || { echo "public download does not match"; exit 1; }
           if [ "$TARGET" = prod ]; then
-            fixed=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' https://pearnly.com/downloads/companion/PearnlyCompanion-Setup.exe | sha256sum | cut -d' ' -f1)
-            [ "$fixed" = "$sha256" ] || { echo "fixed-name download does not match"; exit 1; }
+            for name in CC-Setup.exe PearnlyCompanion-Setup.exe; do
+              fixed=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://pearnly.com/downloads/companion/$name" | sha256sum | cut -d' ' -f1)
+              [ "$fixed" = "$sha256" ] || { echo "fixed-name download $name does not match"; exit 1; }
+            done
             curl -fsSL https://pearnly.com/downloads/companion/latest.json
           fi
           printf 'Published (%s): `https://pearnly.com%s` sha256 `%s`\n' "$TARGET" "$url" "$sha256" >> "$GITHUB_STEP_SUMMARY"
