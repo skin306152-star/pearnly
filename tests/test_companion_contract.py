@@ -263,6 +263,13 @@ class OnDemandRequests(unittest.TestCase):
             self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
                                              function), method)
 
+    def test_this_helper_is_new_enough_to_take_requests(self):
+        """服务端只把 `MIN_COMPANION` 及以上的电脑当作「会领按需请求」：仓库里这版小助手不能低于它。"""
+        version = module_constants(COMPANION / "version.py")["VERSION"]
+        minimum = module_constants(SERVER / "request_contracts.py")["MIN_COMPANION"]
+        self.assertGreaterEqual(tuple(int(part) for part in version.split(".")),
+                                tuple(int(part) for part in minimum.split(".")))
+
     def test_both_sides_share_the_same_kinds_sizes_and_timings(self):
         helper = number_constants(COMPANION / "request_contract.py", self.SHARED)
         server = number_constants(SERVER / "request_contracts.py", self.SHARED)
