@@ -1493,6 +1493,18 @@ def _tax_line(line) -> dict:
     return out
 
 
+def _vat_boxes(boxes) -> list:
+    """ภ.พ.30 各栏连同表上的栏名（泰文照表样、同工作簿；另附英文）：只给数字时模型把第 9 栏「ภาษีที่ชำระเกินเดือนนี้」说成了
+    应纳税额（2026-10-13 测试机）。空着的栏（13–16 只在逾期 / 补报时填）不给。"""
+    out = []
+    for key in sorted(boxes or {}, key=lambda value: int(value) if str(value).isdigit() else 99):
+        if boxes[key] in (None, ""):
+            continue
+        message = f"cowork.tax.pp30.box.{key}"
+        out.append({"box": str(key), "th": _(message, lang="th"), "en": _(message, lang="en"), "amount": boxes[key]})
+    return out
+
+
 def vat_draft(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
@@ -1505,10 +1517,11 @@ def vat_draft(tool_input) -> str:
                                          "cowork_express_readback for it first, then call this again."})
     if summary.get("status") != "drafted":
         return _json(summary)
-    out = {key: summary.get(key) for key in ("draft", "period", "company", "readback", "boxes", "outcome", "options",
+    out = {key: summary.get(key) for key in ("draft", "period", "company", "readback", "outcome", "options",
                                              "sales", "purchases", "claimable_if_fixed", "previous_excess",
                                              "deadlines", "documents_checked", "issues_by_code")}
-    out.update({"issues_total": len(summary.get("issues") or []), "issues": _tax_issues(summary.get("issues")),
+    out.update({"boxes": _vat_boxes(summary.get("boxes")),
+                "issues_total": len(summary.get("issues") or []), "issues": _tax_issues(summary.get("issues")),
                 "unreadable_rows": (summary.get("unreadable_rows") or [])[:10],
                 "file": _tax_file(summary, tool_input.get("workbook"))})
     return _json(_filled(out))

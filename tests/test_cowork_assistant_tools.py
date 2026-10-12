@@ -58,7 +58,7 @@ class _Frappe(types.ModuleType):
         raise (exc or self.ValidationError)(message)
 
     @staticmethod
-    def _(text):
+    def _(text, lang=None):
         return text
 
 
@@ -986,6 +986,25 @@ class TaxDraftTests(unittest.TestCase):
         self.assertIn("cowork_express_readback", declared["cowork_vat_draft"]["description"])
         self.assertIn("never say it was filed", declared["cowork_wht_draft"]["description"])
 
+    def test_box_labels_are_the_forms_own_labels(self):
+        """2026-10-13 测试机：CC 把第 9 栏（ภาษีที่ชำระเกินเดือนนี้，多缴）说成了应纳税额。栏名取工作簿用的同一组词条。"""
+        rows = {}
+        tsv = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv"
+        for line in tsv.read_text(encoding="utf-8").splitlines():
+            parts = line.split("\t")
+            if len(parts) == 5 and parts[4].startswith("cowork.tax.pp30.box."):
+                rows[parts[4]] = {"en": parts[0], "th": parts[2]}
+        real = tools._
+        tools._ = lambda text, lang=None: rows[text][lang] if lang else text
+        self.addCleanup(setattr, tools, "_", real)
+        boxes = {str(number): "1.00" for number in range(1, 13)} | {str(number): "" for number in range(13, 17)}
+        shown = {row["box"]: row for row in tools._vat_boxes(boxes)}
+        self.assertEqual(list(shown), [str(number) for number in range(1, 13)])
+        self.assertTrue(shown["9"]["th"].startswith("ภาษีที่ชำระเกินเดือนนี้"))
+        self.assertTrue(shown["9"]["en"].startswith("Tax overpaid this month"))
+        self.assertTrue(shown["8"]["th"].startswith("ภาษีที่ต้องชำระเดือนนี้"))
+        self.assertTrue(shown["11"]["en"].startswith("Net tax payable"))
+
     def test_vat_draft_without_readback_asks_for_one(self):
         self.vat_result = lambda: {"status": "readback_needed", "period": "2026-09"}
         out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09"}))
@@ -994,10 +1013,15 @@ class TaxDraftTests(unittest.TestCase):
         self.assertFalse([call for call in self.calls if call[0] == "attach"])
 
     def test_vat_draft_gives_the_points_and_the_workbook(self):
+        real = tools._
+        tools._ = lambda text, lang=None: f"{lang}:{text}" if lang else text
+        self.addCleanup(setattr, tools, "_", real)
         out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09",
                                           "excess_brought_forward": "100", "zero_vat_as": ""}))
         self.assertEqual(self.calls[0], ("vat", "C", "K", "2026-09", {"excess_brought_forward": "100"}))
-        self.assertEqual(out["boxes"], {"5": "700.00", "13": ""})
+        # 每栏带表上的栏名（泰文 + 英文）；空着的第 13 栏不给
+        self.assertEqual(out["boxes"], [{"box": "5", "th": "th:cowork.tax.pp30.box.5", "en": "en:cowork.tax.pp30.box.5",
+                                         "amount": "700.00"}])
         self.assertEqual(out["issues_total"], 41)
         self.assertEqual(len(out["issues"]), tools.TAX_ISSUES_SHOWN)
         self.assertEqual(out["issues"][0]["code"], "input_over_six_months")
