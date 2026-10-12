@@ -134,7 +134,7 @@ class CustomerWriteFlow(unittest.TestCase):
         self.assertFalse(self.transport.writes())
         self.assertFalse(self.ledgers())
 
-    def test_pending_same_request_does_not_log_in_or_post_again(self):
+    def test_pending_same_request_is_only_checked_never_posted_again(self):
         payload = self.review()
         from pearnly_dms.intake.customer_attempt import Attempt
         fields = {key: payload["draft"].get(key, "") for key in self.flow._CREATE_ID_KEYS}
@@ -144,7 +144,10 @@ class CustomerWriteFlow(unittest.TestCase):
                          fields=fields, mode="create", customer_id=None, addresses=addresses, baseline=None)
         marker.begin()
         self.confirm(payload)
-        self.assertEqual(self.login.call_count, 0)
+        # A blocked request logs in once for a read-only check of the pending dispatch
+        # (intake.customer_attempt.Attempt.reconcile); a row without check evidence stays
+        # blocked, and nothing is posted again.
+        self.assertEqual(self.login.call_count, 1)
         self.assertFalse(self.transport.writes())
         self.assertEqual(self.ledgers()[0]["status"], "manual")
 
