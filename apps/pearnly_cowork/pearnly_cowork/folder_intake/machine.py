@@ -274,6 +274,11 @@ def _begin(context, body):
                       "relpath": relpath, "filename": filename, "byte_size": size, "sha256": digest,
                       "actor": rule.rule_owner, "state": "registered", "registered_at": now_datetime()})
         write(entry)
+    if contracts.is_legacy_table(filename):
+        # 旧版 Excel（.xls）读不了：登记成失败、写明原因，不上传（结果、简报里看得到，小助手记下不再传）
+        entry.state, entry.last_code, entry.finished_at = "failed", contracts.XLS_NOT_SUPPORTED, now_datetime()
+        write(entry)
+        return {"entry": entry.name, "state": "failed", "code": entry.last_code}
     target = _upload_target(rule, entry)
     if target.get("direct"):
         entry.route = "direct"

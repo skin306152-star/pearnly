@@ -30,8 +30,11 @@ RESULT_FOLDERS = {"zh": RESULT_FOLDER, "th": "_ผลลัพธ์ Pearnly", "
 _RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS.values())
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
 # POS 导出（交接 L9）：推往 Express 的销售任务另收收银机导出的表格，到点与票据一起处理（`pos_import`，按天建票）。
-# 与小助手 `folder_plan.TABLE_EXTENSIONS` 同一组；旧版 .xls 不收（镜像里不读）。同步按任务下发（`rules[].extensions`）。
-TABLE_EXTENSIONS = (".xlsx", ".xlsm", ".csv")
+# 与小助手 `folder_plan.TABLE_EXTENSIONS` 同一组，同步按任务下发（`rules[].extensions`）。旧版 Excel（.xls）镜像里不读：
+# 照样登记，登记时就记失败、写明原因（`LEGACY_TABLE`，`pos.xls_not_supported`），不上传，结果与简报里看得到。
+TABLE_EXTENSIONS = (".xlsx", ".xlsm", ".csv", ".xls")
+LEGACY_TABLE = ".xls"
+XLS_NOT_SUPPORTED = "pos.xls_not_supported"
 POS_LAYOUT_NEEDED = "pos.layout_needed"  # POS 导出的列还没认好：停在 source_ready 等人答一次（算「停下待人」）
 DIRECTIONS = ("purchase", "sales")
 POSTING_KINDS = ("service", "stock")
@@ -205,6 +208,11 @@ def extensions_for(direction: Any, adapter: Any = "express") -> tuple:
 def is_table(name: Any) -> bool:
     """这份文件是 POS 导出（按天录销售，不交识别）。"""
     return str(name or "").lower().endswith(TABLE_EXTENSIONS)
+
+
+def is_legacy_table(name: Any) -> bool:
+    """旧版 Excel（.xls）：收进任务但读不了，登记即失败。"""
+    return str(name or "").lower().endswith(LEGACY_TABLE)
 
 
 def filename(value: Any, extensions: tuple = EXTENSIONS) -> str:

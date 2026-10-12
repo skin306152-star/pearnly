@@ -217,6 +217,7 @@ class FolderIntake:
                     # 新任务：不拍底，到点处理文件夹里本任务还没处理过的全部文件（改过文件夹的老任务也转成这样，旧底丢掉）。
                     state.pop("baseline", None)
                     state.pop("baseline_since", None)
+                    state.pop("baseline_exts", None)
                 else:
                     self._baseline(state, rule, root, offset)
                 due = plan.due(rule, state, now + offset)
@@ -293,7 +294,7 @@ class FolderIntake:
         basis = (self._surveyed.get(key, 0),
                  tuple((rule.get("name"), rule.get("root_id"), rule.get("folder"), bool(rule.get("existing")),
                         rule.get("active_since"), (ledger.rules.get(rule.get("name")) or {}).get("baseline_since"),
-                        plan.rule_extensions(rule))
+                        plan.taken_extensions(rule, ledger.rules.get(rule.get("name")) or {}))
                        for rule in rules))
         if not touched and self._rule_pending_basis.get(key) == basis:
             return
@@ -318,7 +319,7 @@ class FolderIntake:
             by_root.setdefault(root, []).append((
                 name, rule.get("folder") or "",
                 lambda relpath, size, mtime, rule_name=name: ledger.known(rule_name, relpath, size, mtime) is not None,
-                baseline, plan.rule_extensions(rule)))
+                baseline, plan.taken_extensions(rule, state)))
         pending = {}
         for root, members in by_root.items():
             pending.update(plan.pending_counts(seen[root], members))
@@ -370,14 +371,32 @@ class FolderIntake:
         """老任务（云端 ``existing`` 为假，2026-10 之前建的）第一次见到时（或它重新启用时），给文件夹里已有的文件拍一张底：
 
         这些是启用前就在的（按创建时间早于启用时刻），不处理；此后不在这张底里的文件都算新放进来的——
-        包括同一个盘里「剪切移动」进来的旧文件（Windows 移动不改创建时间，光看创建时间会漏掉）。"""
+        包括同一个盘里「剪切移动」进来的旧文件（Windows 移动不改创建时间，光看创建时间会漏掉）。
+
+        底按哪些扩展名拍的记在 ``baseline_exts``。任务后来多收了扩展名（升级到 1.5、云端给推往 Express 的销售任务下发
+        POS 导出）：此刻已在文件夹里的这类文件补进底里（任务那时还不收它们，可能早已手工录过），之后放进来的才处理；
+        这次没读全（网络共享抖了一下）就下一轮再补，补好之前这几种扩展名不扫（`plan.taken_extensions`）。"""
         since = float(rule.get("active_since") or 0)
-        if root is None or state.get("baseline_since") == since:
+        if root is None:
             return
+        extensions = plan.rule_extensions(rule)
         folder = plan.rule_folder(root["path"], rule.get("folder") or "")
-        state["baseline"] = sorted(c.relpath.casefold() for c in plan.scan(folder, extensions=plan.rule_extensions(rule))
-                                   if not plan.is_new(c, since, offset))
-        state["baseline_since"] = since
+        if state.get("baseline_since") != since:
+            state["baseline"] = sorted(c.relpath.casefold() for c in plan.scan(folder, extensions=extensions)
+                                       if not plan.is_new(c, since, offset))
+            state["baseline_since"] = since
+            state["baseline_exts"] = list(extensions)
+            return
+        done = plan.baselined_extensions(state)
+        added = tuple(ext for ext in extensions if ext not in done)
+        if not added or not folder.is_dir():
+            return
+        errors: list = []
+        found = {c.relpath.casefold() for c in plan.scan(folder, errors, extensions=added)}
+        if errors:
+            return
+        state["baseline"] = sorted(set(state.get("baseline") or ()) | found)
+        state["baseline_exts"] = [ext for ext in plan.KNOWN_EXTENSIONS if ext in done or ext in added]
 
     def _retry(self, client, cfg, ledger: Ledger, rule: dict, root: dict) -> bool:
         """上一次没传成的（网络断了、文件还没写完、服务端暂时不收）每一轮补传，不等到下个月。返回这一轮传过没有。"""
@@ -459,7 +478,8 @@ class FolderIntake:
         waiting: list[plan.Candidate] = []
         seen: set[str] = set()
         errors: list = []
-        extensions = plan.rule_extensions(rule)
+        # 老任务只扫拍过底的扩展名（新收的先补拍底，见 _baseline）
+        extensions = plan.taken_extensions(rule, state)
         for candidate in plan.scan(folder, errors, extensions=extensions):
             if self._stop.is_set():
                 # 被叫停（只在两份文件之间）：不算处理过、不带 scanned，下次启动同一时刻接着跑（同一个运行号）

@@ -8,7 +8,9 @@
   包括建任务前就在的（「处理过」只看本机台账：路径 + 大小 + 修改时间）；老任务只收规则启用之后放进文件夹的文件
   （启用时按文件在本机的创建时间拍底，先用云端时间校正本机时钟）；
 - 收 PDF / 图片；推往 Express 的销售任务另收 POS 导出的 Excel / CSV（云端按任务下发 ``extensions``，
-  ``rule_extensions``；旧云端不发就只收 PDF / 图片）；结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
+  ``rule_extensions``；旧云端不发就只收 PDF / 图片；旧版 .xls 也收，云端登记即记失败、写明原因，不上传）；老任务
+  新收的扩展名先补拍底（此刻已在文件夹里的这类文件算启用前就在的），补好之前不扫（``taken_extensions``）；
+  结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
 - 文件 2 分钟内没再变动才算写完（扫描仪、复制还没完成的先不传）；
 - 文件夹现有几份（`survey`，给网页卡片与任务列表）与 `scan` 同一判据，只列目录、限时限量，数不完就标「不全」；
   票据与 POS 导出分开数（``counts`` / ``table_counts``），待处理数按每条任务实际收的扩展名算。
@@ -35,7 +37,7 @@ RESULT_FOLDERS = (RESULT_FOLDER, "_ผลลัพธ์ Pearnly", "_Pearnly Res
 _RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS)
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
 # POS 导出（2026-10-13）：与云端 folder_intake/contracts.TABLE_EXTENSIONS 同一组，只在云端给这条任务下发时收。
-TABLE_EXTENSIONS = (".xlsx", ".xlsm", ".csv")
+TABLE_EXTENSIONS = (".xlsx", ".xlsm", ".csv", ".xls")
 KNOWN_EXTENSIONS = EXTENSIONS + TABLE_EXTENSIONS
 STABLE_SECONDS = 120
 # 按时开跑后这么久之内算「按时」，再晚就是「开机补跑」。
@@ -97,6 +99,26 @@ def rule_extensions(rule: dict) -> tuple:
         return EXTENSIONS
     wanted = {str(item).lower() for item in sent}
     return tuple(ext for ext in KNOWN_EXTENSIONS if ext in wanted) or EXTENSIONS
+
+
+def baselined_extensions(state: dict) -> tuple:
+    """老任务的底按哪些扩展名拍过（``baseline_exts``）；1.5 之前拍的底没记，那时只收 PDF / 图片。"""
+    sent = state.get("baseline_exts") if isinstance(state, dict) else None
+    if not isinstance(sent, list):
+        return EXTENSIONS
+    wanted = {str(item).lower() for item in sent}
+    return tuple(ext for ext in KNOWN_EXTENSIONS if ext in wanted)
+
+
+def taken_extensions(rule: dict, state: dict) -> tuple:
+    """这一次真正扫（与数待处理）哪些扩展名：新任务按云端下发的；老任务只扫已经拍过底的——任务新收的扩展名（例如
+    升级后推往 Express 的销售任务开始收 POS 导出）先补拍底再扫，免得把早就在文件夹里、可能已经手工录过的表格当成
+    新放进来的再记一遍账。"""
+    extensions = rule_extensions(rule)
+    if rule.get("existing"):
+        return extensions
+    done = baselined_extensions(state)
+    return tuple(ext for ext in extensions if ext in done)
 
 
 def is_result_folder(name: str) -> bool:

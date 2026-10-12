@@ -7,8 +7,9 @@
 - 下载地址三处一致：小助手查更新、nginx 下载目录、发布接收脚本，以及网页「下载助手」的默认地址；
 - 文件夹同步（2026-10 CC 闭环第一批，`folder_intake/machine.py` ↔ `folder_worker.py`）：四个机器接口、对话提醒的字段、
   新增的请求 / 回复键两边都在，小助手按云端下发的顺序跑任务，提醒点开的地址与共用层深链接同一形状；
-- POS 导出（第二批 L9）：两边收同一组扩展名、云端按任务下发、小助手按它扫与数；载荷 3 的 `pos` 块两边同形，小助手的
-  拒收码云端认作「要人处理」且有译文，销项税摘要带「อย่างย่อ」给报税草稿认简易税票。
+- POS 导出（第二批 L9）：两边收同一组扩展名（含登记即失败的 .xls）、云端按任务下发、小助手按它扫与数（老任务新收的
+  扩展名先补拍底）；载荷 3 的 `pos` 块两边同形、票号上限一致，小助手的拒收码（含 POS_INVALID）云端认作「要人处理」且有
+  译文，销项税摘要带「อย่างย่อ」给报税草稿认简易税票。
 """
 import ast
 import importlib.util
@@ -205,9 +206,12 @@ class FolderSync(unittest.TestCase):
         server = module_constants(FOLDER_SERVER / "contracts.py")
         for name in ("EXTENSIONS", "TABLE_EXTENSIONS"):
             self.assertEqual(helper[name], server[name], name)
+        self.assertIn(server["LEGACY_TABLE"], server["TABLE_EXTENSIONS"])
         self.assertTrue(quoted(self.server, "extensions") and quoted(self.server, "table_counts"))
-        self.assertIn("plan.rule_extensions(rule)", method_source(COMPANION / "folder_worker.py", "FolderIntake",
-                                                                  "_run_folder"))
+        # 老任务只扫拍过底的扩展名：新收的（升级后开始收 POS 导出）先补拍底，早就在文件夹里的表格不上传
+        self.assertIn("plan.taken_extensions(rule, state)", method_source(COMPANION / "folder_worker.py", "FolderIntake",
+                                                                          "_run_folder"))
+        self.assertIn("baseline_exts", method_source(COMPANION / "folder_worker.py", "FolderIntake", "_baseline"))
         self.assertIn("line['table_counts']", method_source(COMPANION / "folder_worker.py", "FolderIntake", "_report"))
 
     def test_reminder_links_match_the_shared_deep_link(self):
@@ -255,8 +259,11 @@ class PosPayload(unittest.TestCase):
     def test_the_pos_block_keys_match(self):
         mapper = (self.COWORK / "push" / "express" / "sales_mapper.py").read_text(encoding="utf-8")
         adapter = (COMPANION / "sales_adapter.py").read_text(encoding="utf-8")
-        for key in ("first", "last", "count", "docnum", "transfers", "acc", "amount", "label"):
+        for key in ("first", "last", "count", "docnum", "cash", "transfers", "acc", "amount", "label"):
             self.assertTrue(quoted(mapper, key) and quoted(adapter, key), key)
+        # 票号起止的长度上限两边一致（云端截短，小助手的校验永远能过）
+        self.assertEqual(_literal(self.COWORK / "contracts" / "pos.py", "NUMBER_MAX"),
+                         _literal(COMPANION / "sales_adapter.py", "_POS_NUMBER_MAX"))
         self.assertIn('"auto"', mapper)
         self.assertIn('"auto"', adapter)
 
@@ -264,10 +271,14 @@ class PosPayload(unittest.TestCase):
         constants = module_constants(COMPANION / "pos_journal.py")
         lifecycle = (self.COWORK / "push" / "lifecycle.py").read_text(encoding="utf-8")
         terms = (self.COWORK / "i18n" / "messages.tsv").read_text(encoding="utf-8")
-        for name in ("ERR_JOURNAL_BOOK", "ERR_ACCOUNT"):
-            code = constants[name]
+        codes = [constants[name] for name in ("ERR_JOURNAL_BOOK", "ERR_ACCOUNT")]
+        codes.append(_literal(COMPANION / "sales_adapter.py", "ERR_POS_INVALID"))
+        for code in codes:
             self.assertTrue(quoted(lifecycle, code), code)
             self.assertIn("\tintake.error." + code + "\n", terms)
+        # `pos` 块不合格时 write_sale 直接以 POS_INVALID 回报（不混进通用的 PAYLOAD_INVALID）
+        self.assertIn("ERR_POS_INVALID if v.error_code == ERR_POS_INVALID",
+                      (COMPANION / "dbf_sales.py").read_text(encoding="utf-8"))
         self.assertIn("อย่างย่อ", constants["VAT_DESCRIPTION"])
 
 

@@ -76,8 +76,9 @@ type Rule = {
 type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string> };
 type Snapshot = { connections: Record<string, Connection | null>; agent: { online?: boolean } | null };
 type Group = { value: string; label: string; items: Array<{ value: string; label: string }> };
-// counts：文件夹（相对路径，"" 是根目录）里现有几份会被录入的文件，没数过就没有这个键；partial：数到上限
-type Root = { id: string; label: string; folders?: string[]; counts?: Record<string, number>; partial?: boolean };
+// counts：文件夹（相对路径，"" 是根目录）里现有几份会被录入的文件，没数过就没有这个键；partial：数到上限；
+// table_counts：POS 导出（Excel / CSV）另数，只有推往 Express 的销售任务收它们
+type Root = { id: string; label: string; folders?: string[]; counts?: Record<string, number>; table_counts?: Record<string, number>; partial?: boolean };
 type Reader = { connection: string; label: string; version?: string; fresh?: boolean; roots?: Root[] };
 type StockGroup = { known?: boolean; chosen?: string; groups?: Array<{ acccod: string; label: string; used_by?: number }> };
 type Options = { readers?: Reader[]; accounts?: Array<{ code: string; name: string }>; departments?: Array<{ code: string; name: string }>; stock_group?: StockGroup };
@@ -635,7 +636,10 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
     const root = readers.find((r) => r.connection === reader)?.roots?.find((item) => item.id === rootId);
     if (!root?.counts) return "";
     const path = rest.join("|");
-    const n = root.counts[path] ?? Object.entries(root.counts).find(([k]) => k.toLowerCase() === path.toLowerCase())?.[1] ?? 0;
+    const pick = (counts?: Record<string, number>) =>
+      counts ? (counts[path] ?? Object.entries(counts).find(([k]) => k.toLowerCase() === path.toLowerCase())?.[1] ?? 0) : 0;
+    // 推往 Express 的销售任务也收 POS 导出（同 Desk 表单）：连它们一起数
+    const n = pick(root.counts) + (express && direction === "sales" ? pick(root.table_counts) : 0);
     return n > 0 ? plus(n, root.partial) : "";
   })();
 

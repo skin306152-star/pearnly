@@ -334,11 +334,15 @@ class PosExports(unittest.TestCase):
         sales = contracts.extensions_for("sales", "express")
         self.assertEqual(contracts.filename("ยอดขาย ต.ค..xlsx", sales), "ยอดขาย ต.ค..xlsx")
         self.assertEqual(contracts.filename("Receipts.CSV", sales), "Receipts.CSV")
-        for name, allowed in (("Receipts.csv", contracts.EXTENSIONS), ("old.xls", sales), ("a.docx", sales)):
+        for name, allowed in (("Receipts.csv", contracts.EXTENSIONS), ("old.xls", contracts.EXTENSIONS),
+                              ("a.docx", sales)):
             with self.assertRaises(contracts.ContractError):
                 contracts.filename(name, allowed)
         self.assertEqual(contracts.filename("bill.pdf"), "bill.pdf")  # 旧调用照旧
         self.assertTrue(contracts.is_table("Receipts.xlsm") and not contracts.is_table("bill.pdf"))
+        # 旧版 Excel 照样登记（登记即记失败、写明原因），不静默漏掉
+        self.assertEqual(contracts.filename("old.XLS", sales), "old.XLS")
+        self.assertTrue(contracts.is_legacy_table("old.XLS") and not contracts.is_legacy_table("pos.xlsx"))
 
     def test_the_result_workbook_of_an_export_is_one_file(self):
         self.assertEqual(contracts.pos_workbook_name("ยอดขาย ต.ค. 2569.xlsx"), "ยอดขาย ต.ค. 2569_POS.xlsx")
@@ -382,15 +386,25 @@ class PosExports(unittest.TestCase):
             sales = folder_plan.rule_extensions({"extensions": list(contracts.extensions_for("sales", "express"))})
             self.assertEqual(sorted(c.relpath for c in folder_plan.scan(base / "Sales")), ["a.pdf"])
             self.assertEqual(sorted(c.relpath for c in folder_plan.scan(base / "Sales", extensions=sales)),
-                             ["a.pdf", "pos.csv", "pos.xlsx"])
+                             ["a.pdf", "old.xls", "pos.csv", "pos.xlsx"])
             seen, complete = folder_plan.survey(base, deadline=float("inf"), budget=[1000])
             self.assertTrue(complete)
             self.assertEqual(folder_plan.folder_counts(seen, ["", "Sales"]), {"": 1, "Sales": 1})
             self.assertEqual(folder_plan.folder_counts(seen, ["", "Sales"], folder_plan.TABLE_EXTENSIONS),
-                             {"": 2, "Sales": 2})
+                             {"": 3, "Sales": 3})
             never = lambda relpath, size, mtime: False  # noqa: E731
             pending = folder_plan.pending_counts(seen, [("S", "Sales", never, set(), sales), ("P", "Sales", never, set())])
-            self.assertEqual(pending, {"S": 3, "P": 1})
+            self.assertEqual(pending, {"S": 4, "P": 1})
+
+    def test_old_tasks_take_new_extensions_only_after_baselining_them(self):
+        sales = list(contracts.extensions_for("sales", "express"))
+        self.assertEqual(folder_plan.baselined_extensions({}), folder_plan.EXTENSIONS)  # 1.5 之前拍的底
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales}, {}), folder_plan.EXTENSIONS)
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales}, {"baseline_exts": sales}),
+                         folder_plan.rule_extensions({"extensions": sales}))
+        # 新任务不拍底：云端下发什么就扫什么
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales, "existing": 1}, {}),
+                         folder_plan.rule_extensions({"extensions": sales}))
 
     def test_the_pump_builds_days_before_recognition_and_keeps_tables_out_of_it(self):
         source = (APP / "folder_intake/pump.py").read_text()
@@ -1038,6 +1052,28 @@ class MachineSync(unittest.TestCase):
         extensions = {rule["name"]: rule["extensions"] for rule in reply["rules"]}
         self.assertEqual(extensions, {"P1": list(contracts.EXTENSIONS),
                                       "S1": list(contracts.EXTENSIONS + contracts.TABLE_EXTENSIONS)})
+
+    def test_an_old_excel_file_is_registered_as_failed_without_upload(self):
+        machine, calls = self._machine([self._rule("S1", "sales")])
+        base = machine.frappe.db.get_value
+        machine.frappe.db.get_value = lambda doctype, name, field=None, **kw: (
+            "express" if field == "adapter" else base(doctype, name, field, **kw))
+        machine.settings = types.SimpleNamespace(config=lambda: {"inline_max_mib": 8})
+        uploads = []
+        machine._upload_target = lambda rule, entry: uploads.append(entry) or {"direct": 0}
+        reply = machine._begin(types.SimpleNamespace(connection="C1"),
+                               {"rule": "S1", "relpath": "2026-10\\ยอดขาย.xls", "filename": "ยอดขาย.xls",
+                                "sha256": "a" * 64, "byte_size": 2048})
+        self.assertEqual((reply["state"], reply["code"]), ("failed", "pos.xls_not_supported"))
+        self.assertEqual(uploads, [])
+        self.assertEqual((calls["written"][-1]["state"], calls["written"][-1]["last_code"]),
+                         ("failed", "pos.xls_not_supported"))
+        # 进项任务不收 .xls（与 PDF / 图片以外的类型一样拒收）
+        machine, _calls = self._machine([self._rule("P1")])
+        machine.settings = types.SimpleNamespace(config=lambda: {"inline_max_mib": 8})
+        with self.assertRaises(contracts.ContractError):
+            machine._begin(types.SimpleNamespace(connection="C1"),
+                           {"rule": "P1", "relpath": "a.xls", "filename": "a.xls", "sha256": "a" * 64, "byte_size": 9})
 
     def test_new_helpers_get_the_latest_version_and_their_notices(self):
         latest = {"version": "1.4.4", "url": "/downloads/companion/CC-Setup.exe"}
