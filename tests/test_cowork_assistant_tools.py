@@ -336,6 +336,40 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertIn("account_set_unavailable", out["reason"])
         self.assertEqual(self.created, [])
 
+    def test_a_failed_recognition_is_tried_again_with_a_new_key_and_finished_ones_are_kept(self):
+        # 2026-10-13 测试机：上一次谷歌报错 / 回放库里没有，再调永远拿回那份失败的
+        states = {"assistant:file_f": "failed", "assistant:file_f:2": "uncertain"}
+
+        def submit(source, key, **choices):
+            self.submitted.append((source, key, choices))
+            return {"name": "B-" + key, "state": states.get(key, "queued")}
+
+        sys.modules["pearnly_cowork.ocr.execution.service"].submit = submit
+        out = json.loads(tools.recognize_attachments({"files": ["file_f"]}))["results"][0]
+        self.assertEqual([key for _source, key, _choices in self.submitted],
+                         ["assistant:file_f", "assistant:file_f:2", "assistant:file_f:3"])
+        self.assertEqual([item[2] for item in self.created],
+                         ["assistant:file_f", "assistant:file_f:2", "assistant:file_f:3"])
+        self.assertEqual((out["batch"], out["attempt"]), ("B-assistant:file_f:3", 3))
+        # 已出结果（含「不是发票」）、还在跑、被取消的：照旧拿回原来那份，不重识别、不重扣
+        for state in ("saved", "not_invoice", "running", "queued", "deferred", "cancelled"):
+            self.submitted.clear()
+            states["assistant:file_k"] = state
+            out = json.loads(tools.recognize_attachments({"files": ["file_k"]}))["results"][0]
+            self.assertEqual([key for _source, key, _choices in self.submitted], ["assistant:file_k"], state)
+            self.assertNotIn("attempt", out)
+        # 一直失败：最多识别 RECOGNIZE_ATTEMPTS 次，最后那份失败的照实回
+        self.submitted.clear()
+        sys.modules["pearnly_cowork.ocr.execution.service"].submit = lambda source, key, **choices: (
+            self.submitted.append(key) or {"name": "B-" + key, "state": "failed"})
+        sys.modules["pearnly_cowork.ocr.execution.service"].detail = lambda batch: {
+            "state": "failed", "page_count": 1, "last_code": "ocr.replay_missing"}
+        out = json.loads(tools.recognize_attachments({"files": ["file_x"]}))["results"][0]
+        self.assertEqual(len(self.submitted), tools.RECOGNIZE_ATTEMPTS)
+        self.assertEqual((out["state"], out["reason"], out["attempt"]), ("failed", "ocr.replay_missing", 5))
+        description = {tool["name"]: tool for tool in tools.TOOLS}["cowork_recognize_attachments"]["description"]
+        self.assertIn("only when its last recognition failed", description)
+
     def test_not_enough_balance_is_reported_and_nothing_waits(self):
         def refuse(source, key, **choices):
             raise self.Deferred("insufficient_balance")

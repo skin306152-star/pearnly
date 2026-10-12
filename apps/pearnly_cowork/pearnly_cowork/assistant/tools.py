@@ -347,6 +347,10 @@ RECOGNIZE_MAX = 10
 RECOGNIZE_WAIT_SECONDS = 90
 FINISHED = ("saved", "not_invoice")
 BROKEN = ("failed", "uncertain", "cancelled")
+# 结束了却没出结果（谷歌报错、回放库里没有、结果不明）：同一个附件再调就用新的请求号重新识别一次（2026-10-13 测试机：
+# 原先永远拿回那份失败的）。出了结果、还在跑的、被取消的照旧拿回原来那份。失败的不扣费，新的那次照常扣。
+RETRY_STATES = ("failed", "uncertain")
+RECOGNIZE_ATTEMPTS = 5  # 同一个附件最多识别几次（第 2 次起请求号带「:次数」）
 ITEMS_SHOWN = 30
 # 对话里能交给识别的：票据照片与 PDF（HEIC 照片在对话上传时已转成 JPEG），以及表格（改好发回的复核工作簿走同一条
 # 识别路，同网页上传）。文本、Word 等不在这里识别：说不清是什么单据，识别服务只会回「文件是空的」这种误导的话。
@@ -362,13 +366,14 @@ def _recognition():
 
 def _admit(file_id, choices) -> dict:
     """一个附件 → 录入工作台的原件 + 识别任务，与 LINE 发票据同一条路（`line/intake._admit`）：扣费口径与网页一致；
-    请求号按附件固定，同一个附件再调一次拿回原来的任务，不重复扣费。"""
+    请求号按附件固定，同一个附件再调一次拿回原来的任务，不重复扣费。上一次结束了却没出结果（``RETRY_STATES``）的，
+    换下一个请求号（「assistant:附件:2」…）重新识别，最多 ``RECOGNIZE_ATTEMPTS`` 次。"""
     from pearnly_core.assistant import files as chat_files
     from pearnly_core.execution.errors import Deferred, QueueFull
 
     from pearnly_cowork.files import service as originals
 
-    key = "assistant:" + str(file_id)
+    base = "assistant:" + str(file_id)
     try:
         filename, content = chat_files.attachment(file_id)
     except frappe.ValidationError:
@@ -384,10 +389,14 @@ def _admit(file_id, choices) -> dict:
         return {"file": file_id, "filename": filename, "status": "not_started",
                 "reason": "made_by_tool: this file was made by a tool, not a document to recognize"}
     try:
-        source = originals.create(scope.default_workspace(), filename, content, key)
-        frappe.db.commit()
-        batch = _recognition().submit(source["name"], key, **choices)
-        frappe.db.commit()
+        for attempt in range(1, RECOGNIZE_ATTEMPTS + 1):
+            key = base if attempt == 1 else f"{base}:{attempt}"
+            source = originals.create(scope.default_workspace(), filename, content, key)
+            frappe.db.commit()
+            batch = _recognition().submit(source["name"], key, **choices)
+            frappe.db.commit()
+            if batch.get("state") not in RETRY_STATES:
+                break
     except (Deferred, QueueFull) as exc:
         frappe.db.rollback()
         return {"file": file_id, "status": "not_started",
@@ -396,7 +405,10 @@ def _admit(file_id, choices) -> dict:
         frappe.db.rollback()
         frappe.clear_messages()
         return {"file": file_id, "status": "not_started", "reason": str(exc)[:300]}
-    return {"file": file_id, "filename": filename, "batch": batch["name"]}
+    admitted = {"file": file_id, "filename": filename, "batch": batch["name"]}
+    if attempt > 1:
+        admitted["attempt"] = attempt
+    return admitted
 
 
 def _push_target(doc) -> dict:
@@ -2605,7 +2617,7 @@ TOOLS = [
                     "cowork_recognition_results. Each attachment is charged once like a web upload; calling again "
                     "for the same attachment returns the same result at no extra charge, so never tell the user it "
                     "was charged "
-                    "twice. needs_review true means the workbench flagged it for a person to check. Report the "
+                    "twice; only when its last recognition failed does calling again recognize it anew. needs_review true means the workbench flagged it for a person to check. Report the "
                     "recognized values, not your own reading of the image, and leave out fields that are not given.",
      "input_schema": {"type": "object", "properties": {
          "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX},
