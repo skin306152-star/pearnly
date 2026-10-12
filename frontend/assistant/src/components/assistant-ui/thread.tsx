@@ -373,12 +373,23 @@ const AssistantMessage: FC = () => {
   );
 };
 
-/** 生成中：三个跳动的点（不放标志，用户 2026-10-12）。 */
-const ThinkingMark: FC = () => (
-  <span className="inline-flex items-center font-sans">
-    <TypingDots label={steps.thinking} showLabel />
-  </span>
-);
+/** 等回复（同 Claude）：小橘点在动，旁边「8秒 · 思考中」，秒数从出现时开始走。 */
+const ThinkingMark: FC = () => {
+  // 从按下发送那一刻算（发送中气泡下的与回复里的是同一段等待，不归零）；刷新后接着看的从出现时算
+  const [start] = useState(() => (Date.now() - lastSendAt() < 10 * 60 * 1000 ? lastSendAt() : Date.now()));
+  const [now, setNow] = useState(start);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const seconds = Math.floor((now - start) / 1000);
+  return (
+    <span className="inline-flex items-center font-sans">
+      <TypingDots label={steps.thinking} showLabel={false} />
+      <span className="typing-dots-label ms-2.5">{`${steps.seconds(seconds)} · ${steps.thinkingNow}`}</span>
+    </span>
+  );
+};
 
 /** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定。 */
 const MessageFiles: FC = () => {

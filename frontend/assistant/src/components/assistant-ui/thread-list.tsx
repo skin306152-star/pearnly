@@ -177,36 +177,23 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
   ));
 };
 
-export const ThreadListNew = forwardRef<
-  HTMLButtonElement,
-  ComponentPropsWithoutRef<typeof Button> & { labelClassName?: string }
->(({ className, labelClassName, children, ...props }, ref) => {
-  return (
-    <ThreadListPrimitive.New asChild>
-      <Button
-        ref={ref}
-        variant="ghost"
-        data-slot="aui_thread-list-new"
-        className={cn("cc-nav-item justify-start font-normal", className)}
-        {...props}
-      >
-        {children ?? (
-          <>
-            <span className="bg-subtle text-ink flex size-6 shrink-0 items-center justify-center rounded-full">
-              <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-3.5" />
-            </span>
-            <span
-              data-slot="aui_thread-list-new-label"
-              className={cn("whitespace-nowrap", labelClassName)}
-            >
-              {t("newChat")}
-            </span>
-          </>
-        )}
-      </Button>
-    </ThreadListPrimitive.New>
-  );
-});
+// 「新建」：与「定时任务」同一个导航项样式（.cc-nav-item / .cc-nav-icon），图标与文字对齐（同 Claude 侧栏）
+export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button">>(
+  ({ className, ...props }, ref) => {
+    return (
+      <ThreadListPrimitive.New asChild>
+        <button ref={ref} type="button" data-slot="aui_thread-list-new" className={cn("cc-nav-item", className)} {...props}>
+          <span className="cc-nav-icon bg-subtle text-ink rounded-full">
+            <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-3.5" />
+          </span>
+          <span data-slot="aui_thread-list-new-label" className="whitespace-nowrap">
+            {t("newChat")}
+          </span>
+        </button>
+      </ThreadListPrimitive.New>
+    );
+  },
+);
 
 ThreadListNew.displayName = "ThreadListNew";
 

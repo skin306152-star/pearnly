@@ -211,7 +211,7 @@ export function greeting(now = new Date()): string {
 // 工具步骤的说明（同 claude.ai：灰色一行，进行中 / 完成 / 未执行三种说法）。
 const STEPS = {
   en: {
-    thinking: "Thinking…", thought: "Thought process", usedTool: "Used a tool", cancelled: "Cancelled", error: "Error",
+    thinking: "Thinking…", thinkingNow: "Thinking", seconds: (n: number) => `${n}s`, thought: "Thought process", usedTool: "Used a tool", cancelled: "Cancelled", error: "Error",
     showOutput: "Show output", hideOutput: "Hide output",
     bash: ["Running a command", "Ran a command", "Run a command"],
     read: ["Reading", "Read", "Read file"], write: ["Writing", "Wrote", "Write file"], edit: ["Editing", "Edited", "Edit file"],
@@ -221,7 +221,7 @@ const STEPS = {
     matches: (n: number) => `${n} ${n === 1 ? "match" : "matches"}`,
   },
   zh: {
-    thinking: "正在思考…", thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", error: "错误",
+    thinking: "正在思考…", thinkingNow: "思考中", seconds: (n: number) => `${n}秒`, thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", error: "错误",
     showOutput: "显示输出", hideOutput: "收起输出",
     bash: ["正在运行命令", "已运行命令", "运行命令"],
     read: ["正在读取", "已读取", "读取文件"], write: ["正在写入", "已写入", "写入文件"], edit: ["正在编辑", "已编辑", "编辑文件"],
@@ -230,7 +230,7 @@ const STEPS = {
     steps: (n: number) => `${n} 个步骤`, lines: (n: number) => `${n} 行`, matches: (n: number) => `${n} 处匹配`,
   },
   th: {
-    thinking: "กำลังคิด…", thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", error: "ข้อผิดพลาด",
+    thinking: "กำลังคิด…", thinkingNow: "กำลังคิด", seconds: (n: number) => `${n} วินาที`, thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", error: "ข้อผิดพลาด",
     showOutput: "แสดงผลลัพธ์", hideOutput: "ซ่อนผลลัพธ์",
     bash: ["กำลังรันคำสั่ง", "รันคำสั่งแล้ว", "รันคำสั่ง"],
     read: ["กำลังอ่าน", "อ่านแล้ว", "อ่านไฟล์"], write: ["กำลังเขียน", "เขียนแล้ว", "เขียนไฟล์"], edit: ["กำลังแก้ไข", "แก้ไขแล้ว", "แก้ไขไฟล์"],

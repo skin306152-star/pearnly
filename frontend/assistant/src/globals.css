@@ -98,9 +98,9 @@
   --cc-brand-ink: #ffffff;        /* 橘黄底上的字 */
   --cc-brand-soft: #fdecd9;       /* 用户气泡底 */
   --cc-brand-soft-ink: #4a2a0c;   /* 用户气泡字 */
-  --cc-bubble-bg: linear-gradient(135deg, #fdead6 0%, #fbdcbc 100%);   /* 用户气泡：CC 橘的柔和渐变 */
-  --cc-bubble-shadow: 0 6px 18px -10px rgb(242 140 40 / 0.55);
-  --cc-bubble-glow: rgb(242 140 40 / 0.4);   /* 发出那一下外圈扩散的光晕 */
+  --cc-bubble-bg: var(--cc-bg-subtle);   /* 用户气泡：同 Claude，中性灰底 */
+  --cc-bubble-ink: var(--cc-ink);
+  --cc-bubble-shadow: none;   /* 同 Claude：气泡没有阴影 */
   --cc-bubble-sheen: rgb(255 255 255 / 0.55); /* 发送中扫过气泡的浅光 */
   --cc-focus-ring: rgb(20 20 19 / 0.08);   /* 聚焦外框：中性灰（同 Claude，不用品牌色） */
 
@@ -129,7 +129,8 @@
   --cc-status-connecting: var(--cc-ink-4);
   --cc-status-paused: var(--cc-ink-4);
 
-  --cc-shadow-composer: 0 4px 20px -6px rgb(20 20 19 / 0.08), 0 1px 2px rgb(20 20 19 / 0.04);
+  --cc-shadow-composer: 0 0.25rem 1.25rem rgb(0 0 0 / 0.035);   /* 同 Claude 输入框：极淡的中性灰 */
+  --cc-shadow-composer-focus: 0 0.25rem 1.25rem rgb(0 0 0 / 0.075);
   --cc-shadow-pop: 0 10px 32px -8px rgb(20 20 19 / 0.18), 0 2px 6px rgb(20 20 19 / 0.06);
   --cc-shadow-pill: 0 6px 18px -4px rgb(20 20 19 / 0.22);
 
@@ -167,9 +168,7 @@
   --cc-brand-ink: #1f1e1d;
   --cc-brand-soft: #4a2f17;
   --cc-brand-soft-ink: #fde3c6;
-  --cc-bubble-bg: linear-gradient(135deg, #5c3618 0%, #472910 100%);
-  --cc-bubble-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.7);
-  --cc-bubble-glow: rgb(245 150 58 / 0.45);
+  --cc-bubble-shadow: none;
   --cc-bubble-sheen: rgb(255 255 255 / 0.12);
   --cc-focus-ring: rgb(250 249 245 / 0.1);
 
@@ -196,7 +195,8 @@
   --cc-status-attention: #f08a4b;
   --cc-status-offline: #f07a7c;
 
-  --cc-shadow-composer: 0 4px 20px -6px rgb(0 0 0 / 0.4);
+  --cc-shadow-composer: 0 0.25rem 1.25rem rgb(0 0 0 / 0.25);
+  --cc-shadow-composer-focus: 0 0.25rem 1.25rem rgb(0 0 0 / 0.35);
   --cc-shadow-pop: 0 10px 32px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(250 249 245 / 0.06);
   --cc-shadow-pill: 0 6px 18px -4px rgb(0 0 0 / 0.5);
 }
@@ -279,6 +279,7 @@
   .cc-nav-item:hover, .cc-nav-item:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-nav-item[data-active], .cc-nav-item[data-active="true"] { background: var(--cc-bg-active); color: var(--cc-ink); }
   .cc-nav-item svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+  .cc-nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
   .cc-section-label { padding: 1rem 0.625rem 0.25rem; color: var(--cc-ink-3); font-size: 0.75rem; font-weight: 500; }
 
   .cc-search {
@@ -295,7 +296,7 @@
     background: var(--cc-bg-surface); border: 1px solid var(--cc-line); border-radius: var(--cc-radius-xl);
     box-shadow: var(--cc-shadow-composer); transition: border-color var(--cc-dur) var(--cc-ease), box-shadow var(--cc-dur) var(--cc-ease);
   }
-  .cc-composer:focus-within { border-color: var(--cc-line-strong); }
+  .cc-composer:focus-within { border-color: var(--cc-line-strong); box-shadow: var(--cc-shadow-composer-focus); }
   .cc-composer[data-dragging="true"] { border-style: dashed; border-color: var(--cc-ink-3); }
   .cc-composer textarea { color: var(--cc-ink); }
   .cc-composer textarea::placeholder { color: var(--cc-ink-4); }
@@ -322,15 +323,11 @@
   /* 对话气泡：用户一侧是 CC 橘黄的浅底，出现时轻弹一下（同 Claude 的气泡形状） */
   .cc-bubble-user {
     position: relative; isolation: isolate; border-radius: var(--cc-radius-bubble); background: var(--cc-bubble-bg);
-    color: var(--cc-brand-soft-ink); box-shadow: var(--cc-bubble-shadow);
+    color: var(--cc-bubble-ink); box-shadow: var(--cc-bubble-shadow);
     padding: 0.625rem 1rem; overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
   }
-  /* 发出：从右下角带回弹弹出，外圈扩散一道橘色光晕再淡出 */
+  /* 发出：从右下角轻轻弹出 */
   .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
-  .cc-bubble-user[data-enter]::after {
-    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
-    animation: cc-send-glow 900ms var(--cc-ease) 120ms both;
-  }
   /* 发送中（还没送达服务端）：一道浅光从左往右扫过气泡 */
   .cc-bubble-user[data-sending] { overflow: hidden; }
   .cc-bubble-user[data-sending]::before {
@@ -430,7 +427,8 @@
 
 /* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */
 /* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
-[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active] { background: transparent; color: var(--cc-ink-2); }
+[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active],
+[data-cc-view="tasks"] [data-slot="aui_thread-list-new"][data-active] { background: transparent; color: var(--cc-ink-2); }
 /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
 .cc-drawer { scrollbar-width: none; }
 .cc-drawer::-webkit-scrollbar { display: none; }
@@ -443,17 +441,16 @@
 .cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 2.25rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }
 
 @keyframes cc-send-pop {
-  0% { opacity: 0; transform: translateY(14px) scale(0.88); }
-  60% { opacity: 1; transform: translateY(-2px) scale(1.02); }
+  0% { opacity: 0; transform: translateY(10px) scale(0.94); }
+  60% { opacity: 1; transform: translateY(-1px) scale(1.01); }
   100% { opacity: 1; transform: none; }
 }
-@keyframes cc-send-glow { from { box-shadow: 0 0 0 0 var(--cc-bubble-glow); } to { box-shadow: 0 0 0 12px transparent; } }
 @keyframes cc-sheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .cc-bubble-user, .cc-bubble-user::before, .cc-bubble-user::after, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in { animation: none !important; }
+  .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
@@ -476,25 +473,19 @@
 @media (prefers-reduced-motion: reduce) { .hm .hm-eyes, .hm-cc .hm-calm, .hm-cc .hm-laugh, .cc-tail, .cc-bell, .cc-hold, .cc-tick { animation: none; } }
 .pearnly-mascot-host svg { height: 100%; width: auto; display: block; }
 
-/* 等待回复（components/typing-dots.tsx）：三个 CC 橘的点波浪起伏、深浅交替；旁边的状态字上有一道橘色光泽扫过（同 Claude 的发光状态字） */
-.typing-dots { display: inline-flex; align-items: center; gap: 0.625rem; height: 1.65rem; vertical-align: middle; }
-.typing-dots-marks { display: inline-flex; align-items: center; gap: 5px; }
-.typing-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--cc-brand); animation: cc-wave 1.25s var(--cc-ease) infinite; }
-.typing-dots i:nth-child(2) { animation-delay: .16s; }
-.typing-dots i:nth-child(3) { animation-delay: .32s; }
-.typing-dots-label {
-  font-family: var(--cc-font-sans); font-size: 0.875rem;
-  background: linear-gradient(90deg, var(--cc-ink-3) 0%, var(--cc-ink-3) 35%, var(--cc-brand) 50%, var(--cc-ink-3) 65%, var(--cc-ink-3) 100%);
-  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
-  animation: cc-shimmer-text 2.2s linear infinite;
-}
-.typing-dots-sm { gap: 3px; height: auto; }
-.typing-dots-sm .typing-dots-marks { gap: 3px; }
-.typing-dots-sm i { width: 5px; height: 5px; animation-name: cc-wave-sm; }
-@keyframes cc-wave { 0%, 70%, 100% { transform: translateY(0) scale(1); opacity: .55; } 35% { transform: translateY(-5px) scale(1.15); opacity: 1; } }
-@keyframes cc-wave-sm { 0%, 70%, 100% { transform: translateY(0); opacity: .45; } 35% { transform: translateY(-3px); opacity: 1; } }
-@keyframes cc-shimmer-text { from { background-position: 100% 0; } to { background-position: -150% 0; } }
-@media (prefers-reduced-motion: reduce) { .typing-dots i, .typing-dots-label { animation: none; } .typing-dots-label { color: var(--cc-ink-3); background: none; } }
+/* 等待回复（components/typing-dots.tsx）：同 Claude —— 四个小橘点依次亮起、像在转，旁边灰色的「8秒 · 思考中」 */
+.typing-dots { display: inline-flex; align-items: center; gap: 0.625rem; min-height: 1.65rem; vertical-align: middle; }
+.cc-spin { display: inline-grid; grid-template-columns: repeat(2, 4px); gap: 3px; flex-shrink: 0; padding: 1px; }
+.cc-spin i { width: 4px; height: 4px; border-radius: 50%; background: var(--cc-brand); animation: cc-spin-dot 1.2s var(--cc-ease) infinite; }
+/* 顺时针：左上 → 右上 → 右下 → 左下 */
+.cc-spin i:nth-child(2) { animation-delay: .3s; }
+.cc-spin i:nth-child(4) { animation-delay: .6s; }
+.cc-spin i:nth-child(3) { animation-delay: .9s; }
+.typing-dots-sm .cc-spin { grid-template-columns: repeat(2, 3px); gap: 2px; }
+.typing-dots-sm .cc-spin i { width: 3px; height: 3px; }
+.typing-dots-label { font-family: var(--cc-font-sans); font-size: 0.875rem; color: var(--cc-ink-3); font-variant-numeric: tabular-nums; }
+@keyframes cc-spin-dot { 0%, 100% { opacity: .3; transform: scale(.75); } 25% { opacity: 1; transform: scale(1.15); } 50% { opacity: .55; transform: scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .cc-spin i { animation: none; opacity: .8; } }
 
 /* 对话文字大小（设置 → 常规，lib/desktop.ts 写在 <html data-text-size>）：只缩放对话记录 */
 html[data-text-size="small"] [data-slot="aui_message-group"] { zoom: 0.92; }

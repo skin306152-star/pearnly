@@ -335,7 +335,7 @@ function SidebarNav() {
       <ThreadListNew onClick={() => setView("chat")} />
       {hasScheduledTasks(profile) && (
         <button type="button" className="cc-nav-item" data-active={view === "tasks" || undefined} onClick={() => setView("tasks")}>
-          <ClockIcon />
+          <span className="cc-nav-icon"><ClockIcon /></span>
           {t("scheduledTasks")}
         </button>
       )}
@@ -416,7 +416,7 @@ function MobileDrawer() {
       <div className="cc-drawer flex-1 overflow-y-auto px-3 pb-28" onClickCapture={pick}>
         {hasScheduledTasks(profile) && (
           <button type="button" className="cc-nav-item" onClick={() => { setView("tasks"); close(); }}>
-            <ClockIcon />
+            <span className="cc-nav-icon"><ClockIcon /></span>
             {t("scheduledTasks")}
           </button>
         )}
