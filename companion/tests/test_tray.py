@@ -78,6 +78,78 @@ def test_tomo_notifications_run_their_click_action_once():
     assert clicked == [1]
 
 
+def test_reminders_pop_up_once_per_notice_and_open_their_conversation():
+    # 2026-10：对话提醒（页面实时收到 / 文件夹同步带来）按 notice:<编号> 只弹一次，点了打开那段对话；去重记忆有上限
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion.gui_tray import NOTICE_MEMORY, TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)   # 不走 __init__：去重记忆现建
+    shown, opened = [], []
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args))
+    app.open_conversation = lambda site, session: opened.append((site, session))
+    items = [{"id": "pnotice_1", "title": "", "text": "2 files waiting", "created": 1.0, "session": "sess-1"}]
+    app._on_folder_notices("https://acme.pearnly.com", items)
+    app._on_folder_notices("https://acme.pearnly.com", items)
+    app._notify("CC", "2 files waiting", None, tag="notice:pnotice_1")   # 对话页实时收到的同一条
+    assert [(title, body) for title, body, *_ in shown] == [("CC", "2 files waiting")]
+    app._on_message_clicked()
+    assert opened == [("https://acme.pearnly.com", "sess-1")]
+    app._notify("CC", "reply", None, tag="tomo-reply")
+    app._notify("CC", "reply", None, tag="tomo-reply")
+    assert len(shown) == 3   # 回复完成等别的通知不去重
+    for n in range(NOTICE_MEMORY + 20):
+        app._notify("CC", "x", None, tag=f"notice:{n}")
+    assert len(app._seen_notices) == NOTICE_MEMORY
+
+
+def test_tray_opens_a_reminder_conversation_in_the_cc_window():
+    from src.companion.gui_tray import TrayApp
+
+    app = TrayApp.__new__(TrayApp)
+    calls = []
+    app._tomo = SimpleNamespace(open_conversation=lambda url, session: calls.append((url, session)))
+    app.open_tomo = lambda text=None: calls.append("window")
+    app.open_conversation("https://acme.pearnly.com", "s-123")
+    app.open_conversation("https://acme.pearnly.com", "")
+    app.open_conversation("https://evil.example", "s-123")
+    assert calls == [("https://acme.pearnly.com/assistant?c=s-123", "s-123"),
+                     ("https://acme.pearnly.com/assistant?view=tasks", ""), "window"]
+
+
+def test_cc_window_hands_the_conversation_to_an_open_chat_page_or_loads_it():
+    pytest.importorskip("PySide6.QtWebEngineWidgets")
+    from src.companion import gui_tomo
+
+    def window(current, *, ready=True, loading=False):
+        calls = []
+        page = SimpleNamespace(url=lambda: SimpleNamespace(toString=lambda: current), isLoading=lambda: loading,
+                               runJavaScript=lambda script: calls.append(("js", script)),
+                               setUrl=lambda url: calls.append(("load", url.toString())))
+        return SimpleNamespace(show_front=lambda: calls.append("front"), page=page, _ready=ready,
+                               _pending_ask="x", _pending_settings=None), calls
+
+    url = "https://acme.pearnly.com/assistant?c=s-123"
+    fake, calls = window("https://acme.pearnly.com/assistant")
+    gui_tomo.TomoWindow.open_conversation(fake, url, "s-123")
+    assert calls[0] == "front" and calls[1][0] == "js" and 't.open("s-123")' in calls[1][1]
+    for current, kwargs in (("https://other.pearnly.com/assistant", {}), ("https://fatcc.com/", {}),
+                            ("https://acme.pearnly.com/assistant", {"loading": True}),
+                            ("https://acme.pearnly.com/assistant", {"ready": False})):
+        fake, calls = window(current, **kwargs)
+        gui_tomo.TomoWindow.open_conversation(fake, url, "s-123")
+        assert calls == ["front", ("load", url)], current
+        assert fake._pending_ask is None   # 别的页面里排着的「新对话」不再交过去
+
+    notes = []
+    fake = SimpleNamespace(_notify=lambda *args, **kwargs: notes.append((args, kwargs)), show_front=lambda: None)
+    notification = SimpleNamespace(title=lambda: "", message=lambda: "m", tag=lambda: "notice:pnotice_1",
+                                   click=lambda: None)
+    gui_tomo.TomoWindow._present(fake, notification)
+    assert notes[0][0][:2] == ("CC", "m") and notes[0][1] == {"tag": "notice:pnotice_1"}
+
+
 def test_tray_checks_for_a_new_version_in_the_background_and_hands_it_to_auto_update(monkeypatch):
     # 2026-10-09：托盘不再定时查（新版随心跳回复带来）；只有点「检查更新」时在托盘自己的后台线程查一次。
     import time

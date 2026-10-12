@@ -38,6 +38,28 @@ def test_quick_question_is_handed_to_the_page_as_a_string():
     assert 'window.tomo.ask("a\\"b</script>\\n")' in script
 
 
+def test_reminders_open_their_conversation_on_the_company_site():
+    # 2026-10：托盘的对话提醒点开那段对话，没有对话就是定时任务页（与共用层 contracts.deep_link 同一形状）
+    assert links.conversation_url("https://acme.pearnly.com", "sess_1:a") == \
+        "https://acme.pearnly.com/assistant?c=sess_1%3Aa"
+    assert links.conversation_url("https://acme.pearnly.com/", "") == "https://acme.pearnly.com/assistant?view=tasks"
+    assert links.conversation_url("https://acme.pearnly.com", "../x?y") == "https://acme.pearnly.com/assistant?view=tasks"
+    assert links.conversation_url("https://evil.example", "sess-1") == ""
+    assert links.conversation_url("http://acme.pearnly.com", "sess-1") == ""
+    assert links.conversation_url("", "sess-1") == ""
+    assert links.same_site("https://acme.pearnly.com/assistant", "https://acme.pearnly.com/assistant?c=s-123")
+    assert not links.same_site("https://acme.pearnly.com/assistant", "https://other.pearnly.com/assistant")
+    assert not links.same_site("", "")
+
+
+def test_open_script_hands_the_target_to_the_page_or_falls_back_to_the_address():
+    url = "https://acme.pearnly.com/assistant?c=s-123"
+    script = links.open_script("s-123", url)
+    assert 't.open("s-123")' in script
+    assert 'location.href="https://acme.pearnly.com/assistant?c=s-123"' in script   # 旧版页面没有 open
+    assert 't.open("")' in links.open_script('bad"id</script>', url)               # 不合形状 = 定时任务页
+
+
 def test_downloads_never_overwrite_and_clean_names(tmp_path: Path):
     first = links.unique_path(tmp_path, "report.xlsx")
     assert first.name == "report.xlsx"

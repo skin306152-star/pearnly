@@ -12,6 +12,7 @@ Express / MR.ERP 的连接与设置留在「连接与设置」主窗口，取任
 from __future__ import annotations
 
 import sys
+from collections import OrderedDict
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
@@ -130,6 +131,9 @@ def _window_open() -> bool:
 
 
 MENU_TEXT_MAX = 48
+# 弹过的对话提醒记多少条（按 notice:<编号> 去重：页面实时收到与文件夹同步带来的是同一条）
+NOTICE_MEMORY = 500
+NOTICE_TAG = "notice:"
 
 
 def _menu_text(text: str) -> str:
@@ -140,6 +144,8 @@ def _menu_text(text: str) -> str:
 class TrayApp(QObject):
     worker_stopped = Signal(object)
     folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline
+    folder_notices = Signal(str, object)  # 文件夹同步带来的对话提醒：(站点, [提醒…])
+    folder_update = Signal(str, str)  # 文件夹同步带来的新版本（只读文件夹的成员没有心跳）：(版本, 地址)
 
     def __init__(self, configs, *, open_tomo: bool = False) -> None:
         app = qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
@@ -202,12 +208,16 @@ class TrayApp(QObject):
         self.worker = self._spawn_worker()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
+        self.folder_notices.connect(self._on_folder_notices)
+        self.folder_update.connect(self._on_update_available)
         self._folders = FolderIntake(lambda: self.configs, lang=lambda: self.lang,
-                                     on_status=lambda profile_id, key: self.folder_status.emit(profile_id, key))
+                                     on_status=lambda profile_id, key: self.folder_status.emit(profile_id, key),
+                                     on_notices=lambda site, items: self.folder_notices.emit(site, items),
+                                     on_update=lambda version, url: self.folder_update.emit(version, url))
         self._folders.start()
         # Tomo：窗口第一次打开时才建（开机自启不加载网页内核）；快捷输入条、全局快捷键、「再打开一次」的管道一开始就在。
         self._tomo = None
-        self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知才有）
+        self._message_action = None   # 点托盘通知时做什么（Tomo 的回复 / 下载通知 / 对话提醒才有）
         self.tray.messageClicked.connect(self._on_message_clicked)
         from .gui_tomo import QuickAsk
         from .tomo_hotkey import GlobalHotkey
@@ -532,17 +542,51 @@ class TrayApp(QObject):
             self.open_tomo()
 
     # ── Tomo 桌面窗口 ──
-    def open_tomo(self, text: str | None = None) -> None:
+    def _tomo_window(self):
         if self._tomo is None:
             from .gui_tomo import TomoWindow
 
             self._tomo = TomoWindow(lang=self.lang, icon=pearnly_icon(), notify=self._notify, bridge=self._make_bridge())
-        if text is None:
-            self._tomo.show_front()
-        else:
-            self._tomo.ask(text)
+        return self._tomo
 
-    def _notify(self, title: str, body: str, on_click=None) -> None:
+    def open_tomo(self, text: str | None = None) -> None:
+        window = self._tomo_window()
+        if text is None:
+            window.show_front()
+        else:
+            window.ask(text)
+
+    def open_conversation(self, site: str, session: str = "") -> None:
+        """对话提醒点开：打开那段对话（没有对话 = 定时任务页）；站点不是自家 https 地址就只打开窗口。"""
+        from . import tomo_links
+
+        url = tomo_links.conversation_url(site, session)
+        if not url:
+            self.open_tomo()
+            return
+        self._tomo_window().open_conversation(url, session)
+
+    def _on_folder_notices(self, site: str, items) -> None:
+        """文件夹同步带来的对话提醒（folder_worker._notices 已校验形状）：逐条弹系统通知，同一条只弹一次。"""
+        for item in items or []:
+            try:
+                self._notify(item["title"] or "CC", item["text"],
+                             lambda s=site, c=item["session"]: self.open_conversation(s, c),
+                             tag=NOTICE_TAG + item["id"])
+            except Exception:
+                log.exception("对话提醒通知失败")
+
+    def _notify(self, title: str, body: str, on_click=None, tag: str = "") -> None:
+        if str(tag or "").startswith(NOTICE_TAG):
+            # 对话提醒按编号只弹一次（页面实时收到、文件夹同步又带来）；测试里 TrayApp 不走 __init__，这里现建
+            seen = getattr(self, "_seen_notices", None)
+            if seen is None:
+                seen = self._seen_notices = OrderedDict()
+            if tag in seen:
+                return
+            seen[tag] = True
+            while len(seen) > NOTICE_MEMORY:
+                seen.popitem(last=False)
         self._message_action = on_click
         self.tray.showMessage(title, body, pearnly_icon(), 8000)
 
