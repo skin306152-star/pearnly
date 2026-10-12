@@ -73,6 +73,18 @@ def _system_usernames() -> set:
     return {_clean(name) for name in names if _clean(name)}
 
 
+def _taken_usernames(exclude: str = "") -> set:
+    """这位操作员不能再用的 DMS 用户名（小写）：系统账号 + 其他操作员（**含停用的**）。
+
+    两个操作员共用一个 DMS 账号会互相挤下线，一人改了密码另一人就一直登录失败（用户
+    2026-10-13 定：不许共用，不分大小写比对）。账号要转给新员工，先删掉旧操作员。
+    """
+    names = set(_system_usernames())
+    names.update(frappe.get_all(OPERATOR, filters={"name": ["!=", exclude]} if exclude else None,
+                                pluck="dms_username"))
+    return {_clean(name).lower() for name in names if _clean(name)}
+
+
 def _verify_dms_login(username: str, password: str) -> None:
     """新增操作员、或改了他的 DMS 密码时，用这组账密**只试登录一次**（用户 2026-10-02）。
 
@@ -189,7 +201,7 @@ def create_operator(
 
     if not frappe.db.exists("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1, "owner_user": ["is", "not set"]}):
         frappe.throw(_("roster.error.noConnection"))
-    if dms_username in _system_usernames():
+    if dms_username.lower() in _taken_usernames():
         frappe.throw(_("This account is already used by an operator or another system account"))
 
     pinned = advisors.resolve(advisor_id)
@@ -296,6 +308,10 @@ def set_status(name: str, status: str) -> dict:
     if status not in VALID_STATUS:
         frappe.throw(_("Status must be active or inactive"))
     doc = frappe.get_doc(OPERATOR, name)
+    if (status == "active" and doc.status != "active"
+            and _clean(doc.dms_username).lower() in _taken_usernames(exclude=doc.name)):
+        # 停用期间这个 DMS 账号已被别人占用（或是规则之前就共用的老数据）：不重新启用。
+        frappe.throw(_("This account is already used by an operator or another system account"))
     doc.status = status
     doc.save(ignore_permissions=True)
 
@@ -413,7 +429,11 @@ def api_unbind_operator(name):
     _require_admin()
     doc = frappe.get_doc(OPERATOR, name)
     frappe.db.delete("Pearnly LINE Bind Code", {"user": doc.user, "used": 0})
-    # One transaction for all bindings; do not call the helper that commits each row.
-    for binding in frappe.get_all(BINDING, filters={"user": doc.user, "status": "active"}, pluck="name"):
-        frappe.db.set_value(BINDING, binding, {"status": "unbound", "unbound_at": frappe.utils.now()})
+    # 和停用、删除走同一个共用解绑入口：它会通知 `pearnly_line_binding_changed`，
+    # 被解绑的人当场清掉普通草稿（待核对的订车照旧保留）、手机菜单当场换回未绑定。
+    from pearnly_core import line_binding
+
+    for row in frappe.get_all(BINDING, filters={"user": doc.user, "status": "active"}, pluck="line_user_id"):
+        line_binding.unbind(row)
+    frappe.db.commit()
     return _row(doc)

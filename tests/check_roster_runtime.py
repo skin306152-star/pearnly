@@ -84,11 +84,12 @@ try:
         line_binding.bind('LOCAL-ROSTER-LINE',user.name,'Fixture LINE')
         roster.api_unbind_operator(op['name'])
         assert not line_binding.user_of('LOCAL-ROSTER-LINE')
-        assert not line_binding.consume_bind_code(code)
+        # Without a LINE sender consume_bind_code always returns None; name one so the code really is gone.
+        assert not line_binding.consume_bind_code(code, line_user_id='LOCAL-ROSTER-LINE')
         assert frappe.db.exists('DMS Operator',op['name'])
         code = roster.api_operator_bind_code(op['name'])['code']
         roster.set_status(op['name'],'inactive')
-        assert not line_binding.consume_bind_code(code)
+        assert not line_binding.consume_bind_code(code, line_user_id='LOCAL-ROSTER-LINE')
         try: roster.api_operator_bind_code(op['name'])
         except frappe.ValidationError: pass
         else: raise AssertionError('inactive bind accepted')
