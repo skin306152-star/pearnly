@@ -8,6 +8,9 @@
   票据交给录入工作台识别）只能从这里取，见 `attachment`。存在站点私有目录 `private/assistant-attachments/<会话>/`
   （不进 File 表、没有下载地址）：同一张票识别过以后，它在 File 表里是受保护的原件，再存一份同内容的 File 会被
   Cowork 的原件守卫拒绝（`pearnly_cowork/files/guard.py`，2026-10-10 测试：第二次发同一张票上传失败）。删对话时一并删。
+- 工具放进对话的文件也在本站留一份（2026-10 CC 闭环 L3）：工具产出（复核工作簿、回读的总账 / 税报……）能再交给别的
+  工具当输入（例如对账），产品从文件夹取来的文件同样。来源分三种（`origin`）：用户上传（会话目录本身）、工具生成
+  （`tool/`）、从文件夹取来（`folder/`）；产品据此拒绝把自己生成的文件再拿去识别。
 """
 import os
 import re
@@ -41,14 +44,18 @@ def upload(session_id) -> dict:
 
 
 KEPT = "assistant-attachments"
+# 用户上传以外的两种来源，各占会话目录下的一个子目录：工具生成的、产品从文件夹取来的。
+ORIGINS = ("tool", "folder")
+USER = "user"
 
 
-def _folder(session_name: str) -> str:
-    return frappe.get_site_path("private", KEPT, re.sub(r"[^A-Za-z0-9_-]", "_", session_name))
+def _folder(session_name: str, origin: str = USER) -> str:
+    base = frappe.get_site_path("private", KEPT, re.sub(r"[^A-Za-z0-9_-]", "_", session_name))
+    return base if origin == USER else os.path.join(base, origin)
 
 
-def _keep(row, file_id, name, content) -> None:
-    folder = _folder(row.name)
+def _keep(row, file_id, name, content, origin=USER) -> None:
+    folder = _folder(row.name, origin)
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, f"{file_id}--{os.path.basename(name)}")
     with open(path + ".part", "wb") as handle:
@@ -67,41 +74,57 @@ def _read(path: str) -> bytes:
         return handle.read()
 
 
-def _kept(file_id=None) -> list[tuple[str, callable]]:
-    """[(「<编号>--<文件名>」, 取内容)]：先看私有目录，再看 2026-10-10 晚以前存在 File 表里的旧留存。"""
+def _kept(file_id=None) -> list[tuple[str, callable, str]]:
+    """[(「<编号>--<文件名>」, 取内容, 来源 user / tool / folder)]：先看私有目录（按放进来的先后），再看 2026-10-10 晚以前
+    存在 File 表里的旧留存（都是用户上传）。"""
     context = getattr(frappe.local, "pearnly_assistant", None) or {}
     row = sessions.owned(context.get("session_id"), allow_archived=True)
-    folder = _folder(row.name)
-    found = []
-    if os.path.isdir(folder):
-        for entry in sorted(os.listdir(folder)):
-            if "--" in entry and not entry.endswith(".part") and (not file_id or entry.startswith(file_id + "--")):
-                found.append((entry, lambda path=os.path.join(folder, entry): _read(path)))
+    local = []
+    for origin in (USER,) + ORIGINS:
+        folder = _folder(row.name, origin)
+        if not os.path.isdir(folder):
+            continue
+        for entry in os.listdir(folder):
+            path = os.path.join(folder, entry)
+            if ("--" in entry and not entry.endswith(".part") and (not file_id or entry.startswith(file_id + "--"))
+                    and os.path.isfile(path)):
+                local.append((os.path.getmtime(path), entry, path, origin))
+    found = [(entry, lambda path=path: _read(path), origin) for _at, entry, path, origin in sorted(local)]
     filters = {"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name}
     if file_id:
         filters["file_name"] = ["like", file_id + "--%"]
     for old in frappe.get_all("File", filters=filters, fields=["name", "file_name"], order_by="creation asc"):
-        found.append((old.file_name, lambda name=old.name: frappe.get_doc("File", name).get_content()))
+        found.append((old.file_name, lambda name=old.name: frappe.get_doc("File", name).get_content(), USER))
     return found
 
 
 def attachments() -> list[dict]:
-    """当前工具调用所在对话里留存的附件：[{file_id, filename}]（工具拿错编号时据此告诉智能体有哪些）。"""
+    """当前工具调用所在对话里留存的文件：[{file_id, filename}]（工具拿错编号时据此告诉智能体有哪些）；不是用户上传的
+    另带 `origin`（tool / folder）。"""
     out = []
-    for entry, _read in _kept():
+    for entry, _read, origin in _kept():
         file_id, sep, filename = entry.partition("--")
         if sep and not any(item["file_id"] == file_id for item in out):
-            out.append({"file_id": file_id, "filename": filename})
+            out.append({"file_id": file_id, "filename": filename, **({} if origin == USER else {"origin": origin})})
     return out
 
 
-def add_to_conversation(filename: str, content: bytes, mime: str) -> str:
-    """工具生成的文件（例如 Cowork 导出的复核工作簿）放进当前对话，返回智能体能读到的位置；它再放进结果目录给用户。"""
+def add_to_conversation(filename: str, content: bytes, mime: str, *, origin: str = "tool") -> str:
+    """工具生成的文件（例如 Cowork 导出的复核工作簿）放进当前对话，返回智能体能读到的位置；它再放进结果目录给用户。
+
+    同时在本站留一份（`origin`：tool = 工具生成，folder = 产品从已授权文件夹取来），之后的工具能像用户附件一样经
+    `attachment` 取用（对账、盘点……）。类型与大小同用户上传（`contracts.upload_name`），HEIC 照片同样先转 JPEG。"""
+    if origin not in ORIGINS:
+        raise ValueError("unknown origin")
     context = getattr(frappe.local, "pearnly_assistant", None) or {}
     row = sessions.owned(context.get("session_id"))
     name = sessions._guard(contracts.upload_name, filename, len(content))
+    if heic.is_heic(content):
+        content, name, mime = heic.to_jpeg(content), heic.jpeg_name(name), "image/jpeg"
     api = engine.adapter()
-    return api.attach(sessions.current(row), name, content, mime)["path"]
+    stored = api.attach(sessions.current(row), name, content, mime)
+    _keep(row, stored["file_id"], name, content, origin)
+    return stored["path"]
 
 
 def _resolve(ref) -> str:
@@ -122,12 +145,22 @@ def _resolve(ref) -> str:
 
 
 def attachment(file_id) -> tuple[str, bytes]:
-    """当前工具调用所在对话里的一个附件原件（文件名, 内容）。只认这个对话、这个人的附件，猜编号拿不到别人的。
-    编号、挂载路径、文件名都认（`_resolve`）。"""
+    """当前工具调用所在对话里的一个文件（文件名, 内容）：用户附件、工具生成的、从文件夹取来的都算。只认这个对话、这个人的，
+    猜编号拿不到别人的。编号、挂载路径、文件名都认（`_resolve`）。"""
     fid = sessions._guard(contracts.file_id, _resolve(file_id))
-    for entry, read in _kept(fid):
+    for entry, read, _origin in _kept(fid):
         if entry.startswith(fid + "--"):
             return entry[len(fid) + 2:], read()
+    frappe.throw(_("This attachment is not in this conversation."))
+
+
+def origin(file_id) -> str:
+    """这个文件从哪来：user（用户上传）/ tool（工具生成）/ folder（从已授权文件夹取来）。认法与 `attachment` 相同，
+    不在这个对话里就报同样的错。"""
+    fid = sessions._guard(contracts.file_id, _resolve(file_id))
+    for entry, _read, source in _kept(fid):
+        if entry.startswith(fid + "--"):
+            return source
     frappe.throw(_("This attachment is not in this conversation."))
 
 

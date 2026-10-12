@@ -434,6 +434,18 @@ Refresh Lease Generation	刷新租约版本	เวอร์ชันสิทธ
 Refresh Lease Handle	刷新租约标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子	
 Refresh Lease Expires At (UTC)	刷新租约到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）	
 Refresh Error Code	刷新错误码	รหัสข้อผิดพลาดการรีเฟรช	更新エラーコード	
+Cowork Companion Request	Cowork CC 桌面版请求	คำขอถึง CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップへのリクエスト
+Parameters	参数	พารามิเตอร์	パラメーター
+Lease Handle	租约标识	รหัสสิทธิ์ถือครอง	リース識別子
+Lease Credential	租约凭据	ข้อมูลรับรองของสิทธิ์ถือครอง	リースの認証情報
+Leased At (UTC)	领取时间（UTC）	เวลารับไปดำเนินการ (UTC)	取得日時（UTC）
+Lease Expires At (UTC)	租约到期时间（UTC）	เวลาสิทธิ์ถือครองหมดอายุ (UTC)	リース有効期限（UTC）
+Error Code	错误码	รหัสข้อผิดพลาด	エラーコード
+Received Bytes	已收字节数	จำนวนไบต์ที่ได้รับ	受信バイト数
+Result Bytes	结果字节数	จำนวนไบต์ของผลลัพธ์	結果のバイト数
+Result SHA-256	结果 SHA-256	SHA-256 ของผลลัพธ์	結果の SHA-256
+Result Details	结果说明	รายละเอียดผลลัพธ์	結果の詳細
+CC Desktop Version	CC 桌面版版本	เวอร์ชัน CC เดสก์ท็อป	CC デスクトップのバージョン
 The CC Desktop report is invalid.	CC 桌面版上报内容无效。	รายงานจาก CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのレポートが無効です。	companion.report_invalid
 leased	已领取	รับไปดำเนินการแล้ว	取得済み	leased
 The ERP data report is missing a required value.	ERP 数据报告缺少必填值。	รายงานข้อมูล ERP ขาดค่าที่จำเป็น	ERP データレポートに必須の値がありません。	erp.target_projection_value_required
@@ -472,6 +484,11 @@ The CC Desktop delivery record is invalid.	CC 桌面版任务领取记录无效�
 The CC Desktop delivery record was not found.	未找到 CC 桌面版任务领取记录。	ไม่พบบันทึกการรับงานของ CC เดสก์ท็อป	CC デスクトップのタスク受領記録が見つかりません。	companion.delivery_not_found
 Access to the CC Desktop queue has been revoked.	CC 桌面版队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของ CC เดสก์ท็อปถูกเพิกถอนแล้ว	CC デスクトップのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
 This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
+The request to CC Desktop is invalid.	发给 CC 桌面版的请求无效。	คำขอถึง CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップへのリクエストが無効です。	companion.on_demand_invalid
+The computer on this connection cannot do this.	这条连接的电脑做不了这件事。	คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้	この接続のパソコンではこの操作はできません。	companion.on_demand_unsupported
+Too many requests are waiting for CC Desktop. Try again shortly.	等 CC 桌面版处理的请求太多，请稍后再试。	มีคำขอรอ CC เดสก์ท็อปมากเกินไป กรุณาลองใหม่ภายหลัง	CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。	companion.on_demand_busy
+The request to CC Desktop was not found.	找不到发给 CC 桌面版的请求。	ไม่พบคำขอถึง CC เดสก์ท็อป	CC デスクトップへのリクエストが見つかりません。	companion.on_demand_missing
+CC Desktop has not finished this yet.	CC 桌面版还没做完。	CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ	CC デスクトップの処理はまだ終わっていません。	companion.on_demand_not_ready
 Cowork ERP Mapping	Cowork ERP 映射	การจับคู่ ERP ของ Cowork	Cowork ERP マッピング	
 Cowork Supplier Posting Profile	Cowork 供应商过账档案	โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork	Cowork 仕入先転記プロファイル	
 Cowork Bank Evidence	Cowork 银行佐证	หลักฐานธนาคารของ Cowork	Cowork 銀行取引の根拠	
@@ -1481,6 +1498,8 @@ This scheduled task no longer exists for this PC.	此电脑上不存在该定时
 The task owner can no longer enter documents with this connection.	定时任务负责人已无权使用此连接录入。	ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว	定期タスクの担当者はこの接続で登録できなくなっています。	cowork.folder.owner_not_ready
 This file record was not found.	文件记录不存在。	ไม่พบรายการไฟล์นี้	このファイル記録が見つかりません。	cowork.folder.entry_missing
 Only PDF and image files are read.	仅支持 PDF 和图片文件。	รองรับเฉพาะไฟล์ PDF และรูปภาพ	読み取るのは PDF と画像だけです。	cowork.folder.type_invalid
+Give a file path inside this folder.	请给出这个文件夹里的文件路径。	กรุณาระบุพาธของไฟล์ภายในโฟลเดอร์นี้	このフォルダー内のファイルのパスを指定してください。	cowork.folder.fetch_path_invalid
+This file type cannot be brought into the chat.	这种类型的文件不能取进对话。	ไม่สามารถนำไฟล์ประเภทนี้เข้ามาในแชตได้	この種類のファイルはチャットに取り込めません。	cowork.folder.fetch_type_invalid
 The file is empty or too large.	文件为空或过大。	ไฟล์ว่างหรือใหญ่เกินไป	ファイルが空か大きすぎます。	cowork.folder.size_invalid
 This file is too large to send from this PC.	文件过大，无法从此电脑上传。	ไฟล์มีขนาดใหญ่เกินไป ไม่สามารถอัปโหลดจากเครื่องนี้ได้	このファイルは大きすぎて送信できません。	cowork.folder.too_large
 The uploaded file does not match the file on the PC.	上传的内容与电脑上的文件不一致。	ไฟล์ที่อัปโหลดไม่ตรงกับไฟล์ในเครื่อง	アップロード内容が PC のファイルと一致しません。	cowork.folder.content_mismatch
@@ -1802,8 +1821,11 @@ Saved a folder task	保存了文件夹任务	บันทึกงานโฟ�
 Saved folder tasks	保存了多个文件夹任务	บันทึกงานโฟลเดอร์หลายงานแล้ว	複数のフォルダータスクを保存しました
 Turned a folder task on or off	启用或停用了文件夹任务	เปิดหรือปิดงานโฟลเดอร์แล้ว	フォルダータスクを有効化／停止しました
 Deleted folder tasks	删除了文件夹任务	ลบงานโฟลเดอร์แล้ว	フォルダータスクを削除しました
+Listed folder files	列出了文件夹里的文件	แสดงรายการไฟล์ในโฟลเดอร์แล้ว	フォルダーのファイルを一覧しました
+Brought files from a folder	从文件夹取来了文件	นำไฟล์จากโฟลเดอร์มาแล้ว	フォルダーからファイルを取り込みました
 No documents were given.	没有指定单据。	ไม่ได้ระบุเอกสาร	書類が指定されていません。
 No attachments were given.	没有指定附件。	ไม่ได้ระบุไฟล์แนบ	添付ファイルが指定されていません。
+No files were given.	没有指定文件。	ไม่ได้ระบุไฟล์	ファイルが指定されていません。
 No recognition tasks were given.	没有指定识别任务。	ไม่ได้ระบุงานอ่านเอกสาร	読み取りタスクが指定されていません。
 No changes were given.	没有指定要改的内容。	ไม่ได้ระบุสิ่งที่จะแก้ไข	変更内容が指定されていません。
 No tasks were given.	没有指定任务。	ไม่ได้ระบุงาน	タスクが指定されていません。

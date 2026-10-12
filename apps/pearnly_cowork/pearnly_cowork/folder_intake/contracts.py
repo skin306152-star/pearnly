@@ -200,6 +200,88 @@ def filename(value: Any) -> str:
     return name
 
 
+# ── CC 从已授权文件夹列文件、取文件（2026-10 CC 闭环 L2，`fetch.py`）─────────────────────────────
+
+# 能取进 CC 对话的类型：与对话附件同一份（共用层 `pearnly_core.assistant.contracts.UPLOAD_EXTENSIONS`；本模块要能按路径
+# 单独加载、不依赖共用层，所以照抄成字面值），也与小助手 `folder_fetch.FETCH_EXTENSIONS` 一致（两处都由测试锁住）。
+FETCH_EXTENSIONS = (".csv", ".docx", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".json", ".md", ".pdf", ".png",
+                    ".tsv", ".txt", ".webp", ".xls", ".xlsx")
+# 小助手一次最多列这么多份（按修改时间新的在前）；再多就标 truncated，请用子文件夹、搜索词或类型缩小。
+FETCH_LIST_MAX = 5000
+FETCH_SEARCH_MAX = 100
+
+
+def _browse_parts(raw: str) -> List[str]:
+    # 每段原样保留（名字首尾带空格的文件夹 / 文件照样取得回），与小助手 `folder_fetch._parts` 同一规则：
+    # 整条路径去掉首尾空白、按分隔符拆段，只丢空段；全是空白的段不收
+    parts = [part for part in re.split(r"[\\/]+", raw) if part]
+    for part in parts:
+        if part in (".", "..") or not part.strip() or _BAD_PART.search(part) or part.endswith("."):
+            raise ContractError("cowork.folder.fetch_path_invalid")
+    return parts
+
+
+def browse_folder(value: Any) -> str:
+    """列文件的起点：根目录下的文件夹，`\\` 分隔，空串 = 根目录本身。同 `folder`，只是结果文件夹也可以看。"""
+    raw = "" if value in (None, "") else text(value, maximum=MAX_PATH)
+    return "\\".join(_browse_parts(raw))
+
+
+def fetch_path(value: Any) -> str:
+    """要取的一份文件：根目录下的相对路径。同 `relpath`（不许上跳、盘符、绝对路径、非法字符），但结果文件夹里的
+    也可以取（里面是 Pearnly 结果表，会计可能改过）；类型要在 FETCH_EXTENSIONS 里。"""
+    try:
+        raw = text(value, maximum=MAX_RELPATH)
+    except ContractError:
+        raise ContractError("cowork.folder.fetch_path_invalid") from None
+    parts = _browse_parts(raw)
+    if not parts:
+        raise ContractError("cowork.folder.fetch_path_invalid")
+    if not parts[-1].lower().endswith(FETCH_EXTENSIONS):
+        raise ContractError("cowork.folder.fetch_type_invalid")
+    return "\\".join(parts)
+
+
+def fetch_extensions(value: Any) -> List[str]:
+    """只列这几种类型（如 ``[".xlsx", "pdf"]``）；空 = 全部能取的类型。"""
+    if value in (None, "", []):
+        return []
+    if not isinstance(value, list) or len(value) > len(FETCH_EXTENSIONS):
+        raise ContractError("cowork.folder.fetch_type_invalid")
+    found: List[str] = []
+    for item in value:
+        ext = "." + str(item or "").strip().lower().lstrip(".")
+        if ext not in FETCH_EXTENSIONS:
+            raise ContractError("cowork.folder.fetch_type_invalid")
+        if ext not in found:
+            found.append(ext)
+    return found
+
+
+def fetched_listing(raw: Any) -> Dict[str, Any]:
+    """小助手交回的文件清单 ``{files: [{path, name, size, modified, result_folder}], truncated, scanned}``：不合形状的项
+    丢掉，路径照取文件的规则核一遍（列出来的都能直接拿去取）。"""
+    if not isinstance(raw, Mapping):
+        raise ContractError("cowork.folder.invalid")
+    files = []
+    for row in (raw.get("files") if isinstance(raw.get("files"), list) else [])[:FETCH_LIST_MAX]:
+        if not isinstance(row, Mapping):
+            continue
+        size, modified = row.get("size"), row.get("modified")
+        if type(size) is not int or size < 0 or isinstance(modified, bool) or not isinstance(modified, (int, float)) \
+                or not 0 <= modified <= 32_503_680_000:  # epoch 秒，到公元 3000 年（也挡掉 NaN、无穷）
+            continue
+        try:
+            path = fetch_path(row.get("path"))
+        except ContractError:
+            continue
+        files.append({"path": path, "name": path.rsplit("\\", 1)[-1], "size": size, "modified": float(modified),
+                      "result_folder": any(is_result_folder(part) for part in path.split("\\")[:-1])})
+    scanned = raw.get("scanned")
+    return {"files": files, "truncated": raw.get("truncated") is True,
+            "scanned": scanned if type(scanned) is int and scanned >= 0 else len(files)}
+
+
 def sha256(value: Any) -> str:
     if not isinstance(value, str) or not _HEX64.fullmatch(value):
         raise ContractError("cowork.folder.invalid")

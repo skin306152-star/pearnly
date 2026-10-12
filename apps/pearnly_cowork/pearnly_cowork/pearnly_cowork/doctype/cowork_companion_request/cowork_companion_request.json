@@ -1,0 +1,191 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Companion Request",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-13 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "One on-demand request to the CC Desktop app on a PC (read the books, list or fetch files in an authorised folder) and its result.",
+ "field_order": [
+  "request_id",
+  "request_key",
+  "connection",
+  "kind",
+  "actor",
+  "params_json",
+  "status",
+  "lease_handle",
+  "lease_credential",
+  "requested_at",
+  "leased_at",
+  "lease_expires_at",
+  "completed_at",
+  "error_code",
+  "received_bytes",
+  "result_bytes",
+  "result_sha256",
+  "meta_json",
+  "companion_version"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_id",
+   "label": "Request ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 32,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_key",
+   "label": "Request Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "unique": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "kind",
+   "label": "Kind",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "express_read\nfolder_list\nfolder_fetch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor",
+   "label": "Actor",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "params_json",
+   "label": "Parameters",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "requested\nleased\ndone\nfailed\nexpired",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "lease_handle",
+   "label": "Lease Handle",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "lease_credential",
+   "label": "Lease Credential",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "requested_at",
+   "label": "Requested At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "leased_at",
+   "label": "Leased At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "label": "Lease Expires At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_at",
+   "label": "Completed At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_code",
+   "label": "Error Code",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "received_bytes",
+   "label": "Received Bytes",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "result_bytes",
+   "label": "Result Bytes",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "result_sha256",
+   "label": "Result SHA-256",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "meta_json",
+   "label": "Result Details",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "companion_version",
+   "label": "CC Desktop Version",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 40
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

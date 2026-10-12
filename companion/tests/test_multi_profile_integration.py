@@ -276,3 +276,32 @@ def test_stopping_for_an_update_waits_for_both_threads_and_never_respawns(monkey
     assert app._work_stopped() is True
     app._restart_worker()  # 期间改了连接设置也不重启
     assert spawned == []
+
+
+def test_an_update_waits_for_the_on_demand_thread_too(monkeypatch):
+    # 按需请求（CC 对话里读账套、取文件）的线程正在交结果：不换版本；叫停后等它停稳再装，装完再起来
+    gui_tray = _gui_tray_with_fake_qt(monkeypatch)
+    app = gui_tray.TrayApp.__new__(gui_tray.TrayApp)
+    requests = SimpleNamespace(stopped=False, alive=True, working=True, started=0)
+    requests.stop = lambda: setattr(requests, "stopped", True)
+    requests.running = lambda: requests.alive
+    requests.busy = lambda: requests.working
+    requests.start = lambda: setattr(requests, "started", requests.started + 1)
+    app.worker = None
+    app._folders = None
+    app._requests = requests
+    app._updating = False
+    app._profile_states = {"A": ("idle", "")}
+    app._spawn_worker = lambda: None
+    monkeypatch.setattr(gui_tray, "_window_open", lambda: False)
+
+    assert app._busy() is True
+    requests.working = False
+    assert app._busy() is False
+    app._stop_for_update()
+    assert requests.stopped is True
+    assert app._work_stopped() is False
+    requests.alive = False
+    assert app._work_stopped() is True
+    app._resume_after_update()
+    assert requests.started == 1

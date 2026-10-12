@@ -364,6 +364,11 @@ def _admit(file_id, choices) -> dict:
         return {"file": file_id, "filename": filename, "status": "unsupported_type",
                 "reason": "Only document photos, PDF files and spreadsheets (such as a returned review workbook) "
                           "can be recognized."}
+    # 工具自己生成的文件（原件页图、复核工作簿、回读的账……）不再送识别：那不是票据，识别还要照常扣费。
+    # 从文件夹取来的（`cowork_folder_fetch`）与用户附件一样可以识别。
+    if chat_files.origin(file_id) == "tool":
+        return {"file": file_id, "filename": filename, "status": "not_started",
+                "reason": "made_by_tool: this file was made by a tool, not a document to recognize"}
     try:
         source = originals.create(scope.default_workspace(), filename, content, key)
         frappe.db.commit()
@@ -1554,6 +1559,196 @@ def folder_task_options(tool_input) -> str:
     return _json(_filled(out))
 
 
+# ---------------- 从电脑上已授权的文件夹列文件、取文件进对话（只读、不识别、不扣费） ----------------
+
+FOLDER_LIST_WAIT_SECONDS = 45
+FOLDER_FETCH_WAIT_SECONDS = 90
+FOLDER_FILES_PAGE = 100
+FOLDER_FILES_PAGE_MAX = 200
+FOLDER_FETCH_MAX = 5
+# 列出来的清单在这段对话里留 10 分钟：翻页不再请电脑重列
+FOLDER_LISTING_TTL = 600
+# 一次取几份、有的还在读时，已取进对话的那几份记 10 分钟（每次重调续期）：按提示重调不再取一遍
+FOLDER_FETCHED_TTL = 600
+FOLDER_STILL_READING = ("Still reading on the computer. Call again with the same input to get it; do not wait "
+                        "with sleep.")
+# 取进对话的文件类型（同对话附件那一组）：不靠系统的 mime 表（容器里可能没有 xlsx / docx）
+FOLDER_FILE_TYPES = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                     ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic", ".heif": "image/heif",
+                     ".xlsx": XLSX, ".xls": "application/vnd.ms-excel", ".csv": "text/csv",
+                     ".tsv": "text/tab-separated-values", ".txt": "text/plain", ".md": "text/markdown",
+                     ".json": "application/json",
+                     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+FOLDER_WAITING = {"offline": "The computer that reads this folder is offline. Nothing was read; ask the user to turn "
+                             "it on or open CC Desktop there.",
+                  "update_needed": "CC Desktop on that computer must be updated before files can be read from it."}
+
+
+def _folder_request(start) -> dict:
+    """建请求（权限、根目录、电脑在不在都由 `folder_intake.fetch` 判）；不行就回 not_started 与原因。"""
+    try:
+        made = start()
+        frappe.db.commit()
+        return made
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"status": "not_started", "reason": str(error)[:300]}
+
+
+def _folder_settled(states) -> bool:
+    return all(item.get("status") not in ("requested", "leased") for item in states)
+
+
+def _folder_wait(requests, seconds) -> dict:
+    """等电脑把这几件做完（或等满 ``seconds``），每次重新读（电脑交结果是别的请求提交的）：{请求号: 状态}。"""
+    from pearnly_core.assistant import toolrun
+
+    from pearnly_cowork.folder_intake import fetch
+
+    deadline = time.monotonic() + seconds
+    states = {}
+    while True:
+        toolrun.fresh()
+        for request in requests:
+            try:
+                states[request] = fetch.state(request)
+            except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+                frappe.clear_messages()
+                states[request] = {"status": "failed", "code": "not_found"}
+        if _folder_settled(states.values()) or time.monotonic() >= deadline:
+            return states
+        time.sleep(2)
+
+
+def _folder_not_done(state) -> dict:
+    if state.get("status") in ("requested", "leased"):
+        return {"status": "reading", "note": FOLDER_STILL_READING}
+    return {"status": "failed", "reason": state.get("code") or state.get("status")}
+
+
+def _waiting_for_cc(made) -> dict:
+    return {**made, "note": FOLDER_WAITING.get(made.get("reason"), "")}
+
+
+def _listing_key(tool_input) -> str:
+    seed = json.dumps([frappe.session.user, _conversation(), tool_input.get("reader"), tool_input.get("root_id"),
+                       tool_input.get("folder") or "", tool_input.get("search") or "",
+                       sorted(str(e) for e in tool_input.get("extensions") or [])], ensure_ascii=False)
+    return f"pearnly_assistant:folder_files:{frappe.local.site}:" + hashlib.sha256(seed.encode()).hexdigest()[:40]
+
+
+def folder_files(tool_input) -> str:
+    """电脑上已授权的文件夹（含子文件夹）里能取进对话的文件：按修改时间新的在前，一页 100 份。第一页请电脑现列，
+    翻页用这段对话里 10 分钟内列过的同一份清单。"""
+    from pearnly_cowork.folder_intake import fetch
+
+    offset = max(int(tool_input.get("offset") or 0), 0)
+    limit = min(max(int(tool_input.get("limit") or FOLDER_FILES_PAGE), 1), FOLDER_FILES_PAGE_MAX)
+    key = _listing_key(tool_input)
+    data = frappe.cache.get_value(key) if offset else None
+    if not isinstance(data, dict):
+        made = _folder_request(lambda: fetch.files(str(tool_input.get("reader") or ""),
+                                                   str(tool_input.get("root_id") or ""), tool_input.get("folder") or "",
+                                                   search=tool_input.get("search") or "",
+                                                   extensions=tool_input.get("extensions") or None,
+                                                   scope=_conversation() or ""))
+        if not made.get("request"):
+            return _json(_waiting_for_cc(made) if made.get("status") == "waiting_for_cc" else made)
+        state = _folder_wait([made["request"]], FOLDER_LIST_WAIT_SECONDS)[made["request"]]
+        if state.get("status") != "done":
+            return _json(_folder_not_done(state))
+        try:
+            data = fetch.listing(made["request"])
+            frappe.db.commit()
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return _json({"status": "failed", "reason": str(error)[:300]})
+        frappe.cache.set_value(key, data, expires_in_sec=FOLDER_LISTING_TTL)
+    rows = data.get("files") or []
+    page = [{"path": row["path"], "name": row["name"], "size_bytes": row["size"], "modified": row["modified"],
+             **({"result_folder": True} if row.get("result_folder") else {})} for row in rows[offset:offset + limit]]
+    out = {"files": page, "total": len(rows), "offset": offset,
+           "next_offset": offset + limit if offset + limit < len(rows) else None}
+    if data.get("truncated"):
+        out["truncated"] = True
+    return _json(out)
+
+
+def _fetched_key(reader, root, path):
+    """这段对话里取过的一份文件（路径按取文件的规则规整，`/` 与 `\\` 是同一份）；路径不合规的没有。"""
+    try:
+        normal = [folder_contracts.root_id(root), folder_contracts.fetch_path(path)]
+    except folder_contracts.ContractError:
+        return None
+    seed = json.dumps([frappe.session.user, _conversation(), reader, *normal], ensure_ascii=False)
+    return f"pearnly_assistant:folder_fetched:{frappe.local.site}:" + hashlib.sha256(seed.encode()).hexdigest()[:40]
+
+
+def _remember_fetched(results, keys) -> None:
+    """还有在读的：记下这次已取进对话的（按提示原样重调时直接回它们，电脑不再读、对话里不多一份）；都读完了就忘掉，
+    之后再要同一份是重新取（文件可能改过）。"""
+    reading = any(row.get("status") == "reading" for row in results.values())
+    for path, key in keys.items():
+        row = results[path]
+        if reading and row.get("status") == "added":
+            frappe.cache.set_value(key, {name: row[name] for name in ("status", "file", "filename", "size_bytes")},
+                                   expires_in_sec=FOLDER_FETCHED_TTL)
+        elif not reading:
+            frappe.cache.delete_value(key)
+
+
+def folder_fetch(tool_input) -> str:
+    """把电脑上已授权文件夹里的几份文件取进这段对话（像用户附件一样给别的工具用）。只读，不识别、不扣费。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.folder_intake import fetch
+
+    paths = list(dict.fromkeys(str(p) for p in (tool_input.get("paths") or []) if str(p).strip()))[:FOLDER_FETCH_MAX]
+    if not paths:
+        frappe.throw(_("No files were given."))
+    reader, root = str(tool_input.get("reader") or ""), str(tool_input.get("root_id") or "")
+    results, pending, keys = {}, {}, {}
+    for path in paths:
+        key = _fetched_key(reader, root, path)
+        if key:
+            keys[path] = key
+            earlier = frappe.cache.get_value(key)
+            if isinstance(earlier, dict) and earlier.get("file"):
+                results[path] = {"path": path, **earlier}  # 上一次已取进对话
+                continue
+        made = _folder_request(lambda path=path: fetch.fetch(reader, root, path, scope=_conversation() or ""))
+        if made.get("status") == "waiting_for_cc":
+            return _json(_waiting_for_cc(made))
+        if made.get("request"):
+            # 写法不同的同一份文件（`/` 与 `\\`）是同一件请求：取一次，结果给每种写法
+            pending.setdefault(made["request"], []).append(path)
+        else:
+            results[path] = {"path": path, **made}
+    states = _folder_wait(list(pending), FOLDER_FETCH_WAIT_SECONDS) if pending else {}
+    for request, asked in pending.items():
+        state = states.get(request) or {}
+        if state.get("status") != "done":
+            outcome = _folder_not_done(state)
+        else:
+            try:
+                filename, content = fetch.content(request)
+                mime = FOLDER_FILE_TYPES.get("." + filename.rsplit(".", 1)[-1].lower(), "application/octet-stream")
+                added = chat_files.add_to_conversation(filename, content, mime, origin="folder")
+                frappe.db.commit()
+                outcome = {"status": "added", "file": added, "filename": added.rsplit("/", 1)[-1],
+                           "size_bytes": len(content)}
+            except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+                frappe.db.rollback()
+                frappe.clear_messages()
+                outcome = {"status": "failed", "reason": str(error)[:300]}
+        for path in asked:
+            results[path] = {"path": path, **outcome}
+    _remember_fetched(results, keys)
+    return _json({"files": [results[path] for path in paths]})
+
+
 def _task_rows(items) -> dict:
     """要改的已有任务的现值（任务列表只读一次）；全是新任务就不读。"""
     if not any(isinstance(item, dict) and item.get("name") for item in items):
@@ -2000,7 +2195,8 @@ TOOLS = [
                     "exactly like uploading them on the Intake workbench (same billing, the documents then appear in "
                     "the workbench and can be reviewed and pushed). Use it whenever the user sends a document photo or "
                     "PDF and wants it recognized, read, entered or recorded, or sends back a review workbook (Excel) "
-                    "they corrected. Pass each attachment's file id: the folder "
+                    "they corrected; files brought from a folder with cowork_folder_fetch too, but not files a tool "
+                    "made. Pass each attachment's file id: the folder "
                     "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
                     "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
                     "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
@@ -2218,6 +2414,36 @@ TOOLS = [
          "connection": {"type": "string"}, "account_set_key": {"type": "string"}, "search": {"type": "string"}},
          "required": ["connection"]},
      "handler": "pearnly_cowork.assistant.tools.folder_task_options"},
+    {"name": "cowork_folder_files", "label": "Listed folder files",
+     "description": "List the files in a folder the user's computer opened to the website (reader and root_id from "
+                    "cowork_folder_task_options; folder is a subfolder, empty for the whole root; subfolders "
+                    "included): path (relative to the root), name, size_bytes and modified (Bangkok time), newest "
+                    "first, 100 per page (offset for the next page). search matches the path; extensions narrows the "
+                    "types; truncated means there were more than could be listed, so narrow with folder, search or "
+                    "extensions. Only file types that can be brought into the chat are listed. Read-only: nothing is "
+                    "recognized or charged. waiting_for_cc means that computer is offline or its CC Desktop needs an "
+                    "update (tell the user); reading means it is still listing: call again with the same input, never "
+                    "wait with sleep.",
+     "input_schema": {"type": "object", "properties": {
+         "reader": {"type": "string"}, "root_id": {"type": "string"}, "folder": {"type": "string"},
+         "search": {"type": "string"}, "extensions": {"type": "array", "items": {"type": "string"}},
+         "offset": {"type": "integer", "minimum": 0},
+         "limit": {"type": "integer", "minimum": 1, "maximum": FOLDER_FILES_PAGE_MAX}},
+         "required": ["reader", "root_id"]},
+     "handler": "pearnly_cowork.assistant.tools.folder_files"},
+    {"name": "cowork_folder_fetch", "label": "Brought files from a folder",
+     "description": "Bring up to 5 files from a folder the user's computer opened to the website into this chat "
+                    "(reader, root_id and paths as listed by cowork_folder_files). Use each returned file like a user "
+                    "attachment: for cowork_recon_start (a bank statement, ledger or VAT report), "
+                    "cowork_recognize_attachments or cowork_stocktake_create. Up to 30 MB each, the same types as chat "
+                    "attachments. Bringing a file in does not recognize it and is not charged. waiting_for_cc as in "
+                    "cowork_folder_files; reading means that file is still coming: call again with the same input "
+                    "(files already added are not brought in twice), never wait with sleep.",
+     "input_schema": {"type": "object", "properties": {
+         "reader": {"type": "string"}, "root_id": {"type": "string"},
+         "paths": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": FOLDER_FETCH_MAX}},
+         "required": ["reader", "root_id", "paths"]},
+     "handler": "pearnly_cowork.assistant.tools.folder_fetch"},
     {"name": "cowork_save_folder_task", "label": "Saved a folder task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
                     "intake choices, the photos and PDFs in the folder (subfolders included) that it has not "
@@ -2272,8 +2498,9 @@ TOOLS = [
      "preview": "pearnly_cowork.assistant.tools.preview_delete_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
     {"name": "cowork_recon_start", "label": "Started a reconciliation",
-     "description": "Start a reconciliation like New on the reconciliation pages, with files the user attached in "
-                    "this chat. bank: left_files = bank statements, right_files = general ledger. income: left_files "
+     "description": "Start a reconciliation like New on the reconciliation pages, with files in this chat: the "
+                    "user's attachments, files brought from a folder with cowork_folder_fetch, or workbooks a tool "
+                    "added. bank: left_files = bank statements, right_files = general ledger. income: left_files "
                     "= one general ledger, right_files = output VAT reports. vat: left_files = output VAT reports, "
                     "right_files = sales invoices. Excel/CSV and text PDFs are read free; scanned PDFs and photos are "
                     "read with paid recognition per page like invoices, so say so before starting when files are "

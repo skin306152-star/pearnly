@@ -66,10 +66,10 @@
 | `roundtrip` | 往返单契约与解析 | `service` / `parser` |
 | `push` | 推送装配、试算、幂等与写者锁 | `application.service` / `native`；外部写只在目标域 |
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
-| `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |
+| `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`）；按需请求通道（2026-10）：服务端请电脑读账套、列 / 取已授权文件夹里的文件 | 只消费上述域的公开入口，不直连数据库表；机器接口地址与小助手的约定见 `tests/test_companion_contract.py`。按需请求：私有表 `Cowork Companion Request` 只经 `request_service` 写（`find` / `create` / `status` / `result` / `drop` / `presence` / `waiting` 给发起它的业务域，`lease_next` / `complete` 给两条机器方法，登记在 `http_auth.REQUEST_METHODS`）；纯规则与加一种请求的做法在 `request_contracts`；结果字节存站点私有目录（`request_store`），取走即删；与推送队列、写者锁、看门狗互不相干 |
 | `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
-| `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；所有 Cowork 租户都有，不设站点开关（用户 2026-10-07）；2026-10-12 起新任务处理文件夹里已有的文件（`include_existing`，同步下发 `existing`，老任务照旧拍底）；任务、运行、文件进度变了经 `live` 在提交后推 `cowork_folder_changed`；前一天提醒与完成简报（`reminders` / `briefs`，每 5 分钟由 `schedule.notices` 触发）只算何时发、发给谁、写什么，统一经 `notify` 调用共用层 `pearnly_core.assistant.notices`，不调模型、不扣费；同一连接同一账套的存货销售等存货进货推送有了结论再准备（最多 12 小时） |
-| `assistant` | 智能体工具（ADR-019）：小助手状态与账套、单据推送、文件夹任务、推送结果 | 只声明工具（`pearnly_assistant_tools`）并调用 `connections` / `push.application` / `folder_intake` / `history` 的公开入口，以当前用户身份执行，不另写表、不绕过权限 |
+| `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；所有 Cowork 租户都有，不设站点开关（用户 2026-10-07）；2026-10-12 起新任务处理文件夹里已有的文件（`include_existing`，同步下发 `existing`，老任务照旧拍底）；任务、运行、文件进度变了经 `live` 在提交后推 `cowork_folder_changed`；前一天提醒与完成简报（`reminders` / `briefs`，每 5 分钟由 `schedule.notices` 触发）只算何时发、发给谁、写什么，统一经 `notify` 调用共用层 `pearnly_core.assistant.notices`，不调模型、不扣费；同一连接同一账套的存货销售等存货进货推送有了结论再准备（最多 12 小时）；`fetch`（2026-10 L2）经 `companion.request_service` 请读文件夹的电脑列文件、交回一份文件（只读、不识别、不扣费），判据同定时任务表单，类型与大小同对话附件 |
+| `assistant` | 智能体工具（ADR-019）：小助手状态与账套、单据推送、文件夹任务、推送结果、从已授权文件夹列 / 取文件 | 只声明工具（`pearnly_assistant_tools`）并调用 `connections` / `push.application` / `folder_intake` / `history` 的公开入口，以当前用户身份执行，不另写表、不绕过权限；从文件夹取来的文件以 `origin="folder"` 放进对话（识别工具只拒收 `origin="tool"` 的工具产出） |
 | `work` | 任务管理：多块看板（成员、可见范围、看板权限）、卡片、标签、评论与活动、附件（原生私有 File） | `contracts`（含看板权限矩阵）/ `access`（判据）/ `boards` / `service` / `api`；只依赖 `access`；原生资源只读且按看板过滤，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
 
@@ -133,7 +133,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 ### 智能体底座（ADR-019，2026-10-10）
 
-`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`engines` 是引擎目录（唯一登记处，纯数据）与适配器接口 `engines/base.py`，各厂商实现放 `engines/<code>.py`；`config` 读本站的引擎、模型、密钥与产品；`engine` 取当前适配器并缓存其远端资源；`definition` 从工具声明生成与厂商无关的智能体说明；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。对话提醒 `notices` 与表 `Pearnly Assistant Notice` 也在 Core：产品只经 `notices.post` 发提醒（类型、标题、正文、手机推送有效期都由产品传入，共用层不认识产品的提醒类型）；提醒不写进引擎会话，事件 `pearnly.notice`（编号 `pnotice_` 开头）只在站点与对话页之间，用户下次发话时与当地日期合成批末唯一一条系统消息带给智能体；`sessions` 单向依赖 `notices`。手机 / 电脑浏览器推送：`webpush` 是纯加密与校验（RFC 8291 aes128gcm、RFC 8292 VAPID ES256，只用标准库和随基础镜像带的 cryptography）；`push` 管本站 VAPID 密钥（`Pearnly Assistant Push Key`，单例，私钥用密码字段）、设备订阅（`Pearnly Assistant Push Subscription`，按推送地址 sha256 唯一，同一设备换人登录时覆盖）和发送；推送地址只认 FCM、苹果、Mozilla、微软几家推送服务，不跟随跳转，只有 404/410 才删订阅。产品不得在自己 App 里另起会话或直连模型厂商，共用层除适配器外不得出现厂商名、密钥格式或模型名；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
+`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`engines` 是引擎目录（唯一登记处，纯数据）与适配器接口 `engines/base.py`，各厂商实现放 `engines/<code>.py`；`config` 读本站的引擎、模型、密钥与产品；`engine` 取当前适配器并缓存其远端资源；`definition` 从工具声明生成与厂商无关的智能体说明；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。`files` 把对话里的文件在本站私有目录留一份（用户上传；2026-10 起工具产出 `origin="tool"` 与产品从文件夹取来的 `origin="folder"` 也留），工具经 `attachment` 取用、经 `origin` 查来源，删对话时一起删。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。对话提醒 `notices` 与表 `Pearnly Assistant Notice` 也在 Core：产品只经 `notices.post` 发提醒（类型、标题、正文、手机推送有效期都由产品传入，共用层不认识产品的提醒类型）；提醒不写进引擎会话，事件 `pearnly.notice`（编号 `pnotice_` 开头）只在站点与对话页之间，用户下次发话时与当地日期合成批末唯一一条系统消息带给智能体；`sessions` 单向依赖 `notices`。手机 / 电脑浏览器推送：`webpush` 是纯加密与校验（RFC 8291 aes128gcm、RFC 8292 VAPID ES256，只用标准库和随基础镜像带的 cryptography）；`push` 管本站 VAPID 密钥（`Pearnly Assistant Push Key`，单例，私钥用密码字段）、设备订阅（`Pearnly Assistant Push Subscription`，按推送地址 sha256 唯一，同一设备换人登录时覆盖）和发送；推送地址只认 FCM、苹果、Mozilla、微软几家推送服务，不跟随跳转，只有 404/410 才删订阅。产品不得在自己 App 里另起会话或直连模型厂商，共用层除适配器外不得出现厂商名、密钥格式或模型名；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
 
 ### 操作员提成归属的读取边界（2026-09-20）
 
@@ -188,7 +188,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 ### Cowork 机器心跳及回执接口（第十至十二批）
 
-`companion.http_auth` 只接受三个精确 POST RPC：`heartbeat.report`、`queue_api.lease`、`queue_api.acknowledge`；2026-10-07 另列一张表 `FOLDER_METHODS`，追加文件夹自动录入的四个精确 POST RPC（`folder_intake.machine` 的 `sync` / `begin` / `finish` / `workbook_file`），同一套信封、同一份配对码身份，原三个的路径、校验与身份逐字不变。每个请求绑定独立操作类型和请求对象，机器身份不能继承到通用 RPC、资源 CRUD、别名或浏览器会话；保留原生 issuer IP 限制。新原生 Connection / 新凭据的报告单向调用 `connections.collector`，目录刷新不自动授予推送准备资料。
+`companion.http_auth` 只接受三个精确 POST RPC：`heartbeat.report`、`queue_api.lease`、`queue_api.acknowledge`；2026-10-07 另列一张表 `FOLDER_METHODS`，追加文件夹自动录入的四个精确 POST RPC（`folder_intake.machine` 的 `sync` / `begin` / `finish` / `workbook_file`），同一套信封、同一份配对码身份，原三个的路径、校验与身份逐字不变；2026-10 再列 `REQUEST_METHODS`（`companion.request_api` 的 `next_request` / `complete_request`，按需请求），MR.ERP 的只读文件夹配对码也能调（`lease_next` 按连接的 ERP 只给文件夹的那几种）。每个请求绑定独立操作类型和请求对象，机器身份不能继承到通用 RPC、资源 CRUD、别名或浏览器会话；保留原生 issuer IP 限制。新原生 Connection / 新凭据的报告单向调用 `connections.collector`，目录刷新不自动授予推送准备资料。
 
 `companion.transport` 单向调用 `push.native` 账本，不包含 HTTP 或提交。私有 Delivery 把线协议 UUID 绑定到本 Site/Connection/历史 Credential/Attempt/fence；原始 attempt secret 使用原生 Password 密文，不编码进句柄。`receipt_auth` 的窄能力可在停闸、撤权或轮换后接收原历史任务结果，不能领取新任务或写报告，也不跳过原 issuer 的 IP 限制；它与当前派发能力互不通用。
 
