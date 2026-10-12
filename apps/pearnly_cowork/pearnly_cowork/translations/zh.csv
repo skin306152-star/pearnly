@@ -176,6 +176,9 @@ Bound at,绑定时间
 Bound to {0},已绑定到 {0}
 Branch,执行分支
 Branch No,分支机构编号
+Brief Key,简报去重键
+Brief Sent At,简报发送时间
+Brief Status,简报状态
 Buyer Client,买方客户
 Buyer Name,买方名称
 Buyer address,买方地址
@@ -185,6 +188,7 @@ Buyer tax ID,买方税号
 "By preset, these accounts are left out: {0}",按预设，这些科目不参与对账：{0}
 By preset: {0} groups matched by total,按预设：已按合计匹配 {0} 组多笔对一笔
 Byte Size,文件大小（字节）
+CC Conversation,CC 对话
 CC Desktop Report,CC 桌面版上报
 CC Desktop authentication failed.,CC 桌面版认证失败。
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
@@ -192,6 +196,7 @@ CC Desktop could not write this invoice. It is retried automatically,CC 桌面�
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
 CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
+CC Desktop offline,CC 桌面版离线
 CC Desktop offline or needs update,CC 桌面版不在线或需升级
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
 CC Desktop on this PC has not synced recently. Update it to the latest version.,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
@@ -535,6 +540,7 @@ Enter a valid quantity with no more than six decimal places.,请输入有效数�
 Enter list name,输入列表名称
 Enter the user name,请填写用户名
 Entered into Express,已推送
+Entered {0},已推送 {0}
 Entered {0} · in progress {1},已推 {0} · 处理中 {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},已推 {0} · 进行中 {1} · 失败 {2} · 非发票 {3}
 Entered {0} · to check {1},已推送 {0} · 待处理 {1}
@@ -571,6 +577,7 @@ Express record,Express 对应档案
 External Docnum,ERP 凭证号
 Factor to Base,换算系数
 Failed,失败
+Failed {0},失败 {0}
 Failure Count,失败次数
 Fence,尝试隔离序号
 Field,字段
@@ -651,8 +658,10 @@ Import result,导入结果
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
 In progress,进行中
 In progress ({0}),进行中（{0}）
+In progress {0},处理中 {0}
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
+Include Existing Files,处理已有文件
 Included in total,计入合计
 Income Reconciliation,收入对账
 Income account,收入科目
@@ -833,6 +842,7 @@ No invoice summary found,未识别到摘要
 No invoice was found in this document.,此单据中未识别到发票。
 No items were read,未识别到明细
 No members,无成员
+No new files,没有新文件
 No notifications,没有提醒
 No number_,无发票号_
 No presets yet,暂无预设
@@ -854,9 +864,11 @@ Not bound,未绑定
 Not card deposits net of fee,不是刷卡净额
 Not counted,未盘点
 Not entered,不录入
+Not invoices {0},不是发票 {0}
 Not permitted,没有权限
 Not set,未填
 Not specified in books,账面未指定
+Not uploaded {0},未上传 {0}
 Note,说明
 Notes,备注
 Notifications,提醒
@@ -864,6 +876,8 @@ Number,数字
 OUT,出账
 Observed At (UTC),观测时间（UTC）
 Observer,观察者
+Off,关
+On,开
 On schedule,定时
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",以下识别出的销项税报告页金额与单号错行（金额在总账中均存在，仅单号对应有误），属识别错误，请对照原件更正（括号内为行数）：{0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
@@ -1038,7 +1052,9 @@ Reimporting review workbooks is not available on the new platform yet.,新平台
 Relative Path,相对路径
 Reload,刷新
 Remarks,备注
+Remind me the day before,前一天提醒
 Reminder,提醒
+Reminder Since,提醒起算时间
 Remove,移除
 Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
@@ -1069,6 +1085,7 @@ Result Folder,结果文件夹
 Result Json,识别结果（JSON）
 Result Unknown,结果未知
 Result in the ERP,ERP 里的结果
+Results: {0},结果：{0}
 Review,复核
 Review JSON,复核记录 JSON
 Review Reasons,复核原因
@@ -1096,12 +1113,14 @@ Rules saved,规则已保存
 Run,扫描批次
 Run Day,每月执行日
 Run Info Json,运行信息
+Run Owner,运行负责人
 Run Request,立即执行请求
 Run Requested At,请求执行时间
 Run Time,执行时间
 Run at (Bangkok time),运行时间（曼谷时间）
 Run history,运行记录
 Run now,立即运行
+Run now (tasks: {0}):,立即运行（{0} 个任务）：
 Run on day,每月运行日
 Run requested. CC Desktop starts within a few minutes.,已请求运行，CC 桌面版将在几分钟内开始。
 Run requested. The Companion starts within a few minutes.,已请求运行，小助手将在几分钟内开始。
@@ -1113,9 +1132,11 @@ Sales invoices,销售发票
 Sales invoices need line items with tax-exclusive amounts before export.,销项发票缺少未税金额明细，无法导出。
 Sample Key,修正例标识
 Save and next,保存并下一项
+Save these folder tasks?,要保存这些定时任务吗？
 Save this folder task?,要保存这个定时任务吗？
 Saved,已保存
 Saved a folder task,保存了文件夹任务
+Saved folder tasks,保存了多个文件夹任务
 Saved push choices,保存了推送选项
 Saved. Scan the next item.,已保存，请扫描下一项。
 Scan barcode or QR code,扫描条形码或二维码
@@ -1123,6 +1144,10 @@ Scan barcodes · Record quantities,扫描条码 · 记录数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scanned At,扫描时间
 Schedule,每月运行
+Scheduled Time,定时时刻
+Scheduled run at {0} (tasks: {1}):,{0} 定时运行（{1} 个任务）：
+Scheduled task reminder,定时任务提醒
+Scheduled task results,定时任务结果
 Scheduled tasks,定时任务
 Scope,范围
 Scope Key,权限范围标识
@@ -1171,6 +1196,7 @@ Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
 Sold by Weight,按重量销售
 Some fields are uncertain. Check them against the original and submit again,部分字段无法确认，请对照原件核对后重新提交
+Some files are still in progress.,部分文件仍在处理中。
 Some line items have no name or amount. Fix the lines and submit again,部分明细缺少品名或金额，请补全后重新提交
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 Some rows in the file could not be understood. Check the file format,文件中有无法解析的行，请检查文件格式
@@ -1514,6 +1540,7 @@ This invoice was already sent successfully,此发票已推送成功
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,此文件为试算表，仅含科目合计，请上传包含逐笔凭证的总账。
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理
+This is set by the scheduled task's default handling. Change it in the task,此项由定时任务的默认处理决定，请在定时任务中修改
 This is taking too long. Check the list later.,对账耗时较长，请稍后在列表中查看。
 This item is also stocked at:,该物料在以下位置也有库存：
 This label no longer exists,标签不存在
@@ -1550,6 +1577,7 @@ This value cannot be chosen for this account set.,此账套不能选择该值。
 Time left {0},剩余 {0}
 Times Used,使用次数
 Title,标题
+To check {0},待处理 {0}
 To do,待办
 Token Digest,令牌摘要
 Token Generation,令牌版本
@@ -1571,6 +1599,7 @@ Turn this folder task on or off?,要启用或停用这个定时任务吗？
 Turn this rule off? Documents already entered stay as they are.,确定要停用此规则吗？已推送的单据不受影响。
 Turn this rule on? Only files added to the folder from now on are processed.,确定要启用此规则吗？仅处理此后放入该文件夹的文件。
 Turn this scheduled task off? Documents already entered stay as they are.,确定要停用此定时任务吗？已推送的单据不受影响。
+Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,确定要启用此定时任务吗？到点处理文件夹里还没处理过的文件。
 Turn this scheduled task on? Only files added to the folder from now on are processed.,确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。
 Turned a folder task on or off,启用或停用了文件夹任务
 Type,类型
@@ -1652,6 +1681,7 @@ WHT amount,预扣税额
 Waiting,等待中
 Waiting for recognition,等待识别
 Waiting for the recognition charge to complete.,正在等待扣费完成。
+Waiting for this account set's stock purchases to be entered first.,等待同一账套的进货先录入。
 "Waiting in line, will submit automatically",排队中，稍后自动提交
 Waiting to start,排队中
 Warehouse,仓库
@@ -1687,12 +1717,15 @@ active,有效
 admitted,已受理
 "allowed root, set once on the Companion",允许读取的根目录（在小助手上设一次）
 amount,金额
+and {0} more,另有 {0} 项
 before VAT,未税
 catalog_refresh_invalid,目录证据无效，请刷新后重新选择。
 catalog_refresh_pending,目录正在等待刷新。
 catalog_refresh_required,请先刷新账套目录。
 catalog_refresh_stale,账套目录已过期，请重新刷新。
+changed by a person,已有人改动
 charged,已计费
+choose {0},待选{0}
 client,客户
 client_import.file_too_large,导入文件过大。
 client_import.too_many_rows,导入行数过多。
@@ -1732,6 +1765,7 @@ connection.snapshot_invalid,目录快照与当前连接不一致。
 connection.snapshot_too_large,目录快照超过 16 MiB 上限。
 connection.stock_acc_group_invalid,此账套不能选择该存货科目组。
 connection.url_invalid,ERP 连接地址无效或不允许访问。
+contact record,对方档案
 cowork.choice.account,费用科目
 cowork.choice.cash,现购
 cowork.choice.claim,抵扣进项税
@@ -1743,6 +1777,7 @@ cowork.choice.item,存货
 cowork.choice.new,新建（按票面）
 cowork.choice.party,Express 对应档案
 cowork.choice.payment,付款方式
+cowork.choice.task_default,此项由定时任务的默认处理决定，请在定时任务中修改
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
@@ -1750,6 +1785,25 @@ cowork.folder.agentStale,CC 桌面版不在线或需升级
 cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
 cowork.folder.batch_missing,识别任务不存在。
 cowork.folder.billing_pending,正在等待扣费完成。
+cowork.folder.brief.failed,失败 {0}
+cowork.folder.brief.head,{0} 定时运行（{1} 个任务）：
+cowork.folder.brief.headManual,立即运行（{0} 个任务）：
+cowork.folder.brief.notInvoice,不是发票 {0}
+cowork.folder.brief.notUploaded,未上传 {0}
+cowork.folder.brief.nothing,没有新文件
+cowork.folder.brief.pushed,已推送 {0}
+cowork.folder.brief.reasons,{0}（{1}）
+cowork.folder.brief.results,结果：{0}
+cowork.folder.brief.stillMoving,部分文件仍在处理中。
+cowork.folder.brief.stopped,待处理 {0}
+cowork.folder.brief.title,定时任务结果
+cowork.folder.brief.why.choice,待选{0}
+cowork.folder.brief.why.human,已有人改动
+cowork.folder.brief.why.lowBalance,余额不足
+cowork.folder.brief.why.offline,CC 桌面版离线
+cowork.folder.brief.why.party,对方档案
+cowork.folder.brief.why.purchasesFirst,等进货先录入
+cowork.folder.brief.why.taskOff,任务已停用或无权限
 cowork.folder.cardHint,设一个本机文件夹，每月自动识别推送
 cowork.folder.catalogEmpty,还没有账套目录。请先在新建录入里点重新读取。
 cowork.folder.col.result,结果
@@ -1774,11 +1828,13 @@ cowork.folder.edit,编辑规则
 cowork.folder.empty,还没有规则。新建一条，把单据放进对应的文件夹即可。
 cowork.folder.enable,启用
 cowork.folder.enableConfirm,确定要启用此定时任务吗？仅处理此后放入该文件夹的文件。
+cowork.folder.enableConfirmAll,确定要启用此定时任务吗？到点处理文件夹里还没处理过的文件。
 cowork.folder.entry_missing,文件记录不存在。
 cowork.folder.express_only,自动录入只用于 Express 连接。
 cowork.folder.field.connection,Express 电脑
 cowork.folder.field.day,每月运行日
 cowork.folder.field.folder,文件夹
+cowork.folder.field.remind,前一天提醒
 cowork.folder.field.root,允许读取的根目录
 cowork.folder.field.time,运行时间
 cowork.folder.field.title,任务名称
@@ -1802,7 +1858,10 @@ cowork.folder.invalid,定时任务内容不完整或不正确。
 cowork.folder.item.ask,暂停并手动选择
 cowork.folder.item.new,按票面新建
 cowork.folder.lastDay,月末
+cowork.folder.line,{0}：{1}
 cowork.folder.mastersLoading,小助手还在读这份账套，稍后重新打开即可选科目。
+cowork.folder.more,另有 {0} 项
+cowork.folder.moving,处理中 {0}
 cowork.folder.new,新建定时任务
 cowork.folder.noExpress,自动录入要用 Express 连接和小助手。请先在新建录入里连接 Express。
 cowork.folder.noRoots,此电脑暂无可选文件夹，请在此电脑的 CC 桌面版中添加。
@@ -1814,7 +1873,20 @@ cowork.folder.on,启用中
 cowork.folder.overlap,已有启用中的规则使用此文件夹或其上级文件夹。
 cowork.folder.overlap_with,与定时任务「{0}」的文件夹重叠
 cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录入。
+cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
+cowork.folder.remind.count,文件夹里现有 {0} 份。
+cowork.folder.remind.leftDays,还有 {0} 天 {1} 小时
+cowork.folder.remind.leftHours,还有 {0} 小时 {1} 分钟
+cowork.folder.remind.leftMinutes,还有 {0} 分钟
+cowork.folder.remind.lineCount,{0}（现有 {1} 份）
+cowork.folder.remind.many,{1} 有 {0} 个定时任务开始（{2}）。请将资料放入以下文件夹，确保资料齐全：
+cowork.folder.remind.off,关
+cowork.folder.remind.on,开
+cowork.folder.remind.one,「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。
+cowork.folder.remind.title,定时任务提醒
+cowork.folder.remind.today,今天 {0}
+cowork.folder.remind.tomorrow,明天 {0}
 cowork.folder.rootItself,（根目录本身）
 cowork.folder.root_invalid,请选择 CC 桌面版上报的根目录。
 cowork.folder.rule_disabled,此定时任务已停用。
@@ -1850,6 +1922,8 @@ cowork.folder.upload_lost,未收到上传的文件，将重新上传。
 cowork.folder.vat.claim,抵扣进项税
 cowork.folder.vat.expense,不抵扣，计入费用
 cowork.folder.viewAttention,查看待处理
+cowork.folder.waiting,文件夹里现有 {0} 份，到点一起处理
+cowork.folder.waiting_purchases,等待同一账套的进货先录入。
 cowork.folder.wb.file,原文件名
 cowork.folder.wb.invoice,发票号
 cowork.folder.wb.reason,未生成复核表的原因
@@ -2645,6 +2719,7 @@ intake.wait.uploading,上传中
 leased,已领取
 legacy,旧版
 logical_section,文档逻辑单元
+low balance,余额不足
 "made by the system, do not put documents here",系统生成，别放单据
 manual,手工
 none,无
@@ -2874,6 +2949,9 @@ stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
 stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 subfolders are scanned too,下级子文件夹会一起扫
 summary_table_batch,汇总表导入
+task off or no access,任务已停用或无权限
+today at {0},今天 {0}
+tomorrow at {0},明天 {0}
 total,含税
 used by {0} items,{0} 个商品使用中
 vat_check.balance_insufficient,余额不足，无法识别图片和 PDF 发票，请充值后再试。
@@ -2888,24 +2966,33 @@ vat_check.recognition_timeout,发票识别超时，请稍后再试。
 vat_check.sellers_differ,多份报告卖方不一致（税号：{0}），请检查。
 vat_check.status.void_match,作废一致
 vat_check.status.void_no_invoice,作废（无需发票）
+waiting for purchases,等进货先录入
 workspace.tax_id_duplicate,该税号已被其他公司使用。
+{0} ({1} files),{0}（现有 {1} 份）
 {0} ({1} matching lines),{0}（匹配 {1} 笔）
+{0} ({1}),{0}（{1}）
 {0} added you to {1},{0} 将你添加到卡片「{1}」
 {0} bank lines add up to it ({1} to {2}),银行 {0} 笔合计相等（{1} 至 {2}）
 {0} commented on {1},{0} 评论了卡片「{1}」
 {0} completed {1},{0} 完成了卡片「{1}」
+{0} d {1} h left,还有 {0} 天 {1} 小时
 {0} files,{0} 个文件
+"{0} files in the folder now, processed at the run time",文件夹里现有 {0} 份，到点一起处理
+{0} files in the folder now.,文件夹里现有 {0} 份。
+{0} h {1} min left,还有 {0} 小时 {1} 分钟
 {0} ledger lines add up to it ({1} to {2}),总账 {0} 笔合计相等（{1} 至 {2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,总账中有 {0} 行不在销项税报告期间（{1} 至 {2}）内，未参与核对。
 "{0} ledger lines, {1} in total, none of them in the tax report",总账 {0} 笔，合计 {1}，销项税报告中均无对应记录
 {0} lines,{0} 笔
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
+{0} min left,还有 {0} 分钟
 {0} more items,另有 {0} 项
 {0} more possible combined matches are not listed,另有 {0} 组疑似合计匹配未列出
 {0} moved {1} to {2},{0} 将卡片「{1}」移至 {2}
 {0} of {1} files processed,已处理 {0}/{1} 个文件
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,销项税报告中有 {0} 行在多个文件中重复（同一页重复上传），仅计算一次。
 {0} rows were not imported,{0} 行没有导入
+{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,{1} 有 {0} 个定时任务开始（{2}）。请将资料放入以下文件夹，确保资料齐全：
 {0} statement amounts were corrected from the running balance. Check them,对账单中有 {0} 行金额已按余额推算更正，请核对
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,已排除 {0} 行总账期间（{1} 至 {2}）以外的账单行，期初余额取 {1} 之前的余额。
 {0} statement rows were read with low confidence. Check them against the original,对账单中有 {0} 行识别结果不确定，请对照原件核对
@@ -2918,6 +3005,7 @@ workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} 第 {1} 页读取失败（识别超时），余额链在此中断，请对照原件确认
 "{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0} 第 {1} 页已按原件重新读取并补充行，但余额链不连续，该页各行均已标记为待复核，请对照原件逐行核对
 {0}: which ledger account is it?,{0} 对应哪个总账科目？
+{0}: {1},{0}：{1}
 {1} is due at {2},卡片「{1}」将在 {2} 到期
 {1} is due soon ({2}),卡片「{1}」即将到期（{2}）
 {1} is overdue ({2}),卡片「{1}」已过期（{2}）
@@ -2935,3 +3023,4 @@ workspace.tax_id_duplicate,该税号已被其他公司使用。
 {who} restored this card,{who} 恢复了此卡片
 {who} set the due date to {0},{who} 将到期日设为 {0}
 {who}'s automation: {0} {1},自动化（{who}）：{0} {1}
+«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.,「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。

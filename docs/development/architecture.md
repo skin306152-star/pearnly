@@ -68,7 +68,7 @@
 | `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
 | `companion` | 伴生端采集、投递与心跳（服务端这一侧；Windows 小助手本体在仓库根的 `companion/`） | 只消费上述域的公开入口，不直连数据库表；三个机器接口地址与小助手的约定见 `tests/test_companion_contract.py` |
 | `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
-| `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；所有 Cowork 租户都有，不设站点开关（用户 2026-10-07） |
+| `folder_intake` | 文件夹自动录入（2026-10-07）：规则、小助手文件夹接口、后台推进、每张发票的结果表格 | 只调用 `files` / `ocr.execution` / `push.application` / `roundtrip.export` 的公开入口，不改它们；三张私有表只经本域写；所有 Cowork 租户都有，不设站点开关（用户 2026-10-07）；2026-10-12 起新任务处理文件夹里已有的文件（`include_existing`，同步下发 `existing`，老任务照旧拍底）；任务、运行、文件进度变了经 `live` 在提交后推 `cowork_folder_changed`；前一天提醒与完成简报（`reminders` / `briefs`，每 5 分钟由 `schedule.notices` 触发）只算何时发、发给谁、写什么，统一经 `notify` 调用共用层 `pearnly_core.assistant.notices`，不调模型、不扣费；同一连接同一账套的存货销售等存货进货推送有了结论再准备（最多 12 小时） |
 | `assistant` | 智能体工具（ADR-019）：小助手状态与账套、单据推送、文件夹任务、推送结果 | 只声明工具（`pearnly_assistant_tools`）并调用 `connections` / `push.application` / `folder_intake` / `history` 的公开入口，以当前用户身份执行，不另写表、不绕过权限 |
 | `work` | 任务管理：多块看板（成员、可见范围、看板权限）、卡片、标签、评论与活动、附件（原生私有 File） | `contracts`（含看板权限矩阵）/ `access`（判据）/ `boards` / `service` / `api`；只依赖 `access`；原生资源只读且按看板过滤，写入走 `documents` 写入闸 |
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
@@ -133,7 +133,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 
 ### 智能体底座（ADR-019，2026-10-10）
 
-`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`engines` 是引擎目录（唯一登记处，纯数据）与适配器接口 `engines/base.py`，各厂商实现放 `engines/<code>.py`；`config` 读本站的引擎、模型、密钥与产品；`engine` 取当前适配器并缓存其远端资源；`definition` 从工具声明生成与厂商无关的智能体说明；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。产品不得在自己 App 里另起会话或直连模型厂商，共用层除适配器外不得出现厂商名、密钥格式或模型名；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
+`pearnly_core.assistant` 是三产品共用底座：`contracts` 纯约定；`engines` 是引擎目录（唯一登记处，纯数据）与适配器接口 `engines/base.py`，各厂商实现放 `engines/<code>.py`；`config` 读本站的引擎、模型、密钥与产品；`engine` 取当前适配器并缓存其远端资源；`definition` 从工具声明生成与厂商无关的智能体说明；`tools` 汇总共用与产品声明（`pearnly_assistant_tools`）并在服务端以当前用户身份执行；`sessions` 做归属判定与会话读写；`api` 只是白名单入口。会话归属表 `Pearnly Assistant Session`、工具执行记录 `Pearnly Assistant Tool Run` 在 Core。对话提醒 `notices` 与表 `Pearnly Assistant Notice` 也在 Core：产品只经 `notices.post` 发提醒（类型、标题、正文、手机推送有效期都由产品传入，共用层不认识产品的提醒类型）；提醒不写进引擎会话，事件 `pearnly.notice`（编号 `pnotice_` 开头）只在站点与对话页之间，用户下次发话时与当地日期合成批末唯一一条系统消息带给智能体；`sessions` 单向依赖 `notices`。手机 / 电脑浏览器推送：`webpush` 是纯加密与校验（RFC 8291 aes128gcm、RFC 8292 VAPID ES256，只用标准库和随基础镜像带的 cryptography）；`push` 管本站 VAPID 密钥（`Pearnly Assistant Push Key`，单例，私钥用密码字段）、设备订阅（`Pearnly Assistant Push Subscription`，按推送地址 sha256 唯一，同一设备换人登录时覆盖）和发送；推送地址只认 FCM、苹果、Mozilla、微软几家推送服务，不跟随跳转，只有 404/410 才删订阅。产品不得在自己 App 里另起会话或直连模型厂商，共用层除适配器外不得出现厂商名、密钥格式或模型名；产品工具只调本产品已有服务，不绕过其权限、套账与数据范围校验。
 
 ### 操作员提成归属的读取边界（2026-09-20）
 
@@ -196,7 +196,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 ### Cowork 人工确认与 ACK 本地联动（第十三至十四批）
 
-第十三批 `connections.preparation` 从原生数据域采集准备资料并逐类绑定机器缓存来源，`companion.submission` 以原actor/current权限及凭据实现人工确认；poll不自动激活。唯一明确例外（用户 2026-10-07）：`folder_intake` 的自动录入规则——规则负责人启用规则即视为对该规则文件夹票的常设确认，由后台以负责人身份调用同一组 `push.application.service`（`choices_view` / `submit` / `confirm` / `cancel_prepared`），判据、账本与小助手队列不变；网页手动推送与 poll 仍不自动激活。第十四批 `push.native.completion` 在同一ACK事务中单向调用 `history.push_state` 和 `connections.stock_effects`，没有反向依赖。History是原账本的窄状态投影，不改变人工审核版本；库存增量只影响匹配账号/root/原报告凭据的画像。
+第十三批 `connections.preparation` 从原生数据域采集准备资料并逐类绑定机器缓存来源，`companion.submission` 以原actor/current权限及凭据实现人工确认；poll不自动激活。唯一明确例外（用户 2026-10-07）：`folder_intake` 的自动录入规则——规则负责人启用规则即视为对该规则文件夹票的常设确认，由后台以负责人身份调用同一组 `push.application.service`（`choices_view` / `submit` / `confirm` / `cancel_prepared`），判据、账本与小助手队列不变；网页手动推送与 poll 仍不自动激活。2026-10-12（F6）：`push.application.service` 在调用方没给 `fixed` 时按框架钩子 `cowork_push_fixed_choices` 取「这张票已定的选择」（提供者签名 `(history, connection, account_set) -> {kind: value}`，只读、取不到回 `{}` 不抛错；合并后去掉 `party`，只对这张票生效、不写进账套记忆）。Cowork 登记 `folder_intake.push.fixed_for`：定时任务的票推往该任务的连接与账套时回任务默认处理。push 域因此在运行时用到 folder_intake，但不导入它（与 `cowork_ocr_recognized` 同一做法）；`prepare`、`choices_view`、`save_choices`（拒收被任务默认值决定的类别）统一经 `_fixed`。第十四批 `push.native.completion` 在同一ACK事务中单向调用 `history.push_state` 和 `connections.stock_effects`，没有反向依赖。History是原账本的窄状态投影，不改变人工审核版本；库存增量只影响匹配账号/root/原报告凭据的画像。
 
 唯一 `Cowork Push Notification` 为push域私有原生事件，继承通用CRUD/分享拒绝，仅LINE来源首次成功保存held素材；无发送消费者或接收人权限。失败回滚账本、投影、计数、事件和锁释放，重复ACK不重放副作用。复核表仅通过既有History范围读取服务器状态；单号和主档动作事实待后续接入。详见[第十四批合同](../work/cowork-backend/fourteenth-source-review.md)。以上替代前述旧批次中相应待办，不代表真实Windows接线、完整通知功能或独立ERP回读已验收。
 

@@ -176,6 +176,9 @@ Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,実行分岐
 Branch No,支店番号
+Brief Key,サマリーキー
+Brief Sent At,サマリー送信日時
+Brief Status,サマリーの状態
 Buyer Client,買い手顧客
 Buyer Name,買い手名
 Buyer address,買い手住所
@@ -185,6 +188,7 @@ Buyer tax ID,買い手税番号
 "By preset, these accounts are left out: {0}",プリセットにより次の科目は照合に含めていません：{0}
 By preset: {0} groups matched by total,プリセットにより {0} 組を合計で照合済み
 Byte Size,ファイルサイズ（バイト）
+CC Conversation,CC の会話
 CC Desktop Report,CC デスクトップのレポート
 CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
@@ -192,6 +196,7 @@ CC Desktop could not write this invoice. It is retried automatically,CC デス�
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
+CC Desktop offline,CC デスクトップがオフライン
 CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",このPCのヘルパーにこの会計データがないか、書き込み権限がありません。ヘルパーで選んだ会計データを確認してください
 CC Desktop on this PC has not synced recently. Update it to the latest version.,この PC の CC デスクトップが同期していません。最新版に更新してください。
@@ -535,6 +540,7 @@ Enter a valid quantity with no more than six decimal places.,有効な数量を�
 Enter list name,リスト名を入力
 Enter the user name,ユーザー名を入力してください
 Entered into Express,登録済み
+Entered {0},登録済み {0}
 Entered {0} · in progress {1},登録済み {0} · 処理中 {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},登録済み {0} · 処理中 {1} · 失敗 {2} · 請求書以外 {3}
 Entered {0} · to check {1},登録済み {0} · 要確認 {1}
@@ -571,6 +577,7 @@ Express record,Express の取引先
 External Docnum,ERP伝票番号
 Factor to Base,基準単位換算係数
 Failed,失敗
+Failed {0},失敗 {0}
 Failure Count,失敗回数
 Fence,試行分離番号
 Field,項目
@@ -651,8 +658,10 @@ Import result,取り込み結果
 "Imported {0} rows, {1} counted",{0}行を取り込み、{1}行に実数あり
 In progress,進行中
 In progress ({0}),進行中（{0}）
+In progress {0},処理中 {0}
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
 Inactive,無効
+Include Existing Files,既存のファイルも処理
 Included in total,合計に含める
 Income Reconciliation,収益照合
 Income account,収入科目
@@ -833,6 +842,7 @@ No invoice summary found,請求書の概要情報なし
 No invoice was found in this document.,この書類から請求書が見つかりませんでした。
 No items were read,明細を読み取れませんでした
 No members,メンバーなし
+No new files,新しいファイルはありません
 No notifications,通知はありません
 No number_,番号なし_
 No presets yet,プリセットはまだありません
@@ -854,9 +864,11 @@ Not bound,未連携
 Not card deposits net of fee,カード手数料控除後ではない
 Not counted,未棚卸
 Not entered,入力しない
+Not invoices {0},請求書以外 {0}
 Not permitted,権限がありません
 Not set,未入力
 Not specified in books,帳簿に指定なし
+Not uploaded {0},未アップロード {0}
 Note,メモ
 Notes,備考
 Notifications,通知
@@ -864,6 +876,8 @@ Number,数値
 OUT,出金
 Observed At (UTC),観測日時（UTC）
 Observer,オブザーバー
+Off,オフ
+On,オン
 On schedule,スケジュール
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",読み取った次の税務報告のページでは、金額と請求書番号の行がずれています（各金額は元帳にあり、隣の番号と組み合わされているだけです）。実際の差異ではなく読み取り誤りのため、原本に合わせて修正してください（括弧内は行数）：{0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
@@ -1038,7 +1052,9 @@ Reimporting review workbooks is not available on the new platform yet.,新プラ
 Relative Path,相対パス
 Reload,再読み込み
 Remarks,備考
+Remind me the day before,前日にリマインド
 Reminder,リマインダー
+Reminder Since,リマインダー開始日時
 Remove,削除
 Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
@@ -1069,6 +1085,7 @@ Result Folder,結果フォルダー
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
 Result in the ERP,ERP での結果
+Results: {0},結果：{0}
 Review,レビュー
 Review JSON,確認記録 JSON
 Review Reasons,確認理由
@@ -1096,12 +1113,14 @@ Rules saved,ルールを保存しました
 Run,スキャン回
 Run Day,毎月の実行日
 Run Info Json,実行情報
+Run Owner,実行担当者
 Run Request,即時実行リクエスト
 Run Requested At,実行要求日時
 Run Time,実行時刻
 Run at (Bangkok time),時刻（バンコク）
 Run history,実行履歴
 Run now,今すぐ実行
+Run now (tasks: {0}):,今すぐ実行（{0} 件）：
 Run on day,実行日
 Run requested. CC Desktop starts within a few minutes.,実行を依頼しました。数分以内に開始します。
 Run requested. The Companion starts within a few minutes.,実行を依頼しました。数分以内に開始します。
@@ -1113,9 +1132,11 @@ Sales invoices,売上請求書
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
 Sample Key,修正例識別子
 Save and next,保存して次へ
+Save these folder tasks?,これらの定期タスクを保存しますか？
 Save this folder task?,この定期タスクを保存しますか？
 Saved,保存しました
 Saved a folder task,フォルダータスクを保存しました
+Saved folder tasks,複数のフォルダータスクを保存しました
 Saved push choices,送信の選択を保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
 Scan barcode or QR code,バーコード・QRコードを読む
@@ -1123,6 +1144,10 @@ Scan barcodes · Record quantities,バーコード読取 · 数量記録
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scanned At,スキャン日時
 Schedule,実行日時
+Scheduled Time,予定時刻
+Scheduled run at {0} (tasks: {1}):,{0} の定期実行（{1} 件）：
+Scheduled task reminder,定期タスクのリマインダー
+Scheduled task results,定期タスクの結果
 Scheduled tasks,定期タスク
 Scope,範囲
 Scope Key,権限範囲識別子
@@ -1171,6 +1196,7 @@ Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
 Sold by Weight,量り売り
 Some fields are uncertain. Check them against the original and submit again,不確かな項目があります。原本と照合して再送信してください
+Some files are still in progress.,一部のファイルはまだ処理中です。
 Some line items have no name or amount. Fix the lines and submit again,品名または金額のない明細があります。直して再送信してください
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Some rows in the file could not be understood. Check the file format,ファイルに読み取れない行があります。ファイルの形式を確認してください
@@ -1514,6 +1540,7 @@ This invoice was already sent successfully,この伝票は送信済みです
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,これは科目合計だけの試算表です。伝票ごとの明細がある総勘定元帳をアップロードしてください。
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,これは源泉徴収証明書（50 ทวิ）です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます
+This is set by the scheduled task's default handling. Change it in the task,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 This is taking too long. Check the list later.,時間がかかっています。後で一覧を確認してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This label no longer exists,このラベルはもうありません
@@ -1550,6 +1577,7 @@ This value cannot be chosen for this account set.,この帳簿ではこの値を
 Time left {0},残り {0}
 Times Used,使用回数
 Title,タイトル
+To check {0},要確認 {0}
 To do,未着手
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代
@@ -1571,6 +1599,7 @@ Turn this folder task on or off?,この定期タスクをオン／オフにし�
 Turn this rule off? Documents already entered stay as they are.,このルールを停止しますか？登録済みの書類はそのままです。
 Turn this rule on? Only files added to the folder from now on are processed.,このルールを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
 Turn this scheduled task off? Documents already entered stay as they are.,この定期タスクを停止しますか？登録済みの書類はそのままです。
+Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。
 Turn this scheduled task on? Only files added to the folder from now on are processed.,この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
 Turned a folder task on or off,フォルダータスクを有効化／停止しました
 Type,種別
@@ -1652,6 +1681,7 @@ WHT amount,源泉税額
 Waiting,待機中
 Waiting for recognition,読み取り待ち
 Waiting for the recognition charge to complete.,課金の完了待ち
+Waiting for this account set's stock purchases to be entered first.,同じ会計データの仕入が先に登録されるのを待っています。
 "Waiting in line, will submit automatically",順番待ち・自動で送信します
 Waiting to start,開始待ち
 Warehouse,倉庫
@@ -1687,12 +1717,15 @@ active,有効
 admitted,受け付け済み
 "allowed root, set once on the Companion",許可されたルート（コンパニオンで一度設定）
 amount,金額
+and {0} more,ほか {0} 件
 before VAT,税抜
 catalog_refresh_invalid,ディレクトリの情報が無効です。更新して選択し直してください。
 catalog_refresh_pending,ディレクトリの更新を待機しています。
 catalog_refresh_required,先に会計データのディレクトリを更新してください。
 catalog_refresh_stale,会計データのディレクトリが古くなっています。再度更新してください。
+changed by a person,手動で変更済み
 charged,課金済み
+choose {0},{0}の選択待ち
 client,顧客
 client_import.file_too_large,インポートファイルが大きすぎます。
 client_import.too_many_rows,インポートする行が多すぎます。
@@ -1732,6 +1765,7 @@ connection.snapshot_invalid,ディレクトリのスナップショットが接�
 connection.snapshot_too_large,ディレクトリのスナップショットが16 MiBの上限を超えています。
 connection.stock_acc_group_invalid,この会計データではこの在庫勘定グループを選択できません。
 connection.url_invalid,ERPのアドレスが無効か、許可されていません。
+contact record,取引先
 cowork.choice.account,費用勘定
 cowork.choice.cash,現金仕入
 cowork.choice.claim,仕入税額控除する
@@ -1743,6 +1777,7 @@ cowork.choice.item,在庫品目
 cowork.choice.new,伝票どおり新規作成
 cowork.choice.party,Express の取引先
 cowork.choice.payment,支払方法
+cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
 cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
@@ -1750,6 +1785,25 @@ cowork.folder.agentStale,CC デスクトップがオフラインか更新が必�
 cowork.folder.agentStaleHint,この PC の CC デスクトップが同期していません。最新版に更新してください。
 cowork.folder.batch_missing,読み取りタスクが見つかりません。
 cowork.folder.billing_pending,課金の完了待ち
+cowork.folder.brief.failed,失敗 {0}
+cowork.folder.brief.head,{0} の定期実行（{1} 件）：
+cowork.folder.brief.headManual,今すぐ実行（{0} 件）：
+cowork.folder.brief.notInvoice,請求書以外 {0}
+cowork.folder.brief.notUploaded,未アップロード {0}
+cowork.folder.brief.nothing,新しいファイルはありません
+cowork.folder.brief.pushed,登録済み {0}
+cowork.folder.brief.reasons,{0}（{1}）
+cowork.folder.brief.results,結果：{0}
+cowork.folder.brief.stillMoving,一部のファイルはまだ処理中です。
+cowork.folder.brief.stopped,要確認 {0}
+cowork.folder.brief.title,定期タスクの結果
+cowork.folder.brief.why.choice,{0}の選択待ち
+cowork.folder.brief.why.human,手動で変更済み
+cowork.folder.brief.why.lowBalance,残高不足
+cowork.folder.brief.why.offline,CC デスクトップがオフライン
+cowork.folder.brief.why.party,取引先
+cowork.folder.brief.why.purchasesFirst,仕入の登録待ち
+cowork.folder.brief.why.taskOff,タスク停止中または権限なし
 cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
 cowork.folder.catalogEmpty,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 cowork.folder.col.result,結果
@@ -1774,11 +1828,13 @@ cowork.folder.edit,ルールを編集
 cowork.folder.empty,ルールはまだありません。作成して、そのフォルダーに書類を入れてください。
 cowork.folder.enable,有効にする
 cowork.folder.enableConfirm,この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
+cowork.folder.enableConfirmAll,この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。
 cowork.folder.entry_missing,このファイル記録が見つかりません。
 cowork.folder.express_only,Express 接続でのみ使えます。
 cowork.folder.field.connection,Express の PC
 cowork.folder.field.day,実行日
 cowork.folder.field.folder,フォルダー
+cowork.folder.field.remind,前日にリマインド
 cowork.folder.field.root,許可されたルートフォルダー
 cowork.folder.field.time,実行時刻
 cowork.folder.field.title,タスク名
@@ -1802,7 +1858,10 @@ cowork.folder.invalid,定期タスクの内容が不完全または不正です�
 cowork.folder.item.ask,止めて選択する
 cowork.folder.item.new,書類どおり新規作成
 cowork.folder.lastDay,月末
+cowork.folder.line,{0}：{1}
 cowork.folder.mastersLoading,コンパニオンがこの帳簿を読み込み中です。少し後で開き直して科目を選んでください。
+cowork.folder.more,ほか {0} 件
+cowork.folder.moving,処理中 {0}
 cowork.folder.new,定期タスクを作成
 cowork.folder.noExpress,自動取込には Express 接続とコンパニオンが必要です。先に新規取込で Express を接続してください。
 cowork.folder.noRoots,この PC にはまだ選べるフォルダーがありません。その PC の CC デスクトップで追加してください。
@@ -1814,7 +1873,20 @@ cowork.folder.on,有効
 cowork.folder.overlap,有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。
 cowork.folder.overlap_with,定期タスク「{0}」のフォルダーと重なっています
 cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登録できなくなっています。
+cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
+cowork.folder.remind.count,フォルダーに現在 {0} 件あります。
+cowork.folder.remind.leftDays,あと {0} 日 {1} 時間
+cowork.folder.remind.leftHours,あと {0} 時間 {1} 分
+cowork.folder.remind.leftMinutes,あと {0} 分
+cowork.folder.remind.lineCount,{0}（{1} 件）
+cowork.folder.remind.many,{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。
+cowork.folder.remind.off,オフ
+cowork.folder.remind.on,オン
+cowork.folder.remind.one,「{0}」は{1}に開始します（{2}）。{3} に書類を入れ、漏れがないか確認してください。
+cowork.folder.remind.title,定期タスクのリマインダー
+cowork.folder.remind.today,今日 {0}
+cowork.folder.remind.tomorrow,明日 {0}
 cowork.folder.rootItself,（ルートフォルダー自体）
 cowork.folder.root_invalid,CC デスクトップが報告したルートを選んでください。
 cowork.folder.rule_disabled,この定期タスクは停止中です。
@@ -1850,6 +1922,8 @@ cowork.folder.upload_lost,アップロードされたファイルを受信でき
 cowork.folder.vat.claim,仕入税額控除する
 cowork.folder.vat.expense,費用に計上
 cowork.folder.viewAttention,要確認を見る
+cowork.folder.waiting,フォルダーに現在 {0} 件、実行時刻にまとめて処理します
+cowork.folder.waiting_purchases,同じ会計データの仕入が先に登録されるのを待っています。
 cowork.folder.wb.file,元のファイル
 cowork.folder.wb.invoice,請求書番号
 cowork.folder.wb.reason,確認表がない理由
@@ -2645,6 +2719,7 @@ intake.wait.uploading,アップロード中
 leased,取得済み
 legacy,旧形式
 logical_section,文書の論理単位
+low balance,残高不足
 "made by the system, do not put documents here",システムが作成。書類を置かないでください
 manual,手入力
 none,なし
@@ -2874,6 +2949,9 @@ stocktake.too_many_rows,"インポートデータが上限の 10,000 行を超�
 stocktake.warehouse_required,倉庫と場所を確認してください。倉庫は必須です。
 subfolders are scanned too,サブフォルダーも読み取ります
 summary_table_batch,集計表の取り込み
+task off or no access,タスク停止中または権限なし
+today at {0},今日 {0}
+tomorrow at {0},明日 {0}
 total,税込
 used by {0} items,{0} 品目が使用中
 vat_check.balance_insufficient,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
@@ -2888,24 +2966,33 @@ vat_check.recognition_timeout,請求書の読み取りに時間がかかりす�
 vat_check.sellers_differ,報告の売り手が異なります（{0}）。確認してください。
 vat_check.status.void_match,取消 · 一致
 vat_check.status.void_no_invoice,取消 · 請求書不要
+waiting for purchases,仕入の登録待ち
 workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用されています。
+{0} ({1} files),{0}（{1} 件）
 {0} ({1} matching lines),{0}（一致 {1} 件）
+{0} ({1}),{0}（{1}）
 {0} added you to {1},{0} があなたを「{1}」に追加しました
 {0} bank lines add up to it ({1} to {2}),銀行 {0} 件の合計が一致（{1}〜{2}）
 {0} commented on {1},{0} が「{1}」にコメントしました
 {0} completed {1},{0} が「{1}」を完了しました
+{0} d {1} h left,あと {0} 日 {1} 時間
 {0} files,{0} 件のファイル
+"{0} files in the folder now, processed at the run time",フォルダーに現在 {0} 件、実行時刻にまとめて処理します
+{0} files in the folder now.,フォルダーに現在 {0} 件あります。
+{0} h {1} min left,あと {0} 時間 {1} 分
 {0} ledger lines add up to it ({1} to {2}),総勘定元帳 {0} 件の合計が一致（{1}〜{2}）
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,総勘定元帳の {0} 行は売上税報告の期間（{1}〜{2}）外のため、照合に含めていません。
 "{0} ledger lines, {1} in total, none of them in the tax report",総勘定元帳 {0} 件・合計 {1}、税報告には 1 件もありません
 {0} lines,{0} 件
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
+{0} min left,あと {0} 分
 {0} more items,ほか {0} 件
 {0} more possible combined matches are not listed,ほかに合計一致の可能性がある {0} 組は表示していません
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました
 {0} of {1} files processed,{0}/{1} ファイル処理済み
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} 行の売上税報告が複数のファイルで重複していたため（同じページを 2 回アップロード）、1 回だけ数えました。
 {0} rows were not imported,{0} 行は取り込めませんでした
+{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,{1}に定期タスク {0} 件が開始します（{2}）。次のフォルダーに書類を入れ、漏れがないか確認してください。
 {0} statement amounts were corrected from the running balance. Check them,明細で残高から金額を補正した行が {0} 行あります。確認してください
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,総勘定元帳の期間（{1}〜{2}）外の明細行 {0} 行を除外しました。期首残高は {1} より前の残高です。
 {0} statement rows were read with low confidence. Check them against the original,明細に読み取りが不確かな行が {0} 行あります。原本と照合してください
@@ -2918,6 +3005,7 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0} の {1} ページは読み取れませんでした（読み取りタイムアウト）。ここで残高がつながらないため、原本と照合してください
 "{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0} の {1} ページは原本から読み直して行を補いましたが、残高がつながりません（1 ページに表が 2 つある場合によくあります）。このページの全行に要確認を付けたので、原本と一行ずつ照合してください
 {0}: which ledger account is it?,{0} は総勘定元帳のどの科目ですか
+{0}: {1},{0}：{1}
 {1} is due at {2},「{1}」の期限は {2} です
 {1} is due soon ({2}),「{1}」の期日が近づいています（{2}）
 {1} is overdue ({2}),「{1}」は期限切れです（{2}）
@@ -2935,3 +3023,4 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {who} restored this card,{who} がこのカードを復元しました
 {who} set the due date to {0},{who} が期日を {0} に設定しました
 {who}'s automation: {0} {1},自動化（{who}）：{0} {1}
+«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.,「{0}」は{1}に開始します（{2}）。{3} に書類を入れ、漏れがないか確認してください。

@@ -176,6 +176,9 @@ Bound at,เวลาที่ผูกบัญชี
 Bound to {0},ผูกบัญชีกับ {0} แล้ว
 Branch,เส้นทางการดำเนินการ
 Branch No,เลขที่สาขา
+Brief Key,คีย์สรุปผล
+Brief Sent At,เวลาส่งสรุปผล
+Brief Status,สถานะสรุปผล
 Buyer Client,ลูกค้าผู้ซื้อ
 Buyer Name,ชื่อผู้ซื้อ
 Buyer address,ที่อยู่ผู้ซื้อ
@@ -185,6 +188,7 @@ Buyer tax ID,เลขประจำตัวผู้เสียภาษี�
 "By preset, these accounts are left out: {0}",ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}
 By preset: {0} groups matched by total,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
 Byte Size,ขนาดไฟล์ (ไบต์)
+CC Conversation,บทสนทนา CC
 CC Desktop Report,รายงานจาก CC เดสก์ท็อป
 CC Desktop authentication failed.,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
@@ -192,6 +196,7 @@ CC Desktop could not write this invoice. It is retried automatically,CC เด�
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+CC Desktop offline,CC เดสก์ท็อปออฟไลน์
 CC Desktop offline or needs update,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 CC Desktop on this PC has not synced recently. Update it to the latest version.,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
@@ -535,6 +540,7 @@ Enter a valid quantity with no more than six decimal places.,กรุณาร�
 Enter list name,กรอกชื่อรายการ
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Entered into Express,ส่งแล้ว
+Entered {0},ส่งแล้ว {0}
 Entered {0} · in progress {1},บันทึกแล้ว {0} · กำลังทำ {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},บันทึกแล้ว {0} · กำลังทำ {1} · ล้มเหลว {2} · ไม่ใช่ใบกำกับ {3}
 Entered {0} · to check {1},ส่งแล้ว {0} · รอดำเนินการ {1}
@@ -571,6 +577,7 @@ Express record,ข้อมูลคู่ค้าใน Express
 External Docnum,เลขที่เอกสาร ERP
 Factor to Base,อัตราแปลงเป็นหน่วยฐาน
 Failed,ล้มเหลว
+Failed {0},ไม่สำเร็จ {0}
 Failure Count,จำนวนครั้งที่ล้มเหลว
 Fence,ลำดับแยกการพยายามส่ง
 Field,ฟิลด์
@@ -651,8 +658,10 @@ Import result,ผลการนำเข้า
 "Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
 In progress,กำลังดำเนินการ
 In progress ({0}),กำลังดำเนินการ ({0})
+In progress {0},กำลังดำเนินการ {0}
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
+Include Existing Files,ประมวลผลไฟล์ที่มีอยู่
 Included in total,รวมยอด
 Income Reconciliation,กระทบยอดรายได้
 Income account,บัญชีรายได้
@@ -833,6 +842,7 @@ No invoice summary found,ไม่พบข้อมูลสรุปจาก�
 No invoice was found in this document.,ไม่พบใบกำกับภาษีในเอกสารนี้
 No items were read,ไม่พบรายการ
 No members,ไม่มีสมาชิก
+No new files,ไม่มีไฟล์ใหม่
 No notifications,ไม่มีการแจ้งเตือน
 No number_,ไม่มีเลขที่_
 No presets yet,ยังไม่มีค่าที่ตั้งไว้
@@ -854,9 +864,11 @@ Not bound,ยังไม่ได้ผูกบัญชี
 Not card deposits net of fee,ไม่ใช่ยอดสุทธิจากบัตร
 Not counted,ยังไม่นับ
 Not entered,ไม่บันทึก
+Not invoices {0},ไม่ใช่ใบกำกับภาษี {0}
 Not permitted,ไม่มีสิทธิ์
 Not set,ยังไม่กรอก
 Not specified in books,ไม่ได้ระบุในบัญชี
+Not uploaded {0},ยังไม่ได้อัปโหลด {0}
 Note,คำอธิบาย
 Notes,หมายเหตุ
 Notifications,การแจ้งเตือน
@@ -864,6 +876,8 @@ Number,ตัวเลข
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Observer,ผู้สังเกตการณ์
+Off,ปิด
+On,เปิด
 On schedule,ตามกำหนดเวลา
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}",หน้าต่อไปนี้ของรายงานภาษีขายที่อ่านได้ มียอดเงินกับเลขที่เอกสารเหลื่อมแถวกัน (ยอดเงินทุกรายการมีในบัญชีแยกประเภท เพียงแต่เลขที่เอกสารไม่ตรงกัน) เป็นการอ่านผิด กรุณาแก้ไขตามต้นฉบับ (ในวงเล็บคือจำนวนรายการ): {0}
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
@@ -1038,7 +1052,9 @@ Reimporting review workbooks is not available on the new platform yet.,แพล
 Relative Path,พาธสัมพัทธ์
 Reload,โหลดใหม่
 Remarks,หมายเหตุ
+Remind me the day before,แจ้งเตือนล่วงหน้าหนึ่งวัน
 Reminder,การแจ้งเตือน
+Reminder Since,แจ้งเตือนตั้งแต่
 Remove,ลบ
 Remove color,ลบสี
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
@@ -1069,6 +1085,7 @@ Result Folder,โฟลเดอร์ผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
 Result in the ERP,ผลใน ERP
+Results: {0},ผลลัพธ์: {0}
 Review,ตรวจทาน
 Review JSON,ข้อมูลการตรวจทาน JSON
 Review Reasons,เหตุผลที่ต้องตรวจทาน
@@ -1096,12 +1113,14 @@ Rules saved,บันทึกกฎแล้ว
 Run,รอบการสแกน
 Run Day,วันที่ทำงานของแต่ละเดือน
 Run Info Json,ข้อมูลการประมวลผล
+Run Owner,ผู้รับผิดชอบการทำงาน
 Run Request,คำขอให้ทำงานทันที
 Run Requested At,เวลาที่ขอให้ทำงาน
 Run Time,เวลาทำงาน
 Run at (Bangkok time),เวลาทำงาน (เวลากรุงเทพฯ)
 Run history,ประวัติการทำงาน
 Run now,เรียกใช้ทันที
+Run now (tasks: {0}):,ทำงานทันที ({0} งาน):
 Run on day,วันที่ทำงานประจำเดือน
 Run requested. CC Desktop starts within a few minutes.,ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที
 Run requested. The Companion starts within a few minutes.,ส่งคำขอแล้ว ผู้ช่วยจะเริ่มทำงานภายในไม่กี่นาที
@@ -1113,9 +1132,11 @@ Sales invoices,ใบกำกับภาษีขาย
 Sales invoices need line items with tax-exclusive amounts before export.,ใบกำกับภาษีขายไม่มีรายการยอดก่อนภาษี จึงไม่สามารถส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
+Save these folder tasks?,บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่
 Save this folder task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
 Saved,บันทึกแล้ว
 Saved a folder task,บันทึกงานโฟลเดอร์แล้ว
+Saved folder tasks,บันทึกงานโฟลเดอร์หลายงานแล้ว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
@@ -1123,6 +1144,10 @@ Scan barcodes · Record quantities,สแกนบาร์โค้ด · บ�
 "Scan, enter the actual position and quantity, then save to continue.",สแกนแล้วระบุตำแหน่งจริงและจำนวน เมื่อบันทึกแล้วระบบจะไปยังรายการถัดไปโดยอัตโนมัติ
 Scanned At,เวลาที่สแกน
 Schedule,กำหนดการ
+Scheduled Time,เวลาตามกำหนด
+Scheduled run at {0} (tasks: {1}):,รอบตามกำหนดเวลา {0} ({1} งาน):
+Scheduled task reminder,แจ้งเตือนงานตามกำหนดเวลา
+Scheduled task results,ผลงานตามกำหนดเวลา
 Scheduled tasks,งานตามกำหนดเวลา
 Scope,ขอบเขต
 Scope Key,รหัสขอบเขตสิทธิ์
@@ -1171,6 +1196,7 @@ Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
 Sold by Weight,ขายตามน้ำหนัก
 Some fields are uncertain. Check them against the original and submit again,ข้อมูลบางช่องยังยืนยันไม่ได้ กรุณาตรวจสอบกับต้นฉบับแล้วส่งใหม่
+Some files are still in progress.,บางไฟล์ยังอยู่ระหว่างดำเนินการ
 Some line items have no name or amount. Fix the lines and submit again,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาเปิดแถวที่ระบุและตรวจนับสินค้านั้นใหม่ก่อนปิดการตรวจนับ
 Some rows in the file could not be understood. Check the file format,มีบางแถวในไฟล์ที่ไม่สามารถแปลความได้ กรุณาตรวจสอบรูปแบบไฟล์
@@ -1514,6 +1540,7 @@ This invoice was already sent successfully,เอกสารนี้ส่ง�
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลองซึ่งมีเฉพาะยอดรวมของแต่ละบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการตามใบสำคัญแต่ละใบ
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
+This is set by the scheduled task's default handling. Change it in the task,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 This is taking too long. Check the list later.,การกระทบยอดใช้เวลานาน กรุณาตรวจสอบในรายการภายหลัง
 This item is also stocked at:,สินค้านี้มีสต็อกอยู่ที่ตำแหน่งต่อไปนี้ด้วย:
 This label no longer exists,ไม่พบป้ายกำกับนี้
@@ -1550,6 +1577,7 @@ This value cannot be chosen for this account set.,ไม่สามารถเ
 Time left {0},เหลือเวลา {0}
 Times Used,จำนวนครั้งที่ใช้
 Title,ชื่อเรื่อง
+To check {0},รอดำเนินการ {0}
 To do,รอดำเนินการ
 Token Digest,แฮชโทเค็น
 Token Generation,เวอร์ชันโทเค็น
@@ -1571,6 +1599,7 @@ Turn this folder task on or off?,เปิดหรือปิดงานต�
 Turn this rule off? Documents already entered stay as they are.,ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this rule on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
+Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา
 Turn this scheduled task on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Turned a folder task on or off,เปิดหรือปิดงานโฟลเดอร์แล้ว
 Type,ประเภท
@@ -1652,6 +1681,7 @@ WHT amount,จำนวนภาษีหัก ณ ที่จ่าย
 Waiting,รอ
 Waiting for recognition,รอการอ่าน
 Waiting for the recognition charge to complete.,กำลังรอการตัดค่าบริการให้เสร็จสิ้น
+Waiting for this account set's stock purchases to be entered first.,รอบันทึกรายการซื้อสินค้าของชุดบัญชีนี้ก่อน
 "Waiting in line, will submit automatically",อยู่ในคิว ระบบจะส่งให้อัตโนมัติ
 Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
@@ -1687,12 +1717,15 @@ active,ใช้งานอยู่
 admitted,รับงานแล้ว
 "allowed root, set once on the Companion",โฟลเดอร์หลักที่อนุญาต ตั้งครั้งเดียวในผู้ช่วย
 amount,จำนวนเงิน
+and {0} more,และอีก {0} รายการ
 before VAT,ก่อนภาษี
 catalog_refresh_invalid,หลักฐานไดเรกทอรีไม่ถูกต้อง กรุณารีเฟรชแล้วเลือกใหม่
 catalog_refresh_pending,กำลังรอการรีเฟรชไดเรกทอรี
 catalog_refresh_required,กรุณารีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
 catalog_refresh_stale,ไดเรกทอรีชุดบัญชีล้าสมัย กรุณารีเฟรชใหม่
+changed by a person,มีผู้แก้ไขแล้ว
 charged,เรียกเก็บเงินแล้ว
+choose {0},ต้องเลือก{0}
 client,ลูกค้า
 client_import.file_too_large,ไฟล์ที่นำเข้ามีขนาดใหญ่เกินไป
 client_import.too_many_rows,จำนวนแถวที่นำเข้ามากเกินไป
@@ -1732,6 +1765,7 @@ connection.snapshot_invalid,ข้อมูลไดเรกทอรีไม�
 connection.snapshot_too_large,ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB
 connection.stock_acc_group_invalid,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
 connection.url_invalid,ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต
+contact record,ข้อมูลคู่ค้า
 cowork.choice.account,บัญชีค่าใช้จ่าย
 cowork.choice.cash,ซื้อเงินสด
 cowork.choice.claim,ใช้สิทธิ์ภาษีซื้อ
@@ -1743,6 +1777,7 @@ cowork.choice.item,สินค้าคงเหลือ
 cowork.choice.new,สร้างใหม่ตามเอกสาร
 cowork.choice.party,ข้อมูลคู่ค้าใน Express
 cowork.choice.payment,วิธีชำระเงิน
+cowork.choice.task_default,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
 cowork.folder.account_set_invalid,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
@@ -1750,6 +1785,25 @@ cowork.folder.agentStale,CC เดสก์ท็อปออฟไลน์ห�
 cowork.folder.agentStaleHint,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
 cowork.folder.batch_missing,ไม่พบงานอ่านเอกสาร
 cowork.folder.billing_pending,กำลังรอการตัดค่าบริการให้เสร็จสิ้น
+cowork.folder.brief.failed,ไม่สำเร็จ {0}
+cowork.folder.brief.head,รอบตามกำหนดเวลา {0} ({1} งาน):
+cowork.folder.brief.headManual,ทำงานทันที ({0} งาน):
+cowork.folder.brief.notInvoice,ไม่ใช่ใบกำกับภาษี {0}
+cowork.folder.brief.notUploaded,ยังไม่ได้อัปโหลด {0}
+cowork.folder.brief.nothing,ไม่มีไฟล์ใหม่
+cowork.folder.brief.pushed,ส่งแล้ว {0}
+cowork.folder.brief.reasons,{0} ({1})
+cowork.folder.brief.results,ผลลัพธ์: {0}
+cowork.folder.brief.stillMoving,บางไฟล์ยังอยู่ระหว่างดำเนินการ
+cowork.folder.brief.stopped,รอดำเนินการ {0}
+cowork.folder.brief.title,ผลงานตามกำหนดเวลา
+cowork.folder.brief.why.choice,ต้องเลือก{0}
+cowork.folder.brief.why.human,มีผู้แก้ไขแล้ว
+cowork.folder.brief.why.lowBalance,ยอดคงเหลือไม่พอ
+cowork.folder.brief.why.offline,CC เดสก์ท็อปออฟไลน์
+cowork.folder.brief.why.party,ข้อมูลคู่ค้า
+cowork.folder.brief.why.purchasesFirst,รอบันทึกรายการซื้อก่อน
+cowork.folder.brief.why.taskOff,งานปิดอยู่หรือไม่มีสิทธิ์
 cowork.folder.cardHint,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 cowork.folder.catalogEmpty,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 cowork.folder.col.result,ผลลัพธ์
@@ -1774,11 +1828,13 @@ cowork.folder.edit,แก้ไขกฎ
 cowork.folder.empty,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
 cowork.folder.enable,เปิดใช้งาน
 cowork.folder.enableConfirm,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
+cowork.folder.enableConfirmAll,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา
 cowork.folder.entry_missing,ไม่พบรายการไฟล์นี้
 cowork.folder.express_only,การบันทึกอัตโนมัติใช้ได้เฉพาะการเชื่อมต่อ Express เท่านั้น
 cowork.folder.field.connection,เครื่อง Express
 cowork.folder.field.day,วันที่ทำงานประจำเดือน
 cowork.folder.field.folder,โฟลเดอร์
+cowork.folder.field.remind,แจ้งเตือนล่วงหน้าหนึ่งวัน
 cowork.folder.field.root,โฟลเดอร์หลักที่อนุญาต
 cowork.folder.field.time,เวลาทำงาน
 cowork.folder.field.title,ชื่องาน
@@ -1802,7 +1858,10 @@ cowork.folder.invalid,ข้อมูลงานตามกำหนดเว�
 cowork.folder.item.ask,หยุดเพื่อเลือกเอง
 cowork.folder.item.new,สร้างใหม่ตามเอกสาร
 cowork.folder.lastDay,วันสุดท้ายของเดือน
+cowork.folder.line,{0}: {1}
 cowork.folder.mastersLoading,ผู้ช่วยกำลังอ่านชุดบัญชีนี้ เปิดกฎอีกครั้งในอีกสักครู่เพื่อเลือกบัญชี
+cowork.folder.more,และอีก {0} รายการ
+cowork.folder.moving,กำลังดำเนินการ {0}
 cowork.folder.new,สร้างงานตามกำหนดเวลา
 cowork.folder.noExpress,การบันทึกอัตโนมัติต้องใช้การเชื่อมต่อ Express กับผู้ช่วย Pearnly ให้เชื่อม Express ในการบันทึกใหม่ก่อน
 cowork.folder.noRoots,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น
@@ -1814,7 +1873,20 @@ cowork.folder.on,เปิดใช้งานอยู่
 cowork.folder.overlap,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว
 cowork.folder.overlap_with,โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»
 cowork.folder.owner_not_ready,ผู้รับผิดชอบงานตามกำหนดเวลาไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
+cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
+cowork.folder.remind.count,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
+cowork.folder.remind.leftDays,อีก {0} วัน {1} ชั่วโมง
+cowork.folder.remind.leftHours,อีก {0} ชั่วโมง {1} นาที
+cowork.folder.remind.leftMinutes,อีก {0} นาที
+cowork.folder.remind.lineCount,{0} (มี {1} ไฟล์)
+cowork.folder.remind.many,งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน
+cowork.folder.remind.off,ปิด
+cowork.folder.remind.on,เปิด
+cowork.folder.remind.one,«{0}» จะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ใน {3} และตรวจสอบให้ครบถ้วน
+cowork.folder.remind.title,แจ้งเตือนงานตามกำหนดเวลา
+cowork.folder.remind.today,วันนี้ เวลา {0} น.
+cowork.folder.remind.tomorrow,พรุ่งนี้ เวลา {0} น.
 cowork.folder.rootItself,(ตัวโฟลเดอร์หลัก)
 cowork.folder.root_invalid,กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้
 cowork.folder.rule_disabled,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
@@ -1850,6 +1922,8 @@ cowork.folder.upload_lost,ไม่ได้รับไฟล์ที่อั
 cowork.folder.vat.claim,ใช้สิทธิ์ภาษีซื้อ
 cowork.folder.vat.expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
 cowork.folder.viewAttention,ดูรายการรอดำเนินการ
+cowork.folder.waiting,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา
+cowork.folder.waiting_purchases,รอบันทึกรายการซื้อสินค้าของชุดบัญชีนี้ก่อน
 cowork.folder.wb.file,ชื่อไฟล์ต้นฉบับ
 cowork.folder.wb.invoice,เลขที่ใบกำกับภาษี
 cowork.folder.wb.reason,สาเหตุที่ไม่มีตารางตรวจทาน
@@ -2645,6 +2719,7 @@ intake.wait.uploading,กำลังอัปโหลด
 leased,รับไปดำเนินการแล้ว
 legacy,ระบบเดิม
 logical_section,ส่วนข้อมูลของเอกสาร
+low balance,ยอดคงเหลือไม่พอ
 "made by the system, do not put documents here",ระบบสร้างเอง ห้ามวางเอกสาร
 manual,กรอกเอง
 none,ไม่มี
@@ -2874,6 +2949,9 @@ stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนว�
 stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 subfolders are scanned too,สแกนโฟลเดอร์ย่อยด้วย
 summary_table_batch,นำเข้าตารางสรุป
+task off or no access,งานปิดอยู่หรือไม่มีสิทธิ์
+today at {0},วันนี้ เวลา {0} น.
+tomorrow at {0},พรุ่งนี้ เวลา {0} น.
 total,รวมภาษี
 used by {0} items,มีสินค้าใช้อยู่ {0} รายการ
 vat_check.balance_insufficient,ยอดคงเหลือไม่เพียงพอสำหรับอ่านใบกำกับภาษีที่เป็นรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
@@ -2888,24 +2966,33 @@ vat_check.recognition_timeout,การอ่านใบกำกับภา�
 vat_check.sellers_differ,รายงานแต่ละฉบับมีผู้ขายไม่ตรงกัน (เลขประจำตัวผู้เสียภาษี: {0}) กรุณาตรวจสอบ
 vat_check.status.void_match,ยกเลิก · ตรงกัน
 vat_check.status.void_no_invoice,ยกเลิก · ไม่ต้องมีใบกำกับภาษี
+waiting for purchases,รอบันทึกรายการซื้อก่อน
 workspace.tax_id_duplicate,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
+{0} ({1} files),{0} (มี {1} ไฟล์)
 {0} ({1} matching lines),{0} (ตรงกัน {1} รายการ)
+{0} ({1}),{0} ({1})
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
 {0} bank lines add up to it ({1} to {2}),ธนาคาร {0} รายการมียอดรวมเท่ากัน ({1} ถึง {2})
 {0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
 {0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
+{0} d {1} h left,อีก {0} วัน {1} ชั่วโมง
 {0} files,{0} ไฟล์
+"{0} files in the folder now, processed at the run time",ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา
+{0} files in the folder now.,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
+{0} h {1} min left,อีก {0} ชั่วโมง {1} นาที
 {0} ledger lines add up to it ({1} to {2}),บัญชีแยกประเภท {0} รายการมียอดรวมเท่ากัน ({1} ถึง {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,มี {0} รายการในบัญชีแยกประเภทอยู่นอกช่วงของรายงานภาษีขาย ({1} ถึง {2}) จึงไม่ได้นำมากระทบยอด
 "{0} ledger lines, {1} in total, none of them in the tax report",บัญชีแยกประเภท {0} รายการ รวม {1} ไม่มีรายการที่ตรงกันในรายงานภาษีขาย
 {0} lines,{0} รายการ
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
+{0} min left,อีก {0} นาที
 {0} more items,และอีก {0} รายการ
 {0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"
 {0} of {1} files processed,ดำเนินการแล้ว {0}/{1} ไฟล์
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,มี {0} รายการในรายงานภาษีขายซ้ำกันในหลายไฟล์ (อัปโหลดหน้าเดียวกันซ้ำ) จึงนับเพียงครั้งเดียว
 {0} rows were not imported,ไม่ได้นำเข้า {0} แถว
+{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,งานตามกำหนดเวลา {0} งานจะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ในโฟลเดอร์ต่อไปนี้และตรวจสอบให้ครบถ้วน
 {0} statement amounts were corrected from the running balance. Check them,ใบแจ้งยอดมี {0} รายการที่ปรับยอดเงินตามยอดคงเหลือ กรุณาตรวจสอบ
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,ตัดรายการเดินบัญชีที่อยู่นอกช่วงบัญชีแยกประเภท ({1} ถึง {2}) ออกแล้ว {0} รายการ ยอดยกมาใช้ยอดคงเหลือก่อนวันที่ {1}
 {0} statement rows were read with low confidence. Check them against the original,ใบแจ้งยอดมี {0} รายการที่อ่านได้ไม่แน่ชัด กรุณาตรวจกับต้นฉบับ
@@ -2918,6 +3005,7 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: ไม่สามารถอ่านหน้า {1} ได้ (การอ่านหมดเวลา) ยอดคงเหลือไม่ต่อเนื่องตั้งแต่หน้านี้ กรุณาตรวจสอบกับต้นฉบับ
 "{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.",{0}: หน้า {1} อ่านซ้ำจากต้นฉบับและได้รายการเพิ่มแล้ว แต่ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน กรุณาตรวจสอบกับต้นฉบับทีละรายการ
 {0}: which ledger account is it?,{0} ตรงกับบัญชีใดในบัญชีแยกประเภท
+{0}: {1},{0}: {1}
 {1} is due at {2},"การ์ด ""{1}"" จะครบกำหนดเมื่อ {2}"
 {1} is due soon ({2}),"การ์ด ""{1}"" ใกล้ครบกำหนด ({2})"
 {1} is overdue ({2}),"การ์ด ""{1}"" เลยกำหนดแล้ว ({2})"
@@ -2935,3 +3023,4 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {who} restored this card,{who} กู้คืนการ์ดนี้
 {who} set the due date to {0},{who} ตั้งวันครบกำหนดเป็น {0}
 {who}'s automation: {0} {1},ระบบอัตโนมัติ ({who}): {0} {1}
+«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.,«{0}» จะเริ่ม{1} ({2}) กรุณาวางเอกสารไว้ใน {3} และตรวจสอบให้ครบถ้วน

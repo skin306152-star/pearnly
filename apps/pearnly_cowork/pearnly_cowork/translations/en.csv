@@ -176,6 +176,9 @@ Bound at,Bound at
 Bound to {0},Bound to {0}
 Branch,Branch
 Branch No,Branch No
+Brief Key,Brief Key
+Brief Sent At,Brief Sent At
+Brief Status,Brief Status
 Buyer Client,Buyer Client
 Buyer Name,Buyer Name
 Buyer address,Buyer address
@@ -185,6 +188,7 @@ Buyer tax ID,Buyer tax ID
 "By preset, these accounts are left out: {0}","By preset, these accounts are left out: {0}"
 By preset: {0} groups matched by total,By preset: {0} groups matched by total
 Byte Size,Byte Size
+CC Conversation,CC Conversation
 CC Desktop Report,CC Desktop Report
 CC Desktop authentication failed.,CC Desktop authentication failed.
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
@@ -192,6 +196,7 @@ CC Desktop could not write this invoice. It is retried automatically,CC Desktop 
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
 CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
+CC Desktop offline,CC Desktop offline
 CC Desktop offline or needs update,CC Desktop offline or needs update
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop","CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
 CC Desktop on this PC has not synced recently. Update it to the latest version.,CC Desktop on this PC has not synced recently. Update it to the latest version.
@@ -535,6 +540,7 @@ Enter a valid quantity with no more than six decimal places.,Enter a valid quant
 Enter list name,Enter list name
 Enter the user name,Enter the user name
 Entered into Express,Entered into Express
+Entered {0},Entered {0}
 Entered {0} · in progress {1},Entered {0} · in progress {1}
 Entered {0} · in progress {1} · failed {2} · not invoices {3},Entered {0} · in progress {1} · failed {2} · not invoices {3}
 Entered {0} · to check {1},Entered {0} · to check {1}
@@ -571,6 +577,7 @@ Express record,Express record
 External Docnum,External Docnum
 Factor to Base,Factor to Base
 Failed,Failed
+Failed {0},Failed {0}
 Failure Count,Failure Count
 Fence,Fence
 Field,Field
@@ -651,8 +658,10 @@ Import result,Import result
 "Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
 In progress,In progress
 In progress ({0}),In progress ({0})
+In progress {0},In progress {0}
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
+Include Existing Files,Include Existing Files
 Included in total,Included in total
 Income Reconciliation,Income Reconciliation
 Income account,Income account
@@ -833,6 +842,7 @@ No invoice summary found,No invoice summary found
 No invoice was found in this document.,No invoice was found in this document.
 No items were read,No items were read
 No members,No members
+No new files,No new files
 No notifications,No notifications
 No number_,No number_
 No presets yet,No presets yet
@@ -854,9 +864,11 @@ Not bound,Not bound
 Not card deposits net of fee,Not card deposits net of fee
 Not counted,Not counted
 Not entered,Not entered
+Not invoices {0},Not invoices {0}
 Not permitted,Not permitted
 Not set,Not set
 Not specified in books,Not specified in books
+Not uploaded {0},Not uploaded {0}
 Note,Note
 Notes,Notes
 Notifications,Notifications
@@ -864,6 +876,8 @@ Number,Number
 OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Observer,Observer
+Off,Off
+On,On
 On schedule,On schedule
 "On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}","On these recognised VAT report pages the amounts were matched to the wrong invoice numbers (each amount is in the ledger, only paired with a neighbouring number); this is a misreading, not a real difference, so correct it against the original (lines per page in brackets): {0}"
 "One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
@@ -1038,7 +1052,9 @@ Reimporting review workbooks is not available on the new platform yet.,Reimporti
 Relative Path,Relative Path
 Reload,Reload
 Remarks,Remarks
+Remind me the day before,Remind me the day before
 Reminder,Reminder
+Reminder Since,Reminder Since
 Remove,Remove
 Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
@@ -1069,6 +1085,7 @@ Result Folder,Result Folder
 Result Json,Result Json
 Result Unknown,Result Unknown
 Result in the ERP,Result in the ERP
+Results: {0},Results: {0}
 Review,Review
 Review JSON,Review JSON
 Review Reasons,Review Reasons
@@ -1096,12 +1113,14 @@ Rules saved,Rules saved
 Run,Run
 Run Day,Run Day
 Run Info Json,Run Info Json
+Run Owner,Run Owner
 Run Request,Run Request
 Run Requested At,Run Requested At
 Run Time,Run Time
 Run at (Bangkok time),Run at (Bangkok time)
 Run history,Run history
 Run now,Run now
+Run now (tasks: {0}):,Run now (tasks: {0}):
 Run on day,Run on day
 Run requested. CC Desktop starts within a few minutes.,Run requested. CC Desktop starts within a few minutes.
 Run requested. The Companion starts within a few minutes.,Run requested. The Companion starts within a few minutes.
@@ -1113,9 +1132,11 @@ Sales invoices,Sales invoices
 Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
 Sample Key,Sample Key
 Save and next,Save and next
+Save these folder tasks?,Save these folder tasks?
 Save this folder task?,Save this folder task?
 Saved,Saved
 Saved a folder task,Saved a folder task
+Saved folder tasks,Saved folder tasks
 Saved push choices,Saved push choices
 Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
@@ -1123,6 +1144,10 @@ Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned At,Scanned At
 Schedule,Schedule
+Scheduled Time,Scheduled Time
+Scheduled run at {0} (tasks: {1}):,Scheduled run at {0} (tasks: {1}):
+Scheduled task reminder,Scheduled task reminder
+Scheduled task results,Scheduled task results
 Scheduled tasks,Scheduled tasks
 Scope,Scope
 Scope Key,Scope Key
@@ -1171,6 +1196,7 @@ Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
 Sold by Weight,Sold by Weight
 Some fields are uncertain. Check them against the original and submit again,Some fields are uncertain. Check them against the original and submit again
+Some files are still in progress.,Some files are still in progress.
 Some line items have no name or amount. Fix the lines and submit again,Some line items have no name or amount. Fix the lines and submit again
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Some rows in the file could not be understood. Check the file format,Some rows in the file could not be understood. Check the file format
@@ -1514,6 +1540,7 @@ This invoice was already sent successfully,This invoice was already sent success
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,This is a trial balance with account totals only. Upload the general ledger with each voucher.
 This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on,This is a withholding tax certificate (50 Tawi). Enter this kind for this company? Choose once and the same kind follows it from now on
+This is set by the scheduled task's default handling. Change it in the task,This is set by the scheduled task's default handling. Change it in the task
 This is taking too long. Check the list later.,This is taking too long. Check the list later.
 This item is also stocked at:,This item is also stocked at:
 This label no longer exists,This label no longer exists
@@ -1550,6 +1577,7 @@ This value cannot be chosen for this account set.,This value cannot be chosen fo
 Time left {0},Time left {0}
 Times Used,Times Used
 Title,Title
+To check {0},To check {0}
 To do,To do
 Token Digest,Token Digest
 Token Generation,Token Generation
@@ -1571,6 +1599,7 @@ Turn this folder task on or off?,Turn this folder task on or off?
 Turn this rule off? Documents already entered stay as they are.,Turn this rule off? Documents already entered stay as they are.
 Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
 Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
+Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.
 Turn this scheduled task on? Only files added to the folder from now on are processed.,Turn this scheduled task on? Only files added to the folder from now on are processed.
 Turned a folder task on or off,Turned a folder task on or off
 Type,Type
@@ -1652,6 +1681,7 @@ WHT amount,WHT amount
 Waiting,Waiting
 Waiting for recognition,Waiting for recognition
 Waiting for the recognition charge to complete.,Waiting for the recognition charge to complete.
+Waiting for this account set's stock purchases to be entered first.,Waiting for this account set's stock purchases to be entered first.
 "Waiting in line, will submit automatically","Waiting in line, will submit automatically"
 Waiting to start,Waiting to start
 Warehouse,Warehouse
@@ -1687,12 +1717,15 @@ active,active
 admitted,admitted
 "allowed root, set once on the Companion","allowed root, set once on the Companion"
 amount,amount
+and {0} more,and {0} more
 before VAT,before VAT
 catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
 catalog_refresh_pending,The directory refresh is still pending.
 catalog_refresh_required,Refresh the account directory before continuing.
 catalog_refresh_stale,The account directory is out of date. Refresh it again.
+changed by a person,changed by a person
 charged,charged
+choose {0},choose {0}
 client,client
 client_import.file_too_large,The import file is too large.
 client_import.too_many_rows,Too many rows to import.
@@ -1732,6 +1765,7 @@ connection.snapshot_invalid,The directory snapshot does not match this connectio
 connection.snapshot_too_large,The directory snapshot exceeds the 16 MiB limit.
 connection.stock_acc_group_invalid,This inventory account group cannot be chosen for this account set.
 connection.url_invalid,The ERP address is invalid or not allowed.
+contact record,contact record
 cowork.choice.account,Expense account
 cowork.choice.cash,Cash purchase
 cowork.choice.claim,Claim as input VAT
@@ -1743,6 +1777,7 @@ cowork.choice.item,Stock item
 cowork.choice.new,"New, as on the invoice"
 cowork.choice.party,Express record
 cowork.choice.payment,Payment
+cowork.choice.task_default,This is set by the scheduled task's default handling. Change it in the task
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
 cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
@@ -1750,6 +1785,25 @@ cowork.folder.agentStale,CC Desktop offline or needs update
 cowork.folder.agentStaleHint,CC Desktop on this PC has not synced recently. Update it to the latest version.
 cowork.folder.batch_missing,The recognition task was not found.
 cowork.folder.billing_pending,Waiting for the recognition charge to complete.
+cowork.folder.brief.failed,Failed {0}
+cowork.folder.brief.head,Scheduled run at {0} (tasks: {1}):
+cowork.folder.brief.headManual,Run now (tasks: {0}):
+cowork.folder.brief.notInvoice,Not invoices {0}
+cowork.folder.brief.notUploaded,Not uploaded {0}
+cowork.folder.brief.nothing,No new files
+cowork.folder.brief.pushed,Entered {0}
+cowork.folder.brief.reasons,{0} ({1})
+cowork.folder.brief.results,Results: {0}
+cowork.folder.brief.stillMoving,Some files are still in progress.
+cowork.folder.brief.stopped,To check {0}
+cowork.folder.brief.title,Scheduled task results
+cowork.folder.brief.why.choice,choose {0}
+cowork.folder.brief.why.human,changed by a person
+cowork.folder.brief.why.lowBalance,low balance
+cowork.folder.brief.why.offline,CC Desktop offline
+cowork.folder.brief.why.party,contact record
+cowork.folder.brief.why.purchasesFirst,waiting for purchases
+cowork.folder.brief.why.taskOff,task off or no access
 cowork.folder.cardHint,Set a local folder once; documents are read and entered every month
 cowork.folder.catalogEmpty,No account sets yet. Use Reload in New Intake first.
 cowork.folder.col.result,Folder results
@@ -1774,11 +1828,13 @@ cowork.folder.edit,Edit folder rule
 cowork.folder.empty,No folder rules yet. Create one and put the documents into its folder.
 cowork.folder.enable,Turn on
 cowork.folder.enableConfirm,Turn this scheduled task on? Only files added to the folder from now on are processed.
+cowork.folder.enableConfirmAll,Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.
 cowork.folder.entry_missing,This file record was not found.
 cowork.folder.express_only,Folder rules work with Express connections only.
 cowork.folder.field.connection,Express PC
 cowork.folder.field.day,Run on day
 cowork.folder.field.folder,Folder to read
+cowork.folder.field.remind,Remind me the day before
 cowork.folder.field.root,Allowed root folder on the PC
 cowork.folder.field.time,Run time
 cowork.folder.field.title,Task name
@@ -1802,7 +1858,10 @@ cowork.folder.invalid,The scheduled task is incomplete or invalid.
 cowork.folder.item.ask,Stop and let me choose
 cowork.folder.item.new,Create it from the document
 cowork.folder.lastDay,Last day of the month
+cowork.folder.line,{0}: {1}
 cowork.folder.mastersLoading,The Companion is still reading this account set. Reopen the rule in a minute to choose an account.
+cowork.folder.more,and {0} more
+cowork.folder.moving,In progress {0}
 cowork.folder.new,New scheduled task
 cowork.folder.noExpress,Folder rules need an Express connection with the Pearnly Companion. Connect Express in New Intake first.
 cowork.folder.noRoots,No folders on this PC yet. Add them in CC Desktop on that PC.
@@ -1814,7 +1873,20 @@ cowork.folder.on,Rule is on
 cowork.folder.overlap,Another active rule already uses this folder or a folder containing it.
 cowork.folder.overlap_with,This folder overlaps the folder of scheduled task «{0}».
 cowork.folder.owner_not_ready,The task owner can no longer enter documents with this connection.
+cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
+cowork.folder.remind.count,{0} files in the folder now.
+cowork.folder.remind.leftDays,{0} d {1} h left
+cowork.folder.remind.leftHours,{0} h {1} min left
+cowork.folder.remind.leftMinutes,{0} min left
+cowork.folder.remind.lineCount,{0} ({1} files)
+cowork.folder.remind.many,{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:
+cowork.folder.remind.off,Off
+cowork.folder.remind.on,On
+cowork.folder.remind.one,«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.
+cowork.folder.remind.title,Scheduled task reminder
+cowork.folder.remind.today,today at {0}
+cowork.folder.remind.tomorrow,tomorrow at {0}
 cowork.folder.rootItself,(the root folder itself)
 cowork.folder.root_invalid,Choose an allowed root reported by CC Desktop.
 cowork.folder.rule_disabled,This scheduled task is turned off.
@@ -1850,6 +1922,8 @@ cowork.folder.upload_lost,The uploaded file was not received. It will be sent ag
 cowork.folder.vat.claim,Claim as input VAT
 cowork.folder.vat.expense,Record as expense
 cowork.folder.viewAttention,View the ones to check
+cowork.folder.waiting,"{0} files in the folder now, processed at the run time"
+cowork.folder.waiting_purchases,Waiting for this account set's stock purchases to be entered first.
 cowork.folder.wb.file,Original file name
 cowork.folder.wb.invoice,Invoice number on the document
 cowork.folder.wb.reason,Why it is not in the review sheet
@@ -2645,6 +2719,7 @@ intake.wait.uploading,Uploading
 leased,leased
 legacy,legacy
 logical_section,logical_section
+low balance,low balance
 "made by the system, do not put documents here","made by the system, do not put documents here"
 manual,Manual
 none,none
@@ -2874,6 +2949,9 @@ stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
 stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
 subfolders are scanned too,subfolders are scanned too
 summary_table_batch,Summary table import
+task off or no access,task off or no access
+today at {0},today at {0}
+tomorrow at {0},tomorrow at {0}
 total,total
 used by {0} items,used by {0} items
 vat_check.balance_insufficient,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
@@ -2888,24 +2966,33 @@ vat_check.recognition_timeout,Invoice recognition took too long. Try again later
 vat_check.sellers_differ,The reports belong to different sellers ({0}).
 vat_check.status.void_match,Void match
 vat_check.status.void_no_invoice,Void · no invoice needed
+waiting for purchases,waiting for purchases
 workspace.tax_id_duplicate,This tax ID is already used by another company.
+{0} ({1} files),{0} ({1} files)
 {0} ({1} matching lines),{0} ({1} matching lines)
+{0} ({1}),{0} ({1})
 {0} added you to {1},{0} added you to {1}
 {0} bank lines add up to it ({1} to {2}),{0} bank lines add up to it ({1} to {2})
 {0} commented on {1},{0} commented on {1}
 {0} completed {1},{0} completed {1}
+{0} d {1} h left,{0} d {1} h left
 {0} files,{0} files
+"{0} files in the folder now, processed at the run time","{0} files in the folder now, processed at the run time"
+{0} files in the folder now.,{0} files in the folder now.
+{0} h {1} min left,{0} h {1} min left
 {0} ledger lines add up to it ({1} to {2}),{0} ledger lines add up to it ({1} to {2})
 {0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.,{0} ledger lines fall outside the VAT report period ({1} to {2}) and were left out.
 "{0} ledger lines, {1} in total, none of them in the tax report","{0} ledger lines, {1} in total, none of them in the tax report"
 {0} lines,{0} lines
 {0} mentioned you on {1},{0} mentioned you on {1}
+{0} min left,{0} min left
 {0} more items,{0} more items
 {0} more possible combined matches are not listed,{0} more possible combined matches are not listed
 {0} moved {1} to {2},{0} moved {1} to {2}
 {0} of {1} files processed,{0} of {1} files processed
 {0} report lines repeated in another file (the same page uploaded twice) were counted once.,{0} report lines repeated in another file (the same page uploaded twice) were counted once.
 {0} rows were not imported,{0} rows were not imported
+{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:,{0} scheduled tasks start {1} ({2}). Put the documents in these folders and make sure they are complete:
 {0} statement amounts were corrected from the running balance. Check them,{0} statement amounts were corrected from the running balance. Check them
 {0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.,{0} statement lines outside the ledger period ({1} to {2}) were left out; the opening balance is the balance before {1}.
 {0} statement rows were read with low confidence. Check them against the original,{0} statement rows were read with low confidence. Check them against the original
@@ -2918,6 +3005,7 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.,{0}: page {1} could not be read (recognition timed out). The balance chain breaks there; check it against the original.
 "{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original.","{0}: page {1} was read again from the original and more rows were found, but its balance chain does not follow (common when a page holds two tables). Every row on that page is marked for review; check them against the original."
 {0}: which ledger account is it?,{0}: which ledger account is it?
+{0}: {1},{0}: {1}
 {1} is due at {2},{1} is due at {2}
 {1} is due soon ({2}),{1} is due soon ({2})
 {1} is overdue ({2}),{1} is overdue ({2})
@@ -2935,3 +3023,4 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {who} restored this card,{who} restored this card
 {who} set the due date to {0},{who} set the due date to {0}
 {who}'s automation: {0} {1},{who}'s automation: {0} {1}
+«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.,«{0}» starts {1} ({2}). Put the documents in {3} and make sure they are complete.
