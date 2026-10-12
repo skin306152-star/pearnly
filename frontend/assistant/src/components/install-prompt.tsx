@@ -54,7 +54,15 @@ export function InstallProvider({ children }: { children: ReactNode }) {
 function useInstall() {
   const target = useInstallTarget(useProfile()?.product);
   const showGuide = useContext(GuideContext);
-  const run = () => (target === "ios" ? showGuide() : void install(target));
+  const run = () => {
+    if (target !== "ios") return void install(target);
+    // iPhone：直接弹系统分享面板（里面有「添加到主屏幕」），少找一步；浏览器不给分享面板时才显示两步指引
+    if (navigator.share) {
+      navigator.share({ title: "CC", url: `${location.origin}/assistant` }).catch(() => undefined);
+    } else {
+      showGuide();
+    }
+  };
   return { target, run };
 }
 
