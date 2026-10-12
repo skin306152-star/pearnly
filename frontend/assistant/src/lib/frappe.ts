@@ -9,16 +9,22 @@ declare global {
   }
 }
 
-function errorOf(body: unknown, status: number): string {
-  const b = (body ?? {}) as { _server_messages?: string; exception?: string; message?: string };
-  if (b._server_messages) {
-    try {
-      const first = JSON.parse(JSON.parse(b._server_messages)[0]) as { message?: string };
-      if (first.message) return first.message.replace(/<[^>]+>/g, "");
-    } catch {
-      /* fall through */
-    }
+/** 本站拒收时（frappe.throw）给的原文：已按用户语言翻译，可以直接给用户看。网络等别的失败是普通 Error。 */
+export class SiteError extends Error {}
+
+function serverMessage(body: unknown): string {
+  const b = (body ?? {}) as { _server_messages?: string };
+  if (!b._server_messages) return "";
+  try {
+    const first = JSON.parse(JSON.parse(b._server_messages)[0]) as { message?: string };
+    return first.message ? first.message.replace(/<[^>]+>/g, "") : "";
+  } catch {
+    return "";
   }
+}
+
+function errorOf(body: unknown, status: number): string {
+  const b = (body ?? {}) as { exception?: string; message?: string };
   if (typeof b.exception === "string") return b.exception.split(":").slice(1).join(":").trim() || b.exception;
   return `request failed (${status})`;
 }
@@ -38,7 +44,10 @@ async function parse<T>(res: Response): Promise<T> {
     location.href = "/assistant";
     await new Promise(() => {});
   }
-  if (!res.ok) throw new Error(errorOf(body, res.status));
+  if (!res.ok) {
+    const told = serverMessage(body);
+    throw told ? new SiteError(told) : new Error(errorOf(body, res.status));
+  }
   return (body as { message: T }).message;
 }
 

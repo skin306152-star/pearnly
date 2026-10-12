@@ -283,7 +283,7 @@ function Notifications() {
   const showGuide = useInstallGuide();
   if (push.state === "on" || push.state === "off")
     return (
-      <Row label={st.notifications}>
+      <Row label={<>{st.notifications}{push.failure && <div className="text-danger text-xs">{push.failure}</div>}</>}>
         {/* 打开要在点击里直接订阅（iPhone 的用户手势），不能先等别的 */}
         <Switch checked={push.state === "on"} label={st.notifications} onChange={(on) => void (on ? push.enable() : push.disable())} />
       </Row>

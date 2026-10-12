@@ -85,12 +85,21 @@ export type ThreadMessage = {
   status?: MessageStatus;
   /** Files the user attached, shown as chips in the bubble (parsed back out of the message text). */
   attachments?: MessageAttachment[];
-  /** 提醒卡片（withNotices 生成）：custom.notice = { kind, title } */
   metadata?: { custom?: Record<string, unknown> };
 };
 
 /** 本站提醒（定时任务提醒、完成简报等），按时间先后。 */
 export type NoticeItem = { id: string; createdAt: Date; kind: string; title: string; text: string };
+
+/** 提醒卡片并进对话的那条（withNotices 生成）：组件库的 system 消息（只能有一段文字、不带状态），custom.notice = { kind, title }。
+ *  不用 assistant：最后一条是 assistant 时组件库认为回复已经来了，不再补「思考中」占位，卡片也会被当成回复。 */
+export type NoticeMessage = {
+  id: string;
+  role: "system";
+  content: [TextPart];
+  createdAt: Date;
+  metadata: { custom: { notice: { kind: string; title: string } } };
+};
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp)$/i;
 
@@ -868,17 +877,16 @@ function insertNotice(notices: readonly NoticeItem[], event: NoticeEvent): reado
 }
 
 // 同一条提醒每次给出同一个消息对象：组件库按对象缓存转换结果，换了对象就要重算、重画。
-const noticeMessages = new WeakMap<NoticeItem, ThreadMessage>();
+const noticeMessages = new WeakMap<NoticeItem, NoticeMessage>();
 
-function noticeMessage(notice: NoticeItem): ThreadMessage {
+function noticeMessage(notice: NoticeItem): NoticeMessage {
   let message = noticeMessages.get(notice);
   if (!message) {
     message = {
       id: notice.id,
-      role: "assistant",
+      role: "system",
       content: [{ type: "text", text: notice.text }],
       createdAt: notice.createdAt,
-      status: { type: "complete", reason: "stop" },
       metadata: { custom: { notice: { kind: notice.kind, title: notice.title } } },
     };
     noticeMessages.set(notice, message);
@@ -886,22 +894,32 @@ function noticeMessage(notice: NoticeItem): ThreadMessage {
   return message;
 }
 
+/** 回复正在进行（最后一条是本轮的助手消息，状态是进行中或等批准）。 */
+function replyInProgress(message: ThreadMessage | undefined): boolean {
+  const type = message?.role === "assistant" ? message.status?.type : undefined;
+  return type === "running" || type === "requires-action";
+}
+
 /** 提醒卡片并进对话：每条插在第一条比它晚的用户消息之前，没有就放最后。只插在用户消息前，不切开一轮回复；
- *  刷新后位置不变（同一规则）。卡片是带 metadata.custom.notice 的 assistant 消息（组件库不合并相邻的 assistant 消息）。 */
+ *  刷新后位置不变（同一规则）。卡片是带 metadata.custom.notice 的 system 消息（NoticeMessage）。
+ *  回复正在进行时，本该放最后的提醒先放在这条回复前面：进行中的回复要一直是最后一条，否则组件库在卡片后面再补一个
+ *  「思考中」占位（回复里已经有一个）；跑完回到最后。回复还没开始时卡片照样放最后，组件库在它后面补「思考中」占位。 */
 export function withNotices(
   messages: readonly ThreadMessage[],
   notices: readonly NoticeItem[],
-): readonly ThreadMessage[] {
+): readonly (ThreadMessage | NoticeMessage)[] {
   if (!notices.length) return messages;
-  const out: ThreadMessage[] = [];
+  const out: (ThreadMessage | NoticeMessage)[] = [];
+  const live = replyInProgress(messages.at(-1)) ? messages.length - 1 : -1;
   let next = 0;
-  for (const message of messages) {
+  messages.forEach((message, index) => {
     if (message.role === "user") {
       const at = message.createdAt.getTime();
       while (next < notices.length && notices[next]!.createdAt.getTime() < at) out.push(noticeMessage(notices[next++]!));
     }
+    if (index === live) while (next < notices.length) out.push(noticeMessage(notices[next++]!));
     out.push(message);
-  }
+  });
   while (next < notices.length) out.push(noticeMessage(notices[next++]!));
   return out;
 }

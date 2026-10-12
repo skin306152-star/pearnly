@@ -4,28 +4,42 @@
 //
 //   桌面端窗口里不用（系统通知由桌面端自己弹）；iPhone / iPad 只有添加到主屏幕后打开才收得到推送（状态 install）。
 //   每次打开 CC 同步一次（syncPush）：浏览器里已有订阅就重新交给本站，同一台设备换人登录时归到现在登录的人；
-//   本站公钥换过就退掉旧订阅，开关显示为关。退出登录前只让本站删掉这台设备（forgetDevice），浏览器里的订阅留着，
-//   下一个人登录时再认领。
+//   本站公钥换过就退掉旧订阅，开关显示为关。退出登录前只让本站删掉这台设备（forgetDevice，不看开关状态），
+//   浏览器里的订阅留着，下一个人登录时再认领。
 //   打开（enablePush）只能在点击里直接调：iPhone 要求订阅发生在用户手势里，所以公钥和后台脚本都先取好，中间不等网络。
+//   打开失败时开关回到关，并给一句原因（failure：本站拒收的原文，或「此设备无法接收通知」）；浏览器订阅上了、
+//   本站没收下就把浏览器这边也退掉，两边都是关，下次打开 CC 不会自己变成开。
 
 import { useSyncExternalStore } from "react";
+import { st } from "@/i18n";
 import { isDesktopApp } from "@/lib/desktop";
-import { get, post } from "@/lib/frappe";
+import { get, post, SiteError } from "@/lib/frappe";
 import { isIOS, standalone } from "@/lib/install";
 
 /** unknown：还没同步完（不显示开关）；install：iPhone 在浏览器页签里，要先添加到主屏幕。 */
 export type PushState = "unknown" | "unsupported" | "install" | "denied" | "off" | "on";
 
 let state: PushState = "unknown";
+// 上一次打开失败的原因（空 = 没失败）
+let failure = "";
 let registration: ServiceWorkerRegistration | null = null;
 let publicKey: Uint8Array<ArrayBuffer> | null = null;
 let working = false;
 let synced: Promise<void> | null = null;
+// 正在退出登录：同步不再把这台设备认领给本人；claiming 是同步发出、还在路上的认领
+let leaving = false;
+let claiming: Promise<unknown> | null = null;
 const listeners = new Set<() => void>();
 
 function setState(next: PushState) {
   if (state === next) return;
   state = next;
+  listeners.forEach((listener) => listener());
+}
+
+function setFailure(next: string) {
+  if (failure === next) return;
+  failure = next;
   listeners.forEach((listener) => listener());
 }
 
@@ -78,11 +92,15 @@ async function sync(): Promise<void> {
     await subscription.unsubscribe().catch(() => false);
     return setState("off");
   }
+  if (leaving) return setState("off");
   try {
-    await post("push_subscribe", payload(subscription));
+    claiming = post("push_subscribe", payload(subscription));
+    await claiming;
     setState("on");
   } catch {
     setState("off");
+  } finally {
+    claiming = null;
   }
 }
 
@@ -92,15 +110,30 @@ export function syncPush(): Promise<void> {
   return synced;
 }
 
+/** 打开失败：浏览器订阅上了、本站没收下就退掉浏览器这边；拒绝过通知就显示「已在浏览器设置中关闭」；
+ *  只是关掉了询问不算失败；其余给原因。 */
+async function enableFailed(error: unknown, subscription: PushSubscription | null): Promise<void> {
+  if (subscription) await subscription.unsubscribe().catch(() => false);
+  if (Notification.permission === "denied") return setState("denied");
+  setState("off");
+  if (Notification.permission !== "granted") return;
+  setFailure(error instanceof SiteError && error.message ? error.message : st.notificationsFailed);
+}
+
 /** 打开通知：必须在点击回调里直接调（见文件头）。 */
 export function enablePush(): Promise<void> {
   if (!registration || !publicKey || working) return Promise.resolve();
   working = true;
+  setFailure("");
+  let subscription: PushSubscription | null = null;
   return registration.pushManager
     .subscribe({ userVisibleOnly: true, applicationServerKey: publicKey })
-    .then((subscription) => post("push_subscribe", payload(subscription)))
+    .then((created) => {
+      subscription = created;
+      return post("push_subscribe", payload(created));
+    })
     .then(() => setState("on"))
-    .catch(() => setState(Notification.permission === "denied" ? "denied" : "off"))
+    .catch((error: unknown) => enableFailed(error, subscription))
     .finally(() => {
       working = false;
     });
@@ -110,6 +143,7 @@ export function enablePush(): Promise<void> {
 export async function disablePush(): Promise<void> {
   if (!registration || working) return;
   working = true;
+  setFailure("");
   try {
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
@@ -122,26 +156,36 @@ export async function disablePush(): Promise<void> {
   }
 }
 
-/** 退出登录前：本站不再往这台设备推这个人的提醒（浏览器订阅留着，下一个人登录时认领）。最多等 3 秒，不挡退出。 */
+/** 退出登录前：本站不再往这台设备推这个人的提醒（浏览器订阅留着，下一个人登录时认领）。不看开关状态：同步还没走完、
+ *  上次认领失败时，本站也可能还记着这台设备。还在路上的认领先等它落地（不然它晚到又把设备认领回来）。最多等 3 秒，不挡退出。 */
 export async function forgetDevice(): Promise<void> {
-  if (state !== "on" || !registration) return;
-  const reg = registration;
+  leaving = true;
+  if (isDesktopApp() || !capable()) return;
   await within(
     (async () => {
-      const subscription = await reg.pushManager.getSubscription();
+      if (claiming) await within(claiming, 2000).catch(() => undefined);
+      const reg = registration ?? (await navigator.serviceWorker.getRegistration("/assistant"));
+      const subscription = await reg?.pushManager.getSubscription();
       if (subscription) await post("push_unsubscribe", { endpoint: subscription.endpoint });
     })(),
     3000,
   ).catch(() => undefined);
 }
 
-export function usePush(): { state: PushState; enable: () => Promise<void>; disable: () => Promise<void> } {
-  const current = useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => state,
-  );
-  return { state: current, enable: enablePush, disable: disablePush };
+/** 现在的开关状态与上一次打开失败的原因（usePush 读的就是它们）。 */
+export function currentPush(): { state: PushState; failure: string } {
+  return { state, failure };
+}
+
+function subscribeStore(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function usePush(): { state: PushState; failure: string; enable: () => Promise<void>; disable: () => Promise<void> } {
+  const current = useSyncExternalStore(subscribeStore, () => state);
+  const reason = useSyncExternalStore(subscribeStore, () => failure);
+  return { state: current, failure: reason, enable: enablePush, disable: disablePush };
 }

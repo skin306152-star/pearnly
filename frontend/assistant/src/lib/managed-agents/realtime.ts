@@ -5,6 +5,7 @@
 // 本站提醒（pearnly.notice，pearnly_core.assistant.notices）走同一个事件名；没挂在对话上的 session_id 为空，
 // 照样交给 activity.ts（桌面窗口靠它弹系统通知）。产品自己的站点事件用 onSiteEvent 按名字订阅：
 // 事件名由调用方给，这里不认识任何产品。
+// 一条事件先交给这个会话的页面（卡片、回复），再记侧栏状态与提醒；每一路单独兜住异常，哪一路出错都不挡别的。
 
 import { io, type Socket } from "socket.io-client";
 import { noteEvent } from "./activity";
@@ -23,14 +24,25 @@ const statusListeners = new Set<(connected: boolean) => void>();
 const titles = new Map<string, string>();
 const titleWaiters = new Map<string, Set<(title: string) => void>>();
 
+function safely(run: () => void) {
+  try {
+    run();
+  } catch (error) {
+    console.error("[cc] realtime listener failed", error);
+  }
+}
+
+/** 一条推来的事件：先给会话的页面，再给侧栏状态与提醒的监听者（activity.ts）。 */
+export function dispatch(push: Push) {
+  if (!push?.event) return;
+  if (push.session_id) handlers.get(push.session_id)?.forEach((handler) => safely(() => handler(push.event)));
+  if (push.session_id || isNotice(push.event)) safely(() => noteEvent(push.session_id || "", push.event));
+}
+
 function connect(): Socket {
   if (socket) return socket;
   socket = io(`${window.location.origin}/${window.location.hostname}`, { withCredentials: true });
-  socket.on(EVENT, (push: Push) => {
-    if (!push?.event) return;
-    if (push.session_id || isNotice(push.event)) noteEvent(push.session_id || "", push.event);
-    if (push.session_id) handlers.get(push.session_id)?.forEach((handler) => handler(push.event));
-  });
+  socket.on(EVENT, dispatch);
   socket.on(TITLE_EVENT, (push: { session_id: string; title: string }) => {
     if (!push?.session_id) return;
     titles.set(push.session_id, push.title ?? "");

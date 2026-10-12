@@ -315,7 +315,7 @@ export function ScheduledTasks() {
                       {rule.results?.moving ? ` · ${tr("cowork.folder.moving", rule.results.moving)}` : ""}
                     </div>
                     {rule.enabled && rule.waiting ? (
-                      <div className="mt-0.5 text-ink-3 text-sm">{tr("cowork.folder.waiting", plus(rule.waiting, rule.waiting_partial))}</div>
+                      <div className="mt-0.5 text-ink-3 text-sm">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
                     ) : null}
                   </button>
                   {rule.enabled ? (
@@ -625,10 +625,12 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
   const folderHint = !options ? "cowork.folder.folderHint" : unpaired ? "cowork.folder.noRootsAny"
     : !readers.some((r) => r.fresh) ? "cowork.folder.agentStaleHint"
     : !folders.length ? (express ? "cowork.folder.noRoots" : "cowork.folder.noRootsAny") : "cowork.folder.folderHint";
-  // 选中的文件夹现有几份（小助手随文件夹上报数好的）；编辑没换文件夹时用这条任务还没处理的份数。不知道、0 份都不显示
+  // 选中的文件夹现有几份（小助手随文件夹上报数好的）；编辑没换文件夹时改说这条任务还没处理的份数（pendingHint）。
+  // 不知道、0 份都不显示
+  const pendingHint = Boolean(rule) && folder === saved;
   const folderCount = ((): string => {
     if (!folder) return "";
-    if (rule && folder === saved) return rule.enabled && rule.waiting ? plus(rule.waiting, rule.waiting_partial) : "";
+    if (rule && pendingHint) return rule.enabled && rule.waiting ? plus(rule.waiting, rule.waiting_partial) : "";
     const [reader, rootId, ...rest] = folder.split("|");
     const root = readers.find((r) => r.connection === reader)?.roots?.find((item) => item.id === rootId);
     if (!root?.counts) return "";
@@ -754,7 +756,10 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
             </Field>
           </div>
 
-          <Field label={tr("cowork.folder.field.folder")} hint={folderCount ? tr("cowork.folder.waiting", folderCount) : tr(folderHint)}>
+          <Field
+            label={tr("cowork.folder.field.folder")}
+            hint={folderCount ? tr(pendingHint ? "cowork.folder.pending" : "cowork.folder.waiting", folderCount) : tr(folderHint)}
+          >
             <Select value={folder} disabled={!enabled || !folders.length} options={folders} onChange={setFolder} />
           </Field>
           {unpaired && !rule && (

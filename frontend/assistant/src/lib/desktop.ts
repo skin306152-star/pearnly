@@ -1,7 +1,8 @@
 // 桌面端（companion/ 里的 Tomo 窗口）和网页一起用的三件事，浏览器里打开时也照常生效：
 //
 //   window.tomo.ask(text) — 桌面端快捷键呼出的输入条把文字交给这里：开一个新对话发出去（空文字只开新对话）
-//   回复完成通知          — 窗口不在前台时回复完成，用网页原生通知提醒（桌面端已授权；浏览器只在用户授权过时弹）
+//   回复完成通知          — 窗口不在前台时回复完成，弹系统通知（桌面端已授权；浏览器只在用户授权过时弹，经后台脚本弹，
+//                           见 lib/notify.ts），点了打开这段对话
 //   整窗拖文件            — 文件拖到对话页任何地方都加进输入框，不会被浏览器当成网页打开
 //   window.tomo.settings  — 桌面端托盘「连接与设置」/ Ctrl+, 打开设置
 //   window.tomo.open(id)  — 桌面端托盘通知点开：打开那段对话（空串 = 定时任务页），由 lib/nav.ts 的深链接接手
@@ -11,6 +12,7 @@
 import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { onNotice } from "@/lib/managed-agents/activity";
+import { deepLink, showNote } from "@/lib/notify";
 import { APP_NAME } from "@/lib/profile";
 
 type Message = { role?: string; content?: unknown };
@@ -39,8 +41,14 @@ function lastReply(messages: readonly Message[]): string {
   return flat.length > 120 ? `${flat.slice(0, 119)}…` : flat;
 }
 
-/** pushOn：这台浏览器开着推送通知（lib/push.ts），提醒交给后台脚本弹。 */
-export function useDesktopBridge(isRunning: boolean, messages: readonly Message[], title: string, pushOn = false) {
+/** pushOn：这台浏览器开着推送通知（lib/push.ts），提醒交给后台脚本弹；sessionId：当前对话（回复完成通知点开它）。 */
+export function useDesktopBridge(
+  isRunning: boolean,
+  messages: readonly Message[],
+  title: string,
+  pushOn = false,
+  sessionId: string | null = null,
+) {
   const aui = useAui();
   const pushOnRef = useRef(pushOn);
   useEffect(() => {
@@ -74,11 +82,9 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
   useEffect(() => {
     const finished = wasRunning.current && !isRunning;
     wasRunning.current = isRunning;
-    if (!finished || document.hasFocus() || typeof Notification === "undefined") return;
-    if (Notification.permission !== "granted") return;
-    const note = new Notification(title || APP_NAME, { body: lastReply(messages), tag: "tomo-reply" });
-    note.onclick = () => window.focus();
-  }, [isRunning, messages, title]);
+    if (!finished || document.hasFocus()) return;
+    void showNote(title || APP_NAME, lastReply(messages), "tomo-reply", sessionId ? deepLink(sessionId) : "/assistant");
+  }, [isRunning, messages, title, sessionId]);
 
   useEffect(
     () =>
@@ -86,12 +92,9 @@ export function useDesktopBridge(isRunning: boolean, messages: readonly Message[
         // 桌面端：一律弹（托盘同一条按 tag 只弹一次）；浏览器：开了推送由后台脚本弹，没开且页面不在前台才弹
         const desktopApp = isDesktopApp();
         if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;
-        if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-        const note = new Notification(notice.title || APP_NAME, { body: notice.text, tag: `notice:${notice.id}` });
-        note.onclick = () => {
-          window.focus();
-          openTarget(notice.session || "");
-        };
+        void showNote(notice.title || APP_NAME, notice.text, `notice:${notice.id}`, deepLink(notice.session || ""), () =>
+          openTarget(notice.session || ""),
+        );
       }),
     [],
   );

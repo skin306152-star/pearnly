@@ -5,6 +5,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { dayLabel, t } from "@/i18n";
 import { useActivity, useBumps } from "@/lib/managed-agents/activity";
+import { useView } from "@/lib/nav";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -404,13 +405,14 @@ export const ThreadListItem: FC = () => {
   );
 };
 
-/** 行尾状态（同 Claude）：在跑转圈，跑完没看过、或有没看过的提醒，一个小圆点；正在看的那个不标（顶栏已经在转）；
- *  鼠标移上去让位给「更多」按钮。 */
+/** 行尾状态（同 Claude）：在跑转圈，跑完没看过、或有没看过的提醒，一个小圆点；正在看的那个不标（顶栏已经在转）——
+ *  在定时任务页时当前对话没人在看，照样标；鼠标移上去让位给「更多」按钮。 */
 const ThreadActivity: FC = () => {
   const id = useAuiState((s) => s.threadListItem.remoteId);
   const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
+  const { view } = useView();
   const activity = useActivity(id);
-  if (!activity || isMain) return null;
+  if (!activity || (isMain && view === "chat")) return null;
   const label = activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread");
   return (
     <span className="cc-activity group-hover/item:hidden group-has-data-[state=open]/item:hidden" data-activity={activity} aria-label={label}>
