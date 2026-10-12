@@ -1810,12 +1810,25 @@ def _conversation():
     return (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or None
 
 
+def _remind_view(row) -> dict:
+    """任务的提醒：开着才给提醒时刻。任务服务关着提醒也回生效的时刻（没选过的是默认的前一天 08:00、14:00），
+    CC 就把 remind=0 的任务说成提醒开着、列了时刻（2026-10-13 测试机）。"""
+    remind = row.get("remind")
+    return {"remind": remind, "remind_times": row.get("remind_times") if remind else None}
+
+
 def folder_tasks(_input) -> str:
     listing = rules.listing()
     keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
             "folder", "root_label", "run_day", "run_time", "defaults", "remind", "remind_times", "include_existing",
             "last_run", "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state")
-    return _json({"tasks": [{k: r.get(k) for k in keep} for r in listing.get("rules") or []]})
+    tasks = []
+    for row in listing.get("rules") or []:
+        task = {**{k: row.get(k) for k in keep}, **_remind_view(row)}
+        if task["remind_times"] is None:
+            task.pop("remind_times")
+        tasks.append(task)
+    return _json({"tasks": tasks})
 
 
 def run_folder_task(tool_input) -> str:
@@ -2241,7 +2254,7 @@ def _saved_task(row, values) -> dict:
     saved = row.get("defaults") or {}
     given = values.get("defaults") if isinstance(values.get("defaults"), dict) else {}
     out = {"task": row.get("name"), "title": row.get("title"), "enabled": row.get("enabled"), "defaults": saved,
-           "remind": row.get("remind"), "remind_times": row.get("remind_times")}
+           **_remind_view(row)}
     skipped = [kind for kind, value in given.items() if value not in (None, "") and kind not in saved]
     if skipped:
         out["defaults_not_applicable"] = skipped
@@ -2296,9 +2309,10 @@ def set_folder_task_enabled(tool_input) -> str:
         return _json({"status": "not_saved", "reason": "Give enabled, remind or remind_times."})
     row = _task_call(rules.set_enabled, str(tool_input.get("task") or ""), enabled, remind=remind,
                      cc_session=_conversation(), **times)
-    return _json(row if row.get("status") == "not_saved" else {
-        "status": "saved", "task": row.get("name"), "enabled": row.get("enabled"), "remind": row.get("remind"),
-        "remind_times": row.get("remind_times")})
+    if row.get("status") == "not_saved":
+        return _json(row)
+    out = {"status": "saved", "task": row.get("name"), "enabled": row.get("enabled"), **_remind_view(row)}
+    return _json({key: value for key, value in out.items() if value is not None})
 
 
 def delete_folder_tasks(tool_input) -> str:

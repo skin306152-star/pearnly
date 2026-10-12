@@ -1576,6 +1576,27 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertEqual({key: listed[key] for key in keys}, {key: task[key] for key in keys})
         self.assertNotIn("rule_owner", listed)
 
+    def test_reminder_times_are_only_given_when_the_reminder_is_on(self):
+        """2026-10-13 测试机：任务服务关着提醒也回生效的时刻（默认前一天 08:00、14:00），CC 把 remind=0 的任务说成
+        提醒开着。列表、保存（单个 / 批量）、开关的结果都只在提醒开着时给时刻。"""
+        times = [{"days_before": 1, "time": "08:00"}, {"days_before": 1, "time": "14:00"}]
+        off = {"name": "R2", "title": "Bills", "enabled": 1, "remind": 0, "remind_times": times, "defaults": {}}
+        on = {**off, "name": "R3", "remind": 1}
+        with mock.patch.object(tools.rules, "listing", lambda: {"rules": [off, on]}):
+            listed = json.loads(tools.folder_tasks({}))["tasks"]
+        self.assertEqual([(row["remind"], "remind_times" in row) for row in listed], [(0, False), (1, True)])
+        with mock.patch.object(tools.rules, "save", lambda values, cc_session=None: dict(off), create=True):
+            saved = json.loads(tools.save_folder_task({"name": "R2", "title": "Bills"}))
+        self.assertEqual((saved["remind"], "remind_times" in saved), (0, False))
+        with mock.patch.object(tools.rules, "save_many", lambda values, cc_session=None: {"saved": [dict(off), dict(on)]},
+                               create=True), mock.patch.object(tools, "_task_rows", lambda items: {}):
+            batch = json.loads(tools.save_folder_tasks({"tasks": [{"name": "R2"}, {"name": "R3"}]}))["tasks"]
+        self.assertEqual([(row["remind"], row.get("remind_times")) for row in batch], [(0, None), (1, times)])
+        with mock.patch.object(tools.rules, "set_enabled", lambda name, enabled=None, remind=None, cc_session=None:
+                               dict(off), create=True):
+            switched = json.loads(tools.set_folder_task_enabled({"task": "R2", "remind": False}))
+        self.assertEqual(switched, {"status": "saved", "task": "R2", "enabled": 1, "remind": 0})
+
 
 class FolderTaskDeclarationTests(unittest.TestCase):
     """工具说明与参数：默认值各类与任务规则同一组、批量上限不超过卡片行数、改字段说明与推送行为一致。"""
