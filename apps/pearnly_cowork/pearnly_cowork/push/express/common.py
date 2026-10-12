@@ -387,6 +387,9 @@ _META_BOOL_KEYS = (
 )
 _META_LIST_KEYS = ("tables_written", "created_masters", "cdx_failed_tables")
 _META_MAX_LIST = 40
+# POS 日汇总票同一次写入的付款方式转账凭证号(小助手回执 ``notes.pos_vouchers``,载荷 3):留在 meta 顶层,
+# Express 回读据此认出这几张凭证是 Pearnly 写的、并按 `pos.transfers` 比分录(2026-10 CC 闭环)。
+POS_VOUCHERS = "pos_vouchers"
 
 
 def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
@@ -405,6 +408,12 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
         v = raw.get(k)
         if isinstance(v, list):
             out[k] = [str(x).strip()[:60] for x in v[:_META_MAX_LIST] if str(x).strip()]
+    notes = raw.get("notes")
+    vouchers = notes.get(POS_VOUCHERS) if isinstance(notes, dict) else None
+    if isinstance(vouchers, list):
+        kept = [str(x).strip()[:60] for x in vouchers[:_META_MAX_LIST] if str(x).strip()]
+        if kept:
+            out[POS_VOUCHERS] = kept
     return out
 
 

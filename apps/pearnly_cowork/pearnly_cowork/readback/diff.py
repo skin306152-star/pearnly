@@ -9,6 +9,9 @@
 - 分录按 CC 桌面版实际写进 Express 的科目比（``_written``）：收付款那一行（进项第一条贷方、销项第一条借方）现购 / 现销记
   账套的现金科目、赊购 / 赊销记对方档上的科目；期末盘存制账套的进项第一条借方是账套默认存货科目时记「购货」科目。这些换法
   CC 桌面版 2026-10-08 起才有，之前照载荷写，两种都认；换成别的科目照报改过。
+- POS 日汇总票（现销 HS，单号由 CC 桌面版自编、参考号与销项税 REFNUM 是票号区间、借现金）照上面同样比；同一次写入的
+  付款方式转账凭证（回执里的凭证号，`push.express.pushed` 的 ``vouchers``）算推送过的，不算直接录入，并按「借 收款科目 /
+  贷 现金」比分录：被删、作废或改过科目金额都记在这张 HS 的分录一项下（前面带凭证号）。
 - 直接录入：当月的单据与凭证里，单号不在推送记录里的（作废的不列）；单据带对方与金额，只有凭证的（收付款、调整）带日记账。
 """
 from __future__ import annotations
@@ -94,15 +97,42 @@ def _expected(written, now: Dict[str, Decimal]) -> Dict[str, Decimal]:
                     for options, value in written)
 
 
-def _entries_text(entries: Dict[str, Decimal]) -> str:
-    return "; ".join(f"{account} {value:+.2f}" for account, value in sorted(entries.items()))[:SHOWN]
+def _entries_text(entries: Dict[str, Decimal], voucher: str = "") -> str:
+    text = "; ".join(f"{account} {value:+.2f}" for account, value in sorted(entries.items()))
+    return (f"{voucher}: {text}" if voucher else text)[:SHOWN]
+
+
+def _now_entries(voucher) -> Dict[str, Decimal]:
+    """Express 里这张凭证现在的分录（按科目的净额）；没有或作废了是空的。"""
+    if voucher is None or voucher["docstat"] == contracts.CANCELLED:
+        return {}
+    return _entries((line["account"], contracts.signed(line["trntyp"], line["amount"]))
+                    for line in voucher["lines"] if contracts.signed(line["trntyp"], line["amount"]) is not None)
+
+
+def _pos_vouchers(item: Dict[str, Any], journal: Dict[str, Any], settings: Dict[str, Any]) -> List[tuple]:
+    """POS 日汇总票的转账凭证：每张「借 收款科目 / 贷 现金」（现金 = 这张 HS 借方实际记的科目：账套现金科目，
+    没设时照载荷），金额 = 这种付款方式当天收的钱。"""
+    debit = next((line["acc"] for line in item.get("lines") or [] if line["side"] == "D"), "")
+    cash = tuple(dict.fromkeys(account for account in (settings.get("cash"), debit) if account))
+    out = []
+    for written in item.get("vouchers") or []:
+        amount = _money(written.get("amount"))
+        if not written.get("acc") or not amount or not cash:
+            continue  # 回执的凭证号配不上转账（张数对不上）：只当推送过的，不比
+        now = _now_entries(journal.get(written["voucher"].upper()))
+        expected = _expected([((written["acc"],), amount), (cash, -amount)], now)
+        if any(_differs(expected.get(a, contracts.ZERO), now.get(a, contracts.ZERO)) for a in set(expected) | set(now)):
+            out.append(("entries", _entries_text(expected, written["voucher"]), _entries_text(now, written["voucher"])))
+    return out
 
 
 def _party(code: str, name: str) -> str:
     return f"{code} {name}".strip()
 
 
-def _fields(item: Dict[str, Any], doc: Dict[str, Any], vats, voucher, settings: Dict[str, Any]) -> List[tuple]:
+def _fields(item: Dict[str, Any], doc: Dict[str, Any], vats, voucher, settings: Dict[str, Any],
+            journal: Dict[str, Any]) -> List[tuple]:
     out = []
     pushed_date = item.get("date") or ""
     now_date = doc["docdat"].isoformat() if doc["docdat"] else ""
@@ -136,15 +166,12 @@ def _fields(item: Dict[str, Any], doc: Dict[str, Any], vats, voucher, settings: 
             if _differs(vat, row["vat01"]):
                 out.append(("vat_amount", f"{vat:.2f}", f"{row['vat01']:.2f}"))
     if not item.get("stock") and item.get("lines"):
-        now_entries = {}
-        if voucher is not None and voucher["docstat"] != contracts.CANCELLED:
-            now_entries = _entries((line["account"], contracts.signed(line["trntyp"], line["amount"]))
-                                   for line in voucher["lines"]
-                                   if contracts.signed(line["trntyp"], line["amount"]) is not None)
+        now_entries = _now_entries(voucher)
         pushed_entries = _expected(_written(item, doc, settings), now_entries)
         accounts = set(pushed_entries) | set(now_entries)
         if any(_differs(pushed_entries.get(a, contracts.ZERO), now_entries.get(a, contracts.ZERO)) for a in accounts):
             out.append(("entries", _entries_text(pushed_entries), _entries_text(now_entries)))
+    out.extend(_pos_vouchers(item, journal, settings))
     return out
 
 
@@ -164,6 +191,7 @@ def compare(pushed: List[Dict[str, Any]], data: Dict[str, Any]) -> Dict[str, Any
     counts: Counter = Counter()
     changes: List[Dict[str, Any]] = []
     known = {item["docnum"].upper() for item in pushed}
+    known |= {written["voucher"].upper() for item in pushed for written in item.get("vouchers") or []}
     for item in sorted(pushed, key=lambda row: row["docnum"]):
         key = item["docnum"].upper()
         if not (first.isoformat() <= (item.get("date") or "") <= last.isoformat() or key in moved_here):
@@ -179,7 +207,7 @@ def compare(pushed: List[Dict[str, Any]], data: Dict[str, Any]) -> Dict[str, Any
             change = "voided"
         else:
             found = _fields(item, live[0], vats.get((VAT_SIDES[item["direction"]], key)) or [], vouchers.get(key),
-                            settings)
+                            settings, vouchers)
             counts["changed" if found else "unchanged"] += 1
             changes.extend({**base, "change": "changed", "field": field, "pushed": before, "now": after}
                            for field, before, after in found)

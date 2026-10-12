@@ -150,9 +150,11 @@ def request(connection, account_set_key, period, accounts=None) -> dict:
             return waiting
         first, last = contracts.month_range(when)
         pushed = push_service.pushed_express(connection, account["key"], first, last)
+        # 点名推送过的单号与 POS 日汇总票同一次写入的转账凭证号（会计改到别的月也读得到）
+        named = [item["docnum"] for item in pushed]
+        named += [written["voucher"] for item in pushed for written in item.get("vouchers") or []]
         try:
-            params = contracts.read_params(account["path"], account["root"], when,
-                                           [item["docnum"] for item in pushed])
+            params = contracts.read_params(account["path"], account["root"], when, named)
         except contracts.ContractError as error:
             _error(error.code)
         made = request_service.create(KIND, connection, params, key)

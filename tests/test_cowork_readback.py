@@ -448,7 +448,8 @@ class PushedRecords(unittest.TestCase):
                                 "direction": "purchase", "doctype": "RR", "date": "2026-05-15", "ref_no": "INV-9",
                                 "party_code": "S0042", "party_name": "ร้าน A", "party_tax_id": "0105556012345",
                                 "base": "1000.00", "vat": "70.00", "total": "1070.00",
-                                "lines": [{"acc": "51-03", "side": "D", "amount": "1000.00"}], "stock": True})
+                                "lines": [{"acc": "51-03", "side": "D", "amount": "1000.00"}], "stock": True,
+                                "vouchers": []})
         self.assertIsNone(pushed_rules.project("CWP-2", "H", "X", {"direction": "other"}, {}))
         self.assertIsNone(pushed_rules.project("CWP-2", "H", "", payload, {}))
         self.assertEqual(pushed_rules.be_date("700229"), None)  # 2027 不是闰年
@@ -475,6 +476,116 @@ class PushedRecords(unittest.TestCase):
         # 销项的号是自家开的票：照原样（超长 CC 桌面版直接拦下，不缩）
         sale = dict(payload, direction="sales", ref_no="IV-2026-05-000001", customer={"code": "C1"})
         self.assertEqual(pushed_rules.project("CWP-2", "H", "IV1", sale, {})["ref_no"], "IV-2026-05-000001")
+
+
+POS_QR, POS_CARD, REVENUE = "11-01-03-06", "11-01-03-07", "41-01-00-00"
+
+
+def _voucher(number, book, lines, docstat="N", creby="PEARNLY"):
+    """一张凭证（lines：[(科目, 借正贷负)]）。"""
+    return {"voucher": number, "book": book, "date": "2026-05-13", "descrp": "", "docstat": docstat, "trnstat": "P",
+            "creby": creby, "lines": [
+                {"seq": str(seq), "account": account, "date": "2026-05-13", "descrp": "",
+                 "trntyp": "0" if value > 0 else "1", "amount": f"{abs(value):.2f}", "dept": ""}
+                for seq, (account, value) in enumerate(lines, 1)]}
+
+
+def pos_day(journal=None, **override):
+    """一张推送过的 POS 日汇总票（载荷 3）：推送记录 + Express 里 CC 桌面版写下的样子（`dbf_sales._write_all` 与
+    `pos_journal.write`）——现销 HS 单号自编、YOUREF 与销项税 REFNUM 是票号区间、借账套现金科目；QR 与刷卡各一张普通
+    日记账凭证「借 收款科目 / 贷 现金」。``journal`` 按凭证号替换（None = 那张不在了）。"""
+    from pearnly_cowork.contracts import pos as pos_contract
+    from pearnly_cowork.push.express import common as push_common
+
+    ref = pos_contract.day_ref("A0001", "A0120", date(2026, 5, 13))
+    payload = {"direction": "sales", "doctype": "HS", "docdate_be": "690513", "ref_no": ref,
+               "customer": {"code": "CASH", "name": "เงินสด"}, "base_amount": "1000.00", "vat_amount": "70.00",
+               "total_amount": "1070.00", "payload_version": 3,
+               "lines": [{"acc": "11-03-01-00", "side": "D", "amount": "1070.00"},
+                         {"acc": REVENUE, "side": "C", "amount": "1000.00"},
+                         {"acc": OUTPUT_VAT, "side": "C", "amount": "70.00"}],
+               "pos": {"first": "A0001", "last": "A0120", "count": 120, "docnum": "auto", "cash": "270.00",
+                       "transfers": [{"acc": POS_QR, "amount": "500.00", "label": "QR"},
+                                     {"acc": POS_CARD, "amount": "300.00", "label": "Card"}]}}
+    # 回执经推送服务的白名单净化（小助手 `worker._push_meta` 把凭证号放在 notes.pos_vouchers）
+    meta = push_common.sanitize_push_meta({"party_code": "CASH", "docnum": "HS690513-001",
+                                           "notes": {"pos_vouchers": ["JV690513-001", "JV690513-002"]}})
+    item = pushed_rules.project("CWP-7", "H-7", "HS690513-001", payload,
+                                {"express_docnum": "HS690513-001", "meta": meta})
+    document = {"table": "AR", "rectyp": "1", "docnum": "HS690513-001", "docdat": "2026-05-13", "ref": ref,
+                "party": "CASH", "party_name": "เงินสด", "party_taxid": "", "flgvat": "1", "amount": "1070.00",
+                "netval": "1000.00", "vatamt": "70.00", "netamt": "1070.00", "docstat": "N", "userid": "PEARNLY",
+                "deleted": False}
+    vat = {"vatrec": "S", "rectyp": "1", "vatprd": "2026-05-01", "vatdat": "2026-05-13", "docdat": "2026-05-13",
+           "docnum": "HS690513-001", "refnum": ref, "descrp": "ใบกำกับภาษีอย่างย่อ A0001-A0120", "prenam": "",
+           "taxid": "", "branch": "00000", "docstat": "N", "amt01": "1000.00", "vat01": "70.00", "extra": {},
+           "deleted": False}
+    vouchers = {"HS690513-001": _voucher("HS690513-001", "02", [(CASH, 1070), (REVENUE, -1000), (OUTPUT_VAT, -70)]),
+                "JV690513-001": _voucher("JV690513-001", "00", [(POS_QR, 500), (CASH, -500)]),
+                "JV690513-002": _voucher("JV690513-002", "00", [(POS_CARD, 300), (CASH, -300)])}
+    vouchers.update(journal or {})
+    data = dict(documents=[document], vat=[vat], journal=[row for row in vouchers.values() if row],
+                settings=SETTINGS)
+    data.update(override)
+    return item, parsed(**data)
+
+
+class PosDays(unittest.TestCase):
+    """POS 导出按天录的销售（L9，载荷 3）：日汇总 HS 照常比，同一次写入的转账凭证算推送过的、不算直接录入。"""
+
+    def test_a_pos_day_as_written_has_no_changes_and_its_vouchers_are_not_direct_entries(self):
+        item, data = pos_day()
+        self.assertEqual(item["vouchers"], [{"voucher": "JV690513-001", "acc": POS_QR, "amount": "500.00"},
+                                            {"voucher": "JV690513-002", "acc": POS_CARD, "amount": "300.00"}])
+        found = diff.compare([item], data)
+        self.assertEqual((found["changes"], found["direct"]), ([], []))
+        self.assertEqual(found["counts"], {"pushed": 1, "unchanged": 1, "changed": 0, "deleted": 0, "missing": 0,
+                                           "voided": 0, "direct": 0})
+        # 回执里没有凭证号（推送服务以前把 notes 整个滤掉）：两张凭证就会被当成直接在 Express 录的
+        unknown = diff.compare([dict(item, vouchers=[])], data)
+        self.assertEqual([row["docnum"] for row in unknown["direct"]], ["JV690513-001", "JV690513-002"])
+
+    def test_a_changed_deleted_or_voided_voucher_is_a_change_of_that_day(self):
+        item, data = pos_day(journal={"JV690513-002": None})
+        found = diff.compare([item], data)
+        self.assertEqual([(row["change"], row["field"], row["pushed"], row["now"]) for row in found["changes"]], [
+            ("changed", "entries", "JV690513-002: 11-01-01-00 -300.00; 11-01-03-07 +300.00", "JV690513-002: ")])
+        self.assertEqual((found["counts"]["changed"], found["direct"]), (1, []))
+        moved = _voucher("JV690513-001", "00", [("11-01-03-09", 500), (CASH, -500)], creby="AOM")
+        item, data = pos_day(journal={"JV690513-001": moved})
+        self.assertEqual([row["now"] for row in diff.compare([item], data)["changes"]],
+                         ["JV690513-001: 11-01-01-00 -500.00; 11-01-03-09 +500.00"])
+        voided = _voucher("JV690513-001", "00", [(POS_QR, 500), (CASH, -500)], docstat="C")
+        item, data = pos_day(journal={"JV690513-001": voided})
+        changes = diff.compare([item], data)["changes"]
+        self.assertEqual([(row["field"], row["now"]) for row in changes], [("entries", "JV690513-001: ")])
+
+    def test_the_pos_day_itself_is_compared_like_any_cash_sale(self):
+        # 账套没设现金科目时 CC 桌面版照载荷借（转账凭证也贷同一个科目）：不算改过
+        receivable = "11-03-01-00"
+        item, data = pos_day(settings={}, journal={
+            "HS690513-001": _voucher("HS690513-001", "02", [(receivable, 1070), (REVENUE, -1000),
+                                                            (OUTPUT_VAT, -70)]),
+            "JV690513-001": _voucher("JV690513-001", "00", [(POS_QR, 500), (receivable, -500)]),
+            "JV690513-002": _voucher("JV690513-002", "00", [(POS_CARD, 300), (receivable, -300)])})
+        self.assertEqual(diff.compare([item], data)["changes"], [])
+        # 会计改了票号区间（YOUREF）或金额：照报
+        item, data = pos_day()
+        data["documents"][0] = dict(data["documents"][0], ref="A0001-A0119", netamt=D("1060.00"))
+        changes = [(row["field"], row["pushed"], row["now"]) for row in diff.compare([item], data)["changes"]]
+        self.assertEqual(changes, [("ref_no", "A0001-A0120", "A0001-A0119"), ("total", "1070.00", "1060.00")])
+
+    def test_receipt_vouchers_pair_with_the_transfers_in_order(self):
+        payload = {"direction": "sales", "doctype": "HS", "docdate_be": "690513", "ref_no": "A1-9", "lines": [],
+                   "pos": {"transfers": [{"acc": POS_QR, "amount": "5"}]}}
+        raw_notes = {"meta": {"notes": {"pos_vouchers": ["JV690513-004"]}}}  # 没经净化的回执也认
+        self.assertEqual(pushed_rules.project("R", "H", "HS1", payload, raw_notes)["vouchers"],
+                         [{"voucher": "JV690513-004", "acc": POS_QR, "amount": "5.00"}])
+        # 张数对不上：只当推送过的，不配科目金额（不比）
+        two = {"meta": {"pos_vouchers": ["JV1", "JV2"]}}
+        self.assertEqual(pushed_rules.project("R", "H", "HS1", payload, two)["vouchers"],
+                         [{"voucher": "JV1", "acc": "", "amount": ""}, {"voucher": "JV2", "acc": "", "amount": ""}])
+        self.assertEqual(pushed_rules.project("R", "H", "HS1", payload, {})["vouchers"], [])
 
 
 # ── 服务（Frappe 与各域服务用替身） ────────────────────────────────────────
@@ -713,6 +824,12 @@ class Service(unittest.TestCase):
         self.assertNotEqual(again["readback"], adopted["readback"])
         self.assertEqual([call[0] for call in self.h.calls if call[0] in ("find", "waiting", "create")],
                          ["find", "waiting", "create"])
+
+    def test_pos_day_vouchers_are_named_for_the_computer_to_read(self):
+        self.h.pushed = [pushed_item(vouchers=[{"voucher": "JV690503-001", "acc": "11-01-03-06", "amount": "5.00"}])]
+        self._start()
+        create = next(call for call in self.h.calls if call[0] == "create")
+        self.assertEqual(create[3]["docnums"], ["IV690503-001", "JV690503-001"])
 
     def test_an_offline_or_old_computer_gets_no_request(self):
         self.h.presence = {"status": "waiting_for_cc", "reason": "offline"}
