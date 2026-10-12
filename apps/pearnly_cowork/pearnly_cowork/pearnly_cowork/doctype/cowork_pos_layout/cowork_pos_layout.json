@@ -1,0 +1,109 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork POS Layout",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-13 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "Remembered columns of one POS export layout for one company.",
+ "field_order": [
+  "layout_key",
+  "workspace",
+  "company",
+  "fingerprint",
+  "headers_json",
+  "layout_json",
+  "origin",
+  "set_by",
+  "set_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "layout_key",
+   "label": "Layout Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "options": "Cowork Workspace",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "company",
+   "label": "Company",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "fingerprint",
+   "label": "Fingerprint",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "headers_json",
+   "label": "Headers",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "layout_json",
+   "label": "Layout",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "origin",
+   "label": "Origin",
+   "fieldtype": "Select",
+   "options": "auto\nperson",
+   "read_only": 1,
+   "default": "auto"
+  },
+  {
+   "fieldname": "set_by",
+   "label": "Set By",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "set_at",
+   "label": "Set At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

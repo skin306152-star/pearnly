@@ -111,6 +111,8 @@ apps/pearnly_cowork/pearnly_cowork/push/express/choices.py	*	数据：票面名�
 apps/pearnly_cowork/pearnly_cowork/ocr/enterprise/local/common.py	*	数据：金额解析去货币符号、银行流水收支方向关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/express/field_corrections.py	*	数据：分公司号正则与加油票品名关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/express/sales_mapper.py	*	数据：销项写入 Express 的现金客户名与分录摘要固定泰文，按原字面比对或写入外部系统，不进界面
+apps/pearnly_cowork/pearnly_cowork/contracts/pos.py	*	数据：POS 付款方式里认作现金的写法（泰 / 中 / 日），按原字面比对，不进界面
+apps/pearnly_cowork/pearnly_cowork/pos_import/contracts.py	*	输入词：POS 导出（Ocha、Loyverse 等）表头与状态值的泰 / 中 / 日写法、泰文月份，按原字面认列，翻了就认不出
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/account_valve.py	*	数据：解析 MR.ERP 报告备注判断科目问题的泰文关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_dms/pearnly_dms/client/eventlog_reader.py	*	数据：DMS 事件日志原生泰文动作名（增/改/删），按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/readback.py	*	数据：MR.ERP 页面回读时识别未关联/未设置的泰文标记，按原字面比对或写入外部系统，不进界面

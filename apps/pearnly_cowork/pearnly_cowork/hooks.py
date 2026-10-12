@@ -301,6 +301,7 @@ permission_query_conditions = {
     "Cowork Recon Preset": "pearnly_cowork.reconciliation.preset_store.deny",
     "Cowork Recon Rerun": "pearnly_cowork.recon_center.rerun.deny",
     "Cowork Express Choice": "pearnly_cowork.push.choices.deny_query",
+    "Cowork POS Layout": "pearnly_cowork.pos_import.layouts.deny_query",
     "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_query",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_query",
     "Cowork ERP Connection": "pearnly_cowork.connections.access.native_query",
@@ -351,6 +352,7 @@ has_permission = {
     "Cowork Recon Preset": "pearnly_cowork.reconciliation.preset_store.deny",
     "Cowork Recon Rerun": "pearnly_cowork.recon_center.rerun.deny",
     "Cowork Express Choice": "pearnly_cowork.push.choices.deny",
+    "Cowork POS Layout": "pearnly_cowork.pos_import.layouts.deny",
     "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_permission",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_permission",
     "Cowork ERP Connection": "pearnly_cowork.connections.access.native_permission",
@@ -407,6 +409,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.preset_store.reject_share",
         "pearnly_cowork.recon_center.rerun.reject_share",
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share",
+        "pearnly_cowork.pos_import.layouts.reject_share",
         "pearnly_cowork.folder_intake.access.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.history.names.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
@@ -420,6 +423,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.reconciliation.preset_store.reject_share",
         "pearnly_cowork.recon_center.rerun.reject_share",
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share",
+        "pearnly_cowork.pos_import.layouts.reject_share",
         "pearnly_cowork.folder_intake.access.reject_share"],
 }}
 extend_doctype_class = {

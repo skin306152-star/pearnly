@@ -183,6 +183,7 @@
       "folder_intake",
       "history",
       "ocr",
+      "pos_import",
       "push",
       "recon_center",
       "reconciliation",
@@ -208,6 +209,7 @@
       "files",
       "history",
       "ocr",
+      "pos_import",
       "push",
       "roundtrip",
       "targets"
@@ -241,6 +243,16 @@
       "files",
       "history",
       "roundtrip"
+    ],
+    "pos_import": [
+      "access",
+      "connections",
+      "contracts",
+      "files",
+      "history",
+      "ocr",
+      "tabular",
+      "targets"
     ],
     "push": [
       "access",
