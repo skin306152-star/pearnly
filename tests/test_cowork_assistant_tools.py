@@ -327,6 +327,93 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertEqual(out, {"file": "file_c", "status": "not_started", "reason": "insufficient_balance"})
 
 
+class PosImportToolTests(unittest.TestCase):
+    """L9：对话里的 POS 导出按天建票（不识别、不扣费）；认列问一次（附件或文件夹任务里停着的那份），旧版 .xls 说清楚。"""
+
+    def setUp(self):
+        self.created, self.calls = [], []
+        chat = types.ModuleType("pearnly_core.assistant.files")
+        chat.attachment = lambda file_id: {"file_pos": ("sales-oct.xlsx", b"x"), "file_xls": ("sales.xls", b"x"),
+                                           "file_jpg": ("bill.jpg", b"x")}[file_id]
+        chat.attachments = lambda: []
+        originals = types.ModuleType("pearnly_cowork.files.service")
+        originals.create = lambda workspace, name, content, key: self.created.append((workspace, name, key)) or {
+            "name": "CWS-" + key[-8:]}
+        tables = types.ModuleType("pearnly_cowork.pos_import.tables")
+        tables.kind_of = lambda name: {"xlsx": "workbook", "csv": "delimited", "xls": "legacy"}.get(
+            name.rsplit(".", 1)[-1], "")
+        service = types.ModuleType("pearnly_cowork.pos_import.service")
+        service.preview = lambda source, **kw: self.calls.append(("preview", source, kw)) or dict(self.preview)
+        service.admit = lambda source, key, **kw: self.calls.append(("admit", source, key, kw)) or dict(self.admitted)
+        package = types.ModuleType("pearnly_cowork.pos_import")
+        package.service, package.tables = service, tables
+        for name, module in {"pearnly_core.assistant.files": chat, "pearnly_cowork.files.service": originals,
+                             "pearnly_cowork.pos_import": package, "pearnly_cowork.pos_import.service": service,
+                             "pearnly_cowork.pos_import.tables": tables}.items():
+            sys.modules[name] = module
+        for parent in ("pearnly_core", "pearnly_core.assistant", "pearnly_cowork.files"):
+            sys.modules.setdefault(parent, types.ModuleType(parent))
+        sys.modules["pearnly_core.assistant"].files = chat
+        sys.modules["pearnly_cowork.files"].service = originals
+        search = types.ModuleType("pearnly_cowork.connections.account_search")
+        search.usable = lambda adapter, rows: rows
+        sys.modules["pearnly_cowork.connections.account_search"] = search
+        tools.connections.targets = lambda name: {"account_sets": [{"source_id": "K"}]}
+        tools.scope.default_workspace = lambda: "WS"
+        self.preview = {"status": "ready", "days": []}
+        self.admitted = {"status": "ok", "histories": ["H1", "H2"], "days": [{"document": "H1", "date": "2026-10-13"}]}
+
+    def _import(self, **extra):
+        return json.loads(tools.pos_import({"files": ["file_pos"], "connection": "C1", "account_set_key": "K", **extra}))
+
+    def test_one_fixed_key_per_attachment_and_no_recognition(self):
+        out = self._import(posting_kind="stock")["results"][0]
+        self.assertEqual(self.created, [("WS", "sales-oct.xlsx", "assistant:pos:file_pos")])
+        _kind, source, key, kw = self.calls[0]
+        self.assertEqual((source, key), ("CWS-file_pos", "assistant:pos:file_pos"))
+        self.assertEqual((kw["connection"], kw["account_set_key"], kw["posting_kind"], kw["workspace"]),
+                         ("C1", "K", "stock", "WS"))
+        self.assertEqual((out["status"], out["histories"]), ("ok", ["H1", "H2"]))
+
+    def test_layout_questions_come_back_and_answers_are_remembered_before_entering(self):
+        self.admitted = {"status": "layout_needed", "headers": ["Date"], "questions": [{"kind": "date_order"}]}
+        out = self._import()["results"][0]
+        self.assertEqual((out["status"], out["questions"]), ("layout_needed", [{"kind": "date_order"}]))
+        self.calls.clear()
+        self.admitted = {"status": "ok", "histories": ["H1"], "days": []}
+        self._import(answers={"date_order": "dmy", "junk": 1})
+        self.assertEqual([call[0] for call in self.calls], ["preview", "admit"])
+        self.assertEqual(self.calls[0][2]["answers"], {"date_order": "dmy"})
+
+    def test_old_excel_and_other_files_are_explained_without_a_source(self):
+        out = json.loads(tools.pos_import({"files": ["file_xls", "file_jpg"], "connection": "C1",
+                                           "account_set_key": "K"}))["results"]
+        self.assertEqual([item["code"] for item in out], ["pos.xls_not_supported", "pos.type_unsupported"])
+        self.assertEqual((self.created, self.calls), ([], []))
+
+    def test_an_account_set_no_longer_in_the_list_is_refused(self):
+        out = json.loads(tools.pos_import({"files": ["file_pos"], "connection": "C1", "account_set_key": "gone"}))
+        self.assertIn("account_set_unavailable", out["results"][0]["reason"])
+        self.assertEqual(self.created, [])
+
+    def test_a_held_folder_file_is_answered_with_its_tasks_target_and_resumed(self):
+        held = {"file": "F1", "filename": "pos.csv", "source_file": "CWS-9", "task": "R1", "title": "Shop sales",
+                "workspace": "WS", "client": None, "connection": "C2", "account_set_key": "K2", "posting_kind": None}
+        resumed = []
+        with mock.patch.object(tools.rules, "pos_file", lambda name: held, create=True), \
+                mock.patch.object(tools.rules, "resume_pos", lambda name: resumed.append(name) or True, create=True):
+            out = json.loads(tools.pos_layout({"folder_file": "F1", "answers": {"amount_basis": "inclusive"}}))
+        self.assertEqual((out["status"], out["resumed"], resumed), ("ready", True, ["F1"]))
+        _kind, source, kw = self.calls[0]
+        self.assertEqual((source, kw["connection"], kw["account_set_key"], kw["answers"]),
+                         ("CWS-9", "C2", "K2", {"amount_basis": "inclusive"}))
+        self.preview = {"status": "layout_needed", "questions": [{"kind": "column", "field": "amount"}]}
+        resumed.clear()
+        with mock.patch.object(tools.rules, "pos_file", lambda name: held, create=True), \
+                mock.patch.object(tools.rules, "resume_pos", lambda name: resumed.append(name) or True, create=True):
+            out = json.loads(tools.pos_layout({"folder_file": "F1"}))
+        self.assertEqual((out["status"], out["resumed"], resumed), ("layout_needed", False, []))
+
 
 class EditDocumentTests(unittest.TestCase):
     """复核修改：只改主页、日期写原文、金额按十进制校验、税号校验、带版本号保存，冲突与错误照实回。"""
@@ -1082,7 +1169,8 @@ class FolderTaskBatchTests(unittest.TestCase):
 
         for name, value in {"listing": listing, "save_many": save_many,
                             "account_label": lambda connection, key: "70EXP · T.8",
-                            "waiting": lambda reader, root, folder: {"files": 7, "partial": True},
+                            "waiting": lambda reader, root, folder, direction=None, connection=None:
+                                {"files": 7, "partial": True},
                             "master_names": lambda connection, key: {"accounts": {"5100": "Office supplies"}}}.items():
             patcher = mock.patch.object(tools.rules, name, value, create=True)
             patcher.start()

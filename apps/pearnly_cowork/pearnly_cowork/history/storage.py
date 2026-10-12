@@ -265,6 +265,18 @@ def project(doc):
     return result
 
 
+def set_push_targets(names, connection, account_set, intake_target):
+    """新建录入时选的推送目标抄到刚落库的票上（与识别落库 `ocr.execution.workflow._copy_targets` 同一做法，之后按它推，
+    用户 2026-09-26「按第一次选择」）。已经有目标的票不改；调用方刚以当前用户身份建好这些票。"""
+    scope.require("intake")
+    for name in names or []:
+        doc = read(name, for_update=True)
+        if doc.push_connection or doc.intake_target:
+            continue
+        frappe.db.set_value(DOCTYPE, name, {"push_connection": connection or "", "push_account_set": account_set or "",
+                                            "intake_target": intake_target or ""}, update_modified=False)
+
+
 def update_pages(name, pages, expected_version):
     scope.require("intake")
     doc = read(name, for_update=True)

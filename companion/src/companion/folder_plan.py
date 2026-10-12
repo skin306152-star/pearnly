@@ -7,9 +7,13 @@
 - 新任务（云端下发 ``existing`` 为 1，2026-10 起新建或改过文件夹的）处理文件夹里所有本任务还没处理过的文件，
   包括建任务前就在的（「处理过」只看本机台账：路径 + 大小 + 修改时间）；老任务只收规则启用之后放进文件夹的文件
   （启用时按文件在本机的创建时间拍底，先用云端时间校正本机时钟）；
-- 只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
+- 收 PDF / 图片；推往 Express 的销售任务另收 POS 导出的 Excel / CSV（云端按任务下发 ``extensions``，
+  ``rule_extensions``；旧云端不发就只收 PDF / 图片；旧版 .xls 也收，云端登记即记失败、写明原因，不上传）；老任务
+  新收的扩展名先补拍底（此刻已在文件夹里的这类文件算启用前就在的），补好之前不扫（``taken_extensions``）；
+  结果文件夹（`RESULT_FOLDERS`）里是系统生成的结果表格，不扫描；
 - 文件 2 分钟内没再变动才算写完（扫描仪、复制还没完成的先不传）；
-- 文件夹现有几份（`survey`，给网页卡片与任务列表）与 `scan` 同一判据，只列目录、限时限量，数不完就标「不全」。
+- 文件夹现有几份（`survey`，给网页卡片与任务列表）与 `scan` 同一判据，只列目录、限时限量，数不完就标「不全」；
+  票据与 POS 导出分开数（``counts`` / ``table_counts``），待处理数按每条任务实际收的扩展名算。
 """
 
 from __future__ import annotations
@@ -32,6 +36,9 @@ RESULT_FOLDER = "_Pearnly结果"
 RESULT_FOLDERS = (RESULT_FOLDER, "_ผลลัพธ์ Pearnly", "_Pearnly Results", "_Pearnly結果")
 _RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS)
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
+# POS 导出（2026-10-13）：与云端 folder_intake/contracts.TABLE_EXTENSIONS 同一组，只在云端给这条任务下发时收。
+TABLE_EXTENSIONS = (".xlsx", ".xlsm", ".csv", ".xls")
+KNOWN_EXTENSIONS = EXTENSIONS + TABLE_EXTENSIONS
 STABLE_SECONDS = 120
 # 按时开跑后这么久之内算「按时」，再晚就是「开机补跑」。
 ON_TIME_SECONDS = 2 * 3600
@@ -83,6 +90,35 @@ def due(rule: dict, state: dict, now: float) -> Optional[Due]:
     if slot > floor:
         return Due("schedule" if now - slot <= ON_TIME_SECONDS else "catch_up", slot=slot)
     return None
+
+
+def rule_extensions(rule: dict) -> tuple:
+    """这条任务收哪些扩展名：云端下发的（只认本机认得的）；没下发（旧云端）或不合形状就只收 PDF / 图片。"""
+    sent = rule.get("extensions") if isinstance(rule, dict) else None
+    if not isinstance(sent, (list, tuple)):
+        return EXTENSIONS
+    wanted = {str(item).lower() for item in sent}
+    return tuple(ext for ext in KNOWN_EXTENSIONS if ext in wanted) or EXTENSIONS
+
+
+def baselined_extensions(state: dict) -> tuple:
+    """老任务的底按哪些扩展名拍过（``baseline_exts``）；1.5 之前拍的底没记，那时只收 PDF / 图片。"""
+    sent = state.get("baseline_exts") if isinstance(state, dict) else None
+    if not isinstance(sent, list):
+        return EXTENSIONS
+    wanted = {str(item).lower() for item in sent}
+    return tuple(ext for ext in KNOWN_EXTENSIONS if ext in wanted)
+
+
+def taken_extensions(rule: dict, state: dict) -> tuple:
+    """这一次真正扫（与数待处理）哪些扩展名：新任务按云端下发的；老任务只扫已经拍过底的——任务新收的扩展名（例如
+    升级后推往 Express 的销售任务开始收 POS 导出）先补拍底再扫，免得把早就在文件夹里、可能已经手工录过的表格当成
+    新放进来的再记一遍账。"""
+    extensions = rule_extensions(rule)
+    if rule.get("existing"):
+        return extensions
+    done = baselined_extensions(state)
+    return tuple(ext for ext in extensions if ext in done)
 
 
 def is_result_folder(name: str) -> bool:
@@ -165,8 +201,8 @@ class Candidate:
     created: float
 
 
-def scan(folder: Path, errors: Optional[list] = None) -> Iterator[Candidate]:
-    """规则文件夹（含下级子文件夹）里所有 PDF / 图片，跳过结果文件夹、隐藏与临时文件。
+def scan(folder: Path, errors: Optional[list] = None, extensions: tuple = EXTENSIONS) -> Iterator[Candidate]:
+    """规则文件夹（含下级子文件夹）里这条任务收的文件（默认 PDF / 图片），跳过结果文件夹、隐藏与临时文件。
 
     ``errors``：给了就把读不了的文件夹 / 文件记进去（调用方据此判断这次扫描全不全，例如网络共享抖了一下）。"""
     if not folder.is_dir():
@@ -174,7 +210,7 @@ def scan(folder: Path, errors: Optional[list] = None) -> Iterator[Candidate]:
     for current, dirs, files in os.walk(folder, onerror=None if errors is None else errors.append):
         dirs[:] = sorted(d for d in dirs if not is_result_folder(d) and not _skipped_name(d))
         for name in sorted(files):
-            if _skipped_name(name) or not name.lower().endswith(EXTENSIONS):
+            if _skipped_name(name) or not name.lower().endswith(extensions):
                 continue
             path = Path(current) / name
             try:
@@ -232,7 +268,8 @@ class Seen:
 
 def survey(root: Path, *, deadline: float, budget: list, clock: Callable[[], float] = time.monotonic
            ) -> tuple[Optional[list[Seen]], bool]:
-    """根目录（含全部下级）里会被录入的文件，判据与 :func:`scan` 相同（结果文件夹、隐藏与临时文件、非 PDF / 图片、
+    """根目录（含全部下级）里会被录入的文件（票据与 POS 导出都收，按任务分开算），判据与 :func:`scan` 相同（结果文件夹、
+    隐藏与临时文件、不是这两类的扩展名、
     0 字节都不算；不进符号链接的文件夹）。只列目录、用列目录时带回的大小与修改时间（Windows 上不再逐个文件问一次），
     不打开文件。
 
@@ -260,7 +297,7 @@ def survey(root: Path, *, deadline: float, budget: list, clock: Callable[[], flo
                             if not is_result_folder(name) and not entry.is_symlink():
                                 stack.append((entry.path, relative))
                             continue
-                        if not name.lower().endswith(EXTENSIONS):
+                        if not name.lower().endswith(KNOWN_EXTENSIONS):
                             continue
                         stat = entry.stat()
                     except OSError:
@@ -274,14 +311,16 @@ def survey(root: Path, *, deadline: float, budget: list, clock: Callable[[], flo
     return found, True
 
 
-def folder_counts(seen: Iterable[Seen], folders: Iterable[str]) -> dict[str, int]:
-    """上报的每个文件夹（``""`` 是根目录本身）里含下级子文件夹会被录入的文件数，键用上报时的写法；
-    没有文件的不列（云端：根目录行带了 ``counts`` 就是数过，不在里面的文件夹是 0）。"""
+def folder_counts(seen: Iterable[Seen], folders: Iterable[str], extensions: tuple = EXTENSIONS) -> dict[str, int]:
+    """上报的每个文件夹（``""`` 是根目录本身）里含下级子文件夹会被录入的文件数（只数 ``extensions``：默认票据，
+    POS 导出另数一份），键用上报时的写法；没有文件的不列（云端：根目录行带了 ``counts`` 就是数过，不在里面的文件夹是 0）。"""
     wanted: dict[str, str] = {}
     for name in folders:
         wanted.setdefault(str(name).casefold(), str(name))
     counts: dict[str, int] = {}
     for item in seen:
+        if not item.relpath.lower().endswith(extensions):
+            continue
         parts = item.relpath.casefold().split("\\")[:-1]
         for depth in range(min(len(parts), FOLDER_DEPTH) + 1):
             key = wanted.get("\\".join(parts[:depth]))
@@ -314,12 +353,12 @@ def pending_counts(seen: Iterable[Seen], rules: Iterable[tuple[str, str, Callabl
     """同一根目录下几条规则各自还没处理的文件数，文件只走一遍（不再逐条规则把整个根目录再走一遍）：在规则文件夹
     （含下级）里、不在老任务的拍底里、本机台账也不认得的。
 
-    ``rules``：``(规则名, 规则文件夹, known, baseline)``；``known(相对规则文件夹的路径, 大小, 修改时间)`` 是台账的判断，
-    ``baseline`` 是拍底（相对规则文件夹、casefold）。"""
+    ``rules``：``(规则名, 规则文件夹, known, baseline[, 扩展名])``；``known(相对规则文件夹的路径, 大小, 修改时间)`` 是
+    台账的判断，``baseline`` 是拍底（相对规则文件夹、casefold），扩展名是这条任务收的（缺省 PDF / 图片）。"""
     by_folder: dict[str, list] = {}
     counts: dict[str, int] = {}
-    for name, folder, known, baseline in rules:
-        by_folder.setdefault(folder_key(folder), []).append((name, known, baseline))
+    for name, folder, known, baseline, *rest in rules:
+        by_folder.setdefault(folder_key(folder), []).append((name, known, baseline, tuple(rest[0]) if rest else EXTENSIONS))
         counts[name] = 0
     deepest = _deepest(by_folder)
     for item in seen:
@@ -330,16 +369,17 @@ def pending_counts(seen: Iterable[Seen], rules: Iterable[tuple[str, str, Callabl
                 continue
             relpath = "\\".join(parts[depth:])
             folded = relpath.casefold()
-            for name, known, baseline in owners:
-                if folded not in baseline and not known(relpath, item.size, item.mtime):
+            for name, known, baseline, extensions in owners:
+                if (folded.endswith(extensions) and folded not in baseline
+                        and not known(relpath, item.size, item.mtime)):
                     counts[name] += 1
     return counts
 
 
 def pending_count(seen: Iterable[Seen], folder: str, known: Callable[[str, int, float], bool],
-                  baseline: set) -> int:
+                  baseline: set, extensions: tuple = EXTENSIONS) -> int:
     """一条规则还没处理的文件数（口径见 :func:`pending_counts`）。"""
-    return pending_counts(seen, [("", folder, known, baseline)])[""]
+    return pending_counts(seen, [("", folder, known, baseline, extensions)])[""]
 
 
 def within(seen: Iterable[Seen], folders: Iterable[str]) -> list[Seen]:

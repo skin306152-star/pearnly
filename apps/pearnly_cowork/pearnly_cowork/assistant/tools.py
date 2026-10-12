@@ -496,6 +496,147 @@ def recognition_results(tool_input) -> str:
     return _json({"results": out})
 
 
+# ---------------- POS 导出按天录销售（交接 L9：不识别、不扣费） ----------------
+
+POS_FILES_MAX = 5
+POS_ANSWER_KEYS = ("columns", "date_order", "amount_basis", "status_values")
+POS_ANSWERS_SCHEMA = {
+    "type": "object", "description": "The user's answers to layout_needed questions.",
+    "properties": {
+        "columns": {"type": "object", "additionalProperties": {"type": "string"},
+                    "description": "Field to header text, fields: date, receipt (receipt number), amount (paid "
+                                   "amount), vat, payment (payment method), kind (sale or refund), status, item, "
+                                   "sku, qty. An empty header leaves an optional field out."},
+        "date_order": {"type": "string", "enum": ["dmy", "mdy", "ymd"]},
+        "amount_basis": {"type": "string", "enum": ["inclusive", "exclusive"],
+                         "description": "Whether the amount column already includes VAT."},
+        "status_values": {"type": "object", "additionalProperties": {"type": "string",
+                                                                      "enum": ["sale", "void", "refund"]},
+                          "description": "What each listed status value means."}}}
+
+
+def _pos():
+    from pearnly_cowork.pos_import import service
+
+    return service
+
+
+def _pos_text(result) -> dict:
+    """POS 服务的结果交给模型：失败码附上一句人话（`pos.*` 词条）；版式修订是文件夹任务内部用的，不给。"""
+    result = {key: value for key, value in result.items() if key != "layout_revision"}
+    if result.get("status") == "failed":
+        result = {**result, "reason": _(result.get("code") or "pos.file_unreadable")}
+    return result
+
+
+def _pos_answers(tool_input):
+    answers = tool_input.get("answers") if isinstance(tool_input.get("answers"), dict) else {}
+    return {key: answers[key] for key in POS_ANSWER_KEYS if key in answers} or None
+
+
+def _pos_source(file_id) -> dict:
+    """对话附件 → 录入工作台的原件（请求号按附件固定：同一个附件再调拿回同一份原件、同一批票）。"""
+    from pearnly_core.assistant import files as chat_files
+
+    from pearnly_cowork.files import service as originals
+    from pearnly_cowork.pos_import import tables
+
+    try:
+        filename, content = chat_files.attachment(file_id)
+    except frappe.ValidationError:
+        frappe.clear_messages()
+        return {"file": file_id, "status": "not_found", "attachments_in_this_chat": chat_files.attachments()}
+    kind = tables.kind_of(filename)
+    if kind in ("", "legacy"):
+        code = "pos.xls_not_supported" if kind == "legacy" else "pos.type_unsupported"
+        return {"file": file_id, "filename": filename, "status": "failed", "code": code, "reason": _(code)}
+    try:
+        source = originals.create(scope.default_workspace(), filename, content, "assistant:pos:" + str(file_id))
+        frappe.db.commit()
+    except frappe.ValidationError as exc:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return {"file": file_id, "filename": filename, "status": "failed", "reason": str(exc)[:300]}
+    return {"file": file_id, "filename": filename, "source": source["name"]}
+
+
+def pos_import(tool_input) -> str:
+    """POS 导出（收银机的销售明细 Excel / CSV）按天建成录入工作台的销售票：现金客户的简易税票日汇总，推往这份 Express
+    账套。不识别、不扣费；版式（哪列是日期、票号、金额……）按公司问一次、记住。"""
+    scope.require("intake")
+    file_ids = [str(f) for f in (tool_input.get("files") or [])][:POS_FILES_MAX]
+    connection, account_set = tool_input.get("connection") or "", tool_input.get("account_set_key") or ""
+    if not file_ids:
+        frappe.throw(_("No attachments were given."))
+    choices = {"target": "express", "connection": connection, "account_set_key": account_set}
+    if not connection or not account_set or not _selectable(choices):
+        return _json({"results": [{"file": f, "status": "failed", "reason": "account_set_unavailable: choose an "
+                                   "Express account set from cowork_intake_options"} for f in file_ids]})
+    try:
+        # 同识别：请小助手趁这时读这份账套，推送前就有它的科目（收款科目要从里面选）
+        connections_api.request_refresh(connection, "assistant:" + uuid.uuid4().hex, account_set)
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError):
+        frappe.db.rollback()
+        frappe.clear_messages()
+    posting_kind = tool_input.get("posting_kind") if tool_input.get("posting_kind") in ("service", "stock") else None
+    answers, results = _pos_answers(tool_input), []
+    for file_id in file_ids:
+        found = _pos_source(file_id)
+        if not found.get("source"):
+            results.append(found)
+            continue
+        try:
+            if answers:
+                remembered = _pos().preview(found["source"], workspace=scope.default_workspace(), connection=connection,
+                                            account_set_key=account_set, answers=answers, posting_kind=posting_kind)
+                if remembered.get("status") != "ready":
+                    frappe.db.commit()
+                    results.append({"file": file_id, "filename": found["filename"], **_pos_text(remembered)})
+                    continue
+            result = _pos().admit(found["source"], "assistant:pos:" + file_id, workspace=scope.default_workspace(),
+                                  connection=connection, account_set_key=account_set, posting_kind=posting_kind)
+            frappe.db.commit()
+        except (frappe.ValidationError, frappe.PermissionError) as exc:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            result = {"status": "failed", "reason": str(exc)[:300]}
+        results.append({"file": file_id, "filename": found["filename"], **_pos_text(result)})
+    return _json({"results": results})
+
+
+def pos_layout(tool_input) -> str:
+    """回答 POS 导出的认列问题并记在这家公司名下（以后同版式直接用）：对话附件，或文件夹任务里停着等认列的那份
+    （`folder_file`，答好后它接着自动录入）。不建票。"""
+    scope.require("intake")
+    answers = _pos_answers(tool_input)
+    folder_file = str(tool_input.get("folder_file") or "")
+    if folder_file:
+        try:
+            held = rules.pos_file(folder_file)
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as exc:
+            frappe.clear_messages()
+            return _json({"folder_file": folder_file, "status": "not_found", "reason": str(exc)[:200]})
+        result = _pos().preview(held["source_file"], workspace=held["workspace"], connection=held["connection"],
+                                account_set_key=held["account_set_key"], answers=answers,
+                                posting_kind=held["posting_kind"])
+        resumed = result.get("status") == "ready" and rules.resume_pos(folder_file)
+        frappe.db.commit()
+        return _json({"folder_file": folder_file, "filename": held["filename"], "task": held["title"],
+                      "resumed": bool(resumed), **_pos_text(result)})
+    file_id = str(tool_input.get("file") or "")
+    connection, account_set = tool_input.get("connection") or "", tool_input.get("account_set_key") or ""
+    if not file_id or not connection or not account_set:
+        return _json({"status": "failed", "reason": "Give file with connection and account_set_key, or folder_file."})
+    found = _pos_source(file_id)
+    if not found.get("source"):
+        return _json(found)
+    result = _pos().preview(found["source"], workspace=scope.default_workspace(), connection=connection,
+                            account_set_key=account_set, answers=answers)
+    frappe.db.commit()
+    return _json({"file": file_id, "filename": found["filename"], **_pos_text(result)})
+
+
 # ---------------- 录入口径（同网页「新建录入」与 LINE；问一次、记住） ----------------
 
 BATCH = "Cowork OCR Batch"
@@ -1630,7 +1771,11 @@ def folder_task_runs(tool_input) -> str:
     data = rules.runs(str(tool_input.get("task") or ""))
     keep = ("trigger", "started_at", "scanned_at", "found", "new_files", "skipped", "upload_failed", "note",
             "results", "states")
-    return _json({"task": data.get("rule"), "runs": [{k: r.get(k) for k in keep} for r in data.get("runs") or []][:10]})
+    out = {"task": data.get("rule"), "runs": [{k: r.get(k) for k in keep} for r in data.get("runs") or []][:10]}
+    if data.get("pos_layout_needed"):
+        # POS 导出停着等人认列（这家公司第一次见这种导出）：用 cowork_pos_layout 的 folder_file 回答
+        out["pos_layout_needed"] = data["pos_layout_needed"]
+    return _json(out)
 
 
 FOLDERS_SHOWN = 50
@@ -1665,6 +1810,10 @@ def folder_task_options(tool_input) -> str:
             counts = root.get("counts")
             if isinstance(counts, dict):
                 item["files"] = {folder: int(counts.get(folder) or 0) for folder in [""] + item["folders"]}
+                tables = root.get("table_counts")
+                if isinstance(tables, dict) and tables:
+                    # POS 导出（Excel / CSV）另数：只有推往 Express 的销售任务收它们
+                    item["pos_files"] = {folder: int(tables.get(folder) or 0) for folder in [""] + item["folders"]}
                 if root.get("partial"):
                     item["files_partial"] = True
             roots.append(item)
@@ -2223,7 +2372,7 @@ def _waiting_text(values) -> str:
     """文件夹（含子文件夹）里现有几份会被录入的文件（小助手上报的数）：没报过不说，不拿 0 冒充；数到上限说「N+」。"""
     try:
         found = rules.waiting(values.get("reader") or values.get("connection"), values.get("root_id"),
-                              _shown(values.get("folder")))
+                              _shown(values.get("folder")), values.get("direction"), values.get("connection"))
     except Exception:
         frappe.clear_messages()
         return ""
@@ -2417,8 +2566,9 @@ TOOLS = [
                     "exactly like uploading them on the Intake workbench (same billing, the documents then appear in "
                     "the workbench and can be reviewed and pushed). Use it whenever the user sends a document photo or "
                     "PDF and wants it recognized, read, entered or recorded, or sends back a review workbook (Excel) "
-                    "they corrected; files brought from a folder with cowork_folder_fetch too, but not files a tool "
-                    "made. Pass each attachment's file id: the folder "
+                    "they corrected (a cash register's POS export goes to cowork_pos_import instead); files brought "
+                    "from a folder with cowork_folder_fetch too, but not files a tool made. Pass each attachment's "
+                    "file id: the folder "
                     "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
                     "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
                     "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
@@ -2528,6 +2678,40 @@ TOOLS = [
          "batches": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX}},
          "required": ["batches"]},
      "handler": "pearnly_cowork.assistant.tools.recognition_results"},
+    {"name": "cowork_pos_import", "label": "Imported POS sales",
+     "description": "Enter a POS export (the cash register's sales by receipt or by item, Excel .xlsx or .csv, from "
+                    "Ocha, Loyverse or any other POS) as daily sales: one simplified tax invoice per day to the cash "
+                    "customer with the day's first to last receipt numbers, VAT split out, totals equal to the POS to "
+                    "the satang; non-cash payments (transfer, QR, card, delivery apps) are moved from cash to the "
+                    "account chosen for each payment method when pushed. Use it, not cowork_recognize_attachments, "
+                    "for POS exports: no recognition and no charge. Needs connection and account_set_key of an Express "
+                    "account set (from cowork_intake_options). The first time a company sends a new export layout it "
+                    "may come back layout_needed with the headers, sample rows and questions (which column is which, "
+                    "day/month order, whether amounts include VAT, unknown status values): ask the user, then call "
+                    "again with answers, or answer with cowork_pos_layout; the answer is remembered for this company. "
+                    "Returns the documents created, one per day, to push with cowork_push_documents without "
+                    "posting_kind (each day keeps its own; a push may need the receiving account of each payment "
+                    "method once, kind receipt in cowork_push_choices). "
+                    "posting_kind stock writes item lines with cost when the export has items. .xls is not supported. "
+                    "Importing the same export again enters it again.",
+     "input_schema": {"type": "object", "properties": {
+         "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": POS_FILES_MAX},
+         "connection": {"type": "string"}, "account_set_key": {"type": "string"},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"]},
+         "answers": POS_ANSWERS_SCHEMA},
+         "required": ["files", "connection", "account_set_key"]},
+     "handler": "pearnly_cowork.assistant.tools.pos_import"},
+    {"name": "cowork_pos_layout", "label": "Set the POS export columns",
+     "description": "Answer the layout questions of a POS export and remember them for this company, without entering "
+                    "anything: an attachment (file with connection and account_set_key), or a file a scheduled sales "
+                    "task is holding until its columns are known (folder_file, listed as pos_layout_needed by "
+                    "cowork_folder_task_runs; it continues on its own once answered). Without answers it shows the "
+                    "headers, sample rows and questions; with answers it returns the daily totals it will enter, or "
+                    "the questions still open.",
+     "input_schema": {"type": "object", "properties": {
+         "file": {"type": "string"}, "folder_file": {"type": "string"}, "connection": {"type": "string"},
+         "account_set_key": {"type": "string"}, "answers": POS_ANSWERS_SCHEMA}},
+     "handler": "pearnly_cowork.assistant.tools.pos_layout"},
     {"name": "cowork_companion_status", "label": "Checked CC Desktop",
      "description": "The user's ERP connections (Express / MR.ERP): enabled or not, whether the Windows companion is "
                     "online, and whether the account set list has been read. To find or choose an account set for "
@@ -2579,7 +2763,8 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.push_documents"},
     {"name": "cowork_push_choices", "label": "Checked push choices",
      "description": "Before pushing to Express, what this document still needs a person to choose once in this "
-                    "account set (party, product, expense account, payment, VAT claim, department; kinds in needed) "
+                    "account set (party, product, expense account, payment, VAT claim, department, receiving account "
+                    "of a POS payment method; kinds in needed) "
                     "and the allowed values (up to 30 per kind; pass search to narrow by code or name). Use it when a "
                     "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
                     "again. For a document from a scheduled folder task pushed to that task's account set, the "
@@ -2630,7 +2815,8 @@ TOOLS = [
                     "folders, whether it is online, the folders its CC desktop app opened to the website (root_id and "
                     "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
                     "and stock account group for defaults. files is how many photos and PDFs each folder holds now, "
-                    "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many); a root "
+                    "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many), "
+                    "pos_files the POS exports (Excel / CSV) that a sales task into Express also enters; a root "
                     "without files means that computer has not reported counts, so the number is not known. Folders "
                     "can only be added in the CC app on that computer; if the one the user wants is missing, tell them "
                     "to add it there.",
@@ -2702,7 +2888,8 @@ TOOLS = [
     {"name": "cowork_save_folder_task", "label": "Saved a folder task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
                     "intake choices, the photos and PDFs in the folder (subfolders included) that it has not "
-                    "processed yet, including those already there when it is created; a task whose folder overlaps a "
+                    "processed yet, including those already there when it is created; a sales task into Express also "
+                    "enters POS exports (Excel / CSV) there as daily sales without recognition; a task whose folder overlaps a "
                     "paused task continues it and only handles files put in after it is saved. Same rules as the web "
                     "form: Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
                     "target ERP of an existing task cannot change. When a task is changed (name given), values left "
@@ -2988,7 +3175,8 @@ TOOLS = [
     {"name": "cowork_folder_task_runs", "label": "Checked folder task runs",
      "description": "Show the recent runs of one folder task: files found, uploaded, skipped and failed, and per run "
                     "how many invoices were entered, need attention, or are still moving (results), and the files in "
-                    "each step (states).",
+                    "each step (states). pos_layout_needed lists POS exports waiting until their columns are known: "
+                    "answer with cowork_pos_layout folder_file.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_cowork.assistant.tools.folder_task_runs"},
 ]

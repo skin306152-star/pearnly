@@ -27,6 +27,9 @@ NEEDS_PERSON_CODES = frozenset({
     "DUPLICATE_CONTENT_DIFFERS", "PRIOR_DOC_STILL_IN_ERP",
     # 这台电脑的小助手里没有这份账套 / 文件夹在但不可写：重试结论一样。暂时连不上的，小助手 1.3.2 起回报「等账套」。
     "NO_ACCOUNT_SELECTION",
+    # POS 日汇总票的付款方式转账凭证（载荷 3）：账套没有可用的普通日记账单据簿 / 选的收款科目在 Express 里不能记账 /
+    # `pos` 块小助手不收。
+    "JOURNAL_BOOK_NOT_FOUND", "ACCOUNT_NOT_POSTABLE", "POS_INVALID",
 })
 _ERROR_CODE = re.compile(r"^\[([A-Z0-9_]+)\]")
 

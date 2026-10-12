@@ -14,6 +14,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
+from pearnly_cowork.contracts import pos as pos_contract
 from pearnly_cowork.contracts.history import primary_page, primary_page_fields
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax, resolve_posting_kind
 from pearnly_cowork.history import document_policy, push_state, storage
@@ -33,7 +34,7 @@ from pearnly_cowork.targets.choice import endpoint_with_account_choice
 from pearnly_cowork.targets.contracts import TargetSelectionError
 from pearnly_cowork.targets import account_match
 from pearnly_cowork.targets.freeze import freeze_target
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_cowork.targets.identity import normalize_express_account_key, same_company_account_sets
 from pearnly_cowork.targets.selection import resolve_account_choice
 
 
@@ -104,6 +105,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
     blocked = _document_block(doc)
     if blocked:  # 原因码由提交记在票上，复核页按码出文案与「录入 / 不录入」按钮
         frappe.throw(blocked)
+    if adapter != "express" and pos_contract.present(primary_page(json.loads(doc.pages or "[]"))):
+        # POS 日汇总票的付款方式拆分只按 Express 原生记法写（`contracts/pos.py`）：推往别的 ERP 会全额记成现金
+        frappe.throw(pos_contract.EXPRESS_ONLY)
     if adapter == "mrerp":
         return _view(_prepare_mrerp(doc, loaded, request_key, intent, account_set_key,
                                     catalog_request_id, catalog_revision))
@@ -144,7 +148,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
     selected['config'].update(deepcopy(preparation['reported_config']))
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          selected['config'], preparation, fixed)
+                          selected['config'], preparation, fixed,
+                          siblings=lambda: _same_company(loaded, target.account_set))
     if decision["needed"]:
         # 拿不准的项（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）还没人选：不发小助手，停在这里等人选一次。
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
@@ -219,16 +224,22 @@ def _fixed(history, connection, account_set, fixed):
     return {kind: value for kind, value in found.items() if kind != "party"} or None
 
 
-def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None):
+def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None,
+               siblings=None):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
-    票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。"""
+    票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。
+    ``siblings``：取同一家公司其他账套的函数（`_same_company`；只有 POS 票才取），POS 收款科目按公司问一次
+    （`_borrow_receipts`）。"""
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
     remembered = choice_store.remembered(connection, account_set)
     kind = resolve_posting_kind(posting_kind, flat)
+    receipts = _pos_receipts(flat)
+    _borrow_receipts(remembered, connection, siblings, receipts, config)
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
-                                    remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed)
+                                    remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
+                                    receipts=receipts)
     applied = decision["applied"]
     remember = applied.pop("remember_payment", None)
     if remember:
@@ -237,6 +248,38 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         choice_store.record(connection, account_set, "payment",
                             choice_rules.supplier_subject(direction, tax, name), remember, name)
     return decision
+
+
+def _pos_receipts(flat):
+    """POS 日汇总票里非现金的付款方式 ``[(归类键, 写法)]``（每一种要一个收款科目）；不是 POS 票或形状不对回空
+    （形状不对由映射器拦成 `pos_facts_invalid`）。"""
+    try:
+        found = pos_contract.facts(primary_page(flat.get("pages") or []))
+    except pos_contract.PosFactsError:
+        return []
+    return [(payment.subject, payment.label) for payment in found.non_cash()] if found else []
+
+
+def _same_company(loaded, account_set):
+    """这条连接里与这份账套同属一家公司（目录里公司名相同、年度不同）的其他账套键；读不出公司名回空。
+    与 POS 版式按公司记同一判据（`targets.identity.account_set_company`）。"""
+    rows = (loaded.evidence.snapshot or {}).get("account_sets") or []
+    if isinstance(rows, str):
+        rows = json.loads(rows)
+    return same_company_account_sets(rows, account_set)
+
+
+def _borrow_receipts(remembered, connection, siblings, receipts, config):
+    """POS 收款科目按公司问一次（用户 2026-10-13）：这份账套还没记过的付款方式，同一家公司别的年度账套最近记过、
+    科目又在本账套科目表里的直接带出（`choices.borrow_receipts`）；只用于这一次判断，不写进本账套记忆。"""
+    wanted = [subject for subject, _label in receipts or () if subject not in (remembered.get("receipt") or {})]
+    if not wanted or siblings is None or not config.get("reported_accounts"):
+        return
+    others = siblings()
+    if not others:
+        return
+    borrowed = choice_store.latest(connection, others, pos_contract.RECEIPT_KIND, wanted)
+    choice_rules.borrow_receipts(remembered, receipts, borrowed, config.get("reported_accounts"))
 
 
 def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None):
@@ -250,7 +293,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
     fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          config, preparation, fixed)
+                          config, preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set))
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
     kinds = {item["kind"] for item in decision["needed"]}
     options = {}
@@ -258,7 +301,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         options["products"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_products") or []
                                if isinstance(row, dict) and str(row.get("kind") or "stock") == "stock"][:5000]
-    if "account" in kinds:
+    if kinds & {"account", "receipt"}:
         options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
     result = {"needed": decision["needed"], "options": options, "account_set": target.account_set}
@@ -283,6 +326,7 @@ def save_choices(history, connection, account_set_key, items):
     allowed = {
         "party": None, "item": {r.get("code") for r in config.get("reported_products") or [] if isinstance(r, dict)},
         "account": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
+        "receipt": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
         "department": {r.get("code") for r in config.get("reported_departments") or [] if isinstance(r, dict)},
         "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES)}
     parties = {r.get("code") for key in ("reported_customers", "reported_suppliers")

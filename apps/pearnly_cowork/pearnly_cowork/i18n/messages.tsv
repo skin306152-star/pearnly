@@ -1406,6 +1406,13 @@ Several Express suppliers have this tax ID. Choose the supplier and submit again
 A similar customer already exists in Express. Choose it, or confirm this is a new customer	Express 中已存在相似客户，请选择该客户或确认为新客户	มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่	Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください	intake.error.CUSTOMER_DUP_SUSPECTED
 A similar supplier already exists in Express. Choose it, or confirm this is a new supplier	Express 中已存在相似供应商，请选择该供应商或确认为新供应商	มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่	Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください	intake.error.SUPPLIER_DUP_SUSPECTED
 A field is longer than Express allows. Shorten it and submit again	部分字段超出 Express 允许的长度，请缩短后重新提交	มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่	Express の上限を超える長さの項目があります。短くして再送信してください	intake.error.FIELD_TOO_LONG
+This account set has no general journal book for the transfer vouchers. Add one in Express and submit again	此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交	ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่	この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください	intake.error.JOURNAL_BOOK_NOT_FOUND
+The receiving account cannot be posted to in Express. Choose another account	收款科目在 Express 中不能记账，请重新选择	บัญชีรับเงินนี้บันทึกรายการใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น	この入金勘定は Express で記帳できません。別の勘定を選んでください	intake.error.ACCOUNT_NOT_POSTABLE
+The payment methods do not add up to the day's total. Import the POS export again	各付款方式之和与当天合计不符，请重新导入 POS 导出	ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่	支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください	intake.error.pos_payments_mismatch
+Choose the receiving account of each payment method	请为每种付款方式选择收款科目	กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน	支払方法ごとの入金勘定を選んでください	intake.error.pos_receipt_account_missing
+The POS daily totals of this document are damaged. Import the POS export again	这张单据的 POS 日汇总数据已损坏，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่	この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください	intake.error.pos_facts_invalid
+POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express	ยอดขายรายวันจาก POS ส่งได้เฉพาะไปยัง Express	POS の日計は Express にのみ送信できます	intake.error.pos_express_only
+The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_DOCTYPE
@@ -1467,6 +1474,7 @@ Expense account	费用科目	บัญชีค่าใช้จ่าย	費�
 Payment	付款方式	วิธีชำระเงิน	支払方法	cowork.choice.payment
 Tax on this receipt	票面税额	จำนวนภาษีตามเอกสาร	この領収書の税額	cowork.choice.vat
 Department	部门	แผนก	部門	cowork.choice.department
+Receiving account	收款科目	บัญชีรับเงิน	入金勘定	cowork.choice.receipt
 New, as on the invoice	新建（按票面）	สร้างใหม่ตามเอกสาร	伝票どおり新規作成	cowork.choice.new
 Cash purchase	现购	ซื้อเงินสด	現金仕入	cowork.choice.cash
 Credit purchase	赊购	ซื้อเงินเชื่อ	掛仕入	cowork.choice.credit
@@ -1474,6 +1482,27 @@ Claim as input VAT	抵扣进项税	ใช้สิทธิ์ภาษีซื
 Count as expense	不抵扣，计入费用	ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย	控除せず費用に含める	cowork.choice.expense
 The chosen value is not in this account set. Choose again	所选项不在此账套中，请重新选择	รายการที่เลือกไม่มีอยู่ในชุดบัญชีนี้ กรุณาเลือกใหม่	選んだ値はこの帳簿にありません。選び直してください	cowork.choice.invalid
 This is set by the scheduled task's default handling. Change it in the task	此项由定时任务的默认处理决定，请在定时任务中修改	รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา	この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください	cowork.choice.task_default
+Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again	不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送	ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่	旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください	pos.xls_not_supported
+Only POS exports in Excel (.xlsx) or CSV can be imported	只能导入 Excel（.xlsx）或 CSV 格式的 POS 导出	นำเข้าได้เฉพาะไฟล์ส่งออก POS แบบ Excel (.xlsx) หรือ CSV	取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです	pos.type_unsupported
+This file cannot be read	无法读取此文件	ไม่สามารถอ่านไฟล์นี้ได้	このファイルは読み取れません	pos.file_unreadable
+No POS sales export headers were found in this file	文件中找不到 POS 销售导出的表头	ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้	このファイルに POS 売上エクスポートの見出しがありません	pos.no_header
+No sales were found in this POS export	此 POS 导出中没有销售记录	ไม่พบรายการขายในไฟล์ส่งออก POS นี้	この POS エクスポートに売上がありません	pos.no_rows
+Choose the columns of this POS export once	请确认一次此 POS 导出的列	กรุณากำหนดคอลัมน์ของไฟล์ส่งออก POS นี้หนึ่งครั้ง	この POS エクスポートの列を一度指定してください	pos.layout_needed
+The POS export columns are incomplete	POS 导出的列设定不完整	การกำหนดคอลัมน์ของไฟล์ส่งออก POS ไม่ครบ	POS エクスポートの列の設定が不完全です	pos.layout_invalid
+A remembered column is not in this POS export. Choose the columns again	记住的列不在此 POS 导出中，请重新确认列	ไม่พบคอลัมน์ที่จำไว้ในไฟล์ส่งออก POS นี้ กรุณากำหนดคอลัมน์ใหม่	記憶した列がこの POS エクスポートにありません。列を指定し直してください	pos.column_missing
+A date in this POS export cannot be read	此 POS 导出中有日期无法读取	อ่านวันที่ในไฟล์ส่งออก POS นี้ไม่ได้	この POS エクスポートの日付が読み取れません	pos.date_unreadable
+An amount in this POS export cannot be read	此 POS 导出中有金额无法读取	อ่านจำนวนเงินในไฟล์ส่งออก POS นี้ไม่ได้	この POS エクスポートの金額が読み取れません	pos.amount_unreadable
+This POS export has a status value that is not chosen yet	此 POS 导出有尚未确认的状态值	ไฟล์ส่งออก POS นี้มีค่าสถานะที่ยังไม่ได้กำหนด	この POS エクスポートにまだ指定していない状態の値があります	pos.status_unknown
+A day's sales total is zero or less	有一天的销售合计为零或负数	ยอดขายรวมของบางวันเป็นศูนย์หรือติดลบ	売上合計がゼロ以下の日があります	pos.day_not_positive
+The VAT column is more than 7% of a day's sales	增值税一栏超过当天销售额的 7%	คอลัมน์ภาษีมูลค่าเพิ่มเกิน 7% ของยอดขายในวันนั้น	消費税の列がその日の売上の 7% を超えています	pos.vat_out_of_range
+A non-cash payment method has a negative total for a day	有一天某种非现金付款方式的合计为负数	มีวิธีชำระเงินที่ไม่ใช่เงินสดซึ่งยอดรวมของวันติดลบ	現金以外の支払方法の日計がマイナスの日があります	pos.payment_negative
+A day has more than 20 payment methods	一天的付款方式超过 20 种	มีวิธีชำระเงินเกิน 20 แบบในหนึ่งวัน	1 日の支払方法が 20 種類を超えています	pos.too_many_payments
+A POS export can cover at most 100 days	一份 POS 导出最多 100 天	ไฟล์ส่งออก POS หนึ่งไฟล์มีได้ไม่เกิน 100 วัน	1 つの POS エクスポートは 100 日分までです	pos.too_many_days
+The item lines do not add up to the day's total	商品明细之和与当天合计不符	ยอดรวมรายการสินค้าไม่เท่ากับยอดรวมของวัน	品目の合計がその日の合計と一致しません	pos.items_mismatch
+After refunds, an item's quantity for a day is zero or less, or its amount is negative	退款后有商品当天的数量为零或负数，或金额为负数	หลังหักการคืน มีสินค้าที่จำนวนของวันเป็นศูนย์หรือติดลบ หรือยอดเงินติดลบ	返品後、数量がゼロ以下か金額がマイナスの品目がある日があります	pos.items_not_positive
+A day has more than 999 item lines	一天的商品明细超过 999 行	มีรายการสินค้าเกิน 999 บรรทัดในหนึ่งวัน	1 日の品目が 999 行を超えています	pos.too_many_items
+Choose an Express account set first	请先选择 Express 账套	กรุณาเลือกชุดบัญชี Express ก่อน	先に Express の帳簿を選んでください	pos.target_required
+POS exports can only be entered into Express	POS 导出只能录入 Express	ไฟล์ส่งออก POS บันทึกได้เฉพาะใน Express	POS エクスポートは Express にのみ入力できます	pos.not_express
 Choose the Express records for this invoice first, then submit again	请先为此发票选择 Express 中的对应项，再重新提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on	此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理	เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้	これは振込明細です。この会社でこの種類を入力しますか。一度選ぶと以後同じ種類に適用されます	intake.error.document_policy_needed_payment_evidence
 This company does not enter transfer slips; this one is not sent	本公司不录入转账凭条，此单据不推送	บริษัทนี้ไม่บันทึกสลิปโอนเงิน จึงไม่ส่งเอกสารนี้	この会社では振込明細を入力しないため、送信しません	intake.error.document_policy_skip_payment_evidence
@@ -1776,6 +1805,7 @@ task off or no access	任务已停用或无权限	งานปิดอยู่
 low balance	余额不足	ยอดคงเหลือไม่พอ	残高不足	cowork.folder.brief.why.lowBalance
 CC Desktop offline	CC 桌面版离线	CC เดสก์ท็อปออฟไลน์	CC デスクトップがオフライン	cowork.folder.brief.why.offline
 waiting for purchases	等进货先录入	รอบันทึกรายการซื้อก่อน	仕入の登録待ち	cowork.folder.brief.why.purchasesFirst
+POS export columns to choose	待确认 POS 导出的列	รอกำหนดคอลัมน์ไฟล์ส่งออก POS	POS エクスポートの列の指定待ち	cowork.folder.brief.why.posLayout
 contact record	对方档案	ข้อมูลคู่ค้า	取引先	cowork.folder.brief.why.party
 A client needs a name.	请填写客户名称。	กรุณากรอกชื่อลูกค้า	顧客名を入力してください。	
 A product needs a name.	请填写物料名称。	กรุณากรอกชื่อสินค้า	商品名を入力してください。	
@@ -1992,6 +2022,8 @@ Refreshed account sets	刷新了账套	รีเฟรชชุดบัญช�
 Listed documents	查看了单据	ดูรายการเอกสารแล้ว	書類を一覧しました
 Recognized documents	识别了单据	อ่านเอกสารแล้ว	書類を読み取りました
 Checked recognition results	查看了识别结果	ตรวจสอบผลการอ่านเอกสารแล้ว	読み取り結果を確認しました
+Imported POS sales	导入了 POS 销售	นำเข้ายอดขาย POS แล้ว	POS の売上を取り込みました
+Set the POS export columns	设定了 POS 导出的列	กำหนดคอลัมน์ไฟล์ส่งออก POS แล้ว	POS エクスポートの列を設定しました
 Checked intake choices	查看了录入口径	ตรวจสอบตัวเลือกการบันทึกแล้ว	入力設定を確認しました
 Checked the stock account group	查看了存货科目组	ตรวจสอบกลุ่มบัญชีสินค้าคงเหลือแล้ว	在庫勘定グループを確認しました
 Checked MR.ERP import settings	查看了 MR.ERP 导入设置	ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว	MR.ERP の取り込み設定を確認しました

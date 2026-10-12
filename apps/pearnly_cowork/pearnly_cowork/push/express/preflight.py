@@ -113,8 +113,10 @@ def _category_of(flat: Dict[str, Any]) -> str:
 
 
 def _unknown_account(payload: Dict[str, Any], codes: set) -> Optional[str]:
-    """返回首个不在科目表白名单里的分录科目码(None=全部合法)。挡死码/AI 乱码/缓存过期。"""
-    for ln in payload.get("lines") or []:
+    """返回首个不在科目表白名单里的分录科目码(None=全部合法)。挡死码/AI 乱码/缓存过期。
+    POS 日汇总票的付款方式转账凭证科目(`pos.transfers`)同样核。"""
+    pos = payload.get("pos") if isinstance(payload.get("pos"), dict) else {}
+    for ln in [*(payload.get("lines") or []), *(pos.get("transfers") or [])]:
         acc = str((ln or {}).get("acc") or "").strip()
         if acc and acc not in codes:
             return acc

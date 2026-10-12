@@ -1,7 +1,8 @@
 """文件夹自动录入的纯规则（不连库、不依赖框架）：路径、时间、规则默认值、防重键、小助手报文的形状。
 
 规则口径见 `docs/work/2026-10-06-cowork-folder-intake.md`：一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 +
-进项或销项 + 服务或存货；只收 PDF / 图片；结果文件夹（`RESULT_FOLDERS`）由系统生成、不扫描。
+进项或销项 + 服务或存货；收 PDF / 图片，推往 Express 的销售任务另收 POS 导出的 Excel / CSV（`TABLE_EXTENSIONS`，
+2026-10-13，按天录销售、不识别不扣费）；结果文件夹（`RESULT_FOLDERS`）由系统生成、不扫描。
 
 新旧任务两种口径（2026-10-12，`docs/work/2026-10-12-cc-closed-loop.md`）：新任务（规则上 `include_existing`，同步里
 下发 `existing=1`）到点处理文件夹（含子文件夹）里本任务还没处理过的所有文件，包括建任务前已有的；老任务照旧只收
@@ -29,6 +30,13 @@ RESULT_FOLDER = "_Pearnly结果"
 RESULT_FOLDERS = {"zh": RESULT_FOLDER, "th": "_ผลลัพธ์ Pearnly", "en": "_Pearnly Results", "ja": "_Pearnly結果"}
 _RESULT_NAMES = frozenset(name.casefold() for name in RESULT_FOLDERS.values())
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif")
+# POS 导出（交接 L9）：推往 Express 的销售任务另收收银机导出的表格，到点与票据一起处理（`pos_import`，按天建票）。
+# 与小助手 `folder_plan.TABLE_EXTENSIONS` 同一组，同步按任务下发（`rules[].extensions`）。旧版 Excel（.xls）镜像里不读：
+# 照样登记，登记时就记失败、写明原因（`LEGACY_TABLE`，`pos.xls_not_supported`），不上传，结果与简报里看得到。
+TABLE_EXTENSIONS = (".xlsx", ".xlsm", ".csv", ".xls")
+LEGACY_TABLE = ".xls"
+XLS_NOT_SUPPORTED = "pos.xls_not_supported"
+POS_LAYOUT_NEEDED = "pos.layout_needed"  # POS 导出的列还没认好：停在 source_ready 等人答一次（算「停下待人」）
 DIRECTIONS = ("purchase", "sales")
 POSTING_KINDS = ("service", "stock")
 # MR.ERP 在入口选付款方式（与「新建录入」同一口径：进项只有赊账，旧线上对 MR.ERP 进项现金明确拦截）。
@@ -193,11 +201,32 @@ def relpath(value: Any) -> str:
     return "\\".join(parts)
 
 
-def filename(value: Any) -> str:
+def extensions_for(direction: Any, adapter: Any = "express") -> tuple:
+    """这条任务收哪些文件：PDF / 图片；推往 Express 的销售任务另收 POS 导出（Excel / CSV）。"""
+    return EXTENSIONS + TABLE_EXTENSIONS if direction == "sales" and adapter == "express" else EXTENSIONS
+
+
+def is_table(name: Any) -> bool:
+    """这份文件是 POS 导出（按天录销售，不交识别）。"""
+    return str(name or "").lower().endswith(TABLE_EXTENSIONS)
+
+
+def is_legacy_table(name: Any) -> bool:
+    """旧版 Excel（.xls）：收进任务但读不了，登记即失败。"""
+    return str(name or "").lower().endswith(LEGACY_TABLE)
+
+
+def filename(value: Any, extensions: tuple = EXTENSIONS) -> str:
     name = text(value, maximum=255)
-    if "\\" in name or "/" in name or not name.lower().endswith(EXTENSIONS):
+    if "\\" in name or "/" in name or not name.lower().endswith(tuple(extensions)):
         raise ContractError("cowork.folder.type_invalid")
     return name
+
+
+def pos_workbook_name(source: Any) -> str:
+    """POS 导出的结果表格（逐日一行）：`<原文件名>_POS.xlsx`，Windows 不认的字符换成 `-`。"""
+    base = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", str(source or "").rsplit(".", 1)[0]).strip(" .")[:80] or "POS"
+    return base + "_POS.xlsx"
 
 
 # ── CC 从已授权文件夹列文件、取文件（2026-10 CC 闭环 L2，`fetch.py`）─────────────────────────────
@@ -338,6 +367,9 @@ def roots(value: Any) -> List[Dict[str, Any]]:
                 report["counts"] = _folder_counts(row["counts"], clean)
                 # 数到时间或条数上限还没数完：显示「N+」
                 report["partial"] = row.get("partial") is True
+                # POS 导出（Excel / CSV）另数（只有推往 Express 的销售任务收它们，1.5 起）
+                if isinstance(row.get("table_counts"), Mapping):
+                    report["table_counts"] = _folder_counts(row["table_counts"], clean)
             result.append(report)
         except ContractError:
             continue
@@ -500,9 +532,10 @@ UNFINISHED = ("registered", "uploaded", "source_ready", "submitted", "recognized
 STALE_REGISTERED = timedelta(hours=24)
 
 
-def moving(state: Any, registered_at: Optional[datetime], now: datetime) -> bool:
-    """这份文件算不算「处理中」（列表、简报同一口径；时间用库里的站点时区裸时间，与 `now_datetime()` 同口径）。"""
-    if state not in UNFINISHED:
+def moving(state: Any, registered_at: Optional[datetime], now: datetime, last_code: Any = "") -> bool:
+    """这份文件算不算「处理中」（列表、简报同一口径；时间用库里的站点时区裸时间，与 `now_datetime()` 同口径）。
+    POS 导出停着等人认列（`POS_LAYOUT_NEEDED`）不算处理中，算停下待人。"""
+    if state not in UNFINISHED or layout_needed(state, last_code):
         return False
     if state != "registered":
         return True
@@ -518,6 +551,10 @@ ORDER_MAX_WAIT = timedelta(hours=12)      # 销售最多等这么久
 ORDER_UPLOAD_GRACE = timedelta(hours=2)   # 只登记、没传完的进货，这么久之后不再等
 ORDER_RUN_GRACE = timedelta(minutes=60)   # 进货任务被立即运行、小助手还没报上这次运行，最多等这么久
 WAITING_PURCHASES = "cowork.folder.waiting_purchases"
+
+
+def layout_needed(state: Any, last_code: Any) -> bool:
+    return state == "source_ready" and last_code == POS_LAYOUT_NEEDED
 
 
 def stock_role(direction: Any, posting_kind: Any) -> str:
@@ -706,7 +743,7 @@ def full_path(*parts: Any) -> str:
 # 推送只有三种结局：录入中 / 成功 / 失败，转人工就是失败（用户 2026-09-26，录入列表同一口径）。另有自动推送没做、
 # 等人的「待处理」：要人选一次（choice）、人已经动过这张票（human）、任务停用或负责人无权（task_off）。
 # 票在录入工作台删了（deleted）与成功一样算有了结论，不计数。
-CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department")
+CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
 IN_FLIGHT = ("prepared", "pending", "leased")
 COMPANION_OFFLINE = "cowork.folder.companion_offline"
 MOVING_CODES = {"insufficient_balance": "low_balance", COMPANION_OFFLINE: "offline", WAITING_PURCHASES: "waiting_purchases"}
@@ -781,6 +818,9 @@ def tally(files: List[Mapping], now: datetime) -> Dict[str, Any]:
                     head, _sep, detail = reason.partition(":")
                     result["stop_reasons"][head] = result["stop_reasons"].get(head, 0) + 1
                     kinds.update(detail.split(","))
+        elif layout_needed(state, row.get("last_code")):
+            result["stopped"] += 1
+            result["stop_reasons"]["pos_layout"] = result["stop_reasons"].get("pos_layout", 0) + 1
         elif moving(state, row.get("registered_at"), now):
             result["moving"] += 1
             why = moving_reason(state, row.get("last_code"))
@@ -854,7 +894,8 @@ def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]],
         rows = [row for name in names for row in files_by_run.get(name) or []]
         quiet = max(started + [row["finished_at"] for row in rows if row.get("finished_at")])
         complete = (all(run.get("scanned_at") for run in members)
-                    and not any(moving(row.get("state"), row.get("registered_at"), now) for row in rows)
+                    and not any(moving(row.get("state"), row.get("registered_at"), now, row.get("last_code"))
+                                for row in rows)
                     and now - quiet >= settle)
         if complete or now - min(started) >= max_wait:
             slot = next((run["slot_at"] for run in members if run.get("slot_at")), None)

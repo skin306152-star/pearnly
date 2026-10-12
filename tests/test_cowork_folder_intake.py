@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import re
 import sys
 import types
 import unittest
@@ -283,7 +284,17 @@ class OfflineCompanionRetry(unittest.TestCase):
         with mock.patch.dict(sys.modules, modules):
             push = _load("folder_push_under_test", APP / "folder_intake/push.py")
         rule = types.SimpleNamespace(connection="C", account_set_key="A", posting_kind="purchase", defaults_json="{}")
-        return push, rule, types.SimpleNamespace(name="E"), calls
+        return push, rule, types.SimpleNamespace(name="E", filename="bill.pdf"), calls
+
+    def test_days_from_a_pos_export_push_with_their_own_posting_kind(self):
+        push, rule, entry, calls = self._push()
+        seen = []
+        submit = push.application.submit
+        push.application.submit = lambda *args, **kwargs: seen.append(args[8]) or submit(*args, **kwargs)
+        rule.posting_kind = "stock"
+        push.push_one(entry, rule, "H", 0)
+        push.push_one(types.SimpleNamespace(name="E2", filename="ยอดขาย.xlsx"), rule, "H", 0)
+        self.assertEqual(seen, ["stock", None])  # 带商品的天是存货，其余按金额记：按票上自己的口径
 
     def test_offline_companion_waits_without_preparing(self):
         push, rule, entry, calls = self._push(online=lambda: False)
@@ -369,6 +380,97 @@ class FolderCounts(unittest.TestCase):
         self.assertFalse(contracts.moving("registered", None, now))
         for state in ("done", "failed", "not_invoice"):
             self.assertFalse(contracts.moving(state, now, now))
+
+
+class PosExports(unittest.TestCase):
+    """L9（2026-10-13）：推往 Express 的销售任务另收 POS 导出（Excel / CSV），不交识别、按天建票；列认不准时停下待人。"""
+
+    def test_only_sales_tasks_into_express_take_pos_exports(self):
+        self.assertEqual(contracts.extensions_for("sales", "express"), contracts.EXTENSIONS + contracts.TABLE_EXTENSIONS)
+        self.assertEqual(contracts.extensions_for("purchase", "express"), contracts.EXTENSIONS)
+        self.assertEqual(contracts.extensions_for("sales", "mrerp"), contracts.EXTENSIONS)
+        sales = contracts.extensions_for("sales", "express")
+        self.assertEqual(contracts.filename("ยอดขาย ต.ค..xlsx", sales), "ยอดขาย ต.ค..xlsx")
+        self.assertEqual(contracts.filename("Receipts.CSV", sales), "Receipts.CSV")
+        for name, allowed in (("Receipts.csv", contracts.EXTENSIONS), ("old.xls", contracts.EXTENSIONS),
+                              ("a.docx", sales)):
+            with self.assertRaises(contracts.ContractError):
+                contracts.filename(name, allowed)
+        self.assertEqual(contracts.filename("bill.pdf"), "bill.pdf")  # 旧调用照旧
+        self.assertTrue(contracts.is_table("Receipts.xlsm") and not contracts.is_table("bill.pdf"))
+        # 旧版 Excel 照样登记（登记即记失败、写明原因），不静默漏掉
+        self.assertEqual(contracts.filename("old.XLS", sales), "old.XLS")
+        self.assertTrue(contracts.is_legacy_table("old.XLS") and not contracts.is_legacy_table("pos.xlsx"))
+
+    def test_the_result_workbook_of_an_export_is_one_file(self):
+        self.assertEqual(contracts.pos_workbook_name("ยอดขาย ต.ค. 2569.xlsx"), "ยอดขาย ต.ค. 2569_POS.xlsx")
+        self.assertEqual(contracts.pos_workbook_name('a:b?.csv'), "a-b-_POS.xlsx")  # Windows 不认的字符换成 -
+        self.assertEqual(contracts.pos_workbook_name(".csv"), "POS_POS.xlsx")
+
+    def test_an_export_waiting_for_its_columns_is_stopped_not_moving(self):
+        now = datetime(2026, 10, 13, 20, 0)
+        held = {"state": "source_ready", "last_code": contracts.POS_LAYOUT_NEEDED, "registered_at": now}
+        self.assertFalse(contracts.moving(held["state"], now, now, held["last_code"]))
+        self.assertTrue(contracts.moving("source_ready", now, now, ""))
+        found = contracts.tally([held, {"state": "source_ready", "last_code": "", "registered_at": now}], now)
+        self.assertEqual((found["stopped"], found["moving"], found["stop_reasons"]), (1, 1, {"pos_layout": 1}))
+        runs = [{"name": "R1", "run_owner": "o", "brief_group": "g", "connection": "C1", "scanned_at": now,
+                 "started_at": now - timedelta(minutes=30)}]
+        ready, _stale = contracts.brief_groups(runs, {"R1": [{**held, "finished_at": None}]}, now)
+        self.assertEqual([group["complete"] for group in ready], [True])  # 不为它等到最长 13 小时
+        self.assertIn("receipt", contracts.CHOICE_KINDS)
+
+    def test_pos_exports_are_counted_apart_from_documents(self):
+        rows = contracts.roots([{"id": "R1", "label": "D:\\Shop", "folders": ["Sales"],
+                                 "counts": {"": 3, "Sales": 1}, "table_counts": {"Sales": 2, "Nope": 1}, "partial": False}])
+        self.assertEqual((rows[0]["counts"], rows[0]["table_counts"]), ({"": 3, "Sales": 1}, {"Sales": 2}))
+        self.assertNotIn("table_counts", contracts.roots([{"id": "R1", "label": "x", "table_counts": {"": 1}}])[0])
+
+    def test_helper_extensions_match_the_server(self):
+        self.assertEqual(folder_plan.EXTENSIONS, contracts.EXTENSIONS)
+        self.assertEqual(folder_plan.TABLE_EXTENSIONS, contracts.TABLE_EXTENSIONS)
+        self.assertEqual(folder_plan.rule_extensions({}), folder_plan.EXTENSIONS)  # 旧云端不下发：只收票据
+        self.assertEqual(folder_plan.rule_extensions({"extensions": [".PDF", ".csv", ".exe"]}), (".pdf", ".csv"))
+        self.assertEqual(folder_plan.rule_extensions({"extensions": "bad"}), folder_plan.EXTENSIONS)
+
+    def test_helper_scans_and_counts_by_each_tasks_extensions(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as root:
+            base = pathlib.Path(root)
+            (base / "Sales").mkdir()
+            for name in ("Sales/a.pdf", "Sales/pos.xlsx", "Sales/pos.csv", "Sales/old.xls", "Sales/notes.txt"):
+                (base / name).write_bytes(b"x")
+            sales = folder_plan.rule_extensions({"extensions": list(contracts.extensions_for("sales", "express"))})
+            self.assertEqual(sorted(c.relpath for c in folder_plan.scan(base / "Sales")), ["a.pdf"])
+            self.assertEqual(sorted(c.relpath for c in folder_plan.scan(base / "Sales", extensions=sales)),
+                             ["a.pdf", "old.xls", "pos.csv", "pos.xlsx"])
+            seen, complete = folder_plan.survey(base, deadline=float("inf"), budget=[1000])
+            self.assertTrue(complete)
+            self.assertEqual(folder_plan.folder_counts(seen, ["", "Sales"]), {"": 1, "Sales": 1})
+            self.assertEqual(folder_plan.folder_counts(seen, ["", "Sales"], folder_plan.TABLE_EXTENSIONS),
+                             {"": 3, "Sales": 3})
+            never = lambda relpath, size, mtime: False  # noqa: E731
+            pending = folder_plan.pending_counts(seen, [("S", "Sales", never, set(), sales), ("P", "Sales", never, set())])
+            self.assertEqual(pending, {"S": 4, "P": 1})
+
+    def test_old_tasks_take_new_extensions_only_after_baselining_them(self):
+        sales = list(contracts.extensions_for("sales", "express"))
+        self.assertEqual(folder_plan.baselined_extensions({}), folder_plan.EXTENSIONS)  # 1.5 之前拍的底
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales}, {}), folder_plan.EXTENSIONS)
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales}, {"baseline_exts": sales}),
+                         folder_plan.rule_extensions({"extensions": sales}))
+        # 新任务不拍底：云端下发什么就扫什么
+        self.assertEqual(folder_plan.taken_extensions({"extensions": sales, "existing": 1}, {}),
+                         folder_plan.rule_extensions({"extensions": sales}))
+
+    def test_the_pump_builds_days_before_recognition_and_keeps_tables_out_of_it(self):
+        source = (APP / "folder_intake/pump.py").read_text()
+        steps = re.search(r"for step in \(([^)]*)\)", source).group(1)
+        self.assertLess(steps.index("_pos_step"), steps.index("_submit_step"))
+        self.assertIn('_due_kind("source_ready", room, False)', source)
+        self.assertIn('_due_kind("source_ready", 20, True)', source)
+        self.assertNotIn('_due("source_ready"', source)
 
 
 class SessionsAndNotices(unittest.TestCase):
@@ -1104,6 +1206,38 @@ class MachineSync(unittest.TestCase):
         self.assertNotIn("notices", reply)  # 旧小助手不带 notices_after：不查
         self.assertEqual(calls["for_rules"], [])
 
+    def test_sales_tasks_into_express_also_take_pos_exports(self):
+        machine, _calls = self._machine([self._rule("S1", "sales"), self._rule("P1")])
+        base = machine.frappe.db.get_value
+        machine.frappe.db.get_value = lambda doctype, name, field=None, **kw: (
+            "express" if field == "adapter" else base(doctype, name, field, **kw))
+        reply = machine._sync(types.SimpleNamespace(connection="C1"), {})
+        extensions = {rule["name"]: rule["extensions"] for rule in reply["rules"]}
+        self.assertEqual(extensions, {"P1": list(contracts.EXTENSIONS),
+                                      "S1": list(contracts.EXTENSIONS + contracts.TABLE_EXTENSIONS)})
+
+    def test_an_old_excel_file_is_registered_as_failed_without_upload(self):
+        machine, calls = self._machine([self._rule("S1", "sales")])
+        base = machine.frappe.db.get_value
+        machine.frappe.db.get_value = lambda doctype, name, field=None, **kw: (
+            "express" if field == "adapter" else base(doctype, name, field, **kw))
+        machine.settings = types.SimpleNamespace(config=lambda: {"inline_max_mib": 8})
+        uploads = []
+        machine._upload_target = lambda rule, entry: uploads.append(entry) or {"direct": 0}
+        reply = machine._begin(types.SimpleNamespace(connection="C1"),
+                               {"rule": "S1", "relpath": "2026-10\\ยอดขาย.xls", "filename": "ยอดขาย.xls",
+                                "sha256": "a" * 64, "byte_size": 2048})
+        self.assertEqual((reply["state"], reply["code"]), ("failed", "pos.xls_not_supported"))
+        self.assertEqual(uploads, [])
+        self.assertEqual((calls["written"][-1]["state"], calls["written"][-1]["last_code"]),
+                         ("failed", "pos.xls_not_supported"))
+        # 进项任务不收 .xls（与 PDF / 图片以外的类型一样拒收）
+        machine, _calls = self._machine([self._rule("P1")])
+        machine.settings = types.SimpleNamespace(config=lambda: {"inline_max_mib": 8})
+        with self.assertRaises(contracts.ContractError):
+            machine._begin(types.SimpleNamespace(connection="C1"),
+                           {"rule": "P1", "relpath": "a.xls", "filename": "a.xls", "sha256": "a" * 64, "byte_size": 9})
+
     def test_new_helpers_get_the_latest_version_and_their_notices(self):
         latest = {"version": "1.4.4", "url": "/downloads/companion/CC-Setup.exe"}
         items = [{"id": "pnotice_1", "title": "T", "text": "x", "created": self.NOW - 5, "session": "", "user": "u",
@@ -1297,7 +1431,8 @@ class TaskSources(unittest.TestCase):
         sources = (APP / "folder_intake/reminders.py").read_text() + (APP / "folder_intake/briefs.py").read_text()
         used = set(re.findall(r'_\("(cowork\.[A-Za-z0-9_.]+)"\)', sources))
         new = {key for key in used if key.startswith(("cowork.folder.remind.", "cowork.folder.brief."))}
-        self.assertEqual(len(new), 30)  # 2026-10-13 加 remind.date（两天及以后写日期）
+        # 2026-10-13 加 remind.date（两天及以后写日期）与 POS 导出停着等认列（brief.why.posLayout）
+        self.assertEqual(len(new), 31)
         self.assertTrue({"cowork.folder.line", "cowork.folder.more", "cowork.folder.moving", "cowork.folder.folderMissing",
                          "cowork.folder.state.registered", "cowork.choice.account", "cowork.folder.rootItself"} <= used)
         for key in used:

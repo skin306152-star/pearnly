@@ -87,9 +87,10 @@ def push_one(entry, rule, history, attempt=0, final=True):
     # 不写进账套记忆（用户 2026-10-08：以前记成整份账套的选择，网页推送和同账套的其他规则都会跟着变）。
     # 显式传（没有默认值时是 {}）：推送服务就不再按钩子查一遍。
     fixed = rule_fixed(rule.defaults_json)
+    # POS 导出建的票按票上自己的口径（带商品明细的天是存货，其余按金额记、不动库存）
+    posting_kind = None if contracts.is_table(entry.filename) else (rule.posting_kind or None)
     try:
-        view = application.choices_view(history, rule.connection, rule.account_set_key, rule.posting_kind or None,
-                                        fixed=fixed)
+        view = application.choices_view(history, rule.connection, rule.account_set_key, posting_kind, fixed=fixed)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         # 与网页「提交」失败同一做法：原因记在票上（列表照常显示「失败」+ 原因），这份文件照样往下走、出表格。
         reason = str(error)[:300]
@@ -108,7 +109,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
-                                rule.account_set_key, None, None, rule.posting_kind or None, fixed=fixed)
+                                rule.account_set_key, None, None, posting_kind, fixed=fixed)
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}

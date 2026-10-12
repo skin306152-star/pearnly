@@ -17,6 +17,10 @@
   lines          [{acc,side(D/C),amount,desc}] · 借应收 = 贷收入 + 贷销项税 · 借贷必平
   stock_acccod   存货科目组(ISACC ACCCOD)· 仅库存路才带 · 小助手建新库存主档用。端点配过
                  用配的;没配且账套零库存主档时按合格候选数解析(见 stock_acc_group)
+  pos            POS 导出的日汇总票(载荷 3,`contracts/pos.py`):{first,last,count,docnum:"auto",cash,
+                 transfers:[{acc,amount,label}]} · 现销 HS 借现金,每种非现金付款方式小助手同一次写入另记一张
+                 日记账凭证「借 收款科目 / 贷 现金」;单号自编,票号起止写进销项税摘要。cash = 当天现金净额
+                 (可为负:现金退款多过现金收款),各转账 + cash = 本单含税额
 """
 
 from __future__ import annotations
@@ -24,6 +28,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from pearnly_cowork.contracts import pos as pos_contract
+from pearnly_cowork.contracts.history import primary_page
 from pearnly_cowork.push.express.prior_doc import attach_prior_docnum
 from pearnly_cowork.push.express.choices import apply_to_payload
 from datetime import date
@@ -117,6 +123,28 @@ def _resolve_customer(
         "prename": detect_prename(name),
         "customer_new": not bool(code),
     }
+
+
+def _pos_block(history: Dict[str, Any], total: Decimal, choices: Dict[str, Any]):
+    """POS 日汇总票的 ``pos`` 块;不是 POS 导入的票回 ``(None, "")``,对不上回 ``(None, 原因码)``。"""
+    try:
+        found = pos_contract.facts(primary_page(history.get("pages") or []))
+    except pos_contract.PosFactsError:
+        return None, pos_contract.FACTS_INVALID
+    if found is None:
+        return None, ""
+    problem = pos_contract.check(found, total)
+    if problem:
+        return None, problem
+    accounts = choices.get("receipts") if isinstance(choices.get("receipts"), dict) else {}
+    transfers = []
+    for payment in found.non_cash():
+        acc = str(accounts.get(payment.subject) or "").strip()
+        if not acc:
+            return None, pos_contract.ACCOUNT_MISSING
+        transfers.append({"acc": acc, "amount": _s(payment.amount), "label": payment.label})
+    return {"first": found.first, "last": found.last, "count": found.count, "docnum": "auto",
+            "cash": _s(found.cash()), "transfers": transfers}, ""
 
 
 def build_express_sales_payload(
@@ -276,6 +304,13 @@ def build_express_sales_payload(
         history, fields, mappings, direction="sales", total=total
     )
     doctype = "HS" if paid else "IV"
+    # 会计在这份账套里选定的客户档 / 存货码 / 部门码 / POS 收款科目(`choices.resolve`,服务端放进 config)。
+    choices = config.get("choices") if isinstance(config.get("choices"), dict) else {}
+    pos, pos_problem = _pos_block(history, total, choices)
+    if pos_problem:
+        return fail(pos_problem)
+    if pos is not None:
+        doctype = "HS"  # POS 日汇总一律现销:借现金,非现金部分由同一次写入的转账凭证转出
     pass  # Diagnostic logging belongs to the calling service.
     payload = {
         "direction": "sales",
@@ -303,9 +338,10 @@ def build_express_sales_payload(
             "filename": history.get("filename"),
         },
     }
-    # 会计在这份账套里选定的客户档 / 存货码 / 部门码(`choices.resolve`,服务端放进 config)。
-    choices = config.get("choices") if isinstance(config.get("choices"), dict) else {}
     apply_to_payload(payload, choices)
+    if pos is not None:
+        payload["pos"] = pos
+        payload["payload_version"] = max(pos_contract.PAYLOAD_VERSION, int(payload.get("payload_version") or 1))
     if (effective_has_stock or line_item_mode == ITEM_MODE_STOCK_SALE) and stock_acccod:
         # 小助手建新库存主档时拿它填 STMAS.ACCCOD(→ISACC→存货资产 + 销货成本)。
         # 账里已有该品就用不上;定不下来就不发,别给老小助手塞没约定的空键。

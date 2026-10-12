@@ -133,7 +133,8 @@ def _reader_view(doc):
     roots = state.get("roots") or []
     if not fresh:
         # 各文件夹的文件数（`counts` / `partial`，1.4.4 起）：小助手好久没同步就是旧数，不显示（不知道，不用旧数冒充）。
-        roots = [{key: value for key, value in row.items() if key not in ("counts", "partial")} for row in roots]
+        roots = [{key: value for key, value in row.items() if key not in ("counts", "partial", "table_counts")}
+                 for row in roots]
     return {"connection": doc.name, "adapter": doc.adapter, "label": str(label or doc.name)[:80],
             "fresh": fresh, "version": state.get("version") or "", "roots": roots}
 
@@ -530,9 +531,10 @@ def listing():
     return {"rules": rows, "connections": usable}
 
 
-def waiting(reader, root_id, folder):
+def waiting(reader, root_id, folder, direction=None, connection=None):
     """文件夹计数（新任务的允许卡片与表单「文件夹里现有 N 份」）：``{"files": n, "partial": 数没数完}``；
-    小助手好久没同步、版本旧没报计数、文件夹不在上报里（深于 3 层）或没有这台小助手的使用权时回 None。"""
+    小助手好久没同步、版本旧没报计数、文件夹不在上报里（深于 3 层）或没有这台小助手的使用权时回 None。
+    推往 Express 的销售任务（``direction`` + 推送去向 ``connection``）连 POS 导出（Excel / CSV）一起数。"""
     try:
         _require()
         _connection(reader)
@@ -552,7 +554,11 @@ def waiting(reader, root_id, folder):
     name = next((item for item in ["", *(root.get("folders") or [])] if item.casefold() == wanted), None)
     if name is None:
         return None
-    return {"files": int(root["counts"].get(name) or 0), "partial": bool(root.get("partial"))}
+    files = int(root["counts"].get(name) or 0)
+    if direction and contracts.TABLE_EXTENSIONS[0] in contracts.extensions_for(
+            direction, frappe.db.get_value(CONNECTION, connection or reader, "adapter")):
+        files += int((root.get("table_counts") or {}).get(name) or 0)
+    return {"files": files, "partial": bool(root.get("partial"))}
 
 
 def project(rule):
@@ -626,4 +632,43 @@ def runs(name):
     for row in rows:
         row["states"] = counts(rule.name, row.name)
         row["results"] = results(rule.name, row.name)
-    return {"rule": project(rule), "runs": rows}
+    return {"rule": project(rule), "runs": rows, "pos_layout_needed": pos_waiting(rule.name)}
+
+
+POS_WAITING_SHOWN = 10
+
+
+def pos_waiting(rule):
+    """这条任务里停着等人认列的 POS 导出（最多 10 份）：``[{"file": 记录名, "filename", "relpath"}]``。"""
+    rows = frappe.get_all(FILE, filters={"rule": rule, "state": "source_ready", "last_code": contracts.POS_LAYOUT_NEEDED},
+                          fields=["name", "filename", "relpath"], order_by="registered_at asc", limit=POS_WAITING_SHOWN,
+                          ignore_permissions=True)
+    return [{"file": row.name, "filename": row.filename, "relpath": row.relpath} for row in rows]
+
+
+def pos_file(name):
+    """一份停着等人认列的 POS 导出：给 CC 认列用（原件、任务的推送去向与口径）。要有这条任务的使用权。"""
+    _require()
+    if not isinstance(name, str) or not frappe.db.exists(FILE, name):
+        frappe.throw(_("cowork.folder.entry_missing"))
+    entry = read(FILE, name)
+    rule = read(RULE, entry.rule)
+    _connection(rule.connection)
+    if not contracts.is_table(entry.filename) or not entry.source_file:
+        frappe.throw(_("cowork.folder.entry_missing"))
+    return {"file": entry.name, "filename": entry.filename, "source_file": entry.source_file, "task": rule.name,
+            "title": rule.title, "workspace": rule.workspace, "client": rule.client or None,
+            "connection": rule.connection, "account_set_key": rule.account_set_key,
+            "posting_kind": rule.posting_kind or None, "state": entry.state, "code": entry.last_code or ""}
+
+
+def resume_pos(name):
+    """认好列之后：这份停着的 POS 导出马上再走（不等下一次 5 分钟复查）。只动停在认列这一步的。"""
+    from pearnly_cowork.folder_intake import pump
+
+    found = pos_file(name)
+    entry = read(FILE, found["file"], for_update=True)
+    if contracts.layout_needed(entry.state, entry.last_code):
+        pump.resume(entry)
+        return True
+    return False

@@ -80,6 +80,11 @@ def _rule(name, context):
     return rule
 
 
+def extensions(rule):
+    """这条任务收哪些文件（推往 Express 的销售任务另收 POS 导出），同步下发给小助手、登记时按它核。"""
+    return contracts.extensions_for(rule.direction, frappe.db.get_value(CONNECTION, rule.connection, "adapter"))
+
+
 def owner_ready(rule):
     """负责人此刻仍能用这条连接录入（与网页同一判据）；不行就不建原件、不扣费、不推送。"""
     try:
@@ -144,6 +149,8 @@ def _sync(context, body):
                       "run_time": rule.run_time, "active_since": _epoch(rule.active_since),
                       # 1 = 新任务：到点处理文件夹里还没处理过的所有文件（不拍底）；缺这个键或 0 的照旧拍底（旧小助手不认它）
                       "existing": int(rule.include_existing or 0),
+                      # 收哪些扩展名（POS 导出，2026-10-13）：旧小助手不认这个键，照旧只收 PDF / 图片
+                      "extensions": list(extensions(rule)),
                       "run_request": int(rule.run_request or 0), "ready": owner_ready(rule)})
         if pending.get(rule.name) != before.get(rule.name):
             live.changed(rule.name)  # 待处理数变了：开着的定时任务页重拉
@@ -247,7 +254,7 @@ def _begin(context, body):
     if not rule.enabled:
         return {"skip": "cowork.folder.rule_disabled"}
     relpath = contracts.relpath(body.get("relpath"))
-    filename = contracts.filename(body.get("filename"))
+    filename = contracts.filename(body.get("filename"), extensions(rule))
     digest = contracts.sha256(body.get("sha256"))
     size = contracts.byte_size(body.get("byte_size"), 100 * 1024 * 1024)
     run = None
@@ -267,6 +274,11 @@ def _begin(context, body):
                       "relpath": relpath, "filename": filename, "byte_size": size, "sha256": digest,
                       "actor": rule.rule_owner, "state": "registered", "registered_at": now_datetime()})
         write(entry)
+    if contracts.is_legacy_table(filename):
+        # 旧版 Excel（.xls）读不了：登记成失败、写明原因，不上传（结果、简报里看得到，小助手记下不再传）
+        entry.state, entry.last_code, entry.finished_at = "failed", contracts.XLS_NOT_SUPPORTED, now_datetime()
+        write(entry)
+        return {"entry": entry.name, "state": "failed", "code": entry.last_code}
     target = _upload_target(rule, entry)
     if target.get("direct"):
         entry.route = "direct"

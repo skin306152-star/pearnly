@@ -245,6 +245,86 @@ def _old(path, data):
     os.utime(path, (past, past))
 
 
+SALES_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif", ".xlsx", ".xlsm", ".csv", ".xls"]
+
+
+def test_pos_exports_are_sent_only_for_tasks_the_server_gives_them_to(tmp_path, monkeypatch):
+    """L9（2026-10-13）：云端给推往 Express 的销售任务下发 POS 导出的扩展名，小助手才扫 Excel / CSV（含旧版 .xls：
+    云端登记即记失败、写明原因）；旧云端不下发、进项任务照旧只收 PDF / 图片。各文件夹的 POS 导出另报一份计数。"""
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    for name in ("bill.pdf", "pos-oct.xlsx", "pos-oct.csv", "old.xls"):
+        _old(folder / name, name.encode())
+    rule.update(existing=1, run_request=1)
+    fake = FakeClient([rule])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)
+    assert [c[1]["relpath"] for c in fake.calls if c[0] == "begin"] == ["bill.pdf"]
+    report = [c for c in fake.calls if c[0] == "sync"][0][1]["roots"][0]
+    assert (report["counts"], report["table_counts"]) == ({"": 1, "ice": 1}, {"": 3, "ice": 3})
+    rule.update(name="R2", run_request=2, extensions=SALES_EXTENSIONS)
+    fake = FakeClient([rule])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)
+    assert sorted(c[1]["relpath"] for c in fake.calls if c[0] == "begin") == ["bill.pdf", "old.xls", "pos-oct.csv",
+                                                                               "pos-oct.xlsx"]
+
+
+
+def test_old_task_does_not_send_tables_already_there_when_it_starts_taking_them(tmp_path, monkeypatch):
+    """老任务（existing=0）按旧扩展名拍过底（1.4，或云端还没下发 extensions）：云端开始给它下发 POS 导出的扩展名后，
+    文件夹里早就在的表格（启用前、或启用后会计手工录过的）补进底里、不上传；之后放进来的照常处理，待处理数也不算它们。"""
+    created = {}
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created=created)
+    _old(folder / "before.pdf", b"before")
+    _old(folder / "pos-sep.xlsx", b"pos-sep")                # 启用前就在
+    _old(folder / "pos-oct.csv", b"pos-oct-entered-by-hand")  # 启用后放的，任务那时还不收表格
+    created[len(b"pos-oct-entered-by-hand")] = rule["active_since"] + 60
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)                                    # 1.4 口径：只按 PDF / 图片拍底
+    ledger = folder_store.Ledger(key)
+    assert ledger.rule_state("R1")["baseline"] == ["before.pdf"]
+    ledger.rule_state("R1").pop("baseline_exts")              # 1.4 拍的底没记扩展名
+    ledger.save()
+    rule.update(extensions=SALES_EXTENSIONS, run_request=1)
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    assert _begins(fake) == []
+    state = folder_store.Ledger(key).rule_state("R1")
+    assert state["baseline"] == ["before.pdf", "pos-oct.csv", "pos-sep.xlsx"]
+    assert state["baseline_exts"] == SALES_EXTENSIONS[:6] + [".xlsx", ".xlsm", ".csv", ".xls"]
+    worker.round(cfg, key)
+    assert _syncs(fake)[-1]["rule_pending"] == {"R1": 0}
+    _old(folder / "pos-nov.xlsx", b"pos-nov-new")
+    created[len(b"pos-nov-new")] = time.time()
+    rule["run_request"] = 2
+    worker.round(cfg, key)
+    assert _begins(fake) == ["pos-nov.xlsx"]
+
+
+def test_old_task_takes_new_extensions_only_once_the_folder_was_read_in_full(tmp_path, monkeypatch):
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    _old(folder / "pos-sep.xlsx", b"pos-sep")
+    fake = FakeClient([rule])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    real_scan = plan.scan
+
+    def flaky(folder_path, errors=None, extensions=plan.EXTENSIONS):
+        if errors is not None:
+            errors.append(OSError("share dropped"))
+        return real_scan(folder_path, errors, extensions)
+
+    monkeypatch.setattr(plan, "scan", flaky)
+    rule.update(extensions=SALES_EXTENSIONS, run_request=1)
+    worker.round(cfg, key)                                    # 补拍底没读全：这一轮照旧只扫 PDF / 图片
+    assert _begins(fake) == []
+    assert ".xlsx" not in plan.baselined_extensions(folder_store.Ledger(key).rule_state("R1"))
+    monkeypatch.setattr(plan, "scan", real_scan)
+    rule["run_request"] = 2
+    worker.round(cfg, key)
+    assert _begins(fake) == []
+    assert "pos-sep.xlsx" in folder_store.Ledger(key).rule_state("R1")["baseline"]
+
+
 def test_moved_in_old_file_is_new_but_baseline_is_skipped(tmp_path, monkeypatch):
     cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
     _old(folder / "before.pdf", b"before")
@@ -554,10 +634,10 @@ def test_tombstones_stay_when_the_scan_could_not_read_everything(tmp_path, monke
     ledger.save()
     real = plan.scan
 
-    def flaky(path, errors=None):
+    def flaky(path, errors=None, **kwargs):
         if errors is not None:
             errors.append(OSError("network share hiccup"))
-        return real(path, errors)
+        return real(path, errors, **kwargs)
 
     monkeypatch.setattr(plan, "scan", flaky)
     rule.update(existing=1, run_request=1)
@@ -772,10 +852,10 @@ def test_a_read_error_only_keeps_the_rows_under_the_failing_folder(tmp_path, mon
     ledger.save()
     real = plan.scan
 
-    def flaky(path, errors=None):
+    def flaky(path, errors=None, **kwargs):
         if errors is not None:
             errors.append(PermissionError(13, "Access is denied", str(folder / "locked")))
-        return real(path, errors)
+        return real(path, errors, **kwargs)
 
     monkeypatch.setattr(plan, "scan", flaky)
     rule.update(existing=1, run_request=1)

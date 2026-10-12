@@ -51,6 +51,21 @@ def remembered(connection, account_set) -> dict:
     return found
 
 
+def latest(connection, account_sets, kind, subjects) -> dict:
+    """几份账套里同一类别、这些归类键最近一次选的值：`{subject: value}`（按选的时间，新的优先；值为空的不算）。"""
+    sets = sorted({normalize_express_account_key(item) for item in account_sets or () if item})
+    subjects = sorted({subject for subject in subjects or () if isinstance(subject, str) and subject})
+    if not sets or not subjects or kind not in KINDS:
+        return {}
+    rows = frappe.db.sql(f"""SELECT subject, value FROM `tab{DOCTYPE}`
+        WHERE connection=%s AND kind=%s AND account_set IN %s AND subject IN %s AND COALESCE(value, '')!=''
+        ORDER BY chosen_at DESC""", (connection, kind, tuple(sets), tuple(subjects)), as_dict=True)
+    found = {}
+    for row in rows:
+        found.setdefault(row.subject, row.value)
+    return found
+
+
 def record(connection, account_set, kind, subject, value, label=""):
     """记一个选择（同键覆盖）；返回是否有变化。"""
     if kind not in KINDS or not isinstance(subject, str) or not subject or len(subject) > 1000:
@@ -78,4 +93,4 @@ def record(connection, account_set, kind, subject, value, label=""):
     return True
 
 
-__all__ = ["DOCTYPE", "deny", "deny_query", "guard", "record", "reject_share", "remembered"]
+__all__ = ["DOCTYPE", "deny", "deny_query", "guard", "latest", "record", "reject_share", "remembered"]

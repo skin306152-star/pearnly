@@ -6,7 +6,10 @@
   小助手的 `split_pairing_code` 能拆开（2026-10-10 起网页不再显示 / 复制配对码）；
 - 下载地址三处一致：小助手查更新、nginx 下载目录、发布接收脚本，以及网页「下载助手」的默认地址；
 - 文件夹同步（2026-10 CC 闭环第一批，`folder_intake/machine.py` ↔ `folder_worker.py`）：四个机器接口、对话提醒的字段、
-  新增的请求 / 回复键两边都在，小助手按云端下发的顺序跑任务，提醒点开的地址与共用层深链接同一形状。
+  新增的请求 / 回复键两边都在，小助手按云端下发的顺序跑任务，提醒点开的地址与共用层深链接同一形状；
+- POS 导出（第二批 L9）：两边收同一组扩展名（含登记即失败的 .xls）、云端按任务下发、小助手按它扫与数（老任务新收的
+  扩展名先补拍底）；载荷 3 的 `pos` 块两边同形、票号上限一致，小助手的拒收码（含 POS_INVALID）云端认作「要人处理」且有
+  译文，销项税摘要带「อย่างย่อ」给报税草稿认简易税票。
 """
 import ast
 import importlib.util
@@ -197,6 +200,19 @@ class FolderSync(unittest.TestCase):
         self.assertIn("frappe.db.exists(RUN, key)", ast.unparse(record))
         run = method_source(COMPANION / "folder_worker.py", "FolderIntake", "_run_folder")
         self.assertIn("record['note'] = 'interrupted'", run)
+
+    def test_pos_exports_use_the_same_extensions_and_are_sent_per_task(self):
+        helper = module_constants(COMPANION / "folder_plan.py")
+        server = module_constants(FOLDER_SERVER / "contracts.py")
+        for name in ("EXTENSIONS", "TABLE_EXTENSIONS"):
+            self.assertEqual(helper[name], server[name], name)
+        self.assertIn(server["LEGACY_TABLE"], server["TABLE_EXTENSIONS"])
+        self.assertTrue(quoted(self.server, "extensions") and quoted(self.server, "table_counts"))
+        # 老任务只扫拍过底的扩展名：新收的（升级后开始收 POS 导出）先补拍底，早就在文件夹里的表格不上传
+        self.assertIn("plan.taken_extensions(rule, state)", method_source(COMPANION / "folder_worker.py", "FolderIntake",
+                                                                          "_run_folder"))
+        self.assertIn("baseline_exts", method_source(COMPANION / "folder_worker.py", "FolderIntake", "_baseline"))
+        self.assertIn("line['table_counts']", method_source(COMPANION / "folder_worker.py", "FolderIntake", "_report"))
 
     def test_reminder_links_match_the_shared_deep_link(self):
         # 托盘提醒点开的地址 = 共用层 assistant/contracts.deep_link（网页推送点开的同一个地址）接在公司站点上。
@@ -393,6 +409,54 @@ class ExpressReadback(unittest.TestCase):
         self.assertNotIn("ISRUN", tables)
         self.assertIn('"express_read": express_read.read_books', (COMPANION / "request_worker.py").read_text(
             encoding="utf-8"))
+
+
+def _literal(path, name):
+    """模块顶层常量的字面值（`frozenset({…})` 取里面的集合）。"""
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == name for t in node.targets):
+            value = node.value
+            if isinstance(value, ast.Call) and getattr(value.func, "id", "") == "frozenset":
+                return frozenset(ast.literal_eval(value.args[0]))
+            return ast.literal_eval(value)
+    raise AssertionError(name)
+
+
+class PosPayload(unittest.TestCase):
+    """载荷 3（POS 导出的日汇总票）：版本、`pos` 块的键、拒收码与摘要字样两边一致。"""
+
+    COWORK = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork"
+
+    def test_the_helper_accepts_the_version_the_server_sends(self):
+        server = _literal(self.COWORK / "contracts" / "pos.py", "PAYLOAD_VERSION")
+        helper = _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS")
+        self.assertEqual(server, 3)
+        self.assertEqual(max(helper), server)
+
+    def test_the_pos_block_keys_match(self):
+        mapper = (self.COWORK / "push" / "express" / "sales_mapper.py").read_text(encoding="utf-8")
+        adapter = (COMPANION / "sales_adapter.py").read_text(encoding="utf-8")
+        for key in ("first", "last", "count", "docnum", "cash", "transfers", "acc", "amount", "label"):
+            self.assertTrue(quoted(mapper, key) and quoted(adapter, key), key)
+        # 票号起止的长度上限两边一致（云端截短，小助手的校验永远能过）
+        self.assertEqual(_literal(self.COWORK / "contracts" / "pos.py", "NUMBER_MAX"),
+                         _literal(COMPANION / "sales_adapter.py", "_POS_NUMBER_MAX"))
+        self.assertIn('"auto"', mapper)
+        self.assertIn('"auto"', adapter)
+
+    def test_the_helper_refusals_are_for_a_person_and_translated(self):
+        constants = module_constants(COMPANION / "pos_journal.py")
+        lifecycle = (self.COWORK / "push" / "lifecycle.py").read_text(encoding="utf-8")
+        terms = (self.COWORK / "i18n" / "messages.tsv").read_text(encoding="utf-8")
+        codes = [constants[name] for name in ("ERR_JOURNAL_BOOK", "ERR_ACCOUNT")]
+        codes.append(_literal(COMPANION / "sales_adapter.py", "ERR_POS_INVALID"))
+        for code in codes:
+            self.assertTrue(quoted(lifecycle, code), code)
+            self.assertIn("\tintake.error." + code + "\n", terms)
+        # `pos` 块不合格时 write_sale 直接以 POS_INVALID 回报（不混进通用的 PAYLOAD_INVALID）
+        self.assertIn("ERR_POS_INVALID if v.error_code == ERR_POS_INVALID",
+                      (COMPANION / "dbf_sales.py").read_text(encoding="utf-8"))
+        self.assertIn("อย่างย่อ", constants["VAT_DESCRIPTION"])
 
 
 if __name__ == "__main__":

@@ -41,5 +41,7 @@ WRITE_PAYLOAD_KEYS = frozenset(
         # 复核页「仍然推送」：服务端准备时加（不是映射器出的），小助手查重闸认它。
         "duplicate_confirmed",
         "opening_stock",
+        # POS 导出的日汇总票（载荷 3）：票号起止、自编单号、付款方式转账凭证（`contracts/pos.py`）。
+        "pos",
     }
 )

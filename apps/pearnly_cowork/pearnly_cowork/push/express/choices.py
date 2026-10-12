@@ -9,6 +9,8 @@
 - `payment`：进项现购还是赊购（按供应商）。复核页改过付款方式就记下。
 - `vat`：小票 / 简易税票上的税额抵不抵进项（按供应商）。
 - `department`：部门码（整份账套一个）。
+- `receipt`：POS 导出按天录的销售里，非现金的付款方式（转账、QR、刷卡、外卖平台）收进哪个银行 / 清算科目（按付款方式，
+  2026-10-13）。每天按付款方式另记一张日记账凭证「借 这个科目 / 贷 现金」（`contracts/pos.py`）。
 
 选过的值在 Express 主档里已经没有（被删 / 改了）→ 当作没选过、重新问，不静默换别的。
 主档没报上来（旧版小助手）的那一类不拦，照旧由小助手按名匹配。
@@ -23,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 from pearnly_cowork.push.express.payment import payment_written
 
 NEW = "__new__"
-KINDS = ("party", "item", "account", "payment", "vat", "department")
+KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
 PAYMENT_VALUES = ("cash", "credit")
 VAT_VALUES = ("claim", "expense")
 # 票面名称里的法人前后缀：比名称时去掉（「บมจ.」上市公司缩写压测里就没去掉，匹配不上 Big C 的档）。
@@ -103,7 +105,8 @@ def _expense_receipt(fields) -> bool:
 
 def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[str],
             config: Mapping[str, Any], remembered: Mapping[str, Mapping[str, str]],
-            account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
+            account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
+            receipts: Iterable = ()) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -112,6 +115,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     `needed` 每条：`{kind, subject, label, options?, current?}`，页面据此弹一次框。
     `fixed`：`{kind: value}`，自动录入规则给这条规则定的值（付款 / 抵进项 / 费用科目 / 存货 / 部门），只对这张票生效、
     优先于账套里记过的，不写进账套记忆（用户 2026-10-08：规则的默认值只管自己的票）。对方档不在此列。
+    `receipts`：POS 日汇总票里非现金的付款方式 `[(subject, label)]`（`contracts.pos`）；每一种要一个收款科目，
+    记过的（且在科目表里）放进 `applied["receipts"]` `{subject: 科目}`，没有的要人选。
     """
     fields = fields if isinstance(fields, Mapping) else {}
     direction = "sales" if direction == "sales" else "purchase"
@@ -201,6 +206,15 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             applied["account"] = value
         else:
             needed.append({"kind": "account", "subject": party_key, "label": name, "current": value or ""})
+
+    # ── POS 日汇总：非现金付款方式的收款科目 ──
+    accounts = _rows(config.get("reported_accounts"))
+    for subject, label in receipts or ():
+        value = chosen("receipt", subject)
+        if value and (not accounts or value in _codes(accounts)):
+            applied.setdefault("receipts", {})[subject] = value
+        else:
+            needed.append({"kind": "receipt", "subject": subject, "label": label, "current": value or ""})
     return {"applied": applied, "needed": needed}
 
 
@@ -233,5 +247,18 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
     return payload
 
 
-__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "VAT_VALUES", "apply_to_payload", "item_subject", "norm_name",
+def borrow_receipts(remembered: Dict[str, Dict[str, str]], receipts: Iterable, borrowed: Mapping[str, str],
+                    accounts: Any) -> None:
+    """POS 收款科目按公司问一次：这份账套还没记过的付款方式，借同一家公司别的账套记过的值（``borrowed``
+    `{subject: 科目}`），科目须在本账套科目表里（``accounts``，小助手报上来的；没报上来不借）。就地改 ``remembered``，
+    只用于这一次判断，不写进本账套记忆。"""
+    codes = _codes(_rows(accounts))
+    mine = remembered.setdefault("receipt", {})
+    for subject, _label in receipts or ():
+        value = str((borrowed or {}).get(subject) or "").strip()
+        if subject not in mine and value and value in codes:
+            mine[subject] = value
+
+
+__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
            "party_subject", "resolve", "supplier_subject"]

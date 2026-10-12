@@ -69,6 +69,10 @@ jobs:
         run: python3 tests/test_cowork_readback.py
       - name: Verify folder auto-intake rules and that it only adds to existing paths
         run: python3 tests/test_cowork_folder_intake.py
+      - name: Verify POS exports become one cash sale per day with a transfer voucher per non-cash payment
+        run: python3 tests/test_cowork_pos_import.py
+      - name: Verify every CC Desktop refusal code and push reason has text in the reader's language
+        run: python3 tests/test_cowork_reason_language.py
       - name: Verify a batch of scheduled tasks saves all or nothing
         run: python3 tests/test_cowork_folder_task_batch.py
       - name: Verify scheduled-task reminders the day before and results briefs after a run

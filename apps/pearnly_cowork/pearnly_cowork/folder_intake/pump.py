@@ -11,6 +11,11 @@
 
 先后（F7，2026-10-12）：同一写入连接、同一账套里，存货销售文件等同账套的存货进货文件推送有了结论（写完或停下待人）
 再准备（`contracts.waits_for_purchases`，最多等 12 小时），否则销售会卖成负库存、不按进货的均价结转成本。
+
+POS 导出（2026-10-13，交接 L9）：销售任务里的 Excel / CSV 不交识别，建原件后由 `pos_import` 按天建票（不扣费），
+之后与识别出的票同一条路推送、出结果表格。列还没认好（这家公司第一次见这种导出、又认不准；或记住的版式遇到没登记过
+的状态值）就停在 source_ready 等人答一次（`contracts.POS_LAYOUT_NEEDED`，每 5 分钟只看这份版式自停下以后有没有记上 /
+改过、公司键变没变，不重读文件，见 `pos_import.service.layout_changed`）。
 """
 import json
 import time
@@ -41,6 +46,8 @@ OFFLINE_SECONDS = 600
 OFFLINE_RETRIES = 36
 # 存货销售等同账套的存货进货先写：每分钟再看一次
 ORDER_RECHECK_SECONDS = 60
+# POS 导出等人认列：每 5 分钟看一次版式记上 / 改过了没有
+LAYOUT_RECHECK_SECONDS = 300
 
 
 def kick():
@@ -80,7 +87,7 @@ def run():
         return
     deadline = time.monotonic() + STEP_SECONDS
     try:
-        for step in (_store_step, _submit_step, _recognized_step, _push_step, _settle_step, _follow_step):
+        for step in (_store_step, _pos_step, _submit_step, _recognized_step, _push_step, _settle_step, _follow_step):
             if time.monotonic() > deadline:
                 break
             step(cfg, deadline)
@@ -92,6 +99,15 @@ def _due(state, limit=50):
     return frappe.get_all(FILE, filters={"state": state}, or_filters=[["next_attempt_at", "is", "not set"],
                           ["next_attempt_at", "<=", now_datetime()]], pluck="name", order_by="registered_at asc",
                           limit=limit, ignore_permissions=True)
+
+
+def _due_kind(state, limit, tables):
+    """到期的文件，只取 POS 导出（``tables``）或只取票据（按文件名后缀分；登记时已按任务核过收不收）。"""
+    like = " OR ".join(["filename LIKE %s"] * len(contracts.TABLE_EXTENSIONS))
+    return frappe.db.sql_list(f"""SELECT name FROM `tab{FILE}` WHERE state = %s
+        AND (next_attempt_at IS NULL OR next_attempt_at <= %s) AND {"" if tables else "NOT "}({like})
+        ORDER BY registered_at ASC LIMIT %s""",
+                              (state, now_datetime(), *["%" + ext for ext in contracts.TABLE_EXTENSIONS], limit))
 
 
 def _later(entry, seconds, code):
@@ -216,11 +232,62 @@ def _capacity(cfg):
     return max(0, ceiling - frappe.db.count(FILE, {"state": "submitted"}))
 
 
+# ── 原件（POS 导出）→ 按天建票（不识别、不扣费） ────────────────────────────────────────
+
+
+def _pos_step(cfg, deadline):
+    _each(_due_kind("source_ready", 20, True), deadline, _pos)
+
+
+def _pos(entry):
+    from pearnly_cowork.pos_import import service as pos_import
+
+    rule, problem = _live_rule(entry)
+    if problem:
+        return _fail(entry, problem)
+    name = entry.name
+    held = json.loads(entry.outcome_json or "{}").get("_pos") or {}
+    with _as(entry.actor):
+        if held.get("fingerprint") and not pos_import.layout_changed(rule.workspace, rule.connection,
+                                                                      rule.account_set_key, held):
+            return _later(entry, LAYOUT_RECHECK_SECONDS, contracts.POS_LAYOUT_NEEDED)
+        try:
+            result = pos_import.admit(entry.source_file, request_key(name), workspace=rule.workspace,
+                                      client=rule.client or None, connection=rule.connection,
+                                      account_set_key=rule.account_set_key, posting_kind=rule.posting_kind or None)
+        except frappe.ValidationError as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return _fail(read(FILE, name, for_update=True), str(error))
+    entry = read(FILE, name, for_update=True)
+    outcome = json.loads(entry.outcome_json or "{}")
+    if result.get("status") == "layout_needed":
+        outcome["_pos"] = {"fingerprint": result["fingerprint"], "company": result["company"],
+                           "layout_revision": result.get("layout_revision") or ""}
+        entry.outcome_json = json.dumps(outcome, sort_keys=True)
+        return _later(entry, LAYOUT_RECHECK_SECONDS, contracts.POS_LAYOUT_NEEDED)
+    if result.get("status") != "ok":
+        return _fail(entry, result.get("code") or "pos.file_unreadable")
+    outcome.pop("_pos", None)
+    entry.outcome_json = json.dumps(outcome, sort_keys=True)
+    entry.histories_json = json.dumps(result["histories"])
+    entry.state, entry.next_attempt_at, entry.last_code = "recognized", None, ""
+    write(entry)
+    frappe.db.commit()
+
+
+def resume(entry):
+    """人刚认好列：这份停着的 POS 导出马上再看一次（不等 5 分钟）。"""
+    entry.next_attempt_at = None
+    write(entry)
+    kick()
+
+
 def _submit_step(cfg, deadline):
     room = _capacity(cfg)
     if room <= 0:
         return
-    _each(_due("source_ready", room), deadline, _submit)
+    _each(_due_kind("source_ready", room, False), deadline, _submit)
 
 
 def _submit(entry):

@@ -169,7 +169,7 @@
 			row(),
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"), reqd: 1,
 				options: [{value: "purchase", label: t("intake.dir.purchase")}, {value: "sales", label: t("intake.dir.sales")}],
-				default: rule?.direction || "purchase", onchange: () => {paint_mode(); paint_defaults();}},
+				default: rule?.direction || "purchase", onchange: () => {paint_mode(); paint_defaults(); paint_folder_hint();}},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "posting_kind", label: __("Posting Kind"),
 				options: [{value: "service", label: __("Service")}, {value: "stock", label: __("Stock")}],
@@ -358,7 +358,9 @@
 			const [reader, root_id, ...rest] = String(value).split("|");
 			const root = (state.options?.readers || []).find(row => row.connection === reader)?.roots
 				?.find(row => row.id === root_id);
-			return root?.counts ? {files: root.counts[rest.join("|")] || 0, partial: Boolean(root.partial)} : null;
+			// 推往 Express 的销售任务也收 POS 导出（Excel / CSV，2026-10-13）：连它们一起数
+			const tables = express() && d.get_value("direction") === "sales" ? root?.table_counts?.[rest.join("|")] || 0 : 0;
+			return root?.counts ? {files: (root.counts[rest.join("|")] || 0) + tables, partial: Boolean(root.partial)} : null;
 		};
 		const paint_folder_hint = () => {
 			const found = folder_files();
