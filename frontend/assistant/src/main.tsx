@@ -3,8 +3,9 @@ import { createRoot } from "react-dom/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Assistant } from "./assistant";
 import "./globals.css";
+import { pref } from "@/lib/appearance";
 
-// 深浅色跟随系统（同 Claude）：系统改了也即时跟着变。样式变量在 globals.css 的 :root / .dark。
+// 深浅色默认跟随系统（同 Claude）：系统改了也即时跟着变；设置里也可以固定。样式变量在 globals.css 的 :root / .dark。
 const scheme = window.matchMedia("(prefers-color-scheme: dark)");
 // 手机浏览器状态栏的颜色（<meta name="theme-color">）取当前底色；抽屉打开时取抽屉的颜色（assistant.tsx 的 MobileShell）
 function themeColor() {
@@ -17,11 +18,14 @@ function themeColor() {
   }
 }
 const applyScheme = () => {
-  document.documentElement.classList.toggle("dark", scheme.matches);
+  // 设置里可以固定浅色 / 深色（同 Claude），默认跟随系统
+  const theme = pref("theme");
+  document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && scheme.matches));
   themeColor();
 };
 applyScheme();
 scheme.addEventListener("change", applyScheme);
+window.addEventListener("cc-theme", applyScheme);
 new MutationObserver(themeColor).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-open"], childList: true });
 
 createRoot(document.getElementById("root")!).render(

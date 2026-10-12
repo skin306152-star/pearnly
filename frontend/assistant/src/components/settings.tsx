@@ -1,6 +1,6 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
-//   常规      — 对话文字大小、语言
+//   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）
 //   连接      — 只在浏览器里（Cowork 站点）出现：只读，连着哪台电脑、在不在线、网页可读取的文件夹；改只在电脑上的 CC 里
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
 //     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹、网页可读取的文件夹
@@ -8,7 +8,7 @@
 //
 // 桌面端托盘「连接与设置」直接打开「连接」一栏（window.tomo.settings）。
 
-import { CheckIcon, FolderIcon, MonitorIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, XIcon } from "lucide-react";
+import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   type TextSize,
   textSize,
 } from "@/lib/desktop";
+import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { useProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 import { lang, LANGUAGES, st, t } from "../i18n";
@@ -86,7 +87,7 @@ export function Settings() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-black/35" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
           className="fixed top-1/2 left-1/2 z-[71] flex h-[min(680px,92dvh)] w-[min(980px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-surface text-ink shadow-2xl outline-none md:flex-row"
@@ -141,7 +142,7 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
       onClick={onClick}
       className={cn(
         "flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-start text-sm [&_svg]:size-4",
-        active ? "bg-muted font-medium" : "hover:bg-hover",
+        active ? "bg-(--cc-bg-selected) font-medium" : "hover:bg-hover",
       )}
     >
       {icon}
@@ -163,17 +164,24 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   );
 }
 
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+// 分段选择（同 Claude 设置）：带图标的只显示图标（如主题），文字放进提示与读屏
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string, ReactNode?][]; onChange: (v: T) => void }) {
   return (
     <div className="flex rounded-lg bg-muted p-0.5">
-      {options.map(([key, label]) => (
+      {options.map(([key, label, icon]) => (
         <button
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={cn("rounded-md px-3 py-1 text-sm", value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          title={icon ? label : undefined}
+          aria-label={icon ? label : undefined}
+          aria-pressed={value === key}
+          className={cn(
+            "flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4",
+            value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
         >
-          {label}
+          {icon ?? label}
         </button>
       ))}
     </div>
@@ -199,9 +207,33 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 function General() {
   const [size, setSize] = useState<TextSize>(textSize());
+  const [theme, setTheme] = useState<Theme>(pref("theme"));
+  const [font, setFont] = useState<ChatFont>(pref("font"));
+  const [width, setWidth] = useState<ChatWidth>(pref("width"));
+  const [motion, setMotion] = useState<Motion>(pref("motion"));
   return (
     <>
       <Heading>{st.appearance}</Heading>
+      <Row label={st.theme}>
+        <Segmented
+          value={theme}
+          options={[["system", st.themeSystem, <MonitorIcon />], ["light", st.themeLight, <SunIcon />], ["dark", st.themeDark, <MoonIcon />]]}
+          onChange={(value) => {
+            setTheme(value);
+            setPref("theme", value);
+          }}
+        />
+      </Row>
+      <Row label={st.chatFont}>
+        <Segmented
+          value={font}
+          options={[["serif", st.fontSerif], ["sans", st.fontSans]]}
+          onChange={(value) => {
+            setFont(value);
+            setPref("font", value);
+          }}
+        />
+      </Row>
       <Row label={st.textSize}>
         <Segmented
           value={size}
@@ -209,6 +241,26 @@ function General() {
           onChange={(value) => {
             setSize(value);
             setTextSize(value);
+          }}
+        />
+      </Row>
+      <Row label={st.chatWidth}>
+        <Segmented
+          value={width}
+          options={[["narrow", st.narrow], ["medium", st.medium], ["wide", st.wide]]}
+          onChange={(value) => {
+            setWidth(value);
+            setPref("width", value);
+          }}
+        />
+      </Row>
+      <Row label={st.motion}>
+        <Segmented
+          value={motion}
+          options={[["system", st.motionSystem], ["reduce", st.motionReduce]]}
+          onChange={(value) => {
+            setMotion(value);
+            setPref("motion", value);
           }}
         />
       </Row>

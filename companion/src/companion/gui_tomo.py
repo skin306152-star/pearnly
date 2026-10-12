@@ -114,8 +114,8 @@ OPEN_WINDOW = None   # 进程内唯一的 Tomo 窗口（gui_tray._window_open �
 
 RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）
 # 窗口底色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app，浅 / 深各一个），拉伸边与登录页标题栏用它
-APP_BG = {"light": "#faf9f5", "dark": "#262624"}
-APP_INK = {"light": "#141413", "dark": "#faf9f5"}
+APP_BG = {"light": "#fbfbfb", "dark": "#262624"}
+APP_INK = {"light": "#1a1a1a", "dark": "#faf9f5"}
 
 
 def _scheme() -> str:

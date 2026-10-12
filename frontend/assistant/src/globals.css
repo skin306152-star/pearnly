@@ -106,20 +106,22 @@
   --cc-bubble-sheen: rgb(255 255 255 / 0.55); /* 发送中扫过气泡的浅光 */
   --cc-focus-ring: rgb(20 20 19 / 0.08);   /* 聚焦外框：中性灰（同 Claude，不用品牌色） */
 
-  --cc-bg-app: #faf9f5;           /* 主区域 */
-  --cc-bg-sidebar: #faf9f5;       /* 侧栏 / 抽屉：同 Claude 网页版，与主区同一个暖白，只靠一条细线分开（2026-10-12 用户：原先深一档看着偏灰） */
+  /* 底色与中性灰按 2026-10-12 claude.ai 截图实测取色：主区接近中性的白，侧栏略暖，选中 / 分隔都是很淡的中性灰（原先沿用旧版米色，偏黄） */
+  --cc-bg-app: #fbfbfb;           /* 主区域（实测 #fcfbfc） */
+  --cc-bg-sidebar: #fbfaf8;       /* 侧栏 / 抽屉（实测 #fcfaf8），与主区只靠一条细线分开 */
   --cc-bg-surface: #ffffff;       /* 输入框、卡片、菜单 */
-  --cc-bg-subtle: #f0eee6;        /* 选中、图标底、代码块 */
-  --cc-bg-hover: rgb(20 20 19 / 0.05);
-  --cc-bg-active: rgb(20 20 19 / 0.08);
-  --cc-bg-overlay: rgb(20 20 19 / 0.35);
+  --cc-bg-subtle: #efefed;        /* 分段按钮底、图标底、代码块、用户气泡（实测 #efefed） */
+  --cc-bg-hover: rgb(31 28 20 / 0.04);
+  --cc-bg-active: rgb(31 28 20 / 0.06);   /* 侧栏选中行（实测 #eeece8） */
+  --cc-bg-selected: rgb(0 0 0 / 0.1);     /* 设置弹窗左栏选中项（实测 #e3e3e3） */
+  --cc-bg-overlay: rgb(0 0 0 / 0.4);      /* 弹窗遮罩：中性黑（实测遮住后 #979797） */
 
-  --cc-ink: #141413;              /* 正文 */
+  --cc-ink: #1a1a1a;              /* 正文（实测 #1a1a1a） */
   --cc-ink-2: #3d3d3a;            /* 次要 */
   --cc-ink-3: #73726c;            /* 说明、分组标题 */
   --cc-ink-4: #a3a19a;            /* 占位、禁用 */
-  --cc-line: rgb(31 30 29 / 0.12);
-  --cc-line-strong: rgb(31 30 29 / 0.24);
+  --cc-line: rgb(31 30 29 / 0.075);       /* 侧栏右边线（实测 #eceae8） */
+  --cc-line-strong: rgb(31 30 29 / 0.16);
   --cc-danger: #c4373a;
   --cc-danger-soft: #fdecec;
   --cc-success: #2f7d4f;
@@ -156,7 +158,8 @@
   --cc-mcard-radius: 2.5rem;      /* 抽屉打开时被推开的页面卡片圆角 */
   --cc-mscrim-max: 0.45;          /* 抽屉全开时页面卡片压暗的程度 */
   --cc-dur-drawer: 380ms;
-  --cc-thread-w: 48rem;           /* 对话内容最大宽 */
+  --cc-thread-w: 48rem;           /* 对话内容最大宽（设置「对话记录宽度」：窄版，默认） */
+  --cc-font-reply: var(--cc-font-serif);  /* 回复正文字体（设置「对话字体」） */
   --cc-results-share: 0.45;       /* 右侧结果面板默认占比；拖动分隔条后由页面按本机记下的值覆盖 */
   --cc-results-min-w: 20rem;      /* 结果面板最窄 */
   --cc-chat-min-w: 24rem;         /* 结果面板打开时对话最窄 */
@@ -207,6 +210,7 @@
   --cc-bg-hover: rgb(250 249 245 / 0.06);
   --cc-bg-active: rgb(250 249 245 / 0.1);
   --cc-bg-overlay: rgb(0 0 0 / 0.55);
+  --cc-bg-selected: rgb(250 249 245 / 0.12);
 
   --cc-ink: #faf9f5;
   --cc-ink-2: #e5e3da;
@@ -365,7 +369,7 @@
     background-size: 220% 100%; animation: cc-sheen 1.4s var(--cc-ease) infinite;
   }
   .cc-reply {
-    color: var(--cc-ink); font-family: var(--cc-font-serif); font-variant-numeric: lining-nums tabular-nums;
+    color: var(--cc-ink); font-family: var(--cc-font-reply); font-variant-numeric: lining-nums tabular-nums;
     animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
   }
   .cc-card { background: var(--cc-bg-surface); border: 1px solid var(--cc-line); border-radius: var(--cc-radius-md); }
@@ -517,9 +521,8 @@
 
 /* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */
 /* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
-[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active] { background: transparent; color: var(--cc-ink-2); }
-/* 「新建」是动作不是页面（同 Claude）：新对话页上也不显示成选中，只有悬停底色 */
-[data-slot="aui_thread-list-new"][data-active]:not(:hover) { background: transparent; color: var(--cc-ink-2); }
+[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active],
+[data-cc-view="tasks"] [data-slot="aui_thread-list-new"][data-active] { background: transparent; color: var(--cc-ink-2); }
 /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
 .cc-drawer { scrollbar-width: none; }
 .cc-drawer::-webkit-scrollbar { display: none; }
@@ -600,6 +603,14 @@
 .typing-dots-label { font-family: var(--cc-font-sans); font-size: 0.875rem; color: var(--cc-ink-3); font-variant-numeric: tabular-nums; }
 @keyframes cc-spin-dot { 0%, 100% { opacity: .3; transform: scale(.75); } 25% { opacity: 1; transform: scale(1.15); } 50% { opacity: .55; transform: scale(.9); } }
 @media (prefers-reduced-motion: reduce) { .cc-spin i { animation: none; opacity: .8; } }
+
+/* 外观偏好（设置 → 常规，lib/appearance.ts 写在 <html> 上，同 Claude） */
+:root[data-cc-width="medium"] { --cc-thread-w: 56rem; }
+:root[data-cc-width="wide"] { --cc-thread-w: 68rem; }
+:root[data-cc-font="sans"] { --cc-font-reply: var(--cc-font-sans); }
+:root[data-cc-motion="reduce"] *:not(.animate-spin, .cc-spin i),
+:root[data-cc-motion="reduce"] ::before,
+:root[data-cc-motion="reduce"] ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 
 /* 对话文字大小（设置 → 常规，lib/desktop.ts 写在 <html data-text-size>）：只缩放对话记录 */
 html[data-text-size="small"] [data-slot="aui_message-group"] { zoom: 0.92; }

@@ -286,6 +286,8 @@ const SETTINGS = {
   en: {
     settings: "Settings", general: "General", thisComputer: "This computer", connections: "Connections", system: "System",
     appearance: "Appearance", textSize: "Chat text size", small: "Small", medium: "Medium", large: "Large",
+    theme: "Theme", themeSystem: "System", themeLight: "Light", themeDark: "Dark", chatFont: "Chat font", fontSerif: "Serif", fontSans: "System font",
+    chatWidth: "Chat width", narrow: "Narrow", wide: "Wide", motion: "Motion", motionSystem: "System", motionReduce: "Reduced",
     change: "Change…", findAgain: "Find again", scanning: "Searching…",
     expressMissing: "Express not found. Click “Change…” and choose the Express data folder.",
     years: (path: string, n: number) => `${path} · ${n} years`,
@@ -304,6 +306,8 @@ const SETTINGS = {
   zh: {
     settings: "设置", general: "常规", thisComputer: "此电脑", connections: "连接", system: "系统",
     appearance: "外观", textSize: "对话文字大小", small: "小号", medium: "中等", large: "大号",
+    theme: "主题", themeSystem: "跟随系统", themeLight: "浅色", themeDark: "深色", chatFont: "对话字体", fontSerif: "衬线体", fontSans: "系统字体",
+    chatWidth: "对话记录宽度", narrow: "窄版", wide: "宽幅", motion: "动效", motionSystem: "系统", motionReduce: "减弱",
     change: "更换…", findAgain: "重新查找", scanning: "正在查找…",
     expressMissing: "未找到 Express，请点击「更换…」选择 Express 数据所在文件夹。",
     years: (path: string, n: number) => `${path} 等 ${n} 个年度`,
@@ -322,6 +326,8 @@ const SETTINGS = {
   th: {
     settings: "การตั้งค่า", general: "ทั่วไป", thisComputer: "คอมพิวเตอร์เครื่องนี้", connections: "การเชื่อมต่อ", system: "ระบบ",
     appearance: "รูปลักษณ์", textSize: "ขนาดตัวอักษรในแชท", small: "เล็ก", medium: "กลาง", large: "ใหญ่",
+    theme: "ธีม", themeSystem: "ตามระบบ", themeLight: "สว่าง", themeDark: "มืด", chatFont: "แบบอักษรในแชท", fontSerif: "แบบมีเชิง", fontSans: "ฟอนต์ระบบ",
+    chatWidth: "ความกว้างของแชท", narrow: "แคบ", wide: "กว้าง", motion: "ภาพเคลื่อนไหว", motionSystem: "ตามระบบ", motionReduce: "ลดลง",
     change: "เปลี่ยน…", findAgain: "ค้นหาอีกครั้ง", scanning: "กำลังค้นหา…",
     expressMissing: "ไม่พบ Express กรุณากด «เปลี่ยน…» แล้วเลือกโฟลเดอร์ข้อมูล Express",
     years: (path: string, n: number) => `${path} รวม ${n} ปีบัญชี`,
