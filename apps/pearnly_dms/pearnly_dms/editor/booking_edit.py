@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from datetime import date
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from pearnly_core import line_session as store
@@ -400,9 +401,14 @@ def save(line_user_id: str, nonce: str, submitted: dict, deliver=None) -> str:
         raise DmsBookingEditError("dms_booking.invalid_master")
     delivery = _required(raw_answers.get("delivery_date_be"), "dms_booking.invalid_delivery")
     try:
-        parse_be_date(delivery)
+        delivery_day = parse_be_date(delivery)
     except ValueError as exc:
         raise DmsBookingEditError("dms_booking.invalid_delivery") from exc
+    # 与 LINE 日期选择器同一范围（`qa_cards.ask_date`：今天到两年后）：手打错的年份
+    # （公历当佛历、过去的日子）在这里挡下，到不了草稿，更到不了 DMS。
+    today = date.today()
+    if not today <= delivery_day <= qa_cards._plus_years(today, 2):
+        raise DmsBookingEditError("dms_booking.invalid_delivery")
     qa["draft"] = {**(qa.get("draft") or {}), **customer}
     qa["customer"] = {**(qa.get("customer") or {}), "name": customer["name"]}
     qa["summary"] = qa_cards._fallback_summary(qa)

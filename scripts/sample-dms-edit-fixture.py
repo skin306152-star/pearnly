@@ -19,6 +19,7 @@ def main():
     import json
     import os
     import secrets
+    from datetime import date, timedelta
 
     import frappe
 
@@ -28,6 +29,7 @@ def main():
     from pearnly_dms.editor import browser_ticket as tickets
     from pearnly_dms.intake.service import run_logged_in
     from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
+    from pearnly_dms.contracts.client_base import to_be_date
 
     mode = (os.environ.get("MODE") or "prepare").strip()
     line_uid = (os.environ.get("LINE_UID") or "").strip()
@@ -102,7 +104,8 @@ def main():
                 "place": {"id": str(real["place"][0]), "name": name_of(real["place"])},
                 "car": {"id": str(car_row[0]), "label": ("%s %s" % (car_row[1], car_row[2])).strip()},
                 "paint": {"id": str(paint_row[0]), "name": name_of(paint_row)},
-                "delivery_date_be": "20/09/2569",
+                # 按当天推算：编辑页只收今天到两年后的交车日（与 LINE 日期选择器同一范围）。
+                "delivery_date_be": to_be_date(date.today() + timedelta(days=7)),
                 "term": {"id": str(real["term"][0]), "name": name_of(real["term"])},
                 "regis": {"id": str(real["regis"][0]), "name": name_of(real["regis"])},
                 "regis_name": "คุณสมชาย",

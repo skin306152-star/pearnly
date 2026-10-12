@@ -23,6 +23,7 @@ LINE 出口**不打桩**：本机样例站点开着本地镜像（`pearnly_line_
 def main():
     import json
     import secrets
+    from datetime import date, timedelta
 
     import frappe
 
@@ -34,7 +35,10 @@ def main():
     from pearnly_dms.editor import customer_edit as ce
     from pearnly_dms.editor import edit_snapshot as snap
     from pearnly_dms.line import out as dms_out
+    from pearnly_dms.contracts.client_base import to_be_date
 
+    # 交车日按当天推算：编辑页只收"今天到两年后"（与 LINE 日期选择器同一范围），写死的日子会过期。
+    DELIVERY = to_be_date(date.today() + timedelta(days=7))
     results = []
 
     def check(label, ok, detail=""):
@@ -158,7 +162,7 @@ def main():
             "place": {"id": "PL1", "name": "สาขาหลัก"},
             "car": {"id": "C1", "label": "DMAX 2.5"},
             "paint": {"id": "PT1", "name": "แดง"},
-            "delivery_date_be": "20/09/2569",
+            "delivery_date_be": DELIVERY,
             "term": {"id": "T1", "name": "เงินสด"},
             "regis": {"id": "R1", "name": "ตนเอง"},
             "regis_name": "คุณสมชาย",
@@ -183,7 +187,7 @@ def main():
                 "place_id": "PL1",
                 "car_id": "C1",
                 "paint_id": "PT1",
-                "delivery_date_be": "20/09/2569",
+                "delivery_date_be": DELIVERY,
                 "term_id": "T1",
                 "regis_id": "R1",
                 "regis_name": "คุณสมชาย",
@@ -318,6 +322,13 @@ def main():
         payload["answers"]["delivery_date_be"] = "32/01/2569"
         got = code_of(be.save, LINE_UID, NONCE, payload)
         check("交车日非法 → invalid_delivery 且不写", got == "dms_booking.invalid_delivery", got)
+        for outside in (date.today() - timedelta(days=1), date.today() + timedelta(days=366 * 2 + 1)):
+            payload = submitted()
+            payload["answers"]["delivery_date_be"] = to_be_date(outside)
+            got = code_of(be.save, LINE_UID, NONCE, payload)
+            sess = ((store.get_session(LINE_UID) or {}).get("payload") or {}).get("nonce")
+            check("交车日超出今天到两年后 → invalid_delivery 且不写（%s）" % to_be_date(outside),
+                  got == "dms_booking.invalid_delivery" and sess == NONCE, got)
         payload = submitted()
         payload["answers"]["regis_name"] = ""
         got = code_of(be.save, LINE_UID, NONCE, payload)

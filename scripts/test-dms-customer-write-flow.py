@@ -5,6 +5,7 @@ concurrency test. Only the outer authenticated DMS session and storage/HTTP are
 substituted. Run env/bin/python scripts/test-dms-customer-write-flow.py.
 """
 import copy
+from datetime import date, timedelta
 from pathlib import Path
 import runpy
 import unittest
@@ -18,7 +19,7 @@ Base = queue["IntakeQueue"]
 UID, USER = queue["LINE_USER"], queue["USER"]
 from pearnly_dms.intake import service
 from pearnly_dms.adapter.operations import err
-from pearnly_dms.contracts.client_base import DmsClientError
+from pearnly_dms.contracts.client_base import DmsClientError, to_be_date
 from pearnly_dms.contracts.customer_merge import unknown
 
 REAL_PUSH = service.push_idcard_fields
@@ -204,16 +205,17 @@ class CustomerWriteFlow(unittest.TestCase):
                     "resolved_customer": edit_snapshot._merge_customer_defaults(customer, saved)}
         self.enterContext(patch.object(booking_edit, "read_edit_snapshot", side_effect=snapshot))
         self.enterContext(patch.object(booking_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
+        delivery = to_be_date(date.today() + timedelta(days=7))  # 编辑页只收今天到两年后
         qa = {"endpoint_id": "offline-endpoint", "user_id": USER, "customer": {"id": "own", "name": baseline["name"]},
               "draft": copy.deepcopy(baseline), "advisor": {"id": "advisor", "name": "Advisor"},
               "answers": {**{key: {"id": key, "name": key.title()} for key in ("place", "paint", "term", "regis")},
-                          "car": {"id": "car", "label": "CAR Car"}, "delivery_date_be": "30/09/2569", "regis_name": baseline["name"]},
+                          "car": {"id": "car", "label": "CAR Car"}, "delivery_date_be": delivery, "regis_name": baseline["name"]},
               "payments": [{"channel": "cash", "amount": "10.25", "extra": {}}], "files": {}}
         self.store.set_session(UID, "booking_review", {"nonce": "booking-editor", "qa": qa})
         loaded = booking_edit.load(UID, "booking-editor")
         submitted = {"customer": loaded["form"]["customer"], "answers": {
             "place_id": "place", "car_id": "car", "paint_id": "paint", "term_id": "term",
-            "regis_id": "regis", "delivery_date_be": "30/09/2569", "regis_name": baseline["name"]},
+            "regis_id": "regis", "delivery_date_be": delivery, "regis_name": baseline["name"]},
             "payments": [{"channel": "cash", "amount": "10.25", "extra": {}}], "keep_files": {}}
         return booking_edit, baseline, submitted
 
