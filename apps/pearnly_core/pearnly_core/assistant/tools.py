@@ -7,6 +7,7 @@
   `pearnly_assistant_tools = ["<app>.<module>.TOOLS"]`（指向本产品的声明列表）。
 - 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
   也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
+  卡片上的问句是 `"ask"`；问法随参数变时另写 `"ask_when": {参数名: 问句}`，给了该参数就用那句。
 - 工具一律在本站服务端、以当前登录用户身份执行：权限、租户、套账与数据范围沿用各产品现有服务的
   校验，工具只调已有服务，不绕过它们读库。业务拒绝用 `frappe.throw`，作为 `is_error` 结果交回模型。
 """
@@ -70,12 +71,17 @@ def labels() -> dict[str, str]:
     return {t["name"]: _(t["label"]) if t.get("label") else t["name"] for t in declared()}
 
 
+def _given(values: dict, key: str) -> bool:
+    """这次调用给了这个参数（False / 0 也算给了；空串、空表不算）。"""
+    return values.get(key) not in (None, "", {}, [])
+
+
 def needs_approval(name: str, tool_input) -> bool:
     tool = next((t for t in declared() if t["name"] == str(name or "")), None)
     gate = (tool or {}).get("approval")
     if isinstance(gate, (list, tuple)):
         values = tool_input if isinstance(tool_input, dict) else {}
-        return any(values.get(key) not in (None, "", {}, []) for key in gate)
+        return any(_given(values, key) for key in gate)
     return bool(gate)
 
 
@@ -83,7 +89,7 @@ PREVIEW_ROWS = 20
 
 
 def approval_view(name: str, tool_input) -> dict:
-    """等「允许」时卡片上显示的：这一步要做什么（`ask`，没写就用步骤名）和要改哪几项（`preview`：
+    """等「允许」时卡片上显示的：这一步要做什么（`ask_when` 里给了参数的那句，否则 `ask`，没写就用步骤名）和要改哪几项（`preview`：
     [{field, before, after}]，由工具的 `preview` 按当前设置现算；没写或算不出就列参数）。不写任何东西。"""
     tool = next((t for t in declared() if t["name"] == str(name or "")), None) or {}
     values = tool_input if isinstance(tool_input, dict) else {}
@@ -98,7 +104,10 @@ def approval_view(name: str, tool_input) -> dict:
     if rows is None:
         rows = [{"field": key, "before": "", "after": value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)}
                 for key, value in values.items()]
-    ask = tool.get("ask") or tool.get("label") or str(name or "")
+    # 问句跟着这次改的内容走：`ask_when` 是 {参数: 问句}，给了哪个参数就问哪句（按声明顺序取第一个），
+    # 都没给才用 `ask`。例：定时任务只改提醒时刻，不该问「启用还是停用」（2026-10-13）。
+    ask = next((text for key, text in (tool.get("ask_when") or {}).items() if _given(values, key)), None)
+    ask = ask or tool.get("ask") or tool.get("label") or str(name or "")
     return {"ask": _(ask), "preview": rows[:PREVIEW_ROWS]}
 
 

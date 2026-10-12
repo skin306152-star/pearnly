@@ -367,6 +367,16 @@ class RelayTests(unittest.TestCase):
                              {"ask": "Save?", "preview": [{"field": "Day", "before": "1", "after": "5"}]})
             self.assertEqual(tools.approval_view("plain", {"task": "T1"}),
                              {"ask": "Did", "preview": [{"field": "task", "before": "", "after": "T1"}]})
+        # 问句跟着这次改的内容走（2026-10-13：只改提醒时卡片却问「启用还是停用」）：给了 ask_when 里的参数才用那句
+        declared = [{"name": "switch", "label": "Switched", "approval": True, "ask": "Change it?",
+                     "ask_when": {"enabled": "Turn it on or off?"}, "preview": "x.preview"}]
+        with mock.patch.object(tools, "declared", return_value=declared), \
+                mock.patch.object(tools.frappe, "get_attr", return_value=lambda data: [], create=True):
+            self.assertEqual(tools.approval_view("switch", {"task": "T1", "remind": True})["ask"], "Change it?")
+            self.assertEqual(tools.approval_view("switch", {"task": "T1", "enabled": False})["ask"], "Turn it on or off?")
+            self.assertEqual(tools.approval_view("switch", {"task": "T1", "enabled": True,
+                                                            "remind_times": []})["ask"], "Turn it on or off?")
+            self.assertEqual(tools.approval_view("switch", {"task": "T1", "enabled": None})["ask"], "Change it?")
         # 业务上没办成（status not_saved 等）也按出错交回，对话里那一步显示失败
         self.assertTrue(tools._refused('{"status": "not_saved", "reason": "x"}'))
         self.assertFalse(tools._refused('{"status": "saved"}'))

@@ -134,6 +134,12 @@ class DeclarationTests(unittest.TestCase):
             self.assertEqual(module, "pearnly_cowork.assistant.tools")
             self.assertTrue(callable(getattr(tools, attr)), attr)
             self.assertIn(tool["label"], terms, tool["name"])
+            # 等「允许」时卡片上的问句也要有译文（`ask`，以及随参数变的 `ask_when`）
+            for ask in [tool.get("ask")] + list((tool.get("ask_when") or {}).values()):
+                if ask:
+                    self.assertIn(ask, terms, tool["name"])
+            for key in tool.get("ask_when") or {}:
+                self.assertIn(key, tool["input_schema"]["properties"], tool["name"])
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]', hooks)
 
@@ -710,6 +716,12 @@ class FolderTaskTests(unittest.TestCase):
         self.assertEqual(found[0]["files"], {"": 9, "Mint": 0})  # 只给列出来的文件夹（与根目录）
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_folder_task_options")["description"]
         self.assertIn("without files means that computer has not reported counts", description)
+
+    def test_the_enable_card_asks_what_actually_changes(self):
+        # 2026-10-13：只改提醒时刻，卡片却问「要启用或停用这个定时任务吗？」——带了 enabled 才问启停，否则问「要更改吗」
+        tool = next(t for t in tools.TOOLS if t["name"] == "cowork_set_folder_task_enabled")
+        self.assertEqual(tool["ask"], "Change this folder task?")
+        self.assertEqual(tool["ask_when"], {"enabled": "Turn this folder task on or off?"})
 
     def test_save_enable_delete_go_through_the_task_service(self):
         values = {"title": "Ice", "connection": "EXP1", "direction": "purchase", "posting_kind": "stock",

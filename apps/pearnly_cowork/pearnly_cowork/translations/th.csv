@@ -258,6 +258,7 @@ Change members,เปลี่ยนสมาชิก
 Change the MR.ERP import settings?,เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่
 Change the inventory account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
 Change the stock account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
+Change this folder task?,เปลี่ยนงานตามกำหนดเวลานี้หรือไม่
 Changed,แก้ไขแล้ว
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข

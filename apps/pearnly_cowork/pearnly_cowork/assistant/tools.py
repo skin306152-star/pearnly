@@ -2948,7 +2948,9 @@ TOOLS = [
                                                         "remind_times": FOLDER_TASK_PROPS["remind_times"]},
                       "required": ["task"]},
      "approval": True,
-     "ask": "Turn this folder task on or off?",
+     # 只改提醒（remind / remind_times）时不问「启用还是停用」，带了 enabled 才问（2026-10-13）
+     "ask": "Change this folder task?",
+     "ask_when": {"enabled": "Turn this folder task on or off?"},
      "preview": "pearnly_cowork.assistant.tools.preview_set_folder_task_enabled",
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
     {"name": "cowork_delete_folder_tasks", "label": "Deleted folder tasks",
