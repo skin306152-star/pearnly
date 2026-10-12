@@ -35,6 +35,18 @@
 - 测试环境：`testcowork.pearnly.com` 解析到生产（107.155.65.74）；测试机当前跑的是 DMS 栈（`faaac313…`，约 1 小时前起，
   `testdms`、`testai` 切在隧道上）。起 Cowork 栈会停掉 DMS 栈，动手前先与在用的会话核对。
 - 测试机 CC：1.4.3（skin3，`C:\Users\skin3\AppData\Local\Programs\Pearnly Companion`），心跳正常，连生产 testcowork。
+- 2026-10-12 23:45 DMS 窗口确认其 DMS 栈已收尾；本窗口 `PEARNLY_TESTENV_REFRESH=1 lab-start cowork`（镜像 faaac313，与生产同），
+  testcowork 数据从线上重新导出导入（租户 T-2026-0287），域名切到测试机，线上 testcowork 调度按规程暂停（lab-stop 恢复）。
+
+### 测试环境定时任务（交接 F2「测试环境定时器」）
+
+只读核对（2026-10-12 23:45–23:51，测试机 testcowork）：`scheduler status` 为 enabled；站点配置 `pause_scheduler` 假、
+`maintenance_mode` 0；System Settings `enable_scheduler=1`、`dormant_days=4`。Frappe 的 `is_dormant` 先判
+`on_frappecloud()`，不在 Frappe Cloud 上直接回「不休眠」（读镜像内源码确认），与交接一致，不是原因。
+实测 `folder_intake.schedule.tick`、`recon_center.waiting.tick`、`work.reminders.run` 的 `last_execution` 从导出时的 23:44 前进到 23:48，
+即调度在跑。Cowork 栈没有设 `scheduler_tick_interval`（只有 DMS 设成 60），Frappe 默认节拍 240 秒：
+「每分钟」的任务在 Cowork（测试机与生产相同）实际每 4 分钟执行一次。先前「导入的租户定时任务不跑」在刷新后的数据上没能复现；
+提醒仍保留 `now` 参数按指定时刻手动触发，便于验收。
 
 ## 证据复核与设计
 
