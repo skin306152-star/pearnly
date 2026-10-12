@@ -481,6 +481,16 @@ class IdentityTests(unittest.TestCase):
         client, transport = self.taken(held)
         self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
 
+    def test_code_search_rows_that_only_contain_the_code_are_not_its_holder(self):
+        # DMS's list search is a substring match, so searching the code also lists the record
+        # coded "<ID>-1"; only the form's exact code makes a row the holder (else: two holders).
+        third = "1000002000006"
+        client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID),
+                                        "next": record(third, txtcuscode=PID + "-1")},
+                                       [[], [], [], [], ["next", "wrong"], ["next"], [], ["created"]])
+        self.assertEqual(client.save_customer(fields=FIELDS, mode="create"), ("created", False))
+        self.assertEqual([data["txtcuscode"] for _, data in transport.writes()], [PID, PID + "-2"])
+
     def test_unclear_code_holder_keeps_the_rejection(self):
         many = [str(n) for n in range(10)]
         cases = {
