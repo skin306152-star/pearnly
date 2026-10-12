@@ -280,3 +280,13 @@ def file_id(value) -> str:
     if not OPAQUE_ID.match(text):
         raise ContractError("invalid file id")
     return text
+
+
+def deep_link(session_id="") -> str:
+    """提醒点开去哪（手机推送、电脑通知共用）：有合法对话编号就打开那段对话，否则打开定时任务页。"""
+    from urllib.parse import quote
+
+    text = str(session_id or "").strip()
+    if OPAQUE_ID.match(text):
+        return "/assistant?c=" + quote(text, safe="")
+    return "/assistant?view=tasks"
