@@ -520,47 +520,88 @@ function Layout({ results }: { results: ReturnType<typeof useResultsPanel> }) {
   const chrome = useFramelessWindow();
   const win = useMaximized(chrome);
   const { isMobile } = useSidebar();
+  const main = (
+    <>
+      <MainTopBar nav={nav} window={win} chrome={chrome} />
+      <div className="relative flex min-h-0 flex-1 flex-row">
+        {view === "chat" && results.files.length > 0 && !results.open && (
+          <button
+            type="button"
+            onClick={() => results.setOpen(true)}
+            title={t("files")}
+            aria-label={t("files")}
+            className="cc-icon-btn absolute top-3 right-3 z-10 w-auto gap-1.5 px-2 text-sm"
+          >
+            <FilesIcon />
+            {results.files.length}
+          </button>
+        )}
+        {view === "tasks" ? (
+          <ScheduledTasks />
+        ) : (
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <SessionStatusBar />
+            <div className="min-h-0 flex-1">
+              <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />
+            </div>
+          </div>
+        )}
+        {view === "chat" && results.open && results.sessionId && (
+          <ResultsPanel
+            sessionId={results.sessionId}
+            files={results.files}
+            selected={results.selected}
+            onSelect={results.setSelected}
+            onClose={() => results.setOpen(false)}
+            className="max-md:fixed max-md:inset-0 max-md:z-50 md:w-[45%]"
+          />
+        )}
+      </div>
+    </>
+  );
+  if (isMobile) return <MobileShell main={main} />;
   return (
     <div className="flex h-dvh w-full bg-app">
-      <Sidebar>{isMobile ? <MobileDrawer /> : <DesktopSidebar nav={nav} window={win} chrome={chrome} />}</Sidebar>
+      <Sidebar>
+        <DesktopSidebar nav={nav} window={win} chrome={chrome} />
+      </Sidebar>
       {/* min-w-0：右侧结果面板里的宽表格在面板内横向滚动，不把整页撑宽、把「下载」「关闭」挤出窗口 */}
-      <SidebarInset className="relative min-w-0 flex-col bg-app">
-        <MainTopBar nav={nav} window={win} chrome={chrome} />
-        <div className="relative flex min-h-0 flex-1 flex-row">
-          {view === "chat" && results.files.length > 0 && !results.open && (
-            <button
-              type="button"
-              onClick={() => results.setOpen(true)}
-              title={t("files")}
-              aria-label={t("files")}
-              className="cc-icon-btn absolute top-3 right-3 z-10 w-auto gap-1.5 px-2 text-sm"
-            >
-              <FilesIcon />
-              {results.files.length}
-            </button>
-          )}
-          {view === "tasks" ? (
-            <ScheduledTasks />
-          ) : (
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <SessionStatusBar />
-              <div className="min-h-0 flex-1">
-                <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />
-              </div>
-            </div>
-          )}
-          {view === "chat" && results.open && results.sessionId && (
-            <ResultsPanel
-              sessionId={results.sessionId}
-              files={results.files}
-              selected={results.selected}
-              onSelect={results.setSelected}
-              onClose={() => results.setOpen(false)}
-              className="max-md:fixed max-md:inset-0 max-md:z-50 md:w-[45%]"
-            />
-          )}
-        </div>
-      </SidebarInset>
+      <SidebarInset className="relative min-w-0 flex-col bg-app">{main}</SidebarInset>
+    </div>
+  );
+}
+
+// 手机（同 Claude 手机端）：抽屉在底下，打开时当前页面整体往右推开、成一张圆角细边的卡片，只露出右边一截并稍压暗；
+// 点露出的那截或往左滑收回，从左边缘往右滑打开。样式在 globals.css 的 .cc-mshell。
+const SWIPE = 56;   // 横向滑动多少像素算一次开 / 关
+const EDGE = 28;    // 从屏幕左边多近处开始的右滑才算「打开」
+
+function MobileShell({ main }: { main: ReactNode }) {
+  const { openMobile, setOpenMobile } = useSidebar();
+  const [touch, setTouch] = useState<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const p = e.touches[0];
+    if (p && (openMobile || p.clientX <= EDGE)) setTouch({ x: p.clientX, y: p.clientY });
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const p = e.changedTouches[0];
+    if (!touch || !p) return;
+    const dx = p.clientX - touch.x;
+    const dy = Math.abs(p.clientY - touch.y);
+    setTouch(null);
+    if (dy > Math.abs(dx)) return;
+    if (!openMobile && dx > SWIPE) setOpenMobile(true);
+    if (openMobile && dx < -SWIPE) setOpenMobile(false);
+  };
+  return (
+    <div className="cc-mshell" data-open={openMobile} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <aside className="cc-mdrawer" aria-hidden={!openMobile} inert={!openMobile || undefined}>
+        <MobileDrawer />
+      </aside>
+      <div className="cc-mmain">
+        <div className="flex h-full min-w-0 flex-col" inert={openMobile || undefined}>{main}</div>
+        {openMobile && <button type="button" className="cc-mscrim" aria-label={t("close")} onClick={() => setOpenMobile(false)} />}
+      </div>
     </div>
   );
 }
