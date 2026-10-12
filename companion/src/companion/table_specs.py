@@ -54,7 +54,7 @@ TABLE_SPECS = {
     # 错位(BANKREC 真账反证:Express 原生 HP 单精确落 HP 桶、RR 桶为 0)。
     "APBAL": "SUPCOD C(10); BEGBAL B; "
     + "; ".join(_months(g) for g in ("HP", "RR", "CP", "GR", "PS")),
-    "ISRUN": "DOCTYP C(2); PREFIX C(2); DOCNUM C(10); JNLTYP C(2)",
+    "ISRUN": "DOCTYP C(2); DOCCOD C(2); PREFIX C(2); DOCNUM C(10); JNLTYP C(2)",
     "ARTRN": (
         "RECTYP C(1); DOCNUM C(12); DOCDAT D; YOUREF C(30); VATPRD D; VATDAT D; "
         "FLGVAT C(1); CUSCOD C(10); VATRAT N(5,2); AMOUNT B; AFTDISC B; TOTAL B; "

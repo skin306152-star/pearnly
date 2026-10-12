@@ -64,8 +64,34 @@ def _pos_sale(transfers=None, cash=None, **over):
 
 
 def _book(d, *rows):
-    F.seed(d, "ISRUN", [{"DOCTYP": prefix, "PREFIX": prefix, "DOCNUM": number, "JNLTYP": jnltyp}
-                        for prefix, number, jnltyp in rows])
+    """ISRUN 行:``(DOCTYP, DOCCOD, PREFIX, DOCNUM, JNLTYP)``。"""
+    F.seed(d, "ISRUN", [{"DOCTYP": doctyp, "DOCCOD": doccod, "PREFIX": prefix, "DOCNUM": number, "JNLTYP": jnltyp}
+                        for doctyp, doccod, prefix, number, jnltyp in rows])
+
+
+# 照测试机 6 个真账套的 ISRUN 造(T9SINCER 等):普通日记账单据簿是 GL / 00 / JV,JNLTYP 空、计数器空;
+# 总账另几本日记账 GL/01–04 也一样;反倒是一串别的单据(银行、调成本、存货调整、领用、调拨)的 JNLTYP 是 '00'。
+REAL_SHAPED_ISRUN = (
+    ("HS", "", "HS", "0000001", "03"),
+    ("IV", "", "IV", "0000127", "03"),
+    ("RR", "", "RR", "0000023", "04"),
+    ("BD", "", "BD", "0000001", "00"),
+    ("BT", "", "BT", "0000002", "00"),
+    ("BV", "", "BC", "0000001", "00"),
+    ("BW", "", "BW", "0000001", "00"),
+    ("CA", "", "CA", "0000001", "00"),
+    ("CA", "", "CF", "0000001", "00"),
+    ("JU", "", "JU", "0000001", "00"),
+    ("JU", "", "TK", "0000001", "00"),
+    ("OU", "", "OU", "0000001", "00"),
+    ("OU", "", "XS", "0000001", "00"),
+    ("RL", "", "RL", "0000001", "00"),
+    ("GL", "00", "JV", "", ""),
+    ("GL", "01", "PV", "", ""),
+    ("GL", "02", "RV", "", ""),
+    ("GL", "03", "SV", "", ""),
+    ("GL", "04", "UV", "", ""),
+)
 
 
 def _drop_book(d, prefix=None):
@@ -94,8 +120,25 @@ def datat(tmp_path):
             (OUTPUT_VAT, "ภาษีขาย"), (RECEIVABLE, "ลูกหนี้การค้า"))
     # 零售账套都有现金客户档(เงินสด)
     F.seed(d, "ARMAS", [{"CUSCOD": "เงินสด", "CUSNAM": "เงินสด", "ACCNUM": RECEIVABLE}])
-    _book(d, ("HS", "0000001", "03"), ("JV", "0000010", "00"))
+    _book(d, *REAL_SHAPED_ISRUN)
     return d
+
+
+def _isrun(d):
+    return [((r.DOCTYP or "").strip(), (r.DOCCOD or "").strip(), (r.PREFIX or "").strip(), (r.DOCNUM or "").strip(),
+             (r.JNLTYP or "").strip()) for r in _rows(d, "ISRUN")]
+
+
+def _set_counter(d, doctyp, doccod, number):
+    t = dbf.Table(str(d / "ISRUN.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    try:
+        for r in t:
+            if (r.DOCTYP or "").strip() == doctyp and (r.DOCCOD or "").strip() == doccod:
+                with r as rec:
+                    rec.DOCNUM = number
+    finally:
+        t.close()
 
 
 def _rows(d, name, **match):
@@ -137,8 +180,31 @@ def test_cash_sale_and_one_voucher_per_non_cash_payment_in_one_write(datat):
     assert heads == {"HS691013-001": "03", "JV691013-001": "00", "JV691013-002": "00"}
     assert _lines(datat, "JV691013-001") == sorted([("0", QR_BANK, Decimal("535.00")), ("1", CASH, Decimal("535.00"))])
     assert _lines(datat, "JV691013-002") == sorted([("0", CARD_BANK, Decimal("214.00")), ("1", CASH, Decimal("214.00"))])
-    # 普通日记账计数器随凭证张数增加
-    assert (_rows(datat, "ISRUN", PREFIX="JV")[0].DOCNUM or "").strip() == "0000012"
+
+
+def test_the_general_journal_book_is_the_gl_00_row_not_the_jnltyp_00_rows():
+    """真账套:JNLTYP '00' 的有十几行(都是别的单据),普通日记账是 GL / 00 那一行(JNLTYP 空)。"""
+    assert [row for row in REAL_SHAPED_ISRUN if row[4] == "00"][1:]  # 不止一行 JNLTYP 00
+    assert [row for row in REAL_SHAPED_ISRUN if row[:2] == ("GL", "00")] == [("GL", "00", "JV", "", "")]
+
+
+def test_counters_other_than_the_general_book_are_untouched_and_its_empty_counter_stays_empty(datat):
+    before = _isrun(datat)
+    res = _write(datat, _pos_sale())
+    assert res.ok, res.error
+    after = dict(((row[0], row[1], row[2]), row[3]) for row in _isrun(datat))
+    expected = dict(((row[0], row[1], row[2]), row[3]) for row in before)
+    expected[("HS", "", "HS")] = "0000002"  # 销售单照旧动 HS 计数器
+    assert after == expected  # GL/00/JV 空着(Express 自己也不记数),JNLTYP 00 的那一串一行没动
+
+
+def test_a_numbered_general_book_counter_goes_up_once_per_voucher(datat):
+    _set_counter(datat, "GL", "00", "0000010")
+    res = _write(datat, _pos_sale())
+    assert res.ok, res.error
+    counters = {(row[0], row[1], row[2]): row[3] for row in _isrun(datat)}
+    assert counters[("GL", "00", "JV")] == "0000012"
+    assert counters[("BD", "", "BD")] == "0000001" and counters[("BT", "", "BT")] == "0000002"
 
 
 def test_voucher_numbers_continue_after_existing_ones_of_the_day(datat):
@@ -164,22 +230,36 @@ def test_no_usable_journal_book_stops_before_touching_the_account_set(datat):
     assert _rows(datat, "ARTRN") == [] and _rows(datat, "GLJNL") == [] and _rows(datat, "ISVAT") == []
 
 
-def test_several_general_journal_books_use_jv_or_stop(datat):
-    _book(datat, ("GJ", "0000001", "00"))
+def test_the_jnltyp_00_rows_alone_are_not_a_journal_book(datat):
+    _drop_book(datat, "JV")  # 只剩十几行 JNLTYP 00 的别的单据和 GL/01–04
+    assert PJ.journal_prefix(datat) is None
+    _book(datat, ("JV", "", "JV", "0000001", "00"))  # 单别 JV、JNLTYP 00,但不是总账日记账那一行
+    assert PJ.journal_prefix(datat) is None
+
+
+def test_two_general_books_with_different_prefixes_stop(datat):
     assert PJ.journal_prefix(datat) == "JV"
-    _drop_book(datat, "JV")
-    _book(datat, ("AJ", "0000001", "00"))
-    assert PJ.journal_prefix(datat) is None  # GJ 与 AJ 都是普通日记账、没有 JV:不猜
+    _book(datat, ("GL", "00", "GJ", "", ""))
+    assert PJ.journal_prefix(datat) is None  # 两行 GL/00 单别不同:不猜
     res = _write(datat, _pos_sale())
     assert res.error_code == "JOURNAL_BOOK_NOT_FOUND"
+    assert _rows(datat, "ARTRN") == [] and _rows(datat, "GLJNL") == []
+
+
+def test_a_repeated_general_book_row_with_the_same_prefix_is_still_one_book(datat):
+    _book(datat, ("GL", "00", "JV", "", ""))
+    assert PJ.journal_prefix(datat) == "JV"
 
 
 def test_a_single_general_journal_book_is_used_whatever_its_prefix(datat):
     _drop_book(datat, "JV")
-    _book(datat, ("GJ", "0000001", "00"))
+    _book(datat, ("GL", "00", "GJ", "0000001", ""))
     res = _write(datat, _pos_sale())
     assert res.ok, res.error
     assert res.notes["pos_vouchers"] == ["GJ691013-001", "GJ691013-002"]
+    heads = {(r.VOUCHER or "").strip(): (r.JNLTYP or "").strip() for r in _rows(datat, "GLJNL")}
+    assert heads["GJ691013-001"] == heads["GJ691013-002"] == "00"  # 凭证本身仍记普通日记账
+    assert [row[3] for row in _isrun(datat) if row[:3] == ("GL", "00", "GJ")] == ["0000003"]
 
 
 def test_a_receiving_account_that_cannot_be_posted_stops_before_writing(datat):
@@ -212,7 +292,7 @@ def test_a_failure_while_writing_vouchers_rolls_back_the_sale(datat, monkeypatch
     def broken(*args, **kwargs):
         raise OSError("share dropped")
 
-    monkeypatch.setattr(PJ, "_bump_isrun", broken)
+    monkeypatch.setattr(PJ, "_bump_general_book", broken)
     res = _write(datat, _pos_sale(), make_backup=True)
     assert not res.ok
     assert _rows(datat, "ARTRN") == [] and _rows(datat, "GLJNL") == [] and _rows(datat, "ISVAT") == []

@@ -4,8 +4,11 @@ Express 原生记法(2026-10-13 定):现销 HS 照常借现金(账套现金科�
 刷卡、外卖平台)另记一张普通日记账凭证「借 收款科目 / 贷 现金」,金额 = 当天这种方式收的钱。凭证与销售单同一次写入:
 同一把账套锁、同一份写前备份、任何一步失败一起回滚、写完逐张读回核对。
 
-单据簿:账套 ISRUN 里普通日记账(JNLTYP '00')那一本的单别(PREFIX)。只有一本就用它;几本时用 JV;一本都没有、
-或几本里没有 JV → 停下报 JOURNAL_BOOK_NOT_FOUND(不猜)。凭证号 = 单别 + 佛历年月日 + '-' + 当日序号(与销售单同一写法)。
+单据簿:账套 ISRUN 里总账日记账 DOCTYP 'GL'、DOCCOD '00'(ทั่วไป,สมุดรายวันทั่วไป)那一行的单别(PREFIX,真账套是 JV)。
+真账套里这一行的 JNLTYP 是空的,反倒是几十行别的单据(BD/BT/BV/BW/CA/JU/OU/RL…)的 JNLTYP 是 '00'(它们过账进普通
+日记账),所以不能按 JNLTYP '00' 找单据簿(2026-10-13 测试机 6 个真账套都是这样)。没有这一行、或有几行而单别不同 →
+停下报 JOURNAL_BOOK_NOT_FOUND(不猜)。凭证本身(GLJNL.JNLTYP)仍记 '00' 普通日记账;计数器只动 GL/00 这一行
+(真账套里它是空的,Express 自己也不往里记数,空着就不动)。凭证号 = 单别 + 佛历年月日 + '-' + 当日序号(与销售单同一写法)。
 收款科目必须在科目表里且可记账(ACCTYP '0'),否则报 ACCOUNT_NOT_POSTABLE。
 """
 
@@ -19,12 +22,12 @@ import dbf
 
 from . import account_rules
 from . import dbf_schema as S
-from .dbf_writer import ERR_VERIFY, _WriteError, _bump_isrun, _gl_line, _open
+from .dbf_writer import ERR_VERIFY, _WriteError, _gl_line, _open
 
 ERR_JOURNAL_BOOK = "JOURNAL_BOOK_NOT_FOUND"
 ERR_ACCOUNT = "ACCOUNT_NOT_POSTABLE"
-GENERAL_JOURNAL = "00"
-PREFERRED_PREFIX = "JV"
+GENERAL_JOURNAL = "00"  # GLJNL.JNLTYP 普通日记账;也是 ISRUN 里总账日记账那一行的 DOCCOD
+GL_BOOK = "GL"  # ISRUN.DOCTYP:总账日记账(ทั่วไป / จ่าย / รับ / ขาย / ซื้อ …)各占一行,按 DOCCOD 分
 SEQIT_DEBIT = "1"
 SEQIT_CREDIT = "2"
 VAT_DESCRIPTION = "ใบกำกับภาษีอย่างย่อ"  # 销项税记录摘要:报税草稿据「อย่างย่อ」认出简易税票日汇总
@@ -52,8 +55,13 @@ def sale_description(first: str, last: str) -> str:
     return fit(f"ขายสด {range_text(first, last)}", _GL_DESCRP)
 
 
+def _is_general_book(r) -> bool:
+    return (str(account_rules._gv(r, "DOCTYP")) == GL_BOOK
+            and str(account_rules._gv(r, "DOCCOD")) == GENERAL_JOURNAL)
+
+
 def journal_prefix(account_dir) -> Optional[str]:
-    """普通日记账单据簿的单别;定不下来(没有、或几本里没有 JV)回 None。"""
+    """普通日记账单据簿(ISRUN 活行 DOCTYP 'GL'、DOCCOD '00')的单别;没有、或几行单别不同 → None。"""
     try:
         t = account_rules._open(account_dir, "ISRUN")
     except Exception:  # noqa: BLE001 — 读不到当没有
@@ -61,16 +69,30 @@ def journal_prefix(account_dir) -> Optional[str]:
     if t is None:
         return None
     try:
-        found: List[str] = []
-        for r in S.live_rows(t):
-            prefix = str(account_rules._gv(r, "PREFIX"))
-            if str(account_rules._gv(r, "JNLTYP")) == GENERAL_JOURNAL and prefix and prefix not in found:
-                found.append(prefix)
+        found = {str(account_rules._gv(r, "PREFIX")) for r in S.live_rows(t) if _is_general_book(r)}
     finally:
         t.close()
-    if PREFERRED_PREFIX in found:
-        return PREFERRED_PREFIX
-    return found[0] if len(found) == 1 else None
+    found.discard("")
+    return found.pop() if len(found) == 1 else None
+
+
+def _bump_general_book(account_dir, prefix: str) -> None:
+    """普通日记账单据簿(GL / 00 / 单别)的计数器 +1。只认这一行:通用的 ``_bump_isrun`` 按单别 + JNLTYP 找,
+    这一行 JNLTYP 是空的,会找不到。计数器空着(真账套就是这样,Express 自己不往里记数)或不是数字就不动。"""
+    t = _open(Path(account_dir), "ISRUN", dbf.READ_WRITE)
+    try:
+        for r in S.live_rows(t):
+            if _is_general_book(r) and (r.PREFIX or "").strip() == prefix:
+                cur = (r.DOCNUM or "").strip()
+                try:
+                    nxt = int(cur) + 1
+                except ValueError:
+                    return
+                with r as rec:
+                    rec.DOCNUM = str(nxt).zfill(len(cur))
+                return
+    finally:
+        t.close()
 
 
 def check(account_dir, transfers: Iterable[Dict]) -> Tuple[Optional[str], Optional[str], str]:
@@ -80,7 +102,7 @@ def check(account_dir, transfers: Iterable[Dict]) -> Tuple[Optional[str], Option
         return None, None, ""
     prefix = journal_prefix(account_dir)
     if not prefix:
-        return None, ERR_JOURNAL_BOOK, "no single general journal book (JNLTYP 00) in ISRUN"
+        return None, ERR_JOURNAL_BOOK, "no single general journal book (DOCTYP GL, DOCCOD 00) in ISRUN"
     for row in transfers:
         if not account_rules.postable_account(account_dir, row.get("acc")):
             return None, ERR_ACCOUNT, f"receiving account {row.get('acc')!r} is not a postable account"
@@ -139,7 +161,7 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
     finally:
         gi.close()
     for _item in written:
-        _bump_isrun(Path(account_dir), prefix, GENERAL_JOURNAL)
+        _bump_general_book(account_dir, prefix)
     return [{"voucher": item["voucher"], "acc": item["acc"], "amount": item["amount"]} for item in written]
 
 
