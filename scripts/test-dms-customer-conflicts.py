@@ -19,6 +19,11 @@ from pearnly_dms.contracts.client_base import DmsClientError
 
 
 class CustomerWrites(unittest.TestCase):
+    def setUp(self):
+        patcher = patch("pearnly_dms.client.client_intake.time.sleep")
+        self.sleep = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def client(self):
         transport = Transport({"own": record()})
         client = DmsClient(transport, "https://identity.invalid/dms/")
@@ -65,7 +70,9 @@ class CustomerWrites(unittest.TestCase):
         cl.save_customer(fields={}, addresses={"": {"road": ""}, "_ct": {"house_no": "77"}},
                          mode="overwrite", customer_id="own", baseline=baseline)
         self.assertEqual(tr.records["own"]["txtroad"], "")
-        self.assertEqual(tr.records["own"]["txthousenum_ct"], "77")
+        # DMS's own address rule (customer_merge.secondary_addresses, 2026-10-05): a contact
+        # block already in use in DMS is never overwritten; it is where the customer lives.
+        self.assertEqual(tr.records["own"]["txthousenum_ct"], before["txthousenum_ct"])
         self.assertEqual(tr.records["own"]["txtroad_sd"], "new shipping road")
         self.assertEqual(tr.records["own"]["txthousenum"], before["txthousenum"])
 
@@ -98,8 +105,10 @@ class CustomerWrites(unittest.TestCase):
         attempts = []
         with self.assertRaises(DmsClientError) as caught:
             cl.save_customer(fields={"phone": "0800000999"}, mode="overwrite", customer_id="own",
-                             baseline=baseline, on_attempt=lambda: attempts.append(True))
-        self.assertEqual(attempts, [True])
+                             baseline=baseline, on_attempt=attempts.append)
+        # Registered once before the post, with how to check this write later.
+        self.assertEqual(attempts, [{"mode": "overwrite", "customer_id": "own",
+                                     "expected": {"phone": "0800000999"}}])
         self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_UNCONFIRMED")
         self.assertTrue(caught.exception.response_body["submitted"])
 
@@ -111,6 +120,28 @@ class CustomerWrites(unittest.TestCase):
                              customer_id="own", baseline=baseline)
         self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_UNCONFIRMED")
         self.assertEqual(len(tr.writes()), 1)
+        self.assertEqual(self.sleep.call_count, 2)  # read three times, still one write
+
+    def test_readback_failing_once_then_reading_fine_is_success_with_one_write(self):
+        cl, tr, baseline = self.client()
+        reads = []
+        def flaky():
+            reads.append(True)
+            return "<html>login</html>" if len(reads) == 2 else None
+        tr.form_overrides["own"] = flaky
+        self.assertEqual(cl.save_customer(fields={"phone": "0800000999"}, mode="overwrite",
+                                          customer_id="own", baseline=baseline), ("own", False))
+        self.assertEqual(len(tr.writes()), 1)
+        self.assertEqual((len(reads), self.sleep.call_count), (3, 1))
+
+    def test_create_evidence_reads_back_the_derived_tax_identity(self):
+        tr = Transport()
+        cl = DmsClient(tr, "https://identity.invalid/dms/")
+        attempts = []
+        cl.save_customer(fields=FIELDS, mode="create", on_attempt=attempts.append)
+        expected = attempts[0]["expected"]
+        self.assertEqual((attempts[0]["mode"], attempts[0]["customer_id"]), ("create", None))
+        self.assertEqual((expected["people_id"], expected["tax_id"]), (PID, PID))
 
     def test_flatten_split_keep_explicit_blank_three_blocks(self):
         values = flatten({"phone": "", "people_id": PID}, {"": {"road": ""}, "_sd": {"road": "ship"}})

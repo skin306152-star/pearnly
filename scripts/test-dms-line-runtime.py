@@ -867,6 +867,41 @@ class SubmissionEvidence(unittest.TestCase):
             self.assertEqual(result["response_body"][key], value)
 
 
+class VerifiedCustomerWriteAndKick(unittest.TestCase):
+    """A customer write already read back field by field is not undone by a later kick."""
+
+    def run_with_kick(self, out):
+        from unittest.mock import MagicMock
+        adapter = MagicMock()
+        adapter.concurrent_login_detected = True
+        adapter.has_distinct_admin_creds = False
+        adapter.last_dialog = "duplicate login"
+        with patch("pearnly_dms.adapter.operations.build_adapter", return_value=(adapter, None)):
+            return intake_service.run_logged_in("EP-lab", Mock(return_value=out))
+
+    def test_verified_customer_write_and_booking_count_other_results_do_not(self):
+        # Old bug: the verified write became ERR_DMS_CONCURRENT_LOGIN, then "unconfirmed",
+        # and the customer stayed blocked although DMS had the change.
+        for proven in ({"ok": True, "success": True, "customer_id": "own", "cuscode": "C1"},
+                       {"ok": True, "booking_id": "external-lab-1", "booking_no": "LAB-1"}):
+            self.assertIs(self.run_with_kick(proven), proven)
+        for unproven in ({"ok": True}, {"ok": True, "success": True}, {"ok": True, "customer_id": "own"},
+                         {"ok": True, "rows": []}):
+            self.assertEqual(self.run_with_kick(unproven)["error_code"], "ERR_DMS_CONCURRENT_LOGIN")
+
+
+class BookingRetryRule(unittest.TestCase):
+    def test_unconfirmed_customer_write_before_the_order_gets_the_retry_card(self):
+        from pearnly_dms.booking.conversation import booking_flow
+        unconfirmed = {"error_code": "ERR_DMS_CUSTOMER_UNCONFIRMED",
+                       "response_body": {"submitted": True, "retry_safe": False}}
+        self.assertTrue(booking_flow._retryable_result(unconfirmed))
+        self.assertFalse(booking_flow._retryable_result({**unconfirmed, "booking_id": "external-lab-1"}))
+        for code in ("ERR_DMS_BOOKING_OUTCOME_UNKNOWN", "ERR_DMS_CUSTOMER_SAVE", ""):
+            self.assertFalse(booking_flow._retryable_result(
+                {"error_code": code, "response_body": {"submitted": True}}))
+
+
 class SalesQuery(unittest.TestCase):
     def test_named_field_filters_before_pagination(self):
         from pearnly_dms.query import sales_readback as query
@@ -1028,6 +1063,68 @@ class BookingService(unittest.TestCase):
     def book(self, **kwargs):
         return service.book_in_session({"id": "EP-lab", "name": "EP-lab"}, self.payload,
                                        on_attempt=self.attempt, **kwargs)
+
+    def edited_customer(self, outcomes):
+        """Booking with an edited customer; the dispatch marker's answers are scripted."""
+        self.payload["nonce"] = "booking-nonce"
+        self.payload["qa"].update(customer_dirty=True, user_id="operator-lab",
+                                  customer_baseline={"people_id": "fixture-id", "phone": "0800000001"},
+                                  customer_changes={"phone": "0812345678"})
+        calls = []
+
+        class Marker:
+            def __init__(marker, endpoint, request_id, actor, **kwargs):
+                calls.append("init")
+
+            def previous(marker):
+                calls.append("previous")
+                outcome = outcomes.pop(0)
+                if isinstance(outcome, Exception):
+                    raise outcome
+                return outcome
+
+            def reconcile(marker, client):
+                calls.append("reconcile")
+                self.assertIs(client, self.client)
+
+            def begin(marker, verify):
+                calls.append("begin")
+
+            def finish(marker, result):
+                calls.append("finish")
+                return result
+
+        self.enterContext(patch("pearnly_dms.intake.customer_attempt.Attempt", Marker))
+        self.client.save_customer.side_effect = lambda **kw: (kw["on_attempt"]({"mode": "overwrite"}),
+                                                              ("customer-lab", False))[1]
+        return calls
+
+    def test_blocked_customer_write_is_checked_in_the_same_session_then_written(self):
+        from pearnly_dms.contracts.customer_merge import unknown
+        calls = self.edited_customer([unknown(), None])
+        self.assertTrue(self.book()["ok"])
+        self.assertEqual(calls, ["init", "previous", "reconcile", "previous", "begin", "finish"])
+        self.client.create_booking_via_form.assert_called_once()
+
+    def test_checked_as_already_written_is_not_written_again(self):
+        from pearnly_dms.contracts.customer_merge import unknown
+        calls = self.edited_customer([unknown(), {"success": True, "customer_id": "customer-lab"}])
+        self.assertTrue(self.book()["ok"])
+        self.assertEqual(calls, ["init", "previous", "reconcile", "previous"])
+        self.client.save_customer.assert_not_called()
+        self.client.create_booking_via_form.assert_called_once()
+
+    def test_still_unconfirmed_customer_write_stops_before_the_order(self):
+        from pearnly_dms.booking.conversation import booking_flow
+        from pearnly_dms.contracts.customer_merge import unknown
+        calls = self.edited_customer([unknown(), unknown()])
+        result = self.book()
+        self.assertEqual(result["error_code"], "ERR_DMS_CUSTOMER_UNCONFIRMED")
+        self.assertEqual(calls, ["init", "previous", "reconcile", "previous", "finish"])
+        self.client.save_customer.assert_not_called()
+        self.client.create_booking_via_form.assert_not_called()
+        self.attempt.assert_not_called()  # the order was never registered, so retrying is safe
+        self.assertTrue(booking_flow._retryable_result(result))
 
     def test_resolver_mapping_runs_through_defaults_and_single_snapshot(self):
         result = self.book()

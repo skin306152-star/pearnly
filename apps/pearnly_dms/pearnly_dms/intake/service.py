@@ -281,22 +281,54 @@ def push_idcard_fields(
     from pearnly_dms.contracts.client_base import DmsClientError
     marker = Attempt(endpoint, request_id, actor, fields=fields, mode=mode,
                      customer_id=customer_id, addresses=addresses, baseline=baseline)
+    blocked = False
     try:
         previous = marker.previous()
     except DmsClientError as exc:
-        return err(exc.error_code, response_body=exc.response_body)
+        if exc.error_code != "ERR_DMS_CUSTOMER_UNCONFIRMED":
+            return err(exc.error_code, response_body=exc.response_body)
+        # 一次结果未确认的写入挡着这位客户（可能就是本请求自己上次那一笔）：进同一个会话，
+        # 先只读核对它，再决定（见 `_checked`）。
+        blocked, previous = True, None
     if previous:
         return previous
+    # 本请求自己登记过发出：这一趟只做核对，不会再写（`begin` 也会拒），收尾不能改写那一行。
+    own_dispatch = blocked and marker.dispatched()
     from pearnly_dms.adapter import snapshot_writeback
     cache_scope = snapshot_writeback.capture_scope(endpoint)
 
+    def _checked(cl):
+        """被挡时：用管理员会话只读核对挡着的写入（绝不重发），再看一次本请求。
+
+        核对为本请求已写入 → 直接给成功（像正常路径一样把客户写回本地缓存）；本请求确定没写进去
+        → 带 `reconciled: not_written` 交回界面重新查重；挡着的已放行 → None，接着按正常路径写
+        （实时查重、三方合并照旧）；仍然不明 → 抛出原来的"未确认"。"""
+        marker.reconcile(cl)
+        try:
+            done = marker.previous()
+        except DmsClientError:
+            if own_dispatch and marker.not_written():
+                return {**err("ERR_DMS_CUSTOMER_SAVE"), "reconciled": "not_written"}
+            raise
+        if not done:
+            return None
+        cached = snapshot_writeback.customer(endpoint, cl, done["customer_id"], expected_scope=cache_scope)
+        cuscode = str(done.get("cuscode") or (cached.get("cuscode") if isinstance(cached, dict) else "") or "")
+        return {**done, "cuscode": cuscode, "cache_updated": bool(cached),
+                "elapsed_ms": int((time.time() - t0) * 1000)}
+
     def _do(cl, adapter):
-        def begin():
+        if blocked:
+            checked = _checked(cl)
+            if checked is not None:
+                return checked
+
+        def begin(verify):
             if assert_current:
                 import frappe
                 frappe.db.commit()
                 assert_current()
-            marker.begin()
+            marker.begin(verify)
         cid, converted = cl.save_customer(
             fields=fields, mode=save_mode, customer_id=customer_id, addresses=addresses,
             baseline=baseline, on_attempt=begin,
@@ -326,7 +358,11 @@ def push_idcard_fields(
 
     # `catch_up=True`：这是操作员自己发起的一笔，动作做完顺手把 DMS 使用记录里的
     # 增量补回缓存（同一个会话，不多登一次、不多占一个账号）。
-    out = marker.finish(run_logged_in(endpoint, _do, attempt=attempt, catch_up=True))
+    out = run_logged_in(endpoint, _do, attempt=attempt, catch_up=True)
+    if own_dispatch:
+        out = {**out, "customer_write_log": marker.name}  # that row already records this request
+    else:
+        out = marker.finish(out)
     if not out.get("ok"):
         out["success"] = False
         out["elapsed_ms"] = int((time.time() - t0) * 1000)

@@ -156,9 +156,12 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
                     return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
                                getattr(exc, "response_body", None))
                 # 收尾再查一次：中途被别人顶下线，结果不能算数。
-                # 但**已经拿到单号**的结果算数 —— 单确实建出来了。
+                # 但**已经拿到单号**的结果算数 —— 单确实建出来了；客户写入已经逐字段读回核对
+                # 成功（带客户号的成功结果）也算数 —— 写进去了，改判成"被顶下线"只会让它变成
+                # 结果不明、把这位客户挡住。
                 if adapter.concurrent_login_detected and not (
-                    isinstance(out, dict) and out.get("booking_id")
+                    isinstance(out, dict)
+                    and (out.get("booking_id") or (out.get("success") and out.get("customer_id")))
                 ):
                     return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
                 # 走到了这里 = 真的连上并用完了（业务上被拒也算连上）：计数归零，

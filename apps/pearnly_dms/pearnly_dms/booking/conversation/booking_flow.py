@@ -16,7 +16,8 @@ async → 同步。它是"提交登记"（`dms_booking_attempt`）的**唯一调
 · **取消**不清会话里的登记标记 —— 登记过就说明请求可能已经发出去了，这时说"已取消"
   是撒谎，要改说"结果未知、请让管理员按这个号核"。
 · **重试只对"明确发生在建单之前"的阻塞开放**（主档暂时读不到、并发挤下线、
-  客户查不到）。主档已变更、以及任何"已经写下去过"的结果都**不重放**。
+  客户查不到、改客户资料的写入结果未确认 —— 重试时先只读核对那次写入）。主档已变更、
+  以及任何"已经写下去过"的结果都**不重放**。
 · **建单成功但附件没挂全要如实补一句**，绝不谎报附件成功。
 
 新平台的接口差异：async → 同步；后台任务走 `dms_out.enqueue`（webhook 立刻返回）；
@@ -265,7 +266,13 @@ def _retryable_result(result: Dict[str, Any]) -> bool:
     主档暂时读不到可以等它恢复后重试；主档已变更重试只会拿到同一份主档，
     必须让操作员重新选 —— 那不是"重试"，是"改内容"。
     """
-    if result.get("booking_id") or (result.get("response_body") or {}).get("submitted"):
+    if result.get("booking_id"):
+        return False
+    # 改客户资料那一步写入结果未确认：订车单还没开始建（客户写入在建单之前）；点重试时服务端
+    # 先只读核对那次客户写入、绝不重发它（`booking.service`），所以给重试卡。
+    if result.get("error_code") == "ERR_DMS_CUSTOMER_UNCONFIRMED":
+        return True
+    if (result.get("response_body") or {}).get("submitted"):
         return False
     if result.get("error_code") == "ERR_DMS_MASTER_UNMATCHED":
         return False

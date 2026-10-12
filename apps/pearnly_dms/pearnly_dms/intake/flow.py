@@ -526,12 +526,46 @@ def _dms_failed(
     _send(line_user_id, cards.retry_message(text), reply_token)
 
 
+def _offer_check(line_user_id: str, *, kind: str, attempt: int, text: str,
+                 retry_payload: dict, reply_token: str = "") -> None:
+    """客户写入结果未确认：原文案 + 现有的「重试」按键。
+
+    点了就是原样重跑**同一个请求**：服务端先只读核对 DMS 里写进去没有、绝不重发写入
+    （`intake.service.push_idcard_fields`）。核对不费重试次数，所以不计入"第三次就请联系
+    管理员"那一档（`check_only`），也不进 `pacing.RETRYABLE`。
+    """
+    sess = store.get_session(line_user_id) or {}
+    payload = dict(sess.get("payload") or {})
+    payload["dms_retry"] = {"kind": kind, "attempt": dms_retry.clamp(attempt),
+                            "payload": retry_payload, "check_only": True}
+    store.set_session(line_user_id, str(sess.get("state") or "reviewing"), payload)
+    _send(line_user_id, cards.retry_message(text), reply_token)
+
+
+def _recheck(binding: dict, line_user_id: str, source_session: dict, result: dict,
+             reply_token: str = "") -> None:
+    """核对确定上次那一笔没写进 DMS（已过原任务时限）：回到查重，发一张新的确认卡；
+    操作员再确认才会写（新请求，实时查重、三方合并照旧）。"""
+    old = (source_session or {}).get("payload") or {}
+    payload = {key: old[key] for key in ("id_card", "phone", "mode", "endpoint_id", "id_card_mid")
+               if old.get(key)}
+    if not payload.get("id_card") or not payload.get("phone"):
+        fr = result.get("error_friendly") or {}
+        _push(line_user_id, fr.get(i18n.line_lang()) or cards.TXT_SAVE_FAIL, reply_token)
+        return
+    if store.replace_session_snapshot(line_user_id, source_session, "collecting", payload):
+        run_dedup(binding, line_user_id, payload["id_card"], payload["phone"],
+                  payload.get("endpoint_id"), reply_token=reply_token)
+
+
 def _run_retry(binding: dict, line_user_id: str, reply_token: str, sess: Optional[dict]) -> None:
-    """点了「重试」：按会话里记着的那件事重跑一次，尝试次数 +1（超时随之拉长）。"""
+    """点了「重试」：按会话里记着的那件事重跑一次，尝试次数 +1（超时随之拉长）。
+
+    结果未确认那一种（`check_only`）只是重跑核对：不加次数，也就不会用完。"""
     payload = (sess or {}).get("payload") or {}
     marker = payload.get("dms_retry") or {}
     kind = str(marker.get("kind") or "")
-    attempt = dms_retry.clamp(marker.get("attempt") or 1) + 1
+    attempt = dms_retry.clamp(marker.get("attempt") or 1) + (0 if marker.get("check_only") else 1)
     if not kind or attempt > dms_retry.MAX_ATTEMPTS:
         # 没有可重试的事、或已经用完三次 —— 不假装还能再试。
         _reply(reply_token, cards.TXT_EXPIRED)
@@ -695,6 +729,13 @@ def execute(
         )
     elif result.get("error_code") == "ERR_DMS_ADMIN_AUTH":
         _push(line_user_id, cards.TXT_ADMIN_AUTH_FAIL, reply_token)  # 不谎称已自动通知
+    elif result.get("reconciled") == "not_written":
+        _recheck(binding, line_user_id, source_session, result, reply_token)
+    elif result.get("error_code") == "ERR_DMS_CUSTOMER_UNCONFIRMED":
+        fr = result.get("error_friendly") or {}
+        _offer_check(line_user_id, kind=retry_kind, attempt=attempt,
+                     text=fr.get(i18n.line_lang()) or cards.TXT_SAVE_FAIL,
+                     retry_payload=payload, reply_token=reply_token)
     else:
         fr = result.get("error_friendly") or {}
         # 连不上 DMS（超时/打不开）时不把锅甩给"我们内部错误"：给一次「重试」的机会，

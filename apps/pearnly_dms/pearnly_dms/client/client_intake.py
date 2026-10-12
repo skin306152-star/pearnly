@@ -78,6 +78,9 @@ _ADDR_MAP = {
     "zipcode_id": "selzipcodes",
 }
 _ADDR_SUFFIXES = ("", "_ct", "_sd")
+# 写后回读：没读成就隔这么久再读，最多读这么多次（与 `_research_customer` 同一口径）。
+_READBACK_TRIES = 3
+_READBACK_PAUSE_SECONDS = 1.5
 # 地址下拉「选中标签」键 → DMS select 名（各加 ""/_ct/_sd 后缀）· 仅供显示现值
 _GEO_LABEL_MAP = {
     "province_name": "selprovinces",
@@ -85,6 +88,12 @@ _GEO_LABEL_MAP = {
     "subdistrict_name": "selsubdistricts",
     "zipcode_name": "selzipcodes",
 }
+
+
+def _connection_lost(exc: BaseException) -> bool:
+    """传输层已经报连不上（`client.transport` 对读请求自己重试过一次后才包成这个错）。"""
+    return (isinstance(exc, DmsClientError) and exc.error_code == "ERR_DMS_TECHNICAL"
+            and exc.__cause__ is not None)
 
 
 class _IdentitySearchRows(HTMLParser):
@@ -373,7 +382,10 @@ class DmsClientIntakeMixin:
 
         endpoint = "cus/new.php" if mode == "create" else "cus/edit.php"
         if on_attempt:
-            on_attempt()
+            # 登记发出时一并交出"事后怎么核对这一次写入"：读法（建/改、客户号）与应读回的值
+            # （与下面写后回读同一口径）。登记方只存加盐摘要，不存明文。
+            on_attempt({"mode": mode, "customer_id": customer_id,
+                        "expected": customer_merge.readback(fields, addresses)})
         try:
             resp = self.transport.post(self._url(endpoint), data=data, timeout_ms=60000)
         except Exception as exc:
@@ -493,24 +505,64 @@ class DmsClientIntakeMixin:
     def _verify_saved(self, mode: str, fields: Dict[str, Any], customer_id: Optional[str],
                       addresses=None) -> str:
         """**PHP 成功码 ≠ 真写库**（这条在老产品是铁律）：
-        建 → 唯一完整证号复核；改 → 直读提交的身份字段（含隐式税号）。"""
+        建 → 唯一完整证号复核；改 → 直读提交的身份字段（含隐式税号）。
+
+        回读本身没读成（搜索偶发空返、表单读到一半、读到登录页）或读到的值对不上时**只重读**：
+        隔 1.5 秒、最多 3 次，与 `_research_customer` 同一口径；传输层已经报连不上（它自己已经
+        重试过一次）就不再追加，不让操作员在 DMS 卡死时多等。绝不重发 `new.php` / `edit.php`。
+        """
+        expected = customer_merge.readback(fields, addresses)
+        tries = 0
+        while True:
+            try:
+                cid, saved = self._read_saved(mode, fields.get("people_id") or "", customer_id)
+                if customer_merge.readback_of(saved, expected) != expected:
+                    raise DmsClientError("customer write identity readback mismatch", "ERR_DMS_CUSTOMER_SAVE")
+                return cid
+            except Exception as exc:
+                tries += 1
+                if tries >= _READBACK_TRIES or _connection_lost(exc):
+                    raise
+            time.sleep(_READBACK_PAUSE_SECONDS)
+
+    def _read_saved(self, mode: str, people_id: str, customer_id: Optional[str]) -> Tuple[Any, Dict[str, str]]:
+        """读一次 DMS 里这次写入的客户：建 → 按完整证号找唯一一位；改 → 按客户号直读表单。"""
         if mode == "create":
-            look = self.lookup_customer(fields.get("people_id") or "")
+            look = self.lookup_customer(people_id)
             if not look["found"]:
                 raise DmsClientError(
                     "customer create returned success but exact identity was not found",
                     "ERR_DMS_CUSTOMER_SAVE",
                 )
-            customer_id, saved = look["customer_id"], look["fields"]
-        else:
-            page = self._post_text("cus/form.php", {"status": "e", "id": customer_id})
-            saved = self._extract_customer_fields(self._identity_form_data(page))
-        expected = customer_merge.flatten(fields, addresses, derive_tax=False)
-        for key, value in expected.items():
-            normalize = normalize_thai_id if key in ("people_id", "tax_id") else str.strip
-            if normalize(str(saved.get(key) or "")) != normalize(value):
-                raise DmsClientError("customer write identity readback mismatch", "ERR_DMS_CUSTOMER_SAVE")
-        return customer_id
+            return look["customer_id"], look["fields"]
+        page = self._post_text("cus/form.php", {"status": "e", "id": customer_id})
+        return customer_id, self._extract_customer_fields(self._identity_form_data(page))
+
+    def read_written_customer(self, *, mode: str, keys: List[str], people_id: str = "",
+                              customer_id: str = "", known_id: str = "") -> Optional[Tuple[str, str, Dict[str, str]]]:
+        """事后**只读**核对一次结果未确认的客户写入（`intake.customer_attempt.Attempt.reconcile`）。
+
+        与写入同一类会话（配了管理员就是管理员会话，销售可能看不全客户档）；读法与写后回读
+        同一段（`_read_saved` / `lookup_customer`），比对口径同一条（`customer_merge.readback_of`）。
+        返回 `(客户号, 客户编号, 读回值)`。建档时：本地快照给了客户号（`known_id`）就一并直读它
+        （直读不受搜索的"新客隐身期"影响）；按证号搜不到就隔 1.5 秒再搜，3 次都**干净地**查无此人
+        才返回 None。读不到、形状不对一律抛异常，调用方据此继续挡着。不发任何写请求。
+        """
+        with self._writer_session():
+            if mode != "create":
+                cid, saved = self._read_saved(mode, "", customer_id)
+            else:
+                hints = [str(known_id)] if known_id else None
+                for attempt in range(_READBACK_TRIES):
+                    if attempt:
+                        time.sleep(_READBACK_PAUSE_SECONDS)
+                    look = self.lookup_customer(people_id, fallback_customer_ids=hints)
+                    if look["found"]:
+                        break
+                else:
+                    return None
+                cid, saved = look["customer_id"], look["fields"]
+        return str(cid), str(saved.get("cuscode") or ""), customer_merge.readback_of(saved, keys)
 
     def _select_options(self, page: str, name: str) -> List[List[str]]:
         m = re.search(

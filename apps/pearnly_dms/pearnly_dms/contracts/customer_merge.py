@@ -5,6 +5,7 @@ remain independent. An upstream field changed to the same desired value is
 already satisfied, not a conflict. No upstream version/CAS is available.
 """
 from pearnly_dms.contracts.client_base import DmsClientError
+from pearnly_dms.contracts.id_validate import normalize_thai_id
 
 IDENTITY = ("prefix_id", "name", "people_id", "tax_id", "birthday_be", "phone",
             "tel_work", "tel_home", "email", "line_id", "facebook", "credit_day")
@@ -27,6 +28,23 @@ def flatten(fields, addresses=None, *, derive_tax=True):
         block = blocks.get(suffix) or {}
         result.update({key + suffix: value(block[key]) for key in ADDRESS if key in block})
     return result
+
+
+def stored(key, item):
+    """A value the way DMS keeps it: identity numbers without separators, other text trimmed."""
+    text = value(item)
+    return normalize_thai_id(text) if key in ("people_id", "tax_id") else text.strip()
+
+
+def readback(fields, addresses=None):
+    """What a customer write must read back from DMS. The readback right after the write
+    and any later check of that same write compare against this, with ``stored`` on both sides."""
+    return {key: stored(key, item) for key, item in flatten(fields, addresses, derive_tax=False).items()}
+
+
+def readback_of(saved, keys):
+    """The read-back values of ``saved`` (fields read from DMS) for ``keys``."""
+    return {key: stored(key, saved.get(key)) for key in keys}
 
 
 def secondary_addresses(desired, current, present=SUFFIXES[1:]):

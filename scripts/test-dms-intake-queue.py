@@ -654,6 +654,65 @@ class IntakeQueue(unittest.TestCase):
                 self.assertEqual((logs[-1]["actor"], logs[-1]["endpoint"], logs[-1]["business_key"]),
                                  (USER, "offline-endpoint", ""))
 
+    def unconfirmed(self):
+        from pearnly_dms.line.errors import friendly
+        return {"ok": False, "success": False, "error_code": "ERR_DMS_CUSTOMER_UNCONFIRMED",
+                "error_friendly": friendly("ERR_DMS_CUSTOMER_UNCONFIRMED"), "customer_write_log": "CW-offline",
+                "response_body": {"submitted": True, "retry_safe": False}}
+
+    def test_unconfirmed_write_offers_a_check_that_reruns_the_same_request_without_using_up_retries(self):
+        # Old bug: "unconfirmed" was a dead end with no button; the customer stayed blocked.
+        for kind in ("create", "update"):
+            with self.subTest(kind=kind):
+                self.push_fields.reset_mock()
+                self.push_fields.side_effect = [self.unconfirmed() for _ in range(4)] + [
+                    {"ok": True, "success": True, "customer_id": "offline-customer", "cuscode": "C-1",
+                     "mode": kind, "recovered": True, "customer_write_log": "CW-offline"}]
+                self.review_for_write(kind)
+                self.worker()
+                for click in range(1, 5):
+                    marker = self.store.get_session(LINE_USER)["payload"]["dms_retry"]
+                    self.assertEqual((marker["kind"], marker["attempt"], marker["check_only"]), (kind, 1, True))
+                    message = self.messages()[-1][1]["messages"][0]
+                    self.assertIn("quickReply", message)  # never the third-time "contact admin" dead end
+                    self.assertEqual(message["text"], self.flow.dms_intake.friendly(
+                        "ERR_DMS_CUSTOMER_UNCONFIRMED", lang="th"))
+                    self.event(action=self.cards.ACT_RETRY, token=f"reply-check-{click}")
+                    self.worker()
+                self.assertIsNone(self.store.get_session(LINE_USER))
+                calls = self.push_fields.call_args_list
+                self.assertEqual({call.kwargs["request_id"] for call in calls}, {calls[0].kwargs["request_id"]})
+                self.assertEqual([call.kwargs["attempt"] for call in calls], [1] * 5)
+                self.assertEqual(self.messages()[-1][1]["replyToken"], "reply-check-4")
+                self.assertIn("C-1", self.messages()[-1][1]["messages"][0]["text"])
+
+    def test_check_that_finds_nothing_written_reopens_a_fresh_confirmation(self):
+        for kind in ("create", "update"):
+            with self.subTest(kind=kind):
+                self.push_fields.reset_mock()
+                self.lookup.reset_mock()
+                self.push_fields.side_effect = [self.unconfirmed(), {
+                    **self.unconfirmed(), "error_code": "ERR_DMS_CUSTOMER_SAVE", "reconciled": "not_written"}]
+                first = self.review_for_write(kind)
+                self.worker()
+                self.event(action=self.cards.ACT_RETRY, token="reply-check")
+                self.worker()
+                session = self.store.get_session(LINE_USER)
+                self.assertEqual(session["state"], "reviewing")
+                self.assertNotEqual(session["payload"]["nonce"], first)
+                self.assertNotIn("dms_retry", session["payload"])
+                self.assertEqual(session["payload"]["phone"], PHONE)
+                self.assertEqual(self.lookup.call_count, 2)  # cache-only dedup again, no new OCR
+                self.assertEqual(self.messages()[-1][1]["replyToken"], "reply-check")
+                self.assertEqual(self.messages()[-1][1]["messages"][0]["type"], "flex")
+                self.assertEqual(self.push_fields.call_count, 2)
+                # Writing again needs the operator's new confirmation: a new request.
+                self.event(action=self.cards.ACT_CREATE, nonce=session["payload"]["nonce"], token="reply-again")
+                self.assertEqual(self.jobs[0][1]["target"], "pearnly_dms.intake.flow.write_create")
+                self.assertEqual(self.jobs.pop()[1]["arguments"]["payload"]["nonce"],
+                                 session["payload"]["nonce"])
+                self.store.clear_session(LINE_USER)
+
     def test_revoked_binding_cancels_queued_write_retry_without_second_write(self):
         self.push_fields.return_value = {"success": False, "error_code": "ERR_DMS_UNREACHABLE"}
         self.review_for_write("create")

@@ -30,6 +30,8 @@ UNIT_TESTS = (
     "tests/test_dms_customer_update_rules.py",
     "tests/test_dms_read_scope.py",
     "tests/test_dms_geo_near_match.py",
+    "scripts/test-dms-customer-conflicts.py",
+    "tests/test_dms_customer_reconcile.py",
 )
 
 if __name__ == "__main__":

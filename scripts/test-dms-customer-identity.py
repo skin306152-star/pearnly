@@ -120,6 +120,12 @@ class Transport:
 
 
 class IdentityTests(unittest.TestCase):
+    def setUp(self):
+        # Readback retries pause 1.5 s between reads; record the pauses instead of waiting.
+        patcher = patch("pearnly_dms.client.client_intake.time.sleep")
+        self.sleep = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def client(self, records=None, searches=None):
         transport = Transport(records, searches)
         return DmsClient(transport, "https://identity.invalid/dms/"), transport
@@ -271,12 +277,52 @@ class IdentityTests(unittest.TestCase):
     def test_create_success_readback_rejects_wrong_or_missing_identity(self):
         for result in (["wrong"], [], ["wrong", "other"]):
             with self.subTest(result=result):
-                client, transport = self.client({"wrong": record(OTHER), "other": record(OTHER)}, [[], result])
+                self.sleep.reset_mock()
+                # Preflight search, then the readback is read three times; never a second create.
+                client, transport = self.client({"wrong": record(OTHER), "other": record(OTHER)},
+                                                [[], result, result, result])
                 self.rejects(lambda: client.save_customer(fields=FIELDS, mode="create"), transport, writes=1)
+                self.assertEqual(sum(p == "cus/component/showdata.php" for p, _ in transport.calls), 4)
+                self.assertEqual(self.sleep.call_count, 2)
 
     def test_create_success_readback_rejects_two_exact_ids(self):
-        client, transport = self.client({"a": record(), "b": record()}, [[], ["a", "b"]])
+        client, transport = self.client({"a": record(), "b": record()}, [[], ["a", "b"], ["a", "b"], ["a", "b"]])
         self.rejects(lambda: client.save_customer(fields=FIELDS, mode="create"), transport, writes=1)
+
+    def test_create_readback_missed_by_search_is_read_again_not_reposted(self):
+        # The search can come back empty right after a create (2026-10-12 reproduction): the
+        # write is already in DMS, so only the read is repeated and the result is a success.
+        client, transport = self.client(searches=[[], [], ["created"]])
+        self.assertEqual(client.save_customer(fields=FIELDS, mode="create"), ("created", False))
+        self.assertEqual([p for p, _ in transport.writes()], ["cus/new.php"])
+        self.assertEqual(self.sleep.call_count, 1)
+
+    def test_overwrite_readback_page_failure_is_read_again_not_reposted(self):
+        client, transport = self.client({"own": record()})
+        forms = iter([form(record()), "<html>login</html>"])
+        transport.form_overrides["own"] = lambda: next(forms, None)
+        self.assertEqual(client.save_customer(fields={"phone": "0800000002"}, mode="overwrite", customer_id="own",
+                         baseline=client._extract_customer_fields(record())), ("own", False))
+        self.assertEqual([p for p, _ in transport.writes()], ["cus/edit.php"])
+        self.assertEqual(self.sleep.call_count, 1)
+
+    def test_lost_connection_on_readback_is_not_read_again(self):
+        # The transport already retried the read once before reporting the connection lost;
+        # more reads would only keep the operator waiting while DMS is down.
+        client, transport = self.client({"own": record()})
+        reads = []
+        def lost():
+            reads.append(True)
+            if len(reads) == 1:
+                return form(record())
+            failure = DmsClientError("socket hang up", "ERR_DMS_TECHNICAL")
+            raise failure from ConnectionError("synthetic")
+        transport.form_overrides["own"] = lost
+        with self.assertRaises(DmsClientError) as caught:
+            client.save_customer(fields={"phone": "0800000002"}, mode="overwrite", customer_id="own",
+                                 baseline=client._extract_customer_fields(record()))
+        self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_UNCONFIRMED")
+        self.assertEqual((len(reads), len(transport.writes()), self.sleep.call_count), (2, 1, 0))
 
     def test_overwrite_cannot_succeed_when_identity_or_tax_write_was_ignored(self):
         for ignored in ("txtpeopleid", "txttaxid"):
@@ -286,6 +332,8 @@ class IdentityTests(unittest.TestCase):
                 self.rejects(lambda: client.save_customer(fields=FIELDS, mode="overwrite", customer_id="own",
                              baseline=client._extract_customer_fields(record(OTHER))),
                              transport, writes=1)
+                # A value DMS kept differently is read three times, never written twice.
+                self.assertEqual(sum(p == "cus/form.php" for p, _ in transport.calls), 4)
 
     def test_explicit_tax_write_must_be_read_back(self):
         client, transport = self.client({"own": record()})
@@ -311,11 +359,12 @@ class IdentityTests(unittest.TestCase):
 
     def test_overwrite_empty_readback_cannot_pass_even_when_name_not_submitted(self):
         client, transport = self.client({"own": record()})
-        forms = iter([form(record()), ""])
+        forms = iter([form(record()), "", "", ""])
         transport.form_overrides["own"] = lambda: next(forms)
         self.rejects(lambda: client.save_customer(fields={"phone": "0800000002"},
                                                   mode="overwrite", customer_id="own",
                                                   baseline=client._extract_customer_fields(record())), transport, writes=1)
+        self.assertEqual(self.sleep.call_count, 2)
 
     def test_implicit_and_explicit_tax_identity_success(self):
         for fields, expected in (({"people_id": OTHER, "tax_id": ""}, OTHER),

@@ -181,14 +181,23 @@ def book_in_session(
                 qa.get("user_id"), fields=fields, mode="overwrite", customer_id=customer_id,
                 addresses=addresses, baseline=baseline)
             # DmsClient.save_customer restores the original sales writer transport.
-            def begin_customer():
+            def begin_customer(verify):
                 if callable(guard):
                     import frappe
                     frappe.db.commit()  # live form reads must not freeze authority in an old RR view
                     guard()
-                marker.begin()
+                marker.begin(verify)
             try:
-                if not marker.previous():
+                try:
+                    done = marker.previous()
+                except customer_merge.DmsClientError as exc:
+                    if exc.error_code != "ERR_DMS_CUSTOMER_UNCONFIRMED":
+                        raise
+                    # 被一次结果未确认的客户写入挡着：本会话里先只读核对它（管理员会话，绝不重发），
+                    # 再看一次；仍然不明就照旧报"未确认"（订车单还没开始建，界面给重试卡）。
+                    marker.reconcile(cl)
+                    done = marker.previous()
+                if not done:
                     cl.save_customer(fields=fields, mode="overwrite", customer_id=customer_id,
                                      addresses=addresses, baseline=baseline, on_attempt=begin_customer)
                     marker.finish({"ok": True, "success": True, "customer_id": customer_id,
