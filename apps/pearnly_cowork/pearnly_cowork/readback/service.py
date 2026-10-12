@@ -4,8 +4,10 @@
 发起人可删除。判据同推送：录入权限 + 这条连接的使用授权（`companion.request_service.create` 再核一次），结果只给发起人。
 不调模型、不扣费、不写 Express。
 
-- ``request(connection, account_set_key, period, accounts=None)``：电脑此刻没来领按需请求（离线 / CC 桌面版太旧）回
-  ``{"status": "waiting_for_cc", "reason"}``，什么都不建；同一份还在读就回那一份；否则带上推送过的单据号建一份 → ``reading``。
+- ``request(connection, account_set_key, period, accounts=None)``：同一份还在读就回那一份；同一请求号（人、连接、账套、
+  月、科目）的按需请求还在等、在做或做完没取走就接着等它（`request_service.find`，不问电脑在不在）；否则电脑此刻没来领
+  按需请求（离线 / CC 桌面版太旧）回 ``{"status": "waiting_for_cc", "reason"}``，什么都不建；能领就带上推送过的单据号建一份
+  → ``reading``。
 - ``status(name)``：还在读就看请求：电脑做完了就当场处理（gunzip → `contracts.parse` → 推送记录再按本月的单据、凭证与
   税务记录的单号补查 → `diff.compare` → 四份工作簿 → 留存 → ready，删掉同一份的旧回读），失败 / 过期 / 处理出错记 failed；
   电脑没来领回 waiting_for_cc。
@@ -88,6 +90,19 @@ def _account(catalog, account_set_key):
     _error("cowork.readback.account_missing")
 
 
+def _request_key(lookup, accounts):
+    """按需请求号：同一人、同一连接、同一账套、同一月、同一组总账科目是同一件（`request_service.find` 据此找回）。"""
+    seed = json.dumps([lookup, list(accounts)], ensure_ascii=False)
+    return "readback:" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:48]
+
+
+def _holder(lookup, request):
+    """本人还在读、等着这件按需请求的那份回读。"""
+    found = frappe.db.sql(f"""SELECT name FROM `tab{READBACK}` WHERE lookup = %s AND actor = %s AND request = %s
+        AND status = 'reading' ORDER BY requested_at DESC LIMIT 1""", (lookup, frappe.session.user, request))
+    return found[0][0] if found else None
+
+
 def _known_version(connection):
     """心跳报过的这台电脑的 CC 桌面版版本（它从没来领过按需请求时据此分辨离线与要升级）。"""
     try:
@@ -119,17 +134,29 @@ def request(connection, account_set_key, period, accounts=None) -> dict:
         found = status(current)  # 同一份还在读：回它，不让电脑再读一遍
         if found["status"] != "failed":
             return found
-    waiting = request_service.waiting(connection, KIND, _known_version(connection))
-    if waiting:
-        return waiting
-    first, last = contracts.month_range(when)
-    pushed = push_service.pushed_express(connection, account["key"], first, last)
-    try:
-        params = contracts.read_params(account["path"], account["root"], when, [item["docnum"] for item in pushed])
-    except contracts.ContractError as error:
-        _error(error.code)
+    # 照按需请求的做法（`request_contracts` 文件头）：先找同一请求号还没了结的那一件（电脑正在读、传它时可能好一阵
+    # 不来领，不能因此判离线），找到就接着等；没有再问电脑在不在，最后才建
+    key = _request_key(lookup, only)
+    made = request_service.find(KIND, connection, key)
+    holder = _holder(lookup, made["request"]) if made else None
+    if holder:
+        found = status(holder)
+        if found["status"] != "failed":
+            return found
+        made = None  # 那份处理失败时请求已一并删掉
+    if not made:
+        waiting = request_service.waiting(connection, KIND, _known_version(connection))
+        if waiting:
+            return waiting
+        first, last = contracts.month_range(when)
+        pushed = push_service.pushed_express(connection, account["key"], first, last)
+        try:
+            params = contracts.read_params(account["path"], account["root"], when,
+                                           [item["docnum"] for item in pushed])
+        except contracts.ContractError as error:
+            _error(error.code)
+        made = request_service.create(KIND, connection, params, key)
     name = uuid4().hex
-    made = request_service.create(KIND, connection, params, "readback:" + name)
     row = frappe.new_doc(READBACK)
     row.update({"readback_id": name, "lookup": lookup, "actor": actor, "connection": connection,
                 "account_set_key": account["key"], "account_label": account["label"], "period": when,

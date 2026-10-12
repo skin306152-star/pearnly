@@ -544,9 +544,9 @@ class ServiceHarness:
         stubs = {
             "pearnly_cowork.access.scope": dict(require=lambda feature: self.calls.append(("scope", feature))),
             "pearnly_cowork.companion.request_service": dict(
-                create=self.create, status=self.request_status, result=self.result,
+                create=self.create, find=self.find, status=self.request_status, result=self.result,
                 drop=lambda name: self.calls.append(("drop", name)) or self.requests.pop(name, None),
-                waiting=lambda connection, kind, known="": dict(self.presence)),
+                waiting=lambda connection, kind, known="": self.calls.append(("waiting", kind)) or dict(self.presence)),
             "pearnly_cowork.connections.access": dict(require_connection=lambda doc: self.calls.append(
                 ("connection", doc.name))),
             "pearnly_cowork.connections.service": dict(
@@ -594,6 +594,12 @@ class ServiceHarness:
             found = sorted((row for row in self.rows.values() if row.lookup == lookup and row.actor == actor
                             and row.status in statuses), key=lambda row: row.requested_at, reverse=True)
             return [(found[0].name,)] if found else []
+        if "lookup = %s AND actor = %s AND request = %s AND status = 'reading'" in query:
+            lookup, actor, request = values
+            found = sorted((row for row in self.rows.values() if row.lookup == lookup and row.actor == actor
+                            and row.request == request and row.status == "reading"),
+                           key=lambda row: row.requested_at, reverse=True)
+            return [(found[0].name,)] if found else []
         if "lookup = %s AND actor = %s AND name != %s AND requested_at <= %s" in query:
             lookup, actor, name, at = values
             return [(row.name,) for row in list(self.rows.values())
@@ -611,6 +617,12 @@ class ServiceHarness:
         self.requests[name] = {"request": name, "kind": kind, "status": "requested", "code": "", "params": params}
         self.calls.append(("create", kind, connection, params, key))
         return dict(self.requests[name])
+
+    def find(self, kind, connection, key):
+        """同一请求号还在等、在做或做完没取走的那一件（真实的还核发起人与连接，这里只有一个人、一条连接）。"""
+        self.calls.append(("find", kind, connection, key))
+        current = self.requests.get(hashlib.sha256(key.encode()).hexdigest()[:32])
+        return dict(current) if current and current["status"] in ("requested", "leased", "done") else None
 
     def request_status(self, name):
         if name not in self.requests:
@@ -659,7 +671,10 @@ class Service(unittest.TestCase):
         self.assertEqual(create[1:4], ("express_read", "EXP1", {
             "account_set": "S:\\EXP69\\T9SINCER", "account_root": "S:\\EXP69", "period": "2026-05",
             "docnums": ["IV690503-001"]}))
-        self.assertEqual(create[4], "readback:" + made["readback"])
+        # 请求号由人、连接、账套、月与科目定（不随这份回读的编号变），先 find 再问电脑在不在，最后才建
+        self.assertRegex(create[4], r"^readback:[0-9a-f]{48}$")
+        self.assertEqual([call[0] for call in self.h.calls if call[0] in ("find", "waiting", "create")],
+                         ["find", "waiting", "create"])
         self.assertEqual((row.account_set_key, json.loads(row.params_json)),
                          ("s:\\exp69\\t9sincer", {"accounts": ["11-01"], "folder": "T9SINCER"}))
         # 还在读时再请求同一份：回同一份，不另建；总账要的科目不同才另读一份
@@ -672,6 +687,32 @@ class Service(unittest.TestCase):
         self.h.finish(row.request, raw())
         self.assertEqual(self.service.status(made["readback"])["status"], "ready")
         self.assertEqual(set(self.h.rows), {made["readback"], whole["readback"]})
+
+    def test_an_open_request_is_found_before_asking_whether_the_computer_is_there(self):
+        """电脑正读、传一件长回读时可能好一阵不来领（在线记录过期）：同一份再请求先 find 到那一件接着等，不判离线、不另建。"""
+        made, row = self._start()
+        self.h.requests[row.request]["status"] = "leased"
+        self.h.presence = {"status": "waiting_for_cc", "reason": "offline"}
+        del self.h.calls[:]
+        self.assertEqual(self.service.request("EXP1", "S:\\EXP69\\T9SINCER", "2026-05")["readback"], made["readback"])
+        self.assertNotIn("waiting", [call[0] for call in self.h.calls])
+        self.assertNotIn("create", [call[0] for call in self.h.calls])
+        # 这份回读的记录不见了（例如那一笔回滚），请求还在做：接上那一件，不让电脑再读一遍
+        del self.h.rows[made["readback"]]
+        del self.h.calls[:]
+        adopted = self.service.request("EXP1", "S:\\EXP69\\T9SINCER", "2026-05")
+        self.assertEqual((adopted["status"], self.h.rows[adopted["readback"]].request), ("reading", row.request))
+        self.assertEqual([call[0] for call in self.h.calls if call[0] in ("find", "waiting", "create")], ["find"])
+        # 做完没取走也一样：再请求就当场处理那一件
+        self.h.finish(row.request, raw())
+        self.assertEqual(self.service.request("EXP1", "S:\\EXP69\\T9SINCER", "2026-05")["status"], "ready")
+        # 那一件取走、删掉之后，同一份再请求才问电脑在不在
+        self.h.presence = {}
+        del self.h.calls[:]
+        again = self.service.request("EXP1", "S:\\EXP69\\T9SINCER", "2026-05")
+        self.assertNotEqual(again["readback"], adopted["readback"])
+        self.assertEqual([call[0] for call in self.h.calls if call[0] in ("find", "waiting", "create")],
+                         ["find", "waiting", "create"])
 
     def test_an_offline_or_old_computer_gets_no_request(self):
         self.h.presence = {"status": "waiting_for_cc", "reason": "offline"}
