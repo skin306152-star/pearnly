@@ -289,9 +289,9 @@ class FolderIntake:
         有心跳的连接两边都会带来，托盘同一版本只提示一次（auto_update.AutoUpdate.offer）。"""
         if self._on_update is None:
             return
-        from .worker import _offer_update
-
         try:
+            from .worker import _offer_update
+
             _offer_update(response, lambda update: self._on_update(update["version"], update["url"]))
         except Exception:
             log.exception("新版本提示失败")
