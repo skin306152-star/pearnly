@@ -23,6 +23,7 @@
 | HEIC 解码 pi-heif | `1.4.0` | 2026-10-02 PyPI 实查：BSD-3-Clause，cp314 manylinux_2_28 x86_64 轮子，只解码（libheif / libde265 LGPL，不含 x265）；frappe.Dockerfile 显式锁定 |
 | 智能体 Anthropic SDK（Python） | `anthropic 1.8.0` | 2026-10-10 PyPI 实查：2026-09-22 发布，要求 Python >= 3.10，纯 Python 轮子；frappe.Dockerfile 显式锁定（ADR-019） |
 | 智能体前端 | `react 19.2.8` / `@assistant-ui/react 0.14.27` / `vite 6.4.3` / `tailwindcss 4.3.3` | 2026-10-10，与 Anthropic 官方示例锁文件同版；`frontend/assistant/package.json` 全部精确版本 + 锁文件（ADR-019） |
+| cryptography（手机网页推送的加密与签名，`pearnly_core.assistant.webpush`） | 候选镜像实测值待填（本机核对 RFC 8291 / 8292 向量用的是 `50.0.2`） | 不单独安装：Frappe 自己的密码加密依赖它，随基础镜像 digest（`frappe.Dockerfile` 的 `FRAPPE_BASE`）间接锁定；`tests/test_assistant_push.py` 在候选镜像离线通道打印实际版本并要求主版本不低于 42，跑过后把版本回填到这里 |
 
 ## 尚未锁定（不能凭记忆写）
 
