@@ -723,6 +723,14 @@ class FolderTaskTests(unittest.TestCase):
         self.assertEqual(tool["ask"], "Change this folder task?")
         self.assertEqual(tool["ask_when"], {"enabled": "Turn this folder task on or off?"})
 
+    def test_folder_task_tools_change_only_what_the_user_asked(self):
+        # 2026-10-13：用户只让改提醒时刻，CC 却顺手把运行时间也改了
+        described = {t["name"]: t["description"] for t in tools.TOOLS}
+        for name in ("cowork_save_folder_task", "cowork_save_folder_tasks"):
+            self.assertIn("change only the fields the user asked to change; any other value you pass must be the "
+                          "task's current one", described[name].lower())
+        self.assertIn("give only what the user asked to change", described["cowork_set_folder_task_enabled"])
+
     def test_save_enable_delete_go_through_the_task_service(self):
         values = {"title": "Ice", "connection": "EXP1", "direction": "purchase", "posting_kind": "stock",
                   "root_id": "r1", "folder": "2026-10", "run_day": 0, "run_time": "22:00", "ignored": 1}

@@ -2914,7 +2914,8 @@ TOOLS = [
                     "paused task continues it and only handles files put in after it is saved. Same rules as the web "
                     "form: Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
                     "target ERP of an existing task cannot change. When a task is changed (name given), values left "
-                    "out keep their current ones. For two or more tasks use cowork_save_folder_tasks.",
+                    "out keep their current ones. Change only the fields the user asked to change; any other value "
+                    "you pass must be the task's current one. For two or more tasks use cowork_save_folder_tasks.",
      "input_schema": {"type": "object", "properties": FOLDER_TASK_PROPS,
                       "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
      "approval": True,
@@ -2927,7 +2928,9 @@ TOOLS = [
                     "tasks are saved together. Each task follows the same rules as cowork_save_folder_task: a new "
                     "task needs title, connection, direction, root_id, run_day and run_time; one folder holds one "
                     "direction and one posting kind; folders of enabled tasks, including the others in this list, "
-                    "cannot be the same or inside each other. All or nothing: if any task is refused, nothing is "
+                    "cannot be the same or inside each other. When changing tasks, change only the fields the user "
+                    "asked to change; any other value you pass must be the task's current one. All or nothing: if "
+                    "any task is refused, nothing is "
                     "saved and failed lists each refused task (its position, title and reason); fix them and call "
                     "again with the whole list. Up to 20 tasks.",
      "input_schema": {"type": "object", "properties": {
@@ -2940,7 +2943,8 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.save_folder_tasks"},
     {"name": "cowork_set_folder_task_enabled", "label": "Turned a folder task on or off",
      "description": "Pause or resume a scheduled folder task, turn its reminder on or off, or change its reminder "
-                    "times (give enabled, remind, remind_times or several). After resuming, the next run handles the "
+                    "times (give enabled, remind, remind_times or several; give only what the user asked to "
+                    "change). After resuming, the next run handles the "
                     "files in the folder it has not processed yet, including those put in while it was paused; a task "
                     "with include_existing false only handles files put in after it is resumed.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"},
