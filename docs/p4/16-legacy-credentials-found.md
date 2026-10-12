@@ -43,7 +43,7 @@ dump 里 22 条 DMS 连接分属不同账号。**只能拿测试账号做实验*
 账号身份是从老产品自己的文档确认的，不是猜的：
 
 - `docs/integrations/mrerp-dms-ui-test-plan.md:35` → **DMS 测试账号 `dmstest`**
-- 解出来 13 条 `dmstest` 连接，密码与账号同名（长度 7），`system_url` 全部一致
+- 解出来 13 条 `dmstest` 连接，`system_url` 全部一致
 
 ⚠️ 同一份文档还有一条运维约束要记住：**`dmstest` 只允许一个活跃登录**
 （`mrerp-dms-recovery.md:5`）。跑 DMS 链路前先确认没有别的会话占着，

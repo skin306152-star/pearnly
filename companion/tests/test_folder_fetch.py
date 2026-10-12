@@ -81,13 +81,14 @@ def test_folders_deeper_than_the_limit_mark_the_list_truncated(root):
     assert [row["name"] for row in data["files"]] == ["last.pdf"] and data["truncated"] is True
 
 
-def test_names_with_spaces_at_either_end_are_listed_and_read_as_they_are(root):
-    (root / "ACME ").mkdir()
-    (root / "ACME " / " scan.pdf").write_bytes(b"%PDF spaced")
+def test_names_with_leading_spaces_are_listed_and_read_as_they_are(root):
+    # Windows 会去掉名字末尾的空格，所以只用开头带空格的子文件夹和文件（两端一致：每段原样保留）
+    (root / "ACME" / " sub").mkdir()
+    (root / "ACME" / " sub" / " scan.pdf").write_bytes(b"%PDF spaced")
     rid = _root_id(root)
     data = _listed(folder_fetch.list_files(_cfg(), {"root_id": rid, "search": "scan"}))
-    assert [row["path"] for row in data["files"]] == ["ACME \\ scan.pdf"]
-    assert folder_fetch.read_file(_cfg(), {"root_id": rid, "path": "ACME \\ scan.pdf"}).content == b"%PDF spaced"
+    assert [row["path"] for row in data["files"]] == ["ACME\\ sub\\ scan.pdf"]
+    assert folder_fetch.read_file(_cfg(), {"root_id": rid, "path": "ACME\\ sub\\ scan.pdf"}).content == b"%PDF spaced"
     with pytest.raises(RequestFailed) as caught:
         folder_fetch.read_file(_cfg(), {"root_id": rid, "path": "ACME\\ \\scan.pdf"})
     assert caught.value.code == "path_invalid"  # 全是空白的一段不收（服务端同样）
