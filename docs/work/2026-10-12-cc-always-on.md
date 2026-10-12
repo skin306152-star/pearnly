@@ -19,13 +19,24 @@
 
 ## 本次改动（分支 `pearnly/cc-always-on`，基于 `pearnly/cc-claude-ui` 3d7edb61）
 
-- `companion/src/companion/always_on.py`（新）：`KeepAwake` 在专用线程上 `SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED)`，屏幕照常关、系统不睡，关掉或退出即恢复；`lock_screen()`。
+- `companion/src/companion/always_on.py`（新）：`KeepAwake` 在专用线程上 `SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED|ES_DISPLAY_REQUIRED)`，关掉或退出即恢复，不改电源设置；`lock_screen()`。锁屏界面因此一直亮着（见下面实测）。
 - `gui_tray.py`：常驻模式开着就保持不睡眠；开机自启（`--background`）进来先锁屏。
 - `gui_tray_workers.py`：常驻模式不弹账套占用询问框，交给写入时的占用检查按 `waiting_lock` 回报，空出来自动再写。
 - `config.py` / `profile_store.py`：全局设置 `always_on`（旧配置文件读作关）。
 - `desktop_settings.py` / `tomo_bridge.py`：`set_always_on`（打开时一并打开开机自启、立即保持不睡眠、重启取任务线程），快照带 `always_on`。
 - 对话页设置 → 此电脑 → 系统：「常驻模式」开关（旧版桌面端不报这一项就不显示）。
 - 小助手版本 1.4.2。
+
+## 现代待机实测（2026-10-12，办公室测试机 lenovo-office-lan，S0 现代待机，插电，交流电关屏 / 睡眠均为「从不」）
+
+用与常驻模式同一个调用的小脚本，以 skin3（Interactive、Limited）计划任务持有请求，Mac 每 20 秒 SSH 探测，读 System 日志 Kernel-Power 506/507：
+
+| 持有 | 动作 | 结果 |
+|---|---|---|
+| 系统（ES_SYSTEM_REQUIRED） | 广播 SC_MONITORPOWER 关屏 | 16:49:18 进入现代待机（原因 SC_MONITORPOWER / SleepButton），16:53:25 键盘唤醒；期间 SSH 超时 |
+| 系统 + 屏幕（+ES_DISPLAY_REQUIRED） | LockWorkStation 锁屏（同常驻模式开机） | 16:54:17 锁屏后到 16:58:34 每次探测在线，日志无 506 |
+
+结论：只保持系统不够（现代待机关屏即待机，锁屏约 1 分钟会关屏）；改为系统 + 屏幕。强制关屏 / 按电源键 / 合盖属人为操作，任何请求都拦不住。测试任务、脚本与请求已清除（`powercfg /requests` 无残留）。
 
 ## 验证
 

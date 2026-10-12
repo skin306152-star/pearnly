@@ -23,7 +23,8 @@ def test_keep_awake_holds_the_state_on_its_own_thread_and_releases_it(monkeypatc
     awake = always_on.KeepAwake()
     assert awake.set(True) is True and awake.active
     assert awake.set(True) is True  # 再开一次不多起线程
-    assert calls == [("keep-awake", always_on.ES_CONTINUOUS | always_on.ES_SYSTEM_REQUIRED)]
+    # 系统 + 屏幕：现代待机的电脑只保持系统拦不住关屏后的待机（2026-10-12 测试机实测）
+    assert calls == [("keep-awake", always_on.ES_CONTINUOUS | always_on.ES_SYSTEM_REQUIRED | always_on.ES_DISPLAY_REQUIRED)]
     assert awake.set(False) is True and not awake.active
     assert calls[-1] == ("keep-awake", always_on.ES_CONTINUOUS)  # 同一条线程上清掉：系统按原电源设置睡眠
     assert always_on.lock_screen() is True and calls[-1] == ("lock",)

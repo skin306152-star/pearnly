@@ -1,7 +1,10 @@
 """常驻模式：让一台办公室电脑当「CC 的电脑」，没人在也一直替 CC 把单据写进 Express（用户 2026-10-12 定方案 A）。
 
 这台电脑开机自动登录一个专用 Windows 账号（在 Windows 里设一次），小助手随登录启动；打开常驻模式后：
-- 不让电脑睡眠：屏幕照常关，系统不睡（`SetThreadExecutionState`，小助手退出即自动失效，不改电源设置）。
+- 不让电脑睡眠：保持「系统 + 屏幕」（`SetThreadExecutionState`，退出即自动失效，不改电源设置）。只保持系统不够：
+  现代待机（S0）的电脑屏幕一关就进待机，锁屏约 1 分钟也会关屏。2026-10-12 在办公室测试机（现代待机）实测：
+  只保持系统，关屏立即进入待机；保持系统 + 屏幕再锁屏，4 分钟以上一直在线、系统日志无待机记录。
+  所以锁屏界面会一直亮着（显示器可以关掉电源；没接显示器的小主机无所谓）。按电源键 / 合盖仍会睡，那是人为操作。
 - 开机自启时先锁屏：自动登录进来的桌面马上锁上，别人碰不到；小助手在锁屏后照常取任务、写账套。
 - 不弹「账套被占用」的询问框：没人点，原先会卡住再被当成用户终止；改为按「等账套」回报，空出来自动写（gui_tray_workers）。
 
@@ -20,6 +23,8 @@ log = get_logger(__name__)
 # winbase.h
 ES_CONTINUOUS = 0x80000000
 ES_SYSTEM_REQUIRED = 0x00000001
+ES_DISPLAY_REQUIRED = 0x00000002
+AWAKE = ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
 
 
 class KeepAwake:
@@ -46,7 +51,7 @@ class KeepAwake:
                 import ctypes
 
                 kernel32 = ctypes.windll.kernel32
-                result["ok"] = bool(kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED))
+                result["ok"] = bool(kernel32.SetThreadExecutionState(AWAKE))
                 ready.set()
                 stop.wait()
                 kernel32.SetThreadExecutionState(ES_CONTINUOUS)
