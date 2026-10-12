@@ -199,11 +199,15 @@ class NativeRecovery(unittest.TestCase):
                                                          "fixture-worker", context=context))
         self.assertTrue(recovery.ready(store.get_session(self.uid)["payload"]["booking_attempt"]))
 
-    def seed_delivery(self):
+    def seed_delivery(self, *, receipt_accepted=True):
+        """A verified order whose files are missing; by default its receipt already reached the operator."""
         self.seed_unknown(attachments=True)
         marker = store.get_session(self.uid)["payload"]["booking_attempt"]
         marker.update(completed_at=frappe.utils.now(), result={"ok": True, "booking_id": "fixture-order",
                       "booking_no": self.number, "attach_ok": False, "attached": 0})
+        if receipt_accepted:
+            marker["receipt"] = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(),
+                                 "text": "fixture receipt", "accepted_at": frappe.utils.now()}
         name = delivery.retain(self.uid, marker)
         self.assertTrue(store.clear_booking_attempt(self.uid, self.nonce))
         return name
@@ -370,9 +374,28 @@ class NativeRecovery(unittest.TestCase):
         self.delivery_queued(name)
         self.assertFalse(self.dms_calls)
         self.assertFalse(self.http)
-        self.assertEqual(self.deliveries()[0].status, "Pending")
-        self.assertFalse(json.loads(self.deliveries()[0].attempt)["result"]["attach_ok"])
+        self.assertEqual((self.deliveries()[0].status, self.deliveries()[0].last_error), ("Pending", "attachments_pending"))
+        marker = json.loads(self.deliveries()[0].attempt)
+        self.assertFalse(marker["result"]["attach_ok"])
+        self.assertEqual(marker["delivery"]["repairs"], 1)  # counts towards the one notice, never silent
         self.assertFalse(self.logs())
+
+    def test_attachment_identity_change_before_the_receipt_still_sends_it_without_files(self):
+        # The receipt never needed the DMS identity; the files do. Send the one, touch nothing of the other.
+        name = self.seed_delivery(receipt_accepted=False)
+        frappe.db.set_value("Pearnly ERP Endpoint", self.endpoint, "username", "different-fixture-identity")
+        frappe.db.commit()
+        self.delivery_queued(name)
+        self.assertFalse(self.dms_calls)
+        self.assertEqual([(method, url) for method, url, _ in self.http],
+                         [("POST", "https://api.line.me/v2/bot/message/push")])
+        self.assertIn(self.number, str(self.http[0][2]["json"]))
+        record, = self.deliveries()
+        self.assertEqual((record.status, record.last_error), ("Pending", "attachments_pending"))
+        marker = json.loads(record.attempt)
+        self.assertEqual(self.http[0][2]["headers"]["X-Line-Retry-Key"], marker["receipt"]["key"])
+        self.assertTrue(marker["receipt"]["accepted_at"])
+        self.assertNotIn("repairs", marker["delivery"])
 
     def assert_download_identity_change_rejected(self, mutation):
         name = self.seed_delivery()
@@ -387,7 +410,9 @@ class NativeRecovery(unittest.TestCase):
             self.assertNotEqual(current(self.uid)["binding_revision"], self.binding_revision)
         else:
             self.assertFalse(current(self.uid))
-        self.assertEqual(self.deliveries()[0].status, "Pending")
+        # The rebind is caught right after the download: Review at once, no upload, no message, no notice.
+        self.assertEqual((self.deliveries()[0].status, self.deliveries()[0].last_error), ("Review", "binding_changed"))
+        self.assertNotIn("notice", json.loads(self.deliveries()[0].attempt))
         self.delivery_queued(name)
         self.assertEqual((self.deliveries()[0].status, self.deliveries()[0].last_error), ("Review", "binding_changed"))
         self.assertEqual((len(self.http), len(self.dms_calls)), (1, 1))

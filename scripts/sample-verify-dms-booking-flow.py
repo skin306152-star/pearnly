@@ -39,7 +39,8 @@ def main():
     flow._out.start_loading = lambda line_user_id, seconds=30: True
     flow._out.download_content = lambda mid: b"\xff\xd8local-fixture"
     flow.recovery.delivery.matches = identity.matches
-    flow.recovery.delivery._repair_files = lambda doc, marker: False
+    repairs = []  # 补附件这一轮的调用（发回执的那一轮不许补）
+    flow.recovery.delivery._repair_files = lambda doc, marker: (repairs.append(doc.name), False)[1]
     flow.recovery.delivery.line.push = lambda uid, messages, **kwargs: (pushed.append(messages[0]["text"]), True)[1]
 
     ledger_calls = []
@@ -173,8 +174,9 @@ def main():
        pushed[-1:])
     ck("成功写了台账", len(ledger_calls) == 1 and ledger_calls[0]["result"]["booking_no"] == "BK001")
     ck("成功且附件齐全 → 回执**不**提附件", "แนบไฟล์ไม่ครบ" not in pushed[-1], pushed[-1][-30:])
+    normal_receipt = pushed[-1] if pushed else ""
 
-    # ── 7. 执行体：附件没挂全要如实说 ────────────────────────────────
+    # ── 7. 执行体：附件没挂全 → 回执照常当场发，缺的附件交给后台补 ─────
     pushed.clear()
     book_result = {"ok": True, "booking_no": "BK002", "booking_id": "R2", "attach_ok": False}
     uid7 = "verify-flow-" + secrets.token_hex(4)
@@ -186,9 +188,10 @@ def main():
     import frappe
     delivery = flow.recovery.delivery
     pending_delivery = frappe.get_doc(delivery.DT, delivery.name_for(uid7, n7))
-    ck("附件没挂全 → 保留待补任务，不谎报完成也不卡下一张草稿",
-       not pushed and pending_delivery.status == "Pending" and
-       pending_delivery.last_error == "attachments_pending" and store.get_session(uid7) is None)
+    ck("附件没挂全 → 回执当场发、与附件齐全时逐字相同；这一轮不补附件，记录留着等后台补，不卡下一张草稿",
+       pushed == [normal_receipt.replace("BK001", "BK002")] and not repairs and
+       pending_delivery.status == "Pending" and pending_delivery.last_error == "attachments_pending" and
+       store.get_session(uid7) is None, (pushed[-1:], repairs, pending_delivery.status, pending_delivery.last_error))
 
     # ── 8. 执行体：结果未知 / 可重试 / 钱不够 ────────────────────────
     pushed.clear()

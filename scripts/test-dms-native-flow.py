@@ -425,17 +425,30 @@ class NativeFlow(unittest.TestCase):
         self.assertEqual(self.deliveries()[0].status, "Delivered")
 
     def test_attachment_recovery_keeps_original_order_and_native_delivery_job(self):
+        # Old bug: the receipt waited for the files, so a failed upload left the operator with
+        # nothing on LINE. Now it rides the confirm click's free reply at once, word for word.
         self.dms.attach_available = False
         nonce = self.review(attachments=True)
-        self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=nonce)
+        event = self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=nonce)
         self.assertEqual(self.drain(), 1)
         self.assertIsNone(store.get_session(self.uid))
         self.assertEqual((self.deliveries()[0].status, self.deliveries()[0].last_error), ("Pending", "attachments_pending"))
+        self.assertEqual(self.dms.attach_calls, 1)  # the round that sends the receipt never repairs
+        number = self.dms.orders[0]["number"]
+        receipts = [data["json"] for _, url, data in self.http
+                    if number in str((data.get("json") or {}).get("messages"))]
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(receipts[0]["replyToken"], "reply-" + event)
+        stored = json.loads(self.deliveries()[0].attempt)["receipt"]["text"]
+        self.assertIn(stored, [message.get("text") for message in receipts[0]["messages"]])
         self.assertFalse(any(url.endswith("/push") for _, url, _ in self.http))
+        sent = len(self.http)
         self.dms.attach_available = True
         self.assertEqual(self.due_delivery().status, "Delivered")
         self.assertEqual(len(self.dms.orders), 1)
         self.assertTrue(self.dms.form.get("fulcurrname1"))
+        # Adding the files sends nothing to the operator (no second receipt, no notice).
+        self.assertFalse([url for _, url, _ in self.http[sent:] if url.endswith(("/push", "/reply"))])
 
     def test_receipt_failure_reuses_key_without_creating_another_order(self):
         # The free reply is refused (token expired), then the paid push fails too.
