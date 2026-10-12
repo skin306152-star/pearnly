@@ -12,13 +12,16 @@
 编号。所选模型有计价分档（`engines.context_limit`）时，记下最近一次模型请求的输入量（`context_tokens`）；
 一到界线，下一条消息就在新的一段里开始，并用系统消息带上前文要点（`contracts.carry_over`）。
 历史、文件按全部分段合起来给浏览器，所以看起来仍是同一个对话。
+
+对话提醒（`notices`）不在引擎会话里：补拉、整段重放时由这里按时间并进来；用户发话时，还没带过的提醒随批末的
+系统消息告诉智能体，发出成功后才标成带过。同一条系统消息每次都带上用户当地的日期时间（智能体才知道「今天」）。
 """
 import json
 
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import config, context, contracts, engine, engines, relay, toolrun, tools
+from pearnly_core.assistant import config, context, contracts, engine, engines, notices, relay, toolrun, tools
 
 SESSION = context.SESSION
 LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
@@ -63,16 +66,17 @@ def current(row) -> str:
     return segments(row)[-1]
 
 
-def _summary(row, status="idle") -> dict:
+def _summary(row, status="idle", unread=False) -> dict:
     return {"id": row.session_id, "title": row.title or "", "status": status, "starred": bool(row.get("starred")),
             "created_at": str(row.creation), "updated_at": str(row.modified),
-            "archived_at": str(row.modified) if row.archived else None}
+            "archived_at": str(row.modified) if row.archived else None, "unread": bool(unread)}
 
 
 def listing(archived=False, after=None) -> dict:
     """侧栏列表，按最后活动时间从新到旧一页一页给（同 Claude：先显示一页，滚到底再加载）。
-    加星标的全部在第一页（侧栏顶上的「已加星标」一组要齐）；之后的页只翻其余的。"""
-    base = {"user": _user(), "engine_code": config.engine_code(), "archived": 1 if archived else 0}
+    加星标的全部在第一页（侧栏顶上的「已加星标」一组要齐）；之后的页只翻其余的。有没看过的提醒的标 `unread`。"""
+    user = _user()
+    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0}
     fields = ["name", "session_id", "title", "starred", "archived", "creation", "modified"]
     order = "modified desc, name desc"
     rows = []
@@ -89,7 +93,8 @@ def listing(archived=False, after=None) -> dict:
     more = len(page) > PAGE_SIZE
     page = page[:PAGE_SIZE]
     cursor = f"{page[-1].modified}|{page[-1].name}" if more and page else None
-    return {"sessions": [_summary(row) for row in rows + page], "nextCursor": cursor}
+    unread = notices.unread_sessions(user, [row.session_id for row in rows + page])
+    return {"sessions": [_summary(row, unread=row.session_id in unread) for row in rows + page], "nextCursor": cursor}
 
 
 def _metadata(user, product) -> dict:
@@ -151,6 +156,7 @@ def delete(session_id) -> None:
     api = engine.adapter()
     for remote in segments(row):
         api.delete(remote)
+    notices.detach(row.session_id, _user())
     frappe.delete_doc(SESSION, row.name, ignore_permissions=True)
     from pearnly_core.assistant import files
 
@@ -177,25 +183,32 @@ def segment_for_turn(row, api) -> str:
 
 
 def events(session_id, after=None) -> dict:
-    """整段重放（after 为空，各段合起来）或只取当前段 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。"""
+    """整段重放（after 为空，各段合起来）或只取当前段 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。
+    本对话的提醒一并给：整段时按时间并入，增量时带上锚点时间之后的（对话页按编号去重）。"""
     row = owned(session_id, allow_archived=True)
+    user = _user()
     api = engine.adapter()
     if after:
         anchor = _guard(contracts.event_id, after)
         try:
-            newer = contracts.newer_than(api.events(current(row), newest_first=True), anchor)
+            found = contracts.since(api.events(current(row), newest_first=True), anchor)
         except Exception:
-            # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：这一次当作没有新事件，页面下一轮再取，不报 500
+            # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：这一次当作没有新事件，页面下一轮再取，不报 500；
+            # 本站的提醒照样带上
             frappe.log_error(title="Assistant events fetch failed")
-            return {"events": [], "full": False}
-        if newer is not None:
+            return {"events": notices.feed(row.session_id, user, recent=True), "full": False}
+        if found is not None:
+            newer = found[1:]
             _remember_context(row, newer)
-            return {"events": newer, "full": False}
+            since = contracts.instant(found[0].get("processed_at"))
+            return {"events": newer + notices.feed(row.session_id, user, since=since, recent=since is None),
+                    "full": False}
     history = []
     for remote in segments(row):
         part = list(api.events(remote))
         history += part
     _remember_context(row, part)
+    history = contracts.merge_by_time(history, notices.feed(row.session_id, user))
     return {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
                                                          "archived_at": str(row.modified) if row.archived else None}}
 
@@ -221,12 +234,19 @@ def send(session_id, text) -> None:
     remote = segment_for_turn(row, api)
     toolrun.remember_lang(row.session_id)
     relay.ensure(row.session_id, remote, frappe.session.user)
+    shown = notices.uncarried(row.session_id, frappe.session.user)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
-    if row.get("pending_carry"):
-        batch.append(contracts.carry_message(row.pending_carry))  # 系统消息只能放在一批事件的最后
+    # 接续的前文、还没带过的提醒、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后
+    note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), contracts.notices_note(shown),
+                                    contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
+    if note:
+        batch.append(note)
     api.post(remote, batch)
     if row.get("pending_carry"):
         frappe.db.set_value(SESSION, row.name, "pending_carry", "")
+    if shown:
+        # 发出成功才算带过；发不出（抛错）下次再带
+        notices.mark_carried(row.session_id, frappe.session.user, shown[-1]["creation"])
     if not row.title:
         # 首条消息原文先当标题（只写本站，会话列表读本站表），不拖慢发送；长的再在后台概括成短标题（`retitle`）。
         title = contracts.title_from(text)
@@ -238,6 +258,12 @@ def send(session_id, text) -> None:
                            title=title, user=frappe.session.user)
         else:
             _announce_title(row.session_id, title, frappe.session.user, after_commit=True)
+
+
+def notices_seen(session_id) -> None:
+    """对话页打开了这段对话：提醒都算看过（侧栏圆点消失）。"""
+    row = owned(session_id, allow_archived=True)
+    notices.mark_seen(row.session_id, _user())
 
 
 def retitle(name, conversation, source, title, user) -> None:
