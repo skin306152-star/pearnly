@@ -168,13 +168,13 @@
   --cc-split-hit: 12px;           /* 分隔条可按住的宽度（看得见的只有中间一条细线） */
   --cc-topbar-h: 3rem;            /* 电脑上对话顶部那一行（对话名） */
   --cc-mtopbar-h: 4.25rem;        /* 手机顶栏（不含刘海安全区） */
-  /* 手机端（2026-10-12 按 Claude 手机端截图实测取色）：顶栏是近乎实心的白（比正文亮）、下沿一条细线；圆按钮是浅灰实心；
-     抽屉底色比页面卡片深一档；对话行黑字 17 号、约 54 高 */
+  /* 手机端（2026-10-12 按 Claude 手机端同比例镜像截图核对）：顶栏平时透明、按钮浮在页面上，内容滚到下面时才是白色磨砂 + 细线；
+     圆按钮近白半透明、细描边轻阴影、约 44；抽屉底色比页面卡片深一档；对话行黑字、约 48 高 */
   --cc-mbar-bg: rgb(255 255 255 / 0.9);   /* 实测 #fefefc */
-  --cc-mbtn-bg: #f2f2f0;          /* 实测 #f3f4f1 */
-  --cc-mbtn-size: 3rem;
+  --cc-mbtn-bg: rgb(255 255 255 / 0.72);
+  --cc-mbtn-size: 2.75rem;
   --cc-bg-drawer: #f3f3f1;        /* 实测 #f3f4f1（右边卡片 #f9faf7） */
-  --cc-mrow-h: 3.375rem;
+  --cc-mrow-h: 3rem;
   --cc-results-in: 240ms;         /* 右侧面板滑入 */
   --cc-text-xs: 0.75rem;          /* 步骤详情里的命令输出 */
   --cc-text-sm: 0.8125rem;        /* 表格、代码块、源码预览、批准说明的小字 */
@@ -211,7 +211,7 @@
   --cc-bg-overlay: rgb(0 0 0 / 0.55);
   --cc-bg-selected: rgb(250 249 245 / 0.12);
   --cc-mbar-bg: rgb(38 38 36 / 0.9);
-  --cc-mbtn-bg: rgb(250 249 245 / 0.08);
+  --cc-mbtn-bg: rgb(48 48 46 / 0.72);
   --cc-bg-drawer: #1a1a19;
   --cc-mscrim-bg: #000000;
   --cc-mscrim-max: 0.45;
@@ -498,8 +498,13 @@
   /* 手机顶栏（同 Claude 手机端）：盖在内容上的半透明一条，内容从下面滚过去 */
   .cc-mtopbar {
     position: absolute; inset: 0 0 auto 0; z-index: 20; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem;
-    padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.5rem;
-    background: var(--cc-mbar-bg); border-bottom: 0.5px solid var(--cc-line);
+    padding: max(0.5rem, calc(env(safe-area-inset-top) - 0.25rem)) 1rem 0.5rem;
+    background: transparent; border-bottom: 0.5px solid transparent;
+    transition: background-color var(--cc-dur) var(--cc-ease), border-color var(--cc-dur) var(--cc-ease);
+  }
+  /* 内容滚到顶栏下面时才出现白色磨砂与细线（mobile-shell 按滚动写 data-scrolled；欢迎页 data-plain 始终透明） */
+  .cc-mshell[data-scrolled] .cc-mtopbar:not([data-plain]) {
+    background: var(--cc-mbar-bg); border-bottom-color: var(--cc-line);
     backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8);
   }
   .cc-mtopbar-title { min-width: 0; text-align: center; color: var(--cc-ink); font-weight: 600; font-size: 1.0625rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -550,11 +555,12 @@
 .cc-drawer .cc-nav-item { height: var(--cc-mrow-h); font-size: 1.0625rem; padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
 /* 手机顶栏与抽屉里的圆按钮：浅灰实心、无描边无阴影（同 Claude 手机端） */
 .cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {
-  width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); background: var(--cc-mbtn-bg); border-color: transparent; box-shadow: none; color: var(--cc-ink);
+  width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); background: var(--cc-mbtn-bg); color: var(--cc-ink);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 .cc-drawer .cc-nav-item svg { width: 1.375rem; height: 1.375rem; }
 /* 抽屉标题（同 Claude 手机端的「Claude」：常规字重的衬线字） */
-.cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 2.25rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }
+.cc-drawer-title { font-family: var(--cc-font-serif); font-weight: 400; font-size: 1.875rem; line-height: 1; color: var(--cc-ink); letter-spacing: -0.01em; }
 
 /* 手机抽屉（同 Claude 手机端）：抽屉在底下不动，页面是盖在上面的卡片，跟着手指往右推开（components/mobile-shell.tsx）。
    --cc-mprogress：0 收起 ~ 1 打开，拖动时由页面逐帧写入；一离开原位就是圆角细边（前 1/12 的路程里长满），越往右盖得越多（浅色变淡、深色变暗）。 */

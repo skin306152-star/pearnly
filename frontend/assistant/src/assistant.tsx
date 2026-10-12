@@ -416,7 +416,7 @@ function MobileDrawer() {
   const pick = useBackToChatOnPick(close);
   return (
     <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]">
-      <div className="flex items-center justify-between px-4 pt-5 pb-3">
+      <div className="flex items-center justify-between px-4 pt-1 pb-3">
         <span className="cc-drawer-title ps-1">{APP_NAME}</span>
         <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
@@ -485,7 +485,7 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
   if (isMobile) {
     if (openMobile) return null;
     return (
-      <div className="cc-mtopbar">
+      <div className="cc-mtopbar" data-plain={!inChat || undefined}>
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <DrawerIcon />
         </button>
