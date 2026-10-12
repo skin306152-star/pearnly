@@ -63,6 +63,8 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
+  /** 打开已有对话、消息还没取回时居中显示（同 Claude：形象 + 「正在加载消息」） */
+  Loading?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
 };
 
@@ -84,16 +86,18 @@ const isNewChatView = (s: AssistantState) =>
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const pending = usePendingSend();
   const isEmpty = useAuiState(isNewChatView) && !pending;
+  const isLoading =
+    useAuiState((s) => s.thread.messages.length === 0 && s.thread.isLoading && !s.threads.isLoading) && !pending;
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} />
+      <ThreadRoot isEmpty={isEmpty} isLoading={isLoading} />
     </ThreadComponentsContext.Provider>
   );
 };
 
-const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
-  const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
+const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
+  const { Welcome = ThreadWelcome, Loading } = useContext(ThreadComponentsContext);
 
   return (
     <ThreadPrimitive.Root
@@ -110,9 +114,10 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
         <div
           className={cn(
             "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
-            isEmpty && "justify-center",
+            (isEmpty || isLoading) && "justify-center",
           )}
         >
+          {isLoading && Loading && <Loading />}
           {isEmpty && (
             // 手机上问候在屏幕中间、输入框贴底（同 Claude 手机端）；电脑上两者一起居中
             <div className="max-md:flex max-md:flex-1 max-md:items-center max-md:justify-center">

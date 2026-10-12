@@ -46,6 +46,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
+import { InstallBanner, InstallMenuItem, InstallProvider } from "@/components/install-prompt";
 import { MobileShell } from "@/components/mobile-shell";
 import { SplitHandle, sidebarSize, useStoredSize } from "@/components/split-handle";
 import { ScheduledTasks } from "@/components/scheduled-tasks";
@@ -86,12 +87,27 @@ function Welcome() {
   const name = firstName(profile);
   const mascot = assistantMascot();
   return (
-    <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-2 px-4 text-center md:flex-row md:gap-3">
-      {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
-      {mascot && <Mascot src={mascot} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
-      <h1 className="cc-greeting text-3xl md:text-4xl">
-        {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
-      </h1>
+    <div className="flex flex-col items-center gap-5">
+      {/* 在哪儿打开就引导装到哪儿（电脑下载桌面版、手机装成应用），关掉后不再出现 */}
+      <InstallBanner />
+      <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-2 px-4 text-center md:flex-row md:gap-3">
+        {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
+        {mascot && <Mascot src={mascot} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
+        <h1 className="cc-greeting text-3xl md:text-4xl">
+          {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
+        </h1>
+      </div>
+    </div>
+  );
+}
+
+/** 打开已有对话、消息还没取回时（同 Claude 手机端：形象居中轻轻浮动，下面一行「正在加载消息」） */
+function ThreadLoading() {
+  const mascot = assistantMascot();
+  return (
+    <div className="cc-loading" role="status">
+      {mascot && <Mascot src={mascot} className="pearnly-mascot-host" />}
+      {t("loadingMessages")}
     </div>
   );
 }
@@ -199,6 +215,7 @@ function UserMenu({ children }: { children: ReactNode }) {
             </DropdownMenu.Portal>
           </DropdownMenu.Sub>
           <DropdownMenu.Separator className="cc-menu-sep" />
+          <InstallMenuItem />
           <DropdownMenu.Item onSelect={() => void signOut()} className="cc-menu-item">
             <LogOutIcon />
             {t("logout")}
@@ -667,7 +684,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
             <div className="min-h-0 flex-1">
-              <Thread components={{ Welcome, ToolFallback: ManagedAgentsToolFallback }} />
+              <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback }} />
             </div>
           </div>
         )}
@@ -719,9 +736,11 @@ function Workspace() {
         <ResultsContext.Provider value={context}>
           <DesktopBridge />
           <Settings />
-          <SidebarProvider style={sidebarWidth.style}>
-            <Layout results={results} onSidebarResize={sidebarWidth.update} />
-          </SidebarProvider>
+          <InstallProvider>
+            <SidebarProvider style={sidebarWidth.style}>
+              <Layout results={results} onSidebarResize={sidebarWidth.update} />
+            </SidebarProvider>
+          </InstallProvider>
         </ResultsContext.Provider>
       </ViewContext.Provider>
     </AuiProvider>

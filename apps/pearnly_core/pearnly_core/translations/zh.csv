@@ -711,6 +711,7 @@ Transfer slip attached,已附上转账凭证
 "Transfer to the account below, then upload your slip for review.",请向以下账户转账，然后上传转账凭证提交审核。
 Transport Result,传输结果
 Trigger,触发方式
+Try again,重试
 Type,类型
 UI language,界面语言
 Unable to load this page. Please reload.,无法加载此页面，请刷新。
@@ -763,6 +764,7 @@ Workspace,工作区
 Wrong ERP username or password. Check it under Connect and try again.,目标 ERP 账号或密码错误，请在「连接」中检查后重试。
 Yes,是
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,请先登录后再访问此页面。
+You're offline,无法连接网络
 Your access domain,您的访问域名
 Your account was updated elsewhere. Sign in again to load the current username.,账户已在其它地方更新，请重新登录以读取当前用户名。
 account.cancel,取消

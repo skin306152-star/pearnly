@@ -711,6 +711,7 @@ Transfer slip attached,แนบหลักฐานการโอนแล้
 "Transfer to the account below, then upload your slip for review.",กรุณาโอนเงินเข้าบัญชีด้านล่าง แล้วอัปโหลดหลักฐานการโอนเพื่อส่งตรวจสอบ
 Transport Result,ผลการรับส่ง
 Trigger,รูปแบบการทริกเกอร์
+Try again,ลองอีกครั้ง
 Type,ประเภท
 UI language,ภาษาของหน้าจอ
 Unable to load this page. Please reload.,ไม่สามารถโหลดหน้านี้ได้ กรุณารีเฟรช
@@ -763,6 +764,7 @@ Workspace,พื้นที่ทำงาน
 Wrong ERP username or password. Check it under Connect and try again.,ชื่อผู้ใช้หรือรหัสผ่าน ERP ไม่ถูกต้อง กรุณาตรวจสอบที่ «เชื่อมต่อ» แล้วลองใหม่
 Yes,ใช่
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,กรุณาเข้าสู่ระบบก่อนเปิดหน้านี้
+You're offline,ไม่มีการเชื่อมต่ออินเทอร์เน็ต
 Your access domain,โดเมนสำหรับเข้าใช้งาน
 Your account was updated elsewhere. Sign in again to load the current username.,บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน
 account.cancel,ยกเลิก

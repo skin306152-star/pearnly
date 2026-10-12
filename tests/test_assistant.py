@@ -787,6 +787,19 @@ class PrepareTests(unittest.TestCase):
 
 
 class PageTests(unittest.TestCase):
+    def test_service_worker_only_handles_opening_the_assistant_page(self):
+        # 2026-10-12：安卓等可「安装」成应用要有后台脚本；它只管打开 /assistant，页面带登录信息不缓存，接口与下载不经它
+        worker = (CORE / "assistant/service_worker.js").read_text(encoding="utf-8")
+        self.assertIn('event.request.mode !== "navigate"', worker)
+        self.assertNotIn("caches.", worker)
+        api = (CORE / "assistant/api.py").read_text(encoding="utf-8").split("def service_worker(", 1)[1]
+        self.assertIn('"Service-Worker-Allowed": "/assistant"', api)
+        self.assertIn("html.escape(", api)
+        install = (ROOT / "frontend/assistant/src/lib/install.ts").read_text(encoding="utf-8")
+        self.assertIn('{ scope: "/assistant" }', install)
+        self.assertIn("pearnly_core.assistant.api.service_worker", install)
+        self.assertIn("!isDesktopApp()", install)  # 桌面版里不注册
+
     def test_jinja_page_only_renders_its_two_variables(self):
         html = (CORE / "www/assistant.html").read_text(encoding="utf-8")
         self.assertEqual(sorted(re.findall(r"\{\{\s*(\w+)\s*\}\}", html)), ["csrf_token", "lang"])

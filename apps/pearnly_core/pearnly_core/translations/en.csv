@@ -709,6 +709,7 @@ Transfer slip attached,Transfer slip attached
 "Transfer to the account below, then upload your slip for review.","Transfer to the account below, then upload your slip for review."
 Transport Result,Transport Result
 Trigger,Trigger
+Try again,Try again
 Type,Type
 UI language,UI language
 Unable to load this page. Please reload.,Unable to load this page. Please reload.
@@ -761,6 +762,7 @@ Workspace,Workspace
 Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP username or password. Check it under Connect and try again.
 Yes,Yes
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
+You're offline,You're offline
 Your access domain,Your access domain
 Your account was updated elsewhere. Sign in again to load the current username.,Your account was updated elsewhere. Sign in again to load the current username.
 account.cancel,Cancel

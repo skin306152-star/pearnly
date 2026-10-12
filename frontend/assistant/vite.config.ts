@@ -27,16 +27,21 @@ function ccIcons(): Plugin {
   const manifest = () =>
     JSON.stringify(
       {
+        id: "/assistant",
         name: "CC",
         short_name: "CC",
         start_url: "/assistant",
         scope: "/assistant",
         display: "standalone",
-        background_color: "#ffffff",
-        theme_color: "#ffffff",
+        // 启动画面与标题栏颜色 = 手机上的页面底色（globals.css 的 --cc-bg-app，手机 #f9f9f7）
+        background_color: "#f9f9f7",
+        theme_color: "#f9f9f7",
         icons: [
           { src: icon("icon-192.png"), sizes: "192x192", type: "image/png" },
           { src: icon("icon-512.png"), sizes: "512x512", type: "image/png" },
+          // 安卓自适应图标：整块品牌橙、内容缩在中间 78%（由 icon-512.png 铺橙底后缩放生成，2026-10-12）
+          { src: icon("icon-maskable-192.png"), sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: icon("icon-maskable-512.png"), sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       null,

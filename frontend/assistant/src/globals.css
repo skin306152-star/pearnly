@@ -285,6 +285,8 @@
     cursor: pointer;
   }
   button:disabled, [aria-disabled="true"], [data-disabled] { cursor: default; }
+  /* iOS / 手机上网页 app 能做的细节（2026-10-12 iOS 收尾）：点按不出灰色闪块、不双击放大（点了不延迟）、横屏不自动放大字 */
+  html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   :root {
     color-scheme: light;
   }
@@ -474,6 +476,35 @@
   .cc-greeting { font-family: var(--cc-font-serif); color: var(--cc-ink); font-weight: 400; letter-spacing: -0.01em; }
   .cc-logo { flex-shrink: 0; border-radius: 22%; }
 
+  /* 打开对话、消息取回前的加载（同 Claude：形象居中轻轻上下浮动 + 一行灰字） */
+  .cc-loading { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; color: var(--cc-ink-3); font-size: 0.9375rem; }
+  .cc-loading .pearnly-mascot-host { height: 4.5rem; animation: cc-bob 1.4s var(--cc-ease) infinite alternate; }
+
+  /* 欢迎页「把 CC 装到这台设备」的小提示（components/install-prompt.tsx）：一枚细描边的胶囊，右边 × 关掉 */
+  .cc-install {
+    display: inline-flex; align-items: center; height: 2.25rem; border-radius: var(--cc-radius-full);
+    border: 1px solid var(--cc-line-strong); background: var(--cc-bg-surface); color: var(--cc-ink-2); font-size: 0.875rem;
+  }
+  .cc-install-main { display: inline-flex; align-items: center; gap: 0.5rem; height: 100%; padding-inline: 0.875rem 0.5rem; outline: none; }
+  .cc-install-main:hover { color: var(--cc-ink); }
+  .cc-install-close { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 100%; color: var(--cc-ink-3); outline: none; }
+  .cc-install-close:hover { color: var(--cc-ink); }
+  .cc-install svg { width: 1rem; height: 1rem; }
+  /* iPhone「添加到主屏幕」两步指引 */
+  .cc-install-guide {
+    position: fixed; top: 50%; left: 50%; z-index: 71; translate: -50% -50%; display: flex; flex-direction: column; gap: 1rem;
+    width: min(22rem, calc(100vw - 2rem)); padding: 1.25rem; border-radius: var(--cc-radius-xl);
+    background: var(--cc-bg-surface); color: var(--cc-ink); box-shadow: var(--cc-shadow-pop); outline: none;
+  }
+  .cc-install-guide-title { font-weight: 600; font-size: 1.0625rem; }
+  .cc-install-guide ol { display: flex; flex-direction: column; gap: 0.75rem; }
+  .cc-install-guide li { display: flex; align-items: center; gap: 0.75rem; color: var(--cc-ink-2); }
+  .cc-install-guide-icon {
+    display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem;
+    border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); color: var(--cc-ink);
+  }
+  .cc-install-guide-icon svg { width: 1.125rem; height: 1.125rem; }
+
   /* 右侧结果面板与对话之间的分隔条（同 claude.ai 的 Artifacts）：平时只是面板左边那条细线，
      鼠标移上去线加深并出现中间的小把手，按住左右拖动调宽度，双击恢复默认。 */
   .cc-results {
@@ -623,9 +654,10 @@ html:has(.cc-mshell), html:has(.cc-mshell) body { height: 100%; overflow: hidden
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes cc-bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
 @keyframes cc-results-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-results, .cc-dropzone { animation: none !important; }
+  .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-results, .cc-dropzone, .cc-loading .pearnly-mascot-host { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
@@ -682,6 +714,11 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
 .cc-mmain [data-slot="cc-scroll"],
 .cc-mmain [data-slot="cc-status"] { padding-top: calc(var(--cc-mtopbar-h) + env(safe-area-inset-top)); }
 .cc-mmain [data-slot="cc-status"] ~ * [data-slot="aui_thread-viewport"] { padding-top: 0; }
+
+/* 触屏上输入框至少 16 号字：小于 16 时 iOS 一点进去就把整页放大 */
+@media (hover: none) and (pointer: coarse) { input, textarea, select { font-size: max(16px, 1em) !important; } }
+/* 手机上输入框给底部的主屏幕指示条留位置（同 Claude 手机端，镜像对比时我们的低约 15pt） */
+.cc-mmain .aui-thread-viewport-footer { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 
 /* 手机上长按对话行弹菜单：不出系统的选字 / 放大镜 */
 @media (hover: none) { [data-slot="aui_thread-list-item"] { -webkit-touch-callout: none; user-select: none; } }

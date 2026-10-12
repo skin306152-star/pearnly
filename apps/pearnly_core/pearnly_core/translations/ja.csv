@@ -711,6 +711,7 @@ Transfer slip attached,振込明細を添付しました
 "Transfer to the account below, then upload your slip for review.",下記口座に振り込み、振込明細をアップロードして審査を申請してください。
 Transport Result,転送結果
 Trigger,トリガー
+Try again,もう一度
 Type,種別
 UI language,表示言語
 Unable to load this page. Please reload.,このページを読み込めません。再読み込みしてください。
@@ -763,6 +764,7 @@ Workspace,ワークスペース
 Wrong ERP username or password. Check it under Connect and try again.,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。
 Yes,はい
 You need to sign in to the site before opening this page. Enter through the site domain and sign in.,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
+You're offline,オフラインです
 Your access domain,アクセスドメイン
 Your account was updated elsewhere. Sign in again to load the current username.,別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。
 account.cancel,キャンセル
