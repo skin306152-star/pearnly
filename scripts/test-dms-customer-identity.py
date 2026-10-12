@@ -65,8 +65,15 @@ class Transport:
         self.ignore_fields = set()
         self.create_collision = False
         self.collision_record = None
+        self.collision_body = "err::ข้อมูลซ้ำ"
         self.created = 0
         self.statuses = {}
+        # The new-customer form's own code (DMS-TEST leaves it empty) and its length limit;
+        # with unique_codes on, new.php refuses a code another record holds, as DMS does.
+        self.new_code = "AUTO-NEXT"
+        self.code_maxlength = None
+        self.unique_codes = False
+        self.code_taken_body = 'err::"รหัสลูกค้า" ซ้ำ'
 
     def post(self, url, *, data, **kwargs):
         path = url.removeprefix("https://identity.invalid/dms/")
@@ -83,7 +90,10 @@ class Transport:
                              if term in (item["txtpeopleid"], item["txtcuscode"])])
         elif path == "cus/form.php":
             if data["status"] == "n":
-                body = form(record("", txtcuscode="AUTO-NEXT", txtcusname=""))
+                body = form(record("", txtcuscode=self.new_code, txtcusname=""))
+                if self.code_maxlength is not None:
+                    body = body.replace('<input name="txtcuscode"',
+                                        f'<input maxlength="{self.code_maxlength}" name="txtcuscode"', 1)
             else:
                 cid = data["id"]
                 override = self.form_overrides.get(cid)
@@ -101,7 +111,10 @@ class Transport:
             if self.create_collision:
                 if self.collision_record is not None:
                     self.records["collision"] = deepcopy(self.collision_record)
-                body = "err::ข้อมูลซ้ำ"
+                body = self.collision_body
+            elif self.unique_codes and any(item["txtcuscode"] == data.get("txtcuscode")
+                                           for item in self.records.values()):
+                body = self.code_taken_body
             else:
                 self.created += 1
                 self.records["created"] = {k: v for k, v in data.items() if k not in ("stsel", "idsel")}
@@ -407,6 +420,175 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(client.save_customer(fields={**FIELDS, "people_id": OTHER}, mode="create"), ("created", False))
         self.assertEqual(transport.records["created"]["txtpeopleid"], OTHER)
         self.assertEqual(transport.records["own"]["txtpeopleid"], PID)
+
+
+    # ── G8: the code made from this ID is held by an older record of another person ──────
+    # Old bug (DMS-TEST, 2026-10-12): the new-customer form leaves the code empty, so the
+    # code is this ID; an older record already held that code with someone else's ID.
+    # DMS refused "code duplicate", the ID research found no one, and the operator only got
+    # "save failed" -- every retry and re-scan failed the very same way.
+    def taken(self, records, searches=None, maxlength=20):
+        client, transport = self.client(records, searches)
+        transport.new_code, transport.unique_codes, transport.code_maxlength = "", True, maxlength
+        return client, transport
+
+    @staticmethod
+    def registered(fail_recheck=False):
+        seen = {"attempts": 0, "rechecks": 0}
+
+        def on_attempt(verify):
+            seen["attempts"] += 1
+
+        def recheck():
+            seen["rechecks"] += 1
+            if fail_recheck:
+                raise DmsClientError("binding changed", "ERR_DMS_CUSTOMER_SAVE")
+
+        on_attempt.assert_current = recheck
+        return on_attempt, seen
+
+    def refused(self, call, transport, *, writes=1):
+        """Today's outcome: a clean rejection after one (or the one extra) send, never 'unknown'."""
+        with self.assertRaises(DmsClientError) as caught:
+            call()
+        self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_SAVE")
+        self.assertEqual(caught.exception.response_body, {"submitted": False, "rejected": True})
+        self.assertEqual(len(transport.writes()), writes)
+        self.assertNotIn("created", transport.records)
+
+    def test_code_held_by_another_person_is_created_under_the_next_free_code(self):
+        client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)})
+        original = deepcopy(transport.records["wrong"])
+        on_attempt, seen = self.registered()
+        self.assertEqual(client.save_customer(fields=FIELDS, mode="create", on_attempt=on_attempt),
+                         ("created", False))
+        first, second = (data for _, data in transport.writes())
+        self.assertEqual((first["txtcuscode"], second["txtcuscode"]), (PID, PID + "-1"))
+        self.assertEqual({k: v for k, v in first.items() if k != "txtcuscode"},
+                         {k: v for k, v in second.items() if k != "txtcuscode"})
+        self.assertEqual(transport.records["created"]["txtpeopleid"], PID)
+        self.assertEqual(transport.records["wrong"], original)  # the holder is never written
+        self.assertEqual(seen, {"attempts": 1, "rechecks": 1})  # one registration, rechecked once
+
+    def test_codes_held_by_other_people_are_skipped_up_to_three(self):
+        third = "1000002000006"
+        client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID),
+                                        "next": record(third, txtcuscode=PID + "-1")})
+        self.assertEqual(client.save_customer(fields=FIELDS, mode="create"), ("created", False))
+        self.assertEqual([data["txtcuscode"] for _, data in transport.writes()], [PID, PID + "-2"])
+        held = {"wrong": record(OTHER, txtcuscode=PID)}
+        held.update({f"next{n}": record(third, txtcuscode=f"{PID}-{n}") for n in (1, 2, 3)})
+        client, transport = self.taken(held)
+        self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+
+    def test_unclear_code_holder_keeps_the_rejection(self):
+        many = [str(n) for n in range(10)]
+        cases = {
+            # The holder's ID is blank or partial: it may be this very person.
+            "blank holder": ({"wrong": record("", txtcuscode=PID)}, None, {}),
+            "partial holder": ({"wrong": record(PID[-4:], txtcuscode=PID)}, None, {}),
+            # Nobody visible holds the code (search lag, or another account's customer).
+            "holder not found": ({"wrong": record(OTHER, txtcuscode=PID)}, [[], [], [], [], []], {}),
+            "two holders": ({"a": record(OTHER, txtcuscode=PID), "b": record("1000002000006", txtcuscode=PID)},
+                            None, {}),
+            "search error": ({"wrong": record(OTHER, txtcuscode=PID)}, [[], [], [], [], "err::busy"], {}),
+            "full page": ({"wrong": record(OTHER, txtcuscode=PID)}, [[], [], [], [], many], {}),
+            "form unreadable": ({"wrong": record(OTHER, txtcuscode=PID)}, [[], [], [], [], ["wrong"]],
+                                {"wrong": "<html>login</html>"}),
+        }
+        for name, (records, searches, overrides) in cases.items():
+            with self.subTest(name):
+                client, transport = self.taken(records, searches)
+                transport.form_overrides.update(overrides)
+                self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+
+    def test_spare_code_must_fit_the_form_limit(self):
+        for maxlength in (None, 14):
+            with self.subTest(maxlength=maxlength):
+                client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)}, maxlength=maxlength)
+                self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+
+    def test_code_holder_with_this_identity_goes_to_the_existing_review(self):
+        # The ID search missed them three times, the code search finds them: same person.
+        client, transport = self.taken({"own": record(PID, txtcuscode=PID)}, [[], [], [], [], ["own"]])
+        with self.assertRaises(DmsClientError) as caught:
+            client.save_customer(fields=FIELDS, mode="create")
+        self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_EXISTS")
+        self.assertEqual(caught.exception.response_body["customer_conflict"]["customer_id"], "own")
+        self.assertEqual(len(transport.writes()), 1)
+
+    def test_changed_binding_before_the_second_send_keeps_the_rejection(self):
+        client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)})
+        on_attempt, seen = self.registered(fail_recheck=True)
+        self.refused(lambda: client.save_customer(fields=FIELDS, mode="create", on_attempt=on_attempt), transport)
+        self.assertEqual(seen, {"attempts": 1, "rechecks": 1})
+        # A registration that cannot be rechecked is not sent again either.
+        client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)})
+        self.refused(lambda: client.save_customer(fields=FIELDS, mode="create", on_attempt=lambda verify: None),
+                     transport)
+
+    def test_second_send_outcome_is_final_and_never_sent_a_third_time(self):
+        def lost(transport, response):
+            raise TimeoutError("lost acknowledgement")
+
+        def bad_gateway(transport, response):
+            return SimpleNamespace(status_code=502, text="")
+
+        def taken_meanwhile(transport, response):
+            transport.records.pop("created", None)
+            return SimpleNamespace(status_code=200, text=transport.code_taken_body)
+
+        def never_read_back(transport, response):
+            transport.records.pop("created", None)
+            return response
+
+        for change, code in ((lost, "ERR_DMS_CUSTOMER_UNCONFIRMED"), (bad_gateway, "ERR_DMS_CUSTOMER_UNCONFIRMED"),
+                             (taken_meanwhile, "ERR_DMS_CUSTOMER_SAVE"),
+                             (never_read_back, "ERR_DMS_CUSTOMER_UNCONFIRMED")):
+            with self.subTest(change.__name__):
+                client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)})
+                post = transport.post
+
+                def second(url, *, data, _post=post, _transport=transport, _change=change, **kwargs):
+                    response = _post(url, data=data, **kwargs)
+                    if url.endswith("cus/new.php") and len(_transport.writes()) == 2:
+                        return _change(_transport, response)
+                    return response
+
+                transport.post = second
+                with self.assertRaises(DmsClientError) as caught:
+                    client.save_customer(fields=FIELDS, mode="create")
+                self.assertEqual(caught.exception.error_code, code)
+                self.assertEqual(len(transport.writes()), 2)
+
+    def test_name_duplicate_and_prefilled_codes_are_unchanged(self):
+        # DMS refused the name, not the code: research only, exactly as before.
+        client, transport = self.taken({})
+        transport.create_collision = True
+        transport.collision_body = 'err::"ชื่อ นามสกุลลูกค้า" ซ้ำ'
+        self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+        self.assertEqual([p for p, _ in transport.calls if p in ("cus/component/showdata.php", "cus/form.php")],
+                         ["cus/component/showdata.php", "cus/form.php"] + ["cus/component/showdata.php"] * 3)
+        # DMS numbered the customer itself: its code is never replaced by ours.
+        client, transport = self.taken({"auto": record(OTHER, txtcuscode="AUTO-NEXT")})
+        transport.new_code = "AUTO-NEXT"
+        self.refused(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+        self.assertEqual(sum(p == "cus/component/showdata.php" for p, _ in transport.calls), 4)
+
+    def test_spare_code_read_back_differently_is_logged(self):
+        client, transport = self.taken({"wrong": record(OTHER, txtcuscode=PID)})
+        post = transport.post
+
+        def truncating(url, *, data, **kwargs):
+            response = post(url, data=data, **kwargs)
+            if "created" in transport.records:
+                transport.records["created"]["txtcuscode"] = PID + "-"
+            return response
+
+        transport.post = truncating
+        with self.assertLogs("pearnly_dms.client.client_intake", "ERROR") as logs:
+            self.assertEqual(client.save_customer(fields=FIELDS, mode="create"), ("created", False))
+        self.assertNotIn(PID, "".join(logs.output))  # lengths only, never the ID itself
 
 
 if __name__ == "__main__":

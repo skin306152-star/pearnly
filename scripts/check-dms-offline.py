@@ -32,6 +32,7 @@ UNIT_TESTS = (
     "tests/test_dms_geo_near_match.py",
     "scripts/test-dms-customer-conflicts.py",
     "tests/test_dms_customer_reconcile.py",
+    "tests/test_dms_customer_code_taken.py",
     "tests/test_dms_booking_customer_gapfill.py",
     "tests/test_dms_booking_outcome.py",
     "tests/test_dms_booking_attach_repair.py",
