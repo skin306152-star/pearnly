@@ -214,6 +214,7 @@ class RecognizeAttachmentTests(unittest.TestCase):
         chat = types.ModuleType("pearnly_core.assistant.files")
         chat.attachment = self._attachment
         chat.attachments = lambda: [{"file_id": "file_abc", "filename": "receipt.jpg"}]
+        chat.origin = lambda file_id: {"file_page": "tool", "file_folder": "folder"}.get(file_id, "user")
         originals = types.ModuleType("pearnly_cowork.files.service")
         originals.create = lambda workspace, name, content, key: self.created.append((name, content, key)) or {"name": "CWS-1"}
         ocr = types.ModuleType("pearnly_cowork.ocr.execution.service")
@@ -277,6 +278,16 @@ class RecognizeAttachmentTests(unittest.TestCase):
         text = json.loads(tools.recognize_attachments({"files": ["file_txt"]}))["results"][0]
         self.assertEqual(text["status"], "unsupported_type")
         self.assertEqual(self.created, [])
+
+    def test_files_made_by_tools_are_not_recognized_but_files_from_a_folder_are(self):
+        # L3：工具产出也留在对话里能再当输入；原件页图、回读的账不是票据，送识别还要扣费（2026-10 CC 闭环，评审三-12）
+        made = json.loads(tools.recognize_attachments({"files": ["file_page"]}))["results"][0]
+        self.assertEqual(made["status"], "not_started")
+        self.assertTrue(made["reason"].startswith("made_by_tool"))
+        self.assertEqual(self.created, [])
+        fetched = json.loads(tools.recognize_attachments({"files": ["file_folder"]}))["results"][0]
+        self.assertEqual(fetched["batch"], "B1")
+        self.assertEqual(self.created, [("receipt.jpg", b"img-file_folder", "assistant:file_folder")])
 
     def test_a_push_target_is_only_sent_with_its_connection(self):
         tools.recognize_attachments({"files": ["file_a"], "target": "express", "connection": "C1", "account_set_key": "K"})

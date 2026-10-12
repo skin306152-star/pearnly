@@ -364,6 +364,11 @@ def _admit(file_id, choices) -> dict:
         return {"file": file_id, "filename": filename, "status": "unsupported_type",
                 "reason": "Only document photos, PDF files and spreadsheets (such as a returned review workbook) "
                           "can be recognized."}
+    # 工具自己生成的文件（原件页图、复核工作簿、回读的账……）不再送识别：那不是票据，识别还要照常扣费。
+    # 从文件夹取来的（`cowork_folder_fetch`）与用户附件一样可以识别。
+    if chat_files.origin(file_id) == "tool":
+        return {"file": file_id, "filename": filename, "status": "not_started",
+                "reason": "made_by_tool: this file was made by a tool, not a document to recognize"}
     try:
         source = originals.create(scope.default_workspace(), filename, content, key)
         frappe.db.commit()
