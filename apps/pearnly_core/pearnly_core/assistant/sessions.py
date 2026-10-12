@@ -13,8 +13,9 @@
 一到界线，下一条消息就在新的一段里开始，并用系统消息带上前文要点（`contracts.carry_over`）。
 历史、文件按全部分段合起来给浏览器，所以看起来仍是同一个对话。
 
-对话提醒（`notices`）不在引擎会话里：补拉、整段重放时由这里按时间并进来；用户发话时，还没带过的提醒随批末的
-系统消息告诉智能体，发出成功后才标成带过。同一条系统消息每次都带上用户当地的日期时间（智能体才知道「今天」）。
+对话提醒（`notices`）不在引擎会话里：补拉、整段重放时由这里按时间并进来；用户发话时，还没带过的提醒（本对话的、
+没挂对话的、别的对话里近一天的）随批末的系统消息告诉智能体，发出成功后才把带上的那几条标成带过。
+同一条系统消息每次都带上用户当地的日期时间（智能体才知道「今天」）。
 """
 import json
 
@@ -245,8 +246,8 @@ def send(session_id, text) -> None:
     if row.get("pending_carry"):
         frappe.db.set_value(SESSION, row.name, "pending_carry", "")
     if shown:
-        # 发出成功才算带过；发不出（抛错）下次再带
-        notices.mark_carried(row.session_id, frappe.session.user, shown[-1]["creation"])
+        # 发出成功才算带过（只标这次真带上的几条）；发不出（抛错）下次再带
+        notices.mark_carried(frappe.session.user, [item["name"] for item in shown])
     if not row.title:
         # 首条消息原文先当标题（只写本站，会话列表读本站表），不拖慢发送；长的再在后台概括成短标题（`retitle`）。
         title = contracts.title_from(text)

@@ -7,6 +7,8 @@
 - 推送服务：201 记 last_ok；404 / 410 删订阅；403 / 500 保留只记原因；不跟随跳转；连不上再试一次；
   日志与订阅行不出现推送地址。订阅换人覆盖、每人最多 10 台、只能退自己的；密钥每站只生成一次并提交，
   私钥解不开就换一对并删掉全部订阅。
+- 订阅跟着认领它的登录走：只存会话编号的摘要；退出登录（`on_logout`）删掉这次登录的设备；统一登出、被踢、过期的
+  在发出前删掉、不发。提醒的 ttl 为 0 时照 0 发。
 
 要 cryptography：它在生产镜像里（Frappe 依赖），开发闸门的系统 Python 没有，所以本文件只在生产候选镜像的离线通道跑
 （`scripts/ci-candidate-checks.sh`）。没有 cryptography 时直接报错退出，不静默跳过。Frappe 与 requests 用最小替身。
@@ -303,7 +305,10 @@ class _Frappe(types.ModuleType):
         outer = self
         self.conf = {"pearnly_product": "cowork"}
         self.local = types.SimpleNamespace(site="t1.example")
-        self.session = types.SimpleNamespace(user="a@example.com")
+        self.session = types.SimpleNamespace(user="a@example.com", sid="sid-a")
+        # 框架的登录会话表（tabSessions）：sid、user、lastupdate；过期界线见 `threshold`
+        self.sessions_table = [{"sid": "sid-a", "user": "a@example.com", "lastupdate": "2026-10-12 11:00:00"}]
+        self.threshold = "2026-10-02 12:00:00"
         self.rows, self.singles, self.passwords, self.notices = {}, {}, {}, {}
         self.users = {"a@example.com": 1, "b@example.com": 1, "off@example.com": 0}
         self.logs, self.locks, self.commits, self.saves, self.tick = [], [], 0, 0, 0
@@ -334,6 +339,11 @@ class _Frappe(types.ModuleType):
         return self.singles.get(field) if self.stale_public is None else self.stale_public
 
     def _sql(self, query, values):
+        if "`tabSessions`" in query:
+            assert query == "SELECT `sid` FROM `tabSessions` WHERE `user`=%s AND `lastupdate`>%s", query
+            user, threshold = values
+            return [(row["sid"],) for row in self.sessions_table
+                    if row["user"] == user and row["lastupdate"] > threshold]
         assert "FOR UPDATE" in query and "%s" in query and values == (KEY, "public_key"), (query, values)
         value = self.singles.get("public_key")
         return [(value,)] if value is not None else []
@@ -430,6 +440,16 @@ class _Frappe(types.ModuleType):
     def throw(self, message, exc=None):
         raise (exc or self.ValidationError)(message)
 
+    def sign_in(self, user, sid, lastupdate="2026-10-12 11:00:00"):
+        """这个人在这台设备上登录（tabSessions 里有一行）并成为当前请求的登录人。"""
+        self.session.user, self.session.sid = user, sid
+        if not any(row["sid"] == sid for row in self.sessions_table):
+            self.sessions_table.append({"sid": sid, "user": user, "lastupdate": lastupdate})
+
+    def end_session(self, sid):
+        """不经 on_logout 结束会话（统一登出、被踢）：框架只删 tabSessions 那一行。"""
+        self.sessions_table = [row for row in self.sessions_table if row["sid"] != sid]
+
     def log_error(self, title=None, message=None):
         assert message, "push must log a plain message, never a traceback (it carries local variables)"
         self.logs.append((title, message))
@@ -465,6 +485,9 @@ class _Requests(types.ModuleType):
 def _install_service():
     frappe, requests = _Frappe(), _Requests()
     sys.modules["frappe"], sys.modules["requests"] = frappe, requests
+    sessions = types.ModuleType("frappe.sessions")
+    sessions.get_expired_threshold = lambda: frappe.threshold  # 框架同名函数：现在减去会话有效期
+    sys.modules["frappe.sessions"] = frappe.sessions = sessions
     for name in ("pearnly_core", "pearnly_core.assistant"):
         sys.modules[name] = types.ModuleType(name)
     package = sys.modules["pearnly_core.assistant"]
@@ -484,8 +507,8 @@ class _Service(unittest.TestCase):
         requests.calls.clear()
         requests.script.clear()
 
-    def subscribe(self, endpoint=FCM, user="a@example.com"):
-        frappe.session.user = user
+    def subscribe(self, endpoint=FCM, user="a@example.com", sid=None):
+        frappe.sign_in(user, sid or "sid-" + user.split("@")[0])
         key, p256dh, auth, secret = device()
         push.subscribe(endpoint, p256dh, auth)
         return key, secret
@@ -668,15 +691,92 @@ class SendTests(_Service):
         frappe.notices["n1"] = {"user": "a@example.com", "title": "", "text": "Folder A: 3 new files",
                                 "session_id": "sesn_0123", "ttl": 3600}
         frappe.notices["n2"] = {"user": "a@example.com", "title": "Brief", "text": "Done", "session_id": "", "ttl": 0}
+        frappe.notices["n3"] = {"user": "a@example.com", "title": "", "text": "Old row", "session_id": "", "ttl": None}
         self.assertEqual(push.send_notice("n1")["sent"], 1)
         self.assertEqual(push.send_notice("n2")["sent"], 1)
+        self.assertEqual(push.send_notice("n3")["sent"], 1)
         self.assertEqual(push.send_notice("missing"), {"sent": 0, "gone": 0, "failed": 0})
-        first, second = (json.loads(receive(call["data"], key, secret)) for call in requests.calls)
+        first, second, _third = (json.loads(receive(call["data"], key, secret)) for call in requests.calls)
         self.assertEqual(first, {"title": "CC", "body": "Folder A: 3 new files", "url": "/assistant?c=sesn_0123",
                                  "tag": "notice:pnotice_n1"})
         self.assertEqual(second["url"], "/assistant?view=tasks")
         self.assertEqual(second["title"], "Brief")
-        self.assertEqual([call["headers"]["TTL"] for call in requests.calls], ["3600", str(push.DEFAULT_TTL)])
+        # ttl 0 = 推送服务不保留（设备不在线就不送），不能被当成没给换成 6 小时；只有没有值才用默认
+        self.assertEqual([call["headers"]["TTL"] for call in requests.calls], ["3600", "0", str(push.DEFAULT_TTL)])
+
+
+class SessionTests(_Service):
+    """订阅跟着认领它的那次登录走（共用设备上，上一个人退出或会话结束后不再收到他的提醒）。"""
+
+    APPLE = "https://web.push.apple.com/QGx-device"
+
+    def test_the_claiming_session_is_kept_as_a_digest_and_follows_each_claim(self):
+        self.subscribe(user="a@example.com", sid="sid-a1")
+        [row] = frappe.rows.values()
+        self.assertEqual(row["sid"], hashlib.sha256(b"sid-a1").hexdigest())
+        self.assertNotIn("sid-a1", json.dumps(row))  # 会话编号本身就是登录凭据，表又对管理员可读：只存摘要
+        self.subscribe(user="b@example.com", sid="sid-b1")  # 同一台设备换人登录：归到现在登录的人和他的这次登录
+        self.assertEqual((row["user"], row["sid"]), ("b@example.com", hashlib.sha256(b"sid-b1").hexdigest()))
+        self.assertEqual([push.session_key(v) for v in ("", None, "Guest")], ["", "", ""])
+
+    def test_signing_out_forgets_only_the_devices_of_this_sign_in(self):
+        self.subscribe(FCM, user="a@example.com", sid="sid-a1")
+        self.subscribe(self.APPLE, user="a@example.com", sid="sid-a2")  # 同一个人另一台设备、另一次登录
+        self.subscribe(FCM + "-b", user="b@example.com", sid="sid-b1")
+        frappe.sign_in("a@example.com", "sid-a1")
+        push.forget_session(login_manager=object())  # 框架按 login_manager= 调 on_logout 钩子
+        self.assertEqual(sorted(row["endpoint"] for row in frappe.rows.values()), sorted([self.APPLE, FCM + "-b"]))
+        push.forget_session()  # 没有可删的：什么都不动、不报错
+        frappe.session.user, frappe.session.sid = "Guest", "Guest"
+        push.forget_session()
+        self.assertEqual(len(frappe.rows), 2)
+        self.assertEqual(frappe.logs, [])
+
+    def test_a_failed_cleanup_never_blocks_signing_out(self):
+        self.subscribe(user="a@example.com", sid="sid-a1")
+
+        def broken(*args, **kwargs):
+            raise RuntimeError("Unknown column 'sid'")
+
+        original, frappe.db.delete = frappe.db.delete, broken
+        try:
+            push.forget_session()
+        finally:
+            frappe.db.delete = original
+        self.assertEqual(frappe.logs, [("Assistant push sign-out cleanup failed", "RuntimeError")])
+
+    def test_devices_of_sessions_that_ended_elsewhere_are_dropped_before_sending(self):
+        # 身份服务统一登出 / 被踢（删了 tabSessions 那一行，不经 on_logout）、会话过期、旧行没有记会话：都不再发
+        self.subscribe(FCM, user="a@example.com", sid="sid-a1")
+        self.subscribe(self.APPLE, user="a@example.com", sid="sid-a2")
+        self.subscribe(FCM + "-old", user="a@example.com", sid="sid-a3")
+        self.subscribe(FCM + "-legacy", user="a@example.com", sid="sid-a4")
+        self.subscribe(FCM + "-b", user="b@example.com", sid="sid-b1")
+        frappe.end_session("sid-a2")
+        next(r for r in frappe.sessions_table if r["sid"] == "sid-a3")["lastupdate"] = "2026-10-01 09:00:00"
+        frappe.rows[hashlib.sha256((FCM + "-legacy").encode()).hexdigest()]["sid"] = None
+        result = push.send("a@example.com", title="t", body="b", url="/assistant", tag="x")
+        self.assertEqual(result, {"sent": 1, "gone": 3, "failed": 0})
+        self.assertEqual([call["url"] for call in requests.calls], [FCM])
+        self.assertEqual(sorted(row["endpoint"] for row in frappe.rows.values()), sorted([FCM, FCM + "-b"]))
+        # 全都结束了：不取密钥、不发请求
+        requests.calls.clear()
+        frappe.end_session("sid-a1")
+        frappe.singles.clear()
+        self.assertEqual(push.send("a@example.com", title="t", body="b", url="/assistant", tag="x"),
+                         {"sent": 0, "gone": 1, "failed": 0})
+        self.assertEqual((requests.calls, frappe.singles), ([], {}))
+        # b 的登录还在：照常收
+        self.assertEqual(push.send("b@example.com", title="t", body="b", url="/assistant", tag="x")["sent"], 1)
+
+    def test_the_sign_out_hook_and_the_session_field_are_declared(self):
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('\non_logout = "pearnly_core.assistant.push.forget_session"\n', hooks)
+        meta = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_push_subscription/"
+                                  "pearnly_assistant_push_subscription.json").read_text(encoding="utf-8"))
+        fields = {f["fieldname"]: f for f in meta["fields"]}
+        self.assertEqual((fields["sid"]["fieldtype"], fields["sid"].get("read_only")), ("Data", 1))
+        self.assertIn("sid", meta["field_order"])
 
 
 class ApiTests(unittest.TestCase):

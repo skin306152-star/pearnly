@@ -19,6 +19,8 @@ website_route_rules = [
 
 # 会话登记：每次登录后记一条，用于展示、审计与撤权。
 on_session_creation = "pearnly_core.sessions.register_session"
+# 退出登录：这次登录认领的手机 / 浏览器推送订阅一并删掉（不经这里结束的会话，发送前核对，见 assistant/push.py）。
+on_logout = "pearnly_core.assistant.push.forget_session"
 
 # 统一登录入口：业务站点的 `/`、`/login`、`/app`、`/desk` 对未登录访客一律
 # 送去身份服务 —— 站点上没有业务账号的密码，用 Frappe 自带登录页必然失败。
