@@ -8,12 +8,12 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-28 12:00:00.000000",
- "modified": "2026-09-28 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
- "description": "One accountant decision per Express account set: party record, stock item, expense account, payment, VAT claim or department.",
+ "description": "One accountant decision per Express account set: party record, stock item, expense account, payment, VAT claim, department or POS receiving account.",
  "field_order": [
   "input_key",
   "connection",
@@ -58,7 +58,7 @@
    "fieldname": "kind",
    "label": "Kind",
    "fieldtype": "Select",
-   "options": "party\nitem\naccount\npayment\nvat\ndepartment",
+   "options": "party\nitem\naccount\npayment\nvat\ndepartment\nreceipt",
    "read_only": 1,
    "reqd": 1
   },

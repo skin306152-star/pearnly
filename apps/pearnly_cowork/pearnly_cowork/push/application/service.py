@@ -13,6 +13,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
+from pearnly_cowork.contracts import pos as pos_contract
 from pearnly_cowork.contracts.history import primary_page, primary_page_fields
 from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax, resolve_posting_kind
 from pearnly_cowork.history import document_policy, push_state, storage
@@ -226,7 +227,8 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     remembered = choice_store.remembered(connection, account_set)
     kind = resolve_posting_kind(posting_kind, flat)
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
-                                    remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed)
+                                    remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
+                                    receipts=_pos_receipts(flat))
     applied = decision["applied"]
     remember = applied.pop("remember_payment", None)
     if remember:
@@ -235,6 +237,16 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         choice_store.record(connection, account_set, "payment",
                             choice_rules.supplier_subject(direction, tax, name), remember, name)
     return decision
+
+
+def _pos_receipts(flat):
+    """POS 日汇总票里非现金的付款方式 ``[(归类键, 写法)]``（每一种要一个收款科目）；不是 POS 票或形状不对回空
+    （形状不对由映射器拦成 `pos_facts_invalid`）。"""
+    try:
+        found = pos_contract.facts(primary_page(flat.get("pages") or []))
+    except pos_contract.PosFactsError:
+        return []
+    return [(payment.subject, payment.label) for payment in found.non_cash()] if found else []
 
 
 def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None):
@@ -256,7 +268,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         options["products"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_products") or []
                                if isinstance(row, dict) and str(row.get("kind") or "stock") == "stock"][:5000]
-    if "account" in kinds:
+    if kinds & {"account", "receipt"}:
         options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
     result = {"needed": decision["needed"], "options": options, "account_set": target.account_set}
@@ -281,6 +293,7 @@ def save_choices(history, connection, account_set_key, items):
     allowed = {
         "party": None, "item": {r.get("code") for r in config.get("reported_products") or [] if isinstance(r, dict)},
         "account": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
+        "receipt": {r.get("code") for r in config.get("reported_accounts") or [] if isinstance(r, dict)},
         "department": {r.get("code") for r in config.get("reported_departments") or [] if isinstance(r, dict)},
         "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES)}
     parties = {r.get("code") for key in ("reported_customers", "reported_suppliers")

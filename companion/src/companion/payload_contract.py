@@ -14,7 +14,9 @@ from typing import Optional
 
 # 2:明细行可带 `code`(复核时选定的 Express 存货,按码落账、码不在就报错)、单头可带 `depcod`(部门码)。
 # 旧版小助手会静默忽略这两个键(按品名新建存货、部门留空),所以带了它们的载荷盖 2,旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2})
+# 3:POS 导出的日汇总票带 `pos` 块(自编单号、票号起止写进销项税摘要、每种非现金付款方式同一次写入一张日记账凭证
+# 「借 收款科目 / 贷 现金」)。旧版小助手会把它当普通现销写、漏掉凭证,所以盖 3,旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3})
 
 ERR_PAYLOAD_VERSION = "ERR_PAYLOAD_VERSION"
 

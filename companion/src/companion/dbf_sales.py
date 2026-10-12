@@ -25,6 +25,7 @@ from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
+from . import pos_journal
 from . import stock_sale
 from . import cdx_reindex
 from .consistency import account_company_matches
@@ -85,7 +86,7 @@ def _field_overflow(entry: SalesEntry) -> Optional[str]:
     for label, val, limit in checks:
         if len((val or "").encode("cp874", "replace")) > limit:
             return f"{label} exceeds {limit} bytes: {val!r}"
-    for ln in entry.lines:
+    for ln in [*entry.lines, *entry.pos_transfers]:
         if len(str(ln.get("acc") or "").encode("cp874", "replace")) > _MAX_ACCNUM:
             return f"ACCNUM exceeds {_MAX_ACCNUM} bytes: {ln.get('acc')!r}"
     return None
@@ -218,6 +219,10 @@ def write_sale(
     overflow = _field_overflow(entry)
     if overflow:
         return DbfWriteResult(False, error_code=ERR_FIELD_WIDTH, error=overflow)
+    # POS 日汇总票的付款方式转账凭证:写前先定普通日记账单据簿、核收款科目可记账,定不下来就不动账套。
+    journal, journal_error, journal_reason = pos_journal.check(account_dir, entry.pos_transfers)
+    if journal_error:
+        return DbfWriteResult(False, error_code=journal_error, error=journal_reason)
 
     docdate_be = str(payload["docdate_be"])
     docdat = S.be_yymmdd_to_greg(docdate_be)
@@ -254,6 +259,7 @@ def write_sale(
     docnum = ""
     try:
         since = _table_sizes(account_dir)  # 读回只核对这之后追加的行(见 _VERIFY_TABLES)
+        journal_since = pos_journal.sizes(account_dir) if journal else {}
         # 新客户 → 先在 ARMAS 建档(备份-回滚事务内)拿到码
         # 云端给了现金客户码、账套里却没有时 ensure_customer 也会新建:同样要重建 ARMAS 索引、回执标「新建主档」
         cash_missing = existing_code == master_create.CASH_CUSTOMER and not master_create._code_exists(
@@ -282,6 +288,18 @@ def write_sale(
             userid,
             depcod,
         )
+        vouchers = []
+        if journal:
+            # 现金科目 = 本单借方实际记的那个(_write_all 已按账套换成 ACCNUM00;账套没设就是云端给的那个)
+            cash_acc = next(str(ln.get("acc") or "") for ln in entry.lines
+                            if str(ln.get("side", "")).upper() == "D")
+            voucher_dep = depcod or account_rules.book(account_dir, journal).get("DEPCOD", "")
+            vouchers = pos_journal.write(
+                account_dir, journal, docnum=docnum, docdat=docdat, docdate_be=docdate_be, cash_acc=cash_acc,
+                transfers=entry.pos_transfers, userid=userid, depcod=voucher_dep,
+                departmental=_department_accounts(account_dir) if voucher_dep else frozenset(),
+            )
+            notes = {**(notes or {}), "pos_vouchers": [item["voucher"] for item in vouchers]}
         clock.lap("write")
         detail_n = (
             len(entry.items) if (entry.items_status == "ok" and entry.items) else 0
@@ -304,6 +322,8 @@ def write_sale(
             has_stock=has_stock,
             since=since,
         )
+        if vouchers:
+            pos_journal.verify(account_dir, vouchers, cash_acc, journal_since)
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AR_DOCNUM, docnum)
         clock.lap("index_check")
@@ -397,7 +417,9 @@ def _write_all(
 
     ar = _open(account_dir, "ARTRN", dbf.READ_WRITE)
     try:
-        docnum = _sales_docnum(ar, prefix, docdate_be, entry.ref_no)
+        # POS 日汇总票单号自编(HS + 佛历年月日 + 序号);票号起止写进销项税摘要与参考号
+        docnum = (_next_docnum(ar, prefix, docdate_be) if entry.is_pos
+                  else _sales_docnum(ar, prefix, docdate_be, entry.ref_no))
         # 销项 ARTRN.VATPRD 真单恒空(税期记在 ISVAT);CSHRCV/IVCAMT 现销=含税·赊销=0。
         ar.append(
             {
@@ -468,7 +490,8 @@ def _write_all(
                     # 报告出自本表,填 docnum 会让报告与客户手上的实体票对不上(税局按票号
                     # 核)。采购侧一直是 entry.ref_no,销项"镜像采购"时这一处抄反了。
                     "REFNUM": entry.ref_no,
-                    "DESCRP": name[:60],
+                    "DESCRP": (pos_journal.vat_description(entry.pos_first, entry.pos_last) if entry.is_pos
+                               else name[:60]),
                     "AMT01": _f(base),
                     "VAT01": _f(vat),
                     "DOCSTAT": "N",
@@ -481,6 +504,8 @@ def _write_all(
             iv.close()
 
     descrp = (f"ขายเชื่อให้ {name}" if prefix == "IV" else f"ขายสดให้ {name}")[:50]
+    if entry.is_pos:
+        descrp = pos_journal.sale_description(entry.pos_first, entry.pos_last)
     gj = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
         gj.append(
