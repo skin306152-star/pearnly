@@ -261,6 +261,13 @@
     scrollbar-width: thin;
     scrollbar-color: var(--cc-line-strong) transparent;
   }
+  /* 能点的显示手指、不能点的保持箭头（同 Claude；Tailwind 4 把按钮默认改成了箭头）。放在 base 层，个别控件（如分隔条的左右箭头）可以覆盖 */
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href], summary, select, label[for],
+  [role="menuitem"]:not([data-disabled]), [role="menuitemradio"]:not([data-disabled]), [role="menuitemcheckbox"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]), [role="tab"], [role="switch"], input[type="checkbox"], input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled, [aria-disabled="true"], [data-disabled] { cursor: default; }
   :root {
     color-scheme: light;
   }
@@ -304,6 +311,12 @@
   .cc-nav-item svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
   .cc-nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
   .cc-section-label { padding: 1rem 0.625rem 0.25rem; color: var(--cc-ink-3); font-size: 0.75rem; font-weight: 500; }
+  /* 分组标题可点折叠（同 Claude「今天 ⌄」）：箭头平时隐藏、悬停或已折叠时出现，折叠时转向右 */
+  .cc-section-toggle { display: flex; align-items: center; gap: 0.25rem; width: 100%; text-align: start; outline: none; }
+  .cc-section-toggle:hover, .cc-section-toggle:focus-visible { color: var(--cc-ink-2); }
+  .cc-section-chevron { width: 0.875rem; height: 0.875rem; opacity: 0; transition: opacity var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease); }
+  .cc-section-toggle:hover .cc-section-chevron, .cc-section-toggle:focus-visible .cc-section-chevron, .cc-section-toggle[aria-expanded="false"] .cc-section-chevron { opacity: 1; }
+  .cc-section-toggle[aria-expanded="false"] .cc-section-chevron { transform: rotate(-90deg); }
 
   .cc-search {
     display: flex; align-items: center; gap: 0.5rem; height: 2.25rem; padding: 0 0.75rem; border-radius: var(--cc-radius-sm);

@@ -14,6 +14,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import {
+  ChevronDownIcon,
   MoreHorizontalIcon,
   PencilIcon,
   StarIcon,
@@ -134,7 +135,37 @@ const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
   );
 };
 
-type ThreadListGroup = { label: string; indices: number[] };
+type ThreadListGroup = { key: string; label: string; indices: number[] };
+
+// 分组可以点标题折叠（同 Claude 侧栏的「今天 ⌄」），折叠哪些记在本机
+const COLLAPSED_KEY = "cc.sidebar.collapsed";
+
+function readCollapsed(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function useCollapsedGroups() {
+  const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
+  const toggle = (key: string) =>
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+      } catch {
+        // 无痕窗口等存不了：本次照样折叠
+      }
+      return next;
+    });
+  return { collapsed, toggle };
+}
+
+const dayKey = (day: Date) => `${day.getFullYear()}-${day.getMonth() + 1}-${day.getDate()}`;
 
 const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
   searchQuery = "",
@@ -142,6 +173,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
   const { isMobile } = useSidebar();
+  const { collapsed, toggle } = useCollapsedGroups();
 
   const query = searchQuery.trim().toLowerCase();
 
@@ -168,19 +200,20 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
 
     const result: ThreadListGroup[] = [];
     const starred = sorted.filter((index) => itemsById.get(threadIds[index]!)?.custom?.starred);
-    if (starred.length) result.push({ label: t("starred"), indices: starred });
+    if (starred.length) result.push({ key: "starred", label: t("starred"), indices: starred });
     const rest = sorted.filter((index) => !starred.includes(index));
     if (isMobile) {
       // 手机（同 Claude 手机端）：其余的都在「最近」
-      if (rest.length) result.push({ label: t("recents"), indices: rest });
+      if (rest.length) result.push({ key: "recents", label: t("recents"), indices: rest });
     } else {
       // 网页 / 桌面（同 Claude 网页版）：按最后活动的日子分组——今天、昨天、10月10日……
       const byDay: ThreadListGroup[] = [];
       for (const index of rest) {
-        const label = dates[index] ? dayLabel(dates[index]!) : t("today");
+        const day = dates[index] ?? new Date();
+        const key = dayKey(day);
         const last = byDay[byDay.length - 1];
-        if (last?.label === label) last.indices.push(index);
-        else byDay.push({ label, indices: [index] });
+        if (last?.key === key) last.indices.push(index);
+        else byDay.push({ key, label: dayLabel(day), indices: [index] });
       }
       result.push(...byDay);
     }
@@ -208,20 +241,32 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
     ));
   }
 
-  return groups.map((group) => (
-    <Fragment key={group.label}>
-      <div data-slot="aui_thread-list-group-label" className="cc-section-label">
-        {group.label}
-      </div>
-      {group.indices.map((index) => (
-        <ThreadListPrimitive.ItemByIndex
-          key={threadIds[index]}
-          index={index}
-          components={{ ThreadListItem }}
-        />
-      ))}
-    </Fragment>
-  ));
+  return groups.map((group) => {
+    // 搜索时不折叠：要看到所有命中的
+    const open = !!query || !collapsed.has(group.key);
+    return (
+      <Fragment key={group.key}>
+        <button
+          type="button"
+          data-slot="aui_thread-list-group-label"
+          className="cc-section-label cc-section-toggle"
+          aria-expanded={open}
+          onClick={() => toggle(group.key)}
+        >
+          {group.label}
+          <ChevronDownIcon className="cc-section-chevron" />
+        </button>
+        {open &&
+          group.indices.map((index) => (
+            <ThreadListPrimitive.ItemByIndex
+              key={threadIds[index]}
+              index={index}
+              components={{ ThreadListItem }}
+            />
+          ))}
+      </Fragment>
+    );
+  });
 };
 
 // 「新建」：与「定时任务」同一个导航项样式（.cc-nav-item / .cc-nav-icon），图标与文字对齐（同 Claude 侧栏）
