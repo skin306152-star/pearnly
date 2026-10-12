@@ -4,16 +4,21 @@
 - 小助手调用的三个机器接口 = 服务端 `http_auth` 认的三个原生地址，且都是只收 POST 的白名单方法；
 - 对话页向本站申请的这台电脑的密钥（`companion.api.register`，只收 POST）以 `密钥@本站域名` 交给桌面端，
   小助手的 `split_pairing_code` 能拆开（2026-10-10 起网页不再显示 / 复制配对码）；
-- 下载地址三处一致：小助手查更新、nginx 下载目录、发布接收脚本，以及网页「下载助手」的默认地址。
+- 下载地址三处一致：小助手查更新、nginx 下载目录、发布接收脚本，以及网页「下载助手」的默认地址；
+- 文件夹同步（2026-10 CC 闭环第一批，`folder_intake/machine.py` ↔ `folder_worker.py`）：四个机器接口、对话提醒的字段、
+  新增的请求 / 回复键两边都在，小助手按云端下发的顺序跑任务，提醒点开的地址与共用层深链接同一形状。
 """
 import ast
+import importlib.util
 import re
 import unittest
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPANION = ROOT / "companion" / "src" / "companion"
 SERVER = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "companion"
+FOLDER_SERVER = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "folder_intake"
 
 
 def module_constants(path):
@@ -103,6 +108,98 @@ class Downloads(unittest.TestCase):
         api = module_constants(SERVER / "api.py")
         self.assertEqual(api["INSTALLER_URL"],
                          updater["DOWNLOAD_SITE"] + receiver["URL"] + "/" + receiver["NAME"])
+
+
+def method_source(path, cls, name):
+    """类里一个方法的源码（只读 AST，不导入）。"""
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.ClassDef) and node.name == cls:
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == name:
+                    return ast.unparse(item)
+    raise AssertionError(f"{cls}.{name} not found in {path}")
+
+
+def quoted(text, key):
+    return re.search(r"""["']%s["']""" % re.escape(key), text) is not None
+
+
+class FolderSync(unittest.TestCase):
+    """文件夹同步的报文约定（docs/work/2026-10-12-cc-closed-loop.md「第一批接口约定」E 节；向后兼容，协议号不变）。"""
+
+    def setUp(self):
+        self.worker = (COMPANION / "folder_worker.py").read_text(encoding="utf-8")
+        self.server = "\n".join((FOLDER_SERVER / name).read_text(encoding="utf-8")
+                                for name in ("machine.py", "contracts.py"))
+
+    def test_the_helper_calls_exactly_the_folder_paths_the_server_authenticates(self):
+        helper = module_constants(COMPANION / "folder_client.py")
+        server = module_constants(SERVER / "http_auth.py")
+        self.assertEqual({helper[name] for name in ("SYNC", "BEGIN", "FINISH", "WORKBOOK")},
+                         {"/api/method/" + method for method in server["FOLDER_METHODS"].values()})
+        for method in server["FOLDER_METHODS"].values():
+            module, function = method.rsplit(".", 1)
+            self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
+                                             function), method)
+
+    def test_notice_fields_are_the_same_on_both_sides(self):
+        helper = module_constants(COMPANION / "folder_worker.py").get("NOTICE_FIELDS")
+        server = module_constants(FOLDER_SERVER / "contracts.py").get("NOTICE_FIELDS")
+        self.assertEqual(helper, ("id", "title", "text", "created", "session"))
+        self.assertEqual(server, helper)
+
+    def test_the_helper_sends_the_new_request_keys(self):
+        round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")
+        sync = next(node for node in ast.walk(ast.parse(round_source)) if isinstance(node, ast.Call)
+                    and ast.unparse(node.func) == "client.sync")
+        keys = {key.value for key in sync.args[0].keys}
+        self.assertTrue({"roots", "runs", "rule_health", "rule_pending", "notices_after"} <= keys, keys)
+        report = method_source(COMPANION / "folder_worker.py", "FolderIntake", "_report")
+        self.assertIn("line['counts']", report)
+        self.assertIn("line['partial']", report)
+        self.assertIn("record['slot']", method_source(COMPANION / "folder_worker.py", "FolderIntake", "_run"))
+
+    def test_the_server_reads_the_new_request_keys(self):
+        for key in ("rule_pending", "notices_after", "counts", "partial", "slot"):
+            self.assertTrue(quoted(self.server, key), key)
+
+    def test_the_server_sends_the_new_reply_keys(self):
+        for key in ("existing", "notices", "companion_latest"):
+            self.assertTrue(quoted(self.server, key), key)
+
+    def test_the_helper_reads_the_new_reply_keys(self):
+        round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")
+        self.assertIn("rule.get('existing')", round_source)
+        self.assertIn("response.get('notices')", round_source)
+        self.assertIn("self._offer(response)", round_source)
+        self.assertIn("_offer_update(response", self.worker)
+        self.assertIn('hb.get("companion_latest")', (COMPANION / "worker.py").read_text(encoding="utf-8"))
+
+    def test_the_helper_runs_rules_in_the_order_the_server_sends(self):
+        # F7：同一账套的存货进货任务由云端排在销售之前；小助手照下发顺序跑，不另排序。
+        self.assertIn('for rule in response.get("rules") or []:', self.worker)
+        round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")
+        self.assertNotIn("sorted(", round_source)
+        self.assertNotIn(".sort(", round_source)
+
+    def test_reminder_links_match_the_shared_deep_link(self):
+        # 托盘提醒点开的地址 = 共用层 assistant/contracts.deep_link（网页推送点开的同一个地址）接在公司站点上。
+        spec = importlib.util.spec_from_file_location(
+            "assistant_contracts", ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py")
+        shared = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(shared)
+        self.assertTrue(callable(getattr(shared, "deep_link", None)), "assistant/contracts.deep_link")
+        # 只抽小助手 tomo_links 里的函数与常量执行（CI 的 Python 没装小助手的依赖）
+        tree = ast.parse((COMPANION / "tomo_links.py").read_text(encoding="utf-8"))
+        keep = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.Assign))]
+        namespace = {}
+        exec("import json, os, re\nfrom pathlib import Path\nfrom urllib.parse import quote, urlsplit", namespace)
+        exec(compile(ast.Module(body=keep, type_ignores=[]), "tomo_links.py", "exec"), namespace)
+        for session in ("sess_1:abc", "", "bad id"):
+            helper = urlsplit(namespace["conversation_url"]("https://acme.pearnly.com", session))
+            server = urlsplit("https://acme.pearnly.com" + shared.deep_link(session))
+            self.assertEqual((helper.netloc, helper.path, parse_qs(helper.query)),
+                             (server.netloc, server.path, parse_qs(server.query)), session)
 
 
 if __name__ == "__main__":
