@@ -27,6 +27,7 @@ import {
   LogOutIcon,
   MenuIcon,
   MinusIcon,
+  MoreHorizontalIcon,
   PanelLeftIcon,
   PencilIcon,
   PlusIcon,
@@ -471,44 +472,24 @@ function DrawerIcon() {
 }
 
 // 对话区顶部。
-// - 手机（同 Claude 手机端）：半透明一条盖在内容上，左边菜单、中间对话名、右边在跑时转圈、空闲时新建对话。
+// - 手机（同 Claude 手机端对话页）：左边菜单，右边胶囊（新建对话、「…」对话选项），都浮在内容上。
 // - 电脑（同 claude.ai）：对话有内容时左上角是对话名，点开加星标 / 改名 / 删除；右边是本对话的文件。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
 function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; files: ReactNode }) {
   const { open, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { view, setView } = useView();
   const aui = useAui();
-  const snapshot = useActiveSessionSnapshot();
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
-  const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const inChat = view === "chat" && hasMessages;
   if (isMobile) {
-    // 抽屉打开时顶栏照样在（随页面卡片推到右边、被压淡，同 Claude 手机端）
+    // 同 Claude 手机端的对话页：没有标题、没有横条，按钮浮在内容上，顶上一层上实下透的渐变；抽屉打开时照样在（随页面推开、被压淡）
     return (
-      <div className="cc-mtopbar" data-plain={!inChat || undefined}>
+      <div className="cc-mtopbar">
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <DrawerIcon />
         </button>
-        <span className="cc-mtopbar-title">{view === "tasks" ? t("scheduledTasks") : inChat ? title || t("untitled") : ""}</span>
-        {view === "chat" && isBusy(snapshot) ? (
-          <span className="cc-round-btn" role="status" aria-label={t("running")}>
-            <LoaderIcon className="animate-spin" />
-          </span>
-        ) : inChat ? (
-          <button
-            type="button"
-            className="cc-round-btn"
-            aria-label={t("newChatPill")}
-            onClick={() => {
-              setView("chat");
-              aui.threads().switchToNewThread();
-            }}
-          >
-            <SquarePenIcon />
-          </button>
-        ) : (
-          <span className="cc-mtopbar-slot" />
-        )}
+        <span />
+        {inChat ? <MobileChatPill onNew={() => { setView("chat"); aui.threads().switchToNewThread(); }} /> : <span className="cc-mtopbar-slot" />}
       </div>
     );
   }
@@ -536,6 +517,47 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
       )}
       {inChat && <ConversationMenu />}
       <div className="ms-auto flex items-center">{files}</div>
+    </div>
+  );
+}
+
+// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（加星标、改名、删除）
+function MobileChatPill({ onNew }: { onNew: () => void }) {
+  const aui = useAui();
+  const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  const starred = useAuiState((s) => !!s.threadListItem.custom?.starred);
+  const rename = () => {
+    const next = window.prompt(t("rename"), title)?.trim();
+    if (next && next !== title) void aui.threadListItem().rename(next);
+  };
+  return (
+    <div className="cc-mpill">
+      <button type="button" aria-label={t("newChatPill")} onClick={onNew}>
+        <SquarePenIcon />
+      </button>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <button type="button" aria-label={t("conversationMenu")}>
+            <MoreHorizontalIcon />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
+            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ starred: !starred })}>
+              {starred ? <StarOffIcon /> : <StarIcon />}
+              {starred ? t("unstar") : t("star")}
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="cc-menu-item" onSelect={rename}>
+              <PencilIcon />
+              {t("rename")}
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+              <TrashIcon />
+              {t("delete")}
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   );
 }

@@ -168,9 +168,8 @@
   --cc-split-hit: 12px;           /* 分隔条可按住的宽度（看得见的只有中间一条细线） */
   --cc-topbar-h: 3rem;            /* 电脑上对话顶部那一行（对话名） */
   --cc-mtopbar-h: 4.25rem;        /* 手机顶栏（不含刘海安全区） */
-  /* 手机端（2026-10-12 按 Claude 手机端同比例镜像截图核对）：顶栏平时透明、按钮浮在页面上，内容滚到下面时才是白色磨砂 + 细线；
+  /* 手机端（2026-10-12 按 Claude 手机端同比例镜像截图核对）：对话页没有顶栏横条、按钮浮在内容上（顶上一层上实下透的渐变）；
      圆按钮近白半透明、细描边轻阴影、约 44；抽屉底色比页面卡片深一档；对话行黑字、约 48 高 */
-  --cc-mbar-bg: rgb(255 255 255 / 0.9);   /* 实测 #fefefc */
   --cc-mbtn-bg: #f6f6f4;          /* 圆按钮、抽屉头像：固定的浅灰白（镜像实测 #f6f7f5，页面上略暗、抽屉上略亮） */
   --cc-mcard-line: transparent;   /* 抽屉打开时页面卡片：浅色无边线、向抽屉投一道柔和阴影（镜像实测） */
   --cc-mcard-shadow: 0.09;
@@ -212,7 +211,6 @@
   --cc-bg-active: rgb(250 249 245 / 0.1);
   --cc-bg-overlay: rgb(0 0 0 / 0.55);
   --cc-bg-selected: rgb(250 249 245 / 0.12);
-  --cc-mbar-bg: rgb(38 38 36 / 0.9);
   --cc-mbtn-bg: #30302e;
   --cc-mcard-line: var(--cc-line-strong);
   --cc-mcard-shadow: 0;
@@ -502,16 +500,20 @@
   /* 手机顶栏（同 Claude 手机端）：盖在内容上的半透明一条，内容从下面滚过去 */
   .cc-mtopbar {
     position: absolute; inset: 0 0 auto 0; z-index: 20; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem;
-    padding: max(0px, calc(env(safe-area-inset-top) - 0.25rem)) 1rem 0.5rem;
-    background: transparent; border-bottom: 0.5px solid transparent;
-    transition: background-color var(--cc-dur) var(--cc-ease), border-color var(--cc-dur) var(--cc-ease);
+    padding: max(0px, calc(env(safe-area-inset-top) - 0.25rem)) 1rem 1.25rem;
+    /* 同 Claude 手机端对话页：按钮后面是和页面同色的实底，按钮下沿往下很快淡出，没有细线和毛玻璃（镜像实测） */
+    background: linear-gradient(to bottom, var(--cc-bg-app) 0%, var(--cc-bg-app) 70%, transparent 100%);
+    pointer-events: none;
   }
-  /* 内容滚到顶栏下面时才出现白色磨砂与细线（mobile-shell 按滚动写 data-scrolled；欢迎页 data-plain 始终透明） */
-  .cc-mshell[data-scrolled] .cc-mtopbar:not([data-plain]) {
-    background: var(--cc-mbar-bg); border-bottom-color: var(--cc-line);
-    backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  .cc-mtopbar > * { pointer-events: auto; }
+  /* 右上角胶囊：两个图标一组（新建对话、「…」），样式同圆按钮 */
+  .cc-mpill {
+    display: inline-flex; align-items: center; height: var(--cc-mbtn-size); padding-inline: 0.25rem; border-radius: var(--cc-radius-full);
+    background: var(--cc-mbtn-bg); border: 1px solid var(--cc-line-strong); box-shadow: 0 1px 2px rgb(0 0 0 / 0.04); color: var(--cc-ink-2);
   }
-  .cc-mtopbar-title { min-width: 0; text-align: center; color: var(--cc-ink); font-weight: 600; font-size: 1.0625rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-mpill button { display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 100%; outline: none; }
+  .cc-mpill button:active { transform: scale(0.92); }
+  .cc-mpill svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.5; }
   .cc-mtopbar-slot { width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); }
 
   /* 文件拖进窗口时的整窗提示（同 claude.ai） */

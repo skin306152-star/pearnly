@@ -60,17 +60,9 @@ export function MobileShell({
       shell.style.setProperty("--cc-vvtop", `${viewport.offsetTop}px`);
     };
     fit();
-    // 顶栏只在内容滚到它下面时出现底色（globals.css 的 data-scrolled）：滚动事件不冒泡，在外壳上按捕获阶段听
-    const scrolled = (e: Event) => {
-      const target = e.target;
-      if (!(target instanceof Element) || !target.closest(".cc-mmain")) return;
-      shell.toggleAttribute("data-scrolled", target.scrollTop > 4);
-    };
-    shell.addEventListener("scroll", scrolled, true);
     viewport.addEventListener("resize", fit);
     viewport.addEventListener("scroll", fit);
     return () => {
-      shell.removeEventListener("scroll", scrolled, true);
       viewport.removeEventListener("resize", fit);
       viewport.removeEventListener("scroll", fit);
     };
