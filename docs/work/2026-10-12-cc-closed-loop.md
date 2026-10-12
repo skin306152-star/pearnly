@@ -228,3 +228,165 @@
 已知限制：删除的任务不留痕迹，删后重建会重新处理文件夹里已有文件；同一负责人的任务分在多台电脑上时提醒 / 简报各发一份；只读文件夹
 的成员要手动装一次 1.4.4；长时间首轮上传期间提醒延后到下一次同步；Desk 新建任务表单在接续停用任务时仍显示「现有 N 份」；
 Windows 正式通知的点击在 CC 运行时才能打开页面（没有注册系统级激活）。
+
+## 第二批实现（集成 399e3e81）
+
+分支 `pearnly/ccl-b2-integrate`，基线 `origin/main` 3a16e261；依次 `--no-ff` 合入 `pearnly/cc-closed-loop`（第一批发布记录）、
+`ccl-remind-times`、`ccl-b2-presets`（L8）、`ccl-b2-channel`（L3 + 按需通道 + L2）、`ccl-b2-readback`（L1）、`ccl-b2-tax`（L4 + L5）、
+`ccl-b2-pos`（L9），再补 6 个集成修正（见下）。L6、L7 已随第一批上线；L7 的说法在 L1 合入后补了「改完用回读看」。
+未推送、未合入 main、未部署。
+
+### 提醒时间自定义
+
+- Rule 新字段 `remind_times`（≤3 个 `{days_before 0–7, time HH:MM}`，空 = 前一天 08:00、14:00，老任务不变）；CC
+  `cowork_save_folder_task(s)` / `cowork_set_folder_task_enabled` 收 `remind_times`，卡片列出时刻；CC 任务页与 Desk 对话框最多 3 行。
+- 开关文字「前一天提醒」改「提醒」；提醒开着时「当天」时刻要早于运行时间，否则拒（`cowork.folder.remind_same_day`
+  「当天提醒要早于运行时间」），改运行时间让已有的当天提醒发不出也拒。口径细节见上文 D 节。
+
+### L3 工具产出再当输入
+
+- 共用层 `assistant/files.add_to_conversation(..., origin="tool"|"folder")` 在站点私有目录留一份（`tool/`、`folder/`），
+  `attachment()` 按编号 / 路径 / 文件名都取得到，对账、盘点工具不用改。识别工具只拒 `origin == "tool"`（`made_by_tool`）。
+- 集成修正：报税工作簿与回读工作簿一样显式 `origin="tool"`。
+
+### 按需请求通道（L1 / L2 的底座）
+
+- 私有表 `Cowork Companion Request`，只经 `companion.request_service` 写；两条机器方法 `request_api.next_request` /
+  `complete_request` 登记在 `http_auth.REQUEST_METHODS`。状态 requested → leased → done / failed；10 分钟没人领、租约到期算 expired。
+- 结果按 4 MiB 分块续传，末块核大小与 sha256，存站点私有目录、取走即删；同一人同一连接最多挂 20 件；7 天以上的旧件在下次新建时清。
+- 发起方一律 `find` → `waiting` → `create`：同一请求号还在等、在做、做完没取走就接着等，不问电脑在不在；有未到期租约也算在线。
+  `MIN_COMPANION = 1.5.0`，旧版回 `waiting_for_cc / update_needed`。
+- CC 桌面版 `RequestWorker` 独立守护线程（15 秒一问），不碰推送线、看门狗、账套锁；托盘与文件夹线程一起起停，自动更新等手上这件做完。
+
+### L2 从已授权文件夹取文件
+
+- CC 工具 `cowork_folder_files`（列：路径、大小、曼谷时间；按子文件夹 / 搜索词 / 类型筛；一页 100、最多 200，10 分钟内翻页不重列）、
+  `cowork_folder_fetch`（一次 ≤5 份，`origin="folder"` 进对话，可直接给对账、识别、POS 导入）。只读、不识别、不扣费、不弹允许卡。
+- 电脑离线 / 太旧回 `waiting_for_cc`（不建请求）；列等 45 秒、取等 90 秒，还没完回 `reading`，原样再调接着等，已取进的不重取。
+- 桌面端 `folder_fetch`：只认本机加过的根目录，拒 `..`、盘符、UNC、绝对路径、链接 / 联接点跳出；类型同对话附件、单份 30 MB；
+  列文件 10 秒 / 5 万项 / 12 层 / 5000 份上限，超出标 truncated。
+
+### L1 回读 Express
+
+- CC 工具 `cowork_express_readback` / `_status` / `_delete`（不弹允许卡、不扣费）；最多等 90 秒，还在读回 `reading`。
+- 桌面端 `express_read`：只读推送同一组授权的账套；不调 `account_lock`、不开 ISRUN，要读的表先共享读复制到本机临时目录（Express
+  开着也能读），被独占隔 3 / 10 / 20 秒重试后回 `account_busy`；借贷不平整份隔 5 秒重读一次；金额一律 Decimal 两位。
+- 服务端 `readback` 域：期初 = BEGLY + Σ(DEBIT{k}LY − CREDIT{k}LY) + 本月前未作废凭证行（照原型 xmake 逐项对照过）；出总账、销项税报、
+  进项税报、差异表四份工作簿，存私有目录，同一人同一连接同一账套同一月只留最新一份，只给发起人。私有表 `Cowork Express Readback`。
+- 总账在 Express 八列后另加一列科目号：收入对账解析器没有科目列时会把收入段后的费用行记到收入科目上。
+- **改了 `reconciliation/gl_sheets.py`**：科目标题行的科目名不再当期初标签，给了科目后别的科目段里的期初行不算。Express 自导的
+  全科目总账同样受影响，只在回读侧规避盖不住用户上传件（旧代码银行期初读成 −252000，修后 1100）。
+- 差异按 CC 桌面版实际写法比：现购 HP / 现销 HS 记账套现金科目、赊购 RR / 赊销 IV 记对方档科目、期末盘存制进项存货换购货；进项票号按
+  `fit_ref_no` 缩法比；另列删除、找不到、作废与直接录入。处理出错记 `process_failed`，不停在 reading。`vat_records` 供 L4。
+- 集成修正：发起改为 `find` → `waiting` → `create`（请求号由人、连接、账套、月、科目定）；POS 日汇总同一次写入的转账凭证
+  （推送回执 `meta.pos_vouchers`，原先被回执白名单整个滤掉，现由 `sanitize_push_meta` 从 `notes.pos_vouchers` 留下）算推送过的、
+  点名读回、按「借 收款科目 / 贷 现金」比，删 / 作废 / 改科目记在当天 HS 的分录项下；POS 的 HS 本身（自编单号、YOUREF 与 REFNUM 是
+  区间、借现金）照现销比。
+- 读账参数 `request_contracts.PARAMS_MAX` 8 → 64 KiB（点名 ≤2000 个单号）；推送记录按月初前 92 天以后建立的取，点名的按单号查。
+
+### L4 ภ.พ.30 草稿与进项核查 / L5 ภ.ง.ด.3 / 53 草稿
+
+- 新域 `tax`，入口只有 CC 工具 `cowork_vat_draft`、`cowork_wht_draft`、`cowork_wht_answer`、`cowork_tax_draft_delete`（无 Desk 页）；
+  功能码 `tax_drafts`（default_on）、角色 Cowork Tax Filing；补丁 `v0_0_17_tax_drafts_feature` 给所有 Cowork 站点补功能码，并把角色发给
+  已有 Cowork VAT Check 的启用用户。预扣税草稿另要识别记录读权限。
+- ภ.พ.30：没有回读回 `readback_needed`；只取 VATPRD 在本月的行，第 1–12 栏为合计，13–16 栏留空；核查只标不改数（进项缺 / 错税号、
+  早于开票月、超 6 个月、6 个月内顺延提醒注记、简易税票与非税票、买方缺失 / 别家、重复；销项期间、按日期税率表核税额容差 0.02）。
+  摘要含「อย่างย่อ」的 POS 日汇总行照常计入、不逐行核税率（交叉测试锁住 CC 桌面版写的摘要确实带这几个字）。税率表只到 2027-09-30。
+- ภ.ง.ด.3 / 53：取识别记录里印了预扣税的费用票、50 ทวิ 与参考记录；税号 0 开头进 53、0991 / 0992 与其余进 3；按付款日落月（凭证日 >
+  当场已付的票据日 > 票据日并标「推定」）；票与凭证按收款方一对一 / 多对一 / 一对多配对（±45 天），配不清标 `pairing_unclear`、
+  方向不清标 `certificate_direction_unclear`，都不计入；所得类型按收款方或分类问一次记住（`Cowork WHT Choice`）；ใบแนบ 每页 6 名、
+  每名 3 行；1% 服务类标 `ewht_check`。
+- 50 ทวิ 参考记录（用户 10-13 定）：租户选「不录入」时识别存档同一事务用保存点写 `Cowork WHT Certificate`，不推送、不进待办、
+  不新增识别调用；录入工作台删原件时一并删。
+- 草稿 `Cowork Tax Draft` 只存各栏、合计与问题计数（`service.kept`），行级明细只在本次返回与工作簿里；写前只锁这份草稿。
+
+### L8 通用版式银行对账单记预设
+
+- 只做 L8a：`GENERIC` 账单有 4 位尾号时按「GENERIC + 尾号 + 总账科目」记预设，问一次后沿用；尾号只采信识别读出的账户或表头上方
+  标签旁的账号（`account_read`），不用表名退路（挡住「Jan 2026」被当尾号）；结果页存档指纹按本任务尾号收窄。
+- 「กรุงเทพ 认成 BBL」没改：同一版式稳定认成 BBL，预设照样记得住，错的只是标签与导出名；改了会让所有文字层 PDF 对账换银行码、
+  已记在 `bank|BBL|…` 下的账户全部重问，且 `detect_bank` 被旧线上源码对照测试固定。要改须先在测试机对压测语料跑零费用对照。
+
+### L9 POS 导出按天录销售
+
+- 新域 `pos_import` 与共用纯契约 `contracts/pos.py`；CC 工具 `cowork_pos_import`（对话附件或 L2 取来的文件）、`cowork_pos_layout`
+  （答认列问题，也可答定时任务里停着的文件，答完续跑）。读 .xlsx / .xlsm / .csv，.xls 回 `pos.xls_not_supported`。
+- 通用认列，认不准才问（缺列、同类多列、日月顺序、含不含税、新状态值），按「公司 + 表头指纹」记住（`Cowork POS Layout`）。
+- 每天一张现金客户简易税票：Decimal 逐日与 POS 合计对平；有税额列取逐票税额之和，没有按合计 × 7/107 四舍五入、尾差落税前额；
+  作废不算、退款记负；参考号 ≤15 字节（区间 → 缩写 → ABB + 佛历日期）。不识别、不扣费、不查重。
+- 推送载荷 3，Express 原生记法：HS 单号自编（HS + 佛历年月日 + 序号）、借现金 ACCNUM00；ISVAT S 每天一行，摘要
+  「ใบกำกับภาษีอย่างย่อ 起-止」、REFNUM 区间；每种非现金付款方式同一次写入一张普通日记账凭证（ISRUN 里唯一一本 JNLTYP 00，多本用 JV）
+  「借 收款科目 / 贷 现金」，同锁、同备份、同回滚、逐张读回。收款科目是推送选择 `receipt`，按公司问一次（同公司别的年度账套记过且
+  科目在本账套就带出）。单据簿定不下来 / 科目不能记账在写前停（`JOURNAL_BOOK_NOT_FOUND` / `ACCOUNT_NOT_POSTABLE`）；只推 Express
+  （`pos_express_only`）；非 POS 载荷与基线逐字节相同。
+- 定时任务：推往 Express 的销售任务另收 POS 导出（同步下发 `extensions`），到点先建天再交识别；认不准停在 `pos.layout_needed`（算停下
+  待人）；结果表每份导出一张 `<文件名>_POS.xlsx`，每天一行带推送状态与 ERP 单号；1.4 的老任务对新收的扩展名先补拍底再扫。
+
+### 集成修正（合并后单独提交）
+
+| 提交 | 内容 |
+| --- | --- |
+| 08c94441 | 回读发起 `find` → `waiting` → `create`，测试补「租约中不判离线」「记录丢了接上原请求」 |
+| d4e22a48 | 报税工作簿 `origin="tool"`，工具测试核 origin |
+| 8b5d1330 | 回执保留 `pos_vouchers`；回读认 POS 转账凭证、比其分录；POS 日 HS 比对测试 |
+| 64c99de8 | 交叉测试：POS 日销项行（CC 桌面版摘要）进 ภ.พ.30 合计、不报 `output_rate` |
+| 26915aef | CC 桌面版 1.4.4 → 1.5.0（`version.py` 单一来源），契约测试锁住版本 ≥ `MIN_COMPANION` |
+| 399e3e81 | `i18n-build.py` 重生成 core / cowork 四语翻译包 |
+
+`architecture-policy.json` 合并即正确，无需另改：`readback`（access / companion / connections / push / targets）、`tax`（access / contracts /
+history / readback / reconciliation）、`pos_import`（access / connections / contracts / files / history / ocr / tabular / targets）与实际导入
+一致、无环；`assistant` 依赖三者，`folder_intake` 依赖 `pos_import`。
+
+### 验证
+
+| 时间 | 代码 | 环境 | 场景 / 命令 | 结果 |
+| --- | --- | --- | --- | --- |
+| 10-13 | 399e3e81 | 本机 | `development.yml` 全部同名闸门（67 步，含 `npm ci` 与前端构建） | 全过；`check-architecture` 0 违规、`i18n-build --check` PASS |
+| 10-13 | 399e3e81 | 本机 | CC 桌面端 pytest | 721 过、38 跳过（Windows 专用） |
+| 10-13 | 399e3e81 | 本机，带 openpyxl | `readback_workbooks` / `tax_workbook` / `pos_xlsx` | 12 / 3 / 3 过 |
+
+主要单测：companion_contract 31、companion_requests 24、readback 39、folder_intake 97、pos_import 28、folder_reminders 38、
+folder_task_batch 20、assistant_tools 93、tax_pp30 28、tax_wht 38、tax_service 24、assistant 74、http_auth 19。
+
+| 层级 | 状态 | 依据与未覆盖项 |
+| --- | --- | --- |
+| 实现 | 通过 | 见上 |
+| 本地验证 | 通过 | 闸门、单测；需要 Frappe 的候选离线通道（`recon_presets`、`recon_view_store`、三个 openpyxl 测试、`push_account` 等）未在生产镜像跑 |
+| CI | 未执行 | 未推送 |
+| 部署 | 未执行 | — |
+| 外部业务结果 / 真机验收 | 未执行 | 见下 |
+
+### 部署与合入前
+
+- 改了 `pearnly_core`（`assistant/files.py`、词条）：合入前在生产镜像跑完整 `ci-candidate-checks offline`（含新登记的
+  `readback_workbooks`、`tax_workbook`、`pos_xlsx`）。
+- 新表随 `bench migrate`：Cowork Companion Request、Cowork Express Readback、Cowork Tax Draft、Cowork WHT Choice、Cowork WHT Certificate、
+  Cowork POS Layout；补丁 `v0_0_17`。先部署服务端，再发 CC 桌面版 1.5.0。
+- `reconciliation/*.py` 变了：部署后结果页存档先给旧的、后台重算（曾约 490 CPU 秒）。
+
+### 还要在测试机 / Express 上做
+
+- 通道与 L2：1.5.0 staging 版列 2000 份以上的文件夹、取 25 MB PDF、取来的对账单直接对账；慢上行时重调不判离线；NTFS 联接点与符号链接
+  跳出被拒、Excel 开着的文件、映射盘 / 网络共享；MR.ERP 只读成员；生产 nginx 收 4 MiB 分块；深于 12 层的目录标 truncated。
+- L1：Express 开着 / 录单 / 整理时各读一次；总账逐科目对打印件（非 1 月起账、推送后月份的 GLBAL 期初）；税报排序、作废显示、顺延进项；
+  现购现销与期末盘存制月份差异表不误报；真实 ISINFO 列；佛历日期格式；大账套耗时；银行 / 收入 / 销项三种对账端到端；POS 日的转账凭证
+  不进直接录入。
+- L4 / L5：9 月 ภ.พ.30 草稿对 Express 税报与 ภ.พ.30 打印逐项对照（VATPRD 选行、作废、减项单正负、排序）；税期改到 +7 个月报错；
+  50 ทวิ 付款 / 收款方字段与税额字段用回放库核；一张凭证付几张票、分期、跨月的配对与会计手工对照；删混合文件后参考记录消失。
+- L8：零费用语料对比，有标签账号的表格账单问一次记住，有银行名的不变。
+- L9：JV 单据簿、凭证号与 SEQIT、ISRUN 计数器；Express 能否打开 / 打印 / 修改自编 HS 与 JV；销售与 ภ.พ.30 销项报表每天一行带区间、
+  现金与银行明细对平；真实 Ocha / Loyverse 导出；存货路径与 0 元赠品；现金净额为负的一天；1.4 → 1.5 老任务不重传旧表格；
+  `.xls` 显示失败与原因；跨年度带出收款科目。写 T9SINCER 前先把写入清单给用户确认。
+
+### 已知限制
+
+- 通道：没取走的结果只在同一连接下次新建请求时清；多租户同一台电脑做 A 的长请求时 B 可能显示离线一个租约期；电脑中途掉线到租约
+  过期前仍算在线；25–30 MB 的文件能进对话但对账单份上限 25 MB；根目录下名字以空格开头的文件列得出取不回。
+- L1：说明含 ยกมา / ยอดรวม 的行会被当期初 / 合计（与 Express 自导一致）；直接录入工具只显示前 20 条；存货单不比分录；对方档科目
+  按回读当时判断；推送后改了供应商档科目会报改过；92 天窗口外极端情况漏查；没有 Desk 页面。
+- L4 / L5：参考记录无界面删除入口（只能 include=false）；改到别的月的付款日只存在本月草稿；赊购真实付款日没读；e-WHT 只提示；
+  节假日不顺延；识别记录取前 90 天到月底、最多 5000 张（超出标 truncated）。
+- L8：读不出尾号的 GENERIC 账单不记不问；同一账户一次 KBANK 一次 GENERIC 会存两份预设；不同公司尾号与科目都相同会共用。
+- L9：收款科目跨年度靠公司名一致；Loyverse 商品级导出没有付款方式列整天按现金；一票多种付款方式按一种非现金记；不查重（改名重放
+  会再记）；多台收银机同一天各出一张；`cowork_recognize_attachments` 不自动转走 POS 导出（模型选错会按识别扣费）；同时有
+  Payment status 与 Status 两列时状态列不采用；刷卡记含手续费全额。
