@@ -75,6 +75,8 @@ Buyer Tax ID,買い手税番号
 Bytes,バイト数
 CC Desktop,CC デスクトップ
 CC Desktop not connected,CC デスクトップ未接続
+CC is not set up for this site yet.,このサイトではまだ CC が設定されていません。
+CC is only available on product sites.,CC は製品サイトでのみ利用できます。
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません

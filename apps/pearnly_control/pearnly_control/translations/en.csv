@@ -18,9 +18,6 @@ An adjustment must have a reason,An adjustment must have a reason
 An employee identity is used by another tenant; review it before deleting this tenant,An employee identity is used by another tenant; review it before deleting this tenant
 Approve and credit,Approve and credit
 Approve top-up,Approve top-up
-Assistant API Key,Assistant API Key
-Assistant Engine,Assistant Engine
-Assistant Model,Assistant Model
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).
 Back,Back
 Balance (THB),Balance (THB)
@@ -35,6 +32,9 @@ Billing service unavailable; please retry,Billing service unavailable; please re
 Build the workspace,Build the workspace
 "By continuing, you agree to Pearnly's {0} and {1}.","By continuing, you agree to Pearnly's {0} and {1}."
 "By logging in, you agree to Pearnly's {0} and {1}.","By logging in, you agree to Pearnly's {0} and {1}."
+CC API Key,CC API Key
+CC Engine,CC Engine
+CC Model,CC Model
 "Cannot read the provisioning target, so the identity service URL is unknown","Cannot read the provisioning target, so the identity service URL is unknown"
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
@@ -106,7 +106,7 @@ Enable HTTPS access,Enable HTTPS access
 Enabled Features,Enabled Features
 Enabled — {0} steps,Enabled — {0} steps
 Enforcement,Enforcement
-Enter the assistant API key.,Enter the assistant API key.
+Enter the CC API key.,Enter the CC API key.
 Enter your password.,Enter your password.
 Enter your username or email.,Enter your username or email.
 External Reference,External Reference
@@ -262,11 +262,11 @@ Row {0}: a LINE channel needs both the Channel ID and the Channel secret,Row {0}
 Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Run provisioning,Run provisioning
 Running,Running
-Select the assistant engine.,Select the assistant engine.
+Select the CC engine.,Select the CC engine.
 Service URL is required,Service URL is required
+Set up CC,Set up CC
 Set up OCR,Set up OCR
 Set up the LINE channel,Set up the LINE channel
-Set up the assistant,Set up the assistant
 Set up unified sign-in,Set up unified sign-in
 Show or hide password,Show or hide password
 Sign in to your account,Sign in to your account
@@ -297,13 +297,13 @@ Tenant Provisioning,Tenant Provisioning
 Tenant {0} does not exist,Tenant {0} does not exist
 Terms of Service,Terms of Service
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.
+"The CC engine, model or API key is not valid.","The CC engine, model or API key is not valid."
+The CC settings are being applied. Try again shortly.,The CC settings are being applied. Try again shortly.
 "The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again","The LINE Login channel {0} already has 30 LIFF apps, LINE's limit. Delete unused ones in LINE Developers, then try again"
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.","The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting."
 "The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
 The address this tenant is reached at.,The address this tenant is reached at.
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)
-"The assistant engine, model or API key is not valid.","The assistant engine, model or API key is not valid."
-The assistant settings are being applied. Try again shortly.,The assistant settings are being applied. Try again shortly.
 The balance could not be read; this is not 'insufficient balance',The balance could not be read; this is not 'insufficient balance'
 The billing reference was already used for another request,The billing reference was already used for another request
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.","The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value."

@@ -51,7 +51,7 @@ const STEP_LABEL = {
 	restart_web: __("Restart services"),
 	finalize_site: __("Finalize the site"),
 	set_line: __("Set up the LINE channel"),
-	set_assistant: __("Set up the assistant"),
+	set_assistant: __("Set up CC"),
 	bind_user: __("Create the tenant account"),
 	set_roles: __("Grant feature roles"),
 	set_workspace: __("Build the workspace"),

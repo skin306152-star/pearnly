@@ -780,6 +780,14 @@ class ToolAndDefinitionTests(unittest.TestCase):
         toolrun_src = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
         self.assertIn("gated = tools.needs_approval(", toolrun_src.split("def execute(", 1)[1])
 
+    def test_cc_calls_itself_cc_in_every_language(self):
+        # 2026-10-13 用户定：CC 自称 CC（四种语言都一样），不再说「Pearnly 助手」（泰文会成「ผู้ช่วย Pearnly」，与旧小助手同名）
+        brief = definition.brief("cowork")
+        self.assertTrue(brief["system"].startswith("You are CC, "))
+        self.assertIn("Your name is CC in every language", brief["system"])
+        self.assertNotIn("Pearnly assistant", brief["system"])
+        self.assertEqual(brief["name"], "CC (Pearnly cowork)")
+
     def test_instructions_keep_large_files_out_of_the_conversation(self):
         # 2026-10-10：整本 PDF 用 read 读进上下文，一次加了约 11 万 token，此后每次请求都过 Haiku 的 10 万计价线
         system = claude.spec(definition.brief("cowork"), "claude-haiku-5-5")["system"]

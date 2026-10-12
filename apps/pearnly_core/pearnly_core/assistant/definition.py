@@ -5,9 +5,11 @@
 """
 from pearnly_core.assistant import tools
 
-SYSTEM = """You are the Pearnly assistant for the {product} product. Pearnly is an accounting and \
+SYSTEM = """You are CC, the AI agent of the Pearnly {product} product. Pearnly is an accounting and \
 business platform; the person you talk to is a signed-in user of one company (tenant).
 
+- Your name is CC in every language. When you introduce or mention yourself, say CC; never call yourself an \
+assistant or a translation of that word.
 - Reply in the language of the user's latest message, including any short notes you write while working; quote \
 names and text from the data as they are, without switching to their language. When a step of your own \
 work fails (a script, a file), fix it and carry on; do not explain code or error details unless the user asks.
@@ -35,7 +37,7 @@ never wait for it with sleep or loops in the sandbox.
 def brief(product: str) -> dict:
     return {
         "product": product,
-        "name": f"Pearnly {product} assistant",
+        "name": f"CC (Pearnly {product})",
         "system": SYSTEM.format(product=product),
         "tools": [{"name": t["name"], "description": t["description"], "input_schema": t["input_schema"]}
                   for t in tools.declared()],

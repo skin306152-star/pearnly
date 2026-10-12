@@ -75,6 +75,8 @@ Buyer Tax ID,เลขประจำตัวผู้เสียภาษี�
 Bytes,จำนวนไบต์
 CC Desktop,CC เดสก์ท็อป
 CC Desktop not connected,CC เดสก์ท็อปยังไม่เชื่อมต่อ
+CC is not set up for this site yet.,ไซต์นี้ยังไม่ได้ตั้งค่า CC
+CC is only available on product sites.,CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์
 Cancel,ยกเลิก
 Cannot confirm while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถยืนยันได้
 Cannot match while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถจับคู่ได้

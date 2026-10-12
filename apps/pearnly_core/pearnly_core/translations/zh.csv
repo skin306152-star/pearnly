@@ -75,6 +75,8 @@ Buyer Tax ID,买方税号
 Bytes,字节数
 CC Desktop,CC 桌面版
 CC Desktop not connected,CC 桌面版未连接
+CC is not set up for this site yet.,本站点尚未设置 CC。
+CC is only available on product sites.,CC 仅在产品站点可用。
 Cancel,取消
 Cannot confirm while the status is {0},当前状态为 {0}，无法确认
 Cannot match while the status is {0},当前状态为 {0}，无法匹配

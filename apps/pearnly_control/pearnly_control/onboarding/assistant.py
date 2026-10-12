@@ -30,13 +30,13 @@ def validate(doc) -> None:
     if not (doc.assistant_engine or doc.assistant_model or key):
         return
     if not doc.assistant_engine:
-        frappe.throw(_("Select the assistant engine."))
+        frappe.throw(_("Select the CC engine."))
     if not key:
-        frappe.throw(_("Enter the assistant API key."))
+        frappe.throw(_("Enter the CC API key."))
     try:
         engines.check(doc.assistant_engine, key, doc.assistant_model)
     except engines.EngineError:
-        frappe.throw(_("The assistant engine, model or API key is not valid."))
+        frappe.throw(_("The CC engine, model or API key is not valid."))
 
 
 def read(doc) -> dict:

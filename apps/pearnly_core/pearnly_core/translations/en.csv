@@ -75,6 +75,8 @@ Buyer Tax ID,Buyer Tax ID
 Bytes,Bytes
 CC Desktop,CC Desktop
 CC Desktop not connected,CC Desktop not connected
+CC is not set up for this site yet.,CC is not set up for this site yet.
+CC is only available on product sites.,CC is only available on product sites.
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}

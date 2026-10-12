@@ -864,6 +864,8 @@ Looked up a tax ID	查了税号	ตรวจสอบเลขประจำต
 Head Office	总部	สำนักงานใหญ่	本店
 Branch {0}	分支机构 {0}	สาขา {0}	支店 {0}
 This attachment is not in this conversation.	这个附件不在本对话里。	ไฟล์แนบนี้ไม่ได้อยู่ในการสนทนานี้	この添付ファイルはこの会話にありません。
+CC is only available on product sites.	CC 仅在产品站点可用。	CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์	CC は製品サイトでのみ利用できます。
+CC is not set up for this site yet.	本站点尚未设置 CC。	ไซต์นี้ยังไม่ได้ตั้งค่า CC	このサイトではまだ CC が設定されていません。
 You're offline	无法连接网络	ไม่มีการเชื่อมต่ออินเทอร์เน็ต	オフラインです	
 Try again	重试	ลองอีกครั้ง	もう一度	
 This device cannot receive notifications.	此设备无法接收通知。	อุปกรณ์นี้ไม่สามารถรับการแจ้งเตือนได้	このデバイスでは通知を受け取れません。

@@ -21,7 +21,7 @@ Settings = namedtuple("Settings", "engine api_key model")
 def product() -> str:
     code = str(frappe.conf.get("pearnly_product") or "").strip()
     if not code:
-        frappe.throw(_("The assistant is only available on product sites."), frappe.PermissionError)
+        frappe.throw(_("CC is only available on product sites."), frappe.PermissionError)
     return code
 
 
@@ -39,6 +39,6 @@ def settings() -> Settings:
                                          frappe.conf.get("pearnly_assistant_api_key"),
                                          frappe.conf.get("pearnly_assistant_model"))
     except engines.EngineError:
-        frappe.throw(_("The assistant is not set up for this site yet."))
+        frappe.throw(_("CC is not set up for this site yet."))
     engine = engines.get(code)
     return Settings(engine, key, model or engines.default_model(code))

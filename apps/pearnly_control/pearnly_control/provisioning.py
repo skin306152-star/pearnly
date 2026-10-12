@@ -570,7 +570,7 @@ def queue_assistant_config(tenant: str) -> int:
         req = frappe.get_doc(REQUEST, parent, for_update=True)
         step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_assistant"), None)
         if step and step.status == "running":
-            frappe.throw(_("The assistant settings are being applied. Try again shortly."))
+            frappe.throw(_("The CC settings are being applied. Try again shortly."))
         payload = json.dumps(_assistant_payload(dep), ensure_ascii=False)
         if step:
             step.payload = payload
