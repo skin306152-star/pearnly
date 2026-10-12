@@ -87,7 +87,8 @@ def summary_source(text) -> str:
 
 # 模型给的标题常带引号、书名号、句末标点或「标题：」前缀，这里统一去掉。
 TITLE_WRAP = re.compile(r"^[\s\"'“”‘’「」『』《》*#`]+|[\s\"'“”‘’「」『』《》*#`。．.!！?？,，、;；:：]+$")
-TITLE_LABEL = re.compile(r"^(?:title|标题|題名|ชื่อเรื่อง)\s*[:：]\s*", re.I)
+# 「title / 标题 / 題名 / ชื่อเรื่อง:」前缀，用转义写（这是模型输出的清理规则，不是界面文案）
+TITLE_LABEL = re.compile(r"^(?:title|\u6807\u9898|\u984c\u540d|\u0e0a\u0e37\u0e48\u0e2d\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07)\s*[:\uff1a]\s*", re.I)
 
 
 def short_title(value) -> str:
