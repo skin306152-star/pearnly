@@ -20,7 +20,7 @@ from pearnly_cowork.history import storage
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.pages import assess_confidence
 from pearnly_cowork.pos_import import contracts, layouts, tables
-from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_cowork.targets.identity import account_set_company, normalize_express_account_key
 
 ENGINE = "pos_import_v1"
 TARGET = "express"
@@ -41,8 +41,7 @@ def company_key(connection, account_set_key) -> str:
         catalog = {}
     for row in catalog.get("account_sets") or []:
         if isinstance(row, dict) and normalize_express_account_key(row.get("source_id")) == wanted:
-            attributes = row.get("attributes") or {}
-            company = str(attributes.get("company") or attributes.get("company_name") or "").strip()
+            company = account_set_company(row)
             break
     return f"{connection}|{company or wanted}".casefold()[:140]
 
@@ -64,32 +63,44 @@ def _table(source):
 
 
 def _layout(workspace, company, headers, rows, answers=None):
-    """→ ``(版式或 None, 还要问的问题, 指纹)``；答了的、认得出不用问的记下。"""
+    """→ ``(版式或 None, 还要问的问题, 指纹, 问的时候记住的版式的修订)``；答了的、认得出不用问的记下。
+
+    记住的版式也要看这份导出里有没有没登记过的状态值（`contracts.pending`）：有就照样停下问那几个值，答了合进记住的
+    版式（不直接失败，文件夹任务里停着的那份答完接着走）。"""
     fingerprint = contracts.fingerprint(headers)
+    known = layouts.remembered(workspace, company, fingerprint)
+    revision = layouts.revision(known)
     if answers:
-        detection = contracts.apply_answers(headers, rows, answers)
+        detection = contracts.apply_answers(headers, rows, answers, base=known)
         if not detection.questions:
             layouts.remember(workspace, company, fingerprint, headers, detection.layout, origin="person")
-        return (None if detection.questions else detection.layout), detection.questions, fingerprint
-    known = layouts.remembered(workspace, company, fingerprint)
+        return (None if detection.questions else detection.layout), detection.questions, fingerprint, revision
     if known:
-        return known, [], fingerprint
+        detection = contracts.pending(headers, rows, known)
+        return (None if detection.questions else known), detection.questions, fingerprint, revision
     detection = contracts.detect(headers, rows)
     if detection.questions or not contracts.valid_layout(detection.layout):
-        return None, detection.questions, fingerprint
+        return None, detection.questions, fingerprint, revision
     layouts.remember(workspace, company, fingerprint, headers, detection.layout, origin="auto")
-    return detection.layout, [], fingerprint
+    return detection.layout, [], fingerprint, revision
 
 
-def _needed(headers, rows, questions, fingerprint, company):
-    return {"status": "layout_needed", "fingerprint": fingerprint, "company": company,
+def _needed(headers, rows, questions, fingerprint, company, revision):
+    """``layout_revision``：停下时这家公司这份版式记的样子（没有是空串），文件夹任务据此判断人答过没有。"""
+    return {"status": "layout_needed", "fingerprint": fingerprint, "company": company, "layout_revision": revision,
             "headers": [header for header in headers if header], "samples": contracts.samples(headers, rows),
             "questions": questions}
 
 
-def layout_ready(workspace, company, fingerprint) -> bool:
-    """这份版式记过了没有（文件夹任务停在「要人认列」时便宜地看一眼，不重读文件）。"""
-    return layouts.exists(workspace, company, fingerprint)
+def layout_changed(workspace, connection, account_set_key, held) -> bool:
+    """文件夹任务里停着等认列的那份导出现在该不该重读（便宜地看一眼，不重读文件）：这家公司的这份版式自停下以后记上
+    / 改过了，或者公司键变了（账套目录这次读得到、上次读不到，答好的版式记在另一个键下）——都重读，由 `admit` 按此刻的
+    公司键再判断一次。``held``：停下时 `admit` 回的 ``company`` / ``fingerprint`` / ``layout_revision``。"""
+    company = company_key(connection, account_set_key)
+    if company != held.get("company"):
+        return True
+    current = layouts.revision(layouts.remembered(workspace, company, held.get("fingerprint") or ""))
+    return current != (held.get("layout_revision") or "")
 
 
 def preview(source_file, *, workspace, connection, account_set_key, answers=None, posting_kind=None):
@@ -102,9 +113,9 @@ def preview(source_file, *, workspace, connection, account_set_key, answers=None
         _require_target(connection, account_set_key)
         headers, rows, first_row = _table(source)
         company = company_key(connection, account_set_key)
-        layout, questions, fingerprint = _layout(workspace, company, headers, rows, answers)
+        layout, questions, fingerprint, revision = _layout(workspace, company, headers, rows, answers)
         if layout is None:
-            return _needed(headers, rows, questions, fingerprint, company)
+            return _needed(headers, rows, questions, fingerprint, company, revision)
         found, voids = contracts.parse(headers, rows, layout, anchor_year=_today_year(),
                                        with_items=posting_kind == "stock", first_row=first_row)
     except contracts.PosError as error:
@@ -142,9 +153,9 @@ def admit(source_file, request_key, *, workspace, connection, account_set_key, c
         _require_target(connection, account_set_key)
         headers, rows, first_row = _table(source)
         company = company_key(connection, account_set_key)
-        layout, questions, fingerprint = _layout(workspace, company, headers, rows)
+        layout, questions, fingerprint, revision = _layout(workspace, company, headers, rows)
         if layout is None:
-            return _needed(headers, rows, questions, fingerprint, company)
+            return _needed(headers, rows, questions, fingerprint, company, revision)
         found, voids = contracts.parse(headers, rows, layout, anchor_year=_today_year(),
                                        with_items=posting_kind == "stock", first_row=first_row)
     except contracts.PosError as error:
@@ -166,4 +177,4 @@ def admit(source_file, request_key, *, workspace, connection, account_set_key, c
     return {"status": "ok", "histories": names, "days": days, "voids": voids, "fingerprint": fingerprint}
 
 
-__all__ = ["ENGINE", "admit", "company_key", "layout_ready", "preview"]
+__all__ = ["ENGINE", "admit", "company_key", "layout_changed", "preview"]

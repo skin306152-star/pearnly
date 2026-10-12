@@ -56,6 +56,7 @@ from .dbf_writer import (
 from .logger import get_logger
 from .sales_adapter import (
     ALLOWED_ACCOUNT_SETS,
+    ERR_POS_INVALID,
     SalesEntry,
     build_sales_entry,
     validate_sales_payload,
@@ -185,8 +186,10 @@ def write_sale(
     clock = StepClock("sales")
     v = validate_sales_payload(payload, allowed=allowed_sets)
     if not v.ok:
+        # POS 日汇总票的 `pos` 块不合格单独回报(云端按码出「重新导入 POS 导出」),其余照旧 PAYLOAD_INVALID
         return DbfWriteResult(
-            False, error_code=ERR_VALIDATION, error=f"{v.error_code}: {v.detail}"
+            False, error_code=ERR_POS_INVALID if v.error_code == ERR_POS_INVALID else ERR_VALIDATION,
+            error=f"{v.error_code}: {v.detail}"
         )
     entry = build_sales_entry(payload)
 

@@ -2,7 +2,8 @@
 
 各家 POS（Ocha、Loyverse 等）导出格式不同，这里做通用的列识别：日期、票号、含税金额（必填），增值税、付款方式、
 单据类型 / 状态、商品、商品编码、数量（有就用）。认不准的（缺必填列、同一类有几列、日 / 月分不清、金额含不含税、
-不认识的状态值）列成问题，按「公司 + 导出版式（表头指纹）」问一次、记住（`layouts`），以后同版式直接用。
+不认识的状态值）列成问题，按「公司 + 导出版式（表头指纹）」问一次、记住（`layouts`），以后同版式直接用；记住的版式
+遇到没登记过的状态值（`pending`）再问那几个值，合进记住的版式（`apply_answers` 的 ``base``）。
 
 金额一律 Decimal：每天含税合计与 POS 逐分相等；有增值税列时当天税额 = 逐票税额之和，没有时 = 当天含税合计 × 7/107
 四舍五入到分；尾差全部落在税前额。作废单不算，退款单记负数；付款方式按当天汇总，之和恰好等于当天含税合计。
@@ -329,18 +330,32 @@ def detect(headers, rows) -> Detection:
             layout["date_order"] = order
     if "amount" in columns and "vat" in columns and tiers.get("amount", 0) > 0:
         questions.append({"kind": "amount_basis", "column": columns["amount"], "options": list(BASES)})
+    questions.extend(_status_questions(headers, rows, layout))
+    return Detection(layout, questions)
+
+
+def _status_questions(headers, rows, layout) -> list:
+    """单据类型 / 状态一栏里认不出、版式里也没登记过的值 → 一个问题（最多列 20 个值）。"""
+    texts = [cell_text(header).casefold() for header in headers]
+    mapped = layout.get("status_values") or {}
     unknown = []
     for name in ("kind", "status"):
-        if name in columns:
-            index = texts.index(columns[name])
-            for row in rows:
-                value = cell_text(row[index]) if index < len(row) else ""
-                if _status_word(value) is None and value not in unknown:
-                    unknown.append(value)
-    if unknown:
-        questions.append({"kind": "status_values", "values": unknown[:MAX_UNKNOWN_VALUES],
-                          "options": list(STATUS_VALUES)})
-    return Detection(layout, questions)
+        wanted = cell_text((layout.get("columns") or {}).get(name)).casefold()
+        if not wanted or wanted not in texts:
+            continue
+        index = texts.index(wanted)
+        for row in rows:
+            value = cell_text(row[index]) if index < len(row) else ""
+            if _norm(value) not in mapped and _status_word(value) is None and value not in unknown:
+                unknown.append(value)
+    if not unknown:
+        return []
+    return [{"kind": "status_values", "values": unknown[:MAX_UNKNOWN_VALUES], "options": list(STATUS_VALUES)}]
+
+
+def pending(headers, rows, layout) -> Detection:
+    """记住的版式用在这份导出上还要问什么：只有没登记过的状态值（同一指纹的表头一样，列不会变）。"""
+    return Detection(json.loads(json.dumps(layout)), _status_questions(headers, rows, layout))
 
 
 def _column_samples(rows, index):
@@ -364,10 +379,11 @@ def samples(headers, rows) -> list:
     return out
 
 
-def apply_answers(headers, rows, answers) -> Detection:
+def apply_answers(headers, rows, answers, base=None) -> Detection:
     """人回答的问题（``columns`` {类: 表头}、``date_order``、``amount_basis``、``status_values`` {值: sale/void/refund}）
-    合进认出来的版式；仍没答上的问题照样列出。表头写错（不在这份导出里）当作没答；可选类答空串 = 不用这一列。"""
-    detection = detect(headers, rows)
+    合进认出来的版式；仍没答上的问题照样列出。表头写错（不在这份导出里）当作没答；可选类答空串 = 不用这一列。
+    ``base``：这家公司记住的这份版式（有就在它上面改，只剩它还要问的，见 `pending`）。"""
+    detection = pending(headers, rows, base) if valid_layout(base) else detect(headers, rows)
     layout = detection.layout
     answers = answers if isinstance(answers, dict) else {}
     texts = {cell_text(header).casefold(): cell_text(header) for header in headers if cell_text(header)}
@@ -539,7 +555,9 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
 
 
 def natural_key(number: str):
-    return tuple(int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", number) if part)
+    """票号的自然排序键：数字段按数值、其余按小写文字。每段带类别标记，同一天混用写法（「0001」与「INV0002」）也能比。"""
+    return tuple((0, int(part)) if index % 2 else (1, part.casefold())
+                 for index, part in enumerate(re.split(r"(\d+)", number)) if part)
 
 
 @dataclass
@@ -618,7 +636,10 @@ def days(found, *, vat_column: bool, with_items: bool = False) -> list:
 
 
 def _items(members, gross, day) -> list:
-    """当天按商品（有编码按编码，没有按品名）汇总数量与含税金额；之和须等于当天含税合计。"""
+    """当天按商品（有编码按编码，没有按品名）汇总数量与含税金额；之和须等于当天含税合计。
+
+    赠品 / 免费加料（数量为正、金额为 0）照样作为 0 元明细出库（存货出库路径收 0 元行，成本照结转）；退款后数量为零或
+    负、或金额为负的才拦。0 元行排在前面：推送时把含税行摊成税前额，尾差落在最后一行（`push/express/common.py`）。"""
     lines: dict = {}
     for receipt in members:
         if not receipt.lines:
@@ -631,8 +652,9 @@ def _items(members, gross, day) -> list:
             line["qty"] += qty
             line["amount"] += amount
     kept = [line for line in lines.values() if line["qty"] != 0 or line["amount"] != 0]
-    if any(line["qty"] <= 0 or line["amount"] <= 0 for line in kept):
+    if any(line["qty"] <= 0 or line["amount"] < 0 for line in kept):
         raise PosError("pos.items_not_positive", day=day.isoformat())
+    kept.sort(key=lambda line: line["amount"] != 0)
     if sum((line["amount"] for line in kept), Decimal("0")) != gross:
         raise PosError("pos.items_mismatch", day=day.isoformat())
     if len(kept) > MAX_ITEM_LINES:
@@ -694,5 +716,5 @@ def summary(day: Day) -> dict:
 
 __all__ = ["BASES", "DATE_ORDERS", "Day", "Detection", "FIELDS", "LAYOUT_VERSION", "MAX_DAYS", "PosError", "REQUIRED",
            "STATUS_VALUES", "apply_answers", "date_order", "day_page", "days", "detect", "fingerprint", "header_row",
-           "header_hits", "invoice_fields", "money", "parse", "parse_date", "receipts", "samples", "summary",
-           "valid_layout"]
+           "header_hits", "invoice_fields", "money", "natural_key", "parse", "parse_date", "pending", "receipts",
+           "samples", "summary", "valid_layout"]

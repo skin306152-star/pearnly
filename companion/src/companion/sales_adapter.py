@@ -40,7 +40,8 @@ ERR_ENTRY_NOT_BALANCED = "ENTRY_NOT_BALANCED"
 ERR_ITEMS_INVALID = "ITEMS_INVALID"
 ERR_POS_INVALID = "POS_INVALID"
 
-# POS 日汇总票(载荷 3 的 `pos` 块):票号起止各最长这么多字、最多这么多张付款方式转账凭证。
+# POS 日汇总票(载荷 3 的 `pos` 块):票号起止各最长这么多字(云端 contracts/pos.NUMBER_MAX 按同一上限截)、
+# 最多这么多张付款方式转账凭证。
 _POS_NUMBER_MAX = 40
 _POS_TRANSFERS_MAX = 20
 _POS_LABEL_MAX = 50
@@ -152,8 +153,9 @@ def validate_sales_payload(
 
 
 def _validate_pos(payload: Dict[str, Any], doctype: str, total: Decimal) -> PayloadValidationResult | None:
-    """POS 日汇总票的 `pos` 块:现销、单号自编、票号起止与张数在、每张转账凭证科目非空、金额为正、
-    合计不超过本单含税额。不达标 → 拒(不写出半张对不上的日汇总)。"""
+    """POS 日汇总票的 `pos` 块:现销、单号自编、票号起止与张数在、每张转账凭证科目非空、金额为正,
+    各转账 + 当天现金净额(`cash`,可为负:现金退款多过现金收款)恰好等于本单含税额。
+    不达标 → 拒(不写出半张对不上的日汇总)。"""
     pos = payload.get("pos")
 
     def bad(detail):
@@ -179,13 +181,14 @@ def _validate_pos(payload: Dict[str, Any], doctype: str, total: Decimal) -> Payl
         if not isinstance(row, dict) or not str(row.get("acc") or "").strip():
             return bad("pos transfer account missing")
         amount = _d(row.get("amount"))
-        if amount is None or amount <= 0:
+        if amount is None or not amount.is_finite() or amount <= 0:
             return bad("pos transfer amount invalid")
         if len(str(row.get("label") or "")) > _POS_LABEL_MAX:
             return bad("pos transfer label too long")
         moved += amount
-    if moved > total:
-        return bad("pos transfers exceed the total")
+    cash = _d(pos.get("cash"))
+    if cash is None or not cash.is_finite() or _q(moved + cash) != _q(total):
+        return bad("pos transfers and cash do not add up to the total")
     return None
 
 

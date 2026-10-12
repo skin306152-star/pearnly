@@ -13,8 +13,9 @@
 再准备（`contracts.waits_for_purchases`，最多等 12 小时），否则销售会卖成负库存、不按进货的均价结转成本。
 
 POS 导出（2026-10-13，交接 L9）：销售任务里的 Excel / CSV 不交识别，建原件后由 `pos_import` 按天建票（不扣费），
-之后与识别出的票同一条路推送、出结果表格。列还没认好（这家公司第一次见这种导出、又认不准）就停在 source_ready
-等人答一次（`contracts.POS_LAYOUT_NEEDED`，每 5 分钟只看版式记上了没有，不重读文件）。
+之后与识别出的票同一条路推送、出结果表格。列还没认好（这家公司第一次见这种导出、又认不准；或记住的版式遇到没登记过
+的状态值）就停在 source_ready 等人答一次（`contracts.POS_LAYOUT_NEEDED`，每 5 分钟只看这份版式自停下以后有没有记上 /
+改过、公司键变没变，不重读文件，见 `pos_import.service.layout_changed`）。
 """
 import json
 import time
@@ -45,7 +46,7 @@ OFFLINE_SECONDS = 600
 OFFLINE_RETRIES = 36
 # 存货销售等同账套的存货进货先写：每分钟再看一次
 ORDER_RECHECK_SECONDS = 60
-# POS 导出等人认列：每 5 分钟看一次版式记上了没有
+# POS 导出等人认列：每 5 分钟看一次版式记上 / 改过了没有
 LAYOUT_RECHECK_SECONDS = 300
 
 
@@ -247,8 +248,8 @@ def _pos(entry):
     name = entry.name
     held = json.loads(entry.outcome_json or "{}").get("_pos") or {}
     with _as(entry.actor):
-        if held.get("fingerprint") and not pos_import.layout_ready(rule.workspace, held.get("company"),
-                                                                    held["fingerprint"]):
+        if held.get("fingerprint") and not pos_import.layout_changed(rule.workspace, rule.connection,
+                                                                      rule.account_set_key, held):
             return _later(entry, LAYOUT_RECHECK_SECONDS, contracts.POS_LAYOUT_NEEDED)
         try:
             result = pos_import.admit(entry.source_file, request_key(name), workspace=rule.workspace,
@@ -261,7 +262,8 @@ def _pos(entry):
     entry = read(FILE, name, for_update=True)
     outcome = json.loads(entry.outcome_json or "{}")
     if result.get("status") == "layout_needed":
-        outcome["_pos"] = {"fingerprint": result["fingerprint"], "company": result["company"]}
+        outcome["_pos"] = {"fingerprint": result["fingerprint"], "company": result["company"],
+                           "layout_revision": result.get("layout_revision") or ""}
         entry.outcome_json = json.dumps(outcome, sort_keys=True)
         return _later(entry, LAYOUT_RECHECK_SECONDS, contracts.POS_LAYOUT_NEEDED)
     if result.get("status") != "ok":

@@ -247,5 +247,18 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
     return payload
 
 
-__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "VAT_VALUES", "apply_to_payload", "item_subject", "norm_name",
+def borrow_receipts(remembered: Dict[str, Dict[str, str]], receipts: Iterable, borrowed: Mapping[str, str],
+                    accounts: Any) -> None:
+    """POS 收款科目按公司问一次：这份账套还没记过的付款方式，借同一家公司别的账套记过的值（``borrowed``
+    `{subject: 科目}`），科目须在本账套科目表里（``accounts``，小助手报上来的；没报上来不借）。就地改 ``remembered``，
+    只用于这一次判断，不写进本账套记忆。"""
+    codes = _codes(_rows(accounts))
+    mine = remembered.setdefault("receipt", {})
+    for subject, _label in receipts or ():
+        value = str((borrowed or {}).get(subject) or "").strip()
+        if subject not in mine and value and value in codes:
+            mine[subject] = value
+
+
+__all__ = ["KINDS", "NEW", "PAYMENT_VALUES", "VAT_VALUES", "apply_to_payload", "borrow_receipts", "item_subject", "norm_name",
            "party_subject", "resolve", "supplier_subject"]

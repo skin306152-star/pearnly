@@ -516,7 +516,8 @@ def _pos():
 
 
 def _pos_text(result) -> dict:
-    """POS 服务的结果交给模型：失败码附上一句人话（`pos.*` 词条）。"""
+    """POS 服务的结果交给模型：失败码附上一句人话（`pos.*` 词条）；版式修订是文件夹任务内部用的，不给。"""
+    result = {key: value for key, value in result.items() if key != "layout_revision"}
     if result.get("status") == "failed":
         result = {**result, "reason": _(result.get("code") or "pos.file_unreadable")}
     return result

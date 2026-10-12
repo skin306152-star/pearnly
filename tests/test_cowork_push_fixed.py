@@ -206,7 +206,7 @@ class ServiceEntrypoints(unittest.TestCase):
         service, _frappe_module, _calls = _service(hooks=["p.one"], providers={"p.one": {"account": "5300"}})
         self._wired(service)
         seen = []
-        service._decisions = lambda *args: seen.append(args[-1]) or {"needed": [], "applied": {}}
+        service._decisions = lambda *args, **kwargs: seen.append(args[-1]) or {"needed": [], "applied": {}}
         view = service.choices_view("H1", "C1", BOOK, None)
         self.assertEqual(seen, [{"account": "5300"}])
         self.assertEqual(view["fixed"], {"account": "5300"})
@@ -219,7 +219,7 @@ class ServiceEntrypoints(unittest.TestCase):
         service, _frappe_module, _calls = _service(hooks=["p.one"], providers={})
         self._wired(service)
         seen = []
-        service._decisions = lambda *args: seen.append(args[-1]) or {"needed": [], "applied": {}}
+        service._decisions = lambda *args, **kwargs: seen.append(args[-1]) or {"needed": [], "applied": {}}
         self.assertNotIn("fixed", service.choices_view("H1", "C1", BOOK, None))
         self.assertEqual(seen, [None])
 

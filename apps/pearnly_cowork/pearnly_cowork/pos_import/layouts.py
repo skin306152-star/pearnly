@@ -50,8 +50,11 @@ def remembered(workspace, company, fingerprint):
     return layout if contracts.valid_layout(layout) else None
 
 
-def exists(workspace, company, fingerprint) -> bool:
-    return bool(remembered(workspace, company, fingerprint))
+def revision(layout) -> str:
+    """记住的版式的修订（内容摘要）：答过、补过状态值就变；没有版式是空串。"""
+    if not layout:
+        return ""
+    return hashlib.sha256(json.dumps(layout, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:32]
 
 
 def remember(workspace, company, fingerprint, headers, layout, *, origin="person"):
@@ -97,5 +100,5 @@ def forget(workspace, company, fingerprint) -> bool:
     return True
 
 
-__all__ = ["DOCTYPE", "deny", "deny_query", "exists", "forget", "guard", "guard_delete", "remember", "remembered",
-           "reject_share"]
+__all__ = ["DOCTYPE", "deny", "deny_query", "forget", "guard", "guard_delete", "remember", "remembered",
+           "reject_share", "revision"]

@@ -1197,6 +1197,7 @@ The receiving account cannot be posted to in Express. Choose another account	收
 The payment methods do not add up to the day's total. Import the POS export again	各付款方式之和与当天合计不符，请重新导入 POS 导出	ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่	支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください	intake.error.pos_payments_mismatch
 Choose the receiving account of each payment method	请为每种付款方式选择收款科目	กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน	支払方法ごとの入金勘定を選んでください	intake.error.pos_receipt_account_missing
 The POS daily totals of this document are damaged. Import the POS export again	这张单据的 POS 日汇总数据已损坏，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS ของเอกสารนี้เสียหาย กรุณานำเข้าไฟล์ส่งออก POS ใหม่	この書類の POS 日計データが壊れています。POS エクスポートを取り込み直してください	intake.error.pos_facts_invalid
+POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express	ยอดขายรายวันจาก POS ส่งได้เฉพาะไปยัง Express	POS の日計は Express にのみ送信できます	intake.error.pos_express_only
 The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
@@ -1284,7 +1285,7 @@ A non-cash payment method has a negative total for a day	有一天某种非现�
 A day has more than 20 payment methods	一天的付款方式超过 20 种	มีวิธีชำระเงินเกิน 20 แบบในหนึ่งวัน	1 日の支払方法が 20 種類を超えています	pos.too_many_payments
 A POS export can cover at most 100 days	一份 POS 导出最多 100 天	ไฟล์ส่งออก POS หนึ่งไฟล์มีได้ไม่เกิน 100 วัน	1 つの POS エクスポートは 100 日分までです	pos.too_many_days
 The item lines do not add up to the day's total	商品明细之和与当天合计不符	ยอดรวมรายการสินค้าไม่เท่ากับยอดรวมของวัน	品目の合計がその日の合計と一致しません	pos.items_mismatch
-An item's quantity or amount for a day is zero or less after refunds	退款后有商品当天的数量或金额为零或负数	หลังหักการคืน มีสินค้าที่จำนวนหรือยอดเงินของวันเป็นศูนย์หรือติดลบ	返品後の数量か金額がゼロ以下の品目がある日があります	pos.items_not_positive
+After refunds, an item's quantity for a day is zero or less, or its amount is negative	退款后有商品当天的数量为零或负数，或金额为负数	หลังหักการคืน มีสินค้าที่จำนวนของวันเป็นศูนย์หรือติดลบ หรือยอดเงินติดลบ	返品後、数量がゼロ以下か金額がマイナスの品目がある日があります	pos.items_not_positive
 A day has more than 999 item lines	一天的商品明细超过 999 行	มีรายการสินค้าเกิน 999 บรรทัดในหนึ่งวัน	1 日の品目が 999 行を超えています	pos.too_many_items
 Choose an Express account set first	请先选择 Express 账套	กรุณาเลือกชุดบัญชี Express ก่อน	先に Express の帳簿を選んでください	pos.target_required
 POS exports can only be entered into Express	POS 导出只能录入 Express	ไฟล์ส่งออก POS บันทึกได้เฉพาะใน Express	POS エクスポートは Express にのみ入力できます	pos.not_express

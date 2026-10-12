@@ -1,7 +1,8 @@
 """POS 导出的日汇总票(载荷 3)写 Express:现销 HS + 销项税一行 + 每种非现金付款方式一张日记账凭证,同一次写入。
 
 合成 VFP 账套,不依赖客户数据。覆盖:凭证与销售单同写、借收款科目 / 贷现金、单号自编、票号起止进销项税摘要、
-没有可用的普通日记账单据簿 / 收款科目不能记账时不动账套、读回不符整体回滚、全现金的天不要单据簿、旧载荷照旧。
+没有可用的普通日记账单据簿 / 收款科目不能记账时不动账套、读回不符整体回滚、全现金的天不要单据簿、现金净额为负的天、
+`pos` 块不合格回报 POS_INVALID、旧载荷照旧。
 """
 
 from __future__ import annotations
@@ -27,7 +28,14 @@ CASH, QR_BANK, CARD_BANK, REVENUE, OUTPUT_VAT = "11-01-01-00", "11-02-01-01", "1
 RECEIVABLE = "11-03-01-00"
 
 
-def _pos_sale(transfers=None, **over):
+def _pos_sale(transfers=None, cash=None, **over):
+    transfers = transfers if transfers is not None else [
+        {"acc": QR_BANK, "amount": "535.00", "label": "พร้อมเพย์"},
+        {"acc": CARD_BANK, "amount": "214.00", "label": "บัตรเครดิต"},
+    ]
+    total = Decimal(over.get("total_amount") or "1605.00")
+    if cash is None:  # 当天现金净额 = 本单含税额 − 各转账(云端映射器同一算法)
+        cash = format(total - sum((Decimal(row["amount"]) for row in transfers), Decimal("0")), "f")
     p = {
         "payload_version": 3,
         "direction": "sales",
@@ -48,11 +56,8 @@ def _pos_sale(transfers=None, **over):
         ],
         "items": [],
         "items_status": "empty",
-        "pos": {"first": "B2610130001", "last": "B2610130009", "count": 9, "docnum": "auto",
-                "transfers": transfers if transfers is not None else [
-                    {"acc": QR_BANK, "amount": "535.00", "label": "พร้อมเพย์"},
-                    {"acc": CARD_BANK, "amount": "214.00", "label": "บัตรเครดิต"},
-                ]},
+        "pos": {"first": "B2610130001", "last": "B2610130009", "count": 9, "docnum": "auto", "cash": cash,
+                "transfers": transfers},
     }
     p.update(over)
     return p
@@ -215,7 +220,7 @@ def test_a_failure_while_writing_vouchers_rolls_back_the_sale(datat, monkeypatch
 
 def test_a_long_ticket_range_is_cut_to_the_vat_description_width(datat):
     first, last = "POS01-BR0042-2026101300001", "POS01-BR0042-2026101300987"
-    res = _write(datat, _pos_sale(pos={"first": first, "last": last, "count": 987, "docnum": "auto",
+    res = _write(datat, _pos_sale(pos={"first": first, "last": last, "count": 987, "docnum": "auto", "cash": "1605.00",
                                        "transfers": []}, ref_no="ABB691013"))
     assert res.ok, res.error
     text = (_rows(datat, "ISVAT")[0].DESCRP or "").strip()
@@ -223,27 +228,52 @@ def test_a_long_ticket_range_is_cut_to_the_vat_description_width(datat):
     assert len(text.encode("cp874")) <= 60
 
 
+def test_a_day_with_more_cash_refunded_than_taken(datat):
+    """现金退款多过现金收款(卡 1000、现金 50、现金退款 150):本单 900 借现金,凭证借银行 1000 / 贷现金 1000,
+    现金净流出 100。与云端 tests/test_cowork_pos_import.py 同一组数。"""
+    pay = _pos_sale(transfers=[{"acc": CARD_BANK, "amount": "1000.00", "label": "Card"}], cash="-100.00",
+                    base_amount="841.12", vat_amount="58.88", total_amount="900.00",
+                    lines=[{"acc": RECEIVABLE, "side": "D", "amount": "900.00", "desc": "เงินสด"},
+                           {"acc": REVENUE, "side": "C", "amount": "841.12", "desc": "รายได้จากการขาย"},
+                           {"acc": OUTPUT_VAT, "side": "C", "amount": "58.88", "desc": "ภาษีขาย"}])
+    res = _write(datat, pay)
+    assert res.ok, res.error
+    assert _lines(datat, res.docnum) == sorted([("0", CASH, Decimal("900.00")), ("1", REVENUE, Decimal("841.12")),
+                                                ("1", OUTPUT_VAT, Decimal("58.88"))])
+    assert res.notes["pos_vouchers"] == ["JV691013-001"]
+    assert _lines(datat, "JV691013-001") == sorted([("0", CARD_BANK, Decimal("1000.00")),
+                                                    ("1", CASH, Decimal("1000.00"))])
+
+
 @pytest.mark.parametrize("pos, reason", [
-    ({"first": "1", "last": "2", "count": 2, "docnum": "printed", "transfers": []}, "docnum"),
-    ({"first": "", "last": "2", "count": 2, "docnum": "auto", "transfers": []}, "first"),
-    ({"first": "1", "last": "2", "count": 0, "docnum": "auto", "transfers": []}, "count"),
-    ({"first": "1", "last": "2", "count": 2, "docnum": "auto",
-      "transfers": [{"acc": QR_BANK, "amount": "9999.00", "label": "QR"}]}, "exceed"),
-    ({"first": "1", "last": "2", "count": 2, "docnum": "auto",
+    ({"first": "1", "last": "2", "count": 2, "docnum": "printed", "cash": "1605.00", "transfers": []}, "docnum"),
+    ({"first": "", "last": "2", "count": 2, "docnum": "auto", "cash": "1605.00", "transfers": []}, "first"),
+    ({"first": "1", "last": "2", "count": 0, "docnum": "auto", "cash": "1605.00", "transfers": []}, "count"),
+    ({"first": "1", "last": "2", "count": 2, "docnum": "auto", "cash": "0.00",
+      "transfers": [{"acc": QR_BANK, "amount": "9999.00", "label": "QR"}]}, "add up"),
+    ({"first": "1", "last": "2", "count": 2, "docnum": "auto", "transfers": []}, "add up"),
+    ({"first": "1", "last": "2", "count": 2, "docnum": "auto", "cash": "Infinity", "transfers": []}, "add up"),
+    ({"first": "1", "last": "2", "count": 2, "docnum": "auto", "cash": "1600.00",
       "transfers": [{"acc": "", "amount": "5.00", "label": "QR"}]}, "account"),
-    ({"first": "1", "last": "2", "count": 2, "docnum": "auto",
+    ({"first": "1", "last": "2", "count": 2, "docnum": "auto", "cash": "1610.00",
       "transfers": [{"acc": QR_BANK, "amount": "-5.00", "label": "QR"}]}, "amount"),
 ])
 def test_a_malformed_pos_block_is_refused_before_writing(datat, pos, reason):
     res = _write(datat, _pos_sale(pos=pos))
-    assert not res.ok and res.error_code == "PAYLOAD_INVALID"
-    assert "POS_INVALID" in res.error and reason in res.error
+    # 单独回报 POS_INVALID(云端认作要人处理、有译文),不混进通用的 PAYLOAD_INVALID
+    assert not res.ok and res.error_code == "POS_INVALID"
+    assert reason in res.error
     assert _rows(datat, "ARTRN") == []
 
 
 def test_pos_days_are_cash_sales_only(datat):
     res = _write(datat, _pos_sale(doctype="IV"))
-    assert not res.ok and "POS_INVALID" in res.error
+    assert not res.ok and res.error_code == "POS_INVALID"
+
+
+def test_other_payload_problems_keep_the_general_code(datat):
+    res = _write(datat, _pos_sale(total_amount="1700.00"))
+    assert not res.ok and res.error_code == "PAYLOAD_INVALID"
 
 
 def test_a_sale_without_pos_is_written_as_before_even_without_a_journal_book(datat):

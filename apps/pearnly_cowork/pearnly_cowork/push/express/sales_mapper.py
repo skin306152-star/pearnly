@@ -17,9 +17,10 @@
   lines          [{acc,side(D/C),amount,desc}] · 借应收 = 贷收入 + 贷销项税 · 借贷必平
   stock_acccod   存货科目组(ISACC ACCCOD)· 仅库存路才带 · 小助手建新库存主档用。端点配过
                  用配的;没配且账套零库存主档时按合格候选数解析(见 stock_acc_group)
-  pos            POS 导出的日汇总票(载荷 3,`contracts/pos.py`):{first,last,count,docnum:"auto",
+  pos            POS 导出的日汇总票(载荷 3,`contracts/pos.py`):{first,last,count,docnum:"auto",cash,
                  transfers:[{acc,amount,label}]} · 现销 HS 借现金,每种非现金付款方式小助手同一次写入另记一张
-                 日记账凭证「借 收款科目 / 贷 现金」;单号自编,票号起止写进销项税摘要
+                 日记账凭证「借 收款科目 / 贷 现金」;单号自编,票号起止写进销项税摘要。cash = 当天现金净额
+                 (可为负:现金退款多过现金收款),各转账 + cash = 本单含税额
 """
 
 from __future__ import annotations
@@ -143,7 +144,7 @@ def _pos_block(history: Dict[str, Any], total: Decimal, choices: Dict[str, Any])
             return None, pos_contract.ACCOUNT_MISSING
         transfers.append({"acc": acc, "amount": _s(payment.amount), "label": payment.label})
     return {"first": found.first, "last": found.last, "count": found.count, "docnum": "auto",
-            "transfers": transfers}, ""
+            "cash": _s(found.cash()), "transfers": transfers}, ""
 
 
 def build_express_sales_payload(

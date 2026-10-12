@@ -3,11 +3,15 @@
 一天 = 一张现金客户的简易税票日汇总（Express 现销 HS + 销项税一行），当天的事实记在这张票主页面的
 ``_extraction_audit["pos"]``（识别不走、不扣费）：
 
-- ``first`` / ``last``：当天销售票号起止（按票号自然排序，不含退款单），``count``：销售票张数；
-- ``payments``：``[{label, amount, cash}]``，按付款方式汇总，金额之和恰好等于当天含税合计（Decimal 字符串）。
+- ``first`` / ``last``：当天销售票号起止（按票号自然排序，不含退款单；各最长 ``NUMBER_MAX`` 字，与小助手同一上限），
+  ``count``：销售票张数；
+- ``payments``：``[{label, amount, cash}]``，按付款方式汇总，金额之和恰好等于当天含税合计（Decimal 字符串）。现金可以
+  是负数（当天现金退款多过现金收款），非现金不能为负。
 
 推送（载荷 3，Express 原生记法，用户 2026-10-13 定）：HS 借现金（小助手换成账套现金科目 ACCNUM00），每一种非现金付款方式
-另记一张普通日记账凭证「借 收款科目 / 贷 现金」，收款科目按付款方式问一次、记在这份账套（推送选择 ``receipt``）。
+另记一张普通日记账凭证「借 收款科目 / 贷 现金」，收款科目按付款方式问一次、记在这份账套（推送选择 ``receipt``，
+同一家公司别的年度账套记过、科目又在本账套科目表里的直接带出）。载荷带现金净额 ``cash``：小助手核「各转账 + 现金 =
+本单含税额」。只推 Express（推往别的 ERP 拦成 ``EXPRESS_ONLY``）。
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ VERSION = 1
 PAYLOAD_VERSION = 3
 RECEIPT_KIND = "receipt"
 REF_MAX_BYTES = 15  # 销项税记录 REFNUM C(15)：票号区间写进去的上限
+NUMBER_MAX = 40  # 票号起止各最长这么多字（小助手 `sales_adapter._POS_NUMBER_MAX` 同一上限；摘要另按 DBF 宽度截）
 LABEL_MAX = 50
 SUBJECT_MAX = 200
 PAYMENTS_MAX = 20
@@ -35,6 +40,7 @@ CASH_LABELS = frozenset({"", "cash", "cash payment", "cash sale", "เงิน�
 MISMATCH = "pos_payments_mismatch"
 ACCOUNT_MISSING = "pos_receipt_account_missing"
 FACTS_INVALID = "pos_facts_invalid"
+EXPRESS_ONLY = "pos_express_only"
 
 
 class PosFactsError(ValueError):
@@ -130,16 +136,31 @@ class Facts:
     def non_cash(self) -> list:
         return [payment for payment in self.payments if not payment.cash]
 
+    def cash(self) -> Decimal:
+        """当天现金净额（可为负：现金退款多过现金收款）。"""
+        return sum((payment.amount for payment in self.payments if payment.cash), Decimal("0"))
+
 
 def audit(first, last, count, payments, *, layout="", rows=None) -> dict:
     """写进主页面 ``_extraction_audit`` 的那一块：``payments`` 是 ``[(label, Decimal)]``，金额原样存成两位小数串。"""
-    block = {"version": VERSION, "first": str(first), "last": str(last), "count": int(count),
+    block = {"version": VERSION, "first": number(first), "last": number(last), "count": int(count),
              "payments": [{"label": str(label)[:LABEL_MAX], "amount": format(Decimal(amount).quantize(_CENT), "f"),
                            "cash": is_cash(label)} for label, amount in payments],
              "layout": str(layout or "")}
     if rows:
         block["rows"] = [list(pair) for pair in rows][:500]
     return {AUDIT_KEY: block}
+
+
+def number(value) -> str:
+    """票号起止按小助手的上限截短（外卖平台单号、订单 UUID 这类长单号；完整起止仍在复核页与摘要里）。"""
+    return str(value or "").strip()[:NUMBER_MAX]
+
+
+def present(page) -> bool:
+    """这一页是不是 POS 导入的日汇总票（只看有没有 POS 块，形状对不对由 `facts` 判）。"""
+    audit_block = (page or {}).get("_extraction_audit") if isinstance(page, dict) else None
+    return isinstance(audit_block, dict) and AUDIT_KEY in audit_block
 
 
 def facts(page) -> Facts | None:
@@ -159,7 +180,7 @@ def facts(page) -> Facts | None:
         if not isinstance(row, dict) or not isinstance(row.get("label"), str):
             raise PosFactsError(FACTS_INVALID)
         payments.append(Payment(row["label"][:LABEL_MAX], _money(row.get("amount")), is_cash(row["label"])))
-    return Facts(first.strip(), last.strip(), count, tuple(payments))
+    return Facts(number(first), number(last), count, tuple(payments))
 
 
 def check(found: Facts, total) -> str:
@@ -176,6 +197,7 @@ def check(found: Facts, total) -> str:
     return ""
 
 
-__all__ = ["ACCOUNT_MISSING", "AUDIT_KEY", "CASH_LABELS", "FACTS_INVALID", "Facts", "MISMATCH", "PAYLOAD_VERSION",
-           "Payment", "PosFactsError", "RECEIPT_KIND", "REF_MAX_BYTES", "VERSION", "audit", "check", "day_ref", "facts",
-           "is_cash", "method_subject", "norm_label", "range_text"]
+__all__ = ["ACCOUNT_MISSING", "AUDIT_KEY", "CASH_LABELS", "EXPRESS_ONLY", "FACTS_INVALID", "Facts", "MISMATCH",
+           "NUMBER_MAX", "PAYLOAD_VERSION", "Payment", "PosFactsError", "RECEIPT_KIND", "REF_MAX_BYTES", "VERSION",
+           "audit", "check", "day_ref", "facts", "is_cash", "method_subject", "norm_label", "number", "present",
+           "range_text"]

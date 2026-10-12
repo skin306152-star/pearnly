@@ -43,4 +43,23 @@ def reported_account_set_roots(rows: Any) -> dict[str, str]:
     return roots
 
 
-__all__ = ["normalize_express_account_key", "reported_account_set_roots"]
+def account_set_company(row: Any) -> str:
+    """账套目录一行所属的公司（目录里的公司名，比较用：去首尾空白、小写）；读不出是空串。
+    同一家公司跨年度的账套公司名相同：POS 版式与收款科目都按它「问一次、记住」。"""
+    attributes = row.get("attributes") if isinstance(row, Mapping) and isinstance(row.get("attributes"), Mapping) else {}
+    return str(attributes.get("company") or attributes.get("company_name") or "").strip().casefold()
+
+
+def same_company_account_sets(rows: Any, account_set: Any) -> list[str]:
+    """同一份目录里与这份账套同属一家公司的其他账套键（已归一、排好序）；这份账套读不出公司名回空。"""
+    key = normalize_express_account_key(account_set)
+    found = [(normalize_express_account_key(row.get("source_id")), account_set_company(row))
+             for row in rows if isinstance(row, Mapping) and row.get("source_id")] if isinstance(rows, list) else []
+    mine = next((company for source, company in found if source == key), "")
+    if not mine:
+        return []
+    return sorted({source for source, company in found if company == mine} - {key})
+
+
+__all__ = ["account_set_company", "normalize_express_account_key", "reported_account_set_roots",
+           "same_company_account_sets"]
