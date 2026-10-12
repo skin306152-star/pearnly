@@ -323,12 +323,18 @@ def push_idcard_fields(
             if checked is not None:
                 return checked
 
-        def begin(verify):
+        def recheck():
             if assert_current:
                 import frappe
                 frappe.db.commit()
                 assert_current()
+
+        def begin(verify):
+            recheck()
             marker.begin(verify)
+        # 同一笔建档里客户编号被另一个人占用、换号再发之前，客户端用它重核绑定与会话
+        # （`client_intake._still_current`，写法同订车顺号的 `assert_current`）。
+        begin.assert_current = recheck
         cid, converted = cl.save_customer(
             fields=fields, mode=save_mode, customer_id=customer_id, addresses=addresses,
             baseline=baseline, on_attempt=begin,

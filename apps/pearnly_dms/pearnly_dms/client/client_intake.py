@@ -81,6 +81,12 @@ _ADDR_SUFFIXES = ("", "_ct", "_sd")
 # 写后回读：没读成就隔这么久再读，最多读这么多次（与 `_research_customer` 同一口径）。
 _READBACK_TRIES = 3
 _READBACK_PAUSE_SECONDS = 1.5
+# 新建时客户编号取证号，DMS 回"客户编号重复"、而占着这个编号的已证实是另一个人时，改用
+# "证号-1/-2/-3" 中第一个空闲的再建一次（`_spare_customer_code`）。DMS 拒收重复的原文是
+# `err::"<栏名>" ซ้ำ`（姓名：`"ชื่อ นามสกุลลูกค้า"`，2026-09-24 实测）；客户编号的栏名按同一家
+# 系统客户档的标签取 `รหัสลูกค้า`，对不上就和以前一样按拒收处理，不换号。
+_CUSCODE_TAKEN = re.compile(r'err::\s*"\s*รหัสลูกค้า\s*"\s*ซ้ำ')
+_SPARE_CODES = 3
 # 地址下拉「选中标签」键 → DMS select 名（各加 ""/_ct/_sd 后缀）· 仅供显示现值
 _GEO_LABEL_MAP = {
     "province_name": "selprovinces",
@@ -141,8 +147,23 @@ class DmsClientIntakeMixin:
         fallback = list(dict.fromkeys(str(cid) for cid in (fallback_customer_ids or []) if cid))
         if len(fallback) > 5:
             raise DmsClientError("customer identity fallback limit exceeded", "ERR_DMS_CUSTOMER_SAVE")
+        found = {"found": False, "customer_id": None, "fields": {}}
+        for cid in dict.fromkeys(self._search_row_ids(target) + fallback):
+            page = self._post_text("cus/form.php", {"status": "e", "id": cid})
+            data = self._identity_form_data(page)
+            if normalize_thai_id(data["txtpeopleid"]) != target:
+                continue
+            if found["found"]:
+                raise DmsClientError("customer identity has multiple exact matches", "ERR_DMS_CUSTOMER_SAVE")
+            found = {"found": True, "customer_id": cid,
+                     "fields": self._extract_customer_fields(data, page)}
+        return found
+
+    def _search_row_ids(self, term: str) -> List[str]:
+        """One native list search, at most nine rows: their customer IDs. A page that is not
+        clean evidence (unknown shape, `err::`, a full ten-row page that may be truncated) raises."""
         body = self._post_text("cus/component/showdata.php", {
-            "sdtamt": "10", "sdtpage": "1", "sd": target,
+            "sdtamt": "10", "sdtpage": "1", "sd": term,
             "selcolsort": "1", "selcolsorttype": "1",
         })
         parser = _IdentitySearchRows()
@@ -156,17 +177,71 @@ class DmsClientIntakeMixin:
             raise DmsClientError("customer identity search response is incomplete", "ERR_DMS_CUSTOMER_SAVE")
         if len(parser.ids) >= 10:
             raise DmsClientError("customer identity search may be truncated", "ERR_DMS_CUSTOMER_SAVE")
-        found = {"found": False, "customer_id": None, "fields": {}}
-        for cid in dict.fromkeys(parser.ids + fallback):
+        return parser.ids
+
+    def _code_holder(self, code: str) -> Optional[Tuple[str, Dict[str, str], str]]:
+        """只读：客户编号**恰好**是 `code` 的那一位 → `(客户号, 表单值, 表单页)`；干净地查无 → None。
+
+        列表搜索是模糊匹配，所以逐行读表单核对编号；搜索或表单形状不对、一页打满、两位同编号都抛错。"""
+        holder = None
+        for cid in dict.fromkeys(self._search_row_ids(code)):
             page = self._post_text("cus/form.php", {"status": "e", "id": cid})
             data = self._identity_form_data(page)
-            if normalize_thai_id(data["txtpeopleid"]) != target:
+            if str(data["txtcuscode"]).strip() != code:
                 continue
-            if found["found"]:
-                raise DmsClientError("customer identity has multiple exact matches", "ERR_DMS_CUSTOMER_SAVE")
-            found = {"found": True, "customer_id": cid,
-                     "fields": self._extract_customer_fields(data, page)}
-        return found
+            if holder:
+                raise DmsClientError("customer code has multiple holders", "ERR_DMS_CUSTOMER_SAVE")
+            holder = (cid, data, page)
+        return holder
+
+    def _spare_customer_code(self, code: str, form_html: str, desired: Dict[str, Any]) -> Optional[str]:
+        """DMS 说编号 `code`（= 本人证号）重复、按证号又查无本人时：找一个能用的新编号。
+
+        只读核实占着 `code` 的是**另一个**证号完整的人，再依次找 `code-1`…`code-3` 中第一个
+        没人占的（占着的也必须是另一个证号完整的人），并且放得进新建表单的长度上限。
+        占着的就是本人（搜索漏了他）→ 走现有"已存在"差异卡。其余任何不确定（查不到占用者、
+        证号空或不完整、读取出错、表单没写长度上限）→ None，调用方照旧按拒收处理，不建档。
+        """
+        limits = [self._attr(attrs, "maxlength") for attrs in re.findall(r"<input\b([^>]*)>", form_html, re.I | re.S)
+                  if self._attr(attrs, "name") == "txtcuscode"]
+        limit = int(limits[0]) if len(limits) == 1 and str(limits[0] or "").strip().isdigit() else 0
+        same = None
+        try:
+            for candidate in [code] + [f"{code}-{n}" for n in range(1, _SPARE_CODES + 1)]:
+                if len(candidate) > limit:
+                    return None
+                holder = self._code_holder(candidate)
+                if holder is None:
+                    return candidate if candidate != code else None
+                holder_id = normalize_thai_id(holder[1]["txtpeopleid"])
+                if holder_id == code:
+                    same = holder
+                    break
+                if not re.fullmatch(r"[0-9]{13}", holder_id):
+                    return None
+            else:
+                return None
+            fields = self._extract_customer_fields(same[1], same[2])
+        except Exception as exc:  # 只读核实失败 ≠ 可以建：照旧拒收
+            logger.warning("[dms] 客户编号被占用，核实占用者失败：%s", type(exc).__name__)
+            return None
+        raise customer_merge.CustomerConflict("ERR_DMS_CUSTOMER_EXISTS", same[0], fields, desired)
+
+    @staticmethod
+    def _still_current(on_attempt) -> bool:
+        """换号再建之前重核绑定与会话（登记方给的 `assert_current`，写法同订车顺号）。
+        没有登记就没有可重核的；有登记却没给重核办法 → 不再发。"""
+        if on_attempt is None:
+            return True
+        recheck = getattr(on_attempt, "assert_current", None)
+        if not callable(recheck):
+            return False
+        try:
+            recheck()
+        except Exception as exc:
+            logger.info("[dms] 换号新建前绑定或会话已变，不再发送：%s", type(exc).__name__)
+            return False
+        return True
 
     def _identity_form_data(self, page: str) -> Dict[str, str]:
         data = self._parse_form_defaults(page)
@@ -369,8 +444,10 @@ class DmsClientIntakeMixin:
         data["stsel"] = "n" if mode == "create" else "e"
         if mode == "overwrite":
             data["idsel"] = customer_id
+        own_code = ""  # 新建表单没预填编号，编号由我们用证号生成（只有这种才可能换号，见下）
         if mode == "create" and not (fields.get("people_id") and data.get("txtcuscode")):
             data["txtcuscode"] = fields.get("people_id") or data.get("txtcuscode") or ""
+            own_code = str(fields.get("people_id") or "")
 
         if mode == "create":
             # 新建表单自带一组省/县/区/邮编预选值：不清掉，客户就会带着一个
@@ -381,6 +458,7 @@ class DmsClientIntakeMixin:
         self._ensure_customer_branch(data)
 
         endpoint = "cus/new.php" if mode == "create" else "cus/edit.php"
+        new_code = None
         if on_attempt:
             # 登记发出时一并交出"事后怎么核对这一次写入"：读法（建/改、客户号）与应读回的值
             # （与下面写后回读同一口径）。登记方只存加盐摘要，不存明文。
@@ -398,6 +476,19 @@ class DmsClientIntakeMixin:
                 current = self.read_customer(existing)
                 raise customer_merge.CustomerConflict("ERR_DMS_CUSTOMER_EXISTS",
                     existing, current, desired)
+            # 不是本人，而 DMS 明确说是我们用证号生成的编号被占（多半是早先认领或在 DMS 里改过证号
+            # 的旧档）：照原样建档每次都会被拒。核实占用者是另一个人后换一个空闲编号，在同一会话、
+            # 同一账号锁、同一条发送登记下只多发这一次；任何不确定都照旧拒收，结果不明照旧不再发。
+            if (re.fullmatch(r"[0-9]{13}", own_code) and resp.status_code == 200
+                    and _CUSCODE_TAKEN.fullmatch(body)):
+                spare = self._spare_customer_code(own_code, form_html, desired)
+                if spare and self._still_current(on_attempt):
+                    data["txtcuscode"] = new_code = spare
+                    try:
+                        resp = self.transport.post(self._url(endpoint), data=data, timeout_ms=60000)
+                    except Exception as exc:
+                        raise customer_merge.unknown() from exc
+                    body = (resp.text or "").strip()
         if resp.status_code != 200:
             raise customer_merge.unknown()
         if body.startswith("err::"):
@@ -408,7 +499,7 @@ class DmsClientIntakeMixin:
             exc.response_body = {"submitted": False, "rejected": True}
             raise exc
         try:
-            return self._verify_saved(mode, fields, customer_id, addresses), False
+            return self._verify_saved(mode, fields, customer_id, addresses, code=new_code), False
         except Exception as exc:
             raise customer_merge.unknown() from exc
 
@@ -503,13 +594,14 @@ class DmsClientIntakeMixin:
         validate_customer_selects(self, data, form_html)
 
     def _verify_saved(self, mode: str, fields: Dict[str, Any], customer_id: Optional[str],
-                      addresses=None) -> str:
+                      addresses=None, *, code: Optional[str] = None) -> str:
         """**PHP 成功码 ≠ 真写库**（这条在老产品是铁律）：
         建 → 唯一完整证号复核；改 → 直读提交的身份字段（含隐式税号）。
 
         回读本身没读成（搜索偶发空返、表单读到一半、读到登录页）或读到的值对不上时**只重读**：
         隔 1.5 秒、最多 3 次，与 `_research_customer` 同一口径；传输层已经报连不上（它自己已经
         重试过一次）就不再追加，不让操作员在 DMS 卡死时多等。绝不重发 `new.php` / `edit.php`。
+        换号新建时（`code`）顺带比对读回的客户编号：对不上（比如被截断）只记错误日志。
         """
         expected = customer_merge.readback(fields, addresses)
         tries = 0
@@ -518,6 +610,9 @@ class DmsClientIntakeMixin:
                 cid, saved = self._read_saved(mode, fields.get("people_id") or "", customer_id)
                 if customer_merge.readback_of(saved, expected) != expected:
                     raise DmsClientError("customer write identity readback mismatch", "ERR_DMS_CUSTOMER_SAVE")
+                stored = str(saved.get("cuscode") or "").strip()
+                if code and stored != code:
+                    logger.error("[dms] 换号新建的客户编号读回不一致：提交 %d 位，读回 %d 位", len(code), len(stored))
                 return cid
             except Exception as exc:
                 tries += 1
