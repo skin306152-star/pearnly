@@ -109,23 +109,22 @@ def _heads(window, order, company, owner) -> tuple[dict, bool]:
             return heads, True
 
 
-def _documents(heads, certificates_only=False) -> list:
+def _documents(heads) -> list:
     documents = []
     for chunk in _chunks(heads):
         for row in frappe.get_list(HISTORY, filters={"name": ["in", chunk]}, fields=["name", "pages"],
                                    limit_page_length=0):
             fields = _fields(row.get("pages"))
-            if certificates_only and fields.get("document_flag") != wht.CERTIFICATE:
-                continue
             documents.append({"ref": row.name, "origin": "history", "match": heads[row.name],
                               "fields": {key: fields.get(key) for key in WHT_FIELDS if fields.get(key) not in (None, "")}})
     return documents
 
 
 def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
-    """这家公司（付款方）票据日在 [start − 90 天, end] 的识别记录，与凭证日在 (end, end + 45 天] 的 50 ทวิ（本月的票
-    可能下个月才付款开凭证，配上了就按凭证日落月），加上同一区间的 50 ทวิ 参考记录：
-    ([{ref, origin, fields, match}], 是否只看了 SCAN_MAX 张)。按票据日取：付款日只会等于或晚于票据日。"""
+    """这家公司（付款方）票据日在 [start − 90 天, end + 90 天] 的识别记录（月末以后的：本月的票可能以后几个月才付款开
+    凭证，配上了就按凭证日落月；以后的票也一起配，别的月配给它的凭证这个月也配给它，不按票据日在两个月各算一次），
+    加上同一区间的 50 ทวิ 参考记录：([{ref, origin, fields, match}], 是否只看了 SCAN_MAX 张)。按票据日取：付款日只会
+    等于或晚于票据日。"""
     scope.require_read()
     company = wht.tax_id(company_tax_id)
     window = start - timedelta(days=wht.LOOKBACK_DAYS)
@@ -133,7 +132,7 @@ def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
     owner = _owner(workspace, company)
     heads, truncated = _heads((window, end), "desc", company, owner)
     later, later_truncated = _heads((end + timedelta(days=1), ahead), "asc", company, owner)
-    documents = _documents(heads) + _documents(later, certificates_only=True)
+    documents = _documents(heads) + _documents(later)
     documents.sort(key=lambda item: (str(item["fields"].get("date") or ""), item["ref"]))
     documents += certificates.listing(workspace, window, ahead)
     return documents, truncated or later_truncated

@@ -3,7 +3,7 @@
 
 权限（功能码、角色、管理员；预扣税草稿还要读识别记录的权限）；没有回读回 readback_needed；同一公司同月刷新同一份草稿并
 保留选项与逐行改动；草稿表只存各栏与合计、不存行级明细；不锁工作空间行，同时首次写同一份草稿 / 记忆时按已有的那份重算；
-草稿可删；凭证往月末后多看 45 天、票面没有本公司税号的按客户档案 / 单一公司工作空间取；
+草稿可删；往月末后多看 90 天、票面没有本公司税号的按客户档案 / 单一公司工作空间取；
 所得类型记住后重出即套用；识别记录按票据日区间、经权限查询读；参考记录只在「不录入」时写、重放不重复写、
 写失败不连累票据入库；识别存档在保存批次前写参考记录。
 """
@@ -401,12 +401,12 @@ class WhtDraft(Base):
         first = frappe.list_calls[0]
         self.assertEqual(first["filters"], {"invoice_date": ["between", [date(2026, 6, 3), date(2026, 9, 30)]]})
         self.assertIn("client", first["fields"])
-        # 凭证往月末后多看 45 天（本月的票下个月才付款开凭证）
+        # 往月末后多看 90 天（本月的赊账票以后几个月才付款开凭证）
         self.assertEqual(frappe.list_calls[1]["filters"],
-                         {"invoice_date": ["between", [date(2026, 10, 1), date(2026, 11, 14)]]})
+                         {"invoice_date": ["between", [date(2026, 10, 1), date(2026, 12, 29)]]})
         self.assertEqual(frappe.list_calls[2]["filters"], {"name": ["in", ["HIS-1"]]})
         self.assertEqual(len(frappe.list_calls), 3)
-        self.listed.assert_called_once_with("WS1", date(2026, 6, 3), date(2026, 11, 14))
+        self.listed.assert_called_once_with("WS1", date(2026, 6, 3), date(2026, 12, 29))
         self.assertEqual(summary["company"], {"name": "Our Co", "tax_id": COMPANY, "branch": "00000"})
         self.assertEqual([line["row"] for line in summary["forms"]["pnd53"]["lines"]], ["HIS-1"])
         # 50 ทวิ 的对方没有往来、也没记过：先放待确认
@@ -433,7 +433,8 @@ class WhtDraft(Base):
                                    seller_tax=SUPPLIER, buyer_tax=COMPANY, subtotal="5000", wht_amount="50")}]
         september = self.draft()
         self.assertEqual(september["forms"]["pnd53"]["lines"], [])
-        self.assertEqual(september["documents_read"], 2)  # HIS-1 与下个月的凭证 HIS-2；下个月的票 HIS-3 不取
+        # HIS-1、下个月的凭证 HIS-2 与下个月的票 HIS-3（以后的票也一起配，同 10 月草稿的配法）
+        self.assertEqual(september["documents_read"], 3)
         october = self.draft(period="2026-10")
         line, = [line for line in october["forms"]["pnd53"]["lines"] if line["source"] == "both"]
         self.assertEqual((line["refs"], line["date"], line["tax"]), (["HIS-1", "HIS-2"], "2026-10-10", "100.00"))

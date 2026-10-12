@@ -1,7 +1,7 @@
 """ภ.ง.ด.3 / ภ.ง.ด.53 草稿（`tax.wht`）的纯函数检查：不连库、不依赖 Frappe。
 
 归哪张表（0 开头 → 53，0991 / 0992 → 3）、ชื่อ / ชื่อสกุล、付款金额与税额、50 ทวิ 的付款方判断与配对
-（一对一、几张票一张凭证、一张票几张凭证；配不上待核；跨月只计一次）、票面没有本公司税号的待核、
+（一对一、几张票一张凭证、一张票几张凭证；赊账票与 90 天内的凭证；配不上待核；跨月只计一次）、票面没有本公司税号的待核、
 按付款日落月、所得类型「记住」与兜底、逐行改动、建议补扣不进合计、ใบแนบ 分页（每页 6 名、每名 3 行）。
 """
 from datetime import date, timedelta
@@ -49,6 +49,17 @@ def draft(documents, memory=None, overrides=None, remembered=(), month=9):
 
 def all_lines(result):
     return [line for form in wht.FORMS for line in result["forms"][form]["lines"]]
+
+
+def fetched(documents, month):
+    """同 `sources.wht_documents`：票据日 / 凭证日在 [月初 − 90 天, 月末 + FORWARD_DAYS] 的记录。"""
+    start, end = periods.bounds(2026, month)
+    return [item for item in documents if start - timedelta(days=wht.LOOKBACK_DAYS)
+            <= periods.parse_date(item["fields"]["date"]) <= end + timedelta(days=wht.FORWARD_DAYS)]
+
+
+def monthly_tax(documents, months):
+    return {month: draft(fetched(documents, month), month=month)["totals"]["tax"] for month in months}
 
 
 class Forms(unittest.TestCase):
@@ -215,11 +226,44 @@ class Pairing(unittest.TestCase):
         self.assertEqual(all_lines(draft(documents, month=8)), [])
 
     def test_too_far_apart_or_different_amounts_stay_apart(self):
-        far = [invoice("H1", date_="2026-07-01"), certificate("C1", payee=TRANSPORT, date_="2026-09-01", base="10000",
-                                                               tax="300")]
-        self.assertEqual(len(wht.collect(far, COMPANY)[0]), 2)
+        def apart(paid, day, certificate_day="2026-09-01"):
+            documents = [invoice("H1", date_=day, **paid),
+                         certificate("C1", payee=TRANSPORT, date_=certificate_day, base="10000", tax="300")]
+            return len(wht.collect(documents, COMPANY)[0]) == 2
+
+        cash, credit = {"payment_method": "cash"}, {"posting_payment_manual": "credit"}
+        # 当场付了的票：与 62 天后的凭证是两笔
+        self.assertTrue(apart(cash, "2026-07-01"))
+        # 赊账票（付款日只是推定）：62 天后（常见 60 天账期）的凭证就是这张票的付款，配成一笔
+        self.assertFalse(apart(credit, "2026-07-01"))
+        self.assertFalse(apart(credit, "2026-06-03"))      # 90 天
+        self.assertTrue(apart(credit, "2026-06-02"))       # 91 天
+        self.assertTrue(apart(credit, "2026-10-17"))       # 凭证在票据日 46 天以前
         other = [invoice("H1"), certificate("C1", payee=TRANSPORT, base="7000", tax="210")]
         self.assertEqual(len(wht.collect(other, COMPANY)[0]), 2)
+
+    def test_a_credit_invoice_paid_sixty_days_later_is_counted_once(self):
+        # 7 月赊账、9 月付款开凭证：7 月的草稿取得到这张凭证、9 月的取得到这张票，两边都配成一笔，按凭证日只算在 9 月
+        for day, certificate_day in (("2026-07-10", "2026-09-05"), ("2026-07-01", "2026-09-28")):
+            documents = [invoice("I1", date_=day, posting_payment_manual="credit"),
+                         certificate("C1", payee=TRANSPORT, date_=certificate_day, base="10000", tax="300")]
+            self.assertEqual(monthly_tax(documents, (7, 8, 9)), {7: "0.00", 8: "0.00", 9: "300.00"})
+            line, = all_lines(draft(fetched(documents, 9)))
+            self.assertEqual((line["refs"], line["date_source"]), (["I1", "C1"], "certificate"))
+
+    def test_a_credit_invoice_whose_certificate_went_to_a_later_invoice_waits_for_the_accountant(self):
+        # 7 月、8 月两张同额赊账票，只有一张 9 月的凭证：凭证配给日期近的 8 月票；7 月的票不按票据日悄悄计入，也不丢，
+        # 放进 7 月待核（列出那张凭证）
+        documents = [invoice("I1", date_="2026-07-10", number="INV-7", posting_payment_manual="credit"),
+                     invoice("I2", date_="2026-08-20", number="INV-8", posting_payment_manual="credit"),
+                     certificate("C2", payee=TRANSPORT, date_="2026-09-05", base="10000", tax="300")]
+        self.assertEqual(monthly_tax(documents, (7, 8, 9)), {7: "0.00", 8: "0.00", 9: "300.00"})
+        july = draft(fetched(documents, 7), month=7)
+        (row,) = july["review"]
+        self.assertEqual((row["row"], next(item["candidates"] for item in row["issues"]
+                                           if item["code"] == "pairing_unclear")), ("I1", ["C2"]))
+        line, = all_lines(draft(fetched(documents, 9)))
+        self.assertEqual(line["refs"], ["I2", "C2"])
 
     def test_the_invoice_fills_an_amount_the_certificate_did_not_show(self):
         documents = [invoice("H1"), certificate("C1", payee=TRANSPORT, base="", tax="300")]
@@ -253,16 +297,7 @@ class Pairing(unittest.TestCase):
     def test_a_certificate_next_month_is_counted_once_in_its_month(self):
         documents = [invoice("I1", date_="2026-08-20"),
                      certificate("C1", payee=TRANSPORT, date_="2026-09-05", base="10000", tax="300")]
-
-        def fetched(month):  # 同 `sources.wht_documents`：票 [月初 − 90 天, 月末]，凭证到月末 + 45 天
-            start, end = periods.bounds(2026, month)
-            last = {"invoice": end, "certificate": end + timedelta(days=wht.FORWARD_DAYS)}
-            return [item for item in documents if start - timedelta(days=wht.LOOKBACK_DAYS)
-                    <= periods.parse_date(item["fields"]["date"])
-                    <= last["certificate" if item["fields"].get("document_flag") else "invoice"]]
-
-        self.assertEqual(draft(fetched(8), month=8)["totals"]["tax"], "0.00")
-        self.assertEqual(draft(fetched(9), month=9)["totals"]["tax"], "300.00")
+        self.assertEqual(monthly_tax(documents, (8, 9)), {8: "0.00", 9: "300.00"})
 
     def test_unmatched_invoice_and_certificate_of_one_payee_wait_for_the_accountant(self):
         documents = [invoice("I1", date_="2026-09-02"),

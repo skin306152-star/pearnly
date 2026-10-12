@@ -10,10 +10,12 @@
 - 50 ทวิ 的付款方 / 收款方：本公司是其中一方，另一方为对方。对方只是本公司费用票的卖方、或记过所得类型 → 本公司付款，
   进本表；只是本公司销售票的买方 → 是客户扣了我们的，不进本表；两边都是或都判不出 → 列出待会计确认，不计入
   （与本公司的费用票配上了即认定本公司付款）。
-- 同一收款方的票与 50 ทวิ 配成同一笔付款（日期差不超过 45 天，金额或税额每张容差 0.01）：一对一；几张票合计等于
-  一张凭证；一张票等于几张凭证合计。金额与日期取凭证。取数时凭证往月末后多看 45 天：票配上了下个月的凭证就按凭证日
-  落月，不再按票据日计入本月。配不上的票，前后 45 天内有同一收款方的凭证（配上了别的票的也算）就放进待核，
-  配不上的那些凭证也一起放进待核，都不进合计，会计确认后计入。
+- 同一收款方的票与 50 ทวิ 配成同一笔付款（日期差不超过 45 天；付款日只是推定的票——赊账、没当场付——凭证在票据日
+  之后 90 天内也算，常见 60 天账期或凭证晚开；金额或税额每张容差 0.01）：一对一；几张票合计等于一张凭证；一张票等于
+  几张凭证合计。金额与日期取凭证。取数时票与凭证都往月末后多看 90 天：票配上了以后几个月的凭证就按凭证日落月，不再按
+  票据日计入本月；以后的票也一起配，别的月配给它的凭证这个月也配给它。配不上的票，前后 45 天内有同一收款方的凭证、
+  或（推定付款日的）90 天内有金额相同的凭证（配上了别的票的也算）就放进待核，配不上的那些凭证也一起放进待核，
+  都不进合计，会计确认后计入。
 - 票面没有本公司税号、但归在本公司名下（客户档案或单一公司的工作空间）的费用票：列出待会计确认，不计入。
 - ใบแนบ：每页 6 名收款方，每名下最多 3 行付款明细（多出的另起一个序号）；ภ.ง.ด.3 分 ชื่อ / ชื่อสกุล，
   条件码 ภ.ง.ด.3 为 1/2/3、ภ.ง.ด.53 为 1/2。
@@ -66,7 +68,8 @@ LINES_PER_PAYEE = 3
 PAYEES_PER_SHEET = 6
 PAIR_DAYS = 45
 LOOKBACK_DAYS = 90
-FORWARD_DAYS = PAIR_DAYS  # 凭证往月末后多看几天：本月的票可能下个月才付款开凭证
+CREDIT_DAYS = LOOKBACK_DAYS  # 付款日只是推定的票（赊账）：凭证在票据日之后这么多天内也能配（不超过 LOOKBACK_DAYS）
+FORWARD_DAYS = CREDIT_DAYS  # 往月末后多看几天：本月的票可能以后几个月才付款开凭证（不少于 CREDIT_DAYS，否则两个月各算一次）
 SUBSET_CANDIDATES = 12    # 合计配对时每笔最多看日期最近的几张
 SUBSET_STEPS = 20000      # 合计配对的搜索步数上限（找不到就当配不上，进待核）
 MATCH_CLIENT, MATCH_WORKSPACE = "client", "workspace"  # 票面没有本公司税号、按归属取到的记录
@@ -260,6 +263,22 @@ def _within(invoice_date, certificate_date) -> bool:
     return abs((certificate_date - invoice_date).days) <= PAIR_DAYS
 
 
+def _credit(row, certificate_date) -> bool:
+    """付款日只是推定的票（赊账、没当场付）与票据日之后 CREDIT_DAYS 天内的凭证（45 天以外的那一段）。"""
+    if row["date_source"] != "invoice_date" or row["date"] is None or certificate_date is None:
+        return False
+    return PAIR_DAYS < (certificate_date - row["date"]).days <= CREDIT_DAYS
+
+
+def _reach(row, certificate) -> bool:
+    """这张票与这张凭证日期上可能是同一笔付款：相差不超过 45 天，赊账票的凭证在票据日之后 90 天内也算。"""
+    return _within(row["date"], certificate["date"]) or _credit(row, certificate["date"])
+
+
+def _same_amount(row, certificate) -> bool:
+    return _near(row["base"], certificate["base"]) or (bool(row["tax"]) and _near(row["tax"], certificate["tax"]))
+
+
 def _distance(invoice_date, certificate_date) -> tuple:
     """配对时谁更近：凭证日在票据日当天或之后的优先，再按相差天数；缺日期的排最后。"""
     if invoice_date is None or certificate_date is None:
@@ -355,9 +374,10 @@ def _unclear(row, others):
 
 
 def _pair_payee(invoices, certificates) -> list:
-    """同一收款方：一对一 → 几张票一张凭证 → 一张票几张凭证；剩下的票（印了预扣税的）日期前后 45 天内有这个收款方的
-    凭证（配上了别的票的也算）就标「对不上」先不计入：那张凭证可能就付了这张票，各月取到的单据不同、配法不同时，
-    这样一张票不会这个月按票据日计入、另一个月又随凭证计入。"""
+    """同一收款方：一对一 → 几张票一张凭证 → 一张票几张凭证（赊账票的凭证可在票据日之后 90 天内）；剩下的票（印了
+    预扣税的）日期前后 45 天内有这个收款方的凭证、或赊账票 90 天内有金额相同的凭证（配上了别的票的也算）就标「对不上」
+    先不计入：那张凭证可能就付了这张票，各月取到的单据不同、配法不同时，这样一张票不会这个月按票据日计入、另一个月又
+    随凭证计入。"""
     free_invoices, free_certificates, out = set(range(len(invoices))), set(range(len(certificates))), []
 
     def nearest(row, pool):
@@ -369,7 +389,7 @@ def _pair_payee(invoices, certificates) -> list:
         for c, certificate in enumerate(certificates):
             base_ok = _near(row["base"], certificate["base"])
             tax_ok = bool(row["tax"]) and _near(row["tax"], certificate["tax"])
-            if (base_ok or tax_ok) and _within(row["date"], certificate["date"]):
+            if (base_ok or tax_ok) and _reach(row, certificate):
                 pairs.append(((not (base_ok and tax_ok), row["source"] != "invoice",
                                *_distance(row["date"], certificate["date"]), i, c), i, c))
     for _rank, i, c in sorted(pairs):
@@ -379,7 +399,7 @@ def _pair_payee(invoices, certificates) -> list:
             out.append(_merged([invoices[i]], certificates[c]))
     for c in sorted(free_certificates):
         certificate = certificates[c]
-        pool = sorted((i for i in free_invoices if _within(invoices[i]["date"], certificate["date"])),
+        pool = sorted((i for i in free_invoices if _reach(invoices[i], certificate)),
                       key=lambda i: (_distance(invoices[i]["date"], certificate["date"]), i))[:SUBSET_CANDIDATES]
         picked = sorted(pool[position] for position in _sum_match([invoices[i] for i in pool], certificate))
         if picked:
@@ -388,7 +408,7 @@ def _pair_payee(invoices, certificates) -> list:
             out.append(_merged([invoices[i] for i in picked], certificate))
     for i in sorted(free_invoices):
         row = invoices[i]
-        pool = nearest(row, [c for c in free_certificates if _within(row["date"], certificates[c]["date"])])
+        pool = nearest(row, [c for c in free_certificates if _reach(row, certificates[c])])
         pool = pool[:SUBSET_CANDIDATES]
         picked = sorted(pool[position] for position in _sum_match([certificates[c] for c in pool], row))
         if picked:
@@ -400,7 +420,9 @@ def _pair_payee(invoices, certificates) -> list:
     for row in left_invoices:
         if row["source"] != "invoice":
             continue
-        near = [certificate for certificate in certificates if _within(row["date"], certificate["date"])]
+        # 45 天以内的不论金额；赊账票 45 天以外的只看金额相同的（那张凭证配给了别的票，可能本来付的是这张）
+        near = [certificate for certificate in certificates if _within(row["date"], certificate["date"])
+                or (_credit(row, certificate["date"]) and _same_amount(row, certificate))]
         if near:
             _unclear(row, near)
             for certificate in near:
