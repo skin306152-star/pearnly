@@ -500,6 +500,23 @@ class Scanner(Harness):
         self.scan()  # its first check is already due: it expires without reading DMS
         self.assertEqual((self.records()[0]["status"], self.reads), ("Review", 0))
 
+    def test_crash_after_the_success_row_keeps_that_one_row_success(self):
+        # The worker wrote the success row, then died before handing the order over (finish), so the
+        # registration carries no result. Holding it must not add a second, "manual" row for that order.
+        self.stuck()
+        self.ledger.log_booking(endpoint="EP-A", payload={"qa": QA}, actor=BINDING["user_id"],
+                                result={"ok": True, "booking_no": "BK-7", "booking_id": "R-1"})
+        self.age(seconds=661)
+        self.scan()
+        self.assertIsNone(self.session())
+        log, = self.logs()
+        self.assertEqual((log["status"], log["business_key"]), ("success", "BK-7"))
+        self.age(minutes=5)
+        self.assertEqual(self.scan(), ["reconcile_record"])
+        log, = self.logs()
+        self.assertEqual(log["status"], "success")
+        self.assertEqual(self.records()[0]["status"], "Delivered")
+
     def test_hold_twice_notifies_once(self):
         payload = self.stuck()
         self.age(seconds=661)

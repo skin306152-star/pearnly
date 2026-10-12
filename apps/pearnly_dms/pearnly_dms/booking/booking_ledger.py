@@ -123,9 +123,10 @@ def log_booking(
 
         if number and (ok or unknown):
             # 一张单一行：核实成功找"成功"或"人工处理"那行（结果未知时记下的）改成成功；
-            # 同一张未知单再记一次（补登、重复转存）只认已有的"人工处理"行。
+            # 同一张单再记一次"结果未知"（补登、重复转存，或执行体记完成功、没来得及收尾就
+            # 崩溃后由扫描转存）认已有的那行、原样不动 —— 成功行绝不降成"人工处理"，也不另加一行。
             existing = frappe.db.get_value(LOG, {
-                "status": ["in", ["success", "manual"]] if ok else "manual",
+                "status": ["in", ["success", "manual"]],
                 "business_key": number,
                 "endpoint": endpoint_name(endpoint), "actor": actor,
             }, "name")
