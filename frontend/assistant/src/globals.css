@@ -575,6 +575,8 @@
 .cc-row-icon { display: none; }
 .cc-drawer .cc-row-icon { display: inline-flex; flex-shrink: 0; width: 1.5rem; margin-inline-end: 0.875rem; color: var(--cc-ink-2); }
 .cc-drawer .cc-row-icon svg { width: 1.375rem; height: 1.375rem; }
+/* 抽屉里的图标用细线（同 Claude 手机端） */
+.cc-drawer svg, .cc-mdrawer .cc-round-btn svg { stroke-width: 1.5; }
 /* 抽屉左下头像：同圆按钮（浅灰白、细描边） */
 .cc-mdrawer .cc-avatar { background: var(--cc-mbtn-bg); border: 1px solid var(--cc-line-strong); color: var(--cc-ink); }
 /* 抽屉标题（同 Claude 手机端的「Claude」：常规字重的衬线字） */

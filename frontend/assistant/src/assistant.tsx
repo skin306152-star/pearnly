@@ -475,7 +475,7 @@ function DrawerIcon() {
 // - 电脑（同 claude.ai）：对话有内容时左上角是对话名，点开加星标 / 改名 / 删除；右边是本对话的文件。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
 function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; files: ReactNode }) {
-  const { open, isMobile, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  const { open, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { view, setView } = useView();
   const aui = useAui();
   const snapshot = useActiveSessionSnapshot();
@@ -483,7 +483,7 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const inChat = view === "chat" && hasMessages;
   if (isMobile) {
-    if (openMobile) return null;
+    // 抽屉打开时顶栏照样在（随页面卡片推到右边、被压淡，同 Claude 手机端）
     return (
       <div className="cc-mtopbar" data-plain={!inChat || undefined}>
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
