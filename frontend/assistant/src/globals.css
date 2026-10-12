@@ -558,7 +558,12 @@
 
 /* 手机抽屉（同 Claude 手机端）：抽屉在底下不动，页面是盖在上面的卡片，跟着手指往右推开（components/mobile-shell.tsx）。
    --cc-mprogress：0 收起 ~ 1 打开，拖动时由页面逐帧写入；一离开原位就是圆角细边（前 1/12 的路程里长满），越往右盖得越多（浅色变淡、深色变暗）。 */
-.cc-mshell { --cc-mprogress: 0; position: relative; height: var(--cc-vvh, 100dvh); width: 100%; overflow: hidden; background: var(--cc-bg-drawer); }
+.cc-mshell {
+  --cc-mprogress: 0; position: fixed; top: var(--cc-vvtop, 0px); left: 0; right: 0; height: var(--cc-vvh, 100dvh);
+  overflow: hidden; overscroll-behavior: none; background: var(--cc-bg-drawer);
+}
+/* 手机外壳在时整页不能被拉动（iOS 橡皮筋）：只有内容区滚动 */
+html:has(.cc-mshell), html:has(.cc-mshell) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .cc-mshell[data-open="true"] { --cc-mprogress: 1; }
 .cc-mdrawer { position: absolute; inset: 0 auto 0 0; width: var(--cc-sidebar-w-mobile); background: var(--cc-bg-drawer); color: var(--cc-ink); }
 .cc-mmain {
