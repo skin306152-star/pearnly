@@ -303,3 +303,82 @@ def test_auto_update_only_waits_while_someone_is_using_the_tomo_window(monkeypat
     assert gui_tray._window_open() is True
     monkeypatch.setattr(gui_tomo, "OPEN_WINDOW", SimpleNamespace(isVisible=lambda: True, isActiveWindow=lambda: False))
     assert gui_tray._window_open() is False
+
+
+def test_notifications_fall_back_to_the_tray_balloon_when_windows_notifications_are_unavailable(monkeypatch):
+    # 2026-10-13：桌面通知先走 Windows 应用通知（锁屏时也进通知中心）；发不出来（缺库、系统拒绝）照旧弹托盘气泡
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion import gui_tray
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    tried, shown, opened = [], [], []
+    monkeypatch.setattr(gui_tray.toast, "show", lambda *args: tried.append(args) or False)
+    app = TrayApp.__new__(TrayApp)
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
+    app.open_conversation = lambda site, session: opened.append((site, session))
+    app._on_folder_notices("https://acme.pearnly.com",
+                           [{"id": "p1", "title": "T1", "text": "x", "created": 1.0, "session": "s-1"}])
+    assert [args[:3] for args in tried] == [("T1", "x", "notice:p1")] and callable(tried[0][3])
+    assert shown == [("T1", "x")]
+    app._on_message_clicked()
+    assert opened == [("https://acme.pearnly.com", "s-1")]
+
+
+def test_windows_notifications_replace_the_balloon_and_their_clicks_run_on_the_ui_thread(monkeypatch):
+    # 应用通知的点击回调在系统线程上：只发信号，排队回界面线程打开和点气泡一样的地方（那段对话 / 定时任务页）；
+    # 按 notice:<编号> 去重、一批合成一条、提醒两分钟内不弹「有新版本」都照旧
+    import threading
+    import time
+
+    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion import gui_tray
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    toasts, shown, opened = [], [], []
+    monkeypatch.setattr(gui_tray.toast, "show", lambda *args: toasts.append(args) or True)
+    monkeypatch.setattr(gui_tray, "activity", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_tray, "QTimer", SimpleNamespace(singleShot=lambda *args: None))
+    app = TrayApp.__new__(TrayApp)
+    app.lang = "zh"
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
+    app.open_conversation = lambda site, session: opened.append((site, session, threading.get_ident()))
+    app._update_action = None
+    app._auto_timer = SimpleNamespace(isActive=lambda: True)
+    app._auto_update = SimpleNamespace(offer=lambda version, url: True)
+    site = "https://acme.pearnly.com"
+
+    def click(hook):
+        before = len(opened)
+        worker = threading.Thread(target=hook)   # 系统线程上的点击回调
+        worker.start()
+        worker.join()
+        assert len(opened) == before   # 没在系统线程上直接执行
+        deadline = time.monotonic() + 5
+        while len(opened) == before and time.monotonic() < deadline:
+            QCoreApplication.sendPostedEvents()
+            QApplication.processEvents()
+
+    app._on_folder_notices(site, [{"id": "p1", "title": "T1", "text": "x", "created": 1.0, "session": "s-1"}])
+    app._notify("CC", "x", None, tag="notice:p1")   # 对话页实时收到的同一条：不再弹
+    app._on_update_available("1.4.5", "/a.exe")     # 提醒刚弹、还没点：不弹「有新版本」
+    assert shown == [] and [args[:3] for args in toasts] == [("T1", "x", "notice:p1")]
+
+    click(toasts[0][3])
+    assert opened == [(site, "s-1", threading.get_ident())]   # 回到界面线程执行
+    assert app._message_action is None                        # 点过了：「有新版本」不再为它压着
+
+    app._on_folder_notices(site, [{"id": f"p{n}", "title": f"T{n}", "text": f"t{n}", "created": float(n),
+                                   "session": f"s-{n}"} for n in (2, 3)])
+    assert toasts[-1][:3] == ("(2) T3", "t3", "")
+    click(toasts[-1][3])
+    assert opened[-1][:2] == (site, "")   # 一批合成一条：点开定时任务页
+
+    app._message_action = None
+    app._on_update_available("1.4.6", "/b.exe")
+    assert toasts[-1][0] == "有新版本" and toasts[-1][2] == "update" and toasts[-1][3] is None
+    assert shown == []   # 全程没弹托盘气泡

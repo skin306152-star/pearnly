@@ -18,6 +18,19 @@ _obf = os.environ.get("PEARNLY_OBF_DIR", "")
 _use_obf = bool(_obf) and os.path.isdir(os.path.join(_obf, "src"))
 _pathex = [".."]  # 始终纯【源码】分析(抓全依赖);混淆只在分析后替换字节码(见下 swap),
 _hidden = ["httpx", "dbf"]  # 故不把 _obf 放 pathex(否则分析的是看不见 import 的混淆码)。
+# Windows 应用通知(toast.py 用时才导入 windows_toasts)。winrt 的原生模块(.pyd)在运行时再导入 foundation /
+# collections 等,静态分析看不见;hooks-contrib 也没有 winrt 的钩子,这里逐个列出。
+_hidden += [
+    "windows_toasts",
+    "winrt._winrt",
+    "winrt.runtime",
+    "winrt.runtime._internals",
+    "winrt.system",
+    "winrt.windows.foundation",
+    "winrt.windows.foundation.collections",
+    "winrt.windows.data.xml.dom",
+    "winrt.windows.ui.notifications",
+]
 
 a = Analysis(
     ["launcher_companion.py"],

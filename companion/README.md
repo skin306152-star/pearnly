@@ -4,6 +4,8 @@
 2026-09-27 起源码在本仓（原 `pearnly-companion` 仓库 v1.1.77 搬入，停用旧仓库）。服务端那一侧在
 `apps/pearnly_cowork/pearnly_cowork/companion/`，两边的约定由 `tests/test_companion_contract.py` 守住。
 
+桌面通知走 Windows 应用通知（`src/companion/toast.py`，windows-toasts，锁屏时弹的也留在通知中心），发不出来时退回托盘气泡。
+
 ## 连接方式
 
 - 网页「连接 Express」弹窗给出**配对码** `exp_<连接>_<密钥>@<租户域名>`，点「复制」整段粘进小助手。
