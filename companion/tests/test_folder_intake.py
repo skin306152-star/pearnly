@@ -245,6 +245,26 @@ def _old(path, data):
     os.utime(path, (past, past))
 
 
+def test_pos_exports_are_sent_only_for_tasks_the_server_gives_them_to(tmp_path, monkeypatch):
+    """L9（2026-10-13）：云端给推往 Express 的销售任务下发 POS 导出的扩展名，小助手才扫 Excel / CSV；
+    旧云端不下发、进项任务照旧只收 PDF / 图片；.xls 不收。各文件夹的 POS 导出另报一份计数。"""
+    cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
+    for name in ("bill.pdf", "pos-oct.xlsx", "pos-oct.csv", "old.xls"):
+        _old(folder / name, name.encode())
+    rule.update(existing=1, run_request=1)
+    fake = FakeClient([rule])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)
+    assert [c[1]["relpath"] for c in fake.calls if c[0] == "begin"] == ["bill.pdf"]
+    report = [c for c in fake.calls if c[0] == "sync"][0][1]["roots"][0]
+    assert (report["counts"], report["table_counts"]) == ({"": 1, "ice": 1}, {"": 2, "ice": 2})
+    rule.update(name="R2", run_request=2, extensions=[".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif", ".xlsx",
+                                                      ".xlsm", ".csv"])
+    fake = FakeClient([rule])
+    FolderIntake(lambda: [cfg], client_factory=fake).round(cfg, key)
+    assert sorted(c[1]["relpath"] for c in fake.calls if c[0] == "begin") == ["bill.pdf", "pos-oct.csv",
+                                                                               "pos-oct.xlsx"]
+
+
 def test_moved_in_old_file_is_new_but_baseline_is_skipped(tmp_path, monkeypatch):
     cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})
     _old(folder / "before.pdf", b"before")
@@ -554,10 +574,10 @@ def test_tombstones_stay_when_the_scan_could_not_read_everything(tmp_path, monke
     ledger.save()
     real = plan.scan
 
-    def flaky(path, errors=None):
+    def flaky(path, errors=None, **kwargs):
         if errors is not None:
             errors.append(OSError("network share hiccup"))
-        return real(path, errors)
+        return real(path, errors, **kwargs)
 
     monkeypatch.setattr(plan, "scan", flaky)
     rule.update(existing=1, run_request=1)
@@ -772,10 +792,10 @@ def test_a_read_error_only_keeps_the_rows_under_the_failing_folder(tmp_path, mon
     ledger.save()
     real = plan.scan
 
-    def flaky(path, errors=None):
+    def flaky(path, errors=None, **kwargs):
         if errors is not None:
             errors.append(PermissionError(13, "Access is denied", str(folder / "locked")))
-        return real(path, errors)
+        return real(path, errors, **kwargs)
 
     monkeypatch.setattr(plan, "scan", flaky)
     rule.update(existing=1, run_request=1)

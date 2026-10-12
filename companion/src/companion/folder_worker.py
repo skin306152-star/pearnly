@@ -246,7 +246,8 @@ class FolderIntake:
         def build(row, folders, measured):
             line = {"id": row["id"], "label": row["label"], "folders": folders, "share": plan.share_path(row["path"])}
             if measured is not None:
-                line["counts"], line["partial"] = measured
+                # 票据与 POS 导出分开数：POS 导出只有推往 Express 的销售任务收（云端按任务加上）
+                line["counts"], line["partial"], line["table_counts"] = measured
             return line
 
         cached = self._folders.get(key)
@@ -273,7 +274,8 @@ class FolderIntake:
                     complete = False
                 else:
                     if files is not None:  # None：根目录本身读不到，不知道几份
-                        measured[row["id"]] = (plan.folder_counts(files, ["", *folders]), not complete)
+                        measured[row["id"]] = (plan.folder_counts(files, ["", *folders]), not complete,
+                                               plan.folder_counts(files, ["", *folders], plan.TABLE_EXTENSIONS))
                         seen[row["id"]] = files
             report.append(build(row, folders, measured.get(row["id"])))
         self._folders[key] = {"at": now, "counted": now, "ids": ids, "report": report, "measured": measured,
@@ -290,7 +292,8 @@ class FolderIntake:
         这次先不报，下一轮重新数。"""
         basis = (self._surveyed.get(key, 0),
                  tuple((rule.get("name"), rule.get("root_id"), rule.get("folder"), bool(rule.get("existing")),
-                        rule.get("active_since"), (ledger.rules.get(rule.get("name")) or {}).get("baseline_since"))
+                        rule.get("active_since"), (ledger.rules.get(rule.get("name")) or {}).get("baseline_since"),
+                        plan.rule_extensions(rule))
                        for rule in rules))
         if not touched and self._rule_pending_basis.get(key) == basis:
             return
@@ -315,7 +318,7 @@ class FolderIntake:
             by_root.setdefault(root, []).append((
                 name, rule.get("folder") or "",
                 lambda relpath, size, mtime, rule_name=name: ledger.known(rule_name, relpath, size, mtime) is not None,
-                baseline))
+                baseline, plan.rule_extensions(rule)))
         pending = {}
         for root, members in by_root.items():
             pending.update(plan.pending_counts(seen[root], members))
@@ -372,7 +375,7 @@ class FolderIntake:
         if root is None or state.get("baseline_since") == since:
             return
         folder = plan.rule_folder(root["path"], rule.get("folder") or "")
-        state["baseline"] = sorted(c.relpath.casefold() for c in plan.scan(folder)
+        state["baseline"] = sorted(c.relpath.casefold() for c in plan.scan(folder, extensions=plan.rule_extensions(rule))
                                    if not plan.is_new(c, since, offset))
         state["baseline_since"] = since
 
@@ -456,7 +459,8 @@ class FolderIntake:
         waiting: list[plan.Candidate] = []
         seen: set[str] = set()
         errors: list = []
-        for candidate in plan.scan(folder, errors):
+        extensions = plan.rule_extensions(rule)
+        for candidate in plan.scan(folder, errors, extensions=extensions):
             if self._stop.is_set():
                 # 被叫停（只在两份文件之间）：不算处理过、不带 scanned，下次启动同一时刻接着跑（同一个运行号）
                 record["note"] = "interrupted"
@@ -478,7 +482,7 @@ class FolderIntake:
                 break
             again, waiting = waiting, []
             for candidate in again:
-                fresh = next((row for row in plan.scan(candidate.path.parent)
+                fresh = next((row for row in plan.scan(candidate.path.parent, extensions=extensions)
                               if row.path == candidate.path), None)
                 if fresh is None:
                     continue

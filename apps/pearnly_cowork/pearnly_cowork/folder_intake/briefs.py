@@ -50,7 +50,7 @@ def run(now=None):
 def _files(runs, full=False):
     """这些运行登记的文件：{运行名: [行]}（按任务名走索引，再按运行筛）。判发没发只要进度；写简报才取推送结果。"""
     fields = ("name, rule, run, state, last_code, outcome_json, registered_at" if full
-              else "run, state, registered_at, finished_at")
+              else "run, state, last_code, registered_at, finished_at")
     found = {}
     rows = frappe.db.sql(f"SELECT {fields} FROM `tab{FILE}` WHERE rule IN %s AND run IN %s",
                          (tuple(sorted({row.rule for row in runs})), tuple(sorted({row.name for row in runs}))),
@@ -149,7 +149,8 @@ def _kind(kind):
     if kind == "party":
         return _("cowork.folder.brief.why.party")
     return {"item": _("cowork.choice.item"), "account": _("cowork.choice.account"), "payment": _("cowork.choice.payment"),
-            "vat": _("cowork.choice.vat"), "department": _("cowork.choice.department")}.get(kind, kind)
+            "vat": _("cowork.choice.vat"), "department": _("cowork.choice.department"),
+            "receipt": _("cowork.choice.receipt")}.get(kind, kind)
 
 
 def _stop_reasons(found):
@@ -158,6 +159,8 @@ def _stop_reasons(found):
         reasons.append(_("cowork.folder.brief.why.human"))
     if found["stop_reasons"].get("task_off"):
         reasons.append(_("cowork.folder.brief.why.taskOff"))
+    if found["stop_reasons"].get("pos_layout"):
+        reasons.append(_("cowork.folder.brief.why.posLayout"))
     return reasons
 
 
