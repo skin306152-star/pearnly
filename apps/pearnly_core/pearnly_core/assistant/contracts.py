@@ -403,6 +403,15 @@ def notices_note(items) -> str:
     return NOTICES_INTRO + "\n\n" + "\n".join(reversed(blocks))
 
 
+def now_note(local, tz_name: str) -> str:
+    """让智能体知道今天（「明天几号」「这个月」）：用户当地的星期、日期、时刻、时区与泰国佛历年。每次发话附在批末的
+    系统消息里，不写进智能体说明（说明一变远端就出新版本，已开着的对话又一直停在旧日期）。星期用固定的英文表，不看区域设置。"""
+    moment = site_time(local)
+    return (f"Current local date and time for the user: {WEEKDAYS[moment.weekday()]} {moment:%Y-%m-%d %H:%M} "
+            f"({tz_name}; Thai Buddhist year {moment.year + 543}). "
+            "Use it for relative dates such as today, tonight, tomorrow or next month.")
+
+
 def context_size(events):
     """最近一次模型请求的输入 token 数（含缓存读写，计价分档按它算）；事件里没有就返回 None。"""
     size = None

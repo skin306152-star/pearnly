@@ -1003,6 +1003,17 @@ class NoticeTests(unittest.TestCase):
         self.assertLessEqual(len(capped) - len(contracts.NOTICES_INTRO), contracts.NOTICES_NOTE_MAX)
         self.assertGreaterEqual(capped.count("<notice "), 1)
 
+    def test_now_note_gives_the_local_day_timezone_and_buddhist_year(self):
+        # F8（交接）：CC 不知道今天几号；写曼谷当地日期时间与佛历年，不改智能体说明
+        self.assertEqual(contracts.now_note(datetime.datetime(2026, 10, 12, 14, 5, 59), BANGKOK),
+                         "Current local date and time for the user: Monday 2026-10-12 14:05 (Asia/Bangkok; "
+                         "Thai Buddhist year 2569). Use it for relative dates such as today, tonight, tomorrow or next month.")
+        self.assertIn("Thursday 2026-12-31 23:59", contracts.now_note("2026-12-31 23:59:00.5", BANGKOK))
+        self.assertIn("Friday 2027-01-01 00:00 (Asia/Bangkok; Thai Buddhist year 2570)",
+                      contracts.now_note(datetime.datetime(2027, 1, 1), BANGKOK))
+        _configure()
+        self.assertNotIn("Current local date", definition.brief("cowork")["system"])  # 不进智能体说明（说明一变就要出新版本）
+
     def test_one_system_message_joins_the_parts(self):
         self.assertIsNone(contracts.system_message("", None, ""))
         self.assertEqual(contracts.system_message("", "a", "", "b"),
@@ -1169,6 +1180,9 @@ class NoticeTests(unittest.TestCase):
             note = batch[-1]["content"][0]["text"]
             self.assertTrue(note.startswith(contracts.CARRY_INTRO + "User: hi\n\n" + contracts.NOTICES_INTRO))
             self.assertIn('<notice at="2026-10-12 08:01">\nFolder &lt;A&gt;\n3 files\n</notice>', note)
+            # F8：每次都带上用户当地的日期时间（站点时区），放在同一条系统消息的最后
+            self.assertTrue(note.endswith("\n\n" + contracts.now_note(self.now, BANGKOK)))
+            self.assertIn("Monday 2026-10-12 09:30 (Asia/Bangkok; Thai Buddhist year 2569)", note)
             self.assertEqual(carried, [("sesn_mine1", "a@example.com", START)])  # 发出成功才算带过
             self.assertIn(("Pearnly Assistant Session", "row1", "pending_carry", ""), writes)
             # 发不出去：不标带过、接续的前文也留着，下次再带
@@ -1178,11 +1192,11 @@ class NoticeTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 sessions.send("sesn_mine1", "明天几号")
             self.assertEqual((carried, writes), ([], []))
-            # 没有要带的：只发用户消息
+            # 没有接续、没有提醒：系统消息只有日期
             api.post = lambda remote, batch: posted.append((remote, batch))
             row["pending_carry"], shown[:] = "", []
             sessions.send("sesn_mine1", "hi")
-            self.assertEqual([e["type"] for e in posted[-1][1]], ["user.message"])
+            self.assertEqual(posted[-1][1][1:], [contracts.system_message(contracts.now_note(self.now, BANGKOK))])
             self.assertEqual(carried, [])
 
     def test_events_bring_this_conversations_notices(self):

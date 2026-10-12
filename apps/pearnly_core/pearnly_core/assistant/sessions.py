@@ -14,7 +14,7 @@
 历史、文件按全部分段合起来给浏览器，所以看起来仍是同一个对话。
 
 对话提醒（`notices`）不在引擎会话里：补拉、整段重放时由这里按时间并进来；用户发话时，还没带过的提醒随批末的
-系统消息告诉智能体，发出成功后才标成带过。
+系统消息告诉智能体，发出成功后才标成带过。同一条系统消息每次都带上用户当地的日期时间（智能体才知道「今天」）。
 """
 import json
 
@@ -236,8 +236,9 @@ def send(session_id, text) -> None:
     relay.ensure(row.session_id, remote, frappe.session.user)
     shown = notices.uncarried(row.session_id, frappe.session.user)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
-    # 接续的前文、还没带过的提醒合成一条系统消息：引擎规定每批最多一条、只能放在最后
-    note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), contracts.notices_note(shown))
+    # 接续的前文、还没带过的提醒、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后
+    note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), contracts.notices_note(shown),
+                                    contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:
         batch.append(note)
     api.post(remote, batch)
