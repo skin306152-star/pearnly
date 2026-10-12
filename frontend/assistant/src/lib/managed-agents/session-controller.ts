@@ -291,7 +291,8 @@ export class SessionController {
   }
 
   // --------------------------------------------------------------- actions
-  async sendMessage(text: string, files: Array<{ filename: string; mountPath: string }>) {
+  // onShown：真正的气泡放进对话的那一刻（页面据此撤掉发送前先显示的临时气泡，lib/managed-agents/pending-send.ts）
+  async sendMessage(text: string, files: Array<{ filename: string; mountPath: string }>, onShown?: () => void) {
     // Make sure the tail is up before the turn starts producing events.
     this.attach();
     // And that stored history is fully folded first: an optimistic bubble
@@ -328,6 +329,7 @@ export class SessionController {
       id: `optimistic-run-${n}`,
       processed_at: now,
     } as unknown as StreamEvent);
+    onShown?.();
 
     try {
       await postMessage(this.sessionId, messageText(text, files));

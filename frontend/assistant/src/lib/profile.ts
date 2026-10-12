@@ -30,7 +30,7 @@ export function assistantMascot(): string | null {
   return BRANDS["../brand/cc.svg"] || null;
 }
 
-/** CC 的标志（橘色圆角方块，同登录页、任务栏图标）：放在 Claude 放星形标志的位置（问候、侧栏、生成中）。 */
+/** CC 的标志（橘色圆角方块，同登录页、任务栏图标）：只放在侧栏左上角「图标 + CC」（用户 2026-10-12）。 */
 export function assistantLogo(): string | null {
   return BRANDS["../brand/cc-icon.svg"] || null;
 }

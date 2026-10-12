@@ -1,6 +1,7 @@
-// 带附件发送时，组件库要等附件传完才把消息交给我们（runtime-provider 的 onNew），这段时间输入框已清空、
-// 对话里却什么都没有，像是消息丢了（2026-10-10 测试：回车后约 3 秒空白）。这里记下「正在发送」的文字与附件名，
-// 对话里先显示一个发送中的用户气泡；onNew 把真正的气泡放进对话的同一刻清掉。只在本页，不进会话记录。
+// 发送后到真正的气泡出现之间，对话里先显示一个发送中的用户气泡（同 Claude：按下发送立刻出现）。两种等待：
+//   带附件 — 组件库要等附件传完才把消息交给我们（2026-10-10 测试：回车后约 3 秒空白）；
+//   新对话 — 第一条消息先要在服务端建好会话（2026-10-12 测试：约 1 秒空白）。
+// 真正的气泡放进对话的同一刻清掉（session-controller 的 onShown）。只在本页，不进会话记录。
 
 import { useSyncExternalStore } from "react";
 
@@ -22,6 +23,12 @@ export function setDraft(text: string) {
 /** 附件还在上传时就发送了：先显示发送中的气泡。 */
 export function beginPending(filename: string) {
   pending = { text: pending?.text ?? draft, files: [...(pending?.files ?? []), filename] };
+  emit();
+}
+
+/** 新对话的第一条消息：建会话期间先显示发送中的气泡。 */
+export function beginPendingText(text: string) {
+  pending = { text, files: pending?.files ?? [] };
   emit();
 }
 

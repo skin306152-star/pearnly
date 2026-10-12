@@ -11,7 +11,6 @@ import { StepRow, StepsGroup } from "@/components/tool-uis/steps";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
-import { assistantLogo } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 import { steps, t } from "@/i18n";
 import {
@@ -171,6 +170,9 @@ const PendingSendBubble: FC = () => {
       {pending.text && (
         <div className="cc-bubble-user">{pending.text}</div>
       )}
+      <div className="col-span-full col-start-1 pt-4">
+        <ThinkingMark />
+      </div>
     </div>
   );
 };
@@ -370,16 +372,12 @@ const AssistantMessage: FC = () => {
   );
 };
 
-/** 生成中（同 Claude 回答时转动的星形）：CC 标志轻轻呼吸，旁边是橘黄的三个点。 */
-const ThinkingMark: FC = () => {
-  const logo = assistantLogo();
-  return (
-    <span className="inline-flex items-center gap-2 font-sans">
-      {logo && <img src={logo} alt="" className="cc-logo cc-thinking-mark size-6" />}
-      <TypingDots label={steps.thinking} />
-    </span>
-  );
-};
+/** 生成中：三个跳动的点（不放标志，用户 2026-10-12）。 */
+const ThinkingMark: FC = () => (
+  <span className="inline-flex items-center font-sans">
+    <TypingDots label={steps.thinking} />
+  </span>
+);
 
 /** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定。 */
 const MessageFiles: FC = () => {
@@ -513,7 +511,7 @@ const EditComposer: FC = () => {
             </button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <button type="button" className="cc-btn" data-brand="">
+            <button type="button" className="cc-btn" data-primary="">
               {t("send")}
             </button>
           </ComposerPrimitive.Send>

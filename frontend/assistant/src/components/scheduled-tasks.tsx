@@ -267,7 +267,7 @@ export function ScheduledTasks() {
         ) : rules.length === 0 ? (
           <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
             <ClockIcon className="size-8 text-ink-3" />
-            <button type="button" className="cc-btn" data-brand="" onClick={() => setEditing("new")}>
+            <button type="button" className="cc-btn" data-primary="" onClick={() => setEditing("new")}>
               <PlusIcon className="size-4" />
               {tr("cowork.folder.new")}
             </button>
@@ -653,7 +653,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
           <>
             {error && <span className="me-auto text-danger text-sm">{error}</span>}
             <button type="button" className="cc-btn" onClick={onClose}>{t("cancel")}</button>
-            <button type="button" className="cc-btn" data-brand="" disabled={!canSave || busy} onClick={() => void save()}>
+            <button type="button" className="cc-btn" data-primary="" disabled={!canSave || busy} onClick={() => void save()}>
               {tr("Save")}
             </button>
           </>
@@ -672,11 +672,7 @@ function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null;
                 const ok = rule ? rule.adapter === a.adapter : ready(a.adapter, snapshot);
                 const picked = target === a.adapter;
                 return (
-                  <div
-                    key={a.adapter}
-                    className="cc-card flex items-center justify-between gap-2 px-3 py-2.5"
-                    style={picked ? { borderColor: "var(--cc-brand)", boxShadow: "0 0 0 3px var(--cc-brand-ring)" } : undefined}
-                  >
+                  <div key={a.adapter} className="cc-card flex items-center justify-between gap-2 px-3 py-2.5" data-selected={picked || undefined}>
                     <button
                       type="button"
                       className="flex min-w-0 flex-1 flex-col items-start text-start disabled:cursor-default"
@@ -853,7 +849,7 @@ function MenuDialog({ tr, view, direction, connection, accountSet, onDone }: {
           <button
             type="button"
             className="cc-btn"
-            data-brand=""
+            data-primary=""
             disabled={busy || all.some((k) => !values[k])}
             onClick={async () => {
               setBusy(true);
@@ -915,7 +911,7 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
           <button
             type="button"
             className="cc-btn"
-            data-brand=""
+            data-primary=""
             disabled={busy || !url || !user || !password}
             onClick={async () => {
               setBusy(true);
@@ -972,7 +968,7 @@ function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connectio
         <button
           type="button"
           className="cc-btn"
-          data-brand=""
+          data-primary=""
           onClick={async () => {
             const info = await getMethod<{ configured?: boolean; url?: string }>(COMPANION + "installer").catch(() => null);
             if (!info?.configured || !info.url) return setMissing(true);

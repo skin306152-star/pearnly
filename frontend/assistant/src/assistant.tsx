@@ -52,7 +52,8 @@ import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/ma
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { isBusy } from "@/lib/managed-agents/reducer";
 import { useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
-import { assistantLogo, useProfile, type Profile } from "@/lib/profile";
+import { assistantLogo, assistantMascot, useProfile, type Profile } from "@/lib/profile";
+import { Mascot } from "@/components/mascot";
 import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -66,18 +67,15 @@ function hasScheduledTasks(profile: Profile | null): boolean {
   return profile?.product === "cowork";
 }
 
-function Logo({ className }: { className?: string }) {
-  const logo = assistantLogo();
-  return logo ? <img src={logo} alt="" className={`cc-logo ${className ?? ""}`} /> : null;
-}
-
-// 空对话：CC 标志 + 衬线问候（同 Claude：电脑上标志在左，手机上在上）
+// 空对话：胖橘猫 + 衬线问候（用户 2026-10-12：问候语旁用胖橘猫；电脑上在左，手机上在上）
 function Welcome() {
   const profile = useProfile();
   const name = firstName(profile);
+  const mascot = assistantMascot();
   return (
-    <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-4 px-4 text-center md:flex-row md:gap-3">
-      <Logo className="size-11 md:size-10" />
+    <div className="aui-thread-welcome-root cc-enter -mb-2 flex flex-col items-center justify-center gap-2 px-4 text-center md:flex-row md:gap-3">
+      {/* 胖橘右上方举着泡泡：图的上沿就是泡泡顶，文字对着整只猫居中 */}
+      {mascot && <Mascot src={mascot} className="pearnly-mascot-host h-24 shrink-0 sm:h-28" />}
       <h1 className="cc-greeting text-3xl md:text-4xl">
         {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
       </h1>
@@ -360,6 +358,7 @@ function DesktopSidebar({ nav, window: win, chrome }: { nav: Nav; window: Return
   const [search, setSearch] = useState("");
   const pick = useBackToChatOnPick();
   const { toggleSidebar } = useSidebar();
+  const logo = assistantLogo();
   return (
     <>
       <SidebarHeader className="gap-2 px-2 pt-0 pb-1">
@@ -370,7 +369,7 @@ function DesktopSidebar({ nav, window: win, chrome }: { nav: Nav; window: Return
         ) : (
           <div className="flex h-12 items-center justify-between ps-1.5">
             <span className="flex items-center gap-2 font-semibold text-ink text-lg">
-              <Logo className="size-6" />
+              {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               CC
             </span>
             <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
