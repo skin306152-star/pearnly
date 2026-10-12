@@ -1690,27 +1690,29 @@ def folder_fetch(tool_input) -> str:
         if made.get("status") == "waiting_for_cc":
             return _json(_waiting_for_cc(made))
         if made.get("request"):
-            pending[made["request"]] = path
+            # 写法不同的同一份文件（`/` 与 `\\`）是同一件请求：取一次，结果给每种写法
+            pending.setdefault(made["request"], []).append(path)
         else:
             results[path] = {"path": path, **made}
     states = _folder_wait(list(pending), FOLDER_FETCH_WAIT_SECONDS) if pending else {}
-    for request, path in pending.items():
+    for request, asked in pending.items():
         state = states.get(request) or {}
         if state.get("status") != "done":
-            results[path] = {"path": path, **_folder_not_done(state)}
-            continue
-        try:
-            filename, content = fetch.content(request)
-            mime = FOLDER_FILE_TYPES.get("." + filename.rsplit(".", 1)[-1].lower(), "application/octet-stream")
-            added = chat_files.add_to_conversation(filename, content, mime, origin="folder")
-            frappe.db.commit()
-        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
-            frappe.db.rollback()
-            frappe.clear_messages()
-            results[path] = {"path": path, "status": "failed", "reason": str(error)[:300]}
-            continue
-        results[path] = {"path": path, "status": "added", "file": added, "filename": added.rsplit("/", 1)[-1],
-                         "size_bytes": len(content)}
+            outcome = _folder_not_done(state)
+        else:
+            try:
+                filename, content = fetch.content(request)
+                mime = FOLDER_FILE_TYPES.get("." + filename.rsplit(".", 1)[-1].lower(), "application/octet-stream")
+                added = chat_files.add_to_conversation(filename, content, mime, origin="folder")
+                frappe.db.commit()
+                outcome = {"status": "added", "file": added, "filename": added.rsplit("/", 1)[-1],
+                           "size_bytes": len(content)}
+            except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+                frappe.db.rollback()
+                frappe.clear_messages()
+                outcome = {"status": "failed", "reason": str(error)[:300]}
+        for path in asked:
+            results[path] = {"path": path, **outcome}
     return _json({"files": [results[path] for path in paths]})
 
 
@@ -2352,7 +2354,8 @@ TOOLS = [
                     "cowork_folder_task_options; folder is a subfolder, empty for the whole root; subfolders "
                     "included): path (relative to the root), name, size_bytes and modified (Bangkok time), newest "
                     "first, 100 per page (offset for the next page). search matches the path; extensions narrows the "
-                    "types. Only file types that can be brought into the chat are listed. Read-only: nothing is "
+                    "types; truncated means there were more than could be listed, so narrow with folder, search or "
+                    "extensions. Only file types that can be brought into the chat are listed. Read-only: nothing is "
                     "recognized or charged. waiting_for_cc means that computer is offline or its CC Desktop needs an "
                     "update (tell the user); reading means it is still listing: call again with the same input, never "
                     "wait with sleep.",

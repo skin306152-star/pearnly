@@ -1304,6 +1304,14 @@ class FolderFilesTests(unittest.TestCase):
         self.assertEqual((files[0]["size_bytes"], files[2]["reason"]), (4, "not_found"))
         self.assertEqual([call[4]["scope"] for call in self.calls if call[0] == "fetch"], ["sesn_1"] * 3)
 
+    def test_two_spellings_of_one_file_are_fetched_once(self):
+        for spelling in ("ACME/x.pdf", "ACME\\x.pdf"):
+            self.made[spelling] = {"request": "F-X", "status": "requested"}
+        self.contents["F-X"] = ("x.pdf", b"%PDF")
+        out = json.loads(tools.folder_fetch({"reader": "C1", "root_id": "r1", "paths": ["ACME/x.pdf", "ACME\\x.pdf"]}))
+        self.assertEqual([row["status"] for row in out["files"]], ["added", "added"])
+        self.assertEqual([call[0] for call in self.calls if call[0] in ("content", "attach")], ["content", "attach"])
+
     def test_fetch_stops_when_the_computer_cannot_take_it(self):
         self.made["ACME\\a.pdf"] = {"status": "waiting_for_cc", "reason": "update_needed", "version": "1.4.4",
                                     "minimum": "1.5.0"}
