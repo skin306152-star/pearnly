@@ -242,6 +242,34 @@ class ScheduledTaskPageTests(unittest.TestCase):
         i18n = read("i18n.ts")
         self.assertNotIn("cowork.folder", i18n)
 
+    def test_reminder_times_are_chosen_in_the_form(self):
+        """2026-10-13（用户：哪天、什么时间都可以自定义）：打开提醒后最多 3 行「当天 / 前 1–7 天」+ 原生时间输入（分钟任选），
+        可加可删，默认前一天 08:00、14:00；时间没填全不能保存；保存带 remind_times。"""
+        page = read("components/scheduled-tasks.tsx")
+        self.assertIn("const REMIND_MAX = 3;", page)
+        self.assertIn('const DEFAULT_REMIND: RemindTime[] = [{ days_before: 1, time: "08:00" }, { days_before: 1, time: "14:00" }];',
+                      page)
+        self.assertIn("Array.from({ length: 8 }, (_, d) => ({", page)
+        for key in ("cowork.folder.remind.sameDay", "cowork.folder.remind.dayBefore", "cowork.folder.remind.daysBefore",
+                    "cowork.folder.field.remindDay", "cowork.folder.field.remindTime", "cowork.folder.remind.add"):
+            self.assertIn(f'tr("{key}"', page)
+        self.assertIn('type="time"', page)
+        self.assertIn("step={60}", page)
+        self.assertIn("onChange={(e) => setRemindTime(i, { time: e.target.value.slice(0, 5) })}", page)
+        self.assertIn("{remind && (", page)
+        self.assertIn("remindTimes.length < REMIND_MAX", page)
+        self.assertIn("remindTimes.length > 1", page)
+        self.assertIn("useState<RemindTime[]>(rule?.remind_times?.length ? rule.remind_times : DEFAULT_REMIND)", page)
+        self.assertIn("(!remind || remindTimes.every((row) => /^\\d{2}:\\d{2}$/.test(row.time)))", page)
+        self.assertIn("...(remind ? { remind_times: remindTimes } : {}),", page)
+        # 「添加时间」依次给前 1 天 08:00、14:00、前 2 天 08:00、前 1 天 18:00 里还没有的那个，不拿「当天」当默认
+        self.assertIn('const REMIND_NEXT: RemindTime[] = [...DEFAULT_REMIND, { days_before: 2, time: "08:00" }, '
+                      '{ days_before: 1, time: "18:00" }];', page)
+        self.assertIn("onClick={() => setRemindTimes((rows) => [...rows, nextRemind(rows)])}", page)
+        self.assertNotIn('{ days_before: 0, time: "08:00" }', page)
+        # 时间不再只能选整点 / 半点（运行时间那一个下拉照旧）
+        self.assertNotIn("options={TIMES.map((v) => ({ value: v, label: v }))} onChange={(v) => setRemindTime", page)
+
 
 class TextTests(unittest.TestCase):
     def test_new_words_exist_in_every_page_language(self):

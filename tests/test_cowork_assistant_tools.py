@@ -885,7 +885,10 @@ TERMS = {"cowork.folder.pair": "{0}: {1}", "cowork.folder.waiting": "{0} files i
          "cowork.folder.remind.off": "Off", "cowork.folder.field.remind": "Reminder", "intake.dir.purchase": "Purchase",
          "cowork.folder.default.payment": "Payment", "cowork.folder.default.vat": "VAT",
          "cowork.folder.default.account": "Account", "cowork.folder.vat.claim": "Claim",
-         "cowork.folder.vat.expense": "Expense", "cowork.folder.new": "New scheduled task"}
+         "cowork.folder.vat.expense": "Expense", "cowork.folder.new": "New scheduled task",
+         "cowork.folder.remind.sameDay": "Same day", "cowork.folder.remind.dayBefore": "Day before",
+         "cowork.folder.remind.daysBefore": "{0} days before"}
+DEFAULT_REMIND = "Day before 08:00 / Day before 14:00"
 
 
 def _term(text):
@@ -998,7 +1001,8 @@ class FolderTaskBatchTests(unittest.TestCase):
         self.assertEqual((new["field"], new["before"]), ("Ice expenses", ""))
         self.assertEqual(new["after"].split(" · "), [
             "70EXP", "T.8", "Purchase", "Service", "C:\\Bills\\Ice\\expenses", "Last day", "22:00", "Payment: Credit",
-            "Account: 5100", "Office supplies", "Reminder: On", "7+ files in the folder now"])
+            "Account: 5100", "Office supplies", "Reminder: Day before 08:00 / Day before 14:00",
+            "7+ files in the folder now"])
         # 改已有任务只写变了的；没换文件夹不说份数；不适用的默认值（服务类不用 item）不上卡片
         self.assertEqual(changed, {"field": "Ice purchases", "before": "22:00 · VAT: Claim", "after": "23:00 · VAT: Expense"})
         many = tools.preview_save_folder_tasks({"tasks": [dict(self.new) for _i in range(25)]})
@@ -1011,7 +1015,7 @@ class FolderTaskBatchTests(unittest.TestCase):
             self.assertEqual(shown["cowork.folder.field.day"], ("", "Last day"))
             self.assertEqual(shown["Payment"], ("", "Credit"))
             self.assertEqual(shown["Account"], ("", "5100 · Office supplies"))
-            self.assertEqual(shown["Reminder"], ("Off", "On"))
+            self.assertEqual(shown["Reminder"], ("Off", DEFAULT_REMIND))
             self.assertEqual(rows[-1], {"field": "", "before": "", "after": "7+ files in the folder now"})
             # 小助手没报过份数：不说，不拿 0 冒充；MR.ERP 任务没有默认处理
             with mock.patch.object(tools.rules, "waiting", lambda *a: None), \
@@ -1070,7 +1074,44 @@ class FolderTaskBatchTests(unittest.TestCase):
         with mock.patch.object(tools, "_", _term):
             rows = tools.preview_set_folder_task_enabled({"task": "R1", "remind": True})
         self.assertEqual([(r["field"], r["before"], r["after"]) for r in rows],
-                         [("cowork.folder.field.title", "", "Ice purchases"), ("Reminder", "Off", "On")])
+                         [("cowork.folder.field.title", "", "Ice purchases"), ("Reminder", "Off", DEFAULT_REMIND)])
+
+    def test_chosen_reminder_times_go_to_the_service_and_show_on_the_card(self):
+        """2026-10-13：提醒时刻只在说了时带给任务服务；卡片写「当天 / 前 N 天 + 时间」，只给提醒时刻也是打开提醒。"""
+        times = [{"days_before": 0, "time": "07:05"}, {"days_before": 3, "time": "16:45"}]
+        saved = []
+        with mock.patch.object(tools.rules, "save", lambda values, cc_session=None: saved.append(values)
+                               or {"name": "R1", "title": "Ice purchases", "enabled": 1, "remind": 1,
+                                   "remind_times": times, "defaults": {}}, create=True):
+            out = json.loads(tools.save_folder_task({"name": "R1", "remind_times": times}))
+        self.assertEqual((saved[0]["remind_times"], "remind" in saved[0]), (times, False))
+        self.assertEqual((out["remind"], out["remind_times"]), (1, times))
+        with mock.patch.object(tools, "_", _term):
+            single = {r["field"]: (r["before"], r["after"]) for r in
+                      tools.preview_save_folder_task({"name": "R1", "remind_times": times})}
+            self.assertEqual(single["Reminder"], ("Off", "3 days before 16:45 / Same day 07:05"))
+            # 提醒开着、只换时刻：现在 → 改后；说了关就写关
+            self.current.update(remind=1, remind_times=[{"days_before": 1, "time": "08:00"}])
+            batch = tools.preview_save_folder_tasks({"tasks": [
+                {"name": "R1", "remind_times": [{"days_before": 1, "time": "08:00"}, {"days_before": 2, "time": "09:00"}]}]})
+            self.assertEqual((batch[0]["before"], batch[0]["after"]),
+                             ("Reminder: Day before 08:00", "Reminder: 2 days before 09:00 / Day before 08:00"))
+            off = {r["field"]: r["after"] for r in tools.preview_save_folder_task({"name": "R1", "remind": False,
+                                                                                    "remind_times": times})}
+            self.assertEqual(off["Reminder"], "Off")
+            # 形状不对：卡片照原样给人看（保存时任务服务会拒）
+            odd = {r["field"]: r["after"] for r in tools.preview_save_folder_task(
+                {"name": "R1", "remind_times": [{"days_before": 9, "time": "08:00"}]})}
+            self.assertIn('"days_before": 9', odd["Reminder"])
+            rows = tools.preview_set_folder_task_enabled({"task": "R1", "remind_times": [{"days_before": 0, "time": "06:00"}]})
+        self.assertEqual(rows[-1], {"field": "Reminder", "before": "Day before 08:00", "after": "Same day 06:00"})
+        calls = []
+        with mock.patch.object(tools.rules, "set_enabled", lambda name, enabled=None, remind=None, remind_times=None,
+                               cc_session=None: calls.append((name, enabled, remind, remind_times)) or
+                               {"name": name, "enabled": 1, "remind": 1, "remind_times": remind_times}, create=True):
+            out = json.loads(tools.set_folder_task_enabled({"task": "R1", "remind_times": times}))
+        self.assertEqual(calls, [("R1", None, None, times)])
+        self.assertEqual((out["status"], out["remind_times"]), ("saved", times))
 
 
 def _history_row(name, direction, kind, subtotal, vat, total):
@@ -1146,6 +1187,7 @@ class ListAndRunsTests(unittest.TestCase):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},
                "states": {"done": 3}}
         task = {"name": "R1", "defaults": {"vat": "claim"}, "remind": 1, "include_existing": 1, "waiting": 5,
+                "remind_times": [{"days_before": 1, "time": "08:00"}],
                 "waiting_partial": True, "rule_owner": "x@example.com"}
         with mock.patch.object(tools.rules, "runs", lambda name: {"rule": {"name": name}, "runs": [run]}), \
                 mock.patch.object(tools.rules, "listing", lambda: {"rules": [task]}):
@@ -1153,7 +1195,7 @@ class ListAndRunsTests(unittest.TestCase):
             listed = json.loads(tools.folder_tasks({}))["tasks"][0]
         self.assertEqual((runs["results"], runs["states"]), (run["results"], run["states"]))
         self.assertNotIn("name", runs)
-        keys = ("defaults", "remind", "include_existing", "waiting", "waiting_partial")
+        keys = ("defaults", "remind", "remind_times", "include_existing", "waiting", "waiting_partial")
         self.assertEqual({key: listed[key] for key in keys}, {key: task[key] for key in keys})
         self.assertNotIn("rule_owner", listed)
 
@@ -1184,6 +1226,23 @@ class FolderTaskDeclarationTests(unittest.TestCase):
         self.assertTrue(callable(getattr(tools, tool["preview"].rpartition(".")[2])))
         switch = self._tool("cowork_set_folder_task_enabled")["input_schema"]
         self.assertEqual((switch["required"], "remind" in switch["properties"]), (["task"], True))
+
+    def test_reminder_times_are_declared_on_every_task_tool(self):
+        """2026-10-13：最多 3 个「运行日前 0–7 天 + HH:MM」，单个、批量保存与启停三个工具同一份说明。"""
+        single = self._tool("cowork_save_folder_task")["input_schema"]["properties"]["remind_times"]
+        batch = self._tool("cowork_save_folder_tasks")["input_schema"]["properties"]["tasks"]["items"]["properties"]
+        switch = self._tool("cowork_set_folder_task_enabled")["input_schema"]["properties"]["remind_times"]
+        self.assertIs(single, batch["remind_times"])
+        self.assertIs(single, switch)
+        self.assertEqual((single["type"], single["maxItems"]), ("array", tools.folder_contracts.REMIND_MAX))
+        item = single["items"]
+        self.assertEqual((item["required"], item["additionalProperties"]), (["days_before", "time"], False))
+        self.assertEqual((item["properties"]["days_before"]["minimum"], item["properties"]["days_before"]["maximum"]),
+                         (0, tools.folder_contracts.REMIND_DAYS))
+        for text in ("Bangkok", "turns the reminder on", "keeps the current times", "earlier than run_time"):
+            self.assertIn(text, single["description"])
+        self.assertNotIn("08:00 and 14:00 Bangkok time, to put", batch["remind"]["description"])
+        self.assertIn("remind_times", self._tool("cowork_set_folder_task_enabled")["description"])
 
     def test_descriptions_match_what_the_tools_do(self):
         edit = self._tool("cowork_edit_document")["description"]

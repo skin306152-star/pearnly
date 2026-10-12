@@ -6,8 +6,9 @@
 
 2026-10-12 起新建的任务（`include_existing`）到点处理文件夹里本任务还没处理过的所有文件，含建任务前已有的；
 老任务照旧只收启用之后放进来的（口径见 `contracts` 文件头）。新任务的文件夹与同一工作空间里一个停用的任务重叠时是
-接续它（`continues_from`），照老任务口径只收此后放进来的（2026-10-13）。`remind`：运行前一天提醒负责人放资料（提醒本身见
-`notify`）；`cc_session`：最近一次在哪段 CC 对话里建、改或启停，只由 CC 工具以参数传入，网页报文传不进来。
+接续它（`continues_from`），照老任务口径只收此后放进来的（2026-10-13）。`remind`：运行前提醒负责人放资料，`remind_times`：
+提醒时刻（运行日前 0–7 天 + 曼谷时间，最多 3 个，空 = 前一天 08:00、14:00；提醒本身见 `reminders`）；`cc_session`：
+最近一次在哪段 CC 对话里建、改或启停，只由 CC 工具以参数传入，网页报文传不进来。
 """
 import json
 
@@ -201,8 +202,11 @@ def save(values, *, cc_session=None):
     新建的任务处理文件夹里已有的文件（`include_existing`）；老任务换了读文件夹的电脑、根目录或文件夹也改成这个口径
     （原来拍的底本来就对不上新文件夹；文件夹只是大小写不同不算换）。文件夹与同一工作空间里停用的任务重叠的是接续那个
     任务：只收此后放进来的（`include_existing = 0`，换了文件夹的老任务启用时刻记成现在，小助手按它重新拍底）——
-    那些已有文件多半已由停用的任务处理过，台账按任务记、认不出来，再录一遍就重复记账。`remind` 带了才改（网页表单、CC 不带就保留原值，新任务默认关）；提醒开着时，
-    刚打开、换了负责人或改了运行日 / 时间，`remind_since` 记成现在（这之前的提醒时段不补发）。`cc_session` 只从参数取。"""
+    那些已有文件多半已由停用的任务处理过，台账按任务记、认不出来，再录一遍就重复记账。`remind` 带了才改（网页表单、
+    CC 不带就保留原值，新任务默认关）；`remind_times` 带了才改，带了而没带 `remind` 就是要提醒（打开）。提醒开着时，
+    刚打开、换了负责人、改了运行日 / 时间或提醒时刻，`remind_since` 记成现在（这之前的提醒时段不补发）。
+    提醒开着时每个提醒都要发得出：「当天」的要早于运行时间，改运行时间让已有的当天提醒发不出也一样拒
+    （`cowork.folder.remind_same_day`）。`cc_session` 只从参数取。"""
     _require()
     values = json.loads(values) if isinstance(values, str) else values
     if not isinstance(values, dict):
@@ -221,6 +225,7 @@ def save(values, *, cc_session=None):
         root = contracts.root_id(values.get("root_id"))
         folder = contracts.folder(values.get("folder"))
         day, at = contracts.schedule(values.get("run_day"), values.get("run_time"))
+        times = None if values.get("remind_times") is None else contracts.remind_times(values.get("remind_times"))
         defaults = {}
         if express:
             accounts, departments, _found = _masters(doc, values.get("account_set_key"))
@@ -264,8 +269,14 @@ def save(values, *, cc_session=None):
             rule.active_since = now_datetime()
     if values.get("remind") is not None:
         rule.remind = _flag(values.get("remind"))
+    elif times is not None:
+        rule.remind = 1
     elif not name:
         rule.remind = 0
+    if times is not None:
+        rule.remind_times = json.dumps(times)
+    if int(rule.remind or 0):
+        _fires(rule)
     if int(rule.remind or 0) and _reminding(rule) != previous:
         rule.remind_since = now_datetime()
     ref = contracts.session_ref(cc_session)
@@ -278,8 +289,25 @@ def save(values, *, cc_session=None):
 
 
 def _reminding(rule):
-    """提醒这一组：开着与否、负责人、运行日、运行时间 —— 任一变了（且提醒开着）就从现在起算，之前的时段不补发。"""
-    return [int(rule.get("remind") or 0), rule.get("rule_owner"), int(rule.get("run_day") or 0), rule.get("run_time")]
+    """提醒这一组：开着与否、负责人、运行日、运行时间、提醒时刻 —— 任一变了（且提醒开着）就从现在起算，之前的时段不补发。"""
+    return [int(rule.get("remind") or 0), rule.get("rule_owner"), int(rule.get("run_day") or 0), rule.get("run_time"),
+            _times(rule)]
+
+
+def _fires(rule):
+    """提醒开着时每个提醒时刻都要发得出：「当天」的时间要早于运行时间（否则永远不发），不静默存下。"""
+    try:
+        contracts.remind_times(_times(rule), rule.get("run_time"))
+    except contracts.ContractError as error:
+        _error(error)
+
+
+def _times(rule):
+    """生效的提醒时刻：没选过的（老任务）是默认的前一天 08:00、14:00；库里的值坏了也按默认（不让列表打不开）。"""
+    try:
+        return contracts.remind_times(rule.get("remind_times"))
+    except contracts.ContractError:
+        return contracts.remind_times(None)
 
 
 def save_many(items, *, cc_session=None):
@@ -381,16 +409,22 @@ def _share(connection, root):
                  if row.get("id") == root), "")
 
 
-def set_enabled(name, enabled=None, *, remind=None, cc_session=None):
-    """启用 / 停用、开关提醒（``None`` = 不变；网页 `api.set_enabled(name, enabled)` 只管启停）。
+def set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_session=None):
+    """启用 / 停用、开关提醒、改提醒时刻（``None`` = 不变；网页 `api.set_enabled(name, enabled)` 只管启停）。
+    给了 `remind_times` 而没给 `remind` 就是要提醒（打开）；这次动了提醒而提醒开着时，当天的提醒要早于运行时间。
 
     重新启用时「启用时刻」改成现在、负责人换成启用的人。新任务（`include_existing`）不重新拍底：启用时刻只当排程下限
     （启用当下不补跑已错过的时刻），到点照样处理停用期间放进来、还没处理过的文件；老任务照旧重新拍底，这之前放进
-    文件夹的文件不处理（用户 2026-10-07 的口径只对老任务保留）。提醒开着时，刚打开或重新启用，`remind_since` 记成现在。
+    文件夹的文件不处理（用户 2026-10-07 的口径只对老任务保留）。提醒开着时，刚打开、改了提醒时刻或重新启用，
+    `remind_since` 记成现在。
     `cc_session` 只在操作的人就是（或这次重新启用后成了）负责人时记下：提醒挂回负责人自己的对话。"""
     _require()
     rule = read(RULE, name, for_update=True)
     _connection(rule.connection)
+    try:
+        times = None if remind_times is None else contracts.remind_times(remind_times)
+    except contracts.ContractError as error:
+        _error(error)
     changed = False
     previous = _reminding(rule)
     if enabled is not None:
@@ -405,9 +439,16 @@ def set_enabled(name, enabled=None, *, remind=None, cc_session=None):
             rule.enabled = enabled
             rule.rule_revision = int(rule.rule_revision or 0) + 1
             changed = True
+    if times is not None:
+        remind = 1 if remind is None else remind
+        if times != _times(rule):
+            rule.remind_times = json.dumps(times)
+            changed = True
     if remind is not None and _flag(remind) != int(rule.remind or 0):
         rule.remind = _flag(remind)
         changed = True
+    if remind is not None and int(rule.remind or 0):
+        _fires(rule)
     if int(rule.remind or 0) and _reminding(rule) != previous:
         rule.remind_since = now_datetime()
         changed = True
@@ -526,7 +567,7 @@ def project(rule):
             "folder": rule.folder or "", "run_day": int(rule.run_day or 0), "run_time": rule.run_time,
             "defaults": json.loads(rule.defaults_json or "{}"), "rule_owner": rule.rule_owner,
             "active_since": rule.active_since, "include_existing": int(rule.include_existing or 0),
-            "remind": int(rule.remind or 0), "remind_since": rule.remind_since,
+            "remind": int(rule.remind or 0), "remind_times": _times(rule), "remind_since": rule.remind_since,
             "run_request": int(rule.run_request or 0),
             "last_run": last[0] if last else None, "counts": counts(rule.name), "results": results(rule.name)}
 

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-12 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -36,6 +36,7 @@
   "run_time",
   "defaults_json",
   "remind",
+  "remind_times",
   "remind_since",
   "cc_session",
   "run_request",
@@ -193,6 +194,12 @@
    "fieldtype": "Check",
    "read_only": 1,
    "default": "0"
+  },
+  {
+   "fieldname": "remind_times",
+   "label": "Reminder Times",
+   "fieldtype": "Small Text",
+   "read_only": 1
   },
   {
    "fieldname": "remind_since",

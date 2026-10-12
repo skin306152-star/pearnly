@@ -145,7 +145,7 @@
 - `rules.save(values, *, cc_session=None)`：`values` 可带 `remind`（0/1/bool），不带保留原值；`cc_session` 只从参数取，绝不从 values 取。
 - `rules.save_many(items, *, cc_session=None) -> {"saved": [project…], "failed": [{"task": 序号(1 起), "title", "reason"}]}`，`BATCH_MAX = 20`，
   任一失败整批回滚（保存点），失败项之后的仍校验，一次报全。
-- `rules.set_enabled(name, enabled=None, *, remind=None, cc_session=None)`：None = 不变；网页 `api.set_enabled(name, enabled)` 签名不变。
+- `rules.set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_session=None)`：None = 不变；网页 `api.set_enabled(name, enabled)` 签名不变。
 - `rules.listing()` 每行加 `include_existing`、`remind`、`waiting`（待处理数，不知道为 None）、`waiting_partial`；`results` 已有 `moving`
   （改为不计 24 小时前仍停在 registered 的行）。`rules.project()` 加 `include_existing`、`remind`、`remind_since`。
 - `rules.waiting(reader, root_id, folder) -> {"files": int, "partial": bool} | None`（文件夹计数，给新任务卡片和表单）；
@@ -153,6 +153,17 @@
   （给卡片预览用的公开薄入口）。
 - `rules.options()` 的 `readers[].roots[]` 加 `counts`（`{文件夹: n}`，键是上报的文件夹相对路径，`""` 是根目录）与 `partial`。
 - 实时事件 `cowork_folder_changed`，载荷 `{"rule": <名>}`，推给负责人（及文件的 actor），提交后发。
+- 提醒时刻可自选（2026-10-13，用户：「提醒规则…可以自定义选择规定的提醒时间就触发提醒」「那天，那个时间段都可以自定义」）：
+  Rule 新字段 `remind_times`（Small Text，只读，JSON `[{"days_before": 0–7, "time": "HH:MM"}]`，最多 3 个；空 = 默认前一天 08:00、14:00，
+  老任务行为不变）。纯规则 `contracts.remind_times` 校验、去重、按离运行由远到近排；`rules.save` 的 `values` 与
+  `rules.set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_session=None)` 带了才改，带了而没带 `remind` 就打开提醒，
+  生效的一组变了 `remind_since` 记成现在；`project` / `listing` / CC `cowork_folder_tasks` 回生效的 `remind_times`。每个提醒时刻 =
+  运行日减天数的那个曼谷时间，从它发到同一任务下一个更晚的提醒时刻（最后一个到运行时刻），落在运行时刻当时或之后的不发；合并与去重键 =
+  负责人 + 运行时刻 + 提醒时刻（`remind_label`：前一天整点沿用「08」「14」，其余「<天>d<HH:MM>」）+ 电脑。文字：今天 / 明天照旧，两天及以后
+  写日期（`cowork.folder.remind.date`）。CC 三个任务工具都收 `remind_times`，卡片写「前 1 天 08:00 / 当天 07:05」；网页（CC 任务页
+  原生时间输入、Desk 原生 Select + Time）打开提醒后最多 3 行「当天 / 前 1–7 天｜任意时间」。永远发不出的不静默存：提醒开着时
+  「当天」的时间要早于运行时间，否则 `save` / `set_enabled` 拒（`cowork.folder.remind_same_day`「当天提醒要早于运行时间」），改运行时间让
+  已有的当天提醒发不出也同样拒；「添加时间」与 Desk 空行按 前 1 天 08:00、14:00、前 2 天 08:00、前 1 天 18:00 取还没有的那个。
 - 提醒与简报只经 `folder_intake/notify.py` 调用共用层 `notices.post`；调度入口 `pearnly_cowork.folder_intake.schedule.notices(now=None)`
   挂每 5 分钟；`now` 是站点时区时间字符串，给测试环境手动触发。
 - F6 钩子：`hooks.cowork_push_fixed_choices = ["pearnly_cowork.folder_intake.push.fixed_for"]`，

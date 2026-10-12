@@ -1,15 +1,17 @@
-"""定时任务的前一天提醒（F2，2026-10-12）：开着提醒的任务，运行前一天 08:00 与 14:00（曼谷）各提醒负责人一次把资料放进文件夹。
+"""定时任务的运行前提醒（F2，2026-10-12）：开着提醒的任务，在负责人选的提醒时刻（运行日前 0–7 天 + 曼谷时间，最多 3 个；
+没选过就是前一天 08:00 与 14:00，2026-10-13 起可自选）各提醒负责人一次把资料放进文件夹。
 
 每 5 分钟由 `schedule.notices` 叫一次（口径见 `docs/work/2026-10-12-cc-closed-loop.md`）：
 
-- 时段：08:00 那条在前一天 [08:00, 14:00) 内发，14:00 那条在 [14:00, 运行时刻) 内发（`contracts.reminder_slot`）；
-  打开提醒、换负责人、改运行日 / 时间、重新启用之前的时段不补发（`remind_since`）。部署停机跨过整点也不漏。
-- 合并：同一负责人、同一运行时刻、同一时段、同一台读文件夹的电脑的任务合成一条，最多列 10 个，其余写「另有 N 项」。
+- 时段：每个提醒从它的时刻发到同一任务下一个更晚的提醒时刻（最后一个到运行时刻）为止（`contracts.reminder_slot`）；
+  落在运行时刻之后的不发；打开提醒、换负责人、改运行日 / 时间、改提醒时刻、重新启用之前的时段不补发（`remind_since`）。
+  部署停机跨过整点也不漏。
+- 合并：同一负责人、同一运行时刻、同一提醒时刻、同一台读文件夹的电脑的任务合成一条，最多列 10 个，其余写「另有 N 项」。
   按电脑分开（2026-10-13）：提醒会被那台电脑同步取回弹出，不能带上别的电脑的任务名与文件夹路径。
-- 只发一次：去重键 = 负责人 + 运行时刻 + 时段 + 电脑（`contracts.remind_key`）；先查键，已发的不再做权限复核。
+- 只发一次：去重键 = 负责人 + 运行时刻 + 提醒时刻 + 电脑（`contracts.remind_key`）；先查键，已发的不再做权限复核。
 - 负责人此刻不能用这条连接录入的任务不提醒（与后台推进同一判据 `machine.owner_ready`），整组都不能就不发。
-- 文字在发出时按负责人的语言写好：任务名、开始时刻与剩余时间、完整文件夹路径；小助手近期同步过就带上待处理数
-  （还没处理过、到点会处理的文件数；数到上限写「N+」；不知道或是 0 就不写，不用 0 冒充）。
+- 文字在发出时按负责人的语言写好：任务名、开始时刻（今天 / 明天，两天及以后写日期）与剩余时间、完整文件夹路径；
+  小助手近期同步过就带上待处理数（还没处理过、到点会处理的文件数；数到上限写「N+」；不知道或是 0 就不写，不用 0 冒充）。
 - 送达交给共用层（`notify`）：挂在组内最近在 CC 里建 / 改 / 启停过、且仍是负责人自己的那段对话上，另有手机推送与电脑通知。
   一组一提交，一组出错只回滚这一组、记错误日志。不调模型、不扣费。
 """
@@ -21,7 +23,7 @@ from pearnly_cowork.folder_intake import agent, contracts, machine, notify
 from pearnly_cowork.folder_intake.access import RULE
 
 FIELDS = ["name", "title", "rule_owner", "connection", "reader", "root_id", "folder", "run_day", "run_time",
-          "remind_since", "modified", "cc_session"]
+          "remind_times", "remind_since", "modified", "cc_session"]
 
 
 def run(now=None):
@@ -57,7 +59,10 @@ def _slot(rule, current):
     except contracts.ContractError:
         return None
     since = rule.remind_since or rule.modified
-    return contracts.reminder_slot(current, day, at, notify.epoch(since) if since else 0.0)
+    try:
+        return contracts.reminder_slot(current, day, at, notify.epoch(since) if since else 0.0, rule.remind_times)
+    except contracts.ContractError:
+        return None
 
 
 def _send(group, key, current, states):
@@ -73,10 +78,13 @@ def _send(group, key, current, states):
 
 
 def _text(rules, run_at, current, states):
-    if contracts.day_word(current, run_at) == "today":
+    word = contracts.day_word(current, run_at)
+    if word == "today":
         when = _("cowork.folder.remind.today").format(contracts.clock(run_at))
-    else:
+    elif word == "tomorrow":
         when = _("cowork.folder.remind.tomorrow").format(contracts.clock(run_at))
+    else:
+        when = _("cowork.folder.remind.date").format(*contracts.month_day(run_at), contracts.clock(run_at))
     left = _left(*contracts.time_left(current, run_at))
     if len(rules) == 1:
         rule = rules[0]

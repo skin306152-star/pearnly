@@ -400,6 +400,111 @@ class ScheduleSlots(unittest.TestCase):
         # 月末任务在 2 月：前一天是 2-27（2026）
         self.assertEqual(slot(2026, 2, 27, 8, 0, day=0, at="22:00")[0], (2026, 2, 28, 22, 0))
 
+    def test_remind_times_are_checked_sorted_and_default_when_empty(self):
+        """2026-10-13（用户：哪天、什么时间都可以自定义）：最多 3 个「运行日前 0–7 天 + HH:MM」，去重后按离运行由远到近排。"""
+        default = [{"days_before": 1, "time": "08:00"}, {"days_before": 1, "time": "14:00"}]
+        for empty in (None, "", "  ", [], "[]"):
+            self.assertEqual(contracts.remind_times(empty), default, empty)
+        self.assertEqual(contracts.DEFAULT_REMIND_TIMES, default)
+        contracts.remind_times(None)[0]["time"] = "09:00"  # 拿到的是副本，改了不动默认值
+        self.assertEqual(contracts.DEFAULT_REMIND_TIMES, default)
+        given = [{"days_before": 0, "time": "07:05"}, {"days_before": 3, "time": "16:45"},
+                 {"days_before": "0", "time": " 06:59 "}]
+        expected = [{"days_before": 3, "time": "16:45"}, {"days_before": 0, "time": "06:59"},
+                    {"days_before": 0, "time": "07:05"}]
+        self.assertEqual(contracts.remind_times(given), expected)
+        self.assertEqual(contracts.remind_times(json.dumps(given)), expected)  # 库里存的 JSON
+        # 去重：同一天同一时间只算一个（3 个里去掉重复的也行）
+        self.assertEqual(contracts.remind_times([{"days_before": 7, "time": "23:59"}, {"days_before": 7, "time": "23:59"},
+                                                 {"days_before": 0, "time": "00:00"}]),
+                         [{"days_before": 7, "time": "23:59"}, {"days_before": 0, "time": "00:00"}])
+        bad = [{"days_before": 8, "time": "08:00"}, {"days_before": -1, "time": "08:00"},
+               {"days_before": True, "time": "08:00"}, {"days_before": 1.0, "time": "08:00"},
+               {"days_before": 1, "time": "8:00"}, {"days_before": 1, "time": "24:00"},
+               {"days_before": 1, "time": "08:60"}, {"days_before": 1, "time": "08:00:00"}, {"days_before": 1},
+               {"time": "08:00"}, "08:00", None]
+        for item in bad:
+            with self.assertRaises(contracts.ContractError, msg=item) as caught:
+                contracts.remind_times([item])
+            self.assertEqual(caught.exception.code, "cowork.folder.invalid")
+        for value in ([{"days_before": day, "time": "08:00"} for day in range(4)], {"days_before": 1, "time": "08:00"},
+                      "not json", "{}", 3):
+            with self.assertRaises(contracts.ContractError, msg=value):
+                contracts.remind_times(value)
+        # 标签：前一天整点沿用原来的「08」「14」（上线前已发的那条不再发一次），其余带天数与时间
+        self.assertEqual([contracts.remind_label(item) for item in default], ["08", "14"])
+        self.assertEqual([contracts.remind_label(item) for item in expected], ["3d16:45", "0d06:59", "0d07:05"])
+        self.assertEqual(contracts.remind_label({"days_before": 1, "time": "08:30"}), "1d08:30")
+
+    def test_a_same_day_reminder_must_be_earlier_than_the_run_time(self):
+        """当天的提醒不早于运行时间就永远发不出：给了运行时间就拒（`cowork.folder.remind_same_day`），不静默存下；
+        前几天的提醒任何时间都行；不给运行时间（发提醒时读库）不查。"""
+        same_day = [{"days_before": 0, "time": "21:59"}, {"days_before": 1, "time": "23:30"}]
+        self.assertEqual(contracts.remind_times(same_day, "22:00"),
+                         [{"days_before": 1, "time": "23:30"}, {"days_before": 0, "time": "21:59"}])
+        self.assertEqual(len(contracts.remind_times(same_day, "22:00:00")), 2)  # 库里可能带秒
+        for late in ("22:00", "22:01", "23:59"):
+            with self.assertRaises(contracts.ContractError) as caught:
+                contracts.remind_times([{"days_before": 0, "time": late}], "22:00")
+            self.assertEqual(caught.exception.code, "cowork.folder.remind_same_day")
+        with self.assertRaises(contracts.ContractError):
+            contracts.remind_times([{"days_before": 0, "time": "00:00"}], "00:00")  # 运行在 00:00：当天没有更早的
+        self.assertEqual(len(contracts.remind_times([{"days_before": 0, "time": "23:00"}])), 1)
+        self.assertEqual(len(contracts.remind_times([{"days_before": 0, "time": "23:00"}], "")), 1)
+        self.assertEqual(contracts.remind_times(None, "00:00"), contracts.DEFAULT_REMIND_TIMES)
+
+    def test_reminder_windows_for_chosen_times(self):
+        def slot(*now, times, since=0.0, day=14, at="22:00"):
+            hit = contracts.reminder_slot(self._at(*now), day, at, since, times)
+            return hit and (self._local(hit[0]), hit[1], self._local(hit[2]))
+
+        run = (2026, 10, 14, 22, 0)
+        times = [{"days_before": 3, "time": "16:45"}, {"days_before": 0, "time": "07:05"},
+                 {"days_before": 0, "time": "23:00"}]  # 当天 23:00 比运行（22:00）晚：不发
+        self.assertIsNone(slot(2026, 10, 11, 16, 44, times=times))
+        self.assertEqual(slot(2026, 10, 11, 16, 45, times=times), (run, "3d16:45", (2026, 10, 11, 16, 45)))
+        self.assertEqual(slot(2026, 10, 14, 7, 4, times=times)[1], "3d16:45")  # 一直到下一个提醒时刻
+        self.assertEqual(slot(2026, 10, 14, 7, 5, times=times), (run, "0d07:05", (2026, 10, 14, 7, 5)))
+        self.assertEqual(slot(2026, 10, 14, 21, 59, times=times)[1], "0d07:05")  # 最后一个到运行时刻
+        self.assertIsNone(slot(2026, 10, 14, 22, 0, times=times))
+        self.assertIsNone(slot(2026, 10, 14, 23, 30, times=times))
+        # 只有一个落在运行之后的提醒：什么都不发；与运行同一时刻的也不发
+        for late in ([{"days_before": 0, "time": "23:00"}], [{"days_before": 0, "time": "22:00"}]):
+            for now in ((2026, 10, 14, 21, 0), (2026, 10, 14, 22, 30), (2026, 10, 14, 23, 30)):
+                self.assertIsNone(slot(*now, times=late), (late, now))
+        # 打开提醒（改提醒时刻）晚于 3 天前那条：那条不补，当天 07:05 那条照发
+        since = self._at(2026, 10, 12, 9, 0)
+        self.assertIsNone(slot(2026, 10, 12, 10, 0, times=times, since=since))
+        self.assertEqual(slot(2026, 10, 14, 7, 10, times=times, since=since)[1], "0d07:05")
+        # 跨月、跨年：1 日 00:30 的任务，前 7 天是上一年 12-25；当天 00:10 在运行之前
+        times = [{"days_before": 7, "time": "09:00"}, {"days_before": 0, "time": "00:10"}]
+        self.assertIsNone(slot(2026, 12, 25, 8, 59, times=times, day=1, at="00:30"))
+        self.assertEqual(slot(2026, 12, 25, 9, 0, times=times, day=1, at="00:30"),
+                         ((2027, 1, 1, 0, 30), "7d09:00", (2026, 12, 25, 9, 0)))
+        self.assertEqual(slot(2027, 1, 1, 0, 9, times=times, day=1, at="00:30")[1], "7d09:00")
+        self.assertEqual(slot(2027, 1, 1, 0, 20, times=times, day=1, at="00:30"),
+                         ((2027, 1, 1, 0, 30), "0d00:10", (2027, 1, 1, 0, 10)))
+        # 月末任务（run_day 0）：2026 年 2 月末是 28 日，前 2 天是 2-26；3 月 1 日前 1 天是 2-28
+        times = [{"days_before": 2, "time": "10:00"}]
+        self.assertEqual(slot(2026, 2, 26, 10, 0, times=times, day=0, at="22:00"),
+                         ((2026, 2, 28, 22, 0), "2d10:00", (2026, 2, 26, 10, 0)))
+        self.assertEqual(slot(2026, 2, 28, 10, 0, times=[{"days_before": 1, "time": "10:00"}], day=1, at="08:00"),
+                         ((2026, 3, 1, 8, 0), "10", (2026, 2, 28, 10, 0)))  # 前一天整点：标签同原写法
+        # 默认那组与原来逐位一致（老任务 remind_times 为空）
+        self.assertEqual(slot(2026, 10, 13, 8, 0, times=None), (run, "08", (2026, 10, 13, 8, 0)))
+        self.assertEqual(slot(2026, 10, 13, 14, 0, times=""), (run, "14", (2026, 10, 13, 14, 0)))
+        with self.assertRaises(contracts.ContractError):
+            slot(2026, 10, 13, 8, 0, times="[{}]")
+
+    def test_the_run_day_word_and_date(self):
+        run = self._at(2026, 10, 15, 19, 0)
+        self.assertEqual(contracts.day_word(self._at(2026, 10, 15, 7, 0), run), "today")
+        self.assertEqual(contracts.day_word(self._at(2026, 10, 14, 23, 59), run), "tomorrow")
+        self.assertEqual(contracts.day_word(self._at(2026, 10, 13, 9, 0), run), "later")
+        self.assertEqual(contracts.day_word(self._at(2026, 10, 8, 9, 0), run), "later")
+        self.assertEqual(contracts.month_day(run), (10, 15))
+        self.assertEqual(contracts.month_day(self._at(2027, 1, 1, 0, 30)), (1, 1))
+
     def test_words_time_left_and_keys(self):
         run = self._at(2026, 10, 14, 22, 0)
         self.assertEqual(contracts.day_word(self._at(2026, 10, 13, 8, 5), run), "tomorrow")
@@ -1047,6 +1152,9 @@ class TaskSources(unittest.TestCase):
         self.assertEqual((existing["fieldtype"], existing["default"], existing["read_only"]), ("Check", "0", 1))
         self.assertEqual((self._field(rule, "remind")["fieldtype"], self._field(rule, "remind")["default"]), ("Check", "0"))
         self.assertEqual(self._field(rule, "cc_session")["length"], 140)
+        # 2026-10-13：提醒时刻（JSON 列表，空 = 默认），只经任务服务写
+        times = self._field(rule, "remind_times")
+        self.assertEqual((times["fieldtype"], times["read_only"]), ("Small Text", 1))
         run = "cowork_folder_intake_run"
         state = self._field(run, "brief_state")
         self.assertEqual((state["options"], state["search_index"]), ("pending\nsent\nskipped", 1))
@@ -1055,7 +1163,7 @@ class TaskSources(unittest.TestCase):
         self.assertEqual((group["fieldtype"], group["read_only"], group["search_index"]), ("Data", 1, 1))
         self.assertEqual(self._field("cowork_folder_intake_file", "source_file")["search_index"], 1)
         # 改了字段就升 modified，migrate 才同步
-        for name, modified in ((rule, "2026-10-12"), (run, "2026-10-13"), ("cowork_folder_intake_file", "2026-10-12")):
+        for name, modified in ((rule, "2026-10-13"), (run, "2026-10-13"), ("cowork_folder_intake_file", "2026-10-12")):
             doctype = self._doctype(name)
             self.assertEqual(doctype["modified"], modified + " 12:00:00.000000")
             self.assertEqual(doctype["field_order"], [field["fieldname"] for field in doctype["fields"]])
@@ -1074,7 +1182,7 @@ class TaskSources(unittest.TestCase):
         self.assertIn("rule.include_existing = 0 if continued else 1", rules)
         self.assertIn("def save(values, *, cc_session=None):", rules)
         self.assertIn("def save_many(items, *, cc_session=None):", rules)
-        self.assertIn("def set_enabled(name, enabled=None, *, remind=None, cc_session=None):", rules)
+        self.assertIn("def set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_session=None):", rules)
         self.assertNotIn('values.get("cc_session")', rules)  # 对话编号只从参数取，网页报文传不进来
         self.assertEqual(ast.literal_eval(rules.split("BATCH_MAX = ", 1)[1].split()[0]), 20)
         api = (APP / "folder_intake/api.py").read_text()
@@ -1131,7 +1239,7 @@ class TaskSources(unittest.TestCase):
         sources = (APP / "folder_intake/reminders.py").read_text() + (APP / "folder_intake/briefs.py").read_text()
         used = set(re.findall(r'_\("(cowork\.[A-Za-z0-9_.]+)"\)', sources))
         new = {key for key in used if key.startswith(("cowork.folder.remind.", "cowork.folder.brief."))}
-        self.assertEqual(len(new), 29)
+        self.assertEqual(len(new), 30)  # 2026-10-13 加 remind.date（两天及以后写日期）
         self.assertTrue({"cowork.folder.line", "cowork.folder.more", "cowork.folder.moving", "cowork.folder.folderMissing",
                          "cowork.folder.state.registered", "cowork.choice.account", "cowork.folder.rootItself"} <= used)
         for key in used:
@@ -1142,6 +1250,44 @@ class TaskSources(unittest.TestCase):
                 if key in new or key in ("cowork.folder.line", "cowork.folder.more"):
                     self.assertNotIn("express", rows[key][lang].casefold(), (key, lang))
         self.assertNotIn("cowork.choice.party", used)  # 现有的对方档词条带 Express，简报另起一条
+        # 两天及以后写日期：月、日、时间三个占位符
+        self.assertEqual(rows["cowork.folder.remind.date"]["zh"], "{0} 月 {1} 日 {2}")
+
+    def test_chosen_reminder_times_in_the_forms_and_terms(self):
+        """2026-10-13（用户：哪天、什么时间都可以自定义）：Desk 弹窗勾上「提醒」才摆三行「提醒日｜提醒时间」（原生 Select 与
+        Time 控件，存 HH:MM），保存时带 remind_times；词条四种语言齐全、占位符一致、不写 Express。"""
+        import re
+
+        source = (APP / "public/desk/intake-folders.js").read_text()
+        self.assertIn("const REMIND_MAX = 3;", source)
+        self.assertIn('{fieldtype: "Section Break", hide_border: 1, depends_on: "eval:doc.remind"},', source)
+        self.assertIn('{fieldtype: "Time", fieldname: `remind_time_${i}`', source)
+        self.assertIn("...remind_fields(rule?.remind_times?.length ? rule.remind_times : DEFAULT_REMIND),", source)
+        self.assertIn("remind: values.remind ? 1 : 0, ...(values.remind ? {remind_times} : {})", source)
+        hhmm = source.split("const hhmm = value => {", 1)[1].split("};", 1)[0]
+        self.assertIn("/^(\\d{1,2}):(\\d{2})/", hhmm)
+        self.assertIn('padStart(2, "0")', hhmm)
+        with (APP / "i18n/messages.tsv").open(encoding="utf-8") as handle:
+            rows = {row["key"]: row for row in csv.DictReader(handle, delimiter="\t") if row.get("key")}
+        keys = ("cowork.folder.field.remind", "cowork.folder.field.remindDay", "cowork.folder.field.remindTime",
+                "cowork.folder.remind.sameDay", "cowork.folder.remind.dayBefore", "cowork.folder.remind.daysBefore",
+                "cowork.folder.remind.add", "cowork.folder.remind.date", "cowork.folder.remind_same_day")
+        for key in keys:
+            placeholders = set(re.findall(r"\{\d\}", rows[key]["en"]))
+            for lang in ("en", "zh", "th", "ja"):
+                self.assertTrue(rows[key][lang].strip(), (key, lang))
+                self.assertEqual(set(re.findall(r"\{\d\}", rows[key][lang])), placeholders, (key, lang))
+                self.assertNotIn("express", rows[key][lang].casefold(), (key, lang))
+        # 提醒不再只在前一天：开关的叫法不带「前一天」
+        self.assertEqual(rows["cowork.folder.field.remind"]["zh"], "提醒")
+        self.assertEqual((rows["cowork.folder.remind.sameDay"]["zh"], rows["cowork.folder.remind.daysBefore"]["zh"]),
+                         ("当天", "前 {0} 天"))
+        self.assertEqual(rows["cowork.folder.remind_same_day"]["zh"], "当天提醒要早于运行时间")
+        # 空行的提醒日按同一顺序取还没有的（同 CC 任务页「添加时间」），时间空着不存；不拿「当天」当默认
+        self.assertIn('const REMIND_NEXT = [...DEFAULT_REMIND, {days_before: 2, time: "08:00"}, {days_before: 1, time: "18:00"}];',
+                      source)
+        self.assertIn("while (rows.length < REMIND_MAX) rows.push({...next_remind(rows), spare: true});", source)
+        self.assertIn('default: item.spare ? "" : `${item.time}:00`},', source)
         self.assertEqual(rows["cowork.folder.remind.one"]["zh"], "「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。")
 
 
