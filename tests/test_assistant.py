@@ -812,6 +812,18 @@ class PageTests(unittest.TestCase):
         mascot = (ROOT / "frontend/assistant/src/brand/cc.svg").read_text(encoding="utf-8").strip()
         self.assertIn('<div id="root"><div class="cc-boot" role="status">' + mascot + "</div></div>", html)
 
+    def test_iphone_launch_images_cover_the_listed_screens(self):
+        # 2026-10-12：主屏幕 app 点开时不再黑屏；脚本与页面引用用同一份屏幕清单，图片都在
+        script = (ROOT / "scripts/build-ios-splash.py").read_text(encoding="utf-8")
+        config = (ROOT / "frontend/assistant/vite.config.ts").read_text(encoding="utf-8")
+        listed = re.findall(r"\((\d+), (\d+), (\d)\)", script.split("DEVICES = (", 1)[1].split(")\n)", 1)[0] + ")")
+        in_config = re.findall(r"\[(\d+), (\d+), (\d)\]", config.split("const SPLASH", 1)[1].split("];", 1)[0])
+        self.assertTrue(listed)
+        self.assertEqual(listed, in_config)
+        for w, h, r in listed:
+            for theme in ("light", "dark"):
+                self.assertTrue((ROOT / f"frontend/assistant/public/splash/splash-{w}x{h}@{r}x-{theme}.png").is_file())
+
     def test_icons_are_fingerprinted_not_fixed_addresses(self):
         # /assets 缓存一年（Cloudflare 照存）：图标与 manifest 的地址由构建带内容指纹，页面不写死。
         html = (CORE / "www/assistant.html").read_text(encoding="utf-8")

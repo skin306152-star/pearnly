@@ -23,6 +23,12 @@ function icon(name: string): string {
   return `${BASE}${name}?v=${fingerprint(readFileSync(new URL(`./public/${name}`, import.meta.url)))}`;
 }
 
+// 与 scripts/build-ios-splash.py 的 DEVICES 一致：(逻辑宽, 逻辑高, 倍率)
+const SPLASH: [number, number, number][] = [
+  [440, 956, 3], [430, 932, 3], [428, 926, 3], [414, 896, 3], [414, 896, 2], [402, 874, 3],
+  [393, 852, 3], [390, 844, 3], [375, 812, 3], [375, 667, 2], [360, 780, 3],
+];
+
 function ccIcons(): Plugin {
   const manifest = () =>
     JSON.stringify(
@@ -58,6 +64,18 @@ function ccIcons(): Plugin {
       { tag: "link", attrs: { rel: "icon", href: icon("favicon.ico"), sizes: "16x16 32x32 48x48" }, injectTo: "head" },
       { tag: "link", attrs: { rel: "icon", type: "image/png", href: icon("icon-192.png"), sizes: "192x192" }, injectTo: "head" },
       { tag: "link", attrs: { rel: "apple-touch-icon", href: icon("apple-touch-icon.png") }, injectTo: "head" },
+      // iPhone 主屏幕 app 的启动图（scripts/build-ios-splash.py 生成，按屏幕尺寸与深浅色各一张）：点开即显示，不再黑屏
+      ...SPLASH.flatMap(([w, h, r]) =>
+        (["light", "dark"] as const).map((theme) => ({
+          tag: "link",
+          attrs: {
+            rel: "apple-touch-startup-image",
+            href: icon(`splash/splash-${w}x${h}@${r}x-${theme}.png`),
+            media: `screen and (device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait) and (prefers-color-scheme: ${theme})`,
+          },
+          injectTo: "head" as const,
+        })),
+      ),
     ],
   };
 }
