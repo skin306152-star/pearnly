@@ -3,8 +3,9 @@
 统一对话事件：站点与对话页之间、站点与适配器之间只走一种事件形状——沿用 Managed Agents 事件格式
 （`user.message` / `agent.message` / `agent.thinking` / `agent.tool_use` / `agent.tool_result` /
 `agent.custom_tool_use` / `user.tool_confirmation` / `user.custom_tool_result` / `user.interrupt` /
-`session.status_*`，每条带唯一 `id`）。别家厂商的适配器负责双向翻译成这一种；对话页、工具派发与
-会话归属都不因换厂商而改。
+`session.status_*`，每条带唯一 `id`；另有 `system.message`：每批最多一条、放在最后，站点用它随话带上接续的前文与
+提醒）。别家厂商的适配器负责双向翻译成这一种；对话页、工具派发与会话归属都不因换厂商而改。
+对话提醒 `pearnly.notice`（编号 `pnotice_` 开头）只在站点与对话页之间，不交给适配器。
 
 适配器只管远端：会话归谁、能不能看由站点数据库判定（`sessions.owned`），工具由站点按当前用户执行
 （`tools.run`），这里都不碰。纯接口，不依赖 Frappe。
