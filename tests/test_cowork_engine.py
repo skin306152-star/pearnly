@@ -23,6 +23,52 @@ TODAY = date(2026, 9, 21)
 GOOD = {"document_type": "receipt", "invoice_number": "IV69/100", "subtotal": "100",
         "vat": "7", "total_amount": "107", "date": "2026-09-21"}
 TEXT = "Receipt IV69/100 subtotal 100 VAT 7 total 107 2026-09-21"
+# 50 ทวิ 的原文版式（กรมสรรพากร 表格；2026-10-13 测试机真凭证）：先印「ฉบับที่ 1 / 2」「เล่มที่ / เลขที่」和两栏，
+# 标题落在第 15 行，不在票头规则看的前 10 行里。
+CERTIFICATE_50_TAWI = "\n".join((
+    "ฉบับที่ 1 (สำหรับผู้ถูกหักภาษี ณ ที่จ่าย ใช้แนบพร้อมกับแบบแสดงรายการภาษี)",
+    "ฉบับที่ 2 (สำหรับผู้ถูกหักภาษี ณ ที่จ่าย เก็บไว้เป็นหลักฐาน)",
+    "เล่มที่ 1",
+    "เลขที่ 0045",
+    "ผู้มีหน้าที่หักภาษี ณ ที่จ่าย :-",
+    "ชื่อ บริษัท ซินเซียร์ จำกัด",
+    "เลขประจำตัวผู้เสียภาษีอากร (13 หลัก)* 0105556086859",
+    "(ให้ระบุว่าเป็น บุคคล นิติบุคคล บริษัท สมาคม หรือคณะบุคคล)",
+    "ที่อยู่ 99/1 ถนนสุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพมหานคร 10110",
+    "(ให้ระบุ ชื่ออาคาร/หมู่บ้าน ห้องเลขที่ ชั้นที่ เลขที่ ตรอก/ซอย หมู่ที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด)",
+    "ผู้ถูกหักภาษี ณ ที่จ่าย :-",
+    "ชื่อ นายสมชาย ใจดี",
+    "เลขประจำตัวผู้เสียภาษีอากร (13 หลัก)* 1990100000029",
+    "ที่อยู่ 12 หมู่ 3 ตำบลในเมือง อำเภอเมือง จังหวัดบุรีรัมย์ 31000",
+    "หนังสือรับรองการหักภาษี ณ ที่จ่าย",
+    "ตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร",
+    "ลำดับที่ 1 ในแบบ (1) ภ.ง.ด.1ก (2) ภ.ง.ด.1ก พิเศษ (3) ภ.ง.ด.2 (4) ภ.ง.ด.3 (5) ภ.ง.ด.2ก (6) ภ.ง.ด.3ก (7) ภ.ง.ด.53",
+    "ประเภทเงินได้พึงประเมินที่จ่าย วัน เดือน หรือปีภาษี ที่จ่าย จำนวนเงินที่จ่าย ภาษีที่หัก และนำส่งไว้",
+    "5. การจ่ายเงินได้ที่ต้องหักภาษี ณ ที่จ่าย ตามคำสั่งกรมสรรพากร ค่าบริการ 15/09/2569 10,000.00 300.00",
+    "รวมเงินที่จ่ายและภาษีที่หักนำส่ง 10,000.00 300.00",
+    "รวมเงินภาษีที่หักนำส่ง (ตัวอักษร) สามร้อยบาทถ้วน",
+    "ผู้จ่ายเงิน (1) หัก ณ ที่จ่าย (2) ออกให้ตลอดไป (3) ออกให้ครั้งเดียว (4) อื่นๆ",
+    "ขอรับรองว่าข้อความและตัวเลขดังกล่าวข้างต้นถูกต้องตรงกับความจริงทุกประการ",
+    "ลงชื่อ ผู้จ่ายเงิน",
+    "คำเตือน ผู้มีหน้าที่ออกหนังสือรับรองการหักภาษี ณ ที่จ่าย ฝ่าฝืนไม่ปฏิบัติตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร"
+    " ต้องรับโทษทางอาญาตามมาตรา 35 แห่งประมวลรัษฎากร",
+))
+NOT_INVOICE = {"is_not_invoice": True, "document_type": "other", "seller_name": "นายสมชาย ใจดี",
+               "seller_tax": "1990100000029", "buyer_name": "บริษัท ซินเซียร์ จำกัด", "buyer_tax": "0105556086859"}
+
+
+def text_source(text):
+    """PDF 文字层一页（不调 Vision）。"""
+    source = Source(text=True)
+    source.text_pages = [Page(page_number=1, width=1, height=1, blocks=[], full_text=text, avg_confidence=1)]
+    return source
+
+
+def transcript(text):
+    def call(frame, *, stage, page_number):
+        return VisionResponse(Page(page_number=page_number, width=1, height=1, blocks=[], full_text=text,
+                                   avg_confidence=1), {"text": text}, 2, f"{stage}:{page_number}")
+    return call
 
 
 class Source:
@@ -211,6 +257,30 @@ class EngineTests(unittest.TestCase):
         reread = run(model=Model([wrong, wrong, GOOD]), vision_call=titled("รายงานภาษีขาย\n" + TEXT)).pipeline.pages[0]
         self.assertTrue(reread.invoice.is_not_invoice)
         self.assertEqual(reread.extraction_audit["not_invoice_title"], "tax_report")
+
+    def test_a_non_invoice_page_with_the_certificate_title_further_down_is_flagged(self):
+        # 2026-10-13 测试机：真 50 ทวิ 标题在第 15 行，模型判成非发票、类别空着 → 录不录的选择和参考记录都看不到它
+        from pearnly_cowork.ocr.validation.accounting import non_invoice_title
+        self.assertIsNone(non_invoice_title(CERTIFICATE_50_TAWI))  # 票头规则（前 10 行）不变
+        page = run(text_source(CERTIFICATE_50_TAWI), Model([NOT_INVOICE])).pipeline.pages[0]
+        self.assertTrue(page.invoice.is_not_invoice)
+        self.assertEqual(page.invoice.document_flag, "withholding_certificate")
+        self.assertEqual(page.extraction_audit, {})  # 只标类别，不算票头改判
+        # 图片页：直读没过闸、带 Vision 原文再读判成非发票的同样标上
+        wrong = {**GOOD, "total_amount": "170"}
+        image = run(model=Model([wrong, wrong, NOT_INVOICE]), vision_call=transcript(CERTIFICATE_50_TAWI))
+        self.assertEqual(image.pipeline.pages[0].layer_chain, ["ID", "RC", "L1", "L2"])
+        self.assertEqual(image.pipeline.pages[0].invoice.document_flag, "withholding_certificate")
+
+    def test_the_wider_certificate_search_never_turns_an_invoice_into_a_non_invoice(self):
+        page = run(text_source(CERTIFICATE_50_TAWI), Model([GOOD])).pipeline.pages[0]
+        self.assertFalse(page.invoice.is_not_invoice)
+        self.assertEqual(page.invoice.document_flag, "")  # 标了类别，租户选「不录入」时也会被改判：票页一律不标
+        # 非发票页只在页脚提到凭证（请款单「请开 50 ทวิ」）：没有付款方 / 收款方两栏，不标
+        footer = "\n".join(["ใบวางบิล", "เลขที่ BL-001"] + ["line"] * 12
+                           + ["กรุณาส่งหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ให้ผู้ถูกหักภาษี"])
+        bill = run(text_source(footer), Model([{**NOT_INVOICE}])).pipeline.pages[0]
+        self.assertEqual((bill.invoice.is_not_invoice, bill.invoice.document_flag), (True, ""))
 
     def test_a_guessed_head_office_branch_is_cleared_only_against_vision_text(self):
         # 2026-10-02 两批金标重放：原文里没有任何分店字样，模型填的 00000 是猜的；PDF 文字层常有乱码，不据此清

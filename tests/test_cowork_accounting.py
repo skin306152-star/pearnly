@@ -7,9 +7,9 @@ from pearnly_cowork.ocr.schema import validate_invoice
 from pearnly_cowork.ocr.validation import check_amount_math
 from pearnly_cowork.ocr.validation.accounting import (
     infer_withholding, invoice_number_alternative, invoice_number_range, invoice_number_unseen, normalize_amounts, number_alternative,
-    clear_unprinted_branch, non_invoice_title, number_seen, repair_from_transcript,
+    certificate_form, clear_unprinted_branch, non_invoice_title, number_seen, repair_from_transcript,
 )
-from test_cowork_engine import CONFIG, GOOD, Model, Source
+from test_cowork_engine import CERTIFICATE_50_TAWI, CONFIG, GOOD, Model, Source
 
 
 def invoice(**fields):
@@ -42,6 +42,15 @@ class Accounting(unittest.TestCase):
                            ("ใบกำกับภาษี/ใบเสร็จรับเงิน\nTAX INVOICE", None),
                            ("\n".join(["ใบกำกับภาษี"] + ["x"] * 10 + ["รายงานภาษีขาย"]), None), (None, None)):
             self.assertEqual(non_invoice_title(text), kind, text)
+
+    def test_a_certificate_form_is_recognised_anywhere_in_the_text(self):
+        self.assertTrue(certificate_form(CERTIFICATE_50_TAWI))
+        shuffled = "\n".join(reversed(CERTIFICATE_50_TAWI.splitlines()))  # PDF 文字层顺序乱了也认
+        self.assertTrue(certificate_form(shuffled))
+        for text in ("กรุณาส่งหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ)",  # 只有标题（页脚提一句）
+                     "ผู้มีหน้าที่หักภาษี ณ ที่จ่าย\nผู้ถูกหักภาษี ณ ที่จ่าย",  # 只有两栏、没有标题
+                     "หนังสือรับรองการหักภาษี ณ ที่จ่าย\nผู้ถูกหักภาษี ณ ที่จ่าย", "", None):
+            self.assertFalse(certificate_form(text), text)
 
     def test_amount_spellings_become_plain_numbers(self):
         value = invoice(subtotal="1,234.50", vat="(86.42)", total_amount="฿1,148.08")

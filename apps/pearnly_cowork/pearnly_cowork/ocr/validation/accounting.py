@@ -13,6 +13,8 @@
 
 - 票头判非票据（2026-10-02 两批金标零费用重放）：Vision 原文前几行印着预扣税凭证、销项 / 进项税报表、增值税申报
   缴税、社保缴费这几类标题的，不是购销票据，这一页按「不是发票」处理（见 `non_invoice_title`）。
+  已判「不是发票」的页，50 ทวิ 标题不在前几行时（表格先印「เล่มที่ / เลขที่」「ฉบับที่ 1 (สำหรับผู้ถูกหักภาษี …)」，
+  PDF 文字层顺序也会乱）看全文认类别（见 `certificate_form`），只标类别、不改判。
 
 - 分店：Vision 原文里连分店字样都没有（สาขา / สำนักงานใหญ่ / Head Office / Branch，或税号后直接接 5 位分店号），
   模型填的 00000（总店）是猜的，清空（见 `clear_unprinted_branch`；读出具体分店号的不动）。
@@ -200,6 +202,21 @@ def non_invoice_title(text) -> str | None:
         if pattern.search(head):
             return kind
     return None
+
+
+# 50 ทวิ 表格本身的两栏：付款方（ผู้มีหน้าที่หักภาษี ณ ที่จ่าย）与收款方（ผู้ถูกหักภาษี ณ ที่จ่าย）。
+_CERTIFICATE_TITLE = dict(_NON_INVOICE_TITLES)["withholding_certificate"]
+_CERTIFICATE_PARTIES = (re.compile(r"ผู้\s*มี\s*หน้าที่\s*หัก\s*ภาษี"), re.compile(r"ผู้\s*ถูก\s*หัก\s*ภาษี"))
+
+
+def certificate_form(text) -> bool:
+    """全文任何位置印着 50 ทวิ 标题，且付款方、收款方两栏都在（2026-10-13 测试机：真凭证先印「เล่มที่ / เลขที่」
+    「ฉบับที่ 1 (สำหรับผู้ถูกหักภาษี ณ ที่จ่าย …)」，标题落在第 10 行以后，类别没标上）。
+
+    只给已经判成「不是发票」的页标类别（`ocr.engine.runner.mark_title`），从不拿它把票改判成非票据：真票、
+    请款单的页脚也会印「请开 หนังสือรับรองการหักภาษี」，要求两栏都在也是为了不把这类页脚当成凭证。"""
+    text = str(text or "")
+    return bool(_CERTIFICATE_TITLE.search(text)) and all(party.search(text) for party in _CERTIFICATE_PARTIES)
 
 
 # 2026-10-02 两批金标零费用重放：「没印却填了」57→51、104→96，印了的分店一处不丢。

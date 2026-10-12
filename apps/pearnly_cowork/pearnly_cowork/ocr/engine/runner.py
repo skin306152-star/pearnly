@@ -32,7 +32,8 @@ from pearnly_cowork.ocr.validation import (
 )
 from pearnly_cowork.ocr.money import normalize_money
 from pearnly_cowork.ocr.validation.accounting import (
-    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, adopt_from_reads, clear_unprinted_branch, infer_withholding,
+    NUMBER_ALTERNATIVE_PREFIX, NUMBER_UNSEEN_PREFIX, adopt_from_reads, certificate_form, clear_unprinted_branch,
+    infer_withholding,
     invoice_number_alternative, invoice_number_range, invoice_number_unseen, non_invoice_title, normalize_amounts,
     repair_from_transcript,
 )
@@ -125,8 +126,14 @@ def rescue_note(before, after) -> str:
             + " / ".join(diffs) + ")")
 
 
+CERTIFICATE = "withholding_certificate"
+
+
 def mark_title(invoice, text):
-    """票头是非购销票据（``non_invoice_title``）：这一页连同同页的其他读数都按「不是发票」处理，返回类别。"""
+    """票头是非购销票据（``non_invoice_title``）：这一页连同同页的其他读数都按「不是发票」处理，返回类别。
+
+    已经判成「不是发票」的页，票头没认出类别时再看全文是不是 50 ทวิ（``certificate_form``），只标类别、不改判，
+    录不录照租户的选择走；按票读的页从不因全文里有这个标题被改判（票头规则在金标上验过，保持不变）。"""
     kind = non_invoice_title(text)
     if kind in DOCUMENT_FLAGS:  # 预扣税凭证录不录由租户选（`contracts.document_policy`），这里只标类别
         invoice.document_flag = kind
@@ -134,6 +141,8 @@ def mark_title(invoice, text):
         invoice.is_not_invoice = True
         invoice.additional_invoices = []
         return kind
+    if kind is None and invoice.is_not_invoice and not invoice.document_flag and certificate_form(text):
+        invoice.document_flag = CERTIFICATE
     return None
 
 
@@ -537,7 +546,7 @@ class _Run:
                     else:
                         chain.append("L3_failed")
                 l3_calls = self.calls[l3_start:]
-        if page in self.titles and invoice is not l2:  # 视觉复核重读过：票头判定照样作数
+        if invoice is not l2 and (page in self.titles or invoice.is_not_invoice):  # 视觉复核重读过：票头判定、类别照样作数
             mark_title(invoice, text)
         if invoice is not l2 and text_page is None:
             clear_unprinted_branch(invoice, text)

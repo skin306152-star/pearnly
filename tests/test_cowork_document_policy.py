@@ -74,6 +74,33 @@ class SavingFollowsTheChoice(unittest.TestCase):
                              for w in p.get("_validation_warnings") or []))
 
 
+class CertificateFoundFurtherDown(unittest.TestCase):
+    """识别引擎全文认出的 50 ทวิ（标题不在前 10 行）照样走租户的选择与参考记录（2026-10-13 测试机）。"""
+
+    def read(self):
+        from test_cowork_engine import CERTIFICATE_50_TAWI, NOT_INVOICE, Model, run, text_source
+        return run(text_source(CERTIFICATE_50_TAWI), Model([NOT_INVOICE])).pipeline
+
+    def plan(self, policy):
+        return prepare_history_batch(self.read(), expected_page_count=1, workspace="W", source="manual",
+                                     document_policy=policy)
+
+    def test_skip_keeps_a_reference_record_and_no_invoice(self):
+        policy = {"withholding_certificate": "skip"}
+        plan = self.plan(policy)
+        self.assertEqual((plan["state"], plan["groups"]), ("not_invoice", []))
+        kept = rules.skipped_certificates(plan["raw_pages"], policy)
+        self.assertEqual([page["fields"]["seller_tax"] for _position, page in kept], ["1990100000029"])
+
+    def test_enter_or_no_choice_is_asked_like_any_certificate(self):
+        for policy in (None, {"withholding_certificate": "enter"}):
+            plan = self.plan(policy)
+            self.assertEqual(len(plan["groups"]), 1, policy)
+            fields = plan["groups"][0]["pages"][0]["fields"]
+            self.assertEqual(rules.document_class(fields), "withholding_certificate")
+        self.assertEqual(rules.push_block(fields, {}), "document_policy_needed_withholding_certificate")
+
+
 class Evidence(unittest.TestCase):
     def test_a_non_invoice_page_with_its_own_number_and_total_is_evidence_not_a_record(self):
         plan = prepare(TAX, {"document_type": "other", "invoice_number": "IV1 to IV9", "total_amount": "900",
