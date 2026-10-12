@@ -257,7 +257,8 @@ class AccountPasswordTests(Isolated):
 
         self.frappe.db = types.SimpleNamespace(
             get_value=Mock(side_effect=get_value),
-            sql=Mock(side_effect=lambda query, values=None: self.events.append("lock")))
+            sql=Mock(side_effect=lambda query, values=None: self.events.append("lock")),
+            commit=Mock(side_effect=lambda: self.events.append("commit")))
         self.frappe.get_doc = get_doc
         self.stub("werkzeug", __path__=[])
         self.stub("werkzeug.wrappers", Response=object)
@@ -292,6 +293,7 @@ class AccountPasswordTests(Isolated):
         self.operator.save.assert_not_called()
         self.assertEqual(self.operator.dms_password, "old-good")
         self.assertNotIn("lock", self.events, "a refused password never takes the row lock")
+        self.assertNotIn("commit", self.events, "a refused password commits nothing")
 
     def test_unreachable_or_broken_dms_stores_nothing_and_never_looks_like_an_expired_link(self):
         for code in ("ERR_DMS_UNREACHABLE", "ERR_DMS_TECHNICAL", "ERR_UNEXPECTED", None):
@@ -307,13 +309,15 @@ class AccountPasswordTests(Isolated):
     def test_right_password_signs_in_once_outside_the_lock_then_saves_as_before(self):
         self.assertEqual(self.api.save_credentials("ticket", "new-good"), {"ok": True})
         self.probe.assert_called_once_with("https://dms.example.invalid/dms/", "sale02", "new-good", "login")
-        self.assertEqual(self.events, ["sign-in", "lock", "save"])
+        # The sign-in can take tens of seconds: the read-only repeatable-read view is ended before the
+        # row lock, so the identity re-check under the lock sees an unbind or disable made meanwhile.
+        self.assertEqual(self.events, ["sign-in", "commit", "lock", "save"])
         self.assertEqual(self.operator.dms_password, "new-good")
         self.assertIn("for update", self.frappe.db.sql.call_args.args[0])
 
     def test_old_client_with_the_same_username_still_saves(self):
         self.assertEqual(self.api.save_credentials("ticket", "new-good", username=" sale02 "), {"ok": True})
-        self.assertEqual(self.events, ["sign-in", "lock", "save"])
+        self.assertEqual(self.events, ["sign-in", "commit", "lock", "save"])
 
     def test_rename_or_missing_operator_is_refused_without_signing_in(self):
         with self.assertRaises(Failed) as raised:

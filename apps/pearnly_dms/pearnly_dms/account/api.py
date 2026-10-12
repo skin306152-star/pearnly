@@ -99,6 +99,9 @@ def save_credentials(ticket: str, password: str, username: str = ""):
     if str(username or "").strip() and str(username).strip() != (own[1] or ""):
         browser_api._fail("dms.account.failed", 409)
     _sign_in_once(endpoint.system_url, own[1] or "", password)
+    # 试登录可能等上几十秒：先结束此前只读的 MariaDB 可重复读视图（这里还没写任何东西），
+    # 下面加锁后的身份复核才读得到这段时间里别人提交的解绑 / 停用。
+    frappe.db.commit()
     # Lock the native binding through the update so concurrent unbind cannot
     # authorize a completed credentials change using a stale cached ticket.
     frappe.db.sql("select name from `tabPearnly LINE Binding` where line_user_id=%s for update",
