@@ -101,7 +101,8 @@ def hold(line_user_id, nonce, *, notify=False):
     """结果未知：证据原样转存成 `Unverified` 记录（**先提交**），再清会话 —— LINE 立刻可用。
 
     执行体自己的分支传 `notify=False`：它随后自己推那句未知提示。扫描路径传 `notify=True`：
-    执行体崩溃时操作员什么都没收到，所以**只有本次新建了记录**、且绑定没变时才补推一次，
+    执行体崩溃时操作员什么都没收到，所以**只有本次新建了记录**、且绑定没变时才补推一次
+    （已过 23 小时核对期的旧登记不再推：它不会再被核对，提示只会是噪音），
     台账补一行"人工处理"（已有就不再加）。清会话抢不到锁时标记留着，下一轮扫描再转，
     那时记录已存在，不会重复推送。
     """
@@ -116,7 +117,7 @@ def hold(line_user_id, nonce, *, notify=False):
         unknown = booking_attempt.unknown_result(marker['booking_no'])
         booking_ledger.log_booking(endpoint=context.get('endpoint'), payload={'qa': context.get('qa') or {}},
                                    result=unknown, actor=binding.get('user_id'))
-        if matches(binding, line_user_id):
+        if _age(marker.get('recorded_at')) < RECEIPT_WINDOW_SECONDS and matches(binding, line_user_id):
             from pearnly_dms import i18n
             from pearnly_dms.line import out
 

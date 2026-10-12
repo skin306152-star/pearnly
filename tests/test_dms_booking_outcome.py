@@ -490,6 +490,16 @@ class Scanner(Harness):
         log, = self.logs()
         self.assertEqual((log["status"], log["business_key"]), ("manual", "BK-7"))
 
+    def test_registration_older_than_the_check_window_is_freed_without_a_stale_notice(self):
+        self.stuck()
+        self.age(hours=24)
+        self.scan()
+        self.assertIsNone(self.session())
+        self.assertEqual(self.texts, [])
+        self.assertEqual([log["status"] for log in self.logs()], ["manual"])
+        self.scan()  # its first check is already due: it expires without reading DMS
+        self.assertEqual((self.records()[0]["status"], self.reads), ("Review", 0))
+
     def test_hold_twice_notifies_once(self):
         payload = self.stuck()
         self.age(seconds=661)
