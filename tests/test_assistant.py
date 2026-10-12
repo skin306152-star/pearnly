@@ -512,6 +512,85 @@ class RelayTests(unittest.TestCase):
                 else:
                     setattr(frappe, name, value)
 
+    def test_files_tools_put_in_the_conversation_are_kept_and_can_be_used_as_input(self):
+        # 2026-10 CC 闭环 L3：工具产出（以前只交给引擎、本站不留）能再交给对账等工具；从文件夹取来的同样，来源分开记，
+        # 产品据此不把自己生成的文件再拿去识别
+        import tempfile
+
+        root = tempfile.mkdtemp()
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.SESSION = "Pearnly Assistant Session"
+        sessions.owned = lambda sid, allow_archived=False: types.SimpleNamespace(name={"s1": "row1", "s2": "row2"}[sid])
+        sessions.current = lambda row: "remote-" + row.name
+        sessions._guard = lambda fn, *a: fn(*a)
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        heic = types.ModuleType("heic")
+        heic.is_heic = lambda content: content.startswith(b"HEIC")
+        heic.to_jpeg = lambda content: b"JPEG" + content[4:]
+        heic.jpeg_name = lambda name: name.rsplit(".", 1)[0] + ".jpg"
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = heic
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        source = (CORE / "assistant/files.py").read_text(encoding="utf-8")
+        added = source.split("def add_to_conversation(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn('_keep(row, stored["file_id"], name, content, origin)', added)
+        attached, numbers = [], iter(["file_T1", "file_F1", "file_U1", "file_T2"])
+
+        def attach(remote, name, content, mime):
+            number = next(numbers)
+            attached.append((remote, name, content, mime))
+            return {"file_id": number, "path": f"/mnt/session/uploads/{number}/{name}"}
+
+        saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "get_all", None))
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.get_all = lambda *a, **k: []
+        try:
+            with mock.patch.object(files.engine, "adapter", return_value=types.SimpleNamespace(attach=attach)):
+                frappe.local.pearnly_assistant = {"session_id": "s1"}
+                path = files.add_to_conversation("T9SINCER-GL-2026-05.xlsx", b"ledger", "application/xlsx")
+                self.assertEqual(path, "/mnt/session/uploads/file_T1/T9SINCER-GL-2026-05.xlsx")
+                photo = files.add_to_conversation("slip.heic", b"HEIC-bytes", "image/heic", origin="folder")
+                self.assertEqual(photo, "/mnt/session/uploads/file_F1/slip.jpg")  # HEIC 同用户上传先转 JPEG
+                self.assertEqual(attached[1][1:], ("slip.jpg", b"JPEG-bytes", "image/jpeg"))
+                with self.assertRaises(ValueError):
+                    files.add_to_conversation("x.xlsx", b"x", "application/xlsx", origin="user")
+                with self.assertRaises(contracts.ContractError):
+                    files.add_to_conversation("x.exe", b"x", "application/octet-stream")
+            files._keep(types.SimpleNamespace(name="row1"), "file_U1", "statement.pdf", b"pdf")
+            # 对账工具按智能体给的挂载路径取到工具产出，与用户附件一样
+            self.assertEqual(files.attachment(path), ("T9SINCER-GL-2026-05.xlsx", b"ledger"))
+            self.assertEqual(files.attachment("file_F1"), ("slip.jpg", b"JPEG-bytes"))
+            self.assertEqual([files.origin(ref) for ref in ("file_T1", photo, "statement.pdf")], ["tool", "folder", "user"])
+            listed = {item["file_id"]: item for item in files.attachments()}
+            self.assertEqual(listed["file_T1"], {"file_id": "file_T1", "filename": "T9SINCER-GL-2026-05.xlsx",
+                                                 "origin": "tool"})
+            self.assertEqual(listed["file_F1"]["origin"], "folder")
+            self.assertEqual(listed["file_U1"], {"file_id": "file_U1", "filename": "statement.pdf"})
+            self.assertTrue(os.path.isfile(os.path.join(root, "private", files.KEPT, "row1", "tool",
+                                                        "file_T1--T9SINCER-GL-2026-05.xlsx")))
+            frappe.local.pearnly_assistant = {"session_id": "s2"}
+            for ref in ("file_T1", "file_F1"):  # 别的对话拿不到
+                with self.assertRaises(Exception):
+                    files.attachment(ref)
+                with self.assertRaises(Exception):
+                    files.origin(ref)
+            # 删对话时整个会话目录（含工具与文件夹子目录）一起删
+            committed = []
+            frappe.db.after_commit = types.SimpleNamespace(add=committed.append)
+            files.forget("row1")
+            for callback in committed:
+                callback()
+            self.assertFalse(os.path.exists(os.path.join(root, "private", files.KEPT, "row1")))
+        finally:
+            frappe.local.pearnly_assistant = None
+            if hasattr(frappe.db, "after_commit"):
+                del frappe.db.after_commit
+            for name, value in zip(("get_site_path", "get_all"), saved):
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
+
     def test_session_files_are_listed_oldest_first_so_the_panel_opens_the_newest(self):
         # 引擎列文件新的在前；面板默认打开最后一个（2026-10-10 测试：新导出出来面板停在旧的那份）
         sessions = types.ModuleType("pearnly_core.assistant.sessions")
