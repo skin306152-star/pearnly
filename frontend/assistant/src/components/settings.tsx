@@ -28,7 +28,7 @@ import { useInstallGuide } from "@/components/install-prompt";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { useProfile } from "@/lib/profile";
-import { usePush } from "@/lib/push";
+import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import { lang, LANGUAGES, st, t } from "../i18n";
 
@@ -267,33 +267,41 @@ function General() {
   );
 }
 
-// 推送通知（lib/push.ts）：开 / 关；浏览器里拒绝过就只能去浏览器设置改；iPhone 在浏览器页签里先添加到主屏幕。
-// 桌面端、不支持推送的浏览器不显示这一行。
-function Notifications() {
+// 推送通知（lib/push.ts）：这一行一直在（CC 桌面端窗口除外：系统通知由桌面端自己弹）。能开就是开 / 关；开不了开关灰着，
+// 下面一行说原因：iPhone / iPad 在浏览器页签里 → 先添加到主屏幕（点这句打开添加步骤）；拒绝过 → 只能去设置里改；
+// 浏览器没有网页推送 → 此设备不支持。还没同步完（unknown）开关灰着、不给原因，打开设置时再同步一次。
+export function Notifications() {
   const push = usePush();
   const showGuide = useInstallGuide();
-  if (push.state === "on" || push.state === "off")
-    return (
-      <Row label={<>{st.notifications}{push.failure && <div className="text-danger text-xs">{push.failure}</div>}</>}>
-        {/* 打开要在点击里直接订阅（iPhone 的用户手势），不能先等别的 */}
-        <Switch checked={push.state === "on"} label={st.notifications} onChange={(on) => void (on ? push.enable() : push.disable())} />
-      </Row>
-    );
-  if (push.state === "denied")
-    return (
-      <Row label={<>{st.notifications}<div className="text-muted-foreground text-xs">{st.notificationsBlocked}</div></>}>
-        <Switch checked={false} disabled label={st.notifications} onChange={() => undefined} />
-      </Row>
-    );
-  if (push.state === "install")
-    return (
-      <Row label={st.notifications}>
-        <Button variant="outline" size="sm" onClick={showGuide}>
-          {t("addToHome")}
-        </Button>
-      </Row>
-    );
-  return null;
+  useEffect(() => void syncPush(), []);
+  if (push.state === "desktop") return null;
+  const usable = push.state === "on" || push.state === "off";
+  const note = "text-muted-foreground text-xs";
+  return (
+    <Row
+      label={
+        <>
+          {st.notifications}
+          {usable && push.failure && <div className="text-danger text-xs">{push.failure}</div>}
+          {push.state === "install" && (
+            <button type="button" className={cn(note, "block text-start underline underline-offset-2")} onClick={showGuide}>
+              {st.notificationsAddToHome}
+            </button>
+          )}
+          {push.state === "denied" && <div className={note}>{st.notificationsBlocked}</div>}
+          {push.state === "unsupported" && <div className={note}>{st.notificationsUnsupported}</div>}
+        </>
+      }
+    >
+      {/* 打开要在点击里直接订阅（iPhone 的用户手势），不能先等别的 */}
+      <Switch
+        checked={push.state === "on"}
+        disabled={!usable}
+        label={st.notifications}
+        onChange={(on) => void (on ? push.enable() : push.disable())}
+      />
+    </Row>
+  );
 }
 
 // ── 此电脑：本机状态（开着就每 2 秒刷新一次，本机有变化也马上刷新） ──

@@ -2,7 +2,10 @@
 // 订阅交给本站（pearnly_core.assistant.api 的 push_key / push_subscribe / push_unsubscribe），由后台脚本
 // （service_worker.js）弹通知；点通知打开那段对话（没有对话就定时任务页，见 lib/nav.ts）。
 //
-//   桌面端窗口里不用（系统通知由桌面端自己弹）；iPhone / iPad 只有添加到主屏幕后打开才收得到推送（状态 install）。
+//   桌面端窗口里不用（状态 desktop：系统通知由桌面端自己弹，设置里没有这一行）；iPhone / iPad 只有添加到主屏幕后打开
+//   才收得到推送（状态 install）；浏览器没有网页推送是 unsupported。设置里这三种和拒绝过（denied）开关都灰着，各给一句原因。
+//   后台脚本没就绪、本站公钥没取到（网络、站点一时出错）不算不支持：回到 unknown（开关灰着、不给原因），下次 syncPush 再试
+//   （打开设置时会再调一次）。
 //   每次打开 CC 同步一次（syncPush）：浏览器里已有订阅就重新交给本站，同一台设备换人登录时归到现在登录的人；
 //   本站公钥换过就退掉旧订阅，开关显示为关。退出登录前只让本站删掉这台设备（forgetDevice，不看开关状态），
 //   浏览器里的订阅留着，下一个人登录时再认领。
@@ -16,8 +19,8 @@ import { isDesktopApp } from "@/lib/desktop";
 import { get, post, SiteError } from "@/lib/frappe";
 import { isIOS, standalone } from "@/lib/install";
 
-/** unknown：还没同步完（不显示开关）；install：iPhone 在浏览器页签里，要先添加到主屏幕。 */
-export type PushState = "unknown" | "unsupported" | "install" | "denied" | "off" | "on";
+/** unknown：还没同步完（开关灰着）；install：iPhone 在浏览器页签里，要先添加到主屏幕；desktop：CC 桌面端窗口。 */
+export type PushState = "unknown" | "desktop" | "unsupported" | "install" | "denied" | "off" | "on";
 
 let state: PushState = "unknown";
 // 上一次打开失败的原因（空 = 没失败）
@@ -72,15 +75,18 @@ function within<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 async function sync(): Promise<void> {
-  if (isDesktopApp()) return setState("unsupported");
+  if (isDesktopApp()) return setState("desktop");
   if (isIOS() && !standalone()) return setState("install");
   if (!capable()) return setState("unsupported");
-  // 后台脚本没注册上 ready 永远不来、本站还没有推送接口都算不支持：不显示开关
+  // 后台脚本 15 秒没就绪、本站公钥没取到：这台设备本身支持，只是这次没准备好 —— 回到 unknown，下次 syncPush 再试
   const found = await within(
     Promise.all([navigator.serviceWorker.ready, get<{ key: string }>("push_key").then((r) => r?.key)]),
     15_000,
   ).catch(() => null);
-  if (!found?.[1]) return setState("unsupported");
+  if (!found?.[1]) {
+    synced = null;
+    return setState("unknown");
+  }
   const [reg, text] = found;
   const key = bytesOf(text);
   registration = reg;
@@ -104,7 +110,7 @@ async function sync(): Promise<void> {
   }
 }
 
-/** 每次打开 CC 调一次（重复调用只做一次）。 */
+/** 每次打开 CC 调一次（重复调用只做一次；上次没准备好的再试一次）。 */
 export function syncPush(): Promise<void> {
   synced ??= sync().catch(() => setState("unsupported"));
   return synced;
@@ -185,7 +191,7 @@ function subscribeStore(listener: () => void) {
 }
 
 export function usePush(): { state: PushState; failure: string; enable: () => Promise<void>; disable: () => Promise<void> } {
-  const current = useSyncExternalStore(subscribeStore, () => state);
-  const reason = useSyncExternalStore(subscribeStore, () => failure);
+  const current = useSyncExternalStore(subscribeStore, () => state, () => state);
+  const reason = useSyncExternalStore(subscribeStore, () => failure, () => failure);
   return { state: current, failure: reason, enable: enablePush, disable: disablePush };
 }

@@ -155,8 +155,9 @@ class PushTests(unittest.TestCase):
         self.assertIn('post("push_unsubscribe", { endpoint: subscription.endpoint })', push)
         self.assertIn('const BASE = "/api/method/pearnly_core.assistant.api.";', read("lib/frappe.ts"))
         # 桌面端窗口不用；iPhone 只有主屏幕 app 收得到
-        self.assertIn('if (isDesktopApp()) return setState("unsupported");', push)
+        self.assertIn('if (isDesktopApp()) return setState("desktop");', push)
         self.assertIn('if (isIOS() && !standalone()) return setState("install");', push)
+        self.assertIn('if (!capable()) return setState("unsupported");', push)
         # 打开要在点击里直接订阅：enablePush 里第一个异步动作就是 subscribe
         enable = push.split("export function enablePush()", 1)[1].split("\n}", 1)[0]
         self.assertNotIn("await", enable)
@@ -168,8 +169,14 @@ class PushTests(unittest.TestCase):
         self.assertIn('push.failure && <div className="text-danger text-xs">{push.failure}</div>', settings)
         self.assertIn("export function Switch(", settings)
         self.assertIn("<Notifications />", settings)
-        self.assertIn("st.notificationsBlocked", settings)
-        self.assertIn('t("addToHome")', settings)
+        # 这一行一直在（桌面端窗口除外）：开不了开关灰着，下面一行给原因（用户 2026-10-13，iPhone 上找不到「通知」）
+        row = settings.split("export function Notifications()", 1)[1].split("\n}", 1)[0]
+        self.assertIn('if (push.state === "desktop") return null;', row)
+        self.assertIn("disabled={!usable}", row)
+        for reason in ("st.notificationsBlocked", "st.notificationsAddToHome", "st.notificationsUnsupported"):
+            self.assertIn(reason, row)
+        self.assertIn("onClick={showGuide}", row)  # 「添加到主屏幕」那句点了打开添加步骤
+        self.assertIn("useEffect(() => void syncPush(), []);", row)  # 上次没准备好，打开设置再同步一次
         page = read("assistant.tsx")
         sign_out = page.split("async function signOut()", 1)[1].split("\n}", 1)[0]
         self.assertLess(sign_out.index("await forgetDevice()"), sign_out.index("pearnly_core.identity.sign_out"))
@@ -292,7 +299,8 @@ class TextTests(unittest.TestCase):
             words = keys(block(messages, f"  {lang}: {{"))
             self.assertTrue({"notice", "newNotice"} <= words, lang)
             words = keys(block(settings, f"  {lang}: {{"))
-            self.assertTrue({"notifications", "turnOnNotifications", "notificationsBlocked", "notificationsFailed"} <= words, lang)
+            self.assertTrue({"notifications", "turnOnNotifications", "notificationsBlocked", "notificationsFailed",
+                             "notificationsAddToHome", "notificationsUnsupported"} <= words, lang)
         self.assertNotIn("Express", messages.split("conversationMenu", 1)[1].split("}", 1)[0])
 
 
@@ -692,6 +700,170 @@ await enablePush();
 assert.deepEqual(currentPush(), { state: "on", failure: "" });
 g.done();
 """, stubs=self.PUSH_STUBS, lang="zh")
+
+
+    # ── 「通知」一行（用户 2026-10-13，iPhone 主屏幕 app 泰文界面录制时发现）─────────────────────────────────────
+    # 设备模拟在页面模块加载前就位：触屏、装没装成主屏幕 app（display-mode / navigator.standalone）、
+    # 浏览器有没有网页推送（PushManager / Notification）。用 react-dom/server 渲染真实组件，看显示出来的 HTML。
+    IOS_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS {v} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+              "Version/{s} Mobile/15E148 Safari/604.1")
+    IPAD_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 "
+               "Safari/605.1.15")
+    DEVICES = {
+        # iPhone 的 Safari 页签：没有网页推送，要先添加到主屏幕
+        "iphone-safari": {"ua": IOS_UA.format(v="18_6", s="18.6"), "touch": True, "standalone": False, "push": False},
+        # iPhone 主屏幕 app（iOS 16.4 起有网页推送）
+        "iphone-home": {"ua": IOS_UA.format(v="18_6", s="18.6"), "touch": True, "standalone": True, "push": True},
+        # iOS 16.3 的主屏幕 app：还没有网页推送
+        "iphone-old-home": {"ua": IOS_UA.format(v="16_3", s="16.3"), "touch": True, "standalone": True, "push": False},
+        # 安卓 LINE 内置浏览器：没有网页推送
+        "android-line": {"ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Version/4.0 Chrome/129.0.0.0 Mobile Safari/537.36 Line/14.15.0",
+                         "touch": True, "standalone": False, "push": False},
+        "windows-chrome": {"ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                                 "Chrome/129.0.0.0 Safari/537.36", "touch": False, "standalone": False, "push": True},
+    }
+
+    DEVICE = r"""
+const g = globalThis as any;
+g.device = __DEVICE__;
+g.addEventListener = () => {};
+g.removeEventListener = () => {};
+g.dispatchEvent = () => true;
+g.matchMedia = (query: string) => ({
+  media: query,
+  matches: query === "(display-mode: standalone)" ? g.device.standalone : /hover: none|pointer: coarse/.test(query) && g.device.touch,
+  addEventListener() {}, removeEventListener() {},
+});
+g.existing = null;
+g.registration = { pushManager: { getSubscription: async () => g.existing, subscribe: async () => g.existing } };
+const nav: any = {
+  userAgent: g.device.ua, maxTouchPoints: g.device.touch ? 5 : 0, language: "en",
+  serviceWorker: { register: async () => g.registration, ready: Promise.resolve(g.registration), getRegistration: async () => g.registration },
+};
+if (/iPhone|iPad|Macintosh/.test(g.device.ua) && g.device.touch) nav.standalone = g.device.standalone;
+Object.defineProperty(g, "navigator", { configurable: true, value: nav });
+if (g.device.push) {
+  g.PushManager = class {};
+  g.Notification = { permission: g.device.permission ?? "default" };
+}
+g.ok = (message: any = null) => ({ ok: true, status: 200, json: async () => ({ message }) });
+g.respond = async (method: string) => (method === "push_key" ? g.ok({ key: "BAEC" }) : g.ok());
+"""
+
+    PAGE = r"""
+import "cc-test-setup";
+import "cc-device";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";  // 浏览器版：打成 ESM 后不用 require 内置模块
+import { Notifications } from "@/components/settings";
+import { currentPush, enablePush, syncPush } from "@/lib/push";
+
+const g = globalThis as any;
+const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(type, props));
+const row = () => html(Notifications);
+// 显示出来的文字（按元素分行）与开关那个按钮
+const text = (markup: string) =>
+  markup.replace(/<[^>]+>/g, "\n").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").split("\n").map((s) => s.trim()).filter(Boolean);
+const toggle = (markup: string) => /<button[^>]*role="switch"[^>]*>/.exec(markup)?.[0] ?? "";
+"""
+
+    def on_device(self, kind, checks, lang="en", **overrides):
+        device = {**self.DEVICES[kind], **overrides}
+        run_ts(self.PAGE + checks + "\ng.done();\n", lang=lang, stubs={
+            "cc-device": self.DEVICE.replace("__DEVICE__", json.dumps(device)),
+            # profile.ts 用 Vite 的 import.meta.glob 取品牌图，这里用不到
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+        })
+
+    def test_iphone_safari_tab_shows_the_row_with_add_to_home_screen(self):
+        self.on_device("iphone-safari", r"""
+await syncPush();
+assert.equal(currentPush().state, "install");
+const markup = row();
+assert.deepEqual(text(markup), ["การแจ้งเตือน", "เพิ่ม CC ไปยังหน้าจอโฮมเพื่อเปิดการแจ้งเตือน"]);
+assert.match(toggle(markup), /aria-checked="false"/);
+assert.match(toggle(markup), /aria-label="การแจ้งเตือน"/);
+assert.match(toggle(markup), /disabled=""/);
+assert.equal(g.calls.some((c: any) => c.method === "push_key"), false);  // 页签里不去取公钥
+""", lang="th")
+        # iPad 的 Safari 自称 Mac（有触屏）：同样要先添加到主屏幕
+        self.on_device("iphone-safari", r"""
+await syncPush();
+assert.equal(currentPush().state, "install");
+assert.deepEqual(text(row()), ["Notifications", "Add CC to your Home Screen to turn on notifications"]);
+""", ua=self.IPAD_UA)
+
+    def test_devices_without_web_push_say_so(self):
+        for kind, lang, label, reason in (("iphone-old-home", "en", "Notifications", "Notifications aren't supported on this device"),
+                                          ("android-line", "zh", "通知", "此设备不支持通知")):
+            with self.subTest(kind):
+                self.on_device(kind, r"""
+await syncPush();
+assert.equal(currentPush().state, "unsupported");
+const markup = row();
+assert.deepEqual(text(markup), [LABEL, REASON]);
+assert.match(toggle(markup), /disabled=""/);
+""".replace("LABEL", json.dumps(label)).replace("REASON", json.dumps(reason, ensure_ascii=False)), lang=lang)
+
+    def test_blocked_in_settings_keeps_its_reason(self):
+        self.on_device("windows-chrome", r"""
+await syncPush();
+assert.equal(currentPush().state, "denied");
+const markup = row();
+assert.deepEqual(text(markup), ["Notifications", "Blocked in browser settings"]);
+assert.match(toggle(markup), /disabled=""/);
+""", permission="denied")
+
+    def test_supported_devices_keep_the_switch(self):
+        # 电脑浏览器、iPhone 主屏幕 app：开关能点，打开照旧（订阅交给本站）
+        for kind in ("windows-chrome", "iphone-home"):
+            with self.subTest(kind):
+                self.on_device(kind, r"""
+await syncPush();
+assert.equal(currentPush().state, "off");
+let markup = row();
+assert.deepEqual(text(markup), ["Notifications"]);
+assert.doesNotMatch(toggle(markup), / disabled=""/);
+assert.match(toggle(markup), /aria-checked="false"/);
+
+g.Notification.permission = "granted";
+g.existing = {
+  endpoint: "https://push.test/device-1",
+  options: { applicationServerKey: new Uint8Array([4, 1, 2]).buffer },
+  toJSON: () => ({ keys: { p256dh: "p", auth: "a" } }),
+  unsubscribe: async () => true,
+};
+await enablePush();
+assert.equal(currentPush().state, "on");
+markup = row();
+assert.doesNotMatch(toggle(markup), / disabled=""/);
+assert.match(toggle(markup), /aria-checked="true"/);
+assert.deepEqual(g.calls.filter((c: any) => c.method === "push_subscribe").map((c: any) => c.body.endpoint), ["https://push.test/device-1"]);
+""")
+
+    def test_desktop_window_has_no_row_and_a_slow_start_is_retried(self):
+        self.on_device("windows-chrome", r"""
+g.qt = { webChannelTransport: {} };
+await syncPush();
+assert.equal(currentPush().state, "desktop");
+assert.equal(row(), "");
+""")
+        # 公钥一时没取到：不说「不支持」，开关灰着；再同步一次（打开设置时）就好了
+        self.on_device("windows-chrome", r"""
+g.respond = async () => ({ ok: false, status: 502, json: async () => ({}) });
+await syncPush();
+assert.equal(currentPush().state, "unknown");
+let markup = row();
+assert.deepEqual(text(markup), ["Notifications"]);
+assert.match(toggle(markup), /disabled=""/);
+g.respond = async (method: string) => (method === "push_key" ? g.ok({ key: "BAEC" }) : g.ok());
+await syncPush();
+assert.equal(currentPush().state, "off");
+assert.doesNotMatch(toggle(row()), / disabled=""/);
+assert.equal(g.calls.filter((c: any) => c.method === "push_key").length, 2);
+""")
 
 
     # ── 界面语言（用户 2026-10-13）：站点按共用层规则定页面语言，页面照它显示、每个请求都带着它 ──────────────
