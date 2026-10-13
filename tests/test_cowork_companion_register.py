@@ -31,6 +31,10 @@ class DeviceConnection(unittest.TestCase):
         self.assertEqual(self.pick(rows(("C-E", "express"), ("C-M", "mrerp")), False), "C-M")
         self.assertEqual(self.pick(rows(("C-E", "express")), False), "C-E")
 
+    def test_computer_with_express_never_takes_the_mrerp_connection(self):
+        # 本站只有 MR.ERP 连接：装了 Express 的电脑不连它，回 None 让 register 新建 Express 连接
+        self.assertIsNone(self.pick(rows(("C-M", "mrerp")), True))
+
     def test_nothing_to_connect(self):
         self.assertIsNone(self.pick([], True))
         self.assertIsNone(self.pick([], False))

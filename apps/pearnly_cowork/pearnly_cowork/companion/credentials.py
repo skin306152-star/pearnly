@@ -237,12 +237,14 @@ def issue(connection, request_key, reset=False, expected_generation=None):
 
 
 def _device_connection(express):
-    """这台电脑该连哪条连接：装了 Express 的连 Express；没装的连 MR.ERP（只读文件夹给定时任务），
-    没有 MR.ERP 再退回 Express。只看本站那一份归属下启用的连接，网页上每种只用一条。"""
+    """这台电脑该连哪条连接：装了 Express 的只连 Express（本站还没有就回 None，由 `register` 新建），绝不退到
+    MR.ERP——退过去这台电脑就写不了 Express、定时任务也用不了（2026-10-13 录制：testcowork 只剩 MR.ERP 连接时，
+    装了 Express 的新笔记本连成了 MR.ERP）；没装的连 MR.ERP（只读文件夹给定时任务），没有 MR.ERP 再退回 Express。
+    只看本站那一份归属下启用的连接，网页上每种只用一条。"""
     rows = frappe.db.sql('''SELECT name, adapter FROM `tabCowork ERP Connection`
         WHERE workspace=%s AND COALESCE(client,'')='' AND enabled=1 AND binding_generation=0
         AND adapter IN %s ORDER BY creation, name''', (access.default_workspace(), HELPER_ADAPTERS), as_dict=True)
-    order = ('express', 'mrerp') if express else ('mrerp', 'express')
+    order = ('express',) if express else ('mrerp', 'express')
     for adapter in order:
         found = next((row.name for row in rows if row.adapter == adapter), None)
         if found:

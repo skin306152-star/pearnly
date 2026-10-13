@@ -93,8 +93,12 @@ def authorize_url(issuer_url: str, *, redirect_uri: str, state: str, nonce: str,
     return f"{issuer(issuer_url)}/protocol/openid-connect/auth?{urlencode(params)}"
 
 
-def site_entry_url(site_name: str, locale: str = "") -> str:
+def site_entry_url(site_name: str, locale: str = "", picked: bool = False) -> str:
     """进入某个公司站点的智能体：交给站点自己的统一登录口，账号池里已有登录状态时不再要密码。
-    `locale` 是用户刚在入口页点选的语言：站点登录时写进账号（不点就用账号里存的）。"""
+    `locale` 是入口页这次显示的语言，`picked` 表示是用户点选的（不是按浏览器 / 系统语言自动显示的）。
+    站点按 pearnly_core.account.ui_language 的规则用它：点选的，或这台设备第一次登录，就成了这台设备的界面语言
+    并写进账号；这台设备已记住语言、这次又没点，就照旧。"""
     url = f"https://{site(site_name)}/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant"
-    return url + f"&locale={locale}" if locale in LANGS else url
+    if locale not in LANGS:
+        return url
+    return url + f"&locale={locale}" + ("&picked=1" if picked else "")

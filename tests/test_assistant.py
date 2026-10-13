@@ -1765,6 +1765,173 @@ class BrandAndLoginTests(unittest.TestCase):
         self.assertNotIn("begin_login", client)
 
 
+
+# ── 对话页的界面语言（共用层 account/ui_language + account/preferences，用户 2026-10-13）─────────────────────
+# 泰文 Windows 的新电脑装好 CC，登录页按系统语言显示泰文，登录后整页却是账号里以前存的中文。
+ui_language = _load("assistant_ui_language", CORE / "account/ui_language.py")
+DEVICE_SECONDS = 400 * 86400
+
+
+class _AccountFrappe(types.ModuleType):
+    """够 account/preferences 跑的最小 frappe：这次请求的 Cookie 与请求头、写出的 Cookie、账号语言、没同步成的语言。"""
+
+    class AuthenticationError(Exception):
+        pass
+
+    class PermissionError(Exception):
+        pass
+
+    def __init__(self, device="", accept="", account="zh"):
+        super().__init__("frappe")
+        self.request = types.SimpleNamespace(cookies={"pearnly_locale": device} if device else {},
+                                             headers={"Accept-Language": accept} if accept else {})
+        self.written = {}
+        self.local = types.SimpleNamespace(lang=account, cookie_manager=types.SimpleNamespace(
+            set_cookie=lambda key, value, **kw: self.written.__setitem__(key, (value, kw))))
+        self.session = types.SimpleNamespace(user="owner@example.test")
+        self.flags = types.SimpleNamespace()
+        self.conf = {"pearnly_native_account": 1}
+        self.user = types.SimpleNamespace(name="owner@example.test", language=account, save=lambda **kw: None)
+        self.pending = {}
+        self.defaults = types.SimpleNamespace(
+            get_user_default=lambda key, user=None: self.pending.get(key),
+            set_user_default=lambda key, value: self.pending.__setitem__(key, value))
+
+    def get_doc(self, doctype, name):
+        return self.user
+
+    def get_cached_value(self, doctype, name, field):
+        return self.user.language
+
+    def throw(self, message, exc=None):
+        raise (exc or Exception)(message)
+
+    def whitelist(self, *args, **kwargs):
+        return lambda fn: fn
+
+    @staticmethod
+    def _(text):
+        return text
+
+
+def _preferences(native, synced=True):
+    """按 native 载入 account/preferences；身份服务换成只记写了什么的替身（synced=False：写不进，留到下次登录）。"""
+    written = []
+    oidc = types.ModuleType("pearnly_core.account.oidc_session")
+    oidc.update_locale = lambda locale: written.append(locale) or synced
+    package = types.ModuleType("pearnly_core.account")
+    package.oidc_session, package.ui_language = oidc, ui_language
+    with mock.patch.dict(sys.modules, {"frappe": native, "pearnly_core.account": package,
+                                       "pearnly_core.account.oidc_session": oidc,
+                                       "pearnly_core.account.ui_language": ui_language}):
+        module = _load("assistant_account_preferences", CORE / "account/preferences.py")
+    return module, written
+
+
+class InterfaceLanguageTests(unittest.TestCase):
+    def test_tags_map_to_the_page_languages(self):
+        for tag, want in (("th-TH", "th"), ("TH", "th"), ("zh-CN", "zh"), ("zh_TW", "zh"), ("zh-Hant-HK", "zh"),
+                          ("en-US", "en"), ("ja-JP", ""), ("", ""), (None, "")):
+            self.assertEqual(ui_language.normalize(tag), want, tag)
+        self.assertEqual(ui_language.from_accept_language("th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7"), "th")
+        self.assertEqual(ui_language.from_accept_language("ja-JP,ja;q=0.9,zh-CN;q=0.5"), "zh")
+        self.assertEqual(ui_language.from_accept_language("fr-FR,de"), "")
+
+    def test_the_rule(self):
+        # 第一次在这台设备登录：登录页显示的（没点，按系统语言）就是它，账号里存的中文不算
+        self.assertEqual(ui_language.sign_in_choice(device="", shown="th"), "th")
+        # 这台设备记住了中文：系统泰文、登录页显示泰文也照旧
+        self.assertEqual(ui_language.sign_in_choice(device="zh", shown="th"), "")
+        self.assertEqual(ui_language.interface(device="zh-CN", account="th", accept_language="th-TH,th"), "zh")
+        # 登录页上点的算在这台设备上自己选的
+        self.assertEqual(ui_language.sign_in_choice(device="zh", shown="en", picked=True), "en")
+        # 没有登录页语言（从后台登录、LINE）：不替设备定
+        self.assertEqual(ui_language.sign_in_choice(device="", shown=None, picked=True), "")
+        self.assertEqual(ui_language.sign_in_choice(device="", shown="fr"), "")
+        # 兜底：账号语言 → 系统语言 → 英文
+        self.assertEqual(ui_language.interface("", "zh", "th-TH"), "zh")
+        self.assertEqual(ui_language.interface("", "ja", "th-TH,th"), "th")  # 账号是对话页没有的语言
+        self.assertEqual(ui_language.interface("ja", "", "fr-FR,de"), "en")
+        self.assertEqual(ui_language.interface(None, None, None), "en")
+
+    def test_first_sign_in_with_a_thai_system_and_a_chinese_account(self):
+        native = _AccountFrappe(device="", accept="th-TH,th;q=0.9", account="zh")
+        prefs, identity_service = _preferences(native)
+        prefs.finish_login_locale("owner@example.test", "zh-CN", "th", False)
+        self.assertEqual(native.user.language, "th")  # 账号语言跟着改：后台的提醒、简报、LINE 也是泰文
+        self.assertEqual(identity_service, ["th"])  # 写回身份服务
+        self.assertEqual(native.written["pearnly_locale"], ("th", {"max_age": DEVICE_SECONDS, "httponly": True}))
+        native.request.cookies = {"pearnly_locale": native.written["pearnly_locale"][0]}
+        self.assertEqual(prefs.interface_language(), "th")
+
+    def test_a_device_that_remembers_chinese_stays_chinese_on_a_thai_system(self):
+        native = _AccountFrappe(device="zh-CN", accept="th-TH,th", account="th")
+        prefs, identity_service = _preferences(native)
+        prefs.finish_login_locale("owner@example.test", "th", "th", False)
+        self.assertEqual(identity_service, [])  # 没有新选择：不改账号
+        self.assertEqual(native.user.language, "th")
+        self.assertEqual(native.written["pearnly_locale"][0], "zh-CN")  # 续期
+        self.assertEqual(prefs.interface_language(), "zh")
+        # 换成在登录页上点了英文：这台设备与账号都改成英文
+        prefs.finish_login_locale("owner@example.test", "th", "en", True)
+        self.assertEqual((identity_service, native.user.language, native.written["pearnly_locale"][0]),
+                         (["en"], "en", "en"))
+
+    def test_explicit_pick_in_the_page_is_remembered_and_saved(self):
+        native = _AccountFrappe(device="th", accept="th-TH", account="th")
+        prefs, identity_service = _preferences(native, synced=False)
+        self.assertEqual(prefs.set_language("zh"), {"language": "zh"})
+        self.assertEqual(native.user.language, "zh")
+        self.assertEqual(native.written["pearnly_locale"], ("zh-CN", {"max_age": DEVICE_SECONDS, "httponly": True}))
+        # 身份服务这次没写进：下次登录补写，且设备已记住中文，登录页显示泰文也不顶掉
+        self.assertEqual(native.pending["pearnly_pending_locale"], "zh")
+        native.request.cookies = {"pearnly_locale": "zh-CN"}
+        prefs.finish_login_locale("owner@example.test", "th", "th", False)
+        self.assertEqual((identity_service[-1], native.user.language), ("zh-CN", "zh"))
+        self.assertEqual(prefs.interface_language(), "zh")
+
+    def test_no_device_choice_falls_back_to_account_then_system(self):
+        native = _AccountFrappe(device="", accept="th-TH,th", account="zh")
+        prefs, _ = _preferences(native)
+        self.assertEqual(prefs.interface_language(), "zh")
+        native.user.language = "ja"
+        self.assertEqual(prefs.interface_language(), "th")
+        native.request.headers = {}
+        self.assertEqual(prefs.interface_language(), "en")
+
+    def test_page_requests_follow_the_page_not_the_account(self):
+        native = _AccountFrappe(account="zh")
+        prefs, _ = _preferences(native)
+        for header, want in (("th", "th"), ("en", "en"), ("ja", "zh"), ("zh-CN", "zh"), ("", "zh")):
+            native.local.lang = "zh"
+            native.request.headers = {"X-Pearnly-Lang": header}
+            prefs.use_page_language()
+            self.assertEqual(native.local.lang, want, header)
+
+    def test_wiring(self):
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        before = hooks.split("\nbefore_request = [", 1)[1].split("]", 1)[0]
+        self.assertIn('"pearnly_core.account.preferences.use_page_language"', before)
+        self.assertIn("preferences.interface_language()", (CORE / "www/assistant.py").read_text(encoding="utf-8"))
+        identity = (CORE / "identity.py").read_text(encoding="utf-8")
+        self.assertIn('def begin_login(redirect_to: str | None = None, locale: str | None = None, picked: str | None = None)',
+                      identity)
+        self.assertEqual(identity.count('saved.get("locale"), bool(saved.get("picked"))'), 2)  # 账号登录与 LINE 登录
+        # 对话页的语言与这里一致；页面调本站接口都经 siteFetch 带上语言（开户电脑密钥的请求不出文案，例外）
+        src = ROOT / "frontend/assistant/src"
+        i18n = (src / "i18n.ts").read_text(encoding="utf-8")
+        self.assertIn('const SUPPORTED = ["th", "zh", "en"];', i18n)
+        menu = i18n.split("export const LANGUAGES = [", 1)[1].split("];", 1)[0]
+        self.assertEqual(sorted(re.findall(r'code: "(\w+)"', menu)), sorted(ui_language.UI_LANGUAGES))
+        self.assertIn('export const LANG_HEADER = "X-Pearnly-Lang";', (src / "lib/frappe.ts").read_text(encoding="utf-8"))
+        raw = []
+        for path in sorted(src.rglob("*.ts*")):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if re.search(r"(?<![\w.])fetch\(\s*[`\"']/api/method/", line):
+                    raw.append(f"{path.relative_to(src)}: {line.strip()}")
+        self.assertEqual(raw, ['lib/desktop.ts: const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {'])
+
+
 class _Doc(types.SimpleNamespace):
     """开户单 / 租户表单替身：`stored` 是库里那份密钥，`before` 是保存前的字段。"""
 

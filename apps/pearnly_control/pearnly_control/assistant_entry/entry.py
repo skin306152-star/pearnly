@@ -25,7 +25,7 @@ REMEMBER_DAYS = 180
 ISSUER_COOKIE = "pearnly_ai_issuer"
 SITE_COOKIE = "pearnly_ai_site"
 LANG_COOKIE = "pearnly_locale"
-# 用户在入口页上点了语言才有（30 分钟）：这时进站点把这个语言写进账号；只是浏览器默认语言或很久前点的不算
+# 用户在入口页上点了语言才有（30 分钟，用过一次就删）：这次登录算用户在这台设备上自己选的语言
 LANG_PICKED_COOKIE = "pearnly_locale_picked"
 _jwks: dict = {}
 
@@ -216,7 +216,10 @@ def choose(pick: str, site: str) -> None:
 
 
 def go(site: str) -> None:
+    """交给公司站点登录，带上入口页这次显示的语言（点选的还是按系统语言自动显示的都带，另注明是不是点的）：
+    这台设备第一次登录时它就是界面语言（用户 2026-10-13：泰文系统的新电脑，登录页是泰文，进去不能变成账号里存的中文）。"""
     _remember(SITE_COOKIE, site)
-    request = getattr(frappe.local, "request", None)
-    picked = request is not None and bool(request.cookies.get(LANG_PICKED_COOKIE))
-    return _redirect(contracts.site_entry_url(site, lang() if picked else ""))
+    picked = bool(_remembered(LANG_PICKED_COOKIE))
+    if picked:
+        frappe.local.cookie_manager.delete_cookie(LANG_PICKED_COOKIE)  # 只算这一次登录
+    return _redirect(contracts.site_entry_url(site, lang(), picked))

@@ -67,16 +67,21 @@ class Callback(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-    def begin(self, state="s1", redirect_to="/desk/x", idp_hint=None, locale=None):
+    def begin(self, state="s1", redirect_to="/desk/x", idp_hint=None, locale=None, picked=None):
         self.store.values[identity._state_key(state)] = {
             "nonce": "n", "verifier": "v", "redirect_to": redirect_to, "idp_hint": idp_hint, "expected_user": None,
-            "locale": locale}
+            "locale": locale, "picked": picked}
 
-    def test_language_picked_at_the_entry_reaches_the_account(self):
-        self.begin(locale="en")
+    def test_language_shown_at_the_entry_reaches_the_language_rule(self):
+        # 入口页这次显示的语言与是不是点的都交给 preferences（规则在 ui_language：点的、或这台设备第一次登录才用它）
+        self.begin(locale="en", picked=True)
         self.claims["locale"] = "zh-CN"
         identity.callback(code="c", state="s1")
-        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", "zh-CN", "en")
+        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", "zh-CN", "en", True)
+        self.mocks["preferences"].reset_mock()
+        self.begin(state="s2", locale="th")  # 没点，只是按系统语言显示的泰文
+        identity.callback(code="c", state="s2")
+        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", "zh-CN", "th", False)
 
     def test_password_login_resolves_by_subject(self):
         self.begin()
@@ -101,7 +106,7 @@ class Callback(unittest.TestCase):
         # 专用身份不是本站账号：不留刷新令牌、不拿它的用户名和语言。
         self.mocks["oidc_session"].remember.assert_called_once_with({"id_token": "id-token"}, "line-person")
         self.profile.apply_login_username.assert_not_called()
-        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", None, None)
+        self.mocks["preferences"].finish_login_locale.assert_called_once_with("owner@example.test", None, None, False)
 
     def test_refused_login_ends_the_identity_session_and_explains(self):
         for line in (False, True):
@@ -127,7 +132,8 @@ class Callback(unittest.TestCase):
         # LINE 内置浏览器把同一个回调又发了一次，而且第一次的登录 cookie 没到手：重新走一遍。
         identity.callback(code="c", state="s1")
         self.mocks["_login_as"].assert_not_called()
-        self.mocks["_begin_login"].assert_called_once_with("/desk/x", idp_hint="line-2010411313", locale=None)
+        self.mocks["_begin_login"].assert_called_once_with("/desk/x", idp_hint="line-2010411313", locale=None,
+                                                           picked=None)
         # 已经登录了：直接去目标页。
         self.native.session.user = "owner@example.test"
         identity.callback(code="c", state="s1")

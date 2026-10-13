@@ -29,6 +29,8 @@ before_request = [
     "pearnly_core.login_redirect.redirect_guests_to_identity",
     # 已登录用户打开根路径：直接去自己的工作台，不要先过一屏"桌面"
     "pearnly_core.login_redirect.send_root_to_home",
+    # 对话页（CC）的请求带着页面当前的界面语言：这次请求的文案按它，不按账号里存的另一种
+    "pearnly_core.account.preferences.use_page_language",
 ]
 
 # Apps

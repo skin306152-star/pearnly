@@ -10,6 +10,7 @@ import subprocess
 import sys
 import types
 import unittest
+from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -74,11 +75,55 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(query["login_hint"], "somchai")
         self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com"),
                          "https://acme-cowork.pearnly.com/api/method/pearnly_core.identity.begin_login?redirect_to=/assistant")
-        # 入口页上刚点选的语言带给站点，登录时写进账号；不认识的不带
+        # 入口页这次显示的语言带给站点（按系统语言自动显示的也带），点选的另注明；不认识的不带
         self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com", "en"),
                          "https://acme-cowork.pearnly.com/api/method/pearnly_core.identity.begin_login"
                          "?redirect_to=/assistant&locale=en")
-        self.assertNotIn("locale", contracts.site_entry_url("acme-cowork.pearnly.com", "fr&x=1"))
+        self.assertEqual(contracts.site_entry_url("acme-cowork.pearnly.com", "zh", picked=True),
+                         "https://acme-cowork.pearnly.com/api/method/pearnly_core.identity.begin_login"
+                         "?redirect_to=/assistant&locale=zh&picked=1")
+        self.assertNotIn("locale", contracts.site_entry_url("acme-cowork.pearnly.com", "fr&x=1", picked=True))
+
+
+
+class GoTests(unittest.TestCase):
+    """交给公司站点登录时带上入口页这次显示的语言（用户 2026-10-13：泰文系统的新电脑，登录页是泰文，
+    进去却是账号里存的中文）。点选过的只算这一次登录。"""
+
+    def setUp(self):
+        self.cookies, self.deleted = {}, []
+        native = types.ModuleType("frappe")
+        native._ = lambda text: text
+        native.conf = {}
+        native.local = types.SimpleNamespace(
+            request=types.SimpleNamespace(cookies=self.cookies, headers={"Accept-Language": "th-TH,th;q=0.9,en;q=0.8"}),
+            response={}, cookie_manager=types.SimpleNamespace(set_cookie=lambda *a, **kw: None,
+                                                              delete_cookie=self.deleted.append))
+        package = types.ModuleType("pearnly_control.assistant_entry")
+        package.contracts = contracts
+        modules = {"frappe": native, "jwt": types.ModuleType("jwt"), "requests": types.ModuleType("requests"),
+                   "pearnly_control": types.ModuleType("pearnly_control"), "pearnly_control.assistant_entry": package,
+                   "pearnly_control.assistant_entry.contracts": contracts}
+        patcher = mock.patch.dict(sys.modules, modules)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.native = native
+        self.entry = _load("entry_go", CONTROL / "assistant_entry/entry.py")
+
+    def go(self):
+        self.entry.go("acme-cowork.pearnly.com")
+        location = urlsplit(self.native.local.response["location"])
+        self.assertEqual(location.path, "/api/method/pearnly_core.identity.begin_login")
+        return {k: v[0] for k, v in parse_qs(location.query).items()}
+
+    def test_the_language_shown_by_the_system_goes_along(self):
+        self.assertEqual(self.go(), {"redirect_to": "/assistant", "locale": "th"})
+        self.assertEqual(self.deleted, [])
+
+    def test_a_click_counts_for_this_sign_in_only(self):
+        self.cookies.update({"pearnly_locale": "zh", "pearnly_locale_picked": "1"})
+        self.assertEqual(self.go(), {"redirect_to": "/assistant", "locale": "zh", "picked": "1"})
+        self.assertEqual(self.deleted, ["pearnly_locale_picked"])
 
 
 class _Frappe(types.ModuleType):

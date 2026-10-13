@@ -6,6 +6,7 @@
 浏览器接口（通知、后台脚本、fetch）换成桩，验证审查发现的失败场景已经不再出现。要先装好前端依赖
 （npm ci --prefix frontend/assistant）且有 node，否则跳过。
 """
+import importlib.util
 import json
 import os
 import pathlib
@@ -18,6 +19,17 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend/assistant"
 SRC = FRONTEND / "src"
+
+
+def _rule():
+    """共用层的界面语言规则（apps/pearnly_core/pearnly_core/account/ui_language.py，纯规则）：站点按它给页面定 <html lang>。"""
+    spec = importlib.util.spec_from_file_location("cc_ui_language", ROOT / "apps/pearnly_core/pearnly_core/account/ui_language.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ui_language = _rule()
 
 
 def read(path):
@@ -680,6 +692,82 @@ await enablePush();
 assert.deepEqual(currentPush(), { state: "on", failure: "" });
 g.done();
 """, stubs=self.PUSH_STUBS, lang="zh")
+
+
+    # ── 界面语言（用户 2026-10-13）：站点按共用层规则定页面语言，页面照它显示、每个请求都带着它 ──────────────
+    # 页面里记下每个请求带的语言；站点回的提示、步骤说明、术语按这个语言出（pearnly_core.account.preferences.use_page_language）
+    LANGUAGE_PROBE = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { lang, steps, t } from "@/i18n";
+import { chooseLanguage, get, getMethod, post, postMethod, upload } from "@/lib/frappe";
+
+const g = globalThis as any;
+const sent: Array<{ url: string; lang: string; credentials: string }> = [];
+const stub = g.fetch;
+g.fetch = async (url: string, init: any = {}) => {
+  sent.push({ url: String(url), lang: init.headers?.["X-Pearnly-Lang"], credentials: init.credentials });
+  return stub(url, init.body instanceof FormData ? {} : init);
+};
+async function everyRequest() {
+  await get("tool_labels");
+  await post("send", { session_id: "sesn_1", text: "hi" });
+  await upload("upload", { session_id: "sesn_1" }, new File(["x"], "a.txt"));
+  await getMethod("pearnly_cowork.folder_intake.api.terms");
+  await postMethod("pearnly_cowork.folder_intake.api.run_now", { name: "R-1" });
+  return sent.splice(0);
+}
+"""
+
+    def page_language(self, lang, checks):
+        run_ts(self.LANGUAGE_PROBE + checks + "\ng.done();\n", lang=lang)
+
+    def test_first_sign_in_on_a_thai_system_with_a_chinese_account_is_thai(self):
+        # 新电脑，Windows 是泰文：登录页按系统语言显示泰文（没点）；账号里以前存的是中文
+        shown = ui_language.from_accept_language("th-TH,th;q=0.9,en-US;q=0.8")
+        choice = ui_language.sign_in_choice(device="", shown=shown)
+        self.assertEqual(choice, "th")  # 这台设备记住泰文，账号语言也改成泰文（账号这一半见 tests/test_assistant.py）
+        page = ui_language.interface(device=choice, account=choice, accept_language="th-TH,th;q=0.9")
+        self.page_language(page, r"""
+assert.equal(lang, "th");
+assert.equal(t("newChat"), "สร้างใหม่");
+assert.equal(steps.thinkingNow, "กำลังคิด");
+for (const request of await everyRequest()) {
+  assert.equal(request.lang, "th", request.url);
+  assert.equal(request.credentials, "same-origin", request.url);
+}
+""")
+
+    def test_a_device_that_remembers_chinese_stays_chinese_on_a_thai_system(self):
+        self.assertEqual(ui_language.sign_in_choice(device="zh-CN", shown="th"), "")  # 登录页显示泰文也不改
+        page = ui_language.interface(device="zh-CN", account="th", accept_language="th-TH,th;q=0.9")
+        self.page_language(page, r"""
+assert.equal(lang, "zh");
+assert.equal(t("newChat"), "新建");
+const requests = await everyRequest();
+assert.equal(requests.length, 5);
+assert.deepEqual([...new Set(requests.map((r) => r.lang))], ["zh"]);
+""")
+
+    def test_explicit_pick_is_saved_and_the_page_reopens_in_it(self):
+        self.page_language("zh", r"""
+let reloaded = 0;
+g.location.reload = () => void reloaded++;
+await chooseLanguage("th");
+assert.deepEqual(g.calls.at(-1), { method: "/api/method/pearnly_core.account.preferences.set_language", body: { language: "th" } });
+assert.equal(sent.at(-1)?.lang, "zh");  // 这一次还是旧页面发的
+assert.equal(reloaded, 1);
+""")
+        # 站点收下后记在这台设备上（Cookie）并存成账号语言；重新打开时按设备记住的出泰文，系统是中文也一样
+        self.assertEqual(ui_language.interface(device="th", account="th", accept_language="zh-CN,zh"), "th")
+
+    def test_languages_the_page_does_not_have_show_english(self):
+        self.page_language("ja", r"""
+assert.equal(lang, "en");
+assert.equal(t("newChat"), "New chat");
+assert.equal((await everyRequest())[0].lang, "en");
+""")
+        self.page_language("zh-CN", 'assert.equal(lang, "zh");')
 
 
 if __name__ == "__main__":

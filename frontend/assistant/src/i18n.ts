@@ -1,4 +1,6 @@
-// 对话页的文案（语言跟站点：www/assistant 把本次请求的语言写进 <html lang>）。官方、简短；不加说明性文字。
+// 对话页的文案。官方、简短；不加说明性文字。
+// 语言由站点定（www/assistant 写进 <html lang>，规则见 pearnly_core/account/ui_language.py：这台设备记住的 →
+// 账号语言 → 系统语言 → 英文）；页面的每个请求都带着它（lib/frappe.ts），服务端这次请求的文案也按它。
 
 const MESSAGES = {
   en: {
@@ -266,10 +268,13 @@ const MESSAGES = {
 
 type Key = keyof (typeof MESSAGES)["en"];
 
-export const lang = (document.documentElement.lang || "th").slice(0, 2);
+/** 对话页有的语言（与 pearnly_core.account.ui_language.UI_LANGUAGES 一致），别的一律英文。 */
+const SUPPORTED = ["th", "zh", "en"];
+const shown = (document.documentElement.lang || "").slice(0, 2).toLowerCase();
+export const lang = SUPPORTED.includes(shown) ? shown : "en";
 
 export function t(key: Key): string {
-  return ((MESSAGES as Record<string, Record<Key, string>>)[lang] ?? MESSAGES.th)[key];
+  return ((MESSAGES as Record<string, Record<Key, string>>)[lang] ?? MESSAGES.en)[key];
 }
 
 export function greeting(now = new Date()): string {
@@ -309,7 +314,7 @@ const STEPS = {
   },
 };
 
-export const steps = (STEPS as Record<string, (typeof STEPS)["en"]>)[lang] ?? STEPS.th;
+export const steps = (STEPS as Record<string, (typeof STEPS)["en"]>)[lang] ?? STEPS.en;
 
 // 宣传页（pearnly.com）上已有的页面：语言前缀与路径同 website/content.py。
 const SITE = "https://pearnly.com";
@@ -396,7 +401,7 @@ const SETTINGS = {
   },
 };
 
-export const st = (SETTINGS as Record<string, (typeof SETTINGS)["en"]>)[lang] ?? SETTINGS.th;
+export const st = (SETTINGS as Record<string, (typeof SETTINGS)["en"]>)[lang] ?? SETTINGS.en;
 
 /** 侧栏日期分组的标题（同 Claude 网页版）：今天、昨天，再往前是「10月10日」，不是今年的带上年份。 */
 export function dayLabel(day: Date, now = new Date()): string {
