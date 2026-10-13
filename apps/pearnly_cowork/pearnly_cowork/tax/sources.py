@@ -1,6 +1,10 @@
 """报税草稿的数据来源（只读）：Express 回读的 ISVAT（`readback`）与识别记录、50 ทวิ 参考记录（`history`）。
 
 识别记录经 DocType 自己的权限查询读（`frappe.get_list`，同智能体列表工具），先核读识别记录的权限。
+
+50 ทวิ 不管租户选的录不录都读得到（草稿只读，不看推送的选择）：选「录入」或没选的成了识别记录（主页就是凭证）；选「不录入」
+的存成参考记录；和票扫在同一份原件里、挂在票上作证据的凭证页（非发票页）也从那条识别记录里取。同一页既有参考记录又挂在票上
+的，只算参考记录那一条。认凭证用同一条规则（`contracts.document_policy.document_class`）。
 """
 import json
 from datetime import timedelta
@@ -23,7 +27,7 @@ NAME_MIN = 8
 WHT_FIELDS = ("document_type", "document_flag", "direction", "invoice_number", "date", "seller_name", "seller_tax",
               "seller_addr", "seller_branch", "buyer_name", "buyer_tax", "buyer_addr", "buyer_branch", "subtotal",
               "discount", "vat", "total_amount", "wht_rate", "wht_amount", "payment_method", "posting_payment_manual",
-              "category")
+              "category", "is_not_invoice")
 
 
 def vat_readback(connection, account_set_key, year, month):
@@ -43,12 +47,16 @@ def _chunks(values):
         yield values[start:start + CHUNK]
 
 
-def _fields(pages) -> dict:
+def _pages(value) -> list:
     try:
-        pages = json.loads(pages) if isinstance(pages, str) else pages
+        pages = json.loads(value) if isinstance(value, str) else value
     except ValueError:
-        return {}
-    return primary_page_fields(pages if isinstance(pages, list) else [])
+        return []
+    return [page for page in pages if isinstance(page, dict)] if isinstance(pages, list) else []
+
+
+def _fields(pages) -> dict:
+    return primary_page_fields(_pages(pages))
 
 
 def can_read_documents() -> bool:
@@ -135,21 +143,42 @@ def _heads(rows, company, owner, names) -> dict:
     return heads
 
 
+def _wht_fields(fields) -> dict:
+    return {key: fields.get(key) for key in WHT_FIELDS if fields.get(key) not in (None, "")}
+
+
 def _documents(heads) -> list:
+    """取到的识别记录：主页一条；记录里其他页中的 50 ทวิ（挂在票上作证据的凭证页）每页一条，ref 是「记录名#页号」。
+    凭证带上它在原件里的位置 ``page``（原件, 页号）：同一页也存了参考记录的只算参考记录那条（``wht_documents``）。"""
     documents = []
     for chunk in _chunks(heads):
-        for row in frappe.get_list(HISTORY, filters={"name": ["in", chunk]}, fields=["name", "pages"],
+        for row in frappe.get_list(HISTORY, filters={"name": ["in", chunk]}, fields=["name", "pages", "source_file"],
                                    limit_page_length=0):
-            fields = _fields(row.get("pages"))
-            documents.append({"ref": row.name, "origin": "history", "match": heads[row.name],
-                              "fields": {key: fields.get(key) for key in WHT_FIELDS if fields.get(key) not in (None, "")}})
+            pages = _pages(row.get("pages"))
+            primary = primary_page_fields(pages)
+            if not wht.is_certificate(primary):
+                documents.append({"ref": row.name, "origin": "history", "match": heads[row.name],
+                                  "fields": _wht_fields(primary)})
+            for position, page in enumerate(pages):
+                fields = page.get("fields")
+                if not isinstance(fields, dict) or not wht.is_certificate(fields):
+                    continue
+                if fields is not primary and (page.get("is_copy") or page.get("is_duplicate")):
+                    continue  # 副本页不另算一张
+                number = int(page.get("page_index") or position + 1)
+                document = {"ref": row.name if fields is primary else f"{row.name}#{number}", "origin": "history",
+                            "page": (row.get("source_file"), number) if row.get("source_file") else None,
+                            "fields": _wht_fields(fields)}
+                if fields is primary:
+                    document["match"] = heads[row.name]
+                documents.append(document)
     return documents
 
 
 def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
     """这家公司（付款方）票据日在 [start − 90 天, end + 90 天] 的识别记录（月末以后的：本月的票可能以后几个月才付款开
     凭证，配上了就按凭证日落月；以后的票也一起配，别的月配给它的凭证这个月也配给它，不按票据日在两个月各算一次），
-    加上同一区间的 50 ทวิ 参考记录：([{ref, origin, fields, match}], 是否只看了 SCAN_MAX 张)。按票据日取：付款日只会
+    加上同一区间的 50 ทวิ 参考记录：([{ref, origin, fields, match?, page?}], 是否只看了 SCAN_MAX 张)。按票据日取：付款日只会
     等于或晚于票据日。"""
     scope.require_read()
     company = wht.tax_id(company_tax_id)
@@ -160,7 +189,8 @@ def wht_documents(workspace, company_tax_id, start, end) -> tuple[list, bool]:
     later_rows, later_truncated = _scan((end + timedelta(days=1), ahead), "asc")
     names = _company_names(rows + later_rows, company)
     heads, later = _heads(rows, company, owner, names), _heads(later_rows, company, owner, names)
-    documents = _documents(heads) + _documents(later)
+    references = certificates.listing(workspace, window, ahead)
+    kept = {item.get("page") for item in references} - {None}
+    documents = [item for item in _documents(heads) + _documents(later) if item.get("page") not in kept]
     documents.sort(key=lambda item: (str(item["fields"].get("date") or ""), item["ref"]))
-    documents += certificates.listing(workspace, window, ahead)
-    return documents, truncated or later_truncated
+    return documents + references, truncated or later_truncated

@@ -3,7 +3,9 @@
 批次仍按非发票不计费）。
 
 写：识别存档（`ocr.execution.workflow._persist`）在同一事务里调用 :func:`keep_skipped`，用保存点包住，存不了只记日志、
-不影响票据入库；按「识别批次 + 读数序号」定名，重放、重试不重复写。读：:func:`listing` 给报税草稿，先核读识别记录的权限。
+不影响票据入库；按「识别批次 + 读数序号」定名，重放、重试不重复写。哪页是凭证与存档、草稿同一条规则
+（`contracts.document_policy.document_class`：原文标题打的类别，或读数本身就是凭证的样子）。
+读：:func:`listing` 给报税草稿，先核读识别记录的权限；:func:`kept` 给 CC 说这份识别存了几张。
 删：随原件一起删（`files.service.purge` 删原件与识别批次时按原件、批次删掉这些行；录入工作台删票即走这条）。
 原生接口的读、建、改、删、分享一律拒绝（hooks）。
 """
@@ -101,8 +103,8 @@ def listing(workspace, start, end) -> list:
     scope.require_read()
     scope.require_scope(workspace)
     rows = frappe.get_all(DOCTYPE, filters={"workspace": workspace, "invoice_date": ["between", [start, end]]},
-                          fields=["name", "fields_json"], order_by="invoice_date asc, name asc",
-                          limit_page_length=LIST_MAX)
+                          fields=["name", "fields_json", "source_file", "page_index"],
+                          order_by="invoice_date asc, name asc", limit_page_length=LIST_MAX)
     out = []
     for row in rows:
         try:
@@ -110,8 +112,15 @@ def listing(workspace, start, end) -> list:
         except ValueError:
             continue
         if isinstance(fields, dict):
-            out.append({"ref": row.name, "origin": "reference", "fields": fields})
+            # page：在原件里的位置（原件, 页号），同一页也挂在识别记录里时草稿只算这一条（`tax.sources`）
+            page = (row.source_file, int(row.page_index or 0)) if row.source_file else None
+            out.append({"ref": row.name, "origin": "reference", "fields": fields, "page": page})
     return out
+
+
+def kept(batch_name) -> int:
+    """这份识别（识别批次）存下了几条参考记录。调用方已核过读这份识别的权限（`ocr.execution.service.certificates`）。"""
+    return int(frappe.db.count(DOCTYPE, {"batch": batch_name})) if batch_name else 0
 
 
 class CertificateDocument(Document):

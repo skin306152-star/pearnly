@@ -599,5 +599,49 @@ class CertificateShape(unittest.TestCase):
             self.assertEqual(document_policy.skipped_certificates(pages, policy), [])
 
 
+class RealCertificatesPair(unittest.TestCase):
+    """真凭证的读数（没有类别标记、付款公司在卖方一栏）与本公司的票配成一笔，不看租户选的录不录。"""
+
+    def test_the_rent_certificate_pairs_with_the_plaza_invoice(self):
+        rent = invoice("SP-RC-2609-045", seller=PLAZA, buyer=PAYER, date_="2026-09-02", subtotal="25000", vat="0",
+                       wht_amount="1250", seller_name="บริษัท สายสุข พลาซ่า จำกัด")
+        for origin in ("reference", "history"):
+            certificate_ = {"ref": "C-RENT", "origin": origin, "fields": dict(RENT_CERTIFICATE)}
+            payments, notes = wht.collect([rent, certificate_], PAYER)
+            result = wht.draft(payments, notes, 2026, 9)
+            line, = result["forms"]["pnd53"]["lines"]
+            self.assertEqual((line["refs"], line["source"], line["include"], line["payee_tax_id"]),
+                             (["SP-RC-2609-045", "C-RENT"], "both", True, PLAZA))
+            self.assertEqual((line["base"], line["tax"], line["rate"], line["date"]),
+                             ("25000.00", "1250.00", "5", "2026-09-02"))
+            self.assertEqual((result["review"], result["notes"]), ([], []))
+
+    def test_the_individuals_certificate_confirms_the_receipt_naming_the_company(self):
+        receipt = invoice("1/14", seller=PERSON, buyer="", document_type="receipt", date_="2026-09-30",
+                          subtotal="6000", vat="0", wht_amount="180", seller_name="นายสมศักดิ์ ทดสอบ",
+                          buyer_name="บริษัท สยามทดสอบ จำกัด")
+        receipt["match"] = wht.MATCH_NAME   # 买方税号空着、买方名称是本公司（`sources._company_names`）
+        alone = wht.draft(*wht.collect([receipt], PAYER), 2026, 9)
+        self.assertEqual([row["row"] for row in alone["review"]], ["1/14"])
+        for fields in (PERSON_CERTIFICATE, {**PERSON_CERTIFICATE, "total_amount": "6000.00"}):
+            result = wht.draft(*wht.collect([receipt, {"ref": "C-PERSON", "origin": "reference",
+                                                       "fields": dict(fields)}], PAYER), 2026, 9)
+            line, = result["forms"]["pnd3"]["lines"]
+            self.assertEqual((line["refs"], line["source"], line["include"], line["payee_tax_id"]),
+                             (["1/14", "C-PERSON"], "both", True, PERSON))
+            self.assertEqual((line["base"], line["tax"], line["date"]), ("6000.00", "180.00", "2026-09-30"))
+            self.assertNotIn("buyer_unconfirmed", [item["code"] for item in line["issues"]])
+            self.assertEqual(result["review"], [])
+
+    def test_a_certificate_read_as_not_an_invoice_is_listed_as_one(self):
+        other = {**RENT_CERTIFICATE, "seller_tax": "0105556000009"}     # 别家公司付的
+        skipped = {}
+        documents = [{"ref": "C-OTHER", "origin": "history", "fields": other}]
+        payments, notes = wht.collect(documents, PAYER, (), skipped)
+        result = wht.draft(payments, notes, 2026, 9, {}, {}, documents, skipped)
+        self.assertEqual([(item["ref"], item["reason"], item["document_type"]) for item in result["excluded"]],
+                         [("C-OTHER", "certificate_other_company", "withholding_certificate")])
+
+
 if __name__ == "__main__":
     unittest.main()

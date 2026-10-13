@@ -1,5 +1,9 @@
 """ภ.ง.ด.3 / ภ.ง.ด.53 草稿：从识别记录（印了预扣税的费用票、50 ทวิ）与 50 ทวิ 参考记录算出。纯函数：只用标准库与共用规则。
 
+哪条记录是 50 ทวิ 与识别存档、推送门槛用同一条规则（`contracts.document_policy.document_class`：原文标题打的类别，
+或读数本身就是凭证的样子），与租户选的录不录无关：草稿只读，不看推送的选择。凭证读数里付款方、收款方落在哪一栏不假定
+（真凭证常是付款公司在卖方一栏、收款方在买方一栏），本公司在哪一边，对方就在另一边。
+
 口径（税务局原件，核查记录见任务记录 L5 节）：
 - 归哪张表：收款方 13 位税号首位是 0 → ภ.ง.ด.53（法人），但 0991 / 0992 开头（外籍个人、未分割遗产、
   คณะบุคคล / ห้างหุ้นส่วนสามัญ）按个人所得税 → ภ.ง.ด.3；其余 → ภ.ง.ด.3。会计可按收款方改一次并记住。
@@ -33,6 +37,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from pearnly_core.tax_documents import amounts as tax_amounts
 from pearnly_core.tax_documents import rules as tax_rules
+from pearnly_cowork.contracts import document_policy
 from pearnly_cowork.tax import periods, thai_words
 
 CENT = Decimal("0.01")
@@ -41,7 +46,7 @@ HUNDRED = Decimal(100)
 PND3, PND53 = "pnd3", "pnd53"
 FORMS = (PND53, PND3)
 BOTH = (PND3, PND53)
-CERTIFICATE = "withholding_certificate"
+CERTIFICATE = document_policy.CERTIFICATE
 
 # 码 → (常用税率 %, 能进的表, 适用 e-WHT 1%)。税率出自 ท.ป.4/2528 现行合并文本；只作核对，申报金额取单据上的数。
 INCOME_TYPES = {
@@ -228,6 +233,11 @@ def paid_at_issue(fields: Mapping) -> bool:
     if str(fields.get("payment_method") or "").strip():
         return True
     return tax_rules.paid_hint(fields.get("document_type")) is True
+
+
+def is_certificate(fields: Mapping) -> bool:
+    """这条记录（主页字段、凭证页或参考记录）是 50 ทวิ：同识别存档的那条规则（`contracts.document_policy`）。"""
+    return document_policy.document_class(fields) == CERTIFICATE
 
 
 def _issue(code, **detail) -> dict:
@@ -468,7 +478,7 @@ def collect(documents, company_tax_id, remembered_payees=(), skipped=None) -> tu
     for document in documents or []:
         fields = document.get("fields") or {}
         seller, buyer = tax_id(fields.get("seller_tax")), tax_id(fields.get("buyer_tax"))
-        if str(fields.get("document_flag") or "") == CERTIFICATE:
+        if is_certificate(fields):
             certificates.append((document, fields, seller, buyer))
             continue
         if buyer == company and seller != company:
@@ -735,7 +745,7 @@ def _excluded(documents, skipped, elsewhere, result, target) -> list:
             value = str(fields.get(key) or "").strip()
             if value:
                 entry[key] = value[:200]
-        if str(fields.get("document_flag") or "") == CERTIFICATE:
+        if is_certificate(fields):
             entry["document_type"] = CERTIFICATE
         out.append(entry)
     return sorted(out, key=lambda item: (EXCLUDED_REASONS.index(item["reason"]), item["date"], item["ref"]))

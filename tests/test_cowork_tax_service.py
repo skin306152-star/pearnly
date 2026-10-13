@@ -103,7 +103,7 @@ class FakeFrappe(types.ModuleType):
         self.workspace_tax = ""
         self.db = types.SimpleNamespace(exists=self._exists, get_value=self._get_value, commit=lambda: None,
                                         rollback=self._rollback, savepoint=self.savepoints.append,
-                                        delete=self._delete)
+                                        delete=self._delete, count=self._count)
 
     def _rollback(self, save_point=None):
         self.rolled_back.append(save_point)
@@ -113,6 +113,10 @@ class FakeFrappe(types.ModuleType):
 
     def _delete(self, doctype, filters):
         self.store.pop((doctype, filters["name"]), None)
+
+    def _count(self, doctype, filters=None):
+        return sum(1 for (kind, _name), doc in self.store.items()
+                   if kind == doctype and all(doc.get(key) == value for key, value in (filters or {}).items()))
 
     def _get_value(self, doctype, name, field="name", for_update=False, as_dict=False, **kwargs):
         self.value_calls.append((doctype, name, field, for_update))
@@ -494,6 +498,37 @@ class WhtDraft(Base):
         summary = self.draft()
         self.assertNotIn("HIS-7", [row["row"] for row in summary["review"]])
 
+    def test_certificates_are_read_wherever_they_were_kept(self):
+        # 2026-10-13：草稿不看租户选的录不录 —— 选了录入（或没选）的凭证成了识别记录；和票扫在一起、挂在票上作证据的
+        # 凭证页从那条记录里取（读数只有凭证的样子、没有类别标记的也认）；同一页也存了参考记录的只算参考记录那条。
+        certificate_page = {"is_not_invoice": True, "document_type": "other", "date": "2026-09-08",
+                            "seller_tax": COMPANY, "buyer_tax": LANDLORD, "buyer_name": "นายสมชาย ใจดี",
+                            "subtotal": "20000", "wht_amount": "1000"}
+        rent = {"document_type": "receipt", "invoice_number": "RENT9", "date": "2026-09-08", "seller_tax": LANDLORD,
+                "seller_name": "นายสมชาย ใจดี", "buyer_tax": COMPANY, "subtotal": "20000", "wht_amount": "1000"}
+        frappe.lists["Cowork OCR History"] += [
+            {"name": "HIS-C", "seller_tax": COMPANY, "buyer_tax": SUPPLIER, "invoice_date": date(2026, 9, 6),
+             "source_file": "SRC-C", "pages": history_page(document_flag="withholding_certificate", date="2026-09-06",
+                                                           seller_tax=COMPANY, buyer_tax=SUPPLIER, subtotal="10000",
+                                                           wht_amount="100")},
+            {"name": "HIS-E", "seller_tax": LANDLORD, "buyer_tax": COMPANY, "invoice_date": date(2026, 9, 8),
+             "source_file": "SRC-E", "pages": json.dumps([{"page_index": 1, "fields": rent},
+                                                          {"page_index": 2, "fields": certificate_page}])}]
+        self.certificates = []
+        summary = self.draft()
+        self.assertIn("is_not_invoice", sources.WHT_FIELDS)
+        lines = {tuple(line["refs"]): line for form in summary["forms"].values() for line in form["lines"]}
+        self.assertEqual(set(lines), {("HIS-1", "HIS-C"), ("HIS-E", "HIS-E#2")})
+        self.assertEqual(lines[("HIS-E", "HIS-E#2")]["form"], "pnd3")
+        self.assertEqual(summary["review"], [])
+        # 选了不录入：同一页也存了参考记录（原件 + 页号相同）→ 挂在票上的那页不再另算
+        self.certificates = [{"ref": "REF-E", "origin": "reference", "page": ("SRC-E", 2),
+                              "fields": {**certificate_page, "document_flag": "withholding_certificate"}}]
+        summary = self.draft()
+        refs = {tuple(line["refs"]) for form in summary["forms"].values() for line in form["lines"]}
+        self.assertEqual(refs, {("HIS-1", "HIS-C"), ("HIS-E", "REF-E")})
+        self.assertEqual(summary["notes"], [])
+
     def test_documents_read_but_not_counted_are_listed_with_the_reason(self):
         self.certificates = []
         frappe.lists["Cowork OCR History"].append(
@@ -651,6 +686,9 @@ class Certificates(Base):
                          {"workspace": "WS1", "invoice_date": ["between", [date(2026, 9, 1), date(2026, 9, 30)]]})
         self.assertEqual([item["origin"] for item in found], ["reference"])
         self.assertEqual(found[0]["fields"]["wht_amount"], "1000")
+        self.assertEqual(found[0]["page"], ("SRC-1", 1))  # 在原件里的位置：同一页挂在识别记录里时草稿只算这条
+        # CC 说这份识别存了几张给预扣税草稿
+        self.assertEqual((certificates.kept("COB-1"), certificates.kept("COB-2"), certificates.kept("")), (1, 0, 0))
         scope.read_allowed = False
         with self.assertRaises(frappe.PermissionError):
             certificates.listing("WS1", date(2026, 9, 1), date(2026, 9, 30))
@@ -665,6 +703,25 @@ class Certificates(Base):
         self.assertLess(body.index("certificates.keep_skipped"), body.index("store.save(doc)"))
         # 计费口径不变：没有成票就不计费，参考记录不算票
         self.assertIn('doc.billing_state = "pending" if rows else "not_billable"', body)
+
+    def test_live_and_replayed_results_pass_the_same_class_rule_before_saving(self):
+        # 回放压测取回的是以前存下的结果（不重跑识别引擎，引擎里的标题规则不会再跑）：与真识别、Cloud Run 回来的一样
+        # 先存成这份识别的结果，再经存档这一步（`prepare_history_batch` → `contracts.document_policy.apply_to_pages`）
+        # 按同一条规则认 50 ทวิ，且在判「整份不是发票」之前
+        def function(path, name):
+            source = (ROOT / path).read_text(encoding="utf-8")
+            node = next(node for node in ast.parse(source).body
+                        if isinstance(node, ast.FunctionDef) and node.name == name)
+            return ast.get_source_segment(source, node)
+
+        recognize = function("apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py", "_recognize")
+        self.assertIn("pipeline, evidence = replay.recognize(", recognize)
+        self.assertIn("_freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))", recognize)
+        run = function("apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py", "run")
+        self.assertLess(run.index("_recognize(doc, frozen, examples, source)"), run.index("_persist(doc)"))
+        prepare = function("apps/pearnly_cowork/pearnly_cowork/ocr/results.py", "prepare_history_batch")
+        self.assertLess(prepare.index("policy_rules.apply_to_pages(raw, policy_rules.normalize(document_policy))"),
+                        prepare.index("if all_pages_not_invoice(raw):"))
 
 
 if __name__ == "__main__":

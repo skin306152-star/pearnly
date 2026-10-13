@@ -98,12 +98,14 @@ def _install():
     contracts = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(contracts)
     sys.modules[spec.name] = sys.modules["pearnly_cowork.folder_intake"].contracts = contracts
-    # 报税的纯规则（所得类型码）也用真的：工具的枚举取自它；共用票种规则一并按文件载入，不把整个共用层放上路径
-    for name in ("pearnly_core", "pearnly_core.tax_documents", "pearnly_cowork.tax"):
+    # 报税的纯规则（所得类型码）也用真的：工具的枚举取自它；共用票种规则一并按文件载入，不把整个共用层放上路径。
+    # 认 50 ทวิ 的口径规则（`contracts.document_policy`）也用真的：识别结果说「预扣税凭证」与报税草稿同一条规则
+    for name in ("pearnly_core", "pearnly_core.tax_documents", "pearnly_cowork.tax", "pearnly_cowork.contracts"):
         sys.modules[name] = types.ModuleType(name)
     for name, path in (("pearnly_core.tax_documents.codes", CORE / "tax_documents/codes.py"),
                        ("pearnly_core.tax_documents.amounts", CORE / "tax_documents/amounts.py"),
                        ("pearnly_core.tax_documents.rules", CORE / "tax_documents/rules.py"),
+                       ("pearnly_cowork.contracts.document_policy", COWORK / "contracts/document_policy.py"),
                        ("pearnly_cowork.tax.periods", COWORK / "tax/periods.py"),
                        ("pearnly_cowork.tax.thai_words", COWORK / "tax/thai_words.py"),
                        ("pearnly_cowork.tax.wht", COWORK / "tax/wht.py")):
