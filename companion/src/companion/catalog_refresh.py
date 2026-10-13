@@ -25,6 +25,9 @@ class _Refresh:
 _lock = threading.Lock()
 _refreshes: dict[str, _Refresh] = {}
 _target_refreshes: dict[str, _Refresh] = {}
+# 按账套读完的结果只留最近几份（心跳交出去后就用不着了）：一台电脑按账套读几十家客户的账套时，
+# 不把每份的整套目录都留在内存里（1.5.1 起云端会按需请读电脑没选的账套）。
+_TARGET_KEEP = 4
 
 
 def _key(account_dir: str) -> str:
@@ -125,6 +128,7 @@ def request_target_catalog(
             return refresh.payload, refresh.completed_at
         if refresh.running:
             return None, 0.0
+        _prune_targets(keep=normalized)
         refresh.running = True
         refresh.error = ""
         thread = threading.Thread(
@@ -135,6 +139,17 @@ def request_target_catalog(
         )
         thread.start()
     return None, 0.0
+
+
+def _prune_targets(keep: str) -> None:
+    """只留最近读完的几份（调用方持锁）；正在读的、这次要读的不动。"""
+    done = sorted(
+        (key for key, item in _target_refreshes.items() if key != keep and not item.running),
+        key=lambda key: _target_refreshes[key].completed_at,
+        reverse=True,
+    )
+    for key in done[_TARGET_KEEP:]:
+        _target_refreshes.pop(key, None)
 
 
 def _reset_for_tests() -> None:

@@ -17,6 +17,10 @@
   分块交回 `…request_api.complete_request`。现有种类：列 / 取已授权文件夹里的文件（`folder_fetch.py`，只认本机加过的
   根目录，挡 `..`、绝对路径与链接跳出，类型同对话附件、一份最多 30 MB）；只读读账套的一个月（`express_read.py`，只认
   推送同一组授权的账套，要读的表先复制到本机临时目录再读，不碰「等账套」，读完即删副本）。与推送线、看门狗无关。加一种请求的做法见 `request_worker.py` 文件头与服务端 `request_contracts.py`。
+- 按账套读主档（心跳里的 `master_refresh`，`projection_refresh.collect_account`）：云端请读哪份就读哪份，可以不是本机
+  当前选的账套（一台电脑管着很多家客户；1.3.0 起读完整目录，云端按需自动请读的门槛见服务端
+  `connections/refresh.py` 的 `ANY_ACCOUNT_SET_MIN_VERSION`）。只读、不改所选账套，能读哪些与推送写入同一条规则；
+  1.5.1 起读完的结果只在内存里留最近几份，也不推迟所选账套每 30 分钟的例行上报。
 
 ## 本机测试
 

@@ -431,6 +431,7 @@ def _run_periodic(
             )
             if master is not None:
                 _remember_roots(cfg, authorized, master.get("roots"))
+                authorized = list(getattr(cfg, "authorized_roots", None) or ())
                 projection_refresh.apply_endpoint_snapshot(
                     state, master, master_version
                 )
@@ -463,9 +464,12 @@ def _run_periodic(
             }
             catalog = None
             catalog_version = 0.0
+            routine_catalog = False
             refreshed_accounts = None
             refresh_ready = False
             if refresh_request_id and refresh_scope == "account_set":
+                # 云端请读的那份账套（可以不是本机所选的，1.5.1 起云端会按需请读）：只读、不改所选账套；
+                # 读回的目录与科目表这一拍随 master_refresh_account_set 上报，云端存到那份账套名下。
                 (
                     catalog,
                     refreshed_accounts,
@@ -485,6 +489,7 @@ def _run_periodic(
                     cfg.account_dir,
                     newer_than=float(state.get("last_catalog", 0.0) or 0.0),
                 )
+                routine_catalog = True
             if refreshed_accounts is not None:
                 accts = known_accts = refreshed_accounts
             refresh_fields, acknowledged_refresh = projection_refresh.heartbeat_ack(
@@ -521,7 +526,8 @@ def _run_periodic(
                 state["sent_digest"] = digest
                 state["sent_full_at"] = now
             state["unchanged_ok"] = bool(isinstance(hb, dict) and hb.get("account_sets_unchanged_ok"))
-            if catalog_version:
+            if catalog_version and routine_catalog:
+                # 只记所选账套的例行上报：按账套读别的账套不推迟所选账套每 30 分钟那一次
                 state["last_catalog"] = catalog_version
             _sync_account_set(cfg, hb)
             _sync_connection_identity(cfg, hb)
