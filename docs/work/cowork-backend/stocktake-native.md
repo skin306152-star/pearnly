@@ -27,6 +27,8 @@
 - `Cowork Stocktake Entry`：任务/商品、实际库位、精确数量、作废标记、版本、原创建与最近修改操作者/UTC 时间。
 - `Cowork Stocktake Operation`：不可修改的 operation 请求、前后状态、操作者、entry 和返回版本。
 
+时间口径（2026-10-13）：库里的创建 / 关闭 / 盘点 / 修改时间都是 UTC 裸时间（`service.now()`），原生 RPC 与导出表（表头标 UTC）照旧按 UTC 给。给人看的盘点页（`desk_api`，ERP 盘点页副本，`p.datetime_text` 把收到的时间当站点时区原样显示）每个时间都经 `service.site_time` 换成站点时区；之前直接交 UTC，曼谷站点整体早 7 小时。守护测试 `tests/test_cowork_stocktake_desk_time.py`。
+
 数量字段存规范 Decimal 字符串，避免 Frappe Float 转换；实盘空值是未盘，`0.000000` 是真实零。全部计算用 `Decimal`，原生列表数量比较以 `DECIMAL(20,6)` 进行。用户不能通过 DocType 通用写入声明来源、改数量、改版本或伪造审计。
 
 RPC 前缀为 `pearnly_cowork.stocktake.api`：

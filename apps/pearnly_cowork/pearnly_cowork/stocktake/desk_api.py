@@ -8,6 +8,8 @@
   任务 name = 任务 id；状态 active → "Active"、closed → "Closed"；
   行 name = product = 行 id；仓库没有主档，warehouse_name 就是填写的仓库名；
   没有成本 → can_view_costs = False；没有库存账 → 不会有“库存已变动”的冲突。
+  时间：Cowork 库里的 *_at 是 UTC（`service.now`），ERP 页面按站点时区的裸时间直接显示
+  （`p.datetime_text` 不换算）→ 这里给页面的每个时间都经 `service.site_time` 换成站点时区。
 """
 import hashlib
 import json
@@ -51,7 +53,8 @@ def api_list_stock_counts(start=0, limit=20, sort_by=None, sort_order=None, stat
     result = upload.records(start, limit, SORTS.get(sort_by or "", "created_at"), sort_order or "desc")
     return [{"name": row["id"], "title": row["name"], "status": _status(row["status"]),
              "item_total": row["total"], "counted_total": row["counted"],
-             "difference_total": row["differences"], "creation": row["created_at"]} for row in result["tasks"]]
+             "difference_total": row["differences"], "creation": service.site_time(row["created_at"])}
+            for row in result["tasks"]]
 
 
 @frappe.whitelist()
@@ -130,7 +133,7 @@ def _review(name):
     head = {"name": task.name, "title": task.title, "status": _status(task.status), "warehouse": "",
             "warehouse_name": "", "notes": notes, "item_total": snapshot["total"],
             "counted_total": snapshot["counted"], "difference_total": snapshot["differences"],
-            "closed_at": task.closed_at, "closed_by": task.closed_by}
+            "closed_at": service.site_time(task.closed_at), "closed_by": task.closed_by}
     entries = [_entry(e) for e in snapshot["entries"]]
     token = hashlib.sha256(json.dumps([head, items, entries], sort_keys=True, default=str).encode()).hexdigest()
     return {"task": head, "items": items, "entries": entries, "review_token": token,
@@ -145,7 +148,7 @@ def _entry(entry):
             "warehouse": entry["warehouse"], "warehouse_name": entry["warehouse"], "location": entry["location"],
             "qty": _float(entry["quantity"]), "voided": int(bool(entry["voided"])), "version": entry["version"],
             "note": note or "", "counted_by": entry.get("counted_by_name") or entry.get("counted_by"),
-            "counted_at": entry["counted_at"],
+            "counted_at": service.site_time(entry["counted_at"]),
             "photo_total": frappe.db.count("File", {"attached_to_doctype": ENTRY, "attached_to_name": entry["id"]})}
 
 
@@ -239,4 +242,5 @@ def api_stock_count_item_photos(count, item):
     data = _transaction(counting.item_entries, count, item)
     return [{"file_url": row["file_url"], "file_name": row["file_name"], "entry": row["entry_id"],
              "qty": _float(row["quantity"]), "warehouse_name": row["warehouse"], "location": row["location"],
-             "voided": row["voided"], "counted_at": row["counted_at"]} for row in data["photos"]]
+             "voided": row["voided"], "counted_at": service.site_time(row["counted_at"])}
+            for row in data["photos"]]
