@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import frappe
 from frappe import _
+from frappe.utils import convert_utc_to_system_timezone, get_datetime
 from pearnly_cowork.stocktake import access
 from pearnly_cowork.stocktake.calculations import active_quantity, summarize_item
 from pearnly_cowork.stocktake.contracts import StocktakeValidationError, entry_request
@@ -44,6 +45,18 @@ def parse(value):
 
 def now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def site_time(value):
+    """Stored stocktake times (`now()` above: created_at, closed_at, counted_at, updated_at) are naive UTC.
+
+    The native RPCs and the workbook keep them in UTC (the workbook header says so). Pages that show
+    them to people (`desk_api`, the ERP page copy whose `p.datetime_text` prints a site-time value as
+    is) take them through here, so every displayed time is in the site time zone like the rest of Desk.
+    """
+    if not value:
+        return value
+    return convert_utc_to_system_timezone(get_datetime(value)).replace(tzinfo=None)
 
 
 @contextmanager
