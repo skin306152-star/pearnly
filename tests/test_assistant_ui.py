@@ -1005,5 +1005,342 @@ assert.equal((await everyRequest())[0].lang, "en");
         self.page_language("zh-CN", 'assert.equal(lang, "zh");')
 
 
+
+# ── 运行状态以服务端为准（2026-10-13 iPhone）──────────────────────────────────────────────────────────
+# 主屏幕图标打开的 CC，这一轮在电脑上 15:24 已结束；手机在后台、锁屏收到推送，15:41 回来仍显示在回复（停止按钮、发不了），
+# 侧栏重进同一个对话也一样。下面用会话控制器、尾巴、侧栏状态的真代码，接一个假的站点接口（事件记录 + 引擎状态 + 执行记录）。
+
+MA_SETUP = r"""
+const g = globalThis as any;
+// 站点接口：按方法名与查询参数记下每次调用，回应由 respond(method, args, body) 决定
+g.fetch = async (url: string, init: any = {}) => {
+  const u = new URL(String(url), "https://site.test");
+  const method = u.pathname.split("pearnly_core.assistant.api.")[1] ?? u.pathname;
+  const args = Object.fromEntries(u.searchParams);
+  const body = init.body ? JSON.parse(init.body) : null;
+  g.calls.push({ method, args, body });
+  return g.respond(method, args, body);
+};
+// window（= globalThis）与 document 的事件：测试里手动触发
+const events = (target: any) => {
+  const map: Record<string, Set<(event: any) => void>> = {};
+  target.addEventListener = (type: string, fn: any) => void (map[type] ??= new Set()).add(fn);
+  target.removeEventListener = (type: string, fn: any) => void map[type]?.delete(fn);
+  target.fire = (type: string, event: any = {}) => [...(map[type] ?? [])].forEach((fn) => fn(event));
+};
+events(g);
+events(g.document);
+"""
+
+SOCKET_STUB = r"""
+export function io() {
+  const handlers: Record<string, Array<(data?: any) => void>> = {};
+  const socket: any = { connected: true, on(name: string, fn: any) { (handlers[name] ??= []).push(fn); return socket; }, off() { return socket; } };
+  (globalThis as any).socket = {
+    drop() { socket.connected = false; (handlers.disconnect ?? []).forEach((fn) => fn()); },
+    back() { socket.connected = true; (handlers.connect ?? []).forEach((fn) => fn()); },
+  };
+  return socket;
+}
+"""
+
+# 假站点：事件记录（log）、引擎状态（engine）、本站执行记录（runs）。要状态时（status=1）在读完事件之后读，同服务端。
+FAKE_SITE = r"""
+const ok = (message: any = null) => ({ ok: true, status: 200, json: async () => ({ message }) });
+// 引擎给的时间带到微秒
+const at = (s: number) => new Date(Date.UTC(2026, 9, 13, 8, 0, 0) + s * 1000).toISOString().replace(".000Z", ".123456Z");
+const ev = (id: string, type: string, s: number, extra: any = {}) => ({ id, type, processed_at: at(s), ...extra });
+const text = (t: string) => [{ type: "text", text: t }];
+const site = {
+  log: [] as any[], engine: "idle", runs: {} as Record<string, string>,
+  echo: true, toolReply: async (_id: string): Promise<any> => ({ status: "running" }),
+  sidebar: {} as Record<string, any>,
+};
+function runOf() {
+  const last = [...site.log].reverse().find((e) => String(e.type).startsWith("session.status_"));
+  const parked = site.engine === "idle" && last?.stop_reason?.type === "requires_action" ? [...last.stop_reason.event_ids] : [];
+  return {
+    status: site.engine === "idle" ? (parked.length ? "requires_action" : "idle") : site.engine,
+    parked, awaiting_approval: parked.filter((i: string) => site.runs[i] === "awaiting_approval"),
+    executing: parked.filter((i: string) => site.runs[i] === "running"), as_of: site.log.at(-1)?.processed_at ?? null,
+  };
+}
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") {
+    const i = args.after ? site.log.findIndex((e) => e.id === args.after) : -1;
+    const page: any = { events: i >= 0 ? site.log.slice(i + 1) : [...site.log], full: i < 0 };
+    if (args.status === "1") page.run = runOf();
+    return ok(page);
+  }
+  if (method === "send") {
+    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(body.text) }));
+    return ok();
+  }
+  if (method === "run_tool") return ok(await site.toolReply(body.tool_use_id));
+  if (method === "listing") {
+    const ids = String(args.check ?? "").split(",").filter((id) => site.sidebar[id]);
+    return ok({ sessions: [], nextCursor: null, runs: Object.fromEntries(ids.map((id) => [id, site.sidebar[id]])) });
+  }
+  return ok();
+};
+const eventsCalls = (sid: string) => g.calls.filter((c: any) => c.method === "events" && c.args.session_id === sid);
+const statusReads = (sid: string) => eventsCalls(sid).filter((c: any) => c.args.status === "1").length;
+const toolCalls = () => g.calls.filter((c: any) => c.method === "run_tool");
+const toolPart = (snapshot: any, id: string) => snapshot.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === id);
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class RunStatusBehaviourTests(unittest.TestCase):
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB}
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n'
+               + body.split("\n---\n", 1)[0] + "\nconst g = globalThis as any;\n" + FAKE_SITE
+               + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_coming_back_after_the_turn_ended_elsewhere_is_not_running(self):
+        # 原因（修前）：回到前台补拉的一页里有「停下来等工具 → 工具结果 → 接着跑 → 结束」，页面在并到「停下来」时就提醒
+        # 服务端执行（那一页后面就有答复）；答复晚到时 markResuming 把已结束的这一轮又标成在跑，结束事件已去重，重放、
+        # 重进都改不回来。现在：回到前台带回服务端状态；晚到的答复只在服务端还停在那一步时才算接着跑。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+const S = "sesn_iphone1";
+site.log.push(ev("u1", "user.message", 1, { content: text("summarise the bank statement") }),
+  ev("r1", "session.status_running", 2), ev("tool1", "agent.custom_tool_use", 3, { name: "pearnly_x", input: {} }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tool1"] } }));
+let release: (reply: any) => void = () => {};
+site.toolReply = () => new Promise((resolve) => { release = resolve; });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.equal(statusReads(S), 1);  // 打开（整段重放）带一份状态，只读一次
+assert.equal(isBusy(c.getSnapshot()), true);
+assert.deepEqual(toolCalls().map((x: any) => x.body.tool_use_id), ["tool1"]);  // 页面兜底提醒一次，答复迟迟不回
+
+// 锁屏、在后台：服务端推送线程把工具做完，这一轮在电脑上结束；手机一条推送也没收到
+g.document.visibilityState = "hidden";
+site.log.push(ev("res1", "user.custom_tool_result", 5, { custom_tool_use_id: "tool1", content: text("12 rows") }),
+  ev("r2", "session.status_running", 6), ev("m1", "agent.message", 7, { content: text("Done: 12 rows") }),
+  ev("i1", "session.status_idle", 8, { stop_reason: { type: "end_turn" } }));
+// 回到前台：马上补拉一次，顺带要状态
+g.document.visibilityState = "visible";
+g.document.fire("visibilitychange");
+await g.sleep(30);
+assert.equal(statusReads(S), 2);
+assert.equal(eventsCalls(S).at(-1).args.after, "p1");
+assert.equal(c.getSnapshot().isRunning, false);
+// 晚到的答复：服务端已经不停在这一步，不再标回在回复；卡片里的真结果也不被空结果盖掉
+release({ status: "answered" });
+await g.sleep(10);
+assert.equal(c.getSnapshot().isRunning, false);
+assert.equal(isBusy(c.getSnapshot()), false);
+assert.equal(toolPart(c.getSnapshot(), "tool1").result.text, "12 rows");
+assert.equal(toolCalls().length, 1);
+""")
+
+    def test_replay_reentry_reconnect_and_stop_take_the_servers_state(self):
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+import { activityOf } from "@/lib/managed-agents/activity";
+---
+const S = "sesn_stuck1";
+site.log.push(ev("u1", "user.message", 1, { content: text("hi") }), ev("r1", "session.status_running", 2),
+  ev("m1", "agent.message", 3, { content: text("hello") }), ev("i1", "session.status_idle", 4, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.equal(c.getSnapshot().isRunning, false);
+
+// 发出了，可这一轮的事件一条也没到（漏了），引擎早已空闲：本页乐观标的「在回复」只有服务端状态能清
+site.echo = false;
+await c.sendMessage("are you there", []);
+assert.equal(c.getSnapshot().isRunning, true);
+const before = statusReads(S);
+// 1) 整段重放：没有新事件可并，按服务端状态清掉
+await c.replay();
+assert.equal(statusReads(S), before + 1);
+assert.equal(c.getSnapshot().isRunning, false);
+
+// 2) 重进对话（侧栏切走再切回）：重放带回的状态；服务端在跑就保持在跑
+await c.sendMessage("again", []);
+site.engine = "running";
+site.log.push(ev("r2", "session.status_running", 6));
+c.detach();
+c.attach();
+await g.sleep(30);
+assert.equal(statusReads(S), before + 2);
+assert.equal(c.getSnapshot().isRunning, true);
+assert.equal(activityOf(S), "running");  // 侧栏同一个对话跟着改
+// 回到前台：服务端仍在跑 → 仍在跑
+g.document.fire("visibilitychange");
+await g.sleep(30);
+assert.equal(statusReads(S), before + 3);
+assert.equal(c.getSnapshot().isRunning, true);
+
+// 3) 实时通道断开又连上：这一轮在断线期间结束，「结束」既没推到、事件记录里也还读不到，重连时带回状态
+site.engine = "idle";
+g.socket.drop();
+await g.sleep(30);
+assert.equal(c.getSnapshot().isRunning, true);  // 断开时那次补拉不带状态，也没有新事件：不自己猜
+g.socket.back();
+await g.sleep(30);
+assert.equal(statusReads(S), before + 4);
+assert.equal(c.getSnapshot().isRunning, false);
+assert.equal(activityOf(S), "unread");  // 不是正看着的对话：跑完留点
+
+// 4) 卡在「在回复」时点停止：打断之后核对一次，服务端空闲就恢复发送
+site.echo = false;
+await c.sendMessage("one more", []);
+assert.equal(c.getSnapshot().isRunning, true);
+await c.interrupt();
+await g.sleep(30);
+assert.deepEqual(g.calls.filter((x: any) => x.method === "interrupt").map((x: any) => x.body.session_id), [S]);
+assert.equal(statusReads(S), before + 5);
+assert.equal(isBusy(c.getSnapshot()), false);
+
+// 5) 自己刚发出时，发出前就要的状态（还是「空闲」）不盖掉这次发送
+let hold: () => void = () => {};
+const respond = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && args.status === "1") await new Promise<void>((resolve) => { hold = resolve; });
+  return respond(method, args, body);
+};
+const pending = c.replay();
+await g.sleep(5);
+site.echo = true;
+await c.sendMessage("latest", []);
+hold();
+await pending;
+assert.equal(c.getSnapshot().isRunning, true);
+g.respond = respond;
+""")
+
+    def test_requires_action_shows_the_approval_and_an_executing_tool_stays_running(self):
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+// 停在两步上：一个改共用设置的 Pearnly 工具（本站拦下等「允许」），一个自带工具（等引擎的确认）
+const S = "sesn_gate1";
+site.log.push(ev("u1", "user.message", 1, { content: text("turn the task on") }), ev("r1", "session.status_running", 2),
+  ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
+  ev("tb", "agent.tool_use", 4, { name: "bash", input: { command: "ls" } }),
+  ev("p1", "session.status_idle", 5, { stop_reason: { type: "requires_action", event_ids: ["tz", "tb"] } }));
+site.runs = { tz: "awaiting_approval" };
+site.toolReply = async () => ({ status: "awaiting_approval", ask: "Turn it on?", preview: [{ field: "Enabled", before: "No", after: "Yes" }] });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+let snap: any = c.getSnapshot();
+assert.equal(snap.isRunning, false);
+assert.deepEqual([...snap.pendingApprovals].sort(), ["tb", "tz"]);
+assert.equal(toolPart(snap, "tz").approval.ask, "Turn it on?");  // 卡片上的问句与改动照旧向服务端要
+assert.equal(toolPart(snap, "tb").approval.id, "tb");
+assert.equal(isBusy(snap), true);
+// 回到前台再核对：门还在，问句不丢
+g.document.fire("visibilitychange");
+await g.sleep(30);
+snap = c.getSnapshot();
+assert.equal(statusReads(S), 2);
+assert.deepEqual([...snap.pendingApprovals].sort(), ["tb", "tz"]);
+assert.equal(toolPart(snap, "tz").approval.ask, "Turn it on?");
+
+// 在别处点了允许：服务端正在执行这一步，自带工具那步也答了（事件还没到）→ 在忙，不再显示按钮、不再提醒执行
+site.runs = { tz: "running" };
+site.log.push(ev("cb", "user.tool_confirmation", 6, { tool_use_id: "tb", result: "allow" }));
+const asked = toolCalls().length;
+g.fire("online");
+await g.sleep(30);
+snap = c.getSnapshot();
+assert.equal(statusReads(S), 3);
+assert.deepEqual(snap.pendingApprovals, []);
+assert.equal(snap.isRunning, true);
+assert.equal(toolPart(snap, "tz").approval, undefined);
+assert.equal(toolCalls().length, asked);
+// 从后台缓存恢复（pageshow persisted）也核对一次；没恢复的 pageshow 不算
+g.fire("pageshow", { persisted: false });
+await g.sleep(20);
+assert.equal(statusReads(S), 3);
+site.engine = "running";
+g.fire("pageshow", { persisted: true });
+await g.sleep(30);
+assert.equal(statusReads(S), 4);
+assert.equal(c.getSnapshot().isRunning, true);
+""")
+
+    def test_status_events_follow_server_time_and_older_snapshots_lose(self):
+        self.run_page(r"""
+import { applyEvent, applyRunStatus, isBusy, markResuming, project } from "@/lib/managed-agents/reducer";
+---
+const idle = (id: string, s: number, stop: any = { type: "end_turn" }) => ev(id, "session.status_idle", s, { stop_reason: stop });
+// 推送先到了新的「结束」，补拉晚到的旧「在跑」（断线期间漏推的）：只记已见，不再标回在回复
+let s = project([ev("u1", "user.message", 1, { content: text("hi") }), ev("r1", "session.status_running", 2), idle("i1", 8)] as any);
+s = applyEvent(s, ev("r0", "session.status_running", 6) as any);
+assert.equal(s.isRunning, false);
+assert.equal(s.seen.has("r0"), true);
+// 本页合成的不按时间比：发出时照样标在回复
+s = applyEvent(s, { type: "session.status_running", id: "optimistic-run-1", processed_at: "2020-01-01T00:00:00Z" } as any);
+assert.equal(s.isRunning, true);
+// 比已采用的状态事件旧的服务端状态不用；读的事件覆盖到它（或更新）才用
+const run = (status: string, asOf: number, extra: any = {}) =>
+  ({ status, parked: [], awaiting_approval: [], executing: [], as_of: at(asOf), ...extra }) as any;
+assert.equal(applyRunStatus(s, run("running", 7)), s);
+const fresh = applyRunStatus(s, run("idle", 8));
+assert.equal(fresh.isRunning, false);
+assert.equal(fresh.statusAt >= Date.parse(at(8).replace(".123456", ".123")), true);
+// 「接着跑」只在服务端还停在那一步时才标
+assert.equal(markResuming(fresh, "tool9"), fresh);
+// 等确认的自带工具：显示批准按钮；服务端停在一次还没收到的调用上：算在忙（不自己补门）
+let g2 = project([ev("u2", "user.message", 10, { content: text("x") }), ev("tb", "agent.tool_use", 11, { name: "bash", input: {} })] as any);
+g2 = applyRunStatus(g2, run("requires_action", 11, { parked: ["tb", "tmissing"] }));
+assert.deepEqual(g2.pendingApprovals, ["tb"]);
+assert.equal(g2.isRunning, true);
+assert.equal(isBusy(g2), true);
+// 终止不论先后都算数
+const dead = applyEvent(fresh, ev("t0", "session.status_terminated", 1) as any);
+assert.equal(dead.isDead, true);
+""")
+
+    def test_sidebar_spinners_are_checked_with_the_server_at_the_same_moments(self):
+        self.run_page(r"""
+import { activityOf, noteEvent, setActiveSession } from "@/lib/managed-agents/activity";
+import { sessionListAdapter, watchRunning } from "@/lib/managed-agents/session-list-adapter";
+---
+const listings = () => g.calls.filter((c: any) => c.method === "listing");
+watchRunning();
+g.document.fire("visibilitychange");
+await g.sleep(20);
+assert.equal(listings().length, 0);  // 侧栏没有在转圈的：不发请求
+// 另一个对话在跑（推送说的），之后「结束」的推送漏了
+noteEvent("sesn_side1", ev("r1", "session.status_running", 1) as any);
+noteEvent("sesn_open1", ev("r2", "session.status_running", 1) as any);
+setActiveSession("sesn_open1");  // 开着的那个由它自己的会话控制器核对
+assert.equal(activityOf("sesn_side1"), "running");
+site.sidebar.sesn_side1 = { status: "idle", parked: [], awaiting_approval: [], executing: [], as_of: at(9) };
+g.document.fire("visibilitychange");
+await g.sleep(20);
+assert.deepEqual(listings().map((c: any) => c.args.check), ["sesn_side1"]);
+assert.equal(activityOf("sesn_side1"), "unread");  // 跑完没看：留点，不再转圈
+// 重连：只在断过之后才核对；列表第一页也顺带核对
+noteEvent("sesn_side2", ev("r3", "session.status_running", 2) as any);
+site.sidebar.sesn_side2 = { status: "requires_action", parked: ["x"], awaiting_approval: ["x"], executing: [], as_of: at(9) };
+g.socket.back();
+await g.sleep(20);
+assert.equal(listings().length, 1);
+g.socket.drop();
+g.socket.back();
+await g.sleep(20);
+assert.deepEqual(listings().at(-1).args.check, "sesn_side2");
+assert.equal(activityOf("sesn_side2"), "running");  // 停着等处理：照旧算在跑
+site.sidebar.sesn_side2 = { status: "idle", parked: [], awaiting_approval: [], executing: [], as_of: at(9) };
+await sessionListAdapter.list({} as any);
+assert.equal(listings().at(-1).args.check, "sesn_side2");
+assert.equal(activityOf("sesn_side2"), "unread");
+""")
+
 if __name__ == "__main__":
     unittest.main()

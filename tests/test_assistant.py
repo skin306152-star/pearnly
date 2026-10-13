@@ -3,6 +3,7 @@
 
 不连库、不连厂商：Frappe 与 SDK 用最小替身。
 """
+import contextlib
 import datetime
 import importlib.util
 import inspect
@@ -1608,6 +1609,173 @@ class NoticeTests(unittest.TestCase):
                              (CORE / "assistant/notices.py").read_text(encoding="utf-8"))
         self.assertNotIn("sessions", " ".join(imports))
 
+
+
+class RunStatusTests(unittest.TestCase):
+    """对话此刻的运行状态（2026-10-13 iPhone：主屏幕图标打开、锁屏时这一轮在电脑上已结束，回来后一直显示在回复、发不了）：
+    以引擎读回的会话状态为准，随整段重放、增量补拉（对话页要时）和侧栏列表（核对时）一起给，每次只读一次引擎状态。"""
+
+    IDLE = {"id": "sevt_idle1", "type": "session.status_idle", "processed_at": "2026-10-13T08:24:00.123456Z",
+            "stop_reason": {"type": "end_turn"}}
+    PARKED = {"id": "sevt_park1", "type": "session.status_idle", "processed_at": "2026-10-13T08:20:00Z",
+              "stop_reason": {"type": "requires_action", "event_ids": ["sevt_tool1", "sevt_tool2", "sevt_tool3"]}}
+
+    def _sessions(self):
+        sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("files"))
+        return _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+
+    def test_the_state_follows_the_engine_and_splits_the_parked_calls(self):
+        run = contracts.run_state
+        self.assertEqual(run("running", self.IDLE, as_of="t")["status"], "running")  # 引擎在跑：不看事件
+        self.assertEqual(run("rescheduling")["status"], "running")
+        self.assertEqual(run("terminated")["status"], "terminated")
+        self.assertEqual(run("idle", self.IDLE, as_of="t"),
+                         {"status": "idle", "parked": [], "awaiting_approval": [], "executing": [], "as_of": "t"})
+        self.assertEqual(run("idle", None)["status"], "idle")
+        state = run("idle", self.PARKED, {"sevt_tool1": "awaiting_approval", "sevt_tool2": "running", "sevt_tool3": "done"})
+        self.assertEqual((state["status"], state["parked"], state["awaiting_approval"], state["executing"]),
+                         ("requires_action", ["sevt_tool1", "sevt_tool2", "sevt_tool3"], ["sevt_tool1"], ["sevt_tool2"]))
+        self.assertIsNone(run("something-new"))  # 认不出就不给（对话页这次不改）
+        # 最新一条会话状态事件：只往回看有限几条
+        events = [{"id": "e3", "type": "agent.message"}, self.IDLE, self.PARKED]
+        self.assertIs(contracts.latest_status(iter(events)), self.IDLE)
+        self.assertIsNone(contracts.latest_status(iter(events), limit=1))
+        # 边交事件边记：交出过的里面有就用它；没有就从停下的地方接着往旧的读，不重读
+        e3, e4 = {"id": "e3", "type": "agent.message"}, {"id": "e4", "type": "agent.message"}
+        tap = contracts.StatusTap(iter([e4, self.IDLE, e3, self.PARKED]))
+        self.assertEqual(contracts.since(tap, "e3"), [e3, self.IDLE, e4])
+        self.assertIs(tap.latest(), self.IDLE)
+        tap = contracts.StatusTap(iter([e4, e3, self.PARKED, {"id": "e1", "type": "agent.message"}]))
+        self.assertEqual(contracts.since(tap, "e3"), [e3, e4])
+        self.assertIs(tap.latest(), self.PARKED)
+        self.assertEqual(contracts.session_ids("sesn_a1b2, sesn_a1b2,bad id,,sesn_c3d4"), ["sesn_a1b2", "sesn_c3d4"])
+        self.assertEqual(len(contracts.session_ids([f"sesn_{i:04d}" for i in range(30)])), contracts.CHECK_MAX)
+
+    def _api(self, history, status="idle"):
+        calls = {"status": 0, "events": 0}
+
+        def events(remote, newest_first=False):
+            calls["events"] += 1
+            return iter(list(reversed(history)) if newest_first else list(history))
+
+        def read_status(remote):
+            calls["status"] += 1
+            return status
+
+        return types.SimpleNamespace(events=events, status=read_status), calls
+
+    def _patched(self, sessions, row, api, runs=()):
+        asked = []
+
+        def get_all(doctype, filters=None, fields=None, **kw):
+            asked.append((doctype, filters))
+            return [_Row(tool_use_id=i, status=st) for i, st in runs if i in filters["tool_use_id"][1]]
+
+        return asked, [mock.patch.object(sessions, "owned", return_value=row),
+                       mock.patch.object(sessions.engine, "adapter", return_value=api),
+                       mock.patch.object(sessions.notices, "feed", lambda *a, **k: []),
+                       mock.patch.object(sessions.frappe, "get_all", get_all, create=True),
+                       mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True)]
+
+    def test_events_carry_the_state_when_asked_and_read_the_engine_once(self):
+        sessions = self._sessions()
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-13T08:10:00Z"},
+                   {"id": "sevt_0002", "type": "session.status_running", "processed_at": "2026-10-13T08:10:01Z"},
+                   {"id": "sevt_0003", "type": "agent.message", "processed_at": "2026-10-13T08:23:59Z"}, self.IDLE]
+        api, calls = self._api(history)
+        asked, patches = self._patched(sessions, row, api)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            # 平常的补拉不读引擎状态
+            self.assertNotIn("run", sessions.events("sesn_mine1"))
+            self.assertNotIn("run", sessions.events("sesn_mine1", after="sevt_0002"))
+            self.assertEqual(calls["status"], 0)
+            # 整段重放：读完事件再读一次状态；as_of 是这次读到的最新一条事件的时间
+            calls["events"] = 0
+            full = sessions.events("sesn_mine1", status=True)
+            self.assertEqual(full["run"], {"status": "idle", "parked": [], "awaiting_approval": [], "executing": [],
+                                           "as_of": "2026-10-13T08:24:00.123456Z"})
+            self.assertEqual((calls["status"], calls["events"]), (1, 1))
+            # 增量：漏了「结束」也照样知道已空闲；状态事件从这次读过的事件里取，不再读一遍
+            calls.update(status=0, events=0)
+            page = sessions.events("sesn_mine1", after="sevt_0002", status=True)
+            self.assertEqual([e["id"] for e in page["events"]], ["sevt_0003", "sevt_idle1"])
+            self.assertEqual((page["run"]["status"], page["run"]["as_of"]), ("idle", "2026-10-13T08:24:00.123456Z"))
+            self.assertEqual((calls["status"], calls["events"]), (1, 1))
+            # 已是最新（锚点就是最后一条）：仍给状态
+            page = sessions.events("sesn_mine1", after="sevt_idle1", status=True)
+            self.assertEqual((page["events"], page["run"]["status"]), ([], "idle"))
+            # 引擎在跑：不必看事件
+            api.status = lambda remote: "running"
+            self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002", status=True)["run"]["status"], "running")
+            # 状态读不到：事件照给，不带 run（对话页这次不改）
+            api.status = mock.Mock(side_effect=TimeoutError())
+            page = sessions.events("sesn_mine1", after="sevt_0002", status=True)
+            self.assertNotIn("run", page)
+            self.assertEqual(len(page["events"]), 2)
+            # 取事件就失败：照旧只给提醒，也不读状态
+            api.events = mock.Mock(side_effect=TimeoutError())
+            api.status = mock.Mock(return_value="idle")
+            self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002", status=True), {"events": [], "full": False})
+            api.status.assert_not_called()
+        self.assertEqual(asked, [])  # 没有停着等的调用就不查执行记录
+
+    def test_parked_calls_are_split_by_the_sites_tool_runs(self):
+        sessions = self._sessions()
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-13T08:10:00Z"},
+                   {"id": "sevt_tool1", "type": "agent.custom_tool_use", "processed_at": "2026-10-13T08:19:00Z"},
+                   self.PARKED, {"id": "sevt_0009", "type": "span.model_request_end", "processed_at": "2026-10-13T08:20:01Z"}]
+        api, calls = self._api(history)
+        asked, patches = self._patched(sessions, row, api, runs=[("sevt_tool1", "awaiting_approval"),
+                                                                 ("sevt_tool2", "running")])
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            # 停着的状态事件在锚点之前：接着往旧的读（同一次读事件），不另读
+            page = sessions.events("sesn_mine1", after="sevt_0009", status=True)
+            self.assertEqual(page["run"]["status"], "requires_action")
+            self.assertEqual((page["run"]["awaiting_approval"], page["run"]["executing"]), (["sevt_tool1"], ["sevt_tool2"]))
+            self.assertEqual(calls["events"], 1)
+            full = sessions.events("sesn_mine1", status=True)
+            self.assertEqual(full["run"]["parked"], ["sevt_tool1", "sevt_tool2", "sevt_tool3"])
+        self.assertEqual(asked[-1], (sessions.toolrun.TOOL_RUN, {
+            "session_id": "sesn_mine1", "user": "a@example.com",
+            "tool_use_id": ["in", ["sevt_tool1", "sevt_tool2", "sevt_tool3"]]}))
+        api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        self.assertIn("status=frappe.utils.cint(status) == 1", api_source)
+        self.assertIn("check=check or None", api_source)
+
+    def test_the_sidebar_list_reads_the_state_only_of_the_conversations_it_asks_about(self):
+        sessions = self._sessions()
+        rows = [_Row(name=f"r{i}", session_id=f"sesn_{i:04d}", title=f"t{i}", starred=0, archived=0, remote_ids="",
+                     creation=START, modified=START - datetime.timedelta(minutes=i)) for i in range(5)]
+        statuses = {"sesn_0001": "running", "sesn_0003": "idle"}
+        read = []
+        api = types.SimpleNamespace(status=lambda remote: read.append(remote) or statuses[remote],
+                                    events=lambda remote, newest_first=False: iter([self.IDLE]))
+
+        def get_all(doctype, filters=None, fields=None, order_by=None, limit=None, **kw):
+            if "session_id" in filters:  # 核对：只认本人、当前引擎的
+                self.assertEqual((filters["user"], filters["engine_code"]), ("a@example.com", CLAUDE))
+                return [r for r in rows if r.session_id in filters["session_id"][1]]
+            return [r for r in rows if r.starred == filters["starred"]][:limit]
+
+        with mock.patch.object(sessions.frappe, "get_all", get_all, create=True), \
+                mock.patch.object(sessions.config, "engine_code", return_value=CLAUDE), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.notices, "unread_sessions", lambda user, ids: set()):
+            page = sessions.listing()
+            self.assertNotIn("runs", page)
+            self.assertEqual(read, [])  # 不核对就不读引擎：整页逐个读太贵
+            self.assertEqual({s["status"] for s in page["sessions"]}, {None})  # 没读过的不替它说「空闲」
+            page = sessions.listing(check="sesn_0001,sesn_0003,sesn_gone,bad id")
+            self.assertEqual(sorted(read), ["sesn_0001", "sesn_0003"])
+            self.assertEqual({k: v["status"] for k, v in page["runs"].items()}, {"sesn_0001": "running", "sesn_0003": "idle"})
+            self.assertEqual({s["id"]: s["status"] for s in page["sessions"] if s["status"]},
+                             {"sesn_0001": "running", "sesn_0003": "idle"})
 
 class PageTests(unittest.TestCase):
     def test_service_worker_only_handles_opening_the_assistant_page(self):
