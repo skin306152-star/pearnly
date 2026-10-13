@@ -46,6 +46,7 @@ class _Frappe(types.ModuleType):
         super().__init__("frappe")
         self.conf = {}
         self.hooks = []
+        self.guidance = []
         self.local = types.SimpleNamespace(site="t1.example", lang="th")
         self.session = types.SimpleNamespace(user="a@example.com")
         self.utils = types.SimpleNamespace(get_fullname=lambda user: "A")
@@ -66,7 +67,7 @@ class _Frappe(types.ModuleType):
             lock=lambda name, timeout=None: _Lock())
 
     def get_hooks(self, name):
-        return self.hooks if name == "pearnly_assistant_tools" else []
+        return {"pearnly_assistant_tools": self.hooks, "pearnly_assistant_guidance": self.guidance}.get(name, [])
 
     def get_attr(self, path):
         module, _, attr = path.rpartition(".")
@@ -916,6 +917,7 @@ class RelayTests(unittest.TestCase):
 class ToolAndDefinitionTests(unittest.TestCase):
     def setUp(self):
         frappe.hooks = []
+        frappe.guidance = []
         _configure()
 
     def test_product_declarations_join_core_tools_and_agent_definition(self):
@@ -981,6 +983,29 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertIn("Your name is CC in every language", brief["system"])
         self.assertNotIn("Pearnly assistant", brief["system"])
         self.assertEqual(brief["name"], "CC (Pearnly cowork)")
+
+    def test_earlier_conversations_are_checked_with_tools_not_disclaimed(self):
+        # 2026-10-13 录屏：新对话里用户问「刚才那件事做到哪了」，CC 先说看不到之前的对话，再去查
+        system = definition.brief("cowork")["system"]
+        self.assertIn("- Never say that you cannot see earlier conversations. When the user asks about earlier work, "
+                      "check its current state with the tools and answer.\n", system)
+
+    def test_products_add_their_own_guidance_after_the_shared_instructions(self):
+        # 共用说明不认识产品：产品在 hooks 声明 `pearnly_assistant_guidance`（字符串列表），按声明顺序接在后面
+        shared = definition.brief("erp")["system"]
+        self.assertEqual(shared, definition.SYSTEM.format(product="erp"))
+        product = types.ModuleType("fake_product_guidance")
+        product.GUIDANCE = ["Name account sets by company.", "  ", "Second rule."]
+        sys.modules["fake_product_guidance"] = product
+        frappe.guidance = ["fake_product_guidance.GUIDANCE"]
+        self.addCleanup(setattr, frappe, "guidance", [])
+        system = definition.brief("erp")["system"]
+        self.assertEqual(system, shared + "\n- Name account sets by company.\n- Second rule.")
+        first = claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"]
+        frappe.guidance = []
+        self.assertNotEqual(first, claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"])
+        hooks = (ROOT / "apps/pearnly_cowork/pearnly_cowork/hooks.py").read_text(encoding="utf-8")
+        self.assertIn('pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]', hooks)
 
     def test_instructions_keep_large_files_out_of_the_conversation(self):
         # 2026-10-10：整本 PDF 用 read 读进上下文，一次加了约 11 万 token，此后每次请求都过 Haiku 的 10 万计价线

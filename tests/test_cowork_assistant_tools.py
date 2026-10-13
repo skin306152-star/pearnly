@@ -502,6 +502,16 @@ class PosImportToolTests(unittest.TestCase):
         self.assertIn("account_set_unavailable", out["results"][0]["reason"])
         self.assertEqual(self.created, [])
 
+    def test_the_account_set_entered_into_is_named_by_its_company(self):
+        tools.connections.targets = lambda name: {"account_sets": [{"source_id": "K", "label": "T.9 Shop Co., Ltd."}],
+                                                  "groups": [{"label": "70EXP", "items": [
+                                                      {"value": "K", "label": "T.9 Shop Co., Ltd.", "description": ""}]}]}
+        out = self._import()
+        self.assertEqual(list(out)[:2], ["account_label", "account_set_key"])
+        self.assertEqual(out["account_label"], "70EXP · T.9 Shop Co., Ltd.")
+        attached = json.loads(tools.pos_layout({"file": "file_pos", "connection": "C1", "account_set_key": "K"}))
+        self.assertEqual(attached["account_label"], "70EXP · T.9 Shop Co., Ltd.")
+
     def test_a_held_folder_file_is_answered_with_its_tasks_target_and_resumed(self):
         held = {"file": "F1", "filename": "pos.csv", "source_file": "CWS-9", "task": "R1", "title": "Shop sales",
                 "workspace": "WS", "client": None, "connection": "C2", "account_set_key": "K2", "posting_kind": None}
@@ -618,8 +628,11 @@ class IntakeChoiceTests(unittest.TestCase):
         self.assertEqual(self.batch_filters[0], {"actor": "a@example.com", "intake_target": ["in", ["express", "mrerp"]]})
         self.assertEqual(mrerp["state"], "disabled")
         self.assertEqual(none, {"target": "none", "state": "ready"})
-        self.assertEqual(out["suggested"], {"target": "express", "connection": "EXP1", "account_set_key": "b",
-                                            "direction": "purchase", "posting_kind": "stock"})
+        # 上次用的那份带上清单里的名字、排在键前面（2026-10-13 录屏：只给键，CC 说成文件夹名「demo02」）
+        self.assertEqual(out["suggested"], {"target": "express", "connection": "EXP1", "account_label": "Beta Co",
+                                            "account_set_key": "b", "direction": "purchase", "posting_kind": "stock"})
+        self.assertLess(list(out["suggested"]).index("account_label"), list(out["suggested"]).index("account_set_key"))
+        self.assertEqual(list(express["account_sets"][0]), ["label", "key"])
         found = json.loads(tools.intake_options({"search": "alp"}))["targets"][0]["account_sets"]
         self.assertEqual(found, [{"key": "A", "label": "Alpha Co"}])
 
@@ -629,6 +642,7 @@ class IntakeChoiceTests(unittest.TestCase):
         out = json.loads(tools.intake_options({}))
         self.assertIsNone(out["suggested"])
         self.assertEqual(out["last_used_unavailable"]["account_set_key"], "c:\\70exp\\gone")
+        self.assertNotIn("account_label", out["last_used_unavailable"])  # 目录里没有了：没有名字可给，只留键
         self.assertNotIn("_keys", out["targets"][0])
 
     def test_offline_cc_desktop_is_not_ready(self):
@@ -1095,10 +1109,15 @@ class TaxDraftTests(unittest.TestCase):
         self.assertTrue(shown["11"]["en"].startswith("Net tax payable"))
 
     def test_vat_draft_without_readback_asks_for_one(self):
-        self.vat_result = lambda: {"status": "readback_needed", "period": "2026-09"}
-        out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09"}))
+        self.vat_result = lambda: {"status": "readback_needed", "period": "2026-09", "connection": "C",
+                                   "account_set_key": "c:\\70exp\\demo02"}
+        with mock.patch.object(tools.connections, "targets", lambda name: {"account_sets": [
+                {"source_id": "C:\\70EXP\\demo02", "label": "T.9 Example Co., Ltd."}]}):
+            out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09"}))
         self.assertEqual(out["status"], "readback_needed")
         self.assertIn("cowork_express_readback", out["note"])
+        self.assertEqual(out["account_label"], "T.9 Example Co., Ltd.")  # 叫 CC 先回读哪份账套：按名字说
+        self.assertLess(list(out).index("account_label"), list(out).index("account_set_key"))
         self.assertFalse([call for call in self.calls if call[0] == "attach"])
 
     def test_vat_draft_gives_the_points_and_the_workbook(self):
@@ -2026,6 +2045,91 @@ class ReadbackTests(unittest.TestCase):
         self.assertIn("only a person can change it", by_name["cowork_edit_document"]["description"])
         self.assertIn("cowork_express_readback", by_name["cowork_push_documents"]["description"])
         self.assertIn("cowork_express_readback", by_name["cowork_recon_start"]["description"])
+
+
+class AccountSetNameTests(unittest.TestCase):
+    """2026-10-13 录屏（泰文界面）：CC 对会计说账套「demo02」——Express 数据文件夹名。会计认公司，不认文件夹代码：
+    点了某份账套的结果都在键前面带上给人看的名字（同录入下拉），Cowork 的说明里也写明按公司名说、键只用在调工具。"""
+
+    KEY = "C:\\ExpressI\\70EXP\\demo02"
+    LABEL = "70EXP · T.9 บริษัท ตัวอย่าง จำกัด"
+    CATALOG = {"account_sets": [
+        {"source_id": KEY, "label": "T.9 บริษัท ตัวอย่าง จำกัด", "attributes": {"root_label": "70EXP"}},
+        {"source_id": "C:\\ExpressI\\70EXP\\audit", "label": "Audit copy", "attributes": {"root_label": "70EXP"}},
+        {"source_id": "C:\\ExpressI\\69EXP\\old", "label": "Old Co", "active": False}],
+        "groups": [{"value": "c:\\expressi\\70exp", "label": "70EXP", "items": [
+            {"value": KEY, "label": "T.9 บริษัท ตัวอย่าง จำกัด", "description": ""},
+            {"value": "C:\\ExpressI\\70EXP\\audit", "label": "Audit copy", "description": "บริษัท ตัวอย่าง จำกัด"}]}]}
+
+    def setUp(self):
+        ListAndRunsTests.setUp(self)
+        self.reads = []
+        patcher = mock.patch.object(tools.connections, "targets",
+                                    lambda name: self.reads.append(name) or json.loads(json.dumps(self.CATALOG)))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def assertNamedFirst(self, out, key_field, label=None):
+        self.assertEqual(out["account_label"], label or self.LABEL)
+        self.assertLess(list(out).index("account_label"), list(out).index(key_field))
+
+    def test_cowork_tells_cc_to_name_account_sets_by_company(self):
+        self.assertEqual(tools.GUIDANCE, [
+            "When you talk to the user, name an account set by its company name (the label or account_label in tool "
+            "results), never by its folder code, path or key; use keys only in tool calls."])
+        hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]', hooks)
+
+    def test_names_follow_the_intake_list(self):
+        names = tools._catalog_names(self.CATALOG)
+        self.assertEqual(names[tools._account_key("c:/expressi/70exp/DEMO02/")], self.LABEL)  # 大小写、分隔符不计
+        self.assertEqual(names[tools._account_key("C:\\ExpressI\\70EXP\\audit")],
+                         "70EXP · Audit copy（บริษัท ตัวอย่าง จำกัด）")
+        self.assertEqual(names[tools._account_key("C:\\ExpressI\\69EXP\\old")], "Old Co")  # 下拉里没有的用目录里的名字
+
+    def test_document_lists_and_details_name_the_account_set_first(self):
+        for row in frappe.rows:
+            row["push_account_set"] = self.KEY.lower()
+        docs = json.loads(tools.list_documents({"limit": 5}))["documents"]
+        for doc in docs:
+            self.assertNamedFirst(doc, "push_account_set")
+        self.assertEqual(self.reads, ["EXP1"])  # 一次调用每条连接只读一次目录
+        detail = tools._detail({"name": "D1", "push_connection": "EXP1", "push_account_set": self.KEY, "pages": []})
+        self.assertNamedFirst(detail, "push_account_set")
+        with mock.patch.object(tools.storage, "read", lambda name: name), \
+                mock.patch.object(tools.storage, "project", create=True,
+                                  new=lambda name: {"name": name, "push_connection": "EXP1",
+                                                    "push_account_set": self.KEY, "pages": [{"fields": {}}]}):
+            self.assertNamedFirst(tools._document("H1"), "push_account_set")
+
+    def test_push_choices_stock_group_and_task_runs_name_the_account_set(self):
+        doc = types.SimpleNamespace(push_connection="EXP1", push_account_set=self.KEY, posting_kind="stock")
+        with mock.patch.object(tools.storage, "read", lambda name: doc), \
+                mock.patch.object(tools.application, "choices_view", create=True,
+                                  new=lambda *a: {"needed": [], "options": {}, "account_set": self.KEY.lower()}):
+            self.assertNamedFirst(json.loads(tools.push_choices({"document": "H1"})), "account_set")
+        with mock.patch.object(tools.connections_api, "stock_acc_group", create=True,
+                               new=lambda name, key: {"account_set_key": key.lower(), "known": True, "groups": []}):
+            self.assertNamedFirst(json.loads(tools.stock_group({"connection": "EXP1", "account_set_key": self.KEY})),
+                                  "account_set_key")
+        # 任务上存着的名字挪到键前面，不再读目录
+        self.reads.clear()
+        rule = {"name": "R1", "connection": "EXP1", "account_set_key": self.KEY, "account_label": "70EXP · Saved name"}
+        with mock.patch.object(tools.rules, "runs", lambda name: {"rule": dict(rule), "runs": []}):
+            task = json.loads(tools.folder_task_runs({"task": "R1"}))["task"]
+        self.assertNamedFirst(task, "account_set_key", "70EXP · Saved name")
+        self.assertEqual(self.reads, [])
+
+    def test_an_unreadable_catalogue_leaves_the_key_alone(self):
+        def refuse(name):
+            raise frappe.PermissionError("no access")
+
+        tools.connections.targets = refuse
+        for row in frappe.rows:
+            row["push_account_set"] = self.KEY
+        doc = json.loads(tools.list_documents({"limit": 1}))["documents"][0]
+        self.assertEqual(doc["push_account_set"], self.KEY)
+        self.assertNotIn("account_label", doc)
 
 
 if __name__ == "__main__":
