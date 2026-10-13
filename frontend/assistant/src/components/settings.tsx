@@ -25,6 +25,7 @@ import {
   textSize,
 } from "@/lib/desktop";
 import { useInstallGuide } from "@/components/install-prompt";
+import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { useProfile } from "@/lib/profile";
@@ -603,7 +604,7 @@ function System({ api }: { api: Desktop }) {
       )}
       <Row label={st.quickAsk}>
         {state.hotkey ? (
-          <kbd className="rounded-md border bg-app px-2 py-0.5 font-sans text-muted-foreground text-xs">Ctrl + Alt + Space</kbd>
+          <Shortcut keys="Ctrl + Alt + Space" kbd />
         ) : (
           <span className="text-muted-foreground text-sm">{st.hotkeyBusy}</span>
         )}

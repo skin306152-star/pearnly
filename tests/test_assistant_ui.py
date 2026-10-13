@@ -304,6 +304,49 @@ class TextTests(unittest.TestCase):
         self.assertNotIn("Express", messages.split("conversationMenu", 1)[1].split("}", 1)[0])
 
 
+class ShortcutTests(unittest.TestCase):
+    """键盘快捷键提示（用户 2026-10-13：iPhone 上用户菜单「การตั้งค่า」旁边显示「Ctrl ,」）：整页只经 components/shortcut.tsx
+    显示，触屏设备不显示、CC 桌面端窗口照常显示；是不是触屏只在 lib/touch.ts 判断一次。"""
+
+    KEYS = re.compile(r"Ctrl|⌘|⌥|⇧|⌃|\bCmd\b|\bEsc\b|Shift\s*\+|Alt\s*\+")
+
+    @staticmethod
+    def code(text):
+        """去掉注释（块注释、JSX 注释、行注释；网址里的 //、"image/*" 这类字符串不算），只留会显示或会执行的部分。"""
+        text = re.sub(r"(?<![^\s{(,;])/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
+        return re.sub(r"(^|\s)//.*$", r"\1", text, flags=re.M)
+
+    def sources(self):
+        for path in sorted(SRC.rglob("*")):
+            if path.suffix in (".ts", ".tsx"):
+                yield path.relative_to(SRC).as_posix(), self.code(path.read_text(encoding="utf-8"))
+
+    def test_every_shortcut_hint_goes_through_the_shared_component(self):
+        hints = []
+        for name, text in self.sources():
+            for number, line in enumerate(text.splitlines(), 1):
+                if not self.KEYS.search(line):
+                    continue
+                self.assertRegex(line, r'<Shortcut keys="[^"]+"( kbd)? />', f"{name}:{number} 快捷键提示要经 <Shortcut>")
+                hints.append(re.search(r'keys="([^"]+)"', line).group(1))
+                self.assertNotEqual(name, "components/shortcut.tsx")
+            if name != "components/shortcut.tsx":
+                self.assertNotIn("<kbd", text, name)
+        # 用户菜单的设置，桌面端应用菜单的新建 / 设置 / 重新加载 / 缩放，设置里快捷提问的组合键
+        self.assertEqual(sorted(hints), sorted(["Ctrl ,", "Ctrl N", "Ctrl ,", "Ctrl R", "Ctrl =", "Ctrl -", "Ctrl 0",
+                                                "Ctrl + Alt + Space"]))
+
+    def test_one_touch_detection_for_the_whole_page(self):
+        for name, text in self.sources():
+            if name != "lib/touch.ts":
+                self.assertNotIn('matchMedia("(hover', text, name)
+                self.assertNotIn("pointer: coarse", text, name)
+        shortcut = read("components/shortcut.tsx")
+        self.assertIn("return isDesktopApp() || !touchOnly();", shortcut)
+        self.assertIn("if (!showShortcuts()) return null;", shortcut)
+        self.assertIn("const TOUCH = touchOnly();", read("components/assistant-ui/thread.tsx"))
+
+
 # ── 行为检查（2026-10-13 审查修复）──────────────────────────────────────────────────────────────────
 # 把一段 TypeScript 测试脚本连同被测源码（按 tsconfig 的 @/ 路径）用 esbuild 打成一个文件交给 node 跑。
 # 浏览器接口在「cc-test-setup」里换成桩；stubs 把某些导入整个换掉（例如 socket.io-client）。
@@ -702,8 +745,8 @@ g.done();
 """, stubs=self.PUSH_STUBS, lang="zh")
 
 
-    # ── 「通知」一行（用户 2026-10-13，iPhone 主屏幕 app 泰文界面录制时发现）─────────────────────────────────────
-    # 设备模拟在页面模块加载前就位：触屏、装没装成主屏幕 app（display-mode / navigator.standalone）、
+    # ── 触屏与「通知」一行（用户 2026-10-13，iPhone 主屏幕 app 泰文界面录制时发现）─────────────────────────────────────
+    # 设备模拟在页面模块加载前就位：触屏（hover: none）、装没装成主屏幕 app（display-mode / navigator.standalone）、
     # 浏览器有没有网页推送（PushManager / Notification）。用 react-dom/server 渲染真实组件，看显示出来的 HTML。
     IOS_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS {v} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
               "Version/{s} Mobile/15E148 Safari/604.1")
@@ -758,6 +801,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";  // 浏览器版：打成 ESM 后不用 require 内置模块
 import { Notifications } from "@/components/settings";
+import { Shortcut, showShortcuts } from "@/components/shortcut";
 import { currentPush, enablePush, syncPush } from "@/lib/push";
 
 const g = globalThis as any;
@@ -776,6 +820,25 @@ const toggle = (markup: string) => /<button[^>]*role="switch"[^>]*>/.exec(markup
             # profile.ts 用 Vite 的 import.meta.glob 取品牌图，这里用不到
             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
         })
+
+    def test_touch_devices_show_no_keyboard_shortcuts(self):
+        # iPhone 主屏幕 app（泰文）：用户菜单「การตั้งค่า」旁边不再有「Ctrl ,」；接鼠标的电脑浏览器、CC 桌面端窗口照常显示
+        self.on_device("iphone-home", r"""
+assert.equal(showShortcuts(), false);
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), "");
+assert.equal(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), "");
+assert.doesNotMatch(row(), /Ctrl/);
+
+g.device.touch = false;
+assert.equal(showShortcuts(), true);
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), /^<kbd class="[^"]*">Ctrl \+ Alt \+ Space<\/kbd>$/);
+
+g.device.touch = true;
+g.qt = { webChannelTransport: {} };
+assert.equal(showShortcuts(), true);
+assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-xs">Ctrl N</span>');
+""", lang="th")
 
     def test_iphone_safari_tab_shows_the_row_with_add_to_home_screen(self):
         self.on_device("iphone-safari", r"""

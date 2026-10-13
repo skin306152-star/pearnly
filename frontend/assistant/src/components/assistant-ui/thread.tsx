@@ -13,6 +13,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
+import { touchOnly } from "@/lib/touch";
 import { dayLabel, lang, st, steps, t } from "@/i18n";
 import {
   ActionBarPrimitive,
@@ -50,8 +51,8 @@ import {
   type PropsWithChildren,
 } from "react";
 
-// 触屏设备（手机、平板）：没有悬停；打开页面不自动聚焦输入框
-const TOUCH = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+// 触屏设备（手机、平板，lib/touch.ts）：打开页面不自动聚焦输入框
+const TOUCH = touchOnly();
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 

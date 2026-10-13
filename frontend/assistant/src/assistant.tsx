@@ -47,6 +47,7 @@ import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } fro
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { InstallBanner, InstallMenuItem, InstallProvider } from "@/components/install-prompt";
+import { Shortcut } from "@/components/shortcut";
 import { MobileShell } from "@/components/mobile-shell";
 import { SplitHandle, sidebarSize, useStoredSize } from "@/components/split-handle";
 import { ScheduledTasks } from "@/components/scheduled-tasks";
@@ -170,7 +171,7 @@ function UserMenu({ children }: { children: ReactNode }) {
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
-            <span className="text-ink-3 text-xs">Ctrl ,</span>
+            <Shortcut keys="Ctrl ," />
           </DropdownMenu.Item>
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger className="cc-menu-item">
@@ -257,28 +258,28 @@ function AppMenu() {
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu">
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => { setView("chat"); aui.threads().switchToNewThread(); }}>
             <span className="flex-1">{t("newChatPill")}</span>
-            <span className="text-ink-3 text-xs">Ctrl N</span>
+            <Shortcut keys="Ctrl N" />
           </DropdownMenu.Item>
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => openSettings()}>
             <span className="flex-1">{t("settings")}</span>
-            <span className="text-ink-3 text-xs">Ctrl ,</span>
+            <Shortcut keys="Ctrl ," />
           </DropdownMenu.Item>
           <DropdownMenu.Separator className="cc-menu-sep" />
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => location.reload()}>
             <span className="flex-1">{t("reload")}</span>
-            <span className="text-ink-3 text-xs">Ctrl R</span>
+            <Shortcut keys="Ctrl R" />
           </DropdownMenu.Item>
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => zoom(1)}>
             <span className="flex-1">{t("zoomIn")}</span>
-            <span className="text-ink-3 text-xs">Ctrl =</span>
+            <Shortcut keys="Ctrl =" />
           </DropdownMenu.Item>
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => zoom(-1)}>
             <span className="flex-1">{t("zoomOut")}</span>
-            <span className="text-ink-3 text-xs">Ctrl -</span>
+            <Shortcut keys="Ctrl -" />
           </DropdownMenu.Item>
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => zoom(0)}>
             <span className="flex-1">{t("actualSize")}</span>
-            <span className="text-ink-3 text-xs">Ctrl 0</span>
+            <Shortcut keys="Ctrl 0" />
           </DropdownMenu.Item>
           <DropdownMenu.Separator className="cc-menu-sep" />
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => void windowAction("close")}>
