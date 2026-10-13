@@ -223,7 +223,10 @@ CC Desktop could not write this invoice. It is retried automatically,CC 桌面�
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 CC Desktop has not finished this yet.,CC 桌面版还没做完。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
+"CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.",CC 桌面版不在线，无法读取此账套的科目表。请确认 CC 桌面版正在运行后再试。
 CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
+CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC 桌面版正在从电脑读取此账套的科目表，请稍后再试。
+CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC 桌面版正在读取此账套的科目表，读完后推送。
 CC Desktop offline,CC 桌面版离线
 CC Desktop offline or needs update,CC 桌面版不在线或需升级
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
@@ -1548,6 +1551,7 @@ The chosen value is not in this account set. Choose again,所选项不在此账�
 The client fields are invalid.,客户字段无效。
 "The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
+The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,电脑读不到此账套的科目表。请确认那台电脑上的 Express 能打开这本账套。
 The computer on this connection cannot do this.,这条连接的电脑做不了这件事。
 The connection has changed. Reload and try again.,连接已更新，请重新加载后重试。
 The credential changed. Reload before resetting or revoking it.,凭据已变更，请刷新后再重置或撤销。
@@ -1722,6 +1726,7 @@ This POS export has a status value that is not chosen yet,此 POS 导出有尚�
 This account cannot send documents,此账号无权发送单据
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
 This account set is not in the connection's list. Reload the list in New Intake.,此账套不在该连接的账套列表中，请在新建录入中重新读取。
+This account set is not on the computer's list of account sets.,电脑上报的账套中没有这本账套。
 This account set is not on this connection.,这条连接上没有这本账套。
 This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
@@ -1841,6 +1846,7 @@ Unmatched Count,未匹配笔数
 Unsupported ERP connection type.,不支持此 ERP 连接类型。
 Unusual rate,非常用税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
+Update CC Desktop on that computer to read this account set's chart of accounts.,请更新那台电脑上的 CC 桌面版，才能读取此账套的科目表。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
 Update this site before reading back with this CC Desktop.,请先更新本站，再用这个版本的 CC 桌面版回读。
 Updated At,更新时间
@@ -2123,6 +2129,7 @@ cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 cowork.folder.pending,还有 {0} 份未处理，到点处理
+cowork.folder.reading_masters,CC 桌面版正在读取此账套的科目表，读完后推送。
 cowork.folder.remind.add,添加时间
 cowork.folder.remind.count,还有 {0} 份未处理。
 cowork.folder.remind.date,{0} 月 {1} 日 {2}
@@ -2194,6 +2201,11 @@ cowork.line.status.bound,已绑定
 cowork.line.status.unbound,未绑定
 cowork.line.unbind,解绑 LINE
 cowork.line.unbindConfirm,确定要解绑 Pearnly Cowork LINE 吗？
+cowork.masters.failed,电脑读不到此账套的科目表。请确认那台电脑上的 Express 能打开这本账套。
+cowork.masters.offline,CC 桌面版不在线，无法读取此账套的科目表。请确认 CC 桌面版正在运行后再试。
+cowork.masters.reading,CC 桌面版正在从电脑读取此账套的科目表，请稍后再试。
+cowork.masters.unavailable,电脑上报的账套中没有这本账套。
+cowork.masters.update_needed,请更新那台电脑上的 CC 桌面版，才能读取此账套的科目表。
 cowork.nav.reconBank,银行对账
 cowork.nav.reconIncome,收入对账
 cowork.nav.reconVat,销项税报告核查

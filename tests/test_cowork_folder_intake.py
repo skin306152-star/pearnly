@@ -328,6 +328,25 @@ class OfflineCompanionRetry(unittest.TestCase):
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=True)["status"], "sent")
         self.assertEqual(calls["fixed"], [{"payment": "cash", "department": "HQ"}])
 
+    def test_a_chart_still_being_read_is_retried_soon_without_preparing(self):
+        """2026-10-13 录制：定时任务推往电脑没选的账套，科目表没读过，95 张票全停在「要人选」却没有可选的科目。
+        现在推送服务已请电脑读（`wait`），这里过一分钟再推；电脑离线按离线重试；要升级 / 读不到、或最后一次照实记在票上。"""
+        push, rule, entry, calls = self._push()
+        failures = []
+        push.push_state.record_failure = lambda history, reason: failures.append((history, reason))
+        waiting = {"state": "reading", "message": "reading"}
+        push.application.choices_view = lambda *a, **k: {"needed": [{"kind": "account"}], "wait": dict(waiting)}
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False),
+                         {"status": "retry", "reason": push.READING, "seconds": push.READING_SECONDS})
+        waiting["state"] = "offline"
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["reason"], push.OFFLINE)
+        self.assertEqual((calls["keys"], failures), ([], []))
+        for state, final in (("update_needed", False), ("reading", True)):
+            waiting.update(state=state, message="msg:" + state)
+            self.assertEqual(push.push_one(entry, rule, "H", 36, final=final)["status"], "failed")
+        self.assertEqual(failures, [("H", "msg:update_needed"), ("H", "msg:reading")])
+        self.assertEqual(calls["keys"], [])  # 没有准备过、也没有留下「要人选」的记录
+
     def test_replayed_withdrawn_preparation_is_not_counted_as_sent(self):
         push, rule, entry, calls = self._push(status="cancelled")
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=False)["status"], "retry")
@@ -790,6 +809,9 @@ class ResultTally(unittest.TestCase):
         self.assertEqual(self._constant("folder_intake/push.py", "OFFLINE"), contracts.COMPANION_OFFLINE)
         self.assertEqual(self._constant("folder_intake/pump.py", "IN_FLIGHT"), contracts.IN_FLIGHT)
         self.assertIn('_later(entry, 600 if code == "insufficient_balance" else 120, code)',
+                      (APP / "folder_intake/pump.py").read_text())
+        # 等电脑读科目表的重试按推送给的间隔（一分钟），离线照旧十分钟
+        self.assertIn('_later(entry, result.get("seconds") or OFFLINE_SECONDS, result["reason"])',
                       (APP / "folder_intake/pump.py").read_text())
         # 要人选一次的几类，与推送那边同一组
         self.assertEqual(self._constant("push/express/choices.py", "KINDS"), contracts.CHOICE_KINDS)

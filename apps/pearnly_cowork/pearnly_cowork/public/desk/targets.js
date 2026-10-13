@@ -220,11 +220,12 @@
 	/**
 	 * 选定 Express 账套就让助手去读这份账套的主档（商品、存货科目组、记账指纹、科目表），识别期间读完，
 	 * 推送前的库存检查才有这份账套的资料（用户 2026-09-27）。读不到不拦推送，失败不打扰用户。
+	 * 已经在读、刚读过就不再排，也不打断正在读的（服务端 `ensure_account_masters`）。
 	 */
 	function prefetch_account(connection, account_set_key) {
 		if (connection?.adapter !== "express" || !account_set_key) return;
-		void p.call(API.connections + "request_refresh",
-			{name: connection.name, request_key: key(), account_set_key}, "POST").catch(() => null);
+		void p.call(API.connections + "ensure_account_masters",
+			{name: connection.name, account_set_key}, "POST").catch(() => null);
 	}
 
 	/* ── 存货科目组：每个账套选一次（用户 2026-09-28）──
@@ -384,9 +385,22 @@
 		return {...base, fieldtype: options.length ? "Autocomplete" : "Data", options};
 	}
 
+	// 这份账套的科目表还没读到（服务端已请电脑读，`view.wait`）：一般十几秒读完，等一会儿再问；还没读到就照实说、这次先不推。
+	const MASTERS_WAIT = {every_ms: 3000, give_up_ms: 45000};
+
 	async function express_choices_ready(connection, account_set_key, history, posting_kind) {
 		const args = {history, connection: connection.name, account_set_key, posting_kind: posting_kind || undefined};
-		const view = await p.call(PUSH_API + "choices", args);
+		let view = await p.call(PUSH_API + "choices", args);
+		const started = Date.now();
+		if (view?.wait?.state === "reading") frappe.show_alert({message: view.wait.message, indicator: "blue"});
+		while (view?.wait?.state === "reading" && Date.now() - started < MASTERS_WAIT.give_up_ms) {
+			await wait(MASTERS_WAIT.every_ms);
+			view = await p.call(PUSH_API + "choices", args);
+		}
+		if (view?.wait) {
+			frappe.msgprint({message: view.wait.message, indicator: "orange"});
+			return false;
+		}
 		const needed = view?.needed || [];
 		if (!needed.length) return true;
 		return new Promise(resolve => {

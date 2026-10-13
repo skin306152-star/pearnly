@@ -223,7 +223,10 @@ CC Desktop could not write this invoice. It is retried automatically,CC デス�
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの帳簿が許可されていません。CC デスクトップの帳簿を確認してください
 CC Desktop has not finished this yet.,CC デスクトップの処理はまだ終わっていません。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
+"CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.",CC デスクトップがオフラインのため、この会計データの勘定科目表を読み込めません。CC デスクトップが起動していることを確認してからもう一度お試しください。
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
+CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC デスクトップがこの会計データの勘定科目表をパソコンから読み込んでいます。しばらくしてからもう一度お試しください。
+CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。
 CC Desktop offline,CC デスクトップがオフライン
 CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
@@ -1548,6 +1551,7 @@ The chosen value is not in this account set. Choose again,選んだ値はこの�
 The client fields are invalid.,顧客の項目が正しくありません。
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
+The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。
 The computer on this connection cannot do this.,この接続のパソコンではこの操作はできません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
 The credential changed. Reload before resetting or revoking it.,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
@@ -1722,6 +1726,7 @@ This POS export has a status value that is not chosen yet,この POS エクス�
 This account cannot send documents,このアカウントは書類を送信できません
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
 This account set is not in the connection's list. Reload the list in New Intake.,この帳簿は一覧にありません。新規取込で再読み込みしてください。
+This account set is not on the computer's list of account sets.,パソコンの会計データ一覧にこの会計データがありません。
 This account set is not on this connection.,この接続にこの会計データはありません。
 This account set is unavailable.,この会計データは利用できません。
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
@@ -1841,6 +1846,7 @@ Unmatched Count,未照合件数
 Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
 Unusual rate,通常にない税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
+Update CC Desktop on that computer to read this account set's chart of accounts.,この会計データの勘定科目表を読み込むには、そのパソコンの CC デスクトップを更新してください。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Update this site before reading back with this CC Desktop.,この CC デスクトップで読み戻す前にサイトを更新してください。
 Updated At,更新日時
@@ -2123,6 +2129,7 @@ cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
 cowork.folder.pending,未処理 {0} 件、実行時刻に処理します
+cowork.folder.reading_masters,CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。
 cowork.folder.remind.add,時間を追加
 cowork.folder.remind.count,未処理のファイルが {0} 件あります。
 cowork.folder.remind.date,{0}月{1}日 {2}
@@ -2194,6 +2201,11 @@ cowork.line.status.bound,連携済み
 cowork.line.status.unbound,未連携
 cowork.line.unbind,LINE 連携を解除
 cowork.line.unbindConfirm,Pearnly Cowork LINE の連携を解除しますか？
+cowork.masters.failed,パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。
+cowork.masters.offline,CC デスクトップがオフラインのため、この会計データの勘定科目表を読み込めません。CC デスクトップが起動していることを確認してからもう一度お試しください。
+cowork.masters.reading,CC デスクトップがこの会計データの勘定科目表をパソコンから読み込んでいます。しばらくしてからもう一度お試しください。
+cowork.masters.unavailable,パソコンの会計データ一覧にこの会計データがありません。
+cowork.masters.update_needed,この会計データの勘定科目表を読み込むには、そのパソコンの CC デスクトップを更新してください。
 cowork.nav.reconBank,銀行照合
 cowork.nav.reconIncome,収益照合
 cowork.nav.reconVat,売上税報告チェック

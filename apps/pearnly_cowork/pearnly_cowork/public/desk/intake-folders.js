@@ -387,6 +387,14 @@
 			paint_folders();
 			paint_stock();
 			paint_defaults();
+			// 这份账套的科目表还没读到：服务端已请电脑读，每 4 秒再取一次、最多一分钟（换了账套 / 关了弹窗就作废）
+			const masters = options.masters?.state;
+			const unread = Boolean(masters && masters !== "ready" && !options.accounts);
+			d.set_df_property("d_account", "description", unread ? __(`cowork.masters.${masters}`) : "");
+			state.masters_tries = unread && masters === "reading" ? (state.masters_tries || 0) + 1 : 0;
+			if (state.masters_tries && state.masters_tries <= 15) {
+				setTimeout(() => { if (ticket === state.loading) void load_options(); }, 4000);
+			}
 		};
 		// 两级账套：MR.ERP「公司 → 年度」，Express「年度 → 账套」（与「新建录入」同一份目录与标签）。
 		const load_catalog = async () => {

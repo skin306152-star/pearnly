@@ -19,8 +19,8 @@ from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
 from pearnly_cowork.targets import mrerp_masters as master_rules, mrerp_menus as menu_rules, stock_groups
-from . import access, model, snapshots, refresh as refresh_leases
-from .preparation import reported_stock_groups
+from . import access, account_masters, model, snapshots, refresh as refresh_leases
+from .preparation import account_reported, reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope
 
 CONNECTION, SNAPSHOT, REFRESH = access.TYPES
@@ -230,15 +230,8 @@ def request_refresh(name, request_key, account_set_key=None):
             access.write(doc)
             return _refresh_dto(old)
         refresh_leases.supersede(doc, old, _now())
-    refresh = frappe.get_doc({"doctype": REFRESH, "record_key": identity, "connection": name,
-        "workspace": doc.workspace, "client": doc.client or "", "actor": actor,
-        "connection_revision": doc.record_revision, "binding_generation": doc.binding_generation,
-        "adapter": doc.adapter, "scope_kind": kind, "scope_key": key,
-        "account_set_key": "@endpoint" if kind == "endpoint" else key,
-        "request_hash": signature, "status": "requested", "requested_at": _now(), "result_revision": 0})
-    access.write(refresh)
-    heads[head_key] = {**previous, "request_id": identity, "status": "pending", "error_code": None}
-    doc.projection_heads = model.dumps(heads)
+    refresh = refresh_leases.create(doc, kind, key, head_key, actor=actor, identity=identity, signature=signature,
+                                    now=_now())
     aliases[identity] = {"request_id": refresh.name, "request_hash": signature}
     doc.refresh_request_aliases = model.dumps(aliases)
     access.write(doc)
@@ -259,6 +252,20 @@ def refresh_status(name, request_id):
     if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
         _error("connection.refresh_stale")
     return _refresh_dto(refresh)
+
+
+def ensure_account_masters(name, account_set_key, *, actor=None):
+    """要用这份 Express 账套的主档（科目表、部门、供应商 / 客户、商品、存货科目组）：没有、或别的账套读过很久了，
+    就请这条连接的电脑读一次（同一份账套同一时刻只排一个，不打断正在读的）。回此刻的状况（`account_masters.view`），
+    建了请求时带 ``requested``；调用方负责提交。MR.ERP 由服务端读主档，回 ``ready``。"""
+    doc = _read(CONNECTION, name)
+    actor = access.require_connection(doc, actor=actor)
+    if doc.adapter != "express":
+        return {"state": account_masters.READY, "account_set": str(account_set_key or ""), "present": True}
+    account = _stock_group_account(doc, account_set_key)
+    now = _now()
+    refresh_leases.expire(doc, now)
+    return account_masters.ensure(doc, account, actor, now)
 
 
 def _stock_group_account(doc, account_set_key):
@@ -561,7 +568,13 @@ def stock_groups_for_log(connection_id, target):
         return []
     expected = {**credential, 'account_set': normalize_express_account_key(target.get('account_set')),
                 'root_key': normalize_express_account_key(target.get('root_key'))}
-    if (report.get('_preparation_origins') or {}).get('reported_stock_acc_groups') != expected:
-        return []
-    groups = report.get('reported_stock_acc_groups')
+    if (report.get('_preparation_origins') or {}).get('reported_stock_acc_groups') == expected:
+        groups = report.get('reported_stock_acc_groups')
+    else:
+        # 推往电脑当时没选的账套：组名在那份账套按账套读回的主档里，同样须出自这张回执的那份凭据。
+        cache = account_reported(doc, expected['account_set'])
+        if (cache.get('_credential'), cache.get('_generation')) != (credential.get('credential_id'),
+                                                                   credential.get('generation')):
+            return []
+        groups = cache.get('reported_stock_acc_groups')
     return deepcopy(groups) if isinstance(groups, list) else []

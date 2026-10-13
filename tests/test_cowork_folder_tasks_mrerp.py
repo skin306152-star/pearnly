@@ -76,7 +76,8 @@ class SaveMrerpTask(unittest.TestCase):
                        access=stub(require_connection=lambda doc: None),
                        preparation=stub(reported_masters=masters),
                        service=stub(targets=lambda name: {"groups": [group]}, stock_acc_group=lambda *a: {},
-                                    records=lambda *a: [dict(row) for row in connections.values()])),
+                                    records=lambda *a: [dict(row) for row in connections.values()],
+                                    ensure_account_masters=lambda *a: {"state": "ready"})),
                    "pearnly_cowork.folder_intake": stub(
                        agent=stub(read=lambda name: agents.get(name, {}), fresh=lambda state: True),
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),

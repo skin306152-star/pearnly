@@ -15,13 +15,21 @@ def body_for(value):
         "observed_at": value.observed_at.isoformat()}
 
 
-def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pending=False):
-    """Caller owns Connection lock, current authority and transaction completion."""
+def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pending=False, reported=None):
+    """Caller owns Connection lock, current authority and transaction completion.
+
+    ``reported``：按单个账套读回来、属于这份账套的原始主档（`collector`，带读它的凭据与代次），与这份账套的目录快照
+    存在一起；推送准备、要人选的项、存货科目组按账套从这里取（`preparation._account_cache`）。只用于账套范围。
+    """
     if normalized.adapter != doc.adapter:
         frappe.throw(_("connection.snapshot_invalid"))
     kind, key, head_key = state.scope(None if normalized.scope_kind == "endpoint" else normalized.scope_key, doc.adapter)
     prepared = model.preparation(preparation)
     body = {**body_for(normalized), "scope_kind": kind, "scope_key": key}
+    if reported is not None:
+        if kind != "account_set" or not isinstance(reported, dict):
+            frappe.throw(_("connection.snapshot_invalid"))
+        body["reported"] = reported
     if len(model.dumps(body).encode()) > 16 * 1024 * 1024:
         frappe.throw(_("connection.snapshot_too_large"))
     if prepared is not None and kind == "account_set":
@@ -30,7 +38,7 @@ def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pend
             frappe.throw(_("connection.preparation_invalid"))
     heads = state.heads(doc)
     head = heads.get(head_key, {})
-    content_hash = model.fingerprint([normalized.source_hash, prepared])
+    content_hash = model.fingerprint([normalized.source_hash, prepared] + ([reported] if reported is not None else []))
     current = state.read(state.SNAPSHOT, head["snapshot_id"]) if head.get("snapshot_id") else None
     if current and (current.connection != doc.name or current.connection_revision != doc.record_revision):
         frappe.throw(_("connection.snapshot_invalid"))

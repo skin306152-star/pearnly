@@ -51,6 +51,12 @@ def request_refresh(name, request_key, account_set_key=None):
     return result
 
 
+@frappe.whitelist(methods=["POST"])
+def ensure_account_masters(name, account_set_key):
+    """选定 Express 账套时请电脑读这份账套的主档（已经在读、刚读过就不再排；不打断正在读的）。"""
+    return _call(service.ensure_account_masters, name, account_set_key)
+
+
 @frappe.whitelist()
 def refresh_status(name, request_id):
     return _call(service.refresh_status, name, request_id)

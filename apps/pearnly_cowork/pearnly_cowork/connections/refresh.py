@@ -12,6 +12,48 @@ from pearnly_cowork.targets.identity import normalize_express_account_key
 from . import access, model, state
 
 LEASE_SECONDS = 900
+# 读这台电脑上任一份账套（不只是它当前选的那份）的完整主档：科目表、商品、客户、供应商、部门、存货科目组。
+# 按单个账套读（`projection_refresh.collect_account`）从 1.2.3 起读完整目录，供应商与部门从 1.3.0 起才报；
+# 更早的 CC 桌面端只把它选的那份交给它读，其他账套的请求留着、照实告诉用户要升级（`account_masters`）。
+ANY_ACCOUNT_SET_MIN_VERSION = "1.3.0"
+
+
+def version_tuple(value):
+    try:
+        return tuple(int(part) for part in str(value or "").strip().split("."))
+    except ValueError:
+        return (0,)
+
+
+def reads_any_account_set(version):
+    """这个版本的 CC 桌面端能读它当前选的账套以外的账套。"""
+    return bool(str(version or "").strip()) and version_tuple(version) >= version_tuple(ANY_ACCOUNT_SET_MIN_VERSION)
+
+
+def desktop_version(doc):
+    """最近一次上报的 CC 桌面端版本（心跳里的 `companion_version`）。"""
+    return str(model.parse(doc.get("report_json"), {}).get("companion_version") or "")
+
+
+def directory(doc):
+    """当前账套目录（'@endpoint' 那份快照）里的账套：``{账套键: 能不能写}``；还没有目录回 None。"""
+    _, _, key = state.scope(None)
+    head = state.heads(doc).get(key) or {}
+    if not head.get("snapshot_id"):
+        return None
+    row = frappe.db.get_value(state.SNAPSHOT, head["snapshot_id"], ["connection", "connection_revision", "body"],
+                              as_dict=True)
+    if not row or row.connection != doc.name or int(row.connection_revision or 0) != int(doc.record_revision or 0):
+        return None
+    found = {}
+    for item in (model.parse(row.body, {}) or {}).get("account_sets") or []:
+        if not isinstance(item, dict):
+            continue
+        attributes = item.get("attributes") if isinstance(item.get("attributes"), dict) else {}
+        found[normalize_express_account_key(item.get("source_id"))] = (
+            item.get("active", True) is not False and attributes.get("writable", True) is not False)
+    found.pop("", None)
+    return found
 
 
 def _rows(doc, statuses=("requested", "leased")):
@@ -112,18 +154,45 @@ def finish(doc, row, *, revision=None, error=None, now):
 
 
 def lease(doc, selected, credential_id, token_generation, now):
+    """Hand at most one requested read to this connection's PC (one lease at a time).
+
+    The selected account set and the endpoint directory are read by every CC Desktop. Any other account set is
+    handed only when it is listed (and writable) in the current endpoint directory and the PC's CC Desktop reads
+    any account set (`reads_any_account_set`); an older one leaves such requests waiting. A request for an account
+    set the directory no longer lists fails instead of reaching the PC. ``selected`` is this heartbeat's choice;
+    the poll lease has none and uses the connection's configured selection.
+    """
     expire(doc, now, credential_id=credential_id, token_generation=token_generation)
     rows = _rows(doc)
     if any(row.status == 'leased' for row in rows):
         return None
-    selected = normalize_express_account_key(selected)
-    candidates = [row for row in rows if row.status == 'requested' and row.adapter == 'express'
-                  and (not selected or row.account_set_key in ('@endpoint', selected))]
-    if not candidates:
+    config = model.parse(doc.config_json, {})
+    selected = normalize_express_account_key(selected or config.get('account_set') or config.get('account_dir'))
+    found, capable = [], None
+    listed = False
+    for row in rows:
+        if row.status != 'requested' or row.adapter != 'express':
+            continue
+        if row.scope_kind == 'endpoint' or row.account_set_key == selected:
+            found.append(row)
+            continue
+        if capable is None:
+            capable = reads_any_account_set(desktop_version(doc))
+        if not capable:
+            continue
+        if listed is False:
+            listed = directory(doc)
+        if listed is None:
+            continue  # no directory yet: the endpoint read comes first, then this one
+        if listed.get(row.account_set_key) is not True:
+            fail(doc, row, 'ERR_ACCOUNT_SET_UNAVAILABLE', now)
+            continue
+        found.append(row)
+    if not found:
         return None
-    candidates.sort(key=lambda row: (0 if row.scope_kind == 'endpoint' else 1 if row.account_set_key == selected else 2,
-                                     row.requested_at, row.name))
-    row = candidates[0]
+    found.sort(key=lambda row: (0 if row.scope_kind == 'endpoint' else 1 if row.account_set_key == selected else 2,
+                                row.requested_at, row.name))
+    row = found[0]
     row.status, row.started_at = 'leased', now
     row.lease_handle = str(uuid4())
     row.lease_owner, row.lease_generation = credential_id, token_generation
@@ -131,3 +200,19 @@ def lease(doc, selected, credential_id, token_generation, now):
     row.completed_at, row.error_code, row.result_revision = None, None, None
     access.write(row)
     return {'request_id': row.lease_handle, 'account_set_key': row.account_set_key, 'scope_kind': row.scope_kind}
+
+
+def create(doc, kind, key, head_key, *, actor, identity, signature, now):
+    """Record one requested read and point its scope head at it (caller holds the Connection lock)."""
+    heads = state.heads(doc)
+    previous = heads.get(head_key, {})
+    row = frappe.get_doc({"doctype": state.REFRESH, "record_key": identity, "connection": doc.name,
+        "workspace": doc.workspace, "client": doc.client or "", "actor": actor,
+        "connection_revision": doc.record_revision, "binding_generation": doc.binding_generation,
+        "adapter": doc.adapter, "scope_kind": kind, "scope_key": key,
+        "account_set_key": "@endpoint" if kind == "endpoint" else key,
+        "request_hash": signature, "status": "requested", "requested_at": now, "result_revision": 0})
+    access.write(row)
+    heads[head_key] = {**previous, "request_id": identity, "status": "pending", "error_code": None}
+    doc.projection_heads = model.dumps(heads)
+    return row

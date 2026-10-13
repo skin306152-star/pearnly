@@ -19,7 +19,6 @@ from .reports import CACHE_KEYS, MAPPING_KEYS, SELECTED_KEYS
 ACCOUNT_CACHE_KEYS = ('reported_accounts', 'accounts_seen_at', 'reported_products', 'reported_customers',
                       'reported_suppliers', 'reported_departments',
                       'catalog_seen_at', 'catalog_fingerprint', 'reported_stock_acc_groups', 'stock_acc_groups_seen_at')
-_MAX_ACCOUNT_CACHES = 10
 # 每次心跳都会变、又没有读的人：不写进上报记录。小助手每分钟报到一次，留着它们会让内容没变的上报记录
 # （生产每条几百 KB）每分钟整份重写一遍、全量进数据库日志。报到时间由心跳入口记在密钥那一小行上
 # （`companion.credentials.record_seen`），在线判断读那里。
@@ -28,23 +27,22 @@ VOLATILE_KEYS = frozenset(('agent_last_seen_at', 'account_sets_seen_at', 'accoun
 
 
 def _keep_account_caches(report, plan, credential_id, token_generation, now):
-    """别的账套的主档另存在 `_account_caches[账套]`，不覆盖小助手默认账套的缓存，也不记成它的。
+    """别的账套的主档不覆盖小助手默认账套的缓存，也不记成它的：取出来存进那份账套自己的目录快照（`snapshots.publish`）。
 
-    以前按单个账套刷新带回的商品 / 存货科目组 / 记账指纹 / 科目表直接盖在公共位置上，归属又按小助手
-    默认账套记 —— 推到默认账套时会拿别的账套的存货资料做检查。只保留最近用到的几份。
-    """
+    以前存在上报记录的 `_account_caches[账套]` 里、只留最近 10 份：一台电脑做几十家客户的账时互相挤掉，上报记录也越来越大
+    （整行重写进数据库日志）。现在每份账套各存一份，上报记录里那份旧缓存在下一次写入时去掉。
+    回 ``(去掉这些键后的 plan, 这份账套的主档或 None)``。"""
+    report.pop('_account_caches', None)
     account = plan.refreshed_account
     if not account or account == normalize_express_account_key(plan.lease_selection):
-        return plan
+        return plan, None
     patch = dict(plan.patch)
     moved = {key: patch.pop(key) for key in ACCOUNT_CACHE_KEYS if key in patch}
+    reported = None
     if moved:
-        caches = dict(report.get('_account_caches') or {})
-        caches[account] = {**moved, '_seen_at': now.isoformat(), '_credential': credential_id,
-                           '_generation': int(token_generation)}
-        keep = sorted(caches, key=lambda key: caches[key].get('_seen_at') or '', reverse=True)[:_MAX_ACCOUNT_CACHES]
-        report['_account_caches'] = {key: caches[key] for key in keep}
-    return replace(plan, patch=patch)
+        reported = {key: value for key, value in moved.items() if key not in VOLATILE_KEYS}
+        reported.update({'_credential': credential_id, '_generation': int(token_generation)})
+    return replace(plan, patch=patch), reported
 
 
 def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
@@ -63,7 +61,7 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
         doc.record_revision += 1
         doc.projection_heads = '{}'
     report = model.parse(doc.get('report_json'), {})
-    plan = _keep_account_caches(report, plan, credential_id, token_generation, now)
+    plan, account_masters = _keep_account_caches(report, plan, credential_id, token_generation, now)
     report.update({key: value for key, value in plan.patch.items() if key in CACHE_KEYS and key not in VOLATILE_KEYS})
     for key in VOLATILE_KEYS:
         report.pop(key, None)
@@ -94,7 +92,9 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
     for observation in plan.observations:
         normalized = normalize_projection(observation)
         kind, key, _ = state.scope(None if normalized.scope_kind == 'endpoint' else normalized.scope_key, doc.adapter)
-        published[(kind, key)] = snapshots.publish(doc, normalized, preserve_pending=True)['revision']
+        # 按单个账套读回来的主档跟着这份账套的目录快照一起存（读失败、没带目录时没有这一份）。
+        own = account_masters if kind == 'account_set' and key == plan.refreshed_account else None
+        published[(kind, key)] = snapshots.publish(doc, normalized, preserve_pending=True, reported=own)['revision']
     if plan.projection_error:
         error = plan.projection_error
         kind, key, head_key = state.scope(None if error['scope'] == 'endpoint' else error['account_set'], doc.adapter)

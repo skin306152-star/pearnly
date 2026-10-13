@@ -278,12 +278,11 @@ def _prefetch_account(payload):
     """选定 Express 账套就让助手读这份账套的主档，推送前的库存检查才有它的资料（与网页同一个刷新）。"""
     if payload.get("target") != "express":
         return
-    from uuid import uuid4
-
     from pearnly_cowork.connections import service
 
     try:
-        service.request_refresh(payload["connection"], str(uuid4()), payload["account_set_key"])
+        # 已经在读、刚读过就不再排，也不打断正在读的（与网页、CC 同一个入口）
+        service.ensure_account_masters(payload["connection"], payload["account_set_key"])
     except frappe.ValidationError:
         pass
 
