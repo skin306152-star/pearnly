@@ -2,10 +2,12 @@
 
 访客由 `login_redirect` 送去 CC 入口（登录后经本站统一登录口回到本页）；这里的跳转只是兜底，规则同一处。
 站点只属于一个产品：开户给的是哪个产品，登录后就只看到这个产品的形象与工具。本机管理后台没有产品，不提供此页。
+界面语言按这台设备记住的走，没有才用账号语言、系统语言（`pearnly_core.account.ui_language`）。
 """
 import frappe
 
 from pearnly_core import login_redirect
+from pearnly_core.account import preferences
 from pearnly_core.identity import assistant_entry_url
 
 no_cache = 1
@@ -22,4 +24,4 @@ def get_context(context):
         raise frappe.PermissionError
     context.no_cache = 1
     context.csrf_token = frappe.sessions.get_csrf_token()
-    context.lang = frappe.local.lang or "th"
+    context.lang = frappe.local.lang = preferences.interface_language()

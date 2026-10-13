@@ -98,13 +98,16 @@ class TestPreferences(unittest.TestCase):
         doc.language = "th"
         doc.is_new.return_value = False
         doc.has_value_changed.return_value = True
+        doc.flags.pearnly_profile_locale_synced = False
         return doc
 
     def test_native_profile_syncs_identity_and_cookie(self):
         with patch.object(oidc_session, "update_locale") as update:
             preferences.sync_profile_language(self.profile())
             update.assert_called_once_with("th")
-        self.native.local.cookie_manager.set_cookie.assert_called_with("pearnly_locale", "th")
+        # 自己在这台设备上改的：记住（对话页按它）
+        self.native.local.cookie_manager.set_cookie.assert_called_with(
+            "pearnly_locale", "th", max_age=preferences.DEVICE_DAYS * 86400, httponly=True)
 
     def test_native_profile_failure_aborts_save(self):
         with patch.object(oidc_session, "update_locale", side_effect=PermissionError):
@@ -145,20 +148,54 @@ class TestPreferences(unittest.TestCase):
         oidc_session.logout_hint()
         self.native.cache.get_value.assert_called_with("pearnly_oidc_session:session-b")
 
+    def sign_in(self, device, shown, picked=False, claim="zh-CN"):
+        self.native.request.cookies = {"pearnly_locale": device} if device else {}
+        self.native.local.cookie_manager.reset_mock()
+        with patch.object(preferences, "_sync_or_defer") as sync, \
+                patch.object(preferences, "apply_login_locale") as apply:
+            preferences.finish_login_locale("preview@example.test", claim, shown, picked)
+        return sync, apply
+
     def test_language_picked_before_login_beats_the_saved_one(self):
         # 2026-10-12：入口页选了英文，账号里存的是中文、身份服务给的也是中文 → 以这次选的为准，并写回身份服务
         self.native.defaults.get_user_default.return_value = "th"
-        with patch.object(preferences, "_sync_or_defer") as sync, \
-                patch.object(preferences, "apply_login_locale") as apply:
-            preferences.finish_login_locale("preview@example.test", "zh-CN", "en")
+        sync, apply = self.sign_in("zh-CN", "en", picked=True)
         sync.assert_called_once_with("en")
         apply.assert_called_once_with("preview@example.test", "en")
-        self.native.local.cookie_manager.set_cookie.assert_called_with("pearnly_locale", "en")
-        with patch.object(preferences, "_sync_or_defer") as sync, \
-                patch.object(preferences, "apply_login_locale") as apply:
-            preferences.finish_login_locale("preview@example.test", "zh-CN", "fr")  # 不认识的不算，按之前没同步的
+        self.native.local.cookie_manager.set_cookie.assert_called_with(
+            "pearnly_locale", "en", max_age=preferences.DEVICE_DAYS * 86400, httponly=True)
+        sync, apply = self.sign_in("", "fr", picked=True)  # 不认识的不算，按之前没同步的
         sync.assert_called_once_with("th")
         apply.assert_called_once_with("preview@example.test", "th")
+
+    def test_first_sign_in_on_a_device_takes_the_language_the_login_page_showed(self):
+        # 2026-10-13：泰文系统的新电脑，登录页按系统语言显示泰文（没点），账号是中文 → 泰文，写回身份服务、记在这台设备上
+        self.native.defaults.get_user_default.return_value = None
+        sync, apply = self.sign_in("", "th")
+        sync.assert_called_once_with("th")
+        apply.assert_called_once_with("preview@example.test", "th")
+        self.native.local.cookie_manager.set_cookie.assert_called_once_with(
+            "pearnly_locale", "th", max_age=preferences.DEVICE_DAYS * 86400, httponly=True)
+
+    def test_a_device_that_remembers_keeps_its_language(self):
+        # 这台设备记住中文：登录页这次按系统显示泰文也不改；账号照身份服务给的，设备的续期
+        self.native.defaults.get_user_default.return_value = None
+        sync, apply = self.sign_in("zh-CN", "th", claim="th")
+        sync.assert_not_called()
+        apply.assert_called_once_with("preview@example.test", "th")
+        self.native.local.cookie_manager.set_cookie.assert_called_once_with(
+            "pearnly_locale", "zh-CN", max_age=preferences.DEVICE_DAYS * 86400, httponly=True)
+        # 从后台登录（没有登录页语言）、设备也没记住：只按账号，不替设备定语言
+        sync, apply = self.sign_in("", None, claim="zh-CN")
+        apply.assert_called_once_with("preview@example.test", "zh-CN")
+        self.native.local.cookie_manager.set_cookie.assert_not_called()
+
+    def test_page_requests_use_the_page_language(self):
+        for header, want in (("th", "th"), ("en", "en"), ("ja", "en"), ("zh-CN", "en"), (None, "en")):
+            self.native.local.lang = "en"
+            self.native.request.headers = {"X-Pearnly-Lang": header} if header else {}
+            preferences.use_page_language()
+            self.assertEqual(self.native.local.lang, want, header)
 
     def test_unsupported_login_locale_does_not_overwrite_preference(self):
         preferences.apply_login_locale("preview@example.test", "unknown")

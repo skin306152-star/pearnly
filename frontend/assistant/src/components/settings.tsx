@@ -26,6 +26,7 @@ import {
 } from "@/lib/desktop";
 import { useInstallGuide } from "@/components/install-prompt";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
+import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { useProfile } from "@/lib/profile";
 import { usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
@@ -37,16 +38,6 @@ type Section = "general" | "connections" | "system";
 const STATUS_COLOR: Record<string, string> = Object.fromEntries(
   ["online", "processing", "attention", "offline", "connecting", "paused"].map((k) => [k, `var(--cc-status-${k})`]),
 );
-
-async function saveLanguage(code: string) {
-  await fetch("/api/method/pearnly_core.account.preferences.set_language", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
-    body: JSON.stringify({ language: code }),
-  });
-  location.reload();
-}
 
 export function Settings() {
   const [open, setOpen] = useState(false);
@@ -269,7 +260,7 @@ function General() {
         />
       </Row>
       <Row label={t("language")}>
-        <Segmented value={lang} options={LANGUAGES.map((l) => [l.code, l.label] as [string, string])} onChange={(code) => void saveLanguage(code)} />
+        <Segmented value={lang} options={LANGUAGES.map((l) => [l.code, l.label] as [string, string])} onChange={(code) => void chooseLanguage(code)} />
       </Row>
       <Notifications />
     </>
@@ -517,7 +508,7 @@ function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?:
 type Computer = { adapter: string; device: string; online: boolean; version: string; folders: string[] };
 
 async function getJson<T>(method: string): Promise<T | null> {
-  const res = await fetch(`/api/method/${method}`, { credentials: "same-origin", cache: "no-store" }).catch(() => null);
+  const res = await siteFetch(`/api/method/${method}`, { cache: "no-store" }).catch(() => null);
   if (!res?.ok) return null;
   return ((await res.json()) as { message: T }).message;
 }
