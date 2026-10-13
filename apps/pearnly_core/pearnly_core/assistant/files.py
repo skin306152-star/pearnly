@@ -11,6 +11,7 @@
 - 工具放进对话的文件也在本站留一份（2026-10 CC 闭环 L3）：工具产出（复核工作簿、回读的总账 / 税报……）能再交给别的
   工具当输入（例如对账），产品从文件夹取来的文件同样。来源分三种（`origin`）：用户上传（会话目录本身）、工具生成
   （`tool/`）、从文件夹取来（`folder/`）；产品据此拒绝把自己生成的文件再拿去识别。
+- 对话接续到新上下文后，沙箱里的旧文件没了，本站这份还在（按对话留，不分段）：`kept` 列给智能体，工具照样按文件名取。
 """
 import os
 import re
@@ -74,11 +75,18 @@ def _read(path: str) -> bytes:
         return handle.read()
 
 
-def _kept(file_id=None) -> list[tuple[str, callable, str]]:
-    """[(「<编号>--<文件名>」, 取内容, 来源 user / tool / folder)]：先看私有目录（按放进来的先后），再看 2026-10-10 晚以前
-    存在 File 表里的旧留存（都是用户上传）。"""
-    context = getattr(frappe.local, "pearnly_assistant", None) or {}
-    row = sessions.owned(context.get("session_id"), allow_archived=True)
+def _kept(file_id=None, row=None) -> list[tuple[str, callable, str]]:
+    """[(「<编号>--<文件名>」, 取内容, 来源 user / tool / folder)]，旧 → 新：先是 2026-10-10 晚以前存在 File 表里的旧留存
+    （都是用户上传），再是私有目录（按放进来的先后）。不给 `row` 就是当前工具调用所在的对话。"""
+    if row is None:
+        context = getattr(frappe.local, "pearnly_assistant", None) or {}
+        row = sessions.owned(context.get("session_id"), allow_archived=True)
+    found = []
+    filters = {"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name}
+    if file_id:
+        filters["file_name"] = ["like", file_id + "--%"]
+    for old in frappe.get_all("File", filters=filters, fields=["name", "file_name"], order_by="creation asc"):
+        found.append((old.file_name, lambda name=old.name: frappe.get_doc("File", name).get_content(), USER))
     local = []
     for origin in (USER,) + ORIGINS:
         folder = _folder(row.name, origin)
@@ -89,13 +97,7 @@ def _kept(file_id=None) -> list[tuple[str, callable, str]]:
             if ("--" in entry and not entry.endswith(".part") and (not file_id or entry.startswith(file_id + "--"))
                     and os.path.isfile(path)):
                 local.append((os.path.getmtime(path), entry, path, origin))
-    found = [(entry, lambda path=path: _read(path), origin) for _at, entry, path, origin in sorted(local)]
-    filters = {"attached_to_doctype": sessions.SESSION, "attached_to_name": row.name}
-    if file_id:
-        filters["file_name"] = ["like", file_id + "--%"]
-    for old in frappe.get_all("File", filters=filters, fields=["name", "file_name"], order_by="creation asc"):
-        found.append((old.file_name, lambda name=old.name: frappe.get_doc("File", name).get_content(), USER))
-    return found
+    return found + [(entry, lambda path=path: _read(path), origin) for _at, entry, path, origin in sorted(local)]
 
 
 def attachments() -> list[dict]:
@@ -106,6 +108,17 @@ def attachments() -> list[dict]:
         file_id, sep, filename = entry.partition("--")
         if sep and not any(item["file_id"] == file_id for item in out):
             out.append({"file_id": file_id, "filename": filename, **({} if origin == USER else {"origin": origin})})
+    return out
+
+
+def kept(row) -> list[dict]:
+    """这段对话（`row`：会话记录）留存的全部文件，新 → 旧：[{file_id, filename, origin}]。接续新上下文时告诉智能体
+    还有哪些文件能交给工具（`sessions.segment_for_turn`）：沙箱里的那份随旧上下文没了，本站这份还在、按文件名照样取得到。"""
+    out = []
+    for entry, _read, origin in reversed(_kept(row=row)):
+        file_id, sep, filename = entry.partition("--")
+        if sep:
+            out.append({"file_id": file_id, "filename": filename, "origin": origin})
     return out
 
 
@@ -142,6 +155,16 @@ def _resolve(ref) -> str:
     name = parts[-1] if parts else text
     named = [item["file_id"] for item in known if item["filename"] == name]
     return named[-1] if named else text
+
+
+def resolve(ref) -> str:
+    """模型给的编号、挂载路径或文件名 → 本对话里那个文件的编号（同名取最新的）。工具按它定幂等键：同一个文件不论
+    怎么称呼都是同一件请求；接续新上下文后智能体按文件名称呼旧文件，也不会被当成另一份、也不会与别的对话里的同名文件撞。
+    不在这个对话里报与 `attachment` 相同的错。"""
+    fid = sessions._guard(contracts.file_id, _resolve(ref))
+    if not _kept(fid):
+        frappe.throw(_("This attachment is not in this conversation."))
+    return fid
 
 
 def attachment(file_id) -> tuple[str, bytes]:

@@ -217,11 +217,31 @@ def answered_tool_uses(events) -> set[str]:
     return {e.get("custom_tool_use_id") for e in events if e.get("type") == "user.custom_tool_result"}
 
 
-# 接续新上下文时带过去的前文（见 `sessions` 的接续）：只取双方的文字，去掉附件说明（旧附件在新上下文里读不到）。
+# 接续新上下文时带过去的（见 `sessions` 的接续）：本对话做过的事（工具与关键参数）、本站留存的文件、双方最近的文字
+# （去掉附件说明：沙箱里的旧文件在新上下文里没有了）。合成一段，放进批末那条系统消息。
 CARRY_MAX_CHARS = 24_000
 CARRY_INTRO = ("This conversation continues from an earlier context that was closed to keep it short. "
-               "Files attached earlier are no longer readable unless the user attaches them again. "
-               "Earlier messages, most recent last:\n\n")
+               "Files from that context are no longer in the sandbox.")
+CARRY_MESSAGES = "Earlier messages, most recent last:"
+# 工作清单：本对话（全部分段）调用过的工具，新 → 旧，同一工具同样参数只留最新一次。参数只带顶层的短值（编号、期间、
+# 文件名这类），长文字、嵌套结构、文件内容都不带；像密码、令牌的键一律不带。
+WORK_INTRO = "Work so far in this conversation, latest first (call the tools again for current results):"
+WORK_MAX_ITEMS = 40
+WORK_MAX_CHARS = 6_000
+WORK_LINE_MAX = 300
+WORK_VALUE_MAX = 80  # 比这长的字符串当作自由文字
+WORK_LIST_SHOWN = 5  # 列表最多列这么多项，其余只给个数
+WORK_LIST_MAX = 50  # 比这多项的列表不带
+WORK_STATUS = {"error": "failed", "denied": "not allowed by the user", "awaiting_approval": "waiting for Allow"}
+TOOL_NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+INPUT_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,39}$")
+SECRET_KEY = re.compile(r"password|passwd|secret|token|api_?key|credential", re.I)
+# 留存的文件（`files.kept`）：工具按文件名照样取得到，沙箱里的那份没了。
+FILES_INTRO = ("Files kept from earlier in this conversation, newest first. Tools that take a file still accept "
+               "them by filename; to read one in the sandbox, ask the user to attach it again:")
+FILES_MAX_ITEMS = 30
+FILES_MAX_CHARS = 3_000
+FILE_ORIGINS = {"user": "uploaded", "tool": "made by a tool", "folder": "from a folder"}
 
 
 def _text(event) -> str:
@@ -249,8 +269,107 @@ def carry_over(events, max_chars: int = CARRY_MAX_CHARS) -> str:
     return "\n\n".join(reversed(kept))
 
 
-def carry_text(transcript) -> str:
-    return CARRY_INTRO + transcript if transcript else ""
+def _short(value):
+    """工作清单里能带的一个值（字符串、数字、真假）；长的、多行的、空的回 None。"""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str) and value.strip() and not re.search(r"[\x00-\x1f\x7f]", value):
+        text = value.strip()
+        return text if len(text) <= WORK_VALUE_MAX else None
+    return None
+
+
+def work_inputs(tool_input) -> list[str]:
+    """一次工具调用的关键参数 → ["键=值", …]（按给的顺序）：只取顶层的短值与短字符串列表。"""
+    out = []
+    for key, value in (tool_input.items() if isinstance(tool_input, dict) else ()):
+        if not INPUT_KEY.match(str(key)) or SECRET_KEY.search(str(key)):
+            continue
+        if isinstance(value, list):
+            items = [_short(item) for item in value]
+            if not items or len(items) > WORK_LIST_MAX or None in items:
+                continue
+            more = len(items) - WORK_LIST_SHOWN
+            text = "[" + ", ".join(items[:WORK_LIST_SHOWN] + ([f"+{more} more"] if more > 0 else [])) + "]"
+        else:
+            text = _short(value)
+            if text is None:
+                continue
+        out.append(f"{key}={text}")
+    return out
+
+
+def work_list(runs) -> str:
+    """本对话调用过的工具（`runs`：[{tool, input, status}]，新 → 旧）→ 工作清单，一行一次：`- 工具: 键=值, …`。
+    同一工具同样参数只留最新一次；最多 `WORK_MAX_ITEMS` 行、合计不超过 `WORK_MAX_CHARS` 字。"""
+    lines, seen, size = [], set(), 0
+    for run in runs:
+        tool = str(run.get("tool") or "").strip()
+        if not TOOL_NAME.match(tool):
+            continue
+        line, args = "- " + tool, []
+        for part in work_inputs(run.get("input")):
+            if len(line) + len(part) + 2 > WORK_LINE_MAX:
+                break
+            args.append(part)
+            line = "- " + tool + ": " + ", ".join(args)
+        if line in seen:
+            continue
+        seen.add(line)
+        status = WORK_STATUS.get(run.get("status"))
+        line += f" ({status})" if status else ""
+        if size + len(line) > WORK_MAX_CHARS:
+            break
+        lines.append(line)
+        size += len(line) + 1
+        if len(lines) >= WORK_MAX_ITEMS:
+            break
+    return "\n".join(lines)
+
+
+def files_note(files) -> str:
+    """本对话留存的文件（`files`：[{filename, origin}]，新 → 旧）→ 一行一个：`- 文件名 (来源)`。同名只列最新一个（工具按
+    文件名取的就是它）；最多 `FILES_MAX_ITEMS` 个、合计不超过 `FILES_MAX_CHARS` 字。"""
+    lines, seen, size = [], set(), 0
+    for item in files:
+        name = " ".join(str(item.get("filename") or "").split())[:120]
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        line = f"- {name} ({FILE_ORIGINS.get(item.get('origin'), FILE_ORIGINS['user'])})"
+        if size + len(line) > FILES_MAX_CHARS:
+            break
+        lines.append(line)
+        size += len(line) + 1
+        if len(lines) >= FILES_MAX_ITEMS:
+            break
+    return "\n".join(lines)
+
+
+def carry_note(transcript, work="", files="") -> str:
+    """接续时随下一条消息带上的一段：说明、工作清单（`work_list`）、留存的文件（`files_note`）、最近的文字
+    （`carry_over`）。都没有回空串。"""
+    if not (transcript or work or files):
+        return ""
+    parts = [CARRY_INTRO]
+    if work:
+        parts.append(WORK_INTRO + "\n" + work)
+    if files:
+        parts.append(FILES_INTRO + "\n" + files)
+    if transcript:
+        parts.append(CARRY_MESSAGES + "\n\n" + transcript)
+    return "\n\n".join(parts)
+
+
+def carry_text(pending) -> str:
+    """待带的接续（会话上的 `pending_carry`）→ 系统消息里的那一段。存的就是 `carry_note` 整段；这一版以前存的只有
+    最近的文字，照样补上说明。"""
+    text = str(pending or "")
+    if not text:
+        return ""
+    return text if text.startswith(CARRY_INTRO) else carry_note(text)
 
 
 def system_message(*texts):

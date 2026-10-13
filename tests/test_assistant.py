@@ -194,6 +194,72 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(contracts.carry_over(events, max_chars=30), "User: 这是什么\n\nAssistant: 一张收据")
         self.assertEqual(contracts.carry_message("x")["type"], "system.message")
 
+    def test_the_work_list_keeps_short_inputs_latest_first_and_drops_free_text(self):
+        # 2026-10 接续到新上下文时只带最近 2.4 万字：再带上本对话调过的工具与关键参数，智能体才知道在做什么、能再查
+        runs = [{"tool": "recon_status", "input": {"job": "RJ-7"}, "status": "done"},
+                {"tool": "recon_start", "input": {"kind": "bank", "left_files": ["stmt.pdf"],
+                                                  "right_files": ["GL-05.xlsx"], "title": "May bank"}, "status": "done"},
+                {"tool": "recon_status", "input": {"job": "RJ-7"}, "status": "done"},  # 同样参数只留最新一次
+                {"tool": "draft_save", "input": {"draft": "D-1", "period": "2026-05", "dry_run": False, "lines": 3,
+                                                 "notes": "x" * 81, "answers": {"q1": "a"}, "body": "a\nb",
+                                                 "api_key": "k-123", "password": "p", "access_token": "t"},
+                 "status": "error"},
+                {"tool": "settings_save", "input": {"connection": "C1"}, "status": "denied"},
+                {"tool": "settings_save", "input": {"connection": "C2"}, "status": "awaiting_approval"},
+                {"tool": "batch_status", "input": {"documents": [f"H{i}" for i in range(12)]}, "status": "done"},
+                {"tool": "whoami", "input": {}, "status": "done"},
+                {"tool": "bad name!", "input": {"x": "1"}, "status": "done"},
+                {"tool": "mixed", "input": {"files": ["a.pdf", {"nested": 1}], "big": list(range(60)),
+                                            "bad key": "v", "empty": "  ", "none": None}, "status": "done"}]
+        work = contracts.work_list(runs)
+        self.assertEqual(work.splitlines(), [
+            "- recon_status: job=RJ-7",
+            "- recon_start: kind=bank, left_files=[stmt.pdf], right_files=[GL-05.xlsx], title=May bank",
+            "- draft_save: draft=D-1, period=2026-05, dry_run=false, lines=3 (failed)",
+            "- settings_save: connection=C1 (not allowed by the user)",
+            "- settings_save: connection=C2 (waiting for Allow)",
+            "- batch_status: documents=[H0, H1, H2, H3, H4, +7 more]",
+            "- whoami",
+            "- mixed"])
+        for leaked in ("x" * 81, "q1", "a\nb", "k-123", "password", "access_token"):
+            self.assertNotIn(leaked, work)
+
+    def test_the_work_list_and_file_list_are_capped(self):
+        many = [{"tool": f"tool_{i}", "input": {"id": f"R-{i}"}, "status": "done"} for i in range(100)]
+        lines = contracts.work_list(many).splitlines()
+        self.assertEqual(len(lines), contracts.WORK_MAX_ITEMS)
+        self.assertEqual(lines[0], "- tool_0: id=R-0")  # 最新的在前
+        wide = [{"tool": f"tool_{i}", "input": {f"k{j}": "v" * 80 for j in range(10)}, "status": "done"} for i in range(40)]
+        work = contracts.work_list(wide)
+        self.assertLessEqual(len(work), contracts.WORK_MAX_CHARS)
+        self.assertTrue(all(len(line) <= contracts.WORK_LINE_MAX for line in work.splitlines()))
+        self.assertTrue(all("=" + "v" * 80 in line for line in work.splitlines()))  # 截在参数之间，不截半个值
+        files = [{"filename": f"f{i:03d}.pdf", "origin": "user"} for i in range(100)]
+        self.assertEqual(len(contracts.files_note(files).splitlines()), contracts.FILES_MAX_ITEMS)
+        long_names = [{"filename": f"{i:03d}" + "n" * 117 + ".pdf", "origin": "tool"} for i in range(30)]
+        self.assertLessEqual(len(contracts.files_note(long_names)), contracts.FILES_MAX_CHARS)
+
+    def test_the_file_list_names_each_kept_file_once_with_where_it_came_from(self):
+        files = [{"filename": "GL-05.xlsx", "origin": "tool"}, {"filename": "stmt.pdf", "origin": "folder"},
+                 {"filename": "r.jpg", "origin": "user"}, {"filename": "GL-05.xlsx", "origin": "user"},
+                 {"filename": "  ", "origin": "user"}]
+        self.assertEqual(contracts.files_note(files), "- GL-05.xlsx (made by a tool)\n- stmt.pdf (from a folder)\n"
+                                                     "- r.jpg (uploaded)")
+        self.assertEqual(contracts.files_note([]), "")
+
+    def test_the_carry_note_puts_the_work_files_and_words_in_one_block(self):
+        note = contracts.carry_note("User: hi", "- recon_status: job=RJ-7", "- r.jpg (uploaded)")
+        self.assertEqual(note, "\n\n".join([
+            contracts.CARRY_INTRO, contracts.WORK_INTRO + "\n- recon_status: job=RJ-7",
+            contracts.FILES_INTRO + "\n- r.jpg (uploaded)", contracts.CARRY_MESSAGES + "\n\nUser: hi"]))
+        self.assertIn("by filename", contracts.FILES_INTRO)
+        self.assertNotIn("attaches them again", note)  # 以前说旧附件都读不到了，其实工具按文件名照样取得到
+        self.assertEqual(contracts.carry_text(note), note)  # 存的就是整段，不再加一遍说明
+        self.assertEqual(contracts.carry_note("User: hi"), contracts.CARRY_INTRO + "\n\n" + contracts.CARRY_MESSAGES
+                         + "\n\nUser: hi")
+        self.assertEqual(contracts.carry_note("", "", ""), "")
+        self.assertTrue(contracts.carry_note("", "- whoami").startswith(contracts.CARRY_INTRO))
+
     def test_context_size_counts_cached_input_too(self):
         events = [{"type": "span.model_request_end", "model_usage": {"input_tokens": 2, "cache_read_input_tokens": 100,
                                                                       "cache_creation_input_tokens": 10, "output_tokens": 50}},
@@ -600,6 +666,123 @@ class RelayTests(unittest.TestCase):
                     delattr(frappe, name)
                 else:
                     setattr(frappe, name, value)
+
+    def test_kept_files_are_listed_newest_first_and_any_name_for_a_file_gives_its_id(self):
+        # 接续新上下文后告诉智能体还有哪些文件（新 → 旧，2026-10-10 以前 File 表里的旧留存最旧）；工具按文件编号定幂等键，
+        # 模型按文件名、挂载路径称呼也是同一个，同名取最新的
+        import tempfile
+
+        root = tempfile.mkdtemp()
+        sessions = types.ModuleType("pearnly_core.assistant.sessions")
+        sessions.SESSION = "Pearnly Assistant Session"
+        sessions.owned = lambda sid, allow_archived=False: types.SimpleNamespace(name={"s1": "row1", "s2": "row2"}[sid])
+        sessions._guard = lambda fn, *a: fn(*a)
+        sys.modules["pearnly_core.assistant.sessions"] = sys.modules["pearnly_core.assistant"].sessions = sessions
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = types.ModuleType("heic")
+        files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+        legacy = [types.SimpleNamespace(name="F-OLD", file_name="file_OLD--r.jpg")]
+
+        def get_all(doctype, filters=None, fields=None, order_by=None):
+            like = (filters.get("file_name") or [None, ""])[1].rstrip("%")
+            return [r for r in legacy if filters["attached_to_name"] == "row1" and r.file_name.startswith(like)]
+
+        saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "get_all", None))
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.get_all = get_all
+        try:
+            row = types.SimpleNamespace(name="row1")
+            for at, (fid, name, origin) in enumerate((("file_U1", "r.jpg", "user"), ("file_T1", "GL-05.xlsx", "tool"),
+                                                     ("file_F1", "stmt.pdf", "folder"), ("file_U2", "r.jpg", "user"))):
+                files._keep(row, fid, name, b"x", origin)
+                folder = files._folder("row1", origin)
+                os.utime(os.path.join(folder, f"{fid}--{name}"), (1_700_000_000 + at, 1_700_000_000 + at))
+            self.assertEqual([(f["file_id"], f["filename"], f["origin"]) for f in files.kept(row)],
+                             [("file_U2", "r.jpg", "user"), ("file_F1", "stmt.pdf", "folder"),
+                              ("file_T1", "GL-05.xlsx", "tool"), ("file_U1", "r.jpg", "user"),
+                              ("file_OLD", "r.jpg", "user")])
+            self.assertEqual(files.kept(types.SimpleNamespace(name="row2")), [])
+            frappe.local.pearnly_assistant = {"session_id": "s1"}
+            self.assertEqual(files.resolve("r.jpg"), "file_U2")  # 同名取最新的（与按文件名取原件一致）
+            self.assertEqual(files.attachment("r.jpg")[0], "r.jpg")
+            for ref in ("file_T1", "/mnt/session/uploads/file_T1/GL-05.xlsx", "GL-05.xlsx"):
+                self.assertEqual(files.resolve(ref), "file_T1", ref)
+            frappe.local.pearnly_assistant = {"session_id": "s2"}
+            for ref in ("r.jpg", "file_T1", "nothing.pdf"):  # 别的对话里没有：同 attachment 报错
+                with self.assertRaises(Exception):
+                    files.resolve(ref)
+        finally:
+            frappe.local.pearnly_assistant = None
+            for name, value in zip(("get_site_path", "get_all"), saved):
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
+
+    def test_a_new_segment_carries_the_work_list_and_the_kept_files(self):
+        sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        row_type = type("Row", (dict,), {"__getattr__": dict.get})  # 同 frappe._dict
+        events = [{"type": "user.message", "content": [{"type": "text", "text": "reconcile May"}]},
+                  {"type": "agent.message", "content": [{"type": "text", "text": "Started."}]}]
+        fetched, opened, writes, asked, logged, kept_tools = [], [], [], [], [], []
+        api = types.SimpleNamespace(events=lambda remote: fetched.append(remote) or list(events),
+                                    open=lambda prepared, metadata: opened.append(metadata) or ("sesn_third", "idle"))
+        files = types.ModuleType("files")
+        files.kept = lambda r: asked.append(("kept", r.name)) or [
+            {"file_id": "file_2", "filename": "GL-05.xlsx", "origin": "tool"},
+            {"file_id": "file_1", "filename": "stmt.pdf", "origin": "user"}]
+        runs = [{"tool": "recon_status", "tool_input": json.dumps({"job": "RJ-7"}), "status": "done"},
+                {"tool": "recon_start", "tool_input": json.dumps({"kind": "bank", "left_files": ["stmt.pdf"],
+                                                                  "note": "long " * 40}), "status": "done"},
+                {"tool": "broken", "tool_input": "{not json", "status": "error"}]
+
+        def get_all(doctype, filters=None, fields=None, order_by=None, limit=None):
+            asked.append((doctype, filters, order_by, limit))
+            return [row_type(run) for run in runs]
+
+        settings = types.SimpleNamespace(engine=types.SimpleNamespace(code=CLAUDE), model="claude-haiku-5-5")
+        db = types.SimpleNamespace(set_value=lambda dt, name, values: writes.append((name, values)))
+        with mock.patch.object(sys.modules["pearnly_core.assistant"], "files", files, create=True), \
+                mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": files}), \
+                mock.patch.object(sessions.config, "settings", return_value=settings), \
+                mock.patch.object(sessions.config, "product", return_value="erp"), \
+                mock.patch.object(sessions.engine, "prepared", return_value="agent"), \
+                mock.patch.object(sessions.engine, "tools_current", lambda sid: None), \
+                mock.patch.object(sessions.engine, "keep_tools_current", lambda api, remote: kept_tools.append(remote)), \
+                mock.patch.object(sessions, "_route", lambda remote: None), \
+                mock.patch.object(sessions.frappe, "db", db, create=True), \
+                mock.patch.object(sessions.frappe, "get_all", get_all, create=True), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: logged.append(kw), create=True):
+            # 没到界线：仍用当前一段，什么都不读、不写
+            row = row_type(name="row1", session_id="sesn_first", remote_ids=json.dumps(["sesn_first", "sesn_second"]),
+                           context_tokens=1_000, pending_carry="")
+            self.assertEqual(sessions.segment_for_turn(row, api), "sesn_second")
+            self.assertEqual((kept_tools, fetched, asked, writes, opened), (["sesn_second"], [], [], [], []))
+            # 到了界线：前文取自当前一段，工作清单按对话编号查（全部分段），文件取本对话留存的
+            row["context_tokens"] = engines.context_limit(CLAUDE, "claude-haiku-5-5")
+            self.assertEqual(sessions.segment_for_turn(row, api), "sesn_third")
+            self.assertEqual(fetched, ["sesn_second"])
+            self.assertEqual(opened[-1]["pearnly_conversation"], "sesn_first")
+            self.assertEqual(asked[0], (sessions.toolrun.TOOL_RUN, {"session_id": "sesn_first", "user": "a@example.com"},
+                                        "creation desc", sessions.toolrun.WORK_RUNS))
+            self.assertEqual(asked[1], ("kept", "row1"))
+            name, values = writes[-1]
+            self.assertEqual((name, values["remote_ids"], values["context_tokens"]),
+                             ("row1", json.dumps(["sesn_first", "sesn_second", "sesn_third"]), 0))
+            carry = values["pending_carry"]
+            self.assertEqual(carry, row["pending_carry"])
+            self.assertEqual(carry, contracts.carry_note(
+                "User: reconcile May\n\nAssistant: Started.",
+                "- recon_status: job=RJ-7\n- recon_start: kind=bank, left_files=[stmt.pdf]\n- broken (failed)",
+                "- GL-05.xlsx (made by a tool)\n- stmt.pdf (uploaded)"))
+            self.assertNotIn("long long", carry)
+            self.assertEqual(logged, [])
+            # 清单读不出来：照样接续，只带前文
+            files.kept = mock.Mock(side_effect=OSError("disk"))
+            row.update(remote_ids=json.dumps(["sesn_first"]), context_tokens=10 ** 6)
+            self.assertEqual(sessions.segment_for_turn(row, api), "sesn_third")
+            self.assertEqual(writes[-1][1]["pending_carry"], contracts.carry_note("User: reconcile May\n\nAssistant: Started."))
+            self.assertEqual(logged[-1]["title"], "Assistant carry list failed")
 
     def test_session_files_are_listed_oldest_first_so_the_panel_opens_the_newest(self):
         # 引擎列文件新的在前；面板默认打开最后一个（2026-10-10 测试：新导出出来面板停在旧的那份）
@@ -1124,7 +1307,8 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual(contracts.system_message("", "a", "", "b"),
                          {"type": "system.message", "content": [{"type": "text", "text": "a\n\nb"}]})
         self.assertEqual(contracts.carry_text(""), "")
-        self.assertEqual(contracts.carry_message("x"), contracts.system_message(contracts.CARRY_INTRO + "x"))
+        self.assertEqual(contracts.carry_message("x"), contracts.system_message(
+            contracts.CARRY_INTRO + "\n\n" + contracts.CARRY_MESSAGES + "\n\nx"))
 
     # —— 提醒服务 ——
 
@@ -1327,7 +1511,8 @@ class NoticeTests(unittest.TestCase):
             self.assertEqual([e["type"] for e in batch], ["user.message", "system.message"])  # 系统消息只能在最后、只有一条
             self.assertEqual(batch[0]["content"], [{"type": "text", "text": "明天几号"}])
             note = batch[-1]["content"][0]["text"]
-            self.assertTrue(note.startswith(contracts.CARRY_INTRO + "User: hi\n\n" + contracts.NOTICES_INTRO))
+            # 这一版以前存的接续只有前文：照样补上说明
+            self.assertTrue(note.startswith(contracts.carry_note("User: hi") + "\n\n" + contracts.NOTICES_INTRO))
             self.assertIn('<notice at="2026-10-12 08:01">\nFolder &lt;A&gt;\n3 files\n</notice>', note)
             # F8：每次都带上用户当地的日期时间（站点时区），放在同一条系统消息的最后
             self.assertTrue(note.endswith("\n\n" + contracts.now_note(self.now, BANGKOK)))
@@ -1341,8 +1526,19 @@ class NoticeTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 sessions.send("sesn_mine1", "明天几号")
             self.assertEqual((carried, writes), ([], []))
-            # 没有接续、没有提醒：系统消息只有日期
+            # 现在存的接续（工作清单、留存的文件、前文）原样放在同一条系统消息的开头，说明只有一遍
             api.post = lambda remote, batch: posted.append((remote, batch))
+            carry = contracts.carry_note("User: hi", "- tasks_list: period=2026-05", "- r.jpg (uploaded)")
+            row["pending_carry"] = carry
+            sessions.send("sesn_mine1", "继续")
+            batch = posted[-1][1]
+            self.assertEqual([e["type"] for e in batch], ["user.message", "system.message"])
+            note = batch[-1]["content"][0]["text"]
+            self.assertTrue(note.startswith(carry + "\n\n" + contracts.NOTICES_INTRO))
+            self.assertEqual(note.count(contracts.CARRY_INTRO), 1)
+            self.assertTrue(note.endswith(contracts.now_note(self.now, BANGKOK)))
+            carried.clear()
+            # 没有接续、没有提醒：系统消息只有日期
             row["pending_carry"], shown[:] = "", []
             sessions.send("sesn_mine1", "hi")
             self.assertEqual(posted[-1][1][1:], [contracts.system_message(contracts.now_note(self.now, BANGKOK))])

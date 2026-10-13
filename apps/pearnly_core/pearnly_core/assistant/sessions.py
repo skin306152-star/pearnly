@@ -10,7 +10,8 @@
 
 上下文接续（计价分档）：一个对话在引擎那边可以由几段会话接成（`remote_ids`，旧 → 新），浏览器始终只认第一段的
 编号。所选模型有计价分档（`engines.context_limit`）时，记下最近一次模型请求的输入量（`context_tokens`）；
-一到界线，下一条消息就在新的一段里开始，并用系统消息带上前文要点（`contracts.carry_over`）。
+一到界线，下一条消息就在新的一段里开始，并用系统消息带上前文要点（`contracts.carry_note`：本对话的工作清单、
+本站留存的文件、最近的文字）。
 历史、文件按全部分段合起来给浏览器，所以看起来仍是同一个对话。
 
 对话提醒（`notices`）不在引擎会话里：补拉、整段重放时由这里按时间并进来；用户发话时，还没带过的提醒（本对话的、
@@ -164,6 +165,18 @@ def delete(session_id) -> None:
     files.forget(row.name)
 
 
+def _worked_on(row) -> tuple[str, str]:
+    """接续时除了最近的文字还带上的：本对话的工作清单与留存的文件（都从本站读，不多调模型、不重传文件）。
+    只是附带的：读不出来就不带，不挡这一轮。"""
+    from pearnly_core.assistant import files  # files 导入 sessions，这里用时再导入
+
+    try:
+        return toolrun.work_list(row.session_id), contracts.files_note(files.kept(row))
+    except Exception:
+        frappe.log_error(title="Assistant carry list failed")
+        return "", ""
+
+
 def segment_for_turn(row, api) -> str:
     """新一轮（发消息、传附件）用哪段远端会话：输入量到了所选模型的计价界线就接续到新的一段。"""
     s = config.settings()
@@ -172,7 +185,7 @@ def segment_for_turn(row, api) -> str:
     if not limit or int(row.get("context_tokens") or 0) < limit:
         engine.keep_tools_current(api, remote)
         return remote
-    carry = contracts.carry_over(api.events(remote))
+    carry = contracts.carry_note(contracts.carry_over(api.events(remote)), *_worked_on(row))
     fresh, _status = api.open(engine.prepared(api), {**_metadata(_user(), config.product()),
                                                      "pearnly_conversation": row.session_id})
     engine.tools_current(fresh)

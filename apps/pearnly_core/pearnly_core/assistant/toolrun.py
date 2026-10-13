@@ -14,6 +14,7 @@ from pearnly_core.assistant import contracts, engine, tools
 
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
+WORK_RUNS = 200  # 接续时回看最近这么多次调用，凑工作清单
 
 
 def _lang_key(conversation: str) -> str:
@@ -99,6 +100,23 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
         return "denied"
     run = frappe.db.get_value(TOOL_RUN, name, ["tool", "tool_input"], as_dict=True)
     return _finish(conversation, remote, name, use_id, run.tool, json.loads(run.tool_input or "{}"))
+
+
+def _input(text) -> dict:
+    try:
+        value = json.loads(text or "{}")
+    except ValueError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def work_list(conversation: str) -> str:
+    """这段对话（全部分段，记录按对话编号登记）调用过的工具与关键参数，新 → 旧：接续新上下文时带给智能体
+    （`contracts.work_list`），它才知道在做什么、要最新结果时再调一次。"""
+    runs = frappe.get_all(TOOL_RUN, filters={"session_id": conversation, "user": frappe.session.user},
+                          fields=["tool", "tool_input", "status"], order_by="creation desc", limit=WORK_RUNS)
+    return contracts.work_list({"tool": run.get("tool"), "input": _input(run.get("tool_input")),
+                                "status": run.get("status")} for run in runs)
 
 
 def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
