@@ -1501,6 +1501,7 @@ A POS export can cover at most 100 days	一份 POS 导出最多 100 天	ไฟ�
 The item lines do not add up to the day's total	商品明细之和与当天合计不符	ยอดรวมรายการสินค้าไม่เท่ากับยอดรวมของวัน	品目の合計がその日の合計と一致しません	pos.items_mismatch
 After refunds, an item's quantity for a day is zero or less, or its amount is negative	退款后有商品当天的数量为零或负数，或金额为负数	หลังหักการคืน มีสินค้าที่จำนวนของวันเป็นศูนย์หรือติดลบ หรือยอดเงินติดลบ	返品後、数量がゼロ以下か金額がマイナスの品目がある日があります	pos.items_not_positive
 A day has more than 999 item lines	一天的商品明细超过 999 行	มีรายการสินค้าเกิน 999 บรรทัดในหนึ่งวัน	1 日の品目が 999 行を超えています	pos.too_many_items
+The receipts do not add up to the total row of this POS export	收据之和与此 POS 导出的合计行不符	ยอดรวมใบเสร็จไม่เท่ากับแถวยอดรวมในไฟล์ส่งออก POS นี้	レシートの合計がこの POS エクスポートの合計行と一致しません	pos.total_mismatch
 Choose an Express account set first	请先选择 Express 账套	กรุณาเลือกชุดบัญชี Express ก่อน	先に Express の帳簿を選んでください	pos.target_required
 POS exports can only be entered into Express	POS 导出只能录入 Express	ไฟล์ส่งออก POS บันทึกได้เฉพาะใน Express	POS エクスポートは Express にのみ入力できます	pos.not_express
 Choose the Express records for this invoice first, then submit again	请先为此发票选择 Express 中的对应项，再重新提交	กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่	先にこの伝票の Express 側の項目を選んでから再送信してください	intake.error.choice_needed

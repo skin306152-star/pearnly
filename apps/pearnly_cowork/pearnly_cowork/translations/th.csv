@@ -1644,6 +1644,7 @@ The quantity is not a valid number,จำนวนไม่ใช่ตัวเ
 The readback is not ready yet.,การอ่านข้อมูลกลับยังไม่เสร็จ
 The readback request is invalid.,คำขออ่านข้อมูลบัญชีกลับไม่ถูกต้อง
 The readback was not found.,ไม่พบผลการอ่านข้อมูลกลับ
+The receipts do not add up to the total row of this POS export,ยอดรวมใบเสร็จไม่เท่ากับแถวยอดรวมในไฟล์ส่งออก POS นี้
 The receiving account cannot be posted to in Express. Choose another account,บัญชีรับเงินนี้บันทึกรายการใน Express ไม่ได้ กรุณาเลือกบัญชีอื่น
 The recognition task was not found.,ไม่พบงานอ่านเอกสาร
 The recognized content does not match the original references.,เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ
@@ -3222,6 +3223,7 @@ pos.target_required,กรุณาเลือกชุดบัญชี Expre
 pos.too_many_days,ไฟล์ส่งออก POS หนึ่งไฟล์มีได้ไม่เกิน 100 วัน
 pos.too_many_items,มีรายการสินค้าเกิน 999 บรรทัดในหนึ่งวัน
 pos.too_many_payments,มีวิธีชำระเงินเกิน 20 แบบในหนึ่งวัน
+pos.total_mismatch,ยอดรวมใบเสร็จไม่เท่ากับแถวยอดรวมในไฟล์ส่งออก POS นี้
 pos.type_unsupported,นำเข้าได้เฉพาะไฟล์ส่งออก POS แบบ Excel (.xlsx) หรือ CSV
 pos.vat_out_of_range,คอลัมน์ภาษีมูลค่าเพิ่มเกิน 7% ของยอดขายในวันนั้น
 pos.xls_not_supported,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่

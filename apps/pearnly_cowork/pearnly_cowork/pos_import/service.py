@@ -66,7 +66,11 @@ def _layout(workspace, company, headers, rows, answers=None):
     """→ ``(版式或 None, 还要问的问题, 指纹, 问的时候记住的版式的修订)``；答了的、认得出不用问的记下。
 
     记住的版式也要看这份导出里有没有没登记过的状态值（`contracts.pending`）：有就照样停下问那几个值，答了合进记住的
-    版式（不直接失败，文件夹任务里停着的那份答完接着走）。"""
+    版式（不直接失败，文件夹任务里停着的那份答完接着走）。
+
+    自动记下的版式（``auto``，当初认得出、没问人）按现在的认列规则重认：重认也不用问就换上并记下（认列规则改进后同一
+    版式跟着用新的，例如 2026-10-13 起「VAT 7%」认作税额列）；重认要问（这份导出日 / 月分不清等）就照旧用记住的。
+    人答过的版式不动。"""
     fingerprint = contracts.fingerprint(headers)
     known = layouts.remembered(workspace, company, fingerprint)
     revision = layouts.revision(known)
@@ -75,6 +79,12 @@ def _layout(workspace, company, headers, rows, answers=None):
         if not detection.questions:
             layouts.remember(workspace, company, fingerprint, headers, detection.layout, origin="person")
         return (None if detection.questions else detection.layout), detection.questions, fingerprint, revision
+    if known and layouts.origin(workspace, company, fingerprint) == "auto":
+        fresh = contracts.detect(headers, rows)
+        if not fresh.questions and contracts.valid_layout(fresh.layout):
+            if fresh.layout != known:
+                layouts.remember(workspace, company, fingerprint, headers, fresh.layout, origin="auto")
+            return fresh.layout, [], fingerprint, revision
     if known:
         detection = contracts.pending(headers, rows, known)
         return (None if detection.questions else known), detection.questions, fingerprint, revision

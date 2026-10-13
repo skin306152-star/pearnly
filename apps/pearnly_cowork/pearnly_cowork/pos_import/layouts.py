@@ -50,6 +50,11 @@ def remembered(workspace, company, fingerprint):
     return layout if contracts.valid_layout(layout) else None
 
 
+def origin(workspace, company, fingerprint) -> str:
+    """记过的版式是谁定的：``auto``（认得出、不用问，自动记下）/ ``person``（人答过）；没有是空串。"""
+    return frappe.db.get_value(DOCTYPE, _key(workspace, company, fingerprint), "origin") or ""
+
+
 def revision(layout) -> str:
     """记住的版式的修订（内容摘要）：答过、补过状态值就变；没有版式是空串。"""
     if not layout:
@@ -100,5 +105,5 @@ def forget(workspace, company, fingerprint) -> bool:
     return True
 
 
-__all__ = ["DOCTYPE", "deny", "deny_query", "forget", "guard", "guard_delete", "remember", "remembered",
+__all__ = ["DOCTYPE", "deny", "deny_query", "forget", "guard", "guard_delete", "origin", "remember", "remembered",
            "reject_share", "revision"]

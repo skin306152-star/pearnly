@@ -1644,6 +1644,7 @@ The quantity is not a valid number,The quantity is not a valid number
 The readback is not ready yet.,The readback is not ready yet.
 The readback request is invalid.,The readback request is invalid.
 The readback was not found.,The readback was not found.
+The receipts do not add up to the total row of this POS export,The receipts do not add up to the total row of this POS export
 The receiving account cannot be posted to in Express. Choose another account,The receiving account cannot be posted to in Express. Choose another account
 The recognition task was not found.,The recognition task was not found.
 The recognized content does not match the original references.,The recognized content does not match the original references.
@@ -3222,6 +3223,7 @@ pos.target_required,Choose an Express account set first
 pos.too_many_days,A POS export can cover at most 100 days
 pos.too_many_items,A day has more than 999 item lines
 pos.too_many_payments,A day has more than 20 payment methods
+pos.total_mismatch,The receipts do not add up to the total row of this POS export
 pos.type_unsupported,Only POS exports in Excel (.xlsx) or CSV can be imported
 pos.vat_out_of_range,The VAT column is more than 7% of a day's sales
 pos.xls_not_supported,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again

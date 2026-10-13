@@ -1644,6 +1644,7 @@ The quantity is not a valid number,数量不是有效数字
 The readback is not ready yet.,回读还没完成。
 The readback request is invalid.,回读请求无效。
 The readback was not found.,找不到这份回读。
+The receipts do not add up to the total row of this POS export,收据之和与此 POS 导出的合计行不符
 The receiving account cannot be posted to in Express. Choose another account,收款科目在 Express 中不能记账，请重新选择
 The recognition task was not found.,识别任务不存在。
 The recognized content does not match the original references.,识别内容与原件关联不一致。
@@ -3222,6 +3223,7 @@ pos.target_required,请先选择 Express 账套
 pos.too_many_days,一份 POS 导出最多 100 天
 pos.too_many_items,一天的商品明细超过 999 行
 pos.too_many_payments,一天的付款方式超过 20 种
+pos.total_mismatch,收据之和与此 POS 导出的合计行不符
 pos.type_unsupported,只能导入 Excel（.xlsx）或 CSV 格式的 POS 导出
 pos.vat_out_of_range,增值税一栏超过当天销售额的 7%
 pos.xls_not_supported,不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送

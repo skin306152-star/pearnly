@@ -5,12 +5,15 @@
 四舍五入、付款方式拆分、票号区间与参考号 ≤15 字节，以及推送映射（载荷 3：HS + 每种非现金付款方式的转账凭证）与
 推送选择（收款科目 `receipt` 问一次）。
 """
+import importlib.util
 import json
 import sys
+import types
 import unittest
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "apps/pearnly_cowork"), str(ROOT / "apps/pearnly_core")]
@@ -34,8 +37,9 @@ OCHA_CSV = """รายงานยอดขายแยกตามบิล
 14/10/2569,09:00,B2610140001,3,214.00,0.00,0.00,14.00,214.00,บัตรเครดิต,ปกติ
 14/10/2569,09:30,B2610140002,1,99.00,0.00,0.00,6.48,99.00,เงินสด,ปกติ
 14/10/2569,18:05,B2610140003,2,321.00,0.00,0.00,21.00,321.00,LINE MAN,ปกติ
-รวม,,,,,,,292.02,"4,479.00",,
+รวม,,,,,,,293.02,"4,479.00",,
 """
+# 页脚把作废单也算进去（4,479.00 = 4,379.00 + 作废的 100.00；税额 293.02 同样含作废单的 6.54），与按票算的同一口径就认
 
 LOYVERSE_HEADERS = ["Date", "Receipt number", "Receipt type", "Gross sales", "Discounts", "Net sales", "Taxes",
                     "Total collected", "Cost of goods", "Gross profit", "Payment type", "Description", "Dining option",
@@ -345,6 +349,169 @@ class RulesTests(unittest.TestCase):
         with self.assertRaises(C.PosError) as raised:
             C.parse(self.HEADERS, [["2026-10-13", "1", "-5.00", "Cash"]], layout, anchor_year=2026)
         self.assertEqual(raised.exception.code, "pos.day_not_positive")
+
+
+class TotalRowTests(unittest.TestCase):
+    """只有自己写着票号的行才是票；导出带的合计 / 小计行当核对数（2026-10-13 测试机：页脚合计行被当成上一张票的续行，
+    每天销售翻倍，合计全算进上一张票的付款方式）。列结构照那份真实导出（标题行、页脚「รวม (ไม่รวมบิลยกเลิก)」）。"""
+    HEADERS = ["วันที่", "เวลา", "เลขที่ใบเสร็จ", "สถานะ", "รายการสินค้า", "จำนวนชิ้น", "ยอดสุทธิ (รวม VAT)", "VAT 7%",
+               "ยอดก่อน VAT", "ช่องทางชำระเงิน"]
+    DAY = datetime(2026, 9, 28)
+
+    def _rows(self, footer=(1076, 70.39)):
+        day = self.DAY
+        rows = [[day, "10:07", "R-001", "สำเร็จ", "คลีนซิ่ง x1", 1, 299, 19.56, 279.44, "QR พร้อมเพย์"],
+                [day, "10:15", "R-002", "สำเร็จ", "โฟม x1", 1, 259, 16.94, 242.06, "โอนเงิน"],
+                [day, "10:47", "R-003", "ยกเลิก", "มาสคาร่า x1", 1, 100, 6.54, 93.46, "เงินสด"],
+                [day, "11:24", "R-004", "สำเร็จ", "โฟม x2", 2, 518, 33.89, 484.11, "โอนเงิน"]]
+        if footer:
+            rows.append([None, None, None, None, "รวม (ไม่รวมบิลยกเลิก)", 4, footer[0], footer[1], None, None])
+        return rows
+
+    def _parse(self, rows, headers=None):
+        headers = headers or self.HEADERS
+        detection = C.detect(headers, rows)
+        self.assertEqual(detection.questions, [])
+        return C.parse(headers, rows, detection.layout, anchor_year=2026, first_row=6)
+
+    def test_the_footer_is_not_a_receipt_and_takes_no_payment_method(self):
+        layout = C.detect(self.HEADERS, self._rows()).layout
+        self.assertEqual((layout["columns"]["amount"], layout["columns"]["vat"]), ("ยอดสุทธิ (รวม VAT)", "VAT 7%"))
+        found, voids = self._parse(self._rows())
+        day = found[0]
+        self.assertEqual((voids, day.count, day.first, day.last), (1, 3, "R-001", "R-004"))
+        self.assertEqual((day.gross, day.vat, day.net), (Decimal("1076.00"), Decimal("70.39"), Decimal("1005.61")))
+        # 以前页脚并进 R-004：当天翻倍、页脚的 1,076 全算进 R-004 的「โอนเงิน」
+        self.assertEqual(day.payments, [("QR พร้อมเพย์", Decimal("299.00")), ("โอนเงิน", Decimal("777.00"))])
+        self.assertEqual(day.rows, [(6, 7), (9, 9)])  # 作废的第 8 行、页脚那一行（第 10 行）都不在这一天的行里
+        # 没有页脚照旧
+        self.assertEqual(self._parse(self._rows(footer=None))[0][0].gross, Decimal("1076.00"))
+
+    def test_a_footer_that_does_not_add_up_stops_the_file(self):
+        for footer in ((1076.01, 70.39), (1076, 70.38), (2152, 140.78)):
+            with self.assertRaises(C.PosError, msg=footer) as raised:
+                self._parse(self._rows(footer=footer))
+            self.assertEqual((raised.exception.code, raised.exception.details), ("pos.total_mismatch", {"row": 10}))
+        # Ocha 式导出页脚算错一分税额（292.02 ≠ 293.02）：整份停下，不建票
+        headers, rows, first = T.read(OCHA_CSV.replace("293.02", "292.02").encode("utf-8"), "ocha.csv")
+        with self.assertRaises(C.PosError) as raised:
+            C.parse(headers, rows, C.detect(headers, rows).layout, anchor_year=2026, first_row=first)
+        self.assertEqual((raised.exception.code, raised.exception.details), ("pos.total_mismatch", {"row": 11}))
+        terms = (ROOT / "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv").read_text(encoding="utf-8")
+        line = next(row for row in terms.splitlines() if row.endswith("\tpos.total_mismatch"))
+        self.assertTrue(all(part.strip() for part in line.split("\t")[:4]))
+
+    def test_rows_without_their_own_receipt_number_are_never_receipts(self):
+        headers = ["Date", "Receipt number", "Item", "Quantity", "Total collected", "Payment type"]
+        rows = [["2026-10-13", "B1", "Latte", 1, 65.0, "Card"],
+                ["", "", "Croissant", 1, 80.0, ""],  # 票号空的商品行：不沿用 B1，不算进 B1，也不拿它的付款方式
+                ["", "", "", "", "", "QR"],
+                ["2026-10-13", "B2", "Latte", 1, 65.0, ""],
+                ["", "", "สรุปตามช่องทางชำระ", "", 130.0, "Card"]]  # 没有合计字样的汇总行：不是票，也不当核对数
+        found, _ = C.parse(headers, rows, C.detect(headers, rows).layout, anchor_year=2026)
+        day = found[0]
+        self.assertEqual((day.gross, day.count), (Decimal("130.00"), 2))
+        self.assertEqual(day.payments, [("Card", Decimal("65.00")), ("Cash", Decimal("65.00"))])
+
+    def test_subtotals_per_day_nested_subtotals_and_a_grand_total(self):
+        headers = ["Date", "Bill No", "Total collected", "VAT", "Payment", "Status"]
+        rows = [["13/10/2026", "B1", "107.00", "7.00", "Cash", "Closed"],
+                ["13/10/2026", "B2", "214.00", "14.00", "QR", "Closed"],
+                ["13/10/2026", "B3", "53.50", "3.50", "Cash", "Void"],
+                ["", "Subtotal", "321.00", "21.00", "", ""],  # 字样写在票号一栏
+                [],
+                headers,  # 分页重复的表头
+                ["14/10/2026", "B4", "535.00", "35.00", "QR", "Closed"],
+                ["14/10/2026", "B5", "1,070.00", "70.00", "QR", "Closed"],
+                ["รวม QR", "", "1,605.00", "105.00", "", ""],  # 当天按付款方式的小计（与上一行合计之间的那几张）
+                ["14/10/2026", "B6", "10.70", "0.70", "Transfer", "Closed"],
+                ["รวม Transfer", "", "10.70", "0.70", "", ""],
+                ["รวมวันที่ 14/10/2026", "", "1,615.70", "105.70", "", ""],  # 当天合计（紧挨着的那一天）
+                ["Grand Total", "", "1,936.70", "126.70", "", ""],  # 整份
+                ["หมายเหตุ: ยอดรวมไม่รวมบิลยกเลิก", "", "", "", "", ""]]  # 只有字样、没有金额：不核对
+        detection = C.detect(headers, rows)
+        self.assertEqual(detection.questions, [])  # 重复的表头、合计行里的空状态不当成要问的状态值
+        found, voids = C.parse(headers, rows, detection.layout, anchor_year=2026)
+        self.assertEqual(voids, 1)
+        self.assertEqual([(d.day, d.gross, d.vat, d.count) for d in found],
+                         [(date(2026, 10, 13), Decimal("321.00"), Decimal("21.00"), 2),
+                          (date(2026, 10, 14), Decimal("1615.70"), Decimal("105.70"), 3)])
+        self.assertEqual(found[1].payments, [("QR", Decimal("1605.00")), ("Transfer", Decimal("10.70"))])
+        broken = [list(row) for row in rows]
+        broken[11][2] = "1,615.80"  # 当天合计差 0.10
+        with self.assertRaises(C.PosError) as raised:
+            C.parse(headers, broken, detection.layout, anchor_year=2026, first_row=2)
+        self.assertEqual((raised.exception.code, raised.exception.details), ("pos.total_mismatch", {"row": 13}))
+
+    def test_total_labels_and_receipt_numbers(self):
+        for label in ("รวม (ไม่รวมบิลยกเลิก)", "Grand Total", "Sub-total", "SUBTOTAL:", "Totals", "ยอดรวม", "合计",
+                      "小计", "合計", "Sum"):
+            self.assertTrue(C.total_label(label), label)
+        for value in ("R6909-00837", "Totally", "Summary", "สำเร็จ", 13620.5, None, datetime(2026, 9, 28)):
+            self.assertFalse(C.total_label(value), value)
+        self.assertEqual(C.ticket(" R6909-00837 ", "เลขที่ใบเสร็จ"), "R6909-00837")
+        self.assertEqual(C.ticket(1001, "Bill No"), "1001")
+        for value in ("", None, "รวม", "Total", "เลขที่ใบเสร็จ"):
+            self.assertEqual(C.ticket(value, "เลขที่ใบเสร็จ"), "", value)
+
+    def test_a_vat_header_with_its_rate_is_the_vat_amount_but_a_rate_column_is_not(self):
+        layout = C.detect(["Date", "Bill No", "Total (incl. VAT 7%)", "VAT 7%"],
+                          [["2026-10-13", "1", "107", "7"]]).layout
+        self.assertEqual((layout["columns"]["amount"], layout["columns"]["vat"]), ("Total (incl. VAT 7%)", "VAT 7%"))
+        for rate in ("VAT %", "VAT rate", "อัตราภาษี 7%"):
+            layout = C.detect(["Date", "Bill No", "Amount", rate], [["2026-10-13", "1", "107", "7"]]).layout
+            self.assertNotIn("vat", layout["columns"], rate)
+
+
+class RememberedLayoutTests(unittest.TestCase):
+    """自动记下的版式（认得出、没问人）按现在的认列规则重认、换上并记下；人答过的不动（2026-10-13：测试机记下的那份没有
+    「VAT 7%」税额列，当天税额按 7/107 算，9 月 29 日差一分）。"""
+
+    def _service(self, layout, origin):
+        remembered = []
+        layouts = types.SimpleNamespace(
+            remembered=lambda workspace, company, fingerprint: layout,
+            origin=lambda workspace, company, fingerprint: origin,
+            revision=lambda found: "rev" if found else "",
+            remember=lambda workspace, company, fingerprint, headers, found, origin="person":
+                remembered.append((found, origin)))
+        stub = types.SimpleNamespace
+        modules = {"frappe": stub(_=lambda text: text), "pearnly_cowork.access": stub(scope=stub()),
+                   "pearnly_cowork.connections": stub(service=stub()), "pearnly_cowork.files": stub(service=stub()),
+                   "pearnly_cowork.history": stub(storage=stub()),
+                   "pearnly_cowork.history.recognition": stub(persist_batch=None),
+                   "pearnly_cowork.ocr.pages": stub(assess_confidence=None),
+                   "pearnly_cowork.pos_import": stub(contracts=C, layouts=layouts, tables=T),
+                   "pearnly_cowork.targets.identity": stub(account_set_company=None,
+                                                           normalize_express_account_key=None)}
+        with mock.patch.dict(sys.modules, modules):
+            spec = importlib.util.spec_from_file_location(
+                "pos_service_under_test", ROOT / "apps/pearnly_cowork/pearnly_cowork/pos_import/service.py")
+            service = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(service)
+        return service, remembered
+
+    def test_an_auto_layout_follows_the_current_rules_and_a_person_layout_stays(self):
+        headers, rows = TotalRowTests.HEADERS, TotalRowTests()._rows()
+        current = C.detect(headers, rows).layout
+        old = json.loads(json.dumps(current))
+        old["columns"].pop("vat")  # 以前「VAT 7%」整列被当成税率列排除
+        self.assertTrue(C.valid_layout(old))
+        service, remembered = self._service(old, "auto")
+        layout, questions, _fingerprint, _revision = service._layout("W", "C|co", headers, rows)
+        self.assertEqual((layout["columns"]["vat"], questions), ("VAT 7%", []))
+        self.assertEqual(remembered, [(current, "auto")])
+        service, remembered = self._service(current, "auto")
+        self.assertEqual(service._layout("W", "C|co", headers, rows)[0], current)
+        self.assertEqual(remembered, [])  # 一样就不重写
+        service, remembered = self._service(old, "person")
+        self.assertEqual((service._layout("W", "C|co", headers, rows)[0], remembered), (old, []))
+        # 重认要问（这份导出日 / 月分不清）：照旧用记住的
+        ambiguous = [["01/02/2026", "1", "10.00", "Cash"], ["02/02/2026", "2", "20.00", "Cash"]]
+        plain = ["Date", "Bill No", "Amount", "Payment"]
+        kept = {**C.detect(plain, ambiguous).layout, "date_order": "mdy"}
+        service, remembered = self._service(kept, "auto")
+        self.assertEqual((service._layout("W", "C|co", plain, ambiguous)[0], remembered), (kept, []))
 
 
 CONFIG = {"account_set": "DATAT", "revenue_acc": "41-01-00-00", "vat_output_acc": "21-05-01-00", "ar_acc": "11-03-01-00"}

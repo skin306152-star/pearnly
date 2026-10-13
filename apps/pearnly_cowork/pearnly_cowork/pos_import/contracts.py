@@ -7,6 +7,10 @@
 
 金额一律 Decimal：每天含税合计与 POS 逐分相等；有增值税列时当天税额 = 逐票税额之和，没有时 = 当天含税合计 × 7/107
 四舍五入到分；尾差全部落在税前额。作废单不算，退款单记负数；付款方式按当天汇总，之和恰好等于当天含税合计。
+
+只有自己写着票号的行才是票（2026-10-13 测试机：页脚合计行被当成上一张票的续行，每天销售翻倍、合计算进上一张票的
+付款方式）：票号空的行一律不是票，不往下沿用票号；空行、分页重复的表头跳过；写着合计 / 小计字样的是合计行，导出带了
+就当核对数（`_check_totals`），对不上整份停下（`pos.total_mismatch`），什么都不建。
 """
 from __future__ import annotations
 
@@ -81,9 +85,12 @@ VOID_WORDS = frozenset({"void", "voided", "cancel", "cancelled", "canceled", "de
                         "作废", "取消", "已取消", "取消済", "キャンセル"})
 REFUND_WORDS = frozenset({"refund", "refunded", "return", "returned", "คืนเงิน", "คืนสินค้า", "รับคืน", "退款", "退货",
                           "返品", "返金"})
-# 票号一栏是这些字的行是合计行，不是票
-TOTAL_WORDS = frozenset({"total", "grand total", "subtotal", "sum", "รวม", "รวมทั้งสิ้น", "ยอดรวม", "รวมทั้งหมด", "合计",
-                         "总计", "合計"})
+# 合计 / 小计行的字样（Total、Subtotal、Grand total、Sum、รวม、ยอดรวม、合计、小计……）：票号空、某一格写着这些的行
+# 是页脚、每天小计或总计，不是票；票号一格就写着这些的也一样。英文按整词，泰文、中日文按子串（不分词）。
+_TOTAL_LATIN = re.compile(r"(?<![a-z])(?:sub-?\s?)?totals?(?![a-z])|(?<![a-z])sum(?![a-z])")
+TOTAL_MARKS = ("รวม", "合计", "小计", "总计", "合計", "小計", "總計")
+# 表头里写明的税率（「VAT 7%」「ยอดสุทธิ (รวม VAT 7%)」）只是说明，不当成「税率 / %」那种列排除
+_STATED_RATE = re.compile(r"\d+(?:[.,]\d+)?\s*%")
 _THAI_MONTHS = {"ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9,
                 "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12, "มกราคม": 1, "กุมภาพันธ์": 2, "มีนาคม": 3, "เมษายน": 4,
                 "พฤษภาคม": 5, "มิถุนายน": 6, "กรกฎาคม": 7, "สิงหาคม": 8, "กันยายน": 9, "ตุลาคม": 10, "พฤศจิกายน": 11,
@@ -133,6 +140,27 @@ def _hit(header: str, hints) -> bool:
         elif hint in text:
             return True
     return False
+
+
+def _excluded(header: str, name: str) -> bool:
+    """表头带这一类的排除词（写明的税率「7%」不算「%」）。"""
+    return _hit(_STATED_RATE.sub(" ", cell_text(header)), EXCLUDE.get(name, ()))
+
+
+def total_label(value) -> bool:
+    """这一格是不是合计 / 小计字样（只看文字格：数字、日期不算）。"""
+    if not isinstance(value, str):
+        return False
+    text = _norm(value)
+    return bool(text) and (bool(_TOTAL_LATIN.search(text)) or any(mark in text for mark in TOTAL_MARKS))
+
+
+def ticket(value, header="") -> str:
+    """这一格里的票号：空、写着合计字样、或就是票号一栏的表头（分页导出每页重复的表头）都不是票号，回空串。"""
+    number = cell_text(value)
+    if not number or total_label(value) or (header and _norm(number) == _norm(header)):
+        return ""
+    return number
 
 
 def money(value):
@@ -303,7 +331,7 @@ def detect(headers, rows) -> Detection:
         found = None
         for level, tier in enumerate(HINTS[name]):
             candidates = [index for index, text in enumerate(texts) if text and index not in used
-                          and _hit(text, tier) and not _hit(text, EXCLUDE.get(name, ()))]
+                          and _hit(text, tier) and not _excluded(text, name)]
             if candidates:
                 found = (level, candidates)
                 break
@@ -335,12 +363,18 @@ def detect(headers, rows) -> Detection:
 
 
 def _status_questions(headers, rows, layout) -> list:
-    """单据类型 / 状态一栏里认不出、版式里也没登记过的值 → 一个问题（最多列 20 个值）。"""
+    """单据类型 / 状态一栏里认不出、版式里也没登记过的值 → 一个问题（最多列 20 个值）。只看有票号的行（合计行、重复的
+    表头不是票）。"""
     texts = [cell_text(header).casefold() for header in headers]
     mapped = layout.get("status_values") or {}
+    columns = layout.get("columns") or {}
+    receipt = cell_text(columns.get("receipt")).casefold()
+    at = texts.index(receipt) if receipt and receipt in texts else None
+    if at is not None:
+        rows = [row for row in rows if ticket(row[at] if at < len(row) else None, headers[at])]
     unknown = []
     for name in ("kind", "status"):
-        wanted = cell_text((layout.get("columns") or {}).get(name)).casefold()
+        wanted = cell_text(columns.get(name)).casefold()
         if not wanted or wanted not in texts:
             continue
         index = texts.index(wanted)
@@ -473,16 +507,31 @@ def _meaning(layout, *values) -> str:
     return "void" if "void" in meanings else "refund" if "refund" in meanings else "sale"
 
 
+@dataclass
+class _Total:
+    """一行合计 / 小计（核对数）：``position`` 是它上面有几行票，``since`` 是上一行合计上面有几行票（这一段的起点）。"""
+    line: int
+    amount: Decimal
+    vat: Decimal | None
+    day: date | None
+    position: int
+    since: int
+
+
 def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> tuple:
     """数据行 → 票（同一票号的几行合成一张：商品级导出一行一个商品）。回 ``(销售与退款票, 作废张数)``。
 
-    合并单元格（票号、日期只写在第一行）往下沿用；票号与金额都空的行（小计、页脚）跳过。``first_row`` 是第一行数据在
-    文件里的行号（报错时给人看）。"""
+    只有自己写着票号的行才是票：票号空的行（页脚、小计、标题、备注）一律不是，也不沿用上一行的票号；空行、分页重复的
+    表头跳过。日期只写在一天第一行的报表，日期往下沿用到有票号的行。写着合计 / 小计字样、金额读得出的行当核对数
+    （`_check_totals`）。``first_row`` 是第一行数据在文件里的行号（报错时给人看）。"""
     index = _indices(headers, layout)
     order = layout["date_order"]
+    receipt_header = headers[index["receipt"]]
     found: dict = {}
     sequence: list = []
-    last_number, last_day = "", None
+    entries: list = []  # 逐行（票, 含税额, 税额）：合计行核对用
+    totals: list = []
+    last_day = None
 
     def cell(row, name):
         position = index.get(name)
@@ -492,17 +541,19 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
         line = first_row + offset
         if not any(cell_text(value) for value in row):
             continue
-        number, raw_day = cell_text(cell(row, "receipt")), cell(row, "date")
+        if _norm(cell(row, "receipt")) == _norm(receipt_header):
+            continue  # 分页导出每页重复的表头
+        number = ticket(cell(row, "receipt"), receipt_header)
+        if not number:
+            if any(total_label(value) for value in row):
+                total = _total_row(row, cell, layout, order, anchor_year, line)
+                if total is not None:
+                    total.position, total.since = len(entries), totals[-1].position if totals else 0
+                    totals.append(total)
+            continue
+        raw_day = cell(row, "date")
         has_day = isinstance(raw_day, (date, datetime)) or bool(cell_text(raw_day))
         day = parse_date(raw_day, order, anchor_year) if has_day else None
-        if _norm(number) in TOTAL_WORDS:
-            continue  # 「合计 / รวม」行
-        if not number:
-            # 票号空：合并单元格的商品续行（同一张票的下一个商品）沿用上一行；其余（小计、页脚、标题）跳过
-            if has_day and day is None or "item" not in index or not cell_text(cell(row, "item")) or not last_number:
-                continue
-            number = last_number
-            day = day or last_day
         if day is None:
             if has_day or last_day is None:
                 raise PosError("pos.date_unreadable", row=line)
@@ -527,6 +578,7 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
         receipt.amount += amount
         receipt.vat += vat
         receipt.rows.append(line)
+        entries.append((receipt, amount, vat))
         if meaning != "sale":
             receipt.meaning = "void" if "void" in (meaning, receipt.meaning) else meaning
         label = cell_text(cell(row, "payment"))
@@ -539,7 +591,8 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
                 raise PosError("pos.amount_unreadable", row=line) from error
             receipt.lines.append((cell_text(cell(row, "item")), cell_text(cell(row, "sku")),
                                   Decimal("1") if qty is None else qty, amount))
-        last_number, last_day = number, day
+        last_day = day
+    _check_totals(entries, totals)
     kept, voids = [], 0
     for receipt in sequence:
         if receipt.meaning == "void":
@@ -552,6 +605,69 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
     if not kept:
         raise PosError("pos.no_rows")
     return kept, voids
+
+
+def _total_row(row, cell, layout, order, anchor_year, line):
+    """合计 / 小计行 → 核对数；金额读不出（只有字样的备注行）回 None。不含税的版式要有税额才拼得出含税合计。"""
+    try:
+        amount = money(cell(row, "amount"))
+        vat = money(cell(row, "vat")) if "vat" in layout["columns"] else None
+    except (InvalidOperation, ValueError):
+        return None
+    if amount is None:
+        return None
+    if layout["amount_basis"] == "exclusive":
+        if vat is None:
+            return None
+        amount += vat
+    raw_day = cell(row, "date")
+    day = parse_date(raw_day, order, anchor_year) if raw_day not in (None, "") else None
+    return _Total(line, amount, vat, day, 0, 0)
+
+
+def _counted(receipt, amount, vat, with_voids):
+    """一行票按入账口径的含税额与税额：作废的不算（``with_voids`` 时照写的算），退款的记负数（同 `receipts` 末尾）。"""
+    if receipt.meaning == "void":
+        return (amount, vat) if with_voids else (Decimal("0"), Decimal("0"))
+    if receipt.meaning == "refund":
+        return (-amount if receipt.amount > 0 else amount), (-vat if receipt.vat > 0 else vat)
+    return amount, vat
+
+
+def _check_totals(entries, totals):
+    """导出带的合计 / 小计行当核对数，逐分对：每一行须等于下面之一（有税额时税额也要相等）——整份的票、它那一天的票
+    （行里写着日期就按那天，没写按紧挨着的上一张 / 下一张票的那天）、或它与上一行合计之间的那几张票。作废单不算；
+    页脚本身把作废单也算进去的（同一口径算出来相等）也认。对不上 → ``pos.total_mismatch``（整份停下，什么都不建）。
+    没有合计行照旧；一张票都没有的照旧报没有销售（`pos.no_rows`）。"""
+    if not totals or not entries:
+        return
+    count = len(entries)
+    views = []
+    for with_voids in (False, True):
+        amounts, vats, by_day = [Decimal("0")], [Decimal("0")], {}
+        for receipt, amount, vat in entries:
+            amount, vat = _counted(receipt, amount, vat, with_voids)
+            amounts.append(amounts[-1] + amount)
+            vats.append(vats[-1] + vat)
+            day = by_day.setdefault(receipt.day, [Decimal("0"), Decimal("0")])
+            day[0] += amount
+            day[1] += vat
+        views.append((amounts, vats, by_day))
+    for total in totals:
+        if total.day is not None:
+            days = {total.day}
+        else:
+            days = {entries[at][0].day for at in (total.position - 1, total.position) if 0 <= at < count}
+        matched = False
+        for amounts, vats, by_day in views:
+            sums = [(amounts[count], vats[count]),
+                    (amounts[total.position] - amounts[total.since], vats[total.position] - vats[total.since])]
+            sums += [tuple(by_day[day]) for day in days if day in by_day]
+            if any(amount == total.amount and (total.vat is None or vat == total.vat) for amount, vat in sums):
+                matched = True
+                break
+        if not matched:
+            raise PosError("pos.total_mismatch", row=total.line)
 
 
 def natural_key(number: str):
@@ -717,4 +833,4 @@ def summary(day: Day) -> dict:
 __all__ = ["BASES", "DATE_ORDERS", "Day", "Detection", "FIELDS", "LAYOUT_VERSION", "MAX_DAYS", "PosError", "REQUIRED",
            "STATUS_VALUES", "apply_answers", "date_order", "day_page", "days", "detect", "fingerprint", "header_row",
            "header_hits", "invoice_fields", "money", "natural_key", "parse", "parse_date", "pending", "receipts",
-           "samples", "summary", "valid_layout"]
+           "samples", "summary", "ticket", "total_label", "valid_layout"]

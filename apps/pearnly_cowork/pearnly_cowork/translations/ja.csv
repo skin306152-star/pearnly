@@ -1644,6 +1644,7 @@ The quantity is not a valid number,数量が正しい数値ではありません
 The readback is not ready yet.,読み戻しはまだ終わっていません。
 The readback request is invalid.,読み戻しのリクエストが無効です。
 The readback was not found.,読み戻しの結果が見つかりません。
+The receipts do not add up to the total row of this POS export,レシートの合計がこの POS エクスポートの合計行と一致しません
 The receiving account cannot be posted to in Express. Choose another account,この入金勘定は Express で記帳できません。別の勘定を選んでください
 The recognition task was not found.,読み取りタスクが見つかりません。
 The recognized content does not match the original references.,認識した内容が元ファイルの参照項目と一致しません。
@@ -3222,6 +3223,7 @@ pos.target_required,先に Express の帳簿を選んでください
 pos.too_many_days,1 つの POS エクスポートは 100 日分までです
 pos.too_many_items,1 日の品目が 999 行を超えています
 pos.too_many_payments,1 日の支払方法が 20 種類を超えています
+pos.total_mismatch,レシートの合計がこの POS エクスポートの合計行と一致しません
 pos.type_unsupported,取り込めるのは Excel（.xlsx）か CSV の POS エクスポートだけです
 pos.vat_out_of_range,消費税の列がその日の売上の 7% を超えています
 pos.xls_not_supported,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
