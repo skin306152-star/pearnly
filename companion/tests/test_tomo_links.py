@@ -33,6 +33,19 @@ def test_resume_returns_to_the_last_chat_page_of_the_same_side():
     assert links.entry_url({"PEARNLY_TOMO_ENTRY": "https://evil.example"}) == "https://fatcc.com"
 
 
+def test_web_page_language_follows_the_windows_display_languages():
+    # 2026-10-13：泰文 Windows 的新电脑，窗口里的登录页要按系统显示泰文，第一次登录后对话页也是泰文
+    assert links.accept_language(["th-TH", "en-US"]) == "th-TH,th,en-US,en"
+    assert links.accept_language(["zh-Hans-CN", "zh-CN", "en"]) == "zh-Hans-CN,zh,zh-CN,en"
+    assert links.accept_language(["en_US", "EN-us"]) == "en-US,en"
+    assert links.accept_language(["th-TH\r\nX-Evil: 1", "", None, "C"]) == ""
+    assert links.accept_language([]) == ""
+    source = (Path(links.__file__).with_name("gui_tomo.py")).read_text(encoding="utf-8")
+    window = source.split("self.profile = QWebEngineProfile(", 1)[1].split("self.view = QWebEngineView(", 1)[0]
+    assert "tomo_links.accept_language(QLocale.system().uiLanguages())" in window
+    assert "self.profile.setHttpAcceptLanguage(accept)" in window
+
+
 def test_quick_question_is_handed_to_the_page_as_a_string():
     script = links.ask_script('a"b</script>\n')
     assert 'window.tomo.ask("a\\"b</script>\\n")' in script
