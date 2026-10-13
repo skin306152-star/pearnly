@@ -138,6 +138,28 @@ def detail(name):
     return store.project(store.read(name))
 
 
+def certificates(name) -> dict:
+    """这份识别里的 50 ทวิ（CC 据此说「这是预扣税凭证」，不只说「不是发票」）：{"pages": 读成凭证的读数个数,
+    "kept": 存给 ภ.ง.ด.3 / 53 草稿的参考记录数（租户选了「不录入」的）}。认凭证与识别存档同一条规则
+    （`contracts.document_policy.document_class`），读存下的结果，不调模型、不扣费。"""
+    from pearnly_cowork.contracts import document_policy
+    from pearnly_cowork.history import certificates as references
+
+    doc = store.read(name)
+    try:
+        pages = json.loads(doc.result_json or "{}").get("pages") or []
+    except (AttributeError, ValueError):
+        pages = []
+    reads = []
+    for page in pages if isinstance(pages, list) else []:
+        invoice = page.get("invoice") if isinstance(page, dict) else None
+        if isinstance(invoice, dict):
+            extras = invoice.get("additional_invoices") or []
+            reads += [invoice, *[extra for extra in extras if isinstance(extra, dict)]]
+    found = sum(document_policy.document_class(read) == document_policy.CERTIFICATE for read in reads)
+    return {"pages": found, "kept": references.kept(doc.name)}
+
+
 def settle(name, *, authorized=False):
     """Receipt-only retry. A saved result is never sent back through OCR.
 

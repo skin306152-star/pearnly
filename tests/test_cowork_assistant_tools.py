@@ -257,6 +257,7 @@ class RecognizeAttachmentTests(unittest.TestCase):
         ocr.submit = self._submit
         ocr.detail = lambda batch: {"state": "saved", "page_count": 1, "billing_state": "pending", "requires_review": 0,
                                     "history_records": ["H1"]}
+        ocr.certificates = lambda batch: {"pages": 0, "kept": 0}
         history = types.ModuleType("pearnly_cowork.contracts.history")
         history.primary_page_fields = lambda pages: pages[0]["fields"]
         for name, module in {"pearnly_core.execution.errors": errors, "pearnly_core.assistant.files": chat,
@@ -371,6 +372,38 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertEqual((out["state"], out["reason"], out["attempt"]), ("failed", "ocr.replay_missing", 5))
         description = {tool["name"]: tool for tool in tools.TOOLS}["cowork_recognize_attachments"]["description"]
         self.assertIn("only when its last recognition failed", description)
+
+    def test_a_withholding_certificate_is_named_not_just_not_an_invoice(self):
+        # 2026-10-13 测试机：两张 50 ทวิ（选了不录入）只回了「不是发票」，CC 说不清是什么
+        ocr = sys.modules["pearnly_cowork.ocr.execution.service"]
+        ocr.detail = lambda batch: {"state": "not_invoice", "page_count": 1}
+        ocr.certificates = lambda batch: {"pages": 1, "kept": 1}
+        out = json.loads(tools.recognition_results({"batches": ["B1"]}))["results"][0]
+        self.assertEqual((out["state"], out["document_kind"], out["kept_for_wht_draft"]),
+                         ("not_invoice", "withholding_certificate", 1))
+        # 别的非发票（空白页、信函）照旧只说不是发票
+        ocr.certificates = lambda batch: {"pages": 0, "kept": 0}
+        out = json.loads(tools.recognition_results({"batches": ["B1"]}))["results"][0]
+        self.assertEqual(out, {"batch": "B1", "state": "not_invoice", "pages": 1})
+        # 选了录入（或还没选）：凭证成了记录，documents 里说是预扣税凭证；读数没有标记、只有凭证样子的同样认
+        ocr.detail = lambda batch: {"state": "saved", "page_count": 1, "requires_review": 0, "history_records": ["H1"]}
+        shapes = ({"document_type": "other", "document_flag": "withholding_certificate", "seller_tax": "0105599210021"},
+                  {"document_type": "other", "is_not_invoice": True, "seller_tax": "0105599210021",
+                   "buyer_tax": "1990100000029", "wht_amount": "180.00"})
+        for fields in shapes:
+            tools.storage.project = lambda doc, fields=fields: {"name": doc, "pages": [{"fields": fields}]}
+            doc, = json.loads(tools.recognition_results({"batches": ["B1"]}))["results"][0]["documents"]
+            self.assertEqual(doc["document_kind"], "withholding_certificate")
+        # 和票扫在一起、选了不录入的凭证：documents 只有那张票，另说存了几张给预扣税草稿
+        ocr.certificates = lambda batch: {"pages": 1, "kept": 1}
+        tools.storage.project = lambda doc: {"name": doc, "pages": [{"fields": {"document_type": "tax_invoice",
+                                                                                  "wht_amount": "1250.00"}}]}
+        out = json.loads(tools.recognition_results({"batches": ["B1"]}))["results"][0]
+        self.assertNotIn("document_kind", out["documents"][0])
+        self.assertNotIn("document_kind", out)
+        self.assertEqual(out["kept_for_wht_draft"], 1)
+        description = {tool["name"]: tool for tool in tools.TOOLS}["cowork_recognize_attachments"]["description"]
+        self.assertIn("document_kind withholding_certificate", description)
 
     def test_not_enough_balance_is_reported_and_nothing_waits(self):
         def refuse(source, key, **choices):

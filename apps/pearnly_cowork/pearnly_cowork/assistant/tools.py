@@ -445,6 +445,7 @@ def _choices(tool_input) -> dict:
 
 
 def _document(name) -> dict:
+    from pearnly_cowork.contracts import document_policy as policy_rules
     from pearnly_cowork.contracts import history as history_contracts
 
     doc = storage.project(storage.read(name))
@@ -454,6 +455,9 @@ def _document(name) -> dict:
     out.update(_push_target(doc))
     out.update({key: page.get(key) for key in ("document_type", "seller_tax", "seller_branch", "buyer_name",
                                                 "buyer_tax", "subtotal", "vat", "discount", "wht_amount", "currency")})
+    # 50 ทวิ 的 document_type 是 other：说清是预扣税凭证（转账凭条的票种本身已说明），同存档、推送门槛同一条规则
+    if policy_rules.document_class(page) == policy_rules.CERTIFICATE:
+        out["document_kind"] = policy_rules.CERTIFICATE
     out["items"] = (page.get("items") or [])[:ITEMS_SHOWN]
     return _filled(out)
 
@@ -468,6 +472,20 @@ def _result(batch) -> dict:
         out["needs_review"] = bool(detail.get("requires_review"))
     elif state in BROKEN:
         out["reason"] = detail.get("last_code") or state
+    if state in FINISHED:
+        out.update(_certificates(batch, state))
+    return out
+
+
+def _certificates(batch, state) -> dict:
+    """识别出的 50 ทวิ（2026-10-13 测试机：两张凭证只回了「不是发票」，CC 说不清是什么）：整份没成票的说清是预扣税凭证；
+    选了「不录入」、存给 ภ.ง.ด.3 / 53 草稿的参考记录给出条数（与票扫在一起的凭证也算）。"""
+    found = _recognition().certificates(batch)
+    out = {}
+    if state == "not_invoice" and found.get("pages"):
+        out["document_kind"] = "withholding_certificate"
+    if found.get("kept"):
+        out["kept_for_wht_draft"] = found["kept"]
     return out
 
 
@@ -2659,8 +2677,12 @@ TOOLS = [
                     "for the same attachment returns the same result at no extra charge, so never tell the user it "
                     "was charged "
                     "twice; only when its last recognition failed does calling again recognize it anew. "
-                    "needs_review true means the workbench flagged it for a person to check. Report the "
-                    "recognized values, not your own reading of the image, and leave out fields that are not given.",
+                    "needs_review true means the workbench flagged it for a person to check. document_kind "
+                    "withholding_certificate is a 50 Tawi withholding tax certificate: in documents when the company "
+                    "enters them or has not chosen yet, with state not_invoice when it chose not to; "
+                    "kept_for_wht_draft counts those kept for cowork_wht_draft, which reads them either way. "
+                    "Report the recognized values, not your own reading of the image, and leave out fields that are "
+                    "not given.",
      "input_schema": {"type": "object", "properties": {
          "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": RECOGNIZE_MAX},
          "direction": {"type": "string", "enum": ["purchase", "sales"]},
