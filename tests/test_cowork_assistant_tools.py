@@ -9,6 +9,7 @@ import sys
 import types
 import unittest
 import uuid
+from datetime import date, datetime, timezone
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -1825,6 +1826,157 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertEqual(switched, {"status": "saved", "task": "R2", "enabled": 1, "remind": 0})
 
 
+class WaitingDocumentTests(unittest.TestCase):
+    """2026-10-13 录屏（testcowork，泰文界面）：问「卡住的票，给我看第一张」，CC 先挑了已推送成功的 ABB6909-00007（ดาวเหนือ）。
+    原因：「等复核」按 DocType 的草稿标记 staged 筛，可录入没有「确认」这一步，推送成功的票也一直是草稿；列表行还带着
+    staged=1 与识别完整度 pending。现在「等着录入」按推送状态：没推过或推送失败，推送成功、在途的都不算。"""
+
+    def setUp(self):
+        frappe.calls.clear()
+
+    def test_waiting_means_not_entered_yet_and_never_pushed_successfully(self):
+        tools.list_documents({"push_state": "waiting"})
+        call = frappe.calls[-1]
+        self.assertEqual(call["filters"]["last_push_status"], ["not in", ["pending", "success"]])
+        self.assertNotIn("staged", call["filters"])
+        self.assertIsNone(call["or_filters"])
+        # 与搜索一起用：搜索是 or 那组，「等着录入」仍是并列的条件，推送成功的照样排除
+        tools.list_documents({"push_state": "waiting", "search": "ดาวเหนือ"})
+        call = frappe.calls[-1]
+        self.assertEqual(call["filters"]["last_push_status"], ["not in", ["pending", "success"]])
+        self.assertIn(["seller_name", "like", "%ดาวเหนือ%"], call["or_filters"])
+
+    def test_the_old_waiting_review_flag_from_open_chats_means_the_same(self):
+        tools.list_documents({"waiting_review": True})
+        self.assertEqual(frappe.calls[-1]["filters"], {"last_push_status": ["not in", ["pending", "success"]]})
+        tools.list_documents({"waiting_review": False})
+        self.assertEqual(frappe.calls[-1]["filters"], {})  # 旧的「已完成（非草稿）」没有对应的意思：不再按草稿筛
+
+    def test_rows_do_not_carry_flags_that_read_as_waiting(self):
+        tools.list_documents({})
+        fields = frappe.calls[-1]["fields"]
+        for hidden in ("staged", "quality_status"):
+            self.assertNotIn(hidden, fields)
+        for shown in ("last_push_status", "last_push_reason", "last_pushed_at"):
+            self.assertIn(shown, fields)
+
+    def test_descriptions_say_what_waiting_means(self):
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        listing = declared["cowork_list_documents"]
+        properties = listing["input_schema"]["properties"]
+        self.assertIn("waiting", properties["push_state"]["enum"])
+        self.assertNotIn("waiting_review", properties)
+        self.assertIn("waiting = not in the ERP yet: never pushed or the push failed", listing["description"])
+        self.assertIn("pushed successfully or on its way is never waiting", listing["description"])
+        self.assertNotIn("waiting for review", listing["description"])
+        self.assertIn("push_state waiting in cowork_list_documents", declared["cowork_push_results"]["description"])
+
+
+class LocalTimeTests(unittest.TestCase):
+    """2026-10-13 录屏（testcowork，泰文界面、曼谷用户）：推送时间按 UTC 原样交给模型，CC 把 15:40 推送成功说成「今天 08:40」。
+    工具结果里的时间点一律是站点时区的 YYYY-MM-DD HH:MM：存 UTC 的字段由工具点名、换算一次；存站点时区的只换格式（不再偏）；
+    只有日期的照旧；当版本号原样交回的字符串不动。"""
+
+    def setUp(self):
+        ListAndRunsTests.setUp(self)
+        for name, value in (("utils", types.SimpleNamespace(get_system_timezone=lambda: "Asia/Bangkok")),
+                            ("db", types.SimpleNamespace(commit=lambda: None, rollback=lambda: None,
+                                                         get_value=lambda *a, **k: ("express", 3)))):
+            patcher = mock.patch.object(frappe, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _module(self, name, **attrs):
+        module = types.ModuleType(name)
+        module.__dict__.update(attrs)
+        parent, _, child = name.rpartition(".")
+        package = sys.modules.setdefault(parent, types.ModuleType(parent))
+        for patcher in (mock.patch.dict(sys.modules, {name: module}),
+                        mock.patch.object(package, child, module, create=True)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return module
+
+    def test_one_rule_for_every_time(self):
+        self.assertEqual(tools._local_time(datetime(2026, 10, 13, 8, 40, 12, 345678), utc=True), "2026-10-13 15:40")
+        self.assertEqual(tools._local_time(datetime(2026, 10, 13, 15, 40, 12)), "2026-10-13 15:40")  # 站点时区：不再偏
+        self.assertEqual(tools._local_time(datetime(2026, 10, 13, 20, 30, tzinfo=timezone.utc)), "2026-10-14 03:30")
+        self.assertEqual(tools._local_time("2026-10-13T08:40:12Z"), "2026-10-13 15:40")  # 带 Z 的本身就说了是 UTC
+        self.assertEqual(tools._local_time("2026-10-13T08:40:12.5", utc=True), "2026-10-13 15:40")
+        self.assertEqual(tools._local_time("2026-10-13 15:40:12.123456"), "2026-10-13 15:40")
+        for kept in ("2026-10-13", "", "soon", None, date(2026, 10, 13)):
+            self.assertEqual(tools._local_time(kept, utc=True), kept)
+        with mock.patch.object(frappe, "utils", types.SimpleNamespace(get_system_timezone=lambda: "Asia/Tokyo")):
+            self.assertEqual(tools._local_time(datetime(2026, 10, 13, 8, 40), utc=True), "2026-10-13 17:40")
+
+    def test_the_push_time_from_the_recording_is_said_in_bangkok_time(self):
+        frappe.rows[0].update(last_push_status="success", last_pushed_at=datetime(2026, 10, 13, 8, 40, 5),
+                              creation=datetime(2026, 10, 13, 15, 30, 9, 120000), invoice_date=date(2026, 10, 1))
+        doc = json.loads(tools.list_documents({"limit": 1}))["documents"][0]
+        self.assertEqual((doc["last_pushed_at"], doc["creation"], doc["invoice_date"]),
+                         ("2026-10-13 15:40", "2026-10-13 15:30", "2026-10-01"))
+        pushed = json.loads(tools.list_documents({"push_state": "success", "totals": True, "limit": 1}))["documents"]
+        self.assertEqual(pushed[0]["last_pushed_at"], "2026-10-13 15:40")  # 按页看、算合计的那条路也一样
+
+    def test_only_named_strings_change_and_version_tokens_stay(self):
+        out = json.loads(tools._json({
+            "card": {"modified": "2026-10-13 15:40:12.123456", "creation": datetime(2026, 10, 13, 15, 41, 2),
+                     "activity": [{"creation": datetime(2026, 10, 13, 15, 42)}], "due_date": date(2026, 10, 20)},
+            "archived_at": datetime(2026, 10, 13, 8, 43), "presets": [{"set_at": "2026-10-13 15:44:59.5"}],
+            "remind_times": [{"days_before": 1, "time": "08:00"}], "read_at": "2026-10-13 15:45"},
+            utc=("archived_at",), local=("set_at",)))
+        self.assertEqual(out["card"]["modified"], "2026-10-13 15:40:12.123456")  # 改卡片要原样交回
+        self.assertEqual((out["card"]["creation"], out["card"]["activity"][0]["creation"], out["card"]["due_date"]),
+                         ("2026-10-13 15:41", "2026-10-13 15:42", "2026-10-20"))
+        self.assertEqual((out["archived_at"], out["presets"][0]["set_at"]), ("2026-10-13 15:43", "2026-10-13 15:44"))
+        self.assertEqual((out["remind_times"], out["read_at"]), ([{"days_before": 1, "time": "08:00"}], "2026-10-13 15:45"))
+
+    def test_tools_name_the_fields_stored_in_utc(self):
+        self._module("pearnly_cowork.stocktake.desk_api", api_list_stock_counts=lambda start, limit: [
+            {"name": "S1", "title": "March", "creation": datetime(2026, 10, 13, 2, 0)}])
+        self._module("pearnly_cowork.work.api", boards_list=lambda: [
+            {"name": "B1", "archived_at": datetime(2026, 10, 12, 18, 30)}])
+        self.assertEqual(json.loads(tools.stocktake_list({}))["result"][0]["creation"], "2026-10-13 09:00")
+        self.assertEqual(json.loads(tools.work_boards({}))["result"][0]["archived_at"], "2026-10-13 01:30")
+        menu = {"account_set_key": "K", "observed_at": "2026-10-13T08:40:00.123456", "error_at": None, "kinds": {},
+                "defaults": {"observed_at": "2026-10-13T01:00:00", "error_at": "2026-10-13T02:00:00", "fields": {}}}
+        with mock.patch.object(tools.connections_api, "mrerp_menu", lambda name, key: json.loads(json.dumps(menu)),
+                               create=True):
+            out = json.loads(tools.mrerp_setup({"connection": "M1", "account_set_key": "K"}))
+        self.assertEqual((out["observed_at"], out["error_at"]), ("2026-10-13 15:40", None))
+        self.assertEqual((out["defaults"]["observed_at"], out["defaults"]["error_at"]),
+                         ("2026-10-13 08:00", "2026-10-13 09:00"))
+
+    def test_vat_draft_says_when_the_books_were_read_in_local_time(self):
+        self._module("pearnly_cowork.tax.service", vat_draft=lambda *args: {
+            "status": "drafted", "draft": "CTD-1", "period": "2026-09", "boxes": {},
+            "readback": {"ref": "RB1", "read_at": "2026-10-13T08:40:12Z"}, "deadlines": {"paper": "2026-10-15"}})
+        out = json.loads(tools.vat_draft({"connection": "C", "account_set_key": "K", "period": "2026-09",
+                                          "workbook": False}))
+        self.assertEqual(out["readback"], {"ref": "RB1", "read_at": "2026-10-13 15:40"})
+        self.assertEqual(out["deadlines"], {"paper": "2026-10-15"})
+
+    def test_times_stored_in_site_time_are_only_reformatted(self):
+        run = {"name": "RUN1", "trigger": "schedule", "started_at": datetime(2026, 10, 13, 9, 0, 4, 5),
+               "scanned_at": datetime(2026, 10, 13, 9, 1, 30)}
+        rule = {"name": "R1", "active_since": datetime(2026, 10, 1, 8, 15, 59)}
+        task = {"name": "R1", "last_run": {"started_at": datetime(2026, 10, 13, 9, 0, 4), "found": 3}}
+        with mock.patch.object(tools.rules, "runs", lambda name: {"rule": dict(rule), "runs": [run]}), \
+                mock.patch.object(tools.rules, "listing", lambda: {"rules": [task]}):
+            runs = json.loads(tools.folder_task_runs({"task": "R1"}))
+            listed = json.loads(tools.folder_tasks({}))["tasks"][0]
+        self.assertEqual((runs["runs"][0]["started_at"], runs["runs"][0]["scanned_at"], runs["task"]["active_since"]),
+                         ("2026-10-13 09:00", "2026-10-13 09:01", "2026-10-01 08:15"))
+        self.assertEqual(listed["last_run"]["started_at"], "2026-10-13 09:00")
+        self._module("pearnly_cowork.recon_center.presets", listing=lambda kind: [
+            {"scope": "bank:1", "rule": "card_fee", "value": "no", "set_at": "2026-10-13 15:40:12.654321"}])
+        presets = json.loads(tools.recon_presets({"kind": "bank"}))["presets"]
+        self.assertEqual(presets[0]["set_at"], "2026-10-13 15:40")
+
+    def test_cc_is_told_the_times_are_local(self):
+        self.assertIn("Times in tool results are already the user's local time", " ".join(tools.GUIDANCE))
+
+
 class FolderTaskDeclarationTests(unittest.TestCase):
     """工具说明与参数：默认值各类与任务规则同一组、批量上限不超过卡片行数、改字段说明与推送行为一致。"""
 
@@ -2172,9 +2324,9 @@ class AccountSetNameTests(unittest.TestCase):
         self.assertLess(list(out).index("account_label"), list(out).index(key_field))
 
     def test_cowork_tells_cc_to_name_account_sets_by_company(self):
-        self.assertEqual(tools.GUIDANCE, [
+        self.assertEqual(tools.GUIDANCE[0],
             "When you talk to the user, name an account set by its company name (the label or account_label in tool "
-            "results), never by its folder code, path or key; use keys only in tool calls."])
+            "results), never by its folder code, path or key; use keys only in tool calls.")
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]', hooks)
 
