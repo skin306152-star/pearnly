@@ -5,6 +5,7 @@
 import contextlib
 import io
 import json
+import os
 import unittest
 from datetime import date
 from unittest import mock
@@ -16,6 +17,8 @@ from pearnly_cowork.reconciliation import presets, recon_contracts, revision
 from pearnly_cowork.reconciliation.bank_matching import BankReconRow
 from pearnly_cowork.reconciliation.export import workbook
 
+# 教程三家公司的电子 PDF 账单（虚构银行）；读它们要 pdfminer。
+FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "bank-statements")
 
 def stmt_row(day, deposit=0.0, withdrawal=0.0):
 	return BankReconRow(match_status="stmt_deposit_only" if deposit else "stmt_withdrawal_only", match_layer=None,
@@ -364,13 +367,41 @@ class LedgerAccount(unittest.TestCase):
 		book.save(stream)
 		return bank_recon_service.bank_intake.read_statement_file(stream.getvalue(), "statement.xlsx")
 
-	def create(self, preset, parsed=None, **statement):
+	def pdf(self, name="Statement_3051774209_202609.pdf"):
+		"""真读教程 D2 的电子 PDF 账单（虚构的 ธนาคารสาธิต，读成通用版式；要 pdfminer，候选镜像里跑）。"""
+		with open(os.path.join(FIXTURES, name), "rb") as handle:
+			return bank_recon_service.bank_intake.read_statement_file(handle.read(), name)
+
+	def text_pdf(self, *header):
+		"""文字层是给定表头 + 三笔流水的 PDF（换掉 ``pdf_text`` 的抽字，不需要 PDF 库）。"""
+		text = "\n".join([*header, "ยอดยกมา 1,000.00", "03/05/2569 TRANSFER 100.00 900.00",
+			"05/05/2569 DEPOSIT 300.00 1,200.00", "06/05/2569 FEE 10.00 1,190.00"])
+		with mock.patch.object(bank_recon_service.bank_intake.pdf_text, "extract_pdf_text_pages", return_value=[text]):
+			return bank_recon_service.bank_intake.read_statement_file(b"%PDF-1.4 fake", "Statement_202605.pdf")
+
+	@staticmethod
+	def two_bank_accounts(parsed):
+		"""全科目总账里有两个银行科目（教程 D2：11-01-02-02、11-01-03-01），各对得上两笔流水、分不出是哪个。"""
+		movements = [row for row in parsed["rows"] if row.deposit or row.withdrawal]
+		rows = [bank_matching.GlRow(date=row.date, doc_no=f"{code}-{index}", account_code=code, description="",
+			debit=row.deposit or 0.0, credit=row.withdrawal or 0.0)
+			for index, (code, row) in enumerate([("11-01-02-02", row) for row in movements[:2]]
+				+ [("11-01-03-01", row) for row in movements[2:4]])]
+
+		def read(only=None):
+			kept = [row for row in rows if not only or row.account_code == only]
+			return {"ok": True, "rows": kept, "row_count": len(kept), "accounts": sorted({row.account_code for row in kept}),
+				"opening": 0.0, "closing": 0.0, "source": "workbook", "needs_review": False}
+		return read
+
+	def create(self, preset, parsed=None, ledger=None, **statement):
 		reads = []
 		parsed = parsed or self.statement(**statement)
+		ledger = ledger or self.ledger
 
 		def read_ledger(content, name, account_code="", model_rows=None):
 			reads.append(account_code)
-			return self.ledger(account_code or None)
+			return ledger(account_code or None)
 		with mock.patch.object(bank_recon_service.bank_recon_access, "require"), \
 				mock.patch.object(bank_recon_service.bank_intake, "read_statement_file", return_value=parsed), \
 				mock.patch.object(bank_recon_service.bank_intake, "read_ledger_file", side_effect=read_ledger), \
@@ -438,6 +469,49 @@ class LedgerAccount(unittest.TestCase):
 			[(presets.GL_ACCOUNT, "bank|GENERIC|8210|-")])
 		self.assertEqual({key: call.kwargs["parse_info"]["stmt_files"][0][key] for key in ("account", "account_read")},
 			{"account": "8210", "account_read": True})
+
+	def test_a_pdf_from_an_unknown_bank_is_asked_once_and_then_uses_the_answer(self):
+		# L8 复查 2026-10-13：教程 D2 的电子 PDF 账单（ธนาคารสาธิต，174 行，通用版式）原来读不出账号——总账里有两个银行科目
+		# 也不问、什么都不记。现在按表头上标着的 305-1-77420-9 记「GENERIC + 4209」。
+		parsed = self.pdf()
+		ledger = self.two_bank_accounts(parsed)
+		result, call, _reads = self.create({}, parsed=parsed, ledger=ledger)
+		self.assertEqual([(item["rule"], item["scope"]) for item in result["questions"]],
+			[(presets.GL_ACCOUNT, "bank|GENERIC|4209|-")])
+		self.assertEqual({item["code"] for item in result["questions"][0]["candidates"]}, {"11-01-02-02", "11-01-03-01"})
+		self.assertEqual(call.args[5]["gl_account_code"], "")
+		recorded = call.kwargs["parse_info"]["stmt_files"][0]
+		self.assertEqual({key: recorded.get(key) for key in ("bank_code", "rows", "account", "account_read")},
+			{"bank_code": "generic", "rows": 174, "account": "4209", "account_read": True})
+		# 答了 11-01-02-02（记在问题的范围下）：同一账户下一次对账直接按它，结果里写「按预设」，不再问。
+		result, call, reads = self.create({presets.GL_ACCOUNT: "11-01-02-02"}, parsed=parsed, ledger=ledger)
+		self.assertEqual(self.scopes, ["bank|GENERIC|4209|-"])
+		self.assertEqual(result["questions"], [])
+		self.assertEqual((call.args[5]["gl_account_code"], reads[-1]), ("11-01-02-02", "11-01-02-02"))
+		self.assertIn("reconciliation.preset.gl_account_applied 11-01-02-02", call.kwargs["warnings"])
+		# 这份任务别的预设（汇总入账、刷卡费率）与结果页存档的指纹也按同一个尾号。
+		parse_info = call.kwargs["parse_info"]
+		self.assertEqual(bank_recon_service.preset_scope("generic", parse_info, "11-01-02-02", []),
+			"bank|GENERIC|4209|11-01-02-02")
+		self.assertEqual(bank_recon_service.task_tail(FakeDoc(bank_code="generic", parse_info_json=json.dumps(parse_info))),
+			"4209")
+
+	def test_a_pdf_from_an_unknown_bank_with_only_a_masked_account_is_not_asked(self):
+		parsed = self.text_pdf("DEMO BANK", "เลขที่บัญชี: xxx-x-x4209-x")
+		self.assertEqual((parsed["bank_code"], parsed["row_count"]), ("generic", 3))
+		result, call, _reads = self.create({presets.GL_ACCOUNT: "1112-02"}, parsed=parsed)
+		self.assertEqual((result["questions"], self.scopes), ([], []))
+		self.assertEqual(call.args[5]["gl_account_code"], "")
+		self.assertNotIn("account", call.kwargs["parse_info"]["stmt_files"][0])
+
+	def test_a_pdf_from_a_named_bank_keeps_its_key(self):
+		# 认得出银行的 PDF：表头上标着的账号不记，预设键照旧是「BBL + 没有尾号 + 科目」（没有尾号也就不问科目）。
+		parsed = self.text_pdf("BANGKOK BANK", "Account No. 123-4-56789-0")
+		self.assertEqual((parsed["bank_code"], parsed["row_count"]), ("bbl", 3))
+		result, call, _reads = self.create({presets.GL_ACCOUNT: "1112-02"}, parsed=parsed)
+		self.assertEqual((result["questions"], self.scopes), ([], []))
+		self.assertNotIn("account", call.kwargs["parse_info"]["stmt_files"][0])
+		self.assertEqual(bank_recon_service.preset_scope("bbl", call.kwargs["parse_info"], "1112-01", []), "bank|BBL|-|1112-01")
 
 	def test_free_answers_are_account_codes(self):
 		self.assertTrue(presets.valid("bank", presets.GL_ACCOUNT, "1112-01"))

@@ -41,7 +41,7 @@ offline() {
                 tests/test_cowork_ocr_tasks.py \
                 tests/test_cowork_recon_scanned_docs.py tests/test_cowork_recon_progress.py \
                 tests/test_cowork_recon_waiting.py tests/test_cowork_recon_slots.py tests/test_cowork_recon_resume.py \
-                tests/test_cowork_recon_presets.py tests/test_cowork_bank_sheets.py tests/test_cowork_reconciliation_gl_sheets.py \
+                tests/test_cowork_recon_presets.py tests/test_cowork_recon_pdf_account.py tests/test_cowork_bank_sheets.py tests/test_cowork_reconciliation_gl_sheets.py \
                 tests/test_cowork_core_notifications.py tests/test_control_billing_gate.py \
                 tests/test_control_billing_usage_counter.py tests/test_cowork_recon_bulk_rows.py tests/test_control_billing_price.py tests/test_cowork_bank_page_checks.py \
                 tests/test_desk_first_load.py tests/test_cowork_source_lock_scope.py \

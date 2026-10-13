@@ -200,7 +200,8 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	成功：``{ok, rows, row_count, opening, closing, bank_code, source, parser_version,
 	completeness, balance_warn_count, low_conf_count, amount_fixed_count, printed_totals,
 	needs_review}``；走到换眼时另带 ``escalations``，两法分歧时另带 ``method_divergence``，
-	直读路另带 ``sheets_parsed/account_codes/labelled_accounts/multi_account``。
+	直读路另带 ``sheets_parsed/account_codes/labelled_accounts/multi_account``；认不出银行的 PDF 表头上标着账号时
+	另带 ``printed_account``（``bank_text.labelled_account``）。
 	失败：``{ok: False, error_code, error, rows: []}``。
 	"""
 	ext = extension(filename)
@@ -218,6 +219,7 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	accounts: Optional[Dict[str, Any]] = None
 	free_error: Optional[Tuple[str, str]] = None
 	implausible = False
+	printed_account = ""
 
 	if ext in WORKBOOK_EXTENSIONS:
 		direct = bank_sheets.read_statement_workbook(file_bytes, filename)
@@ -236,10 +238,13 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 		else:
 			free_error = (direct["error_code"], direct["error"])
 	elif ext == "pdf":
-		text = "\n".join(pdf_text.extract_pdf_text_pages(file_bytes))
+		pages = pdf_text.extract_pdf_text_pages(file_bytes)
+		text = "\n".join(pages)
 		bank_code = _adopted(bank_parse.detect_bank(text) if text.strip() else "", filename)
 		rows, opening, closing, source = _statement_text_rows(file_bytes, bank_code)
 		implausible = implausible_free_rows(rows, text)
+		# 表头上标着的账号（只读文字层，不识别）；只给认不出银行的通用版式记，见下面结果里的 printed_account。
+		printed_account = bank_text.labelled_account(pages[0]) if pages else ""
 	elif model_rows is None:
 		return _failure("unsupported_format",
 			f"unsupported format .{ext}" if ext else "unsupported format")
@@ -370,6 +375,10 @@ def read_statement_file(file_bytes: bytes, filename: str, *, model_rows: Optiona
 	}
 	if identity:
 		result["identity"] = identity
+	if printed_account and result["bank_code"] == "generic":
+		# 认不出银行的 PDF 账单：表头上标着的账号就是这个账户（对账预设按「通用版式 + 尾号」记）。认得出银行的不记，
+		# 它们的预设键照旧（2026-10-13 L8：教程三家公司的电子 PDF 账单都是通用版式，原来没有尾号、不问不记）。
+		result["printed_account"] = printed_account
 	if text_layer:
 		result["text_layer"] = True
 	if unread_pages:

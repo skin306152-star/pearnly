@@ -65,7 +65,7 @@ def account_tail(values):
 def statement_tail(bank_code, files):
     """这份对账的账号尾号：读成功的几份账单（``parse_info.stmt_files`` 的记录）里最常见的。
 
-    认不出银行的通用版式只算账单上读出的账号（``account_read``：识别读出的账户、表头旁标着「账号」的），不算退回的工作表名：
+    认不出银行的通用版式只算账单上读出的账号（``account_read``：识别读出的账户、表格或 PDF 文字层表头上标着「账号」的），不算退回的工作表名：
     按月分表的表名是月份 / 年份（Jan 2026、01-2569），当尾号会让同工作区别家公司的通用版式账单共用一份预设（复查 2026-10-13）。
     这条之前建的通用版式任务没有 ``account_read``，照旧不记。"""
     generic = str(bank_code or "").strip().upper() == GENERIC
