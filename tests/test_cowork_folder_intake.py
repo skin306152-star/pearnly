@@ -218,6 +218,8 @@ class AdditiveGuards(unittest.TestCase):
                       '"pearnly_cowork.folder_intake.events.recognized"]', source)
         self.assertIn('pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}', source)
         self.assertIn('pearnly_cowork.folder_intake.schedule.tick', source)
+        # 推送状态变了：定时任务那份文件马上刷新（只此一个入口）
+        self.assertIn('cowork_push_state_changed = ["pearnly_cowork.folder_intake.events.pushed"]', source)
 
     def test_reminders_and_briefs_run_every_five_minutes(self):
         tree = ast.parse((APP / "hooks.py").read_text())
@@ -232,7 +234,9 @@ class AdditiveGuards(unittest.TestCase):
         self.assertNotIn("pearnly_cowork.folder_intake.schedule.notices", events["cron"]["* * * * *"])
 
     def test_hook_targets_exist(self):
-        for dotted in ("pearnly_cowork.folder_intake.schedule.tick", "pearnly_cowork.folder_intake.events.recognized", "pearnly_cowork.folder_intake.access.deny",
+        for dotted in ("pearnly_cowork.folder_intake.schedule.tick", "pearnly_cowork.folder_intake.events.recognized",
+                       "pearnly_cowork.folder_intake.events.pushed", "pearnly_cowork.folder_intake.pump.refresh",
+                       "pearnly_cowork.folder_intake.access.deny",
                        "pearnly_cowork.folder_intake.access.deny_query", "pearnly_cowork.folder_intake.access.reject_share",
                        "pearnly_cowork.folder_intake.pump.run", "pearnly_cowork.folder_intake.schedule.notices",
                        "pearnly_cowork.folder_intake.reminders.run", "pearnly_cowork.folder_intake.briefs.run"):
@@ -1014,6 +1018,155 @@ class StockOrderPump(unittest.TestCase):
         pump, entry, calls = self._pump(self._sale(), runs=[run])
         self._step(pump)
         self.assertEqual(len(calls["later"]), 1)
+
+
+class PushRefreshesTheFile(unittest.TestCase):
+    """票的推送状态一变（后台、网页、手机、CC 任何入口推的），定时任务那份文件在提交后马上刷新结果与结果表格版本，
+    不等每 10 分钟的跟进（2026-10-13 测试机：CC 重推三天 POS，两份刷新了，一份的结果表格与运行结果停在重推之前）。"""
+    NOW = datetime(2026, 10, 13, 9, 0)
+
+    def _pump(self, entries, signatures):
+        calls = {"write": [], "later": []}
+        stub = types.SimpleNamespace
+        error = type("Error", (Exception,), {})
+        frappe = stub(db=stub(commit=lambda: None, rollback=lambda: None), QueryDeadlockError=error,
+                      DoesNotExistError=error, clear_messages=lambda: None, log_error=lambda **kw: None,
+                      get_traceback=lambda: "")
+        modules = {"frappe": frappe,
+                   "frappe.utils": stub(add_to_date=lambda value, **delta: value + timedelta(**delta),
+                                        now_datetime=lambda: self.NOW),
+                   "pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                   "pearnly_cowork.folder_intake": stub(contracts=contracts, destinations=stub(), inbox=stub(),
+                                                        settings=stub()),
+                   "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="R", RUN="U", read=None, write=None),
+                   "pearnly_cowork.folder_intake.machine": stub(owner_ready=None, request_key=None),
+                   "pearnly_cowork.folder_intake.push": stub(push_one=None),
+                   "pearnly_cowork.targets.identity": identity}
+        with mock.patch.dict(sys.modules, modules):
+            pump = _load("folder_pump_refresh_under_test", APP / "folder_intake/pump.py")
+        pump.read = lambda doctype, name, for_update=False: entries[name]
+        pump.write = lambda entry: calls["write"].append(entry.name)
+        pump._signature = lambda entry: signatures[entry.name]
+        pump._later = lambda entry, seconds, code: calls["later"].append((entry.name, seconds))
+        return pump, calls
+
+    @staticmethod
+    def _file(name, state, outcome, revision=1, next_at=None):
+        return types.SimpleNamespace(name=name, state=state, outcome_json=json.dumps(outcome),
+                                     workbook_revision=revision, next_attempt_at=next_at, finished_at=None)
+
+    def test_a_push_from_cc_refreshes_the_result_and_the_workbook_at_once(self):
+        held = {"H1": {"status": "held", "reason": "choice_needed:receipt"},
+                "_signature": [["H1", "", "choice_needed:receipt"]]}
+        parked = {"H2": {"status": "sent"}, "_signature": [["H2", "success", ""]]}
+        entries = {"F1": self._file("F1", "done", held, 2, self.NOW + timedelta(minutes=8)),
+                   # 之前全部成功、停止定时跟进（31 天后才看）的文件
+                   "F2": self._file("F2", "done", parked, 1, self.NOW + timedelta(days=31)),
+                   "F3": self._file("F3", "pushing", {"H3": {"status": "sent"}}),
+                   "F4": self._file("F4", "recognized", {}),
+                   "F5": self._file("F5", "pushing", {"H5": {"status": "sent"}})}
+        signatures = {"F1": [["H1", "success", ""]], "F2": [["H2", "manual", "push.native_target_mismatch"]],
+                      "F3": [["H3", "success", ""]], "F5": [["H5", "pending", ""]]}
+        pump, calls = self._pump(entries, signatures)
+        before = contracts.tally([{"state": "done", "outcome_json": entries["F1"].outcome_json}], self.NOW)
+        self.assertEqual((before["pushed"], before["stopped"]), (0, 1))
+        pump.refresh(["F1", "F2", "F3", "F4", "F5", "F1", None])
+        first = entries["F1"]
+        self.assertEqual((first.workbook_revision, json.loads(first.outcome_json)["_signature"], first.next_attempt_at),
+                         (3, [["H1", "success", ""]], self.NOW + timedelta(minutes=10)))
+        after = contracts.tally([{"state": "done", "outcome_json": first.outcome_json}], self.NOW)
+        self.assertEqual((after["pushed"], after["stopped"]), (1, 0))  # 运行结果、任务列表跟着变
+        self.assertEqual((entries["F2"].workbook_revision, entries["F2"].next_attempt_at),
+                         (2, self.NOW + timedelta(minutes=10)))  # 停止跟进的也重算，并重新跟进
+        self.assertEqual((entries["F3"].state, entries["F3"].workbook_revision, entries["F3"].finished_at),
+                         ("done", 2, self.NOW))  # 推送中的写完了：马上完成，不等下一分钟
+        self.assertEqual(entries["F4"].workbook_revision, 1)  # 还在等后台推的文件不动
+        self.assertEqual((entries["F5"].state, calls["later"]), ("pushing", [("F5", 30)]))  # 还在路上：照旧等
+        self.assertEqual(calls["write"], ["F1", "F2", "F3"])
+
+    def test_the_periodic_follow_still_stops_once_everything_is_pushed(self):
+        parked = {"H2": {"status": "sent"}, "_signature": [["H2", "success", ""]]}
+        entries = {"F2": self._file("F2", "done", parked)}
+        pump, calls = self._pump(entries, {})
+        pump._follow(entries["F2"])
+        self.assertEqual((entries["F2"].workbook_revision, entries["F2"].next_attempt_at),
+                         (1, self.NOW + timedelta(days=pump.FOLLOW_DAYS + 1)))
+
+    def _events(self, rows, sources):
+        seen = {"enqueue": [], "filters": []}
+
+        def get_all(doctype, filters=None, fields=None, ignore_permissions=False):
+            seen["filters"].append((doctype, filters, ignore_permissions))
+            return [Row(row) for row in rows if row["source_file"] == filters["source_file"]]
+
+        frappe = types.SimpleNamespace(
+            db=types.SimpleNamespace(get_value=lambda doctype, name, field: sources.get(name)), get_all=get_all,
+            enqueue=lambda method, **kwargs: seen["enqueue"].append((method, kwargs)))
+        events = _load("folder_events_under_test", APP / "folder_intake/events.py")
+        return events, frappe, seen
+
+    def test_only_folder_task_tickets_queue_a_refresh_after_commit(self):
+        rows = [{"name": "F1", "source_file": "S1", "histories_json": json.dumps(["H1", "H2"])},
+                {"name": "F9", "source_file": "S1", "histories_json": json.dumps(["H7"])}]
+        events, frappe, seen = self._events(rows, {"H1": "S1", "H8": "", "H7": "S1", "H6": "S6"})
+        with mock.patch.dict(sys.modules, {"frappe": frappe}):
+            events.pushed("H1")
+            events.pushed("H8")  # 网页上传的票：没有原件对应的定时任务
+            events.pushed("H6")
+        self.assertEqual(seen["enqueue"], [("pearnly_cowork.folder_intake.pump.refresh",
+                                            {"queue": "default", "enqueue_after_commit": True, "files": ["F1"]})])
+        self.assertEqual(seen["filters"][0], ("Cowork Folder Intake File",
+                                              {"source_file": "S1", "state": ["in", ("pushing", "done")]}, True))
+
+    def _push_state(self, hooks=("pearnly_cowork.folder_intake.events.pushed",), hook=None, previous=None):
+        announced, logged = [], []
+        local = types.SimpleNamespace(lang="en")
+        translate = types.SimpleNamespace(get_all_translations=lambda lang: {})
+
+        def get_hooks(name):
+            if isinstance(hooks, Exception):
+                raise hooks
+            return list(hooks) if name == "cowork_push_state_changed" else []
+
+        before = previous or {"workspace": "W", "client": "", "last_push_record": "R1", "last_push_status": "pending"}
+        db = types.SimpleNamespace(sql=lambda *args, **kwargs: [Row(before)],
+                                   set_value=lambda *args, **kwargs: None, get_value=lambda *args: "owner@x")
+        frappe = types.SimpleNamespace(db=db, local=local, translate=translate, _=lambda text: text,
+                                       session=types.SimpleNamespace(user="pusher@x"),
+                                       publish_realtime=lambda *args, **kwargs: None, get_hooks=get_hooks,
+                                       get_attr=lambda path: hook or announced.append,
+                                       log_error=lambda **kwargs: logged.append(kwargs["title"]),
+                                       get_traceback=lambda: "", PermissionError=PermissionError,
+                                       throw=lambda *args: None)
+        modules = {"frappe": frappe, "frappe.translate": translate}
+        with mock.patch.dict(sys.modules, modules):
+            push_state = _load("push_state_announce_under_test", APP / "history/push_state.py")
+        return push_state, modules, announced, logged
+
+    def test_every_push_state_change_is_announced_and_never_breaks_the_push(self):
+        row = Row(name="R1", history="H1", status="success", workspace="W", client="", reason="")
+        push_state, modules, announced, logged = self._push_state()
+        with mock.patch.dict(sys.modules, modules):
+            push_state.mirror(row, "2026-10-13")
+            push_state.record_failure("H2", "choice_needed:receipt")
+        self.assertEqual(announced, ["H1", "H2"])
+        push_state, modules, announced, logged = self._push_state(
+            previous={"workspace": "W", "client": "", "last_push_record": "R1", "last_push_status": "success"})
+        with mock.patch.dict(sys.modules, modules):
+            push_state.mirror(row, "2026-10-13")  # 状态没变：不刷新
+        self.assertEqual(announced, [])
+
+        def broken(history):
+            raise RuntimeError("queue down")
+
+        push_state, modules, announced, logged = self._push_state(hook=broken)
+        with mock.patch.dict(sys.modules, modules):
+            push_state.mirror(row, "2026-10-13")
+        self.assertEqual(logged, ["Cowork push state hook failed"])
+        push_state, modules, announced, logged = self._push_state(hooks=RuntimeError("no site"))
+        with mock.patch.dict(sys.modules, modules):
+            push_state.mirror(row, "2026-10-13")
+        self.assertEqual((announced, logged), ([], []))
 
 
 class LiveAndNotify(unittest.TestCase):

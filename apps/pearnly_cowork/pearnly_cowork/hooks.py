@@ -464,6 +464,9 @@ cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized", "pearnly_cowor
 # 推送时这张票已定的选择（push/application/service.py 的 `_fixed`）：定时任务的票推往该任务的连接与账套时带任务默认处理，
 # 网页复核页、手机、CC 重推同一口径；取不到回 {}（2026-10-12）。
 cowork_push_fixed_choices = ["pearnly_cowork.folder_intake.push.fixed_for"]
+# 票的推送状态 / 原因变了（history/push_state.py 投影推送账本时）：定时任务的票在提交后马上刷新那份文件的结果与结果表格，
+# 不等每 10 分钟的跟进（2026-10-13）。
+cowork_push_state_changed = ["pearnly_cowork.folder_intake.events.pushed"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}
 # 续跑时遇到上一个进程留下的「结果不明」调用，由对账的识别任务自己处理：账单 / 总账 / 税报按有限次重发，发票当成这一页
 # 读不出交引擎按页兜底；不整份作废（2026-09-30 压测第 18 轮）。

@@ -468,49 +468,66 @@ def _signature(entry):
              (rows[name].last_push_reason or "") if name in rows else ""] for name in histories]
 
 
-def _settle_step(cfg, deadline):
+def _settle(entry):
     """推送都有了结论（成功 / 待人工 / 没推）：这份完成，结果表格可以取了。
 
     只等还在路上的（已准备 / 排队 / 小助手正在写）；其余状态都算有了结论，不会因为某种没想到的状态一直等
     （10-09 实测：同号票没建推送记录，票上一直没有状态，整份永远停在「推送中」）。"""
-    def settle(entry):
-        outcome = json.loads(entry.outcome_json or "{}")
-        signature = _signature(entry)
-        for name, status, _reason in signature:
-            if (outcome.get(name) or {}).get("status") == "sent" and status in IN_FLIGHT:
-                return _later(entry, 30, "")
-        entry.state, entry.finished_at = "done", now_datetime()
-        entry.workbook_revision = int(entry.workbook_revision or 0) + 1
+    outcome = json.loads(entry.outcome_json or "{}")
+    signature = _signature(entry)
+    for name, status, _reason in signature:
+        if (outcome.get(name) or {}).get("status") == "sent" and status in IN_FLIGHT:
+            return _later(entry, 30, "")
+    entry.state, entry.finished_at = "done", now_datetime()
+    entry.workbook_revision = int(entry.workbook_revision or 0) + 1
+    outcome["_signature"] = signature
+    entry.outcome_json = json.dumps(outcome, sort_keys=True)
+    entry.next_attempt_at = None
+    write(entry)
+    frappe.db.commit()
+
+
+def _settle_step(cfg, deadline):
+    _each(_due("pushing", 200), deadline, _settle)
+
+
+def _follow(entry, changed=False):
+    """完成后票的推送状态变了（人在网页 / 手机 / CC 推好了没推的票）：结果签名变了就表格版本加一，小助手下次同步重取。
+    票都成功了就不再定时看（``changed``：推送状态刚变过，照样重算）。"""
+    outcome = json.loads(entry.outcome_json or "{}")
+    before = outcome.get("_signature") or []
+    if not changed and before and all(status in contracts.SETTLED for _name, status, _reason in before):
+        entry.next_attempt_at = add_to_date(now_datetime(), days=FOLLOW_DAYS + 1)
+        write(entry)
+        return frappe.db.commit()
+    signature = _signature(entry)
+    if signature != before:
         outcome["_signature"] = signature
         entry.outcome_json = json.dumps(outcome, sort_keys=True)
-        entry.next_attempt_at = None
-        write(entry)
-        frappe.db.commit()
-
-    _each(_due("pushing", 200), deadline, settle)
+        entry.workbook_revision = int(entry.workbook_revision or 0) + 1
+    entry.next_attempt_at = add_to_date(now_datetime(), minutes=10)
+    write(entry)
+    frappe.db.commit()
 
 
 def _follow_step(cfg, deadline):
-    """完成后人在网页把没推的票推好了：表格版本加一，小助手下次同步重取。只看这些天内完成、还有没成功的票。"""
+    """完成后人在网页把没推的票推好了：表格版本加一，小助手下次同步重取。只看这些天内完成、还有没成功的票（推送状态一变
+    已由 `refresh` 马上刷新，这里是兜底）。"""
     since = now_datetime() - timedelta(days=FOLLOW_DAYS)
     names = frappe.get_all(FILE, filters={"state": "done", "finished_at": [">=", since]},
                            or_filters=[["next_attempt_at", "is", "not set"], ["next_attempt_at", "<=", now_datetime()]],
                            pluck="name", order_by="finished_at asc", limit=100, ignore_permissions=True)
+    _each(names, deadline, _follow)
 
-    def follow(entry):
-        outcome = json.loads(entry.outcome_json or "{}")
-        before = outcome.get("_signature") or []
-        if before and all(status in contracts.SETTLED for _name, status, _reason in before):
-            entry.next_attempt_at = add_to_date(now_datetime(), days=FOLLOW_DAYS + 1)
-            write(entry)
-            return frappe.db.commit()
-        signature = _signature(entry)
-        if signature != before:
-            outcome["_signature"] = signature
-            entry.outcome_json = json.dumps(outcome, sort_keys=True)
-            entry.workbook_revision = int(entry.workbook_revision or 0) + 1
-        entry.next_attempt_at = add_to_date(now_datetime(), minutes=10)
-        write(entry)
-        frappe.db.commit()
 
-    _each(names, deadline, follow)
+def refresh(files):
+    """票的推送状态刚变（`events.pushed` 在推送事务提交后排的任务）：这几份文件马上刷新，不等定时推进 —— 推送中的看能不能
+    完成，已完成的重算结果签名、变了就升表格版本（运行结果、任务列表、小助手取的结果表格都跟着变；之前因全部成功停止
+    定时跟进的也重算）。其余状态的文件由后台推进自己走，这里不动。"""
+    def handle(entry):
+        if entry.state == "pushing":
+            return _settle(entry)
+        if entry.state == "done":
+            return _follow(entry, changed=True)
+
+    _each([name for name in dict.fromkeys(files or []) if isinstance(name, str)], float("inf"), handle)

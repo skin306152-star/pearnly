@@ -8,6 +8,8 @@ from frappe import _
 
 FIELDS = ('last_push_status', 'last_pushed_at', 'last_push_record', 'last_push_reason')
 EVENT = 'cowork_intake_changed'
+# 推送状态 / 原因变了要知道的入口（hooks.py；文件夹任务据此刷新那份文件的结果与结果表格）。history 域不导入它们。
+HOOK = 'cowork_push_state_changed'
 
 
 def _changed(history, *users):
@@ -19,6 +21,23 @@ def _changed(history, *users):
             frappe.publish_realtime(EVENT, {'history': history}, user=user, after_commit=True)
     except Exception:
         pass
+
+
+def _announce(history):
+    """推送状态 / 原因变了：告诉登记了 ``cowork_push_state_changed`` 的入口（只读、排提交后的任务，不改推送本身）。
+    哪一个出错只记日志，不影响推送。"""
+    try:
+        paths = frappe.get_hooks(HOOK) or []
+    except Exception:
+        return
+    for path in paths:
+        try:
+            frappe.get_attr(path)(history)
+        except Exception:
+            try:
+                frappe.log_error(title='Cowork push state hook failed', message=frappe.get_traceback()[-1500:])
+            except Exception:
+                pass
 
 
 def mirror(row, timestamp, *, select=False):
@@ -41,6 +60,7 @@ def mirror(row, timestamp, *, select=False):
         'last_push_record': row.name,
         'last_push_reason': (row.reason or '')[:500] if row.status == 'manual' else ''}, update_modified=False)
     _changed(row.history, row.get('owner'))
+    _announce(row.history)
 
 
 _REVERSE = {}
@@ -84,3 +104,4 @@ def record_failure(history, reason):
     frappe.db.set_value('Cowork OCR History', history, 'last_push_reason', source_text(reason)[:500],
                         update_modified=False)
     _changed(history)
+    _announce(history)
