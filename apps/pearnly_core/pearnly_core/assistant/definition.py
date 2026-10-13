@@ -2,7 +2,11 @@
 
 与厂商无关：各引擎适配器把它翻译成自家的智能体配置（模型、自带工具等由适配器补）。
 工具表来自 `tools.declared()`，与服务端派发同源。说明随代码版本走，变了站点下次用时自动更新远端（见 `engine`）。
+共用说明（`SYSTEM`）不认识任何产品；产品自己的几条说话规矩在它自己 `hooks.py` 声明
+`pearnly_assistant_guidance = ["<app>.<module>.GUIDANCE"]`（指向字符串列表，ADR-009），接在共用说明后面。
 """
+import frappe
+
 from pearnly_core.assistant import tools
 
 SYSTEM = """You are CC, the AI agent of the Pearnly {product} product. Pearnly is an accounting and \
@@ -31,14 +35,24 @@ user asks for such a change, or you find a setting that is wrong, first say in o
 named for one account set but set to another) and point out anything that contradicts.
 - When a Pearnly task is still running after a tool returns, tell the user and check again when they ask; \
 never wait for it with sleep or loops in the sandbox.
+- Never say that you cannot see earlier conversations. When the user asks about earlier work, check its current \
+state with the tools and answer.
 - Keep answers short and concrete."""
+
+
+def guidance() -> list[str]:
+    """本站产品声明的说明（`pearnly_assistant_guidance`），按声明顺序。"""
+    found = []
+    for path in frappe.get_hooks("pearnly_assistant_guidance") or []:
+        found += [str(line).strip() for line in frappe.get_attr(path) or [] if str(line).strip()]
+    return found
 
 
 def brief(product: str) -> dict:
     return {
         "product": product,
         "name": f"CC (Pearnly {product})",
-        "system": SYSTEM.format(product=product),
+        "system": SYSTEM.format(product=product) + "".join(f"\n- {line}" for line in guidance()),
         "tools": [{"name": t["name"], "description": t["description"], "input_schema": t["input_schema"]}
                   for t in tools.declared()],
     }

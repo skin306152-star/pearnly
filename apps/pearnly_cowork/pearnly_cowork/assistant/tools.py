@@ -47,6 +47,61 @@ def _json(value) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
 
 
+# ---------------- 账套给人看的名字 ----------------
+
+# 给模型的「怎么说话」：Cowork 自己的几条，接在共用说明后面（hooks `pearnly_assistant_guidance`）。
+# 2026-10-13 录屏：CC 对会计说账套「demo02」（Express 数据文件夹名）；会计认公司，不认文件夹代码。
+GUIDANCE = [
+    "When you talk to the user, name an account set by its company name (the label or account_label in tool "
+    "results), never by its folder code, path or key; use keys only in tool calls.",
+]
+
+
+def _catalog_names(catalog) -> dict:
+    """账套目录 → {账套键（比较用）: 给人看的名字}：同录入下拉与 cowork_intake_options，Express「年度文件夹 · 登录列表名
+    （公司法定名）」，MR.ERP「公司 · 年度」；下拉里没有的（停用、写不进）用目录里的账套名。"""
+    names = {}
+    for row in (catalog or {}).get("account_sets") or []:
+        if isinstance(row, dict) and row.get("source_id") and row.get("label"):
+            names[_account_key(row["source_id"])] = str(row["label"])
+    for group in (catalog or {}).get("groups") or []:
+        for item in group.get("items") or []:
+            head = " · ".join(str(part) for part in (group.get("label"), item.get("label")) if part)
+            company = item.get("description")
+            if item.get("value") and head:
+                names[_account_key(item["value"])] = f"{head}（{company}）" if company else head
+    return names
+
+
+def _account_names(cache: dict, connection) -> dict:
+    """这条连接的账套名字（一次调用里每条连接只读一次目录）；读不到（没有权限、目录没读过）是空的。"""
+    if connection not in cache:
+        try:
+            cache[connection] = _catalog_names(connections.targets(connection)) if connection else {}
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+            cache[connection] = {}
+    return cache[connection]
+
+
+def _account_named(out, connection, key_field="account_set_key", cache=None):
+    """结果里点了某份账套（键）：在键前面放上给人看的名字 `account_label`（已有的挪到键前面）；名字读不到就只留键。
+    键仍要留着：模型调工具要用它。"""
+    if not isinstance(out, dict) or not out.get(key_field):
+        return out
+    label = out.get("account_label") or _account_names({} if cache is None else cache, connection).get(
+        _account_key(out[key_field]))
+    if not label:
+        return out
+    named = {}
+    for field, value in out.items():
+        if field == key_field:
+            named["account_label"] = label
+        if field != "account_label":
+            named[field] = value
+    return named
+
+
 # ---------------- 小助手状态与账套 ----------------
 
 def companion_status(tool_input) -> str:
@@ -209,8 +264,10 @@ def list_documents(tool_input) -> str:
             out["note"] = (f"Only the newest {LIST_SCAN_MAX} documents were checked; narrow the dates to cover "
                            "the rest.")
     next_offset = offset + len(rows)
+    names = {}
     for row in rows:
         row["last_push_reason"] = _reason(row.get("last_push_reason"))
+    rows = [_account_named(row, row.get("push_connection"), "push_account_set", names) for row in rows]
     return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
                   "next_offset": next_offset if next_offset < total else None, **out})
 
@@ -445,7 +502,7 @@ def _choices(tool_input) -> dict:
     return choices
 
 
-def _document(name) -> dict:
+def _document(name, names=None) -> dict:
     from pearnly_cowork.contracts import document_policy as policy_rules
     from pearnly_cowork.contracts import history as history_contracts
 
@@ -453,6 +510,7 @@ def _document(name) -> dict:
     page = history_contracts.primary_page_fields(doc.get("pages") or [])
     out = {key: doc.get(key) for key in ("name", "invoice_no", "invoice_date", "seller_name", "total_amount",
                                           "posting_kind", "push_connection", "push_account_set", "duplicate_warning")}
+    out = _account_named(out, doc.get("push_connection"), "push_account_set", names)
     out.update(_push_target(doc))
     out.update({key: page.get(key) for key in ("document_type", "seller_tax", "seller_branch", "buyer_name",
                                                 "buyer_tax", "subtotal", "vat", "discount", "wht_amount", "currency")})
@@ -463,13 +521,14 @@ def _document(name) -> dict:
     return _filled(out)
 
 
-def _result(batch) -> dict:
+def _result(batch, names=None) -> dict:
     # 扣费等内部状态不交给模型（识别刚存完那一刻还是「待扣」，模型会误报成扣了两次）；扣费口径写在工具说明里。
     detail = _recognition().detail(batch)
     state = detail.get("state")
     out = {"batch": batch, "state": state, "pages": detail.get("page_count")}
     if state == "saved":
-        out["documents"] = [_document(name) for name in detail.get("history_records") or []]
+        names = {} if names is None else names
+        out["documents"] = [_document(name, names) for name in detail.get("history_records") or []]
         out["needs_review"] = bool(detail.get("requires_review"))
     elif state in BROKEN:
         out["reason"] = detail.get("last_code") or state
@@ -526,10 +585,11 @@ def recognize_attachments(tool_input) -> str:
     admitted = [_admit(file_id, choices) for file_id in file_ids]
     waiting = [a for a in admitted if a.get("batch")]
     deadline = time.monotonic() + RECOGNIZE_WAIT_SECONDS
+    names = {}
     while waiting:
         frappe.db.rollback()  # 识别在队列里另一进程做：每次重新读，看得到它刚提交的结果
         for item in waiting:
-            item.update(_result(item["batch"]))
+            item.update(_result(item["batch"], names))
         waiting = [a for a in waiting if a.get("state") not in FINISHED + BROKEN]
         if not waiting or time.monotonic() >= deadline:
             break
@@ -542,10 +602,10 @@ def recognition_results(tool_input) -> str:
     batches = [str(b) for b in (tool_input.get("batches") or [])][:RECOGNIZE_MAX]
     if not batches:
         frappe.throw(_("No recognition tasks were given."))
-    out = []
+    out, names = [], {}
     for batch in batches:
         try:
-            out.append(_result(batch))
+            out.append(_result(batch, names))
         except (frappe.DoesNotExistError, frappe.PermissionError):
             frappe.clear_messages()
             out.append({"batch": batch, "state": "not_found"})
@@ -659,7 +719,7 @@ def pos_import(tool_input) -> str:
             frappe.clear_messages()
             result = {"status": "failed", "reason": str(exc)[:300]}
         results.append({"file": file_id, "filename": found["filename"], **_pos_text(result)})
-    return _json({"results": results})
+    return _json(_account_named({"account_set_key": account_set, "results": results}, connection))
 
 
 def pos_layout(tool_input) -> str:
@@ -679,8 +739,9 @@ def pos_layout(tool_input) -> str:
                                 posting_kind=held["posting_kind"])
         resumed = result.get("status") == "ready" and rules.resume_pos(folder_file)
         frappe.db.commit()
-        return _json({"folder_file": folder_file, "filename": held["filename"], "task": held["title"],
-                      "resumed": bool(resumed), **_pos_text(result)})
+        return _json(_account_named({"folder_file": folder_file, "filename": held["filename"], "task": held["title"],
+                                     "account_set_key": held["account_set_key"], "resumed": bool(resumed),
+                                     **_pos_text(result)}, held["connection"]))
     file_id = str(tool_input.get("file") or "")
     connection, account_set = tool_input.get("connection") or "", tool_input.get("account_set_key") or ""
     if not file_id or not connection or not account_set:
@@ -691,7 +752,8 @@ def pos_layout(tool_input) -> str:
     result = _pos().preview(found["source"], workspace=scope.default_workspace(), connection=connection,
                             account_set_key=account_set, answers=answers)
     frappe.db.commit()
-    return _json({"file": file_id, "filename": found["filename"], **_pos_text(result)})
+    return _json(_account_named({"file": file_id, "filename": found["filename"], "account_set_key": account_set,
+                                 **_pos_text(result)}, connection))
 
 
 # ---------------- 录入口径（同网页「新建录入」与 LINE；问一次、记住） ----------------
@@ -759,7 +821,7 @@ def intake_options(tool_input) -> str:
     for row in connections.records(None, None, 0, 100) or []:
         first.setdefault(row.get("adapter"), row)  # 每种 ERP 取第一条连接，同 LINE
     last = _last_used()
-    targets = []
+    targets, names = [], {}
     for adapter in ("express", "mrerp"):
         row = first.get(adapter)
         item = {"target": adapter, "state": _target_state(row)}
@@ -773,6 +835,9 @@ def intake_options(tool_input) -> str:
                 frappe.clear_messages()
                 catalog = {}
             usable = account_search.usable(adapter, catalog.get("account_sets") or [])
+            # 上次用的那份也按清单里的名字说（2026-10-13 录屏：只给了键，CC 说成文件夹名「demo02」）
+            names[row["name"]] = {_account_key(r["source_id"]): account_search.label(adapter, r)
+                                  for r in catalog.get("account_sets") or [] if r.get("source_id") and r.get("label")}
             item["_keys"] = {str(r["source_id"]).casefold() for r in usable}
             item["account_sets_total"] = len(usable)
             if search:
@@ -783,12 +848,13 @@ def intake_options(tool_input) -> str:
                 ranked = sorted(usable, key=lambda r: (str(r["source_id"]).casefold() != remembered,
                                                        _blank_template(r), -_year(r)))
                 found = [{"value": r["source_id"], "label": account_search.label(adapter, r)} for r in ranked]
-            item["account_sets"] = [{"key": r["value"], "label": r["label"]} for r in found[:OPTIONS_SHOWN]]
+            item["account_sets"] = [{"label": r["label"], "key": r["value"]} for r in found[:OPTIONS_SHOWN]]
             if not usable:
                 item["account_sets_status"] = catalog.get("status") or "missing"
         targets.append(item)
     targets.append({"target": "none", "state": "ready"})
     extra = {}
+    last = _account_named(last, last.get("connection"), cache=names)
     if last and not _still_available(last, targets):
         # 上次用的账套已不在可选清单（删了、改名、不可写或那条连接停了）：不推荐，告诉用户另选
         extra["last_used_unavailable"] = last
@@ -816,8 +882,8 @@ def stock_group(tool_input) -> str:
     if tool_input.get("acccod"):
         result = _connection_call(connections_api.choose_stock_acc_group, name, key, str(tool_input["acccod"]))
         frappe.db.commit()
-        return _json(result)
-    return _json(_connection_call(connections_api.stock_acc_group, name, key))
+        return _json(_account_named(result, name))
+    return _json(_account_named(_connection_call(connections_api.stock_acc_group, name, key), name))
 
 
 def mrerp_setup(tool_input) -> str:
@@ -846,7 +912,7 @@ def mrerp_setup(tool_input) -> str:
         if result.get("status") == "failed":
             return _json(result)
     frappe.db.commit()
-    return _json(_connection_call(connections_api.mrerp_menu, name, key))
+    return _json(_account_named(_connection_call(connections_api.mrerp_menu, name, key), name))
 
 
 # ---------------- 复核与修改（同录入工作台复核页） ----------------
@@ -909,6 +975,7 @@ def _detail(doc) -> dict:
            "push_status": doc.get("last_push_status"), "push_reason": _reason(doc.get("last_push_reason")),
            "push_connection": doc.get("push_connection"), "push_account_set": doc.get("push_account_set"),
            "duplicate_warning": doc.get("duplicate_warning"), "pages": len(pages), **_push_target(doc)}
+    out = _account_named(out, doc.get("push_connection"), "push_account_set")
     out.update({key: fields.get(key) for key in DETAIL_FIELDS})
     out["items"] = [_filled({key: row.get(key) if key != "subtotal" else row.get("subtotal", row.get("amount"))
                              for key in ITEM_COLUMNS}) for row in (fields.get("items") or [])[:ITEMS_SHOWN]
@@ -1072,8 +1139,9 @@ def push_choices(tool_input) -> str:
     for kind, rows in (view.get("options") or {}).items():
         found = [r for r in rows if not search or search in f"{r.get('code')} {r.get('name')}".casefold()]
         options[kind] = {"total": len(found), "shown": found[:CHOICE_OPTIONS_SHOWN]}
-    out = {"document": name, "connection": connection, "account_set": view.get("account_set") or account_set,
-           "needed": view.get("needed") or [], "options": options}
+    out = _account_named({"document": name, "connection": connection,
+                          "account_set": view.get("account_set") or account_set,
+                          "needed": view.get("needed") or [], "options": options}, connection, "account_set")
     if view.get("fixed"):
         # 来自定时任务、推往该任务账套的票：任务默认处理已定的类别（推送服务按任务取，不再问、不记进账套）
         out["task_defaults"] = view["fixed"]
@@ -1545,8 +1613,9 @@ def vat_draft(tool_input) -> str:
     summary = _tax_call(tax_service.vat_draft, tool_input.get("connection"), tool_input.get("account_set_key"),
                         tool_input.get("period"), options)
     if summary.get("status") == "readback_needed":
-        return _json({**summary, "note": "There is no Express readback of this account set and month yet. Run "
-                                         "cowork_express_readback for it first, then call this again."})
+        return _json({**_account_named(summary, summary.get("connection")),
+                      "note": "There is no Express readback of this account set and month yet. Run "
+                              "cowork_express_readback for it first, then call this again."})
     if summary.get("status") != "drafted":
         return _json(summary)
     out = {key: summary.get(key) for key in ("draft", "period", "company", "readback", "outcome", "options",
@@ -1862,7 +1931,9 @@ def folder_task_runs(tool_input) -> str:
     data = rules.runs(str(tool_input.get("task") or ""))
     keep = ("trigger", "started_at", "scanned_at", "found", "new_files", "skipped", "upload_failed", "note",
             "results", "states")
-    out = {"task": data.get("rule"), "runs": [{k: r.get(k) for k in keep} for r in data.get("runs") or []][:10]}
+    task = data.get("rule")
+    out = {"task": _account_named(task, (task or {}).get("connection")),
+           "runs": [{k: r.get(k) for k in keep} for r in data.get("runs") or []][:10]}
     if data.get("pos_layout_needed"):
         # POS 导出停着等人认列（这家公司第一次见这种导出）：用 cowork_pos_layout 的 folder_file 回答
         out["pos_layout_needed"] = data["pos_layout_needed"]
@@ -2700,7 +2771,8 @@ TOOLS = [
      "description": "Where recognized documents can go, as on the web's New intake and in LINE: each target ERP "
                     "(express, mrerp) with its state and account sets (the last-used one first), recognize only "
                     "(none), and suggested: the choices of the user's previous recognition that went to an ERP, from "
-                    "the web, LINE or this chat. Ask once: offer suggested first (say which account set it is), and "
+                    "the web, LINE or this chat. Ask once: offer suggested first (say which account set it is by its "
+                    "account_label), and "
                     "once the user agrees reuse it for the rest of the conversation without asking again. Only ready targets can be chosen. Large lists are cut to 30; pass search (company "
                     "name, tax ID or folder) to narrow them.",
      "input_schema": {"type": "object", "properties": {"search": {"type": "string"}}},
