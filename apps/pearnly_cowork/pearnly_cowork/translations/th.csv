@@ -258,7 +258,7 @@ Change members,เปลี่ยนสมาชิก
 Change the MR.ERP import settings?,เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่
 Change the inventory account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
 Change the stock account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
-Change this folder task?,เปลี่ยนงานตามกำหนดเวลานี้หรือไม่
+Change this scheduled task?,เปลี่ยนงานตามกำหนดเวลานี้หรือไม่
 Changed,แก้ไขแล้ว
 Changed At (UTC),เวลาที่แก้ไข (UTC)
 Changed By,ผู้แก้ไข
@@ -272,9 +272,6 @@ Checked CC Desktop,ตรวจสอบ CC เดสก์ท็อปแล้
 Checked MR.ERP import settings,ตรวจสอบการตั้งค่านำเข้า MR.ERP แล้ว
 Checked a readback,ตรวจสอบผลการอ่านข้อมูลกลับแล้ว
 Checked a reconciliation's progress,ตรวจสอบความคืบหน้าการกระทบยอดแล้ว
-Checked folder task options,ตรวจสอบตัวเลือกงานโฟลเดอร์แล้ว
-Checked folder task runs,ตรวจสอบประวัติงานโฟลเดอร์แล้ว
-Checked folder tasks,ตรวจสอบงานโฟลเดอร์แล้ว
 Checked in the ERP,ตรวจใน ERP แล้ว
 Checked in the ERP: not entered. It can be sent again,ตรวจสอบใน ERP แล้ว: ยังไม่ลงบัญชี สามารถส่งใหม่ได้
 Checked intake choices,ตรวจสอบตัวเลือกการบันทึกแล้ว
@@ -282,6 +279,9 @@ Checked push choices,ตรวจสอบสิ่งที่ต้องเ�
 Checked push results,ตรวจสอบผลการส่งแล้ว
 Checked recognition results,ตรวจสอบผลการอ่านเอกสารแล้ว
 Checked reconciliation presets,ตรวจสอบค่าที่ตั้งไว้ของการกระทบยอดแล้ว
+Checked scheduled task options,ตรวจสอบตัวเลือกงานตามกำหนดเวลาแล้ว
+Checked scheduled task runs,ตรวจสอบประวัติงานตามกำหนดเวลาแล้ว
+Checked scheduled tasks,ตรวจสอบงานตามกำหนดเวลาแล้ว
 Checked the stock account group,ตรวจสอบกลุ่มบัญชีสินค้าคงเหลือแล้ว
 Checking,กำลังตรวจสอบ
 Checklist,รายการตรวจสอบ
@@ -493,7 +493,7 @@ Default board,บอร์ดเริ่มต้น
 Default handling for this folder,การจัดการเริ่มต้น
 Defaults,ค่าเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
-Delete these folder tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
+Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0},ลบ {0} รายการ
@@ -503,9 +503,9 @@ Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการล
 Deleted,ลบแล้ว
 Deleted a readback,ลบผลการอ่านข้อมูลกลับแล้ว
 Deleted documents,ลบเอกสารแล้ว
-Deleted folder tasks,ลบงานโฟลเดอร์แล้ว
 Deleted in Express,ลบใน Express
 Deleted reconciliations,ลบการกระทบยอดแล้ว
+Deleted scheduled tasks,ลบงานตามกำหนดเวลาแล้ว
 Deleted stock counts,ลบการตรวจนับสต็อกแล้ว
 Deleted tax drafts,ลบร่างแบบภาษีแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
@@ -1321,12 +1321,12 @@ Same as row,ซ้ำกับลำดับที่
 Same day,วันเดียวกัน
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
-Save these folder tasks?,บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่
-Save this folder task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
+Save these scheduled tasks?,บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่
+Save this scheduled task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
 Saved,บันทึกแล้ว
-Saved a folder task,บันทึกงานโฟลเดอร์แล้ว
-Saved folder tasks,บันทึกงานโฟลเดอร์หลายงานแล้ว
+Saved a scheduled task,บันทึกงานตามกำหนดเวลาแล้ว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
+Saved scheduled tasks,บันทึกงานตามกำหนดเวลาหลายงานแล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
@@ -1416,8 +1416,8 @@ Start counting,เริ่มตรวจนับ
 Start date,วันเริ่ม
 Start reconciliation,เริ่มกระทบยอด
 Started At,เริ่มเมื่อ
-Started a folder task,เริ่มงานโฟลเดอร์แล้ว
 Started a reconciliation,เริ่มกระทบยอดแล้ว
+Started a scheduled task,เริ่มงานตามกำหนดเวลาแล้ว
 Started at,เวลาเริ่ม
 Statement Autocorrected,รายการเดินบัญชีแก้ไขอัตโนมัติแล้ว
 Statement Balance,ยอดคงเหลือตามรายการเดินบัญชี
@@ -1821,10 +1821,10 @@ Transfer slips,สลิปโอนเงิน
 Transport,ค่าขนส่ง
 Turn off,ปิดใช้งาน
 Turn on,เปิดใช้งาน
-Turn this folder task on or off?,เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่
 Turn this rule off? Documents already entered stay as they are.,ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this rule on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
+Turn this scheduled task on or off?,เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา
 Turn this scheduled task on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Type,ประเภท
@@ -1845,7 +1845,7 @@ Update invoice records through the Cowork review service.,กรุณาแก�
 Update this site before reading back with this CC Desktop.,กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
-Updated a folder task,อัปเดตงานตามกำหนดเวลาแล้ว
+Updated a scheduled task,อัปเดตงานตามกำหนดเวลาแล้ว
 Updated a task,แก้ไขงานแล้ว
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คนแล้ว
 Upload,อัปโหลด

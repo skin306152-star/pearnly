@@ -809,21 +809,41 @@ class FolderTaskTests(unittest.TestCase):
     def test_the_enable_card_asks_what_actually_changes(self):
         # 2026-10-13：只改提醒时刻，卡片却问「要启用或停用这个定时任务吗？」——带了 enabled 才问启停，否则问「要更改吗」
         tool = next(t for t in tools.TOOLS if t["name"] == "cowork_set_folder_task_enabled")
-        self.assertEqual(tool["ask"], "Change this folder task?")
-        self.assertEqual(tool["ask_when"], {"enabled": "Turn this folder task on or off?"})
+        self.assertEqual(tool["ask"], "Change this scheduled task?")
+        self.assertEqual(tool["ask_when"], {"enabled": "Turn this scheduled task on or off?"})
 
     def test_the_enable_step_label_does_not_say_on_or_off(self):
         # 2026-10-13 测试机：只改提醒，对话里的步骤却写「启用或停用了文件夹任务」——步骤名用中性的「更新了定时任务」
         tool = next(t for t in tools.TOOLS if t["name"] == "cowork_set_folder_task_enabled")
-        self.assertEqual(tool["label"], "Updated a folder task")
+        self.assertEqual(tool["label"], "Updated a scheduled task")
         root = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
         rows = [line.split("\t") for line in (root / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()]
-        row, = [row for row in rows if row[0] == "Updated a folder task"]
+        row, = [row for row in rows if row[0] == "Updated a scheduled task"]
         self.assertEqual(row[1:4], ["更新了定时任务", "อัปเดตงานตามกำหนดเวลาแล้ว", "定期タスクを更新しました"])
         for lang, text in (("zh", "更新了定时任务"), ("th", "อัปเดตงานตามกำหนดเวลาแล้ว"), ("ja", "定期タスクを更新しました")):
             pack = (root / f"translations/{lang}.csv").read_text(encoding="utf-8").splitlines()
-            self.assertIn(f"Updated a folder task,{text}", pack)
+            self.assertIn(f"Updated a scheduled task,{text}", pack)
             self.assertFalse([line for line in pack if line.startswith("Turned a folder task on or off,")])
+
+    def test_scheduled_task_steps_and_cards_say_scheduled_task_like_the_page(self):
+        # 2026-10-13：页面、授权卡片说定时任务，对话里的步骤名还写「文件夹任务」——四种语言都统一成页面的叫法
+        root = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_cowork/pearnly_cowork"
+        rows = {line.split("\t")[0]: line.split("\t")[1:4]
+                for line in (root / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()}
+        self.assertEqual(rows["Scheduled tasks"], ["定时任务", "งานตามกำหนดเวลา", "定期タスク"])  # 页面标题
+        shown = [text for t in tools.TOOLS if "folder_task" in t["name"]
+                 for text in [t["label"], t.get("ask"), *(t.get("ask_when") or {}).values()] if text]
+        self.assertEqual(len([t for t in tools.TOOLS if "folder_task" in t["name"]]), 8)
+        for text in shown:
+            self.assertIn("scheduled task", text)
+            zh, th, ja = rows[text]
+            self.assertIn("定时任务", zh, text)
+            self.assertIn("งานตามกำหนดเวลา", th, text)
+            self.assertIn("定期タスク", ja, text)
+        old = ("folder task", "文件夹任务", "งานโฟลเดอร์", "フォルダータスク")
+        for lang in ("en", "zh", "th", "ja"):  # 生成器不删旧行：改名后的旧原文不能留在翻译包里
+            pack = (root / f"translations/{lang}.csv").read_text(encoding="utf-8")
+            self.assertFalse([line for line in pack.splitlines() if any(word in line for word in old)], lang)
 
     def test_folder_task_tools_change_only_what_the_user_asked(self):
         # 2026-10-13：用户只让改提醒时刻，CC 却顺手把运行时间也改了

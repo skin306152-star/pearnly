@@ -258,7 +258,7 @@ Change members,Change members
 Change the MR.ERP import settings?,Change the MR.ERP import settings?
 Change the inventory account group?,Change the inventory account group?
 Change the stock account group?,Change the stock account group?
-Change this folder task?,Change this folder task?
+Change this scheduled task?,Change this scheduled task?
 Changed,Changed
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
@@ -272,9 +272,6 @@ Checked CC Desktop,Checked CC Desktop
 Checked MR.ERP import settings,Checked MR.ERP import settings
 Checked a readback,Checked a readback
 Checked a reconciliation's progress,Checked a reconciliation's progress
-Checked folder task options,Checked folder task options
-Checked folder task runs,Checked folder task runs
-Checked folder tasks,Checked folder tasks
 Checked in the ERP,Checked in the ERP
 Checked in the ERP: not entered. It can be sent again,Checked in the ERP: not entered. It can be sent again
 Checked intake choices,Checked intake choices
@@ -282,6 +279,9 @@ Checked push choices,Checked push choices
 Checked push results,Checked push results
 Checked recognition results,Checked recognition results
 Checked reconciliation presets,Checked reconciliation presets
+Checked scheduled task options,Checked scheduled task options
+Checked scheduled task runs,Checked scheduled task runs
+Checked scheduled tasks,Checked scheduled tasks
 Checked the stock account group,Checked the stock account group
 Checking,Checking
 Checklist,Checklist
@@ -493,7 +493,7 @@ Default board,Default board
 Default handling for this folder,Default handling for this folder
 Defaults,Defaults
 Delete selected ({0}),Delete selected ({0})
-Delete these folder tasks?,Delete these folder tasks?
+Delete these scheduled tasks?,Delete these scheduled tasks?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0},Delete {0}
@@ -503,9 +503,9 @@ Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts?
 Deleted,Deleted
 Deleted a readback,Deleted a readback
 Deleted documents,Deleted documents
-Deleted folder tasks,Deleted folder tasks
 Deleted in Express,Deleted in Express
 Deleted reconciliations,Deleted reconciliations
+Deleted scheduled tasks,Deleted scheduled tasks
 Deleted stock counts,Deleted stock counts
 Deleted tax drafts,Deleted tax drafts
 Deleted {0},Deleted {0}
@@ -1321,12 +1321,12 @@ Same as row,Same as row
 Same day,Same day
 Sample Key,Sample Key
 Save and next,Save and next
-Save these folder tasks?,Save these folder tasks?
-Save this folder task?,Save this folder task?
+Save these scheduled tasks?,Save these scheduled tasks?
+Save this scheduled task?,Save this scheduled task?
 Saved,Saved
-Saved a folder task,Saved a folder task
-Saved folder tasks,Saved folder tasks
+Saved a scheduled task,Saved a scheduled task
 Saved push choices,Saved push choices
+Saved scheduled tasks,Saved scheduled tasks
 Saved. Scan the next item.,Saved. Scan the next item.
 Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities
@@ -1416,8 +1416,8 @@ Start counting,Start counting
 Start date,Start date
 Start reconciliation,Start reconciliation
 Started At,Started At
-Started a folder task,Started a folder task
 Started a reconciliation,Started a reconciliation
+Started a scheduled task,Started a scheduled task
 Started at,Started at
 Statement Autocorrected,Statement Autocorrected
 Statement Balance,Statement Balance
@@ -1821,10 +1821,10 @@ Transfer slips,Transfer slips
 Transport,Transport
 Turn off,Turn off
 Turn on,Turn on
-Turn this folder task on or off?,Turn this folder task on or off?
 Turn this rule off? Documents already entered stay as they are.,Turn this rule off? Documents already entered stay as they are.
 Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
 Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
+Turn this scheduled task on or off?,Turn this scheduled task on or off?
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.
 Turn this scheduled task on? Only files added to the folder from now on are processed.,Turn this scheduled task on? Only files added to the folder from now on are processed.
 Type,Type
@@ -1845,7 +1845,7 @@ Update invoice records through the Cowork review service.,Update invoice records
 Update this site before reading back with this CC Desktop.,Update this site before reading back with this CC Desktop.
 Updated At,Updated At
 Updated By,Updated By
-Updated a folder task,Updated a folder task
+Updated a scheduled task,Updated a scheduled task
 Updated a task,Updated a task
 Updated {0} user(s),Updated {0} user(s)
 Upload,Upload

@@ -2916,7 +2916,7 @@ TOOLS = [
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": EXPORT_MAX}},
          "required": ["documents"]},
      "handler": "pearnly_cowork.assistant.tools.export_review_workbook"},
-    {"name": "cowork_folder_task_options", "label": "Checked folder task options",
+    {"name": "cowork_folder_task_options", "label": "Checked scheduled task options",
      "description": "What a scheduled folder task can use, like the task form: each computer (reader) that reads "
                     "folders, whether it is online, the folders opened to the website in CC Desktop on it (root_id and "
                     "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
@@ -2991,7 +2991,7 @@ TOOLS = [
                     "there.",
      "input_schema": {"type": "object", "properties": {"readback": {"type": "string"}}, "required": ["readback"]},
      "handler": "pearnly_cowork.assistant.tools.express_readback_delete"},
-    {"name": "cowork_save_folder_task", "label": "Saved a folder task",
+    {"name": "cowork_save_folder_task", "label": "Saved a scheduled task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
                     "intake choices, the photos and PDFs in the folder (subfolders included) that it has not "
                     "processed yet, including those already there when it is created; a sales task into Express also "
@@ -3004,10 +3004,10 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": FOLDER_TASK_PROPS,
                       "required": ["title", "connection", "direction", "root_id", "run_day", "run_time"]},
      "approval": True,
-     "ask": "Save this folder task?",
+     "ask": "Save this scheduled task?",
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_task",
      "handler": "pearnly_cowork.assistant.tools.save_folder_task"},
-    {"name": "cowork_save_folder_tasks", "label": "Saved folder tasks",
+    {"name": "cowork_save_folder_tasks", "label": "Saved scheduled tasks",
      "description": "Create or change several scheduled folder tasks at once with one Allow from the user, for example "
                     "one task per folder (purchases, expenses, sales) for each company. Use it whenever two or more "
                     "tasks are saved together. Each task follows the same rules as cowork_save_folder_task: a new "
@@ -3023,11 +3023,11 @@ TOOLS = [
                    "items": {"type": "object", "properties": FOLDER_TASK_PROPS}}},
          "required": ["tasks"]},
      "approval": True,
-     "ask": "Save these folder tasks?",
+     "ask": "Save these scheduled tasks?",
      "preview": "pearnly_cowork.assistant.tools.preview_save_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.save_folder_tasks"},
     # 只改提醒时说「启用或停用」不对（2026-10-13 测试机）：步骤名用中性的「更新了定时任务」
-    {"name": "cowork_set_folder_task_enabled", "label": "Updated a folder task",
+    {"name": "cowork_set_folder_task_enabled", "label": "Updated a scheduled task",
      "description": "Pause or resume a scheduled folder task, turn its reminder on or off, or change its reminder "
                     "times (give enabled, remind, remind_times or several; give only what the user asked to "
                     "change). After resuming, the next run handles the "
@@ -3039,17 +3039,17 @@ TOOLS = [
                       "required": ["task"]},
      "approval": True,
      # 只改提醒（remind / remind_times）时不问「启用还是停用」，带了 enabled 才问（2026-10-13）
-     "ask": "Change this folder task?",
-     "ask_when": {"enabled": "Turn this folder task on or off?"},
+     "ask": "Change this scheduled task?",
+     "ask_when": {"enabled": "Turn this scheduled task on or off?"},
      "preview": "pearnly_cowork.assistant.tools.preview_set_folder_task_enabled",
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
-    {"name": "cowork_delete_folder_tasks", "label": "Deleted folder tasks",
+    {"name": "cowork_delete_folder_tasks", "label": "Deleted scheduled tasks",
      "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
                     "Intake workbench. Only ask which ones when it is unclear.",
      "input_schema": {"type": "object", "properties": {"tasks": {"type": "array", "items": {"type": "string"},
                                                                  "minItems": 1}}, "required": ["tasks"]},
      "approval": True,
-     "ask": "Delete these folder tasks?",
+     "ask": "Delete these scheduled tasks?",
      "preview": "pearnly_cowork.assistant.tools.preview_delete_folder_tasks",
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
     {"name": "cowork_recon_start", "label": "Started a reconciliation",
@@ -3275,18 +3275,18 @@ TOOLS = [
          "offset": {"type": "integer", "minimum": 0},
          "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}, "required": ["push_state"]},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
-    {"name": "cowork_folder_tasks", "label": "Checked folder tasks",
+    {"name": "cowork_folder_tasks", "label": "Checked scheduled tasks",
      "description": "List the scheduled folder tasks (scan a folder on the user's PC, recognize new files and push them), "
                     "with their schedule, default handling, reminder, last run and whether CC Desktop on the computer "
                     "that reads the folder is online. waiting is how many files in the folder the task has not processed yet "
                     "(waiting_partial: at least that many; null when not known). results counts invoices entered, "
                     "invoices needing attention, and files still moving.",
      "input_schema": _OBJ, "handler": "pearnly_cowork.assistant.tools.folder_tasks"},
-    {"name": "cowork_run_folder_task", "label": "Started a folder task",
+    {"name": "cowork_run_folder_task", "label": "Started a scheduled task",
      "description": "Run one folder task now. Only when the user asked.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_cowork.assistant.tools.run_folder_task"},
-    {"name": "cowork_folder_task_runs", "label": "Checked folder task runs",
+    {"name": "cowork_folder_task_runs", "label": "Checked scheduled task runs",
      "description": "Show the recent runs of one folder task: files found, uploaded, skipped and failed, and per run "
                     "how many invoices were entered, need attention, or are still moving (results), and the files in "
                     "each step (states). pos_layout_needed lists POS exports waiting until their columns are known: "

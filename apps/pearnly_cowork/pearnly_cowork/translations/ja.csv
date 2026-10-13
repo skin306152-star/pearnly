@@ -258,7 +258,7 @@ Change members,メンバーを変更
 Change the MR.ERP import settings?,MR.ERP の取込設定を変更しますか？
 Change the inventory account group?,在庫勘定グループを変更しますか？
 Change the stock account group?,在庫勘定グループを変更しますか？
-Change this folder task?,この定期タスクを変更しますか？
+Change this scheduled task?,この定期タスクを変更しますか？
 Changed,変更あり
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
@@ -272,9 +272,6 @@ Checked CC Desktop,CC デスクトップを確認しました
 Checked MR.ERP import settings,MR.ERP の取り込み設定を確認しました
 Checked a readback,読み戻しの結果を確認しました
 Checked a reconciliation's progress,照合の進行状況を確認しました
-Checked folder task options,フォルダータスクの選択肢を確認しました
-Checked folder task runs,フォルダータスクの実行履歴を確認しました
-Checked folder tasks,フォルダータスクを確認しました
 Checked in the ERP,ERP で確認済み
 Checked in the ERP: not entered. It can be sent again,ERP で確認済み：未計上。再送信できます
 Checked intake choices,入力設定を確認しました
@@ -282,6 +279,9 @@ Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
 Checked recognition results,読み取り結果を確認しました
 Checked reconciliation presets,照合の既定値を確認しました
+Checked scheduled task options,定期タスクの選択肢を確認しました
+Checked scheduled task runs,定期タスクの実行履歴を確認しました
+Checked scheduled tasks,定期タスクを確認しました
 Checked the stock account group,在庫勘定グループを確認しました
 Checking,照合中
 Checklist,チェックリスト
@@ -493,7 +493,7 @@ Default board,既定のボード
 Default handling for this folder,既定の処理
 Defaults,既定値
 Delete selected ({0}),選択を削除（{0}）
-Delete these folder tasks?,これらの定期タスクを削除しますか？
+Delete these scheduled tasks?,これらの定期タスクを削除しますか？
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0},{0}件を削除
@@ -503,9 +503,9 @@ Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の�
 Deleted,削除済み
 Deleted a readback,読み戻しの結果を削除しました
 Deleted documents,書類を削除しました
-Deleted folder tasks,フォルダータスクを削除しました
 Deleted in Express,Express で削除
 Deleted reconciliations,照合を削除しました
+Deleted scheduled tasks,定期タスクを削除しました
 Deleted stock counts,棚卸を削除しました
 Deleted tax drafts,税務申告の下書きを削除しました
 Deleted {0},{0}件を削除しました
@@ -1321,12 +1321,12 @@ Same as row,重複元の行
 Same day,当日
 Sample Key,修正例識別子
 Save and next,保存して次へ
-Save these folder tasks?,これらの定期タスクを保存しますか？
-Save this folder task?,この定期タスクを保存しますか？
+Save these scheduled tasks?,これらの定期タスクを保存しますか？
+Save this scheduled task?,この定期タスクを保存しますか？
 Saved,保存しました
-Saved a folder task,フォルダータスクを保存しました
-Saved folder tasks,複数のフォルダータスクを保存しました
+Saved a scheduled task,定期タスクを保存しました
 Saved push choices,送信の選択を保存しました
+Saved scheduled tasks,複数の定期タスクを保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
 Scan barcode or QR code,バーコード・QRコードを読む
 Scan barcodes · Record quantities,バーコード読取 · 数量記録
@@ -1416,8 +1416,8 @@ Start counting,棚卸を開始
 Start date,開始日
 Start reconciliation,照合を開始
 Started At,開始日時
-Started a folder task,フォルダータスクを開始しました
 Started a reconciliation,照合を開始しました
+Started a scheduled task,定期タスクを開始しました
 Started at,開始日時
 Statement Autocorrected,明細自動補正済み
 Statement Balance,明細残高
@@ -1821,10 +1821,10 @@ Transfer slips,振込明細
 Transport,運送料
 Turn off,停止
 Turn on,有効にする
-Turn this folder task on or off?,この定期タスクをオン／オフにしますか？
 Turn this rule off? Documents already entered stay as they are.,このルールを停止しますか？登録済みの書類はそのままです。
 Turn this rule on? Only files added to the folder from now on are processed.,このルールを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
 Turn this scheduled task off? Documents already entered stay as they are.,この定期タスクを停止しますか？登録済みの書類はそのままです。
+Turn this scheduled task on or off?,この定期タスクをオン／オフにしますか？
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,この定期タスクを有効にしますか？フォルダー内の未処理のファイルを実行時刻に処理します。
 Turn this scheduled task on? Only files added to the folder from now on are processed.,この定期タスクを有効にしますか？今後フォルダーに追加されたファイルだけを処理します。
 Type,種別
@@ -1845,7 +1845,7 @@ Update invoice records through the Cowork review service.,Coworkの確認機能�
 Update this site before reading back with this CC Desktop.,この CC デスクトップで読み戻す前にサイトを更新してください。
 Updated At,更新日時
 Updated By,更新者
-Updated a folder task,定期タスクを更新しました
+Updated a scheduled task,定期タスクを更新しました
 Updated a task,タスクを更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
 Upload,アップロード
