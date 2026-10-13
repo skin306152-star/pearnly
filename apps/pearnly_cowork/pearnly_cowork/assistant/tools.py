@@ -12,7 +12,9 @@ import json
 import re
 import time
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
@@ -35,16 +37,64 @@ LIST_MAX = 50
 # 最多看最新的这么多张；再多就说「只看了最新的」，请用日期缩小。
 LIST_SCAN_MAX = 2000
 LIST_SCAN_PAGE = 200
+# 不给 staged（DocType 的「草稿」）与 quality_status（识别完整度）：录入没有「确认」这一步（2026-09-26），草稿标记只有不用的
+# `history.api.complete` 会清，推送成功的票也一直是 1；识别完整度的 pending 是「识别不全」，不是推送在途。网页列表两样都不显示，
+# 交给模型只会被读成「还在等」（2026-10-13 录屏：已推送成功的 ABB6909-00007 被当成卡住的票）。推送状态看 last_push_status。
 DOC_FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
-              "total_amount", "quality_status", "staged",
-              "posting_kind", "intake_target", "push_connection", "push_account_set", "last_push_status",
-              "last_push_reason", "last_pushed_at", "filename", "creation"]
+              "total_amount", "posting_kind", "intake_target", "push_connection", "push_account_set",
+              "last_push_status", "last_push_reason", "last_pushed_at", "filename", "creation"]
 PAGE_SHOWN = ("document_type", "direction", "subtotal", "vat")
 SUMMED = ("subtotal", "vat", "total_amount")
+# 「等着录入」（push_state waiting）：还没进 ERP、也不在路上 —— 没推过，或推送失败 / 停下等人选。推送成功（success）与
+# 在途（pending）的不算；同网页状态列、文件夹任务结果（`folder_intake.contracts.ticket_state`）同一口径。
+PUSHED_OR_ON_ITS_WAY = ["pending", "success"]
+
+# ---------------- 给模型的时间 ----------------
+
+# 工具结果里的时间点一律是用户当地时间（站点时区，同每次发话附给模型的「现在」`now_note`），写成 YYYY-MM-DD HH:MM
+# （同产品界面 `p.datetime_text`）；只有日期的照旧。2026-10-13 录屏：推送时间存的是 UTC（字段名就叫 Last Pushed At (UTC)），
+# 原样交出去，CC 把曼谷 15:40 推的说成「今天 08:40 推送成功」。
+# 库里两种存法：Frappe 的日期时间（creation、modified 与 now_datetime() 写的）是站点时区的裸时间，`_json` 直接换格式；
+# 推送账本、盘点、看板归档、MR.ERP 读取时刻、回读时刻等存的是 UTC（裸时间或带 Z 的字符串），由各工具在 `_json(utc=…)`
+# 里点名，换算一次，不会两次偏移。
+LOCAL_TIME = "%Y-%m-%d %H:%M"
 
 
-def _json(value) -> str:
-    return json.dumps(value, ensure_ascii=False, default=str)
+def _local_time(value, utc=False):
+    """一个时间点 → 站点时区的 YYYY-MM-DD HH:MM。带时区的按自己的时区换算；裸时间在 ``utc`` 时当 UTC，否则本来就是站点时区。
+    字符串按 ISO 写法读（T 或空格、可带秒、微秒、Z 或 ±hh:mm）；只有日期的、读不出的原样返回。"""
+    if isinstance(value, str):
+        text = value.strip()
+        if len(text) <= 10:
+            return value
+        try:
+            value = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+        except ValueError:
+            return value
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is None and utc:
+        value = value.replace(tzinfo=timezone.utc)
+    if value.tzinfo is not None:
+        value = value.astimezone(ZoneInfo(frappe.utils.get_system_timezone())).replace(tzinfo=None)
+    return value.strftime(LOCAL_TIME)
+
+
+def _local_times(value, utc=(), local=(), key=None):
+    """整份结果里的时间点都过 `_local_time`：datetime 一律换（键在 ``utc`` 里的当 UTC）；字符串只换键在 ``utc`` 或
+    ``local`` 里的（别的字符串可能要原样交回，如看板卡片当版本号用的 modified）。"""
+    if isinstance(value, dict):
+        return {field: _local_times(item, utc, local, field) for field, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_local_times(item, utc, local, key) for item in value]
+    if isinstance(value, datetime) or (isinstance(value, str) and (key in utc or key in local)):
+        return _local_time(value, key in utc)
+    return value
+
+
+def _json(value, utc=(), local=()) -> str:
+    """交给模型的 JSON：时间点换成当地时间（见上）；``utc`` 点名存的是 UTC 的字段，``local`` 点名已是站点时区的时间字符串。"""
+    return json.dumps(_local_times(value, tuple(utc), tuple(local)), ensure_ascii=False, default=str)
 
 
 # ---------------- 账套给人看的名字 ----------------
@@ -54,6 +104,9 @@ def _json(value) -> str:
 GUIDANCE = [
     "When you talk to the user, name an account set by its company name (the label or account_label in tool "
     "results), never by its folder code, path or key; use keys only in tool calls.",
+    # 2026-10-13 录屏：推送时间按 UTC 交出去被说成当地时间；现在工具一律给当地时间（`_local_time`），说清楚别再换算
+    "Times in tool results are already the user's local time, on the same clock as the current time you are given; "
+    "say them as they are.",
 ]
 
 
@@ -193,9 +246,13 @@ def _reason(value):
 def list_documents(tool_input) -> str:
     scope.require_read()
     filters, or_filters = {}, None
-    state = tool_input.get("push_state")
+    # waiting_review 是旧版工具说明的参数（按「草稿」筛，推送成功的也算在内）：已开着的对话仍按旧说明调，true 按「等着录入」办
+    state = tool_input.get("push_state") or ("waiting" if tool_input.get("waiting_review") else None)
     if state == "not_pushed":
         filters.update(last_push_status=["is", "not set"], last_push_reason=["is", "not set"])
+    elif state == "waiting":
+        # 空的推送状态也算（框架给 not in 套 IFNULL）
+        filters["last_push_status"] = ["not in", PUSHED_OR_ON_ITS_WAY]
     elif state == "failed":
         or_filters = [["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"]]
     elif state in ("pending", "success"):
@@ -205,8 +262,6 @@ def list_documents(tool_input) -> str:
     if tool_input.get("invoice_date_from") or tool_input.get("invoice_date_to"):
         filters["invoice_date"] = ["between", [tool_input.get("invoice_date_from") or "1900-01-01",
                                                tool_input.get("invoice_date_to") or "2999-12-31"]]
-    if tool_input.get("waiting_review") is not None:
-        filters["staged"] = 1 if tool_input.get("waiting_review") else 0
     # 推往哪条连接、哪份账套（键同 cowork_intake_options；库里比较不分大小写）
     if tool_input.get("connection"):
         filters["push_connection"] = str(tool_input["connection"])
@@ -268,8 +323,9 @@ def list_documents(tool_input) -> str:
     for row in rows:
         row["last_push_reason"] = _reason(row.get("last_push_reason"))
     rows = [_account_named(row, row.get("push_connection"), "push_account_set", names) for row in rows]
+    # 推送时刻存的是 UTC（推送账本 `push.native` 的 now_utc）；上传时刻 creation 是站点时区
     return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
-                  "next_offset": next_offset if next_offset < total else None, **out})
+                  "next_offset": next_offset if next_offset < total else None, **out}, utc=("last_pushed_at",))
 
 
 # 推送要证明这份账套的目录刚由小助手读过（`targets/freeze.py`）；网页选定账套时会先请小助手读一次，对话里没有这一步，
@@ -912,7 +968,9 @@ def mrerp_setup(tool_input) -> str:
         if result.get("status") == "failed":
             return _json(result)
     frappe.db.commit()
-    return _json(_account_named(_connection_call(connections_api.mrerp_menu, name, key), name))
+    # 读到菜单 / 读失败的时刻是连接服务按 UTC 记的 ISO 字符串
+    return _json(_account_named(_connection_call(connections_api.mrerp_menu, name, key), name),
+                 utc=("observed_at", "error_at"))
 
 
 # ---------------- 复核与修改（同录入工作台复核页） ----------------
@@ -1497,7 +1555,7 @@ def recon_presets(tool_input) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"status": "not_saved", "reason": str(error)[:300]})
-    return _json({"kind": kind, "presets": rows})
+    return _json({"kind": kind, "presets": rows}, local=("set_at",))  # 记下的时刻：站点时区（服务转成了字符串）
 
 
 def recon_export(tool_input) -> str:
@@ -1618,6 +1676,7 @@ def vat_draft(tool_input) -> str:
                               "cowork_express_readback for it first, then call this again."})
     if summary.get("status") != "drafted":
         return _json(summary)
+    # readback.read_at 是回读服务按 UTC 写的「…Z」
     out = {key: summary.get(key) for key in ("draft", "period", "company", "readback", "outcome", "options",
                                              "sales", "purchases", "claimable_if_fixed", "previous_excess",
                                              "deadlines", "documents_checked", "issues_by_code")}
@@ -1625,7 +1684,7 @@ def vat_draft(tool_input) -> str:
                 "issues_total": len(summary.get("issues") or []), "issues": _tax_issues(summary.get("issues")),
                 "unreadable_rows": (summary.get("unreadable_rows") or [])[:10],
                 "file": _tax_file(summary, tool_input.get("workbook"))})
-    return _json(_added_to_chat(_filled(out), out["file"]))
+    return _json(_added_to_chat(_filled(out), out["file"]), utc=("read_at",))
 
 
 def wht_draft(tool_input) -> str:
@@ -1663,7 +1722,8 @@ def wht_answer(tool_input) -> str:
     action = tool_input.get("action") or "set"
     if action == "list":
         found = _tax_call(tax_service.remembered)
-        return _json(found if isinstance(found, dict) else {"remembered": found})
+        # 记下的时刻：站点时区（服务转成了字符串）
+        return _json(found if isinstance(found, dict) else {"remembered": found}, local=("set_at",))
     if action == "remove":
         return _json(_tax_call(tax_service.forget, tool_input.get("payee_tax_id") or "",
                                tool_input.get("category") or ""))
@@ -1701,7 +1761,9 @@ def _call(fn, *args, **kwargs) -> dict:
 def stocktake_list(tool_input) -> str:
     from pearnly_cowork.stocktake import desk_api
 
-    return _json(_call(desk_api.api_list_stock_counts, 0, max(1, min(int(tool_input.get("limit") or 20), 100))))
+    # 盘点单的建立时刻（列表里叫 creation）是盘点服务按 UTC 记的
+    return _json(_call(desk_api.api_list_stock_counts, 0, max(1, min(int(tool_input.get("limit") or 20), 100))),
+                 utc=("creation",))
 
 
 def stocktake_template(_input) -> str:
@@ -1827,7 +1889,7 @@ def _card_brief(card, lists) -> dict:
 def work_boards(_input) -> str:
     from pearnly_cowork.work import api as work_api
 
-    return _json(_call(work_api.boards_list))
+    return _json(_call(work_api.boards_list), utc=("archived_at",))  # 看板归档时刻按 UTC 存
 
 
 def work_board(tool_input) -> str:
@@ -1844,7 +1906,8 @@ def work_board(tool_input) -> str:
     return _json({"board": data.get("board"),
                   "lists": [_filled({"list": row.get("name"), "title": row.get("title"),
                                      "done_list": bool(row.get("is_done_list"))}) for row in data.get("lists") or []],
-                  "cards_total": len(cards), "cards": [_card_brief(c, lists) for c in cards[:WORK_CARDS_SHOWN]]})
+                  "cards_total": len(cards), "cards": [_card_brief(c, lists) for c in cards[:WORK_CARDS_SHOWN]]},
+                 utc=("archived_at",))
 
 
 def work_card(tool_input) -> str:
@@ -2903,9 +2966,11 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.refresh_account_sets"},
     {"name": "cowork_list_documents", "label": "Listed documents",
      "description": "List recognized documents (receipts, tax invoices) the user can see, newest first, with both "
-                    "parties' names and tax IDs, document type, direction, and the recognized subtotal, VAT and "
-                    "total. Filter by push state (not_pushed, pending, success, failed), upload date, invoice date, "
-                    "waiting for review, where they are pushed (connection and account_set_key as listed by "
+                    "parties' names and tax IDs, document type, direction, the recognized subtotal, VAT and "
+                    "total, and the push status. Filter by push state (waiting = not in the ERP yet: never pushed or "
+                    "the push failed, so a document pushed successfully or on its way is never waiting; not_pushed, "
+                    "pending, success, failed), upload date, invoice date, where they are pushed (connection and "
+                    "account_set_key as listed by "
                     "cowork_intake_options) or direction; search finds documents by invoice number, seller or buyer "
                     "name, or tax ID across all documents, not only the latest ones. Up to 50 per call: total is how "
                     "many match; pass next_offset as offset for the next page. totals adds the sums of all matching "
@@ -2913,11 +2978,10 @@ TOOLS = [
                     "value). Amounts are as recognized, not the ERP's figures.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
-         "push_state": {"type": "string", "enum": ["not_pushed", "pending", "success", "failed"]},
+         "push_state": {"type": "string", "enum": ["waiting", "not_pushed", "pending", "success", "failed"]},
          "uploaded_from": {"type": "string", "description": "YYYY-MM-DD"},
          "invoice_date_from": {"type": "string", "description": "YYYY-MM-DD"},
          "invoice_date_to": {"type": "string", "description": "YYYY-MM-DD"},
-         "waiting_review": {"type": "boolean"},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "direction": {"type": "string", "enum": ["purchase", "sales"]},
          "totals": {"type": "boolean"},
@@ -3341,7 +3405,9 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"keyword": {"type": "string"}, "board": {"type": "string"}}, "required": ["keyword"]},
      "handler": "pearnly_cowork.assistant.tools.work_search"},
     {"name": "cowork_push_results", "label": "Checked push results",
-     "description": "Show recent push results: documents whose push failed (with the reason), is pending, or succeeded.",
+     "description": "Show recent push results: documents whose push failed (with the reason), is pending (on its way "
+                    "to the ERP), or succeeded (entered). Documents still waiting to be entered (never pushed or "
+                    "failed) are push_state waiting in cowork_list_documents.",
      "input_schema": {"type": "object", "properties": {
          "push_state": {"type": "string", "enum": ["pending", "success", "failed"]},
          "offset": {"type": "integer", "minimum": 0},
