@@ -426,10 +426,11 @@ def _read_by_recognition(parsed):
 def _account_of(parsed):
 	"""读出的账号末四位（识别读出的账户身份，或表格账单每行的账号）；对账预设按账户记。
 
-	``account_read``：这个尾号是账单上读出的（识别读出的账户，或表头上方标着「账号」的），不是退回的 sheet 名
-	（按月分表时是月份 / 年份）；认不出银行的通用版式只认这种（``presets.statement_tail``）。"""
+	``account_read``：这个尾号是账单上读出的（识别读出的账户，表格表头上方标着「账号」的，或认不出银行的 PDF 文字层
+	表头上标着账号的 ``printed_account``），不是退回的 sheet 名（按月分表时是月份 / 年份）；认不出银行的通用版式只认这种
+	（``presets.statement_tail``）。"""
 	identity = parsed.get("identity") or {}
-	read = [identity.get("last4") or identity.get("account") or ""]
+	read = [identity.get("last4") or identity.get("account") or parsed.get("printed_account") or ""]
 	numbers = [getattr(row, "account_no", "") for row in parsed.get("rows") or []]
 	labelled = set(parsed.get("labelled_accounts") or ())
 	tail = presets.account_tail(read + numbers)

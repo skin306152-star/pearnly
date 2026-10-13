@@ -15,6 +15,9 @@
   摘要各占一行，金额与余额在另一个块里交替出现。所以先按"日期行"抽交易头，再按
   num / num+渠道 的交替模式配对，按位置把两者接起来。
 
+另有 `labelled_account`（2026-10-13 新加，旧线上没有）：账单表头上标着「เลขที่บัญชี / Account No.」的账号，
+对账预设按账户记时用（与表格账单的 ``bank_sheets.labelled_sheet_account`` 同一口径）。
+
 只读传入的文本：没有凭据、数据库、网络或模型调用。
 """
 
@@ -323,3 +326,45 @@ def parse_kbank_text_columns(text: str) -> Tuple[List[StatementRow], float, floa
 
 	closing = rows[-1].balance if rows else 0.0
 	return rows, opening, closing
+
+
+# ── 表头上标着的账号（对账预设按账户记）──────────────────────────────────────────
+
+# 抽字时泰文声调符号常丢掉或断开（pdfminer 把「เลขที่บัญชี」抽成「เลขที\n\n\x00บัญชี」，pypdf 抽成「เลขที บัญชี」）：
+# 认标签前先去掉 \x00 与声调符号、泰文数字换成阿拉伯数字；泰文标签的字与字之间允许空白（含断行）。
+_HEADER_CLEAN = str.maketrans({"\x00": None, "\u0e48": None, "\u0e49": None, "\u0e4a": None, "\u0e4b": None,
+	**{chr(0x0E50 + digit): str(digit) for digit in range(10)}})
+_THAI_LABELS = ("เลขทีบัญชี", "หมายเลขบัญชี", "บัญชีเลขที", "เลขบัญชี")  # 声调符号已去掉：ที่ → ที
+_ACCOUNT_LABEL = "|".join([r"\s*".join(word) for word in _THAI_LABELS]
+	+ [r"(?:account|acct|acc|a\s*/\s*c)\.?\s*(?:no\b\.?|number\b|#)", r"\ba\s*/\s*c\b"])
+_MASK = "Xx*•"
+# 号码紧跟在标签后面，中间只有空白与冒号、点、括号这类分隔符；号码整段取完（后面不能还连着数字、遮挡符或字）。
+_LABELLED_NUMBER = re.compile(r"(?:" + _ACCOUNT_LABEL + r")[\s:：.#()（）\[\]\-–]*"
+	r"(?P<number>[0-9" + _MASK + r"]+(?:[-–][0-9" + _MASK + r"]+)*)(?![\w*•/\-–])", re.I)
+# 流水表从第一行以日期开头、或带金额（两位小数）的行开始；账号只在它前面的表头里找。
+_TABLE_LINE = re.compile(r"^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}(?!\d)"
+	r"|(?<![\d.,])\d{1,3}(?:,\d{3})+\.\d{2}(?![\d.])|(?<![\d.,])\d+\.\d{2}(?![\d.])")
+# 账号的位数（泰国各行 10–12 位）：短的多半是页码、日期、尾号，长的是卡号或参考号。
+ACCOUNT_DIGITS = (8, 16)
+
+
+def labelled_account(page_text: str) -> str:
+	"""PDF 文字层第一页表头上标着「เลขที่บัญชี / หมายเลขบัญชี / บัญชีเลขที่ / เลขบัญชี / Account No. / A/C No.」的账号
+	（照印出的写法，如 ``305-1-77420-9``）；认不出回空。
+
+	只认：第一页（``\\f`` 之前）、流水表之前（``_TABLE_LINE``）、紧跟在标签后面的完整号码。遮挡的号码（xxx-x-x4209-x）、
+	位数不像账号的、隔着别的字的（电话、参考号、流水行里遮挡的 PromptPay 号）都不算；表头上标着两个不同的号也不算（分不清）。
+	"""
+	header = []
+	for line in str(page_text or "").split("\f")[0].translate(_HEADER_CLEAN).splitlines():
+		if _TABLE_LINE.search(line.strip()):
+			break
+		header.append(line)
+	found = {}
+	for match in _LABELLED_NUMBER.finditer("\n".join(header)):
+		number = match.group("number")
+		digits = re.sub(r"\D", "", number)
+		if any(mark in number for mark in _MASK) or not ACCOUNT_DIGITS[0] <= len(digits) <= ACCOUNT_DIGITS[1]:
+			continue
+		found.setdefault(digits, number)
+	return next(iter(found.values())) if len(found) == 1 else ""
