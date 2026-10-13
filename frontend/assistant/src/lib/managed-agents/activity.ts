@@ -8,10 +8,12 @@
 // 提醒到的对话浮到侧栏最上面（useBumps）。
 // 所有推来的提醒（包括没挂在对话上的）都交给 onNotice 的监听者：桌面窗口弹系统通知、侧栏没加载到的对话重新拉列表。
 // 每个监听者单独兜住异常，一个出错不挡别的。
+// 「在跑」也按服务端读回的运行状态校正（noteRun）：开着的对话由它的会话控制器报；别的对话在回到前台、恢复、联网、重连时
+// 由侧栏列表核对（session-list-adapter 的 checkRunning）。在后台漏了「结束」的推送，转圈不会一直挂着。
 
 import { useSyncExternalStore } from "react";
 import { markNoticesSeen } from "./api";
-import { type FeedEvent, isNotice, type NoticeEvent } from "./events";
+import { type FeedEvent, isNotice, type NoticeEvent, type RunStatus } from "./events";
 
 export type Activity = "running" | "unread" | "notice";
 
@@ -96,6 +98,18 @@ export function noteEvent(sessionId: string, event: FeedEvent) {
     if (reason === "requires_action") set(sessionId, "running");
     else set(sessionId, sessionId === active ? null : "unread");
   } else if (type === "session.status_terminated" || type === "session.deleted") set(sessionId, null);
+}
+
+/** 服务端读回的此刻运行状态：在跑、等处理算在跑；侧栏还标着在跑而服务端说结束了，按收到「结束」处理（正看着的不留点，
+ *  别的留「跑完没看」的点）；本来没标在跑的不因此多出圆点。 */
+export function noteRun(sessionId: string, run: RunStatus) {
+  if (run.status === "running" || run.status === "requires_action") set(sessionId, "running");
+  else if (state.get(sessionId) === "running") set(sessionId, run.status === "idle" && sessionId !== active ? "unread" : null);
+}
+
+/** 侧栏标着在跑、但不是正开着的那个对话（开着的由它自己的会话控制器核对）：要向服务端核对的。 */
+export function runningSessions(): string[] {
+  return [...state].filter(([id, value]) => value === "running" && id !== active).map(([id]) => id);
 }
 
 /** 侧栏列表带回的「有没看过的提醒」（服务端 sessions.listing 的 unread）。 */

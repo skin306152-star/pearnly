@@ -10,8 +10,8 @@ from pearnly_core.assistant import files, sessions, tools
 
 
 @frappe.whitelist(methods=["GET"])
-def listing(archived=0, after=None):
-    return sessions.listing(archived=frappe.utils.cint(archived) == 1, after=after or None)
+def listing(archived=0, after=None, check=None):
+    return sessions.listing(archived=frappe.utils.cint(archived) == 1, after=after or None, check=check or None)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -45,8 +45,8 @@ def delete(session_id):
 
 
 @frappe.whitelist(methods=["GET"])
-def events(session_id, after=None):
-    return sessions.events(session_id, after=after or None)
+def events(session_id, after=None, status=0):
+    return sessions.events(session_id, after=after or None, status=frappe.utils.cint(status) == 1)
 
 
 @frappe.whitelist(methods=["POST"])

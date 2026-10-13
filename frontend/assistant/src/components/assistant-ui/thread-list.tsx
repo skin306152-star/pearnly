@@ -5,6 +5,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { dayLabel, t } from "@/i18n";
 import { useActivity, useBumps } from "@/lib/managed-agents/activity";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useView } from "@/lib/nav";
 import {
   AuiIf,
@@ -373,6 +374,12 @@ export const ThreadListItem: FC = () => {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const press = useLongPress(() => setMenuOpen(true));
+  // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态
+  const id = useAuiState((s) => s.threadListItem.remoteId);
+  const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
+  const reenter = () => {
+    if (isMain && id) getSessionController(id).refreshStatus();
+  };
   return (
     <ThreadListItemPrimitive.Root
       {...press}
@@ -385,6 +392,7 @@ export const ThreadListItem: FC = () => {
         <>
           <ThreadListItemPrimitive.Trigger
             data-slot="aui_thread-list-item-trigger"
+            onClick={reenter}
             className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9 focus-visible:ring-[3px]"
           >
             <span className="cc-row-icon" aria-hidden>

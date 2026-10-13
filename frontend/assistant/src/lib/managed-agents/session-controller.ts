@@ -10,12 +10,18 @@
 //               interrupt
 //
 // React subscribes with useSyncExternalStore; nothing here touches React.
+//
+// 在回复 / 等允许 / 已结束以服务端读回的运行状态为准（RunStatus，reducer.applyRunStatus）：每次整段重放（含重进对话）
+// 都带一份，回到前台、页面恢复、联网、实时通道重连、点停止时由尾巴补拉一次带一份。不从「没收到某条事件」推断；
+// 本页乐观标的「在回复」也由它清掉，卡住的「在回复」不会一直挡着发新消息。
 
+import { noteRun } from "./activity";
 import { confirmTools, interruptSession, listEvents, runTool, sendMessage as postMessage } from "./api";
-import { type FeedEvent, messageText, type RelayEnvelope, type StreamEvent } from "./events";
+import { type FeedEvent, messageText, type RelayEnvelope, type RunStatus, type StreamEvent } from "./events";
 import { PollingSource } from "./poll-source";
 import {
   applyEvent,
+  applyRunStatus,
   evictOptimisticMessage,
   initialProjection,
   isBusy,
@@ -74,6 +80,11 @@ export class SessionController {
   // Counter for locally synthesized (optimistic) event ids; every synthetic
   // event needs a fresh id or the reducer's dedupe swallows it.
   private optimistic = 0;
+  // 本页最近一次自己改运行状态（发消息、点允许 / 拒绝、答完工具）的时刻（本页时钟）：在它之前发出的状态请求读到的是
+  // 这之前的服务端，不能拿来盖掉这次操作（例如刚发出时还读到「空闲」）。
+  private localChangeAt = 0;
+  // 并完一批事件再答自定义工具：同一页里后面就有这次调用的答复时不再白跑一次（见 fold）
+  private answerQueued = false;
 
   // Confirmation batching: clicks within a short window ride one request,
   // because racing two sends can be rejected mid-resume by the API.
@@ -113,10 +124,31 @@ export class SessionController {
     const next = applyEvent(this.state, event);
     if (next === this.state) return;
     this.mergeProjection(next);
-    // Live: answer a custom tool as soon as the session parks on it.
+    // Live: answer a custom tool as soon as the session parks on it — after
+    // the rest of this batch folds (a poll page delivers its events in one
+    // synchronous loop, and the answer is often later in the same page).
     // During replay the answer is usually already later in the log, so
     // wait for the fold to finish (replay() calls this once at the end).
-    if (!this.replaying) this.answerPendingCustomTools();
+    if (!this.replaying) this.queueAnswers();
+  }
+
+  private queueAnswers() {
+    if (this.answerQueued) return;
+    this.answerQueued = true;
+    queueMicrotask(() => {
+      this.answerQueued = false;
+      if (!this.disposed && !this.replaying) this.answerPendingCustomTools();
+    });
+  }
+
+  /** 服务端读回的此刻运行状态。askedAt：这次请求发出的时刻（本页时钟）；在它之后本页自己改过运行状态就不用这份。 */
+  private applyRun(run: RunStatus, askedAt: number) {
+    if (this.disposed || askedAt < this.localChangeAt) return;
+    const next = applyRunStatus(this.state, run);
+    if (next === this.state) return; // 这期间到过更新的状态事件：以事件为准
+    this.mergeProjection(next);
+    noteRun(this.sessionId, run); // 侧栏同一个对话的状态点跟着改
+    if (!this.replaying) this.queueAnswers();
   }
 
   // -------------------------------------------------------------- lifecycle
@@ -168,6 +200,12 @@ export class SessionController {
   private openTail() {
     const source = new PollingSource(this.sessionId);
     this.source = source;
+    // 尾巴在某个时刻（回到前台、恢复、联网、重连、点停止）带回的状态。整段重放还没并完时不用：那次重放自己带一份，
+    // 而这页事件此刻还压在缓冲里，先用状态会被随后并进来的事件顺序搅乱。
+    source.onstatus = (run, askedAt) => {
+      if (this.source !== source || !this.replayed || this.backfilling) return;
+      this.applyRun(run, askedAt);
+    };
     source.onopen = () => {
       this.reopenDelay = 1000; // healthy again: reset backoff
       // The stream only delivers events emitted after it attached; anything
@@ -252,8 +290,12 @@ export class SessionController {
   private async doReplay(): Promise<void> {
     this.replaying = true;
     try {
-      const body = await listEvents(this.sessionId);
+      // 整段重放（打开、重进对话、重连）都带一份服务端读回的运行状态：并完历史就按它定在回复 / 等允许 / 已结束，
+      // 漏掉的「结束」、去重定住的旧状态、本页乐观标的「在回复」都由它校正（只并没见过的事件做不到）。
+      const askedAt = Date.now();
+      const body = await listEvents(this.sessionId, undefined, true);
       for (const event of body.events) this.fold(event);
+      if (body.run) this.applyRun(body.run, askedAt);
       this.replayed = true;
       this.replayRetryDelay = 2000; // loaded: reset the retry backoff
       // History is in: fold whatever the tail buffered during the fetch, in
@@ -329,6 +371,7 @@ export class SessionController {
       id: `optimistic-run-${n}`,
       processed_at: now,
     } as unknown as StreamEvent);
+    this.localChangeAt = Date.now();
     onShown?.();
 
     try {
@@ -377,7 +420,8 @@ export class SessionController {
     // composer busy until the real status_running lands, or the window
     // between click and echo briefly accepts a message mid-resume (and the
     // action bar flashes). A failed POST undoes this via restoreGates.
-    const next = markResuming(this.state);
+    this.localChangeAt = Date.now();
+    const next = markResuming(this.state, toolUseId);
     if (next !== this.state) this.mergeProjection(next);
   }
 
@@ -433,20 +477,31 @@ export class SessionController {
           this.source?.nudge();
           this.answerAttempts.delete(id);
           this.retryAfter.delete(id);
-          // Fold our own answer so a reattach never re-answers it.
-          this.fold({
-            type: "user.custom_tool_result",
-            id: `optimistic-result-${id}`,
-            custom_tool_use_id: id,
-            content: [],
-            is_error: false,
-            processed_at: new Date().toISOString(),
-          } as unknown as StreamEvent);
+          // Fold our own answer so a reattach never re-answers it — unless
+          // the real answer already folded (its result is the record; our
+          // empty one would blank the card).
+          if (!this.state.answeredCustomTools.has(id)) {
+            this.fold({
+              type: "user.custom_tool_result",
+              id: `optimistic-result-${id}`,
+              custom_tool_use_id: id,
+              content: [],
+              is_error: false,
+              processed_at: new Date().toISOString(),
+            } as unknown as StreamEvent);
+          }
           // Answering the last owed tool resumes the session, exactly like
           // the last Allow/Deny click: keep the composer busy until the
-          // real status_running lands (see respondToApproval).
-          const next = markResuming(this.state);
-          if (next !== this.state) this.mergeProjection(next);
+          // real status_running lands (see respondToApproval). Only while the
+          // session is still parked on it: a reply that comes back after the
+          // turn already moved on or ended must not re-mark it running
+          // (2026-10-13 iPhone: back from the background, one poll page held
+          // the whole rest of the turn; this late reply left it "replying").
+          const next = markResuming(this.state, id);
+          if (next !== this.state) {
+            this.localChangeAt = Date.now();
+            this.mergeProjection(next);
+          }
         })
         .catch((err) => {
           this.set({ transportError: describe(err) });
@@ -464,9 +519,20 @@ export class SessionController {
     }
   }
 
+  /** 停止按钮。无论打断成没成，都向服务端核对一次此刻的状态：本页卡在「在回复」而服务端早已空闲时，点一下停止就恢复发送。 */
   async interrupt(): Promise<void> {
-    await interruptSession(this.sessionId);
-    this.source?.nudge();
+    try {
+      await interruptSession(this.sessionId);
+    } finally {
+      this.refreshStatus();
+    }
+  }
+
+  /** 向服务端要一份此刻的运行状态：尾巴开着就补拉一次带上（一次请求），没开着就整段重放（也带）。 */
+  refreshStatus(): void {
+    if (this.disposed || this.state.isDead) return;
+    if (this.source) this.source.refresh();
+    else void this.replay();
   }
 
   get busy(): boolean {

@@ -25,7 +25,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
 import { beginPendingText, clearPending } from "./pending-send";
-import { sessionListAdapter } from "./session-list-adapter";
+import { sessionListAdapter, watchRunning } from "./session-list-adapter";
 import {
   getSessionController,
   type ControllerSnapshot,
@@ -157,6 +157,8 @@ export function ManagedAgentsRuntimeProvider({ children }: { children: React.Rea
     // Each mounted thread gets its own instance of this hook.
     runtimeHook: useSessionThreadRuntime,
   });
+  // 侧栏标着在跑的其他对话：回到前台、恢复、联网、重连时向服务端核对（开着的那个由它的会话控制器核对）
+  useEffect(() => watchRunning(), []);
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 

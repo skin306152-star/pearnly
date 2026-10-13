@@ -68,15 +68,57 @@ def current(row) -> str:
     return segments(row)[-1]
 
 
-def _summary(row, status="idle", unread=False) -> dict:
+def _summary(row, status=None, unread=False) -> dict:
+    """`status` 只放真读过的（建会话、取会话、侧栏核对过的）；没读就是 None，不替它说「空闲」。"""
     return {"id": row.session_id, "title": row.title or "", "status": status, "starred": bool(row.get("starred")),
             "created_at": str(row.creation), "updated_at": str(row.modified),
             "archived_at": str(row.modified) if row.archived else None, "unread": bool(unread)}
 
 
-def listing(archived=False, after=None) -> dict:
+def _tool_runs(row, ids) -> dict:
+    """停着等的这几次调用在本站的执行状态 `{调用编号: awaiting_approval / running / …}`（本站库，不调引擎）。"""
+    if not ids:
+        return {}
+    return {run.tool_use_id: run.status for run in frappe.get_all(toolrun.TOOL_RUN, filters={
+        "session_id": row.session_id, "user": _user(), "tool_use_id": ["in", list(ids)]},
+        fields=["tool_use_id", "status"])}
+
+
+def run_state(row, api, latest, as_of=None):
+    """这段对话此刻的运行状态（`contracts.run_state`）：读一次引擎的会话状态；引擎空闲时由 `latest()` 给出最新一条会话
+    状态事件（调用方已读过事件就从读过的里取，不再读一遍）分出「等待处理」，再看停着的调用在本站是等「允许」还是正在
+    执行。读不到回 None：对话页这次不改，下一个时刻再读。"""
+    try:
+        status = api.status(current(row))
+        event = latest() if status == "idle" else None
+    except Exception:
+        frappe.log_error(title="Assistant status read failed")
+        return None
+    return contracts.run_state(status, event, _tool_runs(row, contracts.parked_ids(event)), as_of)
+
+
+def _check(user, check) -> dict:
+    """侧栏以为还在回复的那几个对话（浏览器给编号，最多 `contracts.CHECK_MAX` 个）各读一次此刻的运行状态；只认本人、
+    当前引擎的对话。"""
+    ids = contracts.session_ids(check)
+    if not ids:
+        return {}
+    rows = frappe.get_all(SESSION, filters={"user": user, "engine_code": config.engine_code(), "session_id": ["in", ids]},
+                          fields=FIELDS)
+    api = engine.adapter()
+    runs = {}
+    for row in rows:
+        run = run_state(row, api, lambda row=row: contracts.latest_status(api.events(current(row), newest_first=True)))
+        if run:
+            runs[row.session_id] = run
+    return runs
+
+
+def listing(archived=False, after=None, check=None) -> dict:
     """侧栏列表，按最后活动时间从新到旧一页一页给（同 Claude：先显示一页，滚到底再加载）。
-    加星标的全部在第一页（侧栏顶上的「已加星标」一组要齐）；之后的页只翻其余的。有没看过的提醒的标 `unread`。"""
+    加星标的全部在第一页（侧栏顶上的「已加星标」一组要齐）；之后的页只翻其余的。有没看过的提醒的标 `unread`。
+    `check`：侧栏以为还在回复的对话编号（逗号分隔）；给了就各读一次此刻的运行状态放进 `runs`（侧栏按它改，不按漏没漏事件猜）。
+    不给就不读引擎：整页逐个读太贵。"""
     user = _user()
     base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0}
     fields = ["name", "session_id", "title", "starred", "archived", "creation", "modified"]
@@ -96,7 +138,12 @@ def listing(archived=False, after=None) -> dict:
     page = page[:PAGE_SIZE]
     cursor = f"{page[-1].modified}|{page[-1].name}" if more and page else None
     unread = notices.unread_sessions(user, [row.session_id for row in rows + page])
-    return {"sessions": [_summary(row, unread=row.session_id in unread) for row in rows + page], "nextCursor": cursor}
+    runs = _check(user, check) if check else None
+    out = {"sessions": [_summary(row, status=((runs or {}).get(row.session_id) or {}).get("status"),
+                                 unread=row.session_id in unread) for row in rows + page], "nextCursor": cursor}
+    if runs is not None:
+        out["runs"] = runs
+    return out
 
 
 def _metadata(user, product) -> dict:
@@ -196,16 +243,19 @@ def segment_for_turn(row, api) -> str:
     return fresh
 
 
-def events(session_id, after=None) -> dict:
+def events(session_id, after=None, status=False) -> dict:
     """整段重放（after 为空，各段合起来）或只取当前段 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。
-    本对话的提醒一并给：整段时按时间并入，增量时带上锚点时间之后的（对话页按编号去重）。"""
+    本对话的提醒一并给：整段时按时间并入，增量时带上锚点时间之后的（对话页按编号去重）。
+    `status`：对话页在整段重放、回到前台、重连这些时刻要一份此刻的运行状态（`run_state`，放进 `run`）。读完事件再读
+    状态，所以状态不比这页事件旧；每次只读一次引擎状态，最新一条状态事件从这次读过的事件里取。"""
     row = owned(session_id, allow_archived=True)
     user = _user()
     api = engine.adapter()
     if after:
         anchor = _guard(contracts.event_id, after)
         try:
-            found = contracts.since(api.events(current(row), newest_first=True), anchor)
+            tap = contracts.StatusTap(api.events(current(row), newest_first=True))
+            found = contracts.since(tap, anchor)
         except Exception:
             # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：这一次当作没有新事件，页面下一轮再取，不报 500；
             # 本站的提醒照样带上
@@ -215,16 +265,28 @@ def events(session_id, after=None) -> dict:
             newer = found[1:]
             _remember_context(row, newer)
             since = contracts.instant(found[0].get("processed_at"))
-            return {"events": newer + notices.feed(row.session_id, user, since=since, recent=since is None),
+            page = {"events": newer + notices.feed(row.session_id, user, since=since, recent=since is None),
                     "full": False}
+            return _with_run(page, row, api, tap.latest, found[-1].get("processed_at")) if status else page
     history = []
     for remote in segments(row):
         part = list(api.events(remote))
         history += part
     _remember_context(row, part)
     history = contracts.merge_by_time(history, notices.feed(row.session_id, user))
-    return {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
+    page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
                                                          "archived_at": str(row.modified) if row.archived else None}}
+    if not status:
+        return page
+    return _with_run(page, row, api, lambda: contracts.latest_status(reversed(part)),
+                     part[-1].get("processed_at") if part else None)
+
+
+def _with_run(page, row, api, latest, as_of) -> dict:
+    run = run_state(row, api, latest, as_of)
+    if run:
+        page["run"] = run
+    return page
 
 
 def _remember_context(row, events_of_current) -> None:

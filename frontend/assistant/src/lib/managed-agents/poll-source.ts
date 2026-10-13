@@ -5,9 +5,13 @@
 //   断开时退回高频轮询。引擎的「列出事件」偶尔单次要 30 多秒，所以不能靠它出回复（2026-10-10 实测）。
 // 页面在后台时停止补拉。
 // 本站提醒（pearnly.notice）两路都会来，同样按编号去重；但它不在引擎的事件记录里，不能当补拉锚点。
+//
+// 回到前台、从后台缓存恢复（pageshow）、重新联网、实时通道断开后重连，这几个时刻马上补拉一次并顺带要一份服务端读回的
+// 运行状态（onstatus）：在后台时漏掉的「这一轮结束」不靠补齐事件来猜（2026-10-13 iPhone：主屏幕图标打开、锁屏收到推送，
+// 回来后一直显示在回复、发不了新消息）。一个时刻只读一次状态；不另开定时，取不到就跟着原有的补拉节奏再要。
 
 import { listEvents } from "./api";
-import { type FeedEvent, isLocalEvent, type RelayEnvelope } from "./events";
+import { type FeedEvent, isLocalEvent, type RelayEnvelope, type RunStatus } from "./events";
 import { isConnected, subscribe } from "./realtime";
 
 const FAST_MS = 1200;
@@ -27,13 +31,29 @@ export class PollingSource {
   onopen: (() => void) | null = null;
   onmessage: ((msg: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
+  /** 服务端读回的此刻运行状态；askedAt 是这次请求发出的时间（本页时钟），会话据此不让它盖过之后本页自己的操作。 */
+  onstatus: ((run: RunStatus, askedAt: number) => void) | null = null;
 
   private readonly sessionId: string;
   private lastId: string | undefined;
   private seen = new Set<string>();
   private running = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  // 一次补拉进行中：期间要求的下一次（推送收尾、时刻）记下最早的那个，取完再排，不并行开第二条补拉
+  private inFlight = false;
+  private queued: number | null = null;
+  // 下一次补拉顺带要运行状态（某个时刻要求的，取到为止）
+  private wantStatus = false;
+  // 实时通道断过：再连上算重连（第一次连上不算）
+  private realtimeLost = false;
   private readonly unsubscribe: () => void;
+  private readonly onVisible = () => {
+    if (document.visibilityState === "visible") this.refresh();
+  };
+  private readonly onPageShow = (event: { persisted?: boolean }) => {
+    if (event.persisted) this.refresh();
+  };
+  private readonly onOnline = () => this.refresh();
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
@@ -41,18 +61,37 @@ export class PollingSource {
       sessionId,
       (event) => this.pushed(event),
       (connected) => {
-        // 断开了：马上转回高频补拉；连上了：按低频节奏走。
-        if (!connected) this.reschedule(0);
+        // 断开了：马上转回高频补拉；断过又连上：补拉一次并核对状态（断线期间的推送没了）
+        if (!connected) {
+          this.realtimeLost = true;
+          this.reschedule(0);
+        } else if (this.realtimeLost) {
+          this.realtimeLost = false;
+          this.refresh();
+        }
       },
     );
+    document.addEventListener("visibilitychange", this.onVisible);
+    window.addEventListener("pageshow", this.onPageShow);
+    window.addEventListener("online", this.onOnline);
     this.schedule(0);
   }
 
   close() {
     this.readyState = PollingSource.CLOSED;
     this.unsubscribe();
+    document.removeEventListener("visibilitychange", this.onVisible);
+    window.removeEventListener("pageshow", this.onPageShow);
+    window.removeEventListener("online", this.onOnline);
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+  }
+
+  /** 一个时刻（回到前台、页面恢复、联网、重连、点了停止）：马上补拉一次，顺带要一份服务端读回的运行状态。 */
+  refresh() {
+    if (this.readyState === PollingSource.CLOSED) return;
+    this.wantStatus = true;
+    this.reschedule(0);
   }
 
   private interval(): number {
@@ -61,6 +100,10 @@ export class PollingSource {
   }
 
   private reschedule(delay: number) {
+    if (this.inFlight) {
+      this.queued = Math.min(this.queued ?? delay, delay);
+      return;
+    }
     if (this.timer) clearTimeout(this.timer);
     this.schedule(delay);
   }
@@ -82,24 +125,41 @@ export class PollingSource {
   }
 
   private async tick() {
+    this.timer = null;
     if (document.visibilityState === "hidden") return this.schedule(SLOW_MS);
+    const withStatus = this.wantStatus;
+    this.wantStatus = false;
+    const askedAt = Date.now();
+    this.inFlight = true;
+    let next: number;
     try {
-      const page = await listEvents(this.sessionId, this.lastId);
+      const page = await listEvents(this.sessionId, this.lastId, withStatus);
       if (this.readyState === PollingSource.CLOSED) return;
       if (this.readyState === PollingSource.CONNECTING) {
         this.readyState = PollingSource.OPEN;
         this.onopen?.();
       }
       for (const event of page.events) this.emit(event, true);
-      this.schedule(this.interval());
+      // 先并完这页事件，再按状态校正（状态是服务端读完这页事件之后读的）。要了没取到（引擎一时读不到）就下一次再要。
+      if (page.run) {
+        this.running = page.run.status === "running" || page.run.status === "requires_action";
+        this.onstatus?.(page.run, askedAt);
+      } else if (withStatus) this.wantStatus = true;
+      next = this.interval();
     } catch {
       if (this.readyState === PollingSource.CLOSED) return;
+      if (withStatus) this.wantStatus = true;
       // 同 EventSource 自动重连：先回到「连接中」，下一次取到就再报一次 onopen（会话据此补拉、收起「正在重新连接…」）。
       // 以前停在「已连上」，恢复后不再报 onopen，提示一直挂着、错过的文件卡片也不补（2026-10-10 测试）。
       this.readyState = PollingSource.CONNECTING;
       this.onerror?.();
-      this.schedule(SLOW_MS);
+      next = SLOW_MS;
+    } finally {
+      this.inFlight = false;
     }
+    const queued = this.queued;
+    this.queued = null;
+    this.schedule(queued === null ? next : Math.min(queued, next));
   }
 
   private emit(event: FeedEvent, anchor: boolean) {

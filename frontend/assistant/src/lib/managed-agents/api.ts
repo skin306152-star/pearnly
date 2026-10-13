@@ -1,14 +1,17 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
 import { get, post, upload } from "@/lib/frappe";
-import type { FeedEvent, SessionSummary } from "./events";
+import type { FeedEvent, RunStatus, SessionSummary } from "./events";
 
-/** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。 */
-export type EventsPage = { events: FeedEvent[]; full: boolean };
+/** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。要了状态（status）才带 run（读不到也没有）。 */
+export type EventsPage = { events: FeedEvent[]; full: boolean; run?: RunStatus };
 
-/** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部加星标的）。 */
-export function listSessions(after?: string): Promise<{ sessions: SessionSummary[]; nextCursor: string | null }> {
-  return get("listing", { after });
+export type SessionPage = { sessions: SessionSummary[]; nextCursor: string | null; runs?: Record<string, RunStatus> };
+
+/** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部加星标的）。
+ *  check：侧栏以为还在回复的对话，服务端各读一次此刻的运行状态放进 runs（不给就不读）。 */
+export function listSessions(after?: string, check: readonly string[] = []): Promise<SessionPage> {
+  return get("listing", { after, check: check.length ? check.join(",") : undefined });
 }
 
 export function createSession(): Promise<SessionSummary> {
@@ -40,9 +43,10 @@ export async function markNoticesSeen(id: string): Promise<void> {
   await post("notices_seen", { session_id: id });
 }
 
-/** 不带 after：整段历史；带 after：只要它之后的新事件（锚点丢了服务端会退回整段，full=true）。 */
-export function listEvents(id: string, after?: string): Promise<EventsPage> {
-  return get("events", { session_id: id, after });
+/** 不带 after：整段历史；带 after：只要它之后的新事件（锚点丢了服务端会退回整段，full=true）。
+ *  status：顺带要一份此刻的运行状态（多读一次引擎状态，只在重放、回到前台、重连这些时刻要）。 */
+export function listEvents(id: string, after?: string, status = false): Promise<EventsPage> {
+  return get("events", { session_id: id, after, status: status ? 1 : undefined });
 }
 
 export async function sendMessage(id: string, text: string): Promise<void> {

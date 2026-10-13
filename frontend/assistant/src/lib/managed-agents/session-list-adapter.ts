@@ -6,7 +6,10 @@
 //   list        → this site's own session table, the signed-in user's rows only,
 //                 a page at a time (the sidebar loads the next page on scroll);
 //                 rows with unseen notices get the sidebar dot, rows whose notices were
-//                 seen elsewhere (unread: false) lose it (activity.ts)
+//                 seen elsewhere (unread: false) lose it (activity.ts); the first page
+//                 also asks the server for the run state of the rows the sidebar
+//                 shows as running (check → runs), so a missed "turn ended" push
+//                 does not leave a spinner behind (checkRunning, below)
 //   initialize  → sessions.create   (fires on the first message of a new chat)
 //   rename      → sessions.update title
 //   archive     → sessions.archive
@@ -27,9 +30,9 @@ import {
   renameSession,
   starSession,
 } from "./api";
-import { clearUnread, seedUnread } from "./activity";
-import { type SessionSummary, splitAttachmentNote } from "./events";
-import { listen, pushedTitle } from "./realtime";
+import { clearUnread, noteRun, runningSessions, seedUnread } from "./activity";
+import { type RunStatus, type SessionSummary, splitAttachmentNote } from "./events";
+import { listen, onConnectionChange, pushedTitle } from "./realtime";
 import { dropSessionController } from "./session-controller";
 
 const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
@@ -45,15 +48,21 @@ const toThreadMetadata = (s: SessionSummary) => ({
   custom: { starred: !!s.starred },
 });
 
+function noteRuns(runs: Record<string, RunStatus> | undefined) {
+  for (const [id, run] of Object.entries(runs ?? {})) noteRun(id, run);
+}
+
 export const sessionListAdapter: RemoteThreadListAdapter = {
   async list(params) {
     const asked = Date.now();
-    const { sessions, nextCursor } = await listSessions(params?.after);
+    // 第一页顺带核对侧栏标着在跑的对话（在别处跑完了、推送漏了的不再转圈）
+    const { sessions, nextCursor, runs } = await listSessions(params?.after, params?.after ? [] : runningSessions());
     // 有没看过的提醒的对话留圆点（刷新后仍在，服务端记着）；在别处看过了（unread 为假）去掉，请求发出后才推来的留着
     for (const s of sessions) {
       if (s.unread) seedUnread(s.id);
       else if (s.unread === false) clearUnread(s.id, asked);
     }
+    noteRuns(runs);
     return {
       threads: sessions.map(toThreadMetadata),
       nextCursor: nextCursor ?? undefined,
@@ -112,3 +121,44 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     });
   },
 };
+
+// ---------------------------------------------------------------- 侧栏「在跑」核对
+let checking = false;
+
+/** 侧栏标着在跑、却没开着看的对话：向服务端各读一次此刻的运行状态（侧栏列表的 check），转圈按它留或去。没有就不发请求。 */
+export async function checkRunning(): Promise<void> {
+  const ids = runningSessions();
+  if (!ids.length || checking) return;
+  checking = true;
+  try {
+    noteRuns((await listSessions(undefined, ids)).runs);
+  } catch {
+    // 下一个时刻再核对
+  } finally {
+    checking = false;
+  }
+}
+
+/** 回到前台、从后台缓存恢复、重新联网、实时通道断开后重连时核对一次（checkRunning）；返回取消监听。不另开定时。 */
+export function watchRunning(): () => void {
+  let lost = false;
+  const check = () => void checkRunning();
+  const onVisible = () => document.visibilityState === "visible" && check();
+  const onPageShow = (event: { persisted?: boolean }) => event.persisted && check();
+  const off = onConnectionChange((connected) => {
+    if (!connected) lost = true;
+    else if (lost) {
+      lost = false;
+      check();
+    }
+  });
+  document.addEventListener("visibilitychange", onVisible);
+  window.addEventListener("pageshow", onPageShow);
+  window.addEventListener("online", check);
+  return () => {
+    off();
+    document.removeEventListener("visibilitychange", onVisible);
+    window.removeEventListener("pageshow", onPageShow);
+    window.removeEventListener("online", check);
+  };
+}

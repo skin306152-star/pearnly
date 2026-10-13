@@ -81,11 +81,24 @@ export type RelayEnvelope =
    *  than treat this as a failed turn. */
   | { kind: "relay_error"; message: string };
 
-/** Row shape the sidebar and history endpoints hand the browser. */
-export type SessionSummary = Pick<
-  ManagedAgentsSession,
-  "id" | "title" | "status" | "created_at" | "updated_at" | "archived_at"
-> & { starred?: boolean; /** 有没看过的提醒（侧栏圆点） */ unread?: boolean };
+/** 服务端读回的对话此刻的运行状态（pearnly_core.assistant.contracts.run_state）：以引擎的会话状态为准，停着等的调用
+ *  再按本站执行记录分出等用户点「允许」的与本站正在执行的。对话页与侧栏在重放、重进、回到前台、联网、实时通道重连这些
+ *  时刻按它改，不从「没收到某条事件」推断。as_of：服务端读状态前读到的最新一条事件的时间（不让它盖过比它新的状态事件）。 */
+export type RunStatus = {
+  status: "idle" | "running" | "requires_action" | "terminated";
+  parked: string[];
+  awaiting_approval: string[];
+  executing: string[];
+  as_of: string | null;
+};
+
+/** Row shape the sidebar and history endpoints hand the browser. status 只在真读过时有（建会话、取会话、侧栏核对过的）。 */
+export type SessionSummary = Pick<ManagedAgentsSession, "id" | "title" | "created_at" | "updated_at" | "archived_at"> & {
+  status?: ManagedAgentsSession["status"] | RunStatus["status"] | null;
+  starred?: boolean;
+  /** 有没看过的提醒（侧栏圆点） */
+  unread?: boolean;
+};
 
 export const CUSTOM_TOOL_ACK_TEXT = "Rendered to the user in the chat.";
 

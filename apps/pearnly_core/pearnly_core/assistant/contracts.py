@@ -149,6 +149,86 @@ def since(events_newest_first, target: str):
     return newer_than(events_newest_first, target, keep_anchor=True)
 
 
+# 对话此刻的运行状态（对话页、侧栏据此定「在回复 / 等允许 / 已结束」）：以引擎读回的会话状态为准；引擎空闲时，
+# 最新一条会话状态事件若是「等待处理」，再按本站执行记录分出等用户点「允许」的与本站正在执行的。
+# 对话页不从「没收到某条事件」推断状态（2026-10-13 iPhone：在后台时漏了「这一轮结束」，回到前台、重进对话都一直显示在回复）。
+STATUS_EVENT = "session.status_"
+RUN_STATES = {"idle": "idle", "running": "running", "rescheduling": "running", "terminated": "terminated"}
+CHECK_MAX = 10  # 侧栏一次最多核对这么多个对话的运行状态
+
+
+def status_event(event) -> bool:
+    return str((event or {}).get("type") or "").startswith(STATUS_EVENT)
+
+
+def latest_status(events_newest_first, limit: int = TAIL_MAX):
+    """「新 → 旧」的事件里最新一条会话状态事件；最近 `limit` 条里没有回 None。"""
+    for count, event in enumerate(events_newest_first, 1):
+        if status_event(event):
+            return event
+        if count >= limit:
+            return None
+    return None
+
+
+def parked_ids(event) -> list[str]:
+    """会话停下来等的调用编号：这条状态事件是「空闲、等待处理」才有，其余回空。"""
+    event = event or {}
+    stop = event.get("stop_reason") or {}
+    if event.get("type") != "session.status_idle" or stop.get("type") != "requires_action":
+        return []
+    return [str(i) for i in stop.get("event_ids") or []]
+
+
+def run_state(engine_status, latest=None, runs=None, as_of=None):
+    """交给对话页的运行状态：`{"status": idle | running | requires_action | terminated, "parked": [停着等的调用],
+    "awaiting_approval": [其中等用户点「允许」的], "executing": [其中本站正在执行的], "as_of": 时间}`。
+
+    `engine_status` 是引擎读回的会话状态；`latest` 是事件记录里最新一条会话状态事件（引擎空闲时据它分出「等待处理」）；
+    `runs` 是本站执行记录 `{调用编号: 状态}`；`as_of` 是读状态之前读到的最新一条事件的时间（对话页据此不让这份状态盖过
+    比它新的事件）。引擎状态认不出回 None（对话页这次不改）。"""
+    state = RUN_STATES.get(str(engine_status or ""))
+    if state is None:
+        return None
+    parked = parked_ids(latest) if state == "idle" else []
+    runs = runs or {}
+    return {"status": "requires_action" if parked else state, "parked": parked,
+            "awaiting_approval": [i for i in parked if runs.get(i) == "awaiting_approval"],
+            "executing": [i for i in parked if runs.get(i) == "running"],
+            "as_of": as_of or None}
+
+
+class StatusTap:
+    """把「新 → 旧」的事件流原样交出，顺手记下最新一条会话状态事件：增量补拉要带状态时不必再读一次事件列表。"""
+
+    def __init__(self, events_newest_first):
+        self._events = iter(events_newest_first)
+        self._latest = None
+
+    def __iter__(self):
+        for event in self._events:
+            if self._latest is None and status_event(event):
+                self._latest = event
+            yield event
+
+    def latest(self):
+        """最新一条会话状态事件：交出过的里面有就是它；没有就接着往旧的读（同一份事件列表，读到哪接着读）。"""
+        if self._latest is None:
+            self._latest = latest_status(self._events)
+        return self._latest
+
+
+def session_ids(value) -> list[str]:
+    """逗号分隔（或列表）的对话编号：只留合法的，去重保序，最多 `CHECK_MAX` 个。"""
+    items = value.split(",") if isinstance(value, str) else list(value or ())
+    found = []
+    for item in items:
+        text = str(item or "").strip()
+        if OPAQUE_ID.match(text) and text not in found:
+            found.append(text)
+    return found[:CHECK_MAX]
+
+
 # 引擎回调（ADR-019：页面关着也由服务端接手工具调用）按 Standard Webhooks 签名：
 # 签名内容 `{webhook-id}.{webhook-timestamp}.{原文}`，密钥是 `whsec_` 后的 base64，HMAC-SHA256 后 base64，
 # 头里可带多个 `v1,<签名>`（换密钥期间）。时间戳超过 5 分钟的拒收（防重放）。

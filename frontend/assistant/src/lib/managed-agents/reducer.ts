@@ -17,8 +17,11 @@
 //   session.error                       → an error message + retry chip
 //   pearnly.notice                      → a notice card (本站提醒，记在 notices，不进 messages；
 //                                          页面经 withNotices 并进对话，见文件末尾)
+//
+// 运行状态（在回复 / 等允许 / 已结束）按服务端时间定，不按到达先后：推送与补拉交错时，晚到的旧状态事件不再盖过已采用的
+// 新状态（statusAt）。服务端读回的此刻状态（RunStatus，applyRunStatus）在重放、重进、回到前台、重连时校正它。
 
-import type { FeedEvent, NoticeEvent, ToolUseEvent } from "./events";
+import type { FeedEvent, NoticeEvent, RunStatus, ToolUseEvent } from "./events";
 import { isPersisted, splitAttachmentNote } from "./events";
 
 // ---------------------------------------------------------------------------
@@ -147,6 +150,8 @@ export type Projection = {
   lastError: ProjectionError | null;
   /** 本站提醒，按时间先后（不在 messages 里：接续、乐观气泡、批准都不受影响）。 */
   notices: readonly NoticeItem[];
+  /** 已采用的运行状态有多新（服务端时间，毫秒）：比它旧的状态事件只记已见、不再改运行状态。本页合成的不算。 */
+  statusAt: number;
 };
 
 export const initialProjection = (): Projection => ({
@@ -164,6 +169,7 @@ export const initialProjection = (): Projection => ({
   toolUses: new Map(),
   lastError: null,
   notices: [],
+  statusAt: 0,
 });
 
 // ---------------------------------------------------------------------------
@@ -261,15 +267,19 @@ function currentAssistantIndex(messages: ThreadMessage[], createdAt?: string | n
 
 /** A gate the server is no longer waiting on (interrupt, end of turn,
  *  termination) must not keep live Allow/Deny buttons. Strip approvals that
- *  never got an answer; leave answered ones as the record they are. */
-function stripUnresolvedApprovals(messages: readonly ThreadMessage[]): readonly ThreadMessage[] {
+ *  never got an answer; leave answered ones as the record they are, and the
+ *  ones in `keep` (the server is still parked on them). */
+function stripUnresolvedApprovals(
+  messages: readonly ThreadMessage[],
+  keep: ReadonlySet<string> = new Set(),
+): readonly ThreadMessage[] {
   let changed = false;
   const next = messages.map((msg) => {
     if (msg.role !== "assistant") return msg;
     let msgChanged = false;
     const content = msg.content.map((part) => {
       if (part.type !== "tool-call" || !part.approval) return part;
-      if (part.approval.approved !== undefined) return part;
+      if (part.approval.approved !== undefined || keep.has(part.approval.id)) return part;
       msgChanged = changed = true;
       const rest = { ...part };
       delete rest.approval;
@@ -389,7 +399,26 @@ export function applyEvent(state: Projection, event: FeedEvent): Projection {
     if (state.seen.has(event.id)) return state;
     state = { ...state, seen: new Set(state.seen).add(event.id) };
   }
+  // 运行状态按服务端时间定：推送先到了新的「结束」，补拉晚到的旧「在跑」只记已见，不再把对话标回在回复
+  // （去重会把那一步永远定住，重放也改不回来）。终止不论先后都算数。
+  if (event.type === "session.status_running" || event.type === "session.status_rescheduled" ||
+      event.type === "session.status_idle" || event.type === "session.status_terminated") {
+    const at = statusTime(event);
+    if (at !== null && at < state.statusAt && event.type !== "session.status_terminated") return state;
+    if (at !== null && at > state.statusAt) state = { ...state, statusAt: at };
+  }
   return withDerivedStatuses(applyEventInner(state, event));
+}
+
+/** 服务端时间（RFC 3339）→ 毫秒；解析不了回 null。小数秒只留三位：引擎给到微秒，有的浏览器多于三位就解析不了。 */
+function serverTime(iso: string | null | undefined): number | null {
+  const at = Date.parse(String(iso ?? "").replace(/(\.\d{3})\d+/, "$1"));
+  return Number.isFinite(at) ? at : null;
+}
+
+/** 状态事件的服务端时间（毫秒）；本页合成的（optimistic-）与没有时间的回 null，按到达先后算。 */
+function statusTime(event: { id: string; processed_at?: string | null }): number | null {
+  return event.id.startsWith("optimistic-") ? null : serverTime(event.processed_at);
 }
 
 function applyEventInner(state: Projection, event: FeedEvent): Projection {
@@ -775,10 +804,85 @@ export const isBusy = (state: Projection): boolean =>
  *  reopen (and accept a message mid-resume) before the real status_running
  *  arrives. Deliberately NOT a folded status_running event: that would clear
  *  parkedIds, which restoreGates needs intact if the confirmation POST
- *  fails. */
-export function markResuming(state: Projection): Projection {
+ *  fails. Only while the session is still parked on `id`: once a later status
+ *  folded (the turn moved on, or already ended), nothing would ever clear the
+ *  flag again (2026-10-13 iPhone: a late tool reply re-marked a finished turn). */
+export function markResuming(state: Projection, id: string): Projection {
+  if (!state.parkedIds.includes(id)) return state; // the server already left this gate
   if (isBusy(state)) return state; // gates still open, or already running
   return withDerivedStatuses({ ...state, isRunning: true });
+}
+
+/** 服务端读回的此刻运行状态（RunStatus）：在回复 / 等允许 / 已结束都以它为准，清掉本页乐观标的「在回复」、补不回的旧
+ *  门（漏了事件、去重定住的那些）。as_of 比已采用的状态事件旧就不用（这期间到的状态事件更新）。
+ *  requires_action：停着等的调用里，自带工具与本站拦下等「允许」的显示批准按钮；结果还欠着的照旧由页面提醒服务端执行；
+ *  本站正在执行的、我们这边已答过的、还没收到的都算在忙。 */
+export function applyRunStatus(state: Projection, run: RunStatus): Projection {
+  const at = serverTime(run.as_of) ?? 0;
+  if (state.statusAt > at) return state;
+  const statusAt = Math.max(state.statusAt, at);
+  // 不停在任何一步：没有还能点的门、没有欠着的工具结果
+  const settled = {
+    messages: stripUnresolvedApprovals(state.messages),
+    pendingApprovals: [] as string[],
+    parkedIds: [] as string[],
+    pendingCustomTools: [] as string[],
+    statusAt,
+  };
+  switch (run.status) {
+    case "terminated":
+      return withDerivedStatuses({ ...state, ...settled, isRunning: false, isDead: true });
+    case "running":
+      return withDerivedStatuses({ ...state, ...settled, isRunning: true });
+    case "idle":
+      return withDerivedStatuses({ ...state, ...settled, isRunning: false, lastError: clearRetrying(state.lastError) });
+    case "requires_action":
+      break;
+    default:
+      return state;
+  }
+  const parked = [...(run.parked ?? [])];
+  const awaiting = new Set(run.awaiting_approval ?? []);
+  const executing = new Set(run.executing ?? []);
+  const isCustom = (id: string) => state.toolUses.get(id)?.type === "agent.custom_tool_use";
+  // 还能点的门只留服务端真在等用户的：自带工具的确认、本站拦下等「允许」的 Pearnly 工具
+  const gates = new Set(parked.filter((id) => !isCustom(id) || awaiting.has(id)));
+  const messages = draft(stripUnresolvedApprovals(state.messages, gates));
+  const pendingApprovals: string[] = [];
+  const pendingCustomTools: string[] = [];
+  let working = false;
+  for (const id of parked) {
+    const found = findToolPart(messages, id);
+    const part = found ? messages[found.mi]!.content[found.pi] : undefined;
+    if (!found || part?.type !== "tool-call" || !state.toolUses.has(id)) {
+      working = true; // 服务端停在一次我们还没收到的调用上：这一轮没完
+      continue;
+    }
+    if (part.result !== undefined || part.approval?.approved !== undefined || state.answeredCustomTools.has(id) ||
+        executing.has(id)) {
+      working = true; // 已答过正在交回，或本站正在执行
+      continue;
+    }
+    if (isCustom(id)) {
+      // 等「允许」且卡片已有问句的照旧显示；结果还欠着、或等「允许」但卡片还没拿到问句与改动的，由页面提醒服务端一次
+      // （等「允许」的回问句与改动，见 gateCustomTool）
+      if (awaiting.has(id) && part.approval) pendingApprovals.push(id);
+      else pendingCustomTools.push(id);
+      continue;
+    }
+    pendingApprovals.push(id);
+    updatePart(messages, found.mi, found.pi, updateTool((p) => (p.approval ? {} : { approval: { id } })));
+  }
+  return withDerivedStatuses({
+    ...state,
+    messages,
+    isRunning: working,
+    pendingApprovals,
+    parkedIds: parked,
+    pendingCustomTools,
+    lastError: clearRetrying(state.lastError),
+    statusAt,
+  });
 }
 
 // ---------------------------------------------------------------------------
