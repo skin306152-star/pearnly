@@ -132,6 +132,7 @@ export class PollingSource {
     const askedAt = Date.now();
     this.inFlight = true;
     let next: number;
+    let failed = false;
     try {
       const page = await listEvents(this.sessionId, this.lastId, withStatus);
       if (this.readyState === PollingSource.CLOSED) return;
@@ -154,12 +155,14 @@ export class PollingSource {
       this.readyState = PollingSource.CONNECTING;
       this.onerror?.();
       next = SLOW_MS;
+      failed = true;
     } finally {
       this.inFlight = false;
     }
+    // 期间要求的下一次（推送收尾、某个时刻）提前排上；刚失败的照旧退避，要的状态留到下一次
     const queued = this.queued;
     this.queued = null;
-    this.schedule(queued === null ? next : Math.min(queued, next));
+    this.schedule(failed || queued === null ? next : Math.min(queued, next));
   }
 
   private emit(event: FeedEvent, anchor: boolean) {
