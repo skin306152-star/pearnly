@@ -8,6 +8,7 @@ import pathlib
 import sys
 import types
 import unittest
+import uuid
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -251,6 +252,8 @@ class RecognizeAttachmentTests(unittest.TestCase):
         chat.attachment = self._attachment
         chat.attachments = lambda: [{"file_id": "file_abc", "filename": "receipt.jpg"}]
         chat.origin = lambda file_id: {"file_page": "tool", "file_folder": "folder"}.get(file_id, "user")
+        chat.resolve = lambda ref: {"receipt.jpg": "file_abc", "/mnt/session/uploads/file_abc/receipt.jpg": "file_abc"}.get(
+            ref, ref)
         originals = types.ModuleType("pearnly_cowork.files.service")
         originals.create = lambda workspace, name, content, key: self.created.append((name, content, key)) or {"name": "CWS-1"}
         ocr = types.ModuleType("pearnly_cowork.ocr.execution.service")
@@ -307,6 +310,14 @@ class RecognizeAttachmentTests(unittest.TestCase):
         self.assertNotIn("currency", doc)  # 空项不给
         self.assertEqual(doc["push_target"], "not chosen yet")  # 仅识别不说成「不推送」
         self.assertNotIn("intake_target", doc)
+
+    def test_the_key_follows_the_file_whatever_the_model_calls_it(self):
+        # 接续新上下文后模型按文件名称呼旧附件：请求号仍按本对话里的文件编号，不重复识别，也不与别的对话里的同名文件撞
+        for ref in ("file_abc", "receipt.jpg", "/mnt/session/uploads/file_abc/receipt.jpg"):
+            out = json.loads(tools.recognize_attachments({"files": [ref]}))["results"][0]
+            self.assertEqual(out["file"], ref)
+        self.assertEqual({key for _name, _content, key in self.created}, {"assistant:file_abc"})
+        self.assertEqual({key for _source, key, _choices in self.submitted}, {"assistant:file_abc"})
 
     def test_wrong_ids_and_unsupported_files_are_explained_not_attempted(self):
         missing = json.loads(tools.recognize_attachments({"files": ["file_gone"]}))["results"][0]
@@ -420,8 +431,9 @@ class PosImportToolTests(unittest.TestCase):
     def setUp(self):
         self.created, self.calls = [], []
         chat = types.ModuleType("pearnly_core.assistant.files")
-        chat.attachment = lambda file_id: {"file_pos": ("sales-oct.xlsx", b"x"), "file_xls": ("sales.xls", b"x"),
-                                           "file_jpg": ("bill.jpg", b"x")}[file_id]
+        chat.resolve = lambda ref: {"sales-oct.xlsx": "file_pos"}.get(ref, ref)
+        chat.attachment = lambda ref: {"file_pos": ("sales-oct.xlsx", b"x"), "file_xls": ("sales.xls", b"x"),
+                                       "file_jpg": ("bill.jpg", b"x")}[chat.resolve(ref)]
         chat.attachments = lambda: []
         originals = types.ModuleType("pearnly_cowork.files.service")
         originals.create = lambda workspace, name, content, key: self.created.append((workspace, name, key)) or {
@@ -461,6 +473,13 @@ class PosImportToolTests(unittest.TestCase):
         self.assertEqual((kw["connection"], kw["account_set_key"], kw["posting_kind"], kw["workspace"]),
                          ("C1", "K", "stock", "WS"))
         self.assertEqual((out["status"], out["histories"]), ("ok", ["H1", "H2"]))
+
+    def test_a_file_named_by_its_filename_keeps_the_same_key(self):
+        out = json.loads(tools.pos_import({"files": ["sales-oct.xlsx"], "connection": "C1", "account_set_key": "K"}))
+        self.assertEqual(out["results"][0]["file"], "sales-oct.xlsx")
+        self.assertEqual(self.created, [("WS", "sales-oct.xlsx", "assistant:pos:file_pos")])
+        self.assertEqual(self.calls[0][2], "assistant:pos:file_pos")
+        self.assertNotIn("key", out["results"][0])
 
     def test_layout_questions_come_back_and_answers_are_remembered_before_entering(self):
         self.admitted = {"status": "layout_needed", "headers": ["Date"], "questions": [{"kind": "date_order"}]}
@@ -1195,6 +1214,29 @@ class StocktakeAndWorkTests(unittest.TestCase):
             parent, _, child = name.rpartition(".")
             setattr(sys.modules[parent], child, module)
         frappe.session = types.SimpleNamespace(user="a@example.com")
+
+    def test_a_stocktake_from_the_same_file_gets_the_same_key_whatever_it_is_called(self):
+        # 盘点单号按对话 + 文件编号固定：接续新上下文后模型按文件名称呼同一份表，也只得到同一张
+        made = []
+        upload = types.ModuleType("pearnly_cowork.stocktake.upload")
+        upload.create = lambda title, key, content: made.append((title, key)) or {"count": "S-" + key[:4]}
+        sys.modules["pearnly_cowork.stocktake.upload"] = sys.modules["pearnly_cowork.stocktake"].upload = upload
+        chat = types.ModuleType("pearnly_core.assistant.files")
+        chat.resolve = lambda ref: {"books.xlsx": "file_bk", "/mnt/session/uploads/file_bk/books.xlsx": "file_bk"}.get(ref, ref)
+        chat.attachment = lambda ref: ("books.xlsx", b"x")
+        chat.attachments = lambda: []
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+        try:
+            with mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": chat}), \
+                    mock.patch.object(sys.modules["pearnly_core.assistant"], "files", chat, create=True), \
+                    mock.patch.object(frappe, "db", types.SimpleNamespace(commit=lambda: None, rollback=lambda: None),
+                                      create=True):
+                for ref in ("file_bk", "books.xlsx", "/mnt/session/uploads/file_bk/books.xlsx"):
+                    tools.stocktake_create({"file": ref})
+        finally:
+            frappe.local.pearnly_assistant = None
+        self.assertEqual(len({key for _title, key in made}), 1)
+        self.assertEqual(made[0], ("books", str(uuid.uuid5(uuid.NAMESPACE_URL, "pearnly-assistant:sesn_1:file_bk"))))
 
     def test_report_lists_only_differences_and_uncounted_items(self):
         out = json.loads(tools.stocktake_report({"count": "S1"}))

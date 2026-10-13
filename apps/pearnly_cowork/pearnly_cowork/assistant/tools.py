@@ -373,9 +373,10 @@ def _admit(file_id, choices) -> dict:
 
     from pearnly_cowork.files import service as originals
 
-    base = "assistant:" + str(file_id)
     try:
         filename, content = chat_files.attachment(file_id)
+        # 请求号按本对话里的文件编号：给编号、挂载路径还是文件名都是同一个附件（接续新上下文后模型按文件名称呼旧附件）
+        base = "assistant:" + chat_files.resolve(file_id)
     except frappe.ValidationError:
         frappe.clear_messages()
         return {"file": file_id, "status": "not_found", "attachments_in_this_chat": chat_files.attachments()}
@@ -598,6 +599,7 @@ def _pos_source(file_id) -> dict:
 
     try:
         filename, content = chat_files.attachment(file_id)
+        key = "assistant:pos:" + chat_files.resolve(file_id)  # 同识别：按本对话里的文件编号
     except frappe.ValidationError:
         frappe.clear_messages()
         return {"file": file_id, "status": "not_found", "attachments_in_this_chat": chat_files.attachments()}
@@ -606,13 +608,13 @@ def _pos_source(file_id) -> dict:
         code = "pos.xls_not_supported" if kind == "legacy" else "pos.type_unsupported"
         return {"file": file_id, "filename": filename, "status": "failed", "code": code, "reason": _(code)}
     try:
-        source = originals.create(scope.default_workspace(), filename, content, "assistant:pos:" + str(file_id))
+        source = originals.create(scope.default_workspace(), filename, content, key)
         frappe.db.commit()
     except frappe.ValidationError as exc:
         frappe.db.rollback()
         frappe.clear_messages()
         return {"file": file_id, "filename": filename, "status": "failed", "reason": str(exc)[:300]}
-    return {"file": file_id, "filename": filename, "source": source["name"]}
+    return {"file": file_id, "filename": filename, "source": source["name"], "key": key}
 
 
 def pos_import(tool_input) -> str:
@@ -649,7 +651,7 @@ def pos_import(tool_input) -> str:
                     frappe.db.commit()
                     results.append({"file": file_id, "filename": found["filename"], **_pos_text(remembered)})
                     continue
-            result = _pos().admit(found["source"], "assistant:pos:" + file_id, workspace=scope.default_workspace(),
+            result = _pos().admit(found["source"], found["key"], workspace=scope.default_workspace(),
                                   connection=connection, account_set_key=account_set, posting_kind=posting_kind)
             frappe.db.commit()
         except (frappe.ValidationError, frappe.PermissionError) as exc:
@@ -1651,13 +1653,14 @@ def stocktake_create(tool_input) -> str:
 
     try:
         _name, content = chat_files.attachment(str(tool_input.get("file") or ""))
+        file_id = chat_files.resolve(str(tool_input.get("file") or ""))
     except frappe.ValidationError:
         frappe.clear_messages()
         return _json({"status": "not_saved", "reason": "This attachment is not in this conversation.",
                       "attachments_in_this_chat": chat_files.attachments()})
     # 盘点单号要 UUID：按对话 + 附件算一个固定的，同一份表重复建只得到同一张（页面接口的幂等）
     conversation = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
-    key = str(uuid.uuid5(uuid.NAMESPACE_URL, f"pearnly-assistant:{conversation}:{tool_input.get('file')}"))
+    key = str(uuid.uuid5(uuid.NAMESPACE_URL, f"pearnly-assistant:{conversation}:{file_id}"))
     title = (str(tool_input.get("title") or "").strip() or _name.rsplit(".", 1)[0])[:120]
     return _json(_call(upload.create, title, key, content))
 
