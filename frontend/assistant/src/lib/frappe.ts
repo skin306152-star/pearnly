@@ -1,12 +1,24 @@
 // 本站白名单方法的调用（站点会话登录；写操作带 www/assistant 注入的 CSRF 令牌）。
 // 浏览器从不直接连模型厂商：引擎与密钥只在服务端。
 
+import { lang } from "@/i18n";
+
 const BASE = "/api/method/pearnly_core.assistant.api.";
 
 declare global {
   interface Window {
     csrf_token?: string;
   }
+}
+
+/** 请求头：页面当前的界面语言（pearnly_core.account.preferences.use_page_language）。 */
+export const LANG_HEADER = "X-Pearnly-Lang";
+
+/** 调本站接口一律经这里：带上页面当前的界面语言，这次请求的提示、步骤说明、术语、工具结果都按它，
+ *  不按账号里存的另一种（同一台设备上看到的是同一种语言）。 */
+export function siteFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const headers = { ...(init.headers as Record<string, string> | undefined), [LANG_HEADER]: lang };
+  return fetch(url, { credentials: "same-origin", ...init, headers });
 }
 
 /** 本站拒收时（frappe.throw）给的原文：已按用户语言翻译，可以直接给用户看。网络等别的失败是普通 Error。 */
@@ -54,14 +66,13 @@ async function parse<T>(res: Response): Promise<T> {
 export async function get<T>(method: string, args: Record<string, string | number | undefined> = {}): Promise<T> {
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(args)) if (v !== undefined && v !== null) query.set(k, String(v));
-  const res = await fetch(`${BASE}${method}?${query}`, { cache: "no-store", credentials: "same-origin" });
+  const res = await siteFetch(`${BASE}${method}?${query}`, { cache: "no-store" });
   return parse<T>(res);
 }
 
 export async function post<T>(method: string, args: Record<string, unknown> = {}): Promise<T> {
-  const res = await fetch(`${BASE}${method}`, {
+  const res = await siteFetch(`${BASE}${method}`, {
     method: "POST",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
     body: JSON.stringify(args),
   });
@@ -72,9 +83,8 @@ export async function upload<T>(method: string, args: Record<string, string>, fi
   const form = new FormData();
   for (const [k, v] of Object.entries(args)) form.set(k, v);
   form.set("file", file, file.name);
-  const res = await fetch(`${BASE}${method}`, {
+  const res = await siteFetch(`${BASE}${method}`, {
     method: "POST",
-    credentials: "same-origin",
     headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
     body: form,
   });
@@ -85,16 +95,26 @@ export async function upload<T>(method: string, args: Record<string, string>, fi
 export async function getMethod<T>(method: string, args: Record<string, string | number | undefined> = {}): Promise<T> {
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(args)) if (v !== undefined && v !== null) query.set(k, String(v));
-  const res = await fetch(`/api/method/${method}?${query}`, { cache: "no-store", credentials: "same-origin" });
+  const res = await siteFetch(`/api/method/${method}?${query}`, { cache: "no-store" });
   return parse<T>(res);
 }
 
 export async function postMethod<T>(method: string, args: Record<string, unknown> = {}): Promise<T> {
-  const res = await fetch(`/api/method/${method}`, {
+  const res = await siteFetch(`/api/method/${method}`, {
     method: "POST",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
     body: JSON.stringify(args),
   });
   return parse<T>(res);
+}
+
+/** 用户在这台设备上选语言（左下角菜单「语言」、设置里的「语言」）：存成账号语言，也记在这台设备上
+ *  （pearnly_core.account.preferences.set_language），再按新语言重新打开本页。 */
+export async function chooseLanguage(code: string): Promise<void> {
+  await siteFetch("/api/method/pearnly_core.account.preferences.set_language", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
+    body: JSON.stringify({ language: code }),
+  });
+  location.reload();
 }

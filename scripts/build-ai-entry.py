@@ -285,7 +285,7 @@ PAGE_HTML = """<!doctype html>
 (function(){
   document.querySelectorAll('[data-lang]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();
     document.cookie='pearnly_locale='+a.getAttribute('data-lang')+'; path=/; max-age=31536000; samesite=lax; secure';
-    // 点过语言才带这个（30 分钟）：进公司站点时把这个语言写进账号（entry.go）
+    // 点过语言才带这个（30 分钟）：这次登录算用户在这台设备上自己选的语言（entry.go 带 picked=1）
     document.cookie='pearnly_locale_picked=1; path=/; max-age=1800; samesite=lax; secure';location.reload()})});
   // 账号密码在同一个框里填（用户 2026-10-10 晚）。密码校验在账号所在账号池的登录服务（另一个域名）上：
   // 这里只问出该去哪个登录服务，密码放在跳转地址的 # 后面带过去（# 后面的内容浏览器不发给任何服务器），

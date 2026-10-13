@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
+import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { isBusy } from "@/lib/managed-agents/reducer";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
@@ -133,23 +134,12 @@ async function signOut() {
   // 先让本站不再往这台设备推这个人的提醒（lib/push.ts；最多等 3 秒，不挡退出）
   await forgetDevice().catch(() => undefined);
   // 走本站原生的统一登出（pearnly_core.identity.sign_out：结束站点会话并在身份服务登出），退出后回到智能体入口。
-  const res = await fetch("/api/method/pearnly_core.identity.sign_out?to=assistant", {
+  const res = await siteFetch("/api/method/pearnly_core.identity.sign_out?to=assistant", {
     method: "POST",
-    credentials: "same-origin",
     headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
   });
   const body = (await res.json().catch(() => null)) as { message?: { redirect_url?: string } } | null;
   location.href = body?.message?.redirect_url || "/";
-}
-
-async function setLanguage(code: string) {
-  await fetch("/api/method/pearnly_core.account.preferences.set_language", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
-    body: JSON.stringify({ language: code }),
-  });
-  location.reload();
 }
 
 function MenuLink({ href, children }: { href: string; children: ReactNode }) {
@@ -191,7 +181,7 @@ function UserMenu({ children }: { children: ReactNode }) {
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent sideOffset={8} className="cc-menu">
                 {LANGUAGES.map((l) => (
-                  <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void setLanguage(l.code)}>
+                  <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void chooseLanguage(l.code)}>
                     <span className="flex-1">{l.label}</span>
                     {l.code === lang && <CheckIcon />}
                   </DropdownMenu.Item>

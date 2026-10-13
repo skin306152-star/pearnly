@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QFile, QIODevice, QPoint, QSettings, QStandardPaths, Qt, QUrl, Signal
+from PySide6.QtCore import QEvent, QFile, QIODevice, QLocale, QPoint, QSettings, QStandardPaths, Qt, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication, QKeySequence, QPalette, QShortcut
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import (
@@ -235,6 +235,11 @@ class TomoWindow(QMainWindow):
         self.profile.setPersistentStoragePath(str(folder / "web"))
         self.profile.setCachePath(str(folder / "cache"))
         self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
+        # 网页的浏览器语言跟 Windows 的显示语言（不设时网页内核按 Qt 的本机区域设置，不一定是显示语言）：登录页按它显示，
+        # 新电脑第一次登录后它就是对话页的语言（用户 2026-10-13，泰文系统的新电脑登录后不能变成账号里存的中文）
+        accept = tomo_links.accept_language(QLocale.system().uiLanguages())
+        if accept:
+            self.profile.setHttpAcceptLanguage(accept)
         self.profile.setNotificationPresenter(self._present)
         self.profile.downloadRequested.connect(self._download)
         # 结果面板里的 PDF 用内置查看器显示：Qt 的 PDF 查看器要开插件才工作，不开就当成下载、预览一片空白

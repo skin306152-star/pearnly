@@ -11,6 +11,7 @@
 
 import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
+import { lang } from "@/i18n";
 import { onNotice } from "@/lib/managed-agents/activity";
 import { deepLink, showNote } from "@/lib/notify";
 import { APP_NAME } from "@/lib/profile";
@@ -181,7 +182,6 @@ export type Desktop = {
 };
 
 function wrap(channel: Channel): Desktop {
-  const lang = (document.documentElement.lang || "th").slice(0, 2);
   // 慢的操作（配对、换 Express 文件夹、找 Express）：先回 job，做完发 done。done 可能比 job 编号先到（很快做完时），
   // 所以一直听着：先到的结果先存起来，拿到编号再取（2026-10-10 测试机选本地小文件夹后一直「正在查找…」）。
   const early = new Map<string, string>();
