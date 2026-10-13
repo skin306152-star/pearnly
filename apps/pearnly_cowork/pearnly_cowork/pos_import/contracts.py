@@ -8,9 +8,10 @@
 金额一律 Decimal：每天含税合计与 POS 逐分相等；有增值税列时当天税额 = 逐票税额之和，没有时 = 当天含税合计 × 7/107
 四舍五入到分；尾差全部落在税前额。作废单不算，退款单记负数；付款方式按当天汇总，之和恰好等于当天含税合计。
 
-只有自己写着票号的行才是票（2026-10-13 测试机：页脚合计行被当成上一张票的续行，每天销售翻倍、合计算进上一张票的
-付款方式）：票号空的行一律不是票，不往下沿用票号；空行、分页重复的表头跳过；写着合计 / 小计字样的是合计行，导出带了
-就当核对数（`_check_totals`），对不上整份停下（`pos.total_mismatch`），什么都不建。
+票号空的行从不成为新的票（2026-10-13 测试机：页脚合计行被当成上一张票的续行，每天销售翻倍、合计算进上一张票的
+付款方式）：写着合计 / 小计字样的一律是合计行，导出带了就当核对数（`_check_totals`），对不上整份停下
+（`pos.total_mismatch`），什么都不建；带商品（品名加数量或金额）、又没有合计字样的是上一张票的商品续行（只在第一行
+写票号的商品级导出），付款方式、日期、状态只看票自己那一行；其余（空行、分页重复的表头、备注）跳过。
 """
 from __future__ import annotations
 
@@ -521,9 +522,10 @@ class _Total:
 def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> tuple:
     """数据行 → 票（同一票号的几行合成一张：商品级导出一行一个商品）。回 ``(销售与退款票, 作废张数)``。
 
-    只有自己写着票号的行才是票：票号空的行（页脚、小计、标题、备注）一律不是，也不沿用上一行的票号；空行、分页重复的
-    表头跳过。日期只写在一天第一行的报表，日期往下沿用到有票号的行。写着合计 / 小计字样、金额读得出的行当核对数
-    （`_check_totals`）。``first_row`` 是第一行数据在文件里的行号（报错时给人看）。"""
+    票号空的行从不开新票：写着合计 / 小计字样的一律是合计行，金额读得出就当核对数（`_check_totals`），并且断开上一张票；
+    带商品（品名加数量或金额）、没有合计字样的是上一张票的商品续行（只在第一行写票号的商品级导出），只加金额、税额与
+    商品行，付款方式、日期、状态只看票自己那一行；其余（备注、只有付款方式的行……）跳过。空行、分页重复的表头跳过。
+    日期只写在一天第一行的报表，日期往下沿用到有票号的行。``first_row`` 是第一行数据在文件里的行号（报错时给人看）。"""
     index = _indices(headers, layout)
     order = layout["date_order"]
     receipt_header = headers[index["receipt"]]
@@ -532,10 +534,34 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
     entries: list = []  # 逐行（票, 含税额, 税额）：合计行核对用
     totals: list = []
     last_day = None
+    current = None  # 正在读的票：票号空的商品续行接在它后面；合计行之后断开
 
     def cell(row, name):
         position = index.get(name)
         return row[position] if position is not None and position < len(row) else None
+
+    def add(receipt, row, line):
+        """这一行的金额、税额、商品行记到这张票上。"""
+        try:
+            amount = money(cell(row, "amount")) or Decimal("0")
+            vat = (money(cell(row, "vat")) if "vat" in index else None) or Decimal("0")
+            qty = quantity(cell(row, "qty")) if "item" in index and "qty" in index else None
+        except (InvalidOperation, ValueError) as error:
+            raise PosError("pos.amount_unreadable", row=line) from error
+        if layout["amount_basis"] == "exclusive":
+            amount += vat
+        receipt.amount += amount
+        receipt.vat += vat
+        receipt.rows.append(line)
+        entries.append((receipt, amount, vat))
+        if "item" in index:
+            receipt.lines.append((cell_text(cell(row, "item")), cell_text(cell(row, "sku")),
+                                  Decimal("1") if qty is None else qty, amount))
+
+    def item_line(row):
+        """票号空的这一行是不是商品续行：有品名，且有数量或金额。"""
+        return "item" in index and bool(cell_text(cell(row, "item"))) and (
+            bool(cell_text(cell(row, "amount"))) or ("qty" in index and bool(cell_text(cell(row, "qty")))))
 
     for offset, row in enumerate(rows):
         line = first_row + offset
@@ -550,6 +576,9 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
                 if total is not None:
                     total.position, total.since = len(entries), totals[-1].position if totals else 0
                     totals.append(total)
+                current = None
+            elif current is not None and item_line(row):
+                add(current, row, line)
             continue
         raw_day = cell(row, "date")
         has_day = isinstance(raw_day, (date, datetime)) or bool(cell_text(raw_day))
@@ -558,40 +587,19 @@ def receipts(headers, rows, layout, *, anchor_year: int, first_row: int = 1) -> 
             if has_day or last_day is None:
                 raise PosError("pos.date_unreadable", row=line)
             day = last_day  # 按日期分组的报表：日期只写在这一天的第一行
-        try:
-            amount = money(cell(row, "amount")) or Decimal("0")
-        except (InvalidOperation, ValueError) as error:
-            raise PosError("pos.amount_unreadable", row=line) from error
-        try:
-            vat = money(cell(row, "vat")) if "vat" in index else None
-        except (InvalidOperation, ValueError) as error:
-            raise PosError("pos.amount_unreadable", row=line) from error
-        vat = vat or Decimal("0")
-        if layout["amount_basis"] == "exclusive":
-            amount += vat
         meaning = _meaning(layout, *(cell(row, name) for name in ("kind", "status") if name in index))
         key = (number, day)
         receipt = found.get(key)
         if receipt is None:
             receipt = found[key] = Receipt(number, day)
             sequence.append(receipt)
-        receipt.amount += amount
-        receipt.vat += vat
-        receipt.rows.append(line)
-        entries.append((receipt, amount, vat))
+        add(receipt, row, line)
         if meaning != "sale":
             receipt.meaning = "void" if "void" in (meaning, receipt.meaning) else meaning
         label = cell_text(cell(row, "payment"))
         if label and not receipt.payment:
             receipt.payment = label[:pos_contract.LABEL_MAX]
-        if "item" in index:
-            try:
-                qty = quantity(cell(row, "qty")) if "qty" in index else None
-            except (InvalidOperation, ValueError) as error:
-                raise PosError("pos.amount_unreadable", row=line) from error
-            receipt.lines.append((cell_text(cell(row, "item")), cell_text(cell(row, "sku")),
-                                  Decimal("1") if qty is None else qty, amount))
-        last_day = day
+        current, last_day = receipt, day
     _check_totals(entries, totals)
     kept, voids = [], 0
     for receipt in sequence:

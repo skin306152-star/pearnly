@@ -401,17 +401,86 @@ class TotalRowTests(unittest.TestCase):
         line = next(row for row in terms.splitlines() if row.endswith("\tpos.total_mismatch"))
         self.assertTrue(all(part.strip() for part in line.split("\t")[:4]))
 
-    def test_rows_without_their_own_receipt_number_are_never_receipts(self):
-        headers = ["Date", "Receipt number", "Item", "Quantity", "Total collected", "Payment type"]
-        rows = [["2026-10-13", "B1", "Latte", 1, 65.0, "Card"],
-                ["", "", "Croissant", 1, 80.0, ""],  # 票号空的商品行：不沿用 B1，不算进 B1，也不拿它的付款方式
-                ["", "", "", "", "", "QR"],
-                ["2026-10-13", "B2", "Latte", 1, 65.0, ""],
-                ["", "", "สรุปตามช่องทางชำระ", "", 130.0, "Card"]]  # 没有合计字样的汇总行：不是票，也不当核对数
+    # 商品级导出、票号只写在每张票的第一行（合并单元格）：后面的商品行票号空（L9：「有的话还有商品、数量、单价」）
+    ITEM_HEADERS = ["Date", "Receipt number", "Item", "SKU", "Quantity", "Total collected", "Payment type", "Status"]
+
+    def _item_rows(self, subtotals=False):
+        receipts = [
+            [["2026-10-13", "1-1001", "Latte", "A01", 2, 130.0, "Card", "Closed"],
+             ["", "", "Croissant", "A02", 1, 80.0, "", ""],
+             ["", "", "Free cookie", "C01", 1, 0.0, "", ""]],  # 赠品：有数量、0 元，照样是续行
+            [["2026-10-13", "1-1002", "Latte", "A01", 1, 65.0, "Cash", "Closed"],
+             ["2026-10-14", "", "Croissant", "A02", 2, 160.0, "QR", "Void"]],  # 续行的日期、付款方式、状态都不看
+            [["2026-10-14", "1-1003", "Latte", "A01", 3, 195.0, "Card", "Closed"],
+             ["", "", "", "", "", "", "QR", ""],  # 只有付款方式：不是续行
+             ["", "", "Croissant", "A02", 1, 80.0, "", ""]],
+        ]
+        rows = []
+        for group in receipts:
+            rows += group
+            if subtotals:
+                amount = sum(row[5] for row in group if row[5] != "")
+                rows.append(["", "", f"รวมบิล {group[0][1]}", "", "", amount, "", ""])
+        rows.append(["", "", "", "", "หมายเหตุ: ราคารวม VAT", "", "", ""])  # 备注写着合计字样、没有金额：不核对
+        rows.append(["Total", "", "", "", 11, 710.0, "", ""])
+        return rows
+
+    def _item_parse(self, rows, with_items=False):
+        layout = C.detect(self.ITEM_HEADERS, rows).layout
+        self.assertEqual((layout["columns"]["item"], layout["columns"]["qty"]), ("Item", "Quantity"))
+        return C.parse(self.ITEM_HEADERS, rows, layout, anchor_year=2026, with_items=with_items, first_row=2)
+
+    def test_item_rows_without_a_receipt_number_continue_the_receipt_above(self):
+        found, voids = self._item_parse(self._item_rows(), with_items=True)
+        self.assertEqual(voids, 0)
+        first, second = found
+        self.assertEqual([(d.day, d.gross, d.count, d.first, d.last) for d in found],
+                         [(date(2026, 10, 13), Decimal("435.00"), 2, "1-1001", "1-1002"),
+                          (date(2026, 10, 14), Decimal("275.00"), 1, "1-1003", "1-1003")])
+        # 付款方式只看票自己那一行：1-1002 续行写的 QR 不算，整张票 225 是现金
+        self.assertEqual(first.payments, [("Card", Decimal("210.00")), ("Cash", Decimal("225.00"))])
+        self.assertEqual(second.payments, [("Card", Decimal("275.00"))])
+        self.assertEqual([(line["name"], line["qty"], line["amount"]) for line in first.items],
+                         [("Free cookie", Decimal("1"), Decimal("0.00")), ("Latte", Decimal("3"), Decimal("195.00")),
+                          ("Croissant", Decimal("3"), Decimal("240.00"))])
+        self.assertEqual([(line["name"], line["qty"]) for line in second.items],
+                         [("Latte", Decimal("3")), ("Croissant", Decimal("1"))])
+        self.assertEqual(first.rows, [(2, 6)])
+        receipts, _ = C.receipts(self.ITEM_HEADERS, self._item_rows(),
+                                 C.detect(self.ITEM_HEADERS, self._item_rows()).layout, anchor_year=2026)
+        self.assertEqual([(r.number, r.amount, len(r.lines)) for r in receipts],
+                         [("1-1001", Decimal("210.00"), 3), ("1-1002", Decimal("225.00"), 2),
+                          ("1-1003", Decimal("275.00"), 2)])
+        # 页脚对不上（续行接错、漏读都会这样）：整份停下
+        broken = self._item_rows()
+        broken[-1][5] = 709.99
+        with self.assertRaises(C.PosError) as raised:
+            self._item_parse(broken)
+        self.assertEqual((raised.exception.code, raised.exception.details), ("pos.total_mismatch", {"row": 11}))
+
+    def test_item_rows_with_a_subtotal_per_receipt(self):
+        rows = self._item_rows(subtotals=True)
+        found, _ = self._item_parse(rows, with_items=True)
+        self.assertEqual([(d.gross, d.count) for d in found], [(Decimal("435.00"), 2), (Decimal("275.00"), 1)])
+        self.assertEqual(found[0].payments, [("Card", Decimal("210.00")), ("Cash", Decimal("225.00"))])
+        # 写着合计字样的行一律是合计行，不会被当成续行；合计行之后的商品行不再接到上一张票
+        self.assertEqual(sum(1 for row in rows if C.total_label(row[2])), 3)
+        late = rows[:4] + [["", "", "Croissant", "A02", 1, 80.0, "", ""]] + rows[4:]
+        self.assertEqual(self._item_parse(late)[0][0].gross, Decimal("435.00"))
+        wrong = [list(row) for row in rows]
+        wrong[3][5] = 200.0  # 1-1001 的小计应为 210
+        with self.assertRaises(C.PosError) as raised:
+            self._item_parse(wrong)
+        self.assertEqual((raised.exception.code, raised.exception.details), ("pos.total_mismatch", {"row": 5}))
+
+    def test_rows_that_are_not_item_lines_never_join_a_receipt(self):
+        headers = ["Date", "Receipt number", "Total collected", "Payment type"]
+        rows = [["2026-10-13", "B1", 65.0, "Card"],
+                ["", "", 80.0, "QR"],  # 没有商品一栏的导出：票号空的行不是续行
+                ["2026-10-13", "B2", 65.0, ""]]
         found, _ = C.parse(headers, rows, C.detect(headers, rows).layout, anchor_year=2026)
-        day = found[0]
-        self.assertEqual((day.gross, day.count), (Decimal("130.00"), 2))
-        self.assertEqual(day.payments, [("Card", Decimal("65.00")), ("Cash", Decimal("65.00"))])
+        self.assertEqual((found[0].gross, found[0].payments), (Decimal("130.00"), [("Card", Decimal("65.00")),
+                                                                                  ("Cash", Decimal("65.00"))]))
 
     def test_subtotals_per_day_nested_subtotals_and_a_grand_total(self):
         headers = ["Date", "Bill No", "Total collected", "VAT", "Payment", "Status"]
