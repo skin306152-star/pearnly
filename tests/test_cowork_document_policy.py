@@ -101,6 +101,64 @@ class CertificateFoundFurtherDown(unittest.TestCase):
         self.assertEqual(rules.push_block(fields, {}), "document_policy_needed_withholding_certificate")
 
 
+class CertificateReadWithoutText(unittest.TestCase):
+    """2026-10-13 测试机两张真 50 ทวิ（扫描 PDF、手机照片）：结果里没有原文，标题规则没跑，回来的只有凭证的样子
+    （不是发票、类别空着、读出预扣税额，付款公司在卖方一栏、收款方在买方一栏）。存档这一步按同一条规则认出、照租户的
+    选择走；回放取回的是存下的结果 JSON，校验后同样经过这一步。"""
+
+    PAYER = "0105599210021"
+    RENT = {"is_not_invoice": True, "document_type": "other", "document_flag": "",
+            "invoice_number": "09/2569 เลขที่ 001", "date": "2026-09-02",
+            "seller_name": "บริษัท สยามทดสอบ จำกัด", "seller_tax": PAYER,
+            "buyer_name": "บริษัท สายสุข พลาซ่า จำกัด", "buyer_tax": "0105599220141", "total_amount": "25000.00",
+            "wht_amount": "1250.00"}
+    PERSON = {**RENT, "invoice_number": "09/2569 เลขที่ 002", "date": "2026-09-30", "buyer_name": "นายสมศักดิ์ ทดสอบ",
+              "buyer_tax": "1990100000029", "total_amount": None, "wht_amount": "180.00"}
+
+    def replayed(self, *reads):
+        pages = [PipelinePageResult(page_number=i, invoice=invoice(**values)) for i, values in enumerate(reads, 1)]
+        result = PipelineResult(pages=pages, page_count=len(pages), elapsed_ms=1, estimated_cost_thb=Decimal("0"))
+        return PipelineResult.model_validate_json(result.model_dump_json(), context={"anchor_year": 2026})
+
+    def plan(self, policy, *reads):
+        result = self.replayed(*reads)
+        return prepare_history_batch(result, expected_page_count=len(result.pages), workspace="W", source="manual",
+                                     document_policy=policy)
+
+    def test_skip_keeps_both_as_references_and_no_record(self):
+        policy = {"withholding_certificate": "skip"}
+        for read in (self.RENT, self.PERSON):
+            plan = self.plan(policy, read)
+            self.assertEqual((plan["state"], plan["groups"]), ("not_invoice", []))
+            (_position, page), = rules.skipped_certificates(plan["raw_pages"], policy)
+            self.assertEqual((page["fields"]["document_flag"], page["fields"]["seller_tax"]),
+                             ("withholding_certificate", self.PAYER))
+            self.assertIn("document_policy: shape withholding_certificate", page["_validation_warnings"])
+
+    def test_enter_or_no_choice_keeps_a_record_with_the_flag(self):
+        for policy, block in ((None, "document_policy_needed_withholding_certificate"),
+                              ({"withholding_certificate": "enter"}, None)):
+            plan = self.plan(policy, self.PERSON)
+            group, = plan["groups"]
+            fields = group["pages"][0]["fields"]
+            self.assertEqual((bool(fields.get("is_not_invoice")), fields["document_flag"]),
+                             (False, "withholding_certificate"))
+            self.assertEqual(rules.push_block(fields, rules.normalize(policy)), block)
+            self.assertEqual(rules.skipped_certificates(plan["raw_pages"], rules.normalize(policy)), [])
+
+    def test_an_invoice_with_tax_withheld_is_untouched(self):
+        bill = {**self.RENT, "is_not_invoice": False, "document_type": "tax_invoice",
+                "invoice_number": "SP-RC-2609-045", "seller_tax": "0105599220141", "buyer_tax": self.PAYER}
+        plan = self.plan({"withholding_certificate": "skip"}, bill)
+        fields = plan["groups"][0]["pages"][0]["fields"]
+        self.assertEqual((bool(fields.get("is_not_invoice")), fields["document_flag"]), (False, ""))
+        self.assertFalse(any(w.startswith("document_policy:") for w in plan["raw_pages"][0]["_validation_warnings"]))
+        # 和票扫在一起、选了不录入的凭证：票成一张记录，凭证挂上作证据并存参考记录
+        plan = self.plan({"withholding_certificate": "skip"}, bill, self.RENT)
+        self.assertEqual([g["pages"][0]["fields"]["invoice_number"] for g in plan["groups"]], ["SP-RC-2609-045"])
+        self.assertEqual(len(rules.skipped_certificates(plan["raw_pages"], {"withholding_certificate": "skip"})), 1)
+
+
 class Evidence(unittest.TestCase):
     def test_a_non_invoice_page_with_its_own_number_and_total_is_evidence_not_a_record(self):
         plan = prepare(TAX, {"document_type": "other", "invoice_number": "IV1 to IV9", "total_amount": "900",

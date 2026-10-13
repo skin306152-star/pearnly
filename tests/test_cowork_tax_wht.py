@@ -542,5 +542,62 @@ class CertificatePolicy(unittest.TestCase):
         self.assertEqual(len(document_policy.skipped_certificates(pages, {"withholding_certificate": "skip"})), 1)
 
 
+# 2026-10-13 测试机两张真 50 ทวิ（扫描 PDF、手机照片）的读数：结果里没有原文，标题规则没跑，类别空着；
+# 付款公司在卖方一栏，收款方（公司 / 个人）在买方一栏。
+PAYER = "0105599210021"
+PLAZA = "0105599220141"
+PERSON = "1990100000029"
+RENT_CERTIFICATE = {"is_not_invoice": True, "document_type": "other", "document_flag": "",
+                    "invoice_number": "09/2569 เลขที่ 001", "date": "2026-09-02",
+                    "seller_name": "บริษัท สยามทดสอบ จำกัด", "seller_tax": PAYER,
+                    "buyer_name": "บริษัท สายสุข พลาซ่า จำกัด", "buyer_tax": PLAZA,
+                    "total_amount": "25000.00", "wht_amount": "1250.00"}
+PERSON_CERTIFICATE = {"is_not_invoice": True, "document_type": "other", "document_flag": "",
+                      "invoice_number": "09/2569 เลขที่ 002", "date": "2026-09-30",
+                      "seller_name": "บริษัท สยามทดสอบ จำกัด", "seller_tax": PAYER,
+                      "buyer_name": "นายสมศักดิ์ ทดสอบ", "buyer_tax": PERSON, "wht_amount": "180.00"}
+
+
+class CertificateShape(unittest.TestCase):
+    """认 50 ทวิ 的共用规则（`contracts.document_policy`）：原文标题打的类别，或读数本身就是凭证的样子。"""
+
+    def test_the_two_real_certificates_are_certificates(self):
+        for fields in (RENT_CERTIFICATE, PERSON_CERTIFICATE, {**PERSON_CERTIFICATE, "is_not_invoice": "true"},
+                       {**RENT_CERTIFICATE, "seller_tax": PAYER[1:]}):   # 读丢开头 0 的按共用规则补回
+            self.assertTrue(document_policy.certificate_shape(fields), fields)
+            self.assertEqual(document_policy.document_class(fields), "withholding_certificate")
+
+    def test_other_pages_are_not(self):
+        slip = {"is_not_invoice": True, "document_type": "other", "seller_tax": PAYER, "buyer_tax": PLAZA,
+                "total_amount": "25000.00", "wht_amount": ""}
+        self.assertEqual(document_policy.document_class(slip), "")                      # 转账凭条：没有预扣税额
+        self.assertEqual(document_policy.document_class({**slip, "document_type": "payment_evidence"}),
+                         "payment_evidence")
+        invoice_ = {**RENT_CERTIFICATE, "is_not_invoice": False, "document_type": "tax_invoice"}
+        self.assertEqual(document_policy.document_class(invoice_), "")                  # 印了预扣税额的票：不碰
+        letter = {**RENT_CERTIFICATE, "buyer_tax": ""}
+        self.assertEqual(document_policy.document_class(letter), "")                    # 只有一边有税号的信函
+        for broken in ({**RENT_CERTIFICATE, "buyer_tax": "0105599220142"},              # 校验位不对
+                       {**RENT_CERTIFICATE, "buyer_tax": PAYER},                         # 两边同一个号
+                       {**RENT_CERTIFICATE, "wht_amount": "0.00"}, {**RENT_CERTIFICATE, "wht_amount": "n/a"}):
+            self.assertEqual(document_policy.document_class(broken), "", broken)
+
+    def test_the_tenant_choice_applies_like_a_flagged_certificate(self):
+        pages = [{"page_index": 1, "fields": dict(RENT_CERTIFICATE)}]
+        document_policy.apply_to_pages(pages, {"withholding_certificate": "skip"})
+        fields = pages[0]["fields"]
+        self.assertEqual((fields["is_not_invoice"], fields["document_flag"]), (True, "withholding_certificate"))
+        self.assertEqual(len(document_policy.skipped_certificates(pages, {"withholding_certificate": "skip"})), 1)
+        for policy, block in (({}, "document_policy_needed_withholding_certificate"),
+                              ({"withholding_certificate": "enter"}, None)):
+            pages = [{"page_index": 1, "fields": dict(PERSON_CERTIFICATE)}]
+            document_policy.apply_to_pages(pages, policy)
+            fields = pages[0]["fields"]
+            # 算票（推送前没选的停下来问）；类别靠标记留着，不再靠「不是发票」
+            self.assertEqual((fields["is_not_invoice"], fields["document_flag"]), (False, "withholding_certificate"))
+            self.assertEqual(document_policy.push_block(fields, policy), block)
+            self.assertEqual(document_policy.skipped_certificates(pages, policy), [])
+
+
 if __name__ == "__main__":
     unittest.main()

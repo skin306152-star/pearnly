@@ -4,13 +4,21 @@
 自动套用。选「不录入」的，识别存档时直接按非发票处理；没选过的推送前停下来等人选。
 
 类别来自识别读数，不为它多调模型或加长提示词（用户 2026-10-07 选零成本）：转账凭条是票种 ``payment_evidence``；
-预扣税凭证是原文标题认出的 ``document_flag``（`ocr.engine.runner.mark_title`）。
+预扣税凭证是原文标题认出的 ``document_flag``（`ocr.engine.runner.mark_title`），或读数本身就是凭证的样子
+（:func:`certificate_shape`：没有原文、标题规则没机会跑的页，2026-10-13 测试机）。
+
+认类别只在这里一处（:func:`document_class`）：识别存档（`ocr.results.prepare_history_batch` 调 :func:`apply_to_pages`，
+真识别、Cloud Run 回来的、回放压测取回的旧结果都走这一步）、推送前的门槛、复核页的选择、CC 与 ภ.ง.ด.3 / 53 草稿
+（`tax.wht`）都用它，同一张单据不因读法或入口不同而结果不同。
 """
 from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
 
-POLICY_CLASSES = ("payment_evidence", "withholding_certificate")
+from pearnly_core.tax_documents.amounts import digits, money, repaired_tax_id, valid_tax_id
+
+CERTIFICATE = "withholding_certificate"
+POLICY_CLASSES = ("payment_evidence", CERTIFICATE)
 ENTER, SKIP = "enter", "skip"
 VALUES = (ENTER, SKIP)
 NEEDED_PREFIX = "document_policy_needed_"
@@ -18,13 +26,41 @@ SKIPPED_PREFIX = "document_policy_skip_"
 WARNING_PREFIX = "document_policy:"
 
 
+def _not_invoice(fields: Mapping[str, Any]) -> bool:
+    value = fields.get("is_not_invoice")
+    return value.strip().lower() == "true" if isinstance(value, str) else value is True
+
+
+def _tax_id(value) -> str:
+    """有效的 13 位泰国税号（读丢开头 0 的按共用规则补回，MOD-11 校验位要对）；不是回空串。
+    个人的 13 位身份证号与法人税号是同一种号码、同一种校验位。"""
+    found = digits(repaired_tax_id(str(value or "").strip()))
+    return found if len(found) == 13 and valid_tax_id(found) else ""
+
+
+def certificate_shape(fields: Mapping[str, Any]) -> bool:
+    """读数本身就是 50 ทวิ 的样子：已判「不是发票」、印了预扣税额（大于 0），付款方与收款方两边都有各自有效的 13 位
+    税号（收款方是个人时是他的 13 位身份证号）。
+
+    2026-10-13 测试机两张真凭证（扫描 PDF、手机照片）：结果里没有原文，标题规则（`ocr.engine.runner.mark_title`）没机会
+    跑，回来的是不是发票、类别空着、读出预扣税额，付款公司在卖方一栏、收款方（公司或个人）在买方一栏。只认已判「不是发票」
+    的页，按票读的页（印了预扣税额的费用票）从不因此改成凭证；只有一边有税号的信函、没有预扣税额的转账凭条都不算。"""
+    fields = fields if isinstance(fields, Mapping) else {}
+    if not _not_invoice(fields) or (money(fields.get("wht_amount")) or 0) <= 0:
+        return False
+    payer, payee = _tax_id(fields.get("seller_tax")), _tax_id(fields.get("buyer_tax"))
+    return bool(payer and payee and payer != payee)
+
+
 def document_class(fields: Mapping[str, Any]) -> str:
-    """口径类类别；不是口径类回空。"""
+    """口径类类别；不是口径类回空。先认原文标题打的类别，再认票种（转账凭条），最后认读数的样子（:func:`certificate_shape`）。"""
     fields = fields if isinstance(fields, Mapping) else {}
     flag = str(fields.get("document_flag") or "")
     if flag in POLICY_CLASSES:
         return flag
-    return "payment_evidence" if fields.get("document_type") == "payment_evidence" else ""
+    if fields.get("document_type") == "payment_evidence":
+        return "payment_evidence"
+    return CERTIFICATE if certificate_shape(fields) else ""
 
 
 def normalize(raw: Any) -> Dict[str, str]:
@@ -47,7 +83,10 @@ def apply_to_pages(pages, policy: Mapping[str, str]) -> None:
     """识别存档前（逐页展开的读数，就地改）：口径类按这个租户的选择定这一页算不算票。
 
     选了「不录入」→ 记成非发票；选了「录入」或还没选 → 算票（还没选的推送前会停下来问）。原文标题认出的预扣税凭证
-    在引擎里已判成非发票，这里同样按选择来，同一类单据不因读法不同而结果不同。"""
+    在引擎里已判成非发票，这里同样按选择来，同一类单据不因读法不同而结果不同。
+
+    按读数样子认出的凭证（:func:`certificate_shape`）先把类别写进 ``document_flag``：之后算票的页不再是「不是发票」，
+    类别靠这个标记留着，推送门槛、参考记录与报税草稿看到的和原文标题认出的完全一样。"""
     for page in pages:
         fields = page.get("fields") if isinstance(page, dict) else None
         if not isinstance(fields, dict):
@@ -55,6 +94,9 @@ def apply_to_pages(pages, policy: Mapping[str, str]) -> None:
         kind = document_class(fields)
         if not kind:
             continue
+        if kind == CERTIFICATE and fields.get("document_flag") != CERTIFICATE:
+            fields["document_flag"] = CERTIFICATE
+            page.setdefault("_validation_warnings", []).append(f"{WARNING_PREFIX} shape {kind}")
         skip = policy.get(kind) == SKIP
         if bool(fields.get("is_not_invoice")) != skip:
             fields["is_not_invoice"] = skip
@@ -64,15 +106,15 @@ def apply_to_pages(pages, policy: Mapping[str, str]) -> None:
 def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
     """这个租户选了「不录入」的预扣税凭证页：[(在读数里的序号, 页)]。只存一条参考记录给报税草稿读
     （`history.certificates`，用户 2026-10-13），不成票、不进录入待办、不推送、不扣费。"""
-    if policy.get("withholding_certificate") != SKIP:
+    if policy.get(CERTIFICATE) != SKIP:
         return []
     found = []
     for position, page in enumerate(pages or []):
         fields = page.get("fields") if isinstance(page, dict) else None
-        if isinstance(fields, dict) and document_class(fields) == "withholding_certificate":
+        if isinstance(fields, dict) and document_class(fields) == CERTIFICATE:
             found.append((position, page))
     return found
 
 
-__all__ = ["ENTER", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES", "apply_to_pages",
-           "document_class", "normalize", "push_block", "skipped_certificates"]
+__all__ = ["CERTIFICATE", "ENTER", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES",
+           "apply_to_pages", "certificate_shape", "document_class", "normalize", "push_block", "skipped_certificates"]
