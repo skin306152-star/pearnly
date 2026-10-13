@@ -151,6 +151,14 @@ def prepare(history, connection, request_key, expected_history_version, expected
                           selected['config'], preparation, fixed,
                           siblings=lambda: _same_company(loaded, target.account_set))
     if decision["needed"]:
+        masters = connections.ensure_account_masters(loaded.doc.name, target.account_set)
+        wait = masters_wait(masters, decision["needed"])
+        if wait:
+            # 要选的科目没有可选值（科目表还没读到）：不留一条「待人选」却没得选的记录，说清楚、读到后再推。
+            # 读的请求先提交（下面抛错会整笔回滚）；没到这一步时请求随这次准备一起提交，中途不提交、不放锁。
+            if masters.get("requested"):
+                frappe.db.commit()
+            frappe.throw(wait["message"])
         # 拿不准的项（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）还没人选：不发小助手，停在这里等人选一次。
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         row = ledger.reserve(context=context, request_key=request_key, frozen_target={**asdict(target),
@@ -295,6 +303,7 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
                           config, preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set))
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
+    masters = account_masters(loaded.doc.name, target.account_set)
     kinds = {item["kind"] for item in decision["needed"]}
     options = {}
     if "item" in kinds:
@@ -304,10 +313,42 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     if kinds & {"account", "receipt"}:
         options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
-    result = {"needed": decision["needed"], "options": options, "account_set": target.account_set}
+    result = {"needed": decision["needed"], "options": options, "account_set": target.account_set,
+              "masters": masters}
+    wait = masters_wait(masters, decision["needed"])
+    if wait:
+        # 要选的科目还没有可选值（这份账套的科目表还没读到）：先等电脑读，不拿空的科目表请人选
+        result["wait"] = wait
     if fixed:
         result["fixed"] = dict(fixed)  # 这张票已定的（定时任务默认处理），不再问
     return result
+
+
+# 可选值来自这份账套科目表的选择（费用科目、POS 收款科目）：科目表没读到时这几项没法选。对方档、存货只在主档读到时才问。
+CHART_KINDS = ("account", "receipt")
+MASTERS_TEXT = {"reading": "cowork.masters.reading", "offline": "cowork.masters.offline",
+                "update_needed": "cowork.masters.update_needed", "failed": "cowork.masters.failed",
+                "unavailable": "cowork.masters.unavailable"}
+
+
+def account_masters(connection, account_set):
+    """这份 Express 账套的主档在不在；缺的、读过很久的请电脑读（`connections.ensure_account_masters`，同一时刻只排一个）。
+    建了请求就当场提交（网页取「要选的项」是 GET，不提交就被回滚掉）。"""
+    found = connections.ensure_account_masters(connection, account_set)
+    if found.pop("requested", False):
+        frappe.db.commit()
+    return found
+
+
+def masters_wait(masters, needed):
+    """要人选的项里有靠科目表的、而这份账套的科目表此刻不能用：回 ``{"state", "message", "error_code"?}``，否则 None。"""
+    state = (masters or {}).get("state") or "ready"
+    if state == "ready" or not any(item.get("kind") in CHART_KINDS for item in needed or []):
+        return None
+    wait = {"state": state, "message": _(MASTERS_TEXT.get(state, MASTERS_TEXT["reading"]))}
+    if masters.get("error_code"):
+        wait["error_code"] = masters["error_code"]
+    return wait
 
 
 def save_choices(history, connection, account_set_key, items):

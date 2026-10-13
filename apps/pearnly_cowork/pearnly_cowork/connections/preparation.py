@@ -63,9 +63,24 @@ def reported_writable(report, account, root):
     return False
 
 
+def account_reported(doc, account):
+    """这份账套按单个账套读回来的原始主档（存在这份账套自己的目录快照里，`collector` / `snapshots.publish`），
+    带读它的凭据与代次（``_credential`` / ``_generation``）。没读过、连接配置变过（快照指针清空）回 ``{}``。只读。"""
+    _, _, key = state.scope(account, 'express')
+    head = state.heads(doc).get(key) or {}
+    if not account or not head.get('snapshot_id'):
+        return {}
+    row = frappe.db.get_value(state.SNAPSHOT, head['snapshot_id'], ['connection', 'connection_revision', 'body'],
+                              as_dict=True)
+    if not row or row.connection != doc.name or int(row.connection_revision or 0) != int(doc.record_revision or 0):
+        return {}
+    cache = (model.parse(row.body, {}) or {}).get('reported')
+    return cache if isinstance(cache, dict) else {}
+
+
 def _account_cache(report, account, doc):
-    """非默认账套：用按单个账套刷新带回、且出自这份凭据的主档（选账套时已申请刷新）；没有就空着。"""
-    cache = (report.get('_account_caches') or {}).get(account) or {}
+    """非默认账套：用按单个账套读回、且出自这份凭据的主档（`account_reported`）；没有就空着。"""
+    cache = account_reported(doc, account)
     if cache.get('_credential') != doc.report_credential or cache.get('_generation') != doc.report_generation:
         return {}
     reported = {k: deepcopy(cache[k]) for k in model.REPORTED_KEYS if k in cache}

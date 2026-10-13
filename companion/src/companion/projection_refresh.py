@@ -193,6 +193,13 @@ def _probe_account(account_set_key: str, roots: list[str]) -> Optional[dict]:
     return None
 
 
+def _under(item: dict, roots: Optional[list[str]]) -> bool:
+    """这份账套在本机授权的数据根下（与推送写入同一条规则，`worker._task_settings`）：清单行带了数据根就要在授权里。"""
+    root = _norm_path(item.get("root"))
+    allowed = {_norm_path(value) for value in roots or () if _norm_path(value)}
+    return not root or not allowed or root in allowed
+
+
 def collect_account(
     state: dict,
     account_sets: list[dict],
@@ -200,6 +207,10 @@ def collect_account(
     now: float,
     roots: Optional[list[str]] = None,
 ) -> tuple[Optional[dict], Optional[list], float, str, bool]:
+    """云端请读的那一份账套（可以不是本机当前选的那份：一台电脑管着很多家客户的账套）。
+
+    只读（目录、科目表、商品 / 客户 / 供应商 / 部门、存货科目组），不改本机所选账套；能读哪些与推送写入同一条规则：
+    在授权的数据根下、登录清单里有、可写（`worker._task_settings`）。"""
     from .catalog_refresh import request_target_catalog, target_refresh_error
 
     if _timed_out(state, now):
@@ -211,6 +222,7 @@ def collect_account(
             for item in account_sets
             if _norm_path(item.get("path")) == _norm_path(account_set_key)
             and item.get("writable") is not False
+            and _under(item, roots)
         ),
         None,
     )

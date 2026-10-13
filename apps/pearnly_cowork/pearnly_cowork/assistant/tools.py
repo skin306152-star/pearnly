@@ -324,6 +324,35 @@ def _choices_view(name, connection, account_set, posting_kind):
     return application.choices_view(name, connection, account_set, posting_kind)
 
 
+# 这份账套的科目表还没读到时（`push.application.service.masters_wait`）给模型的说法：已请电脑读，别拿空的科目表请人选。
+MASTERS_WAIT_SECONDS = 45
+MASTERS_WAITING = {
+    "reading": "CC Desktop is still reading this account set's chart of accounts from the computer. Check again "
+               "shortly; do not ask the user to choose an account yet.",
+    "offline": "The computer with CC Desktop is offline, so this account set's chart of accounts cannot be read. "
+               "Ask the user to turn it on or open CC Desktop there.",
+    "update_needed": "CC Desktop on that computer must be updated to read this account set's chart of accounts.",
+    "failed": "The computer could not read this account set's chart of accounts. It may have been removed or "
+              "renamed in Express, or its folder is offline.",
+    "unavailable": "This account set is not on the computer's list of account sets. Choose another account set.",
+}
+
+
+def _masters_note(state) -> str:
+    return MASTERS_WAITING.get(str(state or ""), MASTERS_WAITING["reading"])
+
+
+def _choices_waited(name, connection, account_set, posting_kind):
+    """同 `_choices_view`；科目表正在读时最多等 `MASTERS_WAIT_SECONDS`（一般十几秒读完），读到了就给可选的科目。"""
+    view = _choices_view(name, connection, account_set, posting_kind)
+    deadline = time.monotonic() + MASTERS_WAIT_SECONDS
+    while (view.get("wait") or {}).get("state") == "reading" and time.monotonic() < deadline:
+        time.sleep(3)
+        frappe.db.rollback()  # 电脑读完是在别的请求里提交的
+        view = _choices_view(name, connection, account_set, posting_kind)
+    return view
+
+
 def _key(name, version, last) -> str:
     seed = f"{name}\0{version}\0{last or ''}"
     return "assistant:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
@@ -355,6 +384,15 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
         frappe.db.commit()
         return {"document": name, "status": "failed", "reason": reason}
     needed = view.get("needed") or []
+    wait = view.get("wait")
+    if wait and wait.get("state") in ("reading", "offline"):
+        # 要选的科目还没有可选值（已请电脑读这份账套的科目表）：不记成「要人选」，读到后再推
+        return {"document": name, "status": "waiting_for_cc", "reason": wait["state"],
+                "note": _masters_note(wait["state"])}
+    if wait:
+        push_state.record_failure(name, wait["message"])
+        frappe.db.commit()
+        return {"document": name, "status": "failed", "reason": wait["state"], "note": _masters_note(wait["state"])}
     if needed:
         reason = "choice_needed:" + ",".join(dict.fromkeys(item["kind"] for item in needed))
         push_state.record_failure(name, reason)
@@ -576,8 +614,7 @@ def recognize_attachments(tool_input) -> str:
     if choices.get("target") == "express" and choices.get("account_set_key"):
         # 同网页选定 Express 账套后：请小助手趁识别时读这份账套，推送前就有它的目录与主档（读不到不拦识别）
         try:
-            connections_api.request_refresh(choices["connection"], "assistant:" + uuid.uuid4().hex,
-                                            choices["account_set_key"])
+            connections_api.ensure_account_masters(choices["connection"], choices["account_set_key"])
             frappe.db.commit()
         except (frappe.ValidationError, frappe.PermissionError):
             frappe.db.rollback()
@@ -691,7 +728,7 @@ def pos_import(tool_input) -> str:
                                    "Express account set from cowork_intake_options"} for f in file_ids]})
     try:
         # 同识别：请小助手趁这时读这份账套，推送前就有它的科目（收款科目要从里面选）
-        connections_api.request_refresh(connection, "assistant:" + uuid.uuid4().hex, account_set)
+        connections_api.ensure_account_masters(connection, account_set)
         frappe.db.commit()
     except (frappe.ValidationError, frappe.PermissionError):
         frappe.db.rollback()
@@ -883,7 +920,14 @@ def stock_group(tool_input) -> str:
         result = _connection_call(connections_api.choose_stock_acc_group, name, key, str(tool_input["acccod"]))
         frappe.db.commit()
         return _json(_account_named(result, name))
-    return _json(_account_named(_connection_call(connections_api.stock_acc_group, name, key), name))
+    view = _connection_call(connections_api.stock_acc_group, name, key)
+    if view.get("known") is False:
+        # 这份账套还没读过：请电脑读（同一时刻只排一个），过一会儿再看就有候选了
+        masters = _connection_call(connections_api.ensure_account_masters, name, key)
+        frappe.db.commit()
+        if masters.get("state"):
+            view = {**view, "status": masters["state"], "note": _masters_note(masters["state"])}
+    return _json(_account_named(view, name))
 
 
 def mrerp_setup(tool_input) -> str:
@@ -1129,11 +1173,17 @@ def push_choices(tool_input) -> str:
     if not connection:
         return _json({"document": name, "status": "failed", "reason": "no_push_target"})
     try:
-        view = _choices_view(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind)
+        view = _choices_waited(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "failed", "reason": str(error)[:300]})
+    wait = view.get("wait")
+    if wait:
+        return _json(_account_named({"document": name, "connection": connection,
+                                     "account_set": view.get("account_set") or account_set,
+                                     "status": wait["state"], "note": _masters_note(wait["state"])},
+                                    connection, "account_set"))
     search = str(tool_input.get("search") or "").strip().casefold()
     options = {}
     for kind, rows in (view.get("options") or {}).items():
@@ -1982,6 +2032,10 @@ def folder_task_options(tool_input) -> str:
         readers.append({"reader": reader.get("connection"), "computer": reader.get("label"), "online": reader.get("fresh"),
                         "roots": roots})
     out = {"computers": readers, "stock_group": data.get("stock_group")}
+    masters = data.get("masters") or {}
+    if masters.get("state") not in (None, "ready") and data.get("accounts") is None:
+        out["accounts_status"] = masters["state"]
+        out["accounts_note"] = _masters_note(masters["state"])
     for kind in ("accounts", "departments"):
         rows = [r for r in data.get(kind) or [] if not search or search in f"{r.get('code')} {r.get('name')}".casefold()]
         if data.get(kind) is not None:
@@ -2928,7 +2982,8 @@ TOOLS = [
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time; each "
                     "result says sent, needs_choice (get the choices with cowork_push_choices, ask the user, save them "
-                    "and push again), failed with a reason, or already_success / already_pending (already entered or "
+                    "and push again), waiting_for_cc (the computer is still reading that account set's chart; push "
+                    "again shortly), failed with a reason, or already_success / already_pending (already entered or "
                     "on its way; it is not pushed again: a pushed document can only be changed by a person in "
                     "Express, then read back with cowork_express_readback). connection and account_set_key choose "
                     "where to push (from cowork_intake_options), e.g. for a recognize-only document; left out, the "
@@ -2945,7 +3000,8 @@ TOOLS = [
                     "of a POS payment method; kinds in needed) "
                     "and the allowed values (up to 30 per kind; pass search to narrow by code or name). Use it when a "
                     "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
-                    "again. For a document from a scheduled folder task pushed to that task's account set, the "
+                    "again. status reading means the computer is still reading that account set's chart: check again "
+                    "shortly. For a document from a scheduled folder task pushed to that task's account set, the "
                     "task's default handling (task_defaults) is applied and not asked; to change it, change the task.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
@@ -2992,7 +3048,8 @@ TOOLS = [
      "description": "What a scheduled folder task can use, like the task form: each computer (reader) that reads "
                     "folders, whether it is online, the folders opened to the website in CC Desktop on it (root_id and "
                     "subfolders; up to 50, pass search), and for Express with account_set_key the accounts, departments "
-                    "and stock account group for defaults. files is how many photos and PDFs each folder holds now, "
+                    "and stock account group for defaults (accounts_status reading: still being read from the computer, "
+                    "check again shortly). files is how many photos and PDFs each folder holds now, "
                     "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many), "
                     "pos_files the POS exports (Excel / CSV) that a sales task into Express also enters; a root "
                     "without files means that computer has not reported counts, so the number is not known. Folders "

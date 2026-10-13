@@ -466,5 +466,46 @@ class PosPayload(unittest.TestCase):
         self.assertIn("อย่างย่อ", constants["VAT_DESCRIPTION"])
 
 
+class AnyAccountSetRead(unittest.TestCase):
+    """云端按需请电脑读它没选的那份账套（2026-10-13）：服务端 `connections/refresh.py`（租）、`connections/reports.py`
+    （收）↔ 小助手 `projection_refresh.py`（读与回执）、`worker._run_periodic`（心跳）。"""
+
+    CONNECTIONS = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "connections"
+
+    def test_this_helper_reads_any_account_set_the_server_hands_it(self):
+        """服务端只把电脑没选的账套交给 `ANY_ACCOUNT_SET_MIN_VERSION` 及以上：仓库里这版不能低于它。"""
+        version = module_constants(COMPANION / "version.py")["VERSION"]
+        minimum = module_constants(self.CONNECTIONS / "refresh.py")["ANY_ACCOUNT_SET_MIN_VERSION"]
+        self.assertGreaterEqual(tuple(int(part) for part in version.split(".")),
+                                tuple(int(part) for part in minimum.split(".")))
+
+    def test_the_lease_command_has_the_keys_the_helper_reads(self):
+        server = _literal(SERVER / "queue_contracts.py", "_REFRESH_KEYS")
+        command = (COMPANION / "projection_refresh.py").read_text(encoding="utf-8")
+        reads = set(re.findall(r'pending\.get\("([a-z_]+)"\)', command))
+        self.assertEqual(reads, set(server))
+        self.assertIn("'account_set_key': row.account_set_key, 'scope_kind': row.scope_kind",
+                      (self.CONNECTIONS / "refresh.py").read_text(encoding="utf-8"))
+
+    def test_the_server_reads_the_refresh_receipt_and_version_the_helper_sends(self):
+        helper = (COMPANION / "projection_refresh.py").read_text(encoding="utf-8")
+        server = (self.CONNECTIONS / "reports.py").read_text(encoding="utf-8")
+        for key in ("master_refresh_request_id", "master_refresh_scope", "master_refresh_account_set",
+                    "master_refresh_error"):
+            self.assertTrue(quoted(helper, key) and quoted(server, key), key)
+        # 能不能交别的账套看心跳报的版本：每一拍都报
+        self.assertIn("companion_version=VERSION", (COMPANION / "worker.py").read_text(encoding="utf-8"))
+        self.assertTrue(quoted(server, "companion_version"))
+        self.assertIn("desktop_version(doc)", (self.CONNECTIONS / "refresh.py").read_text(encoding="utf-8"))
+
+    def test_reading_follows_the_write_rules_and_never_changes_the_selection(self):
+        source = method_source_of(COMPANION / "projection_refresh.py", "collect_account")
+        self.assertIn("item.get('writable') is not False", source)
+        self.assertIn("_under(item, roots)", source)
+        self.assertNotIn("cfg.update", source)
+        periodic = method_source_of(COMPANION / "worker.py", "_run_periodic")
+        self.assertIn("roots=[root or '', *authorized]", periodic)
+
+
 if __name__ == "__main__":
     unittest.main()

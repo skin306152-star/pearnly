@@ -46,6 +46,10 @@ class LineFlowTest(unittest.TestCase):
         refresh = mock.patch("pearnly_cowork.connections.service.request_refresh")
         self.refresh = refresh.start()
         self.addCleanup(refresh.stop)
+        # 选定账套后请电脑读这份账套：同一时刻只排一个、不打断正在读的（`ensure_account_masters`）
+        read = mock.patch("pearnly_cowork.connections.service.ensure_account_masters")
+        self.read = read.start()
+        self.addCleanup(read.stop)
         # 存货科目组：默认小助手还没读过这份账套（不问）；各测试按需改。
         self.stock_view = {"known": False, "groups": [], "chosen": None}
         stock = mock.patch("pearnly_cowork.connections.service.stock_acc_group",
@@ -138,8 +142,8 @@ class LineFlowTest(unittest.TestCase):
         self.assertEqual((payload["connection"], payload["account_set_key"], payload["posting_kind"]),
                          ("CON-X", r"s:\2568\exp68\68acme", "stock"))
         # 选定 Express 账套就让助手读这份账套的主档（推送前的库存检查用）；MR.ERP 不需要。
-        self.assertEqual(self.refresh.call_args.args[0], "CON-X")
-        self.assertEqual(self.refresh.call_args.args[2], r"s:\2568\exp68\68acme")
+        self.assertEqual(self.read.call_args.args, ("CON-X", r"s:\2568\exp68\68acme"))
+        self.refresh.assert_not_called()
 
     def express_stock(self):
         with mock.patch.object(flow, "_connections", return_value={"express": EXPRESS}), \
@@ -181,6 +185,7 @@ class LineFlowTest(unittest.TestCase):
         flow.start("U1", "tok")
         self.tap("MR.ERP")
         self.refresh.assert_not_called()
+        self.read.assert_not_called()
 
     def test_mrerp_purchase_is_credit_only(self):
         self.books = MRERP_BOOKS[:1]

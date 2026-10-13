@@ -199,8 +199,11 @@ class ServiceEntrypoints(unittest.TestCase):
         service.scope.require = lambda *a: None
         service.storage.read = lambda history, **k: doc
         service.connections.read_for_push = lambda *a, **k: loaded
+        service.connections.ensure_account_masters = lambda *a, **k: dict(self.masters)
         service._express_facts = lambda *a: facts
         service._document_block = lambda doc: None
+
+    masters = {"state": "ready", "present": True}
 
     def test_choices_view_applies_and_shows_the_task_defaults(self):
         service, _frappe_module, _calls = _service(hooks=["p.one"], providers={"p.one": {"account": "5300"}})
@@ -214,6 +217,24 @@ class ServiceEntrypoints(unittest.TestCase):
         seen.clear()
         view = service.choices_view("H1", "C1", BOOK, None, fixed={})
         self.assertEqual((seen, "fixed" in view), ([{}], False))
+
+    def test_choices_view_waits_for_a_chart_still_being_read(self):
+        """推往电脑没选的账套、科目表还没读到：要选费用科目却没有可选值时回 `wait`（服务端已请电脑读），不给空列表。"""
+        service, frappe_module, _calls = _service(hooks=[], providers={})
+        self._wired(service, config={})
+        commits = []
+        frappe_module.db.commit = lambda: commits.append(1)
+        service._decisions = lambda *a, **k: {"needed": [{"kind": "account", "subject": "S"}], "applied": {}}
+        self.masters = {"state": "reading", "requested": True}
+        view = service.choices_view("H1", "C1", BOOK, None)
+        self.assertEqual((view["wait"]["state"], view["masters"]), ("reading", {"state": "reading"}))
+        self.assertEqual(commits, [1])  # 建了读的请求：当场提交（网页取「要选的项」是 GET）
+        # 不靠科目表的项（付款方式）照常问；科目表在的时候也照常问
+        service._decisions = lambda *a, **k: {"needed": [{"kind": "payment", "subject": "S"}], "applied": {}}
+        self.assertNotIn("wait", service.choices_view("H1", "C1", BOOK, None))
+        service._decisions = lambda *a, **k: {"needed": [{"kind": "account", "subject": "S"}], "applied": {}}
+        self.masters = {"state": "ready", "present": True}
+        self.assertNotIn("wait", service.choices_view("H1", "C1", BOOK, None))
 
     def test_choices_view_without_task_defaults_has_no_fixed(self):
         service, _frappe_module, _calls = _service(hooks=["p.one"], providers={})

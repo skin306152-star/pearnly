@@ -223,7 +223,10 @@ CC Desktop could not write this invoice. It is retried automatically,CC เด�
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 CC Desktop has not finished this yet.,CC เดสก์ท็อปยังทำรายการนี้ไม่เสร็จ
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
+"CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.",CC เดสก์ท็อปออฟไลน์ จึงอ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่า CC เดสก์ท็อปทำงานอยู่ แล้วลองใหม่
 CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้จากคอมพิวเตอร์ กรุณาลองใหม่อีกครั้งในอีกสักครู่
+CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ
 CC Desktop offline,CC เดสก์ท็อปออฟไลน์
 CC Desktop offline or needs update,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -1548,6 +1551,7 @@ The chosen value is not in this account set. Choose again,รายการท�
 The client fields are invalid.,ข้อมูลลูกค้าไม่ถูกต้อง
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
+The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้
 The computer on this connection cannot do this.,คอมพิวเตอร์ของการเชื่อมต่อนี้ทำรายการนี้ไม่ได้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 The credential changed. Reload before resetting or revoking it.,ข้อมูลรับรองมีการเปลี่ยนแปลง กรุณารีเฟรชก่อนรีเซ็ตหรือยกเลิก
@@ -1722,6 +1726,7 @@ This POS export has a status value that is not chosen yet,ไฟล์ส่ง�
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่
 This account set is not in the connection's list. Reload the list in New Intake.,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
+This account set is not on the computer's list of account sets.,ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์
 This account set is not on this connection.,ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้
 This account set is unavailable.,ชุดบัญชีนี้ไม่พร้อมใช้งาน
 This action is not allowed in the current push state.,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
@@ -1841,6 +1846,7 @@ Unmatched Count,จำนวนที่ไม่พบคู่
 Unsupported ERP connection type.,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 Unusual rate,อัตราไม่ปกติ
 Up to 5 photos per entry; take a photo or choose from the gallery.,แต่ละรายการแนบรูปได้ไม่เกิน 5 รูป โดยถ่ายรูปหรือเลือกจากอัลบั้ม
+Update CC Desktop on that computer to read this account set's chart of accounts.,กรุณาอัปเดต CC เดสก์ท็อปบนคอมพิวเตอร์เครื่องนั้นเพื่ออ่านผังบัญชีของชุดบัญชีนี้
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบกำกับภาษีผ่านฟังก์ชันตรวจทานของ Cowork
 Update this site before reading back with this CC Desktop.,กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้
 Updated At,เวลาแก้ไข
@@ -2123,6 +2129,7 @@ cowork.folder.owner_not_ready,ผู้รับผิดชอบงานต�
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 cowork.folder.pending,ยังไม่ได้ประมวลผล {0} ไฟล์ จะประมวลผลเมื่อถึงเวลา
+cowork.folder.reading_masters,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ
 cowork.folder.remind.add,เพิ่มเวลา
 cowork.folder.remind.count,ยังไม่ได้ประมวลผล {0} ไฟล์
 cowork.folder.remind.date,วันที่ {1}/{0} เวลา {2} น.
@@ -2194,6 +2201,11 @@ cowork.line.status.bound,ผูกบัญชีแล้ว
 cowork.line.status.unbound,ยังไม่ได้ผูกบัญชี
 cowork.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 cowork.line.unbindConfirm,ต้องการยกเลิกการเชื่อมต่อ LINE ของ Pearnly Cowork ใช่หรือไม่
+cowork.masters.failed,คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้
+cowork.masters.offline,CC เดสก์ท็อปออฟไลน์ จึงอ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่า CC เดสก์ท็อปทำงานอยู่ แล้วลองใหม่
+cowork.masters.reading,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้จากคอมพิวเตอร์ กรุณาลองใหม่อีกครั้งในอีกสักครู่
+cowork.masters.unavailable,ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์
+cowork.masters.update_needed,กรุณาอัปเดต CC เดสก์ท็อปบนคอมพิวเตอร์เครื่องนั้นเพื่ออ่านผังบัญชีของชุดบัญชีนี้
 cowork.nav.reconBank,กระทบยอดธนาคาร
 cowork.nav.reconIncome,กระทบยอดรายได้
 cowork.nav.reconVat,ตรวจสอบรายงานภาษีขาย

@@ -13,6 +13,8 @@
 - 小助手没连上（重启、断线）是暂时的：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好断线的，撤掉这次准备再重来，
   重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。小助手连着但没报上这份账套，照现有规则记失败；
   ``final`` 时一律照现有规则走。
+- 要选的科目还没有可选值（这份账套的科目表还没读到，推送服务已请电脑读，`choices_view` 的 ``wait``，2026-10-13）：
+  不记成「要人选」，回 ``retry`` 一分钟后再推；电脑要升级 / 读不到这份账套、或最后一次仍没读到，原因记在票上。
 
 人在网页复核页、手机或 CC 里重推停下的文件夹票，由推送服务经 `cowork_push_fixed_choices` 钩子（`fixed_for`）
 取同一份规则默认值，与这里同一口径（2026-10-12）。
@@ -33,6 +35,9 @@ RULE = "Cowork Folder Intake Rule"
 
 
 OFFLINE = "cowork.folder.companion_offline"
+READING = "cowork.folder.reading_masters"
+# 等电脑读这份账套的科目表：一般十几秒就读完，每分钟再看一次（次数与离线重试共用 `pump.OFFLINE_RETRIES`）
+READING_SECONDS = 60
 
 
 def push_key(entry, history, version, attempt=0):
@@ -98,6 +103,16 @@ def push_one(entry, rule, history, attempt=0, final=True):
         frappe.db.commit()
         return {"status": "failed", "reason": reason}
     remaining = view.get("needed") or []
+    wait = view.get("wait")
+    if wait and wait.get("state") in ("reading", "offline") and not final:
+        # 这份账套的科目表还没读到（已请电脑读）：过一会儿再推，不记成「要人选」却没有可选的科目
+        return {"status": "retry", "reason": READING if wait["state"] == "reading" else OFFLINE,
+                "seconds": READING_SECONDS if wait["state"] == "reading" else None}
+    if wait:
+        # 电脑上的 CC 桌面端要升级 / 读不到这份账套，或一直没读到：原因记在票上（列表显示「失败」+ 原因），人处理后重推
+        push_state.record_failure(history, wait["message"])
+        frappe.db.commit()
+        return {"status": "failed", "reason": wait["message"][:300]}
     if remaining:
         reason = "choice_needed:" + ",".join(dict.fromkeys(item["kind"] for item in remaining))
         push_state.record_failure(history, reason)

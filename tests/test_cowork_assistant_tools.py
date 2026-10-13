@@ -72,7 +72,8 @@ def _install():
         sys.modules[name] = types.ModuleType(name)
     leaf = {
         "pearnly_cowork.access.scope": dict(require_read=lambda: None, require=lambda feature: None),
-        "pearnly_cowork.connections.api": dict(request_refresh=lambda *a: {}),
+        "pearnly_cowork.connections.api": dict(request_refresh=lambda *a: {},
+                                                ensure_account_masters=lambda *a: {"state": "ready"}),
         "pearnly_cowork.connections.service": dict(records=lambda *a: [], targets=lambda name: {}),
         "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, of=lambda adapter: None),
         "pearnly_cowork.folder_intake.agent": dict(read=lambda reader: {}),
@@ -232,6 +233,37 @@ class PushTargetTests(unittest.TestCase):
         self.assertEqual(seen[-1][:2], ("EXP1", "c:\\70exp\\t8"))
         tools._push_one("H1", "EXP2")  # 换了连接就不沿用原连接的账套
         self.assertEqual(seen[-1][:2], ("EXP2", None))
+
+
+class PushWhileChartIsReadTests(unittest.TestCase):
+    """推送时这份账套的科目表还没读到：不记成「要人选」（没得选），说电脑正在读；要升级 / 读不到的照实记在票上。"""
+
+    def setUp(self):
+        self.failures = []
+        self.doc = types.SimpleNamespace(last_push_status="", push_connection="EXP1", push_account_set="K",
+                                         posting_kind="service", record_version=1, last_push_record="",
+                                         last_push_reason="")
+        tools.storage.read = lambda name: self.doc
+        tools.push_state.record_failure = lambda *a: self.failures.append(a)
+        tools.application.submit = lambda *a: self.fail("must not prepare while the chart is missing")
+
+    def _push(self, state):
+        tools.application.choices_view = lambda *a: {"needed": [{"kind": "account", "subject": "S"}], "options": {},
+                                                     "wait": {"state": state, "message": "msg:" + state}}
+        return tools._push_one("H1")
+
+    def test_reading_or_offline_waits_without_recording_a_choice(self):
+        for state in ("reading", "offline"):
+            out = self._push(state)
+            self.assertEqual((out["status"], out["reason"]), ("waiting_for_cc", state))
+        self.assertEqual(self.failures, [])
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_documents")["description"]
+        self.assertIn("waiting_for_cc", description)
+
+    def test_update_needed_is_recorded_on_the_document(self):
+        out = self._push("update_needed")
+        self.assertEqual(out["status"], "failed")
+        self.assertEqual(self.failures, [("H1", "msg:update_needed")])
 
 
 class RecognizeAttachmentTests(unittest.TestCase):
@@ -661,6 +693,20 @@ class IntakeChoiceTests(unittest.TestCase):
         self.assertEqual(calls, [("stock", "EXP1", "B", "1140"), ("menu", "MR1", "1:2", "purchase", "7"),
                                  ("default", "MR1", "1:2", "department", "D1")])
 
+    def test_stock_groups_of_an_unread_account_set_are_requested_from_the_computer(self):
+        asked = []
+        unread = lambda *a: {"account_set_key": a[1], "known": False, "groups": []}
+        with mock.patch.object(tools.connections_api, "stock_acc_group", unread, create=True), \
+                mock.patch.object(tools.connections_api, "ensure_account_masters",
+                                  lambda *a: asked.append(a) or {"state": "reading"}):
+            out = json.loads(tools.stock_group({"connection": "EXP1", "account_set_key": "B"}))
+            self.assertEqual(asked, [("EXP1", "B")])
+            self.assertEqual(out["status"], "reading")
+            with mock.patch.object(tools.connections_api, "stock_acc_group",
+                                   lambda *a: {"account_set_key": a[1], "known": True, "groups": []}):
+                out = json.loads(tools.stock_group({"connection": "EXP1", "account_set_key": "B"}))
+        self.assertEqual((len(asked), "status" in out), (1, False))
+
 
 
 class PushFollowUpTests(unittest.TestCase):
@@ -722,6 +768,45 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertEqual(out["status"], "failed")
         self.assertIn("account_set_missing", out["reason"])
         self.assertIn("Choose another account set", out["reason"])
+
+    def test_a_chart_still_being_read_is_waited_for_then_offered(self):
+        """2026-10-13 录制：推往电脑没选的账套（DEMO02），科目表从没读过，CC 拿到 0 个科目、95 张票卡在「要人选」。
+        现在服务端已请电脑读（`view.wait`），工具等它读完再给可选的科目。"""
+        reading = {"needed": [{"kind": "account", "subject": "S"}], "options": {}, "account_set": "K",
+                   "wait": {"state": "reading", "message": "reading"}}
+        ready = {"needed": [{"kind": "account", "subject": "S"}], "account_set": "K",
+                 "options": {"accounts": [{"code": "5300", "name": "Rent"}]}}
+        views = [reading, reading, ready]
+        tools.application.choices_view = lambda *a: views.pop(0)
+        saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
+        try:
+            out = json.loads(tools.push_choices({"document": "H1"}))
+        finally:
+            tools.time.sleep = saved_sleep
+        self.assertEqual(out["options"]["accounts"]["shown"], [{"code": "5300", "name": "Rent"}])
+        self.assertNotIn("status", out)
+
+    def test_a_chart_not_read_in_time_says_reading_instead_of_an_empty_list(self):
+        tools.application.choices_view = lambda *a: {"needed": [{"kind": "account", "subject": "S"}], "options": {},
+                                                     "account_set": "K",
+                                                     "wait": {"state": "reading", "message": "reading"}}
+        clock = iter(range(0, 1000, 20))
+        saved = tools.time.sleep, tools.time.monotonic
+        tools.time.sleep, tools.time.monotonic = (lambda s: None), (lambda: next(clock))
+        try:
+            out = json.loads(tools.push_choices({"document": "H1"}))
+        finally:
+            tools.time.sleep, tools.time.monotonic = saved
+        self.assertEqual(out["status"], "reading")
+        self.assertIn("still reading", out["note"])
+        self.assertNotIn("options", out)
+        for state in ("offline", "update_needed", "failed"):
+            tools.application.choices_view = lambda *a, state=state: {
+                "needed": [{"kind": "account"}], "options": {}, "account_set": "K",
+                "wait": {"state": state, "message": state}}
+            out = json.loads(tools.push_choices({"document": "H1"}))
+            self.assertEqual(out["status"], state)
+            self.assertEqual(out["note"], tools.MASTERS_WAITING[state])
 
     def test_choices_are_saved_for_the_document_target(self):
         items = [{"kind": "item", "subject": "Coffee", "value": "P1"}]
@@ -794,6 +879,19 @@ class FolderTaskTests(unittest.TestCase):
         tools.rules.set_enabled = lambda name, enabled=None, remind=None, cc_session=None: self.calls.append(
             ("enabled", name, enabled)) or {"name": name, "enabled": enabled}
         tools.rules.delete = lambda names: self.calls.append(("delete", json.loads(names))) or {"deleted": 1}
+
+    def test_accounts_still_being_read_are_reported_as_reading(self):
+        tools.rules.options = lambda connection, key: {"readers": [], "accounts": None, "departments": None,
+                                                       "stock_group": None, "masters": {"state": "reading"}}
+        out = json.loads(tools.folder_task_options({"connection": "EXP1", "account_set_key": "Y1"}))
+        self.assertEqual(out["accounts_status"], "reading")
+        self.assertNotIn("accounts", out)
+        tools.rules.options = lambda connection, key: {"readers": [], "accounts": [{"code": "5300", "name": "R"}],
+                                                       "departments": None, "stock_group": None,
+                                                       "masters": {"state": "ready"}}
+        out = json.loads(tools.folder_task_options({"connection": "EXP1", "account_set_key": "Y1"}))
+        self.assertNotIn("accounts_status", out)
+        self.assertEqual(out["accounts"]["total"], 1)
 
     def test_options_list_the_open_folders_trimmed_and_searchable(self):
         out = json.loads(tools.folder_task_options({"connection": "EXP1"}))

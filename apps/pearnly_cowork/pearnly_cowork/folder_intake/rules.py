@@ -64,6 +64,16 @@ def _catalog_item(connection, account_set_key):
     frappe.throw(_("cowork.folder.account_set_invalid"))
 
 
+def _ensure_masters(doc, account_set_key):
+    """任务要推往的 Express 账套的科目表 / 部门：没读到（或读过很久了）就请电脑读一次（同一时刻只排一个）；回此刻的状况。
+    请求与调用方的写入同一事务（保存任务时随任务一起提交，批量保存回滚时一起撤掉）。"""
+    if doc.adapter != "express" or not account_set_key:
+        return None
+    found = connections.ensure_account_masters(doc.name, account_set_key)
+    found.pop("requested", None)
+    return found
+
+
 def _masters(doc, account_set_key):
     found = preparation.reported_masters(doc, normalize_express_account_key(account_set_key)) or {}
     accounts = found.get("reported_accounts")
@@ -175,6 +185,12 @@ def options(connection, account_set_key=None):
               "accounts": None, "departments": None, "stock_group": None}
     if account_set_key and doc.adapter == "express":
         _value, _label = _catalog_item(doc.name, account_set_key)
+        # 这份账套的科目表还没读到就请电脑读，回「正在读」（表单 / CC 过一会儿再取），不把「没有选项」当成没有科目。
+        # 表单取选项是 GET：建了请求要自己提交，否则请求结束时被回滚。
+        masters = connections.ensure_account_masters(doc.name, account_set_key)
+        if masters.pop("requested", False):
+            frappe.db.commit()
+        result["masters"] = masters
         _a, _d, found = _masters(doc, account_set_key)
         if "reported_accounts" in found:
             result["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
@@ -237,6 +253,8 @@ def save(values, *, cc_session=None):
     account_set_key, label = _catalog_item(doc.name, values.get("account_set_key"))
     if posting_kind == "stock":
         _stock_ready(doc.name, account_set_key)
+    # 任务存下时就请电脑读这份账套的科目表（还没读到的话），到点推送时已经有了
+    _ensure_masters(doc, account_set_key)
     reader = values.get("reader") or doc.name
     if reader not in {item.name for item in _readers(doc)}:
         frappe.throw(_("cowork.folder.root_invalid"))
@@ -493,9 +511,10 @@ def run_now(name):
     """立即运行：只记一个请求号，小助手下一次同步时取走并开跑；网页请求里不建原件、不交识别。"""
     _require()
     rule = read(RULE, name, for_update=True)
-    _connection(rule.connection)
+    doc = _connection(rule.connection)
     if not rule.enabled:
         frappe.throw(_("cowork.folder.rule_disabled"))
+    _ensure_masters(doc, rule.account_set_key)  # 识别期间读好这份账套的科目表，推送前就有
     rule.run_request = int(rule.run_request or 0) + 1
     rule.run_request_at = now_datetime()
     write(rule)

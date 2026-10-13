@@ -223,7 +223,10 @@ CC Desktop could not write this invoice. It is retried automatically,CC Desktop 
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
 CC Desktop has not finished this yet.,CC Desktop has not finished this yet.
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
+"CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again.","CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again."
 CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
+CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.
+CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.
 CC Desktop offline,CC Desktop offline
 CC Desktop offline or needs update,CC Desktop offline or needs update
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop","CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
@@ -1548,6 +1551,7 @@ The chosen value is not in this account set. Choose again,The chosen value is no
 The client fields are invalid.,The client fields are invalid.
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
+The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.
 The computer on this connection cannot do this.,The computer on this connection cannot do this.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
 The credential changed. Reload before resetting or revoking it.,The credential changed. Reload before resetting or revoking it.
@@ -1722,6 +1726,7 @@ This POS export has a status value that is not chosen yet,This POS export has a 
 This account cannot send documents,This account cannot send documents
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,This account set has no general journal book for the transfer vouchers. Add one in Express and submit again
 This account set is not in the connection's list. Reload the list in New Intake.,This account set is not in the connection's list. Reload the list in New Intake.
+This account set is not on the computer's list of account sets.,This account set is not on the computer's list of account sets.
 This account set is not on this connection.,This account set is not on this connection.
 This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
@@ -1841,6 +1846,7 @@ Unmatched Count,Unmatched Count
 Unsupported ERP connection type.,Unsupported ERP connection type.
 Unusual rate,Unusual rate
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
+Update CC Desktop on that computer to read this account set's chart of accounts.,Update CC Desktop on that computer to read this account set's chart of accounts.
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Update this site before reading back with this CC Desktop.,Update this site before reading back with this CC Desktop.
 Updated At,Updated At
@@ -2123,6 +2129,7 @@ cowork.folder.owner_not_ready,The task owner can no longer enter documents with 
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
 cowork.folder.pending,"{0} files not processed yet, processed at the run time"
+cowork.folder.reading_masters,CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.
 cowork.folder.remind.add,Add time
 cowork.folder.remind.count,{0} files not processed yet.
 cowork.folder.remind.date,on {1}/{0} at {2}
@@ -2194,6 +2201,11 @@ cowork.line.status.bound,Bound
 cowork.line.status.unbound,Not bound
 cowork.line.unbind,Unbind LINE
 cowork.line.unbindConfirm,Unbind Pearnly Cowork LINE?
+cowork.masters.failed,The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.
+cowork.masters.offline,"CC Desktop is offline, so this account set's chart of accounts cannot be read. Make sure CC Desktop is running, then try again."
+cowork.masters.reading,CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.
+cowork.masters.unavailable,This account set is not on the computer's list of account sets.
+cowork.masters.update_needed,Update CC Desktop on that computer to read this account set's chart of accounts.
 cowork.nav.reconBank,Bank Reconciliation
 cowork.nav.reconIncome,Income Reconciliation
 cowork.nav.reconVat,VAT Report Check

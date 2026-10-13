@@ -94,6 +94,8 @@ class Harness(unittest.TestCase):
                               "pending": {"R1": 3}, "version": "1.4.4"},
                        "EX": {"roots": [{"id": ROOT_B, "label": "S:\\Scans", "folders": ["X"]}], "version": "1.3.23"}}
         self.masters = {}
+        self.ensured = []
+        self.masters_state = {"state": "ready"}
         self.rules = self._rules()
 
     def _rules(self):
@@ -116,7 +118,8 @@ class Harness(unittest.TestCase):
                        access=stub(require_connection=lambda doc: None),
                        preparation=stub(reported_masters=lambda doc, key: self.masters),
                        service=stub(targets=lambda name: {"groups": [group]}, stock_acc_group=lambda *a: {},
-                                    records=lambda *a: [{"name": "C1", "adapter": "express", "label": "Express"}])),
+                                    records=lambda *a: [{"name": "C1", "adapter": "express", "label": "Express"}],
+                                    ensure_account_masters=lambda *a: self.ensured.append(a) or dict(self.masters_state))),
                    "pearnly_cowork.folder_intake": stub(
                        agent=stub(read=lambda name: copy.deepcopy(self.agents.get(name, {})), fresh=lambda state: self.fresh),
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),
@@ -395,6 +398,29 @@ class CountsAndLabels(Harness):
         root = self.rules.options("C1")["readers"][0]["roots"][0]
         self.assertNotIn("counts", root)
         self.assertNotIn("partial", root)
+
+    def test_the_account_sets_chart_is_requested_when_a_task_is_saved_or_run(self):
+        """2026-10-13：定时任务推往电脑没选的账套，科目表从没读过，票全停在「要人选」。存任务、立即运行时就请电脑读。"""
+        self.rules.save(self.values())
+        self.assertEqual(self.ensured, [("C1", "Y1")])
+        self.rules.run_now("R1")
+        self.assertEqual(self.ensured[-1], ("C1", "Y1"))
+        rolled = len(self.ensured)
+        self.rules.save_many([self.values(title="Late", folder="B", run_day=32)])
+        self.assertEqual(len(self.ensured), rolled)  # 校验没过的不请读（批量回滚时请求随之撤掉）
+
+    def test_options_say_the_chart_is_being_read(self):
+        commits = []
+        self.store.commit = lambda: commits.append(1)
+        self.masters_state = {"state": "reading", "requested": True}
+        options = self.rules.options("C1", "Y1")
+        self.assertEqual((options["masters"], options["accounts"]), ({"state": "reading"}, None))
+        self.assertEqual(commits, [1])  # 取选项是 GET：请求要自己提交
+        self.masters_state = {"state": "ready"}
+        self.masters = {"reported_accounts": [{"code": "5300", "name": "Office"}]}
+        options = self.rules.options("C1", "Y1")
+        self.assertEqual((options["masters"]["state"], options["accounts"]), ("ready", [{"code": "5300", "name": "Office"}]))
+        self.assertEqual(commits, [1])
 
     def test_account_label_and_master_names_for_card_previews(self):
         self.assertEqual(self.rules.account_label("C1", "Y1"), "Company · 2569")

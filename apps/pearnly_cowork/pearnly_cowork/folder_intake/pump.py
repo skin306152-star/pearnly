@@ -445,7 +445,7 @@ def _push(entry, cfg, deadline):
                 entry = read(FILE, name, for_update=True)
                 outcome["_retry"] = dict(retries, **{history: attempt + 1})
                 entry.outcome_json = json.dumps(outcome, sort_keys=True)
-                return _later(entry, OFFLINE_SECONDS, result["reason"])
+                return _later(entry, result.get("seconds") or OFFLINE_SECONDS, result["reason"])
             outcome[history] = result
         entry = read(FILE, name, for_update=True)
         entry.outcome_json = json.dumps(outcome, sort_keys=True)
