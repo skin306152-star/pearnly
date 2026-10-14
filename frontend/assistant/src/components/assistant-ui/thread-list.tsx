@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
-import { FilingTag, MoveToMenu, ProjectHeader, SidebarError } from "@/components/assistant-ui/projects";
+import { CompanyTasks, FilingTag, MoveToMenu, ProjectHeader, SidebarError } from "@/components/assistant-ui/projects";
 import { useLongPress } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
 import { co, dayLabel, t } from "@/i18n";
@@ -272,6 +272,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
               <ProjectHeader project={section.project} open={open} onToggle={() => toggleSection(section)} sessions={sessionsOf(section.all)} />
               {open && (
                 <div data-slot="cc-project-items" className="cc-project-items">
+                  <CompanyTasks company={section.project.id} />
                   <Items indices={section.indices} threadIds={threadIds} />
                   {section.more && (
                     <button

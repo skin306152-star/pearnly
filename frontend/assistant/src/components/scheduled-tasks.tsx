@@ -11,10 +11,11 @@
 // 接口与 Cowork 页面同一套（pearnly_cowork.folder_intake.api / connections.api / companion.api），权限由服务端判；
 // 词条取 Cowork 的术语表（folder_intake.api.terms），不另存翻译。样式只用 globals.css 的 .cc-* 与变量。
 //
-// 公司主档（ADR-020）：任务表不加字段，属于哪家公司按主档页列出的任务推出来（companies.api.detail 的 tasks）。
-//   ?view=tasks&company=<公司>（主档页点任务、「＋」）只看这家，顶上一枚可关掉的公司胶囊；点的那条定位并高亮；
-//   主档页「＋」接着打开新建表单，预填覆盖本月的账套（本机绑了文件夹时连同文件夹）。
-//   全部任务时，我侧栏里那几家公司的任务在位置前面写上公司名。换文件夹、删公司都不改任务（避免重跑、重复扣费）。
+// 公司主档（ADR-020）：任务表不加字段，属于哪家公司按账套推出来（companies.api.task_overview，一次取全部，不逐家读详情）。
+//   ?view=tasks&company=<公司>（侧栏公司组「定时任务 N」、主档页点任务、「＋」）只看这家，顶上一枚可关掉的公司胶囊；
+//   点的那条定位并高亮；主档页「＋」接着打开新建表单，预填覆盖本月的账套（本机绑了文件夹时连同文件夹）。
+//   全部任务时按公司分组（侧栏顺序的公司在前，其余按名称），归不到公司的放「其他」；新建统一从公司里建：「＋」先选公司
+//   （添加公司对话框里的公司选择），再同主档页「＋」一样预填。换文件夹、删公司都不改任务（避免重跑、重复扣费）。
 
 import {
   AlertCircleIcon,
@@ -33,11 +34,22 @@ import {
 import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
-import { cachedDetail, type TaskSeed, useCompanyNav } from "@/lib/companies";
+import { openAddCompany } from "@/components/add-company";
+import {
+  cachedDetail,
+  groupTasks,
+  lastMonth,
+  refreshTaskOverview,
+  type TaskSeed,
+  taskSeedOf,
+  useCompanyNav,
+  useTaskOverview,
+} from "@/lib/companies";
+import { knownReaders, useDesktopFeatures } from "@/lib/desktop";
 import { getMethod, postMethod } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
-import { t } from "@/i18n";
+import { co, t } from "@/i18n";
 
 const API = "pearnly_cowork.folder_intake.api.";
 const CONN = "pearnly_cowork.connections.api.";
@@ -260,34 +272,33 @@ function Confirm({ text, label, onYes, onClose, danger }: { text: string; label:
 
 // ── 公司 ────────────────────────────────────────────────────────────────────────────────────────
 
-const COMPANY_LOOKUP = 20; // 全部任务时最多读这么多家（我侧栏里的）的任务来标公司名
-
-/** 任务编号 → 公司名（只看这家时只读这家；全部时读我侧栏里的几家）；filter：只看这家时它的任务编号。 */
-function useTaskCompanies(only: string): { names: Record<string, string>; filter: Set<string> | null; title: string } {
-  const projects = useProjects((s) => s.projects);
-  const [names, setNames] = useState<Record<string, string>>({});
-  const [filter, setFilter] = useState<Set<string> | null>(null);
-  const [title, setTitle] = useState("");
-  const ids = (only ? [only] : projects.slice(0, COMPANY_LOOKUP).map((p) => p.id)).join(",");
+/** 只看这家时的公司名：总览里有（这家有任务）直接用，侧栏里有用侧栏的，都没有读一次这家的详情。 */
+function useCompanyTitle(company: string): string {
+  const known = useTaskOverview((s) => s.titles[company]) ?? "";
+  const listed = useProjects((s) => s.projects.find((p) => p.id === company)?.title) ?? "";
+  const [read, setRead] = useState("");
   useEffect(() => {
+    setRead("");
+    if (!company || known || listed) return;
     let alive = true;
-    setFilter(only ? new Set() : null);
-    void Promise.all(ids.split(",").filter(Boolean).map((id) => cachedDetail(id))).then((details) => {
-      if (!alive) return;
-      const out: Record<string, string> = {};
-      for (const d of details) for (const task of d?.tasks ?? []) out[task.name] = d!.company.title;
-      setNames(out);
-      if (only) {
-        const d = details[0];
-        setTitle(d?.company.title ?? "");
-        setFilter(new Set((d?.tasks ?? []).map((task) => task.name)));
-      }
-    });
+    void cachedDetail(company).then((d) => alive && setRead(d?.company.title ?? ""));
     return () => {
       alive = false;
     };
-  }, [ids, only]);
-  return { names, filter, title };
+  }, [company, known, listed]);
+  return known || listed || read;
+}
+
+/** 新建任务从公司里建：给了公司就按这家预填（同主档页「＋」）；没给先在添加公司对话框里选公司。 */
+function useNewTask(open: (seed: TaskSeed | null) => void) {
+  const { app, companyFolders } = useDesktopFeatures();
+  const withPeriod = useProjects((s) => s.period);
+  const seedFor = async (company: string) => {
+    const detail = await cachedDetail(company);
+    useCompanyNav.setState({ taskCompany: company, taskFocus: "" });
+    open(detail ? taskSeedOf(detail, withPeriod ? lastMonth() : "", knownReaders(), app && companyFolders) : null);
+  };
+  return (company: string) => (company ? void seedFor(company) : openAddCompany((id) => void seedFor(id), co.chooseCompany));
 }
 
 // ── 列表 ────────────────────────────────────────────────────────────────────────────────────────
@@ -306,6 +317,7 @@ export function ScheduledTasks() {
       const data = await getMethod<{ rules: Rule[] }>(API + "listing");
       setRules(data?.rules ?? []);
       setError("");
+      void refreshTaskOverview();  // 任务建、删、改了：侧栏「定时任务 N」与分组跟着变
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       // 自动刷新偶尔失败：已显示的列表留着，不闪成空的
@@ -319,8 +331,14 @@ export function ScheduledTasks() {
   const taskCompany = useCompanyNav((s) => s.taskCompany);
   const focus = useCompanyNav((s) => s.taskFocus);
   const seed = useCompanyNav((s) => s.taskSeed);
-  const companies = useTaskCompanies(taskCompany);
+  const overview = useTaskOverview();
+  const companyTitle = useCompanyTitle(taskCompany);
+  const order = useProjects((s) => s.projects).map((p) => p.id);
   const [seeded, setSeeded] = useState<TaskSeed | null>(null);
+  const newTask = useNewTask((next) => {
+    setSeeded(next);
+    setEditing("new");
+  });
   // 主档页「＋」：接着打开新建表单（预填账套、文件夹）
   useEffect(() => {
     if (!seed) return;
@@ -333,14 +351,17 @@ export function ScheduledTasks() {
     if (!focus || !rules) return;
     document.querySelector(`[data-task="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: "center" });
   }, [focus, rules]);
-  const shown = rules && companies.filter ? rules.filter((rule) => companies.filter!.has(rule.name)) : rules;
+  // 只看这家：总览还没取到时先不列（不闪出别家的任务）
+  const shown = rules && taskCompany ? (overview.loaded ? rules.filter((rule) => overview.tasks[rule.name] === taskCompany) : null) : rules;
+  const groups = shown && !taskCompany ? groupTasks(shown, overview.tasks, order, overview.titles) : shown ? [[taskCompany, shown] as [string, Rule[]]] : [];
+  const headed = !taskCompany && groups.some(([id]) => id);
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
         <div className="mb-6 flex items-center justify-between gap-3">
           <h1 className="cc-greeting text-3xl">{tr("cowork.folder.title")}</h1>
-          <button type="button" className="cc-btn" data-primary="" onClick={() => setEditing("new")}>
+          <button type="button" className="cc-btn" data-primary="" onClick={() => newTask(taskCompany)}>
             <PlusIcon className="size-4" />
             {tr("cowork.folder.new")}
           </button>
@@ -348,7 +369,7 @@ export function ScheduledTasks() {
         {taskCompany && (
           <div className="mb-4">
             <span className="cc-chip">
-              {companies.title}
+              {companyTitle}
               <button
                 type="button"
                 className="-me-1 flex items-center"
@@ -368,14 +389,17 @@ export function ScheduledTasks() {
         ) : shown.length === 0 ? (
           <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
             <ClockIcon className="size-8 text-ink-3" />
-            <button type="button" className="cc-btn" data-primary="" onClick={() => setEditing("new")}>
+            <button type="button" className="cc-btn" data-primary="" onClick={() => newTask(taskCompany)}>
               <PlusIcon className="size-4" />
               {tr("cowork.folder.new")}
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {shown.map((rule) => {
+          <div className="flex flex-col gap-4">
+            {groups.map(([group, rows]) => (
+              <section key={group || "other"} className="flex flex-col gap-2" data-slot="cc-task-group">
+                {headed && <h2 className="cc-section-label !px-0 !pt-0">{group ? (overview.titles[group] ?? "") : co.other}</h2>}
+            {rows.map((rule) => {
               const s = status(rule, tr);
               const target = ADAPTERS.find((a) => a.adapter === rule.adapter)?.label ?? "";
               return (
@@ -394,7 +418,7 @@ export function ScheduledTasks() {
                       <span>{[target, rule.account_label].filter(Boolean).join(" · ")}</span>
                       <span className="flex items-center gap-1">
                         <FolderIcon className="size-3.5" />
-                        {[companies.names[rule.name] ?? "", rule.folder || rule.root_label || ""].filter(Boolean).join(" · ")}
+                        {rule.folder || rule.root_label || ""}
                       </span>
                       <span className="flex items-center gap-1">
                         <ClockIcon className="size-3.5" />
@@ -490,6 +514,8 @@ export function ScheduledTasks() {
                 </div>
               );
             })}
+              </section>
+            ))}
           </div>
         )}
       </div>

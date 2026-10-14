@@ -1,0 +1,139 @@
+{
+ "_comment": "跨端契约（ADR-020 待处理当场选，2026-10-15 对齐）：服务端测试断言这几段就是真实输出（tests/test_cowork_companies.py 的 PendingContractTests、tests/test_cowork_account_suggest.py 的 PendingChoicesContract），页面测试拿同一份当假数据（tests/test_assistant_ui.py）。改形状要两边一起改。",
+ "item": {
+  "document": "h1",
+  "company": "COMPANY",
+  "reason_code": "choice_needed",
+  "reason_label": "text:choice_needed:party",
+  "invoice_no": "INV-h1",
+  "counterparty": "Makro",
+  "amount": "1070.50",
+  "date": "2026-09-20",
+  "action": "choose",
+  "choice": {
+   "connection": "C1",
+   "account_set_key": "S:\\69EXP\\ABC",
+   "kinds": [
+    "party"
+   ]
+  }
+ },
+ "choices": {
+  "needed": [
+   {
+    "kind": "payment",
+    "subject": "purchase|0105556012345",
+    "label": "ศรีกรุง เครื่องเขียน",
+    "options": [
+     {
+      "code": "cash"
+     },
+     {
+      "code": "credit"
+     }
+    ],
+    "current": ""
+   },
+   {
+    "kind": "account",
+    "subject": "purchase|0105556012345",
+    "label": "ศรีกรุง เครื่องเขียน",
+    "current": "",
+    "suggested": [
+     {
+      "code": "5390-99",
+      "name": "ค่าใช้จ่ายเบ็ดเตล็ด",
+      "source": "history",
+      "reason": "Used on 5 of this supplier's documents in the last 12 months"
+     },
+     {
+      "code": "5320-01",
+      "name": "ค่าเครื่องเขียนแบบพิมพ์",
+      "source": "name",
+      "reason": "Account name matches \"เครื่องเขียน\" on the document"
+     }
+    ]
+   }
+  ],
+  "options": {
+   "accounts": [
+    {
+     "code": "1111-00",
+     "name": "เงินสด"
+    },
+    {
+     "code": "1150-01",
+     "name": "วัสดุสำนักงานคงเหลือ"
+    },
+    {
+     "code": "2120-00",
+     "name": "เจ้าหนี้การค้า"
+    },
+    {
+     "code": "5310-01",
+     "name": "ค่าไฟฟ้า"
+    },
+    {
+     "code": "5310-02",
+     "name": "ค่าน้ำประปา"
+    },
+    {
+     "code": "5310-03",
+     "name": "ค่าโทรศัพท์และอินเตอร์เน็ต"
+    },
+    {
+     "code": "5320-01",
+     "name": "ค่าเครื่องเขียนแบบพิมพ์"
+    },
+    {
+     "code": "5330-01",
+     "name": "ค่าน้ำมันเชื้อเพลิง"
+    },
+    {
+     "code": "5340-01",
+     "name": "ค่าซ่อมแซมและบำรุงรักษา"
+    },
+    {
+     "code": "5350-01",
+     "name": "ค่าส่งเสริมการขาย"
+    },
+    {
+     "code": "5390-99",
+     "name": "ค่าใช้จ่ายเบ็ดเตล็ด"
+    }
+   ]
+  },
+  "account_set": "S:\\2569\\EXP69\\69ACME",
+  "masters": {
+   "state": "ready",
+   "present": true
+  }
+ },
+ "answer": {
+  "document": "h1",
+  "status": "sent"
+ },
+ "counts": {
+  "total": 4,
+  "companies": {
+   "COMPANY": 2,
+   "OTHER": 1
+  },
+  "unassigned": 1
+ },
+ "overview": {
+  "companies": {
+   "COMPANY": {
+    "count": 2,
+    "alert": false
+   }
+  },
+  "tasks": {
+   "R1": "COMPANY",
+   "R2": "COMPANY"
+  },
+  "titles": {
+   "COMPANY": "ABC 69"
+  }
+ }
+}

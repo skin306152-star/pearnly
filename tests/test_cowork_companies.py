@@ -1224,6 +1224,8 @@ class PendingAnswerTests(unittest.TestCase):
         items = json.dumps([{"kind": "account", "subject": "purchase|0105548064214", "value": "5300", "label": "Makro"}])
         out = module.answer("h1", items)
         self.assertEqual(out, {"document": "h1", "status": "sent"})  # 账本记录名不给页面
+        fixture = json.loads((ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8"))
+        self.assertEqual(out, fixture["answer"])  # 页面测试用的同一份
         self.assertEqual([call[0] for call in calls], ["save", "push"])
         self.assertEqual(calls[0][1:4], ("h1", "C1", "S:\\69EXP\\ABC"))
         self.assertEqual(json.loads(calls[0][4])[0]["value"], "5300")
@@ -1253,6 +1255,41 @@ class PendingAnswerTests(unittest.TestCase):
         source = (APP / "companies/pending.py").read_text(encoding="utf-8")
         self.assertIn('item["choice"] = {"connection": row.push_connection', source)
         self.assertNotIn("choices_view", source.split("def _items", 1)[1].split("\ndef ", 1)[0])
+
+
+class PendingContractTests(unittest.TestCase):
+    """跨端契约（tests/fixtures/cc-pending-contract.json）：服务端真实输出的形状；页面测试拿同一份当假数据
+    （tests/test_assistant_ui.py 的 PendingContractBehaviourTests）。"""
+    FIXTURE = json.loads((ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8"))
+
+    def test_pending_item_and_counts_are_what_the_page_reads(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\XYZ", "XYZ", tax=OTHER_TAX)])
+        abc, xyz = make()["id"], make(key="S:\\69EXP\\XYZ")["id"]
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("h1", last_push_status="manual", last_push_reason="choice_needed:party"),
+            history("h2", last_push_reason="push.failed"),
+            history("h3", push_connection="", push_account_set="", buyer_tax="", seller_tax=OTHER_TAX),
+            history("h4", push_account_set="S:\\OTHER", buyer_tax="0000000000000", seller_tax=""))}
+        fresh_request()
+        item = next(row for row in pending.pending()["items"] if row["document"] == "h1")
+        self.assertEqual(item, {**self.FIXTURE["item"], "company": abc})
+        fresh_request()
+        swap = {"COMPANY": abc, "OTHER": xyz}
+        expected = {**self.FIXTURE["counts"], "companies": {swap[k]: v for k, v in self.FIXTURE["counts"]["companies"].items()}}
+        self.assertEqual(pending.pending_counts(), expected)
+
+    def test_task_overview_is_what_the_sidebar_reads(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
+        abc = make()["id"]
+        frappe.db.tables["Cowork Folder Intake Rule"] = {
+            name: Row(name=name, enabled=1, connection="C1", reader="C1", account_set_key="S:\\69EXP\\ABC", creation=name)
+            for name in ("R1", "R2")}
+        rules = types.SimpleNamespace(results=lambda name: {"attention": 0})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}):
+            fresh_request()
+            found = service.task_overview()
+        expected = json.loads(json.dumps(self.FIXTURE["overview"]).replace("COMPANY", abc))
+        self.assertEqual(found, expected)
 
 
 class TaskOverviewTests(unittest.TestCase):

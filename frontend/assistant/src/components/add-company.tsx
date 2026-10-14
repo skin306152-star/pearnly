@@ -4,7 +4,8 @@
 //   名称、税号由服务端从目录算；已添加的行尾「已添加」，点了直接打开那家。目录还没读到（没有候选）时只给「刷新账套」。
 //   账套里没有的公司这一批不能建，也不做一次加多家。
 //
-// 打开方式：openAddCompany(then)；then 收到公司编号（默认打开主档页）。对话框在 assistant.tsx 里挂一次。
+// 打开方式：openAddCompany(then, title?)；then 收到公司编号（默认打开主档页）。title：定时任务总览「＋」先选公司时
+// 叫「选择公司」（选已添加的或新加一家都行）。对话框在 assistant.tsx 里挂一次。
 
 import { LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
@@ -13,15 +14,15 @@ import { co, t } from "@/i18n";
 import { create } from "zustand";
 import { branchShort, type Candidate, createCompany, listCandidates, refreshCatalogs, requestKey } from "@/lib/companies";
 
-type AddState = { open: boolean; then: ((id: string) => void) | null };
-export const useAddCompany = create<AddState>(() => ({ open: false, then: null }));
+type AddState = { open: boolean; then: ((id: string) => void) | null; title: string };
+export const useAddCompany = create<AddState>(() => ({ open: false, then: null, title: "" }));
 
-/** 打开「添加公司」；then：建好（或点了已添加的）之后拿公司编号做什么。 */
-export function openAddCompany(then: (id: string) => void) {
-  useAddCompany.setState({ open: true, then });
+/** 打开「添加公司」；then：建好（或点了已添加的）之后拿公司编号做什么；title：换个标题（默认「添加公司」）。 */
+export function openAddCompany(then: (id: string) => void, title = "") {
+  useAddCompany.setState({ open: true, then, title });
 }
 
-const close = () => useAddCompany.setState({ open: false, then: null });
+const close = () => useAddCompany.setState({ open: false, then: null, title: "" });
 
 /** 候选一行的第二行：法定名 · 税号 · 分店 · 年度。 */
 export function candidateLine(row: Pick<Candidate, "legal_name" | "tax_id" | "branch" | "years" | "title">): string {
@@ -35,6 +36,7 @@ export function candidateLine(row: Pick<Candidate, "legal_name" | "tax_id" | "br
 
 export const AddCompanyDialog: FC = () => {
   const open = useAddCompany((s) => s.open);
+  const title = useAddCompany((s) => s.title) || co.addCompany;
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && close()}>
       <DialogPrimitive.Portal>
@@ -44,12 +46,12 @@ export const AddCompanyDialog: FC = () => {
           className="cc-card cc-enter cc-dialog fixed top-1/2 left-1/2 z-50 flex max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col"
         >
           <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <DialogPrimitive.Title className="cc-greeting truncate text-xl">{co.addCompany}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>
           </div>
-          <DialogPrimitive.Description className="sr-only">{co.addCompany}</DialogPrimitive.Description>
+          <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
           {open && <Candidates />}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

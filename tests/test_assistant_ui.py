@@ -190,8 +190,9 @@ class PushTests(unittest.TestCase):
         alert = desktop.split("onNotice((notice) => {", 1)[1].split("\n      }),", 1)[0]
         self.assertIn("`notice:${notice.id}`", alert)
         self.assertIn("notice.title || APP_NAME", alert)
-        self.assertIn('deepLink(notice.session || "")', alert)
-        self.assertIn('openTarget(notice.session || "")', alert)
+        # 没挂对话的提醒按服务端给的 view 点开（定时任务页 / 待处理 / 公司主档页，ADR-020）
+        self.assertIn('const link = deepLink(notice.session || "", notice.view || "");', alert)
+        self.assertIn("openTarget(notice.session || link)", alert)
         # 浏览器里开了推送由后台脚本弹，不再另弹
         self.assertIn("if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;", alert)
         # 回复完成与提醒都经 showNote：浏览器里由后台脚本弹，安卓 Chrome 不能直接 new Notification（审查 frontend-1/2）
@@ -1990,7 +1991,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
 
     def test_hand_to_cc_and_drafts_prefill_without_sending(self):
         pending = read("components/pending.tsx")
-        self.assertIn("handText(hand), false);", pending)
+        self.assertIn("handText(items), false);", pending)
         page = read("components/company-page.tsx")
         self.assertIn("co.draftText(d.kind, period ? monthLabel(period) : d.period), false);", page)
         # 主档页输入框是用户自己打的字：发出
@@ -2101,28 +2102,42 @@ const more = companySections([row("B only", "comp_B", 1)], projects, { serverMor
 assert.equal((more.find((s) => s.key === "project:comp_B") as any).more, true);
 """)
 
-    def test_pending_choices_put_the_suggestion_first_and_hand_the_rest_to_cc(self):
+    def test_hand_the_rest_to_cc_with_their_month(self):
         self.run_page(r"""
-import { choosable, handText, monthOfItems, optionsOf } from "@/components/pending";
-const item: any = {
-  document: "OCR-0001", company: "comp_a", reason_code: "choice_needed:account,payment", reason_label: "Choose", action: "choose",
-  invoice_no: "INV-9", amount: "1070.00", date: "2026-09-12",
-  choices: { connection: "conn1", account_set_key: "69EXP",
-    needed: [{ kind: "account", subject: "s1", label: "ACME", suggested: "5320" }, { kind: "payment", subject: "s1", options: [{ code: "cash" }, { code: "credit" }], current: "" }],
-    options: { accounts: [{ code: "5310", name: "Rent" }, { code: "5320", name: "Utilities" }] } },
-};
-assert.deepEqual(optionsOf(item, item.choices.needed[0]).map((o: any) => o.value), ["5320", "5310"]);
-assert.deepEqual(optionsOf(item, item.choices.needed[1]).map((o: any) => o.label), ["Cash", "Credit"]);
-assert.equal(choosable(item), true);
-// 科目表还没读到：当场选不了，交给 CC
-assert.equal(choosable({ ...item, choices: { ...item.choices, options: { accounts: [] } } }), false);
-assert.equal(choosable({ ...item, action: "open" }), false);
-const open = [{ ...item, action: "open", invoice_no: "INV-1", document: "OCR-1", date: "2026-08-30" },
-  { ...item, action: "open", invoice_no: "", counterparty: "Shop", document: "OCR-2", date: "2026-09-01" },
-  { ...item, action: "open", invoice_no: "INV-3", document: "OCR-3", date: "2026-09-02" }];
+import { handText, monthOfItems } from "@/components/pending";
+const item: any = { document: "OCR-0001", company: "comp_a", reason_code: "failed", reason_label: "x", action: "open", date: "2026-09-12" };
+const open = [{ ...item, invoice_no: "INV-1", document: "OCR-1", date: "2026-08-30" },
+  { ...item, invoice_no: "", counterparty: "Shop", document: "OCR-2", date: "2026-09-01" },
+  { ...item, invoice_no: "INV-3", document: "OCR-3", date: "2026-09-02" }];
 assert.equal(handText(open), "Handle these: INV-1 [OCR-1]、Shop [OCR-2]、INV-3 [OCR-3]");
 assert.equal(monthOfItems(open), "2026-09");
 assert.equal(monthOfItems([{ ...item, date: "" }]), "");
+""")
+
+    def test_scheduled_tasks_group_by_company_and_seed_from_the_company(self):
+        self.run_page(r"""
+import { groupTasks, setForPeriod, taskSeedOf } from "@/lib/companies";
+import { deepLink } from "@/lib/notify";
+const rules = [{ name: "R1" }, { name: "R2" }, { name: "R3" }, { name: "R4" }];
+const tasks = { R1: "comp_b", R2: "comp_a", R3: "comp_b" };
+// 侧栏顺序的公司在前，其余按名称，归不上公司的放最后（""）
+assert.deepEqual(groupTasks(rules, tasks, ["comp_b"], { comp_a: "A", comp_b: "B" }).map(([id, rows]) => [id, rows.map((r) => r.name)]),
+  [["comp_b", ["R1", "R3"]], ["comp_a", ["R2"]], ["", ["R4"]]]);
+// 新建从公司里建：覆盖这个月的账套；这台电脑绑了文件夹时连同文件夹（只需再选子文件夹）
+const sets = [{ connection: "c1", adapter: "express", key: "70EXP", label: "70", period_start: "2027-01-01", period_end: "2027-12-31" },
+  { connection: "c1", adapter: "express", key: "69EXP", label: "69", period_start: "2026-01-01", period_end: "2026-12-31" }];
+const detail: any = { company: { id: "comp_a", title: "A", adapter: "express" }, account_sets: sets,
+  folders: [{ reader: "rdr1", device: "PC", label: "D:\\A", state: "ok", root_id: "R9", folder: "A" }] };
+assert.equal(setForPeriod(sets, "2026-09")?.key, "69EXP");
+assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], true),
+  { adapter: "express", connection: "c1", account_set_key: "69EXP", folder: "rdr1|R9|A" });
+assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], false), { adapter: "express", connection: "c1", account_set_key: "69EXP" });
+assert.equal(taskSeedOf({ ...detail, account_sets: [] }, "2026-09"), null);
+// 提醒点开：同服务端 deep_link（属于某家公司的到主档页）
+assert.equal(deepLink("", "company:abc1234567"), "/assistant?company=abc1234567");
+assert.equal(deepLink("", "pending"), "/assistant?view=pending");
+assert.equal(deepLink("", ""), "/assistant?view=tasks");
+assert.equal(deepLink("sesn_1", "company:abc"), "/assistant?c=sesn_1");
 """)
 
 
@@ -2333,10 +2348,10 @@ class CompanyPageBehaviourTests(unittest.TestCase):
     STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
              "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
 
-    def run_page(self, body, desktop=None):
+    def run_page(self, body, desktop=None, stubs=None):
         env = "cc-desktop-env" if desktop is not None else "cc-browser-env"
         stubs = {**self.STUBS, "cc-desktop-env": DESKTOP_ENV.replace("g.FEATURES", json.dumps(desktop or [])),
-                 "cc-browser-env": "export {};", "cc-ma-setup": MA_SETUP}
+                 "cc-browser-env": "export {};", "cc-ma-setup": MA_SETUP, **(stubs or {})}
         run_ts(f'import "cc-test-setup";\nimport "{env}";\nimport "cc-ma-setup";\n' + COMPANY_RENDER + body + "\n(globalThis as any).done();\n",
                stubs=stubs)
 
@@ -2381,28 +2396,105 @@ const page = html(FolderSection, { company: "comp_abc", folders: [], reload: noo
 assert.deepEqual(buttons(page), ["Update CC Desktop"]);
 """, desktop=[])
 
-    def test_choosing_in_place_reuses_the_push_choice_service(self):
-        # 补充乙：当场选复用推送的「记下选择」（push.application.api.save_choices），不另写一套；只交选了的项
+    def test_choosing_in_place_follows_the_server_contract(self):
+        # 跨端契约（审查 2026-10-15 major）：服务端列表只给 choice{connection, account_set_key, kinds}；页面展开时取
+        # push.application.api.choices，作答经 assistant.pending_api.answer（记下选择并按 CC 同一条路重推）。假数据就是
+        # 服务端测试断言过的真实输出（tests/fixtures/cc-pending-contract.json）。
+        fixture = (ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8")
         self.run_page(r"""
-import { answerChoices, loadPending } from "@/lib/companies";
-const item: any = { document: "OCR-0001", company: "comp_abc", reason_code: "choice_needed:account,payment", reason_label: "", action: "choose",
-  choices: { connection: "conn1", account_set_key: "69EXP", needed: [{ kind: "account", subject: "s1", label: "ACME" },
-    { kind: "payment", subject: "s1", label: "ACME" }, { kind: "vat", subject: "s1" }] } };
-await answerChoices(item, { "account\ns1": "5320", "payment\ns1": "credit" });
+import fixture from "cc-pending-fixture";
+import { answerChoices, answered, loadChoices, loadPending, parseCounts, setChoice } from "@/lib/companies";
+import { choosable, choosableView, optionsOf } from "@/components/pending";
+const item: any = { ...fixture.item, company: "comp_abc" };
+assert.equal(choosable(item), true);
+assert.equal(choosable({ ...item, action: "open" }), false);
+// 展开：按 choice 取要选的项（GET，同复核页）
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: fixture.choices }) });
+const view = await loadChoices(item);
+const asked = g.calls.at(-1);
+assert.equal(asked.method, "/api/method/pearnly_cowork.push.application.api.choices");
+assert.deepEqual(asked.args, { history: "h1", connection: "C1", account_set_key: "S:\\69EXP\\ABC" });
+assert.equal(choosableView(view), true);
+// 建议（服务端 suggested 的顺序）排第一、预选；付款用项自带的可选值
+const [payment, account] = view.needed;
+assert.deepEqual(optionsOf(view, payment).map((o) => o.label), ["Cash", "Credit"]);
+assert.deepEqual(optionsOf(view, account).slice(0, 2).map((o) => o.value), ["5390-99", "5320-01"]);
+assert.equal(optionsOf(view, account).length, view.options.accounts.length);   // 不重复
+// 科目表还没读到（wait）或没有可选值：当场选不了，交给 CC
+assert.equal(choosableView({ ...view, wait: { state: "reading", message: "…" } }), false);
+assert.equal(choosableView({ ...view, options: { accounts: [] } }), false);
+// 作答：只交选了的项，回的结果形状同服务端
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: fixture.answer }) });
+const result = await answerChoices(item, view, { [`account\n${account.subject}`]: "5390-99" });
 const sent = g.calls.at(-1);
-assert.equal(sent.method, "/api/method/pearnly_cowork.push.application.api.save_choices");
-assert.deepEqual({ ...sent.body, items: JSON.parse(sent.body.items) }, { history: "OCR-0001", connection: "conn1", account_set_key: "69EXP",
-  items: [{ kind: "account", subject: "s1", value: "5320", label: "ACME" }, { kind: "payment", subject: "s1", value: "credit", label: "ACME" }] });
-// 待处理按公司取（不给公司 = 全部）；服务端回列表或 {items}
-g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { items: [item] } }) });
+assert.equal(sent.method, "/api/method/pearnly_cowork.assistant.pending_api.answer");
+assert.deepEqual({ ...sent.body, items: JSON.parse(sent.body.items) }, { document: "h1",
+  items: [{ kind: "account", subject: account.subject, value: "5390-99", label: account.label }] });
+assert.equal(answered(result), true);
+assert.equal(answered({ status: "needs_choice" }), false);
+assert.equal(answered({ status: "already_success" }), true);
+// 计数：服务端的 {total, companies, unassigned}
+assert.deepEqual(parseCounts(fixture.counts), { total: 4, companies: { COMPANY: 2, OTHER: 1 } });
+// 待处理按公司取（不给公司 = 全部）；服务端回 {items, count}
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { items: [item], count: 1 } }) });
 assert.equal((await loadPending("comp_abc")).length, 1);
 assert.equal(g.calls.at(-1).args.company, "comp_abc");
 await loadPending();
 assert.equal(g.calls.at(-1).args.company, undefined);
+// 改付款方式带上页面当前的月份（服务端写进记过它的每份账套与这个月各分店的账套）
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { saved: true } }) });
+await setChoice("comp_abc", "k1", "cash", "2026-09");
+assert.deepEqual(g.calls.at(-1).body, { company: "comp_abc", key: "k1", value: "cash", period: "2026-09" });
+""", stubs={"cc-pending-fixture": "export default " + fixture + ";"})
+
+    def test_each_company_group_shows_its_scheduled_tasks(self):
+        # 用户 2026-10-15 同意：公司组里对话列表上面一行「⏱ 定时任务 N」；有出错或停了单的任务时一个点；没任务不出现
+        self.run_page(r"""
+import { CompanyTasks } from "@/components/assistant-ui/projects";
+import { refreshTaskOverview, useTaskOverview } from "@/lib/companies";
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: {
+  companies: { comp_abc: { count: 3, alert: true }, comp_xyz: { count: 1, alert: false } }, tasks: { R1: "comp_abc" }, titles: {} } }) });
+await refreshTaskOverview();
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.companies.api.task_overview");   // 一次取全部
+assert.deepEqual(useTaskOverview.getState().companies.comp_abc, { count: 3, alert: true });
+assert.equal(useTaskOverview.getState().loaded, true);
+// 服务端渲染只看得到初始状态（还没取到）：这家没有任务时不出现
+assert.deepEqual(text(html(CompanyTasks, { company: "comp_none" })), []);
 """)
+        row = read("components/assistant-ui/projects.tsx").split("export const CompanyTasks: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("if (!found?.count) return null;", row)
+        self.assertIn('{found.alert && <span className="cc-task-alert" data-slot="cc-task-alert" aria-hidden />}', row)
+        self.assertIn('useCompanyNav.setState({ taskCompany: company, taskFocus: "", taskSeed: null });', row)
+        self.assertIn('setView("tasks");', row)
+        self.assertIn("<CompanyTasks company={section.project.id} />", read("components/assistant-ui/thread-list.tsx"))
+
+    def test_the_company_page_lists_its_own_chats_from_the_server(self):
+        # 主档页「对话」按这家从服务端取（分组列表 group=<公司>，分页），不靠侧栏已加载的几条
+        page = read("components/company-page.tsx")
+        chats = page.split("export const Conversations: FC", 1)[1].split("\n// ----", 1)[0]
+        self.assertIn("await listGrouped({ group: company, after });", chats)
+        self.assertIn("onClick={() => void load(next)}", chats)
+        self.assertNotIn("threadItems", chats)
+        self.run_page(r"""
+import { listGrouped } from "@/lib/managed-agents/api";
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { sessions: [], nextCursor: null } }) });
+await listGrouped({ group: "comp_abc", after: "x|y" });
+assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: "x|y" });
+""")
+
+    def test_new_tasks_start_from_a_company(self):
+        tasks = read("components/scheduled-tasks.tsx")
+        self.assertIn("openAddCompany((id) => void seedFor(id), co.chooseCompany)", tasks)
+        self.assertEqual(tasks.count('onClick={() => newTask(taskCompany)}'), 2)   # 顶上「＋」与空列表的「＋」
+        self.assertNotIn("useTaskCompanies", tasks)   # 不再为侧栏每家读一次详情
+        self.assertIn("groupTasks(shown, overview.tasks, order, overview.titles)", tasks)
+        self.assertIn("co.other", tasks)
+        page = read("components/company-page.tsx")
+        self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders),", page)
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""
+import { formatWhen } from "@/lib/companies";
 const sets = [{ connection: "c", key: "69HQ", label: "ABC 69", year_label: "69", period_start: "2025-10-01", period_end: "2026-09-30" },
   { connection: "c", key: "69B1", label: "ABC 69 B1", year_label: "69" }];
 const branches = [{ branch: "00000", label: "", account_sets: [sets[0]] }, { branch: "00001", label: "Rama 9", account_sets: [sets[1]] }];
@@ -2417,7 +2509,12 @@ const learned = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "
   subject_label: "", supplier_name: "ACME", value: "5320", account_label: "5320 Utilities", count: 9, last_date: "2026-09-30" },
   onSet() {}, onForget() {} }));
 assert.ok(!learned.includes("<select"));
-assert.deepEqual(text(learned), ["ACME", "→ 5320 Utilities", "From Express history · 9 · 2026-09-30"]);
+assert.deepEqual(text(learned), ["ACME", "→ 5320 Utilities", "From Express history · 9 · Sep 30, 2026"]);
+// 服务端给带时区的 UTC：按这台设备的时区显示；不带时区的不猜、原样（原先补 Z，晚 7 小时）
+assert.equal(formatWhen("2026-10-15T02:00:00Z"),
+  new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Date.UTC(2026, 9, 15, 2))));
+assert.equal(formatWhen("2026-10-15 09:00:00"), "2026-10-15 09:00:00");
+assert.equal(formatWhen(""), "");
 """)
 
 

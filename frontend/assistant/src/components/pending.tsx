@@ -2,26 +2,30 @@
 // 公司主档页右栏最上面也是同一个组件（只列这家）。
 //
 //   数据：companies.api.pending（服务端从推送记录与录入状态现算，不新增存储）。按公司分组；归不上公司的放最后。
-//   能当场选的（action choose：推送停在「要人选一次」）就地给选项：建议项排第一、预选，但要点「确认」才记下
-//   （复用推送的 save_choices，不另写一套）；其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），
-//   输入框预填「处理这几张：…」并带上单据编号，不自动发送。
+//   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
+//   （push.application.api.choices，同复核页、CC 的判定；列表不逐行读账套主档）。建议项排第一、预选，要点「确认」才作答：
+//   assistant.pending_api.answer 记下选择并按 CC 推送同一条路重推（只记不推不会进账）。可选值没读到的那张就地「交给 CC」。
+//   其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），输入框预填「处理这几张：…」并带上单据编号，不自动发送。
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { InboxIcon, LoaderIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, InboxIcon, LoaderIcon, SparklesIcon, XIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
+  answerChoices,
+  answered,
   cachedDetail,
   type ChoiceNeeded,
+  type ChoicesView,
   formatAmount,
   isPeriod,
   listCompanies,
+  loadChoices,
   loadPending,
   PENDING_EVENTS,
   type PendingItem,
-  answerChoices,
   refreshPendingCounts,
   useCompanyNav,
 } from "@/lib/companies";
@@ -29,30 +33,35 @@ import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
 
 const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
+const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
 
-/** 一项要选的可选值：项自带的（对方档、付款、抵进项）或这份账套的科目表 / 存货表；建议的排第一。 */
-export function optionsOf(item: PendingItem, need: ChoiceNeeded): Array<{ value: string; label: string }> {
-  const fixed: Record<string, string> = { cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense };
+/** 一项要选的可选值：项自带的（对方档、付款、抵进项）或这份账套的科目表 / 存货表；建议的排第一（服务端的顺序）。 */
+export function optionsOf(view: Pick<ChoicesView, "options">, need: ChoiceNeeded): Array<{ value: string; label: string }> {
+  const fixed = FIXED();
   const pool = need.options?.length
     ? need.options
     : need.kind === "item"
-      ? (item.choices?.options?.products ?? [])
+      ? (view.options?.products ?? [])
       : ["account", "receipt"].includes(need.kind)
-        ? (item.choices?.options?.accounts ?? [])
+        ? (view.options?.accounts ?? [])
         : [];
   const rows = pool.map((o) => ({
     value: o.code,
-    label: fixed[o.code] ?? [o.code, "name" in o ? o.name : "", "branch" in o && o.branch ? `(${o.branch})` : ""].filter(Boolean).join(" "),
+    label: fixed[o.code] ?? [o.code, o.name ?? "", "branch" in o && o.branch ? `(${o.branch})` : ""].filter(Boolean).join(" "),
   }));
-  const first = need.suggested || need.current || "";
-  const at = rows.findIndex((r) => r.value === first);
-  if (at > 0) rows.unshift(...rows.splice(at, 1));
-  return rows;
+  const first = [...(need.suggested ?? []).map((s) => s.code), need.current ?? ""].filter(Boolean);
+  const ahead = first.flatMap((code) => rows.filter((r) => r.value === code));
+  return [...new Set([...ahead, ...rows])];
 }
 
-/** 这张单能不能当场选完（每一项都有可选值）。 */
+/** 这张单展开后能不能当场选完（每一项都有可选值、没在等电脑读科目表）。 */
+export function choosableView(view: ChoicesView | null | undefined): boolean {
+  return !!view && !view.wait && view.needed.length > 0 && view.needed.every((need) => optionsOf(view, need).length > 0);
+}
+
+/** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
-  return item.action === "choose" && !!item.choices?.needed?.length && item.choices.needed.every((need) => optionsOf(item, need).length > 0);
+  return item.action === "choose" && !!item.choice?.connection;
 }
 
 /** 「交给 CC」预填的话：处理这几张：INV-001 [单据编号]、…（不自动发送）。 */
@@ -134,6 +143,10 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
     setItems((before) => (before ?? []).filter((i) => i.document !== document));
     void refreshPendingCounts();
   };
+  const changed = () => {
+    void reload();
+    void refreshPendingCounts();
+  };
 
   if (embedded && (!items || !items.length) && !error) return null;
   return (
@@ -149,32 +162,30 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
         </div>
       ) : (
         groups.map(([id, rows]) => (
-          <PendingGroup key={id || "none"} company={id} title={company ? "" : (titles[id] ?? "")} items={rows} onDone={done} />
+          <PendingGroup key={id || "none"} company={id} title={company ? "" : (titles[id] ?? "")} items={rows} onDone={done} onChanged={changed} />
         ))
       )}
     </div>
   );
 };
 
-const PendingGroup: FC<{ company: string; title: string; items: PendingItem[]; onDone: (document: string) => void }> = ({
-  company,
-  title,
-  items,
-  onDone,
-}) => {
-  const start = useStartIn();
-  const withPeriod = useProjects((s) => s.period);
+const PendingGroup: FC<{
+  company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
+}> = ({ company, title, items, onDone, onChanged }) => {
+  const ask = useAskCC(company);
   const hand = items.filter((item) => !choosable(item));
-  const ask = () =>
-    start(company ? { project: company, period: withPeriod ? monthOfItems(hand) : "" } : {}, handText(hand), false);
   return (
     <section className="flex flex-col gap-2">
       {title && <h2 className="cc-section-label !px-0 !pt-0">{title}</h2>}
       {items.map((item) =>
-        choosable(item) ? <ChooseRow key={item.document} item={item} onDone={onDone} /> : <PendingRow key={item.document} item={item} />,
+        choosable(item) ? (
+          <ChooseRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
+        ) : (
+          <PendingRow key={item.document} item={item} />
+        ),
       )}
       {hand.length > 0 && (
-        <button type="button" className="cc-btn self-start" data-slot="cc-hand-to-cc" onClick={ask}>
+        <button type="button" className="cc-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
           <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>
@@ -182,6 +193,14 @@ const PendingGroup: FC<{ company: string; title: string; items: PendingItem[]; o
     </section>
   );
 };
+
+/** 交给 CC：在这家公司下开新对话（月份取单据月份），预填「处理这几张：…」，不自动发送。 */
+function useAskCC(company: string) {
+  const start = useStartIn();
+  const withPeriod = useProjects((s) => s.period);
+  return (items: readonly PendingItem[]) =>
+    start(company ? { project: company, period: withPeriod ? monthOfItems(items) : "" } : {}, handText(items), false);
+}
 
 /** 一张单的摘要：单号 · 对方 · 金额 · 日期，下面一行原因。 */
 const Summary: FC<{ item: PendingItem }> = ({ item }) => (
@@ -199,48 +218,102 @@ const PendingRow: FC<{ item: PendingItem }> = ({ item }) => (
   </div>
 );
 
-/** 能当场选的单：每项一个下拉（建议项第一、预选），点「确认」才记下。 */
-const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void }> = ({ item, onDone }) => {
-  const needed = item.choices?.needed ?? [];
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(needed.map((need) => [choiceKey(need), optionsOf(item, need)[0]?.value ?? ""])),
-  );
+/** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。 */
+const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void }> = ({
+  item,
+  onDone,
+  onChanged,
+  onAsk,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<ChoicesView | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    setError("");
+    setView(null);
+    try {
+      const next = await loadChoices(item);
+      setView(next);
+      setValues(Object.fromEntries(next.needed.map((need) => [choiceKey(need), optionsOf(next, need)[0]?.value ?? ""])));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [item]);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !view) void load();
+  };
   const confirm = async () => {
+    if (!view) return;
     setBusy(true);
     setError("");
     try {
-      await answerChoices(item, values);
-      onDone(item.document);
+      const result = await answerChoices(item, view, values);
+      if (answered(result)) onDone(item.document);
+      else if (result.status === "needs_choice") await load();
+      else {
+        setError(result.reason ?? "");
+        onChanged();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
   };
+  const kinds = (item.choice?.kinds ?? []).map((kind) => co.kind[kind] ?? kind).join(" · ");
   return (
     <div className="cc-card flex flex-col gap-2 px-3 py-2.5" data-slot="cc-pending-choose">
-      <Summary item={item} />
-      {needed.map((need) => (
-        <label key={choiceKey(need)} className="cc-field">
-          <span className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</span>
-          <select
-            className="cc-input"
-            value={values[choiceKey(need)] ?? ""}
-            onChange={(e) => setValues((v) => ({ ...v, [choiceKey(need)]: e.target.value }))}
-          >
-            {optionsOf(item, need).map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </label>
-      ))}
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
-      <button type="button" className="cc-btn self-end" data-primary="" disabled={busy} onClick={() => void confirm()}>
-        {busy && <LoaderIcon className="size-4 animate-spin" />}
-        {co.confirm}
+      <button type="button" className="cc-pending-toggle flex min-w-0 items-center gap-2 text-start" aria-expanded={open} onClick={toggle}>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-ink text-sm">
+            {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
+          </span>
+          <span className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</span>
+        </span>
+        <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
+      {open && !view && !error && (
+        <div className="flex justify-center py-2 text-ink-3">
+          <LoaderIcon className="size-4 animate-spin" />
+        </div>
+      )}
+      {open && view && choosableView(view) && (
+        <>
+          {view.needed.map((need) => (
+            <label key={choiceKey(need)} className="cc-field">
+              <span className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</span>
+              <select
+                className="cc-input"
+                value={values[choiceKey(need)] ?? ""}
+                onChange={(e) => setValues((v) => ({ ...v, [choiceKey(need)]: e.target.value }))}
+              >
+                {optionsOf(view, need).map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <button type="button" className="cc-btn self-end" data-primary="" disabled={busy} onClick={() => void confirm()}>
+            {busy && <LoaderIcon className="size-4 animate-spin" />}
+            {co.confirm}
+          </button>
+        </>
+      )}
+      {open && view && !choosableView(view) && (
+        // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
+        <>
+          {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}
+          <button type="button" className="cc-btn self-start" onClick={onAsk}>
+            <SparklesIcon className="size-4" />
+            {co.handToCC}
+          </button>
+        </>
+      )}
+      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
     </div>
   );
 };
@@ -268,4 +341,3 @@ export const PendingView: FC = () => {
     </div>
   );
 };
-

@@ -541,6 +541,23 @@ class PushService(unittest.TestCase):
         self.assertEqual(codes(needed[0]["suggested"]), [("5310-01", "name")])
 
 
+class PendingChoicesContract(unittest.TestCase):
+    """跨端契约（tests/fixtures/cc-pending-contract.json 的 choices）：「待处理」展开一行时页面拿到的就是复核页、CC 用的
+    `choices_view` 真实输出；页面测试用同一份当假数据。"""
+
+    def test_the_view_the_page_reads_is_the_real_output(self):
+        fixture = json.loads((ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8"))
+        case = PushService("test_the_account_item_carries_suggestions_before_the_full_list")
+        service = case._service({"state": "ready", "accounts": [{"code": "5390-99", "docs": 5, "last": "2026-10-01"}],
+                                 "changed": True})
+        subject, label = "purchase|0105556012345", "ศรีกรุง เครื่องเขียน"
+        case._wired(service, [{"kind": "payment", "subject": subject, "label": label,
+                               "options": [{"code": "cash"}, {"code": "credit"}], "current": ""},
+                              {"kind": "account", "subject": subject, "label": label, "current": ""}])
+        view = json.loads(json.dumps(service.choices_view("H1", "C1", case.book, None), ensure_ascii=False))
+        self.assertEqual(view, fixture["choices"])
+
+
 class PushDecisions(unittest.TestCase):
     """推送准备的选择（`_decisions`）：历史很一致的科目当作已记住的用；会计员手选过的、任务默认的优先；不一致、次数不够
     仍要人选。真的选择规则（`push/express/choices.py`），历史经钩子替身。"""
