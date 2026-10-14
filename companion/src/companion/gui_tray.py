@@ -11,18 +11,20 @@ Express / MR.ERP 的连接与设置留在「连接与设置」主窗口，取任
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
 from . import toast, watchdog
 from .config import CompanionConfig
 from .auto_update import AutoUpdate
+from .update_block import UpdateMemory, state_file
 from .folder_worker import FolderIntake
 from .request_worker import RequestWorker
 from .gui_font import qt_app
@@ -192,10 +194,11 @@ class TrayApp(QObject):
         # 强制自动更新（auto_update.py）：发现新版就下载，空闲时停下手上的活再静默安装。
         self._updating = False
         self._update_requested = False  # 有人点了「立即更新」：主窗口开着也照装
+        # 安装结果记在本机（update_block.py）：被 Windows 拦下的版本重开 CC 也按退避再试，心跳如实上报。
         self._auto_update = AutoUpdate(
             busy=self._busy, stop_work=self._stop_for_update, work_stopped=self._work_stopped,
             resume_work=self._resume_after_update, start_download=self._start_download,
-            install=self._install_update)
+            install=self._install_update, memory=UpdateMemory(state_file()), exists=os.path.isfile)
         self._auto_timer = QTimer()
         self._auto_timer.timeout.connect(self._auto_update_tick)
         # 新版本由服务端随心跳回复带来（worker._offer_update，用户 2026-10-09：不要定时任务做更新检查）；
@@ -206,6 +209,7 @@ class TrayApp(QObject):
         self._quitting = False
         self.worker_stopped.connect(self._on_worker_finished)
         self._build_menu()
+        self._render_update_action()   # 上次被 Windows 拦下、还没装上：一开始菜单里就有「下载新版」
         self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
         activity("log_started", lang=self.lang)
@@ -280,10 +284,10 @@ class TrayApp(QObject):
         menu = QMenu()
         self._status_action = menu.addAction(t("tray_starting", self.lang))
         self._status_action.setEnabled(False)
-        # 有新版才显示的「更新到最新版」项(默认隐藏)。
+        # 有新版才显示的「更新到最新版」项(默认隐藏)；被 Windows 拦下时是「下载新版」（_render_update_action）。
         self._update_action = menu.addAction("")
         self._update_action.setVisible(False)
-        self._update_action.triggered.connect(self._do_update)
+        self._update_action.triggered.connect(self._on_update_action)
         menu.addSeparator()
         self._tomo_action = menu.addAction(t("tomo_open", self.lang), self.open_tomo)
         font = self._tomo_action.font()
@@ -306,10 +310,7 @@ class TrayApp(QObject):
             self._open_action.setText(t("tray_open", self.lang))
         if self._quit_action:
             self._quit_action.setText(t("tray_quit", self.lang))
-        if self._update_action and self._pending_update:
-            self._update_action.setText(
-                t("tray_update_to", self.lang, ver=self._pending_update[0])
-            )
+        self._render_update_action()
         self._render_status()
 
     def _detail_text(self, detail: object) -> str:
@@ -340,9 +341,7 @@ class TrayApp(QObject):
         if not self._auto_update.offer(version, url):
             return  # 同版本只提示一次
         self._pending_update = (version, url)
-        if self._update_action:
-            self._update_action.setText(t("tray_update_to", self.lang, ver=version))
-            self._update_action.setVisible(True)
+        self._render_update_action()
         activity("log_update_found", lang=self.lang, ver=version)
         if not self._holding_message():
             self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
@@ -453,6 +452,9 @@ class TrayApp(QObject):
         elif state == "failed":
             self._auto_timer.setInterval(15000)
             self._on_update_failed()
+        elif state == "blocked":
+            self._auto_timer.setInterval(15000)
+            self._on_update_blocked()
 
     def _busy(self) -> bool:
         """有连接正在推送、等账套锁或扫账套：不换版本。小助手的窗口开着（有人正在用）、文件夹线程正在逐份上传
@@ -525,6 +527,46 @@ class TrayApp(QObject):
             self._update_action.setEnabled(True)  # 放回,允许重试
         self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
         self._pop(t("update_avail_title", self.lang), t("update_failed", self.lang), tag=UPDATE_TAG)
+
+    def _on_update_blocked(self) -> None:
+        """安装包被 Windows 拦下（auto_update / update_block）：菜单换成「下载新版」；同一版本只弹一次通知，点了打开官网下载。
+        不绕开系统的拦截，只给出路（教程问题第 1 条）。刚弹的对话提醒还没点时先不弹（同「有新版本」，托盘气泡只记得住
+        最后一条的动作），下次再被拦时补弹；菜单里照样有「下载新版」。"""
+        version = self._auto_update.blocked()
+        if self._update_action:
+            self._update_action.setEnabled(True)
+        self._render_update_action()
+        if version:
+            activity("log_update_blocked", lang=self.lang, ver=version)
+        version = "" if self._holding_message() else self._auto_update.take_blocked_notice()
+        if version:
+            self._show(t("update_blocked", self.lang, ver=version), t("upd_download", self.lang), self._open_download,
+                       tag=UPDATE_TAG)
+
+    def _open_download(self) -> None:
+        """「下载新版」：在系统浏览器打开官网的安装包下载（与官网、网页「下载 CC 桌面版」同一个地址）。"""
+        from .updater import DOWNLOAD_PAGE
+
+        QDesktopServices.openUrl(QUrl(DOWNLOAD_PAGE))
+
+    def _on_update_action(self) -> None:
+        if self._auto_update.state()[0] == "blocked":
+            self._open_download()
+        else:
+            self._do_update()
+
+    def _render_update_action(self) -> None:
+        """托盘菜单的更新项：被 Windows 拦下 →「下载新版 vX」；有新版 →「更新到最新版 vX」；都没有就不显示。"""
+        action = getattr(self, "_update_action", None)
+        if not action:
+            return
+        state, version = self._auto_update.state()
+        pending = getattr(self, "_pending_update", None)
+        if state == "blocked":
+            action.setText(t("tray_download_to", self.lang, ver=version))
+        elif pending:
+            action.setText(t("tray_update_to", self.lang, ver=pending[0]))
+        action.setVisible(state == "blocked" or bool(pending))
 
     def _profile_label(self, profile_id: str) -> str:
         for cfg in self.configs:
@@ -685,6 +727,7 @@ class TrayApp(QObject):
 
         settings = DesktopSettings(
             states=lambda: dict(self._profile_states), update_status=self.update_status, on_update=self._update_now,
+            on_download=self._open_download,
             on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
             on_always_on=self._keep_awake.set,
             hotkey=lambda: bool(getattr(self._hotkey, "registered", False)))

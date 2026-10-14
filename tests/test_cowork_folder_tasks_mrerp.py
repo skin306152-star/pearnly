@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 from test_cowork_delete_everything import FakeDB, Row, _frappe, _load  # noqa: E402
 
 contracts = _load("folder_contracts_mrerp", APP / "folder_intake/contracts.py", {})
+desktop_update = _load("connections_desktop_update_mrerp", APP / "connections/desktop_update.py", {})
 
 
 class Payments(unittest.TestCase):
@@ -73,7 +74,7 @@ class SaveMrerpTask(unittest.TestCase):
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None)),
                    "pearnly_cowork.connections": stub(
-                       access=stub(require_connection=lambda doc: None),
+                       access=stub(require_connection=lambda doc: None), desktop_update=desktop_update,
                        preparation=stub(reported_masters=masters),
                        service=stub(targets=lambda name: {"groups": [group]}, stock_acc_group=lambda *a: {},
                                     records=lambda *a: [dict(row) for row in connections.values()],

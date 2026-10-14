@@ -2,6 +2,7 @@
 
 在 bench 的 Python 下运行（需要 frappe 可导入，不连库）。
 """
+import json
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -51,6 +52,37 @@ class Computers(unittest.TestCase):
     def test_express_online_follows_the_heartbeat_not_the_folder_sync(self):
         result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1}], online=())
         self.assertFalse(result[0]["online"])
+
+    def test_a_blocked_update_is_one_more_line_only_when_there_is_one(self):
+        # 教程问题第 1 条：CC 桌面版的自动更新被 Windows 拦下 → 这一行多带 update_blocked（版本 + 时刻），网页如实显示一句
+        blocked = {"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"}
+        views = {**VIEWS, "C-E": {**VIEWS["C-E"], "update_blocked": blocked}}
+        with mock.patch.dict(VIEWS, views):
+            result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1},
+                                         {"name": "C-OLD", "adapter": "mrerp", "enabled": 1}], online={"C-E"})
+        self.assertEqual(result[0]["update_blocked"], blocked)
+        self.assertNotIn("update_blocked", result[1])
+
+    def test_reader_view_takes_the_block_from_the_heartbeat_for_express_and_the_sync_for_mrerp(self):
+        blocked = {"version": "1.5.2", "at": "2026-10-13T11:18:00Z"}
+        shown = {"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"}
+
+        def view(adapter, report, state):
+            with mock.patch.object(rules.agent, "read", return_value=state), \
+                    mock.patch.object(rules.agent, "fresh", return_value=True), \
+                    mock.patch.object(rules.frappe, "db", SimpleNamespace(get_value=lambda *a, **k: json.dumps(report))):
+                return rules._reader_view(doc("C-1", adapter))["update_blocked"]
+
+        # Express：以心跳报的为准（文件夹同步那份不算）
+        self.assertEqual(view("express", {"update_blocked": blocked, "companion_version": "1.5.1"},
+                              {"version": "1.5.1"}), shown)
+        self.assertIsNone(view("express", {"companion_version": "1.5.1"},
+                               {"version": "1.5.1", "update_blocked": blocked}))
+        # 已经手动装上 1.5.2：旧值还没清也不显示
+        self.assertIsNone(view("express", {"update_blocked": blocked, "companion_version": "1.5.2"}, {}))
+        # MR.ERP 的电脑只读文件夹：以文件夹同步报的为准
+        self.assertEqual(view("mrerp", {}, {"version": "1.5.1", "update_blocked": blocked}), shown)
+        self.assertIsNone(view("mrerp", {"update_blocked": blocked}, {"version": "1.5.1"}))
 
     def test_skips_never_connected_disabled_other_and_not_permitted(self):
         result = self.run_computers([{"name": "C-M", "adapter": "mrerp", "enabled": 1},

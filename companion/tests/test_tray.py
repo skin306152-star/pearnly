@@ -382,3 +382,106 @@ def test_windows_notifications_replace_the_balloon_and_their_clicks_run_on_the_u
     app._on_update_available("1.4.6", "/b.exe")
     assert toasts[-1][0] == "有新版本" and toasts[-1][2] == "update" and toasts[-1][3] is None
     assert shown == []   # 全程没弹托盘气泡
+
+
+class _Refused(OSError):
+    """Windows 拒绝启动安装包时 Python 抛的样子（winerror 4551「An Application Control policy has blocked this file」）。"""
+
+    @property
+    def winerror(self):
+        return 4551
+
+
+def _blocked_tray(monkeypatch, tmp_path):
+    """托盘接上真的自动更新流程与本机记录；安装包一启动就被 Windows 拒绝。"""
+    from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+
+    from src.companion import gui_tray
+    from src.companion.auto_update import AutoUpdate
+    from src.companion.gui_tray import TrayApp
+    from src.companion.update_block import UpdateMemory
+
+    QApplication.instance() or QApplication([])
+    seen = {"toasts": [], "opened": [], "logged": [], "installs": []}
+    monkeypatch.setattr(gui_tray.toast, "show", lambda *args: seen["toasts"].append(args) or True)
+    monkeypatch.setattr(gui_tray, "activity", lambda key, **kw: seen["logged"].append((key, kw.get("ver"))))
+    monkeypatch.setattr(gui_tray.QDesktopServices, "openUrl", lambda url: seen["opened"].append(url.toString()))
+    app = TrayApp.__new__(TrayApp)
+    app.lang = "zh"
+    app.configs = []
+    app.tray = QSystemTrayIcon()
+    app._quit = app._repair = lambda: None
+    app.open_tomo = lambda text=None: None
+    app._quitting = False
+    app._pending_update = None
+    app._checking = None
+    app._checked_latest = False
+    app._auto_timer = SimpleNamespace(isActive=lambda: True, setInterval=lambda ms: None)
+    monkeypatch.setattr(gui_tray, "QTimer", SimpleNamespace(singleShot=lambda *args: None))
+
+    def refuse(path):
+        seen["installs"].append(path)
+        raise _Refused(13, "blocked")
+
+    def start():
+        app._auto_update = AutoUpdate(busy=lambda: False, stop_work=lambda: None, work_stopped=lambda: True,
+                                      resume_work=lambda: None, start_download=lambda version, url: None,
+                                      install=refuse, memory=UpdateMemory(tmp_path / "update_state.json", "1.5.1"))
+        app._build_menu()
+        app._render_update_action()
+
+    start()
+    return app, seen, start
+
+
+def _menu(app):
+    return [action.text() for action in app.tray.contextMenu().actions() if action.isVisible() and not action.isSeparator()]
+
+
+def _blocked_install(app):
+    """新版提示 → 下载完 → 空闲停手 → 启动安装包（被拒）。"""
+    app._on_update_available("1.5.2", "/r/1.5.2/CC-Setup.exe")
+    app._auto_update.tick()
+    app._auto_update.downloaded("C:/Temp/CC-Setup_x.exe")
+    app._auto_update.tick()
+    app._auto_update_tick()
+
+
+def test_a_blocked_update_shows_download_new_version_and_notifies_once(monkeypatch, tmp_path):
+    # 教程问题第 1 条：智能应用控制拦下没签名的安装包 → 托盘一行「下载新版」+ 一条通知，点了在浏览器打开官网下载；
+    # 不再重试轰炸，也不绕开系统的拦截
+    from src.companion.updater import DOWNLOAD_PAGE
+
+    app, seen, start = _blocked_tray(monkeypatch, tmp_path)
+    app._on_update_available("1.5.2", "/r/1.5.2/CC-Setup.exe")
+    assert _menu(app)[1] == "更新到最新版 v1.5.2"
+    _blocked_install(app)
+    assert seen["installs"] == ["C:/Temp/CC-Setup_x.exe"]
+    assert _menu(app)[1] == "下载新版 v1.5.2"
+    assert seen["toasts"][-1][:3] == ("Windows 拦截了 v1.5.2 的自动更新", "下载新版", "update")
+    assert ("log_update_blocked", "1.5.2") in seen["logged"]
+    assert app.update_status() == ("blocked", "1.5.2")   # 设置页「版本」一行
+
+    app._on_message_clicked()                           # 点通知
+    app._update_action.trigger()                        # 点菜单：打开下载，不是再装一次
+    assert seen["opened"] == [DOWNLOAD_PAGE, DOWNLOAD_PAGE]
+    assert seen["installs"] == ["C:/Temp/CC-Setup_x.exe"]
+
+    count = len(seen["toasts"])
+    app._auto_update_tick()                             # 退避期间：不再启动安装包、不再弹
+    assert len(seen["toasts"]) == count and len(seen["installs"]) == 1
+
+    start()                                             # 重开 CC：心跳带来新版之前菜单里就有「下载新版」
+    assert _menu(app)[1] == "下载新版 v1.5.2"
+    assert app.update_status() == ("blocked", "1.5.2")
+    assert len(seen["toasts"]) == count
+
+
+def test_the_blocked_notice_waits_for_an_unclicked_reminder(monkeypatch, tmp_path):
+    # 刚弹的对话提醒还没点：先不弹「被拦」（托盘气泡只记得住最后一条的动作），菜单里照样有「下载新版」
+    app, seen, _start = _blocked_tray(monkeypatch, tmp_path)
+    app._show("T1", "x", lambda: None, tag="notice:p1")
+    _blocked_install(app)
+    assert [toast[0] for toast in seen["toasts"]] == ["T1"]
+    assert _menu(app)[1] == "下载新版 v1.5.2"
+    assert app._auto_update.take_blocked_notice() == "1.5.2"   # 没消耗：下次被拦时补弹

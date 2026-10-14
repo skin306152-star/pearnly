@@ -69,3 +69,17 @@ def _task_journal_in_tmp(tmp_path, monkeypatch):
         except ImportError:
             continue
         monkeypatch.setattr(module, "FILE", tmp_path / "written_tasks.json")
+
+
+@pytest.fixture(autouse=True)
+def _update_state_in_tmp(tmp_path, monkeypatch):
+    """自动更新的本机结果（update_block）：测试里放进本次的临时目录；本进程要上报的「被拦下」每个用例从空开始。"""
+    import importlib
+
+    monkeypatch.setenv("PEARNLY_UPDATE_STATE_FILE", str(tmp_path / "update_state.json"))
+    for name in ("companion.update_block", "src.companion.update_block"):
+        try:
+            module = importlib.import_module(name)
+        except ImportError:
+            continue
+        monkeypatch.setitem(module._REPORT, "value", None)

@@ -28,6 +28,7 @@ def _load(name, path):
 contracts = _load("folder_contracts", APP / "folder_intake/contracts.py")
 identity = _load("folder_targets_identity", APP / "targets/identity.py")
 folder_plan = _load("companion_folder_plan", ROOT / "companion/src/companion/folder_plan.py")
+desktop_update = _load("connections_desktop_update", APP / "connections/desktop_update.py")
 
 
 class Row(dict):
@@ -1348,7 +1349,7 @@ class MachineSync(unittest.TestCase):
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub()),
                    "pearnly_cowork.companion": stub(http_auth=stub(), release=stub(latest=lambda: latest)),
-                   "pearnly_cowork.connections": stub(access=stub()),
+                   "pearnly_cowork.connections": stub(access=stub(), desktop_update=desktop_update),
                    "pearnly_cowork.folder_intake": stub(
                        agent=agent, contracts=contracts, inbox=stub(), settings=stub(), workbook=stub(),
                        live=stub(changed=lambda rule, *users: calls["changed"].append(rule)),
@@ -1381,6 +1382,18 @@ class MachineSync(unittest.TestCase):
         self.assertNotIn("companion_latest", reply)
         self.assertNotIn("notices", reply)  # 旧小助手不带 notices_after：不查
         self.assertEqual(calls["for_rules"], [])
+
+    def test_the_sync_keeps_what_the_computer_says_about_a_blocked_update(self):
+        # 教程问题第 1 条：只读文件夹的 MR.ERP 成员没有心跳，「自动更新被 Windows 拦下」随文件夹同步报（规整成 UTC）；
+        # 没被拦（null）、旧版不带、带的不合形状都存 None
+        machine, calls = self._machine([self._rule("P1")])
+        context = types.SimpleNamespace(connection="C1")
+        machine._sync(context, {"update_blocked": {"version": "1.5.2", "at": "2026-10-13T18:18:00+07:00"}})
+        machine._sync(context, {"update_blocked": None})
+        machine._sync(context, {})
+        machine._sync(context, {"update_blocked": {"version": "1.5.2", "at": "yesterday"}})
+        self.assertEqual([kw["update_blocked"] for kw in calls["remember"]],
+                         [{"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"}, None, None, None])
 
     def test_sales_tasks_into_express_also_take_pos_exports(self):
         machine, _calls = self._machine([self._rule("S1", "sales"), self._rule("P1")])

@@ -10,10 +10,13 @@
 - POS 导出（第二批 L9）：两边收同一组扩展名（含登记即失败的 .xls）、云端按任务下发、小助手按它扫与数（老任务新收的
   扩展名先补拍底）；载荷 3 的 `pos` 块两边同形、票号上限一致，小助手的拒收码（含 POS_INVALID）云端认作「要人处理」且有
   译文，销项税摘要带「อย่างย่อ」给报税草稿认简易税票。
+- 自动更新被 Windows 拦下（教程问题第 1 条，2026-10-15）：心跳与文件夹同步都带 `update_blocked`（版本 + UTC 时刻，
+  null = 没被拦，旧版不带），服务端同一套收法（`connections/desktop_update.py`）；「下载新版」与官网同一个安装包地址。
 """
 import ast
 import importlib.util
 import re
+import sys
 import unittest
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -505,6 +508,85 @@ class AnyAccountSetRead(unittest.TestCase):
         self.assertNotIn("cfg.update", source)
         periodic = method_source_of(COMPANION / "worker.py", "_run_periodic")
         self.assertIn("roots=[root or '', *authorized]", periodic)
+
+
+def _module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class UpdateBlocked(unittest.TestCase):
+    """自动更新被 Windows 拦下（教程问题第 1 条，2026-10-15）：CC 桌面版 `update_block` 记下并在心跳、文件夹同步里报
+    ``update_blocked``（版本 + UTC 时刻，没被拦是 null，旧版不带）；服务端 `connections/desktop_update` 收（心跳
+    `reports.plan_report`、同步 `folder_intake.machine`），网页「连接」如实显示一句；桌面端设置页给「下载新版」。"""
+
+    CONNECTIONS = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "connections"
+
+    @classmethod
+    def setUpClass(cls):
+        # CC 桌面版这边只执行 update_block 与 version 两个纯模块（config、logger 用到时才导入，CI 的 Python 没装桌面端依赖）
+        sys.path.insert(0, str(ROOT / "companion" / "src"))
+        try:
+            cls.helper = importlib.import_module("companion.update_block")
+        finally:
+            sys.path.remove(str(ROOT / "companion" / "src"))
+        cls.server = _module("contract_desktop_update", cls.CONNECTIONS / "desktop_update.py")
+
+    def test_what_the_helper_reports_is_what_the_server_stores(self):
+        at = 1_791_890_280.0   # 2026-10-13 11:18 UTC（曼谷 18:18）
+        record = self.helper.Record("1.5.2", "blocked", at, 1, 4551)
+        sent = self.helper.report_of(record)
+        self.assertEqual(sent, {"version": "1.5.2", "at": "2026-10-13T11:18:00Z"})
+        self.assertEqual(self.server.parse(sent), {"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"})
+        for state in ("launched", "failed"):   # 别的没装上不说成被拦
+            self.assertIsNone(self.helper.report_of(self.helper.Record("1.5.2", state, at)))
+        self.assertIsNone(self.server.parse(None))
+        self.assertEqual(self.server.KEY, "update_blocked")
+        # 只有系统按策略拒绝运行才算被拦（4551 应用控制 / 智能应用控制）；找不到文件、拒绝访问不算
+        self.assertIn(4551, self.helper.BLOCKED_ERRORS)
+        self.assertFalse({2, 5} & set(self.helper.BLOCKED_ERRORS))
+
+    def test_heartbeat_and_folder_sync_both_carry_it_and_the_server_reads_both(self):
+        self.assertIn("update_blocked=update_block.reported()", method_source_of(COMPANION / "worker.py", "_run_periodic"))
+        self.assertIn('body["update_blocked"] = update_blocked', (COMPANION / "queue_client.py").read_text(encoding="utf-8"))
+        round_source = method_source(COMPANION / "folder_worker.py", "FolderIntake", "round")
+        sync = next(node for node in ast.walk(ast.parse(round_source)) if isinstance(node, ast.Call)
+                    and ast.unparse(node.func) == "client.sync")
+        self.assertIn("update_blocked", {key.value for key in sync.args[0].keys})
+        reports = (self.CONNECTIONS / "reports.py").read_text(encoding="utf-8")
+        self.assertIn("if desktop_update.KEY in body:", reports)    # 旧版不带：保留上次的值
+        self.assertRegex(reports, r"CACHE_KEYS = frozenset\(\([^)]*desktop_update\.KEY,")
+        machine = (FOLDER_SERVER / "machine.py").read_text(encoding="utf-8")
+        self.assertIn("update_blocked=desktop_update.parse(body.get(desktop_update.KEY))", machine)
+
+    def test_the_web_line_shows_only_while_it_is_still_true(self):
+        blocked = {"version": "1.5.2", "at": "2026-10-13T11:18:00Z"}
+        self.assertEqual(self.server.current(blocked, "1.5.1")["version"], "1.5.2")
+        self.assertIsNone(self.server.current(blocked, "1.5.2"))   # 已手动装上
+        self.assertIsNone(self.server.current(blocked, "1.10.0"))
+        self.assertIsNone(self.server.current(None, "1.5.1"))
+        rules = (FOLDER_SERVER / "rules.py").read_text(encoding="utf-8")
+        self.assertIn('row["update_blocked"] = view["update_blocked"]', rules)
+        page = (ROOT / "frontend/assistant/src/components/settings.tsx").read_text(encoding="utf-8")
+        self.assertIn("row.update_blocked && (", page)
+        self.assertIn("update_blocked?: { version: string; at: string } | null;", page)
+
+    def test_download_new_version_opens_the_same_installer_as_the_website(self):
+        updater = module_constants(COMPANION / "updater.py")
+        api = module_constants(SERVER / "api.py")
+        website = module_constants(ROOT / "website" / "content.py")
+        self.assertEqual(updater["DOWNLOAD_PAGE"], api["INSTALLER_URL"])
+        self.assertEqual(updater["DOWNLOAD_PAGE"], updater["DOWNLOAD_SITE"] + website["COMPANION_URL"])
+
+    def test_the_settings_page_and_the_desktop_agree_on_the_state_and_the_button(self):
+        page = (ROOT / "frontend/assistant/src/components/settings.tsx").read_text(encoding="utf-8")
+        self.assertIn('onDownload={() => void run("download", "download_update")}', page)
+        self.assertIn('const blocked = updateState === "blocked";', page)
+        self.assertIn('if method == "download_update":', (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8"))
+        flow = (COMPANION / "auto_update.py").read_text(encoding="utf-8")
+        self.assertIn('return "blocked", version', flow)
 
 
 if __name__ == "__main__":

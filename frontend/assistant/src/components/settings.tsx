@@ -31,7 +31,7 @@ import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { useProfile } from "@/lib/profile";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
-import { lang, LANGUAGES, st, t } from "../i18n";
+import { dayLabel, lang, LANGUAGES, st, t } from "../i18n";
 
 type Section = "general" | "connections" | "system";
 
@@ -514,7 +514,23 @@ function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?:
 
 // ── 浏览器里：只读的连接（连着哪台电脑、在不在线、网页可读取的文件夹；pearnly_cowork.folder_intake.api.computers） ──
 
-type Computer = { adapter: string; device: string; online: boolean; version: string; folders: string[] };
+// update_blocked：这台电脑的 CC 桌面版自动更新被 Windows 拦下（被拦的版本 + 时刻，UTC；服务端 connections/desktop_update.py）
+export type Computer = {
+  adapter: string;
+  device: string;
+  online: boolean;
+  version: string;
+  folders: string[];
+  update_blocked?: { version: string; at: string } | null;
+};
+
+/** 「Windows 拦截了 v1.5.2 的自动更新」；带时刻时接上「· 昨天 18:18」（按这台设备的时区，同对话里的时间）。 */
+export function blockedLine(version: string, at?: string): string {
+  const text = st.update.blocked.replace("{ver}", version);
+  const when = at ? new Date(at) : null;
+  if (!when || Number.isNaN(when.getTime())) return text;
+  return `${text} · ${dayLabel(when)} ${new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit" }).format(when)}`;
+}
 
 async function getJson<T>(method: string): Promise<T | null> {
   const res = await siteFetch(`/api/method/${method}`, { cache: "no-store" }).catch(() => null);
@@ -549,34 +565,42 @@ function WebConnections() {
     );
   return (
     <>
-      {rows.map((row, i) => {
-        const status = row.online ? "online" : "offline";
-        return (
-          <section key={`${row.adapter}-${row.device}-${i}`} className="mb-8 last:mb-0">
-            <div className="flex items-center gap-3 border-b py-4">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">{row.device}</div>
-                <div className="text-muted-foreground text-xs">{row.adapter === "mrerp" ? "MR.ERP" : "Express"}</div>
-              </div>
-              <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[status] }}>
-                <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[status] }} />
-                {st.status[status]}
-              </span>
-            </div>
-            <Heading>{st.folders}</Heading>
-            {!row.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
-            {row.folders.map((path) => (
-              <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
-                <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate" title={path}>
-                  {path}
-                </span>
-              </div>
-            ))}
-          </section>
-        );
-      })}
+      {rows.map((row, i) => (
+        <ComputerSection key={`${row.adapter}-${row.device}-${i}`} row={row} />
+      ))}
     </>
+  );
+}
+
+/** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）；下面是网页可读取的文件夹。 */
+export function ComputerSection({ row }: { row: Computer }) {
+  const status = row.online ? "online" : "offline";
+  return (
+    <section className="mb-8 last:mb-0">
+      <div className="flex items-center gap-3 border-b py-4">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm">{row.device}</div>
+          <div className="text-muted-foreground text-xs">{row.adapter === "mrerp" ? "MR.ERP" : "Express"}</div>
+          {row.update_blocked && (
+            <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
+          )}
+        </div>
+        <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[status] }}>
+          <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[status] }} />
+          {st.status[status]}
+        </span>
+      </div>
+      <Heading>{st.folders}</Heading>
+      {!row.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
+      {row.folders.map((path) => (
+        <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
+          <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate" title={path}>
+            {path}
+          </span>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -586,11 +610,6 @@ function System({ api }: { api: Desktop }) {
   const { state, refresh } = useDesktopState(api);
   const { error, run } = useAction(api, refresh);
   if (!state) return null;
-  const { state: updateState, version } = state.update;
-  const waiting = ["found", "ready", "failed"].includes(updateState);
-  const working = ["checking", "downloading", "installing"].includes(updateState);
-  const updateText =
-    updateState in st.update ? st.update[updateState as keyof typeof st.update].replace("{ver}", version) : "";
   return (
     <>
       <Row label={st.autostart}>
@@ -609,25 +628,12 @@ function System({ api }: { api: Desktop }) {
           <span className="text-muted-foreground text-sm">{st.hotkeyBusy}</span>
         )}
       </Row>
-      <Row
-        label={
-          <span>
-            {st.version} <span className="text-muted-foreground">v{state.version}</span>
-          </span>
-        }
-      >
-        {updateText && (
-          <span className="flex items-center gap-1 text-muted-foreground text-sm">
-            {updateState === "latest" && <CheckIcon className="size-3.5" />}
-            {updateText}
-          </span>
-        )}
-        {!working && (
-          <Button variant="outline" size="sm" onClick={() => void run("update", "update")}>
-            {waiting ? st.updateNow : st.checkUpdate}
-          </Button>
-        )}
-      </Row>
+      <VersionRow
+        version={state.version}
+        update={state.update}
+        onUpdate={() => void run("update", "update")}
+        onDownload={() => void run("download", "download_update")}
+      />
       <Row label={st.logs}>
         <Button variant="outline" size="sm" onClick={() => void run("logs", "logs")}>
           <FolderIcon className="size-4" />
@@ -635,5 +641,58 @@ function System({ api }: { api: Desktop }) {
       </Row>
       {error && <p className="mt-3 text-danger text-sm">{error}</p>}
     </>
+  );
+}
+
+/**
+ * 「版本」一行：本机版本 + 更新的真实状态（companion auto_update.state）。自动更新被 Windows 拦下（blocked）时一句话 +
+ * 「下载新版」（桌面端在系统浏览器打开官网下载，不再重试安装）；其余照旧「检查更新 / 立即更新」。
+ */
+export function VersionRow({
+  version,
+  update,
+  onUpdate,
+  onDownload,
+}: {
+  version: string;
+  update: { state: string; version: string };
+  onUpdate: () => void;
+  onDownload: () => void;
+}) {
+  const { state: updateState, version: next } = update;
+  const blocked = updateState === "blocked";
+  const waiting = ["found", "ready", "failed"].includes(updateState);
+  const working = ["checking", "downloading", "installing"].includes(updateState);
+  const updateText = blocked
+    ? blockedLine(next)
+    : updateState in st.update
+      ? st.update[updateState as keyof typeof st.update].replace("{ver}", next)
+      : "";
+  return (
+    <Row
+      label={
+        <span>
+          {st.version} <span className="text-muted-foreground">v{version}</span>
+        </span>
+      }
+    >
+      {updateText && (
+        <span className="flex items-center gap-1 text-muted-foreground text-sm">
+          {updateState === "latest" && <CheckIcon className="size-3.5" />}
+          {updateText}
+        </span>
+      )}
+      {blocked ? (
+        <Button variant="outline" size="sm" onClick={onDownload}>
+          {st.downloadNew}
+        </Button>
+      ) : (
+        !working && (
+          <Button variant="outline" size="sm" onClick={onUpdate}>
+            {waiting ? st.updateNow : st.checkUpdate}
+          </Button>
+        )
+      )}
+    </Row>
   );
 }

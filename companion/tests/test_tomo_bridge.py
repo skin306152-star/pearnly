@@ -32,6 +32,10 @@ class _Settings:
         self.calls.append(("folders", member, paths))
         return {"ok": True}
 
+    def download(self):
+        self.calls.append(("download",))
+        return {"ok": True}
+
 
 def _bridge(allowed=True):
     from PySide6.QtWidgets import QApplication
@@ -76,6 +80,16 @@ def test_removing_a_folder_keeps_the_others_and_language_follows_the_page():
     bridge.call("lang", json.dumps({"lang": "th"}))
     bridge.call("lang", json.dumps({"lang": "en"}))   # 小助手只有中文 / 泰文：英文页面不改托盘语言
     assert langs == ["th"]
+
+
+def test_download_new_version_is_answered_only_on_the_chat_page():
+    # 教程问题第 1 条：设置页「下载新版」经桥交给托盘打开官网下载；别的页面调不到
+    bridge, settings, _ = _bridge()
+    assert json.loads(bridge.call("download_update", "{}")) == {"ok": True}
+    assert settings.calls == [("download",)]
+    refused, other, _ = _bridge(allowed=False)
+    assert json.loads(refused.call("download_update", "{}"))["refused"] is True
+    assert other.calls == []
 
 
 def test_window_buttons_drawn_by_the_chat_page_reach_the_window():

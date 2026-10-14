@@ -28,6 +28,7 @@ _METHOD = "/api/method/pearnly_cowork.companion."
 _HEARTBEAT = _METHOD + "heartbeat.report"
 _LEASE = _METHOD + "queue_api.lease"
 _ACK = _METHOD + "queue_api.acknowledge"
+_NOT_SENT = object()  # health() 的 update_blocked 没传：不带这个键（None 是「没被拦」，要照发）
 
 
 def unwrap(response: httpx.Response) -> dict:
@@ -103,6 +104,7 @@ class QueueClient:
         master_refresh_error: Optional[str] = None,
         offline: bool = False,
         account_sets_unchanged: bool = False,
+        update_blocked: object = _NOT_SENT,
     ) -> dict:
         """心跳 · 上报探测到的账套列表 + 科目表 + 录入方式 + **客户所选账套**(供 FE 选/镜像)· 返回连接状态。
 
@@ -114,6 +116,8 @@ class QueueClient:
                  让网页镜像 + 端点 config 锁定一致。唯一键 = account_set(= 账套 PATH·见 pairing)。
         max_payload_version:本机 payload_contract.SUPPORTED_PAYLOAD_VERSIONS 上限 → 云端据此判断
                  能否安全下发新版载荷(见 payload_contract)。
+        update_blocked:自动更新被 Windows 拦下 {version, at}(update_block.reported),没被拦是 None;
+                 None 也照发(云端据此清掉旧值),只有不传这个参数才不带这个键(云端原样保留)。
         云端旧版忽略请求体仍正常。
         """
         body: dict = {}
@@ -136,6 +140,8 @@ class QueueClient:
             body["companion_version"] = companion_version
         if max_payload_version is not None:
             body["max_payload_version"] = max_payload_version
+        if update_blocked is not _NOT_SENT:
+            body["update_blocked"] = update_blocked
         if master_refresh_request_id:
             body["master_refresh_request_id"] = str(master_refresh_request_id)
         if master_refresh_scope:
