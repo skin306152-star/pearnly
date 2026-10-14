@@ -1,4 +1,4 @@
-"""智能体对话页的接口（站点会话登录；读用 GET，写只收 POST）。逻辑都在 `sessions`。"""
+"""智能体对话页的接口（站点会话登录；读用 GET，写只收 POST）。逻辑都在 `sessions`，对话归在哪家在 `projects`。"""
 import html
 import json
 import pathlib
@@ -7,16 +7,30 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import files, sessions, tools
+from pearnly_core.assistant import projects as filed  # 接口名 `projects` 留给下面的方法
 
 
 @frappe.whitelist(methods=["GET"])
-def listing(archived=0, after=None, check=None):
-    return sessions.listing(archived=frappe.utils.cint(archived) == 1, after=after or None, check=check or None)
+def listing(archived=0, after=None, check=None, grouped=0, group=None):
+    # group：不传是 None；传空串是「最近」这一组
+    return sessions.listing(archived=frappe.utils.cint(archived) == 1, after=after or None, check=check or None,
+                            grouped=frappe.utils.cint(grouped) == 1, group=group)
 
 
 @frappe.whitelist(methods=["POST"])
-def create():
-    return sessions.create()
+def create(project=None, period=None, scope=None):
+    return sessions.create(project=project or None, period=period or None, scope=scope or None)
+
+
+@frappe.whitelist(methods=["POST"])
+def move(session_id, project="", period=None, scope=None):
+    return sessions.move(session_id, project or "", period=period or None, scope=scope or None)
+
+
+# 对话归在哪家（ADR-020，Cowork 按公司主档；产品没声明时 kind 为 None）
+@frappe.whitelist(methods=["GET"])
+def projects():
+    return filed.listing()
 
 
 @frappe.whitelist(methods=["GET"])

@@ -1,0 +1,126 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Company Folder",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "autoname": "field:binding_key",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-15 06:00:00.000000",
+ "modified": "2026-10-15 06:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "The documents folder of a client company on one computer: which computer reads it (reader), the folder opened in CC Desktop (root_id) and the subfolder under it. Only a pointer; folders are chosen only in CC Desktop.",
+ "field_order": [
+  "company",
+  "reader",
+  "reader_device",
+  "binding_key",
+  "root_id",
+  "folder",
+  "label",
+  "share",
+  "device",
+  "bound_by",
+  "bound_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "label": "Company",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "reader",
+   "label": "Reader",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "reader_device",
+   "label": "Reader Device",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "binding_key",
+   "label": "Binding Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "root_id",
+   "label": "Root",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "reqd": 1
+  },
+  {
+   "fieldname": "folder",
+   "label": "Folder",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "label",
+   "label": "Display Path",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "share",
+   "label": "Network Path",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "device",
+   "label": "Computer",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "bound_by",
+   "label": "Chosen By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "bound_at",
+   "label": "Chosen At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

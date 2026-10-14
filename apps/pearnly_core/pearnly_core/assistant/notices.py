@@ -20,7 +20,7 @@ from pearnly_core.assistant import config, context, contracts, relay
 
 NOTICE = "Pearnly Assistant Notice"
 SESSION = context.SESSION
-FIELDS = ["name", "session_id", "kind", "title", "text", "creation"]
+FIELDS = ["name", "session_id", "kind", "title", "text", "creation", "view"]
 FEED_MAX = 500  # 整段重放最多并入这么多条（同 contracts.TAIL_MAX）
 FEED_RECENT = 20  # 增量补拉、引擎出错时带回的最近几条
 # 增量补拉按锚点事件的时间取提醒，前推这么多：引擎与站点的时钟可能差几分钟，重复的由对话页按编号去重
@@ -69,8 +69,9 @@ def _result(name, session_id, created) -> dict:
 
 
 def post(user, kind, text, dedup_key, *, title="", conversation="", reference_doctype="", reference_names=(),
-         ttl=contracts.NOTICE_TTL) -> dict:
-    """记一条提醒并送出。同一去重键已有就回 `created: False`，不再推送。调用方负责提交（推送都在提交后才发）。"""
+         ttl=contracts.NOTICE_TTL, view="") -> dict:
+    """记一条提醒并送出。同一去重键已有就回 `created: False`，不再推送。调用方负责提交（推送都在提交后才发）。
+    `view`：没挂对话时点开去哪一页（`contracts.NOTICE_VIEWS`，缺省定时任务页）。"""
     kind, title, text, key = contracts.notice_fields(kind, title, text, dedup_key)
     refs = contracts.notice_refs(reference_names)
     found = frappe.db.get_value(NOTICE, {"dedup_key": key}, ["name", "session_id"], as_dict=True)
@@ -83,7 +84,8 @@ def post(user, kind, text, dedup_key, *, title="", conversation="", reference_do
             "doctype": NOTICE, "user": user, "session_id": session.session_id if session else "", "kind": kind,
             "title": title, "text": text, "dedup_key": key, "reference_doctype": str(reference_doctype or "")[:140],
             "reference_name": refs[0] if refs else "", "refs": json.dumps(refs, ensure_ascii=False),
-            "ttl": contracts.notice_ttl(ttl), "seen": 0, "carried": 0}).insert(ignore_permissions=True)
+            "ttl": contracts.notice_ttl(ttl), "seen": 0, "carried": 0,
+            "view": contracts.notice_view(view)}).insert(ignore_permissions=True)
     except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
         # 并发时另一边先记上了同一个键：只退回到本次插入之前；唯一冲突顺手 msgprint 的提示要清掉（同 toolrun）
         frappe.db.rollback(save_point=SAVEPOINT)
@@ -104,9 +106,16 @@ def exists(dedup_key) -> bool:
     return bool(frappe.db.exists(NOTICE, {"dedup_key": contracts.notice_key(dedup_key)}))
 
 
+def latest(user, kind):
+    """这个人最近一条这类提醒的时间（站点时区）；没有回 None。产品判断「上次推过之后有没有新增」用。"""
+    found = frappe.get_all(NOTICE, filters={"user": user, "kind": kind}, fields=["creation"],
+                           order_by="creation desc", limit=1)
+    return found[0].creation if found else None
+
+
 def event(row) -> dict:
     return contracts.notice_event(row.name, contracts.utc_iso(row.creation, _tz()), row.kind, row.title, row.text,
-                                  row.session_id)
+                                  row.session_id, row.get("view") or "")
 
 
 def feed(session_id, user, since=None, recent=False) -> list[dict]:

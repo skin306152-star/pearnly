@@ -9,7 +9,8 @@ def tick():
 
 
 def notices(now=None):
-    """前一天提醒（`reminders`）与完成简报（`briefs`），两样各自出错只记日志、互不影响。
+    """前一天提醒（`reminders`）与完成简报（`briefs`），再加 hooks `cowork_scheduled_notices` 声明的（「待处理」早上汇总，
+    ADR-020），各自出错只记日志、互不影响。
 
     ``now``：站点时区的时间字符串，测试环境手动触发用（例如
     ``bench --site <site> execute pearnly_cowork.folder_intake.schedule.notices --kwargs "{'now': '2026-10-14 08:05'}"``）。
@@ -18,7 +19,12 @@ def notices(now=None):
 
     from pearnly_cowork.folder_intake import briefs, reminders
 
-    for job in (reminders.run, briefs.run):
+    jobs = [reminders.run, briefs.run]
+    try:
+        jobs += [frappe.get_attr(path) for path in frappe.get_hooks("cowork_scheduled_notices") or []]
+    except Exception:
+        frappe.log_error(title="Cowork folder notices failed", message=frappe.get_traceback()[-1500:])
+    for job in jobs:
         try:
             job(now)
         except Exception:

@@ -340,6 +340,7 @@ Choosing how a kind of document is handled,正在设定这类单据的处理方�
 Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
+Claim VAT,抵进项
 Claim as input VAT,抵扣进项税
 Claimed after the invoice month,晚于开票月抵扣
 Claimed before the invoice month,早于开票月抵扣
@@ -365,6 +366,7 @@ Comments and activity,评论和活动
 Commission,佣金
 Company,公司
 Company Name,公司名称
+Company not found,找不到这家公司
 Company tax ID,本公司税号
 Company tax ID not on the document,票面无本公司税号
 CompanyA-purchase-service,公司A-进项-服务
@@ -432,6 +434,9 @@ Cowork CC Desktop Request,Cowork CC 桌面版请求
 Cowork Client,Cowork 买方客户
 Cowork Companion Delivery,Cowork CC 桌面版任务领取记录
 Cowork Companion Request,Cowork CC 桌面版请求
+Cowork Company,Cowork 公司主档
+Cowork Company Folder,Cowork 公司单据文件夹
+Cowork Company Note,Cowork 公司知识库
 Cowork ERP Connection,Cowork ERP 连接
 Cowork ERP Mapping,Cowork ERP 映射
 Cowork ERP Refresh,Cowork ERP 目录刷新
@@ -575,6 +580,7 @@ Document no.,单号
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
+Documents to handle,待处理单据
 Does account {0} belong in this reconciliation?,科目 {0} 是否参与对账？
 Does {0} post in batches?,{0} 是否汇总入账？
 Don't enter (this kind from now on),不录入（同类单据均不录入）
@@ -671,6 +677,7 @@ Excess tax brought forward,上期结转的多缴税额
 Expected VAT,应为税额
 Expense account,费用科目
 Expense account when no category matches,未匹配科目的费用
+Expense it,计费用
 Expires At,到期时间
 Export,导出
 Export Excel,导出 Excel
@@ -810,6 +817,7 @@ Invalid checklist,清单无效
 Invalid color,颜色无效
 Invalid date,日期无效
 Invalid field value,字段的值无效
+Invalid month,月份不对
 Invalid original document manifest.,原件内容索引无效。
 Invalid original filename.,原始文件名无效。
 Invalid posting type.,过账类型无效。
@@ -902,6 +910,7 @@ List,列表
 List actions,列表操作
 List archived,列表已归档
 List name,列表名称
+Listed companies,列出了公司
 Listed documents,查看了单据
 Listed folder files,列出了文件夹里的文件
 Listed reconciliations,查看了对账列表
@@ -1036,11 +1045,15 @@ Not found,找不到
 Not included,未计入
 Not invoices {0},不是发票 {0}
 Not permitted,没有权限
+Not pushed yet,还没推送
 Not set,未填
 Not specified in books,账面未指定
 Not uploaded {0},未上传 {0}
 Note,说明
+Note is empty or too long,说明为空或过长
+Note not found,找不到这条说明
 Notes,备注
+Notes are full,知识库已满
 Nothing withheld on the invoice,票面未扣税
 Notifications,提醒
 Number,数字
@@ -1063,6 +1076,7 @@ Only board admins can do this,仅看板管理员可执行此操作
 Only invoices in Thai baht can be sent to Express,仅泰铢发票可推送至 Express
 Only manual records can be created through this entry.,此入口只能创建手工录入记录。
 Only one sell unit can be the default.,只能设置一个默认销售单位。
+Only payment and VAT choices can be changed here,这里只能改付款方式和抵不抵进项
 Open card,打开卡片
 Opened the original,查看了原件
 Opening Diff,期初差额
@@ -1142,6 +1156,7 @@ Period,期间
 Phase,处理阶段
 Photos,照片
 Pink,粉
+Please enter a name of up to 140 characters,请输入 140 字以内的名称
 Please upload a PDF or image,请发送 PDF 或图片
 Position,位置
 Position differences,仓位差异
@@ -1203,6 +1218,7 @@ Read VAT report,读取销项税报告
 Read again,重新读取
 Read back the accounting books,回读了账套账目
 Read bank statement,读取银行对账单
+Read company details,读取了公司资料
 Read files,读取文件
 Read from Express,读自 Express
 Read general ledger,读取总账
@@ -1289,6 +1305,8 @@ Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Remove mirror,移除镜像
 Remove template,取消模板
+Remove this company note?,删除这条公司说明？
+Removed a company note,删除了公司说明
 Rent,租金
 Repeat,重复
 Replaced by your later submission of the same files.,已被相同文件的后续提交取代。
@@ -1375,7 +1393,9 @@ Sample Key,修正例标识
 Save and next,保存并下一项
 Save these scheduled tasks?,要保存这些定时任务吗？
 Save this scheduled task?,要保存这个定时任务吗？
+Save this to the company's notes?,把这条记进公司知识库？
 Saved,已保存
+Saved a company note,记下了公司说明
 Saved a scheduled task,保存了定时任务
 Saved push choices,保存了推送选项
 Saved scheduled tasks,保存了多个定时任务
@@ -1781,6 +1801,7 @@ This PC already has the maximum number of scheduled tasks.,此电脑的定时任
 This POS export has a status value that is not chosen yet,此 POS 导出有尚未确认的状态值
 This account cannot send documents,此账号无权发送单据
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
+This account set is not in the catalog,账套目录里没有这份账套
 This account set is not in the connection's list. Reload the list in New Intake.,此账套不在该连接的账套列表中，请在新建录入中重新读取。
 This account set is not on the computer's list of account sets.,电脑上报的账套中没有这本账套。
 This account set is not on this connection.,这条连接上没有这本账套。
@@ -1841,6 +1862,7 @@ This request key was used for different push content.,此请求标识已用于�
 This request was already used for different content.,此请求已用于其他内容。
 This rule is turned off.,此规则已停用。
 This rule no longer exists for this PC.,此电脑上不存在该规则。
+This saved choice no longer exists,这条记住的选择已不在
 This scanned or photographed document could not be read. Check the file and try again.,无法读取此扫描件或照片，请检查文件后重试。
 This scheduled task is turned off.,此定时任务已停用。
 This scheduled task no longer exists for this PC.,此电脑上不存在该定时任务。
@@ -1861,6 +1883,7 @@ To do,待办
 Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
+Too many companies,公司数量已达上限
 Too many items,项目过多
 Too many matches; type a few more letters to narrow it down,匹配结果过多，请输入更多关键字缩小范围
 Too many requests are waiting for CC Desktop. Try again shortly.,等 CC 桌面版处理的请求太多，请稍后再试。
@@ -1904,6 +1927,7 @@ Unusual rate,非常用税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update CC Desktop on that computer to read this account set's chart of accounts.,请更新那台电脑上的 CC 桌面版，才能读取此账套的科目表。
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
+Update this company note?,修改这条公司说明？
 Update this site before reading back with this CC Desktop.,请先更新本站，再用这个版本的 CC 桌面版回读。
 Updated At,更新时间
 Updated By,更新人
@@ -2095,6 +2119,22 @@ cowork.choice.receipt,收款科目
 cowork.choice.task_default,此项由定时任务的默认处理决定，请在定时任务中修改
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
+cowork.company.choice_not_editable,这里只能改付款方式和抵不抵进项
+cowork.company.choice_not_found,这条记住的选择已不在
+cowork.company.not_found,找不到这家公司
+cowork.company.not_in_catalog,账套目录里没有这份账套
+cowork.company.note_invalid,说明为空或过长
+cowork.company.note_not_found,找不到这条说明
+cowork.company.notes,知识库
+cowork.company.notes_full,知识库已满
+cowork.company.pending.more,另有 {0} 家
+cowork.company.pending.not_pushed,还没推送
+cowork.company.pending.text,{0} 份单等你处理（{1}）
+cowork.company.pending.text_plain,{0} 份单等你处理
+cowork.company.pending.title,待处理单据
+cowork.company.period_invalid,月份不对
+cowork.company.title_invalid,请输入 140 字以内的名称
+cowork.company.too_many,公司数量已达上限
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
 cowork.folder.agentStale,CC 桌面版不在线或需升级
 cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
@@ -3526,6 +3566,8 @@ workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0} completed {1},{0} 完成了卡片「{1}」
 {0} d {1} h left,还有 {0} 天 {1} 小时
 {0} days before,前 {0} 天
+{0} documents are waiting for you,{0} 份单等你处理
+{0} documents are waiting for you ({1}),{0} 份单等你处理（{1}）
 {0} files,{0} 个文件
 "{0} files in the folder now, processed at the run time",文件夹里现有 {0} 份，到点一起处理
 {0} files in the folder now.,文件夹里现有 {0} 份。
@@ -3538,6 +3580,7 @@ workspace.tax_id_duplicate,该税号已被其他公司使用。
 {0} lines,{0} 笔
 {0} mentioned you on {1},{0} 在卡片「{1}」提到了你
 {0} min left,还有 {0} 分钟
+{0} more companies,另有 {0} 家
 {0} more items,另有 {0} 项
 {0} more possible combined matches are not listed,另有 {0} 组疑似合计匹配未列出
 {0} moved {1} to {2},{0} 将卡片「{1}」移至 {2}

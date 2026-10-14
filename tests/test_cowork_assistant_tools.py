@@ -155,7 +155,7 @@ class DeclarationTests(unittest.TestCase):
             for key in tool.get("ask_when") or {}:
                 self.assertIn(key, tool["input_schema"]["properties"], tool["name"])
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn('pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]', hooks)
+        self.assertRegex(hooks, r'pearnly_assistant_tools = \["pearnly_cowork\.assistant\.tools\.TOOLS"[,\]]')
 
     def test_every_tool_says_what_it_is_doing_while_it_runs(self):
         # 工作状态行（教程第 8 条）：执行中显示这一步的进行时（「正在识别单据」），本 App 自己声明、译文在本 App 术语表
@@ -2711,7 +2711,7 @@ class AccountSetNameTests(unittest.TestCase):
             "When you talk to the user, name an account set by its company name (the label or account_label in tool "
             "results), never by its folder code, path or key; use keys only in tool calls.")
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn('pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]', hooks)
+        self.assertRegex(hooks, r'pearnly_assistant_guidance = \["pearnly_cowork\.assistant\.tools\.GUIDANCE"[,\]]')
 
     def test_names_follow_the_intake_list(self):
         names = tools._catalog_names(self.CATALOG)

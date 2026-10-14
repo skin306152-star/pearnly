@@ -342,6 +342,9 @@ permission_query_conditions = {
     "Cowork Folder Intake Rule": "pearnly_cowork.folder_intake.access.deny_query",
     "Cowork Folder Intake Run": "pearnly_cowork.folder_intake.access.deny_query",
     "Cowork Folder Intake File": "pearnly_cowork.folder_intake.access.deny_query",
+    "Cowork Company Folder": "pearnly_cowork.folder_intake.access.deny_query",
+    "Cowork Company": "pearnly_cowork.companies.access.deny_query",
+    "Cowork Company Note": "pearnly_cowork.companies.access.deny_query",
     "Cowork Companion Request": "pearnly_cowork.companion.request_access.deny_query",
     "Cowork Express Readback": "pearnly_cowork.readback.access.deny_query",
 }
@@ -398,6 +401,9 @@ has_permission = {
     "Cowork Folder Intake Rule": "pearnly_cowork.folder_intake.access.deny",
     "Cowork Folder Intake Run": "pearnly_cowork.folder_intake.access.deny",
     "Cowork Folder Intake File": "pearnly_cowork.folder_intake.access.deny",
+    "Cowork Company Folder": "pearnly_cowork.folder_intake.access.deny",
+    "Cowork Company": "pearnly_cowork.companies.access.deny",
+    "Cowork Company Note": "pearnly_cowork.companies.access.deny",
     "Cowork Companion Request": "pearnly_cowork.companion.request_access.deny",
     "Cowork Express Readback": "pearnly_cowork.readback.access.deny",
 }
@@ -423,7 +429,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share",
         "pearnly_cowork.pos_import.layouts.reject_share",
         "pearnly_cowork.folder_intake.access.reject_share", "pearnly_cowork.companion.request_access.reject_share",
-        "pearnly_cowork.readback.access.reject_share"],
+        "pearnly_cowork.readback.access.reject_share", "pearnly_cowork.companies.access.reject_share"],
     "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.history.names.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
@@ -440,7 +446,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.work.access.reject_share", "pearnly_cowork.push.choices.reject_share",
         "pearnly_cowork.pos_import.layouts.reject_share",
         "pearnly_cowork.folder_intake.access.reject_share", "pearnly_cowork.companion.request_access.reject_share",
-        "pearnly_cowork.readback.access.reject_share"],
+        "pearnly_cowork.readback.access.reject_share", "pearnly_cowork.companies.access.reject_share"],
 }}
 extend_doctype_class = {
     "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
@@ -550,11 +556,17 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
 # 后台 worker 父进程预先导入的模块（`pearnly_core/execution/worker.py`）：对账长任务与每分钟的定时任务。
 # 任务照旧每次 fork，只是不再每个任务重新导入；导入不能开连接、不能依赖 Site。
 # 智能体工具（ADR-019 / ADR-009）：Cowork 自己声明，共用层汇总并以当前用户身份在服务端执行。
-pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]
+pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS", "pearnly_cowork.assistant.company_tools.TOOLS"]
 # Cowork 自己的说话规矩（账套按公司名说，不说文件夹代码）：共用层接在共用说明后面
-pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]
+pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE",
+                              "pearnly_cowork.assistant.company_tools.GUIDANCE"]
 # 工具进行中的说法（对话底部的工作状态行，如「正在识别单据」）：共用层汇总，译文在本 App 术语表
 pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES"]
+# CC 按公司主档组织对话（ADR-020）：共用层取这个模块的 KIND / PERIOD / SCOPE / allowed / view / context
+pearnly_assistant_projects = ["pearnly_cowork.companies.provider"]
+# 每 5 分钟的提醒入口（`folder_intake.schedule.notices`）顺带叫的：「待处理」早上汇总（ADR-020，补充 乙）。
+# 经 hooks 声明而不是 folder_intake 直接导入 companies（companies 依赖 folder_intake，反过来会成环）。
+cowork_scheduled_notices = ["pearnly_cowork.companies.pending.morning"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

@@ -34,3 +34,4 @@
 - [ADR-017 识别引擎可切换：新增 Claude（Anthropic）供应商与「只读一遍」读法（已废止）](0017-ocr-engine-claude.md)
 - [ADR-018 Claude 批处理识别（已废止）](0018-claude-batch-delivery.md)
 - [ADR-019 Pearnly 智能体底座（Claude Managed Agents + assistant-ui，三产品共用）](0019-assistant-foundation.md)
+- [ADR-020 CC 按公司主档组织对话（全所主档、知识库、按电脑授权文件夹、按月处理）](0020-cc-company-master.md)

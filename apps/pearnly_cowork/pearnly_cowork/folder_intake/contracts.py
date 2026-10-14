@@ -52,6 +52,11 @@ MAX_PATH = 500
 MAX_RELPATH = 1000
 MAX_WATCH = 500
 MAX_FOLDERS = 2000
+# 一台电脑最多上报这么多个根目录（一家客户一个文件夹，ADR-020）；多出的只丢多余的，不让整次同步失败。
+# 与 CC 桌面版同名常量一致（tests/test_companion_contract.py），同步回复里另带 `max_roots` 告诉电脑。
+MAX_ROOTS = 200
+# 所有根目录的下级文件夹名合计上限（报文大小）；超出只截断文件夹名，根目录本身保留。与 CC 桌面版一致。
+FOLDERS_TOTAL = 20_000
 # 小助手报的文件夹计数、各任务待处理数的上限（防坏报文）
 MAX_COUNT = 10_000_000
 MAX_PENDING = 500
@@ -337,18 +342,29 @@ def watch(value: Any) -> List[str]:
     return [sha256(item) for item in value]
 
 
-def roots(value: Any) -> List[Dict[str, Any]]:
-    """小助手上报的本机允许读取的根目录（只报编号、显示名与下级文件夹名；1.4.4 起另报各文件夹的文件数，不报文件）。"""
+def _depth_first(names: set) -> List[str]:
+    return sorted(names, key=lambda name: (name.count("\\"), name.casefold(), name))
+
+
+def roots(value: Any, keep_missing: bool = False) -> List[Dict[str, Any]]:
+    """小助手上报的本机允许读取的根目录（只报编号、显示名与下级文件夹名；1.4.4 起另报各文件夹的文件数，不报文件）。
+    最多收 `MAX_ROOTS` 个（多出的丢掉）；下级文件夹名合计最多 `FOLDERS_TOTAL` 个（超出先丢深层的），根目录本身保留。
+    `keep_missing`（快速同步 `roots_only`）：上报行里没带 `folders` 键的根目录，结果里也不带 `folders` 与计数，
+    由调用方沿用上一次的（`agent.remember_roots`）。"""
     if value in (None, ""):
         return []
-    if not isinstance(value, list) or len(value) > 20:
+    if not isinstance(value, list):
         raise ContractError("cowork.folder.invalid")
     result = []
+    total = 0
     for row in value:
+        if len(result) >= MAX_ROOTS:
+            break
         # 一项不合规（显示名太长、文件夹名带非法字符……）只丢这一项，不让整次同步失败。
         try:
             if not isinstance(row, Mapping):
                 continue
+            missing = keep_missing and "folders" not in row
             folders = row.get("folders") or []
             if not isinstance(folders, list):
                 folders = []
@@ -358,11 +374,19 @@ def roots(value: Any) -> List[Dict[str, Any]]:
                     clean.add(folder(item))
                 except ContractError:
                     continue
+            clean.discard("")
+            room = max(FOLDERS_TOTAL - total, 0)
+            if len(clean) > room:
+                clean = set(_depth_first(clean)[:room])
             share = str(row.get("share") or "").strip()
             report = {"id": root_id(row.get("id")), "label": text(row.get("label"), maximum=255),
-                      "folders": sorted(clean - {""}),
                       # 网络共享（含映射盘换算回的 \\服务器\共享…）：跨电脑比对文件夹是否重叠用；本机盘为空
                       "share": share if share.startswith("\\\\") and len(share) <= 500 else ""}
+            if missing:
+                result.append(report)
+                continue
+            report["folders"] = sorted(clean)
+            total += len(clean)
             if isinstance(row.get("counts"), Mapping):
                 report["counts"] = _folder_counts(row["counts"], clean)
                 # 数到时间或条数上限还没数完：显示「N+」
@@ -903,3 +927,38 @@ def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]],
                                          "complete": complete}))
     ready.sort(key=lambda item: item[0])
     return [group for _at, group in ready], sorted(stale)
+
+
+# ── 公司文件夹（ADR-020）：公司主档按电脑各绑一个单据文件夹，绑定只是指针（读者、根目录编号、相对路径） ──────────
+# 状态不存，每次读时按电脑最近一次同步现算（`company_folders.view`）。
+FOLDER_STATES = ("ok", "waiting", "offline", "missing", "folder_missing")
+FOLDER_WAITING_SECONDS = 600   # 刚选好、电脑还没报上来的这段时间算「等待电脑」，过了算「找不到」
+REPORTED_DEPTH = 3             # 电脑只报到 3 层下级文件夹：更深的子文件夹报不报都不算缺
+
+
+def _reported(roots: List[Mapping], root: str) -> Optional[Mapping]:
+    return next((row for row in roots or [] if isinstance(row, Mapping) and row.get("id") == root), None)
+
+
+def folder_state(fresh: bool, roots: List[Mapping], root: str, sub: str, bound_seconds: float) -> str:
+    """绑定的文件夹此刻的状态：电脑 2 小时没同步 → offline；根目录不在上报里 → 刚绑的 waiting、否则 missing；
+    子文件夹不在上报的 folders 里（不分大小写，只看 3 层以内）→ folder_missing；其余 ok。"""
+    if not fresh:
+        return "offline"
+    found = _reported(roots, root)
+    if found is None:
+        return "waiting" if bound_seconds <= FOLDER_WAITING_SECONDS else "missing"
+    if sub and len(sub.split("\\")) <= REPORTED_DEPTH and "folders" in found:
+        known = {str(name).casefold() for name in found.get("folders") or []}
+        if sub.casefold() not in known:
+            return "folder_missing"
+    return "ok"
+
+
+def folder_label(roots: List[Mapping], root: str, sub: str, stored: str) -> str:
+    """显示名：优先用电脑最新上报的根目录显示名加上子文件夹，电脑没报就用绑定时记下的。"""
+    found = _reported(roots, root)
+    base = str(found.get("label") or "") if found else ""
+    if not base:
+        return stored or ""
+    return "\\".join(part for part in (base.rstrip("\\"), sub) if part)

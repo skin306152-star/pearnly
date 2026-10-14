@@ -19,7 +19,7 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.companion import http_auth, release
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import desktop_update
-from pearnly_cowork.folder_intake import agent, contracts, inbox, live, notify, settings, workbook
+from pearnly_cowork.folder_intake import agent, company_folders, contracts, inbox, live, notify, settings, workbook
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 
 CONNECTION = "Cowork ERP Connection"
@@ -119,6 +119,16 @@ def _guarded(operation, handler):
 # ── 同步：上报本机情况与运行记录，取规则、立即运行请求与在途文件的状态 ──────────────────
 
 
+def _in_use(connection):
+    """还被用着的根目录（这台电脑读的任务、谁的公司文件夹都算，`company_folders.roots_in_use`）：CC 桌面版只收回
+    经公司添加、连续 1 小时不在这里的根目录。查不出来就不给这个键（电脑不给就永不自动收回）。"""
+    try:
+        return {"roots_in_use": company_folders.roots_in_use(connection)}
+    except Exception:
+        frappe.log_error(title="Cowork folder roots in use failed", message=frappe.get_traceback()[-1500:])
+        return {}
+
+
 def _sync(context, body):
     # 这条连接是哪种 ERP：MR.ERP 的小助手成员只读文件夹（小助手配对时先问一次 `probe`，见 companion/pairing.py）。
     connection = frappe.db.get_value(CONNECTION, context.connection, ["adapter", "label"], as_dict=True) or {}
@@ -126,6 +136,13 @@ def _sync(context, body):
     if body.get("probe") is True:
         # 只问身份：不记本机情况、不取定时任务（配对时还没有授权文件夹，不能把已有的清掉）。
         return {"server_time": time.time(), "rules": [], "entries": {}, **identity}
+    if body.get("roots_only") is True:
+        # 快速同步（CC 桌面版刚为公司加了根目录，ADR-020）：只记根目录，不下发任务、不收运行记录。没带 folders 的
+        # 根目录沿用上一次的下级文件夹与计数，各任务待处理数、健康照旧保留。
+        agent.remember_roots(context.connection, roots=contracts.roots(body.get("roots"), keep_missing=True),
+                             version=body.get("version"), device=contracts.device(body.get("device")))
+        return {"server_time": time.time(), "max_roots": contracts.MAX_ROOTS,
+                **_in_use(context.connection), **identity}
     roots = contracts.roots(body.get("roots"))
     pending = contracts.pending(body.get("rule_pending"))
     before = agent.read(context.connection).get("pending") or {}
@@ -162,7 +179,9 @@ def _sync(context, body):
             entry = read(FILE, name)
             if entry.connection == context.connection:
                 entries[name] = workbook.status(entry)
-    reply = {"server_time": time.time(), "rules": rules, "entries": entries, **identity}
+    # 根目录上限（旧版 CC 桌面版不认这两个键，照旧封顶 20）与还被用着的根目录（ADR-020）
+    reply = {"server_time": time.time(), "rules": rules, "entries": entries, "max_roots": contracts.MAX_ROOTS,
+             **_in_use(context.connection), **identity}
     # 我们最新发布的 CC 桌面版（同心跳回复的形状）：只读文件夹的 MR.ERP 成员没有心跳，也从这里拿到新版。
     latest = release.latest()
     if latest:

@@ -340,6 +340,7 @@ Choosing how a kind of document is handled,กำลังกำหนดวิ�
 Chose how a kind of document is handled,กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว
 Chosen At,เวลาที่เลือก
 Chosen By,ผู้เลือก
+Claim VAT,ขอคืนภาษีซื้อ
 Claim as input VAT,ใช้สิทธิ์ภาษีซื้อ
 Claimed after the invoice month,ใช้สิทธิหลังเดือนที่ออกใบกำกับภาษี
 Claimed before the invoice month,ใช้สิทธิก่อนเดือนที่ออกใบกำกับภาษี
@@ -365,6 +366,7 @@ Comments and activity,ความคิดเห็นและกิจกร�
 Commission,ค่านายหน้า
 Company,บริษัท
 Company Name,ชื่อบริษัท
+Company not found,ไม่พบบริษัท
 Company tax ID,เลขประจำตัวบริษัท
 Company tax ID not on the document,ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร
 CompanyA-purchase-service,บริษัทA-ซื้อ-บริการ
@@ -432,6 +434,9 @@ Cowork CC Desktop Request,คำขอถึง CC เดสก์ท็อป�
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork Companion Delivery,Cowork บันทึกการรับงานของ CC เดสก์ท็อป
 Cowork Companion Request,คำขอถึง CC เดสก์ท็อปของ Cowork
+Cowork Company,Cowork ข้อมูลหลักบริษัท
+Cowork Company Folder,Cowork โฟลเดอร์เอกสารบริษัท
+Cowork Company Note,Cowork บันทึกบริษัท
 Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
 Cowork ERP Mapping,การจับคู่ ERP ของ Cowork
 Cowork ERP Refresh,การรีเฟรชไดเรกทอรี ERP ของ Cowork
@@ -575,6 +580,7 @@ Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น
 Document type,ประเภทเอกสาร
+Documents to handle,เอกสารรอดำเนินการ
 Does account {0} belong in this reconciliation?,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
 Does {0} post in batches?,{0} ลงบัญชีแบบรวมยอดหรือไม่
 Don't enter (this kind from now on),ไม่บันทึก (เอกสารประเภทนี้ทั้งหมด)
@@ -671,6 +677,7 @@ Excess tax brought forward,ภาษีที่ชำระเกินยก�
 Expected VAT,ภาษีที่ควรเป็น
 Expense account,บัญชีค่าใช้จ่าย
 Expense account when no category matches,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
+Expense it,ลงค่าใช้จ่าย
 Expires At,เวลาหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
@@ -810,6 +817,7 @@ Invalid checklist,รายการตรวจสอบไม่ถูกต�
 Invalid color,สีไม่ถูกต้อง
 Invalid date,วันที่ไม่ถูกต้อง
 Invalid field value,ค่าของช่องไม่ถูกต้อง
+Invalid month,เดือนไม่ถูกต้อง
 Invalid original document manifest.,ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง
 Invalid original filename.,ชื่อไฟล์ต้นฉบับไม่ถูกต้อง
 Invalid posting type.,ประเภทการลงบัญชีไม่ถูกต้อง
@@ -902,6 +910,7 @@ List,รายการ
 List actions,การดำเนินการของรายการ
 List archived,เก็บถาวรรายการแล้ว
 List name,ชื่อรายการ
+Listed companies,แสดงรายชื่อบริษัท
 Listed documents,ดูรายการเอกสารแล้ว
 Listed folder files,แสดงรายการไฟล์ในโฟลเดอร์แล้ว
 Listed reconciliations,ดูรายการกระทบยอดแล้ว
@@ -1036,11 +1045,15 @@ Not found,ไม่พบ
 Not included,ไม่ได้รวมในแบบ
 Not invoices {0},ไม่ใช่ใบกำกับภาษี {0}
 Not permitted,ไม่มีสิทธิ์
+Not pushed yet,ยังไม่ได้ส่ง
 Not set,ยังไม่กรอก
 Not specified in books,ไม่ได้ระบุในบัญชี
 Not uploaded {0},ยังไม่ได้อัปโหลด {0}
 Note,คำอธิบาย
+Note is empty or too long,บันทึกว่างหรือยาวเกินไป
+Note not found,ไม่พบบันทึกนี้
 Notes,หมายเหตุ
+Notes are full,บันทึกเต็มแล้ว
 Nothing withheld on the invoice,ใบกำกับภาษีไม่ได้หักภาษี ณ ที่จ่าย
 Notifications,การแจ้งเตือน
 Number,ตัวเลข
@@ -1063,6 +1076,7 @@ Only board admins can do this,เฉพาะผู้ดูแลบอร์�
 Only invoices in Thai baht can be sent to Express,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 Only one sell unit can be the default.,กำหนดหน่วยขายเริ่มต้นได้เพียงหน่วยเดียว
+Only payment and VAT choices can be changed here,แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ
 Open card,เปิดการ์ด
 Opened the original,เปิดต้นฉบับแล้ว
 Opening Diff,ผลต่างยอดต้นงวด
@@ -1142,6 +1156,7 @@ Period,งวด
 Phase,ขั้นตอนการประมวลผล
 Photos,รูปภาพ
 Pink,ชมพู
+Please enter a name of up to 140 characters,กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร
 Please upload a PDF or image,กรุณาส่งรูปภาพหรือ PDF
 Position,ตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
@@ -1203,6 +1218,7 @@ Read VAT report,อ่านรายงานภาษีขาย
 Read again,อ่านใหม่
 Read back the accounting books,อ่านข้อมูลบัญชีกลับมาแล้ว
 Read bank statement,อ่านรายการเดินบัญชี
+Read company details,อ่านข้อมูลบริษัท
 Read files,อ่านไฟล์
 Read from Express,อ่านจาก Express
 Read general ledger,อ่านบัญชีแยกประเภท
@@ -1289,6 +1305,8 @@ Remove color,ลบสี
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Remove mirror,ลบมิเรอร์
 Remove template,ยกเลิกเทมเพลต
+Remove this company note?,ลบบันทึกบริษัทนี้ไหม
+Removed a company note,ลบบันทึกบริษัท
 Rent,ค่าเช่า
 Repeat,ทำซ้ำ
 Replaced by your later submission of the same files.,ถูกแทนที่ด้วยการส่งไฟล์ชุดเดียวกันครั้งหลังของคุณแล้ว
@@ -1375,7 +1393,9 @@ Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
 Save these scheduled tasks?,บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่
 Save this scheduled task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
+Save this to the company's notes?,บันทึกข้อนี้ลงในบันทึกของบริษัทไหม
 Saved,บันทึกแล้ว
+Saved a company note,บันทึกข้อมูลบริษัท
 Saved a scheduled task,บันทึกงานตามกำหนดเวลาแล้ว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved scheduled tasks,บันทึกงานตามกำหนดเวลาหลายงานแล้ว
@@ -1781,6 +1801,7 @@ This PC already has the maximum number of scheduled tasks.,เครื่อง
 This POS export has a status value that is not chosen yet,ไฟล์ส่งออก POS นี้มีค่าสถานะที่ยังไม่ได้กำหนด
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่
+This account set is not in the catalog,ไม่พบชุดบัญชีนี้ในรายการ
 This account set is not in the connection's list. Reload the list in New Intake.,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
 This account set is not on the computer's list of account sets.,ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์
 This account set is not on this connection.,ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้
@@ -1841,6 +1862,7 @@ This request key was used for different push content.,รหัสคำขอ�
 This request was already used for different content.,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This rule is turned off.,กฎนี้ปิดใช้งานอยู่
 This rule no longer exists for this PC.,ไม่พบกฎนี้ในเครื่องนี้
+This saved choice no longer exists,ไม่พบตัวเลือกที่จำไว้นี้แล้ว
 This scanned or photographed document could not be read. Check the file and try again.,ไม่สามารถอ่านเอกสารสแกนหรือรูปถ่ายนี้ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
 This scheduled task is turned off.,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
 This scheduled task no longer exists for this PC.,ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้
@@ -1861,6 +1883,7 @@ To do,รอดำเนินการ
 Token Digest,แฮชโทเค็น
 Token Generation,เวอร์ชันโทเค็น
 Token Tail,อักขระ 4 ตัวท้ายของโทเค็น
+Too many companies,บริษัทเกินจำนวนที่กำหนด
 Too many items,รายการมากเกินไป
 Too many matches; type a few more letters to narrow it down,ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์
 Too many requests are waiting for CC Desktop. Try again shortly.,มีคำขอรอ CC เดสก์ท็อปมากเกินไป กรุณาลองใหม่ภายหลัง
@@ -1904,6 +1927,7 @@ Unusual rate,อัตราไม่ปกติ
 Up to 5 photos per entry; take a photo or choose from the gallery.,แต่ละรายการแนบรูปได้ไม่เกิน 5 รูป โดยถ่ายรูปหรือเลือกจากอัลบั้ม
 Update CC Desktop on that computer to read this account set's chart of accounts.,กรุณาอัปเดต CC เดสก์ท็อปบนคอมพิวเตอร์เครื่องนั้นเพื่ออ่านผังบัญชีของชุดบัญชีนี้
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบกำกับภาษีผ่านฟังก์ชันตรวจทานของ Cowork
+Update this company note?,แก้ไขบันทึกบริษัทนี้ไหม
 Update this site before reading back with this CC Desktop.,กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
@@ -2095,6 +2119,22 @@ cowork.choice.receipt,บัญชีรับเงิน
 cowork.choice.task_default,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
+cowork.company.choice_not_editable,แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ
+cowork.company.choice_not_found,ไม่พบตัวเลือกที่จำไว้นี้แล้ว
+cowork.company.not_found,ไม่พบบริษัท
+cowork.company.not_in_catalog,ไม่พบชุดบัญชีนี้ในรายการ
+cowork.company.note_invalid,บันทึกว่างหรือยาวเกินไป
+cowork.company.note_not_found,ไม่พบบันทึกนี้
+cowork.company.notes,บันทึก
+cowork.company.notes_full,บันทึกเต็มแล้ว
+cowork.company.pending.more,อีก {0} บริษัท
+cowork.company.pending.not_pushed,ยังไม่ได้ส่ง
+cowork.company.pending.text,มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})
+cowork.company.pending.text_plain,มีเอกสาร {0} รายการรอคุณดำเนินการ
+cowork.company.pending.title,เอกสารรอดำเนินการ
+cowork.company.period_invalid,เดือนไม่ถูกต้อง
+cowork.company.title_invalid,กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร
+cowork.company.too_many,บริษัทเกินจำนวนที่กำหนด
 cowork.folder.account_set_invalid,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
 cowork.folder.agentStale,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
 cowork.folder.agentStaleHint,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
@@ -3526,6 +3566,8 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
 {0} d {1} h left,อีก {0} วัน {1} ชั่วโมง
 {0} days before,ล่วงหน้า {0} วัน
+{0} documents are waiting for you,มีเอกสาร {0} รายการรอคุณดำเนินการ
+{0} documents are waiting for you ({1}),มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})
 {0} files,{0} ไฟล์
 "{0} files in the folder now, processed at the run time",ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา
 {0} files in the folder now.,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
@@ -3538,6 +3580,7 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} lines,{0} รายการ
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} min left,อีก {0} นาที
+{0} more companies,อีก {0} บริษัท
 {0} more items,และอีก {0} รายการ
 {0} more possible combined matches are not listed,ยังมีอีก {0} กลุ่มที่อาจตรงกันเป็นยอดรวมซึ่งไม่ได้แสดง
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"

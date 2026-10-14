@@ -27,6 +27,29 @@ def remember(connection, *, roots, version, health=None, device="", pending=None
                            expires_in_sec=TTL)
 
 
+# 快速同步（`roots_only`）没带下级文件夹的根目录沿用上一次的这几样
+CARRIED = ("folders", "counts", "partial", "table_counts")
+
+
+def remember_roots(connection, *, roots, version, device=""):
+    """快速同步（CC 桌面版刚加了根目录，ADR-020）：只更新根目录、版本、电脑名与同步时刻，其余（各任务待处理数、
+    文件夹健康、更新被拦）保留上一次的。`roots` 里没有 `folders` 的根目录（`contracts.roots(keep_missing=True)`）
+    沿用上一次同一编号的下级文件夹与计数；上一次也没有就是空的。"""
+    before = read(connection)
+    previous = {row.get("id"): row for row in before.get("roots") or [] if isinstance(row, dict)}
+    merged = []
+    for row in roots:
+        if "folders" not in row:
+            old = previous.get(row["id"]) or {}
+            row = {**row, "folders": old.get("folders") or [],
+                   **{key: old[key] for key in CARRIED[1:] if key in old}}
+        merged.append(row)
+    pearnly_state.store().set_value(KEY + connection, {**before, "roots": merged, "version": str(version or "")[:40],
+                                                       "device": str(device or "").strip()[:60],
+                                                       "at": now_datetime().isoformat()},
+                                    expires_in_sec=TTL)
+
+
 def read(connection):
     # 不用请求内的进程缓存：CC 的推送线程一轮里会连着读（同 `toolrun.fresh` 说明）
     value = pearnly_state.store().get_value(KEY + connection, use_local_cache=False)

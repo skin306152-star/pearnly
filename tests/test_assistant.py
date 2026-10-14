@@ -110,7 +110,7 @@ def _install_fakes():
     sys.modules["pearnly_core.assistant"].engines = engines
     for part in ("base", "anthropic_managed_agents"):
         setattr(engines, part, _load(f"pearnly_core.assistant.engines.{part}", CORE / f"assistant/engines/{part}.py"))
-    for part in ("config", "tools", "definition", "engine", "context", "toolrun", "sidebar", "titles", "relay"):
+    for part in ("config", "tools", "definition", "engine", "context", "toolrun", "sidebar", "titles", "relay", "projects"):
         module = _load(f"pearnly_core.assistant.{part}", CORE / f"assistant/{part}.py")
         setattr(sys.modules["pearnly_core.assistant"], part, module)
     return frappe, sdk
@@ -1123,7 +1123,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
         frappe.guidance = []
         self.assertNotEqual(first, claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"])
         hooks = (ROOT / "apps/pearnly_cowork/pearnly_cowork/hooks.py").read_text(encoding="utf-8")
-        self.assertIn('pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]', hooks)
+        self.assertRegex(hooks, r'pearnly_assistant_guidance = \["pearnly_cowork\.assistant\.tools\.GUIDANCE"[,\]]')
 
     def test_instructions_keep_large_files_out_of_the_conversation(self):
         # 2026-10-10：整本 PDF 用 read 读进上下文，一次加了约 11 万 token，此后每次请求都过 Haiku 的 10 万计价线
@@ -2962,6 +2962,366 @@ class SidebarSyncTests(unittest.TestCase):
             imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",
                                           (CORE / f"assistant/{name}.py").read_text(encoding="utf-8")))
             self.assertNotRegex(imports, r"\b(sessions|relay)\b", name)
+
+
+class _ProjectDb:
+    """会话表的内存替身：按 {字段: 值 | [op, 值]} 筛、按最后活动从新到旧排；几条 GROUP BY / UPDATE 按语句认。"""
+
+    def __init__(self, *rows):
+        self.rows = [_Row(row) for row in rows]
+        self.writes, self.sql_seen = [], []
+
+    @staticmethod
+    def _ok(row, filters):
+        for key, wanted in (filters or {}).items():
+            value = row.get(key)
+            if isinstance(wanted, list):
+                op, arg = wanted
+                if op == "is" and bool(value) != (arg == "set"):
+                    return False
+                if op == "<=" and not str(value) <= arg:
+                    return False
+                if op == "in" and value not in arg:
+                    return False
+            elif value != wanted:
+                return False
+        return True
+
+    def get_all(self, doctype, filters=None, fields=None, order_by=None, limit=None, limit_page_length=None,
+                pluck=None):
+        found = [row for row in self.rows if self._ok(row, filters)]
+        found.sort(key=lambda row: (str(row.modified), row.name), reverse=True)
+        found = found[:limit or limit_page_length or None]
+        return [_Row({field: row.get(field) for field in fields}) if fields else row for row in found]
+
+    def get_value(self, doctype, filters, fields, as_dict=False):
+        found = [row for row in self.rows if self._ok(row, filters)]
+        if not found:
+            return None
+        return _Row({field: found[0].get(field) for field in fields})
+
+    def set_value(self, doctype, name, field, value=None, update_modified=True):
+        values = field if isinstance(field, dict) else {field: value}
+        self.writes.append((name, values, update_modified))
+        for row in self.rows:
+            if row.name == name:
+                row.update(values)
+
+    def sql(self, query, values=None, as_dict=False):
+        query = " ".join(query.split())
+        self.sql_seen.append((query, values))
+        if query.startswith("UPDATE"):
+            for row in self.rows:
+                if row.project == values[0]:
+                    row.update(project="", period="", project_scope="")
+            return []
+        base = [row for row in self.rows if row.user == values["user"] and row.archived == values.get("archived", 0)
+                and row.project]
+        if "starred = 0" in query:
+            base = [row for row in base if not row.starred]
+        if "refs" in values:
+            base = [row for row in base if row.project in values["refs"]]
+        groups = {}
+        for row in base:
+            group = groups.setdefault(row.project, _Row(project=row.project, count=0, last=""))
+            group.count += 1
+            group.last = max(group.last, str(row.modified))
+        return list(groups.values())
+
+
+class _Provider(types.ModuleType):
+    """Cowork 公司主档 provider 的替身：认 `known` 里的公司，说明随 `notes` 变。"""
+
+    KIND, PERIOD, SCOPE = "company", True, True
+
+    def __init__(self):
+        super().__init__("fake_company_provider")
+        self.known = {"co_abc1": "ABC", "co_xyz1": "XYZ"}
+        self.notes, self.fail, self.contexts = {}, False, []
+
+    def allowed(self, ref, user):
+        return ref in self.known
+
+    def valid_scope(self, value):
+        return bool(re.fullmatch(r"\d{5}", value))
+
+    def view(self, refs, user):
+        return {ref: {"title": self.known[ref], "subtitle": "0105536082808"} for ref in refs if ref in self.known}
+
+    def context(self, ref, period, scope, user):
+        self.contexts.append((ref, period, scope))
+        if self.fail:
+            raise RuntimeError("catalog")
+        return f"<company>{self.known[ref]} {period} {scope} {self.notes.get(ref, '')}</company>"
+
+
+class ProjectTests(unittest.TestCase):
+    """对话归在哪家（ADR-020，Cowork 公司主档）：共用层只记 project / period / project_scope，由产品的 provider 判、
+    出说明；没有 provider（ERP、DMS）时一切照旧。"""
+
+    OWNER = "a@example.com"
+
+    def setUp(self):
+        sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("files"))
+        m = datetime.datetime
+        self.db = _ProjectDb(
+            {"name": "r1", "session_id": "sesn_rec001", "user": self.OWNER, "engine_code": CLAUDE, "archived": 0,
+             "starred": 0, "modified": m(2026, 10, 15, 9, 0), "creation": START, "title": "recent", "project": ""},
+            {"name": "r2", "session_id": "sesn_abc001", "user": self.OWNER, "engine_code": CLAUDE, "archived": 0,
+             "starred": 0, "modified": m(2026, 10, 15, 8, 0), "creation": START, "title": "abc 1",
+             "project": "co_abc1", "period": "2026-09", "project_scope": "00012"},
+            {"name": "r3", "session_id": "sesn_abc002", "user": self.OWNER, "engine_code": CLAUDE, "archived": 0,
+             "starred": 0, "modified": m(2026, 10, 15, 7, 0), "creation": START, "title": "abc 2",
+             "project": "co_abc1", "period": ""},
+            {"name": "r4", "session_id": "sesn_xyz001", "user": self.OWNER, "engine_code": CLAUDE, "archived": 0,
+             "starred": 1, "modified": m(2026, 10, 15, 6, 0), "creation": START, "title": "xyz pinned",
+             "project": "co_xyz1"},
+            {"name": "r5", "session_id": "sesn_bob001", "user": "bob@example.com", "engine_code": CLAUDE,
+             "archived": 0, "starred": 0, "modified": m(2026, 10, 15, 5, 0), "creation": START, "title": "bob",
+             "project": "co_abc1"})
+        self.provider = _Provider()
+        self.hooks = {"pearnly_assistant_projects": ["fake_company_provider"]}
+        sys.modules["fake_company_provider"] = self.provider
+        self.pushed, self.logged = [], []
+        utils = types.SimpleNamespace(now_datetime=lambda: m(2026, 10, 15, 9, 30),
+                                      get_system_timezone=lambda: BANGKOK, cint=lambda v: int(v or 0))
+        for name, value in (
+                ("db", self.db), ("get_all", self.db.get_all), ("utils", utils),
+                ("get_hooks", lambda name: list(self.hooks.get(name) or [])),
+                ("publish_realtime", lambda event, message, user=None, after_commit=False:
+                 self.pushed.append((message["event"], user, after_commit))),
+                ("log_error", lambda **kw: self.logged.append(kw.get("title")))):
+            patcher = mock.patch.object(frappe, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        _configure()
+        self.sessions = _load("pearnly_core.assistant.sessions", CORE / "assistant/sessions.py")
+        self.projects = sys.modules["pearnly_core.assistant.projects"]
+        patcher = mock.patch.object(self.sessions.notices, "unread_sessions", lambda user, ids: set())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_contracts_for_projects(self):
+        self.assertEqual(contracts.period(" 2026-09 "), "2026-09")
+        self.assertEqual(contracts.period(""), "")
+        for bad in ("2026-13", "2026-9", "2569/09", "x"):
+            with self.assertRaises(contracts.ContractError):
+                contracts.period(bad)
+        self.assertEqual(contracts.project_scope("00012"), "00012")
+        with self.assertRaises(contracts.ContractError):
+            contracts.project_scope("a b")
+        self.assertEqual(contracts.project_change("move", session="sesn_abc001", project="co_abc1", period="2026-09",
+                                                  scope="00012"),
+                         {"type": "pearnly.project", "op": "move", "session_id": "sesn_abc001", "project": "co_abc1",
+                          "period": "2026-09", "scope": "00012"})
+        # 移到「最近」：月份、范围一并清空
+        self.assertEqual(contracts.project_change("move", session="sesn_abc001", project="", period="2026-09")["period"],
+                         "")
+        self.assertEqual(contracts.project_change("upsert", project={"id": "co_abc1", "title": "ABC", "extra": 1},
+                                                  part="notes"),
+                         {"type": "pearnly.project", "op": "upsert", "project": {"id": "co_abc1", "title": "ABC",
+                                                                                 "subtitle": ""}, "part": "notes"})
+        self.assertEqual(contracts.project_change("delete", name="co_abc1"),
+                         {"type": "pearnly.project", "op": "delete", "id": "co_abc1"})
+        for args in (("rename",), ("upsert",), ("upsert", {"id": "co_abc1"}, None, None, None, None, "x")):
+            with self.assertRaises(contracts.ContractError):
+                contracts.project_change(*args)
+        self.assertEqual(contracts.project_note("co_abc1", "", "text"), ("text", contracts.project_note_hash("text")))
+        self.assertEqual(contracts.project_note("co_abc1", contracts.project_note_hash("text"), "text"), ("", None))
+        self.assertEqual(contracts.project_note("co_abc1", "x", ""), ("", None))
+        self.assertEqual(contracts.project_note("", "x", ""), (contracts.PROJECT_UNFILED, ""))
+        self.assertEqual(contracts.project_note("", "", ""), ("", None))
+        self.assertEqual(contracts.keep_per_group([1, 2, 3, 4, 5], lambda n: n % 2, 2), [1, 2, 3, 4])
+
+    def test_the_plain_list_is_unchanged_and_carries_the_filing(self):
+        out = self.sessions.listing()
+        self.assertNotIn("groups", out)
+        self.assertEqual([row["id"] for row in out["sessions"]],
+                         ["sesn_xyz001", "sesn_rec001", "sesn_abc001", "sesn_abc002"])
+        abc = next(row for row in out["sessions"] if row["id"] == "sesn_abc001")
+        self.assertEqual((abc["project"], abc["period"], abc["scope"]), ("co_abc1", "2026-09", "00012"))
+        recent = next(row for row in out["sessions"] if row["id"] == "sesn_rec001")
+        self.assertEqual((recent["project"], recent["period"], recent["scope"]), ("", "", ""))
+
+    def test_the_grouped_list_gives_recent_a_few_per_group_and_cursors(self):
+        with mock.patch.object(self.sessions, "GROUP_FIRST", 1):
+            out = self.sessions.listing(grouped=True)
+        self.assertEqual([row["id"] for row in out["sessions"]], ["sesn_xyz001", "sesn_rec001", "sesn_abc001"])
+        self.assertEqual(out["groups"], {"co_abc1": "2026-10-15 08:00:00|r2"})
+        page = self.sessions.listing(grouped=True, group="co_abc1", after="2026-10-15 08:00:00|r2")
+        self.assertEqual([row["id"] for row in page["sessions"]], ["sesn_abc002"])
+        recent = self.sessions.listing(grouped=True, group="")
+        self.assertEqual([row["id"] for row in recent["sessions"]], ["sesn_rec001"])
+        with self.assertRaises(frappe.ValidationError):
+            self.sessions.listing(grouped=True, group="bad id!")
+
+    def test_projects_lists_only_companies_i_have_conversations_in(self):
+        self.provider.known.pop("co_xyz1")  # 主档已删：那些对话显示在「最近」
+        out = self.projects.listing()
+        self.assertEqual((out["kind"], out["period"], out["scope"]), ("company", True, True))
+        self.assertEqual(out["projects"], [{"id": "co_abc1", "title": "ABC", "subtitle": "0105536082808",
+                                            "last_active": "2026-10-15 08:00:00", "count": 2}])
+        self.assertEqual(self.projects.mine(self.OWNER, ["co_abc1"]),
+                         {"co_abc1": {"last_active": "2026-10-15 08:00:00", "count": 2}})
+        self.assertEqual(self.projects.mine(self.OWNER, []), {})
+        self.hooks = {}
+        self.assertEqual(self.projects.listing(), {"kind": None, "period": False, "scope": False, "projects": []})
+
+    def _create(self, **kwargs):
+        api = types.SimpleNamespace(open=lambda handle, metadata: ("sesn_new001", "idle"))
+        inserted = []
+
+        class Doc(_Row):
+            def insert(self, ignore_permissions=False):
+                inserted.append(self)
+                self.update(creation=START, modified=START)
+                return self
+
+        with mock.patch.object(self.sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
+                mock.patch.object(self.sessions.engine, "tools_current", lambda sid: None), \
+                mock.patch.object(self.sessions, "_route", lambda sid: None), \
+                mock.patch.object(self.sessions.frappe, "get_doc", lambda data: Doc(data), create=True):
+            summary = self.sessions.create(**kwargs)
+        return summary, inserted[0]
+
+    def test_a_new_conversation_is_filed_only_where_the_product_allows(self):
+        summary, doc = self._create(project="co_abc1", period="2026-09", scope="00012")
+        self.assertEqual((doc.project, doc.period, doc.project_scope), ("co_abc1", "2026-09", "00012"))
+        self.assertEqual((summary["project"], summary["period"], summary["scope"]), ("co_abc1", "2026-09", "00012"))
+        self.assertEqual(self.pushed[-1][0]["change"], "created")
+        _summary, doc = self._create(project="co_gone1", period="2026-09")  # 产品不认：建在「最近」
+        self.assertEqual((doc.project, doc.period, doc.project_scope), ("", "", ""))
+        with self.assertRaises(frappe.ValidationError):
+            self._create(project="co_abc1", period="2026-9")
+        with self.assertRaises(frappe.ValidationError):
+            self._create(project="co_abc1", scope="12")  # 产品不认的范围形状
+        self.provider.PERIOD = self.provider.SCOPE = False
+        try:
+            _summary, doc = self._create(project="co_abc1", period="2026-09", scope="00012")
+            self.assertEqual((doc.project, doc.period, doc.project_scope), ("co_abc1", "", ""))
+        finally:
+            self.provider.PERIOD = self.provider.SCOPE = True
+        self.hooks = {}  # 没有 provider（ERP、DMS）：一律建在「最近」
+        _summary, doc = self._create(project="co_abc1", period="2026-09")
+        self.assertEqual((doc.project, doc.period), ("", ""))
+        _summary, doc = self._create()
+        self.assertEqual(doc.project, "")
+
+    def test_moving_keeps_the_activity_time_and_star_and_is_pushed(self):
+        row = self.db.rows[3]  # r4，已置顶
+        with mock.patch.object(self.sessions, "owned", lambda sid, allow_archived=False: row):
+            out = self.sessions.move("sesn_xyz001", "co_abc1", period="2026-08", scope="00012")
+            self.assertEqual(out, {"id": "sesn_xyz001", "project": "co_abc1", "period": "2026-08", "scope": "00012"})
+            self.assertEqual(self.db.writes[-1], ("r4", {"project": "co_abc1", "period": "2026-08",
+                                                          "project_scope": "00012"}, False))
+            self.assertEqual((row.starred, str(row.modified)), (1, "2026-10-15 06:00:00"))
+            self.assertEqual(self.pushed[-1], ({"type": "pearnly.project", "op": "move", "session_id": "sesn_xyz001",
+                                                "project": "co_abc1", "period": "2026-08", "scope": "00012"},
+                                               self.OWNER, True))
+            self.sessions.move("sesn_xyz001", "", period="2026-08")
+            self.assertEqual(self.db.writes[-1][1], {"project": "", "period": "", "project_scope": ""})
+            with self.assertRaises(frappe.PermissionError):
+                self.sessions.move("sesn_xyz001", "co_gone1")
+
+    def test_release_files_everyones_conversations_back_under_recent(self):
+        users = self.projects.release("co_abc1")
+        self.assertEqual(users, ["a@example.com", "bob@example.com"])
+        self.assertEqual([row.project for row in self.db.rows], ["", "", "", "co_xyz1", ""])
+        self.assertEqual(self.db.rows[1].period, "")
+        moved = sorted((event["session_id"], user) for event, user, _after in self.pushed)
+        self.assertEqual(moved, [("sesn_abc001", self.OWNER), ("sesn_abc002", self.OWNER),
+                                 ("sesn_bob001", "bob@example.com")])
+        self.assertEqual(self.projects.release("co_abc1"), [])
+        self.projects.announce(["a@example.com", "a@example.com", "Guest", "", "b@example.com"], "delete",
+                               name="co_abc1")
+        self.assertEqual([user for _e, user, _a in self.pushed[-2:]], ["a@example.com", "b@example.com"])
+        self.assertEqual(self.projects.of_session("sesn_xyz001"), ("co_xyz1", "", ""))
+        self.assertEqual(self.projects.of_session("sesn_bob001"), ("", "", ""))  # 不是本人的
+
+    def _send(self, row, posted, fail=False):
+        api = types.SimpleNamespace(post=(mock.Mock(side_effect=RuntimeError("busy")) if fail else
+                                          (lambda remote, batch: posted.append(batch))))
+        with mock.patch.object(self.sessions, "owned", return_value=row), \
+                mock.patch.object(self.sessions, "segment_for_turn", return_value=row.session_id), \
+                mock.patch.object(self.sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(self.sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(self.sessions.relay, "ensure", lambda *a: None), \
+                mock.patch.object(self.sessions.notices, "uncarried", lambda sid, user: []), \
+                mock.patch.object(self.sessions.titles, "due", lambda row: False):
+            self.sessions.send(row.session_id, "this month's purchases")
+
+    def test_the_company_note_is_carried_once_and_again_when_it_changes(self):
+        row = self.db.rows[1]
+        row.update(pending_carry="User: hi", project_noted="")
+        posted = []
+        self._send(row, posted)
+        note = posted[-1][-1]["content"][0]["text"]
+        self.assertTrue(note.startswith(contracts.carry_note("User: hi") + "\n\n<company>ABC 2026-09 00012 </company>"))
+        # 接续 → 公司 → 提醒 → 当地时间，同一条系统消息
+        self.assertTrue(note.endswith("</company>\n\n" + contracts.now_note(datetime.datetime(2026, 10, 15, 9, 30),
+                                                                              BANGKOK)))
+        self.assertEqual(self.provider.contexts[-1], ("co_abc1", "2026-09", "00012"))
+        digest = contracts.project_note_hash("<company>ABC 2026-09 00012 </company>")
+        self.assertEqual(row.project_noted, digest)
+        # 没变：不重带
+        self._send(row, posted)
+        self.assertNotIn("<company>", posted[-1][-1]["content"][0]["text"])
+        # 知识库改了：重带
+        self.provider.notes["co_abc1"] = "rent 5%"
+        self._send(row, posted)
+        self.assertIn("rent 5%", posted[-1][-1]["content"][0]["text"])
+        # 发不出去：不记带过
+        self.provider.notes["co_abc1"] = "rent 7%"
+        before = row.project_noted
+        with self.assertRaises(RuntimeError):
+            self._send(row, posted, fail=True)
+        self.assertEqual(row.project_noted, before)
+        # 产品出错：这次不带、不记，照常发
+        self.provider.fail = True
+        self._send(row, posted)
+        self.assertNotIn("<company>", posted[-1][-1]["content"][0]["text"])
+        self.assertIn("Assistant project context failed", self.logged)
+        self.provider.fail = False
+        # 移出公司：带一句「不再属于」，然后清空
+        row.update(project="", period="")
+        self._send(row, posted)
+        self.assertIn(contracts.PROJECT_UNFILED, posted[-1][-1]["content"][0]["text"])
+        self.assertEqual(row.project_noted, "")
+        self._send(row, posted)
+        self.assertNotIn(contracts.PROJECT_UNFILED, posted[-1][-1]["content"][0]["text"])
+
+    def test_a_new_segment_forgets_the_company_note(self):
+        row = self.db.rows[1]
+        row.update(project_noted="abc", remote_ids="", context_tokens=999_999, pending_carry="")
+        api = types.SimpleNamespace(events=lambda remote: iter([]),
+                                    open=lambda handle, metadata: ("sesn_seg002", "idle"))
+        settings = types.SimpleNamespace(engine=types.SimpleNamespace(code=CLAUDE), model="m")
+        with mock.patch.object(self.sessions.config, "settings", return_value=settings), \
+                mock.patch.object(self.sessions.engines, "context_limit", lambda code, model: 1000), \
+                mock.patch.object(self.sessions.engine, "prepared", lambda api: {}), \
+                mock.patch.object(self.sessions.engine, "tools_current", lambda sid: None), \
+                mock.patch.object(self.sessions, "_route", lambda sid: None), \
+                mock.patch.object(self.sessions, "_worked_on", lambda row: ("", "")):
+            self.assertEqual(self.sessions.segment_for_turn(row, api), "sesn_seg002")
+        self.assertEqual(row.project_noted, "")
+        self.assertEqual(self.db.writes[-1][1]["project_noted"], "")
+
+    def test_the_session_table_has_the_filing_fields(self):
+        meta = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_session/pearnly_assistant_session.json")
+                          .read_text(encoding="utf-8"))
+        fields = {f["fieldname"]: f for f in meta["fields"]}
+        self.assertEqual({name: fields[name].get("length") for name in ("project", "period", "project_scope",
+                                                                        "project_noted")},
+                         {"project": 140, "period": 7, "project_scope": 40, "project_noted": 64})
+        self.assertEqual(fields["project"].get("search_index"), 1)
+        api_source = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        for snippet in ('def create(project=None, period=None, scope=None):', 'def move(session_id, project="", '
+                        'period=None, scope=None):', "def projects():"):
+            self.assertIn(snippet, api_source)
+        imports = " ".join(re.findall(r"(?m)^from pearnly_core\.assistant import (.+)$",
+                                      (CORE / "assistant/projects.py").read_text(encoding="utf-8")))
+        self.assertNotRegex(imports, r"\b(sessions|relay)\b")
 
 
 if __name__ == "__main__":

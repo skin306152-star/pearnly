@@ -40,6 +40,8 @@ for _index, _name in enumerate(_TH_ABBR, 1):
 	_MONTHS.update({_name: _index, _name + ".": _index, _name.replace(".", ""): _index})
 for _index, _name in enumerate(_EN_MONTHS, 1):
 	_MONTHS.update({_name: _index, _name[:3]: _index})
+# 公开名字（公司主档认月份子文件夹用，ADR-020）：泰文、英文全称与缩写 → 月份数字；只是导出，行为不变。
+MONTH_WORDS = _MONTHS
 
 
 class HistoryContractError(ValueError):

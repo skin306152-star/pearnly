@@ -1304,10 +1304,12 @@ class MachineSync(unittest.TestCase):
     """同步：下发 existing、进货任务在前、收待处理数、新版提示与提醒；运行记录归属简报（`_record_run`）。"""
     NOW = 1_760_000_000.0  # 2025-10-09 15:53 曼谷
 
-    def _machine(self, rules, *, latest=None, notices=None, before=None, pending_run=None, manual_run=None):
+    def _machine(self, rules, *, latest=None, notices=None, before=None, pending_run=None, manual_run=None,
+                 roots_in_use=None):
         """``pending_run``：这条任务还没发简报的上一次非补传运行（补传并进它）；``manual_run``：同一负责人 10 分钟内
         开始、还没发简报的上一次立即运行（并进它那一批）。"""
-        calls = {"remember": [], "changed": [], "for_rules": [], "written": [], "sql": []}
+        calls = {"remember": [], "changed": [], "for_rules": [], "written": [], "sql": [], "remember_roots": [],
+                 "in_use": []}
         tables = {"Cowork Folder Intake Rule": {row["name"]: Row(row) for row in rules}}
 
         class Doc(Row):
@@ -1342,7 +1344,14 @@ class MachineSync(unittest.TestCase):
             return notices or []
 
         agent = stub(read=lambda connection: {"pending": before or {}},
-                     remember=lambda connection, **kw: calls["remember"].append(kw))
+                     remember=lambda connection, **kw: calls["remember"].append(kw),
+                     remember_roots=lambda connection, **kw: calls["remember_roots"].append(kw))
+
+        def in_use(reader):
+            calls["in_use"].append(reader)
+            if roots_in_use is Exception:
+                raise RuntimeError("table missing")
+            return roots_in_use or []
         modules = {"frappe": frappe,
                    "frappe.utils": stub(get_datetime=lambda value: value, get_system_timezone=lambda: "Asia/Bangkok",
                                         now_datetime=lambda: datetime(2026, 10, 12, 20, 0)),
@@ -1353,7 +1362,8 @@ class MachineSync(unittest.TestCase):
                    "pearnly_cowork.folder_intake": stub(
                        agent=agent, contracts=contracts, inbox=stub(), settings=stub(), workbook=stub(),
                        live=stub(changed=lambda rule, *users: calls["changed"].append(rule)),
-                       notify=stub(for_rules=for_rules)),
+                       notify=stub(for_rules=for_rules),
+                       company_folders=stub(roots_in_use=lambda reader: in_use(reader))),
                    "pearnly_cowork.folder_intake.access": stub(
                        FILE="Cowork Folder Intake File", RULE="Cowork Folder Intake Rule", RUN="Cowork Folder Intake Run",
                        read=lambda doctype, name, for_update=False: tables[doctype][name],
@@ -1672,6 +1682,197 @@ class TaskSources(unittest.TestCase):
         self.assertIn("while (rows.length < REMIND_MAX) rows.push({...next_remind(rows), spare: true});", source)
         self.assertIn('default: item.spare ? "" : `${item.time}:00`},', source)
         self.assertEqual(rows["cowork.folder.remind.one"]["zh"], "「{0}」{1} 开始（{2}）。请将资料放入 {3}，确保资料齐全。")
+
+
+class CompanyFolderSync(unittest.TestCase):
+    """公司主档的文件夹（ADR-020）：一台电脑最多 200 个根目录、文件夹名合计 2 万个，多的只丢多余的；快速同步
+    `roots_only` 只记根目录；同步回复带 `max_roots` 与 `roots_in_use`（读它的任务，停用的也算；任何公司的文件夹）。"""
+
+    def _roots(self, count, folders=()):
+        return [{"id": f"R{index}", "label": f"D:\\c{index}", "folders": list(folders)} for index in range(count)]
+
+    def test_up_to_200_roots_and_the_rest_are_dropped_not_the_whole_sync(self):
+        self.assertEqual((contracts.MAX_ROOTS, contracts.FOLDERS_TOTAL), (200, 20_000))
+        self.assertEqual(len(contracts.roots(self._roots(200))), 200)
+        kept = contracts.roots(self._roots(201))
+        self.assertEqual((len(kept), kept[-1]["id"]), (200, "R199"))
+        # 坏的一项只丢这一项
+        self.assertEqual([row["id"] for row in contracts.roots([{"id": "bad id"}, {"id": "R1", "label": "x"}])], ["R1"])
+
+    def test_folder_names_are_capped_in_total_and_deep_ones_go_first(self):
+        # 每个根目录最多 2000 个（`MAX_FOLDERS`），合计最多 2 万个：第 11 个根目录只剩根目录本身，不让整次同步失败
+        roots = [{"id": f"R{index}", "label": "x", "folders": [f"f{index}_{n}" for n in range(2000)]}
+                 for index in range(11)]
+        kept = contracts.roots(roots)
+        self.assertEqual(sum(len(row["folders"]) for row in kept), contracts.FOLDERS_TOTAL)
+        self.assertEqual((len(kept), kept[-1]["folders"]), (11, []))
+        # 一个根目录里放不下时先留浅的
+        roots[10] = {"id": "R10", "label": "x", "folders": ["a\\b\\deep"] + [f"s{n}" for n in range(1999)]}
+        roots[9] = {"id": "R9", "label": "x", "folders": [f"f9_{n}" for n in range(1500)]}
+        last = contracts.roots(roots)[-1]
+        self.assertEqual(len(last["folders"]), 500)
+        self.assertNotIn("a\\b\\deep", last["folders"])
+
+    def test_a_quick_sync_keeps_the_folders_it_did_not_send(self):
+        quick = contracts.roots([{"id": "R1", "label": "x"}, {"id": "R2", "label": "y", "folders": ["a"]}],
+                                keep_missing=True)
+        self.assertNotIn("folders", quick[0])
+        self.assertEqual(quick[1]["folders"], ["a"])
+        self.assertEqual(contracts.roots([{"id": "R1", "label": "x"}])[0]["folders"], [])  # 完整同步照旧
+
+        stored = {}
+        store = types.SimpleNamespace(set_value=lambda key, value, expires_in_sec=None: stored.__setitem__(key, value),
+                                      get_value=lambda key, use_local_cache=False: stored.get(key))
+        modules = {"frappe": types.ModuleType("frappe"),
+                   "frappe.utils": types.SimpleNamespace(now_datetime=lambda: datetime(2026, 10, 15, 9, 0)),
+                   "pearnly_core": types.ModuleType("pearnly_core"),
+                   "pearnly_core.execution": types.SimpleNamespace(state=types.SimpleNamespace(store=lambda: store))}
+        with mock.patch.dict(sys.modules, modules):
+            agent = _load("folder_agent_under_test", APP / "folder_intake/agent.py")
+        agent.remember("C1", roots=[{"id": "R1", "label": "x", "folders": ["old"], "counts": {"": 3}}], version="1.5",
+                       health={"T1": "ok"}, device="PC", pending={"T1": 2})
+        agent.remember_roots("C1", roots=quick, version="1.6.0", device="PC2")
+        state = agent.read("C1")
+        self.assertEqual([row["folders"] for row in state["roots"]], [["old"], ["a"]])
+        self.assertEqual(state["roots"][0]["counts"], {"": 3})
+        self.assertEqual((state["version"], state["device"], state["pending"], state["health"]),
+                         ("1.6.0", "PC2", {"T1": 2}, {"T1": "ok"}))
+
+    def test_folder_states_are_worked_out_when_read(self):
+        roots = [{"id": "R1", "label": "D:\\ABC", "folders": ["2569", "2569\\09", "a\\b\\c"]}]
+        self.assertEqual(contracts.folder_state(False, roots, "R1", "", 0), "offline")
+        self.assertEqual(contracts.folder_state(True, roots, "R9", "", 60), "waiting")
+        self.assertEqual(contracts.folder_state(True, roots, "R9", "", 3600), "missing")
+        self.assertEqual(contracts.folder_state(True, roots, "R1", "2570", 0), "folder_missing")
+        self.assertEqual(contracts.folder_state(True, roots, "R1", "2569\\09", 0), "ok")
+        self.assertEqual(contracts.folder_state(True, roots, "R1", "a\\b\\c\\d", 0), "ok")  # 比上报深：不算缺
+        self.assertEqual(set(contracts.FOLDER_STATES), {"ok", "waiting", "offline", "missing", "folder_missing"})
+        self.assertEqual(contracts.folder_label(roots, "R1", "2569", "stored"), "D:\\ABC\\2569")
+        self.assertEqual(contracts.folder_label(roots, "R9", "x", "stored"), "stored")
+
+    def _sync(self, roots_in_use=None, **body):
+        machine, calls = MachineSync._machine(self, [MachineSync._rule("P1")], roots_in_use=roots_in_use)
+        return machine._sync(types.SimpleNamespace(connection="C1"), body), calls
+
+    NOW = MachineSync.NOW
+
+    def test_the_quick_sync_only_records_roots_and_both_replies_carry_the_limits(self):
+        reply, calls = self._sync(["R1"], roots_only=True, version="1.6.0", device="PC",
+                                  roots=[{"id": "R1", "label": "x"}])
+        self.assertEqual((reply["max_roots"], reply["roots_in_use"]), (200, ["R1"]))
+        self.assertNotIn("rules", reply)
+        self.assertEqual((calls["remember"], len(calls["remember_roots"])), ([], 1))
+        self.assertNotIn("folders", calls["remember_roots"][0]["roots"][0])
+        reply, calls = self._sync(["R1", "R2"], roots=[{"id": "R1", "label": "x", "folders": []}])
+        self.assertEqual((reply["max_roots"], reply["roots_in_use"]), (200, ["R1", "R2"]))
+        self.assertEqual([rule["name"] for rule in reply["rules"]], ["P1"])
+        # 查不出还被用着的根目录：不给这个键（电脑不给就永不自动收回），同步照常
+        reply, _calls = self._sync(Exception, roots=[])
+        self.assertNotIn("roots_in_use", reply)
+        self.assertEqual(reply["max_roots"], 200)
+
+
+class CompanyFolderBindings(unittest.TestCase):
+    """公司 × 电脑各一行（`binding_key` 预留 `reader_device`）；同一键再绑是替换；`roots_in_use` 不按人。"""
+
+    def _module(self):
+        rows, deleted, sql = {}, [], []
+
+        class Doc(Row):
+            def update(self, values):
+                dict.update(self, values)
+
+            def __setattr__(self, key, value):
+                self[key] = value
+
+        def write(doc):
+            rows[doc["binding_key"]] = Row(doc, name=doc["binding_key"])
+
+        def get_all(doctype, filters=None, fields=None, order_by=None, limit_page_length=None):
+            return [row for row in rows.values() if row["company"] == filters["company"]]
+
+        def delete(doctype, filters):
+            deleted.append(filters)
+            for name in [name for name, row in rows.items()
+                         if all(row.get(key if key != "name" else "binding_key") == value
+                                for key, value in filters.items())]:
+                rows.pop(name)
+
+        def query(text, values):
+            sql.append((" ".join(text.split()), values))
+            return [("R1",), ("R2",), ("R1",), (None,)]
+
+        frappe = types.SimpleNamespace(
+            throw=lambda message, exc=None: (_ for _ in ()).throw(ValueError(message)), _=lambda text: text,
+            db=types.SimpleNamespace(exists=lambda doctype, name: name in rows, sql=query,
+                                     count=lambda doctype, filters: sum(1 for row in rows.values()
+                                                                        if row["company"] == filters["company"]),
+                                     delete=delete),
+            get_doc=lambda doctype, name, for_update=False: Doc(rows[name]), new_doc=lambda doctype: Doc(),
+            get_all=get_all)
+        rules = types.SimpleNamespace(_require=lambda: None,
+                                      _connection=lambda name: Row(name=name) if name in ("C1", "C2") else
+                                      (_ for _ in ()).throw(PermissionError("connection")))
+        states = {"C1": {"roots": [{"id": "R1", "label": "D:\\Clients", "folders": ["ABC", "ABC\\2569-09"]}],
+                         "device": "OFFICE-PC", "at": "2026-10-15T09:00:00"}}
+        agent = types.SimpleNamespace(read=lambda reader: states.get(reader, {}), fresh=lambda state: bool(state))
+        modules = {"frappe": frappe,
+                   "frappe.utils": types.SimpleNamespace(get_datetime=lambda value: value,
+                                                         now_datetime=lambda: datetime(2026, 10, 15, 9, 0)),
+                   "pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                   "pearnly_cowork.folder_intake": types.SimpleNamespace(agent=agent, contracts=contracts, rules=rules),
+                   "pearnly_cowork.folder_intake.rules": rules,
+                   "pearnly_cowork.folder_intake.access": types.SimpleNamespace(
+                       COMPANY_FOLDER="Cowork Company Folder", RULE="Cowork Folder Intake Rule", write=write)}
+        with mock.patch.dict(sys.modules, modules):
+            module = _load("company_folders_under_test", APP / "folder_intake/company_folders.py")
+            yield module, rows, deleted, sql
+
+    def test_one_row_per_company_and_computer_and_binding_again_replaces(self):
+        for module, rows, deleted, sql in self._module():
+            binding = {"reader": "C1", "root_id": "R1", "folder": "ABC", "label": "D:\\Clients\\ABC", "share": "",
+                       "device": "OFFICE-PC"}
+            row = module.bind("co1", json.dumps(binding), "a@example.com")
+            self.assertEqual((row["state"], row["label"], row["device"], row["reported"]),
+                             ("ok", "D:\\Clients\\ABC", "OFFICE-PC", ["ABC", "ABC\\2569-09"]))
+            key = module.binding_key("co1", "C1", "")
+            self.assertEqual(key, hashlib.sha256(json.dumps(["co1", "C1", ""]).encode()).hexdigest())
+            self.assertEqual(list(rows), [key])
+            self.assertEqual((rows[key]["reader_device"], rows[key]["bound_by"]), ("", "a@example.com"))
+            module.bind("co1", {**binding, "folder": "ABC\\2569-09"}, "b@example.com")
+            self.assertEqual((len(rows), rows[key]["folder"], rows[key]["bound_by"]), (1, "ABC\\2569-09", "b@example.com"))
+            module.bind("co2", binding, "a@example.com")  # 另一家公司同一台电脑：另一行
+            self.assertEqual(len(rows), 2)
+            for bad in ({**binding, "folder": "..\\x"}, {**binding, "root_id": "bad id"}, "not json", ["x"]):
+                with self.assertRaises(ValueError, msg=bad):
+                    module.bind("co1", bad, "a@example.com")
+            with self.assertRaises(PermissionError):
+                module.bind("co1", {**binding, "reader": "C9"}, "a@example.com")
+            self.assertTrue(module.unbind("co1", "C1"))
+            self.assertFalse(module.unbind("co1", "C1"))
+            module.forget("co2")
+            self.assertEqual(rows, {})
+            self.assertEqual(module.roots_in_use("C1"), ["R1", "R2"])
+            self.assertIn("UNION", sql[-1][0])
+            self.assertNotIn("user", sql[-1][0].lower().split("where")[1])  # 不按人过滤
+            self.assertEqual(sql[-1][1], ("C1", "C1"))
+
+    def test_two_computers_are_two_rows_and_an_unreported_root_waits(self):
+        for module, rows, _deleted, _sql in self._module():
+            base = {"root_id": "R1", "folder": "ABC", "label": "D:\\Clients\\ABC", "device": "PC"}
+            module.bind("co1", {**base, "reader": "C1"}, "a@example.com")
+            row = module.bind("co1", {**base, "reader": "C2", "root_id": "R7"}, "a@example.com")
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(row["state"], "offline")  # C2 这台没同步过
+            self.assertEqual([item["reader"] for item in module.view("co1")], ["C1", "C2"])
+
+    def test_the_server_answers_the_sync_keys_the_desktop_reads(self):
+        # 契约测试（tests/test_companion_contract.py CompanyFolders）比对的服务端那一半
+        server = "\n".join(path.read_text(encoding="utf-8") for path in sorted((APP / "folder_intake").glob("*.py")))
+        for key in ("roots_only", "max_roots", "roots_in_use"):
+            self.assertRegex(server, r"[\"']%s[\"']" % key)
+        source = (APP / "folder_intake/company_folders.py").read_text(encoding="utf-8")
+        self.assertNotIn("pearnly_cowork.companies", source)  # folder_intake 不导入 companies（不成环）
 
 
 if __name__ == "__main__":

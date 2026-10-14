@@ -265,6 +265,113 @@ def session_change(change, session, title=None, starred=None) -> dict:
     return event
 
 
+# ---- 对话归在哪家（`projects`，ADR-020：Cowork 按公司主档）----
+# 共用层只记对话挂在哪一项（`project`，产品给的不透明编号；空 = 「最近」）、处理哪个月（`period`，`YYYY-MM`，空 = 不指定）、
+# 产品自定的范围（`project_scope`，Cowork 存分店号；空 = 不指定）。哪些编号有效、说明写什么由产品的 provider 决定。
+PROJECT_ID = re.compile(r"^[A-Za-z0-9_-]{4,64}$")
+PERIOD = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+PROJECT_SCOPE = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
+# 实时事件（同 `session_change` 走 `REALTIME_EVENT`，信封 session_id 为空）：对话换组 → move；产品的一项建、改 → upsert；
+# 删 → delete（这一项的对话归回「最近」）
+PROJECT_CHANGE = "pearnly.project"
+PROJECT_OPS = frozenset({"upsert", "delete", "move"})
+PROJECT_PARTS = frozenset({"master", "notes", "folders", "choices"})
+# 批末系统消息里的那一段说明：带过的哈希记在会话 `project_noted`，说明变了（换组、换月、改了知识库……）才重带
+PROJECT_NOTE_HASH = 32
+PROJECT_UNFILED = "This conversation is no longer filed under a client company."
+
+
+def project_id(value) -> str:
+    text = str(value or "").strip()
+    if not PROJECT_ID.match(text):
+        raise ContractError("invalid project")
+    return text
+
+
+def project_ref(value) -> str:
+    """对话归在哪一项：空 = 「最近」，否则是编号。"""
+    text = str(value or "").strip()
+    return project_id(text) if text else ""
+
+
+def period(value) -> str:
+    """处理月份 `YYYY-MM`（公历）；空 = 不指定。"""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if not PERIOD.match(text):
+        raise ContractError("invalid period")
+    return text
+
+
+_period = period  # `project_change` 的参数也叫 period
+
+
+def project_scope(value) -> str:
+    """产品自定的范围（不透明，Cowork 是分店号）；空 = 不指定。"""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if not PROJECT_SCOPE.match(text):
+        raise ContractError("invalid scope")
+    return text
+
+
+def project_change(op, project=None, name=None, session=None, period=None, scope=None, part=None) -> dict:
+    """一条实时事件：`upsert` 带 `project`（{id, title, subtitle}）与可选的 `part`（改了哪一块）；`delete` 带 `id`
+    （`name`）；`move` 带 `session_id`、`project`（"" = 「最近」）、`period` 与 `scope`。"""
+    if op not in PROJECT_OPS:
+        raise ContractError("unknown project change")
+    event = {"type": PROJECT_CHANGE, "op": op}
+    if op == "upsert":
+        if not isinstance(project, dict) or not project.get("id"):
+            raise ContractError("project row required")
+        event["project"] = {"id": project_id(project["id"]), "title": str(project.get("title") or ""),
+                            "subtitle": str(project.get("subtitle") or "")}
+        if part is not None:
+            if part not in PROJECT_PARTS:
+                raise ContractError("unknown project part")
+            event["part"] = part
+    elif op == "delete":
+        event["id"] = project_id(name)
+    else:
+        event["session_id"] = session_id(session)
+        event["project"] = project_ref(project)
+        event["period"] = _period(period) if event["project"] else ""
+        event["scope"] = project_scope(scope) if event["project"] else ""
+    return event
+
+
+def project_note_hash(text) -> str:
+    return hashlib.sha256(str(text or "").encode("utf-8")).hexdigest()[:PROJECT_NOTE_HASH]
+
+
+def project_note(project, noted, text) -> tuple[str, str | None]:
+    """这一批要不要带说明：返回（要带的文字, 发出成功后记进 `project_noted` 的值；None = 不改）。
+    - 归在某项（`project` 非空）：`text` 是这项此刻的说明，哈希与带过的不同才带；`text` 为空（产品出错、没有说明）这次
+      不带、不记。
+    - 不在任何项、但带过说明：带一句「不再属于」，然后清空。"""
+    noted = str(noted or "")
+    if project:
+        if not text:
+            return "", None
+        digest = project_note_hash(text)
+        return ("", None) if digest == noted else (text, digest)
+    return (PROJECT_UNFILED, "") if noted else ("", None)
+
+
+def keep_per_group(rows, key, limit: int) -> list:
+    """按顺序（已按最后活动从新到旧排好）每组只留前 `limit` 条。"""
+    seen: dict = {}
+    kept = []
+    for row in rows:
+        group = key(row)
+        if seen.get(group, 0) < limit:
+            seen[group] = seen.get(group, 0) + 1
+            kept.append(row)
+    return kept
+
+
 def confirmations(items) -> list[dict]:
     """浏览器点的「允许 / 拒绝」→ `user.tool_confirmation` 事件；同一批一次发出。"""
     if not isinstance(items, list) or not items:
@@ -688,10 +795,23 @@ def notice_ttl(value) -> int:
     return min(max(seconds, 0), NOTICE_TTL_MAX)
 
 
-def notice_event(name, processed_at, kind, title, text, session="") -> dict:
-    """站点 → 对话页的提醒事件（实时推送与补拉同一形状）。`session` 为空表示没挂对话（只弹通知、不出卡）。"""
-    return {"type": NOTICE_EVENT, "id": NOTICE_PREFIX + str(name), "processed_at": processed_at, "kind": kind,
-            "title": title or "", "text": text, "session": session or ""}
+def notice_event(name, processed_at, kind, title, text, session="", view="") -> dict:
+    """站点 → 对话页的提醒事件（实时推送与补拉同一形状）。`session` 为空表示没挂对话（只弹通知、不出卡）；
+    `view`（`NOTICE_VIEWS` 之一）是没挂对话时点开去的页面，没给就不带这个键。"""
+    event = {"type": NOTICE_EVENT, "id": NOTICE_PREFIX + str(name), "processed_at": processed_at, "kind": kind,
+             "title": title or "", "text": text, "session": session or ""}
+    if notice_view(view):
+        event["view"] = notice_view(view)
+    return event
+
+
+# 没挂对话的提醒点开去哪一页（对话页 `?view=`）：定时任务页（缺省）、待处理（ADR-020 早上汇总）
+NOTICE_VIEWS = ("tasks", "pending")
+
+
+def notice_view(value) -> str:
+    text = str(value or "").strip()
+    return text if text in NOTICE_VIEWS else ""
 
 
 def site_time(value) -> datetime:
@@ -817,11 +937,11 @@ def file_id(value) -> str:
     return text
 
 
-def deep_link(session_id="") -> str:
-    """提醒点开去哪（手机推送、电脑通知共用）：有合法对话编号就打开那段对话，否则打开定时任务页。"""
+def deep_link(session_id="", view="") -> str:
+    """提醒点开去哪（手机推送、电脑通知共用）：有合法对话编号就打开那段对话，否则打开 `view` 那一页（缺省定时任务页）。"""
     from urllib.parse import quote
 
     text = str(session_id or "").strip()
     if OPAQUE_ID.match(text):
         return "/assistant?c=" + quote(text, safe="")
-    return "/assistant?view=tasks"
+    return "/assistant?view=" + (notice_view(view) or "tasks")

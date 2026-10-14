@@ -3425,8 +3425,8 @@ TOOLS = [
                     "subfolders included (\"\" is the root, 0 means empty; files_partial: at least that many), "
                     "pos_files the POS exports (Excel / CSV) that a sales task into Express also enters; a root "
                     "without files means that computer has not reported counts, so the number is not known. Folders "
-                    "can only be added in CC Desktop on that computer; if the one the user wants is missing, tell them "
-                    "to add it there.",
+                    "are chosen per company in CC Desktop on that computer (the company page); if the one the user "
+                    "wants is missing, tell them to choose it there.",
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"}, "search": {"type": "string"}},
          "required": ["connection"]},

@@ -6,6 +6,8 @@
   旧版页面认不出这种事件，照旧忽略。
 - 事件只说哪段对话、变了什么（`contracts.session_change`）；新出现的对话由侧栏重拉列表取全。
 - 请求里改的在提交后才推（`after_commit`）：别的设备收到再读列表一定读得到；后台任务自己提交过就直接推。
+- 对话归在哪家（`projects`，ADR-020）走同一个通道、同样按人推，事件 `pearnly.project`（`contracts.project_change`：
+  对话换组 move，产品那一项建 / 改 upsert、删 delete）。
 """
 import frappe
 
@@ -15,4 +17,10 @@ from pearnly_core.assistant import contracts
 def changed(user: str, change: str, session: str, after_commit: bool = True, **fields) -> None:
     frappe.publish_realtime(contracts.REALTIME_EVENT,
                             {"session_id": "", "event": contracts.session_change(change, session, **fields)},
+                            user=user, after_commit=after_commit)
+
+
+def project(user: str, op: str, after_commit: bool = True, **fields) -> None:
+    frappe.publish_realtime(contracts.REALTIME_EVENT,
+                            {"session_id": "", "event": contracts.project_change(op, **fields)},
                             user=user, after_commit=after_commit)

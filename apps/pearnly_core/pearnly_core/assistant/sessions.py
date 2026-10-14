@@ -20,21 +20,32 @@
 
 侧栏标题见 `titles`（首条消息先当临时标题，第一轮结束后概括）；新建、改名、加星标、归档、删除都经 `sidebar`
 推给会话主人，同一账号别的设备的侧栏马上并入。
+
+对话归在哪家（ADR-020，Cowork 按公司主档）：记在 `project`（空 = 「最近」）、`period`（处理月份）、`project_scope`
+（产品自定的范围，Cowork 是分店），能挂哪些由产品的 provider 判（`projects`）。`listing(grouped=True)` 第一页给全部
+加星标的 + 「最近」一页 + 每组最新几条，之后按组翻（`group`）；不带 grouped 时与以前一样。对话归在某家时，批末系统
+消息里带上这家的说明（`projects.note`，哈希记在 `project_noted`，说明变了、换月、开新一段才重带；移出时带一句
+「不再属于」）。
 """
 import json
 
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import (config, context, contracts, engine, engines, notices, relay, sidebar, titles,
-                                    toolrun, tools)
+from pearnly_core.assistant import (config, context, contracts, engine, engines, notices, projects, relay, sidebar,
+                                    titles, toolrun, tools)
 
 SESSION = context.SESSION
 LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
 PAGE_SIZE = 30  # 其余的每页条数
 SAME_TIME_SLACK = 10  # 翻页时多取几条，用来跳过与上一页最后一条同一时刻、已经给过的
+GROUP_FIRST = 5  # 分组列表第一页每组给这么多条
+GROUP_SCAN = 300  # 第一页一次最多读这么多条归在组里的对话，再按组各留 GROUP_FIRST 条
 FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
-          "remote_ids", "context_tokens", "pending_carry"]
+          "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted"]
+LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
+               "project_scope"]
+UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
 
 
 def _guard(fn, *args, **kwargs):
@@ -73,7 +84,9 @@ def _summary(row, status=None, unread=False) -> dict:
     """`status` 只放真读过的（建会话、取会话、侧栏核对过的）；没读就是 None，不替它说「空闲」。"""
     return {"id": row.session_id, "title": row.title or "", "status": status, "starred": bool(row.get("starred")),
             "created_at": str(row.creation), "updated_at": str(row.modified),
-            "archived_at": str(row.modified) if row.archived else None, "unread": bool(unread)}
+            "archived_at": str(row.modified) if row.archived else None, "unread": bool(unread),
+            "project": row.get("project") or "", "period": row.get("period") or "",
+            "scope": row.get("project_scope") or ""}
 
 
 def _tool_runs(row, ids) -> dict:
@@ -115,33 +128,79 @@ def _check(user, check) -> dict:
     return runs
 
 
-def listing(archived=False, after=None, check=None) -> dict:
-    """侧栏列表，按最后活动时间从新到旧一页一页给（同 Claude：先显示一页，滚到底再加载）。
-    加星标的全部在第一页（侧栏顶上的「已加星标」一组要齐）；之后的页只翻其余的。有没看过的提醒的标 `unread`。
-    `check`：侧栏以为还在回复的对话编号（逗号分隔）；给了就各读一次此刻的运行状态放进 `runs`（侧栏按它改，不按漏没漏事件猜）。
-    不给就不读引擎：整页逐个读太贵。"""
-    user = _user()
-    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0}
-    fields = ["name", "session_id", "title", "starred", "archived", "creation", "modified"]
+def _page(filters, after) -> tuple[list, str | None]:
+    """`filters` 下按最后活动从新到旧的一页（`after` 之后）与下一页的游标（没有更多是 None）。"""
     order = "modified desc, name desc"
-    rows = []
-    rest = {**base, "starred": 0}
     if after:
         modified, name = _guard(contracts.list_cursor, after)
-        rest["modified"] = ["<=", modified]
         # 同一时刻的几条按记录名接着排：上一页已给到 name 为止
-        found = frappe.get_all(SESSION, filters=rest, fields=fields, order_by=order, limit=PAGE_SIZE + 1 + SAME_TIME_SLACK)
+        found = frappe.get_all(SESSION, filters={**filters, "modified": ["<=", modified]}, fields=LIST_FIELDS,
+                               order_by=order, limit=PAGE_SIZE + 1 + SAME_TIME_SLACK)
         page = [row for row in found if not (str(row.modified) == modified and row.name >= name)][:PAGE_SIZE + 1]
     else:
-        rows = frappe.get_all(SESSION, filters={**base, "starred": 1}, fields=fields, order_by=order, limit=LIST_LIMIT)
-        page = frappe.get_all(SESSION, filters=rest, fields=fields, order_by=order, limit=PAGE_SIZE + 1)
+        page = frappe.get_all(SESSION, filters=filters, fields=LIST_FIELDS, order_by=order, limit=PAGE_SIZE + 1)
     more = len(page) > PAGE_SIZE
     page = page[:PAGE_SIZE]
-    cursor = f"{page[-1].modified}|{page[-1].name}" if more and page else None
-    unread = notices.unread_sessions(user, [row.session_id for row in rows + page])
+    return page, (f"{page[-1].modified}|{page[-1].name}" if more and page else None)
+
+
+def _starred(base) -> list:
+    return frappe.get_all(SESSION, filters={**base, "starred": 1}, fields=LIST_FIELDS,
+                          order_by="modified desc, name desc", limit=LIST_LIMIT)
+
+
+def _filed_counts(base) -> dict:
+    """各组没加星标的对话数（一条 GROUP BY），判断第一页之后这组还有没有。"""
+    found = frappe.db.sql(f"""SELECT project, COUNT(*) AS count FROM `tab{SESSION}`
+        WHERE user = %(user)s AND engine_code = %(engine_code)s AND archived = %(archived)s AND starred = 0
+        AND IFNULL(project, '') != '' GROUP BY project""", base, as_dict=True)
+    return {row.project: int(row.count) for row in found}
+
+
+def _grouped_first(base) -> tuple[list, str | None, dict]:
+    """分组列表第一页：「最近」（不在任何组）一页，加上各组最新 `GROUP_FIRST` 条（一次读至多 `GROUP_SCAN` 条再按组留）。
+    `groups` 只列还有更多的组：值是这组第一页最后一条的游标，一条都没读到的给 ""（从头翻）。"""
+    recent, cursor = _page({**base, "starred": 0, "project": UNFILED}, None)
+    filed = frappe.get_all(SESSION, filters={**base, "starred": 0, "project": ["is", "set"]}, fields=LIST_FIELDS,
+                           order_by="modified desc, name desc", limit=GROUP_SCAN)
+    first = contracts.keep_per_group(filed, lambda row: row.project, GROUP_FIRST)
+    taken, last = {}, {}
+    for row in first:
+        taken[row.project] = taken.get(row.project, 0) + 1
+        last[row.project] = f"{row.modified}|{row.name}"
+    groups = {project: last.get(project, "") for project, count in _filed_counts(base).items()
+              if count > taken.get(project, 0)}
+    return recent + first, cursor, groups
+
+
+def listing(archived=False, after=None, check=None, grouped=False, group=None) -> dict:
+    """侧栏列表，按最后活动时间从新到旧一页一页给（同 Claude：先显示一页，滚到底再加载）。
+    加星标的全部在第一页（侧栏顶上的「已置顶」一组要齐）；之后的页只翻其余的。有没看过的提醒的标 `unread`。
+    `check`：侧栏以为还在回复的对话编号（逗号分隔）；给了就各读一次此刻的运行状态放进 `runs`（侧栏按它改，不按漏没漏事件猜）。
+    不给就不读引擎：整页逐个读太贵。
+    `grouped`（侧栏按公司显示，ADR-020）：第一页 = 全部加星标的 + 「最近」一页（`nextCursor`）+ 各组最新几条（`groups`：
+    还有更多的组 → 游标）；带 `group`（"" = 「最近」，或组编号）就只翻那一组（`after` 是那一组的游标）。
+    不带 `grouped` 时与以前一样（全部对话一起翻，不分组）。"""
+    user = _user()
+    base = {"user": user, "engine_code": config.engine_code(), "archived": 1 if archived else 0}
+    starred, groups = [], None
+    if grouped and (group is not None or after):
+        project = _guard(contracts.project_ref, group)
+        page, cursor = _page({**base, "starred": 0, "project": project or UNFILED}, after)
+    elif grouped:
+        starred = _starred(base)
+        page, cursor, groups = _grouped_first(base)
+    else:
+        if not after:
+            starred = _starred(base)
+        page, cursor = _page({**base, "starred": 0}, after)
+    rows = starred + page
+    unread = notices.unread_sessions(user, [row.session_id for row in rows])
     runs = _check(user, check) if check else None
     out = {"sessions": [_summary(row, status=((runs or {}).get(row.session_id) or {}).get("status"),
-                                 unread=row.session_id in unread) for row in rows + page], "nextCursor": cursor}
+                                 unread=row.session_id in unread) for row in rows], "nextCursor": cursor}
+    if groups is not None:
+        out["groups"] = groups
     if runs is not None:
         out["runs"] = runs
     return out
@@ -164,14 +223,18 @@ def _route(remote: str) -> None:
         frappe.log_error(title="Assistant route not recorded")
 
 
-def create() -> dict:
+def create(project=None, period=None, scope=None) -> dict:
+    """新对话；`project` / `period` / `scope`：建在哪家、处理哪个月、哪个范围（产品不认这家或这个人不能用，照常建在
+    「最近」；产品不收月份、范围的丢掉）。"""
     user, product = _user(), config.product()
+    project, period, scope = _guard(projects.placement, project, period, scope, user)
     api = engine.adapter()
     sid, status = api.open(engine.prepared(api), _metadata(user, product))
     engine.tools_current(sid)
     _route(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
-                          "engine_code": config.engine_code(), "title": ""}).insert(ignore_permissions=True)
+                          "engine_code": config.engine_code(), "title": "", "project": project, "period": period,
+                          "project_scope": scope}).insert(ignore_permissions=True)
     sidebar.changed(user, "created", sid)
     return _summary(doc, status)
 
@@ -195,6 +258,21 @@ def star(session_id, starred) -> None:
     row = owned(session_id)
     frappe.db.set_value(SESSION, row.name, "starred", 1 if starred else 0, update_modified=False)
     sidebar.changed(_user(), "starred", row.session_id, starred=bool(starred))
+
+
+def move(session_id, project, period=None, scope=None) -> dict:
+    """对话换组（"" = 「最近」，月份、范围一并清空）或改处理月份 / 范围：只动本人的会话，产品不认这家时拒绝。
+    只是整理，不改最后活动时间、不动置顶。"""
+    row = owned(session_id)
+    user = _user()
+    wanted = str(project or "").strip()
+    target, period, scope = _guard(projects.placement, wanted, period, scope, user)
+    if wanted and not target:
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    frappe.db.set_value(SESSION, row.name, {"project": target, "period": period, "project_scope": scope},
+                        update_modified=False)
+    sidebar.project(user, "move", session=row.session_id, project=target, period=period, scope=scope)
+    return {"id": row.session_id, "project": target, "period": period, "scope": scope}
 
 
 def archive(session_id) -> None:
@@ -245,8 +323,10 @@ def segment_for_turn(row, api) -> str:
     engine.tools_current(fresh)
     _route(fresh)
     remote_ids = json.dumps(segments(row) + [fresh])
-    frappe.db.set_value(SESSION, row.name, {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})
-    row.update({"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry})
+    # 新的一段不知道前面带过的公司说明：清空，下一批重带
+    fresh_row = {"remote_ids": remote_ids, "context_tokens": 0, "pending_carry": carry, "project_noted": ""}
+    frappe.db.set_value(SESSION, row.name, fresh_row)
+    row.update(fresh_row)
     return fresh
 
 
@@ -329,15 +409,20 @@ def send(session_id, text) -> None:
     toolrun.remember_lang(row.session_id)
     relay.ensure(row.session_id, remote, frappe.session.user)
     shown = notices.uncarried(row.session_id, frappe.session.user)
+    company, noted = projects.note(row, frappe.session.user)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
-    # 接续的前文、还没带过的提醒、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后
-    note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), contracts.notices_note(shown),
+    # 接续的前文、公司说明、还没带过的提醒、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后
+    note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), company,
+                                    contracts.notices_note(shown),
                                     contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:
         batch.append(note)
     api.post(remote, batch)
     if row.get("pending_carry"):
         frappe.db.set_value(SESSION, row.name, "pending_carry", "")
+    if noted is not None:
+        # 发出成功才算带过（同提醒）
+        frappe.db.set_value(SESSION, row.name, "project_noted", noted, update_modified=False)
     if shown:
         # 发出成功才算带过（只标这次真带上的几条）；发不出（抛错）下次再带
         notices.mark_carried(frappe.session.user, [item["name"] for item in shown])

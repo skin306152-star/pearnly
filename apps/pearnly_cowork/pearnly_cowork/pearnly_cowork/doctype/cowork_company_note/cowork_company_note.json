@@ -1,0 +1,106 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Company Note",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-15 06:00:00.000000",
+ "modified": "2026-10-15 06:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "One line of the team's working notes about a client company (CC company master). Shared by the firm.",
+ "field_order": [
+  "company",
+  "workspace",
+  "text",
+  "origin",
+  "session",
+  "created_by",
+  "created_at",
+  "updated_by",
+  "updated_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Company",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "text",
+   "label": "Text",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "origin",
+   "label": "Origin",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "person\ncc",
+   "reqd": 1
+  },
+  {
+   "fieldname": "session",
+   "label": "Conversation",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "created_by",
+   "label": "Created By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "created_at",
+   "label": "Created At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "updated_by",
+   "label": "Updated By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "updated_at",
+   "label": "Updated At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

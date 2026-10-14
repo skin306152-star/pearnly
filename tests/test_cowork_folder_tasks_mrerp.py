@@ -149,7 +149,10 @@ class Probe(unittest.TestCase):
         self.assertLess(probe, body.index("agent.remember("))
         self.assertIn('return {"server_time": time.time(), "rules": [], "entries": {}, **identity}', body)
         # 2026-10-12 起回复另带新版提示与提醒（`companion_latest` / `notices`），身份两项照旧在每一次回复里
-        self.assertIn('reply = {"server_time": time.time(), "rules": rules, "entries": entries, **identity}', body)
+        # 2026-10-15 起（ADR-020）另带根目录上限与还被用着的根目录（`max_roots` / `roots_in_use`）
+        self.assertIn('reply = {"server_time": time.time(), "rules": rules, "entries": entries, "max_roots": '
+                      'contracts.MAX_ROOTS,\n             **_in_use(context.connection), **identity}', body)
+        self.assertLess(probe, body.index('if body.get("roots_only") is True:'))
         self.assertIn("return reply", body)
 
 

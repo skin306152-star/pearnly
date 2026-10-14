@@ -298,6 +298,26 @@ def remembered() -> list:
     return memory.listing(_workspace())
 
 
+def drafts_of(tax_id, branch=None, limit=24) -> list:
+    """一家公司（税号；给了分店号就只看这个分店）的申报草稿，期间新 → 旧（公司主档用，ADR-020）：
+    `[{name, kind, period, branch, updated_at}]`。只读；权限同读草稿（`_workspace`），ภ.ง.ด. 草稿还要读识别记录的权限，
+    没有就不列。"""
+    workspace = _workspace()
+    filters = {"workspace": workspace, "company_tax_id": str(tax_id or "").strip()}
+    if not filters["company_tax_id"]:
+        return []
+    if branch is not None:
+        filters["company_branch"] = str(branch or "")
+    if not scope.allowed_any(scope.READ_FEATURES):
+        filters["kind"] = VAT
+    rows = frappe.get_all(DOCTYPE, filters=filters,
+                          fields=["name", "kind", "period", "company_branch", "updated_at", "modified"],
+                          order_by="period desc, kind asc", ignore_permissions=True,
+                          limit_page_length=max(1, min(int(limit or 24), 100)))
+    return [{"name": row.name, "kind": row.kind, "period": row.period, "branch": row.company_branch or "",
+             "updated_at": str(row.updated_at or row.modified or "")} for row in rows]
+
+
 def delete(drafts) -> dict:
     """删草稿（连同存着的选项与逐行改动）：[草稿名]；ภ.ง.ด. 草稿同读一样要读识别记录的权限。回删掉的与没找到的。"""
     workspace = _workspace()

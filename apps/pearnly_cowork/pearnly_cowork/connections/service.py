@@ -166,6 +166,33 @@ def targets(name):
     return result
 
 
+# 公司主档（ADR-020，`companies`）认公司、列账套要的目录属性。`targets()` 的形状网页和 LINE 共用，不放宽；
+# 这里另给一份只读视图，只给 `companies` 调用。
+FACT_KEYS = ("company", "company_name", "tax_id", "branch", "period_start", "period_end", "next_end", "row", "root",
+             "root_label", "writable")
+
+
+def account_set_facts(name):
+    """这条连接最近一次读到的账套目录：`{connection, adapter, status, account_sets: [{source_id, label, active,
+    attributes: {FACT_KEYS 里有的}}]}`。权限同 `targets()`（连接使用授权）；没读到目录时 `account_sets` 为空。"""
+    doc = _read(CONNECTION, name)
+    access.require_connection(doc, management=_manager_view())
+    _, _, key = _scope(None)
+    head = _heads(doc).get(key, {})
+    result = {"connection": doc.name, "adapter": doc.adapter, "status": head.get("status") or "missing",
+              "account_sets": []}
+    if head.get("snapshot_id"):
+        snapshot = _read(SNAPSHOT, head["snapshot_id"])
+        if snapshot.connection != doc.name or snapshot.connection_revision != doc.record_revision:
+            _error("connection.snapshot_invalid")
+        for row in model.parse(snapshot.body)["account_sets"]:
+            attributes = row.get("attributes") or {}
+            result["account_sets"].append({
+                "source_id": row["source_id"], "label": row.get("label"), "active": row.get("active", True),
+                "attributes": {key: attributes[key] for key in FACT_KEYS if key in attributes}})
+    return result
+
+
 def records(workspace, client=None, start=0, limit=50):
     actor = frappe.session.user
     management = _manager_view()
