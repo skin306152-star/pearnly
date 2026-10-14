@@ -10,7 +10,7 @@ from copy import deepcopy
 import re
 from typing import Any
 
-from pearnly_core.tax_documents.amounts import repaired_tax_id
+from pearnly_core.tax_documents.amounts import repaired_tax_id, valid_tax_id
 
 INTERNAL_SOURCES = frozenset({"erp_web", "line_erp"})
 VALID_POSTING_KINDS = ("service", "stock")
@@ -122,8 +122,8 @@ def detect_by_account(flat: dict[str, Any], account_tax_id: Any) -> str | None:
 	"""以推往的账套的税号判进 / 销项（2026-10-15 测试环境：事务所替客户记账，工作空间税号不是客户账套的税号，
 	快递公司开的无买方简易税票判不出方向，推送拿卖方税号比账套、报「本方税号不符」）。
 
-	卖方是这份账套、买方不是 → sales；买方是这份账套、卖方不是 → purchase；票上没有买方、卖方是别家（读得出的税号）
-	→ purchase（别家开给这家公司的无买方简易税票 / 收据）；其余（账套没报税号、两边都对不上、两边都是）判不出 → None。
+	卖方是这份账套、买方不是 → sales；买方是这份账套、卖方不是 → purchase；票上没有买方、卖方是别家（校验位对、
+	与账套税号至少差 3 位，见 `_other_seller`）→ purchase（别家开给这家公司的无买方简易税票 / 收据）；其余（账套没报税号、两边都对不上、两边都是）判不出 → None。
 	"""
 	account = clean_tax_id(account_tax_id)
 	if not account:
@@ -135,9 +135,20 @@ def detect_by_account(flat: dict[str, Any], account_tax_id: Any) -> str | None:
 		return "sales"
 	if buyer == account and seller != account:
 		return "purchase"
-	if seller and seller != account and not _has_buyer(fields):
+	if _other_seller(seller, account) and not _has_buyer(fields):
 		return "purchase"
 	return None
+
+
+def _other_seller(seller: str, account: str) -> bool:
+	"""卖方确是别家：税号校验位对，且与账套税号至少差 3 位。
+
+	2026-10-15 审查：客户自开的无买方简易税票，卖方税号读错一位（0105551234568 对账套 0105551234567）
+	会被当成别家开来的票按进项记进自己账套、销项税漏记。校验位抓不住所有一位错（第 3 位权重 11、
+	余数 0 与 10 同校验位），所以只差 1–2 位的一律视为可能读错，判不出、交人选。"""
+	if not seller or seller == account or not valid_tax_id(seller):
+		return False
+	return sum(a != b for a, b in zip(seller, account)) > 2
 
 
 def resolve_account_direction(flat: dict[str, Any], history: dict[str, Any], *, own_tax_id: Any,

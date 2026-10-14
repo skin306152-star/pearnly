@@ -158,6 +158,7 @@ VAT_UNREADABLE = "vat_unreadable"
 SUBTOTAL_DIFFERS = "subtotal_differs"
 WITHHOLDING = "withholding"
 NO_VAT_MARKED = "no_vat_marked"
+VAT_PRINTED_ZERO = "vat_printed_zero"
 
 _CENT = Decimal("0.01")
 _BAHT = frozenset({"", "THB", "BAHT", "บาท", "฿"})
@@ -171,6 +172,10 @@ _NO_VAT_MARKS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     r"ไม่\s*(?:มี|คิด|เสีย|รวม)\s*(?:ภาษี|vat(?![a-z]))",                          # ไม่มีภาษี / ไม่คิด VAT / ไม่รวม VAT
     r"(?<![a-z])(?:non[\s-]*vat|exempt|zero[\s-]*rated?(?![a-z])|no\s+vat(?![a-z])|vat[\s-]*free(?![a-z]))",
 ))
+
+
+# 税额栏原文里的数：千分位、空白、货币符号去掉后按顺序取；紧跟 % 的是税率，不是税额。
+_PRINTED_AMOUNT = re.compile(r"(?<![\d.])(\d[\d,]*(?:\.\d+)?|\.\d+)(?![\d,.]*\s*%)")
 
 
 @dataclass(frozen=True)
@@ -190,18 +195,32 @@ def no_vat_marked(texts: Iterable) -> bool:
                for pattern in _NO_VAT_MARKS)
 
 
+def printed_zero(text) -> bool:
+    """税额栏原文明确印着 0（「0.00」「฿0」「VAT 7% 0.00」）：票面写了税额是 0，不是没写。
+
+    取原文里最后一个不带 % 的数；原文空、只有横线 / 文字、或印的数不是 0 都回 False。"""
+    found = _PRINTED_AMOUNT.findall(str(text or ""))
+    if not found:
+        return False
+    amount = money(found[-1].replace(",", ""))
+    return amount is not None and amount.is_finite() and amount == 0
+
+
 def _finite(value):
     amount = money(value)
     return amount if amount is not None and amount.is_finite() else None
 
 
 def included_vat(document_type, total, *, subtotal=None, vat=None, wht_amount=None, currency=None,
-                 texts: Iterable = ()) -> IncludedVat:
+                 texts: Iterable = (), vat_printed=None) -> IncludedVat:
     """简式税票识别出税额 0 / 没写、税前额就是总额（或没写）→ 按含税价拆：税额 = 总额 × 7/107（四舍五入到分），
-    税前额 = 总额 − 税额。`texts` 是票面上的文字（备注、品名、金额栏原文），写明免税 / 零税率的不拆。
+    税前额 = 总额 − 税额。`texts` 是票面上的文字（备注、品名、金额栏原文；同一栏的栏名与原文拼成一条传入），
+    写明免税 / 零税率的不拆。`vat_printed` 是税额那一栏的票面原文：明确印着 0（`printed_zero`，如全免税商品的
+    「VAT 7%  0.00」）的不拆；原文空、没传、只有字段值 0 而票面没印税额的（手写 ABB）照拆。
 
     其余一律不动，返回不拆的原因：别的票种、外币、总额缺失或不为正、已有税额、税额读不成数、税前额与总额不同
-    （或读不成数）、带预扣税、写明免税 / 零税率。`document_type` 是码表里的码（经 `classify` 或模型给的）。
+    （或读不成数）、带预扣税、写明免税 / 零税率、票面税额印着 0。`document_type` 是码表里的码（经 `classify`
+    或模型给的）。
     """
     if normalize(document_type) not in INCLUDED_VAT_TYPES:
         return IncludedVat(NOT_INCLUDED_TYPE)
@@ -225,5 +244,7 @@ def included_vat(document_type, total, *, subtotal=None, vat=None, wht_amount=No
         return IncludedVat(WITHHOLDING)
     if no_vat_marked(texts):
         return IncludedVat(NO_VAT_MARKED)
+    if printed_zero(vat_printed):
+        return IncludedVat(VAT_PRINTED_ZERO)
     tax = (gross * VAT_RATE / (1 + VAT_RATE)).quantize(_CENT, rounding=ROUND_HALF_UP)
     return IncludedVat(SPLIT, (gross - tax).quantize(_CENT, rounding=ROUND_HALF_UP), tax)

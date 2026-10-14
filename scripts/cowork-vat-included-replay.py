@@ -20,7 +20,8 @@
   python3 scripts/cowork-vat-included-replay.py <目录> [--all] [--json]
     默认  逐张列出会改的票（TSV：文件、位置、编号、方向、票种、合计、税前额 改前→改后、税额 改前→改后、票面文字），末尾汇总；
     --all 另列不改的简式税票与原因（vat_present 已有税额 / subtotal_differs 税前额与合计不同 / no_vat_marked 写明免税或
-          零税率 / foreign_currency 外币 / withholding 带预扣税 / total_missing 没有合计 / vat_unreadable 税额读不成数）；
+          零税率 / vat_printed_zero 税额栏印着 0 / foreign_currency 外币 / withholding 带预扣税 / total_missing 没有合计 /
+          vat_unreadable 税额读不成数）；
     --json 每张一行 JSON（字段同上），便于再处理。
 退出码：0 跑完（不论改了几张）；2 目录不存在或一份 JSON 也没读到。读不了的文件列在汇总里，不中断。
 """
@@ -173,7 +174,8 @@ def main(argv=None):
                "would_change": counts[rules.SPLIT], "would_change_without_document_text": counts["split_without_texts"],
                "unchanged_abbreviated": {reason: counts[reason] for reason in (
                    rules.VAT_PRESENT, rules.SUBTOTAL_DIFFERS, rules.NO_VAT_MARKED, rules.FOREIGN_CURRENCY,
-                   rules.WITHHOLDING, rules.TOTAL_MISSING, rules.VAT_UNREADABLE) if counts[reason]}}
+                   rules.WITHHOLDING, rules.TOTAL_MISSING, rules.VAT_UNREADABLE, rules.VAT_PRINTED_ZERO)
+                   if counts[reason]}}
     print(("" if args.json else "\n") + json.dumps({"summary": summary, "unreadable": unreadable}, ensure_ascii=False),
           file=sys.stdout if not args.json else sys.stderr)
     return 0 if counts["files"] else 2

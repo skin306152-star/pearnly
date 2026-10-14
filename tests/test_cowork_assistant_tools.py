@@ -2919,6 +2919,31 @@ class AllCompaniesTests(unittest.TestCase):
             ("70EXP · D.2 บริษัท ภูผาแก้ว จำกัด", 0),
             ("70EXP · D.4 Suan Co", 0)])
 
+    def test_a_truncated_scan_never_counts_an_unreached_company_as_none(self):
+        """审查 2026-10-15：取回后再筛只看最新的 LIST_SCAN_MAX 张时，没看到的账套原来记 0，模型会答「这家没有」。"""
+        # 只看了最新的两张，都是 แก้วกานดา 的（一张销项、一张进项）；ดาวเหนือ 与没选账套的进项排在后面、没看到
+        with mock.patch.object(tools, "LIST_SCAN_MAX", 2), mock.patch.object(tools, "LIST_SCAN_PAGE", 2):
+            out = json.loads(tools.list_documents({**self.SEPTEMBER, "direction": "purchase"}))
+        self.assertIs(out["complete"], False)
+        self.assertIs(out["by_account_set_complete"], False)
+        rows = {item.get("account_label", item.get("push_target")): item for item in out["by_account_set"]}
+        self.assertEqual(rows["70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด"]["count"], 1)  # 看到的张数：下限
+        self.assertNotIn("not chosen yet", rows)
+        for name in ("70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด", "70EXP · D.2 บริษัท ภูผาแก้ว จำกัด",
+                     "70EXP · D.4 Suan Co"):
+            self.assertIsNone(rows[name]["count"], name)  # 没看到：不给 0
+        self.assertTrue(all(item["partial"] for item in out["by_account_set"]))
+        self.assertNotIn(0, [item["count"] for item in out["by_account_set"]])
+        self.assertIn("never say a company has none", out["note"])
+        # 看完了的照旧：0 张也列、不标 partial
+        whole = json.loads(tools.list_documents({**self.SEPTEMBER, "direction": "purchase"}))
+        self.assertNotIn("by_account_set_complete", whole)
+        self.assertFalse(any("partial" in item for item in whole["by_account_set"]))
+        self.assertIn(0, [item["count"] for item in whole["by_account_set"]])
+        listing = {tool["name"]: tool for tool in tools.TOOLS}["cowork_list_documents"]["description"]
+        self.assertIn("When complete is false", listing)
+        self.assertIn("never say it has none", listing)
+
     def test_a_search_or_one_account_set_gives_no_company_list(self):
         self.assertNotIn("by_account_set", json.loads(tools.list_documents({**self.SEPTEMBER, "search": "CN6909"})))
         self.rows = [row for row in self.rows if not row["push_account_set"]]

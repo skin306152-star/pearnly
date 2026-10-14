@@ -165,6 +165,20 @@ class IncludedVat(unittest.TestCase):
         self.assertEqual(self.split(subtotal="727", vat="0", wht_amount="21.81").reason, rules.WITHHOLDING)
         self.assertTrue(self.split(subtotal="727", vat="0", wht_amount="0").applies)
 
+    def test_a_vat_printed_as_zero_is_not_split(self):
+        # 审查 2026-10-15：全免税商品的简易税票印着「VAT 7%  0.00」，识别把栏名与数分开记，原来照拆 7/107
+        for printed in ("0.00", "0", " 0.00 ", "฿0.00", "0.00 บาท", "VAT 7% 0.00", "ภาษี 7.00% 0.00", ".00"):
+            with self.subTest(printed=printed):
+                self.assertTrue(rules.printed_zero(printed))
+                self.assertEqual(self.split(subtotal="727", vat="0.00", vat_printed=printed).reason,
+                                 rules.VAT_PRINTED_ZERO)
+        # 票面没印税额（D2 手写 ABB：字段被模型填 0、没有原文）照拆；原文是别的数或只有税率也不算印了 0
+        for printed in (None, "", "  ", "-", "VAT 7%", "7 %", "0%", "47.56", "1,234.00", 0.07):
+            with self.subTest(printed=printed):
+                self.assertFalse(rules.printed_zero(printed))
+                result = self.split(subtotal="727.00", vat="0", vat_printed=printed)
+                self.assertEqual((result.reason, result.vat), (rules.SPLIT, Decimal("47.56")))
+
     def test_a_document_that_says_it_is_exempt_or_zero_rated_is_left_alone(self):
         for text in ("ผักสด (ยกเว้นภาษี)", "สินค้ายกเว้น VAT", "VAT EXEMPT", "Exempted goods", "NON-VAT 120.00",
                      "NON VATABLE", "zero-rated", "Zero rate", "VAT 0%", "0% VAT", "VAT 0.00", "ภาษีมูลค่าเพิ่ม 0.00",

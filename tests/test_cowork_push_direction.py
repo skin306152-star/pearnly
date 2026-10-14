@@ -132,6 +132,26 @@ class PrepareDirection(unittest.TestCase):
         self.assertNotIn("direction", seen["history"])
         self.assertEqual(seen["context"]["account_tax_id"], "")
 
+    def test_a_misread_own_seller_tax_id_is_not_taken_for_another_company(self):
+        """审查 2026-10-15：自开的无买方简易税票卖方税号读错一位，不能当别家开来的票按进项记。"""
+        bad_check = "0105551234568"  # 账套 0105551234567 末位读错：校验位不对
+        one_off = "0115551234567"  # 第 3 位读错：校验位恰好仍对，只差一位
+        two_off = "0105551234664"  # 差两位、校验位对
+        self.assertFalse(amounts.valid_tax_id(bad_check))
+        self.assertTrue(amounts.valid_tax_id(one_off) and amounts.valid_tax_id(two_off))
+        for seller in (bad_check, one_off, two_off):
+            with self.subTest(seller=seller):
+                self.assertIsNone(push_contract.detect_by_account({"fields": courier(seller_tax=seller)}, BOOK_TAX))
+                seen = self.prepare(courier(seller_tax=seller))
+                self.assertIsNone(seen["direction"])  # 判不出，交人选
+                self.assertNotIn("direction", seen["history"])
+
+    def test_a_real_third_party_seller_is_still_a_purchase(self):
+        for seller in (COURIER, OTHER):
+            with self.subTest(seller=seller):
+                self.assertEqual(push_contract.detect_by_account({"fields": courier(seller_tax=seller)}, BOOK_TAX),
+                                 "purchase")
+
     def test_the_review_choices_use_the_same_direction(self):
         service, _seen, (doc, loaded) = wired(courier())
         self.assertEqual(service._express_facts(doc, loaded, BOOK)[3], "purchase")

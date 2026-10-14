@@ -94,6 +94,28 @@ class SplitOnRecognizedPages(unittest.TestCase):
                                                      "source_text": "รวมเงิน (รวมภาษีมูลค่าเพิ่มแล้ว) 727.00"}})
         self.assertEqual(split(included)[0], 1)
 
+    def test_a_vat_printed_as_zero_on_the_document_is_left_alone(self):
+        """审查 2026-10-15：全免税商品的简易税票印着 VAT 0.00，识别把栏名「VAT 7%」与原文「0.00」分开记。"""
+        exempt = abb(notes="", vat="0.00", source_refs={"vat": {"value": "0", "source_text": "0.00",
+                                                                "source_column": "VAT 7%"}})
+        changed, entry = split(exempt)
+        self.assertEqual((changed, entry["fields"]), (0, exempt))
+        self.assertEqual(pages.included_vat(exempt).reason, "vat_printed_zero")
+        # 栏名与原文拼成一条再认免税字样：「VAT」+「0%」
+        joined = abb(notes="", source_refs={"vat": {"value": "0", "source_text": "0%", "source_column": "VAT"}})
+        self.assertEqual(pages.included_vat(joined).reason, "no_vat_marked")
+        self.assertIn("VAT 0%", pages.printed_texts(joined))
+
+    def test_the_handwritten_abb_without_a_printed_vat_is_still_split(self):
+        # D2 03/0102 那种：票面没印税额、字段被模型填 0 —— 本批修复的原案例，仍要拆
+        for refs in (None, {}, {"vat": {"value": "0", "source_text": "", "source_column": "VAT"}},
+                     {"vat": {"value": "0", "source_text": "-", "source_column": ""}},
+                     {"vat": {"value": "0", "source_column": "VAT 7%"}},
+                     {"total_amount": {"value": "727", "source_text": "727.00", "source_column": "รวมเงิน"}}):
+            with self.subTest(refs=refs):
+                changed, entry = split(abb(source_refs=refs))
+                self.assertEqual((changed, entry["fields"]["subtotal"], entry["fields"]["vat"]), (1, "679.44", "47.56"))
+
     def test_each_page_of_the_invoice_is_split_and_other_audit_is_kept(self):
         first, second = page(abb()), page(abb(), _extraction_audit={"amount_source": "column"})
         third = page({"is_not_invoice": True, "document_type": "simplified_tax_invoice", "total_amount": "5"})
