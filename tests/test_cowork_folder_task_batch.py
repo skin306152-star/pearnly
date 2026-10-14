@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 from test_cowork_delete_everything import Row, _frappe, _load  # noqa: E402
 
 contracts = _load("folder_contracts_batch", APP / "folder_intake/contracts.py", {})
+desktop_update = _load("connections_desktop_update_batch", APP / "connections/desktop_update.py", {})
 RULE = "Cowork Folder Intake Rule"
 ROOT_A, ROOT_B = "a" * 16, "b" * 16
 
@@ -115,7 +116,7 @@ class Harness(unittest.TestCase):
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None, default_workspace=lambda: "W")),
                    "pearnly_cowork.connections": stub(
-                       access=stub(require_connection=lambda doc: None),
+                       access=stub(require_connection=lambda doc: None), desktop_update=desktop_update,
                        preparation=stub(reported_masters=lambda doc, key: self.masters),
                        service=stub(targets=lambda name: {"groups": [group]}, stock_acc_group=lambda *a: {},
                                     records=lambda *a: [{"name": "C1", "adapter": "express", "label": "Express"}],

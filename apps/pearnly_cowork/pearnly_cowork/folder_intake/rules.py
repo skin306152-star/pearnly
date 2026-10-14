@@ -18,6 +18,7 @@ from frappe.utils import now_datetime
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import access as connection_access
+from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.connections import preparation
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import agent, contracts, destinations, inbox
@@ -145,8 +146,15 @@ def _reader_view(doc):
         # 各文件夹的文件数（`counts` / `partial`，1.4.4 起）：小助手好久没同步就是旧数，不显示（不知道，不用旧数冒充）。
         roots = [{key: value for key, value in row.items() if key not in ("counts", "partial", "table_counts")}
                  for row in roots]
+    # 自动更新被 Windows 拦下：Express 以心跳报的为准（同在线），只读文件夹的 MR.ERP 成员以文件夹同步报的为准；
+    # 被拦的版本不比这台电脑现在跑的新（已手动装上）就不显示。
+    if doc.adapter == "express" and isinstance(report, dict):
+        blocked, running = report.get(desktop_update.KEY), report.get("companion_version")
+    else:
+        blocked, running = state.get(desktop_update.KEY), state.get("version")
     return {"connection": doc.name, "adapter": doc.adapter, "label": str(label or doc.name)[:80],
-            "fresh": fresh, "version": state.get("version") or "", "roots": roots}
+            "fresh": fresh, "version": state.get("version") or "", "roots": roots,
+            "update_blocked": desktop_update.current(blocked, running)}
 
 
 def computers():
@@ -170,8 +178,11 @@ def computers():
         online = bool(credentials.online(doc.name)) if doc.adapter == "express" else view["fresh"]
         if not (online or view["version"]):
             continue
-        result.append({"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
-                       "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)]})
+        row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
+               "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)]}
+        if view.get("update_blocked"):
+            row["update_blocked"] = view["update_blocked"]   # {version, at}：网页如实显示一句
+        result.append(row)
     return result
 
 

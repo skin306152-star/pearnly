@@ -207,6 +207,27 @@ class CompanionReportTests(unittest.TestCase):
         self.assertEqual(PATCH_KEYS, CACHE_KEYS | SELECTED_KEYS | MAPPING_KEYS)
         self.assertEqual(set(plan.patch), {"account_set", "agent_last_seen_at"})
 
+    def test_a_blocked_update_is_kept_only_when_it_changes(self):
+        # 教程问题第 1 条：CC 桌面版每拍都报 update_blocked（被拦 = 版本 + 时刻，没被拦 = null）；旧版不带这个键。
+        blocked = {"version": "1.5.2", "at": "2026-10-13T11:18:00Z"}
+        stored = {"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"}
+        plan = plan_report({"update_blocked": blocked}, {}, NOW)
+        self.assertEqual(plan.patch["update_blocked"], stored)
+        self.assertIn("update_blocked", CACHE_KEYS)
+        # 与上次相同不进补丁（上报记录不为它每拍重写）；旧版不带这个键：保留上次的值
+        self.assertNotIn("update_blocked", plan_report({"update_blocked": blocked}, {"update_blocked": stored}, NOW).patch)
+        self.assertNotIn("update_blocked", plan_report({}, {"update_blocked": stored}, NOW).patch)
+        # 装上了 / 没被拦（null）：清掉；本来就没有就不写
+        self.assertIsNone(plan_report({"update_blocked": None}, {"update_blocked": stored}, NOW).patch["update_blocked"])
+        self.assertNotIn("update_blocked", plan_report({"update_blocked": None}, {}, NOW).patch)
+        # 不合形状的当作没被拦：版本号、时刻缺一不可，时刻要带时区
+        for bad in ({"version": "1.5"}, {"version": "v1.5.2", "at": "2026-10-13T11:18:00Z"},
+                    {"version": "1.5.2", "at": "2026-10-13 11:18"}, "1.5.2", ["1.5.2"]):
+            with self.subTest(bad=bad):
+                self.assertIsNone(plan_report({"update_blocked": bad}, {"update_blocked": stored}, NOW).patch["update_blocked"])
+        # 离线（退出）那一拍不碰
+        self.assertNotIn("update_blocked", plan_report({"offline": True, "update_blocked": blocked}, {}, NOW).patch)
+
     def test_time_and_input_must_be_injected_and_valid(self):
         for invalid in (NOW.replace(tzinfo=None), NOW.astimezone(timezone(timedelta(hours=7))), "now", None):
             with self.subTest(invalid=invalid), self.assertRaises(ReportError):

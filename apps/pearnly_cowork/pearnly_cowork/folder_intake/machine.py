@@ -18,6 +18,7 @@ from frappe.utils import get_datetime, get_system_timezone, now_datetime
 from pearnly_cowork.access import scope
 from pearnly_cowork.companion import http_auth, release
 from pearnly_cowork.connections import access as connection_access
+from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.folder_intake import agent, contracts, inbox, live, notify, settings, workbook
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 
@@ -128,9 +129,10 @@ def _sync(context, body):
     roots = contracts.roots(body.get("roots"))
     pending = contracts.pending(body.get("rule_pending"))
     before = agent.read(context.connection).get("pending") or {}
+    # update_blocked：自动更新被 Windows 拦下（同心跳，`connections.desktop_update`）；只读文件夹的 MR.ERP 成员只有这里报
     agent.remember(context.connection, roots=roots, version=body.get("version"),
                    health=contracts.health(body.get("rule_health")), device=contracts.device(body.get("device")),
-                   pending=pending)
+                   pending=pending, update_blocked=desktop_update.parse(body.get(desktop_update.KEY)))
     for row in (body.get("runs") or [])[:50]:
         try:
             _record_run(context, row)

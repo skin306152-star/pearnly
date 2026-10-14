@@ -639,7 +639,9 @@ class SameNumbersAsTheTaskList(unittest.TestCase):
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: now),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub()),
-                   "pearnly_cowork.connections": stub(access=stub(), preparation=stub(), service=stub()),
+                   "pearnly_cowork.connections": stub(access=stub(), preparation=stub(), service=stub(),
+                                                      desktop_update=_load("connections_desktop_update_results",
+                                                                           APP / "connections/desktop_update.py")),
                    "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=contracts, destinations=stub(), inbox=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE=FILE, RULE=RULE, RUN=RUN, read=None, write=None),
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda value: value)}

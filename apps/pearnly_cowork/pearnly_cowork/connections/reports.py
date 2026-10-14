@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping
 
+from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 
@@ -461,6 +462,8 @@ CACHE_KEYS = frozenset((
     "catalog_seen_at", "catalog_fingerprint",
     "reported_stock_acc_groups", "stock_acc_groups_seen_at", "max_payload_version",
     "companion_version", "agent_device_name", "agent_last_seen_at",
+    # 自动更新被 Windows 拦下（`desktop_update`，教程问题第 1 条）：只在变了时进补丁，上报记录不为它每拍重写
+    desktop_update.KEY,
 ))
 PATCH_KEYS = SELECTED_KEYS | MAPPING_KEYS | CACHE_KEYS
 
@@ -550,6 +553,11 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
         version = str(body.get("companion_version") or "").strip()
         if version and len(version) <= 20:
             patch["companion_version"] = version
+    # 旧版 CC 桌面版不带这个键：保留上次的值；带了（含 null = 没被拦）就以这次为准，变了才写。
+    if desktop_update.KEY in body:
+        blocked = desktop_update.parse(body.get(desktop_update.KEY))
+        if blocked != previous.get(desktop_update.KEY):
+            patch[desktop_update.KEY] = blocked
 
     account_sets = _account_sets(body.get("account_sets"))
     selected_key = _selected_account_set(body)
