@@ -107,6 +107,14 @@ GUIDANCE = [
     # 2026-10-13 录屏：推送时间按 UTC 交出去被说成当地时间；现在工具一律给当地时间（`_local_time`），说清楚别再换算
     "Times in tool results are already the user's local time, on the same clock as the current time you are given; "
     "say them as they are.",
+    # 2026-10-13 录屏：对话刚谈完 9 月，会计问「这个月还有哪些票卡着」，CC 按 10 月查、答「没有」。会计说的这个月是在做的那期
+    "'This month' in accounting work is the month being filed, not always the calendar month: a month already being "
+    "discussed in this conversation is the one meant; with none, early in a month it is usually last month's filing. "
+    "When unsure, confirm the month in one short question before looking anything up.",
+    # 2026-10-13 录屏：「9 月，所有公司」时 CC 沿用了上文那家公司的筛选，只回了一家（ทุกเจ้า 也能指所有商家，这里点明是所有公司）
+    "When the user asks about all companies (" + "ทุกเจ้า" + ", all clients), leave out connection, account_set_key "
+    "and search even if the conversation was about one company, and answer company by company from "
+    "by_account_set, including those with none.",
 ]
 
 
@@ -243,6 +251,71 @@ def _reason(value):
     return export_facts.reason_text(value)
 
 
+# 「所有公司」逐家回答（2026-10-13 录屏「เดือน 9 ทุกเจ้าเลย」：CC 沿用上文那家公司的筛选，只回了 แก้วกานดา 三张，没说只查了
+# 一家，另两家卡着的贷项单、外币票都没出现）。没限定公司时列表另给 by_account_set：同一时间范围（与连接）里有单据的账套
+# 都列、各有几张符合这次条件（0 张也列，说得出「这家没有」），没选账套的另算一行；按全部符合的单据算，不只这一页。
+BY_ACCOUNT_SHOWN = 30
+
+
+def _tally(counts, connection, account_set, count) -> None:
+    """按（连接、账套键归一）累加张数；没选账套的都记在 ("", "")。"""
+    key = (str(connection or ""), _account_key(account_set)) if account_set else ("", "")
+    entry = counts.setdefault(key, [str(connection or ""), str(account_set or ""), 0])
+    entry[2] += int(count or 0)
+
+
+def _grouped(field, filters, or_filters) -> list:
+    return frappe.get_list(HISTORY, filters=filters, or_filters=or_filters,
+                           fields=[field, {"COUNT": "name", "as": "count"}], group_by=field, order_by="",
+                           limit_page_length=0)
+
+
+def _account_counts(filters, or_filters=None) -> dict:
+    """符合条件的单据按推送账套数张数（同列表的权限判据）：先按连接分组，再在每条连接里按账套分组，
+    都是单列分组；连接通常只有一两条。"""
+    counts = {}
+    for row in _grouped("push_connection", filters, or_filters):
+        connection = row.get("push_connection")
+        if not connection:
+            _tally(counts, "", "", row.get("count"))
+            continue
+        for item in _grouped("push_account_set", {**filters, "push_connection": connection}, or_filters):
+            _tally(counts, connection, item.get("push_account_set"), item.get("count"))
+    return counts
+
+
+def _by_account_set(dated, filters, or_filters, matched, names) -> dict:
+    """{"by_account_set": [...]}：``dated`` 圈出这段时间有单据的账套，``filters`` / ``or_filters`` 是这次的条件；
+    ``matched`` 是取回后再筛过的全部行（方向、合计那条路），给了就按它数。账套名同列表（``names`` 是同一份缓存）。
+    一份账套都没有（全是没选账套的）就不给。"""
+    known = _account_counts(dated)
+    if matched is None:
+        hits = _account_counts(filters, or_filters)
+    else:
+        hits = {}
+        for row in matched:
+            _tally(hits, row.get("push_connection"), row.get("push_account_set"), 1)
+    if not any(key[1] for key in [*known, *hits]):
+        return {}
+    listed = []
+    for key in dict.fromkeys([*hits, *known]):
+        connection, account_set, _count = hits.get(key) or known[key]
+        count = hits[key][2] if key in hits else 0
+        if not key[1]:
+            if count:
+                listed.append({"push_target": "not chosen yet", "count": count})
+            continue
+        label = _account_names(names, connection).get(key[1]) if connection else None
+        listed.append({**({"account_label": label} if label else {}), "connection": connection,
+                       "account_set_key": account_set, "count": count})
+    listed.sort(key=lambda item: (-item["count"], "account_set_key" not in item,
+                                  str(item.get("account_label") or item.get("account_set_key") or "")))
+    out = {"by_account_set": listed[:BY_ACCOUNT_SHOWN]}
+    if len(listed) > BY_ACCOUNT_SHOWN:
+        out["by_account_set_total"] = len(listed)
+    return out
+
+
 def list_documents(tool_input) -> str:
     scope.require_read()
     filters, or_filters = {}, None
@@ -281,7 +354,7 @@ def list_documents(tool_input) -> str:
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
     query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages"],
              "order_by": "modified desc, name desc"}
-    out = {}
+    out, matched = {}, None
     if not (search and failed_only) and not direction and not tool_input.get("totals"):
         rows = [_with_page(r) for r in frappe.get_list(HISTORY, limit_start=offset, limit_page_length=limit, **query)]
         if len(rows) < limit and (rows or not offset):
@@ -323,6 +396,10 @@ def list_documents(tool_input) -> str:
     for row in rows:
         row["last_push_reason"] = _reason(row.get("last_push_reason"))
     rows = [_account_named(row, row.get("push_connection"), "push_account_set", names) for row in rows]
+    if not tool_input.get("account_set_key") and not search:
+        # 没限定公司：每份账套各几张，同一时间范围里有单据的账套都列（0 张也列），见 `_by_account_set`
+        dated = {key: value for key, value in filters.items() if key in ("creation", "invoice_date", "push_connection")}
+        out.update(_by_account_set(dated, filters, or_filters, matched, names))
     # 推送时刻存的是 UTC（推送账本 `push.native` 的 now_utc）；上传时刻 creation 是站点时区
     return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
                   "next_offset": next_offset if next_offset < total else None, **out}, utc=("last_pushed_at",))
@@ -3029,7 +3106,9 @@ TOOLS = [
                     "name, or tax ID across all documents, not only the latest ones. Up to 50 per call: total is how "
                     "many match; pass next_offset as offset for the next page. totals adds the sums of all matching "
                     "documents (credit notes summed separately; without_value counts documents with no recognized "
-                    "value). Amounts are as recognized, not the ERP's figures.",
+                    "value). Without account_set_key and search, by_account_set gives every account set (company) "
+                    "with documents in the same dates and how many of them match, 0 included: answer about all "
+                    "companies from it. Amounts are as recognized, not the ERP's figures.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["waiting", "not_pushed", "pending", "success", "failed"]},

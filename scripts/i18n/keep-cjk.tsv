@@ -169,3 +169,4 @@ apps/pearnly_control/pearnly_control/www/ai.py	ไทย	语言切换里用该�
 apps/pearnly_control/pearnly_control/www/ai.py	中文	语言切换里用该语言自己的文字写的语言名，不翻译（智能体入口 ADR-019）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	CC 桌面版	给模型的正式名字：工具说明告诉模型 Windows 端在中文里叫什么（不进界面，模型照用户的语言说这个名字）
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	CC เดสก์ท็อป	给模型的正式名字：同上，泰文叫法
+apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	ทุกเจ้า	给模型的口径：会计员说「所有公司」的常用泰文说法（也能指所有商家），说明里点明它指所有公司（不进界面）
