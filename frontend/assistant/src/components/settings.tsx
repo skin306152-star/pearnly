@@ -1,9 +1,13 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
 //   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）、通知（浏览器 / 手机推送）
-//   连接      — 只在浏览器里（Cowork 站点）出现：只读，连着哪台电脑、在不在线、网页可读取的文件夹；改只在电脑上的 CC 里
+//   连接      — 只在浏览器里（Cowork 站点）出现：只读，连着哪台电脑、在不在线；改只在电脑上的 CC 里
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
-//     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹、网页可读取的文件夹
+//     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）
+//
+// 单据文件夹改在公司主档页按公司选（ADR-020，只在 CC 桌面版里经原生选择框）：桌面版声明了 company_folders 时这里不再有
+// 「网页可读取的文件夹」，只在还有以前授权、现在没人用的文件夹（state().legacy_roots）时多一行「以前授权的文件夹」可移除；
+// 1.6.0 以前的桌面版没有 company_folders，保留原来的文件夹块过渡。
 //     系统    — 开机自动启动、快捷提问、版本与更新、日志
 //
 // 桌面端托盘「连接与设置」直接打开「连接」一栏（window.tomo.settings）。
@@ -13,6 +17,7 @@ import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  COMPANY_FOLDERS,
   connectComputer,
   currentLink,
   type Desktop,
@@ -340,7 +345,7 @@ function useAction(api: Desktop, refresh: () => void) {
   return { busy, error, setError, run };
 }
 
-// 这台电脑只连一家公司（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹、网页可读取的文件夹。
+// 这台电脑只连一家公司（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹（旧桌面版另有网页可读取的文件夹）。
 // 公司下可能有 Express 和 MR.ERP 两个成员（旧配对留下的），合成一行；文件夹记在 Express 成员上，没有才记在 MR.ERP 上。
 
 const menuItem =
@@ -379,6 +384,9 @@ function Connections({ api }: { api: Desktop }) {
           ? st.years(roots[0], roots.length)
           : roots[0];
   const kinds = [...new Set(members.map((m) => (m.kind === "folder" ? "MR.ERP" : "Express")))].join(" · ");
+  // 文件夹随公司选（1.6.0 起）：设置里只剩以前授权、现在没人用的那几个可移除
+  const companyFolders = !!state.features?.includes(COMPANY_FOLDERS);
+  const legacy = state.legacy_roots ?? [];
   const connect = (options?: Parameters<typeof connectComputer>[1]) => {
     setError("");
     void connectComputer(api, options).then(refresh);
@@ -454,7 +462,33 @@ function Connections({ api }: { api: Desktop }) {
         </Row>
       )}
 
-      {main && main.folders !== null && (
+      {companyFolders && legacy.length > 0 && (
+        <>
+          <div className="mt-8">
+            <Heading>{st.earlierFolders}</Heading>
+          </div>
+          {legacy.map((root) => (
+            <div key={`${root.member}-${root.id}`} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
+              <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate" title={root.path}>
+                {root.path}
+              </span>
+              <button
+                type="button"
+                aria-label={st.remove}
+                title={st.remove}
+                disabled={!!busy}
+                onClick={() => void run("folder", "remove_folder", { id: root.member, path: root.path })}
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+              >
+                <XIcon className="size-4" />
+              </button>
+            </div>
+          ))}
+        </>
+      )}
+
+      {!companyFolders && main && main.folders !== null && (
         <>
           <div className="mt-8 flex items-center justify-between">
             <Heading>{st.folders}</Heading>
@@ -512,7 +546,7 @@ function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?:
   );
 }
 
-// ── 浏览器里：只读的连接（连着哪台电脑、在不在线、网页可读取的文件夹；pearnly_cowork.folder_intake.api.computers） ──
+// ── 浏览器里：只读的连接（连着哪台电脑、在不在线；pearnly_cowork.folder_intake.api.computers）。文件夹在公司主档页看 ──
 
 // update_blocked：这台电脑的 CC 桌面版自动更新被 Windows 拦下（被拦的版本 + 时刻，UTC；服务端 connections/desktop_update.py）
 export type Computer = {
@@ -572,7 +606,7 @@ function WebConnections() {
   );
 }
 
-/** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）；下面是网页可读取的文件夹。 */
+/** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。 */
 export function ComputerSection({ row }: { row: Computer }) {
   const status = row.online ? "online" : "offline";
   return (
@@ -590,16 +624,6 @@ export function ComputerSection({ row }: { row: Computer }) {
           {st.status[status]}
         </span>
       </div>
-      <Heading>{st.folders}</Heading>
-      {!row.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
-      {row.folders.map((path) => (
-        <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
-          <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate" title={path}>
-            {path}
-          </span>
-        </div>
-      ))}
     </section>
   );
 }

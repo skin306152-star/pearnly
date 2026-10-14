@@ -164,6 +164,17 @@ export function useActivity(sessionId: string | undefined): Activity | undefined
   );
 }
 
+/** 这几段对话里有没有在跑、没看过的（侧栏收起的公司组在组名旁显示一个点）。 */
+export function useAnyActivity(sessionIds: readonly string[]): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => sessionIds.some((id) => activityOf(id) !== undefined),
+  );
+}
+
 /** 提醒浮顶的时间（对话编号 → 毫秒）。 */
 export function useBumps(): ReadonlyMap<string, number> {
   return useSyncExternalStore(

@@ -8,11 +8,14 @@
 // 侧栏同步（pearnly.session，pearnly_core.assistant.sidebar）也走同一个事件名、session_id 为空：同一账号在别的设备上
 // 新建、改名（含自动标题）、加星标、归档、删除对话时推来，交给 onSessionChange 的监听者（list-sync.ts）；
 // 推来的标题顺手记下（latestTitle），侧栏给新对话取标题时直接用。
+// 公司分组（pearnly.project，ADR-020）也走同一个事件名、session_id 为空：对话换组或换月份（move，推给本人）、公司改名等
+// （upsert）、删公司（delete，推给全所录入用户），交给 onProjectChange 的监听者（list-sync.ts 并进 projects.ts）。
 // 一条事件先交给这个会话的页面（卡片、回复），再记侧栏状态与提醒；每一路单独兜住异常，哪一路出错都不挡别的。
 
 import { io, type Socket } from "socket.io-client";
 import { noteEvent } from "./activity";
 import { type FeedEvent, isNotice } from "./events";
+import { isProjectChange, type ProjectChange } from "./projects";
 
 const EVENT = "pearnly_assistant_event";
 
@@ -32,6 +35,7 @@ let socket: Socket | null = null;
 const handlers = new Map<string, Set<Handler>>();
 const statusListeners = new Set<(connected: boolean) => void>();
 const sessionListeners = new Set<(change: SessionChange) => void>();
+const projectListeners = new Set<(change: ProjectChange) => void>();
 const titles = new Map<string, string>();
 
 function safely(run: () => void) {
@@ -57,6 +61,10 @@ export function dispatch(push: Push) {
   if (!push?.event) return;
   const change = sessionChange(push.event);
   if (change) return noteSessionChange(change);
+  if (isProjectChange(push.event)) {
+    const project = push.event;
+    return projectListeners.forEach((listener) => safely(() => listener(project)));
+  }
   if (push.session_id) handlers.get(push.session_id)?.forEach((handler) => safely(() => handler(push.event)));
   if (push.session_id || isNotice(push.event)) safely(() => noteEvent(push.session_id || "", push.event));
 }
@@ -117,6 +125,15 @@ export function onSessionChange(listener: (change: SessionChange) => void): () =
   sessionListeners.add(listener);
   return () => {
     sessionListeners.delete(listener);
+  };
+}
+
+/** 公司分组的变化（对话换组或换月份、公司改名、删公司）；返回取消订阅。 */
+export function onProjectChange(listener: (change: ProjectChange) => void): () => void {
+  connect();
+  projectListeners.add(listener);
+  return () => {
+    projectListeners.delete(listener);
   };
 }
 

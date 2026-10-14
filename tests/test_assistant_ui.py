@@ -302,6 +302,23 @@ class TextTests(unittest.TestCase):
             self.assertTrue({"notifications", "turnOnNotifications", "notificationsBlocked", "notificationsFailed",
                              "notificationsAddToHome", "notificationsUnsupported"} <= words, lang)
         self.assertNotIn("Express", messages.split("conversationMenu", 1)[1].split("}", 1)[0])
+        # 公司主档（2026-10-15）：三种页面语言的词条一样多、一个不缺；设置里「以前授权的文件夹」
+        company = block(i18n, "const COMPANY = {")
+        sets = {}
+        for lang in ("en", "zh", "th"):
+            words = block(company, f"  {lang}: {{")
+            sets[lang] = keys(words) | keys(block(words, "kind: {"))
+            self.assertTrue({"companies", "addCompany", "added", "refreshSets", "notes", "docFolder", "monthFolder", "accountSets",
+                             "taxDrafts", "remembered", "noPeriod", "period", "branch", "noBranch", "headOffice", "branchShort",
+                             "combinedVat", "moveTo", "showMore", "deleteCompany", "chooseOnComputer", "changeFolder",
+                             "removeFolder", "updateDesktop", "folderOk", "folderWaiting", "folderOffline", "folderMissing",
+                             "payCash", "payCredit", "vatClaim", "vatExpense", "pending", "handToCC", "handToCCText",
+                             "fromHistory", "history", "vatCheck"} <= sets[lang], lang)
+            self.assertIn("earlierFolders:", block(settings, f"  {lang}: {{"), lang)
+        self.assertEqual(sets["en"], sets["zh"])
+        self.assertEqual(sets["en"], sets["th"])
+        # 用户可见处叫「CC 桌面版」，不叫小助手 / Companion
+        self.assertNotRegex(company, r"小助手|Companion")
 
 
 class ShortcutTests(unittest.TestCase):
@@ -1084,9 +1101,9 @@ const at = new Date(Date.now() - 86_400_000);
 const computer = { adapter: "express", device: "NOTEBOOK-REC", online: true, version: "1.5.1", folders: [] as string[],
                    update_blocked: { version: "1.5.2", at: at.toISOString().replace(".000Z", "+00:00") } };
 const hhmm = new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(at);
+// 文件夹按公司在主档页看（ADR-020，2026-10-15）：网页「连接」每台电脑下不再列文件夹
 assert.deepEqual(text(html(ComputerSection, { row: computer })),
-  ["NOTEBOOK-REC", "Express", `Windows blocked the automatic update to v1.5.2 · Yesterday ${hhmm}`, "Connected",
-   "Folders the website can read", "No folders yet."]);
+  ["NOTEBOOK-REC", "Express", `Windows blocked the automatic update to v1.5.2 · Yesterday ${hhmm}`, "Connected"]);
 // 服务端存的是 UTC：11:18 UTC = 曼谷 18:18（英文页面是 12 小时制，同对话里的时间）
 assert.match(blockedLine("1.5.2", "2026-10-13T11:18:00+00:00"), / 06:18 PM$/);
 // 没被拦、旧版 CC 桌面版不报：没有这一句
@@ -1882,6 +1899,507 @@ g.done();
         realtime = read("lib/managed-agents/realtime.ts")
         self.assertNotIn("pearnly_assistant_title", realtime)  # 标题也走侧栏同步，没有单独的事件
         self.assertIn("watchList(() => runtime.threads)", read("lib/managed-agents/runtime-provider.tsx"))
+
+
+# ── 公司主档（ADR-020，2026-10-15）：侧栏按公司分组、公司页、主档页、月份与分店、移到、待处理、设置页拆文件夹块 ──────────
+# 接口与事件按规格 §4.2 / §12.2 与补充文件（甲 分店、乙 待处理、丙 历史学到的选择）；服务端（A 包）不在本分支，
+# 下面用假站点按契约回应。
+
+COMPANY_SOURCES = ("lib/companies.ts", "lib/managed-agents/projects.ts", "lib/managed-agents/sidebar-groups.ts",
+                   "components/companies.tsx", "components/company-page.tsx", "components/add-company.tsx",
+                   "components/pending.tsx", "components/period-chip.tsx", "components/assistant-ui/projects.tsx",
+                   "hooks/use-long-press.ts")
+
+
+class CompanyMasterSourceTests(unittest.TestCase):
+    def test_erp_and_dms_keep_todays_sidebar(self):
+        # kind = null（没有声明 provider 的产品）：仍是按日子分组、旧的 listing，没有公司、待处理两行
+        thread_list = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("return kind ? <CompanyGroups searchQuery={searchQuery} /> : <DayGroups searchQuery={searchQuery} />;", thread_list)
+        adapter = read("lib/managed-agents/session-list-adapter.ts")
+        self.assertIn("if (!(await projectsReady())) {", adapter)
+        app = read("assistant.tsx")
+        self.assertIn("if (!kind) return null;", app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0])
+
+    def test_pin_wording_and_the_three_custom_writes_keep_other_keys(self):
+        app, thread_list = read("assistant.tsx"), read("components/assistant-ui/thread-list.tsx")
+        both = app + thread_list
+        self.assertEqual(both.count("updateCustom({ ...custom, starred: !starred })"), 3)
+        self.assertNotIn("updateCustom({ starred", both)
+        self.assertNotIn("StarIcon", both)
+        self.assertIn("PinIcon", both)
+        i18n = read("i18n.ts")
+        for word in ('starred: "Pinned"', 'star: "Pin"', 'starred: "已置顶"', 'star: "置顶"', 'starred: "ปักหมุดไว้"'):
+            self.assertIn(word, i18n)
+        self.assertNotIn("星标", i18n)
+
+    def test_new_chats_from_shortcuts_open_in_recent(self):
+        # Ctrl+N、应用菜单、托盘、快捷提问（window.tomo.ask）、顶部「新建」、手机胶囊：都清掉待建的公司
+        self.assertIn("setDraft({});\n        aui.threads().switchToNewThread();", read("lib/desktop.ts"))
+        self.assertIn("setDraft({});\n            props.onClick?.(e);", read("components/assistant-ui/thread-list.tsx"))
+        app = read("assistant.tsx")
+        self.assertEqual(app.count("setDraft({}); aui.threads().switchToNewThread();"), 2)  # 应用菜单、手机胶囊
+        self.assertIn("setDraft({});\n            aui.threads().switchToNewThread();\n            close();", app)  # 抽屉底部
+
+    def test_only_the_desktop_window_picks_a_folder(self):
+        desktop = read("lib/desktop.ts")
+        self.assertIn('return (await api.call("pick_folder")) as unknown as PickResult;', desktop)
+        self.assertIn('export const COMPANY_FOLDERS = "company_folders";', desktop)
+        page = read("components/company-page.tsx")
+        folders = page.split("export const FolderSection: FC", 1)[1].split("\n// ----", 1)[0]
+        self.assertIn("{app && companyFolders && !hasMine && (", folders)
+        self.assertIn("{app && !companyFolders && (", folders)  # 旧桌面版：请更新
+        self.assertIn("await bindFolder(company, picked.binding);", folders)  # 桥给的 binding 原样交给服务端
+        self.assertIn('bindFolder = (company: string, binding: unknown) => postMethod(API + "folder_bind", { company, binding: JSON.stringify(binding) });',
+                      read("lib/companies.ts"))
+        # 页面里没有别处调桥选文件夹、也不拼路径
+        for name, text in ((p, read(p)) for p in COMPANY_SOURCES):
+            if name != "lib/desktop.ts":
+                self.assertNotIn('call("pick_folder"', text, name)
+
+    def test_settings_drop_the_folder_block_but_keep_express_and_old_desktops(self):
+        settings = read("components/settings.tsx")
+        self.assertIn("const companyFolders = !!state.features?.includes(COMPANY_FOLDERS);", settings)
+        self.assertIn("{companyFolders && legacy.length > 0 && (", settings)
+        self.assertIn("{!companyFolders && main && main.folders !== null && (", settings)  # 旧桌面版保留旧块
+        self.assertIn('onClick={() => void run("folder", "remove_folder", { id: root.member, path: root.path })}', settings)
+        self.assertIn("<Row label={st.expressFolder}>", settings)  # Express 授权留在设置里
+        computer = block(settings, "export function ComputerSection(")
+        self.assertNotIn("st.folders", computer)
+        self.assertNotIn("row.folders", computer)
+
+    def test_company_styles_only_use_the_design_variables(self):
+        colour = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|style=\{")
+        for name in COMPANY_SOURCES:
+            self.assertIsNone(colour.search(read(name)), name)
+        css = read("globals.css")
+        start = css.index("/* ── 公司主档（ADR-020")
+        section = css[start:css.index("\n}\n", start)]
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", section))
+        # 圆角、阴影只引用变量
+        for value in re.findall(r"(?:border-radius|box-shadow):\s*([^;]+);", section):
+            self.assertTrue(value.strip().startswith("var(--cc-"), value)
+        drawer = css[css.index("/* 手机抽屉里的公司组头"):]
+        drawer = drawer[:drawer.index("\n/*", 1) if "\n/*" in drawer[1:] else len(drawer)]
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", drawer))
+
+    def test_the_composer_company_bar_does_not_touch_the_thread_file(self):
+        # 公司条放在新对话的问候里（assistant.tsx 的 Welcome），不改 thread.tsx（工作状态行那一包的文件）
+        self.assertIn("<ComposerCompany />", block(read("assistant.tsx"), "function Welcome()"))
+        self.assertNotIn("ComposerCompany", read("components/assistant-ui/thread.tsx"))
+
+    def test_hand_to_cc_and_drafts_prefill_without_sending(self):
+        pending = read("components/pending.tsx")
+        self.assertIn("handText(hand), false);", pending)
+        page = read("components/company-page.tsx")
+        self.assertIn("co.draftText(d.kind, period ? monthLabel(period) : d.period), false);", page)
+        # 主档页输入框是用户自己打的字：发出
+        self.assertIn("start({ project: company, period: withPeriod ? period : \"\", scope: withScope ? scope : \"\" }, value, true);", page)
+
+    def test_deep_links_for_companies_tasks_and_pending(self):
+        nav = read("lib/nav.ts")
+        self.assertIn('export type View = "chat" | "tasks" | "companies" | "company" | "pending";', nav)
+        self.assertIn('url.searchParams.delete("company");', nav)
+        self.assertIn("useCompanyNav.setState({ taskCompany: company });", nav)
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class CompanyHelpersBehaviourTests(unittest.TestCase):
+    STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }"}
+
+    def run_page(self, body, lang="en"):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
+               stubs=self.STUBS, lang=lang)
+
+    def test_months_branches_and_amounts(self):
+        self.run_page(r"""
+import { branchesOf, branchShort, formatAmount, isPeriod, lastMonth, monthLabel, monthShort, parseCounts, recentMonths } from "@/lib/companies";
+// 泰文按佛历；只有月份的短写今年不带年
+assert.equal(monthLabel("2026-09"), "ก.ย. 2569");
+assert.equal(monthShort("2026-09", new Date(2026, 9, 15)), "ก.ย.");
+assert.equal(monthShort("2025-12", new Date(2026, 9, 15)), "ธ.ค. 2568");
+assert.equal(monthLabel(""), "ไม่ระบุเดือน");
+// 默认上个月；胶囊里本月往前 12 个月
+assert.equal(lastMonth(new Date(2026, 0, 10)), "2025-12");
+assert.deepEqual(recentMonths(new Date(2026, 9, 15)).slice(0, 2), ["2026-10", "2026-09"]);
+assert.equal(recentMonths(new Date(2026, 9, 15)).length, 12);
+assert.equal(recentMonths(new Date(2026, 9, 15)).at(-1), "2025-11");
+assert.ok(isPeriod("2026-09") && !isPeriod("2026-13") && !isPeriod("2569-9"));
+// 分店：总公司走翻译，其余「สาขา 00012」
+assert.equal(branchShort("00000"), "สำนักงานใหญ่");
+assert.equal(branchShort("00012"), "สาขา 00012");
+assert.equal(branchShort(""), "");
+// 金额：十进制字符串只插千分位，不经浮点
+assert.equal(formatAmount("1234567.5"), "1,234,567.50");
+assert.equal(formatAmount("-1000"), "-1,000.00");
+assert.equal(formatAmount("0.105"), "0.105");
+assert.equal(formatAmount(null), "");
+// 待处理计数的几种形状
+assert.deepEqual(parseCounts({ total: 8, companies: { comp_a: 3, comp_b: 5 } }), { total: 8, companies: { comp_a: 3, comp_b: 5 } });
+assert.deepEqual(parseCounts([{ company: "comp_a", count: 2 }, { company: null, count: 1 }]), { total: 3, companies: { comp_a: 2 } });
+// 分店：服务端给了就用；旧服务端按账套上的分店号现分（一套账服务几个分店、每个分店一套账都如实列）
+const sets = [{ connection: "c", key: "69EXP", label: "69", branch: "00000" }, { connection: "c", key: "69B1", label: "69 B1", branch: "00001" },
+  { connection: "c", key: "68EXP", label: "68", branch: "00000" }];
+assert.deepEqual(branchesOf({ account_sets: sets } as any).map((b) => [b.branch, b.account_sets.map((s) => s.key)]),
+  [["00000", ["69EXP", "68EXP"]], ["00001", ["69B1"]]]);
+assert.deepEqual(branchesOf({ account_sets: sets, branches: [] } as any), []);
+""", lang="th")
+
+    def test_months_in_chinese_and_english(self):
+        self.run_page(r"""
+import { monthLabel } from "@/lib/companies";
+assert.equal(monthLabel("2026-09"), "2026年9月");
+""", lang="zh")
+        self.run_page(r"""
+import { branchShort, monthLabel } from "@/lib/companies";
+assert.equal(monthLabel("2026-09"), "Sep 2026");
+assert.equal(branchShort("00000"), "Head office");
+""", lang="en")
+
+    def test_sidebar_sections_put_pinned_companies_then_recent(self):
+        self.run_page(r"""
+import { companySections, groupOpen, toggleGroup } from "@/lib/managed-agents/sidebar-groups";
+const at = (m: number) => Date.UTC(2026, 9, 15, 12, 0) - m * 60000;
+const projects = ["A", "B", "C", "D", "E", "F"].map((x, i) => ({ id: `comp_${x}`, title: `Company ${x}`, last_active: new Date(at(100 + i)).toISOString() }));
+let i = 0;
+const row = (title: string, group: string, minutes: number, starred = false) => ({ index: i++, title, starred, time: at(minutes), group });
+const rows = [
+  row("pinned in A", "comp_A", 1, true),
+  ...Array.from({ length: 7 }, (_, k) => row(`A chat ${k}`, "comp_A", 10 + k)),
+  row("B chat", "comp_B", 5),
+  row("loose 1", "", 2), row("loose 2", "", 3),
+  row("gone company", "comp_deleted", 4),       // 侧栏里没有这家：算最近
+];
+const sections = companySections(rows, projects)!;
+// 公司按我在组里的最近活动排（置顶的那段也算这家的活动）
+assert.deepEqual(sections.map((s) => s.key),
+  ["pinned", "project:comp_A", "project:comp_B", "project:comp_C", "project:comp_D", "project:comp_E", "project:comp_F", "recents"]);
+const a = sections.find((s) => s.key === "project:comp_A") as any;
+assert.equal(a.indices.length, 5);                // 每组先 5 条
+assert.equal(a.all.length, 7);
+assert.equal(a.more, true);
+assert.ok(!a.all.includes(0));                    // 置顶的只在「已置顶」
+assert.deepEqual((sections.at(-1) as any).indices.length, 3);
+// 前 5 家默认展开，第 6 家收着；点开后记 open:project:<编号>，点收第一家记 project:<编号>
+const f = sections.find((s) => s.key === "project:comp_F") as any;
+assert.equal(groupOpen(f, new Set(), false), false);
+assert.equal(groupOpen(f, new Set(), true), true);   // 搜索时都开
+const opened = toggleGroup(f, new Set());
+assert.deepEqual([...opened], ["open:project:comp_F"]);
+assert.equal(groupOpen(f, opened, false), true);
+const b = sections[2] as any;
+assert.deepEqual([...toggleGroup(b, new Set())], ["project:comp_B"]);
+assert.equal(groupOpen(b, new Set(["project:comp_B"]), false), false);
+// 搜索同时匹配公司名：公司名命中时这家的对话都算
+const found = companySections(rows, projects, { query: "company b" })!;
+assert.deepEqual(found.map((s) => s.key), ["project:comp_B"]);
+const byTitle = companySections(rows, projects, { query: "loose 2" })!;
+assert.deepEqual(byTitle.map((s) => s.key), ["recents"]);
+assert.equal(companySections(rows, projects, { query: "nothing" }), null);
+// 服务端还有更多的公司：也给「显示更多」
+const more = companySections([row("B only", "comp_B", 1)], projects, { serverMore: { comp_B: "x|y" } })!;
+assert.equal((more.find((s) => s.key === "project:comp_B") as any).more, true);
+""")
+
+    def test_pending_choices_put_the_suggestion_first_and_hand_the_rest_to_cc(self):
+        self.run_page(r"""
+import { choosable, handText, monthOfItems, optionsOf } from "@/components/pending";
+const item: any = {
+  document: "OCR-0001", company: "comp_a", reason_code: "choice_needed:account,payment", reason_label: "Choose", action: "choose",
+  invoice_no: "INV-9", amount: "1070.00", date: "2026-09-12",
+  choices: { connection: "conn1", account_set_key: "69EXP",
+    needed: [{ kind: "account", subject: "s1", label: "ACME", suggested: "5320" }, { kind: "payment", subject: "s1", options: [{ code: "cash" }, { code: "credit" }], current: "" }],
+    options: { accounts: [{ code: "5310", name: "Rent" }, { code: "5320", name: "Utilities" }] } },
+};
+assert.deepEqual(optionsOf(item, item.choices.needed[0]).map((o: any) => o.value), ["5320", "5310"]);
+assert.deepEqual(optionsOf(item, item.choices.needed[1]).map((o: any) => o.label), ["Cash", "Credit"]);
+assert.equal(choosable(item), true);
+// 科目表还没读到：当场选不了，交给 CC
+assert.equal(choosable({ ...item, choices: { ...item.choices, options: { accounts: [] } } }), false);
+assert.equal(choosable({ ...item, action: "open" }), false);
+const open = [{ ...item, action: "open", invoice_no: "INV-1", document: "OCR-1", date: "2026-08-30" },
+  { ...item, action: "open", invoice_no: "", counterparty: "Shop", document: "OCR-2", date: "2026-09-01" },
+  { ...item, action: "open", invoice_no: "INV-3", document: "OCR-3", date: "2026-09-02" }];
+assert.equal(handText(open), "Handle these: INV-1 [OCR-1]、Shop [OCR-2]、INV-3 [OCR-3]");
+assert.equal(monthOfItems(open), "2026-09");
+assert.equal(monthOfItems([{ ...item, date: "" }]), "");
+""")
+
+
+# 假站点：共用层（会话、projects）与 Cowork 公司接口，按契约回应
+COMPANY_SITE = r"""
+const ok = (message: any = null) => ({ ok: true, status: 200, json: async () => ({ message }) });
+const at = (minutesAgo: number) => new Date(Date.UTC(2026, 9, 15, 13, 0) - minutesAgo * 60000).toISOString();
+const row = (id: string, title: string, minutesAgo: number, extra: any = {}) =>
+  ({ id, title, starred: false, created_at: at(minutesAgo), updated_at: at(minutesAgo), archived_at: null, unread: false,
+     project: "", period: "", scope: "", ...extra });
+const site: any = {
+  kind: "company" as string | null,
+  projects: [{ id: "comp_abc", title: "ABC Co", subtitle: "0105556000001 · 00000", last_active: at(1), count: 2 }],
+  sessions: [] as any[], nextCursor: null as string | null, groups: {} as Record<string, string>,
+  groupPages: {} as Record<string, any>, created: "sesn_new001", moveFails: false,
+};
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "projects") return ok(site.kind ? { kind: site.kind, period: true, scope: true, projects: site.projects } : { kind: null, period: false, projects: [] });
+  if (method === "listing") {
+    if (args.grouped === "1" && args.group !== undefined) return ok(site.groupPages[args.group] ?? { sessions: [], nextCursor: null });
+    const out: any = { sessions: site.sessions, nextCursor: site.nextCursor, runs: {} };
+    if (args.grouped === "1") out.groups = site.groups;
+    return ok(out);
+  }
+  if (method === "create") return ok(row(site.created, "", 0, body?.project ? { project: body.project, period: body.period ?? "", scope: body.scope ?? "" } : {}));
+  if (method === "move") {
+    if (site.moveFails) return { ok: false, status: 417, json: async () => ({ exception: "frappe.exceptions.ValidationError: no" }) };
+    return ok({ ...row(body.session_id, "", 0), project: body.project, period: body.period, scope: body.scope });
+  }
+  return ok();
+};
+const calls = (method: string) => g.calls.filter((c: any) => c.method === method);
+const push = (event: any) => g.socket.emit("pearnly_assistant_event", { session_id: "", event });
+function sidebar() {
+  const core: any = new RemoteThreadListThreadListRuntimeCore(
+    { adapter: sessionListAdapter, runtimeHook: (() => null) as any } as any,
+    { getModelContext: () => ({}), subscribe: () => () => {} } as any,
+  );
+  core._hookManager.startThreadRuntime = async () => ({});
+  return { core, threads: new ThreadListRuntimeImpl(core) as any };
+}
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class CompanySidebarBehaviourTests(unittest.TestCase):
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SYNC_SOCKET}
+    IMPORTS = r"""
+import { RemoteThreadListThreadListRuntimeCore } from "@assistant-ui/core/react";
+import { ThreadListRuntimeImpl } from "@assistant-ui/core/internal";
+import { sessionListAdapter } from "@/lib/managed-agents/session-list-adapter";
+import { watchList } from "@/lib/managed-agents/list-sync";
+import { fileSession, filingOf, groupOf, NO_FILING, setDraft, showMore, useProjects } from "@/lib/managed-agents/projects";
+"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n' + self.IMPORTS
+               + "\nconst g = globalThis as any;\n" + COMPANY_SITE + body + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_the_sidebar_lists_by_company_and_new_chats_carry_company_and_month(self):
+        self.run_page(r"""
+site.sessions = [row("sesn_aaa001", "Input VAT", 1, { project: "comp_abc", period: "2026-09", scope: "00001" }),
+                 row("sesn_bbb001", "Loose", 2)];
+site.groups = { comp_abc: "2026-10-15 12:00:00|x" };
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+// 第一页按公司分组取（grouped=1）；每行的公司、月份、分店记下
+assert.equal(calls("listing")[0].args.grouped, "1");
+assert.equal(useProjects.getState().kind, "company");
+assert.deepEqual(filingOf("sesn_aaa001"), { project: "comp_abc", period: "2026-09", scope: "00001" });
+assert.equal(groupOf("sesn_bbb001"), "");
+// 组头 ＋：开在这家、月份上个月（组件库第一条消息时建会话）
+setDraft({ project: "comp_abc", period: "2026-09" });
+await core.switchToNewThread();
+const local = core.mainThreadId;
+assert.equal(groupOf(local), "");
+site.created = "sesn_new101";
+const made = core.initialize(local);
+assert.equal(groupOf(local), "comp_abc");          // 拿到服务端摘要之前就按本页编号归组，不先闪到「最近」
+await made;
+assert.deepEqual(calls("create").at(-1).body, { project: "comp_abc", period: "2026-09" });
+assert.deepEqual(filingOf("sesn_new101"), { project: "comp_abc", period: "2026-09", scope: "" });
+// Ctrl+N、托盘、快捷提问：清掉待建的公司，开在「最近」
+setDraft({});
+await core.switchToNewThread();
+site.created = "sesn_new102";
+await core.initialize(core.mainThreadId);
+assert.deepEqual(calls("create").at(-1).body, {});
+assert.deepEqual(filingOf("sesn_new102"), NO_FILING);
+""")
+
+    def test_moves_renames_and_deletes_merge_at_once(self):
+        self.run_page(r"""
+site.sessions = [row("sesn_aaa001", "Input VAT", 1, { project: "comp_abc", period: "2026-09" }), row("sesn_bbb001", "Loose", 2)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+const projectReads = () => calls("projects").length;
+// 别处（或本人另一台设备）移动对话、换月份：随推随并
+push({ type: "pearnly.project", op: "move", session_id: "sesn_bbb001", project: "comp_abc", period: "2026-08", scope: "" });
+await g.sleep(20);
+assert.deepEqual(filingOf("sesn_bbb001"), { project: "comp_abc", period: "2026-08", scope: "" });
+// 移进侧栏里还没有的公司：重取一次 projects()
+const before = projectReads();
+site.projects = [...site.projects, { id: "comp_new", title: "New Co", last_active: at(0), count: 1 }];
+push({ type: "pearnly.project", op: "move", session_id: "sesn_aaa001", project: "comp_new", period: "" });
+await g.sleep(50);
+assert.equal(projectReads(), before + 1);
+assert.equal(groupOf("sesn_aaa001"), "comp_new");
+// 改名：侧栏里有就就地改，没有就忽略
+push({ type: "pearnly.project", op: "upsert", project: { id: "comp_abc", title: "ABC Renamed" }, part: "master" });
+push({ type: "pearnly.project", op: "upsert", project: { id: "comp_other", title: "Not mine" }, part: "notes" });
+await g.sleep(20);
+assert.deepEqual(useProjects.getState().projects.map((p) => p.title).sort(), ["ABC Renamed", "New Co"]);
+// 删公司：这一组的对话并入最近
+push({ type: "pearnly.project", op: "delete", id: "comp_abc" });
+await g.sleep(20);
+assert.equal(groupOf("sesn_bbb001"), "");
+assert.deepEqual(filingOf("sesn_bbb001"), NO_FILING);
+assert.ok(!useProjects.getState().projects.some((p) => p.id === "comp_abc"));
+// 本页移到 ▸ / 改月份：发 move（不改置顶）；服务端拒了就回到原来的
+await fileSession("sesn_aaa001", { project: "comp_new", period: "2026-07", scope: "00002" });
+assert.deepEqual(calls("move").at(-1).body, { session_id: "sesn_aaa001", project: "comp_new", period: "2026-07", scope: "00002" });
+assert.deepEqual(filingOf("sesn_aaa001"), { project: "comp_new", period: "2026-07", scope: "00002" });
+site.moveFails = true;
+await assert.rejects(fileSession("sesn_aaa001", { project: "", period: "2026-07", scope: "" }));
+assert.deepEqual(filingOf("sesn_aaa001"), { project: "comp_new", period: "2026-07", scope: "00002" });
+// 移回最近：月份分店一并清空
+site.moveFails = false;
+await fileSession("sesn_aaa001", { project: "", period: "2026-07", scope: "00002" });
+assert.deepEqual(calls("move").at(-1).body, { session_id: "sesn_aaa001", project: "", period: "", scope: "" });
+assert.equal(calls("star").length, 0);
+""")
+
+    def test_show_more_pages_only_that_company(self):
+        self.run_page(r"""
+site.sessions = [...Array.from({ length: 5 }, (_, k) => row(`sesn_a${k}0001`, `A ${k}`, k + 1, { project: "comp_abc" })), row("sesn_r00001", "R", 9)];
+site.groups = { comp_abc: "2026-10-15 12:55:00|sesn_a40001" };
+site.groupPages.comp_abc = { sessions: [row("sesn_a50001", "A 5", 20, { project: "comp_abc" })], nextCursor: null };
+const { core } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+await showMore("comp_abc", 5, () => core.loadMore());
+const paged = calls("listing").filter((c: any) => c.args.group !== undefined);
+assert.deepEqual(paged.map((c: any) => [c.args.group, c.args.after]), [["comp_abc", "2026-10-15 12:55:00|sesn_a40001"]]);
+assert.ok(core.threadIds.includes("sesn_a50001"));
+assert.equal(useProjects.getState().shown.comp_abc, 15);
+assert.ok(!("comp_abc" in useProjects.getState().more.groups));  // 这家翻完了
+""")
+
+    def test_products_without_companies_keep_the_old_listing(self):
+        self.run_page(r"""
+site.kind = null;
+site.sessions = [row("sesn_aaa001", "A", 1)];
+const { core } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+assert.equal(useProjects.getState().kind, null);
+assert.equal(calls("listing")[0].args.grouped, undefined);
+setDraft({ project: "comp_abc", period: "2026-09" });   // 没有公司分组：待建的公司不带给服务端
+await core.switchToNewThread();
+await core.initialize(core.mainThreadId);
+assert.deepEqual(calls("create").at(-1).body, {});
+""")
+
+
+# 桌面版桥的桩：state().features 里有没有 company_folders；pick_folder 回一个 binding
+DESKTOP_ENV = r"""
+const g = globalThis as any;
+g.qt = { webChannelTransport: {} };
+g.bridgeCalls = [] as any[];
+g.tomoDesktop = {
+  state(cb: (json: string) => void) { cb(JSON.stringify({ version: "1.6.0", site: "site.test", express_roots: [], members: [], autostart: false,
+    hotkey: true, update: { state: "", version: "" }, features: g.FEATURES, legacy_roots: [] })); },
+  call(method: string, args: string, cb: (json: string) => void) {
+    g.bridgeCalls.push({ method, args: JSON.parse(args) });
+    cb(JSON.stringify({ ok: true, binding: { reader: "rdr1", root_id: "r1", folder: "ABC/2569", label: "D:\\Clients\\ABC", share: "", device: "PC-1" },
+      name: "ABC", created: false, reported: true }));
+  },
+  changed: { connect() {}, disconnect() {} },
+  done: { connect() {}, disconnect() {} },
+};
+"""
+
+COMPANY_RENDER = r"""
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { ChoiceRow, FolderSection, SetsSection } from "@/components/company-page";
+import { loadDesktopFeatures } from "@/lib/desktop";
+
+const g = globalThis as any;
+const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(SidebarProvider, null, createElement(type, props)));
+const text = (markup: string) =>
+  markup.replace(/<[^>]+>/g, "\n").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").split("\n").map((s) => s.trim()).filter(Boolean);
+const buttons = (markup: string) => [...markup.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => text(m[1]).join(" "));
+const folder = { reader: "rdr9", device: "PC-9", label: "\\\\nas\\ABC", state: "ok", month_folder: "2569-09", mine: false };
+const noop = async () => {};
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class CompanyPageBehaviourTests(unittest.TestCase):
+    STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+
+    def run_page(self, body, desktop=None):
+        env = "cc-desktop-env" if desktop is not None else "cc-browser-env"
+        stubs = {**self.STUBS, "cc-desktop-env": DESKTOP_ENV.replace("g.FEATURES", json.dumps(desktop or [])),
+                 "cc-browser-env": "export {};", "cc-ma-setup": MA_SETUP}
+        run_ts(f'import "cc-test-setup";\nimport "{env}";\nimport "cc-ma-setup";\n' + COMPANY_RENDER + body + "\n(globalThis as any).done();\n",
+               stubs=stubs)
+
+    def test_browsers_and_phones_only_read_the_folder(self):
+        self.run_page(r"""
+assert.deepEqual(await loadDesktopFeatures(), { app: false, companyFolders: false });
+const empty = html(FolderSection, { company: "comp_abc", folders: [], reload: noop });
+assert.ok(text(empty).includes("Choose on computer"));     // 一行字，不是按钮
+assert.deepEqual(buttons(empty), []);
+const bound = html(FolderSection, { company: "comp_abc", folders: [folder], reload: noop });
+assert.deepEqual(text(bound), ["Documents folder", "PC-9 · \\\\nas\\ABC", "Ready · This month: 2569-09"]);
+assert.deepEqual(buttons(bound), []);
+""")
+
+    def test_the_desktop_window_picks_and_hands_the_binding_over_unchanged(self):
+        self.run_page(r"""
+import { pickFolder } from "@/lib/desktop";
+import { bindFolder } from "@/lib/companies";
+assert.deepEqual(await loadDesktopFeatures(), { app: true, companyFolders: true });
+const empty = html(FolderSection, { company: "comp_abc", folders: [], reload: noop });
+assert.deepEqual(buttons(empty), ["Choose on computer"]);
+// 别的电脑那一行：只看状态；本机还没绑时照样给「在电脑上选择」
+const other = html(FolderSection, { company: "comp_abc", folders: [folder], reload: noop });
+assert.deepEqual(buttons(other), ["Choose on computer"]);
+// 本机这一行：更换… / 移除
+const mine = html(FolderSection, { company: "comp_abc", folders: [{ ...folder, mine: true }], reload: noop });
+assert.deepEqual(buttons(mine), ["Change…", "Remove"]);
+// 桥只收语言、不收路径；给的 binding 原样交给 folder_bind
+const picked: any = await pickFolder();
+assert.deepEqual(g.bridgeCalls.at(-1), { method: "pick_folder", args: { lang: "en" } });
+await bindFolder("comp_abc", picked.binding);
+const sent = g.calls.at(-1);
+assert.equal(sent.method, "/api/method/pearnly_cowork.companies.api.folder_bind");
+assert.deepEqual(JSON.parse(sent.body.binding), picked.binding);
+assert.equal(sent.body.company, "comp_abc");
+""", desktop=["company_folders"])
+
+    def test_old_desktops_are_asked_to_update(self):
+        self.run_page(r"""
+assert.deepEqual(await loadDesktopFeatures(), { app: true, companyFolders: false });
+const page = html(FolderSection, { company: "comp_abc", folders: [], reload: noop });
+assert.deepEqual(buttons(page), ["Update CC Desktop"]);
+""", desktop=[])
+
+    def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
+        self.run_page(r"""
+const sets = [{ connection: "c", key: "69HQ", label: "ABC 69", year_label: "69", period_start: "2025-10-01", period_end: "2026-09-30" },
+  { connection: "c", key: "69B1", label: "ABC 69 B1", year_label: "69" }];
+const branches = [{ branch: "00000", label: "", account_sets: [sets[0]] }, { branch: "00001", label: "Rama 9", account_sets: [sets[1]] }];
+assert.deepEqual(text(html(SetsSection, { sets, branches, period: "2026-09" })),
+  ["Account sets", "Head office", "ABC 69", "69", "Rama 9", "ABC 69 B1", "69"]);
+// 付款方式能直接改（原生下拉）；从 Express 历史学到的只读、可删，写明来源
+const pay = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment", subject_label: "ACME",
+  value: "credit", editable: true, year_label: "69" }, onSet() {}, onForget() {} }));
+assert.ok(pay.includes("<select"));
+assert.deepEqual(text(pay).slice(0, 2), ["ACME", "69"]);
+const learned = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k2", source: "history", kind: "account",
+  subject_label: "", supplier_name: "ACME", value: "5320", account_label: "5320 Utilities", count: 9, last_date: "2026-09-30" },
+  onSet() {}, onForget() {} }));
+assert.ok(!learned.includes("<select"));
+assert.deepEqual(text(learned), ["ACME", "→ 5320 Utilities", "From Express history · 9 · 2026-09-30"]);
+""")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -579,12 +579,99 @@
 
   .cc-enter { animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both; }
   .cc-drawer-in { animation: cc-drawer-in var(--cc-dur-slow) var(--cc-ease) both; }
+
+  /* ── 公司主档（ADR-020，只在 Cowork）：侧栏公司组、月份分店胶囊、公司页、主档页、待处理 ── */
+  /* 侧栏公司组头：箭头折叠、名字打开主档页、待处理数、⋯ 与 ＋（电脑上悬停才出，手机上 ＋ 一直在） */
+  .cc-project-row {
+    position: relative; display: flex; align-items: center; gap: 0.125rem; height: 2rem; margin-top: 0.5rem; padding-inline-end: 0.25rem;
+    border-radius: var(--cc-radius-sm); color: var(--cc-ink-2); font-size: 0.875rem;
+  }
+  .cc-project-row:hover, .cc-project-row[data-open] { background: var(--cc-bg-hover); }
+  .cc-project-toggle {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 1.5rem; height: 1.5rem;
+    border-radius: var(--cc-radius-xs); color: var(--cc-ink-3); outline: none;
+  }
+  .cc-project-toggle:hover, .cc-project-toggle:focus-visible { color: var(--cc-ink); }
+  .cc-project-chevron { width: 0.875rem; height: 0.875rem; transition: transform var(--cc-dur-fast) var(--cc-ease); }
+  .cc-project-toggle[aria-expanded="false"] .cc-project-chevron { transform: rotate(-90deg); }
+  .cc-project-name { display: flex; min-width: 0; flex: 1; align-items: center; height: 100%; font-weight: 500; text-align: start; outline: none; }
+  .cc-project-name:hover, .cc-project-name:focus-visible { color: var(--cc-ink); }
+  .cc-group-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 1.5rem; height: 1.5rem;
+    border-radius: var(--cc-radius-xs); color: var(--cc-ink-3); outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), opacity var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-group-btn:hover, .cc-group-btn:focus-visible, .cc-group-btn[data-state="open"] { background: var(--cc-bg-active); color: var(--cc-ink); }
+  .cc-group-btn svg { width: 0.875rem; height: 0.875rem; }
+  .cc-project-more, .cc-project-add { opacity: 0; }
+  .cc-project-row:hover .cc-project-more, .cc-project-row:hover .cc-project-add, .cc-project-row:focus-within .cc-project-more,
+  .cc-project-row:focus-within .cc-project-add, .cc-project-row[data-open] .cc-project-more { opacity: 1; }
+  .cc-count { flex-shrink: 0; padding-inline: 0.25rem; color: var(--cc-ink-3); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+  .cc-project-items { display: flex; flex-direction: column; gap: 0.125rem; }
+  .cc-show-more {
+    display: flex; align-items: center; height: 1.75rem; padding-inline: 0.625rem; border-radius: var(--cc-radius-sm);
+    color: var(--cc-ink-3); font-size: 0.8125rem; text-align: start; outline: none;
+  }
+  .cc-show-more:hover, .cc-show-more:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink-2); }
+  .cc-sidebar-error {
+    display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.25rem 0; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-sm);
+    background: var(--cc-danger-soft); color: var(--cc-danger); font-size: 0.8125rem;
+  }
+  .cc-filing-tag { color: var(--cc-ink-3); }
+
+  /* 月份、分店、公司的胶囊（主档页输入框、新对话的公司条、对话顶栏） */
+  .cc-chip-btn {
+    display: inline-flex; min-width: 0; max-width: 16rem; align-items: center; gap: 0.25rem; height: 1.75rem; padding-inline: 0.5rem;
+    border-radius: var(--cc-radius-full); border: 1px solid var(--cc-line); background: var(--cc-bg-surface); color: var(--cc-ink-2);
+    font-size: 0.8125rem; outline: none; transition: background-color var(--cc-dur-fast) var(--cc-ease), border-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-chip-btn:hover, .cc-chip-btn:focus-visible, .cc-chip-btn[data-state="open"] { background: var(--cc-bg-hover); border-color: var(--cc-line-strong); }
+  .cc-chip-btn[data-chosen] { color: var(--cc-ink); }
+  .cc-chip-btn svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; color: var(--cc-ink-3); }
+  .cc-composer-company { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.375rem; }
+  .cc-title-company {
+    display: inline-flex; min-width: 0; max-width: 14rem; align-items: center; gap: 0.125rem; height: 2rem; padding-inline: 0.5rem;
+    border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: 0.875rem; outline: none;
+  }
+  .cc-title-company:hover, .cc-title-company:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-title-company svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+
+  /* 列表行（添加公司的候选、主档页的对话 / 账套 / 任务 / 草稿） */
+  .cc-list-row {
+    display: flex; width: 100%; align-items: center; gap: 0.75rem; min-height: 2.25rem; padding: 0.375rem 0.625rem;
+    border-radius: var(--cc-radius-sm); font-size: 0.875rem; text-align: start; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  button.cc-list-row:hover, button.cc-list-row:focus-visible { background: var(--cc-bg-hover); }
+  .cc-list-row:disabled { opacity: 0.5; }
+  .cc-list-row[data-covering] { background: var(--cc-bg-active); }
+  .cc-dialog { box-shadow: var(--cc-shadow-pop); }
+
+  /* 主档页：电脑两栏（右栏 320px），手机单栏 */
+  .cc-company-page { max-width: calc(var(--cc-thread-w) + 22rem); }
+  .cc-company-cols { display: flex; align-items: flex-start; gap: 2rem; }
+  .cc-company-side { width: 20rem; flex-shrink: 0; }
+  .cc-company-heading { color: var(--cc-ink-3); font-size: 0.75rem; font-weight: 500; }
+  .cc-subheading { padding: 0.5rem 0.625rem 0.125rem; color: var(--cc-ink-3); font-size: 0.75rem; }
+  .cc-note {
+    display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-sm);
+    color: var(--cc-ink); font-size: 0.875rem; overflow-wrap: anywhere;
+  }
+  .cc-note:hover { background: var(--cc-bg-hover); }
+  .cc-folder-line { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.625rem; font-size: 0.875rem; color: var(--cc-ink-2); }
+  .cc-folder-line > svg { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--cc-ink-3); }
+  .cc-folder-line[data-state="missing"] > svg, .cc-folder-line[data-state="folder_missing"] > svg { color: var(--cc-danger); }
+  .cc-link-btn { flex-shrink: 0; padding: 0.125rem 0.375rem; border-radius: var(--cc-radius-xs); color: var(--cc-ink-2); font-size: 0.8125rem; outline: none; }
+  .cc-link-btn:hover, .cc-link-btn:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-link-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-choice-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-sm); }
+  .cc-choice-row:hover { background: var(--cc-bg-hover); }
 }
 
 /* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */
 /* 在「定时任务」等别的页面时，侧栏里的对话不高亮（同 Claude） */
-[data-cc-view="tasks"] [data-slot="aui_thread-list-item"][data-active],
-[data-cc-view="tasks"] [data-slot="aui_thread-list-new"][data-active] { background: transparent; color: var(--cc-ink-2); }
+[data-cc-view]:not([data-cc-view="chat"]) [data-slot="aui_thread-list-item"][data-active],
+[data-cc-view]:not([data-cc-view="chat"]) [data-slot="aui_thread-list-new"][data-active] { background: transparent; color: var(--cc-ink-2); }
 /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
 .cc-drawer { scrollbar-width: none; }
 .cc-drawer::-webkit-scrollbar { display: none; }
@@ -592,6 +679,11 @@
 .cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline: 0.75rem; font-size: 1.0625rem; }
 .cc-drawer [data-slot="aui_thread-list-group-label"] { font-size: 0.9375rem; padding: 1.5rem 0.75rem 0.5rem; }
 .cc-drawer .cc-nav-item { height: var(--cc-mrow-h); font-size: 1.0625rem; padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
+/* 手机抽屉里的公司组头：同对话行的高度，＋ 一直在（手机没有悬停），长按出菜单 */
+.cc-drawer .cc-project-row { height: var(--cc-mrow-h); margin-top: 0.75rem; font-size: 1rem; color: var(--cc-ink); }
+.cc-drawer .cc-project-add { opacity: 1; }
+.cc-drawer .cc-group-btn { width: 2.25rem; height: 2.25rem; }
+.cc-drawer .cc-group-btn svg { width: 1.125rem; height: 1.125rem; }
 /* 手机顶栏与抽屉里的圆按钮：浅灰实心、无描边无阴影（同 Claude 手机端） */
 .cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {
   width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); background: var(--cc-mbtn-bg); color: var(--cc-ink-2);
