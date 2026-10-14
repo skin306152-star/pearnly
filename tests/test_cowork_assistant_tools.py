@@ -2519,6 +2519,17 @@ class AllCompaniesTests(unittest.TestCase):
         self.assertTrue(all(call["filters"]["invoice_date"] == ["between", ["2026-09-01", "2026-09-30"]]
                             for call in self.grouped))
 
+    def test_a_plain_date_range_is_counted_once(self):
+        # 只有时间范围、没有别的条件：在这段时间有单据的各家就是答案，分组计数只查一遍（按连接一次、连接里按账套一次）
+        out = json.loads(tools.list_documents({"invoice_date_from": "2026-09-01", "invoice_date_to": "2026-09-30"}))
+        self.assertEqual(self.counts(out), [
+            ("70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด", 4),
+            ("70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด", 3),
+            ("70EXP · D.2 บริษัท ภูผาแก้ว จำกัด", 2),
+            ("70EXP · D.4 Suan Co", 1),
+            ("not chosen yet", 1)])
+        self.assertEqual([call["group_by"] for call in self.grouped], ["push_connection", "push_account_set"])
+
     def test_counts_cover_every_matching_document_not_only_this_page(self):
         out = json.loads(tools.list_documents({**self.SEPTEMBER, "limit": 2}))
         self.assertEqual((out["count"], out["total"], out["next_offset"]), (2, 7, 2))

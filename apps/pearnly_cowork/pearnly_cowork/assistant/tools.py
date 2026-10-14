@@ -294,12 +294,14 @@ def _by_account_set(dated, filters, or_filters, matched, names) -> dict:
     ``matched`` 是取回后再筛过的全部行（方向、合计那条路），给了就按它数。账套名同列表（``names`` 是同一份缓存）。
     一份账套都没有（全是没选账套的）就不给。"""
     known = _account_counts(dated)
-    if matched is None:
-        hits = _account_counts(filters, or_filters)
-    else:
+    if matched is not None:
         hits = {}
         for row in matched:
             _tally(hits, row.get("push_connection"), row.get("push_account_set"), 1)
+    elif filters == dated and not or_filters:
+        hits = known  # 除了时间范围没有别的条件：同一组数，不再查一遍
+    else:
+        hits = _account_counts(filters, or_filters)
     if not any(key[1] for key in [*known, *hits]):
         return {}
     listed = []
