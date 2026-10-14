@@ -35,6 +35,8 @@ python3 scripts/check-frontend-i18n.py --strict
 npm --prefix frontend run build
 ```
 
+CC 对话页（`frontend/assistant`）改界面时另跑 `python3 scripts/check-frontend-tokens.py`（组件里不许写死颜色、圆角、阴影，只引用 `globals.css` 的变量，见 [ccs](ccs.md)）。
+
 按矩阵选择命令；上面的翻译检查不会改语言包。首次安装或锁文件变化时用 `npm --prefix frontend ci`。`build` 自带 `vue-tsc --noEmit`，只查类型可单独用 `npm --prefix frontend run typecheck`。
 
 构建输出在 `apps/pearnly_core/pearnly_core/public/pearnly-app/`，是被忽略的生成目录。正式构建需确保镜像包含对应版本的产物；不能把旧仓的 `static/dist` 提交规则搬过来。前端开发入口见 [前端说明](../../frontend/README.md)。

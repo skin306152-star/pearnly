@@ -11,6 +11,7 @@ import { runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/ste
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
 import { touchOnly } from "@/lib/touch";
@@ -35,7 +36,6 @@ import {
   CheckIcon,
   CopyIcon,
   DownloadIcon,
-  LoaderIcon,
   SquareIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
@@ -169,7 +169,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
   );
 };
 
-/** 按下发送到真正的气泡画出来之前，先显示发送中的用户气泡（附件名旁转圈，lib/managed-agents/pending-send.ts）。
+/** 按下发送到真正的气泡画出来之前，先显示发送中的用户气泡（附件名旁一块骨架在闪，不用转圈：ccs 卡片规矩；lib/managed-agents/pending-send.ts）。
  *  对话里画出了接替它的那一条才撤（同一次提交里换过去），中间不会两个都不在。 */
 const PendingSendBubble: FC = () => {
   const pending = useShownPending();
@@ -179,7 +179,7 @@ const PendingSendBubble: FC = () => {
       <div className="flex flex-wrap justify-end gap-2">
         {pending.files.map((name, i) => (
           <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
-            <LoaderIcon className="size-3.5 animate-spin text-ink-3" />
+            <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
             {name}
           </span>
         ))}
@@ -281,7 +281,7 @@ const NoticeMessage: FC = () => {
       </div>
       {push.state === "off" && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button type="button" className="cc-btn" onClick={() => void push.enable()}>
+          <button type="button" className="cc-btn cc-tap" onClick={() => void push.enable()}>
             {st.turnOnNotifications}
           </button>
           {push.failure && <span className="text-danger text-sm">{push.failure}</span>}
@@ -399,7 +399,7 @@ const ComposerAction: FC = () => {
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root border-danger bg-danger-soft text-danger mt-2 rounded-md border p-3 text-sm">
+      <ErrorPrimitive.Root className="aui-message-error-root border-danger-line bg-danger-soft text-danger mt-2 rounded-md border p-3 text-sm">
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
@@ -564,7 +564,7 @@ const MessageFiles: FC = () => {
             href={fileUrl(sessionId, file.id)}
             title={t("download")}
             aria-label={t("download")}
-            className="cc-icon-btn"
+            className="cc-icon-btn cc-tap"
           >
             <DownloadIcon className="size-4" />
           </a>
