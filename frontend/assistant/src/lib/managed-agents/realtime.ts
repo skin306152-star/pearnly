@@ -5,6 +5,9 @@
 // 本站提醒（pearnly.notice，pearnly_core.assistant.notices）走同一个事件名；没挂在对话上的 session_id 为空，
 // 照样交给 activity.ts（桌面窗口靠它弹系统通知）。产品自己的站点事件用 onSiteEvent 按名字订阅：
 // 事件名由调用方给，这里不认识任何产品。
+// 侧栏同步（pearnly.session，pearnly_core.assistant.sidebar）也走同一个事件名、session_id 为空：同一账号在别的设备上
+// 新建、改名（含自动标题）、加星标、归档、删除对话时推来，交给 onSessionChange 的监听者（list-sync.ts）；
+// 推来的标题顺手记下（latestTitle），侧栏给新对话取标题时直接用。
 // 一条事件先交给这个会话的页面（卡片、回复），再记侧栏状态与提醒；每一路单独兜住异常，哪一路出错都不挡别的。
 
 import { io, type Socket } from "socket.io-client";
@@ -12,8 +15,15 @@ import { noteEvent } from "./activity";
 import { type FeedEvent, isNotice } from "./events";
 
 const EVENT = "pearnly_assistant_event";
-// 首条消息概括出的短标题（pearnly_core.assistant.sessions.retitle）：先到的记下来，侧栏取标题时直接用。
-const TITLE_EVENT = "pearnly_assistant_title";
+
+/** 侧栏同步的一条事件（服务端 contracts.session_change）：哪段对话、变了什么；标题、星标变了带新值。 */
+export type SessionChange = {
+  type: "pearnly.session";
+  change: "created" | "titled" | "starred" | "archived" | "deleted";
+  session: string;
+  title?: string;
+  starred?: boolean;
+};
 
 type Handler = (event: FeedEvent) => void;
 type Push = { session_id: string; event: FeedEvent };
@@ -21,8 +31,8 @@ type Push = { session_id: string; event: FeedEvent };
 let socket: Socket | null = null;
 const handlers = new Map<string, Set<Handler>>();
 const statusListeners = new Set<(connected: boolean) => void>();
+const sessionListeners = new Set<(change: SessionChange) => void>();
 const titles = new Map<string, string>();
-const titleWaiters = new Map<string, Set<(title: string) => void>>();
 
 function safely(run: () => void) {
   try {
@@ -32,9 +42,21 @@ function safely(run: () => void) {
   }
 }
 
-/** 一条推来的事件：先给会话的页面，再给侧栏状态与提醒的监听者（activity.ts）。 */
+function sessionChange(event: unknown): SessionChange | null {
+  const change = event as SessionChange;
+  return change?.type === "pearnly.session" && typeof change.session === "string" ? change : null;
+}
+
+function noteSessionChange(change: SessionChange) {
+  if (change.change === "titled" && change.title) titles.set(change.session, change.title);
+  sessionListeners.forEach((listener) => safely(() => listener(change)));
+}
+
+/** 一条推来的事件：先给会话的页面，再给侧栏状态与提醒的监听者（activity.ts）；侧栏同步的只给 list-sync。 */
 export function dispatch(push: Push) {
   if (!push?.event) return;
+  const change = sessionChange(push.event);
+  if (change) return noteSessionChange(change);
   if (push.session_id) handlers.get(push.session_id)?.forEach((handler) => safely(() => handler(push.event)));
   if (push.session_id || isNotice(push.event)) safely(() => noteEvent(push.session_id || "", push.event));
 }
@@ -43,12 +65,6 @@ function connect(): Socket {
   if (socket) return socket;
   socket = io(`${window.location.origin}/${window.location.hostname}`, { withCredentials: true });
   socket.on(EVENT, dispatch);
-  socket.on(TITLE_EVENT, (push: { session_id: string; title: string }) => {
-    if (!push?.session_id) return;
-    titles.set(push.session_id, push.title ?? "");
-    titleWaiters.get(push.session_id)?.forEach((resolve) => resolve(push.title ?? ""));
-    titleWaiters.delete(push.session_id);
-  });
   socket.on("connect", () => statusListeners.forEach((listener) => listener(true)));
   socket.on("disconnect", () => statusListeners.forEach((listener) => listener(false)));
   return socket;
@@ -90,25 +106,21 @@ export function onConnectionChange(listener: (connected: boolean) => void): () =
   };
 }
 
-/** 先接上实时通道：新对话发出第一条消息前调用，免得短标题推来时还没连上。 */
+/** 先接上实时通道：新对话发出第一条消息前调用，免得标题推来时还没连上。 */
 export function listen(): void {
   connect();
 }
 
-/** 等服务端推来这个会话的短标题；已经推来就立即给，超时回 null（调用方再去读一次会话）。 */
-export function pushedTitle(sessionId: string, timeoutMs: number): Promise<string | null> {
+/** 侧栏同步事件（别的设备、或服务端起好标题时推来的）；返回取消订阅。 */
+export function onSessionChange(listener: (change: SessionChange) => void): () => void {
   connect();
-  const known = titles.get(sessionId);
-  if (known !== undefined) return Promise.resolve(known);
-  return new Promise((resolve) => {
-    const set = titleWaiters.get(sessionId) ?? new Set<(title: string) => void>();
-    const done = (title: string | null) => {
-      clearTimeout(timer);
-      set.delete(done);
-      resolve(title);
-    };
-    const timer = setTimeout(() => done(null), timeoutMs);
-    set.add(done);
-    titleWaiters.set(sessionId, set);
-  });
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+/** 这段对话最近推来的标题（临时标题或概括出的），没推来过回 undefined。 */
+export function latestTitle(sessionId: string): string | undefined {
+  return titles.get(sessionId);
 }

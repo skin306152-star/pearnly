@@ -9,7 +9,7 @@
 // 所有推来的提醒（包括没挂在对话上的）都交给 onNotice 的监听者：桌面窗口弹系统通知、侧栏没加载到的对话重新拉列表。
 // 每个监听者单独兜住异常，一个出错不挡别的。
 // 「在跑」也按服务端读回的运行状态校正（noteRun）：开着的对话由它的会话控制器报；别的对话在回到前台、恢复、联网、重连时
-// 由侧栏列表核对（session-list-adapter 的 checkRunning）。在后台漏了「结束」的推送，转圈不会一直挂着。
+// 由侧栏列表核对（list-sync.ts 的 watchList）。在后台漏了「结束」的推送，转圈不会一直挂着。
 
 import { useSyncExternalStore } from "react";
 import { markNoticesSeen } from "./api";
