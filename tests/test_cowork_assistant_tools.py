@@ -33,7 +33,7 @@ class _Frappe(types.ModuleType):
     def __init__(self):
         super().__init__("frappe")
         self.calls, self.commits, self.rollbacks = [], 0, 0
-        self.rows = []
+        self.rows, self.grouped = [], []
         self.session = types.SimpleNamespace(user="a@example.com")
         self.local = types.SimpleNamespace(lang="en", site="s1", pearnly_assistant=None)
         self.db = types.SimpleNamespace(commit=self._commit, rollback=self._rollback,
@@ -46,7 +46,16 @@ class _Frappe(types.ModuleType):
         self.rollbacks += 1
 
     def get_list(self, doctype, **kwargs):
-        """按 limit_start / limit_page_length 从 `rows` 切（每次给新副本：工具会改行）；数总数的查询回 total。"""
+        """按 limit_start / limit_page_length 从 `rows` 切（每次给新副本：工具会改行）；数总数的查询回 total。
+        按一列分组计数的（各账套几张）另记在 `grouped`，`calls` 仍只是列表与总数：分组只认等值筛选，同列表不看别的条件。"""
+        if kwargs.get("group_by"):
+            self.grouped.append(kwargs)
+            field, counts = kwargs["group_by"], {}
+            equal = {key: value for key, value in (kwargs.get("filters") or {}).items() if isinstance(value, str)}
+            for row in self.rows:
+                if all(row.get(key) == value for key, value in equal.items()):
+                    counts[row.get(field)] = counts.get(row.get(field), 0) + 1
+            return [{field: value, "count": count} for value, count in counts.items()]
         self.calls.append(kwargs)
         if kwargs.get("fields") and isinstance(kwargs["fields"][0], dict):
             return [{"total": len(self.rows)}]
@@ -2380,6 +2389,273 @@ class AccountSetNameTests(unittest.TestCase):
         doc = json.loads(tools.list_documents({"limit": 1}))["documents"][0]
         self.assertEqual(doc["push_account_set"], self.KEY)
         self.assertNotIn("account_label", doc)
+
+
+def _matches(row, filters, or_filters) -> bool:
+    """替身库的筛选（只认工具用到的几种写法）：等值（不分大小写）、not in、between、>=、is set / not set、like。"""
+    def holds(field, condition):
+        value = row.get(field)
+        if not isinstance(condition, list):
+            return str(value or "").casefold() == str(condition).casefold()
+        op, arg = condition
+        if op == "not in":
+            return (value or "") not in arg
+        if op == "between":
+            return value is not None and arg[0] <= value <= arg[1]
+        if op == ">=":
+            return value is not None and value >= arg
+        if op == "=":
+            return value == arg
+        if op == "is":
+            return bool(value) == (arg == "set")
+        if op == "like":
+            return arg.strip("%").casefold() in str(value or "").casefold()
+        raise AssertionError(op)
+
+    return (all(holds(field, condition) for field, condition in (filters or {}).items())
+            and (not or_filters or any(holds(field, [op, arg]) for field, op, arg in or_filters)))
+
+
+class AllCompaniesTests(unittest.TestCase):
+    """第 2 条（2026-10-13 录屏 L8，testcowork，泰文界面）：对话一直在谈 แก้วกานดา 9 月的税，会计问「เดือนนี้ยังมีบิลไหนค้าง」，
+    CC 按 10 月、带着 แก้วกานดา 的账套查，答「没有」；会计补「เดือน 9 ทุกเจ้าเลย」，CC 回了 3 张——全是 แก้วกานดา 的
+    （它的销项贷项单 CN6909-0001、进项贷项单 MK-CN-6909-007、ทองหล่อ 的订金收据 4/0091），也没说只查了一家。
+    早上推送后另两家同样卡着的单据（ดาวเหนือ、ภูผาแก้ว 各自的 CN6909-0001、ดาวเหนือ 的美元票）都没出现。
+
+    复现：只查一家的是 cowork_list_documents 的 account_set_key（连同 connection）沿用了上文那家公司；工具照参数筛，
+    结果里看不出范围。修法：说明里点明「所有公司」不带公司筛选；没限定公司时结果另给 by_account_set，同一时间范围里
+    有单据的账套都列、各几张（0 张也列），按全部符合的单据数，不只这一页。"""
+
+    KEAW, DAO, PHU, SUAN, OLD = (r"c:\account\70exp\dem001", r"c:\account\70exp\dem003", r"c:\account\70exp\dem002",
+                                 r"c:\account\70exp\dem004", r"c:\account\70exp\dem005")
+    CATALOG = {"account_sets": [
+        {"source_id": KEAW, "label": "70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด"},
+        {"source_id": DAO, "label": "70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด"},
+        {"source_id": PHU, "label": "70EXP · D.2 บริษัท ภูผาแก้ว จำกัด"},
+        {"source_id": SUAN, "label": "70EXP · D.4 Suan Co"},
+        {"source_id": OLD, "label": "70EXP · D.5 Old Co"}]}
+
+    def setUp(self):
+        ListAndRunsTests.setUp(self)
+
+        def doc(name, account, day, state, direction, kind="tax_invoice", connection="EXP1"):
+            fields = {"direction": direction, "document_type": kind, "subtotal": "100", "vat": "7"}
+            return {"name": name, "invoice_no": name, "invoice_date": day, "push_connection": connection if account else "",
+                    "push_account_set": account, "last_push_status": state,
+                    "last_push_reason": "document.credit_note" if state == "manual" else "", "total_amount": "107",
+                    "pages": json.dumps([{"fields": fields}])}
+
+        self.rows = [
+            doc("CN6909-0001/KEAW", self.KEAW, "2026-09-22", "manual", "sales", "credit_note"),
+            doc("MK-CN-6909-007", self.KEAW, "2026-09-23", "manual", "purchase", "credit_note"),
+            doc("4/0091", self.KEAW, "2026-09-06", "", "purchase", "receipt"),
+            doc("INV6909-0010", self.KEAW, "2026-09-10", "success", "sales"),
+            doc("CN6909-0001/DAO", self.DAO, "2026-09-20", "manual", "sales", "credit_note"),
+            doc("NF-2026-091744", self.DAO, "2026-09-17", "manual", "purchase"),
+            doc("IV6909-0005", self.DAO, "2026-09-05", "success", "sales"),
+            doc("CN6909-0001/PHU", self.PHU, "2026-09-25", "manual", "sales", "credit_note"),
+            doc("TT-6909-0087", self.PHU, "2026-09-12", "pending", "purchase"),
+            doc("SC6909-0001", self.SUAN, "2026-09-03", "success", "sales"),
+            doc("OLD6908-0001", self.OLD, "2026-08-15", "", "purchase"),
+            doc("SK-6910-01284", "", "2026-09-30", "", "purchase", "simplified_tax_invoice"),
+        ]
+        self.grouped = []
+        patcher = mock.patch.object(frappe, "get_list", self._get_list)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(tools.connections, "targets", lambda name: json.loads(json.dumps(self.CATALOG)))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _get_list(self, doctype, **kwargs):
+        found = [dict(row) for row in self.rows if _matches(row, kwargs.get("filters"), kwargs.get("or_filters"))]
+        if kwargs.get("group_by"):
+            self.grouped.append(kwargs)
+            field, counts = kwargs["group_by"], {}
+            for row in found:
+                counts[row.get(field)] = counts.get(row.get(field), 0) + 1
+            return [{field: value, "count": count} for value, count in counts.items()]
+        if kwargs.get("fields") and isinstance(kwargs["fields"][0], dict):
+            return [{"total": len(found)}]
+        start, size = kwargs.get("limit_start") or 0, kwargs.get("limit_page_length")
+        return found[start:start + size if size else None]
+
+    SEPTEMBER = {"push_state": "waiting", "invoice_date_from": "2026-09-01", "invoice_date_to": "2026-09-30"}
+
+    def counts(self, out):
+        return [(item.get("account_label", item.get("push_target")), item["count"]) for item in out["by_account_set"]]
+
+    def test_the_recorded_call_kept_the_one_company_from_earlier_in_the_chat(self):
+        # 录屏里 CC 的那一步：9 月、等着录入，连接与账套还是上文的 แก้วกานดา —— 只回这一家的 3 张
+        out = json.loads(tools.list_documents({**self.SEPTEMBER, "connection": "EXP1", "account_set_key": self.KEAW}))
+        self.assertEqual(sorted(d["invoice_no"] for d in out["documents"]),
+                         ["4/0091", "CN6909-0001/KEAW", "MK-CN-6909-007"])
+        self.assertEqual({d["account_label"] for d in out["documents"]},
+                         {"70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด"})
+        self.assertNotIn("by_account_set", out)  # 限定了一家：不另列各家
+        # 不带公司筛选：三家卡着的都在，另外没选账套的那张手机拍的简易税票也在
+        everyone = json.loads(tools.list_documents(self.SEPTEMBER))
+        self.assertEqual({d["invoice_no"] for d in everyone["documents"]},
+                         {"CN6909-0001/KEAW", "MK-CN-6909-007", "4/0091", "CN6909-0001/DAO", "NF-2026-091744",
+                          "CN6909-0001/PHU", "SK-6910-01284"})
+
+    def test_all_companies_are_counted_company_by_company_including_those_with_none(self):
+        out = json.loads(tools.list_documents(self.SEPTEMBER))
+        self.assertEqual(self.counts(out), [
+            ("70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด", 3),
+            ("70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด", 2),
+            ("70EXP · D.2 บริษัท ภูผาแก้ว จำกัด", 1),
+            ("not chosen yet", 1),          # 没选账套的另算一行
+            ("70EXP · D.4 Suan Co", 0)])    # 9 月有单据、都录好了：说得出「这家没有」
+        # 只有 8 月单据的那家不在 9 月的清单里；键仍给，模型调工具要用
+        self.assertNotIn(self.OLD, [item.get("account_set_key") for item in out["by_account_set"]])
+        self.assertEqual(out["by_account_set"][0]["account_set_key"], self.KEAW)
+        self.assertEqual(out["by_account_set"][0]["connection"], "EXP1")
+        self.assertEqual(sum(item["count"] for item in out["by_account_set"]), out["total"])
+        # 按连接再按账套分组计数（都是单列分组），用的是这次的条件与同一时间范围
+        self.assertEqual({call["group_by"] for call in self.grouped}, {"push_connection", "push_account_set"})
+        self.assertIn(["not in", ["pending", "success"]],
+                      [call["filters"].get("last_push_status") for call in self.grouped])
+        self.assertTrue(all(call["filters"]["invoice_date"] == ["between", ["2026-09-01", "2026-09-30"]]
+                            for call in self.grouped))
+
+    def test_a_plain_date_range_is_counted_once(self):
+        # 只有时间范围、没有别的条件：在这段时间有单据的各家就是答案，分组计数只查一遍（按连接一次、连接里按账套一次）
+        out = json.loads(tools.list_documents({"invoice_date_from": "2026-09-01", "invoice_date_to": "2026-09-30"}))
+        self.assertEqual(self.counts(out), [
+            ("70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด", 4),
+            ("70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด", 3),
+            ("70EXP · D.2 บริษัท ภูผาแก้ว จำกัด", 2),
+            ("70EXP · D.4 Suan Co", 1),
+            ("not chosen yet", 1)])
+        self.assertEqual([call["group_by"] for call in self.grouped], ["push_connection", "push_account_set"])
+
+    def test_counts_cover_every_matching_document_not_only_this_page(self):
+        out = json.loads(tools.list_documents({**self.SEPTEMBER, "limit": 2}))
+        self.assertEqual((out["count"], out["total"], out["next_offset"]), (2, 7, 2))
+        self.assertEqual(sum(item["count"] for item in out["by_account_set"]), 7)
+
+    def test_filters_read_after_fetching_count_the_rows_that_matched(self):
+        # 按方向筛走「取回后再筛」那条路：各家按筛完的行数；ภูผาแก้ว 9 月等着录入的只有销项，进项记 0
+        out = json.loads(tools.list_documents({**self.SEPTEMBER, "direction": "purchase", "totals": True}))
+        self.assertEqual(self.counts(out), [
+            ("70EXP · D.1 บริษัท แก้วกานดา บิวตี้ สโตร์ จำกัด", 2),
+            ("70EXP · D.3 บริษัท ดาวเหนือ ไอที ซัพพลาย จำกัด", 1),
+            ("not chosen yet", 1),
+            ("70EXP · D.2 บริษัท ภูผาแก้ว จำกัด", 0),
+            ("70EXP · D.4 Suan Co", 0)])
+
+    def test_a_search_or_one_account_set_gives_no_company_list(self):
+        self.assertNotIn("by_account_set", json.loads(tools.list_documents({**self.SEPTEMBER, "search": "CN6909"})))
+        self.rows = [row for row in self.rows if not row["push_account_set"]]
+        self.assertNotIn("by_account_set", json.loads(tools.list_documents(self.SEPTEMBER)))  # 全没选账套：没有可分的
+
+    def test_cc_is_told_what_all_companies_means(self):
+        guidance = " ".join(tools.GUIDANCE)
+        self.assertIn("When the user asks about all companies (ทุกเจ้า, all clients), leave out connection, "
+                      "account_set_key and search even if the conversation was about one company", guidance)
+        self.assertIn("by_account_set", guidance)
+        listing = {tool["name"]: tool for tool in tools.TOOLS}["cowork_list_documents"]["description"]
+        self.assertIn("Without account_set_key and search, by_account_set gives every account set (company)", listing)
+
+
+class ThisMonthTests(unittest.TestCase):
+    """第 2 条之一（2026-10-13 录屏 L8）：CC 自己刚说「这个月的报表在对话里」（9 月），会计接着问「这个月还有哪些票卡着」，
+    CC 按 10 月查、答「没有」；之前「แก้วกานดาเดือนนี้ภาษีขายภาษีซื้อเท่าไหร่」也先答了 10 月的 0。会计说的这个月是在做的那期。"""
+
+    def test_this_month_follows_the_month_being_filed_and_is_confirmed_when_unsure(self):
+        line = next(line for line in tools.GUIDANCE if line.startswith("'This month'"))
+        self.assertIn("a month already being discussed in this conversation is the one meant", line)
+        self.assertIn("early in a month it is usually last month's filing", line)
+        self.assertIn("confirm the month in one short question before looking anything up", line)
+
+
+class CompanyNamedForADocumentTests(unittest.TestCase):
+    """第 4 条（2026-10-13 录屏 phone-09）：手机拍了简易税票（ศรีกรุง เครื่องเขียน SK-6910-01284，642.00），同一句写
+    「อันนี้ของดาวเหนือ ค่าเครื่องเขียน」。CC 只识别了（一步），答「票上没有 ดาวเหนือ 的名字，所以还没认定是他的费用；要送进
+    Express 请告诉公司名」。
+
+    查清拦在哪一层：推送的服务端规则（`targets.account_match`）对没有买方的票不拦，按用户选的账套推；识别不做公司归属；
+    拦住的是 CC 的说法（只在「要录进 ERP 且没说去哪」时才去选账套，把会计员说的公司当成待核实）。修法：说明写口径
+    （会计员说了是哪家公司的就录进那家的账套、简易税票没有买方不必有公司名、票面买方是别家才提），规则不变并钉住；
+    照片先「仅识别」、会计员随后才说公司时，再交同一个附件拿回原来那份并指向按账套推送（推送指定账套见 PushTargetTests）。"""
+
+    OWN_TAX, OTHER_TAX = "0105551234567", "0105559999996"  # 校验位都对
+    # 对话附件与识别服务的替身同 RecognizeAttachmentTests（不继承：免得把那边的测试再跑一遍）
+    setUp, _attachment, _submit = (RecognizeAttachmentTests.setUp, RecognizeAttachmentTests._attachment,
+                                   RecognizeAttachmentTests._submit)
+
+    def _rule(self):
+        spec = importlib.util.spec_from_file_location("cowork_account_match", COWORK / "targets/account_match.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_push_rule_takes_a_document_with_no_buyer_to_the_company_named(self):
+        rule = self._rule()
+        account = {"source_id": r"c:\account\70exp\dem003", "attributes": {
+            "tax_id": self.OWN_TAX, "period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}}
+        abb = {"document_type": "simplified_tax_invoice", "seller_name": "บริษัท ศรีกรุง เครื่องเขียน จำกัด",
+               "seller_tax": "0105599220311", "date": "2026-10-13", "total_amount": "642.00"}
+        self.assertEqual(rule.conflict("express", account, direction="purchase", fields=abb), "")
+        # 有买方的照旧核：票面买方税号是别家就拦（推送回「本方税号与所选账套不符」），是这家就过
+        self.assertEqual(rule.conflict("express", account, direction="purchase",
+                                       fields={**abb, "buyer_tax": self.OTHER_TAX}), rule.TAX_MISMATCH)
+        self.assertEqual(rule.conflict("express", account, direction="purchase",
+                                       fields={**abb, "buyer_tax": self.OWN_TAX}), "")
+
+    def test_cc_is_told_the_users_word_names_the_company(self):
+        line = next(line for line in tools.GUIDANCE if line.startswith("When the user says which company"))
+        self.assertIn("enter it into that company's account set (find it with cowork_intake_options search) without "
+                      "asking for the company again", line)
+        self.assertIn("Abbreviated tax invoices and receipts often name no buyer: the user's word is enough", line)
+        self.assertIn("Point out a conflict only when the document names a different buyer", line)
+        recognize = {tool["name"]: tool for tool in tools.TOOLS}["cowork_recognize_attachments"]["description"]
+        self.assertIn("a company the user names is where: its account set, found there with search", recognize)
+
+    def _refuse_other_choices(self, earlier="saved", taken=()):
+        """识别服务的口径：同一份原件第一次交的参数定了，再交不同参数就拒（`ocr.execution.service._admitted`）。
+        ``taken``：这些请求号早先已按别的口径交过；``earlier``：早先那份的状态（None = 没交过）。"""
+        first = {key: {"earlier": True} for key in taken}
+
+        def submit(source, key, **choices):
+            self.submitted.append((source, key, choices))
+            if first.setdefault(key, choices) != choices:
+                raise frappe.ValidationError("This original already has a recognition task with different parameters.")
+            return {"name": "B-" + key, "state": "saved"}
+
+        ocr = sys.modules["pearnly_cowork.ocr.execution.service"]
+        ocr.submit = submit
+        ocr.recognized = lambda source: {"name": "B-earlier", "state": earlier} if earlier else None
+        return ocr
+
+    def test_naming_the_company_after_recognizing_gives_back_the_earlier_result_to_push(self):
+        self._refuse_other_choices()
+        first = json.loads(tools.recognize_attachments({"files": ["file_abc"], "direction": "purchase"}))["results"][0]
+        self.assertNotIn("recognized_before", first)
+        again = json.loads(tools.recognize_attachments({
+            "files": ["file_abc"], "direction": "purchase", "target": "express", "connection": "C1",
+            "account_set_key": "K"}))["results"][0]
+        self.assertEqual((again["batch"], again["state"], again["recognized_before"]), ("B-earlier", "saved", True))
+        self.assertIn("cowork_push_documents with connection and account_set_key", again["note"])
+        self.assertIn("not recognized or charged again", again["note"])
+        self.assertEqual(again["documents"][0]["invoice_no"], "R308")
+        self.assertNotIn("status", again)
+        self.assertEqual([key for _name, _content, key in self.created], ["assistant:file_abc"] * 2)
+
+    def test_an_earlier_failed_recognition_is_tried_again_with_the_new_choices(self):
+        self._refuse_other_choices("failed", taken=("assistant:file_f",))
+        out = json.loads(tools.recognize_attachments({"files": ["file_f"], "target": "express", "connection": "C1",
+                                                      "account_set_key": "K"}))["results"][0]
+        self.assertEqual((out["batch"], out["attempt"]), ("B-assistant:file_f:2", 2))
+        self.assertNotIn("recognized_before", out)
+        self.assertEqual(self.submitted[-1][2]["account_set_key"], "K")
+
+    def test_a_refusal_without_an_earlier_recognition_is_still_reported(self):
+        ocr = self._refuse_other_choices(None)
+        ocr.submit = lambda source, key, **choices: (_ for _ in ()).throw(frappe.ValidationError("Invalid push target."))
+        out = json.loads(tools.recognize_attachments({"files": ["file_abc"]}))["results"][0]
+        self.assertEqual(out, {"file": "file_abc", "status": "not_started", "reason": "Invalid push target."})
 
 
 if __name__ == "__main__":
