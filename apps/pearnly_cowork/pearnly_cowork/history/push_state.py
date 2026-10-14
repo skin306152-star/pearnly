@@ -43,7 +43,7 @@ def _announce(history):
 def mirror(row, timestamp, *, select=False):
     if row.status not in {'pending', 'success', 'manual'}:
         return
-    found = frappe.db.sql("""SELECT workspace,client,last_push_record,last_push_status
+    found = frappe.db.sql("""SELECT workspace,client,last_push_record,last_push_status,push_connection,push_account_set
         FROM `tabCowork OCR History` WHERE name=%s FOR UPDATE""", (row.history,), as_dict=True)
     if not found or (found[0].workspace, found[0].client or '') != (row.workspace, row.client or ''):
         frappe.throw(_('Not Permitted'), frappe.PermissionError)
@@ -52,15 +52,30 @@ def mirror(row, timestamp, *, select=False):
     # the user selected more recently. Its own ledger receipt remains visible.
     if not select and previous.last_push_record not in (None, '', row.name):
         return
-    if previous.last_push_record == row.name and previous.last_push_status == row.status:
+    target = _target(previous, row, select)
+    if previous.last_push_record == row.name and previous.last_push_status == row.status and not target:
         return
     # 转人工的原因跟着状态走（列表状态图标悬浮看原因，用户 2026-09-26）；其它状态清掉旧原因。
     frappe.db.set_value('Cowork OCR History', row.history, {
         'last_push_status': row.status, 'last_pushed_at': timestamp,
         'last_push_record': row.name,
-        'last_push_reason': (row.reason or '')[:500] if row.status == 'manual' else ''}, update_modified=False)
+        'last_push_reason': (row.reason or '')[:500] if row.status == 'manual' else '', **target},
+        update_modified=False)
     _changed(row.history, row.get('owner'))
     _announce(row.history)
+
+
+def _target(previous, row, select) -> dict:
+    """这次推往哪条连接、哪份账套抄到票上（还没记、或用户这次重新选了）：CC 对话里先「仅识别」再推的票，票上的推送
+    目标原本是空的，按公司 / 按账套查单就漏掉它（2026-10-15 测试机：公司对话里已推的快递票查不到）。"""
+    connection, account = str(row.get('connection') or ''), str(row.get('account_key') or '')
+    if not connection or not account:
+        return {}
+    if previous.get('push_account_set') and not select:
+        return {}
+    if (previous.get('push_connection') or '', previous.get('push_account_set') or '') == (connection, account):
+        return {}
+    return {'push_connection': connection, 'push_account_set': account}
 
 
 _REVERSE = {}

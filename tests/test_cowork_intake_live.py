@@ -44,6 +44,27 @@ class IntakeChangedTest(unittest.TestCase):
         sent = self.run_with(lambda: push_state.record_failure("H-2", "target offline"), [])
         self.assertEqual({item[1] for item in sent}, {"H-2"})
 
+    def test_the_push_target_is_written_to_a_document_that_had_none(self):
+        # 2026-10-15 测试机：CC 先「仅识别」再推，票上推送目标空着，公司对话按账套查不到已推的票
+        written = []
+        db = SimpleNamespace(sql=lambda *a, **k: [frappe._dict(workspace="W", client="", last_push_record=None,
+                                                               last_push_status=None, push_connection="",
+                                                               push_account_set="")],
+                             set_value=lambda doctype, name, values, **k: written.append(values),
+                             get_value=lambda *a, **k: "u@x")
+        row = frappe._dict(name="REC-9", history="H-9", status="success", workspace="W", client="", reason="",
+                           connection="CONN-1", account_key="c:\\70exp\\t9sincer")
+        with patch.object(frappe, "db", db, create=True), \
+                patch.object(frappe, "session", SimpleNamespace(user="p@x"), create=True), \
+                patch.object(frappe, "publish_realtime", side_effect=lambda *a, **k: None):
+            push_state.mirror(row, "t")
+        self.assertEqual((written[0]["push_connection"], written[0]["push_account_set"]), ("CONN-1", "c:\\70exp\\t9sincer"))
+        # 已有目标、又不是用户这次重新选的：不改
+        previous = frappe._dict(push_connection="CONN-1", push_account_set="c:\\70exp\\other")
+        self.assertEqual(push_state._target(previous, row, False), {})
+        self.assertEqual(push_state._target(previous, row, True),
+                         {"push_connection": "CONN-1", "push_account_set": "c:\\70exp\\t9sincer"})
+
     def test_a_broken_realtime_never_breaks_the_push(self):
         db = SimpleNamespace(get_value=lambda *a: "u@x")
         with patch.object(frappe, "db", db, create=True), \
