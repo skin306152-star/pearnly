@@ -12,7 +12,8 @@ from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
 from . import categories, duplicates, names, review
 from pearnly_cowork.contracts.history import (HistoryContractError, PARTY_FIELDS, initial_history, prepare_pages,
-    extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page_fields)
+    extract_party_fields, extract_summary_fields, list_status, normalize_posting_kind, primary_page, primary_page_fields)
+from pearnly_cowork.contracts.push import declared_direction_pages
 
 DOCTYPE = "Cowork OCR History"
 _CREATE_TOKEN = object()
@@ -76,8 +77,9 @@ def validate_document(doc):
         if not previous.staged and doc.staged:
             frappe.throw(_("A completed record cannot become a draft."))
         doc.record_version = int(previous.record_version) + 1
-        # 同一原件里人刚改了名称、跟着改的草稿不算人改过（edit_count 是"人核过"的依据）。
-        changed = doc.pages != previous.pages and not doc.flags.cowork_name_follow
+        # 同一原件里人刚改了名称、跟着改的草稿不算人改过（edit_count 是"人核过"的依据）；补上会计员说明的方向也不算。
+        changed = (doc.pages != previous.pages and not doc.flags.cowork_name_follow
+                   and not doc.flags.cowork_declared_direction)
         doc.edit_count = int(previous.edit_count or 0) + int(changed)
         doc.fields_edited_at = now_utc() if changed else previous.fields_edited_at
         if previous.staged and not doc.staged:
@@ -275,6 +277,30 @@ def set_push_targets(names, connection, account_set, intake_target):
             continue
         frappe.db.set_value(DOCTYPE, name, {"push_connection": connection or "", "push_account_set": account_set or "",
                                             "intake_target": intake_target or ""}, update_modified=False)
+
+
+def declare_direction(names, direction):
+    """会计员事后说明的进 / 销项写到这份原件识别出的票上（2026-10-15：CC 先「仅识别」、会计员说是费用后再交同一附件，
+    识别服务按第一次的口径拿回原来那份，说明的方向丢了，票上方向空着）。
+
+    只写主页面还没有方向的、还是草稿且没推过的票（不覆盖已有的明确方向，不改推过 / 正在推的）；不算人改过票面。
+    回写了的票号。"""
+    scope.require("intake")
+    written = []
+    for name in names or []:
+        doc = read(name, for_update=True)
+        if not doc.staged or doc.last_push_status:
+            continue
+        pages = parse(doc.pages or "[]")
+        changed = declared_direction_pages(pages, primary_page(pages) if isinstance(pages, list) else None, direction)
+        if changed is None:
+            continue
+        doc.pages = encode(changed)
+        doc.flags.cowork_history_update = _UPDATE_TOKEN
+        doc.flags.cowork_declared_direction = True
+        doc.save()
+        written.append(name)
+    return written
 
 
 def update_pages(name, pages, expected_version):

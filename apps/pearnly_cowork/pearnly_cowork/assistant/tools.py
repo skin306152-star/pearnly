@@ -866,7 +866,24 @@ def recognize_attachments(tool_input) -> str:
         if not waiting or time.monotonic() >= deadline:
             break
         time.sleep(3)
+    for item in admitted:
+        _declare_direction(item, choices.get("direction"))
     return _json({"results": admitted})
+
+
+def _declare_direction(item, direction):
+    """拿回早先按别的口径识别的那份时，会计员这次说明的进 / 销项写到识别出的票上（识别服务只认第一次的口径，
+    2026-10-15 测试环境：先「仅识别」、再说是费用，票上方向空着）。票上已有方向的不改（`storage.declare_direction`）；
+    还没识别完的不写，推送时按账套税号判。"""
+    if not direction or not item.get("recognized_before") or item.get("state") != "saved":
+        return
+    records = _recognition().detail(item["batch"]).get("history_records") or []
+    try:
+        if records and storage.declare_direction(records, direction):
+            frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError):
+        frappe.db.rollback()  # 写不上（票正被人改着等）不影响识别结果，推送时照样按账套税号判
+        frappe.clear_messages()
 
 
 def recognition_results(tool_input) -> str:
