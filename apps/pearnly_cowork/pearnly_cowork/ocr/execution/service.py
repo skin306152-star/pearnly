@@ -138,6 +138,17 @@ def detail(name):
     return store.project(store.read(name))
 
 
+def recognized(source_file):
+    """这份原件已交过的识别任务（只读，同 `detail`）；还没交过回 None。
+
+    同一份原件只认第一次交的口径（`_admitted` 对不同参数拒收）。对话里先「仅识别」、会计员随后才说是哪家公司的，
+    CC 再交时用它拿回原来那份（不另买一次识别），再按会计员说的账套推送（推送可指定连接与账套）。"""
+    name = store.digest([KIND, source_file])
+    if not frappe.db.exists(access.DOCTYPE, name):
+        return None
+    return detail(name)
+
+
 def certificates(name) -> dict:
     """这份识别里的 50 ทวิ（CC 据此说「这是预扣税凭证」，不只说「不是发票」）：{"pages": 读成凭证的读数个数,
     "kept": 存给 ภ.ง.ด.3 / 53 草稿的参考记录数（租户选了「不录入」的）}。认凭证与识别存档同一条规则

@@ -115,6 +115,11 @@ GUIDANCE = [
     "When the user asks about all companies (" + "ทุกเจ้า" + ", all clients), leave out connection, account_set_key "
     "and search even if the conversation was about one company, and answer company by company from "
     "by_account_set, including those with none.",
+    # 2026-10-13 录屏：拍了简易税票说「这张是某公司的，文具费」，CC 只识别，说票上没有这家公司的名字、要推送请告诉公司名
+    "When the user says which company a document belongs to (for example 'this one is X's'), enter it into that "
+    "company's account set (find it with cowork_intake_options search) without asking for the company again. "
+    "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
+    "only when the document names a different buyer.",
 ]
 
 
@@ -622,7 +627,7 @@ def _admit(file_id, choices) -> dict:
             key = base if attempt == 1 else f"{base}:{attempt}"
             source = originals.create(scope.default_workspace(), filename, content, key)
             frappe.db.commit()
-            batch = _recognition().submit(source["name"], key, **choices)
+            batch, earlier = _submit(source, key, choices)
             frappe.db.commit()
             if batch.get("state") not in RETRY_STATES:
                 break
@@ -637,7 +642,29 @@ def _admit(file_id, choices) -> dict:
     admitted = {"file": file_id, "filename": filename, "batch": batch["name"]}
     if attempt > 1:
         admitted["attempt"] = attempt
+    if earlier:
+        admitted.update(recognized_before=True, note=RECOGNIZED_BEFORE)
     return admitted
+
+
+# 同一个附件只按第一次交的口径识别一次（识别服务拒收不同参数）。2026-10-13 录屏：照片先「仅识别」，会计员说了是哪家公司
+# 再交一次带账套的，原先回「参数不同」的拒收；现在拿回原来那份，并说清按会计员说的账套推送（推送可指定连接与账套）。
+RECOGNIZED_BEFORE = ("Recognized from this attachment earlier with other choices; not recognized or charged again. To "
+                     "enter its documents into an account set, push them with cowork_push_documents with connection "
+                     "and account_set_key.")
+
+
+def _submit(source, key, choices) -> tuple:
+    """交一次识别 → (识别任务, 是否拿回的是这个附件早先按别的口径交的那份)。"""
+    try:
+        return _recognition().submit(source["name"], key, **choices), False
+    except frappe.ValidationError:
+        frappe.db.rollback()
+        earlier = _recognition().recognized(source["name"])
+        if not earlier:
+            raise
+        frappe.clear_messages()
+        return earlier, True
 
 
 def _push_target(doc) -> dict:
@@ -2938,7 +2965,8 @@ TOOLS = [
                     "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
                     "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
                     "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
-                    "where in this conversation, get the choices there first. Otherwise call it directly, without "
+                    "where in this conversation, get the choices there first (a company the user names is where: "
+                    "its account set, found there with search). Otherwise call it directly, without "
                     "listing documents or checking CC Desktop first. Waits up to about 90 seconds and returns the "
                     "recognized documents; anything still running comes back with its batch for "
                     "cowork_recognition_results. Each attachment is charged once like a web upload; calling again "

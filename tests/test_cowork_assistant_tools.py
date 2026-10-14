@@ -2559,5 +2559,93 @@ class ThisMonthTests(unittest.TestCase):
         self.assertIn("confirm the month in one short question before looking anything up", line)
 
 
+class CompanyNamedForADocumentTests(unittest.TestCase):
+    """第 4 条（2026-10-13 录屏 phone-09）：手机拍了简易税票（ศรีกรุง เครื่องเขียน SK-6910-01284，642.00），同一句写
+    「อันนี้ของดาวเหนือ ค่าเครื่องเขียน」。CC 只识别了（一步），答「票上没有 ดาวเหนือ 的名字，所以还没认定是他的费用；要送进
+    Express 请告诉公司名」。
+
+    查清拦在哪一层：推送的服务端规则（`targets.account_match`）对没有买方的票不拦，按用户选的账套推；识别不做公司归属；
+    拦住的是 CC 的说法（只在「要录进 ERP 且没说去哪」时才去选账套，把会计员说的公司当成待核实）。修法：说明写口径
+    （会计员说了是哪家公司的就录进那家的账套、简易税票没有买方不必有公司名、票面买方是别家才提），规则不变并钉住；
+    照片先「仅识别」、会计员随后才说公司时，再交同一个附件拿回原来那份并指向按账套推送（推送指定账套见 PushTargetTests）。"""
+
+    OWN_TAX, OTHER_TAX = "0105551234567", "0105559999996"  # 校验位都对
+    # 对话附件与识别服务的替身同 RecognizeAttachmentTests（不继承：免得把那边的测试再跑一遍）
+    setUp, _attachment, _submit = (RecognizeAttachmentTests.setUp, RecognizeAttachmentTests._attachment,
+                                   RecognizeAttachmentTests._submit)
+
+    def _rule(self):
+        spec = importlib.util.spec_from_file_location("cowork_account_match", COWORK / "targets/account_match.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_push_rule_takes_a_document_with_no_buyer_to_the_company_named(self):
+        rule = self._rule()
+        account = {"source_id": r"c:\account\70exp\dem003", "attributes": {
+            "tax_id": self.OWN_TAX, "period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}}
+        abb = {"document_type": "simplified_tax_invoice", "seller_name": "บริษัท ศรีกรุง เครื่องเขียน จำกัด",
+               "seller_tax": "0105599220311", "date": "2026-10-13", "total_amount": "642.00"}
+        self.assertEqual(rule.conflict("express", account, direction="purchase", fields=abb), "")
+        # 有买方的照旧核：票面买方税号是别家就拦（推送回「本方税号与所选账套不符」），是这家就过
+        self.assertEqual(rule.conflict("express", account, direction="purchase",
+                                       fields={**abb, "buyer_tax": self.OTHER_TAX}), rule.TAX_MISMATCH)
+        self.assertEqual(rule.conflict("express", account, direction="purchase",
+                                       fields={**abb, "buyer_tax": self.OWN_TAX}), "")
+
+    def test_cc_is_told_the_users_word_names_the_company(self):
+        line = next(line for line in tools.GUIDANCE if line.startswith("When the user says which company"))
+        self.assertIn("enter it into that company's account set (find it with cowork_intake_options search) without "
+                      "asking for the company again", line)
+        self.assertIn("Abbreviated tax invoices and receipts often name no buyer: the user's word is enough", line)
+        self.assertIn("Point out a conflict only when the document names a different buyer", line)
+        recognize = {tool["name"]: tool for tool in tools.TOOLS}["cowork_recognize_attachments"]["description"]
+        self.assertIn("a company the user names is where: its account set, found there with search", recognize)
+
+    def _refuse_other_choices(self, earlier="saved", taken=()):
+        """识别服务的口径：同一份原件第一次交的参数定了，再交不同参数就拒（`ocr.execution.service._admitted`）。
+        ``taken``：这些请求号早先已按别的口径交过；``earlier``：早先那份的状态（None = 没交过）。"""
+        first = {key: {"earlier": True} for key in taken}
+
+        def submit(source, key, **choices):
+            self.submitted.append((source, key, choices))
+            if first.setdefault(key, choices) != choices:
+                raise frappe.ValidationError("This original already has a recognition task with different parameters.")
+            return {"name": "B-" + key, "state": "saved"}
+
+        ocr = sys.modules["pearnly_cowork.ocr.execution.service"]
+        ocr.submit = submit
+        ocr.recognized = lambda source: {"name": "B-earlier", "state": earlier} if earlier else None
+        return ocr
+
+    def test_naming_the_company_after_recognizing_gives_back_the_earlier_result_to_push(self):
+        self._refuse_other_choices()
+        first = json.loads(tools.recognize_attachments({"files": ["file_abc"], "direction": "purchase"}))["results"][0]
+        self.assertNotIn("recognized_before", first)
+        again = json.loads(tools.recognize_attachments({
+            "files": ["file_abc"], "direction": "purchase", "target": "express", "connection": "C1",
+            "account_set_key": "K"}))["results"][0]
+        self.assertEqual((again["batch"], again["state"], again["recognized_before"]), ("B-earlier", "saved", True))
+        self.assertIn("cowork_push_documents with connection and account_set_key", again["note"])
+        self.assertIn("not recognized or charged again", again["note"])
+        self.assertEqual(again["documents"][0]["invoice_no"], "R308")
+        self.assertNotIn("status", again)
+        self.assertEqual([key for _name, _content, key in self.created], ["assistant:file_abc"] * 2)
+
+    def test_an_earlier_failed_recognition_is_tried_again_with_the_new_choices(self):
+        self._refuse_other_choices("failed", taken=("assistant:file_f",))
+        out = json.loads(tools.recognize_attachments({"files": ["file_f"], "target": "express", "connection": "C1",
+                                                      "account_set_key": "K"}))["results"][0]
+        self.assertEqual((out["batch"], out["attempt"]), ("B-assistant:file_f:2", 2))
+        self.assertNotIn("recognized_before", out)
+        self.assertEqual(self.submitted[-1][2]["account_set_key"], "K")
+
+    def test_a_refusal_without_an_earlier_recognition_is_still_reported(self):
+        ocr = self._refuse_other_choices(None)
+        ocr.submit = lambda source, key, **choices: (_ for _ in ()).throw(frappe.ValidationError("Invalid push target."))
+        out = json.loads(tools.recognize_attachments({"files": ["file_abc"]}))["results"][0]
+        self.assertEqual(out, {"file": "file_abc", "status": "not_started", "reason": "Invalid push target."})
+
+
 if __name__ == "__main__":
     unittest.main()
