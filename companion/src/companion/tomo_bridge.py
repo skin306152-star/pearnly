@@ -114,6 +114,8 @@ class TomoBridge(QObject):
             return self._changed(s.set_always_on(bool(args.get("enabled"))))
         if method == "update":
             return self._changed(s.update())
+        if method == "download_update":
+            return s.download()
         if method == "logs":
             return s.open_logs()
         if method == "window":

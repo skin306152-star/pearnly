@@ -88,6 +88,7 @@ class DesktopSettings:
     def __init__(self, *, states: Callable[[], Mapping[str, tuple]] = dict,
                  update_status: Callable[[], tuple] = lambda: ("none", ""),
                  on_update: Callable[[], None] = lambda: None,
+                 on_download: Callable[[], None] = lambda: None,
                  on_profiles_changed: Callable[[], None] = lambda: None,
                  on_folders_changed: Callable[[], None] = lambda: None,
                  on_always_on: Callable[[bool], None] = lambda enabled: None,
@@ -96,6 +97,7 @@ class DesktopSettings:
         self._states = states
         self._update_status = update_status
         self._on_update = on_update
+        self._on_download = on_download
         self._on_profiles_changed = on_profiles_changed
         self._on_folders_changed = on_folders_changed
         self._on_always_on = on_always_on
@@ -271,6 +273,11 @@ class DesktopSettings:
 
     def update(self) -> dict:
         self._on_update()
+        return {"ok": True}
+
+    def download(self) -> dict:
+        """自动更新被 Windows 拦下时的「下载新版」：在系统浏览器打开官网下载（托盘注入，update_block.py）。"""
+        self._on_download()
         return {"ok": True}
 
     @staticmethod

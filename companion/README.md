@@ -71,4 +71,9 @@ Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/productio
   加进 root 的 `authorized_keys`；私钥存为仓库 Actions 密钥 `COMPANION_PUBLISH_SSH_KEY`（`PRODUCTION_KNOWN_HOSTS` 与镜像发布共用）。
   接收脚本随生产镜像的部署目录同步（`check-deploy-image` 要求同源）。
 
-安装包没有代码签名，Windows 下载时可能提示「未知发布者」；要去掉需另购代码签名证书。
+安装包没有代码签名，Windows 下载时可能提示「未知发布者」；要去掉需另购代码签名证书（用户 2026-10-08 定不买）。
+开着「智能应用控制」等应用控制的电脑会拦下后台静默安装（2026-10-13 录制笔记本）。CC 桌面版不绕开这种拦截，只让人看得见、
+有出路（`update_block.py`）：启动安装包时系统按策略拒绝（4551 / 577 / 1260 等错误码）记成「被拦」，托盘菜单与设置页「版本」
+一行显示一句 +「下载新版」（系统浏览器打开上表的固定安装包地址，手动安装），同一版本只弹一次通知；同一版本隔 1、2、4 天
+再试，之后每 7 天，重开 CC 也照这个节奏（记在 `%APPDATA%\Pearnly\update_state.json`）；心跳与文件夹同步带
+`update_blocked`（版本 + UTC 时刻），网页设置「连接」那台电脑下面多一句。

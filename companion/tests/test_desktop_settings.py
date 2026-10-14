@@ -56,6 +56,16 @@ def test_snapshot_lists_members_with_status_folders_and_the_machine_roots(tmp_pa
     assert snap["update"] == {"state": "found", "version": "1.4.1"}
 
 
+def test_a_blocked_update_reaches_the_page_and_download_goes_through_the_tray(tmp_path, monkeypatch):
+    # 教程问题第 1 条：自动更新被 Windows 拦下 → 设置页「版本」一行显示被拦 +「下载新版」（托盘在系统浏览器打开官网下载）
+    store = _store(tmp_path, monkeypatch)
+    opened = []
+    settings = _settings(store, update_status=lambda: ("blocked", "1.5.2"), on_download=lambda: opened.append(True))
+    assert settings.snapshot()["update"] == {"state": "blocked", "version": "1.5.2"}
+    assert settings.download() == {"ok": True}
+    assert opened == [True]
+
+
 def test_status_maps_worker_snapshot_and_paused_wins():
     active, paused = SimpleNamespace(paused=False), SimpleNamespace(paused=True)
     assert status_key(active, ("idle", "")) == "online"

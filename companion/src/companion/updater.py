@@ -23,6 +23,8 @@ log = get_logger(__name__)
 
 DOWNLOAD_SITE = "https://pearnly.com"
 _LATEST_PATH = "/downloads/companion/latest.json"
+# 「下载新版」（自动更新被 Windows 拦下时，update_block.py）：官网与网页「下载 CC 桌面版」同一个固定地址，始终是最新正式版
+DOWNLOAD_PAGE = DOWNLOAD_SITE + "/downloads/companion/CC-Setup.exe"
 
 
 def check_update(backend_url: str, current_version: str = VERSION, timeout: float = 8.0) -> Optional[dict]:

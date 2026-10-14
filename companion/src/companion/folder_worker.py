@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from . import folder_plan as plan
+from . import update_block
 from .queue_client import _device_name
 from .folder_client import FolderClient, Refused, put_direct
 from .folder_store import Ledger, connection_key, roots
@@ -176,11 +177,13 @@ class FolderIntake:
             local_roots = roots(key)
             # device：本机名，网页文件夹下拉在有几台小助手时用它区分电脑（MR.ERP 任务可借用任一台，2026-10-09）。
             # rule_pending：上一轮算好的各任务待处理数（与 rule_health 同一节奏）；notices_after：对话提醒收到哪一刻为止。
+            # update_blocked：自动更新被 Windows 拦下（同心跳；只读文件夹的 MR.ERP 成员没有心跳，靠这里报）。
             response = client.sync({"version": VERSION, "device": _device_name(), "roots": self._report(key, local_roots),
                                     "runs": list(ledger.runs), "watch": ledger.watch(),
                                     "rule_health": self._health.get(key, {}),
                                     "rule_pending": self._rule_pending.get(key, {}),
-                                    "notices_after": ledger.notices_after or 0.0})
+                                    "notices_after": ledger.notices_after or 0.0,
+                                    "update_blocked": update_block.reported()})
             if not response.get("ok"):
                 return
             if local_roots:

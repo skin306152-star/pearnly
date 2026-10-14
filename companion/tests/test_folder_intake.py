@@ -760,6 +760,24 @@ def test_folder_only_members_hear_about_new_versions_from_the_sync(tmp_path):
     assert offered == [("99.0.0", "/new.exe")]
 
 
+def test_folder_only_members_report_a_blocked_update_in_the_sync(tmp_path):
+    # 教程问题第 1 条：只读文件夹的成员没有心跳，「自动更新被 Windows 拦下」随文件夹同步报（版本 + UTC 时刻）；没被拦报 None
+    from companion import update_block
+
+    cfg = _cfg()
+    cfg.kind = "folder"
+    key = folder_store.connection_key(cfg)
+    fake = FakeClient([])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    memory = update_block.UpdateMemory(tmp_path / "update_state.json", current="1.5.1")
+    memory.attempt("1.5.2", 1_760_000_000.0)
+    memory.finish("1.5.2", "blocked", 1_760_000_000.0, 4551)
+    worker.round(cfg, key)
+    assert [sync["update_blocked"] for sync in _syncs(fake)] == [
+        None, {"version": "1.5.2", "at": "2025-10-09T08:53:20Z"}]
+
+
 def test_rules_run_in_the_order_the_server_sends(tmp_path, monkeypatch):
     # F7：同一账套的存货进货任务由云端排在销售之前，本机不另排序
     cfg, key, folder, rule = _setup_rule(tmp_path, monkeypatch, created={})

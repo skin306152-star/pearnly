@@ -411,6 +411,7 @@ def _run_periodic(
     ):
         state["last_heartbeat"] = now
         try:
+            from . import update_block
             from .payload_contract import SUPPORTED_PAYLOAD_VERSIONS
             from .version import VERSION
 
@@ -520,6 +521,8 @@ def _run_periodic(
                 catalog=catalog,
                 companion_version=VERSION,
                 max_payload_version=max(SUPPORTED_PAYLOAD_VERSIONS),
+                # 自动更新被 Windows 拦下（版本 + 时刻）；没被拦报 None，云端据此清掉旧值（update_block.py）
+                update_blocked=update_block.reported(),
                 **refresh_fields,
             )
             if not slim:
