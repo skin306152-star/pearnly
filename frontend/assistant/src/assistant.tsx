@@ -5,12 +5,15 @@
 //   手机         — 左上角圆形菜单按钮；抽屉里大号「CC」、搜索、定时任务、最近对话，底部头像与「新建会话」
 //
 // 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
+// 公司主档（ADR-020，只在 Cowork：共用层 projects() 的 kind 为 company 时）：侧栏「公司」「待处理 N」两行、按公司分组，
+// 视图多「公司页」「主档页」「待处理」；对话顶栏「公司 ›」与月份分店胶囊；新对话输入框上方的公司条。ERP / DMS 与今天一样。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  Building2Icon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -22,6 +25,7 @@ import {
   FileUpIcon,
   FilesIcon,
   GlobeIcon,
+  InboxIcon,
   InfoIcon,
   LoaderIcon,
   LogOutIcon,
@@ -35,8 +39,8 @@ import {
   SearchIcon,
   SettingsIcon,
   SquareIcon,
-  StarIcon,
-  StarOffIcon,
+  PinIcon,
+  PinOffIcon,
   TrashIcon,
   XIcon,
 } from "lucide-react";
@@ -44,6 +48,17 @@ import { DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
+import {
+  ComposerCompany,
+  ConversationCompany,
+  ConversationFiling,
+  MobileFilingItems,
+  MoveToMenu,
+} from "@/components/assistant-ui/projects";
+import { AddCompanyDialog } from "@/components/add-company";
+import { Companies } from "@/components/companies";
+import { CompanyPage } from "@/components/company-page";
+import { PendingView } from "@/components/pending";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
 import { InstallBanner, InstallMenuItem, InstallProvider } from "@/components/install-prompt";
@@ -72,7 +87,9 @@ import { useDeepLinks, useNavHistory, useView, ViewContext, type View } from "@/
 import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
-import { greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
+import { setDraft, useProjects } from "@/lib/managed-agents/projects";
+import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
+import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
 
@@ -104,6 +121,8 @@ function Welcome() {
           {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
         </h1>
       </div>
+      {/* 公司条（Cowork 至少有一家公司时）：这段新对话挂在哪家、处理哪个月 */}
+      <ComposerCompany />
     </div>
   );
 }
@@ -256,7 +275,7 @@ function AppMenu() {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu">
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => { setView("chat"); aui.threads().switchToNewThread(); }}>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => { setView("chat"); setDraft({}); aui.threads().switchToNewThread(); }}>
             <span className="flex-1">{t("newChatPill")}</span>
             <Shortcut keys="Ctrl N" />
           </DropdownMenu.Item>
@@ -362,12 +381,57 @@ function SidebarNav() {
     <div className="flex flex-col gap-0.5">
       <ThreadListNew onClick={() => setView("chat")} />
       {hasScheduledTasks(profile) && (
-        <button type="button" className="cc-nav-item" title={t("scheduledTasks")} data-active={view === "tasks" || undefined} onClick={() => setView("tasks")}>
+        <button
+          type="button"
+          className="cc-nav-item"
+          title={t("scheduledTasks")}
+          data-active={view === "tasks" || undefined}
+          onClick={() => {
+            useCompanyNav.setState({ taskCompany: "", taskFocus: "" });
+            setView("tasks");
+          }}
+        >
           <span className="cc-nav-icon"><ClockIcon /></span>
           <span className="cc-nav-label">{t("scheduledTasks")}</span>
         </button>
       )}
+      <CompanyNav />
     </div>
+  );
+}
+
+/** 侧栏「公司」与「待处理 N」（只在有公司分组的产品；N 为 0 时不显示待处理）。onPick：手机上点了收起抽屉。 */
+function CompanyNav({ onPick }: { onPick?: () => void }) {
+  const kind = useProjects((s) => s.kind);
+  const total = usePendingCounts((s) => s.total);
+  const { view, setView } = useView();
+  if (!kind) return null;
+  const go = (next: View) => {
+    if (next === "pending") useCompanyNav.setState({ pendingCompany: "" });
+    setView(next);
+    onPick?.();
+  };
+  // 「待处理 N」紧跟在「定时任务」下面（补充乙），然后是「公司」
+  return (
+    <>
+      {total > 0 && (
+        <button type="button" className="cc-nav-item" title={co.pending} data-active={view === "pending" || undefined} onClick={() => go("pending")}>
+          <span className="cc-nav-icon"><InboxIcon /></span>
+          <span className="cc-nav-label flex-1">{co.pending}</span>
+          <span className="cc-count">{total}</span>
+        </button>
+      )}
+      <button
+        type="button"
+        className="cc-nav-item"
+        title={co.companies}
+        data-active={view === "companies" || view === "company" || undefined}
+        onClick={() => go("companies")}
+      >
+        <span className="cc-nav-icon"><Building2Icon /></span>
+        <span className="cc-nav-label">{co.companies}</span>
+      </button>
+    </>
   );
 }
 
@@ -445,11 +509,20 @@ function MobileDrawer() {
       )}
       <div className="cc-drawer flex-1 overflow-y-auto px-3 pb-28" onClickCapture={pick}>
         {hasScheduledTasks(profile) && (
-          <button type="button" className="cc-nav-item" onClick={() => { setView("tasks"); close(); }}>
+          <button
+            type="button"
+            className="cc-nav-item"
+            onClick={() => {
+              useCompanyNav.setState({ taskCompany: "", taskFocus: "" });
+              setView("tasks");
+              close();
+            }}
+          >
             <span className="cc-nav-icon"><ClockIcon /></span>
             {t("scheduledTasks")}
           </button>
         )}
+        <CompanyNav onPick={close} />
         <ThreadList search={search} />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
@@ -465,6 +538,7 @@ function MobileDrawer() {
           className="cc-pill pointer-events-auto"
           onClick={() => {
             setView("chat");
+            setDraft({});
             aui.threads().switchToNewThread();
             close();
           }}
@@ -504,7 +578,7 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
           <DrawerIcon />
         </button>
         <span />
-        {inChat ? <MobileChatPill onNew={() => { setView("chat"); aui.threads().switchToNewThread(); }} /> : <span className="cc-mtopbar-slot" />}
+        {inChat ? <MobileChatPill onNew={() => { setView("chat"); setDraft({}); aui.threads().switchToNewThread(); }} /> : <span className="cc-mtopbar-slot" />}
       </div>
     );
   }
@@ -513,7 +587,7 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
       <div className="cc-titlebar shrink-0 justify-between pe-0" {...dragHandlers(win.toggle)}>
         <div className="flex min-w-0 items-center gap-1">
           {!open && <TitleBarLeft nav={nav} />}
-          {inChat && <ConversationMenu />}
+          {inChat && <ConversationTitle />}
         </div>
         <div className="flex items-center gap-1">
           {files}
@@ -530,17 +604,18 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
           <PanelLeftIcon />
         </button>
       )}
-      {inChat && <ConversationMenu />}
+      {inChat && <ConversationTitle />}
       <div className="ms-auto flex items-center">{files}</div>
     </div>
   );
 }
 
-// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（加星标、改名、删除）
+// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（置顶、改名、移到…、处理月份、删除）
 function MobileChatPill({ onNew }: { onNew: () => void }) {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
-  const starred = useAuiState((s) => !!s.threadListItem.custom?.starred);
+  const custom = useAuiState((s) => s.threadListItem.custom);
+  const starred = !!custom?.starred;
   const rename = () => {
     const next = window.prompt(t("rename"), title)?.trim();
     if (next && next !== title) void aui.threadListItem().rename(next);
@@ -558,14 +633,16 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ starred: !starred })}>
-              {starred ? <StarOffIcon /> : <StarIcon />}
+            {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
+            <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
+              {starred ? <PinOffIcon /> : <PinIcon />}
               {starred ? t("unstar") : t("star")}
             </DropdownMenu.Item>
             <DropdownMenu.Item className="cc-menu-item" onSelect={rename}>
               <PencilIcon />
               {t("rename")}
             </DropdownMenu.Item>
+            <MobileFilingItems />
             <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
               <TrashIcon />
               {t("delete")}
@@ -577,11 +654,25 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
   );
 }
 
-// 顶部对话名（同 claude.ai）：点开加星标、改名（就地改）、删除
+// 顶部：「公司 ›」+ 对话名 + 月份分店胶囊（挂在公司下时）
+function ConversationTitle() {
+  return (
+    <div className="flex min-w-0 items-center gap-1">
+      <ConversationCompany />
+      <ConversationMenu />
+      <ConversationFiling />
+    </div>
+  );
+}
+
+// 顶部对话名（同 claude.ai）：点开置顶、改名（就地改）、移到 ▸、删除
 function ConversationMenu() {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
-  const starred = useAuiState((s) => !!s.threadListItem.custom?.starred);
+  const custom = useAuiState((s) => s.threadListItem.custom);
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const starred = !!custom?.starred;
   const [renaming, setRenaming] = useState(false);
   if (renaming) return <ThreadListItemRename onDone={() => setRenaming(false)} className="w-72" />;
   return (
@@ -594,14 +685,16 @@ function ConversationMenu() {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ starred: !starred })}>
-            {starred ? <StarOffIcon /> : <StarIcon />}
+          {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
+          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
+            {starred ? <PinOffIcon /> : <PinIcon />}
             {starred ? t("unstar") : t("star")}
           </DropdownMenu.Item>
           <DropdownMenu.Item className="cc-menu-item" onSelect={() => setRenaming(true)}>
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
+          <MoveToMenu sessionId={remoteId} localId={localId} />
           <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
             <TrashIcon />
             {t("delete")}
@@ -647,6 +740,9 @@ function DesktopBridge() {
   // 一打开就接上实时通道：侧栏才看得到后台对话在跑、跑完（lib/managed-agents/activity.ts）
   useEffect(() => listen(), []);
   useEffect(() => void syncPush(), []);
+  // 侧栏「待处理 N」与公司组头的数：只在有公司分组的产品读（推送状态的站点事件来了、回到前台再读）
+  const companyKind = useProjects((s) => s.kind);
+  useEffect(() => (companyKind ? watchPendingCounts() : undefined), [companyKind]);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
   // 在定时任务页时当前对话不算「正看着」：推来的提醒留圆点、不报看过；回到对话页才算
   useEffect(() => setChatView(view === "chat"), [view]);
@@ -704,6 +800,12 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
       <div className="relative flex min-h-0 flex-1 flex-row">
         {view === "tasks" ? (
           <ScheduledTasks />
+        ) : view === "companies" ? (
+          <Companies />
+        ) : view === "company" ? (
+          <CompanyPage />
+        ) : view === "pending" ? (
+          <PendingView />
         ) : (
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
@@ -763,6 +865,7 @@ function Workspace() {
           {/* 设置在 InstallProvider 里：「通知」一行在 iPhone 浏览器里要打开「添加到主屏幕」的步骤 */}
           <InstallProvider>
             <Settings />
+            <AddCompanyDialog />
             <SidebarProvider style={sidebarWidth.style}>
               <Layout results={results} onSidebarResize={sidebarWidth.update} />
             </SidebarProvider>

@@ -10,6 +10,11 @@
 //         Express 的默认处理；保存前 MR.ERP 的菜单与默认值没定就问一次。
 // 接口与 Cowork 页面同一套（pearnly_cowork.folder_intake.api / connections.api / companion.api），权限由服务端判；
 // 词条取 Cowork 的术语表（folder_intake.api.terms），不另存翻译。样式只用 globals.css 的 .cc-* 与变量。
+//
+// 公司主档（ADR-020）：任务表不加字段，属于哪家公司按主档页列出的任务推出来（companies.api.detail 的 tasks）。
+//   ?view=tasks&company=<公司>（主档页点任务、「＋」）只看这家，顶上一枚可关掉的公司胶囊；点的那条定位并高亮；
+//   主档页「＋」接着打开新建表单，预填覆盖本月的账套（本机绑了文件夹时连同文件夹）。
+//   全部任务时，我侧栏里那几家公司的任务在位置前面写上公司名。换文件夹、删公司都不改任务（避免重跑、重复扣费）。
 
 import {
   AlertCircleIcon,
@@ -28,8 +33,10 @@ import {
 import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
+import { cachedDetail, type TaskSeed, useCompanyNav } from "@/lib/companies";
 import { getMethod, postMethod } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
+import { useProjects } from "@/lib/managed-agents/projects";
 import { t } from "@/i18n";
 
 const API = "pearnly_cowork.folder_intake.api.";
@@ -251,6 +258,38 @@ function Confirm({ text, label, onYes, onClose, danger }: { text: string; label:
   );
 }
 
+// ── 公司 ────────────────────────────────────────────────────────────────────────────────────────
+
+const COMPANY_LOOKUP = 20; // 全部任务时最多读这么多家（我侧栏里的）的任务来标公司名
+
+/** 任务编号 → 公司名（只看这家时只读这家；全部时读我侧栏里的几家）；filter：只看这家时它的任务编号。 */
+function useTaskCompanies(only: string): { names: Record<string, string>; filter: Set<string> | null; title: string } {
+  const projects = useProjects((s) => s.projects);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<Set<string> | null>(null);
+  const [title, setTitle] = useState("");
+  const ids = (only ? [only] : projects.slice(0, COMPANY_LOOKUP).map((p) => p.id)).join(",");
+  useEffect(() => {
+    let alive = true;
+    setFilter(only ? new Set() : null);
+    void Promise.all(ids.split(",").filter(Boolean).map((id) => cachedDetail(id))).then((details) => {
+      if (!alive) return;
+      const out: Record<string, string> = {};
+      for (const d of details) for (const task of d?.tasks ?? []) out[task.name] = d!.company.title;
+      setNames(out);
+      if (only) {
+        const d = details[0];
+        setTitle(d?.company.title ?? "");
+        setFilter(new Set((d?.tasks ?? []).map((task) => task.name)));
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ids, only]);
+  return { names, filter, title };
+}
+
 // ── 列表 ────────────────────────────────────────────────────────────────────────────────────────
 
 export function ScheduledTasks() {
@@ -277,6 +316,24 @@ export function ScheduledTasks() {
   useLiveRefresh(reload, { events: [FOLDER_EVENT], busy: Boolean(rules?.some((r) => (r.results?.moving ?? 0) > 0 && r.agent_fresh)) });
 
   const dayLabel = (d: number) => days(tr).find((x) => x.value === String(d))?.label ?? "";
+  const taskCompany = useCompanyNav((s) => s.taskCompany);
+  const focus = useCompanyNav((s) => s.taskFocus);
+  const seed = useCompanyNav((s) => s.taskSeed);
+  const companies = useTaskCompanies(taskCompany);
+  const [seeded, setSeeded] = useState<TaskSeed | null>(null);
+  // 主档页「＋」：接着打开新建表单（预填账套、文件夹）
+  useEffect(() => {
+    if (!seed) return;
+    setSeeded(seed);
+    setEditing("new");
+    useCompanyNav.setState({ taskSeed: null });
+  }, [seed]);
+  // 主档页点的那条：滚到它
+  useEffect(() => {
+    if (!focus || !rules) return;
+    document.querySelector(`[data-task="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: "center" });
+  }, [focus, rules]);
+  const shown = rules && companies.filter ? rules.filter((rule) => companies.filter!.has(rule.name)) : rules;
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
@@ -288,12 +345,27 @@ export function ScheduledTasks() {
             {tr("cowork.folder.new")}
           </button>
         </div>
+        {taskCompany && (
+          <div className="mb-4">
+            <span className="cc-chip">
+              {companies.title}
+              <button
+                type="button"
+                className="-me-1 flex items-center"
+                aria-label={t("close")}
+                onClick={() => useCompanyNav.setState({ taskCompany: "", taskFocus: "" })}
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </span>
+          </div>
+        )}
         {error && <div className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
-        {rules === null ? (
+        {rules === null || shown === null ? (
           <div className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => <div key={i} className="cc-card h-20 animate-pulse" />)}
           </div>
-        ) : rules.length === 0 ? (
+        ) : shown.length === 0 ? (
           <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
             <ClockIcon className="size-8 text-ink-3" />
             <button type="button" className="cc-btn" data-primary="" onClick={() => setEditing("new")}>
@@ -303,11 +375,16 @@ export function ScheduledTasks() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {rules.map((rule) => {
+            {shown.map((rule) => {
               const s = status(rule, tr);
               const target = ADAPTERS.find((a) => a.adapter === rule.adapter)?.label ?? "";
               return (
-                <div key={rule.name} className="cc-card cc-card-hover cc-enter flex items-start gap-3 px-4 py-3">
+                <div
+                  key={rule.name}
+                  data-task={rule.name}
+                  data-selected={focus === rule.name ? "" : undefined}
+                  className="cc-card cc-card-hover cc-enter flex items-start gap-3 px-4 py-3"
+                >
                   <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(rule)}>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-medium text-ink">{rule.title}</span>
@@ -317,7 +394,7 @@ export function ScheduledTasks() {
                       <span>{[target, rule.account_label].filter(Boolean).join(" · ")}</span>
                       <span className="flex items-center gap-1">
                         <FolderIcon className="size-3.5" />
-                        {rule.folder || rule.root_label || ""}
+                        {[companies.names[rule.name] ?? "", rule.folder || rule.root_label || ""].filter(Boolean).join(" · ")}
                       </span>
                       <span className="flex items-center gap-1">
                         <ClockIcon className="size-3.5" />
@@ -420,7 +497,11 @@ export function ScheduledTasks() {
         <RuleDialog
           tr={tr}
           rule={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
+          seed={editing === "new" ? seeded : null}
+          onClose={() => {
+            setEditing(null);
+            setSeeded(null);
+          }}
           onSaved={async () => {
             setEditing(null);
             toast.show(tr("Saved"));
@@ -500,19 +581,21 @@ function remembered(name: string) {
   }
 }
 
-function RuleDialog({ tr, rule, onClose, onSaved }: { tr: Tr; rule: Rule | null; onClose: () => void; onSaved: () => Promise<void> }) {
+function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
+  tr: Tr; rule: Rule | null; seed?: TaskSeed | null; onClose: () => void; onSaved: () => Promise<void>;
+}) {
   const [snapshot, setSnapshot] = useState<Snapshot>({ connections: {}, agent: null });
-  const [target, setTarget] = useState<string>(rule?.adapter || "");
+  const [target, setTarget] = useState<string>(rule?.adapter || seed?.adapter || "");
   const [title, setTitle] = useState(rule?.title || "");
   const [groups, setGroups] = useState<Group[]>([]);
   const [catalogNote, setCatalogNote] = useState("");
   const [year, setYear] = useState("");
-  const [accountSet, setAccountSet] = useState(rule?.account_set_key || "");
+  const [accountSet, setAccountSet] = useState(rule?.account_set_key || seed?.account_set_key || "");
   const [direction, setDirection] = useState(rule?.direction || "purchase");
   const [postingKind, setPostingKind] = useState(rule?.posting_kind || "service");
   const [payment, setPayment] = useState(rule?.payment || "");
   const [stockGroup, setStockGroup] = useState("");
-  const [folder, setFolder] = useState(rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : "");
+  const [folder, setFolder] = useState(rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : seed?.folder || "");
   const [runDay, setRunDay] = useState(String(rule?.run_day ?? 1));
   const [runTime, setRunTime] = useState(rule?.run_time || "22:00");
   const [remind, setRemind] = useState(Boolean(rule?.remind));

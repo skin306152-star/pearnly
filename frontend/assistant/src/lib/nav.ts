@@ -3,16 +3,20 @@
 //
 // 深链接（提醒的推送通知、桌面端托盘通知点开，2026-10-12）：
 //   /assistant?c=<对话>    → 打开那段对话；不是本人的、不存在或已删 → 有定时任务的产品开定时任务页，否则新对话
-//   /assistant?view=tasks  → 定时任务页
+//   /assistant?view=tasks  → 定时任务页（带 &company=<公司> 只看这家公司的任务）
+//   /assistant?view=companies → 公司页；/assistant?company=<公司> → 这家公司的主档页
+//   /assistant?view=pending → 待处理（带 &company=<公司> 只看这家）
+//   公司、待处理只在有定时任务的产品（Cowork）里有；别的产品同「找不到」处理
 // 来源三处：打开页面时的地址参数（处理完 replaceState 回 /assistant，刷新不再重开，桌面端记住的地址也是干净的）、
 // 后台脚本点通知发来的 pearnly-open（pearnly_core/assistant/service_worker.js）、桌面端的 tomo-open（window.tomo.open）。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCompanyNav } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
 
-export type View = "chat" | "tasks";
-type Entry = { view: View; thread: string };
+export type View = "chat" | "tasks" | "companies" | "company" | "pending";
+type Entry = { view: View; thread: string; company: string };
 
 export const ViewContext = createContext<{ view: View; setView: (v: View) => void }>({ view: "chat", setView: () => {} });
 export const useView = () => useContext(ViewContext);
@@ -20,6 +24,8 @@ export const useView = () => useContext(ViewContext);
 export function useNavHistory(view: View, setView: (v: View) => void) {
   const aui = useAui();
   const thread = useAuiState((s) => s.threads.mainThreadId) ?? "";
+  // 主档页看的是哪家也记进去：在两家公司之间来回也能后退
+  const company = useCompanyNav((s) => (view === "company" ? s.company : ""));
   const stack = useRef<Entry[]>([]);
   const index = useRef(-1);
   const replaying = useRef(false);
@@ -31,11 +37,11 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       replaying.current = false;
       return;
     }
-    if (current && current.view === view && current.thread === thread) return;
-    stack.current = [...stack.current.slice(0, index.current + 1), { view, thread }].slice(-50);
+    if (current && current.view === view && current.thread === thread && current.company === company) return;
+    stack.current = [...stack.current.slice(0, index.current + 1), { view, thread, company }].slice(-50);
     index.current = stack.current.length - 1;
     bump((n) => n + 1);
-  }, [view, thread]);
+  }, [view, thread, company]);
 
   const go = useCallback(
     (step: number) => {
@@ -43,6 +49,7 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
       if (!target) return;
       index.current += step;
       replaying.current = true;
+      if (target.company) useCompanyNav.setState({ company: target.company });
       setView(target.view);
       if (target.thread && target.thread !== thread) void aui.threads().switchToThread(target.thread);
       bump((n) => n + 1);
@@ -60,10 +67,10 @@ export function useNavHistory(view: View, setView: (v: View) => void) {
 
 // ── 深链接 ──────────────────────────────────────────────────────────────────────────────────────
 
-/** 要打开的东西：c 是对话编号；view 是 "tasks" 时开定时任务页。 */
-export type Target = { c: string; view: string };
+/** 要打开的东西：c 是对话编号；view 是 tasks / companies / pending 时开那一页；company：主档页或只看这家。 */
+export type Target = { c: string; view: string; company?: string };
 
-// 同服务端 assistant/contracts.py 的 OPAQUE_ID
+// 同服务端 assistant/contracts.py 的 OPAQUE_ID（公司编号也是这个形状）
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/;
 
 /** 从地址里读 ?c= / ?view=（只认本站 /assistant 下的地址）。 */
@@ -77,8 +84,10 @@ export function targetOf(url: string): Target | null {
   if (parsed.origin !== location.origin || !parsed.pathname.startsWith("/assistant")) return null;
   const c = parsed.searchParams.get("c") ?? "";
   const view = parsed.searchParams.get("view") ?? "";
-  if (!c && !view) return null;
-  return { c, view };
+  const raw = parsed.searchParams.get("company") ?? "";
+  const company = SESSION_ID.test(raw) ? raw : "";
+  if (!c && !view && !company) return null;
+  return company ? { c, view, company } : { c, view };
 }
 
 type Aui = ReturnType<typeof useAui>;
@@ -126,7 +135,32 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         latest.current.setView("chat");
         if (await openConversation(aui, target.c)) return;
         if (alive) await fallback();
-      } else if (target.view === "tasks") await fallback();
+        return;
+      }
+      const company = target.company ?? "";
+      if (target.view === "tasks") {
+        useCompanyNav.setState({ taskCompany: company });
+        await fallback();
+        return;
+      }
+      if (target.view === "companies" || target.view === "pending" || company) {
+        // 公司、待处理只在 Cowork（有定时任务的产品）
+        const cowork = await latest.current.hasTasks().catch(() => false);
+        if (!alive) return;
+        if (!cowork) {
+          latest.current.setView("chat");
+          void aui.threads().switchToNewThread();
+          return;
+        }
+        if (target.view === "pending") {
+          useCompanyNav.setState({ pendingCompany: company });
+          latest.current.setView("pending");
+        } else if (target.view === "companies" || !company) latest.current.setView("companies");
+        else {
+          useCompanyNav.setState({ company });
+          latest.current.setView("company");
+        }
+      }
     };
 
     // 1) 打开页面时的地址参数：处理完把 c、view 从地址里去掉
@@ -135,6 +169,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       const url = new URL(location.href);
       url.searchParams.delete("c");
       url.searchParams.delete("view");
+      url.searchParams.delete("company");
       history.replaceState(history.state, "", url.pathname + url.search + url.hash);
       void open(initial);
     }

@@ -19,8 +19,12 @@
 //                   first turn arrives as a sidebar change and replaces it in place
 //                   (list-sync.ts), on this device and every other one
 //
-// 侧栏多设备同步（list-sync.ts）把别处的改名、星标、归档、删除并进本页时也走组件库的这几个操作；那时服务端已经改好了，
+// 侧栏多设备同步（list-sync.ts）把别处的改名、置顶、归档、删除并进本页时也走组件库的这几个操作；那时服务端已经改好了，
 // 这里不再发请求（takeQuiet）。本页自己改的记下时刻（touch），核对时不拿改之前读到的一页盖掉它。
+//
+// 按公司分组（projects.ts，只在产品有公司分组时）：列表用 grouped=1，第一页 = 全部置顶 + 最近一页 + 每家公司最新几条；
+// 之后组件库每要一页，按复合游标只翻一组（「显示更多」要的那组 → 最近 → 活动最近、还有更多的公司）。每一页带回的
+// 归属（公司、处理月份、分店）记进 filings（组件库遇到已认得的编号不更新，所以不放在 custom 里）。新对话建在待建的公司里。
 
 import type { RemoteThreadListAdapter } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -29,6 +33,7 @@ import {
   createSession,
   deleteSession,
   getSession,
+  listGrouped,
   listSessions,
   renameSession,
   type SessionPage,
@@ -36,6 +41,20 @@ import {
 } from "./api";
 import { clearUnread, noteRun, runningSessions, seedUnread } from "./activity";
 import { type SessionSummary, splitAttachmentNote } from "./events";
+import {
+  decodeCursor,
+  encodeCursor,
+  type Filing,
+  filingFrom,
+  movedSince,
+  noteCursor,
+  noteFilings,
+  pickGroup,
+  projectOrder,
+  projectsReady,
+  takeRequestedGroup,
+  useProjects,
+} from "./projects";
 import { latestTitle, listen } from "./realtime";
 import { dropSessionController } from "./session-controller";
 
@@ -49,6 +68,18 @@ export function absorb(page: SessionPage, asked: number) {
     else if (s.unread === false) clearUnread(s.id, asked);
   }
   for (const [id, run] of Object.entries(page.runs ?? {})) noteRun(id, run);
+  // 归属：每一页都按服务端的覆盖（已认得的编号也覆盖）；请求发出后本页自己移动或新建过的不盖
+  const filings: Record<string, Filing> = {};
+  for (const s of page.sessions) {
+    const filing = filingFrom(s);
+    if (filing && !movedSince(s.id, asked) && !touchedSince(s.id, asked)) filings[s.id] = filing;
+  }
+  noteFilings(filings);
+}
+
+/** 侧栏第一页（list 与 list-sync 的核对共用）：有公司分组时按公司分组取。 */
+export async function firstPage(check: readonly string[]): Promise<SessionPage> {
+  return (await projectsReady()) ? listGrouped({ check }) : listSessions(undefined, check);
 }
 
 // ---------------------------------------------------------------- quiet：并入别处的改动时不再发请求
@@ -105,22 +136,51 @@ const toThreadMetadata = (s: SessionSummary) => ({
 export const sessionListAdapter: RemoteThreadListAdapter = {
   async list(params) {
     const asked = Date.now();
-    // 第一页顺带核对侧栏标着在跑的对话（在别处跑完了、推送漏了的不再转圈）
-    const page = await listSessions(params?.after, params?.after ? [] : runningSessions());
+    const after = params?.after;
+    if (!(await projectsReady())) {
+      // 第一页顺带核对侧栏标着在跑的对话（在别处跑完了、推送漏了的不再转圈）
+      const page = await listSessions(after, after ? [] : runningSessions());
+      absorb(page, asked);
+      return { threads: page.sessions.map(toThreadMetadata), nextCursor: page.nextCursor ?? undefined };
+    }
+    if (!after) {
+      const page = await firstPage(runningSessions());
+      absorb(page, asked);
+      const cursor = { recent: page.nextCursor || null, groups: { ...(page.groups ?? {}) } };
+      noteCursor(cursor);
+      return { threads: page.sessions.map(toThreadMetadata), nextCursor: encodeCursor(cursor) };
+    }
+    const cursor = decodeCursor(after);
+    const group = pickGroup(cursor, takeRequestedGroup(), projectOrder());
+    if (group === undefined) {
+      noteCursor(cursor);
+      return { threads: [], nextCursor: undefined };
+    }
+    const page = await listGrouped({ group, after: group ? cursor.groups[group] : (cursor.recent ?? "") });
     absorb(page, asked);
-    return {
-      threads: page.sessions.map(toThreadMetadata),
-      nextCursor: page.nextCursor ?? undefined,
-    };
+    const groups = { ...cursor.groups };
+    if (group) {
+      if (page.nextCursor) groups[group] = page.nextCursor;
+      else delete groups[group];
+    }
+    const next = { recent: group ? cursor.recent : page.nextCursor || null, groups };
+    noteCursor(next);
+    return { threads: page.sessions.map(toThreadMetadata), nextCursor: encodeCursor(next) };
   },
 
-  async initialize() {
+  async initialize(threadId) {
     // Called once, on the first message (or first attachment) of a new
     // chat. The returned id becomes both remoteId and externalId, so
     // every later call keys straight off the session id.
     listen();
-    const session = await createSession();
+    // 开在待建的公司里（组头 ＋、主档页输入框、输入框上方的公司条）：拿到服务端摘要之前按本页编号归组，不先闪到「最近」
+    const state = useProjects.getState();
+    const draft = state.kind ? state.draft : undefined;
+    if (draft?.project) noteFilings({ [threadId]: draft });
+    const session = await createSession(draft?.project ? draft : undefined);
     touch(session.id);
+    const filing = filingFrom(session) ?? draft;
+    if (filing) noteFilings({ [threadId]: filing, [session.id]: filing });
     return { remoteId: session.id, externalId: session.id };
   },
 
@@ -130,7 +190,7 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     await renameSession(remoteId, newTitle);
   },
 
-  // 加星标存在本站会话表（只是整理标记）；列表按它把会话放进「已加星标」分组。
+  // 置顶（会话表 starred，只是整理标记）存在本站；列表按它把会话放进「已置顶」分组。
   async updateCustom(remoteId, custom) {
     if (takeQuiet("custom", remoteId)) return;
     touch(remoteId);

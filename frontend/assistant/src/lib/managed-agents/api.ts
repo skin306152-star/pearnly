@@ -6,16 +6,52 @@ import type { FeedEvent, RunStatus, SessionSummary } from "./events";
 /** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。要了状态（status）才带 run（读不到也没有）。 */
 export type EventsPage = { events: FeedEvent[]; full: boolean; run?: RunStatus };
 
-export type SessionPage = { sessions: SessionSummary[]; nextCursor: string | null; runs?: Record<string, RunStatus> };
+/** 侧栏一行。产品有公司分组（Cowork，ADR-020）时多三项：project 所属公司（"" = 最近）、period 处理月份（YYYY-MM，"" = 不指定）、
+ *  scope 分店号（5 位，"" = 不指定）；旧服务端、没有公司分组的产品没有这三项。 */
+export type ListedSession = SessionSummary & { project?: string; period?: string; scope?: string };
 
-/** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部加星标的）。
+/** groups：按公司分组的第一页才有，还有更多的公司 → 它的游标（"" = 这家从头翻）。 */
+export type SessionPage = {
+  sessions: ListedSession[];
+  nextCursor: string | null;
+  runs?: Record<string, RunStatus>;
+  groups?: Record<string, string>;
+};
+
+/** 侧栏一页（服务端 sessions.listing）：after 是上一页给的 nextCursor，空表示第一页（含全部置顶的）。
  *  check：侧栏以为还在回复的对话，服务端各读一次此刻的运行状态放进 runs（不给就不读）。 */
 export function listSessions(after?: string, check: readonly string[] = []): Promise<SessionPage> {
   return get("listing", { after, check: check.length ? check.join(",") : undefined });
 }
 
-export function createSession(): Promise<SessionSummary> {
-  return post("create");
+/** 按公司分组的侧栏（grouped=1）。不给 group：第一页（全部置顶 + 最近一页 + 每家公司最新几条，groups 给还有更多的公司）；
+ *  给 group（"" = 最近，或公司编号）：只翻那一组，after 是那一组的游标。 */
+export function listGrouped(page: { group?: string; after?: string; check?: readonly string[] } = {}): Promise<SessionPage> {
+  const check = page.check ?? [];
+  return get("listing", {
+    grouped: 1,
+    group: page.group,
+    after: page.group === undefined ? undefined : (page.after ?? ""),
+    check: check.length ? check.join(",") : undefined,
+  });
+}
+
+/** 一段对话挂在哪：公司、处理月份、分店（都可以是 ""）。 */
+export type Filing = { project: string; period: string; scope: string };
+
+/** 新对话；filing：开在哪家公司、处理哪个月、哪个分店（公司已被删时服务端照常建在最近，月份分店随之丢弃）。 */
+export function createSession(filing?: Partial<Filing>): Promise<ListedSession> {
+  if (!filing?.project) return post("create");
+  return post("create", {
+    project: filing.project,
+    ...(filing.period ? { period: filing.period } : {}),
+    ...(filing.scope ? { scope: filing.scope } : {}),
+  });
+}
+
+/** 对话换公司或换月份、分店（project 为 "" = 移回最近，月份分店一并清空）。不改置顶、不改最后活动时间。 */
+export function moveSession(sessionId: string, filing: Filing): Promise<ListedSession & { project?: string }> {
+  return post("move", { session_id: sessionId, project: filing.project, period: filing.period, scope: filing.scope });
 }
 
 export function getSession(id: string): Promise<SessionSummary> {

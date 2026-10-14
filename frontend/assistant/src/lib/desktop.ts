@@ -1,6 +1,7 @@
 // 桌面端（companion/ 里的 Tomo 窗口）和网页一起用的三件事，浏览器里打开时也照常生效：
 //
-//   window.tomo.ask(text) — 桌面端快捷键呼出的输入条把文字交给这里：开一个新对话发出去（空文字只开新对话）
+//   window.tomo.ask(text) — 桌面端快捷键呼出的输入条把文字交给这里：开一个新对话发出去（空文字只开新对话）；
+//                           Ctrl+N、托盘「新对话」、快捷提问都走这里，新对话一律开在「最近」
 //   回复完成通知          — 窗口不在前台时回复完成，弹系统通知（桌面端已授权；浏览器只在用户授权过时弹，经后台脚本弹，
 //                           见 lib/notify.ts），点了打开这段对话
 //   整窗拖文件            — 文件拖到对话页任何地方都加进输入框，不会被浏览器当成网页打开
@@ -13,6 +14,7 @@ import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { lang } from "@/i18n";
 import { onNotice } from "@/lib/managed-agents/activity";
+import { setDraft } from "@/lib/managed-agents/projects";
 import { deepLink, showNote } from "@/lib/notify";
 import { APP_NAME } from "@/lib/profile";
 
@@ -60,6 +62,7 @@ export function useDesktopBridge(
     window.tomo = {
       ask(text: string) {
         const value = String(text ?? "").trim();
+        setDraft({});
         aui.threads().switchToNewThread();
         if (!value) return;   // 只开新对话（桌面端菜单「新对话」）
         // 新对话切过去后下一帧才是当前对话，再把文字放进输入框发出
@@ -157,7 +160,11 @@ export type DesktopState = {
   always_on?: boolean; // 常驻模式（companion always_on.py）；旧版桌面端没有这一项
   hotkey: boolean;
   update: { state: string; version: string };
+  features?: string[]; // "company_folders"：文件夹随公司选（pick_folder）；1.6.0 以前的桌面端没有
+  legacy_roots?: LegacyRoot[];
 };
+/** 以前在设置里授权、现在没有公司和任务在用的根目录（设置里「以前授权的文件夹」一行清理用）。 */
+export type LegacyRoot = { member: string; id: string; path: string };
 export type DesktopResult = { ok: boolean; message?: string; cancelled?: boolean; roots?: string[]; other_site?: string };
 
 type Signal<A extends unknown[]> = { connect(cb: (...args: A) => void): void; disconnect(cb: (...args: A) => void): void };
@@ -226,6 +233,80 @@ export function desktop(): Promise<Desktop | null> {
     setTimeout(() => resolve(window.tomoDesktop ? wrap(window.tomoDesktop) : null), 5000);
   });
   return pending;
+}
+
+// ---------------------------------------------------------------------------
+// 公司的文件夹（ADR-020）：只在 CC 桌面版里经 Windows 原生选择框选，页面不传任何路径（桥也不收）。选好的 binding
+// 原样交给服务端（lib/companies.ts 的 bindFolder → companies.api.folder_bind）。1.6.0 以前的桌面端没有 company_folders，
+// 页面提示更新。
+
+export const COMPANY_FOLDERS = "company_folders";
+
+/** 桥给的绑定（reader / root_id / folder / label / share / device），页面不读也不改，原样转交。 */
+export type FolderBinding = { reader: string; root_id: string; folder: string; label: string; share: string; device: string };
+export type PickCode = "not_connected" | "other_site" | "program_folder" | "too_broad" | "contains_existing" | "roots_full";
+export type PickResult =
+  | { ok: true; binding: FolderBinding; name: string; created: boolean; reported: boolean }
+  | { ok: false; cancelled: true }
+  | { ok: false; cancelled?: false; code: PickCode; message: string };
+
+/** 弹原生选择框选一个公司文件夹；浏览器里回 null。 */
+export async function pickFolder(): Promise<PickResult | null> {
+  const api = await desktop();
+  if (!api) return null;
+  return (await api.call("pick_folder")) as unknown as PickResult;
+}
+
+/** 在不在 CC 桌面版里；这个桌面版能不能随公司选文件夹（state().features）。 */
+export type DesktopFeatures = { app: boolean; companyFolders: boolean };
+
+let features: DesktopFeatures | null = null;
+let readingFeatures: Promise<DesktopFeatures> | null = null;
+
+/** 读一次桥的 state().features（浏览器里直接回不在桌面版；读不到当旧桌面版）。读过就记住。 */
+export function loadDesktopFeatures(): Promise<DesktopFeatures> {
+  if (features) return Promise.resolve(features);
+  if (!isDesktopApp()) return Promise.resolve((features = { app: false, companyFolders: false }));
+  readingFeatures ??= desktop()
+    .then((api) => api?.state())
+    .then((state) => ({ app: true, companyFolders: !!state?.features?.includes(COMPANY_FOLDERS) }))
+    .catch(() => ({ app: true, companyFolders: false }))
+    .then((value) => (features = value));
+  return readingFeatures;
+}
+
+// 本机读文件夹用的连接（桥给的 binding.reader）：选过一次就记在这台电脑上，主档页据此认出「本机这一行」
+// （服务端 detail 给了 mine 就以它为准）。只是界面上认行，权限仍由服务端按连接判。
+const READERS_KEY = "cc.desktop.readers";
+
+export function knownReaders(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(READERS_KEY) || "[]") as unknown;
+    return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberReader(reader: string) {
+  if (!reader || knownReaders().includes(reader)) return;
+  try {
+    localStorage.setItem(READERS_KEY, JSON.stringify([...knownReaders(), reader].slice(-10)));
+  } catch {
+    // 存不了：这次照样能用，下次靠服务端的 mine
+  }
+}
+
+export function useDesktopFeatures(): DesktopFeatures {
+  const [value, setValue] = useState<DesktopFeatures>(features ?? { app: isDesktopApp(), companyFolders: false });
+  useEffect(() => {
+    let alive = true;
+    void loadDesktopFeatures().then((found) => alive && setValue(found));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return value;
 }
 
 // ---------------------------------------------------------------------------
