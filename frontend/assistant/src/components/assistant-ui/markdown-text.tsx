@@ -1,6 +1,6 @@
 
-import "@assistant-ui/react-markdown/styles/dot.css";
-
+// 不用组件库的圆点光标（styles/dot.css）：同 Claude，回复在出时由对话底部的工作状态行表示（thread.tsx 的 RunIndicator）。
+// 那个光标挂在「这一段还在出」上，正文刚开头还没字时只剩一个黑点、正文出完还要等结束才消失（教程第 8 条 b、c）。
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
@@ -21,7 +21,7 @@ const MarkdownTextImpl = () => {
       remarkPlugins={[remarkGfm]}
       className="aui-md"
       components={defaultComponents}
-      defer
+      // 不延后解析：逐字出字时延后的那份一直被新字打断，慢的手机上几秒都只看到空白（教程第 8 条 b）
     />
   );
 };

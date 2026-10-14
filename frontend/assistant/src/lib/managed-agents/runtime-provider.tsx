@@ -24,7 +24,7 @@ import {
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
-import { beginPendingText, clearPending } from "./pending-send";
+import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { sessionListAdapter, watchRunning } from "./session-list-adapter";
 import {
   getSessionController,
@@ -39,6 +39,7 @@ const EMPTY: ControllerSnapshot = {
   isLoaded: true,
   isTailing: false,
   transportError: null,
+  stalled: false,
 };
 const subscribeNothing = () => () => {};
 const getEmpty = () => EMPTY;
@@ -124,11 +125,12 @@ function useSessionThreadRuntime() {
       // 侧栏一直是「新对话」（2026-10-10 测试）。
       const isFirst = !snapshot.messages.some((m) => m.role === "user");
       const text = textOf(message);
-      // 按下发送立刻出现气泡（新对话要先建会话，约 1 秒）；真正的气泡放进对话的同一刻撤掉，不会两个都在
+      // 按下发送立刻出现气泡（新对话要先建会话，约 1 秒）；真正的气泡放进对话、并且画出来了才撤（thread.tsx 的
+      // PendingSendBubble），不会两个都在，也不会两个都不在。发送请求结束时（至少一次往返，早已画出）兜底撤掉。
       beginPendingText(text);
       try {
         const id = await ensureSession();
-        await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), clearPending);
+        await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), pendingShownAs);
       } finally {
         clearPending();
       }

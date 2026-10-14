@@ -20,6 +20,10 @@
 //
 // 运行状态（在回复 / 等允许 / 已结束）按服务端时间定，不按到达先后：推送与补拉交错时，晚到的旧状态事件不再盖过已采用的
 // 新状态（statusAt）。服务端读回的此刻状态（RunStatus，applyRunStatus）在重放、重进、回到前台、重连时校正它。
+//
+// 「这一轮结束」只认真正的结束（空闲且不是停下来等处理、终止）。停下来等的调用都已有了答复（工具结果、允许 / 拒绝）而引擎
+// 还没重新开跑的那段空档，同服务端读回的状态一样算在跑（2026-10-13 iPhone：两段工具之间约 10 秒显示成已结束、出现复制按钮、
+// 发送键变回空闲）。
 
 import type { FeedEvent, NoticeEvent, RunStatus, ToolUseEvent } from "./events";
 import { isPersisted, splitAttachmentNote } from "./events";
@@ -517,31 +521,32 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       }
       // The turn is parked on human input. Each blocked event id is either a
       // tool the user must Allow/Deny, or a custom tool we must answer.
+      // 停着等的调用里已经有了答复的（结果先到、已点过允许 / 拒绝）和还没收到的，都说明这一轮没完：算在跑（同 applyRunStatus）。
       const messages = draft(state.messages);
       const pendingApprovals: string[] = [];
       const pendingCustomTools: string[] = [];
       const parkedIds = [...stop.event_ids];
+      let working = false;
       for (const id of stop.event_ids) {
         const toolUse = state.toolUses.get(id);
-        if (!toolUse) continue;
+        if (!toolUse || answered(state, id)) {
+          working = true;
+          continue;
+        }
         if (toolUse.type === "agent.custom_tool_use") {
-          if (!state.answeredCustomTools.has(id)) pendingCustomTools.push(id);
+          pendingCustomTools.push(id);
           continue;
         }
         pendingApprovals.push(id);
         // Stamp the gate onto the tool part: assistant-ui renders Allow/Deny
-        // from `approval.id` (leave an already-answered approval alone).
+        // from `approval.id`.
         const found = findToolPart(messages, id);
-        if (found) {
-          updatePart(messages, found.mi, found.pi, updateTool((p) =>
-            p.approval && p.approval.approved !== undefined ? {} : { approval: { id } },
-          ));
-        }
+        if (found) updatePart(messages, found.mi, found.pi, updateTool({ approval: { id } }));
       }
       return {
         ...state,
         messages,
-        isRunning: false,
+        isRunning: working,
         pendingApprovals,
         parkedIds,
         pendingCustomTools,
@@ -730,11 +735,13 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         updatePart(next, found.mi, found.pi, updateTool({ result }));
         messages = next;
       }
+      const pendingCustomTools = state.pendingCustomTools.filter((x) => x !== id);
       return {
         ...state,
         messages,
         answeredCustomTools,
-        pendingCustomTools: state.pendingCustomTools.filter((x) => x !== id),
+        pendingCustomTools,
+        isRunning: state.isRunning || resumes(state, id, state.pendingApprovals, pendingCustomTools),
       };
     }
 
@@ -759,11 +766,13 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         }));
         messages = next;
       }
+      const pendingApprovals = state.pendingApprovals.filter((x) => x !== id);
       return {
         ...state,
         messages,
         confirmedIds,
-        pendingApprovals: state.pendingApprovals.filter((x) => x !== id),
+        pendingApprovals,
+        isRunning: state.isRunning || resumes(state, id, pendingApprovals, state.pendingCustomTools),
       };
     }
 
@@ -787,6 +796,25 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
   }
 }
 
+/** 停着等的这次调用已经有了答复：结果已到（我们的或服务端的）、已点过允许 / 拒绝。 */
+function answered(state: Projection, id: string): boolean {
+  if (state.answeredCustomTools.has(id) || state.confirmedIds.has(id)) return true;
+  const found = findToolPart(state.messages, id);
+  const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
+  return part?.type === "tool-call" && (part.result !== undefined || part.approval?.approved !== undefined);
+}
+
+/** 答完 `id` 之后引擎会接着跑：服务端此刻正停在它上面，而停着等的其余调用也都答完了（没有还要用户点的门、还欠着的结果）。
+ *  只看 parkedIds：这一轮已经往下走了或已结束时晚到的答复不会把它标回在跑（2026-10-13 iPhone）。 */
+function resumes(
+  state: Projection,
+  id: string,
+  pendingApprovals: readonly string[],
+  pendingCustomTools: readonly string[],
+): boolean {
+  return state.parkedIds.includes(id) && pendingApprovals.length === 0 && pendingCustomTools.length === 0;
+}
+
 /** Fold a whole ordered event list. */
 export function project(events: Iterable<FeedEvent>, from = initialProjection()): Projection {
   let state = from;
@@ -796,7 +824,7 @@ export function project(events: Iterable<FeedEvent>, from = initialProjection())
 
 /** The turn is not something the user can type over: agent working, or a
  *  gate waiting for a click, or a custom tool we still owe. */
-export const isBusy = (state: Projection): boolean =>
+export const isBusy = (state: Pick<Projection, "isRunning" | "pendingApprovals" | "pendingCustomTools">): boolean =>
   state.isRunning || state.pendingApprovals.length > 0 || state.pendingCustomTools.length > 0;
 
 /** The user just answered the last open gate: the session is about to

@@ -7,7 +7,7 @@ import {
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
-import { StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
@@ -39,12 +39,18 @@ import {
   SquareIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
-import { lastSendAt, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
+import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
+import { useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
+import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
+import { StreamFollower } from "@/lib/follow-scroll";
+import { holdImeEnter } from "@/lib/ime";
+import { useToolLabels } from "@/lib/tool-labels";
 import {
   createContext,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type FC,
@@ -101,6 +107,7 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
   const { Welcome = ThreadWelcome, Loading } = useContext(ThreadComponentsContext);
+  const follow = useFollowStream();
 
   return (
     <ThreadPrimitive.Root
@@ -110,11 +117,13 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
       }}
     >
       <ThreadPrimitive.Viewport
+        ref={follow.viewport}
         turnAnchor="top"
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto [scrollbar-gutter:stable] scroll-smooth"
       >
         <div
+          ref={follow.content}
           className={cn(
             "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
             (isEmpty || isLoading) && "justify-center",
@@ -160,9 +169,10 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
   );
 };
 
-/** 附件还在上传时就发送：先显示发送中的用户气泡（附件名旁转圈），真正的气泡出来就换掉（lib/managed-agents/pending-send.ts）。 */
+/** 按下发送到真正的气泡画出来之前，先显示发送中的用户气泡（附件名旁转圈，lib/managed-agents/pending-send.ts）。
+ *  对话里画出了接替它的那一条才撤（同一次提交里换过去），中间不会两个都不在。 */
 const PendingSendBubble: FC = () => {
-  const pending = usePendingSend();
+  const pending = useShownPending();
   if (!pending) return null;
   return (
     <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
@@ -177,12 +187,44 @@ const PendingSendBubble: FC = () => {
       {pending.text && (
         <div className="cc-bubble-user" data-enter="" data-sending="">{pending.text}</div>
       )}
-      <div className="col-span-full col-start-1 pt-4">
-        <ThinkingMark />
-      </div>
+      <RunIndicator className="col-span-full col-start-1 pt-4" />
     </div>
   );
 };
+
+/** 还在显示的临时气泡（对话里还没画出接替它的那一条）；画出来了就撤掉。 */
+function useShownPending() {
+  const pending = usePendingSend();
+  const landed = useAuiState((s) => pendingLanded(pending, s.thread.messages.map((m) => m.id)));
+  useEffect(() => {
+    if (landed) clearPending();
+  }, [landed]);
+  return landed ? null : pending;
+}
+
+/** 回复在出时跟到底、用户往上翻就不动（lib/follow-scroll.ts）。新的一轮（又发了一条）从跟随开始。 */
+function useFollowStream() {
+  const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
+  const [content, setContent] = useState<HTMLDivElement | null>(null);
+  const live = useRef(false);
+  live.current = useAuiState((s) => s.thread.isRunning);
+  const turn = useAuiState((s) => {
+    for (let i = s.thread.messages.length - 1; i >= 0; i--) if (s.thread.messages[i]!.role === "user") return s.thread.messages[i]!.id;
+    return undefined;
+  });
+  const follower = useRef<StreamFollower | null>(null);
+  useEffect(() => {
+    if (!viewport || !content) return;
+    const created = new StreamFollower(viewport, content, () => live.current);
+    follower.current = created;
+    return () => {
+      created.dispose();
+      if (follower.current === created) follower.current = null;
+    };
+  }, [viewport, content]);
+  useEffect(() => follower.current?.resume(), [turn]);
+  return { viewport: setViewport, content: setContent };
+}
 
 /** 发送那一刻组件库先调附件的 send、后清空输入框：随时记下输入框的文字，发送中的气泡才有字。 */
 const DraftWatcher: FC = () => {
@@ -318,6 +360,7 @@ const Composer: FC = () => {
             rows={1}
             autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
             enterKeyHint="send"
+            onKeyDown={holdImeEnter /* Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts */}
             aria-label={placeholder}
           />
           <ComposerAction />
@@ -394,7 +437,8 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="cc-reply px-2 text-base leading-[1.7rem] wrap-break-word"
       >
-        <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates}>
+        {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
+        <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
@@ -407,8 +451,6 @@ const AssistantMessage: FC = () => {
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
-              case "indicator":
-                return <ThinkingMark />;
               default:
                 return null;
             }
@@ -417,6 +459,9 @@ const AssistantMessage: FC = () => {
         <MessageError />
         <MessageFiles />
       </div>
+      {/* 工作状态行挂在这一轮的回复里（还没有回复时是组件库补的占位）：组件库把这一轮推到顶上时在回复后面留空白，
+          放在回复外面就被挤到屏幕最下面去了 */}
+      <LastReplyIndicator />
 
       <div
         data-slot="aui_assistant-message-footer"
@@ -428,23 +473,58 @@ const AssistantMessage: FC = () => {
   );
 };
 
-/** 等回复（同 Claude）：小橘点在动，旁边「8秒 · 思考中」，秒数从出现时开始走。 */
-const ThinkingMark: FC = () => {
-  // 从按下发送那一刻算（发送中气泡下的与回复里的是同一段等待，不归零）；刷新后接着看的从出现时算
-  const [start] = useState(() => (Date.now() - lastSendAt() < 10 * 60 * 1000 ? lastSendAt() : Date.now()));
-  const [now, setNow] = useState(start);
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const seconds = Math.floor((now - start) / 1000);
+/** 最后一条回复下面的工作状态行（不是最后一条的回复已是历史）。 */
+const LastReplyIndicator: FC = () => {
+  const isLast = useAuiState((s) => s.message.isLast);
+  return isLast ? <LastReplyRunIndicator /> : null;
+};
+
+const LastReplyRunIndicator: FC = () => {
+  // 又发了一条、临时气泡还在：状态行在临时气泡下面，上一轮的回复下面不再放一个
+  const sending = !!useShownPending();
+  return sending ? null : <RunIndicator className="px-2 pt-2" />;
+};
+
+// 「思考了几秒」跨组件记：发送中气泡下的、组件库占位里的、正式回复里的是同一行，换位置时不归零
+const thinking = new ThinkingClock();
+
+/** 工作状态行（同 Claude，lib/managed-agents/turn.ts）：发出即出现在用户消息下面，橘色小点在动，旁边「计时 · 在做什么」，
+ *  一直在，直到这一轮真正结束；等用户点「允许」时收起，点完再出来。计时从按下发送那一刻起本地每秒走；
+ *  想完开始出正文时说「思考了 M秒」；很久收不到服务端消息时改说「连接中断，正在重连」。 */
+const RunIndicator: FC<{ className?: string }> = ({ className }) => {
+  const pending = usePendingSend();
+  const snapshot = useActiveSessionSnapshot();
+  const labels = useToolLabels();
+  const sending = !!pending; // 临时气泡还在（正式气泡还没画出来）：这一轮刚开始
+  const activity = turnActivity(snapshot, sending);
+  const visible = activity.kind !== "hidden";
+  const now = useClock(visible);
+  const start = turnStartedAt(snapshot.messages, lastSendAt(), sending, now) ?? now;
+  const thought = thinking.note(activity.kind, start, Date.now());
+  if (!visible) return null;
+  const step = activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "";
+  const text = statusText(activity, Math.floor((now - start) / 1000), thought, step);
+  // 读屏只报在做什么，不每秒报一次计时
+  const label = activity.kind === "tool" ? step : activity.kind === "reconnecting" ? text : steps.thinking;
   return (
-    <span className="inline-flex items-center font-sans">
-      <TypingDots label={steps.thinking} showLabel={false} />
-      <span className="typing-dots-label ms-2.5">{`${steps.seconds(seconds)} · ${steps.thinkingNow}`}</span>
-    </span>
+    <div data-slot="cc-run-indicator" data-kind={activity.kind} className={cn("flex min-w-0 items-center font-sans", className)}>
+      <TypingDots label={label} showLabel={false} />
+      <span className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</span>
+    </div>
   );
 };
+
+/** 显示时每秒走一次的本页时钟。 */
+function useClock(running: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+  return running ? now : Date.now();
+}
 
 /** 这条回复期间产出的文件：显示成卡片，点一下在右侧打开（同 claude.ai）。按文件时间落在本条与下一条消息之间判定；
  *  「下一条」跳过提醒卡片（它可能排在一轮回复后面，但时间更早）。 */
@@ -525,7 +605,8 @@ const CopyAction: FC = () => (
 /** 新发出的那条气泡弹一下；接替「发送中」临时气泡的正式气泡、翻历史时出现的旧气泡不弹（只看挂上那一刻）。 */
 function useEnterOnce(): boolean {
   const isLast = useAuiState((s) => s.message.isLast);
-  const [enter] = useState(() => isLast && !takeHandoff() && Date.now() - lastSendAt() < 4000);
+  const id = useAuiState((s) => s.message.id);
+  const [enter] = useState(() => isLast && !takeHandoff(id) && Date.now() - lastSendAt() < 4000);
   return enter;
 }
 

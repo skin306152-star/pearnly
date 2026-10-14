@@ -1,0 +1,411 @@
+"""CC 对话页的工作状态行（教程第 6、8 条，第 12 条里的滚动与输入法两项）的行为检查。
+
+做法同 tests/test_assistant_ui.py 的 BehaviourTests：把被测源码连同组件库用 esbuild 打成一个文件交给 node 跑，浏览器接口、
+站点接口、实时通道换成桩。事件按录屏里的真实顺序推：发送 → 思考 → 工具 1（服务端执行，页面兜底的提醒迟迟不回）→
+结果到了、引擎还没重新开跑的交接空档 → 工具 2 → 正文 → 结束。要先装好前端依赖（npm ci --prefix frontend/assistant）且有 node。
+"""
+import pathlib
+import sys
+import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from test_assistant_ui import ESBUILD, FAKE_SITE, MA_SETUP, NODE, SRC, run_ts  # noqa: E402
+
+# 实时通道的桩：推事件直接用 realtime.dispatch；心跳（socket.io 的 ping）由 g.socket.ping() 发
+SOCKET_STUB = r"""
+export function io() {
+  const handlers: Record<string, Array<(data?: any) => void>> = {};
+  const manager: Record<string, Array<() => void>> = {};
+  const socket: any = {
+    connected: true,
+    on(name: string, fn: any) { (handlers[name] ??= []).push(fn); return socket; },
+    off() { return socket; },
+    io: {
+      on(name: string, fn: any) { (manager[name] ??= []).push(fn); },
+      off(name: string, fn: any) { manager[name] = (manager[name] ?? []).filter((f) => f !== fn); },
+    },
+  };
+  (globalThis as any).socket = {
+    drop() { socket.connected = false; (handlers.disconnect ?? []).forEach((fn) => fn()); },
+    back() { socket.connected = true; (handlers.connect ?? []).forEach((fn) => fn()); },
+    ping() { (manager.ping ?? []).forEach((fn) => fn()); },
+    pingListeners: () => (manager.ping ?? []).length,
+  };
+  return socket;
+}
+"""
+
+# 推一条事件：同时记进事件记录（补拉读到的与推来的一致），再经实时通道推给页面
+PUSH = r"""
+import { dispatch } from "@/lib/managed-agents/realtime";
+const push = (sid: string, e: any) => { site.log.push(e); dispatch({ session_id: sid, event: e }); };
+const preview = (sid: string, e: any) => dispatch({ session_id: sid, event: e });
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class RunIndicatorTests(unittest.TestCase):
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB}
+
+    def run_page(self, body, lang="zh"):
+        imports, script = body.split("\n---\n", 1)
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n'
+               + imports + "\nconst g = globalThis as any;\n" + FAKE_SITE + PUSH + script + "\ng.done();\n",
+               stubs=self.STUBS, lang=lang)
+
+    def test_recorded_turn_never_reads_as_finished_until_it_ends(self):
+        # 2026-10-13 iPhone 录屏：两段工具之间约 10 秒显示「2 ขั้นตอน」+ 复制按钮、发送键变回空闲，之后又变回运行中。
+        # 原因：工具 1 的结果已到（服务端执行完）、引擎还没重新开跑，这段空档里页面按「已结束」画。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+import { statusText, ThinkingClock, turnActivity } from "@/lib/managed-agents/turn";
+---
+const S = "sesn_rec1";
+site.echo = false;
+site.toolReply = () => new Promise(() => {});  // 页面兜底的「执行一次」迟迟不回（引擎列出事件慢）
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const lastAssistant = (s: any) => [...s.messages].reverse().find((m: any) => m.role === "assistant");
+const steps: string[] = [];
+function look(label: string, expect: string) {
+  const s: any = c.getSnapshot();
+  const activity = turnActivity(s);
+  steps.push(`${label}:${activity.kind}`);
+  assert.equal(activity.kind, expect, label);
+  assert.equal(isBusy(s), true, `${label}: composer stays busy (no send key, no copy button)`);
+  const status = lastAssistant(s)?.status?.type;
+  assert.notEqual(status, "complete", `${label}: the reply is not finished`);
+  assert.ok(s.messages.some((m: any) => m.role === "user" && m.content[0]?.text === "บิลนี้"), `${label}: own bubble stays`);
+}
+await c.sendMessage("บิลนี้", []);
+look("sent", "thinking");
+push(S, ev("u1", "user.message", 1, { content: text("บิลนี้") }));
+look("echo", "thinking");
+push(S, ev("r1", "session.status_running", 2));
+preview(S, { type: "event_start", event: { id: "th1", type: "agent.thinking" } });
+push(S, ev("th1", "agent.thinking", 3));
+look("thinking", "thinking");
+push(S, ev("t1", "agent.custom_tool_use", 4, { name: "cowork_recognize_attachments", input: { files: ["a.jpg"] } }));
+look("tool 1", "tool");
+assert.equal((turnActivity(c.getSnapshot()) as any).toolName, "cowork_recognize_attachments");
+push(S, ev("p1", "session.status_idle", 5, { stop_reason: { type: "requires_action", event_ids: ["t1"] } }));
+await g.sleep(5);
+look("tool 1 parked, executing on the server", "tool");
+// 服务端执行完，结果到了；引擎还没重新开跑（交接空档）
+push(S, ev("res1", "user.custom_tool_result", 6, { custom_tool_use_id: "t1", content: text("1 document") }));
+look("handoff gap", "thinking");
+// 空档里回到前台：读回的状态是停在 t1、结果已交 → 仍在跑
+site.engine = "idle";
+g.document.fire("visibilitychange");
+await g.sleep(30);
+look("handoff gap after a status read", "thinking");
+push(S, ev("r2", "session.status_running", 7));
+look("resumed", "thinking");
+push(S, ev("t2", "agent.custom_tool_use", 8, { name: "cowork_push_documents", input: {} }));
+look("tool 2", "tool");
+push(S, ev("p2", "session.status_idle", 9, { stop_reason: { type: "requires_action", event_ids: ["t2"] } }));
+push(S, ev("res2", "user.custom_tool_result", 10, { custom_tool_use_id: "t2", content: text("HP691013-001") }));
+look("second handoff", "thinking");
+push(S, ev("r3", "session.status_running", 11));
+// 正文：逐字预览先开了个空段，字还没到 → 仍是「思考中」，不出一个孤零零的点
+preview(S, { type: "event_start", event: { id: "m1", type: "agent.message" } });
+look("empty preview", "thinking");
+preview(S, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "บันทึก" } } });
+look("text streaming", "writing");
+push(S, ev("m1", "agent.message", 12, { content: text("บันทึกแล้ว HP691013-001") }));
+look("text done, turn not ended", "writing");
+// 真正结束：状态行与「在跑」同一刻收起，回复同一刻标完成
+push(S, ev("i1", "session.status_idle", 13, { stop_reason: { type: "end_turn" } }));
+const end: any = c.getSnapshot();
+assert.equal(turnActivity(end).kind, "hidden");
+assert.equal(isBusy(end), false);
+assert.equal(lastAssistant(end).status.type, "complete");
+assert.deepEqual(steps.map((s) => s.split(":")[1]), ["thinking", "thinking", "thinking", "tool", "tool", "thinking", "thinking",
+  "thinking", "tool", "thinking", "thinking", "writing", "writing"]);
+// 文字（中文页）：计时从发出算；想完出正文时说「思考了 M秒」；执行中说这一步的进行时
+assert.equal(statusText({ kind: "thinking" }, 3, 0, ""), "3秒 · 思考中…");
+assert.equal(statusText({ kind: "writing" }, 8, 4, ""), "8秒 · 思考了 4秒");
+assert.equal(statusText({ kind: "writing" }, 8, 0, ""), "8秒");
+assert.equal(statusText({ kind: "tool", toolName: "x", args: {} }, 75, 0, "正在识别单据"), "1分15秒 · 正在识别单据");
+assert.equal(statusText({ kind: "reconnecting" }, 40, 0, ""), "连接中断，正在重连…");
+// 「思考了几秒」：从发出想到出正文；中间一步工具做完再想的，从交回结果算；换位置重画（同一份状态）不改
+const clock = new ThinkingClock();
+const t0 = 1_000_000;
+assert.equal(clock.note("thinking", t0, t0 + 1000), 0);
+assert.equal(clock.note("tool", t0, t0 + 4200), 4);
+assert.equal(clock.note("tool", t0, t0 + 9000), 4);
+assert.equal(clock.note("thinking", t0, t0 + 12000), 4);
+assert.equal(clock.note("hidden", t0, t0 + 13000), 4);  // 等「允许」时收起，不打断
+assert.equal(clock.note("thinking", t0, t0 + 14000), 4);
+assert.equal(clock.note("writing", t0, t0 + 18400), 6);
+assert.equal(clock.note("writing", t0, t0 + 30000), 6);
+assert.equal(clock.note("thinking", t0 + 60000, t0 + 61000), 0);  // 新的一轮从头记
+// 刷新后正文已在出：没看到它想，只走计时
+const late = new ThinkingClock();
+assert.equal(late.note("writing", t0, t0 + 20000), 0);
+""")
+
+    def test_the_line_folds_away_while_the_allow_card_waits_and_comes_back_after_the_click(self):
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+import { turnActivity } from "@/lib/managed-agents/turn";
+---
+const S = "sesn_gate2";
+site.echo = false;
+site.runs = { tz: "awaiting_approval" };
+site.toolReply = async () => ({ status: "awaiting_approval", ask: "Turn it on?", preview: [] });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+await c.sendMessage("turn the task on", []);
+push(S, ev("u1", "user.message", 1, { content: text("turn the task on") }));
+push(S, ev("r1", "session.status_running", 2));
+push(S, ev("tz", "agent.custom_tool_use", 3, { name: "cowork_set_folder_task_enabled", input: { enabled: true } }));
+push(S, ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } }));
+await g.sleep(20);
+let s: any = c.getSnapshot();
+assert.deepEqual(s.pendingApprovals, ["tz"]);  // 卡片照常显示
+assert.equal(turnActivity(s).kind, "hidden");  // 轮到用户：状态行收起
+assert.equal(isBusy(s), true);
+// 点了允许：服务端开始执行，状态行回来，说这一步在做什么
+c.respondToApproval("tz", true);
+s = c.getSnapshot();
+assert.equal(turnActivity(s).kind, "tool");
+assert.equal(isBusy(s), true);
+""")
+
+    def test_silence_while_running_reads_as_reconnecting_and_recovers(self):
+        self.run_page(r"""
+import { SessionController, getSessionController } from "@/lib/managed-agents/session-controller";
+import { turnActivity } from "@/lib/managed-agents/turn";
+---
+SessionController.stallMs = 80;
+const S = "sesn_stall3";
+site.engine = "running";  // 服务端那边这一轮一直在跑
+site.echo = false;
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+await c.sendMessage("hello", []);
+push(S, ev("u1", "user.message", 1, { content: text("hello") }));
+push(S, ev("r1", "session.status_running", 2));
+// 实时通道的心跳一直到：这段时间没有任何事件、补拉也还没轮到，仍算连着（不误报）
+for (let i = 0; i < 8; i++) {
+  g.socket.ping();
+  await g.sleep(25);
+}
+assert.equal(c.getSnapshot().stalled, false);
+assert.equal(turnActivity(c.getSnapshot()).kind, "thinking");
+// 断了：心跳停、补拉一直不回
+const respond = g.respond;
+g.respond = (method: string, args: any, body: any) => method === "events" ? new Promise(() => {}) : respond(method, args, body);
+const before = eventsCalls(S).length;
+await g.sleep(150);
+let s: any = c.getSnapshot();
+assert.equal(s.stalled, true);
+assert.equal(turnActivity(s).kind, "reconnecting");
+assert.ok(eventsCalls(S).length > before, "the tail was reopened (a fresh fetch), no new polling loop");
+assert.ok(g.socket.pingListeners() <= 1, "the replaced tail stopped listening");
+// 网络回来了（卡住的那几次请求永远不回）：下一次看门重开的尾巴连上就补齐断线期间的事件、回到正常
+g.respond = respond;
+site.log.push(ev("th0", "agent.thinking", 3));
+await g.sleep(200);
+s = c.getSnapshot();
+assert.equal(s.stalled, false);
+assert.ok(s.messages.some((m: any) => m.role === "assistant" && m.content.some((p: any) => p.type === "reasoning")),
+  "events from the gap were backfilled by the reopened tail");
+assert.equal(turnActivity(s).kind, "thinking");
+// 推送照常并进来
+push(S, ev("t1", "agent.custom_tool_use", 4, { name: "cowork_push_documents", input: {} }));
+assert.equal(turnActivity(c.getSnapshot()).kind, "tool");
+// 结束后不再看门：再安静多久也不会冒出「连接中断」
+push(S, ev("i1", "session.status_idle", 5, { stop_reason: { type: "end_turn" } }));
+await g.sleep(150);
+assert.equal(c.getSnapshot().stalled, false);
+assert.equal(turnActivity(c.getSnapshot()).kind, "hidden");
+SessionController.stallMs = 30000;
+""")
+
+    def test_a_status_read_sent_before_the_server_took_the_message_does_not_end_the_turn(self):
+        # 发出后马上回到前台 / 重连：那次读状态在服务端收下消息之前，读到的是上一轮结束时的「空闲」
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+const S = "sesn_race4";
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2),
+  ev("i0", "session.status_idle", 3, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+let release: () => void = () => {};
+const respond = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") await new Promise<void>((resolve) => { release = resolve; });
+  return respond(method, args, body);
+};
+const sending = c.sendMessage("again", []);
+await g.sleep(5);
+g.document.fire("visibilitychange");  // 服务端还没收下：读到「空闲」
+await g.sleep(30);
+assert.equal(isBusy(c.getSnapshot()), true);
+release();
+await sending;
+assert.equal(isBusy(c.getSnapshot()), true);
+g.respond = respond;
+""")
+
+    def test_own_bubble_hands_over_without_a_gap(self):
+        self.run_page(r"""
+import { beginPendingText, clearPending, lastSendAt, pendingLanded, pendingShownAs, takeHandoff } from "@/lib/managed-agents/pending-send";
+import { turnStartedAt } from "@/lib/managed-agents/turn";
+---
+// 按下发送：临时气泡；正式气泡放进会话后，在对话真画出它之前临时气泡一直在
+beginPendingText("บิลนี้");
+const sent = lastSendAt();
+pendingShownAs("optimistic-1");
+// 渲染时判断：组件库的消息里还没有这一条 → 临时气泡继续显示
+const pending = { text: "บิลนี้", files: [], shownAs: "optimistic-1" };
+assert.equal(pendingLanded(pending, ["u0", "a0"]), false);
+assert.equal(pendingLanded(pending, ["u0", "a0", "optimistic-1"]), true);
+assert.equal(pendingLanded({ text: "x", files: [] }, ["optimistic-1"]), false);  // 还没交给会话的不算
+// 接替它的正式气泡不再弹一次；别的消息照常
+assert.equal(takeHandoff("optimistic-2"), false);
+assert.equal(takeHandoff("optimistic-1"), true);
+assert.equal(takeHandoff("optimistic-1"), false);
+clearPending();
+// 计时：本页发出的从按下发送算，回显换成服务端时间也不跳；刷新后接着看的用服务端时间
+const now = sent + 5000;
+const bubble = (id: string, at: number) => ({ id, role: "user", content: [], createdAt: new Date(at) }) as any;
+assert.equal(turnStartedAt([bubble("optimistic-1", sent + 900)], sent, false, now), sent);
+assert.equal(turnStartedAt([bubble("optimistic-1", sent - 3000)], sent, false, now), sent);
+assert.equal(turnStartedAt([bubble("sevt_1", sent - 3000)], sent, false, now), sent - 3000);
+assert.equal(turnStartedAt([bubble("sevt_1", now + 9000)], sent, false, now), now);  // 服务端时钟快了也不倒着走
+assert.equal(turnStartedAt([], sent, true, now), sent);
+""")
+
+    def test_scrolling_up_while_streaming_stays_put_and_following_resumes_near_the_bottom(self):
+        self.run_page(r"""
+import { COOLDOWN_MS, NEAR_BOTTOM_PX, StreamFollower } from "@/lib/follow-scroll";
+---
+let clock = 1000;
+const listeners: Record<string, Array<(e: any) => void>> = {};
+let reserve = 0;
+const vp: any = {
+  scrollTop: 0, scrollHeight: 2000, clientHeight: 800, scrolls: 0,
+  addEventListener(type: string, fn: any) { (listeners[type] ??= []).push(fn); },
+  removeEventListener(type: string, fn: any) { listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn); },
+  scrollTo({ top }: any) { this.scrolls++; this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); },
+  querySelector() { return { offsetHeight: reserve }; },
+};
+const fire = (type: string, e: any = {}) => (listeners[type] ?? []).forEach((fn) => fn(e));
+let grow: () => void = () => {};
+let live = true;
+const f = new StreamFollower(vp, {}, () => live, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
+vp.scrollTop = 1200;  // 在底部
+const more = (px: number) => { vp.scrollHeight += px; grow(); };
+// 跟随：内容长了就跟到底
+more(100);
+assert.equal(vp.scrollTop, 1300);
+// 组件库还在把这一轮推到顶上（占位有高度）时不插手
+reserve = 300; more(50); reserve = 0;
+assert.equal(vp.scrollTop, 1300);
+more(0); vp.scrollTop = 1350;
+// 手指往下拖（内容往上翻）：立刻停住，之后内容再长也不拉回去
+fire("touchstart", { touches: [{ clientY: 100 }] });
+fire("touchmove", { touches: [{ clientY: 160 }] });
+vp.scrollTop = 900; fire("scroll");
+more(200);
+assert.equal(vp.scrollTop, 900);
+fire("touchend");
+clock += 5000; more(200);
+assert.equal(vp.scrollTop, 900);  // 停在用户翻到的地方，多久都不动
+// 回到底部附近（容差内）：冷却过了，接着跟
+fire("touchstart", { touches: [{ clientY: 300 }] });
+fire("touchmove", { touches: [{ clientY: 200 }] });  // 手指往上推 = 往下翻，不算往上翻
+vp.scrollTop = vp.scrollHeight - vp.clientHeight - (NEAR_BOTTOM_PX - 10);
+fire("touchend");
+fire("scroll");
+more(100);
+assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
+// 滚轮往上：停；冷却内马上滚回底部附近不算，冷却过后再滚一下才接着跟
+fire("wheel", { deltaY: -40 });
+vp.scrollTop -= 20; fire("scroll");
+more(100);
+assert.notEqual(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
+clock += COOLDOWN_MS; vp.scrollTop = vp.scrollHeight - vp.clientHeight; fire("scroll");
+more(100);
+assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
+// 在输入框里按上键不算往上翻；在对话里按 PageUp 算
+fire("keydown", { key: "ArrowUp", target: { tagName: "TEXTAREA" } });
+more(50);
+assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
+fire("keydown", { key: "PageUp", target: { tagName: "DIV" } });
+vp.scrollTop -= 300; fire("scroll");
+more(50);
+assert.notEqual(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
+// 新的一轮从跟随开始；不在跑时内容变化不滚
+f.resume(); more(10);
+assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
+live = false; const top = vp.scrollTop; more(500);
+assert.equal(vp.scrollTop, top);
+f.dispose();
+assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
+""")
+
+    def test_ime_enter_does_not_send(self):
+        self.run_page(r"""
+import { holdImeEnter, isImeEnter } from "@/lib/ime";
+---
+const key = (key: string, keyCode: number, isComposing: boolean) => {
+  const e: any = { key, keyCode, nativeEvent: { isComposing, keyCode }, prevented: false };
+  e.preventDefault = () => { e.prevented = true; };
+  return e;
+};
+// Safari：先结束选字再来这次回车，isComposing 已是 false，只剩 229 → 不发送（组件库那边被标成已处理）
+const safari = key("Enter", 229, false);
+holdImeEnter(safari);
+assert.equal(isImeEnter(safari), true);
+assert.equal(safari.prevented, true);
+// Chrome 选字中：组件库本来就不发，这里不动（不打断输入法上屏）
+const chrome = key("Enter", 229, true);
+holdImeEnter(chrome);
+assert.equal(isImeEnter(chrome), true);
+assert.equal(chrome.prevented, false);
+// 普通回车照常发送；Shift+回车、别的键不管
+const plain = key("Enter", 13, false);
+holdImeEnter(plain);
+assert.equal(plain.prevented, false);
+assert.equal(isImeEnter(key("a", 229, false)), false);
+""")
+
+    def test_page_wiring(self):
+        # 这些接线在 node 里跑不了整页，守住源码：只有一个「在忙」标记、没有圆点光标、输入框挂了输入法判断
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
+        markdown = (SRC / "components/assistant-ui/markdown-text.tsx").read_text(encoding="utf-8")
+        steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
+        self.assertNotIn('import "@assistant-ui/react-markdown/styles/dot.css"', markdown)
+        self.assertNotIn("\n      defer\n", markdown)
+        self.assertIn('indicator="never"', thread)
+        self.assertNotIn('case "indicator"', thread)
+        # 状态行挂在临时气泡下、这一轮的回复（或组件库补的占位）里：放在回复外面会被「推到顶上」留的空白挤到屏幕最下面
+        bubble = thread[thread.index("const PendingSendBubble"):thread.index("function useShownPending")]
+        self.assertIn('<RunIndicator className="col-span-full col-start-1 pt-4" />', bubble)
+        reply = thread[thread.index("const AssistantMessage"):thread.index("const LastReplyIndicator")]
+        self.assertLess(reply.index("<LastReplyIndicator />"), reply.index('data-slot="aui_assistant-message-footer"'))
+        self.assertNotIn("<RunIndicator />\n          </div>", thread)
+        self.assertIn("onKeyDown={holdImeEnter", thread)
+        self.assertIn("ref={follow.viewport}", thread)
+        self.assertIn("pendingLanded(pending, s.thread.messages.map((m) => m.id))", thread)
+        # 步骤组：不再另放一个在动的点，只有思考没有工具的不显示
+        group = steps[steps.index("export const StepsGroup"):]
+        self.assertNotIn("TypingDots", group)
+        self.assertIn("if (!tools.length) return null;", group)
+
+
+if __name__ == "__main__":
+    unittest.main()

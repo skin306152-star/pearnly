@@ -1,5 +1,6 @@
 // 智能体的过程（思考、读写文件、运行命令、Pearnly 工具）按 claude.ai 的样子收成一行「步骤」：
-// 进行中显示当前在做什么；点开是一行一步的列表；点某一步才看到命令 / 内容与输出（浅色小框）。
+// 进行中标题是「正在运行」、做完是「N 个步骤」；点开是一行一步的列表；点某一步才看到命令 / 内容与输出（浅色小框）。
+// 在做什么、用了多久由对话底部的工作状态行说（thread.tsx 的 RunIndicator），这里不再另放一个在动的点。
 // 所有工具共用 StepRow，按工具名给图标与说明。停下来等用户批准的那一步不收进组（thread.tsx 的 groupBy），
 // 直接在行下给「允许 / 拒绝」。
 
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import { useState, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
-import { useToolLabels } from "@/lib/tool-labels";
+import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 import { steps } from "@/i18n";
 import { ApprovalBar } from "./approval-bar";
@@ -35,7 +36,7 @@ const firstLine = (text: string) => {
 };
 
 /** 一步的图标、说明（进行中 / 完成）和点开后显示的内容。 */
-function describe(toolName: string, args: Args, running: boolean, labels: Record<string, string>): Step {
+function describe(toolName: string, args: Args, running: boolean, labels: ToolLabels): Step {
   const pick = (triple: readonly string[]) => (running ? triple[0] : triple[1]) ?? "";
   switch (toolName) {
     case "bash": {
@@ -60,7 +61,7 @@ function describe(toolName: string, args: Args, running: boolean, labels: Record
     }
     default: {
       const input = args && Object.keys(args).length ? JSON.stringify(args, null, 2) : undefined;
-      return { icon: WrenchIcon, verb: labels[toolName] ?? toolName, input, showOutput: true };
+      return { icon: WrenchIcon, verb: toolLabel(labels, toolName, running), input, showOutput: true };
     }
   }
 }
@@ -138,39 +139,35 @@ export const StepRow: ToolCallMessagePartComponent = ({
   );
 };
 
+/** 工作状态行上这一步的说法：进行时的步骤名，带上对象（文件名、命令、网址）。 */
+export function runningStepLabel(toolName: string, args: Record<string, unknown> | undefined, labels: ToolLabels): string {
+  const step = describe(toolName, args, true, labels);
+  return step.target ? `${step.verb} ${step.target}` : step.verb;
+}
+
 type Group = { indices: readonly number[]; status: { type: string } };
 
-/** 一段连续的思考与工具调用：一行标题，点开是步骤列表。只有思考、且已结束的不显示（没有可看的内容）。 */
+/** 这组步骤还在进行：最后一步在跑，或停在一步本站正在执行的工具上（等结果，不是等用户点）。 */
+export const groupLive = (status: { type: string }) => status.type === "running" || status.type === "requires-action";
+
+/** 一段连续的思考与工具调用：一行标题，点开是步骤列表。只有思考、没有工具的不显示（没有可看的内容；在想由状态行说）。 */
 export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, children }) => {
   const [open, setOpen] = useState(false);
-  const labels = useToolLabels();
   const parts = useAuiState((s) => s.message.parts);
-  const running = group.status.type === "running";
   const inGroup = group.indices.map((i) => parts[i]).filter(Boolean);
   const tools = inGroup.filter((p) => p!.type === "tool-call");
-  if (!tools.length && !running) return null;
-
-  const last = inGroup[inGroup.length - 1];
-  let title = steps.steps(tools.length);
-  if (running) {
-    title = steps.thinking;
-    if (last?.type === "tool-call" && last.result === undefined) {
-      const step = describe(last.toolName, last.args as Args, true, labels);
-      title = step.target ? `${step.verb} ${step.target}` : step.verb;
-    }
-  }
+  if (!tools.length) return null;
+  const title = groupLive(group.status) ? steps.running : steps.steps(tools.length);
 
   return (
     <div className="aui-steps my-1.5">
       <button
         type="button"
-        disabled={!tools.length}
         onClick={() => setOpen((o) => !o)}
         className="flex max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-ink-2 text-sm enabled:hover:text-ink"
       >
-        {running && <TypingDots size="sm" className="shrink-0" />}
         <span className="truncate">{title}</span>
-        {tools.length > 0 && <ChevronRightIcon className={cn("size-3.5 shrink-0 transition", open && "rotate-90")} />}
+        <ChevronRightIcon className={cn("size-3.5 shrink-0 transition", open && "rotate-90")} />
       </button>
       {open && <div className="mt-1 ms-1.5 border-line border-s ps-2">{children}</div>}
     </div>

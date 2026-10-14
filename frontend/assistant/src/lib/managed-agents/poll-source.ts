@@ -12,7 +12,7 @@
 
 import { listEvents } from "./api";
 import { type FeedEvent, isLocalEvent, type RelayEnvelope, type RunStatus } from "./events";
-import { isConnected, subscribe } from "./realtime";
+import { isConnected, onHeartbeat, subscribe } from "./realtime";
 
 const FAST_MS = 1200;
 const SLOW_MS = 6000;
@@ -33,6 +33,10 @@ export class PollingSource {
   onerror: (() => void) | null = null;
   /** 服务端读回的此刻运行状态；askedAt 是这次请求发出的时间（本页时钟），会话据此不让它盖过之后本页自己的操作。 */
   onstatus: ((run: RunStatus, askedAt: number) => void) | null = null;
+  /** 收到服务端的任何消息：补拉有了回应（哪怕没有新事件）、推来事件、实时通道的心跳（会话据此分辨在跑还是断了）。 */
+  onalive: (() => void) | null = null;
+  /** 页面回到前台（同一刻补拉一次）：会话从这一刻重新计时，后台那段不算没消息。 */
+  onwake: (() => void) | null = null;
 
   private readonly sessionId: string;
   private lastId: string | undefined;
@@ -47,8 +51,11 @@ export class PollingSource {
   // 实时通道断过：再连上算重连（第一次连上不算）
   private realtimeLost = false;
   private readonly unsubscribe: () => void;
+  private readonly offHeartbeat: () => void;
   private readonly onVisible = () => {
-    if (document.visibilityState === "visible") this.refresh();
+    if (document.visibilityState !== "visible") return;
+    this.onwake?.();
+    this.refresh();
   };
   private readonly onPageShow = (event: { persisted?: boolean }) => {
     if (event.persisted) this.refresh();
@@ -71,6 +78,10 @@ export class PollingSource {
         }
       },
     );
+    // 实时通道的心跳（服务端约每 25 秒一次）也算收到服务端的消息：补拉一次要很久时，靠它分辨「慢」和「断」
+    this.offHeartbeat = onHeartbeat(() => {
+      if (this.readyState !== PollingSource.CLOSED) this.onalive?.();
+    });
     document.addEventListener("visibilitychange", this.onVisible);
     window.addEventListener("pageshow", this.onPageShow);
     window.addEventListener("online", this.onOnline);
@@ -80,6 +91,7 @@ export class PollingSource {
   close() {
     this.readyState = PollingSource.CLOSED;
     this.unsubscribe();
+    this.offHeartbeat();
     document.removeEventListener("visibilitychange", this.onVisible);
     window.removeEventListener("pageshow", this.onPageShow);
     window.removeEventListener("online", this.onOnline);
@@ -136,6 +148,7 @@ export class PollingSource {
     try {
       const page = await listEvents(this.sessionId, this.lastId, withStatus);
       if (this.readyState === PollingSource.CLOSED) return;
+      this.onalive?.(); // 有回应就算连着，哪怕这页没有新事件
       if (this.readyState === PollingSource.CONNECTING) {
         this.readyState = PollingSource.OPEN;
         this.onopen?.();
