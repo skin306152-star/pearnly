@@ -607,6 +607,8 @@
   .cc-project-row:hover .cc-project-more, .cc-project-row:hover .cc-project-add, .cc-project-row:focus-within .cc-project-more,
   .cc-project-row:focus-within .cc-project-add, .cc-project-row[data-open] .cc-project-more { opacity: 1; }
   .cc-count { flex-shrink: 0; padding-inline: 0.25rem; color: var(--cc-ink-3); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+  button.cc-count { min-width: 1.5rem; height: 1.5rem; border-radius: var(--cc-radius-xs); outline: none; }
+  button.cc-count:hover, button.cc-count:focus-visible { background: var(--cc-bg-active); color: var(--cc-ink); }
   .cc-project-items { display: flex; flex-direction: column; gap: 0.125rem; }
   .cc-show-more {
     display: flex; align-items: center; height: 1.75rem; padding-inline: 0.625rem; border-radius: var(--cc-radius-sm);

@@ -2381,6 +2381,26 @@ const page = html(FolderSection, { company: "comp_abc", folders: [], reload: noo
 assert.deepEqual(buttons(page), ["Update CC Desktop"]);
 """, desktop=[])
 
+    def test_choosing_in_place_reuses_the_push_choice_service(self):
+        # 补充乙：当场选复用推送的「记下选择」（push.application.api.save_choices），不另写一套；只交选了的项
+        self.run_page(r"""
+import { answerChoices, loadPending } from "@/lib/companies";
+const item: any = { document: "OCR-0001", company: "comp_abc", reason_code: "choice_needed:account,payment", reason_label: "", action: "choose",
+  choices: { connection: "conn1", account_set_key: "69EXP", needed: [{ kind: "account", subject: "s1", label: "ACME" },
+    { kind: "payment", subject: "s1", label: "ACME" }, { kind: "vat", subject: "s1" }] } };
+await answerChoices(item, { "account\ns1": "5320", "payment\ns1": "credit" });
+const sent = g.calls.at(-1);
+assert.equal(sent.method, "/api/method/pearnly_cowork.push.application.api.save_choices");
+assert.deepEqual({ ...sent.body, items: JSON.parse(sent.body.items) }, { history: "OCR-0001", connection: "conn1", account_set_key: "69EXP",
+  items: [{ kind: "account", subject: "s1", value: "5320", label: "ACME" }, { kind: "payment", subject: "s1", value: "credit", label: "ACME" }] });
+// 待处理按公司取（不给公司 = 全部）；服务端回列表或 {items}
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { items: [item] } }) });
+assert.equal((await loadPending("comp_abc")).length, 1);
+assert.equal(g.calls.at(-1).args.company, "comp_abc");
+await loadPending();
+assert.equal(g.calls.at(-1).args.company, undefined);
+""")
+
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""
 const sets = [{ connection: "c", key: "69HQ", label: "ABC 69", year_label: "69", period_start: "2025-10-01", period_end: "2026-09-30" },

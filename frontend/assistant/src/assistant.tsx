@@ -411,8 +411,16 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
     setView(next);
     onPick?.();
   };
+  // 「待处理 N」紧跟在「定时任务」下面（补充乙），然后是「公司」
   return (
     <>
+      {total > 0 && (
+        <button type="button" className="cc-nav-item" title={co.pending} data-active={view === "pending" || undefined} onClick={() => go("pending")}>
+          <span className="cc-nav-icon"><InboxIcon /></span>
+          <span className="cc-nav-label flex-1">{co.pending}</span>
+          <span className="cc-count">{total}</span>
+        </button>
+      )}
       <button
         type="button"
         className="cc-nav-item"
@@ -423,13 +431,6 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
         <span className="cc-nav-icon"><Building2Icon /></span>
         <span className="cc-nav-label">{co.companies}</span>
       </button>
-      {total > 0 && (
-        <button type="button" className="cc-nav-item" title={co.pending} data-active={view === "pending" || undefined} onClick={() => go("pending")}>
-          <span className="cc-nav-icon"><InboxIcon /></span>
-          <span className="cc-nav-label flex-1">{co.pending}</span>
-          <span className="cc-count">{total}</span>
-        </button>
-      )}
     </>
   );
 }

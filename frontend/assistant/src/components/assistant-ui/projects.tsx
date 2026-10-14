@@ -102,6 +102,11 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
   const openCompany = useOpenCompany();
+  const { setView } = useView();
+  const openPending = (company: string) => {
+    useCompanyNav.setState({ pendingCompany: company });
+    setView("pending");
+  };
   const go = (run: () => void) => {
     run();
     if (isMobile) setOpenMobile(false);
@@ -121,7 +126,12 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
         <span className="min-w-0 truncate">{project.title}</span>
         {!open && busy && <span className="cc-activity" data-activity="unread" aria-label={t("unread")} />}
       </button>
-      {pending > 0 && <span className="cc-count" aria-label={`${co.pending} ${pending}`}>{pending}</span>}
+      {pending > 0 && (
+        // 这家的待处理数：点了打开只看这家的待处理
+        <button type="button" className="cc-count" aria-label={`${co.pending} ${pending}`} title={co.pending} onClick={() => go(() => openPending(project.id))}>
+          {pending}
+        </button>
+      )}
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger asChild>
           <button type="button" className="cc-group-btn cc-project-more" aria-label={t("more")} title={t("more")}>

@@ -8,10 +8,10 @@
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { InboxIcon, LoaderIcon, SparklesIcon } from "lucide-react";
+import { InboxIcon, LoaderIcon, SparklesIcon, XIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
-import { co } from "@/i18n";
+import { co, t } from "@/i18n";
 import {
   cachedDetail,
   type ChoiceNeeded,
@@ -248,10 +248,21 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void }> =
 /** 待处理视图（?view=pending）：标题 + 列表；从公司组头或主档页来的只看这家。 */
 export const PendingView: FC = () => {
   const company = useCompanyNav((s) => s.pendingCompany);
+  const title = useTitles(company ? [company] : [])[company] ?? "";
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
         <h1 className="cc-greeting mb-6 text-3xl">{co.pending}</h1>
+        {company && (
+          <div className="mb-4">
+            <span className="cc-chip">
+              {title}
+              <button type="button" className="-me-1 flex items-center" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>
+                <XIcon className="size-3.5" />
+              </button>
+            </span>
+          </div>
+        )}
         <PendingList company={company} />
       </div>
     </div>
