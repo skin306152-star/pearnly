@@ -11,7 +11,7 @@ from frappe import _
 
 from pearnly_core.assistant import projects
 from pearnly_cowork.access import scope
-from pearnly_cowork.companies import notes, service
+from pearnly_cowork.companies import identity, notes, service
 
 LIST_MAX = 20
 CHOICES_MAX = 200
@@ -27,6 +27,11 @@ GUIDANCE = [
     "amounts of a single document, passwords, ID card or bank account numbers; if the user declines, do not offer it "
     "again in this conversation.",
     "Remembered push choices are applied automatically when pushing; to change one, use the push choice tools as usual.",
+    "In a conversation filed under a company, cowork_list_documents, cowork_push_results and cowork_folder_tasks "
+    "cover only that company's account sets (all its years, or only the work branch); scope in the result names the "
+    "company. Answer for that company only and never list other companies' documents or tasks there. Pass "
+    "all_companies true only when the user asks about all companies or other companies (" + "ทุกเจ้า, เจ้าอื่น" + "); "
+    "for one other company pass its company id.",
 ]
 
 
@@ -54,6 +59,44 @@ def _company(tool_input):
 
 def _no_company() -> str:
     return _json({"status": "failed", "reason": "no company: pass company (an id from cowork_companies)"})
+
+
+# ---------------- 公司对话的默认范围 ----------------
+
+# 2026-10-15 测试机：在「T.8 ซินเซียร์ไอซ์」的 9 月对话里问「这个月哪些单进了 Express」，CC 调 cowork_list_documents 没带账套，
+# 答出整个工作空间 9 月推送的 128 张（别家三份账套的）。按公司可筛的读工具（单据列表、推送结果、定时任务）在服务端兜底：
+# 调用没点账套、连接或公司时，挂在公司下的对话默认只看这家的账套；会计员问所有公司 / 别家时才由 all_companies 放开。
+
+
+def default_scope(tool_input) -> dict | None:
+    """这次读哪家公司的账套。回 ``{"scope": 给模型看的范围, "sets": 账套（`service.book` 的样子）或 None = 不限}``：
+
+    - 给了 ``company``（别的那家）：那家的全部账套（各年度、各分店）。
+    - 本对话挂在某家公司：没给 ``all_companies`` → 这家的账套（对话指定了分店只看该分店，`service.work_sets`）；
+      给了 → 不限，``scope`` 标 ``all_companies``，照「所有公司」逐家答。
+    - 没挂公司、也没给 ``company``：回 None，照旧不限、不加 ``scope``。
+
+    ``company`` 给错回 ``{"failed": 原因}``。调用自己点了账套 / 连接的不走这里（由调用方判），照旧按点的取。"""
+    filed, _period, work_scope = _filed()
+    filed = filed if filed and service.exists(filed) else ""
+    wanted = str(tool_input.get("company") or "").strip()
+    if wanted and wanted != filed:
+        if not service.exists(wanted):
+            return {"failed": "unknown company: pass an id from cowork_companies"}
+        row = service.get(wanted)
+        sets = service.work_sets(row.name)
+        return {"scope": {"company": row.title, "company_id": row.name, "account_sets": len(sets)}, "sets": sets}
+    if not filed:
+        return None
+    if tool_input.get("all_companies") and not wanted:
+        return {"scope": {"all_companies": True}, "sets": None}
+    row = service.get(filed)
+    branch = identity.scope_value(work_scope) or ""
+    sets = service.work_sets(row.name, branch)
+    view = {"company": row.title, "company_id": row.name, "conversation_company": True, "account_sets": len(sets)}
+    if branch and any(item.get("branch") == branch for item in sets):
+        view["branch"] = branch
+    return {"scope": view, "sets": sets}
 
 
 def companies(tool_input) -> str:

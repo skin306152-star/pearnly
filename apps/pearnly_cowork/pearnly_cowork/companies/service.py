@@ -151,6 +151,14 @@ def books(company, limit=identity.BOOKS_MAX) -> list:
     return found if limit is None else found[:limit]
 
 
+def work_sets(company, work_scope="") -> list:
+    """CC 在这家公司的对话里默认看的账套（`books` 全集：各年度、各分店）；对话指定了分店（`work_scope`）时只留这个分店的，
+    这个分店没有自己的账套（一套账服务几个分店）就仍是全部，同给 CC 的公司说明（`context.company_note`）。"""
+    sets = books(_company_row(company), None)
+    work_scope = identity.scope_value(work_scope) or ""
+    return (identity.scoped(sets, work_scope) or sets) if work_scope else sets
+
+
 _TAKEN_LOGGED: set = set()
 
 

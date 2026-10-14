@@ -124,6 +124,37 @@
 没有做：生产镜像上的候选离线检查（改了 `pearnly_core/assistant/contracts.py`，合入前要跑 `ci-candidate-checks offline`，
 含要 cryptography 的 `tests/test_assistant_push.py`、`test_cowork_targets.py` 等）、真实 Site、测试机、真机。
 
+## 公司对话的默认范围（2026-10-15，分支 `pearnly/cc-company-scope`，基线 `0069d6d6` = 集成分支当时的头）
+
+测试机实测（04:3x，testcowork）：在主档「T.8 บริษัท ซินเซียร์ไอซ์ จำกัด」的 9 月对话里问「เดือนนี้มีบิลอะไรเข้า Express ไปแล้วบ้าง」，
+CC 调 `cowork_list_documents` 没带账套，答出整个工作空间 9 月已推送的 128 张（demo01/02/03 三家别的公司的账套）。
+
+口径：公司对话里，按公司可筛的读工具调用时没点账套、连接或公司，服务端默认只取这家公司的账套（`companies.service.work_sets`：
+`books` 全集，含各年度、各分店；对话指定了分店只取该分店的，该分店没有自己的账套时仍取全部，同给 CC 的公司说明）。会计员问
+所有公司 / 别家（ทุกเจ้า、เจ้าอื่น）时模型传 `all_companies: true` 放开，「所有公司逐家覆盖」照旧按 `by_account_set` 逐家列；
+问另一家时传 `company`（主档编号）。结果带 `scope`（这次按哪家、是否分店、几份账套；或 `all_companies`）。
+没挂公司的对话、调用自己点了账套 / 连接的，行为不变（不碰主档、不加 `scope`）。
+
+| 工具 | 套默认范围 | 理由 |
+| --- | --- | --- |
+| `cowork_list_documents`、`cowork_push_results`（同一处理函数） | 套 | 按推送账套筛：库里按这家的连接与账套键筛；各连接上的账套不一样时改为取回后逐对核对（不多圈别的连接上同名的账套）；`by_account_set` 也只数这家的 |
+| `cowork_folder_tasks` | 套 | 任务带连接与账套，按同一组账套留这家的 |
+| `cowork_vat_draft`、`cowork_wht_draft` | 不套 | 必填账套 / 税号，调用本来就点名了一家；申报草稿列表在 `cowork_company_profile` 里已按公司 |
+| `cowork_company_profile`、`cowork_companies` | 不改 | 前者本来就默认本对话那家；后者是公司清单 |
+| `cowork_intake_options`、`cowork_folder_task_options` | 不套 | 选去向的清单：会计员说「这张是某某的」要能找到别家（现有 GUIDANCE） |
+| `cowork_recon_*`、`cowork_stocktake_*`、`cowork_work_*` | 不套 | 记录不带账套 / 公司，无从筛 |
+| 单据详情、原件、识别结果、运行记录、回读状态 | 不套 | 按编号读一条，目标已明确 |
+| 推送、改单、删除、保存选择、定时任务增改删、回读、POS 导入等写入类 | 不改 | 已有明确目标与允许卡片 |
+
+落点：`assistant/company_tools.default_scope`（判范围，依赖 `companies`，方向已登记）、`assistant/tools.py`
+`_company_scope`（不在 CC 对话里、也没给 `company` 就不导入主档模块）与 `list_documents` / `folder_tasks`、
+`companies/service.work_sets`；工具说明与两处 GUIDANCE 写明口径；泰文说法登记进 `scripts/i18n/keep-cjk.tsv`。
+
+验证：`tests/test_cowork_assistant_tools.py` `CompanyScopeTests`（9 条：公司对话只这家含两年度两分店、分店、all_companies 逐家、
+点了账套不被覆盖、没挂公司不变、两条连接逐对核对、没有账套 / 点错公司、定时任务、说明与 GUIDANCE）；
+`tests/test_cowork_companies.py` `test_a_company_conversation_defaults_to_that_companys_account_sets`（真 `books`：两年度、两连接、
+分店、分店无自己账套、放开、点名别家、点错、已删主档）；`check-architecture.py`；全闸门。测试机未复测。
+
 ## 已知未做 / 下一批
 
 - 合并申报的汇总算法、同税号 Express 与 MR.ERP 合成一家、公司级参考文件、批量添加、按公司分权限。
@@ -145,6 +176,8 @@
 5. 主档页「对话」列出这家的全部对话（超过一页有「显示更多」），包括侧栏还没加载到的。
 6. 主档页改某供应商的付款方式（多分店公司）→ 各分店账套推送都用新值；删一条记住的选择 → 旧年度也不再借用回来；
    各处时间与本机时间一致（不再晚 7 小时）。
+7. 公司默认范围：在 T.8 的 9 月对话里问「เดือนนี้มีบิลอะไรเข้า Express ไปแล้วบ้าง」→ 只答 T.8 的账套；接着问「ทุกเจ้าเลย」→ 逐家列
+   （含 demo01/02/03）；在没挂公司的对话里问同一句 → 与以前一样列全部。
 
 ## 收尾
 
