@@ -1,5 +1,6 @@
 """ADR-0012 共用票种决策表：回归样本、旧线上口径、各产品不漂移。纯离线，不需要 Frappe。"""
 import ast
+from decimal import Decimal
 import json
 from pathlib import Path
 import sys
@@ -10,7 +11,8 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 
 from pearnly_core.tax_documents import codes, rules  # noqa: E402
 
-CASES = json.loads((ROOT / "tests/fixtures/tax-documents/cases.json").read_text(encoding="utf-8"))["cases"]
+FIXTURE = json.loads((ROOT / "tests/fixtures/tax-documents/cases.json").read_text(encoding="utf-8"))
+CASES = FIXTURE["cases"]
 
 
 class Samples(unittest.TestCase):
@@ -99,6 +101,85 @@ class NoDrift(unittest.TestCase):
                     self.assertIn(name.split(".")[0], allowed, f"{path.name}: {name}")
                     if name.startswith("pearnly_core"):
                         self.assertTrue(name.startswith("pearnly_core.tax_documents"), f"{path.name}: {name}")
+
+
+class IncludedVat(unittest.TestCase):
+    """简式税票票面价依法含 VAT（ม.86/6）：税额读成 0 / 没写时按 7/107 拆出；其余不动。"""
+
+    def split(self, document_type="simplified_tax_invoice", total="727.00", **values):
+        return rules.included_vat(document_type, total, **values)
+
+    def test_every_sample(self):
+        self.assertGreaterEqual(len([case for case in FIXTURE["vat_included"] if case["source"] == "real"]), 1)
+        for case in FIXTURE["vat_included"]:
+            with self.subTest(case["id"]):
+                result = rules.included_vat(case["document_type"], case["total"], subtotal=case["subtotal"],
+                                            vat=case["vat"], texts=case["texts"])
+                expect = case["expect"]
+                self.assertEqual(result.reason, expect["reason"])
+                self.assertEqual(result.applies, expect["reason"] == rules.SPLIT)
+                if result.applies:
+                    self.assertEqual((str(result.subtotal), str(result.vat)), (expect["subtotal"], expect["vat"]))
+
+    def test_the_reported_abb_is_split_into_base_and_vat(self):
+        # 2026-10-13 testcowork：D2 手写 ABB 727.00 读成税前 727.00、税额 "0"
+        result = self.split(subtotal="727.00", vat="0")
+        self.assertEqual((result.reason, result.subtotal, result.vat), (rules.SPLIT, Decimal("679.44"), Decimal("47.56")))
+        self.assertEqual(result.subtotal + result.vat, Decimal("727.00"))
+
+    def test_zero_and_missing_vat_are_written_in_several_ways(self):
+        for vat in ("0", "0.00", " 0 ", 0, "", None, "  "):
+            for subtotal in ("727.00", "727", "727.01", "", None):
+                with self.subTest(vat=vat, subtotal=subtotal):
+                    result = self.split(subtotal=subtotal, vat=vat)
+                    self.assertEqual((result.subtotal, result.vat), (Decimal("679.44"), Decimal("47.56")))
+
+    def test_rounding_is_half_up_to_the_cent_and_always_adds_back_to_the_total(self):
+        for total, vat in (("597.00", "39.06"), ("100", "6.54"), ("107", "7.00"), ("1,070.00", "70.00"),
+                           ("0.15", "0.01"), ("12345.67", "807.66")):
+            with self.subTest(total=total):
+                result = self.split(total=total, subtotal="", vat="0")
+                self.assertEqual(result.vat, Decimal(vat))
+                self.assertEqual(result.subtotal + result.vat, Decimal(total.replace(",", "")).quantize(Decimal("0.01")))
+
+    def test_anything_already_split_or_not_an_abbreviated_invoice_is_left_alone(self):
+        self.assertEqual(self.split(subtotal="557.94", vat="39.06", total="597.00").reason, rules.VAT_PRESENT)
+        self.assertEqual(self.split(subtotal="727", vat="47.56").reason, rules.VAT_PRESENT)
+        for kind in ("tax_invoice", "receipt", "credit_note", "payment_evidence", "order_evidence", "other", "", None,
+                     "bogus"):
+            with self.subTest(kind=kind):
+                self.assertEqual(self.split(kind, subtotal="727", vat="0").reason, rules.NOT_INCLUDED_TYPE)
+        self.assertTrue(self.split("SIMPLIFIED_TAX_INVOICE", subtotal="727", vat="0").applies)
+
+    def test_foreign_currency_odd_amounts_and_withholding_are_left_alone(self):
+        self.assertEqual(self.split(subtotal="727", vat="0", currency="USD").reason, rules.FOREIGN_CURRENCY)
+        self.assertEqual(self.split(subtotal="727", vat="0", currency="$").reason, rules.FOREIGN_CURRENCY)
+        for baht in ("", None, "THB", "thb", "บาท", "฿", "Baht"):
+            self.assertTrue(self.split(subtotal="727", vat="0", currency=baht).applies, baht)
+        for total in (None, "", "0", "-727", "abc", "NaN"):
+            self.assertEqual(self.split(total=total, vat="0").reason, rules.TOTAL_MISSING, total)
+        self.assertEqual(self.split(subtotal="700", vat="0").reason, rules.SUBTOTAL_DIFFERS)
+        self.assertEqual(self.split(subtotal="n/a", vat="0").reason, rules.SUBTOTAL_DIFFERS)
+        self.assertEqual(self.split(subtotal="727", vat="-").reason, rules.VAT_UNREADABLE)
+        self.assertEqual(self.split(subtotal="727", vat="exempt").reason, rules.VAT_UNREADABLE)
+        self.assertEqual(self.split(subtotal="727", vat="0", wht_amount="21.81").reason, rules.WITHHOLDING)
+        self.assertTrue(self.split(subtotal="727", vat="0", wht_amount="0").applies)
+
+    def test_a_document_that_says_it_is_exempt_or_zero_rated_is_left_alone(self):
+        for text in ("ผักสด (ยกเว้นภาษี)", "สินค้ายกเว้น VAT", "VAT EXEMPT", "Exempted goods", "NON-VAT 120.00",
+                     "NON VATABLE", "zero-rated", "Zero rate", "VAT 0%", "0% VAT", "VAT 0.00", "ภาษีมูลค่าเพิ่ม 0.00",
+                     "อัตราภาษีร้อยละ 0", "อัตราศูนย์", "ไม่มีภาษี", "ไม่คิด VAT", "ไม่รวมVAT", "no VAT", "VAT-free"):
+            with self.subTest(text=text):
+                self.assertTrue(rules.no_vat_marked([text]))
+                self.assertEqual(self.split(subtotal="727", vat="0", texts=["น้ำแข็ง", text]).reason, rules.NO_VAT_MARKED)
+
+    def test_ordinary_document_text_does_not_count_as_exempt(self):
+        for text in ("ABB / VAT INCLUDED", "รวมเงิน (รวมภาษีมูลค่าเพิ่มแล้ว) 727.00", "ราคารวม VAT 7% แล้ว", "VAT 7%",
+                     "ภาษีมูลค่าเพิ่ม 47.56", "อัตราภาษีร้อยละ 7", "10% VAT", "ส่วนลด 0%", "Coke Zero", "นม 0% fat",
+                     "VAT 0.07", "VATABLE 727.00", "ใบกำกับภาษีอย่างย่อ", "ไม่สามารถใช้เป็นใบกำกับภาษีเต็มรูป", "", None):
+            with self.subTest(text=text):
+                self.assertFalse(rules.no_vat_marked([text]))
+        self.assertTrue(self.split(subtotal="727", vat="0", texts=["ABB / VAT INCLUDED", "ข้าวผัด"]).applies)
 
 
 class RepairedTaxId(unittest.TestCase):

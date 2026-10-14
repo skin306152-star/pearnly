@@ -158,6 +158,8 @@ jobs:
         run: python3 tests/test_purchase_amounts.py
       - name: Verify the shared tax document rules (ADR-0012)
         run: python3 tests/test_tax_documents.py
+      - name: Verify abbreviated tax invoices read without VAT are saved with the included VAT split out
+        run: python3 tests/test_cowork_abb_vat_included.py
       - name: Verify the Revenue Department tax ID lookup (real responses, shared by ERP and CC)
         run: python3 tests/test_erp_tax_lookup.py
       - name: Check generated translations

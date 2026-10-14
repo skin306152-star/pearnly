@@ -15,7 +15,7 @@ from pearnly_cowork.contracts.push import (apply_batch_direction, apply_batch_pa
 from pearnly_cowork.ocr.grouping import group_invoices
 from pearnly_cowork.ocr.pages import (
     aggregate_confidence_band, all_pages_not_invoice, assess_confidence, restore_total_before_withholding,
-    flatten_pipeline_pages, history_pages,
+    flatten_pipeline_pages, history_pages, split_included_vat,
 )
 from pearnly_cowork.ocr.schema.results import PipelineResult
 
@@ -183,6 +183,8 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
         apply_batch_direction(group["invoice_fields"], declared_direction)
         apply_batch_payment(group["invoice_fields"], declared_payment)
         first_final_pages = history_pages(group)
+        # 简式税票票面价依法含 VAT：税额读成 0 / 没写的按 7/107 拆出（分组之后、每一页都改：不改分组结果，推送读哪页都一样）。
+        split_included_vat(first_final_pages)
         prepared.append({"workspace": workspace, "client": client, "source": source,
             "source_page_indices": list(group["page_indices"]), "pages": first_final_pages,
             # Legacy insert_ocr_history defaulted ai_raw to the first saved

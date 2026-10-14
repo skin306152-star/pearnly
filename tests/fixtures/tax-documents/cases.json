@@ -49,5 +49,23 @@
     {"id": "rule-nothing-known", "source": "rule", "note": "标题与模型都认不出：不记进项、交人工",
      "model_type": "invoice", "title": null, "vat": "70", "buyer_tax_id": "0105546015062", "buyer_name": null,
      "expect": {"document_type": "other", "basis": "unknown", "claims_input_vat": false, "route": "expense", "paid_hint": null, "review": ["document_type_unknown"]}}
+  ],
+  "_vat_included_comment": "简式税票含税价拆税（rules.included_vat，ม.86/6）：识别出的票面金额 → 拆出的 (税前额, 税额) 或不拆的原因。",
+  "vat_included": [
+    {"id": "real-2026-10-13-d2-handwritten-abb", "source": "real", "note": "testcowork 教程录制，D2 自开手写 ABB「ABB / VAT INCLUDED」「รวมเงิน (รวมภาษีมูลค่าเพิ่มแล้ว) 727.00」，没写税额；识别 subtotal 727.00、vat \"0\"，推送少记销项税 47.56",
+     "document_type": "simplified_tax_invoice", "total": "727.00", "subtotal": "727.00", "vat": "0", "texts": [],
+     "expect": {"reason": "split", "subtotal": "679.44", "vat": "47.56"}},
+    {"id": "real-2026-10-13-d2-abb-already-split", "source": "real", "note": "同一本另一张：模型自己拆对了，不动",
+     "document_type": "simplified_tax_invoice", "total": "597.00", "subtotal": "557.94", "vat": "39.06", "texts": [],
+     "expect": {"reason": "vat_present"}},
+    {"id": "rule-abb-vat-missing", "source": "rule", "note": "税额没写（空 / null）同 0",
+     "document_type": "simplified_tax_invoice", "total": "727", "subtotal": "", "vat": null, "texts": [],
+     "expect": {"reason": "split", "subtotal": "679.44", "vat": "47.56"}},
+    {"id": "rule-full-tax-invoice-zero-vat", "source": "rule", "note": "完整税票的 0 税额不归本规则（缺 VAT 由采购决策表交人看）",
+     "document_type": "tax_invoice", "total": "727.00", "subtotal": "727.00", "vat": "0", "texts": [],
+     "expect": {"reason": "not_included_type"}},
+    {"id": "rule-abb-exempt-goods", "source": "rule", "note": "票面写明免税 / 零税率：税额本来就是 0",
+     "document_type": "simplified_tax_invoice", "total": "120.00", "subtotal": "120.00", "vat": "0.00", "texts": ["ผักสด (ยกเว้นภาษี)"],
+     "expect": {"reason": "no_vat_marked"}}
   ]
 }

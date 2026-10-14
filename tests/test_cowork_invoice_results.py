@@ -69,6 +69,33 @@ class InvoiceResultPreparation(unittest.TestCase):
             kept = prepare(batch(page(1, same)))["groups"][0]["pages"][0]["fields"]
             self.assertEqual(kept["total_amount"], values["total_amount"])
 
+    def test_an_abbreviated_invoice_read_without_vat_is_saved_with_vat_split_out(self):
+        # 2026-10-13 testcowork：手写 ABB 727.00 读成税前 727.00、税额 "0"；简式税票票面价依法含 VAT（ม.86/6）
+        abb = invoice(invoice_number="ABB-1", document_type="simplified_tax_invoice", subtotal="727.00", vat="0",
+            total_amount="727.00", notes="ABB / VAT INCLUDED")
+        split = invoice(invoice_number="ABB-2", document_type="simplified_tax_invoice", subtotal="557.94",
+            vat="39.06", total_amount="597.00")
+        full = invoice(invoice_number="T-1", document_type="tax_invoice", subtotal="727.00", vat="0",
+            total_amount="727.00")
+        exempt = invoice(invoice_number="ABB-3", document_type="simplified_tax_invoice", subtotal="120", vat="",
+            total_amount="120", items=[{"name": "ผักสด (ยกเว้นภาษี)", "subtotal": "120"}])
+        for direction in ("sales", "purchase"):
+            with self.subTest(direction):
+                plan = prepare(batch(page(1, abb), page(2, split), page(3, full), page(4, exempt)), direction=direction)
+                saved = [(group["pages"][0]["fields"]["subtotal"], group["pages"][0]["fields"]["vat"])
+                         for group in plan["groups"]]
+                self.assertEqual(saved, [("679.44", "47.56"), ("557.94", "39.06"), ("727.00", "0"), ("120", None)])
+                first = plan["groups"][0]
+                self.assertEqual(first["pages"][0]["fields"]["direction"], direction)
+                self.assertEqual(first["pages"], first["ai_raw"])
+                self.assertEqual(first["pages"][0]["_extraction_audit"],
+                                 {"vat_included": {"subtotal": "727.00", "vat": "0"}})
+                # 只规整数字：不加提示、不改复核状态
+                self.assertEqual(first["pages"][0]["_validation_warnings"], [])
+                self.assertEqual(plan["state"], "ready")
+                # 分组前的原读数不动
+                self.assertEqual(plan["raw_pages"][0]["fields"]["vat"], "0")
+
     def test_an_unread_page_joins_the_invoice_before_it_and_flags_it(self):
         unread = PipelinePageResult(page_number=2, invoice=invoice(), layer_chain=["PAGE_UNREAD"],
             needs_manual_review=True, confidence_band="needs_review",

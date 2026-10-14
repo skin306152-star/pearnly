@@ -83,7 +83,8 @@
 票据的票种（完整税票 / 简式税票 / 收据 / 贷项通知单 …）与由它决定的业务处理（抵不抵进项、默认付款、要不要人看）只在
 `pearnly_core.tax_documents` 定义一次：`codes` 是码表与提示词片段，`rules` 是票种判定与采购决策表，纯契约、只依赖标准库。
 ERP 采购识别、Cowork 的识别枚举与 Express / MR.ERP 推送判据都调用它，产品里不再写票种字符串判断；改规则先加
-`tests/fixtures/tax-documents/cases.json` 用例。详见 [ADR-012](../adr/0012-shared-tax-document-rules.md)。
+`tests/fixtures/tax-documents/cases.json` 用例。详见 [ADR-012](../adr/0012-shared-tax-document-rules.md)。简式税票票面价含 VAT 的拆税
+（`rules.included_vat`，2026-10-15）也在这里，Cowork 在识别存档时逐页调用（`ocr.pages.split_included_vat`）。
 
 ## 识别读法（ADR-013）
 
