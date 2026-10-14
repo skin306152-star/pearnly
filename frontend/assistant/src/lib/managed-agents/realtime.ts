@@ -74,6 +74,16 @@ export function isConnected(): boolean {
   return Boolean(socket?.connected);
 }
 
+/** 实时通道收到服务端的心跳（socket.io 的 ping，默认约 25 秒一次）；返回取消订阅。会话据此分辨「慢」和「断」
+ *  （session-controller 的 STALL_MS）。 */
+export function onHeartbeat(listener: () => void): () => void {
+  const manager: Socket["io"] | undefined = connect().io;
+  manager?.on("ping", listener);
+  return () => {
+    manager?.off("ping", listener);
+  };
+}
+
 /** 订阅一个会话的推送；返回取消订阅。`onStatus` 在实时通道连上 / 断开时调用。 */
 export function subscribe(sessionId: string, handler: Handler, onStatus: (connected: boolean) => void): () => void {
   connect();

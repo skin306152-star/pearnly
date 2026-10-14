@@ -14,6 +14,10 @@
 // 在回复 / 等允许 / 已结束以服务端读回的运行状态为准（RunStatus，reducer.applyRunStatus）：每次整段重放（含重进对话）
 // 都带一份，回到前台、页面恢复、联网、实时通道重连、点停止时由尾巴补拉一次带一份。不从「没收到某条事件」推断；
 // 本页乐观标的「在回复」也由它清掉，卡住的「在回复」不会一直挡着发新消息。
+//
+// 在跑还是断了（教程第 8 条 g）：这一轮在跑时，服务端的任何消息（推来的事件、补拉的回应、实时通道的心跳）都算「还连着」。
+// 超过 STALL_MS 一条也没有，就标 stalled（状态行改成「连接中断，正在重连」），并重开尾巴：走原有的连上即补拉、带状态
+// 校正那一套，不另加轮询；之后收到任何消息就清掉。页面在后台时不计（回到前台重新计时，尾巴同时补拉一次）。
 
 import { noteRun } from "./activity";
 import { confirmTools, interruptSession, listEvents, runTool, sendMessage as postMessage } from "./api";
@@ -38,7 +42,15 @@ export type ControllerSnapshot = Projection & {
   isTailing: boolean;
   /** Last transport-level problem (relay drop, failed action), for a banner. */
   transportError: string | null;
+  /** 这一轮在跑，却超过 STALL_MS 收不到服务端任何消息（见文件头）。 */
+  stalled: boolean;
 };
+
+/** 在跑时多久收不到服务端任何消息算断了。依据：实时通道连着时，在跑的会话每 8 秒补拉一次（poll-source 的
+ *  PUSHED_RUNNING_MS），通道自己的心跳每 25 秒一次（socket.io 默认 pingInterval）；没连上时补拉 1.2 秒一次、失败后 6 秒一次。
+ *  引擎「列出事件」偶尔单次 30 多秒（工具长时间执行时更常见），这期间心跳照到。取比心跳间隔多 5 秒：通道正常时不会误报，
+ *  断网后半分钟内说清楚。 */
+export const STALL_MS = 30_000;
 
 type Listener = () => void;
 
@@ -83,6 +95,9 @@ export class SessionController {
   // 本页最近一次自己改运行状态（发消息、点允许 / 拒绝、答完工具）的时刻（本页时钟）：在它之前发出的状态请求读到的是
   // 这之前的服务端，不能拿来盖掉这次操作（例如刚发出时还读到「空闲」）。
   private localChangeAt = 0;
+  // 本页自己的改动还没被服务端收下（消息、允许 / 拒绝的请求还在路上）：这期间读回的状态是收下之前的服务端
+  // （例如发出后马上回到前台，读到上一轮结束时的「空闲」），一律不用；收下之后的时刻再读。
+  private unacked = 0;
   // 并完一批事件再答自定义工具：同一页里后面就有这次调用的答复时不再白跑一次（见 fold）
   private answerQueued = false;
 
@@ -91,9 +106,17 @@ export class SessionController {
   private confirmQueue: Array<{ tool_use_id: string; result: "allow" | "deny"; deny_message?: string }> = [];
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // 在跑还是断了（见文件头）：最近一次收到服务端消息的时刻（本页时钟）与看门的定时器（只在这一轮在跑时有，不发请求）
+  private lastContact = Date.now();
+  private stallTimer: ReturnType<typeof setTimeout> | null = null;
+  // 看门重开尾巴的次数：之前那条尾巴卡住的重放回来时据此作废
+  private tailGeneration = 0;
+  /** 测试里调短。 */
+  static stallMs = STALL_MS;
+
   constructor(sessionId: string) {
     this.sessionId = sessionId;
-    this.state = { ...initialProjection(), isLoaded: false, isTailing: false, transportError: null };
+    this.state = { ...initialProjection(), isLoaded: false, isTailing: false, transportError: null, stalled: false };
   }
 
   // ------------------------------------------------------------ subscription
@@ -118,6 +141,69 @@ export class SessionController {
     // stream; drop the tail so EventSource doesn't keep reconnecting to a
     // route that now 404s.
     if (this.state.isDead && this.source) this.detach();
+    this.watchStall();
+  }
+
+  // ------------------------------------------------------------ 在跑还是断了
+  /** 收到了服务端的消息（事件、补拉回应、心跳），或重新开始计时（发出、点完允许、回到前台、接上尾巴）。 */
+  private touch() {
+    this.lastContact = Date.now();
+    if (this.state.stalled) this.set({ stalled: false });
+    this.watchStall();
+  }
+
+  /** 这一轮在跑且尾巴开着才看门；不在跑了就收起「连接中断」。 */
+  private watchStall() {
+    const watching = !this.disposed && !!this.source && isBusy(this.state);
+    if (!watching) {
+      if (this.stallTimer) clearTimeout(this.stallTimer);
+      this.stallTimer = null;
+      if (this.state.stalled) this.set({ stalled: false });
+      return;
+    }
+    if (this.stallTimer) return;
+    const wait = Math.max(0, this.lastContact + SessionController.stallMs - Date.now());
+    this.stallTimer = setTimeout(() => {
+      this.stallTimer = null;
+      this.checkStall();
+    }, wait);
+  }
+
+  private checkStall() {
+    if (this.disposed || !this.source || !isBusy(this.state)) return this.watchStall();
+    // 页面在后台：浏览器停了补拉，不算断；回到前台时尾巴补拉一次并重新计时（onwake）
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      this.lastContact = Date.now();
+      return this.watchStall();
+    }
+    if (Date.now() - this.lastContact < SessionController.stallMs) return this.watchStall();
+    if (!this.state.stalled) this.set({ stalled: true });
+    // 重开尾巴：卡住的那次请求作废，新尾巴连上即补拉、带回服务端状态（onopen → replay）。再过 STALL_MS 还没消息就再来一次。
+    this.reconnect();
+    this.watchStall();
+  }
+
+  /** 关掉当前尾巴马上重开（不等退避）；新尾巴的第一次回应才算收到消息。卡住的补拉、重放一并作废（tailGeneration）：
+   *  新尾巴连上照常从事件记录补齐、带回服务端状态。 */
+  private reconnect() {
+    if (this.reopenTimer) {
+      clearTimeout(this.reopenTimer);
+      this.reopenTimer = null;
+    }
+    if (this.replayRetryTimer) {
+      clearTimeout(this.replayRetryTimer);
+      this.replayRetryTimer = null;
+    }
+    this.source?.close();
+    this.source = null;
+    this.tailGeneration++;
+    this.replayInFlight = null;
+    this.rerunNeeded = false;
+    this.replaying = false;
+    this.backfilling = false;
+    this.pendingTail = [];
+    this.lastContact = Date.now();
+    this.openTail(false);
   }
 
   private fold(event: FeedEvent) {
@@ -143,7 +229,7 @@ export class SessionController {
 
   /** 服务端读回的此刻运行状态。askedAt：这次请求发出的时刻（本页时钟）；在它之后本页自己改过运行状态就不用这份。 */
   private applyRun(run: RunStatus, askedAt: number) {
-    if (this.disposed || askedAt < this.localChangeAt) return;
+    if (this.disposed || askedAt < this.localChangeAt || this.unacked > 0) return;
     const next = applyRunStatus(this.state, run);
     if (next === this.state) return; // 这期间到过更新的状态事件：以事件为准
     this.mergeProjection(next);
@@ -185,6 +271,7 @@ export class SessionController {
     this.backfilling = false;
     this.pendingTail = [];
     this.set({ isTailing: false });
+    this.watchStall();
   }
 
   dispose(): void {
@@ -192,14 +279,24 @@ export class SessionController {
     this.detach();
     if (this.confirmTimer) clearTimeout(this.confirmTimer);
     if (this.reopenTimer) clearTimeout(this.reopenTimer);
+    if (this.stallTimer) clearTimeout(this.stallTimer);
     if (this.answerRetryTimer) clearTimeout(this.answerRetryTimer);
     if (this.replayRetryTimer) clearTimeout(this.replayRetryTimer);
     this.listeners.clear();
   }
 
-  private openTail() {
+  private openTail(restart = true) {
     const source = new PollingSource(this.sessionId);
     this.source = source;
+    // 服务端的任何消息都算还连着；回到前台重新计时（同一刻尾巴补拉一次）
+    source.onalive = () => {
+      if (this.source === source) this.touch();
+    };
+    source.onwake = () => {
+      if (this.source === source) this.touch();
+    };
+    // 接上尾巴（打开、切回对话）从此刻计时；看门时的重开不算，要等到真收到消息
+    if (restart) this.touch();
     // 尾巴在某个时刻（回到前台、恢复、联网、重连、点停止）带回的状态。整段重放还没并完时不用：那次重放自己带一份，
     // 而这页事件此刻还压在缓冲里，先用状态会被随后并进来的事件顺序搅乱。
     source.onstatus = (run, askedAt) => {
@@ -217,6 +314,7 @@ export class SessionController {
       this.set({ isTailing: true, transportError: null });
     };
     source.onmessage = (msg) => {
+      if (this.source === source) this.touch();
       let envelope: RelayEnvelope;
       try {
         envelope = JSON.parse(msg.data) as RelayEnvelope;
@@ -233,6 +331,7 @@ export class SessionController {
       else this.fold(envelope.event);
     };
     source.onerror = () => {
+      if (this.source !== source) return; // 已被重开替下的旧尾巴
       this.set({ isTailing: false });
       if (this.disposed) return;
       // A dead session's endpoints 404 forever: reconnecting or replaying
@@ -276,24 +375,29 @@ export class SessionController {
       this.rerunNeeded = true;
       return this.replayInFlight;
     }
-    this.replayInFlight = (async () => {
+    // 看门重开尾巴（reconnect）后，之前卡住的那次重放作废：它回来时什么都不做，也不占着「正在重放」
+    const generation = this.tailGeneration;
+    const run: Promise<void> = (async () => {
       do {
         this.rerunNeeded = false;
-        await this.doReplay();
-      } while (this.rerunNeeded && !this.disposed);
+        await this.doReplay(generation);
+      } while (this.rerunNeeded && !this.disposed && generation === this.tailGeneration);
     })().finally(() => {
-      this.replayInFlight = null;
+      if (this.replayInFlight === run) this.replayInFlight = null;
     });
-    return this.replayInFlight;
+    this.replayInFlight = run;
+    return run;
   }
 
-  private async doReplay(): Promise<void> {
+  private async doReplay(generation = this.tailGeneration): Promise<void> {
+    const stale = () => generation !== this.tailGeneration;
     this.replaying = true;
     try {
       // 整段重放（打开、重进对话、重连）都带一份服务端读回的运行状态：并完历史就按它定在回复 / 等允许 / 已结束，
       // 漏掉的「结束」、去重定住的旧状态、本页乐观标的「在回复」都由它校正（只并没见过的事件做不到）。
       const askedAt = Date.now();
       const body = await listEvents(this.sessionId, undefined, true);
+      if (stale()) return;
       for (const event of body.events) this.fold(event);
       if (body.run) this.applyRun(body.run, askedAt);
       this.replayed = true;
@@ -310,6 +414,7 @@ export class SessionController {
       }
       this.set({ isLoaded: true, transportError: null });
     } catch (err) {
+      if (stale()) return;
       this.set({ isLoaded: true, transportError: describe(err) });
       // The buffer stays intact (folding it over a projection that's still
       // missing its backfill would bake in the misorder the buffer exists
@@ -327,14 +432,20 @@ export class SessionController {
     } finally {
       // The fold settled one way or the other: whatever is *still* pending
       // really is owed (e.g. the tab closed before we answered a chart).
-      this.replaying = false;
-      this.answerPendingCustomTools();
+      if (!stale()) {
+        this.replaying = false;
+        this.answerPendingCustomTools();
+      }
     }
   }
 
   // --------------------------------------------------------------- actions
-  // onShown：真正的气泡放进对话的那一刻（页面据此撤掉发送前先显示的临时气泡，lib/managed-agents/pending-send.ts）
-  async sendMessage(text: string, files: Array<{ filename: string; mountPath: string }>, onShown?: () => void) {
+  // onShown：真正的气泡放进对话的那一刻，带上它的编号（页面等它真画出来再撤掉发送前先显示的临时气泡，pending-send.ts）
+  async sendMessage(
+    text: string,
+    files: Array<{ filename: string; mountPath: string }>,
+    onShown?: (messageId: string) => void,
+  ) {
     // Make sure the tail is up before the turn starts producing events.
     this.attach();
     // And that stored history is fully folded first: an optimistic bubble
@@ -372,8 +483,10 @@ export class SessionController {
       processed_at: now,
     } as unknown as StreamEvent);
     this.localChangeAt = Date.now();
-    onShown?.();
+    this.touch(); // 从发出计时：空闲时补拉得慢，不能把那段间隔算成断了
+    onShown?.(optimisticId);
 
+    this.unacked++;
     try {
       await postMessage(this.sessionId, messageText(text, files));
     } catch (err) {
@@ -381,7 +494,11 @@ export class SessionController {
       // never reads as delivered. (Replay can't do this; it only adds.)
       this.rollbackSend(optimisticId);
       throw err;
+    } finally {
+      this.unacked--;
     }
+    // 收下之后才要的状态才算数（applyRun 比的就是这个时刻）
+    this.localChangeAt = Date.now();
     this.source?.nudge();
   }
 
@@ -408,6 +525,7 @@ export class SessionController {
       processed_at: new Date().toISOString(),
     } as unknown as StreamEvent);
 
+    this.unacked++; // 答复送达前读回的状态不用（flushConfirmations 收尾时减回）
     this.confirmQueue.push({
       tool_use_id: toolUseId,
       result: approved ? "allow" : "deny",
@@ -421,6 +539,7 @@ export class SessionController {
     // between click and echo briefly accepts a message mid-resume (and the
     // action bar flashes). A failed POST undoes this via restoreGates.
     this.localChangeAt = Date.now();
+    this.touch(); // 等用户点的那段时间不算没消息
     const next = markResuming(this.state, toolUseId);
     if (next !== this.state) this.mergeProjection(next);
   }
@@ -432,6 +551,7 @@ export class SessionController {
     if (confirmations.length === 0) return;
     try {
       await confirmTools(this.sessionId, confirmations);
+      this.localChangeAt = Date.now(); // 同 sendMessage：服务端收下答复之前要的状态不算
       this.source?.nudge();
     } catch (err) {
       // The server never took our answer, so the session is still parked.
@@ -440,6 +560,8 @@ export class SessionController {
       const ids = confirmations.map((c) => c.tool_use_id);
       const next = restoreGates(this.state, ids);
       this.mergeProjection({ ...next, transportError: describe(err) });
+    } finally {
+      this.unacked -= confirmations.length;
     }
   }
 

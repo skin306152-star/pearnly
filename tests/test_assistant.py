@@ -1051,6 +1051,31 @@ class ToolAndDefinitionTests(unittest.TestCase):
             self.assertIn(tool.get("label"), english, f"{tool['name']} needs a label in the core term table")
         self.assertNotIn("label", json.dumps(definition.brief("erp")["tools"]))
 
+    def test_step_names_say_what_is_happening_now(self):
+        # 工作状态行（教程第 8 条）：进行中的说法由声明工具的 App 给（共用工具在 CORE_STEP_NAMES），译文在同一张术语表；
+        # 只给已声明的工具；没写进行时的，对话页显示 label
+        terms = (CORE / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()
+        english = {line.split("\t", 1)[0] for line in terms[1:] if line.strip()}
+        core_names = {tool["name"] for tool in tools.CORE_TOOLS}
+        self.assertEqual(set(tools.CORE_STEP_NAMES), core_names)
+        for text in tools.CORE_STEP_NAMES.values():
+            self.assertIn(text, english)
+        product = types.ModuleType("fake_steps")
+        product.TOOLS = [{"name": "p_read", "label": "Read it", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_steps.go"},
+                         {"name": "p_plain", "label": "Did it", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_steps.go"}]
+        product.STEP_NAMES = {"p_read": "Reading it", "p_gone": "Not a declared tool", "p_plain": ""}
+        sys.modules["fake_steps"] = product
+        hooks = {"pearnly_assistant_tools": ["fake_steps.TOOLS"], "pearnly_assistant_step_names": ["fake_steps.STEP_NAMES"]}
+        with mock.patch.object(frappe, "get_hooks", side_effect=lambda name: hooks.get(name, [])):
+            steps = tools.steps()
+        self.assertEqual(steps["running"], {"pearnly_whoami": "Checking your account",
+                                            "pearnly_tax_id_lookup": "Looking up a tax ID", "p_read": "Reading it"})
+        self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
+        api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        self.assertIn("def tool_steps():\n    return tools.steps()", api)
+
     def test_fingerprint_follows_the_definition_and_model(self):
         first = claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"]
         self.assertEqual(first, claude.spec(definition.brief("erp"), "claude-opus-5-5")["metadata"]["pearnly_spec"])

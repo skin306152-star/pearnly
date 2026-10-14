@@ -157,6 +157,25 @@ class DeclarationTests(unittest.TestCase):
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]', hooks)
 
+    def test_every_tool_says_what_it_is_doing_while_it_runs(self):
+        # 工作状态行（教程第 8 条）：执行中显示这一步的进行时（「正在识别单据」），本 App 自己声明、译文在本 App 术语表
+        spec = importlib.util.spec_from_file_location("cowork_step_names", COWORK / "assistant/step_names.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        terms = {}
+        for line in (COWORK / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines()[1:]:
+            cells = line.split("\t")
+            if cells and cells[0]:
+                terms[cells[0]] = cells[1:4]
+        for tool in tools.TOOLS:
+            running = module.STEP_NAMES.get(tool["name"])
+            self.assertTrue(running, f"{tool['name']} needs a running step name")
+            self.assertNotEqual(running, tool["label"], tool["name"])
+            self.assertIn(running, terms, tool["name"])
+            self.assertTrue(all(terms[running][:3]), f"{running} needs zh / th / ja")
+        hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES"]', hooks)
+
     def test_the_four_capabilities_are_covered(self):
         names = {t["name"] for t in tools.TOOLS}
         for name in ("cowork_companion_status", "cowork_push_documents", "cowork_folder_tasks", "cowork_push_results"):

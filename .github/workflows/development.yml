@@ -120,6 +120,8 @@ jobs:
         run: npm ci --prefix frontend/assistant && npm --prefix frontend/assistant run build
       - name: Verify the assistant page notices, push opt-in, deep links and scheduled tasks page
         run: python3 tests/test_assistant_ui.py
+      - name: Verify the CC working line stays until the turn really ends, says when the connection is lost, and scrolling and IME Enter behave
+        run: python3 tests/test_cc_run_indicator.py
       - name: Verify offline DMS editor snapshot rendering
         run: |
           npm ci --prefix frontend

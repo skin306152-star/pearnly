@@ -119,6 +119,8 @@ Another active rule already uses this folder or a folder containing it.,มี�
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
 Answered a reconciliation question,ตอบคำถามการกระทบยอดแล้ว
 Answered a withholding tax question,ตอบคำถามภาษีหัก ณ ที่จ่ายแล้ว
+Answering a reconciliation question,กำลังตอบคำถามการกระทบยอด
+Answering a withholding tax question,กำลังตอบคำถามภาษีหัก ณ ที่จ่าย
 Any due date,วันครบกำหนดทั้งหมด
 Archive,เก็บถาวร
 Archive all cards in this list,เก็บถาวรการ์ดทั้งหมดในรายการนี้
@@ -198,6 +200,7 @@ Branch No,เลขที่สาขา
 Brief Key,คีย์สรุปผล
 Brief Sent At,เวลาส่งสรุปผล
 Brief Status,สถานะสรุปผล
+Bringing files from a folder,กำลังนำไฟล์จากโฟลเดอร์มา
 Brought files from a folder,นำไฟล์จากโฟลเดอร์มาแล้ว
 Buyer,ชื่อผู้ซื้อสินค้า/ผู้รับบริการ
 Buyer Client,ลูกค้าผู้ซื้อ
@@ -288,6 +291,19 @@ Checked scheduled task runs,ตรวจสอบประวัติงาน�
 Checked scheduled tasks,ตรวจสอบงานตามกำหนดเวลาแล้ว
 Checked the stock account group,ตรวจสอบกลุ่มบัญชีสินค้าคงเหลือแล้ว
 Checking,กำลังตรวจสอบ
+Checking CC Desktop,กำลังตรวจสอบ CC เดสก์ท็อป
+Checking MR.ERP import settings,กำลังตรวจสอบการตั้งค่านำเข้า MR.ERP
+Checking a readback,กำลังตรวจสอบผลการอ่านข้อมูลกลับ
+Checking a reconciliation's progress,กำลังตรวจสอบความคืบหน้าการกระทบยอด
+Checking intake choices,กำลังตรวจสอบตัวเลือกการบันทึก
+Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
+Checking push results,กำลังตรวจสอบผลการส่ง
+Checking recognition results,กำลังตรวจสอบผลการอ่านเอกสาร
+Checking reconciliation presets,กำลังตรวจสอบค่าที่ตั้งไว้ของการกระทบยอด
+Checking scheduled task options,กำลังตรวจสอบตัวเลือกงานตามกำหนดเวลา
+Checking scheduled task runs,กำลังตรวจสอบประวัติงานตามกำหนดเวลา
+Checking scheduled tasks,กำลังตรวจสอบงานตามกำหนดเวลา
+Checking the stock account group,กำลังตรวจสอบกลุ่มบัญชีสินค้าคงเหลือ
 Checklist,รายการตรวจสอบ
 Checklist Id,ID รายการตรวจสอบ
 Checks,ตรวจสอบ
@@ -320,6 +336,7 @@ Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
 Choose what to do,เลือกสิ่งที่ต้องการทำ
+Choosing how a kind of document is handled,กำลังกำหนดวิธีจัดการเอกสารประเภทนี้
 Chose how a kind of document is handled,กำหนดวิธีจัดการเอกสารประเภทนี้แล้ว
 Chosen At,เวลาที่เลือก
 Chosen By,ผู้เลือก
@@ -342,6 +359,7 @@ Color,สี
 Comment,ความคิดเห็น
 Commented on a task,แสดงความคิดเห็นในงานแล้ว
 Commenting,สิทธิ์แสดงความคิดเห็น
+Commenting on a task,กำลังแสดงความคิดเห็นในงาน
 Comments,ความคิดเห็น
 Comments and activity,ความคิดเห็นและกิจกรรม
 Commission,ค่านายหน้า
@@ -364,6 +382,7 @@ Confirmation Request,คำขอยืนยัน
 Confirmation Revision,เวอร์ชันที่ยืนยัน
 Confirmed,ยืนยันแล้ว
 Confirmed a push result,ยืนยันผลการส่งแล้ว
+Confirming a push result,กำลังยืนยันผลการส่ง
 Connect CC Desktop,เชื่อมต่อ CC เดสก์ท็อป
 Connection,การเชื่อมต่อ
 Connection Configuration,การตั้งค่าการเชื่อมต่อ
@@ -458,6 +477,8 @@ Created At,เวลาที่สร้าง
 Created By,ผู้สร้าง
 Created a stock count,สร้างการตรวจนับสต็อกแล้ว
 Created a task,สร้างงานแล้ว
+Creating a stock count,กำลังสร้างการตรวจนับสต็อก
+Creating a task,กำลังสร้างงาน
 Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
 Credit,เงินเชื่อ
@@ -514,6 +535,12 @@ Deleted stock counts,ลบการตรวจนับสต็อกแล�
 Deleted tax drafts,ลบร่างแบบภาษีแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} stock counts,ลบการตรวจนับ {0} รายการแล้ว
+Deleting a readback,กำลังลบผลการอ่านข้อมูลกลับ
+Deleting documents,กำลังลบเอกสาร
+Deleting reconciliations,กำลังลบการกระทบยอด
+Deleting scheduled tasks,กำลังลบงานตามกำหนดเวลา
+Deleting stock counts,กำลังลบการตรวจนับสต็อก
+Deleting tax drafts,กำลังลบร่างแบบภาษี
 Delivery type,ประเภทขนส่ง
 Department,แผนก
 Department for this rule,แผนก
@@ -558,6 +585,8 @@ Download template,ดาวน์โหลดแม่แบบ
 Draft,ฉบับร่าง
 Drafted a VAT return,ร่างแบบ ภ.พ.30 แล้ว
 Drafted a withholding tax return,ร่างแบบ ภ.ง.ด.3 / ภ.ง.ด.53 แล้ว
+Drafting a VAT return,กำลังร่างแบบ ภ.พ.30
+Drafting a withholding tax return,กำลังร่างแบบ ภ.ง.ด.3 / ภ.ง.ด.53
 Dropdown,ดรอปดาวน์
 Due,ครบกำหนด
 Due (e-Filing),กำหนดยื่นทางอินเทอร์เน็ต
@@ -593,6 +622,7 @@ Edit folder rule,แก้ไขกฎ
 Edit in Full Page,แก้ไขแบบเต็มหน้าจอ
 Edit labels,แก้ไขป้ายกำกับ
 Edited a document,แก้ไขเอกสารแล้ว
+Editing a document,กำลังแก้ไขเอกสาร
 Electronic,อิเล็กทรอนิกส์
 Electronic file,ไฟล์อิเล็กทรอนิกส์
 Email,อีเมล
@@ -648,6 +678,9 @@ Export records from the same company and client together.,การส่งอ�
 Exported a reconciliation,ส่งออกผลการกระทบยอดแล้ว
 Exported a stock count,ส่งออกผลต่างการตรวจนับแล้ว
 Exported the review workbook,ส่งออกสมุดงานตรวจทานแล้ว
+Exporting a reconciliation,กำลังส่งออกผลการกระทบยอด
+Exporting a stock count,กำลังส่งออกผลต่างการตรวจนับ
+Exporting the review workbook,กำลังส่งออกสมุดงานตรวจทาน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express PC,เครื่อง Express
 "Express already has this invoice number with different content. Check it, or choose Send anyway","ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
@@ -677,6 +710,7 @@ Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วจะดูและส่งออกได้เท่านั้น
 Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
+Finishing a stock count,กำลังปิดการตรวจนับสต็อก
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 First name,ชื่อ
@@ -745,6 +779,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,ผลการนำเข้า
 Imported POS sales,นำเข้ายอดขาย POS แล้ว
 "Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
+Importing POS sales,กำลังนำเข้ายอดขาย POS
 In Express,ใน Express ตอนนี้
 In another tax month,อยู่ในเดือนภาษีอื่น
 In progress,กำลังดำเนินการ
@@ -872,6 +907,11 @@ Listed folder files,แสดงรายการไฟล์ในโฟลเ
 Listed reconciliations,ดูรายการกระทบยอดแล้ว
 Listed stock counts,ดูรายการตรวจนับสต็อกแล้ว
 Listed task boards,ดูบอร์ดงานแล้ว
+Listing documents,กำลังดูรายการเอกสาร
+Listing folder files,กำลังแสดงรายการไฟล์ในโฟลเดอร์
+Listing reconciliations,กำลังดูรายการกระทบยอด
+Listing stock counts,กำลังดูรายการตรวจนับสต็อก
+Listing task boards,กำลังดูบอร์ดงาน
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
@@ -927,6 +967,7 @@ Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
 Moved a task,ย้ายงานแล้ว
+Moving a task,กำลังย้ายงาน
 My cards,การ์ดของฉัน
 Name,ชื่อ
 Name suggests P.N.D.3,ชื่อบ่งว่าเป็น ภ.ง.ด.3
@@ -1025,6 +1066,7 @@ Only one sell unit can be the default.,กำหนดหน่วยขาย�
 Open card,เปิดการ์ด
 Opened the original,เปิดต้นฉบับแล้ว
 Opening Diff,ผลต่างยอดต้นงวด
+Opening the original,กำลังเปิดต้นฉบับ
 Operator,ชื่อผู้ประกอบการ
 Options,ตัวเลือก
 Options (one per line),ตัวเลือก (บรรทัดละหนึ่งรายการ)
@@ -1111,6 +1153,7 @@ Preparation Evidence,หลักฐานข้อมูลเตรียม�
 Preparation data does not match the connection or account set.,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
 Preparation data for this account set is incomplete.,ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน
 Prepared a stock count template,เตรียมแม่แบบตรวจนับสต็อกแล้ว
+Preparing a stock count template,กำลังเตรียมแม่แบบตรวจนับสต็อก
 Presets,ค่าที่ตั้งไว้
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
 Private,ส่วนตัว
@@ -1142,6 +1185,7 @@ Push record not found.,ไม่พบรายการส่ง
 Pushed,ตอนส่ง
 Pushed documents,ส่งเอกสารแล้ว
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,เอกสารนี้ส่งเข้า MR.ERP ก่อนการแก้ไขเมนู จึงอาจอยู่ในเมนูที่ไม่ได้เชื่อมโยงสมุดรายวันและยังไม่ลงบัญชี กรุณาตรวจสอบใน MR.ERP และอย่าส่งซ้ำก่อนตรวจสอบ
+Pushing documents,กำลังส่งเอกสาร
 "Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดใช้การส่งข้อมูล จึงไม่มีการส่งข้อมูลใด ๆ
 Quantity,จำนวน
 Quantity counted this time,จำนวนที่นับครั้งนี้
@@ -1165,6 +1209,7 @@ Read general ledger,อ่านบัญชีแยกประเภท
 Read tax invoices,อ่านใบกำกับภาษี
 Readback,อ่านกลับ
 Readback ID,รหัสการอ่านข้อมูลกลับ
+Reading back the accounting books,กำลังอ่านข้อมูลบัญชีกลับมา
 Reading files,กำลังอ่านไฟล์
 Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
 Reading the VAT report,กำลังอ่านรายงานภาษี
@@ -1195,6 +1240,7 @@ Recognized Fields,ข้อมูลที่อ่านได้
 Recognized documents,อ่านเอกสารแล้ว
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
 "Recognized, waiting to enter",อ่านแล้ว
+Recognizing documents,กำลังอ่านเอกสาร
 Reconciled,นำมากระทบยอด
 Reconciliation Type,ประเภทการกระทบยอด
 Reconciliation completed: {0},กระทบยอดเสร็จสิ้น: {0}
@@ -1209,6 +1255,7 @@ Record Revision,เวอร์ชันของรายการ
 Record a count,บันทึกการตรวจนับ
 Record as expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
 Recorded a count,บันทึกจำนวนที่นับได้แล้ว
+Recording a count,กำลังบันทึกจำนวนที่นับได้
 Recount,นับใหม่
 Recount this product,นับสินค้านี้ใหม่
 Recurring,การทำซ้ำ
@@ -1224,6 +1271,7 @@ Refresh Started At (UTC),เวลาเริ่มรีเฟรช (UTC)
 Refresh Status,สถานะการรีเฟรช
 Refresh the account directory before continuing.,กรุณารีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
 Refreshed account sets,รีเฟรชชุดบัญชีแล้ว
+Refreshing account sets,กำลังรีเฟรชชุดบัญชี
 Registered At,เวลาที่ลงทะเบียน
 Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 Relative Path,พาธสัมพัทธ์
@@ -1332,6 +1380,9 @@ Saved a scheduled task,บันทึกงานตามกำหนดเว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved scheduled tasks,บันทึกงานตามกำหนดเวลาหลายงานแล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
+Saving a scheduled task,กำลังบันทึกงานตามกำหนดเวลา
+Saving push choices,กำลังบันทึกตัวเลือกการส่ง
+Saving scheduled tasks,กำลังบันทึกงานตามกำหนดเวลาหลายงาน
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
 "Scan, enter the actual position and quantity, then save to continue.",สแกนแล้วระบุตำแหน่งจริงและจำนวน เมื่อบันทึกแล้วระบบจะไปยังรายการถัดไปโดยอัตโนมัติ
@@ -1347,6 +1398,7 @@ Scope Key,รหัสขอบเขตสิทธิ์
 Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 Searched tasks,ค้นหางานแล้ว
+Searching tasks,กำลังค้นหางาน
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 100 distinct history records to export.,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
 Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500 รายการ
@@ -1377,6 +1429,7 @@ Set due date,ตั้งวันครบกำหนดเป็นอีก 
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง
 Set reminder,ตั้งการแจ้งเตือน
 Set the POS export columns,กำหนดคอลัมน์ไฟล์ส่งออก POS แล้ว
+Setting the POS export columns,กำลังกำหนดคอลัมน์ไฟล์ส่งออก POS
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
@@ -1423,6 +1476,8 @@ Started At,เริ่มเมื่อ
 Started a reconciliation,เริ่มกระทบยอดแล้ว
 Started a scheduled task,เริ่มงานตามกำหนดเวลาแล้ว
 Started at,เวลาเริ่ม
+Starting a reconciliation,กำลังเริ่มกระทบยอด
+Starting a scheduled task,กำลังเริ่มงานตามกำหนดเวลา
 Statement Autocorrected,รายการเดินบัญชีแก้ไขอัตโนมัติแล้ว
 Statement Balance,ยอดคงเหลือตามรายการเดินบัญชี
 Statement Balance Check,การตรวจยอดคงเหลือรายการเดินบัญชี
@@ -1856,6 +1911,9 @@ Updated a scheduled task,อัปเดตงานตามกำหนดเ�
 Updated a task,แก้ไขงานแล้ว
 Updated scheduled tasks,อัปเดตงานตามกำหนดเวลาหลายงานแล้ว
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คนแล้ว
+Updating a scheduled task,กำลังอัปเดตงานตามกำหนดเวลา
+Updating a task,กำลังแก้ไขงาน
+Updating scheduled tasks,กำลังอัปเดตงานตามกำหนดเวลาหลายงาน
 Upload,อัปโหลด
 Upload Failed,จำนวนที่อัปโหลดไม่สำเร็จ
 Upload a sheet,อัปโหลดไฟล์
@@ -1911,6 +1969,11 @@ Viewed a reconciliation,ดูผลการกระทบยอดแล้�
 Viewed a stock count,ดูผลการตรวจนับสต็อกแล้ว
 Viewed a task,ดูงานแล้ว
 Viewed a task board,ดูบอร์ดแล้ว
+Viewing a document,กำลังดูเอกสาร
+Viewing a reconciliation,กำลังดูผลการกระทบยอด
+Viewing a stock count,กำลังดูผลการตรวจนับสต็อก
+Viewing a task,กำลังดูงาน
+Viewing a task board,กำลังดูบอร์ด
 Visibility,การมองเห็น
 Void,ยกเลิก
 Void all current observations for this product and recount it? Previous records remain in the history.,ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ

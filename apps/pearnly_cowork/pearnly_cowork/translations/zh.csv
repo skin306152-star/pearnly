@@ -119,6 +119,8 @@ Another active rule already uses this folder or a folder containing it.,已有�
 Another push holds the writer lock.,另一笔推送正在占用写入锁。
 Answered a reconciliation question,回答了对账的问题
 Answered a withholding tax question,回答了预扣税的问题
+Answering a reconciliation question,正在回答对账的问题
+Answering a withholding tax question,正在回答预扣税的问题
 Any due date,全部到期日
 Archive,归档
 Archive all cards in this list,将此列表中的所有卡片归档
@@ -198,6 +200,7 @@ Branch No,分支机构编号
 Brief Key,简报去重键
 Brief Sent At,简报发送时间
 Brief Status,简报状态
+Bringing files from a folder,正在从文件夹取文件
 Brought files from a folder,从文件夹取来了文件
 Buyer,买方
 Buyer Client,买方客户
@@ -288,6 +291,19 @@ Checked scheduled task runs,查看了定时任务记录
 Checked scheduled tasks,查看了定时任务
 Checked the stock account group,查看了存货科目组
 Checking,核对中
+Checking CC Desktop,正在查看 CC 桌面版
+Checking MR.ERP import settings,正在查看 MR.ERP 导入设置
+Checking a readback,正在查看回读结果
+Checking a reconciliation's progress,正在查看对账进度
+Checking intake choices,正在查看录入口径
+Checking push choices,正在查看推送前要选的项
+Checking push results,正在查看推送结果
+Checking recognition results,正在查看识别结果
+Checking reconciliation presets,正在查看对账预设
+Checking scheduled task options,正在查看定时任务可选项
+Checking scheduled task runs,正在查看定时任务记录
+Checking scheduled tasks,正在查看定时任务
+Checking the stock account group,正在查看存货科目组
 Checklist,清单
 Checklist Id,清单 ID
 Checks,核查
@@ -320,6 +336,7 @@ Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
 Choose what to do,选择操作
+Choosing how a kind of document is handled,正在设定这类单据的处理方式
 Chose how a kind of document is handled,设定了这类单据的处理方式
 Chosen At,选择时间
 Chosen By,选择人
@@ -342,6 +359,7 @@ Color,颜色
 Comment,评论
 Commented on a task,评论了任务
 Commenting,评论权限
+Commenting on a task,正在评论任务
 Comments,评论
 Comments and activity,评论和活动
 Commission,佣金
@@ -364,6 +382,7 @@ Confirmation Request,确认请求
 Confirmation Revision,确认版本
 Confirmed,已确认
 Confirmed a push result,确认了推送结果
+Confirming a push result,正在确认推送结果
 Connect CC Desktop,连接 CC 桌面版
 Connection,连接
 Connection Configuration,连接配置
@@ -458,6 +477,8 @@ Created At,创建时间
 Created By,创建人
 Created a stock count,新建了盘点
 Created a task,新建了任务
+Creating a stock count,正在新建盘点
+Creating a task,正在新建任务
 Creation Request Hash,创建请求摘要
 Credential ID,凭据 ID
 Credit,赊账
@@ -514,6 +535,12 @@ Deleted stock counts,删除了盘点
 Deleted tax drafts,删除了报税草稿
 Deleted {0},已删除 {0} 项
 Deleted {0} stock counts,已删除 {0} 份盘点
+Deleting a readback,正在删除回读结果
+Deleting documents,正在删除单据
+Deleting reconciliations,正在删除对账
+Deleting scheduled tasks,正在删除定时任务
+Deleting stock counts,正在删除盘点
+Deleting tax drafts,正在删除报税草稿
 Delivery type,运输方式
 Department,部门
 Department for this rule,部门
@@ -558,6 +585,8 @@ Download template,下载模板
 Draft,草稿
 Drafted a VAT return,起草了增值税申报表
 Drafted a withholding tax return,起草了预扣税申报表
+Drafting a VAT return,正在起草增值税申报表
+Drafting a withholding tax return,正在起草预扣税申报表
 Dropdown,下拉
 Due,到期
 Due (e-Filing),申报期限（网上）
@@ -593,6 +622,7 @@ Edit folder rule,编辑规则
 Edit in Full Page,全屏编辑
 Edit labels,修改标签
 Edited a document,修改了单据
+Editing a document,正在修改单据
 Electronic,电子版
 Electronic file,电子文件
 Email,邮箱
@@ -648,6 +678,9 @@ Export records from the same company and client together.,同次导出只能包�
 Exported a reconciliation,导出了对账结果
 Exported a stock count,导出了盘点差异
 Exported the review workbook,导出了复核工作簿
+Exporting a reconciliation,正在导出对账结果
+Exporting a stock count,正在导出盘点差异
+Exporting the review workbook,正在导出复核工作簿
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
 Express PC,Express 电脑
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
@@ -677,6 +710,7 @@ Finish,完成
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项。结束后仅可查看和导出。
 Finished a stock count,结束了盘点
+Finishing a stock count,正在结束盘点
 First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 First name,名
@@ -745,6 +779,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,导入结果
 Imported POS sales,导入了 POS 销售
 "Imported {0} rows, {1} counted",已导入 {0} 行，其中 {1} 行有实盘
+Importing POS sales,正在导入 POS 销售
 In Express,Express 现在
 In another tax month,属于其他税期
 In progress,进行中
@@ -872,6 +907,11 @@ Listed folder files,列出了文件夹里的文件
 Listed reconciliations,查看了对账列表
 Listed stock counts,查看了盘点列表
 Listed task boards,查看了任务看板
+Listing documents,正在查看单据
+Listing folder files,正在列出文件夹里的文件
+Listing reconciliations,正在查看对账列表
+Listing stock counts,正在查看盘点列表
+Listing task boards,正在查看任务看板
 Location,位置
 Location check,仓位比对结果
 Location mismatch,仓位不符
@@ -927,6 +967,7 @@ Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
 Moved a task,移动了任务
+Moving a task,正在移动任务
 My cards,我的卡片
 Name,名称
 Name suggests P.N.D.3,名称显示应为 ภ.ง.ด.3
@@ -1025,6 +1066,7 @@ Only one sell unit can be the default.,只能设置一个默认销售单位。
 Open card,打开卡片
 Opened the original,查看了原件
 Opening Diff,期初差额
+Opening the original,正在打开原件
 Operator,经营者
 Options,选项
 Options (one per line),选项（每行一个）
@@ -1111,6 +1153,7 @@ Preparation Evidence,准备资料证据
 Preparation data does not match the connection or account set.,推送准备资料与当前连接或账套不一致。
 Preparation data for this account set is incomplete.,此账套的推送准备资料尚未完整获取。
 Prepared a stock count template,准备了盘点模板
+Preparing a stock count template,正在准备盘点模板
 Presets,对账预设
 Previous Json,更改前数据（JSON）
 Private,私有
@@ -1142,6 +1185,7 @@ Push record not found.,找不到推送记录。
 Pushed,推送时
 Pushed documents,推送了单据
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。
+Pushing documents,正在推送单据
 "Pushing is not enabled for this site, so nothing was sent.",本站点未启用推送，未发送任何内容。
 Quantity,数量
 Quantity counted this time,本次实盘数量
@@ -1165,6 +1209,7 @@ Read general ledger,读取总账
 Read tax invoices,读取发票
 Readback,回读
 Readback ID,回读编号
+Reading back the accounting books,正在回读账套账目
 Reading files,读取文件
 Reading the MR.ERP menus…,正在读取 MR.ERP 菜单…
 Reading the VAT report,读取税表
@@ -1195,6 +1240,7 @@ Recognized Fields,识别字段
 Recognized documents,识别了单据
 Recognized with high confidence,高置信识别
 "Recognized, waiting to enter",已识别
+Recognizing documents,正在识别单据
 Reconciled,参与对账
 Reconciliation Type,对账类型
 Reconciliation completed: {0},对账已完成：{0}
@@ -1209,6 +1255,7 @@ Record Revision,记录版本
 Record a count,录入盘点
 Record as expense,不抵扣，计入费用
 Recorded a count,记录了实盘数
+Recording a count,正在记录实盘数
 Recount,重盘
 Recount this product,重新盘点该物料
 Recurring,重复性
@@ -1224,6 +1271,7 @@ Refresh Started At (UTC),刷新开始时间（UTC）
 Refresh Status,刷新状态
 Refresh the account directory before continuing.,请先刷新账套目录。
 Refreshed account sets,刷新了账套
+Refreshing account sets,正在刷新账套
 Registered At,登记时间
 Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
 Relative Path,相对路径
@@ -1332,6 +1380,9 @@ Saved a scheduled task,保存了定时任务
 Saved push choices,保存了推送选项
 Saved scheduled tasks,保存了多个定时任务
 Saved. Scan the next item.,已保存，请扫描下一项。
+Saving a scheduled task,正在保存定时任务
+Saving push choices,正在保存推送选项
+Saving scheduled tasks,正在保存多个定时任务
 Scan barcode or QR code,扫描条形码或二维码
 Scan barcodes · Record quantities,扫描条码 · 记录数量
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
@@ -1347,6 +1398,7 @@ Scope Key,权限范围标识
 Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
 Searched tasks,搜索了任务
+Searching tasks,正在搜索任务
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
@@ -1377,6 +1429,7 @@ Set due date,到期日设为 N 天后
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。
 Set reminder,设置提醒
 Set the POS export columns,设定了 POS 导出的列
+Setting the POS export columns,正在设定 POS 导出的列
 Settings Json,配置数据（JSON）
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
@@ -1423,6 +1476,8 @@ Started At,开始时间
 Started a reconciliation,开始了对账
 Started a scheduled task,启动了定时任务
 Started at,开始时间
+Starting a reconciliation,正在开始对账
+Starting a scheduled task,正在启动定时任务
 Statement Autocorrected,对账单已自动更正
 Statement Balance,对账单余额
 Statement Balance Check,对账单余额校验
@@ -1856,6 +1911,9 @@ Updated a scheduled task,更新了定时任务
 Updated a task,修改了任务
 Updated scheduled tasks,更新了多个定时任务
 Updated {0} user(s),已更新 {0} 位用户
+Updating a scheduled task,正在更新定时任务
+Updating a task,正在修改任务
+Updating scheduled tasks,正在更新多个定时任务
 Upload,上传
 Upload Failed,上传失败数
 Upload a sheet,上传导入
@@ -1911,6 +1969,11 @@ Viewed a reconciliation,查看了对账结果
 Viewed a stock count,查看了盘点结果
 Viewed a task,查看了任务
 Viewed a task board,查看了看板
+Viewing a document,正在查看单据详情
+Viewing a reconciliation,正在查看对账结果
+Viewing a stock count,正在查看盘点结果
+Viewing a task,正在查看任务
+Viewing a task board,正在查看看板
 Visibility,可见范围
 Void,撤销
 Void all current observations for this product and recount it? Previous records remain in the history.,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。

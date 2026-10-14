@@ -91,6 +91,7 @@ Change your password and sign out other devices on the account page of the ident
 Change your password from your account profile using Change Password.,请在个人资料中使用「更改密码」修改登录密码。
 Charges,扣费
 Checked your account,已查看账号信息
+Checking your account,正在查看账号信息
 Checkpoint Key,检查点键
 Checkpoints,检查点
 Choose a plan,选择套餐
@@ -356,6 +357,7 @@ Local Account,本地账号
 Local Session,本地会话
 "Local sample site: not sent to LINE, the raw text is only recorded",本机样例站点：未发往 LINE，仅记录原文
 Looked up a tax ID,查了税号
+Looking up a tax ID,正在查税号
 Looking up the OIDC client failed: {0} {1},查询 OIDC 客户端失败：{0} {1}
 Manage purchase orders and payment details.,管理采购单据及付款明细。
 Manual,手工

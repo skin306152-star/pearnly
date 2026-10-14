@@ -2105,3 +2105,66 @@ No files were given.	没有指定文件。	ไม่ได้ระบุไฟ�
 No recognition tasks were given.	没有指定识别任务。	ไม่ได้ระบุงานอ่านเอกสาร	読み取りタスクが指定されていません。
 No changes were given.	没有指定要改的内容。	ไม่ได้ระบุสิ่งที่จะแก้ไข	変更内容が指定されていません。
 No tasks were given.	没有指定任务。	ไม่ได้ระบุงาน	タスクが指定されていません。
+Recognizing documents	正在识别单据	กำลังอ่านเอกสาร	書類を読み取っています
+Checking intake choices	正在查看录入口径	กำลังตรวจสอบตัวเลือกการบันทึก	入力設定を確認しています
+Checking the stock account group	正在查看存货科目组	กำลังตรวจสอบกลุ่มบัญชีสินค้าคงเหลือ	在庫勘定グループを確認しています
+Checking MR.ERP import settings	正在查看 MR.ERP 导入设置	กำลังตรวจสอบการตั้งค่านำเข้า MR.ERP	MR.ERP の取り込み設定を確認しています
+Viewing a document	正在查看单据详情	กำลังดูเอกสาร	書類を確認しています
+Editing a document	正在修改单据	กำลังแก้ไขเอกสาร	書類を修正しています
+Choosing how a kind of document is handled	正在设定这类单据的处理方式	กำลังกำหนดวิธีจัดการเอกสารประเภทนี้	この種類の書類の扱いを設定しています
+Opening the original	正在打开原件	กำลังเปิดต้นฉบับ	原本を開いています
+Checking recognition results	正在查看识别结果	กำลังตรวจสอบผลการอ่านเอกสาร	読み取り結果を確認しています
+Importing POS sales	正在导入 POS 销售	กำลังนำเข้ายอดขาย POS	POS の売上を取り込んでいます
+Setting the POS export columns	正在设定 POS 导出的列	กำลังกำหนดคอลัมน์ไฟล์ส่งออก POS	POS エクスポートの列を設定しています
+Checking CC Desktop	正在查看 CC 桌面版	กำลังตรวจสอบ CC เดสก์ท็อป	CC デスクトップを確認しています
+Refreshing account sets	正在刷新账套	กำลังรีเฟรชชุดบัญชี	帳簿を更新しています
+Listing documents	正在查看单据	กำลังดูรายการเอกสาร	書類を一覧しています
+Pushing documents	正在推送单据	กำลังส่งเอกสาร	書類を送信しています
+Checking push choices	正在查看推送前要选的项	กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง	送信前の選択項目を確認しています
+Saving push choices	正在保存推送选项	กำลังบันทึกตัวเลือกการส่ง	送信の選択を保存しています
+Confirming a push result	正在确认推送结果	กำลังยืนยันผลการส่ง	送信結果を確定しています
+Deleting documents	正在删除单据	กำลังลบเอกสาร	書類を削除しています
+Exporting the review workbook	正在导出复核工作簿	กำลังส่งออกสมุดงานตรวจทาน	確認用ワークブックを書き出しています
+Checking scheduled task options	正在查看定时任务可选项	กำลังตรวจสอบตัวเลือกงานตามกำหนดเวลา	定期タスクの選択肢を確認しています
+Listing folder files	正在列出文件夹里的文件	กำลังแสดงรายการไฟล์ในโฟลเดอร์	フォルダーのファイルを一覧しています
+Bringing files from a folder	正在从文件夹取文件	กำลังนำไฟล์จากโฟลเดอร์มา	フォルダーからファイルを取り込んでいます
+Reading back the accounting books	正在回读账套账目	กำลังอ่านข้อมูลบัญชีกลับมา	会計データを読み戻しています
+Checking a readback	正在查看回读结果	กำลังตรวจสอบผลการอ่านข้อมูลกลับ	読み戻しの結果を確認しています
+Deleting a readback	正在删除回读结果	กำลังลบผลการอ่านข้อมูลกลับ	読み戻しの結果を削除しています
+Saving a scheduled task	正在保存定时任务	กำลังบันทึกงานตามกำหนดเวลา	定期タスクを保存しています
+Saving scheduled tasks	正在保存多个定时任务	กำลังบันทึกงานตามกำหนดเวลาหลายงาน	複数の定期タスクを保存しています
+Updating a scheduled task	正在更新定时任务	กำลังอัปเดตงานตามกำหนดเวลา	定期タスクを更新しています
+Updating scheduled tasks	正在更新多个定时任务	กำลังอัปเดตงานตามกำหนดเวลาหลายงาน	複数の定期タスクを更新しています
+Deleting scheduled tasks	正在删除定时任务	กำลังลบงานตามกำหนดเวลา	定期タスクを削除しています
+Starting a reconciliation	正在开始对账	กำลังเริ่มกระทบยอด	照合を開始しています
+Checking a reconciliation's progress	正在查看对账进度	กำลังตรวจสอบความคืบหน้าการกระทบยอด	照合の進行状況を確認しています
+Listing reconciliations	正在查看对账列表	กำลังดูรายการกระทบยอด	照合の一覧を確認しています
+Viewing a reconciliation	正在查看对账结果	กำลังดูผลการกระทบยอด	照合結果を確認しています
+Answering a reconciliation question	正在回答对账的问题	กำลังตอบคำถามการกระทบยอด	照合の質問に回答しています
+Checking reconciliation presets	正在查看对账预设	กำลังตรวจสอบค่าที่ตั้งไว้ของการกระทบยอด	照合の既定値を確認しています
+Exporting a reconciliation	正在导出对账结果	กำลังส่งออกผลการกระทบยอด	照合結果を書き出しています
+Deleting reconciliations	正在删除对账	กำลังลบการกระทบยอด	照合を削除しています
+Drafting a VAT return	正在起草增值税申报表	กำลังร่างแบบ ภ.พ.30	付加価値税申告の下書きを作成しています
+Drafting a withholding tax return	正在起草预扣税申报表	กำลังร่างแบบ ภ.ง.ด.3 / ภ.ง.ด.53	源泉徴収税申告の下書きを作成しています
+Answering a withholding tax question	正在回答预扣税的问题	กำลังตอบคำถามภาษีหัก ณ ที่จ่าย	源泉徴収税の質問に回答しています
+Deleting tax drafts	正在删除报税草稿	กำลังลบร่างแบบภาษี	税務申告の下書きを削除しています
+Listing stock counts	正在查看盘点列表	กำลังดูรายการตรวจนับสต็อก	棚卸の一覧を確認しています
+Preparing a stock count template	正在准备盘点模板	กำลังเตรียมแม่แบบตรวจนับสต็อก	棚卸テンプレートを用意しています
+Creating a stock count	正在新建盘点	กำลังสร้างการตรวจนับสต็อก	棚卸を作成しています
+Viewing a stock count	正在查看盘点结果	กำลังดูผลการตรวจนับสต็อก	棚卸結果を確認しています
+Recording a count	正在记录实盘数	กำลังบันทึกจำนวนที่นับได้	実数を記録しています
+Finishing a stock count	正在结束盘点	กำลังปิดการตรวจนับสต็อก	棚卸を終了しています
+Exporting a stock count	正在导出盘点差异	กำลังส่งออกผลต่างการตรวจนับ	棚卸差異を書き出しています
+Deleting stock counts	正在删除盘点	กำลังลบการตรวจนับสต็อก	棚卸を削除しています
+Listing task boards	正在查看任务看板	กำลังดูบอร์ดงาน	タスクボードを確認しています
+Viewing a task board	正在查看看板	กำลังดูบอร์ด	ボードを確認しています
+Viewing a task	正在查看任务	กำลังดูงาน	タスクを確認しています
+Creating a task	正在新建任务	กำลังสร้างงาน	タスクを作成しています
+Updating a task	正在修改任务	กำลังแก้ไขงาน	タスクを更新しています
+Moving a task	正在移动任务	กำลังย้ายงาน	タスクを移動しています
+Commenting on a task	正在评论任务	กำลังแสดงความคิดเห็นในงาน	タスクにコメントしています
+Searching tasks	正在搜索任务	กำลังค้นหางาน	タスクを検索しています
+Checking push results	正在查看推送结果	กำลังตรวจสอบผลการส่ง	送信結果を確認しています
+Checking scheduled tasks	正在查看定时任务	กำลังตรวจสอบงานตามกำหนดเวลา	定期タスクを確認しています
+Starting a scheduled task	正在启动定时任务	กำลังเริ่มงานตามกำหนดเวลา	定期タスクを開始しています
+Checking scheduled task runs	正在查看定时任务记录	กำลังตรวจสอบประวัติงานตามกำหนดเวลา	定期タスクの実行履歴を確認しています

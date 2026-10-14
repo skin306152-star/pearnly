@@ -91,6 +91,7 @@ Change your password and sign out other devices on the account page of the ident
 Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
 Charges,Charges
 Checked your account,Checked your account
+Checking your account,Checking your account
 Checkpoint Key,Checkpoint Key
 Checkpoints,Checkpoints
 Choose a plan,Choose a plan
@@ -355,6 +356,7 @@ Local Account,Local Account
 Local Session,Local Session
 "Local sample site: not sent to LINE, the raw text is only recorded","Local sample site: not sent to LINE, the raw text is only recorded"
 Looked up a tax ID,Looked up a tax ID
+Looking up a tax ID,Looking up a tax ID
 Looking up the OIDC client failed: {0} {1},Looking up the OIDC client failed: {0} {1}
 Manage purchase orders and payment details.,Manage purchase orders and payment details.
 Manual,Manual
