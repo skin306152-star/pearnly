@@ -84,7 +84,7 @@ export function Settings() {
         <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed top-1/2 left-1/2 z-[71] flex h-[min(680px,92dvh)] w-[min(980px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-surface text-ink shadow-2xl outline-none md:flex-row"
+          className="fixed top-1/2 left-1/2 z-[71] flex h-[min(680px,92dvh)] w-[min(980px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
           <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-app p-3 md:w-56 md:flex-col md:border-r md:border-b-0">
             <DialogPrimitive.Title className="hidden px-2.5 pt-1 pb-2 text-muted-foreground text-xs md:block">
@@ -192,9 +192,9 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:opacity-50", checked ? "bg-ink" : "bg-line-strong")}
+      className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:opacity-50", checked ? "bg-ink" : "bg-fill-muted")}
     >
-      <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow transition-transform", checked && "translate-x-4")} />
+      <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow-sm transition-transform", checked && "translate-x-4")} />
     </button>
   );
 }
@@ -417,7 +417,7 @@ function Connections({ api }: { api: Desktop }) {
                   >
                     {main.paused ? st.resume : st.pause}
                   </DropdownMenu.Item>
-                  <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                  <DropdownMenu.Separator className="my-1 border-t" />
                   <DropdownMenu.Item
                     className={cn(menuItem, "text-danger")}
                     onSelect={() => void Promise.all(members.map((m) => api.call("remove", { id: m.id }))).then(refresh)}

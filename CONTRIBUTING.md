@@ -25,6 +25,7 @@
 | 工作包、决策、验收、发布如何留记录 | [记录规范](docs/development/records.md) |
 | 查框架/依赖版本 | [版本矩阵](docs/p1/01-version-matrix.md)、[镜像定义](infrastructure/images/frappe.Dockerfile)、各锁文件 |
 | 查产品和技术决定 | [ADR](docs/adr/README.md)、对应模块文档 |
+| 做 CC 对话页（`frontend/assistant`）的界面 | [ccs 样式与交互规范](docs/development/ccs.md) |
 | 查脚本用途和副作用 | [脚本入口](scripts/README.md) |
 
 新克隆先在长期主目录运行 `sh scripts/install-dev-hooks.sh`，安装本仓各工作树共享的暂存快照架构检查。已有钩子不会被覆盖。
@@ -42,6 +43,9 @@ git diff --cached --check
 python3 scripts/i18n-build.py --check
 python3 scripts/check-i18n.py --strict
 python3 scripts/check-frontend-i18n.py --strict
+
+# 改动 CC 对话页（frontend/assistant）的界面时：颜色、圆角、阴影只引用 globals.css 的变量
+python3 scripts/check-frontend-tokens.py
 
 # 改动涉及前端时；依赖首次安装或锁文件变化后才需要 npm ci
 npm --prefix frontend ci

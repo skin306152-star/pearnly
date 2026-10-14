@@ -3,6 +3,8 @@
 // 在做什么、用了多久由对话底部的工作状态行说（thread.tsx 的 RunIndicator），这里不再另放一个在动的点。
 // 所有工具共用 StepRow，按工具名给图标与说明。停下来等用户批准的那一步不收进组（thread.tsx 的 groupBy），
 // 直接在行下给「允许 / 拒绝」。
+// 卡片规矩（docs/development/ccs.md）：点开的内容框不在对话里再套一层滚动——长内容先显示前 CLIP_LINES 行，
+// 点「… N 行」整段展开；手机（粗指针）上能点的行点按区不小于 44pt；颜色只用 globals.css 的变量。
 
 import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/react";
 import {
@@ -30,6 +32,37 @@ type Step = { icon: typeof FileIcon; verb: string; target?: string; input?: stri
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
 const base = (path: unknown) => str(path).split("/").pop() ?? "";
+/** 步骤详情先显示几行（多了点「… N 行」展开）、最多几个字（一整行很长的 JSON 也不会把对话撑得很高）。 */
+export const CLIP_LINES = 12;
+export const CLIP_CHARS = 1500;
+
+/** 要显示的内容与收起的行数（full = 已展开）。 */
+export function clipText(text: string, full = false): { text: string; hidden: number } {
+  const lines = text.split("\n");
+  if (full || (lines.length <= CLIP_LINES && text.length <= CLIP_CHARS)) return { text, hidden: 0 };
+  const shown = lines.slice(0, CLIP_LINES).join("\n").slice(0, CLIP_CHARS);
+  // 收起的行数：没显示到的行；最后一行只显示了一部分的也算一行
+  const reached = shown.split("\n").length;
+  const partial = shown.length < lines.slice(0, reached).join("\n").length;
+  return { text: shown, hidden: lines.length - reached + (partial ? 1 : 0) };
+}
+
+/** 步骤详情里的一段（命令 / 内容、输出）：自动撑高，不套滚动；长了先收起，点一下整段展开。 */
+const Clipped: FC<{ text: string; className?: string }> = ({ text, className }) => {
+  const [full, setFull] = useState(false);
+  const shown = clipText(text, full);
+  return (
+    <div className={className}>
+      <pre className="whitespace-pre-wrap break-all px-3 py-2">{shown.text}</pre>
+      {shown.hidden > 0 && (
+        <button type="button" onClick={() => setFull(true)} className="cc-tap block w-full px-3 pb-2 text-start text-ink-3 hover:text-ink">
+          … {steps.lines(shown.hidden)}
+        </button>
+      )}
+    </div>
+  );
+};
+
 const firstLine = (text: string) => {
   const line = text.trim().split("\n")[0] ?? "";
   return line.length > 90 ? `${line.slice(0, 88)}…` : line;
@@ -103,12 +136,12 @@ export const StepRow: ToolCallMessagePartComponent = ({
         type="button"
         disabled={!expandable}
         onClick={() => setOpen((o) => !o)}
-        className="group/step flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left text-ink-2 text-sm enabled:hover:bg-hover"
+        className="group/step cc-tap flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left text-ink-2 text-sm enabled:hover:bg-hover"
       >
         {running ? (
           <TypingDots size="sm" className="w-3.5 shrink-0 justify-center" />
         ) : (
-          <Icon className={cn("size-3.5 shrink-0", errored && "text-red-500")} />
+          <Icon className={cn("size-3.5 shrink-0", errored && "text-danger")} />
         )}
         <span className="shrink-0">{asking ?? step.verb}</span>
         {step.target && <span className="min-w-0 truncate font-mono text-ink-3 text-(length:--cc-text-sm)">{step.target}</span>}
@@ -118,18 +151,8 @@ export const StepRow: ToolCallMessagePartComponent = ({
       </button>
       {open && expandable && (
         <div className="ms-7 mt-1 mb-2 overflow-hidden rounded-md border border-line bg-app font-mono text-(length:--cc-text-xs) text-ink-2 leading-5">
-          {step.input && <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all px-3 py-2">{step.input}</pre>}
-          {shownOutput && (
-            <pre
-              className={cn(
-                "max-h-56 overflow-auto whitespace-pre-wrap break-all px-3 py-2",
-                step.input && "border-line border-t",
-                errored && "text-red-600",
-              )}
-            >
-              {shownOutput}
-            </pre>
-          )}
+          {step.input && <Clipped text={step.input} />}
+          {shownOutput && <Clipped text={shownOutput} className={cn(step.input && "border-line border-t", errored && "text-danger")} />}
         </div>
       )}
       {approval && (
@@ -164,7 +187,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-ink-2 text-sm enabled:hover:text-ink"
+        className="cc-tap flex max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-ink-2 text-sm enabled:hover:text-ink"
       >
         <span className="truncate">{title}</span>
         <ChevronRightIcon className={cn("size-3.5 shrink-0 transition", open && "rotate-90")} />
