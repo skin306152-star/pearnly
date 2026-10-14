@@ -90,6 +90,22 @@ class PreflightTests(unittest.TestCase):
             self.assertEqual(pf.reason, 'direction_unknown')
             self.assertEqual(pf.checks[3].reason, reason)
 
+    def test_the_account_set_tax_decides_when_the_workspace_tax_cannot(self):
+        # 2026-10-15：事务所工作空间税号不是客户账套的，别家开的无买方简易税票按推往的账套税号判成进项
+        for key in ('buyer_tax', 'buyer_name'):
+            self.fields.pop(key)
+        self.context = replace(self.context, own_tax_id='0107536000188', account_tax_id='0105551234567')
+        result = self.pf()
+        self.assertTrue(result.ready, result.reason)
+        self.assertEqual(result.payload['direction'], 'purchase')
+        self.fields['seller_tax'] = '0105551234567'  # 卖方就是这份账套：我方开出的销售简易税票
+        self.assertEqual(self.pf().payload['direction'], 'sales')
+        self.fields['seller_tax'] = ''  # 两边都读不出：照旧判不出，有锚点算 ambiguous
+        pf = self.pf()
+        self.assertEqual((pf.reason, pf.checks[3].reason), ('direction_unknown', 'ambiguous'))
+        self.context = replace(self.context, own_tax_id='', account_tax_id='')
+        self.assertEqual(self.pf().checks[3].reason, 'subject_unbound')
+
     def test_missing_company_anchor_does_not_use_unrelated_tax_snapshot(self):
         self.history.pop("workspace_client_id")
         result = self.pf()

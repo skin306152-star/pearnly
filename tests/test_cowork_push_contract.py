@@ -54,6 +54,59 @@ class DirectionContract(unittest.TestCase):
 		self.assertEqual(push.resolve_direction(flat, {}, own_tax_id="0107536000188"), "sales")
 		self.assertIsNone(push.resolve_direction({}, {}, own_tax_id=""))
 
+	# 2026-10-15 testcowork：事务所的工作空间税号不是客户账套的税号，快递公司开给 ซินเซียร์ไอซ์ 的无买方简易税票判不出方向
+	COURIER, BOOK, FIRM, OTHER = "0105599220248", "0105551234567", "0107536000188", "0105559999996"
+
+	def courier(self, **fields):
+		return {"fields": {"seller_name": "บริษัท ด่วนจี่ เอ็กซ์เพรส", "seller_tax": self.COURIER,
+			"buyer_name": "", "buyer_tax": "", "total_amount": "285.00", "vat": "18.64", **fields}}
+
+	def test_buyerless_document_from_another_seller_is_a_purchase_of_the_account_set(self):
+		flat = self.courier()
+		self.assertIsNone(push.resolve_direction(flat, {}, own_tax_id=self.FIRM))  # 工作空间税号判不出（原先就停在这里）
+		self.assertEqual(push.detect_by_account(flat, self.BOOK), "purchase")
+		self.assertEqual(push.resolve_account_direction(flat, {}, own_tax_id=self.FIRM, account_tax_id=self.BOOK),
+			"purchase")
+
+	def test_account_anchor_sides(self):
+		for seller, buyer, buyer_name, expected in (
+			(self.BOOK, "", "", "sales"),  # 我方开出的销售简易税票
+			(self.BOOK, self.OTHER, "Customer", "sales"),
+			(self.COURIER, self.BOOK, "Sincere Ice", "purchase"),
+			(self.COURIER, "", "Sincere Ice", None),  # 印了买方名、没有税号：不当成无买方
+			(self.COURIER, self.OTHER, "Other Co", None),  # 买方是别家：判不出（推送时由账套核对拦下）
+			(self.BOOK, self.BOOK, "", None),
+			("", "", "", None),  # 卖方税号读不出：判不出
+		):
+			with self.subTest(seller=seller, buyer=buyer, buyer_name=buyer_name):
+				flat = self.courier(seller_tax=seller, buyer_tax=buyer, buyer_name=buyer_name)
+				self.assertEqual(push.detect_by_account(flat, self.BOOK), expected)
+		self.assertIsNone(push.detect_by_account(self.courier(), ""))  # 账套没报税号
+		self.assertIsNone(push.detect_by_account(self.courier(), "13"))
+		self.assertIsNone(push.detect_by_account({"fields": []}, self.BOOK))
+
+	def test_explicit_and_workspace_anchor_come_before_the_account_anchor(self):
+		flat = self.courier(buyer_tax=self.FIRM)
+		self.assertEqual(push.resolve_account_direction(flat, {}, own_tax_id=self.FIRM, account_tax_id=self.BOOK),
+			"purchase")
+		flat = self.courier(seller_tax=self.BOOK)
+		self.assertEqual(push.resolve_account_direction(flat, {"direction": "expense"}, own_tax_id="",
+			account_tax_id=self.BOOK), "purchase")
+		self.assertIsNone(push.resolve_account_direction({}, {}, own_tax_id="", account_tax_id=""))
+
+	def test_declared_direction_fills_only_the_primary_page_without_a_direction(self):
+		primary = {"fields": {"seller_tax": self.COURIER, "direction": ""}}
+		pages = [{"fields": {}, "is_copy": True}, primary]
+		changed = push.declared_direction_pages(pages, primary, "expense")
+		self.assertEqual(changed[1]["fields"]["direction"], "purchase")
+		self.assertEqual((changed[0], primary["fields"]["direction"]), ({"fields": {}, "is_copy": True}, ""))  # 只改副本
+		decided = {"fields": {"direction": "sales"}}
+		self.assertIsNone(push.declared_direction_pages([decided], decided, "purchase"))  # 不覆盖已有的方向
+		self.assertIsNone(push.declared_direction_pages(pages, primary, "deposit"))
+		self.assertIsNone(push.declared_direction_pages(pages, {"fields": {}}, "purchase"))  # 不是这些页里的一页
+		bare = {}
+		self.assertIsNone(push.declared_direction_pages([bare], bare, "purchase"))  # 主页面没有字段
+
 	def test_batch_never_overrides_nonempty_row_decisions(self):
 		for existing in ("sales", "purchase", "invalid"):
 			fields = {"direction": existing}

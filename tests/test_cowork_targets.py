@@ -461,6 +461,30 @@ class AccountConflictTests(unittest.TestCase):
                          account_match.TAX_MISMATCH)
         self.assertEqual(self.check({"buyer_tax": OWN_TAX, "date": "2025-06-01"}), account_match.PERIOD_MISMATCH)
 
+    def test_without_a_direction_the_seller_is_not_taken_as_the_own_company(self):
+        """2026-10-15 testcowork：快递公司开的无买方简易税票方向判不出，原先按卖方比账套，报「本方税号不符」。"""
+        courier = "0105599220248"
+        for direction in (None, ""):
+            with self.subTest(direction=direction):
+                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": "", "date": "2026-10-14"},
+                                            direction=direction), "")
+                self.assertEqual(self.check({"seller_tax": OWN_TAX, "date": "2026-10-14"}, direction=direction), "")
+                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": OWN_TAX}, direction=direction), "")
+                # 卖方是这份账套、买方是别家：这家的销项，不冲突
+                self.assertEqual(self.check({"seller_tax": OWN_TAX, "buyer_tax": OTHER_TAX}, direction=direction), "")
+                # 买方是别家的有效税号、卖方也不是这份账套：确定不是这家的票，照旧拦
+                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": OTHER_TAX}, direction=direction),
+                                 account_match.TAX_MISMATCH)
+                self.assertEqual(self.check({"buyer_tax": OTHER_TAX}, direction=direction), account_match.TAX_MISMATCH)
+                # 买方税号读错一位（校验位不对）：判断不了，不拦
+                self.assertEqual(self.check({"seller_tax": courier, "buyer_tax": "0105559999997"}, direction=direction),
+                                 "")
+
+    def test_a_directed_document_still_checks_its_own_side(self):
+        self.assertEqual(self.check({"seller_tax": "0105599220248", "buyer_tax": ""}, direction="purchase"), "")
+        self.assertEqual(self.check({"seller_tax": OWN_TAX, "buyer_tax": OTHER_TAX}, direction="sales"), "")
+        self.assertEqual(self.check({"seller_tax": OTHER_TAX}, direction="sales"), account_match.TAX_MISMATCH)
+
     def test_unreadable_or_unreported_facts_never_block(self):
         # 读错一位（校验位不对）、读不全、账套没报税号 / 期间、MR.ERP：都按用户的选择。
         self.assertEqual(self.check({"buyer_tax": "0105559999997", "date": "2026-03-01"}), "")
