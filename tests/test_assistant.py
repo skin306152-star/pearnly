@@ -2125,6 +2125,358 @@ class InterfaceLanguageTests(unittest.TestCase):
         self.assertEqual(raw, ['lib/desktop.ts: const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {'])
 
 
+# ── 结果面板的 Word 预览（2026-10-13 教程第 3 条：CC 产出的 docx 只能下载）──────────────────────────────────────
+# 服务端把 .docx 读成纯数据（pearnly_core.assistant.docx_preview），页面按文字渲染。下面的文档按 python-docx / Word 的
+# 写法手拼（样式表、编号表、关系表、嵌图），不依赖 python-docx。
+docx_preview = _load("pearnly_core.assistant.docx_preview", CORE / "assistant/docx_preview.py")
+sys.modules["pearnly_core.assistant"].docx_preview = docx_preview
+
+_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+       f'xmlns:r="{_REL}" '
+       'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+       'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+       'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" '
+       'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+       'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" '
+       'xmlns:v="urn:schemas-microsoft-com:vml"')
+_PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 24
+_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 24
+
+
+def _docx(body, styles="", numbering="", rels=(), parts=None, document=None, entries=None):
+    """拼一份 .docx：rels 是 (编号, 类型, 目标, 是否外部)；parts 是另放进包里的部件。"""
+    import io
+    import zipfile
+
+    rows = [("rIdStyles", "styles", "styles.xml", False), ("rIdNumbering", "numbering", "numbering.xml", False), *rels]
+    outside = ' TargetMode="External"'
+    relations = "".join(f'<Relationship Id="{rid}" Type="{_REL}/{kind}" Target="{target}"{outside if external else ""}/>'
+                        for rid, kind, target, external in rows)
+    package = {
+        "[Content_Types].xml": '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/'
+                               'content-types"/>',
+        "_rels/.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/'
+                       f'relationships"><Relationship Id="rId1" Type="{_REL}/officeDocument" '
+                       'Target="word/document.xml"/></Relationships>',
+        "word/_rels/document.xml.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/'
+                                        f'package/2006/relationships">{relations}</Relationships>',
+        "word/document.xml": document if document is not None else (
+            f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document {_NS}><w:body>{body}'
+            '<w:sectPr/></w:body></w:document>'),
+        "word/styles.xml": f'<?xml version="1.0"?><w:styles {_NS}>{styles}</w:styles>',
+        "word/numbering.xml": f'<?xml version="1.0"?><w:numbering {_NS}>{numbering}</w:numbering>',
+        **(parts or {}),
+    }
+    if entries is not None:
+        package = {name: package[name] for name in entries}
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, data in package.items():
+            archive.writestr(name, data)
+    return buffer.getvalue()
+
+
+def _p(text="", ppr="", rpr=""):
+    run = f'<w:r><w:rPr>{rpr}</w:rPr><w:t xml:space="preserve">{text}</w:t></w:r>' if text else ""
+    return f"<w:p><w:pPr>{ppr}</w:pPr>{run}</w:p>"
+
+
+def _drawing(rel_attr, cx=952500, cy=476250):
+    return (f'<w:r><w:drawing><wp:inline><wp:extent cx="{cx}" cy="{cy}"/><a:graphic><a:graphicData><pic:pic>'
+            f'<pic:blipFill><a:blip {rel_attr}/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline>'
+            '</w:drawing></w:r>')
+
+
+_STYLES = (
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'
+    '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/>'
+    '<w:pPr><w:jc w:val="center"/></w:pPr></w:style>'
+    '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/>'
+    '<w:rPr><w:b/><w:bCs/></w:rPr></w:style>'
+    # Word 泰文版等本地化文档：样式编号不是英文，按样式名认
+    '<w:style w:type="paragraph" w:styleId="a1"><w:name w:val="heading 2"/></w:style>'
+    '<w:style w:type="paragraph" w:styleId="Quote2"><w:name w:val="Quote heading"/><w:basedOn w:val="a1"/></w:style>'
+    '<w:style w:type="paragraph" w:styleId="ListNumber"><w:name w:val="List Number"/>'
+    '<w:pPr><w:numPr><w:numId w:val="4"/></w:numPr></w:pPr></w:style>'
+    '<w:style w:type="character" w:styleId="Strong"><w:name w:val="Strong"/><w:rPr><w:b/></w:rPr></w:style>'
+    # 自己基于自己：不能转圈
+    '<w:style w:type="paragraph" w:styleId="Loop"><w:name w:val="Loop"/><w:basedOn w:val="Loop"/></w:style>'
+)
+_NUMBERING = (
+    '<w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val=""/></w:lvl>'
+    '<w:lvl w:ilvl="1"><w:numFmt w:val="bullet"/><w:lvlText w:val="o"/></w:lvl></w:abstractNum>'
+    '<w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/>'
+    '<w:lvlText w:val="%1."/></w:lvl><w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="lowerLetter"/>'
+    '<w:lvlText w:val="%1.%2)"/></w:lvl><w:lvl w:ilvl="2"><w:numFmt w:val="upperRoman"/><w:lvlText w:val="%3"/>'
+    '</w:lvl></w:abstractNum>'
+    '<w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:numFmt w:val="thaiNumbers"/><w:lvlText w:val="%1."/>'
+    '</w:lvl></w:abstractNum>'
+    '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>'
+    '<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>'
+    '<w:num w:numId="3"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="5"/>'
+    '</w:lvlOverride></w:num>'
+    '<w:num w:numId="4"><w:abstractNumId w:val="2"/></w:num>'
+)
+
+
+def _num(num_id, level=0):
+    return f'<w:numPr><w:ilvl w:val="{level}"/><w:numId w:val="{num_id}"/></w:numPr>'
+
+
+def _cell(inner, tcpr=""):
+    return f"<w:tc><w:tcPr>{tcpr}</w:tcPr>{inner}</w:tc>"
+
+
+def _walk(value):
+    """预览结果里的每个字典。"""
+    if isinstance(value, dict):
+        yield value
+        for item in value.values():
+            yield from _walk(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _walk(item)
+
+
+class DocumentPreviewTests(unittest.TestCase):
+    def read(self, body, **kwargs):
+        return docx_preview.read(_docx(body, styles=_STYLES, numbering=_NUMBERING, **kwargs))
+
+    def test_only_word_documents_get_a_document_preview(self):
+        files = self._files()
+        self.assertEqual(files.preview_kind("สรุปภาษีแก้วกานดา_ก.ย._2569.docx"), "document")
+        self.assertEqual(files.preview_kind("SUMMARY.DOCX"), "document")
+        self.assertEqual(files.preview_kind("GL-05.xlsx"), "sheets")
+        self.assertEqual(files.preview_kind("GL-05.xlsm"), "sheets")
+        for name in ("old.doc", "old.xls", "report.pdf", "page.html", "note.txt", "docx", "a.docx.zip", "", None):
+            self.assertIsNone(files.preview_kind(name), name)
+        self.assertEqual(docx_preview.image_type(_PNG), "image/png")
+        self.assertEqual(docx_preview.image_type(_JPEG), "image/jpeg")
+        self.assertEqual(docx_preview.image_type(b"GIF89a" + b"\x00" * 8), "image/gif")
+        self.assertEqual(docx_preview.image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 "), "image/webp")
+        for other in (b"<svg xmlns='http://www.w3.org/2000/svg'/>", b"\x01\x00\x00\x00EMF", b"II*\x00", b""):
+            self.assertIsNone(docx_preview.image_type(other))
+        # 纯标准库：不依赖 Frappe、网络
+        source = (CORE / "assistant/docx_preview.py").read_text(encoding="utf-8")
+        self.assertNotRegex(source, r"(?m)^\s*(import|from)\s+(frappe|requests|urllib|http|socket|subprocess)\b")
+
+    def test_headings_lists_and_text_formatting_read_like_the_document(self):
+        body = (
+            _p("สรุปภาษี ก.ย. 2569", '<w:pStyle w:val="Title"/>')
+            + _p("ภาษีซื้อ", '<w:pStyle w:val="Heading1"/>')
+            + _p("ภาษีขาย", '<w:pStyle w:val="a1"/>')
+            + _p("Inherited", '<w:pStyle w:val="Quote2"/>')
+            + _p("Outline", '<w:outlineLvl w:val="0"/>')
+            + _p("Body", '<w:outlineLvl w:val="9"/>')
+            + _p("Loop", '<w:pStyle w:val="Loop"/>')
+            + "<w:p><w:pPr><w:jc w:val=\"right\"/></w:pPr>"
+            '<w:r><w:t xml:space="preserve">ยอด </w:t></w:r>'
+            '<w:r><w:rPr><w:b/></w:rPr><w:t>19,600</w:t></w:r>'
+            '<w:r><w:rPr><w:bCs/></w:rPr><w:t>.36</w:t></w:r>'  # 泰文粗体写在 bCs：同样算粗体，并与上一段并成一段
+            '<w:r><w:rPr><w:rStyle w:val="Strong"/><w:i/></w:rPr><w:t xml:space="preserve"> บาท</w:t></w:r>'
+            '<w:r><w:rPr><w:u w:val="none"/></w:rPr><w:t xml:space="preserve"> plain</w:t></w:r>'
+            '<w:r><w:rPr><w:u w:val="single"/><w:strike/></w:rPr><w:t xml:space="preserve"> u</w:t></w:r>'
+            '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t>2</w:t></w:r>'
+            '<w:r><w:rPr><w:b w:val="0"/><w:vanish/></w:rPr><w:t>hidden</w:t></w:r>'
+            '<w:del><w:r><w:delText>removed</w:delText></w:r></w:del>'
+            '<w:ins><w:r><w:tab/><w:t>added</w:t><w:br/><w:t>next</w:t></w:r></w:ins>'
+            "</w:p>"
+            + _p("", '<w:jc w:val="both"/>')
+            + _p("first", _num(2)) + _p("first-a", _num(2, 1)) + _p("first-b", _num(2, 1)) + _p("second", _num(2))
+            + _p("second-a", _num(2, 1)) + _p("roman", _num(2, 2))
+            + _p("restart", _num(3)) + _p("bullet", _num(1)) + _p("sub", _num(1, 1))
+            + _p("ไทย", '<w:pStyle w:val="ListNumber"/>') + _p("ไทย 2", _num(4))
+            + _p("not a list", '<w:pStyle w:val="ListNumber"/><w:numPr><w:numId w:val="0"/></w:numPr>')
+        )
+        blocks = self.read(body)
+        styles = [(b.get("style"), b.get("align")) for b in blocks[:7]]
+        self.assertEqual(styles, [("title", "center"), ("h1", None), ("h2", None), ("h2", None), ("h1", None),
+                                  (None, None), (None, None)])
+        self.assertEqual(blocks[1]["runs"], [{"text": "ภาษีซื้อ", "bold": True}])  # 标题样式自带的粗体也带上
+        line = blocks[7]
+        self.assertEqual(line["align"], "right")
+        self.assertEqual(line["runs"], [
+            {"text": "ยอด "}, {"text": "19,600.36", "bold": True}, {"text": " บาท", "bold": True, "italic": True},
+            {"text": " plain"}, {"text": " u", "underline": True, "strike": True}, {"text": "2", "sup": True},
+            {"text": "\tadded\nnext"}])
+        self.assertEqual(blocks[8], {"type": "paragraph", "runs": [], "align": "justify"})  # 空段落保留占一行
+        lists = [(b["runs"][0]["text"], b["list"]["level"], b["list"]["marker"]) for b in blocks[9:20]]
+        self.assertEqual(lists, [
+            ("first", 0, "1."), ("first-a", 1, "1.a)"), ("first-b", 1, "1.b)"), ("second", 0, "2."),
+            ("second-a", 1, "2.a)"), ("roman", 2, "I"),
+            ("restart", 0, "5."),  # 同一列表另起编号（startOverride）
+            ("bullet", 0, "•"), ("sub", 1, "◦"),  # 符号字体的项目符号换成通用圆点
+            ("ไทย", 0, "๑."), ("ไทย 2", 0, "๒."),  # 段落样式带的编号与直接编号同一个列表
+        ])
+        self.assertNotIn("list", blocks[20])
+        self.assertEqual(len(blocks), 21)
+
+    def test_tables_keep_merged_cells_header_rows_and_nested_tables(self):
+        nested = "<w:tbl><w:tr>" + _cell(_p("inner")) + "</w:tr></w:tbl>"
+        body = (
+            "<w:tbl><w:tblPr/><w:tblGrid/>"
+            '<w:tr><w:trPr><w:tblHeader/></w:trPr>' + _cell(_p("รายการ")) + _cell(_p("จำนวน")) + _cell(_p("หมายเหตุ"))
+            + "</w:tr>"
+            + "<w:tr>" + _cell(_p("รวม"), '<w:gridSpan w:val="2"/>') + _cell(_p("x"), '<w:vMerge w:val="restart"/>')
+            + "</w:tr>"
+            + "<w:tr>" + _cell(_p("A")) + _cell(_p("1,234.00", '<w:jc w:val="right"/>'))
+            + _cell("<w:p/>", "<w:vMerge/>") + "</w:tr>"
+            + '<w:tr><w:trPr><w:gridBefore w:val="1"/></w:trPr>' + _cell(nested) + _cell(_p("y"), "<w:vMerge/>")
+            + "</w:tr>"
+            # 内容控件包着的行与段落照常显示
+            + "<w:sdt><w:sdtContent><w:tr>" + _cell(_p("in control")) + "</w:tr></w:sdtContent></w:sdt>"
+            + "</w:tbl>"
+            + "<w:sdt><w:sdtPr/><w:sdtContent>" + _p("after") + "</w:sdtContent></w:sdt>"
+        )
+        table, after = self.read(body)
+        rows = table["rows"]
+        self.assertEqual(table["type"], "table")
+        self.assertTrue(rows[0]["header"])
+        self.assertEqual([c["blocks"][0]["runs"][0]["text"] for c in rows[0]["cells"]], ["รายการ", "จำนวน", "หมายเหตุ"])
+        self.assertEqual(rows[1]["cells"][0]["colspan"], 2)
+        self.assertEqual(rows[1]["cells"][1]["rowspan"], 3)  # 往下合并了两行
+        self.assertEqual(len(rows[2]["cells"]), 2)
+        self.assertEqual(rows[2]["cells"][1]["blocks"][0]["align"], "right")
+        self.assertNotIn("header", rows[1])
+        inner = rows[3]["cells"][0]["blocks"][0]
+        self.assertEqual(inner["rows"][0]["cells"][0]["blocks"][0]["runs"], [{"text": "inner"}])
+        self.assertEqual(len(rows[3]["cells"]), 1)
+        self.assertEqual(rows[4]["cells"][0]["blocks"][0]["runs"], [{"text": "in control"}])
+        self.assertEqual(after["runs"], [{"text": "after"}])
+        # 「接着合并」上面却没有起头的格：当普通格显示，不丢内容
+        lone = self.read("<w:tbl><w:tr>" + _cell(_p("lone"), "<w:vMerge/>") + "</w:tr></w:tbl>")[0]
+        self.assertEqual(lone["rows"][0]["cells"][0]["blocks"][0]["runs"], [{"text": "lone"}])
+
+    def test_scripts_links_and_outside_resources_never_reach_the_preview(self):
+        """清洗：只剩文字与文档里嵌着的位图；超链接只留文字，域代码、外链图片、SVG、网页块、宏都不带出来。"""
+        import base64
+
+        body = (
+            '<w:p><w:hyperlink r:id="rIdLink"><w:r><w:t>ลิงก์</w:t></w:r></w:hyperlink>'
+            '<w:hyperlink w:anchor="top"><w:r><w:t xml:space="preserve"> top</w:t></w:r></w:hyperlink></w:p>'
+            '<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+            '<w:r><w:instrText xml:space="preserve"> HYPERLINK "javascript:alert(1)" </w:instrText></w:r>'
+            '<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>click</w:t></w:r>'
+            '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+            '<w:fldSimple w:instr=" HYPERLINK &quot;http://evil.example/2&quot; "><w:r><w:t xml:space="preserve"> simple'
+            "</w:t></w:r></w:fldSimple></w:p>"
+            "<w:p>" + _drawing('r:embed="rIdPng"') + _drawing('r:link="rIdOutside"') + _drawing('r:embed="rIdOutside"')
+            + _drawing('r:embed="rIdSvg"') + _drawing('r:embed="rIdMissing"') + _drawing('r:embed="rIdLink"')
+            + '<w:r><w:pict><v:shape style="width:10pt"><v:imagedata r:id="rIdJpeg"/></v:shape></w:pict></w:r>'
+            + "<w:r><mc:AlternateContent><mc:Choice Requires=\"wps\">" + _drawing('r:embed="rIdPng"', 0, 0)[5:-6]
+            + "</mc:Choice><mc:Fallback><w:pict><v:imagedata r:id=\"rIdJpeg\"/></w:pict></mc:Fallback>"
+            "</mc:AlternateContent></w:r></w:p>"
+            '<w:altChunk r:id="rIdHtml"/>'
+        )
+        rels = [("rIdLink", "hyperlink", "https://evil.example/steal", True),
+                ("rIdOutside", "image", "http://evil.example/pixel.png", True),
+                ("rIdPng", "image", "media/image1.png", False), ("rIdJpeg", "image", "/word/media/image2.jpeg", False),
+                ("rIdSvg", "image", "media/image3.svg", False), ("rIdMissing", "image", "media/gone.png", False),
+                ("rIdHtml", "aFChunk", "afchunk.html", False)]
+        parts = {"word/media/image1.png": _PNG, "word/media/image2.jpeg": _JPEG,
+                 "word/media/image3.svg": '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>',
+                 "word/afchunk.html": "<html><script>alert(1)</script><img src=http://evil.example/a.png></html>",
+                 "word/vbaProject.bin": b"Attribute VB_Name = \"evil\""}
+        blocks = self.read(body, rels=rels, parts=parts)
+        self.assertEqual(len(blocks), 3)  # 网页块（altChunk）不读
+        self.assertEqual(blocks[0]["runs"], [{"text": "ลิงก์ top", "link": True}])
+        self.assertEqual(blocks[1]["runs"], [{"text": "click simple"}])
+        images = blocks[2]["runs"]
+        png = "data:image/png;base64," + base64.b64encode(_PNG).decode()
+        self.assertEqual(images, [{"image": png, "width": 100, "height": 50}, {"image": images[1]["image"]},
+                                  {"image": png}])
+        self.assertTrue(images[1]["image"].startswith("data:image/jpeg;base64,/9j/"))
+        allowed = {"type", "runs", "style", "align", "list", "level", "marker", "rows", "cells", "blocks", "colspan",
+                   "rowspan", "header", "text", "bold", "italic", "underline", "strike", "sup", "sub", "link", "image",
+                   "width", "height"}
+        for item in _walk(blocks):
+            self.assertLessEqual(set(item), allowed)
+            if "image" in item:
+                self.assertRegex(item["image"], r"^data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+=*$")
+        dumped = json.dumps(blocks)
+        for leaked in ("evil.example", "javascript", "http", "script", "onload", "svg", "HYPERLINK", "VB_Name"):
+            self.assertNotIn(leaked, dumped)
+
+    def test_unreadable_documents_are_refused(self):
+        laughs = ('<?xml version="1.0"?><!DOCTYPE w:document [<!ENTITY a "aaaaaaaaaa"><!ENTITY b "&a;&a;&a;&a;&a;">]>'
+                  f'<w:document {_NS}><w:body><w:p><w:r><w:t>&b;</w:t></w:r></w:p></w:body></w:document>')
+        cases = {
+            "not a zip": b"PK\x03\x04 not really",
+            "plain text": "สรุปภาษี".encode(),
+            "no document part": _docx("", entries=["[Content_Types].xml", "_rels/.rels"]),
+            "entity expansion": _docx("", document=laughs),
+            "dtd in styles": _docx(_p("x"), parts={"word/styles.xml": "<!DOCTYPE x [<!ENTITY e SYSTEM 'file:///etc/passwd'>]><x/>"}),
+            "broken xml": _docx("", document="<w:document"),
+            "not a word body": _docx("", document=f"<w:workbook {_NS}/>"),
+        }
+        for name, content in cases.items():
+            with self.assertRaises(docx_preview.Unreadable, msg=name):
+                docx_preview.read(content)
+        with mock.patch.object(docx_preview, "MAX_PART_BYTES", 200):  # 部件解压后超过上限
+            with self.assertRaises(docx_preview.Unreadable):
+                docx_preview.read(_docx(_p("x" * 400)))
+        with mock.patch.object(docx_preview, "MAX_ENTRIES", 3):
+            with self.assertRaises(docx_preview.Unreadable):
+                docx_preview.read(_docx(_p("x")))
+
+    def test_long_documents_and_images_stop_at_the_limits(self):
+        many = "".join(_p(f"line {i}") for i in range(10))
+        with mock.patch.object(docx_preview, "MAX_BLOCKS", 3):
+            self.assertEqual([b["runs"][0]["text"] for b in self.read(many)], ["line 0", "line 1", "line 2"])
+        with mock.patch.object(docx_preview, "MAX_CHARS", 15):
+            self.assertEqual(["".join(r["text"] for r in b["runs"]) for b in self.read(many)],
+                             ["line 0", "line 1", "lin"])
+        rels = [("rIdPng", "image", "media/image1.png", False)]
+        two = "<w:p>" + _drawing('r:embed="rIdPng"') + _drawing('r:embed="rIdPng"') + "</w:p>"
+        with mock.patch.object(docx_preview, "MAX_IMAGES_BYTES", len(_PNG) + 1):  # 同一张图每出现一次都算
+            self.assertEqual(len(self.read(two, rels=rels, parts={"word/media/image1.png": _PNG})[0]["runs"]), 1)
+        with mock.patch.object(docx_preview, "MAX_IMAGE_BYTES", len(_PNG) - 1):  # 单张太大：不带图，正文照常
+            self.assertEqual(self.read(two + _p("ok"), rels=rels, parts={"word/media/image1.png": _PNG})[1]["runs"],
+                             [{"text": "ok"}])
+        deep = "<w:sdt><w:sdtContent>" * 200 + _p("deep") + "</w:sdtContent></w:sdt>" * 200
+        self.assertEqual(self.read(deep + _p("shallow")), [{"type": "paragraph", "runs": [{"text": "shallow"}]}])
+        self.assertEqual(self.read(""), [])
+
+    def _files(self):
+        sys.modules.setdefault("pearnly_core.desk", types.ModuleType("pearnly_core.desk"))
+        sys.modules["pearnly_core.desk"].heic = sys.modules.setdefault("pearnly_core.desk.heic", types.ModuleType("heic"))
+        with mock.patch.object(sys.modules["pearnly_core.assistant"], "sessions", types.ModuleType("sessions"),
+                               create=True):
+            return _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
+
+    def test_result_panel_preview_falls_back_to_download(self):
+        """files.preview：Word 读成块；读不出、太大、老格式、别的类型都给 none（页面给下载），太大与不预览的类型不去取内容。"""
+        files = self._files()
+        good = _docx(_p("สรุป", '<w:pStyle w:val="Title"/>'), styles=_STYLES)
+        stored = {"file_ok": ("สรุปภาษี.docx", good), "file_bad": ("broken.docx", b"PK\x03\x04broken"),
+                  "file_empty": ("empty.docx", _docx("")), "file_big": ("big.docx", good),
+                  "file_doc": ("old.doc", good), "file_pdf": ("r.pdf", b"%PDF-1.7"), "file_lie": ("lie.docx", good)}
+        reads = []
+
+        class Api:
+            def files(self, remote):
+                sizes = {"file_big": files.PREVIEW_MAX_BYTES + 1, "file_lie": 10}
+                return [{"id": fid, "filename": name, "downloadable": True, "mime_type": "application/octet-stream",
+                         "size_bytes": sizes.get(fid, len(data))} for fid, (name, data) in stored.items()]
+
+            def read_file(self, remote, fid):
+                reads.append(fid)
+                return stored[fid][1] + (b"\x00" * files.PREVIEW_MAX_BYTES if fid == "file_lie" else b"")
+
+        sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name="row1"),
+                                         _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"])
+        with mock.patch.object(files, "sessions", sessions), \
+                mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)):
+            self.assertEqual(files.preview("s1", "file_ok"), {"type": "document", "blocks": [
+                {"type": "paragraph", "runs": [{"text": "สรุป"}], "style": "title", "align": "center"}]})
+            for fid in ("file_bad", "file_empty", "file_big", "file_doc", "file_pdf", "file_lie"):
+                self.assertEqual(files.preview("s1", fid), {"type": "none"}, fid)
+        self.assertEqual(reads, ["file_ok", "file_bad", "file_empty", "file_lie"])
+        # docx 下载照常是附件（不在可内联的类型里）
+        self.assertNotIn("application/vnd.openxmlformats-officedocument.wordprocessingml.document", files.INLINE_TYPES)
+
+
 class _Doc(types.SimpleNamespace):
     """开户单 / 租户表单替身：`stored` 是库里那份密钥，`before` 是保存前的字段。"""
 

@@ -2,7 +2,8 @@
 
 - 附件：浏览器传到本站 → 校验类型与大小（HEIC 照片先转 JPEG，与三个产品的上传口一致）→ 交给引擎放进该会话，
   智能体按返回的位置读取。
-- 结果：智能体产出的文件按会话列出，可预览、下载。
+- 结果：智能体产出的文件按会话列出，可预览、下载。Excel 与 Word（.docx）由这里读成纯数据交给结果面板（`preview`），
+  页面按文字渲染，文档里的脚本、外链到不了页面；读不出就给下载。
 - 文件不脱离会话存在：下载前先核对「会话属于当前用户」且「文件属于这个会话」，猜编号读不到别人的文件。
 - 附件原件在本站也留一份：引擎的文件库不让下载用户上传的文件，产品工具要用原件（例如 Cowork 把对话里发来的
   票据交给录入工作台识别）只能从这里取，见 `attachment`。存在站点私有目录 `private/assistant-attachments/<会话>/`
@@ -20,7 +21,7 @@ import shutil
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import contracts, engine, sessions
+from pearnly_core.assistant import contracts, docx_preview, engine, sessions
 from pearnly_core.desk import heic
 
 # 只有这些类型可以在本站内联打开。网页、SVG 一律按下载给出：它们在本站域名下打开会执行脚本；
@@ -220,23 +221,48 @@ def download(session_id, file_id, inline=False) -> None:
         frappe.local.response.type = "binary" if inline and meta["mime_type"] in INLINE_TYPES else "download"
 
 
-# 结果面板的表格预览：只读前几张表的前若干行列，单个文件超过上限就不预览（下载照常）。
+# 结果面板的结构化预览：表格只读前几张表的前若干行列；Word 只读正文（上限见 docx_preview）。
+# 单个文件超过上限就不预览（下载照常）。
 PREVIEW_MAX_BYTES = 5 * 1024 * 1024
 PREVIEW_SHEETS = 10
 PREVIEW_ROWS = 500
 PREVIEW_COLS = 40
 SHEET_TYPES = (".xlsx", ".xlsm")
+DOCUMENT_TYPES = (".docx",)
+
+
+def preview_kind(filename) -> str | None:
+    """按文件名定结构化预览的类型：sheets（Excel）/ document（Word .docx）；别的类型没有结构化预览。
+    老格式 .doc / .xls 是二进制，不读。"""
+    name = str(filename or "").strip().lower()
+    if name.endswith(SHEET_TYPES):
+        return "sheets"
+    if name.endswith(DOCUMENT_TYPES):
+        return "document"
+    return None
 
 
 def preview(session_id, file_id) -> dict:
-    """结果文件的结构化预览。目前支持 Excel：`{"type": "sheets", "sheets": [{"name", "rows"}]}`；其余 `{"type": "none"}`。"""
+    """结果文件的结构化预览：Excel `{"type": "sheets", "sheets": [{"name", "rows"}]}`；Word
+    `{"type": "document", "blocks": [...]}`（块的写法见 `docx_preview.read`）；其余类型、超过上限或读不出
+    `{"type": "none"}`，页面给下载。"""
     row = sessions.owned(session_id, allow_archived=True)
     fid = sessions._guard(contracts.file_id, file_id)
     api = engine.adapter()
     meta, remote = _output(row, api, fid)
-    if not meta["filename"].lower().endswith(SHEET_TYPES) or int(meta.get("size_bytes") or 0) > PREVIEW_MAX_BYTES:
+    kind = preview_kind(meta["filename"])
+    if not kind or int(meta.get("size_bytes") or 0) > PREVIEW_MAX_BYTES:
         return {"type": "none"}
-    return {"type": "sheets", "sheets": sheets(api.read_file(remote, fid))}
+    content = api.read_file(remote, fid)
+    if len(content) > PREVIEW_MAX_BYTES:
+        return {"type": "none"}
+    if kind == "sheets":
+        return {"type": "sheets", "sheets": sheets(content)}
+    try:
+        blocks = docx_preview.read(content)
+    except docx_preview.Unreadable:
+        return {"type": "none"}
+    return {"type": "document", "blocks": blocks} if blocks else {"type": "none"}
 
 
 def sheets(content: bytes) -> list[dict]:
