@@ -116,7 +116,7 @@ export function syncPush(): Promise<void> {
   return synced;
 }
 
-/** 打开失败：浏览器订阅上了、本站没收下就退掉浏览器这边；拒绝过通知就显示「已在浏览器设置中关闭」；
+/** 打开失败：浏览器订阅上了、本站没收下就退掉浏览器这边；拒绝过通知就显示「已在系统或浏览器设置中关闭」；
  *  只是关掉了询问不算失败；其余给原因。 */
 async function enableFailed(error: unknown, subscription: PushSubscription | null): Promise<void> {
   if (subscription) await subscription.unsubscribe().catch(() => false);

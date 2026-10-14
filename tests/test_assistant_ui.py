@@ -875,7 +875,7 @@ assert.match(toggle(markup), /disabled=""/);
 await syncPush();
 assert.equal(currentPush().state, "denied");
 const markup = row();
-assert.deepEqual(text(markup), ["Notifications", "Blocked in browser settings"]);
+assert.deepEqual(text(markup), ["Notifications", "Blocked in system or browser settings"]);
 assert.match(toggle(markup), /disabled=""/);
 """, permission="denied")
 
