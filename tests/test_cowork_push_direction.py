@@ -196,6 +196,13 @@ class BranchRouting(unittest.TestCase):
         self.assertEqual(self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO, work_branch="00012")
                          ["direction"], "purchase")
 
+    def test_the_conversation_branch_is_only_asked_for_when_it_matters(self):
+        # 只有票面没印分店、这家又有几个分店时才去取对话指定的分店（钩子）；普通推送不调钩子
+        seen = self.prepare(self.bought(), branches={BOOK: "00000"}, work_branch="00012")
+        self.assertEqual(seen["work_branch_asked"], [])
+        seen = self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO, work_branch="00012")
+        self.assertEqual(seen["work_branch_asked"], [])
+
     def test_a_single_branch_company_is_not_checked_by_branch(self):
         self.assertEqual(self.prepare(self.bought(buyer_branch="00012"), branches={BOOK: "00000"})["direction"],
                          "purchase")

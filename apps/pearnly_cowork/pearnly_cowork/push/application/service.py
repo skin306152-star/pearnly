@@ -238,7 +238,7 @@ def _require_matching_account(loaded, target, direction, fields, invoice_date):
     if isinstance(rows, str):
         rows = json.loads(rows)
     reason = account_match.conflict("express", account, direction=direction, fields=facts, catalog=rows,
-                                    work_branch=_work_branch(loaded.doc.name, target.account_set))
+                                    work_branch=lambda: _work_branch(loaded.doc.name, target.account_set))
     if reason:
         frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
 

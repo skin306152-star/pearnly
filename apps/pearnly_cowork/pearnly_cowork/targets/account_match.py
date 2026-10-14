@@ -88,14 +88,19 @@ def wrong_branch(attributes: Mapping[str, Any], catalog: Any, direction: str, fi
     if len(company_branches(catalog, tax)) < 2:
         return False
     own = "buyer" if direction == "purchase" else "seller"
-    wanted = printed_branch(fields.get(f"{own}_branch")) or (_branch5(work_branch) if _digits(work_branch) else "")
+    wanted = printed_branch(fields.get(f"{own}_branch"))
+    if not wanted:
+        # 对话指定的分店可以传一个取值函数：只有票面没印分店、这家又有几个分店时才去取（省一次钩子调用）
+        branch = work_branch() if callable(work_branch) else work_branch
+        wanted = _branch5(branch) if _digits(branch) else ""
     return bool(wanted) and wanted != _branch5(book_branch)
 
 
 def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: object,
              fields: Mapping[str, Any] | None, catalog: Any = None, work_branch: object = "") -> str:
     """→ 对不上的原因码（`TAX_MISMATCH` / `BRANCH_MISMATCH` / `PERIOD_MISMATCH`），没有确定的冲突返回 ''。只核 Express。
-    ``catalog``：这条连接的账套目录行（判同一法人有几个分店）；``work_branch``：CC 对话指定的分店。"""
+    ``catalog``：这条连接的账套目录行（判同一法人有几个分店）；``work_branch``：CC 对话指定的分店，或取它的函数
+    （只在用得着时才调用）。"""
     if str(adapter or "").strip().lower() != "express" or not isinstance(account, Mapping):
         return ""
     attributes = account.get("attributes") if isinstance(account.get("attributes"), Mapping) else {}
