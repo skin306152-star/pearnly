@@ -5,8 +5,11 @@
 """
 from copy import deepcopy
 from datetime import date
+import json
 from pathlib import Path
+import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -146,6 +149,67 @@ class PushAfterTheSplit(unittest.TestCase):
                 payload = build_express_payload(self.history(fields), config={**self.CONFIG, "choices": applied},
                                                 today=TODAY).payload
                 self.assertEqual((payload["base_amount"], payload["vat_amount"]), (base, vat))
+
+
+class ReplayScript(unittest.TestCase):
+    SCRIPT = ROOT / "scripts/cowork-vat-included-replay.py"
+
+    def run_script(self, directory, *args):
+        done = subprocess.run([sys.executable, str(self.SCRIPT), str(directory), *args], capture_output=True,
+                              text=True, encoding="utf-8")
+        return done.returncode, done.stdout, done.stderr
+
+    def test_lists_only_zero_vat_abbreviated_invoices_and_reads_nothing_else(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "runs").mkdir()
+            # eval-invoices.py 的 results.jsonl：invoices[].fields 只有金额与票种
+            records = [{"编号": "S001", "state": "saved", "invoices": [
+                           {"history": "H-1", "fields": {"document_type": "simplified_tax_invoice", "invoice_number": "A1",
+                                                         "subtotal": "727.00", "vat": "0", "total_amount": "727.00"}},
+                           {"history": "H-2", "fields": {"document_type": "simplified_tax_invoice", "invoice_number": "A2",
+                                                         "subtotal": "557.94", "vat": "39.06", "total_amount": "597.00"}},
+                           {"history": "H-3", "fields": {"document_type": "tax_invoice", "invoice_number": "T1",
+                                                         "subtotal": "100", "vat": "0", "total_amount": "100"}}]},
+                       {"编号": "S002", "state": "not_invoice", "invoices": []}]
+            (root / "runs/results.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in records),
+                                                     encoding="utf-8")
+            # 识别记录导出：pages 是 JSON 字符串，ai_raw 是副本（不重复计）
+            pages_json = json.dumps([page(abb(notes="ผักสด ยกเว้นภาษี"))], ensure_ascii=False)
+            (root / "history.json").write_text("﻿" + json.dumps(
+                {"name": "H-9", "pages": pages_json, "ai_raw": pages_json}, ensure_ascii=False), encoding="utf-8")
+            # PipelineResult：同页第二张票在 additional_invoices 里
+            (root / "result.json").write_text(json.dumps({"pages": [{"page_number": 1, "invoice": {
+                **abb(invoice_number="P1"), "additional_invoices": [abb(invoice_number="P2", vat="", subtotal="")]}}]},
+                ensure_ascii=False), encoding="utf-8")
+            (root / "broken.json").write_text("{not json", encoding="utf-8")
+            before = {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
+
+            code, out, _ = self.run_script(root)
+            self.assertEqual(code, 0)
+            lines = out.strip().split("\n")
+            self.assertEqual(lines[0].split("\t")[:3], ["file", "where", "id"])
+            changed = [line.split("\t") for line in lines[1:] if line and not line.startswith("{")]
+            self.assertEqual(sorted(row[2] for row in changed),
+                             ["invoice=P1", "invoice=P2", "编号=S001 history=H-1 invoice=A1"])
+            row = next(row for row in changed if "A1" in row[2])
+            self.assertEqual(row[5:9], ["727.00", "727.00→679.44", "0→47.56", "no"])
+            summary = json.loads(lines[-1])["summary"]
+            self.assertEqual((summary["would_change"], summary["abbreviated"], summary["unreadable_files"]), (3, 5, 1))
+            self.assertEqual(summary["unchanged_abbreviated"], {"vat_present": 1, "no_vat_marked": 1})
+            self.assertEqual(summary["would_change_without_document_text"], 1)
+
+            code, out, _ = self.run_script(root, "--all", "--json")
+            rows = [json.loads(line) for line in out.strip().split("\n")]
+            self.assertEqual(sorted(row["reason"] for row in rows),
+                             ["no_vat_marked", "split", "split", "split", "vat_present"])
+            # 只读：一个字节都没改
+            self.assertEqual({path: path.read_bytes() for path in root.rglob("*") if path.is_file()}, before)
+
+    def test_a_missing_or_empty_directory_exits_2(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertEqual(self.run_script(Path(folder))[0], 2)
+            self.assertEqual(self.run_script(Path(folder) / "nope")[0], 2)
 
 
 if __name__ == "__main__":
