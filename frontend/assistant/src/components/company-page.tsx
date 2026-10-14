@@ -61,7 +61,7 @@ import {
 } from "@/lib/companies";
 import { knownReaders, openSettings, pickFolder, rememberReader, useDesktopFeatures } from "@/lib/desktop";
 import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
-import { forgetProject, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
+import { forgetProject, hintTitle, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 
@@ -111,6 +111,7 @@ export const CompanyPage: FC = () => {
     try {
       const next = await loadDetail(company, period);
       if (mine !== asked.current) return;
+      hintTitle(next.company.id, next.company.title);
       setDetail(next);
       setError("");
       dropCachedDetail(company);

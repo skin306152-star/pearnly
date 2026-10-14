@@ -157,14 +157,27 @@ export function filingFrom(row: { project?: unknown; period?: unknown; scope?: u
   };
 }
 
+// 页面已知的公司名称（主档页、公司页读到的）：在这家开第一段对话时，侧栏还没有这一组，先按这个名称显示，
+// 不让新对话先闪到「最近」再跳进公司；projects() 回来后换成服务端那一行。
+const titleHints = new Map<string, string>();
+
+export function hintTitle(id: string, title: string) {
+  if (id && title) titleHints.set(id, title);
+}
+
 /** 记下几段对话挂在哪（列表的每一页、新建、移动的回复、推来的事件都经这里）。挂进侧栏还没有的公司时重取一次 projects()。 */
 export function noteFilings(entries: Record<string, Filing>) {
   const { filings, projects, kind } = store.getState();
   if (Object.entries(entries).every(([id, filing]) => same(filings[id], filing))) return;
-  store.setState({ filings: { ...filings, ...entries } });
-  if (kind && Object.values(entries).some((f) => f.project && !projects.some((row) => row.id === f.project))) {
-    void refreshProjects();
-  }
+  const missing = kind
+    ? [...new Set(Object.values(entries).map((f) => f.project).filter((id) => id && !projects.some((row) => row.id === id)))]
+    : [];
+  const provisional: ProjectRow[] = missing
+    .filter((id) => titleHints.has(id))
+    .map((id) => ({ id, title: titleHints.get(id) as string, count: 1, last_active: new Date().toISOString() }));
+  store.setState(provisional.length ? { filings: { ...filings, ...entries }, projects: [...provisional, ...projects] }
+    : { filings: { ...filings, ...entries } });
+  if (missing.length) void refreshProjects();
 }
 
 // ---------------------------------------------------------------- 复合游标

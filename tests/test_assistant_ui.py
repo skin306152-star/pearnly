@@ -2190,7 +2190,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "@assistant-ui/core/react"
 import { ThreadListRuntimeImpl } from "@assistant-ui/core/internal";
 import { sessionListAdapter } from "@/lib/managed-agents/session-list-adapter";
 import { watchList } from "@/lib/managed-agents/list-sync";
-import { fileSession, filingOf, groupOf, NO_FILING, setDraft, showMore, useProjects } from "@/lib/managed-agents/projects";
+import { fileSession, filingOf, groupOf, hintTitle, NO_FILING, setDraft, showMore, useProjects } from "@/lib/managed-agents/projects";
 """
 
     def run_page(self, body):
@@ -2229,6 +2229,26 @@ site.created = "sesn_new102";
 await core.initialize(core.mainThreadId);
 assert.deepEqual(calls("create").at(-1).body, {});
 assert.deepEqual(filingOf("sesn_new102"), NO_FILING);
+""")
+
+    def test_the_first_chat_in_a_company_shows_its_group_at_once(self):
+        # 2026-10-15 测试机：在主档页开这家的第一段对话，侧栏还没有这一组，新对话先闪在「最近」几秒才跳进公司
+        self.run_page(r"""
+site.sessions = [row("sesn_bbb001", "Loose", 2)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+assert.ok(!useProjects.getState().projects.some((p) => p.id === "comp_first"));
+hintTitle("comp_first", "Sincere Ice Co");           // 主档页读到这家的名称
+setDraft({ project: "comp_first", period: "2026-09" });
+await core.switchToNewThread();
+const local = core.mainThreadId;
+site.created = "sesn_new201";
+const made = core.initialize(local);
+assert.equal(groupOf(local), "comp_first");          // 不等 projects() 回来，这一组马上出现
+assert.equal(useProjects.getState().projects.find((p) => p.id === "comp_first")?.title, "Sincere Ice Co");
+await made;
 """)
 
     def test_moves_renames_and_deletes_merge_at_once(self):
