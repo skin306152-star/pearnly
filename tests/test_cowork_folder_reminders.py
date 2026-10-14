@@ -64,13 +64,14 @@ class Notices:
         return next((sid for sid in candidates if sid not in self.foreign), "")
 
     def post(self, user, kind, text, dedup_key, *, title="", conversation="", reference_doctype="", reference_names=(),
-             ttl=0):
+             ttl=0, view=""):
         if user in self.fail:
             raise RuntimeError("notices down")
         if dedup_key in self.rows:
             return {"name": dedup_key, "id": "pnotice_x", "session_id": "", "created": False}
         self.rows[dedup_key] = Row(user=user, kind=kind, text=text, title=title, conversation=conversation,
-                                   reference_doctype=reference_doctype, refs=tuple(reference_names), ttl=ttl)
+                                   reference_doctype=reference_doctype, refs=tuple(reference_names), ttl=ttl,
+                                   view=view)
         return {"name": dedup_key, "id": "pnotice_x", "session_id": conversation, "created": True}
 
     def exists(self, dedup_key):

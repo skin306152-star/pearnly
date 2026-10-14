@@ -88,7 +88,7 @@ import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
-import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
+import { usePendingCounts, useCompanyNav, watchPendingCounts, watchTaskOverview } from "@/lib/companies";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -743,6 +743,8 @@ function DesktopBridge() {
   // 侧栏「待处理 N」与公司组头的数：只在有公司分组的产品读（推送状态的站点事件来了、回到前台再读）
   const companyKind = useProjects((s) => s.kind);
   useEffect(() => (companyKind ? watchPendingCounts() : undefined), [companyKind]);
+  // 公司组里「定时任务 N」与定时任务总览的分组：一次取全部（不逐家读详情），定时任务事件来了、回到前台再读
+  useEffect(() => (companyKind ? watchTaskOverview() : undefined), [companyKind]);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
   // 在定时任务页时当前对话不算「正看着」：推来的提醒留圆点、不报看过；回到对话页才算
   useEffect(() => setChatView(view === "chat"), [view]);

@@ -5,7 +5,10 @@
   —— 这张票不是这家公司的（旧项目 07-23：票写进了别家公司的账套）；方向判不出时只在买方是别家有效税号、
   卖方也不是这份账套时拦；
 - 单据日期落在这份账套整个会计期间（本年起 ~ 次年止）之外 —— 年度选错了。
-读不出、账套没报的都不拦（判断不了就按用户的选择）。分店号没有校验位、识别常读错一位，不拿来拦。
+- 分店（补充 甲.3，用户 2026-10-15）：同一法人在这条连接里有不止一个分店的账套时，进项票票面的买方分店（销项看卖方分店）
+  只认这个分店的账套；票面没有本方分店（简易税票、收据）时用 CC 对话指定的分店（``work_branch``）。与所选账套的分店
+  不同就拦，不静默改。只有一个分店的公司不按分店拦（分店号没有校验位、识别常读错一位，一套账服务所有分店时更不能拦）。
+读不出、账套没报的都不拦（判断不了就按用户的选择）。
 """
 from __future__ import annotations
 
@@ -17,6 +20,10 @@ from pearnly_core.tax_documents.amounts import valid_tax_id
 
 TAX_MISMATCH = "account_tax_mismatch"
 PERIOD_MISMATCH = "account_period_mismatch"
+BRANCH_MISMATCH = "account_branch_mismatch"
+# 票面「สำนักงานใหญ่ / Head office」写的是总公司，没有分店号
+HEAD_OFFICE = "00000"
+_HEAD_WORDS = ("สำนักงานใหญ่", "สนญ", "head office", "headoffice")
 
 
 def _digits(value: object) -> str:
@@ -47,15 +54,56 @@ def _other_company(direction: str, fields: Mapping[str, Any], book_tax: str) -> 
     return book_tax not in (seller, buyer) and _valid(buyer)
 
 
+def _branch5(value: object) -> str:
+    number = _digits(value)
+    return (number[-5:] if number else "0").zfill(5)
+
+
+def printed_branch(value: object) -> str:
+    """票面上的分店：有数字取 5 位，写「总公司」的是 00000，没写回空串。"""
+    text = str(value or "").strip()
+    if _digits(text):
+        return _branch5(text)
+    folded = text.casefold().replace(" ", "")
+    return HEAD_OFFICE if any(word.replace(" ", "") in folded for word in _HEAD_WORDS) else ""
+
+
+def _attributes(row: Any) -> Mapping[str, Any]:
+    found = row.get("attributes") if isinstance(row, Mapping) else None
+    return found if isinstance(found, Mapping) else {}
+
+
+def company_branches(catalog: Any, tax: str) -> set:
+    """这条连接的目录里同一税号的账套报的分店号。"""
+    return {_branch5(_attributes(row).get("branch")) for row in catalog or () if isinstance(row, Mapping)
+            and _digits(_attributes(row).get("tax_id")) == tax and _digits(_attributes(row).get("branch"))}
+
+
+def wrong_branch(attributes: Mapping[str, Any], catalog: Any, direction: str, fields: Mapping[str, Any],
+                 work_branch: object = "") -> bool:
+    """所选账套的分店与这张票该进的分店不同（见文件头）。"""
+    tax, book_branch = _digits(attributes.get("tax_id")), attributes.get("branch")
+    if len(tax) != 13 or not _digits(book_branch) or direction not in ("purchase", "sales"):
+        return False
+    if len(company_branches(catalog, tax)) < 2:
+        return False
+    own = "buyer" if direction == "purchase" else "seller"
+    wanted = printed_branch(fields.get(f"{own}_branch")) or (_branch5(work_branch) if _digits(work_branch) else "")
+    return bool(wanted) and wanted != _branch5(book_branch)
+
+
 def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: object,
-             fields: Mapping[str, Any] | None) -> str:
-    """→ 对不上的原因码（`TAX_MISMATCH` / `PERIOD_MISMATCH`），没有确定的冲突返回 ''。只核 Express。"""
+             fields: Mapping[str, Any] | None, catalog: Any = None, work_branch: object = "") -> str:
+    """→ 对不上的原因码（`TAX_MISMATCH` / `BRANCH_MISMATCH` / `PERIOD_MISMATCH`），没有确定的冲突返回 ''。只核 Express。
+    ``catalog``：这条连接的账套目录行（判同一法人有几个分店）；``work_branch``：CC 对话指定的分店。"""
     if str(adapter or "").strip().lower() != "express" or not isinstance(account, Mapping):
         return ""
     attributes = account.get("attributes") if isinstance(account.get("attributes"), Mapping) else {}
     fields = fields if isinstance(fields, Mapping) else {}
     if _other_company(str(direction or ""), fields, _digits(attributes.get("tax_id"))):
         return TAX_MISMATCH
+    if wrong_branch(attributes, catalog, str(direction or ""), fields, work_branch):
+        return BRANCH_MISMATCH
     day = _day(fields.get("date"))
     start = _day(attributes.get("period_start"))
     end = _day(attributes.get("next_end")) or _day(attributes.get("period_end"))
@@ -64,4 +112,5 @@ def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: o
     return ""
 
 
-__all__ = ["PERIOD_MISMATCH", "TAX_MISMATCH", "conflict"]
+__all__ = ["BRANCH_MISMATCH", "PERIOD_MISMATCH", "TAX_MISMATCH", "company_branches", "conflict", "printed_branch",
+           "wrong_branch"]

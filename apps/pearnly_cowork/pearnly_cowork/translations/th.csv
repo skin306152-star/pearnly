@@ -1818,8 +1818,10 @@ This connection is disabled.,การเชื่อมต่อนี้ปิ
 This count entry has changed. Refresh it and try again.,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 This delivery conflicts with the current task state.,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
+This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่
 This document does not need this choice,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
 This document format is not supported.,ไม่รองรับรูปแบบเอกสารนี้
+This document has no push target,เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This file cannot be read,ไม่สามารถอ่านไฟล์นี้ได้
 This file does not match the review workbook format.,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
@@ -2128,6 +2130,7 @@ cowork.company.note_not_found,ไม่พบบันทึกนี้
 cowork.company.notes,บันทึก
 cowork.company.notes_full,บันทึกเต็มแล้ว
 cowork.company.pending.more,อีก {0} บริษัท
+cowork.company.pending.no_target,เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง
 cowork.company.pending.not_pushed,ยังไม่ได้ส่ง
 cowork.company.pending.text,มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})
 cowork.company.pending.text_plain,มีเอกสาร {0} รายการรอคุณดำเนินการ

@@ -209,6 +209,8 @@ _ACCOUNT_CONFLICTS = {
                                 "Check the account set and send it again.",
     account_match.PERIOD_MISMATCH: "The document date is outside the fiscal period of the chosen account set. "
                                    "Check the year and send it again.",
+    account_match.BRANCH_MISMATCH: "This document belongs to another branch than the chosen account set. "
+                                   "Choose that branch's account set and send it again.",
 }
 
 
@@ -228,12 +230,31 @@ def _account_tax(account):
 
 
 def _require_matching_account(loaded, target, direction, fields, invoice_date):
-    """用户选的账套与票面确定对不上就不推（规则见 `targets/account_match.py`）：本方税号不同、日期不在会计期间里。"""
+    """用户选的账套与票面确定对不上就不推（规则见 `targets/account_match.py`）：本方税号不同、分店不同（同一法人有几个
+    分店的账套时）、日期不在会计期间里。"""
     account = _account_row(loaded, target)
     facts = {**fields, "date": invoice_date.isoformat() if invoice_date else fields.get("date")}
-    reason = account_match.conflict("express", account, direction=direction, fields=facts)
+    rows = (loaded.evidence.snapshot or {}).get("account_sets") or []
+    if isinstance(rows, str):
+        rows = json.loads(rows)
+    reason = account_match.conflict("express", account, direction=direction, fields=facts, catalog=rows,
+                                    work_branch=_work_branch(loaded.doc.name, target.account_set))
     if reason:
         frappe.throw(_(_ACCOUNT_CONFLICTS[reason]))
+
+
+def _work_branch(connection, account_set):
+    """票面没有本方分店时用的分店：CC 对话指定的（钩子 ``cowork_push_work_branch``，只在推往那家公司的账套时给）；
+    push 域不导入 companies。取不到回空串、不挡推送。"""
+    for path in frappe.get_hooks("cowork_push_work_branch") or []:
+        try:
+            found = str(frappe.get_attr(path)(connection, account_set) or "")
+        except Exception:
+            frappe.log_error(title="Cowork push work branch failed")
+            continue
+        if found:
+            return found
+    return ""
 
 
 def _fixed(history, connection, account_set, fixed):
@@ -265,6 +286,15 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
                                     remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
                                     receipts=receipts)
+    settled = _settled_account(decision["needed"], connection, account_set, fields, config, fixed)
+    if settled:
+        # 历史很一致：当作这家已记住的科目用（只这一次判断，不写进账套记忆；主档页可见可删）
+        subject = next(item["subject"] for item in decision["needed"] if item.get("kind") == "account")
+        remembered = {**remembered, "account": {**(remembered.get("account") or {}), subject: settled["code"]}}
+        decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
+                                        remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
+                                        receipts=receipts)
+        decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
     applied = decision["applied"]
     remember = applied.pop("remember_payment", None)
     if remember:
@@ -273,6 +303,23 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         choice_store.record(connection, account_set, "payment",
                             choice_rules.supplier_subject(direction, tax, name), remember, name)
     return decision
+
+
+def _settled_account(needed, connection, account_set, fields, config, fixed):
+    """要人选费用科目、而这家供应商从没被人选过（也没有任务默认）时，历史很一致的科目（用户 2026-10-15：同一供应商按税号
+    合并各分店，近 12 个月 ≥3 次且全记同一个科目，就直接用、不再问）；否则 None（仍作建议、问一次）。
+
+    历史经钩子 ``cowork_push_account_history`` 只读存着的（不请电脑、不写库）；科目须还在这份账套的科目表里。"""
+    wanted = [item for item in needed or () if item.get("kind") == "account"]
+    if not wanted or wanted[0].get("current") or str((fixed or {}).get("account") or "").strip():
+        return None
+    seller = {"tax": fields.get("seller_tax") or fields.get("seller_tax_id") or "", "name": fields.get("seller_name") or ""}
+    chart = {str(row.get("code") or "").strip() for row in config.get("reported_accounts") or [] if isinstance(row, dict)}
+    for path in frappe.get_hooks("cowork_push_account_history") or []:
+        found = (frappe.get_attr(path)(connection, account_set, seller, False) or {}).get("settled")
+        if isinstance(found, dict) and found.get("code") and (not chart or found["code"] in chart):
+            return found
+    return None
 
 
 def _pos_receipts(flat):

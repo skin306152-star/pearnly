@@ -181,10 +181,12 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       const target = targetOf(data.url);
       if (target) void open(target);
     };
-    // 3) 桌面端托盘 / 页面自己的通知点开：detail 是对话编号，空串 = 定时任务页
+    // 3) 桌面端托盘 / 页面自己的通知点开：detail 是对话编号，空串 = 定时任务页；「/assistant?…」是深链接（提醒属于某家公司时
+    //    点开主档页，lib/notify.ts 的 deepLink）
     const fromDesktop = (event: Event) => {
       const id = String((event as CustomEvent).detail ?? "").trim();
-      void open(id ? { c: id, view: "" } : { c: "", view: "tasks" });
+      const link = id.startsWith("/assistant") ? targetOf(id) : null;
+      void open(link ?? (id && !id.startsWith("/") ? { c: id, view: "" } : { c: "", view: "tasks" }));
     };
     navigator.serviceWorker?.addEventListener("message", fromWorker);
     navigator.serviceWorker?.startMessages();

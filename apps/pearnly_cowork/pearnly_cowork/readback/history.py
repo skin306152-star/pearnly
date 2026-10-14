@@ -11,6 +11,10 @@
 - 什么时候读：要人选费用科目、看「要选的项」时（``refresh``）缺了或超过 ``REREAD_AFTER`` 就请电脑读，照旧先用读过的那份；
   电脑离线、CC 桌面版太旧（不认这种请求）就不建，安静地没有历史建议；读失败 ``RETRY_AFTER_FAILURE`` 内不再请。
   准备推送（``refresh`` 假）只读存着的，不建请求、不写库。
+- 很一致的直接用（用户 2026-10-15）：同一供应商近 12 个月 ≥3 张、全记同一个科目（`history_rules.settled`）→ 回
+  ``settled``，推送准备当作已记住的选择用（会计员手选过的优先）。公司主档页经钩子 ``cowork_company_history_choices``
+  列出这些、``cowork_company_history_forget`` 删：删了记在 ``<摘要>.forgotten.json``（与汇总分开存，重读不会冲掉），
+  这家供应商在这份账套里不再按历史用（不自动用、也不按历史建议）。
 - 不调模型、不扣费、不写 Express。
 """
 import gzip
@@ -38,6 +42,9 @@ RETRY_AFTER_FAILURE = timedelta(hours=1)
 # 解压后的汇总最多这么大（防压缩包解开过大）
 RAW_MAX_BYTES = 50 * 1024 * 1024
 _STAMP = "%Y-%m-%dT%H:%M:%SZ"
+FORGOTTEN_MAX = 5000
+# 公司主档页每家最多列这么多家供应商
+COMPANY_ROWS_MAX = 200
 
 
 def _now():
@@ -82,6 +89,34 @@ def _save(slot, value):
     os.replace(part, path)
 
 
+def _forgotten_path(slot):
+    return frappe.get_site_path("private", FOLDER, slot + ".forgotten.json")
+
+
+def _forgotten(slot) -> set:
+    try:
+        with open(_forgotten_path(slot), encoding="utf-8") as handle:
+            value = json.load(handle)
+    except (OSError, ValueError):
+        return set()
+    return {str(item) for item in value} if isinstance(value, list) else set()
+
+
+def _forget(slot, keys) -> bool:
+    """记下这些供应商不再按历史用（幂等）；回有没有新增。"""
+    known = _forgotten(slot)
+    wanted = known | {str(key) for key in keys if key}
+    if wanted == known:
+        return False
+    path = _forgotten_path(slot)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    part = f"{path}.{uuid.uuid4().hex}.part"
+    with open(part, "w", encoding="utf-8") as handle:
+        json.dump(sorted(wanted)[:FORGOTTEN_MAX], handle, ensure_ascii=False)
+    os.replace(part, path)
+    return True
+
+
 def _gunzip(content):
     try:
         reader = zlib.decompressobj(16 + zlib.MAX_WBITS)
@@ -111,7 +146,7 @@ def for_push(connection, account_set, seller=None, refresh=False) -> dict:
 
     ``refresh`` 才会请电脑读、取读好的结果；否则只看存着的。调用方已核过录入权限与这条连接的使用授权。取不到一律回
     ``none``、不抛错：没有历史建议，推送照常问人。"""
-    out = {"state": NONE, "accounts": [], "changed": False}
+    out = {"state": NONE, "accounts": [], "changed": False, "settled": None}
     try:
         key = normalize_express_account_key(account_set)
         if not key or connections.adapter_of(connection) != "express":
@@ -126,12 +161,62 @@ def for_push(connection, account_set, seller=None, refresh=False) -> dict:
         if out["state"] == NONE and stored.get("suppliers") is not None:
             out["state"] = READY
         seller = seller or {}
+        if rules.supplier_key(seller.get("tax"), seller.get("name")) in _forgotten(slot):
+            return out  # 主档页删过：这家在这份账套里不再按历史用
         out["accounts"] = rules.supplier_accounts(stored, seller.get("tax"), seller.get("name"))
+        out["settled"] = rules.settled(out["accounts"], now.date(), stored.get("taken_at"))
     except Exception:  # noqa: BLE001 — 建议是锦上添花：任何意外都不挡推送
         frappe.log_error(title="Cowork account history failed", message=frappe.get_traceback()[-1500:])
         frappe.clear_messages()
-        out.update(state=NONE, accounts=[])
+        out.update(state=NONE, accounts=[], settled=None)
     return out
+
+
+def _express_slots(sets):
+    """公司主档给的账套（`companies.service.books` 的行）里 Express 那几份的存放位置。"""
+    for item in sets or ():
+        if not isinstance(item, dict) or item.get("adapter") != "express":
+            continue
+        key = normalize_express_account_key(item.get("key"))
+        if key and item.get("connection"):
+            yield _slot(item["connection"], key)
+
+
+def company_choices(company_tax, sets) -> list:
+    """公司主档页「记住的选择」里来自 Express 历史的那几行（钩子 ``cowork_company_history_choices``）：这家公司各份
+    Express 账套里历史很一致、推送时会直接用的「供应商 → 科目」，按供应商合并各年度：
+    ``[{supplier_tax, supplier_name, account, account_label, count, last_date}]``（``supplier_tax`` 是供应商键：税号或
+    ``name:…``）。只看存着的，不请电脑；调用方已核过录入权限，账套只来自本人能用的连接。"""
+    del company_tax  # 归属已由账套定（同一法人各分店、各年度）
+    today, merged, names = _now().date(), {}, {}
+    for slot in dict.fromkeys(_express_slots(sets)):
+        stored, forgotten = _load(slot), _forgotten(slot)
+        for key, found in rules.suppliers_of(stored).items():
+            if key in forgotten:
+                continue
+            item = rules.settled(found["accounts"], today, stored.get("taken_at"))
+            if not item:
+                continue
+            names.setdefault(key, found["name"])
+            merged.setdefault((key, item["code"]), []).append(item)
+    out = []
+    for (key, code), items in merged.items():
+        # 各年度各自判；不同年度一致到不同科目时各列一行（推送按那一年的账套用）
+        out.append({"supplier_tax": key, "supplier_name": names.get(key) or "", "account": code,
+                    "account_label": "", "count": sum(item["docs"] for item in items),
+                    "last_date": max(item["last"] for item in items)})
+    out.sort(key=lambda row: (-row["count"], row["supplier_name"]))
+    return out[:COMPANY_ROWS_MAX]
+
+
+def company_forget(company_tax, supplier, account, sets) -> int:
+    """主档页删一条历史学到的（钩子 ``cowork_company_history_forget``）：这家公司各份 Express 账套里这家供应商不再按
+    历史用（幂等，重读历史也不会冲掉）。回记下的账套份数。"""
+    del company_tax, account
+    supplier = str(supplier or "").strip()
+    if not supplier or len(supplier) > 400:
+        return 0
+    return sum(int(_forget(slot, [supplier])) for slot in dict.fromkeys(_express_slots(sets)))
 
 
 def _refresh(connection, key, slot, stored, now):

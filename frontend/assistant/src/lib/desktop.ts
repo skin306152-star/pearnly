@@ -31,7 +31,7 @@ export function openSettings(section = "") {
   window.dispatchEvent(new CustomEvent("tomo-settings", { detail: section }));
 }
 
-/** 打开某段对话（target 是对话编号，空串 = 定时任务页）；lib/nav.ts 的 useDeepLinks 听这个事件。 */
+/** 打开某段对话（target 是对话编号，空串 = 定时任务页，「/assistant?…」是深链接）；lib/nav.ts 的 useDeepLinks 听这个事件。 */
 export function openTarget(target: string) {
   window.dispatchEvent(new CustomEvent("tomo-open", { detail: String(target ?? "") }));
 }
@@ -96,9 +96,8 @@ export function useDesktopBridge(
         // 桌面端：一律弹（托盘同一条按 tag 只弹一次）；浏览器：开了推送由后台脚本弹，没开且页面不在前台才弹
         const desktopApp = isDesktopApp();
         if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;
-        void showNote(notice.title || APP_NAME, notice.text, `notice:${notice.id}`, deepLink(notice.session || ""), () =>
-          openTarget(notice.session || ""),
-        );
+        const link = deepLink(notice.session || "", notice.view || "");
+        void showNote(notice.title || APP_NAME, notice.text, `notice:${notice.id}`, link, () => openTarget(notice.session || link));
       }),
     [],
   );

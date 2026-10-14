@@ -9,9 +9,12 @@
 
 const HOME = "/assistant";
 
-/** 打开某段对话的深链接；没有对话是定时任务页（同服务端 assistant/contracts.py 的 deep_link）。 */
-export function deepLink(session: string): string {
-  return session ? `${HOME}?c=${encodeURIComponent(session)}` : `${HOME}?view=tasks`;
+/** 打开某段对话的深链接；没有对话按 view 开那一页：company:<公司> 是主档页，pending 待处理，其余定时任务页
+ *  （同服务端 assistant/contracts.py 的 deep_link）。 */
+export function deepLink(session: string, view = ""): string {
+  if (session) return `${HOME}?c=${encodeURIComponent(session)}`;
+  if (view.startsWith("company:") && view.length > 8) return `${HOME}?company=${encodeURIComponent(view.slice(8))}`;
+  return `${HOME}?view=${view === "pending" ? "pending" : "tasks"}`;
 }
 
 async function workerRegistration(): Promise<ServiceWorkerRegistration | undefined> {

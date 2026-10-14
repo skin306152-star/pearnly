@@ -1818,8 +1818,10 @@ This connection is disabled.,此连接已停用。
 This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
 This delivery conflicts with the current task state.,此回执与任务当前状态冲突。
+This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,这张单据属于另一个分店，与所选账套的分店不同，请选那个分店的账套后重新发送。
 This document does not need this choice,此单据无需选择是否录入
 This document format is not supported.,不支持此文档格式。
+This document has no push target,这张单还没选推送去向
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This file cannot be read,无法读取此文件
 This file does not match the review workbook format.,此文件不符合复核工作簿格式。
@@ -2128,6 +2130,7 @@ cowork.company.note_not_found,找不到这条说明
 cowork.company.notes,知识库
 cowork.company.notes_full,知识库已满
 cowork.company.pending.more,另有 {0} 家
+cowork.company.pending.no_target,这张单还没选推送去向
 cowork.company.pending.not_pushed,还没推送
 cowork.company.pending.text,{0} 份单等你处理（{1}）
 cowork.company.pending.text_plain,{0} 份单等你处理

@@ -93,7 +93,7 @@ def folder_unbind(company, reader):
 def choice_forget(company, key):
     service.require_write()
     row = service.get(company)
-    found = saved_choices.forget(row, service.books(row), key)
+    found = saved_choices.forget(row, service.books(row, limit=None), key)
     service.announce("upsert", row.name, part="choices")
     frappe.db.commit()
     return found
@@ -103,7 +103,7 @@ def choice_forget(company, key):
 def choice_set(company, key, value, period=None):
     service.require_write()
     row = service.get(company)
-    found = saved_choices.set_value(row, service.books(row), key, value, str(period or ""))
+    found = saved_choices.set_value(row, service.books(row, limit=None), key, value, str(period or ""))
     service.announce("upsert", row.name, part="choices")
     frappe.db.commit()
     return found
@@ -117,3 +117,10 @@ def pending(company=None, limit=None):
 @frappe.whitelist(methods=["GET"])
 def pending_counts():
     return pending_items.pending_counts()
+
+
+@frappe.whitelist(methods=["GET"])
+def task_overview():
+    """定时任务按公司：侧栏每家「定时任务 N」与总览分组（一次取全部，不逐家读详情）。"""
+    service.require_read()
+    return service.task_overview()

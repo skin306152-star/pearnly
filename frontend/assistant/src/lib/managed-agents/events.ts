@@ -29,6 +29,8 @@ export type NoticeEvent = {
   title: string;
   text: string;
   session: string;
+  /** 没挂对话时点开去哪（服务端 contracts.NOTICE_VIEWS 或 company:<公司>）；没有 = 定时任务页 */
+  view?: string;
 };
 
 /** 对话页收到的全部事件：引擎事件 + 本站事件（类型以 pearnly. 开头）。 */

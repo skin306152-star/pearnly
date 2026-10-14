@@ -1818,8 +1818,10 @@ This connection is disabled.,This connection is disabled.
 This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
 This customer is not in Express and could not be created. Check the customer name and tax ID,This customer is not in Express and could not be created. Check the customer name and tax ID
 This delivery conflicts with the current task state.,This delivery conflicts with the current task state.
+This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.
 This document does not need this choice,This document does not need this choice
 This document format is not supported.,This document format is not supported.
+This document has no push target,This document has no push target
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
 This file cannot be read,This file cannot be read
 This file does not match the review workbook format.,This file does not match the review workbook format.
@@ -2128,6 +2130,7 @@ cowork.company.note_not_found,Note not found
 cowork.company.notes,Notes
 cowork.company.notes_full,Notes are full
 cowork.company.pending.more,{0} more companies
+cowork.company.pending.no_target,This document has no push target
 cowork.company.pending.not_pushed,Not pushed yet
 cowork.company.pending.text,{0} documents are waiting for you ({1})
 cowork.company.pending.text_plain,{0} documents are waiting for you

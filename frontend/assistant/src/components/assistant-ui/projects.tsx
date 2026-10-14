@@ -7,11 +7,13 @@
 //   ComposerCompany     — 新的空白对话里输入框上方的公司条「公司 ▾ / ABC · ก.ย. 2569 ▾」（至少有一家公司时才显示）
 //   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开主档页）与月份、分店胶囊（改了就 move）
 //   FilingTag           — 侧栏对话行标题后面的月份、分店短写
+//   CompanyTasks        — 公司组里对话列表上面一行「⏱ 定时任务 N」（这家有任务才出现；有出错或停了单的任务时数字旁一个点），
+//                         点开 ?view=tasks&company=<公司>；数据来自一次取全部的 task_overview（lib/companies）
 //
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
+import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ClockIcon, MoreHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { type FC, type ReactNode, useEffect, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
@@ -32,6 +34,7 @@ import {
   useBranches,
   useCompanyNav,
   usePendingCounts,
+  useTaskOverview,
 } from "@/lib/companies";
 import { useAnyActivity } from "@/lib/managed-agents/activity";
 import {
@@ -87,6 +90,31 @@ export function useOpenCompany() {
     setView("company");
   };
 }
+
+// ---------------------------------------------------------------- 组里的定时任务
+export const CompanyTasks: FC<{ company: string }> = ({ company }) => {
+  const found = useTaskOverview((s) => s.companies[company]);
+  const { setView } = useView();
+  const { isMobile, setOpenMobile } = useSidebar();
+  if (!found?.count) return null;
+  return (
+    <button
+      type="button"
+      className="cc-project-tasks"
+      data-slot="cc-project-tasks"
+      onClick={() => {
+        useCompanyNav.setState({ taskCompany: company, taskFocus: "", taskSeed: null });
+        setView("tasks");
+        if (isMobile) setOpenMobile(false);
+      }}
+    >
+      <ClockIcon />
+      <span className="min-w-0 flex-1 truncate">{t("scheduledTasks")}</span>
+      {found.alert && <span className="cc-task-alert" data-slot="cc-task-alert" aria-hidden />}
+      <span className="cc-count">{found.count}</span>
+    </button>
+  );
+};
 
 // ---------------------------------------------------------------- 组头
 export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: () => void; sessions: readonly string[] }> = ({

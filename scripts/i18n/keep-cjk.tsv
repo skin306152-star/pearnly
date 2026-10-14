@@ -177,3 +177,4 @@ apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	CC 桌面版	给模型的�
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	CC เดสก์ท็อป	给模型的正式名字：同上，泰文叫法
 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py	ทุกเจ้า	给模型的口径：会计员说「所有公司」的常用泰文说法（也能指所有商家），说明里点明它指所有公司（不进界面）
 apps/pearnly_cowork/pearnly_cowork/push/express/account_suggest.py	*	输入词：票面、会计员的话与 Express 科目名里的泰文费用关键词与泛词，按原字面认，翻了就认不出；不进界面（建议理由给模型，是英文）
+apps/pearnly_cowork/pearnly_cowork/targets/account_match.py	*	数据：票面「总公司」的泰文写法，按原字面比对票面分店，不进界面

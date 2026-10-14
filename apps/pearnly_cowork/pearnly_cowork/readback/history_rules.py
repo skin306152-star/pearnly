@@ -21,6 +21,10 @@ ACCOUNTS_PER_SUPPLIER = 5
 CODE_MAX = 20
 TEXT_MAX = 300
 INVALID = "cowork.account_history.data_invalid"
+# 历史很一致就直接用（用户 2026-10-15 同意）：同一供应商（按税号合并各分店）近 12 个月至少这么多张、而且全记同一个科目
+SETTLED_DOCS = 3
+# 读到的那份超过这么久就不再当「近 12 个月」直接用（只作建议，等下次要选科目时重读）
+SETTLED_FRESH_DAYS = 31
 
 
 def since(today: dt.date) -> str:
@@ -88,6 +92,57 @@ def parse(raw: Any) -> Dict[str, Any]:
                               "accounts": accounts})
     return {"since": _day(raw.get("since")), "read_at": read_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "suppliers": suppliers}
+
+
+def supplier_key(tax: Any, name: Any) -> str:
+    """一家供应商的键：13 位税号（各分店合并），没有税号用「name:归一名称」；都没有回空串。与推送选择「按对方记」同一种。"""
+    tax = digits(tax)
+    if len(tax) == 13:
+        return tax
+    name = norm_name(name)
+    return f"name:{name}" if name else ""
+
+
+def settled(accounts: Any, today: dt.date, read_at: Any = None) -> Dict[str, Any] | None:
+    """这家供应商的历史是否一致到可以直接用（`SETTLED_DOCS`）：合并后只有一个科目、近 12 个月至少 3 张、最近一次在
+    12 个月内，且这份历史是 `SETTLED_FRESH_DAYS` 天内读的。是就回 ``{code, docs, last}``，否则 None（仍作建议、问一次）。"""
+    rows = [row for row in accounts or [] if isinstance(row, dict) and row.get("code")]
+    if len(rows) != 1:
+        return None
+    row = rows[0]
+    try:
+        last = dt.date.fromisoformat(str(row.get("last") or "")[:10])
+    except ValueError:
+        return None
+    if int(row.get("docs") or 0) < SETTLED_DOCS or last < today - dt.timedelta(days=SINCE_DAYS):
+        return None
+    if read_at is not None:
+        try:
+            taken = dt.date.fromisoformat(str(read_at)[:10])
+        except ValueError:
+            return None
+        if taken < today - dt.timedelta(days=SETTLED_FRESH_DAYS):
+            return None
+    return {"code": str(row["code"]), "docs": int(row["docs"]), "last": last.isoformat()}
+
+
+def suppliers_of(data: Any) -> Dict[str, Dict[str, Any]]:
+    """一份历史里按供应商键（`supplier_key`）合并的科目：``{键: {name, accounts: [{code, docs, last}]}}``。"""
+    out: Dict[str, Dict[str, Any]] = {}
+    for row in (data or {}).get("suppliers") or [] if isinstance(data, dict) else []:
+        if not isinstance(row, dict):
+            continue
+        key = supplier_key(row.get("tax_id"), row.get("name"))
+        if not key:
+            continue
+        found = out.setdefault(key, {"name": str(row.get("name") or ""), "accounts": {}})
+        for account in row.get("accounts") or []:
+            current = found["accounts"].setdefault(account["code"], {"code": account["code"], "docs": 0, "last": ""})
+            current["docs"] += int(account.get("docs") or 0)
+            current["last"] = max(current["last"], str(account.get("last") or ""))
+    for found in out.values():
+        found["accounts"] = sorted(found["accounts"].values(), key=lambda item: (-item["docs"], item["code"]))
+    return out
 
 
 def supplier_accounts(data: Any, tax: Any, name: Any) -> List[Dict[str, Any]]:

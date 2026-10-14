@@ -797,6 +797,11 @@ class CompanyTests(unittest.TestCase):
                          ("ABC\\2569-09", []))
         self.assertFalse({"reported", "stored_label", "stored_device"} & set(found["folders"][0]))
         self.assertEqual([n["text"] for n in found["notes"]], ["rent"])
+        # 审查 2026-10-15：站点时区（曼谷）的裸时间换成带时区的 UTC 再给页面（页面不再自己补 Z，晚 7 小时）
+        self.assertEqual(found["notes"][0]["updated_at"], "2026-10-15T02:00:00Z")
+        self.assertRegex(found["company"]["created_at"], r"^2026-10-1[45]T\d\d:\d\d:\d\dZ$")
+        self.assertEqual((service.when("2026-09-30"), service.when(""), service.when("2026-10-15 09:00:00.5")),
+                         ("2026-09-30", "", "2026-10-15T02:00:00.500000Z"))
         self.assertEqual(found["drafts"][0]["kind"], "vat_return")
         self.assertEqual(found["tasks"], [])
         with self.assertRaises(frappe.ValidationError):
@@ -908,16 +913,57 @@ class ChoiceTests(unittest.TestCase):
         with self.assertRaises(frappe.DoesNotExistError):
             choices.forget(self.company, self.sets, rows["payment"]["key"])
 
-    def test_only_payment_and_vat_can_be_set_and_they_go_to_the_set_covering_the_month(self):
+    def test_only_payment_and_vat_can_be_set_and_they_go_to_every_set_that_remembered_it(self):
+        # 推送按每份账套各自记的取：改一条要写进记过它的每一份（各年度），再加覆盖这个月的那几份
         rows = {row["kind"]: row for row in choices.listing(self.company, self.sets)}
         saved = choices.set_value(self.company, self.sets, rows["payment"]["key"], "cash", "2025-06")
-        self.assertEqual(express_choices.recorded[-1][1:], ("s:\\68exp\\abc", "payment", "purchase|" + OTHER_TAX, "cash"))
-        self.assertEqual(saved["account_set_key"], "s:\\68exp\\abc")
-        choices.set_value(self.company, self.sets, rows["payment"]["key"], "credit")
-        self.assertEqual(express_choices.recorded[-1][1], "s:\\69exp\\abc")  # 没给月份：最新年度
+        written = {call[1].casefold(): call[4] for call in express_choices.recorded[-2:]}
+        self.assertEqual(written, {"s:\\69exp\\abc": "cash", "s:\\68exp\\abc": "cash"})
+        self.assertEqual(len(saved["account_sets"]), 2)
+        self.assertTrue(all(call[3] == "purchase|" + OTHER_TAX for call in express_choices.recorded[-2:]))
         for key, value in ((rows["payment"]["key"], "later"), (rows["party"]["key"], "S009")):
             with self.assertRaises(frappe.ValidationError):
                 choices.set_value(self.company, self.sets, key, value)
+
+    def test_changing_a_choice_reaches_every_branch_of_the_month(self):
+        # 审查 2026-10-15（major）：原先只写一份账套，别的分店推送仍用旧值
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\B12", "ABC 12", branch="00012"),
+                  express_row("S:\\69EXP\\B15", "ABC 15", branch="00015"),
+                  express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP", start="2025-01-01", end="2025-12-31")])
+        company = service.get(make()["id"])
+        fresh_request()
+        sets = service.books(company, limit=None)
+        supplier = "purchase|" + OTHER_TAX
+        choice("payment", supplier, "credit", day=2, label="Makro")                       # 69 总公司
+        choice("payment", supplier, "credit", account_set="S:\\69EXP\\B12", day=3, label="Makro")
+        key = next(row for row in choices.listing(company, sets) if row["kind"] == "payment")["key"]
+        choices.set_value(company, sets, key, "cash", "2026-09")
+
+        def remembered(account_set):
+            found = [row for row in express_choices.of_sets("C1", [account_set]) if row["kind"] == "payment"]
+            return found[0]["value"] if found else None
+
+        self.assertEqual([remembered(k) for k in ("S:\\69EXP\\ABC", "S:\\69EXP\\B12", "S:\\69EXP\\B15")],
+                         ["cash", "cash", "cash"])
+        self.assertIsNone(remembered("S:\\68EXP\\ABC"))  # 去年没记过、也不覆盖这个月：不动
+
+    def test_forget_and_change_use_every_set_not_only_the_page_s_twenty(self):
+        # 审查 2026-10-15（minor）：页面只列最新 20 份；删 / 改要全集，否则旧年度的会被借用回来
+        many = [express_row(f"S:\\{50 + i}EXP\\ABC", f"ABC {50 + i}", year=f"{50 + i}EXP",
+                            start=f"{1990 + i}-01-01", end=f"{1990 + i}-12-31") for i in range(22)]
+        reset(C1=many)
+        company = service.get(make(key="S:\\71EXP\\ABC")["id"])
+        fresh_request()
+        self.assertEqual((len(service.books(company)), len(service.books(company, limit=None))), (20, 22))
+        oldest = "S:\\50EXP\\ABC"
+        choice("receipt", "pos|qr", "1120-01", account_set=oldest, day=1)
+        choice("receipt", "pos|qr", "1120-02", day=2)
+        sets = service.books(company, limit=None)
+        key = next(row for row in choices.listing(company, service.books(company)) if row["kind"] == "receipt")["key"]
+        self.assertEqual(choices.forget(company, sets, key), {"removed": 2})
+        self.assertEqual(express_choices.rows, [])
+        api = (APP / "companies/api.py").read_text(encoding="utf-8")
+        self.assertEqual(api.count("service.books(row, limit=None)"), 2)  # choice_forget、choice_set
 
     def test_a_tampered_key_or_a_connection_the_user_cannot_push_to_is_refused(self):
         rows = {row["kind"]: row for row in choices.listing(self.company, self.sets)}
@@ -1143,6 +1189,175 @@ class PendingTests(unittest.TestCase):
 # ---------------- provider 与 CC 工具 ----------------
 
 
+class PendingAnswerTests(unittest.TestCase):
+    """「待处理」当场选（补充 乙，对齐 2026-10-15）：列表只给推送去向与要选的类别（不读账套主档）；页面展开时取可选项
+    （`push.application.api.choices`），作答经 `assistant.pending_api.answer`：先记下选择，再按 CC 推送同一条路重推。
+    只记选择不会自动重推（推送记录停在「要人选」）。"""
+
+    def _answer(self, doc, pushed):
+        """按真实导入加载 `assistant.pending_api`；单据读取、记选择、CC 的重推换成替身（整个测试期间挂着）。"""
+        calls = []
+        storage = types.SimpleNamespace(read=lambda name: doc)
+        application_api = types.SimpleNamespace(
+            save_choices=lambda *args: calls.append(("save",) + args) or {"saved": 1})
+        tools = types.SimpleNamespace(_push_one=lambda name: calls.append(("push", name)) or dict(pushed))
+        frappe.db.commits = 0
+        patcher = mock.patch.dict(sys.modules, {
+            "pearnly_cowork.history": types.SimpleNamespace(storage=storage),
+            "pearnly_cowork.history.storage": storage,
+            "pearnly_cowork.push.application": types.SimpleNamespace(api=application_api),
+            "pearnly_cowork.push.application.api": application_api,
+            "pearnly_cowork.assistant.tools": tools})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sys.modules.pop("pearnly_cowork.assistant.pending_api", None)
+        module = importlib.import_module("pearnly_cowork.assistant.pending_api")
+        package = sys.modules["pearnly_cowork.assistant"]
+        previous = getattr(package, "tools", None)
+        package.tools = tools
+        self.addCleanup(lambda: setattr(package, "tools", previous) if previous else delattr(package, "tools"))
+        return module, calls
+
+    def test_answering_saves_then_pushes_again_like_cc(self):
+        doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC")
+        module, calls = self._answer(doc, {"status": "sent", "record": "PR9", "cc_desktop_online": True})
+        items = json.dumps([{"kind": "account", "subject": "purchase|0105548064214", "value": "5300", "label": "Makro"}])
+        out = module.answer("h1", items)
+        self.assertEqual(out, {"document": "h1", "status": "sent"})  # 账本记录名不给页面
+        fixture = json.loads((ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8"))
+        self.assertEqual(out, fixture["answer"])  # 页面测试用的同一份
+        self.assertEqual([call[0] for call in calls], ["save", "push"])
+        self.assertEqual(calls[0][1:4], ("h1", "C1", "S:\\69EXP\\ABC"))
+        self.assertEqual(json.loads(calls[0][4])[0]["value"], "5300")
+        self.assertGreaterEqual(frappe.db.commits, 2)  # 选择先落库，重推再提交
+
+    def test_still_needs_a_choice_or_failed_is_reported_and_bad_input_refused(self):
+        doc = Row(name="h1", push_connection="C1", push_account_set="")
+        module, calls = self._answer(doc, {"status": "needs_choice", "reason": "choice_needed:vat"})
+        out = module.answer("h1", [{"kind": "account", "subject": "s", "value": "5300"}])
+        self.assertEqual(out, {"document": "h1", "status": "needs_choice", "reason": "choice_needed:vat"})
+        self.assertIsNone(calls[0][3])  # 没有账套键时交 None（推送服务按连接的选择取）
+        for bad in ("[]", "{}", json.dumps([{}] * 51)):
+            with self.assertRaises(frappe.ValidationError):
+                module.answer("h1", bad)
+        doc.push_connection = ""
+        with self.assertRaises(frappe.ValidationError):
+            module.answer("h1", "[{}]")
+        scope.features = {"ocr_history"}
+        try:
+            with self.assertRaises(frappe.PermissionError):
+                module.answer("h1", "[{}]")
+        finally:
+            scope.features = {"intake", "ocr_history"}
+
+    def test_the_pending_item_stays_light(self):
+        # 列表每行只带推送去向与类别；可选项由页面展开时取（不让列表每行读账套主档）
+        source = (APP / "companies/pending.py").read_text(encoding="utf-8")
+        self.assertIn('item["choice"] = {"connection": row.push_connection', source)
+        self.assertNotIn("choices_view", source.split("def _items", 1)[1].split("\ndef ", 1)[0])
+
+
+class PendingContractTests(unittest.TestCase):
+    """跨端契约（tests/fixtures/cc-pending-contract.json）：服务端真实输出的形状；页面测试拿同一份当假数据
+    （tests/test_assistant_ui.py 的 PendingContractBehaviourTests）。"""
+    FIXTURE = json.loads((ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8"))
+
+    def test_pending_item_and_counts_are_what_the_page_reads(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\XYZ", "XYZ", tax=OTHER_TAX)])
+        abc, xyz = make()["id"], make(key="S:\\69EXP\\XYZ")["id"]
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("h1", last_push_status="manual", last_push_reason="choice_needed:party"),
+            history("h2", last_push_reason="push.failed"),
+            history("h3", push_connection="", push_account_set="", buyer_tax="", seller_tax=OTHER_TAX),
+            history("h4", push_account_set="S:\\OTHER", buyer_tax="0000000000000", seller_tax=""))}
+        fresh_request()
+        item = next(row for row in pending.pending()["items"] if row["document"] == "h1")
+        self.assertEqual(item, {**self.FIXTURE["item"], "company": abc})
+        fresh_request()
+        swap = {"COMPANY": abc, "OTHER": xyz}
+        expected = {**self.FIXTURE["counts"], "companies": {swap[k]: v for k, v in self.FIXTURE["counts"]["companies"].items()}}
+        self.assertEqual(pending.pending_counts(), expected)
+
+    def test_task_overview_is_what_the_sidebar_reads(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
+        abc = make()["id"]
+        frappe.db.tables["Cowork Folder Intake Rule"] = {
+            name: Row(name=name, enabled=1, connection="C1", reader="C1", account_set_key="S:\\69EXP\\ABC", creation=name)
+            for name in ("R1", "R2")}
+        rules = types.SimpleNamespace(results=lambda name: {"attention": 0})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}):
+            fresh_request()
+            found = service.task_overview()
+        expected = json.loads(json.dumps(self.FIXTURE["overview"]).replace("COMPANY", abc))
+        self.assertEqual(found, expected)
+
+
+class TaskOverviewTests(unittest.TestCase):
+    """定时任务挂到公司下（用户 2026-10-15 同意）：任务表不加字段，按账套推出属于哪家；侧栏每家「定时任务 N」与总览分组
+    一次取全部；提醒 / 简报的任务都属于同一家时点开到这家。"""
+    RULE = "Cowork Folder Intake Rule"
+
+    def setUp(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP"),
+                  express_row("S:\\69EXP\\XYZ", "XYZ", company="XYZ Co", tax=OTHER_TAX)])
+        self.abc, self.xyz = make()["id"], make(key="S:\\69EXP\\XYZ")["id"]
+        connections.reads = []
+        frappe.db.tables[self.RULE] = {name: Row(name=name, enabled=1, connection="C1", reader="C1", account_set_key=key,
+                                                 creation=f"2026-10-0{index}")
+                                       for index, (name, key) in enumerate((
+                                           ("R1", "S:\\69EXP\\ABC"), ("R2", "s:/68exp/abc/"), ("R3", "S:\\69EXP\\XYZ"),
+                                           ("R4", "S:\\69EXP\\GONE")), start=1)}
+        self.results = {"R1": {"attention": 0}, "R2": {"attention": 0}, "R3": {"attention": 2}, "R4": {"attention": 5}}
+        rules = types.SimpleNamespace(results=lambda name: self.results[name])
+        patcher = mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        fresh_request()
+
+    def test_tasks_are_counted_per_company_in_one_go(self):
+        found = service.task_overview()
+        self.assertEqual(found["tasks"], {"R1": self.abc, "R2": self.abc, "R3": self.xyz})  # R4 归不上：放「其他」
+        self.assertEqual(found["companies"], {self.abc: {"count": 2, "alert": False}, self.xyz: {"count": 1, "alert": True}})
+        self.assertEqual(found["titles"], {self.abc: "ABC 69", self.xyz: "XYZ"})
+        self.assertEqual(connections.reads, ["C1"])  # 每条连接的目录只读一次
+
+    def test_a_missing_folder_is_an_alert_and_permissions_hold(self):
+        states = {"C1": {"health": {"R1": "folder_missing"}}}
+        with mock.patch.object(service.agent, "read", lambda reader: states.get(reader, {})), \
+                mock.patch.object(service.agent, "fresh", lambda state: bool(state)):
+            self.assertTrue(service.task_overview()["companies"][self.abc]["alert"])
+        fresh_request()
+        scope.features = {"ocr_history"}
+        self.assertEqual(service.task_overview(), {"companies": {}, "tasks": {}, "titles": {}})
+        connections.users["C1"] = {"someone@example.com"}
+        scope.features = {"intake", "ocr_history"}
+        fresh_request()
+        self.assertEqual(service.task_overview()["tasks"], {})  # 用不了的连接上的任务不列
+
+    def test_a_notice_opens_the_company_only_when_all_its_tasks_belong_to_it(self):
+        self.assertEqual(service.company_of_rules("a@example.com", ["R1", "R2"]), self.abc)
+        self.assertEqual(service.company_of_rules("a@example.com", ["R1", "R3"]), "")
+        self.assertEqual(service.company_of_rules("a@example.com", ["R4"]), "")
+        self.assertEqual(service.company_of_rules("a@example.com", ["R1", "R9"]), "")
+        self.assertEqual(service.company_of_rules("", ["R1"]), "")
+        self.assertEqual(frappe.session.user, "a@example.com")  # 按收件人算完换回来
+        connections.users["C1"] = {"a@example.com"}
+        self.assertEqual(service.company_of_rules("b@example.com", ["R1"]), "")  # 收件人用不了这条连接
+
+    def test_the_hooks_are_declared(self):
+        hooks = (APP / "hooks.py").read_text(encoding="utf-8")
+        for name, path in (("cowork_company_history_choices", "pearnly_cowork.readback.history.company_choices"),
+                           ("cowork_company_history_forget", "pearnly_cowork.readback.history.company_forget"),
+                           ("cowork_push_work_branch", "pearnly_cowork.companies.provider.work_branch"),
+                           ("cowork_rules_company", "pearnly_cowork.companies.service.company_of_rules")):
+            self.assertIn(f'{name} = ["{path}"]', hooks)
+            module, _, attr = path.rpartition(".")
+            tree = ast.parse((APP / (module.split(".", 1)[1].replace(".", "/") + ".py")).read_text(encoding="utf-8"))
+            self.assertIn(attr, {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}, path)
+        self.assertEqual(choices.HISTORY_HOOK, "cowork_company_history_choices")
+        self.assertEqual(choices.HISTORY_FORGET_HOOK, "cowork_company_history_forget")
+
+
 class ProviderAndToolTests(unittest.TestCase):
     def setUp(self):
         reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\B12", "ABC 12", branch="00012")])
@@ -1165,6 +1380,20 @@ class ProviderAndToolTests(unittest.TestCase):
         scope.features = {"ocr_history"}
         self.assertFalse(provider.allowed(self.abc, "a@example.com"))
         self.assertEqual(provider.view([self.abc], "a@example.com"), {})
+
+    def test_the_conversation_branch_is_given_only_for_this_companys_sets(self):
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+        self.addCleanup(lambda: setattr(frappe.local, "pearnly_assistant", None))
+        projects.sessions["sesn_1"] = (self.abc, "2026-09", "00012")
+        self.assertEqual(provider.work_branch("C1", "s:/69exp/abc/"), "00012")
+        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\OTHER"), "")  # 不是这家的账套
+        self.assertEqual(provider.work_branch("C2", "S:\\69EXP\\ABC"), "")
+        projects.sessions["sesn_1"] = (self.abc, "2026-09", "")
+        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\ABC"), "")  # 对话没定分店
+        projects.sessions["sesn_1"] = ("gone", "", "00012")
+        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\ABC"), "")
+        frappe.local.pearnly_assistant = None
+        self.assertEqual(provider.work_branch("C1", "S:\\69EXP\\ABC"), "")  # 不在 CC 里（网页复核页、定时任务）
 
     def _tools(self):
         return importlib.import_module("pearnly_cowork.assistant.company_tools")
@@ -1267,7 +1496,7 @@ class GuardTests(unittest.TestCase):
                 decorator = ast.unparse(node.decorator_list[0])
                 methods[node.name] = "GET" if "GET" in decorator else "POST"
         self.assertEqual({name for name, kind in methods.items() if kind == "GET"},
-                         {"candidates", "companies", "detail", "pending", "pending_counts"})
+                         {"candidates", "companies", "detail", "pending", "pending_counts", "task_overview"})
         for name in ("create", "rename", "delete", "note_save", "note_delete", "folder_bind", "folder_unbind",
                      "choice_forget", "choice_set"):
             self.assertEqual(methods.get(name), "POST", name)

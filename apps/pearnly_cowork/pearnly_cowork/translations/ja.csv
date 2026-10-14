@@ -1818,8 +1818,10 @@ This connection is disabled.,この接続は無効です。
 This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This delivery conflicts with the current task state.,この受領結果はタスクの現在の状態と矛盾しています。
+This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.,この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 This document does not need this choice,この伝票ではこの選択は不要です
 This document format is not supported.,この文書形式には対応していません。
+This document has no push target,この書類はまだ送信先が選ばれていません
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This file cannot be read,このファイルは読み取れません
 This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
@@ -2128,6 +2130,7 @@ cowork.company.note_not_found,ノートが見つかりません
 cowork.company.notes,ノート
 cowork.company.notes_full,ノートが上限です
 cowork.company.pending.more,ほか {0} 社
+cowork.company.pending.no_target,この書類はまだ送信先が選ばれていません
 cowork.company.pending.not_pushed,まだ送信していません
 cowork.company.pending.text,{0} 件の書類があなたの処理を待っています（{1}）
 cowork.company.pending.text_plain,{0} 件の書類があなたの処理を待っています

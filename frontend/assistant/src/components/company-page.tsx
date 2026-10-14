@@ -3,7 +3,7 @@
 // 电脑两栏（右栏 320px），手机单栏、各节可折叠（默认只开「对话」「知识库」）：
 //   顶部     名称；下面一行法定名 · 税号 · 分店；合并申报的写「合并申报」。⋯：重命名（就地改，手机用输入框）、删除公司（不确认）
 //   输入框   右侧月份胶囊（最近 12 个月 + 不指定，默认上个月）与分店胶囊（多分店才有）；发出 = 在这家开对话并发出
-//   对话     只列我的，按活动倒序，带月份短写
+//   对话     只列我的，按活动倒序，带月份短写；从服务端按这家取（分组列表 group=<公司>，分页），不靠侧栏加载了几条
 //   右栏     待处理（这家的，没有就不出现）→ 知识库 → 单据文件夹 → 账套（多分店按分店分组）→ 定时任务 → 申报草稿
 //            （按分店分组）→ 记住的选择（按类别；付款方式、简易税票抵不抵能直接改，其余只能删；Express 历史学到的只读可删）
 //
@@ -11,7 +11,7 @@
 // 浏览器、手机只看状态；旧桌面版提示更新。别处改了这家（pearnly.project upsert）重取，删了（delete）回到公司页。
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
-import { useAui, useAuiState } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -54,11 +54,14 @@ import {
   renameCompany,
   saveNote,
   setChoice,
+  setForPeriod,
+  taskSeedOf,
   unbindFolder,
   useCompanyNav,
 } from "@/lib/companies";
 import { knownReaders, openSettings, pickFolder, rememberReader, useDesktopFeatures } from "@/lib/desktop";
-import { forgetProject, NO_FILING, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
+import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
+import { forgetProject, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 
@@ -66,12 +69,8 @@ const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的）。 */
-export function setFor(sets: readonly AccountSet[], period: string): AccountSet | undefined {
-  const day = period ? `${period}-01` : "";
-  const covering = day ? sets.find((s) => s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10)) : undefined;
-  return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
-}
+/** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的；lib/companies 的 setForPeriod）。 */
+export const setFor: (sets: readonly AccountSet[], period: string) => AccountSet | undefined = setForPeriod;
 
 /** 文件夹状态的字。 */
 export function folderState(folder: Pick<CompanyFolder, "state">): string {
@@ -164,7 +163,7 @@ const Master: FC<{ detail: Detail; period: string; onPeriod: (p: string) => void
       <SetsSection sets={detail.account_sets} branches={multi ? branches : []} period={period} />
       {detail.tasks && <TasksSection company={id} detail={detail} period={period} />}
       {detail.drafts && <DraftsSection company={id} drafts={detail.drafts} branches={multi ? branches : []} combined={!!detail.company.combined_vat} />}
-      <ChoicesSection company={id} choices={detail.choices} reload={reload} />
+      <ChoicesSection company={id} choices={detail.choices} period={period} reload={reload} />
     </>
   );
   return (
@@ -351,39 +350,62 @@ const CompanyComposer: FC<{ company: string; period: string; onPeriod: (p: strin
 };
 
 // ---------------------------------------------------------------- 对话
-/** 我在这家的对话（侧栏已加载的），按活动倒序，带月份短写；点了切过去。 */
-const Conversations: FC<{ company: string }> = ({ company }) => {
+/** 我在这家的对话：按这家从服务端取（分组列表 group=<公司>，同侧栏「显示更多」的翻页），按活动倒序，带月份短写；点了切过去。
+ *  这家的对话有进出（新建、移入移出、侧栏挂上的条数变了）或公司有变化时重取第一页。 */
+export const Conversations: FC<{ company: string }> = ({ company }) => {
   const aui = useAui();
   const { setView } = useView();
-  const items = useAuiState((s) => s.threads.threadItems);
-  const filings = useProjects((s) => s.filings);
-  const rows = useMemo(() => {
-    const seen = new Set<string>();
-    return items
-      .filter((item) => item.status === "regular" && item.remoteId && (filings[item.remoteId] ?? NO_FILING).project === company)
-      .filter((item) => !seen.has(item.remoteId!) && !!seen.add(item.remoteId!))
-      .sort((a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0));
-  }, [items, filings, company]);
-  if (!rows.length) return null;
+  const [rows, setRows] = useState<ListedSession[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const asked = useRef(0);
+  // 侧栏知道的、挂在这家的对话条数（新建 / 移入移出时会变）：变了就重取
+  const filed = useProjects((s) => Object.values(s.filings).filter((f) => f.project === company).length);
+  const load = useCallback(
+    async (after = "") => {
+      const mine = ++asked.current;
+      setBusy(true);
+      try {
+        const page = await listGrouped({ group: company, after });
+        if (mine !== asked.current) return;
+        setRows((before) => {
+          const kept = after ? (before ?? []) : [];
+          const seen = new Set(kept.map((row) => row.id));
+          return [...kept, ...page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at)];
+        });
+        setNext(page.nextCursor);
+      } catch {
+        if (mine === asked.current) setRows((before) => before ?? []);
+      } finally {
+        if (mine === asked.current) setBusy(false);
+      }
+    },
+    [company],
+  );
+  useEffect(() => void load(), [load, filed]);
+  useEffect(() => onProjectChange((change) => (change.op === "move" ? void load() : undefined)), [load]);
+  if (!rows?.length) return null;
   return (
-    <div className="flex flex-col">
-      {rows.map((item) => {
-        const filing = filings[item.remoteId!] ?? NO_FILING;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className="cc-list-row"
-            onClick={() => {
-              setView("chat");
-              void aui.threads().switchToThread(item.id);
-            }}
-          >
-            <span className="min-w-0 flex-1 truncate text-ink">{item.title || t("untitled")}</span>
-            {filing.period && <span className="shrink-0 text-ink-3 text-xs">{monthShort(filing.period)}</span>}
-          </button>
-        );
-      })}
+    <div className="flex flex-col" data-slot="cc-company-chats">
+      {rows.map((row) => (
+        <button
+          key={row.id}
+          type="button"
+          className="cc-list-row"
+          onClick={() => {
+            setView("chat");
+            void aui.threads().switchToThread(row.id);
+          }}
+        >
+          <span className="min-w-0 flex-1 truncate text-ink">{row.title || t("untitled")}</span>
+          {row.period && <span className="shrink-0 text-ink-3 text-xs">{monthShort(row.period)}</span>}
+        </button>
+      ))}
+      {next && (
+        <button type="button" className="cc-show-more" disabled={busy} onClick={() => void load(next)}>
+          {co.showMore}
+        </button>
+      )}
     </div>
   );
 };
@@ -612,20 +634,10 @@ const TasksSection: FC<{ company: string; detail: Detail; period: string }> = ({
     setView("tasks");
   };
   const add = () => {
-    const set = setFor(detail.account_sets, period);
-    const readers = knownReaders();
-    const folder = app && companyFolders ? detail.folders.find((f) => f.mine || readers.includes(f.reader)) : undefined;
     useCompanyNav.setState({
       taskCompany: company,
       taskFocus: "",
-      taskSeed: set
-        ? {
-            adapter: set.adapter ?? detail.company.adapter ?? "",
-            connection: set.connection,
-            account_set_key: set.key,
-            ...(folder?.root_id ? { folder: `${folder.reader}|${folder.root_id}|${folder.folder ?? ""}` } : {}),
-          }
-        : null,
+      taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders),
     });
     setView("tasks");
   };
@@ -704,7 +716,7 @@ const EDITABLE: Record<string, Array<{ value: string; label: () => string }>> = 
   ],
 };
 
-const ChoicesSection: FC<{ company: string; choices: Choice[]; reload: () => Promise<void> }> = ({ company, choices, reload }) => {
+const ChoicesSection: FC<{ company: string; choices: Choice[]; period: string; reload: () => Promise<void> }> = ({ company, choices, period, reload }) => {
   const [error, setError] = useState("");
   const groups = useMemo(() => {
     const map = new Map<string, Choice[]>();
@@ -727,7 +739,7 @@ const ChoicesSection: FC<{ company: string; choices: Choice[]; reload: () => Pro
         <div key={section} className="flex flex-col">
           <div className="cc-subheading">{co.kind[section] ?? section}</div>
           {rows.map((c) => (
-            <ChoiceRow key={c.key} choice={c} onSet={(v) => void run(() => setChoice(company, c.key, v))} onForget={() => void run(() => forgetChoice(company, c.key))} />
+            <ChoiceRow key={c.key} choice={c} onSet={(v) => void run(() => setChoice(company, c.key, v, period))} onForget={() => void run(() => forgetChoice(company, c.key))} />
           ))}
         </div>
       ))}
@@ -742,7 +754,7 @@ export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onF
   const subject = choice.subject_label || choice.supplier_name || "";
   const value = choice.value_label || choice.account_label || choice.value;
   const meta = history
-    ? [co.fromHistory(Number(choice.count) || 0), choice.last_date ?? ""]
+    ? [co.fromHistory(Number(choice.count) || 0), formatWhen(choice.last_date ?? choice.set_at)]
     : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
   return (
     <div className="cc-choice-row" data-slot="cc-choice-row" data-source={choice.source}>

@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { co, lang } from "@/i18n";
 import { getMethod, postMethod } from "@/lib/frappe";
-import { onConnectionChange, onSiteEvent } from "@/lib/managed-agents/realtime";
+import { onConnectionChange, onProjectChange, onSiteEvent } from "@/lib/managed-agents/realtime";
 
 const API = "pearnly_cowork.companies.api.";
 
@@ -66,19 +66,31 @@ export type Detail = {
   drafts: Draft[] | null;
 };
 
-/** 待处理的一张单（补充乙）：action choose = 能当场选（带要选的项与可选值）；open = 交给 CC。 */
-export type ChoiceNeeded = {
-  kind: string; subject: string; label?: string; current?: string; suggested?: string;
-  options?: Array<{ code: string; name?: string; branch?: string }>;
-};
+/** 待处理的一张单（补充乙，服务端 companies/pending.py 的 `_items`）：action choose = 推送停在「要人选一次」，带推送去向与
+ *  要选的类别（列表不读账套主档）；可选项在页面展开那一行时取（loadChoices）。open = 交给 CC。 */
+export type PendingChoice = { connection: string; account_set_key: string; kinds: string[] };
 export type PendingItem = {
   document: string; company: string | null; reason_code: string; reason_label: string;
   invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; action: "choose" | "open";
-  choices?: {
-    connection: string; account_set_key: string; needed: ChoiceNeeded[];
-    options?: { accounts?: Array<{ code: string; name?: string }>; products?: Array<{ code: string; name?: string }> };
-  } | null;
+  choice?: PendingChoice | null;
 };
+
+/** 推送的「要人选的项」（push.application.service.choices_view，复核页、CC 同一套判定）。suggested 是费用科目的建议
+ *  （最多 2 个，排第一的预选）；options 是对方档、付款、抵进项自带的可选值；科目、存货的可选值在 view.options 里。 */
+export type Suggestion = { code: string; name?: string; source?: string; reason?: string };
+export type ChoiceNeeded = {
+  kind: string; subject: string; label?: string; current?: string; suggested?: Suggestion[];
+  options?: Array<{ code: string; name?: string; branch?: string }>;
+};
+export type ChoicesView = {
+  needed: ChoiceNeeded[];
+  options?: { accounts?: Array<{ code: string; name?: string }>; products?: Array<{ code: string; name?: string }> };
+  account_set?: string; history?: string; wait?: { state: string; message: string }; fixed?: Record<string, string>;
+};
+/** 当场选作答的结果（assistant/pending_api.answer）：sent = 已交出去（Express 由 CC 桌面版写入）；already_* = 早推过了；
+ *  needs_choice = 还有要选的；其余（failed、waiting_for_cc…）原因记在单上，仍在「待处理」。 */
+export type AnswerResult = { document: string; status: string; reason?: string };
+export const answered = (result: Pick<AnswerResult, "status">) => result.status === "sent" || result.status.startsWith("already_");
 
 // ---------------------------------------------------------------- 接口
 export const requestKey = () =>
@@ -111,7 +123,9 @@ export const deleteNote = (company: string, note: string) => postMethod(API + "n
 export const bindFolder = (company: string, binding: unknown) => postMethod(API + "folder_bind", { company, binding: JSON.stringify(binding) });
 export const unbindFolder = (company: string, reader: string) => postMethod(API + "folder_unbind", { company, reader });
 export const forgetChoice = (company: string, key: string) => postMethod(API + "choice_forget", { company, key });
-export const setChoice = (company: string, key: string, value: string) => postMethod(API + "choice_set", { company, key, value });
+/** 改付款方式 / 抵不抵进项：period 是页面当前的处理月份（服务端写进记过它的每份账套与覆盖这个月的各分店账套）。 */
+export const setChoice = (company: string, key: string, value: string, period = "") =>
+  postMethod(API + "choice_set", { company, key, value, ...(period ? { period } : {}) });
 
 /** 待处理的单（company 不给 = 全部有权看的）。 */
 export function loadPending(company = "", limit = 200): Promise<PendingItem[]> {
@@ -120,16 +134,21 @@ export function loadPending(company = "", limit = 200): Promise<PendingItem[]> {
   );
 }
 
-/** 当场选：复用推送的「记下选择」（push.application.api.save_choices），不另写一套。 */
-export function answerChoices(item: PendingItem, values: Record<string, string>): Promise<unknown> {
-  const view = item.choices;
-  if (!view) return Promise.reject(new Error("no choices"));
+/** 展开一行时取这张单要选的项与可选值（同复核页，push.application.api.choices）。 */
+export function loadChoices(item: Pick<PendingItem, "document" | "choice">): Promise<ChoicesView> {
+  const choice = item.choice;
+  if (!choice) return Promise.reject(new Error("no choice"));
+  return getMethod<ChoicesView>("pearnly_cowork.push.application.api.choices", {
+    history: item.document, connection: choice.connection, account_set_key: choice.account_set_key || undefined,
+  }).then((view) => ({ ...view, needed: view?.needed ?? [] }));
+}
+
+/** 作答：记下选的，再按 CC 推送同一条路重推这一张（assistant.pending_api.answer；只记不推不会进账）。 */
+export function answerChoices(item: Pick<PendingItem, "document">, view: ChoicesView, values: Record<string, string>): Promise<AnswerResult> {
   const items = view.needed
     .filter((need) => values[`${need.kind}\n${need.subject}`])
     .map((need) => ({ kind: need.kind, subject: need.subject, value: values[`${need.kind}\n${need.subject}`], label: need.label ?? "" }));
-  return postMethod("pearnly_cowork.push.application.api.save_choices", {
-    history: item.document, connection: view.connection, account_set_key: view.account_set_key, items: JSON.stringify(items),
-  });
+  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.answer", { document: item.document, items: JSON.stringify(items) });
 }
 
 /** 账套目录还没读到时「刷新账套」：本人能用的每条连接各请电脑读一次目录（connections.request_refresh，同网页）。 */
@@ -229,10 +248,17 @@ export function formatAmount(value: string | number | null | undefined): string 
   return `${m[1]}${whole}.${decimals}`;
 }
 
-/** 显示时间（存 UTC，按这台设备的时区显示）。 */
+/** 显示时间：服务端给带时区的 ISO（companies.service.when 把站点时区的裸时间换成 UTC），按这台设备的时区显示；
+ *  只有日期的（「2026-09-30」）只显示日期；不带时区的不猜（不补 Z，原先当成 UTC 晚了 7 小时），原样显示。 */
 export function formatWhen(value: string | undefined | null): string {
   if (!value) return "";
-  const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value.replace(" ", "T")}Z`);
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (day) {
+    const date = new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3])));
+    return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { dateStyle: "medium", timeZone: "UTC" }).format(date);
+  }
+  if (!/[zZ]$|[+-]\d\d:?\d\d$/.test(value)) return value;
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
@@ -322,6 +348,87 @@ export function watchPendingCounts(): () => void {
     offConnection();
     document.removeEventListener("visibilitychange", onVisible);
   };
+}
+
+// ---------------------------------------------------------------- 定时任务按公司
+/** 服务端 companies.api.task_overview：每家的任务数与要不要提醒（有要人处理的票 / 文件夹不在了），任务 → 公司，公司名。
+ *  任务表不加字段，归属按账套现算；归不上公司的任务不在 tasks 里（总览放「其他」）。 */
+export type TaskOverview = {
+  loaded: boolean;
+  companies: Record<string, { count: number; alert?: boolean }>;
+  tasks: Record<string, string>;
+  titles: Record<string, string>;
+};
+export const useTaskOverview = create<TaskOverview>(() => ({ loaded: false, companies: {}, tasks: {}, titles: {} }));
+
+// 定时任务服务的实时事件（folder_intake/live.py）：任务、文件、待处理有变化
+export const TASK_EVENTS = ["cowork_folder_changed"] as const;
+
+let overviewing: Promise<void> | null = null;
+export function refreshTaskOverview(): Promise<void> {
+  overviewing ??= getMethod<Omit<TaskOverview, "loaded">>(API + "task_overview")
+    .then((out) => useTaskOverview.setState({ loaded: true, companies: out?.companies ?? {}, tasks: out?.tasks ?? {}, titles: out?.titles ?? {} }))
+    // 取不到（没权限、断网）：当作取过了，「只看这家」不一直转圈；已有的数据留着
+    .catch(() => useTaskOverview.setState({ loaded: true }))
+    .finally(() => {
+      overviewing = null;
+    });
+  return overviewing;
+}
+
+/** 侧栏挂上后：读一次；任务事件来了（合成一次）、主档有变化、回到前台、实时通道重连时再读。不另开轮询。 */
+export function watchTaskOverview(): () => void {
+  void refreshTaskOverview();
+  let timer = 0;
+  const soon = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => void refreshTaskOverview(), 1500);
+  };
+  const offs = TASK_EVENTS.map((name) => onSiteEvent(name, soon));
+  // 建 / 删了公司：任务的归属跟着变
+  offs.push(onProjectChange((change) => (change.op === "delete" || (change.op === "upsert" && !change.part) ? soon() : undefined)));
+  const offConnection = onConnectionChange((connected) => connected && soon());
+  const onVisible = () => document.visibilityState === "visible" && soon();
+  document.addEventListener("visibilitychange", onVisible);
+  return () => {
+    window.clearTimeout(timer);
+    offs.forEach((off) => off());
+    offConnection();
+    document.removeEventListener("visibilitychange", onVisible);
+  };
+}
+
+/** 定时任务按公司分组（总览页）：侧栏顺序的公司在前，其余按名称，归不上公司的放最后（键 ""）。 */
+export function groupTasks<T extends { name: string }>(rules: readonly T[], tasks: Record<string, string>, order: readonly string[] = [],
+  titles: Record<string, string> = {}): Array<[string, T[]]> {
+  const map = new Map<string, T[]>();
+  for (const rule of rules) {
+    const company = tasks[rule.name] ?? "";
+    map.set(company, [...(map.get(company) ?? []), rule]);
+  }
+  const rank = (id: string) => (id ? (order.includes(id) ? order.indexOf(id) : order.length) : order.length + 1);
+  return [...map.entries()].sort((a, b) => rank(a[0]) - rank(b[0]) || (titles[a[0]] ?? "").localeCompare(titles[b[0]] ?? ""));
+}
+
+/** 新建定时任务的预填（主档页「＋」、总览「＋」先选公司）：覆盖这个月的账套；这台电脑绑了文件夹时连同文件夹，只需再选子文件夹。 */
+export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "company">, period: string, readers: readonly string[] = [],
+  desktop = false): TaskSeed | null {
+  const set = setForPeriod(detail.account_sets, period);
+  if (!set) return null;
+  const folder = desktop ? detail.folders.find((f) => f.mine || readers.includes(f.reader)) : undefined;
+  return {
+    adapter: set.adapter ?? detail.company.adapter ?? "",
+    connection: set.connection,
+    account_set_key: set.key,
+    ...(folder?.root_id ? { folder: `${folder.reader}|${folder.root_id}|${folder.folder ?? ""}` } : {}),
+  };
+}
+
+/** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的）。 */
+export function setForPeriod(sets: readonly AccountSet[], period: string): AccountSet | undefined {
+  const day = period ? `${period}-01` : "";
+  const covering = day ? sets.find((s) => s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10)) : undefined;
+  return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
 }
 
 // ---------------------------------------------------------------- 全所有没有公司（新对话的公司条只在至少有一家时出现）

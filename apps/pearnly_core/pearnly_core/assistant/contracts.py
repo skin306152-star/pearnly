@@ -805,13 +805,15 @@ def notice_event(name, processed_at, kind, title, text, session="", view="") -> 
     return event
 
 
-# 没挂对话的提醒点开去哪一页（对话页 `?view=`）：定时任务页（缺省）、待处理（ADR-020 早上汇总）
+# 没挂对话的提醒点开去哪一页（对话页 `?view=`）：定时任务页（缺省）、待处理（ADR-020 早上汇总）；
+# 「company:<编号>」是产品的分组项（公司主档页 `?company=`，定时任务提醒 / 简报属于某家公司时）。存放字段 20 字。
 NOTICE_VIEWS = ("tasks", "pending")
+NOTICE_PROJECT_VIEW = re.compile(r"^company:[A-Za-z0-9][A-Za-z0-9_-]{0,11}$")
 
 
 def notice_view(value) -> str:
     text = str(value or "").strip()
-    return text if text in NOTICE_VIEWS else ""
+    return text if text in NOTICE_VIEWS or NOTICE_PROJECT_VIEW.match(text) else ""
 
 
 def site_time(value) -> datetime:
@@ -944,4 +946,7 @@ def deep_link(session_id="", view="") -> str:
     text = str(session_id or "").strip()
     if OPAQUE_ID.match(text):
         return "/assistant?c=" + quote(text, safe="")
-    return "/assistant?view=" + (notice_view(view) or "tasks")
+    view = notice_view(view) or "tasks"
+    if view.startswith("company:"):
+        return "/assistant?company=" + quote(view.split(":", 1)[1], safe="")
+    return "/assistant?view=" + view
