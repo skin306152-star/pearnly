@@ -8,6 +8,8 @@
 - 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
   也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
   卡片上的问句是 `"ask"`；问法随参数变时另写 `"ask_when": {参数名: 问句}`，给了该参数就用那句。
+- 进行中的说法（对话底部的工作状态行、正在执行的那一步，如「正在识别单据」）另在 `pearnly_assistant_step_names`
+  声明 `{工具名: 英文原文}`（共用工具在 `CORE_STEP_NAMES`），译文同样进声明它的 App 的术语表；没声明的显示 `label`。
 - 工具一律在本站服务端、以当前登录用户身份执行：权限、租户、套账与数据范围沿用各产品现有服务的
   校验，工具只调已有服务，不绕过它们读库。业务拒绝用 `frappe.throw`，作为 `is_error` 结果交回模型。
 """
@@ -58,6 +60,13 @@ CORE_TOOLS = [
 ]
 
 
+# 共用工具进行中的说法（见文件头）
+CORE_STEP_NAMES = {
+    "pearnly_whoami": "Checking your account",
+    "pearnly_tax_id_lookup": "Looking up a tax ID",
+}
+
+
 def declared() -> list[dict]:
     found = {tool["name"]: tool for tool in CORE_TOOLS}
     for path in frappe.get_hooks("pearnly_assistant_tools") or []:
@@ -69,6 +78,20 @@ def declared() -> list[dict]:
 def labels() -> dict[str, str]:
     """对话里步骤行显示的名字（按当前用户语言）；没写 label 的工具显示原名。"""
     return {t["name"]: _(t["label"]) if t.get("label") else t["name"] for t in declared()}
+
+
+def step_names() -> dict[str, str]:
+    """各工具进行中的说法（英文原文）：共用的加上各产品 `pearnly_assistant_step_names` 声明的，只留已声明的工具。"""
+    found = dict(CORE_STEP_NAMES)
+    for path in frappe.get_hooks("pearnly_assistant_step_names") or []:
+        found.update(frappe.get_attr(path) or {})
+    names = {t["name"] for t in declared()}
+    return {name: text for name, text in found.items() if name in names and text}
+
+
+def steps() -> dict[str, dict[str, str]]:
+    """对话页的步骤名（按当前用户语言）：`done` 做完的说法（同 `labels`），`running` 进行中的说法。"""
+    return {"done": labels(), "running": {name: _(text) for name, text in step_names().items()}}
 
 
 def _given(values: dict, key: str) -> bool:

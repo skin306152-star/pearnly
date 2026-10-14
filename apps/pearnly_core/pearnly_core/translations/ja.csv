@@ -91,6 +91,7 @@ Change your password and sign out other devices on the account page of the ident
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 Charges,課金
 Checked your account,アカウント情報を確認しました
+Checking your account,アカウント情報を確認しています
 Checkpoint Key,チェックポイントキー
 Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
@@ -356,6 +357,7 @@ Local Account,ローカルアカウント
 Local Session,ローカルセッション
 "Local sample site: not sent to LINE, the raw text is only recorded",ローカル見本サイト：LINEへは送信せず、原文のみ記録
 Looked up a tax ID,税番号を照会しました
+Looking up a tax ID,税番号を照会しています
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
 Manage purchase orders and payment details.,仕入伝票と支払明細を管理します。
 Manual,手入力

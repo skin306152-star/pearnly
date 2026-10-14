@@ -119,6 +119,8 @@ Another active rule already uses this folder or a folder containing it.,有効�
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
 Answered a reconciliation question,照合の質問に回答しました
 Answered a withholding tax question,源泉徴収税の質問に回答しました
+Answering a reconciliation question,照合の質問に回答しています
+Answering a withholding tax question,源泉徴収税の質問に回答しています
 Any due date,すべての期日
 Archive,アーカイブ
 Archive all cards in this list,このリストのカードをすべてアーカイブ
@@ -198,6 +200,7 @@ Branch No,支店番号
 Brief Key,サマリーキー
 Brief Sent At,サマリー送信日時
 Brief Status,サマリーの状態
+Bringing files from a folder,フォルダーからファイルを取り込んでいます
 Brought files from a folder,フォルダーからファイルを取り込みました
 Buyer,購入者
 Buyer Client,買い手顧客
@@ -287,6 +290,19 @@ Checked scheduled task runs,定期タスクの実行履歴を確認しました
 Checked scheduled tasks,定期タスクを確認しました
 Checked the stock account group,在庫勘定グループを確認しました
 Checking,照合中
+Checking CC Desktop,CC デスクトップを確認しています
+Checking MR.ERP import settings,MR.ERP の取り込み設定を確認しています
+Checking a readback,読み戻しの結果を確認しています
+Checking a reconciliation's progress,照合の進行状況を確認しています
+Checking intake choices,入力設定を確認しています
+Checking push choices,送信前の選択項目を確認しています
+Checking push results,送信結果を確認しています
+Checking recognition results,読み取り結果を確認しています
+Checking reconciliation presets,照合の既定値を確認しています
+Checking scheduled task options,定期タスクの選択肢を確認しています
+Checking scheduled task runs,定期タスクの実行履歴を確認しています
+Checking scheduled tasks,定期タスクを確認しています
+Checking the stock account group,在庫勘定グループを確認しています
 Checklist,チェックリスト
 Checklist Id,チェックリスト ID
 Checks,チェック
@@ -319,6 +335,7 @@ Choose the year,年度を選択
 Choose the year and account set first,先に年度と帳簿を選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
 Choose what to do,操作を選択
+Choosing how a kind of document is handled,この種類の書類の扱いを設定しています
 Chose how a kind of document is handled,この種類の書類の扱いを設定しました
 Chosen At,選択日時
 Chosen By,選択者
@@ -341,6 +358,7 @@ Color,色
 Comment,コメント
 Commented on a task,タスクにコメントしました
 Commenting,コメント権限
+Commenting on a task,タスクにコメントしています
 Comments,コメント
 Comments and activity,コメントとアクティビティ
 Commission,手数料
@@ -363,6 +381,7 @@ Confirmation Request,確認リクエスト
 Confirmation Revision,確認リビジョン
 Confirmed,確認済み
 Confirmed a push result,送信結果を確定しました
+Confirming a push result,送信結果を確定しています
 Connect CC Desktop,CC デスクトップを接続
 Connection,接続
 Connection Configuration,接続設定
@@ -457,6 +476,8 @@ Created At,作成日時
 Created By,作成者
 Created a stock count,棚卸を作成しました
 Created a task,タスクを作成しました
+Creating a stock count,棚卸を作成しています
+Creating a task,タスクを作成しています
 Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
 Credit,掛け
@@ -513,6 +534,12 @@ Deleted stock counts,棚卸を削除しました
 Deleted tax drafts,税務申告の下書きを削除しました
 Deleted {0},{0}件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
+Deleting a readback,読み戻しの結果を削除しています
+Deleting documents,書類を削除しています
+Deleting reconciliations,照合を削除しています
+Deleting scheduled tasks,定期タスクを削除しています
+Deleting stock counts,棚卸を削除しています
+Deleting tax drafts,税務申告の下書きを削除しています
 Delivery type,配送方法
 Department,部門
 Department for this rule,部門
@@ -557,6 +584,8 @@ Download template,テンプレートをダウンロード
 Draft,下書き
 Drafted a VAT return,付加価値税申告の下書きを作成しました
 Drafted a withholding tax return,源泉徴収税申告の下書きを作成しました
+Drafting a VAT return,付加価値税申告の下書きを作成しています
+Drafting a withholding tax return,源泉徴収税申告の下書きを作成しています
 Dropdown,ドロップダウン
 Due,期日
 Due (e-Filing),申告期限（電子）
@@ -592,6 +621,7 @@ Edit folder rule,ルールを編集
 Edit in Full Page,全画面で編集
 Edit labels,ラベルを編集
 Edited a document,書類を修正しました
+Editing a document,書類を修正しています
 Electronic,電子版
 Electronic file,電子ファイル
 Email,メール
@@ -647,6 +677,9 @@ Export records from the same company and client together.,同じ会社・顧客�
 Exported a reconciliation,照合結果を書き出しました
 Exported a stock count,棚卸差異を書き出しました
 Exported the review workbook,確認用ワークブックを書き出しました
+Exporting a reconciliation,照合結果を書き出しています
+Exporting a stock count,棚卸差異を書き出しています
+Exporting the review workbook,確認用ワークブックを書き出しています
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
 Express PC,Express の PC
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
@@ -676,6 +709,7 @@ Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は閲覧とエクスポートのみ可能です。
 Finished a stock count,棚卸を終了しました
+Finishing a stock count,棚卸を終了しています
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
 First name,名
@@ -744,6 +778,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,取り込み結果
 Imported POS sales,POS の売上を取り込みました
 "Imported {0} rows, {1} counted",{0}行を取り込み、{1}行に実数あり
+Importing POS sales,POS の売上を取り込んでいます
 In Express,Express の現在
 In another tax month,別の課税月
 In progress,進行中
@@ -871,6 +906,11 @@ Listed folder files,フォルダーのファイルを一覧しました
 Listed reconciliations,照合の一覧を確認しました
 Listed stock counts,棚卸の一覧を確認しました
 Listed task boards,タスクボードを確認しました
+Listing documents,書類を一覧しています
+Listing folder files,フォルダーのファイルを一覧しています
+Listing reconciliations,照合の一覧を確認しています
+Listing stock counts,棚卸の一覧を確認しています
+Listing task boards,タスクボードを確認しています
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
@@ -926,6 +966,7 @@ Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
 Moved a task,タスクを移動しました
+Moving a task,タスクを移動しています
 My cards,自分のカード
 Name,名前
 Name suggests P.N.D.3,名称から ภ.ง.ด.3 の可能性
@@ -1024,6 +1065,7 @@ Only one sell unit can be the default.,既定の販売単位は 1 つだけ設�
 Open card,カードを開く
 Opened the original,原本を開きました
 Opening Diff,期首差額
+Opening the original,原本を開いています
 Operator,事業者名
 Options,オプション
 Options (one per line),選択肢（1行に1つ）
@@ -1110,6 +1152,7 @@ Preparation Evidence,準備情報の証拠
 Preparation data does not match the connection or account set.,準備情報が接続または会計データと一致しません。
 Preparation data for this account set is incomplete.,この会計データの送信準備情報が不足しています。
 Prepared a stock count template,棚卸テンプレートを用意しました
+Preparing a stock count template,棚卸テンプレートを用意しています
 Presets,プリセット
 Previous Json,変更前のデータ（JSON）
 Private,非公開
@@ -1141,6 +1184,7 @@ Push record not found.,送信記録が見つかりません。
 Pushed,送信時
 Pushed documents,書類を送信しました
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。
+Pushing documents,書類を送信しています
 "Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
 Quantity,数量
 Quantity counted this time,今回の実地数量
@@ -1164,6 +1208,7 @@ Read general ledger,総勘定元帳の読み取り
 Read tax invoices,請求書の読み取り
 Readback,読み戻し
 Readback ID,読み戻し ID
+Reading back the accounting books,会計データを読み戻しています
 Reading files,ファイルを読み込み中
 Reading the MR.ERP menus…,MR.ERP のメニューを読み込み中…
 Reading the VAT report,税報告を読み込み中
@@ -1194,6 +1239,7 @@ Recognized Fields,認識した項目
 Recognized documents,書類を読み取りました
 Recognized with high confidence,高い信頼度で認識
 "Recognized, waiting to enter",読み取り済み
+Recognizing documents,書類を読み取っています
 Reconciled,照合に含める
 Reconciliation Type,照合の種類
 Reconciliation completed: {0},照合が完了しました：{0}
@@ -1208,6 +1254,7 @@ Record Revision,レコードの版
 Record a count,棚卸を入力
 Record as expense,費用に計上
 Recorded a count,実数を記録しました
+Recording a count,実数を記録しています
 Recount,再棚卸
 Recount this product,この商品を再棚卸
 Recurring,繰り返し
@@ -1223,6 +1270,7 @@ Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
 Refreshed account sets,帳簿を更新しました
+Refreshing account sets,帳簿を更新しています
 Registered At,登録日時
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
 Relative Path,相対パス
@@ -1331,6 +1379,9 @@ Saved a scheduled task,定期タスクを保存しました
 Saved push choices,送信の選択を保存しました
 Saved scheduled tasks,複数の定期タスクを保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
+Saving a scheduled task,定期タスクを保存しています
+Saving push choices,送信の選択を保存しています
+Saving scheduled tasks,複数の定期タスクを保存しています
 Scan barcode or QR code,バーコード・QRコードを読む
 Scan barcodes · Record quantities,バーコード読取 · 数量記録
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
@@ -1346,6 +1397,7 @@ Scope Key,権限範囲識別子
 Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 Searched tasks,タスクを検索しました
+Searching tasks,タスクを検索しています
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
@@ -1376,6 +1428,7 @@ Set due date,期日を N 日後に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
 Set reminder,リマインダー
 Set the POS export columns,POS エクスポートの列を設定しました
+Setting the POS export columns,POS エクスポートの列を設定しています
 Settings Json,設定データ（JSON）
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
@@ -1422,6 +1475,8 @@ Started At,開始日時
 Started a reconciliation,照合を開始しました
 Started a scheduled task,定期タスクを開始しました
 Started at,開始日時
+Starting a reconciliation,照合を開始しています
+Starting a scheduled task,定期タスクを開始しています
 Statement Autocorrected,明細自動補正済み
 Statement Balance,明細残高
 Statement Balance Check,明細残高チェック
@@ -1854,6 +1909,9 @@ Updated By,更新者
 Updated a scheduled task,定期タスクを更新しました
 Updated a task,タスクを更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
+Updating a scheduled task,定期タスクを更新しています
+Updating a task,タスクを更新しています
+Updating scheduled tasks,複数の定期タスクを更新しています
 Upload,アップロード
 Upload Failed,アップロード失敗数
 Upload a sheet,取り込み
@@ -1909,6 +1967,11 @@ Viewed a reconciliation,照合結果を確認しました
 Viewed a stock count,棚卸結果を確認しました
 Viewed a task,タスクを確認しました
 Viewed a task board,ボードを確認しました
+Viewing a document,書類を確認しています
+Viewing a reconciliation,照合結果を確認しています
+Viewing a stock count,棚卸結果を確認しています
+Viewing a task,タスクを確認しています
+Viewing a task board,ボードを確認しています
 Visibility,公開範囲
 Void,取消
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。

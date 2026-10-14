@@ -119,6 +119,8 @@ Another active rule already uses this folder or a folder containing it.,Another 
 Another push holds the writer lock.,Another push holds the writer lock.
 Answered a reconciliation question,Answered a reconciliation question
 Answered a withholding tax question,Answered a withholding tax question
+Answering a reconciliation question,Answering a reconciliation question
+Answering a withholding tax question,Answering a withholding tax question
 Any due date,Any due date
 Archive,Archive
 Archive all cards in this list,Archive all cards in this list
@@ -198,6 +200,7 @@ Branch No,Branch No
 Brief Key,Brief Key
 Brief Sent At,Brief Sent At
 Brief Status,Brief Status
+Bringing files from a folder,Bringing files from a folder
 Brought files from a folder,Brought files from a folder
 Buyer,Buyer
 Buyer Client,Buyer Client
@@ -287,6 +290,19 @@ Checked scheduled task runs,Checked scheduled task runs
 Checked scheduled tasks,Checked scheduled tasks
 Checked the stock account group,Checked the stock account group
 Checking,Checking
+Checking CC Desktop,Checking CC Desktop
+Checking MR.ERP import settings,Checking MR.ERP import settings
+Checking a readback,Checking a readback
+Checking a reconciliation's progress,Checking a reconciliation's progress
+Checking intake choices,Checking intake choices
+Checking push choices,Checking push choices
+Checking push results,Checking push results
+Checking recognition results,Checking recognition results
+Checking reconciliation presets,Checking reconciliation presets
+Checking scheduled task options,Checking scheduled task options
+Checking scheduled task runs,Checking scheduled task runs
+Checking scheduled tasks,Checking scheduled tasks
+Checking the stock account group,Checking the stock account group
 Checklist,Checklist
 Checklist Id,Checklist Id
 Checks,Checks
@@ -319,6 +335,7 @@ Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
 Choose what to do,Choose what to do
+Choosing how a kind of document is handled,Choosing how a kind of document is handled
 Chose how a kind of document is handled,Chose how a kind of document is handled
 Chosen At,Chosen At
 Chosen By,Chosen By
@@ -341,6 +358,7 @@ Color,Color
 Comment,Comment
 Commented on a task,Commented on a task
 Commenting,Commenting
+Commenting on a task,Commenting on a task
 Comments,Comments
 Comments and activity,Comments and activity
 Commission,Commission
@@ -363,6 +381,7 @@ Confirmation Request,Confirmation Request
 Confirmation Revision,Confirmation Revision
 Confirmed,Confirmed
 Confirmed a push result,Confirmed a push result
+Confirming a push result,Confirming a push result
 Connect CC Desktop,Connect CC Desktop
 Connection,Connection
 Connection Configuration,Connection Configuration
@@ -457,6 +476,8 @@ Created At,Created At
 Created By,Created By
 Created a stock count,Created a stock count
 Created a task,Created a task
+Creating a stock count,Creating a stock count
+Creating a task,Creating a task
 Creation Request Hash,Creation Request Hash
 Credential ID,Credential ID
 Credit,Credit
@@ -513,6 +534,12 @@ Deleted stock counts,Deleted stock counts
 Deleted tax drafts,Deleted tax drafts
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
+Deleting a readback,Deleting a readback
+Deleting documents,Deleting documents
+Deleting reconciliations,Deleting reconciliations
+Deleting scheduled tasks,Deleting scheduled tasks
+Deleting stock counts,Deleting stock counts
+Deleting tax drafts,Deleting tax drafts
 Delivery type,Delivery type
 Department,Department
 Department for this rule,Department for this rule
@@ -557,6 +584,8 @@ Download template,Download template
 Draft,Draft
 Drafted a VAT return,Drafted a VAT return
 Drafted a withholding tax return,Drafted a withholding tax return
+Drafting a VAT return,Drafting a VAT return
+Drafting a withholding tax return,Drafting a withholding tax return
 Dropdown,Dropdown
 Due,Due
 Due (e-Filing),Due (e-Filing)
@@ -592,6 +621,7 @@ Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
 Edited a document,Edited a document
+Editing a document,Editing a document
 Electronic,Electronic
 Electronic file,Electronic file
 Email,Email
@@ -647,6 +677,9 @@ Export records from the same company and client together.,Export records from th
 Exported a reconciliation,Exported a reconciliation
 Exported a stock count,Exported a stock count
 Exported the review workbook,Exported the review workbook
+Exporting a reconciliation,Exporting a reconciliation
+Exporting a stock count,Exporting a stock count
+Exporting the review workbook,Exporting the review workbook
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
 Express PC,Express PC
 "Express already has this invoice number with different content. Check it, or choose Send anyway","Express already has this invoice number with different content. Check it, or choose Send anyway"
@@ -676,6 +709,7 @@ Finish,Finish
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
 Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.,Finish this count? {0} rows counted; {1} rows uncounted. This task becomes read-only.
 Finished a stock count,Finished a stock count
+Finishing a stock count,Finishing a stock count
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
 First name,First name
@@ -744,6 +778,7 @@ Image and PDF invoices are not supported yet. Upload the invoices as Excel or CS
 Import result,Import result
 Imported POS sales,Imported POS sales
 "Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
+Importing POS sales,Importing POS sales
 In Express,In Express
 In another tax month,In another tax month
 In progress,In progress
@@ -871,6 +906,11 @@ Listed folder files,Listed folder files
 Listed reconciliations,Listed reconciliations
 Listed stock counts,Listed stock counts
 Listed task boards,Listed task boards
+Listing documents,Listing documents
+Listing folder files,Listing folder files
+Listing reconciliations,Listing reconciliations
+Listing stock counts,Listing stock counts
+Listing task boards,Listing task boards
 Location,Location
 Location check,Location check
 Location mismatch,Location mismatch
@@ -926,6 +966,7 @@ Move,Move
 Move all cards in this list,Move all cards in this list
 Move list,Move list
 Moved a task,Moved a task
+Moving a task,Moving a task
 My cards,My cards
 Name,Name
 Name suggests P.N.D.3,Name suggests P.N.D.3
@@ -1024,6 +1065,7 @@ Only one sell unit can be the default.,Only one sell unit can be the default.
 Open card,Open card
 Opened the original,Opened the original
 Opening Diff,Opening Diff
+Opening the original,Opening the original
 Operator,Operator
 Options,Options
 Options (one per line),Options (one per line)
@@ -1110,6 +1152,7 @@ Preparation Evidence,Preparation Evidence
 Preparation data does not match the connection or account set.,Preparation data does not match the connection or account set.
 Preparation data for this account set is incomplete.,Preparation data for this account set is incomplete.
 Prepared a stock count template,Prepared a stock count template
+Preparing a stock count template,Preparing a stock count template
 Presets,Presets
 Previous Json,Previous Json
 Private,Private
@@ -1141,6 +1184,7 @@ Push record not found.,Push record not found.
 Pushed,Pushed
 Pushed documents,Pushed documents
 Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.,Pushed to MR.ERP before the menu fix: it may sit in a menu without a journal and not be posted. Check in MR.ERP before pushing again.
+Pushing documents,Pushing documents
 "Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
 Quantity,Quantity
 Quantity counted this time,Quantity counted this time
@@ -1164,6 +1208,7 @@ Read general ledger,Read general ledger
 Read tax invoices,Read tax invoices
 Readback,Readback
 Readback ID,Readback ID
+Reading back the accounting books,Reading back the accounting books
 Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
 Reading the VAT report,Reading the VAT report
@@ -1194,6 +1239,7 @@ Recognized Fields,Recognized Fields
 Recognized documents,Recognized documents
 Recognized with high confidence,Recognized with high confidence
 "Recognized, waiting to enter","Recognized, waiting to enter"
+Recognizing documents,Recognizing documents
 Reconciled,Reconciled
 Reconciliation Type,Reconciliation Type
 Reconciliation completed: {0},Reconciliation completed: {0}
@@ -1208,6 +1254,7 @@ Record Revision,Record Revision
 Record a count,Record a count
 Record as expense,Record as expense
 Recorded a count,Recorded a count
+Recording a count,Recording a count
 Recount,Recount
 Recount this product,Recount this product
 Recurring,Recurring
@@ -1223,6 +1270,7 @@ Refresh Started At (UTC),Refresh Started At (UTC)
 Refresh Status,Refresh Status
 Refresh the account directory before continuing.,Refresh the account directory before continuing.
 Refreshed account sets,Refreshed account sets
+Refreshing account sets,Refreshing account sets
 Registered At,Registered At
 Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
 Relative Path,Relative Path
@@ -1331,6 +1379,9 @@ Saved a scheduled task,Saved a scheduled task
 Saved push choices,Saved push choices
 Saved scheduled tasks,Saved scheduled tasks
 Saved. Scan the next item.,Saved. Scan the next item.
+Saving a scheduled task,Saving a scheduled task
+Saving push choices,Saving push choices
+Saving scheduled tasks,Saving scheduled tasks
 Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
@@ -1346,6 +1397,7 @@ Scope Key,Scope Key
 Search cards,Search cards
 Search name or barcode,Search name or barcode
 Searched tasks,Searched tasks
+Searching tasks,Searching tasks
 Select a file to upload.,Select a file to upload.
 Select between 1 and 100 distinct history records to export.,Select between 1 and 100 distinct history records to export.
 Select between 1 and 500 records.,Select between 1 and 500 records.
@@ -1376,6 +1428,7 @@ Set due date,Set due date
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder
 Set the POS export columns,Set the POS export columns
+Setting the POS export columns,Setting the POS export columns
 Settings Json,Settings Json
 Several Express customers have this tax ID. Choose the customer and submit again,Several Express customers have this tax ID. Choose the customer and submit again
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Several Express suppliers have this tax ID. Choose the supplier and submit again
@@ -1422,6 +1475,8 @@ Started At,Started At
 Started a reconciliation,Started a reconciliation
 Started a scheduled task,Started a scheduled task
 Started at,Started at
+Starting a reconciliation,Starting a reconciliation
+Starting a scheduled task,Starting a scheduled task
 Statement Autocorrected,Statement Autocorrected
 Statement Balance,Statement Balance
 Statement Balance Check,Statement Balance Check
@@ -1854,6 +1909,9 @@ Updated By,Updated By
 Updated a scheduled task,Updated a scheduled task
 Updated a task,Updated a task
 Updated {0} user(s),Updated {0} user(s)
+Updating a scheduled task,Updating a scheduled task
+Updating a task,Updating a task
+Updating scheduled tasks,Updating scheduled tasks
 Upload,Upload
 Upload Failed,Upload Failed
 Upload a sheet,Upload a sheet
@@ -1909,6 +1967,11 @@ Viewed a reconciliation,Viewed a reconciliation
 Viewed a stock count,Viewed a stock count
 Viewed a task,Viewed a task
 Viewed a task board,Viewed a task board
+Viewing a document,Viewing a document
+Viewing a reconciliation,Viewing a reconciliation
+Viewing a stock count,Viewing a stock count
+Viewing a task,Viewing a task
+Viewing a task board,Viewing a task board
 Visibility,Visibility
 Void,Void
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.

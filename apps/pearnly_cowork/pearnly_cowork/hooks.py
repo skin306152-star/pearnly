@@ -550,6 +550,8 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
 pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]
 # Cowork 自己的说话规矩（账套按公司名说，不说文件夹代码）：共用层接在共用说明后面
 pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]
+# 工具进行中的说法（对话底部的工作状态行，如「正在识别单据」）：共用层汇总，译文在本 App 术语表
+pearnly_assistant_step_names = ["pearnly_cowork.assistant.step_names.STEP_NAMES"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

@@ -99,6 +99,11 @@ def tool_labels():
     return tools.labels()
 
 
+@frappe.whitelist(methods=["GET"])
+def tool_steps():
+    return tools.steps()
+
+
 # 后台脚本（ADR-019：安卓等手机、电脑浏览器能把 CC「安装」成应用）。浏览器只认同一站点里的脚本，网站目录又不发 .js，
 # 所以由这里发出；响应头允许它管 /assistant（注册时 scope 也只给 /assistant，不碰后台 /app 等页面）。
 # 内容是静态的（不含任何用户数据），不要求登录：登录过期时浏览器照样能更新它。

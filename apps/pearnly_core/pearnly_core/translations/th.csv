@@ -91,6 +91,7 @@ Change your password and sign out other devices on the account page of the ident
 Change your password from your account profile using Change Password.,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วย «เปลี่ยนรหัสผ่าน» ในข้อมูลส่วนตัว
 Charges,รายการหักเงิน
 Checked your account,ตรวจสอบข้อมูลบัญชีแล้ว
+Checking your account,กำลังตรวจสอบข้อมูลบัญชี
 Checkpoint Key,คีย์จุดตรวจสอบ
 Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
@@ -356,6 +357,7 @@ Local Account,บัญชีในเครื่อง
 Local Session,เซสชันในเครื่อง
 "Local sample site: not sent to LINE, the raw text is only recorded",เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ
 Looked up a tax ID,ตรวจสอบเลขประจำตัวผู้เสียภาษีแล้ว
+Looking up a tax ID,กำลังตรวจสอบเลขประจำตัวผู้เสียภาษี
 Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
 Manage purchase orders and payment details.,จัดการเอกสารซื้อและรายละเอียดการชำระเงิน
 Manual,บันทึกด้วยตนเอง
