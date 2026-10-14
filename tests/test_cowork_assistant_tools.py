@@ -946,7 +946,8 @@ class FolderTaskTests(unittest.TestCase):
         self.assertEqual(rows["Scheduled tasks"], ["定时任务", "งานตามกำหนดเวลา", "定期タスク"])  # 页面标题
         shown = [text for t in tools.TOOLS if "folder_task" in t["name"]
                  for text in [t["label"], t.get("ask"), *(t.get("ask_when") or {}).values()] if text]
-        self.assertEqual(len([t for t in tools.TOOLS if "folder_task" in t["name"]]), 8)
+        # 9 个：含一次启停 / 改提醒几个任务的批量工具（2026-10-15，第 5 条）
+        self.assertEqual(len([t for t in tools.TOOLS if "folder_task" in t["name"]]), 9)
         for text in shown:
             self.assertIn("scheduled task", text)
             zh, th, ja = rows[text]
@@ -1705,6 +1706,315 @@ class FolderTaskBatchTests(unittest.TestCase):
             out = json.loads(tools.set_folder_task_enabled({"task": "R1", "remind_times": times}))
         self.assertEqual(calls, [("R1", None, None, times)])
         self.assertEqual((out["status"], out["remind_times"]), ("saved", times))
+
+
+class FolderTaskSwitchBatchTests(unittest.TestCase):
+    """一句话改几个任务的提醒或启停，只弹一张「允许」卡片（用户 2026-10-13 第 5 条：改 3 个任务的提醒点了 3 次）。
+    卡片一个任务一行（任务名 + 改什么）；允许后逐个照单个工具同一套规则执行、逐个回结果，一个不通过只退回它自己。"""
+
+    TIMES = [{"days_before": 2, "time": "09:00"}]
+
+    def setUp(self):
+        self.tasks = {"R1": {"name": "R1", "title": "Daonuea purchases", "enabled": 1, "remind": 1,
+                             "remind_times": [{"days_before": 1, "time": "08:00"}]},
+                      "R2": {"name": "R2", "title": "Daonuea expenses", "enabled": 1, "remind": 0},
+                      "R3": {"name": "R3", "title": "Daonuea sales", "enabled": 0, "remind": 1, "remind_times": None}}
+        self.calls, self.points, self.rolled_back, self.committed = [], [], [], 0
+        self.refuse = {}
+
+        def set_enabled(name, enabled=None, remind=None, remind_times=None, cc_session=None):
+            self.calls.append((name, enabled, remind, remind_times, cc_session))
+            if name in self.refuse:
+                raise self.refuse[name]
+            row = dict(self.tasks[name])
+            if enabled is not None:
+                row["enabled"] = enabled
+            if remind_times is not None:
+                row.update(remind=1 if remind is None else remind, remind_times=remind_times)
+            elif remind is not None:
+                row["remind"] = remind
+            return row
+
+        def commit():
+            self.committed += 1
+
+        for target, name, value in (
+                (tools.rules, "set_enabled", set_enabled),
+                (tools.rules, "listing", lambda: {"rules": [dict(row) for row in self.tasks.values()]}),
+                (frappe.local, "pearnly_assistant", {"session_id": "sesn_7"}),
+                (frappe.db, "savepoint", self.points.append),
+                (frappe.db, "rollback", lambda save_point=None: self.rolled_back.append(save_point)),
+                (frappe.db, "commit", commit)):
+            patcher = mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _tool(self, name):
+        return next(t for t in tools.TOOLS if t["name"] == name)
+
+    def test_one_card_lists_every_task_with_what_changes(self):
+        tool = self._tool("cowork_set_folder_tasks_enabled")
+        self.assertTrue(tool["approval"])
+        self.assertEqual((tool["label"], tool["ask"]), ("Updated scheduled tasks", "Change these scheduled tasks?"))
+        items = tool["input_schema"]["properties"]["tasks"]
+        self.assertEqual((items["maxItems"], items["items"]["required"]), (tools.FOLDER_BATCH_MAX, ["task"]))
+        # 与单个工具同一份参数说明（提醒时刻的规则只写一处）
+        single = self._tool("cowork_set_folder_task_enabled")["input_schema"]["properties"]
+        self.assertIs(items["items"]["properties"], single)
+        self.assertIn("cowork_set_folder_tasks_enabled", self._tool("cowork_set_folder_task_enabled")["description"])
+        with mock.patch.object(tools, "_", _term):
+            rows = tools.preview_set_folder_tasks_enabled({"tasks": [
+                {"task": "R1", "remind_times": self.TIMES}, {"task": "R2", "remind_times": self.TIMES},
+                {"task": "R3", "enabled": True}, {"task": "R9", "remind": False}, "not a task"]})
+        self.assertEqual(rows, [
+            {"field": "Daonuea purchases", "before": "Reminder: Day before 08:00", "after": "Reminder: 2 days before 09:00"},
+            {"field": "Daonuea expenses", "before": "Reminder: Off", "after": "Reminder: 2 days before 09:00"},
+            {"field": "Daonuea sales", "before": "cowork.folder.off", "after": "cowork.folder.on"},
+            # 读不到的任务：照编号列出，「现在」留空
+            {"field": "R9", "before": "", "after": "Reminder: Off"}])
+        # 单个工具的卡片照旧（同一套改动行）
+        with mock.patch.object(tools, "_", _term):
+            single_rows = tools.preview_set_folder_task_enabled({"task": "R3", "enabled": True, "remind": False})
+        self.assertEqual([(r["field"], r["before"], r["after"]) for r in single_rows],
+                         [("cowork.folder.field.title", "", "Daonuea sales"),
+                          ("intake.col.status", "cowork.folder.off", "cowork.folder.on"),
+                          ("Reminder", DEFAULT_REMIND, "Off")])
+
+    def test_each_task_is_changed_and_reported_once_after_one_allow(self):
+        out = json.loads(tools.set_folder_tasks_enabled({"tasks": [
+            {"task": "R1", "remind_times": self.TIMES}, {"task": "R2", "remind_times": self.TIMES},
+            {"task": "R3", "enabled": True}]}))
+        self.assertEqual(self.calls, [("R1", None, None, self.TIMES, "sesn_7"), ("R2", None, None, self.TIMES, "sesn_7"),
+                                      ("R3", 1, None, None, "sesn_7")])
+        self.assertEqual(out["status"], "saved")
+        self.assertEqual(out["tasks"], [
+            {"task": "R1", "title": "Daonuea purchases", "status": "saved", "enabled": 1, "remind": 1,
+             "remind_times": self.TIMES},
+            {"task": "R2", "title": "Daonuea expenses", "status": "saved", "enabled": 1, "remind": 1,
+             "remind_times": self.TIMES},
+            # 提醒开着但没选过时刻：任务服务回的就是 None，不硬造
+            {"task": "R3", "title": "Daonuea sales", "status": "saved", "enabled": 1, "remind": 1}])
+        self.assertEqual((self.committed, self.rolled_back), (1, []))
+        self.assertEqual(len(self.points), 3)  # 每个任务一个保存点
+
+    def test_a_refused_task_is_listed_and_the_others_still_change(self):
+        self.refuse = {"R2": frappe.ValidationError("A same-day reminder must be earlier than the run time."),
+                       "R3": frappe.PermissionError("Not permitted")}
+        out = json.loads(tools.set_folder_tasks_enabled({"tasks": [
+            {"task": "R1", "enabled": False}, {"task": "R2", "remind_times": [{"days_before": 0, "time": "23:00"}]},
+            {"task": "R3", "enabled": True}, {"task": "R1", "remind": False}, {"task": "R4"}, {"enabled": True}]}))
+        self.assertEqual(out["status"], "partly_saved")
+        shown = [(item["task"], item["status"], item.get("reason")) for item in out["tasks"]]
+        self.assertEqual(shown, [
+            ("R1", "saved", None),
+            ("R2", "failed", "A same-day reminder must be earlier than the run time."),
+            ("R3", "failed", "Not permitted"),
+            ("R1", "failed", "This task is already in the list."),
+            ("R4", "failed", "Give enabled, remind or remind_times."),
+            ("", "failed", "Each item needs task.")])
+        self.assertEqual(out["tasks"][1]["title"], "Daonuea expenses")
+        # 不通过的只退回到它自己的保存点；做成的照常提交
+        self.assertEqual(self.rolled_back, [self.points[1], self.points[2]])
+        self.assertEqual(self.committed, 1)
+        self.assertEqual([call[0] for call in self.calls], ["R1", "R2", "R3"])
+
+    def test_nothing_changed_is_an_error_and_nothing_is_committed(self):
+        self.refuse = {"R1": frappe.DoesNotExistError("Not found")}
+        out = json.loads(tools.set_folder_tasks_enabled({"tasks": [{"task": "R1", "enabled": True}]}))
+        self.assertEqual((out["status"], self.committed), ("not_saved", 0))
+        too_many = json.loads(tools.set_folder_tasks_enabled({"tasks": [{"task": f"R{i}", "enabled": True}
+                                                                        for i in range(tools.FOLDER_BATCH_MAX + 1)]}))
+        self.assertEqual(too_many["status"], "not_saved")
+        self.assertEqual(len(self.calls), 1)
+        with self.assertRaises(frappe.ValidationError):
+            tools.set_folder_tasks_enabled({"tasks": []})
+
+
+class PushWaitTests(unittest.TestCase):
+    """推送后等写账结论再回（用户 2026-10-13 第 9 条：服务端已写入 HP691013-001，只晚了几秒，CC 却答「已排队」就收尾）。
+    按真实先后：发出 → CC 桌面版取走（leased）→ 回报成功 / 失败；最多等 PUSH_WAIT_SECONDS、每 PUSH_WAIT_STEP 秒读一次
+    本人这几条推送记录；只在推送线程里等，网页请求与后台队列里只读一次就回。"""
+
+    def setUp(self):
+        self.clock, self.sleeps, self.reads, self.rollbacks = [0.0], [], [], [0]
+        self.timeline = []  # 每读一次账本取下一份结论；读完了就停在最后一份
+        self.online = True
+        self.docs = {name: types.SimpleNamespace(last_push_status="", push_connection="EXP1", push_account_set="K",
+                                                 posting_kind="service", record_version=1, last_push_record="",
+                                                 last_push_reason="") for name in ("H1", "H2", "H3")}
+
+        def sleep(seconds):
+            self.sleeps.append(seconds)
+            self.clock[0] += seconds
+
+        def outcomes(records):
+            self.reads.append((self.clock[0], sorted(records)))
+            step = self.timeline[min(len(self.reads), len(self.timeline)) - 1] if self.timeline else {}
+            return {name: dict(step[name]) for name in records if name in step}
+
+        def rollback(save_point=None):
+            self.rollbacks[0] += 1
+
+        destination = types.SimpleNamespace(confirm=lambda *a: None)
+        for target, name, value in (
+                (tools.storage, "read", lambda name: self.docs[name]),
+                (tools.application, "choices_view", lambda *a: {"needed": []}),
+                (tools.application, "submit",
+                 lambda history, *a: {"status": "prepared", "name": "PR-" + history, "revision": 1}),
+                (tools.application, "outcomes", outcomes),
+                (tools.destinations, "of", lambda adapter: destination),
+                (tools.destinations, "online", lambda adapter, connection: self.online),
+                (tools.time, "sleep", sleep), (tools.time, "monotonic", lambda: self.clock[0]),
+                (frappe.db, "rollback", rollback),
+                (frappe.db, "get_value", lambda *a, **k: ("express", 3)),
+                (frappe.local, "pearnly_assistant", {"session_id": "sesn_7", "may_wait": True})):
+            patcher = mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _push(self, *names):
+        return json.loads(tools.push_documents({"documents": list(names)}))
+
+    def test_entered_with_the_express_number_once_cc_desktop_reports(self):
+        # 录屏同序：发出时还在排队 → 第 3 秒被 CC 桌面版取走 → 第 6 秒回报成功、带 Express 单号
+        self.timeline = [{"PR-H1": {"status": "pending"}}, {"PR-H1": {"status": "leased"}},
+                         {"PR-H1": {"status": "leased"}},
+                         {"PR-H1": {"status": "success", "docnum": "HP691013-001"}}]
+        out = self._push("H1")
+        self.assertEqual(out["results"], [{"document": "H1", "status": "entered", "adapter": "express",
+                                           "cc_desktop_online": True, "docnum": "HP691013-001"}])
+        self.assertNotIn("note", out)
+        self.assertEqual(len(self.reads), 4)
+        self.assertEqual(self.sleeps, [tools.PUSH_WAIT_STEP] * 3)
+        # 每次读之前换一份新快照（结论是别的请求提交的）
+        self.assertGreaterEqual(self.rollbacks[0], len(self.reads))
+
+    def test_a_refusal_comes_back_with_its_reason_and_an_unknown_result_is_not_called_failed(self):
+        self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}},
+                         {"PR-H1": {"status": "manual", "reason": "[ACCOUNT_COMPANY_MISMATCH] wrong company"},
+                          "PR-H2": {"status": "manual", "reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
+                                    "result_unknown": True}}]
+        results = self._push("H1", "H2")["results"]
+        self.assertEqual((results[0]["status"], results[0]["reason"]),
+                         ("failed", "said:[ACCOUNT_COMPANY_MISMATCH] wrong company"))  # 按用户语言的一句话
+        self.assertEqual((results[1]["status"], results[1]["reason"]),
+                         ("unconfirmed", "said:ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"))
+        self.assertEqual(len(self.reads), 2)
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_documents")["description"]
+        for word in ("entered", "docnum", "queued", "unconfirmed", "cowork_resolve_push_result", "cowork_push_results",
+                     "do not wait"):
+            self.assertIn(word, description)
+
+    def test_no_result_within_the_limit_is_queued_with_a_hint(self):
+        # 一直没回报（例如 CC 桌面版在写别的账套）：到点照实说已排队，上次没写成的原因带上，提示之后用 cowork_push_results 查
+        self.timeline = [{"PR-H1": {"status": "pending"}},
+                         {"PR-H1": {"status": "pending", "reason": "[EXPRESS_BUSY] locked"}}]
+        out = self._push("H1")
+        item, = out["results"]
+        self.assertEqual((item["status"], item["last_attempt_failed"]), ("queued", "said:[EXPRESS_BUSY] locked"))
+        self.assertIn("cowork_push_results", out["note"])
+        self.assertIn("Do not wait or sleep", out["note"])
+        self.assertLessEqual(self.clock[0], tools.PUSH_WAIT_SECONDS)
+        self.assertGreaterEqual(self.clock[0], tools.PUSH_WAIT_SECONDS - tools.PUSH_WAIT_STEP)
+        self.assertLessEqual(len(self.reads), tools.PUSH_WAIT_SECONDS // tools.PUSH_WAIT_STEP + 2)
+        self.assertNotIn("record", item)
+
+    def test_several_documents_share_one_limit_and_only_unsettled_ones_are_read_again(self):
+        self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}, "PR-H3": {"status": "pending"}},
+                         {"PR-H1": {"status": "success", "docnum": "RR691013-001"}, "PR-H2": {"status": "leased"},
+                          "PR-H3": {"status": "pending"}}]
+        results = self._push("H1", "H2", "H3")["results"]
+        self.assertEqual([item["status"] for item in results], ["entered", "queued", "queued"])
+        self.assertEqual(self.reads[1][1], ["PR-H1", "PR-H2", "PR-H3"])
+        self.assertEqual(self.reads[2][1], ["PR-H2", "PR-H3"])  # 有了结论的不再读
+        self.assertLessEqual(self.clock[0], tools.PUSH_WAIT_SECONDS)  # 三张共用一个时限
+
+    def test_outside_the_relay_thread_it_reads_once_and_does_not_wait(self):
+        # 页面兜底（网页请求线程）、引擎回调（long 队列）执行时：只读一次，不占共用名额干等
+        frappe.local.pearnly_assistant = {"session_id": "sesn_7", "may_wait": False}
+        self.timeline = [{"PR-H1": {"status": "pending"}}]
+        self.assertEqual(self._push("H1")["results"][0]["status"], "queued")
+        self.assertEqual((len(self.reads), self.sleeps), (1, []))
+        # 已经有结论的（例如同一请求号重放）照样当场给出
+        self.reads.clear()
+        self.timeline = [{"PR-H1": {"status": "success", "docnum": "HP691013-001"}}]
+        self.assertEqual(self._push("H1")["results"][0]["docnum"], "HP691013-001")
+
+    def test_cc_desktop_offline_is_not_waited_for(self):
+        self.online = False
+        self.timeline = [{"PR-H1": {"status": "pending"}}]
+        item, = self._push("H1")["results"]
+        self.assertEqual((item["status"], item["cc_desktop_online"]), ("queued", False))
+        self.assertEqual((len(self.reads), self.sleeps), (1, []))
+
+    def test_documents_not_sent_are_not_waited_for(self):
+        self.docs["H1"].last_push_status = "success"
+        self.docs["H2"].push_connection = ""
+        out = self._push("H1", "H2")
+        self.assertEqual([item["status"] for item in out["results"]], ["already_success", "failed"])
+        self.assertEqual((self.reads, self.sleeps), ([], []))
+        self.assertNotIn("note", out)
+
+
+def _push_service(rows):
+    """真的 `push.application.service`（其余各域用替身），SQL 交给 ``rows`` 回答，记下每次查询。"""
+    queries = []
+    fake = types.ModuleType("frappe")
+    fake._ = lambda text, *args, **kwargs: text
+    fake.session = types.SimpleNamespace(user="a@example.com")
+
+    def sql(query, values=None, as_dict=False):
+        queries.append((" ".join(query.split()), values))
+        actor, names = values
+        return [types.SimpleNamespace(**row) for row in rows if row["actor"] == actor and row["name"] in names]
+
+    fake.db = types.SimpleNamespace(sql=sql)
+    modules = {"frappe": fake, "pearnly_cowork": types.ModuleType("pearnly_cowork")}
+    for name in ("access", "connections", "targets", "contracts", "contracts.history", "contracts.push", "history",
+                 "push", "push.application", "push.application.provenance", "push.express", "push.express.common",
+                 "push.express.prepare", "push.express.preflight", "push.express.history", "push.express.pushed",
+                 "push.mrerp", "push.native", "push.receipts", "targets.choice", "targets.contracts",
+                 "targets.freeze", "targets.selection", "targets.identity"):
+        modules["pearnly_cowork." + name] = mock.MagicMock()
+    with mock.patch.dict(sys.modules, modules):
+        spec = importlib.util.spec_from_file_location("push_service_outcomes", COWORK / "push/application/service.py")
+        service = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(service)
+    return service, queries
+
+
+class PushOutcomeServiceTests(unittest.TestCase):
+    """推送的人看自己这几次推送此刻的结论：只认本人发起的记录，只读一条主键查询，单号只在入账成功时给。"""
+
+    ROWS = [{"name": "PR1", "actor": "a@example.com", "status": "success", "reason": "",
+             "external_docnum": "HP691013-001", "result_unknown": 0},
+            {"name": "PR2", "actor": "a@example.com", "status": "manual", "reason": "[X] no",
+             "external_docnum": "HP-OLD", "result_unknown": 1},
+            {"name": "PR3", "actor": "b@example.com", "status": "success", "reason": "",
+             "external_docnum": "HP691013-002", "result_unknown": 0},
+            {"name": "PR4", "actor": "a@example.com", "status": "leased", "reason": None,
+             "external_docnum": None, "result_unknown": 0}]
+
+    def test_only_my_own_pushes_and_the_number_only_when_entered(self):
+        service, queries = _push_service(self.ROWS)
+        found = service.outcomes(["PR1", "PR2", "PR3", "PR4", "PR1", ""])
+        self.assertEqual(found, {
+            "PR1": {"status": "success", "reason": "", "docnum": "HP691013-001", "result_unknown": False},
+            "PR2": {"status": "manual", "reason": "[X] no", "docnum": "", "result_unknown": True},
+            "PR4": {"status": "leased", "reason": "", "docnum": "", "result_unknown": False}})
+        (query, values), = queries
+        self.assertIn("WHERE actor=%s AND name IN %s", query)
+        self.assertNotIn("FOR UPDATE", query)
+        self.assertEqual(values, ("a@example.com", ("PR1", "PR2", "PR3", "PR4")))
+        service.scope.require.assert_called_with("intake")
+
+    def test_nothing_asked_reads_nothing_and_the_list_is_capped(self):
+        service, queries = _push_service(self.ROWS)
+        self.assertEqual(service.outcomes([]), {})
+        self.assertEqual(queries, [])
+        service.outcomes([f"PR{i}" for i in range(50)])
+        self.assertEqual(len(queries[0][1][1]), service.OUTCOMES_MAX)
+        self.assertEqual(service.OUTCOMES_MAX, tools.PUSH_MAX)
 
 
 def _history_row(name, direction, kind, subtotal, vat, total):

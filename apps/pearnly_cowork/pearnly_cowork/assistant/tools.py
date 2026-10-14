@@ -475,11 +475,80 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
             application.submission_failed(name, str(error))
             frappe.db.commit()
             return {"document": name, "status": "failed", "reason": str(error)[:300]}
-    sent = {"document": name, "status": "sent", "adapter": adapter}
+    # 账本记录名只给下面等结论用（`_settle`），不交给模型
+    sent = {"document": name, "status": "sent", "adapter": adapter, "record": result.get("name")}
     if adapter == "express":
-        # Express 由那台电脑上的小助手写入：不在线就先排着，连上后自动写。
+        # Express 由那台电脑上的 CC 桌面版写入：不在线就先排着，连上后自动写。
         sent["cc_desktop_online"] = destinations.online(adapter, target)
     return sent
+
+
+# ---------------- 推送后等写账结论（用户 2026-10-13 第 9 条） ----------------
+
+# 发出去以后在工具里等一会儿结论再回：CC 桌面版每 3 秒取一次队列，写一张 Express 一般几秒（教程录制：只晚了几秒，
+# CC 却先答了「已排队、还没确认」就收尾）。最多等 PUSH_WAIT_SECONDS，每 PUSH_WAIT_STEP 秒读一次账本（本人这几条记录，
+# 一条主键查询，不加锁）；到点还没结论的照实说「已排队」，让模型之后用 cowork_push_results 查，不自己 sleep。
+# 只在推送线程里等（`toolrun.may_wait`）：网页请求线程、long 队列进程是全站共用的，那里执行时只读一次就回。
+# 为什么不做「结论到了再回填工具结果」：到点还没结论时要有人回「已排队」，那就得另起定时器（新轮询）或占着一个进程等，
+# 与这里等价却多一套状态；写账回报（ACK）的请求里也不该去调模型厂商的接口。
+PUSH_WAIT_SECONDS = 25
+PUSH_WAIT_STEP = 2
+PUSH_QUEUED_NOTE = ("queued: sent, but the ERP has not reported a result yet (or CC Desktop on that computer is "
+                    "offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
+                    "cowork_push_results when they ask. Do not wait or sleep.")
+
+
+def _may_wait() -> bool:
+    """执行这次工具的地方能不能等（共用层 `toolrun.may_wait` 判定后放在对话信息里）；拿不到就不等。"""
+    return bool((getattr(frappe.local, "pearnly_assistant", None) or {}).get("may_wait"))
+
+
+def _concluded(item, outcome) -> bool:
+    """按账本结论改这一张的结果；还在路上的（prepared / pending / leased）不改，回 False。"""
+    status = outcome.get("status")
+    if status == "success":
+        item["status"] = "entered"
+        if outcome.get("docnum"):
+            item["docnum"] = outcome["docnum"]
+    elif status == "manual":
+        # 结果不明（写没写进 ERP 说不准）不说失败：要人去 ERP 核对后用 cowork_resolve_push_result 记下，别重推
+        item.update(status="unconfirmed" if outcome.get("result_unknown") else "failed",
+                    reason=_reason(outcome.get("reason")))
+    elif status == "cancelled":
+        item.update(status="failed", reason=_reason(outcome.get("reason")) or status)
+    else:
+        if outcome.get("reason"):
+            item["last_attempt_failed"] = _reason(outcome["reason"])  # 这一次没写成，CC 桌面版会再试
+        return False
+    item.pop("last_attempt_failed", None)
+    return True
+
+
+def _settle(results) -> None:
+    """发出去的几张（`sent`）等写账结论：入账（`entered`，带 ERP 单号）、失败（带原因）、结果不明，或到点仍在排队
+    （`queued`）。CC 桌面版不在线的不等（连上前不会有结论）；所有张共用一个时限。"""
+    waiting = {}
+    for item in results:
+        record = item.pop("record", None)
+        if item.get("status") != "sent":
+            continue
+        item["status"] = "queued"  # 到点还没结论就是这个
+        if record:
+            waiting[record] = item
+    live = {name for name, item in waiting.items() if item.get("cc_desktop_online", True)}
+    deadline = time.monotonic() + PUSH_WAIT_SECONDS
+    first = True
+    if waiting:
+        frappe.db.commit()  # 上面各张的推送都已落库；等的时候不带着本事务
+    while waiting and (first or (live and _may_wait() and time.monotonic() < deadline)):
+        if not first:
+            time.sleep(max(0.0, min(PUSH_WAIT_STEP, deadline - time.monotonic())))
+        first = False
+        frappe.db.rollback()  # 结论是 CC 桌面版回报时在别的请求里提交的：换一份新快照再读
+        for name, outcome in application.outcomes(list(waiting)).items():
+            if name in waiting and _concluded(waiting[name], outcome):
+                waiting.pop(name)
+                live.discard(name)
 
 
 def push_documents(tool_input) -> str:
@@ -487,9 +556,13 @@ def push_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:PUSH_MAX]
     if not names:
         frappe.throw(_("No documents were given."))
-    return _json({"results": [_push_one(name, tool_input.get("connection") or None,
-                                        tool_input.get("account_set_key") or None,
-                                        tool_input.get("posting_kind") or None) for name in names]})
+    results = [_push_one(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
+                         tool_input.get("posting_kind") or None) for name in names]
+    _settle(results)
+    out = {"results": results}
+    if any(item.get("status") == "queued" for item in results):
+        out["note"] = PUSH_QUEUED_NOTE
+    return _json(out)
 
 
 # ---------------- 对话里的票据：上传识别 ----------------
@@ -2002,7 +2075,7 @@ def work_search(tool_input) -> str:
 
 # ---------------- 文件夹定时任务 ----------------
 
-# 一次保存几个任务：允许卡片上一个任务一行，共用层卡片最多 20 行（`PREVIEW_ROWS`），多了会被截掉、用户看不到
+# 一次保存、启停或改提醒几个任务：同任务服务的批量上限（`rules.BATCH_MAX`），允许卡片上一个任务一行
 FOLDER_BATCH_MAX = 20
 TASK_KEYS = ("name", "title", "connection", "account_set_key", "direction", "posting_kind", "payment", "reader",
              "root_id", "folder", "run_day", "run_time")
@@ -2509,19 +2582,75 @@ def save_folder_tasks(tool_input) -> str:
                                                for row, value in zip(result.get("saved") or [], values)]})
 
 
-def set_folder_task_enabled(tool_input) -> str:
-    enabled = None if tool_input.get("enabled") is None else (1 if tool_input["enabled"] else 0)
-    remind = None if tool_input.get("remind") is None else (1 if tool_input["remind"] else 0)
-    # 提醒时刻只在说了时带（任务服务不带就保留原值）
-    times = {} if tool_input.get("remind_times") is None else {"remind_times": tool_input["remind_times"]}
+def _switch_args(item):
+    """启停 / 提醒这一项要改的：（启用, 提醒, 提醒时刻参数），没说的为 None；什么都没说回 None。
+    提醒时刻只在说了时带（任务服务不带就保留原值）。"""
+    enabled = None if item.get("enabled") is None else (1 if item["enabled"] else 0)
+    remind = None if item.get("remind") is None else (1 if item["remind"] else 0)
+    times = {} if item.get("remind_times") is None else {"remind_times": item["remind_times"]}
     if enabled is None and remind is None and not times:
+        return None
+    return enabled, remind, times
+
+
+def _switched(row) -> dict:
+    """启停 / 提醒改好后的任务（提醒关着不给时刻，见 `_remind_view`）。"""
+    out = {"task": row.get("name"), "title": row.get("title"), "status": "saved", "enabled": row.get("enabled"),
+           **_remind_view(row)}
+    return {key: value for key, value in out.items() if value is not None}
+
+
+def set_folder_task_enabled(tool_input) -> str:
+    args = _switch_args(tool_input)
+    if not args:
         return _json({"status": "not_saved", "reason": "Give enabled, remind or remind_times."})
+    enabled, remind, times = args
     row = _task_call(rules.set_enabled, str(tool_input.get("task") or ""), enabled, remind=remind,
                      cc_session=_conversation(), **times)
     if row.get("status") == "not_saved":
         return _json(row)
     out = {"status": "saved", "task": row.get("name"), "enabled": row.get("enabled"), **_remind_view(row)}
     return _json({key: value for key, value in out.items() if value is not None})
+
+
+def set_folder_tasks_enabled(tool_input) -> str:
+    """一次启停几个任务、开关或改它们的提醒（一张「允许」卡片，用户 2026-10-13 第 5 条：改 3 个任务的提醒弹了 3 张卡片）。
+    每个照 `set_folder_task_enabled` 同一套规则（任务服务 `rules.set_enabled`）逐个执行、逐个回结果。各任务的启停与提醒
+    互不相干：一个不通过只退回它自己（保存点），别的照常生效，失败的照实列出（不同于批量保存的全有或全无）；最后一起提交，
+    意外出错（死锁等）整笔回滚、一个都不算改过。"""
+    items = tool_input.get("tasks")
+    if not isinstance(items, list) or not items:
+        frappe.throw(_("No tasks were given."))
+    if len(items) > FOLDER_BATCH_MAX:
+        return _json({"status": "not_saved", "reason": f"At most {FOLDER_BATCH_MAX} tasks at a time; split the list."})
+    titles = {row.get("name"): row.get("title") for row in rules.listing().get("rules") or []}
+    results, seen = [], set()
+    for number, item in enumerate(items, 1):
+        item = item if isinstance(item, dict) else {}
+        name = _shown(item.get("task")).strip()
+        args = _switch_args(item)
+        reason = ("Each item needs task." if not name else "This task is already in the list." if name in seen
+                  else None if args else "Give enabled, remind or remind_times.")
+        if not reason:
+            seen.add(name)
+            enabled, remind, times = args
+            point = f"cowork_folder_switch_{number}"
+            frappe.db.savepoint(point)
+            try:
+                results.append(_switched(rules.set_enabled(name, enabled, remind=remind, cc_session=_conversation(),
+                                                           **times)))
+                continue
+            except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+                frappe.db.rollback(save_point=point)
+                frappe.clear_messages()
+                reason = str(error)[:300]
+        failed = {"task": name, "title": titles.get(name), "status": "failed", "reason": reason}
+        results.append({key: value for key, value in failed.items() if value is not None})
+    saved = sum(item["status"] == "saved" for item in results)
+    if saved:
+        frappe.db.commit()
+    status = "saved" if saved == len(results) else "partly_saved" if saved else "not_saved"
+    return _json({"status": status, "tasks": results})
 
 
 def delete_folder_tasks(tool_input) -> str:
@@ -2754,18 +2883,40 @@ def preview_save_folder_tasks(tool_input) -> list:
     return out
 
 
+def _switch_lines(item, row) -> list:
+    """启停 / 提醒这一项卡片上的（字段, 现在, 改后）；任务读不到（没有或看不到）时「现在」为空。"""
+    state = lambda on: _("cowork.folder.on") if on else _("cowork.folder.off")
+    lines = []
+    if item.get("enabled") is not None:
+        lines.append(("intake.col.status", state(row.get("enabled")) if row else "", state(item["enabled"])))
+    times = item.get("remind_times")
+    if item.get("remind") is not None or times is not None:
+        on = item["remind"] if item.get("remind") is not None else True
+        lines.append((REMIND_FIELD, _remind_shown(row.get("remind"), row.get("remind_times")) if row else "",
+                      _remind_shown(on, row.get("remind_times") if times is None else times)))
+    return lines
+
+
 def preview_set_folder_task_enabled(tool_input) -> list:
     row = _task_row(str(tool_input.get("task") or ""))
-    state = lambda on: _("cowork.folder.on") if on else _("cowork.folder.off")
     rows = [_change("cowork.folder.field.title", "", row.get("title") or tool_input.get("task"))]
-    if tool_input.get("enabled") is not None:
-        rows.append(_change("intake.col.status", state(row.get("enabled")) if row else "", state(tool_input["enabled"])))
-    times = tool_input.get("remind_times")
-    if tool_input.get("remind") is not None or times is not None:
-        on = tool_input["remind"] if tool_input.get("remind") is not None else True
-        rows.append(_change(REMIND_FIELD, _remind_shown(row.get("remind"), row.get("remind_times")) if row else "",
-                            _remind_shown(on, row.get("remind_times") if times is None else times)))
-    return rows
+    return rows + [_change(field, before, after) for field, before, after in _switch_lines(tool_input, row)]
+
+
+def preview_set_folder_tasks_enabled(tool_input) -> list:
+    """一张卡片列全部任务，一个任务一行：任务名 + 改什么（现在 → 改后），同批量保存的卡片。"""
+    items = [item for item in tool_input.get("tasks") or [] if isinstance(item, dict)][:FOLDER_BATCH_MAX]
+    rows = {row.get("name"): row for row in rules.listing().get("rules") or []} if items else {}
+    out = []
+    for item in items:
+        name = _shown(item.get("task"))
+        row = rows.get(name, {})
+        lines = _switch_lines(item, row)
+        before = [_part(field, text) for field, text, _after in lines]
+        after = [_part(field, text) for field, _before, text in lines]
+        out.append({"field": _shown(row.get("title")) or name, "before": " · ".join(p for p in before if p),
+                    "after": " · ".join(p for p in after if p)})
+    return out
 
 
 def preview_delete_folder_tasks(tool_input) -> list:
@@ -2849,6 +3000,9 @@ FOLDER_TASK_PROPS = {
                                                               "maximum": folder_contracts.REMIND_DAYS},
                                               "time": {"type": "string", "description": "HH:MM"}},
                                "required": ["days_before", "time"]}}}
+# 启停 / 提醒一个任务的参数（单个、批量两个工具同一份）
+SWITCH_PROPS = {"task": {"type": "string"}, "enabled": {"type": "boolean"}, "remind": FOLDER_TASK_PROPS["remind"],
+                "remind_times": FOLDER_TASK_PROPS["remind_times"]}
 TOOLS = [
     {"name": "cowork_recognize_attachments", "label": "Recognized documents",
      "description": "Recognize receipts and invoices the user attached in this chat with Pearnly's own recognition, "
@@ -3044,14 +3198,21 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents",
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
-                    "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time; each "
-                    "result says sent, needs_choice (get the choices with cowork_push_choices, ask the user, save them "
-                    "and push again), waiting_for_cc (the computer is still reading that account set's chart; push "
-                    "again shortly), failed with a reason, or already_success / already_pending (already entered or "
-                    "on its way; it is not pushed again: a pushed document can only be changed by a person in "
-                    "Express, then read back with cowork_express_readback). connection and account_set_key choose "
-                    "where to push (from cowork_intake_options), e.g. for a recognize-only document; left out, the "
-                    "target chosen at upload is used.",
+                    "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time. After "
+                    f"sending it waits up to about {PUSH_WAIT_SECONDS} seconds for the ERP's result (writing "
+                    "usually takes a few seconds), so do not wait or check again yourself. Each result says "
+                    "entered (written into the ERP; docnum is the ERP document number, tell it to the user), queued "
+                    "(no result yet, or CC Desktop is offline: it is entered later; check with cowork_push_results "
+                    "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
+                    "failed with a reason, unconfirmed with a reason (the ERP may or may not have it: the user checks "
+                    "in the ERP, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
+                    "(get the choices with cowork_push_choices, ask the user, save them and push again), "
+                    "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
+                    "or already_success / already_pending (already entered or on its way; it is not pushed again: a "
+                    "pushed document can only be changed by a person in Express, then read back with "
+                    "cowork_express_readback). connection and account_set_key choose where to push (from "
+                    "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
+                    "upload is used.",
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
@@ -3225,17 +3386,32 @@ TOOLS = [
                     "times (give enabled, remind, remind_times or several; give only what the user asked to "
                     "change). After resuming, the next run handles the "
                     "files in the folder it has not processed yet, including those put in while it was paused; a task "
-                    "with include_existing false only handles files put in after it is resumed.",
-     "input_schema": {"type": "object", "properties": {"task": {"type": "string"}, "enabled": {"type": "boolean"},
-                                                        "remind": FOLDER_TASK_PROPS["remind"],
-                                                        "remind_times": FOLDER_TASK_PROPS["remind_times"]},
-                      "required": ["task"]},
+                    "with include_existing false only handles files put in after it is resumed. For two or more "
+                    "tasks use cowork_set_folder_tasks_enabled.",
+     "input_schema": {"type": "object", "properties": SWITCH_PROPS, "required": ["task"]},
      "approval": True,
      # 只改提醒（remind / remind_times）时不问「启用还是停用」，带了 enabled 才问（2026-10-13）
      "ask": "Change this scheduled task?",
      "ask_when": {"enabled": "Turn this scheduled task on or off?"},
      "preview": "pearnly_cowork.assistant.tools.preview_set_folder_task_enabled",
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
+    # 一句话改几个任务的提醒或启停只弹一张「允许」卡片（用户 2026-10-13 第 5 条），同批量保存（F4）
+    {"name": "cowork_set_folder_tasks_enabled", "label": "Updated scheduled tasks",
+     "description": "Pause or resume several scheduled folder tasks, turn their reminders on or off, or change their "
+                    "reminder times, with one Allow from the user: one item per task with enabled, remind, "
+                    "remind_times or several (give only what the user asked to change). Use it whenever two or more "
+                    "tasks change, even when they all get the same change. Each task follows the same rules as "
+                    "cowork_set_folder_task_enabled and is done on its own: tasks lists each result (saved, or failed "
+                    "with a reason); one failing does not undo the others, so report each failure. Up to "
+                    f"{FOLDER_BATCH_MAX} tasks.",
+     "input_schema": {"type": "object", "properties": {
+         "tasks": {"type": "array", "minItems": 1, "maxItems": FOLDER_BATCH_MAX,
+                   "items": {"type": "object", "properties": SWITCH_PROPS, "required": ["task"]}}},
+         "required": ["tasks"]},
+     "approval": True,
+     "ask": "Change these scheduled tasks?",
+     "preview": "pearnly_cowork.assistant.tools.preview_set_folder_tasks_enabled",
+     "handler": "pearnly_cowork.assistant.tools.set_folder_tasks_enabled"},
     {"name": "cowork_delete_folder_tasks", "label": "Deleted scheduled tasks",
      "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
                     "Intake workbench. Only ask which ones when it is unclear.",

@@ -261,6 +261,7 @@ Change members,Change members
 Change the MR.ERP import settings?,Change the MR.ERP import settings?
 Change the inventory account group?,Change the inventory account group?
 Change the stock account group?,Change the stock account group?
+Change these scheduled tasks?,Change these scheduled tasks?
 Change this scheduled task?,Change this scheduled task?
 Changed,Changed
 Changed At (UTC),Changed At (UTC)
@@ -1853,6 +1854,7 @@ Updated At,Updated At
 Updated By,Updated By
 Updated a scheduled task,Updated a scheduled task
 Updated a task,Updated a task
+Updated scheduled tasks,Updated scheduled tasks
 Updated {0} user(s),Updated {0} user(s)
 Upload,Upload
 Upload Failed,Upload Failed

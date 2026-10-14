@@ -26,8 +26,8 @@ from pearnly_cowork.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
 MAX_RULES = 50
-# CC 一张「允许」卡片一次存几个任务：与共用层卡片行数上限（`pearnly_core.assistant.tools.PREVIEW_ROWS`）相同，
-# 卡片上一个任务一行，多出的行会被截掉、用户看不到。
+# CC 一张「允许」卡片一次存几个任务（F4，2026-10-12；一次启停 / 改提醒几个任务同一上限，第 5 条）：卡片上一个任务一行，
+# 只显示前几行、其余合成「还有 N 项」（不超过共用层卡片的 `pearnly_core.assistant.tools.PREVIEW_ROWS`，N 才数得对）。
 BATCH_MAX = 20
 # 任务列表的结果统计缓存（`results`）：键里带文件行的指纹，变了就换键；这里只管不用的键多久后清掉
 RESULTS_KEY = "cowork:folder:results:"

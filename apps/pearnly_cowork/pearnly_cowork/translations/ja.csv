@@ -261,6 +261,7 @@ Change members,メンバーを変更
 Change the MR.ERP import settings?,MR.ERP の取込設定を変更しますか？
 Change the inventory account group?,在庫勘定グループを変更しますか？
 Change the stock account group?,在庫勘定グループを変更しますか？
+Change these scheduled tasks?,これらの定期タスクを変更しますか？
 Change this scheduled task?,この定期タスクを変更しますか？
 Changed,変更あり
 Changed At (UTC),変更日時（UTC）
@@ -1853,6 +1854,7 @@ Updated At,更新日時
 Updated By,更新者
 Updated a scheduled task,定期タスクを更新しました
 Updated a task,タスクを更新しました
+Updated scheduled tasks,複数の定期タスクを更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
 Upload,アップロード
 Upload Failed,アップロード失敗数

@@ -261,6 +261,7 @@ Change members,变更成员
 Change the MR.ERP import settings?,要更改 MR.ERP 导入设置吗？
 Change the inventory account group?,要更改存货科目组吗？
 Change the stock account group?,要更改存货科目组吗？
+Change these scheduled tasks?,要更改这些定时任务吗？
 Change this scheduled task?,要更改这个定时任务吗？
 Changed,改过
 Changed At (UTC),修改时间（UTC）
@@ -1853,6 +1854,7 @@ Updated At,更新时间
 Updated By,更新人
 Updated a scheduled task,更新了定时任务
 Updated a task,修改了任务
+Updated scheduled tasks,更新了多个定时任务
 Updated {0} user(s),已更新 {0} 位用户
 Upload,上传
 Upload Failed,上传失败数

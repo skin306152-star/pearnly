@@ -261,6 +261,7 @@ Change members,เปลี่ยนสมาชิก
 Change the MR.ERP import settings?,เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่
 Change the inventory account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
 Change the stock account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
+Change these scheduled tasks?,เปลี่ยนงานตามกำหนดเวลาเหล่านี้หรือไม่
 Change this scheduled task?,เปลี่ยนงานตามกำหนดเวลานี้หรือไม่
 Changed,แก้ไขแล้ว
 Changed At (UTC),เวลาที่แก้ไข (UTC)
@@ -1853,6 +1854,7 @@ Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Updated a scheduled task,อัปเดตงานตามกำหนดเวลาแล้ว
 Updated a task,แก้ไขงานแล้ว
+Updated scheduled tasks,อัปเดตงานตามกำหนดเวลาหลายงานแล้ว
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คนแล้ว
 Upload,อัปโหลด
 Upload Failed,จำนวนที่อัปโหลดไม่สำเร็จ

@@ -2064,6 +2064,7 @@ Save this scheduled task?	要保存这个定时任务吗？	บันทึก�
 Save these scheduled tasks?	要保存这些定时任务吗？	บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを保存しますか？
 Turn this scheduled task on or off?	要启用或停用这个定时任务吗？	เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่	この定期タスクをオン／オフにしますか？
 Change this scheduled task?	要更改这个定时任务吗？	เปลี่ยนงานตามกำหนดเวลานี้หรือไม่	この定期タスクを変更しますか？
+Change these scheduled tasks?	要更改这些定时任务吗？	เปลี่ยนงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを変更しますか？
 Delete these scheduled tasks?	要删除这些定时任务吗？	ลบงานตามกำหนดเวลาเหล่านี้หรือไม่	これらの定期タスクを削除しますか？
 Transfer slips	转账凭条	สลิปโอนเงิน	振込明細
 Withholding tax certificates	预扣税凭证	หนังสือรับรองการหักภาษี ณ ที่จ่าย	源泉徴収票
@@ -2091,6 +2092,7 @@ Checked scheduled task options	查看了定时任务可选项	ตรวจสอ
 Saved a scheduled task	保存了定时任务	บันทึกงานตามกำหนดเวลาแล้ว	定期タスクを保存しました
 Saved scheduled tasks	保存了多个定时任务	บันทึกงานตามกำหนดเวลาหลายงานแล้ว	複数の定期タスクを保存しました
 Updated a scheduled task	更新了定时任务	อัปเดตงานตามกำหนดเวลาแล้ว	定期タスクを更新しました
+Updated scheduled tasks	更新了多个定时任务	อัปเดตงานตามกำหนดเวลาหลายงานแล้ว	複数の定期タスクを更新しました
 Deleted scheduled tasks	删除了定时任务	ลบงานตามกำหนดเวลาแล้ว	定期タスクを削除しました
 Listed folder files	列出了文件夹里的文件	แสดงรายการไฟล์ในโฟลเดอร์แล้ว	フォルダーのファイルを一覧しました
 Brought files from a folder	从文件夹取来了文件	นำไฟล์จากโฟลเดอร์มาแล้ว	フォルダーからファイルを取り込みました
