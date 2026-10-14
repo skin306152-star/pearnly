@@ -289,10 +289,14 @@ def _account_counts(filters, or_filters=None) -> dict:
     return counts
 
 
-def _by_account_set(dated, filters, or_filters, matched, names) -> dict:
+def _by_account_set(dated, filters, or_filters, matched, names, complete=True) -> dict:
     """{"by_account_set": [...]}：``dated`` 圈出这段时间有单据的账套，``filters`` / ``or_filters`` 是这次的条件；
     ``matched`` 是取回后再筛过的全部行（方向、合计那条路），给了就按它数。账套名同列表（``names`` 是同一份缓存）。
-    一份账套都没有（全是没选账套的）就不给。"""
+    一份账套都没有（全是没选账套的）就不给。
+
+    ``complete`` 为 False：取回后再筛只看了最新的 LIST_SCAN_MAX 张（审查 2026-10-15：没看到的账套原来记 0，模型会答
+    「这家没有」）。这时每行标 partial，看到的张数只是下限，没看到的账套 count 为空（不是 0），整组另标
+    by_account_set_complete: false。"""
     known = _account_counts(dated)
     if matched is not None:
         hits = {}
@@ -307,17 +311,20 @@ def _by_account_set(dated, filters, or_filters, matched, names) -> dict:
     listed = []
     for key in dict.fromkeys([*hits, *known]):
         connection, account_set, _count = hits.get(key) or known[key]
-        count = hits[key][2] if key in hits else 0
+        count = hits[key][2] if key in hits else (0 if complete else None)
+        partial = {} if complete else {"partial": True}
         if not key[1]:
             if count:
-                listed.append({"push_target": "not chosen yet", "count": count})
+                listed.append({"push_target": "not chosen yet", "count": count, **partial})
             continue
         label = _account_names(names, connection).get(key[1]) if connection else None
         listed.append({**({"account_label": label} if label else {}), "connection": connection,
-                       "account_set_key": account_set, "count": count})
-    listed.sort(key=lambda item: (-item["count"], "account_set_key" not in item,
+                       "account_set_key": account_set, "count": count, **partial})
+    listed.sort(key=lambda item: (-(item["count"] or 0), item["count"] is None, "account_set_key" not in item,
                                   str(item.get("account_label") or item.get("account_set_key") or "")))
     out = {"by_account_set": listed[:BY_ACCOUNT_SHOWN]}
+    if not complete:
+        out["by_account_set_complete"] = False
     if len(listed) > BY_ACCOUNT_SHOWN:
         out["by_account_set_total"] = len(listed)
     return out
@@ -361,7 +368,7 @@ def list_documents(tool_input) -> str:
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
     query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages"],
              "order_by": "modified desc, name desc"}
-    out, matched = {}, None
+    out, matched, complete = {}, None, True
     if not (search and failed_only) and not direction and not tool_input.get("totals"):
         rows = [_with_page(r) for r in frappe.get_list(HISTORY, limit_start=offset, limit_page_length=limit, **query)]
         if len(rows) < limit and (rows or not offset):
@@ -397,7 +404,8 @@ def list_documents(tool_input) -> str:
         if not complete:
             out["complete"] = False
             out["note"] = (f"Only the newest {LIST_SCAN_MAX} documents were checked; narrow the dates to cover "
-                           "the rest.")
+                           "the rest. Counts in by_account_set are only what was checked: never say a company has "
+                           "none from it; narrow the dates or ask about that company with its account_set_key.")
     next_offset = offset + len(rows)
     names = {}
     for row in rows:
@@ -406,7 +414,7 @@ def list_documents(tool_input) -> str:
     if not tool_input.get("account_set_key") and not search:
         # 没限定公司：每份账套各几张，同一时间范围里有单据的账套都列（0 张也列），见 `_by_account_set`
         dated = {key: value for key, value in filters.items() if key in ("creation", "invoice_date", "push_connection")}
-        out.update(_by_account_set(dated, filters, or_filters, matched, names))
+        out.update(_by_account_set(dated, filters, or_filters, matched, names, complete))
     # 推送时刻存的是 UTC（推送账本 `push.native` 的 now_utc）；上传时刻 creation 是站点时区
     return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
                   "next_offset": next_offset if next_offset < total else None, **out}, utc=("last_pushed_at",))
@@ -3321,7 +3329,10 @@ TOOLS = [
                     "documents (credit notes summed separately; without_value counts documents with no recognized "
                     "value). Without account_set_key and search, by_account_set gives every account set (company) "
                     "with documents in the same dates and how many of them match, 0 included: answer about all "
-                    "companies from it. Amounts are as recognized, not the ERP's figures.",
+                    "companies from it. When complete is false (only the newest documents were checked), its "
+                    "rows are marked partial and a company with an empty count was not reached: never say it has "
+                    "none; narrow the dates or ask about that company with its account_set_key. Amounts are as "
+                    "recognized, not the ERP's figures.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["waiting", "not_pushed", "pending", "success", "failed"]},
