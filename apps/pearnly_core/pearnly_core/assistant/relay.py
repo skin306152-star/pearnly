@@ -12,6 +12,7 @@
   （分段接续后远端会话换了，对话编号不变，见 `sessions`）。
 - 顺手记下每次模型请求的输入量（`context.note`），供计价分档的接续判断。
 - 智能体停下来等 Pearnly 工具结果时，直接在服务端以会话主人的身份执行（`toolrun`），不靠页面开着。
+- 一轮结束时告诉 `titles`：还挂着临时标题的对话这时排概括（同 Claude 在第一轮之后起标题）。
 """
 import threading
 import time
@@ -19,9 +20,9 @@ import uuid
 
 import frappe
 
-from pearnly_core.assistant import context, engine, toolrun
+from pearnly_core.assistant import context, contracts, engine, titles, toolrun
 
-EVENT = "pearnly_assistant_event"
+EVENT = contracts.REALTIME_EVENT
 LOCK_TTL = 120
 READY_WAIT = 3
 MAX_SECONDS = 15 * 60
@@ -60,6 +61,14 @@ def pending_tools(event: dict) -> list[str]:
     return [str(i) for i in stop.get("event_ids") or []]
 
 
+def _turn_ended(conversation):
+    """排侧栏标题的概括只是附带的：出错不影响收线。"""
+    try:
+        titles.turn_ended(conversation)
+    except Exception as err:
+        print(f"assistant relay {conversation}: title {type(err).__name__}", flush=True)
+
+
 def _run(site, sites_path, conversation, remote, user, key, token, ready):
     frappe.init(site=site, sites_path=sites_path)
     try:
@@ -80,7 +89,10 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
                     for use_id in pending_tools(event):
                         if use_id in calls:
                             toolrun.execute(conversation, remote, calls.pop(use_id))
-                    if finished(event) or time.monotonic() > deadline:
+                    if finished(event):
+                        _turn_ended(conversation)
+                        return
+                    if time.monotonic() > deadline:
                         return
             except Exception as err:
                 # 只记类型：事件内容与密钥都不进日志。断了就按下面的状态决定是否重接。

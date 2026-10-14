@@ -17,22 +17,23 @@
 对话提醒（`notices`）不在引擎会话里：补拉、整段重放时由这里按时间并进来；用户发话时，还没带过的提醒（本对话的、
 没挂对话的、别的对话里近一天的）随批末的系统消息告诉智能体，发出成功后才把带上的那几条标成带过。
 同一条系统消息每次都带上用户当地的日期时间（智能体才知道「今天」）。
+
+侧栏标题见 `titles`（首条消息先当临时标题，第一轮结束后概括）；新建、改名、加星标、归档、删除都经 `sidebar`
+推给会话主人，同一账号别的设备的侧栏马上并入。
 """
 import json
 
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import config, context, contracts, engine, engines, notices, relay, toolrun, tools
+from pearnly_core.assistant import (config, context, contracts, engine, engines, notices, relay, sidebar, titles,
+                                    toolrun, tools)
 
 SESSION = context.SESSION
 LIST_LIMIT = 100  # 加星标的最多这么多条（都在第一页）
 PAGE_SIZE = 30  # 其余的每页条数
 SAME_TIME_SLACK = 10  # 翻页时多取几条，用来跳过与上一页最后一条同一时刻、已经给过的
-# 短标题生成后推给会话主人（侧栏等着它，见对话页 session-list-adapter）
-TITLE_EVENT = "pearnly_assistant_title"
-TITLE_JOB_TIMEOUT = 60
-FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified",
+FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry"]
 
 
@@ -171,6 +172,7 @@ def create() -> dict:
     _route(sid)
     doc = frappe.get_doc({"doctype": SESSION, "session_id": sid, "user": user, "product": product,
                           "engine_code": config.engine_code(), "title": ""}).insert(ignore_permissions=True)
+    sidebar.changed(user, "created", sid)
     return _summary(doc, status)
 
 
@@ -180,16 +182,19 @@ def get(session_id) -> dict:
 
 
 def rename(session_id, title) -> None:
+    """手动改名：记成用户起的名字，之后的自动标题不再覆盖（`titles`）。"""
     row = owned(session_id)
     title = contracts.title_from(title)
-    frappe.db.set_value(SESSION, row.name, "title", title)
+    frappe.db.set_value(SESSION, row.name, {"title": title, "title_source": titles.BY_USER})
     engine.adapter().rename(current(row), title)
+    sidebar.changed(_user(), "titled", row.session_id, title=title)
 
 
 def star(session_id, starred) -> None:
     """加星标 / 取消：只是本站的整理标记，不动引擎那边的会话。"""
     row = owned(session_id)
     frappe.db.set_value(SESSION, row.name, "starred", 1 if starred else 0, update_modified=False)
+    sidebar.changed(_user(), "starred", row.session_id, starred=bool(starred))
 
 
 def archive(session_id) -> None:
@@ -198,6 +203,7 @@ def archive(session_id) -> None:
     for remote in segments(row):
         api.archive(remote)
     frappe.db.set_value(SESSION, row.name, "archived", 1)
+    sidebar.changed(_user(), "archived", row.session_id)
 
 
 def delete(session_id) -> None:
@@ -210,6 +216,7 @@ def delete(session_id) -> None:
     from pearnly_core.assistant import files
 
     files.forget(row.name)
+    sidebar.changed(_user(), "deleted", row.session_id)
 
 
 def _worked_on(row) -> tuple[str, str]:
@@ -286,7 +293,18 @@ def _with_run(page, row, api, latest, as_of) -> dict:
     run = run_state(row, api, latest, as_of)
     if run:
         page["run"] = run
+        _follow(row, run)
     return page
+
+
+def _follow(row, run) -> None:
+    """读到运行状态的时刻（打开对话、回到前台、重连）顺带补两件事，都不多读引擎：
+    - 这段对话在跑（例如在别的设备上发的）而本站没有推送线程（进程重启、过了时限）：接上，这台设备也实时跟上；
+    - 已经停下、还挂着临时标题（推送线程没看到这一轮结束）：排概括（`titles`）。"""
+    if run["status"] == "running" or run["executing"]:
+        relay.ensure(row.session_id, current(row), _user())
+    elif run["status"] in ("idle", "terminated") and titles.due(row):
+        titles.request(row.name)
 
 
 def _remember_context(row, events_of_current) -> None:
@@ -324,16 +342,11 @@ def send(session_id, text) -> None:
         # 发出成功才算带过（只标这次真带上的几条）；发不出（抛错）下次再带
         notices.mark_carried(frappe.session.user, [item["name"] for item in shown])
     if not row.title:
-        # 首条消息原文先当标题（只写本站，会话列表读本站表），不拖慢发送；长的再在后台概括成短标题（`retitle`）。
-        title = contracts.title_from(text)
-        frappe.db.set_value(SESSION, row.name, "title", title)
-        source = contracts.summary_source(text)
-        if source:
-            frappe.enqueue("pearnly_core.assistant.sessions.retitle", queue="short", timeout=TITLE_JOB_TIMEOUT,
-                           enqueue_after_commit=True, name=row.name, conversation=row.session_id, source=source,
-                           title=title, user=frappe.session.user)
-        else:
-            _announce_title(row.session_id, title, frappe.session.user, after_commit=True)
+        # 首条消息原文先当临时标题（只写本站，会话列表读本站表），不拖慢发送；第一轮结束后才概括（`titles`）
+        titles.start(row, text, frappe.session.user)
+    elif titles.due(row):
+        # 上一轮结束时推送线程没排上概括（进程重启、过了时限）：这时补排
+        titles.request(row.name, after_commit=True)
 
 
 def notices_seen(session_id) -> None:
@@ -342,26 +355,10 @@ def notices_seen(session_id) -> None:
     notices.mark_seen(row.session_id, _user())
 
 
-def retitle(name, conversation, source, title, user) -> None:
-    """后台任务：用引擎目录登记的便宜模型把首条消息概括成短标题（同各家对话应用的侧栏）。用户在这期间改过名就不动；
-    概括不出来保留原文。无论成败都把当前标题推给会话主人，侧栏不用干等。"""
-    short = ""
-    try:
-        short = contracts.short_title(engine.adapter().summarize(source, config.settings().engine.title_model))
-    except Exception:
-        frappe.log_error(title="Assistant title summary failed")
-    current = frappe.db.get_value(SESSION, name, "title")
-    if short and current == title:
-        frappe.db.set_value(SESSION, name, "title", short, update_modified=False)
-        frappe.db.commit()
-        current = short
-    if current is not None:
-        _announce_title(conversation, current, user)
-
-
-def _announce_title(conversation, title, user, after_commit=False) -> None:
-    frappe.publish_realtime(TITLE_EVENT, {"session_id": conversation, "title": title}, user=user,
-                            after_commit=after_commit)
+def retitle(name, conversation=None, source=None, title=None, user=None) -> None:
+    """兼容入口（排队任务的点路径）：上线前已排队、按首条消息概括的旧任务。交给 `titles.summarize`：标题仍是
+    排队时的原文、用户没改过名才概括。新代码不再排它。"""
+    titles.summarize(name, legacy_title=title)
 
 
 def confirm(session_id, confirmations) -> int:
