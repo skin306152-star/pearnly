@@ -337,9 +337,10 @@ def _by_account_set(dated, filters, or_filters, matched, names, complete=True, o
 
 # ---------------- 公司对话的默认范围 ----------------
 
-def _company_scope(tool_input, explicit=("connection", "account_set_key")):
-    """按公司可筛的读工具这次看哪些账套（`company_tools.default_scope`）。调用自己点了账套 / 连接的照旧按点的取（None）；
-    不在 CC 对话里、也没给 company 的不碰主档（照旧不限）。"""
+def _company_scope(tool_input, explicit=("account_set_key",)):
+    """按公司可筛的读工具这次看哪些账套（`company_tools.default_scope`）。调用自己点了账套的照旧按点的取（None）；
+    只给了连接不算放开——模型常把说明里的连接照抄进来（2026-10-15 测试机：公司对话里带着连接查，列出了别家 128 张），
+    这时在这条连接上仍只取这家的账套。不在 CC 对话里、也没给 company 的不碰主档（照旧不限）。"""
     if any(tool_input.get(key) for key in explicit):
         return None
     session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
@@ -389,11 +390,13 @@ def list_documents(tool_input) -> str:
     pairs, exact = None, True
     if company and company["sets"] is not None:
         pairs = _scope_pairs(company["sets"])
+        if tool_input.get("connection"):  # 点了连接：这家在这条连接上的账套
+            pairs = {pair for pair in pairs if pair[0] == str(tool_input["connection"])}
         if not pairs:
             return _json({"documents": [], "count": 0, "total": 0, "offset": offset, "next_offset": None,
                           "scope": company["scope"]})
         linked = sorted({connection for connection, _key in pairs})
-        keys = sorted({str(item["key"]) for item in company["sets"]})
+        keys = sorted({str(item["key"]) for item in company["sets"] if str(item.get("connection") or "") in linked})
         filters["push_connection"] = ["in", linked]
         filters["push_account_set"] = ["in", keys]
         exact = all({key for connection, key in pairs if connection == link} == {_account_key(key) for key in keys}
@@ -3397,7 +3400,7 @@ TOOLS = [
                     "companies from it. When complete is false (only the newest documents were checked), its "
                     "rows are marked partial and a company with an empty count was not reached: never say it has "
                     "none; narrow the dates or ask about that company with its account_set_key. In a conversation "
-                    "filed under a company, a call without connection, account_set_key or company covers only that "
+                    "filed under a company, a call without account_set_key or company covers only that "
                     "company's account sets (scope names it); all_companies true lifts that. Amounts are as "
                     "recognized, not the ERP's figures.",
      "input_schema": {"type": "object", "properties": {

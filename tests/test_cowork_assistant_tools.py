@@ -2344,6 +2344,20 @@ class CompanyScopeTests(unittest.TestCase):
                          ("EXP1", "S:\\69EXP\\DEMO01"))
         self.assertNotIn("scope", out)
 
+    def test_a_connection_alone_does_not_lift_the_company_scope(self):
+        # 2026-10-15 测试机：模型把说明里的连接照抄进来，旧代码因此不按公司筛，列出了别家 128 张
+        self.answer = {"scope": dict(self.SCOPE), "sets": [{"connection": "EXP1", "key": "s:\\69exp\\69sincer"},
+                                                           {"connection": "EXP2", "key": "s:\\69exp\\demo01"}]}
+        out = json.loads(tools.list_documents({"connection": "EXP1", "push_state": "success"}))
+        self.assertEqual(len(self.asked), 1)
+        filters = frappe.calls[0]["filters"]
+        self.assertEqual((filters["push_connection"], filters["push_account_set"]), (["in", ["EXP1"]], ["in", ["s:\\69exp\\69sincer"]]))
+        self.assertEqual(out["scope"], self.SCOPE)
+        # 这家在点的连接上没有账套：回空，不放开
+        frappe.calls.clear()
+        out = json.loads(tools.list_documents({"connection": "EXP9", "push_state": "success"}))
+        self.assertEqual((out["count"], frappe.calls), (0, []))
+
     def test_outside_a_company_conversation_nothing_changes(self):
         frappe.local.pearnly_assistant = None
         out = json.loads(tools.list_documents({"push_state": "success"}))
