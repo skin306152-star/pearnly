@@ -484,6 +484,13 @@ def run_tool(session_id, tool_use_id) -> dict:
     relay.ensure(row.session_id, remote, frappe.session.user)
     status = toolrun.execute(row.session_id, remote, call)
     if status == "awaiting_approval":
-        # 卡片在点之前就要说清改什么（2026-10-10 测试：说明在点了拒绝之后才出来）
-        return {"status": status, **tools.approval_view(call.get("name"), call.get("input"))}
+        # 卡片在点之前就要说清改什么（2026-10-10 测试：说明在点了拒绝之后才出来）。预览按这段对话现算（同工具执行时：
+        # 产品工具缺省取本对话挂的公司等），所以带上对话编号；算完还原（2026-10-15 测试机：公司名空着）。
+        before = getattr(frappe.local, "pearnly_assistant", None)
+        frappe.local.pearnly_assistant = {**(before or {}), "session_id": row.session_id}
+        try:
+            view = tools.approval_view(call.get("name"), call.get("input"))
+        finally:
+            frappe.local.pearnly_assistant = before
+        return {"status": status, **view}
     return {"status": status}

@@ -484,7 +484,11 @@ class RelayTests(unittest.TestCase):
         self.assertFalse(tools._refused('{"status": "saved"}'))
         self.assertFalse(tools._refused("plain text"))
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
-        self.assertIn("tools.approval_view(", source.split("def run_tool(", 1)[1])
+        run_tool = source.split("def run_tool(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("tools.approval_view(", run_tool)
+        # 卡片预览按这段对话现算（产品工具缺省取本对话挂的公司），算完还原（2026-10-15 测试机：公司名空着）
+        self.assertIn('frappe.local.pearnly_assistant = {**(before or {}), "session_id": row.session_id}', run_tool)
+        self.assertIn("frappe.local.pearnly_assistant = before", run_tool.split("finally:", 1)[1])
         # 结果面板预览 PDF：用 inline 的 pdf 回应，不是附件（binary 会变成下载、面板空白）
         files_source = (CORE / "assistant/files.py").read_text(encoding="utf-8").split("def download(", 1)[1]
         self.assertIn('frappe.local.response.type = "pdf"', files_source)
