@@ -2,6 +2,7 @@
 
 推送线程（`relay`）一看到智能体停下来等工具结果，就在服务端直接执行，不靠页面开着；页面的 `run_tool`
 只作兜底。两边共用这里：按调用编号在 `Pearnly Assistant Tool Run` 登记（唯一），同一次调用只执行一遍。
+工具里要等别处结论的（例如推送后等写账结果）只在推送线程里等（`may_wait`），别的执行处立刻返回。
 工具一律以会话主人的身份执行（权限、租户、套账与数据范围沿用各产品自己的校验）；意外出错也要回一个错误结果，
 不能让会话一直停在等待里。
 """
@@ -119,9 +120,16 @@ def work_list(conversation: str) -> str:
                                 "status": run.get("status")} for run in runs)
 
 
+def may_wait() -> bool:
+    """这次执行能不能在工具里有界地等一会儿别处的结论（例如推送后等写账结果，用户 2026-10-13 第 9 条）：只有推送线程
+    （`relay`）能等 —— 那是本轮对话专有、以等网络为主的线程，等着不占别人的名额。网页请求（页面兜底 `run_tool`、点「允许」）
+    占的是网页进程的请求线程，引擎回调排的后台任务（`webhook`）占的是 long 队列的进程，都是全站共用的，工具要立刻返回。"""
+    return getattr(frappe.local, "request", None) is None and getattr(frappe.local, "job", None) is None
+
+
 def _finish(conversation, remote, run_name, use_id, tool, tool_input) -> str:
-    # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）；工具函数本身只收模型给的参数。
-    frappe.local.pearnly_assistant = {"session_id": conversation}
+    # 工具要用到的对话信息（例如取本对话的附件原件，`files.attachment`）与能不能等（`may_wait`）；工具函数本身只收模型给的参数。
+    frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait()}
     fresh()
     _use_lang(conversation)
     try:

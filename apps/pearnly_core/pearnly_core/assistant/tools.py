@@ -85,7 +85,9 @@ def needs_approval(name: str, tool_input) -> bool:
     return bool(gate)
 
 
-PREVIEW_ROWS = 20
+# 卡片只显示前几行，其余合成一行「还有 N 项」（对话页 approval-bar，卡片规矩：4–5 项、卡内不滚动，用户 2026-10-13）：
+# 这里照实给全，N 才数得对；上限只挡异常大的列表。
+PREVIEW_ROWS = 100
 
 
 def approval_view(name: str, tool_input) -> dict:

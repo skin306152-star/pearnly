@@ -1006,6 +1006,77 @@ assert.equal((await everyRequest())[0].lang, "en");
 
 
 
+# ── 「允许」卡片的卡片规矩（用户 2026-10-13 第 5、12 条）──────────────────────────────────────────────────────
+# 一句话改几个定时任务只弹一张卡片，卡片照 Claude 对话里卡片的规矩：按钮最多两个、在底部；改动最多 5 行，多了列前几行
+# + 「还有 N 项」；卡内不套滚动；手机点按区不小于 44pt；颜色只用 globals.css 的变量。用 react-dom/server 渲染真实组件。
+
+APPROVAL_CARD = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";  // 浏览器版：打成 ESM 后不用 require 内置模块
+import { ApprovalBar, CARD_ROWS, cardRows } from "@/components/tool-uis/approval-bar";
+
+const g = globalThis as any;
+// 允许卡片上一个任务一行（服务端 preview_set_folder_tasks_enabled 的形状）
+const rows = (n: number) => Array.from({ length: n }, (_, i) => ({
+  field: `Task ${i + 1}`, before: "Reminder: Day before 08:00", after: "Reminder: 2 days before 09:00" }));
+const card = (n: number) => renderToStaticMarkup(createElement(ApprovalBar, {
+  approval: { id: "sevt_1", preview: rows(n) }, respondToApproval: () => {} }));
+const items = (html: string) => (html.match(/<li/g) ?? []).length;
+const buttons = (html: string) => html.match(/<button[^>]*>/g) ?? [];
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class ApprovalCardBehaviourTests(unittest.TestCase):
+    def test_one_card_for_several_tasks_follows_the_card_rules(self):
+        run_ts(APPROVAL_CARD + r"""
+// 教程里的一句话改 3 个任务的提醒：一张卡片全列出，两个按钮在改动下面
+let html = card(3);
+assert.equal(items(html), 3);
+assert.doesNotMatch(html, /more/);
+assert.equal(buttons(html).length, 2);
+assert.ok(html.lastIndexOf("</ul>") < html.indexOf("<button"));
+// 手机点按区不小于 44pt（与页面上其它圆按钮同一个尺寸变量）
+for (const button of buttons(html)) assert.match(button, /pointer-coarse:h-\(--cc-mbtn-size\)/);
+// 卡内不套滚动
+assert.doesNotMatch(card(20), /overflow|max-h/);
+// 正好 5 行：全列；6 行：前 4 行 + 「还有 2 项」，卡片仍是 5 行
+assert.equal(items(card(CARD_ROWS)), CARD_ROWS);
+html = card(CARD_ROWS + 1);
+assert.equal(items(html), CARD_ROWS);
+assert.match(html, />Task 4</);
+assert.doesNotMatch(html, />Task 5</);
+assert.match(html, />2 more</);
+// 批量上限 20 个任务：前 4 个 + 「还有 16 项」，两个按钮照旧
+html = card(20);
+assert.match(html, />16 more</);
+assert.equal(buttons(html).length, 2);
+assert.deepEqual(cardRows(rows(20)).shown.map((r) => r.field), ["Task 1", "Task 2", "Task 3", "Task 4"]);
+assert.deepEqual(cardRows([]), { shown: [], more: 0 });
+// 没有改动可列（内置工具的批准）：只有两个按钮
+html = renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "sevt_2" }, respondToApproval: () => {} }));
+assert.equal(items(html), 0);
+assert.equal(buttons(html).length, 2);
+// 点过以后：结论用 globals.css 的成功 / 危险色
+const verdict = (approved: boolean) => renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "x", approved } }));
+assert.match(verdict(true), /text-success/);
+assert.match(verdict(false), /text-danger/);
+g.done();
+""")
+        run_ts(APPROVAL_CARD + r"""
+assert.match(card(6), />还有 2 项</);
+g.done();
+""", lang="zh")
+        run_ts(APPROVAL_CARD + r"""
+assert.match(card(6), />อีก 2 รายการ</);
+g.done();
+""", lang="th")
+        source = read("components/tool-uis/approval-bar.tsx")
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
+
+
 # ── 运行状态以服务端为准（2026-10-13 iPhone）──────────────────────────────────────────────────────────
 # 主屏幕图标打开的 CC，这一轮在电脑上 15:24 已结束；手机在后台、锁屏收到推送，15:41 回来仍显示在回复（停止按钮、发不了），
 # 侧栏重进同一个对话也一样。下面用会话控制器、尾巴、侧栏状态的真代码，接一个假的站点接口（事件记录 + 引擎状态 + 执行记录）。

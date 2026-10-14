@@ -378,6 +378,40 @@ class RelayTests(unittest.TestCase):
         self.assertIn("DuplicateEntryError", run)  # 推送线程与页面兜底谁先到谁执行，只执行一遍
         self.assertIn("except Exception", run)  # 意外出错也回结果，不让会话卡住
 
+    def test_only_the_relay_thread_may_wait_inside_a_tool(self):
+        """推送后等写账结果（用户 2026-10-13 第 9 条）只在推送线程里等：网页请求线程（页面兜底、点「允许」）与 long 队列进程
+        （引擎回调）是全站共用的名额，在那里执行的工具要立刻返回。工具从对话信息里读到，执行完清掉。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        for local, expected in ((types.SimpleNamespace(), True),  # 推送线程：没有请求、不是后台任务
+                                (types.SimpleNamespace(request=object()), False),
+                                (types.SimpleNamespace(request=None, job=types.SimpleNamespace(job_name="j")), False)):
+            with mock.patch.object(toolrun.frappe, "local", local, create=True):
+                self.assertEqual(toolrun.may_wait(), expected, vars(local))
+        seen, posted = [], []
+
+        class Db:
+            def rollback(self):
+                pass
+
+            commit = rollback
+
+            def set_value(self, *args):
+                pass
+
+        adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        for local, expected in ((types.SimpleNamespace(cache={}), True),
+                                (types.SimpleNamespace(cache={}, request=object()), False)):
+            with mock.patch.object(toolrun, "_use_lang", lambda conversation: None), \
+                    mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+                    mock.patch.object(toolrun.frappe, "local", local, create=True), \
+                    mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                    mock.patch.object(toolrun.tools, "run", lambda name, data: seen.append(
+                        dict(toolrun.frappe.local.pearnly_assistant)) or ("{}", False)):
+                self.assertEqual(toolrun._finish("conv", "sesn", "run1", "sevt_1", "cowork_push_documents", {}), "done")
+                self.assertIsNone(local.pearnly_assistant)
+            self.assertEqual(seen[-1], {"session_id": "conv", "may_wait": expected})
+        self.assertEqual(len(posted), 2)
+
     def test_settings_tools_wait_for_allow_and_run_once_as_the_user(self):
         """改共用设置的工具先拦下等「允许」（用户 2026-10-10：经授权后代为操作）；允许只执行这一次，拒绝不执行。"""
         toolrun = sys.modules["pearnly_core.assistant.toolrun"]
@@ -537,7 +571,7 @@ class RelayTests(unittest.TestCase):
         for name in ("attachment(", "attachments("):
             self.assertIn("_kept(", files.split("def " + name, 1)[1].split("\ndef ", 1)[0])
         run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
-        self.assertIn('frappe.local.pearnly_assistant = {"session_id": conversation}', run)
+        self.assertIn('frappe.local.pearnly_assistant = {"session_id": conversation, "may_wait": may_wait()}', run)
         self.assertIn("frappe.local.pearnly_assistant = None", run.split("finally:", 1)[1])
         self.assertIn("frappe.UniqueValidationError", run)  # 推送线程与页面同时执行：唯一冲突不弹到页面上
         self.assertIn("frappe.clear_messages()", run.split("UniqueValidationError", 1)[1].split("return", 1)[0])

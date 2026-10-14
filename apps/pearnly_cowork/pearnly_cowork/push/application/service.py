@@ -558,6 +558,27 @@ def submission_failed(history, reason):
     return {"status": "failed", "reason": reason, "history": history}
 
 
+OUTCOMES_MAX = 20  # 同 CC 一次推送的张数上限
+
+
+def outcomes(records):
+    """推送的人看自己这几次推送此刻的结论（CC 推送后等写账结果，用户 2026-10-13 第 9 条）：
+    ``{记录名: {"status", "reason", "docnum", "result_unknown"}}``；status 是账本状态（pending / leased 还在路上，
+    success 已入账，manual 要人处理）。docnum 只在入账成功时给：ERP 回报的单号（Express 由 CC 桌面版写完回读）。
+
+    只认本人发起（actor）的记录，别人的、不存在的不回；只读、不加锁、不改任何东西。调用方要看别的请求刚提交的结论时，
+    先自己 ``frappe.db.rollback()`` 换一份新快照。"""
+    scope.require("intake")
+    names = list(dict.fromkeys(str(name) for name in records or () if name))[:OUTCOMES_MAX]
+    if not names:
+        return {}
+    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown FROM `tabCowork Push Record`
+        WHERE actor=%s AND name IN %s""", (frappe.session.user, tuple(names)), as_dict=True)
+    return {row.name: {"status": row.status, "reason": row.reason or "",
+                       "docnum": (row.external_docnum or "") if row.status == "success" else "",
+                       "result_unknown": bool(row.result_unknown)} for row in rows}
+
+
 def records(connection, start=0, limit=50):
     owner = connections.read_for_log(connection)
     try:
