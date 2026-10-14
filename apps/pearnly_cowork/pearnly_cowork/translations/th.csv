@@ -550,6 +550,7 @@ Delivery type,ประเภทขนส่ง
 Department,แผนก
 Department for this rule,แผนก
 Deposit,ฝาก
+Deposit receipts need a person to decide how to post them in Express,ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร
 Description,คำอธิบาย
 Detail,รายละเอียด
 Details,รายละเอียด
@@ -1837,6 +1838,7 @@ This import request ID has already been used for different content.,รหัส
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
 This invoice has no lines. Add them and submit again.,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
 This invoice was already sent successfully,เอกสารนี้ส่งสำเร็จแล้ว
+This is a reissued or backdated document. Check it and submit again,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",ไฟล์นี้เป็นรายงานการขาย ไม่ใช่รายงานภาษีขาย กรุณาอัปโหลดรายงานภาษีขาย
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,ไฟล์นี้เป็นงบทดลองซึ่งมีเฉพาะยอดรวมของแต่ละบัญชี กรุณาอัปโหลดบัญชีแยกประเภทที่มีรายการตามใบสำคัญแต่ละใบ
@@ -3228,6 +3230,8 @@ intake.error.credit_note,ใบลดหนี้ต้องบันทึก�
 intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 intake.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
 intake.error.date_implausible,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.date_reissued,เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.deposit_receipt,ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร
 intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้
 intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) บริษัทนี้ต้องการบันทึกเอกสารประเภทนี้หรือไม่ เมื่อเลือกแล้ว เอกสารประเภทเดียวกันจะดำเนินการตามนี้

@@ -550,6 +550,7 @@ Delivery type,运输方式
 Department,部门
 Department for this rule,部门
 Deposit,存款
+Deposit receipts need a person to decide how to post them in Express,押金或定金收据需人工决定如何在 Express 入账
 Description,摘要
 Detail,详情
 Details,详细信息
@@ -1837,6 +1838,7 @@ This import request ID has already been used for different content.,此导入请
 This inventory account group cannot be chosen for this account set.,此账套不能选择该存货科目组。
 This invoice has no lines. Add them and submit again.,此发票没有明细，请补充后重新提交
 This invoice was already sent successfully,此发票已推送成功
+This is a reissued or backdated document. Check it and submit again,这是补开或倒签的单据，请核对后重新提交
 "This is a sales listing, not an output VAT report. Upload the output VAT report (รายงานภาษีขาย).",此文件为销售明细，不是销项税报告，请上传销项税报告（รายงานภาษีขาย）。
 This is a transfer slip. Enter this kind for this company? Choose once and the same kind follows it from now on,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
 This is a trial balance with account totals only. Upload the general ledger with each voucher.,此文件为试算表，仅含科目合计，请上传包含逐笔凭证的总账。
@@ -3228,6 +3230,8 @@ intake.error.credit_note,贷项通知单需在 Express 中人工处理
 intake.error.currency_not_thb,仅泰铢发票可推送至 Express
 intake.error.date_future,票面日期晚于当前日期，请更正后重新提交
 intake.error.date_implausible,票面日期可能有误，请核对后重新提交
+intake.error.date_reissued,这是补开或倒签的单据，请核对后重新提交
+intake.error.deposit_receipt,押金或定金收据需人工决定如何在 Express 入账
 intake.error.direction_unknown,请选择此发票为进项或销项后重新提交
 intake.error.document_policy_needed_payment_evidence,此单据为转账凭条。本公司是否录入此类单据？选择后，同类单据将按此处理
 intake.error.document_policy_needed_withholding_certificate,此单据为预扣税凭证（50 ทวิ）。本公司是否录入此类单据？选择后，同类单据将按此处理

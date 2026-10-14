@@ -1451,6 +1451,8 @@ The tax ID is not valid. Correct it and submit again	税号无效，请更正后
 The seller and buyer have the same tax ID. Correct it and submit again	卖方和买方税号相同，请更正后重新提交	ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่	売手と買手の納税者番号が同じです。直して再送信してください	intake.error.seller_buyer_same_tax
 The invoice date is in the future. Correct it and submit again	票面日期晚于当前日期，请更正后重新提交	วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่	伝票日付が未来です。直して再送信してください	intake.error.date_future
 The invoice date looks wrong. Correct it and submit again	票面日期可能有误，请核对后重新提交	วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่	伝票日付がおかしいようです。確認して再送信してください	intake.error.date_implausible
+Deposit receipts need a person to decide how to post them in Express	押金或定金收据需人工决定如何在 Express 入账	ใบรับเงินมัดจำต้องให้คนตัดสินว่าจะบันทึกใน Express อย่างไร	預り金・手付金の領収書は Express での処理方法を手動で決めてください	intake.error.deposit_receipt
+This is a reissued or backdated document. Check it and submit again	这是补开或倒签的单据，请核对后重新提交	เป็นเอกสารออกใบแทนหรือย้อนวันที่ กรุณาตรวจสอบแล้วส่งใหม่	再発行・遡及日付の伝票です。確認して再送信してください	intake.error.date_reissued
 The invoice date is missing or unreadable. Fill it in and submit again	票面日期缺失或无法识别，请补填后重新提交	ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่	伝票日付がないか読み取れません。入力して再送信してください	intake.error.bad_or_missing_date
 The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	intake.error.amounts_not_consistent
 Credit notes need a person to post them in Express	贷项通知单需在 Express 中人工处理	ใบลดหนี้ต้องบันทึกใน Express ด้วยตนเอง	返品・値引伝票は Express で手動で処理してください	intake.error.credit_note
