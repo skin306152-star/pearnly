@@ -267,7 +267,7 @@ def candidates(search=None) -> list:
         sets = identity.newest_first([item for item, _row in group["books"]])
         newest = sets[0]
         found = group["identity"]
-        item = {"identity": key, "title": newest["label"], "legal_name": found["name"], "tax_id": found["tax_id"],
+        item = {"identity": key, "title": found["name"] or newest["label"], "legal_name": found["name"], "tax_id": found["tax_id"],
                 "branch": newest["branch"], "branches": [b["branch"] for b in identity.branches(sets)],
                 "adapter": newest["adapter"], "years": _years(sets), "connection": newest["connection"],
                 "account_set_key": newest["key"], "company": built.get(key)}
@@ -351,7 +351,7 @@ def create(connection, account_set_key, request_key=None) -> dict:
     doc = frappe.new_doc(COMPANY)
     doc.update({"workspace": scope.default_workspace(), "identity": found["key"], "adapter": adapter,
                 # Express 取登录列表名（会计认它），MR.ERP 的账套名是年度，取公司名
-                "title": ((found["name"] if adapter == "mrerp" else book["label"]) or found["name"] or found["code"]
+                "title": (found["name"] or book["label"] or found["code"]
                           or book["key"])[:TITLE_MAX],
                 "legal_name": (found["name"] or "")[:255], "tax_id": found["tax_id"], "branch": found["branch"],
                 "name_key": (found["name_key"] or "")[:200], "seed_connection": connection,

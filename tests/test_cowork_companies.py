@@ -670,7 +670,7 @@ class CompanyTests(unittest.TestCase):
         abc = found[f"tax:{TAX}"]
         self.assertEqual(abc["years"], ["70EXP", "69EXP", "68EXP"])
         self.assertEqual(abc["branches"], ["00000", "00012"])
-        self.assertEqual((abc["connection"], abc["title"], abc["company"]), ("C2", "ABC 70", None))
+        self.assertEqual((abc["connection"], abc["title"], abc["company"]), ("C2", "บริษัท เอบีซี จำกัด", None))
         self.assertIn(f"tax:{OTHER_TAX}", found)
         self.assertIn("name:express:C1:no tax co", found)
         self.assertIn("mrerp:M1:001", found)
@@ -686,8 +686,8 @@ class CompanyTests(unittest.TestCase):
         self.assertTrue(made["created"])
         row = frappe.db.tables[COMPANY][made["id"]]
         self.assertEqual((row["identity"], row["tax_id"], row["title"], row["legal_name"], row["workspace"]),
-                         (f"tax:{TAX}", TAX, "ABC 69", "บริษัท เอบีซี จำกัด", "WS1"))
-        self.assertEqual(projects.announced[-1][1:], ("upsert", {"project": {"id": made["id"], "title": "ABC 69",
+                         (f"tax:{TAX}", TAX, "บริษัท เอบีซี จำกัด", "บริษัท เอบีซี จำกัด", "WS1"))
+        self.assertEqual(projects.announced[-1][1:], ("upsert", {"project": {"id": made["id"], "title": "บริษัท เอบีซี จำกัด",
                                                                              "subtitle": TAX}, "part": "master"}))
         # 同一家的分店账套、另一个年度：回现有的那份
         self.assertEqual(make(key="S:\\69EXP\\ABC12"), {**make(key="S:\\69EXP\\ABC12"), "created": False})
@@ -1318,7 +1318,7 @@ class TaskOverviewTests(unittest.TestCase):
         found = service.task_overview()
         self.assertEqual(found["tasks"], {"R1": self.abc, "R2": self.abc, "R3": self.xyz})  # R4 归不上：放「其他」
         self.assertEqual(found["companies"], {self.abc: {"count": 2, "alert": False}, self.xyz: {"count": 1, "alert": True}})
-        self.assertEqual(found["titles"], {self.abc: "ABC 69", self.xyz: "XYZ"})
+        self.assertEqual(found["titles"], {self.abc: "บริษัท เอบีซี จำกัด", self.xyz: "XYZ Co"})
         self.assertEqual(connections.reads, ["C1"])  # 每条连接的目录只读一次
 
     def test_a_missing_folder_is_an_alert_and_permissions_hold(self):
@@ -1368,7 +1368,7 @@ class ProviderAndToolTests(unittest.TestCase):
         self.assertTrue(provider.allowed(self.abc, "a@example.com"))
         self.assertFalse(provider.allowed("missing", "a@example.com"))
         self.assertEqual(provider.view([self.abc, "missing"], "a@example.com"),
-                         {self.abc: {"title": "ABC 69", "subtitle": TAX}})
+                         {self.abc: {"title": "บริษัท เอบีซี จำกัด", "subtitle": TAX}})
         self.assertTrue(provider.valid_scope("00012"))
         self.assertFalse(provider.valid_scope("12"))
         text = provider.context(self.abc, "2026-09", "", "a@example.com")
@@ -1413,7 +1413,7 @@ class ProviderAndToolTests(unittest.TestCase):
         try:
             old = notes.save(self.abc, "rent 3%", workspace="WS1")
             self.assertEqual(tools.preview_note_save({"text": "rent  5%", "note": old["id"]}),
-                             [{"field": "Company", "before": "", "after": "ABC 69"},
+                             [{"field": "Company", "before": "", "after": "บริษัท เอบีซี จำกัด"},
                               {"field": "cowork.company.notes", "before": "rent 3%", "after": "rent 5%"}])
             self.assertEqual(tools.preview_note_remove({"note": old["id"]}),
                              [{"field": "cowork.company.notes", "before": "rent 3%", "after": ""}])
