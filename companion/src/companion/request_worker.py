@@ -21,7 +21,7 @@ from typing import Callable, Iterable, Optional
 
 import httpx
 
-from . import express_read, folder_fetch
+from . import account_history, express_read, folder_fetch
 from .logger import get_logger
 from .queue_client import _device_name
 from .request_client import Refused, RequestClient
@@ -35,6 +35,7 @@ HANDLERS: dict = {
     "express_read": express_read.read_books,
     "folder_list": folder_fetch.list_files,
     "folder_fetch": folder_fetch.read_file,
+    "account_history": account_history.read_history,
 }
 # 交一块失败（网络断了一下）最多重试几次；续传（服务端说已收到多少）也算在内。
 RETRIES = 3

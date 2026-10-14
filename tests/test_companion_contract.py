@@ -421,6 +421,65 @@ class ExpressReadback(unittest.TestCase):
             encoding="utf-8"))
 
 
+class AccountHistory(unittest.TestCase):
+    """科目建议 B（2026-10-15）：服务端 `readback.history` 请电脑读一本账套近 12 个月「供应商 → 常用科目」，小助手
+    `account_history` 交回汇总。两边同一组参数、结果版本与上限；读的时候不碰「等账套」；结果属于连接与账套。"""
+
+    READBACK = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "readback"
+
+    def test_the_helper_reads_the_parameters_the_server_sends(self):
+        tree = ast.parse((self.READBACK / "history_rules.py").read_text(encoding="utf-8"))
+        builder = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "read_params")
+        sent = next(node.value for node in ast.walk(builder) if isinstance(node, ast.Return))
+        keys = {key.value for key in sent.keys}
+        self.assertEqual(keys, {"account_set", "account_root", "since"})
+        helper = method_source_of(COMPANION / "account_history.py", "read_history")
+        self.assertEqual(set(re.findall(r"params\.get\('([a-z_]+)'\)", helper)), keys)
+        # 服务端给的「从哪天起」在小助手收的范围里
+        server = number_constants(self.READBACK / "history_rules.py", ("SINCE_DAYS",))["SINCE_DAYS"]
+        self.assertLessEqual(server, number_constants(COMPANION / "account_history.py",
+                                                      ("SINCE_DAYS_MAX",))["SINCE_DAYS_MAX"])
+
+    def test_both_sides_share_the_result_version_and_limits(self):
+        names = ("RESULT_VERSION", "SUPPLIERS_MAX", "ACCOUNTS_PER_SUPPLIER")
+        self.assertEqual(number_constants(COMPANION / "account_history.py", names),
+                         number_constants(self.READBACK / "history_rules.py", names))
+
+    def test_the_server_reads_every_part_the_helper_sends(self):
+        collect = ast.parse(method_source_of(COMPANION / "account_history.py", "collect"))
+        sent = set()
+        for node in ast.walk(collect):
+            if isinstance(node, ast.Dict):
+                sent |= {key.value for key in node.keys if isinstance(key, ast.Constant)}
+        parser = (self.READBACK / "history_rules.py").read_text(encoding="utf-8")
+        for part in ("version", "read_at", "since", "suppliers", "name", "tax_id", "branch", "accounts", "code",
+                     "docs", "last"):
+            self.assertIn(part, sent | {"read_at"}, part)
+            self.assertTrue(quoted(parser, part), part)
+        self.assertIn('data["read_at"] =', method_source_of(COMPANION / "account_history.py", "read_history")
+                      .replace("'", '"'))
+
+    def test_reading_never_waits_for_the_account_set_lock_and_only_express_does_it(self):
+        tree = ast.parse((COMPANION / "account_history.py").read_text(encoding="utf-8"))
+        imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+                    for alias in node.names} | {node.module or "" for node in ast.walk(tree)
+                                                if isinstance(node, ast.ImportFrom)}
+        self.assertFalse({"account_lock", "is_account_busy", "dbf_writer"} & imported)
+        self.assertIn('"account_history": account_history.read_history',
+                      (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
+        server = number_constants(SERVER / "request_contracts.py", ("KINDS", "FOLDER_KINDS", "SHARED_KINDS"))
+        self.assertIn("account_history", server["KINDS"])
+        self.assertNotIn("account_history", server["FOLDER_KINDS"])  # MR.ERP 的文件夹成员不读账套
+        self.assertEqual(server["SHARED_KINDS"], ("account_history",))
+        # 推送服务按钩子取，不导入 readback（readback 依赖 push）
+        hooks = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]', hooks)
+        push = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "application" / "service.py").read_text(
+            encoding="utf-8")
+        self.assertIn('frappe.get_hooks("cowork_push_account_history")', push)
+        self.assertNotIn("pearnly_cowork.readback", push)
+
+
 def _literal(path, name):
     """模块顶层常量的字面值（`frozenset({…})` 取里面的集合）。"""
     for node in ast.parse(path.read_text(encoding="utf-8")).body:

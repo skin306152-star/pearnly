@@ -20,6 +20,7 @@ from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, dete
 from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
+from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
@@ -160,6 +161,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
                 frappe.db.commit()
             frappe.throw(wait["message"])
         # 拿不准的项（对方档 / 存货 / 费用科目 / 付款 / 抵进项 / 部门）还没人选：不发小助手，停在这里等人选一次。
+        # 费用科目带上建议（只看存着的历史，这里不请电脑读、不提交）
+        _suggest(decision["needed"], loaded.doc.name, target.account_set, fields, selected['config'])
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         row = ledger.reserve(context=context, request_key=request_key, frozen_target={**asdict(target),
             "request_intent": intent, "connection_revision": loaded.revision, "original_history": prior,
@@ -290,8 +293,11 @@ def _borrow_receipts(remembered, connection, siblings, receipts, config):
     choice_rules.borrow_receipts(remembered, receipts, borrowed, config.get("reported_accounts"))
 
 
-def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None):
-    """复核页提交前 / 退回后要人选的项与可选值（与准备同一套判定，不建推送记录）。"""
+def choices_view(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, hint=None):
+    """复核页提交前 / 退回后要人选的项与可选值（与准备同一套判定，不建推送记录）。
+
+    要人选费用科目时那一项带 ``suggested``（最多 2 个，见 `_suggest`）；``hint`` 是会计员在对话里明说的费用类别（CC 传），
+    命中的科目排第一。这本账套近 12 个月的常用科目正在由电脑读时回 ``history: "reading"``。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -313,8 +319,14 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     if kinds & {"account", "receipt"}:
         options["accounts"] = [{"code": row["code"], "name": row.get("name") or ""}
                                for row in config.get("reported_accounts") or [] if isinstance(row, dict)][:2000]
+    state, changed = _suggest(decision["needed"], loaded.doc.name, target.account_set, fields, config, hint=hint,
+                              refresh=True)
+    if changed:
+        frappe.db.commit()  # 建了 / 了结了读历史的请求（网页取「要选的项」是 GET，不提交就被回滚掉）
     result = {"needed": decision["needed"], "options": options, "account_set": target.account_set,
               "masters": masters}
+    if state == "reading":
+        result["history"] = state
     wait = masters_wait(masters, decision["needed"])
     if wait:
         # 要选的科目还没有可选值（这份账套的科目表还没读到）：先等电脑读，不拿空的科目表请人选
@@ -322,6 +334,28 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     if fixed:
         result["fixed"] = dict(fixed)  # 这张票已定的（定时任务默认处理），不再问
     return result
+
+
+def _suggest(needed, connection, account_set, fields, config, *, hint=None, refresh=False):
+    """要人选费用科目的项带上 ``suggested`` ``[{code, name, source, reason}]``（`push.express.account_suggest`：会计员说的
+    类别、这家供应商近 12 个月的常用科目、名称与大类，确定性匹配）。回 (历史的状况, 要不要提交)。
+
+    历史经钩子 ``cowork_push_account_history`` 取（`readback.history.for_push`；push 域不导入它，同 `_fixed`）：
+    ``refresh`` 时缺了 / 旧了会请电脑读（建请求，调用方提交），否则只看存着的。没有提供者、取不到就只按名称与大类建议。"""
+    wanted = [item for item in needed or () if item.get("kind") == "account"]
+    if not wanted:
+        return None, False
+    seller = {"tax": fields.get("seller_tax") or fields.get("seller_tax_id") or "", "name": fields.get("seller_name") or ""}
+    state, accounts, changed = "none", [], False
+    for path in frappe.get_hooks("cowork_push_account_history") or []:
+        found = frappe.get_attr(path)(connection, account_set, seller, refresh) or {}
+        changed = changed or bool(found.get("changed"))
+        if found.get("state") in ("ready", "reading"):
+            state, accounts = found["state"], found.get("accounts") or accounts
+    for item in wanted:
+        item["suggested"] = account_suggest.suggest(fields, accounts=config.get("reported_accounts") or [],
+                                                    history=accounts, hint=hint)
+    return state, changed
 
 
 # 可选值来自这份账套科目表的选择（费用科目、POS 收款科目）：科目表没读到时这几项没法选。对方档、存货只在主档读到时才问。

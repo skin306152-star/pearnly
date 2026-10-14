@@ -446,11 +446,12 @@ def _refresh_account(connection, account_set) -> tuple[str, str]:
     return status or "failed", code or ("timeout" if status not in ("succeeded", "failed") else "")
 
 
-def _choices_view(name, connection, account_set, posting_kind):
-    """同复核页的「要人选的项」；目录没读过就先请小助手读一次再看。"""
+def _choices_view(name, connection, account_set, posting_kind, hint=None):
+    """同复核页的「要人选的项」；目录没读过就先请小助手读一次再看。``hint``：用户在对话里说的费用类别（科目建议排第一）。"""
     frappe.db.commit()  # choices_view 只看不记、结束时整笔回滚：先把前面的落掉
+    extra = {"hint": hint} if hint else {}
     try:
-        return application.choices_view(name, connection, account_set, posting_kind)
+        return application.choices_view(name, connection, account_set, posting_kind, **extra)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
@@ -461,7 +462,7 @@ def _choices_view(name, connection, account_set, posting_kind):
             # 小助手也读不到（账套在 Express 里删了 / 改名了、所在的共享盘连不上）：说清楚，别让用户再去「刷新」
             frappe.throw("The computer could not read this account set ({0}). It may have been removed or renamed in "
                          "Express, or its folder is offline. Choose another account set.".format(code or status))
-    return application.choices_view(name, connection, account_set, posting_kind)
+    return application.choices_view(name, connection, account_set, posting_kind, **extra)
 
 
 # 这份账套的科目表还没读到时（`push.application.service.masters_wait`）给模型的说法：已请电脑读，别拿空的科目表请人选。
@@ -482,15 +483,25 @@ def _masters_note(state) -> str:
     return MASTERS_WAITING.get(str(state or ""), MASTERS_WAITING["reading"])
 
 
-def _choices_waited(name, connection, account_set, posting_kind):
-    """同 `_choices_view`；科目表正在读时最多等 `MASTERS_WAIT_SECONDS`（一般十几秒读完），读到了就给可选的科目。"""
-    view = _choices_view(name, connection, account_set, posting_kind)
-    deadline = time.monotonic() + MASTERS_WAIT_SECONDS
-    while (view.get("wait") or {}).get("state") == "reading" and time.monotonic() < deadline:
+# 这本账套近 12 个月的常用科目正在由电脑读（`choices_view` 的 ``history``，科目建议 B）：一般几秒读完，最多等这么久，
+# 读到了建议里就有「这家常用的科目」；没读完照样给按名称 / 用户说的类别的建议，不干等。
+HISTORY_WAIT_SECONDS = 20
+
+
+def _choices_waited(name, connection, account_set, posting_kind, hint=None):
+    """同 `_choices_view`；科目表正在读时最多等 `MASTERS_WAIT_SECONDS`（一般十几秒读完），读到了就给可选的科目；
+    常用科目的历史正在读时最多等 `HISTORY_WAIT_SECONDS`。"""
+    view = _choices_view(name, connection, account_set, posting_kind, hint)
+    started = time.monotonic()
+    deadline, history_deadline = started + MASTERS_WAIT_SECONDS, started + HISTORY_WAIT_SECONDS
+    while True:
+        now = time.monotonic()
+        if not (((view.get("wait") or {}).get("state") == "reading" and now < deadline)
+                or (view.get("history") == "reading" and not view.get("wait") and now < history_deadline)):
+            return view
         time.sleep(3)
         frappe.db.rollback()  # 电脑读完是在别的请求里提交的
-        view = _choices_view(name, connection, account_set, posting_kind)
-    return view
+        view = _choices_view(name, connection, account_set, posting_kind, hint)
 
 
 def _key(name, version, last) -> str:
@@ -1410,7 +1421,8 @@ def push_choices(tool_input) -> str:
     if not connection:
         return _json({"document": name, "status": "failed", "reason": "no_push_target"})
     try:
-        view = _choices_waited(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind)
+        view = _choices_waited(name, connection, account_set, tool_input.get("posting_kind") or doc.posting_kind,
+                               str(tool_input.get("hint") or "").strip()[:120] or None)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
@@ -3336,16 +3348,25 @@ TOOLS = [
                     "push came back needs_choice. Ask the user, then save with cowork_save_push_choices and push "
                     "again. status reading means the computer is still reading that account set's chart: check again "
                     "shortly. For a document from a scheduled folder task pushed to that task's account set, the "
-                    "task's default handling (task_defaults) is applied and not asked; to change it, change the task.",
+                    "task's default handling (task_defaults) is applied and not asked; to change it, change the task. "
+                    "An expense account item may come with suggested accounts (up to 2, best first; source hint = "
+                    "matches what the user said, history = this supplier's usual account in this account set over "
+                    "the last 12 months, name = the account name matches the document; reason says why): name the "
+                    "first one and ask the user to confirm it (a short yes is enough) or pick another; never save a "
+                    "suggestion the user has not confirmed. When the user said in the chat what kind of expense this "
+                    "document is (e.g. stationery), pass it as hint in the user's own words.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
-         "posting_kind": {"type": "string", "enum": ["service", "stock"]}, "search": {"type": "string"}},
+         "posting_kind": {"type": "string", "enum": ["service", "stock"]}, "search": {"type": "string"},
+         "hint": {"type": "string", "description": "The expense category the user stated for this document, "
+                                                   "in their words."}},
          "required": ["document"]},
      "handler": "pearnly_cowork.assistant.tools.push_choices"},
     {"name": "cowork_save_push_choices", "label": "Saved push choices",
      "description": "Record what the user chose for the items listed by cowork_push_choices: each item is the needed "
                     "entry's kind and subject with the chosen value (a listed code; party and product also accept "
-                    "the NEW value given there). The account set reuses them for later documents of the same kind.",
+                    "the NEW value given there). The account set reuses them for later documents of the same kind. "
+                    "Only values the user chose or confirmed in this chat.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
          "items": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {
