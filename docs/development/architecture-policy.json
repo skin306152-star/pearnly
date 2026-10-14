@@ -178,6 +178,7 @@
     "access": [],
     "assistant": [
       "access",
+      "companies",
       "connections",
       "contracts",
       "files",
@@ -194,6 +195,17 @@
       "tax",
       "work"
     ],
+    "companies": [
+      "access",
+      "connections",
+      "contracts",
+      "folder_intake",
+      "pos_import",
+      "push",
+      "reconciliation",
+      "targets",
+      "tax"
+    ],
     "companion": [
       "connections",
       "push",
@@ -205,6 +217,10 @@
       "targets"
     ],
     "contracts": [],
+    "files": [
+      "access",
+      "ocr"
+    ],
     "folder_intake": [
       "access",
       "companion",
@@ -216,10 +232,6 @@
       "push",
       "roundtrip",
       "targets"
-    ],
-    "files": [
-      "access",
-      "ocr"
     ],
     "history": [
       "access",

@@ -1,0 +1,152 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Company",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-15 06:00:00.000000",
+ "modified": "2026-10-15 06:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "A client company the firm keeps books for (CC company master): built from an account set in the catalog. Account sets, scheduled tasks, tax drafts and saved choices are found by their own keys, not stored here.",
+ "field_order": [
+  "workspace",
+  "identity",
+  "adapter",
+  "title",
+  "legal_name",
+  "tax_id",
+  "branch",
+  "name_key",
+  "seed_connection",
+  "seed_account_set",
+  "mrerp_company",
+  "combined_vat",
+  "created_by",
+  "request_key"
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "identity",
+   "label": "Identity",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "adapter",
+   "label": "ERP",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "express\nmrerp",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "label": "Title",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "reqd": 1
+  },
+  {
+   "fieldname": "legal_name",
+   "label": "Legal Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "tax_id",
+   "label": "Tax ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 13,
+   "search_index": 1
+  },
+  {
+   "fieldname": "branch",
+   "label": "Branch When Added",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 5
+  },
+  {
+   "fieldname": "name_key",
+   "label": "Name Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "seed_connection",
+   "label": "Seed Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection"
+  },
+  {
+   "fieldname": "seed_account_set",
+   "label": "Seed Account Set",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "mrerp_company",
+   "label": "MR.ERP Company",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "combined_vat",
+   "label": "Combined VAT Filing",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "created_by",
+   "label": "Created By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "request_key",
+   "label": "Request Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

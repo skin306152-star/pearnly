@@ -105,5 +105,26 @@ def forget(workspace, company, fingerprint) -> bool:
     return True
 
 
-__all__ = ["DOCTYPE", "deny", "deny_query", "forget", "guard", "guard_delete", "origin", "remember", "remembered",
-           "reject_share", "revision"]
+def of_companies(workspace, companies, limit=200) -> list:
+    """这几个公司键（`service.company_key`）下记过的版式，新 → 旧（公司主档汇总显示用，ADR-020）：`[{company, fingerprint,
+    headers, origin, set_by, set_at}]`。只读，不回版式本身；调用方已核过录入权限。"""
+    keys = sorted({str(key) for key in companies or () if key})
+    if not keys:
+        return []
+    rows = frappe.get_all(DOCTYPE, filters={"workspace": workspace, "company": ["in", keys]},
+                          fields=["company", "fingerprint", "headers_json", "origin", "set_by", "set_at"],
+                          order_by="set_at desc", ignore_permissions=True, limit_page_length=int(limit))
+    out = []
+    for row in rows:
+        try:
+            headers = json.loads(row.headers_json or "[]")
+        except (TypeError, ValueError):
+            headers = []
+        out.append({"company": row.company, "fingerprint": row.fingerprint,
+                    "headers": [str(h) for h in headers][:8] if isinstance(headers, list) else [],
+                    "origin": row.origin or "", "set_by": row.set_by or "", "set_at": str(row.set_at or "")})
+    return out
+
+
+__all__ = ["DOCTYPE", "deny", "deny_query", "forget", "guard", "guard_delete", "of_companies", "origin", "remember",
+           "remembered", "reject_share", "revision"]

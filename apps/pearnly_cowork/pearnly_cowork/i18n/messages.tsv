@@ -2105,3 +2105,31 @@ No files were given.	没有指定文件。	ไม่ได้ระบุไฟ�
 No recognition tasks were given.	没有指定识别任务。	ไม่ได้ระบุงานอ่านเอกสาร	読み取りタスクが指定されていません。
 No changes were given.	没有指定要改的内容。	ไม่ได้ระบุสิ่งที่จะแก้ไข	変更内容が指定されていません。
 No tasks were given.	没有指定任务。	ไม่ได้ระบุงาน	タスクが指定されていません。
+Company not found	找不到这家公司	ไม่พบบริษัท	会社が見つかりません	cowork.company.not_found
+This account set is not in the catalog	账套目录里没有这份账套	ไม่พบชุดบัญชีนี้ในรายการ	この帳簿は一覧にありません	cowork.company.not_in_catalog
+Too many companies	公司数量已达上限	บริษัทเกินจำนวนที่กำหนด	会社数が上限です	cowork.company.too_many
+Notes are full	知识库已满	บันทึกเต็มแล้ว	ノートが上限です	cowork.company.notes_full
+Note is empty or too long	说明为空或过长	บันทึกว่างหรือยาวเกินไป	ノートが空か長すぎます	cowork.company.note_invalid
+Note not found	找不到这条说明	ไม่พบบันทึกนี้	ノートが見つかりません	cowork.company.note_not_found
+Please enter a name of up to 140 characters	请输入 140 字以内的名称	กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร	140 文字以内で名前を入力してください	cowork.company.title_invalid
+Invalid month	月份不对	เดือนไม่ถูกต้อง	月が正しくありません	cowork.company.period_invalid
+This saved choice no longer exists	这条记住的选择已不在	ไม่พบตัวเลือกที่จำไว้นี้แล้ว	この保存した選択はもうありません	cowork.company.choice_not_found
+Only payment and VAT choices can be changed here	这里只能改付款方式和抵不抵进项	แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ	ここで変更できるのは支払方法と仕入税額控除だけです	cowork.company.choice_not_editable
+Notes	知识库	บันทึก	ノート	cowork.company.notes
+Claim VAT	抵进项	ขอคืนภาษีซื้อ	仕入税額控除
+Expense it	计费用	ลงค่าใช้จ่าย	費用計上
+Listed companies	列出了公司	แสดงรายชื่อบริษัท	会社一覧を表示
+Read company details	读取了公司资料	อ่านข้อมูลบริษัท	会社情報を確認
+Saved a company note	记下了公司说明	บันทึกข้อมูลบริษัท	会社メモを保存
+Removed a company note	删除了公司说明	ลบบันทึกบริษัท	会社メモを削除
+Save this to the company's notes?	把这条记进公司知识库？	บันทึกข้อนี้ลงในบันทึกของบริษัทไหม	会社のノートに保存しますか？
+Update this company note?	修改这条公司说明？	แก้ไขบันทึกบริษัทนี้ไหม	この会社メモを更新しますか？
+Remove this company note?	删除这条公司说明？	ลบบันทึกบริษัทนี้ไหม	この会社メモを削除しますか？
+Documents to handle	待处理单据	เอกสารรอดำเนินการ	処理待ちの書類	cowork.company.pending.title
+{0} documents are waiting for you ({1})	{0} 份单等你处理（{1}）	มีเอกสาร {0} รายการรอคุณดำเนินการ ({1})	{0} 件の書類があなたの処理を待っています（{1}）	cowork.company.pending.text
+{0} documents are waiting for you	{0} 份单等你处理	มีเอกสาร {0} รายการรอคุณดำเนินการ	{0} 件の書類があなたの処理を待っています	cowork.company.pending.text_plain
+{0} more companies	另有 {0} 家	อีก {0} บริษัท	ほか {0} 社	cowork.company.pending.more
+Not pushed yet	还没推送	ยังไม่ได้ส่ง	まだ送信していません	cowork.company.pending.not_pushed
+Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบริษัท	Cowork 会社マスター
+Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート
+Cowork Company Folder	Cowork 公司单据文件夹	Cowork โฟลเดอร์เอกสารบริษัท	Cowork 会社書類フォルダー

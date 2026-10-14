@@ -1,11 +1,13 @@
-"""文件夹自动录入三张私有表的守卫：原生接口的读、建、改、删、分享一律拒绝，只经本域带写入令牌写。"""
+"""文件夹自动录入的私有表（三张录入表与 CC 侧栏的公司文件夹，ADR-020）的守卫：原生接口的读、建、改、删、分享一律
+拒绝，只经本域带写入令牌写。"""
 import frappe
 from frappe import _
 
 RULE = "Cowork Folder Intake Rule"
 RUN = "Cowork Folder Intake Run"
 FILE = "Cowork Folder Intake File"
-DOCTYPES = (RULE, RUN, FILE)
+COMPANY_FOLDER = "Cowork Company Folder"
+DOCTYPES = (RULE, RUN, FILE, COMPANY_FOLDER)
 _WRITE = object()
 
 

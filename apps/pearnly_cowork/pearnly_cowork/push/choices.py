@@ -93,4 +93,33 @@ def record(connection, account_set, kind, subject, value, label=""):
     return True
 
 
-__all__ = ["DOCTYPE", "deny", "deny_query", "guard", "latest", "record", "reject_share", "remembered"]
+CHOICE_FIELDS = ["name", "account_set", "kind", "subject", "label", "value", "chosen_by", "chosen_at"]
+
+
+def of_sets(connection, account_sets, limit=200) -> list:
+    """一家公司各年度账套（公司主档，ADR-020）里记过的选择，新 → 旧，最多 `limit` 条（值为空的不算）。只读；调用方已核过
+    这条连接的推送权限，合并同类（同一类别、同一归类键只留最新一条）由调用方做。"""
+    sets = sorted({normalize_express_account_key(item) for item in account_sets or () if item})
+    if not connection or not sets:
+        return []
+    return frappe.db.sql(f"""SELECT {", ".join(CHOICE_FIELDS)} FROM `tab{DOCTYPE}`
+        WHERE connection=%s AND account_set IN %s AND COALESCE(value, '')!=''
+        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), int(limit)), as_dict=True)
+
+
+def forget(connection, account_sets, kind, subjects) -> int:
+    """删掉这几份账套里这一类、这些归类键的选择（真删）：一家公司的所有年度一起删，否则 `latest()` 会从别的年度把它
+    找回来。回删掉的条数。调用方已核过这条连接的推送权限。"""
+    sets = sorted({normalize_express_account_key(item) for item in account_sets or () if item})
+    subjects = sorted({subject for subject in subjects or () if isinstance(subject, str) and subject})
+    if not connection or not sets or not subjects or kind not in KINDS:
+        return 0
+    names = frappe.db.sql(f"""SELECT name FROM `tab{DOCTYPE}` WHERE connection=%s AND kind=%s AND account_set IN %s
+        AND subject IN %s FOR UPDATE""", (connection, kind, tuple(sets), tuple(subjects)), pluck=True)
+    if names:
+        frappe.db.delete(DOCTYPE, {"name": ["in", list(names)]})
+    return len(names)
+
+
+__all__ = ["CHOICE_FIELDS", "DOCTYPE", "deny", "deny_query", "forget", "guard", "latest", "of_sets", "record",
+           "reject_share", "remembered"]

@@ -155,7 +155,7 @@ class DeclarationTests(unittest.TestCase):
             for key in tool.get("ask_when") or {}:
                 self.assertIn(key, tool["input_schema"]["properties"], tool["name"])
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn('pearnly_assistant_tools = ["pearnly_cowork.assistant.tools.TOOLS"]', hooks)
+        self.assertRegex(hooks, r'pearnly_assistant_tools = \["pearnly_cowork\.assistant\.tools\.TOOLS"[,\]]')
 
     def test_the_four_capabilities_are_covered(self):
         names = {t["name"] for t in tools.TOOLS}
@@ -2647,7 +2647,7 @@ class AccountSetNameTests(unittest.TestCase):
             "When you talk to the user, name an account set by its company name (the label or account_label in tool "
             "results), never by its folder code, path or key; use keys only in tool calls.")
         hooks = (COWORK / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn('pearnly_assistant_guidance = ["pearnly_cowork.assistant.tools.GUIDANCE"]', hooks)
+        self.assertRegex(hooks, r'pearnly_assistant_guidance = \["pearnly_cowork\.assistant\.tools\.GUIDANCE"[,\]]')
 
     def test_names_follow_the_intake_list(self):
         names = tools._catalog_names(self.CATALOG)

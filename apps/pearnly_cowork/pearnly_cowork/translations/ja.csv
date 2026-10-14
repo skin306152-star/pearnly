@@ -323,6 +323,7 @@ Choose what to do,操作を選択
 Chose how a kind of document is handled,この種類の書類の扱いを設定しました
 Chosen At,選択日時
 Chosen By,選択者
+Claim VAT,仕入税額控除
 Claim as input VAT,仕入税額控除する
 Claimed after the invoice month,発行月より後に控除
 Claimed before the invoice month,発行月より前に控除
@@ -347,6 +348,7 @@ Comments and activity,コメントとアクティビティ
 Commission,手数料
 Company,会社
 Company Name,会社名
+Company not found,会社が見つかりません
 Company tax ID,自社の番号
 Company tax ID not on the document,書類に自社の納税者番号なし
 CompanyA-purchase-service,会社A-仕入-サービス
@@ -413,6 +415,9 @@ Cowork CC Desktop Request,Cowork CC デスクトップへのリクエスト
 Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
 Cowork Companion Request,Cowork CC デスクトップへのリクエスト
+Cowork Company,Cowork 会社マスター
+Cowork Company Folder,Cowork 会社書類フォルダー
+Cowork Company Note,Cowork 会社ノート
 Cowork ERP Connection,Cowork ERP接続
 Cowork ERP Mapping,Cowork ERP マッピング
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
@@ -548,6 +553,7 @@ Document no.,伝票番号
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
 Document type,書類種類
+Documents to handle,処理待ちの書類
 Does account {0} belong in this reconciliation?,科目 {0} を照合に含めますか
 Does {0} post in batches?,{0} はまとめて入金されますか
 Don't enter (this kind from now on),入力しない（以後も同様）
@@ -641,6 +647,7 @@ Excess tax brought forward,繰越超過納付額
 Expected VAT,想定税額
 Expense account,費用勘定
 Expense account when no category matches,区分が一致しない費用の勘定科目
+Expense it,費用計上
 Expires At,有効期限
 Export,エクスポート
 Export Excel,Excel に出力
@@ -775,6 +782,7 @@ Invalid checklist,チェックリストが無効です
 Invalid color,色が無効です
 Invalid date,日付が無効です
 Invalid field value,フィールドの値が無効です
+Invalid month,月が正しくありません
 Invalid original document manifest.,元文書の内容索引が無効です。
 Invalid original filename.,元ファイル名が無効です。
 Invalid posting type.,転記タイプが無効です。
@@ -867,6 +875,7 @@ List,リスト
 List actions,リストの操作
 List archived,リストをアーカイブしました
 List name,リスト名
+Listed companies,会社一覧を表示
 Listed documents,書類を一覧しました
 Listed folder files,フォルダーのファイルを一覧しました
 Listed reconciliations,照合の一覧を確認しました
@@ -995,11 +1004,15 @@ Not found,見つかりません
 Not included,未計上
 Not invoices {0},請求書以外 {0}
 Not permitted,権限がありません
+Not pushed yet,まだ送信していません
 Not set,未入力
 Not specified in books,帳簿に指定なし
 Not uploaded {0},未アップロード {0}
 Note,メモ
+Note is empty or too long,ノートが空か長すぎます
+Note not found,ノートが見つかりません
 Notes,備考
+Notes are full,ノートが上限です
 Nothing withheld on the invoice,インボイスに源泉徴収なし
 Notifications,通知
 Number,数値
@@ -1022,6 +1035,7 @@ Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to Express,Express に送れるのはタイバーツの伝票だけです
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
 Only one sell unit can be the default.,既定の販売単位は 1 つだけ設定できます。
+Only payment and VAT choices can be changed here,ここで変更できるのは支払方法と仕入税額控除だけです
 Open card,カードを開く
 Opened the original,原本を開きました
 Opening Diff,期首差額
@@ -1100,6 +1114,7 @@ Period,期間
 Phase,処理段階
 Photos,写真
 Pink,ピンク
+Please enter a name of up to 140 characters,140 文字以内で名前を入力してください
 Please upload a PDF or image,PDFまたは画像を送信してください
 Position,位置
 Position differences,棚番の差異
@@ -1159,6 +1174,7 @@ Read VAT report,売上税報告の読み取り
 Read again,再読み込み
 Read back the accounting books,会計データを読み戻しました
 Read bank statement,銀行明細の読み取り
+Read company details,会社情報を確認
 Read files,ファイルの読み取り
 Read from Express,Express から読込
 Read general ledger,総勘定元帳の読み取り
@@ -1241,6 +1257,8 @@ Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Remove this company note?,この会社メモを削除しますか？
+Removed a company note,会社メモを削除
 Rent,賃借料
 Repeat,繰り返し
 Replaced by your later submission of the same files.,同じファイルの後からの送信に置き換えられました。
@@ -1327,7 +1345,9 @@ Sample Key,修正例識別子
 Save and next,保存して次へ
 Save these scheduled tasks?,これらの定期タスクを保存しますか？
 Save this scheduled task?,この定期タスクを保存しますか？
+Save this to the company's notes?,会社のノートに保存しますか？
 Saved,保存しました
+Saved a company note,会社メモを保存
 Saved a scheduled task,定期タスクを保存しました
 Saved push choices,送信の選択を保存しました
 Saved scheduled tasks,複数の定期タスクを保存しました
@@ -1726,6 +1746,7 @@ This PC already has the maximum number of scheduled tasks.,この PC の定期�
 This POS export has a status value that is not chosen yet,この POS エクスポートにまだ指定していない状態の値があります
 This account cannot send documents,このアカウントは書類を送信できません
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,この帳簿には振替伝票用の一般仕訳帳がありません。Express で設定してから再送信してください
+This account set is not in the catalog,この帳簿は一覧にありません
 This account set is not in the connection's list. Reload the list in New Intake.,この帳簿は一覧にありません。新規取込で再読み込みしてください。
 This account set is not on the computer's list of account sets.,パソコンの会計データ一覧にこの会計データがありません。
 This account set is not on this connection.,この接続にこの会計データはありません。
@@ -1786,6 +1807,7 @@ This request key was used for different push content.,この要求キーは別�
 This request was already used for different content.,このリクエストは別の内容で使用済みです。
 This rule is turned off.,このルールは停止中です。
 This rule no longer exists for this PC.,この PC にこのルールはありません。
+This saved choice no longer exists,この保存した選択はもうありません
 This scanned or photographed document could not be read. Check the file and try again.,このスキャンや写真の書類は読み取れませんでした。ファイルを確認してもう一度お試しください。
 This scheduled task is turned off.,この定期タスクは停止中です。
 This scheduled task no longer exists for this PC.,この PC にこの定期タスクはありません。
@@ -1806,6 +1828,7 @@ To do,未着手
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代
 Token Tail,トークン末尾
+Too many companies,会社数が上限です
 Too many items,項目が多すぎます
 Too many matches; type a few more letters to narrow it down,候補が多すぎます。もう少し入力して絞り込んでください
 Too many requests are waiting for CC Desktop. Try again shortly.,CC デスクトップの処理待ちのリクエストが多すぎます。しばらくしてからもう一度お試しください。
@@ -1849,6 +1872,7 @@ Unusual rate,通常にない税率
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
 Update CC Desktop on that computer to read this account set's chart of accounts.,この会計データの勘定科目表を読み込むには、そのパソコンの CC デスクトップを更新してください。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
+Update this company note?,この会社メモを更新しますか？
 Update this site before reading back with this CC Desktop.,この CC デスクトップで読み戻す前にサイトを更新してください。
 Updated At,更新日時
 Updated By,更新者
@@ -2032,6 +2056,22 @@ cowork.choice.receipt,入金勘定
 cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
+cowork.company.choice_not_editable,ここで変更できるのは支払方法と仕入税額控除だけです
+cowork.company.choice_not_found,この保存した選択はもうありません
+cowork.company.not_found,会社が見つかりません
+cowork.company.not_in_catalog,この帳簿は一覧にありません
+cowork.company.note_invalid,ノートが空か長すぎます
+cowork.company.note_not_found,ノートが見つかりません
+cowork.company.notes,ノート
+cowork.company.notes_full,ノートが上限です
+cowork.company.pending.more,ほか {0} 社
+cowork.company.pending.not_pushed,まだ送信していません
+cowork.company.pending.text,{0} 件の書類があなたの処理を待っています（{1}）
+cowork.company.pending.text_plain,{0} 件の書類があなたの処理を待っています
+cowork.company.pending.title,処理待ちの書類
+cowork.company.period_invalid,月が正しくありません
+cowork.company.title_invalid,140 文字以内で名前を入力してください
+cowork.company.too_many,会社数が上限です
 cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
 cowork.folder.agentStale,CC デスクトップがオフラインか更新が必要
 cowork.folder.agentStaleHint,この PC の CC デスクトップが同期していません。最新版に更新してください。
@@ -3463,6 +3503,8 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0} completed {1},{0} が「{1}」を完了しました
 {0} d {1} h left,あと {0} 日 {1} 時間
 {0} days before,{0} 日前
+{0} documents are waiting for you,{0} 件の書類があなたの処理を待っています
+{0} documents are waiting for you ({1}),{0} 件の書類があなたの処理を待っています（{1}）
 {0} files,{0} 件のファイル
 "{0} files in the folder now, processed at the run time",フォルダーに現在 {0} 件、実行時刻にまとめて処理します
 {0} files in the folder now.,フォルダーに現在 {0} 件あります。
@@ -3475,6 +3517,7 @@ workspace.tax_id_duplicate,この納税者番号は既に別の会社で使用�
 {0} lines,{0} 件
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} min left,あと {0} 分
+{0} more companies,ほか {0} 社
 {0} more items,ほか {0} 件
 {0} more possible combined matches are not listed,ほかに合計一致の可能性がある {0} 組は表示していません
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました

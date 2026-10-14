@@ -323,6 +323,7 @@ Choose what to do,Choose what to do
 Chose how a kind of document is handled,Chose how a kind of document is handled
 Chosen At,Chosen At
 Chosen By,Chosen By
+Claim VAT,Claim VAT
 Claim as input VAT,Claim as input VAT
 Claimed after the invoice month,Claimed after the invoice month
 Claimed before the invoice month,Claimed before the invoice month
@@ -347,6 +348,7 @@ Comments and activity,Comments and activity
 Commission,Commission
 Company,Company
 Company Name,Company Name
+Company not found,Company not found
 Company tax ID,Company tax ID
 Company tax ID not on the document,Company tax ID not on the document
 CompanyA-purchase-service,CompanyA-purchase-service
@@ -413,6 +415,9 @@ Cowork CC Desktop Request,Cowork CC Desktop Request
 Cowork Client,Cowork Client
 Cowork Companion Delivery,Cowork CC Desktop Delivery
 Cowork Companion Request,Cowork CC Desktop Request
+Cowork Company,Cowork Company
+Cowork Company Folder,Cowork Company Folder
+Cowork Company Note,Cowork Company Note
 Cowork ERP Connection,Cowork ERP Connection
 Cowork ERP Mapping,Cowork ERP Mapping
 Cowork ERP Refresh,Cowork ERP Refresh
@@ -548,6 +553,7 @@ Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
+Documents to handle,Documents to handle
 Does account {0} belong in this reconciliation?,Does account {0} belong in this reconciliation?
 Does {0} post in batches?,Does {0} post in batches?
 Don't enter (this kind from now on),Don't enter (this kind from now on)
@@ -641,6 +647,7 @@ Excess tax brought forward,Excess tax brought forward
 Expected VAT,Expected VAT
 Expense account,Expense account
 Expense account when no category matches,Expense account when no category matches
+Expense it,Expense it
 Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
@@ -775,6 +782,7 @@ Invalid checklist,Invalid checklist
 Invalid color,Invalid color
 Invalid date,Invalid date
 Invalid field value,Invalid field value
+Invalid month,Invalid month
 Invalid original document manifest.,Invalid original document manifest.
 Invalid original filename.,Invalid original filename.
 Invalid posting type.,Invalid posting type.
@@ -867,6 +875,7 @@ List,List
 List actions,List actions
 List archived,List archived
 List name,List name
+Listed companies,Listed companies
 Listed documents,Listed documents
 Listed folder files,Listed folder files
 Listed reconciliations,Listed reconciliations
@@ -995,11 +1004,15 @@ Not found,Not found
 Not included,Not included
 Not invoices {0},Not invoices {0}
 Not permitted,Not permitted
+Not pushed yet,Not pushed yet
 Not set,Not set
 Not specified in books,Not specified in books
 Not uploaded {0},Not uploaded {0}
 Note,Note
+Note is empty or too long,Note is empty or too long
+Note not found,Note not found
 Notes,Notes
+Notes are full,Notes are full
 Nothing withheld on the invoice,Nothing withheld on the invoice
 Notifications,Notifications
 Number,Number
@@ -1022,6 +1035,7 @@ Only board admins can do this,Only board admins can do this
 Only invoices in Thai baht can be sent to Express,Only invoices in Thai baht can be sent to Express
 Only manual records can be created through this entry.,Only manual records can be created through this entry.
 Only one sell unit can be the default.,Only one sell unit can be the default.
+Only payment and VAT choices can be changed here,Only payment and VAT choices can be changed here
 Open card,Open card
 Opened the original,Opened the original
 Opening Diff,Opening Diff
@@ -1100,6 +1114,7 @@ Period,Period
 Phase,Phase
 Photos,Photos
 Pink,Pink
+Please enter a name of up to 140 characters,Please enter a name of up to 140 characters
 Please upload a PDF or image,Please upload a PDF or image
 Position,Position
 Position differences,Position differences
@@ -1159,6 +1174,7 @@ Read VAT report,Read VAT report
 Read again,Read again
 Read back the accounting books,Read back the accounting books
 Read bank statement,Read bank statement
+Read company details,Read company details
 Read files,Read files
 Read from Express,Read from Express
 Read general ledger,Read general ledger
@@ -1241,6 +1257,8 @@ Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Remove mirror,Remove mirror
 Remove template,Remove template
+Remove this company note?,Remove this company note?
+Removed a company note,Removed a company note
 Rent,Rent
 Repeat,Repeat
 Replaced by your later submission of the same files.,Replaced by your later submission of the same files.
@@ -1327,7 +1345,9 @@ Sample Key,Sample Key
 Save and next,Save and next
 Save these scheduled tasks?,Save these scheduled tasks?
 Save this scheduled task?,Save this scheduled task?
+Save this to the company's notes?,Save this to the company's notes?
 Saved,Saved
+Saved a company note,Saved a company note
 Saved a scheduled task,Saved a scheduled task
 Saved push choices,Saved push choices
 Saved scheduled tasks,Saved scheduled tasks
@@ -1726,6 +1746,7 @@ This PC already has the maximum number of scheduled tasks.,This PC already has t
 This POS export has a status value that is not chosen yet,This POS export has a status value that is not chosen yet
 This account cannot send documents,This account cannot send documents
 This account set has no general journal book for the transfer vouchers. Add one in Express and submit again,This account set has no general journal book for the transfer vouchers. Add one in Express and submit again
+This account set is not in the catalog,This account set is not in the catalog
 This account set is not in the connection's list. Reload the list in New Intake.,This account set is not in the connection's list. Reload the list in New Intake.
 This account set is not on the computer's list of account sets.,This account set is not on the computer's list of account sets.
 This account set is not on this connection.,This account set is not on this connection.
@@ -1786,6 +1807,7 @@ This request key was used for different push content.,This request key was used 
 This request was already used for different content.,This request was already used for different content.
 This rule is turned off.,This rule is turned off.
 This rule no longer exists for this PC.,This rule no longer exists for this PC.
+This saved choice no longer exists,This saved choice no longer exists
 This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
 This scheduled task is turned off.,This scheduled task is turned off.
 This scheduled task no longer exists for this PC.,This scheduled task no longer exists for this PC.
@@ -1806,6 +1828,7 @@ To do,To do
 Token Digest,Token Digest
 Token Generation,Token Generation
 Token Tail,Token Tail
+Too many companies,Too many companies
 Too many items,Too many items
 Too many matches; type a few more letters to narrow it down,Too many matches; type a few more letters to narrow it down
 Too many requests are waiting for CC Desktop. Try again shortly.,Too many requests are waiting for CC Desktop. Try again shortly.
@@ -1849,6 +1872,7 @@ Unusual rate,Unusual rate
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
 Update CC Desktop on that computer to read this account set's chart of accounts.,Update CC Desktop on that computer to read this account set's chart of accounts.
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
+Update this company note?,Update this company note?
 Update this site before reading back with this CC Desktop.,Update this site before reading back with this CC Desktop.
 Updated At,Updated At
 Updated By,Updated By
@@ -2032,6 +2056,22 @@ cowork.choice.receipt,Receiving account
 cowork.choice.task_default,This is set by the scheduled task's default handling. Change it in the task
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
+cowork.company.choice_not_editable,Only payment and VAT choices can be changed here
+cowork.company.choice_not_found,This saved choice no longer exists
+cowork.company.not_found,Company not found
+cowork.company.not_in_catalog,This account set is not in the catalog
+cowork.company.note_invalid,Note is empty or too long
+cowork.company.note_not_found,Note not found
+cowork.company.notes,Notes
+cowork.company.notes_full,Notes are full
+cowork.company.pending.more,{0} more companies
+cowork.company.pending.not_pushed,Not pushed yet
+cowork.company.pending.text,{0} documents are waiting for you ({1})
+cowork.company.pending.text_plain,{0} documents are waiting for you
+cowork.company.pending.title,Documents to handle
+cowork.company.period_invalid,Invalid month
+cowork.company.title_invalid,Please enter a name of up to 140 characters
+cowork.company.too_many,Too many companies
 cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
 cowork.folder.agentStale,CC Desktop offline or needs update
 cowork.folder.agentStaleHint,CC Desktop on this PC has not synced recently. Update it to the latest version.
@@ -3463,6 +3503,8 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} completed {1},{0} completed {1}
 {0} d {1} h left,{0} d {1} h left
 {0} days before,{0} days before
+{0} documents are waiting for you,{0} documents are waiting for you
+{0} documents are waiting for you ({1}),{0} documents are waiting for you ({1})
 {0} files,{0} files
 "{0} files in the folder now, processed at the run time","{0} files in the folder now, processed at the run time"
 {0} files in the folder now.,{0} files in the folder now.
@@ -3475,6 +3517,7 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} lines,{0} lines
 {0} mentioned you on {1},{0} mentioned you on {1}
 {0} min left,{0} min left
+{0} more companies,{0} more companies
 {0} more items,{0} more items
 {0} more possible combined matches are not listed,{0} more possible combined matches are not listed
 {0} moved {1} to {2},{0} moved {1} to {2}

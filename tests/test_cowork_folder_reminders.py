@@ -139,7 +139,9 @@ class Harness(unittest.TestCase):
             conf=types.SimpleNamespace(get=lambda key: self.product if key == "pearnly_product" else None),
             db=self.db, local=self.local, _=lambda key: TERMS[self.local.lang or "en"].get(key, key), _dict=Row,
             get_all=self.db.get_all, log_error=lambda title, message="": self.errors.append(title),
-            get_traceback=lambda: "traceback")
+            get_traceback=lambda: "traceback", get_hooks=lambda name: list(self.hooked.get(name) or []),
+            get_attr=lambda path: self.attrs[path])
+        self.hooked, self.attrs = {}, {}
         package = types.ModuleType("pearnly_cowork.folder_intake")
         modules = {"frappe": frappe,
                    "frappe.utils": types.SimpleNamespace(get_datetime=_datetime, now_datetime=lambda: self.now,
@@ -613,6 +615,15 @@ class ScheduleEntry(Harness):
         self.schedule.notices("2026-10-13 08:05")
         self.assertEqual(self.errors, ["Cowork folder notices failed"])
         self.assertEqual([row.kind for row in self.notices.sent()], ["cowork.folder.brief"])
+
+    def test_jobs_declared_in_hooks_run_in_the_same_entry(self):
+        """「待处理」早上汇总（ADR-020）经 hooks `cowork_scheduled_notices` 接在同一个入口上：同样拿到 now、出错只记日志。"""
+        seen = []
+        self.hooked["cowork_scheduled_notices"] = ["x.morning", "x.broken"]
+        self.attrs.update({"x.morning": lambda now: seen.append(now),
+                           "x.broken": mock.Mock(side_effect=RuntimeError("boom"))})
+        self.schedule.notices("2026-10-15 08:30")
+        self.assertEqual((seen, self.errors), (["2026-10-15 08:30"], ["Cowork folder notices failed"]))
 
 
 class SameNumbersAsTheTaskList(unittest.TestCase):
