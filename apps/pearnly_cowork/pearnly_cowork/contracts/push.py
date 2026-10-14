@@ -71,6 +71,26 @@ def apply_batch_direction(fields: dict[str, Any] | None, direction: str | None) 
 		fields["direction"] = direction
 
 
+def declared_direction_pages(pages: Any, primary: dict[str, Any] | None, direction: Any) -> list | None:
+	"""会计员事后说明的进 / 销项写到已识别的票上（同 `apply_batch_direction`：不覆盖已有的方向）。
+
+	``primary`` 是 ``pages`` 里推送读的那一页（`contracts.history.primary_page` 选出、同一对象）。回改好的页（副本），
+	方向认不出、没有主页面、主页面已有方向时回 None（不用写）。"""
+	direction = normalize_direction(direction)
+	if not direction or not isinstance(pages, list) or not isinstance(primary, dict):
+		return None
+	try:
+		index = next(i for i, page in enumerate(pages) if page is primary)
+	except StopIteration:
+		return None
+	fields = primary.get("fields")
+	if not isinstance(fields, dict) or fields.get("direction"):
+		return None
+	changed = deepcopy(pages)
+	changed[index]["fields"]["direction"] = direction
+	return changed
+
+
 def detect_by_tax(flat: dict[str, Any], own_tax_id: Any) -> str | None:
 	"""Exactly one own-company match selects a direction; ambiguity remains None."""
 	own = clean_tax_id(own_tax_id)
@@ -91,6 +111,40 @@ def detect_by_tax(flat: dict[str, Any], own_tax_id: Any) -> str | None:
 def resolve_direction(flat: dict[str, Any], history: dict[str, Any], *, own_tax_id: Any) -> str | None:
 	"""Explicit invoice direction takes precedence over the verified company anchor."""
 	return explicit_direction(flat, history) or detect_by_tax(flat, own_tax_id)
+
+
+def _has_buyer(fields: dict[str, Any]) -> bool:
+	"""票上印了买方（名称或税号，读得清读不清都算）。"""
+	return any(str(fields.get(key) or "").strip() for key in ("buyer_name", "buyer_tax", "buyer_tax_id"))
+
+
+def detect_by_account(flat: dict[str, Any], account_tax_id: Any) -> str | None:
+	"""以推往的账套的税号判进 / 销项（2026-10-15 测试环境：事务所替客户记账，工作空间税号不是客户账套的税号，
+	快递公司开的无买方简易税票判不出方向，推送拿卖方税号比账套、报「本方税号不符」）。
+
+	卖方是这份账套、买方不是 → sales；买方是这份账套、卖方不是 → purchase；票上没有买方、卖方是别家（读得出的税号）
+	→ purchase（别家开给这家公司的无买方简易税票 / 收据）；其余（账套没报税号、两边都对不上、两边都是）判不出 → None。
+	"""
+	account = clean_tax_id(account_tax_id)
+	if not account:
+		return None
+	fields = _fields(flat)
+	seller = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
+	buyer = clean_tax_id(fields.get("buyer_tax") or fields.get("buyer_tax_id"))
+	if seller == account and buyer != account:
+		return "sales"
+	if buyer == account and seller != account:
+		return "purchase"
+	if seller and seller != account and not _has_buyer(fields):
+		return "purchase"
+	return None
+
+
+def resolve_account_direction(flat: dict[str, Any], history: dict[str, Any], *, own_tax_id: Any,
+		account_tax_id: Any) -> str | None:
+	"""推往一份账套时的方向：明确声明的优先，其次工作空间税号（`detect_by_tax`），都判不出再按账套税号
+	（`detect_by_account`）。推送准备、复核页要选的项与 Express 预检同用这一套。"""
+	return resolve_direction(flat, history, own_tax_id=own_tax_id) or detect_by_account(flat, account_tax_id)
 
 
 def normalize_posting_kind(value: Any) -> str | None:

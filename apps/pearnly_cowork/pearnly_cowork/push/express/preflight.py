@@ -28,6 +28,8 @@ class ExpressContext:
     supplier_profile: dict | None = None
     bank_index: tuple | list = ()
     prior_docnum: str | None = None
+    # 推往的那份账套报的税号（目录快照 attributes.tax_id）：工作空间税号判不出方向时按它判（`contracts.push.detect_by_account`）
+    account_tax_id: str = ""
 
     def __post_init__(self):
         if type(self.enabled) is not bool or type(self.today) is not date:
@@ -36,12 +38,14 @@ class ExpressContext:
             raise ValueError("express.context_invalid")
 
 
-def _resolve_direction(flat, history, own_tax):
+def _resolve_direction(flat, history, own_tax, account_tax=""):
+    """与推送准备同一套（`contracts.push.resolve_account_direction`）→ (方向, 用过的税号锚点)；锚点空说明主体没绑。"""
     direction = direction_mod.explicit_direction(flat, history)
     if direction is not None:
         return direction, ""
     own_tax = own_tax if flat.get("workspace_client_id") else ""
-    return direction_mod.detect_by_tax(flat, own_tax), own_tax
+    direction = direction_mod.resolve_account_direction(flat, history, own_tax_id=own_tax, account_tax_id=account_tax)
+    return direction, own_tax or direction_mod.clean_tax_id(account_tax)
 
 
 def _attach_payment_evidence(flat, mappings, context):
@@ -242,8 +246,8 @@ def preflight_express(
         category = _category_of(flat)
         pf.category = category
 
-        # 方向(确定性·税号锚点):显式标签优先,否则比对自家公司税号 × 票面 seller/buyer。
-        direction, own_tax = _resolve_direction(flat, history, context.own_tax_id)
+        # 方向(确定性·税号锚点):显式标签优先,否则比对自家公司税号、再比推往的账套税号 × 票面 seller/buyer。
+        direction, own_tax = _resolve_direction(flat, history, context.own_tax_id, context.account_tax_id)
         if direction is None:
             # 区分两种判不出:主体没绑/税号没读到(subject_unbound)vs 票面对不上(ambiguous)。
             # 仅供 UI 提示;喂 enqueue 的规范 reason 仍是 direction_unknown。

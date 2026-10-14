@@ -92,7 +92,7 @@ def _install():
                                                    master_names=lambda c, k: {},
                                                    continues_from=lambda reader, root, folder, current=None: None),
         "pearnly_cowork.history.push_state": dict(record_failure=lambda *a: None),
-        "pearnly_cowork.history.storage": dict(read=lambda name: None),
+        "pearnly_cowork.history.storage": dict(read=lambda name: None, declare_direction=lambda names, direction: []),
         "pearnly_cowork.push.application.service": dict(),
         "pearnly_cowork.push.application.api": dict(),
         # 推送原因按用户语言给模型（真的 reason_text 要查翻译表，这里标出「翻过了」）
@@ -2977,6 +2977,13 @@ class CompanyNamedForADocumentTests(unittest.TestCase):
                                        fields={**abb, "buyer_tax": self.OTHER_TAX}), rule.TAX_MISMATCH)
         self.assertEqual(rule.conflict("express", account, direction="purchase",
                                        fields={**abb, "buyer_tax": self.OWN_TAX}), "")
+        # 2026-10-15 testcowork：方向没判出（工作空间税号不是这家账套的）时，不拿卖方（快递公司）的税号当本方去比
+        courier = {"document_type": "simplified_tax_invoice", "seller_name": "บริษัท ด่วนจี่ เอ็กซ์เพรส",
+                   "seller_tax": "0105599220248", "buyer_name": "", "buyer_tax": "", "date": "2026-10-14",
+                   "total_amount": "285.00", "vat": "18.64"}
+        self.assertEqual(rule.conflict("express", account, direction=None, fields=courier), "")
+        self.assertEqual(rule.conflict("express", account, direction=None,
+                                       fields={**courier, "buyer_tax": self.OTHER_TAX}), rule.TAX_MISMATCH)
 
     def test_cc_is_told_the_users_word_names_the_company(self):
         line = next(line for line in tools.GUIDANCE if line.startswith("When the user says which company"))
@@ -3016,6 +3023,50 @@ class CompanyNamedForADocumentTests(unittest.TestCase):
         self.assertEqual(again["documents"][0]["invoice_no"], "R308")
         self.assertNotIn("status", again)
         self.assertEqual([key for _name, _content, key in self.created], ["assistant:file_abc"] * 2)
+
+    def _declared(self):
+        declared = []
+        tools.storage.declare_direction = lambda names, direction: declared.append((list(names), direction)) or names
+        self.addCleanup(setattr, tools.storage, "declare_direction", lambda names, direction: [])
+        return declared
+
+    def test_the_direction_said_after_recognizing_lands_on_the_recognized_documents(self):
+        """2026-10-15 testcowork：先「仅识别」，会计员说「ค่าขนส่ง ส่งเข้า Express」后 CC 带 direction=purchase 再交，
+        识别服务按第一次的口径拿回原来那份，票上方向空着。现在把这次说明的方向写到识别出的票上（已有方向的由存储层保留）。"""
+        self._refuse_other_choices()
+        declared = self._declared()
+        commits = frappe.commits
+        json.loads(tools.recognize_attachments({"files": ["file_abc"], "target": "none"}))
+        self.assertEqual(declared, [])  # 第一次照常按批次口径识别，没有要补的
+        again = json.loads(tools.recognize_attachments({
+            "files": ["file_abc"], "direction": "purchase", "target": "express", "connection": "C1",
+            "account_set_key": "K"}))["results"][0]
+        self.assertTrue(again["recognized_before"])
+        self.assertEqual(declared, [(["H1"], "purchase")])
+        self.assertGreater(frappe.commits, commits)
+
+    def test_no_direction_or_a_fresh_recognition_writes_nothing(self):
+        self._refuse_other_choices()
+        declared = self._declared()
+        tools.recognize_attachments({"files": ["file_abc"], "direction": "purchase"})  # 第一次：方向随批次落到票上
+        tools.recognize_attachments({"files": ["file_abc"], "target": "express", "connection": "C1",
+                                     "account_set_key": "K"})  # 再交没说方向
+        self.assertEqual(declared, [])
+
+    def test_a_direction_that_cannot_be_written_does_not_fail_the_recognition(self):
+        self._refuse_other_choices()
+        tools.recognize_attachments({"files": ["file_abc"]})
+
+        def refuse(names, direction):
+            raise frappe.ValidationError("The record changed. Reload it before saving.")
+
+        tools.storage.declare_direction = refuse
+        self.addCleanup(setattr, tools.storage, "declare_direction", lambda names, direction: [])
+        rollbacks = frappe.rollbacks
+        out = json.loads(tools.recognize_attachments({"files": ["file_abc"], "direction": "sales", "target": "express",
+                                                      "connection": "C1", "account_set_key": "K"}))["results"][0]
+        self.assertEqual((out["state"], out["recognized_before"]), ("saved", True))
+        self.assertGreater(frappe.rollbacks, rollbacks)
 
     def test_an_earlier_failed_recognition_is_tried_again_with_the_new_choices(self):
         self._refuse_other_choices("failed", taken=("assistant:file_f",))

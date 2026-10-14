@@ -16,7 +16,7 @@ from pearnly_cowork.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_cowork.contracts import pos as pos_contract
 from pearnly_cowork.contracts.history import primary_page, primary_page_fields
-from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax, resolve_posting_kind
+from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, resolve_account_direction, resolve_posting_kind
 from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
@@ -140,8 +140,12 @@ def prepare(history, connection, request_key, expected_history_version, expected
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
-    direction = explicit_direction(flat, history_value) or detect_by_tax(flat, own_tax)
+    account_tax = _account_tax(_account_row(loaded, target))
+    direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax, account_tax_id=account_tax)
     _require_matching_account(loaded, target, direction, fields, invoice_date)
+    if direction and not explicit_direction(flat, history_value):
+        # 按税号判出的方向交给预检当明确方向（预检与这里同一套判定，账套税号也给它）
+        history_value["direction"] = direction
     preparation, evidence = preparation_sources.collect(loaded, target,
         seller_tax=seller_tax if direction == 'purchase' else '',
         invoice_date=invoice_date.isoformat() if invoice_date else None)
@@ -174,7 +178,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     selected['config']['choices'] = decision["applied"]
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
-        context=ExpressContext(enabled=True, today=today, own_tax_id=own_tax,
+        context=ExpressContext(enabled=True, today=today, own_tax_id=own_tax, account_tax_id=account_tax,
             tenant_id=loaded.access.tenant_id, mappings=preparation["mappings"],
             supplier_profile=preparation["supplier_profiles"].get(seller_tax),
             bank_index=preparation["bank_index"], prior_docnum=prior_docnum))
@@ -208,14 +212,24 @@ _ACCOUNT_CONFLICTS = {
 }
 
 
-def _require_matching_account(loaded, target, direction, fields, invoice_date):
-    """用户选的账套与票面确定对不上就不推（规则见 `targets/account_match.py`）：本方税号不同、日期不在会计期间里。"""
+def _account_row(loaded, target):
+    """推往的这份账套在连接目录快照里的那一行（带 attributes：税号、会计期间）；目录里没有回 None。"""
     rows = (loaded.evidence.snapshot or {}).get("account_sets") or []
     if isinstance(rows, str):
         rows = json.loads(rows)
     key = normalize_express_account_key(target.account_set)
-    account = next((row for row in rows if isinstance(row, dict)
-                    and normalize_express_account_key(row.get("source_id")) == key), None)
+    return next((row for row in rows if isinstance(row, dict)
+                 and normalize_express_account_key(row.get("source_id")) == key), None)
+
+
+def _account_tax(account):
+    attributes = (account or {}).get("attributes")
+    return clean_tax_id(attributes.get("tax_id")) if isinstance(attributes, dict) else ""
+
+
+def _require_matching_account(loaded, target, direction, fields, invoice_date):
+    """用户选的账套与票面确定对不上就不推（规则见 `targets/account_match.py`）：本方税号不同、日期不在会计期间里。"""
+    account = _account_row(loaded, target)
     facts = {**fields, "date": invoice_date.isoformat() if invoice_date else fields.get("date")}
     reason = account_match.conflict("express", account, direction=direction, fields=facts)
     if reason:
@@ -441,7 +455,8 @@ def _express_facts(doc, loaded, account_set_key):
     fields = primary.get("fields") or {}
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
-    direction = explicit_direction(flat, history_value) or detect_by_tax(flat, own_tax)
+    direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax,
+                                          account_tax_id=_account_tax(_account_row(loaded, target)))
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
     preparation, _evidence = preparation_sources.collect(loaded, target,
         seller_tax=seller_tax if direction == 'purchase' else '',
