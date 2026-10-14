@@ -133,6 +133,12 @@ apps/pearnly_cowork/pearnly_cowork/push/express/merchant.py	*	数据：已知连
 apps/pearnly_cowork/pearnly_cowork/masters/client_import.py	*	数据：客户导入表头同义词（泰/英/中），按原字面比对或写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/tax_documents/codes.py	*	数据：票种识别关键词与给识别模型的提示词，不进界面
 apps/pearnly_core/pearnly_core/tax_documents/rules.py	*	数据：按标题认票种的关键词与泛称买方正则，按原字面比对或写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/assistant/engines/base.py	ผลงานเมื่อคืน	给模型的示例：侧栏标题提示词里的泰文示例（用户 2026-10-13 原话），不进界面
+apps/pearnly_core/pearnly_core/assistant/engines/base.py	ภาษีเดือน 9 สามบริษัท	给模型的示例：侧栏标题提示词里的泰文示例（用户 2026-10-13 原话），不进界面
+apps/pearnly_core/pearnly_core/assistant/engines/base.py	供应商发票汇总	给模型的示例：侧栏标题提示词里的中文示例，不进界面
+apps/pearnly_core/pearnly_core/assistant/engines/base.py	九月三家公司增值税	给模型的示例：侧栏标题提示词里的中文示例，不进界面
+apps/pearnly_core/pearnly_core/assistant/engines/base.py	仕入先請求書の集計	给模型的示例：侧栏标题提示词里的日文示例，不进界面
+apps/pearnly_core/pearnly_core/assistant/engines/base.py	9月の銀行照合	给模型的示例：侧栏标题提示词里的日文示例，不进界面
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/preview_parse.py	*	数据：从 MR.ERP 预览页 HTML 中抓泰文错误线索的关键词，按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/ocr/schema/documents.py	*	数据：识别结构化输出字段的 description（给模型看），按原字面比对或写入外部系统，不进界面
 apps/pearnly_cowork/pearnly_cowork/masters/workspace_table.py	*	数据：上传名册里合计行的识别词，按原字面比对或写入外部系统，不进界面

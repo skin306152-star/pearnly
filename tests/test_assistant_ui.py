@@ -1308,13 +1308,17 @@ assert.equal(dead.isDead, true);
     def test_sidebar_spinners_are_checked_with_the_server_at_the_same_moments(self):
         self.run_page(r"""
 import { activityOf, noteEvent, setActiveSession } from "@/lib/managed-agents/activity";
-import { sessionListAdapter, watchRunning } from "@/lib/managed-agents/session-list-adapter";
+import { sessionListAdapter } from "@/lib/managed-agents/session-list-adapter";
+import { watchList } from "@/lib/managed-agents/list-sync";
 ---
 const listings = () => g.calls.filter((c: any) => c.method === "listing");
-watchRunning();
+const empty = { mainThreadId: "", threadIds: [], threadItems: {}, isLoading: false, isLoadingMore: false };
+watchList(() => ({ getState: () => empty, reload: async () => {}, getItemById: () => ({}) }) as any);
 g.document.fire("visibilitychange");
 await g.sleep(20);
-assert.equal(listings().length, 0);  // 侧栏没有在转圈的：不发请求
+// 侧栏没有在转圈的：回到前台也核对一次列表（教程第 7 条：别的设备上新建、删除的对话要并进来），只是不读引擎状态
+assert.deepEqual(listings().map((c: any) => c.args.check), [undefined]);
+g.calls.length = 0;
 // 另一个对话在跑（推送说的），之后「结束」的推送漏了
 noteEvent("sesn_side1", ev("r1", "session.status_running", 1) as any);
 noteEvent("sesn_open1", ev("r2", "session.status_running", 1) as any);
@@ -1341,6 +1345,232 @@ await sessionListAdapter.list({} as any);
 assert.equal(listings().at(-1).args.check, "sesn_side2");
 assert.equal(activityOf("sesn_side2"), "unread");
 """)
+
+
+# ── 侧栏多设备同步与标题（教程第 7、10、11 条，2026-10-13）──────────────────────────────────────────────
+# 同一账号两台设备（iPhone 主屏幕 App 与一直开着的 CC 桌面版）：一台新建、改名、加星标、删除对话，服务端按用户推一条
+# pearnly.session，另一台的侧栏马上并入；回到前台核对一次第一页。下面用组件库真的对话列表（RemoteThreadListThreadListRuntimeCore）
+# 接会话列表接口（session-list-adapter）与同步（list-sync），站点接口是假的（侧栏的行 + 记下每次调用），实时通道是能推事件的桩。
+
+SYNC_SOCKET = r"""
+export function io() {
+  const handlers: Record<string, Array<(data?: any) => void>> = {};
+  const socket: any = { connected: true, on(name: string, fn: any) { (handlers[name] ??= []).push(fn); return socket; }, off() { return socket; } };
+  (globalThis as any).socket = {
+    emit(name: string, data: any) { (handlers[name] ?? []).forEach((fn) => fn(data)); },
+    drop() { socket.connected = false; (handlers.disconnect ?? []).forEach((fn) => fn()); },
+    back() { socket.connected = true; (handlers.connect ?? []).forEach((fn) => fn()); },
+  };
+  return socket;
+}
+"""
+
+SYNC_SITE = r"""
+const ok = (message: any = null) => ({ ok: true, status: 200, json: async () => ({ message }) });
+const at = (minutesAgo: number) => new Date(Date.UTC(2026, 9, 13, 13, 0) - minutesAgo * 60000).toISOString();
+const row = (id: string, title: string, minutesAgo: number, extra: any = {}) =>
+  ({ id, title, starred: false, created_at: at(minutesAgo), updated_at: at(minutesAgo), archived_at: null, unread: false, ...extra });
+const site = { sessions: [] as any[], nextCursor: null as string | null, created: "sesn_new001" };
+g.respond = async (method: string) => {
+  if (method === "listing") return ok({ sessions: site.sessions, nextCursor: site.nextCursor, runs: {} });
+  if (method === "create") return ok(row(site.created, "", 0));
+  return ok();
+};
+const listings = () => g.calls.filter((c: any) => c.method === "listing");
+const writes = () => g.calls.filter((c: any) => ["rename", "star", "archive", "delete"].includes(c.method));
+// 服务端推来一条侧栏同步（信封里 session_id 为空）
+const push = (change: string, session: string, extra: any = {}) =>
+  g.socket.emit("pearnly_assistant_event", { session_id: "", event: { type: "pearnly.session", change, session, ...extra } });
+
+function sidebar() {
+  const core: any = new RemoteThreadListThreadListRuntimeCore(
+    { adapter: sessionListAdapter, runtimeHook: (() => null) as any } as any,
+    { getModelContext: () => ({}), subscribe: () => () => {} } as any,
+  );
+  // 组件库的对话运行时要等页面挂上组件才起来；这里没有页面，直接当起好了
+  core._hookManager.startThreadRuntime = async () => ({});
+  return { core, threads: new ThreadListRuntimeImpl(core) as any };
+}
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class SidebarSyncBehaviourTests(unittest.TestCase):
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SYNC_SOCKET}
+    IMPORTS = r"""
+import { RemoteThreadListThreadListRuntimeCore } from "@assistant-ui/core/react";
+import { ThreadListRuntimeImpl } from "@assistant-ui/core/internal";
+import { sessionListAdapter } from "@/lib/managed-agents/session-list-adapter";
+import { reconcile, watchList } from "@/lib/managed-agents/list-sync";
+"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n' + self.IMPORTS
+               + "\nconst g = globalThis as any;\n" + SYNC_SITE + body + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_changes_on_another_device_merge_into_the_sidebar_at_once(self):
+        # 2026-10-13 教程：iPhone 新建一段对话，一直开着的笔记本 CC 桌面版侧栏迟迟不出现，要刷新才看到
+        self.run_page(r"""
+site.sessions = [row("sesn_aaa001", "Old title", 1), row("sesn_bbb001", "Second", 2), row("sesn_ccc001", "Third", 3)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+assert.deepEqual([...core.threadIds], ["sesn_aaa001", "sesn_bbb001", "sesn_ccc001"]);
+watchList(() => threads);
+const title = (id: string) => core.getItemById(id)?.title;
+
+// 别处改了名（或服务端起好了主题标题）、加了星标、删了：就地并入；服务端已经改好，这边不再发请求
+push("titled", "sesn_aaa001", { title: "Supplier invoice summary" });
+push("starred", "sesn_bbb001", { starred: true });
+push("deleted", "sesn_ccc001");
+await g.sleep(20);
+assert.equal(title("sesn_aaa001"), "Supplier invoice summary");
+assert.equal(core.getItemById("sesn_bbb001").custom.starred, true);
+assert.deepEqual([...core.threadIds], ["sesn_aaa001", "sesn_bbb001"]);
+assert.equal(core.getItemById("sesn_ccc001"), undefined);
+assert.deepEqual(writes(), []);
+
+// 别处新建：几条合成一次重拉，新对话排进侧栏；重拉时旧列表照旧在（不闪骨架由界面管，见下一条检查）
+site.sessions = [row("sesn_new101", "เมื่อคืนเป็นยังไงบ้าง", 0), row("sesn_aaa001", "Supplier invoice summary", 1),
+  row("sesn_bbb001", "Second", 2, { starred: true })];
+push("created", "sesn_new101");
+push("titled", "sesn_new101", { title: "เมื่อคืนเป็นยังไงบ้าง" });
+await g.sleep(1600);
+assert.equal(listings().length, 2);  // 首次加载 + 合成的一次
+assert.deepEqual([...core.threadIds], ["sesn_new101", "sesn_aaa001", "sesn_bbb001"]);
+// 第一轮结束后服务端起好的主题标题：就地换上
+push("titled", "sesn_new101", { title: "ผลงานเมื่อคืน" });
+await g.sleep(20);
+assert.equal(title("sesn_new101"), "ผลงานเมื่อคืน");
+assert.deepEqual(writes(), []);
+
+// 本页用户自己改名照常发请求（并入时的记号用完就收回）；推回来的回声不再改、不再发
+await core.rename("sesn_aaa001", "Mine");
+push("titled", "sesn_aaa001", { title: "Mine" });
+await g.sleep(20);
+assert.deepEqual(writes().map((c: any) => [c.method, c.body]), [["rename", { session_id: "sesn_aaa001", title: "Mine" }]]);
+await core.delete("sesn_bbb001");
+assert.deepEqual(writes().at(-1).body, { session_id: "sesn_bbb001" });
+""")
+
+    def test_the_open_conversation_follows_its_titles_and_leaves_when_deleted_elsewhere(self):
+        self.run_page(r"""
+site.sessions = [row("sesn_aaa001", "Old title", 5)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+// 本页新建的对话：组件库先给它一个本页编号，建好会话才有对话编号
+await core.switchToNewThread();
+const local = core.mainThreadId;
+site.created = "sesn_mine01";
+await core.initialize(local);
+assert.equal(core.getItemById(local).remoteId, "sesn_mine01");
+// 重拉列表后同一段对话有两行数据（开着的那行、侧栏那行）：推来的标题两行都换
+site.sessions = [row("sesn_mine01", "เมื่อคืนเป็นยังไงบ้าง", 0), ...site.sessions];
+await core.reload();
+const rows = () => Object.values(threads.getState().threadItems).filter((item: any) => item.remoteId === "sesn_mine01");
+assert.equal(rows().length, 2);
+push("titled", "sesn_mine01", { title: "ผลงานเมื่อคืน" });
+await g.sleep(20);
+assert.deepEqual(rows().map((item: any) => item.title), ["ผลงานเมื่อคืน", "ผลงานเมื่อคืน"]);
+assert.equal(core.getItemById(local).title, "ผลงานเมื่อคืน");  // 顶栏标题跟着换
+// 正开着的对话在别处删了：两行都去掉、切到新对话，不再向服务端发删除
+push("deleted", "sesn_mine01");
+await g.sleep(50);
+assert.equal(rows().length, 0);
+assert.notEqual(core.mainThreadId, local);
+assert.deepEqual(writes(), []);
+""")
+
+    def test_coming_back_checks_the_first_page_once(self):
+        self.run_page(r"""
+site.sessions = [row("sesn_aaa001", "A", 1), row("sesn_bbb001", "B", 2), row("sesn_ccc001", "C", 3)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+// 锁屏期间手机上改了名、删了一段：回到前台核对一次（侧栏没有在转圈的也核对，不读引擎状态）
+site.sessions = [row("sesn_aaa001", "Renamed on phone", 0), row("sesn_ccc001", "C", 3)];
+g.document.fire("visibilitychange");
+await g.sleep(30);
+assert.deepEqual(listings().slice(1).map((c: any) => c.args.check), [undefined]);
+assert.equal(core.getItemById("sesn_aaa001").title, "Renamed on phone");
+assert.deepEqual([...core.threadIds], ["sesn_aaa001", "sesn_ccc001"]);
+assert.deepEqual(writes(), []);
+// 实时通道断过又连上：同样核对；新出现的重拉一次
+site.sessions = [row("sesn_new202", "From phone", 0), ...site.sessions];
+g.socket.drop();
+g.socket.back();
+await g.sleep(1600);
+assert.ok(core.threadIds.includes("sesn_new202"));
+
+const quiet = { note: () => {}, stop: () => {} };
+// 有下一页时：比这一页里最早的还旧的不在这一页里是正常的，不去掉；比它新却不在的才是在别处删了
+site.sessions = [row("sesn_new202", "From phone", 0)];
+reconcile(threads, { sessions: [row("sesn_new202", "From phone", 0), row("sesn_aaa001", "Renamed on phone", 0.5)],
+  nextCursor: "2026-10-13 12:59:30|x" } as any, Date.now(), quiet);
+await g.sleep(30);
+assert.ok(core.threadIds.includes("sesn_ccc001"));
+// 这一页发出之后本页自己改过的：不拿旧的一页盖掉
+const asked = Date.now() - 1000;
+await core.rename("sesn_aaa001", "Changed here");
+reconcile(threads, { sessions: [row("sesn_aaa001", "Renamed on phone", 0)], nextCursor: null } as any, asked, quiet);
+await g.sleep(30);
+assert.equal(core.getItemById("sesn_aaa001").title, "Changed here");
+assert.ok(!core.threadIds.includes("sesn_ccc001"));  // 没有下一页：不在的都是在别处删了
+""")
+
+    def test_a_new_chat_is_titled_at_once_without_waiting(self):
+        # 以前侧栏先显示「新对话」，等服务端概括（最多 12 秒）；现在首条消息立刻就是标题，主题标题之后就地换上
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { dispatch, subscribe } from "@/lib/managed-agents/realtime";
+import { activityOf } from "@/lib/managed-agents/activity";
+import { sessionListAdapter } from "@/lib/managed-agents/session-list-adapter";
+import { AssistantMessageStream } from "assistant-stream";
+const g = globalThis as any;
+// 同组件库取标题：第一个文字段
+const title = async (id: string, messages: any[]) => {
+  let out: string | undefined;
+  const stream = await sessionListAdapter.generateTitle!(id, messages as any);
+  for await (const result of AssistantMessageStream.fromAssistantStream(stream)) {
+    out = result.parts.filter((p: any) => p.type === "text")[0]?.text;
+  }
+  return out;
+};
+const note = "\n\n[Attached file, mounted read-only in the sandbox:\n- r.jpg → /mnt/session/uploads/f/r.jpg]";
+const said = (text: string) => [{ role: "user", content: [{ type: "text", text }] }];
+const started = Date.now();
+assert.equal(await title("sesn_t1", said("  เมื่อคืน   เป็นยังไงบ้าง" + note)), "เมื่อคืน เป็นยังไงบ้าง");
+assert.ok(Date.now() - started < 500);  // 不等服务端
+assert.equal(await title("sesn_t2", said(note.trim())), "r.jpg");  // 只发了附件
+assert.equal(await title("sesn_t3", []), undefined);  // 什么都没有：不写死「New chat」，侧栏按页面语言显示
+// 侧栏同步事件只给侧栏：不进对话页、不动行尾状态；推来的标题记下，之后取标题直接用
+const seen: any[] = [];
+subscribe("sesn_t1", (event) => seen.push(event), () => {});
+dispatch({ session_id: "", event: { type: "pearnly.session", change: "titled", session: "sesn_t1", title: "ผลงานเมื่อคืน" } } as any);
+assert.deepEqual(seen, []);
+assert.equal(activityOf("sesn_t1"), undefined);
+assert.equal(await title("sesn_t1", said("เมื่อคืนเป็นยังไงบ้าง")), "ผลงานเมื่อคืน");
+g.done();
+""", stubs={"socket.io-client": "export function io() { return { on() {}, off() {}, connected: true }; }"})
+
+    def test_sidebar_rows_show_only_the_title(self):
+        # 2026-10-13 用户：侧栏对话前面的气泡图标不要（同 Claude 侧栏只显示标题）
+        thread_list = read("components/assistant-ui/thread-list.tsx")
+        self.assertNotIn("MessageCircleIcon", thread_list)
+        self.assertNotIn("cc-row-icon", thread_list + read("globals.css"))
+        item = block(thread_list, "export const ThreadListItem: FC")
+        self.assertIn("<ThreadListItemPrimitive.Title", item)
+        self.assertIn("<ThreadActivity />", item)  # 行尾在跑、未读圆点照旧
+        self.assertIn("data-active:bg-active", item)  # 选中、悬停照旧
+        # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪
+        self.assertIn("s.threads.isLoading && !s.threads.threadIds.length", thread_list)
+        realtime = read("lib/managed-agents/realtime.ts")
+        self.assertNotIn("pearnly_assistant_title", realtime)  # 标题也走侧栏同步，没有单独的事件
+        self.assertIn("watchList(() => runtime.threads)", read("lib/managed-agents/runtime-provider.tsx"))
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@
   "product",
   "engine_code",
   "title",
+  "title_source",
   "starred",
   "archived",
   "remote_ids",
@@ -56,6 +57,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "title_source",
+   "fieldtype": "Data",
+   "label": "Title Source",
+   "read_only": 1
+  },
+  {
    "default": "0",
    "fieldname": "starred",
    "fieldtype": "Check",
@@ -91,7 +98,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-10 14:00:00.000000",
+ "modified": "2026-10-15 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",

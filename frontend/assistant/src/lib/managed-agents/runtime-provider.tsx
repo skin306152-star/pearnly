@@ -25,7 +25,8 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
 import { beginPendingText, clearPending } from "./pending-send";
-import { sessionListAdapter, watchRunning } from "./session-list-adapter";
+import { watchList } from "./list-sync";
+import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
   type ControllerSnapshot,
@@ -133,7 +134,7 @@ function useSessionThreadRuntime() {
         clearPending();
       }
       // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；
-      // 这里自己取：服务端把首条消息概括成短标题后推过来（短消息原文即标题，随发送一起推），侧栏一收到就显示。
+      // 这里自己取：先是首条消息（服务端的临时标题），第一轮结束后服务端起好主题标题推过来，侧栏就地换上（list-sync.ts）。
       if (isFirst) void aui.threadListItem().generateTitle();
     },
 
@@ -157,8 +158,9 @@ export function ManagedAgentsRuntimeProvider({ children }: { children: React.Rea
     // Each mounted thread gets its own instance of this hook.
     runtimeHook: useSessionThreadRuntime,
   });
-  // 侧栏标着在跑的其他对话：回到前台、恢复、联网、重连时向服务端核对（开着的那个由它的会话控制器核对）
-  useEffect(() => watchRunning(), []);
+  // 侧栏多设备同步（list-sync.ts）：别处的新建、改名、星标、归档、删除随推随并；回到前台、恢复、联网、重连时核对一次
+  // 第一页，顺带核对侧栏标着在跑的其他对话（开着的那个由它的会话控制器核对）
+  useEffect(() => watchList(() => runtime.threads), [runtime]);
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 

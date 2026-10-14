@@ -7,16 +7,20 @@
 import hashlib
 import html
 import re
+import unicodedata
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 # 会话、事件、文件编号：引擎生成的不透明编号。
 OPAQUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
 TITLE_MAX = 60
-# 首条消息比这长才概括成短标题（`summary_source`）；短的原文本身就是标题，不多花一次模型调用。
-TITLE_SHORT = 12
-# 概括时只给模型看开头这么多字：标题只看开头就够，输入短、花费小。
+# 侧栏标题的显示宽度上限（同 Claude 侧栏：一个主题短语、一行放得下，不出省略号）。中日韩全角字算 2，其余按字形簇
+# 各算 1（泰文没有空格，上下元音、声调与前面的辅音合成一个字形簇）。iPhone 抽屉一行（17 px、去掉行尾圆点）约放得下
+# 30 个英文字母、15 个汉字、27 个泰文字形簇，取 26 留余量。
+TITLE_WIDTH = 26
+# 概括时只给模型看首条消息开头这么多字、CC 第一段回复开头这么多字：标题只看开头就够，输入短、花费小。
 TITLE_SOURCE_MAX = 1_000
+TITLE_REPLY_MAX = 400
 TEXT_MAX = 20_000
 DENY_MAX = 2_000
 TOOL_RESULT_MAX = 50_000
@@ -81,12 +85,50 @@ def title_from(text) -> str:
     return " ".join(text.split())[:TITLE_MAX]
 
 
-def summary_source(text) -> str:
-    """要概括成短标题的原文（去掉附件说明、合并空白）；原文已经够短或只有附件时回空串，直接用 `title_from`。"""
+def _message_body(text) -> str:
+    """首条消息给概括用的部分：去掉附件说明、合并空白；只发了附件就用各附件的文件名。"""
     text = str(text or "")
     note = ATTACHMENT_NOTE.search(text)
     body = " ".join((text[:note.start()] if note else text).split())
-    return body[:TITLE_SOURCE_MAX] if len(body) > TITLE_SHORT else ""
+    if body or not note:
+        return body[:TITLE_SOURCE_MAX]
+    return ", ".join(re.findall(r"- (.+) → ", note.group(1)))[:TITLE_SOURCE_MAX]
+
+
+def title_parts(events) -> tuple[str, str]:
+    """概括侧栏标题的原料，从「旧 → 新」的事件里取、找齐即停：第一条用户消息与其后 CC 的第一段回复（开头）。
+    还没有回复时回复为空串。"""
+    message = None
+    for event in events:
+        kind = event.get("type")
+        if message is None:
+            if kind == "user.message":
+                message = _message_body(_text(event))
+            continue
+        if kind == "agent.message":
+            reply = " ".join(_text(event).split())
+            if reply:
+                return message, reply[:TITLE_REPLY_MAX]
+    return message or "", ""
+
+
+# 内容里冒充标签的字样（例如消息里写了 </message>）去掉，免得跳出标签
+TITLE_TAGS = re.compile(r"</?\s*(?:message|reply|too_long)\b[^>]*>", re.I)
+
+
+def _tag_body(text, limit) -> str:
+    return " ".join(TITLE_TAGS.sub(" ", str(text or "")).split())[:limit]
+
+
+def title_prompt(message, reply="", too_long="") -> str:
+    """交给概括模型的内容（怎么写见 `engines.base.TITLE_INSTRUCTION`）：首条消息、CC 第一段回复的开头；
+    上一次概括超宽时带上它（`too_long`），请模型写短一些。"""
+    parts = [f"<message>\n{_tag_body(message, TITLE_SOURCE_MAX)}\n</message>"]
+    if reply:
+        parts.append(f"<reply>\n{_tag_body(reply, TITLE_REPLY_MAX)}\n</reply>")
+    if too_long:
+        parts.append(f"<too_long>{_tag_body(too_long, TITLE_MAX)}</too_long>")
+    return "\n".join(parts)
 
 
 # 模型给的标题常带引号、书名号、句末标点或「标题：」前缀，这里统一去掉。
@@ -95,12 +137,132 @@ TITLE_WRAP = re.compile(r"^[\s\"'“”‘’「」『』《》*#`]+|[\s\"'“�
 TITLE_LABEL = re.compile(r"^(?:title|\u6807\u9898|\u984c\u540d|\u0e0a\u0e37\u0e48\u0e2d\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07)\s*[:\uff1a]\s*", re.I)
 
 
-def short_title(value) -> str:
-    """模型概括出的标题 → 侧栏标题：只取第一行，去掉包装与前缀；不像标题（空的、过长的）回空串，由调用方保留原标题。"""
+def clean_title(value) -> str:
+    """模型的原话 → 标题文字：只取第一行，去掉包装与前缀，合并空白。不管长短。"""
     line = next((part for part in str(value or "").splitlines() if part.strip()), "")
     line = TITLE_WRAP.sub("", TITLE_LABEL.sub("", TITLE_WRAP.sub("", line)))
-    line = " ".join(line.split())
+    return " ".join(line.split())
+
+
+def short_title(value) -> str:
+    """模型概括出的标题 → 侧栏标题：`clean_title` 之后，不像标题（空的、过长的，例如答了一段话）回空串。"""
+    line = clean_title(value)
     return line if 0 < len(line) <= TITLE_MAX else ""
+
+
+# ---- 显示宽度（字形簇按 UAX #29 简化，够标题用；只用标准库）----
+ZWJ = "‍"
+
+
+def _extends(char) -> bool:
+    """跟在前一个字后面、不自成一格的：组合附加符号（泰文上下元音、声调等）、零宽连接符、变体选择符、肤色修饰、
+    标签字符，以及 UAX #29 里算作附加的泰文 / 老挝文 AM（U+0E33、U+0EB3）。"""
+    code = ord(char)
+    return (unicodedata.category(char) in ("Mn", "Me", "Mc") or char == ZWJ or code in (0x0E33, 0x0EB3)
+            or 0xFE00 <= code <= 0xFE0F or 0xE0100 <= code <= 0xE01EF or 0x1F3FB <= code <= 0x1F3FF
+            or 0xE0020 <= code <= 0xE007F)
+
+
+def _regional(char) -> bool:
+    return 0x1F1E6 <= ord(char) <= 0x1F1FF
+
+
+def graphemes(text) -> list[str]:
+    """按字形簇切开：附加符号与前一个字算一格，零宽连接的表情算一格，两个地区指示符（旗帜）算一格。"""
+    clusters: list[str] = []
+    for char in str(text or ""):
+        last = clusters[-1] if clusters else ""
+        if last and (_extends(char) or last.endswith(ZWJ) or (_regional(char) and len(last) == 1 and _regional(last))):
+            clusters[-1] = last + char
+        else:
+            clusters.append(char)
+    return clusters
+
+
+def _width(cluster) -> int:
+    base = cluster[0]
+    if unicodedata.category(base) in ("Cc", "Cf"):
+        return 0
+    return 2 if unicodedata.east_asian_width(base) in ("W", "F") or _regional(base) else 1
+
+
+def display_width(text) -> int:
+    """侧栏里占多宽：中日韩全角字（含多数表情、旗帜）算 2，其余每个字形簇算 1。"""
+    return sum(_width(cluster) for cluster in graphemes(text))
+
+
+def title_fits(text, width: int = TITLE_WIDTH) -> bool:
+    return 0 < display_width(text) <= width
+
+
+# 收短后不留在末尾的：空白、标点，以及泰文 / 老挝文的前置元音（写在辅音前、读在辅音后，单独留下是半个字）
+LEADING_VOWELS = frozenset(range(0x0E40, 0x0E45)) | frozenset(range(0x0EC0, 0x0EC5))
+
+
+def _dangling(cluster) -> bool:
+    return cluster.isspace() or unicodedata.category(cluster[0]).startswith("P") or ord(cluster[0]) in LEADING_VOWELS
+
+
+def fit_title(text, width: int = TITLE_WIDTH) -> str:
+    """超宽的标题收短到 `width` 以内：断在词边界还留得下一半宽度就断在词边界，否则断在字形簇边界（泰文、中日文
+    没有空格）；不出半个字、不加省略号，末尾不留标点与前置元音。"""
+    text = " ".join(str(text or "").split())
+    if display_width(text) <= width:
+        return text
+    clusters = graphemes(text)
+    kept, used = [], 0
+    for cluster in clusters:
+        if used + _width(cluster) > width:
+            break
+        kept.append(cluster)
+        used += _width(cluster)
+    if not clusters[len(kept)].isspace():
+        spaces = [i for i, cluster in enumerate(kept) if cluster.isspace()]
+        if spaces and display_width("".join(kept[:spaces[-1]])) * 2 >= width:
+            kept = kept[:spaces[-1]]
+    while kept and _dangling(kept[-1]):
+        kept.pop()
+    return "".join(kept)
+
+
+def make_title(ask) -> str:
+    """向模型要一个侧栏标题。`ask(too_long)` 调一次模型、回原话（第一次 too_long 为空）。
+    第一次超宽（或不像标题：超过 TITLE_MAX 字）就带上它重问一次；仍超宽就取两次里较窄的、在词或字形簇边界收短。
+    第一次没给回空串（调用方保留临时标题）；第二次出错按没给处理；第一次出错照抛，由调用方记下。"""
+    first = clean_title(ask(""))
+    if not first:
+        return ""
+    if len(first) <= TITLE_MAX and title_fits(first):
+        return first
+    try:
+        second = clean_title(ask(first[:TITLE_MAX].strip()))
+    except Exception:
+        second = ""
+    pool = [title for title in (second, first) if 0 < len(title) <= TITLE_MAX]
+    if not pool:
+        return ""
+    best = min(pool, key=display_width)
+    return best if title_fits(best) else fit_title(best)
+
+
+# ---- 侧栏多设备同步（`sidebar`）----
+# 站点实时通道里对话页认的事件名：对话事件（`relay`）、提醒（`notices`）、侧栏同步（`sidebar`）共用这一个。
+REALTIME_EVENT = "pearnly_assistant_event"
+SESSION_CHANGE = "pearnly.session"
+SESSION_CHANGES = frozenset({"created", "titled", "starred", "archived", "deleted"})
+
+
+def session_change(change, session, title=None, starred=None) -> dict:
+    """侧栏同步的一条事件：哪段对话（浏览器认的对话编号）、变了什么（新建 / 标题 / 星标 / 归档 / 删除），标题与星标
+    变了带上新值。新出现的对话由侧栏重拉列表取全，这里不带整行。"""
+    if change not in SESSION_CHANGES:
+        raise ContractError("unknown session change")
+    event = {"type": SESSION_CHANGE, "change": change, "session": session_id(session)}
+    if title is not None:
+        event["title"] = " ".join(str(title).split())[:TITLE_MAX]
+    if starred is not None:
+        event["starred"] = bool(starred)
+    return event
 
 
 def confirmations(items) -> list[dict]:

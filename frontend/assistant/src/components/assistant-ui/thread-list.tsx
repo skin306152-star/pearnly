@@ -22,7 +22,6 @@ import {
   StarIcon,
   StarOffIcon,
   LoaderIcon,
-  MessageCircleIcon,
   PlusIcon,
   SearchIcon,
   TrashIcon,
@@ -99,10 +98,11 @@ export const ThreadListItems: FC<
       className={cn("flex flex-col gap-0.5", className)}
       {...props}
     >
-      <AuiIf condition={(s) => s.threads.isLoading}>
+      {/* 只有第一次加载显示骨架；之后重拉列表（别的设备新建了对话等，list-sync.ts）时旧列表留着，拉回来就地换上 */}
+      <AuiIf condition={(s) => s.threads.isLoading && !s.threads.threadIds.length}>
         <ThreadListSkeleton />
       </AuiIf>
-      <AuiIf condition={(s) => !s.threads.isLoading}>
+      <AuiIf condition={(s) => !s.threads.isLoading || !!s.threads.threadIds.length}>
         <ThreadListItemGroups searchQuery={searchQuery} />
         <ThreadListMore searching={!!searchQuery.trim()} />
       </AuiIf>
@@ -370,19 +370,37 @@ function useLongPress(onLongPress: () => void) {
   };
 }
 
+/** 这一行是不是正开着的对话。一段对话在组件库里可能有两行数据（本页新建的那行 + 重拉列表后服务端给的那行，组件库按
+ *  编号各存一份，侧栏显示的是后者），所以按对话编号认：两行都算正开着（选中底色、行尾不标状态、点它不切换）。 */
+function useCurrent(): { current: boolean; isMain: boolean } {
+  const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
+  const sameConversation = useAuiState((s) => {
+    const remote = s.threadListItem.remoteId;
+    if (!remote || s.threads.mainThreadId === s.threadListItem.id) return false;
+    return s.threads.threadItems.some((item) => item.id === s.threads.mainThreadId && item.remoteId === remote);
+  });
+  return { current: isMain || sameConversation, isMain };
+}
+
+// 侧栏一行只有标题（同 Claude 侧栏，用户 2026-10-13：不要前面的对话气泡图标）；选中、悬停、行尾状态不变
 export const ThreadListItem: FC = () => {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const press = useLongPress(() => setMenuOpen(true));
-  // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态
+  // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态。
+  // 点的是同一段对话的另一行数据：也不切换（切过去会另起一份，输入框里没发的字就没了）
   const id = useAuiState((s) => s.threadListItem.remoteId);
-  const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
-  const reenter = () => {
-    if (isMain && id) getSessionController(id).refreshStatus();
+  const { current, isMain } = useCurrent();
+  const reenter = (event: React.MouseEvent) => {
+    if (!current) return;
+    if (!isMain) event.preventDefault();
+    if (id) getSessionController(id).refreshStatus();
   };
   return (
     <ThreadListItemPrimitive.Root
       {...press}
+      data-active={current ? "true" : undefined}
+      aria-current={current ? "true" : undefined}
       data-slot="aui_thread-list-item"
       className="group/item hover:bg-hover focus-visible:bg-hover data-active:bg-active has-focus-visible:bg-hover has-data-[state=open]:bg-hover text-ink-2 data-active:text-ink relative flex h-8 items-center rounded-sm transition-colors focus-visible:outline-none"
     >
@@ -395,9 +413,6 @@ export const ThreadListItem: FC = () => {
             onClick={reenter}
             className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9 focus-visible:ring-[3px]"
           >
-            <span className="cc-row-icon" aria-hidden>
-              <MessageCircleIcon />
-            </span>
             <span
               data-slot="aui_thread-list-item-title"
               className="min-w-0 flex-1 truncate"
@@ -417,10 +432,10 @@ export const ThreadListItem: FC = () => {
  *  在定时任务页时当前对话没人在看，照样标；鼠标移上去让位给「更多」按钮。 */
 const ThreadActivity: FC = () => {
   const id = useAuiState((s) => s.threadListItem.remoteId);
-  const isMain = useAuiState((s) => s.threads.mainThreadId === s.threadListItem.id);
+  const { current } = useCurrent();
   const { view } = useView();
   const activity = useActivity(id);
-  if (!activity || (isMain && view === "chat")) return null;
+  if (!activity || (current && view === "chat")) return null;
   const label = activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread");
   return (
     <span className="cc-activity group-hover/item:hidden group-has-data-[state=open]/item:hidden" data-activity={activity} aria-label={label}>
