@@ -140,7 +140,7 @@ def books(company) -> list:
             if not fill:
                 continue
             if frappe.db.exists(COMPANY, {"identity": fill["identity"]}):
-                frappe.log_error(title="Cowork company tax ID taken", message=f"{company.get('name')} {fill['identity']}")
+                _taken(company, fill)
             elif _autofill(company, fill):
                 company.update(fill)
             break
@@ -149,15 +149,27 @@ def books(company) -> list:
     return identity.newest_first(found)[:identity.BOOKS_MAX]
 
 
+_TAKEN_LOGGED: set = set()
+
+
+def _taken(company, filled) -> None:
+    """要补的税号已被别的主档占用：不动，记一次日志（同一进程里同一对只记一次，免得每次打开主档页都记）。"""
+    key = (frappe.local.site if hasattr(frappe.local, "site") else "", company.get("name"), filled["identity"])
+    if key not in _TAKEN_LOGGED:
+        _TAKEN_LOGGED.add(key)
+        frappe.log_error(title="Cowork company tax ID taken", message=f"{company.get('name')} {filled['identity']}")
+
+
 def _autofill(company, filled) -> bool:
     frappe.db.savepoint(SAVEPOINT)
     try:
         frappe.db.set_value(COMPANY, company["name"], filled, update_modified=False)
         return True
-    except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
+    except (frappe.DuplicateEntryError, frappe.UniqueValidationError,
+            getattr(frappe.db, "IntegrityError", frappe.UniqueValidationError)):  # 并发时撞唯一键（1062）
         frappe.db.rollback(save_point=SAVEPOINT)
         frappe.clear_messages()
-        frappe.log_error(title="Cowork company tax ID taken", message=f"{company.get('name')} {filled['identity']}")
+        _taken(company, filled)
         return False
 
 
