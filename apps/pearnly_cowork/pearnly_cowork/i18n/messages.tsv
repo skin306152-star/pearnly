@@ -1062,6 +1062,7 @@ Found {0}. Tap the number to choose:	找到 {0} 个账套，请点击序号选�
 Too many matches; type a few more letters to narrow it down	匹配结果过多，请输入更多关键字缩小范围	ผลลัพธ์มากเกินไป กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์	候補が多すぎます。もう少し入力して絞り込んでください
 The own tax ID on this document does not match the chosen account set. Check the account set and send it again.	单据上的本方税号与所选账套不一致，请核对账套后重新发送。	เลขประจำตัวผู้เสียภาษีของกิจการบนเอกสารไม่ตรงกับชุดบัญชีที่เลือก กรุณาตรวจสอบชุดบัญชีแล้วส่งใหม่	書類上の自社の税番号が選択した会計データと一致しません。会計データを確認して再送してください。
 The document date is outside the fiscal period of the chosen account set. Check the year and send it again.	单据日期不在所选账套的会计期间内，请核对年度后重新发送。	วันที่เอกสารอยู่นอกงวดบัญชีของชุดบัญชีที่เลือก กรุณาตรวจสอบปีบัญชีแล้วส่งใหม่	書類の日付が選択した会計データの会計期間外です。年度を確認して再送してください。
+This document belongs to another branch than the chosen account set. Choose that branch's account set and send it again.	这张单据属于另一个分店，与所选账套的分店不同，请选那个分店的账套后重新发送。	เอกสารนี้เป็นของสาขาอื่น ไม่ตรงกับสาขาของชุดบัญชีที่เลือก กรุณาเลือกชุดบัญชีของสาขานั้นแล้วส่งใหม่	この書類は選択した会計データとは別の支店のものです。その支店の会計データを選んで再送してください。
 Choose the year and account set first.	请先选择年度和账套。	กรุณาเลือกปีบัญชีและชุดบัญชีก่อน	先に年度と会計データを選択してください。
 Account set	账套	ชุดบัญชี	会計データ	intake.target.accountSet
 Read again	重新读取	อ่านใหม่	再読み込み	intake.catalog.reload
@@ -2193,6 +2194,7 @@ Documents to handle	待处理单据	เอกสารรอดำเนิน�
 {0} documents are waiting for you	{0} 份单等你处理	มีเอกสาร {0} รายการรอคุณดำเนินการ	{0} 件の書類があなたの処理を待っています	cowork.company.pending.text_plain
 {0} more companies	另有 {0} 家	อีก {0} บริษัท	ほか {0} 社	cowork.company.pending.more
 Not pushed yet	还没推送	ยังไม่ได้ส่ง	まだ送信していません	cowork.company.pending.not_pushed
+This document has no push target	这张单还没选推送去向	เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง	この書類はまだ送信先が選ばれていません	cowork.company.pending.no_target
 Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบริษัท	Cowork 会社マスター
 Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート
 Cowork Company Folder	Cowork 公司单据文件夹	Cowork โฟลเดอร์เอกสารบริษัท	Cowork 会社書類フォルダー

@@ -1222,9 +1222,14 @@ class LiveAndNotify(unittest.TestCase):
         live, _published = self._live(fail=True)
         live.changed("R1", "actor@example.com")
 
-    def _notify(self, notices, local=None):
+    def _notify(self, notices, local=None, hooks=None):
         local = local or types.SimpleNamespace(lang="en")
-        modules = {"frappe": types.SimpleNamespace(local=local),
+        hooks = hooks or {}
+        errors = []
+        frappe = types.SimpleNamespace(local=local, get_hooks=lambda name: list(hooks.get(name) or []),
+                                       get_attr=lambda path: hooks[path], log_error=lambda title=None: errors.append(title))
+        self.notify_errors = errors
+        modules = {"frappe": frappe,
                    "frappe.translate": types.SimpleNamespace(get_user_lang=lambda user: {"th@example.com": "th"}.get(user, "zh")),
                    "frappe.utils": types.SimpleNamespace(get_datetime=lambda value: value,
                                                          get_system_timezone=lambda: "Asia/Bangkok"),
@@ -1260,10 +1265,37 @@ class LiveAndNotify(unittest.TestCase):
         self.assertEqual(posted, [("owner@example.com", "cowork.folder.brief", "Text", "cowork.folder.brief:x",
                                    {"title": "Title", "conversation": "sesn_cc_1",
                                     "reference_doctype": "Cowork Folder Intake Rule", "reference_names": ("R1", "R2"),
-                                    "ttl": 24 * 3600})])
+                                    "ttl": 24 * 3600, "view": ""})])
         self.assertEqual((notify.KIND_REMIND, notify.REMIND_TTL), ("cowork.folder.reminder", 6 * 3600))
         self.assertTrue(notify.sent("cowork.folder.remind:old"))
         self.assertFalse(notify.sent("cowork.folder.remind:new"))
+
+    def test_a_notice_of_one_companys_tasks_opens_that_company(self):
+        # ADR-020：提醒 / 简报的任务都属于同一家公司 → 没挂上对话时点开到这家的主档页；归不上 → 维持现状（定时任务页）
+        posted, asked = [], []
+
+        def post(user, kind, text, dedup_key, **kwargs):
+            posted.append(kwargs["view"])
+            return {"name": "n1", "id": "pnotice_n1", "session_id": "", "created": True}
+
+        def company_of(user, rules):
+            asked.append((user, rules))
+            return "abc1234567" if rules == ["R1"] else ""
+
+        notify = self._notify(types.SimpleNamespace(post=post), hooks={
+            "cowork_rules_company": ["companies.of"], "companies.of": company_of})
+        notify.send("owner@example.com", notify.KIND_REMIND, "T", "X", "k1", rules=["R1"])
+        notify.send("owner@example.com", notify.KIND_REMIND, "T", "X", "k2", rules=["R1", "R2"])
+        self.assertEqual(posted, ["company:abc1234567", ""])
+        self.assertEqual(asked, [("owner@example.com", ["R1"]), ("owner@example.com", ["R1", "R2"])])
+
+        def broken(user, rules):
+            raise RuntimeError("catalog down")
+
+        notify = self._notify(types.SimpleNamespace(post=post), hooks={
+            "cowork_rules_company": ["companies.of"], "companies.of": broken})
+        notify.send("owner@example.com", notify.KIND_BRIEF, "T", "X", "k3", rules=["R1"])
+        self.assertEqual((posted[-1], self.notify_errors), ("", ["Cowork rules company failed"]))
 
     def test_notify_writes_in_the_owner_language_and_picks_the_latest_conversation(self):
         job = types.SimpleNamespace(lang_resolved=False)

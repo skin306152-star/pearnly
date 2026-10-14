@@ -40,15 +40,21 @@ def courier(**fields):
             **fields}
 
 
-def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None):
-    """推送服务按真实导入加载（`test_cowork_push_fixed._service`），方向与账套核对用真的纯规则，其余换成替身。"""
+def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=None, work_branch=""):
+    """推送服务按真实导入加载（`test_cowork_push_fixed._service`），方向与账套核对用真的纯规则，其余换成替身。
+    ``branches``：同一税号各分店的账套 ``{账套键: 分店号}``（推往 BOOK）；``work_branch``：CC 对话指定的分店（钩子替身）。"""
     service, frappe, _calls = _service()
     seen = {}
     frappe.conf = {"pearnly_cowork_erp_push_enabled": True}
     frappe.db.get_value = lambda *a, **k: own_tax
+    asked = seen.setdefault("work_branch_asked", [])
+    frappe.get_hooks = lambda name: ["p.branch"] if name == "cowork_push_work_branch" else []
+    frappe.get_attr = lambda path: lambda connection, account_set: asked.append((connection, account_set)) or work_branch
     doc = types.SimpleNamespace(name="CWH-9151", workspace="W1", client="", record_version=3, pages="[]")
-    snapshot = {"account_sets": [{"source_id": BOOK, "attributes": {
-        "tax_id": book_tax, "period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}}]}
+    period = {"period_start": "2025-11-01", "period_end": "2026-10-31", "next_end": "2027-10-31"}
+    snapshot = {"account_sets": [{"source_id": key, "attributes": {"tax_id": book_tax, "branch": branch, **period}}
+                                 for key, branch in (branches or {}).items()] or
+                [{"source_id": BOOK, "attributes": {"tax_id": book_tax, **period}}]}
     loaded = types.SimpleNamespace(endpoint={"adapter": "express"}, revision=7, doc=types.SimpleNamespace(name="C1"),
                                    evidence=types.SimpleNamespace(snapshot=snapshot),
                                    access=types.SimpleNamespace(tenant_id="T1", user_id="u1"))
@@ -88,8 +94,8 @@ def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None):
     service.resolve_account_direction = push_contract.resolve_account_direction
     service.account_match = account_match
     # 加载时账套核对是替身：拒绝文案表的键换成真规则的原因码（表里依次是税号不符、期间不符）
-    service._ACCOUNT_CONFLICTS = dict(zip((account_match.TAX_MISMATCH, account_match.PERIOD_MISMATCH),
-                                          service._ACCOUNT_CONFLICTS.values()))
+    service._ACCOUNT_CONFLICTS = dict(zip((account_match.TAX_MISMATCH, account_match.PERIOD_MISMATCH,
+                                           account_match.BRANCH_MISMATCH), service._ACCOUNT_CONFLICTS.values()))
     service.ExpressContext = lambda **kwargs: kwargs
     service.prepare_express = prepare_express
     service._document_block = lambda d: None
@@ -135,6 +141,57 @@ class PrepareDirection(unittest.TestCase):
     def test_the_review_choices_use_the_same_direction(self):
         service, _seen, (doc, loaded) = wired(courier())
         self.assertEqual(service._express_facts(doc, loaded, BOOK)[3], "purchase")
+
+
+class BranchRouting(unittest.TestCase):
+    """补充 甲.3（用户 2026-10-15）：同一法人有几个分店的账套时，进项票票面的买方分店只认这个分店的账套；票面没有分店
+    用 CC 对话的分店；与所选账套分店不符就拦（照现有账套核对的硬闸），不静默改。只有一个分店的不按分店拦。"""
+    TWO = {BOOK: "00000", r"c:\pearnlyexpress\70exp\t9b12": "00012"}
+
+    def prepare(self, fields, **kwargs):
+        service, seen, _ = wired(fields, **kwargs)
+        service.prepare("CWH-9151", "C1", "req-1", 3, 7, BOOK)
+        return seen
+
+    def bought(self, **fields):
+        return courier(buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX, **fields)
+
+    def test_the_buyer_branch_printed_on_the_document_must_be_the_chosen_sets_branch(self):
+        with self.assertRaisesRegex(Translated, "another branch"):
+            self.prepare(self.bought(buyer_branch="00012"), branches=self.TWO)
+        with self.assertRaisesRegex(Translated, "another branch"):
+            self.prepare(self.bought(buyer_branch="สาขาที่ 12"), branches=self.TWO)
+        self.assertEqual(self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO)["direction"], "purchase")
+        self.assertEqual(self.prepare(self.bought(buyer_branch="สำนักงานใหญ่"), branches=self.TWO)["direction"],
+                         "purchase")
+
+    def test_without_a_printed_branch_the_conversation_branch_decides(self):
+        with self.assertRaisesRegex(Translated, "another branch"):
+            self.prepare(self.bought(), branches=self.TWO, work_branch="00012")
+        seen = self.prepare(self.bought(), branches=self.TWO, work_branch="00000")
+        self.assertEqual(seen["work_branch_asked"], [("C1", BOOK)])
+        # 对话没定分店：不拦（CC 按说明问一次）
+        self.assertEqual(self.prepare(self.bought(), branches=self.TWO)["direction"], "purchase")
+        # 票面印了分店就按票面，不看对话
+        self.assertEqual(self.prepare(self.bought(buyer_branch="00000"), branches=self.TWO, work_branch="00012")
+                         ["direction"], "purchase")
+
+    def test_a_single_branch_company_is_not_checked_by_branch(self):
+        self.assertEqual(self.prepare(self.bought(buyer_branch="00012"), branches={BOOK: "00000"})["direction"],
+                         "purchase")
+        self.assertEqual(self.prepare(self.bought(buyer_branch="00012"))["direction"], "purchase")
+
+    def test_the_rule_itself(self):
+        rows = [{"source_id": key, "attributes": {"tax_id": BOOK_TAX, "branch": branch}} for key, branch in self.TWO.items()]
+        head = rows[0]
+        conflict = account_match.conflict
+        self.assertEqual(conflict("express", head, direction="sales", fields={"seller_tax": BOOK_TAX,
+                                                                               "seller_branch": "12"}, catalog=rows),
+                         account_match.BRANCH_MISMATCH)  # 销项看卖方分店
+        self.assertEqual(conflict("express", head, direction="", fields={"buyer_branch": "00012"}, catalog=rows), "")
+        self.assertEqual(conflict("mrerp", head, direction="purchase", fields={"buyer_branch": "00012"}, catalog=rows), "")
+        self.assertEqual(account_match.company_branches(rows + [{"attributes": {"tax_id": OTHER, "branch": "00099"}}],
+                                                        BOOK_TAX), {"00000", "00012"})
 
 
 if __name__ == "__main__":

@@ -129,8 +129,9 @@ def subtitle(row) -> str:
     return row.get("tax_id") or ""
 
 
-def books(company) -> list:
-    """这家公司有哪些账套（本人能用的连接上），每次现算、不存：新年度在前，最多 `identity.BOOKS_MAX` 份。
+def books(company, limit=identity.BOOKS_MAX) -> list:
+    """这家公司有哪些账套（本人能用的连接上），每次现算、不存：新年度在前，最多 `limit` 份（页面与 CC 说明截到
+    `identity.BOOKS_MAX`；删 / 改记住的选择要全集，给 None，否则多分店多年度删不干净、改不全）。
     按名称建的主档，同一连接同名称的行后来报了有效税号 → 顺手补上税号（那个 `tax:` 键没被别的主档占用时；占了就不动，
     只记日志）。"""
     company = dict(company)
@@ -146,7 +147,8 @@ def books(company) -> list:
             break
     found = [identity.book(adapter, connection, row) for connection, adapter, row in _rows()
              if adapter == company.get("adapter") and identity.belongs(company, adapter, connection, row)]
-    return identity.newest_first(found)[:identity.BOOKS_MAX]
+    found = identity.newest_first(found)
+    return found if limit is None else found[:limit]
 
 
 _TAKEN_LOGGED: set = set()
@@ -495,7 +497,7 @@ def detail(company, period=None) -> dict:
     sets = books(row)
     row = _company_row(company)  # 可能刚补了税号
     covering = _covering(sets, period)
-    return {
+    found = {
         "company": {**_view_row(row), "created_by": row.created_by or "", "created_at": str(row.creation or "")},
         "account_sets": sets,
         "branches": identity.branches(sets),
@@ -507,6 +509,26 @@ def detail(company, period=None) -> dict:
         "tasks": tasks_of(sets),
         "drafts": drafts_of(row),
     }
+    # 库里的时间是站点时区的裸时间：给页面前换成带时区的 UTC（页面按这台设备的时区显示，不自己猜时区）
+    found["company"]["created_at"] = when(found["company"]["created_at"])
+    for key, field in (("notes", "updated_at"), ("choices", "set_at"), ("drafts", "updated_at")):
+        for item in found[key] or ():
+            item[field] = when(item.get(field))
+    return found
+
+
+def when(value) -> str:
+    """站点时区的裸时间（或同格式的字符串）→ RFC3339 UTC（`2026-10-15T02:00:00Z`）；只有日期的（如历史学到的最后日期）、
+    空的、认不出的原样回。"""
+    from pearnly_core.assistant import contracts as shared
+
+    text = str(value or "").strip()
+    if len(text) <= 10:
+        return text
+    try:
+        return shared.utc_iso(text, frappe.utils.get_system_timezone())
+    except (TypeError, ValueError):
+        return text
 
 
 def context_text(company, period="", work_scope="") -> str:
@@ -577,6 +599,75 @@ def attribution() -> tuple[dict, dict]:
     return cache["attribution"]
 
 
+# ---------------- 定时任务按公司（侧栏「定时任务 N」、总览分组、提醒点开去哪家） ----------------
+
+
+def _rule_company(rule, by_set) -> str:
+    key = normalize_express_account_key(rule.get("account_set_key")) or str(rule.get("account_set_key") or "")
+    return by_set.get((rule.get("connection"), key.casefold())) or ""
+
+
+def task_overview() -> dict:
+    """定时任务归哪家公司（任务表不加字段，按账套现算，同 `attribution`）：
+    ``{"companies": {主档: {"count", "alert"}}, "tasks": {任务: 主档}, "titles": {主档: 名称}}``。归不上的任务不在
+    ``tasks`` 里（页面放「其他」）。任务表一次查询（本人能用的连接上的）；``alert`` = 有要人处理的票（停下待选 / 失败，
+    `folder_intake.rules.results`，按文件行的戳缓存）或电脑报文件夹不在了。没有录入权限回空。"""
+    from pearnly_cowork.folder_intake import rules as folder_rules
+
+    empty = {"companies": {}, "tasks": {}, "titles": {}}
+    if not scope.allowed("intake"):
+        return empty
+    usable = [row["name"] for row in usable_connections()]
+    if not usable:
+        return empty
+    rows = frappe.get_all(RULE, filters={"connection": ["in", usable]},
+                          fields=["name", "enabled", "connection", "reader", "account_set_key"],
+                          order_by="creation asc", ignore_permissions=True, limit_page_length=0)
+    by_set, _by_tax = attribution()
+    states = _cache().setdefault("agents", {})
+    companies, tasks = {}, {}
+    for row in rows:
+        company = _rule_company(row, by_set)
+        if not company:
+            continue
+        tasks[row.name] = company
+        found = companies.setdefault(company, {"count": 0, "alert": False})
+        found["count"] += 1
+        if found["alert"]:
+            continue
+        reader = row.reader or row.connection
+        if reader not in states:
+            states[reader] = agent.read(reader)
+        health = (states[reader].get("health") or {}).get(row.name) if agent.fresh(states[reader]) else None
+        attention = int((folder_rules.results(row.name) or {}).get("attention") or 0)
+        found["alert"] = bool(attention or (row.enabled and health in ("root_missing", "folder_missing")))
+    titles = {}
+    if companies:
+        titles = {row.name: row.title or "" for row in frappe.get_all(
+            COMPANY, filters={"name": ["in", list(companies)]}, fields=["name", "title"], limit_page_length=0)}
+    return {"companies": companies, "tasks": tasks, "titles": titles}
+
+
+def company_of_rules(owner, rule_names) -> str:
+    """一条提醒 / 完成简报涉及的这些任务都属于同一家公司时回它的编号（点开到这家的主档页），否则空串（hooks
+    ``cowork_rules_company``，`folder_intake.notify` 叫）。按收件人能用的连接算；出错回空串，不挡提醒。"""
+    from pearnly_cowork.companies import pending
+
+    names = [name for name in dict.fromkeys(rule_names or ()) if isinstance(name, str) and name][:50]
+    if not owner or not names:
+        return ""
+    try:
+        rows = frappe.get_all(RULE, filters={"name": ["in", names]}, fields=["name", "connection", "account_set_key"],
+                              ignore_permissions=True, limit_page_length=0)
+        with pending._as(owner):
+            by_set, _by_tax = attribution()
+            found = {_rule_company(row, by_set) for row in rows}
+    except Exception:
+        frappe.log_error(title="Cowork rules company failed")
+        return ""
+    return found.pop() if len(found) == 1 and len(rows) == len(names) and "" not in found else ""
+
+
 def forget_cache() -> None:
     """换了身份（后台按人算）时清掉请求内缓存：账套目录按人能用的连接读。"""
     frappe.local.cowork_company_cache = {}
@@ -608,6 +699,6 @@ def announce(op, company, part=None) -> None:
         frappe.log_error(title="Cowork company announce failed")
 
 
-__all__ = ["announce", "books", "candidates", "context_text", "create", "delete", "detail", "exists", "facts",
-           "folder_bind", "folder_unbind", "get", "listing", "rename", "set_combined_vat", "subtitle", "summary",
-           "usable_connections"]
+__all__ = ["announce", "books", "candidates", "company_of_rules", "context_text", "create", "delete", "detail", "exists",
+           "facts", "folder_bind", "folder_unbind", "get", "listing", "rename", "set_combined_vat", "subtitle", "summary",
+           "task_overview", "usable_connections"]

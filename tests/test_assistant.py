@@ -1381,6 +1381,21 @@ class NoticeTests(unittest.TestCase):
                                  "kind": "cowork.folder.brief", "title": "", "text": "body", "session": ""})
         self.assertEqual(contracts.event_id(event["id"]), event["id"])  # 同引擎编号的规则：误当锚点也不会报错
 
+    def test_a_notice_can_open_a_company_page(self):
+        # ADR-020：定时任务提醒 / 简报属于某家公司 → 没挂对话时点开到这家主档页（存放字段 20 字）
+        self.assertEqual(contracts.notice_view("company:abc1234567"), "company:abc1234567")
+        for bad in ("company:", "company:../x", "company:" + "a" * 13, "companies", "chat"):
+            self.assertEqual(contracts.notice_view(bad), "", bad)
+        self.assertEqual((contracts.notice_view("tasks"), contracts.notice_view("pending")), ("tasks", "pending"))
+        self.assertLessEqual(len("company:" + "a" * 12), 20)
+        self.assertEqual(contracts.deep_link("", "company:abc1234567"), "/assistant?company=abc1234567")
+        self.assertEqual(contracts.deep_link("", "pending"), "/assistant?view=pending")
+        self.assertEqual(contracts.deep_link("", "company:bad/x"), "/assistant?view=tasks")
+        self.assertEqual(contracts.deep_link("sesn_01AbC", "company:abc1234567"), "/assistant?c=sesn_01AbC")
+        event = contracts.notice_event("n1", "2026-10-12T01:00:00Z", "cowork.folder.brief", "", "body", "",
+                                       "company:abc1234567")
+        self.assertEqual(event["view"], "company:abc1234567")
+
     def test_times_follow_the_site_timezone_and_rfc3339(self):
         self.assertEqual(contracts.utc_iso(START, BANGKOK), "2026-10-12T01:00:00Z")
         self.assertEqual(contracts.utc_iso("2026-10-12 08:00:00.250000", BANGKOK), "2026-10-12T01:00:00.250000Z")

@@ -5,6 +5,8 @@
 - `view`：侧栏组头显示的名称与副标题（税号）。
 - `context`：给 CC 的公司说明（`service.context_text`），出错记日志、回空串，不挡发话。
 - `SCOPE = True`：对话可以再指定一个分店（5 位分店号，空 = 不指定，补充 甲.2）。
+- `work_branch`：推送前核对分店用（hooks `cowork_push_work_branch`，补充 甲.3）：CC 对话里推送、对话挂的公司包含这份
+  账套时，对话指定的分店。
 """
 import frappe
 
@@ -45,3 +47,28 @@ def context(ref, period, work_scope, user) -> str:
     except Exception:
         frappe.log_error(title="Cowork company context failed")
         return ""
+
+
+def work_branch(connection, account_set) -> str:
+    """CC 对话里推送时这段对话指定的分店（`project_scope`），只在推往这段对话所挂公司的账套时给；不在 CC 里、对话没指定
+    分店、账套不属于这家都回空串。出错回空串（只是少一道核对，不挡推送）。"""
+    from pearnly_core.assistant import projects
+
+    from pearnly_cowork.companies import service
+    from pearnly_cowork.targets.identity import normalize_express_account_key
+
+    session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or ""
+    if not session:
+        return ""
+    try:
+        project, _period, work_scope = projects.of_session(session)
+        work_scope = identity.scope_value(work_scope)
+        if not project or not work_scope or not service.exists(project):
+            return ""
+        key = (normalize_express_account_key(account_set) or str(account_set or "")).casefold()
+        sets = service.books(service.get(project))
+        if any(item["connection"] == connection and item["key"].casefold() == key for item in sets):
+            return work_scope
+    except Exception:
+        frappe.log_error(title="Cowork company work branch failed")
+    return ""

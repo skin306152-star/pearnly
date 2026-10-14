@@ -254,8 +254,10 @@ def forget(company, sets, key) -> dict:
 
 
 def set_value(company, sets, key, value, period="") -> dict:
-    """直接改一条：只收付款方式（cash / credit）与简易税票抵不抵（claim / expense）。写进覆盖这个月的那份账套（没有就
-    最新年度），之后 `latest()` 按选的时间取到它。"""
+    """直接改一条：只收付款方式（cash / credit）与简易税票抵不抵（claim / expense）。推送按每份账套各自记的取
+    （`push.choices.remembered`），所以写进这家公司在这条连接上**所有记过这一条的账套**（各分店、各年度），再加覆盖这个月
+    的各分店账套（没给月份就是最新年度的各分店）；只写一份时别的分店 / 年度推送仍用旧值，会静默记错账。
+    ``sets`` 要给不截断的账套全集（`service.books(row, limit=None)`）。"""
     from pearnly_cowork.companies import identity
 
     parts = decode(key)
@@ -271,9 +273,23 @@ def set_value(company, sets, key, value, period="") -> dict:
     if not rows:
         frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
     mine = [item for item in sets if item["connection"] == connection]
-    target = (identity.covering(mine, period) or mine)[0]
-    express_choices.record(connection, target["key"], kind, rows[0]["subject"], value, rows[0].get("label") or "")
-    return {"saved": True, "account_set_key": target["key"]}
+    current = identity.covering(mine, period) if period else []
+    if not current and mine:
+        newest = mine[0].get("year_label") or ""
+        current = [item for item in mine if (item.get("year_label") or "") == newest]
+    targets, subjects = {}, {}
+    for row in rows:  # 新 → 旧：每份账套用它自己最近那条的归类键（对方档键带分店号）
+        folded = str(row["account_set"]).casefold()
+        targets.setdefault(folded, row["account_set"])
+        subjects.setdefault(folded, (row["subject"], row.get("label") or ""))
+    for item in current:
+        targets.setdefault(item["key"].casefold(), item["key"])
+    written = []
+    for folded, account_set in targets.items():
+        subject, label = subjects.get(folded) or (rows[0]["subject"], rows[0].get("label") or "")
+        express_choices.record(connection, account_set, kind, subject, value, label)
+        written.append(account_set)
+    return {"saved": True, "account_set_key": written[0], "account_sets": written}
 
 
 __all__ = ["decode", "encode", "forget", "group_of", "history_rows", "listing", "merge_express", "set_value"]

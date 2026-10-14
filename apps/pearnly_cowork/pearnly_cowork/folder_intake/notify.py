@@ -19,18 +19,34 @@ REMIND_TTL = 6 * 3600
 BRIEF_TTL = 24 * 3600
 
 
-def post(user, kind, text, dedup_key, *, title="", conversation="", rules=(), ttl=REMIND_TTL):
+def post(user, kind, text, dedup_key, *, title="", conversation="", rules=(), ttl=REMIND_TTL, view=""):
     """发一条提醒（同一去重键只发一次）：回 ``{"name", "id", "session_id", "created"}``。"""
     from pearnly_core.assistant import notices
 
     return notices.post(user, kind, text, dedup_key, title=title, conversation=conversation,
-                        reference_doctype=RULE, reference_names=tuple(rules), ttl=ttl)
+                        reference_doctype=RULE, reference_names=tuple(rules), ttl=ttl, view=view)
+
+
+def company_view(user, rules):
+    """这条提醒没挂上对话时点开去哪：这些任务都属于同一家公司 → 那家的主档页（``company:<编号>``，ADR-020）；归不上公司
+    → 空串（共用层缺省到定时任务页）。归属由 companies 按账套算（hooks ``cowork_rules_company``，本域不导入它）。"""
+    for path in frappe.get_hooks("cowork_rules_company") or []:
+        try:
+            found = frappe.get_attr(path)(user, list(rules))
+        except Exception:
+            frappe.log_error(title="Cowork rules company failed")
+            continue
+        if found:
+            return f"company:{found}"
+    return ""
 
 
 def send(user, kind, title, text, dedup_key, *, rules, conversation="", ttl=REMIND_TTL):
     """提醒 / 简报的发出口：``conversation`` 是候选对话（属于收件人、未归档、当前引擎才挂上，否则只走手机推送与
-    电脑通知，由共用层判），提交后才推送；回 `post` 的结果（同键已发过时 ``created`` 为 False）。"""
-    return post(user, kind, text, dedup_key, title=title, conversation=conversation, rules=rules, ttl=ttl)
+    电脑通知，由共用层判），提交后才推送；回 `post` 的结果（同键已发过时 ``created`` 为 False）。
+    没挂上对话时点开到任务所属公司的主档页（`company_view`）。"""
+    return post(user, kind, text, dedup_key, title=title, conversation=conversation, rules=rules, ttl=ttl,
+                view=company_view(user, rules))
 
 
 def sent(dedup_key):

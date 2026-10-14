@@ -567,6 +567,15 @@ pearnly_assistant_projects = ["pearnly_cowork.companies.provider"]
 # 每 5 分钟的提醒入口（`folder_intake.schedule.notices`）顺带叫的：「待处理」早上汇总（ADR-020，补充 乙）。
 # 经 hooks 声明而不是 folder_intake 直接导入 companies（companies 依赖 folder_intake，反过来会成环）。
 cowork_scheduled_notices = ["pearnly_cowork.companies.pending.morning"]
+# 公司主档页「记住的选择」里来自 Express 历史的「供应商 → 科目」（推送时会直接用的那些）：读与删（删了这家供应商不再
+# 按历史用）。存放在 readback 域（科目建议 B），companies 不导入它（readback 依赖 push，companies 也依赖 push，各走各的）。
+cowork_company_history_choices = ["pearnly_cowork.readback.history.company_choices"]
+cowork_company_history_forget = ["pearnly_cowork.readback.history.company_forget"]
+# 推送前核对分店（补充 甲.3）：票面没有本方分店时，CC 对话指定的分店（`project_scope`，只在推往这家公司的账套时算）。
+# push 域不导入 companies（companies 依赖 push）。
+cowork_push_work_branch = ["pearnly_cowork.companies.provider.work_branch"]
+# 定时任务的提醒 / 完成简报属于哪家公司（点开到这家的主档页）：folder_intake 不导入 companies（反过来依赖）。
+cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

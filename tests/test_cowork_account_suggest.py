@@ -206,6 +206,51 @@ class HistoryRules(unittest.TestCase):
         self.assertIs(choice_rules.norm_name, R.norm_name)  # 与推送选择记「这家」同一种名称归一
 
 
+class SettledRules(unittest.TestCase):
+    """用户 2026-10-15 同意：同一供应商（按税号合并各分店）近 12 个月 ≥3 次、全记同一个科目 → 直接用；其余仍是建议。"""
+    TODAY = date(2026, 10, 15)
+
+    def test_three_or_more_on_one_account_within_a_year_is_settled(self):
+        self.assertEqual(R.settled([{"code": "5320-01", "docs": 3, "last": "2026-09-30"}], self.TODAY),
+                         {"code": "5320-01", "docs": 3, "last": "2026-09-30"})
+
+    def test_fewer_than_three_two_accounts_or_too_old_is_only_a_suggestion(self):
+        self.assertIsNone(R.settled([{"code": "5320-01", "docs": 2, "last": "2026-09-30"}], self.TODAY))
+        self.assertIsNone(R.settled([{"code": "5320-01", "docs": 9, "last": "2026-09-30"},
+                                     {"code": "5390-99", "docs": 1, "last": "2026-10-01"}], self.TODAY))
+        self.assertIsNone(R.settled([{"code": "5320-01", "docs": 9, "last": "2025-10-01"}], self.TODAY))
+        self.assertIsNone(R.settled([], self.TODAY))
+        # 存着的那份历史一个多月没重读：不再当「近 12 个月」直接用
+        rows = [{"code": "5320-01", "docs": 3, "last": "2026-09-30"}]
+        self.assertIsNotNone(R.settled(rows, self.TODAY, "2026-10-01T00:00:00Z"))
+        self.assertIsNone(R.settled(rows, self.TODAY, "2026-09-01T00:00:00Z"))
+
+    def test_branches_of_one_tax_id_are_one_supplier(self):
+        data = R.parse(history_raw())
+        found = R.suppliers_of(data)
+        self.assertEqual(found["0105556012345"]["accounts"],
+                         [{"code": "5320-01", "docs": 4, "last": "2026-10-02"},
+                          {"code": "5390-99", "docs": 1, "last": "2026-10-01"}])
+        self.assertIn("name:ร้านป้าแดง", found)
+        self.assertEqual(R.supplier_key("0-1055-56012-34-5", "x"), "0105556012345")
+        self.assertEqual(R.supplier_key("", "บริษัท ร้านป้าแดง จำกัด"), "name:ร้านป้าแดง")
+        self.assertEqual(R.supplier_key("", ""), "")
+
+
+def settled_raw():
+    """一家很一致（两个分店合计 4 张、都记 5320-01）、一家只有 2 张、一家记了两个科目。"""
+    return history_raw(suppliers=[
+        {"code": "S001", "name": "ศรีกรุง เครื่องเขียน", "tax_id": "0105556012345", "branch": "00000",
+         "accounts": [{"code": "5320-01", "docs": 3, "last": "2026-09-30"}]},
+        {"code": "S001-12", "name": "ศรีกรุง เครื่องเขียน (สาขา 12)", "tax_id": "0105556012345", "branch": "00012",
+         "accounts": [{"code": "5320-01", "docs": 1, "last": "2026-10-02"}]},
+        {"code": "S009", "name": "ร้านป้าแดง", "tax_id": "", "branch": "00000",
+         "accounts": [{"code": "5340-01", "docs": 2, "last": "2026-08-01"}]},
+        {"code": "S010", "name": "ไฟฟ้า", "tax_id": "0994000165510", "branch": "00000",
+         "accounts": [{"code": "5310-01", "docs": 5, "last": "2026-09-01"},
+                      {"code": "5390-99", "docs": 1, "last": "2026-09-02"}]}])
+
+
 # ── 历史的读取与存放：readback/history.py ─────────────────────────────────────
 
 
@@ -287,7 +332,7 @@ class History(unittest.TestCase):
 
     def test_missing_history_is_requested_once_then_taken_and_kept_for_a_day(self):
         first = self.push("C1", "S:\\EXP69\\DN", SELLER, True)
-        self.assertEqual(first, {"state": "reading", "accounts": [], "changed": True})
+        self.assertEqual(first, {"state": "reading", "accounts": [], "changed": True, "settled": None})
         (_, kind, connection, params, key), = self.h.made()
         self.assertEqual((kind, connection), ("account_history", "C1"))
         self.assertEqual(params, {"account_set": "S:\\EXP69\\DN", "account_root": "S:\\EXP69", "since": "2025-10-15"})
@@ -318,7 +363,7 @@ class History(unittest.TestCase):
 
     def test_preparing_a_push_only_reads_what_is_kept(self):
         self.assertEqual(self.push("C1", "S:\\EXP69\\DN", SELLER, False),
-                         {"state": "none", "accounts": [], "changed": False})
+                         {"state": "none", "accounts": [], "changed": False, "settled": None})
         self.assertEqual(self.h.made(), [])
         self.assertNotIn("waiting", [call[0] for call in self.h.calls])
 
@@ -326,7 +371,7 @@ class History(unittest.TestCase):
         for reason in ("offline", "update_needed"):
             self.h.presence = {"status": "waiting_for_cc", "reason": reason}
             self.assertEqual(self.push("C1", "S:\\EXP69\\DN", SELLER, True),
-                             {"state": "none", "accounts": [], "changed": False})
+                             {"state": "none", "accounts": [], "changed": False, "settled": None})
         self.assertEqual(self.h.made(), [])
         self.assertIn(("waiting", "account_history", "1.5.2"), self.h.calls)
         self.h.adapter = "mrerp"
@@ -363,8 +408,62 @@ class History(unittest.TestCase):
     def test_anything_unexpected_means_no_history_not_a_failed_push(self):
         self.h.history.connections.adapter_of = mock.Mock(side_effect=RuntimeError("db gone"))
         self.assertEqual(self.push("C1", "S:\\EXP69\\DN", SELLER, True),
-                         {"state": "none", "accounts": [], "changed": False})
+                         {"state": "none", "accounts": [], "changed": False, "settled": None})
         self.assertEqual(self.h.logged, ["Cowork account history failed"])
+
+
+class SettledHistory(unittest.TestCase):
+    """历史很一致的直接用；主档页列出、删了就不再按历史用（重读历史也不冲掉）。"""
+    BOOK, OLD = "S:\\EXP69\\DN", "S:\\EXP68\\DN"
+    SETS = [{"connection": "C1", "adapter": "express", "key": "S:\\EXP69\\DN"},
+            {"connection": "C1", "adapter": "express", "key": "S:\\EXP68\\DN"},
+            {"connection": "M1", "adapter": "mrerp", "key": "ACME"}]
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.h = HistoryHarness(folder.name)
+        self.history = self.h.history
+        self.read(self.BOOK)
+
+    def read(self, book, data=None):
+        self.history.for_push("C1", book, SELLER, True)
+        request = next(name for name, row in self.h.requests.items() if row["status"] == "requested")
+        self.h.finish(request, data or settled_raw())
+        self.assertEqual(self.history.for_push("C1", book, SELLER, True)["state"], "ready")
+
+    def test_a_consistent_supplier_is_settled_others_are_suggestions(self):
+        found = self.history.for_push("C1", self.BOOK, SELLER)
+        self.assertEqual(found["settled"], {"code": "5320-01", "docs": 4, "last": "2026-10-02"})
+        self.assertIsNone(self.history.for_push("C1", self.BOOK, {"tax": "", "name": "ร้านป้าแดง"})["settled"])
+        mixed = self.history.for_push("C1", self.BOOK, {"tax": "0994000165510", "name": ""})
+        self.assertIsNone(mixed["settled"])
+        self.assertEqual(mixed["accounts"][0]["code"], "5310-01")  # 仍按历史建议
+
+    def test_the_company_page_lists_settled_suppliers_and_forgetting_stops_their_use(self):
+        rows = self.history.company_choices("0105536082808", self.SETS)
+        self.assertEqual(rows, [{"supplier_tax": "0105556012345", "supplier_name": "ศรีกรุง เครื่องเขียน",
+                                 "account": "5320-01", "account_label": "", "count": 4, "last_date": "2026-10-02"}])
+        self.assertEqual(self.history.company_forget("0105536082808", "0105556012345", "5320-01", self.SETS), 2)
+        self.assertEqual(self.history.company_forget("0105536082808", "0105556012345", "5320-01", self.SETS), 0)  # 幂等
+        self.assertEqual(self.history.company_choices("0105536082808", self.SETS), [])
+        gone = self.history.for_push("C1", self.BOOK, SELLER)
+        self.assertEqual((gone["settled"], gone["accounts"]), (None, []))  # 也不再按历史建议
+        # 过了一天重读：汇总换新，删过的照旧不用
+        self.h.now += timedelta(days=2)
+        self.read(self.BOOK)
+        self.assertIsNone(self.history.for_push("C1", self.BOOK, SELLER)["settled"])
+        # 别的供应商不受影响
+        self.assertEqual(self.history.for_push("C1", self.BOOK, {"tax": "0994000165510", "name": ""})["accounts"][0]["code"],
+                         "5310-01")
+        self.assertEqual(self.history.company_forget("0105536082808", "", "5320-01", self.SETS), 0)
+
+    def test_each_year_is_judged_on_its_own(self):
+        self.read(self.OLD, history_raw(suppliers=[
+            {"code": "S001", "name": "ศรีกรุง เครื่องเขียน", "tax_id": "0105556012345", "branch": "00000",
+             "accounts": [{"code": "5390-99", "docs": 6, "last": "2026-01-30"}]}]))
+        rows = self.history.company_choices("", self.SETS)
+        self.assertEqual(sorted((row["account"], row["count"]) for row in rows), [("5320-01", 4), ("5390-99", 6)])
 
 
 # ── 推送服务：push/application/service.py 的 `_suggest` 与 `choices_view` ─────
@@ -440,6 +539,65 @@ class PushService(unittest.TestCase):
                                           {"reported_accounts": BLANK})
         self.assertEqual((state, changed, self.provided[0][3]), ("ready", False, False))
         self.assertEqual(codes(needed[0]["suggested"]), [("5310-01", "name")])
+
+
+class PushDecisions(unittest.TestCase):
+    """推送准备的选择（`_decisions`）：历史很一致的科目当作已记住的用；会计员手选过的、任务默认的优先；不一致、次数不够
+    仍要人选。真的选择规则（`push/express/choices.py`），历史经钩子替身。"""
+    FIELDS = {"seller_name": "ศรีกรุง เครื่องเขียน", "seller_tax": "0105556012345", "payment_status": "paid"}
+
+    def decide(self, settled, remembered=None, fixed=None, chart=BLANK, accounts=None):
+        from test_cowork_push_fixed import _service, BOOK
+
+        service, frappe_module, _calls = _service()
+        self.asked = []
+
+        def provider(connection, account_set, seller, refresh):
+            self.asked.append((connection, account_set, seller, refresh))
+            return {"state": "ready", "accounts": accounts or [], "changed": False, "settled": settled}
+
+        frappe_module.get_hooks = lambda name: ["p.history"] if name == "cowork_push_account_history" else []
+        frappe_module.get_attr = lambda path: provider
+        service.choice_rules = choice_rules
+        service.resolve_account_sourced = lambda *a: (None, "none")
+        service.resolve_posting_kind = lambda kind, flat: kind
+        service._pos_receipts = lambda flat: []
+        service.choice_store = types.SimpleNamespace(remembered=lambda *a: {"account": dict(remembered or {})},
+                                                     record=lambda *a: True)
+        return service._decisions("C1", BOOK, {}, dict(self.FIELDS), "purchase", "service",
+                                  {"reported_accounts": chart}, {"mappings": {}}, fixed)
+
+    SUBJECT = "purchase|0105556012345"
+
+    def test_a_settled_account_is_used_without_asking(self):
+        decision = self.decide({"code": "5320-01", "docs": 4, "last": "2026-10-02"})
+        self.assertEqual(decision["applied"]["account"], "5320-01")
+        self.assertEqual([item["kind"] for item in decision["needed"]], [])
+        self.assertEqual(decision["history"], {"account": "5320-01", "docs": 4})
+        self.assertEqual(self.asked, [("C1", self.asked[0][1], {"tax": "0105556012345", "name": "ศรีกรุง เครื่องเขียน"},
+                                       False)])  # 准备推送只看存着的
+
+    def test_fewer_than_three_or_mixed_accounts_still_ask_once(self):
+        decision = self.decide(None, accounts=[{"code": "5320-01", "docs": 2, "last": "2026-10-02"}])
+        self.assertEqual([item["kind"] for item in decision["needed"]], ["account"])
+        self.assertNotIn("account", decision["applied"])
+        self.assertNotIn("history", decision)
+
+    def test_a_forgotten_history_is_asked_again(self):
+        # 主档页删了：钩子不再给 settled（见 SettledHistory），推送照旧问
+        self.assertEqual([item["kind"] for item in self.decide(None)["needed"]], ["account"])
+
+    def test_the_accountants_own_choice_and_the_task_default_come_first(self):
+        settled = {"code": "5320-01", "docs": 9, "last": "2026-10-02"}
+        decision = self.decide(settled, remembered={self.SUBJECT: "5390-99"})
+        self.assertEqual((decision["applied"]["account"], self.asked), ("5390-99", []))
+        self.assertNotIn("history", decision)
+        decision = self.decide(settled, fixed={"account": "5310-01"})
+        self.assertEqual((decision["applied"]["account"], self.asked), ("5310-01", []))
+
+    def test_an_account_no_longer_in_the_chart_is_not_used(self):
+        decision = self.decide({"code": "9999-99", "docs": 9, "last": "2026-10-02"})
+        self.assertEqual([item["kind"] for item in decision["needed"]], ["account"])
 
 
 if __name__ == "__main__":
