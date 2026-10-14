@@ -244,8 +244,10 @@ def _failed(name: str, reason: str, host: str) -> tuple[str, str]:
 
 def send_notice(notice) -> dict:
     """提醒的推送任务（`notices.post` 提交后排队）：推给提醒的主人，点开去那段对话或定时任务页。"""
-    row = frappe.db.get_value(NOTICE, notice, ["name", "user", "title", "text", "session_id", "ttl"], as_dict=True)
+    row = frappe.db.get_value(NOTICE, notice, ["name", "user", "title", "text", "session_id", "ttl", "view"],
+                              as_dict=True)
     if not row:
         return {"sent": 0, "gone": 0, "failed": 0}
-    return send(row.user, title=row.title or APP_NAME, body=row.text or "", url=contracts.deep_link(row.session_id),
+    return send(row.user, title=row.title or APP_NAME, body=row.text or "",
+                url=contracts.deep_link(row.session_id, row.get("view") or ""),
                 tag="notice:pnotice_" + row.name, ttl=DEFAULT_TTL if row.ttl is None else int(row.ttl))

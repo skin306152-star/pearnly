@@ -16,7 +16,11 @@
   "archived",
   "remote_ids",
   "context_tokens",
-  "pending_carry"
+  "pending_carry",
+  "project",
+  "period",
+  "project_scope",
+  "project_noted"
  ],
  "fields": [
   {
@@ -94,11 +98,40 @@
    "fieldtype": "Long Text",
    "label": "Pending Carry-over",
    "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Data",
+   "label": "Filed Under",
+   "length": 140,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Data",
+   "label": "Work Month",
+   "length": 7,
+   "read_only": 1
+  },
+  {
+   "fieldname": "project_scope",
+   "fieldtype": "Data",
+   "label": "Work Scope",
+   "length": 40,
+   "read_only": 1
+  },
+  {
+   "fieldname": "project_noted",
+   "fieldtype": "Data",
+   "label": "Filed Note Digest",
+   "length": 64,
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-15 00:00:00.000000",
+ "modified": "2026-10-15 06:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",
