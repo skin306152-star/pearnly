@@ -57,7 +57,7 @@ def test_nothing_to_do_returns_false_and_declares_what_it_can_do():
     assert worker.round(_cfg()) is False
     body = client.calls[0][1]
     assert body["version"] == VERSION and body["kinds"] == list(request_worker.HANDLERS)
-    assert set(request_worker.HANDLERS) == {"express_read", "folder_list", "folder_fetch"}
+    assert set(request_worker.HANDLERS) == {"express_read", "folder_list", "folder_fetch", "account_history"}
     assert client.closed == 1
 
 

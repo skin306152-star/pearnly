@@ -1,6 +1,9 @@
 """CC 桌面端的按需请求（2026-10 CC 闭环）：服务端请某台电脑上的 CC 桌面端读一样东西交回来——Express 账套
-（``express_read``）、已授权文件夹里的文件清单（``folder_list``）或其中一份文件（``folder_fetch``）。纯规则，不连库、
-不依赖框架。
+（``express_read``）、已授权文件夹里的文件清单（``folder_list``）或其中一份文件（``folder_fetch``）、一本账套近 12 个月
+「供应商 → 常用科目」的次数（``account_history``，科目建议）。纯规则，不连库、不依赖框架。
+
+结果属于发起人的（回读、取文件）只给发起人；``SHARED_KINDS`` 的结果属于这条连接与账套（科目建议的历史），同一请求号
+谁建都是同一件，凡此刻能用这条连接的人都能看状态、取结果、删（`request_service` 核连接使用授权）。
 
 与推送队列（lease / ack）完全分开：自己一张表（Cowork Companion Request）、两条机器方法（``request_api``，登记在
 ``http_auth.REQUEST_METHODS``），小助手另起一条轮询线程领取；读得再慢也不挡推送、不碰推送的围栏、写者锁与看门狗。
@@ -27,15 +30,16 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 MIB = 1024 * 1024
-KINDS = ("express_read", "folder_list", "folder_fetch")
+KINDS = ("express_read", "folder_list", "folder_fetch", "account_history")
 FOLDER_KINDS = ("folder_list", "folder_fetch")
+SHARED_KINDS = ("account_history",)
 # 哪种连接的电脑能做哪几种：Express 的电脑都能做；MR.ERP 的小助手成员只读文件夹。
 ADAPTER_KINDS = {"express": KINDS, "mrerp": FOLDER_KINDS}
 STATUSES = ("requested", "leased", "done", "failed", "expired")
 OPEN = ("requested", "leased")
 CHUNK_BYTES = 4 * MIB
-MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 30 * MIB}
-LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600}
+MAX_BYTES = {"express_read": 50 * MIB, "folder_list": 2 * MIB, "folder_fetch": 30 * MIB, "account_history": 5 * MIB}
+LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900}
 # 这么久没有电脑来领就算过期（code not_claimed）；领了以后每交一块续一次租约。
 CLAIM_SECONDS = 600
 # 小助手空闲时每 POLL_SECONDS 来领一次：SEEN_SECONDS 之内来过才算此刻在线。
@@ -85,6 +89,11 @@ def params(value: Any) -> Dict[str, Any]:
     if len(text.encode("utf-8")) > PARAMS_MAX:
         raise ContractError("companion.on_demand_invalid")
     return json.loads(text)
+
+
+def shared(value: Any) -> bool:
+    """这种请求的结果属于连接与账套、不属于发起人（``SHARED_KINDS``）。"""
+    return value in SHARED_KINDS
 
 
 def allowed_kinds(adapter: Any, declared: List[str]) -> List[str]:

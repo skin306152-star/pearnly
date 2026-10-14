@@ -530,6 +530,38 @@ class ServiceTests(unittest.TestCase):
             self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1")
         self.assertIn("busy", str(caught.exception))  # 先建成的又被删了：稍后再试
 
+    def test_the_account_history_belongs_to_the_connection_not_to_who_asked(self):
+        """科目建议的历史（``SHARED_KINDS``）：同一请求号谁建都是同一件，此刻能用这条连接的人都能看、取、删；
+        不能用这条连接的人照样拿不到。回读、取文件仍只给发起人（上面几条）。"""
+        self.assertTrue(contracts.shared("account_history"))
+        self.assertFalse(contracts.shared("express_read") or contracts.shared("folder_fetch"))
+        params = {"account_set": "S:\\EXP69\\DN", "account_root": "S:\\EXP69", "since": "2025-10-15"}
+        made = self.service.create("account_history", "C1", params, "account_history:k1")
+        self.frappe.session.user = "other@x.com"
+        again = self.service.create("account_history", "C1", params, "account_history:k1")
+        self.assertEqual(again["request"], made["request"])
+        self.assertEqual(len(self.db.rows), 1)
+        self.assertEqual(self.service.find("account_history", "C1", "account_history:k1")["request"], made["request"])
+        self.assertIsNone(self.service.find("account_history", "M1", "account_history:k1"))  # 连接不对不算
+        leased = self._lease(kinds=("account_history",))
+        self.assertEqual((leased["request"]["kind"], leased["request"]["max_bytes"]),
+                         ("account_history", contracts.MAX_BYTES["account_history"]))
+        self._complete(leased, b"history")
+        self.assertEqual(self.service.status(made["request"])["status"], "done")
+        self.assertEqual(self.service.result(made["request"])[0], b"history")  # 不是发起人也能取
+        self.frappe.session.user = "nobody@x.com"  # 不能用这条连接
+        with self.assertRaises(self.frappe.DoesNotExistError):
+            self.service.status(made["request"])
+        with self.assertRaises(self.frappe.DoesNotExistError):
+            self.service.result(made["request"])
+        self.frappe.session.user = "other@x.com"
+        self.service.drop(made["request"])
+        self.assertNotIn(made["request"], self.db.rows)
+        # 旧版 CC 桌面版没声明这种请求：不交给它
+        self.service.create("account_history", "C1", params, "account_history:k2")
+        self.assertIsNone(self._lease(kinds=("express_read", "folder_list"))["request"])
+        self.assertEqual(self.service.waiting("C1", "account_history")["reason"], "update_needed")
+
     def test_an_mrerp_folder_member_never_gets_a_books_read(self):
         self.allowed.add(("acc@x.com", "M1"))
         self.db.rows["x" * 32] = Row(name="x" * 32, request_id="x" * 32, request_key="express_read:k",

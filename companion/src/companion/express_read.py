@@ -183,7 +183,7 @@ def _stamp(path: Path):
     return info.st_size, info.st_mtime_ns, head
 
 
-def _sources(account_dir) -> dict:
+def _sources(account_dir, tables=TABLES) -> dict:
     """账套文件夹里要读的表（含备注文件）：大写文件名 → (源路径, 此刻的戳)。"""
     try:
         found = {}
@@ -191,20 +191,21 @@ def _sources(account_dir) -> dict:
             found.setdefault(entry.upper(), Path(account_dir) / entry)
     except OSError:
         raise RequestFailed("account_unreachable") from None
-    names = [table + extension for table in TABLES for extension in (".DBF", ".FPT")]
+    names = [table + extension for table in tables for extension in (".DBF", ".FPT")]
     return {name: (found[name], _stamp(found[name])) for name in names if name in found}
 
 
 @contextmanager
-def snapshot(account_dir, *, waits=COPY_WAITS, sleep: Callable[[float], None] = time.sleep) -> Iterator[tuple]:
-    """要读的表（含备注文件）复制到本机临时目录，给 (副本目录, 复制途中源文件变没变过)；出了 with 即删。文件名一律大写
-    （读副本时按大写找）。变过的副本可能只抄到一张单的一部分（单据有、凭证没有），由调用方决定重读。"""
+def snapshot(account_dir, *, tables=TABLES, waits=COPY_WAITS,
+             sleep: Callable[[float], None] = time.sleep) -> Iterator[tuple]:
+    """要读的表（``tables``，含备注文件）复制到本机临时目录，给 (副本目录, 复制途中源文件变没变过)；出了 with 即删。
+    文件名一律大写（读副本时按大写找）。变过的副本可能只抄到一张单的一部分（单据有、凭证没有），由调用方决定重读。"""
     target = Path(tempfile.mkdtemp(prefix="pearnly-readback-"))
     try:
-        before = _sources(account_dir)
+        before = _sources(account_dir, tables)
         for name, (source, _stamped) in before.items():
             _copy(source, target / name, waits, sleep)
-        after = _sources(account_dir)
+        after = _sources(account_dir, tables)
         changed = {name: stamped for name, (_source, stamped) in before.items()} != \
             {name: stamped for name, (_source, stamped) in after.items()}
         yield target, changed

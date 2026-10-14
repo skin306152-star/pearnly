@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-KINDS =("express_read", "folder_list", "folder_fetch")
+KINDS = ("express_read", "folder_list", "folder_fetch", "account_history")
 CHUNK_BYTES = 4 * 1024 * 1024
-MAX_BYTES = {"express_read": 50 * 1024 * 1024, "folder_list": 2 * 1024 * 1024, "folder_fetch": 30 * 1024 * 1024}
-LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600}
+MAX_BYTES = {"express_read": 50 * 1024 * 1024, "folder_list": 2 * 1024 * 1024, "folder_fetch": 30 * 1024 * 1024,
+             "account_history": 5 * 1024 * 1024}
+LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900}
 # 空闲时多久来领一次（服务端 SEEN_SECONDS 之内来过才算在线）。
 POLL_SECONDS = 15
 

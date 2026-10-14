@@ -5,7 +5,8 @@
   失败 / 过期的换一条新的；
 - ``find(kind, connection, request_key)``：同一请求号此刻还在等、在做或做完没取走的那一件（不建）；业务域先找它，
   找到就接着等，不再问电脑在不在（电脑正忙着读、传这一件时可能好一阵不来领）；
-- ``status(name)`` / ``result(name)`` / ``drop(name)``：只给发起人；``drop`` 连行带结果字节一起删；
+- ``status(name)`` / ``result(name)`` / ``drop(name)``：只给发起人；``drop`` 连行带结果字节一起删。结果属于连接与账套的
+  种类（``request_contracts.SHARED_KINDS``，科目建议的历史）同一请求号谁建都是同一件，此刻能用这条连接的人都能看、取、删；
 - ``presence(connection)``：这条连接的电脑最近什么时候来领过、什么版本、能做哪几种，手上有没做完的租约也算在线；
   ``waiting(connection, kind, known_version)`` 据此回「能领」或 waiting_for_cc（离线 / 要升级），业务域建请求前先问。
 
@@ -81,6 +82,11 @@ def view(row, now=None) -> dict:
 # ── 用户一侧 ────────────────────────────────────────────────────────────────
 
 
+def _same(row, actor, connection, kind) -> bool:
+    """同一请求号的那一行是不是这个人在这条连接上的这种请求（结果属于连接的种类不论是谁建的）。"""
+    return (row.connection, row.kind) == (connection, kind) and (contracts.shared(kind) or row.actor == actor)
+
+
 def create(kind, connection, params, request_key) -> dict:
     try:
         kind = contracts.kind(kind)
@@ -98,7 +104,7 @@ def create(kind, connection, params, request_key) -> dict:
     existing = frappe.db.get_value(REQUEST, {"request_key": key}, "name")
     if existing:
         row = read(existing, for_update=True)
-        if (row.actor, row.connection, row.kind) != (actor, connection, kind):
+        if not _same(row, actor, connection, kind):
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         current = view(row, now)
         if current["status"] in ("requested", "leased", "done"):
@@ -124,7 +130,7 @@ def create(kind, connection, params, request_key) -> dict:
         first = _committed(key)
         if first is None:
             _error("companion.on_demand_busy")  # 先建成的那条又被删了：稍后再试
-        if (first.actor, first.connection, first.kind) != (actor, connection, kind):
+        if not _same(first, actor, connection, kind):
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         return view(first, now)
     return view(row, now)
@@ -154,7 +160,7 @@ def find(kind, connection, request_key):
     if not name:
         return None
     row = read(name)
-    if (row.actor, row.connection, row.kind) != (frappe.session.user, connection, kind):
+    if not _same(row, frappe.session.user, connection, kind):
         return None
     current = view(row)
     return current if current["status"] in ("requested", "leased", "done") else None
@@ -172,9 +178,19 @@ def _own(name):
     if not isinstance(name, str) or not _NAME.fullmatch(name) or not frappe.db.exists(REQUEST, name):
         frappe.throw(_("companion.on_demand_missing"), frappe.DoesNotExistError)
     row = read(name)
-    if row.actor != frappe.session.user:
+    if row.actor != frappe.session.user and not (contracts.shared(row.kind) and _usable(row.connection)):
         frappe.throw(_("companion.on_demand_missing"), frappe.DoesNotExistError)
     return row
+
+
+def _usable(connection) -> bool:
+    """当前用户此刻能用这条连接（录入权限 + 连接使用授权，同网页）。"""
+    try:
+        connection_access.require_connection(frappe.get_doc(CONNECTION, connection))
+        return True
+    except (frappe.PermissionError, frappe.DoesNotExistError, frappe.ValidationError):
+        frappe.clear_messages()
+        return False
 
 
 def status(name) -> dict:
