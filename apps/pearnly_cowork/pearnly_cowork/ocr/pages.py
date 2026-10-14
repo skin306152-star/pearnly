@@ -8,6 +8,11 @@ unvalidated provider JSON. It performs no OCR, schema validation or grouping.
 
 from copy import deepcopy
 
+from pearnly_core.tax_documents import rules as tax_rules
+
+# 拆过税的页在 `_extraction_audit` 里记下识别原读数的键（只给排查看，不显示、不交人选）。
+INCLUDED_VAT_AUDIT = "vat_included"
+
 
 def _invoice_fields(invoice) -> dict:
 	fields = invoice.model_dump(mode="json")
@@ -135,6 +140,52 @@ def restore_total_before_withholding(pages: list[dict]) -> int:
 		if withheld and withheld > 0 and None not in (subtotal, vat, total) and abs(subtotal + vat - withheld - total) <= Decimal("0.02"):
 			fields["total_amount"] = f"{subtotal + vat:.2f}"
 			changed += 1
+	return changed
+
+
+def _not_invoice(fields) -> bool:
+	value = fields.get("is_not_invoice")
+	return value.strip().lower() == "true" if isinstance(value, str) else bool(value)
+
+
+def printed_texts(fields: dict) -> list:
+	"""这张票识别字段里抄自票面的文字：备注、品名、金额栏原文与栏名（看有没有写明免税 / 零税率）。"""
+	texts = [fields.get("notes")]
+	texts += [item.get("name") for item in fields.get("items") or [] if isinstance(item, dict)]
+	refs = fields.get("source_refs")
+	for ref in (refs.values() if isinstance(refs, dict) else ()):
+		if isinstance(ref, dict):
+			texts += [ref.get("source_text"), ref.get("source_column")]
+	return [text for text in texts if isinstance(text, str) and text.strip()]
+
+
+def included_vat(fields):
+	"""一张票的识别字段按共用规则（`pearnly_core.tax_documents.rules.included_vat`）该不该拆含税价；不是票据返回 None。"""
+	if not isinstance(fields, dict) or _not_invoice(fields):
+		return None
+	return tax_rules.included_vat(fields.get("document_type"), fields.get("total_amount"),
+		subtotal=fields.get("subtotal"), vat=fields.get("vat"), wht_amount=fields.get("wht_amount"),
+		currency=fields.get("currency"), texts=printed_texts(fields))
+
+
+def split_included_vat(pages: list[dict]) -> int:
+	"""简式税票的票面价依法含 VAT（ม.86/6）：识别出税额 0 / 没写、税前额就是总额的，按 7/107 拆出税前额与税额。
+	销项、进项一样拆（进项抵不抵仍由推送时「小票 / 简式税票问一次抵不抵进项」定）；已拆好的、别的票种、外币、
+	写明免税 / 零税率的不动。只规整数字：不加提示、不交人选，原读数记进这一页的 `_extraction_audit`。返回改了几页。
+
+	2026-10-13 testcowork 教程录制：手写 ABB 合计 727.00 读成税前 727.00、税额 0，ภ.พ.30 少记 47.56 销项税；
+	同一本另三张模型自己拆对了（597.00 → 557.94 + 39.06）。"""
+	changed = 0
+	for page in pages or []:
+		fields = page.get("fields") if isinstance(page, dict) else None
+		split = included_vat(fields)
+		if split is None or not split.applies:
+			continue
+		audit = page.get("_extraction_audit")
+		page["_extraction_audit"] = {**(audit if isinstance(audit, dict) else {}),
+			INCLUDED_VAT_AUDIT: {"subtotal": fields.get("subtotal"), "vat": fields.get("vat")}}
+		fields["subtotal"], fields["vat"] = f"{split.subtotal:.2f}", f"{split.vat:.2f}"
+		changed += 1
 	return changed
 
 
