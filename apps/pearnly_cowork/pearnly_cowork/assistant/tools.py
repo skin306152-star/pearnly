@@ -113,8 +113,9 @@ GUIDANCE = [
     "When unsure, confirm the month in one short question before looking anything up.",
     # 2026-10-13 录屏：「9 月，所有公司」时 CC 沿用了上文那家公司的筛选，只回了一家（ทุกเจ้า 也能指所有商家，这里点明是所有公司）
     "When the user asks about all companies (" + "ทุกเจ้า" + ", all clients), leave out connection, account_set_key "
-    "and search even if the conversation was about one company, and answer company by company from "
-    "by_account_set, including those with none.",
+    "and search even if the conversation was about one company, pass all_companies true (a conversation filed under "
+    "a company otherwise covers only that company), and answer company by company from by_account_set, including "
+    "those with none.",
     # 2026-10-13 录屏：拍了简易税票说「这张是某公司的，文具费」，CC 只识别，说票上没有这家公司的名字、要推送请告诉公司名
     "When the user says which company a document belongs to (for example 'this one is X's'), enter it into that "
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
@@ -289,14 +290,16 @@ def _account_counts(filters, or_filters=None) -> dict:
     return counts
 
 
-def _by_account_set(dated, filters, or_filters, matched, names, complete=True) -> dict:
+def _by_account_set(dated, filters, or_filters, matched, names, complete=True, only=None) -> dict:
     """{"by_account_set": [...]}：``dated`` 圈出这段时间有单据的账套，``filters`` / ``or_filters`` 是这次的条件；
     ``matched`` 是取回后再筛过的全部行（方向、合计那条路），给了就按它数。账套名同列表（``names`` 是同一份缓存）。
     一份账套都没有（全是没选账套的）就不给。
 
     ``complete`` 为 False：取回后再筛只看了最新的 LIST_SCAN_MAX 张（审查 2026-10-15：没看到的账套原来记 0，模型会答
     「这家没有」）。这时每行标 partial，看到的张数只是下限，没看到的账套 count 为空（不是 0），整组另标
-    by_account_set_complete: false。"""
+    by_account_set_complete: false。
+
+    ``only``：公司对话的默认范围按连接、账套分别筛时多圈进来的（别的连接上同名的账套）不列，只留这些（连接、账套键归一）。"""
     known = _account_counts(dated)
     if matched is not None:
         hits = {}
@@ -310,6 +313,8 @@ def _by_account_set(dated, filters, or_filters, matched, names, complete=True) -
         return {}
     listed = []
     for key in dict.fromkeys([*hits, *known]):
+        if only is not None and key not in only:
+            continue
         connection, account_set, _count = hits.get(key) or known[key]
         count = hits[key][2] if key in hits else (0 if complete else None)
         partial = {} if complete else {"partial": True}
@@ -330,8 +335,31 @@ def _by_account_set(dated, filters, or_filters, matched, names, complete=True) -
     return out
 
 
+# ---------------- 公司对话的默认范围 ----------------
+
+def _company_scope(tool_input, explicit=("connection", "account_set_key")):
+    """按公司可筛的读工具这次看哪些账套（`company_tools.default_scope`）。调用自己点了账套 / 连接的照旧按点的取（None）；
+    不在 CC 对话里、也没给 company 的不碰主档（照旧不限）。"""
+    if any(tool_input.get(key) for key in explicit):
+        return None
+    session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
+    if not session and not tool_input.get("company"):
+        return None
+    from pearnly_cowork.assistant import company_tools
+
+    return company_tools.default_scope(tool_input)
+
+
+def _scope_pairs(sets) -> set:
+    """账套 → {(连接, 账套键归一)}，同 `_tally` 的比法。"""
+    return {(str(item.get("connection") or ""), _account_key(item.get("key"))) for item in sets}
+
+
 def list_documents(tool_input) -> str:
     scope.require_read()
+    company = _company_scope(tool_input)
+    if company and company.get("failed"):
+        return _json({"status": "failed", "reason": company["failed"]})
     filters, or_filters = {}, None
     # waiting_review 是旧版工具说明的参数（按「草稿」筛，推送成功的也算在内）：已开着的对话仍按旧说明调，true 按「等着录入」办
     state = tool_input.get("push_state") or ("waiting" if tool_input.get("waiting_review") else None)
@@ -356,6 +384,20 @@ def list_documents(tool_input) -> str:
         filters["push_account_set"] = str(tool_input["account_set_key"])
     limit = max(1, min(int(tool_input.get("limit") or 20), LIST_MAX))
     offset = max(0, int(tool_input.get("offset") or 0))
+    # 公司对话的默认范围：库里按这家的连接与账套键筛（库里比较不分大小写）。只有一条连接、或各连接上的账套都一样时，两列
+    # 分别筛就是精确的；否则会多圈进别的连接上同名的账套，改走取回后逐行核对（`exact` 为 False）。
+    pairs, exact = None, True
+    if company and company["sets"] is not None:
+        pairs = _scope_pairs(company["sets"])
+        if not pairs:
+            return _json({"documents": [], "count": 0, "total": 0, "offset": offset, "next_offset": None,
+                          "scope": company["scope"]})
+        linked = sorted({connection for connection, _key in pairs})
+        keys = sorted({str(item["key"]) for item in company["sets"]})
+        filters["push_connection"] = ["in", linked]
+        filters["push_account_set"] = ["in", keys]
+        exact = all({key for connection, key in pairs if connection == link} == {_account_key(key) for key in keys}
+                    for link in linked)
     direction = tool_input.get("direction") if tool_input.get("direction") in ("purchase", "sales") else None
     search = str(tool_input.get("search") or "").strip()
     failed_only = or_filters is not None
@@ -369,7 +411,7 @@ def list_documents(tool_input) -> str:
     query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages"],
              "order_by": "modified desc, name desc"}
     out, matched, complete = {}, None, True
-    if not (search and failed_only) and not direction and not tool_input.get("totals"):
+    if exact and not (search and failed_only) and not direction and not tool_input.get("totals"):
         rows = [_with_page(r) for r in frappe.get_list(HISTORY, limit_start=offset, limit_page_length=limit, **query)]
         if len(rows) < limit and (rows or not offset):
             total = offset + len(rows)
@@ -385,6 +427,9 @@ def list_documents(tool_input) -> str:
                                    limit_page_length=min(LIST_SCAN_PAGE, LIST_SCAN_MAX - scanned), **query)
             scanned += len(page)
             for row in page:
+                if not exact and (str(row.get("push_connection") or ""),
+                                  _account_key(row.get("push_account_set"))) not in pairs:
+                    continue
                 row = _with_page(row)
                 if search and failed_only and not (row.get("last_push_status") == "manual"
                                                    or row.get("last_push_reason")):
@@ -413,8 +458,12 @@ def list_documents(tool_input) -> str:
     rows = [_account_named(row, row.get("push_connection"), "push_account_set", names) for row in rows]
     if not tool_input.get("account_set_key") and not search:
         # 没限定公司：每份账套各几张，同一时间范围里有单据的账套都列（0 张也列），见 `_by_account_set`
-        dated = {key: value for key, value in filters.items() if key in ("creation", "invoice_date", "push_connection")}
-        out.update(_by_account_set(dated, filters, or_filters, matched, names, complete))
+        dated = {key: value for key, value in filters.items()
+                 if key in ("creation", "invoice_date", "push_connection", "push_account_set")}
+        out.update(_by_account_set(dated, filters, or_filters, matched, names, complete,
+                                   None if exact else pairs))
+    if company:
+        out["scope"] = company["scope"]  # 这次按哪家公司的范围取的（或 all_companies）
     # 推送时刻存的是 UTC（推送账本 `push.native` 的 now_utc）；上传时刻 creation 是站点时区
     return _json({"documents": rows, "count": len(rows), "total": total, "offset": offset,
                   "next_offset": next_offset if next_offset < total else None, **out}, utc=("last_pushed_at",))
@@ -2236,18 +2285,24 @@ def _remind_view(row) -> dict:
     return {"remind": remind, "remind_times": row.get("remind_times") if remind else None}
 
 
-def folder_tasks(_input) -> str:
+def folder_tasks(tool_input) -> str:
+    company = _company_scope(tool_input or {}, explicit=())
+    if company and company.get("failed"):
+        return _json({"status": "failed", "reason": company["failed"]})
+    pairs = _scope_pairs(company["sets"]) if company and company["sets"] is not None else None
     listing = rules.listing()
     keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
             "folder", "root_label", "run_day", "run_time", "defaults", "remind", "remind_times", "include_existing",
             "last_run", "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state")
     tasks = []
     for row in listing.get("rules") or []:
+        if pairs is not None and (str(row.get("connection") or ""), _account_key(row.get("account_set_key"))) not in pairs:
+            continue
         task = {**{k: row.get(k) for k in keep}, **_remind_view(row)}
         if task["remind_times"] is None:
             task.pop("remind_times")
         tasks.append(task)
-    return _json({"tasks": tasks})
+    return _json({"tasks": tasks, **({"scope": company["scope"]} if company else {})})
 
 
 def run_folder_task(tool_input) -> str:
@@ -3090,6 +3145,16 @@ def preview_stock_group(tool_input) -> list:
 
 
 _OBJ = {"type": "object", "properties": {}}
+# 按公司可筛的读工具（单据列表、推送结果、定时任务）共用的两个参数，见 `company_tools.default_scope`
+SCOPE_PROPS = {
+    "company": {"type": "string", "description": "Company id from cowork_companies: only that company's account sets "
+                                                 "(all its years and branches). Leave out for the company this "
+                                                 "conversation is filed under."},
+    "all_companies": {"type": "boolean", "description": "true only when the user asks about all companies or other "
+                                                        "companies (" + "ทุกเจ้า, เจ้าอื่น" + "). Without it, a "
+                                                        "conversation filed under a company covers only that "
+                                                        "company's account sets."},
+}
 
 # Windows 端的正式名字，给模型说一次（四种语言；中文、泰文两段登记在 scripts/i18n/keep-cjk.tsv）：
 # 工具说明一直在模型的上下文里，写在 cowork_companion_status 一处就够；模型照用户的语言说这个名字，不自己意译。
@@ -3331,7 +3396,9 @@ TOOLS = [
                     "with documents in the same dates and how many of them match, 0 included: answer about all "
                     "companies from it. When complete is false (only the newest documents were checked), its "
                     "rows are marked partial and a company with an empty count was not reached: never say it has "
-                    "none; narrow the dates or ask about that company with its account_set_key. Amounts are as "
+                    "none; narrow the dates or ask about that company with its account_set_key. In a conversation "
+                    "filed under a company, a call without connection, account_set_key or company covers only that "
+                    "company's account sets (scope names it); all_companies true lifts that. Amounts are as "
                     "recognized, not the ERP's figures.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
@@ -3343,7 +3410,7 @@ TOOLS = [
          "direction": {"type": "string", "enum": ["purchase", "sales"]},
          "totals": {"type": "boolean"},
          "offset": {"type": "integer", "minimum": 0},
-         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}},
+         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}, **SCOPE_PROPS}},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_push_documents", "label": "Pushed documents",
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
@@ -3798,19 +3865,22 @@ TOOLS = [
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending (on its way "
                     "to the ERP), or succeeded (entered). Documents still waiting to be entered (never pushed or "
-                    "failed) are push_state waiting in cowork_list_documents.",
+                    "failed) are push_state waiting in cowork_list_documents. In a conversation filed under a company "
+                    "it covers only that company's account sets (scope names it) unless all_companies is true.",
      "input_schema": {"type": "object", "properties": {
          "push_state": {"type": "string", "enum": ["pending", "success", "failed"]},
          "offset": {"type": "integer", "minimum": 0},
-         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}, "required": ["push_state"]},
+         "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}, **SCOPE_PROPS}, "required": ["push_state"]},
      "handler": "pearnly_cowork.assistant.tools.list_documents"},
     {"name": "cowork_folder_tasks", "label": "Checked scheduled tasks",
      "description": "List the scheduled folder tasks (scan a folder on the user's PC, recognize new files and push them), "
                     "with their schedule, default handling, reminder, last run and whether CC Desktop on the computer "
                     "that reads the folder is online. waiting is how many files in the folder the task has not processed yet "
                     "(waiting_partial: at least that many; null when not known). results counts invoices entered, "
-                    "invoices needing attention, and files still moving.",
-     "input_schema": _OBJ, "handler": "pearnly_cowork.assistant.tools.folder_tasks"},
+                    "invoices needing attention, and files still moving. In a conversation filed under a company it "
+                    "lists only that company's tasks (scope names it) unless all_companies is true.",
+     "input_schema": {"type": "object", "properties": dict(SCOPE_PROPS)},
+     "handler": "pearnly_cowork.assistant.tools.folder_tasks"},
     {"name": "cowork_run_folder_task", "label": "Started a scheduled task",
      "description": "Run one folder task now. Only when the user asked.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},

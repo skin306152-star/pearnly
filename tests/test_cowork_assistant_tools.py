@@ -2255,6 +2255,155 @@ class WaitingDocumentTests(unittest.TestCase):
         self.assertIn("push_state waiting in cowork_list_documents", declared["cowork_push_results"]["description"])
 
 
+def _filed_row(name, connection, account_set):
+    return {"name": name, "push_connection": connection, "push_account_set": account_set,
+            "last_push_status": "success", "pages": json.dumps([{"fields": {"direction": "purchase"}}])}
+
+
+class CompanyScopeTests(unittest.TestCase):
+    """2026-10-15 测试机：在公司主档「T.8 ซินเซียร์ไอซ์」的 9 月对话里问「这个月哪些单进了 Express」，CC 调 cowork_list_documents
+    没带账套，答出整个工作空间 9 月推送的 128 张（别家三份账套的）。公司对话里不带账套 / 连接 / 公司的调用，服务端默认只取
+    这家的账套（`company_tools.default_scope` 给），all_companies 放开；没挂公司、点了账套的照旧。"""
+
+    SETS = [{"connection": "EXP1", "key": "s:\\69exp\\69sincer", "branch": "00000"},
+            {"connection": "EXP1", "key": "s:\\68exp\\68sincer", "branch": "00000"},
+            {"connection": "EXP1", "key": "s:\\69exp\\69sincer01", "branch": "00001"}]
+    SCOPE = {"company": "T.8", "company_id": "CO-1", "conversation_company": True, "account_sets": 3}
+
+    def setUp(self):
+        history = types.ModuleType("pearnly_cowork.contracts.history")
+        history.primary_page_fields = lambda pages: (pages[0].get("fields") or {}) if pages else {}
+        push = types.ModuleType("pearnly_cowork.contracts.push")
+        push.normalize_direction = lambda value: value if value in ("purchase", "sales") else None
+        contracts = sys.modules.setdefault("pearnly_cowork.contracts", types.ModuleType("pearnly_cowork.contracts"))
+        self.asked = []
+        self.answer = None
+        company_tools = types.ModuleType("pearnly_cowork.assistant.company_tools")
+        company_tools.default_scope = lambda tool_input: self.asked.append(dict(tool_input)) or self.answer
+        package = types.ModuleType("pearnly_cowork.assistant")
+        package.company_tools = company_tools
+        patcher = mock.patch.dict(sys.modules, {"pearnly_cowork.contracts.history": history,
+                                                "pearnly_cowork.contracts.push": push,
+                                                "pearnly_cowork.assistant": package,
+                                                "pearnly_cowork.assistant.company_tools": company_tools})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for name, module in (("history", history), ("push", push)):
+            patcher = mock.patch.object(contracts, name, module, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        frappe.rows = [_filed_row("D1", "EXP1", "S:\\69EXP\\69SINCER"), _filed_row("D2", "EXP1", "S:\\69EXP\\DEMO01"),
+                       _filed_row("D3", "EXP1", "S:\\69EXP\\69SINCER01")]
+        self.addCleanup(setattr, frappe, "rows", [])
+        frappe.calls.clear()
+        frappe.grouped.clear()
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+        self.addCleanup(setattr, frappe.local, "pearnly_assistant", None)
+
+    def test_a_company_conversation_only_sees_that_companys_account_sets(self):
+        self.answer = {"scope": dict(self.SCOPE), "sets": [dict(item) for item in self.SETS]}
+        out = json.loads(tools.list_documents({"push_state": "success", "invoice_date_from": "2026-09-01",
+                                               "invoice_date_to": "2026-09-30"}))
+        filters = frappe.calls[0]["filters"]
+        self.assertEqual(filters["push_connection"], ["in", ["EXP1"]])
+        # 两个年度、两个分店的账套都在
+        self.assertEqual(filters["push_account_set"], ["in", sorted(item["key"] for item in self.SETS)])
+        self.assertEqual(filters["invoice_date"], ["between", ["2026-09-01", "2026-09-30"]])
+        self.assertEqual(out["scope"], self.SCOPE)
+        # 各账套几张也只在这家的账套里数
+        self.assertTrue(frappe.grouped)
+        for call in frappe.grouped:
+            self.assertEqual(call["filters"]["push_account_set"], ["in", sorted(item["key"] for item in self.SETS)])
+        # 推送结果是同一个处理函数，同样带上范围
+        frappe.calls.clear()
+        json.loads(tools.list_documents({"push_state": "failed"}))
+        self.assertEqual(frappe.calls[0]["filters"]["push_connection"], ["in", ["EXP1"]])
+
+    def test_a_work_branch_narrows_to_its_account_sets(self):
+        branch = [item for item in self.SETS if item["branch"] == "00001"]
+        self.answer = {"scope": {**self.SCOPE, "account_sets": 1, "branch": "00001"}, "sets": branch}
+        out = json.loads(tools.list_documents({}))
+        self.assertEqual(frappe.calls[0]["filters"]["push_account_set"], ["in", ["s:\\69exp\\69sincer01"]])
+        self.assertEqual(out["scope"]["branch"], "00001")
+
+    def test_all_companies_lifts_the_default_and_answers_company_by_company(self):
+        self.answer = {"scope": {"all_companies": True}, "sets": None}
+        out = json.loads(tools.list_documents({"all_companies": True, "push_state": "success"}))
+        filters = frappe.calls[0]["filters"]
+        self.assertNotIn("push_connection", filters)
+        self.assertNotIn("push_account_set", filters)
+        self.assertEqual(out["scope"], {"all_companies": True})
+        self.assertEqual({row["account_set_key"] for row in out["by_account_set"]},
+                         {row["push_account_set"] for row in frappe.rows})  # 逐家列
+
+    def test_an_account_set_the_call_names_is_not_overridden(self):
+        self.answer = {"scope": dict(self.SCOPE), "sets": [dict(item) for item in self.SETS]}
+        out = json.loads(tools.list_documents({"connection": "EXP1", "account_set_key": "S:\\69EXP\\DEMO01"}))
+        self.assertEqual(self.asked, [])
+        self.assertEqual((frappe.calls[0]["filters"]["push_connection"], frappe.calls[0]["filters"]["push_account_set"]),
+                         ("EXP1", "S:\\69EXP\\DEMO01"))
+        self.assertNotIn("scope", out)
+
+    def test_outside_a_company_conversation_nothing_changes(self):
+        frappe.local.pearnly_assistant = None
+        out = json.loads(tools.list_documents({"push_state": "success"}))
+        self.assertEqual(self.asked, [])  # 不在 CC 对话里：不碰主档
+        self.assertEqual(frappe.calls[0]["filters"], {"last_push_status": "success"})
+        self.assertNotIn("scope", out)
+        frappe.local.pearnly_assistant = {"session_id": "sesn_2"}
+        self.answer = None  # 对话没挂公司
+        frappe.calls.clear()
+        out = json.loads(tools.list_documents({"push_state": "success"}))
+        self.assertEqual(frappe.calls[0]["filters"], {"last_push_status": "success"})
+        self.assertNotIn("scope", out)
+        self.assertEqual(len(out["by_account_set"]), 3)
+
+    def test_sets_on_two_connections_are_matched_pair_by_pair(self):
+        # 两条连接上的账套不一样：两列分别筛会多圈进 EXP1 上的 DEMO01（它的键在 EXP2 上属于这家），取回后逐对核对
+        frappe.rows.append(_filed_row("D4", "EXP2", "S:\\69EXP\\DEMO01"))
+        self.answer = {"scope": dict(self.SCOPE), "sets": [{"connection": "EXP1", "key": "s:\\69exp\\69sincer"},
+                                                           {"connection": "EXP2", "key": "s:\\69exp\\demo01"}]}
+        out = json.loads(tools.list_documents({}))
+        self.assertEqual([row["name"] for row in out["documents"]], ["D1", "D4"])
+        self.assertEqual(out["total"], 2)
+        self.assertEqual({(row["connection"], row["account_set_key"]) for row in out["by_account_set"]},
+                         {("EXP1", "S:\\69EXP\\69SINCER"), ("EXP2", "S:\\69EXP\\DEMO01")})
+
+    def test_a_company_without_account_sets_lists_nothing_and_a_wrong_company_fails(self):
+        self.answer = {"scope": {**self.SCOPE, "account_sets": 0}, "sets": []}
+        out = json.loads(tools.list_documents({}))
+        self.assertEqual((out["documents"], out["total"], out["scope"]["account_sets"]), ([], 0, 0))
+        self.assertEqual(frappe.calls, [])
+        self.answer = {"failed": "unknown company: pass an id from cowork_companies"}
+        self.assertEqual(json.loads(tools.list_documents({"company": "nope"}))["status"], "failed")
+        frappe.local.pearnly_assistant = None
+        self.asked.clear()
+        tools.list_documents({"company": "CO-2"})  # 没挂公司也能点名查一家
+        self.assertEqual(self.asked, [{"company": "CO-2"}])
+
+    def test_scheduled_tasks_follow_the_same_scope(self):
+        rules = [{"name": "R1", "connection": "EXP1", "account_set_key": "S:\\69EXP\\69SINCER", "remind": 0},
+                 {"name": "R2", "connection": "EXP1", "account_set_key": "S:\\69EXP\\DEMO01", "remind": 0}]
+        self.answer = {"scope": dict(self.SCOPE), "sets": [dict(item) for item in self.SETS]}
+        with mock.patch.object(tools.rules, "listing", lambda: {"rules": [dict(row) for row in rules]}):
+            out = json.loads(tools.folder_tasks({}))
+            self.assertEqual(([task["name"] for task in out["tasks"]], out["scope"]), (["R1"], self.SCOPE))
+            self.answer = {"scope": {"all_companies": True}, "sets": None}
+            out = json.loads(tools.folder_tasks({"all_companies": True}))
+            self.assertEqual([task["name"] for task in out["tasks"]], ["R1", "R2"])
+            frappe.local.pearnly_assistant = None
+            out = json.loads(tools.folder_tasks({}))
+            self.assertEqual(([task["name"] for task in out["tasks"]], "scope" in out), (["R1", "R2"], False))
+
+    def test_the_scope_tools_offer_the_lift_and_the_guidance_says_when(self):
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        for name in ("cowork_list_documents", "cowork_push_results", "cowork_folder_tasks"):
+            properties = declared[name]["input_schema"]["properties"]
+            self.assertEqual(properties["all_companies"]["type"], "boolean", name)
+            self.assertIn("company", properties, name)
+        self.assertTrue(any("all_companies true" in line for line in tools.GUIDANCE))
+
+
 class LocalTimeTests(unittest.TestCase):
     """2026-10-13 录屏（testcowork，泰文界面、曼谷用户）：推送时间按 UTC 原样交给模型，CC 把 15:40 推送成功说成「今天 08:40」。
     工具结果里的时间点一律是站点时区的 YYYY-MM-DD HH:MM：存 UTC 的字段由工具点名、换算一次；存站点时区的只换格式（不再偏）；

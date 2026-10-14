@@ -1433,6 +1433,52 @@ class ProviderAndToolTests(unittest.TestCase):
         listed = json.loads(tools.companies({}))
         self.assertEqual(listed["companies"][0]["branches"], ["00000", "00012"])
 
+    def test_a_company_conversation_defaults_to_that_companys_account_sets(self):
+        """2026-10-15 测试机：公司对话里不带账套问「这个月哪些单进了 Express」，答出了别家三份账套的单。默认范围 = 这家的
+        全部账套（各年度、各分店）；对话指定分店只看该分店；all_companies 放开；没挂公司照旧（None）。"""
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"),
+                  express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP", start="2025-01-01", end="2025-12-31"),
+                  express_row("S:\\69EXP\\B12", "ABC 12", branch="00012"),
+                  express_row("S:\\69EXP\\XYZ", "XYZ", company="XYZ Co", tax=OTHER_TAX)],
+              C2=[express_row("S:\\70EXP\\ABC", "ABC 70", year="70EXP", start="2027-01-01", end="2027-12-31")])
+        abc = make()["id"]
+        xyz = make(key="S:\\69EXP\\XYZ")["id"]
+        tools = self._tools()
+        keys = lambda found: sorted((item["connection"], item["key"]) for item in found["sets"])
+        self.assertIsNone(tools.default_scope({}))  # 没挂公司
+        frappe.local.pearnly_assistant = {"session_id": "sesn_scope"}
+        self.addCleanup(lambda: setattr(frappe.local, "pearnly_assistant", None))
+        self.assertIsNone(tools.default_scope({"all_companies": True}))  # 对话没挂公司：照旧
+        projects.sessions["sesn_scope"] = (abc, "2026-09", "")
+        fresh_request()
+        found = tools.default_scope({})
+        self.assertEqual(keys(found), [("C1", "s:\\68exp\\abc"), ("C1", "s:\\69exp\\abc"),
+                                       ("C1", "s:\\69exp\\b12"), ("C2", "s:\\70exp\\abc")])
+        self.assertEqual(found["scope"], {"company": "บริษัท เอบีซี จำกัด", "company_id": abc,
+                                          "conversation_company": True, "account_sets": 4})
+        # 对话指定了分店：只看该分店
+        projects.sessions["sesn_scope"] = (abc, "2026-09", "00012")
+        fresh_request()
+        found = tools.default_scope({})
+        self.assertEqual((keys(found), found["scope"]["branch"]), ([("C1", "s:\\69exp\\b12")], "00012"))
+        # 这个分店没有自己的账套（一套账服务几个分店）：仍是这家的全部，不标分店
+        projects.sessions["sesn_scope"] = (abc, "2026-09", "00099")
+        fresh_request()
+        found = tools.default_scope({})
+        self.assertEqual((len(found["sets"]), "branch" in found["scope"]), (4, False))
+        # 显式放开、点名别家、点错
+        self.assertEqual(tools.default_scope({"all_companies": True}), {"scope": {"all_companies": True}, "sets": None})
+        other = tools.default_scope({"company": xyz})
+        self.assertEqual((keys(other), other["scope"]["company_id"]), ([("C1", "s:\\69exp\\xyz")], xyz))
+        self.assertIn("unknown company", tools.default_scope({"company": "nope"})["failed"])
+        # 点名的就是本对话那家：仍按对话的分店
+        projects.sessions["sesn_scope"] = (abc, "2026-09", "00012")
+        fresh_request()
+        self.assertEqual(keys(tools.default_scope({"company": abc})), [("C1", "s:\\69exp\\b12")])
+        # 挂的公司已删：照旧不限
+        projects.sessions["sesn_scope"] = ("gone", "2026-09", "")
+        self.assertIsNone(tools.default_scope({}))
+
     def test_tool_labels_and_questions_are_in_the_glossary(self):
         tools = self._tools()
         with open(APP / "i18n/messages.tsv", encoding="utf-8") as handle:
