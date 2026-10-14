@@ -1,7 +1,8 @@
 // 右侧结果面板（同 claude.ai 的 Artifacts 面板）：智能体产出的文件在这里预览、下载。
 //
 // 预览方式沿用 assistant-ui 官方 Artifacts 示例：网页放进无同源权限的沙箱 iframe（srcDoc），并可切到代码；
-// 图片、PDF 用服务端的内联地址；Excel 由服务端读成表格后显示；文本按原文显示；其余类型给下载。
+// 图片、PDF 用服务端的内联地址；Excel 由服务端读成表格后显示；Word（.docx）由服务端读成段落与表格的纯数据，
+// 按需载入的 document-view 按文字渲染（2026-10-13 教程第 3 条）；文本按原文显示；其余类型、读不出时给下载。
 // 新结果出现时自动打开；对话里的文件卡片点一下打开对应文件（ResultsContext）。
 
 import { Tabs } from "radix-ui";
@@ -15,20 +16,25 @@ import {
   LoaderIcon,
   XIcon,
 } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { fileUrl, listSessionFiles, previewFile, type SessionFile, type SheetPreview } from "@/lib/managed-agents/api";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { fileUrl, listSessionFiles, previewFile, type FilePreview, type SessionFile } from "@/lib/managed-agents/api";
 import { cn } from "@/lib/utils";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { SplitHandle, resultsSize, useStoredSize } from "@/components/split-handle";
 import { t } from "@/i18n";
 
-type Kind = "html" | "image" | "pdf" | "sheet" | "text" | "none";
+// Word 预览的渲染按需载入：打开 .docx 时才下载这一小块，首屏包不变
+const DocumentView = lazy(() => import("@/components/document-view"));
 
-function kindOf(filename: string): Kind {
+type Kind = "html" | "image" | "pdf" | "sheet" | "doc" | "text" | "none";
+
+export function kindOf(filename: string): Kind {
   const name = filename.toLowerCase();
   if (/\.html?$/.test(name)) return "html";
   if (/\.(png|jpe?g|gif|webp)$/.test(name)) return "image";
   if (name.endsWith(".pdf")) return "pdf";
   if (/\.xlsx?m?$/.test(name)) return "sheet";
+  if (name.endsWith(".docx")) return "doc";
   if (/\.(csv|tsv|txt|md|json|log)$/.test(name)) return "text";
   return "none";
 }
@@ -132,21 +138,35 @@ function useText(url: string | null) {
   return text;
 }
 
-function useSheets(sessionId: string, fileId: string | null) {
-  const [sheets, setSheets] = useState<SheetPreview | null>(null);
+/** 服务端的结构化预览（Excel、Word）；请求失败（网络、读不出）当作没有预览，页面给下载。 */
+export function loadPreview(sessionId: string, fileId: string): Promise<FilePreview> {
+  return previewFile(sessionId, fileId).then(
+    (body) => body ?? { type: "none" },
+    () => ({ type: "none" }),
+  );
+}
+
+// 结果按文件记：在面板里换一个文件时，不会先拿上一个文件的预览渲染一下
+function usePreview(sessionId: string, fileId: string | null) {
+  const [loaded, setLoaded] = useState<{ key: string; preview: FilePreview } | null>(null);
+  const key = fileId ? `${sessionId}/${fileId}` : "";
   useEffect(() => {
-    setSheets(null);
     if (!fileId) return;
     let cancelled = false;
-    void previewFile(sessionId, fileId).then(
-      (body) => !cancelled && setSheets(body),
-      () => !cancelled && setSheets({ type: "none" }),
-    );
+    void loadPreview(sessionId, fileId).then((preview) => !cancelled && setLoaded({ key: `${sessionId}/${fileId}`, preview }));
     return () => {
       cancelled = true;
     };
   }, [sessionId, fileId]);
-  return sheets;
+  return loaded && key && loaded.key === key ? loaded.preview : null;
+}
+
+function Loading() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+    </div>
+  );
 }
 
 // 数额靠右；收据号、税号这类以 0 开头或很长的数字编号仍按文字靠左。
@@ -195,9 +215,23 @@ function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }
   );
 }
 
+/** Word 预览：取预览中转圈；读不出、没有正文，或渲染那一块载不进来（例如站点刚更新、旧页面要的文件已换名）都给下载。 */
+export function DocumentPreview({ sessionId, file, preview }: { sessionId: string; file: SessionFile; preview: FilePreview | null }) {
+  if (!preview) return <Loading />;
+  const fallback = <NoPreview sessionId={sessionId} file={file} />;
+  if (preview.type !== "document" || !preview.blocks?.length) return fallback;
+  return (
+    <ErrorBoundary key={file.id} fallback={fallback}>
+      <Suspense fallback={<Loading />}>
+        <DocumentView blocks={preview.blocks} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
   const kind = kindOf(file.filename);
-  const sheets = useSheets(sessionId, kind === "sheet" ? file.id : null);
+  const preview = usePreview(sessionId, kind === "sheet" || kind === "doc" ? file.id : null);
   const text = useText(kind === "html" || kind === "text" ? fileUrl(sessionId, file.id) : null);
 
   if (kind === "image") {
@@ -209,15 +243,11 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
   if (kind === "text") {
     return <pre className="h-full overflow-auto p-4 font-mono text-(length:--cc-text-sm) whitespace-pre-wrap">{text ?? ""}</pre>;
   }
+  if (kind === "doc") return <DocumentPreview sessionId={sessionId} file={file} preview={preview} />;
   if (kind === "sheet") {
-    if (!sheets) {
-      return (
-        <div className="flex h-full items-center justify-center">
-          <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
-    if (sheets.type !== "sheets" || !sheets.sheets.length) return <NoPreview sessionId={sessionId} file={file} />;
+    if (!preview) return <Loading />;
+    if (preview.type !== "sheets" || !preview.sheets.length) return <NoPreview sessionId={sessionId} file={file} />;
+    const sheets = preview;
     if (sheets.sheets.length === 1) return <SheetTable rows={sheets.sheets[0]!.rows} />;
     // 先打开第一张有数据的表（只有表头的跳过）：复核工作簿进项单据的数据在后面的表里
     const first = Math.max(0, sheets.sheets.findIndex((sheet) => sheet.rows.length > 1));

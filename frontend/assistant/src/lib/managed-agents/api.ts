@@ -98,10 +98,30 @@ export function listSessionFiles(id: string): Promise<SessionFile[]> {
   return get("session_files", { session_id: id });
 }
 
-export type SheetPreview = { type: "sheets"; sheets: Array<{ name: string; rows: string[][] }> } | { type: "none" };
+/** Word 文档预览里的一段文字或一张图（服务端 `docx_preview` 读出的纯数据：没有链接地址，图片只有 data: 地址）。 */
+export type DocRun =
+  | { text: string; bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; sup?: boolean; sub?: boolean; link?: boolean }
+  | { image: string; width?: number; height?: number };
 
-/** 结果文件的结构化预览（目前是 Excel 表格）。 */
-export function previewFile(id: string, fileId: string): Promise<SheetPreview> {
+export type DocCell = { blocks: DocBlock[]; colspan?: number; rowspan?: number };
+
+export type DocBlock =
+  | {
+      type: "paragraph";
+      runs: DocRun[];
+      style?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "title" | "subtitle";
+      align?: "center" | "right" | "justify";
+      list?: { level: number; marker: string };
+    }
+  | { type: "table"; rows: Array<{ cells: DocCell[]; header?: boolean }> };
+
+export type FilePreview =
+  | { type: "sheets"; sheets: Array<{ name: string; rows: string[][] }> }
+  | { type: "document"; blocks: DocBlock[] }
+  | { type: "none" };
+
+/** 结果文件的结构化预览：Excel 表格、Word 文档；其余类型或读不出是 none（页面给下载）。 */
+export function previewFile(id: string, fileId: string): Promise<FilePreview> {
   return get("preview", { session_id: id, file_id: fileId });
 }
 

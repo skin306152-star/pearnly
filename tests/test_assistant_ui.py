@@ -1075,6 +1075,148 @@ g.done();
 """, lang="th")
         source = read("components/tool-uis/approval-bar.tsx")
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
+# ── 结果面板的 Word 预览（2026-10-13 教程第 3 条：「สรุปภาษีแก้วกานดา_ก.ย._2569.docx」只显示下载按钮）────────────────
+# 服务端把 .docx 读成纯数据（pearnly_core.assistant.docx_preview，离线检查在 tests/test_assistant.py），页面用按需载入的
+# document-view 按文字渲染。下面用 react-dom/server 渲染真实组件，看显示出来的 HTML。
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class DocumentPreviewBehaviourTests(unittest.TestCase):
+    HEAD = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import DocumentView, { safeImage } from "@/components/document-view";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { DocumentPreview, FileTypeIcon, kindOf, loadPreview } from "@/components/results-panel";
+
+const g = globalThis as any;
+const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(type, props));
+const tags = (markup: string) => markup.match(/<[^>]+>/g) ?? [];
+const file = { id: "file_1", filename: "สรุปภาษีแก้วกานดา_ก.ย._2569.docx", size_bytes: 9000, kind: "output",
+               mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", downloadable: true,
+               created_at: "2026-10-13T11:00:00Z" } as any;
+const DOWNLOAD = /href="\/api\/method\/pearnly_core\.assistant\.api\.download\?session_id=s1&amp;file_id=file_1&amp;inline=0"/;
+"""
+
+    def run_page(self, checks):
+        run_ts(self.HEAD + checks + "\ng.done();\n")
+
+    def test_docx_is_previewed_and_other_types_keep_their_way(self):
+        # 类型判断：.docx 走 Word 预览（对话里的文件卡片也换成文档图标）；老格式 .doc 仍是下载
+        self.run_page(r"""
+assert.equal(kindOf(file.filename), "doc");
+assert.equal(kindOf("REPORT.DOCX"), "doc");
+for (const [name, kind] of [["old.doc", "none"], ["GL-05.xlsx", "sheet"], ["r.pdf", "pdf"], ["page.html", "html"],
+                            ["note.md", "text"], ["a.docx.zip", "none"]]) assert.equal(kindOf(name), kind, name);
+assert.match(html(FileTypeIcon, { filename: file.filename }), /lucide-file-text/);
+assert.doesNotMatch(html(FileTypeIcon, { filename: "old.doc" }), /lucide-file-text/);
+""")
+
+    def test_preview_failures_fall_back_to_the_download(self):
+        self.run_page(r"""
+// 服务端拒收 / 出错、网络断：当作没有预览
+g.respond = async () => ({ ok: false, status: 500, json: async () => ({ exception: "frappe.exceptions.ValidationError: x" }) });
+assert.deepEqual(await loadPreview("s1", "file_1"), { type: "none" });
+g.respond = async () => { throw new TypeError("Failed to fetch"); };
+assert.deepEqual(await loadPreview("s1", "file_1"), { type: "none" });
+const blocks = [{ type: "paragraph", runs: [{ text: "สรุป" }] }];
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { type: "document", blocks } }) });
+assert.deepEqual(await loadPreview("s1", "file_1"), { type: "document", blocks });
+assert.deepEqual(g.calls.at(-1), { method: "preview", body: null });
+// 读不出（none）、没有正文：显示下载按钮（附件下载地址）
+for (const preview of [{ type: "none" }, { type: "document", blocks: [] }, { type: "sheets", sheets: [] }]) {
+  const markup = html(DocumentPreview, { sessionId: "s1", file, preview });
+  assert.match(markup, DOWNLOAD, JSON.stringify(preview));
+  assert.match(markup, />Download</);
+}
+// 还在取：转圈，不给下载
+assert.doesNotMatch(html(DocumentPreview, { sessionId: "s1", file, preview: null }), /download/);
+// 有正文：渲染那一块包在错误边界里；那一块载不进来（站点刚更新、旧页面要的文件已换名）或渲染出错 → 换成下载
+const tree: any = DocumentPreview({ sessionId: "s1", file, preview: { type: "document", blocks } as any });
+assert.equal(tree.type, ErrorBoundary);
+const boundary = new ErrorBoundary(tree.props);
+assert.equal(boundary.render(), tree.props.children);
+boundary.state = ErrorBoundary.getDerivedStateFromError();
+assert.match(renderToStaticMarkup(boundary.render() as any), DOWNLOAD);
+""")
+
+    def test_document_renders_as_text_with_tables_that_scroll_on_phones(self):
+        self.run_page(r"""
+const png = "data:image/png;base64,iVBORw0KGgo=";
+const cell = (text: string, extra: any = {}) => ({ blocks: [{ type: "paragraph", runs: [{ text }], ...extra }] });
+const markup = html(DocumentView, { blocks: [
+  { type: "paragraph", style: "title", align: "center", runs: [{ text: "สรุปภาษี ก.ย. 2569" }] },
+  { type: "paragraph", style: "h2", runs: [{ text: "ภาษีขาย" }] },
+  { type: "paragraph", runs: [{ text: "ยอด " }, { text: "19,600.36", bold: true }, { text: " บาท", italic: true, underline: true },
+                              { text: "2", sup: true }, { text: "ลิงก์", link: true }] },
+  { type: "paragraph", list: { level: 1, marker: "1.a)" }, runs: [{ text: "ข้อย่อย" }] },
+  { type: "paragraph", runs: [] },
+  { type: "table", rows: [
+    { header: true, cells: [cell("รายการ"), cell("จำนวน")] },
+    { cells: [cell("รวม", { align: "right" }), { colspan: 2, rowspan: 2, ...cell("1,234.00") }] },
+    { cells: [{ blocks: [{ type: "table", rows: [{ cells: [cell("inner")] }] }] }] },
+  ] },
+  { type: "paragraph", runs: [{ image: png, width: 100, height: 50 }] },
+] });
+assert.match(markup, /<h1 class="[^"]*text-2xl[^"]*text-center">สรุปภาษี ก\.ย\. 2569<\/h1>/);
+assert.match(markup, /<h2 class="[^"]*">ภาษีขาย<\/h2>/);
+assert.match(markup, /<p class="mb-2">ยอด <span class="font-bold">19,600\.36<\/span><span class="italic underline underline-offset-2"> บาท<\/span><sup>2<\/sup><span class="underline underline-offset-2">ลิงก์<\/span><\/p>/);
+assert.match(markup, /<p class="mb-2 flex gap-2" style="padding-inline-start:1\.5em"><span class="shrink-0 tabular-nums">1\.a\)<\/span><span class="min-w-0 flex-1">ข้อย่อย<\/span><\/p>/);
+assert.match(markup, /<p class="mb-2"> <\/p>/);  // 空段落占一行
+assert.match(markup, /<td class="[^"]*bg-subtle[^"]*"><p class="mb-0">รายการ<\/p><\/td>/);
+assert.match(markup, /<td colSpan="2" rowSpan="2" class="[^"]*"><p class="mb-0">1,234\.00<\/p><\/td>/);
+assert.match(markup, /<p class="mb-0 text-right">รวม<\/p>/);
+assert.match(markup, /<td class="[^"]*"><div class="my-3 max-w-full overflow-x-auto"><table/);  // 表中表
+assert.match(markup, /<img src="data:image\/png;base64,iVBORw0KGgo=" alt="" draggable="false" class="[^"]*max-w-full[^"]*" style="width:100px;aspect-ratio:100 \/ 50"\/>/);
+// 手机：整篇竖着滚、不横向撑开；宽表格在自己的框里横着滚；长串文字折行；图片不超过面板宽
+assert.match(markup, /^<div class="h-full overflow-x-hidden overflow-y-auto"><article class="[^"]*break-words[^"]*">/);
+assert.equal((markup.match(/<div class="my-3 max-w-full overflow-x-auto"><table/g) ?? []).length, 2);
+// 颜色只用设计变量（globals.css）：不写死色值
+assert.doesNotMatch(markup, /#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(/);
+""")
+
+    def test_scripts_links_and_outside_images_never_render(self):
+        # 清洗：服务端已只给纯数据；万一数据里混进 HTML、地址或怪样式，这里也只当文字、不出标签与地址
+        self.run_page(r"""
+const markup = html(DocumentView, { blocks: [
+  { type: "paragraph", runs: [{ text: "<script>alert(1)</script>" }, { text: "<img src=x onerror=alert(1)>", link: true }] },
+  { type: "paragraph", runs: [
+    { image: "javascript:alert(1)" }, { image: "https://evil.example/pixel.png" }, { image: "//evil.example/p.png" },
+    { image: "data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+" }, { image: "data:text/html;base64,PHNjcmlwdD4=" },
+    { image: 'data:image/png;base64,AAAA" onerror="alert(1)' }, { image: 42 }, { text: 42 }] },
+  { type: "paragraph", style: "script", align: '" onclick="alert(1)', runs: [{ text: "s" }] },
+  { type: "paragraph", style: "__proto__", runs: [{ text: "p" }] },
+  { type: "iframe", src: "https://evil.example" },
+  { type: "table", rows: [{ cells: [{ colspan: '2" onclick="x', rowspan: -1, blocks: [{ type: "paragraph", runs: [{ text: "c" }] }] }] }] },
+  { type: "paragraph", list: { level: "<b>", marker: "<b>m</b>" }, runs: [{ text: "x" }] },
+] as any });
+for (const tag of tags(markup)) {
+  assert.match(tag, /^<\/?(div|article|p|span|sup|sub|h[1-6]|table|tbody|tr|td)\b/, tag);
+  assert.doesNotMatch(tag, /\son\w+=|href=|src=|javascript:|evil\.example/, tag);
+}
+assert.match(markup, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+assert.match(markup, /&lt;img src=x onerror=alert\(1\)&gt;/);
+assert.match(markup, /<p class="mb-2">s<\/p><p class="mb-2">p<\/p>/);  // 不认识的样式按正文、不当标签名
+assert.match(markup, /<span class="shrink-0 tabular-nums">&lt;b&gt;m&lt;\/b&gt;<\/span>/);
+assert.match(markup, /<td class="[^"]*"><p class="mb-0">c<\/p><\/td>/);  // 怪的合并数不带出来
+assert.equal(safeImage("data:image/webp;base64,UklGRg=="), "data:image/webp;base64,UklGRg==");
+assert.equal(safeImage("data:image/jpeg;base64,/9j/4AAQ"), "data:image/jpeg;base64,/9j/4AAQ");
+for (const bad of ["data:image/png;base64,AA== x", "DATA:image/png;base64,AA==", "data:image/png,raw", "", null, {}])
+  assert.equal(safeImage(bad), null, String(bad));
+""")
+
+    def test_the_renderer_is_loaded_on_demand(self):
+        # 首屏包不带 Word 预览：results-panel 只按需 import()，别处也不静态导入它；没有新增第三方依赖
+        panel = read("components/results-panel.tsx")
+        self.assertIn('const DocumentView = lazy(() => import("@/components/document-view"));', panel)
+        for path in SRC.rglob("*.ts*"):
+            self.assertNotRegex(path.read_text(encoding="utf-8"), r'(?m)^import[^;]*from "@/components/document-view"',
+                                str(path.relative_to(SRC)))
+        view = read("components/document-view.tsx")
+        self.assertEqual(re.findall(r'from "([^"@][^"]*)"', view), ["react"])
+        self.assertNotIn("dangerouslySetInnerHTML", view)
+        self.assertNotIn("href", view)
 
 
 # ── 运行状态以服务端为准（2026-10-13 iPhone）──────────────────────────────────────────────────────────
