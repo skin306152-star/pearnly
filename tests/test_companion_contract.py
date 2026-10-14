@@ -589,5 +589,60 @@ class UpdateBlocked(unittest.TestCase):
         self.assertIn('return "blocked", version', flow)
 
 
+class CompanyFolders(unittest.TestCase):
+    """CC 按公司分组、文件夹授权随公司走（2026-10-15，规格 §7、§13.2）：
+
+    - 文件夹同步：快速同步的请求键 `roots_only`、回复键 `max_roots` / `roots_in_use` 两端都有；一次收几个根目录
+      （`MAX_ROOTS`）与下级文件夹名合计上限（`FOLDERS_TOTAL`）两端相等；
+    - 桥：对话页调的每个本机方法桥里都有；公司的「选择文件夹…」叫 `pick_folder`，桥在 `state().features` 里声明
+      `company_folders`，设置页的旧授权清理行读 `state().legacy_roots`。"""
+
+    KEYS = ("roots_only", "max_roots", "roots_in_use")
+
+    def setUp(self):
+        self.worker = (COMPANION / "folder_worker.py").read_text(encoding="utf-8")
+        self.server = "\n".join(path.read_text(encoding="utf-8") for path in sorted(FOLDER_SERVER.glob("*.py")))
+        self.bridge = (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8")
+        self.page = "\n".join(path.read_text(encoding="utf-8")
+                              for path in sorted((ROOT / "frontend/assistant/src").rglob("*.ts*")))
+
+    def test_the_desktop_sends_and_reads_the_sync_keys(self):
+        quick = method_source(COMPANION / "folder_worker.py", "FolderIntake", "report_roots_now")
+        sync = next(node for node in ast.walk(ast.parse(quick)) if isinstance(node, ast.Call)
+                    and ast.unparse(node.func) == "client.sync")
+        self.assertTrue({"roots_only", "version", "device", "roots"} <= {key.value for key in sync.args[0].keys})
+        limits = method_source(COMPANION / "folder_worker.py", "FolderIntake", "_limits")
+        self.assertIn("response.get('max_roots')", limits)
+        self.assertIn("response.get('roots_in_use')", limits)
+        self.assertIn("self._limits(key, response)", method_source(COMPANION / "folder_worker.py", "FolderIntake", "round"))
+
+    def test_the_server_reads_and_answers_the_sync_keys(self):
+        for key in self.KEYS:
+            self.assertTrue(quoted(self.server, key), key)
+
+    def test_root_and_folder_limits_are_the_same_on_both_sides(self):
+        names = ("MAX_ROOTS", "FOLDERS_TOTAL")
+        helper = number_constants(COMPANION / "folder_plan.py", names)
+        server = number_constants(FOLDER_SERVER / "contracts.py", names)
+        self.assertEqual(helper, {"MAX_ROOTS": 200, "FOLDERS_TOTAL": 20_000})
+        self.assertEqual(server, helper)
+        # 没收到 max_roots（旧服务端）时桌面版按旧上限 20 封顶
+        self.assertEqual(number_constants(COMPANION / "folder_plan.py", ("DEFAULT_MAX_ROOTS",)), {"DEFAULT_MAX_ROOTS": 20})
+
+    def test_every_method_the_page_calls_is_in_the_bridge(self):
+        bridge = set(re.findall(r'method == "(\w+)"', self.bridge))
+        called = set(re.findall(r'\.call\(\s*"(\w+)"', self.page)) | set(re.findall(r'\brun\(\s*"\w+",\s*"(\w+)"', self.page))
+        self.assertTrue(called, "frontend bridge calls")
+        self.assertEqual(called - bridge, set())
+        self.assertTrue({"pick_folder", "remove_folder", "add_folder"} <= bridge)
+
+    def test_the_page_uses_the_company_folder_bridge(self):
+        # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
+        self.assertIn('FEATURES = ("company_folders",)', self.bridge)
+        self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
+        for name in ("pick_folder", "company_folders", "legacy_roots"):
+            self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)
+
+
 if __name__ == "__main__":
     unittest.main()

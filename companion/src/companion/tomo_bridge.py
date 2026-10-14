@@ -4,6 +4,11 @@
 对话页的设置（「此电脑」：连接、系统）经这里读写本机设置（desktop_settings.py）；文件夹选择框由这里弹本机原生的。
 只在 Tomo 自己的对话页（*.pearnly.com/assistant）上应答，登录页等其他页面调用一律拒绝。
 
+公司的文件夹（2026-10-15，CC 按公司分组）：``pick_folder`` 不收任何路径（网页传来的一概不看），在界面线程弹原生
+选择框，选好后在后台判定（desktop_settings.pick_folder），只回绑定（读者、根目录编号、相对路径、显示名…），由页面交给
+服务端。另要求对话页的站点就是这台电脑连着的那家公司（``page_url``），否则回 ``other_site``。
+``state()`` 带 ``features: ["company_folders"]``（旧版没有，页面据此降级）与 ``legacy_roots``（设置页的旧授权清理行）。
+
 协议（网页侧见 frontend/assistant/src/lib/desktop.ts）：
 - state() → 当前设置的 JSON；本机状态变了发 changed()，网页再取一次。
 - call(method, args_json) → 结果 JSON；慢的操作（配对、换 Express 文件夹、找 Express）先回 {"job": id}，
@@ -14,10 +19,12 @@ from __future__ import annotations
 import json
 import uuid
 from typing import Callable
+from urllib.parse import urlsplit
 
 from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
 from PySide6.QtWidgets import QFileDialog
 
+from . import folder_plan as plan
 from .desktop_settings import DesktopSettings, inside, picker_start, program_folder
 from .gui_pairing_support import Probes
 from .i18n import normalize, t
@@ -26,6 +33,8 @@ from .logger import get_logger
 log = get_logger(__name__)
 
 REFUSED = json.dumps({"ok": False, "refused": True})
+# 本版桥能做的事（页面按这里判断，旧版没有这一项）：company_folders = 公司的「选择文件夹…」（pick_folder）
+FEATURES = ("company_folders",)
 
 
 class TomoBridge(QObject):
@@ -34,10 +43,11 @@ class TomoBridge(QObject):
     open_settings = Signal(str)   # 托盘「连接与设置」：让网页打开设置的某一栏
 
     def __init__(self, settings: DesktopSettings, *, allowed: Callable[[], bool], window: Callable[[], object],
-                 set_lang: Callable[[str], None]) -> None:
+                 set_lang: Callable[[str], None], page_url: Callable[[], str] = lambda: "") -> None:
         super().__init__()
         self._settings = settings
         self._allowed = allowed
+        self._page_url = page_url   # 对话页当前地址：pick_folder 核对它的站点就是这台电脑连着的那家公司
         self._window = window
         self._set_lang = set_lang
         self._probes = Probes()
@@ -48,7 +58,8 @@ class TomoBridge(QObject):
             return REFUSED
         try:
             # window.frameless：本版窗口没有系统标题栏，对话页要自己画（旧版桌面端没有这一项，页面就不画，免得两层标题栏）
-            return json.dumps({**self._settings.snapshot(), "window": {"frameless": True}}, ensure_ascii=False)
+            return json.dumps({**self._settings.snapshot(), "window": {"frameless": True}, "features": list(FEATURES)},
+                              ensure_ascii=False)
         except Exception:
             log.exception("读取本机设置失败")
             return json.dumps({"ok": False})
@@ -94,14 +105,30 @@ class TomoBridge(QObject):
             return self._changed(s.set_paused(member, bool(args.get("paused"))))
         if method == "remove":
             return self._changed(s.remove(member))
+        if method == "pick_folder":
+            # 公司的「选择文件夹…」：args 里的路径一概不看，只认这里弹的原生选择框
+            failed = s.pick_ready(self._page_host(), lang)
+            if failed is not None:
+                return failed
+            current = [path for row in s.snapshot().get("members") or [] for path in row.get("folders") or []]
+            picked = QFileDialog.getExistingDirectory(self._window(), t("folders_pick", normalize(lang)),
+                                                      self._start(current))
+            if not picked:
+                return {"ok": False, "cancelled": True}
+            host = self._page_host()   # 选择框开着时页面可能换了：后台再核一次
+            return self._job(lambda: s.pick_folder(picked, host, lang))
         if method == "add_folder":
+            # 旧设置页（回退、旧服务端）的「添加文件夹…」：保留，判定口径同公司选文件夹（不许整块盘、系统位置、程序文件夹）
             current = self._folders(member)
             picked = QFileDialog.getExistingDirectory(self._window(), t("folders_pick", normalize(lang)),
                                                       self._start(current))
             if not picked:
                 return {"ok": False, "cancelled": True}
-            if program_folder() and inside(picked, program_folder()):
+            program = program_folder()
+            if program and (inside(picked, program) or inside(program, picked)):
                 return {"ok": False, "message": t("folders_program", normalize(lang))}
+            if plan.too_broad(picked):
+                return {"ok": False, "message": t("folders_too_broad", normalize(lang))}
             if picked in current:
                 return {"ok": True}
             return self._changed(s.set_folders(member, current + [picked], lang))
@@ -128,6 +155,12 @@ class TomoBridge(QObject):
     def _start(current: list) -> str:
         return picker_start(current, QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation),
                             program_folder())
+
+    def _page_host(self) -> str:
+        try:
+            return (urlsplit(str(self._page_url() or "")).hostname or "").lower()
+        except ValueError:
+            return ""
 
     def _folders(self, member: str) -> list:
         row = next((m for m in self._settings.snapshot()["members"] if m["id"] == member), None)

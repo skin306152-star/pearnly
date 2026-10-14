@@ -169,6 +169,7 @@ class TrayApp(QObject):
     folder_status = Signal(str, str)  # MR.ERP 的小助手成员（只读文件夹）：文件夹线程每次同步后报 idle / offline
     folder_notices = Signal(str, object)  # 文件夹同步带来的对话提醒：(站点, [提醒…])
     folder_update = Signal(str, str)  # 文件夹同步带来的新版本（只读文件夹的成员没有心跳）：(版本, 地址)
+    folder_roots = Signal()  # 文件夹线程自动收回了经公司添加、没人用的根目录：设置页重取本机状态
 
     def __init__(self, configs, *, open_tomo: bool = False) -> None:
         app = qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
@@ -235,10 +236,12 @@ class TrayApp(QObject):
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
         self.folder_notices.connect(self._on_folder_notices)
         self.folder_update.connect(self._on_update_available)
+        self.folder_roots.connect(self._on_folder_roots)
         self._folders = FolderIntake(lambda: self.configs, lang=lambda: self.lang,
                                      on_status=lambda profile_id, key: self.folder_status.emit(profile_id, key),
                                      on_notices=lambda site, items: self.folder_notices.emit(site, items),
-                                     on_update=lambda version, url: self.folder_update.emit(version, url))
+                                     on_update=lambda version, url: self.folder_update.emit(version, url),
+                                     on_roots_changed=self.folder_roots.emit)
         self._folders.start()
         # 按需请求（CC 对话里读账套、列 / 取已授权文件夹的文件）：又一条独立守护线程，与推送线、看门狗无关（request_worker.py）。
         self._requests = RequestWorker(lambda: self.configs)
@@ -730,12 +733,26 @@ class TrayApp(QObject):
             on_download=self._open_download,
             on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
             on_always_on=self._keep_awake.set,
-            hotkey=lambda: bool(getattr(self._hotkey, "registered", False)))
+            hotkey=lambda: bool(getattr(self._hotkey, "registered", False)),
+            # 公司的文件夹（pick_folder）：新加了根目录马上快速同步一次、唤醒文件夹线程；设置页的旧授权清理行看最近一次
+            # 服务端回的在用根目录；上限按服务端回的 max_roots（没收到过按 20）
+            report_roots=self._folders.report_roots_now, wake_folders=self._folders.wake,
+            roots_in_use=self._folders.roots_in_use, max_roots=self._folders.max_roots)
         self._bridge = TomoBridge(
             settings,
-            allowed=lambda: self._tomo is not None and tomo_links.is_chat(self._tomo.page.url().toString()),
-            window=lambda: self._tomo, set_lang=self._set_lang)
+            allowed=lambda: self._tomo is not None and tomo_links.is_chat(self._page_url()),
+            window=lambda: self._tomo, set_lang=self._set_lang, page_url=self._page_url)
         return self._bridge
+
+    def _page_url(self) -> str:
+        """Tomo 窗口里当前页面的地址（桥据此只在对话页上应答、选文件夹时核对站点）；窗口还没建是空串。"""
+        return self._tomo.page.url().toString() if self._tomo is not None else ""
+
+    def _on_folder_roots(self) -> None:
+        """（界面线程）文件夹线程收回了根目录：对话页的设置重取本机状态。"""
+        bridge = getattr(self, "_bridge", None)
+        if bridge is not None:
+            bridge.changed.emit()
 
     def _set_lang(self, lang: str) -> None:
         """对话页的语言（中文 / 泰文）同步给托盘与通知文案。"""
@@ -772,9 +789,9 @@ class TrayApp(QObject):
             self._requests.start()
 
     def _start_folders(self) -> None:
-        """主窗口里添加了文件夹：文件夹自动录入线程没在跑就起来（已在跑不重复）。"""
+        """设置里添加 / 移除了文件夹、公司选了文件夹：文件夹线程没在跑就起来，在跑就让下一轮马上开始。"""
         if getattr(self, "_folders", None) is not None:
-            self._folders.start()
+            self._folders.wake()
 
     def _restart_worker(self) -> None:
         """协作式停旧 worker；finished 后才用最新 configs 启动唯一新 worker。"""
