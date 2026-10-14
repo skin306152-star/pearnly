@@ -1005,6 +1005,104 @@ assert.equal((await everyRequest())[0].lang, "en");
         self.page_language("zh-CN", 'assert.equal(lang, "zh");')
 
 
+# ── 自动更新被 Windows 拦下（教程问题第 1 条，2026-10-13 录制笔记本）───────────────────────────────────────
+# CC 桌面版设置「版本」一行按桌面端报的真实状态走（发现新版 → 安装中 → 被拦 → 手动装上）；网页「连接」只读，如实多一句。
+
+UPDATE_ENV = r"""
+const g = globalThis as any;
+g.addEventListener = () => {};
+g.removeEventListener = () => {};
+g.dispatchEvent = () => true;
+g.matchMedia = (query: string) => ({ media: query, matches: false, addEventListener() {}, removeEventListener() {} });
+Object.defineProperty(g, "navigator", {
+  configurable: true, value: { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", maxTouchPoints: 0, language: "en" },
+});
+"""
+
+UPDATE_PAGE = r"""
+import "cc-test-setup";
+import "cc-update-env";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { blockedLine, ComputerSection, VersionRow } from "@/components/settings";
+
+const g = globalThis as any;
+const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(type, props));
+const text = (markup: string) =>
+  markup.replace(/<[^>]+>/g, "\n").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").split("\n").map((s) => s.trim()).filter(Boolean);
+// 点某个文字的按钮：静态渲染点不了，从元素树里取它的 onClick
+function press(element: any, label: string): boolean {
+  if (!element || typeof element !== "object") return false;
+  if (Array.isArray(element)) return element.some((child) => press(child, label));
+  const props = element.props ?? {};
+  if (props.onClick && props.children === label) {
+    props.onClick();
+    return true;
+  }
+  return press(props.children, label);
+}
+const clicked: string[] = [];
+const row = (version: string, state: string, next = "1.5.2") => {
+  const props = { version, update: { state, version: next }, onUpdate: () => clicked.push("update"), onDownload: () => clicked.push("download") };
+  return { lines: text(html(VersionRow, props)), element: VersionRow(props) };
+};
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class UpdateBlockedBehaviourTests(unittest.TestCase):
+    STUBS = {"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+             "cc-update-env": UPDATE_ENV}
+
+    def run_page(self, checks, lang):
+        run_ts(UPDATE_PAGE + checks + "\ng.done();\n", stubs=self.STUBS, lang=lang)
+
+    def test_the_version_row_follows_the_desktop_from_new_version_to_blocked_to_installed_by_hand(self):
+        self.run_page(r"""
+let view = row("1.5.1", "found");
+assert.deepEqual(view.lines, ["版本", "v1.5.1", "发现新版本 v1.5.2", "立即更新"]);
+assert.ok(press(view.element, "立即更新"));
+
+view = row("1.5.1", "installing");                    // 停手、启动安装包：没有按钮
+assert.deepEqual(view.lines, ["版本", "v1.5.1", "正在安装 v1.5.2…"]);
+
+view = row("1.5.1", "blocked");                       // 被 Windows 拦下：一句话 +「下载新版」，不再给「立即更新」
+assert.deepEqual(view.lines, ["版本", "v1.5.1", "Windows 拦截了 v1.5.2 的自动更新", "下载新版"]);
+assert.equal(press(view.element, "立即更新"), false);
+assert.ok(press(view.element, "下载新版"));
+assert.deepEqual(clicked, ["update", "download"]);
+
+view = row("1.5.2", "none", "");                      // 用「下载新版」手动装上：桌面端清掉记录，回到平常
+assert.deepEqual(view.lines, ["版本", "v1.5.2", "检查更新"]);
+""", lang="zh")
+
+    def test_web_connections_say_it_in_one_line_with_the_time_where_the_reader_is(self):
+        self.run_page(r"""
+process.env.TZ = "Asia/Bangkok";                      // 读的人在曼谷：时刻按曼谷显示
+const at = new Date(Date.now() - 86_400_000);
+const computer = { adapter: "express", device: "NOTEBOOK-REC", online: true, version: "1.5.1", folders: [] as string[],
+                   update_blocked: { version: "1.5.2", at: at.toISOString().replace(".000Z", "+00:00") } };
+const hhmm = new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(at);
+assert.deepEqual(text(html(ComputerSection, { row: computer })),
+  ["NOTEBOOK-REC", "Express", `Windows blocked the automatic update to v1.5.2 · Yesterday ${hhmm}`, "Connected",
+   "Folders the website can read", "No folders yet."]);
+// 服务端存的是 UTC：11:18 UTC = 曼谷 18:18（英文页面是 12 小时制，同对话里的时间）
+assert.match(blockedLine("1.5.2", "2026-10-13T11:18:00+00:00"), / 06:18 PM$/);
+// 没被拦、旧版 CC 桌面版不报：没有这一句
+for (const blocked of [null, undefined]) {
+  assert.deepEqual(text(html(ComputerSection, { row: { ...computer, update_blocked: blocked } })).slice(0, 3),
+    ["NOTEBOOK-REC", "Express", "Connected"]);
+}
+""", lang="en")
+
+    def test_every_page_language_has_the_two_new_words(self):
+        settings = block(read("i18n.ts"), "const SETTINGS = {")
+        for lang in ("en", "zh", "th"):
+            words = block(settings, f"  {lang}: {{")
+            self.assertIn("downloadNew:", words, lang)
+            self.assertRegex(block(words, "update: {"), r"blocked: \"[^\"]*\{ver\}[^\"]*\"", lang)
+
 
 # ── 运行状态以服务端为准（2026-10-13 iPhone）──────────────────────────────────────────────────────────
 # 主屏幕图标打开的 CC，这一轮在电脑上 15:24 已结束；手机在后台、锁屏收到推送，15:41 回来仍显示在回复（停止按钮、发不了），
