@@ -8,6 +8,12 @@
 - 每个连接的机器请求一个接一个发（不与心跳 / 领任务争连接锁），原件一份一份传，不占满办公室上行；
 - 自动推送、写账套仍走原来的云端队列与 PollWorker，这里一行不碰。
 
+公司的文件夹（2026-10-15，CC 按公司分组；协议号不变）：
+- 回复里的 ``max_roots``（一次收几个根目录，没有按 20）封顶上报，``roots_in_use``（任务或公司绑定用着的根目录）用来
+  自动收回经公司添加、连续一小时没人用的根目录（没有这个键就不收；旧授权永不自动收回）；
+- 刚经公司加了根目录：``report_roots_now`` 马上发一次只带根目录的快速同步（``roots_only``），并 ``wake()`` 让下一轮立刻开始；
+- 下级文件夹名合计封顶 ``folder_plan.FOLDERS_TOTAL``（与服务端相等）。
+
 同步顺带的几件事（2026-10，CC 闭环第一批；协议号不变，旧服务端不认的键照旧忽略）：
 - 各文件夹现有几份（根目录行的 ``counts`` / ``partial``）与各任务待处理几份（``rule_pending``），给网页卡片与任务列表；
 - 云端随回复带来的对话提醒（``notices``，请求带 ``notices_after`` 才有）交给托盘弹系统通知；
@@ -34,6 +40,7 @@ from . import folder_plan as plan
 from . import update_block
 from .queue_client import _device_name
 from .folder_client import FolderClient, Refused, put_direct
+from . import folder_store
 from .folder_store import Ledger, connection_key, roots
 from .logger import activity, get_logger
 from .version import VERSION
@@ -63,8 +70,11 @@ class FolderIntake:
                  on_status: Optional[Callable[[str, str], None]] = None,
                  on_notices: Optional[Callable[[str, list], None]] = None,
                  on_update: Optional[Callable[[str, str], None]] = None,
+                 on_roots_changed: Optional[Callable[[], None]] = None,
                  timer: Callable[[], float] = time.monotonic) -> None:
         self._configs = configs
+        # 自动收回了经公司添加的根目录（本线程调）：托盘经 Qt 信号让设置页 / 侧栏重取本机状态。
+        self._on_roots_changed = on_roots_changed
         # MR.ERP 的小助手成员（kind=folder）没有心跳：它在主窗口与托盘上的「在线 / 断开」就看这里每次同步成没成。
         self._on_status = on_status
         # on_notices(站点, [提醒…])：托盘弹系统通知；on_update(版本, 地址)：托盘的新版提示与自动更新。
@@ -76,7 +86,15 @@ class FolderIntake:
         self._timer = timer  # 数文件夹的时限与耗时（单调时钟）
         self._lang = lang
         self._stop = threading.Event()
+        # wake()：加了 / 删了根目录，下一轮不等满 IDLE_SECONDS 就开始（线程正在一轮里时，这一轮做完马上再来一轮）。
+        self._wake = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        # 服务端回复里的上限与在用的根目录（{连接: …}，2026-10-15）：max_roots 没收到过按 plan.DEFAULT_MAX_ROOTS（旧服务端）；
+        # roots_in_use 没收到过（旧服务端）就永不自动收回。_unused_since：经公司添加的根目录从哪一刻起不在用（只记在内存里，
+        # 重启重新计时，偏保守）。
+        self._max_roots: dict[str, int] = {}
+        self._in_use: dict[str, frozenset] = {}
+        self._unused_since: dict[tuple, float] = {}
         # 上一次上报的根目录行（{连接: {at, ids, report, cost, complete}}），见 _report。
         self._folders: dict[str, dict] = {}
         # 上一次数到的文件（{连接: {根目录编号: [Seen…]}}）与数过几次，算各任务待处理数用。
@@ -112,11 +130,26 @@ class FolderIntake:
         if not self.wanted():
             return
         self._stop.clear()
+        self._wake.clear()
         self._thread = threading.Thread(target=self._loop, name="pearnly-folder-intake", daemon=True)
         self._thread.start()
 
     def stop(self) -> None:
         self._stop.set()
+        self._wake.set()
+
+    def wake(self) -> None:
+        """根目录加了或删了：线程没在跑就起来，在跑就让下一轮马上开始（不等满 IDLE_SECONDS）。"""
+        self.start()
+        self._wake.set()
+
+    def max_roots(self, key: str) -> int:
+        """服务端一次同步收几个根目录（回复里的 max_roots）；没收到过按旧服务端的 20。"""
+        return self._max_roots.get(key) or plan.DEFAULT_MAX_ROOTS
+
+    def roots_in_use(self, key: str) -> Optional[frozenset]:
+        """最近一次回复里这条连接在用的根目录编号（任务或公司绑定用着的）；没收到过是 None。"""
+        return self._in_use.get(key)
 
     def running(self) -> bool:
         """线程还在（停下要等它做完手上这一步，例如一份正在上传的文件）。"""
@@ -158,7 +191,8 @@ class FolderIntake:
                 except Exception:
                     log.exception("文件夹录入本轮失败")
                     self._status(cfg, "offline")
-            self._stop.wait(IDLE_SECONDS)
+            self._wake.wait(IDLE_SECONDS)
+            self._wake.clear()
 
     def _status(self, cfg, key: str) -> None:
         if self._on_status is None or getattr(cfg, "kind", "express") != "folder":
@@ -174,7 +208,10 @@ class FolderIntake:
         ledger = Ledger(key)
         client = self._client_factory(cfg.backend_url, cfg.bearer_token)
         try:
-            local_roots = roots(key)
+            stored = roots(key)
+            # 服务端一次收几个根目录（回复里的 max_roots，没收到过按 20）：多的这次不报，也不当作这台电脑读得到
+            # （服务端不认识它们，任务用不上；旧服务端收到超过 20 个会让整次同步失败）。
+            local_roots = stored[:self.max_roots(key)]
             # device：本机名，网页文件夹下拉在有几台小助手时用它区分电脑（MR.ERP 任务可借用任一台，2026-10-09）。
             # rule_pending：上一轮算好的各任务待处理数（与 rule_health 同一节奏）；notices_after：对话提醒收到哪一刻为止。
             # update_blocked：自动更新被 Windows 拦下（同心跳；只读文件夹的 MR.ERP 成员没有心跳，靠这里报）。
@@ -186,6 +223,8 @@ class FolderIntake:
                                     "update_blocked": update_block.reported()})
             if not response.get("ok"):
                 return
+            self._limits(key, response)
+            self._release(key, stored, response)
             if local_roots:
                 self._told_empty.discard(key)
             else:
@@ -246,6 +285,80 @@ class FolderIntake:
             ledger.save()
             client.close()
 
+    def _limits(self, key: str, response: dict) -> None:
+        """记下回复里的 max_roots 与 roots_in_use（旧服务端不带，就保持原样：按 20 封顶、不自动收回）。"""
+        limit = response.get("max_roots")
+        if isinstance(limit, int) and not isinstance(limit, bool) and limit > 0:
+            self._max_roots[key] = min(limit, plan.MAX_ROOTS)
+        used = response.get("roots_in_use")
+        if isinstance(used, list):
+            self._in_use[key] = frozenset(item for item in used if isinstance(item, str))
+
+    def _release(self, key: str, stored: list, response: dict) -> bool:
+        """自动收回经公司添加、已没人用的根目录（规格 §7.3）：回复里带了 roots_in_use 才做；只收 ``origin`` 为
+        ``company``、加了 RELEASE_SECONDS 以上、而且连续 RELEASE_SECONDS 不在 roots_in_use 里的。旧授权（没有
+        ``origin``）永不自动收回。返回收回了没有。"""
+        if not isinstance(response.get("roots_in_use"), list):
+            return False
+        used = self._in_use.get(key) or frozenset()
+        now = self._clock()
+        gone = []
+        for row in stored:
+            mark = (key, row.get("id"))
+            if row.get("origin") != "company" or row.get("id") in used:
+                self._unused_since.pop(mark, None)
+                continue
+            since = self._unused_since.setdefault(mark, now)
+            try:
+                added = float(row.get("added_at"))
+            except (TypeError, ValueError):
+                added = now  # 没记添加时间：从现在起算，至少再等一小时
+            if now - added >= plan.RELEASE_SECONDS and now - since >= plan.RELEASE_SECONDS:
+                gone.append(row)
+        released = False
+        for row in gone:
+            if folder_store.remove_root(key, row["id"]):
+                log.info("收回经公司添加、已 1 小时没人用的文件夹：%s", row.get("path"))
+                released = True
+            self._unused_since.pop((key, row.get("id")), None)
+        if released and self._on_roots_changed is not None:
+            try:
+                self._on_roots_changed()
+            except Exception:
+                log.exception("文件夹变更回调失败")
+        return released
+
+    def report_roots_now(self, profile_id: str) -> bool:
+        """快速同步（规格 §7.3）：刚经公司加了根目录，马上让服务端认得它，不等这一轮（线程可能正在跑运行或上传）。
+
+        只报根目录（``roots_only``），新加的（上一次完整上报里没有的）带下级文件夹名，其余的不带 ``folders`` 键（服务端沿用
+        上一次的）；不收任务、不报运行记录。用自己的一个客户端，可以在别的线程里调。返回服务端收下了没有（失败不要紧，
+        下一轮完整同步照样报）。"""
+        cfg = next((cfg for cfg in self._active() if str(getattr(cfg, "profile_id", "") or "") == str(profile_id)), None)
+        key = connection_key(cfg) if cfg is not None else ""
+        if not key:
+            return False
+        known = set((self._folders.get(key) or {}).get("ids") or ())
+        lines = []
+        for row in roots(key)[:self.max_roots(key)]:
+            line = {"id": row["id"], "label": row["label"], "share": plan.share_path(row["path"])}
+            if row["id"] not in known:
+                line["folders"] = plan.folders_of(Path(row["path"]))
+            lines.append(line)
+        client = self._client_factory(cfg.backend_url, cfg.bearer_token)
+        try:
+            response = client.sync({"roots_only": True, "version": VERSION, "device": _device_name(),
+                                    "roots": plan.cap_folders(lines)})
+        except Exception as error:
+            log.info("快速同步文件夹失败（下一轮再报）：%r", error)
+            return False
+        finally:
+            client.close()
+        if not isinstance(response, dict) or not response.get("ok"):
+            return False
+        self._limits(key, response)
+        return True
+
     def _report(self, key: str, local_roots: list) -> list:
         """根目录、下级文件夹名与各文件夹现有几份（``counts`` / ``partial``）；间隔按上一次花的时间定（见
         FOLDER_REPORT_*），根目录变了立即重扫。几个根目录共用一份时限与条数（folder_plan.SURVEY_*），用完就停：
@@ -267,8 +380,8 @@ class FolderIntake:
             if now - cached["counted"] < recount:
                 if now - cached["at"] < min(recount, FOLDER_REPORT_SECONDS):
                     return cached["report"]
-                report = [build(row, plan.folders_of(Path(row["path"])), cached["measured"].get(row["id"]))
-                          for row in local_roots]
+                report = plan.cap_folders([build(row, plan.folders_of(Path(row["path"])),
+                                                  cached["measured"].get(row["id"])) for row in local_roots])
                 cached.update(at=now, report=report)
                 return report
         started = self._timer()
@@ -289,6 +402,7 @@ class FolderIntake:
                                                plan.folder_counts(files, ["", *folders], plan.TABLE_EXTENSIONS))
                         seen[row["id"]] = files
             report.append(build(row, folders, measured.get(row["id"])))
+        plan.cap_folders(report)  # 下级文件夹名合计封顶（与服务端 FOLDERS_TOTAL 相等）
         self._folders[key] = {"at": now, "counted": now, "ids": ids, "report": report, "measured": measured,
                               "cost": self._timer() - started, "complete": complete}
         self._seen[key] = seen

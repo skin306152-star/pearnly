@@ -4,7 +4,10 @@
 设置界面在对话页里（frontend/assistant/src/components/settings.tsx，同 Claude 的设置），经 tomo_bridge 调到这里：
 
 - 连接：这台电脑的 Express 数据根（检测一次、「更换…」时同步到全部成员）；成员列表（状态、更换配对码、暂停 / 恢复、移除）；
-  每个成员网页可选的文件夹（只能在本机设，是安全边界，见 folder_store）。
+  以前授权、现在没人用的文件夹（``legacy_roots``，可以移除）。
+- 公司的文件夹（2026-10-15 起，CC 按公司分组）：侧栏里公司的「选择文件夹…」经桥弹本机原生选择框（``pick_folder``），
+  这里判定能不能用、复用已有的根目录还是新加一个（经公司添加的没人用一小时后自动收回，见 folder_worker）。授权仍只在本机设，
+  是安全边界（见 folder_store）；网页传来的路径一概不收。
 - 系统：开机自动启动、快捷键、版本与更新、日志文件夹。
 
 返回给网页的都是普通数据；客户可见的报错文案按网页当前语言用小助手的术语表渲染。
@@ -20,10 +23,12 @@ from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
 from . import autostart, folder_store, pairing, pairing_flow
+from . import folder_plan as plan
 from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore
+from .queue_client import _device_name
 from .version import VERSION
 
 log = get_logger(__name__)
@@ -84,6 +89,22 @@ def picker_start(current, documents: str, program: str = "") -> str:
             return parent
     return documents
 
+# pick_folder 失败码 → CC 桌面版术语表的提示（folders_contains 带被包含的文件夹 {path}）
+PICK_MESSAGES = {"not_connected": "folders_not_connected", "other_site": "folders_other_site",
+                 "program_folder": "folders_program", "too_broad": "folders_too_broad",
+                 "contains_existing": "folders_contains", "roots_full": "folders_full"}
+
+
+def pick_failure(code: str, lang: str, **fmt) -> dict:
+    return {"ok": False, "code": code, "message": t(PICK_MESSAGES[code], normalize(lang), **fmt)}
+
+
+def main_member(store: ProfileStore) -> Optional[ProfileRecord]:
+    """新加的公司文件夹放在哪个成员下：有 Express 成员用它，没有就用 MR.ERP 成员（同设置页的主成员）。"""
+    return next((r for r in store.profiles if (getattr(r, "kind", "express") or "express") != "folder"),
+                store.profiles[0] if store.profiles else None)
+
+
 class DesktopSettings:
     def __init__(self, *, states: Callable[[], Mapping[str, tuple]] = dict,
                  update_status: Callable[[], tuple] = lambda: ("none", ""),
@@ -93,6 +114,12 @@ class DesktopSettings:
                  on_folders_changed: Callable[[], None] = lambda: None,
                  on_always_on: Callable[[bool], None] = lambda enabled: None,
                  hotkey: Callable[[], bool] = lambda: False,
+                 report_roots: Callable[[str], bool] = lambda profile_id: False,
+                 wake_folders: Callable[[], None] = lambda: None,
+                 roots_in_use: Callable[[str], Optional[frozenset]] = lambda key: None,
+                 max_roots: Callable[[str], int] = lambda key: plan.DEFAULT_MAX_ROOTS,
+                 program: Callable[[], str] = lambda: program_folder(),
+                 env: Optional[Mapping[str, str]] = None,
                  load_store: Callable[[], ProfileStore] = ProfileStore.load) -> None:
         self._states = states
         self._update_status = update_status
@@ -102,6 +129,13 @@ class DesktopSettings:
         self._on_folders_changed = on_folders_changed
         self._on_always_on = on_always_on
         self._hotkey = hotkey
+        # 文件夹线程（folder_worker.FolderIntake）的几样：快速同步、唤醒、最近一次的在用根目录与上限（按连接键）
+        self._report_roots = report_roots
+        self._wake_folders = wake_folders
+        self._roots_in_use = roots_in_use
+        self._max_roots = max_roots
+        self._program = program
+        self._env = env   # 判定「系统位置」用的环境变量（测试里换掉；None = 本机的）
         self._load_store = load_store
         self._detected: list[str] | None = None
 
@@ -113,12 +147,13 @@ class DesktopSettings:
         store = self._store()
         states = dict(self._states() or {})
         roots = machine_roots(store) or list(self._detected or [])
-        members = []
+        members, legacy = [], []
         for record in store.profiles:
             try:
                 key = folder_store.connection_key(store.runtime_config(record.profile_id))
             except Exception:
                 key = ""
+            legacy += self._legacy(record.profile_id, key)
             members.append({
                 "id": record.profile_id,
                 "name": member_name(record),
@@ -140,7 +175,22 @@ class DesktopSettings:
             "always_on": bool(store.global_settings.always_on),
             "hotkey": bool(self._hotkey()),
             "update": {"state": update_state, "version": update_version},
+            "legacy_roots": legacy,
         }
+
+    def _legacy(self, member: str, key: str) -> list:
+        """以前在设置里授权（不是经公司添加）、最近一次服务端说没人用（不在 roots_in_use 里）的根目录：设置页「以前授权的
+        文件夹」一行据此列出、可以移除。还没收到过 roots_in_use（旧服务端、刚启动）就一个都不列。"""
+        if not key:
+            return []
+        try:
+            used = self._roots_in_use(key)
+        except Exception:
+            used = None
+        if used is None:
+            return []
+        return [{"member": member, "id": row["id"], "path": row["path"]} for row in folder_store.roots(key)
+                if row.get("origin") != "company" and row["id"] not in used]
 
     @staticmethod
     def _autostart(store) -> bool:
@@ -270,6 +320,76 @@ class DesktopSettings:
             return {"ok": False, "message": t("folders_overlap", lang, path=str(error))}
         self._on_folders_changed()
         return {"ok": True}
+
+    # ── 公司的文件夹（pick_folder） ──
+    def pick_ready(self, page_host: str, lang: str) -> Optional[dict]:
+        """弹选择框之前（界面线程）：没连公司 → not_connected；对话页不是这台电脑连的那家公司 → other_site。可以就是 None。"""
+        store = self._store()
+        if not store.profiles:
+            return pick_failure("not_connected", lang)
+        site = site_of(store)
+        if not site or str(page_host or "").lower() != site:
+            return pick_failure("other_site", lang)
+        return None
+
+    def pick_folder(self, picked: str, page_host: str, lang: str) -> dict:
+        """（后台线程）原生选择框里选好的文件夹（规格 §7.2）：判定能不能用，复用已有的根目录或在主成员下新加一个，
+        返回给页面的绑定 ``{reader, root_id, folder, label, share, device}``（页面原样交给服务端，自己不拼）。
+
+        先清掉 roots.json 里已不属于任何当前成员的连接下的根目录（只会收紧）；新加了根目录就马上快速同步一次
+        （``reported`` = 服务端收下了没有；没收下也照样成功，下一轮完整同步再报）。"""
+        early = self.pick_ready(page_host, lang)
+        if early is not None:
+            return early
+        store = self._store()
+        path = os.path.normpath(str(picked or "").strip())
+        members = []
+        for record in store.profiles:
+            try:
+                cfg = store.runtime_config(record.profile_id)
+                members.append((record, cfg, folder_store.connection_key(cfg)))
+            except Exception:
+                log.exception("读取成员配置失败")
+                members.append((record, None, ""))
+        if all(key for _record, _cfg, key in members):
+            dropped = folder_store.prune(key for _record, _cfg, key in members)
+            if dropped:
+                log.info("清掉已不属于任何成员的授权文件夹 %d 个：%s", len(dropped), dropped)
+        main = main_member(store)
+        main_key = next((key for record, _cfg, key in members if record is main), "")
+        if not main_key:
+            return pick_failure("not_connected", lang)
+        by_key = {key: folder_store.roots(key) for _record, _cfg, key in members if key}
+        decision = plan.decide_pick(path, by_key, program=self._program(), max_roots=self._max_roots(main_key),
+                                    env=self._env)
+        if decision.code == "contains_existing":
+            return pick_failure("contains_existing", lang, path=decision.conflict)
+        if decision.code:
+            return pick_failure(decision.code, lang)
+        created, reported = not decision.owner, True
+        if decision.owner:
+            owner_key, row, folder = decision.owner, decision.root, decision.folder
+        else:
+            try:
+                row = folder_store.add_root(main_key, path, origin="company")
+            except ValueError as error:
+                return pick_failure("contains_existing", lang, path=str(error))
+            owner_key, folder = main_key, ""
+            log.info("经公司添加文件夹：%s", path)
+            self._on_folders_changed()
+            try:
+                reported = bool(self._report_roots(main.profile_id))
+            except Exception:
+                log.exception("快速同步文件夹失败")
+                reported = False
+            self._wake_folders()
+        record, cfg = next((record, cfg) for record, cfg, key in members if key == owner_key)
+        reader = pairing._endpoint_id_from_token(str(getattr(cfg, "bearer_token", "") or "")) or str(
+            getattr(cfg, "endpoint_id", "") or "")
+        label = row["path"].rstrip("\\/") + "\\" + folder if folder else row["path"]
+        return {"ok": True, "binding": {"reader": reader, "root_id": row["id"], "folder": folder, "label": label,
+                                        "share": plan.share_path(row["path"]), "device": _device_name()},
+                "name": plan.folder_name(path), "created": created, "reported": reported}
 
     def update(self) -> dict:
         self._on_update()

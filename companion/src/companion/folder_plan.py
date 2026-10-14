@@ -411,3 +411,125 @@ def result_path(folder: Path, month: str, filename: str, taken: set[str], result
 
 def month_of(epoch: float) -> str:
     return dt.datetime.fromtimestamp(epoch, BANGKOK).strftime("%Y-%m")
+
+
+# ── 公司选文件夹（2026-10-15，CC 按公司分组）：在 CC 桌面版里经原生选择框选的文件夹怎么处理 ─────────────────────
+# 判定都是纯函数（路径按 Windows 写法比较、不分大小写，在别的系统上跑测试也一样），桥（tomo_bridge）与本机设置
+# （desktop_settings.pick_folder）只负责弹窗、读写 roots.json 与上报。
+
+# 服务端一次同步收几个根目录：回复里的 max_roots（新服务端 200）；旧服务端不带，按它的老上限 20（再多它整次同步失败）。
+# MAX_ROOTS 与服务端 folder_intake/contracts.MAX_ROOTS 相等（tests/test_companion_contract.py 守住）：回复里的值不超过它。
+MAX_ROOTS = 200
+DEFAULT_MAX_ROOTS = 20
+# 一次上报里所有根目录的下级文件夹名合计最多这么多（与服务端 folder_intake/contracts.FOLDERS_TOTAL 相等），多的截掉，根目录本身照报。
+FOLDERS_TOTAL = 20_000
+# 经公司添加的根目录（roots.json 里 origin=company）加了这么久以上、并且连续这么久不在服务端回的 roots_in_use 里，才自动收回。
+RELEASE_SECONDS = 3600
+# pick_folder 的失败码（页面按码处理，提示文字由桌面版按术语表给）。
+PICK_CODES = ("not_connected", "other_site", "program_folder", "too_broad", "contains_existing", "roots_full")
+
+
+def _win(path: str) -> str:
+    """比较用：Windows 写法、规整、不分大小写、去掉末尾的分隔符（盘根 ``c:`` 也一样去掉）。"""
+    return ntpath.normcase(ntpath.normpath(str(path or "").strip())).rstrip("\\")
+
+
+def win_inside(path: str, folder: str) -> bool:
+    """``path`` 是 ``folder`` 本身或在它下面（Windows 写法、不分大小写）。"""
+    left, right = _win(path), _win(folder)
+    return bool(left and right) and (left == right or left.startswith(right + "\\"))
+
+
+def relative_folder(path: str, root: str) -> str:
+    """``path`` 相对 ``root`` 的下级路径，``\\`` 分隔、保留原来的大小写；就是根目录本身时为空串。"""
+    left = ntpath.normpath(str(path or "").strip()).rstrip("\\")
+    right = ntpath.normpath(str(root or "").strip()).rstrip("\\")
+    return left[len(right):].strip("\\") if len(left) > len(right) else ""
+
+
+def folder_name(path: str) -> str:
+    """所选文件夹的名字（公司名默认取它）：最后一段；网络共享根 ``\\\\nas\\客户A`` 取共享名。"""
+    parts = [part for part in re.split(r"[\\/]+", str(path or "").strip()) if part]
+    return parts[-1].rstrip(":") if parts else ""
+
+
+def _system_folders(env) -> list[str]:
+    """不能整块开放给网页的系统位置：Windows 目录、程序目录、应用数据（CC 自己的配置与密钥也在 AppData 里）。"""
+    names = ("SystemRoot", "windir", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "ProgramData",
+             "APPDATA", "LOCALAPPDATA")
+    return [str(env.get(name) or "").strip() for name in names if str(env.get(name) or "").strip()]
+
+
+def too_broad(path: str, env=None) -> bool:
+    """整块盘（``C:\\``）、系统位置（Windows、Program Files、ProgramData、AppData）或在它们里面、用户主目录本身，
+    以及包含这些位置的上级文件夹（例如 ``C:\\Users``）：不能选。网络共享根（``\\\\nas\\客户A``）可以。"""
+    env = os.environ if env is None else env
+    raw = str(path or "").strip()
+    text = ntpath.normpath(raw)
+    drive, rest = ntpath.splitdrive(text)
+    if raw.startswith(("\\\\", "//")) and len([part for part in drive.split("\\") if part]) < 2:
+        return True  # 只有服务器名、没有共享名（各版本 Python 对 \\nas 的拆法不同，这里统一）
+    if not rest.strip("\\"):
+        # 盘根（C:\）、没有盘符的根（\）；网络共享根（\\nas\共享）的 drive 是整个共享，允许
+        return not drive.startswith("\\\\")
+    home = str(env.get("USERPROFILE") or "").strip()
+    if home and _win(text) == _win(home):
+        return True
+    for system in _system_folders(env):
+        if win_inside(text, system) or win_inside(system, text):
+            return True
+    return bool(home) and win_inside(home, text)  # 包含用户主目录的上级（C:\Users）
+
+
+@dataclass(frozen=True)
+class Pick:
+    """一次选文件夹的判定结果。``code`` 为空 = 可以用：``owner`` 不为空就是复用这个连接下的根目录 ``root``（``folder``
+    是相对它的下级路径），否则要新加一个根目录（加到主成员下）。``conflict``：``contains_existing`` 时被包含的那个根目录。"""
+    code: str = ""
+    owner: str = ""
+    root: Optional[dict] = None
+    folder: str = ""
+    conflict: str = ""
+
+
+def decide_pick(path: str, roots_by_key: dict, *, program: str = "", max_roots: int = DEFAULT_MAX_ROOTS,
+                env=None) -> Pick:
+    """选的文件夹（已规整）对照这台电脑当前成员的根目录（``{连接键: [根目录行…]}``）怎么处理（规格 §7.2 第 3、5 步）：
+
+    1. 在 CC 程序文件夹里 → ``program_folder``；整块盘、系统位置、用户主目录 → ``too_broad``；包含 CC 程序文件夹
+       （例如选了放着便携版 CC 的上级）→ ``program_folder``；
+    2. 和某个根目录相同或在它里面 → 复用（``owner`` = 拥有它的连接键）；
+    3. 包含某个根目录 → ``contains_existing``；
+    4. 都不是：根目录总数已到 ``max_roots`` → ``roots_full``；否则新加。"""
+    if program and win_inside(path, program):
+        return Pick(code="program_folder")
+    if too_broad(path, env):
+        return Pick(code="too_broad")
+    if program and win_inside(program, path):
+        return Pick(code="program_folder")
+    rows = [(key, row) for key, items in roots_by_key.items() for row in items or [] if row.get("path")]
+    holders = [(key, row) for key, row in rows if win_inside(path, row["path"])]
+    if holders:
+        # 理论上根目录互不包含（保存时检查过），万一有就取最深的那个
+        key, row = max(holders, key=lambda item: len(_win(item[1]["path"])))
+        return Pick(owner=key, root=row, folder=relative_folder(path, row["path"]))
+    inner = next((row for _key, row in rows if win_inside(row["path"], path)), None)
+    if inner is not None:
+        return Pick(code="contains_existing", conflict=str(inner["path"]))
+    if len(rows) >= max(1, int(max_roots)):
+        return Pick(code="roots_full")
+    return Pick()
+
+
+def cap_folders(lines: list, total: int = FOLDERS_TOTAL) -> list:
+    """一次上报的根目录行里，下级文件夹名合计不超过 ``total``：排在后面的根目录少报或不报下级文件夹，根目录本身照报。
+    没带 ``folders`` 键的行（快速同步里旧的根目录）不动。就地改，返回同一个列表。"""
+    left = max(0, int(total))
+    for line in lines:
+        folders = line.get("folders")
+        if not isinstance(folders, list):
+            continue
+        if len(folders) > left:
+            line["folders"] = folders[:left]
+        left -= len(line["folders"])
+    return lines

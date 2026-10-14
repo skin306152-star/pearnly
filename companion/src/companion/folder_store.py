@@ -84,7 +84,10 @@ def roots(key: str) -> list[dict]:
 
 def set_all_roots(mapping: dict) -> None:
     """一次保存多条连接的根目录：先整体检查（任何两个根目录都不能相同或互相包含，不论是不是同一条连接——
-    否则同一份文件会被两条规则各收一次、各扣一次费），全部通过才写，不会只存一半。"""
+    否则同一份文件会被两条规则各收一次、各扣一次费），全部通过才写，不会只存一半。
+
+    每行 ``{"id","label","path"}``，经公司选的另有 ``origin``（``"company"``）与 ``added_at``（epoch 秒，2026-10-15 起）：
+    路径没变的行原样保留这些键（不然改一次文件夹就把公司来源丢了）；缺 ``origin`` 的是旧授权，永不自动收回。"""
     from .folder_plan import root_id
 
     with _LOCK:
@@ -95,20 +98,80 @@ def set_all_roots(mapping: dict) -> None:
                 normal = os.path.normpath(str(path).strip())
                 if normal and normal not in clean:
                     clean.append(normal)
-            everything[key] = [{"id": root_id(path), "label": path, "path": path} for path in clean]
+            before = {_same(row.get("path", "")): row for row in everything.get(key) or [] if isinstance(row, dict)}
+            everything[key] = [{**before.get(_same(path), {}), "id": root_id(path), "label": path, "path": path}
+                               for path in clean]
             if not clean:
                 everything.pop(key, None)
-        flat = [row.get("path", "") for rows in everything.values() for row in rows or []]
-        for index, left in enumerate(flat):
-            for right in flat[index + 1:]:
-                if _overlap(left, right):
-                    raise ValueError(right)
+        _check(everything)
         _write(ROOTS_FILE, everything)
 
 
 def set_roots(key: str, paths: list[str]) -> None:
     """保存一条连接允许读取的根目录（检查口径同 :func:`set_all_roots`）。"""
     set_all_roots({key: paths})
+
+
+def add_root(key: str, path: str, origin: str = "") -> dict:
+    """给一条连接加一个根目录（公司选文件夹时 ``origin="company"``，记下添加时间），返回这一行。和任何连接的根目录
+    相同或互相包含就不加，抛 ``ValueError(那个根目录)``（同 :func:`set_all_roots`）。"""
+    from .folder_plan import root_id
+
+    normal = os.path.normpath(str(path).strip())
+    row = {"id": root_id(normal), "label": normal, "path": normal}
+    if origin:
+        row.update(origin=str(origin), added_at=time.time())
+    with _LOCK:
+        everything = _read(ROOTS_FILE, {})
+        everything[key] = [*[item for item in everything.get(key) or [] if isinstance(item, dict)], row]
+        _check(everything)
+        _write(ROOTS_FILE, everything)
+    return row
+
+
+def remove_root(key: str, root: str) -> bool:
+    """去掉一条连接下编号为 ``root`` 的根目录（自动收回、设置里移除旧授权）。返回去掉了没有。"""
+    with _LOCK:
+        everything = _read(ROOTS_FILE, {})
+        rows = [row for row in everything.get(key) or [] if isinstance(row, dict)]
+        kept = [row for row in rows if row.get("id") != root]
+        if len(kept) == len(rows):
+            return False
+        if kept:
+            everything[key] = kept
+        else:
+            everything.pop(key, None)
+        _write(ROOTS_FILE, everything)
+    return True
+
+
+def prune(keep: Iterable[str]) -> list[str]:
+    """删掉不属于 ``keep``（这台电脑当前成员的连接键）的连接下的根目录：成员已移除、改配到别的公司后留下的授权，
+    不再有人读，也不该再挡着新文件夹（重叠检查覆盖整份 roots.json）。只会收紧；返回删掉的路径（记日志用）。"""
+    wanted = set(keep)
+    with _LOCK:
+        everything = _read(ROOTS_FILE, {})
+        stale = [key for key in everything if key not in wanted]
+        if not stale:
+            return []
+        dropped = [str(row.get("path") or "") for key in stale for row in everything.get(key) or []
+                   if isinstance(row, dict)]
+        for key in stale:
+            everything.pop(key, None)
+        _write(ROOTS_FILE, everything)
+    return dropped
+
+
+def _check(everything: dict) -> None:
+    flat = [row.get("path", "") for rows in everything.values() for row in rows or [] if isinstance(row, dict)]
+    for index, left in enumerate(flat):
+        for right in flat[index + 1:]:
+            if _overlap(left, right):
+                raise ValueError(right)
+
+
+def _same(path: str) -> str:
+    return os.path.normcase(os.path.normpath(str(path or "").strip()))
 
 
 def _overlap(a: str, b: str) -> bool:
