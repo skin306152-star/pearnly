@@ -379,8 +379,13 @@
 				label: __(`cowork.choice.${value}`)}))};
 		}
 		const rows = item.kind === "item" ? view.options?.products : view.options?.accounts;
-		const options = (rows || []).map(row => ({value: row.code, label: [row.code, row.name].filter(Boolean).join(" · ")}));
+		// 费用科目的建议（服务端 `push.express.account_suggest`）排在清单最前、预选第一项；仍要点「保存」才算选定。
+		const suggested = (item.suggested || []).filter(row => row?.code);
+		const first = new Set(suggested.map(row => row.code));
+		const ordered = [...suggested, ...(rows || []).filter(row => !first.has(row.code))];
+		const options = ordered.map(row => ({value: row.code, label: [row.code, row.name].filter(Boolean).join(" · ")}));
 		if (item.kind === "item") options.push({value: NEW_CHOICE, label: __("cowork.choice.new")});
+		if (!item.current && suggested.length) base.default = suggested[0].code;
 		// 主档没报上来（科目表空）时只能手填科目码，服务端照样核。
 		return {...base, fieldtype: options.length ? "Autocomplete" : "Data", options};
 	}

@@ -809,6 +809,51 @@ class PushFollowUpTests(unittest.TestCase):
             self.assertEqual(out["status"], state)
             self.assertEqual(out["note"], tools.MASTERS_WAITING[state])
 
+    def test_the_users_expense_note_is_passed_on_and_suggestions_come_back(self):
+        """第 4、6 条：会计员在消息里说了「ค่าเครื่องเขียน」，CC 把它当提示交给建议；建议原样交给模型，由它请会计员确认。"""
+        seen = []
+        suggested = [{"code": "5320-01", "name": "ค่าเครื่องเขียน", "source": "hint", "reason": "Matches"}]
+
+        def view(*a, **k):
+            seen.append(k)
+            return {"needed": [{"kind": "account", "subject": "S", "suggested": suggested}], "account_set": "K",
+                    "options": {"accounts": [{"code": "5320-01", "name": "ค่าเครื่องเขียน"}]}}
+
+        tools.application.choices_view = view
+        out = json.loads(tools.push_choices({"document": "H1", "hint": "  ค่าเครื่องเขียน "}))
+        self.assertEqual(seen, [{"hint": "ค่าเครื่องเขียน"}])
+        self.assertEqual(out["needed"][0]["suggested"], suggested)
+        json.loads(tools.push_choices({"document": "H1"}))
+        self.assertEqual(seen[-1], {})  # 没说就不传
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_choices")
+        self.assertIn("hint", description["input_schema"]["properties"])
+        self.assertIn("never save a suggestion the user has not confirmed", description["description"])
+
+    def test_the_suppliers_history_still_being_read_is_waited_for_briefly(self):
+        reading = {"needed": [{"kind": "account", "subject": "S", "suggested": []}], "options": {},
+                   "account_set": "K", "history": "reading"}
+        ready = {"needed": [{"kind": "account", "subject": "S", "suggested": [{"code": "5300", "source": "history"}]}],
+                 "options": {}, "account_set": "K"}
+        views = [reading, reading, ready]
+        tools.application.choices_view = lambda *a, **k: views.pop(0)
+        saved_sleep, tools.time.sleep = tools.time.sleep, lambda s: None
+        try:
+            out = json.loads(tools.push_choices({"document": "H1"}))
+        finally:
+            tools.time.sleep = saved_sleep
+        self.assertEqual(out["needed"][0]["suggested"][0]["source"], "history")
+        # 一直没读完：最多等 HISTORY_WAIT_SECONDS，照样给按名称的建议，不干等
+        tools.application.choices_view = lambda *a, **k: dict(reading)
+        clock = iter(range(0, 1000, 5))
+        saved = tools.time.sleep, tools.time.monotonic
+        tools.time.sleep, tools.time.monotonic = (lambda s: None), (lambda: next(clock))
+        try:
+            out = json.loads(tools.push_choices({"document": "H1"}))
+        finally:
+            tools.time.sleep, tools.time.monotonic = saved
+        self.assertEqual(out["needed"][0]["kind"], "account")
+        self.assertLessEqual(next(clock), 5 * (tools.HISTORY_WAIT_SECONDS // 5 + 3))
+
     def test_choices_are_saved_for_the_document_target(self):
         items = [{"kind": "item", "subject": "Coffee", "value": "P1"}]
         out = json.loads(tools.save_push_choices({"document": "H1", "items": items}))
