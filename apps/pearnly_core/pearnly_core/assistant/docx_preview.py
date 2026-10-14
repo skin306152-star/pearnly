@@ -5,7 +5,7 @@
 - 结果里没有 HTML，也没有任何地址：宏不读；超链接只留文字，不带目标；外链图片（TargetMode=External）、域代码
   （`instrText`，例如 HYPERLINK "…"）、隐藏文字、修订里删掉的字都不带出来。页面只把文字当文字显示（2026-10-13 教程第 3 条）。
 - 防炸：压缩包条目数、每个部件解压后的实际大小、图片总量、段落数、文字总量、嵌套深度都有上限；部件里出现 DOCTYPE / ENTITY
-  一律不读（Office 文档本来就不用，实体展开攻击只能借它）。读不出来报 `Unreadable`，调用方退回下载。
+  一律不读，不论部件用什么编码，由解析器在读到 DOCTYPE 时拒绝（Office 文档本来就不用，实体展开攻击只能借它）。读不出来报 `Unreadable`，调用方退回下载。
 - 纯标准库，不依赖 Frappe、网络与磁盘。
 """
 import base64
@@ -121,6 +121,20 @@ def _alternate(el):
     return choice if choice is not None else _child(el, "Fallback")
 
 
+class _NoDoctype(ElementTree.TreeBuilder):
+    """照常建树，读到 DOCTYPE（不论部件用什么编码）就报 `Unreadable`。
+
+    标准库加速版的 XMLParser 不开放底层 expat（没有 ``parser.parser``），DOCTYPE 开头由它转给 target 的 ``doctype``；
+    在这里抛出，解析就此中止，DTD 里的实体声明一条也不处理。"""
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.name = name
+
+    def doctype(self, *_args):
+        raise Unreadable(f"{self.name} declares a DTD")
+
+
 class _Package:
     def __init__(self, content: bytes):
         self.zip = zipfile.ZipFile(io.BytesIO(content))
@@ -148,7 +162,11 @@ class _Package:
             return None
         if b"<!DOCTYPE" in data or b"<!ENTITY" in data:
             raise Unreadable(f"{name} declares a DTD")
-        return ElementTree.fromstring(data)
+        # 上面只认 UTF-8 / ASCII 的字节；UTF-16 等编码的部件照样会被解析出 DTD、展开内部实体（审查 2026-10-15）。
+        # 解析器在读到 DOCTYPE 开头时就拒绝：内部实体只能在 DTD 里声明，没有 DTD 就没有实体可展开。
+        parser = ElementTree.XMLParser(target=_NoDoctype(name))
+        parser.feed(data)
+        return parser.close()
 
     def relations(self, part: str) -> dict[str, tuple[str, str]]:
         """部件的关系表 {编号: (类型, 包内路径)}；外部目标（网址、本机路径）不收。"""

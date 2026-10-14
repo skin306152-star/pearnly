@@ -2544,6 +2544,27 @@ class DocumentPreviewTests(unittest.TestCase):
             with self.assertRaises(docx_preview.Unreadable):
                 docx_preview.read(_docx(_p("x")))
 
+    def test_a_dtd_in_a_utf16_part_is_refused_by_the_parser(self):
+        """审查 2026-10-15：「带 DOCTYPE / ENTITY 不读」原来只按 UTF-8 字节比，UTF-16 的部件绕得过去，DTD 与内部实体照样
+        被解析展开。现在解析器读到 DOCTYPE 就拒绝，不论编码。"""
+        body = f'<w:document {_NS}><w:body><w:p><w:r><w:t>&b;</w:t></w:r></w:p></w:body></w:document>'
+        dtd = '<!DOCTYPE w:document [<!ENTITY a "aaaaaaaaaa"><!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">]>'
+        for codec in ("UTF-16", "UTF-16LE", "UTF-16BE"):  # 带 BOM 的、不带 BOM 按 XML 声明自报编码的
+            data = f'<?xml version="1.0" encoding="{codec}"?>{dtd}{body}'.encode(codec)
+            self.assertNotIn(b"<!DOCTYPE", data)  # 字节比对看不出来
+            self.assertNotIn(b"<!ENTITY", data)
+            with self.subTest(codec=codec):
+                with self.assertRaisesRegex(docx_preview.Unreadable, "declares a DTD"):
+                    docx_preview.read(_docx("", document=data))
+        styles = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]><x>&e;</x>'
+        with self.assertRaisesRegex(docx_preview.Unreadable, "declares a DTD"):
+            docx_preview.read(_docx(_p("x"), parts={"word/styles.xml": styles.encode("utf-16")}))
+        # 不带 DTD 的 UTF-16 文档照常读
+        plain = (f'<?xml version="1.0" encoding="UTF-16"?><w:document {_NS}><w:body>{_p("สวัสดี")}'
+                 '</w:body></w:document>')
+        self.assertEqual(docx_preview.read(_docx("", document=plain.encode("utf-16"))),
+                         [{"type": "paragraph", "runs": [{"text": "สวัสดี"}]}])
+
     def test_long_documents_and_images_stop_at_the_limits(self):
         many = "".join(_p(f"line {i}") for i in range(10))
         with mock.patch.object(docx_preview, "MAX_BLOCKS", 3):
