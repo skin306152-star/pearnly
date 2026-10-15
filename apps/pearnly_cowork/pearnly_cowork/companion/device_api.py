@@ -1,6 +1,7 @@
 """CC 桌面版认电脑的两条机器方法（配对码身份，精确 POST，登记在 `http_auth.DEVICE_METHODS`，ADR-021）：
 
-  POST /api/method/pearnly_cowork.companion.device_api.hello   这把密钥挂到这台电脑上（不改 active_key）
+  POST /api/method/pearnly_cowork.companion.device_api.hello   这把密钥挂到这台电脑上（不改公式；这台在这条连接上
+       已有自己的密钥时回 superseded 并吊销这把多余的旧槽位密钥）
   POST /api/method/pearnly_cowork.companion.device_api.leave   吊销这把密钥本身（电脑上「断开连接」）
 
 MR.ERP 的只读文件夹密钥也能调（同一台电脑的 Express 成员和 MR.ERP 成员合成一台，只有 MR.ERP 的电脑也能断开）。
@@ -11,14 +12,12 @@ from uuid import uuid4
 
 import frappe
 
-from . import credentials, device_contracts, devices, http_auth
+from . import credentials, device_contracts, http_auth
 from .contracts import CredentialError
 
 
 def _hello(context, body):
-    values = device_contracts.hello_request(body)
-    key = credentials.machine_key(context)
-    return devices.hello(context.site, key, values)
+    return credentials.hello(context, device_contracts.hello_request(body))
 
 
 def _leave(context, body):

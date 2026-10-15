@@ -343,7 +343,8 @@ export function onLink(cb: (value: Link) => void): () => void {
 type Registered =
   | { status: "created"; token: string }
   | { status: "in_use"; generation: number }
-  | { status: "no_connection" };
+  | { status: "no_connection" }
+  | { status: "update_needed" | "exists"; token?: undefined };
 
 async function register(express: boolean, replace?: number): Promise<Registered | Link> {
   const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {
@@ -374,6 +375,8 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
     if ("kind" in found) return setLink(found);
     if (found.status === "in_use") return setLink({ kind: "in_use", generation: found.generation });
     if (found.status === "no_connection") return setLink({ kind: "no_connection" });
+    // 只有新发的密钥才交给桌面端；服务端将来的其他状态（如 update_needed）不带密钥，绝不拿 undefined 去配对
+    if (found.status !== "created" || !found.token) return setLink({ kind: "failed", message: "" });
     const paired = await api.call("pair", { code: `${found.token}@${location.host}`, switch: !!options.switchSite });
     if (paired.other_site) return setLink({ kind: "other_site", site: paired.other_site });
     setLink(paired.ok ? { kind: "idle" } : { kind: "failed", message: paired.message ?? "" });

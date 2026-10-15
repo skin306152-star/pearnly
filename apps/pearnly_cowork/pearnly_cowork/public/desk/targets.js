@@ -36,7 +36,7 @@
 		for (const target of TARGETS) {
 			connections[target.adapter] = rows.find(row => row.adapter === target.adapter) || null;
 		}
-		// 助手在不在线走不要求管理权限的 `online`：只有录入角色的员工也要能选 Express（`status` 是管理用）。
+		// 助手在不在线走不要求管理权限的 `online`：只有录入角色的员工也要能选 Express。
 		const express = connections.express;
 		const agent = express ? await p.call(API.companion + "online", {connection: express.name}) : null;
 		return {connections, agent};

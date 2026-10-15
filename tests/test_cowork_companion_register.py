@@ -50,7 +50,6 @@ class Register(unittest.TestCase):
                 mock.patch.object(credentials.access, "require_actor", return_value=ACTOR) as actor, \
                 mock.patch.object(credentials.access, "default_workspace", return_value="WS"), \
                 mock.patch.object(credentials, "_device_connection", return_value=connection), \
-                mock.patch.object(credentials.devices, "pool_claimed", return_value=False), \
                 mock.patch.object(credentials, "issue", issue), \
                 mock.patch("pearnly_cowork.connections.service.configure", configure):
             result = credentials.register("rk", **kwargs)
@@ -82,6 +81,11 @@ class Register(unittest.TestCase):
         self.assertEqual(result, {"status": "in_use", "connection": "C-E", "adapter": "express", "generation": 3,
                                   "online": True, "issuer": "boss@example.com", "self": False})
         issue.assert_called_once_with("C-E", "rk", False, None)
+
+    def test_old_client_is_told_to_update_once_a_computer_is_claimed(self):
+        # issue() decides it after locking the connection (review finding 1); register only words the reply
+        result, issue, _ = self.run_register(issued={"status": "update_needed", "replayed": False}, express=True)
+        self.assertEqual(result, {"status": "update_needed", "connection": "C-E", "adapter": "express"})
 
     def test_replace_moves_the_connection_to_this_computer(self):
         _, issue, _ = self.run_register(express=True, replace="true", expected_generation=3)

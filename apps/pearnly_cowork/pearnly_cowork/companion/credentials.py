@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.connections import access
-from . import contracts, devices
+from . import contracts, device_contracts, devices
 from .contracts import AgentContext, CredentialError
 from .documents import DOCTYPE, persist
 
@@ -252,7 +252,11 @@ def _new_key(doc, actor, operation, intent, device=None):
 
 
 def issue(connection, request_key, reset=False, expected_generation=None):
-    """The original per-connection slot (old CC Desktop without a device key; `register` only, no RPC)."""
+    """The original per-connection slot (old CC Desktop without a device key; `register` and lab scripts, no RPC).
+
+    Once a computer of the pool has been claimed (new CC Desktop) the slot is closed to old clients: ``update_needed``.
+    Checked only after the connection and its key rows are locked, so a claim committed meanwhile is seen and an old
+    client can never displace a new one. Each new old-slot key gets an unclaimed "old computer", as the patch does."""
     _enabled()
     intent = _value(contracts.issue_intent, reset, expected_generation)
     with _atomic():
@@ -264,6 +268,9 @@ def issue(connection, request_key, reset=False, expected_generation=None):
         current = _active(doc)
         if current:
             _row_scope(current, doc)
+        _latest(doc)  # the generation row `_new_key` takes: every key row is locked before any computer row
+        if devices.pool_claimed(doc.name):
+            return {'status': 'update_needed', 'replayed': False}
         if not reset and current:
             _remember(current, operation, intent, 'exists')
             return {**_dto(doc, current), 'status': 'exists', 'replayed': False}
@@ -274,7 +281,9 @@ def issue(connection, request_key, reset=False, expected_generation=None):
             access.deny()
         if current:
             _revoke(current, actor, 'reset')
+            devices.retire_orphan(current.get('device'), actor)
         row, token = _new_key(doc, actor, operation, intent)
+        devices.for_old_slot(row, label=doc.label or doc.name)
         return {**_dto(doc, row), 'status': 'created', 'replayed': False, 'token': token}
 
 
@@ -323,9 +332,9 @@ def register(request_key, express=False, replace=False, expected_generation=None
     adapter = frappe.db.get_value(CONNECTION, name, 'adapter')
     if device_key not in (None, ''):
         return _register_device(name, adapter, actor, request_key, device_key, device_name, rekey)
-    if devices.pool_claimed(name):
-        return {'status': 'update_needed', 'connection': name, 'adapter': adapter}
     result = issue(name, request_key, replace, expected_generation if replace else None)
+    if result.get('status') == 'update_needed':
+        return {'status': 'update_needed', 'connection': name, 'adapter': adapter}
     if result.get('token'):
         return {'status': 'created', 'connection': name, 'adapter': adapter, 'token': result['token']}
     return {'status': 'in_use', 'connection': name, 'adapter': adapter, 'generation': result['generation'],
@@ -339,6 +348,8 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
     - 这台已有有效密钥：只记最近登录的人 → `exists`，不改登记人、不吊销（全所共用一台、各人用自己账号登录）；
     - 同上且 `rekey`（本机已没有这家的成员，比如重装过），本人是登记人或管理员：吊销旧的、发新的 → `created`；
     - 电脑被移除过：旧记录交出摘要，这台作为新电脑加入。
+    加锁顺序 Connection → Credential → Device：先不加锁地按摘要找电脑，锁完这条连接上要动的密钥行，最后才锁电脑行
+    并复核；电脑行在这期间被并发改了（退役、另一个成员刚建好同一台）就 ``devices.busy()``，整段重来。
     没装 Express 的电脑由 `_device_connection` 挂到 MR.ERP 主连接，没有就挂 Express 池当只读文件夹成员；
     不论哪种都不会顶掉写账的电脑。
     """
@@ -347,11 +358,10 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
     digest = contracts.device_digest(_site(), key)
     with _atomic():
         doc, actor = _use(name)
-        found = devices.find(digest)
-        if found and devices.retired(found):
-            devices.release(devices.read(found))
-            found = None
         operation = _value(contracts.operation_identity, _site(), actor, doc.name, request_key)
+        found, stale = devices.find(digest), None  # plain read: no computer row is locked yet
+        if found and devices.retired(found):
+            stale, found = found, None
         current = None
         if found:
             intent = _value(contracts.device_issue_intent, found, rekey)
@@ -363,7 +373,13 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
             current = _read(DOCTYPE, found_key) if found_key else None
             if current is not None:
                 _row_scope(current, doc)
+        _latest(doc)  # the generation row `_new_key` takes
+        if stale:
+            devices.release(devices.read(stale))
+        if found:
             device = devices.read(found)  # lock order Connection -> Credential -> Device
+            if device.secret_digest != digest or device.retired_at:
+                raise devices.busy()
             devices.note_signed_in(device, actor)
             if current is not None and not rekey:
                 return {'status': 'exists', 'connection': doc.name, 'adapter': adapter, 'device': device.name,
@@ -371,8 +387,8 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
             if current is not None and actor != device.device_owner and not _manager(actor):
                 access.deny()
         else:
-            device = devices.create(workspace=doc.workspace, owner=actor, label=label, secret_digest=digest,
-                                    signed_in_user=actor)
+            device = devices.create_claimed(workspace=doc.workspace, owner=actor, label=label, secret_digest=digest,
+                                            signed_in_user=actor)
             intent = _value(contracts.device_issue_intent, device.name, rekey)
         if current is not None:
             _revoke(current, actor, 'rekey')
@@ -497,11 +513,23 @@ def machine_key(context):
     return frappe.get_doc(DOCTYPE, context.credential_id, for_update=True)
 
 
+def hello(context, values):
+    """device_hello (ADR-021): attach the authenticated key to its computer (`devices.hello`). When that computer
+    already holds its own key on this connection the old-slot key is redundant: it is revoked here, like `leave`."""
+    key = machine_key(context)
+    result = devices.hello(context.site, key, values)
+    if result['status'] == device_contracts.SUPERSEDED:
+        _revoke(key, key.issuer, 'superseded')
+        devices.retire_orphan(key.get('device'), key.issuer)
+    return result
+
+
 def leave(context):
     """device_leave: this computer disconnects; only this key is revoked. A delivery it already holds can still be
-    acknowledged (`receipt_auth`)."""
+    acknowledged (`receipt_auth`). An unclaimed old computer left without any key is retired with it."""
     row = machine_key(context)
     _revoke(row, row.issuer, 'device_leave')
+    devices.retire_orphan(row.get('device'), row.issuer)
 
 
 def full_report_due(credential_id, *, full_report):

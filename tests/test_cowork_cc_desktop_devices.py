@@ -68,6 +68,11 @@ class QueryDeadlockError(Exception):
 
 STORE = {}
 _ORDER = itertools.count()
+LOCKS = []  # (doctype, name) of each row lock taken by a locking read, in order
+
+
+def _lock(doctype, names):
+    LOCKS.extend((doctype, name) for name in names)
 
 
 class Document:
@@ -144,6 +149,8 @@ def _get_doc(value, name=None, for_update=False):
     row = STORE.get(value, {}).get(name)
     if row is None:
         raise DoesNotExistError(name)
+    if for_update:
+        _lock(value, [name])
     return CLASSES.get(value, Document)(copy.deepcopy(row))
 
 
@@ -174,10 +181,13 @@ class FakeDB:
     def commit(self):
         self.committed = copy.deepcopy(STORE)
 
-    def get_value(self, doctype, name, field, for_update=False, **ignored):
+    def get_value(self, doctype, name, field, for_update=False, as_dict=False, **ignored):
         if doctype == "Cowork Workspace":
             return name
-        return (STORE.get(doctype, {}).get(name) or {}).get(field)
+        row = STORE.get(doctype, {}).get(name)
+        if isinstance(field, (list, tuple)):
+            return Row({key: row.get(key) for key in field}) if row is not None else None
+        return (row or {}).get(field)
 
     def set_value(self, doctype, name, field, value=None, update_modified=True):
         STORE[doctype][name].update(field if isinstance(field, dict) else {field: value})
@@ -190,6 +200,17 @@ class FakeDB:
 
     def sql(self, query, values=(), as_dict=False):
         q = " ".join(query.split())
+        out = self._sql(q, values)
+        if q.endswith("FOR UPDATE"):
+            names = [r[0] if isinstance(r, tuple) else r["name"] for r in out]
+            if "d ON d.name = k.device" in q:  # one statement locks the keys, then their computers
+                _lock(CREDENTIAL, names)
+                _lock(DEVICE, [STORE[CREDENTIAL][n]["device"] for n in names])
+            else:
+                _lock(DEVICE if "WHERE secret_digest=%s" in q else CREDENTIAL, names)
+        return out
+
+    def _sql(self, q, values):
         if "`tabDocShare`" in q:
             return []
         if "JOIN `tabCowork ERP Connection` c ON c.name = k.connection" in q:
@@ -343,27 +364,64 @@ def hello_body(key, name="ACC-01", **extra):
 class Base(unittest.TestCase):
     def setUp(self):
         STORE.clear()
+        LOCKS.clear()
         frappe.db.points.clear()
         frappe.db.committed = {}
         frappe.session.user = ADMIN
         self.requests = itertools.count()
         self.express = add_connection("express", users=[ADMIN, ENTRY, OTHER])
 
-    def register(self, user=ADMIN, **kwargs):
+    def retrying(self, call):
+        """Like `api._local_transaction` / `device_api._guarded`: a deadlock rolls the whole unit back and runs it
+        again (up to three times)."""
+        frappe.db.commit()
+        for attempt in range(3):
+            LOCKS.append(("BEGIN", None))
+            try:
+                return call()
+            except QueryDeadlockError:
+                frappe.db.rollback()
+                if attempt == 2:
+                    raise
+
+    def register(self, user=ADMIN, request=None, **kwargs):
         frappe.session.user = user
         kwargs.setdefault("express", True)
-        return credentials.register("rk-%d" % next(self.requests), **kwargs)
+        request = request or "rk-%d" % next(self.requests)
+        return self.retrying(lambda: credentials.register(request, **kwargs))
 
     def row(self, token):
         return next(r for r in _rows(CREDENTIAL) if r["token_digest"] == contracts.token_digest(token))
 
     def auth(self, token):
+        LOCKS.append(("BEGIN", None))
         return credentials.authenticate(token)
 
     def hello(self, token, body):
+        values = device_contracts.hello_request(body)  # `device_api._hello`: the body is checked before any write
         context = self.auth(token)
-        key = credentials.machine_key(context)
-        return devices.hello(SITE, key, device_contracts.hello_request(body))
+        return self.retrying(lambda: credentials.hello(context, values))
+
+    def before_deploy(self):
+        """Keys as production has them before batch 1: no computer records, no `device` links."""
+        STORE.pop(DEVICE, None)
+        for row in _rows(CREDENTIAL):
+            row["device"] = None
+
+    def device_of(self, token):
+        return STORE[DEVICE][self.row(token)["device"]]
+
+    def assert_lock_order(self):
+        """Connection -> Credential -> Device: once a computer row is locked, no key row not already held is locked."""
+        held, device_seen = set(), False
+        for doctype, name in LOCKS:
+            if doctype == "BEGIN":
+                held, device_seen = set(), False
+            elif doctype == DEVICE:
+                device_seen = True
+            elif doctype == CREDENTIAL:
+                self.assertFalse(device_seen and name not in held, LOCKS)
+                held.add(name)
 
     def active_keys(self):
         return sorted(r["name"] for r in _rows(CREDENTIAL) if _active_row(r))
@@ -473,7 +531,8 @@ class OldClientRegister(Base):
         self.assertNotIn("device", first)
         row = self.row(first["token"])
         self.assertEqual(row["active_key"], contracts.active_identity(SITE, self.express))
-        self.assertIsNone(row["device"])
+        legacy = self.device_of(first["token"])  # an unclaimed old computer, as the patch makes them
+        self.assertEqual((legacy["device_owner"], legacy["secret_digest"], legacy["label"]), (ADMIN, None, "express"))
         held = self.register()
         self.assertEqual(held, {"status": "in_use", "connection": self.express, "adapter": "express", "generation": 1,
                                 "online": False, "issuer": ADMIN, "self": True})
@@ -481,6 +540,39 @@ class OldClientRegister(Base):
         self.assertEqual(moved["status"], "created")
         with self.assertRaises(AuthenticationError):
             self.auth(first["token"])
+        # Review finding 3: the displaced key's old computer is retired, the new key has its own old computer
+        self.assertTrue(STORE[DEVICE][row["device"]]["retired_at"])
+        fresh = self.device_of(moved["token"])
+        self.assertNotEqual(fresh["name"], row["device"])
+        self.assertIsNone(fresh.get("retired_at"))
+        self.assertFalse(devices.pool_claimed(self.express))
+        self.assert_lock_order()
+
+    def test_a_claim_committed_before_the_connection_lock_is_seen(self):
+        """Review finding 1: a new CC Desktop claims the old slot key while an old client is on its way to `replace`."""
+        first = self.register()
+        real = credentials._use
+
+        def racing(name):
+            credentials._use = real
+            self.hello(first["token"], hello_body(KEY_A))  # commits before the old client locks the connection
+            frappe.session.user = ADMIN
+            return real(name)
+
+        credentials._use = racing
+        try:
+            result = self.register(replace=True, expected_generation=1)
+        finally:
+            credentials._use = real
+        self.assertEqual(result, {"status": "update_needed", "connection": self.express, "adapter": "express"})
+        self.assertEqual(self.auth(first["token"]).issuer, ADMIN)
+        self.assertEqual(len(self.active_keys()), 1)
+
+    def test_update_needed_only_after_the_use_grant(self):
+        self.register(device_key=KEY_A)
+        STORE[CONNECTION][self.express]["allowed_users"] = json.dumps([ADMIN])
+        with self.assertRaises(PermissionError_):
+            self.register(ENTRY)
 
     def test_entry_role_may_replace_only_its_own_old_slot(self):
         admin = self.register()
@@ -559,6 +651,36 @@ class DeviceRegister(Base):
                                                        "adapter": "express"})
         self.assertEqual(STORE[CREDENTIAL], before)
         self.assertEqual(self.auth(a["token"]).issuer, ADMIN)
+
+    def test_two_members_adding_the_same_computer_at_once_end_on_one(self):
+        """Nit: register v2 colliding on the unique digest with a member that just added the same computer."""
+        mrerp = add_connection("mrerp", users=[ADMIN, ENTRY])
+        folder = self.register(ENTRY, express=False, device_key=KEY_A)
+        self.assertEqual(folder["connection"], mrerp)
+        real, calls = devices.find, []
+
+        def late(digest, *, lock=False):
+            calls.append(digest)
+            return None if len(calls) == 1 else real(digest, lock=lock)
+
+        devices.find = late
+        try:
+            writer = self.register(device_key=KEY_A)
+        finally:
+            devices.find = real
+        self.assertEqual((writer["status"], writer["device"]), ("created", folder["device"]))
+        self.assertEqual(len(_rows(DEVICE)), 1)
+        self.assertEqual(len(calls), 2)  # the whole unit ran again
+        self.assert_lock_order()
+
+    def test_register_takes_key_rows_before_the_computer_row(self):
+        """Review finding 4: Connection -> Credential -> Device in every register v2 branch."""
+        a = self.register(ENTRY, device_key=KEY_A)
+        self.register(ENTRY, device_key=KEY_A)  # exists
+        self.register(ENTRY, device_key=KEY_A, rekey=True)
+        devices.retire(devices.read(a["device"]), ADMIN)
+        self.register(ENTRY, device_key=KEY_A)  # a removed computer joins again
+        self.assert_lock_order()
 
     def test_no_pool_only_management_creates_it(self):
         STORE.clear()
@@ -666,6 +788,7 @@ class MigratedPool(Base):
         STORE[CONNECTION][self.express]["report_json"] = json.dumps({"agent_device_name": "ACC-01"})
         self.express_key = self.register()["token"]
         self.mrerp_key = self.register(express=False)["token"]
+        self.before_deploy()
         self.assertEqual(devices.seed_legacy(lambda connection: ""), 2)
         self.keys_before = {r["name"]: r["active_key"] for r in _rows(CREDENTIAL)}
 
@@ -719,6 +842,44 @@ class MigratedPool(Base):
         self.assertEqual(self.auth(self.express_key).issuer, ADMIN)
         self.assertEqual(self.auth(other["token"]).issuer, ENTRY)
         self.assertIsNone(STORE[DEVICE][self.row(self.express_key)["device"]].get("retired_at"))
+        self.assert_lock_order()
+
+    def test_leaving_from_an_unclaimed_old_computer_retires_it(self):
+        """Review finding 3: no ghost computer stays behind an old client that disconnects."""
+        legacy = self.row(self.mrerp_key)["device"]
+        credentials.leave(self.auth(self.mrerp_key))
+        self.assertTrue(STORE[DEVICE][legacy]["retired_at"])
+        self.assertIsNone(STORE[DEVICE][self.row(self.express_key)["device"]].get("retired_at"))
+
+    def test_register_first_then_hello_supersedes_the_old_slot_key(self):
+        """Review finding 2: the new CC Desktop registered before saying hello with its old slot key."""
+        legacy = self.row(self.express_key)["device"]
+        mine = self.register(device_key=KEY_A, device_name="ACC-01")
+        self.assertEqual(mine["status"], "created")
+        result = self.hello(self.express_key, hello_body(KEY_A))
+        self.assertEqual(result, {"status": "superseded", "device": mine["device"]})
+        with self.assertRaises(AuthenticationError):
+            self.auth(self.express_key)
+        self.assertEqual(self.row(self.express_key)["revocation_reason"], "superseded")
+        self.assertTrue(STORE[DEVICE][legacy]["retired_at"])
+        self.assertEqual(self.auth(mine["token"]).issuer, ADMIN)
+        self.assertEqual(self.auth(self.mrerp_key).issuer, ADMIN)
+        live = [d for d in _rows(DEVICE) if not d.get("retired_at")]
+        self.assertEqual(len(live), 2)  # this computer and the MR.ERP member's old computer, no ghost
+        self.assert_lock_order()
+
+    def test_hello_takes_key_rows_before_computer_rows(self):
+        """Review finding 4: claiming, merging and superseding never lock a key row after a computer row."""
+        self.hello(self.express_key, hello_body(KEY_A))
+        self.hello(self.mrerp_key, hello_body(KEY_A))
+        self.hello(self.express_key, hello_body(KEY_A))
+        self.assert_lock_order()
+
+    def test_only_express_keys_are_asked_for_a_full_report(self):
+        self.hello(self.express_key, hello_body(KEY_A))
+        self.hello(self.mrerp_key, hello_body(KEY_A))
+        self.assertTrue(self.row(self.express_key)["full_report_due"])
+        self.assertFalse(self.row(self.mrerp_key).get("full_report_due"))
 
     def test_heartbeat_forces_one_full_report_after_attaching(self):
         name = self.row(self.express_key)["name"]
@@ -741,46 +902,56 @@ class DeviceSlotHello(Base):
         self.assertEqual(self.auth(b["token"]).issuer, ADMIN)
 
     def test_old_slot_key_without_a_computer_gets_one(self):
-        old = self.register()  # 补丁之后旧路径新发的密钥：没有电脑
+        old = self.register()
+        self.before_deploy()  # 补丁漏掉的、没有电脑的旧槽位密钥
         result = self.hello(old["token"], hello_body(KEY_A, name="ACC-09"))
         device = STORE[DEVICE][result["device"]]
         self.assertEqual((device["device_owner"], device["label"]), (ADMIN, "ACC-09"))
         self.assertEqual(self.row(old["token"])["active_key"], contracts.active_identity(SITE, self.express))
 
     def test_a_computer_holds_one_key_per_connection(self):
-        old = self.register()  # 旧槽位密钥，还没挂电脑
-        self.register(device_key=KEY_A)  # 这台电脑已在这条连接上有自己的密钥
-        self.assertEqual(self.hello(old["token"], hello_body(KEY_A)), {"status": "claimed_elsewhere"})
+        old = self.register()
+        self.before_deploy()  # 旧槽位密钥，还没挂电脑
+        mine = self.register(device_key=KEY_A)  # 这台电脑已在这条连接上有自己的密钥
+        self.assertEqual(self.hello(old["token"], hello_body(KEY_A)), {"status": "superseded", "device": mine["device"]})
+        with self.assertRaises(AuthenticationError):
+            self.auth(old["token"])
         self.assertIsNone(self.row(old["token"])["device"])
+        self.assertEqual(self.active_keys(), [self.row(mine["token"])["name"]])
 
-    def test_two_members_saying_hello_at_once_end_on_one_computer(self):
-        old = self.register()  # 没挂电脑的旧槽位密钥
-        mine = self.register(ENTRY, express=False, device_key=KEY_A)  # 同一台电脑（设备密钥相同）先建好了
-        real = devices.find
-        calls = []
+    def late_find(self):
+        """第一次查时对方还没提交：看不到，写的时候撞唯一摘要；整段重来时看得到。"""
+        real, calls = devices.find, []
 
-        def late(digest, *, lock=False):  # 第一次查时对方还没提交：看不到，建的时候撞唯一摘要
+        def late(digest, *, lock=False):
             calls.append(digest)
             return None if len(calls) == 1 else real(digest, lock=lock)
 
         devices.find = late
-        try:
-            result = self.hello(old["token"], hello_body(KEY_A))
-        finally:
-            devices.find = real
-        self.assertEqual(result, {"status": "claimed_elsewhere"})  # 这台在这条连接上已有自己的密钥：只留一把
-        self.assertEqual(len(_rows(DEVICE)), 1)
-        self.assertEqual(len(calls), 2)
-        STORE[CREDENTIAL][self.row(mine["token"])["name"]]["revoked_at"] = "2026-10-15 00:00:00"
-        STORE[CREDENTIAL][self.row(mine["token"])["name"]]["active_key"] = None
-        calls.clear()
-        devices.find = late
-        try:
-            result = self.hello(old["token"], hello_body(KEY_A))
-        finally:
-            devices.find = real
+        self.addCleanup(setattr, devices, "find", real)
+        return calls
+
+    def test_two_members_saying_hello_at_once_end_on_one_computer(self):
+        old = self.register()
+        self.before_deploy()  # 没挂电脑的旧槽位 Express 密钥
+        add_connection("mrerp", users=[ADMIN, ENTRY])
+        mine = self.register(ENTRY, express=False, device_key=KEY_A)  # 同一台电脑的 MR.ERP 成员先建好了
+        calls = self.late_find()
+        result = self.hello(old["token"], hello_body(KEY_A))
         self.assertEqual(result, {"status": "attached", "device": mine["device"]})
         self.assertEqual(len(_rows(DEVICE)), 1)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(self.auth(old["token"]).issuer, ADMIN)
+        self.assert_lock_order()
+
+    def test_a_late_seen_own_key_still_supersedes(self):
+        old = self.register()
+        self.before_deploy()
+        mine = self.register(device_key=KEY_A)  # 同一台电脑在这条连接上已有自己的密钥
+        calls = self.late_find()
+        self.assertEqual(self.hello(old["token"], hello_body(KEY_A)), {"status": "superseded", "device": mine["device"]})
+        self.assertEqual(len(_rows(DEVICE)), 1)
+        self.assertEqual(len(calls), 2)
 
     def test_bad_hello_body_is_refused_before_any_write(self):
         a = self.register(device_key=KEY_A)
@@ -807,6 +978,7 @@ class PatchSeedsOldComputers(Base):
         first = self.register()["token"]
         current = self.register(replace=True, expected_generation=1)["token"]  # first 被顶掉、已吊销
         folder = self.register(express=False)["token"]
+        self.before_deploy()
         before = {r["name"]: dict(r) for r in _rows(CREDENTIAL)}
         patch = self.load_patch()
         names = {mrerp: "FOLDER-PC"}
@@ -828,6 +1000,7 @@ class PatchSeedsOldComputers(Base):
 
     def test_name_falls_back_to_the_connection_label(self):
         self.register()
+        self.before_deploy()
         self.assertEqual(devices.seed_legacy(None), 1)
         self.assertEqual([d["label"] for d in _rows(DEVICE)], ["express"])
 
