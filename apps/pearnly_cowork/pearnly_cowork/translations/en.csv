@@ -1825,6 +1825,7 @@ This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
 This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
+This choice cannot be saved,This choice cannot be saved
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
 This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
@@ -2146,6 +2147,7 @@ cowork.company.choice_invalid,This value is not in this month's account set
 cowork.company.choice_not_editable,Only payment and VAT choices can be changed here
 cowork.company.choice_not_found,This saved choice no longer exists
 cowork.company.choice_scope_invalid,No account set of this company covers this month
+cowork.company.choice_unsupported,This choice cannot be saved
 cowork.company.choices_full,Company choices are full
 cowork.company.not_found,Company not found
 cowork.company.not_in_catalog,This account set is not in the catalog

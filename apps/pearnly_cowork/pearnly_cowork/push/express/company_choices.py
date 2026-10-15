@@ -9,7 +9,7 @@
   主档没报上来时放行，到小助手写入时再判）。
 - `valid`：一个值能不能用在这份账套（`config` 是推送准备的账套配置，带小助手上报的 `reported_*` 主档）。
 - `decided_by` / `finish`：这张单每一类「按什么定的」（`task_default` 任务默认、`remembered` 账套记忆、`company_rule` 公司规则、
-  `history` Express 历史；同一类几项来源不同记 `mixed`），付款方式由公司规则定时载荷的 `doctype_src` 记成 `company_rule`。
+  `express_history` Express 历史；同一类几项来源不同记 `mixed`），付款方式由公司规则定时载荷的 `doctype_src` 记成 `company_rule`。
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from pearnly_cowork.push.express.choices import KINDS, NEW, PAYMENT_VALUES, VAT_VALUES
 
-SOURCES = ("task_default", "remembered", "company_rule", "history")
+SOURCES = ("task_default", "remembered", "company_rule", "express_history")  # 与 `pushed.ACCOUNT_FROM` 同一套词
 # 每一类的值来自这份账套的哪张主档（付款、抵进项是固定值）
 MASTERS = {"item": "reported_products", "account": "reported_accounts", "receipt": "reported_accounts",
            "department": "reported_departments"}

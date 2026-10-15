@@ -80,7 +80,7 @@ def save(company, *, workspace, kind, subject, value, branch="", subject_label="
     value = str(value or "").strip()
     if kind not in KINDS or not isinstance(subject, str) or not subject or len(subject) > 1000 or branch is None \
             or not value or len(value) > company_choices.VALUE_MAX:
-        frappe.throw(_("cowork.company.choice_invalid"))
+        frappe.throw(_("cowork.company.choice_unsupported"))
     name = rule_key(company, kind, subject, branch)
     now, user = now_datetime(), frappe.session.user
     existing = frappe.db.exists(CHOICE, name)

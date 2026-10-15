@@ -2119,6 +2119,56 @@ class CompanyRuleTests(unittest.TestCase):
         merged, _sources = company_choices.overlay({}, [], "00000", {})
         self.assertEqual(merged, {})
 
+    def test_a_history_row_is_promoted_only_for_the_whole_company(self):
+        # 复审 3：钩子按供应商忘掉全公司各分店的历史，分店规则只管一个分店，会让别的分店原来「历史已定」的单据又问人
+        module = types.ModuleType("fake_history_rules")
+        module.read = lambda tax, sets: [{"supplier_tax": OTHER_TAX, "supplier_name": "Makro", "account": "5300",
+                                          "account_label": "", "count": 9, "last_date": "2026-09-30"}]
+        module.drop = mock.Mock(return_value=1)
+        sys.modules["fake_history_rules"] = module
+        frappe.hooks = {choices.HISTORY_HOOK: ["fake_history_rules.read"],
+                        choices.HISTORY_FORGET_HOOK: ["fake_history_rules.drop"]}
+        key = self.row("history", "account")["key"]
+        for branch in ("00012", "00000", "12"):
+            with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_scope_invalid", msg=branch):
+                choices.promote(self.company, self.sets, key, branch, "2026-09")
+        self.assertEqual((self.stored(), module.drop.call_count), ([], 0))
+        self.assertEqual(len(express_choices.rows), 3)  # 拒了就什么都不删
+
+    def test_a_merged_party_row_promotes_every_branch_of_that_party(self):
+        # 复审 4：对方档各分店按税号合并成一行显示；只存最新那个分店的话，其他分店的记忆还在、刷新又冒出来
+        head = express_rules.party_subject("purchase", OTHER_TAX, "00000", "Makro")
+        other = express_rules.party_subject("purchase", OTHER_TAX, "00003", "Makro")
+        stale = express_rules.party_subject("purchase", OTHER_TAX, "00004", "Makro")
+        preparation.reported = {"reported_suppliers": [{"code": "S-01"}, {"code": "S-03"}]}
+        choice("party", head, "S-01", day=6, label="Makro")
+        choice("party", other, "S-03", account_set="S:\\69EXP\\B12", day=5, label="Makro 3")
+        choice("party", other, "S-OLD", day=1, label="Makro 3")
+        choice("party", stale, "S-GONE", day=4, label="Makro 4")  # 已不在主档：跳过，账套记忆照旧留着
+        rows = [item for item in choices.listing(self.company, self.sets)
+                if item["source"] == "express" and item["kind"] == "party"]
+        self.assertEqual(len(rows), 1)
+        out = choices.promote(self.company, self.sets, rows[0]["key"], "", "2026-09")
+        stored = sorted((rule["subject"], rule["value"]) for rule in self.stored())
+        self.assertEqual(stored, sorted([(head, "S-01"), (other, "S-03")]))  # 每个分店各取最新的值
+        self.assertEqual(out["rule"]["subject"], head)  # 回最新那条
+        self.assertEqual(out["rule"]["removed_memories"], 3)
+        left = [(row["subject"], row["value"]) for row in express_choices.rows if row["kind"] == "party"]
+        self.assertEqual(left, [(stale, "S-GONE")])
+        preparation.reported = {"reported_suppliers": [{"code": "S-03"}]}
+        choice("party", head, "S-01", day=7, label="Makro")
+        with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_invalid"):
+            choices.promote(self.company, self.sets, rows[0]["key"], "", "2026-09")  # 最新那条不能用：整条拒绝
+
+    def test_malformed_choices_are_not_reported_as_values_outside_the_masters(self):
+        # 复审 5：形状不对（类别不认、归类键为空）不报「这个值不在本月账套的主档里」
+        for kind, subject in (("bogus", SUPPLIER), ("payment", "")):
+            with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_unsupported"):
+                choices.save_rule(self.company, self.sets, kind, subject, "cash", "", "2026-09")
+        with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_unsupported"):
+            rules.save(self.company.name, workspace="W", kind="payment", subject=SUPPLIER, value="")
+        self.assertEqual(self.stored(), [])
+
     def test_push_finds_the_rules_by_the_account_sets_identity(self):
         choices.promote(self.company, self.sets, self.row("express", "payment")["key"], "", "2026-09")
         found = rules.for_push("C1", "S:\\69EXP\\B12", express_row("S:\\69EXP\\B12", "ABC 12", branch="00012"))
@@ -2201,8 +2251,10 @@ class CompanyRuleToolTests(unittest.TestCase):
         self.assertEqual(item["rule"]["subject_label"], "Rice 5kg")
         self.assertIn(express_rules.item_subject("purchase", OTHER_TAX, "Makro", "Rice 5kg"),
                       [row["subject"] for row in frappe.db.tables[RULE].values()])
-        with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_invalid"):
-            self.tools.choice_save({"document": "h1", "kind": "item", "value": "X"})  # 存货要给品名
+        for bad in ({"document": "h1", "kind": "item", "value": "X"},  # 存货要给品名
+                    {"document": "h1", "kind": "receipt", "value": "5300"}):  # CC 不存收款科目
+            with self.assertRaisesRegex(frappe.ValidationError, "cowork.company.choice_unsupported"):
+                self.tools.choice_save(bad)
         profile = json.loads(self.tools.profile({}))
         self.assertEqual(len(profile["rules"]), 2)
         self.assertEqual({choices.decode(row["key"])[0] for row in profile["rules"]}, {"rule"})
@@ -2212,6 +2264,27 @@ class CompanyRuleToolTests(unittest.TestCase):
         with self.assertRaises(frappe.DoesNotExistError):
             self.tools.choice_remove({"key": choices.encode("express", "C1", "payment", SUPPLIER)})
         self.assertEqual(projects.announced[-1][2]["part"], "choices")
+
+    def test_the_rule_key_is_the_one_push_looks_up(self):
+        # 复审 2：推送按 `choices._party` 只认 seller_tax；票面只有 seller_tax_id 时按名字记，规则也要按名字存
+        storage = types.SimpleNamespace(read=lambda name: Row(name=name), project=lambda found: {"pages": [{"fields": {
+            "seller_name": "Makro", "seller_tax_id": OTHER_TAX, "invoice_number": "IV2"}}]})
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.history": types.SimpleNamespace(storage=storage),
+                                           "pearnly_cowork.history.storage": storage}):
+            self.tools.choice_save({"document": "h2", "kind": "payment", "value": "cash"})
+        [rule] = frappe.db.tables[RULE].values()
+        self.assertEqual(rule["subject"], express_rules.supplier_subject("purchase", "", "Makro"))
+        fields = {"seller_name": "Makro", "seller_tax_id": OTHER_TAX}
+        self.assertEqual(rule["subject"], express_rules.supplier_subject("purchase", *express_rules._party(
+            fields, "purchase")[1::-1]))
+
+    def test_a_card_for_a_missing_row_shows_no_encoded_key(self):
+        # 复审 5：key 找不到（已删、不是这家的）时卡上不露编码后的 key
+        key = choices.encode("rule", "gone")
+        preview = self.tools.preview_choice_remove({"key": key})
+        self.assertNotIn(key, json.dumps(preview))
+        self.assertEqual(preview[1]["before"], " · " + "cowork.company.whole_company")
+        self.assertNotIn(key, json.dumps(self.tools.preview_choice_save({"key": key})))
 
     def test_profile_keeps_keys_only_where_cc_can_act_on_them(self):
         profile = json.loads(self.tools.profile({}))

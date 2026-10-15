@@ -2209,6 +2209,7 @@ Branch {0}	分店 {0}	สาขา {0}	支店 {0}	cowork.company.branch_n
 This value is not in this month's account set	这个值不在本月账套的主档里	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の帳簿のマスタにありません	cowork.company.choice_invalid
 Company choices are full	公司选择已满	ตัวเลือกของบริษัทเต็มแล้ว	会社の選択が上限です	cowork.company.choices_full
 No account set of this company covers this month	这家公司（或这个分店）没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の帳簿がありません	cowork.company.choice_scope_invalid
+This choice cannot be saved	无法保存这条选择	บันทึกตัวเลือกนี้ไม่ได้	この選択は保存できません	cowork.company.choice_unsupported
 Saved a company choice	记下了公司选择	บันทึกตัวเลือกของบริษัทแล้ว	会社の選択を保存しました
 Removed a company choice	删除了公司选择	ลบตัวเลือกของบริษัทแล้ว	会社の選択を削除しました
 Save this choice for the company?	把这个选择记到公司？	บันทึกตัวเลือกนี้ให้บริษัทไหม	この選択を会社に保存しますか？

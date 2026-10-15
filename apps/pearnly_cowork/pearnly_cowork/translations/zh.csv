@@ -1825,6 +1825,7 @@ This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This board no longer exists,该看板不存在
 This channel is not open yet,此渠道尚未开放
+This choice cannot be saved,无法保存这条选择
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
 This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
@@ -2146,6 +2147,7 @@ cowork.company.choice_invalid,这个值不在本月账套的主档里
 cowork.company.choice_not_editable,这里只能改付款方式和抵不抵进项
 cowork.company.choice_not_found,这条记住的选择已不在
 cowork.company.choice_scope_invalid,这家公司（或这个分店）没有覆盖本月的账套
+cowork.company.choice_unsupported,无法保存这条选择
 cowork.company.choices_full,公司选择已满
 cowork.company.not_found,找不到这家公司
 cowork.company.not_in_catalog,账套目录里没有这份账套

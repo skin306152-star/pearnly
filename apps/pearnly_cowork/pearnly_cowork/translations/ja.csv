@@ -1825,6 +1825,7 @@ This account set is unavailable.,この会計データは利用できません�
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
 This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
+This choice cannot be saved,この選択は保存できません
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
 This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
@@ -2146,6 +2147,7 @@ cowork.company.choice_invalid,この値は今月の帳簿のマスタにあり�
 cowork.company.choice_not_editable,ここで変更できるのは支払方法と仕入税額控除だけです
 cowork.company.choice_not_found,この保存した選択はもうありません
 cowork.company.choice_scope_invalid,この会社（または支店）には今月の帳簿がありません
+cowork.company.choice_unsupported,この選択は保存できません
 cowork.company.choices_full,会社の選択が上限です
 cowork.company.not_found,会社が見つかりません
 cowork.company.not_in_catalog,この帳簿は一覧にありません

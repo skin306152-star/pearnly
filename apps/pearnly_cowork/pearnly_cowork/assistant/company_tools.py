@@ -190,22 +190,23 @@ def _subject_of(tool_input) -> tuple:
 
     kind = str(tool_input.get("kind") or "")
     if kind not in RULE_KINDS:
-        frappe.throw(_("cowork.company.choice_invalid"))
+        frappe.throw(_("cowork.company.choice_unsupported"))
     if kind == "department":
         return kind, "*", ""
     doc = storage.read(str(tool_input.get("document") or ""))
     fields = primary_page_fields(storage.project(doc).get("pages") or [])
     direction = "sales" if tool_input.get("direction") == "sales" and kind in ("party", "item") else "purchase"
     side = "buyer" if direction == "sales" else "seller"
-    name, tax = fields.get(f"{side}_name") or "", fields.get(f"{side}_tax") or fields.get(f"{side}_tax_id") or ""
+    # 同推送 `choices._party` 的取法（只认 ``{side}_tax``），否则按税号存的规则推送时按名字找、永远对不上
+    name, tax = fields.get(f"{side}_name") or "", fields.get(f"{side}_tax") or ""
     if not str(name).strip() and not choice_rules.digits(tax):
-        frappe.throw(_("cowork.company.choice_invalid"))
+        frappe.throw(_("cowork.company.choice_unsupported"))
     if kind == "party":
         return kind, choice_rules.party_subject(direction, tax, fields.get(f"{side}_branch") or "", name), name
     if kind == "item":
         item = str(tool_input.get("item") or "").strip()[:50]
         if not item:
-            frappe.throw(_("cowork.company.choice_invalid"))
+            frappe.throw(_("cowork.company.choice_unsupported"))
         return kind, choice_rules.item_subject(direction, tax, name, item), item
     return kind, choice_rules.supplier_subject("purchase", tax, name), name
 
@@ -263,7 +264,7 @@ def _described(row, tool_input) -> tuple:
             if item.get("key") == key:
                 value = item.get("value_label") or item.get("value") or ""
                 return f"{item.get('subject_label') or ''} → {value}", item.get("branch") or "", parts[0]
-        return key, "", parts[0]
+        return "", "", parts[0]  # 找不到（已删、不是这家的）：卡上不露编码后的 key，执行时报找不到
     value = str(tool_input.get("value") or "")
     label = {"cash": "Cash", "credit": "Credit", "claim": "Claim VAT", "expense": "Expense it"}.get(value)
     try:
@@ -333,7 +334,8 @@ TOOLS = [
                     "applied automatically to all its account sets; a choice saved in one account set still overrides "
                     "it there, and saving this removes the same choice saved in its account sets. Either pass key, a "
                     "row from cowork_company_profile choices marked promotable (an account set choice or one learned "
-                    "from Express history), to make it company-wide; or pass document, kind (party, item, account, "
+                    "from Express history, which only goes company-wide, without branch), to make it company-wide; "
+                    "or pass document, kind (party, item, account, "
                     "payment, vat, department) and value (an account, product or party code from cowork_push_choices, "
                     "or cash / credit, claim / expense), with item (the product name as on the document) for item "
                     "and direction sales for a customer. The value is checked against the account set covering the "

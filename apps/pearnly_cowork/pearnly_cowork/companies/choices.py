@@ -413,14 +413,18 @@ def _drop_memories(sets, kind, subject, branch) -> int:
     return removed
 
 
-def _save_rule(company, sets, kind, subject, value, branch, period, *, subject_label="", evidence=None,
-               session="") -> dict:
-    """核分店、核值（覆盖这个月那份账套的主档）、存规则、删同键的账套记忆，同一事务。"""
+def _scope(sets, branch, period) -> tuple:
+    """核分店、找覆盖这个月那份账套并取它的主档 → (分店, 主档)；同一次提升的几条共用一次。"""
     branch = _branch(sets, branch)
+    return branch, _masters(target_set(sets, branch, period))
+
+
+def _save_rule(company, sets, kind, subject, value, branch, period, *, subject_label="", evidence=None,
+               session="", scoped=None) -> dict:
+    """核分店、核值（覆盖这个月那份账套的主档）、存规则、删同键的账套记忆，同一事务。``scoped`` 是 `_scope` 已算好的。"""
     if kind not in KINDS or not isinstance(subject, str) or not subject:
-        frappe.throw(_("cowork.company.choice_invalid"))
-    target = target_set(sets, branch, period)
-    masters = _masters(target)
+        frappe.throw(_("cowork.company.choice_unsupported"))
+    branch, masters = scoped or _scope(sets, branch, period)
     if not company_choices.valid(kind, value, masters, subject):
         frappe.throw(_("cowork.company.choice_invalid"))
     saved = rules.save(company["name"], workspace=scope.default_workspace(), kind=kind, subject=subject,
@@ -439,8 +443,11 @@ def save_rule(company, sets, kind, subject, value, branch="", period="", *, subj
 
 
 def promote(company, sets, key, branch="", period="", session="") -> dict:
-    """「设为全公司」：把一行账套记忆（`express`）或 Express 历史学到的（`history`）提升成公司规则。账套行取这一归类最新的那条
-    （值、归类键、写法）；历史行同时经钩子把这家供应商的历史记成忘掉（删规则后回到问人）。``sets`` 给全集。"""
+    """「设为全公司」：把一行账套记忆（`express`）或 Express 历史学到的（`history`）提升成公司规则。账套行这一归类里每个归类键
+    各取最新的那条（值、写法）各存一条规则：对方档按税号把各分店合并成一行显示，只存最新那个分店的话，其他分店的记忆还在、
+    刷新后这一行又冒出来（复审 4）；其他分店的值已不在这份账套主档里的跳过（那份记忆照旧留着）。回最新那条，
+    ``removed_memories`` 是几条合计。历史行只能提升为全公司规则（钩子按供应商忘掉全公司的历史，复审 3），同时经钩子把这家
+    供应商的历史记成忘掉（删规则后回到问人）。``sets`` 给全集。"""
     parts = decode(key)
     if parts[0] == "express" and len(parts) == 4 and parts[2] in KINDS:
         _source, connection, kind, group = parts
@@ -449,15 +456,29 @@ def promote(company, sets, key, branch="", period="", session="") -> dict:
                 if row["kind"] == kind and group_of(kind, row["subject"]) == group]
         if not rows:
             frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
-        latest = rows[0]
+        latest = {}
+        for row in rows:  # 新 → 旧：每个归类键第一条就是它最新的
+            latest.setdefault(row["subject"], row)
         years = _year_of(sets)
-        evidence = {"from": "account_set", "account_set": str(latest.get("account_set") or ""),
-                    "year_label": years.get((connection, str(latest.get("account_set") or "").casefold()), ""),
-                    "chosen_by": latest.get("chosen_by") or "", "chosen_at": str(latest.get("chosen_at") or "")}
-        return _save_rule(company, sets, kind, latest["subject"], str(latest.get("value") or ""), branch, period,
-                          subject_label=subject_name(kind, latest["subject"], latest.get("label")), evidence=evidence,
-                          session=session)
+        scoped = _scope(sets, branch, period)
+        saved, removed = None, 0
+        for subject, row in latest.items():
+            value = str(row.get("value") or "")
+            if saved and not company_choices.valid(kind, value, scoped[1], subject):
+                continue  # 最新那条必须能用（不能就报错、什么都不存）；其余不能用的留着原来的账套记忆
+            evidence = {"from": "account_set", "account_set": str(row.get("account_set") or ""),
+                        "year_label": years.get((connection, str(row.get("account_set") or "").casefold()), ""),
+                        "chosen_by": row.get("chosen_by") or "", "chosen_at": str(row.get("chosen_at") or "")}
+            one = _save_rule(company, sets, kind, subject, value, branch, period,
+                             subject_label=subject_name(kind, subject, row.get("label")), evidence=evidence,
+                             session=session, scoped=scoped)
+            removed += int(one["rule"].get("removed_memories") or 0)
+            saved = saved or one
+        saved["rule"]["removed_memories"] = removed
+        return saved
     if parts[0] == "history" and len(parts) == 3:
+        if company_choices.branch_of(branch) != "":
+            frappe.throw(_("cowork.company.choice_scope_invalid"))
         _source, supplier, account = parts
         found = next((row for row in history_rows(company, sets)
                       if row["key"] == key), None)
