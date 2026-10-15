@@ -45,7 +45,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
-import { type RefObject, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import {
@@ -795,7 +795,8 @@ function DeepLinks() {
 /** 主区那一行放不放得下「对话最窄 + 右侧会话栏」（放不下时会话栏浮在对话上）。 */
 function useDockFits(area: RefObject<HTMLDivElement | null>) {
   const [fits, setFits] = useState(true);
-  useEffect(() => {
+  // 画第一帧前就量好：窄窗口记着「开着」时不先按并排画一帧再收起
+  useLayoutEffect(() => {
     const el = area.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const measure = () => {
@@ -824,11 +825,12 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const area = useRef<HTMLDivElement>(null);
   const fits = useDockFits(area);
   const filing = useFiledCompany();
-  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  // 已建好的对话（有服务端编号）：不看消息条数，换对话时线程加载期间消息为 0，会话栏不跟着卸下再挂上
+  const saved = useAuiState((s) => !!s.threadListItem.remoteId);
   const panelOpen = usePanel((s) => s.open);
   const overlay = usePanel((s) => s.overlay);
   const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";
-  const hasPanel = view === "chat" && hasMessages && !!filing.project;
+  const hasPanel = view === "chat" && saved && !!filing.project;
   const panelShown = hasPanel && !results.open && (mode === "docked" ? panelOpen : overlay);
   useEffect(() => setPanelOverlay(false), [results.sessionId, view]);
   // 点了「公司名 ›」（或手机菜单里的公司名）：预览开着时换回会话栏
@@ -868,8 +870,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
       type="button"
       onClick={togglePanel}
       aria-pressed={panelShown}
-      title={t("sessionPanel")}
-      aria-label={t("sessionPanel")}
+      title={t(panelShown ? "hidePanel" : "showPanel")}
+      aria-label={t(panelShown ? "hidePanel" : "showPanel")}
       className="cc-bar-btn"
     >
       <PanelRightIcon />

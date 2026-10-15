@@ -1022,7 +1022,7 @@
 
   /* 电脑上对话顶部（设计文档 3.9）：高 32；「公司名 ›」+ 对话名（14px 字重 500，点了就地改名）+「···」（.cc-row-btn 24）；
      右上 26 的图标按钮（.cc-bar-btn：文件 N、右侧会话栏开关） */
-  .cc-topbar { display: flex; flex-shrink: 0; align-items: center; gap: 0.25rem; height: var(--cc-topbar-h); margin-block: 0.375rem; padding-inline: 0.75rem; }
+  .cc-topbar { display: flex; flex-shrink: 0; align-items: center; gap: 0.25rem; height: var(--cc-topbar-h); padding-inline: 0.75rem; }
   .cc-title-btn {
     display: inline-flex; min-width: 0; max-width: 28rem; align-items: center; height: var(--cc-bar-btn); padding-inline: 0.375rem;
     border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: 500;
@@ -1084,19 +1084,6 @@
   .cc-list-item:hover { background: var(--cc-row-hover); }
   .cc-list-item[data-open], .cc-list-item[data-selected] { box-shadow: var(--cc-panel-ring); }
   .cc-list-item[data-open]:hover { background: transparent; }
-  /* 卡片网格（公司列表）：约 314×108，1px 内环、圆角 10，悬停卡片阴影 */
-  .cc-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cc-list-card-w)), 1fr)); gap: var(--cc-list-gap); }
-  .cc-grid-card {
-    display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; min-height: var(--cc-list-card-h); padding: 0.875rem 1rem;
-    border-radius: var(--cc-radius-panel); background: var(--cc-bg-surface); box-shadow: var(--cc-panel-ring); color: var(--cc-ink-2);
-    font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); text-align: start; outline: none;
-    transition: box-shadow var(--cc-dur-fast) var(--cc-ease);
-  }
-  .cc-grid-card:hover { box-shadow: var(--cc-panel-ring), var(--cc-shadow-card); }
-  .cc-grid-card:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-grid-card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: 500; }
-  .cc-grid-card-foot { display: flex; align-items: center; gap: 0.75rem; margin-top: auto; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
-  .cc-grid-card-foot svg { width: 0.875rem; height: 0.875rem; }
 
   /* 手机顶栏（同 Claude 手机端）：盖在内容上的半透明一条，内容从下面滚过去 */
   .cc-mtopbar {
@@ -1149,6 +1136,19 @@
   .cc-drawer-in { animation: cc-drawer-in var(--cc-dur-slow) var(--cc-ease) both; }
 
   /* ── 公司主档（ADR-020，只在 Cowork）：侧栏公司组、月份分店胶囊、公司页、主档页、待处理 ── */
+  /* 卡片网格（公司列表）：约 314×108，1px 内环、圆角 10，悬停卡片阴影 */
+  .cc-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cc-list-card-w)), 1fr)); gap: var(--cc-list-gap); }
+  .cc-grid-card {
+    display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; min-height: var(--cc-list-card-h); padding: 0.875rem 1rem;
+    border-radius: var(--cc-radius-panel); background: var(--cc-bg-surface); box-shadow: var(--cc-panel-ring); color: var(--cc-ink-2);
+    font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); text-align: start; outline: none;
+    transition: box-shadow var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-grid-card:hover { box-shadow: var(--cc-panel-ring), var(--cc-shadow-card); }
+  .cc-grid-card:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-grid-card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: 500; }
+  .cc-grid-card-foot { display: flex; align-items: center; gap: 0.75rem; margin-top: auto; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
+  .cc-grid-card-foot svg { width: 0.875rem; height: 0.875rem; }
   /* 侧栏公司组头：箭头折叠、名字打开主档页、待处理数、⋯ 与 ＋（电脑上悬停才出，手机上 ＋ 一直在） */
   .cc-project-row {
     position: relative; display: flex; align-items: center; gap: 0.125rem; height: 2rem; margin-top: 0.5rem; padding-inline-end: 0.25rem;
@@ -1279,9 +1279,12 @@
   }
   .cc-panel-card-toggle[aria-expanded="true"] .cc-panel-card-chevron { transform: rotate(90deg); }
   .cc-panel-card-summary { margin-inline-start: auto; padding-inline-start: 0.5rem; color: var(--cc-ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
-  /* 卡头右侧：操作（＋）与 6 点拖动把手，悬停（或键盘聚焦）才出现，手机常显 */
-  .cc-panel-card-tools { display: flex; flex-shrink: 0; align-items: center; gap: 0.125rem; opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }
-  .cc-panel-card-head:hover .cc-panel-card-tools, .cc-panel-card-head:focus-within .cc-panel-card-tools { opacity: 1; }
+  /* 卡头右侧：操作（＋）与 6 点拖动把手。公司页一直显示（空的「资料」「定时任务」标签只剩卡头，新增入口要看得见）；
+     会话栏里悬停（或键盘聚焦）才出现，手机变体与不能悬停的触屏常显 */
+  .cc-panel-card-tools { display: flex; flex-shrink: 0; align-items: center; gap: 0.125rem; transition: opacity var(--cc-reveal) var(--cc-ease); }
+  .cc-panel .cc-panel-card-tools { opacity: var(--cc-reveal-rest); }
+  .cc-panel .cc-panel-card-head:hover .cc-panel-card-tools, .cc-panel .cc-panel-card-head:focus-within .cc-panel-card-tools { opacity: 1; }
+  @media (hover: none) { .cc-panel .cc-panel-card-tools { opacity: 1; } }
   .cc-panel-btn {
     display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: var(--cc-panel-btn); height: var(--cc-panel-btn);
     border-radius: var(--cc-radius-xs); color: var(--cc-ink-3); outline: none;

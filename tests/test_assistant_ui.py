@@ -2640,7 +2640,15 @@ assert.deepEqual(text(html(CompanyTasks, { company: "comp_none" })), []);
         page = read("components/company-page.tsx")
         chats = page.split("export const Conversations: FC", 1)[1].split("\n// ----", 1)[0]
         # 顺带核对侧栏以为在跑的那几个（同侧栏的 check）：读回的运行状态里有等你点「允许」的归「等你处理」
-        self.assertIn("await listGrouped({ group: company, after, check: runningSessions() });", chats)
+        self.assertIn("const check = runningSessions();", chats)
+        self.assertIn("await listGrouped({ group: company, after, check });", chats)
+        # 读回的运行状态交给 noteRun 校正实时状态（同侧栏 absorb），之后才开始跑的补读一次
+        self.assertIn("for (const [id, run] of Object.entries(found ?? {})) noteRun(id, run);", chats)
+        self.assertIn("absorbRuns(check, page.runs);", chats)
+        self.assertIn("listGrouped({ group: company, check: ids })", chats)
+        # 加载中转圈、没有对话时说一句，不是一片空白
+        self.assertIn("if (!rows) return <LoaderIcon", chats)
+        self.assertIn("if (!rows.length) return <p className=\"text-ink-3 text-sm\">{co.noChats}</p>;", chats)
         self.assertIn("groupChats(rows, (row) => chatState(activities[row.id], runs[row.id], row.unread))", chats)
         self.assertIn("onClick={() => void load(next)}", chats)
         self.assertNotIn("threadItems", chats)

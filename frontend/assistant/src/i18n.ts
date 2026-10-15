@@ -17,8 +17,9 @@ const MESSAGES = {
     logout: "Log out",
     settings: "Settings",
     files: "Files",
-    sessionPanel: "Toggle side panel",
-    reorder: "Drag to reorder",
+    showPanel: "Show side panel",
+    hidePanel: "Hide side panel",
+    reorder: "Reorder",
     preview: "Preview",
     source: "Code",
     download: "Download",
@@ -109,8 +110,9 @@ const MESSAGES = {
     logout: "退出登录",
     settings: "设置",
     files: "文件",
-    sessionPanel: "切换右侧栏",
-    reorder: "拖动调整顺序",
+    showPanel: "显示右侧栏",
+    hidePanel: "隐藏右侧栏",
+    reorder: "调整顺序",
     preview: "预览",
     source: "代码",
     download: "下载",
@@ -201,8 +203,9 @@ const MESSAGES = {
     logout: "ออกจากระบบ",
     settings: "การตั้งค่า",
     files: "ไฟล์",
-    sessionPanel: "เปิด/ปิดแถบด้านขวา",
-    reorder: "ลากเพื่อจัดลำดับ",
+    showPanel: "แสดงแถบด้านขวา",
+    hidePanel: "ซ่อนแถบด้านขวา",
+    reorder: "จัดลำดับ",
     preview: "ตัวอย่าง",
     source: "โค้ด",
     download: "ดาวน์โหลด",
@@ -455,7 +458,7 @@ const COMPANY = {
     fromHistory: (n: number) => `From Express history · ${n}`,
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
-    chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done",
+    chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done", noChats: "No chats yet.",
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
@@ -477,7 +480,7 @@ const COMPANY = {
     fromHistory: (n: number) => `来自 Express 历史 · ${n} 次`,
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
-    chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成",
+    chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成", noChats: "还没有对话。",
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
@@ -499,7 +502,7 @@ const COMPANY = {
     fromHistory: (n: number) => `จากประวัติ Express · ${n} ครั้ง`,
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
-    chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว",
+    chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว", noChats: "ยังไม่มีแชท",
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",

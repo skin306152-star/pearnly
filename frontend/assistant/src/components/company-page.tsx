@@ -48,9 +48,9 @@ import {
   useCompanyNav,
   TASK_EVENTS,
 } from "@/lib/companies";
-import { type ChatState, cachedPanelDetail, chatState, forgetPanelDetail, groupChats, rememberDetail } from "@/lib/company-panel";
+import { type ChatState, cachedPanelDetail, chatState, forgetPanelDetail, groupChats, rememberDetail, unreadRuns } from "@/lib/company-panel";
 import { useLiveRefresh } from "@/lib/live";
-import { runningSessions, useActivities } from "@/lib/managed-agents/activity";
+import { noteRun, runningSessions, useActivities } from "@/lib/managed-agents/activity";
 import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
 import type { RunStatus } from "@/lib/managed-agents/events";
 import { forgetProject, hintTitle, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
@@ -368,6 +368,9 @@ const CompanyTabs: FC<{ detail: Detail; period: string; reload: () => Promise<vo
 };
 
 // ---------------------------------------------------------------- 对话
+// 页面开着时开始跑的对话：等这么久再补读运行状态（几段一起开始跑时合成一次请求）
+const RUN_RECHECK_MS = 1000;
+
 const STATE_LABEL: Record<ChatState, () => string> = {
   running: () => co.chatRunning,
   waiting: () => co.chatWaiting,
@@ -376,7 +379,9 @@ const STATE_LABEL: Record<ChatState, () => string> = {
 
 /** 我在这家的对话：按这家从服务端取（分组列表 group=<公司>，同侧栏「显示更多」的翻页），按 进行中 / 等你处理 / 已完成 分组，
  *  组内按活动倒序，带月份短写；点了切过去。顺带请服务端核对侧栏以为在跑的那几个（check，最多 10 个，同侧栏的做法），
- *  读回的运行状态里有等你点「允许」的算「等你处理」。这家的对话有进出（新建、移入移出、侧栏挂上的条数变了）或公司有变化时重取第一页。 */
+ *  读回的运行状态交给 noteRun 校正实时状态（同侧栏 session-list-adapter 的 absorb），分组只看实时状态；读回里有等你点
+ *  「允许」的、且还在跑的算「等你处理」。页面开着时才开始跑的对话补读一次它的运行状态；不在跑了丢掉读回的，下次开始跑再读。
+ *  这家的对话有进出（新建、移入移出、侧栏挂上的条数变了）或公司有变化时重取第一页。 */
 export const Conversations: FC<{ company: string }> = ({ company }) => {
   const aui = useAui();
   const { setView } = useView();
@@ -385,6 +390,13 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
   const [next, setNext] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const asked = useRef(0);
+  // 已请服务端读过运行状态的对话（读了没带回的不反复读）
+  const checked = useRef(new Set<string>());
+  const absorbRuns = useCallback((ids: readonly string[], found: Record<string, RunStatus> | undefined) => {
+    ids.forEach((id) => checked.current.add(id));
+    for (const [id, run] of Object.entries(found ?? {})) noteRun(id, run);
+    setRuns((before) => ({ ...before, ...(found ?? {}) }));
+  }, []);
   // 侧栏知道的、挂在这家的对话条数（新建 / 移入移出时会变）：变了就重取
   const filed = useProjects((s) => Object.values(s.filings).filter((f) => f.project === company).length);
   const load = useCallback(
@@ -392,14 +404,15 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
       const mine = ++asked.current;
       setBusy(true);
       try {
-        const page = await listGrouped({ group: company, after, check: runningSessions() });
+        const check = runningSessions();
+        const page = await listGrouped({ group: company, after, check });
         if (mine !== asked.current) return;
         setRows((before) => {
           const kept = after ? (before ?? []) : [];
           const seen = new Set(kept.map((row) => row.id));
           return [...kept, ...page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at)];
         });
-        setRuns((before) => ({ ...(after ? before : {}), ...(page.runs ?? {}) }));
+        absorbRuns(check, page.runs);
         setNext(page.nextCursor);
       } catch {
         if (mine === asked.current) setRows((before) => before ?? []);
@@ -407,12 +420,36 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
         if (mine === asked.current) setBusy(false);
       }
     },
-    [company],
+    [company, absorbRuns],
   );
   useEffect(() => void load(), [load, filed]);
   useEffect(() => onProjectChange((change) => (change.op === "move" ? void load() : undefined)), [load]);
   const activities = useActivities((rows ?? []).map((row) => row.id));
-  if (!rows?.length) return null;
+  const running = (rows ?? []).filter((row) => activities[row.id] === "running").map((row) => row.id);
+  const runningKey = running.join(",");
+  const missing = unreadRuns(running, runs, checked.current).join(",");
+  // 不在跑了：丢掉读回的运行状态，下次开始跑重新读
+  useEffect(() => {
+    const now = new Set(runningKey ? runningKey.split(",") : []);
+    for (const id of [...checked.current]) if (!now.has(id)) checked.current.delete(id);
+    setRuns((before) => {
+      const kept = Object.fromEntries(Object.entries(before).filter(([id]) => now.has(id)));
+      return Object.keys(kept).length === Object.keys(before).length ? before : kept;
+    });
+  }, [runningKey]);
+  // 页面开着时才开始跑的：稍等合并后补读一次（只读运行状态，不换列表，翻过的页不丢）
+  useEffect(() => {
+    if (!missing) return;
+    const ids = missing.split(",");
+    const timer = setTimeout(() => {
+      listGrouped({ group: company, check: ids })
+        .then((page) => absorbRuns(ids, page.runs))
+        .catch(() => ids.forEach((id) => checked.current.add(id)));
+    }, RUN_RECHECK_MS);
+    return () => clearTimeout(timer);
+  }, [missing, company, absorbRuns]);
+  if (!rows) return <LoaderIcon className="size-4 animate-spin text-ink-3" aria-hidden />;
+  if (!rows.length) return <p className="text-ink-3 text-sm">{co.noChats}</p>;
   const groups = groupChats(rows, (row) => chatState(activities[row.id], runs[row.id], row.unread));
   return (
     <div className="flex flex-col gap-2" data-slot="cc-company-chats">

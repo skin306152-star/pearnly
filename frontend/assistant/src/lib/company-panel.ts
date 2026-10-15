@@ -85,6 +85,7 @@ export const usePanel = create<PanelState>(() => ({ ...DEFAULT_PREFS, user: "", 
 
 function save() {
   const { user, open, order, collapsed } = usePanel.getState();
+  if (!user) return; // 还没读到登录资料：本次照样能用，不写进不带人的公共键
   try {
     localStorage.setItem(panelKey(user), JSON.stringify({ open, order, collapsed }));
   } catch {
@@ -96,7 +97,7 @@ function save() {
 export function loadPanelPrefs(user: string) {
   let raw: string | null = null;
   try {
-    raw = localStorage.getItem(panelKey(user));
+    if (user) raw = localStorage.getItem(panelKey(user));
   } catch {
     // 用默认值
   }
@@ -211,21 +212,25 @@ export type ChatState = "running" | "waiting" | "done";
 export const CHAT_STATES: readonly ChatState[] = ["running", "waiting", "done"];
 
 /** 一段对话在公司页「对话」里归哪一组，只用现有的真实信号：
- *  - 等你处理：服务端读回的运行状态里有等你点「允许」的调用（awaiting_approval，只有侧栏以为在跑的对话才会去读），
+ *  - 进行中：只看实时状态（activity，lib/managed-agents/activity.ts）。取列表时服务端读回的运行状态先交给 noteRun 校正它，
+ *    之后跟着推送走；读回的那一刻的快照不再单独算数（页面开着时跑完 / 又开始跑，快照会过期）；
+ *  - 等你处理：实时状态在跑、且读回的运行状态里有等你点「允许」的调用（awaiting_approval，只有侧栏以为在跑的对话才会去读），
  *    或有你还没看的 CC 提醒（列表的 unread、实时推来的提醒圆点）；
- *  - 进行中：实时通道说它在跑（本页打开后看到的），或读回的运行状态是在跑 / 等处理；读回说已结束的不算在跑；
  *  - 其余：已完成。
  *  待处理单据按公司记、不挂在某段对话上，不参与这里的分组（公司页概览与会话栏「待处理」卡显示）。 */
 export function chatState(
   activity: Activity | undefined,
-  run?: Pick<RunStatus, "status" | "awaiting_approval"> | null,
+  run?: Pick<RunStatus, "awaiting_approval"> | null,
   unread?: boolean,
 ): ChatState {
-  if (run?.awaiting_approval?.length) return "waiting";
-  const ended = run && (run.status === "idle" || run.status === "terminated");
-  if (!ended && (activity === "running" || run?.status === "running" || run?.status === "requires_action")) return "running";
+  if (activity === "running") return run?.awaiting_approval?.length ? "waiting" : "running";
   if (activity === "notice" || unread) return "waiting";
   return "done";
+}
+
+/** 在跑的对话里，取列表那一刻还没读过运行状态的（之后才开始跑的）：要向服务端补读的。 */
+export function unreadRuns(running: readonly string[], runs: Readonly<Record<string, unknown>>, checked: ReadonlySet<string>): string[] {
+  return running.filter((id) => !(id in runs) && !checked.has(id));
 }
 
 /** 按 进行中 / 等你处理 / 已完成 分好，各组内保持原顺序（服务端按最后活动倒序）；空组不列。 */

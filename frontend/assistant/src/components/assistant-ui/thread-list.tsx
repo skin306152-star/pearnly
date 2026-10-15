@@ -570,7 +570,11 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
       onBlur={save}
       onKeyDown={(e) => {
         if (e.key === "Enter") save();
-        if (e.key === "Escape") onDone();
+        // 只取消改名：标记已处理，浮着的会话栏（session-panel 的 Esc）不跟着关
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onDone();
+        }
       }}
       className={cn("cc-input w-full", className)}
     />

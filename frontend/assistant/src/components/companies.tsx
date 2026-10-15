@@ -106,6 +106,12 @@ export const Companies: FC = () => {
     return () => observer.disconnect();
   }, [rows, done, loading, search, load]);
 
+  // 按名称排：把剩下的页一次取完（边滚边加载时，新取到的会按名称插进已显示的中间）；出错停下
+  useEffect(() => {
+    if (sort !== "name" || done || loading || error || !rows) return;
+    void load(search, rows.length);
+  }, [sort, rows, done, loading, error, search, load]);
+
   const shown = useMemo(() => (rows ? sortCompanies(rows, sort) : null), [rows, sort]);
 
   const add = () =>

@@ -51,10 +51,17 @@ class TitleBarSourceTests(unittest.TestCase):
         layout = app.split("function Layout(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('className="cc-bar-btn"', layout)
         self.assertIn("aria-pressed={panelShown}", layout)
-        self.assertIn('title={t("sessionPanel")}', layout)
+        # 开关文案按开着没有：显示 / 隐藏右侧栏（设计文档第 5 节）
+        self.assertIn('title={t(panelShown ? "hidePanel" : "showPanel")}', layout)
+        self.assertIn('aria-label={t(panelShown ? "hidePanel" : "showPanel")}', layout)
         self.assertIn("view === \"chat\" && results.files.length > 0 && !results.open ? (", layout)  # 文件 N：有文件才有
         # 一个停靠位：预览开着时不显示会话栏；只在挂了公司的对话（ERP / DMS 的 kind 为空，useFiledCompany 回空）
-        self.assertIn("const hasPanel = view === \"chat\" && hasMessages && !!filing.project;", layout)
+        # 挂不挂看对话有没有服务端编号，不看消息条数（换对话时线程加载期间消息为 0，会话栏不卸下再挂上）
+        self.assertIn("const saved = useAuiState((s) => !!s.threadListItem.remoteId);", layout)
+        self.assertIn("const hasPanel = view === \"chat\" && saved && !!filing.project;", layout)
+        self.assertNotIn("hasMessages", layout)
+        # 窄屏：画第一帧前就量好放不放得下
+        self.assertIn("useLayoutEffect(() => {", app.split("function useDockFits(", 1)[1].split("\nfunction ", 1)[0])
         self.assertIn("const panelShown = hasPanel && !results.open && (mode === \"docked\" ? panelOpen : overlay);", layout)
         self.assertIn('const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";', layout)
         self.assertIn("{panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}", layout)
@@ -70,11 +77,15 @@ class TitleBarSourceTests(unittest.TestCase):
         i18n = read("i18n.ts")
         messages = block(i18n, "const MESSAGES = {")
         for lang in ("en", "zh", "th"):
-            self.assertTrue({"sessionPanel", "reorder"} <= keys(block(messages, f"  {lang}: {{")), lang)
+            self.assertTrue({"showPanel", "hidePanel", "reorder"} <= keys(block(messages, f"  {lang}: {{")), lang)
             company = block(block(i18n, "const COMPANY = {"), f"  {lang}: {{")
             self.assertTrue({"company", "thisMonth", "library", "sortBy", "sortRecent", "sortName", "chatRunning", "chatWaiting",
-                             "chatDone"} <= keys(company), lang)
-        self.assertIn('sessionPanel: "切换右侧栏"', i18n)
+                             "chatDone", "noChats"} <= keys(company), lang)
+        self.assertNotIn("sessionPanel", i18n)
+        self.assertIn('showPanel: "显示右侧栏",', i18n)
+        self.assertIn('hidePanel: "隐藏右侧栏",', i18n)
+        self.assertIn('reorder: "调整顺序",', i18n)
+        self.assertIn('noChats: "还没有对话。"', i18n)
         self.assertIn('chatWaiting: "等你处理"', i18n)
 
 
@@ -108,6 +119,30 @@ class PanelStylesSourceTests(unittest.TestCase):
             text = read(page)
             self.assertIn('<h1 className="cc-page-title">', text, page)
             self.assertIn('className="cc-page-search"', text, page)
+
+    def test_review_fixes_for_tools_title_bar_and_grid(self):
+        css = read("globals.css")
+        # 卡头操作：公司页一直显示（空标签的「＋」看得见）；会话栏里悬停才出、不能悬停的触屏常显
+        tools = css.split(".cc-panel-card-tools {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("opacity: var(--cc-reveal-rest)", tools)
+        self.assertIn(".cc-panel .cc-panel-card-tools { opacity: var(--cc-reveal-rest); }", css)
+        self.assertIn("@media (hover: none) { .cc-panel .cc-panel-card-tools { opacity: 1; } }", css)
+        # 网页标题栏实高 32（设计文档 3.9）：不再加上下外边距
+        topbar = css.split(".cc-topbar {", 1)[1].split("}", 1)[0]
+        self.assertIn("height: var(--cc-topbar-h);", topbar)
+        self.assertNotIn("margin", topbar)
+        # 公司列表的卡片网格在「公司主档（ADR-020」区块里
+        company = css.split("公司主档（ADR-020", 1)[1]
+        self.assertIn(".cc-card-grid {", company)
+        self.assertIn(".cc-grid-card {", company)
+        self.assertNotIn(".cc-grid-card {", css.split("公司主档（ADR-020", 1)[0])
+        # 标题栏改名时 Esc 只取消改名，浮着的会话栏（看 defaultPrevented）不跟着关
+        rename = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn('if (e.key === "Escape") {\n          e.preventDefault();\n          onDone();', rename)
+        self.assertIn("e.defaultPrevented", read("components/session-panel.tsx"))
+        # 「名称」排序：剩下的页一次取完，出错停下
+        companies = read("components/companies.tsx")
+        self.assertIn('if (sort !== "name" || done || loading || error || !rows) return;', companies)
 
     def test_the_f18_rule_and_the_task_buttons_stay(self):
         pending = read("components/pending.tsx")
@@ -162,6 +197,14 @@ assert.deepEqual(readPrefs(JSON.stringify({ open: false, collapsed: ["notes", "x
 loadPanelPrefs("a@b");   // 没有 localStorage：不抛错
 const store = new Map<string, string>();
 g.localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
+// 还没读到登录资料：用默认值，改了不写进不带人的公共键
+store.set(panelKey(""), JSON.stringify({ open: false }));
+loadPanelPrefs("");
+assert.equal(usePanel.getState().open, true);
+toggleCard("notes");
+assert.deepEqual(usePanel.getState().collapsed, ["notes"]);
+assert.equal(store.get(panelKey("")), JSON.stringify({ open: false }));
+store.clear();
 loadPanelPrefs("a@b");
 assert.equal(panelKey("a@b"), "cc.panel.a@b");
 toggleCard("notes");
@@ -201,16 +244,16 @@ assert.equal(dockFits(663, 384, 280), false);
 
     def test_chat_states_use_real_signals_only(self):
         self.run_page(r"""
-import { chatState, groupChats } from "@/lib/company-panel";
+import { chatState, groupChats, unreadRuns } from "@/lib/company-panel";
 const idle = { status: "idle", awaiting_approval: [] } as any;
-// 等你点「允许」（读回的运行状态）→ 等你处理，在跑也算
+// 还在跑、读回里有等你点「允许」的 → 等你处理
 assert.equal(chatState("running", { status: "requires_action", awaiting_approval: ["t1"] } as any), "waiting");
-// 在跑：实时通道、读回的在跑 / 等处理
+// 在跑只看实时状态（读回的先交给 noteRun 校正过）
 assert.equal(chatState("running"), "running");
-assert.equal(chatState(undefined, { status: "running", awaiting_approval: [] } as any), "running");
-assert.equal(chatState(undefined, { status: "requires_action", awaiting_approval: [] } as any), "running");
-// 读回说已结束：不算在跑（实时通道漏了「结束」）
-assert.equal(chatState("running", idle), "done");
+assert.equal(chatState("running", idle), "running");
+// 读回的快照过期了不算数：实时说跑完了（unread），快照还写着在跑 / 等你点「允许」→ 已完成
+assert.equal(chatState("unread", { status: "running", awaiting_approval: [] } as any), "done");
+assert.equal(chatState(undefined, { status: "requires_action", awaiting_approval: ["t1"] } as any), "done");
 // 没看的 CC 提醒 → 等你处理
 assert.equal(chatState("notice"), "waiting");
 assert.equal(chatState(undefined, null, true), "waiting");
@@ -222,6 +265,9 @@ const states: Record<string, any> = { a: "done", b: "running", c: "done", d: "wa
 assert.deepEqual(groupChats(rows, (r) => states[r.id]).map(([s, list]) => [s, list.map((r) => r.id)]),
   [["running", ["b"]], ["waiting", ["d"]], ["done", ["a", "c"]]]);
 assert.deepEqual(groupChats([], () => "done"), []);
+// 页面开着时才开始跑的：没读过运行状态、也没请服务端读过的才补读
+assert.deepEqual(unreadRuns(["a", "b", "c"], { a: idle }, new Set(["b"])), ["c"]);
+assert.deepEqual(unreadRuns([], {}, new Set()), []);
 """)
 
     def test_list_page_search_and_sort(self):
@@ -259,7 +305,7 @@ const control = { collapsed: ["notes"], dragging: null, toggle() {}, move() {}, 
 const panel = renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control }, card()));
 assert.match(panel, /aria-expanded="false"/);
 assert.ok(!panel.includes(">body<"));
-assert.match(panel, /class="cc-panel-btn cc-panel-grip" aria-label="Drag to reorder"/);
+assert.match(panel, /class="cc-panel-btn cc-panel-grip" aria-label="Reorder"/);
 // 正在里面新增 / 编辑（forceOpen）：折叠了也展开
 assert.ok(renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control }, card({ forceOpen: true }))).includes(">body<"));
 // 待处理：这家计数为 0 不显示
