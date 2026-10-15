@@ -340,8 +340,15 @@ def _install_connections(frappe):
             deny()
         return actor
 
+    def usable_by(doc, actor):
+        try:
+            require_connection(doc, actor=actor, lock=False)
+        except PermissionError_:
+            return False
+        return True
+
     access.roles, access.deny, access.require_actor = roles, deny, require_actor
-    access.require_connection, access.default_workspace = require_connection, lambda: "WS"
+    access.require_connection, access.default_workspace, access.usable_by = require_connection, lambda: "WS", usable_by
     model = types.ModuleType("pearnly_cowork.connections.model")
 
     class ConnectionError_(ValueError):

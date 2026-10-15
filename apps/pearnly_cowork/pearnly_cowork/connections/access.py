@@ -93,6 +93,17 @@ def require_connection(doc, *, actor=None, management=False, enabled=True, lock=
     return actor
 
 
+def usable_by(doc, actor):
+    """``actor`` 此刻能不能用这条连接（录入或管理 + 使用名单，同 :func:`require_connection`）；不抛错。不加锁读自己的快照
+    （MariaDB 11.8 快照隔离下只读请求的加锁读会撞 1020）。池里「能写的电脑」按它核签发人（`pool.writers`）。"""
+    try:
+        require_connection(doc, actor=actor, lock=False)
+    except frappe.PermissionError:
+        frappe.clear_messages()
+        return False
+    return True
+
+
 def require_assignee(actor, workspace, client=None):
     found = _current("SELECT enabled FROM `tabUser` WHERE name=%s", (actor,))
     if (not actor or actor == "Guest" or not found or not found[0].enabled

@@ -6,8 +6,9 @@ reads differ from unavailable optional evidence. The caller owns the transaction
 Evidence v2 binds no computer and no key: ``route = {connection, account_key}``. A human
 confirmation (confirm / activate / still-confirmable) still compares the whole evidence,
 including the Bangkok date. A computer's lease only re-checks the route and ``basis_hash``:
-the server facts (mappings, supplier profiles, bank window) plus the master rows the frozen
-payload actually uses (`push.express.referenced`, handed in by the push ledger as ``used``).
+what the frozen payload actually uses of the server facts and the masters (the mapping rows
+of its accounts, its seller's profile, the master rows it references; no bank window) —
+picked by `push.express.referenced.used_facts`, handed in by the push ledger as ``used``.
 """
 from copy import deepcopy
 from datetime import datetime
@@ -91,20 +92,19 @@ def collect(loaded, target, *, seller_tax='', invoice_date=None):
     return facts, evidence
 
 
-def basis(facts, used):
-    """领取时要核的那一份：服务端事实 + 本单载荷实际用到的主档行（``used``，`push.express.referenced.used_masters`）。"""
-    return model.fingerprint({'mappings': facts['mappings'], 'supplier_profiles': facts['supplier_profiles'],
-                              'bank_index': facts['bank_index'], 'masters': used})
+def basis(used):
+    """领取时要核的那一份的指纹：``used`` 是本单载荷实际用到的那部分事实（`push.express.referenced.used_facts`）。"""
+    return model.fingerprint(used)
 
 
 def revalidate(loaded, target, evidence, *, mode='confirm', used=None):
     """``confirm``：整份相等（除领取用的 ``basis_hash``），含日期——人确认的就是当天这份。
-    ``lease``：这份账套的登记还在、``route`` 没变、``basis_hash`` 与按现在的事实重算的相同（``used(主档)`` 挑本单用到的行）。"""
+    ``lease``：这份账套的登记还在、``route`` 没变、``basis_hash`` 与按现在的事实重算的相同（``used(事实)`` 挑本单用到的部分）。"""
     facts, current = collect(loaded, target, **evidence['query'])
     if mode == 'lease':
         route = current['route']
         if (evidence.get('route') != route or not pool.registration(route['connection'], route['account_key'])
-                or used is None or basis(facts, used(facts['reported_config'])) != evidence.get('basis_hash')):
+                or used is None or basis(used(facts)) != evidence.get('basis_hash')):
             frappe.throw(_('connection.preparation_incomplete'))
         return
     if current != {key: value for key, value in evidence.items() if key != 'basis_hash'}:

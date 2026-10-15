@@ -11,6 +11,10 @@
 - 部门：``depcod``；存货科目组：``stock_acccod``。
 
 每一类取主档里匹配的整行（按代码排好），一行都没匹配上也记一个空表：后来出现了同样算变。
+
+服务端事实也只取本单用到的（:func:`used_facts`，第 3 批审查）：科目映射只取映射到本单载荷里那几个科目的行（本站的映射表
+不分工作空间，排队几小时里改一条无关映射不该把整队单转人工）；客户映射本就只取这条连接的客户那一行、供应商画像本就只取
+本单卖方那一条，原样；银行流水窗口不核（方案第 8 节第 30 条：D5 不含银行流水，载荷已冻结）。
 """
 from __future__ import annotations
 
@@ -88,4 +92,28 @@ def used_masters(payload: Mapping[str, Any], masters: Mapping[str, Any]) -> dict
     return result
 
 
-__all__ = ["used_masters"]
+def used_mappings(payload: Mapping[str, Any], mappings: Mapping[str, Any]) -> dict:
+    """``mappings``（`masters.push_inputs.mappings` 的投影）里本单用得上的：科目映射只留 ``erp_code`` 是载荷里某个科目的行
+    （映射改到别的科目、删掉，或者又有一条映射到同一科目，都算变）；客户映射原样（本就只有这条连接的客户那一行）。"""
+    payload = payload if isinstance(payload, Mapping) else {}
+    mappings = mappings if isinstance(mappings, Mapping) else {}
+    codes: set = set()
+    _account_codes(payload, codes)
+    accounts = [row for row in mappings.get("accounts") or [] if isinstance(row, Mapping)]
+    clients = [dict(row) for row in mappings.get("clients") or [] if isinstance(row, Mapping)]
+    picked = [dict(row) for row in accounts if _text(row.get("erp_code")) in codes]
+    return {"accounts": sorted(picked, key=lambda row: repr(sorted(row.items()))),
+            "clients": sorted(clients, key=lambda row: repr(sorted(row.items())))}
+
+
+def used_facts(payload: Mapping[str, Any], facts: Mapping[str, Any]) -> dict:
+    """电脑来领时要核的那一份（准备证据 v2 的 ``basis_hash`` 按它算）：本单用到的映射、本单卖方的供应商画像、本单用到的
+    主档行。``facts`` 是准备时收集的服务端事实（`connections.preparation.collect`）。键固定。"""
+    facts = facts if isinstance(facts, Mapping) else {}
+    profiles = facts.get("supplier_profiles")
+    return {"mappings": used_mappings(payload, facts.get("mappings") or {}),
+            "supplier_profiles": dict(profiles) if isinstance(profiles, Mapping) else {},
+            "masters": used_masters(payload, facts.get("reported_config") or {})}
+
+
+__all__ = ["used_facts", "used_mappings", "used_masters"]

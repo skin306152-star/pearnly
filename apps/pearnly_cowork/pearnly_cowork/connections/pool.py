@@ -45,6 +45,10 @@ Q_REACH = (f"SELECT name, device, account_key, path, root, registry_row, writabl
 Q_MINE = (f"SELECT account_key, path, state FROM `tab{REACH}` WHERE connection=%s AND device=%s "
           f"AND state<>'pending_identity'")
 Q_REACHERS = f"SELECT device, writable FROM `tab{REACH}` WHERE connection=%s AND account_key=%s AND state='ok'"
+Q_REACHERS_OF = (f"SELECT account_key, device, writable FROM `tab{REACH}` WHERE connection=%s AND account_key IN %s "
+                 f"AND state='ok'")
+Q_REGISTRATIONS_OF = (f"SELECT account_key, uid, content_key, last_writer_device, last_written_at FROM `tab{ACCOUNT_SET}` "
+                      f"WHERE name IN %s")
 Q_WRITABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
               f"AND state='ok' AND writable=1")
 Q_WRITERS = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s AND state='ok' AND writable=1"
@@ -164,6 +168,50 @@ def reachers(connection, account_key, *, writable=False):
     """够得到这份账套（状态正常）的电脑。"""
     rows = _rows(Q_REACHERS, (connection, identity(account_key)))
     return sorted({row.device for row in rows if row.writable or not writable})
+
+
+def reachers_of(connection, account_keys, *, writable=False):
+    """:func:`reachers` 一次取多份：``{规范键: [设备…]}``（每份账套都有键，没人够得到是空表）。写账分派每次领取要看
+    好几份账套的排头，一条查询取回，不在锁着连接行时逐份查（第 3 批审查）。"""
+    keys = sorted({identity(key) for key in account_keys or () if identity(key)})
+    result = {key: set() for key in keys}
+    if connection and keys:
+        for row in _rows(Q_REACHERS_OF, (connection, tuple(keys))):
+            if row.writable or not writable:
+                result.setdefault(row.account_key, set()).add(row.device)
+    return {key: sorted(devices) for key, devices in result.items()}
+
+
+def registrations_of(connection, account_keys):
+    """:func:`registration` 一次取多份（分派要的几列：文件号、内容键、最近写它的电脑与时刻）：``{规范键: 行}``，没登记的
+    不在里面。只读。"""
+    keys = sorted({identity(key) for key in account_keys or () if identity(key)})
+    if not connection or not keys:
+        return {}
+    names = tuple(registration_name(connection, key) for key in keys)
+    return {row.account_key: row for row in _rows(Q_REGISTRATIONS_OF, (names,))}
+
+
+def writers(doc, account_key=None, *, peers=None):
+    """池里能写（这份 / 任一份）账套的电脑：可达行状态正常、可写（给了账套还要它登记着），这台在 :func:`presence` 里
+    （有一把没吊销的密钥、没退役），而且至少一把密钥的签发人此刻仍能用这条连接（:func:`access.usable_by`）。不要求在线（D4）。
+
+    「能不能确认 / 能不能选 Express」（`push.native.service.has_writer`）与池的状态（`companion.pool.state`）都按它，
+    不再各算各的（第 3 批审查：签发人被移出使用名单后，一边说没有能写的电脑、另一边照样确认，单子排着没人写）。只读。"""
+    key = identity(account_key) if account_key else ""
+    if key and not registration(doc.name, key):
+        return []
+    devices = reachers(doc.name, key, writable=True) if key else writer_devices(doc.name)
+    peers = presence(doc.name) if peers is None else peers
+    checked = {}
+
+    def valid(issuer):
+        if issuer not in checked:
+            checked[issuer] = bool(issuer) and access.usable_by(doc, issuer)
+        return checked[issuer]
+
+    return [device for device in sorted(devices)
+            if device in peers and any(valid(issuer) for issuer in sorted(peers[device].get("issuers") or ()))]
 
 
 def any_reach(connection):
@@ -696,5 +744,5 @@ __all__ = ["ACCOUNT_SET", "FACTS", "FACTS_PER_CONNECTION", "FACT_KEYS", "OK", "P
            "add_stock_masters", "any_reach", "apply_report", "ensure_registered", "seed_legacy", "canonical", "catalog", "devices", "facts",
            "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "mark_stale", "masters",
            "move_device", "note_written", "presence", "put_facts", "writable_reach", "writer_devices",
-           "reach_name", "reachers", "reaches", "reconsider", "registration", "registration_name", "retain", "touch",
-           "union_observation"]
+           "reach_name", "reachers", "reachers_of", "reaches", "reconsider", "registration", "registration_name",
+           "registrations_of", "retain", "touch", "union_observation", "writers"]

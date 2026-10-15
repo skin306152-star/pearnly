@@ -3,7 +3,7 @@
 ``state(connection, account_key=None)`` → ``{online, writers_known, needs_update}``：
 
 - ``writers_known``：池里至少一台电脑够得到（这份 / 任一份）账套、能写，它的密钥有效、签发人此刻仍有权、没退役——
-  有它就能选 Express、确认、排队（D4：电脑关着也排，开机后写）；
+  有它就能选 Express、确认、排队（D4：电脑关着也排，开机后写）。与确认同一个判据（`connections.pool.writers`）；
 - ``online``：这些电脑里有一台此刻在线（任一把有效密钥 3 分钟内报过到），与以前的「助手在线」同一个意思；
 - ``needs_update``：给了账套、它有排队的单，而够得到它的电脑没有一台支持排头要的载荷版本（只能等人更新 CC 桌面版）。
 
@@ -16,38 +16,9 @@ import frappe
 from pearnly_cowork.connections import access
 from pearnly_cowork.connections import pool as account_pool
 from pearnly_cowork.targets.identity import normalize_express_account_key
-from . import credentials, route_contracts
+from . import credentials, queue_heads, route_contracts
 
 CONNECTION = 'Cowork ERP Connection'
-
-
-def _writers(doc, peers, key):
-    devices = (account_pool.reachers(doc.name, key, writable=True) if key
-               else account_pool.writer_devices(doc.name))
-    issuers = {}
-
-    def valid(issuer):
-        if issuer not in issuers:
-            issuers[issuer] = credentials.issuer_valid(doc, issuer)
-        return issuers[issuer]
-
-    return [device for device in sorted(devices)
-            if device in peers and any(valid(issuer) for issuer in peers[device].get('issuers') or ())]
-
-
-def _head_version(connection, key):
-    rows = frappe.db.sql('''SELECT name, payload_version FROM `tabCowork Push Record`
-        WHERE connection=%s AND account_key=%s AND status='pending' AND COALESCE(result_unknown,0)=0
-        ORDER BY created_at, name LIMIT 1''', (connection, key), as_dict=True)
-    if not rows:
-        return None
-    if rows[0].payload_version:
-        return int(rows[0].payload_version)
-    payload = frappe.parse_json(frappe.db.get_value('Cowork Push Record', rows[0].name, 'payload_json') or '{}') or {}
-    try:
-        return max(1, int(payload.get('payload_version') or 1))
-    except (TypeError, ValueError):
-        return 1
 
 
 def state(connection, account_key=None, *, now=None):
@@ -57,12 +28,15 @@ def state(connection, account_key=None, *, now=None):
         online = any(peer.get('online') for peer in peers.values())
         return {'online': online, 'writers_known': bool(peers), 'needs_update': False}
     key = normalize_express_account_key(account_key) if account_key else ''
-    writers = _writers(doc, peers, key)
+    # 与确认的判据（`push.native.service.has_writer`）同一个：`connections.pool.writers`
+    writers = account_pool.writers(doc, key or None, peers=peers)
     online = any(peers[device].get('online') for device in writers)
     needs_update = False
     if key and writers:
-        version = _head_version(doc.name, key)
-        if version is not None:
+        # 与电脑领取时看的是同一张排头（`queue_heads`）
+        head = queue_heads.heads(doc.name, doc.workspace, doc.client, [key])
+        if head:
+            version = queue_heads.payload_versions(head)[head[0].name]
             known = {device: route_contracts.Peer(payload_version=peers[device].get('payload_version'))
                      for device in writers}
             needs_update = route_contracts.needs_update(version, writers, known)

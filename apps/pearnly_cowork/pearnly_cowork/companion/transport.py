@@ -8,10 +8,17 @@ Several computers share one Express connection (ADR-021, plan 2.5, lease v2): th
 computer that polls decides nothing by itself. For each account set it reaches, only
 that account set's queue head is considered; the pure routing rules
 (`route_contracts`) say whether this computer may take it now. A head that is not its
-turn, waits for its account lock or needs a newer CC Desktop is skipped (never
-quarantined), and the next account set is looked at. Each computer holds at most one
-lease at a time. The leased payload copy carries this computer's own spelling of the
-account set's location; the ledger's frozen payload never changes.
+turn, waits for its account lock or needs a CC Desktop version another computer has is
+skipped (never quarantined), and the next account set is looked at; a head whose payload
+version no computer of the pool supports goes to manual review with the pre-batch-3 reason
+(``payload_version_outdated``) so the account set's later jobs keep flowing. Each computer
+holds at most one lease at a time on a connection. The leased payload copy carries this
+computer's own spelling of the account set's location; the ledger's frozen payload never
+changes.
+
+The connection row is locked for the whole claim, so the claim reads in batches: the heads
+of every account set (`queue_heads`), their reachers and registrations in one query each,
+and a non-locking look at the writer locks before the full lease re-check (batch 3 review).
 """
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -27,11 +34,7 @@ from pearnly_cowork.push.lifecycle import error_code
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
 from pearnly_cowork.targets.identity import normalize_express_account_key
-from . import credentials, delivery_store, devices, queue_contracts, receipt_auth, route_contracts
-
-# 一次领取最多看多少条排队单来找各份账套的排头（一份账套积压上千张时也不全表扫）
-MAX_PENDING_SCAN = 5000
-
+from . import credentials, delivery_store, devices, queue_contracts, queue_heads, receipt_auth, route_contracts
 
 @contextmanager
 def _atomic():
@@ -83,35 +86,13 @@ def _recover(credential, now):
 
 
 def _busy(device, now):
-    """这台电脑手里还有一件没到期的写入（每台同时最多一件：桌面端本就单线程，也替代以前整条连接的 endpoint 锁）。"""
+    """这台电脑手里还有一件没到期的写入（每台同时最多一件：桌面端本就单线程，也替代以前整条连接的 endpoint 锁）。
+
+    不加锁读、按整台电脑查：同一台电脑在两条连接上各有一把密钥时，两次领取锁的是不同的连接行，可能各领一件——「每台一件」
+    只在一条连接内严格成立（ADR-021 第 16 条）。"""
     return bool(frappe.db.sql('''SELECT name FROM `tabCowork Push Record`
         WHERE written_by_device=%s AND status='leased' AND lease_expires_at>%s LIMIT 1''',
         (device, ledger.now_utc(now))))
-
-
-def _pending(credential, keys):
-    """这台电脑够得到的账套里排队的单（按建立时间先后），只取分派要用的几列。内部 ERP 来源的票不经电脑。"""
-    return frappe.db.sql('''SELECT r.name, r.account_key, r.actor, r.entered_by, r.queued_at, r.created_at,
-            r.payload_version FROM `tabCowork Push Record` r
-        INNER JOIN `tabCowork OCR History` h ON h.name=r.history
-        WHERE r.connection=%s AND r.workspace=%s AND COALESCE(r.client,'')=%s
-          AND r.branch='legacy' AND r.binding_generation=0 AND r.status='pending'
-          AND COALESCE(r.result_unknown,0)=0 AND COALESCE(h.source,'') NOT IN ('erp_web','line_erp')
-          AND r.account_key IN %s
-        ORDER BY r.created_at,r.name LIMIT %s''',
-        (credential.connection, credential.workspace, credential.client, tuple(sorted(keys)), MAX_PENDING_SCAN),
-        as_dict=True)
-
-
-def _payload_version(row):
-    if row.payload_version:
-        return int(row.payload_version)
-    # 这一批之前准备的单没有这一列：读冻结的载荷（只读排头这几张）
-    payload = frappe.parse_json(frappe.db.get_value(ledger.RECORD, row.name, 'payload_json') or '{}') or {}
-    try:
-        return max(1, int(payload.get('payload_version') or 1))
-    except (TypeError, ValueError):
-        return 1
 
 
 def _peers(connection, device, request, now):
@@ -128,8 +109,8 @@ def _peers(connection, device, request, now):
     return peers
 
 
-def _account(connection, key):
-    found = account_pool.registration(connection, key) or {}
+def _account(found):
+    found = found or {}
     return route_contracts.Account(uid=found.get('uid') or '', last_writer=found.get('last_writer_device') or '',
                                    last_written_at=found.get('last_written_at'))
 
@@ -139,25 +120,35 @@ def _claim(credential, device, request, now):
     reach = account_pool.writable_reach(credential.connection, device)
     if not reach:
         return []  # 这台电脑够不到任何可写的账套（没装 Express、只读文件夹的成员）：领不到写入
-    rows = _pending(credential, reach)
-    heads = route_contracts.heads(rows)
+    heads = queue_heads.heads(credential.connection, credential.workspace, credential.client, reach)
     if not heads:
         return []
+    keys = [head.account_key for head in heads]
+    reachers = account_pool.reachers_of(credential.connection, keys, writable=True)
+    registered = account_pool.registrations_of(credential.connection, keys)
+    versions = queue_heads.payload_versions(heads)
     peers = _peers(credential.connection, device, request, now)
     owner = frappe.db.get_value(devices.DOCTYPE, device, 'device_owner') if device != credential.credential_id else ''
     clock = ledger.now_utc(now)
     for head in heads:
         key = head.account_key
         job = route_contracts.Job(head.name, key, head.entered_by or head.actor,
-                                  route_contracts.queued(head.queued_at, head.created_at), _payload_version(head))
-        reachers = account_pool.reachers(credential.connection, key, writable=True)
-        decision = route_contracts.decide(device, job, reachers, peers, _account(credential.connection, key), clock)
-        if not decision.take:
-            continue  # 不归这台、黏在别的电脑上、要更新的 CC 桌面版：跳过，看下一份账套（不隔离）
+                                  route_contracts.queued(head.queued_at, head.created_at), versions[head.name])
+        account = _account(registered.get(key))
+        decision = route_contracts.decide(device, job, reachers.get(key) or [], peers, account, clock)
+        if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
+            continue  # 不归这台、黏在别的电脑上、要别的电脑才有的 CC 桌面版：跳过，看下一份账套（不隔离）
         row = frappe.get_doc(ledger.RECORD, head.name)
         reservation = _context(row, credential)
         adapter = _adapter(credential.connection, delivery_store.owner(credential), device=device,
                            device_owner=owner or '', route=decision.route)
+        if not decision.take:
+            # 池里够得到它的电脑没有一台支持这张单的载荷版本：等不来，转人工（与以前准备时就拦下同一个原因与词条），
+            # 这份账套后面的单照常写。旧版不报最高版本的不算（`route_contracts.supports`）
+            ledger.quarantine_pending(row.name, context=reservation, adapter=adapter, reason='payload_version_outdated')
+            continue
+        if ledger.lock_busy(row.name, context=reservation):
+            continue  # 不加锁先看一眼：锁被占、该让着别的单。省掉注定等锁的整份重核
         try:
             claim = ledger.lease(row.name, context=reservation, adapter=adapter, now=now)
         except ledger.LeaseUnavailable:
@@ -174,7 +165,7 @@ def _claim(credential, device, request, now):
         spelling = reach[key]
         record = {**claim['record'], 'frozen_payload': wire_location.localize(
             claim['record']['frozen_payload'], path=spelling.path, root=spelling.root, row=spelling.registry_row,
-            uid=_account(credential.connection, key).uid)}
+            uid=account.uid)}
         delivery = delivery_store.create(credential=credential, claim=claim)
         attended = route_contracts.attended(decision.route, peers.get(device))
         return [_value(queue_contracts.job, delivery.name, record, attended)]

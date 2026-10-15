@@ -312,6 +312,8 @@ class Transport(unittest.TestCase):
         self.peers = {A: {"user": ME, "online": True}, B: {"user": OTHER, "online": True}}
         self.outcome = {}
         self.registrations = {"s1": {"uid": "vol:1"}, "s2": {"uid": "vol:2"}}
+        self.locks_taken = set()
+        self.queries = []
         frappe = types.ModuleType("frappe")
         frappe._ = lambda text: text
         frappe.PermissionError = _Permission
@@ -326,6 +328,7 @@ class Transport(unittest.TestCase):
         ledger = types.SimpleNamespace(
             RECORD="Cowork Push Record", DispatchRejected=_Rejected, LeaseUnavailable=_Unavailable,
             now_utc=lambda value=None: NOW, lease=self.lease, quarantine_pending=self.quarantine,
+            lock_busy=lambda name, context: name in self.locks_taken,
             trusted_adapter_context=lambda connection, owner, generation, **kw: types.SimpleNamespace(
                 connection=connection, owner=owner, **kw))
         credentials = types.SimpleNamespace(
@@ -334,15 +337,23 @@ class Transport(unittest.TestCase):
         devices = types.SimpleNamespace(DOCTYPE="Cowork CC Desktop Device",
                                         member=lambda *a, **k: types.SimpleNamespace(selected=""),
                                         note_index_pending=lambda device, uids: self.calls.append(("index", device, uids)))
-        pool = types.SimpleNamespace(writable_reach=lambda connection, device: dict(self.reach) if device == A else {},
-                                     reachers=lambda connection, key, writable=False: list(self.reachers.get(key, [])),
-                                     registration=lambda connection, key: self.registrations.get(key))
+        # 领取时连接行锁着：每份账套的可达与登记一次批量取回，不逐份查（第 3 批审查）
+        pool = types.SimpleNamespace(
+            writable_reach=lambda connection, device: dict(self.reach) if device == A else {},
+            reachers_of=lambda connection, keys, writable=False: (
+                self.queries.append("reachers_of") or {key: list(self.reachers.get(key, [])) for key in keys}),
+            registrations_of=lambda connection, keys: (
+                self.queries.append("registrations_of") or {key: self.registrations[key] for key in keys
+                                                             if key in self.registrations}))
         delivery_store = types.SimpleNamespace(owner=lambda credential: "companion:owner",
                                                create=lambda credential, claim: Record(
                                                    name="1b4e28ba-2fa1-11d2-883f-0016d3cca427"))
         stub = types.SimpleNamespace
+        heads = _load("pearnly_cowork.companion.queue_heads", APP / "companion/queue_heads.py",
+                      {"frappe": frappe, "pearnly_cowork.companion.route_contracts": rc})
         modules = {
             "frappe": frappe,
+            "pearnly_cowork.companion.queue_heads": heads,
             "pearnly_cowork.connections.pool": pool,
             "pearnly_cowork.connections.refresh": stub(lease=lambda *a, **k: None),
             "pearnly_cowork.push.native.service": ledger,
@@ -364,9 +375,16 @@ class Transport(unittest.TestCase):
         q = " ".join(query.split())
         if "written_by_device=%s" in q:
             return [("CWP-BUSY",)] if self.busy else []
-        if "r.account_key IN %s" in q:
-            wanted = set(values[3])
-            return [row for row in sorted(self.pending, key=lambda r: (r.created_at, r.name)) if row.account_key in wanted]
+        if "MIN(r2.created_at)" in q:
+            # 每份账套各取排头（真查询的语义在 `QueueHeadsQuery` 里用 SQLite 跑过）
+            self.queries.append("heads")
+            wanted, first = set(values["keys"]), {}
+            for row in sorted(self.pending, key=lambda r: (r.created_at, r.name)):
+                if row.account_key in wanted:
+                    first.setdefault(row.account_key, row)
+            return sorted(first.values(), key=lambda r: (r.created_at, r.name))
+        if "payload_json FROM" in q:
+            return [Record(name=name, payload_json=json.dumps({"payload_version": 2})) for name in values[0]]
         if "status='leased' AND r.lease_expires_at<=%s" in q:
             return []
         raise AssertionError("unexpected query: " + q)
@@ -420,12 +438,45 @@ class Transport(unittest.TestCase):
         self.outcome = {"CWP-1": _Permission("lost")}
         self.run_lease()
         self.assertIn(("quarantine", "CWP-1", "companion.queue_access_revoked"), self.calls)
-        # 不归这台、要更新的：跳过，从不隔离
+        # 不归这台、要别的电脑才有的 CC 桌面版：跳过，从不隔离
         self.calls.clear()
         self.outcome = {}
         self.peers[A]["payload_version"] = 1
+        self.peers[B]["payload_version"] = 2
         self.pending = [_row("CWP-9", "s1", version=2)]
         self.assertEqual(self.run_lease()["jobs"], [])
+        self.assertFalse([call for call in self.calls if call[0] in ("quarantine", "lease")])
+
+    def test_a_head_no_computer_of_the_pool_can_write_goes_to_manual_and_the_queue_behind_it_flows(self):
+        # 第 3 批审查：池里够得到它的电脑都只支持载荷版本 1，v2 的排头既领不走也不隔离时，同一账套后面的 v1 单全被堵住；
+        # 以前在准备时就拦下（同一个原因码 / 词条）。旧版不报最高版本的不算（不拦）
+        self.peers[A]["payload_version"] = 1
+        self.peers[B]["payload_version"] = 1
+        self.pending = [_row("CWP-9", "s1", version=2), _row("CWP-10", "s1", created=1), _row("CWP-11", "s2", created=2)]
+        reply = self.run_lease()
+        self.assertIn(("quarantine", "CWP-9", "payload_version_outdated"), self.calls)
+        self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-11"])
+        self.assertEqual(len(reply["jobs"]), 1)
+        self.calls.clear()
+        self.peers[B]["payload_version"] = None
+        self.pending = [_row("CWP-9", "s1", version=2)]
+        self.run_lease()
+        self.assertFalse([call for call in self.calls if call[0] == "quarantine"])
+
+    def test_heads_and_pool_rows_are_read_in_batches_and_a_busy_lock_skips_the_full_lease(self):
+        # 第 3 批审查：连接行锁着时不逐份账套查；锁被占的排头不做整份重核（`ledger.lock_busy` 不加锁先看一眼）
+        self.pending = [_row("CWP-1", "s1"), _row("CWP-2", "s2", created=1)]
+        self.locks_taken = {"CWP-1"}
+        reply = self.run_lease()
+        self.assertEqual(self.queries, ["heads", "reachers_of", "registrations_of"])
+        self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-2"])
+        self.assertEqual(len(reply["jobs"]), 1)
+
+    def test_old_records_without_a_payload_version_are_read_back_in_one_query(self):
+        self.peers[A]["payload_version"] = 1
+        self.peers[B]["payload_version"] = 2
+        self.pending = [_row("CWP-1", "s1", version=None)]
+        self.assertEqual(self.run_lease()["jobs"], [])  # 冻结载荷要 2，A 只支持 1、B 支持：轮不到 A
         self.assertFalse([call for call in self.calls if call[0] in ("quarantine", "lease")])
 
     def test_one_lease_per_computer_at_a_time(self):
@@ -469,6 +520,79 @@ class Transport(unittest.TestCase):
         self.assertEqual(queue_contracts.ERR_ACCOUNT_UID_MISMATCH, "ERR_ACCOUNT_UID_MISMATCH")
 
 
+class QueueHeadsQuery(unittest.TestCase):
+    """排头查询本身（`companion.queue_heads.Q_HEADS`）在 SQLite 上跑：每份账套各取排头，一份账套积压再多也看得到别的
+    账套；与领取同一套过滤（第 3 批审查 3、7）。MariaDB 上的执行计划与锁在第 7 批压测时量。"""
+
+    def setUp(self):
+        import sqlite3
+
+        frappe = types.ModuleType("frappe")
+        frappe.db = types.SimpleNamespace(sql=self.sql)
+        frappe.parse_json = json.loads
+        self.heads = _load("pearnly_cowork.companion._queue_heads_under_test", APP / "companion/queue_heads.py",
+                           {"frappe": frappe, "pearnly_cowork.companion.route_contracts": rc})
+        self.db = sqlite3.connect(":memory:")
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("CREATE TABLE `tabCowork Push Record` (name, account_key, actor, entered_by, queued_at, created_at, "
+                        "payload_version, payload_json, connection, workspace, client, branch, binding_generation, "
+                        "status, result_unknown, history)")
+        self.db.execute("CREATE TABLE `tabCowork OCR History` (name, source)")
+        self.serial = 0
+
+    def sql(self, query, values=(), as_dict=False):
+        import re
+
+        args = {}
+        if isinstance(values, dict):
+            for key, value in values.items():
+                if isinstance(value, tuple):
+                    marks = [f":{key}_{i}" for i in range(len(value))]
+                    query = query.replace(f"%({key})s", "(" + ",".join(marks) + ")")
+                    args.update({mark[1:]: item for mark, item in zip(marks, value)})
+                else:
+                    args[key] = value
+            query = re.sub(r"%\((\w+)\)s", r":\1", query)
+        else:
+            marks = [f":v{i}" for i in range(len(values[0]))]
+            query = query.replace("%s", "(" + ",".join(marks) + ")", 1)
+            args = {mark[1:]: item for mark, item in zip(marks, values[0])}
+        return [Record(dict(row)) for row in self.db.execute(query, args).fetchall()]
+
+    def add(self, key, *, created, source="", status="pending", connection="CONN", client="", unknown=0, version=1):
+        self.serial += 1
+        name = f"CWP-{self.serial:05d}"
+        self.db.execute("INSERT INTO `tabCowork OCR History` VALUES (?, ?)", ("H" + name, source))
+        self.db.execute("INSERT INTO `tabCowork Push Record` VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (name, key, ME, ME, None, f"2026-10-16 03:{created // 60:02d}:{created % 60:02d}", version,
+                         json.dumps({"payload_version": 3}), connection, "WS", client, "legacy", 0, status, unknown,
+                         "H" + name))
+        return name
+
+    def test_a_backlog_in_one_account_set_does_not_hide_the_others(self):
+        for second in range(0, 3000):
+            self.add("s1", created=second % 3000)
+        late = self.add("s2", created=3500)
+        found = self.heads.heads("CONN", "WS", "", ["s1", "s2"])
+        self.assertEqual([row.account_key for row in found], ["s1", "s2"])
+        self.assertEqual(found[1].name, late)
+        self.assertNotIn("LIMIT", self.heads.Q_HEADS)
+
+    def test_the_same_filters_as_the_lease_and_ties_take_the_first_name(self):
+        self.add("s1", created=1, source="erp_web")       # 内部 ERP 来源：不经电脑
+        self.add("s1", created=2, unknown=1)               # 结果不明：不是排头
+        self.add("s1", created=3, connection="OTHER")      # 别的连接
+        self.add("s1", created=4, client="C1")             # 别的客户
+        self.add("s1", created=5, status="manual")
+        first = self.add("s1", created=6, version=None)
+        self.add("s1", created=6)
+        found = self.heads.heads("CONN", "WS", "", ["s1"])
+        self.assertEqual([row.name for row in found], [first])
+        # 没有载荷版本列的旧行：读回冻结的载荷
+        self.assertEqual(self.heads.payload_versions(found), {first: 3})
+        self.assertEqual(self.heads.heads("CONN", "WS", "", []), [])
+
+
 # ── 推送账本的判据（替身模块上加载真 `push/native/service.py`）──────────────────────────────
 
 
@@ -502,14 +626,19 @@ class Ledger(unittest.TestCase):
         frappe.local = types.SimpleNamespace(message_log=[])
         frappe.session = types.SimpleNamespace(user=ME)
         self.values = {}
+        self.writer_calls = []
+        frappe.get_doc = lambda doctype, name: Record(name=name)
+        frappe._dict = Record
         frappe.db = types.SimpleNamespace(
             savepoint=lambda name: None, rollback=lambda **kw: None,
             sql=lambda q, values=(), as_dict=False: self.sql.append((" ".join(q.split()), values)) or self.older,
-            get_value=lambda doctype, name, field, for_update=False: self.values.get((name, field)))
+            get_value=lambda doctype, name, field, for_update=False, as_dict=False: (
+                Record({item: self.values.get((name, item)) for item in field}) if as_dict
+                else self.values.get((name, field))))
         self.older = []
 
         def revalidate(loaded, target, evidence, *, mode="confirm", used=None):
-            self.revalidated.append((mode, used(self.masters) if used else None))
+            self.revalidated.append((mode, used(self.facts) if used else None))
 
         stub = types.SimpleNamespace
         modules = {
@@ -520,16 +649,24 @@ class Ledger(unittest.TestCase):
             "pearnly_cowork.connections.service": stub(),
             "pearnly_cowork.connections.access": stub(),
             "pearnly_cowork.connections.pool": stub(
+                ACCOUNT_SET="Cowork Express Account Set",
                 registration=lambda c, key: self.registered.get(key),
-                reachers=lambda c, key, writable=False: list(self.reach.get(key, []))),
+                # 真判据（登记、可达可写、密钥、签发人）在 `test_cowork_express_account_sets` 里守着；这里只看接线
+                writers=lambda doc, key: (self.writer_calls.append((doc.name, key))
+                                          or (list(self.reach.get(key, [])) if self.registered.get(key) else []))),
             "pearnly_cowork.connections.preparation": stub(revalidate=revalidate,
-                                                           basis=lambda facts, used: json.dumps(used, sort_keys=True)),
+                                                           basis=lambda used: json.dumps(used, sort_keys=True)),
             "pearnly_cowork.push.native.documents": stub(TYPES=("Cowork Push Record", "Cowork Push Attempt",
                                                                 "Cowork Push Writer Lock"),
                                                          persist=lambda doc: self.persisted.append(doc)),
         }
         self.ledger = _load("pearnly_cowork.push.native._service_under_test", APP / "push/native/service.py", modules)
         self.masters = {"reported_accounts": [{"code": "1100"}, {"code": "9999"}]}
+        self.facts = {"mappings": {"accounts": [{"erp_type": "express", "pearnly_category": "fuel", "erp_code": "1100"},
+                                                {"erp_type": "express", "pearnly_category": "rent", "erp_code": "5200"}],
+                                   "clients": [{"erp_type": "express", "client_id": "", "erp_code": "C01"}]},
+                      "supplier_profiles": {"0105": {"default_payment": "cash"}},
+                      "bank_index": [{"amount": "10.00"}], "reported_config": self.masters}
         self.context = ReservationContext(ME, "WS", "", "H1", 1, "CONN", "k1", connection_revision=1)
         self.loaded = types.SimpleNamespace(revision=1, endpoint={"binding_generation": 0},
                                             evidence=types.SimpleNamespace(snapshot={}))
@@ -553,13 +690,25 @@ class Ledger(unittest.TestCase):
             self.ledger._dispatch_target(self.context, self.loaded, self.target(), mode="confirm")
         lease, confirm = self.revalidated
         self.assertEqual(lease[0], "lease")
-        self.assertEqual([row["code"] for row in lease[1]["accounts"]], ["1100"])
+        self.assertEqual([row["code"] for row in lease[1]["masters"]["accounts"]], ["1100"])
+        # 第 3 批审查：映射只留映射到本单科目的行（改一条无关映射不再把整队单转人工）；银行流水窗口不核
+        self.assertEqual([row["erp_code"] for row in lease[1]["mappings"]["accounts"]], ["1100"])
+        self.assertEqual(lease[1]["mappings"]["clients"], self.facts["mappings"]["clients"])
+        self.assertEqual(lease[1]["supplier_profiles"], self.facts["supplier_profiles"])
+        self.assertEqual(set(lease[1]), {"mappings", "supplier_profiles", "masters"})
         self.assertEqual(confirm, ("confirm", None))
-        self.assertEqual(self.ledger.basis_hash({"reported_config": self.masters}, payload),
-                         json.dumps(lease[1], sort_keys=True))
+        self.assertEqual(self.ledger.basis_hash(self.facts, payload), json.dumps(lease[1], sort_keys=True))
+        unrelated = json.loads(json.dumps(self.facts))
+        unrelated["mappings"]["accounts"][1]["erp_code"] = "5300"
+        unrelated["bank_index"] = []
+        self.assertEqual(self.ledger.basis_hash(unrelated, payload), self.ledger.basis_hash(self.facts, payload))
+        changed = json.loads(json.dumps(self.facts))
+        changed["mappings"]["accounts"][0]["erp_code"] = "1200"  # 本单用到的那条映射改了
+        self.assertNotEqual(self.ledger.basis_hash(changed, payload), self.ledger.basis_hash(self.facts, payload))
 
     def test_a_writer_is_any_computer_that_reaches_the_registered_account_set(self):
         self.assertTrue(self.ledger.has_writer("CONN", "k1"))
+        self.assertEqual(self.writer_calls[-1], ("CONN", "k1"))  # 与池的状态同一个判据 `connections.pool.writers`
         self.reach = {}
         self.assertFalse(self.ledger.has_writer("CONN", "k1"))
         self.reach, self.registered = {"k1": [A]}, {}
@@ -580,7 +729,7 @@ class Ledger(unittest.TestCase):
         self.assertEqual(self.ledger.writer_scope("CONN", "none")["company_key"], "")
 
     def test_scheme_two_still_waits_for_an_older_record_of_the_same_account_set(self):
-        row = Record(name="CWP-2", connection="CONN", account_key="k1")
+        row = Record(name="CWP-2", connection="CONN", account_key="k1", workspace="WS")
         self.assertFalse(self.ledger._older_writer(row, {"lock_scheme": None}))
         self.assertEqual(self.sql, [])  # v1 记录：endpoint 锁本来就串行，不查
         self.older = [("CWP-1",)]
@@ -589,6 +738,47 @@ class Ledger(unittest.TestCase):
         self.assertIn("result_unknown", query)
         self.assertTrue(query.endswith("FOR UPDATE"))
         self.assertEqual(values, ("CONN", "k1", "CWP-2"))
+
+    def test_scheme_two_also_waits_for_an_open_record_of_the_same_company_by_the_current_registration(self):
+        # 第 3 批审查 6：冻结的公司锁为空（准备时登记没有内容键）或部署前的 v1 记录（本来没有公司锁）时，按这份账套现在
+        # 登记的内容键再核一次同工作空间里领走 / 结果不明的记录；别的连接的记录不加锁读
+        row = Record(name="CWP-2", connection="CONN", account_key="k1", workspace="WS")
+        answers = iter([[], [("CWP-OTHER-COPY",)]])
+        self.ledger.frappe.db.sql = lambda q, values=(), as_dict=False: (
+            self.sql.append((" ".join(q.split()), values)) or next(answers))
+        self.assertTrue(self.ledger._older_writer(row, {"lock_scheme": LOCK_SCHEME, "company_key": ""}))
+        query, values = self.sql[-1]
+        self.assertIn("a.content_key=%s", query)
+        self.assertFalse(query.endswith("FOR UPDATE"))
+        self.assertEqual(values, ("WS", "0105|00000|2026-01-01", "CWP-2"))
+        # 登记没有内容键：只按账套键核
+        self.sql.clear()
+        self.registered["k1"] = {"content_key": ""}
+        self.ledger.frappe.db.sql = lambda q, values=(), as_dict=False: self.sql.append((q, values)) or []
+        self.assertFalse(self.ledger._older_writer(row, {"lock_scheme": LOCK_SCHEME}))
+        self.assertEqual(len(self.sql), 1)
+
+    def test_a_look_before_the_lease_reads_the_locks_without_locking(self):
+        target = self.target(lock_scheme=LOCK_SCHEME, company_key="0105|00000|2026-01-01")
+        self.values.update({("CWP-1", "target_json"): json.dumps(target), ("CWP-1", "connection"): "CONN",
+                            ("CWP-1", "account_key"): "k1", ("CWP-1", "workspace"): "WS"})
+        self.older = [("LOCK",)]
+        self.assertTrue(self.ledger.lock_busy("CWP-1", context=self.context))
+        query, values = self.sql[-1]
+        self.assertIn("COALESCE(holder,'')<>''", query)
+        self.assertEqual(len(values[0]), 2)  # 账套锁 + 公司锁
+        self.assertFalse(any(q.endswith("FOR UPDATE") for q, _ in self.sql))
+        self.older = []
+        self.assertFalse(self.ledger.lock_busy("CWP-1", context=self.context))
+        self.assertFalse(self.ledger.lock_busy("CWP-NONE", context=self.context))
+
+    def test_payload_version_outdated_is_a_quarantine_reason(self):
+        with self.assertRaisesRegex(_Fail, "push.native_request_invalid"):
+            self.ledger.quarantine_pending("CWP-1", context=self.context, adapter=None, reason="anything")
+        with mock.patch.object(self.ledger, "_receipt_scope", side_effect=_Fail("scoped")), \
+                self.assertRaisesRegex(_Fail, "scoped"):
+            self.ledger.quarantine_pending("CWP-1", context=self.context, adapter=None,
+                                           reason="payload_version_outdated")
 
     def _confirm(self, target):
         row = Record(name="CWP-1", status="prepared", revision=1, result_unknown=0, actor=ME, confirmation_request=None,
@@ -677,19 +867,32 @@ class PoolState(unittest.TestCase):
         self.reachers = {"s1": [A, B], "s2": [A]}
         self.head = None
         frappe = types.ModuleType("frappe")
-        frappe.get_doc = lambda doctype, name: Record(name=name, adapter=self.adapter)
+        frappe.get_doc = lambda doctype, name: Record(name=name, adapter=self.adapter, workspace="WS", client="")
         frappe.parse_json = json.loads
-        frappe.db = types.SimpleNamespace(
-            sql=lambda q, values=(), as_dict=False: [Record(name="CWP-1", payload_version=self.head)] if self.head else [],
-            get_value=lambda *a, **k: "{}")
+
+        def sql(q, values=(), as_dict=False):
+            self.queries.append(q)
+            if "MIN(r2.created_at)" in q and self.head:
+                return [Record(name="CWP-1", account_key=values["keys"][0], payload_version=self.head)]
+            return []
+
+        frappe.db = types.SimpleNamespace(sql=sql, get_value=lambda *a, **k: "{}")
         self.adapter = "express"
-        pool = types.SimpleNamespace(reachers=lambda c, key, writable=False: self.reachers.get(key, []),
-                                     writer_devices=lambda c: {d for ds in self.reachers.values() for d in ds})
-        credentials = types.SimpleNamespace(pool_peers=lambda c, now=None: self.peers,
-                                            issuer_valid=lambda doc, issuer: issuer in self.valid)
+        self.queries = []
+
+        def writers(doc, key=None, *, peers=None):
+            # 真判据在 `test_cowork_express_account_sets`；这里按同一口径给出，看 state 怎么用它
+            devices = self.reachers.get(key, []) if key else {d for ds in self.reachers.values() for d in ds}
+            return [d for d in sorted(devices) if d in peers and peers[d]["issuers"] & self.valid]
+
+        pool = types.SimpleNamespace(writers=writers)
+        credentials = types.SimpleNamespace(pool_peers=lambda c, now=None: self.peers)
+        heads = _load("pearnly_cowork.companion.queue_heads", APP / "companion/queue_heads.py",
+                      {"frappe": frappe, "pearnly_cowork.companion.route_contracts": rc})
         modules = {"frappe": frappe, "pearnly_cowork.connections.pool": pool,
                    "pearnly_cowork.connections.access": types.SimpleNamespace(),
-                   "pearnly_cowork.companion.credentials": credentials}
+                   "pearnly_cowork.companion.credentials": credentials,
+                   "pearnly_cowork.companion.queue_heads": heads}
         self.pool = _load("pearnly_cowork.companion._pool_under_test", APP / "companion/pool.py", modules)
 
     def test_writers_known_while_offline_and_online_when_one_is(self):
@@ -705,6 +908,8 @@ class PoolState(unittest.TestCase):
         self.head = 2
         self.assertFalse(self.pool.state("CONN", "s1")["needs_update"])  # B 没报过最高版本：不拦
         self.assertTrue(self.pool.state("CONN", "s2")["needs_update"])
+        # 与电脑领取时看同一张排头（`queue_heads.Q_HEADS`，同一套过滤）
+        self.assertTrue(all(q == self.pool.queue_heads.Q_HEADS for q in self.queries))
 
     def test_mrerp_only_asks_whether_a_folder_reader_is_online(self):
         self.adapter = "mrerp"

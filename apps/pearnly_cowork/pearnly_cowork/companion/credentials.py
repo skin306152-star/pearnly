@@ -189,14 +189,9 @@ def pool_peers(connection, now=None):
 
 
 def issuer_valid(connection_doc, issuer):
-    """签发人此刻仍能让机器用这条连接（录入或管理 + 使用名单，同 `_issuer`）；不抛错。只读视图用（`pool.state`，录入入口
-    的 GET）：不加锁读，读自己的快照（MariaDB 11.8 快照隔离下只读请求的加锁读会撞 1020）。"""
-    try:
-        access.require_connection(connection_doc, actor=issuer, lock=False)
-    except frappe.PermissionError:
-        frappe.clear_messages()
-        return False
-    return True
+    """签发人此刻仍能让机器用这条连接（录入或管理 + 使用名单，同 `_issuer`）；不抛错、不加锁（`connections.access.usable_by`，
+    池里「能写的电脑」也按它核）。"""
+    return access.usable_by(connection_doc, issuer)
 
 
 def request_full_report(credential_id):

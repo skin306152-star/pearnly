@@ -467,8 +467,8 @@ class Facts(Base):
         self.assertNotIn("credential", evidence)
         self.assertEqual(facts["reported_config"]["reported_accounts"], [{"code": "1100"}, {"code": "2100"}])
         self.assertNotIn("max_payload_version", facts["reported_config"])
-        used = lambda masters: [row for row in masters.get("reported_accounts") or [] if row["code"] == "1100"]
-        evidence["basis_hash"] = preparation.basis(facts, used(facts["reported_config"]))
+        used = lambda facts: [row for row in facts["reported_config"].get("reported_accounts") or [] if row["code"] == "1100"]
+        evidence["basis_hash"] = preparation.basis(used(facts))
         preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence)  # 人确认：整份相等（不看 basis_hash）
         preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence, mode="lease", used=used)
         # 本单没用到的科目变了：领取照常；人确认（整份）不成立
@@ -509,6 +509,35 @@ class Dispatch(Base):
         self.assertEqual(pool.writable_reach("CONN", "CCD-B"), {})  # 只读够得到的不派写入
         self.assertEqual(pool.writer_devices("CONN"), {"CCD-A"})
         self.assertEqual(pool.reachers("CONN", self.KEY, writable=True), ["CCD-A"])
+
+    def test_reachers_and_registrations_come_back_in_one_query_for_many_account_sets(self):
+        # 第 3 批审查：领取时连接行锁着，不逐份账套查
+        other = r"\\srv\pas\2569\other"
+        self.a.report(body(self.S_BOOK, row(r"S:\2569\OTHER", r"S:\2569", uid="v1:2", share=r"\\srv\pas\2569\OTHER")), NOW)
+        self.b.report(body({**self.Z_BOOK, "attributes": {**self.Z_BOOK["attributes"], "writable": False}}), NOW)
+        self.assertEqual(pool.reachers_of("CONN", [self.KEY, other, r"\\srv\none"], writable=True),
+                         {self.KEY: ["CCD-A"], other: ["CCD-A"], r"\\srv\none": []})
+        self.assertEqual(pool.reachers_of("CONN", [self.KEY])[self.KEY], ["CCD-A", "CCD-B"])
+        pool.note_written("CONN", self.KEY, "CCD-A", NOW)
+        found = pool.registrations_of("CONN", [self.KEY, other, r"\\srv\none"])
+        self.assertEqual(sorted(found), sorted([self.KEY, other]))
+        self.assertEqual((found[self.KEY].uid, found[self.KEY].last_writer_device), ("v1:1", "CCD-A"))
+        self.assertEqual(found[self.KEY].content_key, identity.content_key(TAX))
+        self.assertEqual((pool.reachers_of("CONN", []), pool.registrations_of("CONN", [])), ({}, {}))
+
+    def test_a_writer_needs_a_live_key_whose_issuer_may_still_use_the_connection(self):
+        # 第 3 批审查：确认（`has_writer`）与池的状态同一个判据
+        self.a.report(body(self.S_BOOK), NOW)
+        self.assertEqual(pool.writers(self.doc, self.KEY), ["CCD-A"])
+        self.assertEqual(pool.writers(self.doc), ["CCD-A"])
+        fake.PRESENCE["CONN"]["CCD-A"]["online"] = False
+        self.assertEqual(pool.writers(self.doc, self.KEY), ["CCD-A"])  # 关着也算（D4）
+        fake.LOST_ACCESS.add("owner@example.com")  # 签发人被移出使用名单
+        self.assertEqual(pool.writers(self.doc, self.KEY), [])
+        fake.LOST_ACCESS.clear()
+        del fake.PRESENCE["CONN"]["CCD-A"]  # 密钥吊销 / 电脑退役：不在 presence 里
+        self.assertEqual(pool.writers(self.doc, self.KEY), [])
+        self.assertEqual(pool.writers(self.doc, r"\\srv\none", peers={"CCD-A": {"issuers": {"owner@example.com"}}}), [])
 
     def test_a_write_is_noted_on_the_registration_and_a_uid_mismatch_goes_stale_until_a_full_report(self):
         self.a.report(body(self.S_BOOK), NOW)

@@ -28,7 +28,7 @@ from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.contracts.push import PushContractError, require_external_history
 from pearnly_cowork.push.express import common
 from pearnly_cowork.push.lifecycle import acknowledgement, LEASE_SECONDS
-from pearnly_cowork.push.express.referenced import used_masters
+from pearnly_cowork.push.express.referenced import used_facts
 from pearnly_cowork.push.native.contracts import (
     ACTIVE_STATUSES, LOCK_SCHEME, PushLedgerError, ReservationContext, business_identity, digest, document_identity,
     duplicate_reason, encode, frozen_values, integer, request_identity, text, utc,
@@ -207,18 +207,50 @@ def _locks(context, target):
     return result
 
 
-def _older_writer(row, target):
-    """锁口径 v2 的记录还要让着同一连接、同一账套键上已经领走或结果不明的别的记录（不论它按哪种口径持锁）。
+_OPEN_WRITE = "(r.status='leased' OR (r.status='manual' AND COALESCE(r.result_unknown,0)=1))"
 
-    v2 不再取整条连接的 endpoint 锁；部署前在途的旧记录如果冻结的是空的程序目录（补丁按今天的目录登记了规范根），
-    它持的账套锁与 v2 记录算出的不是同一把——按账套键再核一次，结果不明的旧单照样挡住这份账套（ADR-021，D6）。
-    调用方已锁连接行：同一连接上的记录状态变化都先锁它，这里的加锁读看到的是最新提交的。"""
+
+def _older_writer(row, target, *, lock=True):
+    """锁口径 v2 的记录还要让着已经领走或结果不明的别的记录（不论它按哪种口径持锁）：
+
+    - 同一连接、同一账套键：部署前在途的旧记录如果冻结的是空的程序目录（补丁按今天的目录登记了规范根），它持的账套锁与
+      v2 记录算出的不是同一把——按账套键再核一次，结果不明的旧单照样挡住这份账套（ADR-021，D6）。调用方已锁连接行：同一
+      连接上的记录状态变化都先锁它，这里的加锁读看到的是最新提交的。
+    - 同一工作空间里登记的内容键（税号 + 分店 + 期初）与这份账套**现在**登记的相同的（第 3 批审查）：准备那会儿登记还没有
+      内容键（冻结的公司锁为空）、或部署前的 v1 记录本来就没有公司锁时，公司锁挡不住同公司另一份拷贝。这些记录可能在别的
+      连接上，它们的连接行不归我们锁：不加锁读（不按别的连接的加锁顺序抢行锁，也不在快照隔离下撞 1020），只是多一道挡，
+      漏看一眼的由公司锁（冻结了的）兜住。
+
+    ``lock=False``：领取前的不加锁预看（:func:`lock_busy`）。"""
     if target.get('lock_scheme') != LOCK_SCHEME:
         return False
-    return bool(frappe.db.sql('''SELECT name FROM `tabCowork Push Record`
-        WHERE connection=%s AND account_key=%s AND name<>%s
-          AND (status='leased' OR (status='manual' AND COALESCE(result_unknown,0)=1)) LIMIT 1 FOR UPDATE''',
-        (row.connection, row.account_key, row.name)))
+    if frappe.db.sql(f'''SELECT r.name FROM `tabCowork Push Record` r
+        WHERE r.connection=%s AND r.account_key=%s AND r.name<>%s AND {_OPEN_WRITE} LIMIT 1'''
+                     + (' FOR UPDATE' if lock else ''), (row.connection, row.account_key, row.name)):
+        return True
+    content = str((account_pool.registration(row.connection, row.account_key) or {}).get('content_key') or '')
+    if not content:
+        return False
+    return bool(frappe.db.sql(f'''SELECT r.name FROM `tabCowork Push Record` r
+        INNER JOIN `tab{account_pool.ACCOUNT_SET}` a ON a.connection=r.connection AND a.account_key=r.account_key
+        WHERE r.workspace=%s AND a.content_key=%s AND r.name<>%s AND {_OPEN_WRITE} LIMIT 1''',
+        (row.workspace, content, row.name)))
+
+
+def lock_busy(name, *, context):
+    """领取前不加锁地先看一眼（第 3 批审查：连接行锁着时少做注定等锁的整份重核与加锁读）：这张单要的写者锁有没有被占、
+    （锁口径 v2）有没有该让着的别的记录（:func:`_older_writer`）。看错了无妨：看着空的照常走 :func:`lease` 的加锁核对，
+    看着占着的下一次轮询再看。只读、不加锁，不改任何东西。"""
+    found = frappe.db.get_value(RECORD, name, ['target_json', 'connection', 'account_key', 'workspace'], as_dict=True)
+    if not found or not found.target_json:
+        return False
+    target = json.loads(found.target_json)
+    names = tuple(sorted(lock for lock, _kind in call(writer_identities, context, target)))
+    if names and frappe.db.sql(f"SELECT name FROM `tab{WRITER_LOCK}` WHERE name IN %s AND COALESCE(holder,'')<>'' LIMIT 1",
+                               (names,)):
+        return True
+    return _older_writer(frappe._dict(name=name, connection=found.connection, account_key=found.account_key,
+                                      workspace=found.workspace), target, lock=False)
 
 
 def _validate_target(context, loaded, frozen, *, reject=fail):
@@ -313,14 +345,17 @@ def writer_scope(connection, account_key):
 
 
 def basis_hash(facts, payload):
-    """准备证据 v2 里电脑来领时要核的那一份（D5）：服务端事实 + 这份载荷实际用到的主档行。准备时与领取时同一个函数。"""
-    return preparation_sources.basis(facts, used_masters(payload, facts['reported_config']))
+    """准备证据 v2 里电脑来领时要核的那一份（D5）：这份载荷实际用到的映射、画像与主档行。准备时与领取时同一个函数。"""
+    return preparation_sources.basis(used_facts(payload, facts))
 
 
 def has_writer(connection, account_key):
-    """池里至少一台电脑够得到这份 Express 账套、能写（不要求在线，D4）：确认与「这份准备还能不能确认」的判据。只读。"""
-    return bool(account_pool.registration(connection, account_key)
-                and account_pool.reachers(connection, account_key, writable=True))
+    """池里至少一台能写这份 Express 账套的电脑（不要求在线，D4）：确认与「这份准备还能不能确认」的判据。与池的状态
+    （`companion.pool.state` 的 ``writers_known``）同一个判据 `connections.pool.writers`：登记着、可达可写、密钥没吊销、
+    签发人此刻仍能用这条连接。只读。"""
+    if not connection or not account_key:
+        return False
+    return bool(account_pool.writers(frappe.get_doc('Cowork ERP Connection', connection), account_key))
 
 
 def _still_confirmable(row, context, loaded):
@@ -454,7 +489,7 @@ def _dispatch_target(context, loaded, target, *, mode, payload=None):
         if target.get('adapter') == 'express' and _evidence_version(target) < 2:
             # 证据 v1 绑定准备那会儿上报的那把密钥、整份重算；多台电脑后不再保留这条核对（ADR-021，方案 4.4）
             raise DispatchRejected('push.native_target_changed')
-        rows = (lambda masters: used_masters(payload, masters)) if mode == 'lease' else None
+        rows = (lambda facts: used_facts(payload, facts)) if mode == 'lease' else None
         try:
             preparation_sources.revalidate(loaded, current, target['preparation_evidence'], mode=mode, used=rows)
         except frappe.ValidationError:
@@ -600,8 +635,10 @@ def quarantine_pending(name, *, context, adapter, reason):
     target rejection. This path grants no dispatch authority and preserves every
     previous attempt and receipt, including a finished failed attempt's fence.
     """
+    # payload_version_outdated：池里够得到这份账套的电脑没有一台支持这张单的载荷版本（只能等人更新 CC 桌面版），与以前
+    # 准备时就拦下同一个原因码与词条；隔离后同一账套后面的单照常写（第 3 批审查）
     reasons = {'push.native_history_changed', 'push.native_target_changed',
-               'push.native_target_mismatch', 'companion.queue_access_revoked'}
+               'push.native_target_mismatch', 'companion.queue_access_revoked', 'payload_version_outdated'}
     if not isinstance(reason, str) or reason not in reasons:
         fail('push.native_request_invalid')
     with atomic():

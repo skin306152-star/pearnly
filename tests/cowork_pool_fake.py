@@ -95,6 +95,7 @@ class Db:
         self.saved.clear()
         self.locks.clear()
         PRESENCE.clear()
+        LOST_ACCESS.clear()
 
     def check(self, doc):
         check = self.checks.get(doc["doctype"])
@@ -159,6 +160,15 @@ class Db:
             if base == " ".join(pool.Q_REACHERS.split()):
                 return [Doc(device=row.device, writable=row.writable) for row in reach
                         if row.connection == values[0] and row.account_key == values[1] and row.state == "ok"]
+            if base == " ".join(pool.Q_REACHERS_OF.split()):
+                keys = set(values[1])
+                return [Doc(account_key=row.account_key, device=row.device, writable=row.writable) for row in reach
+                        if row.connection == values[0] and row.account_key in keys and row.state == "ok"]
+            if base == " ".join(pool.Q_REGISTRATIONS_OF.split()):
+                names = set(values[0])
+                return [Doc(account_key=row.account_key, uid=row.get("uid"), content_key=row.get("content_key"),
+                            last_writer_device=row.get("last_writer_device"), last_written_at=row.get("last_written_at"))
+                        for row in self.rows(pool.ACCOUNT_SET) if row.name in names]
             if base == " ".join(pool.Q_WRITABLE.split()):
                 return [Doc(account_key=row.account_key, path=row.path, root=row.root, registry_row=row.registry_row)
                         for row in reach if row.connection == values[0] and row.device == values[1]
@@ -193,6 +203,8 @@ DB = Db()
 # 池里各台电脑此刻的情况（真站点上由 companion 经 ``cowork_pool_presence`` 钩子给，`connections.pool.presence`）：
 # ``{连接: {设备: {"online", "version", ...}}}``；`Computer.report` 报到时记上
 PRESENCE = {}
+# 失去这条连接使用权的人（`access.usable_by` 的替身按它判）
+LOST_ACCESS = set()
 _HOOKS = {"cowork_pool_presence": ["fake.presence"]}
 _ATTRS = {"fake.presence": lambda connection: PRESENCE.get(connection, {})}
 
@@ -236,6 +248,8 @@ def install(*, push_inputs=None, bank_window=None):
     access.POOL_TYPES = ("Cowork Express Account Set", "Cowork Express Reach", "Cowork Express Account Facts")
     access.write = lambda doc: doc.insert() if doc.is_new() else doc.save()
     access.require_connection = lambda doc, actor=None, **kwargs: actor or "owner@example.com"
+    # 签发人此刻能不能用这条连接（真站点：录入或管理 + 使用名单）；这里按 ``LOST_ACCESS`` 判
+    access.usable_by = lambda doc, actor: bool(actor) and actor not in LOST_ACCESS
 
     def deny():
         raise PermissionError_("Not Permitted")
