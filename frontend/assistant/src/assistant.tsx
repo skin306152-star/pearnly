@@ -16,7 +16,6 @@ import {
   Building2Icon,
   CheckIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
   ClockIcon,
@@ -44,7 +43,7 @@ import {
   TrashIcon,
   XIcon,
 } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
@@ -85,6 +84,7 @@ import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/ac
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
 import { useDeepLinks, useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
+import { useBackLayer } from "@/lib/back-stack";
 import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
@@ -196,23 +196,14 @@ function UserMenu({ children }: { children: ReactNode }) {
             <span className="flex-1">{t("settings")}</span>
             <Shortcut keys="Ctrl ," />
           </DropdownMenu.Item>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="cc-menu-item">
-              <GlobeIcon />
-              <span className="flex-1">{t("language")}</span>
-              <ChevronRightIcon className="text-ink-3" />
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent sideOffset={8} className="cc-menu">
-                {LANGUAGES.map((l) => (
-                  <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void chooseLanguage(l.code)}>
-                    <span className="flex-1">{l.label}</span>
-                    {l.code === lang && <CheckIcon />}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Sub>
+          <SubMenu icon={<GlobeIcon />} label={t("language")} sideOffset={8}>
+            {LANGUAGES.map((l) => (
+              <DropdownMenu.Item key={l.code} className="cc-menu-item" onSelect={() => void chooseLanguage(l.code)}>
+                <span className="flex-1">{l.label}</span>
+                {l.code === lang && <CheckIcon />}
+              </DropdownMenu.Item>
+            ))}
+          </SubMenu>
           <DropdownMenu.Item asChild className="cc-menu-item">
             <a href={HELP_URL} target="_blank" rel="noopener">
               <CircleHelpIcon />
@@ -220,21 +211,12 @@ function UserMenu({ children }: { children: ReactNode }) {
               <ExternalLinkIcon className="text-ink-3" />
             </a>
           </DropdownMenu.Item>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="cc-menu-item">
-              <InfoIcon />
-              <span className="flex-1">{t("learnMore")}</span>
-              <ChevronRightIcon className="text-ink-3" />
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent sideOffset={8} className="cc-menu">
-                <MenuLink href={siteUrl("/about/")}>{t("about")}</MenuLink>
-                <DropdownMenu.Separator className="cc-menu-sep" />
-                <MenuLink href={siteUrl("/privacy/")}>{t("privacy")}</MenuLink>
-                <MenuLink href={siteUrl("/terms/")}>{t("terms")}</MenuLink>
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Sub>
+          <SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>
+            <MenuLink href={siteUrl("/about/")}>{t("about")}</MenuLink>
+            <DropdownMenu.Separator className="cc-menu-sep" />
+            <MenuLink href={siteUrl("/privacy/")}>{t("privacy")}</MenuLink>
+            <MenuLink href={siteUrl("/terms/")}>{t("terms")}</MenuLink>
+          </SubMenu>
           <DropdownMenu.Separator className="cc-menu-sep" />
           <InstallMenuItem />
           <DropdownMenu.Item onSelect={() => void signOut()} className="cc-menu-item">
@@ -496,10 +478,16 @@ function MobileDrawer() {
   const { setView } = useView();
   const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState("");
+  // 在抽屉里打字（改名、搜索）时键盘弹起：底部头像与「新建会话」那一条收起，不挡住正在改的那几行
+  const [typing, setTyping] = useState(false);
   const close = () => setOpenMobile(false);
   const pick = useBackToChatOnPick(close);
   return (
-    <div className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]">
+    <div
+      className="relative flex h-full flex-col pt-[env(safe-area-inset-top)]"
+      onFocusCapture={(e) => setTyping(isTextField(e.target))}
+      onBlurCapture={() => setTyping(false)}
+    >
       <div className="flex items-center justify-between px-4 pt-1 pb-3">
         <span className="cc-drawer-title">{APP_NAME}</span>
         <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
@@ -529,7 +517,10 @@ function MobileDrawer() {
         <CompanyNav onPick={close} />
         <ThreadList search={search} />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div
+        data-slot="cc-drawer-foot"
+        hidden={typing}
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-drawer via-drawer to-transparent px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {profile && (
           <UserMenu>
             <button type="button" className="cc-avatar pointer-events-auto size-12 text-sm" aria-label={profile.full_name || profile.user}>
@@ -553,6 +544,13 @@ function MobileDrawer() {
       </div>
     </div>
   );
+}
+
+/** 会弹出键盘的输入框（文字输入框、多行输入、可编辑区）。 */
+function isTextField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && !["button", "checkbox", "radio", "range", "submit", "reset", "file", "color"].includes(target.type);
 }
 
 /** 手机顶栏打开抽屉的图标（同 Claude 手机端）：三条线、最下面一条短。 */
@@ -786,6 +784,9 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const chrome = useFramelessWindow();
   const win = useMaximized(chrome);
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  // 手机返回键（lib/back-stack.ts）：先关抽屉、盖满屏的结果面板；组件库的弹窗与菜单不用登记
+  useBackLayer(isMobile && openMobile, () => setOpenMobile(false));
+  useBackLayer(isMobile && view === "chat" && results.open, () => results.setOpen(false));
   // 本对话产出的文件（同 claude.ai 右上角）：面板关着时显示，点开右侧面板。手机上不放（同 Claude 手机端，对话里的文件卡片点开即可）
   const filesButton =
     view === "chat" && results.files.length > 0 && !results.open ? (
@@ -835,7 +836,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   );
   if (isMobile) return <MobileShell open={openMobile} onOpenChange={setOpenMobile} drawer={<MobileDrawer />} main={main} />;
   return (
-    <div className="flex h-dvh w-full bg-app">
+    <div className="flex h-(--cc-vh) w-full bg-app">
       <div className="cc-dropzone" aria-hidden>
         <div className="cc-dropzone-box">
           <FileUpIcon />

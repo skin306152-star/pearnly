@@ -44,9 +44,9 @@ export const AddCompanyDialog: FC = () => {
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           data-slot="cc-add-company"
-          className="cc-card cc-enter cc-dialog fixed top-1/2 left-1/2 z-50 flex max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col"
+          className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:0.8]"
         >
-          <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
             <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
@@ -118,7 +118,7 @@ const Candidates: FC = () => {
 
   return (
     <>
-      <div className="px-5 pb-2">
+      <div className="shrink-0 px-5 pb-2">
         <label className="cc-search">
           <input
             autoFocus

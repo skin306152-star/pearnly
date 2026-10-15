@@ -29,7 +29,7 @@ import {
   SearchIcon,
   TrashIcon,
 } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu } from "@/components/ui/menu";
 import {
   forwardRef,
   Fragment,
@@ -588,6 +588,8 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   const starred = !!custom?.starred;
+  // 手机抽屉里一行占满抽屉宽：往右开放不下，同公司组头往下开
+  const { isMobile } = useSidebar();
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
@@ -603,7 +605,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          side="right"
+          side={isMobile ? "bottom" : "right"}
           align="start"
           sideOffset={6}
           data-slot="aui_thread-list-item-more-content"

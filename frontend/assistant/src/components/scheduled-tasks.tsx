@@ -31,7 +31,8 @@ import {
   TrashIcon,
   XIcon,
 } from "lucide-react";
-import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import { DropdownMenu } from "@/components/ui/menu";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/settings";
 import { openAddCompany } from "@/components/add-company";
@@ -170,9 +171,9 @@ function Modal({ open, onClose, title, children, footer, wide }: {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
-          className={`cc-card cc-enter fixed top-1/2 left-1/2 z-50 flex max-h-[88dvh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
+          className={`cc-card cc-enter cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
         >
-          <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
             <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
@@ -180,7 +181,7 @@ function Modal({ open, onClose, title, children, footer, wide }: {
           </div>
           <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">{children}</div>
-          {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+          {footer && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

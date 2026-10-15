@@ -6,7 +6,7 @@
 // 用原生下拉菜单（radix），样式只用 globals.css 的 .cc-chip-btn / .cc-menu 与变量。
 
 import { CalendarIcon, CheckIcon, ChevronDownIcon, StoreIcon } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu } from "@/components/ui/menu";
 import type { FC, ReactNode } from "react";
 import { co } from "@/i18n";
 import { type Branch, branchShort, monthLabel, recentMonths } from "@/lib/companies";

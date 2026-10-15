@@ -24,7 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.failed) return this.props.children;
     if (this.props.fallback !== undefined) return this.props.fallback;
     return (
-      <div role="alert" className="flex h-dvh w-full items-center justify-center bg-app">
+      <div role="alert" className="flex h-(--cc-vh) w-full items-center justify-center bg-app">
         <button type="button" className="cc-btn" onClick={() => location.reload()}>
           <RotateCwIcon className="size-4" />
           {t("reload")}

@@ -47,27 +47,9 @@ export function MobileShell({
   const changeRef = useRef(onOpenChange);
   changeRef.current = onOpenChange;
 
-  // 弹出键盘时整页跟着可见区域走（同 Claude 手机端：输入框顶在键盘上方）。安卓靠页面 meta 的 interactive-widget；
-  // iOS 不缩布局视口，这里把可见区域的高度和上沿写进 --cc-vvh / --cc-vvtop，外壳是 fixed，跟着贴住。
-  // 不去 scrollTo 把页面拉回：空白处上下拖时 iOS 会拉动整页，拉回与手指来回打架，界面一直抖（2026-10-12 用户真机）。
-  // 整页本身也不让拉动（globals.css 的 :has(.cc-mshell)），只有对话、抽屉里的内容区会滚。
-  useEffect(() => {
-    const shell = shellRef.current;
-    const viewport = window.visualViewport;
-    if (!shell || !viewport) return;
-    const fit = () => {
-      shell.style.setProperty("--cc-vvh", `${viewport.height}px`);
-      shell.style.setProperty("--cc-vvtop", `${viewport.offsetTop}px`);
-    };
-    fit();
-    viewport.addEventListener("resize", fit);
-    viewport.addEventListener("scroll", fit);
-    return () => {
-      viewport.removeEventListener("resize", fit);
-      viewport.removeEventListener("scroll", fit);
-    };
-  }, []);
-
+  // 弹出键盘时整页跟着可见区域走（同 Claude 手机端：输入框顶在键盘上方）：外壳是 fixed，高度与上沿取根元素的
+  // --cc-viewport-h / --cc-vvtop（lib/viewport.ts 按可见区域写，弹窗也用同一份）。整页本身不让拉动（globals.css 的
+  // :has(.cc-mshell)），只有对话、抽屉里的内容区会滚。
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;

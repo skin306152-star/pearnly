@@ -329,6 +329,13 @@
   --cc-font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
 
   --cc-tap: 2.75rem;              /* 手机点按区下限 44pt（官方卡片规矩） */
+  /* 整屏高：先写 vh，认 dvh / svh 的浏览器在下面的 @supports 里换掉（Chrome / 安卓 WebView 108、Safari 15.4 以前不认，
+     2026-10-15 三星 A14 的 Chrome 106 上弹窗限高整条失效、超出屏幕）。组件只引用这几个变量，不直接写 dvh / svh
+     （闸门 scripts/check-frontend-viewport-units.py） */
+  --cc-vh: 100vh;
+  --cc-svh: 100vh;
+  /* 可见区域高：lib/viewport.ts 按 visualViewport 写 --cc-vvh（键盘弹出时变矮），没有时取整屏高 */
+  --cc-viewport-h: var(--cc-vvh, var(--cc-vh));
   --cc-sidebar-w: 18rem;          /* 侧栏宽：外壳实测（同 Claude 桌面端）；拖动分隔条后由页面按本机记下的值覆盖 */
   --cc-sidebar-min-w: 14rem;      /* 侧栏最窄 */
   --cc-sidebar-max-w: 28rem;      /* 侧栏最宽 */
@@ -398,6 +405,9 @@
 }
 
 /* shadcn / assistant-ui 自带组件用的变量，全部接到上面的 CC 变量（不另设一套数值） */
+@supports (height: 100dvh) { :root { --cc-vh: 100dvh; } }
+@supports (height: 100svh) { :root { --cc-svh: 100svh; } }
+
 :root, .dark {
   --background: var(--cc-bg-app);
   --foreground: var(--cc-ink);
@@ -559,6 +569,8 @@
     z-index: 60; min-width: 14rem; padding: 0.375rem; background: var(--cc-bg-surface); color: var(--cc-ink);
     border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-xl); box-shadow: var(--cc-shadow-pop);
     animation: cc-pop-in var(--cc-dur) var(--cc-ease) both;
+    /* 不超出屏幕（离边 8px，components/ui/menu.tsx）：放不下时菜单里滚动，键盘弹出时也一样 */
+    max-width: var(--radix-dropdown-menu-content-available-width); max-height: var(--radix-dropdown-menu-content-available-height); overflow-y: auto;
   }
   .cc-menu-item {
     display: flex; align-items: center; gap: 0.625rem; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-md);
@@ -650,7 +662,8 @@
   .cc-install svg { width: 1rem; height: 1rem; }
   /* iPhone「添加到主屏幕」两步指引 */
   .cc-install-guide {
-    position: fixed; top: 50%; left: 50%; z-index: 71; translate: -50% -50%; display: flex; flex-direction: column; gap: 1rem;
+    position: fixed; top: calc(var(--cc-vvtop, 0px) + var(--cc-viewport-h) / 2); left: 50%; z-index: 71; translate: -50% -50%;
+    display: flex; flex-direction: column; gap: 1rem; max-height: calc(var(--cc-viewport-h) - 2rem); overflow-y: auto;
     width: min(22rem, calc(100vw - 2rem)); padding: 1.25rem; border-radius: var(--cc-radius-dialog);
     background: var(--cc-bg-surface); color: var(--cc-ink); box-shadow: var(--cc-shadow-pop); outline: none;
   }
@@ -816,6 +829,17 @@
   .cc-list-row:disabled { opacity: 0.5; }
   .cc-list-row[data-covering] { background: var(--cc-bg-active); }
   .cc-dialog { box-shadow: var(--cc-shadow-pop); }
+  /* 居中弹窗（定时任务、添加公司、设置、图片预览）：在可见区域里居中，最高占可见区域的 --cc-modal-share（键盘弹出时跟着变矮）。
+     头尾不滚、主体（min-h-0 flex-1 overflow-y-auto）滚动：标题、关闭、取消 / 保存一直在屏内 */
+  .cc-modal {
+    top: calc(var(--cc-vvtop, 0px) + var(--cc-viewport-h) / 2);
+    max-height: calc(var(--cc-viewport-h) * var(--cc-modal-share, 0.88));
+  }
+  /* 手机长按出菜单的行（侧栏对话行、公司组头）：不选字、不弹系统长按菜单与「点按即可查看搜索结果」；行内改名的输入框照常选字 */
+  @media (hover: none) {
+    [data-slot="aui_thread-list-item"], .cc-project-row { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    [data-slot="aui_thread-list-item"] input, .cc-project-row input { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  }
 
   /* 主档页：电脑两栏（右栏 320px），手机单栏 */
   .cc-company-page { max-width: calc(var(--cc-thread-w) + 22rem); }
@@ -878,7 +902,7 @@
 /* 手机抽屉（同 Claude 手机端）：抽屉在底下不动，页面是盖在上面的卡片，跟着手指往右推开（components/mobile-shell.tsx）。
    --cc-mprogress：0 收起 ~ 1 打开，拖动时由页面逐帧写入；一离开原位就是圆角细边（前 1/12 的路程里长满），越往右盖得越多（浅色变淡、深色变暗）。 */
 .cc-mshell {
-  --cc-mprogress: 0; position: fixed; top: var(--cc-vvtop, 0px); left: 0; right: 0; height: var(--cc-vvh, 100dvh);
+  --cc-mprogress: 0; position: fixed; top: var(--cc-vvtop, 0px); left: 0; right: 0; height: var(--cc-viewport-h);
   overflow: hidden; overscroll-behavior: none; background: var(--cc-bg-drawer);
 }
 /* 手机外壳在时整页不能被拉动（iOS 橡皮筋）：只有内容区滚动 */

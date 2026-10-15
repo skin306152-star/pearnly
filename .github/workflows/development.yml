@@ -134,6 +134,10 @@ jobs:
         run: python3 tests/test_cc_mobile_content.py
       - name: Keep CC colors, radii and shadows in globals.css only (ccs, official Claude style variables)
         run: python3 scripts/check-frontend-tokens.py
+      - name: Keep dvh / svh / lvh behind a vh fallback (Chrome and Android WebView before 108 drop the whole declaration)
+        run: python3 scripts/check-frontend-viewport-units.py
+      - name: Verify CC phone overlays (dialogs fit and scroll, the back key closes the top layer, long-press rows, menus inside the screen)
+        run: python3 tests/test_cc_mobile_overlays.py
       - name: Verify the ccs values match the official table and cards in the conversation follow the card rules
         run: python3 tests/test_cc_ccs.py
       - name: Verify offline DMS editor snapshot rendering

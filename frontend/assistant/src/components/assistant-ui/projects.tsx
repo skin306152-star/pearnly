@@ -14,7 +14,7 @@
 
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ClockIcon, MoreHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { type FC, type ReactNode, useEffect, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
@@ -281,18 +281,9 @@ export const MoveToMenu: FC<{ sessionId: string | undefined; localId?: string | 
   const current = filingOf(sessionId, localId).project;
   const move = (project: string) => void fileSession(sessionId, { project, period: "", scope: "" }).catch(report);
   return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className="cc-menu-item">
-        <Building2Icon />
-        <span className="flex-1">{co.moveTo}</span>
-        <ChevronRightIcon className="text-ink-3" />
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent sideOffset={6} className="cc-menu !min-w-52 max-w-72">
-          <CompanyChoices current={current} onPick={move} />
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
+    <SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">
+      <CompanyChoices current={current} onPick={move} />
+    </SubMenu>
   );
 };
 
@@ -404,17 +395,9 @@ export const MobileFilingItems: FC = () => {
     <>
       <MoveToMenu sessionId={remoteId} localId={localId} />
       {withPeriod && filing.project && (
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger className="cc-menu-item">
-            <span className="flex-1">{co.period}</span>
-            <ChevronRightIcon className="text-ink-3" />
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.SubContent sideOffset={6} className="cc-menu !min-w-40 max-h-80 overflow-y-auto">
-              <PeriodItems value={filing.period} onPick={(period) => void fileSession(remoteId, { ...filing, period }).catch(report)} />
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Sub>
+        <SubMenu label={co.period} className="cc-menu !min-w-40 max-h-80 overflow-y-auto">
+          <PeriodItems value={filing.period} onPick={(period) => void fileSession(remoteId, { ...filing, period }).catch(report)} />
+        </SubMenu>
       )}
     </>
   );

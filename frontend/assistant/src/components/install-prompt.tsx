@@ -14,7 +14,8 @@ import {
   SquarePlusIcon,
   XIcon,
 } from "lucide-react";
-import { Dialog as DialogPrimitive, DropdownMenu } from "radix-ui";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import { DropdownMenu } from "@/components/ui/menu";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { t } from "@/i18n";
 import {

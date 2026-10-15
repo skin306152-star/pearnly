@@ -82,7 +82,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
       src={src}
       alt=""
       className={cn(
-        "block h-auto max-h-[80vh] w-auto max-w-full object-contain",
+        "block h-auto max-h-[calc(var(--cc-viewport-h)*0.8)] w-auto max-w-full object-contain",
         isLoaded
           ? "aui-attachment-preview-image-loaded"
           : "aui-attachment-preview-image-loading invisible",
@@ -109,7 +109,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         <DialogTitle className="aui-sr-only sr-only">
           Image Attachment Preview
         </DialogTitle>
-        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden">
+        <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*0.8)] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
       </DialogContent>

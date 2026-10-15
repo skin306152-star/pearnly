@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Assistant } from "./assistant";
 import "./globals.css";
 import { pref } from "@/lib/appearance";
+import { installBackKey } from "@/lib/back-stack";
+import { trackViewport } from "@/lib/viewport";
 
 // 深浅色默认跟随系统（同 Claude）：系统改了也即时跟着变；设置里也可以固定。样式变量在 globals.css 的 :root / .dark。
 const scheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -28,6 +30,11 @@ applyScheme();
 scheme.addEventListener("change", applyScheme);
 window.addEventListener("cc-theme", applyScheme);
 new MutationObserver(themeColor).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-open"], childList: true });
+
+// 可见区域的高度（键盘弹出时变矮）：手机外壳与弹窗按它定高度（lib/viewport.ts）
+trackViewport();
+// 手机返回键先关最上面一层弹层（lib/back-stack.ts）
+installBackKey();
 
 // 最外层错误边界：哪里抛错都不整页变白（components/error-boundary.tsx）
 createRoot(document.getElementById("root")!).render(
