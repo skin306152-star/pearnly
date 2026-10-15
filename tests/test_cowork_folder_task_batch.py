@@ -78,7 +78,12 @@ class Store:
                 if all(row.get(key) == value for key, value in (filters or {}).items())]
 
     def get_value(self, doctype, name, field, *args, **kwargs):
-        return "{}" if field == "report_json" else None
+        if field == "report_json":
+            return "{}"
+        if isinstance(field, (list, tuple)) and name in self.rules:
+            # 改任务时读原来的读者（`rules.save` 的 keep）
+            return Row({key: self.rules[name].get(key) for key in field})
+        return None
 
     def write(self, doc):
         self.writes += 1
@@ -434,9 +439,16 @@ class ReaderDevices(Harness):
         self.assertIn("root_invalid", str(caught.exception))
         with self.assertRaises(Exception):
             self.rules.save(self.values(reader="PC9|C1", folder="C"))  # 不在这条连接上的电脑
-        # 改任务时只给连接：原来那台还报着这个根目录就还是它
+        # 两台都报了同一个根目录（各自映射了同一个盘符）：只给连接、又不是改任务时，不猜是哪台（第 4 批审查 M2）
         self.agents["PC1|C1"] = {"roots": [{"id": self.ROOT_C, "label": "S:\\Scans", "folders": ["A"]},
-                                           *self.agents["C1"]["roots"]], "version": "1.6.0"}
+                                           *self.agents["C1"]["roots"]], "version": "1.6.0", "at": "2026-10-12T09:00:00"}
+        with self.assertRaises(Exception) as caught:
+            self.rules.save(self.values(root_id=self.ROOT_C, folder="A\\B", title="New"))
+        self.assertIn("root_invalid", str(caught.exception))
+        self.assertEqual(sorted(self.store.rules), ["R1", "R2"])
+        self.rules.save(self.values(reader="PC1|C1", root_id=self.ROOT_C, folder="B", title="Mine"))  # 编号照常
+        self.assertEqual(self.store.rules["R3"]["reader_device"], "PC1")
+        # 改任务时只给连接：原来那台还报着这个根目录就还是它（PC1 刚同步过也不换）
         self.rules.save(self.values(name="R1", root_id=self.ROOT_C, folder="A", title="Renamed"))
         self.assertEqual(self.store.rules["R1"]["reader_device"], "PC2")
 

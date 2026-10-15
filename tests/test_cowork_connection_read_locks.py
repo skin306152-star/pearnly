@@ -248,6 +248,33 @@ class ConnectionReadLocks(unittest.TestCase):
         self.assertEqual([row["name"] for row in rows], ["EXP"])
         self.assertTrue(rows[0]["all_members"])
 
+    def test_configure_keeps_or_changes_all_members(self):
+        """第 4 批审查 M3：`configure` 收 ``all_members``：不给就不变（现有界面只改名单时不会悄悄关掉全所可用），给了照它存，
+        关掉以后名单才起作用；MR.ERP 不能全所可用。新建的 Express 池默认 1。"""
+        DB.docs[CONNECTION] = {"CONN": connection("CONN", all_members=1, allowed_users=model.dumps([USER])),
+                               "MR": connection("MR", adapter="mrerp")}
+        with mock.patch.object(access, "require_assignee", lambda *args, **kwargs: None, create=True):
+            kept = service.configure("W", "express", "k1", "CONN", {}, users=[USER, "boss@x.com"], name="CONN",
+                                     expected_revision=1)
+            self.assertTrue(kept["all_members"])
+            self.assertEqual(DB.docs[CONNECTION]["CONN"]["all_members"], 1)
+            closed = service.configure("W", "express", "k2", "CONN", {}, users=["boss@x.com"], name="CONN",
+                                       expected_revision=2, all_members=False)
+            self.assertEqual((closed["all_members"], closed["users"]), (False, ["boss@x.com"]))
+            self.assertEqual(DB.docs[CONNECTION]["CONN"]["all_members"], 0)
+            self.assertEqual([row["name"] for row in service.records(None, None, 0, 100)], ["MR"])  # 名单里没有自己
+            with self.assertRaises(ValidationError):
+                service.configure("W", "mrerp", "k3", "MR", {}, name="MR", expected_revision=1, all_members=True)
+            with self.assertRaises(model.ConnectionError):  # 接口层（`api._call`）照 `enabled` 转成同一句错
+                service.configure("W", "express", "k4", "CONN", {}, name="CONN", expected_revision=3,
+                                  all_members="maybe")
+            # 同一请求号重放：给了 all_members 的请求指纹带它，与原请求一致就原样回
+            again = service.configure("W", "express", "k2", "CONN", {}, users=["boss@x.com"], name="CONN",
+                                      expected_revision=2, all_members=False)
+            self.assertEqual(again["revision"], 3)
+        api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/api.py").read_text(encoding="utf-8")
+        self.assertIn("credentials, all_members)", api)  # 网页接口照传
+
     def test_every_read_only_connection_view_takes_no_row_locks(self):
         self.assertEqual(service.detail("CONN")["name"], "CONN")
         found = service.targets("CONN")

@@ -6,7 +6,8 @@
 
 - 定时任务存 ``reader``（成员连接，原字段）+ ``reader_device``（电脑）；文件、运行记录、公司文件夹同样记电脑；
 - 对外的编号是不透明的「电脑|连接」（`contracts.reader_ref`）。只给连接的旧写法（第 6 批之前的网页、旧对话里的参数）
-  按根目录认：这条连接上哪台电脑报过这个根目录（根目录编号是那台电脑本机路径的摘要），多台都报过取最近同步的那台；
+  按根目录认：这条连接上哪台电脑报过这个根目录（根目录编号是那台电脑本机路径的摘要，不含电脑：几台都映射成 S 盘
+  就是同一个编号）。几台都报过时只认改任务时原来那台、或绑定里带的电脑名对得上的那一台，否则拒（不猜，第 4 批审查 M2）；
 - 不自动换电脑读：本机台账只在原电脑上，换读者会把拍底前的旧文件当新文件（方案 2.7）。读者被移除，任务留着原电脑，
   列表标出来，由负责人重选；
 - 同一台电脑的旧槽位密钥改挂到它已认领的记录上（`companion.devices.hello`）时，这台旧记录名下的任务、在途文件、
@@ -47,10 +48,13 @@ def _roots(found):
     return {row.get("id") for row in found.get("roots") or [] if isinstance(row, dict)}
 
 
-def resolve(value, root_id=None, *, keep=None):
+def resolve(value, root_id=None, *, keep=None, name=None):
     """读者编号（或只有连接的旧写法）→ (电脑, 连接)。给了电脑就要它此刻还在这条连接上；只有连接时按根目录认：
-    ``keep``（改任务时原来那台）报过这个根目录就还是它，否则取报过它的电脑里最近同步的那台；没给根目录、这条连接上只有
-    一台电脑就是它。都认不出回 ("", 连接)：之后按根目录核时照「这台电脑没有这个根目录」拒。连接的使用授权由调用方核。"""
+    ``keep``（改任务时原来那台）报过这个根目录就还是它；否则报过它的电脑只有一台就是那台；几台都报过（各自映射了同一个
+    盘符、都有同一个本机路径）时按 ``name``（CC 桌面版绑定里带的电脑名，同步时报的那个）认出唯一一台，认不出抛
+    ``root_invalid``，不按最近同步猜（猜错就读到别人电脑上的同名文件夹）。没给根目录、这条连接上只有一台电脑就是它。
+    一台都没报过回 ("", 连接)：之后按根目录核时照「这台电脑没有这个根目录」拒（公司文件夹允许先绑、等电脑）。
+    连接的使用授权由调用方核。"""
     try:
         device, connection = contracts.parse_reader(value)
     except contracts.ContractError as error:
@@ -66,9 +70,14 @@ def resolve(value, root_id=None, *, keep=None):
     for candidate in sorted(found):
         current = state(candidate, connection)
         if root_id is not None and root_id in _roots(current):
-            reported.append((str(current.get("at") or ""), candidate))
+            reported.append((candidate, str(current.get("device") or "")))
+    if len(reported) == 1:
+        return reported[0][0], connection
+    named = [candidate for candidate, label in reported if name and label == name]
+    if len(named) == 1:
+        return named[0], connection
     if reported:
-        return max(reported)[1], connection
+        frappe.throw(_("cowork.folder.root_invalid"))
     if root_id is None and len(found) == 1:
         return next(iter(found)), connection
     return "", connection
@@ -90,9 +99,29 @@ def adopt(connection, device, root_ids):
 
 def moved(connection, old, new):
     """钩子 ``cowork_reader_device_moved``：同一台电脑的旧记录 ``old`` 在这条连接上的密钥改挂到 ``new``（`companion.devices`），
-    这条连接上由 ``old`` 读的任务、在途文件、还没发简报的运行、公司文件夹都转给 ``new``。调用方已锁连接与密钥行。"""
+    这条连接上由 ``old`` 读的任务、在途文件、还没发简报的运行、公司文件夹都转给 ``new``。调用方已锁连接与密钥行。
+
+    ``new`` 上已经有的不重复（第 4 批审查 L4）：转过来的启用任务与 ``new`` 上某个启用任务根目录相同、文件夹相同或互相包含
+    （同一台电脑上的同一个文件夹，判据同 `rules._overlapping`）就停用，不在同一台电脑上把同一批文件跑两遍、推两遍；
+    这家公司在 ``new`` 上这条连接已有文件夹绑定的，``old`` 那一行删掉（留电脑现在这条记录上的），不留两行一样的让解绑永远
+    拒绝。"""
     if not connection or not old or not new or old == new:
         return
+    mine = frappe.db.sql(f"""SELECT root_id, folder FROM `tab{RULE}` WHERE enabled = 1 AND reader_device = %s""",
+                         (new,), as_dict=True)
+    if mine:
+        for row in frappe.db.sql(f"""SELECT name, root_id, folder FROM `tab{RULE}` WHERE enabled = 1
+                AND reader_device = %s AND IFNULL(NULLIF(reader, ''), connection) = %s""", (old, connection),
+                                 as_dict=True):
+            if any(other.root_id == row.root_id and contracts.nested(other.folder or "", row.folder or "")
+                   for other in mine):
+                frappe.db.sql(f"""UPDATE `tab{RULE}` SET enabled = 0, rule_revision = IFNULL(rule_revision, 0) + 1
+                    WHERE name = %s""", (row.name,))
+    taken = [row[0] for row in frappe.db.sql(f"""SELECT name FROM `tab{COMPANY_FOLDER}` WHERE reader_device = %s
+        AND reader = %s AND company IN (SELECT company FROM `tab{COMPANY_FOLDER}` WHERE reader_device = %s
+        AND reader = %s)""", (old, connection, new, connection))]
+    if taken:
+        frappe.db.delete(COMPANY_FOLDER, {"name": ("in", taken)})
     frappe.db.sql(f"""UPDATE `tab{RULE}` SET reader_device = %s WHERE reader_device = %s
         AND IFNULL(NULLIF(reader, ''), connection) = %s""", (new, old, connection))
     # 文件不论走到哪一步都转：电脑之后还要按它取结果表格（`machine._workbook`）

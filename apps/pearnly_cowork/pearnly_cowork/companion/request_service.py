@@ -14,8 +14,8 @@
 
 机器一侧（`request_api` 在配对码身份下调用，身份核对在 `http_auth`）：
 - ``lease_next(context, body)``：先把这条连接上等太久没人领、领了超时的标成过期，再按先来先做领一件：只看定向给这台
-  电脑的、没定向的；读账套的要这台够得到那份账套、按分派顺序轮到它（`route_contracts.decide`，发起人当录入人），交出去
-  的参数换成它的本机写法。发起人此刻已不能用这条连接的直接判失败，不交给电脑；
+  电脑的、没定向的；读账套的只扫这台够得到的那几份（`connections.pool.readable_keys`），按分派顺序轮到它
+  （`route_contracts.decide`，发起人当录入人），交出去的参数换成它的本机写法。发起人此刻已不能用这条连接的直接判失败，不交给电脑；
 - ``complete(context, body)``：交结果，一块一块按已收字节续传，最后一块核对大小与 sha256；或者交失败原因。
 """
 import hashlib
@@ -261,11 +261,12 @@ def presence(connection, device="") -> dict:
 
 
 def _candidates(connection, device=None, account_key=None):
-    """问谁能不能领：给了电脑就是那台；给了账套是够得到它（状态正常）的各台；都没给是这条连接上的每台电脑。
+    """问谁能不能领：给了电脑就是那台（给了空串是一台都没有）；给了账套是够得到它（状态正常）的各台；都没给是这条连接上的每台电脑。
     回 ``{电脑: 心跳 / 电脑行报的版本}``。"""
     peers = credentials.pool_peers(connection)
     if device is not None:
-        names = [device]
+        # 认不出电脑（空）就谁都不问：不落到部署前按连接记的在场与没记电脑的旧租约上（第 4 批审查 L2）
+        names = [device] if device else []
     elif account_key:
         names = account_pool.reachers(connection, account_key)
     else:
@@ -384,10 +385,14 @@ def lease_next(context, body) -> dict:
     if not kinds:
         return {"request": None}
     marks = ", ".join(["%s"] * len(kinds))
-    # 只看这台能领的：定向给它的、没定向的（读账套的再看它够不够得到、轮没轮到它）。先不加锁挑，再锁挑中的那一件
+    # 只看这台能领的：定向给它的、没定向的；读账套的只看它够得到的那几份（不然别的电脑才够得到的一批会占满扫描名额，
+    # 后面定向给它的取文件要等那批过期，第 4 批审查 L1），轮没轮到它再按分派顺序看。先不加锁挑，再锁挑中的那一件
+    reach = sorted(account_pool.readable_keys(context.connection, device))
+    books = f"OR account_key IN ({', '.join(['%s'] * len(reach))})" if reach else ""
     rows = frappe.db.sql(f"""SELECT name, kind, actor, account_key, requested_at FROM `tab{REQUEST}`
         WHERE connection = %s AND status = 'requested' AND kind IN ({marks}) AND IFNULL(target_device, '') IN (%s, '')
-        ORDER BY requested_at, name LIMIT {LEASE_SCAN}""", (context.connection, *kinds, device), as_dict=True)
+        AND (IFNULL(account_key, '') = '' {books})
+        ORDER BY requested_at, name LIMIT {LEASE_SCAN}""", (context.connection, *kinds, device, *reach), as_dict=True)
     accounts = [row for row in rows if row.account_key]
     turns = _turns(context.connection, device, accounts, now) if accounts else {}
     for candidate in rows:

@@ -3014,6 +3014,17 @@ def _folder_text(values, current) -> str:
     return _waiting_text(values)
 
 
+def _root_labels(reader, root) -> dict:
+    """卡片上的根目录名：读者那台电脑报的 ``{根目录编号: 显示路径}``。认不出是哪台（只给连接、几台都报过这个根目录）
+    时不显示路径，存任务时由任务服务照常拒。"""
+    try:
+        return {r.get("id"): r.get("label")
+                for r in folder_readers.state(*folder_readers.resolve(reader, root)).get("roots") or []}
+    except frappe.ValidationError:
+        frappe.clear_messages()
+        return {}
+
+
 def _task_lines(item, rows, cache) -> tuple:
     """卡片上一个任务要列的：（现值，[(字段, 现在, 改后)]，文件夹那一句）。新任务只列有值的项，改任务只列变了的项；
     文件夹那一句（现有几份，或接续哪个停用的任务）只在新建或换了文件夹时说（之后看任务列表的待处理数）。"""
@@ -3029,9 +3040,7 @@ def _task_lines(item, rows, cache) -> tuple:
     moved = not current or _same_place(values) != _same_place(current)
     if moved:
         reader, root = values.get("reader") or connection, values.get("root_id")
-        roots = _cached(cache, ("roots", reader, root), lambda: {
-            r.get("id"): r.get("label")
-            for r in folder_readers.state(*folder_readers.resolve(reader, root)).get("roots") or []}) or {}
+        roots = _cached(cache, ("roots", reader, root), lambda: _root_labels(reader, root)) or {}
         folder = "\\".join(p for p in (roots.get(values.get("root_id")), _folder_path(values.get("folder"))) if p)
     else:
         folder = before.get("cowork.folder.field.folder", "")

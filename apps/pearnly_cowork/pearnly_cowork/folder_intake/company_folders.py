@@ -4,10 +4,11 @@
 
 - 绑定只是指针：读这个文件夹的成员连接（`reader`）、根目录编号（`root_id`）、根目录下的相对路径（`folder`），外加绑定
   时的显示路径、网络路径、电脑名与谁绑的，存在私有表 `Cowork Company Folder`（只经本模块写，守卫同另三张表）。
-  一行一个（公司, 读者, 读者电脑）：`binding_key = sha256(json([company, reader, reader_device]))`，同一（公司, 读者,
-  读者电脑）再绑就是替换。读者电脑（ADR-021 第 4 批，`readers`）：桥交回的绑定只带成员连接，按根目录认是这条连接上的
-  哪台电脑（根目录编号是那台电脑本机路径的摘要，CC 桌面版加根目录后立刻快速同步）；部署前绑的由补丁回填。按字段找，
-  不按键找：电脑改挂（`readers.moved`）后键不变、字段变了。
+  一行一个（公司, 读者, 读者电脑），同一（公司, 读者, 读者电脑）再绑就是替换。读者电脑（ADR-021 第 4 批，`readers`）：
+  桥交回的绑定只带成员连接，按根目录认是这条连接上的哪台电脑（根目录编号是那台电脑本机路径的摘要，CC 桌面版加根目录后
+  立刻快速同步；几台都报过时再按绑定里的电脑名认，还认不出就拒、不猜）；部署前绑的由补丁回填。按字段找，不按键找：
+  主键 `binding_key` 是新建那一刻的 `sha256(json([company, reader, reader_device]))`，之后补丁回填、电脑改挂
+  （`readers.moved`）、认出电脑接手老行都只改字段、不改键；新建时这个键已被这样一行占着就换一个随机键（不撞主键）。
 - 授权边界不变：新授权只能在 CC 桌面版里经 Windows 原生选择框加（网页从不传路径，`pick_folder` 交回的绑定由页面原样
   转来）；读文件时服务端照旧对照电脑上报的根目录（`fetch`），电脑再对照本机的根目录。绑定时不要求根目录已经上报：
   没上报就是「等待电脑」，读不到任何东西。
@@ -18,6 +19,7 @@
 """
 import hashlib
 import json
+from uuid import uuid4
 
 import frappe
 from frappe import _
@@ -72,10 +74,12 @@ def _clean(binding):
         _error(error.code)
     share = str(binding.get("share") or "").strip()
     # 桥以后可能直接带电脑编号（第 5 批），就用它（要还在这条连接上）；只带连接的按根目录认
-    device, _connection = readers.resolve(contracts.reader_ref(binding.get("reader_device") or hint, doc.name), root)
+    name = contracts.device(binding.get("device"))
+    device, _connection = readers.resolve(contracts.reader_ref(binding.get("reader_device") or hint, doc.name), root,
+                                          name=name)
     return {"reader": doc.name, "reader_device": device, "root_id": root, "folder": sub, "label": label,
             "share": share if share.startswith("\\\\") and len(share) <= 500 else "",
-            "device": contracts.device(binding.get("device"))}
+            "device": name}
 
 
 def bind(company, binding, user) -> dict:
@@ -90,8 +94,11 @@ def bind(company, binding, user) -> dict:
         if frappe.db.count(COMPANY_FOLDER, {"company": company}) >= PER_COMPANY:
             _error("cowork.folder.invalid")
         doc = frappe.new_doc(COMPANY_FOLDER)
-        doc.update({"binding_key": binding_key(company, values["reader"], values["reader_device"]),
-                    "company": company})
+        key = binding_key(company, values["reader"], values["reader_device"])
+        if frappe.db.exists(COMPANY_FOLDER, key):
+            # 这个键的那一行字段已经变了（补丁回填、电脑改挂、认出电脑接手）：按字段它不是这一行，换个键另起
+            key = uuid4().hex
+        doc.update({"binding_key": key, "company": company})
     doc.update({**values, "bound_by": user, "bound_at": now_datetime()})
     write(doc)
     return next((row for row in view(company) if (row["reader"], row["reader_device"])

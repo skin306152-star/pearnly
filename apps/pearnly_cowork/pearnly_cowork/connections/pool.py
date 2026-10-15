@@ -53,6 +53,7 @@ Q_WRITABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` W
               f"AND state='ok' AND writable=1")
 Q_READABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
               f"AND state='ok' AND account_key IN %s")
+Q_READABLE_KEYS = f"SELECT DISTINCT account_key FROM `tab{REACH}` WHERE connection=%s AND device=%s AND state='ok'"
 Q_WRITERS = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s AND state='ok' AND writable=1"
 Q_ANY_REACH = f"SELECT name FROM `tab{REACH}` WHERE connection=%s LIMIT 1"
 Q_DEVICES = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s"
@@ -140,6 +141,14 @@ def readable_reach(connection, device, account_keys):
     if not connection or not device or not keys:
         return {}
     return {row.account_key: row for row in _rows(Q_READABLE, (connection, device, tuple(keys)))}
+
+
+def readable_keys(connection, device):
+    """这台电脑够得到（状态正常，不论能不能写）的全部账套的规范键。领取按需请求时据此只扫它读得了的读账套请求，
+    别的电脑才够得到的一批不占它的扫描名额（第 4 批审查 L1）。只读。"""
+    if not connection or not device:
+        return set()
+    return {row.account_key for row in _rows(Q_READABLE_KEYS, (connection, device)) if row.account_key}
 
 
 def writer_devices(connection):

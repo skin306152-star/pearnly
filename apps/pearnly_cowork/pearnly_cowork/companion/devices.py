@@ -211,6 +211,10 @@ def hello(site, key, values):
     # 只属于它的本机登记一并转过去，旧电脑才退役（不然那台第一次整份上报时，同一份账套会被登记出第二个规范键）
     if target and key.device and target != key.device:
         _move(key.connection, key.device, target)
+    elif target and not key.device:
+        # 没挂电脑的密钥在池里按密钥编号算一台（`credentials.device_id`）：按这个编号接手的任务、在途文件、可达行
+        # 一并转给它挂上的电脑（第 4 批审查 L6）
+        _move(key.connection, key.name, target)
     # 3. 电脑行，最后锁，并复核第 1 步读到的
     if stale:
         release(read(stale))
@@ -227,6 +231,8 @@ def hello(site, key, values):
             raise busy()
     else:
         doc = create_claimed(workspace=key.workspace, owner=key.issuer, label=values['name'], secret_digest=digest)
+        # 同上：没挂电脑的密钥按密钥编号记的东西转给新建的这台（新行刚插入，别的事务锁不到它，不违反加锁顺序）
+        _move(key.connection, key.device or key.name, doc.name)
     moved = not (current and current.secret_digest)
     if doc.name != key.device:
         previous, key.device = key.device, doc.name

@@ -201,11 +201,16 @@ class FakeDB:
         if "WHERE name = %s" in query:
             return [(values[0],)] if values[0] in self.rows else []
         if "status = 'requested' AND kind IN" in query:
-            # 领取：只看定向给这台的与没定向的，先不加锁
+            # 领取：只看定向给这台的与没定向的、读账套的只看它够得到的几份，先不加锁，最多 LEASE_SCAN 件
             assert as_dict and "FOR UPDATE" not in query
-            connection, kinds, device = values[0], values[1:-1], values[-1]
+            count = query.split("kind IN (")[1].split(")")[0].count("%s")
+            connection, kinds, device = values[0], values[1:1 + count], values[1 + count]
+            reach = set(values[2 + count:])
+            assert "IFNULL(account_key, '') = ''" in query and (not reach or "OR account_key IN" in query)
+            limit = int(query.rsplit("LIMIT ", 1)[1])
             return [row for row in self._ordered(self.rows.values()) if row.connection == connection
-                    and row.status == "requested" and row.kind in kinds and (row.target_device or "") in (device, "")]
+                    and row.status == "requested" and row.kind in kinds and (row.target_device or "") in (device, "")
+                    and (not row.account_key or row.account_key in reach)][:limit]
         raise AssertionError(query)
 
 
@@ -273,6 +278,9 @@ class Pool:
                       "M1": {"PC1": {"user": "", "always_on": False, "version": ""}}}
         # {(连接, 电脑, 规范键): 可达行（本机写法）}
         self.reach = {}
+
+    def readable_keys(self, connection, device):
+        return {key for (conn, name, key) in self.reach if (conn, name) == (connection, device)}
 
     def readable_reach(self, connection, device, keys):
         return {key: row for (conn, name, key), row in self.reach.items()
@@ -754,6 +762,27 @@ class PoolRequestTests(unittest.TestCase):
         self.assertEqual(self.service.waiting("C1", "express_read", account_key="\\\\nas\\none")["reason"],
                          "offline")  # 没有电脑够得到
 
+    def test_books_reads_another_computer_cannot_take_do_not_fill_its_scan(self):
+        """第 4 批审查 L1：PC1 是唯一够得到账套 X 的电脑；排着的 X 读请求比一次扫描的名额还多时，PC2 照样领得到后面
+        定向给它的取文件请求（领取只扫这台够得到的那几份账套）。"""
+        self.pool.reach.pop(("C1", "PC2", self.KEY))
+        self.allowed.add(("third@x.com", "C1"))
+        for index in range(self.service.LEASE_SCAN + 5):
+            self.frappe.session.user = ("acc@x.com", "other@x.com", "third@x.com")[index % 3]
+            self.service.create("account_history", "C1", {"account_set": self.KEY, "account_root": "", "n": index},
+                                f"account_history:x{index}", account_key=self.KEY)
+            self.clock.now += timedelta(seconds=1)
+        self.frappe.session.user = "acc@x.com"
+        mine = self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:late",
+                                   target_device="PC2")
+        self.assertEqual(self.lease("CRED-2")["request"]["id"], mine["request"])
+
+    def test_an_unknown_computer_is_never_asked_through_the_old_presence(self):
+        """第 4 批审查 L2：认不出电脑（空）时不问部署前按连接记的在场、不算没记电脑的旧租约。"""
+        self.service._remember("C1", "", "1.6.0", ["folder_list"], self.clock.now)
+        self.assertEqual(self.service.waiting("C1", "folder_list", "1.6.0", device="")["reason"], "offline")
+        self.assertEqual(self.service._candidates("C1", ""), {})
+
     def test_expiry_scans_without_locks_and_locks_only_what_expired(self):
         old = self.service.create("folder_list", "C1", {"p": 0}, "folder_list:old", target_device="PC1")
         self.clock.now += timedelta(seconds=contracts.CLAIM_SECONDS + 5)
@@ -836,9 +865,12 @@ class FetchServiceTests(unittest.TestCase):
 
         def resolve(value, root_id=None):
             device, connection = folder_contracts.parse_reader(value)
-            return device or "PC1", connection  # 只给连接的旧写法：按根目录认出是 PC1
+            # 只给连接的旧写法：按根目录认出是 PC1；CX / CY 上没有一台报过这个根目录
+            return device or ("" if connection in ("CX", "CY") else "PC1"), connection
 
-        readers = types.SimpleNamespace(resolve=resolve, state=lambda device, connection: self.agent_state)
+        # CX 上有电脑（只是没报过这个根目录），CY 上一台电脑都没有
+        readers = types.SimpleNamespace(resolve=resolve, state=lambda device, connection: self.agent_state,
+                                        members=lambda connection: {} if connection == "CY" else {"PC1": {}})
         self.checked = []
         rules = types.SimpleNamespace(_require=lambda: self.checked.append("scope"),
                                       _connection=lambda name: self.checked.append(name) or types.SimpleNamespace(name=name))
@@ -868,6 +900,18 @@ class FetchServiceTests(unittest.TestCase):
         self.assertEqual(self.devices_asked, ["PC1", "PC1"])  # 只问读这个文件夹的那台电脑（ADR-021 第 4 批）
         self.assertEqual(self.created, [])
         self.assertEqual(self.checked[:2], ["scope", "C1"])  # 先核权限
+
+    def test_an_unknown_computer_gets_no_untargeted_request(self):
+        """第 4 批审查 L2：这条连接上有电脑、却认不出是哪台（没有一台报过这个根目录）时直接拒，不建池里谁都能领的请求，
+        也不按部署前按连接记的在场算在线；一台电脑都没有时照旧回「CC 桌面版离线」。"""
+        for call in (lambda: self.fetch.files("CX", "root1"), lambda: self.fetch.fetch("CX", "root1", "a.pdf")):
+            with self.assertRaises(self.frappe.ValidationError):
+                call()
+        self.assertEqual((self.created, self.asked), ([], []))
+        self.waiting_reply = {"status": "waiting_for_cc", "reason": "offline"}
+        self.assertEqual(self.fetch.files("CY", "root1"), {"status": "waiting_for_cc", "reason": "offline"})
+        self.assertEqual(self.devices_asked, [""])
+        self.assertEqual(self.created, [])
 
     def test_an_open_request_is_picked_up_before_asking_whether_the_computer_is_there(self):
         """电脑正忙着传这一件（好一阵没来领）：原样重调接着等这一件，不判离线、不另建。"""

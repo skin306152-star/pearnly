@@ -74,7 +74,9 @@ def _dto(doc):
 
 
 def configure(workspace, adapter, request_key, label, config, client=None, users=None,
-              name=None, expected_revision=None, enabled=True, credentials=None):
+              name=None, expected_revision=None, enabled=True, credentials=None, all_members=None):
+    """建或改连接。``all_members``（D2，ADR-021 第 4 批）：Express 池全所可用；``None`` = 不变（新建的 Express 池默认 1），
+    给了就照它存（勾掉以后名单 ``users`` 才起作用）；MR.ERP 恒为 0，给真值按配置无效拒。"""
     actor = access.require_actor(management=True)
     # 界面上没有公司（Cowork 不做公司隔离），调用方没说明就挂站点内部那一份归属。
     workspace = workspace or access.default_workspace()
@@ -96,8 +98,19 @@ def configure(workspace, adapter, request_key, label, config, client=None, users
     for user in users:
         access.require_assignee(user, workspace, client)
     enabled = model.boolean(enabled)
+    # 没给就不变（新建的 Express 池默认全所可用）；请求指纹只在给了时带它，没给的请求与以前同一个指纹
+    given = [] if all_members is None else [model.boolean(all_members)]
+    if given:
+        all_members = given[0]
+    elif existing:
+        all_members = int(existing.get("all_members") or 0)
+    else:
+        all_members = 1 if adapter == "express" else 0
+    if all_members and adapter != "express":
+        _error("connection.config_invalid")
     operation = model.request_identity(frappe.local.site, actor, "configure:" + (name or workspace), request_key)
-    digest = model.fingerprint([workspace, client or "", adapter, label, config, sorted(users), enabled, credentials])
+    digest = model.fingerprint([workspace, client or "", adapter, label, config, sorted(users), enabled, credentials,
+                                *given])
     if name:
         doc = existing
         if (doc.workspace, doc.client or "", doc.adapter) != (workspace, client or "", adapter):
@@ -124,10 +137,9 @@ def configure(workspace, adapter, request_key, label, config, client=None, users
         doc = frappe.get_doc({"doctype": CONNECTION, "record_key": name, "workspace": workspace,
                               "client": client or "", "adapter": adapter, "record_revision": 1,
                               "binding_generation": 0, "bound_account_set": "", "bound_profile_key": "",
-                              "create_request_hash": digest, "projection_heads": "{}",
-                              # 新建的 Express 池全所可用（D2，ADR-021）：成员在自己的电脑上登录 CC 就能加入，不用逐个加名单
-                              "all_members": 1 if adapter == "express" else 0})
-    doc.update({"label": label.strip(), "enabled": enabled, "config_json": model.dumps(config),
+                              "create_request_hash": digest, "projection_heads": "{}"})
+    # 新建的 Express 池默认全所可用（D2，ADR-021）：成员在自己的电脑上登录 CC 就能加入，不用逐个加名单；勾掉以后看名单
+    doc.update({"label": label.strip(), "enabled": enabled, "config_json": model.dumps(config), "all_members": all_members,
                 "allowed_users": model.dumps(sorted(users)), "last_request_key": operation, "last_request_hash": digest})
     for key, value in credentials.items():
         doc.set("credential_" + key, value)

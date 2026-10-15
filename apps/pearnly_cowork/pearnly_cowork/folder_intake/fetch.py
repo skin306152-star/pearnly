@@ -37,6 +37,10 @@ def _reader(reader, root_id):
         _error(error)
     device, connection = readers.resolve(reader, root)
     doc = rules._connection(connection)
+    if not device and readers.members(doc.name):
+        # 这条连接上有电脑、却没有一台报过这个根目录：不建不定向的请求（池里谁都能领），也不按部署前按连接记的
+        # 在场与租约算在线（第 4 批审查 L2）
+        frappe.throw(_("cowork.folder.root_invalid"))
     return doc, device, root, readers.state(device, doc.name)
 
 

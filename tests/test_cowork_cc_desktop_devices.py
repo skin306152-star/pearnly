@@ -992,6 +992,19 @@ class MigratedPool(Base):
         self.assertIn(("forget", old, None), pool.EVENTS[1:])
         self.assertTrue(STORE[DEVICE][old]["retired_at"])
 
+    def test_a_keyless_old_slot_key_hands_its_items_to_the_claimed_computer(self):
+        """第 4 批审查 L6：补丁漏掉、没挂电脑的旧槽位密钥（池里按密钥编号算一台）改挂到同一台电脑已认领的记录上时，
+        按密钥编号接手的任务、在途文件、可达行一并转过去。"""
+        pool = sys.modules["pearnly_cowork.connections.pool"]
+        claimed = self.hello(self.mrerp_key, hello_body(KEY_A))["device"]
+        row = self.row(self.express_key)
+        row["device"] = None
+        pool.EVENTS.clear()
+        self.assertEqual(self.hello(self.express_key, hello_body(KEY_A))["device"], claimed)
+        self.assertEqual(pool.EVENTS[:2], [("move", self.express, row["name"], claimed),
+                                           ("readers", self.express, row["name"], claimed)])
+        self.assert_lock_order()
+
     def test_a_superseded_key_hands_its_reach_to_the_computers_own_key(self):
         pool = sys.modules["pearnly_cowork.connections.pool"]
         old = self.row(self.express_key)["device"]
@@ -1048,12 +1061,18 @@ class DeviceSlotHello(Base):
         self.assertEqual(self.auth(b["token"]).issuer, ADMIN)
 
     def test_old_slot_key_without_a_computer_gets_one(self):
+        pool = sys.modules["pearnly_cowork.connections.pool"]
         old = self.register()
         self.before_deploy()  # 补丁漏掉的、没有电脑的旧槽位密钥
+        key = self.row(old["token"])["name"]
+        pool.EVENTS.clear()
         result = self.hello(old["token"], hello_body(KEY_A, name="ACC-09"))
         device = STORE[DEVICE][result["device"]]
         self.assertEqual((device["device_owner"], device["label"]), (ADMIN, "ACC-09"))
         self.assertEqual(self.row(old["token"])["active_key"], contracts.active_identity(SITE, self.express))
+        # 第 4 批审查 L6：没挂电脑时池里按密钥编号算一台，按这个编号接手的任务、文件、可达行转给新挂上的电脑
+        self.assertEqual(pool.EVENTS[:2], [("move", self.express, key, result["device"]),
+                                           ("readers", self.express, key, result["device"])])
 
     def test_a_computer_holds_one_key_per_connection(self):
         old = self.register()

@@ -834,6 +834,19 @@ class CompanyFolders(unittest.TestCase):
         self.assertIn("response.get('roots_in_use')", limits)
         self.assertIn("self._limits(key, response)", method_source(COMPANION / "folder_worker.py", "FolderIntake", "round"))
 
+    def test_a_binding_names_the_computer_the_same_way_as_the_sync(self):
+        """第 4 批审查 M2：几台电脑报了同一个根目录编号（都映射成 S 盘）时，服务端按绑定里的电脑名认是哪台；这个名字与
+        文件夹同步报的 `device` 出自同一个函数（`queue_client._device_name`），服务端存同步与读绑定都过 `contracts.device`。"""
+        pick = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "pick_folder")
+        self.assertIn("'device': _device_name()", pick)  # method_source 是 ast.unparse 过的（单引号）
+        worker = (COMPANION / "folder_worker.py").read_text(encoding="utf-8")
+        self.assertEqual(worker.count('"device": _device_name()'), 2)  # 完整同步与快速同步
+        bind = (FOLDER_SERVER / "company_folders.py").read_text(encoding="utf-8")
+        self.assertIn('name = contracts.device(binding.get("device"))', bind)
+        self.assertIn("name=name)", bind)
+        machine = (FOLDER_SERVER / "machine.py").read_text(encoding="utf-8")
+        self.assertIn('device=contracts.device(body.get("device"))', machine)
+
     def test_the_server_reads_and_answers_the_sync_keys(self):
         for key in self.KEYS:
             self.assertTrue(quoted(self.server, key), key)

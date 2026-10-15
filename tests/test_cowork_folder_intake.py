@@ -1893,14 +1893,77 @@ class ReaderDevicesPlumbing(unittest.TestCase):
         self.assertEqual(queries, [])  # 没报根目录：什么都不查
 
     def test_a_moved_computer_takes_its_tasks_files_runs_and_company_folders(self):
-        readers, queries = self._readers()
+        readers, queries = self._readers(empty=False)
+        deleted = []
+        readers.frappe.db.delete = lambda doctype, filters: deleted.append((doctype, filters))
         readers.moved("C1", "OLD", "NEW")
-        self.assertEqual([query.split(" SET ")[0] for query, _values in queries],
+        moves = [(query, values) for query, values in queries if query.startswith("UPDATE")]
+        self.assertEqual([query.split(" SET ")[0] for query, _values in moves],
                          ["UPDATE `tabR`", "UPDATE `tabF`", "UPDATE `tabU`", "UPDATE `tabCF`"])
-        self.assertTrue(all(values == ("NEW", "OLD", "C1") for _query, values in queries))
-        self.assertIn("brief_state = 'pending'", queries[2][0])
+        self.assertTrue(all(values == ("NEW", "OLD", "C1") for _query, values in moves))
+        self.assertIn("brief_state = 'pending'", moves[2][0])
+        self.assertEqual(deleted, [])  # NEW 上什么都没有：不停用、不删
+        count = len(queries)
         readers.moved("C1", "SAME", "SAME")
-        self.assertEqual(len(queries), 4)
+        self.assertEqual(len(queries), count)
+
+    def test_a_moved_computer_does_not_end_with_two_of_the_same(self):
+        """第 4 批审查 L4：NEW 上已有同一个文件夹的启用任务时，转过来的那条停用（不在同一台电脑上跑两遍）；这家公司在 NEW 上
+        这条连接已有文件夹绑定时，OLD 那一行删掉（不留两行让解绑永远拒绝）。"""
+        queries, deleted = [], []
+
+        def sql(query, values=None, as_dict=False):
+            text = " ".join(query.split())
+            queries.append((text, values))
+            if text.startswith("SELECT root_id, folder FROM `tabR`"):
+                self.assertEqual(values, ("NEW",))
+                return [Row(root_id="R1", folder="A"), Row(root_id="R2", folder="")]
+            if text.startswith("SELECT name, root_id, folder FROM `tabR`"):
+                self.assertEqual(values, ("OLD", "C1"))
+                return [Row(name="T1", root_id="R1", folder="a\\b"), Row(name="T2", root_id="R1", folder="B"),
+                        Row(name="T3", root_id="R2", folder="X"), Row(name="T4", root_id="R9", folder="A")]
+            if text.startswith("SELECT name FROM `tabCF`"):
+                self.assertEqual(values, ("OLD", "C1", "NEW", "C1"))
+                return [("F-OLD",)]
+            return []
+
+        readers, _queries = self._readers()
+        readers.frappe.db.sql = sql
+        readers.frappe.db.delete = lambda doctype, filters: deleted.append((doctype, filters))
+        readers.moved("C1", "OLD", "NEW")
+        disabled = [values for text, values in queries if text.startswith("UPDATE `tabR` SET enabled = 0")]
+        self.assertEqual(disabled, [("T1",), ("T3",)])  # A 包含 a\b；R2 的根目录整个已被 NEW 读
+        self.assertEqual(deleted, [("CF", {"name": ("in", ["F-OLD"])})])
+        last = [text.split(" SET ")[0] for text, _values in queries if text.startswith("UPDATE") and "enabled" not in text]
+        self.assertEqual(last, ["UPDATE `tabR`", "UPDATE `tabF`", "UPDATE `tabU`", "UPDATE `tabCF`"])
+
+    def test_a_bare_connection_is_never_guessed_between_computers_holding_the_same_root(self):
+        """第 4 批审查 M2：根目录编号是本机路径的摘要、不含电脑，几台都映射成 S 盘就是同一个编号。只给连接时：只有一台报过
+        就是它；几台都报过按绑定带的电脑名认出唯一一台，认不出拒，不按最近同步猜。"""
+        readers, _queries = self._readers()
+
+        class Invalid(Exception):
+            pass
+
+        def throw(message):
+            raise Invalid(message)
+
+        readers.frappe.throw = throw
+        peers = {"PC1": {}, "PC2": {}, "PC3": {}}
+        states = {"PC1": {"roots": [{"id": "R1"}], "device": "ACC-01", "at": "2026-10-15T09:00:00"},
+                  "PC2": {"roots": [{"id": "R1"}, {"id": "R2"}], "device": "ACC-02", "at": "2026-10-15T09:05:00"},
+                  "PC3": {"roots": [], "device": "ACC-03"}}
+        readers.credentials = types.SimpleNamespace(pool_peers=lambda connection: peers)
+        readers.agent = types.SimpleNamespace(read=lambda connection, device: states.get(device, {}))
+        self.assertEqual(readers.resolve("C1", "R2"), ("PC2", "C1"))  # 只有一台报过
+        with self.assertRaises(Invalid):
+            readers.resolve("C1", "R1")  # 两台都报过：不取最近同步的 PC2
+        self.assertEqual(readers.resolve("C1", "R1", name="ACC-01"), ("PC1", "C1"))
+        with self.assertRaises(Invalid):
+            readers.resolve("C1", "R1", name="ACC-03")  # 电脑名对上的那台没报过这个根目录
+        self.assertEqual(readers.resolve("C1", "R1", keep="PC1"), ("PC1", "C1"))  # 改任务：原来那台
+        self.assertEqual(readers.resolve("PC2|C1", "R1"), ("PC2", "C1"))  # 读者编号照常
+        self.assertEqual(readers.resolve("C1", "R7"), ("", "C1"))  # 谁都没报过：等电脑（之后按根目录核时拒）
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
         self.assertIn('cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved"]', hooks)
 
@@ -1946,6 +2009,9 @@ class ReaderDevicesPlumbing(unittest.TestCase):
             ("Cowork Folder Intake Run", "U1", "reader_device", "PCB", False),
             ("Cowork Company Folder", "F1", "reader_device", "PCM", False)])
         self.assertTrue(any("WHERE IFNULL(reader_device, '') = ''" in query for query in queries))  # 只补空着的
+        # 第 4 批审查 L3：退役不吊销密钥，回填只取没退役的电脑
+        key_query = next(query for query in queries if "FROM `tabCowork Express Agent Credential` k" in query)
+        self.assertIn("JOIN `tabCowork CC Desktop Device` d ON d.name = k.device AND d.retired_at IS NULL", key_query)
         self.assertTrue(any("UPDATE `tabCowork Companion Request` SET target_device = ''" in query for query in queries))
         self.assertIn("pearnly_cowork.patches.v0_0_21_reader_devices", (APP / "patches.txt").read_text())
 
@@ -1964,6 +2030,8 @@ class CompanyFolderBindings(unittest.TestCase):
                 self[key] = value
 
         def write(doc):
+            if not doc.get("name") and doc["binding_key"] in rows:
+                raise KeyError("duplicate binding_key")  # 主键唯一（autoname field:binding_key）
             rows[doc["binding_key"]] = Row(doc, name=doc["binding_key"])
 
         def get_all(doctype, filters=None, fields=None, order_by=None, limit_page_length=None, pluck=None):
@@ -1997,7 +2065,7 @@ class CompanyFolderBindings(unittest.TestCase):
                          "device": "OFFICE-PC", "at": "2026-10-15T09:00:00"}}
         agent = types.SimpleNamespace(read=lambda reader: states.get(reader, {}), fresh=lambda state: bool(state))
 
-        def resolve(value, root_id=None):
+        def resolve(value, root_id=None, name=None):
             # 只给连接时按根目录认电脑：C1 上报过 R1 的是 PC1；C2 这台还没同步过、认不出
             device, connection = contracts.parse_reader(value)
             return device or ("PC1" if connection == "C1" and root_id == "R1" else ""), connection
@@ -2076,6 +2144,21 @@ class CompanyFolderBindings(unittest.TestCase):
             self.assertTrue(module.unbind("co1", "PC2|C1"))
             self.assertTrue(module.unbind("co1", "C1"))  # 只剩一行：旧页面照常能删
             self.assertEqual(rows, {})
+
+    def test_a_drifted_key_does_not_block_binding_again(self):
+        """第 4 批审查 M1：主键是新建那一刻的键，之后补丁回填、电脑改挂只改字段。再绑一行「没认出电脑」的同一家公司时，
+        按字段找不到它，算出的键却已被它占着：换个键另起一行，不撞主键报错。"""
+        for module, rows, _deleted, _sql in self._module():
+            base = {"reader": "C2", "root_id": "R7", "folder": "ABC", "label": "D:\\Clients\\ABC", "device": "PC"}
+            module.bind("co1", base, "a@example.com")  # C2 这台还没报过 R7：电脑为空
+            key = module.binding_key("co1", "C2", "")
+            rows[key]["reader_device"] = "PC5"  # 补丁回填 / 电脑改挂之后：字段变了，键没变
+            module.bind("co1", base, "b@example.com")
+            self.assertEqual(len(rows), 2)
+            fresh = next(row for name, row in rows.items() if name != key)
+            self.assertEqual((fresh["reader_device"], fresh["bound_by"]), ("", "b@example.com"))
+            self.assertRegex(fresh["binding_key"], r"^[0-9a-f]{32}$")
+            self.assertEqual(rows[key]["bound_by"], "a@example.com")  # 原来那一行不动
 
     def test_the_server_answers_the_sync_keys_the_desktop_reads(self):
         # 契约测试（tests/test_companion_contract.py CompanyFolders）比对的服务端那一半

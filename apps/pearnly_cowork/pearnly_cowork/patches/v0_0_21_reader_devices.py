@@ -1,9 +1,10 @@
 """CC 桌面版多台电脑第 4 批（ADR-021，方案 4.1 第 4 步）：读文件夹的电脑。
 
 读者从「连接」改成（电脑，成员连接）：定时任务、还没发简报的运行、公司文件夹补上 ``reader_device`` =
-读者连接上那把有效密钥所在的电脑（第 1 批补丁已给每把有效密钥挂上电脑；部署前每条连接最多一把有效密钥，多于一把时
+读者连接上那把有效密钥所在、没退役的电脑（第 1 批补丁已给每把有效密钥挂上电脑；部署前每条连接最多一把有效密钥，多于一把时
 取连接当前上报的那把，再取最早的）。``reader`` 原样保留（成员连接）。这条连接上没有有效密钥的留空：之后这条连接上
-报了它那个根目录的电脑来同步文件夹时接手（`folder_intake.readers.adopt`）。文件行不补：还没记电脑的文件按连接认（`machine._mine`），在途的照常走完。
+报了它那个根目录的电脑来同步文件夹时接手（`folder_intake.readers.adopt`）。文件行不补：还没记电脑的文件按连接认
+（`machine._mine`），在途的照常走完。
 
 未了结的按需请求 ``target_device`` / ``account_key`` 留空：不定向，照旧谁领都行（方案 4.1 第 4 步）。
 
@@ -13,6 +14,7 @@ import frappe
 
 CREDENTIAL = "Cowork Express Agent Credential"
 CONNECTION = "Cowork ERP Connection"
+DEVICE = "Cowork CC Desktop Device"
 RULE = "Cowork Folder Intake Rule"
 RUN = "Cowork Folder Intake Run"
 COMPANY_FOLDER = "Cowork Company Folder"
@@ -20,8 +22,10 @@ REQUEST = "Cowork Companion Request"
 
 
 def _device(connection):
-    """读者连接上那把有效密钥所在的电脑；没有回空串。"""
+    """读者连接上那把有效密钥所在、没退役的电脑；没有回空串。退役不吊销密钥（`companion.devices.retire`），不排除的话
+    任务会被回填到一台已移除的电脑上（一部署就标「读者已移除」，`readers.adopt` 又只接手电脑为空的，永远接不回来）。"""
     rows = frappe.db.sql(f"""SELECT k.name, k.device, c.report_credential FROM `tab{CREDENTIAL}` k
+        JOIN `tab{DEVICE}` d ON d.name = k.device AND d.retired_at IS NULL
         LEFT JOIN `tab{CONNECTION}` c ON c.name = k.connection
         WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>''
         AND COALESCE(k.device,'')<>'' ORDER BY k.creation, k.name""", (connection,), as_dict=True)
@@ -33,7 +37,7 @@ def _device(connection):
 
 def execute():
     if not all(frappe.db.has_column(doctype, "reader_device") for doctype in (RULE, RUN, COMPANY_FOLDER)) \
-            or not frappe.db.has_column(CREDENTIAL, "device"):
+            or not frappe.db.has_column(CREDENTIAL, "device") or not frappe.db.has_column(DEVICE, "retired_at"):
         return
     found = {}
 
