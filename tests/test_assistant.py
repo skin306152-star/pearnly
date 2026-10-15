@@ -2092,6 +2092,19 @@ class BrandAndLoginTests(unittest.TestCase):
         gate.set_entry_mark(lambda key, value, **kw: cookies.update({key: (value, kw)}))
         self.assertEqual(cookies[gate.CC_ENTRY_MARK][1]["max_age"], 120)
         self.assertTrue(cookies[gate.CC_ENTRY_MARK][1]["httponly"])
+        # LIFF 深链（盘点在 LINE 里转 LIFF，用户 2026-10-15）：`liff.state` 只认本站相对路径；
+        # 访客打开具体页面去登录时连查询参数一起带上，登录完回到原样那一页。
+        self.assertEqual(gate.liff_target("/desk/pearnly-stock-count/C1?pearnly_liff=1"),
+                         "/desk/pearnly-stock-count/C1?pearnly_liff=1")
+        self.assertEqual(gate.liff_target("desk/x"), "/desk/x")
+        for hostile in ("//evil.example/x", "/\\evil", "/x\ny"):
+            self.assertEqual(gate.liff_target(hostile), "", hostile)
+        self.assertEqual(gate.liff_target("https://evil.example"), "/https://evil.example", "an absolute URL stays a path on this site")
+        self.assertEqual(gate.guest_gate("/desk/pearnly-stock-count/C1", "pearnly_liff=1&pearnly_scan=1"),
+                         gate.BEGIN_LOGIN + "/desk/pearnly-stock-count/C1%3Fpearnly_liff%3D1%26pearnly_scan%3D1")
+        self.assertEqual(gate.guest_gate("/desk", "x=1"), gate.BEGIN_LOGIN + "/desk", "site doors keep the plain landing")
+        hooks = (CORE / "hooks.py").read_text(encoding="utf-8")
+        self.assertLess(hooks.index("login_redirect.follow_liff_state"), hooks.index("login_redirect.redirect_guests_to_identity"))
         page = (CORE / "www/assistant.py").read_text(encoding="utf-8")
         self.assertIn("login_redirect.assistant_gate(", page)
         self.assertNotIn("begin_login", page)

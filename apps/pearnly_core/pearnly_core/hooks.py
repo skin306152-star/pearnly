@@ -25,6 +25,8 @@ on_logout = "pearnly_core.assistant.push.forget_session"
 # 统一登录入口：业务站点的 `/`、`/login`、`/app`、`/desk` 对未登录访客一律
 # 送去身份服务 —— 站点上没有业务账号的密码，用 Frappe 自带登录页必然失败。
 before_request = [
+    # LINE 的 LIFF 深链先落站点根 `/?liff.state=<站内路径>`：跳到那个站内地址（放在登录拦截之前，路径才不会丢）
+    "pearnly_core.login_redirect.follow_liff_state",
     # 未登录访客：站点的门一律送去身份服务（站点上没有业务账号的密码）
     "pearnly_core.login_redirect.redirect_guests_to_identity",
     # 已登录用户打开根路径：直接去自己的工作台，不要先过一屏"桌面"

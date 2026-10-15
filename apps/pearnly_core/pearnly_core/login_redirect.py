@@ -94,6 +94,41 @@ def is_business_site() -> bool:
     return bool(str(frappe.conf.get("pearnly_product") or "").strip())
 
 
+def liff_target(state) -> str:
+    """LIFF 深链要去的站内地址（`liff.state` 的值）；不是本站相对路径就不认（防止被拿去跳到别的网站）。"""
+    target = str(state or "").strip()
+    if not target:
+        return ""
+    if not target.startswith("/"):
+        target = "/" + target
+    if target.startswith("//") or "\\" in target or any(ord(char) < 32 for char in target):
+        return ""
+    return target
+
+
+def follow_liff_state() -> None:
+    """before_request 钩子：LINE 用 LIFF 打开深链时先落站点根 `/?liff.state=<站内路径>`（LIFF 的约定，本该由
+    页面里的 LIFF SDK 读出再跳；后台页面不加载 SDK）。这里直接跳到那个站内地址，未登录的再由下一个钩子带着它去登录。
+
+    2026-10-15 用户实测：盘点在 LINE 里转 LIFF 后落到了首页（登录一圈把 `liff.state` 丢了）。
+    ERP / Cowork 的 LIFF 落地地址是站点根（`pearnly_control/onboarding/line_liff.py`），所有 LIFF 深链都经这里。
+    """
+    if not is_business_site() or not frappe.request:
+        return
+    if (frappe.request.path.rstrip("/") or "/") not in {"/", "/desk", "/app"}:
+        return
+    target = liff_target(frappe.request.args.get("liff.state"))
+    if target:
+        raise _Redirect(target, 302)
+
+
+def guest_gate(normalized: str, query: str = "") -> str:
+    """访客送去登录口的地址。具体页面（深链）连查询参数一起带过去，登录完回到的是原样那一页。"""
+    if query and normalized.startswith((APP_ENTRY_PREFIX, "/desk/")):
+        normalized = f"{normalized}?{query}"
+    return BEGIN_LOGIN + quote(normalized)
+
+
 def redirect_guests_to_identity() -> None:
     """before_request 钩子：把人送到统一登录口。"""
     if frappe.session.user != "Guest":
@@ -120,7 +155,8 @@ def redirect_guests_to_identity() -> None:
     # 把访客**本来要去的那个入口**带过去，登录成功后由首页规则决定最终落点
     # （现在是租户自己的产品工作台，见 pearnly_core/workspace.py）。
     # 以前这里写死 "/desk"，等于绕开首页规则，所有人登录后都要先过一屏桌面。
-    gate = BEGIN_LOGIN + quote(normalized)
+    query = frappe.request.query_string.decode("utf-8", "replace") if frappe.request.query_string else ""
+    gate = guest_gate(normalized, query)
     # 必须用 302：301 会被浏览器**永久缓存**，以后即使登录了也会一直被弹回登录页
     # （踩过：表现为"清缓存才好"的假故障）
     raise _Redirect(gate, 302)
