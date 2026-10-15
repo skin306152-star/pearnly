@@ -22,6 +22,7 @@ from typing import Callable, Iterable, Optional
 import httpx
 
 from . import account_history, express_read, folder_fetch
+from .config import member_active
 from .logger import get_logger
 from .queue_client import _device_name
 from .request_client import Refused, RequestClient
@@ -91,7 +92,7 @@ class RequestWorker:
 
     def _active(self) -> list:
         try:
-            return [cfg for cfg in list(self._configs() or []) if not getattr(cfg, "paused", False)
+            return [cfg for cfg in list(self._configs() or []) if member_active(cfg)
                     and getattr(cfg, "paired", True) and getattr(cfg, "backend_url", "")
                     and getattr(cfg, "bearer_token", "")]
         except Exception:

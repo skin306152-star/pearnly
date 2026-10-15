@@ -141,46 +141,24 @@ def result_folder(value) -> str:
 
 
 def share_path(path: str, mapped: Optional[dict] = None) -> str:
-    """授权文件夹若在网络共享上,换成网络路径(\\\\服务器\\共享\\…);本机盘返回空串。
+    """授权文件夹若在网络共享上,换成网络路径(\\\\服务器\\共享\\…);只在本机返回空串。
 
-    云端拿它跨电脑比对规则文件夹是否重叠(同一个共享在两台电脑上各建规则会把同一份文件推两次)。映射盘按当前用户的
-    持久映射(注册表 HKCU\\Network\\<盘符>\\RemotePath)换算;非持久映射认不出,当本机盘。"""
+    云端拿它跨电脑比对规则文件夹是否重叠(同一个共享在两台电脑上各建规则会把同一份文件推两次)。与账套行的 ``share``
+    同一套换算(device_facts,多台电脑方案 2.3 / 2.7):映射盘用 WNetGetConnectionW(持久、非持久映射都认),本机已共享的
+    文件夹换成 \\\\本机名\\共享名\\…。``mapped``({盘符: 网络路径})只给测试用:给了就只按它换算映射盘。"""
+    if mapped is None:
+        from .device_facts import share_path as network_path
+
+        return network_path(path)
     text = ntpath.normpath(str(path or "").strip())  # 按 Windows 路径规整(在别的系统上跑测试也一样)
     if text.startswith("\\\\"):
         return text
     drive = text[:2].upper()
     if len(drive) == 2 and drive[1] == ":":
-        remote = (mapped if mapped is not None else _mapped_drives()).get(drive[0])
+        remote = mapped.get(drive[0])
         if remote:
             return ntpath.normpath(remote.rstrip("\\") + text[2:])
     return ""
-
-
-def _mapped_drives() -> dict:
-    try:
-        import winreg  # Windows 才有
-    except ImportError:
-        return {}
-    found = {}
-    try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Network") as network:
-            index = 0
-            while True:
-                try:
-                    letter = winreg.EnumKey(network, index)
-                except OSError:
-                    break
-                index += 1
-                try:
-                    with winreg.OpenKey(network, letter) as key:
-                        value, _kind = winreg.QueryValueEx(key, "RemotePath")
-                except OSError:
-                    continue
-                if isinstance(value, str) and value.startswith("\\\\"):
-                    found[letter.upper()[:1]] = value
-    except OSError:
-        return {}
-    return found
 
 
 def rule_folder(root: str, folder: str) -> Path:

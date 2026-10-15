@@ -43,9 +43,14 @@ def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiti
 
     source = (Path(__file__).resolve().parents[1] / "src/companion/gui_tray_workers.py").read_text(encoding="utf-8")
     handle = source.split("def handle(cfg, queue, task, index_batch):", 1)[1].split("def batch_done", 1)[0]
-    assert 'unattended = bool(getattr(cfg, "always_on", False))' in handle
-    loop = handle.split("while (", 1)[1].split("):", 1)[0]
-    assert loop.strip().startswith("not unattended")
-    assert "self._ask_busy(lang)" in handle.split("while (", 1)[1]
+    unattended = source.split("def _unattended(", 1)[1].split("\n    def ", 1)[0]
+    assert 'bool(getattr(cfg, "always_on", False))' in unattended
+    # 多台电脑（1.7.0）：替别人写的单（attended=False）同样不问
+    assert 'getattr(task, "attended", None) is False' in unattended
+    assert "if not self._unattended(cfg, task) and not self._stop:" in handle
+    # 有人值守、账套被占用：先放掉租约（按「等账套」回报）再问，不拿着租约等人点
+    release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
+    assert release.index("queue.ack_failure(") < release.index("self._ask_busy(lang)")
+    assert 'outcome="waiting_lock"' in release
     tray = (Path(__file__).resolve().parents[1] / "src/companion/gui_tray.py").read_text(encoding="utf-8")
     assert "if not open_tomo:\n                lock_screen()" in tray  # 只在开机自启（不弹窗口）时锁屏

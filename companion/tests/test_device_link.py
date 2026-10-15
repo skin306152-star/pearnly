@@ -1,0 +1,376 @@
+# -*- coding: utf-8 -*-
+"""这台电脑在池里的身份（多台电脑，ADR-021，CC 桌面版 1.7.0）：设备密钥、认电脑（device_hello）、断开（device_leave），
+旧服务端（401 / 403 / 404）从不当成配对失效，以及服务端说「这把密钥不能再用」时本机怎么处理。"""
+import base64
+import json
+import re
+from types import SimpleNamespace
+
+import httpx
+import pytest
+
+from src.companion import desktop_settings, device_link, pairing, pairing_flow
+from src.companion.config import CompanionConfig, member_active
+from src.companion.desktop_settings import DesktopSettings
+from src.companion.profile_store import ProfileStore, ProfileStoreError
+
+SERVER_DEVICE_KEY = re.compile(r"^[A-Za-z0-9_-]{32,128}$")   # 服务端 companion.contracts._DEVICE_KEY
+
+
+class _Protector:
+    prefix = "test:"
+
+    def protect(self, value: str) -> str:
+        return self.prefix + base64.b64encode(value.encode()).decode()
+
+    def unprotect(self, value: str) -> str:
+        if not value.startswith(self.prefix):
+            raise ProfileStoreError("bad test ciphertext")
+        return base64.b64decode(value[len(self.prefix):]).decode()
+
+
+@pytest.fixture(autouse=True)
+def _fresh():
+    device_link._reset_for_tests()
+    yield
+    device_link._reset_for_tests()
+
+
+def _store(tmp_path, *members):
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    for token, kind in members:
+        cfg = store.new_runtime_config()
+        cfg.update(backend_url="https://testcowork.pearnly.com", bearer_token=token, paired=True, kind=kind,
+                   endpoint_id=token.split("_")[1], account_dir="" if kind == "folder" else "S:\\EXP\\A",
+                   account_set="" if kind == "folder" else "S:\\EXP\\A")
+        store.save_profile(cfg)
+    return store
+
+
+def _reload(store):
+    return ProfileStore.load(store.path, protector=_Protector())
+
+
+# ── 设备密钥 ──
+
+def test_a_new_device_key_is_32_random_bytes_the_server_accepts():
+    keys = {device_link.new_device_key() for _ in range(20)}
+    assert len(keys) == 20
+    assert all(SERVER_DEVICE_KEY.fullmatch(key) and len(key) == 43 for key in keys)
+    assert len(base64.urlsafe_b64decode(next(iter(keys)) + "=")) == 32
+
+
+def test_the_device_key_is_made_once_kept_encrypted_and_survives_removing_every_member(tmp_path):
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    key = store.device_key()
+    assert SERVER_DEVICE_KEY.fullmatch(key)
+    raw = store.path.read_text(encoding="utf-8")
+    assert key not in raw and json.loads(raw)["device"]["key"].startswith("test:")   # 只存 DPAPI 密文
+    assert _reload(store).device_key() == key == store.device_key()
+    store.remove_profile(store.profiles[0].profile_id)
+    assert _reload(store).device_key() == key
+
+
+def test_an_older_copy_of_the_settings_never_drops_the_device_key(tmp_path):
+    # 取任务线程手里的配置读得早（那时还没有设备密钥），之后存成员：文件里已有的设备密钥照留
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    early = _reload(store)
+    key = _reload(store).device_key()
+    cfg = early.runtime_configs()[0]
+    cfg.update(account_set="S:\\EXP\\B")
+    early.save_profile(cfg)
+    assert _reload(store).device_key() == key
+    assert early.device_key() == key
+
+
+def test_settings_written_by_an_older_version_still_load(tmp_path):
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    document = json.loads(store.path.read_text(encoding="utf-8"))
+    for profile in document["profiles"]:
+        profile.pop("device_state")
+    store.path.write_text(json.dumps(document), encoding="utf-8")
+    reloaded = _reload(store)
+    assert reloaded.profiles[0].device_state == "" and reloaded.device_key()
+
+
+def test_without_dpapi_there_is_no_device_key_and_nothing_breaks(tmp_path):
+    def broken():
+        raise ProfileStoreError("Windows CurrentUser DPAPI is required")
+
+    assert device_link.device_key(broken) == ""
+    assert device_link.identity(broken) == {}
+
+
+def test_the_device_identity_for_the_page_is_the_key_and_the_computer_name(tmp_path, monkeypatch):
+    store = _store(tmp_path)
+    monkeypatch.setattr(device_link, "_device_name", lambda: "ACC-01")
+    found = device_link.identity(lambda: _reload(store))
+    assert found == {"key": _reload(store).device_key(), "name": "ACC-01"}
+
+
+# ── 两条机器方法 ──
+
+def _transport(monkeypatch, handler):
+    real = httpx.Client
+
+    def client(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(device_link.httpx, "Client", client)
+
+
+def test_hello_and_leave_post_to_the_device_methods_with_the_member_key(monkeypatch):
+    seen = []
+
+    def handler(request):
+        seen.append((request.method, request.url.path, request.headers["authorization"], json.loads(request.content)))
+        status = "attached" if request.url.path.endswith(".hello") else "left"
+        return httpx.Response(200, json={"message": {"ok": True, "protocol": 1, "status": status}})
+
+    _transport(monkeypatch, handler)
+    body = {"device_key": "k" * 43, "name": "PC", "always_on": False, "host_names": ["PC"]}
+    assert device_link.hello("https://site.test", "exp_C1_s", body)["status"] == "attached"
+    assert device_link.leave("https://site.test", "exp_C1_s") is True
+    assert seen == [("POST", "/api/method/pearnly_cowork.companion.device_api.hello", "Bearer exp_C1_s", body),
+                    ("POST", "/api/method/pearnly_cowork.companion.device_api.leave", "Bearer exp_C1_s", {})]
+
+
+@pytest.mark.parametrize("code", [401, 403, 404])
+def test_401_403_404_mean_an_old_server_never_an_unpairing(monkeypatch, code):
+    _transport(monkeypatch, lambda request: httpx.Response(code, json={}))
+    with pytest.raises(device_link.OldServer):
+        device_link.hello("https://site.test", "exp_C1_s", {})
+    assert device_link.leave("https://site.test", "exp_C1_s") is False
+
+
+def test_leave_without_a_network_only_reports_that_nothing_was_revoked(monkeypatch):
+    def handler(request):
+        raise httpx.ConnectError("down")
+
+    _transport(monkeypatch, handler)
+    assert device_link.leave("https://site.test", "exp_C1_s") is False
+    assert device_link.leave("", "exp_C1_s") is False and device_link.leave("https://x", "") is False
+
+
+# ── 认电脑 ──
+
+class _Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+def _announcer(replies, clock, names=lambda: ["PC1", "192.168.0.78"], key=lambda: "K" * 43, results=None):
+    sent = []
+
+    def send(url, token, body):
+        sent.append((url, token, body))
+        reply = replies.pop(0) if replies else {"ok": True, "status": "attached"}
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    announcer = device_link.Announcer(key=key, send=send, names=names, clock=clock,
+                                      on_result=(lambda cfg, status: results.append((cfg.profile_id, status)))
+                                      if results is not None else None)
+    return announcer, sent
+
+
+def _cfg(token="exp_C1_secret", **extra):
+    return CompanionConfig(profile_id="P1", backend_url="https://site.test", bearer_token=token, paired=True, **extra)
+
+
+def test_each_member_says_hello_once_with_the_device_key_name_always_on_and_host_names(monkeypatch):
+    monkeypatch.setattr(device_link, "_device_name", lambda: "PC1")
+    clock = _Clock()
+    announcer, sent = _announcer([], clock)
+    assert announcer.announce(_cfg(always_on=True)) == "attached"
+    assert sent == [("https://site.test", "exp_C1_secret",
+                     {"device_key": "K" * 43, "name": "PC1", "always_on": True, "host_names": ["PC1", "192.168.0.78"]})]
+    assert announcer.announce(_cfg(always_on=True)) is None   # 内容没变：不再发
+    clock.now = 10_000
+    assert announcer.announce(_cfg(always_on=True)) is None
+    assert len(sent) == 1
+    assert announcer.announce(_cfg(token="exp_C2_other")) == "attached"   # 另一个成员（MR.ERP）各发各的
+    assert announcer.announce(_cfg(always_on=False)) == "attached"   # 常驻关了：马上再说一次
+    assert [body["always_on"] for _u, _t, body in sent] == [True, False, False]
+
+
+def test_a_new_network_address_is_told_again(monkeypatch):
+    clock, names = _Clock(), [["PC1", "192.168.0.78"]]
+    announcer, sent = _announcer([], clock, names=lambda: names[0])
+    announcer.announce(_cfg())
+    names[0] = ["PC1", "192.168.0.99"]   # DHCP 换了地址（device_facts 十分钟重查一次）
+    assert announcer.announce(_cfg()) == "attached"
+    assert [body["host_names"] for _u, _t, body in sent] == [["PC1", "192.168.0.78"], ["PC1", "192.168.0.99"]]
+
+
+def test_an_old_server_is_asked_again_in_half_an_hour_and_nothing_changes_locally():
+    clock = _Clock()
+    announcer, sent = _announcer([device_link.OldServer("404")], clock)
+    cfg = _cfg()
+    assert announcer.announce(cfg) is None and cfg.device_state == "" and member_active(cfg)
+    clock.now = 1799
+    assert announcer.announce(cfg) is None and len(sent) == 1
+    clock.now = 1801
+    assert announcer.announce(cfg) == "attached" and len(sent) == 2
+
+
+def test_a_failed_or_refused_hello_is_tried_again_in_five_minutes():
+    clock = _Clock()
+    announcer, sent = _announcer([httpx.ConnectError("x"), {"ok": False, "code": "companion.request_invalid"}], clock)
+    assert announcer.announce(_cfg()) is None
+    clock.now = 301
+    assert announcer.announce(_cfg()) is None
+    clock.now = 602
+    assert announcer.announce(_cfg()) == "attached" and len(sent) == 3
+
+
+@pytest.mark.parametrize("status", ["superseded", "claimed_elsewhere"])
+def test_a_key_the_server_will_not_take_any_more_stops_the_member(status):
+    clock, results = _Clock(), []
+    announcer, sent = _announcer([{"ok": True, "status": status}], clock, results=results)
+    cfg = _cfg()
+    assert announcer.announce(cfg) == status
+    assert cfg.device_state == status and not member_active(cfg)
+    assert results == [("P1", status)]
+    clock.now = 10_000
+    assert announcer.announce(cfg) is None and len(sent) == 1   # 停用的成员不再认电脑
+
+
+def test_no_device_key_or_no_machine_key_means_no_hello():
+    clock = _Clock()
+    announcer, sent = _announcer([], clock, key=lambda: "")
+    assert announcer.announce(_cfg()) is None
+    other, sent_other = _announcer([], clock)
+    assert other.announce(_cfg(token="dev-mock-token")) is None
+    assert sent == sent_other == []
+
+
+def test_settle_drops_a_superseded_key_when_this_computer_holds_its_own_on_the_same_connection(tmp_path):
+    store = _store(tmp_path, ("exp_C1_old", "express"), ("exp_C1_mine", "express"), ("exp_M1_x", "folder"))
+    old, mine, mrerp = (record.profile_id for record in store.profiles)
+    assert device_link.settle(_reload(store), old, "superseded") == "removed"
+    assert [r.profile_id for r in _reload(store).profiles] == [mine, mrerp]
+    assert device_link.settle(_reload(store), mine, "superseded") == "marked"   # 再没有别的：标出来等重新登记
+    assert device_link.settle(_reload(store), mrerp, "claimed_elsewhere") == "marked"
+    states = {r.profile_id: r.device_state for r in _reload(store).profiles}
+    assert states == {mine: "superseded", mrerp: "claimed_elsewhere"}
+    assert device_link.settle(_reload(store), "gone", "superseded") == "gone"
+    assert device_link.settle(_reload(store), mine, "attached") == "gone"
+
+
+def test_a_stopped_member_shows_attention_and_the_page_sees_why(tmp_path):
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    member = store.profiles[0].profile_id
+    store.set_device_state(member, "claimed_elsewhere")
+    settings = DesktopSettings(load_store=lambda: _reload(store), states=lambda: {member: ("idle", "")},
+                               device=lambda: {"key": "K" * 43, "name": "PC1"})
+    snap = settings.snapshot()
+    assert snap["device"] == {"key": "K" * 43, "name": "PC1"}
+    assert snap["members"][0]["status"] == "attention"
+    assert snap["members"][0]["device_state"] == "claimed_elsewhere"
+    runtime = _reload(store).runtime_configs(include_paused=True)[0]
+    assert runtime.device_state == "claimed_elsewhere" and not member_active(runtime)
+
+
+def test_pairing_a_new_key_clears_the_stop(tmp_path, monkeypatch):
+    store = _store(tmp_path, ("exp_M1_old", "folder"))
+    member = store.profiles[0].profile_id
+    store.set_device_state(member, "claimed_elsewhere")
+
+    class _Folder:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def sync(self, body):
+            return {"ok": True, "adapter": "mrerp", "label": "MR.ERP"}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("src.companion.folder_client.FolderClient", _Folder)
+    result = pairing.pair_folder(token="exp_M1_new@testcowork.pearnly.com", enable_autostart=False,
+                                 config=_reload(store).runtime_config(member), profile_store=_reload(store))
+    assert result.ok
+    record = _reload(store).profiles[0]
+    assert record.device_state == "" and _reload(store).runtime_config(member).bearer_token == "exp_M1_new"
+
+
+# ── 断开连接 ──
+
+def test_disconnect_revokes_this_key_first_then_removes_the_member(tmp_path):
+    store = _store(tmp_path, ("exp_C1_secret", "express"), ("exp_M1_x", "folder"))
+    member = store.profiles[0].profile_id
+    calls = []
+    settings = DesktopSettings(load_store=lambda: _reload(store),
+                               leave=lambda url, token: calls.append((url, token, len(_reload(store).profiles))) or True)
+    assert settings.disconnect(member) == {"ok": True, "left": True, "profiles_changed": True}
+    assert calls == [("https://testcowork.pearnly.com", "exp_C1_secret", 2)]   # 先吊销，再删
+    assert [r.endpoint_id for r in _reload(store).profiles] == ["M1"]
+
+
+def test_disconnect_on_an_old_server_only_removes_the_member(tmp_path):
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    member = store.profiles[0].profile_id
+    settings = DesktopSettings(load_store=lambda: _reload(store), leave=lambda url, token: False)
+    assert settings.disconnect(member)["left"] is False and _reload(store).profiles == ()
+
+
+def test_switching_to_another_company_leaves_every_old_member_first(tmp_path, monkeypatch):
+    store = _store(tmp_path, ("exp_C1_secret", "express"), ("exp_M1_x", "folder"))
+    left = []
+    settings = DesktopSettings(load_store=lambda: _reload(store), leave=lambda url, token: left.append(token) or True)
+    monkeypatch.setattr(desktop_settings.pairing_flow, "run", lambda *args, **kwargs: SimpleNamespace(ok=True))
+    result = settings.pair("exp_X1_new@other.pearnly.com", "zh", switch=True)
+    assert result["ok"] and sorted(left) == ["exp_C1_secret", "exp_M1_x"]
+
+
+# ── 没有 Express 也能加入池 ──
+
+def test_a_computer_without_express_joins_the_express_pool_as_a_read_only_member(tmp_path, monkeypatch):
+    store = _store(tmp_path)
+
+    class _Folder:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def sync(self, body):
+            return {"ok": True, "adapter": "express", "label": ""}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("src.companion.folder_client.FolderClient", _Folder)
+    detected = []
+    settings = DesktopSettings(load_store=lambda: _reload(store))
+    monkeypatch.setattr(desktop_settings, "detect_roots", lambda _store: detected.append(True) or [])
+    assert settings.pair("exp_C1_pool@testcowork.pearnly.com", "zh") == {"ok": True, "profiles_changed": True}
+    assert detected == [True]   # 先找过 Express，找不到才按只读成员加入
+    record = _reload(store).profiles[0]
+    assert (record.kind, record.endpoint_id, record.endpoint_name) == ("folder", "C1", "Express")
+
+
+def test_an_express_code_still_needs_express_for_an_existing_writer(tmp_path, monkeypatch):
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    member = store.profiles[0]
+    monkeypatch.setattr(pairing, "connection_kind", lambda code, cfg=None: "express")
+    monkeypatch.setattr(pairing_flow, "member_roots", lambda cfg: [])
+    result = pairing_flow.run(_reload(store), "exp_C1_new@testcowork.pearnly.com", roots=[],
+                              profile_id=member.profile_id)
+    assert result.ok is False and result.error_key == pairing_flow.NEED_ROOTS
+
+
+def test_finding_express_later_turns_a_read_only_pool_member_into_a_writer(tmp_path, monkeypatch):
+    store = _store(tmp_path, ("exp_C1_pool", "folder"), ("exp_M1_x", "folder"))
+    kinds = {"exp_C1_pool": "express", "exp_M1_x": "mrerp"}
+    monkeypatch.setattr(pairing, "connection_kind", lambda code, cfg=None: kinds[cfg.bearer_token])
+    ran = []
+    monkeypatch.setattr(pairing_flow, "run", lambda st, code, **kw: ran.append((code, kw["profile_id"], kw["roots"]))
+                        or SimpleNamespace(ok=True))
+    settings = DesktopSettings(load_store=lambda: _reload(store))
+    assert settings._use_roots(["S:\\2569\\EXP69"], "zh") == {"ok": True, "profiles_changed": True}
+    assert ran == [("", store.profiles[0].profile_id, ["S:\\2569\\EXP69"])]   # 只动 Express 池的那一个，用它原来的密钥

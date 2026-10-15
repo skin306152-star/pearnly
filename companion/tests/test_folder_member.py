@@ -116,3 +116,37 @@ def test_folder_member_syncs_without_folders_and_reports_its_status(tmp_path, mo
     assert len(bodies) == 2 and all(body["roots"] == [] for body in bodies)
     assert [cfg.profile_id for cfg in (express, member) if intake._due(cfg, folder_store.connection_key(cfg))] == ["m1"]
     assert statuses == [("m1", "idle")]  # Express 成员的状态仍由取任务线程报
+
+
+def test_a_folder_member_says_hello_itself_and_stops_when_its_key_was_claimed_elsewhere(tmp_path, monkeypatch):
+    # 多台电脑（ADR-021，1.7.0）：MR.ERP 的只读成员没有取任务线程，认电脑在文件夹线程里做；Express 成员的在取任务线程里
+    monkeypatch.setenv("PEARNLY_FOLDER_STATE_DIR", str(tmp_path / "folders"))
+    bodies, said = [], []
+
+    class Client(_Client):
+        def sync(self, body):
+            bodies.append(body)
+            return {"ok": True, "server_time": 0, "rules": [], "entries": {}, "adapter": "mrerp"}
+
+    def member(name):
+        return SimpleNamespace(profile_id=name, kind="folder", paused=False, paired=True, device_state="",
+                               backend_url="https://testcowork.pearnly.com", bearer_token=f"exp_{name}_" + "s" * 43,
+                               endpoint_id="")
+
+    first, second = member("m1"), member("m2")
+    express = SimpleNamespace(profile_id="e1", kind="express", paused=False, paired=True, device_state="",
+                              backend_url="https://testcowork.pearnly.com", bearer_token="exp_CWC-x_" + "t" * 43,
+                              endpoint_id="")
+
+    def announce(cfg):
+        said.append(cfg.profile_id)
+        if cfg is second:
+            cfg.device_state = "claimed_elsewhere"
+        if len(said) == 2:
+            intake.stop()
+
+    intake = FolderIntake(lambda: [express, first, second], client_factory=Client, announce=announce)
+    intake._loop()
+    assert said == ["m1", "m2"]   # Express 成员不在这里认
+    assert len(bodies) == 2       # Express 成员报一次空的、m1 同步；m2 停用，不同步
+    assert intake._active() == [express, first]

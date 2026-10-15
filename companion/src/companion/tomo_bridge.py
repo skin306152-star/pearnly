@@ -7,7 +7,11 @@
 公司的文件夹（2026-10-15，CC 按公司分组）：``pick_folder`` 不收任何路径（网页传来的一概不看），在界面线程弹原生
 选择框，选好后在后台判定（desktop_settings.pick_folder），只回绑定（读者、根目录编号、相对路径、显示名…），由页面交给
 服务端。另要求对话页的站点就是这台电脑连着的那家公司（``page_url``），否则回 ``other_site``。
-``state()`` 带 ``features: ["company_folders"]``（旧版没有，页面据此降级）与 ``legacy_roots``（设置页的旧授权清理行）。
+``state()`` 带 ``features: ["company_folders", "devices"]``（旧版没有，页面据此降级）与 ``legacy_roots``（设置页的旧授权清理行）。
+
+多台电脑（ADR-021，1.7.0）：``state()`` 另带 ``device: {key, name}``（这台电脑的设备密钥与电脑名；取不到是空对象），对话页每次
+打开都带它调 ``companion.api.register``（对话页一侧在第 6 批）；成员带 ``device_state``（``superseded`` / ``claimed_elsewhere``：
+这把密钥不再用，对话页重新登记，前者带 ``rekey``）。设备密钥只交给本站自己的对话页（``allowed``），不进任何地址栏参数。
 
 协议（网页侧见 frontend/assistant/src/lib/desktop.ts）：
 - state() → 当前设置的 JSON；本机状态变了发 changed()，网页再取一次。
@@ -33,8 +37,10 @@ from .logger import get_logger
 log = get_logger(__name__)
 
 REFUSED = json.dumps({"ok": False, "refused": True})
-# 本版桥能做的事（页面按这里判断，旧版没有这一项）：company_folders = 公司的「选择文件夹…」（pick_folder）
-FEATURES = ("company_folders",)
+# 本版桥能做的事（页面按这里判断，旧版没有这一项）：company_folders = 公司的「选择文件夹…」（pick_folder）；
+# devices = 多台电脑（ADR-021，1.7.0）：state() 带 ``device``（设备密钥与电脑名，对话页每次打开带它调 register）、成员带
+# ``device_state``（这把密钥不再用、要重新登记），``remove`` 先吊销本机这把密钥再删成员（慢，回 job）。
+FEATURES = ("company_folders", "devices")
 
 
 class TomoBridge(QObject):
@@ -104,7 +110,8 @@ class TomoBridge(QObject):
         if method == "pause":
             return self._changed(s.set_paused(member, bool(args.get("paused"))))
         if method == "remove":
-            return self._changed(s.remove(member))
+            # 断开连接：先请服务端吊销本机这把密钥（device_leave，要连网），再删成员；做完由 _job 回界面线程重启各线程
+            return self._job(lambda: s.disconnect(member))
         if method == "pick_folder":
             # 公司的「选择文件夹…」：args 里的路径一概不看，只认这里弹的原生选择框
             failed = s.pick_ready(self._page_host(), lang)

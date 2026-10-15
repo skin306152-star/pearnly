@@ -22,7 +22,7 @@ from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
 from . import toast, watchdog
-from .config import CompanionConfig
+from .config import CompanionConfig, member_active
 from .auto_update import AutoUpdate
 from .update_block import UpdateMemory, state_file
 from .folder_worker import FolderIntake
@@ -170,6 +170,7 @@ class TrayApp(QObject):
     folder_notices = Signal(str, object)  # 文件夹同步带来的对话提醒：(站点, [提醒…])
     folder_update = Signal(str, str)  # 文件夹同步带来的新版本（只读文件夹的成员没有心跳）：(版本, 地址)
     folder_roots = Signal()  # 文件夹线程自动收回了经公司添加、没人用的根目录：设置页重取本机状态
+    device_result = Signal(str, str)  # 认电脑说这把密钥不能再用（成员, superseded / claimed_elsewhere，device_link）
 
     def __init__(self, configs, *, open_tomo: bool = False) -> None:
         app = qt_app()  # 泰文 Windows 上顺带修正界面字体（gui_font）
@@ -231,6 +232,15 @@ class TrayApp(QObject):
         except Exception:
             log.exception("核对开机自启位置失败（忽略）")
         self._heal = watchdog.HealBackoff()  # 自愈退避:防目标永久不可达时无限重启空转
+        # 多台电脑（ADR-021）：这台电脑的设备密钥第一次运行就生成（DPAPI 存在本机配置里），各成员启动后各认一次电脑；
+        # 服务端说哪把密钥不能再用，回到界面线程改本机成员、重启各线程（_on_device_result）。
+        from . import device_link
+
+        self._announcer = device_link.ANNOUNCER
+        self.device_result.connect(self._on_device_result)
+        self._announcer.on_result = lambda cfg, status: self.device_result.emit(
+            str(getattr(cfg, "profile_id", "") or ""), status)
+        device_link.device_key()
         self.worker = self._spawn_worker()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
@@ -241,7 +251,8 @@ class TrayApp(QObject):
                                      on_status=lambda profile_id, key: self.folder_status.emit(profile_id, key),
                                      on_notices=lambda site, items: self.folder_notices.emit(site, items),
                                      on_update=lambda version, url: self.folder_update.emit(version, url),
-                                     on_roots_changed=self.folder_roots.emit)
+                                     on_roots_changed=self.folder_roots.emit,
+                                     announce=self._announcer.announce)
         self._folders.start()
         # 按需请求（CC 对话里读账套、列 / 取已授权文件夹的文件）：又一条独立守护线程，与推送线、看门狗无关（request_worker.py）。
         self._requests = RequestWorker(lambda: self.configs)
@@ -272,7 +283,9 @@ class TrayApp(QObject):
     def _spawn_worker(self) -> PollWorker:
         """建 poll worker、接好信号并启动(首次启动与自愈重启共用,避免两处接线漂移)。"""
         # MR.ERP 的小助手成员只读文件夹：不进取任务 / 心跳线程，状态由文件夹线程报（`folder_status`）。
-        w = PollWorker([cfg for cfg in self.configs if getattr(cfg, "kind", "express") != "folder"])
+        announcer = getattr(self, "_announcer", None)
+        w = PollWorker([cfg for cfg in self.configs if getattr(cfg, "kind", "express") != "folder"],
+                       announce=announcer.announce if announcer is not None else None)
         w.status.connect(self._on_status)
         w.update_available.connect(self._on_update_available)
         w.batch_done.connect(self._on_batch_done)
@@ -579,7 +592,7 @@ class TrayApp(QObject):
         return profile_id
 
     def _aggregate_status(self) -> tuple[str, str, object]:
-        active_ids = [cfg.profile_id for cfg in self.configs if not cfg.paused]
+        active_ids = [cfg.profile_id for cfg in self.configs if member_active(cfg)]
         states = {
             profile_id: self._profile_states.get(profile_id, ("offline", ""))
             for profile_id in active_ids
@@ -728,7 +741,10 @@ class TrayApp(QObject):
         from .desktop_settings import DesktopSettings
         from .tomo_bridge import TomoBridge
 
+        from . import device_link
+
         settings = DesktopSettings(
+            device=device_link.identity,
             states=lambda: dict(self._profile_states), update_status=self.update_status, on_update=self._update_now,
             on_download=self._open_download,
             on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
@@ -787,6 +803,23 @@ class TrayApp(QObject):
             self._folders.start()
         if getattr(self, "_requests", None) is not None:
             self._requests.start()
+
+    def _on_device_result(self, profile_id: str, status: str) -> None:
+        """（界面线程）认电脑说这把密钥不能再用：本机丢掉它（同一条连接还有别的成员就删这个，否则标出来等对话页重新登记），
+        重启各线程，对话页重取本机状态（据此重新登记）。"""
+        from . import device_link
+        from .profile_store import ProfileStore
+
+        try:
+            outcome = device_link.settle(ProfileStore.load(), profile_id, status)
+            log.warning("这台电脑的一个成员不再用原密钥（%s → %s）· profile=%s", status, outcome, profile_id)
+        except Exception:
+            log.exception("改本机成员失败")
+            return
+        self._reload_profiles()
+        bridge = getattr(self, "_bridge", None)
+        if bridge is not None:
+            bridge.changed.emit()
 
     def _start_folders(self) -> None:
         """设置里添加 / 移除了文件夹、公司选了文件夹：文件夹线程没在跑就起来，在跑就让下一轮马上开始。"""

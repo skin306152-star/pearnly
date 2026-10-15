@@ -14,8 +14,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional
 
-from . import projection_refresh
-from .config import CompanionConfig
+from . import device_facts, projection_refresh
+from .config import CompanionConfig, member_active
 from .logger import get_logger
 from .queue_client import QueueClient, QueueClientConfig
 from .worker import OFFLINE_AFTER_FAILS, _run_periodic, route_task
@@ -66,7 +66,8 @@ class ProfileRuntimeState:
 
     @property
     def paused(self) -> bool:
-        return bool(getattr(self.cfg, "paused", False))
+        """暂停了，或这把密钥服务端说不能再用（device_state，等对话页重新登记）：这一轮跳过。"""
+        return not member_active(self.cfg)
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,12 @@ class MultiProfileWorker:
         on_batch_done: Optional[BatchCallback] = None,
         on_update_available: Optional[UpdateCallback] = None,
         sleeper: Callable[[float], None] = time.sleep,
+        announce: Optional[Callable[[CompanionConfig], object]] = None,
+        uid_of: Callable[[str], str] = device_facts.cached_uid,
     ) -> None:
+        # announce(cfg)：每轮先给这个成员认一次电脑（device_link.Announcer，到时候才真发）；uid_of：账套目录 → 文件号
+        self._announce = announce
+        self._uid_of = uid_of
         self._queue_factory = queue_factory
         self._periodic_runner = periodic_runner
         self._task_handler = task_handler
@@ -112,9 +118,7 @@ class MultiProfileWorker:
                 ProfileRuntimeState(
                     profile_id=pid,
                     cfg=cfg,
-                    status=(
-                        "paused" if bool(getattr(cfg, "paused", False)) else "starting"
-                    ),
+                    status=("starting" if member_active(cfg) else "paused"),
                     index_batch=index_batch_factory(),
                 )
             )
@@ -197,6 +201,29 @@ class MultiProfileWorker:
                     "profile batch callback failed · profile=%s", state.profile_id
                 )
 
+    def index_pending(self) -> list:
+        """这台电脑写过、主档索引还没重建的账套文件号（全部成员合起来：服务端记在电脑上，不分连接）。"""
+        uids = set()
+        for state in self._states:
+            pending = getattr(state.index_batch, "pending_dirs", None)
+            for account_dir in (pending() if callable(pending) else ()):
+                try:
+                    uid = self._uid_of(account_dir)
+                except Exception:
+                    uid = ""
+                if uid:
+                    uids.add(uid)
+        return sorted(uids)
+
+    def _skip(self, state: ProfileRuntimeState) -> bool:
+        if not state.paused:
+            return False
+        # 暂停是 paused；密钥被服务端说不能再用的（device_state）没有在干活，按离线显示
+        key = "paused" if getattr(state.cfg, "paused", False) else "offline"
+        if state.status != key:
+            self._emit_status(state, key)
+        return True
+
     def run_round(self) -> RoundResult:
         """Offer each active profile one poll; handle leased tasks serially."""
         if self._closed:
@@ -205,10 +232,15 @@ class MultiProfileWorker:
         polled = handled = failed = 0
         update_owner = next((s.profile_id for s in self._states if not s.paused), None)
         for state in self._states:
-            if state.paused:
-                if state.status != "paused":
-                    self._emit_status(state, "paused")
+            if self._skip(state):
                 continue
+            if self._announce is not None:
+                try:
+                    self._announce(state.cfg)
+                except Exception:
+                    log.exception("认电脑失败（忽略）· profile=%s", state.profile_id)
+                if self._skip(state):
+                    continue
 
             qc = self._client(state)
             try:
@@ -227,7 +259,7 @@ class MultiProfileWorker:
                     state.periodic,
                     update_callback,
                 )
-                task = qc.poll()
+                task = qc.poll(index_pending=self.index_pending())
                 take_refresh = getattr(qc, "take_master_refresh", None)
                 refresh_command = take_refresh() if callable(take_refresh) else None
                 if projection_refresh.remember(state.periodic, refresh_command):

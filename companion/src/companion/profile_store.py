@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 import uuid
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
@@ -91,6 +92,9 @@ class ProfileRecord:
     endpoint_name: str = ""
     pearnly_account: str = ""
     kind: str = "express"  # folder = MR.ERP 的小助手成员：只读文件夹，没有 Express 账套
+    # 认电脑时服务端说这把密钥不能再用（superseded / claimed_elsewhere，device_link）：这个成员停用，等对话页重新登记
+    # 换上新密钥时清空（配对写新密钥时一并清掉）。
+    device_state: str = ""
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ProfileRecord":
@@ -121,11 +125,14 @@ class ProfileStore:
         global_settings: GlobalSettings,
         profiles: list[ProfileRecord],
         protector: TokenProtector,
+        device_cipher: str = "",
     ) -> None:
         self.path = Path(path)
         self.global_settings = global_settings
         self._profiles = list(profiles)
         self._protector = protector
+        # 这台电脑的设备密钥（DPAPI 密文，device_link）：一经生成就不换；文件里已有的永远优先（见 _write）。
+        self._device_cipher = str(device_cipher or "")
 
     @property
     def profiles(self) -> tuple[ProfileRecord, ...]:
@@ -165,7 +172,7 @@ class ProfileStore:
             raise ProfileStoreError("profile config schema is invalid")
         global_settings = GlobalSettings.from_dict(raw["global"])
         profiles = [ProfileRecord.from_dict(item) for item in raw["profiles"]]
-        store = cls(path, global_settings, profiles, protector)
+        store = cls(path, global_settings, profiles, protector, _device_of(raw))
         store._assert_unique_profile_ids(profiles)
         return store
 
@@ -241,6 +248,7 @@ class ProfileStore:
             endpoint_name=str(getattr(cfg, "endpoint_name", "") or ""),
             pearnly_account=str(getattr(cfg, "pearnly_account", "") or ""),
             kind="folder" if getattr(cfg, "kind", "") == "folder" else "express",
+            device_state=str(getattr(cfg, "device_state", "") or ""),
         )
 
     def _runtime(self, record: ProfileRecord) -> CompanionConfig:
@@ -319,6 +327,35 @@ class ProfileStore:
         self._write(self.global_settings, profiles)
         self._profiles = profiles
 
+    def set_device_state(self, profile_id: str, state: str) -> None:
+        found = False
+        profiles = []
+        for item in self._profiles:
+            if item.profile_id == profile_id:
+                item = ProfileRecord(**{**asdict(item), "device_state": str(state or "")})
+                found = True
+            profiles.append(item)
+        if not found:
+            raise ProfileStoreError("profile not found")
+        self._write(self.global_settings, profiles)
+        self._profiles = profiles
+
+    def device_key(self) -> str:
+        """这台电脑（当前 Windows 用户）的设备密钥：文件里有就解开，没有就生成一把存下（device_link）。
+
+        同一进程里几条线程同时第一次取，锁里先重读文件，只生成一次；别的进程（不会有：单实例）也以文件里先写下的为准。"""
+        from .device_link import new_device_key
+
+        with _DEVICE_LOCK:
+            cipher = self._device_cipher or _read_device_cipher(self.path)
+            if cipher:
+                self._device_cipher = cipher
+                return self._protector.unprotect(cipher)
+            value = new_device_key()
+            self._device_cipher = self._protector.protect(value)
+            self._write(self.global_settings, list(self._profiles))
+            return self._protector.unprotect(self._device_cipher)
+
     def remove_profile(self, profile_id: str) -> None:
         profiles = [item for item in self._profiles if item.profile_id != profile_id]
         if len(profiles) == len(self._profiles):
@@ -334,18 +371,32 @@ class ProfileStore:
 
     @staticmethod
     def _document(
-        global_settings: GlobalSettings, profiles: list[ProfileRecord]
+        global_settings: GlobalSettings, profiles: list[ProfileRecord], device_cipher: str = ""
     ) -> dict:
-        return {
+        document = {
             "schema_version": SCHEMA_VERSION,
             "global": asdict(global_settings),
             "profiles": [asdict(profile) for profile in profiles],
         }
+        if device_cipher:
+            # 旧版（≤1.6）读这份文件时忽略这一键（它重写文件会丢掉它，再升级时这台电脑按新电脑登记一次）
+            document["device"] = {"key": device_cipher}
+        return document
 
     def _write(
         self, global_settings: GlobalSettings, profiles: list[ProfileRecord]
     ) -> None:
-        document = self._document(global_settings, profiles)
+        with _DEVICE_LOCK:   # 本进程里的写一个接一个：读文件里的设备密钥与写回之间不插进别的写
+            self._write_locked(global_settings, profiles)
+
+    def _write_locked(
+        self, global_settings: GlobalSettings, profiles: list[ProfileRecord]
+    ) -> None:
+        # 设备密钥一经写下就不换：手里这份配置读得早（还没有设备密钥）时，沿用文件里已有的那把，不把它盖掉。
+        on_disk = _read_device_cipher(self.path)
+        if on_disk:
+            self._device_cipher = on_disk
+        document = self._document(global_settings, profiles, self._device_cipher)
         encoded = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode(
             "utf-8"
         )
@@ -371,6 +422,8 @@ class ProfileStore:
             for profile in parsed:
                 if not self._protector.unprotect(profile.token_ciphertext):
                     raise ProfileStoreError("profile token verification failed")
+            if self._device_cipher and _device_of(check) != self._device_cipher:
+                raise ProfileStoreError("device key verification failed")
             os.replace(temp_path, self.path)
             try:
                 os.chmod(self.path, 0o600)
@@ -382,6 +435,22 @@ class ProfileStore:
             except OSError:
                 pass
             raise
+
+
+_DEVICE_LOCK = threading.RLock()
+
+
+def _device_of(raw) -> str:
+    device = raw.get("device") if isinstance(raw, dict) else None
+    value = device.get("key") if isinstance(device, dict) else ""
+    return value if isinstance(value, str) else ""
+
+
+def _read_device_cipher(path: Path) -> str:
+    try:
+        return _device_of(json.loads(Path(path).read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return ""
 
 
 __all__ = [

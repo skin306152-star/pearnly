@@ -108,6 +108,8 @@ class CompanionConfig:
     pearnly_account: str = ""
     # 成员类型：express（读写 Express 账套、领推送任务、读文件夹）/ folder（MR.ERP 的小助手：只读文件夹，定时任务用，2026-10-09）
     kind: str = "express"
+    # 认电脑时服务端说这把密钥不能再用（superseded / claimed_elsewhere，见 device_link）：这个成员停用，等对话页重新登记
+    device_state: str = ""
 
     def resolved_express_root(self) -> Optional[str]:
         """探测账套用的数据根:显式 express_root 优先,否则取 account_dir 的父目录。"""
@@ -150,3 +152,8 @@ class CompanionConfig:
             if hasattr(self, k):
                 setattr(self, k, v)
         return self
+
+
+def member_active(cfg) -> bool:
+    """这个成员此刻要不要干活：没暂停、配对密钥没被服务端说不能再用（device_state，见 device_link）。"""
+    return not bool(getattr(cfg, "paused", False)) and not str(getattr(cfg, "device_state", "") or "")

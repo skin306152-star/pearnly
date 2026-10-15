@@ -28,6 +28,7 @@ _METHOD = "/api/method/pearnly_cowork.companion."
 _HEARTBEAT = _METHOD + "heartbeat.report"
 _LEASE = _METHOD + "queue_api.lease"
 _ACK = _METHOD + "queue_api.acknowledge"
+MAX_INDEX_PENDING = 500  # 与服务端 queue_contracts.MAX_INDEX_PENDING 相同（多了服务端当没报）
 _NOT_SENT = object()  # health() 的 update_blocked 没传：不带这个键（None 是「没被拦」，要照发）
 
 
@@ -63,6 +64,9 @@ class IncomingTask:
     invoice_no: Optional[str]
     payload: dict
     attempt_count: int = 0  # P1 lease 不下发尝试次数,保留字段兼容 main.py 日志
+    # 多台电脑（ADR-021，1.7.0 起）：服务端说这张单的录入人此刻就在这台电脑前（True）还是替别人写 / 常驻电脑（False）。
+    # False 不弹「账套被占用」，按「等账套」回报；旧服务端不带 → None，按有人值守处理（gui_tray_workers）。
+    attended: Optional[bool] = None
 
 
 class QueueClient:
@@ -162,10 +166,15 @@ class QueueClient:
         r.raise_for_status()
         return unwrap(r)
 
-    def poll(self) -> Optional[IncomingTask]:
-        """领取首个待录入发票(max=1)。空队列返回 None。"""
+    def poll(self, index_pending: Optional[list] = None) -> Optional[IncomingTask]:
+        """领取首个待录入发票(max=1)。空队列返回 None。
+
+        index_pending(1.7.0 起每次都带,没有就是空列表):这台电脑写过、主档索引还没重建的账套文件号
+        (cdx_reindex.IndexBatch 里还没重建的账套)。服务端据此把这些账套的下一张交回这台(按账套黏住,
+        别的电脑写会查不到刚建的主档);报空列表表示都重建了。旧服务端忽略。"""
+        pending = sorted({str(uid) for uid in (index_pending or ()) if str(uid or "").strip()})[:MAX_INDEX_PENDING]
         r = self._client.post(
-            _LEASE, json={"max": 1, "agent_id": self.cfg.companion_id}
+            _LEASE, json={"max": 1, "agent_id": self.cfg.companion_id, "index_pending": pending}
         )
         r.raise_for_status()
         response = unwrap(r)
@@ -176,10 +185,12 @@ class QueueClient:
         if not jobs:
             return None
         job = jobs[0]
+        attended = job.get("attended")
         return IncomingTask(
             id=str(job["log_id"]),
             invoice_no=job.get("invoice_no"),
             payload=job.get("payload") or {},
+            attended=attended if isinstance(attended, bool) else None,
         )
 
     def take_master_refresh(self) -> Optional[dict]:

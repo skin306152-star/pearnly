@@ -114,9 +114,17 @@ def step_poll_loop(configs) -> None:
         )
         return route_task(cfg, qc, task, index_batch=index_batch)
 
+    from . import device_link
+    from .profile_store import ProfileStore
+
+    def settled(cfg, status):   # 没有界面：密钥不能再用就直接改本机成员（这次运行里这个成员已停用）
+        device_link.settle(ProfileStore.load(), str(getattr(cfg, "profile_id", "") or ""), status)
+
+    device_link.ANNOUNCER.on_result = settled
     worker = MultiProfileWorker(
         configs,
         task_handler=handle,
+        announce=device_link.ANNOUNCER.announce,
         on_status=lambda profile_id, key, detail: (
             log.error("poll error · profile=%s · %s", profile_id, detail)
             if key == "offline"

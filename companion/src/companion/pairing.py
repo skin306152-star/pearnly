@@ -19,7 +19,7 @@ from typing import List, Optional
 import httpx
 
 from . import autostart
-from .account_probe import AccountSet, probe_account_sets
+from .account_probe import AccountSet, probe_account_sets, with_identity
 from .config import CompanionConfig
 from .i18n import http_status_category, t
 from .logger import get_logger
@@ -219,7 +219,8 @@ def pair(
     try:
         with QueueClient(qc_cfg) as qc:
             hb = qc.health(
-                account_sets=[asdict(a) for a in sets],
+                # 每行带上文件号与网络路径（多台电脑认同一份账套，与心跳同一套，account_probe.with_identity）
+                account_sets=with_identity([asdict(a) for a in sets]),
                 method="dbf",
                 selected=selected,
                 mapping=_mapping,
@@ -257,6 +258,8 @@ def pair(
         account_set_row=row,
         express_workdate=express_workdate,
         paired=True,
+        kind="express",  # 以前没有 Express、按只读成员加入池的，找到 Express 后在这里成了能写账的成员
+        device_state="",  # 换上了新密钥：以前「这把不能再用」的标记作废（device_link）
         **identity,
         **_mapping,
     )
@@ -332,8 +335,12 @@ def pair_folder(
     lang: str = "",
     config: Optional[CompanionConfig] = None,
     profile_store: Optional[ProfileStore] = None,
+    pool: bool = False,
 ) -> PairResult:
-    """MR.ERP 的小助手成员：确认配对码有效、是 MR.ERP 连接，存成只读文件夹的成员。"""
+    """MR.ERP 的小助手成员：确认配对码有效、是 MR.ERP 连接，存成只读文件夹的成员。
+
+    ``pool``：这台电脑没有 Express、配对码是事务所的 Express 池（多台电脑，ADR-021）：Express 连接也收，同样存成只读文件夹的
+    成员（读文件夹、做按需请求，不心跳、不领写账）。"""
     from .folder_client import FolderClient, Refused
 
     cfg = config or CompanionConfig.load()
@@ -354,15 +361,18 @@ def pair_folder(
         return _failure("pair_err_network", lang)
     finally:
         client.close()
-    if not isinstance(reply, dict) or not reply.get("ok") or reply.get("adapter") != "mrerp":
+    adapters = ("mrerp", "express") if pool else ("mrerp",)
+    if not isinstance(reply, dict) or not reply.get("ok") or reply.get("adapter") not in adapters:
         return _failure("pair_err_rejected", lang)
-    label = str(reply.get("label") or "MR.ERP").strip()[:80] or "MR.ERP"
+    fallback = "Express" if reply.get("adapter") == "express" else "MR.ERP"
+    label = str(reply.get("label") or fallback).strip()[:80] or fallback
     target = replace(cfg) if profile_store is not None else cfg
     target.update(
         bearer_token=token,
         backend_url=backend_url,
         kind="folder",
         paired=True,
+        device_state="",  # 换上了新密钥：以前「这把不能再用」的标记作废（device_link）
         endpoint_id=_endpoint_id_from_token(token),
         endpoint_name=label,
     )

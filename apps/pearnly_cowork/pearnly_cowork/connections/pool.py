@@ -157,7 +157,7 @@ def writer_devices(connection):
 
 
 def mark_stale(connection, device, account_key):
-    """写前核文件号对不上（1.6.0 回 ``ERR_ACCOUNT_UID_MISMATCH``）：这台电脑对这份账套的可达行标 ``stale``，不再派写入，
+    """写前核文件号对不上（1.7.0 回 ``ERR_ACCOUNT_UID_MISMATCH``）：这台电脑对这份账套的可达行标 ``stale``，不再派写入，
     直到它下一次整份上报（调用方同时要它整份重报）。回有没有改。调用方已锁连接行。"""
     key = identity(account_key)
     name = reach_name(connection, device, key) if connection and device and key else ""

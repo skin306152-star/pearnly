@@ -101,8 +101,12 @@ class PairingCode(unittest.TestCase):
 
 
 class DeviceMethods(unittest.TestCase):
-    """认电脑的两条机器方法（ADR-021，多台电脑第 1 批只到服务端）：表与另外三张不重叠、都是只收 POST 的白名单方法，
-    MR.ERP 的只读文件夹密钥也放行。CC 桌面版调用它们（以及 401 / 403 / 404 当旧服务端）在第 5 批补进本类。"""
+    """认电脑的两条机器方法（ADR-021；服务端第 1 批，CC 桌面版 1.7.0 第 5 批）：表与另外三张不重叠、都是只收 POST 的白名单
+    方法，MR.ERP 的只读文件夹密钥也放行；桌面端调的正是这两条路径、报文键与服务端收的一致、状态同名，401 / 403 / 404 一律当
+    旧服务端（不当成配对失效）；设备密钥的形状服务端收；桥的状态里有设备密钥（对话页每次打开带它调 register，页面一侧在第 6 批）。"""
+
+    DEVICE_CONTRACTS = SERVER / "device_contracts.py"
+    LINK = COMPANION / "device_link.py"
 
     def test_the_server_table_is_whitelisted_post_and_apart_from_the_other_three(self):
         server = module_constants(SERVER / "http_auth.py")
@@ -116,6 +120,59 @@ class DeviceMethods(unittest.TestCase):
             module, function = method.rsplit(".", 1)
             self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
                                              function), method)
+
+    def test_the_desktop_calls_exactly_the_two_device_paths(self):
+        helper = module_constants(self.LINK)
+        server = module_constants(SERVER / "http_auth.py")["DEVICE_METHODS"]
+        self.assertEqual(helper["HELLO"], "/api/method/" + server["device_hello"])
+        self.assertEqual(helper["LEAVE"], "/api/method/" + server["device_leave"])
+
+    def test_the_hello_body_and_the_statuses_are_the_same_on_both_sides(self):
+        server = module_constants(self.DEVICE_CONTRACTS)
+        helper = module_constants(self.LINK)
+        for name in ("ATTACHED", "CLAIMED_ELSEWHERE", "LEFT", "SUPERSEDED"):
+            self.assertEqual(helper[name], server[name], name)
+        request = method_source_of(self.DEVICE_CONTRACTS, "hello_request")
+        returned = next(node.value for node in ast.walk(ast.parse(request)) if isinstance(node, ast.Return))
+        body = next(node.value for node in ast.walk(ast.parse(method_source_of(self.LINK, "hello_body")))
+                    if isinstance(node, ast.Return))
+        self.assertEqual({key.value for key in body.keys}, {key.value for key in returned.keys})
+        self.assertEqual(number_constants(self.DEVICE_CONTRACTS, ("MAX_HOST_NAMES",))["MAX_HOST_NAMES"],
+                         number_constants(COMPANION / "device_facts.py", ("MAX_HOST_NAMES",))["MAX_HOST_NAMES"])
+        # 电脑名与文件夹同步、绑定里报的同一个（queue_client._device_name）
+        self.assertIn("from .queue_client import _device_name", self.LINK.read_text(encoding="utf-8"))
+        self.assertIn('"name": _device_name()', method_source_of(self.LINK, "hello_body").replace("'", '"'))
+
+    def test_the_device_key_the_desktop_makes_is_one_the_server_accepts(self):
+        pattern = re.search(r"_DEVICE_KEY = re.compile\(r'(.+)'\)", (SERVER / "contracts.py").read_text(encoding="utf-8"))
+        self.assertIsNotNone(pattern)
+        import base64
+        import secrets
+        namespace = {"base64": base64, "secrets": secrets}
+        tree = ast.parse(self.LINK.read_text(encoding="utf-8"))
+        keep = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "new_device_key"]
+        exec(compile(ast.Module(body=keep, type_ignores=[]), str(self.LINK), "exec"), namespace)
+        for _ in range(50):
+            self.assertIsNotNone(re.fullmatch(pattern.group(1), namespace["new_device_key"]()))
+
+    def test_401_403_404_from_the_device_methods_mean_an_old_server(self):
+        helper = number_constants(self.LINK, ("REFUSED",))
+        self.assertEqual(set(helper["REFUSED"]), {401, 403, 404})
+        post = method_source_of(self.LINK, "_post")
+        self.assertIn("if response.status_code in REFUSED:", post)
+        self.assertIn("raise OldServer(", post)
+        # 断开：服务端吊销不了（旧版、连不上）也照样只删本机成员
+        disconnect = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "disconnect")
+        self.assertLess(disconnect.index("_leave_member("), disconnect.index("remove_profile("))
+        self.assertNotIn("if not left", disconnect)
+
+    def test_the_bridge_hands_the_device_key_to_the_chat_page(self):
+        snapshot = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "snapshot")
+        self.assertIn("'device': device", snapshot)
+        self.assertIn('"devices"', (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8"))
+        self.assertIn("device=device_link.identity", (COMPANION / "gui_tray.py").read_text(encoding="utf-8"))
+        identity = method_source_of(self.LINK, "identity")
+        self.assertIn("'key': key", identity)
 
     def test_register_takes_the_device_key_and_the_management_rpcs_are_gone(self):
         api = (SERVER / "api.py").read_text(encoding="utf-8")
@@ -601,9 +658,9 @@ class AnyAccountSetRead(unittest.TestCase):
 
 
 class AccountSetIdentity(unittest.TestCase):
-    """多台电脑认同一份账套（ADR-021，方案 2.3）：CC 桌面版 1.6.0（第 5 批）在每行账套上加报 ``uid``（目录文件号）与
+    """多台电脑认同一份账套（ADR-021，方案 2.3）：CC 桌面版 1.7.0（第 5 批）在每行账套上加报 ``uid``（目录文件号）与
     ``share``（网络路径）。服务端两处白名单（原始名单 `_ACCOUNT_SET_KEYS`、目录属性 `attribute_keys`）都要收；
-    客户端今天报的账套行键也都在服务端白名单里（客户端一侧在第 5 批补齐）。"""
+    客户端报的账套行键都在服务端白名单里；心跳与配对上报走同一个 `with_identity`。"""
 
     REPORTS = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "connections" / "reports.py"
 
@@ -632,11 +689,29 @@ class AccountSetIdentity(unittest.TestCase):
             if isinstance(node, ast.ClassDef) and node.name == "AccountSet":
                 fields = {item.target.id for item in node.body if isinstance(item, ast.AnnAssign)}
         self.assertTrue(fields)
-        reported = fields | {"root", "root_label", "mapping"}
+        identity = set(module_constants(COMPANION / "account_probe.py")["IDENTITY_KEYS"])
+        self.assertEqual(identity, {"uid", "share"})
+        reported = fields | {"root", "root_label", "mapping"} | identity
         raw, attribute = self.server_keys()
         # 原始名单清洗按白名单逐键取（`mapping` 单独处理）；目录属性另收期间与分店
         self.assertEqual(reported - raw - {"mapping"}, set())
         self.assertEqual((reported - {"name"}) - attribute, set())
+
+    def test_the_helper_fills_uid_and_share_on_every_row_it_reports(self):
+        fill = method_source_of(COMPANION / "account_probe.py", "with_identity")
+        for key in ("uid", "share"):
+            self.assertIn(f"row['{key}']", fill)
+        self.assertIn("with_identity(rows, locator)", method_source_of(COMPANION / "account_probe.py",
+                                                                      "account_sets_payload"))
+        self.assertIn("with_identity([asdict(a) for a in sets])", (COMPANION / "pairing.py").read_text(encoding="utf-8"))
+        # 文件号只用 GetFileInformationByHandle（卷序列号 + 64 位文件号），不用 FileIdInfo（第 0 批：NAS / 服务器共享取不到）
+        facts = (COMPANION / "device_facts.py").read_text(encoding="utf-8")
+        self.assertIn("GetFileInformationByHandle", facts)
+        self.assertNotIn("GetFileInformationByHandleEx", facts)
+        self.assertIn("_BACKUP_SEMANTICS = 0x02000000", facts)
+        self.assertIn("_FILE_READ_ATTRIBUTES = 0x0080", facts)
+        clean = (ROOT / "apps/pearnly_cowork/pearnly_cowork/targets/identity.py").read_text(encoding="utf-8")
+        self.assertIn('ch.isalnum() or ch in ":-_."', clean)   # uid_of 的写法（十六进制 + 连字符）在服务端清洗规则内
 
 
 class WriteDispatch(unittest.TestCase):
@@ -665,11 +740,34 @@ class WriteDispatch(unittest.TestCase):
         self.assertEqual(set(found["LEASE_OPTIONAL_KEYS"]), {"index_pending"})
         poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
         read = set(re.findall(r"""job(?:\.get\(|\[)['"]([a-z_]+)['"]""", poll))
-        self.assertEqual(read, {"log_id", "invoice_no", "payload"})  # 今天的客户端只按键取这三个，多出的可选键不碍事
-        self.assertTrue(read <= set(found["_JOB_KEYS"]))
+        # 1.7.0：按键取三个旧键 + 可选的 attended（只认布尔，没有按有人值守）；多出的键不碍事
+        self.assertEqual(read, {"log_id", "invoice_no", "payload", "attended"})
+        self.assertTrue(read <= set(found["_JOB_KEYS"]) | set(found["JOB_OPTIONAL_KEYS"]))
+        self.assertIn("attended if isinstance(attended, bool) else None", poll)
+
+    def test_every_lease_request_carries_index_pending_within_the_server_limit(self):
+        poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
+        sent = next(node for node in ast.walk(ast.parse(poll)) if isinstance(node, ast.Dict)
+                    and any(getattr(key, "value", None) == "max" for key in node.keys))
+        self.assertEqual({key.value for key in sent.keys}, {"max", "agent_id", "index_pending"})
+        self.assertEqual(number_constants(COMPANION / "queue_client.py", ("MAX_INDEX_PENDING",)),
+                         number_constants(self.QUEUE, ("MAX_INDEX_PENDING",)))
+        # 报的是账套目录的文件号（与心跳账套行的 uid 同一个函数），全部成员合起来
+        scheduler = (COMPANION / "multi_profile_worker.py").read_text(encoding="utf-8")
+        self.assertIn("uid_of: Callable[[str], str] = device_facts.cached_uid", scheduler)
+        self.assertIn("qc.poll(index_pending=self.index_pending())", scheduler)
+        self.assertIn("value = file_uid(path, api)", method_source_of(COMPANION / "device_facts.py", "cached_uid"))
 
     def test_the_uid_mismatch_code_is_named_once_and_acted_on(self):
         self.assertEqual(module_constants(self.QUEUE)["ERR_ACCOUNT_UID_MISMATCH"], "ERR_ACCOUNT_UID_MISMATCH")
+        self.assertEqual(module_constants(COMPANION / "worker.py")["ERR_ACCOUNT_UID_MISMATCH"], "ERR_ACCOUNT_UID_MISMATCH")
+        handler = method_source_of(COMPANION / "worker.py", "_handle_dbf_task")
+        check = handler.split("if expected_uid and", 1)[1].split("return 'waiting_lock'", 1)[0]
+        self.assertIn("error_code=ERR_ACCOUNT_UID_MISMATCH", check)
+        self.assertIn("outcome='waiting_lock'", check)
+        self.assertIn("payload.get('account_uid')", handler)   # 服务端下发的键（push.express.wire_location）
+        self.assertIn('"account_uid"', (ROOT / "apps/pearnly_cowork/pearnly_cowork/push/express/wire_location.py")
+                      .read_text(encoding="utf-8").replace("'", '"'))
         transport = (SERVER / "transport.py").read_text(encoding="utf-8")
         self.assertIn("queue_contracts.ERR_ACCOUNT_UID_MISMATCH", transport)
         self.assertIn("mark_stale(", transport)
@@ -869,7 +967,7 @@ class CompanyFolders(unittest.TestCase):
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
-        self.assertIn('FEATURES = ("company_folders",)', self.bridge)
+        self.assertIn('FEATURES = ("company_folders", "devices")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)

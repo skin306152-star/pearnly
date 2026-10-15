@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """添加成员 / 更换配对码的流程（不碰界面；Tomo 设置页经 tomo_bridge 调用，2026-10-10 起取代原配对窗）。
 
-- 先问这个配对码是哪种连接：MR.ERP → 只读文件夹的成员（不需要 Express）；
+- 先问这个配对码是哪种连接：MR.ERP → 只读文件夹的成员（不需要 Express）；Express 而这台电脑没有 Express → 同样当只读
+  文件夹的成员加入池（多台电脑，ADR-021）；
 - Express → 用这台电脑的 Express 数据根读账套名单，定内部默认账套与科目（不让人选，账套由网页第一步选），
   再配对（连 Pearnly 校验密钥并上报账套）。
 - 更换配对码只换密钥：用这个成员自己原来的数据根，默认账套、人工改过的科目、授权年度都不变。
@@ -59,6 +60,12 @@ def run(store: ProfileStore, token: str, *, roots: List[str], profile_id: Option
     if pairing.connection_kind(token, cfg) == "mrerp":
         return pairing.pair_folder(token=token, enable_autostart=autostart, lang=lang, config=cfg, profile_store=store)
     if not roots:
+        if profile_id is None or getattr(cfg, "kind", "express") == "folder":
+            # 这台电脑没有 Express（多台电脑 ADR-021「无 Express 也能加入」）：加入事务所的 Express 池当只读文件夹的成员——
+            # 读文件夹、做按需请求，永远领不到写账（服务端只把写账交给报过够得到账套的电脑）。以后找到 Express 再按
+            # Express 重新配对（desktop_settings._upgrade_pool_members）。
+            return pairing.pair_folder(token=token, enable_autostart=autostart, lang=lang, config=cfg,
+                                       profile_store=store, pool=True)
         return pairing.PairResult(False, error_key=NEED_ROOTS)
     sets = probe_account_sets(roots[0])
     index = prefill_account_index(cfg, sets, prefill)

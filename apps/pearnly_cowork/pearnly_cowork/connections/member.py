@@ -12,7 +12,7 @@ from typing import Callable, Mapping, NamedTuple
 class Member(NamedTuple):
     # 设备编号（`Cowork CC Desktop Device` 的 name，不透明）
     device: str
-    # 还没被新版 CC 桌面版认领过（≤1.6.0 不报文件号 / 网络路径）：账套只按路径认（方案 2.4 第 4 条）
+    # 还没被新版 CC 桌面版认领过（1.7.0 之前的版本不报文件号 / 网络路径）：账套只按路径认（方案 2.4 第 4 条）
     legacy: bool = True
     # 这台电脑的主机名（新登记的、只在本机的账套键写成 ``\\主机\盘$\…``）
     host: str = ""

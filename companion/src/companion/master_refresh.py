@@ -36,10 +36,21 @@ class _Refresh:
     error: str = ""
     checked_at: float = 0.0
     signature: tuple = ()
+    generation: int = 0  # 上一次整套重扫时的 _rescan_generation
 
 
 _lock = threading.Lock()
 _refreshes: dict[str, _Refresh] = {}
+# rescan_soon() 每调一次加一：比它旧的扫描结果下一次都整套重扫（账套目录换了文件号时，见 worker 写前核对）。
+_rescan_generation = 0
+
+
+def rescan_soon() -> None:
+    """下一次心跳整套重扫一遍账套（不等登记表变化或每天一次）：写前核文件号对不上（ERR_ACCOUNT_UID_MISMATCH）时，
+    服务端要这台整份重报，报上去的文件号得是现在的。"""
+    global _rescan_generation
+    with _lock:
+        _rescan_generation += 1
 
 
 def _norm(path: str) -> str:
@@ -130,8 +141,10 @@ def _scan(
     signature: Optional[tuple] = None
     roots: list[str] = []
     try:
+        from . import device_facts
         from .account_probe import account_sets_payload, chart_accounts_payload
 
+        locator = device_facts.Locator()  # 本机共享表、各盘符的映射这一遍只问一次
         roots = _roots(express_root, authorized_roots)
         if discover:
             roots += _discover(roots)
@@ -147,7 +160,7 @@ def _scan(
         account_sets: list[dict] = []
         for root in roots:
             normalized_root = _norm(root)
-            for account in account_sets_payload(root):
+            for account in account_sets_payload(root, locator=locator):
                 identity = (normalized_root, _norm(account.get("path")))
                 if not identity[1] or identity in seen_accounts:
                     continue
@@ -214,9 +227,11 @@ def request_master(
             return refresh.payload, refresh.completed_at
         if refresh.running:
             return None, 0.0
-        if not force and refresh.completed_at and now - refresh.checked_at < _WATCH_INTERVAL_S:
+        stale = refresh.generation < _rescan_generation
+        if not force and not stale and refresh.completed_at and now - refresh.checked_at < _WATCH_INTERVAL_S:
             return None, 0.0
-        full = force or not refresh.completed_at or now - refresh.completed_at >= refresh_interval
+        full = force or stale or not refresh.completed_at or now - refresh.completed_at >= refresh_interval
+        refresh.generation = _rescan_generation
         refresh.running = True
         refresh.error = ""
         refresh.checked_at = now
@@ -257,8 +272,10 @@ def refresh_error(
 
 
 def _reset_for_tests() -> None:
+    global _rescan_generation
     with _lock:
         _refreshes.clear()
+        _rescan_generation = 0
 
 
-__all__ = ["refresh_error", "request_master"]
+__all__ = ["refresh_error", "request_master", "rescan_soon"]

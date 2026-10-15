@@ -268,10 +268,29 @@ def probe_account_sets(
     return out
 
 
+# 多台电脑认同一份账套（ADR-021，方案 2.3；1.7.0 起）：每行账套另报这两个键（服务端两处白名单都收，
+# tests/test_companion_contract.py 守住）。uid = 账套目录的卷序列号 + 64 位文件号，share = 网络路径（device_facts）。
+IDENTITY_KEYS = ("uid", "share")
+
+
+def with_identity(rows: List[dict], locator=None) -> List[dict]:
+    """给上报的账套行补上 ``uid`` / ``share``（按行里的 ``path``，只读打开目录，不写任何文件）；取不到的报空串。"""
+    from . import device_facts
+
+    finder = locator if locator is not None else device_facts.Locator()
+    for row in rows:
+        path = str(row.get("path") or "").strip()
+        row["uid"] = finder.uid(path) if path else ""
+        row["share"] = finder.share(path) if path else ""
+    return rows
+
+
 def account_sets_payload(
-    express_root: str | Path, *, include_details: bool = True
+    express_root: str | Path, *, include_details: bool = True, locator=None
 ) -> List[dict]:
-    """heartbeat 上报用(best-effort):登记表缺/坏 → 返空(心跳不因此中断;配对路径才严格报错)。"""
+    """heartbeat 上报用(best-effort):登记表缺/坏 → 返空(心跳不因此中断;配对路径才严格报错)。
+
+    带详情时每行另报 ``uid`` / ``share``（``with_identity``；一次扫描共用一个 ``locator``）。"""
     try:
         root = str(express_root or "").strip()
         root_label = ntpath.basename(root.rstrip("\\/")) or root
@@ -290,7 +309,7 @@ def account_sets_payload(
                 for key in ("company", "tax_id", "writable"):
                     row.pop(key, None)
             rows.append(row)
-        return rows
+        return with_identity(rows, locator) if include_details else rows
     except RegistryUnavailable:
         return []
 

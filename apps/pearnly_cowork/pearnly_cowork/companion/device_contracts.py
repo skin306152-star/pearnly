@@ -4,8 +4,8 @@
     已有自己的密钥时回 ``superseded``，这把（旧槽位密钥）随即吊销，桌面端丢掉它、改用自己那把；
   device_leave {}：吊销这把密钥本身（电脑上「断开连接」）。
 
-`host_names` 原样存（第 0 批真机核过：测试机还报 WSL / Tailscale 虚拟网卡地址；只取物理网卡由 CC 桌面版第 5 批做），
-这里只限条数与长度，不筛。
+`host_names` 原样存（第 0 批真机核过：测试机还有 WSL / Tailscale 虚拟网卡地址；CC 桌面版 1.7.0 起只报有默认网关的网卡，
+见 companion/src/companion/device_facts.py），这里只限条数与长度，不筛（旧版或别的写法报来的照收）。
 """
 from .contracts import CredentialError, device_key, text
 

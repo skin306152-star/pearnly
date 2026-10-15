@@ -29,6 +29,23 @@
     新加根目录后 `roots_only` 快速同步；根目录上限跟服务端 `max_roots`（200，旧服务端按 20）；
   - 自动更新被 Windows 应用控制 / 智能应用控制拦下时识别（`update_block.py`），托盘与设置里给「下载新版」，心跳上报，
     同一版本不反复重试。
+- 1.7.0（多台电脑，ADR-021 第 5 批；**服务端第 1–4、6 批上线后才发**，旧服务端上照旧能用）：
+  - 设备密钥（`device_link.py`）：第一次运行生成 32 字节随机数，和配对密钥一起用当前 Windows 用户的 DPAPI 加密存在
+    `companion.json` 的 `device` 里；对话页经桥（`state().device`）拿到它，每次打开带它登记（对话页一侧在第 6 批）；
+  - 认电脑：每个成员（Express 与 MR.ERP 只读成员）启动后各发一次 `device_api.hello`（设备密钥、电脑名、常驻、`host_names`），
+    之后变了再发；回 `superseded` / `claimed_elsewhere` 的密钥本机停用、等对话页重新登记；「断开连接」先 `device_api.leave`
+    吊销本机这把再删成员。两条方法回 401 / 403 / 404 一律当旧服务端，**从不当成配对失效**；
+  - 心跳与配对上报的每行账套加 `uid`（目录的卷序列号 + 64 位文件号，`GetFileInformationByHandle`，只用 `FILE_READ_ATTRIBUTES`
+    打开，不用 `FileIdInfo`）与 `share`（映射盘经 `WNetGetConnectionW`，本机共享经 `LanmanServer\Shares` 换成
+    `\\本机名\共享名\…`），见 `device_facts.py`；`host_names` 只报有默认网关的网卡地址（不报 WSL / Hyper-V / VPN）；
+    文件夹规则的网络路径用同一套换算（以前只认持久映射）；
+  - 领取请求每次带 `index_pending`（主档索引还没重建的账套文件号）；任务的 `attended=false`（替别人写）不弹询问框；
+    有人值守时探的是**这张单的**账套，被占用先按「等账套」放掉租约再弹框；写前用本机文件号核 `account_uid`，对不上或这台
+    找不到这份账套 → 按「等账套」回报 `[ERR_ACCOUNT_UID_MISMATCH]`（单子交给别的电脑），并整套重扫一次账套；
+  - 没有 Express 的电脑也能加入事务所的 Express 池（当只读文件夹的成员，永远领不到写账），之后找到 Express 用原密钥按 Express
+    重新配对。
+  - 只有真机能验的：真的 DPAPI、`GetFileInformationByHandle` / `WNetGetConnectionW` / 共享表 / 网卡表在 NAS 与服务器共享上的结果、
+    两台电脑同一份账套的分派与写前核对，见 `docs/work/2026-10-15-multi-desktop-build.md` 第 7 批。
 
 ## 本机测试
 

@@ -305,3 +305,23 @@ def test_an_update_waits_for_the_on_demand_thread_too(monkeypatch):
     assert app._work_stopped() is True
     app._resume_after_update()
     assert requests.started == 1
+
+
+def test_a_key_the_server_will_not_take_is_settled_then_every_thread_restarts(monkeypatch):
+    # 多台电脑（ADR-021，1.7.0）：认电脑回 superseded / claimed_elsewhere → 界面线程改本机成员、重启各线程、对话页重取状态
+    gui_tray = _gui_tray_with_fake_qt(monkeypatch)
+    from src.companion import device_link
+    from src.companion import profile_store
+
+    app = gui_tray.TrayApp.__new__(gui_tray.TrayApp)
+    calls = []
+    store = SimpleNamespace(name="store")
+    monkeypatch.setattr(profile_store.ProfileStore, "load", classmethod(lambda cls, *a, **k: store))
+    monkeypatch.setattr(device_link, "settle", lambda st, pid, status: calls.append(("settle", st, pid, status))
+                        or "marked")
+    app._reload_profiles = lambda: calls.append(("reload",))
+    app._bridge = SimpleNamespace(changed=SimpleNamespace(emit=lambda: calls.append(("page",))))
+
+    app._on_device_result("P1", "claimed_elsewhere")
+
+    assert calls == [("settle", store, "P1", "claimed_elsewhere"), ("reload",), ("page",)]

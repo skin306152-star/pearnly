@@ -1662,6 +1662,7 @@ The account balance could not be checked right now. Try again in a moment.,暂�
 The account codes are invalid.,科目号无效。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
+The account set on this computer is not the registered one. Another computer will send it automatically.,这台电脑上的账套不是登记的那一份，将由其他电脑自动推送
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up. Correct them and submit again,金额合计不一致，请更正后重新提交
 The answer is not valid.,回答无效。
@@ -3244,6 +3245,7 @@ intake.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重�
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 intake.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
+intake.error.ERR_ACCOUNT_UID_MISMATCH,这台电脑上的账套不是登记的那一份，将由其他电脑自动推送
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。

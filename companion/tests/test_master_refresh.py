@@ -15,7 +15,7 @@ def test_slow_master_scan_is_non_blocking_and_shared(monkeypatch):
     release = threading.Event()
     calls = []
 
-    def slow_sets(root):
+    def slow_sets(root, **_kwargs):
         calls.append(root)
         started.set()
         release.wait(2)
@@ -58,7 +58,7 @@ def test_slow_master_scan_is_non_blocking_and_shared(monkeypatch):
 def test_consumed_snapshot_does_not_rescan_before_interval(monkeypatch):
     scans = []
     monkeypatch.setattr(
-        account_probe, "account_sets_payload", lambda root: scans.append(root) or []
+        account_probe, "account_sets_payload", lambda root, **_kwargs: scans.append(root) or []
     )
     monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
     monkeypatch.setattr(express_locate, "candidate_roots", lambda: [])
@@ -115,7 +115,8 @@ def test_endpoint_refresh_reads_company_names_and_skips_chart(monkeypatch):
     result = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", **kwargs))
 
     assert result[0] == {"account_sets": [{"path": "C:/books/A", "company": "ACME"}]}
-    assert scans == [("C:/books", {})]
+    # 带详情（不传 include_details）；一次扫描共用一个换算网络路径的 locator（账套行的 uid / share，device_facts）
+    assert [root for root, _kwargs in scans] == ["C:/books"] and set(scans[0][1]) == {"locator"}
 
 
 def test_endpoint_refresh_scans_each_authorized_root_once(monkeypatch):
@@ -150,17 +151,17 @@ def test_endpoint_refresh_scans_each_authorized_root_once(monkeypatch):
 def test_forced_refresh_with_discovery_adds_new_year_folders_once(monkeypatch):
     """「重新读取」+ 全部授权:新建的年度文件夹也扫进来;同一份登记表换个路径看见的只算一次。"""
     stamps = {"C:/books": (1, 1), "E:/70EXP": (2, 2), r"\\server\books": (1, 1), "F:/empty": (3, 3)}
-    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: stamps.get(root))
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root, **_kwargs: stamps.get(root))
     monkeypatch.setattr(
         express_locate,
         "candidate_roots",
         lambda: ["C:/books", r"\\server\books", "E:/70EXP", "F:/empty", "G:/missing"],
     )
     monkeypatch.setattr(
-        express_locate, "sccomp_company_count", lambda root: 0 if root == "F:/empty" else 5
+        express_locate, "sccomp_company_count", lambda root, **_kwargs: 0 if root == "F:/empty" else 5
     )
     monkeypatch.setattr(
-        account_probe, "account_sets_payload", lambda root: [{"path": f"{root}/A", "root": root}]
+        account_probe, "account_sets_payload", lambda root, **_kwargs: [{"path": f"{root}/A", "root": root}]
     )
 
     kwargs = {"force": True, "account_sets_only": True, "discover": True}
@@ -176,9 +177,9 @@ def test_unchanged_registry_is_not_rescanned_until_it_changes(monkeypatch):
     scans = []
     stamp = {"value": (1, 1)}
     monkeypatch.setattr(master_refresh, "_WATCH_INTERVAL_S", 0.0)
-    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: stamp["value"])
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root, **_kwargs: stamp["value"])
     monkeypatch.setattr(
-        account_probe, "account_sets_payload", lambda root: scans.append(root) or [{"path": "C:/books/A"}]
+        account_probe, "account_sets_payload", lambda root, **_kwargs: scans.append(root) or [{"path": "C:/books/A"}]
     )
     monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
 
@@ -224,8 +225,8 @@ def test_failed_scan_exposes_request_scoped_error(monkeypatch):
 
 def test_slow_registry_stamp_does_not_hold_back_a_full_scan(monkeypatch):
     """够不到的共享盘读修改时间会卡好几秒(Windows):整套重扫先交结果,修改时间随后再记。"""
-    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: time.sleep(1.5) or (1, 1))
-    monkeypatch.setattr(account_probe, "account_sets_payload", lambda root: [{"path": f"{root}/A"}])
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root, **_kwargs: time.sleep(1.5) or (1, 1))
+    monkeypatch.setattr(account_probe, "account_sets_payload", lambda root, **_kwargs: [{"path": f"{root}/A"}])
     kwargs = {"force": True, "account_sets_only": True}
 
     started = time.monotonic()
@@ -241,10 +242,10 @@ def test_a_full_rescan_also_looks_for_new_year_folders_without_anyone_clicking(m
     平时只比登记表变没变的那几次不找（不额外跑盘）。"""
     looked = []
     monkeypatch.setattr(master_refresh, "_WATCH_INTERVAL_S", 0.0)
-    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root: (1, 1) if root != "E:/71EXP" else (2, 2))
+    monkeypatch.setattr(master_refresh, "_sccomp_stamp", lambda root, **_kwargs: (1, 1) if root != "E:/71EXP" else (2, 2))
     monkeypatch.setattr(express_locate, "candidate_roots", lambda: looked.append(True) or ["E:/71EXP"])
-    monkeypatch.setattr(express_locate, "sccomp_company_count", lambda root: 5)
-    monkeypatch.setattr(account_probe, "account_sets_payload", lambda root: [{"path": f"{root}/A", "root": root}])
+    monkeypatch.setattr(express_locate, "sccomp_company_count", lambda root, **_kwargs: 5)
+    monkeypatch.setattr(account_probe, "account_sets_payload", lambda root, **_kwargs: [{"path": f"{root}/A", "root": root}])
     monkeypatch.setattr(account_probe, "chart_accounts_payload", lambda _path: [])
 
     first = _wait(lambda: master_refresh.request_master("C:/books", "C:/books/A", discover=True))

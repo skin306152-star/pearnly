@@ -273,7 +273,7 @@ def install(*, push_inputs=None, bank_window=None):
 class Computer:
     """一台装了 CC 桌面版的电脑往一条 Express 连接上报（真 `plan_report` + `collector.ingest`）。
 
-    ``legacy``：没认领过的旧版（≤1.6.0，只按路径认账套）；``hosts``：新版 ``device_hello`` 报的主机名。
+    ``legacy``：没认领过的旧版（1.7.0 之前，只按路径认账套）；``hosts``：新版 ``device_hello`` 报的主机名。
     这台电脑上次报的所选、版本由它自己记着（服务端在电脑行上，`companion.devices`）。"""
 
     def __init__(self, doc, device, *, credential="CRED", generation=1, issuer="owner@example.com", legacy=True,

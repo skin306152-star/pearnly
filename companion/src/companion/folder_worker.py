@@ -38,6 +38,7 @@ from typing import Callable, Iterable, Optional
 
 from . import folder_plan as plan
 from . import update_block
+from .config import member_active
 from .queue_client import _device_name
 from .folder_client import FolderClient, Refused, put_direct
 from . import folder_store
@@ -71,8 +72,11 @@ class FolderIntake:
                  on_notices: Optional[Callable[[str, list], None]] = None,
                  on_update: Optional[Callable[[str, str], None]] = None,
                  on_roots_changed: Optional[Callable[[], None]] = None,
-                 timer: Callable[[], float] = time.monotonic) -> None:
+                 timer: Callable[[], float] = time.monotonic,
+                 announce: Optional[Callable] = None) -> None:
         self._configs = configs
+        # announce(cfg)：MR.ERP 的只读文件夹成员没有取任务线程，在这里认电脑（device_link.Announcer.announce；托盘传入）
+        self._announce = announce
         # 自动收回了经公司添加的根目录（本线程调）：托盘经 Qt 信号让设置页 / 侧栏重取本机状态。
         self._on_roots_changed = on_roots_changed
         # MR.ERP 的小助手成员（kind=folder）没有心跳：它在主窗口与托盘上的「在线 / 断开」就看这里每次同步成没成。
@@ -169,7 +173,7 @@ class FolderIntake:
 
     def _active(self) -> list:
         try:
-            return [cfg for cfg in list(self._configs() or []) if not getattr(cfg, "paused", False)
+            return [cfg for cfg in list(self._configs() or []) if member_active(cfg)
                     and getattr(cfg, "paired", True)]
         except Exception:
             return []
@@ -182,6 +186,13 @@ class FolderIntake:
                 key = connection_key(cfg)
                 if not self._due(cfg, key):
                     continue
+                if self._announce is not None and _folder_member(cfg):
+                    try:
+                        self._announce(cfg)
+                    except Exception:
+                        log.exception("认电脑失败（忽略）")
+                    if not member_active(cfg):
+                        continue   # 这把密钥服务端说不能再用：等对话页重新登记（device_link）
                 try:
                     self.round(cfg, key)
                     self._status(cfg, "idle")

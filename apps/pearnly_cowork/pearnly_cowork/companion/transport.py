@@ -214,7 +214,7 @@ def _after_ack(row, delivery, request, result):
     """回执之后池里的两件事（池里各行在记录之后锁，同一连接上都先锁了连接行）：
 
     - 写成了：记在这份账套的登记上（谁、何时），旧版不报主档索引时按它近似黏住；
-    - 写前核文件号对不上（1.6.0 回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``）：这台电脑对这份账套的可达行标
+    - 写前核文件号对不上（1.7.0 回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``）：这台电脑对这份账套的可达行标
       stale、要它整份重报，单子已回到排队，下次交给别的电脑。"""
     device = credentials.device_of(delivery.credential_id) or delivery.credential_id
     key = normalize_express_account_key(row.account_key)

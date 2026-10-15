@@ -22,7 +22,7 @@ import time
 from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
-from . import autostart, folder_store, pairing, pairing_flow
+from . import autostart, device_link, folder_store, pairing, pairing_flow
 from . import folder_plan as plan
 from .express_machine import apply_roots, detect_roots, machine_roots, rescan_roots, roots_for_pick, same_root
 from .i18n import MessageSpec, normalize, t
@@ -35,9 +35,12 @@ log = get_logger(__name__)
 
 
 def status_key(record: ProfileRecord, state: Optional[tuple]) -> str:
-    """成员状态（同原主窗口）：paused 优先；其余按取任务线程报的状态归成 5 种。"""
+    """成员状态（同原主窗口）：paused 优先；密钥服务端说不能再用（device_state，等对话页重新登记）是 attention；
+    其余按取任务线程报的状态归成 5 种。"""
     if record.paused:
         return "paused"
+    if getattr(record, "device_state", ""):
+        return "attention"
     if state is None or state[0] == "starting":
         return "connecting"
     current = state[0] if state else "offline"
@@ -107,6 +110,8 @@ def main_member(store: ProfileStore) -> Optional[ProfileRecord]:
 
 class DesktopSettings:
     def __init__(self, *, states: Callable[[], Mapping[str, tuple]] = dict,
+                 device: Callable[[], dict] = dict,
+                 leave: Callable[[str, str], bool] = device_link.leave,
                  update_status: Callable[[], tuple] = lambda: ("none", ""),
                  on_update: Callable[[], None] = lambda: None,
                  on_download: Callable[[], None] = lambda: None,
@@ -122,6 +127,9 @@ class DesktopSettings:
                  env: Optional[Mapping[str, str]] = None,
                  load_store: Callable[[], ProfileStore] = ProfileStore.load) -> None:
         self._states = states
+        # 多台电脑（ADR-021）：这台电脑的设备密钥与电脑名（device_link.identity，对话页登记时带上）；断开时先吊销本机这把密钥
+        self._device = device
+        self._leave = leave
         self._update_status = update_status
         self._on_update = on_update
         self._on_download = on_download
@@ -160,15 +168,24 @@ class DesktopSettings:
                 "kind": getattr(record, "kind", "express") or "express",
                 "paused": bool(record.paused),
                 "status": status_key(record, states.get(record.profile_id)),
+                # superseded / claimed_elsewhere：这把密钥不再用，对话页据此重新登记（superseded 带 rekey）
+                "device_state": str(getattr(record, "device_state", "") or ""),
                 "folders": [row["path"] for row in folder_store.roots(key)] if key else None,
             })
         try:
             update_state, update_version = self._update_status()
         except Exception:
             update_state, update_version = "none", ""
+        try:
+            device = dict(self._device() or {})
+        except Exception:
+            log.exception("取设备密钥失败")
+            device = {}
         return {
             "version": VERSION,
             "site": site_of(store),
+            # 这台电脑（设备密钥 + 电脑名）：对话页每次打开带它调 register（多台电脑，ADR-021）；旧版桥没有这一项
+            "device": device,
             "express_roots": roots,
             "members": members,
             "autostart": self._autostart(store),
@@ -220,6 +237,7 @@ class DesktopSettings:
             if not switch:
                 return {"ok": False, "other_site": current}
             for record in list(store.profiles):
+                self._leave_member(store, record.profile_id)
                 store.remove_profile(record.profile_id)
             store, switched = self._store(), True
         if profile_id is None:
@@ -233,6 +251,9 @@ class DesktopSettings:
 
     def _pair(self, store: ProfileStore, code: str, lang: str, profile_id: Optional[str]) -> dict:
         roots = machine_roots(store) or list(self._detected or [])
+        if not roots and profile_id is None and self._detected is None:
+            # 还没找过 Express 就别下「这台电脑没有 Express」的结论（没有才按只读文件夹的成员加入池，pairing_flow）
+            roots = list(self.detect() or [])
         try:
             result = pairing_flow.run(store, str(code or "").strip(), roots=roots, profile_id=profile_id,
                                       lang=normalize(lang))
@@ -261,6 +282,23 @@ class DesktopSettings:
         self._store().remove_profile(profile_id)
         self._on_profiles_changed()
         return {"ok": True}
+
+    def _leave_member(self, store: ProfileStore, profile_id: str) -> bool:
+        """断开前先请服务端吊销这把密钥（device_leave）；旧服务端、连不上、密钥早已失效都不拦（只删本机）。"""
+        try:
+            cfg = store.runtime_config(profile_id)
+            return bool(self._leave(str(cfg.backend_url or ""), str(cfg.bearer_token or "")))
+        except Exception:
+            log.exception("断开时吊销密钥失败（只删本机成员）")
+            return False
+
+    def disconnect(self, profile_id: str) -> dict:
+        """（后台线程）设置里「断开连接」：先吊销本机这把密钥（device_leave），再删本机成员（方案 2.8）。
+        由桥回到界面线程重启各线程（profiles_changed）。"""
+        store = self._store()
+        left = self._leave_member(store, profile_id)
+        self._store().remove_profile(profile_id)
+        return {"ok": True, "left": left, "profiles_changed": True}
 
     def set_autostart(self, enabled: bool) -> dict:
         autostart.enable() if enabled else autostart.disable()
@@ -306,10 +344,28 @@ class DesktopSettings:
             return {"ok": False, "message": t("express_not_found", lang)}
         store = self._store()
         if store.profiles:
-            apply_roots(store, roots)
+            if any((getattr(r, "kind", "express") or "express") != "folder" for r in store.profiles):
+                apply_roots(store, roots)
+            self._upgrade_pool_members(roots, lang)
             return {"ok": True, "profiles_changed": True}
         self._detected = list(roots)
         return {"ok": True}
+
+    def _upgrade_pool_members(self, roots: list, lang: str) -> None:
+        """当初没有 Express、按只读文件夹的成员加入 Express 池的（pairing_flow），现在找到了 Express：用它原来的密钥按
+        Express 重新配对一次（成了能写账的成员）。MR.ERP 的成员不动。"""
+        store = self._store()
+        for record in list(store.profiles):
+            if (getattr(record, "kind", "express") or "express") != "folder":
+                continue
+            try:
+                cfg = store.runtime_config(record.profile_id)
+                if pairing.connection_kind("", cfg) != "express":
+                    continue
+                result = pairing_flow.run(store, "", roots=roots, profile_id=record.profile_id, lang=normalize(lang))
+                log.info("只读成员按 Express 重新配对：%s", bool(result and result.ok))
+            except Exception:
+                log.exception("只读成员按 Express 重新配对失败")
 
     def set_folders(self, profile_id: str, paths: list, lang: str) -> dict:
         store = self._store()

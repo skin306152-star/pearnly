@@ -43,7 +43,7 @@ class _Client:
         self.health_calls = []
         self.closed = False
 
-    def poll(self):
+    def poll(self, index_pending=None):
         self.poll_count += 1
         item = self.script.pop(0) if self.script else None
         if isinstance(item, Exception):

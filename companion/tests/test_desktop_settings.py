@@ -51,7 +51,8 @@ def test_snapshot_lists_members_with_status_folders_and_the_machine_roots(tmp_pa
     assert snap["express_roots"] == [r"S:\\EXP68", r"S:\\EXP69"]
     assert snap["site"] == "testcowork.pearnly.com"
     assert snap["members"] == [{"id": member, "name": "owner@example.com", "kind": "express", "paused": False,
-                                "status": "online", "folders": []}]
+                                "status": "online", "device_state": "", "folders": []}]
+    assert snap["device"] == {}  # 没注入设备密钥（旧桥 / 取不到）：空对象，页面按旧版处理
     assert snap["autostart"] is True and snap["hotkey"] is True
     assert snap["update"] == {"state": "found", "version": "1.4.1"}
 

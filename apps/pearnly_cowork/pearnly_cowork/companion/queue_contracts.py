@@ -22,7 +22,7 @@ JOB_OPTIONAL_KEYS = frozenset(("attended",))
 # 领取请求的可选键（ADR-021）：``index_pending`` = 这台电脑主档索引还没重建的账套文件号（按账套黏住用）。旧服务端忽略。
 LEASE_OPTIONAL_KEYS = frozenset(("index_pending",))
 MAX_INDEX_PENDING = 500
-# 写前核文件号对不上（1.6.0 起，回执按 ``waiting_lock`` 回报、错误原因带这个码）：服务端把这台电脑对这份账套的可达行标
+# 写前核文件号对不上（1.7.0 起，回执按 ``waiting_lock`` 回报、错误原因带这个码）：服务端把这台电脑对这份账套的可达行标
 # stale、要它整份重报，单子回到排队交给别的电脑（ADR-021，方案 2.5）。
 ERR_ACCOUNT_UID_MISMATCH = "ERR_ACCOUNT_UID_MISMATCH"
 _REFRESH_KEYS = frozenset(("request_id", "account_set_key", "scope_kind"))

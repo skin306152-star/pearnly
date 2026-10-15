@@ -1662,6 +1662,7 @@ The account balance could not be checked right now. Try again in a moment.,現�
 The account codes are invalid.,勘定科目コードが無効です。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
+The account set on this computer is not the registered one. Another computer will send it automatically.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターから自動で送信します
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
 The answer is not valid.,回答が無効です。
@@ -3244,6 +3245,7 @@ intake.error.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
 intake.error.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,結果が確認できません。Express で確認してから再送信してください
+intake.error.ERR_ACCOUNT_UID_MISMATCH,このコンピューターの帳簿は登録されたものではありません。別のコンピューターから自動で送信します
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,メニュー修正前に MR.ERP へ送信した伝票です。仕訳帳に連携されていないメニューに入り、記帳されていない可能性があります。再送信の前に MR.ERP で確認してください。

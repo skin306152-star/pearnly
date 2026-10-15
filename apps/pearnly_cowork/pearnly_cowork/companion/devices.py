@@ -403,7 +403,7 @@ def index_pending(value):
 
 
 def note_index_pending(device, uids):
-    """领取请求带来的「主档索引还没重建的账套」（1.6.0 起，`index_pending`）记到这台电脑上，别的电脑领取时据此让着它
+    """领取请求带来的「主档索引还没重建的账套」（1.7.0 起，`index_pending`）记到这台电脑上，别的电脑领取时据此让着它
     （按账套黏住，方案 2.5）。没带（旧版）不动；内容没变不碰电脑行；变了才锁（加锁顺序的最后一位）。"""
     if uids is None:
         return False

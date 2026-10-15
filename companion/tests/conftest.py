@@ -83,3 +83,23 @@ def _update_state_in_tmp(tmp_path, monkeypatch):
         except ImportError:
             continue
         monkeypatch.setitem(module._REPORT, "value", None)
+
+
+@pytest.fixture(autouse=True)
+def _device_identity_fresh(monkeypatch):
+    """多台电脑（device_link / device_facts）：设备密钥、网卡与文件号的进程内缓存每个用例从空开始；
+    默认的认电脑对象不接托盘回调，也绝不用本机真的配置文件生成设备密钥。"""
+    import importlib
+
+    for name in ("companion", "src.companion"):
+        try:
+            link = importlib.import_module(name + ".device_link")
+            facts = importlib.import_module(name + ".device_facts")
+        except ImportError:
+            continue
+        link._reset_for_tests()
+        facts._reset_for_tests()
+        monkeypatch.setattr(link.ANNOUNCER, "on_result", None)
+        monkeypatch.setattr(link.ANNOUNCER, "_memory", {})
+        monkeypatch.setattr(link.ANNOUNCER, "_key", lambda: "")
+    yield

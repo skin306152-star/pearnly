@@ -154,6 +154,10 @@ class IndexBatch:
     def add(self, account_dir, tables: Iterable[str]) -> None:
         self._pending.setdefault(str(account_dir), set()).update(t for t in tables if t)
 
+    def pending_dirs(self) -> list:
+        """还没重建主档索引的账套目录（领取请求的 ``index_pending`` 按它们的文件号报，见 multi_profile_worker）。"""
+        return sorted(self._pending)
+
     def flush(self) -> None:
         """重建累积的主档索引(每账套一次)。失败只记日志不抛——单据已记账且交易表回查
         通过,商品可见性延后由下批推送/夜间 PACK 兜底,绝不因可见性回滚已成功的记账。"""

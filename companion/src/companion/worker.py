@@ -28,6 +28,10 @@ def _norm_path(value: object) -> str:
 
 
 ERR_ACCOUNT_UNREACHABLE = "ACCOUNT_SET_UNREACHABLE"
+# 写前核文件号（多台电脑，ADR-021，1.7.0 起）：服务端随任务下发登记里这份账套的文件号 ``account_uid``；这台电脑上找不到
+# 这份账套、或找到的目录文件号不同（换了一份、备份副本）→ 不写，按「等账套」回报这个码（与服务端
+# queue_contracts.ERR_ACCOUNT_UID_MISMATCH 同名）：服务端把这台对这份账套的可达标 stale、要整份重报，单子交给别的电脑。
+ERR_ACCOUNT_UID_MISMATCH = "ERR_ACCOUNT_UID_MISMATCH"
 # 账套暂时读不到时就地再探的等待（秒）：网络共享抖一下多半几秒内恢复；一直读不到时每轮约 15 秒回报一次，
 # 不对服务端空转（「等账套」不烧重试次数，下一轮马上又会领到这张）。
 UNREACHABLE_RECHECK_SECONDS = (5.0, 5.0, 5.0)
@@ -112,6 +116,38 @@ def _task_settings(cfg: CompanionConfig, payload: dict):
     )
 
 
+def task_account_dir(cfg: CompanionConfig, payload: dict) -> str:
+    """这张单要写的账套目录（有人值守时先探它有没有被 Express 占用，gui_tray_workers）。
+
+    任务带了账套：只在它的数据根是这台电脑授权过的根目录时才认（与 ``_task_settings`` 同一条规则，不探服务端给的任意路径），
+    就是那份账套的目录；没带账套（旧任务）用这个成员的默认账套。认不出回空串（不探，交给写入时如实回报）。"""
+    from .secret_store import load_express_settings
+
+    current = load_express_settings(cfg)
+    requested_set = str((payload or {}).get("account_set") or "").strip()
+    requested_root = str((payload or {}).get("account_root") or "").strip()
+    if not requested_set:
+        return current.account_dir or ""
+    if not requested_root:
+        return requested_set if _norm_path(requested_set) == _norm_path(current.account_set) else ""
+    roots = [current.express_root, *(getattr(cfg, "authorized_roots", None) or ())]
+    if not any(_norm_path(root) == _norm_path(requested_root) for root in roots if root):
+        return ""
+    return requested_set
+
+
+def uid_mismatch(expected: object, account_dir: str, uid_of=None) -> bool:
+    """服务端下发的文件号与本机这份账套目录的文件号确实不同。本机读不出文件号（不是 Windows、文件系统不给）不算不同：
+    核不了就照旧按路径写（同旧版）。"""
+    want = str(expected or "").strip().lower()
+    if not want or not account_dir:
+        return False
+    if uid_of is None:
+        from .device_facts import file_uid as uid_of
+    actual = str(uid_of(account_dir) or "").strip().lower()
+    return bool(actual) and actual != want
+
+
 def _opening_items(payload: dict):
     """Pearnly 补期初卡透传的期初行 → set_opening_stock 期望的形状。
 
@@ -179,6 +215,20 @@ def _handle_dbf_task(
         )
         return "failed"
 
+    # 同一个任务上次已经写进去、只是回执没送到（断网 / 关机）：照上次的回执回报，不写第二张。
+    # 只认任务号，会计再推一次是新任务、照写（不查重，见 task_journal）。放在找账套之前：写过的就是写过了，
+    # 这会儿账套找不到、文件号对不上都不能让它回到排队交给别的电脑再写一遍。
+    done = task_journal.written(task.id)
+    if done is not None:
+        log.info(f"✓ dbf task {task.id} already written → {done.get('docnum')}")
+        qc.ack_success(
+            task.id,
+            extracted_invoice_no=done.get("docnum"),
+            line_modes=done.get("line_modes"),
+            meta={**(done.get("meta") or {}), "written": False, "duplicate_skipped": True},
+        )
+        return None
+    expected_uid = str(payload.get("account_uid") or "").strip()
     # 方法无关「读设置」seam:DBF 直写只需所选账套整组(不需登录密码)。
     try:
         st = _task_settings(cfg, payload)
@@ -189,6 +239,20 @@ def _handle_dbf_task(
             task.id,
             "the account set cannot be reached right now",
             error_code=ERR_ACCOUNT_UNREACHABLE,
+            outcome="waiting_lock",
+        )
+        return "waiting_lock"
+    # 多台电脑（1.7.0 起）：服务端是按这台电脑报过「够得到这份账套」才交过来的。这台上找不到它、或找到的是另一份
+    # （文件号不同）→ 不写，回到排队交给别的电脑（不再转人工）。旧服务端不带 account_uid，照旧。
+    if expected_uid and (st is None or uid_mismatch(expected_uid, st.account_dir)):
+        log.warning(f"… dbf task {task.id} account uid mismatch on this PC, back to the queue")
+        from . import master_refresh
+
+        master_refresh.rescan_soon()  # 服务端要这台整份重报：报上去的文件号得是现在的
+        qc.ack_failure(
+            task.id,
+            "the account set on this computer is not the registered one",
+            error_code=ERR_ACCOUNT_UID_MISMATCH,
             outcome="waiting_lock",
         )
         return "waiting_lock"
@@ -212,18 +276,6 @@ def _handle_dbf_task(
         expected_company=st.account_company,
         index_batch=index_batch,
     )
-    # 同一个任务上次已经写进去、只是回执没送到（断网 / 关机）：照上次的回执回报，不写第二张。
-    # 只认任务号，会计再推一次是新任务、照写（不查重，见 task_journal）。
-    done = task_journal.written(task.id)
-    if done is not None:
-        log.info(f"✓ dbf task {task.id} already written → {done.get('docnum')}")
-        qc.ack_success(
-            task.id,
-            extracted_invoice_no=done.get("docnum"),
-            line_modes=done.get("line_modes"),
-            meta={**(done.get("meta") or {}), "written": False, "duplicate_skipped": True},
-        )
-        return None
     if direction == "sales":
         # 会计补的期初(库存卖但客户账里此品零库存 → 先垫库存再过账)· 与销售同事务原子成败。
         res = write_sale(

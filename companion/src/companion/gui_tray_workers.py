@@ -49,8 +49,10 @@ class PollWorker(QThread):
     batch_done = Signal(str, int, int, str)
     busy_prompt = Signal(object)
 
-    def __init__(self, configs) -> None:
+    def __init__(self, configs, *, announce=None) -> None:
         super().__init__()
+        # announce(cfg)：每轮先给 Express 成员认一次电脑（device_link.Announcer.announce，到时候才真发；托盘传入）
+        self._announce = announce
         if isinstance(configs, CompanionConfig):
             configs = [configs]
         self.configs = []
@@ -87,13 +89,20 @@ class PollWorker(QThread):
     def stall_seconds(self) -> float:
         return self._live.stall_seconds()
 
-    def _account_dir(self, cfg: CompanionConfig) -> str:
-        from .secret_store import load_express_settings
+    @staticmethod
+    def _account_dir(cfg: CompanionConfig, task) -> str:
+        """这张单要写的账套目录（不是成员的默认账套：一台电脑管着很多家，worker.task_account_dir）。"""
+        from .worker import task_account_dir
 
         try:
-            return load_express_settings(cfg).account_dir or ""
+            return task_account_dir(cfg, getattr(task, "payload", None) or {})
         except Exception:
             return ""
+
+    @staticmethod
+    def _unattended(cfg: CompanionConfig, task) -> bool:
+        """没人点询问框：常驻电脑，或服务端说这张单是替别人写的（attended=False，多台电脑 ADR-021）。旧服务端不带 → 有人值守。"""
+        return bool(getattr(cfg, "always_on", False)) or getattr(task, "attended", None) is False
 
     def _ask_busy(self, lang: str) -> str:
         prompt = BusyPrompt(lang)
@@ -102,6 +111,23 @@ class PollWorker(QThread):
             if prompt.done.wait(0.2):
                 return prompt.choice
         return "abort"
+
+    def _release_then_ask(self, profile_id: str, queue, task, lang: str) -> str:
+        """账套被占用：先按「等账套」回报、放掉租约，再弹询问框（多台电脑 ADR-021：不再拿着租约等人点——别的电脑会把
+        过期的租约收成「结果不明」）。选「重试」：下一轮再领（多半还是这张）；选「终止」：这一批后面领到的都按终止回报。"""
+        from .dbf_writer import ERR_WAITING_LOCK
+
+        try:
+            queue.ack_failure(task.id, "the account set is open in Express", error_code=ERR_WAITING_LOCK,
+                              outcome="waiting_lock")
+        except Exception:
+            log.exception("账套被占用：放回排队失败（租约到期后服务端照样收回）")
+        self.status.emit(profile_id, "waiting_lock", str(task.invoice_no or ""))
+        if self._ask_busy(lang) == "abort":
+            # 这张已放回排队：下一轮再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task），这里不重复记
+            self._abort_batches.add(profile_id)
+            return "error"
+        return "waiting_lock"
 
     def _abort_task(self, profile_id: str, queue, task, lang: str) -> None:
         try:
@@ -131,21 +157,11 @@ class PollWorker(QThread):
                 self._abort_task(profile_id, queue, task, lang)
                 batch["fail"] += 1
                 return "error"
-            account_dir = self._account_dir(cfg)
-            # 常驻模式没人点询问框：不问，交给写入时的占用检查按「等账套」回报，空出来自动再写（always_on.py）
-            unattended = bool(getattr(cfg, "always_on", False))
-            while (
-                not unattended
-                and not self._stop
-                and account_dir
-                and account_lock.is_account_busy(account_dir)
-            ):
-                self.status.emit(profile_id, "waiting_lock", str(task.invoice_no or ""))
-                if self._ask_busy(lang) == "abort":
-                    self._abort_batches.add(profile_id)
-                    self._abort_task(profile_id, queue, task, lang)
-                    batch["fail"] += 1
-                    return "error"
+            # 常驻电脑、替别人写的单没人点询问框：不问，交给写入时的占用检查按「等账套」回报，空出来自动再写（always_on.py）
+            if not self._unattended(cfg, task) and not self._stop:
+                account_dir = self._account_dir(cfg, task)
+                if account_dir and account_lock.is_account_busy(account_dir):
+                    return self._release_then_ask(profile_id, queue, task, lang)
             if self._stop:
                 return "error"
             try:
@@ -184,6 +200,7 @@ class PollWorker(QThread):
             on_update_available=lambda _profile_id, update: self.update_available.emit(
                 update["version"], update["url"]
             ),
+            announce=self._announce,
         )
         self._scheduler = scheduler
         try:
