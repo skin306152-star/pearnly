@@ -571,3 +571,45 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 第 6 批：对话页每次打开带 `state().device.key` 调 register v2（`device_name` 用 `state().device.name`）；成员 `device_state` 为 `superseded` 时
   `rekey`、为 `claimed_elsewhere` 时重新登记；「电脑」列表与 ⋯ 移除；`remove` 现在回 job（页面按现有 job 协议等结果）。
 - 第 7 批：上面「没做 / 没验」各项；Companion checks 在 Windows 上全绿后再谈发布；发布顺序仍是服务端先、1.7.0 后。
+
+### 第 5 批对抗审查与修复（2026-10-16，本地提交，未推送）
+
+审查在 `248b6cbd` 上读代码（没在真 Windows 上复现），没有阻塞项：1 高、4 中、5 低，全部处理，修复提交 `34c7a682`（基线 `248b6cbd`）。
+没有新补丁、没有服务端代码改动；改了第 5 批新加、尚未发布的 1 条词条（四种语言），没改已有文案；前端 / 对话页不动（第 6 批）。
+
+| 级别 | 问题 | 处理 |
+|---|---|---|
+| 1 高 | 有人值守时先探占用、被占用就放回排队再弹框，绕过了「本机写过」的记录：写成了、回执没送到的单在会计开着 Express 时会被派给别的电脑再写一遍 | 已修：`PollWorker.handle_task`（原 `run` 里的闭包，挪成方法便于测）先查 `task_journal.written`，写过的不探占用、不放回、不按终止回报，直接交 `_handle_dbf_task` 照上次回执回报。单测（写过 + 占用 + 有人值守 + 这一批选过终止 → 只回 success、不弹框）与契约（`handle_task` 里写过记录先于占用探测与终止、`_handle_dbf_task` 里先于文件号核对）各守一处 |
+| 2 中 | 同一把密钥重配（留空配对码、找到 Express 后升级）会清掉 `device_state`，而认电脑按密钥记着上次内容、不再发 | 已修：`pair` / `pair_folder` 只有换上新密钥才清（`_device_state_after`），清的同时让认电脑忘掉新旧两把的记录；`_upgrade_pool_members` 跳过带标记的成员；`Announcer` 上次结果是 `superseded` / `claimed_elsewhere` 而标记已清时不信记忆、马上再认 |
+| 3 中 | 设备密钥会变或丢：降级 1.6 再升级丢 `device` 键、DPAPI 解不开永远拿不到、克隆机共用一把 | 已修：新 `device_key_backup.py`，同一份密文另存 `HKCU\Software\Pearnly\CC Desktop` 的 `Device`（旧版不碰），文件缺了从备份恢复、两边互补；密钥旁记 `MachineGuid`（`HKLM\…\Cryptography`，64 位视图），解不开或标识不是这台 → 生成新的并显式盖掉文件（`_write_locked(replace_device=True)`）与备份；读不出标识不比较。`schema_version` 不变，1.6 照样读。常驻电脑碰到 `claimed_elsewhere` 的提示 / 自动恢复列入第 6 批（下方） |
+| 4 中 | 「终止」按这一批记，租约已放回，下一批再领到就又弹框 | 已修：按单号记一天（`_aborted_tasks`），这台再领到就按终止回报，`batch_done` 不清；这一批后面的单照旧按终止。别的电脑在此期间领到会照常写——服务端回执要拿着租约（`push.native.service.ack` 核 attempt），放掉的单这台已无权记失败；写进 ADR-021 第 38 条与「有意变化」 |
+| 5 中 | 只读成员升级靠联网查连接类型，查不到就当 Express | 已修：`pair_folder(pool=True)` 且服务端说是 Express 时存 `ProfileRecord.pool` / `CompanionConfig.pool`；升级只看这个标记，不再调 `connection_kind`（用例里调到就报错） |
+| 6 低 | 文件号对不上回排队后没有本机退避 | 已修：同一张单两分钟内第二次在这台对不上 → 回报（已放租约）后歇 `UID_MISMATCH_COOLDOWN_SECONDS`=20 秒、不再触发整套重扫；第一次照旧马上交出去 |
+| 7 低 | 新词条「将由其他电脑自动推送」说满了 | 已改：`intake.error.ERR_ACCOUNT_UID_MISMATCH` 四种语言改成「……不是登记的那一份，等待其他电脑」；翻译包按 `i18n-build.py` 重生成 |
+| 8 低 | 长路径取不到文件号 | 已修：`device_facts.extended_path`，≥248 个字符补回 `\\?\` / `\\?\UNC\`，只在真 `CreateFileW` 前用（替身接口不受影响） |
+| 9 低 | 网卡只按名字排除 VPN；`WNetGetConnectionW` 回 1201 当本机盘 | 已修：类型 53（`IF_TYPE_PROP_VIRTUAL`）一并排除；1201 时缓冲区里是网络路径就用它 |
+| 10 低 | `attached` 之后只有内容变了或进程重启才再认 | 已修：挂上了也每 12 小时（`REFRESH_SECONDS`）再认一次 |
+
+证据（同第 5 批的环境）：
+
+| 检查 | 结果 |
+|---|---|
+| `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/） | 891 passed, 41 skipped（879 → 891：`test_write_dispatch` +3、`test_device_link` +8、`test_device_facts` +1；改了 2 个旧测试：池成员升级改用 `pool` 标记且断言不联网、`test_always_on` 的源码对照跟着 `handle_task` 走并加「写过记录先于占用探测」） |
+| 变异核对 | 去掉写过记录先查、按单号终止、重复对不上的冷却、同密钥不清标记、升级跳过带标记成员、清标记后不信记忆、备份恢复、类型 53、长路径前缀：对应测试各自失败（9 / 9） |
+| `python3 tests/test_companion_contract.py` | 67 OK（66 → 67：`WriteDispatch` 加写过记录先于占用探测、终止与文件号核对） |
+| `python3 tests/test_cowork_reason_language.py`、`check-architecture.py`、`i18n-build.py --check` | OK / PASS / PASS |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 在修复提交 `34c7a682` 上 88 步全过，退出码 0；本条文档提交只改文档 |
+
+没做 / 没验：同第 5 批（真 Windows：DPAPI、注册表备份读写与 `MachineGuid` 64 位视图、1201 时缓冲区确有网络路径、类型 53 的网卡、长路径
+`\\?\` 打开目录、两台电脑联调，都在第 7 批）；降级 1.6 → 再升级 1.7.0 后设备密钥不变要在测试机上走一遍（第 7 批清单加这一条）。
+
+留给后面几批（更新）：
+
+- 第 6 批（**界面建在新的 CC 外壳上，等它合入 main 后再做**；本分支不做任何前端 / 对话页改动）：对话页每次打开带 `state().device.key` 调
+  register v2；`device_state` 为 `superseded` 时 `rekey`、为 `claimed_elsewhere` 时重新登记；**常驻电脑碰到 `claimed_elsewhere` 要有看得到的提示**
+  （托盘 / 设置「需要处理」已有，另需对话页或推送记录上让会计知道那台停了），或由服务端在心跳里带「请重新认电脑」信号让它自动恢复——二选一在
+  第 6 批定；「电脑」列表与 ⋯ 移除（若只摘设备不吊销密钥，靠 12 小时再认恢复）；`remove` 回 job；录入入口状态文案、定时任务页读者编号、
+  `all_members` 开关（第 3、4 批所列）。
+- 第 7 批：第 5 批与本条「没做 / 没验」各项、降级再升级、克隆机（sysprep 前后）各一台；Companion checks 在 Windows 上全绿后再谈发布；真实 Site
+  迁移回读与并发压测照第 3、4 批所列。
+- 第 8 批：照方案。
