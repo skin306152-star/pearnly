@@ -199,6 +199,7 @@ Bound at,เวลาที่ผูกบัญชี
 Bound to {0},ผูกบัญชีกับ {0} แล้ว
 Branch,เส้นทางการดำเนินการ
 Branch No,เลขที่สาขา
+Branch {0},สาขา {0}
 Brief Key,คีย์สรุปผล
 Brief Sent At,เวลาส่งสรุปผล
 Brief Status,สถานะสรุปผล
@@ -368,6 +369,7 @@ Comments and activity,ความคิดเห็นและกิจกร�
 Commission,ค่านายหน้า
 Company,บริษัท
 Company Name,ชื่อบริษัท
+Company choices are full,ตัวเลือกของบริษัทเต็มแล้ว
 Company not found,ไม่พบบริษัท
 Company tax ID,เลขประจำตัวบริษัท
 Company tax ID not on the document,ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร
@@ -437,6 +439,7 @@ Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork Companion Delivery,Cowork บันทึกการรับงานของ CC เดสก์ท็อป
 Cowork Companion Request,คำขอถึง CC เดสก์ท็อปของ Cowork
 Cowork Company,Cowork ข้อมูลหลักบริษัท
+Cowork Company Choice,Cowork ตัวเลือกของบริษัท
 Cowork Company Folder,Cowork โฟลเดอร์เอกสารบริษัท
 Cowork Company Note,Cowork บันทึกบริษัท
 Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
@@ -672,6 +675,7 @@ Error Code,รหัสข้อผิดพลาด
 Event Key,รหัสเหตุการณ์
 Every unit needs a factor to the base unit.,กรุณากรอกอัตราแปลงเป็นหน่วยฐานของทุกหน่วย
 Every unit needs a name.,กรุณากรอกชื่อของทุกหน่วย
+Evidence,หลักฐาน
 Evidence Fingerprint,ลายนิ้วมือหลักฐาน
 Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
@@ -1002,6 +1006,7 @@ No CC Desktop credential has been issued for this connection.,ยังไม่
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No POS sales export headers were found in this file,ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
+No account set of this company covers this month,บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้
 No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
@@ -1309,8 +1314,11 @@ Remove color,ลบสี
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Remove mirror,ลบมิเรอร์
 Remove template,ยกเลิกเทมเพลต
+Remove this company choice?,ลบตัวเลือกของบริษัทนี้ไหม
 Remove this company note?,ลบบันทึกบริษัทนี้ไหม
+Removed a company choice,ลบตัวเลือกของบริษัทแล้ว
 Removed a company note,ลบบันทึกบริษัท
+Removing a company choice,กำลังลบตัวเลือกของบริษัท
 Rent,ค่าเช่า
 Repeat,ทำซ้ำ
 Replaced by your later submission of the same files.,ถูกแทนที่ด้วยการส่งไฟล์ชุดเดียวกันครั้งหลังของคุณแล้ว
@@ -1396,14 +1404,17 @@ Same day,วันเดียวกัน
 Sample Key,รหัสตัวอย่างการแก้ไข
 Save and next,บันทึกและรายการถัดไป
 Save these scheduled tasks?,บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่
+Save this choice for the company?,บันทึกตัวเลือกนี้ให้บริษัทไหม
 Save this scheduled task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
 Save this to the company's notes?,บันทึกข้อนี้ลงในบันทึกของบริษัทไหม
 Saved,บันทึกแล้ว
+Saved a company choice,บันทึกตัวเลือกของบริษัทแล้ว
 Saved a company note,บันทึกข้อมูลบริษัท
 Saved a scheduled task,บันทึกงานตามกำหนดเวลาแล้ว
 Saved push choices,บันทึกตัวเลือกการส่งแล้ว
 Saved scheduled tasks,บันทึกงานตามกำหนดเวลาหลายงานแล้ว
 Saved. Scan the next item.,บันทึกแล้ว กรุณาสแกนรายการถัดไป
+Saving a company choice,กำลังบันทึกตัวเลือกของบริษัท
 Saving a scheduled task,กำลังบันทึกงานตามกำหนดเวลา
 Saving push choices,กำลังบันทึกตัวเลือกการส่ง
 Saving scheduled tasks,กำลังบันทึกงานตามกำหนดเวลาหลายงาน
@@ -1537,6 +1548,7 @@ Stop and let me choose,หยุดเพื่อเลือกเอง
 Stop watching,เลิกติดตาม
 Stored Page Previews,ภาพตัวอย่างหน้าที่จัดเก็บไว้
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,ตั้งชื่อโฟลเดอร์ย่อยและไฟล์ได้อิสระ PDF หนึ่งไฟล์มีหลายใบกำกับได้
+Subject Label,ชื่อรายการ
 Submit,ยืนยัน
 Suggested,ที่แนะนำ
 Summary,สรุป
@@ -1881,6 +1893,7 @@ This task uses the previous count format and cannot accept scan entries.,งา�
 This tax ID is already used by another company.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
 This tax id is already used by another client.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับลูกค้ารายอื่นแล้ว
 This value cannot be chosen for this account set.,ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้
+This value is not in this month's account set,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
 Time left {0},เหลือเวลา {0}
 Times Used,จำนวนครั้งที่ใช้
 Title,ชื่อเรื่อง
@@ -1990,6 +2003,7 @@ VAT report detail,รายละเอียดรายงานภาษี�
 VAT without a base amount,มีภาษีแต่ไม่มีฐานภาษี
 Valid,ใช้งาน
 Value,ค่า
+Value Label,ชื่อค่า
 Value of goods or services,มูลค่าสินค้าหรือบริการ
 Version,เวอร์ชัน
 View differences,ดูผลต่าง
@@ -2034,6 +2048,7 @@ When the document does not show cash or credit,เมื่อเอกสาร
 Where the documents go,ปลายทางของเอกสาร
 Who can add and remove members,สิทธิ์จัดการสมาชิก
 Who can comment,สิทธิ์แสดงความคิดเห็น
+Whole company,ทั้งบริษัท
 Why it is not in the review sheet,สาเหตุที่ไม่มีตารางตรวจทาน
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
@@ -2126,8 +2141,12 @@ cowork.choice.receipt,บัญชีรับเงิน
 cowork.choice.task_default,รายการนี้กำหนดโดยการจัดการเริ่มต้นของงานตามกำหนดเวลา กรุณาแก้ไขในงานตามกำหนดเวลา
 cowork.choice.title,เลือกครั้งเดียวสำหรับชุดบัญชีนี้
 cowork.choice.vat,จำนวนภาษีตามเอกสาร
+cowork.company.branch_n,สาขา {0}
+cowork.company.choice_invalid,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
 cowork.company.choice_not_editable,แก้ไขได้เฉพาะวิธีชำระเงินและการขอคืนภาษีซื้อ
 cowork.company.choice_not_found,ไม่พบตัวเลือกที่จำไว้นี้แล้ว
+cowork.company.choice_scope_invalid,บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้
+cowork.company.choices_full,ตัวเลือกของบริษัทเต็มแล้ว
 cowork.company.not_found,ไม่พบบริษัท
 cowork.company.not_in_catalog,ไม่พบชุดบัญชีนี้ในรายการ
 cowork.company.note_invalid,บันทึกว่างหรือยาวเกินไป
@@ -2143,6 +2162,7 @@ cowork.company.pending.title,เอกสารรอดำเนินการ
 cowork.company.period_invalid,เดือนไม่ถูกต้อง
 cowork.company.title_invalid,กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร
 cowork.company.too_many,บริษัทเกินจำนวนที่กำหนด
+cowork.company.whole_company,ทั้งบริษัท
 cowork.folder.account_set_invalid,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
 cowork.folder.agentStale,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
 cowork.folder.agentStaleHint,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด

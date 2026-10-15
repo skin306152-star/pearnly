@@ -2200,6 +2200,21 @@ This document has no push target	这张单还没选推送去向	เอกสา�
 Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบริษัท	Cowork 会社マスター
 Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート
 Cowork Company Folder	Cowork 公司单据文件夹	Cowork โฟลเดอร์เอกสารบริษัท	Cowork 会社書類フォルダー
+Cowork Company Choice	Cowork 公司选择	Cowork ตัวเลือกของบริษัท	Cowork 会社の選択
+Subject Label	对象名称	ชื่อรายการ	対象名
+Value Label	值名称	ชื่อค่า	値の名称
+Evidence	依据	หลักฐาน	根拠
+Whole company	全公司	ทั้งบริษัท	会社全体	cowork.company.whole_company
+Branch {0}	分店 {0}	สาขา {0}	支店 {0}	cowork.company.branch_n
+This value is not in this month's account set	这个值不在本月账套的主档里	ค่านี้ไม่มีในชุดบัญชีของเดือนนี้	この値は今月の帳簿のマスタにありません	cowork.company.choice_invalid
+Company choices are full	公司选择已满	ตัวเลือกของบริษัทเต็มแล้ว	会社の選択が上限です	cowork.company.choices_full
+No account set of this company covers this month	这家公司（或这个分店）没有覆盖本月的账套	บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้	この会社（または支店）には今月の帳簿がありません	cowork.company.choice_scope_invalid
+Saved a company choice	记下了公司选择	บันทึกตัวเลือกของบริษัทแล้ว	会社の選択を保存しました
+Removed a company choice	删除了公司选择	ลบตัวเลือกของบริษัทแล้ว	会社の選択を削除しました
+Save this choice for the company?	把这个选择记到公司？	บันทึกตัวเลือกนี้ให้บริษัทไหม	この選択を会社に保存しますか？
+Remove this company choice?	删除这条公司选择？	ลบตัวเลือกของบริษัทนี้ไหม	この会社の選択を削除しますか？
+Saving a company choice	正在记公司选择	กำลังบันทึกตัวเลือกของบริษัท	会社の選択を保存しています
+Removing a company choice	正在删除公司选择	กำลังลบตัวเลือกของบริษัท	会社の選択を削除しています
 Warehouse	仓库	คลังสินค้า	倉庫	cowork.stock.col.warehouse
 Category	商品类别	หมวดสินค้า	カテゴリ	cowork.stock.col.category
 Area	区域	พื้นที่	エリア	cowork.stock.workbench.area

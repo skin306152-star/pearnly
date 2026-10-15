@@ -2955,6 +2955,38 @@ class CompanyPageBehaviourTests(unittest.TestCase):
         run_ts(f'import "cc-test-setup";\nimport "{env}";\nimport "cc-ma-setup";\n' + COMPANY_RENDER + body + "\n(globalThis as any).done();\n",
                stubs=stubs)
 
+    def test_company_choices_show_their_scope_and_rows_can_be_set_for_the_whole_company(self):
+        # 数字会计员第 2 期：公司规则写明「全公司 / 分店 X」、付款可用下拉直接改；账套行与历史行多一个「设为全公司」
+        self.run_page(r"""
+import { promoteChoice } from "@/lib/companies";
+import { settledView } from "@/components/pending";
+const row = (choice: any, promote = true) => renderToStaticMarkup(createElement(ChoiceRow, { choice, onSet() {}, onForget() {},
+  ...(promote ? { onPromote() {} } : {}) }));
+const rule = row({ key: "r1", source: "rule", kind: "payment", subject_label: "ACME", value: "cash", editable: true, branch: "", set_by: "a" });
+assert.ok(rule.includes("<select"));
+assert.deepEqual(text(rule).slice(0, 2), ["ACME", "Whole company · a"]);
+assert.ok(!buttons(rule).includes("Set for whole company"));   // 规则本身不再提升
+assert.equal(text(row({ key: "r2", source: "rule", kind: "account", subject_label: "ACME", value: "5300", branch: "00012" }))[2],
+  "Branch 00012");
+assert.equal(text(row({ key: "r3", source: "rule", kind: "account", subject_label: "ACME", value: "5300", branch: "00000" }))[2],
+  "Head office");
+const express = { key: "k1", source: "express", kind: "payment", subject_label: "ACME", value: "credit", editable: true,
+  year_label: "69", promotable: true };
+assert.ok(buttons(row(express)).includes("Set for whole company"));
+assert.ok(!buttons(row(express, false)).includes("Set for whole company"));   // 不给 onPromote 就不显示
+const learned = { key: "k2", source: "history", kind: "account", subject_label: "", supplier_name: "ACME", value: "5320",
+  count: 9, last_date: "2026-09-30", promotable: true };
+assert.ok(buttons(row(learned)).includes("Set for whole company"));
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { saved: true } }) });
+await promoteChoice("comp_abc", "k2", "2026-09");
+assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.companies.api.choice_promote");
+assert.deepEqual(g.calls.at(-1).body, { company: "comp_abc", key: "k2", period: "2026-09" });
+// 当场选：公司规则定下了要选的（needed 为空）→ 直接推送；科目表在读时照旧交给 CC
+assert.equal(settledView({ needed: [] } as any), true);
+assert.equal(settledView({ needed: [], wait: { state: "reading", message: "" } } as any), false);
+assert.equal(settledView({ needed: [{ kind: "account", subject: "s" }] } as any), false);
+""")
+
     def test_browsers_and_phones_only_read_the_folder(self):
         self.run_page(r"""
 assert.deepEqual(await loadDesktopFeatures(), { app: false, companyFolders: false });

@@ -117,6 +117,17 @@ def choice_set(company, key, value, period=None):
     return found
 
 
+@frappe.whitelist(methods=["POST"])
+def choice_promote(company, key, branch=None, period=None):
+    """「设为全公司」（第 2 期公司规则）：账套行或 Express 历史行提升成这家公司的规则；``branch`` 给了就只管那个分店。"""
+    service.require_write()
+    row = service.get(company)
+    found = saved_choices.promote(row, service.books(row, limit=None), key, str(branch or ""), str(period or ""))
+    service.announce("upsert", row.name, part="choices")
+    frappe.db.commit()
+    return found
+
+
 @frappe.whitelist(methods=["GET"])
 def pending(company=None, limit=None):
     return pending_items.pending(company or None, limit)

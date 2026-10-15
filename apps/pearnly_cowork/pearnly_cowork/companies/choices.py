@@ -6,6 +6,14 @@
 | `pos`（POS 版式） | 账套的公司键（`pos_import.service.company_key`） | `layouts.of_companies` | `layouts.forget` |
 | `income`（收入对账预设） | 本公司税号（`presets.income_prefix`） | `preset_store.under` | `preset_store.forget` |
 | `history`（从 Express 历史学到的「供应商 → 科目」，补充 丙） | 科目建议那一包产出 | hooks `cowork_company_history_choices` | hooks `cowork_company_history_forget` |
+| `rule`（公司规则，第 2 期统一客户规则） | 主档 | `rules.listing` | `rules.delete`，付款 / 抵进项可改 |
+
+公司规则（第 2 期，docs/work/2026-10-16-customer-rules-phase2.md）：
+- 账套行（`express`，各类别）与历史行可「设为全公司」（`promote`），CC 也可按单据存（`save_rule`）；存、改、提升都在同一事务里
+  删掉这家各账套（分店规则只删那个分店的账套）同一类别同一归类键的记忆，规则立刻生效；之后某份账套再另选，以那份为准。
+  从历史提升的同时经钩子把这家供应商的历史记成忘掉（幂等），删规则后回到「问人」。
+- 权限：看要录入权限（同列表）；写要录入权限 + 覆盖这个月（没给月份按今天）那份账套所在连接的使用授权，值按那份账套的主档核
+  （主档没报上来时放行，推送时再判），这家（或这个分店）没有覆盖这个月的账套就拒绝；删要录入权限 + 这家任一条 Express 连接的授权。
 
 - 分店（补充 甲.5）：对方档（`party`）的归类键带分店号，同一税号各分店按税号合并成一行显示，删的时候各分店一起删；
   费用科目、付款、抵进项本来就按对方税号记（不分店），同一供应商不同分店共用。
@@ -18,12 +26,16 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.companies import rules
 from pearnly_cowork.push import choices as express_choices
+from pearnly_cowork.push.express import company_choices
 from pearnly_cowork.push.express.choices import KINDS, PAYMENT_VALUES, VAT_VALUES
 
 READ_MAX = 200
@@ -88,7 +100,8 @@ def merge_express(rows, connection, years) -> list:
             "subject_label": subject_name(row["kind"], row["subject"], row.get("label")),
             "value": row.get("value") or "", "editable": row["kind"] in EDITABLE,
             "year_label": years.get((connection, str(row.get("account_set") or "").casefold()), ""),
-            "set_by": row.get("chosen_by") or "", "set_at": str(row.get("chosen_at") or ""), "merged": 1}
+            "set_by": row.get("chosen_by") or "", "set_at": str(row.get("chosen_at") or ""), "merged": 1,
+            "promotable": True}
     return list(merged.values())
 
 
@@ -181,14 +194,31 @@ def history_rows(company, sets) -> list:
                         "kind": "account", "subject_label": str(item.get("supplier_name") or item["supplier_tax"]),
                         "value": str(item["account"]), "value_label": str(item.get("account_label") or item["account"]),
                         "editable": False, "year_label": "", "set_by": "", "set_at": str(item.get("last_date") or ""),
-                        "count": int(item.get("count") or 0), "merged": 1})
+                        "count": int(item.get("count") or 0), "merged": 1, "promotable": True})
+    return out
+
+
+def _value_label(kind, value) -> str:
+    label = VALUE_LABELS.get((kind, value))
+    return _(label) if label else ""
+
+
+def rule_rows(company) -> list:
+    """这家公司的规则（页面「记住的选择」里显示「全公司 / 分店 X」的那几行）：付款 / 抵进项可直接改。"""
+    out = []
+    for row in rules.listing(company["name"]):
+        out.append({"key": encode("rule", row["id"]), "source": "rule", "kind": row["kind"],
+                    "subject_label": row["subject_label"] or row["subject"], "value": row["value"],
+                    "value_label": _value_label(row["kind"], row["value"]) or row["value_label"] or row["value"],
+                    "editable": row["kind"] in EDITABLE, "branch": row["branch"], "year_label": "",
+                    "set_by": row["set_by"], "set_at": row["set_at"], "merged": 1})
     return out
 
 
 def listing(company, sets) -> list:
     """这家公司记住的选择，按来源、类别分好，每类最多 `SHOWN` 条（新 → 旧）。"""
     found = []
-    for part in (lambda: _express(sets), lambda: _pos(sets), lambda: _income(company),
+    for part in (lambda: rule_rows(company), lambda: _express(sets), lambda: _pos(sets), lambda: _income(company),
                  lambda: history_rows(company, sets)):
         try:
             found += part()
@@ -245,6 +275,10 @@ def forget(company, sets, key) -> dict:
             frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
         preset_store.forget(scope.default_workspace(), "income", parts[1], parts[2])
         return {"removed": 1}
+    if source == "rule" and len(parts) == 2:
+        _require_any_connection(sets)
+        rules.delete(company["name"], parts[1])
+        return {"removed": 1}
     if source == "history" and len(parts) == 3:
         removed = 0
         for drop in _hooked(HISTORY_FORGET_HOOK):
@@ -261,6 +295,12 @@ def set_value(company, sets, key, value, period="") -> dict:
     from pearnly_cowork.companies import identity
 
     parts = decode(key)
+    if len(parts) == 2 and parts[0] == "rule":
+        found = rules.one(company["name"], parts[1])
+        if found["kind"] not in EDITABLE or str(value or "").strip() not in EDITABLE[found["kind"]]:
+            frappe.throw(_("cowork.company.choice_not_editable"))
+        return _save_rule(company, sets, found["kind"], found["subject"], str(value).strip(), found["branch"], period,
+                          subject_label=found["subject_label"], evidence=found["evidence"])
     if len(parts) != 4 or parts[0] != "express" or parts[2] not in EDITABLE:
         frappe.throw(_("cowork.company.choice_not_editable"))
     _source, connection, kind, group = parts
@@ -292,4 +332,146 @@ def set_value(company, sets, key, value, period="") -> dict:
     return {"saved": True, "account_set_key": written[0], "account_sets": written}
 
 
-__all__ = ["decode", "encode", "forget", "group_of", "history_rows", "listing", "merge_express", "set_value"]
+# ---------------- 公司规则：存、提升 ----------------
+
+
+def _this_month() -> str:
+    return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m")
+
+
+def _require_any_connection(sets):
+    """删规则：这家公司至少一条 Express 连接本人此刻能用（同推送服务的判据）；一条都没有就拒绝。"""
+    from pearnly_cowork.connections import access as connection_access
+
+    connections = list(_express_sets(sets))
+    for connection in connections:
+        try:
+            connection_access.require_connection(frappe.get_doc("Cowork ERP Connection", connection))
+            return connection
+        except (frappe.PermissionError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+    frappe.throw(_("Not Permitted"), frappe.PermissionError)
+
+
+def target_set(sets, branch, period) -> dict:
+    """规则按哪份账套核值：这家（分店规则只看那个分店）覆盖这个月的 Express 账套，总公司在前；没有就拒绝
+    （`cowork.company.choice_scope_invalid`）。本人须此刻能用它所在的连接。"""
+    from pearnly_cowork.companies import identity
+    from pearnly_cowork.connections import access as connection_access
+
+    express = [item for item in sets if item.get("adapter") == "express"]
+    if branch:
+        express = [item for item in express if item.get("branch") == branch]
+    covering = identity.covering(express, period or _this_month())
+    if not covering and express and not any(item.get("period_start") for item in express):
+        covering = express[:1]  # 目录没报会计期间（旧版 CC 桌面版）：用最新年度那份（`books` 新年度在前）
+    covering = sorted(covering, key=lambda item: item.get("branch") not in ("", identity.HEAD_OFFICE))
+    if not covering:
+        frappe.throw(_("cowork.company.choice_scope_invalid"))
+    target = covering[0]
+    connection_access.require_connection(frappe.get_doc("Cowork ERP Connection", target["connection"]))
+    return target
+
+
+def _masters(target) -> dict | None:
+    """覆盖这个月那份账套的主档（小助手报过的，出自当前凭据）；没读过回 None（放行，推送时再判）。"""
+    from pearnly_cowork.connections import preparation
+    from pearnly_cowork.targets.identity import normalize_express_account_key
+
+    doc = frappe.get_doc("Cowork ERP Connection", target["connection"])
+    return preparation.reported_masters(doc, normalize_express_account_key(target["key"]),
+                                        keys=preparation.ALL_MASTER_LISTS)
+
+
+def _master_name(kind, value, masters) -> str:
+    """值在主档里的名称（科目、部门、存货、对方档；「代码 · 名称」由页面拼），没有就空串。"""
+    keys = {"account": ("reported_accounts",), "receipt": ("reported_accounts",),
+            "department": ("reported_departments",), "item": ("reported_products",),
+            "party": ("reported_suppliers", "reported_customers")}.get(kind, ())
+    for key in keys:
+        for row in (masters or {}).get(key) or []:
+            if isinstance(row, dict) and str(row.get("code") or "").strip() == value:
+                return " ".join(str(part) for part in (value, row.get("name") or "") if part)
+    return ""
+
+
+def _branch(sets, branch) -> str:
+    """规则的分店：空 = 全公司；否则须是这家公司账套里有的分店号。"""
+    from pearnly_cowork.companies import identity
+
+    found = company_choices.branch_of(branch)
+    if found is None or (found and found not in {item["branch"] for item in identity.branches(sets)}):
+        frappe.throw(_("cowork.company.choice_scope_invalid"))
+    return found
+
+
+def _drop_memories(sets, kind, subject, branch) -> int:
+    """存了规则：这家各份 Express 账套（分店规则只看那个分店的）里同一类别同一归类键的记忆删掉（真删），规则立刻生效。"""
+    removed = 0
+    for connection, keys in _express_sets([item for item in sets if not branch or item.get("branch") == branch]).items():
+        removed += int(express_choices.forget(connection, keys, kind, [subject]) or 0)
+    return removed
+
+
+def _save_rule(company, sets, kind, subject, value, branch, period, *, subject_label="", evidence=None,
+               session="") -> dict:
+    """核分店、核值（覆盖这个月那份账套的主档）、存规则、删同键的账套记忆，同一事务。"""
+    branch = _branch(sets, branch)
+    if kind not in KINDS or not isinstance(subject, str) or not subject:
+        frappe.throw(_("cowork.company.choice_invalid"))
+    target = target_set(sets, branch, period)
+    masters = _masters(target)
+    if not company_choices.valid(kind, value, masters, subject):
+        frappe.throw(_("cowork.company.choice_invalid"))
+    saved = rules.save(company["name"], workspace=scope.default_workspace(), kind=kind, subject=subject,
+                       value=value, branch=branch, subject_label=subject_label,
+                       value_label=_value_label(kind, value) or _master_name(kind, value, masters),
+                       evidence=evidence, session=session)
+    saved["removed_memories"] = _drop_memories(sets, kind, subject, branch)
+    return {"saved": True, "rule": saved, "key": encode("rule", saved["id"])}
+
+
+def save_rule(company, sets, kind, subject, value, branch="", period="", *, subject_label="", evidence=None,
+              session="") -> dict:
+    """CC 按单据存一条公司规则（归类键由调用方按单据算好）。"""
+    return _save_rule(company, sets, str(kind or ""), subject, str(value or "").strip(), branch, period,
+                      subject_label=subject_label, evidence=evidence, session=session)
+
+
+def promote(company, sets, key, branch="", period="", session="") -> dict:
+    """「设为全公司」：把一行账套记忆（`express`）或 Express 历史学到的（`history`）提升成公司规则。账套行取这一归类最新的那条
+    （值、归类键、写法）；历史行同时经钩子把这家供应商的历史记成忘掉（删规则后回到问人）。``sets`` 给全集。"""
+    parts = decode(key)
+    if parts[0] == "express" and len(parts) == 4 and parts[2] in KINDS:
+        _source, connection, kind, group = parts
+        keys = _require_connection(connection, sets)
+        rows = [row for row in express_choices.of_sets(connection, keys, 2000)
+                if row["kind"] == kind and group_of(kind, row["subject"]) == group]
+        if not rows:
+            frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
+        latest = rows[0]
+        years = _year_of(sets)
+        evidence = {"from": "account_set", "account_set": str(latest.get("account_set") or ""),
+                    "year_label": years.get((connection, str(latest.get("account_set") or "").casefold()), ""),
+                    "chosen_by": latest.get("chosen_by") or "", "chosen_at": str(latest.get("chosen_at") or "")}
+        return _save_rule(company, sets, kind, latest["subject"], str(latest.get("value") or ""), branch, period,
+                          subject_label=subject_name(kind, latest["subject"], latest.get("label")), evidence=evidence,
+                          session=session)
+    if parts[0] == "history" and len(parts) == 3:
+        _source, supplier, account = parts
+        found = next((row for row in history_rows(company, sets)
+                      if row["key"] == key), None)
+        if not found:
+            frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
+        saved = _save_rule(company, sets, "account", f"purchase|{supplier}", account, branch, period,
+                           subject_label=found["subject_label"],
+                           evidence={"from": "history", "count": found.get("count") or 0,
+                                     "last_date": found.get("set_at") or ""}, session=session)
+        for drop in _hooked(HISTORY_FORGET_HOOK):
+            drop(company.get("tax_id") or "", supplier, account, [dict(item) for item in sets])
+        return saved
+    frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
+
+
+__all__ = ["decode", "encode", "forget", "group_of", "history_rows", "listing", "merge_express", "promote", "rule_rows",
+           "save_rule", "set_value", "target_set"]
