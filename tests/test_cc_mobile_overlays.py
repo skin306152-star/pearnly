@@ -472,7 +472,7 @@ g.done();
 # ── F11d：菜单不出屏 ──────────────────────────────────────────────────────────────────────────
 
 # 另一个工作包正在改的文件：合并时把它的 import 换成 @/components/ui/menu，再从这里删掉（删掉前下面的断言会提醒）
-PENDING_MENU_IMPORT = {"components/company-page.tsx"}
+PENDING_MENU_IMPORT: set = set()
 
 
 class MenuEdgeTests(unittest.TestCase):

@@ -23,7 +23,7 @@ import {
   TrashIcon,
   XIcon,
 } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu } from "@/components/ui/menu";
 import { type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
