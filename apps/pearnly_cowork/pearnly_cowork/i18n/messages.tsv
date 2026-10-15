@@ -1826,6 +1826,10 @@ Update CC Desktop on that computer to read this account set's chart of accounts.
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.	电脑读不到此账套的科目表。请确认那台电脑上的 Express 能打开这本账套。	คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้	パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。	cowork.masters.failed
 This account set is not on the computer's list of account sets.	电脑上报的账套中没有这本账套。	ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์	パソコンの会計データ一覧にこの会計データがありません。	cowork.masters.unavailable
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.	CC 桌面版正在读取此账套的科目表，读完后推送。	CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ	CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。	cowork.folder.reading_masters
+No account set of this company covers the document date.	这家公司没有覆盖单据日期的账套。	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
+More than one account set of this company covers the document date.	这家公司有多份账套覆盖单据日期。	มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データが複数あります。	cowork.folder.account_set_ambiguous
+No computer can reach the account set for the document date.	没有电脑能访问单据日期所在的账套。	ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้	書類の日付の会計データにアクセスできるコンピューターがありません。	cowork.folder.account_set_unreachable
+Company Branch	公司分店	สาขาของบริษัท	会社の支店
 The result sheet is not ready yet.	结果表格尚未生成。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
 Original file name	原文件名	ชื่อไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file
 Invoice number on the document	发票号	เลขที่ใบกำกับภาษี	請求書番号	cowork.folder.wb.invoice

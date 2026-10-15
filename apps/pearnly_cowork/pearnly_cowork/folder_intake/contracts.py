@@ -789,17 +789,22 @@ def full_path(*parts: Any) -> str:
 
 # ── 结果口径（任务列表、运行记录、完成简报同一个 `tally`，2026-10-12）──────────────────────────
 # 推送只有三种结局：录入中 / 成功 / 失败，转人工就是失败（用户 2026-09-26，录入列表同一口径）。另有自动推送没做、
-# 等人的「待处理」：要人选一次（choice）、人已经动过这张票（human）、任务停用或负责人无权（task_off）。
+# 等人的「待处理」：要人选一次（choice）、人已经动过这张票（human）、任务停用或负责人无权（task_off）、
+# 跟随公司当年账套时这张票的账套定不下来（account_set：取不到、多于一份、没有电脑够得到，T1）。
 # 票在录入工作台删了（deleted）与成功一样算有了结论，不计数。
 CHOICE_KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
 IN_FLIGHT = ("prepared", "pending", "leased")
 COMPANION_OFFLINE = "cowork.folder.companion_offline"
+ACCOUNT_SET_NONE = "cowork.folder.account_set_none"
+ACCOUNT_SET_AMBIGUOUS = "cowork.folder.account_set_ambiguous"
+ACCOUNT_SET_UNREACHABLE = "cowork.folder.account_set_unreachable"
+ACCOUNT_SET_STOPS = (ACCOUNT_SET_NONE, ACCOUNT_SET_AMBIGUOUS, ACCOUNT_SET_UNREACHABLE)
 MOVING_CODES = {"insufficient_balance": "low_balance", COMPANION_OFFLINE: "offline", WAITING_PURCHASES: "waiting_purchases"}
 
 
 def ticket_state(outcome: Any, status: Any) -> tuple:
     """一张票的（类别, 原因）：类别 pushed / stopped / failed / moving / deleted，原因只在 stopped 时有
-    （``choice:<种类,…>`` / ``human`` / ``task_off``）。
+    （``choice:<种类,…>`` / ``human`` / ``task_off`` / ``account_set``）。
 
     ``outcome`` 是自动推送记下的这张票的去向（`push.push_one` 的 sent / held / human / failed / missing，
     规则停用或负责人无权时 `pump` 记的 stopped）；``status`` 是票上现在的推送状态（结果签名里的 `last_push_status`，
@@ -816,6 +821,8 @@ def ticket_state(outcome: Any, status: Any) -> tuple:
     kind = outcome.get("status")
     if kind == "held":
         reason = str(outcome.get("reason") or "")
+        if reason in ACCOUNT_SET_STOPS:
+            return "stopped", "account_set"
         return "stopped", "choice:" + (reason.split(":", 1)[1] if reason.startswith("choice_needed:") else "")
     if kind == "human":
         return "stopped", "human"
@@ -876,6 +883,25 @@ def tally(files: List[Mapping], now: datetime) -> Dict[str, Any]:
                 result["moving_reasons"][why] = result["moving_reasons"].get(why, 0) + 1
     result["choice_kinds"] = [kind for kind in CHOICE_KINDS if kind in kinds]
     return result
+
+
+ACCOUNT_SETS_SHOWN = 5
+
+
+def account_sets(files: List[Mapping]) -> List[Dict[str, Any]]:
+    """跟随公司当年账套的任务（T1）：这一组文件里的票各推往了哪份账套（自动推送记下的 ``account_set`` /
+    ``account_label``）：``[{"account_set_key", "account_label", "tickets"}]``，票多的在前，最多
+    :data:`ACCOUNT_SETS_SHOWN` 份。固定账套的任务不记，回空表。"""
+    found: Dict[str, Dict[str, Any]] = {}
+    for row in files:
+        for name, item in _outcome(row.get("outcome_json")).items():
+            if name.startswith("_") or not isinstance(item, Mapping) or not item.get("account_set"):
+                continue
+            key = str(item["account_set"])
+            entry = found.setdefault(key, {"account_set_key": key, "account_label": str(item.get("account_label") or key),
+                                           "tickets": 0})
+            entry["tickets"] += 1
+    return sorted(found.values(), key=lambda item: (-item["tickets"], item["account_label"]))[:ACCOUNT_SETS_SHOWN]
 
 
 def not_uploaded(runs: List[Mapping]) -> int:

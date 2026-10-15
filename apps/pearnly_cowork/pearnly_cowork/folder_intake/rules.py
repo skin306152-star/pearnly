@@ -22,7 +22,7 @@ from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.connections import preparation
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.folder_intake import agent, contracts, destinations, inbox, readers
+from pearnly_cowork.folder_intake import agent, contracts, destinations, follow, inbox, readers
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -274,6 +274,8 @@ def save(values, *, cc_session=None):
     except contracts.ContractError as error:
         _error(error)
     account_set_key, label = _catalog_item(doc.name, values.get("account_set_key"))
+    # 跟随公司当年账套（T1）：所选账套属于唯一一家公司主档就记下公司与分店，到点按单据日期换账套；对不上照旧固定
+    link = follow.company_of(doc.name, account_set_key) if express else {"company": "", "branch": ""}
     if posting_kind == "stock":
         _stock_ready(doc.name, account_set_key)
     # 任务存下时就请电脑读这份账套的科目表（还没读到的话），到点推送时已经有了
@@ -302,7 +304,7 @@ def save(values, *, cc_session=None):
     rule.update({"title": title, "workspace": doc.workspace, "client": doc.client or "", "connection": doc.name,
                  "reader": reader, "reader_device": device, "rule_owner": frappe.session.user,
                  "account_set_key": account_set_key,
-                 "account_label": label,
+                 "account_label": label, "company": link["company"], "company_branch": link["branch"],
                  "direction": direction, "posting_kind": posting_kind, "payment": payment, "root_id": root, "folder": folder,
                  "run_day": day, "run_time": at, "defaults_json": json.dumps(defaults, sort_keys=True)})
     if not name:
@@ -633,6 +635,8 @@ def project(rule):
             # ``reader`` 仍是成员连接（第 6 批之前的网页拿它拼下拉的值）；``reader_id`` 是读者编号（电脑|连接）
             "reader": readers.of(rule)[1], "reader_device": readers.of(rule)[0], "reader_id": readers.ref(rule),
             "account_set_key": rule.account_set_key, "account_label": rule.account_label,
+            # 跟随公司当年账套（T1）：记了公司的任务按单据日期换账套，`account_set_key` 只是兜底与显示
+            "company": getattr(rule, "company", None) or "", "company_branch": getattr(rule, "company_branch", None) or "",
             "direction": rule.direction, "posting_kind": rule.posting_kind or "", "payment": rule.payment or "",
             "root_id": rule.root_id,
             "folder": rule.folder or "", "run_day": int(rule.run_day or 0), "run_time": rule.run_time,
@@ -672,8 +676,14 @@ def _results(rule, run=None, now=None):
     if run:
         sql += " AND run=%s"
         values.append(run)
-    found = contracts.tally(frappe.db.sql(sql, values, as_dict=True), now or now_datetime())
-    return {"entered": found["pushed"], "attention": found["stopped"] + found["failed"], "moving": found["moving"]}
+    rows = frappe.db.sql(sql, values, as_dict=True)
+    found = contracts.tally(rows, now or now_datetime())
+    result = {"entered": found["pushed"], "attention": found["stopped"] + found["failed"], "moving": found["moving"]}
+    # 跟随公司当年账套的任务：这些票实际推往了哪几份账套（固定账套的任务没有这一项）
+    sets = contracts.account_sets(rows)
+    if sets:
+        result["account_sets"] = sets
+    return result
 
 
 def counts(rule, since=None):

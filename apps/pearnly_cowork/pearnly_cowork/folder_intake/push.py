@@ -19,13 +19,18 @@
 
 人在网页复核页、手机或 CC 里重推停下的文件夹票，由推送服务经 `cowork_push_fixed_choices` 钩子（`fixed_for`）
 取同一份规则默认值，与这里同一口径（2026-10-12）。
+
+跟随公司当年账套（T1，2026-10-15，`follow`）：任务记了公司主档的，每张票按单据日期选这次推往的账套，选到的抄到票上
+（`push_state.retarget`）、写进这张票的去向（``account_set`` / ``account_label``）；取不到、多于一份、够不到就停下等人
+（``held`` + 原因码，原因也记在票上）。跟到的账套不是任务存下的那份时，默认科目 / 部门只在那份账套的主档里有才用。
+任务没记公司（旧任务对不上公司、不是 Express）或主档已删：照旧推往任务的固定账套。
 """
 import hashlib
 import json
 
 import frappe
 
-from pearnly_cowork.folder_intake import contracts, destinations
+from pearnly_cowork.folder_intake import contracts, destinations, follow
 from pearnly_cowork.history import push_state
 from pearnly_cowork.push.application import service as application
 
@@ -57,7 +62,8 @@ def fixed_for(history, connection, account_set):
     回该任务的默认处理，否则 ``{}``。调用方已核过这张票的读取范围。
 
     任务停用仍套用（这批票就是按该任务口径识别的）；任务删除后不套用（删任务连文件进度一起删）；推往别的连接或账套
-    不套用（科目、部门代码按账套有效）；回导工作簿生成的新票原件是工作簿，查不到任务，不套用。
+    不套用（科目、部门代码按账套有效）——跟随公司当年账套的任务（T1）推往这家公司（这个分店）别的年度账套也套用，
+    科目、部门代码只在那份账套的主档里有才用（`follow.fixed_in`）；回导工作簿生成的新票原件是工作簿，查不到任务，不套用。
     每次推送都会经过这里：取不到一律回 ``{}``、不抛错，推送照常问人。"""
     from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -70,10 +76,14 @@ def fixed_for(history, connection, account_set):
                                   ignore_permissions=True):
             if history not in json.loads(row.histories_json or "[]"):
                 continue
-            rule = frappe.db.get_value(RULE, row.rule, ["connection", "account_set_key", "defaults_json"],
-                                       as_dict=True)
-            if rule and rule.connection == connection and normalize_express_account_key(rule.account_set_key) == key:
+            rule = frappe.db.get_value(RULE, row.rule, ["connection", "account_set_key", "defaults_json", "company",
+                                                        "company_branch"], as_dict=True)
+            if not rule or rule.connection != connection:
+                continue
+            if normalize_express_account_key(rule.account_set_key) == key:
                 return rule_fixed(rule.defaults_json)
+            if follow.member(rule, key):  # 跟随公司当年账套的任务：这家公司（这个分店）的别的年度账套
+                return follow.fixed_in(rule, key, rule_fixed(rule.defaults_json))
     except Exception:
         frappe.log_error(title="Cowork folder task defaults lookup failed", message=frappe.get_traceback()[-1500:])
     return {}
@@ -93,10 +103,31 @@ def push_one(entry, rule, history, attempt=0, final=True):
     # 不写进账套记忆（用户 2026-10-08：以前记成整份账套的选择，网页推送和同账套的其他规则都会跟着变）。
     # 显式传（没有默认值时是 {}）：推送服务就不再按钩子查一遍。
     fixed = rule_fixed(rule.defaults_json)
+    picked = follow.choose(rule, history)
+    if not picked:
+        return _push_to(entry, rule, history, row, rule.account_set_key, fixed, attempt, final)
+    where = {"account_set": picked["key"], "account_label": picked["label"]} if picked.get("key") else {}
+    if picked.get("stop"):
+        adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
+        if picked["stop"] == follow.UNREACHABLE and not final and not destinations.queueable(adapter, rule.connection):
+            return {"status": "retry", "reason": OFFLINE}  # 池里一台能写的电脑都没有：同「电脑没连上」，过一会儿再推
+        going = {"connection": rule.connection, "account_set": picked["key"]} if picked.get("key") else {}
+        push_state.record_failure(history, picked["stop"], **going)
+        frappe.db.commit()
+        return {"status": "held", "reason": picked["stop"], **where}
+    fixed = follow.fixed_in(rule, picked["key"], fixed)
+    push_state.retarget(history, rule.connection, picked["key"])
+    frappe.db.commit()
+    result = _push_to(entry, rule, history, row, picked["key"], fixed, attempt, final)
+    return result if result.get("status") == "retry" else {**result, **where}
+
+
+def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
+    """把这张票推往 ``account_set``（任务的固定账套，或跟随公司选到的那份）。"""
     # POS 导出建的票按票上自己的口径（带商品明细的天是存货，其余按金额记、不动库存）
     posting_kind = None if contracts.is_table(entry.filename) else (rule.posting_kind or None)
     try:
-        view = application.choices_view(history, rule.connection, rule.account_set_key, posting_kind, fixed=fixed)
+        view = application.choices_view(history, rule.connection, account_set, posting_kind, fixed=fixed)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         # 与网页「提交」失败同一做法：原因记在票上（列表照常显示「失败」+ 原因），这份文件照样往下走、出表格。
         reason = str(error)[:300]
@@ -110,7 +141,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
         return {"status": "retry", "reason": READING if wait["state"] == "reading" else OFFLINE,
                 "seconds": READING_SECONDS if wait["state"] == "reading" else None}
     # 停下时把这次要推往的连接与账套抄到票上，待处理页才能当场选（验收 F17）
-    going = {"connection": rule.connection, "account_set": view.get("account_set") or rule.account_set_key}
+    going = {"connection": rule.connection, "account_set": view.get("account_set") or account_set}
     if wait:
         # 电脑上的 CC 桌面端要升级 / 读不到这份账套，或一直没读到：原因记在票上（列表显示「失败」+ 原因），人处理后重推
         push_state.record_failure(history, wait["message"], **going)
@@ -127,7 +158,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
-                                rule.account_set_key, None, None, posting_kind, fixed=fixed)
+                                account_set, None, None, posting_kind, fixed=fixed)
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}

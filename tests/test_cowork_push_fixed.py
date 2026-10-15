@@ -59,8 +59,10 @@ class FixedFor(unittest.TestCase):
         frappe = _frappe(db)
         frappe.log_error = lambda **kw: self.logged.append(kw)
         modules = {"frappe": frappe,
-                   "pearnly_cowork.folder_intake": types.SimpleNamespace(contracts=contracts,
-                                                                         destinations=types.SimpleNamespace()),
+                   # 任务没记公司（不跟随公司当年账套，T1）：只认任务自己的那份账套
+                   "pearnly_cowork.folder_intake": types.SimpleNamespace(
+                       contracts=contracts, destinations=types.SimpleNamespace(),
+                       follow=types.SimpleNamespace(member=lambda rule, key: False)),
                    "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace()),
                    "pearnly_cowork.push.application": types.SimpleNamespace(service=types.SimpleNamespace())}
         return _load("folder_push_fixed", APP / "folder_intake/push.py", modules)

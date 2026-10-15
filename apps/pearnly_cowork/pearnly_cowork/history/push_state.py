@@ -123,3 +123,16 @@ def record_failure(history, reason, *, connection=None, account_set=None):
     frappe.db.set_value('Cowork OCR History', history, values, update_modified=False)
     _changed(history)
     _announce(history)
+
+
+def retarget(history, connection, account_set):
+    """定时任务跟随公司当年账套（T1）：这次实际推往的连接与账套抄到票上，换掉识别时记下的任务账套 —— 账本投影
+    （`mirror`）不覆盖票上已有的去向，不换的话票上、CC、待处理页都还显示任务存下时那一年的账套。只改去向，不动推送
+    状态与原因；一样就不写。调用方已核过这张票的读取范围。"""
+    if not connection or not account_set:
+        return
+    found = frappe.db.get_value('Cowork OCR History', history, ['push_connection', 'push_account_set'], as_dict=True)
+    if not found or ((found.push_connection or ''), (found.push_account_set or '')) == (str(connection), str(account_set)):
+        return
+    frappe.db.set_value('Cowork OCR History', history, {'push_connection': str(connection),
+                                                         'push_account_set': str(account_set)}, update_modified=False)

@@ -372,6 +372,7 @@ Comments,ความคิดเห็น
 Comments and activity,ความคิดเห็นและกิจกรรม
 Commission,ค่านายหน้า
 Company,บริษัท
+Company Branch,สาขาของบริษัท
 Company Name,ชื่อบริษัท
 Company not found,ไม่พบบริษัท
 Company tax ID,เลขประจำตัวบริษัท
@@ -1003,6 +1004,7 @@ Month,เดือน
 Month paid,เดือนที่จ่ายเงินได้
 Monthly,ทุกเดือน
 Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
+More than one account set of this company covers the document date.,มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",ใบกำกับภาษีส่วนใหญ่ยังอ่านไม่เสร็จภายในเวลาที่กำหนด ({0} จาก {1} ไฟล์) ผลต่างด้านล่างส่วนใหญ่เกิดจากใบกำกับภาษีที่ยังไม่ได้อ่าน กรุณาส่งใหม่ภายหลัง
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
@@ -1031,10 +1033,12 @@ No CC Desktop credential has been issued for this connection.,ยังไม่
 No ERP is ready to use,ยังไม่มี ERP ที่พร้อมใช้งาน
 No POS sales export headers were found in this file,ไม่พบหัวคอลัมน์ของไฟล์ส่งออกยอดขาย POS ในไฟล์นี้
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
+No account set of this company covers the document date.,ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร
 No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
+No computer can reach the account set for the document date.,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
@@ -2194,7 +2198,10 @@ cowork.company.pending.title,เอกสารรอดำเนินการ
 cowork.company.period_invalid,เดือนไม่ถูกต้อง
 cowork.company.title_invalid,กรุณาใส่ชื่อไม่เกิน 140 ตัวอักษร
 cowork.company.too_many,บริษัทเกินจำนวนที่กำหนด
+cowork.folder.account_set_ambiguous,มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร
 cowork.folder.account_set_invalid,ชุดบัญชีนี้ไม่อยู่ในรายการชุดบัญชีของการเชื่อมต่อนี้ กรุณาโหลดรายการใหม่ในหน้าบันทึกใหม่
+cowork.folder.account_set_none,ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร
+cowork.folder.account_set_unreachable,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
 cowork.folder.agentStale,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
 cowork.folder.agentStaleHint,CC เดสก์ท็อปบนเครื่องนี้ไม่ได้ซิงค์มาระยะหนึ่ง กรุณาอัปเดตเป็นเวอร์ชันล่าสุด
 cowork.folder.batch_missing,ไม่พบงานอ่านเอกสาร

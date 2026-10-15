@@ -596,11 +596,13 @@ class Schema(unittest.TestCase):
     def test_patch_is_registered(self):
         lines = (APP / "patches.txt").read_text().splitlines()
         # 第 2 批的补丁（账套登记，`test_cowork_express_account_sets.py`）跟在它后面：要先有电脑才有旧电脑的可达行；
-        # 第 4 批（读文件夹的电脑、全所可用）再在后面
-        self.assertEqual(lines[-4:], ["pearnly_cowork.patches.v0_0_19_companion_devices",
-                                      "pearnly_cowork.patches.v0_0_20_express_account_sets",
-                                      "pearnly_cowork.patches.v0_0_21_reader_devices",
-                                      "pearnly_cowork.patches.v0_0_22_express_all_members"])
+        # 第 4 批（读文件夹的电脑、全所可用）再在后面；之后的补丁（T1 定时任务补公司）接在这四条之后
+        start = lines.index("pearnly_cowork.patches.v0_0_19_companion_devices")
+        self.assertEqual(lines[start:start + 4], ["pearnly_cowork.patches.v0_0_19_companion_devices",
+                                                  "pearnly_cowork.patches.v0_0_20_express_account_sets",
+                                                  "pearnly_cowork.patches.v0_0_21_reader_devices",
+                                                  "pearnly_cowork.patches.v0_0_22_express_all_members"])
+        self.assertGreater(start, lines.index("[post_model_sync]"))
 
 
 # ── register v2 ─────────────────────────────────────────────────────────────

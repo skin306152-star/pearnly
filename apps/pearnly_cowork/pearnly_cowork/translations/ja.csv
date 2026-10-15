@@ -372,6 +372,7 @@ Comments,コメント
 Comments and activity,コメントとアクティビティ
 Commission,手数料
 Company,会社
+Company Branch,会社の支店
 Company Name,会社名
 Company not found,会社が見つかりません
 Company tax ID,自社の番号
@@ -1003,6 +1004,7 @@ Month,月
 Month paid,支払月
 Monthly,毎月
 Monthly on {0} at {1},毎月 {0} {1}
+More than one account set of this company covers the document date.,この会社には書類の日付を含む会計データが複数あります。
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",請求書の大半が時間内に読み取り終わりませんでした（{1} 件中 {0} 件）。以下の差異の多くは請求書が未読のためです。後でもう一度送信してください。
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
@@ -1031,10 +1033,12 @@ No CC Desktop credential has been issued for this connection.,この接続には
 No ERP is ready to use,使用できるERPがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
+No account set of this company covers the document date.,この会社には書類の日付を含む会計データがありません。
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
+No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるコンピューターがありません。
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
 No documents were given.,書類が指定されていません。
 No due date,期日なし
@@ -2194,7 +2198,10 @@ cowork.company.pending.title,処理待ちの書類
 cowork.company.period_invalid,月が正しくありません
 cowork.company.title_invalid,140 文字以内で名前を入力してください
 cowork.company.too_many,会社数が上限です
+cowork.folder.account_set_ambiguous,この会社には書類の日付を含む会計データが複数あります。
 cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
+cowork.folder.account_set_none,この会社には書類の日付を含む会計データがありません。
+cowork.folder.account_set_unreachable,書類の日付の会計データにアクセスできるコンピューターがありません。
 cowork.folder.agentStale,CC デスクトップがオフラインか更新が必要
 cowork.folder.agentStaleHint,この PC の CC デスクトップが同期していません。最新版に更新してください。
 cowork.folder.batch_missing,読み取りタスクが見つかりません。

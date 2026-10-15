@@ -372,6 +372,7 @@ Comments,评论
 Comments and activity,评论和活动
 Commission,佣金
 Company,公司
+Company Branch,公司分店
 Company Name,公司名称
 Company not found,找不到这家公司
 Company tax ID,本公司税号
@@ -1003,6 +1004,7 @@ Month,月份
 Month paid,支付月份
 Monthly,每月
 Monthly on {0} at {1},每月 {0} {1}
+More than one account set of this company covers the document date.,这家公司有多份账套覆盖单据日期。
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",大部分发票在时限内未读取完成（{1} 份中 {0} 份），以下差异多为发票未读取所致，请稍后重新提交。
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
@@ -1031,10 +1033,12 @@ No CC Desktop credential has been issued for this connection.,此连接尚未签
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
+No account set of this company covers the document date.,这家公司没有覆盖单据日期的账套。
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
 No changes were given.,没有指定要改的内容。
+No computer can reach the account set for the document date.,没有电脑能访问单据日期所在的账套。
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
 No documents were given.,没有指定单据。
 No due date,无到期日
@@ -2194,7 +2198,10 @@ cowork.company.pending.title,待处理单据
 cowork.company.period_invalid,月份不对
 cowork.company.title_invalid,请输入 140 字以内的名称
 cowork.company.too_many,公司数量已达上限
+cowork.folder.account_set_ambiguous,这家公司有多份账套覆盖单据日期。
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
+cowork.folder.account_set_none,这家公司没有覆盖单据日期的账套。
+cowork.folder.account_set_unreachable,没有电脑能访问单据日期所在的账套。
 cowork.folder.agentStale,CC 桌面版不在线或需升级
 cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
 cowork.folder.batch_missing,识别任务不存在。

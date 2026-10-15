@@ -147,6 +147,28 @@ def covering(books: Iterable[Mapping[str, Any]], period: str) -> list:
             and str(item["period_start"])[:10] <= last and str(item["period_end"])[:10] >= first]
 
 
+def for_day(books: Iterable[Mapping[str, Any]], day: object) -> list:
+    """覆盖这一天（`YYYY-MM-DD`）的账套（定时任务跟随公司当年账套，T1）：先按月 `covering`，再核到日（会计期间从月中
+    起止时，不把相邻两份都算上）。日期不是这个形状回空表。"""
+    day = str(day or "")[:10]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        return []
+    return [item for item in covering(books, day[:7])
+            if str(item["period_start"])[:10] <= day <= str(item["period_end"])[:10]]
+
+
+def for_branch(books: Iterable[Mapping[str, Any]], number: object) -> list:
+    """定时任务记下的分店（T1）：只留这个分店的账套；这家公司只报过这一个分店号时，没报分店号的账套（旧年度没税号的）
+    也算。没记分店原样回。"""
+    books = list(books)
+    number = str(number or "")
+    if not number:
+        return books
+    known = {item.get("branch") for item in books if item.get("branch")}
+    return [item for item in books
+            if item.get("branch") == number or (not item.get("branch") and known <= {number})]
+
+
 def branches(books: Iterable[Mapping[str, Any]]) -> list:
     """分店清单（主档不存，按账套现算）：`[{branch, label, account_sets: [账套…]}]`，总公司在前，再按分店号；
     每组里新年度在前，`label` 是这个分店最新那份账套的登录列表名。没有分店号的账套（MR.ERP、无税号）不分组，回空表。"""
@@ -200,4 +222,5 @@ def scope_value(value: object) -> str:
 
 
 __all__ = ["BOOKS_MAX", "HEAD_OFFICE", "autofill", "belongs", "book", "branch", "branches", "company_identity",
-           "covering", "digits", "newest_first", "route_branch", "scope_value", "scoped", "tax_id", "usable"]
+           "covering", "digits", "for_branch", "for_day", "newest_first", "route_branch", "scope_value", "scoped",
+           "tax_id", "usable"]

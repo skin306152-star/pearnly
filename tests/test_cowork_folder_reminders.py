@@ -695,7 +695,7 @@ class SameNumbersAsTheTaskList(unittest.TestCase):
                                                       desktop_update=_load("connections_desktop_update_results",
                                                                            APP / "connections/desktop_update.py")),
                    "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=contracts, destinations=stub(), inbox=stub(),
-                                                        readers=stub()),
+                                                        readers=stub(), follow=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE=FILE, RULE=RULE, RUN=RUN, read=None, write=None),
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda value: value)}
         with mock.patch.dict(sys.modules, modules):

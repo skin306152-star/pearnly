@@ -356,20 +356,31 @@ def _recognized(entry):
 # ── 自动推送（限流）→ 推送有结论 ────────────────────────────────────────────────────
 
 
+def _lane(connection, account_set_key, company=None, branch=None):
+    """推送限流与先后按的道：固定账套的任务是（推送连接，账套）；跟随公司当年账套的任务（T1）每张票的账套推的时候才定，
+    按（推送连接，公司 + 分店）—— 同一家公司的进项、销项任务归同一条道。"""
+    if company:
+        return connection or "", f"company:{company}|{branch or ''}"
+    return connection or "", normalize_express_account_key(account_set_key)
+
+
 def _push_target(entry):
     """这份文件推往哪：（推送连接，账套）。限流按它算（ADR-021 第 4 批，方案 2.7）：以前按读文件夹的连接计，多台电脑后同一个
-    池里几台电脑各读各的文件夹、推往同一份账套，按读者计就各有 5 张，按账套计才是这份账套同时最多 5 张。"""
-    rule = frappe.db.get_value(RULE, entry.rule, ["connection", "account_set_key"], as_dict=True) or {}
-    return rule.get("connection") or entry.connection, normalize_express_account_key(rule.get("account_set_key"))
+    池里几台电脑各读各的文件夹、推往同一份账套，按读者计就各有 5 张，按账套计才是这份账套同时最多 5 张。跟随公司当年
+    账套的任务按公司（`_lane`）。"""
+    rule = frappe.db.get_value(RULE, entry.rule, ["connection", "account_set_key", "company", "company_branch"],
+                               as_dict=True) or {}
+    return _lane(rule.get("connection") or entry.connection, rule.get("account_set_key"), rule.get("company"),
+                 rule.get("company_branch"))
 
 
 def _pending_pushes(target):
-    """推往这份账套（``target`` =（推送连接，账套））、还在「录入中」的文件夹票数。"""
-    connection, key = target
-    rows = frappe.db.sql(f"""SELECT f.outcome_json, r.account_set_key FROM `tab{FILE}` f
+    """推往这份账套（``target`` = `_lane`）、还在「录入中」的文件夹票数。"""
+    connection, _key = target
+    rows = frappe.db.sql(f"""SELECT f.outcome_json, r.account_set_key, r.company, r.company_branch FROM `tab{FILE}` f
         INNER JOIN `tab{RULE}` r ON r.name = f.rule
         WHERE r.connection = %s AND f.state IN ('recognized', 'pushing')""", (connection,), as_dict=True)
-    sent = [history for row in rows if normalize_express_account_key(row.account_set_key) == key
+    sent = [history for row in rows if _lane(connection, row.account_set_key, row.company, row.company_branch) == target
             for history, outcome in json.loads(row.outcome_json or "{}").items()
             if isinstance(outcome, dict) and outcome.get("status") == "sent"]
     if not sent:
@@ -377,36 +388,36 @@ def _pending_pushes(target):
     return frappe.db.count(HISTORY, {"name": ["in", sent], "last_push_status": "pending"})
 
 
-def _order_key(connection, account_set_key):
-    return connection or "", normalize_express_account_key(account_set_key)
+def _order_key(row):
+    return _lane(row.connection, row.account_set_key, row.get("company"), row.get("company_branch"))
 
 
 def _purchases_in_progress(now):
     """同账套还在路上的存货进货：{(连接, 账套): {"files": [...], "runs": [...]}}（每轮推送最多查一次）。"""
     found = {}
-    for row in frappe.db.sql(f"""SELECT f.state, f.registered_at, r.connection, r.account_set_key
-            FROM `tab{FILE}` f INNER JOIN `tab{RULE}` r ON r.name = f.rule
+    for row in frappe.db.sql(f"""SELECT f.state, f.registered_at, r.connection, r.account_set_key, r.company,
+            r.company_branch FROM `tab{FILE}` f INNER JOIN `tab{RULE}` r ON r.name = f.rule
             WHERE f.state IN %s AND r.direction = 'purchase' AND r.posting_kind = 'stock'""",
                              (contracts.ORDER_WAITING,), as_dict=True):
-        found.setdefault(_order_key(row.connection, row.account_set_key), {"files": [], "runs": []})["files"].append(row)
-    for row in frappe.db.sql(f"""SELECT r.connection, r.account_set_key, r.run_request_at,
+        found.setdefault(_order_key(row), {"files": [], "runs": []})["files"].append(row)
+    for row in frappe.db.sql(f"""SELECT r.connection, r.account_set_key, r.company, r.company_branch, r.run_request_at,
             (SELECT MAX(u.started_at) FROM `tab{RUN}` u WHERE u.rule = r.name AND IFNULL(u.note, '') != 'retry')
                 AS last_reported_at
             FROM `tab{RULE}` r WHERE r.enabled = 1 AND r.direction = 'purchase' AND r.posting_kind = 'stock'
               AND r.run_request_at >= %s""", (now - contracts.ORDER_RUN_GRACE,), as_dict=True):
-        found.setdefault(_order_key(row.connection, row.account_set_key), {"files": [], "runs": []})["runs"].append(row)
+        found.setdefault(_order_key(row), {"files": [], "runs": []})["runs"].append(row)
     return found
 
 
 def _waits_for_purchases(entry, cache, now):
     """这份文件是存货销售、同账套的存货进货还在路上：先不准备（停用的任务、负责人失效的照常走 `_push` 记停下，不拖）。"""
     rule = frappe.db.get_value(RULE, entry.rule, ["enabled", "connection", "account_set_key", "direction",
-                                                  "posting_kind"], as_dict=True)
+                                                  "posting_kind", "company", "company_branch"], as_dict=True)
     if not rule or not rule.enabled or contracts.stock_role(rule.direction, rule.posting_kind) != "sale":
         return False
     if "groups" not in cache:
         cache["groups"] = _purchases_in_progress(now)  # 有存货销售要判时才查，空闲时开销不变
-    group = cache["groups"].get(_order_key(rule.connection, rule.account_set_key)) or {}
+    group = cache["groups"].get(_order_key(rule)) or {}
     return contracts.waits_for_purchases(entry.registered_at, group.get("files") or [], group.get("runs") or [], now)
 
 

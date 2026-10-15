@@ -372,6 +372,7 @@ Comments,Comments
 Comments and activity,Comments and activity
 Commission,Commission
 Company,Company
+Company Branch,Company Branch
 Company Name,Company Name
 Company not found,Company not found
 Company tax ID,Company tax ID
@@ -1003,6 +1004,7 @@ Month,Month
 Month paid,Month paid
 Monthly,Monthly
 Monthly on {0} at {1},Monthly on {0} at {1}
+More than one account set of this company covers the document date.,More than one account set of this company covers the document date.
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.","Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later."
 Move,Move
 Move all cards in this list,Move all cards in this list
@@ -1031,10 +1033,12 @@ No CC Desktop credential has been issued for this connection.,No CC Desktop cred
 No ERP is ready to use,No ERP is ready to use
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
+No account set of this company covers the document date.,No account set of this company covers the document date.
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
 No changes were given.,No changes were given.
+No computer can reach the account set for the document date.,No computer can reach the account set for the document date.
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again","No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
 No documents were given.,No documents were given.
 No due date,No due date
@@ -2194,7 +2198,10 @@ cowork.company.pending.title,Documents to handle
 cowork.company.period_invalid,Invalid month
 cowork.company.title_invalid,Please enter a name of up to 140 characters
 cowork.company.too_many,Too many companies
+cowork.folder.account_set_ambiguous,More than one account set of this company covers the document date.
 cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
+cowork.folder.account_set_none,No account set of this company covers the document date.
+cowork.folder.account_set_unreachable,No computer can reach the account set for the document date.
 cowork.folder.agentStale,CC Desktop offline or needs update
 cowork.folder.agentStaleHint,CC Desktop on this PC has not synced recently. Update it to the latest version.
 cowork.folder.batch_missing,The recognition task was not found.

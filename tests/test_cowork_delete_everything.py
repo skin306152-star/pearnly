@@ -275,7 +275,7 @@ class FolderRuleDelete(unittest.TestCase):
                                                       desktop_update=_load("connections_desktop_update_delete",
                                                                            APP / "connections/desktop_update.py", {})),
                    "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=stub(), destinations=stub(), readers=stub(),
-                                                        inbox=stub(drop=dropped.append)),
+                                                        follow=stub(), inbox=stub(drop=dropped.append)),
                    "pearnly_cowork.folder_intake.access": access,
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
         rules = _load("folder_rules_under_test", APP / "folder_intake/rules.py", modules)

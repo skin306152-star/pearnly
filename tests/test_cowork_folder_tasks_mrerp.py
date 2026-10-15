@@ -92,7 +92,7 @@ class SaveMrerpTask(unittest.TestCase):
                    "pearnly_cowork.folder_intake": stub(
                        agent=agent, readers=readers,
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),
-                       inbox=stub()),
+                       inbox=stub(), follow=stub(company_of=lambda connection, key: {"company": "CO-1", "branch": ""})),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="Cowork Folder Intake Rule", RUN="U",
                                                                read=None, write=write),
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
@@ -111,6 +111,8 @@ class SaveMrerpTask(unittest.TestCase):
         self.assertEqual((row["payment"], row["posting_kind"], json.loads(row["defaults_json"]), row["reader"],
                           row["reader_device"]), ("credit", "", {}, "C1", "PC1"))
         masters.assert_not_called()  # 不读 Express 主档
+        # 跟随公司当年账套（T1）只给 Express：MR.ERP 的账套是公司 + 年度、目录里没有会计期间，任务照旧固定账套
+        self.assertEqual((row["company"], row["company_branch"]), ("", ""))
 
     def test_mrerp_task_can_borrow_the_express_helper(self):
         rules, saved, _masters = self._rules("mrerp")
@@ -137,6 +139,7 @@ class SaveMrerpTask(unittest.TestCase):
         rules.save(json.dumps(self.values(posting_kind="service", payment="cash")))
         self.assertEqual((saved[-1]["posting_kind"], saved[-1]["payment"], saved[-1]["reader"], saved[-1]["reader_device"]),
                          ("service", "", "C1", "PC1"))
+        self.assertEqual((saved[-1]["company"], saved[-1]["company_branch"]), ("CO-1", ""))  # T1：Express 记公司
         self.assertEqual([reader["connection"] for reader in rules.options("C1")["readers"]], ["C1"])
         with self.assertRaises(Exception):
             rules.save(json.dumps(self.values(posting_kind="service", reader="EX", root_id=self.ROOT_B)))

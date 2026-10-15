@@ -114,7 +114,14 @@ class Harness(unittest.TestCase):
         # 各条连接上的电脑（`credentials.pool_peers`，ADR-021 第 4 批）：C1 池里一台 PC1，MR.ERP 的 EX 上一台 PX
         self.members = {"C1": {"PC1": {"label": "Office PC", "online": True, "version": "1.6.0"}},
                         "EX": {"PX": {"label": "Front desk", "online": True, "version": "1.6.0"}}}
+        # 跟随公司当年账套（T1）：所选账套属于哪家公司主档（`follow.company_of` → hooks → `companies.tasks`）
+        self.company_link = {"company": "", "branch": ""}
+        self.company_asked = []
         self.rules = self._rules()
+
+    def _company_of(self, connection, account_set_key):
+        self.company_asked.append((connection, account_set_key))
+        return dict(self.company_link)
 
     def _rules(self):
         connections = {"C1": Row(name="C1", adapter="express", workspace="W", client="", binding_generation=0, label="C1"),
@@ -161,7 +168,7 @@ class Harness(unittest.TestCase):
                    "pearnly_cowork.folder_intake": stub(
                        agent=agent, readers=readers,
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),
-                       inbox=stub()),
+                       inbox=stub(), follow=stub(company_of=self._company_of)),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE=RULE, RUN="U", read=self.store.read,
                                                                write=self.store.write),
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
@@ -174,6 +181,27 @@ class Harness(unittest.TestCase):
     def values(**extra):
         return {"title": "Bills", "connection": "C1", "account_set_key": "Y1", "direction": "purchase",
                 "posting_kind": "service", "root_id": ROOT_A, "folder": "A", "run_day": 1, "run_time": "22:00", **extra}
+
+
+class FollowCompanyYear(Harness):
+    """T1：保存任务时由服务端按所选账套反查公司主档与分店记下（前端不改、报文里传的不收），之后到点按单据日期换账套。"""
+
+    def test_saving_records_the_company_and_branch_of_the_chosen_account_set(self):
+        self.company_link = {"company": "CO-1", "branch": "00012"}
+        saved = self.rules.save(self.values(company="FORGED", company_branch="99999"))
+        self.assertEqual((saved["company"], saved["company_branch"], saved["account_set_key"]), ("CO-1", "00012", "Y1"))
+        self.assertEqual(self.company_asked, [("C1", "Y1")])  # 按目录里的那份账套问，不按报文
+
+    def test_an_account_set_of_no_single_company_keeps_the_task_fixed(self):
+        saved = self.rules.save(self.values())
+        self.assertEqual((saved["company"], saved["company_branch"], saved["account_set_key"]), ("", "", "Y1"))
+
+    def test_saving_again_follows_the_account_set_now_chosen(self):
+        self.company_link = {"company": "CO-1", "branch": ""}
+        name = self.rules.save(self.values())["name"]
+        self.company_link = {"company": "", "branch": ""}  # 改选了一份对不上公司的账套：不留旧公司
+        saved = self.rules.save(self.values(name=name))
+        self.assertEqual((saved["company"], saved["company_branch"]), ("", ""))
 
 
 class BatchSave(Harness):

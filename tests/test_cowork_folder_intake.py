@@ -285,7 +285,10 @@ class OfflineCompanionRetry(unittest.TestCase):
                                              queueable=lambda adapter, connection: queueable(),
                                              ready=lambda adapter, prepared: bool(prepared.get("has_reported_credential")))
         modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
-                   "pearnly_cowork.folder_intake": types.SimpleNamespace(contracts=contracts, destinations=destinations),
+                   # 任务没记公司（T1 之前的任务）：不跟随，照旧推往固定账套
+                   "pearnly_cowork.folder_intake": types.SimpleNamespace(
+                       contracts=contracts, destinations=destinations,
+                       follow=types.SimpleNamespace(choose=lambda rule, history: None)),
                    "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace()),
                    "pearnly_cowork.push": types.SimpleNamespace(choices=types.SimpleNamespace()),
                    "pearnly_cowork.push.application": types.SimpleNamespace(service=application)}
@@ -1048,6 +1051,20 @@ class StockOrderPump(unittest.TestCase):
         self._step(pump)
         self.assertEqual(len(calls["later"]), 1)
 
+    def test_tasks_following_one_company_share_a_lane_whatever_their_saved_year(self):
+        """T1：跟随公司当年账套的任务按（推送连接，公司 + 分店）排先后与限流：进项任务存的是 2568、销项存的是 2569 也同一条道；
+        别的分店、固定账套的任务不在这条道上。"""
+        company = {"company": "CO-1", "company_branch": "00000"}
+        sale = self._sale(**company)
+        for purchase, waits in ((self._purchase(account_set_key="S:\\2568\\EXP68\\68SINCER", **company), True),
+                                (self._purchase(company="CO-1", company_branch="00012"), False),
+                                (self._purchase(), False)):
+            pump, entry, calls = self._pump(sale, purchases=[purchase])
+            self._step(pump)
+            self.assertEqual(len(calls["later"]), int(waits), purchase)
+        self.assertEqual(pump._lane("C1", self.KEY, "CO-1", "00000"), ("C1", "company:CO-1|00000"))
+        self.assertEqual(pump._lane("C1", "s:/2569/exp69/69sincer/", "", ""), ("C1", identity.normalize_express_account_key(self.KEY)))
+
     def test_a_purchase_run_just_requested_holds_the_sale(self):
         run = {"connection": "C1", "account_set_key": self.KEY, "run_request_at": self.NOW - timedelta(minutes=5),
                "last_reported_at": None}
@@ -1636,8 +1653,9 @@ class TaskSources(unittest.TestCase):
             device = self._field(name, "reader_device")
             self.assertEqual((device["fieldtype"], device["read_only"], device["length"]), ("Data", 1, 140))
         self.assertEqual(self._field(rule, "reader_device")["search_index"], 1)
-        # 改了字段就升 modified，migrate 才同步（2026-10-16：多台电脑第 4 批加读文件夹的电脑）
-        for name, modified in ((rule, "2026-10-16 12:00"), (run, "2026-10-16 12:00"),
+        # 改了字段就升 modified，migrate 才同步（2026-10-16：多台电脑第 4 批加读文件夹的电脑；
+        # 2026-10-17：T1 任务加公司主档与分店）
+        for name, modified in ((rule, "2026-10-17 12:00"), (run, "2026-10-16 12:00"),
                                ("cowork_folder_intake_file", "2026-10-16 12:00")):
             doctype = self._doctype(name)
             self.assertEqual(doctype["modified"], modified + ":00.000000")

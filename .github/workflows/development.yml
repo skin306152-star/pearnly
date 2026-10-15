@@ -93,6 +93,8 @@ jobs:
         run: python3 tests/test_cowork_folder_reminders.py
       - name: Verify company masters, branches, team notes, saved choices and pending documents for CC
         run: python3 tests/test_cowork_companies.py
+      - name: Verify scheduled tasks follow the company's account set for each document date
+        run: python3 tests/test_cowork_folder_follow_year.py
       - name: Verify MR.ERP scheduled tasks and the folder sync reply
         run: python3 tests/test_cowork_folder_tasks_mrerp.py
       - name: Verify the scheduled-task field fixes

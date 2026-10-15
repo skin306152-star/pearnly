@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-07 12:00:00.000000",
- "modified": "2026-10-16 12:00:00.000000",
+ "modified": "2026-10-17 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -27,6 +27,8 @@
   "include_existing",
   "account_set_key",
   "account_label",
+  "company",
+  "company_branch",
   "direction",
   "posting_kind",
   "payment",
@@ -133,6 +135,21 @@
    "fieldtype": "Data",
    "read_only": 1,
    "length": 255
+  },
+  {
+   "fieldname": "company",
+   "label": "Company",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140,
+   "search_index": 1
+  },
+  {
+   "fieldname": "company_branch",
+   "label": "Company Branch",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 10
   },
   {
    "fieldname": "direction",

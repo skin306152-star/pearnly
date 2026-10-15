@@ -162,6 +162,9 @@ def _stop_reasons(found):
         reasons.append(_("cowork.folder.brief.why.human"))
     if found["stop_reasons"].get("task_off"):
         reasons.append(_("cowork.folder.brief.why.taskOff"))
+    if found["stop_reasons"].get("account_set"):
+        # 跟随公司当年账套的任务这张票的账套定不下来（T1）：同「待选」的说法
+        reasons.append(_("cowork.folder.brief.why.choice").format(_("intake.target.accountSet")))
     if found["stop_reasons"].get("pos_layout"):
         reasons.append(_("cowork.folder.brief.why.posLayout"))
     return reasons
