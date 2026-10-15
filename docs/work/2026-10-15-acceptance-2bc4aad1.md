@@ -397,3 +397,17 @@ V1 推送前查科目建议时每次都请电脑读历史、每次都失败；�
 - 待核实：Express 的 `ORGNUM = 1` 是否就是「分店 00001」（CC 桌面版 `account_probe._branch_no` 按「0 = 总公司」读）。已请测试窗口在 Express 公司资料里看
   T9ASC 显示的分店；若 1 实为总公司，再改读法。
 - 未做：未部署（随下一批）。
+
+## F17 CC 对话里先识别后推、停在要人选的单，待处理页仍点不开（部署 aa246686 后重验）
+
+测试窗口：F12 分类已修好（`reason_code = choice_needed`），但 SD-6909-1001（`CWH-62db4979…`）先在 CC 对话里「仅识别」（`intake_target = none`），
+后让 CC 推 T9NIEXCP、停在要人选；票上 `push_connection` / `push_account_set` 一直为空，`companies/pending.py` 因此给 `action = open`，
+页面点不开、仍是「…再重新提交」。识别时就带了账套的单（MEA，`intake_target = express`）能当场选。
+
+- 原因：CC 对话（`assistant/tools.py: _push_one`）与定时任务（`folder_intake/push.py`）推之前停下时，`push_state.record_failure` 只记原因，不写这次要推往哪；
+  推送目标只在推成功时由 `mirror` 写回。
+- 改动：`record_failure(history, reason, *, connection=None, account_set=None)`：给了就一并写 `push_connection` / `push_account_set`；两处停下（要人选、
+  电脑要升级 / 读不到）都带上这次的连接与账套（账套用推送服务 `choices_view` 解析出的那份，没有再用调用方给的）。网页提交失败的路径不变。
+- 测试：`tests/test_cowork_folder_intake.py` `test_a_stop_records_where_the_document_was_going` 与定时任务停下的断言、`tests/test_cowork_assistant_tools.py`
+  停下记去向的断言。
+- 未做：未部署；已停着的旧单要再推一次（或部署后由 CC 再推）才会补上去向。

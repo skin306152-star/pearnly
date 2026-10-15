@@ -273,7 +273,7 @@ class PushWhileChartIsReadTests(unittest.TestCase):
                                          posting_kind="service", record_version=1, last_push_record="",
                                          last_push_reason="")
         tools.storage.read = lambda name: self.doc
-        tools.push_state.record_failure = lambda *a: self.failures.append(a)
+        tools.push_state.record_failure = lambda *a, **k: self.failures.append((*a, k))
         tools.application.submit = lambda *a: self.fail("must not prepare while the chart is missing")
 
     def _push(self, state):
@@ -292,7 +292,8 @@ class PushWhileChartIsReadTests(unittest.TestCase):
     def test_update_needed_is_recorded_on_the_document(self):
         out = self._push("update_needed")
         self.assertEqual(out["status"], "failed")
-        self.assertEqual(self.failures, [("H1", "msg:update_needed")])
+        # 停下时把这次要推往的连接与账套一并抄到票上（验收 F17：先识别后推的票原本没有去向，待处理页没法当场选）
+        self.assertEqual(self.failures, [("H1", "msg:update_needed", {"connection": "EXP1", "account_set": "K"})])
 
 
 class RecognizeAttachmentTests(unittest.TestCase):

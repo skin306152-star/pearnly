@@ -600,13 +600,15 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
         # 要选的科目还没有可选值（已请电脑读这份账套的科目表）：不记成「要人选」，读到后再推
         return {"document": name, "status": "waiting_for_cc", "reason": wait["state"],
                 "note": _masters_note(wait["state"])}
+    # 停下时把这次要推往的连接与账套抄到票上（账套用推送服务解析出的那份），待处理页才能当场选（验收 F17）
+    going = {"connection": target, "account_set": view.get("account_set") or account_set}
     if wait:
-        push_state.record_failure(name, wait["message"])
+        push_state.record_failure(name, wait["message"], **going)
         frappe.db.commit()
         return {"document": name, "status": "failed", "reason": wait["state"], "note": _masters_note(wait["state"])}
     if needed:
         reason = "choice_needed:" + ",".join(dict.fromkeys(item["kind"] for item in needed))
-        push_state.record_failure(name, reason)
+        push_state.record_failure(name, reason, **going)
         frappe.db.commit()
         return {"document": name, "status": "needs_choice", "reason": reason}
     key = _key(name, doc.record_version, doc.last_push_record or doc.last_push_reason)

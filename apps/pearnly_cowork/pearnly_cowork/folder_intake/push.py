@@ -108,14 +108,16 @@ def push_one(entry, rule, history, attempt=0, final=True):
         # 这份账套的科目表还没读到（已请电脑读）：过一会儿再推，不记成「要人选」却没有可选的科目
         return {"status": "retry", "reason": READING if wait["state"] == "reading" else OFFLINE,
                 "seconds": READING_SECONDS if wait["state"] == "reading" else None}
+    # 停下时把这次要推往的连接与账套抄到票上，待处理页才能当场选（验收 F17）
+    going = {"connection": rule.connection, "account_set": view.get("account_set") or rule.account_set_key}
     if wait:
         # 电脑上的 CC 桌面端要升级 / 读不到这份账套，或一直没读到：原因记在票上（列表显示「失败」+ 原因），人处理后重推
-        push_state.record_failure(history, wait["message"])
+        push_state.record_failure(history, wait["message"], **going)
         frappe.db.commit()
         return {"status": "failed", "reason": wait["message"][:300]}
     if remaining:
         reason = "choice_needed:" + ",".join(dict.fromkeys(item["kind"] for item in remaining))
-        push_state.record_failure(history, reason)
+        push_state.record_failure(history, reason, **going)
         frappe.db.commit()
         return {"status": "held", "reason": reason}
     adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")

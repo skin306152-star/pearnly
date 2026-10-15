@@ -110,13 +110,16 @@ def source_text(reason):
     return text
 
 
-def record_failure(history, reason):
+def record_failure(history, reason, *, connection=None, account_set=None):
     """还没进账本就失败（目标不可用、目录证据失效、推送未开启……）：只记原因，不改推送状态。
 
     推送状态只由账本投影；这里写的原因让列表状态图标能显示「失败 + 原因」，下次推成功时由 mirror 清掉。
-    调用方已核过这张票的读取范围。
+    给了 ``connection`` 与 ``account_set``（CC 对话、定时任务推之前停下，这次要推往哪）就一并抄到票上：先「仅识别」再推的票原本没有去向，
+    待处理页没法当场选、按公司也归不上（2026-10-15 验收 F17）。调用方已核过这张票的读取范围。
     """
-    frappe.db.set_value('Cowork OCR History', history, 'last_push_reason', source_text(reason)[:500],
-                        update_modified=False)
+    values = {'last_push_reason': source_text(reason)[:500]}
+    if connection and account_set:
+        values.update(push_connection=str(connection), push_account_set=str(account_set))
+    frappe.db.set_value('Cowork OCR History', history, values, update_modified=False)
     _changed(history)
     _announce(history)

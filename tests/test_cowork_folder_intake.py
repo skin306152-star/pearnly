@@ -334,7 +334,7 @@ class OfflineCompanionRetry(unittest.TestCase):
         现在推送服务已请电脑读（`wait`），这里过一分钟再推；电脑离线按离线重试；要升级 / 读不到、或最后一次照实记在票上。"""
         push, rule, entry, calls = self._push()
         failures = []
-        push.push_state.record_failure = lambda history, reason: failures.append((history, reason))
+        push.push_state.record_failure = lambda history, reason, **k: failures.append((history, reason, k))
         waiting = {"state": "reading", "message": "reading"}
         push.application.choices_view = lambda *a, **k: {"needed": [{"kind": "account"}], "wait": dict(waiting)}
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=False),
@@ -345,7 +345,8 @@ class OfflineCompanionRetry(unittest.TestCase):
         for state, final in (("update_needed", False), ("reading", True)):
             waiting.update(state=state, message="msg:" + state)
             self.assertEqual(push.push_one(entry, rule, "H", 36, final=final)["status"], "failed")
-        self.assertEqual(failures, [("H", "msg:update_needed"), ("H", "msg:reading")])
+        going = {"connection": rule.connection, "account_set": rule.account_set_key}  # 停下时去向一并抄到票上（验收 F17）
+        self.assertEqual(failures, [("H", "msg:update_needed", going), ("H", "msg:reading", going)])
         self.assertEqual(calls["keys"], [])  # 没有准备过、也没有留下「要人选」的记录
 
     def test_replayed_withdrawn_preparation_is_not_counted_as_sent(self):
@@ -1165,6 +1166,21 @@ class PushRefreshesTheFile(unittest.TestCase):
         with mock.patch.dict(sys.modules, modules):
             push_state = _load("push_state_announce_under_test", APP / "history/push_state.py")
         return push_state, modules, announced, logged
+
+    def test_a_stop_records_where_the_document_was_going(self):
+        """验收 F17：CC 对话、定时任务推之前停下时，这次要推往的连接与账套一并抄到票上；没给就只记原因。"""
+        push_state, modules, announced, logged = self._push_state()
+        written = []
+        modules["frappe"].db.set_value = lambda doctype, name, values, **kwargs: written.append((name, values))
+        with mock.patch.dict(sys.modules, modules):
+            push_state.record_failure("H3", "choice_needed:payment,account", connection="C1", account_set="c:\\70exp\\t9niexcp")
+            push_state.record_failure("H4", "target offline")
+            push_state.record_failure("H5", "choice_needed:account", connection="C1", account_set="")
+        self.assertEqual(written, [
+            ("H3", {"last_push_reason": "choice_needed:payment,account", "push_connection": "C1",
+                    "push_account_set": "c:\\70exp\\t9niexcp"}),
+            ("H4", {"last_push_reason": "target offline"}),
+            ("H5", {"last_push_reason": "choice_needed:account"})])
 
     def test_every_push_state_change_is_announced_and_never_breaks_the_push(self):
         row = Row(name="R1", history="H1", status="success", workspace="W", client="", reason="")
