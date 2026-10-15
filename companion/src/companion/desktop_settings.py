@@ -352,16 +352,16 @@ class DesktopSettings:
         return {"ok": True}
 
     def _upgrade_pool_members(self, roots: list, lang: str) -> None:
-        """当初没有 Express、按只读文件夹的成员加入 Express 池的（pairing_flow），现在找到了 Express：用它原来的密钥按
-        Express 重新配对一次（成了能写账的成员）。MR.ERP 的成员不动。"""
+        """当初没有 Express、按只读文件夹的成员加入 Express 池的（pairing_flow，存了 ``pool`` 标记），现在找到了 Express：用它原来的
+        密钥按 Express 重新配对一次（成了能写账的成员）。MR.ERP 的成员（没有 ``pool``）不动，也不为判断它联网查连接类型；
+        密钥被服务端说过不能再用的（``device_state``）不动，等对话页重新登记换上新密钥。"""
         store = self._store()
         for record in list(store.profiles):
-            if (getattr(record, "kind", "express") or "express") != "folder":
+            if (getattr(record, "kind", "express") or "express") != "folder" or not getattr(record, "pool", False):
+                continue
+            if getattr(record, "device_state", ""):
                 continue
             try:
-                cfg = store.runtime_config(record.profile_id)
-                if pairing.connection_kind("", cfg) != "express":
-                    continue
                 result = pairing_flow.run(store, "", roots=roots, profile_id=record.profile_id, lang=normalize(lang))
                 log.info("只读成员按 Express 重新配对：%s", bool(result and result.ok))
             except Exception:

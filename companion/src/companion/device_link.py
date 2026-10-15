@@ -8,7 +8,7 @@
   （``ProfileStore.device_key``）。它只用来把这台电脑的几把密钥归成一台、证明「同一台重连」；机器身份仍只来自 ``exp_`` 密钥。
   对话页经桥拿到它（``tomo_bridge`` 的 ``state().device``），每次打开都带它登记（register v2，对话页一侧在第 6 批）。
 - **认电脑**：每个成员（Express 与 MR.ERP 的只读文件夹成员都算）启动后各发一次；之后名字、常驻、网卡地址（十分钟重查一次）
-  变了再发。回复：
+  变了再发，内容没变也每 12 小时再发一次；换了密钥（重新配对）或上次被说不能再用、现在标记清掉了，马上再发。回复：
   - ``attached``：挂上了（服务端下一次心跳要整份账套名单，`worker` 照常处理）；
   - ``superseded``：这台电脑在这条连接上已有自己的密钥，这把（旧槽位）已被服务端吊销 → 本机丢掉它：同一条连接还有别的成员就删掉
     这个，没有就标出来等对话页重新登记（``rekey``）；
@@ -46,6 +46,8 @@ NEEDS_REGISTER = (SUPERSEDED, CLAIMED_ELSEWHERE)
 REFUSED = (401, 403, 404)
 OLD_SERVER_RETRY = 1800.0   # 旧服务端：半小时后再问一次（服务端可能已升级）
 FAILED_RETRY = 300.0        # 网络、报文问题：五分钟后再试
+# 挂上了、内容也没变，最多这么久也再认一次（服务端那边把这台摘掉了而本机不知道时，不必等进程重启才恢复）
+REFRESH_SECONDS = 12 * 3600.0
 
 
 class OldServer(Exception):
@@ -153,7 +155,7 @@ class Announcer:
             return None
         now = self._clock()
         with self._lock:
-            due, sent, _status = self._memory.get(token, (0.0, None, None))
+            due, sent, last_status = self._memory.get(token, (0.0, None, None))
         if sent is None and now < due:
             return None   # 上次没成（旧服务端、连不上）：到点再试
         key = self._key()
@@ -167,8 +169,8 @@ class Announcer:
         except Exception:
             log.warning("整理认电脑的内容失败", exc_info=True)
             return None
-        if sent is not None and body == sent:
-            return None   # 挂上了、内容没变：不再发
+        if sent is not None and body == sent and now < due and last_status not in NEEDS_REGISTER:
+            return None   # 挂上了、内容没变、没到再认的时候：不再发
         try:
             reply = self._send(url, token, body)
         except OldServer as error:
@@ -188,7 +190,7 @@ class Announcer:
                 self._memory[token] = (now + FAILED_RETRY, None, None)
             return None
         with self._lock:
-            self._memory[token] = (now, body, status)
+            self._memory[token] = (now + REFRESH_SECONDS, body, status)
         if status in NEEDS_REGISTER:
             log.warning("这把密钥不再用（%s），等对话页重新登记 · profile=%s", status, getattr(cfg, "profile_id", ""))
             try:
@@ -201,6 +203,12 @@ class Announcer:
                 except Exception:
                     log.exception("认电脑结果回调失败")
         return status
+
+
+    def forget(self, token: str) -> None:
+        """忘掉这把密钥上次认电脑的记录（换了密钥、或「不能再用」的标记清掉了）：下一轮马上再认一次。"""
+        with self._lock:
+            self._memory.pop(str(token or ""), None)
 
 
 def settle(store, profile_id: str, status: str) -> str:

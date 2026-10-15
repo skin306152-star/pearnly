@@ -110,6 +110,9 @@ class CompanionConfig:
     kind: str = "express"
     # 认电脑时服务端说这把密钥不能再用（superseded / claimed_elsewhere，见 device_link）：这个成员停用，等对话页重新登记
     device_state: str = ""
+    # 没有 Express、按只读文件夹的成员加入事务所 Express 池的（pairing.pair_folder(pool=True) 且服务端说是 Express 连接）：
+    # 以后找到 Express 只按这个标记重新配对成能写账的成员（desktop_settings._upgrade_pool_members），不靠联网查连接类型
+    pool: bool = False
 
     def resolved_express_root(self) -> Optional[str]:
         """探测账套用的数据根:显式 express_root 优先,否则取 account_dir 的父目录。"""

@@ -35,6 +35,11 @@ ERR_ACCOUNT_UID_MISMATCH = "ERR_ACCOUNT_UID_MISMATCH"
 # 账套暂时读不到时就地再探的等待（秒）：网络共享抖一下多半几秒内恢复；一直读不到时每轮约 15 秒回报一次，
 # 不对服务端空转（「等账套」不烧重试次数，下一轮马上又会领到这张）。
 UNREACHABLE_RECHECK_SECONDS = (5.0, 5.0, 5.0)
+# 文件号对不上回到排队后本机的冷却：同一张单短时间内又派回这台（服务端还没把这台对这份账套标 stale）时，回报后先歇一会儿
+# 再领，不原地空转、不每轮都整套重扫。第一次对不上不等（尽快交给别的电脑）。
+UID_MISMATCH_COOLDOWN_SECONDS = 20.0
+UID_MISMATCH_REPEAT_WINDOW = 120.0
+_uid_mismatch_seen: dict = {}   # 任务号 → 上次在这台对不上的时刻（monotonic）
 
 
 class AccountUnreachable(Exception):
@@ -148,6 +153,17 @@ def uid_mismatch(expected: object, account_dir: str, uid_of=None) -> bool:
     return bool(actual) and actual != want
 
 
+def _note_uid_mismatch(task_id: str, now: Optional[float] = None) -> bool:
+    """记下这张单在这台对不上文件号；短时间内第二次起回 True（要本机冷却）。"""
+    moment = time.monotonic() if now is None else now
+    for key, seen in list(_uid_mismatch_seen.items()):
+        if moment - seen > UID_MISMATCH_REPEAT_WINDOW:
+            _uid_mismatch_seen.pop(key, None)
+    repeat = task_id in _uid_mismatch_seen
+    _uid_mismatch_seen[task_id] = moment
+    return repeat
+
+
 def _opening_items(payload: dict):
     """Pearnly 补期初卡透传的期初行 → set_opening_stock 期望的形状。
 
@@ -248,13 +264,17 @@ def _handle_dbf_task(
         log.warning(f"… dbf task {task.id} account uid mismatch on this PC, back to the queue")
         from . import master_refresh
 
-        master_refresh.rescan_soon()  # 服务端要这台整份重报：报上去的文件号得是现在的
+        repeat = _note_uid_mismatch(str(task.id))
+        if not repeat:
+            master_refresh.rescan_soon()  # 服务端要这台整份重报：报上去的文件号得是现在的
         qc.ack_failure(
             task.id,
             "the account set on this computer is not the registered one",
             error_code=ERR_ACCOUNT_UID_MISMATCH,
             outcome="waiting_lock",
         )
+        if repeat:
+            time.sleep(UID_MISMATCH_COOLDOWN_SECONDS)   # 租约已放回：别的电脑照常能领，这台歇一会儿
         return "waiting_lock"
     # fail-safe:所选账套不齐(缺目录或账套名)→ 拒写,绝不瞎写。
     if st is None or not st.has_selection():

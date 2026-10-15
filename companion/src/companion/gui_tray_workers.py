@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import threading
+import time
 from copy import copy
 
 from PySide6.QtCore import QThread, Signal
 
-from . import account_lock, watchdog
+from . import account_lock, task_journal, watchdog
 from .config import CompanionConfig
 from .i18n import MessageSpec, default_lang, http_status_category, normalize, t
 from .logger import activity, get_logger
 
 log = get_logger(__name__)
+
+ABORT_MEMORY_SECONDS = 24 * 3600.0   # 询问框里选了「终止」的单记多久（这台再领到就按终止回报）
 
 
 class BusyPrompt:
@@ -75,6 +78,9 @@ class PollWorker(QThread):
             cfg.profile_id: {"ok": 0, "fail": 0, "invoice": ""} for cfg in self.configs
         }
         self._abort_batches: set[str] = set()
+        # 询问框里选了「终止」的单（任务号 → 何时选的）：租约已先放回排队，下次这台再领到它（不论是不是同一批）照样按终止回报。
+        # 别的电脑在此期间领到它会照常写（终止只管这台，ADR-021）；一天后不再记。
+        self._aborted_tasks: dict[str, float] = {}
         self._logged_offline_errors: dict[str, str] = {}
         self._scheduler = None
         self._live = watchdog.Liveness()
@@ -114,7 +120,8 @@ class PollWorker(QThread):
 
     def _release_then_ask(self, profile_id: str, queue, task, lang: str) -> str:
         """账套被占用：先按「等账套」回报、放掉租约，再弹询问框（多台电脑 ADR-021：不再拿着租约等人点——别的电脑会把
-        过期的租约收成「结果不明」）。选「重试」：下一轮再领（多半还是这张）；选「终止」：这一批后面领到的都按终止回报。"""
+        过期的租约收成「结果不明」）。选「重试」：下一轮再领（多半还是这张）；选「终止」：这张单以后这台再领到就按终止回报
+        （按任务号记，不随这一批结束清掉），这一批后面领到的也都按终止回报。"""
         from .dbf_writer import ERR_WAITING_LOCK
 
         try:
@@ -124,10 +131,20 @@ class PollWorker(QThread):
             log.exception("账套被占用：放回排队失败（租约到期后服务端照样收回）")
         self.status.emit(profile_id, "waiting_lock", str(task.invoice_no or ""))
         if self._ask_busy(lang) == "abort":
-            # 这张已放回排队：下一轮再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task），这里不重复记
+            # 这张已放回排队：这台再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task），这里不重复记
+            self._aborted_tasks[str(task.id)] = time.monotonic()
             self._abort_batches.add(profile_id)
             return "error"
         return "waiting_lock"
+
+    def _is_aborted(self, profile_id: str, task) -> bool:
+        now = time.monotonic()
+        for task_id, chosen in list(self._aborted_tasks.items()):
+            if now - chosen > ABORT_MEMORY_SECONDS:
+                self._aborted_tasks.pop(task_id, None)
+        if self._aborted_tasks.pop(str(task.id), None) is not None:
+            return True
+        return profile_id in self._abort_batches
 
     def _abort_task(self, profile_id: str, queue, task, lang: str) -> None:
         try:
@@ -139,44 +156,51 @@ class PollWorker(QThread):
         self.status.emit(profile_id, "error", str(task.invoice_no or ""))
         activity("log_busy_aborted", lang=lang)
 
+    def _stats(self, profile_id: str) -> dict:
+        return self._batch_stats.setdefault(profile_id, {"ok": 0, "fail": 0, "invoice": ""})
+
+    def handle_task(self, cfg, queue, task, index_batch, lang: str, write=None):
+        """取任务线程交来的一张单（``write`` = ``worker._handle_dbf_task``，测试换成假的）。"""
+        if write is None:
+            from .worker import _handle_dbf_task as write
+        profile_id = cfg.profile_id
+        batch = self._stats(profile_id)
+        # 这台写过、只是回执没送到的单：不探占用、不放回排队、不按终止回报，直接照上次的回执回报（_handle_dbf_task）。
+        # 否则会计正开着 Express 时它会被放回排队，派给没有本机写过记录的电脑再写一遍。
+        written = task_journal.written(task.id) is not None
+        if not written and self._is_aborted(profile_id, task):
+            self._abort_task(profile_id, queue, task, lang)
+            batch["fail"] += 1
+            return "error"
+        # 常驻电脑、替别人写的单没人点询问框：不问，交给写入时的占用检查按「等账套」回报，空出来自动再写（always_on.py）
+        if not written and not self._unattended(cfg, task) and not self._stop:
+            account_dir = self._account_dir(cfg, task)
+            if account_dir and account_lock.is_account_busy(account_dir):
+                return self._release_then_ask(profile_id, queue, task, lang)
+        if self._stop:
+            return "error"
+        try:
+            outcome = write(cfg, queue, task, index_batch=index_batch)
+        except Exception:
+            batch["fail"] += 1
+            raise
+        if outcome == "waiting_lock":
+            return "waiting_lock"
+        if outcome:
+            batch["fail"] += 1
+            return "error"
+        batch["ok"] += 1
+        batch["invoice"] = str(task.invoice_no or "")
+        return None
+
     def run(self) -> None:
         from .multi_profile_worker import MultiProfileWorker
-        from .worker import _handle_dbf_task
 
         lang = normalize(getattr(self.cfg, "ui_lang", "") or default_lang())
-
-        def stats(profile_id: str) -> dict:
-            return self._batch_stats.setdefault(
-                profile_id, {"ok": 0, "fail": 0, "invoice": ""}
-            )
+        stats = self._stats
 
         def handle(cfg, queue, task, index_batch):
-            profile_id = cfg.profile_id
-            batch = stats(profile_id)
-            if profile_id in self._abort_batches:
-                self._abort_task(profile_id, queue, task, lang)
-                batch["fail"] += 1
-                return "error"
-            # 常驻电脑、替别人写的单没人点询问框：不问，交给写入时的占用检查按「等账套」回报，空出来自动再写（always_on.py）
-            if not self._unattended(cfg, task) and not self._stop:
-                account_dir = self._account_dir(cfg, task)
-                if account_dir and account_lock.is_account_busy(account_dir):
-                    return self._release_then_ask(profile_id, queue, task, lang)
-            if self._stop:
-                return "error"
-            try:
-                outcome = _handle_dbf_task(cfg, queue, task, index_batch=index_batch)
-            except Exception:
-                batch["fail"] += 1
-                raise
-            if outcome == "waiting_lock":
-                return "waiting_lock"
-            if outcome:
-                batch["fail"] += 1
-                return "error"
-            batch["ok"] += 1
-            batch["invoice"] = str(task.invoice_no or "")
-            return None
+            return self.handle_task(cfg, queue, task, index_batch, lang)
 
         def batch_done(profile_id: str) -> None:
             self._abort_batches.discard(profile_id)

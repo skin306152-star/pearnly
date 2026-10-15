@@ -39,8 +39,10 @@ def _fresh():
 def _store(tmp_path, *members):
     store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
     for token, kind in members:
+        pool = kind == "pool"   # 没有 Express、按只读成员加入 Express 池的
+        kind = "folder" if pool else kind
         cfg = store.new_runtime_config()
-        cfg.update(backend_url="https://testcowork.pearnly.com", bearer_token=token, paired=True, kind=kind,
+        cfg.update(backend_url="https://testcowork.pearnly.com", bearer_token=token, paired=True, kind=kind, pool=pool,
                    endpoint_id=token.split("_")[1], account_dir="" if kind == "folder" else "S:\\EXP\\A",
                    account_set="" if kind == "folder" else "S:\\EXP\\A")
         store.save_profile(cfg)
@@ -298,6 +300,137 @@ def test_pairing_a_new_key_clears_the_stop(tmp_path, monkeypatch):
     assert result.ok
     record = _reload(store).profiles[0]
     assert record.device_state == "" and _reload(store).runtime_config(member).bearer_token == "exp_M1_new"
+    assert record.pool is False   # MR.ERP 成员不是 Express 池的
+
+
+def test_pairing_again_with_the_same_key_keeps_the_stop(tmp_path, monkeypatch):
+    # 留空配对码 = 沿用原密钥：服务端说过这把不能再用，重配一次也还是不能用，标记不清（也就不会悄悄又干起活来）
+    store = _store(tmp_path, ("exp_C1_pool", "pool"))
+    member = store.profiles[0].profile_id
+    store.set_device_state(member, "claimed_elsewhere")
+
+    class _Folder:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def sync(self, body):
+            return {"ok": True, "adapter": "express", "label": ""}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("src.companion.folder_client.FolderClient", _Folder)
+    result = pairing.pair_folder(token="", enable_autostart=False, pool=True,
+                                 config=_reload(store).runtime_config(member), profile_store=_reload(store))
+    assert result.ok and _reload(store).profiles[0].device_state == "claimed_elsewhere"
+
+
+def test_a_new_key_makes_the_computer_say_hello_again_right_away():
+    clock = _Clock()
+    announcer, sent = _announcer([{"ok": True, "status": "claimed_elsewhere"}], clock)
+    assert announcer.announce(_cfg()) == "claimed_elsewhere"
+    cfg = _cfg(token="exp_C1_new", device_state="claimed_elsewhere")
+    previous = SimpleNamespace(bearer_token="exp_C1_secret", device_state="claimed_elsewhere", paired=True)
+    real = device_link.ANNOUNCER
+    device_link.ANNOUNCER = announcer
+    try:
+        assert pairing._device_state_after(previous, "exp_C1_secret", "exp_C1_secret") == "claimed_elsewhere"
+        assert "exp_C1_secret" in announcer._memory
+        assert pairing._device_state_after(previous, "exp_C1_new", "exp_C1_secret") == ""
+        assert "exp_C1_secret" not in announcer._memory   # 旧密钥的记录也忘掉
+    finally:
+        device_link.ANNOUNCER = real
+    cfg.device_state = ""
+    assert announcer.announce(cfg) == "attached" and len(sent) == 2
+
+
+def test_a_cleared_stop_on_the_same_key_is_told_again_not_trusted_from_memory():
+    clock = _Clock()
+    announcer, sent = _announcer([{"ok": True, "status": "claimed_elsewhere"}], clock)
+    cfg = _cfg()
+    assert announcer.announce(cfg) == "claimed_elsewhere"
+    cfg.device_state = ""   # 标记被清掉了（不是换密钥）：内容没变也要再问服务端，不能悄悄干活
+    assert announcer.announce(cfg) == "attached" and len(sent) == 2
+
+
+def test_an_attached_computer_says_hello_again_twice_a_day_even_if_nothing_changed():
+    clock = _Clock()
+    announcer, sent = _announcer([], clock)
+    assert announcer.announce(_cfg()) == "attached"
+    clock.now = device_link.REFRESH_SECONDS - 1
+    assert announcer.announce(_cfg()) is None
+    clock.now = device_link.REFRESH_SECONDS + 1
+    assert announcer.announce(_cfg()) == "attached" and len(sent) == 2
+
+
+# ── 设备密钥不悄悄换 ──
+
+class _Backup:
+    def __init__(self, data=None):
+        self.data = dict(data or {})
+        self.writes = 0
+
+    def read(self):
+        return dict(self.data)
+
+    def write(self, data):
+        self.writes += 1
+        self.data = dict(data)
+
+
+def _with_backup(monkeypatch, backup, machine=""):
+    from src.companion import device_key_backup
+
+    monkeypatch.setattr(device_key_backup, "default_backup", lambda: backup)
+    monkeypatch.setattr(device_key_backup, "machine_id", lambda: machine)
+
+
+def test_the_device_key_is_copied_to_the_registry_and_comes_back_after_an_older_version_dropped_it(tmp_path,
+                                                                                                    monkeypatch):
+    backup = _Backup()
+    _with_backup(monkeypatch, backup, machine="guid-a")
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    key = store.device_key()
+    assert backup.data["key"].startswith("test:") and backup.data["machine"] == "guid-a"
+    document = json.loads(store.path.read_text(encoding="utf-8"))
+    assert document["device"] == {"key": backup.data["key"], "machine": "guid-a"}
+    document.pop("device")   # 降级到 1.6 再升级：旧版重写文件丢了这一键
+    store.path.write_text(json.dumps(document), encoding="utf-8")
+    assert _reload(store).device_key() == key
+    assert json.loads(store.path.read_text(encoding="utf-8"))["device"]["key"] == backup.data["key"]
+
+
+def test_an_unreadable_device_key_is_replaced_instead_of_kept_forever(tmp_path, monkeypatch):
+    backup = _Backup()
+    _with_backup(monkeypatch, backup)
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    document = json.loads(store.path.read_text(encoding="utf-8"))
+    document["device"] = {"key": "other-user:abc"}   # 另一个 Windows 用户的 DPAPI 密文：解不开
+    store.path.write_text(json.dumps(document), encoding="utf-8")
+    key = _reload(store).device_key()
+    assert SERVER_DEVICE_KEY.fullmatch(key)
+    assert _reload(store).device_key() == key and backup.data["key"] != "other-user:abc"
+
+
+def test_a_cloned_computer_gets_its_own_device_key(tmp_path, monkeypatch):
+    backup = _Backup()
+    _with_backup(monkeypatch, backup, machine="guid-a")
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    original = store.device_key()
+    _with_backup(monkeypatch, _Backup(backup.data), machine="guid-b")   # 同一个镜像克隆出来、sysprep 过的另一台
+    clone = _reload(store).device_key()
+    assert clone != original
+    assert json.loads(store.path.read_text(encoding="utf-8"))["device"]["machine"] == "guid-b"
+    assert _reload(store).device_key() == clone
+
+
+def test_a_computer_whose_system_id_cannot_be_read_keeps_its_key(tmp_path, monkeypatch):
+    backup = _Backup()
+    _with_backup(monkeypatch, backup, machine="guid-a")
+    store = _store(tmp_path, ("exp_C1_secret", "express"))
+    key = store.device_key()
+    _with_backup(monkeypatch, backup, machine="")
+    assert _reload(store).device_key() == key
 
 
 # ── 断开连接 ──
@@ -352,6 +485,7 @@ def test_a_computer_without_express_joins_the_express_pool_as_a_read_only_member
     assert detected == [True]   # 先找过 Express，找不到才按只读成员加入
     record = _reload(store).profiles[0]
     assert (record.kind, record.endpoint_id, record.endpoint_name) == ("folder", "C1", "Express")
+    assert record.pool is True   # 以后找到 Express 只按这个标记升级
 
 
 def test_an_express_code_still_needs_express_for_an_existing_writer(tmp_path, monkeypatch):
@@ -365,12 +499,17 @@ def test_an_express_code_still_needs_express_for_an_existing_writer(tmp_path, mo
 
 
 def test_finding_express_later_turns_a_read_only_pool_member_into_a_writer(tmp_path, monkeypatch):
-    store = _store(tmp_path, ("exp_C1_pool", "folder"), ("exp_M1_x", "folder"))
-    kinds = {"exp_C1_pool": "express", "exp_M1_x": "mrerp"}
-    monkeypatch.setattr(pairing, "connection_kind", lambda code, cfg=None: kinds[cfg.bearer_token])
+    store = _store(tmp_path, ("exp_C1_pool", "pool"), ("exp_M1_x", "folder"), ("exp_C2_gone", "pool"))
+    store.set_device_state(store.profiles[2].profile_id, "claimed_elsewhere")
+
+    def no_network(code, cfg=None):
+        raise AssertionError("upgrading reads the pool mark, it never asks the server")
+
+    monkeypatch.setattr(pairing, "connection_kind", no_network)
     ran = []
     monkeypatch.setattr(pairing_flow, "run", lambda st, code, **kw: ran.append((code, kw["profile_id"], kw["roots"]))
                         or SimpleNamespace(ok=True))
     settings = DesktopSettings(load_store=lambda: _reload(store))
     assert settings._use_roots(["S:\\2569\\EXP69"], "zh") == {"ok": True, "profiles_changed": True}
-    assert ran == [("", store.profiles[0].profile_id, ["S:\\2569\\EXP69"])]   # 只动 Express 池的那一个，用它原来的密钥
+    # 只动 Express 池的那一个、用它原来的密钥；MR.ERP 成员与被说过不能再用的密钥都不动（断网时也不会把 MR.ERP 当 Express）
+    assert ran == [("", store.profiles[0].profile_id, ["S:\\2569\\EXP69"])]

@@ -87,7 +87,7 @@ def _update_state_in_tmp(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _device_identity_fresh(monkeypatch):
-    """多台电脑（device_link / device_facts）：设备密钥、网卡与文件号的进程内缓存每个用例从空开始；
+    """多台电脑（device_link / device_facts / device_key_backup）：设备密钥、网卡与文件号的进程内缓存每个用例从空开始；
     默认的认电脑对象不接托盘回调，也绝不用本机真的配置文件生成设备密钥。"""
     import importlib
 
@@ -95,11 +95,19 @@ def _device_identity_fresh(monkeypatch):
         try:
             link = importlib.import_module(name + ".device_link")
             facts = importlib.import_module(name + ".device_facts")
+            backup = importlib.import_module(name + ".device_key_backup")
         except ImportError:
             continue
+        # 设备密钥的注册表备份与系统标识：用例里一律不碰真的注册表（要测的用例自己换成假的）
+        monkeypatch.setattr(backup, "default_backup", backup.NoBackup)
+        monkeypatch.setattr(backup, "machine_id", lambda: "")
         link._reset_for_tests()
         facts._reset_for_tests()
         monkeypatch.setattr(link.ANNOUNCER, "on_result", None)
         monkeypatch.setattr(link.ANNOUNCER, "_memory", {})
         monkeypatch.setattr(link.ANNOUNCER, "_key", lambda: "")
+        try:
+            monkeypatch.setattr(importlib.import_module(name + ".worker"), "_uid_mismatch_seen", {})
+        except ImportError:
+            pass
     yield

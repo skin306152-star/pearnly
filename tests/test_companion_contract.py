@@ -773,6 +773,17 @@ class WriteDispatch(unittest.TestCase):
         self.assertIn("mark_stale(", transport)
         self.assertIn("request_full_report(", transport)
 
+    def test_a_task_written_here_is_never_handed_back_to_the_queue(self):
+        # 第 5 批审查：这台写过（回执没送到）的单先于占用探测、终止与文件号核对认出来，照上次回执回报；否则放回排队会交给
+        # 没有本机写过记录的电脑再写一遍（服务端只按任务号去重不了 Express 里已建的单）
+        handle = method_source(COMPANION / "gui_tray_workers.py", "PollWorker", "handle_task")
+        written = handle.index("task_journal.written(task.id)")
+        self.assertLess(written, handle.index("account_lock.is_account_busy("))
+        self.assertLess(written, handle.index("self._abort_task("))
+        self.assertIn("if not written and (not self._unattended(cfg, task))", handle)
+        handler = method_source_of(COMPANION / "worker.py", "_handle_dbf_task")
+        self.assertLess(handler.index("task_journal.written(task.id)"), handler.index("if expected_uid and"))
+
     def test_the_substituted_location_covers_what_the_helper_reads(self):
         keys = set(ast.literal_eval(next(
             node.value for node in ast.parse(self.LOCATION.read_text(encoding="utf-8")).body

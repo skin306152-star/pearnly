@@ -110,6 +110,19 @@ def _connection_identity(heartbeat: dict, token: str) -> dict[str, str]:
     }
 
 
+def _device_state_after(cfg: CompanionConfig, token: str, previous_token: str) -> str:
+    """配对后这个成员的 ``device_state``：换上了新密钥 → 清空（并让认电脑忘掉旧记录、马上再认一次）；沿用原密钥 → 照旧
+    （服务端说过不能再用的密钥，重配一次也还是不能用，device_link）。"""
+    current = str(getattr(cfg, "device_state", "") or "")
+    if token == previous_token and bool(getattr(cfg, "paired", False)):
+        return current
+    from . import device_link
+
+    for old in (previous_token, token):
+        device_link.ANNOUNCER.forget(old)
+    return ""
+
+
 def pair(
     *,
     token: str,
@@ -243,6 +256,7 @@ def pair(
     # account_set 唯一键 = 账套 PATH(端侧选定即权威);云端 config.account_set 由本心跳上报存入,
     # 不反向覆盖(避免旧 DATAT 默认串账套)。
 
+    previous_token = str(getattr(cfg, "bearer_token", "") or "").strip()
     target = replace(cfg) if profile_store is not None else cfg
     target.update(
         bearer_token=token,
@@ -259,7 +273,9 @@ def pair(
         express_workdate=express_workdate,
         paired=True,
         kind="express",  # 以前没有 Express、按只读成员加入池的，找到 Express 后在这里成了能写账的成员
-        device_state="",  # 换上了新密钥：以前「这把不能再用」的标记作废（device_link）
+        pool=False,
+        # 只有换上了新密钥，以前「这把不能再用」的标记才作废（device_link）；沿用原密钥重配不清
+        device_state=_device_state_after(cfg, token, previous_token),
         **identity,
         **_mapping,
     )
@@ -366,13 +382,15 @@ def pair_folder(
         return _failure("pair_err_rejected", lang)
     fallback = "Express" if reply.get("adapter") == "express" else "MR.ERP"
     label = str(reply.get("label") or fallback).strip()[:80] or fallback
+    previous_token = str(getattr(cfg, "bearer_token", "") or "").strip()
     target = replace(cfg) if profile_store is not None else cfg
     target.update(
         bearer_token=token,
         backend_url=backend_url,
         kind="folder",
         paired=True,
-        device_state="",  # 换上了新密钥：以前「这把不能再用」的标记作废（device_link）
+        pool=reply.get("adapter") == "express",
+        device_state=_device_state_after(cfg, token, previous_token),
         endpoint_id=_endpoint_id_from_token(token),
         endpoint_name=label,
     )

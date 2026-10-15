@@ -172,9 +172,20 @@ def test_host_names_are_the_computer_names_then_addresses_of_adapters_with_a_def
         _adapter("Dial", ["10.9.0.2"], ["10.9.0.1"], if_type=23),                     # 拨号
         _adapter("Down", ["192.168.5.5"], ["192.168.5.1"], up=False),
         _adapter("NoGw", ["192.168.9.9"], ["0.0.0.0"]),
+        _adapter("Corp Link", ["10.66.0.4"], ["10.66.0.1"], if_type=53),             # wintun 一类：按类型排除
     ]
     names = df.pick_host_names("DESKTOP-MN2BRKR", ["DESKTOP-MN2BRKR", "desktop-mn2brkr.office.local"], adapters)
     assert names == ["DESKTOP-MN2BRKR", "desktop-mn2brkr.office.local", "192.168.0.78", "10.0.0.5"]
+
+
+def test_long_folder_paths_are_opened_with_the_long_path_prefix():
+    short = "S:\\2569\\ACME"
+    assert df.extended_path(short) == short
+    deep = "S:\\" + "\\".join(["บริษัท ตัวอย่าง จำกัด"] * 12)
+    assert len(deep) >= 248 and df.extended_path(deep) == "\\\\?\\" + deep
+    unc = "\\\\nas\\pas212\\" + "\\".join(["x" * 30] * 9)
+    assert df.extended_path(unc) == "\\\\?\\UNC\\" + unc[2:]
+    assert df.extended_path("\\\\?\\" + deep) == "\\\\?\\" + deep   # 已带前缀的不重复加
 
 
 def test_host_names_are_capped_like_the_server():

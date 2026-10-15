@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 from .config import CONFIG_FILE, CompanionConfig
+from .logger import get_logger
 from .token_protector import (
     ProfileStoreError,
     TokenProtector,
@@ -23,6 +24,8 @@ from .token_protector import (
     WindowsCurrentUserProtector,
     default_protector,
 )
+
+_log = get_logger(__name__)
 
 SCHEMA_VERSION = 4
 SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 3, SCHEMA_VERSION})
@@ -95,6 +98,8 @@ class ProfileRecord:
     # 认电脑时服务端说这把密钥不能再用（superseded / claimed_elsewhere，device_link）：这个成员停用，等对话页重新登记
     # 换上新密钥时清空（配对写新密钥时一并清掉）。
     device_state: str = ""
+    # 没有 Express、按只读文件夹的成员加入 Express 池的（找到 Express 后只按它升级，见 CompanionConfig.pool）
+    pool: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ProfileRecord":
@@ -132,7 +137,9 @@ class ProfileStore:
         self._profiles = list(profiles)
         self._protector = protector
         # 这台电脑的设备密钥（DPAPI 密文，device_link）：一经生成就不换；文件里已有的永远优先（见 _write）。
+        # 只有解不开、或是从另一台电脑（系统标识不同）带过来的，才在 device_key() 里显式换一把新的。
         self._device_cipher = str(device_cipher or "")
+        self._device_machine = ""
 
     @property
     def profiles(self) -> tuple[ProfileRecord, ...]:
@@ -173,6 +180,7 @@ class ProfileStore:
         global_settings = GlobalSettings.from_dict(raw["global"])
         profiles = [ProfileRecord.from_dict(item) for item in raw["profiles"]]
         store = cls(path, global_settings, profiles, protector, _device_of(raw))
+        store._device_machine = _machine_of(raw)
         store._assert_unique_profile_ids(profiles)
         return store
 
@@ -249,6 +257,7 @@ class ProfileStore:
             pearnly_account=str(getattr(cfg, "pearnly_account", "") or ""),
             kind="folder" if getattr(cfg, "kind", "") == "folder" else "express",
             device_state=str(getattr(cfg, "device_state", "") or ""),
+            pool=bool(getattr(cfg, "pool", False)) and getattr(cfg, "kind", "") == "folder",
         )
 
     def _runtime(self, record: ProfileRecord) -> CompanionConfig:
@@ -341,19 +350,49 @@ class ProfileStore:
         self._profiles = profiles
 
     def device_key(self) -> str:
-        """这台电脑（当前 Windows 用户）的设备密钥：文件里有就解开，没有就生成一把存下（device_link）。
+        """这台电脑（当前 Windows 用户）的设备密钥：文件里有就解开，没有就从注册表备份恢复，都没有才生成一把存下（device_link）。
 
-        同一进程里几条线程同时第一次取，锁里先重读文件，只生成一次；别的进程（不会有：单实例）也以文件里先写下的为准。"""
+        - 文件与备份互相补齐（旧版重写文件会丢掉设备密钥那一键，备份它不碰，``device_key_backup``）；
+        - 解不开（换了 Windows 用户、恢复了别处的配置文件）或存下的系统标识不是这台的（克隆出来的电脑）→ 生成新的并显式盖掉
+          文件与备份，不再永远沿用坏的那份；
+        - 同一进程里几条线程同时第一次取，锁里先重读文件，只生成一次；别的进程（不会有：单实例）也以文件里先写下的为准。"""
+        from . import device_key_backup as backup_mod
         from .device_link import new_device_key
 
         with _DEVICE_LOCK:
-            cipher = self._device_cipher or _read_device_cipher(self.path)
-            if cipher:
-                self._device_cipher = cipher
-                return self._protector.unprotect(cipher)
+            backup = backup_mod.default_backup()
+            machine = backup_mod.machine_id()
+            on_disk = _read_device(self.path)
+            # 文件里的优先（可能已被同进程里另一份配置换过）；文件里没有（被旧版重写过）再用手里这份
+            if on_disk:
+                cipher, stored_machine = on_disk["key"], on_disk.get("machine", "")
+            else:
+                cipher, stored_machine = self._device_cipher, (self._device_machine if self._device_cipher else "")
+            saved = backup_mod.clean(backup.read())
+            if not cipher and saved:
+                cipher, stored_machine = saved["key"], saved.get("machine", "")
+                _log.info("设备密钥从注册表备份恢复（配置文件里没有：多半被旧版重写过）")
+            value = ""
+            if cipher and backup_mod.other_machine(stored_machine, machine):
+                _log.warning("设备密钥是从另一台电脑带过来的（系统标识不同）：这台换一把新的")
+            elif cipher:
+                try:
+                    value = self._protector.unprotect(cipher)
+                except Exception:
+                    _log.warning("设备密钥解不开（换了 Windows 用户或配置来自别处）：换一把新的", exc_info=True)
+            if value:
+                fresh = {"key": cipher, "machine": stored_machine or machine}
+                if on_disk != fresh:
+                    self._device_cipher, self._device_machine = cipher, fresh["machine"]
+                    self._write_locked(self.global_settings, list(self._profiles), replace_device=True)
+                if saved != fresh:
+                    backup.write(fresh)
+                self._device_cipher, self._device_machine = cipher, fresh["machine"]
+                return value
             value = new_device_key()
-            self._device_cipher = self._protector.protect(value)
-            self._write(self.global_settings, list(self._profiles))
+            self._device_cipher, self._device_machine = self._protector.protect(value), machine
+            self._write_locked(self.global_settings, list(self._profiles), replace_device=True)
+            backup.write({"key": self._device_cipher, "machine": machine})
             return self._protector.unprotect(self._device_cipher)
 
     def remove_profile(self, profile_id: str) -> None:
@@ -371,7 +410,8 @@ class ProfileStore:
 
     @staticmethod
     def _document(
-        global_settings: GlobalSettings, profiles: list[ProfileRecord], device_cipher: str = ""
+        global_settings: GlobalSettings, profiles: list[ProfileRecord], device_cipher: str = "",
+        device_machine: str = "",
     ) -> dict:
         document = {
             "schema_version": SCHEMA_VERSION,
@@ -381,6 +421,8 @@ class ProfileStore:
         if device_cipher:
             # 旧版（≤1.6）读这份文件时忽略这一键（它重写文件会丢掉它，再升级时这台电脑按新电脑登记一次）
             document["device"] = {"key": device_cipher}
+            if device_machine:
+                document["device"]["machine"] = device_machine
         return document
 
     def _write(
@@ -390,13 +432,16 @@ class ProfileStore:
             self._write_locked(global_settings, profiles)
 
     def _write_locked(
-        self, global_settings: GlobalSettings, profiles: list[ProfileRecord]
+        self, global_settings: GlobalSettings, profiles: list[ProfileRecord], *, replace_device: bool = False
     ) -> None:
         # 设备密钥一经写下就不换：手里这份配置读得早（还没有设备密钥）时，沿用文件里已有的那把，不把它盖掉。
-        on_disk = _read_device_cipher(self.path)
-        if on_disk:
-            self._device_cipher = on_disk
-        document = self._document(global_settings, profiles, self._device_cipher)
+        # 只有 device_key() 判定文件里那把不能用（解不开、来自别的电脑）或要补上时才显式盖（replace_device）。
+        if not replace_device:
+            on_disk = _read_device(self.path)
+            if on_disk:
+                self._device_cipher = on_disk["key"]
+                self._device_machine = on_disk.get("machine", "")
+        document = self._document(global_settings, profiles, self._device_cipher, self._device_machine)
         encoded = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode(
             "utf-8"
         )
@@ -446,11 +491,20 @@ def _device_of(raw) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _read_device_cipher(path: Path) -> str:
+def _machine_of(raw) -> str:
+    device = raw.get("device") if isinstance(raw, dict) else None
+    value = device.get("machine") if isinstance(device, dict) else ""
+    return value if isinstance(value, str) else ""
+
+
+def _read_device(path: Path) -> dict:
+    """文件里的设备密钥 ``{"key", "machine"}``；没有回 {}。"""
     try:
-        return _device_of(json.loads(Path(path).read_text(encoding="utf-8")))
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return ""
+        return {}
+    key = _device_of(raw)
+    return {"key": key, "machine": _machine_of(raw)} if key else {}
 
 
 __all__ = [

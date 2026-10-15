@@ -12,7 +12,7 @@
   本来就是网络路径的原样；其余（只在本机）报空。
 - ``host_names``：本机名（第一个，服务端把它当这台电脑的规范主机名）、NetBIOS 名、DNS 全名，加上**有默认网关**的网卡的
   IPv4 地址。WSL / Hyper-V 的 vEthernet、Tailscale 这类虚拟网卡没有默认网关，不报（它们的网段在各台电脑上会重复）；
-  回环、隧道、拨号连接也不报。
+  回环、隧道、拨号连接、wintun 一类的 VPN 虚拟网卡（类型 53）也不报。
 
 Windows 接口都在 ``WinApi`` 里（只在 Windows 上建），别的系统上一律报空；测试换成假的。
 """
@@ -36,6 +36,10 @@ MAX_HOST_NAME = 255
 # 虚拟网卡的名字里常见的几个词：有默认网关也不报（VPN 全隧道会带网关；WSL 镜像网络模式下的虚拟网卡同理）。
 VIRTUAL_WORDS = ("wsl", "tailscale", "zerotier", "wireguard")
 _IF_LOOPBACK, _IF_PPP, _IF_TUNNEL = 24, 23, 131
+_IF_PROP_VIRTUAL = 53   # wintun 一类的 VPN 虚拟网卡（全隧道时带网关，名字里不一定有上面那几个词）
+_SKIP_IF_TYPES = (_IF_LOOPBACK, _IF_PPP, _IF_TUNNEL, _IF_PROP_VIRTUAL)
+# CreateFileW 不带 \\?\ 前缀时路径上限 260（目录 248）：长路径补回前缀再打开
+_LONG_PATH = 248
 _OPER_UP = 1
 
 
@@ -77,6 +81,16 @@ def _windows_path(path: str) -> str:
     elif text.startswith("\\\\?\\"):
         text = text[4:]
     return ntpath.normpath(text) if text else ""
+
+
+def extended_path(path: str) -> str:
+    """给 ``CreateFileW`` 的写法：够长（≥248 个字符）的补回 ``\\\\?\\`` / ``\\\\?\\UNC\\`` 前缀，其余原样。"""
+    text = _windows_path(path)
+    if len(text) < _LONG_PATH:
+        return text
+    if text.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + text[2:]
+    return "\\\\?\\" + text
 
 
 def _inside(path: str, folder: str) -> Optional[str]:
@@ -133,7 +147,7 @@ def pick_host_names(hostname: str, others: Iterable[str], adapters: Iterable[Ada
         add(other)
     for adapter in adapters or ():
         label = f"{adapter.name} {adapter.description}".lower()
-        if (not adapter.up or adapter.if_type in (_IF_LOOPBACK, _IF_PPP, _IF_TUNNEL)
+        if (not adapter.up or adapter.if_type in _SKIP_IF_TYPES
                 or any(word in label for word in VIRTUAL_WORDS)):
             continue
         if not any(gateway and gateway != "0.0.0.0" for gateway in adapter.gateways):
@@ -404,6 +418,7 @@ class _Win32:
     _GAA_FLAGS = 0x2 | 0x4 | 0x8 | 0x80   # 不要任播 / 组播 / DNS，要网关
     _ERROR_BUFFER_OVERFLOW = 111
     _ERROR_MORE_DATA = 234
+    _ERROR_CONNECTION_UNAVAIL = 1201   # 记住了的映射、这会儿没连上：缓冲区里照样有网络路径
 
     def __init__(self) -> None:
         from ctypes import wintypes
@@ -435,7 +450,7 @@ class _Win32:
 
     def file_index(self, path: str) -> Optional[tuple]:
         invalid = ctypes.cast(-1, self._w.HANDLE).value
-        handle = self._create(path, self._FILE_READ_ATTRIBUTES, self._SHARE_ALL, None, self._OPEN_EXISTING,
+        handle = self._create(extended_path(path), self._FILE_READ_ATTRIBUTES, self._SHARE_ALL, None, self._OPEN_EXISTING,
                               self._BACKUP_SEMANTICS, None)
         if handle in (None, invalid):
             return None
@@ -452,7 +467,7 @@ class _Win32:
         for _ in range(3):
             buffer = ctypes.create_unicode_buffer(size.value)
             code = self._wnet(drive, buffer, ctypes.byref(size))
-            if code == 0:
+            if code == 0 or (code == self._ERROR_CONNECTION_UNAVAIL and buffer.value.startswith("\\\\")):
                 return buffer.value
             if code != self._ERROR_MORE_DATA:
                 return ""   # 不是映射盘（ERROR_NOT_CONNECTED 等）
@@ -504,5 +519,5 @@ class _Win32:
         return names
 
 
-__all__ = ["Adapter", "Locator", "WinApi", "cached_uid", "default_api", "file_uid", "host_names", "hostname",
-           "parse_adapters", "pick_host_names", "share_of", "share_path", "uid_of"]
+__all__ = ["Adapter", "Locator", "WinApi", "cached_uid", "default_api", "extended_path", "file_uid", "host_names",
+           "hostname", "parse_adapters", "pick_host_names", "share_of", "share_path", "uid_of"]

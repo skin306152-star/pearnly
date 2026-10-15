@@ -285,6 +285,86 @@ def test_a_busy_account_set_releases_the_lease_before_the_prompt(choice, expecte
     assert ("P1" in pw._abort_batches) is (choice == "abort")
 
 
+class _AckQueue:
+    def __init__(self):
+        self.acks = []
+
+    def ack_success(self, task_id, extracted_invoice_no=None, line_modes=None, meta=None):
+        self.acks.append(("success", task_id, None, None))
+        return True
+
+    def ack_failure(self, task_id, error, error_code=None, outcome=None, meta=None):
+        self.acks.append(("failed", task_id, error_code, outcome))
+        return True
+
+
+def _busy(monkeypatch):
+    from companion import account_lock
+
+    monkeypatch.setattr(account_lock, "is_account_busy", lambda account_dir: True)
+    monkeypatch.setattr(worker, "task_account_dir", lambda cfg, payload: "S:\\2569\\ACME")
+
+
+def test_a_task_already_written_here_is_never_handed_back_because_express_is_open(monkeypatch):
+    # 这台写成了 T、回执没送到；T 再领回来时会计正开着 Express 看这份账套：不探占用、不放回排队（否则别的电脑会再写一遍），
+    # 照上次的回执回报
+    _busy(monkeypatch)
+    task_journal.remember("T-5", {"docnum": "RR-5", "line_modes": None, "meta": {}})
+    pw = _poll_worker()
+    prompts = []
+
+    def prompt(p):
+        prompts.append(p)
+        p.done.set()
+
+    pw.busy_prompt.connect(prompt)
+    queue = _AckQueue()
+    task = SimpleNamespace(id="T-5", invoice_no="INV", payload={}, attended=True)
+    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh",
+                          write=worker._handle_dbf_task) is None
+    assert queue.acks == [("success", "T-5", None, None)]
+    pw._abort_batches.add("P1")   # 这一批选过「终止」也一样：写过的单不按终止回报
+    queue = _AckQueue()
+    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh", write=worker._handle_dbf_task) is None
+    assert queue.acks == [("success", "T-5", None, None)] and prompts == []
+
+
+def test_abort_follows_the_task_not_the_batch(monkeypatch):
+    # 选「终止」时租约已放回排队；这一批结束后这台再领到它，照样按终止回报，不再弹框
+    _busy(monkeypatch)
+    pw = _poll_worker()
+    prompts = []
+
+    def prompt(p):
+        prompts.append(p)
+        p.choice = "abort"
+        p.done.set()
+
+    pw.busy_prompt.connect(prompt)
+    task = SimpleNamespace(id="T-7", invoice_no="INV", payload={}, attended=True)
+    queue = _AckQueue()
+    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh") == "error"
+    assert queue.acks == [("failed", "T-7", "ACCOUNT_BUSY_LOCKED", "waiting_lock")] and len(prompts) == 1
+    pw._abort_batches.discard("P1")   # 这一批结束（batch_done）
+    queue = _AckQueue()
+    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh") == "error"
+    assert queue.acks == [("failed", "T-7", "USER_ABORTED_BUSY", None)] and len(prompts) == 1
+    assert "T-7" not in pw._aborted_tasks
+
+
+def test_a_repeated_uid_mismatch_cools_down_here_instead_of_spinning(monkeypatch):
+    slept = []
+    monkeypatch.setattr(worker.time, "sleep", lambda seconds: slept.append(seconds))
+    before = master_refresh._rescan_generation
+    _handle(monkeypatch, {"account_uid": "c8d5876c-0000000000002a3b"}, task_id="T-3")
+    assert slept == [] and master_refresh._rescan_generation == before + 1   # 第一次：马上交给别的电脑
+    outcome, acks, _writes = _handle(monkeypatch, {"account_uid": "c8d5876c-0000000000002a3b"}, task_id="T-3")
+    assert outcome == "waiting_lock" and acks == [("failed", "T-3", worker.ERR_ACCOUNT_UID_MISMATCH, "waiting_lock")]
+    assert slept == [worker.UID_MISMATCH_COOLDOWN_SECONDS]   # 又派回这台：回报（放掉租约）后本机歇一会儿
+    assert master_refresh._rescan_generation == before + 1   # 也不每轮都整套重扫
+    assert worker._note_uid_mismatch("T-3", now=10**9) is False   # 过了窗口重新算
+
+
 # ── 账套行带文件号与网络路径；对不上时整套重扫 ──
 
 def test_every_reported_account_set_row_carries_uid_and_share():
