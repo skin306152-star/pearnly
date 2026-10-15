@@ -549,6 +549,16 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("const errored = stepFailed({ result, isError, status });", row)
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}', row)
         self.assertIn('className="cc-step-row cc-tap"', row)
+        # 同 Claude Code 实测：行字淡色、一行省略；能展开的行尾 12px 箭头（展开转 90°），失败的「失败」在箭头前；没详情的行没有箭头
+        self.assertIn('<span className="min-w-0 flex-1 truncate">', row)
+        self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}\n'
+                      '        {expandable && <ChevronRightIcon aria-hidden />}\n      </button>', row)
+        # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；
+        # 只在展开的行里用，摘要行（按类计数）与工作状态行不用
+        self.assertIn("const subject = step.own ? stepSubject(args as Args, output?.text, known) : \"\";", row)
+        self.assertIn('{subject && <span className="cc-step-target">{` · ${subject}`}</span>}', row)
+        self.assertEqual(steps.count("stepSubject("), 1)
+        self.assertNotIn("subject", group)
         self.assertNotRegex(steps, r"\bicon\b|Icon className")
         self.assertIn('import { ChevronRightIcon } from "lucide-react";', steps)
         css = (SRC / "globals.css").read_text(encoding="utf-8")
@@ -561,6 +571,9 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);", rule(".cc-steps-card"))
         self.assertIn("  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
         self.assertIn("padding: var(--cc-step-row-py) var(--cc-step-row-px);", rule(".cc-step-row"))
+        self.assertIn("color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);", rule(".cc-step-row"))
+        self.assertIn("width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0;", rule(".cc-step-row > svg"))
+        self.assertIn('  .cc-step-row[aria-expanded="true"] > svg { transform: rotate(90deg); }', css)
         self.assertIn("  .cc-step-failed { flex-shrink: 0; color: var(--cc-danger); }", css)
         self.assertIn("font-family: var(--cc-font-mono);", rule(".cc-step-detail"))
 
@@ -616,6 +629,70 @@ assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: tr
         }
         for lang, (want, one) in cases.items():
             run_ts(script.replace("__WANT__", repr(want)).replace("__ONE__", repr(one)), lang=lang)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_step_subject_names_the_record_not_its_internal_name(self):
+        # 结果样子照 apps/pearnly_cowork/pearnly_cowork/assistant/tools.py（list_documents、push_choices、document_detail、
+        # recognize_attachments、folder_tasks、vat_draft、companion_status）
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { SUBJECT_MAX, looksInternal, recordLabels, stepSubject } from "@/lib/step-subject";
+const j = (value: unknown) => JSON.stringify(value);
+const listed = j({ documents: [
+  { name: "8f2a1c9d3e", invoice_no: "IV6810-00012", seller_name: "Makro", push_account_set: "C:\\ExpressI\\T9NIEXCP",
+    items: [{ name: "Rice 5kg", qty: 1 }] },
+  { name: "1b2c3d4e5f", invoice_no: "", seller_name: "Lotus", filename: "scan.pdf" },
+], count: 2, total: 2 });
+const known = new Map(recordLabels(JSON.parse(listed)));
+assert.deepEqual([...known], [["8f2a1c9d3e", "IV6810-00012"], ["1b2c3d4e5f", "Lotus"]]);  // 商品行的 name 不算记录
+// 推送前要选的项 ×3：各写各的单号；同一回复里没认出的落到账套文件夹名
+const choices = (doc: string) => j({ document: doc, connection: "cnx-office", account_label: "Siam Trading Co., Ltd.",
+  account_set: "C:\\ExpressI\\T9NIEXCP\\", needed: ["account"], options: {} });
+assert.equal(stepSubject({ document: "8f2a1c9d3e" }, choices("8f2a1c9d3e"), known), "IV6810-00012");
+assert.equal(stepSubject({ document: "1b2c3d4e5f" }, choices("1b2c3d4e5f"), known), "Lotus");
+assert.equal(stepSubject({ document: "9a8b7c6d5e" }, choices("9a8b7c6d5e"), known), "T9NIEXCP");
+// 详情：自己的结果里就有单号（识别字段叫 invoice_number）
+assert.equal(stepSubject({ document: "4d5e6f7a8b" }, j({ document: "4d5e6f7a8b", invoice_number: "ABB6909-00007",
+  seller_name: "Big C" })), "ABB6909-00007");
+// 识别附件：附件 → 识别出的票，第一张的单号 +其余张数；还在跑（没结果）时用参数里的账套
+const recognized = j({ results: [
+  { file: "a1b2c3d4e5", batch: "b1c2d3e4f5", state: "saved", documents: [{ name: "c1d2e3f4a5", invoice_no: "INV-001" }] },
+  { file: "a9b8c7d6e5", batch: "b9c8d7e6f5", state: "saved", documents: [{ name: "c9d8e7f6a5", invoice_no: "INV-002" }] },
+  { file: "aa11bb22cc", batch: "bb11cc22dd", state: "failed", reason: "failed" },
+] });
+const recognize = { files: ["a1b2c3d4e5", "a9b8c7d6e5", "aa11bb22cc"], account_set_key: "S:\\Express\\T9NIEXCP" };
+assert.equal(stepSubject(recognize, recognized), "INV-001 +2");
+assert.equal(stepSubject(recognize, undefined), "T9NIEXCP");
+// 定时任务：前面列任务的结果认出标题
+const tasks = new Map(recordLabels({ tasks: [{ name: "3b9c1d2e4f", title: "Monthly purchases T9", enabled: 1 }] }));
+assert.equal(stepSubject({ task: "3b9c1d2e4f" }, j({ status: "queued" }), tasks), "Monthly purchases T9");
+// 人给的字：月份、搜索词；没点账套时用结果里的公司范围
+assert.equal(stepSubject({ period: "2026-09", account_set_key: "C:\\ExpressI\\T9NIEXCP" }, "{}"), "2026-09");
+assert.equal(stepSubject({ search: "  Makro  " }, listed), "Makro");
+assert.equal(stepSubject({}, j({ documents: [], count: 0, scope: { company: "Siam Trading", company_id: "a1b2c3d4e5" } })),
+  "Siam Trading");
+// 认不出就不写：连接状态、只有内部名字、结果不是 JSON
+assert.equal(stepSubject({}, j({ connections: [{ connection: "cnx-office", label: "Office PC", online: true }] })), "");
+assert.equal(stepSubject({ document: "8f2a1c9d3e" }, j({ document: "8f2a1c9d3e", status: "not_found" })), "");
+assert.equal(stepSubject({ document: "CWH-2026-00001" }, j({ name: "CWH-2026-00001", title: "CWEC-0003" })), "");
+assert.equal(stepSubject({ documents: ["8f2a1c9d3e"] }, "not json"), "");
+assert.equal(stepSubject(undefined, undefined), "");
+assert.equal(looksInternal("IV6810-00012"), false);
+assert.equal(looksInternal("2026-09"), false);
+assert.equal(looksInternal("0012345678"), false);
+assert.equal(looksInternal("8f2a1c9d3e"), true);
+// 长的截到 SUBJECT_MAX 个字，「+其余」留着
+const long = "Siam Makro Public Company Limited (Head Office) Branch 00012";
+const longKnown = new Map([["8f2a1c9d3e", long], ["1b2c3d4e5f", "x"]]);
+const one = stepSubject({ document: "8f2a1c9d3e" }, undefined, longKnown);
+assert.equal([...one].length, SUBJECT_MAX);
+assert.ok(one.endsWith("…") && long.startsWith(one.slice(0, -1)));
+const many = stepSubject({ documents: ["8f2a1c9d3e", "1b2c3d4e5f"] }, undefined, longKnown);
+assert.equal([...many].length, SUBJECT_MAX);
+assert.ok(many.endsWith("… +1"));
+(globalThis as any).done();
+""")
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_long_step_details_fold_instead_of_scrolling(self):

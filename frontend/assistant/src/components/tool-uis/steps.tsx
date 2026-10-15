@@ -1,6 +1,7 @@
 // 智能体的过程（思考、读写文件、运行命令、Pearnly 工具）照 Claude Code 收成一行摘要（设计文档 3.11）：
 // 进行中是「正在运行」，做完按类计数、带失败数（「已运行 2 个命令（1 个失败），已读取 3 个文件」，lib/step-summary.ts）；
-// 点开是一张细框卡片，一步一行、只写一句说明（没有图标），失败的行尾红字「失败」；再点某一步才看到命令 / 内容与输出（等宽）。
+// 点开是一张细框卡片，一步一行、淡色一句说明（没有图标；本站工具后面带「 · 对象」，lib/step-subject.ts），失败的行尾红字「失败」，
+// 能展开的行尾一个 12px 箭头；再点某一步才看到命令 / 内容与输出（等宽）。
 // 在做什么、用了多久由对话底部的工作状态行说（thread.tsx 的 RunIndicator），摘要行不再另放一个在动的点。
 // 所有工具共用 StepRow。停下来等用户批准的那一步不收进组（thread.tsx 的 groupBy），直接在行下给「允许 / 拒绝」。
 // 卡片规矩（docs/development/ccs.md）：点开的内容框不在对话里再套一层滚动——长内容先显示前 CLIP_LINES 行，
@@ -8,9 +9,10 @@
 
 import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
-import { createContext, useContext, useState, type FC, type PropsWithChildren } from "react";
+import { createContext, useContext, useMemo, useState, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
 import { stepFailed, summarize, summaryText } from "@/lib/step-summary";
+import { parseResult, recordLabels, stepSubject } from "@/lib/step-subject";
 import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
 import { steps } from "@/i18n";
@@ -18,7 +20,7 @@ import { ApprovalBar } from "./approval-bar";
 import { TypingDots } from "@/components/typing-dots";
 
 type Args = Record<string, unknown> | undefined;
-type Step = { verb: string; target?: string; input?: string; showOutput: boolean };
+type Step = { verb: string; target?: string; input?: string; showOutput: boolean; own?: boolean };
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
 const base = (path: unknown) => str(path).split("/").pop() ?? "";
@@ -84,7 +86,7 @@ function describe(toolName: string, args: Args, running: boolean, labels: ToolLa
     }
     default: {
       const input = args && Object.keys(args).length ? JSON.stringify(args, null, 2) : undefined;
-      return { verb: toolLabel(labels, toolName, running), input, showOutput: true };
+      return { verb: toolLabel(labels, toolName, running), input, showOutput: true, own: true };
     }
   }
 }
@@ -96,6 +98,29 @@ function outputOf(result: unknown): { text: string; isError: boolean } | null {
     return { text: payload.text, isError: payload.isError };
   }
   return { text: typeof result === "string" ? result : JSON.stringify(result, null, 2), isError: false };
+}
+
+/** 一个结果里认出的记录名字（结果对象不变就只解析一次）。 */
+const labelsCache = new WeakMap<object, Array<[string, string]>>();
+function resultLabels(result: unknown): Array<[string, string]> {
+  const text = outputOf(result)?.text;
+  if (!text || typeof result !== "object" || result === null) return text ? recordLabels(parseResult(text)) : [];
+  let labels = labelsCache.get(result);
+  if (!labels) labelsCache.set(result, (labels = recordLabels(parseResult(text))));
+  return labels;
+}
+
+/** 这条回复里各步结果认出的记录：内部名字 → 给人看的名字（单号、标题…），让「查看了推送前要选的项」也写出是哪张。 */
+function useKnownRecords(): ReadonlyMap<string, string> {
+  const parts = useAuiState((s) => s.message.parts);
+  return useMemo(() => {
+    const known = new Map<string, string>();
+    for (const part of parts) {
+      if (part.type !== "tool-call") continue;
+      for (const [id, label] of resultLabels((part as { result?: unknown }).result)) if (!known.has(id)) known.set(id, label);
+    }
+    return known;
+  }, [parts]);
 }
 
 export const StepRow: ToolCallMessagePartComponent = ({
@@ -114,6 +139,8 @@ export const StepRow: ToolCallMessagePartComponent = ({
   const running = !output && !awaiting && approval?.approved !== false && status.type === "running";
   const errored = stepFailed({ result, isError, status });
   const step = describe(toolName, args as Args, running, labels);
+  const known = useKnownRecords();
+  const subject = step.own ? stepSubject(args as Args, output?.text, known) : "";
   // Held for Allow/Deny: say what it is about to do, not the past-tense label ("Saved …" before anything ran).
   const asking = awaiting ? (approval as ToolApproval).ask : undefined;
   const shownOutput = step.showOutput && output?.text ? output.text : "";
@@ -131,9 +158,11 @@ export const StepRow: ToolCallMessagePartComponent = ({
         <span className="min-w-0 flex-1 truncate">
           {asking ?? step.verb}
           {step.target && <span className="cc-step-target">{` ${step.target}`}</span>}
+          {subject && <span className="cc-step-target">{` · ${subject}`}</span>}
         </span>
         {running && <TypingDots size="sm" className="shrink-0" />}
         {errored && <span className="cc-step-failed">{steps.failed}</span>}
+        {expandable && <ChevronRightIcon aria-hidden />}
       </button>
       {open && expandable && (
         <div className="cc-step-detail">
