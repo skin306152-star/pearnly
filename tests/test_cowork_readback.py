@@ -617,6 +617,7 @@ class ServiceHarness:
         self.rows, self.after, self.requests = {}, [], {}
         self.user = "a@example.com"
         self.calls = []
+        self.access_locks = []  # (连接, 授权检查要不要当前读加锁)：只读的可见性检查传 False（10-15 的 1020）
         self.presence = {}
         self.pushed = []
         self.broken = False
@@ -700,8 +701,9 @@ class ServiceHarness:
         if not self.intake:
             raise self.frappe.PermissionError("Not Permitted")
 
-    def require_connection(self, doc):
+    def require_connection(self, doc, lock=True):
         self.calls.append(("connection", doc.name))
+        self.access_locks.append((doc.name, lock))
         if (self.frappe.session.user, doc.name) in self.denied:
             raise self.frappe.PermissionError("connection")
 
@@ -1027,8 +1029,10 @@ class Service(unittest.TestCase):
         made, row = self._start()
         self.h.finish(row.request, raw())
         self.h.frappe.session.user = "b@example.com"
+        del self.h.access_locks[:]
         self.assertEqual(self.service.status(made["readback"])["status"], "reading")
         self.assertEqual(row.status, "reading")
+        self.assertEqual(self.h.access_locks, [("EXP1", False)])  # 可见性检查读快照、不加锁（10-15 的 1020）
         self.h.frappe.session.user = "a@example.com"
         self.assertEqual(self.service.status(made["readback"])["status"], "ready")
 
@@ -1052,8 +1056,26 @@ class Service(unittest.TestCase):
                                                 "direct"})
         self.assertTrue(first["ready_at"].endswith("Z"))
         self.assertEqual((found[1]["status"], found[1]["readback"], found[1]["counts"]), ("none", None, None))
+        self.assertEqual({lock for _connection, lock in self.h.access_locks[-2:]}, {False})  # 可见性检查不加锁读
         self.h.intake = False
         self.assertIsNone(self.service.month_status(sets, "2026-05"))
+
+    def test_month_status_takes_the_readback_that_finished_last(self):
+        # A 早发起、晚完成；B 晚发起、早完成：税务草稿取的是完成时间最晚的 A，台账认的也得是 A（否则误报草稿过期）
+        first, first_row = self._start()  # a 发起
+        self.h.frappe.session.user = "b@example.com"
+        second, second_row = self._start()  # b 晚 5 分钟发起，先完成
+        second_row.requested_at = first_row.requested_at + timedelta(minutes=5)
+        self.h.finish(second_row.request, raw())
+        self.service.status(second["readback"])
+        self.h.frappe.session.user = "a@example.com"
+        self.h.finish(first_row.request, raw())
+        self.service.status(first["readback"])
+        first_row.ready_at = second_row.ready_at + timedelta(minutes=25)
+        sets = [{"connection": "EXP1", "key": "S:\\EXP69\\T9SINCER", "label": "T9"}]
+        found = self.service.month_status(sets, "2026-05")[0]
+        self.assertEqual((found["readback"], found["newer"]), (first["readback"], None))
+        self.assertEqual(self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5)["ref"], first["readback"])
 
 def push_service(rows):
     """按真实导入加载推送服务（依赖换成替身），``frappe.db.sql`` 记下每条查询、从 rows 里按条件取。"""

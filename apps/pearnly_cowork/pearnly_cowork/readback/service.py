@@ -192,10 +192,11 @@ def _row(name):
 
 
 def _usable(connection) -> bool:
-    """当前用户能不能用这条连接（录入权限 + 连接使用授权）。"""
+    """当前用户能不能用这条连接（录入权限 + 连接使用授权）。只读的可见性检查：授权读本事务快照、不加锁（``lock=False``，
+    同 `connections` 的只读视图；台账在这之前已跑过别的查询，加锁读 `tabUser` 会撞 MariaDB 11.8 的 1020）。"""
     try:
         scope.require("intake")
-        connection_access.require_connection(frappe.get_doc(CONNECTION, connection))
+        connection_access.require_connection(frappe.get_doc(CONNECTION, connection), lock=False)
     except (frappe.PermissionError, frappe.DoesNotExistError, frappe.ValidationError):
         frappe.clear_messages()
         return False
@@ -501,8 +502,8 @@ def month_status(sets, period):
 
     ``[{"connection", "key", "label", "status": none|reading|ready|failed, "readback", "requested_by",
     "requested_by_name", "requested_at", "ready_at", "counts": {pushed, unchanged, changed, deleted, missing, voided,
-    direct} | None, "newer": reading|failed|None}]``：有完成的回读就给最近完成的那份（``newer`` 是比它晚发起、还没
-    完成或失败的那份的状态）；没有就给最近的一份；一份都没有是 ``none``。"""
+    direct} | None, "newer": reading|failed|None}]``：有完成的回读就给完成时间最晚的那份（``newer`` 是最近发起、还没
+    完成或失败的那份的状态）；没有就给最近发起的一份；一份都没有是 ``none``。"""
     if not scope.allowed("intake"):
         return None
     try:
@@ -532,7 +533,9 @@ def month_status(sets, period):
     out, names = [], {}
     for connection, key, label in wanted:
         found = grouped.get((connection, key.casefold())) or []
-        ready = next((row for row in found if row.status == "ready"), None)
+        # 完成的那份按完成时间取最新（同 `_newest_ready`、税务草稿取数）：早发起、晚完成的才是草稿用的那份
+        ready = max((row for row in found if row.status == "ready"), default=None,
+                    key=lambda row: (get_datetime(row.ready_at) if row.ready_at else datetime.min, row.name))
         shown = ready or (found[0] if found else None)
         newer = found[0].status if ready and found[0] is not ready and found[0].status in ("reading", "failed") \
             else None

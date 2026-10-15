@@ -672,7 +672,7 @@
   --cc-panel-font: var(--code-text-footnote);
   --cc-panel-lh: var(--code-text-panel-lh);
   --cc-panel-ring: inset 0 0 0 1px var(--cc-line);
-  --cc-dot-ring: inset 0 0 0 var(--cc-ring-w) var(--cc-ink-4);  /* 月结台账「暂无」那一段的空心状态点 */
+  --cc-dot-ring: inset 0 0 0 var(--cc-ring-w) var(--cc-ink-3);  /* 月结台账「暂无」那一段的空心状态点 */
   --cc-radius-panel: var(--code-radius-10);
   /* 列表页（公司、待处理、定时任务；设计文档 3.14）：内容宽 960、标题 24/31 字重 500、搜索框 36 圆角 7、主按钮 24、卡片约 314×108 */
   --cc-list-w: var(--code-list-w);

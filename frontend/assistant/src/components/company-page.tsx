@@ -3,7 +3,7 @@
 //
 //   顶部     名称（点了就地改名，手机用输入框）；「···」：改名、刷新账套、删除公司（不确认）
 //   左边     「在这家新建对话」输入框（月份胶囊：最近 12 个月 + 不指定，默认上个月；多分店时分店胶囊；发出 = 在这家开对话并发出）
-//            → 月结台账（components/month-ledger.tsx，卡头月份胶囊默认上个月）
+//            → 月结台账（components/month-ledger.tsx，卡头月份胶囊与输入框的同一个；「不指定」时看上个月）
 //            → 概览（法定名 · 税号 · 分店，合并申报的写「合并申报」）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 待处理（这家的）
 //   右边     大面板，标签「对话 / 资料 / 定时任务」：
 //            对话  只列我的，从服务端按这家取（分组列表 group=<公司>，分页），按 进行中 / 等你处理 / 已完成 分组（只用真实信号，
@@ -154,7 +154,7 @@ const Master: FC<{ detail: Detail; period: string; onPeriod: (p: string) => void
         <div className="cc-company-cols">
           <div className="cc-company-overview">
             <CompanyComposer company={id} period={period} onPeriod={onPeriod} branches={branches} />
-            <MonthSection company={id} />
+            <MonthSection company={id} period={period} onPeriod={onPeriod} />
             <Overview detail={detail} />
             <SetsSection sets={detail.account_sets} branches={multi ? branches : []} period={period} />
             <PendingCard company={id} />

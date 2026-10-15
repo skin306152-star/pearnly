@@ -175,6 +175,7 @@
      "group": null,
      "document": null,
      "issue": "input_over_six_months",
+     "issue_label": "Past the 6-month claim period",
      "count": 1,
      "draft": "CTD-9",
      "kind": "vat_return",
@@ -274,6 +275,11 @@
     "duplicate_number": 2,
     "not_invoice": 1,
     "express_changed": 1
+   },
+   "severities": {
+    "action": 7,
+    "warn": 2,
+    "info": 4
    }
   }
  }

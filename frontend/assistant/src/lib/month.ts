@@ -7,7 +7,8 @@
 //          Express 公司、有录入权限时有（否则 null），报税一段要报税权限（否则 null）——是 null 的段不显示。
 //   异常   服务端已排好（action → warn → info，同级按段、再按日期新 → 旧）；页面只按严重度切成三组，组内保持服务端顺序。
 //   刷新   挂着（看得见）时跟着推送状态与定时任务的站点事件重取（PENDING_EVENTS），回到前台、重连时重取（lib/live.ts）；
-//          看不见（会话栏关着、换了页面）不取。
+//          看不见（会话栏关着、换了页面）不取。服务端每次整月现算，两次至少隔 REFRESH_MIN_MS（定时任务逐张推时事件很密），
+//          空闲几乎不轮询（IDLE_MS）；有账套还在回读时每 REFRESH_MIN_MS 重取一次，最多 READING_POLL_MS（回读完成不发站点事件）。
 //
 // 金额是服务端的十进制字符串，只插千分位（formatAmount），不转浮点。
 
@@ -57,13 +58,13 @@ export type MonthException = {
   choice?: PendingChoice | null; others?: string[]; count?: number;
   task?: string; title?: string;
   connection?: string; account_set_key?: string; label?: string; readback?: string | null;
-  draft?: string; kind?: string; branch?: string; issue?: string;
+  draft?: string; kind?: string; branch?: string; issue?: string; issue_label?: string;
 };
 
 export type Month = {
   company: string; period: string; ended: boolean; generated_at?: string; truncated?: boolean;
   stages: MonthStages;
-  exceptions: { items: MonthException[]; total: number; counts: Record<string, number> };
+  exceptions: { items: MonthException[]; total: number; counts: Record<string, number>; severities?: Partial<Record<Severity, number>> };
 };
 
 export function loadMonth(company: string, period: string, limit?: number): Promise<Month> {
@@ -89,9 +90,19 @@ export function groupExceptions(items: readonly MonthException[]): Array<[Severi
     .filter(([, list]) => list.length > 0);
 }
 
-/** 卡头右侧的数：要处理与要看一眼的（知悉的不催）。 */
-export function attentionCount(items: readonly MonthException[]): number {
-  return items.filter((item) => item.severity !== "info").length;
+/** 一组的条数：服务端按全部算的（清单截断了也是全数），没有就数这一页。 */
+export function severityCount(month: Pick<Month, "exceptions">, severity: Severity): number {
+  return month.exceptions.severities?.[severity] ?? month.exceptions.items.filter((item) => item.severity === severity).length;
+}
+
+/** 卡头右侧的数：需处理与需留意的（知悉的不催）。 */
+export function attentionCount(month: Pick<Month, "exceptions">): number {
+  return severityCount(month, "action") + severityCount(month, "warn");
+}
+
+/** 列表里没列出的条数（服务端只回前 limit 条）。 */
+export function unlisted(month: Pick<Month, "exceptions">): number {
+  return Math.max(0, (month.exceptions.total ?? 0) - month.exceptions.items.length);
 }
 
 /** 单据层的异常换成待处理的一行（当场选、交给 CC 用同一套：pending.tsx 的 ChooseRow、handText）。 */
@@ -113,7 +124,7 @@ export function exceptionSubject(item: MonthException, branchLabel: (branch: str
   if (item.document) return [item.invoice_no, item.counterparty].filter(Boolean).join(" · ") || item.document;
   if (item.task) return item.title || item.task;
   if (item.label || item.account_set_key) return item.label || item.account_set_key || "";
-  if (item.draft) return item.branch ? branchLabel(item.branch) : "";
+  if (item.draft) return [item.issue_label, item.branch ? branchLabel(item.branch) : ""].filter(Boolean).join(" · ");
   return "";
 }
 
@@ -128,12 +139,28 @@ export function dayShort(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", ...(day ? { timeZone: "UTC" } : {}) }).format(date);
 }
 
-/** 核对一段最近一次完成的回读时间（多份账套取最新的）；没有完成的回空。 */
-export function latestReadback(sets: readonly ReadbackSet[]): string {
-  return sets.filter((set) => set.status === "ready" && set.ready_at).map((set) => set.ready_at!).sort().at(-1) ?? "";
+/** 有没有账套还在回读（最新那份或比完成的那份更新的一份）。 */
+export function readingNow(month: Pick<Month, "stages"> | null | undefined): boolean {
+  return !!month?.stages.verify?.sets.some((set) => set.status === "reading" || set.newer === "reading");
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+/** 这台设备的今天（YYYY-MM-DD）。 */
+export const today = (now = new Date()) => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+/** 报税一段写的截止日：ภ.พ.30 电子申报，有 ภ.ง.ด. 草稿时加上 ภ.ง.ด. 电子申报（更早），取最早、还没过的那个；
+ *  都过了写最晚的那个（第 1 期不知道报没报，不说逾期）。 */
+export function taxDue(tax: MonthStages["tax"], on = today()): string {
+  if (!tax) return "";
+  const dates = [tax.deadlines?.pp30?.efiling, tax.wht.length ? tax.deadlines?.pnd?.efiling : ""].filter((d): d is string => !!d).sort();
+  return dates.find((d) => d >= on) ?? dates.at(-1) ?? "";
 }
 
 // ---------------------------------------------------------------- 读取（按 公司|月份 缓存）
+export const REFRESH_MIN_MS = 15_000;
+export const IDLE_MS = 10 * 60_000;
+export const READING_POLL_MS = 15 * 60_000;
+
 const months = new Map<string, Month>();
 const keyOf = (company: string, period: string) => `${company}|${period}`;
 
@@ -158,14 +185,24 @@ export function useMonth(company: string, period: string) {
       months.set(key, next);
       setState({ key, month: next, error: "" });
     } catch (e) {
-      if (mine === asked.current) setState((before) => ({ key, month: before.key === key ? before.month : (months.get(key) ?? null), error: shownError(e) }));
+      // 同一个错误不重设（role="alert" 不在每次自动重取失败时重新播报）
+      const error = shownError(e);
+      if (mine === asked.current)
+        setState((before) => (before.key === key && before.error === error ? before : { key, month: before.key === key ? before.month : (months.get(key) ?? null), error }));
     }
   }, [ok, company, period, key]);
   useEffect(() => {
     setState({ key, month: months.get(key) ?? null, error: "" });
     void reload();
   }, [key, reload]);
-  useLiveRefresh(reload, { events: ok ? PENDING_EVENTS : [] });
+  // 还在回读：有上限地定时重取（从这次看到「回读中」起最多 READING_POLL_MS）
+  const shown = state.key === key ? state.month : null;
+  const since = useRef(0);
+  const reading = readingNow(shown);
+  if (!reading) since.current = 0;
+  else if (!since.current) since.current = Date.now();
+  const busy = reading && Date.now() - since.current < READING_POLL_MS;
+  useLiveRefresh(reload, { events: ok ? PENDING_EVENTS : [], busy, busyMs: REFRESH_MIN_MS, idleMs: IDLE_MS, minMs: REFRESH_MIN_MS });
   useEffect(
     () =>
       onProjectChange((change) => {

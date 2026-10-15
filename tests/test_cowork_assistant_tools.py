@@ -2964,6 +2964,13 @@ class ReadbackTests(unittest.TestCase):
         self.assertIn("updated", out["note"])
         self.assertEqual([call[0] for call in self.calls], ["request"])  # 电脑领不了：不等、不查
 
+    def test_someone_elses_readback_still_reading_is_returned_at_once(self):
+        # 能用这条连接的人都看得到回读（用户 2026-10-15 夜定），但还在读的那份只由发起人推进：同事的 CC 不空等 90 秒
+        self.states = [{**self.made, "requested_by": "someone.else@example.com"}]
+        out = json.loads(tools.express_readback_status({"readback": "r" * 32}))
+        self.assertEqual(out["status"], "reading")
+        self.assertEqual([call[0] for call in self.calls if call[0] == "status"], ["status"])
+
     def test_refusals_come_back_as_reasons_and_delete_goes_through_the_service(self):
         def refuse(*args):
             raise frappe.ValidationError("cowork.readback.account_missing")

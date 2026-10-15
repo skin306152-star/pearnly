@@ -92,9 +92,11 @@ def number_key(value) -> str:
     return "".join(str(value or "").split()).casefold()
 
 
-def month_duplicates(rows, company_tax="") -> dict:
-    """月内重复单号：同一对方税号 + 同一单号出现不止一张 → ``{单据: [同号的其他单据]}``；另加识别时查重已判为重复的
-    （``duplicate_check_status = matched``，带 ``duplicate_match``）。没有单号或对方税号的不比。"""
+def month_duplicates(rows, company_tax="", live=None) -> dict:
+    """月内重复单号：同一对方税号 + 同一单号出现不止一张 → ``{单据: [同号的其他单据]}``；另加识别时查重判为同号的
+    （``duplicate_check_status = matched`` 且 ``duplicate_level = exact``，带 ``duplicate_match``）。识别查重的另两级
+    （likely 同日同卖方同额、party 同对方同日同额）不是同号，不算；``live`` 给了就只认被匹配那张还在的（月内的单据一定在），
+    被匹配的那张删了不再标。没有单号或对方税号的不比。"""
     groups = {}
     for row in rows:
         number, party = number_key(row.get("invoice_no")), party_tax(row, company_tax)
@@ -105,13 +107,23 @@ def month_duplicates(rows, company_tax="") -> dict:
         if len(names) > 1:
             for name in names:
                 out[name] = [other for other in names if other != name]
+    here = {row.get("name") for row in rows}
     for row in rows:
-        if row.get("duplicate_check_status") == "matched":
-            found = out.setdefault(row.get("name"), [])
-            match = row.get("duplicate_match")
-            if match and match not in found and match != row.get("name"):
-                found.append(match)
+        match = exact_match(row)
+        if not match or (live is not None and match not in here and match not in live):
+            continue
+        found = out.setdefault(row.get("name"), [])
+        if match not in found:
+            found.append(match)
     return out
+
+
+def exact_match(row) -> str:
+    """识别查重判为同号（exact）的那张；不是同号的回空串。"""
+    match = row.get("duplicate_match")
+    if row.get("duplicate_check_status") != "matched" or row.get("duplicate_level") != "exact":
+        return ""
+    return match if match and match != row.get("name") else ""
 
 
 def readback_items(sets, ended) -> list:
@@ -139,7 +151,7 @@ def tax_items(drafts, latest) -> list:
         where = {"draft": draft.get("name"), "kind": draft.get("kind"), "branch": draft.get("branch") or ""}
         for issue in draft.get("issues") or ():
             out.append(item("tax_issue", severity=TAX_LEVELS.get(issue.get("level"), WARN), issue=issue.get("code"),
-                            count=int(issue.get("count") or 0), **where))
+                            issue_label=str(issue.get("label") or ""), count=int(issue.get("count") or 0), **where))
         if draft.get("kind") == "vat_return" and draft.get("source_ref"):
             key = (draft.get("connection") or "",
                    (normalize_express_account_key(draft.get("account_set")) or "").casefold())
@@ -175,6 +187,14 @@ def tally(items) -> dict:
     return out
 
 
+def severities(items) -> dict:
+    """``{action, warn, info: 条数}``（一条一行，汇总的也算一条）：页面卡头与组标题的数，清单截断了也是全数。"""
+    out = dict.fromkeys(SEVERITIES, 0)
+    for found in items:
+        out[found["severity"]] = out.get(found["severity"], 0) + 1
+    return out
+
+
 def ordered(items) -> list:
     """要人处理的在前（action → warn → info），同级按段（收单 → 录账 → 核对 → 报税），再按日期新 → 旧。"""
     rank = {severity: index for index, severity in enumerate(SEVERITIES)}
@@ -199,4 +219,4 @@ def period_ended(period, today) -> bool:
 
 
 __all__ = ["CODES", "RESERVED", "STAGES", "STATES", "conflict_code", "document_code", "file_items", "item",
-           "month_duplicates", "ordered", "period_ended", "readback_items", "stage_state", "tally", "tax_items"]
+           "exact_match", "month_duplicates", "ordered", "period_ended", "readback_items", "severities", "stage_state", "tally", "tax_items"]

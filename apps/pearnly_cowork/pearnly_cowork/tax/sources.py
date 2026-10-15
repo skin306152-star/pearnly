@@ -31,7 +31,7 @@ WHT_FIELDS = ("document_type", "document_flag", "direction", "invoice_number", "
 
 
 def vat_readback(connection, account_set_key, year, month):
-    """该账套该月当前用户最近一次完成的 Express 回读（`readback.service.vat_records` 的约定形状）；没有回 None。"""
+    """该账套该月最近一次完成的 Express 回读（谁发起的都算，用户 2026-10-15 夜定；`readback.service.vat_records` 的约定形状）；没有回 None。"""
     try:
         from pearnly_cowork.readback import service
     except ModuleNotFoundError as error:

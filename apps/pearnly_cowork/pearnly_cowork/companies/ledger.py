@@ -2,7 +2,8 @@
 
 - 四段：收单 intake（单据日期在本月、归这家的识别记录，定时任务与它们这个月登记的文件）、录账 entry（推送结果）、
   核对 verify（Express 回读，只有 Express 公司有）、报税 tax（申报草稿）。每段给计数与状态（`exceptions.stage_state`）。
-- 统一异常清单：码见 `exceptions.CODES`，与「待处理」同一套；只给码与数据，文案在页面。
+- 统一异常清单：码见 `exceptions.CODES`，与「待处理」同一套；只给码与数据，文案在页面。``items`` 最多 ``limit`` 条，
+  ``total`` / ``counts``（按码，汇总的按件数）/ ``severities``（按严重度的条数）都按全部算，页面卡头与组标题用它们。
 - 单据：一次有界查询（原生行权限 `get_list`，按单据日期在本月、本方税号或推往这家的账套），最多 `LEDGER_MAX` 张，超了
   ``truncated``；没有单据日期的另查一次（本月上传的）。取回后用 `pending.company_of` 再认一次归属（同待处理）。
   其余各段一段一次查询：结果不明的推送记录、定时任务、任务文件（`folder_intake.rules.month_files`）、回读
@@ -27,7 +28,7 @@ HISTORY = pending.HISTORY
 LEDGER_MAX = 5000
 LIMIT_MAX = 200
 READBACK_HOOK = "cowork_company_month_readback"
-FIELDS = pending.FIELDS + ["duplicate_check_status", "duplicate_match"]
+FIELDS = pending.FIELDS + ["duplicate_check_status", "duplicate_level", "duplicate_match"]
 FOLDER_MISSING = ("root_missing", "folder_missing")
 
 
@@ -54,13 +55,21 @@ def bounds(period) -> tuple[date, date]:
 # ---------------- 读 ----------------
 
 
+def _spellings(key) -> set:
+    """账套键在单据上可能的写法（库里比较不分大小写）：反斜杠 / 斜杠、末尾带不带分隔符。取回后仍按
+    `pending.company_of` 规范化再认，这里只是别在查询里漏掉。"""
+    base = normalize_express_account_key(key) or str(key)
+    slashed = base.replace("\\", "/")
+    return {base, base + "\\", slashed, slashed + "/"}
+
+
 def _documents(company, sets, first, after):
     """(本月单据, 没有单据日期、本月上传的单据, 是否截断)：本方税号是买方或卖方，或推往这家的账套（库里比较不分大小写），
     取回后按 `pending.company_of` 只留归这家的。"""
     or_filters = []
     if company.tax_id:
         or_filters += [["buyer_tax", "=", company.tax_id], ["seller_tax", "=", company.tax_id]]
-    keys = sorted({str(item["key"]) for item in sets if item.get("key")})
+    keys = sorted({spelled for item in sets if item.get("key") for spelled in _spellings(item["key"])})
     if keys:
         or_filters.append(["push_account_set", "in", keys])
     if not or_filters:
@@ -186,8 +195,18 @@ def _entry(rows, company_tax):
     return counted, items
 
 
+def _live_matches(rows) -> set:
+    """识别查重判为同号、被匹配的那张不在本月的：一次查询看它还在不在（删了的不再标重复）。"""
+    here = {row.name for row in rows}
+    wanted = sorted({match for match in map(exceptions.exact_match, rows) if match and match not in here})
+    if not wanted:
+        return set()
+    return set(frappe.get_list(HISTORY, filters={"name": ["in", wanted]}, pluck="name",
+                               limit_page_length=len(wanted)))
+
+
 def _duplicates(rows, company_tax) -> list:
-    found = exceptions.month_duplicates(rows, company_tax)
+    found = exceptions.month_duplicates(rows, company_tax, _live_matches(rows))
     out = []
     for row in rows:
         if row.name in found:
@@ -258,16 +277,19 @@ def month(company, period, limit=None) -> dict:
                          "attention": sum(1 for task in tasks.values() if task["missing"])}
                         if tasks is not None else None),
               "files": file_totals}
+    # 单据超过上限只算了前 `LEDGER_MAX` 张（``truncated``）：收单、录账两段不能说已完成
     intake["state"] = exceptions.stage_state(len(documents) + sum((file_totals or {}).values()), intake_items,
-                                             not ended)
+                                             not ended or truncated)
     entry = {key: counted[key] for key in ("pushed", "in_flight", "waiting", "not_pushed")}
-    entry["state"] = exceptions.stage_state(sum(entry.values()), entry_items, not ended or counted["in_flight"] > 0)
+    entry["state"] = exceptions.stage_state(sum(entry.values()), entry_items,
+                                            not ended or truncated or counted["in_flight"] > 0)
 
     items = exceptions.ordered(intake_items + entry_items + verify_items + tax_items)
     return {"company": row.name, "period": period, "ended": ended,
             "generated_at": service.when(str(frappe.utils.now_datetime())), "truncated": truncated,
             "stages": {"intake": intake, "entry": entry, "verify": verify, "tax": tax},
-            "exceptions": {"items": items[:limit], "total": len(items), "counts": exceptions.tally(items)}}
+            "exceptions": {"items": items[:limit], "total": len(items), "counts": exceptions.tally(items),
+                           "severities": exceptions.severities(items)}}
 
 
 __all__ = ["LEDGER_MAX", "bounds", "month"]

@@ -592,6 +592,7 @@ class WhtDraft(Base):
         for draft in drafts.values():
             for issue in draft["issues"]:
                 self.assertEqual(issue["level"], levels[issue["code"]])
+                self.assertEqual(issue["label"], "cowork.tax.issue." + issue["code"])  # 现有词条（替身原样回键）
                 self.assertGreater(issue["count"], 0)
         self.assertEqual({issue["code"]: issue["count"] for issue in drafts["vat_return"]["issues"]},
                          vat["issues_by_code"])

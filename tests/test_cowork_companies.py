@@ -1592,12 +1592,22 @@ class ExceptionCodeTests(unittest.TestCase):
         rows = [history("a", invoice_no="INV 001"), history("b", invoice_no="inv001"),
                 history("c", invoice_no="INV001", seller_tax="0105559999996"),  # 别的对方
                 history("d", invoice_no=""), history("e", invoice_no="", seller_tax=""),
-                history("f", invoice_no="X9", duplicate_check_status="matched", duplicate_match="old1"),
+                history("f", invoice_no="X9", duplicate_check_status="matched", duplicate_level="exact",
+                        duplicate_match="old1"),
+                # 识别查重的另两级不是同号：同日同卖方同额、同对方同日同额（两张加油票）
+                history("i", invoice_no="P1", duplicate_check_status="matched", duplicate_level="likely",
+                        duplicate_match="old2"),
+                history("j", invoice_no="P2", duplicate_check_status="matched", duplicate_level="party",
+                        duplicate_match="old3"),
+                # 被匹配的那张已经删了
+                history("k", invoice_no="Q1", duplicate_check_status="matched", duplicate_level="exact",
+                        duplicate_match="gone"),
                 # 本方是卖方：对方是买方
                 history("g", invoice_no="S1", seller_tax=TAX, buyer_tax="0105548064214"),
                 history("h", invoice_no="S1", seller_tax=TAX, buyer_tax="0105548064214")]
-        self.assertEqual(exceptions.month_duplicates(rows, TAX),
+        self.assertEqual(exceptions.month_duplicates(rows, TAX, live={"old1"}),
                          {"a": ["b"], "b": ["a"], "f": ["old1"], "g": ["h"], "h": ["g"]})
+        self.assertEqual(set(exceptions.month_duplicates(rows, TAX)), {"a", "b", "f", "k", "g", "h"})  # 不核还在不在
 
     def test_stage_states(self):
         action = exceptions.item("not_pushed")
@@ -1678,7 +1688,8 @@ sys.modules["month_readback_double"] = types.SimpleNamespace(month_status=_month
 MONTH_DRAFTS = {"drafts": [{"name": "CTD-9", "kind": "vat_return", "branch": "00000", "connection": "C1",
                             "account_set": "S:\\69EXP\\ABC", "source_ref": "RB0",
                             "updated_at": "2026-10-01 10:00:00", "tax_total": "70.00",
-                            "issues": [{"code": "input_over_six_months", "level": "error", "count": 1}]}],
+                            "issues": [{"code": "input_over_six_months", "level": "error", "count": 1,
+                                        "label": "Past the 6-month claim period"}]}],
                 "deadlines": {"pp30": {"paper": "2026-10-15", "efiling": "2026-10-23"},
                               "pnd": {"paper": "2026-10-07", "efiling": "2026-10-15"}}}
 
@@ -1754,6 +1765,22 @@ class MonthLedgerTests(unittest.TestCase):
         self.assertEqual(self.files, [(["R1"], datetime(2026, 9, 1), datetime(2026, 10, 1))])
         self.assertEqual(READBACK_SETS[0][1], "2026-09")
 
+    def test_recognition_duplicates_count_only_same_number_matches_that_still_exist(self):
+        rows = frappe.db.tables["Cowork OCR History"]
+        rows["h6"].update(duplicate_check_status="matched", duplicate_level="exact", duplicate_match="h9")  # 上个月那张还在
+        rows["h11"].update(duplicate_check_status="matched", duplicate_level="exact", duplicate_match="gone")  # 删了
+        rows["h5"].update(duplicate_check_status="matched", duplicate_level="party", duplicate_match="h9")  # 不是同号
+        found = {item["document"]: item.get("others") for item in self.month()["exceptions"]["items"]
+                 if item["code"] == "duplicate_number"}
+        self.assertEqual(found, {"h3": ["h7"], "h7": ["h3"], "h6": ["h9"]})
+
+    def test_documents_found_only_by_account_set_are_found_in_any_slash_spelling(self):
+        # 按名称建、没有税号可比的单据只能靠推送去向的账套认：斜杠写法、末尾分隔符不同也要查得到
+        frappe.db.tables["Cowork OCR History"] = {"s1": history("s1", buyer_tax="", seller_tax="0999999999999",
+                                                                push_account_set="s:/69exp/abc/", last_push_status="success")}
+        found = self.month()
+        self.assertEqual((found["stages"]["intake"]["received"], found["stages"]["entry"]["pushed"]), (1, 1))
+
     def test_a_month_in_progress_is_open_not_clear(self):
         frappe.db.tables["Cowork OCR History"] = {"h3": history("h3", invoice_date="2026-10-02",
                                                                 last_push_status="success")}
@@ -1783,6 +1810,19 @@ class MonthLedgerTests(unittest.TestCase):
         found = self.month(limit=2)
         self.assertEqual(len(found["exceptions"]["items"]), 2)
         self.assertEqual(found["exceptions"]["total"], 13)
+        self.assertEqual(found["exceptions"]["severities"], {"action": 7, "warn": 2, "info": 4})  # 截断前的全数
+
+    def test_a_cut_month_is_never_clear(self):
+        frappe.db.tables["Cowork OCR History"] = {name: history(name, last_push_status="success", invoice_no=name)
+                                                  for name in ("a1", "a2", "a3", "a4")}
+        frappe.db.tables["Cowork Folder Intake Rule"] = {}
+        with mock.patch.object(tax_access, "allowed", lambda user=None: False):
+            self.assertEqual([self.month()["stages"][stage]["state"] for stage in ("intake", "entry")],
+                             ["clear", "clear"])
+            with mock.patch.object(ledger, "LEDGER_MAX", 3):
+                found = self.month()
+        self.assertTrue(found["truncated"])
+        self.assertEqual([found["stages"][stage]["state"] for stage in ("intake", "entry")], ["open", "open"])
 
     def test_sections_follow_permissions(self):
         with mock.patch.object(tax_access, "allowed", lambda user=None: False):
