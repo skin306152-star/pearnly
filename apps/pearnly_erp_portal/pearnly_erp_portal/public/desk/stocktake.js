@@ -118,10 +118,11 @@
 				if (row) void records(row);
 			});
 			await refresh();
-			// 从 LINE 普通内置浏览器转到 LIFF 时带着 `pearnly_scan=1`：接着开扫码（LINE 会弹原生相机授权）。
+			// 从 LINE 普通内置浏览器转到 LIFF 时带着 `pearnly_liff=scan`：接着开扫码（LINE 会弹原生相机授权）。
+			// 开了就改回 `pearnly_liff=1`（还在 LIFF 里，刷新不再自动开、也不再转）。
 			const params = new URLSearchParams(window.location.search);
-			if (params.get("pearnly_scan") && request === sequence && active()) {
-				params.delete("pearnly_scan");
+			if (params.get("pearnly_liff") === "scan" && request === sequence && active()) {
+				params.set("pearnly_liff", "1");
 				window.history.replaceState(null, "", window.location.pathname + (params.size ? `?${params}` : ""));
 				void entry_form(null, true);
 			}

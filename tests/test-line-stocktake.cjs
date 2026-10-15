@@ -147,7 +147,7 @@ function fixture(options = {}) {
   const moved = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   moved.page.setLiff('2000-abc');
   await moved.page.startCamera(() => {}); await flush();
-  assert.equal(moved.page.location().href, 'https://liff.line.me/2000-abc/stocktake?count=1&pearnly_liff=1');
+  assert.equal(moved.page.location().href, 'https://liff.line.me/2000-abc/stocktake?pearnly_liff=1&count=1');
   const arrived = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   arrived.page.setLiff('2000-abc');
   arrived.page.location().href = 'https://synthetic.invalid/stocktake?count=1&pearnly_liff=1';

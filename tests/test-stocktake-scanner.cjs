@@ -155,10 +155,11 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(broken.stops(), 1, 'The opened camera is released when the reader cannot load');
   assert.equal(hanging.p.scan_failure(Object.assign(new Error('x'), { name: 'NotAllowedError' })), 'in_line');
   // 转 LIFF：只在 LINE 普通内置浏览器里、配了 LIFF、链接上还没有标记时才转，转一次。
-  assert.equal(hanging.p.scan_to_liff({ pearnly_scan: '1' }), true);
+  // LINE 把深链交给 LIFF 时只留第一个参数：转 LIFF 与「接着扫」合在一个参数里。
+  assert.equal(hanging.p.scan_to_liff(true), true);
   assert.equal(hanging.window.location.href,
-    'https://liff.line.me/2000-abc/desk/pearnly-stock-count/C1?pearnly_liff=1&pearnly_scan=1');
-  assert.equal(hanging.p.scan_to_liff({ pearnly_scan: '1' }), false, 'already in LIFF: never bounce twice');
+    'https://liff.line.me/2000-abc/desk/pearnly-stock-count/C1?pearnly_liff=scan');
+  assert.equal(hanging.p.scan_to_liff(true), false, 'already in LIFF: never bounce twice');
   assert.equal(fixture().p.scan_to_liff(), false, 'outside LINE nothing moves');
   console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
   // 电脑上「拍照」（框架上传器）打不开相机：同一套第 ③ 步提示，不再是笼统的一句。

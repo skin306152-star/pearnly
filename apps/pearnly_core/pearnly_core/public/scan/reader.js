@@ -167,13 +167,16 @@
 
 	// LINE 普通内置浏览器（聊天里点链接打开的那种）不把相机请求交给手机系统：不弹授权也不报错。
 	// 同一页用 LIFF 打开时 LINE 会弹原生授权（2026-10-15 三星 A14 实测）。`to_liff` 把当前页换成 LIFF 打开，
-	// 链接带 `pearnly_liff=1`：到了那边不再转第二次（即便判断不出自己是不是在 LIFF 里，也不会来回跳）。
+	// 链接带 `pearnly_liff`：到了那边不再转第二次（即便判断不出自己是不是在 LIFF 里，也不会来回跳）。
+	// 只能放一个参数：LINE 把深链交给 LIFF 时只保留第一个查询参数（2026-10-15 测试机访问日志实测）。
+	// `scan=true` 时值是 `scan`，页面据此接着开扫码，开了就改回 `1`。
 	const LIFF_MARK = "pearnly_liff";
-	const to_liff = (liff_id, extra = {}) => {
+	const to_liff = (liff_id, scan = false) => {
 		const here = new URL(window.location.href);
 		if (!liff_id || !in_line() || /\bLIFF\b/.test(agent()) || here.searchParams.get(LIFF_MARK)) return false;
-		here.searchParams.set(LIFF_MARK, "1");
-		for (const [key, value] of Object.entries(extra)) here.searchParams.set(key, value);
+		here.searchParams.delete(LIFF_MARK);
+		const rest = here.searchParams.toString();
+		here.search = `?${LIFF_MARK}=${scan ? "scan" : "1"}${rest ? `&${rest}` : ""}`;
 		window.location.href = `https://liff.line.me/${liff_id}${here.pathname}${here.search}`;
 		return true;
 	};
