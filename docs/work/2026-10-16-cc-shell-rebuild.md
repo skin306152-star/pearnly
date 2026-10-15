@@ -193,3 +193,17 @@
    - 外壳进 main 后，multi-desktop 变基，再做第 6 批（界面）；
    - 第 7 批真机联调要用户配合：录制笔记本上输入 skin3 的密码；在 testcowork「团队管理」加第二个成员；验共享回读；T1 用测试机 70EXP 里的 T7、T8、T9 验跨年；
    - 然后第 8 批。
+
+补记（关机前）：测试机、录制笔记本、本机今晚都关机。已执行 `testenv.sh lab-stop cowork`：
+- `testcowork.pearnly.com` 已切回线上（回读：ping 200，线上包 `index.DKAS5pGT.js`）；
+- 线上测试租户的定时任务已恢复；
+- lab 栈已停，站点和数据卷保留（第 4 轮写入的数据、规则都在）。
+
+次日开机后：
+1. 先用这条命令重新起 lab，不带 `PEARNLY_TESTENV_REFRESH`，保留测试数据：
+   `PEARNLY_TESTENV_SRC=<cc-shell-rebuild 工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> PEARNLY_TESTENV_LOCAL_SPA=1 bash scripts/testenv.sh lab-start cowork`
+   起之前先构建两个前端。
+2. 确认 testcowork 已指向 lab，CC 桌面版以 skin3 重新连上。
+3. 再发第 5 轮清单。
+
+测试窗口的交接在 `~/pearnly-devtools/test-window/handover-2026-10-16.md`。
