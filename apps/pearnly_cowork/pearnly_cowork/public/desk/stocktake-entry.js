@@ -223,23 +223,22 @@
 			scanner = p.scan_reader({ host: d.fields_dict.video.$wrapper, kind: "all",
 				on_result: code => match(code),
 				on_error: error => {
-					// 打不开就把黑框收起来，只留原因那一句（手动输入编码照常可用）；在 LINE 里还会弹授权引导。
 					scanner?.stop(); scanner = null; camera = false;
+					// 在 LINE 普通内置浏览器里：转 LIFF 打开这份盘点并接着扫（LINE 会弹原生相机授权）。
+					if (p.scan_failure(error) === "in_line" && p.scan_to_liff({ pearnly_scan: "1" })) return;
+					// 打不开就把黑框收起来，只留原因那一句（手动输入编码照常可用）。
 					d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
-					p.scan_hint(d.fields_dict.message.$wrapper, error, restart_camera);
+					p.scan_hint(d.fields_dict.message.$wrapper, error);
 				},
-				// 在 LINE 等 App 里 5 秒还没开相机：先说原因（LINE 里弹授权引导），相机后来开了就收起。
-				on_waiting: reason => p.scan_hint(d.fields_dict.message.$wrapper, reason, restart_camera),
-				on_started: () => { d.fields_dict.message.$wrapper.empty(); p.scan_guide_close(); },
+				// App 内置浏览器里 5 秒还没开相机（请求被挂着）：LINE 里转 LIFF，别的给原因、继续等。
+				on_waiting: reason => {
+					if (reason === "in_line" && p.scan_to_liff({ pearnly_scan: "1" })) return;
+					p.scan_hint(d.fields_dict.message.$wrapper, reason);
+				},
+				on_started: () => d.fields_dict.message.$wrapper.empty(),
 			});
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());
-		}
-		// 授权引导里点「重试」或从设置切回来：关掉还在等的那次，重新开相机。
-		function restart_camera() {
-			if (closed) return;
-			scanner?.stop(); scanner = null;
-			void start_camera();
 		}
 		async function next() {
 			selected = null; lookup = null; row = null; entry = null;

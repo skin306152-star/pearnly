@@ -22,8 +22,8 @@
 	const agent = () => (typeof navigator !== "undefined" && navigator.userAgent) || "";
 	const in_app = () => IN_APP.test(agent());
 	const in_line = () => /\bLine\//.test(agent());
-	// App 内置浏览器（LINE 等）里要相机：App 本身没有手机的相机权限时，请求既不弹窗也不报错，一直挂着
-	// （2026-10-15 三星 A14：LINE 没有相机权限，旧版页面在 LINE 里点扫码没有任何反应）。等这么久还没开就先提示。
+	// App 内置浏览器（LINE 等）里要相机：请求可能既不弹窗也不报错，一直挂着
+	// （2026-10-15 三星 A14：LINE 普通内置浏览器里点扫码没有任何反应）。等这么久还没开就交给页面处理。
 	const SLOW_MS = 5000;
 	const failure = (reason, cause) => Object.assign(new Error(reason), { scan_reason: reason, cause });
 
@@ -90,8 +90,8 @@
 	// `video`：页面自己的 <video>。`on_result(code, {format, kind})` 读到一个确认过的码（读码随即暂停，
 	// 页面要么 `resume()` 接着读，要么 `stop()`）；`on_detected()` 是"读到了"那一刻（给页面闪一下）；
 	// `on_play_blocked()` 浏览器拦了自动播放（页面让人点一下画面再 `play()`）；`on_error(error)` 打不开。
-	// `on_waiting(reason)`：App 内置浏览器里相机 5 秒还没开（多半是 App 没有相机权限、请求被挂着），页面先给提示，
-	// 读码器继续等；`on_started()`：相机真的开了（页面把提示收起来）。
+	// `on_waiting(reason)`：App 内置浏览器里相机 5 秒还没开（请求被挂着），读码器继续等，页面决定怎么办
+	// （盘点页在 LINE 里转 LIFF）；`on_started()`：相机真的开了。
 	function reader({ video, kind = "all", on_result, on_error, on_detected, on_play_blocked, on_waiting, on_started }) {
 		let stream, decode, timer, stopped = false, paused = false, detecting = false;
 		let candidate = "", candidate_format = "", hits = 0;
@@ -165,7 +165,17 @@
 		};
 	}
 
-	// 引导开权限时按系统给步骤（安卓：设置 → 应用程序 → LINE → 权限 → 相机；iPhone：设置 → LINE → 相机）。
-	const platform = () => /iPhone|iPad|iPod/i.test(agent()) ? "ios" : /Android/i.test(agent()) ? "android" : "other";
-	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, platform };
+	// LINE 普通内置浏览器（聊天里点链接打开的那种）不把相机请求交给手机系统：不弹授权也不报错。
+	// 同一页用 LIFF 打开时 LINE 会弹原生授权（2026-10-15 三星 A14 实测）。`to_liff` 把当前页换成 LIFF 打开，
+	// 链接带 `pearnly_liff=1`：到了那边不再转第二次（即便判断不出自己是不是在 LIFF 里，也不会来回跳）。
+	const LIFF_MARK = "pearnly_liff";
+	const to_liff = (liff_id, extra = {}) => {
+		const here = new URL(window.location.href);
+		if (!liff_id || !in_line() || /\bLIFF\b/.test(agent()) || here.searchParams.get(LIFF_MARK)) return false;
+		here.searchParams.set(LIFF_MARK, "1");
+		for (const [key, value] of Object.entries(extra)) here.searchParams.set(key, value);
+		window.location.href = `https://liff.line.me/${liff_id}${here.pathname}${here.search}`;
+		return true;
+	};
+	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, to_liff };
 })();

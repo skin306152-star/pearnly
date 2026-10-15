@@ -137,34 +137,12 @@
 
         // 开相机与读码用共用读码器 `pearnly_core/public/scan/reader.js`（后台扫码同一份）；
         // 这里只放这一页的卡片界面与提示。提示按原因给，文案在 core 术语表 `common.scan.*`。
-        // 相机打不开 / 5 秒还没开：原因留在页面上（不是一闪而过的提示条）。在 LINE 里（LINE 没有手机的相机权限）
-        // 是授权引导：按系统写清去哪里打开 LINE 的相机权限，带「重试」；人从设置切回来就自动重开相机
-        // （用户 2026-10-15：自动检测后弹授权窗引导去设置，不做浏览器兜底）。后台扫码是同一套引导。
-        let hint = null, lastOnCode = null;
-        function cameraHint(reason) {
-          hide(hint);
-          hint = document.createElement('div');
-          hint.className = 'card';
-          const line = reason === 'in_line';
-          hint.innerHTML = (line ? '<h3></h3>' : '') + '<p></p>' + (line ? '<p class="muted"></p>'
-            + '<div class="row"><button class="wide">' + esc(t('common.scan.retry')) + '</button></div>' : '');
-          if (line) {
-            hint.querySelector('h3').textContent = t('common.scan.allow_title');
-            hint.querySelector('p.muted').textContent = t(window.PearnlyScan.platform() === 'ios'
-              ? 'common.scan.allow_ios' : 'common.scan.allow_android');
-            hint.querySelector('button').onclick = () => retryCamera();
-          }
-          hint.querySelector('p').textContent = t('common.scan.' + reason);
-          app.prepend(hint);
+        // 相机打不开：在 LINE 普通内置浏览器里转 LIFF 打开这一页（LINE 会弹原生相机授权）；别的情况说原因。
+        let liffId = '';
+        function cameraFailed(reason) {
+          if (reason === 'in_line' && window.PearnlyScan.to_liff(liffId)) return;
+          say(t('common.scan.' + reason), true);
         }
-        function retryCamera() {
-          if (!hint || !lastOnCode) return;
-          scanMode = true;
-          startCamera(lastOnCode);
-        }
-        document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible' && hint && hint.querySelector('h3')) retryCamera();
-        });
         function stopCamera(resetMode) {
           cameraGeneration += 1;
           if (resetMode) scanMode = false;
@@ -176,8 +154,6 @@
         }
         async function startCamera(onCode) {
           stopCamera();
-          hide(hint); hint = null;
-          lastOnCode = onCode;
           const generation = cameraGeneration;
           const node = document.createElement('div');
           node.className = 'card';
@@ -195,10 +171,10 @@
             on_error: (error) => {
               if (generation !== cameraGeneration) return;
               stopCamera(true);
-              cameraHint(window.PearnlyScan.reason(error));
+              cameraFailed(window.PearnlyScan.reason(error));
             },
-            on_waiting: (reason) => { if (generation === cameraGeneration) cameraHint(reason); },
-            on_started: () => { hide(hint); hint = null; },
+            // 5 秒还没开（请求被挂着）：LINE 里转 LIFF，别的说原因、继续等。
+            on_waiting: (reason) => { if (generation === cameraGeneration) cameraFailed(reason); },
             on_play_blocked: (play) => { node.querySelector('video').onclick = play; },
           });
           camera = { node: node, reader: reader };
@@ -391,6 +367,7 @@
             const config = await (await fetch(API + 'api_line_stocktake_config')).json();
             csrf = (config.message || {}).csrf_token || '';
             const liff_id = (config.message || {}).liff_id || '';
+            liffId = liff_id;
             let id_token = '';
             if (liff_id && window.liff) {
               try {

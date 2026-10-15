@@ -310,6 +310,8 @@ boot_session = [
     "pearnly_core.desk.currency.boot_session",
     # 上传前缩照片的参数（所有租户都开，`pearnly_core/desk/upload.py`）。
     "pearnly_core.desk.upload.boot_session",
+    # 本站点 LIFF ID：盘点扫码在 LINE 普通内置浏览器里转 LIFF 打开（那里 LINE 会弹原生相机授权）。
+    "pearnly_core.desk.line_boot.boot_session",
     # 整份翻译表不进按用户缓存的启动信息（每人约 1MB，挤满 redis-cache），返回前按语言放回（`extend_bootinfo` 同名模块）。
     "pearnly_core.desk.boot_messages.boot_session",
 ]

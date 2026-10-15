@@ -118,6 +118,13 @@
 				if (row) void records(row);
 			});
 			await refresh();
+			// 从 LINE 普通内置浏览器转到 LIFF 时带着 `pearnly_scan=1`：接着开扫码（LINE 会弹原生相机授权）。
+			const params = new URLSearchParams(window.location.search);
+			if (params.get("pearnly_scan") && request === sequence && active()) {
+				params.delete("pearnly_scan");
+				window.history.replaceState(null, "", window.location.pathname + (params.size ? `?${params}` : ""));
+				void entry_form(null, true);
+			}
 		}
 		function open_list() {
 			// 选中若干个**进行中**的盘点 → 右上角出现"删除选中"。已结束/已过账的盘点只能查看

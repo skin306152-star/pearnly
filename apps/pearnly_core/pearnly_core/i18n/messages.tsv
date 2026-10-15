@@ -879,7 +879,3 @@ No camera was found on this device. Enter the code instead.	此设备上没有�
 The barcode reader could not load. Refresh the page and try again.	扫码组件加载失败。请刷新页面后重试。	โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง	バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。	common.scan.decoder
 The camera could not start. Try again, or enter the code.	相机无法启动。请重试，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。もう一度お試しいただくか、コードを入力してください。	common.scan.failed
 LINE does not have permission to use the camera yet.	LINE 还没有使用相机的权限。	LINE ยังไม่ได้รับอนุญาตให้ใช้กล้อง	LINE にカメラの使用が許可されていません。	common.scan.in_line
-Allow LINE to use the camera	允许 LINE 使用相机	อนุญาตให้ LINE ใช้กล้อง	LINE にカメラを許可	common.scan.allow_title
-Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.	打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。	เปิด การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง เลือก อนุญาต แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง	スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。	common.scan.allow_android
-Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.	打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。	เปิด การตั้งค่า → LINE เปิด กล้อง แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง	iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。	common.scan.allow_ios
-Try again	重试	ลองอีกครั้ง	再試行	common.scan.retry

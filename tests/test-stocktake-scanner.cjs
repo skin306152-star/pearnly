@@ -27,7 +27,9 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   const requests = [];
   const schedule = callback => { callbacks.set(++id, callback); return id; };
   const cancel = key => callbacks.delete(key);
-  vm.runInNewContext(source, { window: { BarcodeDetector: Detector, isSecureContext: true, setTimeout: schedule, clearTimeout: cancel },
+  const window = { BarcodeDetector: Detector, isSecureContext: true, setTimeout: schedule, clearTimeout: cancel,
+    location: { href: 'https://site.invalid/desk/pearnly-stock-count/C1' } };
+  vm.runInNewContext(source, { window, URL,
     navigator: { userAgent: ua, mediaDevices: {
       getUserMedia: value => { requests.push(value); return acquire ? acquire(stream, value) : Promise.resolve(stream); },
       enumerateDevices: async () => devices },
@@ -35,14 +37,14 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     __: text => text,
     frappe: { provide() {}, pearnly: p,
       utils: { play_sound: name => sounds.push(name) },
-      boot: { user: { mute_sounds: muted } } },
+      boot: { user: { mute_sounds: muted }, pearnly_liff_id: '2000-abc' } },
     $, setTimeout: schedule, clearTimeout: cancel,
   });
   // `p.sounds_muted` 是共享层（`pearnly_core/public/desk/product.js`）给的：这份测试只加载
   // scan.js，所以按同一份契约补一个 —— 判据就是官方那一位 `frappe.boot.user.mute_sounds`。
   p.sounds_muted = () => Boolean(muted);
   const reader = p.scan_reader({ host: {}, on_result: (code, metadata) => {result.push(code);details.push(metadata);}, on_error: error => errors.push(error) });
-  return { p, reader, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
+  return { p, reader, window, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
     async tick() { const next = callbacks.entries().next().value; assert.ok(next); callbacks.delete(next[0]); await next[1](); await flush(); } };
 }
 
@@ -151,6 +153,12 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(broken.p.scan_failure(broken.errors[0]), 'decoder');
   assert.equal(broken.stops(), 1, 'The opened camera is released when the reader cannot load');
   assert.equal(hanging.p.scan_failure(Object.assign(new Error('x'), { name: 'NotAllowedError' })), 'in_line');
+  // 转 LIFF：只在 LINE 普通内置浏览器里、配了 LIFF、链接上还没有标记时才转，转一次。
+  assert.equal(hanging.p.scan_to_liff({ pearnly_scan: '1' }), true);
+  assert.equal(hanging.window.location.href,
+    'https://liff.line.me/2000-abc/desk/pearnly-stock-count/C1?pearnly_liff=1&pearnly_scan=1');
+  assert.equal(hanging.p.scan_to_liff({ pearnly_scan: '1' }), false, 'already in LIFF: never bounce twice');
+  assert.equal(fixture().p.scan_to_liff(), false, 'outside LINE nothing moves');
   console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
   console.log('PASS two-frame decode, exact QR, pause/resume, torch, stream cleanup and late permission cancellation');
   console.log('PASS decoder format propagation, numeric QR and mixed-format stability');

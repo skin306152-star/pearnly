@@ -11,7 +11,7 @@ const reader = fs.readFileSync('apps/pearnly_core/pearnly_core/public/scan/reade
 assert.match(html, /<script src="\{\{ versioned_asset\('pearnly_core', 'scan\/reader\.js'\) \}\}"><\/script>/);
 const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const source = inline.replace('        start();', `window.testPage = {
-  call, startCamera, stopCamera, bindForm, render, lookup,
+  call, startCamera, stopCamera, bindForm, render, lookup, setLiff: (value) => { liffId = value; },
   state: (value) => { csrf = value.csrf || ''; ticket = value.ticket || '';
     task = value.task || {name: 'COUNT-1'}; scanMode = Boolean(value.scanMode); },
 };`);
@@ -48,9 +48,7 @@ function fixture(options = {}) {
     addEventListener: (name, handler) => { events[name] = handler; },
     BarcodeDetector: options.fallback ? undefined : Reader,
   };
-  const docEvents = {};
-  const document = {getElementById: element, createElement: () => node(), visibilityState: 'visible',
-    addEventListener: (name, handler) => { docEvents[name] = handler; },
+  const document = {getElementById: element, createElement: () => node(),
     head: {appendChild(script) {
       scripts.push(script.src);
       browser.BarcodeDetectionAPI = {BarcodeDetector: Reader, prepareZXingModule: async config => prepares.push(config)};
@@ -79,7 +77,7 @@ function fixture(options = {}) {
   const page = browser.testPage;
   page.state({csrf: 'synthetic-csrf', ticket: 'synthetic-ticket'});
   page.location = () => browser.location;
-  return {page, calls, docEvents, scripts, prepares, timers, events, element, item, video,
+  return {page, calls, scripts, prepares, timers, events, element, item, video,
     stopped: () => stopped, acquired: () => acquired, decoderCalls: () => decoderCalls,
     // 读码是一帧接一帧（setTimeout 链）：取出下一帧执行。
     async tick() { const [id, callback] = timers.entries().next().value || []; assert.ok(callback); timers.delete(id); await callback(); await flush(); },
@@ -139,23 +137,28 @@ function fixture(options = {}) {
   const named = name => Object.assign(new Error(name), {name});
   const refused = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   await refused.page.startCamera(() => {}); await flush();
-  assert.equal(refused.element('p').textContent, 'common.scan.in_line', 'the reason stays on the page');
-  assert.equal(refused.element('h3').textContent, 'common.scan.allow_title', 'inside LINE it is a permission guide');
-  assert.equal(refused.element('p.muted').textContent, 'common.scan.allow_android', 'Android steps for an Android phone');
-  refused.element('button').onclick(); await flush();
-  assert.equal(refused.acquired(), 2, 'Try again reopens the camera');
-  refused.docEvents.visibilitychange(); await flush();
-  assert.equal(refused.acquired(), 3, 'coming back from the phone settings reopens the camera by itself');
+  assert.equal(refused.element('toast').textContent, 'common.scan.in_line', 'no LIFF configured: say why');
+  // LINE 普通内置浏览器不弹相机授权、LIFF 会弹：配了 LIFF 就把这一页换成 LIFF 打开（带标记，到了不再转）。
+  const moved = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
+  moved.page.setLiff('2000-abc');
+  await moved.page.startCamera(() => {}); await flush();
+  assert.equal(moved.page.location().href, 'https://liff.line.me/2000-abc/stocktake?count=1&pearnly_liff=1');
+  const arrived = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
+  arrived.page.setLiff('2000-abc');
+  arrived.page.location().href = 'https://synthetic.invalid/stocktake?count=1&pearnly_liff=1';
+  await arrived.page.startCamera(() => {}); await flush();
+  assert.equal(arrived.page.location().href, 'https://synthetic.invalid/stocktake?count=1&pearnly_liff=1', 'never bounce twice');
+  assert.equal(arrived.element('toast').textContent, 'common.scan.in_line');
   const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
   await taken.page.startCamera(() => {}); await flush();
-  assert.equal(taken.element('p').textContent, 'common.scan.busy');
-  // LINE 没有相机权限：请求一直挂着，5 秒后页面给出原因与「用浏览器打开」。
+  assert.equal(taken.element('toast').textContent, 'common.scan.busy');
+  // 请求一直挂着（LINE 普通内置浏览器）：5 秒后同样转 LIFF。
   const hanging = fixture({acquire: () => new Promise(() => {})});
+  hanging.page.setLiff('2000-abc');
   void hanging.page.startCamera(() => {}); await flush();
   await hanging.tick();
-  assert.equal(hanging.element('p').textContent, 'common.scan.in_line');
-  assert.equal(taken.acquired(), 2, 'a busy camera gets one plain retry');
-  console.log('PASS inside LINE a refused or hanging camera opens the permission guide (Android steps, Try again, auto-retry on return)');
+  assert.match(hanging.page.location().href, /^https:\/\/liff\.line\.me\/2000-abc\/stocktake\?/);
+  console.log('PASS inside LINE a refused or hanging camera reopens the page in LIFF once (native camera prompt there); elsewhere it says why');
 
   const continuous = fixture();
   continuous.page.state({scanMode: true});
