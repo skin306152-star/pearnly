@@ -45,7 +45,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   // scan.js，所以按同一份契约补一个 —— 判据就是官方那一位 `frappe.boot.user.mute_sounds`。
   p.sounds_muted = () => Boolean(muted);
   const reader = p.scan_reader({ host: {}, on_result: (code, metadata) => {result.push(code);details.push(metadata);}, on_error: error => errors.push(error) });
-  return { p, reader, window, messages, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
+  return { p, reader, window, messages, pending: () => callbacks.size, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
     async tick() { const next = callbacks.entries().next().value; assert.ok(next); callbacks.delete(next[0]); await next[1](); await flush(); } };
 }
 
@@ -176,7 +176,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   const asking_waits = [];
   const asking_reader = asking.p.scan_reader({ host: {}, on_result: () => {}, on_waiting: reason => asking_waits.push(reason) });
   void asking_reader.start(); await flush();
-  assert.equal([...asking.timers ? [] : []].length, 0);
+  assert.equal(asking.pending(), 0, 'no hint timer is scheduled inside LIFF');
   assert.equal(asking_waits.length, 0, 'no early hint while a LIFF permission prompt is open');
   asking_reader.stop();
   console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
