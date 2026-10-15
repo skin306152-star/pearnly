@@ -318,6 +318,15 @@ class TextTests(unittest.TestCase):
             self.assertIn("earlierFolders:", block(settings, f"  {lang}: {{"), lang)
         self.assertEqual(sets["en"], sets["zh"])
         self.assertEqual(sets["en"], sets["th"])
+        # 工具步骤（含跑完的按类摘要）：三种语言的词条一样多
+        steps = block(i18n, "const STEPS = {")
+        step_sets = {lang: keys(block(steps, f"  {lang}: {{")) | keys(block(block(steps, f"  {lang}: {{"), "summary: {"))
+                     for lang in ("en", "zh", "th")}
+        self.assertTrue({"failed", "running", "summary", "command", "read", "edit", "search", "fetch", "tool", "times", "join"}
+                        <= step_sets["en"])
+        self.assertNotIn("steps", step_sets["en"])  # 「N 个步骤」已换成按类摘要（用户 2026-10-15 批）
+        self.assertEqual(step_sets["en"], step_sets["zh"])
+        self.assertEqual(step_sets["en"], step_sets["th"])
         # 用户可见处叫「CC 桌面版」，不叫小助手 / Companion
         self.assertNotRegex(company, r"小助手|Companion")
 
@@ -1991,10 +2000,61 @@ class CompanyMasterSourceTests(unittest.TestCase):
         drawer = drawer[:drawer.index("\n/*", 1) if "\n/*" in drawer[1:] else len(drawer)]
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", drawer))
 
-    def test_the_composer_company_bar_does_not_touch_the_thread_file(self):
-        # 公司条放在新对话的问候里（assistant.tsx 的 Welcome），不改 thread.tsx（工作状态行那一包的文件）
-        self.assertIn("<ComposerCompany />", block(read("assistant.tsx"), "function Welcome()"))
-        self.assertNotIn("ComposerCompany", read("components/assistant-ui/thread.tsx"))
+    def test_the_composer_chin_is_a_generic_slot_filled_by_the_product(self):
+        # 设计文档 3.12 / 4.3：公司、月份、分店放在输入框下巴。thread.tsx 只有通用的 Chin 插槽（不知道公司），
+        # 内容由 assistant.tsx 接线的 ComposerChin 给；问候里不再有公司条；ERP / DMS（没有公司分组）不出现
+        page = read("assistant.tsx")
+        self.assertNotIn("ComposerCompany", page)
+        self.assertIn("<Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />",
+                      page)
+        self.assertNotIn("ComposerChin", block(page, "function Welcome()"))
+        thread = read("components/assistant-ui/thread.tsx")
+        for word in ("ComposerCompany", "ComposerChin", "projects", "useProjects", "co."):
+            self.assertNotIn(word, thread, word)
+        self.assertIn("  Chin?: ComponentType | undefined;", thread)
+        self.assertIn('      {Chin && (\n        <div className="cc-composer-chin" data-slot="cc-composer-chin">\n          <Chin />\n'
+                      '        </div>\n      )}', thread)
+        projects = read("components/assistant-ui/projects.tsx")
+        self.assertNotIn("ComposerCompany", projects)
+        chin = block(projects, "export const ComposerChin: FC = () => {")
+        self.assertIn("if (!kind) return null;", chin)
+        self.assertIn("return fresh ? <DraftChin /> : <SessionChin />;", chin)
+        # 新对话：「公司 ▾」选公司（至少有一家公司才出现），菜单向上开；月份、分店是草稿
+        draft = block(projects, "const DraftChin: FC = () => {")
+        self.assertIn("if (!(sidebarHasOne || any || draft.project)) return null;", draft)
+        self.assertIn('<DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
+        self.assertIn('<PeriodChip look="cc-chin-btn" side="top" value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
+                      draft)
+        # 已有对话：公司名打开右侧会话栏的公司卡（事件，没人接就开主档页），月份、分店改了就 move
+        session = block(projects, "const SessionChin: FC = () => {")
+        self.assertIn("onClick={() => openCompanyCard(project, openCompany)}", session)
+        self.assertIn('<FilingChips look="cc-chin-btn" side="top" />', session)
+        self.assertIn('export const OPEN_COMPANY_CARD = "cc:open-company-card";', projects)
+        self.assertIn("const event = new CustomEvent(OPEN_COMPANY_CARD, { detail: { company }, cancelable: true });", projects)
+        self.assertIn("if (window.dispatchEvent(event)) fallback(company);", projects)
+        self.assertIn("const change = (next: Partial<Filing>) => void fileSession(remoteId, { ...filing, ...next }).catch(report);",
+                      projects.split("const FilingChips: FC<", 1)[1].split("\n};", 1)[0])
+        # 手机胶囊菜单只留「移到…」：月份在下巴里
+        mobile = block(projects, "export const MobileFilingItems: FC = () => {")
+        self.assertIn("return <MoveToMenu sessionId={remoteId} localId={localId} />;", mobile)
+        self.assertNotIn("co.period", mobile)
+        css = read("globals.css")
+        self.assertIn("  .cc-composer-chin:empty { display: none; }", css)
+        self.assertIn(".cc-mshell .cc-composer-chin { min-height: var(--cc-chin-h-phone); }", css)
+        chin_css = css.split("\n  .cc-composer-chin {", 1)[1].split("}", 1)[0]
+        for part in ("min-height: var(--cc-chin-h);", "margin-inline: calc(var(--cc-chin-out) * -1);", "padding: var(--cc-chin-pad);"):
+            self.assertIn(part, chin_css)
+        button = css.split("\n  .cc-chin-btn {", 1)[1].split("}", 1)[0]
+        for part in ("height: var(--cc-chin-btn);",
+                     "border-radius: var(--cc-radius-chin); color: var(--cc-ink-2); font-size: var(--cc-chin-font);"):
+            self.assertIn(part, button)
+        # 输入框（设计文档 3.12，电脑）：一行里「＋」、输入、发送，单行高 44、内边距 8、按钮 28；圆角 14
+        self.assertIn('className="cc-composer cc-composer-inline"', thread)
+        self.assertIn("--cc-radius-composer: var(--code-radius-input);", css)
+        self.assertIn('grid-template-areas: "files files files" "add input send";', css)
+        self.assertIn("align-items: end; gap: 0; min-height: var(--cc-composer-h); padding: var(--cc-composer-pad);", css)
+        self.assertIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer-inline :is(.cc-attach, .cc-send) "
+                      "{ width: var(--cc-composer-btn); height: var(--cc-composer-btn); }", css)
 
     def test_hand_to_cc_and_drafts_prefill_without_sending(self):
         pending = read("components/pending.tsx")

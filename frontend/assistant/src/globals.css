@@ -373,6 +373,25 @@
   --code-menu-sep-inset: 10px;
   --code-menu-sep-gap: 4px;
   --code-menu-sep: 1px;
+  /* 对话区（设计文档 3.10–3.12）：正文块间距只用上外边距；工具步骤摘要行与明细卡；输入框单行与下巴 */
+  --code-prose-block: 0.75em;   /* 段落、列表、表格之间 */
+  --code-prose-heading: 1.25em; /* 标题前 */
+  --code-step-h: 24px;          /* 步骤摘要行：高 24、内边距 2/4、箭头 12 */
+  --code-step-py: 2px;
+  --code-step-px: 4px;
+  --code-step-chevron: 12px;
+  --code-step-row-py: 6px;      /* 明细卡的一行：内边距 6/8、行间 1px 线 */
+  --code-step-row-px: 8px;
+  --code-ring: 1px;             /* 1px 环与细线（步骤卡、表格外圈） */
+  --code-composer-h: 44px;      /* 输入框单行时高 44、内边距 8、「＋」与发送 28 */
+  --code-composer-pad: 8px;
+  --code-composer-btn: 28px;
+  --code-chin-h: 46px;          /* 下巴：高 46（手机 48）、左右各比输入框宽 8、内边距 8 */
+  --code-chin-h-phone: 48px;
+  --code-chin-out: 8px;
+  --code-chin-pad: 8px;
+  --code-chin-btn: 24px;        /* 下巴的幽灵按钮：13px、高 24、圆角 5、次要色 */
+  --code-radius-5: 5px;
   /* 动效：主 / 快 / 淡出；时长 60 / 120 / 200 / 300 / 450ms */
   --code-ease: cubic-bezier(0.32, 0.72, 0, 1);
   --code-ease-fast: cubic-bezier(0.2, 0, 0, 1);
@@ -513,7 +532,7 @@
   --cc-radius-lg: var(--ccs-radius-lg);     /* 10 */
   --cc-radius-xl: var(--ccs-radius-xl);     /* 12：菜单、浮层卡片 */
   --cc-radius-full: var(--ccs-radius-full);
-  --cc-radius-composer: 20px;     /* 输入框：外壳实测，官方表未覆盖 */
+  --cc-radius-composer: var(--code-radius-input);   /* 输入框 14（设计文档 3.12） */
   --cc-radius-composer-mobile: 1.5rem;   /* 手机输入框：外壳实测 */
   --cc-radius-bubble: var(--code-radius-10);   /* 用户气泡（设计文档 3.10） */
   --cc-radius-code: var(--code-radius-code);   /* 行内代码 */
@@ -533,10 +552,32 @@
   /* 对话正文：电脑（网页、桌面窗口）14/20，手机 16/24（变体切）；字体仍按设置「对话字体」 */
   --cc-body-size: var(--code-text-body);
   --cc-body-lh: var(--code-text-body-lh);
-  /* 回复里的列表：上外边距约 21px（14px 正文的 1.5 倍）、缩进 28 + 7 */
-  --cc-md-list-top: 1.5em;
+  /* 回复正文的块（设计文档 3.10）：块之间只用上外边距——段落、列表、表格 0.75em，标题前 1.25em，第一块 0；列表缩进 28 + 7 */
+  --cc-md-block: var(--code-prose-block);
+  --cc-md-heading: var(--code-prose-heading);
   --cc-md-list-indent: 28px;
   --cc-md-li-indent: 7px;
+  /* 工具步骤（设计文档 3.11）：摘要行 24、内边距 2/4、圆角 6、箭头 12；明细卡圆角 10、行内边距 6/8、行间 1px 线 */
+  --cc-step-h: var(--code-step-h);
+  --cc-step-py: var(--code-step-py);
+  --cc-step-px: var(--code-step-px);
+  --cc-step-chevron: var(--code-step-chevron);
+  --cc-step-row-py: var(--code-step-row-py);
+  --cc-step-row-px: var(--code-step-row-px);
+  --cc-ring-w: var(--code-ring);
+  --cc-radius-step: var(--code-radius-6);
+  --cc-radius-step-card: var(--code-radius-10);
+  /* 输入框与下巴（设计文档 3.12）：单行高 44、内边距 8、按钮 28；下巴高 46（手机 48）、左右各宽 8、内边距 8，按钮 13px / 24 / 圆角 5 */
+  --cc-composer-h: var(--code-composer-h);
+  --cc-composer-pad: var(--code-composer-pad);
+  --cc-composer-btn: var(--code-composer-btn);
+  --cc-chin-h: var(--code-chin-h);
+  --cc-chin-h-phone: var(--code-chin-h-phone);
+  --cc-chin-out: var(--code-chin-out);
+  --cc-chin-pad: var(--code-chin-pad);
+  --cc-chin-btn: var(--code-chin-btn);
+  --cc-chin-font: var(--code-text-footnote);
+  --cc-radius-chin: var(--code-radius-5);
 
   /* 密度（设计系统舒适档；网页默认，桌面窗口 / 手机在「变体」一段覆盖） */
   --cc-control: var(--code-control);        /* 按钮、输入框高 */
@@ -798,6 +839,24 @@
     box-shadow: var(--cc-shadow-composer); transition: border-color var(--cc-dur) var(--cc-ease), box-shadow var(--cc-dur) var(--cc-ease);
   }
   .cc-composer:focus-within { box-shadow: var(--cc-shadow-composer-focus); }
+  .cc-composer-inline textarea { padding-inline: 0.25rem; font-size: var(--cc-body-size); line-height: var(--cc-body-lh); }
+  /* 下巴（设计文档 3.12）：高 46（手机 48）、左右各比输入框宽 8、内边距 8；里面 13px、高 24、圆角 5 的幽灵按钮（次要色）。
+     内容由产品给（thread.tsx 的 Chin 插槽），没有内容时不占位 */
+  .cc-composer-chin {
+    display: flex; align-items: center; gap: 0.25rem; min-height: var(--cc-chin-h); margin-inline: calc(var(--cc-chin-out) * -1);
+    padding: var(--cc-chin-pad); overflow-x: auto; scrollbar-width: none;
+  }
+  .cc-composer-chin:empty { display: none; }
+  .cc-chin-btn {
+    display: inline-flex; min-width: 0; max-width: 16rem; flex-shrink: 0; align-items: center; gap: 0.25rem; height: var(--cc-chin-btn);
+    padding-inline: 0.375rem; border-radius: var(--cc-radius-chin); color: var(--cc-ink-2); font-size: var(--cc-chin-font);
+    line-height: var(--cc-text-footnote-lh); white-space: nowrap; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-chin-btn:hover, .cc-chin-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-chin-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-chin-btn:disabled { opacity: 0.4; pointer-events: none; }
+  .cc-chin-btn svg { width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0; color: var(--cc-ink-3); }
   .cc-composer[data-dragging="true"] { border-style: dashed; border-color: var(--cc-ink-3); }
   .cc-composer textarea { color: var(--cc-ink); }
   .cc-composer textarea::placeholder { color: var(--cc-ink-4); }
@@ -842,6 +901,47 @@
     font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
     animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
   }
+  /* 回复里的块（正文、步骤、文件卡）之间只用上外边距（设计文档 3.10） */
+  .cc-reply > * + * { margin-top: var(--cc-md-block); }
+  /* 回复下的操作行（复制）：悬停这条回复或键盘聚焦时淡入；手机、平板等没有悬停的设备常显 */
+  .cc-reply-actions { opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }
+  [data-role="assistant"]:hover .cc-reply-actions, .cc-reply-actions:focus-within { opacity: 1; }
+  @media (hover: none) { .cc-reply-actions { opacity: 1; } }
+
+  /* 工具步骤（设计文档 3.11）：一行摘要（24 高、14px 淡色、圆角 6、内边距 2/4、后面 12px 箭头），展开后变次要色；
+     下面一张卡片（圆角 10、1px 环），一步一行（内边距 6/8、行间 1px 线），只写一句说明，失败的行尾红字；
+     再点一步才显示命令与输出（等宽）。界面字体（不跟回复正文的字体设置） */
+  .cc-steps, .aui-step { font-family: var(--cc-font-sans); }
+  .cc-steps-summary {
+    display: inline-flex; max-width: 100%; min-width: 0; align-items: center; gap: 0.25rem; min-height: var(--cc-step-h);
+    padding: var(--cc-step-py) var(--cc-step-px); border-radius: var(--cc-radius-step); color: var(--cc-ink-3);
+    font-size: var(--cc-row-font); line-height: var(--cc-row-lh); text-align: start; outline: none;
+    transition: color var(--cc-dur-fast) var(--cc-ease), background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-steps-summary:hover, .cc-steps-summary[aria-expanded="true"] { color: var(--cc-ink-2); }
+  .cc-steps-summary:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-steps-summary svg {
+    width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0; transition: transform var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-steps-summary[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .cc-steps-card {
+    margin-top: var(--cc-step-py); overflow: hidden; border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);
+  }
+  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-step-row {
+    display: flex; width: 100%; min-width: 0; align-items: center; gap: 0.5rem; padding: var(--cc-step-row-py) var(--cc-step-row-px);
+    color: var(--cc-ink-2); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); text-align: start; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-step-row:enabled:hover { background: var(--cc-bg-hover); }
+  .cc-step-row:focus-visible { box-shadow: inset 0 0 0 1px var(--cc-focus-ring); }
+  .cc-step-target { color: var(--cc-ink-3); }
+  .cc-step-failed { flex-shrink: 0; color: var(--cc-danger); }
+  .cc-step-detail {
+    border-top: var(--cc-ring-w) solid var(--cc-line); background: var(--cc-bg-subtle); color: var(--cc-ink-2);
+    font-family: var(--cc-font-mono); font-size: var(--cc-text-xs); line-height: 1.25rem;
+  }
+
   .cc-card { background: var(--cc-bg-surface); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md); }
   .cc-card[data-selected] { border-color: var(--cc-ink-3); }
   .cc-card-hover { transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease); }
@@ -1091,7 +1191,7 @@
   }
   .cc-filing-tag { color: var(--cc-ink-3); }
 
-  /* 月份、分店、公司的胶囊（主档页输入框、新对话的公司条、对话顶栏） */
+  /* 月份、分店的胶囊（主档页输入框、对话顶栏）；输入框下巴里同样的按钮用 .cc-chin-btn */
   .cc-chip-btn {
     display: inline-flex; min-width: 0; max-width: 16rem; align-items: center; gap: 0.25rem; height: 1.75rem; padding-inline: 0.5rem;
     border-radius: var(--cc-radius-full); border: 1px solid var(--cc-line); background: var(--cc-bg-surface); color: var(--cc-ink-2);
@@ -1100,7 +1200,6 @@
   .cc-chip-btn:hover, .cc-chip-btn:focus-visible, .cc-chip-btn[data-state="open"] { background: var(--cc-bg-hover); border-color: var(--cc-line-strong); }
   .cc-chip-btn[data-chosen] { color: var(--cc-ink); }
   .cc-chip-btn svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; color: var(--cc-ink-3); }
-  .cc-composer-company { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.375rem; }
   .cc-title-company {
     display: inline-flex; min-width: 0; max-width: 14rem; align-items: center; gap: 0.125rem; height: 2rem; padding-inline: 0.5rem;
     border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: 0.875rem; outline: none;
@@ -1181,6 +1280,23 @@
 /* 手机（2026-10-12 用 iPhone 镜像与 Claude 手机 app 同屏逐项量过）：输入框约 96 高、白底、描边明显、
    「+」是浅灰实心圆；问候语约 20 号深灰、图标小。页面底色与电脑同一个（设计系统表面 1，2026-10-15 实测） */
 .cc-mshell .cc-composer { min-height: 6rem; justify-content: space-between; border-color: var(--cc-line-strong); border-radius: var(--cc-radius-composer-mobile); box-shadow: var(--cc-shadow-composer-mobile); }
+/* 对话输入框（设计文档 3.12，电脑）：一行里「＋」、输入、发送；单行时高 44（内边距 8、按钮 28），附件在上面一行。
+   手机外壳保留两行（.cc-mshell .cc-composer）。
+   不放进 @layer：「＋」与发送外面那层的 flex 等工具类要被这里盖住 */
+:root:not([data-cc-variant="phone"]) .cc-composer-inline {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "files files files" "add input send";
+  align-items: end; gap: 0; min-height: var(--cc-composer-h); padding: var(--cc-composer-pad);
+}
+:root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-attachments { grid-area: files; padding-bottom: var(--cc-composer-pad); }
+:root:not([data-cc-variant="phone"]) .cc-composer-inline > textarea {
+  grid-area: input; align-self: center; padding: calc((var(--cc-composer-btn) - var(--cc-body-lh)) / 2) var(--cc-composer-pad);
+}
+:root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-action-wrapper { display: contents; }
+:root:not([data-cc-variant="phone"]) .cc-composer-inline .aui-composer-add-attachment { grid-area: add; }
+:root:not([data-cc-variant="phone"]) .cc-composer-inline .aui-composer-send-slot { grid-area: send; }
+:root:not([data-cc-variant="phone"]) .cc-composer-inline :is(.cc-attach, .cc-send) { width: var(--cc-composer-btn); height: var(--cc-composer-btn); }
+:root:not([data-cc-variant="phone"]) .cc-composer-inline :is(.cc-attach, .cc-send) svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+.cc-mshell .cc-composer-chin { min-height: var(--cc-chin-h-phone); }
 .cc-mshell .cc-attach { width: 2.125rem; height: 2.125rem; border-color: transparent; background: var(--cc-bg-subtle); }
 .cc-mshell .cc-greeting { font-size: 1.25rem; color: var(--cc-ink-2); }
 .cc-mshell .pearnly-mascot-host { height: 4.5rem; }

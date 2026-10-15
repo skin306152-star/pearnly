@@ -150,6 +150,11 @@ CODE_SHARED = {
     "ease": "cubic-bezier(0.32, 0.72, 0, 1)", "ease-fast": "cubic-bezier(0.2, 0, 0, 1)",
     "ease-out": "cubic-bezier(0.165, 0.84, 0.44, 1)",
     "dur-1": "60ms", "dur-2": "120ms", "dur-3": "200ms", "dur-4": "300ms", "dur-5": "450ms",
+    # 对话区（设计文档 3.10–3.12）
+    "prose-block": "0.75em", "prose-heading": "1.25em",
+    "step-h": "24px", "step-py": "2px", "step-px": "4px", "step-chevron": "12px", "step-row-py": "6px", "step-row-px": "8px",
+    "ring": "1px", "composer-h": "44px", "composer-pad": "8px", "composer-btn": "28px",
+    "chin-h": "46px", "chin-h-phone": "48px", "chin-out": "8px", "chin-pad": "8px", "chin-btn": "24px", "radius-5": "5px",
 }
 PAGE_BG = {"light": "#fcfcfb", "dark": "#151515"}
 
@@ -181,9 +186,9 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-text-sm": "--ccs-text-sm-size",
         }.items():
             self.assertEqual(cc.get(name), f"var({target})", name)
-        # 强调色仍是 CC 橘黄；手机外壳实测值、侧栏宽、输入框圆角保留
+        # 强调色仍是 CC 橘黄；手机外壳实测值、侧栏宽保留（输入框圆角改指设计系统 14，见 test_cc_structure_points_at_the_code_layer）
         self.assertEqual(cc["--cc-brand"], "#f28c28")
-        for name, value in {"--cc-radius-composer": "20px", "--cc-mbtn-bg": "#f6f6f4", "--cc-menu-max-list": "20rem"}.items():
+        for name, value in {"--cc-mbtn-bg": "#f6f6f4", "--cc-menu-max-list": "20rem"}.items():
             self.assertEqual(cc[name], value, name)
         self.assertIn("外壳实测", self.css)
         # 另配的旧状态色、旧页面底色不再出现
@@ -238,6 +243,15 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-ease": "--code-ease", "--cc-ease-fast": "--code-ease-fast", "--cc-ease-out": "--code-ease-out",
             "--cc-dur-instant": "--code-dur-1", "--cc-dur-fast": "--code-dur-2", "--cc-dur": "--code-dur-3",
             "--cc-dur-slow": "--code-dur-4", "--cc-dur-pop": "--code-dur-5", "--cc-reveal": "--cc-dur-fast",
+            "--cc-radius-composer": "--code-radius-input",
+            "--cc-md-block": "--code-prose-block", "--cc-md-heading": "--code-prose-heading",
+            "--cc-step-h": "--code-step-h", "--cc-step-py": "--code-step-py", "--cc-step-px": "--code-step-px",
+            "--cc-step-chevron": "--code-step-chevron", "--cc-step-row-py": "--code-step-row-py",
+            "--cc-step-row-px": "--code-step-row-px", "--cc-ring-w": "--code-ring", "--cc-radius-step": "--code-radius-6",
+            "--cc-radius-step-card": "--code-radius-10", "--cc-composer-h": "--code-composer-h",
+            "--cc-composer-pad": "--code-composer-pad", "--cc-composer-btn": "--code-composer-btn", "--cc-chin-h": "--code-chin-h",
+            "--cc-chin-h-phone": "--code-chin-h-phone", "--cc-chin-out": "--code-chin-out", "--cc-chin-pad": "--code-chin-pad",
+            "--cc-chin-btn": "--code-chin-btn", "--cc-chin-font": "--code-text-footnote", "--cc-radius-chin": "--code-radius-5",
         }.items():
             self.assertEqual(cc.get(name), f"var({target})", name)
         # 聚焦：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕
@@ -361,15 +375,40 @@ assert.equal(pickVariant(false, false), "web");
         thread = read("components/assistant-ui/thread.tsx")
         self.assertIn('className="cc-reply px-2 wrap-break-word"', thread)
         md = read("components/assistant-ui/markdown-text.tsx")
-        self.assertIn('"aui-md-p my-3 first:mt-0 last:mb-0"', md)
+        # 块之间只用上外边距（设计文档 3.10）：段落、列表、表格、代码、引用、分隔线 0.75em，标题前 1.25em，第一块 0
+        self.assertIn('"aui-md-p mt-(--cc-md-block) first:mt-0"', md)
+        self.assertNotRegex(md, r"\bm[yb]-\d|last:mb-0")
+        self.assertNotIn("aui-md-p leading-relaxed", md)
+        for tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            self.assertRegex(md, r'"aui-md-' + tag + r' mt-\(--cc-md-heading\)[^"]* first:mt-0"', tag)
+        for cls in ("aui-md-blockquote", "aui-md-hr", "aui-md-table-wrap", "aui-code-header-root"):
+            self.assertRegex(md, cls + r'[^"]* mt-\(--cc-md-block\)[^"]* first:mt-0', cls)
+        self.assertEqual(md.count("mt-(--cc-md-block) ps-(--cc-md-list-indent)"), 2)
         self.assertIn('<li className={cn("aui-md-li", className)} {...props} />', md)
-        self.assertIn("mt-(--cc-md-list-top) mb-3 ps-(--cc-md-list-indent)", md)
         self.assertIn("[&>li]:ps-(--cc-md-li-indent)", md)
+        # 表格：外圈 1px 环加圆角（10），里面细线
+        self.assertIn("overflow-x-auto rounded-lg border-(length:--cc-ring-w) border-line first:mt-0", md)
+        self.assertIn('"aui-md-th min-w-24 border-line border-b px-3 py-1.5 text-start font-medium not-first:border-s', md)
+        self.assertIn('"aui-md-td min-w-24 border-line border-b px-3 py-1.5 text-start not-first:border-s', md)
+        self.assertNotIn("bg-muted px-3", md)
         self.assertIn('"aui-md-a text-link hover:text-link/80 underline underline-offset-2"', md)
         self.assertIn('"aui-md-inline-code bg-code-bg text-code-ink rounded-code px-1 py-0.5 font-mono text-[0.9em]"', md)
-        self.assertIn("--cc-md-list-top: 1.5em;", self.css)
         self.assertIn("--cc-md-list-indent: 28px;", self.css)
         self.assertIn("--cc-md-li-indent: 7px;", self.css)
+        self.assertNotIn("--cc-md-list-top", self.css)
+        # 回复里的块（正文、步骤、文件卡）之间同样只用上外边距；回复下的操作行悬停淡入、没有悬停的设备常显
+        self.assertIn("  .cc-reply > * + * { margin-top: var(--cc-md-block); }", self.css)
+        self.assertIn("  .cc-reply-actions { opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }",
+                      self.css)
+        self.assertIn('  [data-role="assistant"]:hover .cc-reply-actions, .cc-reply-actions:focus-within { opacity: 1; }', self.css)
+        self.assertIn("  @media (hover: none) { .cc-reply-actions { opacity: 1; } }", self.css)
+        bar = thread.split("const AssistantActionBar: FC = () => {", 1)[1].split("\n};", 1)[0]
+        self.assertIn('autohide="never"', bar)
+        self.assertIn("hideWhenRunning", bar)
+        self.assertIn("cc-reply-actions", bar)
+        # 栏宽 768：内容区左右各 1rem，正文与输入框正好 --thread-max-width（= --cc-thread-w 48rem）
+        self.assertIn("max-w-[calc(var(--thread-max-width)+2rem)] flex-1 flex-col px-4 pt-4", thread)
+        self.assertIn("--cc-thread-w: 48rem;", self.css)
 
     def test_background_copies_follow_the_page_color(self):
         html = (ROOT / "apps/pearnly_core/pearnly_core/www/assistant.html").read_text(encoding="utf-8")
@@ -484,6 +523,85 @@ class CardRuleTests(unittest.TestCase):
         css = (SRC / "globals.css").read_text(encoding="utf-8")
         self.assertIn("@media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }", css)
         self.assertIn("--cc-tap: 2.75rem;", css)
+
+    def test_steps_follow_claude_code(self):
+        # 设计文档 3.11：连续工具调用收成一行摘要（进行中仍是「正在运行」，做完按类计数、带失败数）；点开是细框卡片，
+        # 一步一行、只写一句说明（没有图标），失败的行尾红字（沿用「失败」词条）；再点开才看命令与输出
+        steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
+        group = steps[steps.index("export const StepsGroup"):]
+        self.assertIn("const title = groupLive(group.status)\n    ? steps.running\n"
+                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done);", group)
+        self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
+                      group)
+        self.assertIn('{open && <div className="cc-steps-card">{children}</div>}', group)
+        self.assertNotIn("steps.steps(", steps)
+        row = steps[steps.index("export const StepRow"):steps.index("/** 工作状态行上这一步的说法")]
+        self.assertIn("const errored = stepFailed({ result, isError, status });", row)
+        self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}', row)
+        self.assertIn('className="cc-step-row cc-tap"', row)
+        self.assertNotRegex(steps, r"\bicon\b|Icon className")
+        self.assertIn('import { ChevronRightIcon } from "lucide-react";', steps)
+        css = (SRC / "globals.css").read_text(encoding="utf-8")
+        rule = lambda selector: css.split("\n  " + selector + " {", 1)[1].split("}", 1)[0]
+        summary = rule(".cc-steps-summary")
+        for part in ("min-height: var(--cc-step-h);", "padding: var(--cc-step-py) var(--cc-step-px);",
+                     "border-radius: var(--cc-radius-step); color: var(--cc-ink-3);", "font-size: var(--cc-row-font);"):
+            self.assertIn(part, summary)
+        self.assertIn('  .cc-steps-summary:hover, .cc-steps-summary[aria-expanded="true"] { color: var(--cc-ink-2); }', css)
+        self.assertIn("border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);", rule(".cc-steps-card"))
+        self.assertIn("  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
+        self.assertIn("padding: var(--cc-step-row-py) var(--cc-step-row-px);", rule(".cc-step-row"))
+        self.assertIn("  .cc-step-failed { flex-shrink: 0; color: var(--cc-danger); }", css)
+        self.assertIn("font-family: var(--cc-font-mono);", rule(".cc-step-detail"))
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_step_summary_counts_by_kind_with_failures(self):
+        script = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { stepFailed, stepKind, summarize, summaryText } from "@/lib/step-summary";
+import { steps } from "@/i18n";
+const done = { pearnly_save_draft: "__SAVED__" };
+// 分类：内置工具按类，本站工具（有做完的说法）各一类，其余「工具」
+assert.equal(stepKind("bash", done), "command");
+assert.equal(stepKind("write", done), "edit");
+assert.equal(stepKind("edit", done), "edit");
+for (const name of ["glob", "grep", "web_search"]) assert.equal(stepKind(name, done), "search");
+assert.equal(stepKind("web_fetch", done), "fetch");
+assert.equal(stepKind("pearnly_save_draft", done), "own:pearnly_save_draft");
+assert.equal(stepKind("mcp__x__y", done), "tool");
+// 失败：结果标了出错、步骤标了出错、没做完就停了
+assert.equal(stepFailed({ result: { text: "boom", isError: true } }), true);
+assert.equal(stepFailed({ result: { text: "ok", isError: false } }), false);
+assert.equal(stepFailed({ result: "plain" }), false);
+assert.equal(stepFailed({ isError: true }), true);
+assert.equal(stepFailed({ status: { type: "incomplete" } }), true);
+assert.equal(stepFailed({ status: { type: "complete" } }), false);
+// 合并、按首次出现的顺序，失败数跟在那一类后面
+const parts = [
+  { toolName: "bash", failed: false }, { toolName: "read", failed: false }, { toolName: "bash", failed: true },
+  { toolName: "pearnly_save_draft", failed: false }, { toolName: "pearnly_save_draft", failed: false },
+  { toolName: "mcp__x__y", failed: true }, { toolName: "grep", failed: false }, { toolName: "web_search", failed: false },
+  { toolName: "web_fetch", failed: true }, { toolName: "edit", failed: false }, { toolName: "write", failed: false },
+];
+const entries = summarize(parts, done);
+assert.deepEqual(entries.map((e) => [e.kind, e.count, e.failed]), [
+  ["command", 2, 1], ["read", 1, 0], ["own:pearnly_save_draft", 2, 0], ["tool", 1, 1], ["search", 2, 0], ["fetch", 1, 1], ["edit", 2, 0],
+]);
+assert.equal(summaryText(entries, steps.summary, done), __WANT__);
+assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: true }], done), steps.summary, done), __ONE__);
+(globalThis as any).done();
+"""
+        cases = {
+            "en": ("Ran 2 commands (1 failed), Read 1 file, __SAVED__ ×2, Used 1 tool (1 failed), Searched 2 times, "
+                   "Fetched 1 page (1 failed), Edited 2 files", "__SAVED__ (1 failed)"),
+            "zh": ("已运行 2 个命令（1 个失败），已读取 1 个文件，__SAVED__ ×2，已使用 1 个工具（1 个失败），已搜索 2 次，"
+                   "已获取 1 个页面（1 个失败），已编辑 2 个文件", "__SAVED__（1 个失败）"),
+            "th": ("รันคำสั่ง 2 รายการ (ไม่สำเร็จ 1), อ่าน 1 ไฟล์, __SAVED__ ×2, ใช้เครื่องมือ 1 รายการ (ไม่สำเร็จ 1), ค้นหา 2 ครั้ง, "
+                   "เปิด 1 หน้า (ไม่สำเร็จ 1), แก้ไข 2 ไฟล์", "__SAVED__ (ไม่สำเร็จ 1)"),
+        }
+        for lang, (want, one) in cases.items():
+            run_ts(script.replace("__WANT__", repr(want)).replace("__ONE__", repr(one)), lang=lang)
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_long_step_details_fold_instead_of_scrolling(self):

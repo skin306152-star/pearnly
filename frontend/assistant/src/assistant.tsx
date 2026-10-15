@@ -6,7 +6,7 @@
 //
 // 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
 // 公司主档（ADR-020，只在 Cowork：共用层 projects() 的 kind 为 company 时）：侧栏「公司」「待处理 N」两行、按公司分组，
-// 视图多「公司页」「主档页」「待处理」；对话顶栏「公司 ›」与月份分店胶囊；新对话输入框上方的公司条。ERP / DMS 与今天一样。
+// 视图多「公司页」「主档页」「待处理」；对话顶栏「公司 ›」；输入框下巴的公司、月份、分店（ComposerChin）。ERP / DMS 与今天一样。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
@@ -48,7 +48,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import {
-  ComposerCompany,
+  ComposerChin,
   ConversationCompany,
   ConversationFiling,
   MobileFilingItems,
@@ -122,8 +122,6 @@ function Welcome() {
           {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
         </h1>
       </div>
-      {/* 公司条（Cowork 至少有一家公司时）：这段新对话挂在哪家、处理哪个月 */}
-      <ComposerCompany />
     </div>
   );
 }
@@ -817,7 +815,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <SessionStatusBar />
             <div className="min-h-0 flex-1">
-              <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback }} />
+              <Thread components={{ Welcome, Loading: ThreadLoading, ToolFallback: ManagedAgentsToolFallback, Chin: ComposerChin }} />
             </div>
           </div>
         )}
