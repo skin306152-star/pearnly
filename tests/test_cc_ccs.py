@@ -537,10 +537,13 @@ class CardRuleTests(unittest.TestCase):
                       "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done);", group)
         self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
                       group)
-        self.assertIn('{open && <div className="cc-steps-card">{children}</div>}', group)
+        # 一张卡片、一步一行：组给卡片，组里的每一步不再各包一层（测试窗口 S2：外卡套内卡）
+        self.assertIn('<div className="cc-steps-card">\n          <InStepsGroup.Provider value={true}>{children}</InStepsGroup.Provider>', group)
+        self.assertIn('useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;', steps)
         # 等批准的那一步不进组（允许 / 拒绝要看得见），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('<div className="cc-steps-card">\n                      <ToolFallbackComponent {...part} />', thread)
+        self.assertIn('<LoneStep>\n                      <ToolFallbackComponent {...part} />', thread)
+        self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)
         row = steps[steps.index("export const StepRow"):steps.index("/** 工作状态行上这一步的说法")]
         self.assertIn("const errored = stepFailed({ result, isError, status });", row)

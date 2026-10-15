@@ -7,7 +7,7 @@ import {
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
-import { runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
@@ -468,9 +468,9 @@ const AssistantMessage: FC = () => {
                 // 不进组的只有等批准的那一步：同组里的步骤一样放进带环的卡片，不单独浮在正文里
                 return (
                   part.toolUI ?? (
-                    <div className="cc-steps-card">
+                    <LoneStep>
                       <ToolFallbackComponent {...part} />
-                    </div>
+                    </LoneStep>
                   )
                 );
               case "data":

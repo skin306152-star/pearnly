@@ -202,7 +202,7 @@ def _view_row(row, sets=None, mine=None) -> dict:
         out["branches"] = [item["branch"] for item in identity.branches(sets)]
     if mine is not None:
         stat = mine.get(row.name) or {}
-        out.update(mine_count=int(stat.get("count") or 0), mine_last_active=stat.get("last_active") or "")
+        out.update(mine_count=int(stat.get("count") or 0), mine_last_active=when(stat.get("last_active")))
     return out
 
 

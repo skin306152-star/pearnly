@@ -8,7 +8,7 @@
 
 import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
-import { useState, type FC, type PropsWithChildren } from "react";
+import { createContext, useContext, useState, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
 import { stepFailed, summarize, summaryText } from "@/lib/step-summary";
 import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
@@ -159,6 +159,13 @@ type Group = { indices: readonly number[]; status: { type: string } };
 /** 这组步骤还在进行：最后一步在跑，或停在一步本站正在执行的工具上（等结果，不是等用户点）。 */
 export const groupLive = (status: { type: string }) => status.type === "running" || status.type === "requires-action";
 
+/** 在步骤组的卡片里：组里的每一步只是卡片里的一行，不再各自包一层卡片（测试窗口 S2：外卡套内卡）。 */
+const InStepsGroup = createContext(false);
+
+/** 不进组的那一步（等批准的）单独放进同样的带环卡片；在组里时原样渲染（组已经给了卡片）。 */
+export const LoneStep: FC<PropsWithChildren> = ({ children }) =>
+  useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;
+
 /** 一段连续的思考与工具调用：一行摘要（进行中「正在运行」，做完按类计数、带失败数），点开是一张一步一行的卡片。
  *  只有思考、没有工具的不显示（没有可看的内容；在想由状态行说）。 */
 export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, children }) => {
@@ -178,7 +185,11 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
         <span className="truncate">{title}</span>
         <ChevronRightIcon aria-hidden />
       </button>
-      {open && <div className="cc-steps-card">{children}</div>}
+      {open && (
+        <div className="cc-steps-card">
+          <InStepsGroup.Provider value={true}>{children}</InStepsGroup.Provider>
+        </div>
+      )}
     </div>
   );
 };
