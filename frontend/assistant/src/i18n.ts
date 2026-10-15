@@ -336,7 +336,7 @@ const STEPS = {
       command: (n: number) => `已运行 ${n} 个命令`, read: (n: number) => `已读取 ${n} 个文件`,
       edit: (n: number) => `已编辑 ${n} 个文件`, search: (n: number) => `已搜索 ${n} 次`,
       fetch: (n: number) => `已获取 ${n} 个页面`, tool: (n: number) => `已使用 ${n} 个工具`,
-      failed: (n: number) => `（${n} 个失败）`, times: (label: string, n: number) => `${label} ×${n}`, join: "，",
+      failed: (n: number) => `（${n} 个失败）`, times: (label: string, n: number) => `${label} ×${n}`, join: ", ",
     },
   },
   th: {

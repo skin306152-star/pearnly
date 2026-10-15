@@ -358,7 +358,7 @@ const SessionChin: FC = () => {
   useProjects((s) => s.filings);
   const project = filingOf(remoteId, localId).project;
   const title = useCompanyTitle(project);
-  if (!project) return null;
+  if (!project) return <UnfiledChin remoteId={remoteId} />;
   return (
     <>
       {/* 会话栏要对话已存到服务端：还没存好的那一小段时间先不可点 */}
@@ -368,6 +368,37 @@ const SessionChin: FC = () => {
       </button>
       <FilingChips look="cc-chin-btn" side="top" />
     </>
+  );
+};
+
+/** 已有对话还没挂公司：下巴给「公司 ▾」，选了就把这段对话归到那家（月份按设置取上个月，分店留空）；至少有一家公司才显示。 */
+const UnfiledChin: FC<{ remoteId: string | undefined }> = ({ remoteId }) => {
+  const kind = useProjects((s) => s.kind);
+  const withPeriod = useProjects((s) => s.period);
+  const sidebarHasOne = useProjects((s) => s.projects.length > 0);
+  const [any, setAny] = useState(false);
+  useEffect(() => {
+    if (kind && !sidebarHasOne) void hasAnyCompany().then(setAny);
+  }, [kind, sidebarHasOne]);
+  if (!remoteId || !(sidebarHasOne || any)) return null;
+  const pick = (project: string) => {
+    if (project) void fileSession(remoteId, { project, period: withPeriod ? lastMonth() : "", scope: "" }).catch(report);
+  };
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className="cc-chin-btn" data-slot="cc-chin-company">
+          <Building2Icon />
+          <span className="min-w-0 truncate">{co.companies}</span>
+          <ChevronDownIcon />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
+          <CompanyChoices current="" onPick={pick} />
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 };
 

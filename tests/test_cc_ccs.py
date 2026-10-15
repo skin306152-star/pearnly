@@ -605,8 +605,9 @@ assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: tr
         cases = {
             "en": ("Ran 2 commands (1 failed), Read 1 file, __SAVED__ ×2, Used 1 tool (1 failed), Searched 2 times, "
                    "Fetched 1 page (1 failed), Edited 2 files", "__SAVED__ (1 failed)"),
-            "zh": ("已运行 2 个命令（1 个失败），已读取 1 个文件，__SAVED__ ×2，已使用 1 个工具（1 个失败），已搜索 2 次，"
-                   "已获取 1 个页面（1 个失败），已编辑 2 个文件", "__SAVED__（1 个失败）"),
+            # 中文连接符照 Claude Code 实测（「已获取 6 个页面（6 个失败）, 已浏览 网页」）
+            "zh": ("已运行 2 个命令（1 个失败）, 已读取 1 个文件, __SAVED__ ×2, 已使用 1 个工具（1 个失败）, 已搜索 2 次, "
+                   "已获取 1 个页面（1 个失败）, 已编辑 2 个文件", "__SAVED__（1 个失败）"),
             "th": ("รันคำสั่ง 2 รายการ (ไม่สำเร็จ 1), อ่าน 1 ไฟล์, __SAVED__ ×2, ใช้เครื่องมือ 1 รายการ (ไม่สำเร็จ 1), ค้นหา 2 ครั้ง, "
                    "เปิด 1 หน้า (ไม่สำเร็จ 1), แก้ไข 2 ไฟล์", "__SAVED__ (ไม่สำเร็จ 1)"),
         }
