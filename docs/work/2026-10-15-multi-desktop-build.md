@@ -272,3 +272,81 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
 
 没做 / 没验：同第 2 批（真实 Site、MariaDB 加锁、HTTP 链、真机在第 7 批）。`move_device` 在真实 MariaDB 上是先删后插（可达行
 名字带设备编号），并发只靠连接行锁串行，第 7 批联调时核。
+
+### 第 3 批：写账分派、领取 v2、锁口径 v2、准备证据 v2（服务端，2026-10-16，本地提交，未推送）
+
+提交：`177da234` feat（代码与测试）、本条 docs（ADR-021 第 3 批决定、有意变化与回退前提、架构说明、本记录）。没有新补丁：新字段都可为空，旧行按建立时间 / `actor` / 冻结载荷补位（`queued_at`、`entered_by`、
+`payload_version`），锁种类加 `company` 是 DocType 选项，随原生迁移。
+
+做了什么（对照方案第 9 节第 3 行、2.5、2.6、2.10、第 5 节第 4–8 条）：
+
+- 分派纯函数 `S/companion/route_contracts.py`：每份账套的排头、录入人自己的电脑 → 常驻 → 其他（120 秒换手）、按账套
+  黏住（`index_pending` 按文件号；旧版按登记上的「最近 120 秒内写过」近似）、载荷版本（不支持的跳过、池里一台都不支持
+  算「需更新」）、`attended`。
+- `transport.lease` v2（`S/companion/transport.py`）：每台同时一件（`written_by_device`）；只看这台够得到、可写的账套的排头；
+  不归它 / 黏在别处 / 版本不够 / 等锁都跳过看下一份，不再整条连接 `break`；确定失效才隔离；下发副本换成这台可达行的写法
+  （`S/push/express/wire_location.py`）并带 `account_uid`、`attended`；电脑行最后记 `index_pending`。回执后：成功记在登记上
+  （`pool.note_written`），`[ERR_ACCOUNT_UID_MISMATCH]` 的「等账套」把这台对这份账套的可达行标 stale 并要整份重报。
+- 锁口径 v2（`S/push/native/contracts.py`）：`lock_scheme: 2` 只取账套锁（公式不变）+ 按内容键的公司锁，冻结在目标里；
+  `frozen_values` 只许 Express 用 v2。账本领取时 v2 记录还让着同一连接同一账套键上已领走 / 结果不明的记录（第 2 批审查留的
+  「空根旧单」一项）。
+- 准备证据 v2（`S/connections/preparation.py`）：`route`，不绑电脑；主档取账套资料、不含版本；银行窗口按录入人；
+  `revalidate(mode='confirm' | 'lease')`，领取只核登记、`route` 与 `basis_hash`（本单用到的主档行，`S/push/express/referenced.py`）。
+  读 `credential` 的 6 处：`transport` 不再比密钥；`_still_confirmable` 改判 v2 + `has_writer`；`confirm` 不要密钥（无可写电脑回
+  `push.no_writer`）；存货主档数回写与推送记录的存货科目组第 2 批已改读账套资料；`has_reported_credential` → `has_writer`（旧名
+  同值保留），`folder_intake.destinations.ready` 读 `has_writer`。准备时不再按载荷版本拦（预检两处去掉）。
+- 池的状态 `S/companion/pool.py`（`state` / `for_user`）替换 `credentials.online` 的全部调用（`api.online`、LINE、
+  `destinations`、CC 工具、「电脑」列表）；`api.online` 保留 `online`、加 `writers_known` / `needs_update`。D4：Desk 录入入口
+  （`targets.js`）、LINE、CC 工具按 `writers_known` 判能不能选（文案沿用现有「CC 桌面版未连接」，新文案在第 6 批）。
+  连接域经钩子 `cowork_pool_presence` 取各台在线与版本（`account_masters` 判「电脑离线 / 要升级」不再看连接当前上报的那台）。
+- 主连接统一解析 `connections.service.main_connections`，`records` 标 `main`；登记（`credentials._device_connection`）、
+  Desk `targets.js`、LINE `_connections`、CC 工具 `intake_options` 都按它认。
+- 问责：推送记录 `entered_by` / `payload_version`（不可改）/ `queued_at` / `written_by_device`（建索引）/ `write_route`；写入尝试
+  `device` / `device_owner` / `route`（不可改）。
+- 第 2 批审查 9b：连接的上报记录只留被拦的自动更新，`report_credential` 不再随上报改；两台轮流上报不再重写连接行。
+- MR.ERP 服务端直连不变（v1 锁口径、确认不带电脑、执行器不填问责字段）。
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`；容器 `pearnly/frappe-sample:16.34.1`、`--network none`、工作树只读挂载）：
+
+| 检查 | 结果 |
+|---|---|
+| `python3 tests/test_cowork_express_dispatch.py`（新，进 CI） | 42 OK：分派规则（三档、D7 按登录人、120 秒换手、只够得到的、版本 / 需更新、按文件号黏住与离线解除、旧版按最近写入近似、排头、`attended`）；位置替换（冻结的不变）；锁口径（v2 无 endpoint、账套锁与 v1 同一把、公司锁跨拷贝相同、只许 Express）；本单用到的主档行（没用到的变了不算、新建对方档按税号）；报文可选键；纯模块不导入框架；领取 v2 编排（跳过不归它的、等锁看下一份、确定失效才隔离、每台一件、120 秒后别的电脑写且不弹框、够不到的永远领不到、`index_pending` 最后记、文件号对不上标 stale 并要整份重报）；账本（证据 v1 两种模式都不成立、领取只核用到的行、`has_writer`、`_still_confirmable`、确认不要密钥 / `push.no_writer`、问责字段、v2 让着同账套旧单、退回排队重记 `queued_at`）；池的状态（关着也算能写、签发人失权不算、需更新、MR.ERP） |
+| 变异核对 | 把 transport 里等锁改回 `break`、去掉「每台一件」：对应 2 项失败 |
+| `tests/test_cowork_express_account_sets.py` | 65 OK（证据 v2 改写 1 项；新增 3 项：本机写法与可写电脑、写成记登记 / stale 到整份上报恢复、账套主档按池里任一台判在线与升级） |
+| `tests/test_cowork_cc_desktop_devices.py` | 57 OK（每台看自己的密钥在线、`for_confirmation` / `online` 下线、`index_pending` 只在变了时写、文件号对不上要整份重报） |
+| `tests/test_cowork_connection_read_locks.py` | 8 OK（新增主连接：最早建、启用优先、不挂客户、不加锁） |
+| `tests/test_companion_contract.py` | 56 OK（新增 `WriteDispatch`：四键 + 登记的可选键、今天客户端只读三键、`index_pending`、`ERR_ACCOUNT_UID_MISMATCH` 同名并据此标 stale、替换的位置键覆盖 `_task_settings` 读的键） |
+| 改过的旧测试 | `any_set_catalog` / `report_writes` / `account_caches`（上报记录不再存绑定与版本、证据 v2）、`assistant_tools`（主连接、D4）、`express_preflight`（准备时不拦版本）、`companion_credentials`、`folder_task_batch` / `folder_tasks_mrerp` 替身；容器内 `companion_liveness`（改测 `_fresh`）、`folder_computers` |
+| 容器内导入改过的 26 个模块；`tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（不含源码对照） | 导入 OK；185 个文件 183 OK，`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py` 与基线相同的两个失败 |
+| `python3 scripts/check-architecture.py`、`i18n-build.py --check` | PASS / PASS |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（新 CI 步骤含 dispatch / preflight / native 契约三个测试） | 88 步全过，退出码 0 |
+
+与方案的出入及理由：
+
+- 排头按**建立时间**先后取，不按 `queued_at`：回执把单退回排队（等账套、可重试失败）时会重记 `queued_at`，按它排会让同一份账套
+  后来的单插到前面，违背「同一份账套严格按排队先后」。`queued_at` 只管 120 秒换手计时。
+- 黏住的「离线」用现成的在线判据（任一把密钥 3 分钟内报过到），不是方案写的 120 秒：要精确到 120 秒得每 3 秒领取都写一次电脑行。
+- 「一台都没有能写的电脑」时 LINE / CC / Desk 仍用现有文案「CC 桌面版未连接」，「电脑离线」（橙、仍可选）「需更新」等新文案在第 6 批；
+  `scheduled-tasks.tsx` 等 React 端读 `online` 的照旧（第 6 批随前端构建改）。定时任务推送的 D4（不在线也确认排队）属第 4 批。
+- 新建对方档的「用到的行」按税号（没有税号按名字）取：后来出现同税号的档时转人工，不会再新建一份重复的（方案只写了「引用的行」）。
+- 方案 2.5 第 2 步「先做一次不加锁的预查再锁连接行」没意义：认证（`credentials.revalidate`）本来就先锁连接行（加锁顺序不变）；
+  改为先看这台有没有可写的账套，没有就不查排队单。
+- `credentials.online`、`for_confirmation`、`_reporter`、`_online` 删除（调用方都已换掉）；`refresh.desktop_version` 删除。
+
+没做 / 没验：真实 Site 上的迁移、MariaDB 加锁（`_older_writer` 的加锁读、领取时逐份账套的锁等待）、HTTP 链、真机（第 7 批）。
+实验室脚本 `cowork-preparation-confirm-lab-verify.py`、`cowork-companion-transport-lab-verify.py` 等还按证据 v1 / 单槽上报断言，要真实
+Site，第 7 批按新口径重写。
+
+留给后面几批：
+
+- 第 4 批：定时任务读者三元组与补丁第 4 步、定时任务推送按池口径（D4：不在线也确认排队，不再 10 分钟重试 / 6 小时记失败）、
+  CC 工具与 `fetch` 的读者、按设备在场、按需请求定向与回读的通用位置键、提醒 / 简报 / 限流按设备、`all_members` 与补丁第 5 步；
+  「电脑」列表（`rules.computers`）改成每台电脑一行（本批只把在线换成池的判据，电脑名取最近报到的那台）。
+- 第 5 批（CC 桌面版 1.6.0）：领取请求带 `index_pending`（`IndexBatch` 里还没重建的账套文件号）；任务读 `attended`（false 不弹框、
+  按「等账套」回报）、写前用本机文件号核 `account_uid`，对不上回 `waiting_lock` + `[ERR_ACCOUNT_UID_MISMATCH]`；有人值守时探任务账套、
+  先放租约再提示；`tests/test_companion_contract.py` 的 `WriteDispatch` 补客户端一侧（可选键、错误码同名）。
+- 第 6 批：录入入口的状态与文案（「已连接 / 电脑离线（仍可选）/ 没有能写的电脑 / 需更新」，`needs_update` 按账套问
+  `api.online(connection, account_set_key)`）、推送记录详情「由 {电脑} 写入」（`written_by_device`）、CC 工具多给 `writer`、
+  `scheduled-tasks.tsx` 改读 `writers_known`；对话页每次打开带设备密钥调 `register`（第 5 节第 7 条的契约测试）。
+- 第 7 批：真实 Site 迁移与回读（`config_json` / `record_revision` 未变、v1 排队 / 领取中为 0）、部署前 v1 单只读统计与回退演练或书面确认
+  不可回退（ADR-021「兼容」节的回退前提）、两台电脑场景 ①–⑤、3 租户 × 10 台并发压测领取（每份账套只看排头的查询量、连接行热锁）。
