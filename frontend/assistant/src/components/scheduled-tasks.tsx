@@ -96,7 +96,7 @@ type Rule = {
 };
 // 提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM，最多 3 个（同服务端 contracts.remind_times）
 type RemindTime = { days_before: number; time: string };
-type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string> };
+type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string>; main?: boolean };
 type Snapshot = { connections: Record<string, Connection | null>; agent: { online?: boolean } | null };
 type Group = { value: string; label: string; items: Array<{ value: string; label: string }> };
 // counts：文件夹（相对路径，"" 是根目录）里现有几份会被录入的文件，没数过就没有这个键；partial：数到上限；
@@ -110,13 +110,15 @@ const ADAPTERS = [
   { adapter: "mrerp", label: "MR.ERP" },
   { adapter: "express", label: "Express" },
 ];
+// 每种 ERP 只认主连接（服务端 `records` 标的 `main`：最早建、启用、不挂客户），与电脑登记、录入入口、LINE、CC 同一条（ADR-021）
+const mainOf = (rows: Connection[] | null | undefined, adapter: string) => (rows || []).find((r) => r.adapter === adapter && r.main) || null;
 const key = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function snapshotNow(): Promise<Snapshot> {
   const rows = (await getMethod<Connection[]>(CONN + "records", { limit: 100 })) || [];
   const connections: Snapshot["connections"] = {};
-  for (const a of ADAPTERS) connections[a.adapter] = rows.find((r) => r.adapter === a.adapter) || null;
+  for (const a of ADAPTERS) connections[a.adapter] = mainOf(rows, a.adapter);
   const express = connections.express;
   const agent = express ? await getMethod<{ online?: boolean }>(COMPANION + "online", { connection: express.name }).catch(() => null) : null;
   return { connections, agent };
@@ -1169,7 +1171,7 @@ function HelperConnect({ tr, connection, adapter, onClose }: { tr: Tr; connectio
     const check = async () => {
       if (!current) {
         const rows = await getMethod<Connection[]>(CONN + "records", { limit: 100 }).catch(() => []);
-        current = (rows || []).find((r) => r.adapter === adapter) || null;
+        current = mainOf(rows, adapter);
       }
       if (!current) return setOnline(false);
       const r = await getMethod<{ online?: boolean }>(COMPANION + "online", { connection: current.name }).catch(() => null);
