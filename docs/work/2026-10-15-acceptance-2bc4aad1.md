@@ -125,3 +125,46 @@ Frappe 的会话更新（`last_active`）等改到；侧栏两条 GET 并发、�
 `tests/test_cowork_connection_read_locks.py` 扩充：`service.py` 的授权替身记录每次调用的 `lock`，只读视图必须全部 `lock=False`、
 写路径必须是当前读；新增 `AccessReadLocks` 按原文件加载真 `access.py`：默认每句带 `LOCK IN SHARE MODE`、`lock=False` 一句都不带、
 停用用户不加锁仍被拒。换回旧 `access.py` 跑，新测试 2 条报错；改后 7 条全过。
+
+## 科目历史请求在生产全部失败（V9）
+
+分支 `pearnly/acceptance-1015`（基于 `pearnly/connection-read-no-lock` 的 `4852b018`，之后验收期间的修复都叠在这里一并合入）。
+测试窗口报来（共享笔记 F2）。
+
+### 现象
+
+生产 testcowork 2026-10-15 14:20:03 / 08 / 12 / 19 四条 Error Log「Cowork account history failed」：
+`ValidationError: 类型不能为“account_history”。只能是“express_read", "folder_list", "folder_fetch”其中一个`，栈
+`companion/request_service.py:125 create → write(row)` → `request_access.py:34 doc.insert` → Frappe `_validate_selects`。
+V1 推送前查科目建议时每次都请电脑读历史、每次都失败；推送本身照常成功（落回名称建议）。生产
+`sites/testcowork…/private/cowork_account_history/` 不存在，即从没存下过历史，「历史一致直接用」与主档页「来自 Express 历史 · N 次」
+在生产完全不工作。
+
+### 原因
+
+夜间批在 `companion/request_contracts.py: KINDS` 加了 `account_history`，表 `Cowork Companion Request` 的 `kind` 下拉选项没跟着加。
+离线测试用的是替身表，不跑 Frappe 的选项校验，所以没拦住；测试机 lab 也没走到真机读历史这一步。
+
+### 改动
+
+- `cowork_companion_request.json`：`kind` 选项加 `account_history`，`modified` 改为 `2026-10-15 15:00:00`（`bench migrate` 按 JSON 同步表定义；
+  Select 列本是 varchar，不改表结构、不需要补丁）。
+- `tests/test_cowork_companion_requests.py`：`test_the_request_table_accepts_every_kind_and_status` 读真表 JSON，核对 `kind` / `status`
+  选项与契约 `KINDS` / `STATUSES` 一致。换回旧 JSON 跑失败，改后通过。
+- 同类排查：夜间批改过的表里只有 `Cowork Company.adapter`（express / mrerp）与 `Cowork Company Note.origin`（person / cc）是下拉，
+  与代码取值一致；新加的会话、提醒字段都是 Data。夜间批新增的取值常量只有 `KINDS` 落在下拉字段上。
+
+### 未做
+
+- 未部署；部署后要重验 V9：生产 testcowork 上推同一供应商 3 张后第 4 张直接用、主档页出现「来自 Express 历史 · N 次」、删掉后再推又问。
+
+## 推送路径的 1020（写路径，记录不改）
+
+测试窗口共享笔记 F3：14:20:16「Assistant tool failed」，`assistant/tools.py:1501 push_choices` → `_choices_waited` → `_choices_view`
+→ `push/application/service.py:364 choices_view` → `connections/service.py read_for_push(lock=True)` →
+`1020 Record has changed since last read in table 'tabCowork ERP Connection'`。
+
+`choices_view` 先读了票（建立快照），再对连接行加锁读；中间连接行被别的事务改过并提交（CC 桌面版心跳 / 回报）就报 1020。
+这是写路径的连接锁（迁移保护里的外部写者锁），按设计保留；CC 对话里表现为多等了一轮、随后推送成功，没有错写或漏写。
+本仓同类写路径的处理方式是在入口捕获 `QueryDeadlockError` 回滚重试（如 `line_session`、`income_recon_api`、`inventory/api`）。
+这次只记录，不改：若之后在推送准备（`prepare` / `choices_view` / 定时任务推送）里看到 1020 造成失败或用户可见的报错，再按入口重试的做法统一处理。

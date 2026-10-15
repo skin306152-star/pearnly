@@ -35,6 +35,16 @@ def _b64(data):
 
 
 class ContractTests(unittest.TestCase):
+    def test_the_request_table_accepts_every_kind_and_status(self):
+        """表的下拉选项要含契约里的每一种：Frappe 写入时按选项校验，漏一项那种请求就建不出来（2026-10-15 生产：
+        `account_history` 没进 `kind` 选项，科目历史请求全被 `_validate_selects` 拒掉，替身测试没拦住）。"""
+        doctype = json.loads((APP / "pearnly_cowork/doctype/cowork_companion_request/cowork_companion_request.json")
+                             .read_text(encoding="utf-8"))
+        options = {field["fieldname"]: field.get("options", "").split("\n") for field in doctype["fields"]
+                   if field.get("fieldtype") == "Select"}
+        self.assertEqual(sorted(options["kind"]), sorted(contracts.KINDS))
+        self.assertEqual(sorted(options["status"]), sorted(contracts.STATUSES))
+
     def test_kinds_keys_and_params(self):
         self.assertEqual(contracts.kind("folder_fetch"), "folder_fetch")
         for bad in ("folder_delete", None, ""):
