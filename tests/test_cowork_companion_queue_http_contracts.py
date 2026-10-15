@@ -127,8 +127,12 @@ class CompanionQueueHttpContract(unittest.TestCase):
     def test_machine_token_on_unrelated_or_human_rpc_is_a_candidate_but_is_denied(self):
         candidate = self.contract['_machine_candidate']
         for path in ('/api/resource/User', '/api/method/frappe.auth.get_logged_user',
+                     '/api/method/pearnly_cowork.companion.api.register',
+                     '/api/method/pearnly_cowork.companion.api.online',
+                     # 已下线的管理接口（ADR-021）：带机器密钥同样是候选、同样拒绝
                      '/api/method/pearnly_cowork.companion.api.issue',
-                     '/api/method/pearnly_cowork.companion.api.revoke'):
+                     '/api/method/pearnly_cowork.companion.api.revoke',
+                     '/api/method/pearnly_cowork.companion.api.status'):
             for header in ('Bearer ' + TOKEN, 'Basic ' + TOKEN, 'Bearer  ' + TOKEN):
                 self.assertTrue(candidate(path, header))
                 self.deny('lease', path=path, header=header)

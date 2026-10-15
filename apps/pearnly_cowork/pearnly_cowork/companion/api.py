@@ -5,7 +5,7 @@ import frappe
 # `pearnly_cowork.access` 不在它的允许列表里，不能在这里直接 import）。
 from pearnly_cowork.connections import access
 
-from . import contracts, credentials
+from . import credentials
 
 INSTALLER_URL = 'https://pearnly.com/downloads/companion/CC-Setup.exe'
 
@@ -23,20 +23,8 @@ def _local_transaction(function, *args, **kwargs):
                 raise
 
 
-@frappe.whitelist(methods=['POST'])
-def issue(connection, request_key, reset=False, expected_generation=None):
-    return _local_transaction(credentials.issue, connection, request_key, contracts.wire_flag(reset),
-                              expected_generation)
-
-
-@frappe.whitelist(methods=['POST'])
-def revoke(connection, request_key, expected_generation, reason=''):
-    return _local_transaction(credentials.revoke, connection, request_key, expected_generation, reason)
-
-
-@frappe.whitelist(methods=['GET'])
-def status(connection):
-    return _local_transaction(credentials.status, connection)
+# 管理用的 issue / revoke / status 三个接口已下线（ADR-021）：没有界面调用，多台电脑后「当前那把」也说不清。
+# 电脑一律经 `register` 拿自己的密钥；断开连接由电脑自己 `device_leave`。
 
 
 @frappe.whitelist(methods=['GET'])

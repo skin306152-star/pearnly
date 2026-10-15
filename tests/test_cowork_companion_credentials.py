@@ -118,13 +118,23 @@ class CredentialContracts(unittest.TestCase):
             self.assertEqual(fields[field]['unique'], 1)
         self.assertFalse(schema.get('track_changes'))
         self.assertFalse(any(f['fieldtype'] == 'Password' for f in fields.values()))
-        self.assertNotIn('last_seen_at', fields)
+        # 报到时间（2026-10-07 起在密钥行上）不是身份：不唯一、不进 _IDENTITY
+        identity = ast.literal_eval(next(
+            node.value for node in ast.parse((DOMAIN / 'documents.py').read_text()).body
+            if isinstance(node, ast.Assign) and getattr(node.targets[0], 'id', '') == '_IDENTITY'))
+        for field in ('last_seen_at', 'last_seen_generation'):
+            self.assertFalse(fields[field].get('unique'), field)
+            self.assertNotIn(field, identity)
 
     def test_only_human_management_rpc_methods_are_whitelisted(self):
         tree = ast.parse((DOMAIN / 'api.py').read_text())
         exposed = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.decorator_list}
         # installer 只回安装包地址（部署配置），同样是登录用户的 GET、先过 require_actor。
-        self.assertEqual(exposed, {'issue', 'revoke', 'status', 'online', 'installer'})
+        # register 只收 POST（CC 桌面端登记这台电脑）；管理用的 issue / revoke / status 已下线（ADR-021）。
+        self.assertEqual(exposed, {'online', 'installer', 'register'})
+        register = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'register')
+        self.assertIn("methods=['POST']", ast.unparse(register.decorator_list[0]))
+        self.assertIn('_local_transaction(credentials.register', ast.unparse(register))
         # online 只回在不在线（录入角色也要能选 Express），走连接的使用授权、不要求管理权限
         online = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'online')
         self.assertIn("methods=['GET']", ast.unparse(online.decorator_list[0]))

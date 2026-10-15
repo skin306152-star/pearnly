@@ -2,7 +2,7 @@
  *
  * 状态一律取自服务端合同，前端不推断"连没连上"：
  *   · 连接：`pearnly_cowork.connections.api.records`（给出 adapter / enabled / 凭据有无）；
- *   · 助手：`pearnly_cowork.companion.api.online`（在不在线，录入角色可用）/ `status`（配对管理）；
+ *   · 助手：`pearnly_cowork.companion.api.online`（在不在线，录入角色可用）；
  *   · 安装包：`pearnly_cowork.companion.api.installer`（程序本体不在本仓，地址是部署配置）。
  *
  * **界面上不出现 Cowork 自己的公司资料**（用户 2026-09-25：Cowork 不记账、只留记录）：

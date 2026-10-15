@@ -1,5 +1,8 @@
 """Credential lifecycle in a dedicated lab Site; synthetic secrets never printed.
 
+Since ADR-021 the management RPCs issue / revoke / status are retired: this drives the internal functions through the
+same local-transaction wrapper `register` uses, and checks the old RPC paths no longer answer.
+
 Writes labelled local fixtures and, for concurrency/WSGI, commits them. No ERP,
 model, LINE, identity provider, heartbeat, sockets or external transport calls.
 Root owns Site installation and execution; this script never migrates a Site.
@@ -45,7 +48,14 @@ class NativeCredentials(unittest.TestCase):
         frappe.set_user('Administrator'); frappe.clear_cache()
 
     def issue(self, **values):
-        return self.api.issue(self.connection['name'], values.pop('request_key', self.key), **values)
+        return self.api._local_transaction(self.service.issue, self.connection['name'],
+                                           values.pop('request_key', self.key), **values)
+
+    def status(self, connection):
+        return self.service.status(connection)
+
+    def revoke(self, *args):
+        return self.service.revoke(*args)
 
     def row(self, value):
         return frappe.get_doc(self.documents.DOCTYPE, value['credential_id'])
@@ -64,7 +74,7 @@ class NativeCredentials(unittest.TestCase):
         self.assertEqual((value['status'], value['generation'], value['state']), ('created', 1, 'active'))
         self.assertEqual(row.token_digest, self.contracts.token_digest(value['token']))
         self.assertNotIn(value['token'], json.dumps(row.as_dict(), default=str))
-        for again in (self.issue(), self.issue(request_key=uuid4().hex), self.api.status(row.connection)):
+        for again in (self.issue(), self.issue(request_key=uuid4().hex), self.status(row.connection)):
             self.assertNotIn('token', again); self.assertNotIn('token_digest', again)
             self.assertEqual(again['credential_id'], row.name)
         self.assertEqual(frappe.db.count(self.documents.DOCTYPE, {'connection': row.connection}), 1)
@@ -88,16 +98,16 @@ class NativeCredentials(unittest.TestCase):
 
     def test_revoke_replay_and_new_generation_preserve_old_receipts(self):
         old = self.issue(); key = uuid4().hex
-        result = self.api.revoke(self.connection['name'], key, 1, 'synthetic retirement')
+        result = self.revoke(self.connection['name'], key, 1, 'synthetic retirement')
         self.assertEqual(result['state'], 'revoked')
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
-        again = self.api.revoke(self.connection['name'], key, 1, 'synthetic retirement')
+        again = self.revoke(self.connection['name'], key, 1, 'synthetic retirement')
         self.assertTrue(again['replayed'])
         new = self.issue(request_key=uuid4().hex)
         self.assertEqual(new['generation'], 2)
-        self.assertTrue(self.api.revoke(self.connection['name'], key, 1, 'synthetic retirement')['replayed'])
-        self.assertEqual(self.api.status(self.connection['name'])['generation'], 2)
-        with self.assertRaises(frappe.ValidationError): self.api.revoke(self.connection['name'], uuid4().hex, 1)
+        self.assertTrue(self.revoke(self.connection['name'], key, 1, 'synthetic retirement')['replayed'])
+        self.assertEqual(self.status(self.connection['name'])['generation'], 2)
+        with self.assertRaises(frappe.ValidationError): self.revoke(self.connection['name'], uuid4().hex, 1)
 
     def test_current_explicit_grant_required_even_for_admin(self):
         old = self.issue(); context = self.service.authenticate(old['token'])
@@ -105,14 +115,14 @@ class NativeCredentials(unittest.TestCase):
         with self.assertRaises(frappe.PermissionError): self.issue(request_key=uuid4().hex)
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
         with self.assertRaises(frappe.AuthenticationError): self.service.revalidate(context)
-        self.assertEqual(self.api.revoke(self.connection['name'], uuid4().hex, 1)['state'], 'revoked')
+        self.assertEqual(self.revoke(self.connection['name'], uuid4().hex, 1)['state'], 'revoked')
 
     def test_disabled_connection_prevents_issue_auth_but_can_be_revoked(self):
         old = self.issue(); self.update_connection(enabled=False)
         with self.assertRaises(frappe.PermissionError): self.issue(request_key=uuid4().hex)
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
-        self.assertFalse(self.api.status(self.connection['name'])['connection_enabled'])
-        self.assertEqual(self.api.revoke(self.connection['name'], uuid4().hex, 1)['state'], 'revoked')
+        self.assertFalse(self.status(self.connection['name'])['connection_enabled'])
+        self.assertEqual(self.revoke(self.connection['name'], uuid4().hex, 1)['state'], 'revoked')
 
     def test_disabled_issuer_and_removed_role_are_current_not_cached(self):
         old = self.issue(); context = self.service.authenticate(old['token'])
@@ -122,7 +132,7 @@ class NativeCredentials(unittest.TestCase):
         frappe.db.set_value('User', self.manager, 'enabled', 1, update_modified=False)
         frappe.db.delete('Has Role', {'parent': self.manager, 'role': 'Cowork Admin'})
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
-        with self.assertRaises(frappe.PermissionError): self.api.status(self.connection['name'])
+        with self.assertRaises(frappe.PermissionError): self.status(self.connection['name'])
 
     def test_company_client_and_entitlements_are_current(self):
         self.connection = self.connections.configure(self.workspace, 'express', uuid4().hex,
@@ -143,8 +153,8 @@ class NativeCredentials(unittest.TestCase):
             with self.assertRaises(frappe.PermissionError): self.issue(request_key=uuid4().hex)
             with self.assertRaises(frappe.PermissionError): self.service.authenticate(old['token'])
             with self.assertRaises(frappe.PermissionError): self.service.revalidate(context)
-        self.assertEqual(self.api.status(self.connection['name'])['state'], 'active')
-        self.assertEqual(self.api.revoke(self.connection['name'], uuid4().hex, 1)['state'], 'revoked')
+        self.assertEqual(self.status(self.connection['name'])['state'], 'active')
+        self.assertEqual(self.revoke(self.connection['name'], uuid4().hex, 1)['state'], 'revoked')
 
     def test_real_context_rechecks_scope_site_and_cannot_be_forged(self):
         old = self.issue(); context = self.service.authenticate(old['token'])
@@ -174,8 +184,8 @@ class NativeCredentials(unittest.TestCase):
         for actor in (self.actor, self.outsider, 'Administrator', 'Guest'):
             frappe.set_user(actor)
             with self.assertRaises(frappe.PermissionError): self.issue(request_key=uuid4().hex)
-            with self.assertRaises(frappe.PermissionError): self.api.status(self.connection['name'])
-            with self.assertRaises(frappe.PermissionError): self.api.revoke(self.connection['name'], uuid4().hex, 1)
+            with self.assertRaises(frappe.PermissionError): self.status(self.connection['name'])
+            with self.assertRaises(frappe.PermissionError): self.revoke(self.connection['name'], uuid4().hex, 1)
 
     def test_native_crud_and_shares_denied_even_administrator(self):
         value = self.issue()
@@ -211,7 +221,7 @@ class NativeCredentials(unittest.TestCase):
     def test_no_version_records_or_plaintext_after_alias_reset_revoke(self):
         old = self.issue(); self.issue(request_key=uuid4().hex)
         new = self.issue(request_key=uuid4().hex, reset=True, expected_generation=1)
-        self.api.revoke(self.connection['name'], uuid4().hex, 2)
+        self.revoke(self.connection['name'], uuid4().hex, 2)
         for value in (old, new):
             self.assertEqual(frappe.db.count('Version', {'ref_doctype': self.documents.DOCTYPE, 'docname': value['credential_id']}), 0)
             self.assertNotIn(value['token'], json.dumps(self.row(value).as_dict(), default=str))
@@ -227,9 +237,9 @@ class NativeCredentials(unittest.TestCase):
         self.documents.persist(row)
         with self.assertRaises(frappe.ValidationError): self.issue(request_key=uuid4().hex)
         key = uuid4().hex
-        result = self.api.revoke(self.connection['name'], key, 1)
+        result = self.revoke(self.connection['name'], key, 1)
         self.assertEqual(result['state'], 'revoked')
-        self.assertTrue(self.api.revoke(self.connection['name'], key, 1)['replayed'])
+        self.assertTrue(self.revoke(self.connection['name'], key, 1)['replayed'])
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
         self.assertLessEqual(len(self.row(old).request_receipts.encode()), self.contracts.MAX_RECEIPT_BYTES)
 
@@ -248,7 +258,7 @@ class NativeCredentials(unittest.TestCase):
         self.assertEqual(self.service.authenticate(old['token']).token_generation, 1)
         self.assertEqual(frappe.db.count(self.documents.DOCTYPE, {'connection': self.connection['name']}), 1)
 
-    def test_rpc_retries_only_local_conflicts_and_never_swallows_permission(self):
+    def test_local_transaction_retries_only_local_conflicts_and_never_swallows_permission(self):
         for error, count in ((frappe.QueryDeadlockError('synthetic'), 3), (frappe.PermissionError('synthetic'), 1)):
             with patch.object(self.service, 'issue', side_effect=error) as called:
                 with self.assertRaises(type(error)): self.issue()
@@ -289,9 +299,9 @@ class NativeCredentials(unittest.TestCase):
         self.assertEqual(sum(row.get('conflict', False) for row in results), 1)
         frappe.db.rollback()
         self.assertEqual(frappe.db.count(self.documents.DOCTYPE, {'connection': self.connection['name']}), 2)
-        self.assertEqual(self.api.status(self.connection['name'])['generation'], 2)
+        self.assertEqual(self.status(self.connection['name'])['generation'], 2)
 
-    def test_http_private_token_response_and_no_machine_authentication_bridge(self):
+    def test_http_retired_management_rpcs_and_no_machine_authentication_bridge(self):
         from werkzeug.test import Client
         from werkzeug.wrappers import Response
         from frappe.app import application
@@ -308,21 +318,16 @@ class NativeCredentials(unittest.TestCase):
         config['pearnly_features'] = ['intake', 'master_data', 'push_log']
         config_path.write_text(json.dumps(config))
         data = {'connection': self.connection['name'], 'request_key': self.key}
+        value = self.issue(); token = value['token']
         frappe.db.commit(); frappe.destroy()
         client = Client(application, Response); base = 'http://' + site
         rpc = '/api/method/pearnly_cowork.companion.api.'
         try:
-            response = client.post(rpc + 'issue', base_url=base, headers=headers, json=data)
-            self.assertEqual(response.status_code, 200)
-            self.assertIn('no-store', response.headers.get('Cache-Control', ''))
-            self.assertEqual(response.headers.get('Pragma'), 'no-cache')
-            self.assertEqual(response.headers.get('X-Content-Type-Options'), 'nosniff')
-            value = response.json['message']; token = value['token']
-            repeat = client.post(rpc + 'issue', base_url=base, headers=headers, json=data)
-            self.assertEqual(repeat.status_code, 200); self.assertNotIn('token', repeat.json['message'])
-            self.assertEqual(client.get(rpc + 'issue', base_url=base, headers=headers).status_code, 403)
-            self.assertEqual(client.post(rpc + 'issue', base_url=base, json=data).status_code, 403)
-            for path in (rpc + 'status?connection=' + self.connection['name'],
+            for name in ('issue', 'revoke', 'status'):  # retired (ADR-021): no longer whitelisted methods
+                response = client.post(rpc + name, base_url=base, headers=headers, json=data)
+                self.assertNotEqual(response.status_code, 200, name)
+                self.assertNotIn(token, response.get_data(as_text=True))
+            for path in (rpc + 'online?connection=' + self.connection['name'],
                          '/api/method/frappe.auth.get_logged_user',
                          '/api/resource/Cowork Express Agent Credential/' + value['credential_id']):
                 denied = client.get(path, base_url=base, headers={'Authorization': 'Bearer ' + token})
@@ -336,7 +341,7 @@ class NativeCredentials(unittest.TestCase):
 
 
 def worker():
-    from pearnly_cowork.companion import api, documents
+    from pearnly_cowork.companion import api, credentials, documents
     mode, actor, connection, key = sys.argv[2:]
     frappe.set_user(actor)
     frappe.conf.pearnly_features = ['intake', 'master_data', 'push_log']
@@ -345,7 +350,8 @@ def worker():
     print('READY', flush=True)
     if sys.stdin.readline().strip() != 'go': raise SystemExit('Missing concurrency barrier')
     try:
-        result = api.issue(connection, key, reset=mode == 'reset', expected_generation=1 if mode == 'reset' else None)
+        result = api._local_transaction(credentials.issue, connection, key, reset=mode == 'reset',
+                                        expected_generation=1 if mode == 'reset' else None)
         value = {'generation': result['generation'], 'has_token': 'token' in result, 'state': result['state']}
         frappe.db.commit()
     except frappe.ValidationError:
