@@ -4,7 +4,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Assistant } from "./assistant";
 import "./globals.css";
-import { pref } from "@/lib/appearance";
+import { colorSchemeOf, pref, type Theme } from "@/lib/appearance";
 import { installBackKey } from "@/lib/back-stack";
 import { installVariant } from "@/lib/variant";
 import { trackViewport } from "@/lib/viewport";
@@ -24,10 +24,23 @@ function themeColor() {
     if (meta.getAttribute("content") !== value) meta.setAttribute("content", value);
   }
 }
+// 页面的深浅（<meta name="color-scheme">，lib/appearance.ts 的 colorSchemeOf）：设置里固定了就只报那一种，
+// 浏览器自己画的部分（安卓系统导航条、滚动条、表单控件）跟着页面走（测试窗口第 2 轮：深色下导航条仍是白的）
+function colorScheme(theme: Theme) {
+  let meta = document.querySelector('meta[name="color-scheme"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "color-scheme");
+    document.head.appendChild(meta);
+  }
+  const value = colorSchemeOf(theme);
+  if (meta.getAttribute("content") !== value) meta.setAttribute("content", value);
+}
 const applyScheme = () => {
   // 设置里可以固定浅色 / 深色（同 Claude），默认跟随系统
   const theme = pref("theme");
   document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && scheme.matches));
+  colorScheme(theme);
   themeColor();
 };
 applyScheme();

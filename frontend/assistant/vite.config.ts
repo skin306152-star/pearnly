@@ -39,9 +39,12 @@ function ccIcons(): Plugin {
         start_url: "/assistant",
         scope: "/assistant",
         display: "standalone",
-        // 启动画面与标题栏颜色 = 页面底色（globals.css 的 --cc-bg-app，浅色 #fcfcfb）
+        // 启动画面与标题栏颜色 = 页面底色（globals.css 的 --cc-bg-app，浅色 #fcfcfb）。manifest 本身不能按深浅色分；
+        // 深色：页面打开后由 <meta name="theme-color">（按深浅色各一个、main.tsx 跟着设置改）盖过这里的浅色，
+        // 认 user_preferences 的浏览器（Chromium 的深色 manifest 颜色）装成应用时启动画面与标题栏也用深色 #151515
         background_color: "#fcfcfb",
         theme_color: "#fcfcfb",
+        user_preferences: { color_scheme_dark: { background_color: "#151515", theme_color: "#151515" } },
         icons: [
           { src: icon("icon-192.png"), sizes: "192x192", type: "image/png" },
           { src: icon("icon-512.png"), sizes: "512x512", type: "image/png" },

@@ -11,6 +11,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)" />
+    {# 页面支持深浅两种：深色系统下浏览器从第一帧就按深色画（安卓的系统导航条跟着变深，测试窗口第 2 轮：深色下仍是白条）；
+         设置里固定了浅 / 深色时 main.tsx 运行时改成那一种，theme-color 两个也一并改成当前底色。 #}
+    <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>CC</title>
     {# 启动画面：页面代码下载、运行之前就显示（主屏幕 app、安卓、桌面端启动时不再是一片空白）；

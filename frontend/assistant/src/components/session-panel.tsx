@@ -23,13 +23,12 @@ import {
   PanelControlContext,
   type PanelControl,
   PendingCard,
-  setFor,
   TasksSection,
 } from "@/components/company-cards";
 import { branchName } from "@/components/period-chip";
 import { FileTypeIcon, useResults } from "@/components/results-panel";
 import { co, t } from "@/i18n";
-import { branchesOf, branchShort, type Detail, monthLabel } from "@/lib/companies";
+import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "@/lib/companies";
 import { moveCard, type PanelCard as CardId, setCardOrder, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
@@ -165,12 +164,13 @@ const InfoRow: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, 
   </div>
 );
 
-/** 公司卡：名称（点了打开公司页）、法定名、税号 · 分店，合并申报；本对话的月份、分店与覆盖这个月的账套。 */
+/** 公司卡：名称（点了打开公司页）、法定名、税号 · 分店，合并申报；本对话的月份、分店与覆盖这个月的账套
+ *  （没指定分店时各分店的都列，总店在前，一份一行；lib/companies 的 setsForScope）。 */
 const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ detail, period, scope }) => {
   const openCompany = useOpenCompany();
   const c = detail.company;
   const branch = branchesOf(detail).find((b) => b.branch === scope);
-  const set = setFor(branch ? branch.account_sets : detail.account_sets, period);
+  const sets = setsForScope(detail, period, scope);
   const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
   const line = companyLine(c);
   return (
@@ -189,7 +189,17 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
       )}
       {period && <InfoRow icon={<CalendarIcon />} label={co.period} value={monthLabel(period)} />}
       {scope && <InfoRow icon={<StoreIcon />} label={co.branch} value={branch ? branchName(branch) : branchShort(scope)} />}
-      {set && <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value={set.label} />}
+      {sets.length === 1 && <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value={sets[0]!.label} />}
+      {sets.length > 1 && (
+        <>
+          <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value="" />
+          {sets.map((set) => (
+            <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent" title={set.label}>
+              <span className="min-w-0 flex-1 truncate">{set.label}</span>
+            </div>
+          ))}
+        </>
+      )}
     </PanelCard>
   );
 };

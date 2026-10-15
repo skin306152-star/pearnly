@@ -164,12 +164,52 @@ class PanelStylesSourceTests(unittest.TestCase):
         tasks = read("components/scheduled-tasks.tsx")
         self.assertEqual(tasks.count("onClick={() => newTask(taskCompany)}"), 2)
 
+    def test_company_card_lists_every_account_set_of_the_month(self):
+        # 测试窗口第 2 轮：没指定分店的对话公司卡只显示「T.9 นิภา (สาขา 00012)」，推送却进了总店 T9NIEXCP：
+        # 没指定分店时各分店覆盖这个月的都列（一份一行，总店在前），指定了分店只列那个分店的
+        panel = read("components/session-panel.tsx")
+        card = panel.split("const CompanyCard: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("const sets = setsForScope(detail, period, scope);", card)
+        self.assertIn("{sets.length === 1 && <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value={sets[0]!.label} />}", card)
+        self.assertIn("{sets.map((set) => (", card)
+        self.assertIn('className="cc-panel-row cc-panel-indent" title={set.label}', card)
+        self.assertNotIn("setFor(", card)
+
 
 @NEEDS_NODE
 class PanelLogicTests(unittest.TestCase):
     def run_page(self, body, lang="en"):
         run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
                stubs=STUBS, lang=lang)
+
+    def test_account_sets_shown_for_the_conversation_scope(self):
+        self.run_page(r"""
+import { setsForScope } from "@/lib/companies";
+const set = (key: string, branch: string, start: string, end: string, writable = true) =>
+  ({ connection: "c1", adapter: "express", key, label: key, branch, period_start: start, period_end: end, writable });
+// 照测试机 T.9：分店 00012 在前（服务端顺序），总店 T9NIEXCP 覆盖同一个月
+const b12 = [set("T9N12EXP", "00012", "2026-01-01", "2026-12-31"), set("T9N12-68", "00012", "2025-01-01", "2025-12-31")];
+const hq = [set("T9NIEXCP", "00000", "2026-01-01", "2026-12-31"), set("T9NI-68", "00000", "2025-01-01", "2025-12-31")];
+const detail: any = { account_sets: [...b12, ...hq],
+  branches: [{ branch: "00012", account_sets: b12 }, { branch: "00000", account_sets: hq }] };
+const keys = (sets: any[]) => sets.map((s) => s.key);
+// 没指定分店：各分店覆盖这个月的都列，总店在前
+assert.deepEqual(keys(setsForScope(detail, "2026-09", "")), ["T9NIEXCP", "T9N12EXP"]);
+assert.deepEqual(keys(setsForScope(detail, "2025-03", "")), ["T9NI-68", "T9N12-68"]);
+// 指定了分店：只列那个分店的
+assert.deepEqual(keys(setsForScope(detail, "2026-09", "00012")), ["T9N12EXP"]);
+assert.deepEqual(keys(setsForScope(detail, "2026-09", "00000")), ["T9NIEXCP"]);
+// 某个分店这个月没有覆盖的：取它最新可写的一份；没有月份时每个分店各一份
+assert.deepEqual(keys(setsForScope(detail, "2024-05", "")), ["T9NIEXCP", "T9N12EXP"]);
+assert.deepEqual(keys(setsForScope(detail, "", "")), ["T9NIEXCP", "T9N12EXP"]);
+// 只有一家（没有分店信息）：照旧覆盖这个月的那份
+const single: any = { account_sets: [set("69EXP", "", "2026-01-01", "2026-12-31"), set("68EXP", "", "2025-01-01", "2025-12-31")] };
+assert.deepEqual(keys(setsForScope(single, "2026-09", "")), ["69EXP"]);
+assert.deepEqual(keys(setsForScope({ account_sets: [] } as any, "2026-09", "")), []);
+// 旧服务端（没有 branches，按账套上的分店号现分）：同样总店在前；没有分店号的账套当总店那一组
+const old: any = { account_sets: [...b12, ...hq, set("LOOSE", "", "2026-01-01", "2026-12-31")] };
+assert.deepEqual(keys(setsForScope(old, "2026-09", "")), ["LOOSE", "T9NIEXCP", "T9N12EXP"]);
+""")
 
     def test_card_order_moves_only_between_visible_cards(self):
         self.run_page(r"""

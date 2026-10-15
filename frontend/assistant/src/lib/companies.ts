@@ -424,11 +424,42 @@ export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "co
   };
 }
 
+/** 账套的期间覆盖这一天（YYYY-MM-DD）。 */
+const covers = (s: AccountSet, day: string) =>
+  Boolean(s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10));
+
 /** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的）。 */
 export function setForPeriod(sets: readonly AccountSet[], period: string): AccountSet | undefined {
   const day = period ? `${period}-01` : "";
-  const covering = day ? sets.find((s) => s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10)) : undefined;
+  const covering = day ? sets.find((s) => covers(s, day)) : undefined;
   return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
+}
+
+/** 一组账套里覆盖这个月的全部；一个都不覆盖（或没有月份）时同 setForPeriod 取一份。 */
+function coveringOrNewest(sets: readonly AccountSet[], period: string): AccountSet[] {
+  const day = period ? `${period}-01` : "";
+  const covering = day ? sets.filter((s) => covers(s, day)) : [];
+  if (covering.length) return covering;
+  const one = setForPeriod(sets, period);
+  return one ? [one] : [];
+}
+
+/** 公司卡上「这个月用哪份账套」（会话栏，测试窗口第 2 轮：没指定分店的对话只显示了分店 00012 的那份，推送却进了总店）：
+ *  对话指定了分店 → 这个分店覆盖这个月的；没指定 → 各分店各自覆盖这个月的（分店没有覆盖的取它最新可写的一份），
+ *  总店在前，其余照服务端的分店顺序。只有一个分店（或没有分店信息）时就是整家公司覆盖这个月的。 */
+export function setsForScope(detail: Pick<Detail, "branches" | "account_sets">, period: string, scope: string): AccountSet[] {
+  const branches = branchesOf(detail);
+  const chosen = scope ? branches.find((b) => b.branch === scope) : undefined;
+  if (chosen) return coveringOrNewest(chosen.account_sets, period);
+  if (branches.length < 2) return coveringOrNewest(detail.account_sets ?? [], period);
+  const id = (s: AccountSet) => `${s.connection}|${s.key}`;
+  const inBranch = new Set(branches.flatMap((b) => b.account_sets.map(id)));
+  // 不属于任何分店的（旧服务端、账套上没有分店号）当总店那一组
+  const loose = (detail.account_sets ?? []).filter((s) => !inBranch.has(id(s)));
+  const head = (b: Branch) => b.branch === HQ || !b.branch;
+  const ordered = [...branches.filter(head), ...branches.filter((b) => !head(b))];
+  const out = [...(loose.length ? coveringOrNewest(loose, period) : []), ...ordered.flatMap((b) => coveringOrNewest(b.account_sets, period))];
+  return out.filter((s, i) => out.findIndex((other) => id(other) === id(s)) === i);
 }
 
 // ---------------------------------------------------------------- 全所有没有公司（新对话的公司条只在至少有一家时出现）

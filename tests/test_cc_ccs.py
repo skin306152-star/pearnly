@@ -430,6 +430,22 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn('APP_INK = {"light": "#0b0b0b", "dark": "#f0efec"}', tomo)  # 同 --code-ink-1 浅 / 深
         vite = (ROOT / "frontend/assistant/vite.config.ts").read_text(encoding="utf-8")
         self.assertIn('background_color: "#fcfcfb",', vite)
+        # 深色（测试窗口第 2 轮：手机深色下安卓系统导航条仍是白的）：页面报两种深浅；离线页同样；manifest 给深色的一份；
+        # 设置里固定了浅 / 深色时运行时改 color-scheme，theme-color 跟着当前底色
+        self.assertIn('<meta name="color-scheme" content="light dark" />', html)
+        self.assertLess(html.index('name="color-scheme"'), html.index("<style>"))
+        for meta in ('<meta name="color-scheme" content="light dark">',
+                     '<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">',
+                     '<meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)">'):
+            self.assertIn(meta, api)
+        self.assertIn('user_preferences: { color_scheme_dark: { background_color: "#151515", theme_color: "#151515" } },', vite)
+        main = (SRC / "main.tsx").read_text(encoding="utf-8")
+        apply = main.split("const applyScheme = () => {", 1)[1].split("\n};", 1)[0]
+        self.assertIn("colorScheme(theme);\n  themeColor();", apply)
+        self.assertIn("const value = colorSchemeOf(theme);", main)
+        self.assertIn('window.addEventListener("cc-theme", applyScheme);', main)
+        appearance = (SRC / "lib/appearance.ts").read_text(encoding="utf-8")
+        self.assertIn('return theme === "system" ? "light dark" : theme;', appearance)
         for text in (html, api, splash, tomo, vite):
             for old in ("#fbfbfb", "#f9f9f7", "#262624", "(249, 249, 247)", "(38, 38, 36)"):
                 self.assertNotIn(old, text)
@@ -558,6 +574,13 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("const subject = step.own ? stepSubject(args as Args, output?.text, known) : \"\";", row)
         self.assertIn('{subject && <span className="cc-step-target">{` · ${subject}`}</span>}', row)
         self.assertEqual(steps.count("stepSubject("), 1)
+        # 记录名字从整段对话的结果里认（推送那一步的结果里没有单号，测试窗口第 2 轮），不只这条回复
+        self.assertIn("useAuiState((s) => s.thread.messages)", steps)
+        self.assertNotIn("s.message.parts);\n  return useMemo", steps)
+        # 点开的本站工具参数与结果只显示给人看的（lib/step-detail.ts）；内置工具照原样
+        self.assertIn("input: detailArgs(args), showOutput: true, own: true", steps)
+        self.assertIn("(step.own ? detailOutput(output.text) : output.text)", steps)
+        self.assertNotIn("JSON.stringify(args", steps)
         self.assertNotIn("subject", group)
         self.assertNotRegex(steps, r"\bicon\b|Icon className")
         self.assertIn('import { ChevronRightIcon } from "lucide-react";', steps)
@@ -691,6 +714,80 @@ assert.ok(one.endsWith("…") && long.startsWith(one.slice(0, -1)));
 const many = stepSubject({ documents: ["8f2a1c9d3e", "1b2c3d4e5f"] }, undefined, longKnown);
 assert.equal([...many].length, SUBJECT_MAX);
 assert.ok(many.endsWith("… +1"));
+(globalThis as any).done();
+""")
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_push_step_names_the_invoice_and_folders_keep_their_case(self):
+        # 测试窗口第 2 轮：推送那一行写成「推送了单据 · t9niexcp」——推送的结果里没有单号（单号在前几条回复列过 / 识别过的
+        # 结果里），参数里的账套键是归一过的小写。要写单号；只能写账套时照原写法（T9NIEXCP），不显示小写键。
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { folderSpellings, knownEntries, stepSubject } from "@/lib/step-subject";
+const j = (value: unknown) => JSON.stringify(value);
+// 前一条回复的列表（整段对话合起来的 known）
+const listed = { documents: [{ name: "CWH-2026-00031", invoice_no: "IV6810-00012", seller_name: "Makro",
+  push_account_set: "C:\\ExpressI\\T9NIEXCP" }, { name: "CWH-2026-00032", invoice_no: "IV6810-00013" }] };
+const known = new Map(knownEntries(listed));
+assert.deepEqual(folderSpellings(listed), [["folder:t9niexcp", "T9NIEXCP"]]);
+const pushed = j({ results: [{ document: "CWH-2026-00031", status: "entered", docnum: "HP691015-001",
+  written: { payment: "cash", payment_from: "remembered", debit_account: "53-05-02-00" } }] });
+const args = { documents: ["CWH-2026-00031"], account_set_key: "c:\\expressi\\t9niexcp" };
+assert.equal(stepSubject(args, pushed, known), "IV6810-00012");
+assert.equal(stepSubject({ ...args, documents: ["CWH-2026-00031", "CWH-2026-00032"] }, pushed, known), "IV6810-00012 +1");
+// 单号认不出时落到账套：小写键按见过的原写法还原；没见过的全小写按 Express 的写法大写；本来带大写的照原样
+assert.equal(stepSubject({ ...args, documents: ["CWH-2026-00099"] }, pushed, known), "T9NIEXCP");
+assert.equal(stepSubject({ ...args, documents: ["CWH-2026-00099"] }, pushed), "T9NIEXCP");
+assert.equal(stepSubject({ account_set_key: "s:\\2569\\exp69\\69sincer" }, "{}"), "69SINCER");
+assert.equal(stepSubject({ account_set_key: "S:\\Data\\Demo02" }, "{}"), "Demo02");
+const seen = new Map(knownEntries({ account_sets: [{ path: "S:\\Data\\Demo02" }] }));
+assert.equal(stepSubject({ account_set_key: "s:\\data\\demo02" }, "{}", seen), "Demo02");
+// 结果里有原写法的账套（push_choices 的 account_set）先用它
+assert.equal(stepSubject({ account_set_key: "c:\\expressi\\t9niexcp" },
+  j({ account_set: "C:\\ExpressI\\T9NIEXCP", needed: [] })), "T9NIEXCP");
+(globalThis as any).done();
+""")
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_step_details_show_only_what_people_read(self):
+        # 测试窗口第 2 轮：点开的步骤里是原样 JSON，满是连接 CWEC-…、file_…、记录名 CWH-…、c:\pearnlyexpress\… 本地路径。
+        # 只留给人看的（单号、名称、金额、日期、状态、说明）；人给的字（搜索词、月份）照留；不是 JSON 的原样
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { detailArgs, detailOutput, internalValue, sanitizeDetail } from "@/lib/step-detail";
+for (const value of ["CWEC-0003", "CWH-2026-00031", "file_011CNha8iCJcU1wXNR6q4V8w", "sesn_01ABCDEFGH",
+  "c:\\pearnlyexpress\\70exp\\t9niexcp", "C:/ExpressI/T9NIEXCP", "\\\\accserver\\s\\2569", "/Users/skin/x.pdf",
+  "8f2a1c9d3e"]) assert.equal(internalValue(value), true, value);
+for (const value of ["IV6810-00012", "2026-09", "Makro", "1070.00", "entered", "HP691015-001", "สาขา 00012", "0105562012340",
+  "2026-09/inv-01.pdf", "Rice 5kg", ""]) assert.equal(internalValue(value), false, value);
+// 推送的参数：连接、账套键、记录名都不显示 → 没有给人看的就不显示参数
+assert.equal(detailArgs({ documents: ["CWH-2026-00031"], connection: "cnx-office",
+  account_set_key: "c:\\expressi\\t9niexcp" }), undefined);
+assert.equal(detailArgs(undefined), undefined);
+assert.equal(detailArgs({}), undefined);
+// 人给的字照留
+assert.deepEqual(JSON.parse(detailArgs({ search: "Makro", period: "2026-09", connection: "CWEC-0003",
+  posting_kind: "service" })!), { search: "Makro", period: "2026-09", posting_kind: "service" });
+// 结果：内部的键与值拿掉，单号、金额、状态、说明留着；拿空了的列表 / 对象不显示，原来就空的照留
+const out = detailOutput(JSON.stringify({ results: [{ document: "CWH-2026-00031", status: "entered", docnum: "HP691015-001",
+  invoice_no: "IV6810-00012", total: 1070, written: { payment: "cash", debit_account: "53-05-02-00" },
+  file: "file_011CNha8iCJcU1wXNR6q4V8w", push_connection: "CWEC-0003", record: "PR-1", batches: ["b1c2d3e4f5"] }],
+  account_set: "C:\\ExpressI\\T9NIEXCP", account_label: "T.9 นิภา", note: "queued: sent", files: [],
+  folder: "c:\\pearnlyexpress\\70exp", session_id: "sesn_01ABCDEFGH", ok: true, count: 0 }));
+assert.deepEqual(JSON.parse(out), { results: [{ status: "entered", docnum: "HP691015-001", invoice_no: "IV6810-00012",
+  total: 1070, written: { payment: "cash", debit_account: "53-05-02-00" } }], account_label: "T.9 นิภา",
+  note: "queued: sent", files: [], ok: true, count: 0 });
+assert.ok(out.includes("\n  "));  // 缩进显示
+// 文件夹里的文件：文件名、相对路径留着，本地绝对路径拿掉
+assert.deepEqual(sanitizeDetail({ files: [{ path: "2026-09/inv-01.pdf", name: "inv-01.pdf" },
+  { path: "C:\\Scans\\a.pdf", name: "a.pdf" }] }),
+  { files: [{ path: "2026-09/inv-01.pdf", name: "inv-01.pdf" }, { name: "a.pdf" }] });
+// 只剩内部名字的：显示空；不是 JSON / 不是对象的原样
+assert.equal(detailOutput(JSON.stringify({ document: "CWH-1", connection: "x" })), "");
+assert.equal(detailOutput("Express is offline on CWEC-0003"), "Express is offline on CWEC-0003");
+assert.equal(detailOutput("42"), "42");
 (globalThis as any).done();
 """)
 
