@@ -236,3 +236,39 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
 - 网页的「预选默认账套」（`targets.js` / `scheduled-tasks.tsx` 读 `config.account_set`）随中和自然拿不到 Express 的默认值，
   退回各自记住的选择；没改前端文案与代码。
 - 补丁另给有效 Express 密钥打「整份重报」（方案 4.1 没写）：可达行以电脑此刻的名单为准，不只靠补丁时存下的目录。
+
+### 第 2 批对抗审查与修复（2026-10-16，本地提交，未推送）
+
+审查范围 `f87a0585..d99c1b5b`，审查者的复现脚本跑真 `plan_report` / `collector.ingest` / `pool`。逐条核实后：
+
+| # | 结论 | 处理 |
+|---|---|---|
+| 1 高：旧槽位密钥改挂到同一台电脑已认领的记录后，同一份账套拆成两个规范键 | 复现属实 | `pool.move_device`：`devices.hello` 改挂时、`superseded` 吊销时，先把旧电脑在这条连接上的可达行与 `scope_device` 转给那台（那台在等旧电脑这份的待认定行由转来的取代），再退役旧电脑；`forget_device` 只用于真正移除。那台第一次整份上报按第 3 条（登记还没报过文件号）认回今天的键 |
+| 2 高：第 3 条按本机路径把已登记的键改认成另一份物理账套 | 复现属实 | 第 3 条只在登记还没报过文件号 / 网络路径，或网络路径（别名归一，都没有也算）与内容键都相同时认；`_refresh_registration` 不覆盖已有的网络路径 |
+| 3 中：克隆盘上两台的本机拷贝按文件号并成一份 | 复现属实 | `Registered` 带 `scope_device` / `foreign`（只属于另一台、那台还够得到）；没有网络路径的上报行第 1 条不认 `foreign` 的；第 4 条（旧版）同样不认，键带这台的主机名（网络路径写不成带主机名的照认） |
+| 4 中：第 6 条同一路径串不看文件号冲突 | 复现属实 | 双方文件号不同、别的电脑 7 天内还按原文件号够到它（`others_uids`）→ 待认定（不派写入，不覆盖文件号），原文件号没人再报了才认。选「待认定」而不是「区分后的键」：网络路径写不出另一个合理的路径键 |
+| 5 中：认不出的本机写法退回原路径，主档记到别人名下、刷新按「所选」领错 | 复现属实 | `pool.canonical` 只按这台状态正常的可达行换，认不出回空串；空串时不记主档、不发布按账套快照、不把按账套的读失败标到端点目录上；`refresh.lease` 的第 1 档自然不成立 |
+| 6 中：并集超过 5000 行整个心跳失败 | 复现属实 | `pool.listing` 按「可写、有网络路径的在前，再按规范键」截到 `MAX_ACCOUNT_SETS`，截掉的份数记在端点目录指针 `account_sets_dropped`（`snapshots.publish` 的 `note`，不进快照内容） |
+| 7 中：所选账套按电脑存，两条连接互改 | 属实（erpcowork 两条启用的 Express 连接） | `selection_json` 改成 `{连接: {所选与 6 个科目}}`；`devices.state / member / record_report / seed_state` 都带连接，补丁按连接「没有才补」。本批未上任何环境，没有旧格式数据要迁 |
+| 8 低：规范根「从空补一次」与已冻结空根的未了结推送冲突 | 属实 | 被未了结推送记录引用的登记（`protected()`，心跳与补丁都传）不补空规范根，推送了结后的下一次整份上报再补 |
+| 9a 低：密钥全吊销、电脑没退役时可达行还在 | 属实 | `devices.after_revoke`（离开、管理吊销、`superseded`、旧槽位重置）：这台在这条连接上一把有效密钥都不剩就删它在这条连接上的可达行（`forget_device(connection=…)`）；一把都不剩的（`retire_orphan`）在锁电脑行之前删各条连接的 |
+| 9b 低：两台轮流上报时连接行与 `_preparation_binding` 来回翻转 | 属实，已知 | 归第 3 批（证据换成按账套分派时一并去掉），本批不改 |
+
+与审查建议的出入：第 1、4 条（旧版）的 `scope_device` 判据放宽为「属于另一台、且那台还够得到」，不是「为空或等于本设备」：
+旧槽位重置（同一台重新配对）会建新的旧电脑，旧的那台可达行已删，按严格判据今天的键会被拆开。认上这类登记时 `scope_device`
+归这台。补丁（`seed_legacy`）里登记先按目录建、后补引用到的键，目录里的键若被冻结了空根的未了结推送引用，登记的根仍是
+今天的根——第 3 批取锁时要按推送记录上冻结的根核这一类（记在第 3 批待办）。
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`；容器 `pearnly/frappe-sample:16.34.1`、`--network none`、工作树只读挂载）：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_express_account_sets.py` | 62 OK（新增 14 项：认定第 1、3、4、6 条的纯函数用例，`ReviewBatch2` 逐条复现 1–6、8、按连接删可达行）；新增的 14 项在 `d99c1b5b` 的源码上全部失败 |
+| `tests/test_cowork_cc_desktop_devices.py` | 55 OK（新增：改挂先转后退役、`superseded` 转给自己的密钥、离开只删这条连接的可达行且锁序不变、所选按连接） |
+| 审查者复现脚本 `test_repro_b2.py` | 2、4–8 过；1 仍按旧流程只 `forget_device` 不转（修法在 `devices.hello`，由上面两处用例守）；3 的断言是「两份登记」，本修法是待认定、一份登记不被改写 |
+| 容器内导入新改的 10 个模块；`tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（不含 parity） | 导入 OK；184 个文件 182 OK，`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py` 与基线相同的两个失败 |
+| `python3 scripts/check-architecture.py` | PASS（0 violations） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 87 步全过，退出码 0 |
+
+没做 / 没验：同第 2 批（真实 Site、MariaDB 加锁、HTTP 链、真机在第 7 批）。`move_device` 在真实 MariaDB 上是先删后插（可达行
+名字带设备编号），并发只靠连接行锁串行，第 7 批联调时核。
