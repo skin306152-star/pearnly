@@ -331,6 +331,7 @@ LINE Login,LINE 登录
 LINE Login Link,LINE 登录关联
 LINE Login Link Updated,LINE 登录关联更新时间
 LINE User ID,LINE 用户 ID
+"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE 无法使用相机。请在手机设置里允许 LINE 使用相机后重试，或手动输入编码。
 LINE could not be reached; please try again,无法连接 LINE，请稍后重试
 LINE status,LINE 状态
 Language,语言
@@ -822,6 +823,14 @@ common.processing,处理中…
 common.refresh,刷新
 common.save,保存
 common.saving,提交中…
+common.scan.busy,相机正被其他应用占用。请关闭该应用后重试。
+common.scan.decoder,扫码组件加载失败。请刷新页面后重试。
+common.scan.denied,相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
+common.scan.failed,相机无法启动。请重试，或手动输入编码。
+common.scan.in_app,应用内置的浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
+common.scan.in_line,LINE 无法使用相机。请在手机设置里允许 LINE 使用相机后重试，或手动输入编码。
+common.scan.missing,此设备上没有找到相机。请手动输入编码。
+common.scan.unsupported,此浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
 common.yes,是
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = 由 CC 桌面版在本机拉取后写入
 connect.action.connect,连接 DMS

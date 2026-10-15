@@ -330,6 +330,7 @@ LINE Login,LINE Login
 LINE Login Link,LINE Login Link
 LINE Login Link Updated,LINE Login Link Updated
 LINE User ID,LINE User ID
+"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.","LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code."
 LINE could not be reached; please try again,LINE could not be reached; please try again
 LINE status,LINE status
 Language,Language
@@ -820,6 +821,14 @@ common.processing,Processing…
 common.refresh,Refresh
 common.save,Save
 common.saving,Saving…
+common.scan.busy,The camera is being used by another app. Close that app and try again.
+common.scan.decoder,The barcode reader could not load. Refresh the page and try again.
+common.scan.denied,"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
+common.scan.failed,"The camera could not start. Try again, or enter the code."
+common.scan.in_app,"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
+common.scan.in_line,"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code."
+common.scan.missing,No camera was found on this device. Enter the code instead.
+common.scan.unsupported,"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 common.yes,Yes
 "companion = pulled outbound by CC Desktop on the local machine, then stored here","companion = pulled outbound by CC Desktop on the local machine, then stored here"
 connect.action.connect,Connect DMS

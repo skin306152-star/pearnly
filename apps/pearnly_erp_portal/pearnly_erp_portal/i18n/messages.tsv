@@ -167,7 +167,6 @@ Find	查询	ค้นหา	検索	stock.mobile.find
 Save	保存	บันทึก	保存	stock.mobile.save
 Saved	已保存	บันทึกแล้ว	保存しました	stock.mobile.saved
 No product matches that code	未找到该编码对应的物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.mobile.notFound
-This browser cannot scan with the camera	当前浏览器不支持摄像头扫码	เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง	このブラウザーはカメラでスキャンできません	stock.mobile.noCamera
 Close camera	关闭相机	ปิดกล้อง	カメラを閉じる	stock.mobile.cameraOff
 This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.	该 LINE 账号尚未绑定员工账号。请从 LINE 中打开，或先在网页登录。	บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน	この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。	stock.mobile.notBound
 Stock count template	盘点表模板	เทมเพลตตรวจนับ	棚卸テンプレート	stock.count.template

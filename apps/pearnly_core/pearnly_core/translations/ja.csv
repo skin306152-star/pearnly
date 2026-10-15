@@ -331,6 +331,7 @@ LINE Login,LINEログイン
 LINE Login Link,LINEログイン連携
 LINE Login Link Updated,LINEログイン連携の更新日時
 LINE User ID,LINEユーザーID
+"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE でカメラを使えません。スマートフォンの設定で LINE のカメラを許可してから再試行するか、コードを入力してください。
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
 LINE status,LINEステータス
 Language,言語
@@ -822,6 +823,14 @@ common.processing,処理中…
 common.refresh,更新
 common.save,保存
 common.saving,保存中…
+common.scan.busy,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
+common.scan.decoder,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
+common.scan.denied,カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
+common.scan.failed,カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
+common.scan.in_app,アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
+common.scan.in_line,LINE でカメラを使えません。スマートフォンの設定で LINE のカメラを許可してから再試行するか、コードを入力してください。
+common.scan.missing,このデバイスにカメラが見つかりません。コードを入力してください。
+common.scan.unsupported,このブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 common.yes,はい
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC デスクトップがローカルで取得して保存
 connect.action.connect,DMSに接続

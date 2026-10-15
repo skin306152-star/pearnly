@@ -6,6 +6,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const html = fs.readFileSync('apps/pearnly_erp_portal/pearnly_erp_portal/www/stocktake.html', 'utf8');
+// 页面的相机与读码用共用读码器（与后台扫码同一份），站点上它先于页面脚本加载。
+const reader = fs.readFileSync('apps/pearnly_core/pearnly_core/public/scan/reader.js', 'utf8');
+assert.match(html, /<script src="\{\{ versioned_asset\('pearnly_core', 'scan\/reader\.js'\) \}\}"><\/script>/);
 const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const source = inline.replace('        start();', `window.testPage = {
   call, startCamera, stopCamera, bindForm, render, lookup,
@@ -38,6 +41,9 @@ function fixture(options = {}) {
     async detect() { return options.detect ? options.detect() : [{rawValue: '  QR + & 123  ', format: 'qr_code'}]; }
   }
   const browser = {
+    isSecureContext: true,
+    setTimeout: handler => { timers.set(++timerId, handler); return timerId; },
+    clearTimeout: id => timers.delete(id),
     addEventListener: (name, handler) => { events[name] = handler; },
     BarcodeDetector: options.fallback ? undefined : Reader,
   };
@@ -50,9 +56,10 @@ function fixture(options = {}) {
   };
   const item = {name: 'ROW-1', code: 'QR + & 123', product_name: 'Synthetic', qty: 1};
   const result = {item, rows: [item], entries: []};
-  vm.runInNewContext(source, {
+  vm.runInNewContext(reader + '\n' + source, {
     window: browser, document, URLSearchParams, console,
-    navigator: {language: 'th', vibrate() {}, mediaDevices: {getUserMedia: () => {
+    navigator: {language: 'th', userAgent: options.userAgent || 'Mozilla/5.0 Line/14.1.0', vibrate() {},
+      mediaDevices: {enumerateDevices: async () => [], getUserMedia: () => {
       acquired++;
       return options.acquire ? options.acquire(stream) : Promise.resolve(stream);
     }}},
@@ -70,7 +77,8 @@ function fixture(options = {}) {
   page.state({csrf: 'synthetic-csrf', ticket: 'synthetic-ticket'});
   return {page, calls, scripts, prepares, timers, events, element, item, video,
     stopped: () => stopped, acquired: () => acquired, decoderCalls: () => decoderCalls,
-    async tick() { const callback = timers.values().next().value; assert.ok(callback); await callback(); },
+    // 读码是一帧接一帧（setTimeout 链）：取出下一帧执行。
+    async tick() { const [id, callback] = timers.entries().next().value || []; assert.ok(callback); timers.delete(id); await callback(); await flush(); },
   };
 }
 
@@ -90,11 +98,11 @@ function fixture(options = {}) {
   console.log('PASS GET task/code encoding, ticket header, unchanged POST body');
 
   const decoded = [], fallback = fixture({fallback: true});
-  await fallback.page.startCamera(code => decoded.push(code));
+  await fallback.page.startCamera(code => decoded.push(code)); await flush();
   assert.deepEqual(fallback.scripts, ['/assets/pearnly_core/vendor/barcode-detector/ponyfill.js']);
   assert.equal(fallback.prepares[0].overrides.locateFile('reader.wasm'),
     '/assets/pearnly_core/vendor/barcode-detector/zxing_reader.wasm');
-  await fallback.tick(); assert.equal(decoded.length, 0, 'one frame is not a confirmed result');
+  assert.equal(decoded.length, 0, 'the first frame alone is not a confirmed result');
   await fallback.tick(); assert.deepEqual(decoded, ['QR + & 123']);
   assert.equal(fallback.stopped(), 1);
   assert.equal(fallback.video.srcObject, null);
@@ -122,6 +130,17 @@ function fixture(options = {}) {
   assert.equal(duplicate.acquired(), 1, 'double start cannot retain two streams');
   duplicate.page.stopCamera(true);
   console.log('PASS late permission cancellation and duplicate camera start');
+
+  // 相机打不开：在 LINE 里被拒 → 让人去手机设置里给 LINE 相机权限；被占用 → 说被占用。
+  const named = name => Object.assign(new Error(name), {name});
+  const refused = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
+  await refused.page.startCamera(() => {}); await flush();
+  assert.equal(refused.element('toast').textContent, 'common.scan.in_line');
+  const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
+  await taken.page.startCamera(() => {}); await flush();
+  assert.equal(taken.element('toast').textContent, 'common.scan.busy');
+  assert.equal(taken.acquired(), 2, 'a busy camera gets one plain retry');
+  console.log('PASS camera failures inside LINE say why (LINE camera permission, camera in use)');
 
   const continuous = fixture();
   continuous.page.state({scanMode: true});

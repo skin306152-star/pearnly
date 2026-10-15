@@ -105,6 +105,8 @@ before_request = [
 # ----------
 
 # add methods and filters to jinja environment
+# 独立网页（如 ERP 的 LINE 盘点页）引用共用脚本时带内容版本号：`{{ versioned_asset("pearnly_core", "scan/reader.js") }}`。
+jinja = {"methods": ["pearnly_core.desk.assets.versioned_asset"]}
 # jinja = {
 # 	"methods": "pearnly_core.utils.jinja_methods",
 # 	"filters": "pearnly_core.utils.jinja_filters"
@@ -315,7 +317,7 @@ boot_session = [
 extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.desk.boot_messages.extend_bootinfo"]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
-app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "desk/scan.js")]
+app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]
 
 # 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
 # （`frappe/www/desk.html` 遍历 `hooks["sounds"]`），`frappe.utils.play_sound(name)` 取的就是

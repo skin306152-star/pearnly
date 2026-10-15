@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 // 读码器本体在共用层，ERP 的扫码动作在 ERP；站点上按这个顺序加载（2026-09-26 去重）。
-const source = ['apps/pearnly_core/pearnly_core/public/desk/scan.js',
+const source = ['apps/pearnly_core/pearnly_core/public/scan/reader.js',
+  'apps/pearnly_core/pearnly_core/public/desk/scan.js',
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js'].map(path => fs.readFileSync(path, 'utf8')).join('\n');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
@@ -24,7 +25,9 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     async detect() { return decode ? decode() : [{ rawValue: '  盘点 QR 001  ', format: 'qr_code' }]; }
   }
   const requests = [];
-  vm.runInNewContext(source, { window: { BarcodeDetector: Detector, isSecureContext: true },
+  const schedule = callback => { callbacks.set(++id, callback); return id; };
+  const cancel = key => callbacks.delete(key);
+  vm.runInNewContext(source, { window: { BarcodeDetector: Detector, isSecureContext: true, setTimeout: schedule, clearTimeout: cancel },
     navigator: { userAgent: ua, mediaDevices: {
       getUserMedia: value => { requests.push(value); return acquire ? acquire(stream, value) : Promise.resolve(stream); },
       enumerateDevices: async () => devices },
@@ -33,8 +36,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     frappe: { provide() {}, pearnly: p,
       utils: { play_sound: name => sounds.push(name) },
       boot: { user: { mute_sounds: muted } } },
-    $, setTimeout: callback => { callbacks.set(++id, callback); return id; },
-    clearTimeout: key => callbacks.delete(key),
+    $, setTimeout: schedule, clearTimeout: cancel,
   });
   // `p.sounds_muted` 是共享层（`pearnly_core/public/desk/product.js`）给的：这份测试只加载
   // scan.js，所以按同一份契约补一个 —— 判据就是官方那一位 `frappe.boot.user.mute_sounds`。
@@ -105,7 +107,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   const blocked = fixture({ acquire: () => Promise.reject(named('NotAllowedError')) });
   await blocked.reader.start();
   assert.equal(blocked.p.scan_failure(blocked.errors[0]), 'denied');
-  assert.match(blocked.p.scan_failure_text(blocked.errors[0]), /blocked/);
+  assert.equal(blocked.p.scan_failure_text(blocked.errors[0]), 'common.scan.denied');
   assert.equal(blocked.requests.length, 1, 'A refused permission is not retried');
   const line = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Line/14.1.0', acquire: () => Promise.reject(named('NotAllowedError')) });
   await line.reader.start();

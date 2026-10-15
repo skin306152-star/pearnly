@@ -21,7 +21,13 @@ USB 远程调试读回：该机相机权限 granted、原生 BarcodeDetector 支
   不支持、App 内置浏览器、权限被拒、被占用、没有相机、识别器加载失败、其它。
 - 调用方：ERP / Cowork 盘点录入弹窗、ERP 扫码弹窗。旧词条 `stock.workbench.cameraFailed`、`product.scan.denied`、
   `cowork.stock.workbench.cameraFailed` 已无调用，从术语表删去。
-- 未动：ERP 的 LINE 盘点页 `www/stocktake.html` 自带一份相机代码（LIFF 内运行），本批没改。
+- **一份读码器**（用户 10-15："不都是一样的原理和使用方式吗"）：开相机 / 读码 / 出错分类抽成不依赖 Frappe 的
+  `pearnly_core/public/scan/reader.js`（`window.PearnlyScan`）。后台 `desk/scan.js` 只留 Frappe 界面层（画面、反馈、结果音、提示）；
+  ERP 的 LINE 盘点页 `www/stocktake.html` 删掉自带的那份相机代码，改用同一个文件（经 core 新登记的 jinja 方法
+  `versioned_asset` 带内容版本号引用，改了手机不读旧缓存），只留卡片界面。提示文案统一为 core 术语表 `common.scan.*`；
+  在 LINE 里被拒时提示「请在手机设置里允许 LINE 使用相机」（`common.scan.in_line`）。
+- 行为统一：单帧读失败不再终止读码（LINE 页原本如此，后台原来会报错停掉）；开相机即读第一帧；
+  紧跟着的 stop（连点两次扫码）在要权限之前生效。
 
 ## 多人分区协作
 
@@ -58,6 +64,9 @@ USB 远程调试读回：该机相机权限 granted、原生 BarcodeDetector 支
   | 375 宽竖屏：各区小表按行数定高、明细四列「账面 / 实盘 / 差异」不截断；812×375 横屏六列铺满、转屏重画 | 通过（中途修了：框架在手机上把所有表格滚动区强制成一屏高） |
   | 实时：另一端写一笔 → 打开着的页面约 1 秒后自动刷新（分类 2 变 2/2、差异 2） | 通过 |
   | 内置浏览器无相机 → 「相机权限被拒绝…」并收起黑框 | 通过 |
+- 测试机复验共用读码器：LINE 页 `testerp.pearnly.com/stocktake` 引用 `reader.js?v=8c8c8727f2c1056a`（= 本地文件 sha256 前 16 位）、HTTP 200；
+  后台加载顺序 reader.js → core desk/scan.js → ERP desk/scan.js，无相机时显示「相机权限被拒绝…」中文提示。
+  真机读码（后台与 LINE 内）待用户手机验。
 - 测试副本已知情况（非本批）：用户 aksarapak 能看见别公司的盘点 STC-00061 但录入时报「未找到仓库」（仓库按公司隔离）。
 
 ## 待办 / 交接

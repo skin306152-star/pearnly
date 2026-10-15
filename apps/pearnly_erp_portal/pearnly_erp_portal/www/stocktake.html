@@ -48,6 +48,8 @@
     <div id="app"></div>
     <div class="toast" id="toast"></div>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <!-- 共用读码器（与后台扫码同一份，带内容版本号，改了手机上不会读到旧的）。 -->
+    <script src="{{ versioned_asset('pearnly_core', 'scan/reader.js') }}"></script>
     <script>
       (function () {
         'use strict';
@@ -60,7 +62,7 @@
           return args.length ? text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? '')) : text;
         };
         let csrf = '', ticket = '', task = null, camera = null, last = null;
-        let scanMode = false, cameraGeneration = 0, decoderFallback;
+        let scanMode = false, cameraGeneration = 0;
 
         function say(message, bad) {
           toast.textContent = message;
@@ -124,112 +126,56 @@
             const row = pack2.message[key] || {};
             texts[key] = row[lang] || row.en || row.th || key;
           }
+          const response3 = await fetch(CORE + '?prefix=' + encodeURIComponent('common.scan.'));
+          const pack3 = await response3.json();
+          for (const key of Object.keys(pack3.message || {})) {
+            const row = pack3.message[key] || {};
+            texts[key] = row[lang] || row.en || row.th || key;
+          }
           document.getElementById('title').textContent = t('stock.mobile.title');
         }
 
-        // Same native-first decoder and bundled, same-origin WASM as Desk scan.js.
-        async function cameraDecoder(formats) {
-          if (typeof window.BarcodeDetector === 'function') {
-            try {
-              const supported = await window.BarcodeDetector.getSupportedFormats();
-              if (formats.every((format) => supported.includes(format))) {
-                return new window.BarcodeDetector({ formats: formats });
-              }
-            } catch (error) { /* Fall back to the existing bundled decoder. */ }
-          }
-          if (!decoderFallback) decoderFallback = (async () => {
-            if (!window.BarcodeDetectionAPI) await new Promise((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = '/assets/pearnly_core/vendor/barcode-detector/ponyfill.js';
-              script.onload = resolve;
-              script.onerror = () => { hide(script); reject(new Error('decoder_unavailable')); };
-              document.head.appendChild(script);
-            });
-            const api = window.BarcodeDetectionAPI;
-            await api.prepareZXingModule({ overrides: {
-              locateFile: (name) => name.endsWith('.wasm')
-                ? '/assets/pearnly_core/vendor/barcode-detector/zxing_reader.wasm' : name,
-            } });
-            return api.BarcodeDetector;
-          })().catch((error) => { decoderFallback = null; throw error; });
-          const Reader = await decoderFallback;
-          return new Reader({ formats: formats });
+        // 开相机与读码用共用读码器 `pearnly_core/public/scan/reader.js`（后台扫码同一份）；
+        // 这里只放这一页的卡片界面与提示。提示按原因给，文案在 core 术语表 `common.scan.*`。
+        function cameraFailure(error) {
+          const reason = window.PearnlyScan.reason(error);
+          // 在 LINE 里打开时，被拒多半是手机没给 LINE 相机权限（LINE 内置浏览器不能换别的浏览器打开）。
+          return t('common.scan.' + (reason === 'in_app' ? 'in_line' : reason));
         }
-
         function stopCamera(resetMode) {
           cameraGeneration += 1;
           if (resetMode) scanMode = false;
           const previous = camera;
           camera = null;
           if (!previous) return;
-          if (previous.stream) previous.stream.getTracks().forEach((track) => track.stop());
-          previous.node.querySelector('video').srcObject = null;
-          clearInterval(previous.timer);
+          previous.reader.stop();
           hide(previous.node);
         }
         async function startCamera(onCode) {
           stopCamera();
           const generation = cameraGeneration;
-          const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf',
-            'codabar', 'qr_code'];
-          if (!navigator.mediaDevices?.getUserMedia) {
-            scanMode = false;
-            say(t('stock.mobile.noCamera'), true);
-            return;
-          }
-          let reader;
-          try { reader = await cameraDecoder(formats); }
-          catch (error) {
-            if (generation !== cameraGeneration) return;
-            scanMode = false;
-            say(t('stock.mobile.noCamera'), true);
-            return;
-          }
-          if (generation !== cameraGeneration) return;
           const node = document.createElement('div');
           node.className = 'card';
           node.innerHTML = '<video playsinline muted></video><div class="row" style="margin-top:8px">'
             + '<button id="stop" class="wide">' + esc(t('stock.mobile.cameraOff')) + '</button></div>';
           app.prepend(node);
-          const video = node.querySelector('video');
           node.querySelector('#stop').onclick = () => stopCamera(true);
-          camera = { node: node, stream: null, timer: null };
-          let stream;
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            if (generation !== cameraGeneration) {
-              stream.getTracks().forEach((track) => track.stop());
-              return;
-            }
-            camera.stream = stream;
-          } catch (error) {
-            if (generation !== cameraGeneration) return;
-            await stopCamera(true);
-            say(t('stock.scan.denied'), true);
-            return;
-          }
-          video.srcObject = stream;
-          const play = () => video.play().catch(() => {});
-          await play();
-          if (generation !== cameraGeneration) return;
-          let busy = false, candidate = '', candidateFormat = '', hits = 0;
-          camera.timer = setInterval(async () => {
-            if (busy) return;
-            busy = true;
-            try {
-              if (video.paused) await play();
-              if (video.readyState < 2) return;
-              const found = await reader.detect(video);
+          const reader = window.PearnlyScan.reader({
+            video: node.querySelector('video'),
+            on_result: async (code) => {
               if (generation !== cameraGeneration) return;
-              const code = found.length ? String(found[0].rawValue || '').trim() : '';
-              const format = found[0]?.format || '';
-              hits = code && code === candidate && format === candidateFormat ? hits + 1 : (code ? 1 : 0);
-              candidate = code; candidateFormat = format;
-              if (code && hits >= 2) { await stopCamera(); await onCode(code); }
-            } catch (error) {
-              // 单帧解不出来是常态
-            } finally { busy = false; }
-          }, 250);
+              stopCamera();
+              await onCode(code);
+            },
+            on_error: (error) => {
+              if (generation !== cameraGeneration) return;
+              stopCamera(true);
+              say(cameraFailure(error), true);
+            },
+            on_play_blocked: (play) => { node.querySelector('video').onclick = play; },
+          });
+          camera = { node: node, reader: reader };
+          await reader.start();
         }
 
         // ── 界面 ────────────────────────────────────────────────────────────
