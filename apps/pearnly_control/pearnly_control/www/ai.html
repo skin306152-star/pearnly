@@ -199,7 +199,7 @@ if(!reduce)addEventListener('pointermove',function(e){px=e.clientX;py=e.clientY;
     var i=document.getElementById(b.getAttribute('data-toggle-password'));if(i)i.type=i.type==='password'?'text':'password'})});
   var form=document.getElementById('entry');if(!form)return;
   var input=document.getElementById('login'),pw=document.getElementById('password'),err=document.getElementById('err'),go=document.getElementById('go');
-  var remember=document.getElementById('remember');try{remember.checked=localStorage.getItem('pn-remember')==='1'}catch(e){}
+  var remember=document.getElementById('remember');remember.checked=true;try{remember.checked=localStorage.getItem('pn-remember')!=='0'}catch(e){}
   function fail(text){err.textContent=text;err.hidden=false;go.disabled=false}
   input.addEventListener('input',function(){err.hidden=true});pw.addEventListener('input',function(){err.hidden=true});
   function start(tail){var v=input.value.trim();

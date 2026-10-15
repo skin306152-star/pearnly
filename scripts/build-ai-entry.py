@@ -295,7 +295,7 @@ PAGE_HTML = """<!doctype html>
     var i=document.getElementById(b.getAttribute('data-toggle-password'));if(i)i.type=i.type==='password'?'text':'password'})});
   var form=document.getElementById('entry');if(!form)return;
   var input=document.getElementById('login'),pw=document.getElementById('password'),err=document.getElementById('err'),go=document.getElementById('go');
-  var remember=document.getElementById('remember');try{remember.checked=localStorage.getItem('pn-remember')==='1'}catch(e){}
+  var remember=document.getElementById('remember');remember.checked=true;try{remember.checked=localStorage.getItem('pn-remember')!=='0'}catch(e){}
   function fail(text){err.textContent=text;err.hidden=false;go.disabled=false}
   input.addEventListener('input',function(){err.hidden=true});pw.addEventListener('input',function(){err.hidden=true});
   function start(tail){var v=input.value.trim();
@@ -419,7 +419,7 @@ LOGIN_FTL = """<#-- """ + GENERATED + """ -->
     </#if>
     <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if> />
     <div class="form-split remember">
-      <#if realm.rememberMe><label class="checkline"><input id="rememberMe" name="rememberMe" type="checkbox" <#if login.rememberMe??>checked</#if> /> ${msg("pearnlyAiRemember")}</label><#else><span></span></#if>
+      <#if realm.rememberMe><label class="checkline"><input id="rememberMe" name="rememberMe" type="checkbox" <#if login.rememberMe?? || !(message?? && message.type == "error")>checked</#if> /> ${msg("pearnlyAiRemember")}</label><#else><span></span></#if>
       <#if realm.resetPasswordAllowed>
         <span class="forgot"><a class="link-btn" href="${url.loginResetCredentialsUrl?keep_before("?")}?client_id=${client.clientId?url("UTF-8")}&amp;kc_locale=${locale.currentLanguageTag?url("UTF-8")}">${msg("pearnlyForgot")}</a></span>
       </#if>

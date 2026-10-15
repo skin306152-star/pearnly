@@ -411,3 +411,20 @@ V1 推送前查科目建议时每次都请电脑读历史、每次都失败；�
 - 测试：`tests/test_cowork_folder_intake.py` `test_a_stop_records_where_the_document_was_going` 与定时任务停下的断言、`tests/test_cowork_assistant_tools.py`
   停下记去向的断言。
 - 未做：未部署；已停着的旧单要再推一次（或部署后由 CC 再推）才会补上去向。
+
+## 登录保持 30 天、两个登录页「记住登录」默认勾上（用户 2026-10-15 定）
+
+用户反馈「记住登录也每次要登录」。核查：手机 CC 应用打开的是租户自己的 `/assistant`，站点会话 cookie 持久、时长是框架默认 `session_expiry = 170:00`
+（测试窗口读到 15:30 登录、10-22 17:30 到期，正好 170 小时）；站点不逐次向 Keycloak 核对会话（refresh token 只用于改语言）。当天掉登录发生在
+测试窗口把手机 Chrome 从 106 升到 155 并强制停止之后。另见两个登录页：fatcc.com 入口页「记住登录」默认取本机上次的选择（第一次不勾），
+Keycloak 密码页默认不勾，只有自动提交（`#pn=…&rm=1`）走成时才带上入口页的选择。
+
+用户定：「30天吧，那有那么容易丢手机和电脑，而且现在 cc 移动端是要绑定公司本地 exp 使用的，本地客户端则是长期使用场景」。
+
+- `pearnly_core/account/session_length.py: ensure_session_expiry`（挂 `after_migrate`）：产品站点（cowork / erp / dms）系统设置 `session_expiry`
+  还是空或框架默认 170:00 时改成 720:00（30 天）；管理员改过的保留，控制面不动。已登录的会话按登录时的时长到期，之后登录的按 30 天。
+- 两个登录页默认勾上：`scripts/build-ai-entry.py`（生成 `www/ai.html` 与 Keycloak `pearnly-ai/login/login.ftl`）——入口页除非这台设备上取消过
+  （本机记的 `pn-remember = 0`），否则默认勾上；密码页第一次显示默认勾上，登录出错重新显示时按刚才提交的选择。`--check` 一致。
+- 测试：新增 `tests/test_account_session_length.py`（已登记进 `development.yml`）。
+- 上线：Keycloak 主题文件变了，基础层激活会清缓存并重启 Keycloak（登录停约 40 秒）。改了 `pearnly_core`，合入前要在测试机用生产镜像跑候选离线检查
+  （办公室 16:23 断网，恢复后再跑）。

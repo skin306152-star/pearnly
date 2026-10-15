@@ -21,7 +21,7 @@
     </#if>
     <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if> />
     <div class="form-split remember">
-      <#if realm.rememberMe><label class="checkline"><input id="rememberMe" name="rememberMe" type="checkbox" <#if login.rememberMe??>checked</#if> /> ${msg("pearnlyAiRemember")}</label><#else><span></span></#if>
+      <#if realm.rememberMe><label class="checkline"><input id="rememberMe" name="rememberMe" type="checkbox" <#if login.rememberMe?? || !(message?? && message.type == "error")>checked</#if> /> ${msg("pearnlyAiRemember")}</label><#else><span></span></#if>
       <#if realm.resetPasswordAllowed>
         <span class="forgot"><a class="link-btn" href="${url.loginResetCredentialsUrl?keep_before("?")}?client_id=${client.clientId?url("UTF-8")}&amp;kc_locale=${locale.currentLanguageTag?url("UTF-8")}">${msg("pearnlyForgot")}</a></span>
       </#if>

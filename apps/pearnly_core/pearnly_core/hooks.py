@@ -337,6 +337,7 @@ after_migrate = [
     "pearnly_core.desk.branding.ensure_site_favicon",
     "pearnly_core.desk.branding.ensure_site_app_name",
     "pearnly_core.account.layout.ensure_profile_fields",
+    "pearnly_core.account.session_length.ensure_session_expiry",
 ]
 
 # Keep the native user form; do not add a second account settings page.
