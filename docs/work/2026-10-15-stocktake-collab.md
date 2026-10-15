@@ -53,6 +53,8 @@ USB 远程调试读回：该机相机权限 granted、原生 BarcodeDetector 支
 
 - 本地：全量 CI 同名闸门 78 项通过；`tests/test-stocktake-scanner.cjs`（新增失败分类与后置镜头重试）、
   `tests/test_cowork_stocktake_upload.py`（新增类别列）通过。
+- 分支 CI（Development checks）run 38704151856 通过（`2ba62d65`）。
+- 共用层候选离线检查：测试机生产镜像 `232bf6ea`（2bc4aad1）挂本分支 `2ba62d65` 源码，`ci-candidate-checks.sh offline` 71/71 OK、LANE EXIT 0。
 - `tests/test-product-scan.cjs` 在 main 上原本就失败（`p.link_editors` 未定义），不在 CI，本批未动。
 - 测试机 ERP（2026-10-15，线上镜像 `sha256:232bf6ea…`（2bc4aad1）+ 本分支实时源码，`testerp.pearnly.com` 切到测试机）：
   测试副本里给 7 个商品设类别 1 / 2，建 `STC-00061 多人分区盘点测试`（Test repository 4 行），管理员记 2 笔。
@@ -71,5 +73,7 @@ USB 远程调试读回：该机相机权限 granted、原生 BarcodeDetector 支
 
 ## 待办 / 交接
 
-- Cowork 测试机实测：`testcowork` 正在被「夜间批 2bc4aad1 验收专职测试」窗口使用（10-15，预计 2–3 小时），等它通知后 `lab-start cowork`。
+- Cowork 测试机实测：等「接手 CC 夜间批」窗口部署完、验收窗口真机复验结束后通知（它们在生产 testcowork 上验收，测试机 CC 桌面版也连着它）。
+- 真机：三星 A14 由验收窗口转请用户登录 testerp 并扫一次码；adb 用 9223 端口（9222 归验收窗口）。
+- 部署：由「接手 CC 夜间批」窗口负责批次；本分支验完自行变基、过闸、快进 main 推送，把 SHA 告诉它。
 - 交用户真机试用（ERP 已可在 testerp 试）；用户通过后合入 main、按批次部署。测完 `lab-stop erp` / `lab-stop cowork`。
