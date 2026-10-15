@@ -36,6 +36,11 @@ identity = _load("targets_identity_fixed", APP / "targets/identity.py", {})
 # 函数内导入（`fixed_for` 里的 `targets.identity`）在调用时解析，测试期间一直挂着。
 IDENTITY = {"pearnly_cowork.targets": types.SimpleNamespace(identity=identity),
             "pearnly_cowork.targets.identity": identity}
+# 公司规则的纯函数（第 2 期）：推送服务的 `_decisions` 真用它（只导入 choices 的几个常量）
+company_choices = _load("company_choices_fixed", APP / "push/express/company_choices.py", {
+    "pearnly_cowork.push.express.choices": types.SimpleNamespace(
+        KINDS=("party", "item", "account", "payment", "vat", "department", "receipt"), NEW="__new__",
+        PAYMENT_VALUES=("cash", "credit"), VAT_VALUES=("claim", "expense"))})
 
 
 class Translated(Exception):
@@ -160,6 +165,7 @@ def _service(hooks=(), providers=None):
     modules["pearnly_cowork.targets.identity"] = identity
     modules["pearnly_cowork.push"].choices = choice_store
     modules["pearnly_cowork.push.express"].choices = choice_rules
+    modules["pearnly_cowork.push.express"].company_choices = company_choices
     service = _load("push_service_fixed", APP / "push/application/service.py", modules)
     return service, frappe_module, calls
 

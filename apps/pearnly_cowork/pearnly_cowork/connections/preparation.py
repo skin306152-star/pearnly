@@ -108,24 +108,28 @@ def reported_stock_groups(doc, account):
 
 
 MASTER_LISTS = ('reported_accounts', 'reported_departments')
+# 公司规则（第 2 期）存之前按这份账套的全部主档核值
+ALL_MASTER_LISTS = ('reported_accounts', 'reported_departments', 'reported_products', 'reported_customers',
+                    'reported_suppliers')
 
 
-def reported_masters(doc, account):
+def reported_masters(doc, account, keys=MASTER_LISTS):
     """小助手为这份账套上报的科目表与部门（须出自当前凭据）：文件夹自动录入的规则页选默认科目 / 部门用。
 
     来源与 :func:`reported_stock_groups` 相同（默认账套用公共缓存，其他账套用按账套刷新带回的那份）；
-    没读过这份账套返回 ``None``，不当成「没有科目 / 部门」。只读，不改任何缓存。"""
+    没读过这份账套返回 ``None``，不当成「没有科目 / 部门」。只读，不改任何缓存。``keys`` 要哪几张（默认科目表与部门，
+    公司规则校验要 ``ALL_MASTER_LISTS``）。"""
     report = model.parse(doc.report_json, {})
     binding = report.get('_preparation_binding') or {}
     if (account and binding.get('account_set') == account and binding.get('credential_id') == doc.report_credential
             and binding.get('generation') == doc.report_generation):
         expected = {k: binding[k] for k in binding if k != 'online'}
         origins = report.get('_preparation_origins') or {}
-        found = {key: deepcopy(report[key]) for key in MASTER_LISTS
+        found = {key: deepcopy(report[key]) for key in keys
                  if origins.get(key) == expected and isinstance(report.get(key), list)}
     else:
         cache = _account_cache(report, account, doc)
-        found = {key: cache[key] for key in MASTER_LISTS if isinstance(cache.get(key), list)}
+        found = {key: cache[key] for key in keys if isinstance(cache.get(key), list)}
     return found or None
 
 

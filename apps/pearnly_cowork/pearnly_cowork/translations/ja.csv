@@ -199,6 +199,7 @@ Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,実行分岐
 Branch No,支店番号
+Branch {0},支店 {0}
 Brief Key,サマリーキー
 Brief Sent At,サマリー送信日時
 Brief Status,サマリーの状態
@@ -368,6 +369,7 @@ Comments and activity,コメントとアクティビティ
 Commission,手数料
 Company,会社
 Company Name,会社名
+Company choices are full,会社の選択が上限です
 Company not found,会社が見つかりません
 Company tax ID,自社の番号
 Company tax ID not on the document,書類に自社の納税者番号なし
@@ -437,6 +439,7 @@ Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
 Cowork Companion Request,Cowork CC デスクトップへのリクエスト
 Cowork Company,Cowork 会社マスター
+Cowork Company Choice,Cowork 会社の選択
 Cowork Company Folder,Cowork 会社書類フォルダー
 Cowork Company Note,Cowork 会社ノート
 Cowork ERP Connection,Cowork ERP接続
@@ -672,6 +675,7 @@ Error Code,エラーコード
 Event Key,イベント識別子
 Every unit needs a factor to the base unit.,すべての単位に基準単位への換算係数を入力してください。
 Every unit needs a name.,すべての単位に名前を入力してください。
+Evidence,根拠
 Evidence Fingerprint,証跡フィンガープリント
 Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
@@ -1002,6 +1006,7 @@ No CC Desktop credential has been issued for this connection.,この接続には
 No ERP is ready to use,使用できるERPがありません
 No POS sales export headers were found in this file,このファイルに POS 売上エクスポートの見出しがありません
 No account set matches “{0}”,「{0}」に一致する会計データがありません
+No account set of this company covers this month,この会社（または支店）には今月の帳簿がありません
 No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
 No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
@@ -1309,8 +1314,11 @@ Remove color,色を削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Remove mirror,ミラーを削除
 Remove template,テンプレートを解除
+Remove this company choice?,この会社の選択を削除しますか？
 Remove this company note?,この会社メモを削除しますか？
+Removed a company choice,会社の選択を削除しました
 Removed a company note,会社メモを削除
+Removing a company choice,会社の選択を削除しています
 Rent,賃借料
 Repeat,繰り返し
 Replaced by your later submission of the same files.,同じファイルの後からの送信に置き換えられました。
@@ -1396,14 +1404,17 @@ Same day,当日
 Sample Key,修正例識別子
 Save and next,保存して次へ
 Save these scheduled tasks?,これらの定期タスクを保存しますか？
+Save this choice for the company?,この選択を会社に保存しますか？
 Save this scheduled task?,この定期タスクを保存しますか？
 Save this to the company's notes?,会社のノートに保存しますか？
 Saved,保存しました
+Saved a company choice,会社の選択を保存しました
 Saved a company note,会社メモを保存
 Saved a scheduled task,定期タスクを保存しました
 Saved push choices,送信の選択を保存しました
 Saved scheduled tasks,複数の定期タスクを保存しました
 Saved. Scan the next item.,保存しました。次の商品を読み取ってください。
+Saving a company choice,会社の選択を保存しています
 Saving a scheduled task,定期タスクを保存しています
 Saving push choices,送信の選択を保存しています
 Saving scheduled tasks,複数の定期タスクを保存しています
@@ -1537,6 +1548,7 @@ Stop and let me choose,止めて選択する
 Stop watching,ウォッチをやめる
 Stored Page Previews,保存済みページプレビュー
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,サブフォルダー名・ファイル名は自由。1 つの PDF に複数の請求書があっても構いません。
+Subject Label,対象名
 Submit,確定
 Suggested,候補
 Summary,概要
@@ -1813,6 +1825,7 @@ This account set is unavailable.,この会計データは利用できません�
 This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
 This board no longer exists,このボードはもう存在しません
 This channel is not open yet,このチャンネルはまだ開放していません
+This choice cannot be saved,この選択は保存できません
 This client still has {0} invoice record(s). Reassign them first.,この顧客には請求書の記録が {0} 件残っています。先に別の顧客へ付け替えてください。
 This company does not enter transfer slips; this one is not sent,この会社では振込明細を入力しないため、送信しません
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,この会社では源泉徴収証明書（50 ทวิ）を入力しないため、送信しません
@@ -1881,6 +1894,7 @@ This task uses the previous count format and cannot accept scan entries.,この�
 This tax ID is already used by another company.,この納税者番号は既に別の会社で使用されています。
 This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
 This value cannot be chosen for this account set.,この帳簿ではこの値を選択できません。
+This value is not in this month's account set,この値は今月の帳簿のマスタにありません
 Time left {0},残り {0}
 Times Used,使用回数
 Title,タイトル
@@ -1990,6 +2004,7 @@ VAT report detail,VAT 報告明細
 VAT without a base amount,課税標準がなく税額のみ
 Valid,有効
 Value,値
+Value Label,値の名称
 Value of goods or services,商品・サービスの価額
 Version,バージョン
 View differences,差異を見る
@@ -2034,6 +2049,7 @@ When the document does not show cash or credit,現金・掛けが書類から分
 Where the documents go,書類の登録先
 Who can add and remove members,メンバーを追加・削除できる人
 Who can comment,コメントできる人
+Whole company,会社全体
 Why it is not in the review sheet,確認表がない理由
 Wire Attempt,送信試行回数
 With differences,差異あり
@@ -2126,8 +2142,13 @@ cowork.choice.receipt,入金勘定
 cowork.choice.task_default,この項目は定期タスクの既定の処理で決まっています。定期タスクで変更してください
 cowork.choice.title,この帳簿で一度だけ選択
 cowork.choice.vat,この領収書の税額
+cowork.company.branch_n,支店 {0}
+cowork.company.choice_invalid,この値は今月の帳簿のマスタにありません
 cowork.company.choice_not_editable,ここで変更できるのは支払方法と仕入税額控除だけです
 cowork.company.choice_not_found,この保存した選択はもうありません
+cowork.company.choice_scope_invalid,この会社（または支店）には今月の帳簿がありません
+cowork.company.choice_unsupported,この選択は保存できません
+cowork.company.choices_full,会社の選択が上限です
 cowork.company.not_found,会社が見つかりません
 cowork.company.not_in_catalog,この帳簿は一覧にありません
 cowork.company.note_invalid,ノートが空か長すぎます
@@ -2143,6 +2164,7 @@ cowork.company.pending.title,処理待ちの書類
 cowork.company.period_invalid,月が正しくありません
 cowork.company.title_invalid,140 文字以内で名前を入力してください
 cowork.company.too_many,会社数が上限です
+cowork.company.whole_company,会社全体
 cowork.folder.account_set_invalid,この帳簿は一覧にありません。新規取込で再読み込みしてください。
 cowork.folder.agentStale,CC デスクトップがオフラインか更新が必要
 cowork.folder.agentStaleHint,この PC の CC デスクトップが同期していません。最新版に更新してください。

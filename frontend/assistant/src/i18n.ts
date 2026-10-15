@@ -476,6 +476,10 @@ const COMPANY = {
     handToCCOne: (doc: string) => `Handle this one: ${doc}`,
     draftText: (kind: string, period: string) => `Review the ${kind} draft for ${period}`,
     fromHistory: (n: number) => `From Express history · ${n}`,
+    // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
+    wholeCompany: "Whole company", branchN: (b: string) => `Branch ${b}`, makeCompanyWide: "Set for whole company",
+    draftNotes: "Let CC draft", pushNow: "Push",
+    draftNotesText: "Draft a few notes for this company from its push records, saved choices and Express history",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
     chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done", noChats: "No chats yet.",
@@ -530,6 +534,10 @@ const COMPANY = {
     handToCCOne: (doc: string) => `处理这张：${doc}`,
     draftText: (kind: string, period: string) => `看一下 ${period} 的 ${kind} 申报草稿`,
     fromHistory: (n: number) => `来自 Express 历史 · ${n} 次`,
+    // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
+    wholeCompany: "全公司", branchN: (b: string) => `分店 ${b}`, makeCompanyWide: "设为全公司",
+    draftNotes: "让 CC 起草", pushNow: "推送",
+    draftNotesText: "按这家的推送记录、记住的选择和 Express 历史起草几条知识库",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
     chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成", noChats: "还没有对话。",
@@ -584,6 +592,10 @@ const COMPANY = {
     handToCCOne: (doc: string) => `จัดการเอกสารนี้: ${doc}`,
     draftText: (kind: string, period: string) => `ตรวจร่างแบบ ${kind} งวด ${period}`,
     fromHistory: (n: number) => `จากประวัติ Express · ${n} ครั้ง`,
+    // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
+    wholeCompany: "ทั้งบริษัท", branchN: (b: string) => `สาขา ${b}`, makeCompanyWide: "ใช้กับทั้งบริษัท",
+    draftNotes: "ให้ CC ร่าง", pushNow: "ส่ง",
+    draftNotesText: "ร่างบันทึกของบริษัทนี้สักสองสามข้อจากประวัติการส่ง ตัวเลือกที่จำไว้ และประวัติ Express",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
     chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว", noChats: "ยังไม่มีแชท",

@@ -70,6 +70,11 @@ export function choosableView(view: ChoicesView | null | undefined): boolean {
   return !!view && !view.wait && view.needed.length > 0 && view.needed.every((need) => optionsOf(view, need).length > 0);
 }
 
+/** 展开后已经没有要选的（公司规则定下了，第 2 期）：按钮直接推送，交空的选择、服务端不记直接重推。 */
+export function settledView(view: ChoicesView | null | undefined): boolean {
+  return !!view && !view.wait && view.needed.length === 0;
+}
+
 /** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
   return item.action === "choose" && !!item.choice?.connection;
@@ -364,7 +369,13 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
           </button>
         </>
       )}
-      {open && view && !choosableView(view) && (
+      {open && view && settledView(view) && (
+        <button type="button" className="cc-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
+          {busy && <LoaderIcon className="size-4 animate-spin" />}
+          {co.pushNow}
+        </button>
+      )}
+      {open && view && !choosableView(view) && !settledView(view) && (
         // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
         <>
           {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}

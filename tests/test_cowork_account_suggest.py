@@ -650,5 +650,114 @@ class PushDecisions(unittest.TestCase):
         self.assertEqual([item["kind"] for item in decision["needed"]], ["account"])
 
 
+
+class CompanyRuleDecisions(unittest.TestCase):
+    """第 2 期统一客户规则接进推送准备（`_decisions`）：公司规则经钩子 ``cowork_push_company_choices`` 垫在账套记忆之下、
+    Express 历史已定之上；钩子出错这一张不用历史已定；结果带 ``decided_by``，付款由公司规则定时 ``payment_from`` 记
+    ``company_rule``，经 `pushed.written` 交给 CC。"""
+    FIELDS = {"seller_name": "ศรีกรุง เครื่องเขียน", "seller_tax": "0105556012345"}
+    SUBJECT = "purchase|0105556012345"
+    SETTLED = {"code": "5320-01", "docs": 9, "last": "2026-10-02"}
+
+    def decide(self, rules=None, remembered=None, broken=False, fields=None, branch="00000", since=None,
+               chosen_at=None):
+        from test_cowork_push_fixed import _service, BOOK
+
+        service, frappe_module, _calls = _service()
+        self.asked, self.rows, self.logged = [], [], []
+
+        def history(connection, account_set, seller, refresh):
+            self.asked.append(seller)
+            return {"state": "ready", "accounts": [], "changed": False, "settled": self.SETTLED}
+
+        def company(connection, account_set, account_row):
+            self.rows.append(account_row)
+            if broken:
+                raise RuntimeError("db")
+            return {"company": "CO1", "branch": branch, "rules": rules or []} if rules is not None else None
+
+        hooks = {"cowork_push_account_history": ["p.history"], "cowork_push_company_choices": ["p.company"]}
+        frappe_module.get_hooks = lambda name: hooks.get(name, [])
+        frappe_module.get_attr = lambda path: {"p.history": history, "p.company": company}[path]
+        frappe_module.log_error = lambda **kw: self.logged.append(kw.get("title"))
+        frappe_module.get_traceback = lambda: ""
+        frappe_module.clear_messages = lambda: None
+        service.choice_rules = choice_rules
+        service.resolve_account_sourced = lambda *a: (None, "none")
+        service.resolve_posting_kind = lambda kind, flat: kind
+        service._pos_receipts = lambda flat: []
+        service.choice_store = types.SimpleNamespace(remembered=lambda *a: {k: dict(v) for k, v in (remembered or {}).items()},
+                                                     record=lambda *a: True, chosen_at=lambda *a: chosen_at)
+        return service._decisions("C1", BOOK, {}, dict(fields or self.FIELDS), "purchase", "service",
+                                  {"reported_accounts": BLANK}, {"mappings": {}}, None,
+                                  account_row=lambda: {"source_id": BOOK}, since=since)
+
+    def rule(self, kind, value, branch=""):
+        return {"kind": kind, "subject": self.SUBJECT, "value": value, "branch": branch}
+
+    def test_a_company_rule_is_used_before_the_history_and_says_so(self):
+        decision = self.decide([self.rule("account", "5310-02"), self.rule("payment", "credit")])
+        applied = decision["applied"]
+        self.assertEqual((applied["account"], applied["payment"], applied["payment_from"], applied["account_from"]),
+                         ("5310-02", "credit", "company_rule", "company_rule"))
+        self.assertEqual(decision["decided_by"], {"account": "company_rule", "payment": "company_rule"})
+        self.assertEqual((self.asked, decision.get("history")), ([], None))  # 规则定了，不看历史
+        self.assertEqual(self.rows, [{"source_id": self.rows[0]["source_id"]}])  # 目录这一行交给钩子认公司
+
+    def test_the_account_sets_own_choice_beats_the_rule(self):
+        decision = self.decide([self.rule("account", "5310-02")], remembered={"account": {self.SUBJECT: "5310-01"}},
+                               fields={**self.FIELDS, "payment_status": "paid"})
+        self.assertEqual((decision["applied"]["account"], decision["decided_by"]), ("5310-01", {"account": "remembered"}))
+        self.assertEqual(decision["applied"]["account_from"], "remembered")
+
+    def test_a_rule_reports_company_rule_even_after_the_document_came_in(self):
+        # 复审 1：规则值并进了 remembered，同键的账套记忆存规则时已删（chosen_at 查不到）；也不报成 remembered / chosen
+        import datetime as dt
+        uploaded = dt.datetime(2026, 10, 15, 9, 0)
+        for chosen_at in (None, dt.datetime(2026, 10, 15, 9, 5)):
+            decision = self.decide([self.rule("account", "5310-02")], fields={**self.FIELDS, "payment_status": "paid"},
+                                   since=uploaded, chosen_at=chosen_at)
+            self.assertEqual(decision["applied"]["account_from"], "company_rule")
+
+    def test_without_a_rule_the_settled_history_still_applies(self):
+        decision = self.decide(None, fields={**self.FIELDS, "payment_status": "paid"})
+        self.assertEqual((decision["applied"]["account"], decision["decided_by"]), ("5320-01", {"account": "express_history"}))
+        self.assertEqual(decision["applied"]["account_from"], "express_history")
+        decision = self.decide([self.rule("account", "5310-02", "00012")], fields={**self.FIELDS, "payment_status": "paid"})
+        self.assertEqual(decision["applied"]["account"], "5320-01")  # 别的分店的规则不用
+
+    def test_rules_that_cannot_be_read_stop_the_history_for_this_document(self):
+        decision = self.decide([self.rule("account", "5310-02")], broken=True,
+                               fields={**self.FIELDS, "payment_status": "paid"})
+        self.assertEqual([item["kind"] for item in decision["needed"]], ["account"])
+        self.assertNotIn("account", decision["applied"])
+        self.assertEqual(self.logged, ["Cowork push company choices failed"])
+
+    def test_a_rule_value_not_in_this_chart_is_not_used(self):
+        decision = self.decide([self.rule("account", "9999-99")], fields={**self.FIELDS, "payment_status": "paid"})
+        self.assertEqual(decision["applied"]["account"], "5320-01")  # 落到历史已定
+
+    def test_written_tells_cc_what_decided_it(self):
+        from pearnly_cowork.push.express import pushed
+
+        payload = {"direction": "purchase", "doctype": "RR", "doctype_src": "company_rule", "items_account": "5310-02",
+                   "vat_amount": "7.00", "account_source": "company_rule"}
+        found = pushed.written(payload, {"account": "company_rule", "payment": "company_rule", "bogus": "x",
+                                         "vat": "made_up", "item": "express_history"})
+        self.assertEqual(found["payment_from"], "company_rule")
+        self.assertEqual((found["decided_by"], found["account_from"]),
+                         ({"account": "company_rule", "payment": "company_rule", "item": "express_history"},
+                          "company_rule"))
+        self.assertNotIn("decided_by", pushed.written(payload))  # 改版前的记录：照旧
+        # account_from 只按载荷 account_source（同第 2 轮 ACCOUNT_FROM 一套词），不从 decided_by 推
+        legacy = {**payload, "account_source": "choice"}
+        self.assertNotIn("account_from", pushed.written(legacy, {"account": "company_rule"}))
+        self.assertNotIn("history", pushed.DECIDED_SOURCES)
+        source = (APP / "push/application/service.py").read_text(encoding="utf-8")
+        self.assertIn('frozen["decided_by"] = dict(decision["decided_by"])', source)
+        self.assertNotIn("pearnly_cowork.companies", source)  # push 域不导入 companies
+        hooks = (APP / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]', hooks)
+
 if __name__ == "__main__":
     unittest.main()

@@ -106,7 +106,7 @@ def _expense_receipt(fields) -> bool:
 def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[str],
             config: Mapping[str, Any], remembered: Mapping[str, Mapping[str, str]],
             account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
-            receipts: Iterable = ()) -> Dict[str, Any]:
+            receipts: Iterable = (), trace: Optional[Dict[str, List[Optional[str]]]] = None) -> Dict[str, Any]:
     """这张票在这份账套里的决定 → `{"applied": {...}, "needed": [...]}`。
 
     `config`：推送准备用的账套配置（含小助手上报的 `reported_customers / reported_suppliers / reported_products /
@@ -117,6 +117,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     优先于账套里记过的，不写进账套记忆（用户 2026-10-08：规则的默认值只管自己的票）。对方档不在此列。
     `receipts`：POS 日汇总票里非现金的付款方式 `[(subject, label)]`（`contracts.pos`）；每一种要一个收款科目，
     记过的（且在科目表里）放进 `applied["receipts"]` `{subject: 科目}`，没有的要人选。
+    `trace`：给了就就地记下「每一类用了哪几个归类键」`{kind: [subject | None]}`（None = 任务默认定的），
+    `company_choices.decided_by` 据此说清按什么定的（第 2 期公司规则）；不给不记，结果不变。
     """
     fields = fields if isinstance(fields, Mapping) else {}
     direction = "sales" if direction == "sales" else "purchase"
@@ -129,12 +131,18 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             return str(fixed[kind]).strip()
         return str((remembered.get(kind) or {}).get(subject) or "").strip()
 
+    def used(kind, subject):
+        if trace is not None:
+            by_task = kind != "party" and str((fixed or {}).get(kind) or "").strip()
+            trace.setdefault(kind, []).append(None if by_task else subject)
+
     # ── 对方档 ──
     rows = _rows(config.get("reported_customers" if direction == "sales" else "reported_suppliers"))
     subject = party_subject(direction, tax, branch, name)
     value = chosen("party", subject)
     if value and (value == NEW or not rows or value in _codes(rows)):
         applied["party"] = value
+        used("party", subject)
     elif rows and len(digits(tax)) == 13:
         same_tax = [row for row in rows if digits(row.get("tax_id")) == digits(tax)]
         exact = [row for row in same_tax if branch5(row.get("branch")) == branch5(branch)]
@@ -151,6 +159,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     value = chosen("department", "*")
     if departments and value and value in _codes(departments):
         applied["department"] = value
+        used("department", "*")
 
     party_key = supplier_subject(direction, tax, name)
     if direction == "purchase":
@@ -166,6 +175,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             pass
         elif value in PAYMENT_VALUES:
             applied["payment"] = value
+            used("payment", party_key)
             # 哪来的（写进载荷 doctype_src，CC 推送结果据此说清「按这家记过的现购」，验收 F19）
             applied["payment_from"] = "task_default" if str((fixed or {}).get("payment") or "").strip() else "remembered"
         elif not str(fields.get("payment_status") or "").strip():
@@ -176,6 +186,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             value = chosen("vat", party_key)
             if value in VAT_VALUES:
                 applied["vat"] = value
+                used("vat", party_key)
             else:
                 needed.append({"kind": "vat", "subject": party_key, "label": name,
                                "options": [{"code": code} for code in VAT_VALUES], "current": ""})
@@ -193,6 +204,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             value = chosen("item", key)
             if value and (value == NEW or value in codes):
                 items[norm_name(label)] = value
+                used("item", key)
             elif norm_name(label) in names and not value:
                 continue  # Express 里有同名存货：小助手照名找得到，不用问
             else:
@@ -209,6 +221,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             # 哪来的（写进载荷 account_source，CC 推送结果据此说清科目怎么定的，验收 F19）；人这次选的 / 历史定的由
             # 推送服务再细分（`push.application.service._decisions`）
             applied["account_from"] = "task_default" if str((fixed or {}).get("account") or "").strip() else "remembered"
+            used("account", party_key)
         else:
             needed.append({"kind": "account", "subject": party_key, "label": name, "current": value or ""})
 
@@ -218,6 +231,7 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
         value = chosen("receipt", subject)
         if value and (not accounts or value in _codes(accounts)):
             applied.setdefault("receipts", {})[subject] = value
+            used("receipt", subject)
         else:
             needed.append({"kind": "receipt", "subject": subject, "label": label, "current": value or ""})
     return {"applied": applied, "needed": needed}

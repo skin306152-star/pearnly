@@ -43,11 +43,12 @@ export type CompanyFolder = {
   month_candidates?: string[]; mine?: boolean; root_id?: string; folder?: string;
 };
 export type Note = { id: string; text: string; origin?: "person" | "cc"; updated_by?: string; updated_at?: string };
-/** 记住的选择（express / pos / income / vat / history）；history = 从 Express 历史学到的「供应商 → 科目」，只读可删。 */
+/** 记住的选择（rule / express / pos / income / vat / history）；history = 从 Express 历史学到的「供应商 → 科目」，只读可删；
+ *  rule = 公司规则（第 2 期，branch 空 = 全公司）；promotable 的行（账套、历史）可「设为全公司」。 */
 export type Choice = {
   key: string; source: string; kind: string; subject_label: string; value: string; value_label?: string; editable?: boolean;
   year_label?: string; set_by?: string; set_at?: string; count?: number; last_date?: string;
-  supplier_name?: string; account_label?: string;
+  supplier_name?: string; account_label?: string; branch?: string; promotable?: boolean;
 };
 export type TaskRow = { name: string; title: string; enabled?: boolean | number; account_label?: string; folder_label?: string };
 export type Draft = { name: string; kind: string; period: string; updated_at?: string; branch?: string; company_branch?: string };
@@ -130,6 +131,11 @@ export const forgetChoice = (company: string, key: string) => postMethod(API + "
 export const setChoice = (company: string, key: string, value: string, period = "") =>
   postMethod(API + "choice_set", { company, key, value, ...(period ? { period } : {}) });
 
+/** 「设为全公司」（第 2 期公司规则）：账套行、Express 历史行提升成这家公司的规则；period 是页面当前的处理月份（按覆盖这个月的
+ *  账套核值）。服务端同一事务删掉各账套同键的记忆。 */
+export const promoteChoice = (company: string, key: string, period = "") =>
+  postMethod(API + "choice_promote", { company, key, ...(period ? { period } : {}) });
+
 /** 待处理的单（company 不给 = 全部有权看的）。 */
 export function loadPending(company = "", limit = 200): Promise<PendingItem[]> {
   return getMethod<PendingItem[] | { items?: PendingItem[] }>(API + "pending", { company: company || undefined, limit }).then((out) =>
@@ -146,7 +152,8 @@ export function loadChoices(item: Pick<PendingItem, "document" | "choice">): Pro
   }).then((view) => ({ ...view, needed: view?.needed ?? [] }));
 }
 
-/** 作答：记下选的，再按 CC 推送同一条路重推这一张（assistant.pending_api.answer；只记不推不会进账）。 */
+/** 作答：记下选的，再按 CC 推送同一条路重推这一张（assistant.pending_api.answer；只记不推不会进账）。要选的已由公司规则定下
+ *  （needed 为空）时交空的 items，服务端不记、直接重推。 */
 export function answerChoices(item: Pick<PendingItem, "document">, view: ChoicesView, values: Record<string, string>): Promise<AnswerResult> {
   const items = view.needed
     .filter((need) => values[`${need.kind}\n${need.subject}`])

@@ -199,6 +199,7 @@ Bound at,绑定时间
 Bound to {0},已绑定到 {0}
 Branch,执行分支
 Branch No,分支机构编号
+Branch {0},分店 {0}
 Brief Key,简报去重键
 Brief Sent At,简报发送时间
 Brief Status,简报状态
@@ -368,6 +369,7 @@ Comments and activity,评论和活动
 Commission,佣金
 Company,公司
 Company Name,公司名称
+Company choices are full,公司选择已满
 Company not found,找不到这家公司
 Company tax ID,本公司税号
 Company tax ID not on the document,票面无本公司税号
@@ -437,6 +439,7 @@ Cowork Client,Cowork 买方客户
 Cowork Companion Delivery,Cowork CC 桌面版任务领取记录
 Cowork Companion Request,Cowork CC 桌面版请求
 Cowork Company,Cowork 公司主档
+Cowork Company Choice,Cowork 公司选择
 Cowork Company Folder,Cowork 公司单据文件夹
 Cowork Company Note,Cowork 公司知识库
 Cowork ERP Connection,Cowork ERP 连接
@@ -672,6 +675,7 @@ Error Code,错误码
 Event Key,事件标识
 Every unit needs a factor to the base unit.,请为每个单位填写与基本单位的换算系数。
 Every unit needs a name.,请为每个单位填写名称。
+Evidence,依据
 Evidence Fingerprint,证据指纹
 Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
@@ -1002,6 +1006,7 @@ No CC Desktop credential has been issued for this connection.,此连接尚未签
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
+No account set of this company covers this month,这家公司（或这个分店）没有覆盖本月的账套
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
@@ -1309,8 +1314,11 @@ Remove color,移除颜色
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Remove mirror,移除镜像
 Remove template,取消模板
+Remove this company choice?,删除这条公司选择？
 Remove this company note?,删除这条公司说明？
+Removed a company choice,删除了公司选择
 Removed a company note,删除了公司说明
+Removing a company choice,正在删除公司选择
 Rent,租金
 Repeat,重复
 Replaced by your later submission of the same files.,已被相同文件的后续提交取代。
@@ -1396,14 +1404,17 @@ Same day,当天
 Sample Key,修正例标识
 Save and next,保存并下一项
 Save these scheduled tasks?,要保存这些定时任务吗？
+Save this choice for the company?,把这个选择记到公司？
 Save this scheduled task?,要保存这个定时任务吗？
 Save this to the company's notes?,把这条记进公司知识库？
 Saved,已保存
+Saved a company choice,记下了公司选择
 Saved a company note,记下了公司说明
 Saved a scheduled task,保存了定时任务
 Saved push choices,保存了推送选项
 Saved scheduled tasks,保存了多个定时任务
 Saved. Scan the next item.,已保存，请扫描下一项。
+Saving a company choice,正在记公司选择
 Saving a scheduled task,正在保存定时任务
 Saving push choices,正在保存推送选项
 Saving scheduled tasks,正在保存多个定时任务
@@ -1537,6 +1548,7 @@ Stop and let me choose,暂停并手动选择
 Stop watching,取消关注
 Stored Page Previews,已存页面预览
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,下级子文件夹随意分，文件名随意，一份 PDF 里几张发票都行。
+Subject Label,对象名称
 Submit,提交
 Suggested,建议
 Summary,汇总
@@ -1813,6 +1825,7 @@ This account set is unavailable.,此账套不可用。
 This action is not allowed in the current push state.,当前推送状态不允许此操作。
 This board no longer exists,该看板不存在
 This channel is not open yet,此渠道尚未开放
+This choice cannot be saved,无法保存这条选择
 This client still has {0} invoice record(s). Reassign them first.,该客户仍有 {0} 条发票记录，请先将其转移给其他客户。
 This company does not enter transfer slips; this one is not sent,本公司不录入转账凭条，此单据不推送
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,本公司不录入预扣税凭证（50 ทวิ），此单据不推送
@@ -1881,6 +1894,7 @@ This task uses the previous count format and cannot accept scan entries.,此任�
 This tax ID is already used by another company.,该税号已被其他公司使用。
 This tax id is already used by another client.,该税号已被其他客户使用。
 This value cannot be chosen for this account set.,此账套不能选择该值。
+This value is not in this month's account set,这个值不在本月账套的主档里
 Time left {0},剩余 {0}
 Times Used,使用次数
 Title,标题
@@ -1990,6 +2004,7 @@ VAT report detail,销项税报告明细
 VAT without a base amount,只有税额没有税基
 Valid,有效
 Value,值
+Value Label,值名称
 Value of goods or services,货物或服务金额
 Version,版本
 View differences,查看差异
@@ -2034,6 +2049,7 @@ When the document does not show cash or credit,票面未注明现购 / 赊购
 Where the documents go,去向
 Who can add and remove members,成员管理权限
 Who can comment,评论权限
+Whole company,全公司
 Why it is not in the review sheet,未生成复核表的原因
 Wire Attempt,发送尝试次数
 With differences,有差异
@@ -2126,8 +2142,13 @@ cowork.choice.receipt,收款科目
 cowork.choice.task_default,此项由定时任务的默认处理决定，请在定时任务中修改
 cowork.choice.title,此账套仅需选择一次
 cowork.choice.vat,票面税额
+cowork.company.branch_n,分店 {0}
+cowork.company.choice_invalid,这个值不在本月账套的主档里
 cowork.company.choice_not_editable,这里只能改付款方式和抵不抵进项
 cowork.company.choice_not_found,这条记住的选择已不在
+cowork.company.choice_scope_invalid,这家公司（或这个分店）没有覆盖本月的账套
+cowork.company.choice_unsupported,无法保存这条选择
+cowork.company.choices_full,公司选择已满
 cowork.company.not_found,找不到这家公司
 cowork.company.not_in_catalog,账套目录里没有这份账套
 cowork.company.note_invalid,说明为空或过长
@@ -2143,6 +2164,7 @@ cowork.company.pending.title,待处理单据
 cowork.company.period_invalid,月份不对
 cowork.company.title_invalid,请输入 140 字以内的名称
 cowork.company.too_many,公司数量已达上限
+cowork.company.whole_company,全公司
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
 cowork.folder.agentStale,CC 桌面版不在线或需升级
 cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。

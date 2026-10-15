@@ -8,10 +8,12 @@
 //            窗口能选，桥 pick_folder 的结果原样交给 folder_bind）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 定时任务
 //            （点一行跳任务页，「＋」带预填）→ 申报草稿（按分店分组）→ 记住的选择（按类别；付款方式、简易税票抵不抵能直接改，
 //            其余只能删；Express 历史学到的只读可删）。没内容的卡在会话栏里不显示（keepEmpty 时照样显示，公司页用）。
+//   公司规则（数字会计员第 2 期）：「记住的选择」里公司规则的行写明「全公司 / 分店 X」，付款 / 抵进项可用下拉直接改；账套行与
+//            历史行多一个「设为全公司」。公司页「资料」里知识库是空的时给「让 CC 起草」（新对话里预填、不自动发送）。
 //
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
 import {
   createContext,
   type FC,
@@ -30,6 +32,7 @@ import { co, t } from "@/i18n";
 import {
   type AccountSet,
   bindFolder,
+  branchShort,
   type Branch,
   type Choice,
   type CompanyFolder,
@@ -38,8 +41,10 @@ import {
   type Draft,
   forgetChoice,
   formatWhen,
+  lastMonth,
   monthLabel,
   type Note,
+  promoteChoice,
   saveNote,
   setChoice,
   setForPeriod,
@@ -75,7 +80,7 @@ export function folderState(folder: Pick<CompanyFolder, "state">): string {
 
 /** 记住的选择分小节：Express 按类别，其余按来源（vat 预设叫「增值税核对」，免得与简易税票那一类混）。 */
 export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
-  if (choice.source === "express") return choice.kind;
+  if (choice.source === "express" || choice.source === "rule") return choice.kind;
   if (choice.source === "vat") return "vatCheck";
   return choice.source;
 }
@@ -211,6 +216,10 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState("");
   const [error, setError] = useState("");
+  const start = useStartIn();
+  const withPeriod = useProjects((s) => s.period);
+  /** 让 CC 起草（只在公司页的空知识库里）：在这家开新对话，预填一句、不自动发送。 */
+  const draft = () => start({ project: company, period: withPeriod ? lastMonth() : "", scope: "" }, co.draftNotesText, false);
   const remove = async (id: string) => {
     setError("");
     try {
@@ -263,6 +272,12 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
           ),
         )}
         {adding && <NoteEditor initial="" onSave={(text) => save(text)} onCancel={() => setAdding(false)} />}
+        {keepEmpty && !list.length && !adding && (
+          <button type="button" className="cc-btn self-start" data-slot="cc-notes-draft" onClick={draft}>
+            <SparklesIcon className="size-4" />
+            {co.draftNotes}
+          </button>
+        )}
         {error && <p role="alert" className="text-danger text-sm">{error}</p>}
       </div>
     </PanelCard>
@@ -602,6 +617,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
               choice={c}
               onSet={(v) => void run(() => setChoice(company, c.key, v, period), (rows) => setChoiceShown(rows, c.key, v))}
               onForget={() => void run(() => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key))}
+              onPromote={() => void run(() => promoteChoice(company, c.key, period), (rows) => rows.filter((row) => row.key !== c.key))}
             />
           ))}
         </div>
@@ -611,14 +627,26 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   );
 };
 
-export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onForget: () => void }> = ({ choice, onSet, onForget }) => {
+/** 公司规则的范围：全公司 / 分店 X（总公司照分店胶囊写「总公司」）。 */
+export const ruleScope = (choice: Pick<Choice, "branch">) => (choice.branch ? (choice.branch === "00000" ? branchShort(choice.branch) : co.branchN(choice.branch)) : co.wholeCompany);
+
+/** onPromote：账套行、历史行的「设为全公司」（不给就不显示）。 */
+export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onForget: () => void; onPromote?: () => void }> = ({
+  choice,
+  onSet,
+  onForget,
+  onPromote,
+}) => {
   const history = choice.source === "history";
-  const options = choice.source === "express" && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
+  const rule = choice.source === "rule";
+  const options = (choice.source === "express" || rule) && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
   const subject = choice.subject_label || choice.supplier_name || "";
   const value = choice.value_label || choice.account_label || choice.value;
   const meta = history
     ? [co.fromHistory(Number(choice.count) || 0), formatWhen(choice.last_date ?? choice.set_at)]
-    : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
+    : rule
+      ? [ruleScope(choice), choice.set_by ?? "", formatWhen(choice.set_at)]
+      : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
   return (
     <div className="cc-choice-row" data-slot="cc-choice-row" data-source={choice.source}>
       <span className="min-w-0 flex-1">
@@ -628,6 +656,11 @@ export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onF
         </span>
         <span className="block truncate text-ink-3 text-xs">{meta.filter(Boolean).join(" · ")}</span>
       </span>
+      {onPromote && choice.promotable && (
+        <button type="button" className="cc-link-btn shrink-0" data-slot="cc-choice-promote" onClick={onPromote}>
+          {co.makeCompanyWide}
+        </button>
+      )}
       {options && (
         <select className="cc-input h-8 w-auto" aria-label={subject} value={choice.value} onChange={(e) => onSet(e.target.value)}>
           {options.map((o) => (

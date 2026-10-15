@@ -34,6 +34,12 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn("useEffect(() => setList(notes), [notes]);", section)
         self.assertIn("{list.map((note) =>", section)
         self.assertNotIn("await reload()", section)  # 重取失败不能挡住已存好的那一条
+        # 让 CC 起草（第 2 期）：只在公司页的空知识库里（keepEmpty），新对话里预填、不自动发送
+        self.assertIn("{keepEmpty && !list.length && !adding && (", section)
+        self.assertIn("co.draftNotesText, false);", section)
+        pending = read("components/pending.tsx")
+        self.assertIn("{open && view && settledView(view) && (", pending)
+        self.assertIn("{co.pushNow}", pending)
         i18n = read("i18n.ts")
         messages = block(i18n, "const MESSAGES = {")
         for lang in ("en", "zh", "th"):
