@@ -1,18 +1,21 @@
 """CC 桌面端按需请求的服务（口径与加一种请求的做法见 `request_contracts` 文件头）。
 
 用户一侧（业务域以当前用户身份调用，权限在业务域核过之后这里再核一次连接使用授权）：
-- ``create(kind, connection, params, request_key)``：建请求；同一请求号还在等、在做或做完没取走时原样返回（幂等），
-  失败 / 过期的换一条新的；
+- ``create(kind, connection, params, request_key, *, target_device, account_key)``：建请求；同一请求号还在等、在做或
+  做完没取走时原样返回（幂等），失败 / 过期的换一条新的。读文件夹带 ``target_device``（持有那个根目录的电脑），读账套带
+  ``account_key``（这份账套的规范键，ADR-021 第 4 批，口径见 `request_contracts` 文件头）；
 - ``find(kind, connection, request_key)``：同一请求号此刻还在等、在做或做完没取走的那一件（不建）；业务域先找它，
   找到就接着等，不再问电脑在不在（电脑正忙着读、传这一件时可能好一阵不来领）；
 - ``status(name)`` / ``result(name)`` / ``drop(name)``：只给发起人；``drop`` 连行带结果字节一起删。结果属于连接与账套的
   种类（``request_contracts.SHARED_KINDS``，科目建议的历史）同一请求号谁建都是同一件，此刻能用这条连接的人都能看、取、删；
-- ``presence(connection)``：这条连接的电脑最近什么时候来领过、什么版本、能做哪几种，手上有没做完的租约也算在线；
-  ``waiting(connection, kind, known_version)`` 据此回「能领」或 waiting_for_cc（离线 / 要升级），业务域建请求前先问。
+- ``presence(connection, device)``：这台电脑最近什么时候来领过、什么版本、能做哪几种，手上有没做完的租约也算在线
+  （按电脑记：同一个池里好几台电脑各来各的）；``waiting(connection, kind, known_version, device=…, account_key=…)``
+  据此回「能领」或 waiting_for_cc（离线 / 要升级），业务域建请求前先问：给了电脑只问那台，给了账套问够得到它的各台。
 
 机器一侧（`request_api` 在配对码身份下调用，身份核对在 `http_auth`）：
-- ``lease_next(context, body)``：先把这条连接上等太久没人领、领了超时的标成过期，再按先来先做领一件（发起人此刻已
-  不能用这条连接的直接判失败，不交给电脑）；
+- ``lease_next(context, body)``：先把这条连接上等太久没人领、领了超时的标成过期，再按先来先做领一件：只看定向给这台
+  电脑的、没定向的；读账套的要这台够得到那份账套、按分派顺序轮到它（`route_contracts.decide`，发起人当录入人），交出去
+  的参数换成它的本机写法。发起人此刻已不能用这条连接的直接判失败，不交给电脑；
 - ``complete(context, body)``：交结果，一块一块按已收字节续传，最后一块核对大小与 sha256；或者交失败原因。
 """
 import hashlib
@@ -27,15 +30,20 @@ from frappe import _
 from frappe.utils import get_datetime
 from pearnly_core.execution import state as pearnly_state
 
+from pearnly_cowork.companion import credentials, route_contracts
 from pearnly_cowork.companion import request_contracts as contracts
 from pearnly_cowork.companion import request_store as store
 from pearnly_cowork.companion.request_access import REQUEST, read, write
 from pearnly_cowork.connections import access as connection_access
+from pearnly_cowork.connections import pool as account_pool
+from pearnly_cowork.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
 PRESENCE = "cowork:companion:requests:"
 PRESENCE_TTL = 7 * 86400
 _NAME = re.compile(r"^[0-9a-f]{32}$")
+# 一次领取最多看这么多件排队的请求（先不加锁挑出轮到这台的，再锁那一件）
+LEASE_SCAN = 50
 
 
 def _now():
@@ -87,13 +95,15 @@ def _same(row, actor, connection, kind) -> bool:
     return (row.connection, row.kind) == (connection, kind) and (contracts.shared(kind) or row.actor == actor)
 
 
-def create(kind, connection, params, request_key) -> dict:
+def create(kind, connection, params, request_key, *, target_device="", account_key="") -> dict:
     try:
         kind = contracts.kind(kind)
         key = contracts.request_key(request_key)
         params = contracts.params(params)
+        target_device, account_key = contracts.target(kind, target_device, account_key)
     except contracts.ContractError as error:
         _error(error.code)
+    account_key = normalize_express_account_key(account_key) if account_key else ""
     if not isinstance(connection, str) or not connection or len(connection) > 140:
         _error("companion.on_demand_invalid")
     doc = frappe.get_doc(CONNECTION, connection)
@@ -117,6 +127,7 @@ def create(kind, connection, params, request_key) -> dict:
         _error("companion.on_demand_busy")
     row = frappe.new_doc(REQUEST)
     row.update({"request_id": uuid4().hex, "request_key": key, "connection": connection, "kind": kind, "actor": actor,
+                "target_device": target_device, "account_key": account_key,
                 "params_json": json.dumps(params, ensure_ascii=False, sort_keys=True), "status": "requested",
                 "requested_at": now, "received_bytes": 0, "result_bytes": 0})
     point = "cowork_companion_request"
@@ -211,20 +222,26 @@ def drop(name) -> None:
     _remove(_own(name).name)
 
 
-def _busy(connection, now):
-    """这条连接上电脑领了、租约还没到期的一件（kind, 版本）：小助手一次只做一件、做完才再来领，读得久、传得慢的时候
-    好一阵不来领，但它在线。"""
+def _presence_key(connection, device):
+    return PRESENCE + connection + (("|" + device) if device else "")
+
+
+def _busy(connection, device, now):
+    """这台电脑在这条连接上领了、租约还没到期的一件（kind, 版本）：小助手一次只做一件、做完才再来领，读得久、传得慢的
+    时候好一阵不来领，但它在线。"""
     found = frappe.db.sql(f"""SELECT kind, companion_version FROM `tab{REQUEST}` WHERE connection = %s
-        AND status = 'leased' AND lease_expires_at > %s ORDER BY lease_expires_at DESC LIMIT 1""", (connection, now))
+        AND status = 'leased' AND lease_expires_at > %s AND IFNULL(lease_device, '') = %s
+        ORDER BY lease_expires_at DESC LIMIT 1""", (connection, now, device or ""))
     return tuple(found[0]) if found else None
 
 
-def presence(connection) -> dict:
-    """这条连接的电脑最近一次来领按需请求：{seen（SEEN_SECONDS 内来过，或手上有一件租约没到期的）, version, kinds, at}；
-    从没来过（旧版 CC 桌面端不来领）是 seen 假、version 空。调用方先核过连接权限。"""
+def presence(connection, device="") -> dict:
+    """这台电脑（``device``，`credentials.device_id`）在这条连接上最近一次来领按需请求：{seen（SEEN_SECONDS 内来过，
+    或手上有一件租约没到期的）, version, kinds, at}；从没来过（旧版 CC 桌面端不来领）是 seen 假、version 空。
+    调用方先核过连接权限。"""
     now = _now()
     try:
-        value = pearnly_state.store().get_value(PRESENCE + connection, use_local_cache=False)
+        value = pearnly_state.store().get_value(_presence_key(connection, device), use_local_cache=False)
     except Exception:
         value = None
     try:
@@ -234,7 +251,7 @@ def presence(connection) -> dict:
     if at is None:
         value = {}
     seen = contracts.seen_recently(at, now)
-    busy = None if seen else _busy(connection, now)
+    busy = None if seen else _busy(connection, device, now)
     if busy and not value:
         # 记的「来过」丢了（缓存清过）：按它在做的那一件
         value = {"version": busy[1] or "", "kinds": [busy[0]]}
@@ -243,15 +260,35 @@ def presence(connection) -> dict:
             "at": value.get("at") if at else None}
 
 
-def waiting(connection, kind, known_version="") -> dict:
-    """这台电脑此刻能不能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" |
-    "update_needed", ...}``（业务域据此不建请求、照实告诉用户）。``known_version`` 是别处报过的这台电脑的 CC 桌面端版本
-    （文件夹同步、心跳），它从没来领过按需请求时据此分辨「离线」与「要升级」。调用方先核过连接权限。"""
-    seen = presence(connection)
-    if seen["seen"] and kind in seen["kinds"]:
-        return {}
-    version = seen["version"] or str(known_version or "")
-    if seen["seen"] or (version and not contracts.supports(version)):
+def _candidates(connection, device=None, account_key=None):
+    """问谁能不能领：给了电脑就是那台；给了账套是够得到它（状态正常）的各台；都没给是这条连接上的每台电脑。
+    回 ``{电脑: 心跳 / 电脑行报的版本}``。"""
+    peers = credentials.pool_peers(connection)
+    if device is not None:
+        names = [device]
+    elif account_key:
+        names = account_pool.reachers(connection, account_key)
+    else:
+        names = sorted(peers)
+    return {name: str((peers.get(name) or {}).get("version") or "") for name in names}
+
+
+def waiting(connection, kind, known_version="", *, device=None, account_key=None) -> dict:
+    """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" |
+    "update_needed", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；``account_key``：
+    够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）。``known_version`` 是别处报过的 CC 桌面端版本
+    （文件夹同步），电脑从没来领过按需请求时与电脑行上的版本一起分辨「离线」与「要升级」。调用方先核过连接权限。"""
+    candidates = _candidates(connection, device, account_key)
+    seen_any, versions = False, []
+    for name, reported in candidates.items():
+        seen = presence(connection, name)
+        if seen["seen"] and kind in seen["kinds"]:
+            return {}
+        seen_any = seen_any or seen["seen"]
+        versions.append(seen["version"] or reported)
+    versions = [value for value in versions if value]
+    version = max(versions, key=contracts.version_tuple) if versions else str(known_version or "")
+    if seen_any or (version and not contracts.supports(version)):
         return {"status": "waiting_for_cc", "reason": "update_needed", "version": version,
                 "minimum": contracts.MIN_COMPANION}
     return {"status": "waiting_for_cc", "reason": "offline"}
@@ -260,10 +297,11 @@ def waiting(connection, kind, known_version="") -> dict:
 # ── 机器一侧 ────────────────────────────────────────────────────────────────
 
 
-def _remember(connection, version, kinds, now):
+def _remember(connection, device, version, kinds, now):
     try:
-        pearnly_state.store().set_value(PRESENCE + connection, {"version": version, "kinds": kinds,
-                                                                "at": now.isoformat()}, expires_in_sec=PRESENCE_TTL)
+        pearnly_state.store().set_value(_presence_key(connection, device),
+                                        {"version": version, "kinds": kinds, "at": now.isoformat()},
+                                        expires_in_sec=PRESENCE_TTL)
     except Exception:
         # 记不下「来过」不挡领取（只影响工具判断电脑在不在）
         frappe.log_error(title="Cowork companion request presence failed", message=frappe.get_traceback()[-1500:])
@@ -276,8 +314,15 @@ def _close(row, status, code, now):
 
 
 def _expire(connection, now):
+    """这条连接上等太久没人领、领了超时的标成过期。先不加锁挑出到期的，再逐件锁住复核：每台电脑每 15 秒来领一次，
+    不为它锁住整条连接上所有在途的请求（ADR-021 第 4 批，方案 2.7）。"""
     for (name,) in frappe.db.sql(f"""SELECT name FROM `tab{REQUEST}` WHERE connection = %s
-            AND status IN ('requested', 'leased') ORDER BY requested_at, name FOR UPDATE""", (connection,)):
+            AND ((status = 'requested' AND requested_at < %s)
+                 OR (status = 'leased' AND (lease_expires_at IS NULL OR lease_expires_at <= %s)))
+            ORDER BY requested_at, name""", (connection, now - timedelta(seconds=contracts.CLAIM_SECONDS), now)):
+        if not frappe.db.sql(f"""SELECT name FROM `tab{REQUEST}` WHERE name = %s
+                AND status IN ('requested', 'leased') FOR UPDATE""", (name,)):
+            continue
         row = read(name)
         status, code = contracts.effective(row.status, row.error_code, _at(row.requested_at), _at(row.lease_expires_at),
                                            now)
@@ -295,32 +340,77 @@ def _actor_ready(row) -> bool:
         return False
 
 
+def _turns(connection, device, rows, now):
+    """这几件读账套的请求里轮到这台电脑的：``{请求名: 这台电脑那份账套的可达行}``。资格与顺序同写账分派
+    （`route_contracts.decide`）：这台够得到那份账套（状态正常，读不要求能写）；发起人自己的电脑 → 常驻 → 其他，排了
+    ``HANDOFF_SECONDS`` 谁都行。「在线」按领按需请求算（这一种 SEEN_SECONDS 内来领过），不按心跳：心跳在、却从不来领
+    按需请求的旧版不该让别的电脑干等。不看载荷版本、不黏住（只读）。"""
+    keys = {row.account_key for row in rows if row.account_key}
+    mine = account_pool.readable_reach(connection, device, keys)
+    if not mine:
+        return {}
+    reachers = account_pool.reachers_of(connection, set(mine))
+    peers, known = credentials.pool_peers(connection), {}
+    result = {}
+    for row in rows:
+        if row.account_key not in mine:
+            continue
+        for name in reachers.get(row.account_key) or ():
+            if (name, row.kind) not in known:
+                seen = presence(connection, name)
+                peer = peers.get(name) or {}
+                known[(name, row.kind)] = route_contracts.Peer(
+                    user=peer.get("user") or "", always_on=bool(peer.get("always_on")),
+                    online=bool(seen["seen"] and row.kind in seen["kinds"]))
+        job = route_contracts.Job(name=row.name, account_key=row.account_key, actor=row.actor,
+                                  queued_at=_at(row.requested_at) or now)
+        decision = route_contracts.decide(
+            device, job, reachers.get(row.account_key) or (), {
+                name: known[(name, row.kind)] for name in reachers.get(row.account_key) or ()},
+            route_contracts.Account(), now)
+        if decision.take:
+            result[row.name] = mine[row.account_key]
+    return result
+
+
 def lease_next(context, body) -> dict:
     wanted = contracts.next_request(body)
     now = _now()
+    device = credentials.device_id(context.credential_id)
     adapter = frappe.db.get_value(CONNECTION, context.connection, "adapter") or ""
     kinds = contracts.allowed_kinds(adapter, wanted["kinds"])
-    _remember(context.connection, wanted["version"], kinds, now)
+    _remember(context.connection, device, wanted["version"], kinds, now)
     _expire(context.connection, now)
     if not kinds:
         return {"request": None}
     marks = ", ".join(["%s"] * len(kinds))
-    for _attempt in range(contracts.OPEN_PER_ACTOR):
-        found = frappe.db.sql(f"""SELECT name FROM `tab{REQUEST}` WHERE connection = %s AND status = 'requested'
-            AND kind IN ({marks}) ORDER BY requested_at, name LIMIT 1 FOR UPDATE""", (context.connection, *kinds))
-        if not found:
-            return {"request": None}
-        row = read(found[0][0])
+    # 只看这台能领的：定向给它的、没定向的（读账套的再看它够不够得到、轮没轮到它）。先不加锁挑，再锁挑中的那一件
+    rows = frappe.db.sql(f"""SELECT name, kind, actor, account_key, requested_at FROM `tab{REQUEST}`
+        WHERE connection = %s AND status = 'requested' AND kind IN ({marks}) AND IFNULL(target_device, '') IN (%s, '')
+        ORDER BY requested_at, name LIMIT {LEASE_SCAN}""", (context.connection, *kinds, device), as_dict=True)
+    accounts = [row for row in rows if row.account_key]
+    turns = _turns(context.connection, device, accounts, now) if accounts else {}
+    for candidate in rows:
+        if candidate.account_key and candidate.name not in turns:
+            continue
+        if not frappe.db.sql(f"""SELECT name FROM `tab{REQUEST}` WHERE name = %s AND status = 'requested'
+                FOR UPDATE""", (candidate.name,)):
+            continue  # 别的电脑刚领走
+        row = read(candidate.name)
         if not _actor_ready(row):
             _close(row, "failed", "actor_not_allowed", now)
             continue
         handle = secrets.token_hex(16)
         seconds = contracts.LEASE_SECONDS[row.kind]
         row.update({"status": "leased", "lease_handle": handle, "lease_credential": context.credential_id,
-                    "leased_at": now, "lease_expires_at": now + timedelta(seconds=seconds),
+                    "lease_device": device, "leased_at": now, "lease_expires_at": now + timedelta(seconds=seconds),
                     "companion_version": wanted["version"], "received_bytes": 0})
         write(row)
-        return {"request": {"id": row.name, "kind": row.kind, "params": _json(row.params_json), "handle": handle,
+        params = _json(row.params_json)
+        reach = turns.get(row.name)
+        if reach is not None:
+            params = contracts.localize(params, reach.path, reach.root)
+        return {"request": {"id": row.name, "kind": row.kind, "params": params, "handle": handle,
                             "lease_seconds": seconds, "chunk_bytes": contracts.CHUNK_BYTES,
                             "max_bytes": contracts.MAX_BYTES[row.kind]}}
     return {"request": None}

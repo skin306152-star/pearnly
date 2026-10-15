@@ -19,7 +19,8 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.companion import http_auth, release
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import desktop_update
-from pearnly_cowork.folder_intake import agent, company_folders, contracts, inbox, live, notify, settings, workbook
+from pearnly_cowork.folder_intake import (agent, company_folders, contracts, inbox, live, notify, readers, settings,
+                                          workbook)
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 
 CONNECTION = "Cowork ERP Connection"
@@ -71,14 +72,20 @@ def _as(user):
         frappe.local.lang = previous_lang
 
 
-def _rule(name, context):
+def _rule(name, context, device):
     if not isinstance(name, str) or not name or len(name) > 140 or not frappe.db.exists(RULE, name):
         raise contracts.ContractError("cowork.folder.rule_missing")
     rule = read(RULE, name)
-    # 认的是「读文件夹的小助手」（`reader`）：MR.ERP 任务可以由同一工作空间里任一台小助手读（2026-10-09）。
-    if (rule.reader or rule.connection) != context.connection:
+    # 认的是「读文件夹的小助手」（`reader`）：MR.ERP 任务可以由同一工作空间里任一台小助手读（2026-10-09）；多台电脑
+    # （ADR-021 第 4 批）还要是这台电脑（`reader_device`），同一个池里别的电脑不收这条任务的文件。
+    if readers.of(rule) != (device, context.connection):
         raise contracts.ContractError("cowork.folder.rule_missing")
     return rule
+
+
+def _mine(entry, context, device):
+    """这份文件由这台电脑这个成员读：部署前登记、还没记电脑的（空）按连接认（方案 4.1 第 6 条，在途的照常走完）。"""
+    return entry.connection == context.connection and (entry.reader_device or "") in ("", device)
 
 
 def extensions(rule):
@@ -119,17 +126,18 @@ def _guarded(operation, handler):
 # ── 同步：上报本机情况与运行记录，取规则、立即运行请求与在途文件的状态 ──────────────────
 
 
-def _in_use(connection):
+def _in_use(connection, device):
     """还被用着的根目录（这台电脑读的任务、谁的公司文件夹都算，`company_folders.roots_in_use`）：CC 桌面版只收回
     经公司添加、连续 1 小时不在这里的根目录。查不出来就不给这个键（电脑不给就永不自动收回）。"""
     try:
-        return {"roots_in_use": company_folders.roots_in_use(connection)}
+        return {"roots_in_use": company_folders.roots_in_use(connection, device)}
     except Exception:
         frappe.log_error(title="Cowork folder roots in use failed", message=frappe.get_traceback()[-1500:])
         return {}
 
 
 def _sync(context, body):
+    device = readers.device_of(context)
     # 这条连接是哪种 ERP：MR.ERP 的小助手成员只读文件夹（小助手配对时先问一次 `probe`，见 companion/pairing.py）。
     connection = frappe.db.get_value(CONNECTION, context.connection, ["adapter", "label"], as_dict=True) or {}
     identity = {"adapter": connection.get("adapter") or "", "label": connection.get("label") or ""}
@@ -140,26 +148,32 @@ def _sync(context, body):
         # 快速同步（CC 桌面版刚为公司加了根目录，ADR-020）：只记根目录，不下发任务、不收运行记录。没带 folders 的
         # 根目录沿用上一次的下级文件夹与计数，各任务待处理数、健康照旧保留。
         agent.remember_roots(context.connection, roots=contracts.roots(body.get("roots"), keep_missing=True),
-                             version=body.get("version"), device=contracts.device(body.get("device")))
+                             version=body.get("version"), device=contracts.device(body.get("device")),
+                             reader_device=device)
         return {"server_time": time.time(), "max_roots": contracts.MAX_ROOTS,
-                **_in_use(context.connection), **identity}
+                **_in_use(context.connection, device), **identity}
     roots = contracts.roots(body.get("roots"))
     pending = contracts.pending(body.get("rule_pending"))
-    before = agent.read(context.connection).get("pending") or {}
+    before = agent.read(context.connection, device).get("pending") or {}
     # update_blocked：自动更新被 Windows 拦下（同心跳，`connections.desktop_update`）；只读文件夹的 MR.ERP 成员只有这里报
     agent.remember(context.connection, roots=roots, version=body.get("version"),
                    health=contracts.health(body.get("rule_health")), device=contracts.device(body.get("device")),
-                   pending=pending, update_blocked=desktop_update.parse(body.get(desktop_update.KEY)))
+                   pending=pending, update_blocked=desktop_update.parse(body.get(desktop_update.KEY)),
+                   reader_device=device)
     for row in (body.get("runs") or [])[:50]:
         try:
-            _record_run(context, row)
+            _record_run(context, row, device)
         except contracts.ContractError:
             # 规则已不在 / 记录不合形状：这一条不收，其余照收（不让一条坏记录堵住小助手每一次同步）。
             continue
     # 本机读的全部任务（停用的也要：之后到的完成简报照样弹）；下发只发启用的，存货进货任务排在销售前面（F7：
-    # 小助手照下发顺序逐个任务跑，同一时刻到点的进货文件先登记、先识别、先推送）。
+    # 小助手照下发顺序逐个任务跑，同一时刻到点的进货文件先登记、先识别、先推送）。只发这台电脑这个成员读的
+    # （ADR-021 第 4 批）：同一个池里的别的电脑、同一台电脑上的另一个成员都不跑它。补丁时还认不出电脑的任务由这条连接上
+    # 报了它那个根目录的电脑接手（`readers.adopt`）。
+    readers.adopt(context.connection, device, [row["id"] for row in roots])
     found = frappe.db.sql(f"""SELECT name, direction, enabled FROM `tab{RULE}`
-            WHERE IFNULL(NULLIF(reader, ''), connection) = %s ORDER BY creation""", (context.connection,), as_dict=True)
+            WHERE IFNULL(NULLIF(reader, ''), connection) = %s AND reader_device = %s ORDER BY creation""",
+                          (context.connection, device), as_dict=True)
     rules = []
     for row in contracts.purchases_first([row for row in found if row.enabled]):
         rule = read(RULE, row.name)
@@ -177,11 +191,11 @@ def _sync(context, body):
     for name in contracts.watch(body.get("watch")):
         if frappe.db.exists(FILE, name):
             entry = read(FILE, name)
-            if entry.connection == context.connection:
+            if _mine(entry, context, device):
                 entries[name] = workbook.status(entry)
     # 根目录上限（旧版 CC 桌面版不认这两个键，照旧封顶 20）与还被用着的根目录（ADR-020）
     reply = {"server_time": time.time(), "rules": rules, "entries": entries, "max_roots": contracts.MAX_ROOTS,
-             **_in_use(context.connection), **identity}
+             **_in_use(context.connection, device), **identity}
     # 我们最新发布的 CC 桌面版（同心跳回复的形状）：只读文件夹的 MR.ERP 成员没有心跳，也从这里拿到新版。
     latest = release.latest()
     if latest:
@@ -207,10 +221,10 @@ def _notices(names, after):
     return [{key: item.get(key) for key in contracts.NOTICE_FIELDS} for item in items[:contracts.NOTICE_LIMIT]]
 
 
-def _record_run(context, row):
+def _record_run(context, row, device):
     if not isinstance(row, dict):
         raise contracts.ContractError("cowork.folder.invalid")
-    rule = _rule(row.get("rule"), context)
+    rule = _rule(row.get("rule"), context, device)
     key = hashlib.sha256(f"{rule.name}\0{contracts.run_key(row.get('run_key'))}".encode()).hexdigest()
     counts = {field: row.get(field) for field in ("found", "new_files", "skipped", "upload_failed")}
     if any(type(value) is not int or value < 0 for value in counts.values()):
@@ -218,7 +232,8 @@ def _record_run(context, row):
     doc = read(RUN, key, for_update=True) if frappe.db.exists(RUN, key) else frappe.new_doc(RUN)
     if doc.is_new():
         trigger = row.get("trigger") if row.get("trigger") in ("schedule", "manual", "catch_up") else "schedule"
-        doc.update({"input_key": key, "rule": rule.name, "connection": context.connection, "trigger": trigger,
+        doc.update({"input_key": key, "rule": rule.name, "connection": context.connection, "reader_device": device,
+                    "trigger": trigger,
                     "started_at": now_datetime(), "run_owner": rule.rule_owner,
                     **_brief_slot(rule, trigger, row, counts["new_files"], key)})
     doc.update(counts)
@@ -271,7 +286,8 @@ def sync(**ignored):
 
 def _begin(context, body):
     values = settings.config()
-    rule = _rule(body.get("rule"), context)
+    device = readers.device_of(context)
+    rule = _rule(body.get("rule"), context, device)
     if not rule.enabled:
         return {"skip": "cowork.folder.rule_disabled"}
     relpath = contracts.relpath(body.get("relpath"))
@@ -291,7 +307,8 @@ def _begin(context, body):
             return {"skip": "cowork.folder.owner_not_ready"}
         entry = frappe.new_doc(FILE)
         # 文件记在读它的那台小助手名下（`reader`）：之后上传完成、取表格都由它来，按它核身份。
-        entry.update({"input_key": key, "rule": rule.name, "connection": context.connection, "run": run,
+        entry.update({"input_key": key, "rule": rule.name, "connection": context.connection, "reader_device": device,
+                      "run": run,
                       "relpath": relpath, "filename": filename, "byte_size": size, "sha256": digest,
                       "actor": rule.rule_owner, "state": "registered", "registered_at": now_datetime()})
         write(entry)
@@ -351,7 +368,7 @@ def _finish(context, body):
     if not frappe.db.exists(FILE, name):
         raise contracts.ContractError("cowork.folder.entry_missing")
     entry = read(FILE, name, for_update=True)
-    if entry.connection != context.connection:
+    if not _mine(entry, context, readers.device_of(context)):
         raise contracts.ContractError("cowork.folder.entry_missing")
     if entry.state != "registered":
         return {"entry": entry.name, "state": entry.state}
@@ -389,7 +406,7 @@ def _workbook(context, body):
     if not frappe.db.exists(FILE, name):
         raise contracts.ContractError("cowork.folder.entry_missing")
     entry = read(FILE, name)
-    if entry.connection != context.connection:
+    if not _mine(entry, context, readers.device_of(context)):
         raise contracts.ContractError("cowork.folder.entry_missing")
     history = body.get("history")
     with _as(entry.actor):

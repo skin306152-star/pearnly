@@ -100,6 +100,7 @@ Admins only,管理者のみ
 Advertising,広告費
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative",返品後、数量がゼロ以下か金額がマイナスの品目がある日があります
 All,すべて
+All Members,事務所全員が利用可
 All labels,すべてのラベル
 All members,すべてのメンバー
 Allowed Users,許可ユーザー
@@ -914,6 +915,7 @@ Last modified by,最終更新者
 Last month to claim,控除の最終月
 Last name,姓
 Last used,前回使用
+Lease Computer,受け取ったコンピューター
 Lease Credential,リースの認証情報
 Lease Expires At,リース有効期限
 Lease Expires At (UTC),リース有効期限（UTC）
@@ -1262,6 +1264,7 @@ Read general ledger,総勘定元帳の読み取り
 Read tax invoices,請求書の読み取り
 Readback,読み戻し
 Readback ID,読み戻し ID
+Reader Device,フォルダーを読み取るコンピューター
 Reading back the accounting books,会計データを読み戻しています
 Reading files,ファイルを読み込み中
 Reading the MR.ERP menus…,MR.ERP のメニューを読み込み中…
@@ -1589,6 +1592,7 @@ Surcharge,加算金
 Table,テーブル
 Tap Send documents to ERP in the menu first,先にメニューの「書類をERPへ送信」を押してください
 Tap the menu to start,メニューを押して始めてください
+Target Computer,指定のコンピューター
 Target Json,固定送信先JSON
 Task,タスク
 Task Management,タスク管理

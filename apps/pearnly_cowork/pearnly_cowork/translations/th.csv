@@ -100,6 +100,7 @@ Admins only,เฉพาะผู้ดูแล
 Advertising,ค่าโฆษณา
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative",หลังหักการคืน มีสินค้าที่จำนวนของวันเป็นศูนย์หรือติดลบ หรือยอดเงินติดลบ
 All,ทั้งหมด
+All Members,ทุกคนในสำนักงานใช้ได้
 All labels,ป้ายกำกับทั้งหมด
 All members,สมาชิกทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
@@ -914,6 +915,7 @@ Last modified by,ผู้แก้ไขล่าสุด
 Last month to claim,เดือนสุดท้ายที่ใช้สิทธิ
 Last name,ชื่อสกุล
 Last used,ที่ใช้ล่าสุด
+Lease Computer,คอมพิวเตอร์ที่รับงาน
 Lease Credential,ข้อมูลรับรองของสิทธิ์ถือครอง
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
 Lease Expires At (UTC),เวลาสิทธิ์ถือครองหมดอายุ (UTC)
@@ -1262,6 +1264,7 @@ Read general ledger,อ่านบัญชีแยกประเภท
 Read tax invoices,อ่านใบกำกับภาษี
 Readback,อ่านกลับ
 Readback ID,รหัสการอ่านข้อมูลกลับ
+Reader Device,คอมพิวเตอร์ที่อ่านโฟลเดอร์
 Reading back the accounting books,กำลังอ่านข้อมูลบัญชีกลับมา
 Reading files,กำลังอ่านไฟล์
 Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
@@ -1589,6 +1592,7 @@ Surcharge,เงินเพิ่ม
 Table,ตาราง
 Tap Send documents to ERP in the menu first,กรุณากด «ส่งเอกสารเข้า ERP» ในเมนูก่อน
 Tap the menu to start,กรุณากดเมนูเพื่อเริ่มต้น
+Target Computer,คอมพิวเตอร์ที่ระบุ
 Target Json,ปลายทางที่ตรึงไว้ (JSON)
 Task,งาน
 Task Management,จัดการงาน

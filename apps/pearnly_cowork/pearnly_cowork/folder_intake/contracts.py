@@ -474,6 +474,30 @@ def device(value) -> str:
     return text[:60]
 
 
+# ── 读文件夹的是哪台电脑上的哪个成员（ADR-021 第 4 批，方案 2.7）────────────────────────────────────
+# 读者 =（电脑，成员连接）：同一台电脑上 Express 与 MR.ERP 两个成员各自同步文件夹，同一个池里又有好几台电脑，只按连接
+# 或只按电脑认都会让任务被处理两遍。对外（CC 工具、第 6 批的网页）给一个不透明的编号「电脑|连接」；只有连接的旧写法
+# （第 6 批之前的网页、旧对话里的参数）由服务端按根目录认出是哪台电脑（`readers.resolve`）。
+READER_SEP = "|"
+_READER_PART = re.compile(r"^[A-Za-z0-9_.:@-]{1,140}$")
+
+
+def reader_ref(device: Any, connection: Any) -> str:
+    """不透明的读者编号；没有电脑（补丁没认出、旧数据）时就是连接名本身。"""
+    device, connection = str(device or "").strip(), str(connection or "").strip()
+    return f"{device}{READER_SEP}{connection}" if device else connection
+
+
+def parse_reader(value: Any) -> tuple:
+    """读者编号 → (电脑, 连接)；只有连接的旧写法电脑是空串。形状不对报 ``cowork.folder.root_invalid``（同「这台电脑没有
+    这个根目录」：调用方本来就按它回）。"""
+    text = str(value or "").strip()
+    device, _sep, connection = text.rpartition(READER_SEP)
+    if not _READER_PART.fullmatch(connection) or (device and not _READER_PART.fullmatch(device)):
+        raise ContractError("cowork.folder.root_invalid")
+    return device, connection
+
+
 _SESSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$")
 
 
@@ -897,9 +921,11 @@ def group_of(run: Mapping) -> str:
 def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]], now: datetime, *,
                  settle: timedelta = BRIEF_SETTLE, max_wait: timedelta = BRIEF_MAX_WAIT,
                  lookback: timedelta = BRIEF_LOOKBACK) -> tuple:
-    """还没发简报的运行（行带 name / run_owner / connection / brief_group / slot_at / started_at / scanned_at）按
-    （负责人, 简报分组 `group_of`, 读文件夹的电脑 `connection`）分组，回 ``(ready, stale)``，时间都是站点时区裸时间。
-    按电脑分开（2026-10-13）：简报会被那台电脑同步取回弹出，不能带上别的电脑的任务。
+    """还没发简报的运行（行带 name / run_owner / connection / brief_group / slot_at / started_at / scanned_at，可带
+    ``reader``）按（负责人, 简报分组 `group_of`, 读文件夹的电脑 ``reader``——读者编号「电脑|连接」，没有就是运行的
+    ``connection``）分组，回 ``(ready, stale)``，时间都是站点时区裸时间。
+    按电脑分开（2026-10-13）：简报会被那台电脑同步取回弹出，不能带上别的电脑的任务；同一个池里几台电脑各读各的
+    （ADR-021 第 4 批）也各是各的。
 
     ready 每项 ``{"owner", "slot_at", "reader", "runs", "complete"}``，按最早一次开始排：都扫描完、文件（行带 state /
     registered_at / finished_at）都不在路上（`moving`）、最近一次开始与最后一份文件走完（`finished_at`）都满 ``settle``
@@ -907,7 +933,8 @@ def brief_groups(runs: List[Mapping], files_by_run: Mapping[str, List[Mapping]],
     不再发的运行名：最早一次开始超过 ``lookback``，或没有负责人、没有开始时间（排不进时间，留着只会每 5 分钟再看一遍）。"""
     groups: Dict[tuple, List[Mapping]] = {}
     for run in runs:
-        groups.setdefault((run.get("run_owner") or "", group_of(run), str(run.get("connection") or "")), []).append(run)
+        groups.setdefault((run.get("run_owner") or "", group_of(run),
+                           str(run.get("reader") or run.get("connection") or "")), []).append(run)
     ready, stale = [], []
     for (owner, _group, reader), members in groups.items():
         started = [run["started_at"] for run in members if run.get("started_at")]

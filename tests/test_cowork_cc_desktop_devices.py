@@ -307,6 +307,10 @@ def _install_frappe():
     frappe.conf = Conf(pearnly_product="cowork", pearnly_cowork_erp_push_enabled=True)
     frappe.db = FakeDB()
     frappe.get_doc = _get_doc
+    # 电脑改挂时文件夹域的钩子（`cowork_reader_device_moved`，ADR-021 第 4 批）：记进池替身的事件里，与可达行转移排在一起
+    frappe.get_hooks = lambda name: ["folder.readers.moved"] if name == "cowork_reader_device_moved" else []
+    frappe.get_attr = lambda path: (lambda *args: sys.modules["pearnly_cowork.connections.pool"].EVENTS.append(
+        ("readers", *args)))
     model = types.ModuleType("frappe.model")
     document = types.ModuleType("frappe.model.document")
     document.Document = Document
@@ -591,9 +595,12 @@ class Schema(unittest.TestCase):
 
     def test_patch_is_registered(self):
         lines = (APP / "patches.txt").read_text().splitlines()
-        # 第 2 批的补丁（账套登记，`test_cowork_express_account_sets.py`）跟在它后面：要先有电脑才有旧电脑的可达行
-        self.assertEqual(lines[-2:], ["pearnly_cowork.patches.v0_0_19_companion_devices",
-                                      "pearnly_cowork.patches.v0_0_20_express_account_sets"])
+        # 第 2 批的补丁（账套登记，`test_cowork_express_account_sets.py`）跟在它后面：要先有电脑才有旧电脑的可达行；
+        # 第 4 批（读文件夹的电脑、全所可用）再在后面
+        self.assertEqual(lines[-4:], ["pearnly_cowork.patches.v0_0_19_companion_devices",
+                                      "pearnly_cowork.patches.v0_0_20_express_account_sets",
+                                      "pearnly_cowork.patches.v0_0_21_reader_devices",
+                                      "pearnly_cowork.patches.v0_0_22_express_all_members"])
 
 
 # ── register v2 ─────────────────────────────────────────────────────────────
@@ -980,6 +987,8 @@ class MigratedPool(Base):
         pool.EVENTS.clear()
         self.assertEqual(self.hello(self.express_key, hello_body(KEY_A))["device"], claimed)
         self.assertEqual(pool.EVENTS[0], ("move", self.express, old, claimed))
+        # 读文件夹的任务、在途文件、公司文件夹随之转过去（第 4 批，文件夹域的钩子）
+        self.assertEqual(pool.EVENTS[1], ("readers", self.express, old, claimed))
         self.assertIn(("forget", old, None), pool.EVENTS[1:])
         self.assertTrue(STORE[DEVICE][old]["retired_at"])
 
@@ -990,6 +999,7 @@ class MigratedPool(Base):
         pool.EVENTS.clear()
         self.hello(self.express_key, hello_body(KEY_A))
         self.assertEqual(pool.EVENTS[0], ("move", self.express, old, mine["device"]))
+        self.assertEqual(pool.EVENTS[1], ("readers", self.express, old, mine["device"]))
         self.assertIn(("forget", old, self.express), pool.EVENTS)
 
     def test_a_computer_left_without_a_key_on_a_connection_drops_its_reach_there(self):

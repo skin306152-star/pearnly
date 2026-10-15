@@ -4,8 +4,10 @@
 
 - 绑定只是指针：读这个文件夹的成员连接（`reader`）、根目录编号（`root_id`）、根目录下的相对路径（`folder`），外加绑定
   时的显示路径、网络路径、电脑名与谁绑的，存在私有表 `Cowork Company Folder`（只经本模块写，守卫同另三张表）。
-  一行一个（公司, 读者, 读者电脑）：`binding_key = sha256(json([company, reader, reader_device]))`，同一键再绑就是替换。
-  `reader_device` 预留给多电脑方案（D1–D9）回填，现在为空。
+  一行一个（公司, 读者, 读者电脑）：`binding_key = sha256(json([company, reader, reader_device]))`，同一（公司, 读者,
+  读者电脑）再绑就是替换。读者电脑（ADR-021 第 4 批，`readers`）：桥交回的绑定只带成员连接，按根目录认是这条连接上的
+  哪台电脑（根目录编号是那台电脑本机路径的摘要，CC 桌面版加根目录后立刻快速同步）；部署前绑的由补丁回填。按字段找，
+  不按键找：电脑改挂（`readers.moved`）后键不变、字段变了。
 - 授权边界不变：新授权只能在 CC 桌面版里经 Windows 原生选择框加（网页从不传路径，`pick_folder` 交回的绑定由页面原样
   转来）；读文件时服务端照旧对照电脑上报的根目录（`fetch`），电脑再对照本机的根目录。绑定时不要求根目录已经上报：
   没上报就是「等待电脑」，读不到任何东西。
@@ -21,7 +23,7 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, now_datetime
 
-from pearnly_cowork.folder_intake import agent, contracts
+from pearnly_cowork.folder_intake import agent, contracts, readers
 from pearnly_cowork.folder_intake.access import COMPANY_FOLDER, RULE, write
 
 FIELDS = ["name", "company", "reader", "reader_device", "binding_key", "root_id", "folder", "label", "share", "device",
@@ -57,7 +59,11 @@ def _clean(binding):
     if not isinstance(binding, dict):
         _error("cowork.folder.invalid")
     rules._require()
-    doc = rules._connection(binding.get("reader"))  # 录入权限 + 连接使用授权 + 支持的适配器 + 未换绑
+    try:
+        hint, connection = contracts.parse_reader(binding.get("reader"))
+    except contracts.ContractError as error:
+        _error(error.code)
+    doc = rules._connection(connection)  # 录入权限 + 连接使用授权 + 支持的适配器 + 未换绑
     try:
         root = contracts.root_id(binding.get("root_id"))
         sub = contracts.folder(binding.get("folder"))
@@ -65,7 +71,9 @@ def _clean(binding):
     except contracts.ContractError as error:
         _error(error.code)
     share = str(binding.get("share") or "").strip()
-    return {"reader": doc.name, "root_id": root, "folder": sub, "label": label,
+    # 桥以后可能直接带电脑编号（第 5 批），就用它（要还在这条连接上）；只带连接的按根目录认
+    device, _connection = readers.resolve(contracts.reader_ref(binding.get("reader_device") or hint, doc.name), root)
+    return {"reader": doc.name, "reader_device": device, "root_id": root, "folder": sub, "label": label,
             "share": share if share.startswith("\\\\") and len(share) <= 500 else "",
             "device": contracts.device(binding.get("device"))}
 
@@ -75,25 +83,46 @@ def bind(company, binding, user) -> dict:
     当前用户能录入。"""
     company = _company(company)
     values = _clean(binding)
-    key = binding_key(company, values["reader"], "")
-    if frappe.db.exists(COMPANY_FOLDER, key):
-        doc = frappe.get_doc(COMPANY_FOLDER, key, for_update=True)
+    name = _existing(company, values["reader"], values["reader_device"])
+    if name:
+        doc = frappe.get_doc(COMPANY_FOLDER, name, for_update=True)
     else:
         if frappe.db.count(COMPANY_FOLDER, {"company": company}) >= PER_COMPANY:
             _error("cowork.folder.invalid")
         doc = frappe.new_doc(COMPANY_FOLDER)
-        doc.update({"binding_key": key, "company": company, "reader_device": ""})
+        doc.update({"binding_key": binding_key(company, values["reader"], values["reader_device"]),
+                    "company": company})
     doc.update({**values, "bound_by": user, "bound_at": now_datetime()})
     write(doc)
-    return next((row for row in view(company) if row["reader"] == values["reader"]), {})
+    return next((row for row in view(company) if (row["reader"], row["reader_device"])
+                 == (values["reader"], values["reader_device"])), {})
 
 
-def unbind(company, reader) -> bool:
-    """移除这家公司在这台电脑（读者）上的文件夹；没有回 False。根目录授权、定时任务都不动。"""
-    key = binding_key(_company(company), str(reader or ""), "")
-    if not frappe.db.exists(COMPANY_FOLDER, key):
+def _existing(company, reader, reader_device):
+    """这家公司在这台电脑这个成员上的那一行：先按电脑找，再找还没记电脑的老行（补丁认不出电脑时留下的）。"""
+    for device in dict.fromkeys((reader_device or "", "")):
+        found = frappe.get_all(COMPANY_FOLDER, filters={"company": company, "reader": reader, "reader_device": device},
+                               pluck="name", limit_page_length=1)
+        if found:
+            return found[0]
+    return None
+
+
+def unbind(company, reader, reader_device=None) -> bool:
+    """移除这家公司在这台电脑（读者）上的文件夹；没有回 False。根目录授权、定时任务都不动。``reader`` 可以是读者编号
+    （「电脑|连接」）；只给连接（第 6 批之前的页面）时这家公司在这条连接上只有一行才删，好几台电脑各有一行时不猜。"""
+    try:
+        device, connection = contracts.parse_reader(reader)
+    except contracts.ContractError:
         return False
-    frappe.db.delete(COMPANY_FOLDER, {"name": key})
+    device = device or str(reader_device or "")
+    filters = {"company": _company(company), "reader": connection}
+    if device:
+        filters["reader_device"] = device
+    found = frappe.get_all(COMPANY_FOLDER, filters=filters, pluck="name", limit_page_length=2)
+    if len(found) != 1:
+        return False
+    frappe.db.delete(COMPANY_FOLDER, {"name": found[0]})
     return True
 
 
@@ -114,19 +143,22 @@ def _bound_seconds(row) -> float:
 
 
 def view(company, states=None) -> list:
-    """这家公司各台电脑上的文件夹：`[{reader, reader_device, device, label, root_id, folder, share, state, bound_by,
-    bound_at, reported}]`。`reported` 是这台电脑为这个根目录上报的下级文件夹名（找月份子文件夹用，`None` = 没报）。
-    每台电脑读一次最近同步的情况（`states` 可传入请求内缓存）。"""
+    """这家公司各台电脑上的文件夹：`[{reader, reader_device, reader_id, device, label, root_id, folder, share, state,
+    bound_by, bound_at, reported}]`。`reader` 仍是成员连接（第 6 批之前的页面按它认「本机这一行」），`reader_id` 是
+    读者编号（电脑|连接）。`reported` 是这台电脑为这个根目录上报的下级文件夹名（找月份子文件夹用，`None` = 没报）。
+    每台电脑读一次最近同步的情况（`states` 可传入请求内缓存，按读者编号）。"""
     states = {} if states is None else states
     result = []
     for row in rows(company):
-        if row.reader not in states:
-            states[row.reader] = agent.read(row.reader)
-        state = states[row.reader]
+        reader = readers.ref(row)
+        if reader not in states:
+            states[reader] = readers.state(*readers.of(row))
+        state = states[reader]
         roots = state.get("roots") or []
         reported = next((item for item in roots if isinstance(item, dict) and item.get("id") == row.root_id), None)
         result.append({
-            "reader": row.reader, "reader_device": row.reader_device or "", "root_id": row.root_id,
+            "reader": row.reader, "reader_device": row.reader_device or "", "reader_id": reader,
+            "root_id": row.root_id,
             "folder": row.folder or "", "share": row.share or "",
             "label": contracts.folder_label(roots, row.root_id, row.folder or "", row.label or ""),
             "device": state.get("device") or row.device or "",
@@ -138,8 +170,11 @@ def view(company, states=None) -> list:
     return result
 
 
-def roots_in_use(reader) -> list:
-    """这台电脑（读者连接）还被用着的根目录：读它的定时任务（停用的也算）与任何公司的文件夹。不按用户过滤。"""
+def roots_in_use(reader, device="") -> list:
+    """这台电脑这个成员（读者）还被用着的根目录：它读的定时任务（停用的也算）与任何公司的文件夹。不按用户过滤。
+    还没记电脑的老行（空）也算这条连接上每台电脑的：宁可晚收回，不把别人在用的收掉。"""
     found = frappe.db.sql(f"""SELECT DISTINCT root_id FROM `tab{RULE}` WHERE IFNULL(NULLIF(reader, ''), connection) = %s
-        UNION SELECT DISTINCT root_id FROM `tab{COMPANY_FOLDER}` WHERE reader = %s""", (reader, reader))
+        AND IFNULL(reader_device, '') IN (%s, '')
+        UNION SELECT DISTINCT root_id FROM `tab{COMPANY_FOLDER}` WHERE reader = %s
+        AND IFNULL(reader_device, '') IN (%s, '')""", (reader, device or "", reader, device or ""))
     return sorted({row[0] for row in found if row and row[0]})

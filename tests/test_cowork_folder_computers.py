@@ -24,8 +24,11 @@ VIEWS = {
 
 
 class Computers(unittest.TestCase):
-    def run_computers(self, records, online=(), denied=()):
+    def run_computers(self, records, online=(), denied=(), members=None):
+        """``members``：各条连接上的电脑（ADR-021 第 4 批：一台电脑一行）；不给就每条连接一台，在线按 ``online``。"""
         docs = {r["name"]: doc(r["name"], r["adapter"]) for r in records}
+        members = members if members is not None else {
+            name: {"PC-" + name: {"online": name in online}} for name in docs}
 
         def connection(name):
             if name in denied:
@@ -35,9 +38,9 @@ class Computers(unittest.TestCase):
         with mock.patch.object(rules, "_require") as require, \
                 mock.patch.object(rules.connections, "records", return_value=records), \
                 mock.patch.object(rules, "_connection", side_effect=connection), \
-                mock.patch.object(rules, "_reader_view", side_effect=lambda d: VIEWS[d.name]), \
-                mock.patch("pearnly_cowork.companion.pool.for_user",
-                           side_effect=lambda n: {"online": n in online, "writers_known": True, "needs_update": False}), \
+                mock.patch.object(rules.readers, "members", side_effect=lambda n: members.get(n, {})), \
+                mock.patch.object(rules, "_reader_view",
+                                  side_effect=lambda d, device="", peer=None: VIEWS.get(f"{device}|{d.name}", VIEWS[d.name])), \
                 mock.patch.object(rules.frappe, "clear_messages"):
             result = rules.computers()
         require.assert_called_once_with()   # 与定时任务页同一判据：录入权限
@@ -54,6 +57,14 @@ class Computers(unittest.TestCase):
         result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1}], online=())
         self.assertFalse(result[0]["online"])
 
+    def test_every_computer_of_a_pool_is_its_own_row(self):
+        """多台电脑（ADR-021 第 4 批）：同一个 Express 池里两台电脑各一行，各看各的心跳。"""
+        views = {**VIEWS, "PC2|C-E": {"label": "ACC-02", "fresh": False, "version": "1.6.0", "roots": []}}
+        with mock.patch.dict(VIEWS, views):
+            result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1}],
+                                        members={"C-E": {"PC1": {"online": True}, "PC2": {"online": False}}})
+        self.assertEqual([(row["device"], row["online"]) for row in result], [("OFFICE-PC", True), ("ACC-02", False)])
+
     def test_a_blocked_update_is_one_more_line_only_when_there_is_one(self):
         # 教程问题第 1 条：CC 桌面版的自动更新被 Windows 拦下 → 这一行多带 update_blocked（版本 + 时刻），网页如实显示一句
         blocked = {"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"}
@@ -69,11 +80,12 @@ class Computers(unittest.TestCase):
         shown = {"version": "1.5.2", "at": "2026-10-13T11:18:00+00:00"}
 
         def view(adapter, report, state):
-            with mock.patch.object(rules.agent, "read", return_value=state), \
-                    mock.patch.object(rules.devices, "reporter_label", return_value=""), \
+            peer = {"version": report.get("companion_version")} if adapter == "express" else {}
+            with mock.patch.object(rules.readers, "state", return_value=state), \
+                    mock.patch.object(rules.devices, "newest_version", return_value=""), \
                     mock.patch.object(rules.agent, "fresh", return_value=True), \
                     mock.patch.object(rules.frappe, "db", SimpleNamespace(get_value=lambda *a, **k: json.dumps(report))):
-                return rules._reader_view(doc("C-1", adapter))["update_blocked"]
+                return rules._reader_view(doc("C-1", adapter), "PC1", peer)["update_blocked"]
 
         # Express：以心跳报的为准（文件夹同步那份不算）
         self.assertEqual(view("express", {"update_blocked": blocked, "companion_version": "1.5.1"},

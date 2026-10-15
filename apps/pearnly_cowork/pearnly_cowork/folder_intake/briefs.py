@@ -2,7 +2,8 @@
 
 口径见 `docs/work/2026-10-12-cc-closed-loop.md`：
 
-- 一份简报 = 同一负责人（处理这批文件的人，`run_owner`）+ 同一定时时刻 + 同一台读文件夹的电脑（运行的 `connection`）；
+- 一份简报 = 同一负责人（处理这批文件的人，`run_owner`）+ 同一定时时刻 + 同一台读文件夹的电脑（运行的读者：
+  `reader_device` + `connection`，ADR-021 第 4 批）；
   立即运行按批：同一负责人相隔 10 分钟之内的算一批，隔得久的各自一份（`brief_group`，见 `machine._brief_slot`）。
   按电脑分开是因为简报会被那台电脑同步取回弹出，不能带上别的电脑的任务（2026-10-13）。
 - 何时发（`contracts.brief_groups`）：这些运行都扫描完、文件都走到头、最近一次运行开始与最后一份文件走完都满 10 分钟；
@@ -18,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, now_datetime
 
-from pearnly_cowork.folder_intake import agent, contracts, machine, notify
+from pearnly_cowork.folder_intake import contracts, machine, notify, readers
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read
 
 FOLDER_GONE = ("root_missing", "folder_missing")
@@ -29,10 +30,12 @@ def run(now=None):
     if frappe.conf.get("pearnly_product") != "cowork":
         return
     moment = get_datetime(now) if now else now_datetime()
-    runs = frappe.db.sql(f"""SELECT name, rule, connection, run_owner, brief_group, slot_at, started_at, scanned_at,
-        new_files, upload_failed, note FROM `tab{RUN}` WHERE brief_state = 'pending'""", as_dict=True)
+    runs = frappe.db.sql(f"""SELECT name, rule, connection, reader_device, run_owner, brief_group, slot_at, started_at,
+        scanned_at, new_files, upload_failed, note FROM `tab{RUN}` WHERE brief_state = 'pending'""", as_dict=True)
     if not runs:
         return
+    for row in runs:
+        row["reader"] = contracts.reader_ref(row.get("reader_device"), row.connection)
     ready, stale = contracts.brief_groups(runs, _files(runs), moment)
     if stale:
         _mark(stale, "skipped")
@@ -178,9 +181,9 @@ def _results(rule, rows, states):
     done = [row for row in rows if row.state == "done" and row.registered_at]
     if not done:
         return ""
-    reader = rule.reader or rule.connection
+    reader = readers.ref(rule)
     if reader not in states:
-        states[reader] = agent.read(reader)
+        states[reader] = readers.state(*readers.of(rule))
     root = next((row for row in states[reader].get("roots") or []
                  if isinstance(row, dict) and row.get("id") == rule.root_id), {})
     months = {contracts.month_of(notify.epoch(row.registered_at)) for row in done}

@@ -100,6 +100,7 @@ Admins only,Admins only
 Advertising,Advertising
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative","After refunds, an item's quantity for a day is zero or less, or its amount is negative"
 All,All
+All Members,All Members
 All labels,All labels
 All members,All members
 Allowed Users,Allowed Users
@@ -914,6 +915,7 @@ Last modified by,Last modified by
 Last month to claim,Last month to claim
 Last name,Last name
 Last used,Last used
+Lease Computer,Lease Computer
 Lease Credential,Lease Credential
 Lease Expires At,Lease Expires At
 Lease Expires At (UTC),Lease Expires At (UTC)
@@ -1262,6 +1264,7 @@ Read general ledger,Read general ledger
 Read tax invoices,Read tax invoices
 Readback,Readback
 Readback ID,Readback ID
+Reader Device,Reader Device
 Reading back the accounting books,Reading back the accounting books
 Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
@@ -1589,6 +1592,7 @@ Surcharge,Surcharge
 Table,Table
 Tap Send documents to ERP in the menu first,Tap Send documents to ERP in the menu first
 Tap the menu to start,Tap the menu to start
+Target Computer,Target Computer
 Target Json,Target Json
 Task,Task
 Task Management,Task Management

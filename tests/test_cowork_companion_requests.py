@@ -27,6 +27,8 @@ def _load(name, path):
 
 
 contracts = _load("request_contracts_under_test", APP / "companion/request_contracts.py")
+route_contracts = _load("route_contracts_for_requests", APP / "companion/route_contracts.py")
+identity = _load("identity_for_requests", APP / "targets/identity.py")
 NOW = datetime(2026, 10, 13, 5, 0, 0)
 
 
@@ -126,6 +128,7 @@ class FakeDB:
     def __init__(self, frappe):
         self.frappe = frappe
         self.rows, self.deleted, self.after = {}, [], []
+        self.expire_scans, self.locked = [], []
         self.snapshot = set()
         self.after_commit = types.SimpleNamespace(add=self.after.append)
         self.adapters = {"C1": "express", "M1": "mrerp"}
@@ -167,28 +170,42 @@ class FakeDB:
             assert as_dict
             return [row for row in self.rows.values() if row.request_key == values[0]]
         if "status = 'leased' AND lease_expires_at > %s" in query:
-            connection, now = values
+            # 这台电脑手上没到期的租约（按电脑，ADR-021 第 4 批）
+            connection, now, device = values
             found = sorted((row for row in self.rows.values() if row.connection == connection
-                            and row.status == "leased" and row.lease_expires_at and row.lease_expires_at > now),
+                            and row.status == "leased" and row.lease_expires_at and row.lease_expires_at > now
+                            and (row.lease_device or "") == device),
                            key=lambda row: row.lease_expires_at, reverse=True)
             return [(found[0].kind, found[0].companion_version)] if found else []
         if "COUNT(*)" in query:
             connection, actor = values
             return [[sum(1 for row in self.rows.values() if row.connection == connection and row.actor == actor
                          and row.status in ("requested", "leased"))]]
+        if "(status = 'requested' AND requested_at < %s)" in query:
+            # 到期的先不加锁挑出来
+            assert "FOR UPDATE" not in query
+            connection, cutoff, now = values
+            self.expire_scans.append(connection)
+            return [(row.name,) for row in self._ordered(self.rows.values()) if row.connection == connection and (
+                (row.status == "requested" and row.requested_at < cutoff)
+                or (row.status == "leased" and (not row.lease_expires_at or row.lease_expires_at <= now)))]
+        if "WHERE name = %s AND status" in query and "FOR UPDATE" in query:
+            # 逐件加锁复核
+            self.locked.append(values[0])
+            row = self.rows.get(values[0])
+            wanted = ("requested",) if "status = 'requested'" in query else ("requested", "leased")
+            return [(values[0],)] if row and row.status in wanted else []
         if "requested_at <" in query:
             connection, cutoff = values
             return [(row.name,) for row in self.rows.values() if row.connection == connection and row.requested_at < cutoff]
         if "WHERE name = %s" in query:
             return [(values[0],)] if values[0] in self.rows else []
         if "status = 'requested' AND kind IN" in query:
-            connection, kinds = values[0], values[1:]
-            found = [row for row in self._ordered(self.rows.values()) if row.connection == connection
-                     and row.status == "requested" and row.kind in kinds]
-            return [(found[0].name,)] if found else []
-        if "status IN ('requested', 'leased')" in query:
-            return [(row.name,) for row in self._ordered(self.rows.values())
-                    if row.connection == values[0] and row.status in ("requested", "leased")]
+            # 领取：只看定向给这台的与没定向的，先不加锁
+            assert as_dict and "FOR UPDATE" not in query
+            connection, kinds, device = values[0], values[1:-1], values[-1]
+            return [row for row in self._ordered(self.rows.values()) if row.connection == connection
+                    and row.status == "requested" and row.kind in kinds and (row.target_device or "") in (device, "")]
         raise AssertionError(query)
 
 
@@ -246,12 +263,35 @@ def _frappe():
     return frappe, utils
 
 
+class Pool:
+    """池的替身（ADR-021 第 4 批）：密钥 → 电脑、各条连接上的电脑（`credentials.pool_peers`）、谁够得到哪份账套
+    （`connections.pool`）。默认每条连接上一台电脑 PC1（密钥 CRED-1；CRED-2 是另一台 PC2）。"""
+
+    def __init__(self):
+        self.devices = {"CRED-1": "PC1", "CRED-2": "PC2", "CRED-3": "PC3"}
+        self.peers = {"C1": {"PC1": {"user": "", "always_on": False, "version": ""}},
+                      "M1": {"PC1": {"user": "", "always_on": False, "version": ""}}}
+        # {(连接, 电脑, 规范键): 可达行（本机写法）}
+        self.reach = {}
+
+    def readable_reach(self, connection, device, keys):
+        return {key: row for (conn, name, key), row in self.reach.items()
+                if (conn, name) == (connection, device) and key in set(keys)}
+
+    def reachers(self, connection, key, writable=False):
+        return sorted(name for (conn, name, found) in self.reach if (conn, found) == (connection, key))
+
+    def reachers_of(self, connection, keys, writable=False):
+        return {key: self.reachers(connection, key) for key in keys}
+
+
 def _service(clock):
     """request_service 连同替身：允许谁用哪条连接在 `allowed` 里改。"""
     frappe, utils = _frappe()
     state = FakeState()
     allowed = {("acc@x.com", "C1"), ("acc@x.com", "M1"), ("other@x.com", "C1")}
     db = frappe.db
+    pool = Pool()
 
     def require_connection(doc, actor=None, **kwargs):
         actor = actor or frappe.session.user
@@ -283,14 +323,24 @@ def _service(clock):
                "pearnly_cowork.companion.request_contracts": contracts,
                "pearnly_cowork.companion.request_access": access,
                "pearnly_cowork.connections": types.ModuleType("pearnly_cowork.connections"),
-               "pearnly_cowork.connections.access": types.SimpleNamespace(require_connection=require_connection)}
+               "pearnly_cowork.connections.access": types.SimpleNamespace(require_connection=require_connection),
+               "pearnly_cowork.companion.credentials": types.SimpleNamespace(
+                   device_id=lambda credential: pool.devices.get(credential, credential),
+                   pool_peers=lambda connection: {name: dict(peer) for name, peer in pool.peers.get(connection, {}).items()}),
+               "pearnly_cowork.companion.route_contracts": route_contracts,
+               "pearnly_cowork.connections.pool": pool,
+               "pearnly_cowork.targets": types.ModuleType("pearnly_cowork.targets"),
+               "pearnly_cowork.targets.identity": identity}
     saved = {name: sys.modules.get(name) for name in list(modules) + ["pearnly_cowork.companion.request_store"]}
     sys.modules.update(modules)
     try:
         store = _load("pearnly_cowork.companion.request_store", APP / "companion/request_store.py")
         modules["pearnly_cowork.companion"].request_contracts = contracts
         modules["pearnly_cowork.companion"].request_store = store
+        modules["pearnly_cowork.companion"].credentials = modules["pearnly_cowork.companion.credentials"]
+        modules["pearnly_cowork.companion"].route_contracts = route_contracts
         modules["pearnly_cowork.connections"].access = modules["pearnly_cowork.connections.access"]
+        modules["pearnly_cowork.connections"].pool = pool
         service = _load("request_service_under_test", APP / "companion/request_service.py")
     finally:
         for name, module in saved.items():
@@ -299,6 +349,7 @@ def _service(clock):
             else:
                 sys.modules[name] = module
     service._now = clock
+    service.test_pool = pool
     return service, frappe, state, allowed, store
 
 
@@ -458,15 +509,15 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.db.rows[first["request"]].error_code, "actor_not_allowed")
         self.assertEqual((self.db.rows[old["request"]].status, self.db.rows[old["request"]].error_code),
                          ("expired", "not_claimed"))
-        presence = self.service.presence("C1")
+        presence = self.service.presence("C1", "PC1")
         self.assertEqual((presence["seen"], presence["version"]), (True, "1.5.0"))
         self.assertEqual(presence["kinds"], ["folder_list", "folder_fetch", "express_read"])
         # 领到的那件交了（手上没有没做完的）、之后 SEEN_SECONDS 没再来领：离线
         self.service.complete(_machine(), {"request": second["request"], "handle": leased["request"]["handle"],
                                            "ok": False, "code": "root_missing"})
         self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 1)
-        self.assertFalse(self.service.presence("C1")["seen"])
-        self.assertEqual(self.service.presence("M1"), {"seen": False, "version": "", "kinds": [], "at": None})
+        self.assertFalse(self.service.presence("C1", "PC1")["seen"])
+        self.assertEqual(self.service.presence("M1", "PC1"), {"seen": False, "version": "", "kinds": [], "at": None})
 
     def test_waiting_tells_offline_from_needs_an_update(self):
         self.assertEqual(self.service.waiting("C1", "folder_list"), {"status": "waiting_for_cc", "reason": "offline"})
@@ -487,7 +538,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.service.complete(_machine(), {"request": request["id"], "handle": request["handle"],
                                                             "ok": True, "offset": 0, "content": _b64(b"abcd"),
                                                             "final": False}), {"status": "leased", "received": 4})
-        self.assertTrue(self.service.presence("C1")["seen"])
+        self.assertTrue(self.service.presence("C1", "PC1")["seen"])
         self.assertEqual(self.service.waiting("C1", "folder_fetch", "1.5.0"), {})
         self.assertEqual(self.service.waiting("C1", "folder_list"), {})  # 别的请求也照常建，等它做完这件再领
         # 原样重调：同一件，接着等
@@ -495,11 +546,11 @@ class ServiceTests(unittest.TestCase):
                                              "folder_fetch:k1")["request"], made["request"])
         # 记的「来过」丢了（缓存清过）：按手上那一件的版本与种类
         self.state.values.clear()
-        presence = self.service.presence("C1")
+        presence = self.service.presence("C1", "PC1")
         self.assertEqual((presence["seen"], presence["version"], presence["kinds"]), (True, "1.5.0", ["folder_fetch"]))
         # 租约到期（电脑真的不在了）：离线
         self.clock.now += timedelta(seconds=contracts.LEASE_SECONDS["folder_fetch"] + 1)
-        self.assertFalse(self.service.presence("C1")["seen"])
+        self.assertFalse(self.service.presence("C1", "PC1")["seen"])
         self.assertEqual(self.service.waiting("C1", "folder_fetch", "1.5.0")["reason"], "offline")
 
     def test_find_returns_the_actors_open_request_without_making_one(self):
@@ -578,7 +629,7 @@ class ServiceTests(unittest.TestCase):
                                       connection="M1", kind="express_read", actor="acc@x.com", status="requested",
                                       requested_at=NOW, params_json="{}")
         self.assertIsNone(self._lease(connection="M1")["request"])
-        self.assertEqual(self.service.presence("M1")["kinds"], ["folder_list", "folder_fetch"])
+        self.assertEqual(self.service.presence("M1", "PC1")["kinds"], ["folder_list", "folder_fetch"])
 
     def test_old_requests_are_swept_with_their_bytes_when_a_new_one_is_made(self):
         made = self.service.create("folder_fetch", "C1", {"p": 1}, "folder_fetch:k1")
@@ -602,6 +653,116 @@ class ServiceTests(unittest.TestCase):
         self.store.drop(name)
         self.store.drop(name)
         self.assertIsNone(self.store.read(name))
+
+
+class PoolRequestTests(unittest.TestCase):
+    """多台电脑（ADR-021 第 4 批，方案 2.7）：读文件夹定向给持有根目录的那台；读账套按账套键分派（发起人自己的电脑 →
+    常驻 → 其他，排 120 秒谁都行），交出去的位置换成领取那台的写法；在场与「手上有一件」按电脑记。"""
+
+    KEY = "\\\\nas\\exp\\data\\acme69"
+
+    def setUp(self):
+        self.clock = Clock()
+        self.service, self.frappe, self.state, self.allowed, self.store = _service(self.clock)
+        self.db = self.frappe.db
+        self.pool = self.service.test_pool
+        self.pool.peers["C1"] = {"PC1": {"user": "acc@x.com", "always_on": False, "version": "1.6.0"},
+                                 "PC2": {"user": "other@x.com", "always_on": False, "version": "1.6.0"},
+                                 "PC3": {"user": "", "always_on": False, "version": "1.6.0"}}
+        # PC1 映射成 S:，PC2 用网络路径，PC3 够不到这份账套
+        self.pool.reach[("C1", "PC1", self.KEY)] = Row(path="S:\\EXP\\DATA\\ACME69", root="S:\\EXP")
+        self.pool.reach[("C1", "PC2", self.KEY)] = Row(path="\\\\nas\\exp\\data\\acme69", root="\\\\nas\\exp")
+
+    def lease(self, credential, kinds=("folder_list", "folder_fetch", "express_read", "account_history")):
+        return self.service.lease_next(_machine(credential=credential), {"version": "1.6.0", "kinds": list(kinds)})
+
+    def test_contract_targets_only_the_matching_kind_and_localizes_a_copy(self):
+        self.assertEqual(contracts.target("folder_fetch", "PC1", "K"), ("PC1", ""))
+        self.assertEqual(contracts.target("express_read", "PC1", "K"), ("", "K"))
+        self.assertEqual(contracts.target("account_history", "", "K"), ("", "K"))
+        with self.assertRaises(contracts.ContractError):
+            contracts.target("folder_fetch", "x" * 141)
+        params = {"account_set": "\\\\nas\\a", "account_root": "\\\\nas", "period": "2026-09"}
+        local = contracts.localize(params, "S:\\A", "S:\\")
+        self.assertEqual(local, {"account_set": "S:\\A", "account_root": "S:\\", "period": "2026-09"})
+        self.assertEqual(params["account_set"], "\\\\nas\\a")  # 原件不动
+        self.assertEqual(contracts.localize(params, ""), params)  # 没有写法不编
+        self.assertEqual(set(contracts.ACCOUNT_KINDS) | set(contracts.FOLDER_KINDS), set(contracts.KINDS))
+
+    def test_a_folder_request_goes_only_to_the_computer_holding_the_root(self):
+        made = self.service.create("folder_list", "C1", {"root_id": "r"}, "folder_list:k1", target_device="PC2")
+        self.assertEqual(self.db.rows[made["request"]].target_device, "PC2")
+        self.assertIsNone(self.lease("CRED-1")["request"])  # 同一个池里的 PC1 领不到
+        self.assertEqual(self.lease("CRED-2")["request"]["id"], made["request"])
+        self.assertEqual(self.db.rows[made["request"]].lease_device, "PC2")
+        # 部署前建的（没定向）照旧谁领都行
+        legacy = self.service.create("folder_list", "C1", {"root_id": "q"}, "folder_list:k2")
+        self.assertEqual(self.lease("CRED-1")["request"]["id"], legacy["request"])
+
+    def test_presence_and_the_open_lease_are_kept_per_computer(self):
+        made = self.service.create("folder_fetch", "C1", {"root_id": "r", "path": "a.pdf"}, "folder_fetch:k1",
+                                   target_device="PC2")
+        self.lease("CRED-2")
+        self.assertTrue(self.service.presence("C1", "PC2")["seen"])
+        self.assertFalse(self.service.presence("C1", "PC1")["seen"])  # PC2 来领不算 PC1 在线
+        self.assertEqual(self.service.waiting("C1", "folder_list", device="PC1")["reason"], "offline")
+        self.assertEqual(self.service.waiting("C1", "folder_list", device="PC2"), {})
+        self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 5)
+        self.state.values.clear()
+        self.assertTrue(self.service.presence("C1", "PC2")["seen"])  # 手上那一件租约没到期：仍在线
+        self.assertFalse(self.service.presence("C1", "PC1")["seen"])
+        self.assertEqual(self.db.rows[made["request"]].lease_device, "PC2")
+
+    def test_a_books_read_is_routed_to_the_askers_computer_first_with_its_own_writing(self):
+        params = {"account_set": self.KEY, "account_root": "\\\\nas\\exp", "period": "2026-09", "docnums": []}
+        self.assertIsNone(self.lease("CRED-1")["request"])  # PC1（发起人 acc 的电脑）此刻在、会读账套
+        made = self.service.create("express_read", "C1", params, "readback:k1", account_key=self.KEY.upper())
+        self.assertEqual(self.db.rows[made["request"]].account_key, self.KEY)  # 存规范键
+        self.assertIsNone(self.lease("CRED-2")["request"])  # PC2 不是发起人的电脑，PC1 又在线：先让着
+        self.assertIsNone(self.lease("CRED-3")["request"])  # PC3 够不到这份账套，永远领不到
+        leased = self.lease("CRED-1")["request"]  # 发起人自己的电脑
+        self.assertEqual(leased["id"], made["request"])
+        self.assertEqual((leased["params"]["account_set"], leased["params"]["account_root"]),
+                         ("S:\\EXP\\DATA\\ACME69", "S:\\EXP"))  # 换成 PC1 自己的写法
+        self.assertEqual(json.loads(self.db.rows[made["request"]].params_json)["account_set"], self.KEY)  # 存着的不改
+
+    def test_a_books_read_moves_on_after_two_minutes_or_when_the_askers_computer_is_away(self):
+        params = {"account_set": self.KEY, "account_root": "", "since": "2025-10-01"}
+        made = self.service.create("account_history", "C1", params, "account_history:k1", account_key=self.KEY)
+
+        def asker_here():  # PC1（发起人的电脑）此刻在、会读账套，只是这一轮还没来领
+            self.service._remember("C1", "PC1", "1.6.0", ["account_history"], self.clock.now)
+
+        asker_here()
+        self.assertIsNone(self.lease("CRED-2")["request"])
+        self.clock.now += timedelta(seconds=route_contracts.HANDOFF_SECONDS + 1)
+        asker_here()
+        leased = self.lease("CRED-2")["request"]  # 排了 120 秒：够得到的谁都行
+        self.assertEqual(leased["id"], made["request"])
+        self.assertEqual(leased["params"]["account_set"], "\\\\nas\\exp\\data\\acme69")
+        # 发起人的电脑不在（SEEN_SECONDS 内没来领过）：够得到的另一台立刻领
+        other = self.service.create("account_history", "C1", params, "account_history:k2", account_key=self.KEY)
+        self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 1)
+        self.assertEqual(self.lease("CRED-2")["request"]["id"], other["request"])
+
+    def test_waiting_for_a_books_read_asks_the_computers_that_reach_it(self):
+        self.assertEqual(self.service.waiting("C1", "express_read", account_key=self.KEY)["reason"], "offline")
+        self.lease("CRED-3")  # 在线但够不到这份账套
+        self.assertEqual(self.service.waiting("C1", "express_read", account_key=self.KEY)["reason"], "offline")
+        self.lease("CRED-2")
+        self.assertEqual(self.service.waiting("C1", "express_read", account_key=self.KEY), {})
+        self.assertEqual(self.service.waiting("C1", "express_read", account_key="\\\\nas\\none")["reason"],
+                         "offline")  # 没有电脑够得到
+
+    def test_expiry_scans_without_locks_and_locks_only_what_expired(self):
+        old = self.service.create("folder_list", "C1", {"p": 0}, "folder_list:old", target_device="PC1")
+        self.clock.now += timedelta(seconds=contracts.CLAIM_SECONDS + 5)
+        fresh = self.service.create("folder_list", "C1", {"p": 1}, "folder_list:new", target_device="PC2")
+        self.db.locked.clear()
+        self.lease("CRED-1")
+        self.assertEqual(self.db.rows[old["request"]].status, "expired")
+        self.assertEqual(self.db.rows[fresh["request"]].status, "requested")
+        self.assertEqual(self.db.locked, [old["request"]])  # 只锁到期的那件，PC2 的那件不碰
 
 
 class MachineReplyTests(unittest.TestCase):
@@ -659,24 +820,32 @@ class FetchServiceTests(unittest.TestCase):
         self.results = {}
         self.statuses = {}
         self.open, self.found = {}, []
+        self.targets = []
         service = types.SimpleNamespace(
             find=lambda kind, connection, key: self.found.append((kind, connection, key)) or self.open.get(key),
-            waiting=lambda connection, kind, version="": self.asked.append((connection, kind, version))
-            or self.waiting_reply,
-            create=lambda kind, connection, params, key: self.created.append((kind, connection, params, key))
-            or {"request": "r%d" % len(self.created), "status": "requested"},
+            waiting=lambda connection, kind, version="", device=None: self.asked.append((connection, kind, version))
+            or self.devices_asked.append(device) or self.waiting_reply,
+            create=lambda kind, connection, params, key, target_device="": (
+                self.created.append((kind, connection, params, key)), self.targets.append(target_device))
+            and {"request": "r%d" % len(self.created), "status": "requested"},
             status=lambda request: self.statuses[request],
             result=lambda request: self.results[request],
             drop=self.dropped.append)
         self.agent_state = {"version": "1.5.0", "roots": [{"id": "root1", "label": "D:\\Clients", "folders": []}]}
-        agent = types.SimpleNamespace(read=lambda connection: self.agent_state)
+        self.devices_asked = []
+
+        def resolve(value, root_id=None):
+            device, connection = folder_contracts.parse_reader(value)
+            return device or "PC1", connection  # 只给连接的旧写法：按根目录认出是 PC1
+
+        readers = types.SimpleNamespace(resolve=resolve, state=lambda device, connection: self.agent_state)
         self.checked = []
         rules = types.SimpleNamespace(_require=lambda: self.checked.append("scope"),
                                       _connection=lambda name: self.checked.append(name) or types.SimpleNamespace(name=name))
         companion = types.ModuleType("pearnly_cowork.companion")
         companion.request_contracts, companion.request_service = contracts, service
         folder = types.ModuleType("pearnly_cowork.folder_intake")
-        folder.agent, folder.contracts, folder.rules = agent, folder_contracts, rules
+        folder.readers, folder.contracts, folder.rules = readers, folder_contracts, rules
         saved = {name: sys.modules.get(name) for name in ("frappe", "pearnly_cowork", "pearnly_cowork.companion",
                                                           "pearnly_cowork.folder_intake")}
         sys.modules.update({"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
@@ -696,6 +865,7 @@ class FetchServiceTests(unittest.TestCase):
         self.agent_state["version"] = "1.4.4"  # 文件夹同步报的版本交给通道分辨离线与要升级
         self.fetch.fetch("C1", "root1", "a.pdf")
         self.assertEqual(self.asked, [("C1", "folder_list", "1.5.0"), ("C1", "folder_fetch", "1.4.4")])
+        self.assertEqual(self.devices_asked, ["PC1", "PC1"])  # 只问读这个文件夹的那台电脑（ADR-021 第 4 批）
         self.assertEqual(self.created, [])
         self.assertEqual(self.checked[:2], ["scope", "C1"])  # 先核权限
 
@@ -725,6 +895,7 @@ class FetchServiceTests(unittest.TestCase):
         self.assertEqual((kind, connection), ("folder_list", "C1"))
         self.assertEqual(params, {"root_id": "root1", "folder": "ACME\\bank", "search": "kbank", "extensions": [".pdf"],
                                   "limit": 5000})
+        self.assertEqual(self.targets[0], "PC1")  # 定向给读这个文件夹的电脑，池里别的电脑领不到
         self.fetch.files("C1", "root1", "ACME/bank", search=" kbank ", extensions=["PDF"], scope="sesn_1")
         self.fetch.files("C1", "root1", "ACME/bank", search=" kbank ", extensions=["PDF"], scope="sesn_2")
         self.assertEqual(self.created[1][3], key)

@@ -589,6 +589,9 @@ cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
 # Express 池里各台电脑此刻在不在线、版本（`connections.pool.presence`，账套主档要不要请电脑读、会不会要升级）：电脑与
 # 密钥归 companion，connections 不导入它（ADR-021）。
 cowork_pool_presence = ["pearnly_cowork.companion.credentials.pool_peers"]
+# 同一台电脑的旧记录改挂到它已认领的记录上（`companion.devices`）：按电脑记的读文件夹任务、在途文件、公司文件夹一并转过去
+# （ADR-021 第 4 批；companion 不导入文件夹域）
+cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

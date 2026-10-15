@@ -62,6 +62,21 @@ def online(adapter, connection):
         frappe.db.commit()  # 只读；判在线会锁住凭据行，读完立刻放开，不带着锁去准备推送（小助手报到也要这把锁）
 
 
+def queueable(adapter, connection):
+    """定时任务的票现在能不能确认、排队（ADR-021 第 4 批，D4）：Express 池里有能写的电脑就行，电脑关着也排，开机后写
+    （与录入入口、确认同一判据，`companion.pool.state` 的 ``writers_known``）；以前要电脑此刻在线，否则每 10 分钟重试、
+    6 小时后记失败。池里一台能写的电脑都没有时仍按「电脑没连上」过一会儿再推。MR.ERP 服务端直连，总能排。
+    读不出就当能排，照常走现有提交（确认那一步会按真判据拒）。"""
+    target = ADAPTERS[adapter]
+    try:
+        return target.selectable(connection) if hasattr(target, "selectable") else True
+    except Exception:
+        frappe.clear_messages()
+        return True
+    finally:
+        frappe.db.commit()  # 只读；不带着读到的锁去准备推送
+
+
 def selectable(adapter, connection):
     """录入入口（CC 工具）能不能选这种 ERP：Express 要池里有能写的电脑（关着也算，D4）；MR.ERP 服务端直连，总能选。
     读不出当不能选（与 LINE 一样，不让人选一个确认不了的去向）。"""

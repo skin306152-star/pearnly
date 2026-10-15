@@ -6,7 +6,7 @@
 不挤现有客户（影响评估 2026-10-06）：
 - 识别：同时在识别的文件夹单不超过商户识别并发的一半（`ocr_inflight` 为 0 时自动取），且商户与全站的识别排队都低于上限一半才交，
   给网页 / LINE / 对账留足名额；排不上的文件留在本表，下一分钟再看，不变成会过期的识别单；
-- 推送：每条连接同时「录入中」的文件夹票不超过 `push_pending`（默认 5），会计手动推的单最多排在这几张后面；
+- 推送：每份账套（推送连接 + 账套，ADR-021 第 4 批）同时「录入中」的文件夹票不超过 `push_pending`（默认 5），会计手动推的单最多排在这几张后面；
 - 推送前扣费已成功（用户 2026-10-07：扣费成功后才推送）。
 
 先后（F7，2026-10-12）：同一写入连接、同一账套里，存货销售文件等同账套的存货进货文件推送有了结论（写完或停下待人）
@@ -356,10 +356,21 @@ def _recognized(entry):
 # ── 自动推送（限流）→ 推送有结论 ────────────────────────────────────────────────────
 
 
-def _pending_pushes(connection):
-    names = frappe.get_all(FILE, filters={"connection": connection, "state": ["in", ["recognized", "pushing"]]},
-                           pluck="outcome_json", ignore_permissions=True)
-    sent = [history for raw in names for history, outcome in json.loads(raw or "{}").items()
+def _push_target(entry):
+    """这份文件推往哪：（推送连接，账套）。限流按它算（ADR-021 第 4 批，方案 2.7）：以前按读文件夹的连接计，多台电脑后同一个
+    池里几台电脑各读各的文件夹、推往同一份账套，按读者计就各有 5 张，按账套计才是这份账套同时最多 5 张。"""
+    rule = frappe.db.get_value(RULE, entry.rule, ["connection", "account_set_key"], as_dict=True) or {}
+    return rule.get("connection") or entry.connection, normalize_express_account_key(rule.get("account_set_key"))
+
+
+def _pending_pushes(target):
+    """推往这份账套（``target`` =（推送连接，账套））、还在「录入中」的文件夹票数。"""
+    connection, key = target
+    rows = frappe.db.sql(f"""SELECT f.outcome_json, r.account_set_key FROM `tab{FILE}` f
+        INNER JOIN `tab{RULE}` r ON r.name = f.rule
+        WHERE r.connection = %s AND f.state IN ('recognized', 'pushing')""", (connection,), as_dict=True)
+    sent = [history for row in rows if normalize_express_account_key(row.account_set_key) == key
+            for history, outcome in json.loads(row.outcome_json or "{}").items()
             if isinstance(outcome, dict) and outcome.get("status") == "sent"]
     if not sent:
         return 0
@@ -405,7 +416,7 @@ def _push_step(cfg, deadline):
         if time.monotonic() > deadline:
             return
         entry = read(FILE, name, for_update=True)
-        if _pending_pushes(entry.connection) >= cfg["push_pending"]:
+        if _pending_pushes(_push_target(entry)) >= cfg["push_pending"]:
             continue
         try:
             if _waits_for_purchases(entry, cache, now):
@@ -429,13 +440,14 @@ def _push(entry, cfg, deadline):
     rule, problem = _live_rule(entry)
     outcome = json.loads(entry.outcome_json or "{}")
     name = entry.name
+    target = _push_target(entry)
     for history in json.loads(entry.histories_json or "[]"):
         if history in outcome:
             continue
         if problem:
             outcome[history] = {"status": "stopped", "reason": problem}
         else:
-            if time.monotonic() > deadline or _pending_pushes(entry.connection) >= cfg["push_pending"]:
+            if time.monotonic() > deadline or _pending_pushes(target) >= cfg["push_pending"]:
                 return
             retries = outcome.get("_retry") or {}
             attempt = int(retries.get(history) or 0)

@@ -108,6 +108,15 @@ def retire_orphan(name, actor):
         retire(doc, actor)
 
 
+def _move(connection, old, new):
+    """同一台电脑的旧记录 ``old`` 在这条连接上的东西转给 ``new``：池里的可达行与本机登记（`connections.pool.move_device`），
+    还有按电脑记的读文件夹任务、在途文件、公司文件夹（钩子 ``cowork_reader_device_moved``，文件夹域不由本域导入）。
+    调用方已锁连接与密钥行，电脑行还没锁（加锁顺序）。"""
+    pool.move_device(connection, old, new)
+    for path in frappe.get_hooks('cowork_reader_device_moved') or []:
+        frappe.get_attr(path)(connection, old, new)
+
+
 def after_revoke(key, actor, *, successor=None):
     """一把密钥吊销之后（密钥行已锁好）：这台电脑在这条连接上一把有效密钥都不剩，它在这条连接上的可达行删掉——不然目录
     还显示它够得到、可写，只有它够得到的账套的读请求永远排队；再按 :func:`retire_orphan` 处理没人认领的旧电脑。
@@ -116,7 +125,7 @@ def after_revoke(key, actor, *, successor=None):
     if not device:
         return
     if successor:
-        pool.move_device(key.connection, device, successor)
+        _move(key.connection, device, successor)
     if not current_key(key.connection, device):
         pool.forget_device(device, connection=key.connection)
     retire_orphan(device, actor)
@@ -201,7 +210,7 @@ def hello(site, key, values):
     # 池里各行（连接域）在电脑行之前：迁移来的旧槽位密钥改挂到同一台电脑已认领的记录上，旧电脑在这条连接上的可达行、
     # 只属于它的本机登记一并转过去，旧电脑才退役（不然那台第一次整份上报时，同一份账套会被登记出第二个规范键）
     if target and key.device and target != key.device:
-        pool.move_device(key.connection, key.device, target)
+        _move(key.connection, key.device, target)
     # 3. 电脑行，最后锁，并复核第 1 步读到的
     if stale:
         release(read(stale))

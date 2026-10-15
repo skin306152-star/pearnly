@@ -68,8 +68,17 @@ class SaveMrerpTask(unittest.TestCase):
         frappe.db.get_value = lambda doctype, name, field: "{}" if field == "report_json" else connections[name].get(field)
         group = {"label": "Company", "items": [{"value": "Y1", "label": "2569"}]}
         masters = mock.Mock(return_value={})
-        agents = {"C1": {"roots": [{"id": self.ROOT_A, "label": "D:\\Bills"}], "version": "1.3.23"},
-                  "EX": {"roots": [{"id": self.ROOT_B, "label": "S:\\Scans"}], "version": "1.3.23"}}
+        # 本机情况按（电脑，成员连接）存（ADR-021 第 4 批）：C1 上一台 PC1，借用的 Express 池 EX 上一台 PX
+        agents = {("PC1", "C1"): {"roots": [{"id": self.ROOT_A, "label": "D:\\Bills"}], "version": "1.3.23"},
+                  ("PX", "EX"): {"roots": [{"id": self.ROOT_B, "label": "S:\\Scans"}], "version": "1.3.23"}}
+        members = {"C1": {"PC1": {"label": "Office PC"}}, "EX": {"PX": {"label": "Server"}}}
+        agent = stub(read=lambda name, reader_device="": agents.get((reader_device, name), {}), fresh=lambda state: True)
+        readers = _load(f"folder_readers_mrerp_{adapter}", APP / "folder_intake/readers.py", {
+            "frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
+            "pearnly_cowork.companion": stub(credentials=stub(pool_peers=lambda connection: dict(members.get(connection, {})),
+                                                              device_id=lambda credential: credential)),
+            "pearnly_cowork.folder_intake": stub(agent=agent, contracts=contracts),
+            "pearnly_cowork.folder_intake.access": stub(COMPANY_FOLDER="CF", FILE="F", RULE="R", RUN="U")})
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: "2026-10-09 10:00:00"),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None)),
@@ -81,7 +90,7 @@ class SaveMrerpTask(unittest.TestCase):
                                     records=lambda *a: [dict(row) for row in connections.values()],
                                     ensure_account_masters=lambda *a: {"state": "ready"})),
                    "pearnly_cowork.folder_intake": stub(
-                       agent=stub(read=lambda name: agents.get(name, {}), fresh=lambda state: True),
+                       agent=agent, readers=readers,
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),
                        inbox=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="Cowork Folder Intake Rule", RUN="U",
@@ -99,16 +108,17 @@ class SaveMrerpTask(unittest.TestCase):
         rules, saved, masters = self._rules("mrerp")
         rules.save(json.dumps(self.values(payment="credit", posting_kind="stock", defaults={"payment": "cash"})))
         row = saved[-1]
-        self.assertEqual((row["payment"], row["posting_kind"], json.loads(row["defaults_json"]), row["reader"]),
-                         ("credit", "", {}, "C1"))
+        self.assertEqual((row["payment"], row["posting_kind"], json.loads(row["defaults_json"]), row["reader"],
+                          row["reader_device"]), ("credit", "", {}, "C1", "PC1"))
         masters.assert_not_called()  # 不读 Express 主档
 
     def test_mrerp_task_can_borrow_the_express_helper(self):
         rules, saved, _masters = self._rules("mrerp")
         rules.save(json.dumps(self.values(payment="credit", reader="EX", root_id=self.ROOT_B)))
-        self.assertEqual((saved[-1]["connection"], saved[-1]["reader"]), ("C1", "EX"))
+        self.assertEqual((saved[-1]["connection"], saved[-1]["reader"], saved[-1]["reader_device"]), ("C1", "EX", "PX"))
         view = rules.options("C1")
         self.assertEqual([reader["connection"] for reader in view["readers"]], ["C1", "EX"])
+        self.assertEqual([reader["reader"] for reader in view["readers"]], ["PC1|C1", "PX|EX"])
         with self.assertRaises(Exception):  # 文件夹不是那台小助手的
             rules.save(json.dumps(self.values(payment="credit", reader="EX", root_id=self.ROOT_A)))
 
@@ -125,7 +135,8 @@ class SaveMrerpTask(unittest.TestCase):
         with self.assertRaises(Exception):
             rules.save(json.dumps(self.values()))
         rules.save(json.dumps(self.values(posting_kind="service", payment="cash")))
-        self.assertEqual((saved[-1]["posting_kind"], saved[-1]["payment"], saved[-1]["reader"]), ("service", "", "C1"))
+        self.assertEqual((saved[-1]["posting_kind"], saved[-1]["payment"], saved[-1]["reader"], saved[-1]["reader_device"]),
+                         ("service", "", "C1", "PC1"))
         self.assertEqual([reader["connection"] for reader in rules.options("C1")["readers"]], ["C1"])
         with self.assertRaises(Exception):
             rules.save(json.dumps(self.values(posting_kind="service", reader="EX", root_id=self.ROOT_B)))
@@ -134,9 +145,10 @@ class SaveMrerpTask(unittest.TestCase):
 class Reader(unittest.TestCase):
     def test_machine_side_follows_the_reader(self):
         source = (APP / "folder_intake/machine.py").read_text()
-        self.assertIn("if (rule.reader or rule.connection) != context.connection:", source)
-        self.assertIn("IFNULL(NULLIF(reader, ''), connection) = %s", source)
-        self.assertIn('"connection": context.connection, "run": run', source)
+        # 读者 =（电脑，成员连接）（ADR-021 第 4 批）：任务、文件、运行都按这台电脑这个成员认
+        self.assertIn("if readers.of(rule) != (device, context.connection):", source)
+        self.assertIn("IFNULL(NULLIF(reader, ''), connection) = %s AND reader_device = %s", source)
+        self.assertIn('"connection": context.connection, "reader_device": device,\n                      "run": run', source)
         patch = (APP / "patches/v0_0_14_folder_task_reader.py").read_text()
         self.assertIn("SET reader = connection WHERE IFNULL(reader, '') = ''", patch)
         self.assertIn("pearnly_cowork.patches.v0_0_14_folder_task_reader", (APP / "patches.txt").read_text())
@@ -152,7 +164,7 @@ class Probe(unittest.TestCase):
         # 2026-10-12 起回复另带新版提示与提醒（`companion_latest` / `notices`），身份两项照旧在每一次回复里
         # 2026-10-15 起（ADR-020）另带根目录上限与还被用着的根目录（`max_roots` / `roots_in_use`）
         self.assertIn('reply = {"server_time": time.time(), "rules": rules, "entries": entries, "max_roots": '
-                      'contracts.MAX_ROOTS,\n             **_in_use(context.connection), **identity}', body)
+                      'contracts.MAX_ROOTS,\n             **_in_use(context.connection, device), **identity}', body)
         self.assertLess(probe, body.index('if body.get("roots_only") is True:'))
         self.assertIn("return reply", body)
 

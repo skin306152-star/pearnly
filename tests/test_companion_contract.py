@@ -685,6 +685,49 @@ class WriteDispatch(unittest.TestCase):
         self.assertTrue(read <= keys)
 
 
+class PoolRequests(unittest.TestCase):
+    """多台电脑的按需请求（ADR-021 第 4 批，方案 2.7、第 5 节「按需请求领取」与第 6 条）：
+
+    - 领取的请求体不改（``{version, kinds, device}``，电脑是谁由密钥推出），客户端不用改；
+    - 读账套的两种（回读、科目历史）领取时把通用位置键换成领取那台电脑的写法：这组键 = 服务端两种读账参数都有的键
+      = 客户端两个处理函数读的位置键；读文件夹的定向给持有根目录的电脑，参数照旧。"""
+
+    READBACK = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "readback"
+
+    def returned_keys(self, path, function):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        builder = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == function)
+        return {key.value for key in next(node.value for node in ast.walk(builder) if isinstance(node, ast.Return)).keys}
+
+    def test_the_substituted_location_keys_are_what_both_reads_send_and_the_helper_reads(self):
+        server = number_constants(SERVER / "request_contracts.py", ("LOCATION_KEYS", "ACCOUNT_KINDS", "FOLDER_KINDS",
+                                                                     "KINDS"))
+        self.assertEqual(set(server["LOCATION_KEYS"]), {"account_set", "account_root"})
+        self.assertEqual(set(server["ACCOUNT_KINDS"]), {"express_read", "account_history"})
+        self.assertEqual(set(server["ACCOUNT_KINDS"]) | set(server["FOLDER_KINDS"]), set(server["KINDS"]))
+        for path, function in ((self.READBACK / "contracts.py", "read_params"),
+                               (self.READBACK / "history_rules.py", "read_params")):
+            self.assertTrue(set(server["LOCATION_KEYS"]) <= self.returned_keys(path, function), path)
+        for path, function in ((COMPANION / "express_read.py", "read_books"),
+                               (COMPANION / "account_history.py", "read_history")):
+            source = method_source_of(path, function)
+            self.assertIn("resolve(cfg, params.get('account_set'), params.get('account_root'))", source)
+
+    def test_the_lease_body_is_unchanged_and_the_server_targets_by_key_and_computer(self):
+        round_source = method_source(COMPANION / "request_worker.py", "RequestWorker", "round")
+        sent = next(node for node in ast.walk(ast.parse(round_source)) if isinstance(node, ast.Call)
+                    and ast.unparse(node.func) == "client.next")
+        self.assertEqual({key.value for key in sent.args[0].keys}, {"version", "kinds", "device"})
+        service = (SERVER / "request_service.py").read_text(encoding="utf-8")
+        self.assertIn("device = credentials.device_id(context.credential_id)", service)
+        self.assertIn("IFNULL(target_device, '') IN (%s, '')", service)
+        self.assertIn("params = contracts.localize(params, reach.path, reach.root)", service)
+        fetch = (FOLDER_SERVER / "fetch.py").read_text(encoding="utf-8")
+        self.assertIn("target_device=device", fetch)
+        for path in (self.READBACK / "service.py", self.READBACK / "history.py"):
+            self.assertIn('account_key=', path.read_text(encoding="utf-8"))
+
+
 def _module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)

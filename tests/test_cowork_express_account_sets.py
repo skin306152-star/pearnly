@@ -986,8 +986,8 @@ class PatchModule(unittest.TestCase):
 
     def test_registered_after_the_device_patch(self):
         lines = (APP / "patches.txt").read_text().splitlines()
-        self.assertEqual(lines[-1], "pearnly_cowork.patches.v0_0_20_express_account_sets")
-        self.assertLess(lines.index("pearnly_cowork.patches.v0_0_19_companion_devices"), len(lines) - 1)
+        self.assertLess(lines.index("pearnly_cowork.patches.v0_0_19_companion_devices"),
+                        lines.index("pearnly_cowork.patches.v0_0_20_express_account_sets"))
 
 
 class Schema(unittest.TestCase):

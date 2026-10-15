@@ -90,7 +90,8 @@ def _install():
                                                None)),
         "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, selectable=lambda *a: True,
                                                           of=lambda adapter: None),
-        "pearnly_cowork.folder_intake.agent": dict(read=lambda reader: {}),
+        "pearnly_cowork.folder_intake.readers": dict(resolve=lambda value, root=None: ("", value),
+                                                     state=lambda device, connection: {}),
         "pearnly_cowork.folder_intake.rules": dict(listing=lambda: {}, run_now=lambda n: {}, runs=lambda n: {},
                                                    waiting=lambda *a: None, account_label=lambda c, k: k,
                                                    master_names=lambda c, k: {},
@@ -985,6 +986,17 @@ class FolderTaskTests(unittest.TestCase):
         found = json.loads(tools.folder_task_options({"connection": "EXP1", "search": "2026-07"}))
         self.assertEqual(found["computers"][0]["roots"][0]["folders"], ["2026-07"])
 
+    def test_each_computer_of_the_pool_is_offered_by_its_reader_id(self):
+        """多台电脑（ADR-021 第 4 批）：同一个池里两台电脑各是一项，读者是不透明的「电脑|连接」，存任务、列文件、取文件原样
+        传回；旧任务服务（只有连接）照旧给连接。"""
+        tools.rules.options = lambda connection, key: {"readers": [
+            {"connection": "EXP1", "reader": "PC1|EXP1", "label": "ACC-01", "fresh": True, "roots": []},
+            {"connection": "EXP1", "reader": "PC2|EXP1", "label": "ACC-02", "fresh": False, "roots": []},
+            {"connection": "MR1", "label": "Old", "fresh": False, "roots": []}]}
+        out = json.loads(tools.folder_task_options({"connection": "EXP1"}))
+        self.assertEqual([(row["reader"], row["computer"], row["online"]) for row in out["computers"]],
+                         [("PC1|EXP1", "ACC-01", True), ("PC2|EXP1", "ACC-02", False), ("MR1", "Old", False)])
+
     def test_options_give_the_reported_file_counts(self):
         """小助手报了各文件夹现有几份就带上（CC 建任务前能说出来）：数过的（有 counts 键，哪怕是空的）没文件的文件夹给 0；
         没报过的（没有 counts 键）不给，不拿 0 冒充（interfaces-2）。"""
@@ -1600,7 +1612,8 @@ class FolderTaskBatchTests(unittest.TestCase):
             patcher = mock.patch.object(tools.rules, name, value, create=True)
             patcher.start()
             self.addCleanup(patcher.stop)
-        for target, name, value in ((tools.agent, "read", lambda reader: {"roots": [{"id": "r1", "label": "C:\\Bills"}]}),
+        for target, name, value in ((tools.folder_readers, "state",
+                                     lambda device, connection: {"roots": [{"id": "r1", "label": "C:\\Bills"}]}),
                                     (frappe.local, "pearnly_assistant", {"session_id": "sesn_7"}),
                                     (frappe.db, "get_value", lambda *a, **k: "express")):
             patcher = mock.patch.object(target, name, value, create=True)
@@ -1636,6 +1649,17 @@ class FolderTaskBatchTests(unittest.TestCase):
         self.assertEqual(out["tasks"][0], {"task": "R1", "title": "Ice purchases", "enabled": 1,
                                            "defaults": {"payment": "cash", "account": "5100"}, "remind": 1})
         self.assertEqual((frappe.commits - commits, frappe.rollbacks - rollbacks), (1, 0))
+
+    def test_an_existing_task_keeps_its_reader_id_and_does_not_look_moved(self):
+        """多台电脑（ADR-021 第 4 批）：任务列表的 ``reader`` 是成员连接、``reader_id`` 是「电脑|连接」。改任务以现值为底时
+        传回读者编号（同一个池里几台电脑时不会认成另一台）；卡片不因写法不同把它当成换了文件夹（不说份数）。"""
+        self.current.update(reader="EXP1", reader_device="PC2", reader_id="PC2|EXP1")
+        tools.save_folder_tasks({"tasks": [{"name": "R1", "run_time": "23:00"}]})
+        (items, _conversation), = self.calls
+        self.assertEqual(items[0]["reader"], "PC2|EXP1")
+        with mock.patch.object(tools, "_", _term):
+            rows = tools.preview_save_folder_tasks({"tasks": [{"name": "R1", "run_time": "23:00"}]})
+        self.assertEqual(rows[0]["after"], "23:00")
 
     def test_a_refused_task_keeps_nothing_and_says_which(self):
         self.result = {"saved": [], "failed": [{"task": 2, "title": "Ice sales", "reason": "overlaps «Ice purchases»"}]}

@@ -24,6 +24,7 @@ from pearnly_cowork.companies.access import COMPANY, NOTE, read, write
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import agent, company_folders
 from pearnly_cowork.folder_intake import contracts as folder_contracts
+from pearnly_cowork.folder_intake import readers as folder_readers
 from pearnly_cowork.folder_intake.access import RULE
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -460,7 +461,7 @@ def tasks_of(sets) -> list | None:
     if not usable:
         return []
     rows = frappe.get_all(RULE, filters={"connection": ["in", usable]},
-                          fields=["name", "title", "enabled", "connection", "reader", "account_set_key",
+                          fields=["name", "title", "enabled", "connection", "reader", "reader_device", "account_set_key",
                                   "account_label", "root_id", "folder"],
                           order_by="creation asc", ignore_permissions=True, limit_page_length=0)
     states = _cache().setdefault("agents", {})
@@ -469,9 +470,9 @@ def tasks_of(sets) -> list | None:
         key = normalize_express_account_key(row.account_set_key) or str(row.account_set_key or "")
         if (row.connection, key.casefold()) not in wanted:
             continue
-        reader = row.reader or row.connection
+        reader = folder_readers.ref(row)
         if reader not in states:
-            states[reader] = agent.read(reader)
+            states[reader] = folder_readers.state(*folder_readers.of(row))
         roots = states[reader].get("roots") or []
         out.append({"name": row.name, "title": row.title or "", "enabled": bool(row.enabled),
                     "account_label": row.account_label or "", "connection": row.connection,
@@ -629,7 +630,7 @@ def task_overview() -> dict:
     if not usable:
         return empty
     rows = frappe.get_all(RULE, filters={"connection": ["in", usable]},
-                          fields=["name", "enabled", "connection", "reader", "account_set_key"],
+                          fields=["name", "enabled", "connection", "reader", "reader_device", "account_set_key"],
                           order_by="creation asc", ignore_permissions=True, limit_page_length=0)
     by_set, _by_tax = attribution()
     states = _cache().setdefault("agents", {})
@@ -643,9 +644,9 @@ def task_overview() -> dict:
         found["count"] += 1
         if found["alert"]:
             continue
-        reader = row.reader or row.connection
+        reader = folder_readers.ref(row)
         if reader not in states:
-            states[reader] = agent.read(reader)
+            states[reader] = folder_readers.state(*folder_readers.of(row))
         health = (states[reader].get("health") or {}).get(row.name) if agent.fresh(states[reader]) else None
         attention = int((folder_rules.results(row.name) or {}).get("attention") or 0)
         found["alert"] = bool(attention or (row.enabled and health in ("root_missing", "folder_missing")))

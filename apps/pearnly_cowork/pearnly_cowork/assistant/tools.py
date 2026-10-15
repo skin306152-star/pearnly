@@ -22,8 +22,9 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.folder_intake import agent, destinations, rules
+from pearnly_cowork.folder_intake import destinations, rules
 from pearnly_cowork.folder_intake import contracts as folder_contracts
+from pearnly_cowork.folder_intake import readers as folder_readers
 from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
 from pearnly_cowork.push.application import service as application
@@ -2299,7 +2300,7 @@ def folder_tasks(tool_input) -> str:
     listing = rules.listing()
     keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
             "folder", "root_label", "run_day", "run_time", "defaults", "remind", "remind_times", "include_existing",
-            "last_run", "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state")
+            "last_run", "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state", "reader_gone")
     tasks = []
     for row in listing.get("rules") or []:
         if pairs is not None and (str(row.get("connection") or ""), _account_key(row.get("account_set_key"))) not in pairs:
@@ -2369,8 +2370,9 @@ def folder_task_options(tool_input) -> str:
                 if root.get("partial"):
                     item["files_partial"] = True
             roots.append(item)
-        readers.append({"reader": reader.get("connection"), "computer": reader.get("label"), "online": reader.get("fresh"),
-                        "roots": roots})
+        # 读者编号「电脑|连接」（ADR-021 第 4 批）：同一个池里几台电脑各是一项，存任务、列文件、取文件都原样传回
+        readers.append({"reader": reader.get("reader") or reader.get("connection"), "computer": reader.get("label"),
+                        "online": reader.get("fresh"), "roots": roots})
     out = {"computers": readers, "stock_group": data.get("stock_group")}
     masters = data.get("masters") or {}
     if masters.get("state") not in (None, "ready") and data.get("accounts") is None:
@@ -2682,7 +2684,9 @@ def _task_rows(items) -> dict:
     """要改的已有任务的现值（任务列表只读一次）；全是新任务就不读。"""
     if not any(isinstance(item, dict) and item.get("name") for item in items):
         return {}
-    return {row.get("name"): row for row in rules.listing().get("rules") or []}
+    # 读者按编号「电脑|连接」比与回传（任务列表的 ``reader`` 仍是成员连接，给第 6 批之前的网页用）
+    return {row.get("name"): {**row, "reader": row.get("reader_id") or row.get("reader")}
+            for row in rules.listing().get("rules") or []}
 
 
 def _given_defaults(item):
@@ -3024,9 +3028,10 @@ def _task_lines(item, rows, cache) -> tuple:
     before = _task_shown(current) if current else {}
     moved = not current or _same_place(values) != _same_place(current)
     if moved:
-        reader = values.get("reader") or connection
-        roots = _cached(cache, ("roots", reader), lambda: {r.get("id"): r.get("label")
-                                                           for r in agent.read(reader).get("roots") or []}) or {}
+        reader, root = values.get("reader") or connection, values.get("root_id")
+        roots = _cached(cache, ("roots", reader, root), lambda: {
+            r.get("id"): r.get("label")
+            for r in folder_readers.state(*folder_readers.resolve(reader, root)).get("roots") or []}) or {}
         folder = "\\".join(p for p in (roots.get(values.get("root_id")), _folder_path(values.get("folder"))) if p)
     else:
         folder = before.get("cowork.folder.field.folder", "")
@@ -3883,7 +3888,9 @@ TOOLS = [
                     "with their schedule, default handling, reminder, last run and whether CC Desktop on the computer "
                     "that reads the folder is online. waiting is how many files in the folder the task has not processed yet "
                     "(waiting_partial: at least that many; null when not known). results counts invoices entered, "
-                    "invoices needing attention, and files still moving. In a conversation filed under a company it "
+                    "invoices needing attention, and files still moving. reader_gone: the computer that read the "
+                    "folder was removed, so the task needs another computer's folder (cowork_folder_task_options). "
+                    "In a conversation filed under a company it "
                     "lists only that company's tasks (scope names it) unless all_companies is true.",
      "input_schema": {"type": "object", "properties": dict(SCOPE_PROPS)},
      "handler": "pearnly_cowork.assistant.tools.folder_tasks"},

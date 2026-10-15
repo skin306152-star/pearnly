@@ -617,6 +617,7 @@ class ServiceHarness:
         self.rows, self.after, self.requests = {}, [], {}
         self.user = "a@example.com"
         self.calls = []
+        self.waited, self.targets = [], {}
         self.presence = {}
         self.pushed = []
         self.broken = False
@@ -661,7 +662,8 @@ class ServiceHarness:
             "pearnly_cowork.companion.request_service": dict(
                 create=self.create, find=self.find, status=self.request_status, result=self.result,
                 drop=lambda name: self.calls.append(("drop", name)) or self.requests.pop(name, None),
-                waiting=lambda connection, kind, known="": self.calls.append(("waiting", kind)) or dict(self.presence)),
+                waiting=lambda connection, kind, known="", account_key=None: self.calls.append(("waiting", kind))
+                or self.waited.append(account_key) or dict(self.presence)),
             "pearnly_cowork.connections.access": dict(require_connection=lambda doc: self.calls.append(
                 ("connection", doc.name))),
             "pearnly_cowork.connections.service": dict(
@@ -730,8 +732,9 @@ class ServiceHarness:
         self.after.clear()
 
     # 按需请求替身
-    def create(self, kind, connection, params, key):
+    def create(self, kind, connection, params, key, account_key=""):
         name = hashlib.sha256(key.encode()).hexdigest()[:32]
+        self.targets[name] = account_key
         self.requests[name] = {"request": name, "kind": kind, "status": "requested", "code": "", "params": params}
         self.calls.append(("create", kind, connection, params, key))
         return dict(self.requests[name])
@@ -795,6 +798,9 @@ class Service(unittest.TestCase):
                          ["find", "waiting", "create"])
         self.assertEqual((row.account_set_key, json.loads(row.params_json)),
                          ("s:\\exp69\\t9sincer", {"accounts": ["11-01"], "folder": "T9SINCER"}))
+        # 多台电脑（ADR-021 第 4 批）：不定向，带这份账套的规范键；问的是够得到它的电脑在不在
+        self.assertEqual(list(self.h.targets.values()), ["s:\\exp69\\t9sincer"])
+        self.assertEqual(self.h.waited, ["s:\\exp69\\t9sincer"])
         # 还在读时再请求同一份：回同一份，不另建；总账要的科目不同才另读一份
         again = self.service.request("EXP1", "S:\\EXP69\\T9SINCER", "2026-05", ["11-01"])
         self.assertEqual(again["readback"], made["readback"])

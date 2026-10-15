@@ -22,7 +22,7 @@ from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.connections import preparation
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.folder_intake import agent, contracts, destinations, inbox
+from pearnly_cowork.folder_intake import agent, contracts, destinations, inbox, readers
 from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
@@ -116,31 +116,38 @@ def master_names(connection, account_set_key):
 
 
 def _readers(doc):
-    """能给这个任务读文件夹的小助手（各自的连接）：Express 任务只能是它自己那台（写账套的也是它）；MR.ERP 任务可以是
-    同一工作空间里任一台已配好的小助手 —— Express 的，或 MR.ERP 自己发配对码配的（2026-10-09：同时用两种 ERP 的
-    不用再配第二个配对码，只用 MR.ERP 的才在 MR.ERP 上配一台）。都要当前用户能用这条连接。"""
-    if doc.adapter == "express":
-        return [doc]
+    """能给这个任务读文件夹的读者（电脑，成员连接，那台电脑此刻的情况）：这条连接上的每台电脑 —— Express 池里哪台都能读，
+    读与写分开，写入照写账分派（ADR-021 第 4 批，方案 2.7）；MR.ERP 任务另可借同一工作空间里 Express 池的电脑
+    （2026-10-09：同时用两种 ERP 的不用再配第二个配对码，只用 MR.ERP 的才在 MR.ERP 上配一台）。都要当前用户能用那条连接。
+    任务自己那条连接一台电脑都没有时留一个空位（表单照旧显示「电脑没连上」）。"""
     found = [doc]
-    for row in connections.records(doc.workspace, doc.client or None, 0, 100) or []:
-        if row.get("name") == doc.name or row.get("adapter") != "express":
-            continue
-        try:
-            found.append(_connection(row["name"]))
-        except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
-            frappe.clear_messages()
-    return found
+    if doc.adapter != "express":
+        for row in connections.records(doc.workspace, doc.client or None, 0, 100) or []:
+            if row.get("name") == doc.name or row.get("adapter") != "express":
+                continue
+            try:
+                found.append(_connection(row["name"]))
+            except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+                frappe.clear_messages()
+    result = []
+    for item in found:
+        peers = readers.members(item.name)
+        result += [(item, device, peers[device]) for device in sorted(peers)]
+        if item is doc and not peers:
+            result.append((doc, "", {}))
+    return result
 
 
-def _reader_view(doc):
-    state = agent.read(doc.name)
+def _reader_view(doc, device="", peer=None):
+    peer = peer or {}
+    state = readers.state(device, doc.name)
     report = {}
     try:
         report = json.loads(frappe.db.get_value(CONNECTION, doc.name, "report_json") or "{}")
     except (TypeError, ValueError):
         pass
-    # 电脑名：小助手同步文件夹时报的（1.3.23 起）→ 当前上报心跳的那台电脑的名字（电脑记录，ADR-021）→ 连接名。
-    label = state.get("device") or (devices.reporter_label(doc.name) if doc.adapter == "express" else "") or doc.label
+    # 电脑名：小助手同步文件夹时报的（1.3.23 起）→ 这台电脑记录上的名字（ADR-021）→ 连接名。
+    label = state.get("device") or peer.get("label") or doc.label
     fresh = agent.fresh(state)
     roots = state.get("roots") or []
     if not fresh:
@@ -150,22 +157,22 @@ def _reader_view(doc):
     # 自动更新被 Windows 拦下：Express 以心跳报的为准（同在线），只读文件夹的 MR.ERP 成员以文件夹同步报的为准；
     # 被拦的版本不比这台电脑现在跑的新（已手动装上）就不显示。
     if doc.adapter == "express" and isinstance(report, dict):
-        # 版本第 3 批起只记在各台电脑上（连接的上报记录不再存，ADR-021）：取池里最新的那台
+        # 版本第 3 批起只记在各台电脑上（连接的上报记录不再存，ADR-021）：这台电脑报的，没有再取池里最新的那台
         blocked = report.get(desktop_update.KEY)
-        running = report.get("companion_version") or devices.newest_version(doc.name)
+        running = peer.get("version") or report.get("companion_version") or devices.newest_version(doc.name)
     else:
         blocked, running = state.get(desktop_update.KEY), state.get("version")
-    return {"connection": doc.name, "adapter": doc.adapter, "label": str(label or doc.name)[:80],
+    # ``connection`` 仍是成员连接（第 6 批之前的网页拿它当下拉的值）；``reader`` 是读者编号（电脑|连接）
+    return {"connection": doc.name, "reader": contracts.reader_ref(device, doc.name), "device": device,
+            "adapter": doc.adapter, "label": str(label or doc.name)[:80],
             "fresh": fresh, "version": state.get("version") or "", "roots": roots,
             "update_blocked": desktop_update.current(blocked, running)}
 
 
 def computers():
-    """网页设置里只读的「连接」（2026-10-10）：本工作空间里连着电脑的 Express / MR.ERP 连接 —— 哪台电脑、在不在线、
-    网页可读取的文件夹。只能看；连接、断开、加减文件夹都只在那台电脑的 CC 桌面端上做（文件夹权限是电脑上的安全边界）。
-    与定时任务页同一判据：录入权限 + 这条连接的使用授权；没有连过电脑的连接不列。"""
-    from pearnly_cowork.companion import pool
-
+    """网页设置里只读的「连接」（2026-10-10）：本工作空间里连着电脑的 Express / MR.ERP 连接上的每台电脑（ADR-021 第 4 批：
+    一台电脑一行）—— 哪台电脑、在不在线、网页可读取的文件夹。只能看；连接、断开、加减文件夹都只在那台电脑的 CC 桌面端上
+    做（文件夹权限是电脑上的安全边界）。与定时任务页同一判据：录入权限 + 这条连接的使用授权；没有连过电脑的不列。"""
     _require()
     result = []
     for row in connections.records(None, None, 0, 100) or []:
@@ -176,16 +183,18 @@ def computers():
         except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
             frappe.clear_messages()
             continue
-        view = _reader_view(doc)
-        # Express 以心跳为准（池里能写的电脑 3 分钟内报过到，`companion.pool.state`）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
-        online = bool(pool.for_user(doc.name)["online"]) if doc.adapter == "express" else view["fresh"]
-        if not (online or view["version"]):
-            continue
-        row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
-               "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)]}
-        if view.get("update_blocked"):
-            row["update_blocked"] = view["update_blocked"]   # {version, at}：网页如实显示一句
-        result.append(row)
+        peers = readers.members(doc.name)
+        for device in sorted(peers):
+            view = _reader_view(doc, device, peers[device])
+            # Express 以这台电脑的心跳为准（任一把有效密钥 3 分钟内报过到）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
+            online = bool(peers[device].get("online")) if doc.adapter == "express" else view["fresh"]
+            if not (online or view["version"]):
+                continue
+            row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
+                   "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)]}
+            if view.get("update_blocked"):
+                row["update_blocked"] = view["update_blocked"]   # {version, at}：网页如实显示一句
+            result.append(row)
     return result
 
 
@@ -193,9 +202,9 @@ def options(connection, account_set_key=None):
     """任务表单要的选项：能读文件夹的小助手与它们允许读取的根目录、文件夹；Express 另有账套的科目与部门、存货科目组。"""
     _require()
     doc = _connection(connection)
-    readers = [_reader_view(reader) for reader in _readers(doc)]
-    own = readers[0]
-    result = {"agent": {"fresh": own["fresh"], "version": own["version"]}, "roots": own["roots"], "readers": readers,
+    views = [_reader_view(item, device, peer) for item, device, peer in _readers(doc)]
+    own = next(view for view in views if view["connection"] == doc.name)
+    result = {"agent": {"fresh": own["fresh"], "version": own["version"]}, "roots": own["roots"], "readers": views,
               "accounts": None, "departments": None, "stock_group": None}
     if account_set_key and doc.adapter == "express":
         _value, _label = _catalog_item(doc.name, account_set_key)
@@ -269,25 +278,30 @@ def save(values, *, cc_session=None):
         _stock_ready(doc.name, account_set_key)
     # 任务存下时就请电脑读这份账套的科目表（还没读到的话），到点推送时已经有了
     _ensure_masters(doc, account_set_key)
-    reader = values.get("reader") or doc.name
-    if reader not in {item.name for item in _readers(doc)}:
+    name = values.get("name") or None
+    # 读者 =（电脑，成员连接）；只给连接的旧写法按根目录认是哪台，改任务时原来那台还报着这个根目录就仍是它
+    earlier = frappe.db.get_value(RULE, name, ["connection", "reader", "reader_device"], as_dict=True) if name else None
+    pair = readers.resolve(values.get("reader") or doc.name, root,
+                           keep=readers.of(earlier)[0] if earlier else None)
+    if pair not in {(device, item.name) for item, device, _peer in _readers(doc)}:
         frappe.throw(_("cowork.folder.root_invalid"))
-    roots = {row["id"] for row in agent.read(reader).get("roots") or []}
+    roots = {row["id"] for row in readers.state(*pair).get("roots") or []}
     if root not in roots:
         frappe.throw(_("cowork.folder.root_invalid"))
-    name = values.get("name") or None
+    device, reader = pair
     rule = read(RULE, name, for_update=True) if name else frappe.new_doc(RULE)
     if name and rule.connection != doc.name:
         # 换目标 ERP 等于另一个任务：原任务停用，另建一个。
         frappe.throw(_("cowork.folder.connection_fixed"))
-    _no_overlap(reader, root, folder, rule.name if name else None)
-    if not name and _count(reader) >= MAX_RULES:
+    _no_overlap(pair, root, folder, rule.name if name else None)
+    if (not name or readers.of(rule) != pair) and _count(pair) >= MAX_RULES:
         frappe.throw(_("cowork.folder.too_many"))
     before = _routing(rule) if name else None
     previous = _reminding(rule) if name else None
-    place = (_reader(rule), rule.root_id, (rule.folder or "").casefold()) if name else None
+    place = (readers.of(rule), rule.root_id, (rule.folder or "").casefold()) if name else None
     rule.update({"title": title, "workspace": doc.workspace, "client": doc.client or "", "connection": doc.name,
-                 "reader": reader, "rule_owner": frappe.session.user, "account_set_key": account_set_key,
+                 "reader": reader, "reader_device": device, "rule_owner": frappe.session.user,
+                 "account_set_key": account_set_key,
                  "account_label": label,
                  "direction": direction, "posting_kind": posting_kind, "payment": payment, "root_id": root, "folder": folder,
                  "run_day": day, "run_time": at, "defaults_json": json.dumps(defaults, sort_keys=True)})
@@ -295,8 +309,8 @@ def save(values, *, cc_session=None):
         rule.enabled, rule.active_since = 1, now_datetime()
         # 结果文件夹按建规则这个人的网页语言起名，之后改语言也不变（不在盘上再长出第二个结果文件夹）
         rule.result_folder = contracts.result_folder_for(getattr(frappe.local, "lang", None))
-    if not name or place != (reader, root, folder.casefold()):
-        continued = _overlapping(reader, root, folder, rule.name if name else None, 0)
+    if not name or place != (pair, root, folder.casefold()):
+        continued = _overlapping(pair, root, folder, rule.name if name else None, 0)
         rule.include_existing = 0 if continued else 1
         if continued and name:
             rule.active_since = now_datetime()
@@ -376,17 +390,18 @@ def save_many(items, *, cc_session=None):
 
 
 def _routing(rule):
-    return [rule.get(key) for key in ("account_set_key", "direction", "posting_kind", "payment", "reader", "root_id", "folder",
-                                      "run_day", "run_time", "defaults_json", "rule_owner")]
+    return [rule.get(key) for key in ("account_set_key", "direction", "posting_kind", "payment", "reader", "reader_device",
+                                      "root_id", "folder", "run_day", "run_time", "defaults_json", "rule_owner")]
 
 
-def _reader(row):
-    return row.get("reader") or row.get("connection")
-
-
-def _count(reader):
-    return frappe.db.sql(f"""SELECT COUNT(*) FROM `tab{RULE}` WHERE IFNULL(NULLIF(reader, ''), connection) = %s""",
-                         (reader,))[0][0]
+def _count(pair):
+    """这台电脑读的任务数（每台最多 :data:`MAX_RULES`，ADR-021 第 4 批起按电脑计，不分它的哪个成员）；还没认出电脑的老读者
+    按连接计。"""
+    device, reader = pair
+    if device:
+        return frappe.db.sql(f"""SELECT COUNT(*) FROM `tab{RULE}` WHERE reader_device = %s""", (device,))[0][0]
+    return frappe.db.sql(f"""SELECT COUNT(*) FROM `tab{RULE}` WHERE IFNULL(NULLIF(reader, ''), connection) = %s
+        AND IFNULL(reader_device, '') = ''""", (reader,))[0][0]
 
 
 def _no_overlap(reader, root, folder, current):
@@ -402,43 +417,54 @@ def continues_from(reader, root_id, folder, current=None):
     没有这台小助手的使用权、参数不合规时回 None。删掉的任务不留痕迹，认不出来。"""
     try:
         _require()
-        _connection(reader)
-        found = _overlapping(reader, contracts.root_id(root_id), contracts.folder(folder), current or None, 0)
+        root = contracts.root_id(root_id)
+        pair = readers.resolve(reader, root)
+        _connection(pair[1])
+        found = _overlapping(pair, root, contracts.folder(folder), current or None, 0)
     except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError, contracts.ContractError):
         frappe.clear_messages()
         return None
     return found.title if found else None
 
 
-def _overlapping(reader, root, folder, current, enabled):
+def _overlapping(pair, root, folder, current, enabled):
     """文件夹与之相同或互相包含的第一个任务（``enabled`` 1 = 启用的，0 = 停用的），没有回 None；不比 ``current`` 自己。
 
-    按「读文件夹的小助手」比（`reader`，MR.ERP 任务可以借用 Express 的小助手，2026-10-09）。同一台电脑：小助手授权时
-    就不许两个授权文件夹相同或互相包含（不分成员，`companion/folder_store.py`），这里再管同一个授权文件夹之内。
+    按「读文件夹的电脑」比（``pair`` =（电脑，成员连接），ADR-021 第 4 批；MR.ERP 任务可以借用 Express 的小助手，
+    2026-10-09）。同一台电脑：小助手授权时就不许两个授权文件夹相同或互相包含（不分成员，`companion/folder_store.py`），
+    根目录编号又是本机路径的摘要，这里按电脑与根目录再管同一个授权文件夹之内（不分它的哪个成员）。
     不同电脑：本机盘（C:\…）是各自的文件夹，不算重叠；网络共享（含映射盘换算回的网络路径）可能是同一个文件夹 ——
-    同一工作空间里其他小助手的任务按网络路径比对（2026-10-08）。同一个共享在一台电脑映射成盘符、另一台用网络路径
-    但小助手读不到映射的（非持久映射），认不出来。"""
-    rows = frappe.db.sql(f"""SELECT name, title, folder FROM `tab{RULE}` WHERE enabled = %s AND root_id = %s
-        AND IFNULL(NULLIF(reader, ''), connection) = %s""", (enabled, root, reader), as_dict=True)
+    同一工作空间里其他电脑的任务按网络路径比对（2026-10-08）。同一个共享在一台电脑映射成盘符、另一台用网络路径
+    但小助手读不到映射的（非持久映射），认不出来。还没认出电脑的老读者（电脑为空）照旧按连接认。"""
+    device, reader = pair
+    if device:
+        rows = frappe.db.sql(f"""SELECT name, title, folder FROM `tab{RULE}` WHERE enabled = %s AND root_id = %s
+            AND reader_device = %s""", (enabled, root, device), as_dict=True)
+    else:
+        rows = frappe.db.sql(f"""SELECT name, title, folder FROM `tab{RULE}` WHERE enabled = %s AND root_id = %s
+            AND IFNULL(NULLIF(reader, ''), connection) = %s AND IFNULL(reader_device, '') = ''""",
+                             (enabled, root, reader), as_dict=True)
     for row in rows:
         if row.name != current and contracts.nested(row.folder or "", folder):
             return row
-    mine = contracts.share_path(_share(reader, root), folder)
+    mine = contracts.share_path(_share(pair, root), folder)
     if not mine:
         return None
     workspace = frappe.db.get_value(CONNECTION, reader, "workspace")
-    others = frappe.db.sql(f"""SELECT name, title, connection, reader, root_id, folder FROM `tab{RULE}`
-        WHERE workspace = %s AND enabled = %s AND IFNULL(NULLIF(reader, ''), connection) != %s""",
-                           (workspace, enabled, reader), as_dict=True)
+    others = frappe.db.sql(f"""SELECT name, title, connection, reader, reader_device, root_id, folder FROM `tab{RULE}`
+        WHERE workspace = %s AND enabled = %s""", (workspace, enabled), as_dict=True)
     for row in others:
-        theirs = contracts.share_path(_share(_reader(row), row.root_id), row.folder or "")
+        theirs_pair = readers.of(row)
+        if theirs_pair[0] == device if device else theirs_pair == pair:
+            continue  # 同一台电脑（上面已按根目录比过）
+        theirs = contracts.share_path(_share(theirs_pair, row.root_id), row.folder or "")
         if row.name != current and theirs and contracts.path_nested(mine, theirs):
             return row
     return None
 
 
-def _share(connection, root):
-    return next((row.get("share") or "" for row in agent.read(connection).get("roots") or []
+def _share(pair, root):
+    return next((row.get("share") or "" for row in readers.state(*pair).get("roots") or []
                  if row.get("id") == root), "")
 
 
@@ -463,7 +489,7 @@ def set_enabled(name, enabled=None, *, remind=None, remind_times=None, cc_sessio
     if enabled is not None:
         enabled = 1 if str(enabled) in ("1", "true", "True") else 0
         if enabled and not rule.enabled:
-            _no_overlap(_reader(rule), rule.root_id, rule.folder or "", rule.name)
+            _no_overlap(readers.of(rule), rule.root_id, rule.folder or "", rule.name)
             rule.active_since = now_datetime()
             rule.rule_owner = frappe.session.user
             # 重新启用：提醒也从现在起算（停用期间的时段不补发）
@@ -537,7 +563,7 @@ def run_now(name):
 
 def listing():
     _require()
-    rows, usable = [], []
+    rows, usable, members = [], [], {}
     for connection in connections.records(scope.default_workspace(), None, 0, 100) or []:
         if not destinations.supported(connection.get("adapter")):
             continue
@@ -550,8 +576,12 @@ def listing():
         for name in frappe.get_all(RULE, filters={"connection": doc.name}, pluck="name",
                                    order_by="creation asc", ignore_permissions=True):
             row = project(read(RULE, name))
-            # 文件夹在不在、小助手在不在线，看的是读文件夹的那台小助手（`reader`）。
-            state = agent.read(row["reader"])
+            # 文件夹在不在、小助手在不在线，看的是读文件夹的那台电脑上的那个成员（`reader` + `reader_device`）。
+            state = readers.state(row["reader_device"], row["reader"])
+            if row["reader"] not in members:
+                members[row["reader"]] = readers.members(row["reader"])
+            # 读它的电脑已被移除（或这台电脑在这条连接上一把有效密钥都不剩）：任务留着原电脑，由负责人重选（方案 2.7）
+            row["reader_gone"] = bool(row["reader_device"]) and row["reader_device"] not in members[row["reader"]]
             roots = {item["id"]: item for item in state.get("roots") or []}
             fresh, root = agent.fresh(state), roots.get(row["root_id"]) or {}
             # 待处理数（1.4.4 起小助手报）：到点会处理、还没处理过的文件。停用的任务小助手不算；不知道就是 None（不用 0 冒充）。
@@ -570,11 +600,12 @@ def waiting(reader, root_id, folder, direction=None, connection=None):
     推往 Express 的销售任务（``direction`` + 推送去向 ``connection``）连 POS 导出（Excel / CSV）一起数。"""
     try:
         _require()
-        _connection(reader)
+        pair = readers.resolve(reader, root_id)
+        _connection(pair[1])
     except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
         frappe.clear_messages()
         return None
-    state = agent.read(reader)
+    state = readers.state(*pair)
     if not agent.fresh(state):
         return None
     root = next((row for row in state.get("roots") or [] if row.get("id") == root_id), None)
@@ -589,7 +620,7 @@ def waiting(reader, root_id, folder, direction=None, connection=None):
         return None
     files = int(root["counts"].get(name) or 0)
     if direction and contracts.TABLE_EXTENSIONS[0] in contracts.extensions_for(
-            direction, frappe.db.get_value(CONNECTION, connection or reader, "adapter")):
+            direction, frappe.db.get_value(CONNECTION, connection or pair[1], "adapter")):
         files += int((root.get("table_counts") or {}).get(name) or 0)
     return {"files": files, "partial": bool(root.get("partial"))}
 
@@ -599,7 +630,8 @@ def project(rule):
                           order_by="started_at desc", limit=1, ignore_permissions=True)
     return {"name": rule.name, "title": rule.title, "connection": rule.connection, "enabled": int(rule.enabled or 0),
             "adapter": frappe.db.get_value(CONNECTION, rule.connection, "adapter") or "",
-            "reader": _reader(rule),
+            # ``reader`` 仍是成员连接（第 6 批之前的网页拿它拼下拉的值）；``reader_id`` 是读者编号（电脑|连接）
+            "reader": readers.of(rule)[1], "reader_device": readers.of(rule)[0], "reader_id": readers.ref(rule),
             "account_set_key": rule.account_set_key, "account_label": rule.account_label,
             "direction": rule.direction, "posting_kind": rule.posting_kind or "", "payment": rule.payment or "",
             "root_id": rule.root_id,

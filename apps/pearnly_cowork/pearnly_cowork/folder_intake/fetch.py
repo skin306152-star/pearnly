@@ -2,7 +2,8 @@
 请读这个文件夹的那台电脑做。只读：不识别、不扣费、不登记录入。
 
 - 判据与定时任务表单相同：录入权限 + 读文件夹那条连接的使用授权（`rules._connection`）；根目录必须是那台电脑在
-  CC 桌面端里加过、随文件夹同步报上来的（`agent.read`）。电脑那边再按本机的根目录核一次（拒绝 `..`、绝对路径、
+  CC 桌面端里加过、随文件夹同步报上来的（`readers.state`）。读者是（电脑，成员连接）（ADR-021 第 4 批）：请求定向给那台
+  电脑（``target_device``），同一个池里别的电脑领不到；只给连接的旧写法按根目录认是哪台（`readers.resolve`）。电脑那边再按本机的根目录核一次（拒绝 `..`、绝对路径、
   符号链接 / 联接点跳出根目录），类型与大小同对话附件（`contracts.FETCH_EXTENSIONS`，30 MB）。
 - 那台电脑此刻没来领按需请求（离线），或它的 CC 桌面端还不会领（旧于 `request_contracts.MIN_COMPANION`），就不建请求，
   回 ``{"status": "waiting_for_cc", "reason": "offline" | "update_needed"}``。
@@ -18,7 +19,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.companion import request_service
-from pearnly_cowork.folder_intake import agent, contracts, rules
+from pearnly_cowork.folder_intake import contracts, readers, rules
 
 # 解压后的清单最多这么大（防小助手交回的压缩包解开过大）。
 LISTING_MAX_BYTES = 32 * 1024 * 1024
@@ -30,17 +31,18 @@ def _error(error):
 
 def _reader(reader, root_id):
     rules._require()
-    doc = rules._connection(reader)
     try:
         root = contracts.root_id(root_id)
     except contracts.ContractError as error:
         _error(error)
-    return doc, root, agent.read(doc.name)
+    device, connection = readers.resolve(reader, root)
+    doc = rules._connection(connection)
+    return doc, device, root, readers.state(device, doc.name)
 
 
-def waiting(connection, kind, state) -> dict:
+def waiting(connection, kind, state, device="") -> dict:
     """这台电脑此刻能不能领这种请求（`request_service.waiting`；它没来领过时按文件夹同步报的版本分辨离线与要升级）。"""
-    return request_service.waiting(connection, kind, str(state.get("version") or ""))
+    return request_service.waiting(connection, kind, str(state.get("version") or ""), device=device)
 
 
 def _root_known(state, root):
@@ -53,45 +55,51 @@ def _key(kind, reader, params, scope):
     return f"{kind}:" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:48]
 
 
-def _request(kind, doc, params, scope):
-    made = request_service.create(kind, doc.name, params, _key(kind, doc.name, params, scope))
+def _reader_key(doc, device):
+    """请求号里的读者：认出电脑的是「电脑|连接」（两台电脑各有一个同编号的根目录也是两件），认不出的照旧只是连接。"""
+    return contracts.reader_ref(device, doc.name)
+
+
+def _request(kind, doc, device, params, scope):
+    made = request_service.create(kind, doc.name, params, _key(kind, _reader_key(doc, device), params, scope),
+                                  target_device=device)
     return {"request": made["request"], "status": made["status"]}
 
 
-def _open(kind, doc, params, scope):
+def _open(kind, doc, device, params, scope):
     """同一请求号还在等、在做或做完没取走的那一件：电脑正在读、传它时可能好一阵不来领，不能因此判离线。"""
-    found = request_service.find(kind, doc.name, _key(kind, doc.name, params, scope))
+    found = request_service.find(kind, doc.name, _key(kind, _reader_key(doc, device), params, scope))
     return {"request": found["request"], "status": found["status"]} if found else None
 
 
 def files(reader, root_id, folder="", *, search="", extensions=None, scope="") -> dict:
     """请电脑列根目录（或其中一个文件夹，含子文件夹）里能取的文件：``{request, status}`` 或 waiting_for_cc。"""
-    doc, root, state = _reader(reader, root_id)
+    doc, device, root, state = _reader(reader, root_id)
     try:
         params = {"root_id": root, "folder": contracts.browse_folder(folder),
                   "search": str(search or "").strip()[:contracts.FETCH_SEARCH_MAX],
                   "extensions": contracts.fetch_extensions(extensions), "limit": contracts.FETCH_LIST_MAX}
     except contracts.ContractError as error:
         _error(error)
-    found = _open("folder_list", doc, params, scope) or waiting(doc.name, "folder_list", state)
+    found = _open("folder_list", doc, device, params, scope) or waiting(doc.name, "folder_list", state, device)
     if found:
         return found
     _root_known(state, root)
-    return _request("folder_list", doc, params, scope)
+    return _request("folder_list", doc, device, params, scope)
 
 
 def fetch(reader, root_id, path, *, scope="") -> dict:
     """请电脑交回一份文件：``{request, status}`` 或 waiting_for_cc。"""
-    doc, root, state = _reader(reader, root_id)
+    doc, device, root, state = _reader(reader, root_id)
     try:
         params = {"root_id": root, "path": contracts.fetch_path(path)}
     except contracts.ContractError as error:
         _error(error)
-    found = _open("folder_fetch", doc, params, scope) or waiting(doc.name, "folder_fetch", state)
+    found = _open("folder_fetch", doc, device, params, scope) or waiting(doc.name, "folder_fetch", state, device)
     if found:
         return found
     _root_known(state, root)
-    return _request("folder_fetch", doc, params, scope)
+    return _request("folder_fetch", doc, device, params, scope)
 
 
 def state(request) -> dict:

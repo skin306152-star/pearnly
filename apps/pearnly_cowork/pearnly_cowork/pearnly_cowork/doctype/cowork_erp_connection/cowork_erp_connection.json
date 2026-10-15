@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-22 00:00:00.000000",
- "modified": "2026-10-12 18:30:00.000000",
+ "modified": "2026-10-16 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -25,6 +25,7 @@
   "enabled",
   "record_revision",
   "allowed_users",
+  "all_members",
   "config_json",
   "credential_username",
   "credential_password",
@@ -116,6 +117,14 @@
    "fieldtype": "Long Text",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "all_members",
+   "label": "All Members",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
   },
   {
    "fieldname": "config_json",

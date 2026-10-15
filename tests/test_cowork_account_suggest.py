@@ -279,8 +279,9 @@ class HistoryHarness:
         request_service.status = self.status
         request_service.result = lambda name: (self.requests[name]["content"], {})
         request_service.drop = lambda name: self.calls.append(("drop", name)) or self.requests.pop(name, None)
-        request_service.waiting = lambda connection, kind, known="": self.calls.append(("waiting", kind, known)) \
-            or dict(self.presence)
+        self.account_keys = []  # 读账套请求带的规范键（ADR-021 第 4 批：问够得到它的电脑、按它分派）
+        request_service.waiting = lambda connection, kind, known="", account_key=None: self.calls.append(
+            ("waiting", kind, known)) or self.account_keys.append(("waiting", account_key)) or dict(self.presence)
         connections = types.ModuleType("pearnly_cowork.connections.service")
         connections.adapter_of = lambda name: self.adapter
         connections.targets = lambda name: {"account_sets": [{"source_id": "S:\\EXP69\\DN"}]}
@@ -301,8 +302,9 @@ class HistoryHarness:
         self.now = datetime(2026, 10, 15, 2, 0, 0)
         self.history._now = lambda: self.now
 
-    def create(self, kind, connection, params, key):
+    def create(self, kind, connection, params, key, account_key=""):
         self.calls.append(("create", kind, connection, params, key))
+        self.account_keys.append(("create", account_key))
         name = "r%031d" % len(self.requests)
         self.requests[name] = {"request": name, "kind": kind, "status": "requested", "code": ""}
         return dict(self.requests[name])
@@ -337,6 +339,8 @@ class History(unittest.TestCase):
         self.assertEqual((kind, connection), ("account_history", "C1"))
         self.assertEqual(params, {"account_set": "S:\\EXP69\\DN", "account_root": "S:\\EXP69", "since": "2025-10-15"})
         self.assertTrue(key.startswith("account_history:"))
+        # 不定向，带这份账套的规范键：问的、交给的都是够得到它的电脑（ADR-021 第 4 批）
+        self.assertEqual(self.h.account_keys, [("waiting", "s:\\exp69\\dn"), ("create", "s:\\exp69\\dn")])
         # 还在读：不再建
         self.assertEqual(self.push("C1", "s:/exp69/dn/", SELLER, True)["state"], "reading")
         self.assertEqual(len(self.h.made()), 1)

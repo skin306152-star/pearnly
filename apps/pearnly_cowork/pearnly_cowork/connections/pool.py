@@ -51,6 +51,8 @@ Q_REGISTRATIONS_OF = (f"SELECT account_key, uid, content_key, last_writer_device
                       f"WHERE name IN %s")
 Q_WRITABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
               f"AND state='ok' AND writable=1")
+Q_READABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
+              f"AND state='ok' AND account_key IN %s")
 Q_WRITERS = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s AND state='ok' AND writable=1"
 Q_ANY_REACH = f"SELECT name FROM `tab{REACH}` WHERE connection=%s LIMIT 1"
 Q_DEVICES = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s"
@@ -129,6 +131,15 @@ def presence(connection):
 def writable_reach(connection, device):
     """这台电脑够得到、状态正常、能写的账套：``{规范键: 可达行（本机写法 path / root / registry_row）}``。"""
     return {row.account_key: row for row in _rows(Q_WRITABLE, (connection, device))}
+
+
+def readable_reach(connection, device, account_keys):
+    """这台电脑够得到（状态正常，不论能不能写）的这几份账套：``{规范键: 可达行（本机写法 path / root）}``。按需读账套
+    （回读、科目历史）领取时据此判断能不能领、交给它哪种写法（ADR-021 第 4 批）。只读。"""
+    keys = sorted({identity(key) for key in account_keys or () if identity(key)})
+    if not connection or not device or not keys:
+        return {}
+    return {row.account_key: row for row in _rows(Q_READABLE, (connection, device, tuple(keys)))}
 
 
 def writer_devices(connection):
@@ -743,6 +754,6 @@ def seed_legacy(connection, *, device, referenced=None, now, protected=None):
 __all__ = ["ACCOUNT_SET", "FACTS", "FACTS_PER_CONNECTION", "FACT_KEYS", "OK", "PENDING_IDENTITY", "REACH", "STALE",
            "add_stock_masters", "any_reach", "apply_report", "ensure_registered", "seed_legacy", "canonical", "catalog", "devices", "facts",
            "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "mark_stale", "masters",
-           "move_device", "note_written", "presence", "put_facts", "writable_reach", "writer_devices",
+           "move_device", "note_written", "presence", "put_facts", "readable_reach", "writable_reach", "writer_devices",
            "reach_name", "reachers", "reachers_of", "reaches", "reconsider", "registration", "registration_name",
            "registrations_of", "retain", "touch", "union_observation", "writers"]

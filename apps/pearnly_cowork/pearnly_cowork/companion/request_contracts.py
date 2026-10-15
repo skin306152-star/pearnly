@@ -19,6 +19,15 @@ expired。结果字节分块交回（每块 ``CHUNK_BYTES``，base64 后仍在�
    ``request_service.create(kind, connection, params, request_key)``，再用 ``status`` / ``result`` / ``drop`` 取结果；
 3. 小助手在 ``request_worker.HANDLERS`` 登记处理函数 ``fn(cfg, params) -> Result``；结果字节的格式由这一种请求自己定
    （JSON 一律 gzip 后交），处理不了回 ``RequestFailed(code)``。
+
+多台电脑（ADR-021 第 4 批，方案 2.7）：请求交给哪台电脑由服务端定，领取的请求体不变（``{version, kinds, device}``，
+电脑是谁由配对码推出）。
+- 读文件夹（``FOLDER_KINDS``）定向给持有那个根目录的电脑（``target_device``），别的电脑领不到；
+- 读账套（``ACCOUNT_KINDS``）不定向，带这份账套的规范键（``account_key``）：够得到它的电脑按写账分派的顺序领
+  （发起人自己的电脑 → 常驻 → 其他，排了 ``route_contracts.HANDOFF_SECONDS`` 谁都行）；交给电脑的参数里，通用位置键
+  ``LOCATION_KEYS``（就是回读与科目历史参数里的账套文件夹与 Express 根目录）换成领取那台电脑可达行里的本机写法
+  （:func:`localize`，它只认本机数据根或授权根下的路径）；存着的参数不改；
+- 两样都没有的（部署前建的）照旧谁领都行。
 """
 from __future__ import annotations
 
@@ -32,6 +41,10 @@ from typing import Any, Dict, List, Optional, Tuple
 MIB = 1024 * 1024
 KINDS = ("express_read", "folder_list", "folder_fetch", "account_history")
 FOLDER_KINDS = ("folder_list", "folder_fetch")
+# 读一本账套的种类：按账套的规范键分派，参数里的位置换成领取电脑的写法
+ACCOUNT_KINDS = ("express_read", "account_history")
+# 参数里的通用位置键：账套文件夹、所在的 Express 根目录（`readback.contracts.read_params` / `history_rules.read_params`）
+LOCATION_KEYS = ("account_set", "account_root")
 SHARED_KINDS = ("account_history",)
 # 哪种连接的电脑能做哪几种：Express 的电脑都能做；MR.ERP 的小助手成员只读文件夹。
 ADAPTER_KINDS = {"express": KINDS, "mrerp": FOLDER_KINDS}
@@ -175,6 +188,24 @@ def effective(status: str, code: Optional[str], requested_at: Optional[datetime]
     if status == "leased" and (not lease_expires_at or lease_expires_at <= now):
         return "expired", "lease_expired"
     return status, code or ""
+
+
+def localize(params: Dict[str, Any], path: Any, root: Any = "") -> Dict[str, Any]:
+    """交给领取电脑的参数副本：通用位置键换成它可达行里的本机写法（数据目录 ``path``、Express 根目录 ``root``）。
+    ``path`` 为空时原样（不编一个位置）。存着的参数不改。"""
+    result = dict(params or {})
+    path = str(path or "").strip()
+    if path:
+        result.update({LOCATION_KEYS[0]: path, LOCATION_KEYS[1]: str(root or "").strip()})
+    return result
+
+
+def target(kind_value: Any, device: Any = "", account_key: Any = "") -> Tuple[str, str]:
+    """请求交给谁：(定向的电脑, 账套规范键)。读文件夹只认电脑、读账套只认账套键，别的种类两样都不带。"""
+    device, account_key = str(device or "").strip(), str(account_key or "").strip()
+    if len(device) > 140 or len(account_key) > 500:
+        raise ContractError("companion.on_demand_invalid")
+    return (device if kind_value in FOLDER_KINDS else "", account_key if kind_value in ACCOUNT_KINDS else "")
 
 
 def version_tuple(value: Any) -> tuple:

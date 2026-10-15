@@ -164,15 +164,20 @@ def device_of(credential_id):
     return frappe.db.get_value(DOCTYPE, credential_id, 'device') or None
 
 
+def device_id(credential_id):
+    """池里认这把密钥的电脑用的编号：挂了电脑就是电脑，没挂的按密钥编号算一台（同 :func:`pool_peers`）。"""
+    return device_of(credential_id) or credential_id
+
+
 def pool_peers(connection, now=None):
     """池里各台电脑此刻的情况（ADR-021：目录刷新与写账分派、`connections.pool.presence`、`pool.state`）：
-    ``{设备: {"user", "always_on", "online", "version", "payload_version", "index_pending", "issuers"}}``。
+    ``{设备: {"user", "always_on", "online", "version", "payload_version", "index_pending", "issuers", "label"}}``。
 
     ``user`` 是这台电脑上最近登录 CC 的人（不是登记人）；任一把有效密钥 3 分钟内报过到就算在线；``payload_version`` 没报过
     是 None（旧版，不拿它拦）；``index_pending`` 是它主档索引还没重建的账套文件号，旧版不报是 None。补丁之前旧路径发、
     还没挂电脑的密钥按密钥编号算一台（它上报的可达行也记在这个编号下）。只读。"""
     rows = frappe.db.sql(f'''SELECT k.name, k.device, k.issuer, k.token_generation, k.last_seen_at, k.last_seen_generation,
-        d.signed_in_user, d.always_on, d.companion_version, d.max_payload_version, d.index_pending_uids
+        d.signed_in_user, d.always_on, d.companion_version, d.max_payload_version, d.index_pending_uids, d.label
         FROM `tab{DOCTYPE}` k LEFT JOIN `tab{devices.DOCTYPE}` d ON d.name = k.device
         WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>''
         AND (k.device IS NULL OR k.device='' OR d.retired_at IS NULL)''', (connection,), as_dict=True)
@@ -182,7 +187,8 @@ def pool_peers(connection, now=None):
         peer = peers.setdefault(row.device or row.name, {
             'user': row.signed_in_user or '', 'always_on': bool(row.always_on), 'online': False,
             'version': str(row.companion_version or ''), 'payload_version': payload if payload >= 1 else None,
-            'index_pending': devices.index_pending(row.index_pending_uids), 'issuers': set()})
+            'index_pending': devices.index_pending(row.index_pending_uids), 'issuers': set(),
+            'label': str(row.label or '')})
         peer['online'] = peer['online'] or _fresh(row.last_seen_at, row.last_seen_generation, row.token_generation, now)
         peer['issuers'].add(row.issuer)
     return peers

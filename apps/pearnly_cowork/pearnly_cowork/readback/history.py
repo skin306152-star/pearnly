@@ -238,7 +238,7 @@ def _refresh(connection, key, slot, stored, now):
     failed = _at(stored.get("failed_at"))
     if failed and now - failed < RETRY_AFTER_FAILURE:
         return NONE, False
-    if request_service.waiting(connection, KIND, readback._known_version(connection)):
+    if request_service.waiting(connection, KIND, readback._known_version(connection), account_key=key):
         return NONE, False  # 电脑离线、CC 桌面版太旧（不认这种请求）：没有历史建议，不报错、不建
     catalog = _quiet(connections.targets, connection)
     account = _quiet(readback._account, catalog, key) if catalog else None
@@ -248,7 +248,7 @@ def _refresh(connection, key, slot, stored, now):
         params = rules.read_params(account["path"], account["root"], now.date())
     except ContractError:
         return NONE, False
-    made = request_service.create(KIND, connection, params, "account_history:" + slot)
+    made = request_service.create(KIND, connection, params, "account_history:" + slot, account_key=account["key"])
     stored.update(request=made["request"], requested_at=_stamp(now))
     _save(slot, stored)
     if made["status"] == "done":  # 别人刚建的同一件已经读完

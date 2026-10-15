@@ -10,9 +10,10 @@
   不建推送记录；
 - 人已经动过的票（改过、推过）不碰，交给人；
 - 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录；
-- 小助手没连上（重启、断线）是暂时的：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好断线的，撤掉这次准备再重来，
-  重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。小助手连着但没报上这份账套，照现有规则记失败；
-  ``final`` 时一律照现有规则走。
+- Express 池里有能写的电脑就确认、排队，电脑此刻关着也排，开机后写（ADR-021 第 4 批，D4，`destinations.queueable`）；
+  池里一台能写的电脑都没有才算「小助手没连上」：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好没有了的，撤掉这次
+  准备再重来，重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。池里没有电脑够得到这份账套，照现有规则
+  记失败；``final`` 时一律照现有规则走。
 - 要选的科目还没有可选值（这份账套的科目表还没读到，推送服务已请电脑读，`choices_view` 的 ``wait``，2026-10-13）：
   不记成「要人选」，回 ``retry`` 一分钟后再推；电脑要升级 / 读不到这份账套、或最后一次仍没读到，原因记在票上。
 
@@ -121,7 +122,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
         frappe.db.commit()
         return {"status": "held", "reason": reason}
     adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
-    if not final and not destinations.online(adapter, rule.connection):
+    if not final and not destinations.queueable(adapter, rule.connection):
         return {"status": "retry", "reason": OFFLINE}
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
@@ -137,7 +138,7 @@ def push_one(entry, rule, history, attempt=0, final=True):
         return {"status": "failed", "reason": str(result.get("reason") or "push.preparation_cancelled")[:300]}
     if result.get("status") == "prepared":
         if (not final and not destinations.ready(adapter, result)
-                and not destinations.online(adapter, rule.connection)):
+                and not destinations.queueable(adapter, rule.connection)):
             _withdraw(result)
             return {"status": "retry", "reason": OFFLINE}
         try:

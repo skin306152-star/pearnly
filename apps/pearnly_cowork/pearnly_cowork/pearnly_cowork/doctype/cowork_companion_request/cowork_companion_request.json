@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-13 12:00:00.000000",
- "modified": "2026-10-15 15:00:00.000000",
+ "modified": "2026-10-16 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -20,10 +20,13 @@
   "connection",
   "kind",
   "actor",
+  "target_device",
+  "account_key",
   "params_json",
   "status",
   "lease_handle",
   "lease_credential",
+  "lease_device",
   "requested_at",
   "leased_at",
   "lease_expires_at",
@@ -82,6 +85,20 @@
    "search_index": 1
   },
   {
+   "fieldname": "target_device",
+   "label": "Target Computer",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "account_key",
+   "label": "Account Set Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 500
+  },
+  {
    "fieldname": "params_json",
    "label": "Parameters",
    "fieldtype": "Long Text",
@@ -106,6 +123,13 @@
   {
    "fieldname": "lease_credential",
    "label": "Lease Credential",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "lease_device",
+   "label": "Lease Computer",
    "fieldtype": "Data",
    "read_only": 1,
    "length": 140

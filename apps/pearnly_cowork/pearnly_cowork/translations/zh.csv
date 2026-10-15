@@ -100,6 +100,7 @@ Admins only,仅管理员
 Advertising,广告费
 "After refunds, an item's quantity for a day is zero or less, or its amount is negative",退款后有商品当天的数量为零或负数，或金额为负数
 All,全部
+All Members,全所可用
 All labels,全部标签
 All members,全部成员
 Allowed Users,授权用户
@@ -914,6 +915,7 @@ Last modified by,最后修改人
 Last month to claim,最晚抵扣月
 Last name,姓
 Last used,上次使用
+Lease Computer,领取的电脑
 Lease Credential,租约凭据
 Lease Expires At,租约到期时间
 Lease Expires At (UTC),租约到期时间（UTC）
@@ -1262,6 +1264,7 @@ Read general ledger,读取总账
 Read tax invoices,读取发票
 Readback,回读
 Readback ID,回读编号
+Reader Device,读文件夹的电脑
 Reading back the accounting books,正在回读账套账目
 Reading files,读取文件
 Reading the MR.ERP menus…,正在读取 MR.ERP 菜单…
@@ -1589,6 +1592,7 @@ Surcharge,附加费
 Table,表格
 Tap Send documents to ERP in the menu first,请先点击菜单中的「发送单据至 ERP」
 Tap the menu to start,请点击菜单开始
+Target Computer,指定电脑
 Target Json,冻结目标（JSON）
 Task,任务
 Task Management,任务管理

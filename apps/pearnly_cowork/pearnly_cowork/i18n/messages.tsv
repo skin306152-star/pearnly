@@ -458,6 +458,10 @@ Written By Computer	写入的电脑	คอมพิวเตอร์ที่�
 Write Route	写入分派	การมอบหมายการเขียน	書き込みの割り当て
 Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพิวเตอร์	コンピューターの登録者
 Index Rebuild Pending Folder IDs	索引待重建的文件夹编号	รหัสโฟลเดอร์ที่รอสร้างดัชนีใหม่	インデックス再構築待ちのフォルダー ID
+All Members	全所可用	ทุกคนในสำนักงานใช้ได้	事務所全員が利用可
+Reader Device	读文件夹的电脑	คอมพิวเตอร์ที่อ่านโฟลเดอร์	フォルダーを読み取るコンピューター
+Target Computer	指定电脑	คอมพิวเตอร์ที่ระบุ	指定のコンピューター
+Lease Computer	领取的电脑	คอมพิวเตอร์ที่รับงาน	受け取ったコンピューター
 Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.
 The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
 This request key was used for another credential operation.	此请求标识已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict

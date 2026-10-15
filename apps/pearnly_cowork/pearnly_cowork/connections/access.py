@@ -87,10 +87,19 @@ def require_connection(doc, *, actor=None, management=False, enabled=True, lock=
     require_scope(doc.workspace, doc.client, actor=actor, lock=lock)
     if enabled and not doc.enabled:
         frappe.throw(_("connection.disabled"), frappe.PermissionError)
-    if not management:
-        if actor not in model.parse(doc.allowed_users, []):
-            deny()
+    if not management and not listed(doc, actor):
+        deny()
     return actor
+
+
+def listed(doc, actor):
+    """``actor`` 在这条连接的使用名单上（D2，ADR-021 第 4 批）：Express 池勾了「全所可用」（``all_members``）就是本归属下
+    每个人，否则看名单 ``allowed_users``。MR.ERP 连接只看名单。录入 / 管理角色、归属启用这些另由调用方核，这里只管名单。
+    用连接的人（:func:`require_connection`）、连接列表（`service.records`）、看推送记录（`service.read_for_log`，那里另要
+    推送记录角色）都按它，不再各写一遍。不在 ``allowed_users`` 里放 ``*``：`service.configure` 逐个查名单里的用户。"""
+    if doc.get("adapter") == "express" and int(doc.get("all_members") or 0):
+        return True
+    return actor in model.parse(doc.get("allowed_users"), [])
 
 
 def usable_by(doc, actor):

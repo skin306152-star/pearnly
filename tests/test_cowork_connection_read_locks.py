@@ -14,10 +14,13 @@
 不连库、不依赖 Frappe：连接域的真 `service.py` 跑在内存里的小 Frappe 替身上，替身记下每次读是否要锁。
 """
 import contextlib
+import importlib.util
+import json
 import pathlib
 import sys
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "pearnly_cowork"))
@@ -147,6 +150,9 @@ access.require_scope = _checked(lambda workspace, client=None, **kwargs: None)
 access.require_connection = _checked(lambda doc, actor=None, **kwargs: actor or USER)
 access.roles = _checked(lambda actor: {"Cowork Intake"})
 access.default_workspace = lambda: "W"
+# 使用名单（D2，ADR-021 第 4 批）：同真 `access.listed`，Express 池「全所可用」时不看名单
+access.listed = lambda doc, actor: bool(doc.get("adapter") == "express" and int(doc.get("all_members") or 0)) or (
+    actor in json.loads(doc.get("allowed_users") or "[]"))
 access.deny = lambda: _throw("Not Permitted", PermissionError_)
 masters = types.ModuleType("pearnly_cowork.masters")
 masters.workspaces = types.SimpleNamespace(site_workspace=lambda: "W")
@@ -231,6 +237,17 @@ class ConnectionReadLocks(unittest.TestCase):
         self.assertIsNone(service.main_of([row for row in rows if row["name"] != "EXP-OLD"], "express"))
         self.assertNoLocks()
 
+    def test_an_all_members_pool_is_listed_for_everyone(self):
+        """D2（ADR-021 第 4 批）：Express 池勾了「全所可用」，名单里没有的录入员也看得到、用得上；MR.ERP 只看名单。
+        新建的 Express 池默认全所可用（连接详情带 ``all_members``）。"""
+        DB.docs[CONNECTION] = {
+            "EXP": connection("EXP", allowed_users=model.dumps(["boss@x.com"]), all_members=1),
+            "MR": connection("MR", adapter="mrerp", allowed_users=model.dumps(["boss@x.com"]), all_members=1),
+            "EXP-LIST": connection("EXP-LIST", allowed_users=model.dumps(["boss@x.com"]))}
+        rows = service.records(None, None, 0, 100)
+        self.assertEqual([row["name"] for row in rows], ["EXP"])
+        self.assertTrue(rows[0]["all_members"])
+
     def test_every_read_only_connection_view_takes_no_row_locks(self):
         self.assertEqual(service.detail("CONN")["name"], "CONN")
         found = service.targets("CONN")
@@ -262,6 +279,40 @@ class ConnectionReadLocks(unittest.TestCase):
         self.assertIn((CONNECTION, "CONN"), DB.locks)
 
 
+class AllMembersPatch(unittest.TestCase):
+    def test_existing_express_main_connections_open_to_all_members_without_a_revision_bump(self):
+        """D2（ADR-021 第 4 批，方案 4.1 第 5 步）：每个归属下的 Express 主连接 ``all_members = 1``；直接写字段、不改修改时间、
+        不升 ``record_revision``（放宽名单不作废排队的单）；后建的 Express、MR.ERP 不动；已经是 1 的不再写。"""
+        written = []
+        values = {"EXP-MAIN": 0, "EXP-DONE": 1}
+        stub = types.SimpleNamespace
+        fake = stub(db=stub(has_column=lambda doctype, column: True,
+                            sql=lambda query, values=None: [("W1",), ("W2",)],
+                            get_value=lambda doctype, name, field: values[name],
+                            set_value=lambda doctype, name, field, value, update_modified=True:
+                            written.append((name, field, value, update_modified))))
+        mains = {"W1": {"express": "EXP-MAIN", "mrerp": "MR"}, "W2": {"express": "EXP-DONE"}}
+        connections = types.ModuleType("pearnly_cowork.connections")
+        connections.service = stub(main_connections=lambda workspace: mains[workspace])
+        modules = {"frappe": fake, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                   "pearnly_cowork.connections": connections, "pearnly_cowork.connections.service": connections.service}
+        path = ROOT / "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_22_express_all_members.py"
+        with mock.patch.dict(sys.modules, modules):
+            spec = importlib.util.spec_from_file_location("patch_all_members", path)
+            patch = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(patch)
+            patch.execute()
+        self.assertEqual(written, [("EXP-MAIN", "all_members", 1, False)])
+        self.assertNotIn("record_revision", path.read_text(encoding="utf-8").split('"""', 2)[2])
+        lines = (ROOT / "apps/pearnly_cowork/pearnly_cowork/patches.txt").read_text().splitlines()
+        self.assertLess(lines.index("pearnly_cowork.patches.v0_0_21_reader_devices"),
+                        lines.index("pearnly_cowork.patches.v0_0_22_express_all_members"))
+        doctype = json.loads((ROOT / "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_erp_connection/"
+                                     "cowork_erp_connection.json").read_text(encoding="utf-8"))
+        field = next(row for row in doctype["fields"] if row["fieldname"] == "all_members")
+        self.assertEqual((field["fieldtype"], field["read_only"], field["default"]), ("Check", 1, "0"))
+
+
 def _real_access():
     """按原文件加载真 `connections/access.py`（上面的替身只给 `service.py` 用）。"""
     import importlib.util
@@ -290,6 +341,22 @@ class AccessReadLocks(unittest.TestCase):
 
     def locking(self):
         return [query for query in DB.queries if "LOCK IN SHARE MODE" in query.upper()]
+
+    def test_one_use_list_predicate_with_all_members_for_express(self):
+        """连接的使用名单只有一个判据（`listed`）：用连接、列连接、看推送记录都按它（方案 2.9）。"""
+        pool = connection("CONN", allowed_users=model.dumps(["boss@x.com"]), all_members=1)
+        self.assertTrue(self.access.listed(pool, USER))
+        self.assertEqual(self.access.require_connection(pool), USER)
+        listed_only = connection("CONN", allowed_users=model.dumps(["boss@x.com"]))
+        self.assertFalse(self.access.listed(listed_only, USER))
+        with self.assertRaises(PermissionError_):
+            self.access.require_connection(listed_only)
+        mrerp = connection("MR", adapter="mrerp", allowed_users=model.dumps(["boss@x.com"]), all_members=1)
+        self.assertFalse(self.access.listed(mrerp, USER))  # MR.ERP 名单本次不动
+        self.assertTrue(self.access.listed(connection("CONN"), USER))
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/service.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("access.listed(doc, actor)"), 2)  # records 与 read_for_log
+        self.assertNotIn("in model.parse(doc.allowed_users", source)
 
     def test_writers_keep_current_reads(self):
         doc = connection("CONN")

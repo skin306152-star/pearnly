@@ -160,6 +160,13 @@ class Harness(unittest.TestCase):
         package.contracts = self.contracts = _load("folder_contracts_notices", APP / "folder_intake/contracts.py")
         package.agent = types.SimpleNamespace(read=lambda name: copy.deepcopy(self.agents.get(name, {})),
                                               fresh=lambda state: self.fresh and bool(state))
+        contracts = self.contracts
+        # 读者 =（电脑，成员连接）（ADR-021 第 4 批）：本机情况按读者编号存，没有按电脑的就用按连接的
+        package.readers = types.SimpleNamespace(
+            of=lambda row: (row.get("reader_device") or "", row.get("reader") or row.get("connection")),
+            ref=lambda row: contracts.reader_ref(row.get("reader_device"), row.get("reader") or row.get("connection")),
+            state=lambda device, connection: copy.deepcopy(
+                self.agents.get(contracts.reader_ref(device, connection), self.agents.get(connection, {}))))
         package.machine = types.SimpleNamespace(owner_ready=self._owner_ready)
         package.notify = _load("folder_notify_notices", APP / "folder_intake/notify.py")
         package.reminders = self.reminders = _load("folder_reminders_under_test", APP / "folder_intake/reminders.py")
@@ -229,6 +236,29 @@ class Reminders(Harness):
         self.assertNotIn("Client Y", mine.text)
         self.assertNotIn("server", mine.text)
         self.assertEqual(len(self.remind("2026-10-13 09:00")), 2)  # 各自只发一次
+
+    def test_two_computers_in_one_pool_get_their_own_reminder(self):
+        """多台电脑（ADR-021 第 4 批）：同一个 Express 池（同一条连接 C1）里 PC1、PC2 各读各的文件夹，提醒按读者
+        （电脑|连接）分开，各自只带本机的任务名与路径，各回各的电脑。"""
+        self.agents["PC2|C1"] = {"roots": [{"id": "RC", "label": "E:\\Scans"}]}
+        self.rule("T1", title="Client X", folder="X", reader_device="PC1")
+        self.rule("T2", title="Client Y", root_id="RC", folder="Y", reader_device="PC2")
+        sent = self.remind("2026-10-13 08:05")
+        self.assertEqual(sorted(row.refs for row in sent), [("T1",), ("T2",)])
+        mine = next(row for row in sent if row.refs == ("T2",))
+        self.assertIn("E:\\Scans\\Y", mine.text)
+        self.assertNotIn("Client X", mine.text)
+        self.assertEqual(len(self.remind("2026-10-13 09:00")), 2)  # 各自只发一次
+
+    def test_a_reminder_sent_before_the_pool_change_is_not_sent_again(self):
+        """部署前按连接算的去重键已发过（同一时段跨过部署）：按（电脑|连接）算的新键不再发一遍。"""
+        self.rule("T1", title="Client X", folder="X", reader_device="PC1")
+        slot = self.reminders._slot(self.db.rules["T1"], self.reminders.notify.epoch(datetime(2026, 10, 13, 8, 5)))
+        legacy = self.contracts.remind_key(OWNER, slot[0], slot[1], "C1")
+        self.notices.post(OWNER, "cowork.folder.reminder", "earlier", legacy)
+        before = len(self.notices.sent())
+        self.reminders.run("2026-10-13 08:05")
+        self.assertEqual(len(self.notices.sent()), before)
 
     def test_no_line_for_zero_files_waiting(self):
         """interfaces-3：待处理数是 0（文件夹里可能留着处理过的文件）不写「0 份」。"""
@@ -516,6 +546,15 @@ class Briefs(Harness):
         self.assertNotIn("server", mine.text)
         self.assertEqual({run.brief_state for run in self.db.runs.values()}, {"sent"})
 
+    def test_two_computers_in_one_pool_get_their_own_brief(self):
+        """多台电脑（ADR-021 第 4 批）：同一条连接上 PC1、PC2 各跑各的任务，运行记下电脑，简报按电脑各一份。"""
+        self.rule("R2", title="Client Y", reader_device="PC2", folder="")
+        self.db.rules["R1"]["reader_device"] = "PC1"
+        self.run_row("U1", reader_device="PC1")
+        self.run_row("U2", rule="R2", reader_device="PC2")
+        sent = self.brief("2026-10-14 08:30")
+        self.assertEqual(sorted(row.refs for row in sent), [("R1",), ("R2",)])
+
     def test_missing_folders_and_files_not_uploaded(self):
         self.rule("R2", title="Cash", folder="C")
         self.run_row("U1", note="folder_missing")
@@ -655,7 +694,8 @@ class SameNumbersAsTheTaskList(unittest.TestCase):
                    "pearnly_cowork.connections": stub(access=stub(), preparation=stub(), service=stub(),
                                                       desktop_update=_load("connections_desktop_update_results",
                                                                            APP / "connections/desktop_update.py")),
-                   "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=contracts, destinations=stub(), inbox=stub()),
+                   "pearnly_cowork.folder_intake": stub(agent=stub(), contracts=contracts, destinations=stub(), inbox=stub(),
+                                                        readers=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE=FILE, RULE=RULE, RUN=RUN, read=None, write=None),
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda value: value)}
         with mock.patch.dict(sys.modules, modules):

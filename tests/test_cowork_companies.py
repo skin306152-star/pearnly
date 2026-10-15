@@ -377,6 +377,11 @@ def _require_connection(doc, **kwargs):
 
 connection_access.require_connection = _require_connection
 agent = types.SimpleNamespace(read=lambda reader: {}, fresh=lambda state: False)
+# 读者 =（电脑，成员连接）（ADR-021 第 4 批）：本机情况经 `readers.state` 取，这里按连接取 `agent.read`
+readers = types.SimpleNamespace(
+    of=lambda row: (row.get("reader_device") or "", row.get("reader") or row.get("connection")),
+    ref=lambda row: "|".join(filter(None, (row.get("reader_device"), row.get("reader") or row.get("connection")))),
+    state=lambda device, connection: agent.read(connection))
 tax_access = types.SimpleNamespace(allowed=lambda user=None: True)
 tax_service = types.SimpleNamespace(drafts_of=lambda tax, branch=None: [
     {"name": "CTD-1", "kind": "vat_return", "period": "2026-09", "branch": "00000", "updated_at": ""}])
@@ -387,6 +392,7 @@ STUBS = {
     "pearnly_core.assistant.projects": projects,
     "pearnly_cowork.folder_intake.company_folders": folders,
     "pearnly_cowork.folder_intake.agent": agent,
+    "pearnly_cowork.folder_intake.readers": readers,
     "pearnly_cowork.folder_intake.access": types.SimpleNamespace(RULE="Cowork Folder Intake Rule"),
     "pearnly_cowork.push.choices": express_choices,
     "pearnly_cowork.tax.access": tax_access,

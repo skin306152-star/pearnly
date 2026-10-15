@@ -55,13 +55,22 @@ class Store:
         return row.get("reader") or row.get("connection")
 
     def sql(self, query, values=None, as_dict=False):
+        query = " ".join(query.split())
         if "COUNT(*)" in query:
-            return [[sum(1 for row in self.rules.values() if self._reader(row) == values[0])]]
+            if "WHERE reader_device = %s" in query:  # 每台电脑最多 50 个（ADR-021 第 4 批按电脑计）
+                return [[sum(1 for row in self.rules.values() if row.get("reader_device") == values[0])]]
+            return [[sum(1 for row in self.rules.values() if self._reader(row) == values[0]
+                         and not row.get("reader_device"))]]
         if "WHERE enabled = %s AND root_id = %s" in query:
             enabled, root, reader = values
+            same = (lambda row: row.get("reader_device") == reader) if "AND reader_device = %s" in query else (
+                lambda row: self._reader(row) == reader and not row.get("reader_device"))
             return [Row(name=row["name"], title=row["title"], folder=row.get("folder")) for row in self.rules.values()
-                    if int(row.get("enabled") or 0) == enabled and row.get("root_id") == root
-                    and self._reader(row) == reader]
+                    if int(row.get("enabled") or 0) == enabled and row.get("root_id") == root and same(row)]
+        if "WHERE workspace = %s AND enabled = %s" in query:
+            return [Row({key: row.get(key) for key in ("name", "title", "connection", "reader", "reader_device",
+                                                        "root_id", "folder")})
+                    for row in self.rules.values() if int(row.get("enabled") or 0) == values[1]]
         raise AssertionError(query)
 
     def get_all(self, doctype, filters=None, pluck=None, **_ignored):
@@ -97,6 +106,9 @@ class Harness(unittest.TestCase):
         self.masters = {}
         self.ensured = []
         self.masters_state = {"state": "ready"}
+        # 各条连接上的电脑（`credentials.pool_peers`，ADR-021 第 4 批）：C1 池里一台 PC1，MR.ERP 的 EX 上一台 PX
+        self.members = {"C1": {"PC1": {"label": "Office PC", "online": True, "version": "1.6.0"}},
+                        "EX": {"PX": {"label": "Front desk", "online": True, "version": "1.6.0"}}}
         self.rules = self._rules()
 
     def _rules(self):
@@ -112,6 +124,25 @@ class Harness(unittest.TestCase):
         frappe = _frappe(self.store, get_doc=get_doc, new_doc=lambda doctype: Doc(), session=self.user,
                          clear_messages=lambda: None)
         group = {"label": "Company", "items": [{"value": "Y1", "label": "2569"}]}
+
+        def read_agent(name, reader_device=""):
+            # 本机情况按（电脑，成员连接）存：先看「电脑|连接」的；没有时这条连接上登记的电脑读按连接写的那份
+            own = self.agents.get(f"{reader_device}|{name}")
+            if own is not None:
+                return copy.deepcopy(own)
+            if reader_device in self.members.get(name, {}):
+                return copy.deepcopy(self.agents.get(name, {}))
+            return {}
+
+        agent = stub(read=read_agent, fresh=lambda state: self.fresh)
+        readers = _load("folder_readers_batch_under_test", APP / "folder_intake/readers.py", {
+            "frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
+            "pearnly_cowork.companion": stub(credentials=stub(
+                pool_peers=lambda connection: copy.deepcopy(self.members.get(connection, {})),
+                device_id=lambda credential: credential)),
+            "pearnly_cowork.folder_intake": stub(agent=agent, contracts=contracts),
+            "pearnly_cowork.folder_intake.access": stub(COMPANY_FOLDER="CF", FILE="F", RULE=RULE, RUN="U")})
+        self.readers = readers
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: self.clock[0]),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None, default_workspace=lambda: "W")),
@@ -123,13 +154,14 @@ class Harness(unittest.TestCase):
                                     records=lambda *a: [{"name": "C1", "adapter": "express", "label": "Express"}],
                                     ensure_account_masters=lambda *a: self.ensured.append(a) or dict(self.masters_state))),
                    "pearnly_cowork.folder_intake": stub(
-                       agent=stub(read=lambda name: copy.deepcopy(self.agents.get(name, {})), fresh=lambda state: self.fresh),
+                       agent=agent, readers=readers,
                        contracts=contracts, destinations=stub(supported=lambda adapter: adapter in ("express", "mrerp")),
                        inbox=stub()),
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE=RULE, RUN="U", read=self.store.read,
                                                                write=self.store.write),
                    "pearnly_cowork.targets.identity": stub(normalize_express_account_key=lambda v: v)}
         rules = _load("folder_rules_batch_under_test", APP / "folder_intake/rules.py", modules)
+        self.real_project = rules.project
         rules.project = lambda rule: dict(rule)
         return rules
 
@@ -371,6 +403,74 @@ class SaveRules(Harness):
         self.assertEqual((row["enabled"], row["active_since"], row["rule_owner"], row["remind_since"]),
                          (1, later, "colleague@example.com", later))
         self.assertEqual(row["include_existing"], 1)  # 新任务重新启用不改口径（小助手不重新拍底）
+
+
+class ReaderDevices(Harness):
+    """读者 =（电脑，成员连接）（ADR-021 第 4 批，方案 2.7）：池里每台电脑都能读文件夹；只给连接的旧写法按根目录认电脑；
+    每台电脑最多 50 个任务；同一台电脑不分成员按根目录比重叠；读它的电脑被移除时列表标出来。"""
+    ROOT_C = "c" * 16
+
+    def setUp(self):
+        super().setUp()
+        self.members["C1"]["PC2"] = {"label": "Accounting PC", "online": False, "version": "1.6.0"}
+        self.agents["PC2|C1"] = {"roots": [{"id": self.ROOT_C, "label": "E:\\Scans", "folders": ["A"]}],
+                                 "version": "1.6.0", "device": "ACC-02"}
+
+    def test_options_list_every_computer_of_the_pool_with_its_reader_id(self):
+        readers = self.rules.options("C1")["readers"]
+        self.assertEqual([(row["reader"], row["connection"], row["device"]) for row in readers],
+                         [("PC1|C1", "C1", "PC1"), ("PC2|C1", "C1", "PC2")])
+        self.assertEqual([row["label"] for row in readers], ["Office PC", "ACC-02"])  # 同步报的电脑名优先
+        self.assertEqual(self.rules.options("C1")["roots"][0]["id"], ROOT_A)  # 旧字段：本连接第一台
+
+    def test_a_bare_connection_is_resolved_by_its_root_and_a_reader_id_must_hold_the_root(self):
+        self.rules.save(self.values(root_id=self.ROOT_C, folder="A"))
+        row = self.store.rules["R1"]
+        self.assertEqual((row["reader"], row["reader_device"]), ("C1", "PC2"))
+        self.rules.save(self.values(reader="PC1|C1", folder="B"))
+        self.assertEqual(self.store.rules["R2"]["reader_device"], "PC1")
+        with self.assertRaises(Exception) as caught:
+            self.rules.save(self.values(reader="PC2|C1", folder="C"))  # PC2 没报过 ROOT_A
+        self.assertIn("root_invalid", str(caught.exception))
+        with self.assertRaises(Exception):
+            self.rules.save(self.values(reader="PC9|C1", folder="C"))  # 不在这条连接上的电脑
+        # 改任务时只给连接：原来那台还报着这个根目录就还是它
+        self.agents["PC1|C1"] = {"roots": [{"id": self.ROOT_C, "label": "S:\\Scans", "folders": ["A"]},
+                                           *self.agents["C1"]["roots"]], "version": "1.6.0"}
+        self.rules.save(self.values(name="R1", root_id=self.ROOT_C, folder="A", title="Renamed"))
+        self.assertEqual(self.store.rules["R1"]["reader_device"], "PC2")
+
+    def test_fifty_tasks_per_computer_not_per_connection(self):
+        self.rules.MAX_RULES = 1
+        self.rules.save(self.values(reader="PC1|C1"))
+        self.rules.save(self.values(reader="PC2|C1", root_id=self.ROOT_C, folder="A"))  # 同一条连接的另一台照样能建
+        with self.assertRaises(Exception) as caught:
+            self.rules.save(self.values(reader="PC1|C1", folder="B"))
+        self.assertIn("too_many", str(caught.exception))
+
+    def test_the_same_computer_overlaps_across_its_members(self):
+        """同一台电脑上 Express 与 MR.ERP 两个成员授权过同一个根目录：任务按电脑比，同一文件夹不能各跑一遍。"""
+        self.members["EX"]["PC1"] = dict(self.members["C1"]["PC1"])
+        self.agents["PC1|EX"] = copy.deepcopy(self.agents["C1"])
+        self.rules.save(self.values(reader="PC1|C1", folder="A"))
+        with self.assertRaises(Exception) as caught:
+            self.rules.save(self.values(connection="EX", reader="PC1|EX", folder="A\\B", posting_kind="",
+                                        payment="credit"))
+        self.assertIn("overlap_with", str(caught.exception))
+
+    def test_the_list_marks_a_task_whose_computer_was_removed(self):
+        self.rules.save(self.values(reader="PC2|C1", root_id=self.ROOT_C, folder="A"))
+        self.rules.project = self.real_project
+        self.rules.counts = self.rules.results = lambda *args, **kwargs: {}
+        del self.members["C1"]["PC2"]
+        row = self.rules.listing()["rules"][0]
+        self.assertEqual((row["reader"], row["reader_device"], row["reader_id"], row["reader_gone"]),
+                         ("C1", "PC2", "PC2|C1", True))
+
+    def test_waiting_and_continues_take_a_reader_id_or_a_bare_connection(self):
+        self.assertEqual(self.rules.waiting("PC1|C1", ROOT_A, ""), {"files": 9, "partial": True})
+        self.assertEqual(self.rules.waiting("C1", ROOT_A, ""), {"files": 9, "partial": True})
+        self.assertIsNone(self.rules.waiting("PC2|C1", ROOT_A, ""))  # PC2 没有这个根目录
 
 
 class CountsAndLabels(Harness):

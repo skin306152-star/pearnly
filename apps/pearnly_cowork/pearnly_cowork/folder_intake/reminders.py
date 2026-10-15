@@ -19,10 +19,10 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, now_datetime
 
-from pearnly_cowork.folder_intake import agent, contracts, machine, notify
+from pearnly_cowork.folder_intake import agent, contracts, machine, notify, readers
 from pearnly_cowork.folder_intake.access import RULE
 
-FIELDS = ["name", "title", "rule_owner", "connection", "reader", "root_id", "folder", "run_day", "run_time",
+FIELDS = ["name", "title", "rule_owner", "connection", "reader", "reader_device", "root_id", "folder", "run_day", "run_time",
           "remind_times", "remind_since", "modified", "cc_session"]
 
 
@@ -35,14 +35,17 @@ def run(now=None):
     for rule in frappe.get_all(RULE, filters={"enabled": 1, "remind": 1}, fields=FIELDS, ignore_permissions=True):
         hit = _slot(rule, current)
         if hit:
-            rule.update({"owner": rule.rule_owner, "run_at": hit[0], "label": hit[1],
-                         "reader": rule.reader or rule.connection})
+            # 按读者（电脑|连接）分组：同一个池里几台电脑各读各的，提醒各回各的电脑（ADR-021 第 4 批）
+            rule.update({"owner": rule.rule_owner, "run_at": hit[0], "label": hit[1], "reader": readers.ref(rule),
+                         "member": readers.of(rule)[1]})
             due.append(rule)
     states = {}
     for group in contracts.reminder_groups(due):
         key = contracts.remind_key(group["owner"], group["run_at"], group["label"], group["reader"])
+        # 部署前按连接算的键（读者那时只是连接）：同一时段部署前已发过的不再发一遍
+        legacy = contracts.remind_key(group["owner"], group["run_at"], group["label"], group["rules"][0]["member"])
         try:
-            if notify.sent(key):
+            if notify.sent(key) or (legacy != key and notify.sent(legacy)):
                 continue
             _send(group, key, current, states)
             frappe.db.commit()
@@ -115,9 +118,9 @@ def _left(days, hours, minutes):
 
 def _state(rule, states):
     """读这条任务文件夹的小助手最近一次同步上报的本机情况（一轮里同一台只读一次）。"""
-    reader = rule.reader or rule.connection
+    reader = readers.ref(rule)
     if reader not in states:
-        states[reader] = agent.read(reader)
+        states[reader] = readers.state(*readers.of(rule))
     return states[reader]
 
 

@@ -68,6 +68,7 @@ def _dto(doc):
     return {"name": doc.name, "label": doc.label, "adapter": doc.adapter, "workspace": doc.workspace,
             "client": doc.client or None, "enabled": bool(doc.enabled), "revision": int(doc.record_revision),
             "config": model.pool_config(doc.adapter, doc.config_json), "users": model.parse(doc.allowed_users, []),
+            "all_members": bool(int(doc.get("all_members") or 0)),
             "has_username": bool(doc.get("credential_username")), "has_password": bool(doc.get("credential_password")),
             "has_token": bool(doc.get("credential_token")), "collector_available": _collector_available(doc)}
 
@@ -123,7 +124,9 @@ def configure(workspace, adapter, request_key, label, config, client=None, users
         doc = frappe.get_doc({"doctype": CONNECTION, "record_key": name, "workspace": workspace,
                               "client": client or "", "adapter": adapter, "record_revision": 1,
                               "binding_generation": 0, "bound_account_set": "", "bound_profile_key": "",
-                              "create_request_hash": digest, "projection_heads": "{}"})
+                              "create_request_hash": digest, "projection_heads": "{}",
+                              # 新建的 Express 池全所可用（D2，ADR-021）：成员在自己的电脑上登录 CC 就能加入，不用逐个加名单
+                              "all_members": 1 if adapter == "express" else 0})
     doc.update({"label": label.strip(), "enabled": enabled, "config_json": model.dumps(config),
                 "allowed_users": model.dumps(sorted(users)), "last_request_key": operation, "last_request_hash": digest})
     for key, value in credentials.items():
@@ -248,7 +251,7 @@ def records(workspace, client=None, start=0, limit=50):
     main = set(main_connections(workspace, enabled=False).values()) if not client else set()
     for row in names:
         doc = _read(CONNECTION, row.name, lock=False)
-        if management or (doc.enabled and actor in model.parse(doc.allowed_users, [])):
+        if management or (doc.enabled and access.listed(doc, actor)):
             access.require_connection(doc, management=management, enabled=not management, lock=False)
             # 每种 ERP 的主连接（`main_connections`）：录入入口、LINE、CC 只认带它的那一行
             result.append({**_dto(doc), "main": doc.name in main})
@@ -595,7 +598,7 @@ def read_for_log(connection_id, workspace=None, client=None, actor=None, lock=Fa
         access.deny()
     doc = _read(CONNECTION, connection_id, lock=True)
     access.require_scope(doc.workspace, doc.client, actor=actor)
-    if actor not in model.parse(doc.allowed_users, []) or (workspace and (workspace, client or "") != (doc.workspace, doc.client or "")):
+    if not access.listed(doc, actor) or (workspace and (workspace, client or "") != (doc.workspace, doc.client or "")):
         access.deny()
     return _dto(doc)
 
