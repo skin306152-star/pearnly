@@ -2251,6 +2251,140 @@ assert.equal(useProjects.getState().projects.find((p) => p.id === "comp_first")?
 await made;
 """)
 
+    # 服务端的 projects() 按「我有对话的公司」现算：会话建好之前这家不在里面。create 要等 release() 才回（生产约 1–4 秒）。
+    SLOW_CREATE = r"""
+let release: (ok?: boolean) => void = () => {};
+const base = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method !== "create") return base(method, args, body);
+  const ok = await new Promise<boolean>((resolve) => { release = (good = true) => resolve(good); });
+  if (!ok) return { ok: false, status: 417, json: async () => ({ exception: "frappe.exceptions.ValidationError: no" }) };
+  if (body?.project && !site.projects.some((p: any) => p.id === body.project)) {
+    site.projects = [{ id: body.project, title: "นิภา เอ็กเช้นจ์ จำกัด", subtitle: "0105556000002 · 00000", last_active: at(0), count: 1 }, ...site.projects];
+  }
+  return base(method, args, body);
+};
+const projectReads = () => calls("projects").length;
+"""
+
+    def test_the_first_chat_in_a_company_stays_in_its_group_while_the_session_is_created(self):
+        # 2026-10-15 生产 14:14（F6）：主档页发这家第一句，新对话先在「最近」约 2 秒才进公司组。原因：建会话之前记归属时就
+        # 重取 projects()，那次回复（会话还没建，服务端不会有这家）把页面先搭出来的这一组整组盖掉；会话建好、再记一次归属
+        # 才又搭出来。现在：会话建好之前先搭的组不被回复盖掉，建好后再重取一次换成服务端那一行。
+        self.run_page(self.SLOW_CREATE + r"""
+site.projects = [];
+site.sessions = [row("sesn_bbb001", "Loose", 2)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+hintTitle("comp_nipa", "นิภา เอ็กเช้นจ์");             // 主档页读到这家的名称
+setDraft({ project: "comp_nipa", period: "2026-09" });
+await core.switchToNewThread();
+const local = core.mainThreadId;
+site.created = "sesn_new301";
+const made = core.initialize(local);
+assert.ok(core.threadIds.includes(local));           // 组件库已把这一行列进侧栏
+assert.equal(groupOf(local), "comp_nipa");
+// 建会话期间：记归属时的重取、回到前台的核对都回来了，回复里还没有这家，这一组也不散
+await g.sleep(20);
+assert.equal(groupOf(local), "comp_nipa", "after the read sent before the session exists");
+g.document.fire("visibilitychange");
+await g.sleep(30);
+assert.equal(groupOf(local), "comp_nipa", "after a check while the session is being created");
+assert.equal(useProjects.getState().projects.find((p) => p.id === "comp_nipa")?.title, "นิภา เอ็กเช้นจ์");
+// 会话建好：再重取一次，换成服务端那一行（带副标题），新旧编号都在这一组
+const before = projectReads();
+release();
+await made;
+await g.sleep(30);
+assert.equal(projectReads(), before + 1);
+const nipa = useProjects.getState().projects.filter((p) => p.id === "comp_nipa");
+assert.equal(nipa.length, 1);
+assert.equal(nipa[0].subtitle, "0105556000002 · 00000");
+assert.equal(groupOf(local), "comp_nipa");
+assert.equal(groupOf("sesn_new301"), "comp_nipa");
+// 之后的重取照服务端：这家没有对话了（别处删了）就不再显示
+site.projects = [];
+g.document.fire("visibilitychange");
+await g.sleep(30);
+assert.equal(groupOf("sesn_new301"), "");
+""")
+
+    def test_a_chat_in_an_existing_company_group_never_shows_in_recents(self):
+        self.run_page(self.SLOW_CREATE + r"""
+site.sessions = [row("sesn_aaa001", "Input VAT", 1, { project: "comp_abc", period: "2026-09" })];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+const before = projectReads();
+setDraft({ project: "comp_abc", period: "2026-09" });
+await core.switchToNewThread();
+const local = core.mainThreadId;
+site.created = "sesn_new302";
+const made = core.initialize(local);
+assert.equal(groupOf(local), "comp_abc");
+await g.sleep(30);
+assert.equal(groupOf(local), "comp_abc");
+release();
+await made;
+await g.sleep(30);
+assert.equal(groupOf(local), "comp_abc");
+assert.equal(groupOf("sesn_new302"), "comp_abc");
+assert.equal(projectReads(), before);                // 侧栏本来就有这家：不必重取
+""")
+
+    def test_a_failed_first_chat_leaves_no_empty_company_group(self):
+        self.run_page(self.SLOW_CREATE + r"""
+site.projects = [];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+hintTitle("comp_nipa", "นิภา เอ็กเช้นจ์");
+setDraft({ project: "comp_nipa", period: "2026-09" });
+await core.switchToNewThread();
+const local = core.mainThreadId;
+const made = core.initialize(local);
+assert.equal(groupOf(local), "comp_nipa");
+release(false);
+await assert.rejects(made);
+assert.ok(!core.threadIds.includes(local));
+assert.equal(groupOf(local), "");
+assert.ok(!useProjects.getState().projects.some((p) => p.id === "comp_nipa"));
+""")
+
+    def test_moving_into_a_company_not_in_the_sidebar_keeps_the_group_until_the_server_answers(self):
+        # 同一个毛病的另一条路：「移到 ▸」一家侧栏还没有的公司，移动请求回来之前重取的回复也不拆先搭的组
+        self.run_page(r"""
+site.projects = [];
+site.sessions = [row("sesn_bbb001", "Loose", 2)];
+const base = g.respond;
+let release: () => void = () => {};
+g.respond = async (method: string, args: any, body: any) => {
+  if (method !== "move") return base(method, args, body);
+  await new Promise<void>((resolve) => { release = resolve; });
+  site.projects = [{ id: "comp_nipa", title: "นิภา เอ็กเช้นจ์ จำกัด", last_active: at(0), count: 1 }];
+  return base(method, args, body);
+};
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+hintTitle("comp_nipa", "นิภา เอ็กเช้นจ์");             // 选公司的菜单里点了这家
+const moving = fileSession("sesn_bbb001", { project: "comp_nipa", period: "", scope: "" });
+assert.equal(groupOf("sesn_bbb001"), "comp_nipa");
+g.document.fire("visibilitychange");
+await g.sleep(30);
+assert.equal(groupOf("sesn_bbb001"), "comp_nipa");
+release();
+await moving;
+await g.sleep(30);
+assert.equal(useProjects.getState().projects.find((p) => p.id === "comp_nipa")?.title, "นิภา เอ็กเช้นจ์ จำกัด");
+assert.equal(groupOf("sesn_bbb001"), "comp_nipa");
+""")
+
     def test_moves_renames_and_deletes_merge_at_once(self):
         self.run_page(r"""
 site.sessions = [row("sesn_aaa001", "Input VAT", 1, { project: "comp_abc", period: "2026-09" }), row("sesn_bbb001", "Loose", 2)];

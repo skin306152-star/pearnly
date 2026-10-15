@@ -383,6 +383,98 @@ assert.equal(plain.prevented, false);
 assert.equal(isImeEnter(key("a", 229, false)), false);
 """)
 
+    def test_a_new_chat_is_running_while_its_session_is_created(self):
+        # 2026-10-15 生产（F4）：新对话发第一句，状态行已在「思考中」，发送键却还是「发送」约 4 秒（建会话期间没有会话控制器，
+        # 组件库以为没在跑），这几秒还能再发一条。现在：建会话并发出期间就是在跑；期间点停止，发出后打断；失败恢复可发送。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { NewChatSend } from "@/lib/managed-agents/new-chat-send";
+---
+const posted = (method: string) => g.calls.filter((c: any) => c.method === method);
+const send = (text: string) => (id: string) => getSessionController(id).sendMessage(text, []);
+const interrupt = (id: string) => getSessionController(id).interrupt();
+const chat = new NewChatSend();
+const seen: boolean[] = [];
+chat.subscribe(() => seen.push(chat.isSending()));
+assert.equal(chat.cancel(), false);                 // 没在建会话：停止键照旧由会话控制器打断
+// 建会话（服务端约 1–4 秒）期间：在跑（组件库 isRunning = isBusy(空状态) || 这一项 → 停止键，不能再发）
+let made: (id: string) => void = () => {};
+const running = chat.run(() => new Promise<string>((resolve) => { made = resolve; }), send("first"), interrupt);
+assert.equal(chat.isSending(), true);
+await g.sleep(20);
+assert.equal(chat.isSending(), true);
+// 期间点停止：先记下，不发打断（会话还没有），也不丢消息
+assert.equal(chat.cancel(), true);
+assert.equal(posted("interrupt").length, 0);
+made("sesn_new4a");
+await running;
+// 用户那条照常发出、留在对话里；发出之后才打断这段新会话
+assert.deepEqual(posted("send").map((c: any) => [c.body.session_id, c.body.text]), [["sesn_new4a", "first"]]);
+assert.deepEqual(posted("interrupt").map((c: any) => c.body.session_id), ["sesn_new4a"]);
+assert.ok(g.calls.findIndex((c: any) => c.method === "send") < g.calls.findIndex((c: any) => c.method === "interrupt"));
+assert.ok(getSessionController("sesn_new4a").getSnapshot().messages.some((m: any) => m.role === "user"));
+assert.equal(chat.isSending(), false);
+assert.deepEqual(seen, [true, false]);
+// 没点停止：照常发出，不打断
+await chat.run(async () => "sesn_new4b", send("second"), interrupt);
+assert.equal(posted("interrupt").length, 1);
+assert.equal(chat.isSending(), false);
+// 建会话失败：照常报错，恢复可发送；记下的停止不留到下一次
+const failing = chat.run(async () => { await g.sleep(10); throw new Error("session was not created"); }, send("x"), interrupt);
+assert.equal(chat.cancel(), true);
+await assert.rejects(failing, /session was not created/);
+assert.equal(chat.isSending(), false);
+assert.equal(chat.cancel(), false);
+await chat.run(async () => "sesn_new4c", send("third"), interrupt);
+assert.equal(posted("interrupt").length, 1);
+""")
+
+    def test_new_chat_wiring_is_per_conversation(self):
+        # 组件库每段对话一个 useSessionThreadRuntime 实例（后台挂着的对话也在）：「正在建会话」是这一段自己的，不读模块级的
+        # 发送中气泡（pending-send.ts 是整页一个）
+        provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
+        self.assertIn("const [newChat] = useState(() => new NewChatSend());", provider)
+        self.assertIn("isRunning: isBusy(snapshot) || creating,", provider)
+        self.assertIn("if (newChat.cancel()) return;", provider)
+        self.assertIn("if (controller) await send(await ensureSession());", provider)
+        self.assertNotIn("usePendingSend", provider)
+
+    def test_the_top_line_only_says_reconnecting_in_the_page_language(self):
+        # 2026-10-15 安卓（F5）：回复中途开飞行模式，对话顶部露出英文原文「Failed to fetch」。现在顶部只说本地化的
+        # 「正在重新连接…」，原文只进控制台；对话内状态行已在说「连接中断，正在重连…」时顶部不说。
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { connectionDetail, showsReconnecting } from "@/lib/managed-agents/turn";
+---
+const respond = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") throw new TypeError("Failed to fetch");
+  return respond(method, args, body);
+};
+const c = getSessionController("sesn_net5");
+c.attach();
+await g.sleep(30);
+const s: any = c.getSnapshot();
+assert.equal(connectionDetail(s), "Failed to fetch");    // 原文留给控制台
+assert.equal(showsReconnecting(s), true);
+assert.equal(showsReconnecting({ ...s, stalled: true }), false);
+const base = { isLoaded: true, isTailing: true, transportError: null, stalled: false, lastError: null };
+assert.equal(showsReconnecting(base), false);
+assert.equal(showsReconnecting({ ...base, isTailing: false }), true);
+const retrying = { ...base, lastError: { message: "Overloaded", retryStatus: "retrying" } } as any;
+assert.equal(showsReconnecting(retrying), true);
+assert.equal(connectionDetail(retrying), "Overloaded");
+assert.equal(showsReconnecting({ ...retrying, lastError: { message: "Overloaded", retryStatus: "exhausted" } } as any), false);
+g.respond = respond;
+""", lang="zh")
+        page = (SRC / "assistant.tsx").read_text(encoding="utf-8")
+        bar = page[page.index("function SessionStatusBar"):page.index("async function signOut")]
+        self.assertIn('{t("reconnecting")}', bar)
+        self.assertIn("showsReconnecting(snapshot)", bar)
+        self.assertIn("console.debug(", bar)
+        for raw in ("transportError ||", "lastError.message", "{message"):
+            self.assertNotIn(raw, bar)
+
     def test_page_wiring(self):
         # 这些接线在 node 里跑不了整页，守住源码：只有一个「在忙」标记、没有圆点光标、输入框挂了输入法判断
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")

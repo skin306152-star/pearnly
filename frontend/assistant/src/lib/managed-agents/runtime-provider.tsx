@@ -21,11 +21,12 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
+import { NewChatSend } from "./new-chat-send";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
@@ -107,6 +108,10 @@ function useSessionThreadRuntime() {
 
   const attachments = useMemo(() => createAttachmentAdapter(ensureSession), [ensureSession]);
 
+  // 新对话第一条：建会话期间也算在跑（停止键、不能再发），这段对话自己的，不看别的对话（new-chat-send.ts）
+  const [newChat] = useState(() => new NewChatSend());
+  const creating = useSyncExternalStore(newChat.subscribe, newChat.isSending, newChat.isSending);
+
   // 本站提醒卡片在这里才并进对话（reducer.withNotices）：发送、批准、回复完成通知都只看引擎消息。
   const messages = useMemo(() => withNotices(snapshot.messages, snapshot.notices), [snapshot.messages, snapshot.notices]);
 
@@ -116,8 +121,9 @@ function useSessionThreadRuntime() {
     messages: messages as readonly ThreadMessageLike[],
     convertMessage: (m) => m,
     isLoading: !snapshot.isLoaded,
-    // Busy = the agent is working, or a gate/custom tool is waiting on us.
-    isRunning: isBusy(snapshot),
+    // Busy = the agent is working, or a gate/custom tool is waiting on us,
+    // or a brand-new chat is still creating its session to send the first message.
+    isRunning: isBusy(snapshot) || creating,
     isDisabled: snapshot.isDead,
     adapters: { attachments },
 
@@ -129,9 +135,11 @@ function useSessionThreadRuntime() {
       // 按下发送立刻出现气泡（新对话要先建会话，约 1 秒）；真正的气泡放进对话、并且画出来了才撤（thread.tsx 的
       // PendingSendBubble），不会两个都在，也不会两个都不在。发送请求结束时（至少一次往返，早已画出）兜底撤掉。
       beginPendingText(text);
+      const send = (id: string) => getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), pendingShownAs);
       try {
-        const id = await ensureSession();
-        await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), pendingShownAs);
+        // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）
+        if (controller) await send(await ensureSession());
+        else await newChat.run(ensureSession, send, (id) => getSessionController(id).interrupt());
       } finally {
         clearPending();
       }
@@ -142,6 +150,7 @@ function useSessionThreadRuntime() {
 
     // Stop button: a real interrupt, not just dropping the response.
     onCancel: async () => {
+      if (newChat.cancel()) return; // 会话还在建：发出后再打断
       if (controller) await controller.interrupt();
     },
 

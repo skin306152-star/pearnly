@@ -120,3 +120,23 @@ export class ThinkingClock {
     return this.seconds;
   }
 }
+
+type ConnectionState = Pick<Projection, "lastError"> & {
+  isLoaded: boolean;
+  isTailing: boolean;
+  transportError: string | null;
+  stalled: boolean;
+};
+
+/** 对话顶部那一行（assistant.tsx 的 SessionStatusBar）此刻要不要说「正在重新连接…」：读写出错、引擎在重试、加载完了尾巴却
+ *  没连上时说。只说这一句本地化的话，不显示原始报错（fetch 的「Failed to fetch」、引擎原文，多是英文：2026-10-15 安卓 F5），
+ *  原文由页面写进控制台排查。对话内状态行已经在说「连接中断，正在重连…」（stalled）时不说，免得两处说同一件事。 */
+export function showsReconnecting(state: ConnectionState): boolean {
+  if (state.stalled) return false;
+  return !!state.transportError || state.lastError?.retryStatus === "retrying" || (state.isLoaded && !state.isTailing);
+}
+
+/** 顶部那一行背后的原始报错（只给控制台）。 */
+export function connectionDetail(state: Pick<ConnectionState, "lastError" | "transportError">): string {
+  return state.transportError || (state.lastError?.retryStatus === "retrying" ? state.lastError.message : "");
+}

@@ -41,6 +41,7 @@ import {
   type Filing,
   fileSession,
   filingOf,
+  hintTitle,
   NO_FILING,
   type ProjectRow,
   setDraft,
@@ -235,7 +236,10 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
       key={id || "recents"}
       className="cc-menu-item"
       onSelect={() => {
-        if (id && typeof label === "string") titles.set(id, label);
+        if (id && typeof label === "string") {
+          titles.set(id, label);
+          hintTitle(id, label); // 挂进侧栏还没有的公司时先按这个名称搭出这一组
+        }
         if (id !== current) onPick(id);
       }}
     >

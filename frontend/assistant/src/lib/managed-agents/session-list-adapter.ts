@@ -34,6 +34,7 @@ import {
   deleteSession,
   getSession,
   listGrouped,
+  type ListedSession,
   listSessions,
   renameSession,
   type SessionPage,
@@ -45,8 +46,10 @@ import {
   decodeCursor,
   encodeCursor,
   type Filing,
+  fileLocally,
   filingFrom,
   movedSince,
+  NO_FILING,
   noteCursor,
   noteFilings,
   pickGroup,
@@ -173,14 +176,23 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
     // chat. The returned id becomes both remoteId and externalId, so
     // every later call keys straight off the session id.
     listen();
-    // 开在待建的公司里（组头 ＋、主档页输入框、输入框上方的公司条）：拿到服务端摘要之前按本页编号归组，不先闪到「最近」
+    // 开在待建的公司里（组头 ＋、主档页输入框、输入框上方的公司条）：拿到服务端摘要之前按本页编号归组，不先闪到「最近」；
+    // 侧栏还没有这家时先搭出的这一组，会话建好之前重取 projects() 的回复不拿来拆它（projects.ts 的 fileLocally）
     const state = useProjects.getState();
-    const draft = state.kind ? state.draft : undefined;
-    if (draft?.project) noteFilings({ [threadId]: draft });
-    const session = await createSession(draft?.project ? draft : undefined);
+    const draft = state.kind && state.draft.project ? state.draft : undefined;
+    const local = draft ? fileLocally({ [threadId]: draft }) : undefined;
+    let session: ListedSession;
+    try {
+      session = await createSession(draft);
+    } catch (error) {
+      local?.undo({ [threadId]: NO_FILING });
+      throw error;
+    }
     touch(session.id);
     const filing = filingFrom(session) ?? draft;
-    if (filing) noteFilings({ [threadId]: filing, [session.id]: filing });
+    const entries = filing ? { [threadId]: filing, [session.id]: filing } : {};
+    if (local) local.done(entries);
+    else noteFilings(entries);
     return { remoteId: session.id, externalId: session.id };
   },
 

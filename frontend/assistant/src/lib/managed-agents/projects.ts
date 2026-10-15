@@ -76,15 +76,25 @@ type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; 
 /** 重取我有对话的公司（页面打开、重连、回到前台、对话移进还不在侧栏的公司）。读不到（旧服务端没有这个接口、断网）时
  *  保留已有的，第一次就按没有公司分组。 */
 export function refreshProjects(): Promise<ProjectKind> {
+  const asked = Date.now();
   loading = get<ProjectsReply>("projects")
     .then((out) => {
       const kind: ProjectKind = out?.kind === "company" ? "company" : null;
+      const rows = kind ? (out?.projects ?? []).filter((row) => row && typeof row.id === "string") : [];
+      // 页面先搭出来的组：服务端那一刻还不可能有的（对话还没收下）留着，其余照这次回复
+      const listed = new Set(rows.map((row) => row.id));
+      const kept = kind ? store.getState().projects.filter((row) => provisional.has(row.id) && !listed.has(row.id) && heldFor(row.id, asked)) : [];
+      for (const id of [...provisional]) {
+        if (kept.some((row) => row.id === id)) continue;
+        provisional.delete(id);
+        holds.delete(id);
+      }
       store.setState({
         loaded: true,
         kind,
         period: !!kind && !!out?.period,
         scope: !!kind && !!out?.scope,
-        projects: kind ? sortRows((out?.projects ?? []).filter((row) => row && typeof row.id === "string")) : [],
+        projects: sortRows([...kept, ...rows]),
       });
       return kind;
     })
@@ -139,7 +149,7 @@ export function groupOf(...ids: Array<string | undefined>): string {
 // ---------------------------------------------------------------- 列表带回的归属
 const moved = new Map<string, number>();
 
-/** 本页在 asked 之后自己移动过这段对话：那之前读的一页不拿来改它。 */
+/** 本页在 asked 之后自己移动过（或正在移动）这段对话：那之前读的一页不拿来改它。 */
 export function movedSince(sessionId: string, asked: number): boolean {
   return (moved.get(sessionId) ?? -1) >= asked;
 }
@@ -157,7 +167,7 @@ export function filingFrom(row: { project?: unknown; period?: unknown; scope?: u
   };
 }
 
-// 页面已知的公司名称（主档页、公司页读到的）：在这家开第一段对话时，侧栏还没有这一组，先按这个名称显示，
+// 页面已知的公司名称（主档页、公司页、选公司的菜单读到的）：在这家开第一段对话时，侧栏还没有这一组，先按这个名称显示，
 // 不让新对话先闪到「最近」再跳进公司；projects() 回来后换成服务端那一行。
 const titleHints = new Map<string, string>();
 
@@ -165,19 +175,86 @@ export function hintTitle(id: string, title: string) {
   if (id && title) titleHints.set(id, title);
 }
 
-/** 记下几段对话挂在哪（列表的每一页、新建、移动的回复、推来的事件都经这里）。挂进侧栏还没有的公司时重取一次 projects()。 */
-export function noteFilings(entries: Record<string, Filing>) {
+// 页面先搭出来、服务端还没给过的公司组（provisional），以及哪些组在等服务端收下本页的对话（holds）：建会话、移动对话的
+// 请求还没回时，服务端的 projects() 不可能有这家——那期间问的回复不拿来拆这一组（2026-10-15 生产：建会话前就重取，回复把
+// 先搭的组盖掉，新对话在「最近」待了约 2 秒）。open：还没回的请求数；until：最后一个回来的时刻，在那之前问的回复也不作数。
+const provisional = new Set<string>();
+const holds = new Map<string, { open: number; until: number }>();
+
+function heldFor(id: string, asked: number): boolean {
+  const hold = holds.get(id);
+  return !!hold && (hold.open > 0 || asked < hold.until);
+}
+
+const projectsOf = (entries: Record<string, Filing>) => [...new Set(Object.values(entries).map((f) => f.project).filter(Boolean))];
+
+/** 记下归属；挂进侧栏还没有的公司时按页面已知的名称先搭出这一组。回：还不在侧栏里（连先搭的也没有）的公司。 */
+function record(entries: Record<string, Filing>): string[] {
   const { filings, projects, kind } = store.getState();
-  if (Object.entries(entries).every(([id, filing]) => same(filings[id], filing))) return;
-  const missing = kind
-    ? [...new Set(Object.values(entries).map((f) => f.project).filter((id) => id && !projects.some((row) => row.id === id)))]
-    : [];
-  const provisional: ProjectRow[] = missing
+  if (Object.entries(entries).every(([id, filing]) => same(filings[id], filing))) return [];
+  const missing = kind ? projectsOf(entries).filter((id) => !projects.some((row) => row.id === id)) : [];
+  const made: ProjectRow[] = missing
     .filter((id) => titleHints.has(id))
     .map((id) => ({ id, title: titleHints.get(id) as string, count: 1, last_active: new Date().toISOString() }));
-  store.setState(provisional.length ? { filings: { ...filings, ...entries }, projects: [...provisional, ...projects] }
+  for (const row of made) provisional.add(row.id);
+  store.setState(made.length ? { filings: { ...filings, ...entries }, projects: [...made, ...projects] }
     : { filings: { ...filings, ...entries } });
-  if (missing.length) void refreshProjects();
+  return missing;
+}
+
+/** 记下几段对话挂在哪（列表的每一页、推来的事件都经这里；本页新建、移动走 fileLocally）。挂进侧栏还没有的公司时重取一次 projects()。 */
+export function noteFilings(entries: Record<string, Filing>) {
+  if (record(entries).length) void refreshProjects();
+}
+
+/** 本页把对话挂进某家公司、服务端还没收下（新建会话、移动对话）：先按本页记下（侧栏还没有这家就先搭出这一组），收下之前
+ *  不重取（读也读不到），别处触发的重取回来也不拆这一组。done：收下了，照服务端回的再记一次，这家是先搭的（或还不在侧栏）
+ *  就重取一次换成服务端那一行；undo：没收下，按给的撤回，先搭的组没有别的对话就去掉。 */
+export function fileLocally(entries: Record<string, Filing>): {
+  done: (entries: Record<string, Filing>) => void;
+  undo: (entries: Record<string, Filing>) => void;
+} {
+  record(entries);
+  const held = projectsOf(entries).filter((id) => provisional.has(id));
+  for (const id of held) {
+    const hold = holds.get(id) ?? { open: 0, until: 0 };
+    hold.open++;
+    holds.set(id, hold);
+  }
+  let settled = false;
+  const release = () => {
+    if (settled) return false;
+    settled = true;
+    for (const id of held) {
+      const hold = holds.get(id);
+      if (!hold) continue;
+      hold.open = Math.max(0, hold.open - 1);
+      hold.until = Date.now();
+    }
+    return true;
+  };
+  return {
+    done(final) {
+      if (!release()) return;
+      record(final);
+      const { projects } = store.getState();
+      if (projectsOf(final).some((id) => provisional.has(id) || !projects.some((row) => row.id === id))) void refreshProjects();
+    },
+    undo(previous) {
+      if (!release()) return;
+      record(previous);
+      const { filings } = store.getState();
+      const empty = held.filter(
+        (id) => provisional.has(id) && !holds.get(id)?.open && !Object.values(filings).some((f) => f.project === id),
+      );
+      if (!empty.length) return;
+      for (const id of empty) {
+        provisional.delete(id);
+        holds.delete(id);
+      }
+      store.setState((s) => ({ projects: s.projects.filter((row) => !empty.includes(row.id)) }));
+    },
+  };
 }
 
 // ---------------------------------------------------------------- 复合游标
@@ -253,6 +330,8 @@ function upsert(row: { id: string; title: string; subtitle?: string }) {
 
 /** 公司删了（或本页删的）：这一组的对话并入最近、待建的新对话不再挂它。 */
 export function forgetProject(id: string) {
+  provisional.delete(id);
+  holds.delete(id);
   store.setState((s) => ({
     projects: s.projects.filter((p) => p.id !== id),
     filings: Object.fromEntries(Object.entries(s.filings).map(([sid, f]) => [sid, f.project === id ? NO_FILING : f])),
@@ -274,14 +353,16 @@ export async function fileSession(sessionId: string, target: Filing): Promise<vo
   const before = filingOf(sessionId);
   const next = target.project ? target : NO_FILING;
   if (same(before, next)) return;
-  moved.set(sessionId, Date.now());
-  noteFilings({ [sessionId]: next });
+  // 移动请求还没回：这期间读的列表（服务端可能还没改）不拿来改它；回来后，那之前问的也不算
+  moved.set(sessionId, Number.POSITIVE_INFINITY);
+  const local = fileLocally({ [sessionId]: next });
   try {
     const out = await moveSession(sessionId, next);
     moved.set(sessionId, Date.now());
-    noteFilings({ [sessionId]: filingFrom(out ?? {}) ?? next });
+    local.done({ [sessionId]: filingFrom(out ?? {}) ?? next });
   } catch (error) {
-    noteFilings({ [sessionId]: before });
+    moved.set(sessionId, Date.now());
+    local.undo({ [sessionId]: before });
     throw error;
   }
 }
@@ -313,6 +394,8 @@ export function applyProjectChange(change: ProjectChange): string | undefined {
 export function resetProjects() {
   loading = null;
   moved.clear();
+  provisional.clear();
+  holds.clear();
   store.setState({
     loaded: false, kind: null, period: false, scope: false, projects: [], filings: {}, draft: NO_FILING, shown: {},
     requestedGroup: null, more: EMPTY_CURSOR, error: "",

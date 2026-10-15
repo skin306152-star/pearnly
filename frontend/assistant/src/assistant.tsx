@@ -77,6 +77,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ManagedAgentsRuntimeProvider, useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
+import { connectionDetail, showsReconnecting } from "@/lib/managed-agents/turn";
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { isBusy } from "@/lib/managed-agents/reducer";
@@ -139,13 +140,16 @@ function ThreadLoading() {
 }
 
 function SessionStatusBar() {
-  const { sessionId, isTailing, isLoaded, transportError, lastError } = useActiveSessionSnapshot();
-  if (!sessionId) return null;
-  const message = transportError || (lastError?.retryStatus === "retrying" ? lastError.message : "");
-  if (!message && !(isLoaded && !isTailing)) return null;
+  const snapshot = useActiveSessionSnapshot();
+  // 原始报错（多是英文）只进控制台排查，界面只说本地化的「正在重新连接…」（turn.ts 的 showsReconnecting）
+  const detail = connectionDetail(snapshot);
+  useEffect(() => {
+    if (detail) console.debug("[cc] connection:", detail);
+  }, [detail]);
+  if (!snapshot.sessionId || !showsReconnecting(snapshot)) return null;
   return (
     <div data-slot="cc-status" className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-2 text-ink-3 text-xs">
-      {message || t("reconnecting")}
+      {t("reconnecting")}
     </div>
   );
 }

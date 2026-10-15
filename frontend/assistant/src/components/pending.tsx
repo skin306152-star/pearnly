@@ -30,7 +30,7 @@ import {
   useCompanyNav,
 } from "@/lib/companies";
 import { useLiveRefresh } from "@/lib/live";
-import { useProjects } from "@/lib/managed-agents/projects";
+import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 
 const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
@@ -172,7 +172,7 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
 const PendingGroup: FC<{
   company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
 }> = ({ company, title, items, onDone, onChanged }) => {
-  const ask = useAskCC(company);
+  const ask = useAskCC(company, title);
   const hand = items.filter((item) => !choosable(item));
   return (
     <section className="flex flex-col gap-2">
@@ -195,11 +195,13 @@ const PendingGroup: FC<{
 };
 
 /** 交给 CC：在这家公司下开新对话（月份取单据月份），预填「处理这几张：…」，不自动发送。 */
-function useAskCC(company: string) {
+function useAskCC(company: string, title: string) {
   const start = useStartIn();
   const withPeriod = useProjects((s) => s.period);
-  return (items: readonly PendingItem[]) =>
+  return (items: readonly PendingItem[]) => {
+    hintTitle(company, title); // 侧栏还没有这家时，新对话先按这个名称搭出这一组
     start(company ? { project: company, period: withPeriod ? monthOfItems(items) : "" } : {}, handText(items), false);
+  };
 }
 
 /** 一张单的摘要：单号 · 对方 · 金额 · 日期，下面一行原因。 */

@@ -168,3 +168,107 @@ V1 推送前查科目建议时每次都请电脑读历史、每次都失败；�
 这是写路径的连接锁（迁移保护里的外部写者锁），按设计保留；CC 对话里表现为多等了一轮、随后推送成功，没有错写或漏写。
 本仓同类写路径的处理方式是在入口捕获 `QueryDeadlockError` 回滚重试（如 `line_session`、`income_recon_api`、`inventory/api`）。
 这次只记录，不改：若之后在推送准备（`prepare` / `choices_view` / 定时任务推送）里看到 1020 造成失败或用户可见的报错，再按入口重试的做法统一处理。
+
+## 新对话建会话期间发送键还是「发送」（F4）
+
+分支 `pearnly/acceptance-1015-ui`（基于 `pearnly/acceptance-1015` 的 `7de2848d`），F4–F6 三节同一分支。
+
+### 现象
+
+生产电脑 Chrome 与安卓都复现：新对话发第一句，状态行「0 秒 · 思考中…」已出现，发送键 aria-label 仍是「发送」约 4 秒才变「停止」，
+这几秒里还能再发一条。已有对话、先加附件的新对话 0 秒起就是「停止」。
+
+### 原因
+
+`runtime-provider.tsx` 的 `useSessionThreadRuntime` 把 `isRunning: isBusy(snapshot)` 交给组件库。新对话发送时 `onNew` 先
+`await ensureSession()`（服务端建会话约 1–4 秒），这期间没有会话控制器，snapshot 是空状态，`isRunning` 为假；状态行看的是
+`pending-send.ts` 的发送中气泡，两边对不上。`session-controller.ts: sendMessage` 乐观 fold 的 `session.status_running` 要等会话建好才有。
+
+### 改动
+
+- 新增 `lib/managed-agents/new-chat-send.ts`（`NewChatSend`）：没有会话时「建会话 → 发出」期间算在跑；期间点停止先记下，发出后对
+  新会话 `interrupt()`（用户那条照常发出、留在对话里）；失败照常抛出、恢复可发送，记下的停止不留到下一次。
+- `runtime-provider.tsx`：每个对话实例 `useState(() => new NewChatSend())`（不用模块级的发送中气泡，后台挂着的对话互不影响），
+  `isRunning: isBusy(snapshot) || creating`；`onNew` 有会话控制器（已有对话、先加附件）走原路径，没有才经 `NewChatSend.run`；
+  `onCancel` 先问 `newChat.cancel()`，在建会话就不再自己打断。
+
+### 测试
+
+`tests/test_cc_run_indicator.py`：`test_a_new_chat_is_running_while_its_session_is_created`（建会话期间在跑、期间点停止发出后才打断且
+消息还在、没点停止不打断、建会话失败恢复可发送）、`test_new_chat_wiring_is_per_conversation`（接线：每个对话一个、`isRunning` 并上、
+停止先问它、已有会话走原路径）。
+
+### 未做
+
+- 组件在 node 里不能整页跑，`isRunning` 接线靠源码断言；未部署，部署后在生产电脑 / 安卓重看新对话第一句 0 秒起就是「停止」，
+  期间点停止后用户消息在、回复被打断。
+
+## 断网时对话顶部露出「Failed to fetch」（F5）
+
+### 现象
+
+安卓（界面中文）回复中途开飞行模式，30 秒后对话内状态行正常显示「连接中断，正在重连…」，对话区顶部同时出现灰字「Failed to fetch」，
+恢复联网后消失。
+
+### 原因
+
+`assistant.tsx` 的 `SessionStatusBar` 显示 `transportError || (lastError.retryStatus === "retrying" ? lastError.message : "")`：
+`transportError` 是 fetch 的原始 `err.message`（`session-controller.ts: describe`）或中继包的 `envelope.message`，`lastError.message`
+是引擎原文，都可能是英文原始报错。
+
+### 改动
+
+- `turn.ts` 加 `showsReconnecting`（读写出错、引擎在重试、加载完了尾巴没连上时说；`stalled` 为真时不说）与 `connectionDetail`（原文）。
+- `SessionStatusBar` 只显示已有词条 `t("reconnecting")`（「正在重新连接…」），原文 `console.debug` 留着排查；对话内状态行已在说
+  「连接中断，正在重连…」时顶部这条不显示。未新增、未改词条。
+
+### 测试
+
+`tests/test_cc_run_indicator.py`：`test_the_top_line_only_says_reconnecting_in_the_page_language`（真会话控制器读事件抛
+`TypeError("Failed to fetch")`：原文只在 `connectionDetail`，顶部要显示、`stalled` 时不显示；引擎重试 / 重试用完；源码里顶部只渲染
+`t("reconnecting")`、不再拼原文）。
+
+### 未做
+
+- 未部署；部署后在安卓飞行模式重看顶部只出「正在重新连接…」或不出（对话内已在说时）。
+
+## 公司页发第一句，新对话先闪在「最近」（F6）
+
+### 现象
+
+生产电脑 Chrome 14:14：公司主档页（这家还没有任何对话，公司组第一次出现）的输入框发第一句，侧栏「最近」顶部先出现
+「新对话 · 9月」，约 2 秒后公司组出现并挪进去。
+
+### 原因
+
+主档页输入框这条路径没问题：`CompanyComposer` → `useStartIn` 先 `setDraft`，再切新对话、两帧后 `composer.send()`；
+`company-page.tsx` 读到详情时已 `hintTitle`；组件库 `initialize` 里 `execute`（适配器的 `initialize`）同步先跑，`noteFilings({本地编号: 草稿})`
+在组件库把这一行变成 regular 之前就记下了；侧栏归组按 `filings[remoteId] ?? filings[本地编号]`，键一致；`kind` 已加载。
+「· 9月」也说明归属记上了，是侧栏里没有这一组。
+
+真正的原因：`noteFilings` 发现这家不在侧栏，先搭出临时组，同时立刻重取 `projects()`。这次请求发在 `createSession` 之前，服务端
+`projects()` 按「我有对话的公司」现算，不可能有这家；回复一到（比建会话快）就整组盖掉临时组，新对话落回「最近」。会话建好后
+`initialize` 再记一次归属，临时组重新搭出、再重取，才进公司组。夜间批的测试只在 `initialize` 调用后同步断言了一次，没等那次回复。
+确认方法：新测试让假站点的 `projects()` 按已建会话现算、`create` 等放行才回，修前在「建会话前发出的那次重取回来后」断言失败
+（`'' !== 'comp_nipa'`），与生产现象一致。同一毛病也在「移到 ▸」侧栏还没有的公司（移动前就重取）。
+
+### 改动
+
+- `projects.ts`：本页新建、移动走新的 `fileLocally`：先按本页记下归属（侧栏还没有就按已知名称搭临时组），服务端收下之前不重取；
+  别处触发的重取（回到前台的核对等）回来时，对这期间问的回复不拆临时组（`holds`：还没回的请求数 + 最后回来的时刻，之前问的不作数）。
+  `done` 照服务端回的再记一次，临时组（或还不在侧栏）就重取一次换成服务端那一行；`undo` 撤回，临时组没别的对话就去掉，不留空组。
+  之后的重取照服务端（别处删了照常去掉）。`fileSession` 移动请求在途时 `movedSince` 一律算移动过，在途读到的旧列表不改它的归属。
+- `session-list-adapter.ts: initialize` 改用 `fileLocally`，建会话失败时撤回。
+- 名称提示补齐：输入框上方公司条 / 「移到 ▸」的选公司菜单（`CompanyChoices`）与待处理页「交给 CC」（有公司名时）也 `hintTitle`。
+
+### 测试
+
+`tests/test_assistant_ui.py`（`CompanySidebarBehaviourTests`）：`test_the_first_chat_in_a_company_stays_in_its_group_while_the_session_is_created`
+（这家第一段对话：建会话期间两次重取都不散，建好后重取一次换成服务端那一行，之后照服务端）、
+`test_a_chat_in_an_existing_company_group_never_shows_in_recents`（已有公司组：全程在组里，不多重取）、
+`test_a_failed_first_chat_leaves_no_empty_company_group`、`test_moving_into_a_company_not_in_the_sidebar_keeps_the_group_until_the_server_answers`。
+新测试 8 路并行反复跑两轮都稳定。
+
+### 未做
+
+- 已有公司组的情况生产未测，靠测试覆盖；未部署，部署后在生产主档页给一家没有对话的公司发第一句，看侧栏直接出现公司组、不经「最近」。
