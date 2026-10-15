@@ -226,8 +226,11 @@
 					// 打不开就把黑框收起来，只留原因那一句（手动输入编码照常可用）。
 					scanner?.stop(); scanner = null; camera = false;
 					d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
-					message(p.scan_failure_text(error));
+					p.scan_hint(d.fields_dict.message.$wrapper, error);
 				},
+				// 在 LINE 等 App 里 5 秒还没开相机：先说原因、给出路，相机后来开了就收起提示。
+				on_waiting: reason => p.scan_hint(d.fields_dict.message.$wrapper, reason),
+				on_started: () => d.fields_dict.message.$wrapper.empty(),
 			});
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());

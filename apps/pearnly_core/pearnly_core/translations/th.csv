@@ -426,6 +426,7 @@ Only confirmed documents can be queued for push,เฉพาะเอกสา�
 Only one default per account + adapter (the legacy product's unique index).,บัญชีและอะแดปเตอร์เดียวกันมีการเชื่อมต่อเริ่มต้นได้เพียงรายการเดียว
 Only the config was checked; a real connectivity test waits for the adapter,ตรวจสอบเฉพาะการตั้งค่า ยังไม่ได้ทดสอบการเชื่อมต่อจริง
 Only the owner can manage it,เฉพาะผู้รับผิดชอบเท่านั้นที่จัดการได้
+Open in browser,เปิดในเบราว์เซอร์
 Operator,พนักงาน
 Operator Roster,ทะเบียนพนักงาน
 Operator added,เพิ่มพนักงานแล้ว
@@ -633,6 +634,7 @@ The balance grows once the platform confirms the transfer.,ยอดคงเห
 The barcode reader could not load. Refresh the page and try again.,โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง
 The billing service returned HTTP {0},ระบบเรียกเก็บเงินตอบกลับ HTTP {0}
 The bind code has expired — please regenerate,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
+"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",เปิดกล้องใน LINE ไม่ได้ กรุณาแตะ เปิดในเบราว์เซอร์ หรืออนุญาตให้ LINE ใช้กล้องในการตั้งค่าโทรศัพท์แล้วลองอีกครั้ง
 "The camera could not start. Try again, or enter the code.",ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
 The camera is being used by another app. Close that app and try again.,กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปนั้นแล้วลองอีกครั้ง
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
@@ -828,8 +830,9 @@ common.scan.decoder,โหลดตัวอ่านบาร์โค้ดไ
 common.scan.denied,การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
 common.scan.failed,ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
 common.scan.in_app,เบราว์เซอร์ในแอปนี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
-common.scan.in_line,LINE ใช้กล้องไม่ได้ กรุณาอนุญาตให้ LINE ใช้กล้องในการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
+common.scan.in_line,เปิดกล้องใน LINE ไม่ได้ กรุณาแตะ เปิดในเบราว์เซอร์ หรืออนุญาตให้ LINE ใช้กล้องในการตั้งค่าโทรศัพท์แล้วลองอีกครั้ง
 common.scan.missing,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
+common.scan.open_browser,เปิดในเบราว์เซอร์
 common.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
 common.yes,ใช่
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC เดสก์ท็อปดึงข้อมูลบนเครื่องแล้วบันทึกที่นี่

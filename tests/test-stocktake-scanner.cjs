@@ -111,7 +111,24 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(blocked.requests.length, 1, 'A refused permission is not retried');
   const line = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Line/14.1.0', acquire: () => Promise.reject(named('NotAllowedError')) });
   await line.reader.start();
-  assert.equal(line.p.scan_failure(line.errors[0]), 'in_app');
+  assert.equal(line.p.scan_failure(line.errors[0]), 'in_line');
+  const facebook = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13) [FBAN/EMA]', acquire: () => Promise.reject(named('NotAllowedError')) });
+  await facebook.reader.start();
+  assert.equal(facebook.p.scan_failure(facebook.errors[0]), 'in_app');
+  // LINE 没有手机相机权限时，请求既不弹窗也不报错：5 秒后先给提示（读码器继续等），相机后来开了再通知页面收起提示。
+  let grant_line;
+  const hanging = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Line/26.15.1',
+    acquire: stream => new Promise(resolve => { grant_line = () => resolve(stream); }) });
+  const waits = [], starts = [];
+  const slow_reader = hanging.p.scan_reader({ host: {}, on_result: () => {}, on_error: error => hanging.errors.push(error),
+    on_waiting: reason => waits.push(reason), on_started: () => starts.push(1) });
+  const starting = slow_reader.start(); await flush();
+  await hanging.tick();
+  assert.deepEqual(waits, ['in_line'], 'a hanging camera request inside LINE gets a hint');
+  assert.equal(hanging.errors.length, 0, 'the reader keeps waiting');
+  grant_line(); await starting;
+  assert.equal(starts.length, 1, 'the page hears when the camera finally opens');
+  slow_reader.stop();
   const busy = fixture({ acquire: () => Promise.reject(named('NotReadableError')) });
   await busy.reader.start();
   assert.equal(busy.p.scan_failure(busy.errors[0]), 'busy');
@@ -133,7 +150,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(broken.errors.length, 1);
   assert.equal(broken.p.scan_failure(broken.errors[0]), 'decoder');
   assert.equal(broken.stops(), 1, 'The opened camera is released when the reader cannot load');
-  console.log('PASS camera failures are classified (blocked, in-app browser, busy, decoder) and a picky rear camera is retried by device');
+  console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
   console.log('PASS two-frame decode, exact QR, pause/resume, torch, stream cleanup and late permission cancellation');
   console.log('PASS decoder format propagation, numeric QR and mixed-format stability');
   console.log('PASS read-time feedback is silent (flash + vibrate only), mute stops the vibration, result sound is submit/error');

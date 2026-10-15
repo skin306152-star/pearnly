@@ -19,7 +19,12 @@
 	// Classify by the decoder's symbology, never by the contents (QR may be numeric).
 	const kind_of = format => format === "qr_code" ? "qr" : WANTED.barcode.includes(format) ? "barcode" : null;
 	const IN_APP = /\bLine\/|FBAN|FBAV|Instagram|MicroMessenger|TikTok|; wv\)/i;
-	const in_app = () => IN_APP.test((typeof navigator !== "undefined" && navigator.userAgent) || "");
+	const agent = () => (typeof navigator !== "undefined" && navigator.userAgent) || "";
+	const in_app = () => IN_APP.test(agent());
+	const in_line = () => /\bLine\//.test(agent());
+	// App 内置浏览器（LINE 等）里要相机：App 本身没有手机的相机权限时，请求既不弹窗也不报错，一直挂着
+	// （2026-10-15 三星 A14：LINE 没有相机权限，旧版页面在 LINE 里点扫码没有任何反应）。等这么久还没开就先提示。
+	const SLOW_MS = 5000;
 	const failure = (reason, cause) => Object.assign(new Error(reason), { scan_reason: reason, cause });
 
 	let fallback;
@@ -59,7 +64,7 @@
 		if (error?.scan_reason) return error.scan_reason;
 		const name = error?.name || "";
 		if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") {
-			return in_app() ? "in_app" : "denied";
+			return in_line() ? "in_line" : in_app() ? "in_app" : "denied";
 		}
 		if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") return "missing";
 		if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") return "busy";
@@ -68,7 +73,7 @@
 
 	async function camera() {
 		const media = navigator.mediaDevices;
-		if (!window.isSecureContext || !media?.getUserMedia) throw failure(in_app() ? "in_app" : "unsupported");
+		if (!window.isSecureContext || !media?.getUserMedia) throw failure(in_line() ? "in_line" : in_app() ? "in_app" : "unsupported");
 		try {
 			return await media.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
 		} catch (error) {
@@ -85,7 +90,9 @@
 	// `video`：页面自己的 <video>。`on_result(code, {format, kind})` 读到一个确认过的码（读码随即暂停，
 	// 页面要么 `resume()` 接着读，要么 `stop()`）；`on_detected()` 是"读到了"那一刻（给页面闪一下）；
 	// `on_play_blocked()` 浏览器拦了自动播放（页面让人点一下画面再 `play()`）；`on_error(error)` 打不开。
-	function reader({ video, kind = "all", on_result, on_error, on_detected, on_play_blocked }) {
+	// `on_waiting(reason)`：App 内置浏览器里相机 5 秒还没开（多半是 App 没有相机权限、请求被挂着），页面先给提示，
+	// 读码器继续等；`on_started()`：相机真的开了（页面把提示收起来）。
+	function reader({ video, kind = "all", on_result, on_error, on_detected, on_play_blocked, on_waiting, on_started }) {
 		let stream, decode, timer, stopped = false, paused = false, detecting = false;
 		let candidate = "", candidate_format = "", hits = 0;
 		const stop = () => {
@@ -132,15 +139,20 @@
 				if (stopped) return;
 				const reading = decoder(kind).catch(error => { throw failure("decoder", error); });
 				reading.catch(() => {});
+				const slow = in_app() ? window.setTimeout(() => {
+					if (!stopped && !stream) on_waiting?.(in_line() ? "in_line" : "in_app");
+				}, SLOW_MS) : null;
 				try {
 					const acquired = await camera();
+					window.clearTimeout(slow);
 					if (stopped) { acquired.getTracks().forEach(track => track.stop()); return; }
 					stream = acquired; video.srcObject = stream; video.muted = true;
+					on_started?.();
 					await start_playing();
 					decode = await reading;
 					if (stopped) return;
 					void tick();
-				} catch (error) { stop(); on_error?.(error); }
+				} catch (error) { window.clearTimeout(slow); stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },
 			resume() { candidate = ""; candidate_format = ""; hits = 0; paused = false; },
@@ -153,5 +165,12 @@
 		};
 	}
 
-	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader };
+	// LINE 内置浏览器里打不开相机时：用 LINE 自己认的参数在手机默认浏览器里打开同一页（那里相机正常）。
+	// 只对 LINE 给这条出路；别的 App 没有这种参数，提示里让人自己换浏览器。
+	const open_in_browser = () => {
+		const url = new URL(window.location.href);
+		url.searchParams.set("openExternalBrowser", "1");
+		window.location.href = url.toString();
+	};
+	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, open_in_browser };
 })();

@@ -11,13 +11,17 @@ frappe.provide("frappe.pearnly");
 			{ fieldtype: "HTML", fieldname: "reader", options: p.scan_stage() },
 			{ fieldtype: "Check", fieldname: "torch", label: t("product.scan.light"), hidden: 1,
 				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
+			{ fieldtype: "HTML", fieldname: "hint" },
 		] });
 		let scanner;
 		d.onhide = () => scanner?.stop();
 		d.show();
 		scanner = p.scan_reader({ host: d.fields_dict.reader.$wrapper, kind,
 			on_result: async (code, details) => { scanner.stop(); d.hide(); await on_result(code, details); },
-			on_error: error => { d.hide(); frappe.msgprint(p.scan_failure_text(error)); },
+			// 打不开：画面收起，原因（在 LINE 里带「用浏览器打开」）留在弹窗里。
+			on_error: error => { d.set_df_property("reader", "hidden", true); p.scan_hint(d.fields_dict.hint.$wrapper, error); },
+			on_waiting: reason => p.scan_hint(d.fields_dict.hint.$wrapper, reason),
+			on_started: () => d.fields_dict.hint.$wrapper.empty(),
 		});
 		await scanner.start();
 		d.set_df_property("torch", "hidden", !scanner.has_torch());

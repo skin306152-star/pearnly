@@ -426,6 +426,7 @@ Only confirmed documents can be queued for push,確定済みの伝票だけが�
 Only one default per account + adapter (the legacy product's unique index).,同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
 Only the config was checked; a real connectivity test waits for the adapter,設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
 Only the owner can manage it,責任者のみ管理可能
+Open in browser,ブラウザで開く
 Operator,ユーザー
 Operator Roster,オペレーター名簿
 Operator added,オペレーターを追加しました
@@ -633,6 +634,7 @@ The balance grows once the platform confirms the transfer.,プラットフォー
 The barcode reader could not load. Refresh the page and try again.,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
 The billing service returned HTTP {0},課金基盤が HTTP {0} を返しました
 The bind code has expired — please regenerate,連携コードの期限が切れました。再生成してください
+"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",LINE 内ではカメラを開けません。「ブラウザで開く」をタップするか、スマートフォンの設定で LINE のカメラを許可してから再試行してください。
 "The camera could not start. Try again, or enter the code.",カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 The camera is being used by another app. Close that app and try again.,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
 The control plane is not affected,コントロールプレーンは影響を受けません
@@ -828,8 +830,9 @@ common.scan.decoder,バーコードリーダーを読み込めませんでした
 common.scan.denied,カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 common.scan.failed,カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 common.scan.in_app,アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
-common.scan.in_line,LINE でカメラを使えません。スマートフォンの設定で LINE のカメラを許可してから再試行するか、コードを入力してください。
+common.scan.in_line,LINE 内ではカメラを開けません。「ブラウザで開く」をタップするか、スマートフォンの設定で LINE のカメラを許可してから再試行してください。
 common.scan.missing,このデバイスにカメラが見つかりません。コードを入力してください。
+common.scan.open_browser,ブラウザで開く
 common.scan.unsupported,このブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 common.yes,はい
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC デスクトップがローカルで取得して保存

@@ -424,6 +424,7 @@ Only confirmed documents can be queued for push,Only confirmed documents can be 
 Only one default per account + adapter (the legacy product's unique index).,Only one default per account + adapter (the legacy product's unique index).
 Only the config was checked; a real connectivity test waits for the adapter,Only the config was checked; a real connectivity test waits for the adapter
 Only the owner can manage it,Only the owner can manage it
+Open in browser,Open in browser
 Operator,Operator
 Operator Roster,Operator Roster
 Operator added,Operator added
@@ -631,6 +632,7 @@ The balance grows once the platform confirms the transfer.,The balance grows onc
 The barcode reader could not load. Refresh the page and try again.,The barcode reader could not load. Refresh the page and try again.
 The billing service returned HTTP {0},The billing service returned HTTP {0}
 The bind code has expired — please regenerate,The bind code has expired — please regenerate
+"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.","The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again."
 "The camera could not start. Try again, or enter the code.","The camera could not start. Try again, or enter the code."
 The camera is being used by another app. Close that app and try again.,The camera is being used by another app. Close that app and try again.
 The control plane is not affected,The control plane is not affected
@@ -826,8 +828,9 @@ common.scan.decoder,The barcode reader could not load. Refresh the page and try 
 common.scan.denied,"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 common.scan.failed,"The camera could not start. Try again, or enter the code."
 common.scan.in_app,"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
-common.scan.in_line,"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code."
+common.scan.in_line,"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again."
 common.scan.missing,No camera was found on this device. Enter the code instead.
+common.scan.open_browser,Open in browser
 common.scan.unsupported,"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 common.yes,Yes
 "companion = pulled outbound by CC Desktop on the local machine, then stored here","companion = pulled outbound by CC Desktop on the local machine, then stored here"

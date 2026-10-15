@@ -35,14 +35,25 @@ frappe.provide("frappe.pearnly");
 	p.scan_failure = error => scan().reason(error);
 	const FAILURE = {
 		unsupported: () => __("common.scan.unsupported"), in_app: () => __("common.scan.in_app"),
+		in_line: () => __("common.scan.in_line"),
 		denied: () => __("common.scan.denied"), busy: () => __("common.scan.busy"),
 		missing: () => __("common.scan.missing"), decoder: () => __("common.scan.decoder"),
 		failed: () => __("common.scan.failed"),
 	};
 	p.scan_failure_text = error => (FAILURE[p.scan_failure(error)] || FAILURE.failed)();
-	p.scan_reader = ({ host, kind = "all", on_result, on_error }) => {
+	// 提示那一句放进 `$target`；在 LINE 里再给一颗「用浏览器打开」（LINE 自己的参数，跳到手机默认浏览器，那里相机正常）。
+	// `reason` 可以是错误对象，也可以是读码器 `on_waiting` 给的原因字符串。
+	p.scan_hint = ($target, reason) => {
+		const key = typeof reason === "string" ? reason : p.scan_failure(reason);
+		$target.empty().append($("<p class='text-muted'>").text((FAILURE[key] || FAILURE.failed)()));
+		if (key === "in_line") {
+			$("<button type='button' class='btn btn-primary btn-sm'>").text(__("common.scan.open_browser"))
+				.on("click", () => scan().open_in_browser()).appendTo($target);
+		}
+	};
+	p.scan_reader = ({ host, kind = "all", on_result, on_error, on_waiting, on_started }) => {
 		const stage = () => $(host).find(".pearnly-scan-stage");
-		const reader = scan().reader({ video: $(host).find("video").get(0), kind, on_result, on_error,
+		const reader = scan().reader({ video: $(host).find("video").get(0), kind, on_result, on_error, on_waiting, on_started,
 			on_detected: () => p.scan_feedback(host),
 			on_play_blocked: play => stage().one("click", play) });
 		return { ...reader, resume() { reader.resume(); stage().removeClass("pearnly-scan-done"); } };

@@ -42,6 +42,7 @@ function fixture(options = {}) {
   }
   const browser = {
     isSecureContext: true,
+    location: {href: 'https://synthetic.invalid/stocktake?count=1'},
     setTimeout: handler => { timers.set(++timerId, handler); return timerId; },
     clearTimeout: id => timers.delete(id),
     addEventListener: (name, handler) => { events[name] = handler; },
@@ -57,7 +58,7 @@ function fixture(options = {}) {
   const item = {name: 'ROW-1', code: 'QR + & 123', product_name: 'Synthetic', qty: 1};
   const result = {item, rows: [item], entries: []};
   vm.runInNewContext(reader + '\n' + source, {
-    window: browser, document, URLSearchParams, console,
+    window: browser, document, URLSearchParams, URL, console,
     navigator: {language: 'th', userAgent: options.userAgent || 'Mozilla/5.0 Line/14.1.0', vibrate() {},
       mediaDevices: {enumerateDevices: async () => [], getUserMedia: () => {
       acquired++;
@@ -75,6 +76,7 @@ function fixture(options = {}) {
   });
   const page = browser.testPage;
   page.state({csrf: 'synthetic-csrf', ticket: 'synthetic-ticket'});
+  page.location = () => browser.location;
   return {page, calls, scripts, prepares, timers, events, element, item, video,
     stopped: () => stopped, acquired: () => acquired, decoderCalls: () => decoderCalls,
     // 读码是一帧接一帧（setTimeout 链）：取出下一帧执行。
@@ -135,12 +137,20 @@ function fixture(options = {}) {
   const named = name => Object.assign(new Error(name), {name});
   const refused = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   await refused.page.startCamera(() => {}); await flush();
-  assert.equal(refused.element('toast').textContent, 'common.scan.in_line');
+  assert.equal(refused.element('p').textContent, 'common.scan.in_line', 'the reason stays on the page');
+  refused.element('button').onclick();
+  assert.equal(new URL(refused.page.location().href).searchParams.get('openExternalBrowser'), '1',
+    'Open in browser hands the same page to the phone browser');
   const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
   await taken.page.startCamera(() => {}); await flush();
-  assert.equal(taken.element('toast').textContent, 'common.scan.busy');
+  assert.equal(taken.element('p').textContent, 'common.scan.busy');
+  // LINE 没有相机权限：请求一直挂着，5 秒后页面给出原因与「用浏览器打开」。
+  const hanging = fixture({acquire: () => new Promise(() => {})});
+  void hanging.page.startCamera(() => {}); await flush();
+  await hanging.tick();
+  assert.equal(hanging.element('p').textContent, 'common.scan.in_line');
   assert.equal(taken.acquired(), 2, 'a busy camera gets one plain retry');
-  console.log('PASS camera failures inside LINE say why (LINE camera permission, camera in use)');
+  console.log('PASS camera failures inside LINE stay on the page with Open in browser; a hanging LINE camera request gets the same hint');
 
   const continuous = fixture();
   continuous.page.state({scanMode: true});

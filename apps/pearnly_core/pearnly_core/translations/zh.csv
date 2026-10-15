@@ -426,6 +426,7 @@ Only confirmed documents can be queued for push,只有已确认的单据才能�
 Only one default per account + adapter (the legacy product's unique index).,同一账号与适配器下只能有一条默认连接。
 Only the config was checked; a real connectivity test waits for the adapter,仅检查了配置，未测试实际连通性
 Only the owner can manage it,仅责任人可管理
+Open in browser,用浏览器打开
 Operator,操作员
 Operator Roster,操作员花名册
 Operator added,操作员已新增
@@ -633,6 +634,7 @@ The balance grows once the platform confirms the transfer.,平台确认到账后
 The barcode reader could not load. Refresh the page and try again.,扫码组件加载失败。请刷新页面后重试。
 The billing service returned HTTP {0},计费服务返回 HTTP {0}
 The bind code has expired — please regenerate,绑定码已过期，请重新生成
+"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",在 LINE 里打不开相机。请点「用浏览器打开」，或在手机设置里允许 LINE 使用相机后重试。
 "The camera could not start. Try again, or enter the code.",相机无法启动。请重试，或手动输入编码。
 The camera is being used by another app. Close that app and try again.,相机正被其他应用占用。请关闭该应用后重试。
 The control plane is not affected,控制面不受影响
@@ -828,8 +830,9 @@ common.scan.decoder,扫码组件加载失败。请刷新页面后重试。
 common.scan.denied,相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
 common.scan.failed,相机无法启动。请重试，或手动输入编码。
 common.scan.in_app,应用内置的浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
-common.scan.in_line,LINE 无法使用相机。请在手机设置里允许 LINE 使用相机后重试，或手动输入编码。
+common.scan.in_line,在 LINE 里打不开相机。请点「用浏览器打开」，或在手机设置里允许 LINE 使用相机后重试。
 common.scan.missing,此设备上没有找到相机。请手动输入编码。
+common.scan.open_browser,用浏览器打开
 common.scan.unsupported,此浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
 common.yes,是
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = 由 CC 桌面版在本机拉取后写入
