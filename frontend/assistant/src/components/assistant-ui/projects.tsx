@@ -1,8 +1,9 @@
 // 按公司分组的界面零件（lib/managed-agents/projects.ts；只在产品有公司分组时出现，ERP / DMS 一律不出现）：
 //
-//   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：整行折叠 / 展开；右侧这家的待处理数
-//                         （淡色数字，点了只看这家的待处理）、「···」（打开公司、在这家新建对话）、「分组和排序」、「＋」（在这家开
-//                         新对话，月份 = 上个月）；手机上长按组头出「···」菜单；收起时组里有在跑或没看过的，名字后一个点
+//   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：最左公司图标、公司名（同会话行标题
+//                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧这家的待处理数（淡色数字，点了只看
+//                         这家的待处理）、「···」（分组和排序，用户 2026-10-15 夜：打开公司、在这家新建对话不要了）、「＋」（在这家
+//                         开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出「···」菜单；收起时组里有在跑或没看过的，名字后一个点
 //   MoveToMenu          — 对话菜单里的「移到 ▸」：我最近的公司 + 搜索 + 添加公司… + 最近；移入公司时月份留空，不改置顶
 //   BulkMoveMenu        — 多选时行菜单里的「移到… (N)」：同一份选公司的菜单，选了逐条移动（不并发）
 //   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
@@ -14,12 +15,13 @@
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
+import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon, XIcon } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { type FC, type ReactNode, useEffect, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
+import { Marquee } from "@/components/ui/marquee";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useLongPress } from "@/hooks/use-long-press";
 import { co, sb, t } from "@/i18n";
@@ -108,7 +110,6 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
   const activity = useGroupActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
-  const openCompany = useOpenCompany();
   const { setView } = useView();
   const go = useCloseDrawer();
   const openPending = (company: string) => {
@@ -122,6 +123,7 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
       data-open={menuOpen || undefined}
       className="group/project cc-project-row"
       onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
+      icon={<Building2Icon className="cc-group-icon" aria-hidden />}
       label={project.title}
       title={project.title}
       open={open}
@@ -150,26 +152,7 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
           {pending}
         </button>
       )}
-      <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenu.Trigger asChild>
-          <button type="button" tabIndex={-1} className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}>
-            <MoreHorizontalIcon />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content side="bottom" align="end" sideOffset={4} className="cc-menu !min-w-44">
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => go(() => openCompany(project.id))}>
-              <Building2Icon />
-              {co.openCompany}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="cc-menu-item" onSelect={() => go(() => newChatIn(project.id))}>
-              <PlusIcon />
-              {sb.newChatHere}
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-      <GroupSortMenu />
+      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />
       <GroupNew onClick={() => newChatIn(project.id)} />
     </GroupHeader>
   );
@@ -224,7 +207,7 @@ const CompanyChoices: FC<{ current: string; onPick: (id: string) => void }> = ({
         if (id !== current) onPick(id);
       }}
     >
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
       {id === current && <CheckIcon />}
     </DropdownMenu.Item>
   );
@@ -333,7 +316,7 @@ const DraftChin: FC = () => {
         <DropdownMenu.Trigger asChild>
           <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" data-chosen={draft.project ? "" : undefined}>
             <Building2Icon />
-            <span className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</span>
+            <Marquee className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</Marquee>
             <ChevronDownIcon />
           </button>
         </DropdownMenu.Trigger>
@@ -366,7 +349,7 @@ const SessionChin: FC = () => {
       {/* 会话栏要对话已存到服务端：还没存好的那一小段时间先不可点 */}
       <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" disabled={!remoteId} onClick={openCompanyCard}>
         <Building2Icon />
-        <span className="min-w-0 truncate">{title || co.companies}</span>
+        <Marquee className="min-w-0 truncate">{title || co.companies}</Marquee>
       </button>
       <FilingChips look="cc-chin-btn" side="top" />
     </>
@@ -391,7 +374,7 @@ const UnfiledChin: FC<{ remoteId: string | undefined }> = ({ remoteId }) => {
       <DropdownMenu.Trigger asChild>
         <button type="button" className="cc-chin-btn" data-slot="cc-chin-company">
           <Building2Icon />
-          <span className="min-w-0 truncate">{co.companies}</span>
+          <Marquee className="min-w-0 truncate">{co.companies}</Marquee>
           <ChevronDownIcon />
         </button>
       </DropdownMenu.Trigger>
@@ -405,7 +388,7 @@ const UnfiledChin: FC<{ remoteId: string | undefined }> = ({ remoteId }) => {
 };
 
 // ---------------------------------------------------------------- 顶栏「公司 ›」与月份分店胶囊
-/** 顶栏对话名前的公司名（设计文档 4.3：点了打开右侧会话栏并展开公司卡；公司页从公司卡的名称、侧栏组「···」进）。 */
+/** 顶栏对话名前的公司名（设计文档 4.3：点了打开右侧会话栏并展开公司卡；公司页从公司卡的名称、公司列表页进）。 */
 export const ConversationCompany: FC<{ className?: string }> = ({ className }) => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
@@ -416,7 +399,7 @@ export const ConversationCompany: FC<{ className?: string }> = ({ className }) =
   if (!remoteId || !project || !title) return null;
   return (
     <button type="button" className={cn("cc-title-company", className)} onClick={openCompanyCard}>
-      <span className="truncate">{title}</span>
+      <Marquee className="truncate">{title}</Marquee>
       <ChevronRightIcon aria-hidden />
     </button>
   );
@@ -435,7 +418,7 @@ export const MobileCompanyItem: FC = () => {
     <>
       <DropdownMenu.Item className="cc-menu-item" onSelect={openCompanyCard}>
         <Building2Icon />
-        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <Marquee className="min-w-0 flex-1 truncate">{title}</Marquee>
       </DropdownMenu.Item>
       <DropdownMenu.Separator className="cc-menu-sep" />
     </>

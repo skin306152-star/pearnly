@@ -62,6 +62,7 @@ import { useProjects } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { touchOnly } from "@/lib/touch";
+import { Marquee } from "@/components/ui/marquee";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
@@ -189,7 +190,7 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
           onClick={toggle}
           onKeyDown={keys}
         >
-          <span className="truncate">{title}</span>
+          <Marquee className="truncate">{title}</Marquee>
           <ChevronRightIcon className="cc-panel-card-chevron" aria-hidden />
         </button>
         {extra && <span className="cc-panel-card-extra">{extra}</span>}
@@ -476,10 +477,10 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
           <div key={`${f.reader}-${f.device}`} className="cc-folder-line" data-state={f.state}>
             <FolderIcon />
             <span className="min-w-0 flex-1">
-              <span className="block truncate" title={f.label}>{[f.device, f.label].filter(Boolean).join(" · ")}</span>
-              <span className="block truncate text-ink-3 text-xs">
+              <Marquee className="block truncate" title={f.label}>{[f.device, f.label].filter(Boolean).join(" · ")}</Marquee>
+              <Marquee className="block truncate text-ink-3 text-xs">
                 {[folderState(f), f.month_folder ? co.monthFolder(f.month_folder) : ""].filter(Boolean).join(" · ")}
-              </span>
+              </Marquee>
             </span>
             {app && companyFolders && mine(f) && (
               <>
@@ -514,7 +515,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
 // ---------------------------------------------------------------- 账套
 const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) => (
   <div className="cc-list-row cursor-default" data-covering={covering || undefined}>
-    <span className="min-w-0 flex-1 truncate">{set.label}</span>
+    <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
     <span className="shrink-0 text-ink-3 text-xs">{set.year_label}</span>
   </div>
 );
@@ -590,8 +591,8 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
         {tasks.map((task) => (
           <button key={task.name} type="button" className="cc-list-row" onClick={() => open(task.name)}>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-ink">{task.title}</span>
-              <span className="block truncate text-ink-3 text-xs">{[task.account_label, task.folder_label].filter(Boolean).join(" · ")}</span>
+              <Marquee className="block truncate text-ink">{task.title}</Marquee>
+              <Marquee className="block truncate text-ink-3 text-xs">{[task.account_label, task.folder_label].filter(Boolean).join(" · ")}</Marquee>
             </span>
           </button>
         ))}
@@ -613,7 +614,7 @@ export const DraftsSection: FC<{ company: string; drafts: Draft[]; branches: Bra
   };
   const row = (d: Draft) => (
     <button key={d.name} type="button" className="cc-list-row" onClick={() => open(d)}>
-      <span className="min-w-0 flex-1 truncate text-ink">{[d.period, d.kind].filter(Boolean).join(" · ")}</span>
+      <Marquee className="min-w-0 flex-1 truncate text-ink">{[d.period, d.kind].filter(Boolean).join(" · ")}</Marquee>
       <span className="shrink-0 text-ink-3 text-xs">{formatWhen(d.updated_at)}</span>
     </button>
   );
@@ -731,11 +732,11 @@ export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onF
   return (
     <div className="cc-choice-row" data-slot="cc-choice-row" data-source={choice.source}>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-ink">
+        <Marquee className="block truncate text-ink">
           {subject}
           {!options && <span className="text-ink-3">{` → ${value}`}</span>}
-        </span>
-        <span className="block truncate text-ink-3 text-xs">{meta.filter(Boolean).join(" · ")}</span>
+        </Marquee>
+        <Marquee className="block truncate text-ink-3 text-xs">{meta.filter(Boolean).join(" · ")}</Marquee>
       </span>
       {onPromote && choice.promotable && (
         <button type="button" className="cc-link-btn shrink-0" data-slot="cc-choice-promote" onClick={onPromote}>

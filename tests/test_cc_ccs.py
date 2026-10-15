@@ -567,7 +567,7 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}', row)
         self.assertIn('className="cc-step-row cc-tap"', row)
         # 同 Claude Code 实测：行字淡色、一行省略；能展开的行尾 12px 箭头（展开转 90°），失败的「失败」在箭头前；没详情的行没有箭头
-        self.assertIn('<span className="min-w-0 flex-1 truncate">', row)
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate">', row)   # 放不下时悬停滚动（components/ui/marquee.tsx）
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}\n'
                       '        {expandable && <ChevronRightIcon aria-hidden />}\n      </button>', row)
         # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；

@@ -333,10 +333,11 @@ class TextTests(unittest.TestCase):
         sidebar = block(i18n, "const SIDEBAR = {")
         words = {lang: keys(block(sidebar, f"  {lang}: {{")) for lang in ("en", "zh", "th")}
         self.assertTrue({"groupAndSort", "groupBy", "none", "sortBy", "lastUpdated", "dateCreated", "name", "descending", "ascending",
-                         "show", "metadata", "emptyGroups", "resetDefaults", "noMonth", "newChatHere", "pinN", "unpinN", "moveToN",
+                         "show", "metadata", "emptyGroups", "resetDefaults", "noMonth", "pinN", "unpinN", "moveToN",
                          "deleteN"} <= words["en"])
         self.assertEqual(words["en"], words["zh"])
         self.assertEqual(words["en"], words["th"])
+        self.assertNotIn("newChatHere", i18n)   # 公司组「···」里的「在这家新建对话」去掉了（用户 2026-10-15 夜），词条一并删
         self.assertIn('groupAndSort: "分组和排序", groupBy: "分组依据"', sidebar)
         self.assertIn('resetDefaults: "恢复默认设置"', sidebar)
 
@@ -506,6 +507,121 @@ const card: any = core.messages.find((m: any) => m.role === "system");
 assert.equal(card.metadata.custom.notice.title, "Run finished");
 assert.equal(card.content[0].text, "12 pushed");
 assert.equal(withNotices([user], [notice])[1], withNotices([user], [notice])[1]);
+g.done();
+""")
+
+    def test_hover_scroll_waits_measures_and_snaps_back(self):
+        # 悬停约 150ms 后量：超出多少（加上原有右端渐隐）就滚多少，每秒 40px、至少 0.3s；离开立即回到开头；
+        # 放得下的不滚；减少动态效果、触屏、按着键拖进来、行里开着输入框都不滚
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { attachHoverScroll, canHoverScroll } from "@/lib/hover-scroll";
+
+const g = globalThis as any;
+let reduce = false;
+let touch = false;
+g.matchMedia = (q: string) => ({ matches: q.includes("reduced-motion") ? reduce : q.includes("hover: none") ? touch : false });
+const vars: Record<string, string> = { "--cc-marquee-delay": "150ms", "--cc-marquee-speed": "40", "--cc-marquee-min": "300ms" };
+g.getComputedStyle = (el: any) => ({ getPropertyValue: (n: string) => (el === g.document.documentElement ? vars[n] ?? "" : el.vars?.[n] ?? "") });
+g.document.querySelector = () => null;
+function row(scroll: number, client: number, end = "") {
+  const handlers: Record<string, (e: any) => void> = {};
+  const host: any = {
+    addEventListener: (t: string, f: any) => (handlers[t] = f), removeEventListener: (t: string) => delete handlers[t],
+    querySelector: () => (host.editing ? {} : null), contains: () => false,
+  };
+  const attrs = new Map<string, string>();
+  const style = new Map<string, string>();
+  const box: any = {
+    scrollWidth: scroll, clientWidth: client, offsetWidth: client, vars: { "--cc-marquee-end": end },
+    closest: (sel: string) => (sel === "[data-marquee-host]" ? host : null),
+    hasAttribute: (n: string) => attrs.has(n), setAttribute: (n: string, v: string) => attrs.set(n, v), removeAttribute: (n: string) => attrs.delete(n),
+    style: { setProperty: (n: string, v: string) => style.set(n, v), removeProperty: (n: string) => style.delete(n) },
+  };
+  return { host, box, handlers, attrs, style, detach: attachHoverScroll(box) };
+}
+const mouse = { pointerType: "mouse", buttons: 0 };
+
+// 超出 100px、右端原有渐隐 20px：150ms 后开始，滚 120px，用 3s
+let r = row(300, 200, "20px");
+r.handlers.pointerenter!(mouse);
+await g.sleep(60);
+assert.equal(r.attrs.has("data-marquee"), false);           // 还没到 150ms
+await g.sleep(140);
+assert.equal(r.attrs.get("data-marquee"), "run");
+assert.equal(r.style.get("--cc-marquee-x"), "-120px");
+assert.equal(r.style.get("--cc-marquee-dur"), "3000ms");
+r.handlers.pointerleave!({});                                // 离开：立即回到开头
+assert.equal(r.attrs.has("data-marquee"), false);
+assert.equal(r.style.has("--cc-marquee-x"), false);
+r.detach();
+
+// 只超出 4px：最短 0.3s
+r = row(204, 200);
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
+assert.equal(r.style.get("--cc-marquee-dur"), "300ms");
+r.detach();
+
+// 放得下的不滚；还没到时间就离开的也不滚
+r = row(200, 200);
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+r = row(400, 200);
+r.handlers.pointerenter!(mouse);
+r.handlers.pointerleave!({});
+await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+
+// 触屏点按、按着键拖进来、行里开着输入框（就地改名）：不滚；按下就回到开头
+for (const event of [{ pointerType: "touch", buttons: 0 }, { pointerType: "mouse", buttons: 1 }]) {
+  r = row(400, 200);
+  r.handlers.pointerenter!(event);
+  await g.sleep(200);
+  assert.equal(r.attrs.has("data-marquee"), false);
+  r.detach();
+}
+r = row(400, 200);
+r.host.editing = true;
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+r = row(400, 200);
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
+r.handlers.pointerdown!({});
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+
+// 键盘焦点落到这一行也滚（鼠标点进去的焦点不算）
+r = row(400, 200);
+r.handlers.focusin!({ target: { matches: () => false } });
+await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.handlers.focusin!({ target: { matches: (q: string) => q === ":focus-visible" } });
+await g.sleep(200);
+assert.equal(r.attrs.get("data-marquee"), "run");
+r.handlers.focusout!({ relatedTarget: null });
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+
+// 系统减少动态效果、触屏设备：一律不滚
+assert.equal(canHoverScroll(), true);
+reduce = true;
+assert.equal(canHoverScroll(), false);
+r = row(400, 200);
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+reduce = false;
+touch = true;
+assert.equal(canHoverScroll(), false);
 g.done();
 """)
 
@@ -2627,13 +2743,9 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertLess(header.index("cc-group-name"), header.index("cc-group-caret"))
         projects = read("components/assistant-ui/projects.tsx")
         head = projects.split("export const ProjectHeader: FC", 1)[1].split("\n};\n", 1)[0]
-        # 名字不再打开主档页：只在「···」里（打开公司、在这家新建对话）
-        self.assertEqual(head.count("openCompany(project.id)"), 1)
-        self.assertIn("{co.openCompany}", head)
-        self.assertIn("{sb.newChatHere}", head)
         self.assertIn("onClick={() => go(() => openPending(project.id))}", head)   # 待处理数：只看这家
-        # 右侧：待处理数、···、分组和排序、新建（新建在最右，悬停才出）
-        order = [head.index(x) for x in ('className="cc-group-count"', "cc-group-more", "<GroupSortMenu />", "<GroupNew ")]
+        # 右侧：待处理数、···（分组和排序）、新建（新建在最右，悬停才出）
+        order = [head.index(x) for x in ('className="cc-group-count"', "<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />", "<GroupNew ")]
         self.assertEqual(order, sorted(order))
         css = read("globals.css")
         self.assertIn(".cc-group-more, .cc-group-new { display: none; }", css)
@@ -2645,6 +2757,88 @@ class SidebarShellSourceTests(unittest.TestCase):
                       '  [data-slot="sidebar"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }', css)
         self.assertIn(':root[data-cc-variant="phone"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }', css)
         self.assertNotIn(".cc-project-name", css + projects)
+
+    def test_company_headers_follow_the_user_sidebar_of_2026_10_15(self):
+        # 用户 2026-10-15 夜（参考 DeepSeek 桌面端侧栏）：「只改我提到的地方 其它不要动」
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        projects = read("components/assistant-ui/projects.tsx")
+        rows = read("components/assistant-ui/thread-list.tsx")
+        css = read("globals.css")
+        head = projects.split("export const ProjectHeader: FC", 1)[1].split("\n};\n", 1)[0]
+        header = group.split("export const GroupHeader: FC", 1)[1].split("\n);\n", 1)[0]
+        # A：公司组头最左是公司图标（同原来「打开公司」那个 Building2Icon），然后公司名；名字同会话行标题的字号字色，
+        #    这家的对话行缩进到公司名起点；已置顶 / 最近 / 月份不带图标、不缩进
+        self.assertIn('icon={<Building2Icon className="cc-group-icon" aria-hidden />}', head)
+        self.assertLess(header.index("{icon}"), header.index('<Marquee className="cc-group-name">{label}</Marquee>'))
+        self.assertLess(header.index("cc-group-name"), header.index("cc-group-caret"))
+        self.assertIn(".cc-group-icon { flex-shrink: 0; width: var(--cc-icon-sm); height: var(--cc-icon-sm); margin-inline-end: var(--cc-row-gap); color: var(--cc-ink-3); }", css)
+        self.assertIn(".cc-project-row .cc-group-toggle { color: var(--cc-ink-2); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: normal; }", css)
+        self.assertIn('[data-slot="cc-project-items"] { --cc-row-indent: calc(var(--cc-icon-sm) + 0.25rem + var(--cc-row-gap)); }', css)
+        self.assertIn(".cc-row-trigger { gap: 0.25rem; padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) 0.25rem; }", css)
+        self.assertIn('.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: calc(0.75rem + var(--cc-row-indent, 0px)); }', css)
+        self.assertIn("margin-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px) - var(--cc-inline-edit-px)) 0.25rem;", css)
+        self.assertEqual(rows.count('data-slot="cc-project-items"'), 1)   # 只有公司组里的行缩进
+        self.assertNotIn("icon=", rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0])
+        # B：组名、会话行标题与元数据行放不下时悬停滚动（共用的 Marquee）；行与组标题是触发的「这一行」
+        self.assertIn('<Marquee data-slot="aui_thread-list-item-title" className="cc-row-title">', rows)
+        self.assertIn('<Marquee className="cc-row-meta" data-slot="cc-row-meta">', rows)
+        self.assertIn('data-slot="aui_thread-list-item"\n      data-marquee-host=""', rows)
+        self.assertIn('<div data-slot="cc-group" data-marquee-host=""', header)
+        # C：公司组「···」不再有打开公司、在这家新建对话，换成分组和排序；长按组头、菜单键打开的也是它
+        self.assertNotIn("openCompany", head)
+        self.assertNotIn("newChatHere", head + group)
+        self.assertNotIn("DropdownMenu.Item", head)
+        self.assertIn("<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />", head)
+        self.assertIn("const press = useLongPress(() => setMenuOpen(true));", head)
+        self.assertIn("onMenuKey={() => setMenuOpen(true)}", head)
+        menu = group.split("export const GroupSortMenu: FC", 1)[1]
+        self.assertIn('className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}', menu)
+        self.assertIn("<MoreHorizontalIcon />", menu)
+        order = [menu.index(x) for x in ("sb.groupBy", "sb.sortBy", "sb.show", "{sb.resetDefaults}")]
+        self.assertEqual(order, sorted(order))
+        self.assertIn("disabled={isDefaultView(view)}", menu)
+        # D：「＋」照旧：在这家开新对话（月份 = 上个月）
+        self.assertIn("<GroupNew onClick={() => newChatIn(project.id)} />", head)
+        self.assertIn('start(project ? { project, period: period ? lastMonth() : "" } : NO_FILING);', projects)
+        # E：漏斗按钮（分组和排序）从所有组标题上去掉；已置顶 / 最近 / 月份组标题右侧是同一个「···」，「最近」的「＋」保留
+        for source in (group, projects, rows):
+            self.assertNotIn("ListFilterIcon", source)
+            self.assertNotIn("cc-group-sort\"", source)
+        others = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
+        self.assertIn('<GroupHeader label={label} open={open} onToggle={() => toggleSection({ key: section.key })}>\n'
+                      '              <GroupSortMenu />\n'
+                      '              {section.type === "recents" && <GroupNew onClick={() => newChatIn("")} />}', others)
+        # 公司页仍有路：会话栏公司卡的名称（顶栏「公司名 ›」、手机胶囊菜单打开会话栏），公司列表页的卡片
+        self.assertIn("onClick={() => openCompany(c.id)}", read("components/session-panel.tsx"))
+        self.assertIn("onClick={() => openCompany(row.id)}", read("components/companies.tsx"))
+
+    def test_truncated_single_lines_scroll_on_hover(self):
+        # 悬停滚动（用户 2026-10-15 夜，参考 DeepSeek 桌面端录屏）：一个共用钩子 + 组件，参数在 globals.css
+        hook = read("lib/hover-scroll.ts")
+        marquee = read("components/ui/marquee.tsx")
+        css = read("globals.css")
+        self.assertIn('!window.matchMedia("(prefers-reduced-motion: reduce)").matches', hook)
+        self.assertIn("!touchOnly()", hook)
+        self.assertIn('if (event.pointerType === "touch" || event.buttons) return;', hook)
+        self.assertIn('host.querySelector("input, textarea")', hook)   # 就地改名时不滚
+        self.assertIn("isCardDragging()", hook)                         # 拖动中不滚
+        self.assertIn('target?.matches?.(":focus-visible")', hook)      # 键盘焦点也滚
+        self.assertNotIn("new ResizeObserver", hook)                    # 悬停时才量
+        self.assertIn("const over = box.scrollWidth - box.clientWidth;", hook)
+        self.assertIn("useHoverScroll<HTMLElement>()", marquee)
+        self.assertIn('<span className="cc-marquee-text">{children}</span>', marquee)
+        for line in ("--cc-marquee-delay: 150ms;", "--cc-marquee-speed: 40;", "--cc-marquee-min: 300ms;", "--cc-marquee-fade: var(--code-pad-5);"):
+            self.assertIn(line, css)
+        self.assertIn("display: inline-block; transform: translateX(var(--cc-marquee-x, 0px)); transition: transform var(--cc-marquee-dur, 0ms) linear;", css)
+        self.assertIn("mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end, 0px)), transparent);", css)
+        self.assertIn("--cc-marquee-end: var(--cc-row-fade); }", css)   # 右端保留原有渐隐
+        self.assertIn("@media (prefers-reduced-motion: reduce), (hover: none) {\n  .cc-marquee[data-marquee] > .cc-marquee-text { transform: none; transition: none; }", css)
+        # 用到的地方：标题栏对话名、会话栏行、公司页对话行、菜单里的公司名
+        self.assertIn('<Marquee className="truncate">{title || t("untitled")}</Marquee>', read("assistant.tsx"))
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>', read("components/session-panel.tsx"))
+        self.assertIn('<Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>', read("components/company-page.tsx"))
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>\n      {id === current && <CheckIcon />}',
+                      read("components/assistant-ui/projects.tsx"))
 
     def test_rows_fade_pulse_and_take_a_metadata_line(self):
         rows = read("components/assistant-ui/thread-list.tsx")
@@ -3481,8 +3675,8 @@ assert.equal(attachmentTypeLine("GL-05.xlsx"), "XLSX");
 const html = bubble([att("statement.pdf", PDF), att("GL-05.xlsx", XLSX)], results(listed));
 assert.equal((html.match(/<button type="button" class="cc-attach-card"/g) ?? []).length, 2);
 assert.match(html, /aria-label="Attachment: statement\.pdf · PDF · 3 pages"/);
-assert.match(html, /<span class="cc-attach-name">statement\.pdf<\/span><span class="cc-attach-type">PDF · 3 pages<\/span>/);
-assert.match(html, /<span class="cc-attach-type">XLSX · 13 KB<\/span>/);
+assert.match(html, /<span class="cc-marquee cc-attach-name"><span class="cc-marquee-text">statement\.pdf<\/span><\/span><span class="cc-marquee cc-attach-type"><span class="cc-marquee-text">PDF · 3 pages<\/span><\/span>/);
+assert.match(html, /<span class="cc-marquee cc-attach-type"><span class="cc-marquee-text">XLSX · 13 KB<\/span><\/span>/);
 assert.match(html, /<span class="cc-attach-tile"><svg[^>]*lucide-file-text[^>]*>.*?<\/svg><span>PDF<\/span><\/span>/);
 assert.doesNotMatch(html, /Document attachment|attachment,/);
 assert.doesNotMatch(html, /#[0-9a-fA-F]{3,8}\b|rgb\(/);

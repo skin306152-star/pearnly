@@ -34,6 +34,7 @@ import {
 import { useLiveRefresh } from "@/lib/live";
 import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 import { shownError } from "@/lib/frappe";
+import { Marquee } from "@/components/ui/marquee";
 
 const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
@@ -264,10 +265,10 @@ export function useAskCC(company: string, title: string) {
 /** 一张单的摘要：单号 · 对方 · 金额 · 日期，下面一行原因。 */
 const Summary: FC<{ item: PendingItem }> = ({ item }) => (
   <span className="min-w-0 flex-1">
-    <span className="block truncate text-ink text-sm">
+    <Marquee className="block truncate text-ink text-sm">
       {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
-    </span>
-    <span className="block truncate text-ink-3 text-xs">{item.reason_label}</span>
+    </Marquee>
+    <Marquee className="block truncate text-ink-3 text-xs">{item.reason_label}</Marquee>
   </span>
 );
 
@@ -332,10 +333,10 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         aria-expanded={open} onClick={toggle}>
         {head ?? (
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-ink text-sm">
+            <Marquee className="block truncate text-ink text-sm">
               {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
-            </span>
-            <span className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</span>
+            </Marquee>
+            <Marquee className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</Marquee>
           </span>
         )}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
@@ -349,7 +350,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         <>
           {view.needed.map((need) => (
             <label key={choiceKey(need)} className="cc-field">
-              <span className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</span>
+              <Marquee className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
               <select
                 className="cc-input"
                 value={values[choiceKey(need)] ?? ""}

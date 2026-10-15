@@ -46,6 +46,7 @@ import {
   useMonth,
 } from "@/lib/month";
 import { useView } from "@/lib/nav";
+import { Marquee } from "@/components/ui/marquee";
 
 /** 每组先列几条（其余「显示更多」）；知悉的不催，先列得少。 */
 export const GROUP_SHOWN = 8;
@@ -116,14 +117,14 @@ const StageRow: FC<{ stage: Stage; month: Month }> = ({ stage, month }) => {
     <>
       <div className="cc-panel-row" data-slot="cc-month-stage" data-stage={stage} data-state={state}>
         <span className="cc-month-dot" data-state={state} role="img" aria-label={word} title={word} />
-        <span className="min-w-0 flex-1 truncate">{co.ledger.stage[stage]}</span>
-        <span className="cc-panel-extra">{stageSummary(stage, month) || word}</span>
+        <Marquee className="min-w-0 flex-1 truncate">{co.ledger.stage[stage]}</Marquee>
+        <Marquee className="cc-panel-extra">{stageSummary(stage, month) || word}</Marquee>
       </div>
       {sets.length > 1 &&
         sets.map((set) => (
           <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent" data-slot="cc-month-set">
-            <span className="cc-month-sub">{set.label || set.key}</span>
-            <span className="cc-panel-extra">{setSummary(set)}</span>
+            <Marquee className="cc-month-sub">{set.label || set.key}</Marquee>
+            <Marquee className="cc-panel-extra">{setSummary(set)}</Marquee>
           </div>
         ))}
     </>
@@ -139,9 +140,9 @@ const ItemHead: FC<{ item: MonthException }> = ({ item }) => {
   const extra = group ? "" : formatAmount(item.amount) || (item.count ? (item.code === "tax_issue" ? co.ledger.issues(item.count) : co.ledger.docs(item.count)) : "");
   return (
     <>
-      <span className="cc-month-code">{codeName(item)}</span>
-      <span className="cc-month-sub">{group ? co.ledger.sameNumber(item.invoice_no || "", item.documents!.length) : exceptionSubject(item, branchShort)}</span>
-      {extra && <span className="cc-panel-extra tabular-nums">{extra}</span>}
+      <Marquee className="cc-month-code">{codeName(item)}</Marquee>
+      <Marquee className="cc-month-sub">{group ? co.ledger.sameNumber(item.invoice_no || "", item.documents!.length) : exceptionSubject(item, branchShort)}</Marquee>
+      {extra && <Marquee className="cc-panel-extra tabular-nums">{extra}</Marquee>}
     </>
   );
 };
@@ -206,12 +207,12 @@ export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> 
       })}
       {unlisted(month) > 0 && (
         <div className="cc-panel-row" data-slot="cc-month-note">
-          <span className="cc-month-sub">{co.ledger.moreItems(unlisted(month))}</span>
+          <Marquee className="cc-month-sub">{co.ledger.moreItems(unlisted(month))}</Marquee>
         </div>
       )}
       {month.truncated && (
         <div className="cc-panel-row" data-slot="cc-month-note">
-          <span className="cc-month-sub">{co.ledger.partial}</span>
+          <Marquee className="cc-month-sub">{co.ledger.partial}</Marquee>
         </div>
       )}
     </>

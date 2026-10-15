@@ -15,6 +15,7 @@ import { co, lang, t } from "@/i18n";
 import { branchShort, type CompanyRow, forgetAnyCompany, formatWhen, listCompanies, usePendingCounts } from "@/lib/companies";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { shownError } from "@/lib/frappe";
+import { Marquee } from "@/components/ui/marquee";
 
 const PAGE = 50;
 
@@ -163,8 +164,8 @@ export const Companies: FC = () => {
             <div className="cc-card-grid" data-slot="cc-company-rows">
               {shown.map((row) => (
                 <button key={row.id} type="button" className="cc-grid-card cc-enter" onClick={() => openCompany(row.id)}>
-                  <span className="cc-grid-card-title">{row.title}</span>
-                  <span className="truncate text-ink-3">{companyLine(row)}</span>
+                  <Marquee className="cc-grid-card-title">{row.title}</Marquee>
+                  <Marquee className="truncate text-ink-3">{companyLine(row)}</Marquee>
                   <span className="cc-grid-card-foot">
                     {!!pending[row.id] && (
                       <span className="flex items-center gap-1" title={co.pending}>
@@ -172,7 +173,7 @@ export const Companies: FC = () => {
                         {pending[row.id]}
                       </span>
                     )}
-                    {row.mine_last_active && <span className="truncate">{formatWhen(row.mine_last_active)}</span>}
+                    {row.mine_last_active && <Marquee className="truncate">{formatWhen(row.mine_last_active)}</Marquee>}
                   </span>
                 </button>
               ))}

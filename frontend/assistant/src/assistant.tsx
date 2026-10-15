@@ -43,6 +43,7 @@ import {
   TrashIcon,
   XIcon,
 } from "lucide-react";
+import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -192,7 +193,7 @@ function UserMenu({ children }: { children: ReactNode }) {
       <DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu">
-          <div className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</div>
+          <Marquee as="div" className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</Marquee>
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
@@ -242,10 +243,10 @@ function UserFooter() {
           <span className="cc-nav-icon">
             <span className="cc-avatar size-6">{initials(profile)}</span>
           </span>
-          <span className="cc-nav-label min-w-0 flex-1 truncate">
+          <Marquee className="cc-nav-label min-w-0 flex-1 truncate">
             {profile.full_name || profile.user}
             <span className="text-ink-3"> · {profile.product_label}</span>
-          </span>
+          </Marquee>
         </button>
       </UserMenu>
       <button type="button" className="cc-icon-btn" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
@@ -714,7 +715,7 @@ function ConversationName() {
   return (
     <>
       <button type="button" className="cc-title-btn" title={t("rename")} onClick={() => setRenaming(true)} onDoubleClick={(e) => e.stopPropagation()}>
-        <span className="truncate">{title || t("untitled")}</span>
+        <Marquee className="truncate">{title || t("untitled")}</Marquee>
       </button>
       <ConversationMenu onRename={() => setRenaming(true)} />
     </>

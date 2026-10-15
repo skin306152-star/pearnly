@@ -53,6 +53,7 @@ import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { co, t } from "@/i18n";
+import { Marquee } from "@/components/ui/marquee";
 
 const API = "pearnly_cowork.folder_intake.api.";
 const CONN = "pearnly_cowork.connections.api.";
@@ -435,7 +436,7 @@ export function ScheduledTasks() {
                 >
                   <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(rule)}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate font-medium text-ink">{rule.title}</span>
+                      <Marquee className="truncate font-medium text-ink">{rule.title}</Marquee>
                       <Chip tone={s.tone}>{s.text}</Chip>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-sm">

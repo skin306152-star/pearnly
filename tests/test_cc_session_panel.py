@@ -663,7 +663,8 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         self.assertIn('const meta = [monthShort(row.period ?? ""), branchShort(row.scope ?? "")].filter(Boolean).join(" · ");', chats)
         self.assertIn('<span className="cc-chat-row-when">{relativeWhen(row.updated_at, now)}</span>', chats)
         self.assertIn("const now = useMinuteClock();", chats)
-        self.assertIn('<span className="cc-row-title">{row.title || t("untitled")}</span>', chats)
+        self.assertIn('<Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>', chats)
+        self.assertIn('{meta && <Marquee className="cc-row-meta">{meta}</Marquee>}', chats)
         self.assertIn("onClick={() => void load(next)}", chats)
         # 手机：标题旁打开盖满屏的会话栏
         self.assertIn("onClick={() => setPanelOverlay(true)}", page)

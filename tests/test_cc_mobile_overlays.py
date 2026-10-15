@@ -537,7 +537,9 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertEqual(more.count('side="bottom"\n            align="end"'), 1)
         self.assertEqual(more.count('side="bottom"\n      align="end"'), 1)  # 多选时的批量项
         self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)
-        self.assertIn('<DropdownMenu.Content side="bottom" align="end" sideOffset={4} className="cc-menu !min-w-44">', projects)
+        # 组标题「···」（分组和排序，公司组与已置顶 / 最近 / 月份共用）
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align="end"\n          sideOffset={4}', group)
 
     @NEEDS_NODE
     def test_menus_keep_8px_from_the_edge_and_phones_open_submenus_in_place(self):

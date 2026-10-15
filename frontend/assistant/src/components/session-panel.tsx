@@ -57,6 +57,7 @@ import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggle
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
 import { isCardDragging, setCardDragging } from "@/lib/layers";
+import { Marquee } from "@/components/ui/marquee";
 
 export type PanelMode = "docked" | "floating" | "phone";
 
@@ -288,7 +289,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
     >
       {mode !== "docked" && (
         <div className="cc-panel-top">
-          <span className="min-w-0 flex-1 truncate">{detail?.company.title ?? ""}</span>
+          <Marquee className="min-w-0 flex-1 truncate">{detail?.company.title ?? ""}</Marquee>
           <button type="button" className="cc-icon-btn" aria-label={t("close")} title={t("close")} onClick={onClose}>
             <XIcon />
           </button>
@@ -309,8 +310,8 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
 const InfoRow: FC<{ icon: ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
   <div className="cc-panel-row" title={value}>
     {icon}
-    <span className="min-w-0 flex-1 truncate">{label}</span>
-    <span className="cc-panel-extra">{value}</span>
+    <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
+    <Marquee className="cc-panel-extra">{value}</Marquee>
   </div>
 );
 
@@ -327,11 +328,11 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
     <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
       <button type="button" className="cc-panel-row" data-strong="" title={co.openCompany} onClick={() => openCompany(c.id)}>
         <Building2Icon />
-        <span className="min-w-0 flex-1 truncate">{c.title}</span>
+        <Marquee className="min-w-0 flex-1 truncate">{c.title}</Marquee>
         <ChevronRightIcon />
       </button>
-      {legal && <div className="cc-panel-row cc-panel-indent"><span className="truncate">{legal}</span></div>}
-      {line && <div className="cc-panel-row cc-panel-indent"><span className="truncate">{line}</span></div>}
+      {legal && <div className="cc-panel-row cc-panel-indent"><Marquee className="truncate">{legal}</Marquee></div>}
+      {line && <div className="cc-panel-row cc-panel-indent"><Marquee className="truncate">{line}</Marquee></div>}
       {!!c.combined_vat && (
         <div className="cc-panel-row cc-panel-indent">
           <span className="cc-chip">{co.combinedVat}</span>
@@ -345,7 +346,7 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
           <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value="" />
           {sets.map((set) => (
             <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent" title={set.label}>
-              <span className="min-w-0 flex-1 truncate">{set.label}</span>
+              <Marquee className="min-w-0 flex-1 truncate">{set.label}</Marquee>
             </div>
           ))}
         </>
@@ -364,8 +365,8 @@ const CompanyPageCard: FC<{ detail: Detail; period: string }> = ({ detail, perio
   if (!legal && !line && !c.combined_vat && !sets.length) return null;
   return (
     <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
-      {legal && <div className="cc-panel-row text-ink" title={legal}><span className="truncate">{legal}</span></div>}
-      {line && <div className="cc-panel-row" title={line}><span className="truncate">{line}</span></div>}
+      {legal && <div className="cc-panel-row text-ink" title={legal}><Marquee className="truncate">{legal}</Marquee></div>}
+      {line && <div className="cc-panel-row" title={line}><Marquee className="truncate">{line}</Marquee></div>}
       {!!c.combined_vat && (
         <div className="cc-panel-row">
           <span className="cc-chip">{co.combinedVat}</span>
@@ -391,7 +392,7 @@ const OutputsCard: FC = () => {
       {files.map((file) => (
         <button key={file.id} type="button" className="cc-panel-row" title={file.filename} onClick={() => openFile(file.id)}>
           <FileTypeIcon filename={file.filename} />
-          <span className="min-w-0 flex-1 truncate">{file.filename}</span>
+          <Marquee className="min-w-0 flex-1 truncate">{file.filename}</Marquee>
         </button>
       ))}
     </PanelCard>

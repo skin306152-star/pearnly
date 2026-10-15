@@ -49,7 +49,8 @@ class NotesSourceTests(unittest.TestCase):
         page = read("components/company-page.tsx")
         header = page[page.index("const Header: FC"):page.index("// ---------------------------------------------------------------- 输入框")]
         self.assertIn("setTitle(saved);", header)
-        self.assertIn("{title}</button></h1>", header)  # 公司页标题：点名字就地改名（设计文档 3.15）
+        self.assertIn("{title}</Marquee></h1>", header)  # 公司页标题：点名字就地改名（设计文档 3.15；按钮本身就是悬停滚动的那一格）
+        self.assertIn('<Marquee as="button" type="button" className="cc-page-title-btn"', header)
         page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
         self.assertIn("setChoiceShown(rows, c.key, v)", choices)

@@ -73,6 +73,7 @@ export {
   setFor,
   SetsSection,
 } from "@/components/company-cards";
+import { Marquee } from "@/components/ui/marquee";
 
 // ---------------------------------------------------------------- 页面
 export const CompanyPage: FC = () => {
@@ -183,7 +184,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
           <TitleRename value={value} onChange={setValue} onDone={(saveIt) => (saveIt ? void save(value) : setRenaming(false))} />
         ) : (
           <h1 className="cc-page-title">
-            <button type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>{title}</button></h1>
+            <Marquee as="button" type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>{title}</Marquee></h1>
         )}
         {error && <p role="alert" className="mt-1 text-danger text-sm">{error}</p>}
       </div>
@@ -319,7 +320,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
       <div className="cc-composer-chin" data-slot="cc-composer-chin">
         <span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">
           <Building2Icon />
-          <span className="min-w-0 truncate">{title}</span>
+          <Marquee className="min-w-0 truncate">{title}</Marquee>
         </span>
         {withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}
         {withScope && <BranchChip look="cc-chin-btn" side="top" branches={branches} value={scope} onChange={setScope} />}
@@ -456,8 +457,8 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
             }}
           >
             <span className="cc-row-text">
-              <span className="cc-row-title">{row.title || t("untitled")}</span>
-              {meta && <span className="cc-row-meta">{meta}</span>}
+              <Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>
+              {meta && <Marquee className="cc-row-meta">{meta}</Marquee>}
             </span>
             {mark && <span className="cc-activity" data-activity={mark} role="img" aria-label={MARK_LABEL[mark]()} />}
             <span className="cc-chat-row-when">{relativeWhen(row.updated_at, now)}</span>

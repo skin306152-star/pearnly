@@ -2,11 +2,13 @@
 //
 //   组     — 有公司分组（Cowork）时按「分组和排序」（lib/managed-agents/sidebar-view.ts）：按公司（已置顶 → 各公司 → 最近）、
 //            按处理月份、不分组；组标题是 sidebar-group.tsx 的 GroupHeader。没有公司分组（ERP / DMS）同以前：已置顶 + 按日子分组
-//   行     — 高按变体（网页 32 / 桌面窗口 30 / 手机 44）、行间 2、圆角 8；标题 14 次要色、超长渐隐；行尾 24 的槽放装饰（在跑的
+//   行     — 高按变体（网页 32 / 桌面窗口 30 / 手机 44）、行间 2、圆角 8；标题 14 次要色、超长渐隐，悬停时滚动（ui/marquee.tsx）；
+//            公司组里的行缩进到公司名起点；行尾 24 的槽放装饰（在跑的
 //            6px 脉冲点、未读点），悬停换成「···」；选中 = 悬停色 + 主色字；「显示 → 元数据」开时第二行「9 月 · 分店 00012」
 //   多选   — 电脑上 Shift 点一段、⌘ / Ctrl 点单条（lib/sidebar-keys.ts）；行「···」菜单在选中两条以上时换成「置顶 N」「移到… (N)」
 //            「删除 N」，逐条顺序执行；行菜单里单字母 P 置顶、R 重命名、D 删除
 import { Button } from "@/components/ui/button";
+import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
 import { BulkMoveMenu, MoveToMenu, ProjectHeader, SidebarError, useNewChatIn } from "@/components/assistant-ui/projects";
@@ -216,7 +218,7 @@ const Items: FC<{ indices: readonly number[]; threadIds: readonly string[] }> = 
   indices.map((index) => <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />);
 
 // 有公司分组时（Cowork）：按「分组和排序」分组、排序；手机上各组也能折叠。折叠状态每台设备各记各的（pinned、recents、
-// project:<编号>、month:<月份>）。每个组标题右侧都有「分组和排序」；公司组、最近另有「新建」
+// project:<编号>、month:<月份>）。每个组标题右侧都有「···」（分组和排序）；公司组、最近另有「新建」
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
   const { threadIds, itemsById, dates } = useDates();
@@ -533,6 +535,7 @@ export const ThreadListItem: FC = () => {
       data-row-id={localId}
       data-selected={selected ? "" : undefined}
       data-slot="aui_thread-list-item"
+      data-marquee-host=""
       onClickCapture={pick}
       onMouseDown={(e) => {
         if (e.shiftKey && !isMobile && companies) e.preventDefault(); // Shift 点不选中文字
@@ -556,9 +559,9 @@ export const ThreadListItem: FC = () => {
             className="cc-row-trigger focus-visible:shadow-focus flex min-h-(--cc-row-h) min-w-0 flex-1 items-center self-stretch rounded-md text-start outline-none"
           >
             <span className="cc-row-text">
-              <span data-slot="aui_thread-list-item-title" className="cc-row-title">
+              <Marquee data-slot="aui_thread-list-item-title" className="cc-row-title">
                 <ThreadListItemPrimitive.Title fallback={t("untitled")} />
-              </span>
+              </Marquee>
               <RowMeta />
             </span>
             <span className="cc-row-end">
@@ -589,9 +592,9 @@ const RowMeta: FC = () => {
   const text = parts.filter(Boolean).join(" · ");
   if (!text) return null;
   return (
-    <span className="cc-row-meta" data-slot="cc-row-meta">
+    <Marquee className="cc-row-meta" data-slot="cc-row-meta">
       {text}
-    </span>
+    </Marquee>
   );
 };
 

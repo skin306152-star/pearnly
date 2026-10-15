@@ -38,6 +38,7 @@ import { useProfile } from "@/lib/profile";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import { dayLabel, lang, LANGUAGES, st, t } from "../i18n";
+import { Marquee } from "@/components/ui/marquee";
 
 type Section = "general" | "connections" | "system";
 
@@ -401,7 +402,7 @@ function Connections({ api }: { api: Desktop }) {
     <>
       <div className="flex items-center gap-3 border-b py-4">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm">{state.site || location.host}</div>
+          <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
         </div>
         {main ? (
@@ -471,9 +472,9 @@ function Connections({ api }: { api: Desktop }) {
           {legacy.map((root) => (
             <div key={`${root.member}-${root.id}`} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
               <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate" title={root.path}>
+              <Marquee className="min-w-0 flex-1 truncate" title={root.path}>
                 {root.path}
-              </span>
+              </Marquee>
               <button
                 type="button"
                 aria-label={st.remove}
@@ -501,9 +502,9 @@ function Connections({ api }: { api: Desktop }) {
           {main.folders.map((path) => (
             <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
               <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate" title={path}>
+              <Marquee className="min-w-0 flex-1 truncate" title={path}>
                 {path}
-              </span>
+              </Marquee>
               <button
                 type="button"
                 aria-label={st.remove}
@@ -614,7 +615,7 @@ export function ComputerSection({ row }: { row: Computer }) {
     <section className="mb-8 last:mb-0">
       <div className="flex items-center gap-3 border-b py-4">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm">{row.device}</div>
+          <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
           <div className="text-muted-foreground text-xs">{row.adapter === "mrerp" ? "MR.ERP" : "Express"}</div>
           {row.update_blocked && (
             <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
