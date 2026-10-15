@@ -613,3 +613,102 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 第 7 批：第 5 批与本条「没做 / 没验」各项、降级再升级、克隆机（sysprep 前后）各一台；Companion checks 在 Windows 上全绿后再谈发布；真实 Site
   迁移回读与并发压测照第 3、4 批所列。
 - 第 8 批：照方案。
+
+## T1 跨年度换账套（定时任务跟随公司当年账套，2026-10-16，本地提交，未推送）
+
+分支 `pearnly/t1-cross-year`，工作树 `.claude/worktrees/t1-cross-year`，基线 `248b6cbd`（`pearnly/multi-desktop` 第 5 批），已变基到第 5 批审查修复后的 `10f0ed0b`：建在第 4 批的读者三元组
+与写账分派之上，随 multi-desktop 一起合入 `main`。需求原文：[交接 T1](2026-10-15-handoff-cc.md)。提交：`5df30d5d` feat（代码、测试、补丁）、本条 docs
+（本节与架构说明两行）。补丁 `v0_0_23_folder_task_company`。新词条 4 条（三个原因码 + 1 个字段标签，en / zh / th / ja）；没改已有文案；
+`frontend/assistant` 不动（`pearnly/cc-shell-rebuild` 在重做外壳），前端待办见下。
+
+问题：`Cowork Folder Intake Rule` 绑死一份年度账套 `account_set_key`，跨年要手工改任务。
+
+做了什么：
+
+- 任务表加 `company`（公司主档编号，Data、带索引，不加外键）与 `company_branch`（5 位分店号，可空），原生 DocType 迁移（`modified` 升到 10-17）。
+  保存任务时（网页、CC 一样，前端不改）服务端按目录里所选的那份 Express 账套反查：属于唯一一家主档就记下它和这份账套的分店，对不上、多于一家
+  记空；报文里带的公司 / 分店一律不收。MR.ERP 任务不记（账套是公司 + 年度，目录里没有会计期间）。`account_set_key` 保留作兜底与显示。
+- 判据归 companies（`companies/tasks.py`，新）：`company_of` 同 `identity.belongs`（身份相同；没有税号时与按名称建的主档同连接同名称键）；`books_of` 取
+  这家公司在任务连接上的账套（`service.books` 全集），给了日期用 `identity.covering` 按月取、再由新纯函数 `identity.for_day` 核到日，给了分店用
+  `identity.for_branch` 筛（这家公司只报过这一个分店号时，没报分店号的旧年度账套也算）。folder_intake 不导入 companies，经 hooks
+  `cowork_task_company` / `cowork_task_books` 问（同 `cowork_rules_company` 的做法）。两个函数每次先清 companies 的请求内缓存：后台推进在同一个
+  任务里换着负责人推（`pump._as` 不清它），不拿上一个人能用的连接来算。
+- 执行（`folder_intake/follow.py`，新；`push.push_one`）：每张票按票上的单据日期（`invoice_date`）选这次推往的账套——
+  - 正好一份、池里有电脑够得到（写账分派同一判据 `push.native.service.has_writer`，目录行 `writable=false` 也算够不到）→ 推往它，选到的经新的
+    `history.push_state.retarget` 抄到票上（账本投影 `mirror` 不覆盖票上已有的去向，不换的话票上、CC、待处理页还显示任务存下的那一年），这张票的
+    去向另记 `account_set` / `account_label`；
+  - 一份都没有（含票上没有日期）`cowork.folder.account_set_none`、多于一份 `cowork.folder.account_set_ambiguous`、够不到
+    `cowork.folder.account_set_unreachable` → 停下等人（`held` + 原因码），原因记在票上（够不到时连同选到的那份一起抄到票上）；池里一台能写的电脑
+    都没有（电脑没连上）照旧按「电脑没连上」过一会儿再推，最后一次才停下；
+  - 任务没记公司（旧任务对不上公司、MR.ERP）或主档已删 → 不跟随，照旧推往固定账套，一行都不多走。
+- 推送仍是同一个推送服务（`choices_view` / `submit` / 确认），`account_match` 的期间、税号、分店硬闸不放宽、不绕过。
+- 任务默认值（这一类都这样处理）：推往任务存下的那份原样用；跟到别的年度时科目、部门代码只在那份账套读到的主档里有才用，没读到也先不用
+  （推送照现有规则请电脑读科目表、读到后再推），其余各类原样（`follow.fixed_in`）。人在复核页 / CC 重推停下的票，推往这家公司（这个分店）
+  别的年度账套也套用任务默认值（`push.fixed_for` → `follow.member`）。
+- 结果：`contracts.ticket_state` 把三种原因算「待处理」（类别 `account_set`），完成简报写「待选账套」（沿用 `cowork.folder.brief.why.choice` +
+  `intake.target.accountSet`，不加新句子）；任务列表 / 运行记录的结果多一项 `account_sets`（这些票实际推往了哪几份账套、各几张，只有跟随的任务有），
+  CC 的任务列表与运行记录随结果带出；任务列表另给 `company` / `company_branch`。
+- 推送限流与存货先后：跟随的任务每张票的账套推的时候才定，按（推送连接，公司 + 分店）一条道（`pump._lane`），同一家公司存的年度不同的进项、
+  销项任务归同一条道；固定账套的任务照旧按（推送连接，账套）。
+- 补丁 `v0_0_23_folder_task_company`（post_model_sync）：Express 任务里 `company` 空着的，以任务负责人身份按 `account_set_key` 调同一个
+  `company_of`，唯一对上一家才写公司与分店；对不上、多于一家、负责人用不了那条连接（读不到目录）的留空、照旧固定。不升 `rule_revision`
+  （电脑不用重新拍底）、不改修改时间；已补的不再动，重跑同一结果。
+
+有意变化（相对旧行为）：
+
+1. 记了公司的任务不再把票推进任务存下的那一年：每张票按自己的日期换账套。原来新年度的单推往旧年度账套，`account_match` 允许落在旧账套的
+   「次年」期间（`next_end`）；现在只认覆盖那天的本年期间（`identity.book` 的 `period_start` / `period_end`），新年度账套还没建时停下等人
+   （用户定的用例「只有旧年度账套时新年度的单停下」）。
+2. 同一家公司同一天有两份账套（Express 测试数据 T8 / T9 都是 2025 年）一律停下，不按名称、新旧或可达去挑。
+3. 跟随的任务限流 / 存货先后按公司道算，不按任务存下的那份账套。
+4. 跟到别的年度时，科目 / 部门默认值要在那份账套的主档里才用。
+
+前端待办（等 `pearnly/cc-shell-rebuild` 合入后在外壳里做；Desk `intake-folders.js` 同理）：
+
+- 任务表单 / 列表 / 主档页任务行：`company` 非空时在账套处显示「跟随公司当年账套」（账套名只作兜底），停下原因按三个原因码的词条显示；
+  表单不传公司（服务端自己定），也不要加选项开关。
+- 运行记录与任务结果显示 `results.account_sets`（实际推往的账套名与张数）。
+- 待处理页对 `account_set_*` 停下的票：当场选账套（现在待处理页只按票上的去向选科目等，没有换账套的入口）。
+- 主档页「定时任务」现在仍按 `account_set_key` 归到公司（`companies.service.tasks_of` / `task_overview` 未改）：任务存下的那份账套从目录里消失后
+  会归不上，外壳重做时可改成优先认 `company`。
+
+测试机验证计划（未执行；测试机 Express 账套写入要先列给用户确认）：
+
+1. 起环境：`PEARNLY_TESTENV_SRC=<本工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> bash scripts/testenv.sh lab-start cowork`（已起就用
+   `testenv.sh live cowork`，表结构变了自动迁移）。迁移后只读回读：已有 Express 任务的 `company` / `company_branch` 回填数，对不上的留空。
+2. 账套：`C:\PearnlyExpress\70EXP` 里同一公司的 `T7SINCER` / `T8SINCER` / `T9SINCER`（C 盘可直接写；局域网 Accserver / S 盘不写）。
+   先在 testcowork 的公司页看三份的会计期间（T8、T9 都是 2025）；主档页「＋」用 T9 建一个任务（或用回填过的旧任务）。
+3. 造跨年单据，省钱先用 POS 导出（销项任务收 Excel / CSV，不识别、不扣费，一天一张票）：同一份导出里放 2024-12-30、2024-12-31、2025-01-02 三天。
+   - T8、T9 都在：2024 的两天进 T7SINCER；2025-01-02 停下「多份账套覆盖单据日期」。
+   - 把 `C:\PearnlyExpress\70EXP\T8SINCER` 暂时改名（目录刷新后 T8 不在目录里），复跑：2025-01-02 进 T9SINCER；测完改回原名。
+   - 一张 2026 年的单：停下「没有覆盖单据日期的账套」。
+   - 停下的票在网页 / CC 手动选账套重推，任务默认值照样套用。
+   照片 / PDF 收据各一两张走识别（会扣费）要先问用户。
+4. 核对：Express 里各张单在对应年度的账套（经 CC 回读或 Express 界面，只读）；票上「推送去向」与 CC 说的账套名是实际那份；运行记录 /
+   任务结果的 `account_sets`；完成简报写「待选账套」；结果表格的推送状态列。
+5. 够不到：在第二台电脑或把这台 CC 桌面版的账套列表去掉 T9 后跑一张 2025 单，停下「没有电脑能访问单据日期所在的账套」；整台断开时是
+   「电脑没连上」稍后重推，不是停下。
+6. 收尾：`testenv.sh lab-stop cowork` 切回线上；T8SINCER 改回原名；测试写入的单据按用户意见留或删。
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`，python3 3.12；需要 Frappe 的在一次性离线容器 `docker run --rm --network none`、
+`pearnly/frappe-sample:16.34.1`、工作树只读挂载里跑，不碰共享样板栈）：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_folder_follow_year.py`（新，进 CI） | 29 OK：真实 `companies.tasks` / `service` / `identity` + `folder_intake.follow` / `push` 串起来跑。跨年两份账套各推一张进各自账套且抄到票上；只有旧年度时新年度的单停下；T8 / T9 同期停下（2026 的照推）；没日期停下；够不到停下并带账套名、整池没电脑时重试、最后一次停下；目录标不可写算够不到；负责人用不了连接时停下不猜；分店筛选（指定分店选到该分店，不指定而有两个分店停下）；旧任务（没公司）照旧推固定账套、不调钩子、不改票；主档已删照旧；默认科目 / 部门按新账套主档取舍；人工重推套任务默认；`retarget` 只写一次；`company_of` 唯一 / 多家 / 不认识 / 无权；换负责人不复用上一个人的目录；结果按账套计数；原因码四种语言；补丁只补唯一的、MR.ERP 与无权的留空、已有的不动、重跑无写入并还原身份 |
+| 改过的旧测试 | `folder_intake` 123（新增公司道的存货先后；任务表 `modified` 改为 10-17；推送替身加 `follow`）、`folder_task_batch` 31（新增 `FollowCompanyYear` 3 项：记公司与分店、报文里的不收、改选对不上的账套清掉）、`folder_tasks_mrerp` 8（MR.ERP 不记、Express 记）、`folder_reminders` 42、`push_fixed` 18、`delete_everything` 7、`cc_desktop_devices` 58（补丁顺序改成核四条相连且在 post_model_sync 后，不再要求是最后四条）、`companies` 54 — 全部 OK |
+| 变异核对 | 多于一份不停下、不核可达：新测试 3 项失败 |
+| 容器内导入改过的 9 个模块与补丁、钩子 `cowork_task_company` / `cowork_task_books` / `cowork_push_fixed_choices` 解析；`tests/test_cowork_*.py` + `test_queue_targets.py`（不含源码对照） | 导入与解析 OK；全部 OK，只有与基线相同的 `test_cowork_invoice_checks.py`（2 个 `object is not bound`）、`test_cowork_table_input_runtime.py`（样板缺 `docx`） |
+| `python3 scripts/check-architecture.py`、`i18n-build.py --check` | PASS / PASS（不扩基线，没有新的域依赖方向） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 89 步全过，退出码 0（代码提交前的工作树，代码与 `5df30d5d` 相同；第一次跑缺三处测试替身的 `follow`、补丁顺序断言写死最后四条、词条行尾多一个制表符，修好后重跑全过；本条 docs 提交后在 HEAD 上再跑一次全过） |
+
+没做 / 没验：真实 Site 上的迁移与补丁回读、MariaDB、HTTP、测试机与真 Express 写入（上面的计划）；`frontend/assistant` 与 Desk 页面（前端待办）。
+
+风险：
+
+- 写错账套代价大：选账套只按单据日期 + 公司 + 分店，取不到 / 多于一份 / 够不到都停下不猜，推送仍过 `account_match` 硬闸；但单据日期本身读错（识别把
+  年份读错）会选到另一年度的账套，硬闸也拦不住（日期就在那份账套的期间里）——与人在网页按日期选账套是同一个风险。
+- 公司主档是按身份认的：一家公司换了税号、或旧年度账套没报税号又不是按名称建的主档，旧年度认不出来，那一年的单会停下。
+- 目录里没有会计期间的账套（读不到期间）一律不算覆盖：这样的公司每张单都停下（2026-09-27 起的 CC 桌面版都报期间）。
+- 新年度账套刚在 Express 建好、电脑还没上报目录前到点的单会停下，要人重推（不再自动落进旧账套的次年期间，见有意变化 1）。
+- 主档页 / 侧栏的「定时任务」仍按任务存下的账套归公司（前端待办第 4 条）。
