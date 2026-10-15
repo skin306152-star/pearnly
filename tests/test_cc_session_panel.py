@@ -40,10 +40,12 @@ class TitleBarSourceTests(unittest.TestCase):
         projects = read("components/assistant-ui/projects.tsx")
         company = projects.split("export const ConversationCompany: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn("onClick={openCompanyCard}", company)
+        # 会话栏要对话已存到服务端：还没存好时公司名不出现
+        self.assertIn("if (!remoteId || !project || !title) return null;", company)
         self.assertNotIn("useOpenCompany", company)
         mobile = projects.split("export const MobileCompanyItem: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn("onSelect={openCompanyCard}", mobile)
-        self.assertIn("if (!kind || !project || !title) return null;", mobile)
+        self.assertIn("if (!kind || !remoteId || !project || !title) return null;", mobile)
         self.assertIn("<MobileCompanyItem />", app.split("function MobileChatPill(", 1)[1].split("\nfunction ", 1)[0])
 
     def test_top_right_files_and_panel_toggle(self):
@@ -61,7 +63,12 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn("const hasPanel = view === \"chat\" && saved && !!filing.project;", layout)
         self.assertNotIn("hasMessages", layout)
         # 窄屏：画第一帧前就量好放不放得下
-        self.assertIn("useLayoutEffect(() => {", app.split("function useDockFits(", 1)[1].split("\nfunction ", 1)[0])
+        dock = app.split("function useDockFits(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn("useLayoutEffect(() => {", dock)
+        # 手机与电脑外壳互换时那一行卸下重建：跟着新节点（回调 ref 存进 state）重新量，不盯着旧节点
+        self.assertIn("}, [el]);", dock)
+        self.assertIn("const [area, setArea] = useState<HTMLDivElement | null>(null);", layout)
+        self.assertIn('<div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">', layout)
         self.assertIn("const panelShown = hasPanel && !results.open && (mode === \"docked\" ? panelOpen : overlay);", layout)
         self.assertIn('const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";', layout)
         self.assertIn("{panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}", layout)
@@ -70,7 +77,12 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn('useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));', layout)
         panel = read("components/session-panel.tsx")
         self.assertIn("return kind ? filing : NO_FILING;", panel)
-        self.assertIn('if (e.key !== "Escape" || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;', panel)
+        # 输入法选字时的 Esc 不关会话栏
+        self.assertIn('if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;', panel)
+        # 换到另一家时各卡重新挂上（知识库的新增框不把这条写进另一家）
+        self.assertIn("<Fragment key={`${company}:${id}`}>{cards[id]}</Fragment>", panel)
+        # 公司页换公司（有缓存不经过加载态）：整页重新挂上，输入框的分店、所在标签不串到另一家
+        self.assertIn("<Master key={detail.company.id} detail={detail}", read("components/company-page.tsx"))
         self.assertIn('if (mode === "docked") return;', panel)
 
     def test_new_words_exist_in_every_language(self):
@@ -188,7 +200,7 @@ assert.deepEqual([...moveCard(order, "notes", 1, shown)].sort(), [...PANEL_CARDS
 
     def test_prefs_are_kept_per_user_on_this_device(self):
         self.run_page(r"""
-import { loadPanelPrefs, panelKey, readPrefs, setCardOrder, setPanelOpen, showCard, toggleCard, usePanel } from "@/lib/company-panel";
+import { loadPanelPrefs, panelKey, readPrefs, setCardOrder, setPanelDocked, setPanelOpen, showCard, toggleCard, usePanel } from "@/lib/company-panel";
 const g = globalThis as any;
 // 没有存储（无痕、被禁）：照样能用，用默认值
 assert.deepEqual(readPrefs(null), { open: true, order: usePanel.getState().order, collapsed: [] });
@@ -230,6 +242,16 @@ assert.equal(state.open, true);
 assert.equal(state.overlay, true);
 assert.ok(!state.collapsed.includes("company"));
 assert.equal(state.focus?.card, "company");
+// 浮层、手机全屏里点公司名：只开这一次，不把宽屏记下的「关着」改成「开着」
+setPanelOpen(false);
+setPanelDocked(false);
+showCard("company");
+assert.equal(usePanel.getState().overlay, true);
+assert.equal(usePanel.getState().open, false);
+assert.equal(JSON.parse(store.get("cc.panel.a@b")!).open, false);
+setPanelDocked(true);
+showCard("company");
+assert.equal(JSON.parse(store.get("cc.panel.a@b")!).open, true);
 """)
 
     def test_dock_or_float_and_css_lengths(self):

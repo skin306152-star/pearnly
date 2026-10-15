@@ -35,7 +35,7 @@ import {
   usePendingCounts,
 } from "@/lib/companies";
 import { openCompanyCard } from "@/lib/company-panel";
-import { useAnyActivity } from "@/lib/managed-agents/activity";
+import { useGroupActivity } from "@/lib/managed-agents/activity";
 import {
   type Filing,
   fileSession,
@@ -103,7 +103,7 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
   const [menuOpen, setMenuOpen] = useState(false);
   const { isMobile } = useSidebar();
   const press = useLongPress(() => setMenuOpen(true));
-  const busy = useAnyActivity(sessions);
+  const activity = useGroupActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
   const openCompany = useOpenCompany();
@@ -125,7 +125,15 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
       open={open}
       onToggle={onToggle}
       onMenuKey={() => setMenuOpen(true)}
-      dot={!open && busy ? <span className="cc-activity cc-group-dot" data-activity="unread" aria-label={t("unread")} /> : undefined}
+      dot={
+        !open && activity ? (
+          <span
+            className="cc-activity cc-group-dot"
+            data-activity={activity}
+            aria-label={activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread")}
+          />
+        ) : undefined
+      }
     >
       {pending > 0 && (
         // 这家的待处理数：点了打开只看这家的待处理
@@ -353,7 +361,8 @@ const SessionChin: FC = () => {
   if (!project) return null;
   return (
     <>
-      <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" onClick={openCompanyCard}>
+      {/* 会话栏要对话已存到服务端：还没存好的那一小段时间先不可点 */}
+      <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" disabled={!remoteId} onClick={openCompanyCard}>
         <Building2Icon />
         <span className="min-w-0 truncate">{title || co.companies}</span>
       </button>
@@ -370,7 +379,8 @@ export const ConversationCompany: FC<{ className?: string }> = ({ className }) =
   useProjects((s) => s.filings);
   const project = filingOf(remoteId, localId).project;
   const title = useCompanyTitle(project);
-  if (!project || !title) return null;
+  // 会话栏要对话已存到服务端：还没存好时不显示
+  if (!remoteId || !project || !title) return null;
   return (
     <button type="button" className={cn("cc-title-company", className)} onClick={openCompanyCard}>
       <span className="truncate">{title}</span>
@@ -387,7 +397,7 @@ export const MobileCompanyItem: FC = () => {
   useProjects((s) => s.filings);
   const project = filingOf(remoteId, localId).project;
   const title = useCompanyTitle(kind ? project : "");
-  if (!kind || !project || !title) return null;
+  if (!kind || !remoteId || !project || !title) return null;
   return (
     <>
       <DropdownMenu.Item className="cc-menu-item" onSelect={openCompanyCard}>

@@ -77,11 +77,13 @@ type PanelState = PanelPrefs & {
   user: string;
   /** 窄屏浮层、手机全屏：点了才显示，换对话收起（不记）。 */
   overlay: boolean;
+  /** 此刻会话栏是不是宽屏并排停靠（assistant.tsx 按停靠位宽度设；不记）：只有停靠时点公司名才改记下的「开着」。 */
+  docked: boolean;
   /** 要展开并滚到的那张卡（点了标题栏「公司名 ›」等）；at 让同一张卡再点一次也生效。 */
   focus: { card: PanelCard; at: number } | null;
 };
 
-export const usePanel = create<PanelState>(() => ({ ...DEFAULT_PREFS, user: "", overlay: false, focus: null }));
+export const usePanel = create<PanelState>(() => ({ ...DEFAULT_PREFS, user: "", overlay: false, docked: true, focus: null }));
 
 function save() {
   const { user, open, order, collapsed } = usePanel.getState();
@@ -126,11 +128,22 @@ export function setCardOrder(order: readonly PanelCard[]) {
   save();
 }
 
-/** 打开会话栏并展开、滚到这张卡（标题栏「公司名 ›」、输入框下巴的公司胶囊、手机胶囊菜单里的公司名）。 */
+/** 打开会话栏并展开、滚到这张卡（标题栏「公司名 ›」、输入框下巴的公司胶囊、手机胶囊菜单里的公司名）。
+ *  宽屏停靠时记下「开着」；浮层、手机全屏只开这一次，不改宽屏记下的开关。 */
 export function showCard(card: PanelCard = "company") {
-  const { collapsed } = usePanel.getState();
-  usePanel.setState({ open: true, overlay: true, collapsed: collapsed.filter((c) => c !== card), focus: { card, at: Date.now() } });
+  const { collapsed, docked } = usePanel.getState();
+  usePanel.setState({
+    ...(docked ? { open: true } : {}),
+    overlay: true,
+    collapsed: collapsed.filter((c) => c !== card),
+    focus: { card, at: Date.now() },
+  });
   save();
+}
+
+/** 停靠位此刻是不是并排（assistant.tsx 每次停靠方式变了就报）。 */
+export function setPanelDocked(docked: boolean) {
+  if (usePanel.getState().docked !== docked) usePanel.setState({ docked });
 }
 
 export const openCompanyCard = () => showCard("company");

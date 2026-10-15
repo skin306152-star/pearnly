@@ -376,7 +376,7 @@ export function refreshTaskOverview(): Promise<void> {
   return overviewing;
 }
 
-/** 侧栏挂上后：读一次；任务事件来了（合成一次）、主档有变化、回到前台、实时通道重连时再读。不另开轮询。 */
+/** 定时任务页挂上后：读一次；任务事件来了（合成一次）、主档有变化、回到前台、实时通道重连时再读。不另开轮询。 */
 export function watchTaskOverview(): () => void {
   void refreshTaskOverview();
   let timer = 0;

@@ -11,9 +11,10 @@
 
 import { useCallback, useRef } from "react";
 import { create } from "zustand";
+import { OPEN_LAYERS } from "@/lib/layers";
 
 // ---------------------------------------------------------------- 多选
-type Selection = { ids: string[]; anchor: string | null };
+export type Selection = { ids: string[]; anchor: string | null };
 
 /** 选中的对话（组件库的本页编号，同一段对话两行数据时按行算）。 */
 export const useSidebarSelection = create<Selection>(() => ({ ids: [], anchor: null }));
@@ -43,6 +44,15 @@ export function selectRange(order: readonly string[], target: string, current: s
 export function toggleSelected(id: string) {
   const { ids } = useSidebarSelection.getState();
   useSidebarSelection.setState({ ids: toggleIn(ids, id), anchor: id });
+}
+
+/** 选中的里只留眼前还排着的行（rendered：页面上的对话行，按 rowOrder）：收起分组、搜索筛掉、换分组方式、别处删掉之后，
+ *  看不见的不再算在批量操作里。起点不在了一并清掉。没有变化回 null。 */
+export function keepRendered(selection: Selection, rendered: readonly string[]): Selection | null {
+  const ids = selection.ids.filter((id) => rendered.includes(id));
+  const anchor = selection.anchor !== null && rendered.includes(selection.anchor) ? selection.anchor : null;
+  if (ids.length === selection.ids.length && anchor === selection.anchor) return null;
+  return { ids, anchor: ids.length ? anchor : null };
 }
 
 export function clearSelection() {
@@ -127,7 +137,8 @@ export function currentRow(from: Element | null): string | null {
 const isDesktopWindow = () => document.documentElement.dataset.ccVariant === "desktop";
 
 /** 挂在侧栏内容上（返回的回调当 ref）：roving 焦点、方向键、组标题右侧操作区、Esc 清空多选、桌面窗口的 ⌘ / Ctrl + 1–9 与数字提示。
- *  companies：有公司分组的产品（Cowork）。多选（Shift + ↑ ↓）与 ⌘ / Ctrl + 1–9 只在这时有，ERP / DMS 的侧栏不变。 */
+ *  companies：有公司分组的产品（Cowork）。多选（Shift + ↑ ↓）与 ⌘ / Ctrl + 1–9 只在这时有；roving 焦点与方向键是外壳统一的，
+ *  ERP / DMS 的侧栏也有（日期分组开关同样进 roving，行尾「···」用菜单键或 Shift+F10 打开）。 */
 export function useSidebarKeys(companies: boolean): (node: HTMLElement | null) => void {
   const detach = useRef<(() => void) | null>(null);
   const enabled = useRef(companies);
@@ -168,7 +179,20 @@ function attach(root: HTMLElement, companies: () => boolean): () => void {
     }
   };
   sync();
-  const observer = new MutationObserver(sync);
+  // 侧栏有增删：合到下一帧做一次（对话多时不在每次变动都排版）——重排 roving、选中的里去掉已不在眼前的行
+  let frame = 0;
+  const onMutation = () => {
+    if (frame) return;
+    frame = window.requestAnimationFrame(() => {
+      frame = 0;
+      sync();
+      const selection = useSidebarSelection.getState();
+      if (!selection.ids.length && selection.anchor === null) return;
+      const kept = keepRendered(selection, rowOrder(root));
+      if (kept) useSidebarSelection.setState(kept);
+    });
+  };
+  const observer = new MutationObserver(onMutation);
   observer.observe(root, { childList: true, subtree: true });
 
   const onFocusIn = (event: FocusEvent) => {
@@ -245,10 +269,11 @@ function attach(root: HTMLElement, companies: () => boolean): () => void {
     focus(list[nextIndex(event.key, at, list.length) ?? at]);
   };
 
-  // Esc：清空多选（菜单开着时 Esc 只关菜单）
+  // Esc：清空多选（菜单、弹窗开着时 Esc 只关它们）；弹窗、菜单开着时 ⌘ / Ctrl + 数字也不切换后面的对话
   const onWindowKey = (event: KeyboardEvent) => {
+    const layered = () => !!document.querySelector(OPEN_LAYERS);
     if (event.key === "Escape") {
-      if (useSidebarSelection.getState().ids.length && !document.querySelector('[role="menu"]')) {
+      if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered()) {
         clearSelection();
         event.preventDefault();
       }
@@ -261,7 +286,7 @@ function attach(root: HTMLElement, companies: () => boolean): () => void {
     }
     stopHints();
     const digit = jumpDigit(event.code);
-    if (!digit || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
+    if (!digit || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || layered()) return;
     const trigger = [...root.querySelectorAll<HTMLElement>(ROW_TRIGGER)].filter((el) => el.getClientRects().length > 0)[digit - 1];
     if (!trigger) return;
     event.preventDefault();
@@ -297,6 +322,7 @@ function attach(root: HTMLElement, companies: () => boolean): () => void {
   window.addEventListener("blur", stopHints);
   return () => {
     observer.disconnect();
+    if (frame) window.cancelAnimationFrame(frame);
     stopHints();
     root.removeEventListener("focusin", onFocusIn);
     root.removeEventListener("keydown", onKeyDown);

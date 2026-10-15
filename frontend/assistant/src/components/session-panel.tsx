@@ -108,7 +108,8 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   useEffect(() => {
     if (mode === "docked") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
+      // 输入法选字时的 Esc 只是取消候选词
+      if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
       onClose();
     };
     document.addEventListener("keydown", onKey);
@@ -146,8 +147,9 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
           </div>
         )}
         {error && <p role="alert" className="px-2 text-danger text-sm">{error}</p>}
+        {/* 键带公司：对话换到另一家时各卡重新挂上，新增 / 编辑框等不跟到另一家（同一家换对话时照常保留） */}
         {order.map((id) => (
-          <Fragment key={id}>{cards[id]}</Fragment>
+          <Fragment key={`${company}:${id}`}>{cards[id]}</Fragment>
         ))}
       </aside>
     </PanelControlContext.Provider>

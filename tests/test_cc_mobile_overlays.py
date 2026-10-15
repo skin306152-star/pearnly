@@ -384,9 +384,13 @@ g.done();
 
     def test_the_browser_side_and_the_page_wiring(self):
         back = read("lib/back-stack.ts")
-        # 组件库弹层：弹窗、警告框、下拉菜单（含子菜单）；退场动画里的 closed 不算
+        # 组件库弹层：弹窗、警告框、下拉菜单（含子菜单）；退场动画里的 closed 不算。
+        # 选择器在不引任何模块的 lib/layers.ts（侧栏键盘也用），返回键栈引它、并照旧从这里导出
         self.assertIn('\'[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], '
-                      '[data-radix-menu-content][data-state="open"]\'', back)
+                      '[data-radix-menu-content][data-state="open"]\'', read("lib/layers.ts"))
+        self.assertIn('import { OPEN_LAYERS } from "@/lib/layers";', back)
+        self.assertIn('export { OPEN_LAYERS } from "@/lib/layers";', back)
+        self.assertIn("domLayers: () => document.querySelectorAll(OPEN_LAYERS).length,", back)
         # 关最上层 = 一次 Esc（组件库只关最上层）；记层数时保留 history.state 里别的键；同一地址
         self.assertIn('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));', back)
         self.assertIn('history.pushState({ ...(state() ?? {}), [KEY]: depth }, "")', back)

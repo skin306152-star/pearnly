@@ -44,7 +44,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
-import { type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import {
@@ -91,8 +91,8 @@ import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
-import { usePendingCounts, useCompanyNav, watchPendingCounts, watchTaskOverview } from "@/lib/companies";
-import { cssPx, dockFits, loadPanelPrefs, setPanelOpen, setPanelOverlay, usePanel } from "@/lib/company-panel";
+import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
+import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePanel } from "@/lib/company-panel";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -449,11 +449,14 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
   );
 }
 
-/** 点了某个对话：回到对话视图（从「定时任务」切回来）。带 Shift / ⌘ / Ctrl 是多选（不打开，thread-list.tsx）。 */
+/** 点了某个对话：回到对话视图（从「定时任务」切回来）。电脑上 Cowork 带 Shift / ⌘ / Ctrl 是多选（不打开，thread-list.tsx）；
+ *  ERP / DMS、手机没有多选，组件库照样切换对话，视图也跟着回到对话。 */
 function useBackToChatOnPick(onNavigate?: () => void) {
   const { setView } = useView();
+  const { isMobile } = useSidebar();
+  const multi = !!useProjects((s) => s.kind) && !isMobile;
   return (e: React.MouseEvent) => {
-    if (e.shiftKey || e.metaKey || e.ctrlKey) return;
+    if (multi && (e.shiftKey || e.metaKey || e.ctrlKey)) return;
     if ((e.target as HTMLElement).closest('[data-slot="aui_thread-list-item-trigger"]')) {
       setView("chat");
       onNavigate?.();
@@ -789,8 +792,6 @@ function DesktopBridge() {
   // 侧栏「待处理 N」与公司组头的数：只在有公司分组的产品读（推送状态的站点事件来了、回到前台再读）
   const companyKind = useProjects((s) => s.kind);
   useEffect(() => (companyKind ? watchPendingCounts() : undefined), [companyKind]);
-  // 公司组里「定时任务 N」与定时任务总览的分组：一次取全部（不逐家读详情），定时任务事件来了、回到前台再读
-  useEffect(() => (companyKind ? watchTaskOverview() : undefined), [companyKind]);
   useEffect(() => setActiveSession(snapshot.sessionId), [snapshot.sessionId]);
   // 在定时任务页时当前对话不算「正看着」：推来的提醒留圆点、不报看过；回到对话页才算
   useEffect(() => setChatView(view === "chat"), [view]);
@@ -822,12 +823,12 @@ function DeepLinks() {
   return null;
 }
 
-/** 主区那一行放不放得下「对话最窄 + 右侧会话栏」（放不下时会话栏浮在对话上）。 */
-function useDockFits(area: RefObject<HTMLDivElement | null>) {
+/** 主区那一行放不放得下「对话最窄 + 右侧会话栏」（放不下时会话栏浮在对话上）。
+ *  el 是那一行的节点（回调 ref 存进 state）：手机与电脑外壳互换时这一行会卸下重建，跟着新节点重新量，不盯着已脱离页面的旧节点。 */
+function useDockFits(el: HTMLDivElement | null) {
   const [fits, setFits] = useState(true);
   // 画第一帧前就量好：窄窗口记着「开着」时不先按并排画一帧再收起
   useLayoutEffect(() => {
-    const el = area.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const measure = () => {
       const style = getComputedStyle(el);
@@ -838,7 +839,7 @@ function useDockFits(area: RefObject<HTMLDivElement | null>) {
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [area]);
+  }, [el]);
   return fits;
 }
 
@@ -852,7 +853,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   // 宽屏并排（开关记在本机）；对话区放不下时浮在对话上、手机盖满屏（点了才开，换对话收起）
   const profile = useProfile();
   useEffect(() => loadPanelPrefs(profile?.user ?? ""), [profile?.user]);
-  const area = useRef<HTMLDivElement>(null);
+  const [area, setArea] = useState<HTMLDivElement | null>(null);
   const fits = useDockFits(area);
   const filing = useFiledCompany();
   // 已建好的对话（有服务端编号）：不看消息条数，换对话时线程加载期间消息为 0，会话栏不跟着卸下再挂上
@@ -860,6 +861,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const panelOpen = usePanel((s) => s.open);
   const overlay = usePanel((s) => s.overlay);
   const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";
+  useEffect(() => setPanelDocked(mode === "docked"), [mode]);
   const hasPanel = view === "chat" && saved && !!filing.project;
   const panelShown = hasPanel && !results.open && (mode === "docked" ? panelOpen : overlay);
   useEffect(() => setPanelOverlay(false), [results.sessionId, view]);
@@ -916,7 +918,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const main = (
     <>
       <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
-      <div ref={area} className="relative flex min-h-0 flex-1 flex-row">
+      <div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">
         {view === "tasks" ? (
           <ScheduledTasks />
         ) : view === "companies" ? (

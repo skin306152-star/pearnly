@@ -12,7 +12,7 @@
 // 词条取 Cowork 的术语表（folder_intake.api.terms），不另存翻译。样式只用 globals.css 的 .cc-* 与变量。
 //
 // 公司主档（ADR-020）：任务表不加字段，属于哪家公司按账套推出来（companies.api.task_overview，一次取全部，不逐家读详情）。
-//   ?view=tasks&company=<公司>（侧栏公司组「定时任务 N」、主档页点任务、「＋」）只看这家，顶上一枚可关掉的公司胶囊；
+//   ?view=tasks&company=<公司>（公司页「定时任务」标签、会话栏定时任务卡里点任务或「＋」）只看这家，顶上一枚可关掉的公司胶囊；
 //   点的那条定位并高亮；主档页「＋」接着打开新建表单，预填覆盖本月的账套（本机绑了文件夹时连同文件夹）。
 //   全部任务时按公司分组（侧栏顺序的公司在前，其余按名称），归不到公司的放「其他」；新建统一从公司里建：「＋」先选公司
 //   （添加公司对话框里的公司选择），再同主档页「＋」一样预填。换文件夹、删公司都不改任务（避免重跑、重复扣费）。
@@ -46,6 +46,7 @@ import {
   taskSeedOf,
   useCompanyNav,
   useTaskOverview,
+  watchTaskOverview,
 } from "@/lib/companies";
 import { knownReaders, useDesktopFeatures } from "@/lib/desktop";
 import { getMethod, postMethod, shownError } from "@/lib/frappe";
@@ -320,13 +321,16 @@ export function ScheduledTasks() {
   const [editing, setEditing] = useState<Rule | "new" | null>(null);
   const [runsOf, setRunsOf] = useState<Rule | null>(null);
   const [confirm, setConfirm] = useState<{ text: string; label: string; danger?: boolean; run: () => Promise<void> } | null>(null);
+  // 按公司分组用的总览（一次取全部，不逐家读详情）：只在定时任务页开着时跟着任务事件、回到前台再读
+  const companyKind = useProjects((s) => s.kind);
+  useEffect(() => (companyKind ? watchTaskOverview() : undefined), [companyKind]);
 
   const reload = useCallback(async () => {
     try {
       const data = await getMethod<{ rules: Rule[] }>(API + "listing");
       setRules(data?.rules ?? []);
       setError("");
-      void refreshTaskOverview();  // 任务建、删、改了：侧栏「定时任务 N」与分组跟着变
+      void refreshTaskOverview();  // 任务建、删、改了：按公司的分组跟着变
     } catch (e) {
       setError(shownError(e));
       // 自动刷新偶尔失败：已显示的列表留着，不闪成空的

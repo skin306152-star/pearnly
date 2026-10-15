@@ -2041,7 +2041,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 已有对话：公司名打开右侧会话栏并展开公司卡（与顶栏「公司名 ›」同一个 openCompanyCard），月份、分店改了就 move；
         # 月份、分店只在下巴：标题栏不再有 ConversationFiling
         session = block(projects, "const SessionChin: FC = () => {")
-        self.assertIn('<button type="button" className="cc-chin-btn" data-slot="cc-chin-company" onClick={openCompanyCard}>', session)
+        self.assertIn('<button type="button" className="cc-chin-btn" data-slot="cc-chin-company" disabled={!remoteId} onClick={openCompanyCard}>', session)
         self.assertIn('<FilingChips look="cc-chin-btn" side="top" />', session)
         self.assertIn('import { openCompanyCard } from "@/lib/company-panel";', projects)
         self.assertIn('export const openCompanyCard = () => showCard("company");', read("lib/company-panel.ts"))
@@ -2595,8 +2595,9 @@ class SidebarShellSourceTests(unittest.TestCase):
         drawer = app.split('<div className="cc-drawer ', 1)[1].split("<ThreadList ", 1)[0]
         order = [drawer.index(x) for x in ("<PendingNav onPick={close} />", "hasScheduledTasks(profile)", "<CompanyNav onPick={close} />")]
         self.assertEqual(order, sorted(order))
-        # 带修饰键点对话是多选：不切回对话页
-        self.assertIn("if (e.shiftKey || e.metaKey || e.ctrlKey) return;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
+        # 带修饰键点对话是多选（只有电脑上的 Cowork）：不切回对话页；ERP / DMS、手机照常切回
+        self.assertIn("const multi = !!useProjects((s) => s.kind) && !isMobile;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
+        self.assertIn("if (multi && (e.shiftKey || e.metaKey || e.ctrlKey)) return;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
 
     def test_group_headers_toggle_as_a_whole_and_reveal_their_actions(self):
         group = read("components/assistant-ui/sidebar-group.tsx")
@@ -2686,6 +2687,12 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("if (next < 0) focus(toggle);", keys)
         self.assertIn("const HINT_DELAY_MS = 300;", keys)
         self.assertIn("<SidebarContent ref={keys}", read("assistant.tsx"))
+        # 侧栏增删合到一帧做一次：重排 roving、选中的里去掉看不见的行；弹窗、菜单开着时 Esc 不清多选、⌘ / Ctrl + 数字不切对话
+        self.assertIn("const kept = keepRendered(selection, rowOrder(root));", keys)
+        self.assertIn("const observer = new MutationObserver(onMutation);", keys)
+        self.assertNotIn("new MutationObserver(sync)", keys)
+        self.assertIn("if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered()) {", keys)
+        self.assertIn("|| event.altKey || event.shiftKey || layered()) return;", keys)
 
     def test_collapse_and_grouping_are_remembered_on_this_device(self):
         app = read("assistant.tsx")
@@ -2795,7 +2802,7 @@ assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
 """, stubs={"cc-storage": STORAGE_STUB})
 
     def test_menu_letters_only_fire_on_the_menu_itself(self):
-        # 审查 B1：子菜单（「移到 ▸」「移到… (N)」）里的键沿组件树冒到行菜单的 onKeyDown；在里面按 D 不能删对话、按 P 不能置顶
+        # 审查 B1：子菜单（「移到 ▸」「将 N 项移到…」）里的键沿组件树冒到行菜单的 onKeyDown；在里面按 D 不能删对话、按 P 不能置顶
         self.run_page(r"""
 import { menuLetterKeys, ownMenuKey } from "@/lib/sidebar-keys";
 type Node = { attrs: Record<string, string>; parent: Node | null; closest(sel: string): Node | null };
@@ -2842,7 +2849,7 @@ assert.equal(closed, 1);
 
     def test_selection_keys_and_one_by_one(self):
         self.run_page(r"""
-import { clearSelection, jumpDigit, nextIndex, rangeBetween, runInOrder, selectRange, toggleIn, toggleSelected, useSidebarSelection } from "@/lib/sidebar-keys";
+import { clearSelection, jumpDigit, keepRendered, nextIndex, rangeBetween, runInOrder, selectRange, toggleIn, toggleSelected, useSidebarSelection } from "@/lib/sidebar-keys";
 const order = ["a", "b", "c", "d", "e"];
 assert.deepEqual(rangeBetween(order, "b", "d"), ["b", "c", "d"]);
 assert.deepEqual(rangeBetween(order, "d", "b"), ["b", "c", "d"]);   // 往上选也按页面先后
@@ -2866,6 +2873,11 @@ clearSelection();
 selectRange(order, "d", "gone");
 assert.deepEqual(useSidebarSelection.getState(), { ids: ["d"], anchor: "d" });
 clearSelection();
+// 收起分组、搜索筛掉、换分组、别处删掉：选中的只留眼前还排着的行，批量操作不碰看不见的；起点不在了一并清掉
+assert.equal(keepRendered({ ids: ["a", "b"], anchor: "a" }, order), null);
+assert.deepEqual(keepRendered({ ids: ["a", "x", "b"], anchor: "a" }, order), { ids: ["a", "b"], anchor: "a" });
+assert.deepEqual(keepRendered({ ids: ["x", "b"], anchor: "x" }, order), { ids: ["b"], anchor: null });
+assert.deepEqual(keepRendered({ ids: ["x", "y"], anchor: "x" }, order), { ids: [], anchor: null });
 // 方向键到头不绕回
 assert.equal(nextIndex("ArrowDown", 4, 5), 4);
 assert.equal(nextIndex("ArrowUp", 0, 5), 0);
@@ -3074,6 +3086,10 @@ assert.equal(useTaskOverview.getState().loaded, true);
         self.assertIn("groupChats(rows, (row) => chatState(activities[row.id], runs[row.id], row.unread))", chats)
         self.assertIn("onClick={() => void load(next)}", chats)
         self.assertNotIn("threadItems", chats)
+        # 别家的移动不重取；移进这家、从这一页移走的才重取，侧栏条数变化与推送合成一次
+        self.assertIn("if (change.project === company || rowsNow.current?.some((row) => row.id === change.session_id)) reload();", chats)
+        self.assertNotIn('change.op === "move" ? void load()', chats)
+        self.assertIn("soon.current = window.setTimeout(() => void load(), RELOAD_MERGE_MS);", chats)
         self.run_page(r"""
 import { listGrouped } from "@/lib/managed-agents/api";
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { sessions: [], nextCursor: null } }) });

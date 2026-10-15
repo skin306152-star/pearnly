@@ -15,6 +15,7 @@
 
 import { useEffect, useRef } from "react";
 import { isDesktopApp } from "@/lib/desktop";
+import { OPEN_LAYERS } from "@/lib/layers";
 import { touchOnly } from "@/lib/touch";
 
 const KEY = "ccBack";
@@ -22,9 +23,8 @@ const KEY = "ccBack";
 const REFUSED_MS = 400;
 // 本页自己 history.go 退回去，同一页面内的跳转很快就回 popstate；这么久还没回就当没退成
 const STEP_BACK_MS = 1500;
-// 页面上开着的组件库弹层：弹窗（含警告框）、下拉菜单与它的子菜单。关着的还在退场动画里的是 data-state="closed"，不算
-export const OPEN_LAYERS =
-  '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-menu-content][data-state="open"]';
+// 页面上开着的组件库弹层（lib/layers.ts；侧栏键盘也用，不必拉进本文件的依赖）
+export { OPEN_LAYERS } from "@/lib/layers";
 
 export type BackEnv = {
   /** 当前历史条目上本页记的层数（不是本页记的：0）。 */

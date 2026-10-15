@@ -130,7 +130,8 @@ export const CompanyPage: FC = () => {
       </div>
     );
   }
-  return <Master detail={detail} period={period} onPeriod={setPeriod} reload={reload} error={error} />;
+  // 键带公司：换到另一家（有缓存时不经过加载态）时整页重新挂上，输入框的字与分店、所在标签、新增 / 编辑框不串到另一家
+  return <Master key={detail.company.id} detail={detail} period={period} onPeriod={setPeriod} reload={reload} error={error} />;
 };
 
 const Master: FC<{ detail: Detail; period: string; onPeriod: (p: string) => void; reload: () => Promise<void>; error: string }> = ({
@@ -370,6 +371,8 @@ const CompanyTabs: FC<{ detail: Detail; period: string; reload: () => Promise<vo
 // ---------------------------------------------------------------- 对话
 // 页面开着时开始跑的对话：等这么久再补读运行状态（几段一起开始跑时合成一次请求）
 const RUN_RECHECK_MS = 1000;
+// 侧栏条数变化与移动推送常常前后脚到：这么久内的合成一次重取
+const RELOAD_MERGE_MS = 150;
 
 const STATE_LABEL: Record<ChatState, () => string> = {
   running: () => co.chatRunning,
@@ -397,8 +400,6 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
     for (const [id, run] of Object.entries(found ?? {})) noteRun(id, run);
     setRuns((before) => ({ ...before, ...(found ?? {}) }));
   }, []);
-  // 侧栏知道的、挂在这家的对话条数（新建 / 移入移出时会变）：变了就重取
-  const filed = useProjects((s) => Object.values(s.filings).filter((f) => f.project === company).length);
   const load = useCallback(
     async (after = "") => {
       const mine = ++asked.current;
@@ -422,8 +423,35 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
     },
     [company, absorbRuns],
   );
-  useEffect(() => void load(), [load, filed]);
-  useEffect(() => onProjectChange((change) => (change.op === "move" ? void load() : undefined)), [load]);
+  useEffect(() => void load(), [load]);
+  // 有进出时重取第一页：只看移进这家、或从这一页里移走的（别家的移动不管）；侧栏条数变化与推送常常一起来，合成一次
+  const rowsNow = useRef(rows);
+  rowsNow.current = rows;
+  const soon = useRef(0);
+  useEffect(() => {
+    const reload = () => {
+      window.clearTimeout(soon.current);
+      soon.current = window.setTimeout(() => void load(), RELOAD_MERGE_MS);
+    };
+    // 侧栏知道的、挂在这家的对话条数（新建 / 移入移出时会变）：变了就重取
+    const filedHere = () => Object.values(useProjects.getState().filings).filter((f) => f.project === company).length;
+    let filed = filedHere();
+    const offFiled = useProjects.subscribe(() => {
+      const count = filedHere();
+      if (count === filed) return;
+      filed = count;
+      reload();
+    });
+    const offMove = onProjectChange((change) => {
+      if (change.op !== "move") return;
+      if (change.project === company || rowsNow.current?.some((row) => row.id === change.session_id)) reload();
+    });
+    return () => {
+      offFiled();
+      offMove();
+      window.clearTimeout(soon.current);
+    };
+  }, [company, load]);
   const activities = useActivities((rows ?? []).map((row) => row.id));
   const running = (rows ?? []).filter((row) => activities[row.id] === "running").map((row) => row.id);
   const runningKey = running.join(",");

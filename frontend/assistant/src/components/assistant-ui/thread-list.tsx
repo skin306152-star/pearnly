@@ -738,18 +738,20 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   );
 };
 
-/** 多选时的行菜单（同 Claude Code，没有批量栏）：「置顶 N」（都已置顶时「取消置顶 N」）、「移到… (N)」、「删除 N」。
- *  用组件库各行自己的操作一条一条做（不并发，lib/sidebar-keys.ts 的 runInOrder），做完清空多选；出错显示在侧栏那一行。 */
-const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids, close }) => {
+/** 多选时的行菜单（同 Claude Code，没有批量栏）：「置顶 N」（都已置顶时「取消置顶 N」）、「将 N 项移到…」、「删除 N」。
+ *  用组件库各行自己的操作一条一条做（不并发，lib/sidebar-keys.ts 的 runInOrder），做完清空多选；出错显示在侧栏那一行。
+ *  只做列表里还在的（别处刚删掉的不再去取；看不见的行由 sidebar-keys 从选中里去掉）。 */
+const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: selected, close }) => {
   const aui = useAui();
   const threadItems = useAuiState((s) => s.threads.threadItems);
-  const { allPinned, sessions } = useMemo(() => {
-    const rows = ids.map((id) => threadItems.find((item) => item.id === id));
+  const { ids, allPinned, sessions } = useMemo(() => {
+    const rows = selected.flatMap((id) => threadItems.filter((item) => item.id === id).slice(0, 1));
     return {
-      allPinned: rows.every((row) => !!row?.custom?.starred),
-      sessions: rows.map((row) => row?.remoteId).filter((id): id is string => !!id),
+      ids: rows.map((row) => row.id),
+      allPinned: rows.every((row) => !!row.custom?.starred),
+      sessions: rows.map((row) => row.remoteId).filter((id): id is string => !!id),
     };
-  }, [ids, threadItems]);
+  }, [selected, threadItems]);
   const report = (error: unknown) => setError(shownError(error));
   const pinAll = () =>
     void runInOrder(ids, async (id) => {

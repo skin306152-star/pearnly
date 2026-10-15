@@ -393,6 +393,7 @@
   /* 对话区（设计文档 3.10–3.12）：正文块间距只用上外边距；工具步骤摘要行与明细卡；输入框单行与下巴 */
   --code-prose-block: 0.75em;   /* 段落、列表、表格之间 */
   --code-prose-heading: 1.25em; /* 标题前 */
+  --code-bubble-max: 580px;     /* 用户气泡最宽约 580 */
   --code-step-h: 24px;          /* 步骤摘要行：高 24、内边距 2/4、箭头 12 */
   --code-step-py: 2px;
   --code-step-px: 4px;
@@ -573,6 +574,7 @@
   /* 回复正文的块（设计文档 3.10）：块之间只用上外边距——段落、列表、表格 0.75em，标题前 1.25em，第一块 0；列表缩进 28 + 7 */
   --cc-md-block: var(--code-prose-block);
   --cc-md-heading: var(--code-prose-heading);
+  --cc-bubble-max: var(--code-bubble-max);   /* 用户气泡最宽（设计文档 3.10） */
   --cc-md-list-indent: 28px;
   --cc-md-li-indent: 7px;
   /* 工具步骤（设计文档 3.11）：摘要行 24、内边距 2/4、圆角 6、箭头 12；明细卡圆角 10、行内边距 6/8、行间 1px 线 */
@@ -984,7 +986,7 @@
   .cc-bubble-user {
     position: relative; isolation: isolate; border-radius: var(--cc-radius-bubble); background: var(--cc-bubble-bg);
     color: var(--cc-bubble-ink); box-shadow: var(--cc-bubble-shadow); font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
-    padding: 0.5rem 0.75rem; overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
+    max-width: var(--cc-bubble-max); padding: 0.5rem 0.75rem; overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
   }
   /* 发出：从右下角轻轻弹出 */
   .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
@@ -1063,7 +1065,6 @@
   .cc-menu-item:hover, .cc-menu-item:focus, .cc-menu-item[data-highlighted], .cc-menu-item[data-state="open"] { background: var(--cc-bg-hover); }
   .cc-menu-item svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
   .cc-menu-item[data-danger] { color: var(--cc-danger); }
-  .cc-menu-item[data-danger]:hover, .cc-menu-item[data-danger]:focus { background: var(--cc-danger-soft); }
   .cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }
   /* 父项右侧的当前值（13px 淡色） */
   .cc-menu-value { margin-inline-start: auto; padding-inline-start: 0.75rem; color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
@@ -1345,7 +1346,7 @@
   .cc-chip-btn[data-chosen] { color: var(--cc-ink); }
   .cc-chip-btn svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; color: var(--cc-ink-3); }
   .cc-title-company {
-    display: inline-flex; min-width: 0; max-width: 14rem; align-items: center; gap: 0.125rem; height: 2rem; padding-inline: 0.5rem;
+    display: inline-flex; min-width: 0; max-width: 14rem; align-items: center; gap: 0.125rem; height: var(--cc-bar-btn); padding-inline: 0.5rem;
     border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: 0.875rem; outline: none;
   }
   .cc-title-company:hover, .cc-title-company:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
@@ -1514,8 +1515,10 @@
 .cc-drawer .cc-section-label { display: flex; align-items: center; min-height: var(--cc-group-h); margin-top: var(--cc-group-top); padding: 0 0.75rem; }
 .cc-drawer .cc-nav-item { height: var(--cc-row-h); padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
 /* 手机抽屉里的公司组头：带高同对话行，名字与行首对齐；操作按钮 32（手指好点、公司名还放得下），长按组头出菜单 */
-.cc-drawer .cc-group-toggle { padding-inline: 0.75rem; }
+/* 组开关占满 44 的带（整条都能点），待处理数也放到 32 */
+.cc-drawer .cc-group-toggle { height: 100%; padding-inline: 0.75rem; }
 .cc-drawer .cc-group-actions .cc-row-btn { width: var(--cc-control); height: var(--cc-control); }
+.cc-drawer .cc-group-count { min-width: var(--cc-control); height: var(--cc-control); }
 /* 手机顶栏与抽屉里的圆按钮：浅灰实心、无描边无阴影（同 Claude 手机端） */
 .cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {
   width: var(--cc-mbtn-size); height: var(--cc-mbtn-size); background: var(--cc-mbtn-bg); color: var(--cc-ink-2);
