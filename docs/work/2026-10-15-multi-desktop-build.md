@@ -463,3 +463,41 @@ HTTP 链、真机（第 7 批）。`test_cowork_companion_reports_source_parity.
   按 `reader_gone` 显示；「连接」列表一台电脑一行已由服务端给出；连接详情的 `all_members` 是否在设置页显示由第 6 批定。
 - 第 7 批：照第 3 批所列，加上补丁 `v0_0_21` / `v0_0_22` 在真实 Site 上的回读（任务 `reader_device` 回填数、主连接 `all_members`、
   `record_revision` 未变）、两台电脑各读各的文件夹（场景 ②④）、按需请求在两台之间的分派。
+
+### 第 4 批对抗审查与修复（2026-10-16，本地提交，未推送）
+
+审查范围 `f1cb3c22..bf97a4df`，9 条（3 中 6 低，无阻塞）。提交：`f32bf8ab` fix（服务端与测试）、本条 docs（ADR-021 第 26–29、31、32 条与
+有意变化「读者按电脑」、本记录）。没有新补丁、没有新词条、没有改已有文案；前端不动（第 6 批）。
+
+| # | 审查结论 | 处理 |
+|---|---|---|
+| M1 | 公司文件夹主键就是 `binding_key`，补丁回填 / 电脑改挂后字段变了键没变；再绑一行认不出电脑的同一家公司时算出同一个键，撞主键报错 | 已修：`company_folders.bind` 新建时算出的键已被占着就换 `uuid4().hex`（同一时刻两次同样的新建仍撞唯一键，与以前一样只成一行）；测试 `test_a_drifted_key_does_not_block_binding_again`，替身写入撞键时报错 |
+| M2 | 根目录编号不含电脑，几台都映射 `S:\` 时只给连接按「最近同步」猜读者，可能读到别人电脑的同名文件夹 | 已修：`readers.resolve` 几台都报过时只认 `keep`（改任务时原来那台）或 `name`（CC 桌面版绑定里带的电脑名，与同步报的 `device` 同出 `_device_name`）对上的唯一一台，否则 `root_invalid`；CC 卡片上的根目录名认不出时不显示（`assistant.tools._root_labels`）。ADR 第 26 条写明第 4 批与第 5、6 批一起发布；契约测试 `test_a_binding_names_the_computer_the_same_way_as_the_sync`。顺带修了测试替身：`test_cowork_folder_task_batch` 的 `get_value` 以前不回原任务的读者，「改任务保留原电脑」那项是靠最近同步碰巧过的 |
+| M3 | 新建 Express 池默认全所可用，`configure` 却不收 `all_members`，现有界面改名单实际无效 | 已修：`configure` / `api.configure` 收 `all_members`（不给不变、给了照存、MR.ERP 给真值拒；请求指纹只在给了时带它，没给的与以前同一个指纹）。界面开关在第 6 批；ADR 第 31 条写明第 6 批之前名单编辑对全所可用的池不起作用、不单独部署 |
+| L1 | 领取最多扫 50 件，只有别的电脑够得到的读账套请求能占满名额，挡住定向给这台的取文件 | 已修：`pool.readable_keys`（一条查询）+ SQL `AND (IFNULL(account_key,'')='' OR account_key IN …)`；测试：55 件 PC2 够不到的读账套请求排在前面，PC2 仍领到后面的取文件 |
+| L2 | 认不出电脑时 `_candidates` 查 `presence(conn, "")`（部署前按连接的在场键）、`_busy` 算没记电脑的旧租约，可能建出不定向的取文件请求 | 已修：`fetch._reader` 电脑为空而连接上有电脑时 `root_invalid`；`request_service._candidates` 给了空电脑一台都不问（回 offline）。两项测试 |
+| L3 | 补丁 `_device` 没排除退役电脑（退役不吊销密钥） | 已修：`JOIN Cowork CC Desktop Device … retired_at IS NULL`（并核该列存在）；补丁测试核查询 |
+| L4 | 电脑改挂后目标电脑上可能两条一样的任务 / 两行一样的公司文件夹 | 已修：`readers.moved` 先把与目标电脑上启用任务根目录相同、文件夹相同或互相包含（`contracts.nested`）的转来任务停用（`enabled=0`、`rule_revision+1`，不删）；这家公司在目标电脑这条连接上已有绑定的，旧记录那行删掉（留目标的）。测试 `test_a_moved_computer_does_not_end_with_two_of_the_same` |
+| L5 | 一个负责人的任务分在 N 台电脑上，提醒 / 简报变 N 份 | 不改代码：与 2026-10-13「按电脑分开」口径一致，写进 ADR 第 29 条；要按人合并时再改 |
+| L6 | 没挂电脑的密钥（池里按密钥编号算一台）`hello` 挂上电脑时不转移按密钥编号接手的东西 | 已修：`devices.hello` 在 `key.device` 为空时，改挂到已认领的电脑前、或新建电脑后，`_move(连接, 密钥编号, 电脑)`（可达行 + 钩子 `cowork_reader_device_moved`）；两项测试（新建、改挂到已认领的），加锁顺序照核 |
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`；Frappe 依赖的在一次性离线容器 `pearnly/frappe-sample:16.34.1`、`--network none`、工作树只读挂载、
+`PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core` 照 CI 逐个文件跑）：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_folder_intake.py` | 122 OK（新增 M1、M2 `resolve` 不猜、L4 两项；L3 补丁查询） |
+| `tests/test_cowork_folder_task_batch.py` | 28 OK（`ReaderDevices` 加两台同根目录只给连接拒、编号照常、改任务保留原电脑真按 `keep`） |
+| `tests/test_cowork_companion_requests.py` | 36 OK（新增 L1 扫描名额、L2 空电脑不问、取文件认不出电脑拒 / 没有电脑仍回离线） |
+| `tests/test_cowork_connection_read_locks.py` | 12 OK（新增 `configure` 保留 / 改 `all_members`、MR.ERP 拒、重放同指纹） |
+| `tests/test_cowork_cc_desktop_devices.py` | 58 OK（L6 新建与改挂两项，加锁顺序） |
+| `tests/test_companion_contract.py` | 59 OK（新增绑定与同步报同一个电脑名、服务端都过 `contracts.device`） |
+| 变异核对 | 去掉 M1 换键、M2 拒、L2 两处、L4 删旧行、L6 转移，各自的测试都失败 |
+| 容器内 `tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（188 个文件，不含 `*source_parity*`） | 183 OK；`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py`（缺 `docx`）与基线相同的两个失败；三个 `*_parity.py` 是要 `--source` 的对照脚本，不是单元测试 |
+| `python3 scripts/check-architecture.py` | PASS（0 violations） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 88 步全过，退出码 0 |
+
+没做 / 没验：同审查所列——真实 Site 上的迁移与两个补丁、MariaDB 加锁（1020）、HTTP 链、真机留第 7 批；`readers.moved` 的停用与删除只在替身上验过
+SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 7 批迁移回读时一起看。
+
+发布前提（在第 3、4 批所列之上）：第 4 批与第 5 批（CC 桌面版带电脑编号）、第 6 批（网页用读者编号、`all_members` 开关）一起发布，不单独部署。
