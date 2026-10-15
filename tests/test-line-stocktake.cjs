@@ -154,6 +154,11 @@ function fixture(options = {}) {
   await arrived.page.startCamera(() => {}); await flush();
   assert.equal(arrived.page.location().href, 'https://synthetic.invalid/stocktake?count=1&pearnly_liff=1', 'never bounce twice');
   assert.equal(arrived.element('app').children[0].textContent, 'common.scan.in_line_android');
+  const iab = fixture({userAgent: 'Mozilla/5.0 (Linux; Android 13; SM-A146P; wv) Chrome/106 Mobile Safari/537.36 Line/26.15.1/IAB'});
+  iab.page.setLiff('2000-abc');
+  await iab.page.startCamera(() => {}); await flush();
+  assert.equal(iab.page.location().href, 'https://liff.line.me/2000-abc/stocktake?pearnly_liff=1&count=1');
+  assert.equal(iab.acquired(), 0, 'Android LINE in-app browser goes to LIFF before asking for the camera');
   const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
   await taken.page.startCamera(() => {}); await flush();
   assert.equal(taken.element('toast').textContent, 'common.scan.busy');

@@ -169,6 +169,8 @@
           stopCamera();
           hide(guide); guide = null;
           lastOnCode = onCode;
+          // 安卓 LINE 普通内置浏览器里网页拿不到相机：直接转 LIFF（LINE 弹原生授权），不先去要、也不等。
+          if (window.PearnlyScan.plain_line() && window.PearnlyScan.to_liff(liffId)) { scanMode = false; return; }
           const generation = cameraGeneration;
           const node = document.createElement('div');
           node.className = 'card';

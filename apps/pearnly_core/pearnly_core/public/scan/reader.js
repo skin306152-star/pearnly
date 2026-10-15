@@ -22,6 +22,10 @@
 	const agent = () => (typeof navigator !== "undefined" && navigator.userAgent) || "";
 	const in_app = () => IN_APP.test(agent());
 	const in_line = () => /\bLine\//.test(agent());
+	// 安卓 LINE 的普通内置浏览器（聊天里点链接打开）：标识以 `Line/<版本>/IAB` 结尾；LIFF 是 `Line/<版本> LIFF`
+	// （2026-10-15 测试机访问日志，三星 A14、LINE 26.15.1）。前者里网页拿不到相机——LINE 有相机权限也一样，
+	// 画面一直黑着（同日实测）——所以一要相机就直接转 LIFF，不先去要、也不等。iPhone 上的 LINE 能用相机，不转。
+	const plain_line = () => /Android/i.test(agent()) && /\bLine\/[\d.]+\/IAB\b/.test(agent());
 	// App 内置浏览器（LINE 等）里要相机：请求可能既不弹窗也不报错，一直挂着
 	// （2026-10-15 三星 A14：LINE 普通内置浏览器里点扫码没有任何反应）。等这么久还没开就交给页面处理。
 	const SLOW_MS = 5000;
@@ -173,7 +177,7 @@
 	const LIFF_MARK = "pearnly_liff";
 	const to_liff = (liff_id, scan = false) => {
 		const here = new URL(window.location.href);
-		if (!liff_id || !in_line() || /\bLIFF\b/.test(agent()) || here.searchParams.get(LIFF_MARK)) return false;
+		if (!liff_id || !(plain_line() || in_line()) || /\bLIFF\b/.test(agent()) || here.searchParams.get(LIFF_MARK)) return false;
 		here.searchParams.delete(LIFF_MARK);
 		const rest = here.searchParams.toString();
 		here.search = `?${LIFF_MARK}=${scan ? "scan" : "1"}${rest ? `&${rest}` : ""}`;
@@ -191,6 +195,6 @@
 		if (reason === "denied") return where === "desktop" ? "denied" : `denied_${where}`;
 		return reason;
 	};
-	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, to_liff, text_key,
+	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, plain_line, to_liff, text_key,
 		needs_settings: reason => SETTINGS.has(reason) };
 })();
