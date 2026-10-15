@@ -129,6 +129,9 @@ class FolderRuleDefaults(unittest.TestCase):
                           remembered=remembered, account_resolved=True, fixed={"payment": "cash", "vat": "claim"})
         self.assertEqual(plain["applied"].get("payment"), "credit")
         self.assertEqual(ruled["applied"].get("payment"), "cash")
+        # 哪来的一并给出（写进载荷 doctype_src，CC 推送结果据此说清，验收 F19）
+        self.assertEqual(plain["applied"].get("payment_from"), "remembered")
+        self.assertEqual(ruled["applied"].get("payment_from"), "task_default")
         self.assertNotIn("payment", {item["kind"] for item in ruled["needed"]})
 
 

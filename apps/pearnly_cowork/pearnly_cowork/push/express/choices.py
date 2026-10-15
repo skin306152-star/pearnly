@@ -166,6 +166,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             pass
         elif value in PAYMENT_VALUES:
             applied["payment"] = value
+            # 哪来的（写进载荷 doctype_src，CC 推送结果据此说清「按这家记过的现购」，验收 F19）
+            applied["payment_from"] = "task_default" if str((fixed or {}).get("payment") or "").strip() else "remembered"
         elif not str(fields.get("payment_status") or "").strip():
             needed.append({"kind": "payment", "subject": party_key, "label": name,
                            "options": [{"code": code} for code in PAYMENT_VALUES], "current": ""})
