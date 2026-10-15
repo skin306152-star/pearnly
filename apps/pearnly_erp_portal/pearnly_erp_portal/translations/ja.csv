@@ -53,6 +53,7 @@ All companies,全社
 All the items have been already returned.,すべての商品は返品済みです
 Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
+Already recorded:,記録済み:
 Already recorded; skipped,登録済み・重複登録なし
 Already used by {0} (code {1}),既に「{0}」(コード {1}) で使われています
 Amend,修正
@@ -68,6 +69,7 @@ Apply,適用
 Approval Status,承認状況
 Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
 Are you sure you want to delete?,削除しますか？
+Area,エリア
 As Of,基準日
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1 件あたり写真は最大 {0} 枚です
@@ -1427,6 +1429,7 @@ stock.board.title,棚卸作業台
 stock.board.unfreezeColumn,列の固定を解除
 stock.cell.notSet,未設定
 stock.col.barcode,バーコード / QRコード
+stock.col.category,カテゴリ
 stock.col.code,コード
 stock.col.cost,平均原価
 stock.col.name,商品名
@@ -1576,6 +1579,7 @@ stock.workbench.actualLocation,実際の棚番
 stock.workbench.actualPositions,実際の棚番と数量
 stock.workbench.actualWarehouse,実際の倉庫
 stock.workbench.addPhoto,写真を追加
+stock.workbench.area,エリア
 stock.workbench.bookPosition,帳簿上の倉庫・棚番
 stock.workbench.camera,バーコード・QRコードを読む
 stock.workbench.cameraFailed,カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
@@ -1596,6 +1600,7 @@ stock.workbench.photoLimit,1記録につき写真は5枚までです
 stock.workbench.photos,写真
 stock.workbench.quantityDiff,数量差異
 stock.workbench.record,棚卸を入力
+stock.workbench.recorded,記録済み:
 stock.workbench.recount,この商品を再棚卸
 stock.workbench.recountConfirm,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 stock.workbench.removePhoto,削除

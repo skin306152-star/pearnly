@@ -30,6 +30,22 @@
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
 		let list, table, count, state, table_host, conflict;
 		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
+		// 多人分区盘点（用户 2026-10-15："a 在 a 仓库盘某类商品，b 在某仓库盘某类商品"）：
+		// 每人选自己负责的「仓库 / 类别」，表格与进度只看这一片；没选时上面列出各区进度和谁在盘。
+		let scope_warehouse, scope_category, area_host, area_table, scoping = false, shown_screen;
+		const BLANK = "\u0000";
+		const area_of = row => row.warehouse_name || BLANK;
+		const scope = () => ({ warehouse: scope_warehouse?.get_value() || "", category: scope_category?.get_value() || "" });
+		const in_scope = row => {
+			const chosen = scope();
+			return (!chosen.warehouse || area_of(row) === chosen.warehouse)
+				&& (!chosen.category || (row.category || BLANK) === chosen.category);
+		};
+		// 记录上的盘点人：Cowork 给的是名字，ERP 给的是账号 —— 都按名字显示。
+		const who = user => frappe.user_info?.(user)?.fullname || user || "";
+		// 手机竖屏只留四列；横屏 / 平板收成六列按比例铺满；电脑上全列。转屏跨档就重画。
+		const screen = () => window.matchMedia("(max-width: 575px)").matches ? "phone"
+			: window.matchMedia("(max-width: 991px)").matches ? "compact" : "full";
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
@@ -44,8 +60,8 @@
 		});
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
-			list?.destroy(); table?.destroy();
-			list = table = null;
+			list?.destroy(); table?.destroy(); area_table?.destroy();
+			list = table = area_table = null;
 			// Page owns the native filter row inside main; retain it across routes.
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
@@ -70,9 +86,21 @@
 				options: ["all", "uncounted", "differences", "locations"].map(value => ({ value,
 					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
 				change: () => { item_filter = filter.get_value(); render_data(); } });
+			scope_warehouse = page.add_field({ fieldtype: "Select", fieldname: "scope_warehouse",
+				label: t("stock.col.warehouse"), change: () => choose_scope() });
+			scope_category = page.add_field({ fieldtype: "Select", fieldname: "scope_category",
+				label: t("stock.col.category"), change: () => choose_scope() });
 			// 库存被别的业务改过时要重盘：这条警告原先挂在汇总卡片里，卡片删掉后直接排在表格上方
 			// （空字符串时不留任何痕迹）。
 			conflict = $("<p class='text-danger'></p>").appendTo(page.main);
+			area_host = $("<div class='report-wrapper mb-4'>").appendTo(page.main);
+			area_host.on("click", ".dt-row", event => {
+				const key = $(event.currentTarget).find("[data-count-area]").attr("data-count-area");
+				if (key == null) return;
+				event.preventDefault();
+				const [warehouse, category] = JSON.parse(key);
+				void pick_scope(warehouse, category);
+			});
 			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
 			table_host.on("click", ".dt-row", event => {
 				if ($(event.target).closest(".dt-dropdown, input, select, button").length || window.getSelection()?.toString()) return;
@@ -151,8 +179,8 @@
 			state = result;
 			p.stockCountBreadcrumbs({ name, title: state.task.title });
 			page.clear_inner_toolbar(); page.clear_primary_action();
-			page.set_indicator(t("stock.count.headline", status_text(state.task), state.task.counted_total,
-				state.task.item_total, state.task.difference_total), active() ? "orange" : "green");
+			await scope_options();
+			headline();
 			// 进行中的任务只留结束盘点 + 右边那颗开始盘点（用户 2026-09-22 口径；10-07 起所有界面不放刷新按钮）。
 			// 已结束的是只读态 —— 之前定过"结束后只可查看和导出"，所以那一档只留导出。
 			if (active()) {
@@ -164,6 +192,92 @@
 			}
 			await render_data();
 		}
+		// 进度那一行：选了范围就只算这一片（数法与服务端的任务合计相同：有实盘且数量不等才算差异）。
+		function headline() {
+			const rows = state.items.filter(in_scope);
+			const chosen = scope().warehouse || scope().category;
+			const counted = chosen ? rows.filter(r => r.counted).length : state.task.counted_total;
+			const total = chosen ? rows.length : state.task.item_total;
+			const differences = chosen ? rows.filter(r => r.counted && Number(r.difference) !== 0).length
+				: state.task.difference_total;
+			page.set_indicator(t("stock.count.headline", status_text(state.task), counted, total, differences),
+				active() ? "orange" : "green");
+		}
+		// 范围选项来自这份盘点自己的行；只有一个值时不出现。上次在这份盘点上选的范围记在本机。
+		const scope_key = () => `pearnly-stocktake-scope:${count}`;
+		async function scope_options() {
+			const label = value => value === BLANK ? t("stock.count.blank") : value;
+			const fill = async (control, values, chosen) => {
+				const options = [...new Set(values)].sort((a, b) => label(a).localeCompare(label(b)));
+				control.df.options = [{ value: "", label: t("stock.count.filter.all") },
+					...options.map(value => ({ value, label: label(value) }))];
+				control.df.hidden = options.length > 1 ? 0 : 1;
+				control.refresh();
+				await control.set_value(options.length > 1 && options.includes(chosen) ? chosen : "");
+			};
+			let saved = {};
+			try { saved = JSON.parse(localStorage.getItem(scope_key()) || "{}") || {}; } catch (_error) { /* Private mode. */ }
+			const chosen = scope().warehouse || scope().category ? scope() : saved;
+			scoping = true;
+			try {
+				await fill(scope_warehouse, state.items.map(area_of), chosen.warehouse);
+				await fill(scope_category, state.items.map(r => r.category || BLANK), chosen.category);
+			} finally { scoping = false; }
+		}
+		function choose_scope() {
+			if (scoping || !state) return;
+			try { localStorage.setItem(scope_key(), JSON.stringify(scope())); } catch (_error) { /* Private mode. */ }
+			headline();
+			void render_data();
+		}
+		async function pick_scope(warehouse, category) {
+			scoping = true;
+			try {
+				if (!scope_warehouse.df.hidden) await scope_warehouse.set_value(warehouse);
+				if (!scope_category.df.hidden) await scope_category.set_value(category);
+			} finally { scoping = false; }
+			choose_scope();
+		}
+		// 各区进度：按「仓库 · 类别」分组，已盘 / 行数、差异、谁在盘（从有效记录推出，不另设指派）。
+		// 只在没选范围、而且不止一个区时出现；点一行就把范围切到那个区。
+		async function render_areas() {
+			area_table?.destroy(); area_table = null;
+			area_host.empty();
+			const chosen = scope();
+			const by_category = !scope_category.df.hidden;
+			if (chosen.warehouse || chosen.category) return;
+			const owner = new Map(state.items.map(r => [r.name, r]));
+			const areas = new Map();
+			for (const row of state.items) {
+				const key = JSON.stringify([area_of(row), by_category ? row.category || BLANK : ""]);
+				if (!areas.has(key)) areas.set(key, { rows: 0, counted: 0, differences: 0, people: new Set() });
+				const area = areas.get(key);
+				area.rows += 1;
+				if (row.counted) area.counted += 1;
+				if (row.counted && Number(row.difference) !== 0) area.differences += 1;
+			}
+			for (const entry of state.entries) {
+				const row = owner.get(entry.item);
+				if (!row || entry.voided) continue;
+				areas.get(JSON.stringify([area_of(row), by_category ? row.category || BLANK : ""]))?.people.add(who(entry.counted_by));
+			}
+			if (areas.size < 2) return;
+			const label = value => value === BLANK ? t("stock.count.blank") : value;
+			const size = screen();
+			area_table = await p.table(area_host, [
+				{ name: w("area"), width: size === "full" ? 260 : 4, format: value => value },
+				{ name: t("stock.count.countedRows"), width: size === "full" ? 110 : 2 },
+				{ name: t("stock.count.differenceRows"), width: size === "full" ? 110 : 2, format: value => value },
+				...(size === "phone" ? [] : [{ name: t("stock.count.countedBy"), width: size === "full" ? 260 : 3 }]),
+			], [...areas].map(([key, area]) => {
+				const [warehouse, category] = JSON.parse(key);
+				const name = [label(warehouse), category ? label(category) : ""].filter(Boolean).join(" · ");
+				const cells = [`<a href="#" data-count-area="${p.escape(key)}">${p.escape(name)}</a>`,
+					`${area.counted} / ${area.rows}`, area.differences ? danger(area.differences) : "0"];
+				if (size !== "phone") cells.push([...area.people].join(", "));
+				return cells;
+			}), { ...table_options(), ...(size === "full" ? {} : { layout: "ratio" }) });
+		}
 		function entry_form(row = null, continuous = false, entry = null) {
 			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: refresh,
 				on_done: () => filter?.set_value("differences") });
@@ -173,8 +287,10 @@
 			// 最上面那张四格汇总卡片已按用户口径删掉；任务进度仍在页面指示器上
 			// （`进行中 · 已盘点 x / y · 差异 z`），每个数字与差异明细在明细表里。
 			conflict.text(state.conflicts.length ? w("stockChanged") : "");
+			await render_areas();
+			if (!table_host[0].isConnected) return;
 			const q = (search?.get_value() || "").trim().toLowerCase();
-			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))
+			const rows = state.items.filter(r => in_scope(r) && (!q || [r.product_name,r.code,r.barcode,r.location,r.category,r.actual_positions].join(" ").toLowerCase().includes(q))
 				&& (item_filter !== "uncounted" || !r.counted)
 				&& (item_filter !== "differences" || r.counted && (Number(r.difference) || r.location_difference))
 				&& (item_filter !== "locations" || r.location_difference));
@@ -187,22 +303,29 @@
 			}
 			// 手机上（用户 2026-09-26：11 列挤成一堆看不了）只留盘点时要看的四列：物料、账面、实际、差异；
 			// 编码 / 条码 / 仓位 / 单位 / 金额 / 状态点物料名进去看。仍是同一张官方表格，只是列少了，
-			// 并按比例铺满屏宽（录制问题 #22：五列定宽加起来比手机屏宽，物料名被挤得只剩两个字）。
+			// 并按比例铺满屏宽（ERP 录制问题 #22：五列定宽加起来比手机屏宽，物料名被挤得只剩两个字）。
+			// 横屏 / 平板（用户 2026-10-15："旋转横屏后表格也没显示完整"）以前直接给电脑版 11 列定宽，
+			// 现在收成六列（物料、账面位置、账面、实际、差异、状态）按比例铺满；转屏跨档时重画。
 			// 状态并进物料名：这一行有问题（差异、位置不对、要重盘）物料名标红。
-			const narrow = window.matchMedia("(max-width: 767px)").matches;
+			const size = screen();
+			shown_screen = size;
+			const narrow = size === "phone";
+			// `fit`：[电脑定宽, 横屏比例, 竖屏比例]，null 表示这一档不显示。
 			const columns = [
-				{ name: t("stock.col.name"), width: narrow ? 5 : 210, format: value => value, phone: true },
-				{ name: t("stock.col.code"), width: 100 }, { name: t("stock.col.barcode"), width: 140 },
-				{ name: w("bookPosition"), width: 160 },
+				{ name: t("stock.col.name"), fit: [210, 4, 5], format: value => value },
+				{ name: t("stock.col.code"), fit: [100, null, null] }, { name: t("stock.col.barcode"), fit: [140, null, null] },
+				{ name: w("bookPosition"), fit: [160, 3, null] },
 				// 这几列会自己拼红字（差异那几格），所以不走默认的 `p.escape`。
-				{ name: w("actualPositions"), width: 230, format: value => value },
-				{ name: t("stock.col.unit"), width: 70 }, { name: t("stock.count.book"), width: narrow ? 2 : 90, phone: true },
-				{ name: t("stock.count.counted"), width: narrow ? 2 : 90, phone: true },
-				{ name: w("quantityDiff"), width: narrow ? 2 : 90, format: value => value, phone: true },
-				...(state.can_view_costs ? [{ name: t("stock.count.differenceValue"), width: 110, format: value => value }] : []),
-				{ name: t("stock.col.status"), width: 140, format: value => value },
+				{ name: w("actualPositions"), fit: [230, null, null], format: value => value },
+				{ name: t("stock.col.unit"), fit: [70, null, null] }, { name: t("stock.count.book"), fit: [90, 2, 2] },
+				{ name: t("stock.count.counted"), fit: [90, 2, 2] },
+				{ name: w("quantityDiff"), fit: [90, 2, 2], format: value => value },
+				...(state.can_view_costs ? [{ name: t("stock.count.differenceValue"), fit: [110, null, null], format: value => value }] : []),
+				{ name: t("stock.col.status"), fit: [140, 3, null], format: value => value },
 			];
-			const shown = columns.map((column, index) => [column, index]).filter(([column]) => !narrow || column.phone);
+			const slot = { full: 0, compact: 1, phone: 2 }[size];
+			const shown = columns.map((column, index) => [{ ...column, width: column.fit[slot] }, index])
+				.filter(([column]) => column.width != null);
 			const pick = cells => shown.map(([_column, index]) => cells[index]);
 			table = await p.table(table_host, shown.map(([c])=>({ ...c, format: c.format || p.escape })), rows.map(r=>{
 				// 有差异的三处：数量差异、差异金额、以及仓位对不上时的实际仓位 —— 标红；
@@ -226,7 +349,7 @@
 					...(state.can_view_costs ? [value_diff ? danger(qty(r.difference_value)) : qty(r.difference_value)] : []),
 					quantity_diff || moved || r.stock_changed ? danger(p.escape(status)) : p.escape(status),
 				]);
-			}), { ...table_options(), ...(narrow ? { layout: "ratio" } : {}) });
+			}), { ...table_options(), ...(size === "full" ? {} : { layout: "ratio" }) });
 		}
 		async function records(row) {
 			const entries = state.entries.filter(e=>e.item===row.name);
@@ -424,6 +547,19 @@
 			});
 		}
 
+		// 多人同时盘点：别人记了 / 改了 / 结束了，服务端只推盘点号，这里按本人权限重新取
+		// （原生 socket.io；连不上时照常手动刷新）。列表页上就刷新列表里的进度数。
+		const live = frappe.utils.debounce(data => {
+			const route = frappe.get_route();
+			if (route[0] !== root) return;
+			if (!route[1]) void list?.reload?.();
+			else if (data?.count === count) void refresh();
+		}, 800);
+		frappe.realtime.off("pearnly_stocktake_changed");
+		frappe.realtime.on("pearnly_stocktake_changed", data => live(data));
+		$(window).off("resize.pearnlyStocktake").on("resize.pearnlyStocktake", frappe.utils.debounce(() => {
+			if (state && count && frappe.get_route()[0] === root && screen() !== shown_screen) void render_data();
+		}, 200));
 		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
 		$(wrapper).on("hide", () => { ++sequence; ++refresh_sequence; table?.destroy(); table = null; });
 		await show_route();

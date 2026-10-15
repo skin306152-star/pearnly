@@ -8,7 +8,7 @@ const source = ['apps/pearnly_core/pearnly_core/public/desk/scan.js',
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js'].map(path => fs.readFileSync(path, 'utf8')).join('\n');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function fixture({ acquire, decode, muted = 0 } = {}) {
+function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/106', supported } = {}) {
   const callbacks = new Map(), result = [], details = [], errors = [], constraints = [];
   // 反馈那一层看得见的东西：震动次数与放过的音（音效/震动都归"静音"这一位管）。
   const vibrations = [], sounds = [];
@@ -17,15 +17,19 @@ function fixture({ acquire, decode, muted = 0 } = {}) {
     applyConstraints: async value => constraints.push(value) };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   const video = { readyState: 2, play: async () => {} };
-  const $ = () => ({ find: () => ({ get: () => video, addClass() {}, removeClass() {} }) });
+  const $ = () => ({ find: () => ({ get: () => video, addClass() {}, removeClass() {}, one() {} }) });
   const p = {}, formats = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','codabar','qr_code'];
   class Detector {
-    static async getSupportedFormats() { return formats; }
+    static async getSupportedFormats() { if (supported) return supported(); return formats; }
     async detect() { return decode ? decode() : [{ rawValue: '  盘点 QR 001  ', format: 'qr_code' }]; }
   }
-  vm.runInNewContext(source, { window: { BarcodeDetector: Detector },
-    navigator: { mediaDevices: { getUserMedia: () => acquire ? acquire(stream) : Promise.resolve(stream) },
+  const requests = [];
+  vm.runInNewContext(source, { window: { BarcodeDetector: Detector, isSecureContext: true },
+    navigator: { userAgent: ua, mediaDevices: {
+      getUserMedia: value => { requests.push(value); return acquire ? acquire(stream, value) : Promise.resolve(stream); },
+      enumerateDevices: async () => devices },
       vibrate: ms => vibrations.push(ms) },
+    __: text => text,
     frappe: { provide() {}, pearnly: p,
       utils: { play_sound: name => sounds.push(name) },
       boot: { user: { mute_sounds: muted } } },
@@ -36,7 +40,7 @@ function fixture({ acquire, decode, muted = 0 } = {}) {
   // scan.js，所以按同一份契约补一个 —— 判据就是官方那一位 `frappe.boot.user.mute_sounds`。
   p.sounds_muted = () => Boolean(muted);
   const reader = p.scan_reader({ host: {}, on_result: (code, metadata) => {result.push(code);details.push(metadata);}, on_error: error => errors.push(error) });
-  return { p, reader, result, details, errors, constraints, video, vibrations, sounds, stops: () => stops,
+  return { p, reader, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
     async tick() { const next = callbacks.entries().next().value; assert.ok(next); callbacks.delete(next[0]); await next[1](); await flush(); } };
 }
 
@@ -94,6 +98,40 @@ function fixture({ acquire, decode, muted = 0 } = {}) {
   assert.deepEqual(quiet.sounds, ['submit', 'error']);
   quiet.reader.stop();
 
+
+  // 相机打不开要说清是哪一类原因（安卓上被拒过权限 / 被占用 / 内置浏览器 / 识别器坏），
+  // 不再一律说"请在 HTTPS 页面允许"。
+  const named = name => Object.assign(new Error(name), { name });
+  const blocked = fixture({ acquire: () => Promise.reject(named('NotAllowedError')) });
+  await blocked.reader.start();
+  assert.equal(blocked.p.scan_failure(blocked.errors[0]), 'denied');
+  assert.match(blocked.p.scan_failure_text(blocked.errors[0]), /blocked/);
+  assert.equal(blocked.requests.length, 1, 'A refused permission is not retried');
+  const line = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Line/14.1.0', acquire: () => Promise.reject(named('NotAllowedError')) });
+  await line.reader.start();
+  assert.equal(line.p.scan_failure(line.errors[0]), 'in_app');
+  const busy = fixture({ acquire: () => Promise.reject(named('NotReadableError')) });
+  await busy.reader.start();
+  assert.equal(busy.p.scan_failure(busy.errors[0]), 'busy');
+  assert.equal(busy.requests.length, 2, 'A busy or picky camera gets one plain retry');
+  // 指定后置起不来的机型：按名字挑后置镜头再开一次，成功就照常读码。
+  const picky = fixture({
+    devices: [{ kind: 'videoinput', deviceId: 'front', label: 'camera2 1, facing front' },
+      { kind: 'videoinput', deviceId: 'rear', label: 'camera2 0, facing back' }],
+    acquire: (stream, value) => value.video?.facingMode ? Promise.reject(named('OverconstrainedError')) : Promise.resolve(stream),
+  });
+  await picky.reader.start(); await flush();
+  assert.equal(JSON.stringify(picky.requests[1]), JSON.stringify({ video: { deviceId: { exact: 'rear' } } }));
+  assert.equal(picky.errors.length, 0);
+  await picky.tick(); assert.deepEqual(picky.result, ['盘点 QR 001']);
+  picky.reader.stop();
+  // 识别器加载失败：相机已经打开过也要关掉，原因归到"识别器"，不说成相机的事。
+  const broken = fixture({ supported: () => Promise.reject(new Error('module')) });
+  await broken.reader.start();
+  assert.equal(broken.errors.length, 1);
+  assert.equal(broken.p.scan_failure(broken.errors[0]), 'decoder');
+  assert.equal(broken.stops(), 1, 'The opened camera is released when the reader cannot load');
+  console.log('PASS camera failures are classified (blocked, in-app browser, busy, decoder) and a picky rear camera is retried by device');
   console.log('PASS two-frame decode, exact QR, pause/resume, torch, stream cleanup and late permission cancellation');
   console.log('PASS decoder format propagation, numeric QR and mixed-format stability');
   console.log('PASS read-time feedback is silent (flash + vibrate only), mute stops the vibration, result sound is submit/error');

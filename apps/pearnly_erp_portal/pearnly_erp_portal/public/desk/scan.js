@@ -17,7 +17,7 @@ frappe.provide("frappe.pearnly");
 		d.show();
 		scanner = p.scan_reader({ host: d.fields_dict.reader.$wrapper, kind,
 			on_result: async (code, details) => { scanner.stop(); d.hide(); await on_result(code, details); },
-			on_error: () => { d.hide(); frappe.msgprint(t("product.scan.denied")); },
+			on_error: error => { d.hide(); frappe.msgprint(p.scan_failure_text(error)); },
 		});
 		await scanner.start();
 		d.set_df_property("torch", "hidden", !scanner.has_torch());

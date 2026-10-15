@@ -2,7 +2,8 @@
 
 用户 2026-09-26 定：Cowork 不做在线盘点，只做**上传盘点**——一张表同时带账面与实盘，
 错行跳过并逐条列出原因。列照 Cowork 旧模板（编码 / 名称 / 条码 / 单位 / 账面 / 仓库 / 仓位），
-只多一列**实盘数量**，与 ERP「上传导入」同一口径。
+只多一列**实盘数量**，与 ERP「上传导入」同一口径。2026-10-15 再加一列可选的**商品类别**：
+多人分区盘点时按「仓库 / 类别」分工（用户："a 在 a 仓库盘某类商品，b 在某仓库盘某类商品"）。
 
 与旧版 `contracts.validate_import_rows`（整批拒收）的差别只在错行处理：这里每行各自判定，
 坏行进 `problems`，其余照收；单行规则（必填、长度、编码按文本、数量精度、重复、码冲突）不变。
@@ -10,7 +11,8 @@
 
 from pearnly_cowork.stocktake.contracts import MAX_ROWS, StocktakeValidationError, quantity
 
-FIELDS = ("product_code", "product_name", "barcode", "unit", "book_qty", "actual_qty", "warehouse", "location")
+FIELDS = ("product_code", "product_name", "barcode", "unit", "book_qty", "actual_qty", "warehouse", "location",
+          "category")
 REQUIRED = ("product_code", "product_name", "unit", "book_qty")
 # 模板表头取这几句（按站点语言，词条在 Cowork 术语表）。
 FIELD_LABELS = tuple((field, "cowork.stocktake.col." + field) for field in FIELDS)
@@ -33,6 +35,8 @@ ALIASES = {
     "location": "location", "ช่องเก็บ": "location", "ตำแหน่ง": "location", "仓位": "location",
     "库位": "location", "棚番": "location", "ตำแหน่งเริ่มต้น (ไม่บังคับ)": "location",
     "location (optional)": "location",
+    "category": "category", "หมวดสินค้า": "category", "หมวดหมู่": "category", "หมวดหมู่สินค้า": "category",
+    "类别": "category", "分类": "category", "商品类别": "category", "商品分类": "category", "カテゴリ": "category",
 }
 
 

@@ -102,6 +102,7 @@ All members,すべてのメンバー
 Allowed Users,許可ユーザー
 Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
+Already recorded:,記録済み:
 Amount,金額
 Amount Tolerance,金額許容差
 Amount not read,金額を読めない
@@ -133,6 +134,7 @@ Archived boards,アーカイブ済みボード
 Archived cards,アーカイブ済みカード
 Archived items,アーカイブ済みアイテム
 Archived lists,アーカイブ済みリスト
+Area,エリア
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
 Assign to,担当に追加
 Assign · Track · Discuss,割り当て · 追跡 · 相談
@@ -2503,6 +2505,7 @@ cowork.stock.code,コードまたはバーコード
 cowork.stock.col.actual,実数
 cowork.stock.col.barcode,バーコード / QRコード
 cowork.stock.col.book,帳簿
+cowork.stock.col.category,カテゴリ
 cowork.stock.col.code,コード
 cowork.stock.col.difference,差異
 cowork.stock.col.name,商品名
@@ -2510,6 +2513,7 @@ cowork.stock.col.position,帳簿上の棚番
 cowork.stock.col.result,結果
 cowork.stock.col.status,状態
 cowork.stock.col.unit,単位
+cowork.stock.col.warehouse,倉庫
 cowork.stock.continuous,連続棚卸
 cowork.stock.count.blank,未入力
 cowork.stock.count.book,帳簿数量
@@ -2620,6 +2624,7 @@ cowork.stock.workbench.actualLocation,実際の棚番
 cowork.stock.workbench.actualPositions,実際の棚番と数量
 cowork.stock.workbench.actualWarehouse,実際の倉庫
 cowork.stock.workbench.addPhoto,写真を追加
+cowork.stock.workbench.area,エリア
 cowork.stock.workbench.bookPosition,帳簿上の倉庫・棚番
 cowork.stock.workbench.camera,バーコード・QRコードを読む
 cowork.stock.workbench.cameraFailed,カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
@@ -2640,6 +2645,7 @@ cowork.stock.workbench.photoLimit,1記録につき写真は5枚までです
 cowork.stock.workbench.photos,写真
 cowork.stock.workbench.quantityDiff,数量差異
 cowork.stock.workbench.record,棚卸を入力
+cowork.stock.workbench.recorded,記録済み:
 cowork.stock.workbench.recount,この商品を再棚卸
 cowork.stock.workbench.recountConfirm,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 cowork.stock.workbench.removePhoto,削除
@@ -2650,6 +2656,7 @@ cowork.stock.workbench.stockChanged,棚卸中に在庫が変動した商品が�
 cowork.stocktake.col.actual_qty,実地数量
 cowork.stocktake.col.barcode,バーコード
 cowork.stocktake.col.book_qty,帳簿数量
+cowork.stocktake.col.category,カテゴリ
 cowork.stocktake.col.location,棚番
 cowork.stocktake.col.product_code,商品コード
 cowork.stocktake.col.product_name,商品名

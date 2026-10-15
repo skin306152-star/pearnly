@@ -59,6 +59,48 @@ frappe.provide("frappe.pearnly");
 	p.scan_result_sound = ok => {
 		try { frappe.utils.play_sound(ok ? "submit" : "error"); } catch (_error) { /* Muted browser. */ }
 	};
+	// 相机打不开的原因：浏览器给的错误名归成几类，调用方用 `p.scan_failure_text` 给对应那句提示
+	// （以前一律说"请在 HTTPS 页面允许"，安卓上被拒过权限、被别的应用占着都看不出该去哪儿改）。
+	const failure = (reason, cause) => Object.assign(new Error(reason), { scan_reason: reason, cause });
+	const IN_APP = /\bLine\/|FBAN|FBAV|Instagram|MicroMessenger|TikTok|; wv\)/i;
+	p.scan_failure = error => {
+		if (error?.scan_reason) return error.scan_reason;
+		const name = error?.name || "";
+		if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") {
+			return IN_APP.test(navigator.userAgent || "") ? "in_app" : "denied";
+		}
+		if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") return "missing";
+		if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") return "busy";
+		return "failed";
+	};
+	p.scan_failure_text = error => ({
+		unsupported: __("This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."),
+		in_app: __("This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."),
+		denied: __("Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."),
+		busy: __("The camera is being used by another app. Close that app and try again."),
+		missing: __("No camera was found on this device. Enter the code instead."),
+		decoder: __("The barcode reader could not load. Refresh the page and try again."),
+		failed: __("The camera could not start. Try again, or enter the code."),
+	})[p.scan_failure(error)];
+	// 后置镜头优先。有的安卓机型"指定后置"本身就起不来（多摄像头、旧驱动）：
+	// 换成按名字挑后置那一个，再不行就让系统给默认镜头；权限被拒之类的错误不重试。
+	async function camera() {
+		const media = navigator.mediaDevices;
+		if (!window.isSecureContext || !media?.getUserMedia) {
+			throw failure(IN_APP.test(navigator.userAgent || "") ? "in_app" : "unsupported");
+		}
+		try {
+			return await media.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
+		} catch (error) {
+			if (!["OverconstrainedError", "NotReadableError", "AbortError", "NotFoundError"].includes(error?.name)) throw error;
+			const cameras = (await media.enumerateDevices().catch(() => [])).filter(device => device.kind === "videoinput");
+			const back = cameras.find(device => /back|rear|environment|后|後|หลัง/i.test(device.label || ""));
+			for (const video of [back && { deviceId: { exact: back.deviceId } }, true].filter(Boolean)) {
+				try { return await media.getUserMedia({ video }); } catch (_retry) { /* Next fallback. */ }
+			}
+			throw error;
+		}
+	}
 	p.scan_reader = ({ host, kind = "all", on_result, on_error }) => {
 		const video = $(host).find("video").get(0);
 		let stream, reader, timer, stopped = false, paused = false, detecting = false;
@@ -68,6 +110,14 @@ frappe.provide("frappe.pearnly");
 			stream?.getTracks().forEach(track => track.stop()); stream = null;
 			video.srcObject = null;
 		};
+		// 画面要真的播起来才读得到帧。被新的加载打断（AbortError）就再播一次；
+		// 被浏览器拦了自动播放就等人点一下画面再播，相机本身已经开着，不算失败。
+		async function play() {
+			try { await video.play(); } catch (error) {
+				if (error?.name === "AbortError") { await video.play().catch(() => {}); return; }
+				$(host).find(".pearnly-scan-stage").one("click", () => void video.play().catch(() => {}));
+			}
+		}
 		async function tick() {
 			if (stopped) return;
 			try {
@@ -94,14 +144,17 @@ frappe.provide("frappe.pearnly");
 		}
 		return {
 			async start() {
+				// 先要相机、同时加载识别器：授权弹窗立刻出来，识别器慢或坏也不会被当成"相机打不开"。
+				const reading = decoder(kind).catch(error => { throw failure("decoder", error); });
+				reading.catch(() => {});
 				try {
-					reader = await decoder(kind);
-					if (stopped) return;
-					if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera_unavailable");
-					const acquired = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+					const acquired = await camera();
 					if (stopped) { acquired.getTracks().forEach(track => track.stop()); return; }
 					stream = acquired; video.srcObject = stream; video.muted = true;
-					await video.play(); void tick();
+					await play();
+					reader = await reading;
+					if (stopped) return;
+					void tick();
 				} catch (error) { stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },

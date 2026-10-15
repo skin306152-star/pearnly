@@ -53,6 +53,7 @@ All companies,All companies
 All the items have been already returned.,All the items have been already returned.
 Already exists,Already exists
 Already received,Already received
+Already recorded:,Already recorded:
 Already recorded; skipped,Already recorded; skipped
 Already used by {0} (code {1}),Already used by {0} (code {1})
 Amend,Amend
@@ -68,6 +69,7 @@ Apply,Apply
 Approval Status,Approval Status
 Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
 Are you sure you want to delete?,Are you sure you want to delete?
+Area,Area
 As Of,As Of
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
@@ -1427,6 +1429,7 @@ stock.board.title,Stock count workbench
 stock.board.unfreezeColumn,Unfreeze column
 stock.cell.notSet,Not set
 stock.col.barcode,Barcode / QR code
+stock.col.category,Category
 stock.col.code,Code
 stock.col.cost,Average cost
 stock.col.name,Product name
@@ -1576,6 +1579,7 @@ stock.workbench.actualLocation,Actual position
 stock.workbench.actualPositions,Actual positions and quantities
 stock.workbench.actualWarehouse,Actual warehouse
 stock.workbench.addPhoto,Add photos
+stock.workbench.area,Area
 stock.workbench.bookPosition,Book position
 stock.workbench.camera,Scan barcode or QR code
 stock.workbench.cameraFailed,"Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
@@ -1596,6 +1600,7 @@ stock.workbench.photoLimit,At most 5 photos per entry
 stock.workbench.photos,Photos
 stock.workbench.quantityDiff,Quantity differences
 stock.workbench.record,Record a count
+stock.workbench.recorded,Already recorded:
 stock.workbench.recount,Recount this product
 stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
 stock.workbench.removePhoto,Remove

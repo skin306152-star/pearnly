@@ -35,6 +35,9 @@
 			// 「这件货还在别处」：货的账可能在另一个仓/仓位（用户 2026-09-23 那次盘点就是这样，
 			// 数出来的货落成了新位置）。摆在"实际仓库"下面，当场就能改（见 `render_elsewhere`）。
 			{ fieldtype: "HTML", fieldname: "elsewhere", hidden: 1 },
+			// 多人分区盘点：这件货在本次盘点里别人（或自己）已经记过的 —— 谁、在哪、多少，
+			// 免得同一架货被两个人各数一遍（用户 2026-10-15）。没有就不占地方。
+			{ fieldtype: "HTML", fieldname: "recorded", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "location", label: w("actualLocation") },
 			{ fieldtype: "Float", fieldname: "qty", label: w("entryQty"), precision: 3, reqd: 1 },
 			{ fieldtype: "Small Text", fieldname: "note", label: t("cowork.stock.count.note") },
@@ -96,6 +99,18 @@
 					+ `${p.number(place.qty)} ${place.unit || ""}`.trim())
 				.join("；");
 			host.$wrapper.append($("<p class='text-muted small mb-0'>").text(`${w("elsewhere")} ${text}`));
+		}
+		function render_recorded() {
+			const host = d.fields_dict.recorded;
+			const records = entry ? [] : lookup?.recorded || [];
+			host.$wrapper.empty();
+			d.set_df_property("recorded", "hidden", records.length ? 0 : 1);
+			if (!records.length) return;
+			const text = records.slice(0, 5)
+				.map(record => `${record.counted_by} · ${record.warehouse_name} / ${record.location || t("cowork.stock.count.blank")} · `
+					+ p.number(record.qty))
+				.join("；");
+			host.$wrapper.append($("<p class='text-muted small mb-0'>").text(`${w("recorded")} ${text}`));
 		}
 		function editor(show) {
 			d.set_df_property("scan_section", "hidden", show);
@@ -189,6 +204,7 @@
 				await load_photos();
 				render_photos();
 				render_elsewhere();
+				render_recorded();
 				d.fields_dict.qty.$input.trigger("focus");
 				// 结果那一声：查到了才响（从码来的那一次才算 —— 打开已录那一行不算"查了"）。
 				if (code) p.scan_result_sound(true);
@@ -206,7 +222,7 @@
 			d.set_df_property("video", "hidden", false);
 			scanner = p.scan_reader({ host: d.fields_dict.video.$wrapper, kind: "all",
 				on_result: code => match(code),
-				on_error: () => { scanner?.stop(); scanner = null; camera = false; message(w("cameraFailed")); },
+				on_error: error => { scanner?.stop(); scanner = null; camera = false; message(p.scan_failure_text(error)); },
 			});
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());
@@ -218,6 +234,7 @@
 			await d.set_value("code", ""); await d.set_value("qty", "");
 			editor(false); render_photos(); message(w("nextReady"));
 			render_elsewhere();   // 换下一条：别处那份提示也收起来
+			render_recorded();
 			if (camera) scanner?.resume();
 			else d.fields_dict.code.$input.trigger("focus");
 		}

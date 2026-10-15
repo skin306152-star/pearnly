@@ -77,6 +77,7 @@ CC Desktop,CC เดสก์ท็อป
 CC Desktop not connected,CC เดสก์ท็อปยังไม่เชื่อมต่อ
 CC is not set up for this site yet.,ไซต์นี้ยังไม่ได้ตั้งค่า CC
 CC is only available on product sites.,CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์
+"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
 Cancel,ยกเลิก
 Cannot confirm while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถยืนยันได้
 Cannot match while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถจับคู่ได้
@@ -387,6 +388,7 @@ No DMS connection has been configured yet,ยังไม่ได้ตั้�
 No Data,ไม่มีข้อมูล
 No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",ยังไม่ได้ตั้งค่าบัญชี การเชื่อมต่อนี้จึงใช้งานไม่ได้ กรุณาตั้งค่าข้อมูลรับรองแล้วทดสอบการเชื่อมต่อ
+No camera was found on this device. Enter the code instead.,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงไม่สามารถส่งอีเมลเชิญได้
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่ตรงกันและไม่ได้ระบุรหัสอ้างอิงลูกค้า DMS กรุณายืนยันด้วยตนเองก่อน
 No operators yet — add one above,ยังไม่มีพนักงาน กรุณาเพิ่มที่ด้านบน
@@ -627,8 +629,11 @@ The account was created but no id came back,สร้างบัญชีแล
 The admin session must be requested inside a `with` block,ต้องขอเซสชัน admin ภายในบล็อก `with`
 The balance could not be read,ไม่สามารถตรวจสอบยอดคงเหลือได้
 The balance grows once the platform confirms the transfer.,ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
+The barcode reader could not load. Refresh the page and try again.,โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง
 The billing service returned HTTP {0},ระบบเรียกเก็บเงินตอบกลับ HTTP {0}
 The bind code has expired — please regenerate,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
+"The camera could not start. Try again, or enter the code.",ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
+The camera is being used by another app. Close that app and try again.,กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปนั้นแล้วลองอีกครั้ง
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
 The current password is wrong,รหัสผ่านปัจจุบันไม่ถูกต้อง
 "The details are not confirmed yet, so it cannot be pushed to DMS",ข้อมูลยังไม่ได้ยืนยัน จึงไม่สามารถส่งไปยัง DMS ได้
@@ -680,7 +685,9 @@ This LINE account is not bound to this account on this site. Sign in with your p
 This Operator's Own DMS Credentials,ข้อมูลรับรอง DMS ของพนักงานรายนี้
 "This account has no identity binding, so it cannot change its own password; contact an admin",บัญชีนี้ยังไม่ได้ผูกตัวตน จึงไม่สามารถเปลี่ยนรหัสผ่านด้วยตนเองได้ กรุณาติดต่อผู้ดูแลระบบ
 This advisor is no longer in the current DMS list. Please select again.,ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่
+"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",เบราว์เซอร์ในแอปนี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
 This attachment is not in this conversation.,ไฟล์แนบนี้ไม่ได้อยู่ในการสนทนานี้
+"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",เบราว์เซอร์นี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
 This company’s LINE official account is not configured yet.,บริษัทยังไม่ได้ตั้งค่าบัญชี LINE ทางการ
 This connection has no username and password yet.,การเชื่อมต่อนี้ยังไม่มีชื่อผู้ใช้และรหัสผ่าน
 This device cannot receive notifications.,อุปกรณ์นี้ไม่สามารถรับการแจ้งเตือนได้

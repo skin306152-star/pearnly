@@ -102,6 +102,7 @@ All members,全部成员
 Allowed Users,授权用户
 Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
+Already recorded:,已记录：
 Amount,金额
 Amount Tolerance,金额容差
 Amount not read,金额未读出
@@ -133,6 +134,7 @@ Archived boards,已归档的看板
 Archived cards,已归档的卡片
 Archived items,已归档的项目
 Archived lists,已归档的列表
+Area,区域
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
 Assign to,分派给成员
 Assign · Track · Discuss,分派 · 跟进 · 讨论
@@ -2503,6 +2505,7 @@ cowork.stock.code,编码或条码
 cowork.stock.col.actual,实盘
 cowork.stock.col.barcode,条码/二维码
 cowork.stock.col.book,账面
+cowork.stock.col.category,商品类别
 cowork.stock.col.code,编码
 cowork.stock.col.difference,差异
 cowork.stock.col.name,物料名称
@@ -2510,6 +2513,7 @@ cowork.stock.col.position,账面仓位
 cowork.stock.col.result,结果
 cowork.stock.col.status,状态
 cowork.stock.col.unit,单位
+cowork.stock.col.warehouse,仓库
 cowork.stock.continuous,连续盘点
 cowork.stock.count.blank,未填
 cowork.stock.count.book,账面数量
@@ -2620,6 +2624,7 @@ cowork.stock.workbench.actualLocation,实际仓位
 cowork.stock.workbench.actualPositions,实际仓位及数量
 cowork.stock.workbench.actualWarehouse,实际仓库
 cowork.stock.workbench.addPhoto,添加照片
+cowork.stock.workbench.area,区域
 cowork.stock.workbench.bookPosition,账面仓库／仓位
 cowork.stock.workbench.camera,扫描条形码或二维码
 cowork.stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
@@ -2640,6 +2645,7 @@ cowork.stock.workbench.photoLimit,每条记录最多 5 张照片
 cowork.stock.workbench.photos,照片
 cowork.stock.workbench.quantityDiff,数量差异
 cowork.stock.workbench.record,录入盘点
+cowork.stock.workbench.recorded,已记录：
 cowork.stock.workbench.recount,重新盘点该物料
 cowork.stock.workbench.recountConfirm,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 cowork.stock.workbench.removePhoto,移除
@@ -2650,6 +2656,7 @@ cowork.stock.workbench.stockChanged,部分物料在盘点期间发生了库存�
 cowork.stocktake.col.actual_qty,实盘数量
 cowork.stocktake.col.barcode,条码
 cowork.stocktake.col.book_qty,账面数量
+cowork.stocktake.col.category,商品类别
 cowork.stocktake.col.location,仓位
 cowork.stocktake.col.product_code,商品编码
 cowork.stocktake.col.product_name,商品名称

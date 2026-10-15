@@ -638,6 +638,7 @@ Book quantity	账面数量	จำนวนตามบัญชี	帳簿数量	
 Counted quantity	实盘数量	จำนวนที่นับได้	実地数量	cowork.stocktake.col.actual_qty
 Warehouse	仓库	คลังสินค้า	倉庫	cowork.stocktake.col.warehouse
 Location	仓位	ตำแหน่งจัดเก็บ	棚番	cowork.stocktake.col.location
+Category	商品类别	หมวดสินค้า	カテゴリ	cowork.stocktake.col.category
 Product code	商品编码	รหัสสินค้า	商品コード	cowork.stocktake.export.product_code
 Product name	商品名称	ชื่อสินค้า	商品名	cowork.stocktake.export.product_name
 Barcode / QR code	条码 / 二维码	บาร์โค้ด / รหัส QR	バーコード / QR コード	cowork.stocktake.export.barcode
@@ -745,7 +746,6 @@ Actual warehouse	实际仓库	คลังที่พบจริง	実際の�
 Add photos	添加照片	เพิ่มรูปภาพ	写真を追加	cowork.stock.workbench.addPhoto
 Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	cowork.stock.workbench.bookPosition
 Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	cowork.stock.workbench.camera
-Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	cowork.stock.workbench.cameraFailed
 Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	cowork.stock.workbench.code
 Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	cowork.stock.workbench.continuous
 Finish	完成	เสร็จสิ้น	完了	cowork.stock.workbench.done
@@ -2200,3 +2200,7 @@ This document has no push target	这张单还没选推送去向	เอกสา�
 Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบริษัท	Cowork 会社マスター
 Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート
 Cowork Company Folder	Cowork 公司单据文件夹	Cowork โฟลเดอร์เอกสารบริษัท	Cowork 会社書類フォルダー
+Warehouse	仓库	คลังสินค้า	倉庫	cowork.stock.col.warehouse
+Category	商品类别	หมวดสินค้า	カテゴリ	cowork.stock.col.category
+Area	区域	พื้นที่	エリア	cowork.stock.workbench.area
+Already recorded:	已记录：	บันทึกไว้แล้ว:	記録済み:	cowork.stock.workbench.recorded

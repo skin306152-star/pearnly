@@ -102,6 +102,7 @@ All members,สมาชิกทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Allowed root folder on the PC,โฟลเดอร์หลักที่อนุญาต
 Already exists,มีอยู่แล้ว
+Already recorded:,บันทึกไว้แล้ว:
 Amount,จำนวนเงิน
 Amount Tolerance,ค่าผลต่างยอมรับได้
 Amount not read,อ่านจำนวนเงินไม่ได้
@@ -133,6 +134,7 @@ Archived boards,บอร์ดที่เก็บถาวร
 Archived cards,การ์ดที่เก็บถาวร
 Archived items,รายการที่เก็บถาวร
 Archived lists,รายการที่เก็บถาวร
+Area,พื้นที่
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
 Assign to,มอบหมายให้
 Assign · Track · Discuss,มอบหมาย · ติดตาม · พูดคุย
@@ -2503,6 +2505,7 @@ cowork.stock.code,รหัสหรือบาร์โค้ด
 cowork.stock.col.actual,นับได้
 cowork.stock.col.barcode,บาร์โค้ด / คิวอาร์โค้ด
 cowork.stock.col.book,ตามบัญชี
+cowork.stock.col.category,หมวดสินค้า
 cowork.stock.col.code,รหัส
 cowork.stock.col.difference,ผลต่าง
 cowork.stock.col.name,ชื่อสินค้า
@@ -2510,6 +2513,7 @@ cowork.stock.col.position,ตำแหน่งตามบัญชี
 cowork.stock.col.result,ผลการนับ
 cowork.stock.col.status,สถานะ
 cowork.stock.col.unit,หน่วย
+cowork.stock.col.warehouse,คลังสินค้า
 cowork.stock.continuous,ตรวจนับต่อเนื่อง
 cowork.stock.count.blank,ยังไม่กรอก
 cowork.stock.count.book,จำนวนตามบัญชี
@@ -2620,6 +2624,7 @@ cowork.stock.workbench.actualLocation,ตำแหน่งที่พบจร
 cowork.stock.workbench.actualPositions,ตำแหน่งจริงและจำนวน
 cowork.stock.workbench.actualWarehouse,คลังที่พบจริง
 cowork.stock.workbench.addPhoto,เพิ่มรูปภาพ
+cowork.stock.workbench.area,พื้นที่
 cowork.stock.workbench.bookPosition,คลัง / ตำแหน่งตามบัญชี
 cowork.stock.workbench.camera,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 cowork.stock.workbench.cameraFailed,ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
@@ -2640,6 +2645,7 @@ cowork.stock.workbench.photoLimit,แต่ละรายการแนบร�
 cowork.stock.workbench.photos,รูปภาพ
 cowork.stock.workbench.quantityDiff,ผลต่างจำนวน
 cowork.stock.workbench.record,บันทึกการตรวจนับ
+cowork.stock.workbench.recorded,บันทึกไว้แล้ว:
 cowork.stock.workbench.recount,นับสินค้านี้ใหม่
 cowork.stock.workbench.recountConfirm,ต้องการยกเลิกรายการนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
 cowork.stock.workbench.removePhoto,ลบ
@@ -2650,6 +2656,7 @@ cowork.stock.workbench.stockChanged,สินค้าบางรายกา�
 cowork.stocktake.col.actual_qty,จำนวนที่นับได้
 cowork.stocktake.col.barcode,บาร์โค้ด
 cowork.stocktake.col.book_qty,จำนวนตามบัญชี
+cowork.stocktake.col.category,หมวดสินค้า
 cowork.stocktake.col.location,ตำแหน่งจัดเก็บ
 cowork.stocktake.col.product_code,รหัสสินค้า
 cowork.stocktake.col.product_name,ชื่อสินค้า

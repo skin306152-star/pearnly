@@ -77,6 +77,7 @@ CC Desktop,CC デスクトップ
 CC Desktop not connected,CC デスクトップ未接続
 CC is not set up for this site yet.,このサイトではまだ CC が設定されていません。
 CC is only available on product sites.,CC は製品サイトでのみ利用できます。
+"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
@@ -387,6 +388,7 @@ No DMS connection has been configured yet,DMS接続はまだ設定されてい�
 No Data,データがありません
 No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
+No camera was found on this device. Enter the code instead.,このデバイスにカメラが見つかりません。コードを入力してください。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
@@ -627,8 +629,11 @@ The account was created but no id came back,アカウントは作成されまし
 The admin session must be requested inside a `with` block,adminセッションは `with` ブロック内で要求する必要があります
 The balance could not be read,残高を読み取れません
 The balance grows once the platform confirms the transfer.,プラットフォームが着金を確認すると残高に反映されます。
+The barcode reader could not load. Refresh the page and try again.,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
 The billing service returned HTTP {0},課金基盤が HTTP {0} を返しました
 The bind code has expired — please regenerate,連携コードの期限が切れました。再生成してください
+"The camera could not start. Try again, or enter the code.",カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
+The camera is being used by another app. Close that app and try again.,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
 The control plane is not affected,コントロールプレーンは影響を受けません
 The current password is wrong,現在のパスワードが正しくありません
 "The details are not confirmed yet, so it cannot be pushed to DMS",情報が未確定のためDMSへ送信できません
@@ -680,7 +685,9 @@ This LINE account is not bound to this account on this site. Sign in with your p
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 "This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
 This advisor is no longer in the current DMS list. Please select again.,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
+"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 This attachment is not in this conversation.,この添付ファイルはこの会話にありません。
+"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",このブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 This company’s LINE official account is not configured yet.,会社のLINE公式アカウントはまだ設定されていません。
 This connection has no username and password yet.,この接続にはユーザー名とパスワードがまだ設定されていません。
 This device cannot receive notifications.,このデバイスでは通知を受け取れません。

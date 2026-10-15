@@ -119,6 +119,7 @@ def _review(name):
             "name": row["id"], "product": row["id"], "product_name": row["product_name"],
             "code": row["product_code"], "barcode": row["barcode"], "unit": row["unit"],
             "warehouse": row["warehouse"], "warehouse_name": row["warehouse"] or "", "location": row["location"],
+            "category": row.get("category") or "",
             "book_qty": _float(row["book_qty"]), "counted": int(counted),
             "counted_qty": _float(row["actual_qty"]) if counted else None,
             "difference": _float(row["difference"]) if counted else None, "difference_value": None,
@@ -181,10 +182,20 @@ def api_stock_count_export(name):
 @frappe.whitelist()
 def api_stock_count_lookup(count, code=None, product=None):
     found = _transaction(counting.lookup, count, code, product)["item"]
-    row = next(r for r in _review(count)["items"] if r["name"] == found["id"])
+    review = _review(count)
+    row = next(r for r in review["items"] if r["name"] == found["id"])
     return {"product": {"name": found["id"], "product_name": found["product_name"], "code": found["product_code"],
                         "barcode": found["barcode"], "base_unit": found["unit"], "unit": found["unit"]},
-            "rows": [row], "elsewhere": [], "stock_token": "", "warehouse_name": found["warehouse"] or ""}
+            "rows": [row], "elsewhere": [], "recorded": _recorded(review["entries"], [row["name"]]),
+            "stock_token": "", "warehouse_name": found["warehouse"] or ""}
+
+
+def _recorded(entries, items):
+    """这件货在本次盘点里**已经记过**的（谁、在哪、多少）：多人分区盘点时扫到别人盘过的货，
+    当场看得见，免得同一架货被两个人各数一遍（用户 2026-10-15 多人协作口径）。"""
+    return [{"counted_by": e["counted_by"], "warehouse_name": e["warehouse_name"], "location": e["location"] or "",
+             "qty": e["qty"]}
+            for e in entries if e["item"] in items and not e["voided"]]
 
 
 def _note(entry_id, note):

@@ -78,7 +78,6 @@ Scan	扫码	สแกน	スキャン	product.action.scan
 Scan a code	扫码	สแกนโค้ด	コードをスキャン	product.scan.title
 Point the camera at the barcode or QR code	请将条码或二维码对准摄像头	กรุณาเล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์โค้ด	カメラをバーコード・QR コードに向けてください	product.scan.hint
 This browser cannot scan with the camera; use a scanner or type the code	当前浏览器不支持摄像头扫码，请使用扫码枪或手动输入	เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง กรุณาใช้เครื่องสแกนหรือพิมพ์รหัสเอง	このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください	product.scan.unsupported
-Camera permission was refused; allow it and try again	摄像头权限被拒绝，请允许后重试	ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่	カメラの許可が拒否されました。許可してから再試行してください	product.scan.denied
 This device has no camera to scan with	当前设备没有可用的摄像头	อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้	この端末にはスキャンに使えるカメラがありません	product.scan.noCamera
 This code is already taken	该条码已被占用	รหัสนี้ถูกใช้ไปแล้ว	このコードは既に使われています	product.scan.taken
 Already used by {0} (code {1})	已被「{0}」使用（编码 {1}）	ถูกใช้กับ {0} (รหัส {1}) แล้ว	既に「{0}」(コード {1}) で使われています	product.scan.takenBody
@@ -390,7 +389,6 @@ Record a count	录入盘点	บันทึกการตรวจนับ	棚
 Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	stock.workbench.saveNext
 Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	stock.workbench.review
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
-Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	stock.workbench.cameraFailed
 Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว กรุณาสแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
 Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	stock.workbench.locationDiff
 Quantity differences	数量差异	ผลต่างจำนวน	数量差異	stock.workbench.quantityDiff
@@ -1322,3 +1320,6 @@ The payment method is invalid	付款方式无效	วิธีชำระเง�
 The payment details are invalid	付款信息无效	ข้อมูลการชำระเงินไม่ถูกต้อง	支払情報が無効です	erp.detail.payment
 The total is invalid	合计无效	ยอดรวมไม่ถูกต้อง	合計が無効です	erp.detail.grand_total
 The amount payable cannot be negative	应付金额不能为负数	ยอดที่ต้องชำระต้องไม่ติดลบ	支払額はマイナスにできません	erp.detail.net_payable
+Category	分类	หมวดหมู่	カテゴリ	stock.col.category
+Area	区域	พื้นที่	エリア	stock.workbench.area
+Already recorded:	已记录：	บันทึกไว้แล้ว:	記録済み:	stock.workbench.recorded

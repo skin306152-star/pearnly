@@ -77,6 +77,7 @@ CC Desktop,CC Desktop
 CC Desktop not connected,CC Desktop not connected
 CC is not set up for this site yet.,CC is not set up for this site yet.
 CC is only available on product sites.,CC is only available on product sites.
+"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.","Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
@@ -386,6 +387,7 @@ No DMS connection has been configured yet,No DMS connection has been configured 
 No Data,No Data
 No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (site config pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
+No camera was found on this device. Enter the code instead.,No camera was found on this device. Enter the code instead.
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
 No operators yet — add one above,No operators yet — add one above
@@ -625,8 +627,11 @@ The account was created but no id came back,The account was created but no id ca
 The admin session must be requested inside a `with` block,The admin session must be requested inside a `with` block
 The balance could not be read,The balance could not be read
 The balance grows once the platform confirms the transfer.,The balance grows once the platform confirms the transfer.
+The barcode reader could not load. Refresh the page and try again.,The barcode reader could not load. Refresh the page and try again.
 The billing service returned HTTP {0},The billing service returned HTTP {0}
 The bind code has expired — please regenerate,The bind code has expired — please regenerate
+"The camera could not start. Try again, or enter the code.","The camera could not start. Try again, or enter the code."
+The camera is being used by another app. Close that app and try again.,The camera is being used by another app. Close that app and try again.
 The control plane is not affected,The control plane is not affected
 The current password is wrong,The current password is wrong
 "The details are not confirmed yet, so it cannot be pushed to DMS","The details are not confirmed yet, so it cannot be pushed to DMS"
@@ -678,7 +683,9 @@ This LINE account is not bound to this account on this site. Sign in with your p
 This Operator's Own DMS Credentials,This Operator's Own DMS Credentials
 "This account has no identity binding, so it cannot change its own password; contact an admin","This account has no identity binding, so it cannot change its own password; contact an admin"
 This advisor is no longer in the current DMS list. Please select again.,This advisor is no longer in the current DMS list. Please select again.
+"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.","This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 This attachment is not in this conversation.,This attachment is not in this conversation.
+"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.","This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 This company’s LINE official account is not configured yet.,This company’s LINE official account is not configured yet.
 This connection has no username and password yet.,This connection has no username and password yet.
 This device cannot receive notifications.,This device cannot receive notifications.

@@ -58,6 +58,19 @@ class UploadSheetTest(unittest.TestCase):
                                      [row("A01", "Apple", "pcs", 2, 3, kinds=["s", "s", "s", "n", "n"])], labels)
         self.assertEqual(items[0]["actual_qty"], "3.000000")
 
+    def test_optional_category_column(self):
+        # 多人分区盘点按「仓库 / 类别」分工：类别是可选列，四种语言的表头都认，没有这列就是空。
+        header = ["รหัสสินค้า", "ชื่อสินค้า", "หน่วย", "จำนวนตามบัญชี", "คลังสินค้า", "หมวดสินค้า"]
+        items, problems = upload_sheet.rows(header, [
+            row("A01", "Apple", "pcs", 2, "WH", "ผลไม้", kinds=["s", "s", "s", "n", "s", "s"])])
+        self.assertEqual(problems, [])
+        self.assertEqual((items[0]["warehouse"], items[0]["category"]), ("WH", "ผลไม้"))
+        items, _ = upload_sheet.rows(HEADER, [row("A01", "Apple", "", "pcs", 1, None, "", "")])
+        self.assertEqual(items[0]["category"], "")
+        items, _ = upload_sheet.rows(["编码", "名称", "单位", "账面数量", "商品类别"],
+                                     [row("A01", "Apple", "pcs", 1, "水果", kinds=["s", "s", "s", "n", "s"])])
+        self.assertEqual(items[0]["category"], "水果")
+
     def test_missing_required_column_or_no_rows(self):
         with self.assertRaises(StocktakeValidationError) as error:
             upload_sheet.rows(["product_code", "product_name"], [])

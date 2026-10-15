@@ -871,3 +871,10 @@ Try again	重试	ลองอีกครั้ง	もう一度
 This device cannot receive notifications.	此设备无法接收通知。	อุปกรณ์นี้ไม่สามารถรับการแจ้งเตือนได้	このデバイスでは通知を受け取れません。
 Checking your account	正在查看账号信息	กำลังตรวจสอบข้อมูลบัญชี	アカウント情報を確認しています
 Looking up a tax ID	正在查税号	กำลังตรวจสอบเลขประจำตัวผู้เสียภาษี	税番号を照会しています
+This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.	此浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。	เบราว์เซอร์นี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง	このブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
+This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.	应用内置的浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。	เบราว์เซอร์ในแอปนี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง	アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
+Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.	相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。	การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง	カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
+The camera is being used by another app. Close that app and try again.	相机正被其他应用占用。请关闭该应用后重试。	กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปนั้นแล้วลองอีกครั้ง	カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
+No camera was found on this device. Enter the code instead.	此设备上没有找到相机。请手动输入编码。	ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง	このデバイスにカメラが見つかりません。コードを入力してください。
+The barcode reader could not load. Refresh the page and try again.	扫码组件加载失败。请刷新页面后重试。	โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง	バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
+The camera could not start. Try again, or enter the code.	相机无法启动。请重试，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。もう一度お試しいただくか、コードを入力してください。

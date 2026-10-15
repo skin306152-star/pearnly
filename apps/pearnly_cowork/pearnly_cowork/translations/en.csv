@@ -102,6 +102,7 @@ All members,All members
 Allowed Users,Allowed Users
 Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
+Already recorded:,Already recorded:
 Amount,Amount
 Amount Tolerance,Amount Tolerance
 Amount not read,Amount not read
@@ -133,6 +134,7 @@ Archived boards,Archived boards
 Archived cards,Archived cards
 Archived items,Archived items
 Archived lists,Archived lists
+Area,Area
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
 Assign to,Assign to
 Assign · Track · Discuss,Assign · Track · Discuss
@@ -2503,6 +2505,7 @@ cowork.stock.code,Code or barcode
 cowork.stock.col.actual,Counted
 cowork.stock.col.barcode,Barcode / QR code
 cowork.stock.col.book,Book
+cowork.stock.col.category,Category
 cowork.stock.col.code,Code
 cowork.stock.col.difference,Difference
 cowork.stock.col.name,Product name
@@ -2510,6 +2513,7 @@ cowork.stock.col.position,Book location
 cowork.stock.col.result,Result
 cowork.stock.col.status,Status
 cowork.stock.col.unit,Unit
+cowork.stock.col.warehouse,Warehouse
 cowork.stock.continuous,Continuous counting
 cowork.stock.count.blank,Not set
 cowork.stock.count.book,Book quantity
@@ -2620,6 +2624,7 @@ cowork.stock.workbench.actualLocation,Actual position
 cowork.stock.workbench.actualPositions,Actual positions and quantities
 cowork.stock.workbench.actualWarehouse,Actual warehouse
 cowork.stock.workbench.addPhoto,Add photos
+cowork.stock.workbench.area,Area
 cowork.stock.workbench.bookPosition,Book position
 cowork.stock.workbench.camera,Scan barcode or QR code
 cowork.stock.workbench.cameraFailed,"Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
@@ -2640,6 +2645,7 @@ cowork.stock.workbench.photoLimit,At most 5 photos per entry
 cowork.stock.workbench.photos,Photos
 cowork.stock.workbench.quantityDiff,Quantity differences
 cowork.stock.workbench.record,Record a count
+cowork.stock.workbench.recorded,Already recorded:
 cowork.stock.workbench.recount,Recount this product
 cowork.stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
 cowork.stock.workbench.removePhoto,Remove
@@ -2650,6 +2656,7 @@ cowork.stock.workbench.stockChanged,Some products had stock movements during cou
 cowork.stocktake.col.actual_qty,Counted quantity
 cowork.stocktake.col.barcode,Barcode
 cowork.stocktake.col.book_qty,Book quantity
+cowork.stocktake.col.category,Category
 cowork.stocktake.col.location,Location
 cowork.stocktake.col.product_code,Product code
 cowork.stocktake.col.product_name,Product name

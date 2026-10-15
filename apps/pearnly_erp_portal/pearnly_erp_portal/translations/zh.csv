@@ -53,6 +53,7 @@ All companies,全部公司
 All the items have been already returned.,所有物料都已退货
 Already exists,已存在
 Already received,该文件已接收
+Already recorded:,已记录：
 Already recorded; skipped,已录入，已跳过
 Already used by {0} (code {1}),已被「{0}」使用（编码 {1}）
 Amend,修订
@@ -68,6 +69,7 @@ Apply,应用
 Approval Status,审批状态
 Are you sure you want to delete the attachment?,确定要删除该附件吗？
 Are you sure you want to delete?,确定要删除吗？
+Area,区域
 As Of,截至
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每张单据最多 {0} 张照片
@@ -1427,6 +1429,7 @@ stock.board.title,盘点工作台
 stock.board.unfreezeColumn,取消冻结列
 stock.cell.notSet,未设置
 stock.col.barcode,条码/二维码
+stock.col.category,分类
 stock.col.code,编码
 stock.col.cost,平均成本
 stock.col.name,物料名称
@@ -1576,6 +1579,7 @@ stock.workbench.actualLocation,实际仓位
 stock.workbench.actualPositions,实际仓位及数量
 stock.workbench.actualWarehouse,实际仓库
 stock.workbench.addPhoto,添加照片
+stock.workbench.area,区域
 stock.workbench.bookPosition,账面仓库／仓位
 stock.workbench.camera,扫描条形码或二维码
 stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。
@@ -1596,6 +1600,7 @@ stock.workbench.photoLimit,每条记录最多 5 张照片
 stock.workbench.photos,照片
 stock.workbench.quantityDiff,数量差异
 stock.workbench.record,录入盘点
+stock.workbench.recorded,已记录：
 stock.workbench.recount,重新盘点该物料
 stock.workbench.recountConfirm,确定要撤销该物料在本任务中的当前记录并重新盘点吗？原记录将保留在历史记录中。
 stock.workbench.removePhoto,移除

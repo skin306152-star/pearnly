@@ -25,7 +25,7 @@ from frappe.utils import flt, now
 from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
 from pearnly_erp_portal.inventory import stock as stock_service
-from pearnly_erp_portal.inventory import count_state, documents as stock_documents, positions, warehouses
+from pearnly_erp_portal.inventory import count_live, count_state, documents as stock_documents, positions, warehouses
 # 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
 # 决定"表上那一列显示条码还是二维码内容"。这是单向依赖，products 不认识 inventory。
 from pearnly_erp_portal.products import contracts as product_contracts
@@ -429,8 +429,14 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     missing = {row.product for row in rows if not row.barcode}
     shown = {p["name"]: product_contracts.shown_code(p) for p in frappe.get_all(
         PRODUCT, filters={"name": ["in", list(missing) or [""]]}, fields=["name", "barcode", "qr_payload"])}
+    # 商品类别（多人分区盘点按「仓库 / 类别」分工）：跟着商品主档走，没设就是空。
+    categories = {p.name: p.category_id for p in frappe.get_all(
+        PRODUCT, filters={"name": ["in", list({row.product for row in rows}) or [""]]},
+        fields=["name", "category_id"])}
     for row in rows:
         row.barcode = row.barcode or shown.get(row.product) or None
+        category = categories.get(row.product)
+        row.category = "" if category in (None, "", 0) else str(category)
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
@@ -574,6 +580,7 @@ def post_count(name: str, review_token=None) -> dict:
     frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),
                         "closed_by": frappe.session.user, "posted_at": now(),
                         "posted_by": frappe.session.user}, update_modified=False)
+    count_live.changed(name)
     return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
 
 
@@ -620,6 +627,7 @@ def _recount_item(item_name: str, count_name: str) -> None:
     count_state.write_document(doc, "save")
 
     _refresh_totals(count_name)
+    count_live.changed(count_name)
 
 
 def _save_photos(entry: str, values) -> int:
@@ -693,8 +701,21 @@ def lookup_count(*, count, code=None, product=None):
             "rows": rows,
             "elsewhere": elsewhere_positions(found["name"],
                                              {(r["warehouse"], r["location"] or "") for r in rows}),
+            "recorded": recorded_entries(count, [r["name"] for r in rows]),
             "stock_token": count_state.stock_token(found['name']),
             "warehouse_name": _warehouse_label(task.warehouse)}
+
+
+def recorded_entries(count: str, items: list) -> list:
+    """这件货在本次盘点里**已经记过**的（谁、在哪、多少）：多人分区盘点时扫到别人盘过的货，
+    当场看得见，免得同一架货被两个人各数一遍（用户 2026-10-15 多人协作口径）。"""
+    out = []
+    for entry in list_entries(count=count, limit=0):
+        if entry["item"] in items and not entry["voided"]:
+            out.append({"counted_by": frappe.utils.get_fullname(entry["counted_by"]),
+                        "warehouse_name": entry["warehouse_name"], "location": entry.get("location") or "",
+                        "qty": entry["qty"]})
+    return out
 
 
 def elsewhere_positions(product_id: str, here: set) -> list:

@@ -53,6 +53,7 @@ All companies,ทุกบริษัท
 All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
+Already recorded:,บันทึกไว้แล้ว:
 Already recorded; skipped,บันทึกไว้แล้ว ข้ามรายการนี้
 Already used by {0} (code {1}),ถูกใช้กับ {0} (รหัส {1}) แล้ว
 Amend,แก้ไข
@@ -68,6 +69,7 @@ Apply,ใช้
 Approval Status,สถานะการอนุมัติ
 Are you sure you want to delete the attachment?,ต้องการลบไฟล์แนบนี้ใช่หรือไม่
 Are you sure you want to delete?,ต้องการลบใช่หรือไม่
+Area,พื้นที่
 As Of,ณ วันที่
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป
@@ -1427,6 +1429,7 @@ stock.board.title,หน้าปฏิบัติงานตรวจนั�
 stock.board.unfreezeColumn,ยกเลิกการตรึงคอลัมน์
 stock.cell.notSet,ยังไม่ได้ตั้งค่า
 stock.col.barcode,บาร์โค้ด / คิวอาร์โค้ด
+stock.col.category,หมวดหมู่
 stock.col.code,รหัส
 stock.col.cost,ต้นทุนเฉลี่ย
 stock.col.name,ชื่อสินค้า
@@ -1576,6 +1579,7 @@ stock.workbench.actualLocation,ตำแหน่งที่พบจริง
 stock.workbench.actualPositions,ตำแหน่งจริงและจำนวน
 stock.workbench.actualWarehouse,คลังที่พบจริง
 stock.workbench.addPhoto,เพิ่มรูปภาพ
+stock.workbench.area,พื้นที่
 stock.workbench.bookPosition,คลัง / ตำแหน่งตามบัญชี
 stock.workbench.camera,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 stock.workbench.cameraFailed,ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
@@ -1596,6 +1600,7 @@ stock.workbench.photoLimit,บันทึกได้ไม่เกิน 5 �
 stock.workbench.photos,รูปภาพ
 stock.workbench.quantityDiff,ผลต่างจำนวน
 stock.workbench.record,บันทึกการตรวจนับ
+stock.workbench.recorded,บันทึกไว้แล้ว:
 stock.workbench.recount,ตรวจนับสินค้านี้ใหม่
 stock.workbench.recountConfirm,ต้องการยกเลิกรายการตรวจนับปัจจุบันของสินค้านี้ในงานนี้และตรวจนับใหม่ใช่หรือไม่ รายการเดิมจะยังคงอยู่ในประวัติ
 stock.workbench.removePhoto,นำออก

@@ -12,7 +12,7 @@ from uuid import uuid4
 import frappe
 from frappe import _
 from frappe.utils import convert_utc_to_system_timezone, get_datetime
-from pearnly_cowork.stocktake import access
+from pearnly_cowork.stocktake import access, live
 from pearnly_cowork.stocktake.calculations import active_quantity, summarize_item
 from pearnly_cowork.stocktake.contracts import StocktakeValidationError, entry_request
 from pearnly_cowork.stocktake.documents import persist
@@ -148,7 +148,7 @@ def _task_data(task):
 
 def _item_data(row):
     result = {field: row.get(field) for field in ("product_code", "product_name", "barcode", "warehouse",
-              "location", "unit", "book_qty", "version", "counted_by", "counted_at")}
+              "location", "category", "unit", "book_qty", "version", "counted_by", "counted_at")}
     result.update(id=row.name, actual_qty=row.actual_qty or None)
     result["difference"] = (format(Decimal(row.actual_qty) - Decimal(row.book_qty), ".6f")
                             if row.actual_qty else None)
@@ -306,6 +306,7 @@ def write(task_id, target_id, request_id, qty, warehouse, location="", *, versio
         item.version = int(item.version) + 1
         item.counted_by, item.counted_at = frappe.session.user, timestamp
         persist(item)
+        live.changed(task.name, task.workspace)
         return {"ok": True, "entry_id": entry.name, "version": entry.version}
 
 
@@ -315,6 +316,7 @@ def close(task_id):
         if task.status == "active":
             task.status, task.closed_by, task.closed_at = "closed", frappe.session.user, now()
             persist(task)
+            live.changed(task.name, task.workspace)
     return {"ok": True}
 
 
