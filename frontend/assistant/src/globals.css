@@ -853,6 +853,7 @@
     line-height: var(--cc-text-footnote-lh); white-space: nowrap; outline: none;
     transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease);
   }
+  .cc-chin-btn[data-chosen] { color: var(--cc-ink); }
   .cc-chin-btn:hover, .cc-chin-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-chin-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-chin-btn:disabled { opacity: 0.4; pointer-events: none; }
@@ -1285,7 +1286,8 @@
    不放进 @layer：「＋」与发送外面那层的 flex 等工具类要被这里盖住 */
 :root:not([data-cc-variant="phone"]) .cc-composer-inline {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "files files files" "add input send";
-  align-items: end; gap: 0; min-height: var(--cc-composer-h); padding: var(--cc-composer-pad);
+  /* 内边距扣掉 .cc-composer 的细线边框，border-box 下单行正好 44 */
+  align-items: end; gap: 0; min-height: var(--cc-composer-h); padding: calc(var(--cc-composer-pad) - var(--cc-hairline));
 }
 :root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-attachments { grid-area: files; padding-bottom: var(--cc-composer-pad); }
 :root:not([data-cc-variant="phone"]) .cc-composer-inline > textarea {

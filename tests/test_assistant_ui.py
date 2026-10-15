@@ -2052,7 +2052,11 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn('className="cc-composer cc-composer-inline"', thread)
         self.assertIn("--cc-radius-composer: var(--code-radius-input);", css)
         self.assertIn('grid-template-areas: "files files files" "add input send";', css)
-        self.assertIn("align-items: end; gap: 0; min-height: var(--cc-composer-h); padding: var(--cc-composer-pad);", css)
+        # 内边距扣掉细线边框：border-box 下单行正好 44，不是 45
+        self.assertIn("align-items: end; gap: 0; min-height: var(--cc-composer-h); "
+                      "padding: calc(var(--cc-composer-pad) - var(--cc-hairline));", css)
+        # 新对话里选了公司，下巴里的公司名用正文色，和「公司」占位分开
+        self.assertIn(".cc-chin-btn[data-chosen] { color: var(--cc-ink); }", css)
         self.assertIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer-inline :is(.cc-attach, .cc-send) "
                       "{ width: var(--cc-composer-btn); height: var(--cc-composer-btn); }", css)
 

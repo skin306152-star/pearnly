@@ -372,7 +372,7 @@ assert.equal(pickVariant(false, false), "web");
             self.assertNotIn("ring-[3px]", read(rel), rel)
         self.assertIn("shadow-pop", read("components/ui/dialog.tsx"))
         self.assertIn("bg-tooltip text-tooltip-ink", read("components/ui/tooltip.tsx"))
-        thread = read("components/assistant-ui/thread.tsx")
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertIn('className="cc-reply px-2 wrap-break-word"', thread)
         md = read("components/assistant-ui/markdown-text.tsx")
         # 块之间只用上外边距（设计文档 3.10）：段落、列表、表格、代码、引用、分隔线 0.75em，标题前 1.25em，第一块 0
@@ -534,6 +534,9 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
                       group)
         self.assertIn('{open && <div className="cc-steps-card">{children}</div>}', group)
+        # 等批准的那一步不进组（允许 / 拒绝要看得见），也放进同样带环的卡片
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
+        self.assertIn('<div className="cc-steps-card">\n                      <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn("steps.steps(", steps)
         row = steps[steps.index("export const StepRow"):steps.index("/** 工作状态行上这一步的说法")]
         self.assertIn("const errored = stepFailed({ result, isError, status });", row)
@@ -570,6 +573,9 @@ for (const name of ["glob", "grep", "web_search"]) assert.equal(stepKind(name, d
 assert.equal(stepKind("web_fetch", done), "fetch");
 assert.equal(stepKind("pearnly_save_draft", done), "own:pearnly_save_draft");
 assert.equal(stepKind("mcp__x__y", done), "tool");
+// 工具名撞上原型上的键（constructor、toString）也只算「工具」，摘要照常出字
+for (const name of ["constructor", "toString", "__proto__"]) assert.equal(stepKind(name, done), "tool");
+assert.equal(summaryText(summarize([{ toolName: "constructor", failed: false }], done), steps.summary, done), steps.summary.tool(1));
 // 失败：结果标了出错、步骤标了出错、没做完就停了
 assert.equal(stepFailed({ result: { text: "boom", isError: true } }), true);
 assert.equal(stepFailed({ result: { text: "ok", isError: false } }), false);

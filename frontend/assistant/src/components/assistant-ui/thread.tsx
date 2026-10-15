@@ -465,7 +465,14 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
               case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                // 不进组的只有等批准的那一步：同组里的步骤一样放进带环的卡片，不单独浮在正文里
+                return (
+                  part.toolUI ?? (
+                    <div className="cc-steps-card">
+                      <ToolFallbackComponent {...part} />
+                    </div>
+                  )
+                );
               case "data":
                 return part.dataRendererUI;
               default:

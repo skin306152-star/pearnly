@@ -29,9 +29,13 @@ const KINDS: Readonly<Record<string, StepKind>> = {
   web_fetch: "fetch",
 };
 
+/** 只认对象自己的键：工具名叫 constructor、toString 时不能拿到原型上的函数。 */
+const own = <T>(table: Readonly<Record<string, T>>, key: string): T | undefined =>
+  Object.hasOwn(table, key) ? table[key] : undefined;
+
 /** 一步算哪一类：内置工具按上表；本站工具（有做完的说法）各算一类；其余算「工具」。 */
 export function stepKind(toolName: string, done: Readonly<Record<string, string>>): string {
-  return KINDS[toolName] ?? (done[toolName] ? `own:${toolName}` : "tool");
+  return own(KINDS, toolName) ?? (own(done, toolName) ? `own:${toolName}` : "tool");
 }
 
 /** 这一步失败了没有：结果标了出错、步骤本身标了出错，或没做完就停了（同步骤行行尾的「失败」）。 */
@@ -58,8 +62,9 @@ export function summarize(parts: readonly StepPart[], done: Readonly<Record<stri
 export function summaryText(entries: readonly SummaryEntry[], copy: SummaryCopy, done: Readonly<Record<string, string>>): string {
   return entries
     .map(({ kind, count, failed }) => {
-      const own = kind.startsWith("own:") ? kind.slice(4) : "";
-      const text = own ? (count > 1 ? copy.times(done[own] ?? own, count) : done[own] ?? own) : copy[kind as StepKind](count);
+      const tool = kind.startsWith("own:") ? kind.slice(4) : "";
+      const label = tool ? (own(done, tool) ?? tool) : "";
+      const text = tool ? (count > 1 ? copy.times(label, count) : label) : copy[kind as StepKind](count);
       return failed ? `${text}${copy.failed(failed)}` : text;
     })
     .join(copy.join);
