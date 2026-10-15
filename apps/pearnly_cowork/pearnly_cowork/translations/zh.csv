@@ -103,6 +103,7 @@ Allowed Users,授权用户
 Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
 Already recorded:,已记录：
+Always On,常驻
 Amount,金额
 Amount Tolerance,金额容差
 Amount not read,金额未读出
@@ -380,6 +381,8 @@ Completed At,完成时间
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
 Completion Evidence,完成证据
+Computer,电脑
+Computer Name,电脑名称
 Condition,条件
 Condition code not allowed,条件码不适用
 Confirmation Request,确认请求
@@ -432,6 +435,7 @@ Cover File,封面文件
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 银行佐证
 Cowork CC Desktop Delivery,Cowork CC 桌面版任务领取记录
+Cowork CC Desktop Device,Cowork CC 桌面版电脑
 Cowork CC Desktop Request,Cowork CC 桌面版请求
 Cowork Client,Cowork 买方客户
 Cowork Companion Delivery,Cowork CC 桌面版任务领取记录
@@ -556,6 +560,7 @@ Deposit receipts need a person to decide how to post them in Express,押金或�
 Description,摘要
 Detail,详情
 Details,详细信息
+Device Key Digest,设备密钥摘要
 Diff,差异
 Difference,有差异
 Difference Amount,差异金额
@@ -741,6 +746,7 @@ Formula Diff,公式差额
 Formula Statement Closing,按公式计算的对账单期末余额
 Found {0} · new {1} · skipped {2} · upload failed {3},扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
 Found {0}. Tap the number to choose:,找到 {0} 个账套，请点击序号选择：
+Full Report Due,待整份上报
 GL Account Code,总账科目编码
 GL Amount,总账金额
 GL Balance,总账余额
@@ -783,6 +789,7 @@ History Records,识别记录
 History Version,票据历史版本
 Holder,锁持有者
 Holder Fence,持锁尝试序号
+Host Names,主机名
 How to put documents in the folders,文件夹放法
 IN,入账
 "If you have the electronic statement, upload it instead",如有电子版账单，建议上传电子版
@@ -807,6 +814,7 @@ Income account,收入科目
 Income type not chosen,未选所得类型
 Income type not on this form,此表不含该所得类型
 Income type to choose,待选所得类型
+Index Rebuild Pending,索引待重建
 Initial Password,初始密码
 Input tax report,进项税报告
 Input tax this month,本月进项税额
@@ -962,6 +970,7 @@ Matched Count,已匹配笔数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",已按预设刷卡手续费率匹配 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记
 Matches,一致
 Matching and saving,逐笔核对并保存
+Max Payload Version,最高载荷版本
 Member,成员
 Member management,成员管理权限
 Members,成员
@@ -1293,6 +1302,7 @@ Refresh the account directory before continuing.,请先刷新账套目录。
 Refreshed account sets,刷新了账套
 Refreshing account sets,正在刷新账套
 Registered At,登记时间
+Registered By,登记人
 Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
 Relative Path,相对路径
 Reload,刷新
@@ -1342,6 +1352,8 @@ Result SHA-256,结果 SHA-256
 Result Unknown,结果未知
 Result in the ERP,ERP 里的结果
 Results: {0},结果：{0}
+Retired At (UTC),移除时间（UTC）
+Retired By,移除人
 Return Form,申报表
 Return Type,申报类型
 Review,复核
@@ -1467,6 +1479,7 @@ Show,显示
 Show details,显示详情
 Show on Card,在卡片上显示
 Show on card,显示在卡片正面
+Signed-in User,当前登录账号
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）

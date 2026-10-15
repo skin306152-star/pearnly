@@ -103,6 +103,7 @@ Allowed Users,許可ユーザー
 Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
 Already recorded:,記録済み:
+Always On,常時稼働
 Amount,金額
 Amount Tolerance,金額許容差
 Amount not read,金額を読めない
@@ -380,6 +381,8 @@ Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
 Completion Evidence,完了証跡
+Computer,コンピューター
+Computer Name,コンピューター名
 Condition,条件
 Condition code not allowed,条件コードが無効
 Confirmation Request,確認リクエスト
@@ -432,6 +435,7 @@ Cover File,カバーファイル
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork CC Desktop Delivery,Cowork CC デスクトップのタスク受領記録
+Cowork CC Desktop Device,Cowork CC デスクトップのコンピューター
 Cowork CC Desktop Request,Cowork CC デスクトップへのリクエスト
 Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork CC デスクトップのタスク受領記録
@@ -556,6 +560,7 @@ Deposit receipts need a person to decide how to post them in Express,預り金�
 Description,摘要
 Detail,詳細
 Details,詳細
+Device Key Digest,デバイスキーのダイジェスト
 Diff,差異
 Difference,差異あり
 Difference Amount,差異金額
@@ -741,6 +746,7 @@ Formula Diff,計算式差額
 Formula Statement Closing,計算式による明細期末残高
 Found {0} · new {1} · skipped {2} · upload failed {3},検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}
 Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタップして選択してください：
+Full Report Due,全件報告待ち
 GL Account Code,元帳勘定科目コード
 GL Amount,元帳金額
 GL Balance,元帳残高
@@ -783,6 +789,7 @@ History Records,認識記録
 History Version,伝票履歴バージョン
 Holder,ロック保持者
 Holder Fence,ロック保持試行番号
+Host Names,ホスト名
 How to put documents in the folders,フォルダーへの書類の置き方
 IN,入金
 "If you have the electronic statement, upload it instead",電子版の明細があればそちらをアップロードしてください
@@ -807,6 +814,7 @@ Income account,収入科目
 Income type not chosen,所得の種類が未選択
 Income type not on this form,この様式にない所得の種類
 Income type to choose,選ぶ必要がある所得の種類
+Index Rebuild Pending,インデックス再構築待ち
 Initial Password,初期パスワード
 Input tax report,仕入税報告
 Input tax this month,当月の仕入税額
@@ -962,6 +970,7 @@ Matched Count,照合済み件数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します
 Matches,一致
 Matching and saving,照合して保存中
+Max Payload Version,最大ペイロードバージョン
 Member,メンバー
 Member management,メンバー管理権限
 Members,メンバー
@@ -1293,6 +1302,7 @@ Refresh the account directory before continuing.,先に会計データのディ�
 Refreshed account sets,帳簿を更新しました
 Refreshing account sets,帳簿を更新しています
 Registered At,登録日時
+Registered By,登録者
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
 Relative Path,相対パス
 Reload,再読み込み
@@ -1342,6 +1352,8 @@ Result SHA-256,結果の SHA-256
 Result Unknown,結果不明
 Result in the ERP,ERP での結果
 Results: {0},結果：{0}
+Retired At (UTC),削除日時 (UTC)
+Retired By,削除者
 Return Form,申告様式
 Return Type,申告の種類
 Review,レビュー
@@ -1467,6 +1479,7 @@ Show,表示
 Show details,詳細を表示
 Show on Card,カードに表示
 Show on card,カードに表示
+Signed-in User,サインイン中のユーザー
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）

@@ -5,6 +5,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from . import contracts
+
 DOCTYPE = 'Cowork Express Agent Credential'
 _WRITE = object()
 _IDENTITY = ('record_id', 'site_name', 'connection', 'workspace', 'client', 'issuer',
@@ -73,6 +75,11 @@ class CredentialDocument(Document):
                 deny()
             if previous.revoked_at and any(self.get(key) != previous.get(key)
                     for key in ('active_key', 'revoked_at', 'revoked_by', 'revocation_reason')):
+                deny()
+            # The computer a key belongs to: set once, except that a migrated key (original slot) may move from
+            # its unclaimed "old computer" to the computer that claims it (ADR-021). Per-computer keys never move.
+            if (previous.device and self.device != previous.device
+                    and self.active_key != contracts.active_identity(self.site_name, self.connection)):
                 deny()
 
     def check_permission(self, permtype='read', permlevel=None):

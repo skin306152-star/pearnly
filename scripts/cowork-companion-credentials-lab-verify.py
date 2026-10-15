@@ -1,7 +1,8 @@
 """Credential lifecycle in a dedicated lab Site; synthetic secrets never printed.
 
 Since ADR-021 the management RPCs issue / revoke / status are retired: this drives the internal functions through the
-same local-transaction wrapper `register` uses, and checks the old RPC paths no longer answer.
+same local-transaction wrapper `register` uses, and checks the old RPC paths no longer answer. D1: an entry-role user
+with the use grant may issue (own computer); revoke / status stay management-only.
 
 Writes labelled local fixtures and, for concurrency/WSGI, commits them. No ERP,
 model, LINE, identity provider, heartbeat, sockets or external transport calls.
@@ -130,7 +131,7 @@ class NativeCredentials(unittest.TestCase):
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
         with self.assertRaises(frappe.AuthenticationError): self.service.revalidate(context)
         frappe.db.set_value('User', self.manager, 'enabled', 1, update_modified=False)
-        frappe.db.delete('Has Role', {'parent': self.manager, 'role': 'Cowork Admin'})
+        frappe.db.delete('Has Role', {'parent': self.manager, 'role': ('in', ('Cowork Admin', 'Cowork Intake'))})
         with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
         with self.assertRaises(frappe.PermissionError): self.status(self.connection['name'])
 
@@ -142,9 +143,10 @@ class NativeCredentials(unittest.TestCase):
             frappe.db.set_value(doctype, name, 'enabled', 0, update_modified=False)
             with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
             frappe.db.set_value(doctype, name, 'enabled', 1, update_modified=False)
-        for features in (['intake'], ['master_data']):
-            frappe.conf.pearnly_features = features
-            with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
+        frappe.conf.pearnly_features = ['master_data']
+        with self.assertRaises(frappe.AuthenticationError): self.service.authenticate(old['token'])
+        frappe.conf.pearnly_features = ['intake']  # D1 (ADR-021): the entry entitlement is enough for the machine
+        self.assertEqual(self.service.authenticate(old['token']).credential_id, old['credential_id'])
 
     def test_switch_blocks_issuance_auth_and_revalidation_but_not_revoke(self):
         old = self.issue(); context = self.service.authenticate(old['token'])
@@ -183,7 +185,13 @@ class NativeCredentials(unittest.TestCase):
         self.issue()
         for actor in (self.actor, self.outsider, 'Administrator', 'Guest'):
             frappe.set_user(actor)
-            with self.assertRaises(frappe.PermissionError): self.issue(request_key=uuid4().hex)
+            if actor == self.actor:
+                # D1 (ADR-021): the entry role with the use grant may issue for its own computer, never take the slot
+                self.assertEqual(self.issue(request_key=uuid4().hex)['status'], 'exists')
+                with self.assertRaises(frappe.PermissionError):
+                    self.issue(request_key=uuid4().hex, reset=True, expected_generation=1)
+            else:
+                with self.assertRaises(frappe.PermissionError): self.issue(request_key=uuid4().hex)
             with self.assertRaises(frappe.PermissionError): self.status(self.connection['name'])
             with self.assertRaises(frappe.PermissionError): self.revoke(self.connection['name'], uuid4().hex, 1)
 

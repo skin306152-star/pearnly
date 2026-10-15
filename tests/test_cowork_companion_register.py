@@ -50,10 +50,12 @@ class Register(unittest.TestCase):
                 mock.patch.object(credentials.access, "require_actor", return_value=ACTOR) as actor, \
                 mock.patch.object(credentials.access, "default_workspace", return_value="WS"), \
                 mock.patch.object(credentials, "_device_connection", return_value=connection), \
+                mock.patch.object(credentials.devices, "pool_claimed", return_value=False), \
                 mock.patch.object(credentials, "issue", issue), \
                 mock.patch("pearnly_cowork.connections.service.configure", configure):
             result = credentials.register("rk", **kwargs)
-        actor.assert_called_once_with(management=True)   # 同网页「连接 Express」：管理员才能连
+        # D1（ADR-021）：录入或管理角色都能给自己的电脑登记；建连接（池）仍只限管理员
+        self.assertEqual(actor.call_args_list[0], mock.call())
         return result, issue, configure
 
     def test_new_computer_gets_a_key_for_its_desktop(self):

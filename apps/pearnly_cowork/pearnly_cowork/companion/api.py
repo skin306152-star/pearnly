@@ -50,6 +50,10 @@ def installer():
 
 
 @frappe.whitelist(methods=['POST'])
-def register(request_key, express=False, replace=False, expected_generation=None):
-    """CC 桌面端登录后连上这台电脑：回给对话页的密钥只交给本机桌面端，不显示（见 credentials.register）。"""
-    return _local_transaction(credentials.register, request_key, express, replace, expected_generation)
+def register(request_key, express=False, replace=False, expected_generation=None,
+             device_key=None, device_name=None, rekey=False):
+    """CC 桌面端登录后连上这台电脑：回给对话页的密钥只交给本机桌面端，不显示（见 credentials.register）。
+
+    新版带 `device_key` / `device_name` / `rekey`（ADR-021）；不带的照旧走一条连接一个槽位。"""
+    return _local_transaction(credentials.register, request_key, express, replace, expected_generation,
+                              device_key, device_name, rekey)

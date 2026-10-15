@@ -25,6 +25,10 @@ def _receive(context, body):
     # 告诉小助手：账套名单没变时可以只报「没变」（`plan_report` 的 `account_sets_unchanged`）。
     # 旧服务端不回这一项，小助手就照旧每次整份上传 —— 两边谁先上线都不会把网页上的账套目录清掉。
     reply = {**result, 'account_sets_unchanged_ok': True}
+    # 这把密钥刚挂到电脑上（`device_hello`，ADR-021）：这一次不许只报「没变」，逼电脑下次整份重报，直到收到整份。
+    if credentials.full_report_due(context.credential_id,
+                                   full_report=not plan.offline and body.get('account_sets') is not None):
+        reply.pop('account_sets_unchanged_ok')
     # 我们最新发布的小助手版本：小助手比它旧就提示并更新，不再自己定时去查（`release.py`，2026-10-09）。
     latest = release.latest()
     if latest:

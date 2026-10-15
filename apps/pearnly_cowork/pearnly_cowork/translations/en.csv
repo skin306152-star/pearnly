@@ -103,6 +103,7 @@ Allowed Users,Allowed Users
 Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
 Already recorded:,Already recorded:
+Always On,Always On
 Amount,Amount
 Amount Tolerance,Amount Tolerance
 Amount not read,Amount not read
@@ -380,6 +381,8 @@ Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
 Completion Evidence,Completion Evidence
+Computer,Computer
+Computer Name,Computer Name
 Condition,Condition
 Condition code not allowed,Condition code not allowed
 Confirmation Request,Confirmation Request
@@ -432,6 +435,7 @@ Cover File,Cover File
 Cowork,Cowork
 Cowork Bank Evidence,Cowork Bank Evidence
 Cowork CC Desktop Delivery,Cowork CC Desktop Delivery
+Cowork CC Desktop Device,Cowork CC Desktop Device
 Cowork CC Desktop Request,Cowork CC Desktop Request
 Cowork Client,Cowork Client
 Cowork Companion Delivery,Cowork CC Desktop Delivery
@@ -556,6 +560,7 @@ Deposit receipts need a person to decide how to post them in Express,Deposit rec
 Description,Description
 Detail,Detail
 Details,Details
+Device Key Digest,Device Key Digest
 Diff,Diff
 Difference,Difference
 Difference Amount,Difference Amount
@@ -741,6 +746,7 @@ Formula Diff,Formula Diff
 Formula Statement Closing,Formula Statement Closing
 Found {0} · new {1} · skipped {2} · upload failed {3},Found {0} · new {1} · skipped {2} · upload failed {3}
 Found {0}. Tap the number to choose:,Found {0}. Tap the number to choose:
+Full Report Due,Full Report Due
 GL Account Code,GL Account Code
 GL Amount,GL Amount
 GL Balance,GL Balance
@@ -783,6 +789,7 @@ History Records,History Records
 History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
+Host Names,Host Names
 How to put documents in the folders,How to put documents in the folders
 IN,IN
 "If you have the electronic statement, upload it instead","If you have the electronic statement, upload it instead"
@@ -807,6 +814,7 @@ Income account,Income account
 Income type not chosen,Income type not chosen
 Income type not on this form,Income type not on this form
 Income type to choose,Income type to choose
+Index Rebuild Pending,Index Rebuild Pending
 Initial Password,Initial Password
 Input tax report,Input tax report
 Input tax this month,Input tax this month
@@ -962,6 +970,7 @@ Matched Count,Matched Count
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger","Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
 Matches,Matches
 Matching and saving,Matching and saving
+Max Payload Version,Max Payload Version
 Member,Member
 Member management,Member management
 Members,Members
@@ -1293,6 +1302,7 @@ Refresh the account directory before continuing.,Refresh the account directory b
 Refreshed account sets,Refreshed account sets
 Refreshing account sets,Refreshing account sets
 Registered At,Registered At
+Registered By,Registered By
 Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
 Relative Path,Relative Path
 Reload,Reload
@@ -1342,6 +1352,8 @@ Result SHA-256,Result SHA-256
 Result Unknown,Result Unknown
 Result in the ERP,Result in the ERP
 Results: {0},Results: {0}
+Retired At (UTC),Retired At (UTC)
+Retired By,Retired By
 Return Form,Return Form
 Return Type,Return Type
 Review,Review
@@ -1467,6 +1479,7 @@ Show,Show
 Show details,Show details
 Show on Card,Show on Card
 Show on card,Show on card
+Signed-in User,Signed-in User
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)

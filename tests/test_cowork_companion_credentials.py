@@ -118,11 +118,11 @@ class CredentialContracts(unittest.TestCase):
             self.assertEqual(fields[field]['unique'], 1)
         self.assertFalse(schema.get('track_changes'))
         self.assertFalse(any(f['fieldtype'] == 'Password' for f in fields.values()))
-        # 报到时间（2026-10-07 起在密钥行上）不是身份：不唯一、不进 _IDENTITY
+        # 报到时间（2026-10-07 起在密钥行上）、所属电脑与「整份重报」（ADR-021）都不是身份：不唯一、不进 _IDENTITY
         identity = ast.literal_eval(next(
             node.value for node in ast.parse((DOMAIN / 'documents.py').read_text()).body
             if isinstance(node, ast.Assign) and getattr(node.targets[0], 'id', '') == '_IDENTITY'))
-        for field in ('last_seen_at', 'last_seen_generation'):
+        for field in ('last_seen_at', 'last_seen_generation', 'device', 'full_report_due'):
             self.assertFalse(fields[field].get('unique'), field)
             self.assertNotIn(field, identity)
 

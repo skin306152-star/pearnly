@@ -414,6 +414,19 @@ Issued At (UTC)	签发时间（UTC）	เวลาออก (UTC)	発行日時 (
 Revoked At (UTC)	撤销时间（UTC）	เวลายกเลิก (UTC)	失効日時 (UTC)	Revoked At (UTC)
 Revoked By	撤销人	ผู้ยกเลิก	失効者	Revoked By
 Revocation Reason	撤销原因	เหตุผลที่ยกเลิก	失効理由	Revocation Reason
+Cowork CC Desktop Device	Cowork CC 桌面版电脑	คอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップのコンピューター
+Registered By	登记人	ผู้ลงทะเบียน	登録者
+Signed-in User	当前登录账号	ผู้ใช้ที่ลงชื่อเข้าใช้อยู่	サインイン中のユーザー
+Computer Name	电脑名称	ชื่อคอมพิวเตอร์	コンピューター名
+Device Key Digest	设备密钥摘要	แฮชคีย์อุปกรณ์	デバイスキーのダイジェスト
+Always On	常驻	เปิดตลอดเวลา	常時稼働
+Max Payload Version	最高载荷版本	เวอร์ชันข้อมูลงานสูงสุด	最大ペイロードバージョン
+Host Names	主机名	ชื่อโฮสต์	ホスト名
+Index Rebuild Pending	索引待重建	รอสร้างดัชนีใหม่	インデックス再構築待ち
+Retired At (UTC)	移除时间（UTC）	เวลานำออก (UTC)	削除日時 (UTC)
+Retired By	移除人	ผู้นำออก	削除者
+Computer	电脑	คอมพิวเตอร์	コンピューター
+Full Report Due	待整份上报	รอรายงานฉบับเต็ม	全件報告待ち
 Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.
 The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
 This request key was used for another credential operation.	此请求标识已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict

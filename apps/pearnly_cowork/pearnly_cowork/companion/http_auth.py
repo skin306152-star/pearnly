@@ -31,9 +31,15 @@ FOLDER_METHODS = {'folder_sync': 'pearnly_cowork.folder_intake.machine.sync',
 # 电脑领一件、交结果。又一张表，同一套信封与配对码身份；上面两张表逐字不变。
 REQUEST_METHODS = {'request_next': 'pearnly_cowork.companion.request_api.next_request',
                    'request_complete': 'pearnly_cowork.companion.request_api.complete_request'}
-MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS}
+# CC 桌面版认电脑（companion/device_api.py，ADR-021 多台电脑）：把已认证的密钥挂到电脑上、电脑自己断开。第四张表，
+# 同一套信封与配对码身份；MR.ERP 的只读文件夹密钥也放行。上面三张表逐字不变。
+DEVICE_METHODS = {'device_hello': 'pearnly_cowork.companion.device_api.hello',
+                  'device_leave': 'pearnly_cowork.companion.device_api.leave'}
+MACHINE_METHODS = {**METHODS, **FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}
 MACHINE_PATHS = {operation: '/api/method/' + method for operation, method in MACHINE_METHODS.items()}
-if (len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) + len(REQUEST_METHODS)
+# MR.ERP 的只读文件夹密钥能调的：文件夹、按需请求、认电脑（心跳 / 领任务 / 回执不行）。
+FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}
+if (len(MACHINE_METHODS) != len(METHODS) + len(FOLDER_METHODS) + len(REQUEST_METHODS) + len(DEVICE_METHODS)
         or len(set(MACHINE_PATHS.values())) != len(MACHINE_PATHS)):
     raise RuntimeError('companion machine methods must not overlap')
 _AUTHORITY = object()
@@ -282,9 +288,9 @@ def _authenticate_request(request):
             # An unexpected authentication failure is visible as retryable 503,
             # with a fixed/type-only diagnostic. Never log original token frames.
             raise_busy(error, stage='authenticate')
-    # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法与按需请求（只会领到文件夹的那几种，
-    # `request_service.lease_next` 按连接的 ERP 筛），心跳 / 领任务 / 回执拒绝（403）。
-    if operation not in FOLDER_METHODS and operation not in REQUEST_METHODS and frappe.db.get_value(
+    # MR.ERP 的小助手只读文件夹：它的配对码只能调用文件夹的机器方法、按需请求（只会领到文件夹的那几种，
+    # `request_service.lease_next` 按连接的 ERP 筛）与认电脑，心跳 / 领任务 / 回执拒绝（403）。
+    if operation not in FOLDER_ONLY_ALLOWED and frappe.db.get_value(
             'Cowork ERP Connection', context.connection, 'adapter') in credentials.FOLDER_ONLY_ADAPTERS:
         _deny_permission()
     body = deepcopy(payload)

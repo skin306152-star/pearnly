@@ -65,8 +65,12 @@ jobs:
         run: python3 tests/test_cowork_any_set_catalog.py
       - name: Verify read-only connection views take no row locks and write paths still lock
         run: python3 tests/test_cowork_connection_read_locks.py
-      - name: Verify the companion machine envelope and its method tables (push, folder, on-demand requests)
+      - name: Verify the companion machine envelope and its method tables (push, folder, on-demand requests, computers)
         run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_companion_http_auth.py
+      - name: Verify CC Desktop credential values (token shape, both active-key formulas, receipts, retired management RPCs)
+        run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_companion_credentials.py
+      - name: Verify several computers per connection (register v2, digest authentication, device hello and leave, old-computer patch)
+        run: python3 tests/test_cowork_cc_desktop_devices.py
       - name: Verify on-demand requests to CC Desktop and fetching files from authorised folders
         run: python3 tests/test_cowork_companion_requests.py
       - name: Verify the Express readback (openings, ledger, VAT records, changes against pushes, keep only the latest)

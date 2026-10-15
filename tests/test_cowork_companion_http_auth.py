@@ -15,7 +15,7 @@ SOURCE = Path(__file__).resolve().parents[1] / 'apps/pearnly_cowork/pearnly_cowo
 
 def pure_contract():
     tree = ast.parse(SOURCE.read_text())
-    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'MACHINE_METHODS',
+    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', 'FOLDER_METHODS', 'REQUEST_METHODS', 'DEVICE_METHODS', 'MACHINE_METHODS', 'FOLDER_ONLY_ALLOWED',
              'MACHINE_PATHS', '_HEADER'}
     selected = [node for node in tree.body if
         isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in
@@ -125,13 +125,17 @@ class FolderMachineMethods(unittest.TestCase):
 
     def test_tables(self):
         methods, folder = self.contract['METHODS'], self.contract['FOLDER_METHODS']
-        requests = self.contract['REQUEST_METHODS']
+        requests, devices = self.contract['REQUEST_METHODS'], self.contract['DEVICE_METHODS']
         self.assertEqual(set(methods), {'heartbeat', 'lease', 'ack'})
-        self.assertFalse(set(methods) & set(folder))
-        self.assertFalse((set(methods) | set(folder)) & set(requests))
-        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests})
+        tables = (methods, folder, requests, devices)
+        # 四张表的操作名与方法互不重叠（ADR-021 加了认电脑那张）
+        for index, table in enumerate(tables):
+            for other in tables[index + 1:]:
+                self.assertFalse(set(table) & set(other))
+                self.assertFalse(set(table.values()) & set(other.values()))
+        self.assertEqual(self.contract['MACHINE_METHODS'], {**methods, **folder, **requests, **devices})
         self.assertEqual(set(self.contract['PATHS'].values()) & {'/api/method/' + m for m in folder.values()}, set())
-        self.assertEqual(len(set(self.contract['MACHINE_PATHS'].values())), len(methods) + len(folder) + len(requests))
+        self.assertEqual(len(set(self.contract['MACHINE_PATHS'].values())), sum(len(table) for table in tables))
 
     def test_folder_paths_use_the_same_envelope(self):
         for method in self.contract['FOLDER_METHODS'].values():
@@ -175,6 +179,36 @@ class OnDemandRequestMethods(unittest.TestCase):
                     self.contract['_envelope'](**{**base, **bad})
 
 
+class DeviceMachineMethods(unittest.TestCase):
+    """CC 桌面版认电脑的两条机器方法（ADR-021）：第四张表，同一套信封与配对码身份。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = pure_contract()
+
+    def test_the_table_names_the_two_device_api_methods(self):
+        self.assertEqual(self.contract['DEVICE_METHODS'], {
+            'device_hello': 'pearnly_cowork.companion.device_api.hello',
+            'device_leave': 'pearnly_cowork.companion.device_api.leave'})
+        api = (SOURCE.parent / 'device_api.py').read_text()
+        for method in self.contract['DEVICE_METHODS'].values():
+            function = method.rsplit('.', 1)[1]
+            self.assertRegex(api, r"@frappe\.whitelist\(methods=\['POST'\]\)\ndef %s\(\*\*ignored\):" % function)
+
+    def test_device_paths_use_the_same_envelope(self):
+        for method in self.contract['DEVICE_METHODS'].values():
+            path = '/api/method/' + method
+            self.assertTrue(self.contract['_machine_candidate'](path, ''))
+            base = dict(path=path, method='POST', header='Bearer exp_CWEC-synthetic_Ab-c_d', cookies={}, query={},
+                        form={}, payload={'device_key': 'k' * 43, 'name': 'PC', 'always_on': False,
+                                          'host_names': ['PC', '192.168.0.78']}, session_user='Guest')
+            self.assertEqual(self.contract['_envelope'](**base), 'exp_CWEC-synthetic_Ab-c_d')
+            for bad in ({'method': 'GET'}, {'session_user': 'someone@example.com'}, {'cookies': {'sid': 'x'}},
+                        {'payload': []}, {'payload': {'cmd': 'x'}}, {'header': ''}, {'path': path + '/'}):
+                with self.assertRaises(self.contract['RequestContractError']):
+                    self.contract['_envelope'](**{**base, **bad})
+
+
 class FolderOnlyKeys(unittest.TestCase):
     """MR.ERP 的小助手配对码只读文件夹（2026-10-09）：鉴权后、绑定身份前，非文件夹方法一律 403。"""
 
@@ -183,8 +217,12 @@ class FolderOnlyKeys(unittest.TestCase):
         body = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == '_authenticate_request')
         text = ast.unparse(body)
         guard = text.index('credentials.FOLDER_ONLY_ADAPTERS')
-        self.assertIn('if operation not in FOLDER_METHODS and operation not in REQUEST_METHODS and',
-                      text[text.rindex('if', 0, guard) - 4:guard])
+        self.assertIn('if operation not in FOLDER_ONLY_ALLOWED and', text[text.rindex('if', 0, guard) - 4:guard])
+        contract = pure_contract()
+        # 只读文件夹的密钥能调：文件夹、按需请求、认电脑（ADR-021 加上，同一台电脑的两个成员才能合成一台）
+        self.assertEqual(contract['FOLDER_ONLY_ALLOWED'], {**contract['FOLDER_METHODS'], **contract['REQUEST_METHODS'],
+                                                           **contract['DEVICE_METHODS']})
+        self.assertFalse(set(contract['FOLDER_ONLY_ALLOWED']) & set(contract['METHODS']))
         self.assertLess(text.index('credentials.authenticate(token)'), guard)
         self.assertLess(guard, text.index('frappe.set_user(context.issuer)'))
         self.assertIn('_deny_permission()', text[guard:text.index('frappe.set_user(context.issuer)')])

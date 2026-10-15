@@ -100,6 +100,33 @@ class PairingCode(unittest.TestCase):
         self.assertIsNotNone(re.fullmatch(header.group(1), "Bearer exp_CWEC-1_s"))
 
 
+class DeviceMethods(unittest.TestCase):
+    """认电脑的两条机器方法（ADR-021，多台电脑第 1 批只到服务端）：表与另外三张不重叠、都是只收 POST 的白名单方法，
+    MR.ERP 的只读文件夹密钥也放行。CC 桌面版调用它们（以及 401 / 403 / 404 当旧服务端）在第 5 批补进本类。"""
+
+    def test_the_server_table_is_whitelisted_post_and_apart_from_the_other_three(self):
+        server = module_constants(SERVER / "http_auth.py")
+        devices = server["DEVICE_METHODS"]
+        self.assertEqual(set(devices), {"device_hello", "device_leave"})
+        others = {**server["METHODS"], **server["FOLDER_METHODS"], **server["REQUEST_METHODS"]}
+        self.assertFalse(set(devices) & set(others))
+        self.assertFalse(set(devices.values()) & set(others.values()))
+        self.assertEqual(server["MACHINE_METHODS"], {**others, **devices})
+        for method in devices.values():
+            module, function = method.rsplit(".", 1)
+            self.assertTrue(whitelisted_post(ROOT / "apps" / "pearnly_cowork" / Path(*module.split(".")).with_suffix(".py"),
+                                             function), method)
+
+    def test_register_takes_the_device_key_and_the_management_rpcs_are_gone(self):
+        api = (SERVER / "api.py").read_text(encoding="utf-8")
+        register = next(node for node in ast.parse(api).body if isinstance(node, ast.FunctionDef) and node.name == "register")
+        self.assertEqual([arg.arg for arg in register.args.args],
+                         ["request_key", "express", "replace", "expected_generation", "device_key", "device_name", "rekey"])
+        for retired in ("issue", "revoke", "status"):
+            self.assertFalse(any(isinstance(node, ast.FunctionDef) and node.name == retired
+                                 for node in ast.parse(api).body), retired)
+
+
 class Downloads(unittest.TestCase):
     def test_update_check_nginx_receiver_and_web_default_agree(self):
         updater = module_constants(COMPANION / "updater.py")
@@ -313,7 +340,8 @@ class OnDemandRequests(unittest.TestCase):
 
     def test_folder_only_keys_may_take_requests_and_the_server_filters_by_erp(self):
         auth = (SERVER / "http_auth.py").read_text(encoding="utf-8")
-        self.assertIn("if operation not in FOLDER_METHODS and operation not in REQUEST_METHODS and", auth)
+        self.assertIn("if operation not in FOLDER_ONLY_ALLOWED and", auth)
+        self.assertIn("FOLDER_ONLY_ALLOWED = {**FOLDER_METHODS, **REQUEST_METHODS, **DEVICE_METHODS}", auth)
         server = number_constants(SERVER / "request_contracts.py", ("ADAPTER_KINDS", "FOLDER_KINDS", "KINDS"))
         self.assertEqual(server["ADAPTER_KINDS"], {"express": server["KINDS"], "mrerp": server["FOLDER_KINDS"]})
         self.assertNotIn("express_read", server["FOLDER_KINDS"])

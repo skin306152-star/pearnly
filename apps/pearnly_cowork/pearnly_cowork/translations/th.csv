@@ -103,6 +103,7 @@ Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Allowed root folder on the PC,โฟลเดอร์หลักที่อนุญาต
 Already exists,มีอยู่แล้ว
 Already recorded:,บันทึกไว้แล้ว:
+Always On,เปิดตลอดเวลา
 Amount,จำนวนเงิน
 Amount Tolerance,ค่าผลต่างยอมรับได้
 Amount not read,อ่านจำนวนเงินไม่ได้
@@ -380,6 +381,8 @@ Completed At,เวลาที่เสร็จสิ้น
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
 Completed By,ผู้ทำรายการเสร็จสิ้น
 Completion Evidence,หลักฐานการเสร็จสิ้น
+Computer,คอมพิวเตอร์
+Computer Name,ชื่อคอมพิวเตอร์
 Condition,เงื่อนไข
 Condition code not allowed,เงื่อนไขไม่ถูกต้อง
 Confirmation Request,คำขอยืนยัน
@@ -432,6 +435,7 @@ Cover File,ไฟล์ปก
 Cowork,Cowork
 Cowork Bank Evidence,หลักฐานธนาคารของ Cowork
 Cowork CC Desktop Delivery,Cowork บันทึกการรับงานของ CC เดสก์ท็อป
+Cowork CC Desktop Device,คอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปของ Cowork
 Cowork CC Desktop Request,คำขอถึง CC เดสก์ท็อปของ Cowork
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork Companion Delivery,Cowork บันทึกการรับงานของ CC เดสก์ท็อป
@@ -556,6 +560,7 @@ Deposit receipts need a person to decide how to post them in Express,ใบร�
 Description,คำอธิบาย
 Detail,รายละเอียด
 Details,รายละเอียด
+Device Key Digest,แฮชคีย์อุปกรณ์
 Diff,ผลต่าง
 Difference,มีผลต่าง
 Difference Amount,จำนวนเงินผลต่าง
@@ -741,6 +746,7 @@ Formula Diff,ผลต่างตามสูตร
 Formula Statement Closing,ยอดปลายงวดรายการเดินบัญชีตามสูตร
 Found {0} · new {1} · skipped {2} · upload failed {3},พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}
 Found {0}. Tap the number to choose:,พบ {0} ชุดบัญชี กรุณาแตะหมายเลขเพื่อเลือก:
+Full Report Due,รอรายงานฉบับเต็ม
 GL Account Code,รหัสบัญชี GL
 GL Amount,ยอดเงิน GL
 GL Balance,ยอดคงเหลือ GL
@@ -783,6 +789,7 @@ History Records,บันทึกการอ่านเอกสาร
 History Version,เวอร์ชันประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับการพยายามที่ถือล็อก
+Host Names,ชื่อโฮสต์
 How to put documents in the folders,วิธีวางเอกสารในโฟลเดอร์
 IN,เงินเข้า
 "If you have the electronic statement, upload it instead",หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
@@ -807,6 +814,7 @@ Income account,บัญชีรายได้
 Income type not chosen,ยังไม่ระบุประเภทเงินได้
 Income type not on this form,ประเภทเงินได้ไม่อยู่ในแบบนี้
 Income type to choose,ประเภทเงินได้ที่ต้องระบุ
+Index Rebuild Pending,รอสร้างดัชนีใหม่
 Initial Password,รหัสผ่านเริ่มต้น
 Input tax report,รายงานภาษีซื้อ
 Input tax this month,ภาษีซื้อเดือนนี้ (ตามหลักฐานใบกำกับภาษีของยอดซื้อตาม 6.)
@@ -962,6 +970,7 @@ Matched Count,จำนวนที่จับคู่แล้ว
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกในบัญชีแยกประเภท
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
+Max Payload Version,เวอร์ชันข้อมูลงานสูงสุด
 Member,สมาชิก
 Member management,สิทธิ์จัดการสมาชิก
 Members,สมาชิก
@@ -1293,6 +1302,7 @@ Refresh the account directory before continuing.,กรุณารีเฟร�
 Refreshed account sets,รีเฟรชชุดบัญชีแล้ว
 Refreshing account sets,กำลังรีเฟรชชุดบัญชี
 Registered At,เวลาที่ลงทะเบียน
+Registered By,ผู้ลงทะเบียน
 Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 Relative Path,พาธสัมพัทธ์
 Reload,โหลดใหม่
@@ -1342,6 +1352,8 @@ Result SHA-256,SHA-256 ของผลลัพธ์
 Result Unknown,ไม่ทราบผลลัพธ์
 Result in the ERP,ผลใน ERP
 Results: {0},ผลลัพธ์: {0}
+Retired At (UTC),เวลานำออก (UTC)
+Retired By,ผู้นำออก
 Return Form,แบบที่ยื่น
 Return Type,ประเภทแบบ
 Review,ตรวจทาน
@@ -1467,6 +1479,7 @@ Show,แสดง
 Show details,แสดงรายละเอียด
 Show on Card,แสดงบนการ์ด
 Show on card,แสดงบนการ์ด
+Signed-in User,ผู้ใช้ที่ลงชื่อเข้าใช้อยู่
 Site,ไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)

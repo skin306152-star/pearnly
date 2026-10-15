@@ -11,6 +11,7 @@ REVOCATION_RESERVE_BYTES = 1024
 _CONNECTION = re.compile(r'^[A-Za-z0-9.-]{1,140}$')
 _SECRET = re.compile(r'^[A-Za-z0-9_-]{1,128}$')
 _DIGEST = re.compile(r'^[0-9a-f]{64}$')
+_DEVICE_KEY = re.compile(r'^[A-Za-z0-9_-]{32,128}$')
 
 
 class CredentialError(ValueError):
@@ -67,8 +68,43 @@ def revoke_intent(expected_generation, reason):
             'reason': text(reason, maximum=240, optional=True)}
 
 
-def active_identity(site, connection):
-    return fingerprint([text(site), text(connection)])
+def active_identity(site, connection, device=None):
+    """The unique "this key is current" value.
+
+    Without a device it is the original per-connection slot: keys issued before CC Desktop knew about computers keep
+    it forever, even after their computer is recorded (ADR-021), so a server rollback still recognises them. Keys
+    issued by register v2 are per computer: at most one current key per (connection, device), several per connection.
+    """
+    if device in (None, ''):
+        return fingerprint([text(site), text(connection)])
+    return fingerprint([text(site), text(connection), text(device)])
+
+
+def active_matches(stored, site, connection, device=None):
+    """Recompute ``stored`` with the row's own formula: the original slot, or this row's device slot."""
+    if not isinstance(stored, str) or not _DIGEST.fullmatch(stored):
+        return False
+    candidates = [active_identity(site, connection)]
+    if device:
+        candidates.append(active_identity(site, connection, device))
+    return any(hmac.compare_digest(stored, value) for value in candidates)
+
+
+def device_key(value):
+    """The computer's own random key (CC Desktop keeps it under Windows DPAPI). Only its salted digest is stored."""
+    if not isinstance(value, str) or not _DEVICE_KEY.fullmatch(value):
+        raise CredentialError('companion.request_invalid')
+    return value
+
+
+def device_digest(site, value):
+    return fingerprint(['cc-desktop-device', text(site), device_key(value)])
+
+
+def device_issue_intent(device, rekey):
+    if type(rekey) is not bool:
+        raise CredentialError('companion.request_invalid')
+    return {'operation': 'issue', 'device': text(device), 'rekey': rekey}
 
 
 def generation_identity(site, connection, value):

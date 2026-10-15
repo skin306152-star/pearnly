@@ -1,0 +1,145 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork CC Desktop Device",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-15 00:00:00.000000",
+ "modified": "2026-10-15 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "label",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "workspace",
+  "device_owner",
+  "signed_in_user",
+  "label",
+  "secret_digest",
+  "always_on",
+  "companion_version",
+  "max_payload_version",
+  "host_names",
+  "index_pending",
+  "retired_at",
+  "retired_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "device_owner",
+   "label": "Registered By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "signed_in_user",
+   "label": "Signed-in User",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "label",
+   "label": "Computer Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "secret_digest",
+   "label": "Device Key Digest",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 64,
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "always_on",
+   "label": "Always On",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "companion_version",
+   "label": "CC Desktop Version",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "max_payload_version",
+   "label": "Max Payload Version",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "host_names",
+   "label": "Host Names",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "index_pending",
+   "label": "Index Rebuild Pending",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "retired_at",
+   "label": "Retired At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "retired_by",
+   "label": "Retired By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "User"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}
