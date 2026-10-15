@@ -16,6 +16,11 @@ REPORTED_KEYS = frozenset(("reported_accounts", "reported_products", "reported_c
     "reported_suppliers", "reported_departments",
     "reported_stock_acc_groups", "catalog_fingerprint", "max_payload_version", "companion_version"))
 SECRET_FIELDS = ("credential_username", "credential_password", "credential_token")
+# 池里没有连接级的默认账套（ADR-021，方案 2.3 第 7 条）：旧心跳写进 Express 连接配置的所选账套与 6 个科目映射属于当时
+# 上报的那台电脑，多台电脑时说不清是谁的。读配置的地方一律不再把它们当默认（选目标、冻结、推送准备都按池目录核），
+# 数据原样留着、不升连接版本（不作废任何排队的单）。MR.ERP 不受影响。
+EXPRESS_DEFAULT_KEYS = frozenset(("account_set", "account_dir", "express_root", "account_company", "account_set_row",
+                                  "revenue_acc", "ar_acc", "vat_output_acc", "fallback_acc", "ap_acc", "vat_input_acc"))
 
 
 class ConnectionError(ValueError):
@@ -81,6 +86,14 @@ def configuration(adapter, value):
     if result.get("system_url"):
         validate_url(result["system_url"])
     return result
+
+
+def pool_config(adapter, config):
+    """读到的连接配置去掉 Express 连接级默认账套（:data:`EXPRESS_DEFAULT_KEYS`）；别的键、MR.ERP 原样。"""
+    config = parse(config, {}) or {}
+    if adapter != "express":
+        return config
+    return {key: value for key, value in config.items() if key not in EXPRESS_DEFAULT_KEYS}
 
 
 def validate_url(value):

@@ -1,112 +1,123 @@
-"""心跳不再每分钟重写整份上报记录（2026-10-07）。
+"""心跳不再每分钟重写整份上报记录（2026-10-07），多台电脑后更不写连接配置（ADR-021 第 2 批）。
 
-小助手每分钟报到一次；以前每次都把连接这一行（含几百 KB 的上报记录）整行写回，全量进数据库日志。
-现在报到时间只记在密钥行，连接这一行只在上报内容、配置或上报凭据变了时才写。在 bench 的 Python 下运行（不连库）。
+小助手每分钟报到一次；以前每次都把连接这一行（含几百 KB 的上报记录）整行写回，全量进数据库日志。报到时间只记在密钥行。
+第 2 批起账套名单进可达行、主档进账套资料，连接的上报记录只剩当前上报那把密钥的绑定、版本与被拦的更新：内容没变、
+上报的密钥没变就不写连接这一行；名单、主档变了也只写它们自己的行。不连库、不依赖 Frappe（`cowork_pool_fake`）。
 """
 import json
+import pathlib
 import sys
 import unittest
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest import mock
+from datetime import datetime, timedelta, timezone
 
-root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(root / "apps" / "pearnly_cowork"))
-sys.path.insert(0, str(root / "apps" / "pearnly_core"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import cowork_pool_fake as fake  # noqa: E402
 
-import frappe  # noqa: E402
+fake.install()
 
-from pearnly_cowork.connections import collector, model, snapshots  # noqa: E402
-from pearnly_cowork.targets.projection import normalize_projection  # noqa: E402
+from pearnly_cowork.connections import access, collector, model, pool, snapshots, state  # noqa: E402
 from pearnly_cowork.connections.reports import plan_report  # noqa: E402
+from pearnly_cowork.targets.projection import normalize_projection  # noqa: E402
 
 BOOK = r"C:\EXP\BOOK"
 SETS = [{"code": "BOOK", "path": BOOK, "root": r"C:\EXP", "writable": True}]
+NOW = datetime(2026, 10, 7, 4, 0)
 
 
-def heartbeat(minute, **extra):
-    body = {"account_set": BOOK, "account_sets": SETS, "accounts": [{"code": "1100"}], **extra}
-    return plan_report(body, {}, datetime(2026, 10, 7, 4, minute, tzinfo=timezone.utc))
+def heartbeat(**extra):
+    return {"account_set": BOOK, "account_sets": SETS, "accounts": [{"code": "1100"}], "companion_version": "1.5.1",
+            **extra}
 
 
 class ReportWrites(unittest.TestCase):
     def setUp(self):
-        self.doc = frappe._dict(name="CONN", adapter="express", enabled=1, binding_generation=0, record_revision=1,
-                                config_json=model.dumps({"account_set": BOOK, "express_root": r"C:\EXP"}),
-                                projection_heads="{}", report_credential="CRED", report_generation=2,
-                                report_json=model.dumps({"agent_last_seen_at": "2026-10-07T03:59:00+00:00",
-                                                         "account_sets_seen_at": "2026-10-07T03:59:00+00:00"}))
+        fake.DB.clear()
+        self.doc = fake.Doc(doctype="Cowork ERP Connection", name="CONN", workspace="W", client="", adapter="express",
+                            enabled=1, binding_generation=0, record_revision=1, projection_heads="{}",
+                            config_json=model.dumps({"account_set": BOOK, "express_root": r"C:\EXP"}),
+                            report_credential="CRED", report_generation=1,
+                            report_json=model.dumps({"agent_last_seen_at": "2026-10-07T03:59:00+00:00",
+                                                     "reported_account_sets": SETS,
+                                                     "account_sets_seen_at": "2026-10-07T03:59:00+00:00"}))
+        fake.DB.docs["Cowork ERP Connection"] = {"CONN": self.doc}
         self.writes = []
-        patches = [mock.patch.object(collector.access, "write", side_effect=lambda doc: self.writes.append(doc.report_json)),
-                   mock.patch.object(collector, "refresh"),
-                   mock.patch.object(collector.snapshots, "publish", return_value={"revision": 1}),
-                   mock.patch.object(collector.model, "configuration", side_effect=lambda adapter, config: config)]
-        for patcher in patches:
-            patcher.start()
-            self.addCleanup(patcher.stop)
-        collector.refresh.validate_completion.return_value = None
-        collector.refresh.lease.return_value = None
+        original = access.write
 
-    def ingest(self, plan, credential="CRED", generation=2):
-        return collector.ingest(self.doc, plan, credential_id=credential, token_generation=generation, issuer="ISSUER")
+        def write(doc):
+            # 只数上报记录这一列的写入（目录指针 `projection_heads` 变了另写，见下面 SnapshotHeads）
+            if doc.get("doctype") == "Cowork ERP Connection" and doc.report_json != self.last:
+                self.writes.append(doc.report_json)
+                self.last = doc.report_json
+            return original(doc)
+
+        self.last = self.doc.report_json
+
+        access.write = write
+        self.addCleanup(setattr, access, "write", original)
+        self.pc = fake.Computer(self.doc, "PC")
+
+    def report(self, body, minute=0, **kwargs):
+        return self.pc.report(body, NOW + timedelta(minutes=minute), **kwargs)
 
     def test_unchanged_reports_do_not_rewrite_the_connection(self):
-        self.ingest(heartbeat(0))
-        self.assertEqual(len(self.writes), 1)  # 升级后第一拍：去掉旧时间戳，写一次
+        self.report(heartbeat())
+        self.assertEqual(len(self.writes), 1)  # 升级后第一拍：去掉旧时间戳与旧名单，写一次
         stored = json.loads(self.doc.report_json)
-        for key in collector.VOLATILE_KEYS:
-            self.assertNotIn(key, stored)
-        self.assertEqual(stored["reported_account_sets"][0]["path"], BOOK)
+        self.assertEqual(set(stored), {"_preparation_binding", "companion_version"})
         for minute in range(1, 6):
-            self.ingest(heartbeat(minute))
+            self.report(heartbeat(), minute)
         self.assertEqual(len(self.writes), 1)  # 之后每分钟内容相同：一行都不写
 
-    def test_changed_content_or_credential_writes_once(self):
-        self.ingest(heartbeat(0))
-        self.ingest(heartbeat(1, accounts=[{"code": "1100"}, {"code": "2100"}]))
+    def test_changed_masters_go_to_the_account_sets_facts_not_the_connection(self):
+        self.report(heartbeat())
+        self.report(heartbeat(accounts=[{"code": "1100"}, {"code": "2100"}]), 1)
+        self.assertEqual(len(self.writes), 1)
+        self.assertEqual(len(pool.facts("CONN", BOOK)["reported_accounts"]), 2)
+        # 换了上报的密钥（同一台电脑重新配对）：连接这一行写一次
+        self.pc.credential, self.pc.generation = "CRED-NEW", 3
+        self.report(heartbeat(), 2)
         self.assertEqual(len(self.writes), 2)
-        self.assertEqual(len(json.loads(self.doc.report_json)["reported_accounts"]), 2)
-        self.ingest(heartbeat(2, accounts=[{"code": "1100"}, {"code": "2100"}]), credential="CRED-NEW", generation=3)
-        self.assertEqual(len(self.writes), 3)
         self.assertEqual((self.doc.report_credential, self.doc.report_generation), ("CRED-NEW", 3))
 
+    def test_heartbeats_never_rewrite_the_configuration(self):
+        before = (self.doc.config_json, self.doc.record_revision)
+        self.report(heartbeat(account_set=r"C:\EXP\OTHER", mapping={"revenue_acc": "4999"}))
+        self.assertEqual((self.doc.config_json, self.doc.record_revision), before)
+        self.assertEqual(self.pc.state["revenue_acc"], "4999")  # 记在这台电脑上（服务端在电脑行，`devices.record_report`）
+
     def test_an_unchanged_heartbeat_keeps_the_catalog_and_writes_nothing(self):
-        """心跳瘦身（2026-10-08）：小助手只报「账套名单没变」时，上报记录里的名单、科目表原样保留，
-        不发目录观测（网页上的账套目录不变），连接这一行也不写。"""
-        self.ingest(heartbeat(0))
-        published = collector.snapshots.publish.call_count
-        slim = plan_report({"account_set": BOOK, "account_sets_unchanged": True}, {},
-                           datetime(2026, 10, 7, 4, 1, tzinfo=timezone.utc))
-        self.assertEqual(slim.observations, [])
+        """心跳瘦身（2026-10-08）：小助手只报「账套名单没变」时，可达行与目录原样保留，不发目录观测，连接这一行也不写。"""
+        self.report(heartbeat())
+        published = len(fake.DB.rows("Cowork ERP Snapshot"))
+        slim = plan_report({"account_set": BOOK, "account_sets_unchanged": True}, {}, NOW.replace(tzinfo=timezone.utc))
+        self.assertEqual((slim.observations, slim.account_sets), ([], None))
         for minute in range(1, 4):
-            self.ingest(slim)
-        stored = json.loads(self.doc.report_json)
-        self.assertEqual(stored["reported_account_sets"][0]["path"], BOOK)
-        self.assertEqual([row["code"] for row in stored["reported_accounts"]], ["1100"])
+            self.report({"account_set": BOOK, "account_sets_unchanged": True, "companion_version": "1.5.1"}, minute)
+        self.assertEqual(list(pool.local_paths("CONN", "PC")), [BOOK.lower()])
         self.assertEqual(len(self.writes), 1)
-        self.assertEqual(collector.snapshots.publish.call_count, published)
+        self.assertEqual(len(fake.DB.rows("Cowork ERP Snapshot")), published)
 
     def test_going_offline_is_recorded_once(self):
-        self.ingest(heartbeat(0))
-        offline = plan_report({"offline": True}, {}, datetime(2026, 10, 7, 4, 1, tzinfo=timezone.utc))
-        self.ingest(offline)
-        self.ingest(offline)
+        self.report(heartbeat())
+        self.report({"offline": True}, 1)
+        self.report({"offline": True}, 2)
         self.assertEqual(len(self.writes), 2)
         self.assertFalse(json.loads(self.doc.report_json)["_preparation_binding"]["online"])
 
 
-
 class SnapshotHeads(unittest.TestCase):
     def test_the_same_catalog_does_not_rewrite_the_connection(self):
-        normalized = normalize_projection(heartbeat(0).observations[0])
-        doc = frappe._dict(name="CONN", adapter="express", record_revision=1, binding_generation=0,
-                           workspace="W", client="", projection_heads="{}")
-        current = frappe._dict(name="SNAP", connection="CONN", connection_revision=1, projection_revision=4,
-                               content_hash=model.fingerprint([normalized.source_hash, model.preparation(None)]))
+        plan = plan_report(heartbeat(), {}, NOW.replace(tzinfo=timezone.utc))
+        normalized = normalize_projection(plan.observations[0])
+        doc = fake.Doc(name="CONN", adapter="express", record_revision=1, binding_generation=0,
+                       workspace="W", client="", projection_heads="{}")
+        current = fake.Doc(name="SNAP", connection="CONN", connection_revision=1, projection_revision=4,
+                           content_hash=model.fingerprint([normalized.source_hash, model.preparation(None)]))
         writes = []
-        with mock.patch.object(snapshots.access, "write", side_effect=writes.append), \
-                mock.patch.object(snapshots.state, "read", return_value=current):
-            _kind, _key, head_key = snapshots.state.scope(None, "express")  # 例行心跳的目录挂在端点上
+        original_write, original_read = snapshots.access.write, snapshots.state.read
+        snapshots.access.write, snapshots.state.read = writes.append, lambda *a, **k: current
+        try:
+            _kind, _key, head_key = state.scope(None, "express")  # 例行心跳的目录挂在端点上
             doc.projection_heads = model.dumps({head_key: {"snapshot_id": "SNAP", "revision": 4,
                                                            "request_id": None, "status": "fresh"}})
             result = snapshots.publish(doc, normalized)
@@ -115,6 +126,8 @@ class SnapshotHeads(unittest.TestCase):
                                                            "request_id": None, "status": "pending"}})
             snapshots.publish(doc, normalized)
             self.assertEqual(writes, [doc])  # 指针状态变了才写一次
+        finally:
+            snapshots.access.write, snapshots.state.read = original_write, original_read
 
 
 if __name__ == "__main__":

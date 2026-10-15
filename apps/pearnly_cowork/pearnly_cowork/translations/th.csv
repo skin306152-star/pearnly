@@ -60,9 +60,12 @@ Access to the CC Desktop queue has been revoked.,สิทธิ์เข้า�
 Account Codes,รหัสบัญชี
 Account Key,คีย์ชุดบัญชี
 Account Set,ชุดบัญชี
+Account Set Details,รายละเอียดชุดบัญชี
 Account Set Key,คีย์เลือกชุดบัญชี
 Account Set Label,ชื่อชุดบัญชี
+Account Set Masters,ข้อมูลหลักของชุดบัญชี
 Account Set Name,ชื่อชุดบัญชี
+Account Set Path,พาธชุดบัญชี
 Account code,รหัสบัญชี
 Account set,ชุดบัญชี
 Ack Digest,แฮชผลตอบรับ
@@ -398,6 +401,7 @@ Connection Revision,เวอร์ชันการเชื่อมต่อ
 Connection or directory record not found.,ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี
 Contact Email,อีเมลติดต่อ
 Content Hash,แฮชเนื้อหา
+Content Key,คีย์เนื้อหา
 Continues the scheduled task «{0}»; only files put in from now on are processed,ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้
 Continuous counting,ตรวจนับต่อเนื่อง
 Copy card,คัดลอกการ์ด
@@ -447,8 +451,11 @@ Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
 Cowork ERP Mapping,การจับคู่ ERP ของ Cowork
 Cowork ERP Refresh,การรีเฟรชไดเรกทอรี ERP ของ Cowork
 Cowork ERP Snapshot,ภาพข้อมูลไดเรกทอรี ERP ของ Cowork
+Cowork Express Account Facts,ข้อมูลชุดบัญชี Express ของ Cowork
+Cowork Express Account Set,การลงทะเบียนชุดบัญชี Express ของ Cowork
 Cowork Express Agent Credential,ข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express ของ Cowork
 Cowork Express CC Desktop Credential,ข้อมูลรับรอง CC เดสก์ท็อปสำหรับ Express ของ Cowork
+Cowork Express Reach,การเข้าถึงชุดบัญชี Express ของ Cowork
 Cowork Express Readback,การอ่านข้อมูลบัญชี Express กลับของ Cowork
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork ข้อมูลหลัก
@@ -699,6 +706,8 @@ Exporting a stock count,กำลังส่งออกผลต่างก�
 Exporting the review workbook,กำลังส่งออกสมุดงานตรวจทาน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express PC,เครื่อง Express
+Express Root,โฟลเดอร์โปรแกรม Express
+Express Root Key,คีย์โฟลเดอร์โปรแกรม Express
 "Express already has this invoice number with different content. Check it, or choose Send anyway","ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
@@ -732,6 +741,7 @@ First Recognition Value,ค่าที่อ่านได้ครั้ง�
 First name,ชื่อ
 Fix,ต้องแก้
 Folder,โฟลเดอร์
+Folder ID,รหัสโฟลเดอร์
 Folder and schedule,โฟลเดอร์และเวลา
 Folder auto-intake is not turned on for this site.,ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์
 Folder auto-intake rules,กฎบันทึกอัตโนมัติจากโฟลเดอร์
@@ -746,6 +756,7 @@ Formula Diff,ผลต่างตามสูตร
 Formula Statement Closing,ยอดปลายงวดรายการเดินบัญชีตามสูตร
 Found {0} · new {1} · skipped {2} · upload failed {3},พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}
 Found {0}. Tap the number to choose:,พบ {0} ชุดบัญชี กรุณาแตะหมายเลขเพื่อเลือก:
+From Routine Report,จากรายงานตามรอบ
 Full Report Due,รอรายงานฉบับเต็ม
 GL Account Code,รหัสบัญชี GL
 GL Amount,ยอดเงิน GL
@@ -893,6 +904,8 @@ Last Request Hash,แฮชคำขอล่าสุด
 Last Request Key,คีย์คำขอล่าสุด
 Last Seen Generation,รุ่นล่าสุดที่ตรวจพบ
 Last Used At,ใช้ล่าสุดเมื่อ
+Last Written At (UTC),เวลาเขียนล่าสุด (UTC)
+Last Written By Computer,คอมพิวเตอร์ที่เขียนล่าสุด
 Last day of the month,วันสุดท้ายของเดือน
 Last modified by,ผู้แก้ไขล่าสุด
 Last month to claim,เดือนสุดท้ายที่ใช้สิทธิ
@@ -933,6 +946,7 @@ Listing folder files,กำลังแสดงรายการไฟล์�
 Listing reconciliations,กำลังดูรายการกระทบยอด
 Listing stock counts,กำลังดูรายการตรวจนับสต็อก
 Listing task boards,กำลังดูบอร์ดงาน
+Local To Computer,เฉพาะคอมพิวเตอร์
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
 Location mismatch,ตำแหน่งไม่ตรง
@@ -997,6 +1011,7 @@ Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของ
 Needs review,รอตรวจทาน
 "Net tax overpaid (10 more than 8, or 9 plus 10)",ชำระเกิน ((ถ้า 10. มากกว่า 8.) หรือ (9. รวมกับ 10.))
 Net tax payable (if 8 is more than 10),ต้องชำระ (ถ้า 8. มากกว่า 10.)
+Network Path,พาธเครือข่าย
 Never,ไม่ซ้ำ
 New Files,จำนวนไฟล์ใหม่
 New code,สร้างรหัสใหม่
@@ -1140,6 +1155,7 @@ Page Count,จำนวนหน้า
 Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
 Page {0}/{1},หน้า {0}/{1}
 Parameters,พารามิเตอร์
+Parent Refresh Request,คำขอรีเฟรชหลัก
 Parse Info Json,ข้อมูลการแยกวิเคราะห์
 Parties not read,อ่านข้อมูลคู่สัญญาไม่ได้
 Party,คู่ค้า
@@ -1225,8 +1241,10 @@ Queued,รอคิว
 Rate %,อัตราร้อยละ
 Rate differs from the usual rate,อัตราไม่ตรงกับอัตราปกติ
 Rate not confirmed for this date,ยังไม่ยืนยันอัตราภาษีของวันที่นี้
+Reach State,สถานะการเข้าถึง
 Read,อ่านแล้ว
 Read At (UTC),เวลาอ่านข้อมูล (UTC)
+Read By Computer,คอมพิวเตอร์ที่อ่าน
 Read VAT report,อ่านรายงานภาษีขาย
 Read again,อ่านใหม่
 Read back the accounting books,อ่านข้อมูลบัญชีกลับมาแล้ว
@@ -1291,6 +1309,7 @@ Recurring,การทำซ้ำ
 Red,แดง
 Reference,เลขที่อ้างอิง
 Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
+Refresh Lease Computer,คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช
 Refresh Lease Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
 Refresh Lease Generation,เวอร์ชันสิทธิ์การรีเฟรช
 Refresh Lease Handle,รหัสสิทธิ์การรีเฟรช
@@ -1302,7 +1321,9 @@ Refresh the account directory before continuing.,กรุณารีเฟร�
 Refreshed account sets,รีเฟรชชุดบัญชีแล้ว
 Refreshing account sets,กำลังรีเฟรชชุดบัญชี
 Registered At,เวลาที่ลงทะเบียน
+Registered At (UTC),เวลาลงทะเบียน (UTC)
 Registered By,ผู้ลงทะเบียน
+Registry Row,แถวในรายการเข้าสู่ระบบ
 Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
 Relative Path,พาธสัมพัทธ์
 Reload,โหลดใหม่
@@ -1435,10 +1456,12 @@ Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 Searched tasks,ค้นหางานแล้ว
 Searching tasks,กำลังค้นหางาน
+Seen At (UTC),เวลารายงาน (UTC)
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 100 distinct history records to export.,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
 Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500 รายการ
 Select valid files to download.,กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด
+Selected Account Set,ชุดบัญชีที่เลือก
 Sell Units,หน่วยขาย
 Seller,ชื่อผู้ขายสินค้า/ผู้ให้บริการ
 Seller Name,ชื่อผู้ขาย
@@ -2057,6 +2080,7 @@ Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก
 Workspace,ชุดบัญชีบริษัท
+Writable,เขียนได้
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Yearly,ทุกปี
 Yellow,เหลือง

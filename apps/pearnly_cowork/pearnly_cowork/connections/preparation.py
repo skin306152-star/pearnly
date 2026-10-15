@@ -14,29 +14,21 @@ from pymysql.err import OperationalError, ProgrammingError
 from pearnly_cowork.masters import push_inputs
 from pearnly_cowork.reconciliation import bank_evidence
 from pearnly_cowork.targets.identity import normalize_express_account_key as identity
-from . import access, model, state
+from . import access, model, pool, state
 
 
-def attribute_report(doc, report, plan, credential_id, generation, issuer):
+def bind_report(report, plan, credential_id, generation, issuer, device):
     """Only collector.ingest calls this after machine authentication.
 
-    Attribute each cache separately: a heartbeat without a chart must never
-    relabel the previous account's cached chart as belonging to the new account.
+    The report binding names the key (and its computer) whose report is the connection's current one. It no
+    longer carries an account set: the pool has no connection-level default (ADR-021) and every account set's
+    masters live in its own Account Facts (`pool`), not in this report.
     """
-    config = model.parse(doc.config_json, {})
-    binding = {'account_set': identity(config.get('account_set') or config.get('account_dir')),
-        'root_key': identity(config.get('express_root')), 'credential_id': credential_id,
-        'generation': int(generation), 'issuer': issuer}
-    # Account-specific cache data requires this report's explicit selection.
-    selected = identity(plan.lease_selection)
-    if selected and selected == binding['account_set'] and not plan.offline:
-        report['_preparation_binding'] = {**binding, 'online': True}
-    elif plan.offline:
+    if plan.offline:
         report['_preparation_binding'] = {**(report.get('_preparation_binding') or {}), 'online': False}
-    origins = report.setdefault('_preparation_origins', {})
-    for key in model.REPORTED_KEYS:
-        if key in plan.patch:
-            origins[key] = binding if selected and selected == binding['account_set'] else None
+    else:
+        report['_preparation_binding'] = {'credential_id': credential_id, 'generation': int(generation),
+                                          'issuer': issuer, 'device': device, 'online': True}
     return report
 
 
@@ -53,80 +45,30 @@ def _read_optional(function, default, *args):
     return result, 'present' if present else 'empty'
 
 
-def reported_writable(report, account, root):
-    """小助手本次上报的账套目录里有这个账套（同一数据根）且没标不可写。"""
-    for row in report.get('reported_account_sets') or []:
-        if not isinstance(row, dict) or row.get('writable') is False:
-            continue
-        if identity(row.get('path') or row.get('code')) == account and (not root or identity(row.get('root')) == root):
-            return True
-    return False
-
-
-def account_reported(doc, account):
-    """这份账套按单个账套读回来的原始主档（存在这份账套自己的目录快照里，`collector` / `snapshots.publish`），
-    带读它的凭据与代次（``_credential`` / ``_generation``）。没读过、连接配置变过（快照指针清空）回 ``{}``。只读。"""
-    _, _, key = state.scope(account, 'express')
-    head = state.heads(doc).get(key) or {}
-    if not account or not head.get('snapshot_id'):
-        return {}
-    row = frappe.db.get_value(state.SNAPSHOT, head['snapshot_id'], ['connection', 'connection_revision', 'body'],
-                              as_dict=True)
-    if not row or row.connection != doc.name or int(row.connection_revision or 0) != int(doc.record_revision or 0):
-        return {}
-    cache = (model.parse(row.body, {}) or {}).get('reported')
-    return cache if isinstance(cache, dict) else {}
-
-
-def _account_cache(report, account, doc):
-    """非默认账套：用按单个账套读回、且出自这份凭据的主档（`account_reported`）；没有就空着。"""
-    cache = account_reported(doc, account)
-    if cache.get('_credential') != doc.report_credential or cache.get('_generation') != doc.report_generation:
-        return {}
-    reported = {k: deepcopy(cache[k]) for k in model.REPORTED_KEYS if k in cache}
-    if reported:
-        # 小助手本身的能力（载荷版本 / 版本号）与账套无关。
-        reported.update({k: report[k] for k in ('max_payload_version', 'companion_version') if k in report})
-    return reported
+def current_binding(doc, report):
+    """The connection's current reporter (key, generation, issuer, computer), while it is still the current one."""
+    binding = report.get('_preparation_binding') or {}
+    current = (binding.get('credential_id') == doc.report_credential
+               and binding.get('generation') == doc.report_generation)
+    return binding if current else {}
 
 
 def reported_stock_groups(doc, account):
-    """小助手为这份账套上报的存货科目组（须出自当前凭据）；没读过这份账套是 None，不当成「没有组」。
-
-    默认账套用公共缓存（须记在这份账套名下），其他账套用按账套刷新带回的那份，与推送准备同一来源。
-    """
-    report = model.parse(doc.report_json, {})
-    binding = report.get('_preparation_binding') or {}
-    if (account and binding.get('account_set') == account and binding.get('credential_id') == doc.report_credential
-            and binding.get('generation') == doc.report_generation):
-        expected = {k: binding[k] for k in binding if k != 'online'}
-        groups = report.get('reported_stock_acc_groups')
-        origin = (report.get('_preparation_origins') or {}).get('reported_stock_acc_groups')
-        return deepcopy(groups) if origin == expected and isinstance(groups, list) else None
-    groups = _account_cache(report, account, doc).get('reported_stock_acc_groups')
-    return groups if isinstance(groups, list) else None
+    """这份账套读到的存货科目组（账套资料，`pool.facts`）；没读过是 None，不当成「没有组」。与推送准备同一来源。"""
+    groups = (pool.facts(doc.name, account) or {}).get('reported_stock_acc_groups')
+    return deepcopy(groups) if isinstance(groups, list) else None
 
 
 MASTER_LISTS = ('reported_accounts', 'reported_departments')
 
 
 def reported_masters(doc, account):
-    """小助手为这份账套上报的科目表与部门（须出自当前凭据）：文件夹自动录入的规则页选默认科目 / 部门用。
+    """这份账套读到的科目表与部门（账套资料）：文件夹自动录入的规则页选默认科目 / 部门用。
 
-    来源与 :func:`reported_stock_groups` 相同（默认账套用公共缓存，其他账套用按账套刷新带回的那份）；
-    没读过这份账套返回 ``None``，不当成「没有科目 / 部门」。只读，不改任何缓存。"""
-    report = model.parse(doc.report_json, {})
-    binding = report.get('_preparation_binding') or {}
-    if (account and binding.get('account_set') == account and binding.get('credential_id') == doc.report_credential
-            and binding.get('generation') == doc.report_generation):
-        expected = {k: binding[k] for k in binding if k != 'online'}
-        origins = report.get('_preparation_origins') or {}
-        found = {key: deepcopy(report[key]) for key in MASTER_LISTS
-                 if origins.get(key) == expected and isinstance(report.get(key), list)}
-    else:
-        cache = _account_cache(report, account, doc)
-        found = {key: cache[key] for key in MASTER_LISTS if isinstance(cache.get(key), list)}
-    return found or None
+    没读过返回 ``None``，不当成「没有科目 / 部门」。只读。哪台电脑读的都一样：同一份物理账套（ADR-021）。"""
+    found = pool.facts(doc.name, account) or {}
+    result = {key: deepcopy(found[key]) for key in MASTER_LISTS if isinstance(found.get(key), list)}
+    return result or None
 
 
 def collect(loaded, target, *, seller_tax='', invoice_date=None):
@@ -140,21 +82,18 @@ def collect(loaded, target, *, seller_tax='', invoice_date=None):
         frappe.throw(_('connection.preparation_invalid'))
     # 目录刷新进行中 / 失败不拦推送（用户 2026-09-27 选 A）：检查用得上的资料就用，没有就留给小助手写入时核。
     report = model.parse(doc.report_json, {})
-    binding = report.get('_preparation_binding') or {}
+    binding = current_binding(doc, report)
     credential = None
-    online = (binding.get('online') is True and binding.get('credential_id') == doc.report_credential
-              and binding.get('generation') == doc.report_generation)
-    default = online and binding.get('account_set') == account and binding.get('root_key') == root
-    # 账套以网页第一步的选择为准，小助手不再选（用户 2026-09-26）：助手在线、且它上报的可写账套里有这一个，
-    # 凭据同样成立；但小助手默认账套的缓存（科目表等）不挪给别的账套用。
-    if default or (online and reported_writable(report, account, root)):
+    # 账套以网页第一步的选择为准（用户 2026-09-26）。证据 v1 仍冻结当前上报的那把密钥（第 3 批换成按账套分派）：
+    # 它在线、它的电脑够得到这份账套（同一规范根）且可写，凭据才成立。池里没有连接级默认账套（ADR-021）。
+    if binding.get('online') is True and pool.reaches(doc.name, binding.get('device'), account, root):
         credential = {k: binding[k] for k in ('credential_id', 'generation', 'issuer')}
-    origins = report.get('_preparation_origins') or {}
-    expected = {k: binding[k] for k in binding if k != 'online'}
-    reported = {k: deepcopy(report[k]) for k in model.REPORTED_KEYS
-                if default and credential and k in report and origins.get(k) == expected}
-    if credential and not default:
-        reported = _account_cache(report, account, doc)
+    reported = {}
+    if credential:
+        # 主档取这份账套自己的资料（哪台电脑读的都行，同一份物理账套）；电脑能力（载荷版本、版本号）取上报的那台，
+        # 预检据它拦旧版解析不了的载荷（第 3 批改到领取时按领取的电脑判）
+        reported = deepcopy(pool.masters(pool.facts(doc.name, account)))
+        reported.update({k: report[k] for k in ('max_payload_version', 'companion_version') if k in report})
     maps, map_state = _read_optional(push_inputs.mappings, {'accounts': [], 'clients': []}, doc.client)
     profiles, profile_state = (_read_optional(push_inputs.profiles, {}, doc.workspace, seller_tax)
         if seller_tax else ({}, 'not_applicable'))

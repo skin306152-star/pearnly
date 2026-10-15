@@ -132,6 +132,7 @@ def _checked(check):
 
 access = types.ModuleType("pearnly_cowork.connections.access")
 access.TYPES = (CONNECTION, SNAPSHOT, REFRESH)
+access.POOL_TYPES = ("Cowork Express Account Set", "Cowork Express Reach", "Cowork Express Account Facts")
 access.write = lambda doc: doc.save()
 access.require_actor = _checked(lambda actor=None, **kwargs: actor or USER)
 access.require_scope = _checked(lambda workspace, client=None, **kwargs: None)

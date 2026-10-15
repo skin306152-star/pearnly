@@ -60,9 +60,12 @@ Access to the CC Desktop queue has been revoked.,CC デスクトップのキュ�
 Account Codes,勘定科目コード
 Account Key,会計データキー
 Account Set,会計データ
+Account Set Details,会計データの詳細
 Account Set Key,会計データ選択キー
 Account Set Label,会計データ名
+Account Set Masters,会計データのマスター
 Account Set Name,会計データ名
+Account Set Path,会計データのパス
 Account code,勘定科目コード
 Account set,会計データ
 Ack Digest,確認応答ダイジェスト
@@ -398,6 +401,7 @@ Connection Revision,接続リビジョン
 Connection or directory record not found.,接続またはディレクトリの記録が見つかりません。
 Contact Email,連絡先メールアドレス
 Content Hash,内容ハッシュ
+Content Key,内容キー
 Continues the scheduled task «{0}»; only files put in from now on are processed,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 Continuous counting,連続棚卸
 Copy card,カードをコピー
@@ -447,8 +451,11 @@ Cowork ERP Connection,Cowork ERP接続
 Cowork ERP Mapping,Cowork ERP マッピング
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
 Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
+Cowork Express Account Facts,Cowork Express 会計データ情報
+Cowork Express Account Set,Cowork Express 会計データ登録
 Cowork Express Agent Credential,Cowork Express CC デスクトップ認証情報
 Cowork Express CC Desktop Credential,Cowork Express CC デスクトップ認証情報
+Cowork Express Reach,Cowork Express 会計データへのアクセス
 Cowork Express Readback,Cowork Express の読み戻し
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork マスタデータ
@@ -699,6 +706,8 @@ Exporting a stock count,棚卸差異を書き出しています
 Exporting the review workbook,確認用ワークブックを書き出しています
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
 Express PC,Express の PC
+Express Root,Express プログラムフォルダー
+Express Root Key,Express プログラムフォルダーキー
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express に同じ番号で内容の違う伝票があります。確認するか「このまま送信」を選んでください
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
@@ -732,6 +741,7 @@ First Recognition Value,初回認識値
 First name,名
 Fix,要修正
 Folder,フォルダー
+Folder ID,フォルダー ID
 Folder and schedule,フォルダーとスケジュール
 Folder auto-intake is not turned on for this site.,このサイトではフォルダー自動取込が有効になっていません。
 Folder auto-intake rules,フォルダー自動取込ルール
@@ -746,6 +756,7 @@ Formula Diff,計算式差額
 Formula Statement Closing,計算式による明細期末残高
 Found {0} · new {1} · skipped {2} · upload failed {3},検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}
 Found {0}. Tap the number to choose:,{0} 件見つかりました。番号をタップして選択してください：
+From Routine Report,定期報告から
 Full Report Due,全件報告待ち
 GL Account Code,元帳勘定科目コード
 GL Amount,元帳金額
@@ -893,6 +904,8 @@ Last Request Hash,最終要求ハッシュ
 Last Request Key,最終要求キー
 Last Seen Generation,最終確認世代
 Last Used At,最終使用日時
+Last Written At (UTC),最終書き込み日時 (UTC)
+Last Written By Computer,最後に書き込んだコンピューター
 Last day of the month,月末
 Last modified by,最終更新者
 Last month to claim,控除の最終月
@@ -933,6 +946,7 @@ Listing folder files,フォルダーのファイルを一覧しています
 Listing reconciliations,照合の一覧を確認しています
 Listing stock counts,棚卸の一覧を確認しています
 Listing task boards,タスクボードを確認しています
+Local To Computer,限定コンピューター
 Location,場所
 Location check,棚番照合結果
 Location mismatch,棚番不一致
@@ -997,6 +1011,7 @@ Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
 "Net tax overpaid (10 more than 8, or 9 plus 10)",差引超過納付額（10 が 8 より大きい場合、または 9 + 10）
 Net tax payable (if 8 is more than 10),差引納付税額（8 が 10 より大きい場合）
+Network Path,ネットワークパス
 Never,なし
 New Files,新規ファイル数
 New code,新しいコード
@@ -1140,6 +1155,7 @@ Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
 Page {0}/{1},{0}/{1} ページ目
 Parameters,パラメーター
+Parent Refresh Request,親の更新リクエスト
 Parse Info Json,解析情報
 Parties not read,当事者を読めない
 Party,取引先
@@ -1225,8 +1241,10 @@ Queued,順番待ち
 Rate %,税率 %
 Rate differs from the usual rate,通常の税率と異なる
 Rate not confirmed for this date,この日付の税率は未確認
+Reach State,アクセス状態
 Read,読み取り済み
 Read At (UTC),読み取り日時（UTC）
+Read By Computer,読み取ったコンピューター
 Read VAT report,売上税報告の読み取り
 Read again,再読み込み
 Read back the accounting books,会計データを読み戻しました
@@ -1291,6 +1309,7 @@ Recurring,繰り返し
 Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
+Refresh Lease Computer,更新リースのコンピューター
 Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
 Refresh Lease Generation,更新リースの世代
 Refresh Lease Handle,更新リース識別子
@@ -1302,7 +1321,9 @@ Refresh the account directory before continuing.,先に会計データのディ�
 Refreshed account sets,帳簿を更新しました
 Refreshing account sets,帳簿を更新しています
 Registered At,登録日時
+Registered At (UTC),登録日時 (UTC)
 Registered By,登録者
+Registry Row,ログイン一覧の行番号
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
 Relative Path,相対パス
 Reload,再読み込み
@@ -1435,10 +1456,12 @@ Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
 Searched tasks,タスクを検索しました
 Searching tasks,タスクを検索しています
+Seen At (UTC),報告日時 (UTC)
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
+Selected Account Set,選択した会計データ
 Sell Units,販売単位
 Seller,販売者
 Seller Name,売り手名
@@ -2057,6 +2080,7 @@ Work Coordination,業務連携
 Work Name,バックグラウンドタスク識別子
 Workbook Revision,ワークブック改訂番号
 Workspace,会社帳簿
+Writable,書き込み可
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Yearly,毎年
 Yellow,黄

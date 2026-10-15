@@ -30,6 +30,10 @@ _ACCOUNT_SET_KEYS = (
     "root_label",
     "row",
     "writable",
+    # 多台电脑（ADR-021，方案 2.3）：账套目录的文件号与网络路径，认同一份物理账套用（`targets.identity.resolve`）。
+    # 旧版不报，按路径认。
+    "uid",
+    "share",
 )
 
 _ACCOUNT_MAPPING_KEYS = (
@@ -312,6 +316,9 @@ def _account_sets(raw: Any) -> list[dict[str, Any]]:
             "period_end",
             "next_end",
             "branch",
+            # 与上面原始名单同一组新键（ADR-021）：认账套用，不进池目录（`connections.pool.catalog`）
+            "uid",
+            "share",
         ),
     )
     normalized: list[dict[str, Any]] = []
@@ -485,6 +492,8 @@ class ReportPlan:
     lease_selection: str = ""
     # 这次心跳带的是哪份账套的主档（按单个账套刷新时）；空 = 小助手默认账套的例行上报。
     refreshed_account: str = ""
+    # 这台电脑整份上报的账套名单（投影行，含文件号 / 网络路径）；没报名单（含只报「没变」）是 None。
+    account_sets: list | None = None
 
 
 def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> ReportPlan:
@@ -601,4 +610,5 @@ def plan_report(body: Mapping, previous: Mapping, observed_at: datetime) -> Repo
     account_refreshed = scope == "account_set" and refreshed and not error and isinstance(catalog, Mapping)
     return ReportPlan(False, deepcopy(patch), deepcopy(observations), projection_error, completion,
                       response, lease_selection=lease_selection,
-                      refreshed_account=refreshed if account_refreshed else "")
+                      refreshed_account=refreshed if account_refreshed else "",
+                      account_sets=deepcopy(account_sets) if reported_sets else None)

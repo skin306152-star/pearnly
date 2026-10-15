@@ -1,0 +1,110 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Express Account Facts",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-16 00:00:00.000000",
+ "modified": "2026-10-16 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_key",
+  "workspace",
+  "connection",
+  "account_key",
+  "body",
+  "routine",
+  "source_device",
+  "seen_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "connection",
+   "label": "ERP Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork ERP Connection",
+   "search_index": 1
+  },
+  {
+   "fieldname": "account_key",
+   "label": "Account Set Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "body",
+   "label": "Account Set Masters",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "routine",
+   "label": "From Routine Report",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "source_device",
+   "label": "Read By Computer",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "seen_at",
+   "label": "Seen At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

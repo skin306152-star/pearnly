@@ -17,6 +17,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.companion import devices
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.connections import preparation
@@ -138,8 +139,8 @@ def _reader_view(doc):
         report = json.loads(frappe.db.get_value(CONNECTION, doc.name, "report_json") or "{}")
     except (TypeError, ValueError):
         pass
-    # 电脑名：小助手同步文件夹时报的（1.3.23 起）→ Express 心跳报的本机名 → 连接名。
-    label = state.get("device") or (report.get("agent_device_name") if isinstance(report, dict) else "") or doc.label
+    # 电脑名：小助手同步文件夹时报的（1.3.23 起）→ 当前上报心跳的那台电脑的名字（电脑记录，ADR-021）→ 连接名。
+    label = state.get("device") or (devices.reporter_label(doc.name) if doc.adapter == "express" else "") or doc.label
     fresh = agent.fresh(state)
     roots = state.get("roots") or []
     if not fresh:

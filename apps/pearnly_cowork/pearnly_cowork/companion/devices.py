@@ -10,6 +10,10 @@ from uuid import uuid4
 
 import frappe
 
+from pearnly_cowork.connections import pool
+from pearnly_cowork.connections.member import Member
+from pearnly_cowork.connections.reports import MAPPING_KEYS, SELECTED_KEYS
+from pearnly_cowork.targets.identity import host_aliases
 from . import contracts, device_contracts
 from .device_documents import DOCTYPE, persist
 from .documents import persist as persist_key
@@ -64,6 +68,8 @@ def retire(doc, actor):
     if not doc.retired_at:
         doc.retired_at, doc.retired_by = _now(), actor
         persist(doc)
+        # 它够得到的账套不再算进池目录（下一次发布时），待认定的别的电脑也不再等它（ADR-021，方案 2.4 第 5 条）
+        pool.forget_device(doc.name)
 
 
 def pool_claimed(connection):
@@ -228,3 +234,154 @@ def seed_legacy(folder_name=None):
         device = create(workspace=row.workspace, owner=row.issuer, label=name or row.label or row.connection)
         frappe.db.set_value(CREDENTIAL, row.name, 'device', device.name, update_modified=False)
     return len(rows)
+
+
+# ── 心跳里的这台电脑（第 2 批，方案 2.3）────────────────────────────────────────────
+
+_LOOPBACK = frozenset(("localhost", "127.0.0.1", "::1", "[::1]"))
+
+
+def _names(value):
+    try:
+        names = json.loads(value or '[]')
+    except (TypeError, ValueError):
+        return []
+    return [str(name).strip().lower() for name in names if isinstance(name, str) and str(name).strip()
+            and str(name).strip().lower() not in _LOOPBACK] if isinstance(names, list) else []
+
+
+def _host_label(device, hosts):
+    """这台电脑的主机名（新登记的、只在本机的账套键写成 ``\\\\主机\\盘$\\…``）：报的第一个名字；同一归属下另一台
+    电脑报了同一个名字时加设备短号；还没报过（旧版）用设备短号。"""
+    names = hosts.get(device) or []
+    short = str(device or '')[-6:].lower()
+    if not names:
+        return 'pc-' + short
+    if any((others or [None])[0] == names[0] for other, others in hosts.items() if other != device):
+        return names[0] + '-' + short
+    return names[0]
+
+
+def _row(device):
+    if not device:
+        return None
+    return frappe.db.get_value(DOCTYPE, device, ['name', 'workspace', 'secret_digest', 'label', 'host_names',
+                                                 'companion_version', 'max_payload_version', 'selection_json',
+                                                 'retired_at'], as_dict=True)
+
+
+def state(device):
+    """这台电脑上次报的所选账套、6 个科目映射与版本（心跳的 ``previous``，每台各自一份，不再读连接配置）。"""
+    row = _row(device)
+    if not row:
+        return {}
+    try:
+        selection = json.loads(row.selection_json or '{}')
+    except (TypeError, ValueError):
+        selection = {}
+    result = {key: value for key, value in (selection if isinstance(selection, dict) else {}).items()
+              if key in SELECTED_KEYS | MAPPING_KEYS}
+    if row.companion_version:
+        result['companion_version'] = row.companion_version
+    if int(row.max_payload_version or 0) >= 1:
+        result['max_payload_version'] = int(row.max_payload_version)
+    return result
+
+
+def member(device, workspace, *, peers=None, version=None, payload_version=None, pool_hosts=True):
+    """连接域眼里的这台电脑（`connections.member.Member`）：设备编号、是不是旧版、主机名与全池的主机别名、版本、
+    上次的所选。只做不加锁的读（电脑行在加锁顺序的最后，`record_report` 才锁）。``pool_hosts=False``（领任务，每 3 秒
+    一次）不读全池的主机名：只有认账套（心跳带名单）才用得上。"""
+    row = _row(device)
+    known = state(device)
+    hosts = {}
+    if workspace and pool_hosts:
+        for item in frappe.db.sql(f'''SELECT name, host_names FROM `tab{DOCTYPE}`
+                WHERE workspace=%s AND retired_at IS NULL''', (workspace,), as_dict=True):
+            hosts[item.name] = _names(item.host_names)
+    if row and device not in hosts:
+        hosts[device] = _names(row.host_names)
+    return Member(device=device, legacy=not (row and row.secret_digest), host=_host_label(device, hosts),
+                  aliases=host_aliases(hosts), version=str(version or known.get('companion_version') or ''),
+                  payload_version=payload_version if payload_version is not None
+                  else known.get('max_payload_version'),
+                  selected=str(known.get('account_set') or known.get('account_dir') or ''), peers=peers)
+
+
+def record_report(device, plan):
+    """心跳之后记到这台电脑上：所选账套与 6 个科目映射（只是它自己的，不再写连接配置）、版本、旧版报的电脑名。
+    内容没变不碰电脑行；变了才锁（加锁顺序的最后一位）。"""
+    row = _row(device)
+    if not row or row.retired_at or plan.offline:
+        return False
+    known = state(device)
+    selection = {key: value for key, value in known.items() if key in SELECTED_KEYS | MAPPING_KEYS}
+    updated = {**selection, **{key: value for key, value in plan.patch.items() if key in SELECTED_KEYS | MAPPING_KEYS}}
+    values = {}
+    if updated != selection:
+        values['selection_json'] = json.dumps(updated, ensure_ascii=False, sort_keys=True)
+    if plan.patch.get('companion_version') and plan.patch['companion_version'] != (row.companion_version or ''):
+        values['companion_version'] = str(plan.patch['companion_version'])[:40]
+    if plan.patch.get('max_payload_version') and int(plan.patch['max_payload_version']) != int(
+            row.max_payload_version or 0):
+        values['max_payload_version'] = int(plan.patch['max_payload_version'])
+    name = str(plan.patch.get('agent_device_name') or '').strip()
+    if name and not row.secret_digest and name != (row.label or ''):
+        values['label'] = name[:device_contracts.MAX_NAME]  # 新版的电脑名由 device_hello 报
+    if not values:
+        return False
+    doc = read(device)
+    for key, value in values.items():
+        setattr(doc, key, value)
+    persist(doc)
+    return True
+
+
+def reporter_label(connection):
+    """连接当前上报的那把密钥所在电脑的名字（网页「连接」里显示）；没有回空串。"""
+    key = frappe.db.get_value(CONNECTION, connection, 'report_credential')
+    device = frappe.db.get_value(CREDENTIAL, key, 'device') if key else None
+    return str(frappe.db.get_value(DOCTYPE, device, 'label') or '') if device else ''
+
+
+def newest_version(connection):
+    """池里（这条连接上有有效密钥、没退役的电脑）最新的 CC 桌面版版本；没报过回空串。"""
+    rows = frappe.db.sql(f'''SELECT d.companion_version FROM `tab{CREDENTIAL}` k JOIN `tab{DOCTYPE}` d ON d.name = k.device
+        WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>'' AND d.retired_at IS NULL''',
+        (connection,))
+    versions = [str(row[0]).strip() for row in rows if row and str(row[0] or '').strip()]
+
+    def order(value):
+        try:
+            return tuple(int(part) for part in value.split('.'))
+        except ValueError:
+            return (0,)
+    return max(versions, key=order) if versions else ''
+
+
+def seed_state(device, config, report):
+    """补丁 `v0_0_20_express_account_sets`：旧电脑接过连接配置里它当时选的账套与 6 个科目映射、上报记录里它的版本
+    （从此每台电脑各存各的，连接配置不再被心跳改）。电脑上已经有的不覆盖；重跑不重复写。"""
+    row = _row(device)
+    if not row or row.retired_at:
+        return False
+    values = {}
+    selection = {key: value for key, value in (config or {}).items()
+                 if key in SELECTED_KEYS | MAPPING_KEYS and value not in (None, '')}
+    if selection and not row.selection_json:
+        values['selection_json'] = json.dumps(selection, ensure_ascii=False, sort_keys=True)
+    if not row.companion_version and str((report or {}).get('companion_version') or '').strip():
+        values['companion_version'] = str(report['companion_version']).strip()[:40]
+    try:
+        payload = int((report or {}).get('max_payload_version') or 0)
+    except (TypeError, ValueError):
+        payload = 0
+    if not int(row.max_payload_version or 0) and payload >= 1:
+        values['max_payload_version'] = payload
+    if not values:
+        return False
+    doc = read(device)
+    for key, value in values.items():
+        setattr(doc, key, value)
+    persist(doc)
+    return True

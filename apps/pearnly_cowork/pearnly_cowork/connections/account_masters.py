@@ -1,7 +1,8 @@
 """这台电脑上任一份 Express 账套的主档（科目表、部门、供应商 / 客户、商品、存货科目组）在不在、要不要请电脑读。
 
 一台事务所的电脑管着很多家客户的账套，CC 桌面端平时只按期上报它当前选的那一份；别的账套的主档要按账套读一次
-（`refresh.lease` 交给电脑、`collector` 存进那份账套自己的目录快照、`preparation` 按账套取）。要人选的项、推送准备、
+（`refresh.lease` 交给够得到它的一台电脑、`collector` 存进那份账套自己的账套资料 `pool.facts`、`preparation` 按账套取；
+多台电脑时哪台读的都一样，同一份物理账套，ADR-021）。要人选的项、推送准备、
 定时任务的默认科目要用某份账套的主档时，先经这里：有就用；没有就请电脑读（同一份账套同一时刻只排一个，不打断正在读的），
 并照实回「正在读 / 电脑离线 / 要升级 / 读不到」，不把空的科目表当成「没有科目」交给人选。
 
@@ -13,7 +14,7 @@ import uuid
 import frappe
 
 from pearnly_cowork.targets.identity import normalize_express_account_key
-from . import access, model, preparation, refresh, state
+from . import access, model, pool, preparation, refresh, state
 
 READY, READING, OFFLINE, UPDATE_NEEDED, UNAVAILABLE, FAILED = (
     "ready", "reading", "offline", "update_needed", "unavailable", "failed")
@@ -26,13 +27,6 @@ RETRY_AFTER_FAILURE = timedelta(minutes=10)
 
 def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-def _binding(doc, report):
-    binding = report.get("_preparation_binding") or {}
-    current = (binding.get("credential_id") == doc.report_credential
-               and binding.get("generation") == doc.report_generation)
-    return binding if current else {}
 
 
 def _chart(found):
@@ -56,19 +50,23 @@ def _last_read(doc, key):
 def view(doc, account, now=None):
     """这份账套主档此刻的状况（只读）：``{"state", "account_set", "selected", "present", "request", "error_code"?}``。
 
-    ``present``：读到过这份账套的科目表（出自当前凭据）。``state``：有且电脑在线是 ``ready``；电脑报过离线是
-    ``offline``；没有时按情况是 ``reading``（在读或该读）/ ``failed``（刚读过还是没有）/ ``unavailable``（电脑报上来的
-    可写账套里没有它）/ ``update_needed``（电脑上的 CC 桌面端只读得了它当前选的那份）。
-    ``request`` 为 ``"new"`` 表示该请电脑读（没有，或别的账套读过很久了），否则 ``None``。"""
+    ``present``：读到过这份账套的科目表（账套资料）。``state``：有且电脑在线是 ``ready``；电脑报过离线是
+    ``offline``；没有时按情况是 ``reading``（在读或该读）/ ``failed``（刚读过还是没有）/ ``unavailable``（池里没有电脑
+    够得到它、能写）/ ``update_needed``（电脑上的 CC 桌面端只读得了它当前选的那份）。
+    ``selected``：这份资料是某台电脑按期上报它当前选的账套时带来的、还新（那台会自己接着报，不另排）。
+    ``request`` 为 ``"new"`` 表示该请电脑读（没有，或别的账套读过很久了），否则 ``None``。
+    在线与版本仍看连接当前上报的那台（第 3 批换成池的判据）。"""
     now = now or _now()
     account = normalize_express_account_key(account)
     result = {"state": READY, "account_set": account, "selected": False, "present": True, "request": None}
     if doc.adapter != "express" or not account:
         return result
     report = model.parse(doc.get("report_json"), {})
-    binding = _binding(doc, report)
+    binding = preparation.current_binding(doc, report)
     online = binding.get("online") is True
-    selected = bool(binding) and binding.get("account_set") == account
+    facts = pool.facts(doc.name, account) or {}
+    seen = facts.get("_seen_at")
+    selected = bool(facts.get("_routine") and seen and now - seen < 2 * REREAD_AFTER)
     found = preparation.reported_masters(doc, account) or {}
     present = _chart(found)
     _, _, key = state.scope(account, doc.adapter)
@@ -93,8 +91,8 @@ def view(doc, account, now=None):
         # 刚读过还是没有科目表（读失败，或那份账套读不出科目）：照实说，过一阵再请电脑读
         result.update(state=FAILED, error_code=error_code or "ERR_CHART_EMPTY")
         return result
-    if binding and not preparation.reported_writable(report, account, None):
-        result["state"] = UNAVAILABLE  # 电脑报上来的可写账套里没有它：读不到，也推不了
+    if binding and pool.any_reach(doc.name) and not pool.reachers(doc.name, account, writable=True):
+        result["state"] = UNAVAILABLE  # 池里没有电脑够得到它、能写：读不到，也推不了
         return result
     result.update(state=READING if online else OFFLINE, request="new")
     return result

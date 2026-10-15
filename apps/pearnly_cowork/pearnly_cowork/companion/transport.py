@@ -14,7 +14,7 @@ from frappe import _
 from pearnly_cowork.connections import refresh
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
-from . import credentials, delivery_store, queue_contracts, receipt_auth
+from . import credentials, delivery_store, devices, queue_contracts, receipt_auth
 
 
 @contextmanager
@@ -108,7 +108,11 @@ def lease(context, body):
             if claim.get('reason') == 'waiting_lock':
                 break
         doc = frappe.get_doc('Cowork ERP Connection', credential.connection, for_update=True)
-        requested_refresh = refresh.lease(doc, '', credential.credential_id, credential.token_generation, ledger.now_utc(now))
+        # 没有心跳的所选：按这台电脑上次报的（ADR-021，每台各自一份）
+        member = devices.member(credentials.device_of(credential.credential_id) or credential.credential_id,
+                                doc.workspace, peers=lambda: credentials.pool_peers(doc.name), pool_hosts=False)
+        requested_refresh = refresh.lease(doc, member, member.selected, credential.credential_id,
+                                          credential.token_generation, ledger.now_utc(now))
         return _value(queue_contracts.lease_response, jobs, requested_refresh)
 
 

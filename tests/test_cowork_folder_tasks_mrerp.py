@@ -73,6 +73,7 @@ class SaveMrerpTask(unittest.TestCase):
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: "2026-10-09 10:00:00"),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None)),
+                   "pearnly_cowork.companion": stub(devices=stub(reporter_label=lambda connection: "")),
                    "pearnly_cowork.connections": stub(
                        access=stub(require_connection=lambda doc: None), desktop_update=desktop_update,
                        preparation=stub(reported_masters=masters),

@@ -71,6 +71,10 @@ jobs:
         run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_companion_credentials.py
       - name: Verify several computers per connection (register v2, digest authentication, device hello and leave, old-computer patch)
         run: python3 tests/test_cowork_cc_desktop_devices.py
+      - name: Verify the account-set register, reach and facts of a pool (identity rules, union directory, refresh hand-out, patch)
+        run: python3 tests/test_cowork_express_account_sets.py
+      - name: Verify heartbeats keep masters per account set and never rewrite the connection every minute
+        run: python3 tests/test_cowork_report_writes.py && python3 tests/test_cowork_account_caches.py && python3 tests/test_cowork_preparation_dynamic.py
       - name: Verify on-demand requests to CC Desktop and fetching files from authorised folders
         run: python3 tests/test_cowork_companion_requests.py
       - name: Verify the Express readback (openings, ledger, VAT records, changes against pushes, keep only the latest)

@@ -763,3 +763,10 @@ def cancel_prepared(name, *, context, expected_revision):
         row.completed_at = now_utc()
         _save_record(row, row.completed_at)
         return project(row)
+
+
+def open_account_keys(connection):
+    """被未了结推送记录（不是成功、也不是作废）引用的账套键：连接域的账套资料不淘汰它们（ADR-021，方案 2.2）。只读。"""
+    rows = frappe.db.sql("""SELECT DISTINCT account_key FROM `tabCowork Push Record`
+        WHERE connection=%s AND status NOT IN ('success', 'cancelled')""", (connection,))
+    return {row[0] for row in rows if row and row[0]}

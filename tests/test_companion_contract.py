@@ -574,8 +574,10 @@ class AnyAccountSetRead(unittest.TestCase):
         command = (COMPANION / "projection_refresh.py").read_text(encoding="utf-8")
         reads = set(re.findall(r'pending\.get\("([a-z_]+)"\)', command))
         self.assertEqual(reads, set(server))
-        self.assertIn("'account_set_key': row.account_set_key, 'scope_kind': row.scope_kind",
-                      (self.CONNECTIONS / "refresh.py").read_text(encoding="utf-8"))
+        # 多台电脑（ADR-021）：交给电脑的账套键是它自己的写法（同一份账套在各台电脑上的路径可能不同），键名不变
+        source = (self.CONNECTIONS / "refresh.py").read_text(encoding="utf-8")
+        self.assertIn("'account_set_key': wire_key, 'scope_kind': row.scope_kind", source)
+        self.assertIn("'account_set_key': child.account_set_key, 'scope_kind': 'endpoint'", source)
 
     def test_the_server_reads_the_refresh_receipt_and_version_the_helper_sends(self):
         helper = (COMPANION / "projection_refresh.py").read_text(encoding="utf-8")
@@ -586,7 +588,8 @@ class AnyAccountSetRead(unittest.TestCase):
         # 能不能交别的账套看心跳报的版本：每一拍都报
         self.assertIn("companion_version=VERSION", (COMPANION / "worker.py").read_text(encoding="utf-8"))
         self.assertTrue(quoted(server, "companion_version"))
-        self.assertIn("desktop_version(doc)", (self.CONNECTIONS / "refresh.py").read_text(encoding="utf-8"))
+        # 能不能交别的账套看来领的这台电脑报的版本（第 2 批起每台各自一份，`companion.devices.member`）
+        self.assertIn("reads_any_account_set(member.version)", (self.CONNECTIONS / "refresh.py").read_text(encoding="utf-8"))
 
     def test_reading_follows_the_write_rules_and_never_changes_the_selection(self):
         source = method_source_of(COMPANION / "projection_refresh.py", "collect_account")
@@ -595,6 +598,45 @@ class AnyAccountSetRead(unittest.TestCase):
         self.assertNotIn("cfg.update", source)
         periodic = method_source_of(COMPANION / "worker.py", "_run_periodic")
         self.assertIn("roots=[root or '', *authorized]", periodic)
+
+
+class AccountSetIdentity(unittest.TestCase):
+    """多台电脑认同一份账套（ADR-021，方案 2.3）：CC 桌面版 1.6.0（第 5 批）在每行账套上加报 ``uid``（目录文件号）与
+    ``share``（网络路径）。服务端两处白名单（原始名单 `_ACCOUNT_SET_KEYS`、目录属性 `attribute_keys`）都要收；
+    客户端今天报的账套行键也都在服务端白名单里（客户端一侧在第 5 批补齐）。"""
+
+    REPORTS = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "connections" / "reports.py"
+
+    def server_keys(self):
+        tree = ast.parse(self.REPORTS.read_text(encoding="utf-8"))
+        raw = attribute = None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "_ACCOUNT_SET_KEYS":
+                raw = set(ast.literal_eval(node.value))
+            if (isinstance(node, ast.FunctionDef) and node.name == "_account_sets"):
+                for keyword in ast.walk(node):
+                    if isinstance(keyword, ast.keyword) and keyword.arg == "attribute_keys":
+                        attribute = set(ast.literal_eval(keyword.value))
+        return raw, attribute
+
+    def test_both_server_whitelists_take_uid_and_share(self):
+        raw, attribute = self.server_keys()
+        self.assertTrue({"uid", "share"} <= raw)
+        self.assertTrue({"uid", "share"} <= attribute)
+
+    def test_every_account_set_key_the_helper_reports_today_is_whitelisted(self):
+        probe = (COMPANION / "account_probe.py").read_text(encoding="utf-8")
+        tree = ast.parse(probe)
+        fields = set()
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name == "AccountSet":
+                fields = {item.target.id for item in node.body if isinstance(item, ast.AnnAssign)}
+        self.assertTrue(fields)
+        reported = fields | {"root", "root_label", "mapping"}
+        raw, attribute = self.server_keys()
+        # 原始名单清洗按白名单逐键取（`mapping` 单独处理）；目录属性另收期间与分店
+        self.assertEqual(reported - raw - {"mapping"}, set())
+        self.assertEqual((reported - {"name"}) - attribute, set())
 
 
 def _module(name, path):

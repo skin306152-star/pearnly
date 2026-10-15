@@ -181,6 +181,43 @@ def _online(doc, row, now=None):
     return 0 <= age < ONLINE_SECONDS
 
 
+def _fresh(seen, seen_generation, token_generation, now=None):
+    """这把密钥最近 3 分钟内报过到（同 `_online` 的判据，不看它是不是连接的上报凭据）。"""
+    if int(seen_generation or 0) != int(token_generation or 0):
+        return False
+    if isinstance(seen, str):
+        try:
+            seen = datetime.fromisoformat(seen)
+        except ValueError:
+            return False
+    if not isinstance(seen, datetime):
+        return False
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - seen).total_seconds()
+    return 0 <= age < ONLINE_SECONDS
+
+
+def device_of(credential_id):
+    """这把密钥挂在哪台电脑上（补丁之前旧路径发的、补丁漏掉的没有电脑：None）。"""
+    return frappe.db.get_value(DOCTYPE, credential_id, 'device') or None
+
+
+def pool_peers(connection, now=None):
+    """池里各台电脑此刻的情况（目录刷新分派用，ADR-021）：``{设备: {"user", "always_on", "online"}}``。
+    ``user`` 是这台电脑上最近登录 CC 的人（不是登记人）；任一把有效密钥 3 分钟内报过到就算在线。只读。"""
+    rows = frappe.db.sql(f'''SELECT k.device, k.token_generation, k.last_seen_at, k.last_seen_generation,
+        d.signed_in_user, d.always_on FROM `tab{DOCTYPE}` k JOIN `tab{devices.DOCTYPE}` d ON d.name = k.device
+        WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>'' AND d.retired_at IS NULL''',
+        (connection,), as_dict=True)
+    peers = {}
+    for row in rows:
+        peer = peers.setdefault(row.device, {'user': row.signed_in_user, 'always_on': bool(row.always_on),
+                                             'online': False})
+        peer['online'] = peer['online'] or _fresh(row.last_seen_at, row.last_seen_generation, row.token_generation, now)
+    return peers
+
+
 def record_seen(credential_id, generation, *, offline=False, now=None):
     """心跳报到：只改这把密钥的两列（调用方已持有连接 → 密钥锁，并负责提交）。小助手说自己下线就清空。"""
     frappe.db.set_value(DOCTYPE, credential_id, {

@@ -213,6 +213,20 @@ class FakeDB:
     def _sql(self, q, values):
         if "`tabDocShare`" in q:
             return []
+        # 第 2 批：心跳里的电脑（`devices.member`）、池里的电脑（`credentials.pool_peers`）、最新版本
+        if "SELECT name, host_names FROM `tabCowork CC Desktop Device`" in q:
+            return [Row(name=r["name"], host_names=r.get("host_names")) for r in _rows(DEVICE)
+                    if r["workspace"] == values[0] and not r.get("retired_at")]
+        if "k.last_seen_at" in q or "SELECT d.companion_version" in q:
+            devices_ = STORE.get(DEVICE, {})
+            found = [(r, devices_[r["device"]]) for r in _rows(CREDENTIAL)
+                     if r["connection"] == values[0] and _active_row(r) and r.get("device") in devices_
+                     and not devices_[r["device"]].get("retired_at")]
+            if "SELECT d.companion_version" in q:
+                return [(d.get("companion_version"),) for _, d in found]
+            return [Row(device=k["device"], token_generation=k["token_generation"], last_seen_at=k.get("last_seen_at"),
+                        last_seen_generation=k.get("last_seen_generation"), signed_in_user=d.get("signed_in_user"),
+                        always_on=d.get("always_on")) for k, d in found]
         if "JOIN `tabCowork ERP Connection` c ON c.name = k.connection" in q:
             out = []
             for row in sorted(_rows(CREDENTIAL), key=lambda r: (r["creation"], r["name"])):
@@ -270,6 +284,7 @@ def _install_frappe():
     frappe._dict = Row
     frappe.throw = _throw
     frappe.clear_messages = lambda: None
+    frappe.whitelist = lambda **ignored: (lambda function: function)
     for error in (ValidationError, AuthenticationError, DoesNotExistError, UniqueValidationError,
                   DuplicateEntryError, QueryDeadlockError):
         setattr(frappe, error.__name__, error)
@@ -320,6 +335,8 @@ def _install_connections(frappe):
         code = "connection.invalid"
 
     model.ConnectionError = ConnectionError_
+    model.parse = lambda value, default=None: json.loads(value) if isinstance(value, str) else (
+        value if value is not None else default)
     service = types.ModuleType("pearnly_cowork.connections.service")
 
     def configure(workspace, adapter, request_key, label, config, **ignored):
@@ -328,8 +345,23 @@ def _install_connections(frappe):
 
     service.configure = configure
     connections.access, connections.model, connections.service = access, model, service
+    # 第 2 批：电脑退役时连接域删它的可达行（`pool.forget_device`）；心跳里的电脑（`member.Member`）与所选账套的键
+    pool = types.ModuleType("pearnly_cowork.connections.pool")
+    pool.FORGOTTEN = []
+    pool.forget_device = pool.FORGOTTEN.append
+    spec = importlib.util.spec_from_file_location("pearnly_cowork.connections.member", APP / "connections/member.py")
+    member = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(member)
+    reports = types.ModuleType("pearnly_cowork.connections.reports")
+    reports.SELECTED_KEYS = frozenset(("account_set", "account_dir", "account_company", "account_set_row",
+                                       "express_root"))
+    reports.MAPPING_KEYS = frozenset(("revenue_acc", "ar_acc", "vat_output_acc", "fallback_acc", "ap_acc",
+                                      "vat_input_acc"))
+    connections.pool, connections.member, connections.reports = pool, member, reports
     sys.modules.update({"pearnly_cowork.connections": connections, "pearnly_cowork.connections.access": access,
-                        "pearnly_cowork.connections.model": model, "pearnly_cowork.connections.service": service})
+                        "pearnly_cowork.connections.model": model, "pearnly_cowork.connections.service": service,
+                        "pearnly_cowork.connections.pool": pool, "pearnly_cowork.connections.member": member,
+                        "pearnly_cowork.connections.reports": reports})
     return access
 
 
@@ -492,8 +524,8 @@ class Schema(unittest.TestCase):
         fields = {f["fieldname"]: f for f in doc["fields"]}
         self.assertEqual(doc["name"], "Cowork CC Desktop Device")
         self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "label", "secret_digest",
-                                       "always_on", "companion_version", "max_payload_version", "host_names",
-                                       "index_pending", "retired_at", "retired_by"})
+                                       "always_on", "companion_version", "max_payload_version", "selection_json",
+                                       "host_names", "index_pending", "retired_at", "retired_by"})
         self.assertEqual(fields["secret_digest"]["unique"], 1)
         self.assertEqual(fields["secret_digest"].get("reqd", 0), 0)  # 补丁建的旧电脑留空，等认领
         self.assertEqual(doc["field_order"], [f["fieldname"] for f in doc["fields"]])
@@ -515,8 +547,10 @@ class Schema(unittest.TestCase):
             _get_doc({"doctype": DEVICE, "workspace": "WS"}).insert()
 
     def test_patch_is_registered(self):
-        self.assertTrue((APP / "patches.txt").read_text().splitlines()[-1].endswith(
-            "pearnly_cowork.patches.v0_0_19_companion_devices"))
+        lines = (APP / "patches.txt").read_text().splitlines()
+        # 第 2 批的补丁（账套登记，`test_cowork_express_account_sets.py`）跟在它后面：要先有电脑才有旧电脑的可达行
+        self.assertEqual(lines[-2:], ["pearnly_cowork.patches.v0_0_19_companion_devices",
+                                      "pearnly_cowork.patches.v0_0_20_express_account_sets"])
 
 
 # ── register v2 ─────────────────────────────────────────────────────────────
@@ -711,6 +745,8 @@ class DeviceRegister(Base):
         a = self.register(device_key=KEY_A)
         old = devices.read(a["device"])
         devices.retire(old, ADMIN)
+        # 第 2 批：它够得到的账套不再算进池目录（连接域删它的可达行）
+        self.assertIn(a["device"], sys.modules["pearnly_cowork.connections.pool"].FORGOTTEN)
         with self.assertRaises(AuthenticationError):
             self.auth(a["token"])
         again = self.register(device_key=KEY_A)
@@ -963,6 +999,130 @@ class DeviceSlotHello(Base):
 
 # ── 补丁第 1 步 ───────────────────────────────────────────────────────────────
 
+
+
+# ── 第 2 批：心跳里的这台电脑 ────────────────────────────────────────────────────────
+
+
+class HeartbeatComputer(Base):
+    """心跳不再读写连接配置（ADR-021 第 2 批）：所选账套、科目映射与版本记在电脑行上；连接域看到的是 `Member`。"""
+
+    def claimed(self, key, name="ACC-01", hosts=None):
+        made = self.register(device_key=key)
+        doc = devices.read(made["device"])
+        doc.host_names = json.dumps(hosts if hosts is not None else [name, "192.168.1.5"])
+        doc.label = name
+        device_documents.persist(doc)
+        return made
+
+    def test_member_carries_identity_host_and_aliases(self):
+        old = self.register()  # 旧版（不带设备密钥）：补丁同款的「旧电脑」，没认领；池里一有认领的就登记不了
+        a = self.claimed(KEY_A, "ACC-01", ["ACC-01", "192.168.1.5", "172.27.224.1"])
+        b = self.claimed(KEY_B, "ACC-02", ["ACC-02", "172.27.224.1"])  # 两台都报的 WSL 地址
+        self.claimed(KEY_C, "ACC-01", ["ACC-01"])  # 同名的另一台：本机账套键里加设备短号
+        member = devices.member(a["device"], "WS")
+        self.assertFalse(member.legacy)
+        self.assertEqual(member.host, "acc-01-" + a["device"][-6:].lower())
+        self.assertEqual(member.aliases.get("192.168.1.5"), "acc-01")
+        self.assertNotIn("172.27.224.1", member.aliases)  # 两台都报的虚拟网卡地址：不猜
+        legacy = devices.member(self.row(old["token"])["device"], "WS")
+        self.assertTrue(legacy.legacy)
+        self.assertTrue(legacy.host.startswith("pc-"))
+        self.assertEqual(devices.member(b["device"], "WS").version, "")
+
+    def test_the_computer_keeps_its_own_selection_and_versions(self):
+        old = self.row(self.register()["token"])["device"]
+        made = self.claimed(KEY_A)
+        plan = types.SimpleNamespace(offline=False, patch={"account_set": r"S:\X\BOOK", "revenue_acc": "4100",
+                                                           "companion_version": "1.6.0", "max_payload_version": 2})
+        self.assertTrue(devices.record_report(made["device"], plan))
+        self.assertEqual(devices.state(made["device"]), {"account_set": r"S:\X\BOOK", "revenue_acc": "4100",
+                                                         "companion_version": "1.6.0", "max_payload_version": 2})
+        LOCKS.clear()
+        self.assertFalse(devices.record_report(made["device"], plan))  # 没变：不碰电脑行
+        self.assertEqual(LOCKS, [])
+        member = devices.member(made["device"], "WS")
+        self.assertEqual((member.selected, member.version, member.payload_version), (r"S:\X\BOOK", "1.6.0", 2))
+        # 新版的电脑名由 device_hello 报，心跳报的不改它；旧电脑（没认领）照旧用心跳报的名字
+        devices.record_report(made["device"], types.SimpleNamespace(offline=False, patch={"agent_device_name": "X"}))
+        self.assertEqual(STORE[DEVICE][made["device"]]["label"], "ACC-01")
+        devices.record_report(old, types.SimpleNamespace(offline=False, patch={"agent_device_name": "OLD-PC"}))
+        self.assertEqual(STORE[DEVICE][old]["label"], "OLD-PC")
+
+    def test_the_patch_hands_the_old_default_to_the_old_computer_once(self):
+        old = self.row(self.register()["token"])["device"]
+        config = {"account_set": r"S:\OLD\BOOK", "express_root": r"S:\OLD", "revenue_acc": "4100",
+                  "directions": "purchase"}
+        self.assertTrue(devices.seed_state(old, config, {"companion_version": "1.5.1", "max_payload_version": 2}))
+        self.assertEqual(devices.state(old), {"account_set": r"S:\OLD\BOOK", "express_root": r"S:\OLD",
+                                              "revenue_acc": "4100", "companion_version": "1.5.1",
+                                              "max_payload_version": 2})
+        self.assertFalse(devices.seed_state(old, {"account_set": r"S:\OTHER"}, {"companion_version": "9.9.9"}))
+        self.assertEqual(devices.state(old)["account_set"], r"S:\OLD\BOOK")
+
+    def test_newest_version_peers_and_reporter_label(self):
+        a, b = self.claimed(KEY_A, "ACC-01"), self.claimed(KEY_B, "ACC-02")
+        for made, version in ((a, "1.5.10"), (b, "1.6.0")):
+            doc = devices.read(made["device"])
+            doc.companion_version = version
+            device_documents.persist(doc)
+        self.assertEqual(devices.newest_version(self.express), "1.6.0")
+        row_a = self.row(a["token"])
+        credentials.record_seen(row_a["name"], row_a["token_generation"])
+        devices.note_signed_in(devices.read(b["device"]), ENTRY)
+        peers = credentials.pool_peers(self.express)
+        self.assertEqual(peers[a["device"]]["online"], True)
+        self.assertEqual((peers[b["device"]]["online"], peers[b["device"]]["user"]), (False, ENTRY))
+        STORE[CONNECTION][self.express]["report_credential"] = row_a["name"]
+        self.assertEqual(devices.reporter_label(self.express), "ACC-01")
+        self.assertEqual(credentials.device_of(row_a["name"]), a["device"])
+
+    def test_heartbeat_reads_and_writes_the_computer_not_the_connection_config(self):
+        made = self.claimed(KEY_A)
+        STORE[CONNECTION][self.express]["config_json"] = json.dumps({"account_set": r"S:\STALE", "revenue_acc": "1"})
+        STORE[CONNECTION][self.express]["report_json"] = json.dumps({"companion_version": "OTHER-PC", "update_blocked": None})
+        devices.record_report(made["device"], types.SimpleNamespace(offline=False, patch={"account_set": r"S:\MINE"}))
+        seen = {}
+
+        def plan_report(body, previous, now):
+            seen["previous"] = previous
+            return types.SimpleNamespace(offline=False, patch={"companion_version": "1.6.0", "account_set": r"S:\NEW"})
+
+        def ingest(doc, plan, **kwargs):
+            seen.update(kwargs)
+            return {"ok": True}
+
+        stubs = {"pearnly_cowork.companion.http_auth": types.SimpleNamespace(),
+                 "pearnly_cowork.companion.release": types.SimpleNamespace(latest=lambda: None),
+                 "pearnly_cowork.connections.collector": types.SimpleNamespace(ingest=ingest),
+                 "pearnly_cowork.connections.reports": types.SimpleNamespace(
+                     **vars(sys.modules["pearnly_cowork.connections.reports"]), plan_report=plan_report,
+                     ReportError=ValueError),
+                 "pearnly_cowork.push": types.ModuleType("pearnly_cowork.push"),
+                 "pearnly_cowork.push.native": types.ModuleType("pearnly_cowork.push.native"),
+                 "pearnly_cowork.push.native.service": types.SimpleNamespace(open_account_keys=lambda c: {"k"})}
+        saved = {name: sys.modules.get(name) for name in stubs}
+        sys.modules.update(stubs)
+        sys.modules["pearnly_cowork.connections"].collector = stubs["pearnly_cowork.connections.collector"]
+        try:
+            sys.modules.pop("pearnly_cowork.companion.heartbeat", None)
+            heartbeat = importlib.import_module("pearnly_cowork.companion.heartbeat")
+            context = self.auth(made["token"])
+            reply = heartbeat._receive(context, {})
+        finally:
+            for name, module in saved.items():
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
+        self.assertEqual(seen["previous"], {"account_set": r"S:\MINE", "update_blocked": None})
+        member = seen["member"]
+        self.assertEqual((member.device, member.legacy, member.host, member.version),
+                         (made["device"], False, "acc-01", "1.6.0"))
+        self.assertEqual(seen["protected"](), {"k"})
+        self.assertEqual(devices.state(made["device"]), {"account_set": r"S:\NEW", "companion_version": "1.6.0"})
+        self.assertEqual(json.loads(STORE[CONNECTION][self.express]["config_json"])["account_set"], r"S:\STALE")
+        self.assertIs(reply["account_sets_unchanged_ok"], True)
 
 class PatchSeedsOldComputers(Base):
     def load_patch(self):

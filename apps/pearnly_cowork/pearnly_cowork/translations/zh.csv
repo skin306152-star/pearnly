@@ -60,9 +60,12 @@ Access to the CC Desktop queue has been revoked.,CC 桌面版队列的访问权�
 Account Codes,科目编码
 Account Key,账套键
 Account Set,账套
+Account Set Details,账套详情
 Account Set Key,账套选择键
 Account Set Label,账套名称
+Account Set Masters,账套主档
 Account Set Name,账套名称
+Account Set Path,账套路径
 Account code,科目代码
 Account set,账套
 Ack Digest,回执摘要
@@ -398,6 +401,7 @@ Connection Revision,连接版本
 Connection or directory record not found.,找不到此连接或目录记录。
 Contact Email,联系邮箱
 Content Hash,内容摘要
+Content Key,内容键
 Continues the scheduled task «{0}»; only files put in from now on are processed,接续定时任务「{0}」，只处理此后放入的文件
 Continuous counting,连续盘点
 Copy card,复制卡片
@@ -447,8 +451,11 @@ Cowork ERP Connection,Cowork ERP 连接
 Cowork ERP Mapping,Cowork ERP 映射
 Cowork ERP Refresh,Cowork ERP 目录刷新
 Cowork ERP Snapshot,Cowork ERP 目录快照
+Cowork Express Account Facts,Cowork Express 账套资料
+Cowork Express Account Set,Cowork Express 账套登记
 Cowork Express Agent Credential,Cowork Express CC 桌面版凭据
 Cowork Express CC Desktop Credential,Cowork Express CC 桌面版凭据
+Cowork Express Reach,Cowork Express 账套可达
 Cowork Express Readback,Cowork Express 回读
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork 主数据
@@ -699,6 +706,8 @@ Exporting a stock count,正在导出盘点差异
 Exporting the review workbook,正在导出复核工作簿
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
 Express PC,Express 电脑
+Express Root,Express 程序目录
+Express Root Key,Express 程序目录键
 "Express already has this invoice number with different content. Check it, or choose Send anyway",Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 "Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，将自动重试
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
@@ -732,6 +741,7 @@ First Recognition Value,首次识别值
 First name,名
 Fix,需修正
 Folder,文件夹
+Folder ID,文件夹编号
 Folder and schedule,文件夹与时间
 Folder auto-intake is not turned on for this site.,本站没有开通文件夹自动录入。
 Folder auto-intake rules,自动录入规则
@@ -746,6 +756,7 @@ Formula Diff,公式差额
 Formula Statement Closing,按公式计算的对账单期末余额
 Found {0} · new {1} · skipped {2} · upload failed {3},扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
 Found {0}. Tap the number to choose:,找到 {0} 个账套，请点击序号选择：
+From Routine Report,来自定期上报
 Full Report Due,待整份上报
 GL Account Code,总账科目编码
 GL Amount,总账金额
@@ -893,6 +904,8 @@ Last Request Hash,最近请求摘要
 Last Request Key,最近请求标识
 Last Seen Generation,最近确认代次
 Last Used At,最近使用时间
+Last Written At (UTC),最近写入时间（UTC）
+Last Written By Computer,最近写入的电脑
 Last day of the month,月末
 Last modified by,最后修改人
 Last month to claim,最晚抵扣月
@@ -933,6 +946,7 @@ Listing folder files,正在列出文件夹里的文件
 Listing reconciliations,正在查看对账列表
 Listing stock counts,正在查看盘点列表
 Listing task boards,正在查看任务看板
+Local To Computer,仅限电脑
 Location,位置
 Location check,仓位比对结果
 Location mismatch,仓位不符
@@ -997,6 +1011,7 @@ Native Content Hash,原生文件内容哈希
 Needs review,待复核
 "Net tax overpaid (10 more than 8, or 9 plus 10)",净多缴税额（10 大于 8 时，或 9 加 10）
 Net tax payable (if 8 is more than 10),净应纳税额（8 大于 10 时）
+Network Path,网络路径
 Never,从不
 New Files,新文件数
 New code,重新生成绑定码
@@ -1140,6 +1155,7 @@ Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
 Page {0}/{1},第 {0}/{1} 页
 Parameters,参数
+Parent Refresh Request,上级刷新请求
 Parse Info Json,解析信息
 Parties not read,双方未读出
 Party,对方
@@ -1225,8 +1241,10 @@ Queued,排队等待
 Rate %,税率 %
 Rate differs from the usual rate,税率与常用税率不同
 Rate not confirmed for this date,该日期税率未确认
+Reach State,可达状态
 Read,已读取
 Read At (UTC),读取时间（UTC）
+Read By Computer,读取的电脑
 Read VAT report,读取销项税报告
 Read again,重新读取
 Read back the accounting books,回读了账套账目
@@ -1291,6 +1309,7 @@ Recurring,重复性
 Red,红
 Reference,参考编号
 Refresh Error Code,刷新错误码
+Refresh Lease Computer,刷新租约电脑
 Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
 Refresh Lease Generation,刷新租约版本
 Refresh Lease Handle,刷新租约标识
@@ -1302,7 +1321,9 @@ Refresh the account directory before continuing.,请先刷新账套目录。
 Refreshed account sets,刷新了账套
 Refreshing account sets,正在刷新账套
 Registered At,登记时间
+Registered At (UTC),登记时间（UTC）
 Registered By,登记人
+Registry Row,登录列表行号
 Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
 Relative Path,相对路径
 Reload,刷新
@@ -1435,10 +1456,12 @@ Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
 Searched tasks,搜索了任务
 Searching tasks,正在搜索任务
+Seen At (UTC),上报时间（UTC）
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
 Select valid files to download.,请选择有效文件进行下载。
+Selected Account Set,所选账套
 Sell Units,销售单位
 Seller,卖方
 Seller Name,卖方名称
@@ -2057,6 +2080,7 @@ Work Coordination,工作协调
 Work Name,后台任务标识
 Workbook Revision,工作簿版本
 Workspace,公司账套
+Writable,可写
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Yearly,每年
 Yellow,黄

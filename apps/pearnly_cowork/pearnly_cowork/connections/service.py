@@ -32,8 +32,8 @@ from pearnly_cowork.targets import TargetAccess, TargetEvidence, catalog_groups
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
 from pearnly_cowork.targets import mrerp_masters as master_rules, mrerp_menus as menu_rules, stock_groups
-from . import access, account_masters, model, snapshots, refresh as refresh_leases
-from .preparation import account_reported, reported_stock_groups
+from . import access, account_masters, model, pool, snapshots, refresh as refresh_leases
+from .preparation import reported_stock_groups
 from .state import read as _read, heads as _heads, scope as _scope
 
 CONNECTION, SNAPSHOT, REFRESH = access.TYPES
@@ -67,7 +67,7 @@ def _collector_available(doc):
 def _dto(doc):
     return {"name": doc.name, "label": doc.label, "adapter": doc.adapter, "workspace": doc.workspace,
             "client": doc.client or None, "enabled": bool(doc.enabled), "revision": int(doc.record_revision),
-            "config": model.parse(doc.config_json, {}), "users": model.parse(doc.allowed_users, []),
+            "config": model.pool_config(doc.adapter, doc.config_json), "users": model.parse(doc.allowed_users, []),
             "has_username": bool(doc.get("credential_username")), "has_password": bool(doc.get("credential_password")),
             "has_token": bool(doc.get("credential_token")), "collector_available": _collector_available(doc)}
 
@@ -500,7 +500,8 @@ def read_for_push(connection_id, workspace, client=None, actor=None, lock=True):
     actor = access.require_connection(doc, actor=actor)
     if (doc.workspace, doc.client or "") != (workspace, client or ""):
         access.deny()
-    config = model.parse(doc.config_json, {})
+    # Express 池里没有连接级默认账套（ADR-021，方案 2.3 第 7 条）：选目标、冻结、推送准备都按池目录核
+    config = model.pool_config(doc.adapter, doc.config_json)
     endpoint = {"id": doc.name, "adapter": doc.adapter, "enabled": bool(doc.enabled), "config": config,
                 "tenant_id": frappe.local.site, "workspace_client_id": doc.workspace,
                 "binding_generation": int(doc.binding_generation or 0), "bound_account_set": doc.bound_account_set or "",
@@ -595,26 +596,14 @@ def credentials_for_use(loaded):
 
 
 def stock_groups_for_log(connection_id, target):
-    """Current reported labels only when attributed to the receipt's account.
+    """Current reported labels of the receipt's account set (its Account Facts, ADR-021).
 
-    A later account/credential switch must not rename the original stock group.
-    Empty candidates retain the code from the frozen request, without a label.
+    Facts belong to the account set, not to the computer or key that read them, so a later
+    computer switch cannot rename another account set's stock group. Empty candidates retain
+    the code from the frozen request, without a label.
     """
     read_for_log(connection_id)
-    doc = _read(CONNECTION, connection_id)
-    report = model.parse(doc.report_json, {})
-    credential = (target.get('preparation_evidence') or {}).get('credential')
-    if not credential or target.get('endpoint_id') != connection_id:
+    if target.get('endpoint_id') != connection_id:
         return []
-    expected = {**credential, 'account_set': normalize_express_account_key(target.get('account_set')),
-                'root_key': normalize_express_account_key(target.get('root_key'))}
-    if (report.get('_preparation_origins') or {}).get('reported_stock_acc_groups') == expected:
-        groups = report.get('reported_stock_acc_groups')
-    else:
-        # 推往电脑当时没选的账套：组名在那份账套按账套读回的主档里，同样须出自这张回执的那份凭据。
-        cache = account_reported(doc, expected['account_set'])
-        if (cache.get('_credential'), cache.get('_generation')) != (credential.get('credential_id'),
-                                                                   credential.get('generation')):
-            return []
-        groups = cache.get('reported_stock_acc_groups')
+    groups = (pool.facts(connection_id, target.get('account_set')) or {}).get('reported_stock_acc_groups')
     return deepcopy(groups) if isinstance(groups, list) else []

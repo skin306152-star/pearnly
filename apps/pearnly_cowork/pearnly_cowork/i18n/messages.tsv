@@ -427,6 +427,30 @@ Retired At (UTC)	移除时间（UTC）	เวลานำออก (UTC)	削除�
 Retired By	移除人	ผู้นำออก	削除者
 Computer	电脑	คอมพิวเตอร์	コンピューター
 Full Report Due	待整份上报	รอรายงานฉบับเต็ม	全件報告待ち
+Cowork Express Account Set	Cowork Express 账套登记	การลงทะเบียนชุดบัญชี Express ของ Cowork	Cowork Express 会計データ登録
+Cowork Express Reach	Cowork Express 账套可达	การเข้าถึงชุดบัญชี Express ของ Cowork	Cowork Express 会計データへのアクセス
+Cowork Express Account Facts	Cowork Express 账套资料	ข้อมูลชุดบัญชี Express ของ Cowork	Cowork Express 会計データ情報
+Express Root Key	Express 程序目录键	คีย์โฟลเดอร์โปรแกรม Express	Express プログラムフォルダーキー
+Account Set Path	账套路径	พาธชุดบัญชี	会計データのパス
+Express Root	Express 程序目录	โฟลเดอร์โปรแกรม Express	Express プログラムフォルダー
+Account Set Details	账套详情	รายละเอียดชุดบัญชี	会計データの詳細
+Folder ID	文件夹编号	รหัสโฟลเดอร์	フォルダー ID
+Network Path	网络路径	พาธเครือข่าย	ネットワークパス
+Content Key	内容键	คีย์เนื้อหา	内容キー
+Local To Computer	仅限电脑	เฉพาะคอมพิวเตอร์	限定コンピューター
+Last Written By Computer	最近写入的电脑	คอมพิวเตอร์ที่เขียนล่าสุด	最後に書き込んだコンピューター
+Last Written At (UTC)	最近写入时间（UTC）	เวลาเขียนล่าสุด (UTC)	最終書き込み日時 (UTC)
+Registered At (UTC)	登记时间（UTC）	เวลาลงทะเบียน (UTC)	登録日時 (UTC)
+Registry Row	登录列表行号	แถวในรายการเข้าสู่ระบบ	ログイン一覧の行番号
+Writable	可写	เขียนได้	書き込み可
+Reach State	可达状态	สถานะการเข้าถึง	アクセス状態
+Seen At (UTC)	上报时间（UTC）	เวลารายงาน (UTC)	報告日時 (UTC)
+Account Set Masters	账套主档	ข้อมูลหลักของชุดบัญชี	会計データのマスター
+From Routine Report	来自定期上报	จากรายงานตามรอบ	定期報告から
+Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ่าน	読み取ったコンピューター
+Refresh Lease Computer	刷新租约电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新リースのコンピューター
+Parent Refresh Request	上级刷新请求	คำขอรีเฟรชหลัก	親の更新リクエスト
+Selected Account Set	所选账套	ชุดบัญชีที่เลือก	選択した会計データ
 Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.
 The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
 This request key was used for another credential operation.	此请求标识已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict

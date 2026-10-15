@@ -60,9 +60,12 @@ Access to the CC Desktop queue has been revoked.,Access to the CC Desktop queue 
 Account Codes,Account Codes
 Account Key,Account Key
 Account Set,Account Set
+Account Set Details,Account Set Details
 Account Set Key,Account Set Key
 Account Set Label,Account Set Label
+Account Set Masters,Account Set Masters
 Account Set Name,Account Set Name
+Account Set Path,Account Set Path
 Account code,Account code
 Account set,Account set
 Ack Digest,Ack Digest
@@ -398,6 +401,7 @@ Connection Revision,Connection Revision
 Connection or directory record not found.,Connection or directory record not found.
 Contact Email,Contact Email
 Content Hash,Content Hash
+Content Key,Content Key
 Continues the scheduled task «{0}»; only files put in from now on are processed,Continues the scheduled task «{0}»; only files put in from now on are processed
 Continuous counting,Continuous counting
 Copy card,Copy card
@@ -447,8 +451,11 @@ Cowork ERP Connection,Cowork ERP Connection
 Cowork ERP Mapping,Cowork ERP Mapping
 Cowork ERP Refresh,Cowork ERP Refresh
 Cowork ERP Snapshot,Cowork ERP Snapshot
+Cowork Express Account Facts,Cowork Express Account Facts
+Cowork Express Account Set,Cowork Express Account Set
 Cowork Express Agent Credential,Cowork Express CC Desktop Credential
 Cowork Express CC Desktop Credential,Cowork Express CC Desktop Credential
+Cowork Express Reach,Cowork Express Reach
 Cowork Express Readback,Cowork Express Readback
 Cowork LINE,Cowork LINE
 Cowork Master Data,Cowork Master Data
@@ -699,6 +706,8 @@ Exporting a stock count,Exporting a stock count
 Exporting the review workbook,Exporting the review workbook
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
 Express PC,Express PC
+Express Root,Express Root
+Express Root Key,Express Root Key
 "Express already has this invoice number with different content. Check it, or choose Send anyway","Express already has this invoice number with different content. Check it, or choose Send anyway"
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
@@ -732,6 +741,7 @@ First Recognition Value,First Recognition Value
 First name,First name
 Fix,Fix
 Folder,Folder
+Folder ID,Folder ID
 Folder and schedule,Folder and schedule
 Folder auto-intake is not turned on for this site.,Folder auto-intake is not turned on for this site.
 Folder auto-intake rules,Folder auto-intake rules
@@ -746,6 +756,7 @@ Formula Diff,Formula Diff
 Formula Statement Closing,Formula Statement Closing
 Found {0} · new {1} · skipped {2} · upload failed {3},Found {0} · new {1} · skipped {2} · upload failed {3}
 Found {0}. Tap the number to choose:,Found {0}. Tap the number to choose:
+From Routine Report,From Routine Report
 Full Report Due,Full Report Due
 GL Account Code,GL Account Code
 GL Amount,GL Amount
@@ -893,6 +904,8 @@ Last Request Hash,Last Request Hash
 Last Request Key,Last Request Key
 Last Seen Generation,Last Seen Generation
 Last Used At,Last Used At
+Last Written At (UTC),Last Written At (UTC)
+Last Written By Computer,Last Written By Computer
 Last day of the month,Last day of the month
 Last modified by,Last modified by
 Last month to claim,Last month to claim
@@ -933,6 +946,7 @@ Listing folder files,Listing folder files
 Listing reconciliations,Listing reconciliations
 Listing stock counts,Listing stock counts
 Listing task boards,Listing task boards
+Local To Computer,Local To Computer
 Location,Location
 Location check,Location check
 Location mismatch,Location mismatch
@@ -997,6 +1011,7 @@ Native Content Hash,Native Content Hash
 Needs review,Needs review
 "Net tax overpaid (10 more than 8, or 9 plus 10)","Net tax overpaid (10 more than 8, or 9 plus 10)"
 Net tax payable (if 8 is more than 10),Net tax payable (if 8 is more than 10)
+Network Path,Network Path
 Never,Never
 New Files,New Files
 New code,New code
@@ -1140,6 +1155,7 @@ Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
 Page {0}/{1},Page {0}/{1}
 Parameters,Parameters
+Parent Refresh Request,Parent Refresh Request
 Parse Info Json,Parse Info Json
 Parties not read,Parties not read
 Party,Party
@@ -1225,8 +1241,10 @@ Queued,Queued
 Rate %,Rate %
 Rate differs from the usual rate,Rate differs from the usual rate
 Rate not confirmed for this date,Rate not confirmed for this date
+Reach State,Reach State
 Read,Read
 Read At (UTC),Read At (UTC)
+Read By Computer,Read By Computer
 Read VAT report,Read VAT report
 Read again,Read again
 Read back the accounting books,Read back the accounting books
@@ -1291,6 +1309,7 @@ Recurring,Recurring
 Red,Red
 Reference,Reference
 Refresh Error Code,Refresh Error Code
+Refresh Lease Computer,Refresh Lease Computer
 Refresh Lease Expires At (UTC),Refresh Lease Expires At (UTC)
 Refresh Lease Generation,Refresh Lease Generation
 Refresh Lease Handle,Refresh Lease Handle
@@ -1302,7 +1321,9 @@ Refresh the account directory before continuing.,Refresh the account directory b
 Refreshed account sets,Refreshed account sets
 Refreshing account sets,Refreshing account sets
 Registered At,Registered At
+Registered At (UTC),Registered At (UTC)
 Registered By,Registered By
+Registry Row,Registry Row
 Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
 Relative Path,Relative Path
 Reload,Reload
@@ -1435,10 +1456,12 @@ Search cards,Search cards
 Search name or barcode,Search name or barcode
 Searched tasks,Searched tasks
 Searching tasks,Searching tasks
+Seen At (UTC),Seen At (UTC)
 Select a file to upload.,Select a file to upload.
 Select between 1 and 100 distinct history records to export.,Select between 1 and 100 distinct history records to export.
 Select between 1 and 500 records.,Select between 1 and 500 records.
 Select valid files to download.,Select valid files to download.
+Selected Account Set,Selected Account Set
 Sell Units,Sell Units
 Seller,Seller
 Seller Name,Seller Name
@@ -2057,6 +2080,7 @@ Work Coordination,Work Coordination
 Work Name,Work Name
 Workbook Revision,Workbook Revision
 Workspace,Workspace
+Writable,Writable
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Yearly,Yearly
 Yellow,Yellow

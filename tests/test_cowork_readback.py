@@ -657,6 +657,7 @@ class ServiceHarness:
         self.frappe = frappe
         stubs = {
             "pearnly_cowork.access.scope": dict(require=lambda feature: self.calls.append(("scope", feature))),
+            "pearnly_cowork.companion.devices": dict(newest_version=lambda connection: "1.5.0"),
             "pearnly_cowork.companion.request_service": dict(
                 create=self.create, find=self.find, status=self.request_status, result=self.result,
                 drop=lambda name: self.calls.append(("drop", name)) or self.requests.pop(name, None),
@@ -667,8 +668,7 @@ class ServiceHarness:
                 targets=lambda name: {"account_sets": [{"source_id": "S:\\EXP69\\T9SINCER", "label": "T9 SINCERE",
                                                         "attributes": {"path": "S:\\EXP69\\T9SINCER",
                                                                        "root": "S:\\EXP69"}}]},
-                adapter_of=lambda name: "mrerp" if name == "M1" else "express",
-                detail=lambda name: {"config": {"companion_version": "1.5.0"}}),
+                adapter_of=lambda name: "mrerp" if name == "M1" else "express"),
             "pearnly_cowork.push.application.service": dict(pushed_express=self.pushed_express),
             "pearnly_cowork.readback.workbooks": dict(
                 general_ledger=self.general_ledger,

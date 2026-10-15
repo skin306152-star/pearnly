@@ -7,8 +7,12 @@ from frappe import _
 
 from pearnly_cowork.connections import collector, model
 from pearnly_cowork.connections.reports import ReportError, plan_report
+from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.targets.projection import ProjectionContractError
-from . import credentials, http_auth, release
+from . import credentials, devices, http_auth, release
+
+# 每台电脑各自的（ADR-021）：上次报的所选账套、科目映射与版本取它自己的电脑行，不取连接配置 / 上报记录
+_PER_COMPUTER = frozenset(('companion_version', 'max_payload_version'))
 
 
 def _receive(context, body):
@@ -16,12 +20,21 @@ def _receive(context, body):
     # issuer/scope/grants and global switch inside each local write transaction.
     context = credentials.revalidate(context)
     doc = frappe.get_doc('Cowork ERP Connection', context.connection, for_update=True)
-    previous = {**model.parse(doc.get('report_json'), {}), **model.parse(doc.config_json, {})}
-    plan = plan_report(body, previous, datetime.now(timezone.utc))
+    device = credentials.device_of(context.credential_id) or context.credential_id
+    known = devices.state(device)
+    shared = {key: value for key, value in model.parse(doc.get('report_json'), {}).items() if key not in _PER_COMPUTER}
+    plan = plan_report(body, {**shared, **known}, datetime.now(timezone.utc))
+    member = devices.member(device, doc.workspace, peers=lambda: credentials.pool_peers(doc.name),
+                            version=plan.patch.get('companion_version') or known.get('companion_version'),
+                            payload_version=plan.patch.get('max_payload_version') or known.get('max_payload_version'))
+    # 心跳不再写连接配置（方案 2.3 第 1 条）：账套名单进可达行、主档进账套资料，所选与映射记在这台电脑上
     result = collector.ingest(doc, plan, credential_id=context.credential_id,
-        token_generation=context.token_generation, issuer=context.issuer)
+        token_generation=context.token_generation, issuer=context.issuer, member=member,
+        protected=lambda: ledger.open_account_keys(doc.name))
     # 报到时间只记在这把密钥的小行上；连接的上报记录只在内容变了时才重写（`collector.ingest`）。
     credentials.record_seen(context.credential_id, context.token_generation, offline=plan.offline)
+    # 电脑行在加锁顺序的最后（Connection → Credential → 池里各行 → Device）
+    devices.record_report(device, plan)
     # 告诉小助手：账套名单没变时可以只报「没变」（`plan_report` 的 `account_sets_unchanged`）。
     # 旧服务端不回这一项，小助手就照旧每次整份上传 —— 两边谁先上线都不会把网页上的账套目录清掉。
     reply = {**result, 'account_sets_unchanged_ok': True}

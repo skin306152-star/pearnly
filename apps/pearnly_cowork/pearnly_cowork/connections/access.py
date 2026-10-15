@@ -6,6 +6,8 @@ from pearnly_cowork.masters import workspaces
 from . import model
 
 TYPES = ("Cowork ERP Connection", "Cowork ERP Snapshot", "Cowork ERP Refresh")
+# 多台电脑的账套登记、可达与账套资料（ADR-021，`pool`）：同一套只经本域写入的守卫。
+POOL_TYPES = ("Cowork Express Account Set", "Cowork Express Reach", "Cowork Express Account Facts")
 _TOKEN = object()
 
 
@@ -23,7 +25,7 @@ def native_query(user=None):
 
 
 def reject_share(doc, method=None):
-    if doc.share_doctype in TYPES:
+    if doc.share_doctype in TYPES or doc.share_doctype in POOL_TYPES:
         deny()
 
 

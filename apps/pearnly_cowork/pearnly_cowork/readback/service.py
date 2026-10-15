@@ -29,7 +29,7 @@ from frappe import _
 from frappe.utils import get_datetime
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.companion import request_service
+from pearnly_cowork.companion import devices, request_service
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.push.application import service as push_service
@@ -104,9 +104,11 @@ def _holder(lookup, request):
 
 
 def _known_version(connection):
-    """心跳报过的这台电脑的 CC 桌面版版本（它从没来领过按需请求时据此分辨离线与要升级）。"""
+    """池里电脑报过的最新 CC 桌面版版本（它们从没来领过按需请求时据此分辨离线与要升级）。
+
+    以前读连接配置里的 ``companion_version``，那个键从来不在配置里，永远是空（ADR-021 第 2 批改读电脑行）。"""
     try:
-        return str(((connections.detail(connection) or {}).get("config") or {}).get("companion_version") or "")
+        return devices.newest_version(connection)
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
         frappe.clear_messages()
         return ""

@@ -270,6 +270,7 @@ class FolderRuleDelete(unittest.TestCase):
         modules = {"frappe": frappe, "frappe.utils": stub(now_datetime=lambda: None),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": stub(scope=stub(require=lambda *a: None)),
+                   "pearnly_cowork.companion": stub(devices=stub()),
                    "pearnly_cowork.connections": stub(access=stub(), preparation=stub(), service=stub(),
                                                       desktop_update=_load("connections_desktop_update_delete",
                                                                            APP / "connections/desktop_update.py", {})),
