@@ -322,7 +322,8 @@ def _account_from(decision, connection, account_set, fields, direction, since):
     if decision.get("history"):
         return "express_history"
     if since and direction == "purchase":
-        name, tax = fields.get("seller_name"), fields.get("seller_tax") or fields.get("seller_tax_id")
+        # 与 choices.resolve 记科目的键同一取法（_party 只用 seller_tax），否则按名字记下的选择查不到
+        name, tax = fields.get("seller_name"), fields.get("seller_tax")
         chosen_at = choice_store.chosen_at(connection, account_set, "account",
                                            choice_rules.supplier_subject(direction, tax, name))
         if chosen_at and _moment(chosen_at) >= _moment(since):

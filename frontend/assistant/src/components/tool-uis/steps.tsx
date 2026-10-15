@@ -113,20 +113,35 @@ function resultLabels(result: unknown): Array<[string, string]> {
 
 type MessageLike = { content?: readonly unknown[]; parts?: readonly unknown[] };
 
+/** 整段对话里各步结果认出的记录（所有步骤共用一份）：同一个消息数组只算一次（一屏的各步共用）；结果都没变（流式只来
+ *  文字时）就交回同一个 Map，订阅它的步骤不随每个字重画。 */
+const knownByMessages = new WeakMap<object, ReadonlyMap<string, string>>();
+let lastKnown: { results: unknown[]; known: ReadonlyMap<string, string> } = { results: [], known: new Map() };
+function knownRecords(messages: readonly MessageLike[]): ReadonlyMap<string, string> {
+  const cached = knownByMessages.get(messages);
+  if (cached) return cached;
+  const results: unknown[] = [];
+  for (const message of messages) {
+    for (const part of message.content ?? message.parts ?? []) {
+      if ((part as { type?: string }).type !== "tool-call") continue;
+      const result = (part as { result?: unknown }).result;
+      if (result !== undefined) results.push(result);
+    }
+  }
+  const same = results.length === lastKnown.results.length && results.every((result, i) => result === lastKnown.results[i]);
+  if (!same) {
+    const known = new Map<string, string>();
+    for (const result of results) for (const [id, label] of resultLabels(result)) if (!known.has(id)) known.set(id, label);
+    lastKnown = { results, known };
+  }
+  knownByMessages.set(messages, lastKnown.known);
+  return lastKnown.known;
+}
+
 /** 整段对话里各步结果认出的记录：内部名字 → 给人看的名字（单号、标题…），让「推送了单据」也写出是哪张——单号常在
  *  前几条回复列过 / 识别过的结果里（测试窗口第 2 轮：「推送了单据 · t9niexcp」）；另有账套文件夹的原写法。 */
 function useKnownRecords(): ReadonlyMap<string, string> {
-  const messages = useAuiState((s) => s.thread.messages) as readonly MessageLike[];
-  return useMemo(() => {
-    const known = new Map<string, string>();
-    for (const message of messages) {
-      for (const part of message.content ?? message.parts ?? []) {
-        if ((part as { type?: string }).type !== "tool-call") continue;
-        for (const [id, label] of resultLabels((part as { result?: unknown }).result)) if (!known.has(id)) known.set(id, label);
-      }
-    }
-    return known;
-  }, [messages]);
+  return useAuiState((s) => knownRecords(s.thread.messages as readonly MessageLike[]));
 }
 
 export const StepRow: ToolCallMessagePartComponent = ({
@@ -150,7 +165,8 @@ export const StepRow: ToolCallMessagePartComponent = ({
   // Held for Allow/Deny: say what it is about to do, not the past-tense label ("Saved …" before anything ran).
   const asking = awaiting ? (approval as ToolApproval).ask : undefined;
   // 本站工具的结果只显示给人看的（同参数，lib/step-detail.ts）；内置工具（命令、文件）照原样
-  const shownOutput = step.showOutput && output?.text ? (step.own ? detailOutput(output.text) : output.text) : "";
+  const outputText = step.showOutput ? output?.text ?? "" : "";
+  const shownOutput = useMemo(() => (outputText ? (step.own ? detailOutput(outputText) : outputText) : ""), [outputText, step.own]);
   const expandable = Boolean(step.input || shownOutput);
 
   return (

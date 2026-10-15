@@ -435,30 +435,43 @@ export function setForPeriod(sets: readonly AccountSet[], period: string): Accou
   return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
 }
 
+/** 一组账套里覆盖这个月的全部（没有月份时为空）。 */
+function coveringOf(sets: readonly AccountSet[], period: string): AccountSet[] {
+  const day = period ? `${period}-01` : "";
+  return day ? sets.filter((s) => covers(s, day)) : [];
+}
+
 /** 一组账套里覆盖这个月的全部；一个都不覆盖（或没有月份）时同 setForPeriod 取一份。 */
 function coveringOrNewest(sets: readonly AccountSet[], period: string): AccountSet[] {
-  const day = period ? `${period}-01` : "";
-  const covering = day ? sets.filter((s) => covers(s, day)) : [];
+  const covering = coveringOf(sets, period);
   if (covering.length) return covering;
   const one = setForPeriod(sets, period);
   return one ? [one] : [];
 }
 
 /** 公司卡上「这个月用哪份账套」（会话栏，测试窗口第 2 轮：没指定分店的对话只显示了分店 00012 的那份，推送却进了总店）：
- *  对话指定了分店 → 这个分店覆盖这个月的；没指定 → 各分店各自覆盖这个月的（分店没有覆盖的取它最新可写的一份），
- *  总店在前，其余照服务端的分店顺序。只有一个分店（或没有分店信息）时就是整家公司覆盖这个月的。 */
+ *  对话指定了分店 → 这个分店覆盖这个月的（分店不在名单里时照旧取整家公司的一份）；没指定 → 覆盖这个月的全部，
+ *  总店在前，其余照服务端的分店顺序；一份都不覆盖（或没有月份）时才每个分店各取最新可写的一份。
+ *  只有一个分店（或没有分店信息）时就是整家公司覆盖这个月的。 */
 export function setsForScope(detail: Pick<Detail, "branches" | "account_sets">, period: string, scope: string): AccountSet[] {
+  const all = detail.account_sets ?? [];
   const branches = branchesOf(detail);
-  const chosen = scope ? branches.find((b) => b.branch === scope) : undefined;
-  if (chosen) return coveringOrNewest(chosen.account_sets, period);
-  if (branches.length < 2) return coveringOrNewest(detail.account_sets ?? [], period);
+  if (scope) {
+    const chosen = branches.find((b) => b.branch === scope);
+    if (chosen) return coveringOrNewest(chosen.account_sets, period);
+    const one = setForPeriod(all, period);
+    return one ? [one] : [];
+  }
+  if (branches.length < 2) return coveringOrNewest(all, period);
   const id = (s: AccountSet) => `${s.connection}|${s.key}`;
   const inBranch = new Set(branches.flatMap((b) => b.account_sets.map(id)));
   // 不属于任何分店的（旧服务端、账套上没有分店号）当总店那一组
-  const loose = (detail.account_sets ?? []).filter((s) => !inBranch.has(id(s)));
+  const loose = all.filter((s) => !inBranch.has(id(s)));
   const head = (b: Branch) => b.branch === HQ || !b.branch;
-  const ordered = [...branches.filter(head), ...branches.filter((b) => !head(b))];
-  const out = [...(loose.length ? coveringOrNewest(loose, period) : []), ...ordered.flatMap((b) => coveringOrNewest(b.account_sets, period))];
+  const groups = [...(loose.length ? [loose] : []), ...branches.filter(head).map((b) => b.account_sets),
+    ...branches.filter((b) => !head(b)).map((b) => b.account_sets)];
+  const covering = groups.flatMap((sets) => coveringOf(sets, period));
+  const out = covering.length ? covering : groups.flatMap((sets) => coveringOrNewest(sets, period));
   return out.filter((s, i) => out.findIndex((other) => id(other) === id(s)) === i);
 }
 

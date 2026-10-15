@@ -575,11 +575,14 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('{subject && <span className="cc-step-target">{` · ${subject}`}</span>}', row)
         self.assertEqual(steps.count("stepSubject("), 1)
         # 记录名字从整段对话的结果里认（推送那一步的结果里没有单号，测试窗口第 2 轮），不只这条回复
-        self.assertIn("useAuiState((s) => s.thread.messages)", steps)
+        self.assertIn("useAuiState((s) => knownRecords(s.thread.messages as readonly MessageLike[]))", steps)
+        # 各步共用一份：同一个消息数组只算一次，结果都没变（流式只来文字）交回同一个 Map，不随每个字重画
+        self.assertIn("knownByMessages.set(messages, lastKnown.known);", steps)
+        self.assertIn("results.every((result, i) => result === lastKnown.results[i])", steps)
         self.assertNotIn("s.message.parts);\n  return useMemo", steps)
         # 点开的本站工具参数与结果只显示给人看的（lib/step-detail.ts）；内置工具照原样
         self.assertIn("input: detailArgs(args), showOutput: true, own: true", steps)
-        self.assertIn("(step.own ? detailOutput(output.text) : output.text)", steps)
+        self.assertIn("(outputText ? (step.own ? detailOutput(outputText) : outputText) : \"\")", steps)
         self.assertNotIn("JSON.stringify(args", steps)
         self.assertNotIn("subject", group)
         self.assertNotRegex(steps, r"\bicon\b|Icon className")
@@ -759,9 +762,14 @@ import assert from "node:assert/strict";
 import { detailArgs, detailOutput, internalValue, sanitizeDetail } from "@/lib/step-detail";
 for (const value of ["CWEC-0003", "CWH-2026-00031", "file_011CNha8iCJcU1wXNR6q4V8w", "sesn_01ABCDEFGH",
   "c:\\pearnlyexpress\\70exp\\t9niexcp", "C:/ExpressI/T9NIEXCP", "\\\\accserver\\s\\2569", "/Users/skin/x.pdf",
-  "8f2a1c9d3e"]) assert.equal(internalValue(value), true, value);
+  "8f2a1c9d3e", "3f2a1c9d-4b5e-4c6d-8e7f-0a1b2c3d4e5f", "3F2A1C9D-4B5E-4C6D-8E7F-0A1B2C3D4E5F",
+  "9b74c9897bac770ffc029102a200c5de2f1f6d5c7e3a1b0c9d8e7f6a5b4c3d2e"]) assert.equal(internalValue(value), true, value);
 for (const value of ["IV6810-00012", "2026-09", "Makro", "1070.00", "entered", "HP691015-001", "สาขา 00012", "0105562012340",
-  "2026-09/inv-01.pdf", "Rice 5kg", ""]) assert.equal(internalValue(value), false, value);
+  "2026-09/inv-01.pdf", "Rice 5kg", "", "agent_failed", "file_unreadable", "session_expiry", "user_permissions"])
+  assert.equal(internalValue(value), false, value);
+// 原因码跟在结果里照留
+assert.deepEqual(sanitizeDetail({ status: "failed", reason: "agent_failed", count: "3f2a1c9d-4b5e-4c6d-8e7f-0a1b2c3d4e5f" }),
+  { status: "failed", reason: "agent_failed" });
 // 推送的参数：连接、账套键、记录名都不显示 → 没有给人看的就不显示参数
 assert.equal(detailArgs({ documents: ["CWH-2026-00031"], connection: "cnx-office",
   account_set_key: "c:\\expressi\\t9niexcp" }), undefined);

@@ -563,7 +563,8 @@ class PushDecisions(unittest.TestCase):
     仍要人选。真的选择规则（`push/express/choices.py`），历史经钩子替身。"""
     FIELDS = {"seller_name": "ศรีกรุง เครื่องเขียน", "seller_tax": "0105556012345", "payment_status": "paid"}
 
-    def decide(self, settled, remembered=None, fixed=None, chart=BLANK, accounts=None, since=None, chosen_at=None):
+    def decide(self, settled, remembered=None, fixed=None, chart=BLANK, accounts=None, since=None, chosen_at=None,
+               fields=None):
         from test_cowork_push_fixed import _service, BOOK
 
         service, frappe_module, _calls = _service()
@@ -583,7 +584,7 @@ class PushDecisions(unittest.TestCase):
         service.choice_store = types.SimpleNamespace(remembered=lambda *a: {"account": dict(remembered or {})},
                                                      record=lambda *a: True,
                                                      chosen_at=lambda *a: self.chosen_asked.append(a) or chosen_at)
-        return service._decisions("C1", BOOK, {}, dict(self.FIELDS), "purchase", "service",
+        return service._decisions("C1", BOOK, {}, dict(fields or self.FIELDS), "purchase", "service",
                                   {"reported_accounts": chart}, {"mappings": {}}, fixed, since=since)
 
     SUBJECT = "purchase|0105556012345"
@@ -633,6 +634,16 @@ class PushDecisions(unittest.TestCase):
         self.assertEqual(self.chosen_asked, [])
         # 还要人选的不带来源
         self.assertNotIn("account_from", self.decide(None)["applied"])
+
+    def test_chosen_is_looked_up_under_the_key_the_choice_was_saved_with(self):
+        # 票面只有 seller_tax_id：选择按名字记（choices._party 只用 seller_tax），查选择时间也用同一个键
+        import datetime as dt
+        fields = {"seller_name": "ร้านป้าแดง", "seller_tax_id": "0105556099999", "payment_status": "paid"}
+        subject = choice_rules.supplier_subject("purchase", "", "ร้านป้าแดง")
+        after = self.decide(None, remembered={subject: "5390-99"}, since=dt.datetime(2026, 10, 15, 9, 0),
+                            chosen_at=dt.datetime(2026, 10, 15, 9, 5), fields=fields)
+        self.assertEqual((after["applied"]["account"], after["applied"]["account_from"]), ("5390-99", "chosen"))
+        self.assertEqual([asked[3] for asked in self.chosen_asked], [subject])
 
     def test_an_account_no_longer_in_the_chart_is_not_used(self):
         decision = self.decide({"code": "9999-99", "docs": 9, "last": "2026-10-02"})

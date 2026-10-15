@@ -488,3 +488,4 @@ HP690929-001，总控按 Express 表核对：APTRN `RECTYP=1`（现购）、GLJN
   - `WRITTEN_NOTE`（模型看的英文）：入账一定告诉用户 ERP 单号（docnum）；现购 / 赊购与记的科目都说清来源；不叫用户去 Express 核对单号、现赊、科目；旧单没有来源就只说有的，不猜。
   - 测试：`test_cowork_assistant_tools.py`（来源逐项对应、旧记录不给、销项、说明三处都带）、`test_cowork_account_suggest.py`（四种来源）、`test_cowork_express_choices.py`、`test_cowork_express_mapper.py`。
   - 未做：未部署；部署后测试窗口重验：推一张记过科目的票，CC 应报 ERP 单号、现 / 赊及来源、科目及来源，不叫人去 Express 看。
+  - 审查后修正：查选择时间的税号只用 `seller_tax`（与 `choices._party` 记选择的键一致，票面只有 `seller_tax_id` 时人刚选的不再被说成 remembered，`test_cowork_account_suggest.py` 补用例）；说明里 chosen 改为「这张票进来以后有人选过或改过（待处理页、复核页、公司页或对话），按供应商记下，同一供应商同时在等的票也算」。

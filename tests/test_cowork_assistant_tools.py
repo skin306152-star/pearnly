@@ -1977,7 +1977,8 @@ class PushWaitTests(unittest.TestCase):
                       "always give the user its ERP document number (docnum)",
                       "whether it was entered as cash or credit and which account it went to, each with where that "
                       "came from", "never ask the user to check Express for the number, cash or credit, or the account",
-                      "account_from = what decided the account", "express_history", "matched", "never guess a source"):
+                      "account_from = what decided the account", "express_history", "matched", "never guess a source",
+                      "a person picked or changed it after this document came in", "the company page"):
             self.assertIn(words, description)
         for name in ("cowork_push_results", "cowork_document_detail"):
             self.assertIn(tools.WRITTEN_NOTE, next(t for t in tools.TOOLS if t["name"] == name)["description"])

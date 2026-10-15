@@ -34,9 +34,13 @@ const TEXT_KEYS = ["title", "search", "keyword", "period"] as const;
 const isObject = (value: unknown): value is Json => typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
 
-/** 像内部名字的不显示：Frappe 的随机名（十六进制，字母数字混着）、CW 开头带横线的单号式名字。 */
+/** 带横线的 UUID（盘点任务名等用 uuid4）。 */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 像内部名字的不显示：Frappe 的随机名与 sha256 名字（8–64 位十六进制，字母数字混着）、UUID、CW 开头带横线的单号式名字。 */
 export function looksInternal(value: string): boolean {
-  return (/^[0-9a-f]{8,32}$/.test(value) && /[a-f]/.test(value) && /\d/.test(value)) || /^CW[A-Z]*-/.test(value);
+  return (/^[0-9a-f]{8,64}$/.test(value) && /[a-f]/.test(value) && /\d/.test(value)) || UUID.test(value)
+    || /^CW[A-Z]*-/.test(value);
 }
 
 const shown = (value: unknown) => {

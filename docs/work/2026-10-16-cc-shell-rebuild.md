@@ -118,3 +118,4 @@
   - ③ F19 跟进：推送 / 查结果 / 单据详情的 `written` 加科目来源 `account_from`（chosen / remembered / task_default / express_history / matched / default，旧记录不给）；模型说明要求入账必报 ERP 单号、现赊与科目都说来源、不叫用户去 Express 核对（详见验收记录 F19）。
   - ④ 手机深色：启动页与离线页加 `<meta name="color-scheme" content="light dark">`（theme-color 浅 / 深各一个已有，离线页补上）；设置里固定浅 / 深色时运行时把 color-scheme 改成那一种，theme-color 照旧跟当前底色；manifest 加 `user_preferences.color_scheme_dark`（#151515，认它的 Chromium 才用）。安卓真机导航条变没变要测试窗口在手机上看。
   - ⑤ 右侧栏公司卡：对话没指定分店时各分店覆盖这个月的账套都列、一份一行、总店在前（分店没有覆盖的取它最新可写的一份）；指定了分店只列那个分店的（`lib/companies.ts` 的 `setsForScope`）。没新增文案。
+  - 审查后修正（本地提交、未推送）：① 详情里 UUID（盘点任务名）与 33–64 位十六进制名（sha256）也认作内部名字拿掉；② `file_` / `sesn_` 这类编号要带数字才拿掉，`agent_failed`、`file_unreadable`、`user_permissions` 这类原因码照留；③ 查「这张票后有人选的」用与记选择同一个税号键，说明里 chosen 补上公司页改过的；⑤ 有任一账套覆盖这个月就只列覆盖的，都不覆盖才每个分店各取最新一份，对话分店不在名单里时照旧只显示一份；步骤行的记录名字表各步共用一份、流式只来文字时不重算不重画，展开的结果按文字缓存。都有用例，没在浏览器里目测。

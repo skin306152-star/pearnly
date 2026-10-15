@@ -20,8 +20,9 @@ const INTERNAL_KEYS = new Set([
   "request_id", "request_key", "history",
 ]);
 
-/** 编号式的内部名字：Anthropic 的文件 / 会话 / 消息编号等（file_011C…、sesn_…）。 */
-const PREFIXED_ID = /^(file|sesn|session|msg|toolu|srvtoolu|agent|env|user|org)_[A-Za-z0-9]{6,}$/;
+/** 编号式的内部名字：Anthropic 的文件 / 会话 / 消息编号等（file_011C…、sesn_01…）。后缀里必须带数字，
+ *  agent_failed、file_unreadable、user_permissions 这类原因码是给人看的说明，照留。 */
+const PREFIXED_ID = /^(file|sesn|session|msg|toolu|srvtoolu|agent|env|user|org)_(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6,}$/;
 /** 本地路径：盘符（c:\…、C:/…）、网络共享（\\server\…）、Unix 的用户 / 临时目录。 */
 const LOCAL_PATH = /^(?:[A-Za-z]:[\\/]|\\\\[^\\]|\/(?:Users|home|tmp|private|var|mnt|opt|srv)\/)/;
 

@@ -199,7 +199,14 @@ assert.deepEqual(keys(setsForScope(detail, "2025-03", "")), ["T9NI-68", "T9N12-6
 // 指定了分店：只列那个分店的
 assert.deepEqual(keys(setsForScope(detail, "2026-09", "00012")), ["T9N12EXP"]);
 assert.deepEqual(keys(setsForScope(detail, "2026-09", "00000")), ["T9NIEXCP"]);
-// 某个分店这个月没有覆盖的：取它最新可写的一份；没有月份时每个分店各一份
+// 对话的分店不在名单里：照旧取整家公司覆盖这个月的一份
+assert.deepEqual(keys(setsForScope(detail, "2026-09", "00099")), ["T9N12EXP"]);
+// 有覆盖这个月的就只列覆盖的：分店 00012 只有往年的账套时不拿它最新的一份冒充这个月的
+const b12old = [set("T9N12-68", "00012", "2025-01-01", "2025-12-31")];
+const partial: any = { account_sets: [...b12old, ...hq],
+  branches: [{ branch: "00012", account_sets: b12old }, { branch: "00000", account_sets: hq }] };
+assert.deepEqual(keys(setsForScope(partial, "2026-09", "")), ["T9NIEXCP"]);
+// 一份都不覆盖这个月：每个分店各取最新可写的一份；没有月份时同样每个分店各一份
 assert.deepEqual(keys(setsForScope(detail, "2024-05", "")), ["T9NIEXCP", "T9N12EXP"]);
 assert.deepEqual(keys(setsForScope(detail, "", "")), ["T9NIEXCP", "T9N12EXP"]);
 // 只有一家（没有分店信息）：照旧覆盖这个月的那份
