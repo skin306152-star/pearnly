@@ -73,3 +73,68 @@
 1. 缺单提醒发给客户：建议 CC 写草稿、会计员自己发；不自动发 LINE。
 2. 升档阈值：建议连续 2 个月、自动推送被改比例 <1% 才从 L0 升 L1。
 3. 签字锁月：建议软锁（CC 不再改；人在 Express 里照样能改，回读记下来）。
+
+## 进度
+
+### 第 1 期：月结台账 + 统一异常清单（分支 `pearnly/month-ledger`，基于 CC 外壳重构 `be8f399a`；本地完成，未推送、未合入、未部署）
+
+**交付了什么**
+
+- 每家公司每个月一张台账，**每次请求现算、什么都不存**：四段「收单 / 录账 / 核对 / 报税」，每段给计数和状态
+  （empty 暂无 / open 进行中 / attention 有待办 / clear 已完成），再加一份统一的异常清单。
+  - 收单：单据日期在本月、归这家公司的识别记录，以及定时任务这个月登记的文件。
+  - 录账：推送结果。
+  - 核对：Express 回读，只有 Express 公司、并且有录入权限时才有这一段。
+  - 报税：申报草稿，要有报税权限。
+- 异常码是稳定的，「待处理」和台账共用同一套（`companies/exceptions.py`）。服务端只给码和数据，文案由页面按码翻译。
+  - 现有的码：choice_needed、result_unknown、account_tax/period/branch_mismatch、push_manual、push_failed、not_pushed、
+    duplicate_number、task_folder_missing、intake_file_failed、pos_layout_needed、not_invoice、
+    express_changed/deleted/voided/missing/direct、readback_needed、tax_issue、tax_draft_stale。
+  - 每个码对应严重度（action / warn / info）和去处（当场选、交给 CC、打开任务、回读、草稿）。
+  - duplicate_number 只列出、不拦推送（推送不查重）。识别查重只认同号（exact）的，而且被匹配的那张还要在。
+  - missing_document、rule_conflict、month_reopened 三个码只占位，没有实现。
+- 「待处理」的每一项多了一个稳定的 `code`。待处理页和早上汇总的文案不变。
+- 推送拦下的分店 / 税号 / 期间不符原因只写一份（`targets/account_match.CONFLICT_MESSAGES`）。推送那边只改了一行，改成从这里导入。
+- 回读的可见范围按 10-15 拍板改了：能用这条 Express 连接的人都能看到这本账套这个月的回读，并显示谁、何时发起的。
+  - 授权逐条连接核。可见性检查不加锁读，避开 MariaDB 1020。
+  - 删除仍只给发起人。还在读的那份只由发起人推进，同事的 CC 查询时当场回现状，不空等。
+  - 税务草稿和台账都取「完成时间最晚」的那份回读，两边一致。
+- 页面放在两处：右侧会话栏的「本月」卡（对话所挂的公司和月份；不是当月时卡头写月份）；公司页概览的第一节（和「在这家新建对话」共用同一个月份胶囊）。
+  - 每段一行：状态点 + 短计数。
+  - 核对一段写谁、何时回读的；有多本账套时，每本一行缩进子行。
+  - 报税一段写最早、还没过的截止日（有 ภ.ง.ด. 草稿时把它算进来）。
+  - 异常按严重度分组，组标题和卡头的数字由服务端按全部异常算；清单被截断、或单据超过上限只算了一部分时，卡底写明。
+  - 要人选的当场选（沿用待处理的 ChooseRow，F18 规则）；任务到任务页；其余交给 CC，预填好但不自动发送。
+  - 跟着推送 / 定时任务的站点事件刷新，两次至少隔 15 秒，空闲时 10 分钟兜底一次；有账套还在回读时定时重取，最多 15 分钟。
+
+**接口**
+
+- `GET pearnly_cowork.companies.api.month(company, period, limit=200)` 返回：
+  ```
+  {company, period, ended, generated_at, truncated,
+   stages: {intake, entry, verify|null, tax|null},
+   exceptions: {items[≤limit], total, counts{码: 件数}, severities{action, warn, info}}}
+  ```
+  - 读权限同主档页，没有读权限抛 PermissionError。
+  - 没有录入权限：verify 和任务 / 文件两项给 null。
+  - 没有报税权限：tax 给 null。
+- 回读一段经 hooks `cowork_company_month_readback` → `readback.service.month_status` 取，companies 不导入 readback。
+- 报税一段经 `tax.service.month_drafts` 取，问题沿用现有词条 `cowork.tax.issue.<码>`。
+- 跨端契约：`tests/fixtures/cc-month-contract.json`。服务端测试断言它就是真实输出，页面测试拿同一份当假数据。
+
+**有意留给后面的**
+
+- 对账一段、签字、锁月、月报：第 6 期。本月缺单（missing_document）：第 5 期。规则冲突（rule_conflict）：第 4 期。重开月份（month_reopened）：第 6 期。
+- 自动化档位和推后回读核对：第 3 期，要等多电脑线的写账分派合入后再做。
+- 「逾期」提示：第 1 期不知道报没报税，所以只写截止日，不说逾期。等报税状态进来后再加。
+- 回读完成的站点事件：现在页面靠有上限的定时重取。要发事件得改 readback 的推进流程，留到第 3 期推后回读时一起做。
+- 单据的归属沿用「待处理」的 `pending.company_of`：先看推送去向的账套，再看买方，最后看卖方。所以 A 开给 B、还没推的销项票，在 A、B 都是主档时只算在 B 下。要不要让一张单同时出现在两家的台账里，待用户定。
+- 会话栏里「本月」卡和「待处理」卡会出现同一张要人选的单。要不要在「待处理」卡里去掉当月的，待用户定。
+
+**证据**
+
+- 本地全闸门 `SKIP_NPM_CI=1 ~/pearnly-devtools/gate.sh`：85 步全部通过，rc=0（审查修复后又跑了一遍，结果相同）。
+- 定向测试全部通过：`tests.test_cowork_companies`、`test_cowork_readback`、`test_cowork_tax_service`、`test_cowork_assistant_tools`、
+  `test_cc_month_ledger`（页面实际渲染）、前端 `tsc --noEmit`。
+- 两轮审查（正确性、设计）发现的问题，已按核实结果修复或注明不修的原因，见本分支的提交说明。
+- 还缺：测试机真机点验（会话栏、公司页、手机宽度、深色、键盘和读屏）、多人可见回读的实测（要第二个测试用户），以及分支 CI。
