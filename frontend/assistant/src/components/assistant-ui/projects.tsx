@@ -5,7 +5,8 @@
 //                         或没看过的，名字旁一个点
 //   MoveToMenu          — 对话菜单里的「移到 ▸」：我最近的公司 + 搜索 + 添加公司… + 最近；移入公司时月份留空，不改置顶
 //   ComposerCompany     — 新的空白对话里输入框上方的公司条「公司 ▾ / ABC · ก.ย. 2569 ▾」（至少有一家公司时才显示）
-//   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开主档页）与月份、分店胶囊（改了就 move）
+//   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开右侧会话栏的公司卡）与月份、分店胶囊（改了就 move）；
+//                         手机在胶囊菜单最上面（MobileCompanyItem）
 //   FilingTag           — 侧栏对话行标题后面的月份、分店短写
 //   CompanyTasks        — 公司组里对话列表上面一行「⏱ 定时任务 N」（这家有任务才出现；有出错或停了单的任务时数字旁一个点），
 //                         点开 ?view=tasks&company=<公司>；数据来自一次取全部的 task_overview（lib/companies）
@@ -36,6 +37,7 @@ import {
   usePendingCounts,
   useTaskOverview,
 } from "@/lib/companies";
+import { openCompanyCard } from "@/lib/company-panel";
 import { useAnyActivity } from "@/lib/managed-agents/activity";
 import {
   type Filing,
@@ -347,20 +349,39 @@ export const ComposerCompany: FC = () => {
 };
 
 // ---------------------------------------------------------------- 顶栏「公司 ›」与月份分店胶囊
-/** 顶栏对话名前的公司名（点了打开主档页）。 */
+/** 顶栏对话名前的公司名（设计文档 4.3：点了打开右侧会话栏并展开公司卡；公司页从公司卡的名称、侧栏组「···」进）。 */
 export const ConversationCompany: FC<{ className?: string }> = ({ className }) => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   useProjects((s) => s.filings);
   const project = filingOf(remoteId, localId).project;
   const title = useCompanyTitle(project);
-  const openCompany = useOpenCompany();
   if (!project || !title) return null;
   return (
-    <button type="button" className={cn("cc-title-company", className)} onClick={() => openCompany(project)}>
+    <button type="button" className={cn("cc-title-company", className)} onClick={openCompanyCard}>
       <span className="truncate">{title}</span>
       <ChevronRightIcon aria-hidden />
     </button>
+  );
+};
+
+/** 手机对话页胶囊菜单最上面的公司名（挂在公司下时）：点了全屏打开右侧会话栏，返回键关。 */
+export const MobileCompanyItem: FC = () => {
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const kind = useProjects((s) => s.kind);
+  useProjects((s) => s.filings);
+  const project = filingOf(remoteId, localId).project;
+  const title = useCompanyTitle(kind ? project : "");
+  if (!kind || !project || !title) return null;
+  return (
+    <>
+      <DropdownMenu.Item className="cc-menu-item" onSelect={openCompanyCard}>
+        <Building2Icon />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Separator className="cc-menu-sep" />
+    </>
   );
 };
 

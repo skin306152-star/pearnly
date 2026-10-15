@@ -1,15 +1,18 @@
-// 公司页（侧栏「公司」，深链接 ?view=companies；只在 Cowork）：全所公司主档，一页 50 条，滚到底接着加载。
+// 公司列表（侧栏「公司」，深链接 ?view=companies；只在 Cowork）：全所公司主档，一页 50 条，滚到底接着加载。
+// 列表页样式照 Claude Code 的项目列表（设计文档 3.14 / 4.5）：内容宽 960 居中；标题 24/500；右上「排序方式 当前值 ⌄」与
+// 「＋ 添加公司」主按钮（components/add-company.tsx）；搜索框 36 高；卡片网格：公司名、税号 · 分店 · 年度、这家的待处理数、
+// 我在这家的最近活动。点一张卡打开公司页。
 //
-//   顶部搜索框，右侧「＋ 添加公司」（components/add-company.tsx）；每行：名称、税号 · 分店、年度、我的对话数；点一行打开主档页。
-//   我有对话的排在前（按我最近的活动），其余按名称（服务端排）。空状态只有「＋ 添加公司」。
+//   排序：最近活动（服务端的顺序：我有对话的按我最近的活动在前，其余按名称）/ 名称（已加载的按名称排）。空状态只有「＋ 添加公司」。
 //   别处改名、删公司（pearnly.project 的 upsert / delete）时重取。样式只用 globals.css 的 .cc-* 与变量。
 
-import { Building2Icon, LoaderIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
-import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import { CheckIcon, ChevronDownIcon, Building2Icon, InboxIcon, LoaderIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
-import { co, t } from "@/i18n";
-import { branchShort, type CompanyRow, forgetAnyCompany, listCompanies } from "@/lib/companies";
+import { DropdownMenu } from "@/components/ui/menu";
+import { co, lang, t } from "@/i18n";
+import { branchShort, type CompanyRow, forgetAnyCompany, formatWhen, listCompanies, usePendingCounts } from "@/lib/companies";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { shownError } from "@/lib/frappe";
 
@@ -22,9 +25,45 @@ export function companyLine(row: Pick<CompanyRow, "tax_id" | "branch" | "years">
     .join(" · ");
 }
 
+export type CompanySort = "recent" | "name";
+
+/** 排序：recent = 服务端给的顺序；name = 按名称（按页面语言比较）。 */
+export function sortCompanies<T extends Pick<CompanyRow, "title">>(rows: readonly T[], sort: CompanySort): T[] {
+  if (sort === "recent") return [...rows];
+  const collator = new Intl.Collator(lang, { sensitivity: "base", numeric: true });
+  return [...rows].sort((a, b) => collator.compare(a.title, b.title));
+}
+
+const SORTS: Array<[CompanySort, () => string]> = [
+  ["recent", () => co.sortRecent],
+  ["name", () => co.sortName],
+];
+
+const SortMenu: FC<{ value: CompanySort; onChange: (sort: CompanySort) => void }> = ({ value, onChange }) => (
+  <DropdownMenu.Root>
+    <DropdownMenu.Trigger className="cc-btn-sm" data-slot="cc-company-sort">
+      <span className="text-ink-3">{co.sortBy}</span>
+      {SORTS.find(([sort]) => sort === value)?.[1]()}
+      <ChevronDownIcon />
+    </DropdownMenu.Trigger>
+    <DropdownMenu.Portal>
+      <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu">
+        {SORTS.map(([sort, label]) => (
+          <DropdownMenu.Item key={sort} className="cc-menu-item" onSelect={() => onChange(sort)}>
+            <span className="flex-1">{label()}</span>
+            {sort === value && <CheckIcon />}
+          </DropdownMenu.Item>
+        ))}
+      </DropdownMenu.Content>
+    </DropdownMenu.Portal>
+  </DropdownMenu.Root>
+);
+
 export const Companies: FC = () => {
   const openCompany = useOpenCompany();
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<CompanySort>("recent");
+  const pending = usePendingCounts((s) => s.companies);
   const [rows, setRows] = useState<CompanyRow[] | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -67,6 +106,8 @@ export const Companies: FC = () => {
     return () => observer.disconnect();
   }, [rows, done, loading, search, load]);
 
+  const shown = useMemo(() => (rows ? sortCompanies(rows, sort) : null), [rows, sort]);
+
   const add = () =>
     openAddCompany((id) => {
       forgetAnyCompany();
@@ -75,16 +116,18 @@ export const Companies: FC = () => {
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="cc-greeting text-3xl">{co.companies}</h1>
-          <button type="button" className="cc-btn" data-primary="" onClick={add}>
-            <PlusIcon className="size-4" />
+      <div className="cc-page">
+        <div className="cc-page-head">
+          <h1 className="cc-page-title">{co.companies}</h1>
+          {!!rows?.length && <SortMenu value={sort} onChange={setSort} />}
+          <button type="button" className="cc-btn-sm" data-primary="" onClick={add}>
+            <PlusIcon />
             {co.addCompany}
           </button>
         </div>
         {(search || !!rows?.length) && (
-          <label className="cc-search mb-4">
+          <label className="cc-page-search">
+            <SearchIcon />
             <input
               type="search"
               value={search}
@@ -95,11 +138,11 @@ export const Companies: FC = () => {
           </label>
         )}
         {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
-        {rows === null ? (
-          <div className="flex flex-col gap-2">
-            {[0, 1, 2].map((i) => <div key={i} className="cc-card h-16 animate-pulse" />)}
+        {shown === null ? (
+          <div className="cc-card-grid">
+            {[0, 1, 2].map((i) => <div key={i} className="cc-grid-card animate-pulse" />)}
           </div>
-        ) : !rows.length && !search ? (
+        ) : !shown.length && !search ? (
           <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
             <Building2Icon className="size-8 text-ink-3" />
             <button type="button" className="cc-btn" data-primary="" onClick={add}>
@@ -107,33 +150,31 @@ export const Companies: FC = () => {
               {co.addCompany}
             </button>
           </div>
-        ) : !rows.length ? (
+        ) : !shown.length ? (
           <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
         ) : (
-          <div className="flex flex-col gap-2" data-slot="cc-company-rows">
-            {rows.map((row) => (
-              <button
-                key={row.id}
-                type="button"
-                className="cc-card cc-card-hover cc-enter flex items-center gap-3 px-4 py-3 text-start"
-                onClick={() => openCompany(row.id)}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-ink">{row.title}</span>
-                  <span className="block truncate text-ink-3 text-sm">{companyLine(row)}</span>
-                </span>
-                {!!row.mine_count && (
-                  <span className="flex shrink-0 items-center gap-1 text-ink-3 text-sm" title={co.conversations}>
-                    <MessageSquareIcon className="size-3.5" />
-                    {row.mine_count}
+          <>
+            <div className="cc-card-grid" data-slot="cc-company-rows">
+              {shown.map((row) => (
+                <button key={row.id} type="button" className="cc-grid-card cc-enter" onClick={() => openCompany(row.id)}>
+                  <span className="cc-grid-card-title">{row.title}</span>
+                  <span className="truncate text-ink-3">{companyLine(row)}</span>
+                  <span className="cc-grid-card-foot">
+                    {!!pending[row.id] && (
+                      <span className="flex items-center gap-1" title={co.pending}>
+                        <InboxIcon />
+                        {pending[row.id]}
+                      </span>
+                    )}
+                    {row.mine_last_active && <span className="truncate">{formatWhen(row.mine_last_active)}</span>}
                   </span>
-                )}
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
             <div ref={end} className="flex h-8 items-center justify-center text-ink-3">
               {loading && <LoaderIcon className="size-3.5 animate-spin" />}
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

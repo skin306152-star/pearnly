@@ -1914,7 +1914,8 @@ g.done();
 # 下面用假站点按契约回应。
 
 COMPANY_SOURCES = ("lib/companies.ts", "lib/managed-agents/projects.ts", "lib/managed-agents/sidebar-groups.ts",
-                   "components/companies.tsx", "components/company-page.tsx", "components/add-company.tsx",
+                   "components/companies.tsx", "components/company-page.tsx", "components/company-cards.tsx",
+                   "components/session-panel.tsx", "lib/company-panel.ts", "components/add-company.tsx",
                    "components/pending.tsx", "components/period-chip.tsx", "components/assistant-ui/projects.tsx",
                    "hooks/use-long-press.ts")
 
@@ -1953,7 +1954,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         desktop = read("lib/desktop.ts")
         self.assertIn('return (await api.call("pick_folder")) as unknown as PickResult;', desktop)
         self.assertIn('export const COMPANY_FOLDERS = "company_folders";', desktop)
-        page = read("components/company-page.tsx")
+        page = read("components/company-cards.tsx")  # 卡片内容（会话栏与公司页共用，CC 外壳 2026-10-16）
         folders = page.split("export const FolderSection: FC", 1)[1].split("\n// ----", 1)[0]
         self.assertIn("{app && companyFolders && !hasMine && (", folders)
         self.assertIn("{app && !companyFolders && (", folders)  # 旧桌面版：请更新
@@ -1999,8 +2000,8 @@ class CompanyMasterSourceTests(unittest.TestCase):
     def test_hand_to_cc_and_drafts_prefill_without_sending(self):
         pending = read("components/pending.tsx")
         self.assertIn("handText(items), false);", pending)
+        self.assertIn("co.draftText(d.kind, period ? monthLabel(period) : d.period), false);", read("components/company-cards.tsx"))
         page = read("components/company-page.tsx")
-        self.assertIn("co.draftText(d.kind, period ? monthLabel(period) : d.period), false);", page)
         # 主档页输入框是用户自己打的字：发出
         self.assertIn("start({ project: company, period: withPeriod ? period : \"\", scope: withScope ? scope : \"\" }, value, true);", page)
 
@@ -2521,10 +2522,13 @@ class CompanyPageBehaviourTests(unittest.TestCase):
 assert.deepEqual(await loadDesktopFeatures(), { app: false, companyFolders: false });
 const empty = html(FolderSection, { company: "comp_abc", folders: [], reload: noop });
 assert.ok(text(empty).includes("Choose on computer"));     // 一行字，不是按钮
-assert.deepEqual(buttons(empty), []);
+assert.deepEqual(buttons(empty), ["Documents folder"]);    // 唯一的按钮是卡头的折叠开关（卡片外框，CC 外壳）
 const bound = html(FolderSection, { company: "comp_abc", folders: [folder], reload: noop });
 assert.deepEqual(text(bound), ["Documents folder", "PC-9 · \\\\nas\\ABC", "Ready · This month: 2569-09"]);
-assert.deepEqual(buttons(bound), []);
+assert.deepEqual(buttons(bound), ["Documents folder"]);
+// 会话栏（hideEmpty）：浏览器、手机里没有绑定的文件夹时整张卡不显示；绑了的照样显示
+assert.deepEqual(text(html(FolderSection, { company: "comp_abc", folders: [], reload: noop, hideEmpty: true })), []);
+assert.deepEqual(text(html(FolderSection, { company: "comp_abc", folders: [folder], reload: noop, hideEmpty: true }))[0], "Documents folder");
 """)
 
     def test_the_desktop_window_picks_and_hands_the_binding_over_unchanged(self):
@@ -2533,13 +2537,15 @@ import { pickFolder } from "@/lib/desktop";
 import { bindFolder } from "@/lib/companies";
 assert.deepEqual(await loadDesktopFeatures(), { app: true, companyFolders: true });
 const empty = html(FolderSection, { company: "comp_abc", folders: [], reload: noop });
-assert.deepEqual(buttons(empty), ["Choose on computer"]);
+assert.deepEqual(buttons(empty), ["Documents folder", "Choose on computer"]);   // 第一个是卡头的折叠开关
 // 别的电脑那一行：只看状态；本机还没绑时照样给「在电脑上选择」
 const other = html(FolderSection, { company: "comp_abc", folders: [folder], reload: noop });
-assert.deepEqual(buttons(other), ["Choose on computer"]);
+assert.deepEqual(buttons(other), ["Documents folder", "Choose on computer"]);
 // 本机这一行：更换… / 移除
 const mine = html(FolderSection, { company: "comp_abc", folders: [{ ...folder, mine: true }], reload: noop });
-assert.deepEqual(buttons(mine), ["Change…", "Remove"]);
+assert.deepEqual(buttons(mine), ["Documents folder", "Change…", "Remove"]);
+// 桌面版窗口里会话栏（hideEmpty）照样显示：这里能选
+assert.deepEqual(buttons(html(FolderSection, { company: "comp_abc", folders: [], reload: noop, hideEmpty: true })), ["Documents folder", "Choose on computer"]);
 // 桥只收语言、不收路径；给的 binding 原样交给 folder_bind
 const picked: any = await pickFolder();
 assert.deepEqual(g.bridgeCalls.at(-1), { method: "pick_folder", args: { lang: "en" } });
@@ -2554,7 +2560,7 @@ assert.equal(sent.body.company, "comp_abc");
         self.run_page(r"""
 assert.deepEqual(await loadDesktopFeatures(), { app: true, companyFolders: false });
 const page = html(FolderSection, { company: "comp_abc", folders: [], reload: noop });
-assert.deepEqual(buttons(page), ["Update CC Desktop"]);
+assert.deepEqual(buttons(page), ["Documents folder", "Update CC Desktop"]);   // 第一个是卡头的折叠开关
 """, desktop=[])
 
     def test_choosing_in_place_follows_the_server_contract(self):
@@ -2633,7 +2639,9 @@ assert.deepEqual(text(html(CompanyTasks, { company: "comp_none" })), []);
         # 主档页「对话」按这家从服务端取（分组列表 group=<公司>，分页），不靠侧栏已加载的几条
         page = read("components/company-page.tsx")
         chats = page.split("export const Conversations: FC", 1)[1].split("\n// ----", 1)[0]
-        self.assertIn("await listGrouped({ group: company, after });", chats)
+        # 顺带核对侧栏以为在跑的那几个（同侧栏的 check）：读回的运行状态里有等你点「允许」的归「等你处理」
+        self.assertIn("await listGrouped({ group: company, after, check: runningSessions() });", chats)
+        self.assertIn("groupChats(rows, (row) => chatState(activities[row.id], runs[row.id], row.unread))", chats)
         self.assertIn("onClick={() => void load(next)}", chats)
         self.assertNotIn("threadItems", chats)
         self.run_page(r"""
@@ -2650,8 +2658,7 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         self.assertNotIn("useTaskCompanies", tasks)   # 不再为侧栏每家读一次详情
         self.assertIn("groupTasks(shown, overview.tasks, order, overview.titles)", tasks)
         self.assertIn("co.other", tasks)
-        page = read("components/company-page.tsx")
-        self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders),", page)
+        self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders),", read("components/company-cards.tsx"))
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""

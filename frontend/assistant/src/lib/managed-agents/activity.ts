@@ -175,6 +175,19 @@ export function useAnyActivity(sessionIds: readonly string[]): boolean {
   );
 }
 
+/** 这几段对话各自的状态（公司页「对话」按进行中 / 等你处理 / 已完成分组）：任何一段变了才重画。 */
+export function useActivities(sessionIds: readonly string[]): Record<string, Activity | undefined> {
+  const snapshot = useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => sessionIds.map((id) => activityOf(id) ?? "").join("\n"),
+  );
+  const states = snapshot.split("\n");
+  return Object.fromEntries(sessionIds.map((id, i) => [id, (states[i] || undefined) as Activity | undefined]));
+}
+
 /** 提醒浮顶的时间（对话编号 → 毫秒）。 */
 export function useBumps(): ReadonlyMap<string, number> {
   return useSyncExternalStore(

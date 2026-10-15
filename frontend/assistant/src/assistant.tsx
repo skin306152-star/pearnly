@@ -6,7 +6,8 @@
 //
 // 颜色、尺寸、动效只引用 globals.css 的变量与 .cc-* 样式类，这里不写数值。「定时任务」只在有这个功能的产品（Cowork）出现。
 // 公司主档（ADR-020，只在 Cowork：共用层 projects() 的 kind 为 company 时）：侧栏「公司」「待处理 N」两行、按公司分组，
-// 视图多「公司页」「主档页」「待处理」；对话顶栏「公司 ›」与月份分店胶囊；新对话输入框上方的公司条。ERP / DMS 与今天一样。
+// 视图多「公司列表」「公司页」「待处理」；对话顶栏「公司名 ›」与右侧会话栏（components/session-panel.tsx）；新对话输入框上方的
+// 公司条。ERP / DMS 与今天一样。
 // 基于 Anthropic 官方示例 claude-quickstarts/managed-agents/assistant-ui（MIT），见 NOTICE.md。
 
 import { AuiProvider, Tools, useAui, useAuiState } from "@assistant-ui/react";
@@ -15,7 +16,6 @@ import {
   ArrowRightIcon,
   Building2Icon,
   CheckIcon,
-  ChevronDownIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
   ClockIcon,
@@ -33,6 +33,7 @@ import {
   MinusIcon,
   MoreHorizontalIcon,
   PanelLeftIcon,
+  PanelRightIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -44,13 +45,13 @@ import {
   XIcon,
 } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList, ThreadListItemRename, ThreadListNew, ThreadListSearch } from "@/components/assistant-ui/thread-list";
 import {
   ComposerCompany,
   ConversationCompany,
-  ConversationFiling,
+  MobileCompanyItem,
   MobileFilingItems,
   MoveToMenu,
 } from "@/components/assistant-ui/projects";
@@ -60,6 +61,7 @@ import { CompanyPage } from "@/components/company-page";
 import { PendingView } from "@/components/pending";
 import { Settings } from "@/components/settings";
 import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/results-panel";
+import { type PanelMode, SessionPanel, useFiledCompany } from "@/components/session-panel";
 import { InstallBanner, InstallMenuItem, InstallProvider } from "@/components/install-prompt";
 import { Shortcut } from "@/components/shortcut";
 import { MobileShell } from "@/components/mobile-shell";
@@ -90,6 +92,7 @@ import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts, watchTaskOverview } from "@/lib/companies";
+import { cssPx, dockFits, loadPanelPrefs, setPanelOpen, setPanelOverlay, usePanel } from "@/lib/company-panel";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -564,9 +567,10 @@ function DrawerIcon() {
 
 // 对话区顶部。
 // - 手机（同 Claude 手机端对话页）：左边菜单，右边胶囊（新建对话、「…」对话选项），都浮在内容上。
-// - 电脑（同 claude.ai）：对话有内容时左上角是对话名，点开加星标 / 改名 / 删除；右边是本对话的文件。
+// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、移到、删除）；
+//   右上 26 的按钮：本对话的文件 N（有文件才出现）、右侧会话栏开关（挂了公司的 Cowork 对话才有）。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
-function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; files: ReactNode }) {
+function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; tools: ReactNode }) {
   const { open, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { view, setView } = useView();
   const aui = useAui();
@@ -592,13 +596,13 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
           {inChat && <ConversationTitle />}
         </div>
         <div className="flex items-center gap-1">
-          {files}
+          {tools}
           <WindowButtons maximized={win.maximized} toggle={win.toggle} />
         </div>
       </div>
     );
   }
-  if (open && !inChat && !files) return null;
+  if (open && !inChat && !tools) return null;
   return (
     <div className="cc-topbar">
       {!open && (
@@ -607,12 +611,12 @@ function MainTopBar({ nav, window: win, chrome, files }: { nav: Nav; window: Ret
         </button>
       )}
       {inChat && <ConversationTitle />}
-      <div className="ms-auto flex items-center">{files}</div>
+      <div className="ms-auto flex items-center gap-1">{tools}</div>
     </div>
   );
 }
 
-// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（置顶、改名、移到…、处理月份、删除）
+// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、移到…、处理月份、删除）
 function MobileChatPill({ onNew }: { onNew: () => void }) {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
@@ -635,6 +639,8 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={6} className="cc-menu !min-w-40">
+            {/* 挂在公司下时最上面是公司名：点了全屏打开右侧会话栏 */}
+            <MobileCompanyItem />
             {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
             <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
               {starred ? <PinOffIcon /> : <PinIcon />}
@@ -656,34 +662,42 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
   );
 }
 
-// 顶部：「公司 ›」+ 对话名 + 月份分店胶囊（挂在公司下时）
+// 顶部（设计文档 3.9）：「公司名 ›」（挂在公司下时，点了打开右侧会话栏的公司卡）+ 对话名（点了就地改名）+「···」。
+// 月份、分店胶囊在输入框下巴里。
 function ConversationTitle() {
   return (
-    <div className="flex min-w-0 items-center gap-1">
+    <div className="flex min-w-0 items-center gap-0.5">
       <ConversationCompany />
-      <ConversationMenu />
-      <ConversationFiling />
+      <ConversationName />
     </div>
   );
 }
 
-// 顶部对话名（同 claude.ai）：点开置顶、改名（就地改）、移到 ▸、删除
-function ConversationMenu() {
-  const aui = useAui();
+function ConversationName() {
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  const [renaming, setRenaming] = useState(false);
+  if (renaming) return <ThreadListItemRename onDone={() => setRenaming(false)} className="w-72" />;
+  return (
+    <>
+      <button type="button" className="cc-title-btn" title={t("rename")} onClick={() => setRenaming(true)} onDoubleClick={(e) => e.stopPropagation()}>
+        <span className="truncate">{title || t("untitled")}</span>
+      </button>
+      <ConversationMenu onRename={() => setRenaming(true)} />
+    </>
+  );
+}
+
+// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、移到 ▸、删除
+function ConversationMenu({ onRename }: { onRename: () => void }) {
+  const aui = useAui();
   const custom = useAuiState((s) => s.threadListItem.custom);
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   const starred = !!custom?.starred;
-  const [renaming, setRenaming] = useState(false);
-  if (renaming) return <ThreadListItemRename onDone={() => setRenaming(false)} className="w-72" />;
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button type="button" className="cc-title-btn" aria-label={t("conversationMenu")} onDoubleClick={(e) => e.stopPropagation()}>
-          <span className="truncate">{title || t("untitled")}</span>
-          <ChevronDownIcon />
-        </button>
+      <DropdownMenu.Trigger className="cc-row-btn" aria-label={t("conversationMenu")} title={t("conversationMenu")} onDoubleClick={(e) => e.stopPropagation()}>
+        <MoreHorizontalIcon />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="start" sideOffset={4} className="cc-menu !min-w-40">
@@ -692,7 +706,7 @@ function ConversationMenu() {
             {starred ? <PinOffIcon /> : <PinIcon />}
             {starred ? t("unstar") : t("star")}
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => setRenaming(true)}>
+          <DropdownMenu.Item className="cc-menu-item" onSelect={onRename}>
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
@@ -778,15 +792,62 @@ function DeepLinks() {
   return null;
 }
 
+/** 主区那一行放不放得下「对话最窄 + 右侧会话栏」（放不下时会话栏浮在对话上）。 */
+function useDockFits(area: RefObject<HTMLDivElement | null>) {
+  const [fits, setFits] = useState(true);
+  useEffect(() => {
+    const el = area.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const style = getComputedStyle(el);
+      const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      setFits(dockFits(el.clientWidth, cssPx(style.getPropertyValue("--cc-chat-min-w"), root), cssPx(style.getPropertyValue("--cc-panel-w"), root)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [area]);
+  return fits;
+}
+
 function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useResultsPanel>; onSidebarResize: (width: number | null) => void }) {
   const { view, setView } = useView();
   const nav = useNavHistory(view, setView);
   const chrome = useFramelessWindow();
   const win = useMaximized(chrome);
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
-  // 手机返回键（lib/back-stack.ts）：先关抽屉、盖满屏的结果面板；组件库的弹窗与菜单不用登记
+  // 右侧只有一个停靠位（设计文档 4.4）：文件预览开着时是预览，否则挂了公司的 Cowork 对话里是会话栏（ERP / DMS、没挂公司的没有）。
+  // 宽屏并排（开关记在本机）；对话区放不下时浮在对话上、手机盖满屏（点了才开，换对话收起）
+  const profile = useProfile();
+  useEffect(() => loadPanelPrefs(profile?.user ?? ""), [profile?.user]);
+  const area = useRef<HTMLDivElement>(null);
+  const fits = useDockFits(area);
+  const filing = useFiledCompany();
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const panelOpen = usePanel((s) => s.open);
+  const overlay = usePanel((s) => s.overlay);
+  const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";
+  const hasPanel = view === "chat" && hasMessages && !!filing.project;
+  const panelShown = hasPanel && !results.open && (mode === "docked" ? panelOpen : overlay);
+  useEffect(() => setPanelOverlay(false), [results.sessionId, view]);
+  // 点了「公司名 ›」（或手机菜单里的公司名）：预览开着时换回会话栏
+  const focusAt = usePanel((s) => s.focus?.at ?? 0);
+  const { setOpen: setPreviewOpen } = results;
+  useEffect(() => {
+    if (focusAt) setPreviewOpen(false);
+  }, [focusAt, setPreviewOpen]);
+  const closePanel = useCallback(() => (mode === "docked" ? setPanelOpen(false) : setPanelOverlay(false)), [mode]);
+  const togglePanel = () => {
+    if (results.open) results.setOpen(false);
+    const next = results.open || !panelShown;
+    if (mode === "docked") setPanelOpen(next);
+    else setPanelOverlay(next);
+  };
+  // 手机返回键（lib/back-stack.ts）：先关抽屉、盖满屏的结果面板与会话栏；组件库的弹窗与菜单不用登记
   useBackLayer(isMobile && openMobile, () => setOpenMobile(false));
   useBackLayer(isMobile && view === "chat" && results.open, () => results.setOpen(false));
+  useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));
   // 本对话产出的文件（同 claude.ai 右上角）：面板关着时显示，点开右侧面板。手机上不放（同 Claude 手机端，对话里的文件卡片点开即可）
   const filesButton =
     view === "chat" && results.files.length > 0 && !results.open ? (
@@ -795,16 +856,35 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
         onClick={() => results.setOpen(true)}
         title={t("files")}
         aria-label={t("files")}
-        className="cc-icon-btn w-auto gap-1.5 px-2 text-sm"
+        className="cc-bar-btn"
       >
         <FilesIcon />
         {results.files.length}
       </button>
     ) : null;
+  // 右侧会话栏开关（手机从胶囊菜单里的公司名打开）
+  const panelButton = hasPanel ? (
+    <button
+      type="button"
+      onClick={togglePanel}
+      aria-pressed={panelShown}
+      title={t("sessionPanel")}
+      aria-label={t("sessionPanel")}
+      className="cc-bar-btn"
+    >
+      <PanelRightIcon />
+    </button>
+  ) : null;
+  const tools = !isMobile && (filesButton || panelButton) ? (
+    <>
+      {filesButton}
+      {panelButton}
+    </>
+  ) : null;
   const main = (
     <>
-      <MainTopBar nav={nav} window={win} chrome={chrome} files={isMobile ? null : filesButton} />
-      <div className="relative flex min-h-0 flex-1 flex-row">
+      <MainTopBar nav={nav} window={win} chrome={chrome} tools={tools} />
+      <div ref={area} className="relative flex min-h-0 flex-1 flex-row">
         {view === "tasks" ? (
           <ScheduledTasks />
         ) : view === "companies" ? (
@@ -831,6 +911,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
             className="max-md:fixed max-md:inset-0 max-md:z-50 max-md:w-full"
           />
         )}
+        {panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}
       </div>
     </>
   );

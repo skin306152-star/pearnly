@@ -17,6 +17,8 @@ const MESSAGES = {
     logout: "Log out",
     settings: "Settings",
     files: "Files",
+    sessionPanel: "Toggle side panel",
+    reorder: "Drag to reorder",
     preview: "Preview",
     source: "Code",
     download: "Download",
@@ -107,6 +109,8 @@ const MESSAGES = {
     logout: "退出登录",
     settings: "设置",
     files: "文件",
+    sessionPanel: "切换右侧栏",
+    reorder: "拖动调整顺序",
     preview: "预览",
     source: "代码",
     download: "下载",
@@ -197,6 +201,8 @@ const MESSAGES = {
     logout: "ออกจากระบบ",
     settings: "การตั้งค่า",
     files: "ไฟล์",
+    sessionPanel: "เปิด/ปิดแถบด้านขวา",
+    reorder: "ลากเพื่อจัดลำดับ",
     preview: "ตัวอย่าง",
     source: "โค้ด",
     download: "ดาวน์โหลด",
@@ -447,6 +453,9 @@ const COMPANY = {
     handToCCText: (list: string) => `Handle these: ${list}`,
     draftText: (kind: string, period: string) => `Review the ${kind} draft for ${period}`,
     fromHistory: (n: number) => `From Express history · ${n}`,
+    // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
+    company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
+    chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done",
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
@@ -466,6 +475,9 @@ const COMPANY = {
     handToCCText: (list: string) => `处理这几张：${list}`,
     draftText: (kind: string, period: string) => `看一下 ${period} 的 ${kind} 申报草稿`,
     fromHistory: (n: number) => `来自 Express 历史 · ${n} 次`,
+    // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
+    company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
+    chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成",
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
@@ -485,6 +497,9 @@ const COMPANY = {
     handToCCText: (list: string) => `จัดการเอกสารเหล่านี้: ${list}`,
     draftText: (kind: string, period: string) => `ตรวจร่างแบบ ${kind} งวด ${period}`,
     fromHistory: (n: number) => `จากประวัติ Express · ${n} ครั้ง`,
+    // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
+    company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
+    chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว",
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
