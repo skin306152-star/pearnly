@@ -527,8 +527,12 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">', projects)
         self.assertIn('<SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
         rows = read("components/assistant-ui/thread-list.tsx")
-        self.assertIn('side={isMobile ? "bottom" : "right"}', rows)
-        self.assertIn('<DropdownMenu.Content side={isMobile ? "bottom" : "right"} align="start"', projects)
+        # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
+        more = rows.split("const ThreadListItemMore: FC", 1)[1]
+        self.assertEqual(more.count('side="bottom"\n            align="end"'), 1)
+        self.assertEqual(more.count('side="bottom"\n      align="end"'), 1)  # 多选时的批量项
+        self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)
+        self.assertIn('<DropdownMenu.Content side="bottom" align="end" sideOffset={4} className="cc-menu !min-w-44">', projects)
 
     @NEEDS_NODE
     def test_menus_keep_8px_from_the_edge_and_phones_open_submenus_in_place(self):

@@ -495,6 +495,33 @@ const COMPANY = {
 
 export const co = (COMPANY as Record<string, (typeof COMPANY)["en"]>)[lang] ?? COMPANY.en;
 
+// 侧栏的分组和排序、多选的批量项、组标题菜单（CC 外壳设计 3.4–3.7）
+const SIDEBAR = {
+  en: {
+    groupAndSort: "Group and sort", groupBy: "Group by", none: "None", sortBy: "Sort by", lastUpdated: "Last updated",
+    dateCreated: "Date created", name: "Name", descending: "Descending", ascending: "Ascending", show: "Show", metadata: "Metadata",
+    emptyGroups: "Empty groups", resetDefaults: "Restore defaults", noMonth: "No month", newChatHere: "New chat here",
+    pinN: (n: number) => `Pin ${n}`, unpinN: (n: number) => `Unpin ${n}`, moveToN: (n: number) => `Move to… (${n})`,
+    deleteN: (n: number) => `Delete ${n}`,
+  },
+  zh: {
+    groupAndSort: "分组和排序", groupBy: "分组依据", none: "无", sortBy: "排序方式", lastUpdated: "上次更新",
+    dateCreated: "创建日期", name: "名称", descending: "降序", ascending: "升序", show: "显示", metadata: "元数据",
+    emptyGroups: "空分组", resetDefaults: "恢复默认设置", noMonth: "未指定月份", newChatHere: "在这家新建对话",
+    pinN: (n: number) => `置顶 ${n}`, unpinN: (n: number) => `取消置顶 ${n}`, moveToN: (n: number) => `移到… (${n})`,
+    deleteN: (n: number) => `删除 ${n}`,
+  },
+  th: {
+    groupAndSort: "จัดกลุ่มและเรียงลำดับ", groupBy: "จัดกลุ่มตาม", none: "ไม่จัดกลุ่ม", sortBy: "เรียงตาม", lastUpdated: "อัปเดตล่าสุด",
+    dateCreated: "วันที่สร้าง", name: "ชื่อ", descending: "มากไปน้อย", ascending: "น้อยไปมาก", show: "แสดง", metadata: "รายละเอียด",
+    emptyGroups: "กลุ่มที่ว่าง", resetDefaults: "คืนค่าเริ่มต้น", noMonth: "ไม่ระบุเดือน", newChatHere: "แชทใหม่ในบริษัทนี้",
+    pinN: (n: number) => `ปักหมุด ${n}`, unpinN: (n: number) => `เลิกปักหมุด ${n}`, moveToN: (n: number) => `ย้ายไปที่… (${n})`,
+    deleteN: (n: number) => `ลบ ${n}`,
+  },
+};
+
+export const sb = (SIDEBAR as Record<string, (typeof SIDEBAR)["en"]>)[lang] ?? SIDEBAR.en;
+
 /** 侧栏日期分组的标题（同 Claude 网页版）：今天、昨天，再往前是「10月10日」，不是今年的带上年份。 */
 export function dayLabel(day: Date, now = new Date()): string {
   const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

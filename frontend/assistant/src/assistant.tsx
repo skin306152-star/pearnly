@@ -16,7 +16,6 @@ import {
   Building2Icon,
   CheckIcon,
   ChevronDownIcon,
-  ChevronsUpDownIcon,
   CircleHelpIcon,
   ClockIcon,
   CopyIcon,
@@ -85,6 +84,7 @@ import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
 import { useDeepLinks, useNavHistory, useView, ViewContext, type View } from "@/lib/nav";
 import { useBackLayer } from "@/lib/back-stack";
+import { useSidebarKeys } from "@/lib/sidebar-keys";
 import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
@@ -229,21 +229,27 @@ function UserMenu({ children }: { children: ReactNode }) {
   );
 }
 
-// 侧栏左下角：头像 + 名字 · 产品（同 Claude）
+// 侧栏底部托盘（设计文档 3.1、4.2，同 Claude Code）：高 48；头像 + 名字 · 产品（点开用户菜单），右边 32 的「设置」
 function UserFooter() {
   const profile = useProfile();
   if (!profile) return null;
   return (
-    <UserMenu>
-      <button type="button" className="cc-nav-item h-11">
-        <span className="cc-avatar">{initials(profile)}</span>
-        <span className="cc-nav-label min-w-0 flex-1 truncate">
-          {profile.full_name || profile.user}
-          <span className="text-ink-3"> · {profile.product_label}</span>
-        </span>
-        <ChevronsUpDownIcon className="cc-nav-label text-ink-3" />
+    <>
+      <UserMenu>
+        <button type="button" className="cc-nav-item min-w-0 flex-1">
+          <span className="cc-nav-icon">
+            <span className="cc-avatar size-6">{initials(profile)}</span>
+          </span>
+          <span className="cc-nav-label min-w-0 flex-1 truncate">
+            {profile.full_name || profile.user}
+            <span className="text-ink-3"> · {profile.product_label}</span>
+          </span>
+        </button>
+      </UserMenu>
+      <button type="button" className="cc-icon-btn" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
+        <SettingsIcon />
       </button>
-    </UserMenu>
+    </>
   );
 }
 
@@ -360,18 +366,22 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
 
 // ── 侧栏 ───────────────────────────────────────────────────────────────────────────────────────
 
+// 顶部导航（设计文档 3.3、4.2）：新建、定时任务、待处理 N（有才出现）、公司。只有当前页选中：只看某家的定时任务、待处理
+// （从公司组、主档页进去的）与主档页都不算，顶部那一行不选中。键盘上与组标题、对话行是同一组 roving 焦点（data-roving）
 function SidebarNav() {
   const profile = useProfile();
   const { view, setView } = useView();
+  const taskCompany = useCompanyNav((s) => s.taskCompany);
   return (
     <div className="flex flex-col gap-0.5">
       <ThreadListNew onClick={() => setView("chat")} />
       {hasScheduledTasks(profile) && (
         <button
           type="button"
+          data-roving=""
           className="cc-nav-item"
           title={t("scheduledTasks")}
-          data-active={view === "tasks" || undefined}
+          data-active={(view === "tasks" && !taskCompany) || undefined}
           onClick={() => {
             useCompanyNav.setState({ taskCompany: "", taskFocus: "" });
             setView("tasks");
@@ -390,6 +400,7 @@ function SidebarNav() {
 function CompanyNav({ onPick }: { onPick?: () => void }) {
   const kind = useProjects((s) => s.kind);
   const total = usePendingCounts((s) => s.total);
+  const pendingCompany = useCompanyNav((s) => s.pendingCompany);
   const { view, setView } = useView();
   if (!kind) return null;
   const go = (next: View) => {
@@ -401,19 +412,20 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
   return (
     <>
       {total > 0 && (
-        <button type="button" className="cc-nav-item" title={co.pending} data-active={view === "pending" || undefined} onClick={() => go("pending")}>
+        <button
+          type="button"
+          data-roving=""
+          className="cc-nav-item"
+          title={co.pending}
+          data-active={(view === "pending" && !pendingCompany) || undefined}
+          onClick={() => go("pending")}
+        >
           <span className="cc-nav-icon"><InboxIcon /></span>
           <span className="cc-nav-label flex-1">{co.pending}</span>
           <span className="cc-count">{total}</span>
         </button>
       )}
-      <button
-        type="button"
-        className="cc-nav-item"
-        title={co.companies}
-        data-active={view === "companies" || view === "company" || undefined}
-        onClick={() => go("companies")}
-      >
+      <button type="button" data-roving="" className="cc-nav-item" title={co.companies} data-active={view === "companies" || undefined} onClick={() => go("companies")}>
         <span className="cc-nav-icon"><Building2Icon /></span>
         <span className="cc-nav-label">{co.companies}</span>
       </button>
@@ -421,10 +433,11 @@ function CompanyNav({ onPick }: { onPick?: () => void }) {
   );
 }
 
-/** 点了某个对话：回到对话视图（从「定时任务」切回来）。 */
+/** 点了某个对话：回到对话视图（从「定时任务」切回来）。带 Shift / ⌘ / Ctrl 是多选（不打开，thread-list.tsx）。 */
 function useBackToChatOnPick(onNavigate?: () => void) {
   const { setView } = useView();
   return (e: React.MouseEvent) => {
+    if (e.shiftKey || e.metaKey || e.ctrlKey) return;
     if ((e.target as HTMLElement).closest('[data-slot="aui_thread-list-item-trigger"]')) {
       setView("chat");
       onNavigate?.();
@@ -435,6 +448,7 @@ function useBackToChatOnPick(onNavigate?: () => void) {
 function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; onResize: (width: number | null) => void }) {
   const [search, setSearch] = useState("");
   const pick = useBackToChatOnPick();
+  const keys = useSidebarKeys();
   const { toggleSidebar } = useSidebar();
   const logo = assistantLogo();
   return (
@@ -445,24 +459,25 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
             <TitleBarLeft nav={nav} />
           </div>
         ) : (
-          // 「图标 + CC」在左、收起按钮在右（用户 2026-10-12：放右边更顺手）；收起后只在左上角留展开按钮（MainTopBar）
-          <div className="flex h-12 items-center justify-between ps-1.5">
+          // 标题区 44（设计文档 3.1）：「图标 + CC」在左、24 的收起钮在右（用户 2026-10-12：放右边更顺手）；收起后只在左上角
+          // 留展开按钮（MainTopBar）
+          <div className="flex h-(--cc-sidebar-head-h) items-center justify-between ps-1.5 pe-1">
             <span className="flex items-center gap-2 font-semibold text-ink text-lg">
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               {APP_NAME}
             </span>
-            <button type="button" className="cc-icon-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+            <button type="button" className="cc-row-btn" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
           </div>
         )}
         <ThreadListSearch value={search} onValueChange={setSearch} />
       </SidebarHeader>
-      <SidebarContent className="px-2" onClickCapture={pick} data-cc-view={useView().view}>
+      <SidebarContent ref={keys} className="px-2" onClickCapture={pick} data-cc-view={useView().view}>
         <SidebarNav />
         <ThreadList search={search} />
       </SidebarContent>
-      <SidebarFooter className="border-t border-line px-2">
+      <SidebarFooter className="h-(--cc-sidebar-foot-h) flex-row items-center gap-1 border-t border-line px-2 py-0">
         <UserFooter />
       </SidebarFooter>
       <SplitHandle size={sidebarSize} edge="end" onChange={onResize} panel={(handle) => handle.closest<HTMLElement>('[data-slot="sidebar-container"]')} />
@@ -853,6 +868,28 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   );
 }
 
+// 侧栏收起 / 展开记在本机（设计文档 3.1）：刷新后照旧；收起时左上角只留展开按钮（MainTopBar）。手机抽屉不记
+const SIDEBAR_OPEN_KEY = "cc.sidebar.open";
+
+function useSidebarOpen() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_OPEN_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const change = useCallback((next: boolean) => {
+    setOpen(next);
+    try {
+      localStorage.setItem(SIDEBAR_OPEN_KEY, next ? "1" : "0");
+    } catch {
+      // 无痕窗口等存不了：本次照样收起
+    }
+  }, []);
+  return [open, change] as const;
+}
+
 function Workspace() {
   const aui = useAui({ tools: Tools({ toolkit }) });
   const results = useResultsPanel();
@@ -863,6 +900,7 @@ function Workspace() {
   const [view, setView] = useState<View>("chat");
   const viewContext = useMemo(() => ({ view, setView }), [view]);
   const sidebarWidth = useStoredSize(sidebarSize.key, sidebarSize.cssVar, sidebarSize.unit);
+  const [sidebarOpen, setSidebarOpen] = useSidebarOpen();
   return (
     <AuiProvider value={aui}>
       <ViewContext.Provider value={viewContext}>
@@ -873,7 +911,7 @@ function Workspace() {
           <InstallProvider>
             <Settings />
             <AddCompanyDialog />
-            <SidebarProvider style={sidebarWidth.style}>
+            <SidebarProvider style={sidebarWidth.style} open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <Layout results={results} onSidebarResize={sidebarWidth.update} />
             </SidebarProvider>
           </InstallProvider>

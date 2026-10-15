@@ -1,16 +1,37 @@
-
+// 侧栏 / 手机抽屉里的对话列表（docs/work/2026-10-16-cc-shell-design.md 3.4–3.8、3.16，同 Claude Code 侧栏）：
+//
+//   组     — 有公司分组（Cowork）时按「分组和排序」（lib/managed-agents/sidebar-view.ts）：按公司（已置顶 → 各公司 → 最近）、
+//            按处理月份、不分组；组标题是 sidebar-group.tsx 的 GroupHeader。没有公司分组（ERP / DMS）同以前：已置顶 + 按日子分组
+//   行     — 高按变体（网页 32 / 桌面窗口 30 / 手机 44）、行间 2、圆角 8；标题 14 次要色、超长渐隐；行尾 24 的槽放装饰（在跑的
+//            6px 脉冲点、未读点），悬停换成「···」；选中 = 悬停色 + 主色字；「显示 → 元数据」开时第二行「9 月 · 分店 00012」
+//   多选   — 电脑上 Shift 点一段、⌘ / Ctrl 点单条（lib/sidebar-keys.ts）；行「···」菜单在选中两条以上时换成「置顶 N」「移到… (N)」
+//            「删除 N」，逐条顺序执行；行菜单里单字母 P 置顶、R 重命名、D 删除
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
-import { CompanyTasks, FilingTag, MoveToMenu, ProjectHeader, SidebarError } from "@/components/assistant-ui/projects";
+import { BulkMoveMenu, MoveToMenu, ProjectHeader, SidebarError, useNewChatIn } from "@/components/assistant-ui/projects";
+import { GroupHeader, GroupNew, GroupSortMenu, isMenuKey } from "@/components/assistant-ui/sidebar-group";
+import { showShortcuts } from "@/components/shortcut";
 import { useLongPress } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
-import { co, dayLabel, t } from "@/i18n";
+import { co, dayLabel, sb, t } from "@/i18n";
+import { branchShort, monthLabel, monthShort } from "@/lib/companies";
+import { shownError } from "@/lib/frappe";
 import { useActivity, useBumps } from "@/lib/managed-agents/activity";
-import { setDraft, showMore, useProjects } from "@/lib/managed-agents/projects";
+import { NO_FILING, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
-import { companySections, groupOpen, toggleGroup } from "@/lib/managed-agents/sidebar-groups";
+import { companySections, flatSections, groupOpen, monthSections, toggleGroup } from "@/lib/managed-agents/sidebar-groups";
+import { bindSidebarViewUser, createdOf, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { useView } from "@/lib/nav";
+import { useProfile } from "@/lib/profile";
+import {
+  clearSelection,
+  rowOrder,
+  runInOrder,
+  selectRange,
+  toggleSelected,
+  useSidebarSelection,
+} from "@/lib/sidebar-keys";
 import {
   AuiIf,
   ThreadListItemPrimitive,
@@ -29,6 +50,7 @@ import {
   SearchIcon,
   TrashIcon,
 } from "lucide-react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { DropdownMenu } from "@/components/ui/menu";
 import {
   forwardRef,
@@ -39,7 +61,6 @@ import {
   useState,
   type ComponentPropsWithoutRef,
   type FC,
-  type ReactNode,
 } from "react";
 
 // 侧栏 / 手机抽屉里的对话列表：搜索框、「新建」「定时任务」「公司」「待处理」由外面统一排版（assistant.tsx），这里只排对话。
@@ -118,12 +139,13 @@ export const ThreadListItems: FC<
 };
 
 /** 列表底部（同 Claude）：先显示一页，滚到这里再加载下一页；搜索时把剩下的都加载进来，较早的对话也搜得到。
- *  按公司分组时滚到底只翻「最近」（各公司由组里的「显示更多」翻）。 */
+ *  按公司分组时滚到底只翻「最近」（各公司由组里的「显示更多」翻）；按月份、不分组时同没有公司分组，一页一页往下翻。 */
 const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
   const aui = useAui();
   const kind = useProjects((s) => s.kind);
+  const byCompany = useSidebarView((s) => s.by === "company");
   const recentMore = useProjects((s) => !!s.more.recent);
-  const hasMore = useAuiState((s) => s.threads.hasMore) && (!kind || searching || recentMore);
+  const hasMore = useAuiState((s) => s.threads.hasMore) && (!kind || !byCompany || searching || recentMore);
   const loadingMore = useAuiState((s) => s.threads.isLoadingMore);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -222,16 +244,8 @@ const NoResults: FC = () => (
 const Items: FC<{ indices: readonly number[]; threadIds: readonly string[] }> = ({ indices, threadIds }) =>
   indices.map((index) => <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />);
 
-/** 可折叠的分组标题（同 Claude「今天 ⌄」）。 */
-const GroupLabel: FC<{ open: boolean; onToggle: () => void; children: ReactNode }> = ({ open, onToggle, children }) => (
-  <button type="button" data-slot="aui_thread-list-group-label" className="cc-section-label cc-section-toggle" aria-expanded={open} onClick={onToggle}>
-    {children}
-    <ChevronDownIcon className="cc-section-chevron" />
-  </button>
-);
-
-// 按公司分组（同 Claude Code 按项目）：已置顶 → 各公司（前 5 家展开，每组先 5 条）→ 最近。手机上各组也能折叠；
-// 折叠状态每台设备各记各的（pinned、recents、project:<编号>）。
+// 有公司分组时（Cowork）：按「分组和排序」分组、排序；手机上各组也能折叠。折叠状态每台设备各记各的（pinned、recents、
+// project:<编号>、month:<月份>）。每个组标题右侧都有「分组和排序」；公司组、最近另有「新建」
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
   const { threadIds, itemsById, dates } = useDates();
@@ -239,8 +253,15 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const filings = useProjects((s) => s.filings);
   const shown = useProjects((s) => s.shown);
   const serverMore = useProjects((s) => s.more.groups);
+  const view = useSidebarView();
+  const newChatIn = useNewChatIn();
   const { collapsed, toggleSection } = useCollapsedGroups();
   const query = searchQuery.trim();
+  // 「分组和排序」按用户记：知道是谁了就换成这个人的
+  const user = useProfile()?.user;
+  useEffect(() => {
+    if (user) bindSidebarViewUser(user);
+  }, [user]);
 
   const sections = useMemo(() => {
     const rows = threadIds.map((id, index) => {
@@ -252,10 +273,15 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
         starred: !!item?.custom?.starred,
         time: dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER,
         group: filing?.project ?? "",
+        period: filing?.project ? filing.period : "",
+        created: createdOf(item?.remoteId),
       };
     });
-    return companySections(rows, projects, { query, shown, serverMore });
-  }, [threadIds, itemsById, dates, projects, filings, shown, serverMore, query]);
+    const sort = { by: view.sort, desc: view.desc };
+    if (view.by === "month") return monthSections(rows, projects, { query, sort });
+    if (view.by === "none") return flatSections(rows, projects, { query, sort });
+    return companySections(rows, projects, { query, shown, serverMore, sort, empty: view.empty });
+  }, [threadIds, itemsById, dates, projects, filings, shown, serverMore, query, view]);
 
   if (!sections) return <NoResults />;
   const sessionsOf = (indices: readonly number[]) =>
@@ -271,12 +297,12 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
             <Fragment key={section.key}>
               <ProjectHeader project={section.project} open={open} onToggle={() => toggleSection(section)} sessions={sessionsOf(section.all)} />
               {open && (
-                <div data-slot="cc-project-items" className="cc-project-items">
-                  <CompanyTasks company={section.project.id} />
+                <div data-slot="cc-project-items" className="cc-group-items">
                   <Items indices={section.indices} threadIds={threadIds} />
                   {section.more && (
                     <button
                       type="button"
+                      data-roving=""
                       className="cc-show-more"
                       onClick={() => void showMore(section.project.id, section.all.length, () => aui.threads().loadMore())}
                     >
@@ -288,12 +314,21 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
             </Fragment>
           );
         }
+        const label =
+          section.type === "pinned" ? t("starred")
+          : section.type === "month" ? (section.period ? monthLabel(section.period) : sb.noMonth)
+          : t("recents");
         return (
           <Fragment key={section.key}>
-            <GroupLabel open={open} onToggle={() => toggleSection({ key: section.key })}>
-              {section.type === "pinned" ? t("starred") : t("recents")}
-            </GroupLabel>
-            {open && <Items indices={section.indices} threadIds={threadIds} />}
+            <GroupHeader label={label} open={open} onToggle={() => toggleSection({ key: section.key })}>
+              <GroupSortMenu />
+              {section.type === "recents" && <GroupNew onClick={() => newChatIn("")} />}
+            </GroupHeader>
+            {open && (
+              <div className="cc-group-items">
+                <Items indices={section.indices} threadIds={threadIds} />
+              </div>
+            )}
           </Fragment>
         );
       })}
@@ -431,6 +466,7 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
           ref={ref}
           type="button"
           data-slot="aui_thread-list-new"
+          data-roving=""
           title={t("newChat")}
           className={cn("cc-nav-item", className)}
           {...props}
@@ -487,7 +523,7 @@ function useCurrent(): { current: boolean; isMain: boolean } {
   return { current: isMain || sameConversation, isMain };
 }
 
-// 侧栏一行只有标题（同 Claude 侧栏，用户 2026-10-13：不要前面的对话气泡图标）；选中、悬停、行尾状态不变
+// 侧栏一行只有标题（同 Claude 侧栏，用户 2026-10-13：不要前面的对话气泡图标），「显示 → 元数据」开时下面一行月份、分店
 export const ThreadListItem: FC = () => {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -495,19 +531,43 @@ export const ThreadListItem: FC = () => {
   // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态。
   // 点的是同一段对话的另一行数据：也不切换（切过去会另起一份，输入框里没发的字就没了）
   const id = useAuiState((s) => s.threadListItem.remoteId);
+  const localId = useAuiState((s) => s.threadListItem.id);
   const { current, isMain } = useCurrent();
+  const { isMobile } = useSidebar();
+  const selected = useSidebarSelection((s) => s.ids.includes(localId));
   const reenter = (event: React.MouseEvent) => {
     if (!current) return;
     if (!isMain) event.preventDefault();
     if (id) getSessionController(id).refreshStatus();
+  };
+  // 电脑上 Shift 点一段、⌘ / Ctrl 点单条：只选不切对话；不带修饰键点一行就清空多选（同 Claude Code）
+  const pick = (event: ReactMouseEvent<HTMLElement>) => {
+    if (isMobile || (event.target as HTMLElement).closest('[data-slot="aui_thread-list-item-more"], [role="menu"], input')) return;
+    if (!(event.shiftKey || event.metaKey || event.ctrlKey)) return clearSelection();
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.shiftKey) selectRange(rowOrder(event.currentTarget), localId);
+    else toggleSelected(localId);
   };
   return (
     <ThreadListItemPrimitive.Root
       {...press}
       data-active={current ? "true" : undefined}
       aria-current={current ? "true" : undefined}
+      data-row-id={localId}
+      data-selected={selected ? "" : undefined}
       data-slot="aui_thread-list-item"
-      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink has-focus-visible:text-ink relative flex h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
+      onClickCapture={pick}
+      onMouseDown={(e) => {
+        if (e.shiftKey && !isMobile) e.preventDefault(); // Shift 点不选中文字
+      }}
+      onKeyDown={(e) => {
+        if (!renaming && isMenuKey(e)) {
+          e.preventDefault();
+          setMenuOpen(true);
+        }
+      }}
+      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink has-focus-visible:text-ink relative flex min-h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
@@ -515,17 +575,19 @@ export const ThreadListItem: FC = () => {
         <>
           <ThreadListItemPrimitive.Trigger
             data-slot="aui_thread-list-item-trigger"
+            data-roving=""
             onClick={reenter}
-            className="focus-visible:shadow-focus flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9"
+            className="cc-row-trigger focus-visible:shadow-focus flex min-h-(--cc-row-h) min-w-0 flex-1 items-center self-stretch rounded-md text-start outline-none"
           >
-            <span
-              data-slot="aui_thread-list-item-title"
-              className="min-w-0 flex-1 truncate"
-            >
-              <ThreadListItemPrimitive.Title fallback={t("untitled")} />
-              <FilingTag />
+            <span className="cc-row-text">
+              <span data-slot="aui_thread-list-item-title" className="cc-row-title">
+                <ThreadListItemPrimitive.Title fallback={t("untitled")} />
+              </span>
+              <RowMeta />
             </span>
-            <ThreadActivity />
+            <span className="cc-row-end">
+              <ThreadActivity />
+            </span>
           </ThreadListItemPrimitive.Trigger>
           <ThreadListItemMore open={menuOpen} onOpenChange={setMenuOpen} onRename={() => setRenaming(true)} />
         </>
@@ -534,8 +596,31 @@ export const ThreadListItem: FC = () => {
   );
 };
 
-/** 行尾状态（同 Claude）：在跑转圈，跑完没看过、或有没看过的提醒，一个小圆点；正在看的那个不标（顶栏已经在转）——
- *  在定时任务页时当前对话没人在看，照样标；鼠标移上去让位给「更多」按钮。 */
+/** 行的第二行（「显示 → 元数据」开着、挂在公司下且有可写的才有）：按公司分组时「9 月 · 分店 00012」；按月份时「公司 · 分店」；
+ *  不分组时「公司 · 月份 · 分店」。 */
+const RowMeta: FC = () => {
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const meta = useSidebarView((s) => s.meta);
+  const by = useSidebarView((s) => s.by);
+  const kind = useProjects((s) => s.kind);
+  const filing = useProjects((s) => (remoteId && s.filings[remoteId]) || (localId && s.filings[localId]) || NO_FILING);
+  const company = useProjects((s) => s.projects.find((p) => p.id === filing.project)?.title ?? "");
+  if (!kind || !meta || !filing.project) return null;
+  const month = monthShort(filing.period);
+  const branch = branchShort(filing.scope);
+  const parts = by === "company" ? [month, branch] : by === "month" ? [company, branch] : [company, month, branch];
+  const text = parts.filter(Boolean).join(" · ");
+  if (!text) return null;
+  return (
+    <span className="cc-row-meta" data-slot="cc-row-meta">
+      {text}
+    </span>
+  );
+};
+
+/** 行尾状态（同 Claude Code）：在跑一个 6px 的脉冲点，跑完没看过、或有没看过的提醒，一个蓝点；正在看的那个不标（顶栏已经在转）——
+ *  在定时任务页时当前对话没人在看，照样标；鼠标移上去、键盘停在这一行时让位给「···」。 */
 const ThreadActivity: FC = () => {
   const id = useAuiState((s) => s.threadListItem.remoteId);
   const { current } = useCurrent();
@@ -543,12 +628,23 @@ const ThreadActivity: FC = () => {
   const activity = useActivity(id);
   if (!activity || (current && view === "chat")) return null;
   const label = activity === "running" ? t("running") : activity === "notice" ? t("newNotice") : t("unread");
-  return (
-    <span className="cc-activity group-hover/item:hidden group-has-data-[state=open]/item:hidden" data-activity={activity} aria-label={label}>
-      {activity === "running" && <LoaderIcon className="size-3.5 animate-spin" />}
-    </span>
-  );
+  return <span className="cc-activity" data-activity={activity} role="img" aria-label={label} />;
 };
+
+/** 菜单项右边的单字母快捷键（菜单开着时按这个键就执行；触屏不显示）。 */
+const MenuKey: FC<{ letter: string }> = ({ letter }) => (showShortcuts() ? <span className="cc-menu-key">{letter}</span> : null);
+
+/** 菜单开着时的单字母快捷键（按物理键认，泰文等键盘下也一样）。 */
+function letterKeys(actions: Partial<Record<"KeyP" | "KeyR" | "KeyD", () => void>>, close: () => void) {
+  return (event: React.KeyboardEvent) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const run = actions[event.code as "KeyP" | "KeyR" | "KeyD"];
+    if (!run) return;
+    event.preventDefault();
+    close();
+    run();
+  };
+}
 
 // 行内改名（同 claude.ai）：回车或离开输入框保存，Esc 放弃；空标题不保存。
 export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }> = ({ onDone, className }) => {
@@ -577,7 +673,8 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
   );
 };
 
-// 对话菜单（同 Claude）：置顶 / 重命名 / 移到 ▸（有公司分组时）/ 删除。用 radix 的下拉菜单才放得下「移到 ▸」这一层子菜单。
+// 对话菜单（同 Claude Code）：置顶 P / 重命名 R / 移到 ▸（有公司分组时）/ 删除 D，向下开、右对齐。这一行在多选里、选了两条以上时
+// 换成批量项（BulkItems）。用 radix 的下拉菜单才放得下「移到 ▸」这一层子菜单。
 const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => void; onRename: () => void }> = ({
   open,
   onOpenChange,
@@ -587,51 +684,102 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   const custom = useAuiState((s) => s.threadListItem.custom);
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
+  const selection = useSidebarSelection((s) => s.ids);
   const starred = !!custom?.starred;
-  // 手机抽屉里一行占满抽屉宽：往右开放不下，同公司组头往下开
-  const { isMobile } = useSidebar();
+  const bulk = selection.length > 1 && selection.includes(localId);
+  const close = () => onOpenChange(false);
+  // 展开写法：组件库整份替换 custom，以后加的键不能被冲掉
+  const pin = () => void aui.threadListItem().updateCustom({ ...custom, starred: !starred });
+  const remove = () => void aui.threadListItem().delete();
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
         <Button
           variant="ghost"
           size="icon"
+          tabIndex={-1}
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
+          className="data-[state=open]:bg-hover absolute end-1 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-(--cc-icon-sm)" />
           <span className="sr-only">{t("more")}</span>
         </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          side={isMobile ? "bottom" : "right"}
-          align="start"
-          sideOffset={6}
-          data-slot="aui_thread-list-item-more-content"
-          className="cc-menu !min-w-36"
-        >
-          {/* 展开写法：组件库整份替换 custom，以后加的键不能被冲掉 */}
-          <DropdownMenu.Item className="cc-menu-item" onSelect={() => void aui.threadListItem().updateCustom({ ...custom, starred: !starred })}>
-            {starred ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
-            {starred ? t("unstar") : t("star")}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item className="cc-menu-item" onSelect={onRename}>
-            <PencilIcon className="size-4" />
-            {t("rename")}
-          </DropdownMenu.Item>
-          <MoveToMenu sessionId={remoteId} localId={localId} />
-          <DropdownMenu.Item
-            data-slot="aui_thread-list-item-more-item"
-            data-danger=""
-            className="cc-menu-item"
-            onSelect={() => void aui.threadListItem().delete()}
+        {bulk ? (
+          <BulkItems ids={selection} close={close} />
+        ) : (
+          <DropdownMenu.Content
+            side="bottom"
+            align="end"
+            sideOffset={4}
+            data-slot="aui_thread-list-item-more-content"
+            className="cc-menu !min-w-44"
+            onKeyDown={letterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}
           >
-            <TrashIcon className="size-4" />
-            {t("delete")}
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
+            <DropdownMenu.Item className="cc-menu-item" onSelect={pin}>
+              {starred ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+              <span className="flex-1">{starred ? t("unstar") : t("star")}</span>
+              <MenuKey letter="P" />
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="cc-menu-item" onSelect={onRename}>
+              <PencilIcon className="size-4" />
+              <span className="flex-1">{t("rename")}</span>
+              <MenuKey letter="R" />
+            </DropdownMenu.Item>
+            <MoveToMenu sessionId={remoteId} localId={localId} />
+            <DropdownMenu.Item data-slot="aui_thread-list-item-more-item" data-danger="" className="cc-menu-item" onSelect={remove}>
+              <TrashIcon className="size-4" />
+              <span className="flex-1">{t("delete")}</span>
+              <MenuKey letter="D" />
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        )}
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+  );
+};
+
+/** 多选时的行菜单（同 Claude Code，没有批量栏）：「置顶 N」（都已置顶时「取消置顶 N」）、「移到… (N)」、「删除 N」。
+ *  用组件库各行自己的操作一条一条做（不并发，lib/sidebar-keys.ts 的 runInOrder），做完清空多选；出错显示在侧栏那一行。 */
+const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids, close }) => {
+  const aui = useAui();
+  const threadItems = useAuiState((s) => s.threads.threadItems);
+  const { allPinned, sessions } = useMemo(() => {
+    const rows = ids.map((id) => threadItems.find((item) => item.id === id));
+    return {
+      allPinned: rows.every((row) => !!row?.custom?.starred),
+      sessions: rows.map((row) => row?.remoteId).filter((id): id is string => !!id),
+    };
+  }, [ids, threadItems]);
+  const report = (error: unknown) => setError(shownError(error));
+  const pinAll = () =>
+    void runInOrder(ids, async (id) => {
+      const item = aui.threads().item({ id });
+      const { custom } = item.getState();
+      if (!!custom?.starred !== !allPinned) await item.updateCustom({ ...custom, starred: !allPinned });
+    }, report).then(clearSelection);
+  const deleteAll = () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection);
+  return (
+    <DropdownMenu.Content
+      side="bottom"
+      align="end"
+      sideOffset={4}
+      data-slot="aui_thread-list-item-more-content"
+      className="cc-menu !min-w-44"
+      onKeyDown={letterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}
+    >
+      <DropdownMenu.Item className="cc-menu-item" onSelect={pinAll}>
+        {allPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+        <span className="flex-1">{allPinned ? sb.unpinN(ids.length) : sb.pinN(ids.length)}</span>
+        <MenuKey letter="P" />
+      </DropdownMenu.Item>
+      <BulkMoveMenu sessions={sessions} onDone={clearSelection} />
+      <DropdownMenu.Item data-danger="" className="cc-menu-item" onSelect={deleteAll}>
+        <TrashIcon className="size-4" />
+        <span className="flex-1">{sb.deleteN(ids.length)}</span>
+        <MenuKey letter="D" />
+      </DropdownMenu.Item>
+    </DropdownMenu.Content>
   );
 };

@@ -1,26 +1,26 @@
 // 按公司分组的界面零件（lib/managed-agents/projects.ts；只在产品有公司分组时出现，ERP / DMS 一律不出现）：
 //
-//   ProjectHeader       — 一家公司的组头：点名字打开主档页，箭头折叠；「⋯」（打开公司、新对话）与「＋」（在这家开新对话，
-//                         月份 = 上个月）；手机上「＋」一直在、长按组头出菜单；组头显示这家的待处理数；收起时组里有在跑
-//                         或没看过的，名字旁一个点
+//   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：整行折叠 / 展开；右侧这家的待处理数
+//                         （淡色数字，点了只看这家的待处理）、「···」（打开公司、在这家新建对话）、「分组和排序」、「＋」（在这家开
+//                         新对话，月份 = 上个月）；手机上长按组头出「···」菜单；收起时组里有在跑或没看过的，名字后一个点
 //   MoveToMenu          — 对话菜单里的「移到 ▸」：我最近的公司 + 搜索 + 添加公司… + 最近；移入公司时月份留空，不改置顶
+//   BulkMoveMenu        — 多选时行菜单里的「移到… (N)」：同一份选公司的菜单，选了逐条移动（不并发）
 //   ComposerCompany     — 新的空白对话里输入框上方的公司条「公司 ▾ / ABC · ก.ย. 2569 ▾」（至少有一家公司时才显示）
 //   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开主档页）与月份、分店胶囊（改了就 move）
-//   FilingTag           — 侧栏对话行标题后面的月份、分店短写
-//   CompanyTasks        — 公司组里对话列表上面一行「⏱ 定时任务 N」（这家有任务才出现；有出错或停了单的任务时数字旁一个点），
-//                         点开 ?view=tasks&company=<公司>；数据来自一次取全部的 task_overview（lib/companies）
 //
+// 公司组里不再有「⏱ 定时任务 N」一行（用户 2026-10-15 夜同意设计文档 4.2：改由右侧栏「定时任务」卡与公司页「定时任务」标签承担）。
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
 
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ClockIcon, MoreHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
+import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { type FC, type ReactNode, useEffect, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
+import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useLongPress } from "@/hooks/use-long-press";
-import { co, t } from "@/i18n";
+import { co, sb, t } from "@/i18n";
 import {
   branchShort,
   cachedDetail,
@@ -29,12 +29,10 @@ import {
   lastMonth,
   listCompanies,
   monthLabel,
-  monthShort,
   recentMonths,
   useBranches,
   useCompanyNav,
   usePendingCounts,
-  useTaskOverview,
 } from "@/lib/companies";
 import { useAnyActivity } from "@/lib/managed-agents/activity";
 import {
@@ -49,6 +47,7 @@ import {
   useProjects,
 } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
+import { runInOrder } from "@/lib/sidebar-keys";
 import { cn } from "@/lib/utils";
 import { shownError } from "@/lib/frappe";
 
@@ -93,31 +92,6 @@ export function useOpenCompany() {
   };
 }
 
-// ---------------------------------------------------------------- 组里的定时任务
-export const CompanyTasks: FC<{ company: string }> = ({ company }) => {
-  const found = useTaskOverview((s) => s.companies[company]);
-  const { setView } = useView();
-  const { isMobile, setOpenMobile } = useSidebar();
-  if (!found?.count) return null;
-  return (
-    <button
-      type="button"
-      className="cc-project-tasks"
-      data-slot="cc-project-tasks"
-      onClick={() => {
-        useCompanyNav.setState({ taskCompany: company, taskFocus: "", taskSeed: null });
-        setView("tasks");
-        if (isMobile) setOpenMobile(false);
-      }}
-    >
-      <ClockIcon />
-      <span className="min-w-0 flex-1 truncate">{t("scheduledTasks")}</span>
-      {found.alert && <span className="cc-task-alert" data-slot="cc-task-alert" aria-hidden />}
-      <span className="cc-count">{found.count}</span>
-    </button>
-  );
-};
-
 // ---------------------------------------------------------------- 组头
 export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: () => void; sessions: readonly string[] }> = ({
   project,
@@ -126,72 +100,67 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
   sessions,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile } = useSidebar();
   const press = useLongPress(() => setMenuOpen(true));
   const busy = useAnyActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
   const openCompany = useOpenCompany();
   const { setView } = useView();
+  const go = useCloseDrawer();
   const openPending = (company: string) => {
     useCompanyNav.setState({ pendingCompany: company });
     setView("pending");
   };
-  const go = (run: () => void) => {
-    run();
-    if (isMobile) setOpenMobile(false);
-  };
   return (
-    <div
+    <GroupHeader
       {...(isMobile ? press : {})}
       data-slot="cc-project"
       data-open={menuOpen || undefined}
       className="group/project cc-project-row"
       onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
+      label={project.title}
+      title={project.title}
+      open={open}
+      onToggle={onToggle}
+      onMenuKey={() => setMenuOpen(true)}
+      dot={!open && busy ? <span className="cc-activity cc-group-dot" data-activity="unread" aria-label={t("unread")} /> : undefined}
     >
-      <button type="button" className="cc-project-toggle" aria-expanded={open} aria-label={project.title} onClick={onToggle}>
-        <ChevronDownIcon className="cc-project-chevron" />
-      </button>
-      <button type="button" className="cc-project-name" title={project.title} onClick={() => go(() => openCompany(project.id))}>
-        <span className="min-w-0 truncate">{project.title}</span>
-        {!open && busy && <span className="cc-activity" data-activity="unread" aria-label={t("unread")} />}
-      </button>
       {pending > 0 && (
         // 这家的待处理数：点了打开只看这家的待处理
-        <button type="button" className="cc-count" aria-label={`${co.pending} ${pending}`} title={co.pending} onClick={() => go(() => openPending(project.id))}>
+        <button
+          type="button"
+          tabIndex={-1}
+          className="cc-group-count"
+          aria-label={`${co.pending} ${pending}`}
+          title={co.pending}
+          onClick={() => go(() => openPending(project.id))}
+        >
           {pending}
         </button>
       )}
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger asChild>
-          <button type="button" className="cc-group-btn cc-project-more" aria-label={t("more")} title={t("more")}>
+          <button type="button" tabIndex={-1} className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}>
             <MoreHorizontalIcon />
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content side={isMobile ? "bottom" : "right"} align="start" sideOffset={6} className="cc-menu !min-w-44">
+          <DropdownMenu.Content side="bottom" align="end" sideOffset={4} className="cc-menu !min-w-44">
             <DropdownMenu.Item className="cc-menu-item" onSelect={() => go(() => openCompany(project.id))}>
               <Building2Icon />
               {co.openCompany}
             </DropdownMenu.Item>
             <DropdownMenu.Item className="cc-menu-item" onSelect={() => go(() => newChatIn(project.id))}>
               <PlusIcon />
-              {t("newChat")}
+              {sb.newChatHere}
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-      <button
-        type="button"
-        data-slot="aui_thread-list-new"
-        className="cc-group-btn cc-project-add"
-        aria-label={t("newChat")}
-        title={t("newChat")}
-        onClick={() => go(() => newChatIn(project.id))}
-      >
-        <PlusIcon />
-      </button>
-    </div>
+      <GroupSortMenu />
+      <GroupNew onClick={() => newChatIn(project.id)} />
+    </GroupHeader>
   );
 };
 
@@ -283,6 +252,22 @@ export const MoveToMenu: FC<{ sessionId: string | undefined; localId?: string | 
   return (
     <SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">
       <CompanyChoices current={current} onPick={move} />
+    </SubMenu>
+  );
+};
+
+// 几段对话可能在不同的组：没有「当前」那一家（哪一项都不打 ✓，选「最近」也照样移）
+const NO_CURRENT = "\u0000";
+
+/** 多选时的「移到… (N)」：选了公司就把这几段逐条移过去（一条做完再下一条），月份、分店留空。 */
+export const BulkMoveMenu: FC<{ sessions: readonly string[]; onDone: () => void }> = ({ sessions, onDone }) => {
+  const kind = useProjects((s) => s.kind);
+  if (!kind || !sessions.length) return null;
+  const move = (project: string) =>
+    void runInOrder(sessions, (id) => fileSession(id, { project, period: "", scope: "" }), report).then(onDone);
+  return (
+    <SubMenu icon={<Building2Icon />} label={sb.moveToN(sessions.length)} className="cc-menu !min-w-52 max-w-72">
+      <CompanyChoices current={NO_CURRENT} onPick={move} />
     </SubMenu>
   );
 };
@@ -416,17 +401,4 @@ const PeriodItems: FC<{ value: string; onPick: (period: string) => void }> = ({ 
       ))}
     </>
   );
-};
-
-// ---------------------------------------------------------------- 侧栏对话行的月份、分店短写
-/** 「· ก.ย. · สาขา 00001」：挂在公司下、指定了月份或分店才有。 */
-export const FilingTag: FC = () => {
-  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
-  const localId = useAuiState((s) => s.threadListItem.id);
-  const kind = useProjects((s) => s.kind);
-  const filing = useProjects((s) => (remoteId && s.filings[remoteId]) || (localId && s.filings[localId]) || NO_FILING);
-  if (!kind || !filing.project) return null;
-  const text = [monthShort(filing.period), branchShort(filing.scope)].filter(Boolean).join(" · ");
-  if (!text) return null;
-  return <span className="cc-filing-tag" data-slot="cc-filing-tag">{` · ${text}`}</span>;
 };
