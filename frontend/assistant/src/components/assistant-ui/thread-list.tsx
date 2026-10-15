@@ -14,6 +14,7 @@ import { GroupHeader, GroupNew, GroupSortMenu, isMenuKey } from "@/components/as
 import { showShortcuts } from "@/components/shortcut";
 import { useLongPress } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
+import { isImeEnter } from "@/lib/ime";
 import { co, dayLabel, sb, t } from "@/i18n";
 import { branchShort, monthLabel, monthShort } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
@@ -609,14 +610,19 @@ const ThreadActivity: FC = () => {
 /** 菜单项右边的单字母快捷键（菜单开着时按这个键就执行；触屏不显示）。 */
 const MenuKey: FC<{ letter: string }> = ({ letter }) => (showShortcuts() ? <span className="cc-menu-key">{letter}</span> : null);
 
-// 行内改名（同 claude.ai）：回车或离开输入框保存，Esc 放弃；空标题不保存。
-export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }> = ({ onDone, className }) => {
+// 就地改名（同 Claude Code）：输入框与原来的文字同字号、一行高、透明底，聚焦只有 1.5px 蓝描边（globals.css 的 .cc-inline-edit；
+// 侧栏行里 .cc-row-edit，标题栏里调用方给 .cc-title-edit）。回车或离开输入框保存，Esc 放弃；空标题不保存；
+// 输入法选字的回车不算（lib/ime.ts）；保存或放弃后输入框卸下时的失焦不再存第二次。
+export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }> = ({ onDone, className = "cc-row-edit" }) => {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const [value, setValue] = useState(title);
-  const save = () => {
+  const finished = useRef(false);
+  const finish = (save: boolean) => {
+    if (finished.current) return;
+    finished.current = true;
     const next = value.trim();
-    if (next && next !== title) void aui.threadListItem().rename(next);
+    if (save && next && next !== title) void aui.threadListItem().rename(next);
     onDone();
   };
   return (
@@ -626,16 +632,19 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
       aria-label={t("rename")}
       onChange={(e) => setValue(e.target.value)}
       onFocus={(e) => e.target.select()}
-      onBlur={save}
+      onBlur={() => finish(true)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") save();
+        if (e.key === "Enter" && !isImeEnter(e)) {
+          e.preventDefault();
+          finish(true);
+        }
         // 只取消改名：标记已处理，浮着的会话栏（session-panel 的 Esc）不跟着关
         if (e.key === "Escape") {
           e.preventDefault();
-          onDone();
+          finish(false);
         }
       }}
-      className={cn("cc-input w-full", className)}
+      className={cn("cc-inline-edit", className)}
     />
   );
 };

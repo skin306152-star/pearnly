@@ -19,9 +19,20 @@ const sent = new Set<string>();
 /** 本页上传的图片的本地预览，按沙箱位置记（消息气泡里的附件以它为编号）：发出去的图片在气泡里显示缩略图。
  *  引擎那边的附件不可下载，刷新后没有缩略图，显示文件图标。 */
 const previews = new Map<string, string>();
+/** 本页上传的文件的大小与 PDF 页数，按沙箱位置记：刚发出、本会话文件列表还没重取时，气泡里的附件卡片先用它。 */
+const metas = new Map<string, { size: number; pages?: number }>();
 
 export function localPreview(mountPath: string): string | undefined {
   return previews.get(mountPath);
+}
+
+export function localMeta(mountPath: string): { size: number; pages?: number } | undefined {
+  return metas.get(mountPath);
+}
+
+/** 沙箱位置（`/mnt/session/uploads/<文件编号>/<文件名>`）里的文件编号：右侧面板按它打开这个附件；认不出给 null。 */
+export function uploadFileId(mountPath: string): string | null {
+  return /\/uploads\/([A-Za-z0-9_.:-]+)\/[^/]+$/.exec(mountPath)?.[1] ?? null;
 }
 
 export function attachedFilesOf(attachments: readonly CompleteAttachment[] | undefined) {
@@ -42,6 +53,7 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
       const upload = (async () => {
         const stored = await uploadFile(await getSessionId(), file);
         uploaded.set(id, stored);
+        metas.set(stored.mountPath, { size: stored.size_bytes ?? file.size, ...(stored.pages ? { pages: stored.pages } : {}) });
         if (/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) previews.set(stored.mountPath, URL.createObjectURL(file));
         return stored;
       })();

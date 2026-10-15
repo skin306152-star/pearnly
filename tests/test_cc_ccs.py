@@ -337,7 +337,8 @@ assert.equal(pickVariant(false, false), "web");
         for part in ("height: var(--cc-search-h);", "border-radius: var(--cc-radius-row);", "background: var(--cc-search-bg);",
                      "box-shadow: inset 0 0 0 var(--cc-hairline) var(--cc-line), var(--cc-shadow-search);"):
             self.assertIn(part, search)
-        self.assertIn(".cc-search:focus-within { box-shadow: var(--cc-shadow-focus); }", css)
+        # 侧栏搜索框的聚焦是紧凑的 1.5px 里描边（2026-10-16 验收：6px 光晕贴着侧栏边与下面的列表）
+        self.assertIn(".cc-search:focus-within { box-shadow: var(--cc-shadow-focus-inset); }", css)
         self.assertIn(".cc-search input::placeholder { color: var(--cc-ink-3); }", css)
         self.assertIn("font-size: var(--cc-text-caption);", rule(".cc-search-hint"))
         row_btn = rule(".cc-row-btn")

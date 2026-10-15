@@ -56,7 +56,7 @@ class TitleBarSourceTests(unittest.TestCase):
         # 开关文案按开着没有：显示 / 隐藏右侧栏（设计文档第 5 节）
         self.assertIn('title={t(panelShown ? "hidePanel" : "showPanel")}', layout)
         self.assertIn('aria-label={t(panelShown ? "hidePanel" : "showPanel")}', layout)
-        self.assertIn("view === \"chat\" && results.files.length > 0 && !results.open ? (", layout)  # 文件 N：有文件才有
+        self.assertIn("view === \"chat\" && results.outputs.length > 0 && !results.open ? (", layout)  # 文件 N：有结果文件才有（点开的附件不算）
         # 一个停靠位：预览开着时不显示会话栏；只在挂了公司的对话（ERP / DMS 的 kind 为空，useFiledCompany 回空）
         # 挂不挂看对话有没有服务端编号，不看消息条数（换对话时线程加载期间消息为 0，会话栏不卸下再挂上）
         self.assertIn("const saved = useAuiState((s) => !!s.threadListItem.remoteId);", layout)
@@ -150,7 +150,7 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertNotIn(".cc-grid-card {", css.split("公司主档（ADR-020", 1)[0])
         # 标题栏改名时 Esc 只取消改名，浮着的会话栏（看 defaultPrevented）不跟着关
         rename = read("components/assistant-ui/thread-list.tsx")
-        self.assertIn('if (e.key === "Escape") {\n          e.preventDefault();\n          onDone();', rename)
+        self.assertIn('if (e.key === "Escape") {\n          e.preventDefault();\n          finish(false);', rename)
         self.assertIn("e.defaultPrevented", read("components/session-panel.tsx"))
         # 「名称」排序：剩下的页一次取完，出错停下
         companies = read("components/companies.tsx")

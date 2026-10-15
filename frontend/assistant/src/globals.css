@@ -340,6 +340,8 @@
   --code-radius-10: 10px;
   --code-radius-menu: 12px;
   --code-radius-input: 14px;
+  --code-radius-3: 3px;         /* 就地改名的输入框（Claude Code 实测） */
+  --code-focus-w: 1.5px;        /* 就地改名、标题栏控件的聚焦描边（Claude Code 实测） */
   --code-gap-1: 8px;  --code-gap-2: 12px;  --code-gap-3: 16px;  --code-gap-4: 28px;  --code-gap-5: 40px;
   --code-pad-1: 6px;  --code-pad-2: 8px;   --code-pad-3: 12px;  --code-pad-4: 16px;  --code-pad-5: 24px;
   --code-icon: 20px;
@@ -661,6 +663,19 @@
   --cc-split-hit: 12px;           /* 分隔条可按住的宽度（看得见的只有中间一条细线） */
   --cc-topbar-h: var(--code-titlebar);   /* 电脑上对话顶部那一行（设计系统：标题栏 32） */
   --cc-bar-btn: var(--code-titlebar-btn); /* 标题栏右上的图标按钮（文件、右侧栏开关）与对话名按钮 */
+  /* 标题栏的对话名与「公司名 ›」13/19、字重 500（Claude Code 实测）；就地改名的输入框同字号、一行高、透明底无边框、圆角 3，
+     聚焦只有 1.5px 蓝描边（没有 6px 光晕）；文字左右各留 4 */
+  --cc-title-font: var(--code-text-footnote);
+  --cc-title-lh: var(--code-text-panel-lh);
+  --cc-radius-inline-edit: var(--code-radius-3);
+  --cc-inline-edit-px: 0.25rem;
+  --cc-focus-w: var(--code-focus-w);
+  /* 紧凑聚焦：32 的标题栏、侧栏搜索框里用（6px 光晕会被窗口顶边、栏边裁掉）——只画在控件里面的 1.5px 蓝描边 */
+  --cc-shadow-focus-inset: inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring);
+  /* 你发的消息里的附件卡片（同 Claude）：宽 120、缩略图 128 高（整张约 2:3）；圆角、内环同会话栏卡片 */
+  --cc-attach-w: 7.5rem;
+  --cc-attach-thumb-h: 8rem;
+  --cc-attach-pad: var(--code-pad-2);
   /* 右侧会话栏（设计系统，设计文档 3.13）：宽 280、卡片间距 10、卡片透明底 + 1px 内环（线色）、圆角 10、上下内边距 8；
      卡头 26（12px 中粗标题、12px 淡色摘要）；卡内行 26、13/19；行尾小按钮 20 */
   --cc-panel-w: var(--code-panel-w);
@@ -929,7 +944,7 @@
     background: var(--cc-search-bg); box-shadow: inset 0 0 0 var(--cc-hairline) var(--cc-line), var(--cc-shadow-search); color: var(--cc-ink-3);
     transition: box-shadow var(--cc-dur-fast) var(--cc-ease);
   }
-  .cc-search:focus-within { box-shadow: var(--cc-shadow-focus); }
+  .cc-search:focus-within { box-shadow: var(--cc-shadow-focus-inset); }
   .cc-search input { flex: 1; min-width: 0; background: transparent; outline: none; color: var(--cc-ink); font-size: var(--cc-row-font); }
   .cc-search input::placeholder { color: var(--cc-ink-3); }
   .cc-search-hint { flex-shrink: 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
@@ -1195,7 +1210,7 @@
   .cc-topbar { display: flex; flex-shrink: 0; align-items: center; gap: 0.25rem; height: var(--cc-topbar-h); padding-inline: 0.75rem; }
   .cc-title-btn {
     display: inline-flex; min-width: 0; max-width: 28rem; align-items: center; height: var(--cc-bar-btn); padding-inline: 0.375rem;
-    border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: 500;
+    border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink); font-size: var(--cc-title-font); line-height: var(--cc-title-lh); font-weight: 500;
     outline: none; transition: background-color var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-title-btn:hover { background: var(--cc-bg-hover); }
@@ -1210,6 +1225,54 @@
   .cc-bar-btn[aria-pressed="true"] { background: var(--cc-bg-active); color: var(--cc-ink); }
   .cc-bar-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-bar-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  /* 32 的标题栏里（电脑对话顶部、桌面窗口标题栏）：聚焦用紧凑描边——6px 光晕会被窗口顶边裁掉 */
+  :is(.cc-topbar, .cc-titlebar) :is(.cc-icon-btn, .cc-title-btn, .cc-title-company, .cc-row-btn, .cc-bar-btn, .cc-winbtn):focus-visible {
+    box-shadow: var(--cc-shadow-focus-inset);
+  }
+  /* 就地改名（同 Claude Code 实测）：与旁边的文字同字号字重、一行高、透明底、无边框、圆角 3；聚焦只有 1.5px 蓝描边。
+     回车保存、Esc 放弃（thread-list.tsx 的 ThreadListItemRename）。标题栏里的（.cc-title-edit）13/19 字重 500，文字与对话名按钮对齐；
+     侧栏行里的（.cc-row-edit）用行字号，文字与行标题对齐，描边落在行里面 */
+  .cc-inline-edit {
+    min-width: 0; height: var(--cc-row-lh); padding: 0 var(--cc-inline-edit-px); border: 0; border-radius: var(--cc-radius-inline-edit);
+    background: transparent; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); outline: none;
+  }
+  .cc-inline-edit:focus { outline: var(--cc-focus-w) solid var(--cc-focus-ring); outline-offset: 0; }
+  .cc-title-edit {
+    width: 18rem; max-width: 28rem; height: var(--cc-title-lh); margin-inline: calc(0.375rem - var(--cc-inline-edit-px));
+    font-size: var(--cc-title-font); line-height: var(--cc-title-lh); font-weight: 500;
+  }
+  .cc-row-edit { flex: 1; margin-inline: calc(var(--cc-row-pad) - var(--cc-inline-edit-px)) 0.25rem; }
+
+  /* 你发的消息里的附件（同 Claude）：靠右排，每个文件一张卡片——上面缩略图（图片 / 文件图标 + 类型），下面文件名一行、
+     类型说明（PDF · N 页 / 大小）；点了在右侧面板预览。透明底 + 1px 内环、圆角 10（同会话栏卡片），悬停换悬停色 */
+  .cc-attach-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--cc-list-gap); width: 100%; }
+  .cc-attach-card {
+    display: flex; flex-direction: column; width: var(--cc-attach-w); overflow: hidden; border-radius: var(--cc-radius-panel);
+    box-shadow: var(--cc-panel-ring); color: var(--cc-ink); text-align: start; outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease);
+  }
+  button.cc-attach-card { cursor: pointer; }
+  button.cc-attach-card:hover { background: var(--cc-bg-hover); }
+  button.cc-attach-card:focus-visible { box-shadow: var(--cc-panel-ring), var(--cc-shadow-focus); }
+  .cc-attach-thumb {
+    display: flex; flex-shrink: 0; align-items: center; justify-content: center; height: var(--cc-attach-thumb-h); overflow: hidden;
+    border-bottom: var(--cc-ring-w) solid var(--cc-line); background: var(--cc-bg-subtle);
+  }
+  .cc-attach-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .cc-attach-tile {
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem; color: var(--cc-ink-3);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-weight: 500;
+  }
+  .cc-attach-tile svg { width: var(--cc-icon); height: var(--cc-icon); }
+  .cc-attach-meta { display: flex; min-width: 0; flex-direction: column; padding: var(--cc-attach-pad); }
+  .cc-attach-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--cc-text-footnote);
+    line-height: var(--cc-text-footnote-lh); font-weight: 500;
+  }
+  .cc-attach-type {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink-3); font-size: var(--cc-text-caption);
+    line-height: var(--cc-text-caption-lh);
+  }
 
   /* 列表页（公司、待处理、定时任务；设计文档 3.14 / 4.5）：内容宽 960 居中；标题 24/31 字重 500；右上排序与主按钮；
      搜索框 36、圆角 7（白 50% / 白 5% 底，同侧栏搜索框）；行同侧栏行（圆角 8、悬停实色、悬停不改字色） */
@@ -1352,7 +1415,7 @@
   .cc-chip-btn svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; color: var(--cc-ink-3); }
   .cc-title-company {
     display: inline-flex; min-width: 0; max-width: 14rem; align-items: center; gap: 0.125rem; height: var(--cc-bar-btn); padding-inline: 0.5rem;
-    border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: 0.875rem; outline: none;
+    border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: var(--cc-title-font); line-height: var(--cc-title-lh); outline: none;
   }
   .cc-title-company:hover, .cc-title-company:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-title-company svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
@@ -1541,6 +1604,7 @@
 /* 手机抽屉（设计文档 3.16）：行与组标题带 44（手机变体的 --cc-row-h / --cc-group-h），行字仍 14；箭头、组操作常显（--cc-reveal-rest） */
 .cc-drawer [data-slot="aui_thread-list-item"] { min-height: var(--cc-row-h); border-radius: var(--cc-radius-mrow); color: var(--cc-ink); }
 .cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: 0.75rem; }
+.cc-drawer .cc-row-edit { margin-inline-start: calc(0.75rem - var(--cc-inline-edit-px)); }
 .cc-drawer .cc-section-label { display: flex; align-items: center; min-height: var(--cc-group-h); margin-top: var(--cc-group-top); padding: 0 0.75rem; }
 .cc-drawer .cc-nav-item { height: var(--cc-row-h); padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
 /* 手机抽屉里的公司组头：带高同对话行，名字与行首对齐；操作按钮 32（手指好点、公司名还放得下），长按组头出菜单 */

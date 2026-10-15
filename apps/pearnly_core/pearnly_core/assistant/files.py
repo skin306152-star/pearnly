@@ -13,7 +13,11 @@
   工具当输入（例如对账），产品从文件夹取来的文件同样。来源分三种（`origin`）：用户上传（会话目录本身）、工具生成
   （`tool/`）、从文件夹取来（`folder/`）；产品据此拒绝把自己生成的文件再拿去识别。
 - 对话接续到新上下文后，沙箱里的旧文件没了，本站这份还在（按对话留，不分段）：`kept` 列给智能体，工具照样按文件名取。
+- 用户发的附件也能在右侧面板预览（2026-10-16 CC 外壳，同 Claude 点消息里的附件卡片）：引擎不让下载用户上传的文件，
+  `download` / `preview` 找不到可下载的结果时取本站留存的那份；列表里的附件带上大小与 PDF 页数（附件卡片的说明行）。
 """
+import io
+import mimetypes
 import os
 import re
 import shutil
@@ -42,7 +46,8 @@ def upload(session_id) -> dict:
     api = engine.adapter()
     stored = api.attach(sessions.segment_for_turn(row, api), name, content, mime)
     _keep(row, stored["file_id"], name, content)
-    return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], "size_bytes": len(content)}
+    meta = _remember_meta(stored["file_id"], name, content)
+    return {"fileId": stored["file_id"], "filename": name, "mountPath": stored["path"], **meta}
 
 
 KEPT = "assistant-attachments"
@@ -190,19 +195,76 @@ def origin(file_id) -> str:
 
 def listing(session_id) -> list[dict]:
     """本会话的全部文件：挂进去的附件（只作输入）+ 智能体产出的结果（可下载）。按生成时间从早到晚排：引擎列文件是
-    新的在前，结果面板默认打开最后一个，新导出的文件出来时面板却停在最早那份（2026-10-10 测试）。"""
+    新的在前，结果面板默认打开最后一个，新导出的文件出来时面板却停在最早那份（2026-10-10 测试）。
+    附件（kind = upload）按本站留存的那份补上大小与 PDF 页数（`pages`），对话里的附件卡片显示「PDF · N 页」/ 大小。"""
     row = sessions.owned(session_id, allow_archived=True)
     api = engine.adapter()
-    return sorted((f for remote in sessions.segments(row) for f in api.files(remote)),
-                  key=lambda f: str(f.get("created_at") or ""))
+    found = sorted((f for remote in sessions.segments(row) for f in api.files(remote)),
+                   key=lambda f: str(f.get("created_at") or ""))
+    for f in found:
+        if f.get("kind") == "upload":
+            f.update(_upload_meta(row, f["id"]))
+    return found
 
 
-def _output(row, api, fid) -> tuple[dict, str]:
-    """本对话（任一段）里可下载的结果文件及其所在的远端会话；不是就当作不存在。"""
+# 附件的大小与页数按文件编号记一份（引擎的文件编号全局唯一、内容不变）：列表每次打开对话、每轮跑完都要取，不每次读原件。
+META_CACHE = "pearnly_assistant:upload-meta:"
+META_TTL = 7 * 24 * 3600
+
+
+def _pdf_pages(content: bytes) -> int | None:
+    try:
+        import pypdf
+
+        return len(pypdf.PdfReader(io.BytesIO(content)).pages) or None
+    except Exception:
+        return None
+
+
+def _remember_meta(fid: str, name: str, content: bytes) -> dict:
+    """附件的说明数据：{"size_bytes"}，PDF 另带 {"pages"}（读不出页数就不带）。记进缓存，列表时不再读原件。"""
+    meta = {"size_bytes": len(content)}
+    if str(name).lower().endswith(".pdf"):
+        pages = _pdf_pages(content)
+        if pages:
+            meta["pages"] = pages
+    try:
+        frappe.cache.set_value(META_CACHE + fid, meta, expires_in_sec=META_TTL)
+    except Exception:
+        pass
+    return meta
+
+
+def _upload_meta(row, fid: str) -> dict:
+    """列表里一个附件的大小与页数：先看缓存，没有就读本站留存的那份；没留存（很早以前的附件）就不补。"""
+    try:
+        cached = frappe.cache.get_value(META_CACHE + fid)
+    except Exception:
+        cached = None
+    if isinstance(cached, dict):
+        return cached
+    for entry, read, _origin in _kept(fid, row=row):
+        if entry.startswith(fid + "--"):
+            try:
+                return _remember_meta(fid, entry[len(fid) + 2:], read())
+            except OSError:
+                return {}
+    return {}
+
+
+def _stored(row, api, fid) -> tuple[dict, callable]:
+    """本对话里能打开的文件：(说明, 取内容)。先找引擎里可下载的结果（任一段）；找不到再找本站留存的那份
+    （用户上传的附件，以及工具放进对话的文件）——引擎不让下载用户上传的文件。两处都没有就当作不存在，
+    猜编号拿不到别的对话、别人的文件。"""
     for remote in sessions.segments(row):
         for f in api.files(remote):
             if f["id"] == fid and f["downloadable"]:
-                return f, remote
+                return f, lambda remote=remote: api.read_file(remote, fid)
+    for entry, read, _origin in _kept(fid, row=row):
+        if entry.startswith(fid + "--"):
+            name = entry[len(fid) + 2:]
+            mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
+            return {"id": fid, "filename": name, "mime_type": mime, "size_bytes": None}, read
     frappe.throw(_("File not found"), frappe.DoesNotExistError)
 
 
@@ -210,9 +272,9 @@ def download(session_id, file_id, inline=False) -> None:
     row = sessions.owned(session_id, allow_archived=True)
     fid = sessions._guard(contracts.file_id, file_id)
     api = engine.adapter()
-    meta, remote = _output(row, api, fid)
+    meta, read = _stored(row, api, fid)
     frappe.local.response.filename = meta["filename"]
-    frappe.local.response.filecontent = api.read_file(remote, fid)
+    frappe.local.response.filecontent = read()
     # Frappe 的 binary 回应是「附件 + octet-stream」：图片用 <img> 照样显示，PDF 放进结果面板却成了下载、一片空白
     # （2026-10-10 测试，桌面端每打开一次还多存一份）。PDF 用 Frappe 的 pdf 回应（inline + application/pdf）。
     if inline and meta["mime_type"] == "application/pdf" or inline and str(meta["filename"]).lower().endswith(".pdf"):
@@ -249,11 +311,11 @@ def preview(session_id, file_id) -> dict:
     row = sessions.owned(session_id, allow_archived=True)
     fid = sessions._guard(contracts.file_id, file_id)
     api = engine.adapter()
-    meta, remote = _output(row, api, fid)
+    meta, read = _stored(row, api, fid)
     kind = preview_kind(meta["filename"])
     if not kind or int(meta.get("size_bytes") or 0) > PREVIEW_MAX_BYTES:
         return {"type": "none"}
-    content = api.read_file(remote, fid)
+    content = read()
     if len(content) > PREVIEW_MAX_BYTES:
         return {"type": "none"}
     if kind == "sheets":

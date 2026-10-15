@@ -2653,6 +2653,88 @@ class DocumentPreviewTests(unittest.TestCase):
         # docx 下载照常是附件（不在可内联的类型里）
         self.assertNotIn("application/vnd.openxmlformats-officedocument.wordprocessingml.document", files.INLINE_TYPES)
 
+    def test_user_attachments_open_in_the_panel_from_the_kept_copy(self):
+        """2026-10-16 CC 外壳：消息里的附件卡片点开在右侧面板预览（含 PDF）。引擎不让下载用户上传的文件：download / preview
+        找不到可下载的结果时取本站留存的那份，只认这个对话的；列表里的附件补上大小与 PDF 页数（记进缓存，不每次读原件）。"""
+        import tempfile
+
+        files = self._files()
+        root = tempfile.mkdtemp()
+        good = _docx(_p("สรุป"), styles=_STYLES)
+
+        class Api:
+            def files(self, remote):
+                return [{"id": "file_P", "filename": "r.pdf", "downloadable": False, "kind": "upload", "size_bytes": 0,
+                         "mime_type": "application/octet-stream", "created_at": "2026-10-16 09:00:00"},
+                        {"id": "file_OUT", "filename": "GL.xlsx", "downloadable": True, "kind": "output", "size_bytes": 9,
+                         "mime_type": "application/octet-stream", "created_at": "2026-10-16 09:05:00"}]
+
+            def read_file(self, remote, fid):
+                raise AssertionError("uploads are never read from the engine")
+
+        owners = {"s1": "row1", "s2": "row2"}
+        sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name=owners[sid]),
+                                         _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"],
+                                         SESSION="Pearnly Assistant Session")
+        pdf_reads = []
+
+        class PdfReader:
+            def __init__(self, stream):
+                pdf_reads.append(stream.read())
+                self.pages = [1, 2, 3]
+
+        saved = {name: getattr(frappe, name, None) for name in ("get_site_path", "get_all", "DoesNotExistError")}
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.get_all = lambda *a, **k: []
+        frappe.DoesNotExistError = type("DoesNotExistError", (Exception,), {})
+        frappe.local.response = types.SimpleNamespace()
+        frappe.store.clear()
+        try:
+            with mock.patch.object(files, "sessions", sessions), \
+                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
+                    mock.patch.dict(sys.modules, {"pypdf": types.SimpleNamespace(PdfReader=PdfReader)}):
+                row = types.SimpleNamespace(name="row1")
+                files._keep(row, "file_P", "r.pdf", b"%PDF-1.7 three pages")
+                files._keep(row, "file_W", "สรุป.docx", good)
+                files._keep(row, "file_I", "slip.jpg", b"jpeg")
+                files._keep(types.SimpleNamespace(name="row2"), "file_X", "other.pdf", b"%PDF other")
+                # 列表：附件补上大小与页数；结果文件不动；第二次取走缓存，不再读原件
+                listed = files.listing("s1")
+                self.assertEqual(listed[0], {"id": "file_P", "filename": "r.pdf", "downloadable": False, "kind": "upload",
+                                             "size_bytes": 20, "pages": 3, "mime_type": "application/octet-stream",
+                                             "created_at": "2026-10-16 09:00:00"})
+                self.assertEqual(listed[1]["size_bytes"], 9)
+                self.assertNotIn("pages", listed[1])
+                files.listing("s1")
+                self.assertEqual(len(pdf_reads), 1)
+                # 下载 / 内联：PDF 用 pdf 回应（面板里的 iframe 不变成下载），图片内联，docx 是附件下载
+                files.download("s1", "file_P", inline=True)
+                self.assertEqual((frappe.local.response.filename, frappe.local.response.filecontent, frappe.local.response.type),
+                                 ("r.pdf", b"%PDF-1.7 three pages", "pdf"))
+                files.download("s1", "file_I", inline=True)
+                self.assertEqual(frappe.local.response.type, "binary")
+                files.download("s1", "file_W", inline=True)
+                self.assertEqual(frappe.local.response.type, "download")
+                # Word 附件同样有结构化预览
+                self.assertEqual(files.preview("s1", "file_W")["type"], "document")
+                self.assertEqual(files.preview("s1", "file_P"), {"type": "none"})
+                # 别的对话的附件、猜的编号都拿不到
+                for fid in ("file_X", "file_NOPE"):
+                    with self.assertRaises(frappe.DoesNotExistError):
+                        files.download("s1", fid)
+                    with self.assertRaises(frappe.DoesNotExistError):
+                        files.preview("s1", fid)
+                # 读不出页数（坏 PDF）：只带大小
+                with mock.patch.dict(sys.modules, {"pypdf": types.SimpleNamespace(PdfReader=mock.Mock(side_effect=ValueError))}):
+                    self.assertEqual(files._remember_meta("file_B", "bad.PDF", b"%PDF"), {"size_bytes": 4})
+        finally:
+            frappe.store.clear()
+            for name, value in saved.items():
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
+
 
 class _Doc(types.SimpleNamespace):
     """开户单 / 租户表单替身：`stored` 是库里那份密钥，`before` 是保存前的字段。"""

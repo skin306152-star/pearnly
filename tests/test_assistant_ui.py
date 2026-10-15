@@ -3326,5 +3326,192 @@ assert.equal(initialChoice({ options: {} } as any, payment), "");               
 """, stubs={"socket.io-client": SOCKET_STUB,
             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
 
+
+# ── 附件卡片与就地改名（2026-10-16 CC 外壳验收，Q 线）──────────────────────────────────────────────────────────
+# 你发的消息里每个附件一张卡片（缩略图、文件名一行、「PDF · N 页」/ 大小），点开在右侧面板预览（含 PDF，修 S3）；读屏名字跟页面语言。
+# 标题与侧栏行的就地改名同 Claude Code：同字号、一行高、透明底、无边框、圆角 3、聚焦只有 1.5px 蓝描边；回车存、Esc 放弃；
+# 32 的标题栏、侧栏搜索框里的聚焦不被裁掉（紧凑描边）。
+
+AUI_STUB = r"""
+import { createElement } from "react";
+const g = globalThis as any;
+export const useAuiState = (select: any) => select(g.auiState);
+function Item({ a, render }: any) {
+  g.auiState = { attachment: a };
+  return render({ attachment: a });
+}
+export const MessagePrimitive = {
+  Attachments: ({ children }: any) => (g.items ?? []).map((a: any, i: number) => createElement(Item, { key: i, a, render: children })),
+};
+export const ComposerPrimitive = { Attachments: () => null, AddAttachment: () => null };
+export const AttachmentPrimitive = { Root: () => null, Remove: () => null, Name: () => null };
+"""
+
+ATTACH_PAGE = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { AttachmentCard, attachmentCard, attachmentTypeLine, formatSize, UserMessageAttachments } from "@/components/assistant-ui/attachment";
+import { ResultsContext } from "@/components/results-panel";
+import { createAttachmentAdapter, localMeta, uploadFileId } from "@/lib/managed-agents/attachments";
+
+const g = globalThis as any;
+const opened: any[] = [];
+const results = (uploads: any[] = [], sessionId: string | null = "s1") =>
+  ({ sessionId, files: [], uploads, openFile: () => {}, openUpload: (f: any) => opened.push(f) });
+const bubble = (items: any[], value: any) => {
+  g.items = items;
+  return renderToStaticMarkup(createElement(ResultsContext.Provider, { value }, createElement(UserMessageAttachments)));
+};
+const att = (name: string, path: string) => ({ id: path, type: /\.(png|jpe?g)$/.test(name) ? "image" : "document", name,
+  contentType: "", status: { type: "complete" }, content: [] });
+const PDF = "/mnt/session/uploads/file_011CPdf/statement.pdf";
+const XLSX = "/mnt/session/uploads/file_011CXls/GL-05.xlsx";
+const JPG = "/mnt/session/uploads/file_011CJpg/slip.jpg";
+const listed = [
+  { id: "file_011CPdf", filename: "statement.pdf", size_bytes: 52000, pages: 3, kind: "upload", downloadable: false, mime_type: "application/pdf", created_at: "2026-10-16 09:00:00" },
+  { id: "file_011CXls", filename: "GL-05.xlsx", size_bytes: 12800, kind: "upload", downloadable: false, mime_type: "application/octet-stream", created_at: "x" },
+];
+"""
+
+
+class AttachmentCardSourceTests(unittest.TestCase):
+    def test_message_attachments_are_cards_that_open_in_the_dock(self):
+        source = read("components/assistant-ui/attachment.tsx")
+        self.assertNotIn("attachment${", source)          # 英文拼出来的「Document attachment」读屏名字没了
+        self.assertNotIn("Image Attachment Preview", source)
+        self.assertIn('t("attachment")', source)
+        self.assertIn('t("imagePreview")', source)
+        self.assertIn("{() => <MessageAttachment />}", source)
+        self.assertIn("{() => <ComposerAttachment />}", source)
+        self.assertIn("<AttachmentRemove />", source)       # 输入框里的移除、上传中、失败照旧
+        self.assertIn("aui-attachment-tile-uploading", source)
+        self.assertIn("aui-attachment-tile-error", source)
+        self.assertIn("results.openUpload(open)", source)
+        # 右侧面板：附件不在结果文件里，临时多列点开的那一个；右上角「文件 N」仍只数结果
+        page = read("assistant.tsx")
+        hook = page.split("function useResultsPanel()", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("const openUpload = useCallback((file: SessionFile) => {", hook)
+        self.assertIn("[...outputs, upload]", hook)
+        self.assertIn("{results.outputs.length}", page)
+        self.assertIn("files: results.outputs,", page)
+        self.assertIn('setUploads(list.filter((f) => f.kind === "upload"));', read("components/results-panel.tsx"))
+
+    def test_every_language_has_the_attachment_words(self):
+        messages = block(read("i18n.ts"), "const MESSAGES = {")
+        for lang in ("en", "zh", "th"):
+            words = block(messages, f"  {lang}: {{")
+            for key in ("attachment", "uploading", "imagePreview", "pageCount", "onePage"):
+                self.assertRegex(words, rf"\n    {key}: \"[^\"]+\"", (lang, key))
+            self.assertRegex(words, r'attachment: "[^"]*\{0\}[^"]*"', lang)
+            self.assertRegex(words, r'pageCount: "[^"]*\{0\}[^"]*"', lang)
+
+    def test_in_place_rename_looks_like_claude_code_and_focus_is_never_clipped(self):
+        rows = read("components/assistant-ui/thread-list.tsx")
+        rename = rows.split("export const ThreadListItemRename", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('className = "cc-row-edit"', rename)
+        self.assertIn('className={cn("cc-inline-edit", className)}', rename)
+        self.assertNotIn("cc-input", rename)
+        self.assertIn('if (e.key === "Enter" && !isImeEnter(e))', rename)   # 输入法选字的回车不保存
+        self.assertIn("finish(false)", rename.split('"Escape"', 1)[1])       # Esc 放弃
+        self.assertIn("if (finished.current) return;", rename)                # 卸下时的失焦不存第二次
+        self.assertIn('className="cc-title-edit"', read("assistant.tsx"))
+        css = read("globals.css")
+        self.assertIn("--code-radius-3: 3px;", css)
+        self.assertIn("--code-focus-w: 1.5px;", css)
+        edit = css.split("  .cc-inline-edit {", 1)[1].split("}", 1)[0]
+        for rule in ("height: var(--cc-row-lh)", "border: 0", "border-radius: var(--cc-radius-inline-edit)", "background: transparent"):
+            self.assertIn(rule, edit)
+        focus = css.split("  .cc-inline-edit:focus {", 1)[1].split("}", 1)[0]
+        self.assertIn("outline: var(--cc-focus-w) solid var(--cc-focus-ring)", focus)
+        self.assertNotIn("shadow", focus)                                       # 没有 6px 光晕
+        title = css.split("  .cc-title-edit {", 1)[1].split("}", 1)[0]
+        self.assertIn("height: var(--cc-title-lh)", title)
+        self.assertIn("font-size: var(--cc-title-font)", title)
+        self.assertIn("font-weight: 500", title)
+        self.assertIn("--cc-title-font: var(--code-text-footnote);", css)      # 13
+        self.assertIn("--cc-title-lh: var(--code-text-panel-lh);", css)        # 19
+        self.assertIn("font-size: var(--cc-title-font); line-height: var(--cc-title-lh); font-weight: 500;",
+                      css.split("  .cc-title-btn {", 1)[1].split("}", 1)[0])
+        # 32 的标题栏里、侧栏搜索框：紧凑的里描边，不画会被窗口顶边裁掉的光晕
+        self.assertIn("--cc-shadow-focus-inset: inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring);", css)
+        self.assertRegex(css, r":is\(\.cc-topbar, \.cc-titlebar\) :is\([^)]*\.cc-title-btn[^)]*\):focus-visible \{\s*box-shadow: var\(--cc-shadow-focus-inset\);")
+        self.assertIn(".cc-search:focus-within { box-shadow: var(--cc-shadow-focus-inset); }", css)
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class AttachmentCardBehaviourTests(unittest.TestCase):
+    def run_page(self, checks, lang="en"):
+        run_ts(ATTACH_PAGE + checks + "\ng.done();\n", stubs={"@assistant-ui/react": AUI_STUB}, lang=lang)
+
+    def test_cards_show_name_type_line_and_open_the_upload(self):
+        self.run_page(r"""
+assert.equal(uploadFileId(PDF), "file_011CPdf");
+assert.equal(uploadFileId("statement.pdf"), null);
+assert.equal(formatSize(900), "900 B");
+assert.equal(formatSize(12800), "13 KB");
+assert.equal(formatSize(3.4 * 1024 * 1024), "3.4 MB");
+assert.equal(attachmentTypeLine("statement.pdf", 52000, 3), "PDF · 3 pages");
+assert.equal(attachmentTypeLine("one.PDF", 1, 1), "PDF · 1 page");
+assert.equal(attachmentTypeLine("statement.pdf", 52000), "PDF");          // 页数读不出：只写类型，不写大小
+assert.equal(attachmentTypeLine("GL-05.xlsx", 12800), "XLSX · 13 KB");
+assert.equal(attachmentTypeLine("GL-05.xlsx"), "XLSX");
+
+// 气泡：每个文件一张卡片按钮，读屏名字是「Attachment: 名字 · 类型说明」；PDF 没有缩略图时是类型方块
+const html = bubble([att("statement.pdf", PDF), att("GL-05.xlsx", XLSX)], results(listed));
+assert.equal((html.match(/<button type="button" class="cc-attach-card"/g) ?? []).length, 2);
+assert.match(html, /aria-label="Attachment: statement\.pdf · PDF · 3 pages"/);
+assert.match(html, /<span class="cc-attach-name">statement\.pdf<\/span><span class="cc-attach-type">PDF · 3 pages<\/span>/);
+assert.match(html, /<span class="cc-attach-type">XLSX · 13 KB<\/span>/);
+assert.match(html, /<span class="cc-attach-tile"><svg[^>]*lucide-file-text[^>]*>.*?<\/svg><span>PDF<\/span><\/span>/);
+assert.doesNotMatch(html, /Document attachment|attachment,/);
+assert.doesNotMatch(html, /#[0-9a-fA-F]{3,8}\b|rgb\(/);
+
+// 点开：交给右侧面板的是这个附件（文件编号来自沙箱位置），带名字、大小、页数
+const card = attachmentCard(PDF, "statement.pdf", results(listed));
+assert.deepEqual(card.open, { id: "file_011CPdf", filename: "statement.pdf", size_bytes: 52000, mime_type: "application/pdf",
+  downloadable: false, created_at: "2026-10-16 09:00:00", kind: "upload", pages: 3 });
+const element: any = AttachmentCard({ name: "statement.pdf", ...card, onOpen: () => opened.push(card.open) });
+assert.equal(element.type, "button");
+element.props.onClick();
+assert.equal(opened.at(-1).id, "file_011CPdf");
+
+// 图片：刷新后用服务端留存的那份当缩略图（内联地址）
+const image = attachmentCard(JPG, "slip.jpg", results([]));
+assert.equal(image.image, "/api/method/pearnly_core.assistant.api.download?session_id=s1&file_id=file_011CJpg&inline=1");
+assert.match(bubble([att("slip.jpg", JPG)], results([])), /<img src="\/api\/method\/pearnly_core\.assistant\.api\.download\?session_id=s1&amp;file_id=file_011CJpg&amp;inline=1" alt="" loading="lazy"/);
+
+// 没有会话、认不出文件编号：只是一张卡片，不可点
+assert.equal(attachmentCard(PDF, "statement.pdf", results(listed, null)).open, undefined);
+const plain = bubble([att("old.pdf", "old.pdf")], results(listed));
+assert.doesNotMatch(plain, /<button/);
+assert.match(plain, /<div class="cc-attach-card" role="img" aria-label="Attachment: old\.pdf · PDF"/);
+""")
+
+    def test_reader_names_follow_the_page_language(self):
+        self.run_page(r"""
+const html = bubble([att("statement.pdf", PDF)], results(listed));
+assert.match(html, /aria-label="附件：statement\.pdf · PDF · 3 页"/);
+assert.equal(attachmentTypeLine("a.pdf", 1, 1), "PDF · 1 页");
+""", lang="zh")
+        self.run_page(r"""
+assert.match(bubble([att("statement.pdf", PDF)], results(listed)), /aria-label="ไฟล์แนบ: statement\.pdf · PDF · 3 หน้า"/);
+""", lang="th")
+
+    def test_a_fresh_upload_shows_its_pages_before_the_file_list_is_read_again(self):
+        self.run_page(r"""
+g.URL.createObjectURL = () => "blob:local";
+g.fetch = async () => ({ ok: true, status: 200, json: async () => ({ message: {
+  fileId: "file_011CNew", filename: "new.pdf", mountPath: "/mnt/session/uploads/file_011CNew/new.pdf", size_bytes: 4096, pages: 2 } }) });
+const adapter = createAttachmentAdapter(async () => "s1");
+const file = new File([new Uint8Array(4096)], "new.pdf", { type: "application/pdf" });
+const steps: any[] = [];
+for await (const step of adapter.add!({ file }) as any) steps.push(step.status.type);
+assert.deepEqual(steps, ["running", "requires-action"]);
+assert.deepEqual(localMeta("/mnt/session/uploads/file_011CNew/new.pdf"), { size: 4096, pages: 2 });
+assert.equal(attachmentCard("/mnt/session/uploads/file_011CNew/new.pdf", "new.pdf", results([])).typeLine, "PDF · 2 pages");
+""")
+
 if __name__ == "__main__":
     unittest.main()

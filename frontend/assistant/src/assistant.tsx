@@ -81,6 +81,7 @@ import { connectionDetail, showsReconnecting } from "@/lib/managed-agents/turn";
 import { openSettings, useAutoConnect, useDesktopBridge, useFramelessWindow, windowAction } from "@/lib/desktop";
 import { chooseLanguage, siteFetch } from "@/lib/frappe";
 import { isBusy } from "@/lib/managed-agents/reducer";
+import type { SessionFile } from "@/lib/managed-agents/api";
 import { onNotice, setActiveSession, setChatView } from "@/lib/managed-agents/activity";
 import { noticeReloader } from "@/lib/managed-agents/notice-reload";
 import { listen } from "@/lib/managed-agents/realtime";
@@ -709,7 +710,7 @@ function ConversationTitle() {
 function ConversationName() {
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const [renaming, setRenaming] = useState(false);
-  if (renaming) return <ThreadListItemRename onDone={() => setRenaming(false)} className="w-72" />;
+  if (renaming) return <ThreadListItemRename onDone={() => setRenaming(false)} className="cc-title-edit" />;
   return (
     <>
       <button type="button" className="cc-title-btn" title={t("rename")} onClick={() => setRenaming(true)} onDoubleClick={(e) => e.stopPropagation()}>
@@ -755,18 +756,26 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
 }
 
 // 右侧结果面板：新结果出现时自动打开最新的一个；对话里的文件卡片、右上角按钮随时打开（同 claude.ai 的 Artifacts）。
+// 消息气泡里用户发的附件点开也在这里预览（同 Claude）：附件不在结果文件里，面板临时多列点开的那一个（右上角「文件 N」仍只数结果）。
 function useResultsPanel() {
   const { sessionId, isRunning } = useActiveSessionSnapshot();
-  const { files, fresh, clearFresh } = useResultFiles(sessionId, isRunning);
+  const { files: outputs, uploads, fresh, clearFresh } = useResultFiles(sessionId, isRunning);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [upload, setUpload] = useState<SessionFile | null>(null);
+  const files = useMemo(
+    () => (upload && !outputs.some((f) => f.id === upload.id) ? [...outputs, upload] : outputs),
+    [outputs, upload],
+  );
   useEffect(() => {
     setOpen(false);
     setSelected(null);
+    setUpload(null);
   }, [sessionId]);
   useEffect(() => {
     if (fresh) {
       setSelected(null);
+      setUpload(null);
       setOpen(true);
       clearFresh();
     }
@@ -775,7 +784,18 @@ function useResultsPanel() {
     setSelected(id);
     setOpen(true);
   }, []);
-  return { sessionId, files, selected, setSelected, openFile, open: open && files.length > 0, setOpen };
+  // 右上角「文件 N」：只列结果文件，打开最新的一个
+  const showResults = useCallback(() => {
+    setUpload(null);
+    setSelected(null);
+    setOpen(true);
+  }, []);
+  const openUpload = useCallback((file: SessionFile) => {
+    setUpload(file);
+    setSelected(file.id);
+    setOpen(true);
+  }, []);
+  return { sessionId, files, outputs, uploads, selected, setSelected, openFile, openUpload, showResults, open: open && files.length > 0, setOpen };
 }
 
 // 桌面端快捷提问、回复完成与提醒通知、整窗拖文件、登录后自动连接这台电脑（lib/desktop.ts）；推送通知（lib/push.ts）
@@ -884,16 +904,16 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));
   // 本对话产出的文件（同 claude.ai 右上角）：面板关着时显示，点开右侧面板。手机上不放（同 Claude 手机端，对话里的文件卡片点开即可）
   const filesButton =
-    view === "chat" && results.files.length > 0 && !results.open ? (
+    view === "chat" && results.outputs.length > 0 && !results.open ? (
       <button
         type="button"
-        onClick={() => results.setOpen(true)}
+        onClick={results.showResults}
         title={t("files")}
         aria-label={t("files")}
         className="cc-bar-btn"
       >
         <FilesIcon />
-        {results.files.length}
+        {results.outputs.length}
       </button>
     ) : null;
   // 右侧会话栏开关（手机从胶囊菜单里的公司名打开）
@@ -994,8 +1014,14 @@ function Workspace() {
   const aui = useAui({ tools: Tools({ toolkit }) });
   const results = useResultsPanel();
   const context = useMemo(
-    () => ({ sessionId: results.sessionId, files: results.files, openFile: results.openFile }),
-    [results.sessionId, results.files, results.openFile],
+    () => ({
+      sessionId: results.sessionId,
+      files: results.outputs,
+      uploads: results.uploads,
+      openFile: results.openFile,
+      openUpload: results.openUpload,
+    }),
+    [results.sessionId, results.outputs, results.uploads, results.openFile, results.openUpload],
   );
   const [view, setView] = useState<View>("chat");
   const viewContext = useMemo(() => ({ view, setView }), [view]);

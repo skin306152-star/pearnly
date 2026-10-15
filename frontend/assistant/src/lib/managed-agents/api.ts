@@ -113,7 +113,8 @@ export async function runTool(id: string, toolUseId: string): Promise<ToolRunRep
   return { status: out?.status ?? "", ask: out?.ask, preview: out?.preview };
 }
 
-export type UploadedFile = { fileId: string; filename: string; mountPath: string; size_bytes: number };
+/** 上传结果；PDF 读得出页数时带 pages（对话里附件卡片的「PDF · N 页」）。 */
+export type UploadedFile = { fileId: string; filename: string; mountPath: string; size_bytes: number; pages?: number };
 
 export type SessionFile = {
   id: string;
@@ -123,6 +124,8 @@ export type SessionFile = {
   downloadable: boolean;
   created_at: string;
   kind: "upload" | "output";
+  /** 附件是 PDF 且读得出页数时有（服务端按本站留存的那份读） */
+  pages?: number;
 };
 
 /** 附件：传到本站，服务端校验后存进会话（HEIC 照片会转成 JPEG）。 */
@@ -161,7 +164,7 @@ export function previewFile(id: string, fileId: string): Promise<FilePreview> {
   return get("preview", { session_id: id, file_id: fileId });
 }
 
-/** 结果文件的地址。inline 只对图片、PDF 生效，其余类型服务端一律按下载给出。 */
+/** 结果文件（与用户发的附件）的地址。inline 只对图片、PDF 生效，其余类型服务端一律按下载给出。 */
 export function fileUrl(id: string, fileId: string, inline = false): string {
   const query = new URLSearchParams({ session_id: id, file_id: fileId, inline: inline ? "1" : "0" });
   return `/api/method/pearnly_core.assistant.api.download?${query}`;

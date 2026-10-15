@@ -4,6 +4,7 @@
 // 图片、PDF 用服务端的内联地址；Excel 由服务端读成表格后显示；Word（.docx）由服务端读成段落与表格的纯数据，
 // 按需载入的 document-view 按文字渲染（2026-10-13 教程第 3 条）；文本按原文显示；其余类型、读不出时给下载。
 // 新结果出现时自动打开；对话里的文件卡片点一下打开对应文件（ResultsContext）。
+// 用户发的附件（消息气泡里的附件卡片）也在这里打开：服务端取本站留存的那份（引擎不让下载用户上传的文件），预览方式同结果文件。
 
 import { Tabs } from "radix-ui";
 import {
@@ -64,18 +65,29 @@ export function fileTypeLabel(filename: string): string {
 export type Results = {
   sessionId: string | null;
   files: SessionFile[];
+  /** 用户发的附件（本会话文件列表里 kind = upload 的，带大小与 PDF 页数）：气泡里的附件卡片显示说明行 */
+  uploads: SessionFile[];
   openFile: (id: string) => void;
+  /** 在右侧面板打开用户发的附件：它不在结果文件里，面板临时多列这一项 */
+  openUpload: (file: SessionFile) => void;
 };
 
-export const ResultsContext = createContext<Results>({ sessionId: null, files: [], openFile: () => undefined });
+export const ResultsContext = createContext<Results>({
+  sessionId: null,
+  files: [],
+  uploads: [],
+  openFile: () => undefined,
+  openUpload: () => undefined,
+});
 
 export function useResults(): Results {
   return useContext(ResultsContext);
 }
 
-/** 本会话的结果文件；会话从「运行中」变回空闲时重新取一次（结果文件有 1–3 秒的入库延迟，取不到再补一次）。 */
+/** 本会话的结果文件与用户发的附件；会话从「运行中」变回空闲时重新取一次（结果文件有 1–3 秒的入库延迟，取不到再补一次）。 */
 export function useResultFiles(sessionId: string | null, isRunning: boolean) {
   const [files, setFiles] = useState<SessionFile[]>([]);
+  const [uploads, setUploads] = useState<SessionFile[]>([]);
   const [fresh, setFresh] = useState(false);
   const wasRunning = useRef(false);
   const known = useRef<Set<string>>(new Set());
@@ -83,6 +95,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
   useEffect(() => {
     known.current = new Set();
     setFiles([]);
+    setUploads([]);
     setFresh(false);
     if (!sessionId) return;
     let cancelled = false;
@@ -91,6 +104,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
       const outputs = list.filter((f) => f.kind === "output" && f.downloadable);
       outputs.forEach((f) => known.current.add(f.id));
       setFiles(outputs);
+      setUploads(list.filter((f) => f.kind === "upload"));
     }, () => undefined);
     return () => {
       cancelled = true;
@@ -109,6 +123,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
         const added = outputs.filter((f) => !known.current.has(f.id));
         outputs.forEach((f) => known.current.add(f.id));
         setFiles(outputs);
+        setUploads(list.filter((f) => f.kind === "upload"));
         if (added.length) setFresh(true);
         else if (retry > 0) setTimeout(() => void load(retry - 1), 2500);
       }, () => undefined);
@@ -119,7 +134,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
   }, [isRunning, sessionId]);
 
   const clearFresh = useCallback(() => setFresh(false), []);
-  return { files, fresh, clearFresh };
+  return { files, uploads, fresh, clearFresh };
 }
 
 function useText(url: string | null) {
