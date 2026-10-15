@@ -70,8 +70,7 @@
   `company_folders.view`、`notes.listing`、`choices.listing` 各来源（`push.choices.of_sets`、`pos_import.layouts.of_companies`、
   `preset_store.under`、`readback.history.company_choices`）、`tax.service.drafts_of`、`projects.mine`、`pending` 的候选查询。
 - 保留：
-  - `connections/access.py` 授权的当前读（用户、角色、归属行 `LOCK IN SHARE MODE`）：迁移保护要求身份与授权保护不关闭，
-    写路径靠它在提交前挡住并发撤权；这些行不被这些 GET 升级成排他锁，不构成本次的死锁环。
+  - `connections/access.py` 授权读：起初保留未动，同日 13:48 在 `tabUser` 上报 1020，已按下一节拆开（写路径仍当前读加锁）。
   - `access/scope.ensure_site_workspace` 的 `for_update`：只在站点还没有归属行、要现建时才走（写路径）。
   - `companies.service.detail` 里 `books()` 补税号的 `set_value`：真写入（接口随后显式提交），不是锁读。
 
@@ -88,4 +87,41 @@
 ### 未做
 
 - 未推送、未合并 `main`、未部署；未在测试机复现死锁，也没有并发压测验证。
-- 授权当前读（`connections/access.py`）的共享锁保留未动，见上；若之后仍见同类死锁，先看栈是否落在 `tabUser` / `tabHas Role` 上再议。
+- 授权读的后续见下一节。
+
+## 只读视图的授权读 1020（`tabUser`）
+
+同一分支 `pearnly/connection-read-no-lock` 第二个提交。测试窗口报来（共享笔记 F1）。
+
+### 现象
+
+生产 testcowork 2026-10-15 13:48:10，侧栏 `pending_counts` 与 `task_overview` 各一条（Error Log `9t6fe22lte`、`9t6s9sth4i`）：
+`QueryDeadlockError (1020, "Record has changed since last read in table 'tabUser'; try restarting transaction")`。栈：
+`companies/api.py:119 pending_counts` → `pending.py:230` → `pending.py:209 _attribution` → `companies/service.py:598 attribution`
+→ `:99 _rows` → `:75 usable_connections` → `connections/service.py:199 records` → `connections/access.py:56 require_actor`
+→ `access.py:45 _current`（`SELECT enabled FROM tabUser … LOCK IN SHARE MODE`）；`task_overview` 同样落在 `access.py:45`。
+同一秒另有两条 1213（上一节那类，已修）；14:00:10 又两条 1213。
+
+### 原因
+
+`access._current` 对用户、角色、工作空间、客户行一律 `LOCK IN SHARE MODE`（当前读）。MariaDB 11.8（兼容矩阵）默认开
+`innodb_snapshot_isolation`：事务的一致快照建立后，若该行被别的事务改过并提交，再对它加锁读就报 1020。`tabUser` 行会被
+Frappe 的会话更新（`last_active`）等改到；侧栏两条 GET 并发、恰逢另一个请求刚提交用户行，就会撞上。只读视图本不需要当前读：
+它不写东西，用本事务开头的快照判断「用户启用、有角色、工作空间启用」就够；需要当前读挡住提交前并发撤权的是写路径。
+
+### 改动
+
+- `connections/access.py`：`_current(query, values, lock=True)`，`roles / require_actor / require_scope / require_connection`
+  加关键字参数 `lock=True`（默认不变，照旧当前读加共享锁）；`lock=False` 时同样的 SQL 不带 `LOCK IN SHARE MODE`。
+- `connections/service.py`：七个只读视图（`detail`、`targets`、`account_set_facts`、`records`、`refresh_status`、`stock_acc_group`、
+  `mrerp_menu`）与只被它们用的 `_manager_view` 的授权调用都传 `lock=False`；写路径（`configure`、`request_refresh`、
+  `ensure_account_masters`、`choose_*`、`request_mrerp_menu`、`observe_mrerp_*`、`read_for_push`、`preparation_for_target`、
+  `read_for_log`）不变。
+- 授权判断本身没少：用户停用、无角色、工作空间停用照样拒绝（测试覆盖），只是读快照而不是加锁的当前读。连接域以外直接调
+  `access.require_*` 的地方都走默认，不受影响。
+
+### 测试
+
+`tests/test_cowork_connection_read_locks.py` 扩充：`service.py` 的授权替身记录每次调用的 `lock`，只读视图必须全部 `lock=False`、
+写路径必须是当前读；新增 `AccessReadLocks` 按原文件加载真 `access.py`：默认每句带 `LOCK IN SHARE MODE`、`lock=False` 一句都不带、
+停用用户不加锁仍被拒。换回旧 `access.py` 跑，新测试 2 条报错；改后 7 条全过。

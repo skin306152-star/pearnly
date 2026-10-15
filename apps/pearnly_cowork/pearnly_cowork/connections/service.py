@@ -11,6 +11,10 @@ each hold shared locks on the same Connection rows and then both upgrade to
 exclusive -> deadlock 1213 (testcowork 2026-10-15), and blocked desktop
 heartbeats writing the row. Whatever writes after reading reads through its own
 locking path (`read_for_push`, `configure`, `request_refresh`, `choose_*`, ...).
+Their authorization reads follow suit (`access.require_* / roles(..., lock=False)`):
+under MariaDB 11.8 snapshot isolation a share-locked read of a `tabUser` row changed
+after the view began fails with 1020 (testcowork 2026-10-15 13:48). Writers keep
+current, share-locked authorization reads.
 """
 from copy import deepcopy
 from dataclasses import dataclass
@@ -133,20 +137,20 @@ def detail(name):
     # A manager can inspect disabled/unassigned configuration without acquiring
     # permission to submit orders. All other callers need actual use permission.
     if _manager_view():
-        access.require_connection(doc, management=True, enabled=False)
+        access.require_connection(doc, management=True, enabled=False, lock=False)
     else:
-        access.require_connection(doc)
+        access.require_connection(doc, lock=False)
     return _dto(doc)
 
 
 def _manager_view():
-    return "master_data" in entitlements() and "Cowork Admin" in access.roles(frappe.session.user)
+    return "master_data" in entitlements() and "Cowork Admin" in access.roles(frappe.session.user, lock=False)
 
 
 def targets(name):
     """Safe current directory for selection; raw preparation never leaves IO."""
     doc = _read(CONNECTION, name, lock=False)
-    access.require_connection(doc, management=_manager_view())
+    access.require_connection(doc, management=_manager_view(), lock=False)
     _, _, key = _scope(None)
     head = _heads(doc).get(key, {})
     result = {"connection": doc.name, "connection_revision": doc.record_revision,
@@ -185,7 +189,7 @@ def account_set_facts(name):
     """这条连接最近一次读到的账套目录：`{connection, adapter, status, account_sets: [{source_id, label, active,
     attributes: {FACT_KEYS 里有的}}]}`。权限同 `targets()`（连接使用授权）；没读到目录时 `account_sets` 为空。"""
     doc = _read(CONNECTION, name, lock=False)
-    access.require_connection(doc, management=_manager_view())
+    access.require_connection(doc, management=_manager_view(), lock=False)
     _, _, key = _scope(None)
     head = _heads(doc).get(key, {})
     result = {"connection": doc.name, "adapter": doc.adapter, "status": head.get("status") or "missing",
@@ -205,9 +209,9 @@ def account_set_facts(name):
 def records(workspace, client=None, start=0, limit=50):
     actor = frappe.session.user
     management = _manager_view()
-    access.require_actor(management=management)
+    access.require_actor(management=management, lock=False)
     workspace = workspace or access.default_workspace()
-    access.require_scope(workspace, client)
+    access.require_scope(workspace, client, lock=False)
     try:
         start, limit = max(0, int(start)), max(1, min(100, int(limit)))
     except (ValueError, TypeError):
@@ -220,7 +224,7 @@ def records(workspace, client=None, start=0, limit=50):
     for row in names:
         doc = _read(CONNECTION, row.name, lock=False)
         if management or (doc.enabled and actor in model.parse(doc.allowed_users, [])):
-            access.require_connection(doc, management=management, enabled=not management)
+            access.require_connection(doc, management=management, enabled=not management, lock=False)
             result.append(_dto(doc))
     return result
 
@@ -283,7 +287,7 @@ def _refresh_dto(doc):
 
 def refresh_status(name, request_id):
     doc = _read(CONNECTION, name, lock=False)
-    access.require_connection(doc)
+    access.require_connection(doc, lock=False)
     refresh = _read(REFRESH, request_id, lock=False)
     if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
         _error("connection.refresh_stale")
@@ -316,7 +320,7 @@ def _stock_group_account(doc, account_set_key):
 def stock_acc_group(name, account_set_key):
     """这份账套的合格存货科目组与选过的那个（新建录入、LINE 与提交前按它决定要不要请用户选）。"""
     doc = _read(CONNECTION, name, lock=False)
-    access.require_connection(doc)
+    access.require_connection(doc, lock=False)
     account = _stock_group_account(doc, account_set_key)
     return stock_groups.view(doc.stock_acc_groups, account,
                              reported_stock_groups(doc, account))
@@ -363,7 +367,7 @@ def _mrerp_menu_account(doc, account_set_key):
 def mrerp_menu(name, account_set_key):
     """这份 MR.ERP 账套每类单据的已关联日记账菜单、选过哪个、要不要请人选（录入提交前按它决定问不问）。"""
     doc = _read(CONNECTION, name, lock=False)
-    access.require_connection(doc)
+    access.require_connection(doc, lock=False)
     account = _mrerp_menu_account(doc, account_set_key)
     return _mrerp_view(doc, account)
 

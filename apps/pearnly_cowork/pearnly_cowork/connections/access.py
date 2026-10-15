@@ -40,44 +40,49 @@ def write(doc):
     return doc.insert(ignore_permissions=True) if doc.is_new() else doc.save(ignore_permissions=True)
 
 
-def _current(query, values):
-    # Current reads, including when the caller already established an RR view.
-    return frappe.db.sql(query + " LOCK IN SHARE MODE", values, as_dict=True)
+def _current(query, values, lock=True):
+    # Writers: current reads, including when the caller already established an RR view, held until commit so a
+    # concurrent revocation cannot slip in before the write lands. Read-only views (`lock=False`, the connection
+    # service's DTO views) read their own snapshot instead: MariaDB 11.8 snapshot isolation rejects a locking read of
+    # a row changed after the view began (1020 on `tabUser` when `last_active` moved, testcowork 2026-10-15).
+    return frappe.db.sql(query + (" LOCK IN SHARE MODE" if lock else ""), values, as_dict=True)
 
 
-def roles(actor):
-    return {r.role for r in _current("SELECT role FROM `tabHas Role` WHERE parent=%s AND parenttype='User'", (actor,))}
+def roles(actor, *, lock=True):
+    return {r.role for r in _current("SELECT role FROM `tabHas Role` WHERE parent=%s AND parenttype='User'", (actor,),
+                                     lock)}
 
 
-def require_actor(actor=None, *, management=False):
+def require_actor(actor=None, *, management=False, lock=True):
     actor = actor or frappe.session.user
     feature = "master_data" if management else "intake"
     role = "Cowork Admin" if management else "Cowork Intake"
-    found = _current("SELECT enabled FROM `tabUser` WHERE name=%s", (actor,))
+    found = _current("SELECT enabled FROM `tabUser` WHERE name=%s", (actor,), lock)
     if (not actor or actor == "Guest" or frappe.conf.get("pearnly_product") != "cowork"
             or feature not in entitlements() or not found or not found[0].enabled):
         deny()
-    granted = roles(actor)
+    granted = roles(actor, lock=lock)
     if role not in granted and (management or "Cowork Admin" not in granted):
         deny()
     return actor
 
 
-def require_scope(workspace, client=None, *, actor=None):
+def require_scope(workspace, client=None, *, actor=None, lock=True):
     actor = actor or frappe.session.user
-    rows = _current("SELECT enabled FROM `tabCowork Workspace` WHERE name=%s", (workspace,))
+    rows = _current("SELECT enabled FROM `tabCowork Workspace` WHERE name=%s", (workspace,), lock)
     if not rows or not rows[0].enabled:
         deny()
     if client:
-        rows = _current("SELECT enabled FROM `tabCowork Client` WHERE name=%s AND workspace=%s", (client, workspace))
+        rows = _current("SELECT enabled FROM `tabCowork Client` WHERE name=%s AND workspace=%s", (client, workspace),
+                        lock)
         if not rows or not rows[0].enabled:
             deny()
     # 不按人分公司 / 客户（Cowork 不做公司隔离，用户 2026-09-26）；谁能用哪条连接看连接自己的名单。
 
 
-def require_connection(doc, *, actor=None, management=False, enabled=True):
-    actor = require_actor(actor, management=management)
-    require_scope(doc.workspace, doc.client, actor=actor)
+def require_connection(doc, *, actor=None, management=False, enabled=True, lock=True):
+    actor = require_actor(actor, management=management, lock=lock)
+    require_scope(doc.workspace, doc.client, actor=actor, lock=lock)
     if enabled and not doc.enabled:
         frappe.throw(_("connection.disabled"), frappe.PermissionError)
     if not management:
