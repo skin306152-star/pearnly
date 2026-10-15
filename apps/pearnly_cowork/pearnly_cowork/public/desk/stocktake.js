@@ -35,6 +35,9 @@
 		let scope_warehouse, scope_category, area_host, area_table, scoping = false, shown_screen;
 		const BLANK = "\u0000";
 		const area_of = row => row.warehouse_name || BLANK;
+		// ERP 的类别是商品主档上的编号（纯数字），单独显示一个数看不出是什么，前面带上「分类」。
+		const category_label = value => value === BLANK ? t("cowork.stock.count.blank")
+			: /^\d+$/.test(value) ? `${t("cowork.stock.col.category")} ${value}` : value;
 		const scope = () => ({ warehouse: scope_warehouse?.get_value() || "", category: scope_category?.get_value() || "" });
 		const in_scope = row => {
 			const chosen = scope();
@@ -206,10 +209,10 @@
 		const scope_key = () => `pearnly-stocktake-scope:${count}`;
 		async function scope_options() {
 			const label = value => value === BLANK ? t("cowork.stock.count.blank") : value;
-			const fill = async (control, values, chosen) => {
-				const options = [...new Set(values)].sort((a, b) => label(a).localeCompare(label(b)));
+			const fill = async (control, values, chosen, name = label) => {
+				const options = [...new Set(values)].sort((a, b) => name(a).localeCompare(name(b), undefined, { numeric: true }));
 				control.df.options = [{ value: "", label: t("cowork.stock.count.filter.all") },
-					...options.map(value => ({ value, label: label(value) }))];
+					...options.map(value => ({ value, label: name(value) }))];
 				control.df.hidden = options.length > 1 ? 0 : 1;
 				control.refresh();
 				await control.set_value(options.length > 1 && options.includes(chosen) ? chosen : "");
@@ -220,7 +223,7 @@
 			scoping = true;
 			try {
 				await fill(scope_warehouse, state.items.map(area_of), chosen.warehouse);
-				await fill(scope_category, state.items.map(r => r.category || BLANK), chosen.category);
+				await fill(scope_category, state.items.map(r => r.category || BLANK), chosen.category, category_label);
 			} finally { scoping = false; }
 		}
 		function choose_scope() {
@@ -270,7 +273,7 @@
 				...(size === "phone" ? [] : [{ name: t("cowork.stock.count.countedBy"), width: size === "full" ? 260 : 3 }]),
 			], [...areas].map(([key, area]) => {
 				const [warehouse, category] = JSON.parse(key);
-				const name = [label(warehouse), category ? label(category) : ""].filter(Boolean).join(" · ");
+				const name = [label(warehouse), category ? category_label(category) : ""].filter(Boolean).join(" · ");
 				const cells = [`<a href="#" data-count-area="${p.escape(key)}">${p.escape(name)}</a>`,
 					`${area.counted} / ${area.rows}`, area.differences ? danger(area.differences) : "0"];
 				if (size !== "phone") cells.push([...area.people].join(", "));
