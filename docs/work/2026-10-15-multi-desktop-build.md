@@ -501,3 +501,73 @@ HTTP 链、真机（第 7 批）。`test_cowork_companion_reports_source_parity.
 SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 7 批迁移回读时一起看。
 
 发布前提（在第 3、4 批所列之上）：第 4 批与第 5 批（CC 桌面版带电脑编号）、第 6 批（网页用读者编号、`all_members` 开关）一起发布，不单独部署。
+
+### 第 5 批：CC 桌面版 1.7.0（2026-10-16，本地提交，未推送）
+
+提交：`cff95cd4` feat（桌面端、契约测试、一条新词条、服务端注释里的版本号）、本条 docs（ADR-021 第 33–40 条、有意变化与兼容）。版本号
+1.7.0（方案写的 1.6.0 已在 10-15 给科目历史 / 公司文件夹那一版用掉，`main` 上就是 1.6.0）；没有发布。没有新补丁；对话页（`frontend/assistant`）
+不动，属第 6 批。
+
+做了什么（对照方案第 9 节第 5 行、2.2、2.3、2.5「桌面端的配合」、2.8、第 5 节）：
+
+- 设备密钥（`C/device_link.py`、`C/profile_store.py`）：第一次运行生成 32 字节随机数，DPAPI 加密存在 `companion.json` 的 `device.key`，一经写下
+  不换（读得早的配置副本写回时沿用文件里的那把，本进程的写串行）；托盘启动时先生成；桥 `state()` 给 `device: {key, name}`，`features` 加 `devices`。
+- 认电脑：Express 成员在取任务线程（`multi_profile_worker` 每轮先 `announce`）、MR.ERP 只读成员在文件夹线程里各发 `device_hello`（设备密钥、
+  电脑名 = 文件夹同步与绑定里的同一个 `_device_name`、常驻、`host_names`），内容变了马上再发；`superseded` 时本机同一条连接还有别的成员就删掉
+  这个，否则与 `claimed_elsewhere` 一样给成员标 `device_state`（停用、设置里 `attention`、桥给页面 `device_state`），配对写入新密钥时清掉。
+  401 / 403 / 404 当旧服务端（半小时后再问），网络 / 报文问题五分钟后再试，都不动成员。
+- 断开：桥的 `remove` 改成后台任务 `disconnect`，先 `device_leave` 再删本机成员（旧服务端、连不上照样删）；改连别家公司时原来的成员也先各自 leave。
+- 身份（`C/device_facts.py`，只读）：`uid` = `GetFileInformationByHandle`（`FILE_READ_ATTRIBUTES` + `FILE_FLAG_BACKUP_SEMANTICS`）的卷序列号 +
+  64 位文件号，文件号 0 当取不到，不用 `FileIdInfo`；`share` = `WNetGetConnectionW`（持久、非持久映射）或 `LanmanServer\Shares`（取最深的共享）
+  换成 `\\本机名\共享名\…`；`host_names` = 本机名、NetBIOS、DNS 全名 + 有默认网关、开着、非回环 / 隧道 / 拨号、名字不含 WSL / Tailscale /
+  ZeroTier / WireGuard 的网卡 IPv4（不含 169.254），最多 32 个。心跳整份名单（`account_probe.account_sets_payload`，一次扫描共用一个换算器）与配对
+  上报都走 `account_probe.with_identity`；文件夹规则的网络路径（`folder_plan.share_path`）用同一套换算。
+- 领取：每次带 `index_pending`（全部成员 `IndexBatch` 还没重建的账套目录的文件号，十分钟缓存，空列表也报）；任务读 `attended`（只认布尔）。
+- 写：任务记录（写过就照上次回执）挪到找账套之前；带 `account_uid` 时找不到账套或文件号确实不同 → `waiting_lock` +
+  `[ERR_ACCOUNT_UID_MISMATCH]`，并 `master_refresh.rescan_soon()` 让下一次心跳整套重扫；读不出文件号照旧按路径写。
+- 询问框（`C/gui_tray_workers.py`）：常驻或 `attended=false` 不问；有人值守时探**这张单的**账套（`worker.task_account_dir`，只在授权根目录下），
+  被占用先按「等账套」放掉租约再问，「终止」作用到之后领到的那张。
+- 没有 Express 也能加入：Express 配对码、本机找不到 Express（没找过先找一次）→ `pair_folder(pool=True)` 当只读成员加入池；之后「更换… / 重新查找」
+  找到 Express 时按原密钥重新配对成能写账的成员（`pairing.pair` 现在写 `kind="express"`）。
+- 新词条 1 条：`intake.error.ERR_ACCOUNT_UID_MISMATCH`（四种语言，`tests/test_cowork_reason_language.py` 要求桌面端每个错误码都有词条），翻译包
+  按 `i18n-build.py` 重新生成；桌面端界面没有新文案，没改已有文案。服务端只改了注释里的版本号（1.6.0 → 1.7.0）与 `device_contracts` 的说明。
+
+证据（本机 macOS；桌面端测试用 Python 3.11 + 按 `packaging/requirements-build.txt` 装的非 Windows 依赖（PySide6 6.11.1、httpx、dbf、pytest），
+虚拟环境在本会话草稿目录；仓库测试用 `PATH=$HOME/pearnly-devtools/bin:$PATH` 的 3.12）：
+
+| 检查 | 结果 |
+|---|---|
+| `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/） | 879 passed, 41 skipped（基线 809 passed, 39 skipped；新增 `test_device_facts.py` 20 项（2 项只在 Windows 跑）、`test_device_link.py` 27 项、`test_write_dispatch.py` 23 项，另在 `test_folder_member` / `test_multi_profile_integration` 各加 1 项；改了 6 个旧测试的替身或断言：`poll(index_pending=…)`、扫描传 `locator`、桥的 `features`、快照多 `device` / `device_state`、询问框先放租约） |
+| 变异核对 | 去掉写前核文件号、领取不带 `index_pending`、401 不当旧服务端、忽略 `attended`、`device_state` 不停用、网卡不看默认网关：对应测试各自失败 |
+| `python3 tests/test_companion_contract.py` | 66 OK（59 → 66：`DeviceMethods` 补客户端一侧——两条路径、报文键与状态同名、`MAX_HOST_NAMES`、设备密钥形状服务端收、401 / 403 / 404 = 旧服务端且断开照样删本机、桥交出设备密钥；`WriteDispatch`——任务读 `attended`、领取请求带 `index_pending` 且上限相同、`ERR_ACCOUNT_UID_MISMATCH` 两端同名并按 `waiting_lock` 回报、`account_uid` 是服务端下发的键；`AccountSetIdentity`——`IDENTITY_KEYS` 进两处白名单、心跳与配对同一个 `with_identity`、只用 `GetFileInformationByHandle`） |
+| `python3 tests/test_cowork_reason_language.py` | OK（新词条） |
+| `python3 scripts/check-architecture.py`、`i18n-build.py --check` | PASS / PASS |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 88 步全过，退出码 0（代码提交后先跑一次，缺一条词条失败，补上后在本条文档提交的 HEAD 上重跑全过） |
+
+没做 / 没验（只有真 Windows 能验的）：
+
+- CI 的 Companion checks（Windows 全量测试 + 打包）没跑：本地不推送。其中 `test_device_facts.py` 的两项真接口测试（目录文件号非零且稳定、主机名第一个
+  是本机名、`GetAdaptersAddresses` / `GetComputerNameExW` / `WNetGetConnectionW` / 共享表不抛）、以及原有 39 项 Windows 专属测试只在 Windows 上跑。
+  ctypes 结构体只在 macOS 上核了 x64 偏移（`FirstGatewayAddress` = 208、`BY_HANDLE_FILE_INFORMATION` = 52 字节）并拼假链表解析过，没调过真系统。
+- 真 DPAPI 加解密设备密钥；`GetFileInformationByHandle` 经 `FILE_FLAG_BACKUP_SEMANTICS` 打开目录在 NAS / Accserver 上的结果（第 0 批探针用的
+  同一种调用，但不是这份代码）；非持久映射与本机共享换算出的 `share` 与服务端主机别名归一能否对上；测试机 WSL / Tailscale 网卡确实被排除。
+- 两台电脑的联调：认电脑后整份重报、同一份账套经两台分派、写前核文件号对不上转给另一台、`index_pending` 黏住、替别人写不弹框、有人值守时
+  先放租约再问、断开吊销、没 Express 的电脑加入池、配对码抄到两台（`claimed_elsewhere`）——第 7 批。
+- 服务端第 1–4 批 + 第 6 批（对话页带设备密钥调 register、`rekey`、`device_state` 的界面）上线前不能发 1.7.0；旧服务端上 1.7.0 照常工作（认电脑当旧服务端，
+  多出的键被忽略）。
+
+与方案的出入及理由：
+
+- 版本号 1.7.0，不是 1.6.0（见上）。
+- `always_on` / `host_names` 只经 `device_hello` 报，心跳与文件夹同步不加（服务端第 1 批只从 `hello` 收；常驻开关一变，各线程重启、马上再认一次）。
+- `superseded` 而本机同一条连接没有别的成员时不删成员，标 `device_state` 等对话页 `rekey`：删了会丢掉这个成员的数据根与授权，重新登记时
+  `pair` 按连接认回同一个成员、换上新密钥。
+- 「终止」不再立刻把这张单回报为终止（租约已经放了），而是作用到之后领到的那张（多半就是它）：同一批里的其余单照旧按终止回报。
+- 读不出文件号（非 NTFS、接口失败）不算对不上：否则这台电脑对带文件号的账套永远写不了；服务端交给它本来就因为它报过够得到。
+- 新增词条 1 条（服务端的错误原因），桌面端界面无新文案。
+
+留给后面几批：
+
+- 第 6 批：对话页每次打开带 `state().device.key` 调 register v2（`device_name` 用 `state().device.name`）；成员 `device_state` 为 `superseded` 时
+  `rekey`、为 `claimed_elsewhere` 时重新登记；「电脑」列表与 ⋯ 移除；`remove` 现在回 job（页面按现有 job 协议等结果）。
+- 第 7 批：上面「没做 / 没验」各项；Companion checks 在 Windows 上全绿后再谈发布；发布顺序仍是服务端先、1.7.0 后。
