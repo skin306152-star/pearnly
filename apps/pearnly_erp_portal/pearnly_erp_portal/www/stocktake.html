@@ -137,19 +137,34 @@
 
         // 开相机与读码用共用读码器 `pearnly_core/public/scan/reader.js`（后台扫码同一份）；
         // 这里只放这一页的卡片界面与提示。提示按原因给，文案在 core 术语表 `common.scan.*`。
-        // 相机打不开 / 5 秒还没开：原因留在页面上（不是一闪而过的提示条）；在 LINE 里再给「用浏览器打开」。
-        let hint = null;
+        // 相机打不开 / 5 秒还没开：原因留在页面上（不是一闪而过的提示条）。在 LINE 里（LINE 没有手机的相机权限）
+        // 是授权引导：按系统写清去哪里打开 LINE 的相机权限，带「重试」；人从设置切回来就自动重开相机
+        // （用户 2026-10-15：自动检测后弹授权窗引导去设置，不做浏览器兜底）。后台扫码是同一套引导。
+        let hint = null, lastOnCode = null;
         function cameraHint(reason) {
           hide(hint);
           hint = document.createElement('div');
           hint.className = 'card';
-          hint.innerHTML = '<p class="muted"></p>' + (reason === 'in_line'
-            ? '<div class="row"><button class="wide">' + esc(t('common.scan.open_browser')) + '</button></div>' : '');
+          const line = reason === 'in_line';
+          hint.innerHTML = (line ? '<h3></h3>' : '') + '<p></p>' + (line ? '<p class="muted"></p>'
+            + '<div class="row"><button class="wide">' + esc(t('common.scan.retry')) + '</button></div>' : '');
+          if (line) {
+            hint.querySelector('h3').textContent = t('common.scan.allow_title');
+            hint.querySelector('p.muted').textContent = t(window.PearnlyScan.platform() === 'ios'
+              ? 'common.scan.allow_ios' : 'common.scan.allow_android');
+            hint.querySelector('button').onclick = () => retryCamera();
+          }
           hint.querySelector('p').textContent = t('common.scan.' + reason);
-          const open = hint.querySelector('button');
-          if (open) open.onclick = () => window.PearnlyScan.open_in_browser();
           app.prepend(hint);
         }
+        function retryCamera() {
+          if (!hint || !lastOnCode) return;
+          scanMode = true;
+          startCamera(lastOnCode);
+        }
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && hint && hint.querySelector('h3')) retryCamera();
+        });
         function stopCamera(resetMode) {
           cameraGeneration += 1;
           if (resetMode) scanMode = false;
@@ -162,6 +177,7 @@
         async function startCamera(onCode) {
           stopCamera();
           hide(hint); hint = null;
+          lastOnCode = onCode;
           const generation = cameraGeneration;
           const node = document.createElement('div');
           node.className = 'card';

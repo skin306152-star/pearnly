@@ -41,15 +41,30 @@ frappe.provide("frappe.pearnly");
 		failed: () => __("common.scan.failed"),
 	};
 	p.scan_failure_text = error => (FAILURE[p.scan_failure(error)] || FAILURE.failed)();
-	// 提示那一句放进 `$target`；在 LINE 里再给一颗「用浏览器打开」（LINE 自己的参数，跳到手机默认浏览器，那里相机正常）。
-	// `reason` 可以是错误对象，也可以是读码器 `on_waiting` 给的原因字符串。
-	p.scan_hint = ($target, reason) => {
+	// 在 LINE 里打不开相机（LINE 没有手机的相机权限：请求被拒，或一直不回应）：自动弹出授权引导，
+	// 按系统写清去哪里打开 LINE 的相机权限；人从设置切回来（页面重新可见）就自动重开相机，不用再点。
+	// 用户 2026-10-15："自动检测后弹授权窗，引导用户去设置打开相机权限，而不是浏览器兜底"。
+	let guide;
+	p.scan_guide_close = () => { if (guide?.display) guide.hide(); };
+	function open_guide(retry) {
+		if (guide?.display) return;
+		const again = () => { guide.hide(); retry?.(); };
+		guide = new frappe.ui.Dialog({ title: __("common.scan.allow_title"),
+			fields: [{ fieldtype: "HTML", fieldname: "body" }],
+			primary_action_label: __("common.scan.retry"), primary_action: again });
+		guide.fields_dict.body.$wrapper.append($("<p>").text(__("common.scan.in_line")),
+			$("<p class='text-muted'>").text(scan().platform() === "ios" ? __("common.scan.allow_ios") : __("common.scan.allow_android")));
+		const back = () => { if (document.visibilityState === "visible" && guide?.display) again(); };
+		document.addEventListener("visibilitychange", back);
+		guide.onhide = () => document.removeEventListener("visibilitychange", back);
+		guide.show();
+	}
+	// 原因那一句放进 `$target`。`reason` 可以是错误对象，也可以是读码器 `on_waiting` 给的原因字符串；
+	// `retry` 由页面给（重开它自己的相机）。
+	p.scan_hint = ($target, reason, retry) => {
 		const key = typeof reason === "string" ? reason : p.scan_failure(reason);
 		$target.empty().append($("<p class='text-muted'>").text((FAILURE[key] || FAILURE.failed)()));
-		if (key === "in_line") {
-			$("<button type='button' class='btn btn-primary btn-sm'>").text(__("common.scan.open_browser"))
-				.on("click", () => scan().open_in_browser()).appendTo($target);
-		}
+		if (key === "in_line") open_guide(retry);
 	};
 	p.scan_reader = ({ host, kind = "all", on_result, on_error, on_waiting, on_started }) => {
 		const stage = () => $(host).find(".pearnly-scan-stage");

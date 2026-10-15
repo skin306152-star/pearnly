@@ -165,12 +165,7 @@
 		};
 	}
 
-	// LINE 内置浏览器里打不开相机时：用 LINE 自己认的参数在手机默认浏览器里打开同一页（那里相机正常）。
-	// 只对 LINE 给这条出路；别的 App 没有这种参数，提示里让人自己换浏览器。
-	const open_in_browser = () => {
-		const url = new URL(window.location.href);
-		url.searchParams.set("openExternalBrowser", "1");
-		window.location.href = url.toString();
-	};
-	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, open_in_browser };
+	// 引导开权限时按系统给步骤（安卓：设置 → 应用程序 → LINE → 权限 → 相机；iPhone：设置 → LINE → 相机）。
+	const platform = () => /iPhone|iPad|iPod/i.test(agent()) ? "ios" : /Android/i.test(agent()) ? "android" : "other";
+	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, platform };
 })();

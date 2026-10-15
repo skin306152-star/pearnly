@@ -48,7 +48,9 @@ function fixture(options = {}) {
     addEventListener: (name, handler) => { events[name] = handler; },
     BarcodeDetector: options.fallback ? undefined : Reader,
   };
-  const document = {getElementById: element, createElement: () => node(),
+  const docEvents = {};
+  const document = {getElementById: element, createElement: () => node(), visibilityState: 'visible',
+    addEventListener: (name, handler) => { docEvents[name] = handler; },
     head: {appendChild(script) {
       scripts.push(script.src);
       browser.BarcodeDetectionAPI = {BarcodeDetector: Reader, prepareZXingModule: async config => prepares.push(config)};
@@ -59,7 +61,7 @@ function fixture(options = {}) {
   const result = {item, rows: [item], entries: []};
   vm.runInNewContext(reader + '\n' + source, {
     window: browser, document, URLSearchParams, URL, console,
-    navigator: {language: 'th', userAgent: options.userAgent || 'Mozilla/5.0 Line/14.1.0', vibrate() {},
+    navigator: {language: 'th', userAgent: options.userAgent || 'Mozilla/5.0 (Linux; Android 13; wv) Line/26.15.1', vibrate() {},
       mediaDevices: {enumerateDevices: async () => [], getUserMedia: () => {
       acquired++;
       return options.acquire ? options.acquire(stream) : Promise.resolve(stream);
@@ -77,7 +79,7 @@ function fixture(options = {}) {
   const page = browser.testPage;
   page.state({csrf: 'synthetic-csrf', ticket: 'synthetic-ticket'});
   page.location = () => browser.location;
-  return {page, calls, scripts, prepares, timers, events, element, item, video,
+  return {page, calls, docEvents, scripts, prepares, timers, events, element, item, video,
     stopped: () => stopped, acquired: () => acquired, decoderCalls: () => decoderCalls,
     // 读码是一帧接一帧（setTimeout 链）：取出下一帧执行。
     async tick() { const [id, callback] = timers.entries().next().value || []; assert.ok(callback); timers.delete(id); await callback(); await flush(); },
@@ -138,9 +140,12 @@ function fixture(options = {}) {
   const refused = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   await refused.page.startCamera(() => {}); await flush();
   assert.equal(refused.element('p').textContent, 'common.scan.in_line', 'the reason stays on the page');
-  refused.element('button').onclick();
-  assert.equal(new URL(refused.page.location().href).searchParams.get('openExternalBrowser'), '1',
-    'Open in browser hands the same page to the phone browser');
+  assert.equal(refused.element('h3').textContent, 'common.scan.allow_title', 'inside LINE it is a permission guide');
+  assert.equal(refused.element('p.muted').textContent, 'common.scan.allow_android', 'Android steps for an Android phone');
+  refused.element('button').onclick(); await flush();
+  assert.equal(refused.acquired(), 2, 'Try again reopens the camera');
+  refused.docEvents.visibilitychange(); await flush();
+  assert.equal(refused.acquired(), 3, 'coming back from the phone settings reopens the camera by itself');
   const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
   await taken.page.startCamera(() => {}); await flush();
   assert.equal(taken.element('p').textContent, 'common.scan.busy');
@@ -150,7 +155,7 @@ function fixture(options = {}) {
   await hanging.tick();
   assert.equal(hanging.element('p').textContent, 'common.scan.in_line');
   assert.equal(taken.acquired(), 2, 'a busy camera gets one plain retry');
-  console.log('PASS camera failures inside LINE stay on the page with Open in browser; a hanging LINE camera request gets the same hint');
+  console.log('PASS inside LINE a refused or hanging camera opens the permission guide (Android steps, Try again, auto-retry on return)');
 
   const continuous = fixture();
   continuous.page.state({scanMode: true});

@@ -35,6 +35,7 @@ All directions,全ての区分
 All statuses,全てのステータス
 All three fields are required,3項目とも入力が必要です
 Allow DMS queries from LINE,LINEでの照会機能を許可
+Allow LINE to use the camera,LINE にカメラを許可
 Allowed,許可
 Amount,金額
 An admin session was requested but no admin credentials are configured,adminセッションが要求されましたが、admin資格情報が未設定です
@@ -333,6 +334,7 @@ LINE Login Link Updated,LINEログイン連携の更新日時
 LINE User ID,LINEユーザーID
 "LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE でカメラを使えません。スマートフォンの設定で LINE のカメラを許可してから再試行するか、コードを入力してください。
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
+LINE does not have permission to use the camera yet.,LINE にカメラの使用が許可されていません。
 LINE status,LINEステータス
 Language,言語
 Last Code,前回のコード
@@ -427,6 +429,8 @@ Only one default per account + adapter (the legacy product's unique index).,同�
 Only the config was checked; a real connectivity test waits for the adapter,設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
 Only the owner can manage it,責任者のみ管理可能
 Open in browser,ブラウザで開く
+"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。
+"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
 Operator,ユーザー
 Operator Roster,オペレーター名簿
 Operator added,オペレーターを追加しました
@@ -825,14 +829,18 @@ common.processing,処理中…
 common.refresh,更新
 common.save,保存
 common.saving,保存中…
+common.scan.allow_android,スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
+common.scan.allow_ios,iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。
+common.scan.allow_title,LINE にカメラを許可
 common.scan.busy,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
 common.scan.decoder,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
 common.scan.denied,カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 common.scan.failed,カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 common.scan.in_app,アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
-common.scan.in_line,LINE 内ではカメラを開けません。「ブラウザで開く」をタップするか、スマートフォンの設定で LINE のカメラを許可してから再試行してください。
+common.scan.in_line,LINE にカメラの使用が許可されていません。
 common.scan.missing,このデバイスにカメラが見つかりません。コードを入力してください。
 common.scan.open_browser,ブラウザで開く
+common.scan.retry,再試行
 common.scan.unsupported,このブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 common.yes,はい
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC デスクトップがローカルで取得して保存

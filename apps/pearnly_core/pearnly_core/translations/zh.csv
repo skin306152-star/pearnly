@@ -35,6 +35,7 @@ All directions,全部方向
 All statuses,全部状态
 All three fields are required,请填写全部三项
 Allow DMS queries from LINE,允许在 LINE 使用查询功能
+Allow LINE to use the camera,允许 LINE 使用相机
 Allowed,允许
 Amount,金额
 An admin session was requested but no admin credentials are configured,已请求 admin 会话，但未配置 admin 凭据
@@ -333,6 +334,7 @@ LINE Login Link Updated,LINE 登录关联更新时间
 LINE User ID,LINE 用户 ID
 "LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE 无法使用相机。请在手机设置里允许 LINE 使用相机后重试，或手动输入编码。
 LINE could not be reached; please try again,无法连接 LINE，请稍后重试
+LINE does not have permission to use the camera yet.,LINE 还没有使用相机的权限。
 LINE status,LINE 状态
 Language,语言
 Last Code,上次结果码
@@ -427,6 +429,8 @@ Only one default per account + adapter (the legacy product's unique index).,同�
 Only the config was checked; a real connectivity test waits for the adapter,仅检查了配置，未测试实际连通性
 Only the owner can manage it,仅责任人可管理
 Open in browser,用浏览器打开
+"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。
+"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。
 Operator,操作员
 Operator Roster,操作员花名册
 Operator added,操作员已新增
@@ -825,14 +829,18 @@ common.processing,处理中…
 common.refresh,刷新
 common.save,保存
 common.saving,提交中…
+common.scan.allow_android,打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。
+common.scan.allow_ios,打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。
+common.scan.allow_title,允许 LINE 使用相机
 common.scan.busy,相机正被其他应用占用。请关闭该应用后重试。
 common.scan.decoder,扫码组件加载失败。请刷新页面后重试。
 common.scan.denied,相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
 common.scan.failed,相机无法启动。请重试，或手动输入编码。
 common.scan.in_app,应用内置的浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
-common.scan.in_line,在 LINE 里打不开相机。请点「用浏览器打开」，或在手机设置里允许 LINE 使用相机后重试。
+common.scan.in_line,LINE 还没有使用相机的权限。
 common.scan.missing,此设备上没有找到相机。请手动输入编码。
 common.scan.open_browser,用浏览器打开
+common.scan.retry,重试
 common.scan.unsupported,此浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
 common.yes,是
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = 由 CC 桌面版在本机拉取后写入

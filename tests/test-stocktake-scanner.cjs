@@ -150,6 +150,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(broken.errors.length, 1);
   assert.equal(broken.p.scan_failure(broken.errors[0]), 'decoder');
   assert.equal(broken.stops(), 1, 'The opened camera is released when the reader cannot load');
+  assert.equal(hanging.p.scan_failure(Object.assign(new Error('x'), { name: 'NotAllowedError' })), 'in_line');
   console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
   console.log('PASS two-frame decode, exact QR, pause/resume, torch, stream cleanup and late permission cancellation');
   console.log('PASS decoder format propagation, numeric QR and mixed-format stability');

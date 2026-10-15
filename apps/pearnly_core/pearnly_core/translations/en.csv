@@ -35,6 +35,7 @@ All directions,All directions
 All statuses,All statuses
 All three fields are required,All three fields are required
 Allow DMS queries from LINE,Allow DMS queries from LINE
+Allow LINE to use the camera,Allow LINE to use the camera
 Allowed,Allowed
 Amount,Amount
 An admin session was requested but no admin credentials are configured,An admin session was requested but no admin credentials are configured
@@ -332,6 +333,7 @@ LINE Login Link Updated,LINE Login Link Updated
 LINE User ID,LINE User ID
 "LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.","LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code."
 LINE could not be reached; please try again,LINE could not be reached; please try again
+LINE does not have permission to use the camera yet.,LINE does not have permission to use the camera yet.
 LINE status,LINE status
 Language,Language
 Last Code,Last Code
@@ -425,6 +427,8 @@ Only one default per account + adapter (the legacy product's unique index).,Only
 Only the config was checked; a real connectivity test waits for the adapter,Only the config was checked; a real connectivity test waits for the adapter
 Only the owner can manage it,Only the owner can manage it
 Open in browser,Open in browser
+"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.","Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself."
+"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.","Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself."
 Operator,Operator
 Operator Roster,Operator Roster
 Operator added,Operator added
@@ -823,14 +827,18 @@ common.processing,Processing…
 common.refresh,Refresh
 common.save,Save
 common.saving,Saving…
+common.scan.allow_android,"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself."
+common.scan.allow_ios,"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself."
+common.scan.allow_title,Allow LINE to use the camera
 common.scan.busy,The camera is being used by another app. Close that app and try again.
 common.scan.decoder,The barcode reader could not load. Refresh the page and try again.
 common.scan.denied,"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 common.scan.failed,"The camera could not start. Try again, or enter the code."
 common.scan.in_app,"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
-common.scan.in_line,"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again."
+common.scan.in_line,LINE does not have permission to use the camera yet.
 common.scan.missing,No camera was found on this device. Enter the code instead.
 common.scan.open_browser,Open in browser
+common.scan.retry,Try again
 common.scan.unsupported,"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 common.yes,Yes
 "companion = pulled outbound by CC Desktop on the local machine, then stored here","companion = pulled outbound by CC Desktop on the local machine, then stored here"
