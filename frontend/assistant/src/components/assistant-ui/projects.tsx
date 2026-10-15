@@ -5,9 +5,10 @@
 //                         新对话，月份 = 上个月）；手机上长按组头出「···」菜单；收起时组里有在跑或没看过的，名字后一个点
 //   MoveToMenu          — 对话菜单里的「移到 ▸」：我最近的公司 + 搜索 + 添加公司… + 最近；移入公司时月份留空，不改置顶
 //   BulkMoveMenu        — 多选时行菜单里的「移到… (N)」：同一份选公司的菜单，选了逐条移动（不并发）
-//   ComposerCompany     — 新的空白对话里输入框上方的公司条「公司 ▾ / ABC · ก.ย. 2569 ▾」（至少有一家公司时才显示）
-//   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开右侧会话栏的公司卡）与月份、分店胶囊（改了就 move）；
-//                         手机在胶囊菜单最上面（MobileCompanyItem）
+//   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
+//                         对话挂哪家（至少有一家公司时才显示）；已有对话里点公司名打开右侧会话栏的公司卡（OPEN_COMPANY_CARD），
+//                         月份、分店改了就 move
+//   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开右侧会话栏的公司卡）；手机在胶囊菜单最上面（MobileCompanyItem）
 //
 // 公司组里不再有「⏱ 定时任务 N」一行（用户 2026-10-15 夜同意设计文档 4.2：改由右侧栏「定时任务」卡与公司页「定时任务」标签承担）。
 // 删公司在主档页的「⋯」里，不确认；出错时在侧栏显示一行（服务端给的原文）。颜色、圆角只用 globals.css 的变量。
@@ -29,8 +30,6 @@ import {
   hasAnyCompany,
   lastMonth,
   listCompanies,
-  monthLabel,
-  recentMonths,
   useBranches,
   useCompanyNav,
   usePendingCounts,
@@ -294,42 +293,81 @@ function useCompanyTitle(id: string): string {
   return fromSidebar ?? title;
 }
 
-/** 新的空白对话（还没建会话）里，输入框上方「公司 ▾」，选了公司后接月份与分店胶囊；至少有一家公司才显示。 */
-export const ComposerCompany: FC = () => {
+/** 下巴里点已有对话的公司名：打开右侧会话栏的公司卡。右侧栏监听这个事件（detail.company）并 preventDefault；没人接就打开主档页。 */
+export const OPEN_COMPANY_CARD = "cc:open-company-card";
+
+function openCompanyCard(company: string, fallback: (company: string) => void) {
+  const event = new CustomEvent(OPEN_COMPANY_CARD, { detail: { company }, cancelable: true });
+  if (window.dispatchEvent(event)) fallback(company);
+}
+
+/** 输入框下巴：ERP / DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。 */
+export const ComposerChin: FC = () => {
+  const kind = useProjects((s) => s.kind);
+  const fresh = useAuiState((s) => s.threadListItem.status === "new");
+  if (!kind) return null;
+  return fresh ? <DraftChin /> : <SessionChin />;
+};
+
+/** 新的空白对话（还没建会话）：「公司 ▾」，选了公司后接月份与分店；至少有一家公司才显示。 */
+const DraftChin: FC = () => {
   const kind = useProjects((s) => s.kind);
   const withPeriod = useProjects((s) => s.period);
   const withScope = useProjects((s) => s.scope);
   const sidebarHasOne = useProjects((s) => s.projects.length > 0);
   const draft = useProjects((s) => s.draft);
-  const fresh = useAuiState((s) => s.threadListItem.status === "new");
   const [any, setAny] = useState(false);
   useEffect(() => {
     if (kind && !sidebarHasOne) void hasAnyCompany().then(setAny);
   }, [kind, sidebarHasOne]);
   const title = useCompanyTitle(draft.project);
   const branches = useBranches(withScope ? draft.project : "");
-  if (!kind || !fresh || !(sidebarHasOne || any || draft.project)) return null;
+  if (!(sidebarHasOne || any || draft.project)) return null;
   const pick = (project: string) =>
     setDraft(project ? { project, period: withPeriod ? lastMonth() : "", scope: "" } : NO_FILING);
   return (
-    <div className="cc-composer-company" data-slot="cc-composer-company">
+    <>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
-          <button type="button" className="cc-chip-btn" data-chosen={draft.project ? "" : undefined}>
+          <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" data-chosen={draft.project ? "" : undefined}>
             <Building2Icon />
             <span className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</span>
             <ChevronDownIcon />
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
+          <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">
             <CompanyChoices current={draft.project} onPick={pick} />
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-      {draft.project && withPeriod && <PeriodChip value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />}
-      {draft.project && withScope && <BranchChip branches={branches} value={draft.scope} onChange={(scope) => setDraft({ ...draft, scope })} />}
-    </div>
+      {draft.project && withPeriod && (
+        <PeriodChip look="cc-chin-btn" side="top" value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />
+      )}
+      {draft.project && withScope && (
+        <BranchChip look="cc-chin-btn" side="top" branches={branches} value={draft.scope} onChange={(scope) => setDraft({ ...draft, scope })} />
+      )}
+    </>
+  );
+};
+
+/** 已有对话：挂在公司下才有。公司名点了打开右侧栏公司卡；月份、分店改了就 move（会话还没建好时先不可改）。 */
+const SessionChin: FC = () => {
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const localId = useAuiState((s) => s.threadListItem.id);
+  useProjects((s) => s.filings);
+  const project = filingOf(remoteId, localId).project;
+  const title = useCompanyTitle(project);
+  const openCompany = useOpenCompany();
+  if (!project) return null;
+  return (
+    <>
+      <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" onClick={() => openCompanyCard(project, openCompany)}>
+        <Building2Icon />
+        <span className="min-w-0 truncate">{title || co.companies}</span>
+      </button>
+      <FilingChips look="cc-chin-btn" side="top" />
+    </>
   );
 };
 
@@ -371,7 +409,10 @@ export const MobileCompanyItem: FC = () => {
 };
 
 /** 对话的处理月份与分店（挂在公司下才有）：改了就 move，不改最后活动时间。 */
-export const ConversationFiling: FC = () => {
+export const ConversationFiling: FC = () => <FilingChips />;
+
+/** 月份、分店两个按钮（顶栏胶囊、下巴共用）。 */
+const FilingChips: FC<{ look?: "cc-chip-btn" | "cc-chin-btn"; side?: "top" | "bottom" }> = ({ look, side }) => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const withPeriod = useProjects((s) => s.period);
   const withScope = useProjects((s) => s.scope);
@@ -382,44 +423,17 @@ export const ConversationFiling: FC = () => {
   const change = (next: Partial<Filing>) => void fileSession(remoteId, { ...filing, ...next }).catch(report);
   return (
     <>
-      {withPeriod && <PeriodChip value={filing.period} onChange={(period) => change({ period })} />}
-      {withScope && <BranchChip branches={branches} value={filing.scope} onChange={(scope) => change({ scope })} />}
+      {withPeriod && <PeriodChip look={look} side={side} value={filing.period} onChange={(period) => change({ period })} />}
+      {withScope && <BranchChip look={look} side={side} branches={branches} value={filing.scope} onChange={(scope) => change({ scope })} />}
     </>
   );
 };
 
-/** 手机胶囊菜单里的「移到…」「处理月份」两项。 */
+/** 手机胶囊菜单里的「移到…」（处理月份、分店在输入框下巴里）。 */
 export const MobileFilingItems: FC = () => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   const kind = useProjects((s) => s.kind);
-  const withPeriod = useProjects((s) => s.period);
-  useProjects((s) => s.filings);
   if (!kind || !remoteId) return null;
-  const filing = filingOf(remoteId);
-  return (
-    <>
-      <MoveToMenu sessionId={remoteId} localId={localId} />
-      {withPeriod && filing.project && (
-        <SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
-          <PeriodItems value={filing.period} onPick={(period) => void fileSession(remoteId, { ...filing, period }).catch(report)} />
-        </SubMenu>
-      )}
-    </>
-  );
-};
-
-const PeriodItems: FC<{ value: string; onPick: (period: string) => void }> = ({ value, onPick }) => {
-  const months = recentMonths();
-  if (value && !months.includes(value)) months.push(value);
-  return (
-    <>
-      {[...months, ""].map((month) => (
-        <DropdownMenu.Item key={month || "none"} className="cc-menu-item" onSelect={() => month !== value && onPick(month)}>
-          <span className="flex-1">{monthLabel(month)}</span>
-          {month === value && <CheckIcon />}
-        </DropdownMenu.Item>
-      ))}
-    </>
-  );
+  return <MoveToMenu sessionId={remoteId} localId={localId} />;
 };

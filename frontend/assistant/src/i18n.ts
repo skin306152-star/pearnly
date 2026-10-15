@@ -309,11 +309,18 @@ const STEPS = {
     read: ["Reading", "Read", "Read file"], write: ["Writing", "Wrote", "Write file"], edit: ["Editing", "Edited", "Edit file"],
     glob: ["Finding files", "Found files", "Find files"], grep: ["Searching files", "Searched files", "Search files"],
     search: ["Searching the web", "Searched the web", "Search the web"], fetch: ["Opening", "Opened", "Open page"], failed: "Failed",
-    steps: (n: number) => `${n} ${n === 1 ? "step" : "steps"}`, lines: (n: number) => `${n} ${n === 1 ? "line" : "lines"}`,
+    lines: (n: number) => `${n} ${n === 1 ? "line" : "lines"}`,
     matches: (n: number) => `${n} ${n === 1 ? "match" : "matches"}`,
     // 工作状态行（thread.tsx 的 RunIndicator）与进行中的步骤组标题
     elapsed: (n: number) => (n < 60 ? `${n}s` : `${Math.floor(n / 60)}m ${n % 60}s`),
     thoughtFor: (time: string) => `Thought for ${time}`, connectionLost: "Connection lost, reconnecting…", running: "Running",
+    // 跑完的步骤组摘要（lib/step-summary.ts，同 Claude Code：按类计数、带失败数）
+    summary: {
+      command: (n: number) => `Ran ${n} ${n === 1 ? "command" : "commands"}`, read: (n: number) => `Read ${n} ${n === 1 ? "file" : "files"}`,
+      edit: (n: number) => `Edited ${n} ${n === 1 ? "file" : "files"}`, search: (n: number) => (n === 1 ? "Searched once" : `Searched ${n} times`),
+      fetch: (n: number) => `Fetched ${n} ${n === 1 ? "page" : "pages"}`, tool: (n: number) => `Used ${n} ${n === 1 ? "tool" : "tools"}`,
+      failed: (n: number) => ` (${n} failed)`, times: (label: string, n: number) => `${label} ×${n}`, join: ", ",
+    },
   },
   zh: {
     thinking: "正在思考…", thinkingNow: "思考中", seconds: (n: number) => `${n}秒`, thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", error: "错误",
@@ -322,9 +329,15 @@ const STEPS = {
     read: ["正在读取", "已读取", "读取文件"], write: ["正在写入", "已写入", "写入文件"], edit: ["正在编辑", "已编辑", "编辑文件"],
     glob: ["正在查找文件", "已查找文件", "查找文件"], grep: ["正在搜索文件内容", "已搜索文件内容", "搜索文件内容"],
     search: ["正在搜索网页", "已搜索网页", "搜索网页"], fetch: ["正在打开", "已打开", "打开网页"], failed: "失败",
-    steps: (n: number) => `${n} 个步骤`, lines: (n: number) => `${n} 行`, matches: (n: number) => `${n} 处匹配`,
+    lines: (n: number) => `${n} 行`, matches: (n: number) => `${n} 处匹配`,
     elapsed: (n: number) => (n < 60 ? `${n}秒` : `${Math.floor(n / 60)}分${n % 60}秒`),
     thoughtFor: (time: string) => `思考了 ${time}`, connectionLost: "连接中断，正在重连…", running: "正在运行",
+    summary: {
+      command: (n: number) => `已运行 ${n} 个命令`, read: (n: number) => `已读取 ${n} 个文件`,
+      edit: (n: number) => `已编辑 ${n} 个文件`, search: (n: number) => `已搜索 ${n} 次`,
+      fetch: (n: number) => `已获取 ${n} 个页面`, tool: (n: number) => `已使用 ${n} 个工具`,
+      failed: (n: number) => `（${n} 个失败）`, times: (label: string, n: number) => `${label} ×${n}`, join: "，",
+    },
   },
   th: {
     thinking: "กำลังคิด…", thinkingNow: "กำลังคิด", seconds: (n: number) => `${n} วินาที`, thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", error: "ข้อผิดพลาด",
@@ -333,9 +346,15 @@ const STEPS = {
     read: ["กำลังอ่าน", "อ่านแล้ว", "อ่านไฟล์"], write: ["กำลังเขียน", "เขียนแล้ว", "เขียนไฟล์"], edit: ["กำลังแก้ไข", "แก้ไขแล้ว", "แก้ไขไฟล์"],
     glob: ["กำลังค้นหาไฟล์", "ค้นหาไฟล์แล้ว", "ค้นหาไฟล์"], grep: ["กำลังค้นหาในไฟล์", "ค้นหาในไฟล์แล้ว", "ค้นหาในไฟล์"],
     search: ["กำลังค้นหาเว็บ", "ค้นหาเว็บแล้ว", "ค้นหาเว็บ"], fetch: ["กำลังเปิด", "เปิดแล้ว", "เปิดหน้าเว็บ"], failed: "ไม่สำเร็จ",
-    steps: (n: number) => `${n} ขั้นตอน`, lines: (n: number) => `${n} บรรทัด`, matches: (n: number) => `${n} รายการที่ตรง`,
+    lines: (n: number) => `${n} บรรทัด`, matches: (n: number) => `${n} รายการที่ตรง`,
     elapsed: (n: number) => (n < 60 ? `${n} วินาที` : `${Math.floor(n / 60)} นาที ${n % 60} วินาที`),
     thoughtFor: (time: string) => `ใช้เวลาคิด ${time}`, connectionLost: "การเชื่อมต่อขาดหาย กำลังเชื่อมต่อใหม่…", running: "กำลังทำงาน",
+    summary: {
+      command: (n: number) => `รันคำสั่ง ${n} รายการ`, read: (n: number) => `อ่าน ${n} ไฟล์`,
+      edit: (n: number) => `แก้ไข ${n} ไฟล์`, search: (n: number) => `ค้นหา ${n} ครั้ง`,
+      fetch: (n: number) => `เปิด ${n} หน้า`, tool: (n: number) => `ใช้เครื่องมือ ${n} รายการ`,
+      failed: (n: number) => ` (ไม่สำเร็จ ${n})`, times: (label: string, n: number) => `${label} ×${n}`, join: ", ",
+    },
   },
 };
 

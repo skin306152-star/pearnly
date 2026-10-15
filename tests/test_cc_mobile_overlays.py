@@ -525,7 +525,8 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>', page)
         projects = read("components/assistant-ui/projects.tsx")
         self.assertIn('<SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">', projects)
-        self.assertIn('<SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
+        # 手机胶囊菜单里的「处理月份」移到了输入框下巴（设计文档 4.3），菜单里只留「移到…」
+        self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
         more = rows.split("const ThreadListItemMore: FC", 1)[1]
