@@ -1,4 +1,4 @@
-"""公司主档的网页接口（ADR-020；读用 GET，写只收 POST）。逻辑在 `service` / `notes` / `choices` / `pending`。
+"""公司主档的网页接口（ADR-020；读用 GET，写只收 POST）。逻辑在 `service` / `notes` / `choices` / `pending` / `ledger`。
 
 写入成功后提交（同其它 Cowork 接口），实时事件都在提交后才推。
 """
@@ -6,7 +6,7 @@ import frappe
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.companies import choices as saved_choices
-from pearnly_cowork.companies import notes, pending as pending_items, service
+from pearnly_cowork.companies import ledger, notes, pending as pending_items, service
 
 
 @frappe.whitelist(methods=["GET"])
@@ -30,6 +30,14 @@ def create(connection, account_set_key, request_key=None):
 def detail(company, period=None):
     found = service.detail(company, period)
     frappe.db.commit()  # 可能顺手补了税号（GET 不自动提交）
+    return found
+
+
+@frappe.whitelist(methods=["GET"])
+def month(company, period, limit=None):
+    """月结台账（数字会计员第 1 期）：四段与统一异常清单，现算不存（`ledger.month`）。"""
+    found = ledger.month(company, period, limit)
+    frappe.db.commit()  # 同 `detail`：可能顺手补了税号（GET 不自动提交）
     return found
 
 

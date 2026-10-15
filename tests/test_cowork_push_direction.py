@@ -93,9 +93,8 @@ def wired(fields, *, book_tax=BOOK_TAX, own_tax=FIRM, direction=None, branches=N
     service.explicit_direction = push_contract.explicit_direction
     service.resolve_account_direction = push_contract.resolve_account_direction
     service.account_match = account_match
-    # 加载时账套核对是替身：拒绝文案表的键换成真规则的原因码（表里依次是税号不符、期间不符）
-    service._ACCOUNT_CONFLICTS = dict(zip((account_match.TAX_MISMATCH, account_match.PERIOD_MISMATCH,
-                                           account_match.BRANCH_MISMATCH), service._ACCOUNT_CONFLICTS.values()))
+    # 加载时账套核对是替身：拒绝文案表换成真规则里的那份（`account_match.CONFLICT_MESSAGES`）
+    service._ACCOUNT_CONFLICTS = account_match.CONFLICT_MESSAGES
     service.ExpressContext = lambda **kwargs: kwargs
     service.prepare_express = prepare_express
     service._document_block = lambda d: None

@@ -72,6 +72,20 @@ class ReasonText(unittest.TestCase):
     def test_helper_codes_match_lower_case_entries(self):
         self.assertEqual(self._reason_text("th")("[ENTRY_NOT_BALANCED] dr != cr"), "รายการไม่สมดุล")
 
+    def test_the_stable_code_of_a_reason(self):
+        # 月结台账的异常带 detail（`export_facts.reason_code`）：与 `reason_text` 认码同一套写法；整句原文认不出给空串
+        stub = types.SimpleNamespace
+        modules = {"pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                   "pearnly_cowork.connections": stub(service=stub()),
+                   "pearnly_cowork.push.export_actions": stub(parse_actions=None)}
+        reason_code = _load("export_facts_codes", APP / "push/export_facts.py", "en", modules)[0].reason_code
+        for reason, code in (("[ENTRY_NOT_BALANCED] dr != cr", "entry_not_balanced"),
+                             ("EXPRESS_MANUAL: party_missing", "party_missing"),
+                             ("choice_needed:party,vat", "choice_needed"), ("account_tax_mismatch", "account_tax_mismatch"),
+                             ("push.companion_account_unreported", "push.companion_account_unreported"),
+                             ("The document date is outside the fiscal period.", ""), ("", ""), (None, "")):
+            self.assertEqual(reason_code(reason), code, reason)
+
 
 class Sources(unittest.TestCase):
     def test_the_list_retranslates_and_matches_codes_in_either_case(self):

@@ -16,6 +16,19 @@ from pearnly_cowork.push.export_actions import parse_actions
 
 _REASON_CODES = (re.compile(r"^\[([A-Z0-9_]+)\]"), re.compile(r"^EXPRESS_MANUAL:\s*([a-z_]+)"),
                  re.compile(r"^([A-Za-z][A-Za-z0-9_]*)(?=$|:)"))
+_REASON_KEY = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+")
+
+
+def reason_code(reason):
+    """推送账本记的原因 → 稳定的码（小写），同 `reason_text` 认码的三种写法：小助手回报 `[码] 原文`、
+    `EXPRESS_MANUAL: 码`、服务端预检 `码` 或 `码:细节`；存的是词条键（`push.xxx`）的回词条键；存的是词条原文（整句）的
+    认不出，回空串。纯函数。"""
+    text = str(reason or "").strip()
+    for pattern in _REASON_CODES:
+        match = pattern.match(text)
+        if match:
+            return match.group(1).lower()
+    return text if _REASON_KEY.fullmatch(text) else ""
 
 
 def reason_text(reason):

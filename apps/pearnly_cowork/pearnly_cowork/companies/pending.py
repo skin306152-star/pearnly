@@ -186,14 +186,18 @@ def _reason_label(code, reason):
 
 
 def _items(rows, by_set, by_tax, tax_ids) -> list:
+    from pearnly_cowork.companies import exceptions
+
     cutoff, unknown = _cutoff(), _unknown(rows)
     out = []
     for row in rows:
-        code = classify(row, cutoff, unknown)
-        if not code:
+        found = exceptions.document_code(row, cutoff, unknown)
+        if not found:
             continue
+        stable, code = found
         company = company_of(row, by_set, by_tax)
-        item = {"document": row.name, "company": company or None, "reason_code": code,
+        # reason_code 是原有的粗分（`REASONS`，页面与早上汇总照旧用）；code 是统一异常清单的稳定码（`exceptions.CODES`）
+        item = {"document": row.name, "company": company or None, "reason_code": code, "code": stable,
                 "reason_label": _reason_label(code, row.get("last_push_reason")),
                 "invoice_no": row.get("invoice_no") or "", "counterparty": counterparty(row, tax_ids.get(company, "")),
                 "amount": amount(row.get("total_amount")), "date": str(row.get("invoice_date") or ""),

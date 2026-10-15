@@ -318,6 +318,44 @@ def drafts_of(tax_id, branch=None, limit=24) -> list:
              "updated_at": str(row.updated_at or row.modified or "")} for row in rows]
 
 
+def _levels() -> dict:
+    return {**input_vat.CODES, **wht.ISSUES}
+
+
+def month_drafts(tax_id, period) -> dict:
+    """月结台账「报税」一段（ADR-020）：一家公司（税号，各分店）这个月的申报草稿，一次查询：
+    ``{"drafts": [{name, kind, branch, connection, account_set, source_ref, updated_at, tax_total,
+    issues: [{code, level, count}]}], "deadlines": {"pp30": {paper, efiling}, "pnd": {paper, efiling}}}``。
+    只读；权限同 `drafts_of`（ภ.ง.ด. 草稿还要读识别记录的权限，没有就不列）。``updated_at`` 是站点时区的裸时间。"""
+    workspace = _workspace()
+    year, month = _period(period)
+    due = {form: {key: value.isoformat() if value else "" for key, value in periods.deadlines(form, year, month).items()}
+           for form in ("pp30", "pnd")}
+    tax_id = str(tax_id or "").strip()
+    if not tax_id:
+        return {"drafts": [], "deadlines": due}
+    filters = {"workspace": workspace, "company_tax_id": tax_id, "period": periods.text(year, month)}
+    if not scope.allowed_any(scope.READ_FEATURES):
+        filters["kind"] = VAT
+    rows = frappe.get_all(DOCTYPE, filters=filters,
+                          fields=["name", "kind", "company_branch", "connection", "account_set", "source_ref",
+                                  "tax_total", "summary_json", "updated_at", "modified"],
+                          order_by="kind asc, company_branch asc", ignore_permissions=True, limit_page_length=100)
+    levels, out = _levels(), []
+    for row in rows:
+        try:
+            counted = json.loads(row.summary_json or "{}").get("issues_by_code") or {}
+        except (TypeError, ValueError, AttributeError):
+            counted = {}
+        issues = [{"code": code, "level": levels.get(code, "warn"), "count": int(count or 0)}
+                  for code, count in sorted(counted.items()) if isinstance(code, str) and int(count or 0) > 0]
+        out.append({"name": row.name, "kind": row.kind, "branch": row.company_branch or "",
+                    "connection": row.connection or "", "account_set": row.account_set or "",
+                    "source_ref": row.source_ref or "", "updated_at": str(row.updated_at or row.modified or ""),
+                    "tax_total": row.tax_total or "", "issues": issues})
+    return {"drafts": out, "deadlines": due}
+
+
 def delete(drafts) -> dict:
     """删草稿（连同存着的选项与逐行改动）：[草稿名]；ภ.ง.ด. 草稿同读一样要读识别记录的权限。回删掉的与没找到的。"""
     workspace = _workspace()

@@ -204,14 +204,7 @@ def _apply_stock_group(config, connection, account_set):
         config["stock_acccod"] = chosen
 
 
-_ACCOUNT_CONFLICTS = {
-    account_match.TAX_MISMATCH: "The own tax ID on this document does not match the chosen account set. "
-                                "Check the account set and send it again.",
-    account_match.PERIOD_MISMATCH: "The document date is outside the fiscal period of the chosen account set. "
-                                   "Check the year and send it again.",
-    account_match.BRANCH_MISMATCH: "This document belongs to another branch than the chosen account set. "
-                                   "Choose that branch's account set and send it again.",
-}
+_ACCOUNT_CONFLICTS = account_match.CONFLICT_MESSAGES
 
 
 def _account_row(loaded, target):
