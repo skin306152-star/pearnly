@@ -68,7 +68,8 @@ def retire(doc, actor):
     if not doc.retired_at:
         doc.retired_at, doc.retired_by = _now(), actor
         persist(doc)
-        # 它够得到的账套不再算进池目录（下一次发布时），待认定的别的电脑也不再等它（ADR-021，方案 2.4 第 5 条）
+        # 它够得到的账套不再算进池目录（下一次发布时），待认定的别的电脑也不再等它（ADR-021，方案 2.4 第 5 条）。
+        # 经 `retire_orphan` 来的，可达行在锁电脑行之前已经删了，这里什么都不删
         pool.forget_device(doc.name)
 
 
@@ -99,9 +100,26 @@ def retire_orphan(name, actor):
     就再也没人能认领它，退役，免得「电脑」列表里留一台永远离线的假电脑。认领过的电脑留着：同一台再登录还是它。"""
     if not name or _keys_of(name):
         return
+    # 一把有效密钥都不剩的电脑够不到任何账套：池目录（下一次发布时）、读请求的分派、别的电脑的待认定都不再算它
+    # （ADR-021，方案 2.4 第 5 条）。池里各行在电脑行之前锁。
+    pool.forget_device(name)
     doc = read(name)
     if not doc.secret_digest:
         retire(doc, actor)
+
+
+def after_revoke(key, actor, *, successor=None):
+    """一把密钥吊销之后（密钥行已锁好）：这台电脑在这条连接上一把有效密钥都不剩，它在这条连接上的可达行删掉——不然目录
+    还显示它够得到、可写，只有它够得到的账套的读请求永远排队；再按 :func:`retire_orphan` 处理没人认领的旧电脑。
+    ``successor``：同一台电脑在这条连接上接手的那台记录（`device_hello` 发现它已有自己的密钥）：可达行与本机登记先转给它。"""
+    device = key.get('device')
+    if not device:
+        return
+    if successor:
+        pool.move_device(key.connection, device, successor)
+    if not current_key(key.connection, device):
+        pool.forget_device(device, connection=key.connection)
+    retire_orphan(device, actor)
 
 
 def for_old_slot(key, *, label):
@@ -180,6 +198,10 @@ def hello(site, key, values):
             return {'status': device_contracts.CLAIMED_ELSEWHERE}
         if current_key(key.connection, target, exclude=key.name):
             return {'status': device_contracts.SUPERSEDED, 'device': target}
+    # 池里各行（连接域）在电脑行之前：迁移来的旧槽位密钥改挂到同一台电脑已认领的记录上，旧电脑在这条连接上的可达行、
+    # 只属于它的本机登记一并转过去，旧电脑才退役（不然那台第一次整份上报时，同一份账套会被登记出第二个规范键）
+    if target and key.device and target != key.device:
+        pool.move_device(key.connection, key.device, target)
     # 3. 电脑行，最后锁，并复核第 1 步读到的
     if stale:
         release(read(stale))
@@ -270,17 +292,24 @@ def _row(device):
                                                  'retired_at'], as_dict=True)
 
 
-def state(device):
-    """这台电脑上次报的所选账套、6 个科目映射与版本（心跳的 ``previous``，每台各自一份，不再读连接配置）。"""
+def _selections(row):
+    """电脑行上的所选，按连接分开存：``{连接: {所选账套与 6 个科目映射}}``（一台电脑可以在几条连接上各挂一把密钥，
+    erpcowork 就有两条启用的 Express 连接：混存的话两条的心跳每分钟互改）。"""
+    try:
+        found = json.loads((row.selection_json if row else None) or '{}')
+    except (TypeError, ValueError):
+        found = {}
+    return {str(connection): {key: value for key, value in values.items() if key in SELECTED_KEYS | MAPPING_KEYS}
+            for connection, values in (found.items() if isinstance(found, dict) else ()) if isinstance(values, dict)}
+
+
+def state(device, connection):
+    """这台电脑在这条连接上上次报的所选账套、6 个科目映射与版本（心跳的 ``previous``，每台、每条连接各自一份，
+    不再读连接配置）。"""
     row = _row(device)
     if not row:
         return {}
-    try:
-        selection = json.loads(row.selection_json or '{}')
-    except (TypeError, ValueError):
-        selection = {}
-    result = {key: value for key, value in (selection if isinstance(selection, dict) else {}).items()
-              if key in SELECTED_KEYS | MAPPING_KEYS}
+    result = dict(_selections(row).get(connection) or {})
     if row.companion_version:
         result['companion_version'] = row.companion_version
     if int(row.max_payload_version or 0) >= 1:
@@ -288,12 +317,12 @@ def state(device):
     return result
 
 
-def member(device, workspace, *, peers=None, version=None, payload_version=None, pool_hosts=True):
+def member(device, workspace, *, connection, peers=None, version=None, payload_version=None, pool_hosts=True):
     """连接域眼里的这台电脑（`connections.member.Member`）：设备编号、是不是旧版、主机名与全池的主机别名、版本、
-    上次的所选。只做不加锁的读（电脑行在加锁顺序的最后，`record_report` 才锁）。``pool_hosts=False``（领任务，每 3 秒
+    在这条连接上上次的所选。只做不加锁的读（电脑行在加锁顺序的最后，`record_report` 才锁）。``pool_hosts=False``（领任务，每 3 秒
     一次）不读全池的主机名：只有认账套（心跳带名单）才用得上。"""
     row = _row(device)
-    known = state(device)
+    known = state(device, connection)
     hosts = {}
     if workspace and pool_hosts:
         for item in frappe.db.sql(f'''SELECT name, host_names FROM `tab{DOCTYPE}`
@@ -308,18 +337,18 @@ def member(device, workspace, *, peers=None, version=None, payload_version=None,
                   selected=str(known.get('account_set') or known.get('account_dir') or ''), peers=peers)
 
 
-def record_report(device, plan):
-    """心跳之后记到这台电脑上：所选账套与 6 个科目映射（只是它自己的，不再写连接配置）、版本、旧版报的电脑名。
-    内容没变不碰电脑行；变了才锁（加锁顺序的最后一位）。"""
+def record_report(device, connection, plan):
+    """心跳之后记到这台电脑上：这条连接上的所选账套与 6 个科目映射（只是它自己的，不再写连接配置）、版本、旧版报的
+    电脑名。内容没变不碰电脑行；变了才锁（加锁顺序的最后一位）。"""
     row = _row(device)
     if not row or row.retired_at or plan.offline:
         return False
-    known = state(device)
-    selection = {key: value for key, value in known.items() if key in SELECTED_KEYS | MAPPING_KEYS}
+    selections = _selections(row)
+    selection = selections.get(connection) or {}
     updated = {**selection, **{key: value for key, value in plan.patch.items() if key in SELECTED_KEYS | MAPPING_KEYS}}
     values = {}
     if updated != selection:
-        values['selection_json'] = json.dumps(updated, ensure_ascii=False, sort_keys=True)
+        values['selection_json'] = json.dumps({**selections, connection: updated}, ensure_ascii=False, sort_keys=True)
     if plan.patch.get('companion_version') and plan.patch['companion_version'] != (row.companion_version or ''):
         values['companion_version'] = str(plan.patch['companion_version'])[:40]
     if plan.patch.get('max_payload_version') and int(plan.patch['max_payload_version']) != int(
@@ -359,17 +388,19 @@ def newest_version(connection):
     return max(versions, key=order) if versions else ''
 
 
-def seed_state(device, config, report):
-    """补丁 `v0_0_20_express_account_sets`：旧电脑接过连接配置里它当时选的账套与 6 个科目映射、上报记录里它的版本
-    （从此每台电脑各存各的，连接配置不再被心跳改）。电脑上已经有的不覆盖；重跑不重复写。"""
+def seed_state(device, connection, config, report):
+    """补丁 `v0_0_20_express_account_sets`：旧电脑接过这条连接的配置里它当时选的账套与 6 个科目映射、上报记录里它的版本
+    （从此每台电脑、每条连接各存各的，连接配置不再被心跳改）。这条连接上已经有的不覆盖；重跑不重复写。"""
     row = _row(device)
     if not row or row.retired_at:
         return False
     values = {}
     selection = {key: value for key, value in (config or {}).items()
                  if key in SELECTED_KEYS | MAPPING_KEYS and value not in (None, '')}
-    if selection and not row.selection_json:
-        values['selection_json'] = json.dumps(selection, ensure_ascii=False, sort_keys=True)
+    selections = _selections(row)
+    if selection and connection not in selections:
+        values['selection_json'] = json.dumps({**selections, connection: selection}, ensure_ascii=False,
+                                              sort_keys=True)
     if not row.companion_version and str((report or {}).get('companion_version') or '').strip():
         values['companion_version'] = str(report['companion_version']).strip()[:40]
     try:

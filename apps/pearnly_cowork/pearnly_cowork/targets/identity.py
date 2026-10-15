@@ -174,6 +174,12 @@ class Registered(NamedTuple):
     reached_by_others: bool = False
     # 够得到它的别的电脑 7 天内报到过（待认定的退出条件：它们都被移除 / 退役或 7 天没报到）
     others_live: bool = False
+    # 只属于某台电脑（它本机的账套）：那台电脑的设备编号；空 = 全池共用
+    scope_device: str = ""
+    # 它只属于另一台电脑、那台还够得到它：本机写法（没有网络路径）不能认成它（克隆盘上的同号拷贝、两台同一路径）
+    foreign: bool = False
+    # 别的电脑 7 天内按哪些文件号够到它（第 6 条：同一个路径串、文件号对不上时判冲突用）
+    others_uids: frozenset = frozenset()
 
     @property
     def identified(self) -> bool:
@@ -181,8 +187,8 @@ class Registered(NamedTuple):
 
 
 class Decision(NamedTuple):
-    """一行上报的认定结果。``kind``：``match`` 就是这份登记；``pending`` 待认定（可达行记 ``pending_identity``，
-    指向它在等的那份，不派写入）；``new`` 新登记（键与根由本函数给出）。``rule`` 是方案 2.4 的条号。
+    """一行上报的认定结果。``kind``：``match`` 就是这份登记；``pending`` 待认定（第 5 条等旧电脑报文件号，第 6 条
+    文件号冲突；可达行记 ``pending_identity``，指向它在等的那份，不派写入）；``new`` 新登记（键与根由本函数给出）。``rule`` 是方案 2.4 的条号。
     ``uid`` / ``location`` 非空时写到登记上（只在 ``match`` / ``new``；规范键与规范根从不改）。"""
 
     kind: str
@@ -213,10 +219,11 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
     def match(item: Registered, rule: int) -> Decision:
         return Decision(MATCH, item.account_key, item.root_key, rule, uid, location, content)
 
-    # 1 目录文件号相同
+    # 1 目录文件号相同。上报行没有网络路径时，只属于另一台还够得到它的电脑的登记不认：整盘克隆的两台电脑，
+    #   卷序列号跟着复制，各自本机的拷贝可能是同一个文件号
     if uid:
         for item in registered:
-            if item.uid and item.uid == uid:
+            if item.uid and item.uid == uid and (location or not item.foreign):
                 return match(item, 1)
     # 2 网络路径相同（主机别名归一）且内容键相同：补上文件号
     if location:
@@ -224,28 +231,44 @@ def resolve(row: Mapping[str, Any], *, registered: Sequence[Registered], own_rea
             if (item.location and normalize_location(item.location, aliases=aliases) == location
                     and item.content_key == content):
                 return match(item, 2)
-    # 3 D 以前用同一本机路径够到过（升级、从备份恢复到原处）。那份已带别的文件号、又有别的电脑够得到时不认：
-    #   那是两台各自本机同一路径的两份拷贝，不能因为路径写法相同就并成一份。
+    # 3 D 以前用同一本机路径够到过，且是同一处：那份登记还没报过文件号 / 网络路径（升级），或者网络路径（都没有也算）
+    #   与内容键都相同（从备份恢复到原处）。盘符改映射到另一处（网络路径或内容键对不上）就不认，落到第 5、6 条。
+    #   那份已带别的文件号、又有别的电脑够得到时也不认：那是两台各自本机同一路径的两份拷贝。
     key = own_reach.get(local)
     if key in by_key:
         item = by_key[key]
-        if not (uid and item.uid and item.uid != uid and item.reached_by_others):
+        same_place = not item.identified or (
+            normalize_location(item.location, aliases=aliases) == location and item.content_key == content)
+        if (same_place and not item.foreign
+                and not (uid and item.uid and item.uid != uid and item.reached_by_others)):
             return match(item, 3)
     root = attributes.get("root")
-    # 4 旧版桌面端（没有文件号也没有位置）：规范键与路径相同的就是它（今天的口径）；否则新建一份只属于 D 的登记
+    # 4 旧版桌面端（没有文件号也没有位置）：规范键与路径相同的就是它（今天的口径）；否则新建一份只属于 D 的登记。
+    #   路径相同的那份只属于另一台还够得到它的电脑时，D 的这份是它自己本机的另一份拷贝：键带 D 的主机名
     if legacy and not uid and not location:
-        if local in by_key:
-            return match(by_key[local], 4)
-        return Decision(NEW, local, normalize_express_account_key(root), 4, local=True, content_key=content)
+        item = by_key.get(local)
+        if item is None:
+            return Decision(NEW, local, normalize_express_account_key(root), 4, local=True, content_key=content)
+        key = host_qualified(path, host)
+        if not item.foreign or key == local:  # 网络路径（写不成带主机名的）对谁都是同一处
+            return match(item, 4)
+        if key in by_key and not by_key[key].foreign:
+            return match(by_key[key], 4)
+        return Decision(NEW, key, host_qualified(root, host), 4, local=True, content_key=content)
     # 5 有文件号 / 位置但没认上，登记里有一份还没报过文件号 / 位置、内容键相同、上报它的电脑还在的：待认定
     if content:
         for item in registered:
             if not item.identified and item.content_key == content and item.others_live:
                 return Decision(PENDING, item.account_key, item.root_key, 5, uid, location, content)
-    # 6 新登记：有网络路径的键 = 网络路径；只在本机的键 = 带主机名的路径。同一个路径串已经登记过就是同一处。
+    # 6 新登记：有网络路径的键 = 网络路径；只在本机的键 = 带主机名的路径。同一个路径串已经登记过就是同一处——
+    #   除非双方文件号都有且不同、别的电脑 7 天内还按原文件号够到它（不同办公室 / VPN 下同一个 IP 的两台 NAS）：
+    #   那是另一份物理账套，待认定（不派写入），等原文件号没人再报了再认
     key = location or host_qualified(path, host)
     if key in by_key:
-        return match(by_key[key], 6)
+        item = by_key[key]
+        if uid and item.uid and item.uid != uid and item.uid in item.others_uids:
+            return Decision(PENDING, item.account_key, item.root_key, 6, uid, location, content)
+        return match(item, 6)
     root_key = network_root(path, location, root, host, aliases) if location else host_qualified(root, host)
     return Decision(NEW, key, root_key, 6, uid, location, content, local=not location)
 

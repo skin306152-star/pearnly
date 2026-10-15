@@ -15,11 +15,12 @@ def body_for(value):
         "observed_at": value.observed_at.isoformat()}
 
 
-def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pending=False, reported=None):
+def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pending=False, reported=None, note=None):
     """Caller owns Connection lock, current authority and transaction completion.
 
     ``reported``：按单个账套读回来、属于这份账套的原始主档（`collector`，带读它的凭据与代次），与这份账套的目录快照
     存在一起；推送准备、要人选的项、存货科目组按账套从这里取（`preparation._account_cache`）。只用于账套范围。
+    ``note``：随这一版记在范围指针上的状态（池目录截掉了几份：``{"account_sets_dropped": n}``），不进快照内容。
     """
     if normalized.adapter != doc.adapter:
         frappe.throw(_("connection.snapshot_invalid"))
@@ -61,7 +62,7 @@ def publish(doc, normalized, *, preparation=None, request_id=None, preserve_pend
         pending = request.status in {"requested", "leased"}
     heads[head_key] = {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision,
         "request_id": request_id if request_id is not None else head.get("request_id"),
-        "status": "pending" if pending else "fresh"}
+        "status": "pending" if pending else "fresh", **(note or {})}
     encoded = model.dumps(heads)
     if encoded != (doc.projection_heads or ""):
         # 心跳每分钟都会带同一份目录来：指针没变就不重写连接这一行（整行含上报记录，会全量进数据库日志）。

@@ -110,7 +110,7 @@ def lease(context, body):
         doc = frappe.get_doc('Cowork ERP Connection', credential.connection, for_update=True)
         # 没有心跳的所选：按这台电脑上次报的（ADR-021，每台各自一份）
         member = devices.member(credentials.device_of(credential.credential_id) or credential.credential_id,
-                                doc.workspace, peers=lambda: credentials.pool_peers(doc.name), pool_hosts=False)
+                                doc.workspace, connection=doc.name, peers=lambda: credentials.pool_peers(doc.name), pool_hosts=False)
         requested_refresh = refresh.lease(doc, member, member.selected, credential.credential_id,
                                           credential.token_generation, ledger.now_utc(now))
         return _value(queue_contracts.lease_response, jobs, requested_refresh)

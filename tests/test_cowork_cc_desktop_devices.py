@@ -347,8 +347,16 @@ def _install_connections(frappe):
     connections.access, connections.model, connections.service = access, model, service
     # 第 2 批：电脑退役时连接域删它的可达行（`pool.forget_device`）；心跳里的电脑（`member.Member`）与所选账套的键
     pool = types.ModuleType("pearnly_cowork.connections.pool")
-    pool.FORGOTTEN = []
-    pool.forget_device = pool.FORGOTTEN.append
+    pool.FORGOTTEN, pool.EVENTS = [], []
+
+    def forget_device(device, *, connection=None):
+        pool.FORGOTTEN.append(device)
+        pool.EVENTS.append(("forget", device, connection))
+
+    def move_device(connection, old, new):
+        pool.EVENTS.append(("move", connection, old, new))
+
+    pool.forget_device, pool.move_device = forget_device, move_device
     spec = importlib.util.spec_from_file_location("pearnly_cowork.connections.member", APP / "connections/member.py")
     member = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(member)
@@ -399,6 +407,8 @@ class Base(unittest.TestCase):
         LOCKS.clear()
         frappe.db.points.clear()
         frappe.db.committed = {}
+        sys.modules["pearnly_cowork.connections.pool"].FORGOTTEN.clear()
+        sys.modules["pearnly_cowork.connections.pool"].EVENTS.clear()
         frappe.session.user = ADMIN
         self.requests = itertools.count()
         self.express = add_connection("express", users=[ADMIN, ENTRY, OTHER])
@@ -904,6 +914,39 @@ class MigratedPool(Base):
         self.assertEqual(len(live), 2)  # this computer and the MR.ERP member's old computer, no ghost
         self.assert_lock_order()
 
+    def test_a_moved_key_hands_its_reach_to_the_computer_before_the_old_one_retires(self):
+        """第 2 批审查 1：MR.ERP 成员先认领，Express 的旧槽位密钥改挂过去：旧电脑在这条连接上的可达行与本机登记先转给
+        那台（同一事务、电脑行之前），旧电脑才退役。"""
+        pool = sys.modules["pearnly_cowork.connections.pool"]
+        claimed = self.hello(self.mrerp_key, hello_body(KEY_A))["device"]
+        old = self.row(self.express_key)["device"]
+        pool.EVENTS.clear()
+        self.assertEqual(self.hello(self.express_key, hello_body(KEY_A))["device"], claimed)
+        self.assertEqual(pool.EVENTS[0], ("move", self.express, old, claimed))
+        self.assertIn(("forget", old, None), pool.EVENTS[1:])
+        self.assertTrue(STORE[DEVICE][old]["retired_at"])
+
+    def test_a_superseded_key_hands_its_reach_to_the_computers_own_key(self):
+        pool = sys.modules["pearnly_cowork.connections.pool"]
+        old = self.row(self.express_key)["device"]
+        mine = self.register(device_key=KEY_A, device_name="ACC-01")
+        pool.EVENTS.clear()
+        self.hello(self.express_key, hello_body(KEY_A))
+        self.assertEqual(pool.EVENTS[0], ("move", self.express, old, mine["device"]))
+        self.assertIn(("forget", old, self.express), pool.EVENTS)
+
+    def test_a_computer_left_without_a_key_on_a_connection_drops_its_reach_there(self):
+        """第 2 批审查 9：密钥吊销了、电脑没退役：它在这条连接上的可达行删掉（目录与读请求不再算它）。"""
+        pool = sys.modules["pearnly_cowork.connections.pool"]
+        self.hello(self.express_key, hello_body(KEY_A))
+        self.hello(self.mrerp_key, hello_body(KEY_A))  # 这台在 MR.ERP 上还有密钥
+        device = self.row(self.express_key)["device"]
+        pool.EVENTS.clear()
+        credentials.leave(self.auth(self.express_key))
+        self.assertEqual(pool.EVENTS, [("forget", device, self.express)])
+        self.assertIsNone(STORE[DEVICE][device].get("retired_at"))
+        self.assert_lock_order()
+
     def test_hello_takes_key_rows_before_computer_rows(self):
         """Review finding 4: claiming, merging and superseding never lock a key row after a computer row."""
         self.hello(self.express_key, hello_body(KEY_A))
@@ -1020,45 +1063,65 @@ class HeartbeatComputer(Base):
         a = self.claimed(KEY_A, "ACC-01", ["ACC-01", "192.168.1.5", "172.27.224.1"])
         b = self.claimed(KEY_B, "ACC-02", ["ACC-02", "172.27.224.1"])  # 两台都报的 WSL 地址
         self.claimed(KEY_C, "ACC-01", ["ACC-01"])  # 同名的另一台：本机账套键里加设备短号
-        member = devices.member(a["device"], "WS")
+        member = devices.member(a["device"], "WS", connection=self.express)
         self.assertFalse(member.legacy)
         self.assertEqual(member.host, "acc-01-" + a["device"][-6:].lower())
         self.assertEqual(member.aliases.get("192.168.1.5"), "acc-01")
         self.assertNotIn("172.27.224.1", member.aliases)  # 两台都报的虚拟网卡地址：不猜
-        legacy = devices.member(self.row(old["token"])["device"], "WS")
+        legacy = devices.member(self.row(old["token"])["device"], "WS", connection=self.express)
         self.assertTrue(legacy.legacy)
         self.assertTrue(legacy.host.startswith("pc-"))
-        self.assertEqual(devices.member(b["device"], "WS").version, "")
+        self.assertEqual(devices.member(b["device"], "WS", connection=self.express).version, "")
 
     def test_the_computer_keeps_its_own_selection_and_versions(self):
         old = self.row(self.register()["token"])["device"]
         made = self.claimed(KEY_A)
         plan = types.SimpleNamespace(offline=False, patch={"account_set": r"S:\X\BOOK", "revenue_acc": "4100",
                                                            "companion_version": "1.6.0", "max_payload_version": 2})
-        self.assertTrue(devices.record_report(made["device"], plan))
-        self.assertEqual(devices.state(made["device"]), {"account_set": r"S:\X\BOOK", "revenue_acc": "4100",
+        self.assertTrue(devices.record_report(made["device"], self.express, plan))
+        self.assertEqual(devices.state(made["device"], self.express), {"account_set": r"S:\X\BOOK", "revenue_acc": "4100",
                                                          "companion_version": "1.6.0", "max_payload_version": 2})
         LOCKS.clear()
-        self.assertFalse(devices.record_report(made["device"], plan))  # 没变：不碰电脑行
+        self.assertFalse(devices.record_report(made["device"], self.express, plan))  # 没变：不碰电脑行
         self.assertEqual(LOCKS, [])
-        member = devices.member(made["device"], "WS")
+        member = devices.member(made["device"], "WS", connection=self.express)
         self.assertEqual((member.selected, member.version, member.payload_version), (r"S:\X\BOOK", "1.6.0", 2))
         # 新版的电脑名由 device_hello 报，心跳报的不改它；旧电脑（没认领）照旧用心跳报的名字
-        devices.record_report(made["device"], types.SimpleNamespace(offline=False, patch={"agent_device_name": "X"}))
+        devices.record_report(made["device"], self.express, types.SimpleNamespace(offline=False, patch={"agent_device_name": "X"}))
         self.assertEqual(STORE[DEVICE][made["device"]]["label"], "ACC-01")
-        devices.record_report(old, types.SimpleNamespace(offline=False, patch={"agent_device_name": "OLD-PC"}))
+        devices.record_report(old, self.express, types.SimpleNamespace(offline=False, patch={"agent_device_name": "OLD-PC"}))
         self.assertEqual(STORE[DEVICE][old]["label"], "OLD-PC")
+
+    def test_selection_is_kept_per_connection(self):
+        """第 2 批审查 7：同一台电脑服务两条 Express 连接（erpcowork）：两条的所选、映射各存各的，不互改。"""
+        second = add_connection("express", users=[ADMIN])
+        made = self.claimed(KEY_A)
+        one = types.SimpleNamespace(offline=False, patch={"account_set": r"S:\ONE", "revenue_acc": "4100"})
+        two = types.SimpleNamespace(offline=False, patch={"account_set": r"S:\TWO", "revenue_acc": "4999"})
+        self.assertTrue(devices.record_report(made["device"], self.express, one))
+        self.assertTrue(devices.record_report(made["device"], second, two))
+        LOCKS.clear()
+        self.assertFalse(devices.record_report(made["device"], self.express, one))
+        self.assertFalse(devices.record_report(made["device"], second, two))
+        self.assertEqual(LOCKS, [])
+        self.assertEqual(devices.state(made["device"], self.express), {"account_set": r"S:\ONE", "revenue_acc": "4100"})
+        self.assertEqual(devices.member(made["device"], "WS", connection=second).selected, r"S:\TWO")
+        # 补丁：这条连接上还没有的才补，另一条已有的不挡它
+        self.assertTrue(devices.seed_state(made["device"], "CWEC-OTHER", {"account_set": r"S:\OLD"}, {}))
+        self.assertFalse(devices.seed_state(made["device"], second, {"account_set": r"S:\OLD"}, {}))
+        self.assertEqual(devices.state(made["device"], "CWEC-OTHER"), {"account_set": r"S:\OLD"})
+        self.assertEqual(devices.state(made["device"], second)["account_set"], r"S:\TWO")
 
     def test_the_patch_hands_the_old_default_to_the_old_computer_once(self):
         old = self.row(self.register()["token"])["device"]
         config = {"account_set": r"S:\OLD\BOOK", "express_root": r"S:\OLD", "revenue_acc": "4100",
                   "directions": "purchase"}
-        self.assertTrue(devices.seed_state(old, config, {"companion_version": "1.5.1", "max_payload_version": 2}))
-        self.assertEqual(devices.state(old), {"account_set": r"S:\OLD\BOOK", "express_root": r"S:\OLD",
+        self.assertTrue(devices.seed_state(old, self.express, config, {"companion_version": "1.5.1", "max_payload_version": 2}))
+        self.assertEqual(devices.state(old, self.express), {"account_set": r"S:\OLD\BOOK", "express_root": r"S:\OLD",
                                               "revenue_acc": "4100", "companion_version": "1.5.1",
                                               "max_payload_version": 2})
-        self.assertFalse(devices.seed_state(old, {"account_set": r"S:\OTHER"}, {"companion_version": "9.9.9"}))
-        self.assertEqual(devices.state(old)["account_set"], r"S:\OLD\BOOK")
+        self.assertFalse(devices.seed_state(old, self.express, {"account_set": r"S:\OTHER"}, {"companion_version": "9.9.9"}))
+        self.assertEqual(devices.state(old, self.express)["account_set"], r"S:\OLD\BOOK")
 
     def test_newest_version_peers_and_reporter_label(self):
         a, b = self.claimed(KEY_A, "ACC-01"), self.claimed(KEY_B, "ACC-02")
@@ -1081,7 +1144,7 @@ class HeartbeatComputer(Base):
         made = self.claimed(KEY_A)
         STORE[CONNECTION][self.express]["config_json"] = json.dumps({"account_set": r"S:\STALE", "revenue_acc": "1"})
         STORE[CONNECTION][self.express]["report_json"] = json.dumps({"companion_version": "OTHER-PC", "update_blocked": None})
-        devices.record_report(made["device"], types.SimpleNamespace(offline=False, patch={"account_set": r"S:\MINE"}))
+        devices.record_report(made["device"], self.express, types.SimpleNamespace(offline=False, patch={"account_set": r"S:\MINE"}))
         seen = {}
 
         def plan_report(body, previous, now):
@@ -1120,7 +1183,7 @@ class HeartbeatComputer(Base):
         self.assertEqual((member.device, member.legacy, member.host, member.version),
                          (made["device"], False, "acc-01", "1.6.0"))
         self.assertEqual(seen["protected"](), {"k"})
-        self.assertEqual(devices.state(made["device"]), {"account_set": r"S:\NEW", "companion_version": "1.6.0"})
+        self.assertEqual(devices.state(made["device"], self.express), {"account_set": r"S:\NEW", "companion_version": "1.6.0"})
         self.assertEqual(json.loads(STORE[CONNECTION][self.express]["config_json"])["account_set"], r"S:\STALE")
         self.assertIs(reply["account_sets_unchanged_ok"], True)
 

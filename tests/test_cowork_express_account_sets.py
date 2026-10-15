@@ -155,6 +155,56 @@ class Identity(unittest.TestCase):
                        [R(self.SHARED, r"\\acc-01\exp\2569", location=self.SHARED, content_key="tax:2::")])
         self.assertEqual((found.kind, found.rule, found.account_key), ("match", 6, self.SHARED))
 
+    def test_rule_1_without_a_network_path_never_takes_another_computers_own_copy(self):
+        """审查 3：整盘克隆的两台电脑，各自本机拷贝的文件号相同；只属于另一台、它还够得到的登记不认。"""
+        theirs = R(r"\\acc-01\c$\exp\book", r"\\acc-01\c$\exp", uid="0c9a:1", scope_device="CCD-A", foreign=True)
+        found = decide(row(r"C:\EXP\BOOK", r"C:\EXP", uid="0c9a:1"), [theirs])
+        self.assertEqual((found.kind, found.rule, found.account_key), ("new", 6, r"\\acc-02\c$\exp\book"))
+        # 经网络路径够到它（A 把本机目录共享出来）：同一个文件号就是它
+        shared = decide(row(r"Y:\BOOK", r"Y:", uid="0c9a:1", share=r"\\acc-01\exp\book"), [theirs])
+        self.assertEqual((shared.kind, shared.rule), ("match", 1))
+        # 那台已经够不到它（被移除、换了配对码）：照认
+        gone = theirs._replace(foreign=False)
+        self.assertEqual(decide(row(r"C:\EXP\BOOK", r"C:\EXP", uid="0c9a:1"), [gone]).rule, 1)
+
+    def test_rule_3_needs_the_same_place(self):
+        """审查 2：盘符改映射到另一处（网络路径、内容键都对不上）不按本机路径认，落到第 6 条新登记。"""
+        x, y = {"tax_id": "1", "period_start": "2026-01-01"}, {"tax_id": "2", "period_start": "2026-01-01"}
+        nas1 = R(r"\\nas1\exp\book", r"\\nas1\exp", uid="aa:1", location=r"\\nas1\exp\book",
+                 content_key=identity.content_key(x))
+        own = {"s:\\exp\\book": nas1.account_key}
+        moved = decide(row(r"S:\EXP\BOOK", r"S:\EXP", uid="bb:2", share=r"\\nas2\exp\book", **y), [nas1], own=own)
+        self.assertEqual((moved.kind, moved.rule, moved.account_key), ("new", 6, r"\\nas2\exp\book"))
+        # 原处恢复（网络路径、内容键都相同，文件号变了）：仍是它
+        restored = decide(row(r"S:\EXP\BOOK", r"S:\EXP", uid="cc:3", share=r"\\NAS1\EXP\BOOK", **x), [nas1], own=own)
+        self.assertEqual((restored.kind, restored.account_key), ("match", nas1.account_key))
+        # 升级：那份登记还没报过文件号 / 网络路径
+        legacy = R("s:\\exp\\book", "s:\\exp", content_key=identity.content_key(x))
+        upgraded = decide(row(r"S:\EXP\BOOK", r"S:\EXP", uid="bb:2", share=r"\\nas2\exp\book", **y), [legacy],
+                          own={"s:\\exp\\book": "s:\\exp\\book"})
+        self.assertEqual((upgraded.kind, upgraded.rule, upgraded.account_key), ("match", 3, "s:\\exp\\book"))
+
+    def test_rule_4_an_old_desktop_never_takes_another_live_computers_own_copy(self):
+        theirs = R("s:\\x\\book", "s:\\x", scope_device="CCD-L1", foreign=True)
+        found = decide(row(r"S:\X\BOOK", r"S:\X"), [theirs], legacy=True)
+        self.assertEqual((found.kind, found.rule, found.account_key, found.root_key, found.local),
+                         ("new", 4, r"\\acc-02\s$\x\book", r"\\acc-02\s$\x", True))
+        # 网络路径写不成带主机名的：对谁都是同一处
+        unc = R(r"\\srv\x\book", r"\\srv\x", scope_device="CCD-L1", foreign=True)
+        self.assertEqual(decide(row(r"\\SRV\X\BOOK", r"\\SRV\X"), [unc], legacy=True).kind, "match")
+        self.assertEqual(decide(row(r"S:\X\BOOK", r"S:\X"), [theirs._replace(foreign=False)], legacy=True).rule, 4)
+
+    def test_rule_6_a_conflicting_folder_id_at_the_same_path_waits(self):
+        """审查 4：不同办公室 / VPN 下同一个 IP 的两台 NAS：同一个路径串，文件号不同、原文件号还有电脑在报 → 待认定。"""
+        place = r"\\192.168.1.10\exp\book"
+        first = R(place, r"\\192.168.1.10\exp", uid="aa:1", location=place, content_key="tax:1::",
+                  others_uids=frozenset({"aa:1"}))
+        item = row(r"S:\EXP\BOOK", r"S:\EXP", uid="bb:2", share=place, tax_id="2")
+        found = decide(item, [first])
+        self.assertEqual((found.kind, found.rule, found.account_key), ("pending", 6, place))
+        # 原文件号没人再报了（那台 7 天没报到、被移除）：就是它
+        self.assertEqual(decide(item, [first._replace(others_uids=frozenset())]).kind, "match")
+
     def test_invariant_a_match_never_proposes_another_key_or_root(self):
         registered = [R("s:\\2569\\book", "s:\\2569", uid="u1"), R(self.SHARED, "", location=self.SHARED)]
         for item in (row(r"Q:\other\root\BOOK", r"Q:\other\root", uid="u1"),
@@ -286,11 +336,12 @@ class Pool(Base):
         self.assertEqual(len(DB.rows("Cowork ERP Snapshot")), published)
 
     def test_writable_is_any_computer_that_can_write(self):
-        read_only = row(r"Z:\2569\EXP69\BOOK", r"Z:\2569\EXP69", uid="v1:0001", writable=False)
+        read_only = row(r"Z:\2569\EXP69\BOOK", r"Z:\2569\EXP69", uid="v1:0001", share=r"\\srv\pas\2569\EXP69\BOOK",
+                        writable=False)
         self.b.report(body(read_only), NOW)
-        self.assertFalse(union()[r"\\acc-02\z$\2569\exp69\book"]["attributes"]["writable"])
-        self.a.report(body(row(r"S:\2569\EXP69\BOOK", r"S:\2569\EXP69", uid="v1:0001")), NOW)
-        self.assertTrue(union()[r"\\acc-02\z$\2569\exp69\book"]["attributes"]["writable"])
+        self.assertFalse(union()[self.KEY]["attributes"]["writable"])
+        self.a.report(body(self.S_BOOK), NOW)
+        self.assertTrue(union()[self.KEY]["attributes"]["writable"])
 
     def test_migrating_computers_wait_then_join_the_old_key(self):
         """过渡期：旧电脑 A 还是旧版（只报路径），新电脑 B 报了文件号 → B 待认定、不拆第二个键；A 升级后报上同一文件号
@@ -539,6 +590,126 @@ class Refresh(Base):
         self.assertEqual((main.status, main.error_code), ("failed", "ERR_TARGET_CATALOG_SCAN_FAILED"))
 
 
+class ReviewBatch2(Base):
+    """第 2 批对抗审查的复现（`f87a0585..d99c1b5b`）：每条先复现、再守住修法。"""
+
+    def legacy(self, device="CCD-L", credential="KL"):
+        return fake.Computer(self.doc, device, credential=credential, legacy=True, version="1.5.1")
+
+    def test_1_a_key_moved_to_the_same_computers_claimed_record_keeps_the_canonical_key(self):
+        """MR.ERP 成员先 device_hello，Express 的旧槽位密钥改挂到那台电脑、旧电脑退役：可达行与本机登记先转过去，
+        那台第一次整份上报（带文件号）按第 3 条认回今天的键，不登记第二个。"""
+        self.legacy().report(body(row(r"S:\EXP\BOOK", r"S:\EXP", **TAX)), NOW)
+        self.assertEqual(pool.move_device("CONN", "CCD-L", "CCD-T"), 1)
+        pool.forget_device("CCD-L")  # devices.retire_orphan：转完再退役
+        self.assertEqual(DB.rows(pool.ACCOUNT_SET)[0].scope_device, "CCD-T")
+        moved = fake.Computer(self.doc, "CCD-T", credential="KL", legacy=False, host="acc-01", aliases=ALIASES)
+        moved.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="v9:77", share=r"\\nas\pas\EXP\BOOK", **TAX)),
+                     NOW + timedelta(minutes=1))
+        registrations = DB.rows(pool.ACCOUNT_SET)
+        self.assertEqual([(r.account_key, r.root_key, r.uid) for r in registrations],
+                         [("s:\\exp\\book", "s:\\exp", "v9:77")])
+        self.assertEqual(list(union()), ["s:\\exp\\book"])
+        self.assertEqual(reach()[("CCD-T", "s:\\exp\\book")].state, "ok")
+
+    def test_1_moving_replaces_a_pending_row_waiting_for_the_old_computer(self):
+        """先 register 后 hello（superseded）：那台已经整份报过、在等旧电脑这份 → 转过去的就是它。"""
+        self.legacy().report(body(row(r"S:\EXP\BOOK", r"S:\EXP", **TAX)), NOW)
+        self.a.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="v9:77", share=r"\\nas\pas\EXP\BOOK", **TAX)), NOW)
+        self.assertEqual(reach()[("CCD-A", "s:\\exp\\book")].state, "pending_identity")
+        pool.move_device("CONN", "CCD-L", "CCD-A")
+        pool.forget_device("CCD-L")
+        self.assertEqual(reach()[("CCD-A", "s:\\exp\\book")].state, "ok")
+        self.a.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="v9:77", share=r"\\nas\pas\EXP\BOOK", **TAX)),
+                      NOW + timedelta(minutes=1))
+        self.assertEqual([r.account_key for r in DB.rows(pool.ACCOUNT_SET)], ["s:\\exp\\book"])
+
+    def test_2_a_remapped_drive_never_rebinds_a_registration(self):
+        x, y = {"tax_id": "1", "period_start": "2026-01-01"}, {"tax_id": "2", "period_start": "2026-01-01"}
+        self.a.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="aa:1", share=r"\\nas1\exp\book", **x)), NOW)
+        self.a.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="bb:2", share=r"\\nas2\exp\book", **y)),
+                      NOW + timedelta(minutes=1))
+        registrations = {r.account_key: r for r in DB.rows(pool.ACCOUNT_SET)}
+        first = registrations[r"\\nas1\exp\book"]
+        self.assertEqual((first.uid, first.location, first.content_key),
+                         ("aa:1", r"\\nas1\exp\book", identity.content_key(x)))
+        self.assertIn(r"\\nas2\exp\book", registrations)
+        self.assertEqual(set(reach()), {("CCD-A", r"\\nas2\exp\book")})
+
+    def test_2_another_share_spelling_of_the_same_folder_never_rewrites_the_location(self):
+        self.a.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="aa:1", share=r"\\nas\pas\exp\book", **TAX)), NOW)
+        self.b.report(body(row(r"Z:\BOOK", r"Z:", uid="aa:1", share=r"\\nas\exp\book", **TAX)), NOW)
+        record = DB.rows(pool.ACCOUNT_SET)
+        self.assertEqual([(r.account_key, r.location) for r in record], [(r"\\nas\pas\exp\book", r"\\nas\pas\exp\book")])
+
+    def test_3_cloned_disks_keep_their_own_copies_apart(self):
+        self.a.report(body(row(r"C:\EXP\BOOK", r"C:\EXP", uid="0c9a53f6:1234", **TAX)), NOW)
+        self.b.report(body(row(r"C:\EXP\BOOK", r"C:\EXP", uid="0c9a53f6:1234", **TAX)), NOW)
+        self.assertEqual(sorted(union()), [r"\\acc-01\c$\exp\book", r"\\acc-02\c$\exp\book"])
+        self.assertFalse(pool.reaches("CONN", "CCD-B", r"\\acc-01\c$\exp\book"))
+
+    def test_4_two_nas_behind_the_same_ip_are_never_merged(self):
+        x, y = {"tax_id": "1", "period_start": "2026-01-01"}, {"tax_id": "2", "period_start": "2026-01-01"}
+        place = r"\\192.168.1.10\exp\book"
+        self.a.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="aa:1", share=place, **x)), NOW)
+        self.b.report(body(row(r"S:\EXP\BOOK", r"S:\EXP", uid="bb:2", share=place, **y)), NOW)
+        registration = DB.rows(pool.ACCOUNT_SET)
+        self.assertEqual([(r.account_key, r.uid) for r in registration], [(place, "aa:1")])
+        self.assertEqual(reach()[("CCD-B", place)].state, "pending_identity")
+        self.assertFalse(pool.reaches("CONN", "CCD-B", place))
+        self.assertEqual(pool.reachers("CONN", place), ["CCD-A"])
+
+    def test_5_an_unknown_spelling_never_borrows_another_account_sets_key(self):
+        self.legacy().report(body(row(r"C:\EXP\BOOK", r"C:\EXP", **TAX)), NOW)
+        self.b.report(body(row(r"C:\EXP\BOOK", r"C:\EXP", uid="b:1", **TAX), selected=r"C:\EXP\BOOK",
+                           accounts=[{"code": "1111"}]), NOW)
+        self.assertEqual(reach()[("CCD-B", "c:\\exp\\book")].state, "pending_identity")
+        self.assertIsNone(pool.facts("CONN", "c:\\exp\\book"))
+        self.assertEqual(pool.canonical("CONN", "CCD-B", r"C:\EXP\BOOK"), "")
+        self.assertEqual(pool.canonical("CONN", "CCD-L", r"C:\EXP\BOOK"), "c:\\exp\\book")
+        # 「所选」认不出：那份账套的读请求不按第 1 档交给 B（B 也不够得到它）
+        kind, key, head = state.scope("c:\\exp\\book", "express")
+        refresh.create(self.doc, kind, key, head, actor="x@example.com", identity="R-1", signature="s", now=NOW)
+        self.assertIsNone(self.b.lease(NOW + timedelta(seconds=1)))
+        # 按账套读失败、写法认不出：不把整个目录标错
+        self.b.report({"companion_version": "1.6.0", "account_sets_unchanged": True,
+                       "projection_error": {"scope": "account_set", "account_set": r"C:\EXP\BOOK",
+                                            "error_code": "ERR_X"}}, NOW + timedelta(minutes=1))
+        self.assertFalse(any(h.get("status") == "error" for h in state.heads(self.doc).values()))
+
+    def test_6_a_union_over_the_limit_is_cut_not_failed(self):
+        saved = pool.MAX_ACCOUNT_SETS
+        pool.MAX_ACCOUNT_SETS = 3
+        try:
+            self.a.report(body(*[row(r"\\srv\a\B%d" % i, r"\\srv\a", uid="a:%d" % i, share=r"\\srv\a\B%d" % i)
+                                 for i in range(2)]), NOW)
+            local = row(r"C:\EXP\LOCAL", r"C:\EXP", uid="b:9")
+            read_only = row(r"\\srv\b\RO", r"\\srv\b", uid="b:8", share=r"\\srv\b\RO", writable=False)
+            self.b.report(body(local, read_only, row(r"\\srv\b\B0", r"\\srv\b", uid="b:0", share=r"\\srv\b\B0")),
+                          NOW)
+        finally:
+            pool.MAX_ACCOUNT_SETS = saved
+        self.assertEqual(sorted(union()), [r"\\srv\a\b0", r"\\srv\a\b1", r"\\srv\b\b0"])
+        self.assertEqual(state.heads(self.doc)[state.scope(None)[2]]["account_sets_dropped"], 2)
+        self.assertTrue(any(r.device == "CCD-B" for r in DB.rows(pool.REACH)))  # B 的心跳没有回滚
+
+    def test_8_an_empty_root_frozen_by_an_open_push_is_not_filled(self):
+        pool.ensure_registered(self.doc, r"S:\EXP\BOOK", root="", now=NOW)
+        self.legacy().report(body(row(r"S:\EXP\BOOK", r"S:\EXP")), NOW, protected=lambda: {r"S:\EXP\BOOK"})
+        self.assertEqual(DB.rows(pool.ACCOUNT_SET)[0].root_key, "")
+        self.legacy().report(body(row(r"S:\EXP\BOOK", r"S:\EXP")), NOW + timedelta(minutes=1), protected=lambda: set())
+        self.assertEqual(DB.rows(pool.ACCOUNT_SET)[0].root_key, "s:\\exp")
+
+    def test_9_forgetting_one_connection_keeps_the_others(self):
+        other = connection("CONN2")
+        fake.Computer(other, "CCD-A", credential="KA2", legacy=False, host="acc-01", aliases=ALIASES).report(
+            body(row(r"S:\X\B", r"S:\X", uid="u2", share=r"\\srv\x\b")), NOW)
+        self.a.report(body(row(r"S:\Y\B", r"S:\Y", uid="u1", share=r"\\srv\y\b")), NOW)
+        pool.forget_device("CCD-A", connection="CONN")
+        self.assertEqual({(r.connection, r.device) for r in DB.rows(pool.REACH)}, {("CONN2", "CCD-A")})
+        self.assertEqual(pool.reachers("CONN", r"\\srv\y\b"), [])
+
+
 class NoDefaultAccountSet(unittest.TestCase):
     """方案 2.3 第 7 条：池里没有连接级默认账套。Express 读到的配置去掉旧心跳写下的所选与 6 个科目，数据原样留着。"""
 
@@ -700,7 +871,8 @@ class PatchModule(unittest.TestCase):
         stub = types.SimpleNamespace
         fake_pool = stub(seed_legacy=lambda connection, **kw: calls.append(("seed", connection, kw["device"],
                                                                             kw["protected"])))
-        fake_devices = stub(seed_state=lambda device, config, report: calls.append(("state", device, config, report)))
+        fake_devices = stub(seed_state=lambda device, connection, config, report: calls.append(
+            ("state", device, connection, config, report)))
         saved = {name: sys.modules.get(name) for name in ("pearnly_cowork.connections.pool",
                                                           "pearnly_cowork.companion", "pearnly_cowork.companion.devices")}
         sys.modules.update({"pearnly_cowork.connections.pool": fake_pool,
@@ -716,7 +888,7 @@ class PatchModule(unittest.TestCase):
                 else:
                     sys.modules[name] = value
             sys.modules["pearnly_cowork.connections"].pool = pool
-        self.assertEqual(calls, [("seed", "C1", "D1", set()), ("state", "D1", {"account_set": "S:\\A"},
+        self.assertEqual(calls, [("seed", "C1", "D1", set()), ("state", "D1", "C1", {"account_set": "S:\\A"},
                                                                 {"companion_version": "1.5.1"})])
         update = [item for item in statements if item[0].startswith("UPDATE")]
         self.assertEqual(len(update), 1)

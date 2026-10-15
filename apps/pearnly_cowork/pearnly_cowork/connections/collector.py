@@ -92,17 +92,21 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, member, protec
     published = {}
     changed = identified = False
     if plan.account_sets is not None:
-        changed, identified = pool.apply_report(doc, member, plan.account_sets, now)
+        changed, identified = pool.apply_report(doc, member, plan.account_sets, now, protected=protected)
     else:
         pool.touch(doc.name, member.device, now)
     if pool.has_pending(doc.name, member.device):
-        changed = pool.reconsider(doc, member, now) or changed
+        changed = pool.reconsider(doc, member, now, protected=protected) or changed
     if identified:
         # 一份登记刚补上文件号 / 网络路径：别的电脑等着它的待认定行这就能认上
-        changed = pool.reconsider(doc, member, now, others=True) or changed
+        changed = pool.reconsider(doc, member, now, others=True, protected=protected) or changed
     if plan.account_sets is not None or changed:
-        union = normalize_projection(pool.union_observation(doc.name, observed_at))
-        published[('endpoint', '@endpoint')] = snapshots.publish(doc, union, preserve_pending=True)['revision']
+        observation, dropped = pool.union_observation(doc.name, observed_at)
+        # 并集超过上限时截掉的份数记在目录指针上（各台的名单各自不超过上限，并集可能超过：不让心跳因此失败）
+        published[('endpoint', '@endpoint')] = snapshots.publish(
+            doc, normalize_projection(observation), preserve_pending=True,
+            note={'account_sets_dropped': dropped} if dropped else None)['revision']
+    # 本机写法认不出（这台电脑状态正常的可达行里没有）是空串：不记主档、不发布、不标错，免得记到别的账套名下
     selected = canonical(plan.lease_selection) if plan.lease_selection else ''
     account = canonical(plan.refreshed_account) if plan.refreshed_account else selected
     values = _masters(plan)
@@ -113,16 +117,21 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, member, protec
         if not observation.get('account_set_key'):
             continue  # 这台电脑自己的名单不单独发布：目录是池的并集（上面）
         key = canonical(observation['account_set_key'])
+        if not key:
+            continue
         normalized = normalize_projection(_account_observation(doc, observation, key, observed_at))
         published[('account_set', key)] = snapshots.publish(doc, normalized, preserve_pending=True)['revision']
     if plan.projection_error and plan.projection_error.get('scope') != 'endpoint':
         # 一台电脑报了空名单只清它自己的可达行，不把整个池目录标错；按账套读失败的照旧记在那份账套上
         error = plan.projection_error
-        kind, key, head_key = state.scope(canonical(error['account_set']), doc.adapter)
-        heads = state.heads(doc)
-        heads[head_key] = {**heads.get(head_key, {}), 'status': 'error', 'error_code': str(error['error_code'])[:200]}
-        doc.projection_heads = model.dumps(heads)
-        access.write(doc)
+        account_key = canonical(error['account_set'])
+        if account_key:
+            kind, key, head_key = state.scope(account_key, doc.adapter)
+            heads = state.heads(doc)
+            heads[head_key] = {**heads.get(head_key, {}), 'status': 'error',
+                               'error_code': str(error['error_code'])[:200]}
+            doc.projection_heads = model.dumps(heads)
+            access.write(doc)
     if completed is not None:
         revision = published.get((completed.scope_kind, completed.scope_key))
         refresh.finish(doc, completed, revision=revision, error=plan.completion.get('error_code'), now=now)

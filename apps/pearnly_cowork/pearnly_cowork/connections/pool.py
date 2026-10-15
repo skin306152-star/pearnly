@@ -19,6 +19,7 @@ from frappe import _
 
 from pearnly_cowork.targets import identity as rules
 from pearnly_cowork.targets.identity import normalize_express_account_key as identity
+from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 from . import access, model, state
 from .member import Member
 
@@ -136,51 +137,76 @@ def local_paths(connection, device):
 
 
 def canonical(connection, device, local):
-    """电脑报来的本机写法 → 规范键：这台电脑够得到的那份；不在它的可达行里就按今天的口径（路径本身）。"""
+    """电脑报来的本机写法 → 规范键：这台电脑状态正常的可达行里用这个写法的那份；没有就回空串（待认定的、文件号对不上的、
+    名单里没有的都不算：不把它读到的主档记到别的账套名下，也不按「它选的」把那份账套的读请求交给它）。
+    旧版电脑照常有可达行（规范键就是它的路径），不受影响。"""
     key = identity(local)
-    return local_keys(connection, device).get(key, key) if key else ""
+    if not key:
+        return ""
+    for row in _rows(Q_MINE, (connection, device)):
+        if row.state == OK and identity(row.path) == key:
+            return row.account_key
+    return ""
 
 
 def catalog(connection, *, lock=False):
     """池目录 = 各台电脑可达行的并集（方案 2.3 第 3 条）：每份登记一行，属性取登记里的规范写法，
-    ``writable`` 取任一台够得到它、状态正常且可写。待认定的可达行不进目录。"""
+    ``writable`` 取任一台够得到它、状态正常且可写。待认定的可达行不进目录。最多 ``MAX_ACCOUNT_SETS`` 行（:func:`listing`）。"""
+    return listing(connection, lock=lock)[0]
+
+
+def listing(connection, *, lock=False):
+    """:func:`catalog` 与截掉了几份：各台电脑的名单各自不超过上限，并集可能超过；超过时按确定的顺序（可写的、有网络路径的
+    在前，再按规范键）留前 ``MAX_ACCOUNT_SETS`` 份，不让目录发布失败（那会让整个心跳回滚，这台电脑一直显示离线）。"""
     reach = _rows(Q_REACH, (connection,), lock)
     listed, writable = set(), {}
     for row in reach:
         if row.state in (OK, STALE):
             listed.add(row.account_key)
             writable[row.account_key] = writable.get(row.account_key) or bool(row.state == OK and row.writable)
+    rows = [row for row in _rows(Q_REGISTRATIONS, (connection,), lock) if row.account_key in listed]
+    if len(rows) > MAX_ACCOUNT_SETS:
+        rows.sort(key=lambda row: (not writable[row.account_key], not row.location, row.account_key))
     result = []
-    for row in _rows(Q_REGISTRATIONS, (connection,), lock):
-        if row.account_key not in listed:
-            continue
+    for row in rows[:MAX_ACCOUNT_SETS]:
         attributes = {**(model.parse(row.attributes_json, {}) or {}), "path": row.path or row.account_key,
                       "root": row.root or row.root_key, "writable": bool(writable[row.account_key])}
         result.append({"source_id": row.account_key, "label": row.label or row.account_key,
                        "attributes": {key: value for key, value in attributes.items() if value not in (None, "")}})
-    return result
+    return result, max(0, len(rows) - MAX_ACCOUNT_SETS)
 
 
 def union_observation(connection, observed_at, *, lock=True):
-    """并集目录作为端点观测发布（`snapshots.publish`）；采集者不带版本号，各台电脑轮流上报时内容相同就不出新版本。"""
-    return {"adapter": "express", "observed_at": observed_at, "collector": {"kind": "companion"},
-            "account_sets": catalog(connection, lock=lock), "masters": {}, "form_schema": {"fields": []},
-            "capabilities": {"actions": []}}
+    """并集目录作为端点观测发布（`snapshots.publish`）；采集者不带版本号，各台电脑轮流上报时内容相同就不出新版本。
+    回 ``(观测, 截掉了几份)``。"""
+    rows, dropped = listing(connection, lock=lock)
+    return ({"adapter": "express", "observed_at": observed_at, "collector": {"kind": "companion"},
+             "account_sets": rows, "masters": {}, "form_schema": {"fields": []}, "capabilities": {"actions": []}},
+            dropped)
 
 
 # ── 认定与可达 ───────────────────────────────────────────────────────────────────────
 
 
 def _registered(registrations, reach, device, now):
-    others, live = {}, {}
+    others, live, uids, holders = {}, {}, {}, {}
     for row in reach:
-        if row.device == device or row.state == PENDING_IDENTITY:
+        if row.state == PENDING_IDENTITY:
+            continue
+        holders.setdefault(row.account_key, set()).add(row.device)
+        if row.device == device:
             continue
         others[row.account_key] = True
         if row.seen_at and row.seen_at >= now - PENDING_EXIT:
             live[row.account_key] = True
+            if row.uid:
+                uids.setdefault(row.account_key, set()).add(row.uid)
     return [rules.Registered(row.account_key, row.root_key or "", row.uid or "", row.location or "",
-                             row.content_key or "", others.get(row.account_key, False), live.get(row.account_key, False))
+                             row.content_key or "", others.get(row.account_key, False), live.get(row.account_key, False),
+                             row.scope_device or "",
+                             bool(row.scope_device and row.scope_device != device
+                                  and row.scope_device in holders.get(row.account_key, ())),
+                             frozenset(uids.get(row.account_key, ())))
             for row in registrations]
 
 
@@ -214,17 +240,21 @@ def _register(doc, decision, row, member, now):
     return record
 
 
-def _refresh_registration(name, decision, row, member):
-    """认上了：只更新文件号、网络路径、内容键与显示属性；规范键永不改，规范根只在原来为空时补。"""
+def _refresh_registration(name, decision, row, member, protected=None):
+    """认上了：只更新文件号、内容键与显示属性；网络路径只在原来为空时补（同一处换种共享写法不来回改）；规范键永不改，
+    规范根只在原来为空、且没有未了结的推送记录引用这份账套时补（``protected()``：那些推送冻结的是空根，账套锁按它算，
+    补上了新单就换了一把锁）。只属于一台已经够不到它的电脑（被移除、换了配对码）的本机登记，归这台。"""
     record = frappe.get_doc(ACCOUNT_SET, name, for_update=True)
     values = {"label": str(row.get("label") or record.label or "")[:500],
               "attributes_json": model.dumps({**(model.parse(record.attributes_json, {}) or {}), **_details(row)}),
               "content_key": decision.content_key or record.content_key}
     if decision.uid:
         values["uid"] = decision.uid
-    if decision.location:
+    if decision.location and not record.location:
         values["location"] = decision.location
-    if not record.root_key:
+    if record.scope_device and record.scope_device != member.device and not decision.location:
+        values["scope_device"] = member.device  # resolve 不会把仍属于另一台的本机登记认给它（``foreign``）
+    if not record.root_key and identity(record.account_key) not in _held(protected):
         root = _root_for(row, member)
         if root:
             values["root_key"] = root
@@ -234,6 +264,10 @@ def _refresh_registration(name, decision, row, member):
         record.update(changed)
         access.write(record)
     return bool({"uid", "location", "root_key"} & set(changed))
+
+
+def _held(protected):
+    return {identity(value) for value in (protected() if callable(protected) else protected or ())}
 
 
 def _reach_values(decision, row):
@@ -274,11 +308,12 @@ def _save_reach(doc, device, key, values, current, now):
     return changed
 
 
-def apply_report(doc, member, rows, now):
+def apply_report(doc, member, rows, now, *, protected=None):
     """这台电脑整份上报的账套名单（投影行）：逐行认定（`targets.identity.resolve`），新登记、补文件号 / 网络路径，
     再整份替换这台电脑的可达行（名单里没有的删掉；报了空名单只清它自己的，不动别的电脑）。
 
-    回 ``(目录要不要重发, 有没有登记补上了身份)``；后者为真时别的电脑待认定的行要重核（:func:`reconsider`）。"""
+    回 ``(目录要不要重发, 有没有登记补上了身份)``；后者为真时别的电脑待认定的行要重核（:func:`reconsider`）。
+    ``protected()``：被未了结推送记录引用的账套键（它们的空规范根不补）。"""
     registrations = _rows(Q_REGISTRATIONS, (doc.name,), True)
     reach = _rows(Q_REACH, (doc.name,), True)
     names = {row.account_key: row.name for row in registrations}
@@ -295,12 +330,13 @@ def apply_report(doc, member, rows, now):
             record = _register(doc, decision, row, member, now)
             names[decision.account_key] = record.name
             registered.append(rules.Registered(decision.account_key, decision.root_key, decision.uid,
-                                               decision.location, decision.content_key))
+                                               decision.location, decision.content_key,
+                                               scope_device=member.device if decision.local else ""))
             changed = identified = True
         elif decision.kind == rules.MATCH:
-            if _refresh_registration(names[decision.account_key], decision, row, member):
+            if _refresh_registration(names[decision.account_key], decision, row, member, protected):
                 identified = True
-                registered = [item._replace(uid=decision.uid or item.uid, location=decision.location or item.location)
+                registered = [item._replace(uid=decision.uid or item.uid, location=item.location or decision.location)
                               if item.account_key == decision.account_key else item for item in registered]
         taken[decision.account_key] = (decision, row)
     for key, (decision, row) in taken.items():
@@ -324,7 +360,7 @@ def has_pending(connection, device):
     return bool(_rows(Q_PENDING, (connection, device)))
 
 
-def reconsider(doc, member, now, *, others=False):
+def reconsider(doc, member, now, *, others=False, protected=None):
     """重核待认定的可达行：这台电脑自己的（每次心跳，含 7 天退出条件）整条规则重跑；``others`` 时也看别的电脑的，
     但只认文件号 / 网络路径认上的（第 1、2 条），其余留给它们自己下次报到时重核（新登记要用它们的主机名）。
     回目录要不要重发。"""
@@ -349,7 +385,7 @@ def reconsider(doc, member, now, *, others=False):
             names[decision.account_key] = record.name
             registrations = _rows(Q_REGISTRATIONS, (doc.name,), True)
         else:
-            _refresh_registration(names[decision.account_key], decision, projected, member)
+            _refresh_registration(names[decision.account_key], decision, projected, member, protected)
         frappe.db.delete(REACH, {"name": ("in", [row.name])})
         current = frappe.db.get_value(REACH, reach_name(doc.name, row.device, decision.account_key),
                                       ["name", *_REACH_FIELDS, "seen_at"], as_dict=True)
@@ -364,10 +400,44 @@ def touch(connection, device, now):
     frappe.db.sql(Q_TOUCH, (now, connection, device, now - TOUCH_EVERY))
 
 
-def forget_device(device):
-    """电脑被移除 / 退役：删它的可达行（登记留着，别的电脑或历史还在用），目录下次发布时不再算它够得到。"""
+def forget_device(device, *, connection=None):
+    """电脑被移除 / 退役（``connection`` 给了：它在这条连接上一把有效密钥都不剩）：删它的可达行（登记留着，别的电脑或
+    历史还在用），读请求的分派、待认定的等待与下次发布的目录都不再算它够得到。"""
     if device:
-        frappe.db.delete(REACH, {"device": device})
+        frappe.db.delete(REACH, {"device": device, **({"connection": connection} if connection else {})})
+
+
+def move_device(connection, old, new):
+    """一把迁移来的旧槽位密钥改挂到另一台电脑（`companion.devices.hello`：同一台电脑的另一个成员先认领过）：旧电脑在
+    这条连接上的可达行、只属于它的本机登记，转给那台，再由调用方让旧电脑退役。否则那台第一次整份上报时没有可达行可认
+    （第 3 条），旧电脑的行又已删掉（第 5 条不等），同一份账套会被登记出第二个规范键。调用方已锁连接与密钥，电脑行
+    还没锁（加锁顺序）。回转了几行可达。"""
+    if not connection or not old or not new or old == new:
+        return 0
+    reach = _rows(Q_REACH, (connection,), True)
+    theirs = {row.account_key: row for row in reach if row.device == new}
+    moved = 0
+    for row in reach:
+        if row.device != old:
+            continue
+        record = frappe.get_doc(REACH, row.name, for_update=True)
+        values = {field: record.get(field) for field in _REACH_FIELDS}
+        frappe.db.delete(REACH, {"name": ("in", [row.name])})
+        current = theirs.get(row.account_key)
+        if current is not None and current.state == PENDING_IDENTITY and row.state != PENDING_IDENTITY:
+            frappe.db.delete(REACH, {"name": ("in", [current.name])})  # 那台在等的正是旧电脑这份：就是它
+            current = None
+        if current is None:  # 那台自己也够到这份（状态正常）：留那台自己的写法
+            access.write(frappe.get_doc({"doctype": REACH, "record_key": reach_name(connection, new, row.account_key),
+                                         "workspace": record.workspace, "connection": connection, "device": new,
+                                         "account_key": row.account_key, "seen_at": record.seen_at, **values}))
+        moved += 1
+    for row in _rows(Q_REGISTRATIONS, (connection,), True):
+        if row.scope_device == old:
+            record = frappe.get_doc(ACCOUNT_SET, row.name, for_update=True)
+            record.scope_device = new
+            access.write(record)
+    return moved
 
 
 # ── 账套资料 ─────────────────────────────────────────────────────────────────────────
@@ -551,7 +621,7 @@ def seed_legacy(connection, *, device, referenced=None, now, protected=None):
     rows = _legacy_rows(doc, report, config)
     before = len(_rows(Q_REGISTRATIONS, (doc.name,), True))
     if device and device not in devices(doc.name):
-        apply_report(doc, Member(device=device, legacy=True), rows, now)
+        apply_report(doc, Member(device=device, legacy=True), rows, now, protected=protected)
     else:
         for row in rows:
             attributes = row.get("attributes") or {}
@@ -574,6 +644,7 @@ def seed_legacy(connection, *, device, referenced=None, now, protected=None):
 
 __all__ = ["ACCOUNT_SET", "FACTS", "FACTS_PER_CONNECTION", "FACT_KEYS", "OK", "PENDING_IDENTITY", "REACH", "STALE",
            "add_stock_masters", "any_reach", "apply_report", "ensure_registered", "seed_legacy", "canonical", "catalog", "devices", "facts",
-           "facts_name", "forget_device", "has_pending", "local_keys", "local_paths", "masters", "put_facts",
+           "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "masters", "move_device",
+           "put_facts",
            "reach_name", "reachers", "reaches", "reconsider", "registration", "registration_name", "retain", "touch",
            "union_observation"]

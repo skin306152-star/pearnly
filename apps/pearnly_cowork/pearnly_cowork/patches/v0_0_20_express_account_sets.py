@@ -4,7 +4,7 @@
    的根**；建旧电脑（这条连接当前上报那把密钥所在的电脑）的可达行。未了结的推送记录、启用的定时任务引用到、目录里
    已经没有的键也补成登记（没有可达行，保证引用不悬空）。
 3. 账套资料：默认账套那份、旧的 ``_account_caches``、各账套目录快照里按账套读回的那份，按账套搬进账套资料。
-   旧电脑接过连接配置里它当时选的账套与 6 个科目映射、它的版本。
+   旧电脑接过连接配置里它当时选的账套与 6 个科目映射（按连接存在电脑行上）、它的版本。
 
 另：这些连接上每把有效的 Express 密钥打上「整份重报」（`full_report_due`，第 1 批的同一个标记）：上线后每台电脑的下一次
 心跳不许只报「名单没变」，各自整份报一次，可达行以电脑此刻的名单为准（补丁按的是上一次存下的目录）。
@@ -72,6 +72,6 @@ def execute():
         referenced = _referenced(row.name)
         pool.seed_legacy(row.name, device=device, referenced=referenced, now=now, protected=set(referenced))
         if device:
-            devices.seed_state(device, model.parse(row.config_json, {}) or {}, model.parse(row.report_json, {}) or {})
+            devices.seed_state(device, row.name, model.parse(row.config_json, {}) or {}, model.parse(row.report_json, {}) or {})
         frappe.db.sql(f"""UPDATE `tab{CREDENTIAL}` SET full_report_due=1 WHERE connection=%s AND revoked_at IS NULL
             AND COALESCE(active_key,'')<>'' AND COALESCE(full_report_due,0)=0""", (row.name,))

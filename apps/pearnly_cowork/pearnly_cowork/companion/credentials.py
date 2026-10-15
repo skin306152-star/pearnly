@@ -318,7 +318,7 @@ def issue(connection, request_key, reset=False, expected_generation=None):
             access.deny()
         if current:
             _revoke(current, actor, 'reset')
-            devices.retire_orphan(current.get('device'), actor)
+            devices.after_revoke(current, actor)
         row, token = _new_key(doc, actor, operation, intent)
         devices.for_old_slot(row, label=doc.label or doc.name)
         return {**_dto(doc, row), 'status': 'created', 'replayed': False, 'token': token}
@@ -452,6 +452,7 @@ def revoke(connection, request_key, expected_generation, reason=''):
         if int(row.token_generation) != intent['expected_generation']:
             _error('companion.generation_conflict')
         _revoke(row, actor, intent['reason'])
+        devices.after_revoke(row, actor)
         _remember(row, operation, intent, 'revoked')
         return {**_dto(doc, row), 'status': 'revoked', 'replayed': False}
 
@@ -557,7 +558,8 @@ def hello(context, values):
     result = devices.hello(context.site, key, values)
     if result['status'] == device_contracts.SUPERSEDED:
         _revoke(key, key.issuer, 'superseded')
-        devices.retire_orphan(key.get('device'), key.issuer)
+        # 这台电脑自己的密钥接手：旧电脑在这条连接上的可达行与本机登记转给它（同 `devices.hello` 改挂），再退役旧电脑
+        devices.after_revoke(key, key.issuer, successor=result['device'])
     return result
 
 
@@ -566,7 +568,7 @@ def leave(context):
     acknowledged (`receipt_auth`). An unclaimed old computer left without any key is retired with it."""
     row = machine_key(context)
     _revoke(row, row.issuer, 'device_leave')
-    devices.retire_orphan(row.get('device'), row.issuer)
+    devices.after_revoke(row, row.issuer)
 
 
 def full_report_due(credential_id, *, full_report):
