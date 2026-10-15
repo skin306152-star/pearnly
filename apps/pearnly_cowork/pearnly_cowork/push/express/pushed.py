@@ -9,7 +9,8 @@
   ``meta.pos_vouchers``（`common.sanitize_push_meta` 从小助手的 ``notes.pos_vouchers`` 留下），与 ``pos.transfers``
   逐张对应（同一顺序写）：``vouchers`` = [{voucher, acc, amount}]，回读据此不把它们算成直接录入、并比它们的分录。
 
-另有 ``written``：同一份冻结载荷 → 现购 / 赊购、哪层定的、记的科目及其来源，交给 CC 照实告诉用户（验收 F19）。
+另有 ``written``：同一份冻结载荷 → 现购 / 赊购、哪层定的、记的科目及其来源，交给 CC 照实告诉用户（验收 F19）；第 2 期起
+再带冻结目标里的 ``decided_by``（每一类按什么定的：账套记忆 / 公司规则 / Express 历史 / 任务默认）。
 """
 from __future__ import annotations
 
@@ -118,18 +119,23 @@ PAYMENT_OF = {("purchase", "HP"): "cash", ("purchase", "RR"): "credit", ("sales"
 # 载荷 doctype_src（现 / 赊哪层定的，`payment.py` 六级漏斗与 `mapper` 的记过 / 任务默认）→ 给 CC 的说法。
 # 没有这一项的旧记录、认不出的值不给 payment_from，不猜。
 PAYMENT_FROM = {"manual": "chosen", "remembered": "remembered", "task_default": "task_default",
-                "explicit": "document", "doc_type": "document_type", "profile": "supplier_profile",
-                "bank": "bank", "config_default": "default"}
+                "company_rule": "company_rule", "explicit": "document", "doc_type": "document_type",
+                "profile": "supplier_profile", "bank": "bank", "config_default": "default"}
+# 冻结目标 decided_by 里认的类别与来源（`push.express.company_choices`）；认不出的不给
+DECIDED_KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
+DECIDED_SOURCES = ("task_default", "remembered", "company_rule", "express_history", "mixed")
 
 # 载荷 account_source（记的科目哪层定的，`mapper` / `sales_mapper` 与推送服务 `_decisions`）→ 给 CC 的说法。
 # 改版前的旧记录（只有笼统的 choice，或没有这一项）不给 account_from，不猜。
 ACCOUNT_FROM = {"chosen": "chosen", "remembered": "remembered", "task_default": "task_default",
-                "express_history": "express_history", "category_map": "matched", "config_default": "default"}
+                "express_history": "express_history", "company_rule": "company_rule", "category_map": "matched",
+                "config_default": "default"}
 
 
-def written(payload: Any) -> Optional[Dict[str, str]]:
+def written(payload: Any, decided_by: Any = None) -> Optional[Dict[str, Any]]:
     """推送记录里冻结的 Express 载荷 → 这张单是怎么写进 Express 的几项事实（验收 F19：CC 只知道单号，答不出现购还是
-    赊购，叫用户去 Express 核对）：{payment, payment_from?, debit_account | revenue_account, account_from?, vat?}。
+    赊购，叫用户去 Express 核对）：{payment, payment_from?, debit_account | revenue_account, account_from?, vat?,
+    decided_by?}。``decided_by`` 是冻结目标里的「每一类按什么定的」（第 2 期），与 ``account_from`` 同一套词。
     不是 Express 进 / 销项载荷（MR.ERP 等）回 None。不带单号、对方、金额等别的东西，结果要小。"""
     payload = payload if isinstance(payload, dict) else {}
     direction = payload.get("direction")
@@ -156,4 +162,8 @@ def written(payload: Any) -> Optional[Dict[str, str]]:
             out["vat"] = "added_to_cost" if capitalized and Decimal(capitalized) > 0 else "none"
         elif vat:
             out["vat"] = "claimed" if Decimal(vat) > 0 else "none"
+    decided = {kind: source for kind, source in (decided_by if isinstance(decided_by, dict) else {}).items()
+               if kind in DECIDED_KINDS and source in DECIDED_SOURCES}
+    if decided:
+        out["decided_by"] = decided
     return out

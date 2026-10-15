@@ -3208,7 +3208,8 @@ WRITTEN_NOTE = ("An entered Express document carries written: the facts of how i
                 "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
                 "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
-                "remembered (the choice saved for this supplier in this account set), task_default (the "
+                "remembered (the choice saved for this supplier in this account set), company_rule (the client "
+                "company's choice, see <client_choices>), task_default (the "
                 "scheduled folder task's default), document (written on the document), document_type (receipt or "
                 "simplified tax invoice = paid, tax invoice = credit), supplier_profile, bank (a matching bank "
                 "payment), pos_summary (POS daily sales, always cash), default (no signal: the account set's "
@@ -3219,13 +3220,16 @@ WRITTEN_NOTE = ("An entered Express document carries written: the facts of how i
                 "the company page or in this chat; kept for this supplier, so other documents of the same supplier "
                 "waiting at that time count too), remembered (picked earlier for this supplier in this account set), "
                 "task_default (the scheduled folder task's default), express_history (this supplier was posted to "
-                "this account consistently in Express before), matched (the document's category matched an account "
+                "this account consistently in Express before), company_rule (the client company's choice, see "
+                "<client_choices>), matched (the document's category matched an account "
                 "mapping), default (the account set's default account; worth a look). Older documents may have no "
                 "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
                 "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
                 "user its ERP document number (docnum). Say plainly whether it was entered as cash or credit and "
                 "which account it went to, each with where that came from; never ask the user to check Express for "
-                "the number, cash or credit, or the account.")
+                "the number, cash or credit, or the account. decided_by, when present, says per kind what decided "
+                "each choice with the same words (remembered, company_rule, express_history, task_default; mixed "
+                "when the lines of one kind came from different places).")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},

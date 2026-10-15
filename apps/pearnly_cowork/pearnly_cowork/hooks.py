@@ -579,6 +579,9 @@ cowork_company_month_readback = ["pearnly_cowork.readback.service.month_status"]
 # 推送前核对分店（补充 甲.3）：票面没有本方分店时，CC 对话指定的分店（`project_scope`，只在推往这家公司的账套时算）。
 # push 域不导入 companies（companies 依赖 push）。
 cowork_push_work_branch = ["pearnly_cowork.companies.provider.work_branch"]
+# 推送准备的公司规则（第 2 期统一客户规则）：这份账套所属公司的规则垫在账套记忆之下（`push/application/service.py` 的
+# `_decisions`）；按目录这一行的身份直接查公司、不缓存。push 域不导入 companies（companies 依赖 push）。
+cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]
 # 定时任务的提醒 / 完成简报属于哪家公司（点开到这家的主档页）：folder_intake 不导入 companies（反过来依赖）。
 cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
 

@@ -2190,7 +2190,8 @@ class WrittenFactsTests(unittest.TestCase):
     def test_the_account_says_where_it_came_from_and_older_records_leave_it_out(self):
         # 测试窗口第 2 轮：科目也要说清哪来的（载荷 account_source），一一对应；旧记录（笼统的 choice、没有这项）不给
         expected = {"chosen": "chosen", "remembered": "remembered", "task_default": "task_default",
-                    "express_history": "express_history", "category_map": "matched", "config_default": "default"}
+                    "express_history": "express_history", "company_rule": "company_rule", "category_map": "matched",
+                    "config_default": "default"}
         for source, word in expected.items():
             out = self.pushed.written({**CASH_PAYLOAD, "account_source": source})
             self.assertEqual((out["debit_account"], out["account_from"]), ("53-05-02-00", word))
