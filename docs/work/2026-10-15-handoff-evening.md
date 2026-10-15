@@ -9,8 +9,9 @@
 | 项 | 状态 |
 |---|---|
 | 远端 main | `c0a690b2`（盘点上线记录，只改文档）；生产镜像 = 盘点窗口 `b53fc5ee`（含本窗口 `eca4e249` 全部修复），17:55 上线、回读全过 |
-| 本窗口分支 | `pearnly/acceptance-1015`，只多一个提交 `1405e5ce`（F18，未推送前须变基到 `c0a690b2`），随下一批上线；工作树 `.claude/worktrees/pensive-blackwell-751d70` |
-| 测试窗口 | [夜间批 2bc4aad1 验收专职测试](#local_dba77e28-5592-41cd-9a30-f576055ef2cb)，笔记在 `~/Library/Application Support/Claude/side-session-notes/…/test-window-findings.md` |
+| F18 | 已随本交接合入 main，**未部署**，随明天第 1 批上线 |
+| 本窗口工作树 | `.claude/worktrees/pensive-blackwell-751d70`（分离在 main 上，任务分支已删）交接保留：测试窗口以它为工作目录、断网恢复项没测完；测试窗口收工后由新窗口删除 |
+| 测试窗口 | [夜间批 2bc4aad1 验收专职测试](#local_dba77e28-5592-41cd-9a30-f576055ef2cb)，用户直接在里面推进；结果不会自动报给新窗口，读它的笔记 `~/Library/Application Support/Claude/side-session-notes/local_b3018b38-de42-4975-9467-15bb89c801a3/test-window-findings.md` |
 | 测试机 | 无运行中的测试栈；CC 桌面版 1.6.0 连生产 testcowork（13:40 重新配对，1353 个账套，含局域网真账——写入只许 C 盘 T 账套） |
 | 录制笔记本 | 在线；其 CC 桌面版 1.5.0 因同一连接被测试机接管而 401（一条连接一台电脑，T5 解决） |
 
@@ -20,12 +21,18 @@
 基本通过：F6（后台标签页无法逐帧确认）。
 待办：
 - **V9**：明天 16:10 后重验（Express 历史一天一读；测试单 HP690902/909/916-001 在 C 盘 T9NIEXCP）。
-- **F18**：已修未上线（`1405e5ce`）。
+- **F18**：已修、已合入 main、未上线。
 - **F13**：后台标签页里复现过两次，待用户在前台用真键盘确认。
 - **测试机断网恢复后主档页自己跟上**：等用户在测试机前关 Wi‑Fi 30 秒。
 - **V12**：转多电脑批（录制笔记本要单独连接）。
 - **F11d**：转前端重构（菜单放不下时反向展开）。
 - **CC 桌面版 F5 不刷新**：随下次桌面版发布。
+
+## 新窗口开工
+
+1. 读 `AGENTS.md`、本文、[施工计划](2026-10-15-digital-accountant-plan.md)、[Claude Code 研究](2026-10-15-claude-code-ui-study.md)；记忆目录各窗口共用，不用另抄。
+2. 从最新 `origin/main` 开自己的 `pearnly/<主题>` 分支与工作树；前端重构与 T5 文件基本不重叠，可各开一个分支。
+3. 先看测试窗口笔记里断网恢复项的结果；没测完就请用户在测试窗口继续，不在新窗口重测。
 
 ## 明天第 1 批（10-16，见 [施工计划](2026-10-15-digital-accountant-plan.md)）
 
