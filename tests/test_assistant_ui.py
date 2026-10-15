@@ -1936,7 +1936,7 @@ COMPANY_SOURCES = ("lib/companies.ts", "lib/managed-agents/projects.ts", "lib/ma
                    "components/companies.tsx", "components/company-page.tsx", "components/company-cards.tsx",
                    "components/session-panel.tsx", "lib/company-panel.ts", "components/add-company.tsx",
                    "components/pending.tsx", "components/period-chip.tsx", "components/assistant-ui/projects.tsx",
-                   "hooks/use-long-press.ts")
+                   "hooks/use-long-press.ts", "components/month-ledger.tsx", "lib/month.ts")
 
 
 class CompanyMasterSourceTests(unittest.TestCase):

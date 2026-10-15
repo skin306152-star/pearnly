@@ -2630,7 +2630,8 @@ def _readback_call(fn, *args, failed="failed"):
 
 
 def _readback_wait(name) -> dict:
-    """等这份回读读完并处理好（或等满 READBACK_WAIT_SECONDS）；每次重新读（电脑交结果是别的请求提交的）。"""
+    """等这份回读读完并处理好（或等满 READBACK_WAIT_SECONDS）；每次重新读（电脑交结果是别的请求提交的）。
+    别人发起、还在读的那份只由发起人推进（`readback.service.status`）：等不来，当场回现状。"""
     from pearnly_core.assistant import toolrun
 
     from pearnly_cowork.readback import service as readback
@@ -2639,7 +2640,8 @@ def _readback_wait(name) -> dict:
     while True:
         toolrun.fresh()
         state = _readback_call(readback.status, name)
-        if state.get("status") != "reading" or time.monotonic() >= deadline:
+        if state.get("status") != "reading" or time.monotonic() >= deadline \
+                or state.get("requested_by") not in (None, "", frappe.session.user):
             return state
         time.sleep(4)
 

@@ -3,7 +3,7 @@
 //   版式   宽 280；卡片纵向、间距 10（components/company-cards.tsx 的 PanelCard）。宽屏与对话并排停靠；对话区放不下
 //          「对话最窄 + 会话栏」时浮在对话上方（Esc、× 关）；手机盖满屏，从对话页胶囊菜单里的公司名打开，返回键关。
 //          与文件预览共用右侧一个位置：打开文件时换成预览，关了预览回到会话栏（assistant.tsx 的 Layout）。
-//   卡片   默认顺序 公司 / 本月 / 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 / 申报草稿 / 输出文件；没内容的不显示；
+//   卡片   默认顺序 公司 / 本月（月结台账，components/month-ledger.tsx）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 / 申报草稿 / 输出文件；没内容的不显示；
 //          顺序、折叠记在这台设备（lib/company-panel.ts），卡头 6 点把手拖动或 Alt+↑/↓ 调顺序。
 //   数据   公司详情按「公司|月份」缓存，只在会话栏挂着（看得见）时跟着站点事件重取（lib/company-panel 的 usePanelDetail）。
 //
@@ -25,6 +25,7 @@ import {
   PendingCard,
   TasksSection,
 } from "@/components/company-cards";
+import { MonthCard } from "@/components/month-ledger";
 import { branchName } from "@/components/period-chip";
 import { FileTypeIcon, useResults } from "@/components/results-panel";
 import { co, t } from "@/i18n";
@@ -118,7 +119,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   const branches = detail ? branchesOf(detail) : [];
   const cards: Record<CardId, ReactNode> = {
     company: detail ? <CompanyCard detail={detail} period={period} scope={scope} /> : null,
-    month: <MonthCard />,
+    month: <MonthCard company={company} period={period} />,
     pending: <PendingCard company={company} />,
     notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
     folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
@@ -203,10 +204,6 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
     </PanelCard>
   );
 };
-
-// ---------------------------------------------------------------- 本月
-/** 「本月」：第 1 期月结台账与统一异常清单落在这里（设计文档 7 第 4 段）；台账做好之前不显示。 */
-const MonthCard: FC = () => null;
 
 // ---------------------------------------------------------------- 输出文件
 /** 本对话产出的文件：点一行在右侧预览（换成文件预览，关了回到会话栏）。 */

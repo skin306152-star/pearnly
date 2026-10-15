@@ -45,8 +45,10 @@ class UniqueValidationError(Exception):
 def _match(row, filters):
     for key, wanted in (filters or {}).items():
         value = row.get(key)
-        if isinstance(wanted, list) and wanted and wanted[0] in ("in", "not in", "is", "like", "<", ">"):
+        if isinstance(wanted, list) and wanted and wanted[0] in ("in", "not in", "is", "like", "<", ">", "between"):
             op, arg = wanted[0], wanted[1]
+            if op == "between" and not (value and str(arg[0]) <= str(value) <= str(arg[1])):
+                return False
             if op == "in" and value not in arg:
                 return False
             if op == "not in" and (value or "") in arg:
@@ -379,7 +381,8 @@ connection_access.require_connection = _require_connection
 agent = types.SimpleNamespace(read=lambda reader: {}, fresh=lambda state: False)
 tax_access = types.SimpleNamespace(allowed=lambda user=None: True)
 tax_service = types.SimpleNamespace(drafts_of=lambda tax, branch=None: [
-    {"name": "CTD-1", "kind": "vat_return", "period": "2026-09", "branch": "00000", "updated_at": ""}])
+    {"name": "CTD-1", "kind": "vat_return", "period": "2026-09", "branch": "00000", "updated_at": ""}],
+    month_drafts=lambda tax, period: {"drafts": [], "deadlines": {}})
 STUBS = {
     "pearnly_cowork.access.scope": scope,
     "pearnly_cowork.connections.service": connections,
@@ -409,7 +412,9 @@ presets = types.SimpleNamespace(income_prefix=lambda tax: f"income|{tax}|" if ta
 sys.modules["pearnly_cowork.reconciliation"] = types.SimpleNamespace(preset_store=preset_store, presets=presets)
 sys.modules["pearnly_cowork.reconciliation.preset_store"] = preset_store
 sys.modules["pearnly_cowork.reconciliation.presets"] = presets
-sys.modules["pearnly_cowork.push.export_facts"] = types.SimpleNamespace(reason_text=lambda reason: f"text:{reason}")
+sys.modules["pearnly_cowork.push.export_facts"] = types.SimpleNamespace(
+    reason_text=lambda reason: f"text:{reason}",
+    reason_code=lambda reason: str(reason or "").split(":", 1)[0].lower() if " " not in str(reason or "") else "")
 
 identity = importlib.import_module("pearnly_cowork.companies.identity")
 months = importlib.import_module("pearnly_cowork.companies.months")
@@ -419,6 +424,8 @@ notes = importlib.import_module("pearnly_cowork.companies.notes")
 service = importlib.import_module("pearnly_cowork.companies.service")
 choices = importlib.import_module("pearnly_cowork.companies.choices")
 pending = importlib.import_module("pearnly_cowork.companies.pending")
+exceptions = importlib.import_module("pearnly_cowork.companies.exceptions")
+ledger = importlib.import_module("pearnly_cowork.companies.ledger")
 provider = importlib.import_module("pearnly_cowork.companies.provider")
 COMPANY, NOTE = "Cowork Company", "Cowork Company Note"
 TAX = "0105536082808"  # 校验位对
@@ -1506,6 +1513,359 @@ class ProviderAndToolTests(unittest.TestCase):
         self.assertIn('"pearnly_cowork.assistant.company_tools.GUIDANCE"', hooks)
         self.assertIn('pearnly_assistant_projects = ["pearnly_cowork.companies.provider"]', hooks)
         self.assertIn('cowork_scheduled_notices = ["pearnly_cowork.companies.pending.morning"]', hooks)
+        self.assertIn('cowork_company_month_readback = ["pearnly_cowork.readback.service.month_status"]', hooks)
+        self.assertEqual(ledger.READBACK_HOOK, "cowork_company_month_readback")
+
+
+# ---------------- 统一异常清单与月结台账（数字会计员第 1 期） ----------------
+
+account_match = sys.modules["pearnly_cowork.targets.account_match"]
+
+
+class ExceptionCodeTests(unittest.TestCase):
+    CUTOFF = datetime(2026, 10, 15, 8, 45)
+
+    def code(self, row, unknown=frozenset()):
+        found = exceptions.document_code(row, self.CUTOFF, unknown)
+        return found and found[0]
+
+    def test_every_document_code_is_classified(self):
+        messages = account_match.CONFLICT_MESSAGES
+        cases = (
+            (history("a", last_push_status="manual", last_push_reason="choice_needed:party"), "choice_needed"),
+            (history("b", last_push_reason="choice_needed:vat"), "choice_needed"),
+            (history("c", last_push_status="manual", last_push_reason="ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"),
+             "result_unknown"),
+            (history("d", last_push_status="manual", last_push_reason=messages["account_tax_mismatch"]),
+             "account_tax_mismatch"),
+            (history("e", last_push_reason=messages["account_period_mismatch"]), "account_period_mismatch"),
+            (history("f", last_push_status="failed", last_push_reason=messages["account_branch_mismatch"]),
+             "account_branch_mismatch"),
+            (history("g", last_push_status="manual", last_push_reason="account_tax_mismatch"), "account_tax_mismatch"),
+            (history("h", last_push_reason="[ACCOUNT_BRANCH_MISMATCH] other branch"), "account_branch_mismatch"),
+            (history("i", last_push_status="manual", last_push_reason="EXPRESS_MANUAL: party_missing"), "push_manual"),
+            (history("j", last_push_reason="push.companion_account_unreported"), "push_failed"),
+            (history("k"), "not_pushed"),
+        )
+        for row, code in cases:
+            self.assertEqual(self.code(row), code, row.name)
+            self.assertIn(code, exceptions.CODES)
+        self.assertEqual(self.code(history("l", last_push_status="manual", last_push_record="PR1"), frozenset({"PR1"})),
+                         "result_unknown")
+        # 粗分照旧（待处理页与早上汇总用）
+        self.assertEqual(exceptions.document_code(cases[3][0], self.CUTOFF), ("account_tax_mismatch", "manual"))
+        self.assertEqual(exceptions.document_code(cases[4][0], self.CUTOFF), ("account_period_mismatch", "failed"))
+        for row in (history("m", last_push_status="success"), history("n", last_push_status="pending"),
+                    history("o", intake_target="none"), history("p", creation=datetime(2026, 10, 15, 8, 50))):
+            self.assertIsNone(exceptions.document_code(row, self.CUTOFF), row.name)
+
+    def test_conflict_messages_are_one_table_shared_with_push(self):
+        self.assertEqual(set(account_match.CONFLICT_MESSAGES), set(exceptions.CONFLICTS))
+        self.assertEqual(set(exceptions.CONFLICTS), {"account_tax_mismatch", "account_period_mismatch",
+                                                     "account_branch_mismatch"})
+        push = (APP / "push/application/service.py").read_text(encoding="utf-8")
+        self.assertIn("_ACCOUNT_CONFLICTS = account_match.CONFLICT_MESSAGES\n", push)
+        self.assertNotIn("does not match the chosen account set", push)  # 文案只在 account_match 写一份
+        with open(APP / "i18n/messages.tsv", encoding="utf-8") as handle:
+            english = {row[0] for row in csv.reader(handle, delimiter="\t", quoting=csv.QUOTE_NONE) if row}
+        for text in account_match.CONFLICT_MESSAGES.values():
+            self.assertIn(text, english)  # 推送拦下时照旧按词条翻译
+            self.assertEqual(exceptions.conflict_code(f"  {text} "), exceptions.conflict_code(text))
+        self.assertEqual(exceptions.conflict_code("Something else"), "")
+
+    def test_the_code_table_is_complete_and_reserved_codes_stay_out(self):
+        for code, (stage, severity, action) in exceptions.CODES.items():
+            self.assertIn(stage, exceptions.STAGES, code)
+            self.assertIn(severity, exceptions.SEVERITIES, code)
+            self.assertIn(action, ("choose", "open", "task", "readback", "draft"), code)
+        self.assertEqual(set(exceptions.CODES), {
+            "choice_needed", "result_unknown", "account_tax_mismatch", "account_period_mismatch",
+            "account_branch_mismatch", "push_manual", "push_failed", "not_pushed", "duplicate_number",
+            "task_folder_missing", "intake_file_failed", "pos_layout_needed", "not_invoice", "express_changed",
+            "express_deleted", "express_voided", "express_missing", "express_direct", "tax_issue", "tax_draft_stale",
+            "readback_needed"})
+        self.assertEqual(exceptions.RESERVED, ("missing_document", "rule_conflict", "month_reopened"))
+        self.assertFalse(set(exceptions.RESERVED) & set(exceptions.CODES))
+        self.assertEqual(exceptions.CODES["duplicate_number"][1], "info")  # 推送不查重不拦：只列
+
+    def test_duplicate_numbers_within_the_month(self):
+        rows = [history("a", invoice_no="INV 001"), history("b", invoice_no="inv001"),
+                history("c", invoice_no="INV001", seller_tax="0105559999996"),  # 别的对方
+                history("d", invoice_no=""), history("e", invoice_no="", seller_tax=""),
+                history("f", invoice_no="X9", duplicate_check_status="matched", duplicate_level="exact",
+                        duplicate_match="old1"),
+                # 识别查重的另两级不是同号：同日同卖方同额、同对方同日同额（两张加油票）
+                history("i", invoice_no="P1", duplicate_check_status="matched", duplicate_level="likely",
+                        duplicate_match="old2"),
+                history("j", invoice_no="P2", duplicate_check_status="matched", duplicate_level="party",
+                        duplicate_match="old3"),
+                # 被匹配的那张已经删了
+                history("k", invoice_no="Q1", duplicate_check_status="matched", duplicate_level="exact",
+                        duplicate_match="gone"),
+                # 本方是卖方：对方是买方
+                history("g", invoice_no="S1", seller_tax=TAX, buyer_tax="0105548064214"),
+                history("h", invoice_no="S1", seller_tax=TAX, buyer_tax="0105548064214")]
+        self.assertEqual(exceptions.month_duplicates(rows, TAX, live={"old1"}),
+                         {"a": ["b"], "b": ["a"], "f": ["old1"], "g": ["h"], "h": ["g"]})
+        self.assertEqual(set(exceptions.month_duplicates(rows, TAX)), {"a", "b", "f", "k", "g", "h"})  # 不核还在不在
+
+    def test_stage_states(self):
+        action = exceptions.item("not_pushed")
+        info = exceptions.item("duplicate_number")
+        warn = exceptions.item("express_missing")
+        self.assertEqual(exceptions.stage_state(0, []), "empty")
+        self.assertEqual(exceptions.stage_state(0, [action]), "attention")
+        self.assertEqual(exceptions.stage_state(3, [warn]), "attention")
+        self.assertEqual(exceptions.stage_state(3, [info], open_=True), "open")
+        self.assertEqual(exceptions.stage_state(3, [info]), "clear")
+        self.assertEqual(exceptions.stage_state(0, [info]), "clear")
+        self.assertEqual(set(exceptions.STATES), {"empty", "open", "attention", "clear"})
+        today = datetime(2026, 10, 15).date()
+        self.assertEqual([exceptions.period_ended(p, today) for p in ("2026-09", "2026-10", "2026-11", "2025-12")],
+                         [True, False, False, True])
+
+    def test_readback_findings_and_missing_readbacks(self):
+        ready = {"connection": "C1", "key": "S:\\A", "label": "A", "status": "ready", "readback": "RB1",
+                 "counts": {"pushed": 3, "unchanged": 1, "changed": 1, "deleted": 0, "missing": 2, "voided": 0,
+                            "direct": 4}}
+        none = {"connection": "C1", "key": "S:\\B", "label": "B", "status": "none", "readback": None, "counts": None}
+        reading = {**none, "key": "S:\\C", "status": "reading", "readback": "RB2"}
+        found = exceptions.readback_items([ready, none, reading], ended=True)
+        self.assertEqual([(item["code"], item.get("count"), item["account_set_key"]) for item in found],
+                         [("express_changed", 1, "S:\\A"), ("express_missing", 2, "S:\\A"),
+                          ("express_direct", 4, "S:\\A"), ("readback_needed", None, "S:\\B")])
+        self.assertEqual([item["code"] for item in exceptions.readback_items([none], ended=False)], [])
+
+    def test_tax_issues_follow_their_level_and_old_drafts_are_stale(self):
+        drafts = [{"name": "D1", "kind": "vat_return", "branch": "00000", "connection": "C1",
+                   "account_set": "s:/69exp/abc", "source_ref": "RB0",
+                   "issues": [{"code": "input_over_six_months", "level": "error", "count": 2},
+                              {"code": "row_voided", "level": "info", "count": 1}]},
+                  {"name": "D2", "kind": "vat_return", "branch": "00001", "connection": "C1",
+                   "account_set": "S:\\69EXP\\ABC", "source_ref": "RB1", "issues": []},
+                  {"name": "D3", "kind": "withholding", "branch": "00000", "connection": "", "account_set": "",
+                   "source_ref": "", "issues": [{"code": "income_type_missing", "level": "warn", "count": 1}]}]
+        found = exceptions.tax_items(drafts, {("C1", "s:\\69exp\\abc"): "RB1"})
+        self.assertEqual([(item["code"], item["draft"], item["severity"], item.get("issue")) for item in found],
+                         [("tax_issue", "D1", "action", "input_over_six_months"), ("tax_issue", "D1", "info", "row_voided"),
+                          ("tax_draft_stale", "D1", "warn", None), ("tax_issue", "D3", "warn", "income_type_missing")])
+
+    def test_task_files_and_missing_folders(self):
+        found = exceptions.file_items({"R1": {"failed": 2, "not_invoice": 1, "pos_layout_needed": 0}},
+                                      {"R1": {"title": "Buy", "missing": True}, "R2": {"title": "Sell", "missing": False}})
+        self.assertEqual([(item["code"], item["task"], item.get("count"), item["severity"]) for item in found],
+                         [("task_folder_missing", "R1", None, "action"), ("intake_file_failed", "R1", 2, "action"),
+                          ("not_invoice", "R1", 1, "info")])
+        self.assertEqual(exceptions.tally(found), {"task_folder_missing": 1, "intake_file_failed": 2, "not_invoice": 1})
+
+    def test_pending_items_carry_the_stable_code(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
+        make()
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("h1", last_push_status="manual",
+                    last_push_reason=account_match.CONFLICT_MESSAGES["account_branch_mismatch"]),
+            history("h2", last_push_reason="push.failed"))}
+        fresh_request()
+        items = {item["document"]: item for item in pending.pending()["items"]}
+        self.assertEqual((items["h1"]["reason_code"], items["h1"]["code"]), ("manual", "account_branch_mismatch"))
+        self.assertEqual((items["h2"]["reason_code"], items["h2"]["code"]), ("failed", "push_failed"))
+
+
+READBACK_SETS = []
+
+
+def _month_readback(sets, period):
+    """回读钩子的替身（真实现见 readback.service.month_status，另测）：每本账套一份完成的回读。"""
+    READBACK_SETS.append((sets, period))
+    return [{"connection": item["connection"], "key": item["key"], "label": item["label"], "status": "ready",
+             "readback": "RB1", "requested_by": "b@example.com", "requested_by_name": "Bee",
+             "requested_at": "2026-10-02T03:00:00Z", "ready_at": "2026-10-02T03:01:00Z",
+             "counts": {"pushed": 3, "unchanged": 2, "changed": 1, "deleted": 0, "missing": 1, "voided": 0,
+                        "direct": 0}, "newer": None} for item in sets]
+
+
+sys.modules["month_readback_double"] = types.SimpleNamespace(month_status=_month_readback)
+MONTH_DRAFTS = {"drafts": [{"name": "CTD-9", "kind": "vat_return", "branch": "00000", "connection": "C1",
+                            "account_set": "S:\\69EXP\\ABC", "source_ref": "RB0",
+                            "updated_at": "2026-10-01 10:00:00", "tax_total": "70.00",
+                            "issues": [{"code": "input_over_six_months", "level": "error", "count": 1,
+                                        "label": "Past the 6-month claim period"}]}],
+                "deadlines": {"pp30": {"paper": "2026-10-15", "efiling": "2026-10-23"},
+                              "pnd": {"paper": "2026-10-07", "efiling": "2026-10-15"}}}
+
+
+class MonthLedgerTests(unittest.TestCase):
+    """月结台账（`ledger.month`）：内存库里一家公司 2026-09 的单据、任务、回读与草稿。"""
+
+    def setUp(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\XYZ", "XYZ", tax=OTHER_TAX)])
+        self.company = make()["id"]
+        make(key="S:\\69EXP\\XYZ")
+        messages = account_match.CONFLICT_MESSAGES
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("h1", last_push_status="manual", last_push_reason="choice_needed:party"),
+            history("h2", last_push_status="manual", last_push_reason=messages["account_tax_mismatch"]),
+            history("h3", invoice_no="INV-7", last_push_status="success"),
+            history("h4", last_push_status="pending"),
+            history("h5"),  # 选了去向、没推，早就传了
+            history("h6", intake_target="none", push_connection="", push_account_set=""),  # 只识别
+            history("h7", invoice_no="INV-7", last_push_status="success"),  # 同对方同号
+            history("h8", push_account_set="S:\\69EXP\\XYZ", buyer_tax=OTHER_TAX),  # 别家
+            history("h9", invoice_date="2026-08-31"),  # 上个月
+            history("h10", invoice_date=None, intake_target="none", creation=datetime(2026, 9, 10, 9, 0)),
+            history("h11", last_push_reason="push.failed", invoice_date="2026-09-01"))}
+        frappe.db.tables["Cowork Folder Intake Rule"] = {
+            "R1": Row(name="R1", title="Buy", enabled=1, connection="C1", reader="C1",
+                      account_set_key="S:\\69EXP\\ABC", creation="1"),
+            "R2": Row(name="R2", title="Other", enabled=1, connection="C1", reader="C1",
+                      account_set_key="S:\\69EXP\\XYZ", creation="2")}
+        frappe.hooks = {"cowork_company_month_readback": ["month_readback_double.month_status"]}
+        READBACK_SETS[:] = []
+        self.files = []
+        rules = types.SimpleNamespace(month_files=lambda names, start, end: self.files.append(
+            (names, start, end)) or {"R1": {"failed": 2, "not_invoice": 1}})
+        patches = [mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}),
+                   mock.patch.object(agent, "read", lambda reader: {"health": {"R1": "folder_missing"}}),
+                   mock.patch.object(agent, "fresh", lambda state: True),
+                   mock.patch.object(tax_service, "month_drafts", lambda tax, period: json.loads(json.dumps(MONTH_DRAFTS)))]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        fresh_request()
+
+    def month(self, period="2026-09", limit=None):
+        fresh_request()
+        return ledger.month(self.company, period, limit)
+
+    def test_each_stage_is_counted_for_this_company_and_month(self):
+        found = self.month()
+        stages = found["stages"]
+        self.assertEqual((found["period"], found["ended"], found["truncated"]), ("2026-09", True, False))
+        self.assertEqual(stages["intake"], {"received": 8, "recognized_only": 2, "no_date": 1,
+                                            "tasks": {"count": 1, "enabled": 1, "attention": 1},
+                                            "files": {"failed": 2, "not_invoice": 1, "pos_layout_needed": 0},
+                                            "state": "attention"})
+        self.assertEqual(stages["entry"], {"pushed": 2, "in_flight": 1, "waiting": 3, "not_pushed": 1,
+                                           "state": "attention"})
+        self.assertEqual(stages["verify"]["state"], "attention")  # 回读发现 Express 里少了一张（warn）
+        self.assertEqual([item["key"] for item in stages["verify"]["sets"]], ["s:\\69exp\\abc"])
+        self.assertEqual(stages["tax"]["vat"], [{"draft": "CTD-9", "branch": "00000", "updated_at": "2026-10-01T03:00:00Z",
+                                                 "tax_total": "70.00", "issues": 1, "stale": True}])
+        self.assertEqual(stages["tax"]["state"], "attention")
+        counts = found["exceptions"]["counts"]
+        self.assertEqual(counts, {"choice_needed": 1, "account_tax_mismatch": 1, "push_failed": 1, "not_pushed": 1,
+                                  "duplicate_number": 2, "task_folder_missing": 1, "intake_file_failed": 2,
+                                  "not_invoice": 1, "express_changed": 1, "express_missing": 1, "tax_issue": 1,
+                                  "tax_draft_stale": 1})
+        documents = {item["document"] for item in found["exceptions"]["items"] if item["document"]}
+        self.assertEqual(documents, {"h1", "h2", "h3", "h5", "h7", "h11"})  # 别家（h8）、上个月（h9）不在
+        severities = [item["severity"] for item in found["exceptions"]["items"]]
+        self.assertEqual(severities, sorted(severities, key=["action", "warn", "info"].index))
+        # 定时任务的文件按登记时间归月：[本月一号, 下月一号)
+        self.assertEqual(self.files, [(["R1"], datetime(2026, 9, 1), datetime(2026, 10, 1))])
+        self.assertEqual(READBACK_SETS[0][1], "2026-09")
+
+    def test_recognition_duplicates_count_only_same_number_matches_that_still_exist(self):
+        rows = frappe.db.tables["Cowork OCR History"]
+        rows["h6"].update(duplicate_check_status="matched", duplicate_level="exact", duplicate_match="h9")  # 上个月那张还在
+        rows["h11"].update(duplicate_check_status="matched", duplicate_level="exact", duplicate_match="gone")  # 删了
+        rows["h5"].update(duplicate_check_status="matched", duplicate_level="party", duplicate_match="h9")  # 不是同号
+        found = {item["document"]: item.get("others") for item in self.month()["exceptions"]["items"]
+                 if item["code"] == "duplicate_number"}
+        self.assertEqual(found, {"h3": ["h7"], "h7": ["h3"], "h6": ["h9"]})
+
+    def test_documents_found_only_by_account_set_are_found_in_any_slash_spelling(self):
+        # 按名称建、没有税号可比的单据只能靠推送去向的账套认：斜杠写法、末尾分隔符不同也要查得到
+        frappe.db.tables["Cowork OCR History"] = {"s1": history("s1", buyer_tax="", seller_tax="0999999999999",
+                                                                push_account_set="s:/69exp/abc/", last_push_status="success")}
+        found = self.month()
+        self.assertEqual((found["stages"]["intake"]["received"], found["stages"]["entry"]["pushed"]), (1, 1))
+
+    def test_a_month_in_progress_is_open_not_clear(self):
+        frappe.db.tables["Cowork OCR History"] = {"h3": history("h3", invoice_date="2026-10-02",
+                                                                last_push_status="success")}
+        frappe.db.tables["Cowork Folder Intake Rule"] = {}
+        found = self.month("2026-10")
+        self.assertFalse(found["ended"])
+        self.assertEqual(found["stages"]["intake"]["state"], "open")
+        self.assertEqual(found["stages"]["entry"]["state"], "open")
+        self.assertNotIn("readback_needed", found["exceptions"]["counts"])
+
+    def test_documents_are_read_in_one_bounded_query_and_marked_when_cut(self):
+        calls = []
+        original = frappe.get_list
+
+        def counted(doctype, **kwargs):
+            calls.append((doctype, kwargs.get("limit_page_length")))
+            return original(doctype, **kwargs)
+
+        with mock.patch.object(frappe, "get_list", counted):
+            self.month()
+        # 识别记录：本月一次、没有日期的一次，都有上限（不逐张、不逐段再读）
+        self.assertEqual(calls, [("Cowork OCR History", ledger.LEDGER_MAX + 1)] * 2)
+        with mock.patch.object(ledger, "LEDGER_MAX", 3):
+            found = self.month()
+        self.assertTrue(found["truncated"])
+        self.assertLessEqual(found["stages"]["intake"]["received"], 3)
+        found = self.month(limit=2)
+        self.assertEqual(len(found["exceptions"]["items"]), 2)
+        self.assertEqual(found["exceptions"]["total"], 13)
+        self.assertEqual(found["exceptions"]["severities"], {"action": 7, "warn": 2, "info": 4})  # 截断前的全数
+
+    def test_a_cut_month_is_never_clear(self):
+        frappe.db.tables["Cowork OCR History"] = {name: history(name, last_push_status="success", invoice_no=name)
+                                                  for name in ("a1", "a2", "a3", "a4")}
+        frappe.db.tables["Cowork Folder Intake Rule"] = {}
+        with mock.patch.object(tax_access, "allowed", lambda user=None: False):
+            self.assertEqual([self.month()["stages"][stage]["state"] for stage in ("intake", "entry")],
+                             ["clear", "clear"])
+            with mock.patch.object(ledger, "LEDGER_MAX", 3):
+                found = self.month()
+        self.assertTrue(found["truncated"])
+        self.assertEqual([found["stages"][stage]["state"] for stage in ("intake", "entry")], ["open", "open"])
+
+    def test_sections_follow_permissions(self):
+        with mock.patch.object(tax_access, "allowed", lambda user=None: False):
+            self.assertIsNone(self.month()["stages"]["tax"])
+        scope.features = {"ocr_history"}  # 能看识别记录、没有录入权限：任务与核对两段不给
+        found = self.month()
+        self.assertIsNone(found["stages"]["verify"])
+        self.assertIsNone(found["stages"]["intake"]["tasks"])
+        self.assertIsNone(found["stages"]["intake"]["files"])
+        self.assertEqual(found["stages"]["entry"]["waiting"], 3)
+        scope.features = set()
+        with self.assertRaises(frappe.PermissionError):
+            self.month()
+
+    def test_a_readback_hook_that_fails_or_is_missing_hides_the_verify_section(self):
+        frappe.hooks = {}
+        self.assertIsNone(self.month()["stages"]["verify"])
+        frappe.hooks = {"cowork_company_month_readback": ["month_readback_double.nothing_here"]}
+        self.assertIsNone(self.month()["stages"]["verify"])
+        self.assertIn("Cowork month readback failed", frappe.errors)
+
+    def test_period_is_required_and_checked(self):
+        for period in ("", None, "2026-13", "2026-9"):
+            with self.assertRaises(frappe.ValidationError):
+                ledger.month(self.company, period)
+        with self.assertRaises(frappe.DoesNotExistError):
+            ledger.month("nope", "2026-09")
+        self.assertEqual(ledger.bounds("2026-12"), (datetime(2026, 12, 1).date(), datetime(2027, 1, 1).date()))
+
+
+class MonthContractTests(unittest.TestCase):
+    """跨端契约（tests/fixtures/cc-month-contract.json）：服务端真实输出的形状；页面测试拿同一份当假数据。"""
+    FIXTURE = json.loads((ROOT / "tests/fixtures/cc-month-contract.json").read_text(encoding="utf-8"))
+
+    def test_month_is_what_the_page_reads(self):
+        case = MonthLedgerTests("test_each_stage_is_counted_for_this_company_and_month")
+        case.setUp()
+        try:
+            found = case.month()
+        finally:
+            case.doCleanups()
+        expected = json.loads(json.dumps(self.FIXTURE["month"]).replace("COMPANY", case.company))
+        self.assertEqual(json.loads(json.dumps(found)), expected)
 
 
 # ---------------- 守卫、接口与依赖方向 ----------------
@@ -1549,7 +1909,7 @@ class GuardTests(unittest.TestCase):
                 decorator = ast.unparse(node.decorator_list[0])
                 methods[node.name] = "GET" if "GET" in decorator else "POST"
         self.assertEqual({name for name, kind in methods.items() if kind == "GET"},
-                         {"candidates", "companies", "detail", "pending", "pending_counts", "task_overview"})
+                         {"candidates", "companies", "detail", "month", "pending", "pending_counts", "task_overview"})
         for name in ("create", "rename", "delete", "note_save", "note_delete", "folder_bind", "folder_unbind",
                      "choice_forget", "choice_set"):
             self.assertEqual(methods.get(name), "POST", name)

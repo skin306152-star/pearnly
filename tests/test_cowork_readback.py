@@ -617,9 +617,12 @@ class ServiceHarness:
         self.rows, self.after, self.requests = {}, [], {}
         self.user = "a@example.com"
         self.calls = []
+        self.access_locks = []  # (连接, 授权检查要不要当前读加锁)：只读的可见性检查传 False（10-15 的 1020）
         self.presence = {}
         self.pushed = []
         self.broken = False
+        self.denied = set()  # (用户, 连接)：这人不能用这条连接
+        self.intake = True
         frappe = types.ModuleType("frappe")
 
         class ValidationError(Exception):
@@ -656,13 +659,12 @@ class ServiceHarness:
         sys.modules["frappe"], sys.modules["frappe.utils"] = frappe, utils
         self.frappe = frappe
         stubs = {
-            "pearnly_cowork.access.scope": dict(require=lambda feature: self.calls.append(("scope", feature))),
+            "pearnly_cowork.access.scope": dict(require=self.require, allowed=lambda feature: self.intake),
             "pearnly_cowork.companion.request_service": dict(
                 create=self.create, find=self.find, status=self.request_status, result=self.result,
                 drop=lambda name: self.calls.append(("drop", name)) or self.requests.pop(name, None),
                 waiting=lambda connection, kind, known="": self.calls.append(("waiting", kind)) or dict(self.presence)),
-            "pearnly_cowork.connections.access": dict(require_connection=lambda doc: self.calls.append(
-                ("connection", doc.name))),
+            "pearnly_cowork.connections.access": dict(require_connection=self.require_connection),
             "pearnly_cowork.connections.service": dict(
                 targets=lambda name: {"account_sets": [{"source_id": "S:\\EXP69\\T9SINCER", "label": "T9 SINCERE",
                                                         "attributes": {"path": "S:\\EXP69\\T9SINCER",
@@ -693,6 +695,18 @@ class ServiceHarness:
         self.storage = _load("pearnly_cowork.readback.storage", APP / "readback/storage.py")
         self.service = _load("pearnly_cowork.readback.service", APP / "readback/service.py")
 
+    # 权限替身
+    def require(self, feature):
+        self.calls.append(("scope", feature))
+        if not self.intake:
+            raise self.frappe.PermissionError("Not Permitted")
+
+    def require_connection(self, doc, lock=True):
+        self.calls.append(("connection", doc.name))
+        self.access_locks.append((doc.name, lock))
+        if (self.frappe.session.user, doc.name) in self.denied:
+            raise self.frappe.PermissionError("connection")
+
     # Frappe 替身
     def write(self, row):
         if row.get("_new"):
@@ -701,8 +715,20 @@ class ServiceHarness:
         self.rows[row.name] = row
         return row
 
-    def sql(self, query, values=()):
+    def sql(self, query, values=(), as_dict=False):
         query = " ".join(query.split())
+        if "connection = %s AND account_set_key = %s AND period = %s AND status = 'ready'" in query:
+            connection, key, period = values
+            found = sorted((row for row in self.rows.values() if (row.connection, row.account_set_key, row.period,
+                                                                  row.status) == (connection, key, period, "ready")),
+                           key=lambda row: (row.ready_at, row.name), reverse=True)
+            return [(found[0].name,)] if found else []
+        if "WHERE period = %s AND connection IN" in query:
+            period, *linked = values
+            found = sorted((row for row in self.rows.values() if row.period == period and row.connection in linked),
+                           key=lambda row: (row.requested_at, row.name), reverse=True)
+            return [Row({key: row.get(key) for key in ("name", "actor", "connection", "account_set_key", "status",
+                                                       "summary_json", "requested_at", "ready_at")}) for row in found]
         if "lookup = %s AND actor = %s AND status IN" in query:
             lookup, actor, *statuses = values
             found = sorted((row for row in self.rows.values() if row.lookup == lookup and row.actor == actor
@@ -929,6 +955,7 @@ class Service(unittest.TestCase):
         self.h.requests[row.request].update(status="failed", code="account_busy")
         self.assertEqual(self.service.status(made["readback"]), {
             "readback": made["readback"], "status": "failed", "period": "2026-05", "account_set": "T9 SINCERE",
+            "requested_by": "a@example.com", "requested_at": row.requested_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "code": "account_busy"})
         second, second_row = self._start()
         self.h.finish(second_row.request, raw(version=9))
@@ -969,15 +996,26 @@ class Service(unittest.TestCase):
         self.h.finish(again_row.request, raw(diagnostics={"bad_rows": ["ISVAT"], "missing_tables": "GLBAL"}))
         self.assertEqual(self.service.status(again["readback"])["status"], "ready")
 
-    def test_only_the_requester_sees_or_deletes_a_readback(self):
+    def test_everyone_who_may_use_the_connection_sees_it_but_only_the_requester_deletes_it(self):
+        # 用户 2026-10-15 夜定：能用这条 Express 连接的人都看得到回读结果（谁、何时发起的）；删除仍只给发起人
         made, row = self._start()
         self.h.finish(row.request, raw())
         self.service.status(made["readback"])
         self.h.frappe.session.user = "b@example.com"
-        for call in (self.service.status, self.service.delete, lambda name: self.service.file(name, "changes")):
+        seen = self.service.status(made["readback"])
+        self.assertEqual((seen["status"], seen["requested_by"]), ("ready", "a@example.com"))
+        self.assertTrue(seen["requested_at"].endswith("Z"))
+        self.assertEqual(self.service.file(made["readback"], "changes")[0], "T9SINCER-changes-2026-05.xlsx")
+        self.assertEqual(self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5)["ref"], made["readback"])
+        with self.assertRaises(self.h.frappe.DoesNotExistError):
+            self.service.delete(made["readback"])
+        # 没有这条连接使用权的人：当作不存在
+        self.h.denied.add(("b@example.com", "EXP1"))
+        for call in (self.service.status, lambda name: self.service.file(name, "changes"), self.service.data):
             with self.assertRaises(self.h.frappe.DoesNotExistError):
                 call(made["readback"])
-        self.assertIsNone(self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5))
+        with self.assertRaises(self.h.frappe.PermissionError):
+            self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5)
         self.h.frappe.session.user = "a@example.com"
         self.assertEqual(self.service.delete(made["readback"]), {"readback": made["readback"], "deleted": True})
         self.h.commit()
@@ -986,6 +1024,58 @@ class Service(unittest.TestCase):
         with self.assertRaises(self.h.frappe.DoesNotExistError):
             self.service.status("x" * 32)
 
+    def test_someone_elses_readback_still_reading_is_shown_not_driven(self):
+        # 按需请求只认发起人：别人查询还在读的那份只回现状，不替发起人收结果
+        made, row = self._start()
+        self.h.finish(row.request, raw())
+        self.h.frappe.session.user = "b@example.com"
+        del self.h.access_locks[:]
+        self.assertEqual(self.service.status(made["readback"])["status"], "reading")
+        self.assertEqual(row.status, "reading")
+        self.assertEqual(self.h.access_locks, [("EXP1", False)])  # 可见性检查读快照、不加锁（10-15 的 1020）
+        self.h.frappe.session.user = "a@example.com"
+        self.assertEqual(self.service.status(made["readback"])["status"], "ready")
+
+    def test_month_status_gives_each_usable_account_set_its_newest_readback(self):
+        made, row = self._start()
+        self.h.finish(row.request, raw())
+        self.service.status(made["readback"])
+        later, later_row = self._start()  # 发起人又读了一次，还在读：仍给完成的那份，另标 newer
+        later_row.requested_at = row.requested_at + timedelta(minutes=5)
+        sets = [{"connection": "EXP1", "key": "s:/exp69/t9sincer/", "label": "T9 SINCERE"},
+                {"connection": "EXP1", "key": "S:\\EXP69\\OTHER", "label": "Other"},
+                {"connection": "EXP2", "key": "S:\\EXP69\\T9SINCER", "label": "Hidden"}]
+        self.h.frappe.session.user = "b@example.com"
+        self.h.denied.add(("b@example.com", "EXP2"))
+        found = self.service.month_status(sets, "2026-05")
+        self.assertEqual([item["label"] for item in found], ["T9 SINCERE", "Other"])  # 用不了的连接不列
+        first = found[0]
+        self.assertEqual((first["status"], first["readback"], first["requested_by"], first["newer"]),
+                         ("ready", made["readback"], "a@example.com", "reading"))
+        self.assertEqual(set(first["counts"]), {"pushed", "unchanged", "changed", "deleted", "missing", "voided",
+                                                "direct"})
+        self.assertTrue(first["ready_at"].endswith("Z"))
+        self.assertEqual((found[1]["status"], found[1]["readback"], found[1]["counts"]), ("none", None, None))
+        self.assertEqual({lock for _connection, lock in self.h.access_locks[-2:]}, {False})  # 可见性检查不加锁读
+        self.h.intake = False
+        self.assertIsNone(self.service.month_status(sets, "2026-05"))
+
+    def test_month_status_takes_the_readback_that_finished_last(self):
+        # A 早发起、晚完成；B 晚发起、早完成：税务草稿取的是完成时间最晚的 A，台账认的也得是 A（否则误报草稿过期）
+        first, first_row = self._start()  # a 发起
+        self.h.frappe.session.user = "b@example.com"
+        second, second_row = self._start()  # b 晚 5 分钟发起，先完成
+        second_row.requested_at = first_row.requested_at + timedelta(minutes=5)
+        self.h.finish(second_row.request, raw())
+        self.service.status(second["readback"])
+        self.h.frappe.session.user = "a@example.com"
+        self.h.finish(first_row.request, raw())
+        self.service.status(first["readback"])
+        first_row.ready_at = second_row.ready_at + timedelta(minutes=25)
+        sets = [{"connection": "EXP1", "key": "S:\\EXP69\\T9SINCER", "label": "T9"}]
+        found = self.service.month_status(sets, "2026-05")[0]
+        self.assertEqual((found["readback"], found["newer"]), (first["readback"], None))
+        self.assertEqual(self.service.vat_records("EXP1", "S:\\EXP69\\T9SINCER", 2026, 5)["ref"], first["readback"])
 
 def push_service(rows):
     """按真实导入加载推送服务（依赖换成替身），``frappe.db.sql`` 记下每条查询、从 rows 里按条件取。"""

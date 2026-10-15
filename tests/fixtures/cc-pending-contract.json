@@ -4,6 +4,7 @@
   "document": "h1",
   "company": "COMPANY",
   "reason_code": "choice_needed",
+  "code": "choice_needed",
   "reason_label": "text:choice_needed:party",
   "invoice_no": "INV-h1",
   "counterparty": "Makro",

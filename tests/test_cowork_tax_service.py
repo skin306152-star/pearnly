@@ -229,7 +229,7 @@ access_package.scope = scope
 sys.modules.update({"pearnly_cowork.access": access_package, "pearnly_cowork.access.scope": scope})
 
 from pearnly_cowork.history import certificates  # noqa: E402
-from pearnly_cowork.tax import access, memory, service, sources, wht  # noqa: E402
+from pearnly_cowork.tax import access, input_vat, memory, service, sources, wht  # noqa: E402
 
 
 def readback_module(records, header=None):
@@ -572,6 +572,37 @@ class WhtDraft(Base):
         frappe.roles = set()
         with self.assertRaises(frappe.PermissionError):
             service.delete([withholding])
+
+    def test_month_drafts_summarise_this_company_month_for_the_ledger(self):
+        # 月结台账「报税」一段（ADR-020，数字会计员第 1 期）：一次查询，问题按草稿自己的级别，ภ.ง.ด. 草稿同读一样要读识别记录的权限
+        withholding = self.draft()["draft"]
+        with mock.patch.dict(sys.modules, readback_module([isvat(refnum="T1")])):
+            vat = service.vat_draft("CONN-1", "ACC-2026", "2026-09")
+        found = service.month_drafts(COMPANY, "2026-09")
+        self.assertEqual(found["deadlines"], {"pp30": {"paper": "2026-10-15", "efiling": "2026-10-23"},
+                                              "pnd": {"paper": "2026-10-07", "efiling": "2026-10-15"}})
+        drafts = {item["kind"]: item for item in found["drafts"]}
+        self.assertEqual(set(drafts), {"vat_return", "withholding"})
+        self.assertEqual((drafts["vat_return"]["name"], drafts["vat_return"]["connection"],
+                          drafts["vat_return"]["account_set"], drafts["vat_return"]["source_ref"],
+                          drafts["vat_return"]["tax_total"]),
+                         (vat["draft"], "CONN-1", "ACC-2026", "RB-1", vat["tax_total"]))
+        self.assertEqual(drafts["withholding"]["name"], withholding)
+        levels = {**input_vat.CODES, **wht.ISSUES}
+        for draft in drafts.values():
+            for issue in draft["issues"]:
+                self.assertEqual(issue["level"], levels[issue["code"]])
+                self.assertEqual(issue["label"], "cowork.tax.issue." + issue["code"])  # 现有词条（替身原样回键）
+                self.assertGreater(issue["count"], 0)
+        self.assertEqual({issue["code"]: issue["count"] for issue in drafts["vat_return"]["issues"]},
+                         vat["issues_by_code"])
+        self.assertEqual(service.month_drafts(COMPANY, "2026-08")["drafts"], [])
+        self.assertEqual(service.month_drafts("", "2026-09")["drafts"], [])
+        scope.read_allowed = False
+        self.assertEqual([item["kind"] for item in service.month_drafts(COMPANY, "2026-09")["drafts"]], ["vat_return"])
+        frappe.roles = set()
+        with self.assertRaises(frappe.PermissionError):
+            service.month_drafts(COMPANY, "2026-09")
 
     def test_answers_are_remembered_and_applied_next_time(self):
         self.assertEqual(service.answer([{"payee_tax_id": LANDLORD, "income_type": "rent", "payee_name": "สมชาย"},

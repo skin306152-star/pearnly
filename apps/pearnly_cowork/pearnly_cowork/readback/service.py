@@ -1,8 +1,12 @@
 """Express 回读的服务（2026-10 CC 闭环 L1）：请那台电脑读一本账套的一个月、收结果、出四份工作簿与差异、留存、取用、删除。
 
 用户 2026-10-13 定：只在用户请求时按「账套 + 月份」读取，存为站点私有文件；同一人、同一连接、同一账套、同一月只留最新一份，
-发起人可删除。判据同推送：录入权限 + 这条连接的使用授权（`companion.request_service.create` 再核一次），结果只给发起人。
+发起人可删除。发起的判据同推送：录入权限 + 这条连接的使用授权（`companion.request_service.create` 再核一次）。
 不调模型、不扣费、不写 Express。
+
+谁看得到（用户 2026-10-15 夜改）：能用这条 Express 连接的人（录入权限 + 这条连接的使用授权，逐条连接核）都看得到这本账套
+这个月的回读结果，并看到是谁、何时发起的；没有这条连接使用权的人照样看不到（当作不存在）。删除仍只给发起人；还在读的那份
+只由发起人的查询推进（按需请求只认发起人）。税务草稿与月结台账取「这本账套这个月最近一次完成的回读」，不分发起人。
 
 - ``request(connection, account_set_key, period, accounts=None)``：同一份还在读就回那一份；同一请求号（人、连接、账套、
   月、科目）的按需请求还在等、在做或做完没取走就接着等它（`request_service.find`，不问电脑在不在）；否则电脑此刻没来领
@@ -12,8 +16,10 @@
   税务记录的单号补查 → `diff.compare` → 四份工作簿 → 留存 → ready，删掉同一份的旧回读），失败 / 过期 / 处理出错记 failed；
   电脑没来领回 waiting_for_cc。
 - ``file(name, kind)`` → (文件名, 内容)；``data(name)``：校验过的读账结果；``delete(name)``：连文件一起删。
-- ``vat_records(connection, account_set_key, year, month)``：给税务草稿（L4 / L5）的进销项记录，当前用户最近一次完成的回读；
-  没有回 None（调用方提示先回读）。
+- ``vat_records(connection, account_set_key, year, month)``：给税务草稿（L4 / L5）的进销项记录，这本账套这个月最近一次完成的
+  回读（谁发起的都算）；没有回 None（调用方提示先回读）。
+- ``month_status(sets, period)``：月结台账「核对」一段（hooks ``cowork_company_month_readback``，companies 不导入本域）：
+  每本账套这个月最近的回读状态、发起人与差异计数。
 """
 import hashlib
 import json
@@ -70,6 +76,7 @@ def _lookup(actor, connection, key, period):
 
 
 def _latest(lookup, statuses):
+    """本人这本账套这个月最近的一份（发起时接着等自己还在读的那份）。"""
     marks = ", ".join(["%s"] * len(statuses))
     found = frappe.db.sql(f"""SELECT name FROM `tab{READBACK}` WHERE lookup = %s AND actor = %s
         AND status IN ({marks}) ORDER BY requested_at DESC, name DESC LIMIT 1""",
@@ -171,11 +178,43 @@ def request(connection, account_set_key, period, accounts=None) -> dict:
 # ── 状态与处理 ──────────────────────────────────────────────────────────────
 
 
-def _own(name):
+def _newest_ready(connection, key, period):
+    """这本账套这个月最近一次完成的回读（谁发起的都算；调用方已核这条连接的使用权）。"""
+    found = frappe.db.sql(f"""SELECT name FROM `tab{READBACK}` WHERE connection = %s AND account_set_key = %s
+        AND period = %s AND status = 'ready' ORDER BY ready_at DESC, name DESC LIMIT 1""", (connection, key, period))
+    return found[0][0] if found else None
+
+
+def _row(name):
     if not isinstance(name, str) or not _NAME.fullmatch(name) or not frappe.db.exists(READBACK, name):
         _error("cowork.readback.missing", frappe.DoesNotExistError)
-    row = read(name)
+    return read(name)
+
+
+def _usable(connection) -> bool:
+    """当前用户能不能用这条连接（录入权限 + 连接使用授权）。只读的可见性检查：授权读本事务快照、不加锁（``lock=False``，
+    同 `connections` 的只读视图；台账在这之前已跑过别的查询，加锁读 `tabUser` 会撞 MariaDB 11.8 的 1020）。"""
+    try:
+        scope.require("intake")
+        connection_access.require_connection(frappe.get_doc(CONNECTION, connection), lock=False)
+    except (frappe.PermissionError, frappe.DoesNotExistError, frappe.ValidationError):
+        frappe.clear_messages()
+        return False
+    return True
+
+
+def _own(name):
+    """发起人自己的一份（删除用）。"""
+    row = _row(name)
     if row.actor != frappe.session.user:
+        _error("cowork.readback.missing", frappe.DoesNotExistError)
+    return row
+
+
+def _visible(name):
+    """看得到的一份：能用这条连接的人都看得到（文件头「谁看得到」）；看不到的当作不存在。"""
+    row = _row(name)
+    if not _usable(row.connection):
         _error("cowork.readback.missing", frappe.DoesNotExistError)
     return row
 
@@ -208,9 +247,9 @@ def _fail(name, code):
 
 
 def status(name) -> dict:
-    """这份回读此刻的样子（还在读时顺带看电脑做完没有，做完当场处理）。"""
-    row = _own(name)
-    if row.status != "reading":
+    """这份回读此刻的样子（还在读时顺带看电脑做完没有，做完当场处理；别人发起、还在读的只回现状）。"""
+    row = _visible(name)
+    if row.status != "reading" or row.actor != frappe.session.user:
         return view(row)
     try:
         current = request_service.status(row.request)
@@ -364,9 +403,15 @@ def _remove(row):
     frappe.db.after_commit.add(lambda: storage.drop(name))
 
 
+def _utc(value) -> str:
+    """库里的 UTC 裸时间 → `2026-10-15T02:00:00Z`；空回空串。"""
+    return get_datetime(value).strftime("%Y-%m-%dT%H:%M:%SZ") if value else ""
+
+
 def view(row) -> dict:
     out = {"readback": row.name, "status": row.status, "period": row.period,
-           "account_set": row.account_label or row.account_set_key}
+           "account_set": row.account_label or row.account_set_key,
+           "requested_by": row.actor or "", "requested_at": _utc(row.requested_at)}
     if row.status == "failed":
         out["code"] = row.error_code or "failed"
     if row.status == "ready":
@@ -380,7 +425,7 @@ def view(row) -> dict:
 
 
 def _ready(name):
-    row = _own(name)
+    row = _visible(name)
     if row.status != "ready":
         _error("cowork.readback.not_ready")
     return row
@@ -413,7 +458,7 @@ def delete(name) -> dict:
 
 
 def vat_records(connection, account_set_key, year, month):
-    """税务草稿用：当前用户这条连接、这本账套、这个月最近一次完成的回读里的进销项记录；没有回 None。
+    """税务草稿用：这条连接、这本账套、这个月最近一次完成的回读（谁发起的都算）里的进销项记录；没有回 None。
 
     ``{"ref", "read_at", "header": {"company", "tax_id", "branch"}, "records": [{"side": "P|S", "rectyp",
     "period": "YYYY-MM", "tax_date", "doc_date", "docnum", "refnum", "name", "prefix", "tax_id", "branch",
@@ -425,7 +470,7 @@ def vat_records(connection, account_set_key, year, month):
     except (TypeError, ValueError, contracts.ContractError):
         _error("cowork.readback.period_invalid")
     key = normalize_express_account_key(account_set_key)
-    name = _latest(_lookup(frappe.session.user, connection, key, when), ("ready",)) if key else None
+    name = _newest_ready(connection, key, when) if key else None
     stored = storage.read_data(name) if name else None
     if not stored:
         return None
@@ -438,4 +483,76 @@ def vat_records(connection, account_set_key, year, month):
             "records": contracts.vat_records(found, stored.get("history"))}
 
 
-__all__ = ["data", "delete", "file", "request", "status", "vat_records", "view"]
+# ── 月结台账「核对」一段 ──────────────────────────────────────────────────────
+
+MONTH_SCAN_MAX = 500
+MONTH_COUNTS = ("pushed", "unchanged", *diff.CHANGES, "direct")
+
+
+def _fullname(user) -> str:
+    try:
+        return frappe.utils.get_fullname(user) or user
+    except Exception:  # noqa: BLE001 — 显示名取不到就用账号
+        return user
+
+
+def month_status(sets, period):
+    """月结台账「核对」一段（hooks ``cowork_company_month_readback``）：给的 Express 账套（``[{connection, key, label}]``）
+    这个月最近的回读。没有录入权限回 None；用不了的连接上的账套不列（逐条连接核）。一次查询取这个月这些连接上的回读。
+
+    ``[{"connection", "key", "label", "status": none|reading|ready|failed, "readback", "requested_by",
+    "requested_by_name", "requested_at", "ready_at", "counts": {pushed, unchanged, changed, deleted, missing, voided,
+    direct} | None, "newer": reading|failed|None}]``：有完成的回读就给完成时间最晚的那份（``newer`` 是最近发起、还没
+    完成或失败的那份的状态）；没有就给最近发起的一份；一份都没有是 ``none``。"""
+    if not scope.allowed("intake"):
+        return None
+    try:
+        when = contracts.period(period)
+    except contracts.ContractError:
+        _error("cowork.readback.period_invalid")
+    wanted, usable = [], {}
+    for item in sets or ():
+        connection = str((item or {}).get("connection") or "")
+        key = normalize_express_account_key((item or {}).get("key"))
+        if not connection or not key:
+            continue
+        if connection not in usable:
+            usable[connection] = _usable(connection)
+        if usable[connection]:
+            wanted.append((connection, key, str(item.get("label") or "")))
+    if not wanted:
+        return []
+    connections_ = sorted({connection for connection, _key, _label in wanted})
+    marks = ", ".join(["%s"] * len(connections_))
+    rows = frappe.db.sql(f"""SELECT name, actor, connection, account_set_key, status, summary_json, requested_at,
+        ready_at FROM `tab{READBACK}` WHERE period = %s AND connection IN ({marks})
+        ORDER BY requested_at DESC, name DESC LIMIT {MONTH_SCAN_MAX}""", (when, *connections_), as_dict=True)
+    grouped = {}
+    for row in rows:
+        grouped.setdefault((row.connection, normalize_express_account_key(row.account_set_key).casefold()), []).append(row)
+    out, names = [], {}
+    for connection, key, label in wanted:
+        found = grouped.get((connection, key.casefold())) or []
+        # 完成的那份按完成时间取最新（同 `_newest_ready`、税务草稿取数）：早发起、晚完成的才是草稿用的那份
+        ready = max((row for row in found if row.status == "ready"), default=None,
+                    key=lambda row: (get_datetime(row.ready_at) if row.ready_at else datetime.min, row.name))
+        shown = ready or (found[0] if found else None)
+        newer = found[0].status if ready and found[0] is not ready and found[0].status in ("reading", "failed") \
+            else None
+        item = {"connection": connection, "key": key, "label": label, "status": shown.status if shown else "none",
+                "readback": shown.name if shown else None, "requested_by": shown.actor if shown else "",
+                "requested_by_name": "", "requested_at": _utc(shown.requested_at) if shown else "",
+                "ready_at": _utc(shown.ready_at) if shown and shown.status == "ready" else "",
+                "counts": None, "newer": newer}
+        if shown:
+            if shown.actor not in names:
+                names[shown.actor] = _fullname(shown.actor)
+            item["requested_by_name"] = names[shown.actor]
+        if ready:
+            counted = _json(ready.summary_json, {}).get("pushed") or {}
+            item["counts"] = {name: int(counted.get(name) or 0) for name in MONTH_COUNTS}
+        out.append(item)
+    return out
+
+
+__all__ = ["data", "delete", "file", "month_status", "request", "status", "vat_records", "view"]

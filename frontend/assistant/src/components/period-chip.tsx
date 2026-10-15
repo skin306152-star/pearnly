@@ -21,11 +21,12 @@ const Choice: FC<{ chosen: boolean; onSelect: () => void; children: ReactNode }>
 /** 胶囊的外观与菜单方向：默认胶囊、菜单向下；下巴里传 look="cc-chin-btn"、side="top"（放不下由菜单包装翻面）。 */
 type ChipLook = { look?: "cc-chip-btn" | "cc-chin-btn"; side?: "top" | "bottom" };
 
-/** 月份胶囊：value 是 YYYY-MM（"" = 不指定）。 */
-export const PeriodChip: FC<{ value: string; onChange: (period: string) => void; disabled?: boolean } & ChipLook> = ({
+/** 月份胶囊：value 是 YYYY-MM（"" = 不指定）；allowNone={false}（公司页的月结台账）不列「不指定」。 */
+export const PeriodChip: FC<{ value: string; onChange: (period: string) => void; disabled?: boolean; allowNone?: boolean } & ChipLook> = ({
   value,
   onChange,
   disabled,
+  allowNone = true,
   look = "cc-chip-btn",
   side,
 }) => {
@@ -48,10 +49,14 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
               {monthLabel(month)}
             </Choice>
           ))}
-          <DropdownMenu.Separator className="cc-menu-sep" />
-          <Choice chosen={!value} onSelect={() => value && onChange("")}>
-            {co.noPeriod}
-          </Choice>
+          {allowNone && (
+            <>
+              <DropdownMenu.Separator className="cc-menu-sep" />
+              <Choice chosen={!value} onSelect={() => value && onChange("")}>
+                {co.noPeriod}
+              </Choice>
+            </>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

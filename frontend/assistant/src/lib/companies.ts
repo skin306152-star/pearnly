@@ -67,10 +67,11 @@ export type Detail = {
 };
 
 /** 待处理的一张单（补充乙，服务端 companies/pending.py 的 `_items`）：action choose = 推送停在「要人选一次」，带推送去向与
- *  要选的类别（列表不读账套主档）；可选项在页面展开那一行时取（loadChoices）。open = 交给 CC。 */
+ *  要选的类别（列表不读账套主档）；可选项在页面展开那一行时取（loadChoices）。open = 交给 CC。reason_code 是原有的粗分，
+ *  code 是统一异常清单的稳定码（companies/exceptions.py 的 CODES，与月结台账同一套）。 */
 export type PendingChoice = { connection: string; account_set_key: string; kinds: string[] };
 export type PendingItem = {
-  document: string; company: string | null; reason_code: string; reason_label: string;
+  document: string; company: string | null; reason_code: string; code?: string; reason_label: string;
   invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; action: "choose" | "open";
   choice?: PendingChoice | null;
 };

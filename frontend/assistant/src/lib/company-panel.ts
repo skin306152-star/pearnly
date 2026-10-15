@@ -1,6 +1,6 @@
 // 右侧会话栏（设计文档 3.13 / 4.4，只在 Cowork 挂了公司的对话里）的状态与数据：
 //
-//   卡片     默认顺序 公司 / 本月（第 1 期月结台账做好才出现）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 /
+//   卡片     默认顺序 公司 / 本月（第 1 期月结台账，这个月什么都没有时不显示）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 /
 //            申报草稿 / 输出文件；顺序、折叠、开关记在这台设备（键带用户，跨设备不同步）。拖动或 Alt+↑/↓ 调顺序时只在
 //            看得见的卡片之间挪（空卡不显示，也不占位）。
 //   开关     宽屏停靠时按记下的「开着」显示；窄屏浮在对话上、手机盖满屏时只在点了之后显示（overlay，换对话就收起），
@@ -40,7 +40,7 @@ export function orderCards(saved: readonly unknown[] | null | undefined): PanelC
 }
 
 /** 把一张卡片在看得见的卡片里挪 delta 格（Alt+↑ = -1、Alt+↓ = +1；拖动时 = 目标位置 - 原位置）；挪不动原样返回。
- *  shown：此刻看得见的卡片（空卡、本月卡不显示，不算位置）。 */
+ *  shown：此刻看得见的卡片（空卡不显示，不算位置）。 */
 export function moveCard(order: readonly PanelCard[], id: PanelCard, delta: number, shown: readonly string[] = order): PanelCard[] {
   const visible = order.filter((card) => shown.includes(card));
   const from = visible.indexOf(id);
