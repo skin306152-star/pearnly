@@ -55,6 +55,14 @@ export function optionsOf(view: Pick<ChoicesView, "options">, need: ChoiceNeeded
   return [...new Set([...ahead, ...rows])];
 }
 
+/** 打开时预填什么：已定的（current）、或服务端建议的第一项（在可选值里的）；都没有就空着，必须人选——
+ *  不拿列表第一项充数（2026-10-15 验收 F18：没有建议时预选了科目表第一项「11-01-01-00 เงินสด」，直接确认会记错科目）。 */
+export function initialChoice(view: Pick<ChoicesView, "options">, need: ChoiceNeeded): string {
+  const values = new Set(optionsOf(view, need).map((o) => o.value));
+  const first = [need.current ?? "", ...(need.suggested ?? []).map((s) => s.code)].find((code) => code && values.has(code));
+  return first ?? "";
+}
+
 /** 这张单展开后能不能当场选完（每一项都有可选值、没在等电脑读科目表）。 */
 export function choosableView(view: ChoicesView | null | undefined): boolean {
   return !!view && !view.wait && view.needed.length > 0 && view.needed.every((need) => optionsOf(view, need).length > 0);
@@ -239,7 +247,7 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
     try {
       const next = await loadChoices(item);
       setView(next);
-      setValues(Object.fromEntries(next.needed.map((need) => [choiceKey(need), optionsOf(next, need)[0]?.value ?? ""])));
+      setValues(Object.fromEntries(next.needed.map((need) => [choiceKey(need), initialChoice(next, need)])));
     } catch (e) {
       setError(shownError(e));
     }
@@ -294,13 +302,15 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
                 value={values[choiceKey(need)] ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, [choiceKey(need)]: e.target.value }))}
               >
+                {!values[choiceKey(need)] && <option value="" disabled>—</option>}
                 {optionsOf(view, need).map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </label>
           ))}
-          <button type="button" className="cc-btn self-end" data-primary="" disabled={busy} onClick={() => void confirm()}>
+          <button type="button" className="cc-btn self-end" data-primary=""
+            disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
             {busy && <LoaderIcon className="size-4 animate-spin" />}
             {co.confirm}
           </button>

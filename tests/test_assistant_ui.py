@@ -2730,5 +2730,37 @@ class CompanyPageLiveTests(unittest.TestCase):
         for hook in ("onConnectionChange", "visibilitychange", "\"focus\""):
             self.assertIn(hook, live)
 
+
+class PendingChoiceDefaultTests(unittest.TestCase):
+    """待处理「当场选」不拿列表第一项充数（验收 F18：没有建议时预选了科目表第一项「11-01-01-00 เงินสด」，直接确认会记错科目）。"""
+
+    def test_the_confirm_needs_every_choice_made(self):
+        page = read("components/pending.tsx")
+        self.assertNotIn("optionsOf(next, need)[0]", page)
+        self.assertIn("initialChoice(next, need)", page)
+        self.assertIn('<option value="" disabled>—</option>', page)
+        self.assertIn("view.needed.some((need) => !values[choiceKey(need)])", page)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_only_a_decided_or_suggested_value_is_filled_in(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { initialChoice } from "@/components/pending";
+
+const view = { options: { accounts: [
+  { code: "11-01-01-00", name: "เงินสด" }, { code: "53-05-02-00", name: "ค่าทำความสะอาด" }, { code: "53-05-28-00", name: "ค่าใช้จ่ายเบ็ดเตล็ด" },
+] } } as any;
+const need = (extra: any) => ({ kind: "account", subject: "S", ...extra }) as any;
+assert.equal(initialChoice(view, need({})), "");                                        // 没有建议：空着，必须人选
+assert.equal(initialChoice(view, need({ suggested: [{ code: "53-05-28-00" }] })), "53-05-28-00");
+assert.equal(initialChoice(view, need({ suggested: [{ code: "99-99-99-99" }] })), "");   // 建议不在可选值里：不填
+assert.equal(initialChoice(view, need({ current: "53-05-02-00", suggested: [{ code: "53-05-28-00" }] })), "53-05-02-00");
+const payment = { kind: "payment", subject: "S", options: [{ code: "cash" }, { code: "credit" }] } as any;
+assert.equal(initialChoice({ options: {} } as any, payment), "");                       // 付款方式同样不默认现购
+(globalThis as any).done();
+""", stubs={"socket.io-client": SOCKET_STUB,
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+
 if __name__ == "__main__":
     unittest.main()
