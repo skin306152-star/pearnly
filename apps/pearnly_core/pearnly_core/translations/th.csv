@@ -79,6 +79,9 @@ CC Desktop not connected,CC เดสก์ท็อปยังไม่เช�
 CC is not set up for this site yet.,ไซต์นี้ยังไม่ได้ตั้งค่า CC
 CC is only available on product sites.,CC ใช้ได้เฉพาะในไซต์ของผลิตภัณฑ์
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
+"Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาคลิกไอคอนทางซ้ายของแถบที่อยู่ เปลี่ยนกล้องเป็น อนุญาต แล้วลองอีกครั้ง
+Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.,การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต (หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง) กลับมาที่หน้านี้แล้วระบบจะลองใหม่เอง
+"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาแตะไอคอนทางซ้ายของแถบที่อยู่ → การอนุญาต → กล้อง → อนุญาต หากยังเปิดไม่ได้ ให้ไปที่ การตั้งค่า → แอปพลิเคชัน → เบราว์เซอร์ → การอนุญาต → กล้อง → อนุญาต กลับมาที่หน้านี้แล้วระบบจะลองใหม่เอง
 Cancel,ยกเลิก
 Cannot confirm while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถยืนยันได้
 Cannot match while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถจับคู่ได้
@@ -336,6 +339,8 @@ LINE User ID,LINE User ID
 LINE could not be reached; please try again,ไม่สามารถเชื่อมต่อ LINE ได้ กรุณาลองใหม่ภายหลัง
 LINE does not have permission to use the camera yet.,LINE ยังไม่ได้รับอนุญาตให้ใช้กล้อง
 LINE status,สถานะ LINE
+LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → LINE แล้วเปิด กล้อง กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
+LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง แล้วเลือก อนุญาต กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
 Language,ภาษา
 Last Code,รหัสผลลัพธ์ล่าสุด
 Last Login At,เข้าสู่ระบบล่าสุด
@@ -834,10 +839,14 @@ common.scan.allow_ios,เปิด การตั้งค่า → LINE เ�
 common.scan.allow_title,อนุญาตให้ LINE ใช้กล้อง
 common.scan.busy,กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปนั้นแล้วลองอีกครั้ง
 common.scan.decoder,โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง
-common.scan.denied,การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
+common.scan.denied,การเข้าถึงกล้องถูกปิดอยู่ กรุณาคลิกไอคอนทางซ้ายของแถบที่อยู่ เปลี่ยนกล้องเป็น อนุญาต แล้วลองอีกครั้ง
+common.scan.denied_android,การเข้าถึงกล้องถูกปิดอยู่ กรุณาแตะไอคอนทางซ้ายของแถบที่อยู่ → การอนุญาต → กล้อง → อนุญาต หากยังเปิดไม่ได้ ให้ไปที่ การตั้งค่า → แอปพลิเคชัน → เบราว์เซอร์ → การอนุญาต → กล้อง → อนุญาต กลับมาที่หน้านี้แล้วระบบจะลองใหม่เอง
+common.scan.denied_ios,การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต (หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง) กลับมาที่หน้านี้แล้วระบบจะลองใหม่เอง
 common.scan.failed,ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
 common.scan.in_app,เบราว์เซอร์ในแอปนี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
 common.scan.in_line,LINE ยังไม่ได้รับอนุญาตให้ใช้กล้อง
+common.scan.in_line_android,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง แล้วเลือก อนุญาต กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
+common.scan.in_line_ios,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → LINE แล้วเปิด กล้อง กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
 common.scan.missing,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
 common.scan.open_browser,เปิดในเบราว์เซอร์
 common.scan.retry,ลองอีกครั้ง

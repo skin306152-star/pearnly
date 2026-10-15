@@ -79,6 +79,9 @@ CC Desktop not connected,CC 桌面版未连接
 CC is not set up for this site yet.,本站点尚未设置 CC。
 CC is only available on product sites.,CC 仅在产品站点可用。
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
+"Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",相机权限被关闭了。请点地址栏左侧的图标，把相机改为「允许」，然后重试。
+Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.,相机权限被关闭了。请到 iPhone「设置 → Safari 浏览器 → 相机」选「允许」（也可以点地址栏里的网站设置 → 相机）。回到本页会自动重试。
+"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself.",相机权限被关闭了。请点地址栏左侧的图标 → 权限 → 相机 → 允许；还打不开的话，到手机「设置 → 应用程序 → 浏览器 → 权限 → 相机」选「允许」。回到本页会自动重试。
 Cancel,取消
 Cannot confirm while the status is {0},当前状态为 {0}，无法确认
 Cannot match while the status is {0},当前状态为 {0}，无法匹配
@@ -336,6 +339,8 @@ LINE User ID,LINE 用户 ID
 LINE could not be reached; please try again,无法连接 LINE，请稍后重试
 LINE does not have permission to use the camera yet.,LINE 还没有使用相机的权限。
 LINE status,LINE 状态
+LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,LINE 的相机权限被关闭了。请到 iPhone「设置 → LINE」打开「相机」，回到 LINE 会自动重试。
+LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE 的相机权限被关闭了。请到手机「设置 → 应用程序 → LINE → 权限 → 相机」选「允许」，回到 LINE 会自动重试。
 Language,语言
 Last Code,上次结果码
 Last Login At,最近登录
@@ -834,10 +839,14 @@ common.scan.allow_ios,打开 iPhone「设置 → LINE」，打开「相机」，
 common.scan.allow_title,允许 LINE 使用相机
 common.scan.busy,相机正被其他应用占用。请关闭该应用后重试。
 common.scan.decoder,扫码组件加载失败。请刷新页面后重试。
-common.scan.denied,相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
+common.scan.denied,相机权限被关闭了。请点地址栏左侧的图标，把相机改为「允许」，然后重试。
+common.scan.denied_android,相机权限被关闭了。请点地址栏左侧的图标 → 权限 → 相机 → 允许；还打不开的话，到手机「设置 → 应用程序 → 浏览器 → 权限 → 相机」选「允许」。回到本页会自动重试。
+common.scan.denied_ios,相机权限被关闭了。请到 iPhone「设置 → Safari 浏览器 → 相机」选「允许」（也可以点地址栏里的网站设置 → 相机）。回到本页会自动重试。
 common.scan.failed,相机无法启动。请重试，或手动输入编码。
 common.scan.in_app,应用内置的浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
 common.scan.in_line,LINE 还没有使用相机的权限。
+common.scan.in_line_android,LINE 的相机权限被关闭了。请到手机「设置 → 应用程序 → LINE → 权限 → 相机」选「允许」，回到 LINE 会自动重试。
+common.scan.in_line_ios,LINE 的相机权限被关闭了。请到 iPhone「设置 → LINE」打开「相机」，回到 LINE 会自动重试。
 common.scan.missing,此设备上没有找到相机。请手动输入编码。
 common.scan.open_browser,用浏览器打开
 common.scan.retry,重试

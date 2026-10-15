@@ -27,7 +27,7 @@ function fixture(options = {}) {
   function node(id = '') {
     return { id, value: '', files: [], disabled: false, textContent: '', innerHTML: '',
       style: {}, classList: {add() {}, remove() {}}, parentNode: null,
-      prepend(child) { child.parentNode = this; },
+      prepend(child) { child.parentNode = this; (this.children = this.children || []).unshift(child); },
       removeChild(child) { child.parentNode = null; },
       querySelector(selector) { return selector === 'video' ? video : element(selector); },
       querySelectorAll() { return []; },
@@ -48,7 +48,9 @@ function fixture(options = {}) {
     addEventListener: (name, handler) => { events[name] = handler; },
     BarcodeDetector: options.fallback ? undefined : Reader,
   };
-  const document = {getElementById: element, createElement: () => node(),
+  const docEvents = {};
+  const document = {getElementById: element, createElement: () => node(), visibilityState: 'visible',
+    addEventListener: (name, handler) => { docEvents[name] = handler; },
     head: {appendChild(script) {
       scripts.push(script.src);
       browser.BarcodeDetectionAPI = {BarcodeDetector: Reader, prepareZXingModule: async config => prepares.push(config)};
@@ -77,7 +79,7 @@ function fixture(options = {}) {
   const page = browser.testPage;
   page.state({csrf: 'synthetic-csrf', ticket: 'synthetic-ticket'});
   page.location = () => browser.location;
-  return {page, calls, scripts, prepares, timers, events, element, item, video,
+  return {page, calls, docEvents, scripts, prepares, timers, events, element, item, video,
     stopped: () => stopped, acquired: () => acquired, decoderCalls: () => decoderCalls,
     // 读码是一帧接一帧（setTimeout 链）：取出下一帧执行。
     async tick() { const [id, callback] = timers.entries().next().value || []; assert.ok(callback); timers.delete(id); await callback(); await flush(); },
@@ -137,7 +139,10 @@ function fixture(options = {}) {
   const named = name => Object.assign(new Error(name), {name});
   const refused = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   await refused.page.startCamera(() => {}); await flush();
-  assert.equal(refused.element('toast').textContent, 'common.scan.in_line', 'no LIFF configured: say why');
+  // 没配 LIFF、弹不出授权：第 ③ 步，按环境给设置路径（安卓 LINE），留在页面上；切回来自动重开。
+  assert.equal(refused.element('app').children[0].textContent, 'common.scan.in_line_android');
+  refused.docEvents.visibilitychange(); await flush();
+  assert.equal(refused.acquired(), 2, 'coming back from the phone settings reopens the camera');
   // LINE 普通内置浏览器不弹相机授权、LIFF 会弹：配了 LIFF 就把这一页换成 LIFF 打开（带标记，到了不再转）。
   const moved = fixture({acquire: () => Promise.reject(named('NotAllowedError'))});
   moved.page.setLiff('2000-abc');
@@ -148,7 +153,7 @@ function fixture(options = {}) {
   arrived.page.location().href = 'https://synthetic.invalid/stocktake?count=1&pearnly_liff=1';
   await arrived.page.startCamera(() => {}); await flush();
   assert.equal(arrived.page.location().href, 'https://synthetic.invalid/stocktake?count=1&pearnly_liff=1', 'never bounce twice');
-  assert.equal(arrived.element('toast').textContent, 'common.scan.in_line');
+  assert.equal(arrived.element('app').children[0].textContent, 'common.scan.in_line_android');
   const taken = fixture({acquire: () => Promise.reject(named('NotReadableError'))});
   await taken.page.startCamera(() => {}); await flush();
   assert.equal(taken.element('toast').textContent, 'common.scan.busy');

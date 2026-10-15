@@ -228,17 +228,23 @@
 					if (p.scan_failure(error) === "in_line" && p.scan_to_liff({ pearnly_scan: "1" })) return;
 					// 打不开就把黑框收起来，只留原因那一句（手动输入编码照常可用）。
 					d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
-					p.scan_hint(d.fields_dict.message.$wrapper, error);
+					p.scan_hint(d.fields_dict.message.$wrapper, error, restart_camera);
 				},
 				// App 内置浏览器里 5 秒还没开相机（请求被挂着）：LINE 里转 LIFF，别的给原因、继续等。
 				on_waiting: reason => {
 					if (reason === "in_line" && p.scan_to_liff({ pearnly_scan: "1" })) return;
-					p.scan_hint(d.fields_dict.message.$wrapper, reason);
+					p.scan_hint(d.fields_dict.message.$wrapper, reason, restart_camera);
 				},
 				on_started: () => d.fields_dict.message.$wrapper.empty(),
 			});
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());
+		}
+		// 去设置里开了权限再切回来：重开相机（`p.scan_hint` 只在需要去设置时调它）。
+		function restart_camera() {
+			if (closed) return;
+			scanner?.stop(); scanner = null;
+			void start_camera();
 		}
 		async function next() {
 			selected = null; lookup = null; row = null; entry = null;

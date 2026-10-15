@@ -177,5 +177,17 @@
 		window.location.href = `https://liff.line.me/${liff_id}${here.pathname}${here.search}`;
 		return true;
 	};
-	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, to_liff };
+	// 相机权限三步（用户 2026-10-15，标准做法）：① 有权限直接开；② 没有就请求，由浏览器 / 系统 / LINE 弹原生授权
+	// （LINE 普通内置浏览器弹不出，页面转 LIFF）；③ 弹不出来了（以前拒绝过、App 没有相机权限）才引导去设置，
+	// 人从设置切回来页面自动重开。③ 的文案按所在环境给路径：`text_key` 把原因换成术语表里的那一条。
+	const platform = () => /iPhone|iPad|iPod/i.test(agent()) ? "ios" : /Android/i.test(agent()) ? "android" : "desktop";
+	const SETTINGS = new Set(["denied", "in_line"]);
+	const text_key = reason => {
+		const where = platform();
+		if (reason === "in_line") return `in_line_${where === "ios" ? "ios" : "android"}`;
+		if (reason === "denied") return where === "desktop" ? "denied" : `denied_${where}`;
+		return reason;
+	};
+	window.PearnlyScan = { formats: WANTED, kind: kind_of, reason, reader, in_line, to_liff, text_key,
+		needs_settings: reason => SETTINGS.has(reason) };
 })();

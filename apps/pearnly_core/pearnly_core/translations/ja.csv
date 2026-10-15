@@ -79,6 +79,9 @@ CC Desktop not connected,CC デスクトップ未接続
 CC is not set up for this site yet.,このサイトではまだ CC が設定されていません。
 CC is only available on product sites.,CC は製品サイトでのみ利用できます。
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
+"Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
+Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.,カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選んでください（アドレスバーの Web サイト設定 → カメラ でも可）。戻ると自動で再試行します。
+"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself.",カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」。それでも開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
 Cancel,キャンセル
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
@@ -336,6 +339,8 @@ LINE User ID,LINEユーザーID
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
 LINE does not have permission to use the camera yet.,LINE にカメラの使用が許可されていません。
 LINE status,LINEステータス
+LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,LINE のカメラへのアクセスがオフになっています。iPhone の「設定 → LINE」で「カメラ」をオンにしてください。LINE に戻ると自動で再試行します。
+LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。
 Language,言語
 Last Code,前回のコード
 Last Login At,最終ログイン
@@ -834,10 +839,14 @@ common.scan.allow_ios,iPhone の「設定 → LINE」で「カメラ」をオン
 common.scan.allow_title,LINE にカメラを許可
 common.scan.busy,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
 common.scan.decoder,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
-common.scan.denied,カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
+common.scan.denied,カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
+common.scan.denied_android,カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」。それでも開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
+common.scan.denied_ios,カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選んでください（アドレスバーの Web サイト設定 → カメラ でも可）。戻ると自動で再試行します。
 common.scan.failed,カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 common.scan.in_app,アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 common.scan.in_line,LINE にカメラの使用が許可されていません。
+common.scan.in_line_android,LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。
+common.scan.in_line_ios,LINE のカメラへのアクセスがオフになっています。iPhone の「設定 → LINE」で「カメラ」をオンにしてください。LINE に戻ると自動で再試行します。
 common.scan.missing,このデバイスにカメラが見つかりません。コードを入力してください。
 common.scan.open_browser,ブラウザで開く
 common.scan.retry,再試行

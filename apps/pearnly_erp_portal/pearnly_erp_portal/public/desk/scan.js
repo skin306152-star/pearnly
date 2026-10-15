@@ -13,18 +13,23 @@ frappe.provide("frappe.pearnly");
 				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
 			{ fieldtype: "HTML", fieldname: "hint" },
 		] });
-		let scanner;
-		d.onhide = () => scanner?.stop();
+		let scanner, closed = false;
+		d.onhide = () => { closed = true; scanner?.stop(); };
 		d.show();
-		scanner = p.scan_reader({ host: d.fields_dict.reader.$wrapper, kind,
-			on_result: async (code, details) => { scanner.stop(); d.hide(); await on_result(code, details); },
-			// 打不开：画面收起，原因留在弹窗里（表单里的扫码不转 LIFF：转走会丢掉没保存的内容）。
-			on_error: error => { d.set_df_property("reader", "hidden", true); p.scan_hint(d.fields_dict.hint.$wrapper, error); },
-			on_waiting: reason => p.scan_hint(d.fields_dict.hint.$wrapper, reason),
-			on_started: () => d.fields_dict.hint.$wrapper.empty(),
-		});
-		await scanner.start();
-		d.set_df_property("torch", "hidden", !scanner.has_torch());
+		const open = async () => {
+			scanner = p.scan_reader({ host: d.fields_dict.reader.$wrapper, kind,
+				on_result: async (code, details) => { scanner.stop(); d.hide(); await on_result(code, details); },
+				// 打不开：画面收起，原因留在弹窗里；要去设置开权限的，切回来自动重开。
+				// 表单里的扫码不转 LIFF：转走会丢掉没保存的内容。
+				on_error: error => { d.set_df_property("reader", "hidden", true); p.scan_hint(d.fields_dict.hint.$wrapper, error, restart); },
+				on_waiting: reason => p.scan_hint(d.fields_dict.hint.$wrapper, reason, restart),
+				on_started: () => { d.set_df_property("reader", "hidden", false); d.fields_dict.hint.$wrapper.empty(); },
+			});
+			await scanner.start();
+			d.set_df_property("torch", "hidden", !scanner.has_torch());
+		};
+		const restart = () => { if (closed) return; scanner?.stop(); void open(); };
+		await open();
 	};
 
 	// ── 选择框里的扫码：「扫到匹配后自动带出」──────────────────────────────────

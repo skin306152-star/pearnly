@@ -79,6 +79,9 @@ CC Desktop not connected,CC Desktop not connected
 CC is not set up for this site yet.,CC is not set up for this site yet.
 CC is only available on product sites.,CC is only available on product sites.
 "Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.","Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
+"Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.","Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
+Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.,Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.
+"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself.","Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself."
 Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
@@ -335,6 +338,8 @@ LINE User ID,LINE User ID
 LINE could not be reached; please try again,LINE could not be reached; please try again
 LINE does not have permission to use the camera yet.,LINE does not have permission to use the camera yet.
 LINE status,LINE status
+LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.
+LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.
 Language,Language
 Last Code,Last Code
 Last Login At,Last Login At
@@ -832,10 +837,14 @@ common.scan.allow_ios,"Open the iPhone Settings → LINE, turn on Camera, then c
 common.scan.allow_title,Allow LINE to use the camera
 common.scan.busy,The camera is being used by another app. Close that app and try again.
 common.scan.decoder,The barcode reader could not load. Refresh the page and try again.
-common.scan.denied,"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
+common.scan.denied,"Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
+common.scan.denied_android,"Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow. If it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. Come back and it tries again by itself."
+common.scan.denied_ios,Camera access is turned off. Go to the iPhone Settings → Safari → Camera and choose Allow (or tap the page settings in the address bar → Camera). Come back and it tries again by itself.
 common.scan.failed,"The camera could not start. Try again, or enter the code."
 common.scan.in_app,"This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
 common.scan.in_line,LINE does not have permission to use the camera yet.
+common.scan.in_line_android,LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.
+common.scan.in_line_ios,LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.
 common.scan.missing,No camera was found on this device. Enter the code instead.
 common.scan.open_browser,Open in browser
 common.scan.retry,Try again

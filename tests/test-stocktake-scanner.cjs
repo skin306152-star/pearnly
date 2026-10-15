@@ -9,7 +9,7 @@ const source = ['apps/pearnly_core/pearnly_core/public/scan/reader.js',
   'apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/scan.js'].map(path => fs.readFileSync(path, 'utf8')).join('\n');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/106', supported } = {}) {
+function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/106', supported, capture } = {}) {
   const callbacks = new Map(), result = [], details = [], errors = [], constraints = [];
   // 反馈那一层看得见的东西：震动次数与放过的音（音效/震动都归"静音"这一位管）。
   const vibrations = [], sounds = [];
@@ -24,7 +24,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     static async getSupportedFormats() { if (supported) return supported(); return formats; }
     async detect() { return decode ? decode() : [{ rawValue: '  盘点 QR 001  ', format: 'qr_code' }]; }
   }
-  const requests = [];
+  const requests = [], messages = [];
   const schedule = callback => { callbacks.set(++id, callback); return id; };
   const cancel = key => callbacks.delete(key);
   const window = { BarcodeDetector: Detector, isSecureContext: true, setTimeout: schedule, clearTimeout: cancel,
@@ -37,14 +37,15 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
     __: text => text,
     frappe: { provide() {}, pearnly: p,
       utils: { play_sound: name => sounds.push(name) },
-      boot: { user: { mute_sounds: muted }, pearnly_liff_id: '2000-abc' } },
+      boot: { user: { mute_sounds: muted }, pearnly_liff_id: '2000-abc' },
+      ui: capture ? { Capture: capture } : undefined, msgprint: options => messages.push(options) },
     $, setTimeout: schedule, clearTimeout: cancel,
   });
   // `p.sounds_muted` 是共享层（`pearnly_core/public/desk/product.js`）给的：这份测试只加载
   // scan.js，所以按同一份契约补一个 —— 判据就是官方那一位 `frappe.boot.user.mute_sounds`。
   p.sounds_muted = () => Boolean(muted);
   const reader = p.scan_reader({ host: {}, on_result: (code, metadata) => {result.push(code);details.push(metadata);}, on_error: error => errors.push(error) });
-  return { p, reader, window, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
+  return { p, reader, window, messages, result, details, errors, constraints, video, vibrations, sounds, requests, stops: () => stops,
     async tick() { const next = callbacks.entries().next().value; assert.ok(next); callbacks.delete(next[0]); await next[1](); await flush(); } };
 }
 
@@ -109,7 +110,7 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   const blocked = fixture({ acquire: () => Promise.reject(named('NotAllowedError')) });
   await blocked.reader.start();
   assert.equal(blocked.p.scan_failure(blocked.errors[0]), 'denied');
-  assert.equal(blocked.p.scan_failure_text(blocked.errors[0]), 'common.scan.denied');
+  assert.equal(blocked.p.scan_failure_text(blocked.errors[0]), 'common.scan.denied_android', 'settings path for an Android browser');
   assert.equal(blocked.requests.length, 1, 'A refused permission is not retried');
   const line = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Line/14.1.0', acquire: () => Promise.reject(named('NotAllowedError')) });
   await line.reader.start();
@@ -160,6 +161,15 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(hanging.p.scan_to_liff({ pearnly_scan: '1' }), false, 'already in LIFF: never bounce twice');
   assert.equal(fixture().p.scan_to_liff(), false, 'outside LINE nothing moves');
   console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
+  // 电脑上「拍照」（框架上传器）打不开相机：同一套第 ③ 步提示，不再是笼统的一句。
+  class Capture {
+    render_stream() { return Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' })); }
+    show_for_desktop() { throw new Error('native message'); }
+  }
+  const photo = fixture({ ua: 'Mozilla/5.0 (Macintosh) Chrome/141', capture: Capture });
+  await new Capture().show_for_desktop(); await flush();
+  assert.equal(photo.messages[0].message, 'common.scan.denied', 'desktop photo capture gets the settings hint');
+  console.log('PASS desktop photo capture failures use the same settings hint');
   console.log('PASS two-frame decode, exact QR, pause/resume, torch, stream cleanup and late permission cancellation');
   console.log('PASS decoder format propagation, numeric QR and mixed-format stability');
   console.log('PASS read-time feedback is silent (flash + vibrate only), mute stops the vibration, result sound is submit/error');

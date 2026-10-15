@@ -137,12 +137,25 @@
 
         // 开相机与读码用共用读码器 `pearnly_core/public/scan/reader.js`（后台扫码同一份）；
         // 这里只放这一页的卡片界面与提示。提示按原因给，文案在 core 术语表 `common.scan.*`。
-        // 相机打不开：在 LINE 普通内置浏览器里转 LIFF 打开这一页（LINE 会弹原生相机授权）；别的情况说原因。
-        let liffId = '';
+        // 相机打不开（权限三步的后两步）：在 LINE 普通内置浏览器里转 LIFF 打开这一页（LINE 会弹原生相机授权）；
+        // 要去设置里开权限的，引导文字留在页面上，人从设置切回来自动重开；别的原因一句提示。
+        let liffId = '', guide = null, lastOnCode = null;
         function cameraFailed(reason) {
-          if (reason === 'in_line' && window.PearnlyScan.to_liff(liffId)) return;
-          say(t('common.scan.' + reason), true);
+          const scan = window.PearnlyScan;
+          if (reason === 'in_line' && scan.to_liff(liffId)) return;
+          const text = t('common.scan.' + scan.text_key(reason));
+          if (!scan.needs_settings(reason)) { say(text, true); return; }
+          hide(guide);
+          guide = document.createElement('div');
+          guide.className = 'card';
+          guide.textContent = text;
+          app.prepend(guide);
         }
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState !== 'visible' || !guide || !lastOnCode) return;
+          scanMode = true;
+          startCamera(lastOnCode);
+        });
         function stopCamera(resetMode) {
           cameraGeneration += 1;
           if (resetMode) scanMode = false;
@@ -154,6 +167,8 @@
         }
         async function startCamera(onCode) {
           stopCamera();
+          hide(guide); guide = null;
+          lastOnCode = onCode;
           const generation = cameraGeneration;
           const node = document.createElement('div');
           node.className = 'card';

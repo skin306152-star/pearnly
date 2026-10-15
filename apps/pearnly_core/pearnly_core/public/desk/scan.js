@@ -33,22 +33,41 @@ frappe.provide("frappe.pearnly");
 	};
 	// 相机打不开的原因（共用读码器分类），提示文案在 core 术语表 `common.scan.*`（LINE 盘点页同一份）。
 	p.scan_failure = error => scan().reason(error);
-	const FAILURE = {
+	// 第 ③ 步的文案按所在环境给设置路径（读码器 `text_key`：LINE 安卓 / LINE iPhone / 手机浏览器 / iPhone Safari / 电脑）。
+	const TEXT = {
 		unsupported: () => __("common.scan.unsupported"), in_app: () => __("common.scan.in_app"),
-		in_line: () => __("common.scan.in_line"),
-		denied: () => __("common.scan.denied"), busy: () => __("common.scan.busy"),
+		denied: () => __("common.scan.denied"), denied_android: () => __("common.scan.denied_android"),
+		denied_ios: () => __("common.scan.denied_ios"), in_line_android: () => __("common.scan.in_line_android"),
+		in_line_ios: () => __("common.scan.in_line_ios"), busy: () => __("common.scan.busy"),
 		missing: () => __("common.scan.missing"), decoder: () => __("common.scan.decoder"),
 		failed: () => __("common.scan.failed"),
 	};
-	p.scan_failure_text = error => (FAILURE[p.scan_failure(error)] || FAILURE.failed)();
+	const text_of = reason => (TEXT[scan().text_key(reason)] || TEXT.failed)();
+	p.scan_failure_text = error => text_of(p.scan_failure(error));
 	// 原因那一句放进 `$target`；`reason` 可以是错误对象，也可以是读码器 `on_waiting` 给的原因字符串。
-	p.scan_hint = ($target, reason) => {
+	// 要去设置里开权限的（③）：人从设置切回来（页面重新可见）就调 `retry` 自动重开，只等这一次。
+	p.scan_hint = ($target, reason, retry) => {
 		const key = typeof reason === "string" ? reason : p.scan_failure(reason);
-		$target.empty().append($("<p class='text-muted'>").text((FAILURE[key] || FAILURE.failed)()));
+		$target.empty().append($("<p class='text-muted'>").text(text_of(key)));
+		if (!retry || !scan().needs_settings(key)) return;
+		const back = () => {
+			if (document.visibilityState !== "visible") return;
+			document.removeEventListener("visibilitychange", back);
+			if ($target[0]?.isConnected) retry();
+		};
+		document.addEventListener("visibilitychange", back);
 	};
 	// 在 LINE 普通内置浏览器里打不开相机：转到 LIFF 打开同一页（LINE 会弹原生相机授权）。转了返回 true。
 	// 只给没有未保存内容的页面用（盘点）；表单里的扫码转走会丢掉没保存的内容，那里只给原因。
 	p.scan_to_liff = extra => scan().to_liff(frappe.boot.pearnly_liff_id, extra);
+	// 上传器里的「拍照」（框架 `frappe.ui.Capture`）：手机上它调手机自己的相机应用，授权由系统 / LINE 原生处理；
+	// 电脑上它在网页里开相机，失败只弹一句笼统的话 —— 换成同一套第 ③ 步提示。其余行为与官方一致。
+	if (frappe.ui?.Capture?.prototype?.show_for_desktop) {
+		frappe.ui.Capture.prototype.show_for_desktop = function () {
+			return this.render_stream().then(() => this.dialog.show())
+				.catch(error => frappe.msgprint({ message: p.scan_failure_text(error), indicator: "orange" }));
+		};
+	}
 	p.scan_reader = ({ host, kind = "all", on_result, on_error, on_waiting, on_started }) => {
 		const stage = () => $(host).find(".pearnly-scan-stage");
 		const reader = scan().reader({ video: $(host).find("video").get(0), kind, on_result, on_error, on_waiting, on_started,
