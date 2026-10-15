@@ -2672,5 +2672,51 @@ assert.equal(formatWhen(""), "");
 """)
 
 
+
+class ShownErrorTests(unittest.TestCase):
+    """页面报错只给用户看两种话（2026-10-15 验收 F7：公司页、定时任务页把「(1213, 'Deadlock found…')」原文显示成红色横幅）：
+    本站拒收（frappe.throw，已按用户语言翻译的 SiteError）照原文；别的失败只说通用的一句，原文进控制台。"""
+
+    ALLOWED = {"lib/frappe.ts", "lib/managed-agents/session-controller.ts"}  # 前者是唯一出口；后者的原文只进控制台与连接状态
+
+    def test_no_page_shows_a_raw_error_message(self):
+        found = []
+        for path in sorted(SRC.rglob("*.ts*")):
+            rel = path.relative_to(SRC).as_posix()
+            if rel in self.ALLOWED or ".test." in rel:
+                continue
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"instanceof Error \? \w+\.message", line):
+                    found.append(f"{rel}:{number}")
+        self.assertEqual(found, [])
+        self.assertIn('export function shownError', read("lib/frappe.ts"))
+
+    def test_the_generic_words_exist_in_every_page_language(self):
+        messages = block(read("i18n.ts"), "const MESSAGES = {")
+        for lang in ("en", "zh", "th"):
+            self.assertIn("somethingWrong", keys(block(messages, f"  {lang}: {{")), lang)
+
+    def test_pending_groups_without_a_company_are_titled_other(self):
+        # 待处理里归不上公司的那一组叫「其他」，同定时任务总览（F10）
+        self.assertIn('id ? (titles[id] ?? "") : co.other', read("components/pending.tsx"))
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_site_refusals_keep_their_words_and_other_failures_say_the_generic_line(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { SiteError, shownError } from "@/lib/frappe";
+
+const logged: unknown[] = [];
+console.debug = (...args: unknown[]) => void logged.push(args);
+assert.equal(shownError(new SiteError("ไม่มีสิทธิ์")), "ไม่มีสิทธิ์");
+assert.equal(shownError(new Error("(1213, 'Deadlock found when trying to get lock; try restarting transaction')")), "出了点问题，请重试。");
+assert.equal(shownError(new TypeError("Failed to fetch")), "出了点问题，请重试。");
+assert.equal(shownError("boom"), "出了点问题，请重试。");
+assert.equal(shownError(new SiteError("")), "出了点问题，请重试。");
+assert.equal(logged.length, 4);
+console.log("HARNESS OK");
+""", lang="zh")
+
 if __name__ == "__main__":
     unittest.main()

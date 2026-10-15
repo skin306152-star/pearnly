@@ -272,3 +272,42 @@ V1 推送前查科目建议时每次都请电脑读历史、每次都失败；�
 ### 未做
 
 - 已有公司组的情况生产未测，靠测试覆盖；未部署，部署后在生产主档页给一家没有对话的公司发第一句，看侧栏直接出现公司组、不经「最近」。
+
+## F7 页面把原始报错直接显示给用户
+
+测试窗口共享笔记 F7：测试机 CC 桌面版主档页（14:46–14:49）与 Mac Chrome 定时任务页（14:52）顶部红色横幅显示
+`(1213, 'Deadlock found when trying to get lock; try restarting transaction')` 原文（英文、带错误码）。对应 Error Log 14:48:06 两条
+`companies/api.py:31 detail → … → connections/service.py records`，即本记录第一节已修的只读锁。
+
+- 原因：`lib/frappe.ts` 已把本站拒收（`frappe.throw`，已按用户语言翻译）分成 `SiteError`，其它失败是带原文的普通 `Error`；但各页
+  （公司页、定时任务页、待处理、添加公司、公司列表、选公司菜单、附件上传状态）一律 `e instanceof Error ? e.message : String(e)` 显示原文。
+  死锁修好后，别的服务端异常也会这样露出。
+- 改动：`lib/frappe.ts: shownError`——`SiteError` 照原文，其它只说通用的一句 `somethingWrong`（新词条：Something went wrong. Try again. /
+  出了点问题，请重试。/ เกิดข้อผิดพลาด โปรดลองอีกครั้ง，照已有「Could not update. Try again.」的说法），原文 `console.debug`；上述各处都改用它。
+  CC 桌面版选文件夹的回报（`picked.message`）、待处理重推的 `reason` 是本来就给人看的说法，不动。
+- 测试：`tests/test_assistant_ui.py` `ShownErrorTests`：源码里除 `lib/frappe.ts` 与 `session-controller.ts` 外不得再有
+  `instanceof Error ? x.message`；三种语言都有新词条；中文页面下拒收原文照显、1213 / Failed to fetch / 非 Error 都显示通用句并记进控制台。
+
+## F8 「更换…」文件夹后另一台设备不刷新
+
+测试窗口共享笔记 F8：测试机 14:50:26 把นิภาฯ的文件夹换成同根下子文件夹「原件」（服务端已更新），Mac 主档页 40 秒以上仍显示旧路径；
+首次绑定时 1.5 秒内刷新。
+
+- 核对：`Cowork Company Folder` 只有 `company_folders.bind` 一个写入口，新绑定与更换都经 `companies.service.folder_bind`，都
+  `announce("upsert", part="folders")`；主档页收到同一家的 upsert 就重载 `detail`（不走缓存，`folder_label` 会带上新子文件夹）。
+- 判断（待证据确认）：更换后几台设备同时重载 `detail`，撞上本记录第一节的 1213（`detail → records`，同 F7 的栈），重载失败，页面留在旧数据。
+  已请测试窗口查 14:50:20–14:51:30 的 Error Log；若属实，随第一节修复一并解决，部署后重验。
+
+## F9 新建定时任务默认 include_existing=1（口径确认，不改）
+
+10-12 [CC 闭环](2026-10-12-cc-closed-loop.md) F1 定的口径：新任务到点处理文件夹里本任务还没处理过的全部文件，包括建任务前就在的；
+允许卡片与表单显示「文件夹计数」（现有 N 份）。默认值是设计如此；已请测试窗口核对表单选好文件夹后是否显示了这个数，没显示再按缺陷处理。
+
+## F10 待处理页没有归属的那组没有标题
+
+`components/pending.tsx`：全所待处理里归不上公司的那一组标题用 `co.other`（「其他」），同定时任务总览；只看一家时仍不显示组名。测试同 F7 一节。
+
+## V8 备注：重新配对后旧文件夹授权被清（口径确认，不改）
+
+测试机 13:40 重新配对（新的成员档案）后，14:45 打开选择框时 CC 桌面版按 `pick_folder` 的整理清掉了只属于旧成员的授权 `C:\PearnlyStress`。
+按现有设计是预期的：文件夹授权跟着连接成员走，断开即收回这台电脑原来的授权，文件夹权限只在电脑上改；被清的根上没有任务。

@@ -1,7 +1,7 @@
 // 本站白名单方法的调用（站点会话登录；写操作带 www/assistant 注入的 CSRF 令牌）。
 // 浏览器从不直接连模型厂商：引擎与密钥只在服务端。
 
-import { lang } from "@/i18n";
+import { lang, t } from "@/i18n";
 
 const BASE = "/api/method/pearnly_core.assistant.api.";
 
@@ -23,6 +23,14 @@ export function siteFetch(url: string, init: RequestInit = {}): Promise<Response
 
 /** 本站拒收时（frappe.throw）给的原文：已按用户语言翻译，可以直接给用户看。网络等别的失败是普通 Error。 */
 export class SiteError extends Error {}
+
+/** 页面上给用户看的报错：本站拒收（SiteError）照原文；别的失败（数据库冲突、网络断开、服务端原始异常，多是英文、带错误码）
+ *  只说通用的一句，原文写进控制台（2026-10-15 生产：公司页、定时任务页把「(1213, 'Deadlock found…')」显示成红色横幅）。 */
+export function shownError(error: unknown): string {
+  if (error instanceof SiteError && error.message) return error.message;
+  console.debug("[cc] request failed:", error);
+  return t("somethingWrong");
+}
 
 function serverMessage(body: unknown): string {
   const b = (body ?? {}) as { _server_messages?: string };

@@ -50,8 +50,9 @@ import {
 } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { shownError } from "@/lib/frappe";
 
-const report = (error: unknown) => setError(error instanceof Error ? error.message : String(error));
+const report = (error: unknown) => setError(shownError(error));
 
 /** 在某家公司（NO_FILING = 最近）开新对话：回到对话页、切到新对话；text 预填进输入框，send 才发出（交给 CC、草稿不发）。 */
 export function useStartIn() {

@@ -64,10 +64,10 @@ import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
 import { forgetProject, hintTitle, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
+import { shownError } from "@/lib/frappe";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
-const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的；lib/companies 的 setForPeriod）。 */
 export const setFor: (sets: readonly AccountSet[], period: string) => AccountSet | undefined = setForPeriod;
@@ -116,7 +116,7 @@ export const CompanyPage: FC = () => {
       setError("");
       dropCachedDetail(company);
     } catch (e) {
-      if (mine === asked.current) setError(errorText(e));
+      if (mine === asked.current) setError(shownError(e));
     }
   }, [company, period]);
 
@@ -234,7 +234,7 @@ const Header: FC<{ detail: Detail }> = ({ detail }) => {
       renameProjectLocally(c.id, next);
       dropCachedDetail(c.id);
     } catch (e) {
-      setError(errorText(e));
+      setError(shownError(e));
     }
   };
   const rename = () => {
@@ -253,7 +253,7 @@ const Header: FC<{ detail: Detail }> = ({ detail }) => {
       dropCachedDetail(c.id);
       setView("companies");
     } catch (e) {
-      setError(errorText(e));
+      setError(shownError(e));
     }
   };
   return (
@@ -429,7 +429,7 @@ const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Promise<v
       await work();
       await reload();
     } catch (e) {
-      setError(errorText(e));
+      setError(shownError(e));
     }
   };
   return (
@@ -538,7 +538,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       await bindFolder(company, picked.binding);
       await reload();
     } catch (e) {
-      setError(errorText(e));
+      setError(shownError(e));
     } finally {
       setBusy(false);
     }
@@ -549,7 +549,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       await unbindFolder(company, reader);
       await reload();
     } catch (e) {
-      setError(errorText(e));
+      setError(shownError(e));
     }
   };
   return (
@@ -731,7 +731,7 @@ const ChoicesSection: FC<{ company: string; choices: Choice[]; period: string; r
       await work();
       await reload();
     } catch (e) {
-      setError(errorText(e));
+      setError(shownError(e));
     }
   };
   return (

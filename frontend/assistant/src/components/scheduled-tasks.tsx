@@ -46,7 +46,7 @@ import {
   useTaskOverview,
 } from "@/lib/companies";
 import { knownReaders, useDesktopFeatures } from "@/lib/desktop";
-import { getMethod, postMethod } from "@/lib/frappe";
+import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { co, t } from "@/i18n";
@@ -319,7 +319,7 @@ export function ScheduledTasks() {
       setError("");
       void refreshTaskOverview();  // 任务建、删、改了：侧栏「定时任务 N」与分组跟着变
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
       // 自动刷新偶尔失败：已显示的列表留着，不闪成空的
       setRules((prev) => prev ?? []);
     }
@@ -801,7 +801,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
       });
       await onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
     } finally {
       setBusy(false);
     }
@@ -1141,7 +1141,7 @@ function MrerpConnect({ tr, connection, onClose }: { tr: Tr; connection: Connect
                 });
                 onClose();
               } catch (e) {
-                setError(e instanceof Error ? e.message : String(e));
+                setError(shownError(e));
               } finally {
                 setBusy(false);
               }

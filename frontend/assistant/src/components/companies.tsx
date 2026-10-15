@@ -11,6 +11,7 @@ import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import { branchShort, type CompanyRow, forgetAnyCompany, listCompanies } from "@/lib/companies";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
+import { shownError } from "@/lib/frappe";
 
 const PAGE = 50;
 
@@ -43,7 +44,7 @@ export const Companies: FC = () => {
     } catch (e) {
       if (mine !== asked.current) return;
       setRows((before) => before ?? []);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
     } finally {
       if (mine === asked.current) setLoading(false);
     }

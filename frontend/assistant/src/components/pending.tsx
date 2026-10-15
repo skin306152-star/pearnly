@@ -31,6 +31,7 @@ import {
 } from "@/lib/companies";
 import { useLiveRefresh } from "@/lib/live";
 import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
+import { shownError } from "@/lib/frappe";
 
 const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
@@ -119,7 +120,7 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
       setError("");
     } catch (e) {
       setItems((before) => before ?? []);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
     }
   }, [company]);
   useEffect(() => {
@@ -162,7 +163,7 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
         </div>
       ) : (
         groups.map(([id, rows]) => (
-          <PendingGroup key={id || "none"} company={id} title={company ? "" : (titles[id] ?? "")} items={rows} onDone={done} onChanged={changed} />
+          <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} />
         ))
       )}
     </div>
@@ -240,7 +241,7 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
       setView(next);
       setValues(Object.fromEntries(next.needed.map((need) => [choiceKey(need), optionsOf(next, need)[0]?.value ?? ""])));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
     }
   }, [item]);
   const toggle = () => {
@@ -261,7 +262,7 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
         onChanged();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
     } finally {
       setBusy(false);
     }

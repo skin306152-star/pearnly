@@ -13,6 +13,7 @@ import { type FC, useEffect, useRef, useState } from "react";
 import { co, t } from "@/i18n";
 import { create } from "zustand";
 import { branchShort, type Candidate, createCompany, listCandidates, refreshCatalogs, requestKey } from "@/lib/companies";
+import { shownError } from "@/lib/frappe";
 
 type AddState = { open: boolean; then: ((id: string) => void) | null; title: string };
 export const useAddCompany = create<AddState>(() => ({ open: false, then: null, title: "" }));
@@ -72,7 +73,7 @@ const Candidates: FC = () => {
     const mine = ++asked.current;
     void listCandidates(text.trim()).then(
       (found) => mine === asked.current && (setRows(found), setError("")),
-      (e: unknown) => mine === asked.current && (setRows((r) => r ?? []), setError(e instanceof Error ? e.message : String(e))),
+      (e: unknown) => mine === asked.current && (setRows((r) => r ?? []), setError(shownError(e))),
     );
   };
   useEffect(() => {
@@ -96,7 +97,7 @@ const Candidates: FC = () => {
       const made = await createCompany(row, key);
       finish(made.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(shownError(e));
     } finally {
       setBusy("");
     }

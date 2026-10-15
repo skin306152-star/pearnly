@@ -7,6 +7,7 @@
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
 import { uploadFile, type UploadedFile } from "./api";
 import { beginPending, clearPending } from "./pending-send";
+import { shownError } from "@/lib/frappe";
 
 export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
 
@@ -53,7 +54,7 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
         await new Promise((resolve) => setTimeout(resolve, 0));
         yield {
           ...base,
-          status: { type: "incomplete", reason: "error", message: err instanceof Error ? err.message : String(err) },
+          status: { type: "incomplete", reason: "error", message: shownError(err) },
         };
         return;
       } finally {
