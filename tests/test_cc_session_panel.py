@@ -91,7 +91,7 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn("<Master key={detail.company.id} detail={detail}", read("components/company-page.tsx"))
         self.assertIn('if (mode === "docked") return;', panel)
         # 拖着卡片按 Esc 只取消拖动，不关浮着的会话栏
-        self.assertIn("if (DRAGGING in document.documentElement.dataset) return;", panel)
+        self.assertIn("if (isCardDragging()) return;", panel)
 
     def test_new_words_exist_in_every_language(self):
         i18n = read("i18n.ts")
@@ -171,7 +171,12 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertNotIn(".cc-grid-card {", css.split("公司主档（ADR-020", 1)[0])
         # 标题栏改名时 Esc 只取消改名，浮着的会话栏（看 defaultPrevented）不跟着关
         rename = read("components/assistant-ui/thread-list.tsx")
-        self.assertIn('if (e.key === "Escape") {\n          e.preventDefault();\n          finish(false);', rename)
+        self.assertIn('if (e.key === "Escape" && !e.nativeEvent.isComposing) {\n          e.preventDefault();\n          finish(false);', rename)
+        # 公司页标题同一套（审查第 4 轮）：只结束一次、输入法回车 / Esc 不算、cc-inline-edit 样式
+        title = read("components/company-page.tsx").split("const TitleRename: FC", 1)[1].split("\n};", 1)[0]
+        for line in ("if (finished.current) return;", 'if (e.key === "Enter" && !isImeEnter(e)) {',
+                     'if (e.key === "Escape" && !e.nativeEvent.isComposing) {', 'className="cc-inline-edit cc-page-title-edit"'):
+            self.assertIn(line, title)
         self.assertIn("e.defaultPrevented", read("components/session-panel.tsx"))
         # 「名称」排序：剩下的页一次取完，出错停下
         companies = read("components/companies.tsx")
@@ -534,6 +539,26 @@ assert.equal(say.onDragOver({ active: { id: "notes" }, over: null } as any), und
 assert.equal(say.onDragCancel({ active: { id: "notes" } } as any), "Moving Notes was cancelled.");
 """)
 
+    def test_lifted_card_stays_in_the_column_not_the_visible_box(self):
+        # 审查第 4 轮：按会话栏看得见的框限制时，第 4 张卡（顶 279、高 300、会话栏高 400）往下移 20px 被拽到 91。
+        # 现在按整列卡片的版面位置限制：同样的卡往下 20 照样跟手（299），只在第一张的顶边与最后一张的底边之间
+        self.run_page(r"""
+import { clampToList } from "@/components/session-panel";
+import { moving } from "@/components/company-cards";
+const list = { top: 0, bottom: 1000 };
+const tall = { top: 279, height: 300 };
+assert.equal(279 + clampToList(20, tall, list), 299);
+assert.equal(clampToList(-500, tall, list), -279);          // 不过第一张的顶边
+assert.equal(clampToList(900, tall, list), 1000 - 579);      // 不过最后一张的底边
+assert.equal(clampToList(5, { top: 0, height: 1200 }, list), 0);  // 比整列还高（不会发生）：不动
+// 让位 / 放下的过渡：dnd-kit 放下那一帧的 0ms 不算（否则让过位的卡先跳开一格再滑回来）
+assert.equal(moving("transform 200ms ease"), true);
+assert.equal(moving("transform 0ms linear"), false);
+assert.equal(moving("transform 0s linear"), false);
+assert.equal(moving(undefined), false);
+assert.equal(moving(""), false);
+""")
+
     def test_company_page_month_is_shared_with_the_panel(self):
         self.run_page(r"""
 import { pagePeriod, setPagePeriod, usePagePeriod } from "@/lib/company-panel";
@@ -550,7 +575,8 @@ assert.equal(pagePeriod("", true, "2026-09"), "");   // 选了「不指定」
 class SortableSourceTests(unittest.TestCase):
     def test_the_panel_is_a_dnd_kit_sortable_list(self):
         panel = read("components/session-panel.tsx")
-        self.assertIn('import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";', panel)
+        self.assertIn('import { restrictToVerticalAxis } from "@dnd-kit/modifiers";', panel)
+        self.assertNotIn("restrictToParentElement", panel)   # 按看得见的框限制会把长卡拽走（审查第 4 轮）
         self.assertIn('import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";', panel)
         # 鼠标按住动 3px 才开始、手机长按 250ms（5px 内）、键盘（空格拿起、方向键、空格放下、Esc 取消）
         self.assertIn("const MOUSE_START = { distance: 3 };", panel)
@@ -560,14 +586,18 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),", panel)
         self.assertNotIn("PointerSensor", panel)   # 鼠标与触屏分开：触屏要长按，鼠标不用
         # 只能上下、不出会话栏；读屏播报三种语言
-        self.assertIn("const MODIFIERS = [restrictToVerticalAxis, restrictToParentElement];", panel)
+        self.assertIn("const modifiers = useMemo(() => [restrictToVerticalAxis, withinList(lifted)], []);", panel)
+        self.assertIn("modifiers={modifiers}", panel)
+        # 放下 / 取消有过渡：放手处 → 新位置（translate，动效变量）；Esc 取消拖动不关会话栏、不清侧栏多选
+        self.assertIn("l.el.dataset.landing = \"\";", panel)
+        self.assertIn("if (isCardDragging()) return;", panel)
         self.assertIn("screenReaderInstructions: { draggable: co.card.instructions }", panel)
         self.assertIn("<SortableContext items={items} strategy={verticalListSortingStrategy}>", panel)
         self.assertIn("const items = useMemo(() => order.filter((id) => id in titles), [order, titles]);", panel)
         self.assertIn("onDragEnd={onDragEnd}", panel)
         self.assertIn("if (next) setCardOrder(next);", panel)
         # 旧的自写指针拖动删掉了
-        for old in ("pointermove", "onPointerDown", "getBoundingClientRect", "dragging"):
+        for old in ("pointermove", "onPointerDown", "dragging"):
             self.assertNotIn(old, panel, old)
         cards = read("components/company-cards.tsx")
         self.assertNotIn("onPointerDown", cards)
@@ -575,7 +605,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("const sortable = useSortable({ id: props.id });", cards)
         self.assertIn("style={sortable ? { transform: CSS.Translate.toString(sortable.transform) } : undefined}", cards)
         self.assertIn("data-dragging={sortable?.isDragging || undefined}", cards)
-        self.assertIn('data-moving={sortable?.transition ? "" : undefined}', cards)
+        self.assertIn('data-moving={moving(sortable?.transition) ? "" : undefined}', cards)
         self.assertIn("ref={sortable.setActivatorNodeRef}", cards)
         self.assertIn("useLayoutEffect(() => register(props.id, props.title), [register, props.id, props.title]);", cards)
         package = read("../package.json")
@@ -593,6 +623,11 @@ class SortableSourceTests(unittest.TestCase):
         # 其余卡片让位的过渡用动效变量
         moving = css.split(".cc-panel-card[data-moving] {", 1)[1].split("}", 1)[0]
         self.assertIn("transform var(--cc-dur) var(--cc-ease)", moving)
+        landing = css.split(".cc-panel-card[data-landing] {", 1)[1].split("}", 1)[0]
+        self.assertIn("translate: 0 var(--cc-land-y);", landing)
+        self.assertNotIn("translate var(", landing)   # 摆回放手处时不过渡，去掉标记才过渡
+        base = css.split(".cc-panel-card {", 1)[1].split("}", 1)[0]
+        self.assertIn("translate var(--cc-dur) var(--cc-ease)", base)
         self.assertIn(":root[data-cc-card-drag] * { cursor: grabbing; }", css)
         self.assertIn(".cc-panel-grip { cursor: grab;", css)
         # 把手槽固定宽、平时把手透明，摘要一列右对齐
@@ -626,7 +661,8 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         chats = page.split("export const Conversations: FC", 1)[1]
         self.assertIn("{newestFirst(rows).map((row) => {", chats)
         self.assertIn('const meta = [monthShort(row.period ?? ""), branchShort(row.scope ?? "")].filter(Boolean).join(" · ");', chats)
-        self.assertIn('<span className="cc-chat-row-when">{relativeWhen(row.updated_at)}</span>', chats)
+        self.assertIn('<span className="cc-chat-row-when">{relativeWhen(row.updated_at, now)}</span>', chats)
+        self.assertIn("const now = useMinuteClock();", chats)
         self.assertIn('<span className="cc-row-title">{row.title || t("untitled")}</span>', chats)
         self.assertIn("onClick={() => void load(next)}", chats)
         # 手机：标题旁打开盖满屏的会话栏

@@ -49,7 +49,7 @@ class _Frappe(types.ModuleType):
         self.guidance = []
         self.local = types.SimpleNamespace(site="t1.example", lang="th")
         self.session = types.SimpleNamespace(user="a@example.com")
-        self.utils = types.SimpleNamespace(get_fullname=lambda user: "A")
+        self.utils = types.SimpleNamespace(get_fullname=lambda user: "A", get_system_timezone=lambda: "Asia/Bangkok")
         self.db = types.SimpleNamespace(rollback=lambda: None)
         self.store = {}
         outer = self
@@ -991,6 +991,9 @@ class RelayTests(unittest.TestCase):
             page = sessions.listing()
             self.assertEqual([s["id"] for s in page["sessions"][:2]], ["sesn_005", "sesn_040"])  # 加星标的全在第一页
             self.assertEqual(len(page["sessions"]), 2 + sessions.PAGE_SIZE)
+            # 审查第 4 轮：时间带时区（UTC），浏览器与站点时区不同时公司页的相对时间与先后照样对；精确到秒
+            self.assertEqual((page["sessions"][0]["created_at"], page["sessions"][0]["updated_at"]),
+                             ("2026-10-12T05:00:00Z", "2026-10-12T04:56:00Z"))  # sesn_005：建于 12:00、动于 11:56（曼谷）
             # 有没看过的提醒的对话标圆点：只查这一页的对话，一次查完
             self.assertEqual(asked[-1], ("a@example.com", [s["id"] for s in page["sessions"]]))
             self.assertEqual({s["id"] for s in page["sessions"] if s["unread"]}, {"sesn_040", "sesn_007"})
@@ -2644,7 +2647,8 @@ class DocumentPreviewTests(unittest.TestCase):
         sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name="row1"),
                                          _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"])
         with mock.patch.object(files, "sessions", sessions), \
-                mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)):
+                mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
+                mock.patch.object(files, "_kept", lambda fid=None, row=None: []):
             self.assertEqual(files.preview("s1", "file_ok"), {"type": "document", "blocks": [
                 {"type": "paragraph", "runs": [{"text": "สรุป"}], "style": "title", "align": "center"}]})
             for fid in ("file_bad", "file_empty", "file_big", "file_doc", "file_pdf", "file_lie"):
@@ -2661,9 +2665,11 @@ class DocumentPreviewTests(unittest.TestCase):
         files = self._files()
         root = tempfile.mkdtemp()
         good = _docx(_p("สรุป"), styles=_STYLES)
+        engine_lists = []
 
         class Api:
             def files(self, remote):
+                engine_lists.append(remote)
                 return [{"id": "file_P", "filename": "r.pdf", "downloadable": False, "kind": "upload", "size_bytes": 0,
                          "mime_type": "application/octet-stream", "created_at": "2026-10-16 09:00:00"},
                         {"id": "file_OUT", "filename": "GL.xlsx", "downloadable": True, "kind": "output", "size_bytes": 9,
@@ -2707,7 +2713,8 @@ class DocumentPreviewTests(unittest.TestCase):
                 self.assertNotIn("pages", listed[1])
                 files.listing("s1")
                 self.assertEqual(len(pdf_reads), 1)
-                # 下载 / 内联：PDF 用 pdf 回应（面板里的 iframe 不变成下载），图片内联，docx 是附件下载
+                # 审查第 4 轮：本站留存的附件下载 / 预览只读本地，不去引擎列文件（缩略图、预览不付引擎调用）
+                del engine_lists[:]
                 files.download("s1", "file_P", inline=True)
                 self.assertEqual((frappe.local.response.filename, frappe.local.response.filecontent, frappe.local.response.type),
                                  ("r.pdf", b"%PDF-1.7 three pages", "pdf"))
@@ -2718,6 +2725,16 @@ class DocumentPreviewTests(unittest.TestCase):
                 # Word 附件同样有结构化预览
                 self.assertEqual(files.preview("s1", "file_W")["type"], "document")
                 self.assertEqual(files.preview("s1", "file_P"), {"type": "none"})
+                self.assertEqual(engine_lists, [])
+                # 结果文件照常从引擎取
+                with mock.patch.object(Api, "read_file", lambda self, remote, fid: b"xlsx", create=True):
+                    files.download("s1", "file_OUT")
+                    self.assertEqual(frappe.local.response.filecontent, b"xlsx")
+                # 本站没留存的附件记一次「没有」（短期），列表不再每次扫目录
+                with mock.patch.object(files, "_kept", wraps=files._kept) as scans:
+                    self.assertEqual(files._upload_meta(row, "file_OLD"), {})
+                    self.assertEqual(files._upload_meta(row, "file_OLD"), {})
+                    self.assertEqual(scans.call_count, 1)
                 # 别的对话的附件、猜的编号都拿不到
                 for fid in ("file_X", "file_NOPE"):
                     with self.assertRaises(frappe.DoesNotExistError):

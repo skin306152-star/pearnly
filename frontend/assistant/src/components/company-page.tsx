@@ -14,9 +14,9 @@
 // 别处改了这家（pearnly.project upsert）重取，删了（delete）回到公司列表。文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
 import { useAui } from "@assistant-ui/react";
-import { ArrowUpIcon, Building2Icon, LoaderIcon, MoreHorizontalIcon, PanelRightIcon, PencilIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
+import { ArrowUpIcon, Building2Icon, LoaderIcon, MoreHorizontalIcon, PanelRightIcon, PencilIcon, PlusIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
 import { DropdownMenu } from "@/components/ui/menu";
-import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import { type FC, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -29,34 +29,33 @@ import {
   type Detail,
   dropCachedDetail,
   forgetAnyCompany,
-  loadDetail,
   monthShort,
   refreshCatalogs,
   renameCompany,
   useCompanyNav,
-  TASK_EVENTS,
 } from "@/lib/companies";
 import {
-  cachedPanelDetail,
   chatMark,
   chatState,
   forgetPanelDetail,
   newestFirst,
   relativeWhen,
-  rememberDetail,
   setPagePeriod,
   setPanelOverlay,
   unreadRuns,
+  useMinuteClock,
   usePageMonth,
+  usePanelDetail,
 } from "@/lib/company-panel";
-import { useLiveRefresh } from "@/lib/live";
 import { noteRun, runningSessions, useActivities } from "@/lib/managed-agents/activity";
 import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
 import type { RunStatus } from "@/lib/managed-agents/events";
-import { forgetProject, hintTitle, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
+import { forgetProject, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
+import { isImeEnter } from "@/lib/ime";
+import { ACCEPT } from "@/lib/managed-agents/attachments";
 
 // 卡片与各节的内容搬到了 company-cards.tsx（会话栏用）；原来从本文件导入的照样能用
 export {
@@ -81,45 +80,17 @@ export const CompanyPage: FC = () => {
   const { setView } = useView();
   // 本页的月份：输入框的月份胶囊与会话栏「月结」卡的月份胶囊同一个
   const period = usePageMonth();
-  const [detail, setDetail] = useState<Detail | null>(() => cachedPanelDetail(company, period));
-  const [error, setError] = useState("");
-  const asked = useRef(0);
-
-  const reload = useCallback(async () => {
-    if (!company) return;
-    const mine = ++asked.current;
-    try {
-      const next = await loadDetail(company, period);
-      if (mine !== asked.current) return;
-      hintTitle(next.company.id, next.company.title);
-      setDetail(next);
-      setError("");
-      dropCachedDetail(company);
-      rememberDetail(company, period, next);
-    } catch (e) {
-      if (mine === asked.current) setError(shownError(e));
-    }
-  }, [company, period]);
-
-  useEffect(() => {
-    setDetail(cachedPanelDetail(company, period));
-    setError("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [company]);
-  useEffect(() => void reload(), [reload]);
-  // 推来的主档变化之外，再按站点通用的做法核对：电脑同步文件夹、回到前台、窗口拿回焦点、实时通道重连时重取，另有 60 秒兜底
+  // 与会话栏共用同一份详情（lib/company-panel 的 usePanelDetail：只取一次、只一处跟着实时事件重取）。推来的主档变化之外，
+  // 再按站点通用的做法核对：电脑同步文件夹、回到前台、窗口拿回焦点、实时通道重连时重取，另有 60 秒兜底
   // （2026-10-15 验收 F8：另一台设备「更换…」文件夹后，这页错过了那次推送就一直停在旧路径）
-  useLiveRefresh(reload, { events: TASK_EVENTS });
+  const { detail, error, reload } = usePanelDetail(company, period);
+  // 别处删了这家：回到公司列表
   useEffect(
     () =>
       onProjectChange((change) => {
-        if (change.op === "upsert" && change.project.id === company) void reload();
-        if (change.op === "delete" && change.id === company) {
-          forgetPanelDetail(company);
-          setView("companies");
-        }
+        if (change.op === "delete" && change.id === company) setView("companies");
       }),
-    [company, reload, setView],
+    [company, setView],
   );
 
   if (!company) return null;
@@ -209,19 +180,7 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
     <div className="cc-page-head items-start">
       <div className="min-w-0 flex-1">
         {renaming ? (
-          <input
-            autoFocus
-            value={value}
-            aria-label={t("rename")}
-            onChange={(e) => setValue(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            onBlur={() => void save(value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void save(value);
-              if (e.key === "Escape") setRenaming(false);
-            }}
-            className="cc-input w-full text-lg"
-          />
+          <TitleRename value={value} onChange={setValue} onDone={(saveIt) => (saveIt ? void save(value) : setRenaming(false))} />
         ) : (
           <h1 className="cc-page-title">
             <button type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>{title}</button></h1>
@@ -260,38 +219,96 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
   );
 };
 
+/** 公司名就地改名（同对话标题的 ThreadListItemRename，Q 线）：与标题同字号字重、一行高、透明底、聚焦 1.5px 蓝描边；
+ *  回车保存（输入法选字的回车不算）、Esc 放弃（选字时的 Esc 只取消候选词），只结束一次（Esc 卸下输入框时的失焦不再存一遍）。 */
+const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone: (save: boolean) => void }> = ({ value, onChange, onDone }) => {
+  const finished = useRef(false);
+  const finish = (saveIt: boolean) => {
+    if (finished.current) return;
+    finished.current = true;
+    onDone(saveIt);
+  };
+  return (
+    <input
+      autoFocus
+      value={value}
+      aria-label={t("rename")}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !isImeEnter(e)) {
+          e.preventDefault();
+          finish(true);
+        }
+        if (e.key === "Escape" && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          finish(false);
+        }
+      }}
+      className="cc-inline-edit cc-page-title-edit"
+    />
+  );
+};
+
 // ---------------------------------------------------------------- 输入框
-/** 同新对话的输入框与下巴（设计文档 3.12）：下巴里公司固定（不可换），月份、分店胶囊；发出 = 在这家开对话并发出。 */
+/** 同新对话的输入框与下巴（设计文档 3.12）：下巴里公司固定（不可换），月份、分店胶囊；发出 = 在这家开对话并发出。
+ *  随内容长高（最高同新对话）；回车发送，输入法选字的回车不算（Safari 的 keyCode 229，lib/ime.ts）；「＋」选文件 = 在这家开
+ *  新对话，打了的字与选的文件放进那边的输入框（上传进度、出错、发出都在那边，同拖文件进输入框）。 */
 const CompanyComposer: FC<{ company: string; title: string; period: string; branches: Branch[] }> = ({ company, title, period, branches }) => {
   const start = useStartIn();
   const withPeriod = useProjects((s) => s.period);
   const withScope = useProjects((s) => s.scope);
   const [scope, setScope] = useState("");
   const [text, setText] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const filing = () => ({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" });
   const send = () => {
     const value = text.trim();
     if (!value) return;
     setText("");
-    start({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" }, value, true);
+    start(filing(), value, true);
   };
+  const attach = (files: FileList | null) => {
+    const picked = files ? Array.from(files) : [];
+    if (picker.current) picker.current.value = "";
+    if (!picked.length) return;
+    const value = text.trim();
+    setText("");
+    start(filing(), value, false, picked);
+  };
+  // 随内容长高：先收回再按内容量（上限由 max-h-72 管，超出在框里滚动）
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
   return (
     <div className="flex w-full flex-col" data-slot="cc-company-composer">
       <div className="cc-composer cc-composer-inline">
         <textarea
+          ref={box}
           rows={1}
           value={text}
           aria-label={t("placeholder")}
           placeholder={t("placeholder")}
+          enterKeyHint="send"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            if (e.key === "Enter" && !e.shiftKey && !isImeEnter(e)) {
               e.preventDefault();
               send();
             }
           }}
-          className="block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans outline-none"
+          className="block max-h-72 min-h-6 w-full resize-none overflow-y-auto bg-transparent font-sans outline-none"
         />
         <div className="aui-composer-action-wrapper relative flex items-center justify-between">
+          <button type="button" className="cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
+            <PlusIcon className="stroke-[1.5px]" />
+          </button>
+          <input ref={picker} type="file" multiple accept={ACCEPT} hidden onChange={(e) => attach(e.target.files)} />
           <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
             <button type="button" className="cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
               <ArrowUpIcon />
@@ -329,6 +346,7 @@ const RELOAD_MERGE_MS = 150;
  *  这家的对话有进出（新建、移入移出、侧栏挂上的条数变了）或公司有变化时重取第一页。 */
 export const Conversations: FC<{ company: string }> = ({ company }) => {
   const aui = useAui();
+  const now = useMinuteClock(); // 相对时间每分钟跟着走（「刚刚」不会一直停着）
   const { setView } = useView();
   const [rows, setRows] = useState<ListedSession[] | null>(null);
   const [runs, setRuns] = useState<Record<string, RunStatus>>({});
@@ -442,7 +460,7 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
               {meta && <span className="cc-row-meta">{meta}</span>}
             </span>
             {mark && <span className="cc-activity" data-activity={mark} role="img" aria-label={MARK_LABEL[mark]()} />}
-            <span className="cc-chat-row-when">{relativeWhen(row.updated_at)}</span>
+            <span className="cc-chat-row-when">{relativeWhen(row.updated_at, now)}</span>
           </button>
         );
       })}

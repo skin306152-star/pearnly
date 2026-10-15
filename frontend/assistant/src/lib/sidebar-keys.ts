@@ -11,7 +11,7 @@
 
 import { useCallback, useRef } from "react";
 import { create } from "zustand";
-import { OPEN_LAYERS } from "@/lib/layers";
+import { isCardDragging, OPEN_LAYERS } from "@/lib/layers";
 
 // ---------------------------------------------------------------- 多选
 export type Selection = { ids: string[]; anchor: string | null };
@@ -269,11 +269,11 @@ function attach(root: HTMLElement, companies: () => boolean): () => void {
     focus(list[nextIndex(event.key, at, list.length) ?? at]);
   };
 
-  // Esc：清空多选（菜单、弹窗开着时 Esc 只关它们）；弹窗、菜单开着时 ⌘ / Ctrl + 数字也不切换后面的对话
+  // Esc：清空多选（菜单、弹窗开着时 Esc 只关它们；拖着会话栏卡片时 Esc 只取消拖动）；弹窗、菜单开着时 ⌘ / Ctrl + 数字也不切换后面的对话
   const onWindowKey = (event: KeyboardEvent) => {
     const layered = () => !!document.querySelector(OPEN_LAYERS);
     if (event.key === "Escape") {
-      if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered()) {
+      if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered() && !isCardDragging()) {
         clearSelection();
         event.preventDefault();
       }

@@ -8,7 +8,8 @@
 //          公司页（page）：公司卡写公司信息与全部账套，「月结」卡带月份胶囊（公司页自己的月份），待处理列全部月份，
 //          知识库（空时「让 CC 起草」）与定时任务空的也显示，没有输出文件。
 //          卡头右侧一句状态；顺序、折叠记在这台设备（lib/company-panel.ts，对话与公司页同一份）。
-//   拖动   同 Claude：dnd-kit 排序列表，只能上下、不出会话栏；6 点把手 grab / grabbing，拿起的卡浮起（阴影、略透明、略放大）
+//   拖动   同 Claude：dnd-kit 排序列表，只能上下、不出卡片这一列（按整列内容算，不按会话栏看得见的那一截，长卡、
+//          滚动中照样跟手；拖到边上会话栏自己滚）；6 点把手 grab / grabbing，拿起的卡浮起（阴影、略透明、略放大）
 //          跟着指针走，其余卡片实时让位（变换过渡用动效变量），放下有过渡、放下时记顺序；键盘 空格拿起、方向键移动、空格放下、
 //          Esc 取消（三种语言读屏播报）；手机长按 250ms（5px 内）开始拖。
 //   数据   公司详情按「公司|月份」缓存，只在会话栏挂着（看得见）时跟着站点事件重取（lib/company-panel 的 usePanelDetail）。
@@ -20,17 +21,19 @@ import {
   closestCenter,
   DndContext,
   type DragEndEvent,
+  type DragStartEvent,
   KeyboardSensor,
+  type Modifier,
   MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useAuiState } from "@assistant-ui/react";
 import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, LoaderIcon, StoreIcon, XIcon } from "lucide-react";
-import { Fragment, type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type FC, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
 import {
@@ -53,6 +56,7 @@ import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "
 import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
+import { isCardDragging, setCardDragging } from "@/lib/layers";
 
 export type PanelMode = "docked" | "floating" | "phone";
 
@@ -90,8 +94,27 @@ export function dropOrder(order: readonly CardId[], items: readonly string[], ev
 // 拖动的手感（同 Claude 的会话栏）：鼠标按住动 3px 才开始（点一下照样是点），手机长按 250ms 且没挪出 5px 才开始（滑动照样滚动）
 const MOUSE_START = { distance: 3 };
 const TOUCH_START = { delay: 250, tolerance: 5 };
-const MODIFIERS = [restrictToVerticalAxis, restrictToParentElement];
-const DRAGGING = "ccCardDrag"; // 根节点上的标记：拖动期间整页光标是 grabbing
+
+/** 拿起的卡只在这一列卡片的上下边之间（第一张卡的顶边到最后一张的底边）。用版面位置（offsetTop，不含变换、不随滚动变），
+ *  不用会话栏看得见的框：会话栏本身是滚动容器，按它限制时超出可视区的长卡一拿起就被拽上去、再也拖不下来（审查第 4 轮）。 */
+export function clampToList(y: number, card: { top: number; height: number }, list: { top: number; bottom: number }): number {
+  const min = list.top - card.top;
+  const max = list.bottom - (card.top + card.height);
+  return Math.min(Math.max(y, min), Math.max(min, max));
+}
+
+function withinList(node: { current: HTMLElement | null }): Modifier {
+  return ({ transform }) => {
+    const el = node.current;
+    const column = el?.parentElement;
+    if (!el || !column) return transform;
+    const cards = [...column.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.dataset.card !== undefined);
+    if (!cards.length) return transform;
+    const top = Math.min(...cards.map((c) => c.offsetTop));
+    const bottom = Math.max(...cards.map((c) => c.offsetTop + c.offsetHeight));
+    return { ...transform, y: clampToList(transform.y, { top: el.offsetTop, height: el.offsetHeight }, { top, bottom }) };
+  };
+}
 
 /** 会话栏里可拖动排序的那一列卡片（对话与公司页同一套）：登记看得见的卡片、dnd-kit 排序列表、折叠与 Alt+↑/↓。
  *  不画外框（卡片直接是会话栏的子节点，「不出会话栏」按父节点算）。cards 里给 null 的卡不显示、也不占位。 */
@@ -133,9 +156,44 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
     () => ({ announcements: cardAnnouncements(items, titles), screenReaderInstructions: { draggable: co.card.instructions } }),
     [items, titles],
   );
-  useEffect(() => () => grabbing(false), []);
+  // 拿起的那张卡（把手所在的 [data-card]）：限制在卡片这一列里用
+  const lifted = useRef<HTMLElement | null>(null);
+  const modifiers = useMemo(() => [restrictToVerticalAxis, withinList(lifted)], []);
+  useEffect(() => () => setCardDragging(false), []);
+  // 放下 / 取消的过渡：dnd-kit 不带 DragOverlay 时放下是直接跳到位。记下放手那一刻卡的位置（中线，不受略放大影响），
+  // 换到新位置的那次提交里先用 translate 摆回放手处、再过渡到 0（globals.css 的 data-landing，动效变量）。
+  // 用 translate 而不是 transform：transform 归 dnd-kit 管。
+  const landing = useRef<{ el: HTMLElement; mid: number } | null>(null);
+  const [landed, setLanded] = useState(0);
+  const release = () => {
+    const el = lifted.current;
+    lifted.current = null;
+    setCardDragging(false);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    landing.current = { el, mid: r.top + r.height / 2 };
+    setLanded((n) => n + 1);
+  };
+  useLayoutEffect(() => {
+    const l = landing.current;
+    landing.current = null;
+    if (!l || !l.el.isConnected) return;
+    const r = l.el.getBoundingClientRect();
+    const dy = l.mid - (r.top + r.height / 2);
+    if (Math.abs(dy) < 1) return;
+    l.el.style.setProperty("--cc-land-y", `${dy}px`);
+    l.el.dataset.landing = "";
+    void l.el.offsetHeight; // 先在放手处排一次版，去掉标记后才有过渡
+    delete l.el.dataset.landing;
+  }, [landed]);
+  const onDragStart = (event: DragStartEvent) => {
+    const target = event.activatorEvent.target;
+    lifted.current = target instanceof Element ? target.closest<HTMLElement>("[data-card]") : null;
+    setCardDragging(true);
+  };
+  const onDragCancel = () => release();
   const onDragEnd = (event: DragEndEvent) => {
-    grabbing(false);
+    release();
     const next = dropOrder(usePanel.getState().order, itemsNow.current, event);
     if (next) setCardOrder(next);
   };
@@ -144,10 +202,10 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
-        modifiers={MODIFIERS}
+        modifiers={modifiers}
         accessibility={accessibility}
-        onDragStart={() => grabbing(true)}
-        onDragCancel={() => grabbing(false)}
+        onDragStart={onDragStart}
+        onDragCancel={onDragCancel}
         onDragEnd={onDragEnd}
       >
         <SortableContext items={items} strategy={verticalListSortingStrategy}>
@@ -160,11 +218,6 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
     </PanelControlContext.Provider>
   );
 };
-
-function grabbing(on: boolean) {
-  if (on) document.documentElement.dataset[DRAGGING] = "";
-  else delete document.documentElement.dataset[DRAGGING];
-}
 
 export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void; page?: boolean }> = ({ filing, mode, onClose, page = false }) => {
   const { project: company, period, scope } = filing;
@@ -188,7 +241,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
     const onKey = (e: KeyboardEvent) => {
       // 输入法选字时的 Esc 只是取消候选词；拖着卡片时的 Esc 只是取消拖动
       if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
-      if (DRAGGING in document.documentElement.dataset) return;
+      if (isCardDragging()) return;
       onClose();
     };
     document.addEventListener("keydown", onKey);

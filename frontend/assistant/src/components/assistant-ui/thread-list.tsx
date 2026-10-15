@@ -638,8 +638,8 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
           e.preventDefault();
           finish(true);
         }
-        // 只取消改名：标记已处理，浮着的会话栏（session-panel 的 Esc）不跟着关
-        if (e.key === "Escape") {
+        // 只取消改名：标记已处理，浮着的会话栏（session-panel 的 Esc）不跟着关；输入法选字时的 Esc 只取消候选词
+        if (e.key === "Escape" && !e.nativeEvent.isComposing) {
           e.preventDefault();
           finish(false);
         }

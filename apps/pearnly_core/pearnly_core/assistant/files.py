@@ -208,8 +208,10 @@ def listing(session_id) -> list[dict]:
 
 
 # 附件的大小与页数按文件编号记一份（引擎的文件编号全局唯一、内容不变）：列表每次打开对话、每轮跑完都要取，不每次读原件。
+# 本站没留存的附件（很早以前的）也记一次「没有」，不每次重扫目录；只记一小时，上传时正好撞上列表的那一下不会久留。
 META_CACHE = "pearnly_assistant:upload-meta:"
 META_TTL = 7 * 24 * 3600
+META_MISSING_TTL = 3600
 
 
 def _pdf_pages(content: bytes) -> int | None:
@@ -249,22 +251,27 @@ def _upload_meta(row, fid: str) -> dict:
                 return _remember_meta(fid, entry[len(fid) + 2:], read())
             except OSError:
                 return {}
+    try:
+        frappe.cache.set_value(META_CACHE + fid, {}, expires_in_sec=META_MISSING_TTL)
+    except Exception:
+        pass
     return {}
 
 
 def _stored(row, api, fid) -> tuple[dict, callable]:
-    """本对话里能打开的文件：(说明, 取内容)。先找引擎里可下载的结果（任一段）；找不到再找本站留存的那份
-    （用户上传的附件，以及工具放进对话的文件）——引擎不让下载用户上传的文件。两处都没有就当作不存在，
-    猜编号拿不到别的对话、别人的文件。"""
-    for remote in sessions.segments(row):
-        for f in api.files(remote):
-            if f["id"] == fid and f["downloadable"]:
-                return f, lambda remote=remote: api.read_file(remote, fid)
+    """本对话里能打开的文件：(说明, 取内容)。先找本站留存的那份（用户上传的附件，以及工具放进对话的文件；只读本地、
+    只认这个对话）；没有再去引擎里找可下载的结果（任一段，每段两次引擎接口调用）——引擎不让下载用户上传的文件，
+    附件卡片的缩略图、预览先走引擎会白白多付这几次调用（审查第 4 轮：一条消息几十张照片就是几十轮）。
+    两处都没有就当作不存在，猜编号拿不到别的对话、别人的文件。"""
     for entry, read, _origin in _kept(fid, row=row):
         if entry.startswith(fid + "--"):
             name = entry[len(fid) + 2:]
             mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
             return {"id": fid, "filename": name, "mime_type": mime, "size_bytes": None}, read
+    for remote in sessions.segments(row):
+        for f in api.files(remote):
+            if f["id"] == fid and f["downloadable"]:
+                return f, lambda remote=remote: api.read_file(remote, fid)
     frappe.throw(_("File not found"), frappe.DoesNotExistError)
 
 

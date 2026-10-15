@@ -12,10 +12,10 @@
 //
 // 本文件不画界面；样式在 globals.css。
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
 import { lang } from "@/i18n";
-import { type Detail, lastMonth, loadDetail, TASK_EVENTS } from "@/lib/companies";
+import { type Detail, dropCachedDetail, lastMonth, loadDetail, TASK_EVENTS } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import type { Activity } from "@/lib/managed-agents/activity";
@@ -186,7 +186,7 @@ export function usePageMonth(): string {
 const details = new Map<string, Detail>();
 export const detailKey = (company: string, period: string) => `${company}|${period}`;
 
-/** 别处（公司页）取到的详情也放进来：会话栏打开同一家、同一个月时先显示它。 */
+/** 别处取到的详情也放进来：会话栏打开同一家、同一个月时先显示它。 */
 export function rememberDetail(company: string, period: string, detail: Detail) {
   details.set(detailKey(company, period), detail);
 }
@@ -197,48 +197,71 @@ export function cachedPanelDetail(company: string, period: string): Detail | nul
 
 export function forgetPanelDetail(company: string) {
   for (const key of [...details.keys()]) if (key.startsWith(`${company}|`)) details.delete(key);
+  const gone = Object.keys(useDetails.getState()).filter((key) => key.startsWith(`${company}|`));
+  if (gone.length) useDetails.setState(Object.fromEntries(gone.map((key) => [key, { detail: null, error: "" }])));
 }
 
-/** 会话栏用的公司详情：先给缓存，后台再取；挂着期间跟着定时任务服务的站点事件、回到前台、重连重取（只在看得见时挂）。 */
-export function usePanelDetail(company: string, period: string) {
+// 同一家、同一个月的详情全页只取一份（审查第 4 轮：公司页与它的会话栏各取各的、各订各的实时刷新，打开、换月份、每次事件
+// 都是两次同样的请求）。挂着的各处共用一份结果；跟着站点事件 / 主档推送重取的只有先挂上的那一处（owner），其余只读；
+// 刚挂上时已有同一份在取就不再取。用户操作后的 reload 照常各自取（不拼到操作前发出的那次上，免得拿回旧数据）。
+type DetailState = { detail: Detail | null; error: string };
+const useDetails = create<Record<string, DetailState>>(() => ({}));
+const asked = new Map<string, number>();
+const inflight = new Map<string, Promise<void>>();
+const holders = new Map<string, symbol[]>();
+
+function fetchDetail(company: string, period: string): Promise<void> {
   const key = detailKey(company, period);
-  const [state, setState] = useState<{ key: string; detail: Detail | null; error: string }>(() => ({
-    key,
-    detail: details.get(key) ?? null,
-    error: "",
-  }));
-  const asked = useRef(0);
-  const reload = useCallback(async () => {
-    if (!company) return;
-    const mine = ++asked.current;
+  const mine = (asked.get(key) ?? 0) + 1;
+  asked.set(key, mine);
+  let run: Promise<void> | null = null;
+  run = (async () => {
     try {
       const next = await loadDetail(company, period);
-      if (mine !== asked.current) return;
+      if (asked.get(key) !== mine) return;
       details.set(key, next);
       hintTitle(next.company.id, next.company.title);
-      setState({ key, detail: next, error: "" });
+      dropCachedDetail(company); // 顶栏分店胶囊等用的另一份缓存，下次重取
+      useDetails.setState({ [key]: { detail: next, error: "" } });
     } catch (e) {
-      if (mine === asked.current) setState((before) => ({ key, detail: before.key === key ? before.detail : (details.get(key) ?? null), error: shownError(e) }));
+      if (asked.get(key) !== mine) return;
+      useDetails.setState((before) => ({ [key]: { detail: before[key]?.detail ?? details.get(key) ?? null, error: shownError(e) } }));
+    } finally {
+      if (inflight.get(key) === run) inflight.delete(key);
     }
-  }, [company, period, key]);
+  })();
+  inflight.set(key, run);
+  return run;
+}
+
+/** 公司详情（会话栏与公司页共用）：先给缓存，后台再取；挂着期间跟着定时任务服务的站点事件、回到前台、重连重取（只在看得见时挂）。 */
+export function usePanelDetail(company: string, period: string) {
+  const key = detailKey(company, period);
+  const state = useDetails((s) => s[key]);
+  const [me] = useState(() => Symbol("detail"));
+  const owner = () => holders.get(key)?.[0] === me;
+  const reload = useCallback(() => (company ? fetchDetail(company, period) : Promise.resolve()), [company, period]);
   useEffect(() => {
-    setState({ key, detail: details.get(key) ?? null, error: "" });
-    void reload();
-  }, [key, reload]);
-  useLiveRefresh(reload, { events: TASK_EVENTS });
+    if (!company) return;
+    holders.set(key, [...(holders.get(key) ?? []), me]);
+    if (!inflight.has(key)) void reload();
+    return () => {
+      const left = (holders.get(key) ?? []).filter((x) => x !== me);
+      if (left.length) holders.set(key, left);
+      else holders.delete(key);
+    };
+  }, [company, key, me, reload]);
+  useLiveRefresh(() => (owner() ? reload() : undefined), { events: TASK_EVENTS });
   useEffect(
     () =>
       onProjectChange((change) => {
-        if (change.op === "upsert" && change.project.id === company) void reload();
-        if (change.op === "delete" && change.id === company) {
-          forgetPanelDetail(company);
-          setState({ key, detail: null, error: "" });
-        }
+        if (change.op === "upsert" && change.project.id === company && owner()) void reload();
+        if (change.op === "delete" && change.id === company) forgetPanelDetail(company);
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [company, key, reload],
   );
-  const current = state.key === key;
-  return { detail: current ? state.detail : (details.get(key) ?? null), error: current ? state.error : "", reload };
+  return { detail: state ? state.detail : (details.get(key) ?? null), error: state?.error ?? "", reload };
 }
 
 // ---------------------------------------------------------------- 公司页的对话行
@@ -280,6 +303,16 @@ export function newestFirst<T extends { updated_at?: string | null }>(rows: read
     return Number.isNaN(at) ? -Infinity : at;
   };
   return [...rows].sort((a, b) => time(b) - time(a));
+}
+
+/** 此刻的时间，每分钟更新一次（相对时间跟着走）。 */
+export function useMinuteClock(): number {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
 }
 
 const RELATIVE_LOCALE: Record<string, string> = { th: "th-TH", zh: "zh-CN", en: "en-US" };

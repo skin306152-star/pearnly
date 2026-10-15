@@ -1232,7 +1232,7 @@
     box-shadow: var(--cc-shadow-focus-inset);
   }
   /* 就地改名（同 Claude Code 实测）：与旁边的文字同字号字重、一行高、透明底、无边框、圆角 3；聚焦只有 1.5px 蓝描边。
-     回车保存、Esc 放弃（thread-list.tsx 的 ThreadListItemRename）。标题栏里的（.cc-title-edit）13/19 字重 500，文字与对话名按钮对齐；
+     回车保存、Esc 放弃（thread-list.tsx 的 ThreadListItemRename；公司页标题同样，company-page.tsx 的 TitleRename）。标题栏里的（.cc-title-edit）13/19 字重 500，文字与对话名按钮对齐；
      侧栏行里的（.cc-row-edit）用行字号，文字与行标题对齐，描边落在行里面 */
   .cc-inline-edit {
     min-width: 0; height: var(--cc-row-lh); padding: 0 var(--cc-inline-edit-px); border: 0; border-radius: var(--cc-radius-inline-edit);
@@ -1244,6 +1244,11 @@
     font-size: var(--cc-title-font); line-height: var(--cc-title-lh); font-weight: 500;
   }
   .cc-row-edit { flex: 1; margin-inline: calc(var(--cc-row-pad) - var(--cc-inline-edit-px)) 0.25rem; }
+  /* 公司页标题（company-page.tsx）：标题字号字重，文字与标题对齐 */
+  .cc-page-title-edit {
+    display: block; width: calc(100% + 2 * var(--cc-inline-edit-px)); height: var(--cc-text-page-lh); margin-inline: calc(0px - var(--cc-inline-edit-px));
+    font-size: var(--cc-text-page); line-height: var(--cc-text-page-lh); font-weight: var(--cc-text-page-weight);
+  }
 
   /* 你发的消息里的附件（同 Claude）：靠右排，每个文件一张卡片——上面缩略图（图片 / 文件图标 + 类型），下面文件名一行、
      类型说明（PDF · N 页 / 大小）；点了在右侧面板预览。透明底 + 1px 内环、圆角 10（同会话栏卡片），悬停换悬停色 */
@@ -1465,16 +1470,22 @@
   .cc-panel-top { display: flex; flex-shrink: 0; align-items: center; gap: 0.5rem; min-height: var(--cc-control); padding-inline-start: 0.375rem; color: var(--cc-ink); font-weight: 500; }
   .cc-panel[data-mode="phone"] .cc-panel-top { min-height: var(--cc-tap); }
   /* 卡片：透明底 + 1px 内环（线色）、圆角 10、上下内边距 8；折叠后只剩卡头（42）。卡片之间只用会话栏的一个间距变量，卡片自己不加外边距。
-     拖动（dnd-kit）：拿起的卡浮起（弹层底、弹层阴影、略透明、略放大）跟着指针走；其余卡片让位时变换走动效变量（data-moving），
-     放下时同样过渡到新位置 */
+     拖动（dnd-kit）：拿起的卡浮起（弹层底、弹层阴影、略透明、略放大）跟着指针走；其余卡片让位时变换走动效变量（data-moving，
+     dnd-kit 放下那一帧的 0ms 不算）；放下 / 取消时拿起的卡从放手处过渡到新位置（data-landing 先用 translate 摆回放手处，
+     去掉后 translate 走动效变量回到 0；transform 归 dnd-kit） */
   .cc-panel-card {
     position: relative; display: flex; flex-direction: column; flex-shrink: 0; margin: 0; padding-block: var(--cc-panel-pad);
     border-radius: var(--cc-radius-panel); box-shadow: var(--cc-panel-ring);
-    transition: opacity var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease), scale var(--cc-dur-fast) var(--cc-ease);
+    transition: opacity var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease), scale var(--cc-dur-fast) var(--cc-ease),
+      translate var(--cc-dur) var(--cc-ease);
   }
   .cc-panel-card[data-moving] {
     transition: transform var(--cc-dur) var(--cc-ease), opacity var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease),
-      scale var(--cc-dur-fast) var(--cc-ease);
+      scale var(--cc-dur-fast) var(--cc-ease), translate var(--cc-dur) var(--cc-ease);
+  }
+  .cc-panel-card[data-landing] {
+    translate: 0 var(--cc-land-y);
+    transition: opacity var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease), scale var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-panel-card[data-dragging] {
     z-index: 1; background: var(--cc-bg-popover); box-shadow: var(--cc-panel-ring), var(--cc-shadow-pop);

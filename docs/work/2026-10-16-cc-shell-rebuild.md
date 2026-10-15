@@ -129,3 +129,16 @@
   - ⑥ 手机重开后侧栏各组都收着：折叠改成按用户记在本机的一份全局 store（`lib/managed-agents/sidebar-fold.ts`，键 `cc.sidebar.collapsed:<用户>`，首屏按这台设备上次登录的人读，没记过沿用设备上原来那份），电脑 / 手机同一套；默认展开的「前 5 家」只数有对话的公司，空公司组不再占位（之前空公司活动更近时把有对话的公司挤到第 6 家以后，一重开就全收着）。没在真机上复现，按代码路径修；要测试窗口在手机上重开 App 复验。
   - 测试：`test_cowork_assistant_tools.py`、`test_cowork_companies.py`（档案时刻、空月、没推过、同号合组）、`test_cc_month_ledger.py`（预填、同号一行、时分、截止日）、`test_assistant_ui.py`（handText、折叠按用户、空公司不占位）。没在浏览器里目测，测试机未点验。
   - 第 3 轮复审跟进（本地提交、未推送）：⑥ 公司先到、对话还没到（一条对话都还没归到公司、服务端也没说哪家还有）时照公司顺序展开前 5 家，不再全收着（`sidebar-groups.ts: companySections`）；① 对话里推送后等结果那条路（`outcomes`）的 `written` 也带单号（改用 `_entered`），与 `WRITTEN_NOTE` 一致；③ 单号、对方、金额、日期都没有的单，预填写文件名、不再静默丢掉（待处理条目与同号组每张带 `filename`，`cowork_list_documents` 的 search 也按文件名找）；② 按派单口径收紧：收到了单但一张没推的月份也不催回读、核对一段为空（有申报草稿时照旧催，已有回读发现照常报，收单 / 录账两段照常列这些单）。测试：`test_assistant_ui.py`、`test_cowork_assistant_tools.py`、`test_cc_month_ledger.py`、`test_cowork_companies.py`，两份契约 fixture 补 `filename`。⑥ 根因仍要真机重开 App 复验。
+- 10-16 验收反馈 P / Q 线与第 2 期合入（本地提交、未推送）：`5c2cf06e` 合入 `pearnly/customer-rules`（数字会计员第 2 期：公司规则）；`340eecb8` Q 线（消息里的附件卡片、点开在右侧面板预览含 PDF、就地改名同 Claude Code）；`98a47aad` P 线（公司页改成对话骨架、会话栏卡头摘要、dnd-kit 排序）。设计见设计文档 3.9、3.13、4.4、4.5。
+- 10-16 第 4 轮审查（只读审查，HEAD `98a47aad`，85 步闸门全过）跟进，本地提交、未推送：
+  - ① 拿起的卡不再按会话栏看得见的框限制（会话栏本身滚动，长卡一拿起被拽上去、拖不下来）：去掉 `restrictToParentElement`，改成按整列卡片的版面位置（offsetTop，不含变换、不随滚动）限制在第一张顶边与最后一张底边之间（`session-panel.tsx: clampToList / withinList`），自动滚动照常。
+  - ② 让位过渡只在 dnd-kit 给的过渡不是 0ms 时才加（`company-cards.tsx: moving`）：放下那一帧的 `transform 0ms linear` 不再套动效变量，让过位的卡不会先跳开一格再滑回。原来写的「放下有过渡」实际没有：补上放手处 → 新位置的过渡（记下放手时卡的中线，换位那次提交里用 `translate` 摆回放手处、去掉 `data-landing` 后走动效变量回到 0；`transform` 仍归 dnd-kit）。取消拖动同样有过渡。
+  - ③ 附件的下载 / 预览先取本站留存的那份（只认这个对话、只读本地），没有再去引擎找可下载的结果（`files.py: _stored`），缩略图、PDF 预览不再每张先付每段两次引擎接口调用；本站没留存的附件在列表补大小时记一次「没有」（1 小时），不每次重扫目录。缓存头没加（Frappe 的二进制回应不好单独设，另议）。
+  - ④ 公司页与它的会话栏共用一份公司详情（`company-panel.ts: usePanelDetail` 改成按「公司|月份」共享的一份）：先挂上的那一处跟着站点事件 / 主档推送重取，其余只读；刚挂上时已有同一份在取就不再取；用户操作后的 reload 照常单独取（不拼到操作前那次上）。公司页只留「删了回公司列表」的监听。
+  - ⑤ 公司页输入框：回车改用 `isImeEnter`（Safari 选字的 keyCode 229 不发送）；随内容长高（上限同新对话）；补「＋」：选文件 = 在这家开新对话，打了的字与文件放进那边的输入框（同拖文件进输入框，上传、出错、发出都在那边，不替用户发出；`useStartIn` 加 files）。
+  - ⑥ 公司名就地改名照对话标题的写法（`company-page.tsx: TitleRename`）：只结束一次、输入法回车 / Esc 不算、`cc-inline-edit` + 新的 `.cc-page-title-edit`（标题字号字重）。
+  - ⑦ 会话列表时间改成带时区的 UTC、精确到秒（`sessions.py: _when`，`created_at` / `updated_at` / `archived_at`；页面各处都用 `new Date` 解析，翻页游标不用它）；公司页对话的相对时间每分钟跟着走（`useMinuteClock`）。
+  - ⑧ 侧栏对话就地改名：输入法选字时的 Esc 只取消候选词，不取消改名。
+  - ⑨ 公司页「让 CC 起草」用公司页当前的月份（`usePageMonth`），不再固定上个月。
+  - ⑩ 拖卡片时的 Esc 不清侧栏多选：拖动标记改到 `lib/layers.ts`（`setCardDragging` / `isCardDragging`），会话栏和侧栏都认。
+  - 证据：`test_cc_session_panel.py`（新增 clampToList、moving 的行为测试与样式断言）、`test_assistant.py`（附件不碰引擎、没留存记一次、会话时间 UTC）、`test_assistant_ui.py`（输入框、共用详情、多选 Esc）；`SKIP_NPM_CI=1 gate.sh` 85 步全过（lock 未变）。没在浏览器里逐帧看拖动与放下过渡（内置浏览器面板隐藏时动画帧不走），留给测试窗口第 4 轮。

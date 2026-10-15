@@ -2085,7 +2085,17 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("co.draftText(d.kind, period ? monthLabel(period) : d.period), false);", read("components/company-cards.tsx"))
         page = read("components/company-page.tsx")
         # 主档页输入框是用户自己打的字：发出
-        self.assertIn("start({ project: company, period: withPeriod ? period : \"\", scope: withScope ? scope : \"\" }, value, true);", page)
+        self.assertIn('const filing = () => ({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" });', page)
+        self.assertIn("start(filing(), value, true);", page)
+        # 审查第 4 轮：Safari 选字的回车（keyCode 229）不发送；「＋」选的文件带进这家的新对话输入框（不替用户发出）
+        self.assertIn('if (e.key === "Enter" && !e.shiftKey && !isImeEnter(e)) {', page)
+        self.assertIn("start(filing(), value, false, picked);", page)
+        self.assertNotIn("!e.nativeEvent.isComposing) {\n              e.preventDefault();\n              send();", page)
+        projects = read("components/assistant-ui/projects.tsx")
+        self.assertIn("for (const file of files) void composer.addAttachment(file).catch(() => undefined);", projects)
+        self.assertIn("if (send && !files.length) composer.send();", projects)
+        # 让 CC 起草的月份 = 公司页的月份（同输入框、「月结」卡）
+        self.assertIn('start({ project: company, period: pageMonth, scope: "" }, co.draftNotesText, false)', read("components/company-cards.tsx"))
 
     def test_deep_links_for_companies_tasks_and_pending(self):
         nav = read("lib/nav.ts")
@@ -2699,7 +2709,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("const kept = keepRendered(selection, rowOrder(root));", keys)
         self.assertIn("const observer = new MutationObserver(onMutation);", keys)
         self.assertNotIn("new MutationObserver(sync)", keys)
-        self.assertIn("if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered()) {", keys)
+        # 拖着会话栏卡片时的 Esc 只取消拖动，不清多选（审查第 4 轮）
+        self.assertIn("if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered() && !isCardDragging()) {", keys)
         self.assertIn("|| event.altKey || event.shiftKey || layered()) return;", keys)
 
     def test_collapse_and_grouping_are_remembered_on_this_device(self):
@@ -3291,7 +3302,12 @@ class CompanyPageLiveTests(unittest.TestCase):
         # 验收 F8：另一台设备「更换…」文件夹后，这页错过那次推送（后台标签页、实时通道断过）就一直停在旧路径。
         # 同待处理、定时任务页：电脑同步文件夹、回到前台、拿回焦点、重连时重取，另有兜底定时
         page = read("components/company-page.tsx")
-        self.assertIn("useLiveRefresh(reload, { events: TASK_EVENTS })", page)
+        # 审查第 4 轮：公司页与它的会话栏共用一份详情（usePanelDetail），只有先挂上的那一处跟着事件重取
+        self.assertIn("const { detail, error, reload } = usePanelDetail(company, period);", page)
+        self.assertNotIn("loadDetail(", page)
+        panel = read("lib/company-panel.ts")
+        self.assertIn("useLiveRefresh(() => (owner() ? reload() : undefined), { events: TASK_EVENTS });", panel)
+        self.assertIn("if (!inflight.has(key)) void reload();", panel)
         self.assertIn('export const TASK_EVENTS = ["cowork_folder_changed"]', read("lib/companies.ts"))
         live = read("lib/live.ts")
         for hook in ("onConnectionChange", "visibilitychange", "\"focus\""):

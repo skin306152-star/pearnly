@@ -58,18 +58,20 @@ const report = (error: unknown) => setError(shownError(error));
 export function useStartIn() {
   const aui = useAui();
   const { setView } = useView();
-  return (filing: Partial<Filing>, text = "", send = false) => {
+  return (filing: Partial<Filing>, text = "", send = false, files: readonly File[] = []) => {
     setError("");
     setDraft(filing);
     setView("chat");
     void aui.threads().switchToNewThread();
-    if (!text) return;
-    // 新对话切过去后下一帧才是当前对话，再把文字放进输入框（同 window.tomo.ask）
+    if (!text && !files.length) return;
+    // 新对话切过去后下一帧才是当前对话，再把文字放进输入框（同 window.tomo.ask）；带着的文件同拖进输入框（lib/desktop.ts），
+    // 上传、进度、出错都由新对话的输入框显示，不替用户发出
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const composer = aui.thread().composer();
-        composer.setText(text);
-        if (send) composer.send();
+        if (text) composer.setText(text);
+        for (const file of files) void composer.addAttachment(file).catch(() => undefined);
+        if (send && !files.length) composer.send();
       }),
     );
   };

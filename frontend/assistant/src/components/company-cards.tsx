@@ -45,7 +45,6 @@ import {
   type Draft,
   forgetChoice,
   formatWhen,
-  lastMonth,
   monthLabel,
   type Note,
   promoteChoice,
@@ -57,6 +56,7 @@ import {
   useCompanyNav,
   usePendingCounts,
 } from "@/lib/companies";
+import { usePageMonth } from "@/lib/company-panel";
 import { knownReaders, openSettings, pickFolder, rememberReader, useDesktopFeatures } from "@/lib/desktop";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
@@ -137,6 +137,12 @@ const SortableCard: FC<CardProps & { control: PanelControl }> = ({ control, ...p
   return <CardFrame {...props} control={control} sortable={sortable} />;
 };
 
+/** 让位 / 放下要过渡：dnd-kit 给的过渡串不是「transform 0ms」才算。放下后那一帧它故意给 0ms（先把卡放到新位置的反向
+ *  位移上，下一帧再从那里过渡到 0，这才是放下的动画）；那一帧也套动效变量，没挪位置的卡就会先跳开一格再滑回来。 */
+export function moving(transition: string | undefined | null): boolean {
+  return !!transition && !/(^|\s)0m?s\b/.test(transition);
+}
+
 const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: ReturnType<typeof useSortable> | null }> = ({
   id,
   title,
@@ -172,7 +178,7 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
       data-card={id}
       data-slot={slot}
       data-dragging={sortable?.isDragging || undefined}
-      data-moving={sortable?.transition ? "" : undefined}
+      data-moving={moving(sortable?.transition) ? "" : undefined}
     >
       <div className="cc-panel-card-head">
         <button
@@ -283,9 +289,10 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
   const [editing, setEditing] = useState("");
   const [error, setError] = useState("");
   const start = useStartIn();
-  const withPeriod = useProjects((s) => s.period);
-  /** 让 CC 起草（只在公司页的空知识库里）：在这家开新对话，预填一句、不自动发送。 */
-  const draft = () => start({ project: company, period: withPeriod ? lastMonth() : "", scope: "" }, co.draftNotesText, false);
+  // 公司页此刻的月份（输入框、「月结」卡的月份胶囊同一个；服务端不收月份的产品是空）
+  const pageMonth = usePageMonth();
+  /** 让 CC 起草（只在公司页的空知识库里）：在这家开新对话（月份 = 公司页的月份），预填一句、不自动发送。 */
+  const draft = () => start({ project: company, period: pageMonth, scope: "" }, co.draftNotesText, false);
   const remove = async (id: string) => {
     setError("");
     try {
