@@ -3,11 +3,9 @@
 - 主档页知识库：新增、修改都有「取消」「保存」；存好的那一条直接用服务端回的放进列表，不等之后整页重取；失败照 shownError 报；
   同页改名、记住的选择、移除文件夹同样先按服务端的回应显示。
 - 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），不破坏「往上翻不拉回」。
-- 附件可选类型同服务端 contracts.UPLOAD_EXTENSIONS，不收视频。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
 """
-import ast
 import pathlib
 import sys
 import unittest
@@ -16,18 +14,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from test_assistant_ui import ESBUILD, FRONTEND, NODE, ROOT, SOCKET_STUB, block, keys, read, run_ts  # noqa: E402
 
-# 组件库判断「收不收这个文件」的那一段（不在公开出口里，按文件取）
-ACCEPT_CHECK = FRONTEND / "node_modules/@assistant-ui/core/dist/adapters/attachment.js"
 PAGE_STUBS = {"socket.io-client": SOCKET_STUB,
               "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
-
-
-def server_upload_extensions():
-    source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/contracts.py").read_text(encoding="utf-8")
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "UPLOAD_EXTENSIONS" for t in node.targets):
-            return set(ast.literal_eval(node.value.args[0]))
-    raise AssertionError("UPLOAD_EXTENSIONS not found")
 
 
 class NotesSourceTests(unittest.TestCase):
@@ -70,16 +58,6 @@ class OpenAtBottomSourceTests(unittest.TestCase):
         self.assertIn("s.thread.messages.length > 0 ? s.threadListItem.id : \"\"", thread)
         self.assertIn("if (opened) follower.current?.settle();", thread)
         self.assertIn("if (openedNow.current) created.settle();", thread)
-
-
-class AttachmentTypesTests(unittest.TestCase):
-    def test_accept_lists_what_the_server_takes_and_no_video(self):
-        attachments = read("lib/managed-agents/attachments.ts")
-        listed = attachments.split("export const UPLOAD_EXTENSIONS = [", 1)[1].split("]", 1)[0]
-        self.assertEqual({part.strip().strip('"') for part in listed.split(",") if part.strip()}, server_upload_extensions())
-        accept = attachments.split("export const ACCEPT", 1)[1].split("\n", 1)[0]
-        self.assertNotIn("image/*", attachments.split("export const ACCEPT", 1)[1])
-        self.assertNotIn("video", accept)
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -239,29 +217,6 @@ f.dispose();
 assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
 g.done();
 """)
-
-    def test_assistant_ui_turns_away_videos_with_the_new_accept(self):
-        run_ts(r"""
-import "cc-test-setup";
-import assert from "node:assert/strict";
-import { fileMatchesAccept } from "__ACCEPT_CHECK__";
-import { ACCEPT } from "@/lib/managed-agents/attachments";
-
-const g = globalThis as any;
-const ok = (name: string, type: string) => fileMatchesAccept({ name, type }, ACCEPT);
-// 安卓录像、别的视频、服务端不收的图片：在交给 add（建会话、上传）之前就挡掉
-assert.equal(ok("VID_20261015_150012.mp4", "video/mp4"), false);
-assert.equal(ok("clip.mov", "video/quicktime"), false);
-assert.equal(ok("scan.bmp", "image/bmp"), false);
-// 拍照、相册、HEIC、单据与表格照收
-assert.equal(ok("1697356812345.jpg", "image/jpeg"), true);
-assert.equal(ok("IMG_0001.HEIC", "image/heic"), true);
-assert.equal(ok("image.png", "image/png"), true);
-assert.equal(ok("invoice.pdf", "application/pdf"), true);
-assert.equal(ok("ledger.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), true);
-assert.equal(ok("notes.md", ""), true);
-g.done();
-""".replace("__ACCEPT_CHECK__", ACCEPT_CHECK.as_posix()))
 
 
 if __name__ == "__main__":

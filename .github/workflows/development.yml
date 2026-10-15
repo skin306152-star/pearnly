@@ -130,6 +130,8 @@ jobs:
         run: python3 tests/test_assistant_ui.py
       - name: Verify the CC working line stays until the turn really ends, says when the connection is lost, and scrolling and IME Enter behave
         run: python3 tests/test_cc_run_indicator.py
+      - name: Verify CC phone content interactions (notes Save/Cancel, open long chats at the newest message)
+        run: python3 tests/test_cc_mobile_content.py
       - name: Keep CC colors, radii and shadows in globals.css only (ccs, official Claude style variables)
         run: python3 scripts/check-frontend-tokens.py
       - name: Verify the ccs values match the official table and cards in the conversation follow the card rules
