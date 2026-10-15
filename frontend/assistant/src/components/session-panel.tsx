@@ -1,18 +1,36 @@
-// 右侧会话栏（设计文档 3.13 / 4.4；只在 Cowork 挂了公司的对话里，ERP / DMS 与没挂公司的对话没有它，ADR-020）。
+// 右侧会话栏（设计文档 3.13 / 4.4；Cowork 挂了公司的对话与公司页里，ERP / DMS 与没挂公司的对话没有它，ADR-020）。
 //
-//   版式   宽 280；卡片纵向、间距 10（components/company-cards.tsx 的 PanelCard）。宽屏与对话并排停靠；对话区放不下
-//          「对话最窄 + 会话栏」时浮在对话上方（Esc、× 关）；手机盖满屏，从对话页胶囊菜单里的公司名打开，返回键关。
-//          与文件预览共用右侧一个位置：打开文件时换成预览，关了预览回到会话栏（assistant.tsx 的 Layout）。
-//   卡片   默认顺序 公司 / 本月（月结台账，components/month-ledger.tsx）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 / 申报草稿 / 输出文件；没内容的不显示；
-//          「待处理」只列对话月份以外的单（对话那个月的在「本月」卡的异常清单里，开发窗口 10-16 定）。
-//          顺序、折叠记在这台设备（lib/company-panel.ts），卡头 6 点把手拖动或 Alt+↑/↓ 调顺序。
+//   版式   宽 280；卡片纵向、间距统一一个变量（--cc-panel-gap）。宽屏与页面并排停靠；放不下「对话最窄 + 会话栏」时浮在页面
+//          上方（Esc、× 关）；手机盖满屏（对话页从胶囊菜单里的公司名、公司页从标题旁的按钮打开），返回键关。
+//          对话里与文件预览共用右侧一个位置：打开文件时换成预览，关了预览回到会话栏（assistant.tsx 的 Layout）。
+//   卡片   默认顺序 公司 / 本月（月结台账，components/month-ledger.tsx）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 /
+//          申报草稿 / 输出文件；没内容的不显示。对话里「待处理」只列对话月份以外的（对话那个月的在「本月」卡，开发窗口 10-16 定）。
+//          公司页（page）：公司卡写公司信息与全部账套，「月结」卡带月份胶囊（公司页自己的月份），待处理列全部月份，
+//          知识库（空时「让 CC 起草」）与定时任务空的也显示，没有输出文件。
+//          卡头右侧一句状态；顺序、折叠记在这台设备（lib/company-panel.ts，对话与公司页同一份）。
+//   拖动   同 Claude：dnd-kit 排序列表，只能上下、不出会话栏；6 点把手 grab / grabbing，拿起的卡浮起（阴影、略透明、略放大）
+//          跟着指针走，其余卡片实时让位（变换过渡用动效变量），放下有过渡、放下时记顺序；键盘 空格拿起、方向键移动、空格放下、
+//          Esc 取消（三种语言读屏播报）；手机长按 250ms（5px 内）开始拖。
 //   数据   公司详情按「公司|月份」缓存，只在会话栏挂着（看得见）时跟着站点事件重取（lib/company-panel 的 usePanelDetail）。
 //
 // 样式只用 globals.css 的 .cc-panel* 与变量。
 
+import {
+  type Announcements,
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useAuiState } from "@assistant-ui/react";
 import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, LoaderIcon, StoreIcon, XIcon } from "lucide-react";
-import { Fragment, type FC, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
 import {
@@ -24,14 +42,15 @@ import {
   PanelControlContext,
   type PanelControl,
   PendingCard,
+  SetsList,
   TasksSection,
 } from "@/components/company-cards";
-import { MonthCard } from "@/components/month-ledger";
+import { MonthCard, MonthSection } from "@/components/month-ledger";
 import { branchName } from "@/components/period-chip";
 import { FileTypeIcon, useResults } from "@/components/results-panel";
 import { co, t } from "@/i18n";
 import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "@/lib/companies";
-import { moveCard, type PanelCard as CardId, setCardOrder, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
+import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
 
@@ -46,54 +65,112 @@ export function useFiledCompany(): Filing {
   return kind ? filing : NO_FILING;
 }
 
-export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void }> = ({ filing, mode, onClose }) => {
-  const { project: company, period, scope } = filing;
-  const { detail, error, reload } = usePanelDetail(company, period);
+/** 卡片拖动的读屏播报（三种语言；位置只数看得见的卡片）。 */
+export function cardAnnouncements(items: readonly string[], titles: Readonly<Record<string, string>>): Announcements {
+  const name = (id: string | number) => titles[String(id)] || String(id);
+  const at = (id: string | number | undefined) => (id === undefined ? 0 : items.indexOf(String(id)) + 1);
+  return {
+    onDragStart: ({ active }) => co.card.pickedUp(name(active.id)),
+    onDragOver: ({ active, over }) => (over ? co.card.movedTo(name(active.id), at(over.id), items.length) : undefined),
+    onDragEnd: ({ active, over }) => (over ? co.card.droppedAt(name(active.id), at(over.id), items.length) : undefined),
+    onDragCancel: ({ active }) => co.card.cancelled(name(active.id)),
+  };
+}
+
+/** 放下：在看得见的卡片里挪到落点的位置，记下整份顺序；没动、落在外面不改。 */
+export function dropOrder(order: readonly CardId[], items: readonly string[], event: Pick<DragEndEvent, "active" | "over">): CardId[] | null {
+  const { active, over } = event;
+  if (!over || active.id === over.id) return null;
+  const from = items.indexOf(String(active.id));
+  const to = items.indexOf(String(over.id));
+  if (from < 0 || to < 0) return null;
+  return moveCard(order, String(active.id) as CardId, to - from, items);
+}
+
+// 拖动的手感（同 Claude 的会话栏）：鼠标按住动 3px 才开始（点一下照样是点），手机长按 250ms 且没挪出 5px 才开始（滑动照样滚动）
+const MOUSE_START = { distance: 3 };
+const TOUCH_START = { delay: 250, tolerance: 5 };
+const MODIFIERS = [restrictToVerticalAxis, restrictToParentElement];
+const DRAGGING = "ccCardDrag"; // 根节点上的标记：拖动期间整页光标是 grabbing
+
+/** 会话栏里可拖动排序的那一列卡片（对话与公司页同一套）：登记看得见的卡片、dnd-kit 排序列表、折叠与 Alt+↑/↓。
+ *  不画外框（卡片直接是会话栏的子节点，「不出会话栏」按父节点算）。cards 里给 null 的卡不显示、也不占位。 */
+export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scope: string }> = ({ cards, scope }) => {
   const order = usePanel((s) => s.order);
   const collapsed = usePanel((s) => s.collapsed);
+
+  // 看得见的卡片（各卡挂上时登记、卸下时注销；空卡不渲染就不登记）：排序列表与 Alt+↑/↓ 只在它们之间挪
+  const [titles, setTitles] = useState<Record<string, string>>({});
+  const register = useCallback((id: string, title: string) => {
+    setTitles((before) => (before[id] === title ? before : { ...before, [id]: title }));
+    return () =>
+      setTitles((before) => {
+        if (!(id in before)) return before;
+        const { [id]: _gone, ...rest } = before;
+        return rest;
+      });
+  }, []);
+  const items = useMemo(() => order.filter((id) => id in titles), [order, titles]);
+  const itemsNow = useRef(items);
+  itemsNow.current = items;
+
+  const control = useMemo<PanelControl>(
+    () => ({
+      collapsed,
+      toggle: (id) => toggleCard(id as CardId),
+      move: (id, delta) => setCardOrder(moveCard(usePanel.getState().order, id as CardId, delta, itemsNow.current)),
+      register,
+    }),
+    [collapsed, register],
+  );
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: MOUSE_START }),
+    useSensor(TouchSensor, { activationConstraint: TOUCH_START }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const accessibility = useMemo(
+    () => ({ announcements: cardAnnouncements(items, titles), screenReaderInstructions: { draggable: co.card.instructions } }),
+    [items, titles],
+  );
+  useEffect(() => () => grabbing(false), []);
+  const onDragEnd = (event: DragEndEvent) => {
+    grabbing(false);
+    const next = dropOrder(usePanel.getState().order, itemsNow.current, event);
+    if (next) setCardOrder(next);
+  };
+  return (
+    <PanelControlContext.Provider value={control}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={MODIFIERS}
+        accessibility={accessibility}
+        onDragStart={() => grabbing(true)}
+        onDragCancel={() => grabbing(false)}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext items={items} strategy={verticalListSortingStrategy}>
+          {/* 键带公司：换到另一家时各卡重新挂上，新增 / 编辑框等不跟到另一家（同一家换对话时照常保留） */}
+          {order.map((id) => (
+            <Fragment key={`${scope}:${id}`}>{cards[id] ?? null}</Fragment>
+          ))}
+        </SortableContext>
+      </DndContext>
+    </PanelControlContext.Provider>
+  );
+};
+
+function grabbing(on: boolean) {
+  if (on) document.documentElement.dataset[DRAGGING] = "";
+  else delete document.documentElement.dataset[DRAGGING];
+}
+
+export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void; page?: boolean }> = ({ filing, mode, onClose, page = false }) => {
+  const { project: company, period, scope } = filing;
+  const { detail, error, reload } = usePanelDetail(company, period);
   const focus = usePanel((s) => s.focus);
   const box = useRef<HTMLElement>(null);
-  const [dragging, setDragging] = useState<string | null>(null);
-
-  // 看得见的卡片（空卡、本月卡不渲染）：调顺序只在它们之间挪
-  const shownCards = () => [...(box.current?.querySelectorAll<HTMLElement>("[data-card]") ?? [])].map((el) => el.dataset.card ?? "");
-
-  const control = useMemo<PanelControl>(() => {
-    const drag = (id: string, e: ReactPointerEvent<HTMLElement>) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      setDragging(id);
-      // 挂在窗口上：卡片换位置时 React 会挪动把手所在的节点，捕获在节点上会丢
-      const onMove = (ev: PointerEvent) => {
-        const cards = [...(box.current?.querySelectorAll<HTMLElement>("[data-card]") ?? [])];
-        const ids = cards.map((el) => el.dataset.card ?? "");
-        const from = ids.indexOf(id);
-        // 目标位置 = 中线在指针上方的其他卡片有几张
-        const to = cards.filter((el) => {
-          if (el.dataset.card === id) return false;
-          const rect = el.getBoundingClientRect();
-          return rect.top + rect.height / 2 < ev.clientY;
-        }).length;
-        if (from >= 0 && to !== from) setCardOrder(moveCard(usePanel.getState().order, id as CardId, to - from, ids));
-      };
-      const onUp = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        window.removeEventListener("pointercancel", onUp);
-        setDragging(null);
-      };
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-      window.addEventListener("pointercancel", onUp);
-    };
-    return {
-      collapsed,
-      dragging,
-      toggle: (id) => toggleCard(id as CardId),
-      move: (id, delta) => setCardOrder(moveCard(usePanel.getState().order, id as CardId, delta, shownCards())),
-      drag,
-    };
-  }, [collapsed, dragging]);
 
   // 点了「公司名 ›」等：滚到那张卡（同一次只滚一回，之后的重取不再抢位置）
   const scrolled = useRef(0);
@@ -109,8 +186,9 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   useEffect(() => {
     if (mode === "docked") return;
     const onKey = (e: KeyboardEvent) => {
-      // 输入法选字时的 Esc 只是取消候选词
+      // 输入法选字时的 Esc 只是取消候选词；拖着卡片时的 Esc 只是取消拖动
       if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
+      if (DRAGGING in document.documentElement.dataset) return;
       onClose();
     };
     document.addEventListener("keydown", onKey);
@@ -118,42 +196,59 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   }, [mode, onClose]);
 
   const branches = detail ? branchesOf(detail) : [];
-  const cards: Record<CardId, ReactNode> = {
-    company: detail ? <CompanyCard detail={detail} period={period} scope={scope} /> : null,
-    month: <MonthCard company={company} period={period} />,
-    pending: <PendingCard company={company} period={period} />,
-    notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
-    folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
-    tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,
-    choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
-    drafts: detail?.drafts ? (
-      <DraftsSection company={company} drafts={detail.drafts} branches={branches.length > 1 ? branches : []} combined={!!detail.company.combined_vat} />
-    ) : null,
-    outputs: <OutputsCard />,
-  };
+  const multi = branches.length > 1 ? branches : [];
+  const cards: Record<CardId, ReactNode> = page
+    ? {
+        company: detail ? <CompanyPageCard detail={detail} period={period} /> : null,
+        month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,
+        pending: <PendingCard company={company} />,
+        notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} keepEmpty /> : null,
+        folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} /> : null,
+        tasks: detail ? <TasksSection company={company} detail={detail} period={period} keepEmpty /> : null,
+        choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
+        drafts: detail?.drafts ? (
+          <DraftsSection company={company} drafts={detail.drafts} branches={multi} combined={!!detail.company.combined_vat} />
+        ) : null,
+        outputs: null,
+      }
+    : {
+        company: detail ? <CompanyCard detail={detail} period={period} scope={scope} /> : null,
+        month: <MonthCard company={company} period={period} />,
+        pending: <PendingCard company={company} period={period} />,
+        notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
+        folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
+        tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,
+        choices: detail ? <ChoicesSection company={company} choices={detail.choices} period={period} reload={reload} /> : null,
+        drafts: detail?.drafts ? (
+          <DraftsSection company={company} drafts={detail.drafts} branches={multi} combined={!!detail.company.combined_vat} />
+        ) : null,
+        outputs: <OutputsCard />,
+      };
   return (
-    <PanelControlContext.Provider value={control}>
-      <aside ref={box} className="cc-panel" data-mode={mode} data-slot="cc-session-panel" aria-label={detail?.company.title || co.company}>
-        {mode !== "docked" && (
-          <div className="cc-panel-top">
-            <span className="min-w-0 flex-1 truncate">{detail?.company.title ?? ""}</span>
-            <button type="button" className="cc-icon-btn" aria-label={t("close")} title={t("close")} onClick={onClose}>
-              <XIcon />
-            </button>
-          </div>
-        )}
-        {!detail && !error && (
-          <div className="flex justify-center py-4 text-ink-3">
-            <LoaderIcon className="size-4 animate-spin" />
-          </div>
-        )}
-        {error && <p role="alert" className="px-2 text-danger text-sm">{error}</p>}
-        {/* 键带公司：对话换到另一家时各卡重新挂上，新增 / 编辑框等不跟到另一家（同一家换对话时照常保留） */}
-        {order.map((id) => (
-          <Fragment key={`${company}:${id}`}>{cards[id]}</Fragment>
-        ))}
-      </aside>
-    </PanelControlContext.Provider>
+    <aside
+      ref={box}
+      className="cc-panel"
+      data-mode={mode}
+      data-page={page || undefined}
+      data-slot="cc-session-panel"
+      aria-label={detail?.company.title || co.company}
+    >
+      {mode !== "docked" && (
+        <div className="cc-panel-top">
+          <span className="min-w-0 flex-1 truncate">{detail?.company.title ?? ""}</span>
+          <button type="button" className="cc-icon-btn" aria-label={t("close")} title={t("close")} onClick={onClose}>
+            <XIcon />
+          </button>
+        </div>
+      )}
+      {!detail && !error && (
+        <div className="flex justify-center py-4 text-ink-3">
+          <LoaderIcon className="size-4 animate-spin" />
+        </div>
+      )}
+      {error && <p role="alert" className="px-2 text-danger text-sm">{error}</p>}
+      <SortableCards cards={cards} scope={company} />
+    </aside>
   );
 };
 
@@ -176,7 +271,7 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
   const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
   const line = companyLine(c);
   return (
-    <PanelCard id="company" title={co.company} slot="cc-panel-company">
+    <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
       <button type="button" className="cc-panel-row" data-strong="" title={co.openCompany} onClick={() => openCompany(c.id)}>
         <Building2Icon />
         <span className="min-w-0 flex-1 truncate">{c.title}</span>
@@ -206,13 +301,40 @@ const CompanyCard: FC<{ detail: Detail; period: string; scope: string }> = ({ de
   );
 };
 
+/** 公司页的公司卡（名称已是页面标题）：法定名（与名称不同才写）、税号 · 分店、合并申报，下面是全部账套（多分店按分店分组，覆盖公司页这个月的高亮）。 */
+const CompanyPageCard: FC<{ detail: Detail; period: string }> = ({ detail, period }) => {
+  const c = detail.company;
+  const branches = branchesOf(detail);
+  const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
+  const line = companyLine(c);
+  const sets = detail.account_sets;
+  if (!legal && !line && !c.combined_vat && !sets.length) return null;
+  return (
+    <PanelCard id="company" title={co.company} summary={sets.length ? co.card.sets(sets.length) : undefined} slot="cc-panel-company">
+      {legal && <div className="cc-panel-row text-ink" title={legal}><span className="truncate">{legal}</span></div>}
+      {line && <div className="cc-panel-row" title={line}><span className="truncate">{line}</span></div>}
+      {!!c.combined_vat && (
+        <div className="cc-panel-row">
+          <span className="cc-chip">{co.combinedVat}</span>
+        </div>
+      )}
+      {sets.length > 0 && (
+        <>
+          <InfoRow icon={<BookOpenIcon />} label={co.accountSets} value="" />
+          <SetsList sets={sets} branches={branches.length > 1 ? branches : []} period={period} />
+        </>
+      )}
+    </PanelCard>
+  );
+};
+
 // ---------------------------------------------------------------- 输出文件
 /** 本对话产出的文件：点一行在右侧预览（换成文件预览，关了回到会话栏）。 */
 const OutputsCard: FC = () => {
   const { files, openFile } = useResults();
   if (!files.length) return null;
   return (
-    <PanelCard id="outputs" title={t("files")} summary={files.length} slot="cc-panel-outputs">
+    <PanelCard id="outputs" title={t("files")} summary={co.card.files(files.length)} slot="cc-panel-outputs">
       {files.map((file) => (
         <button key={file.id} type="button" className="cc-panel-row" title={file.filename} onClick={() => openFile(file.id)}>
           <FileTypeIcon filename={file.filename} />

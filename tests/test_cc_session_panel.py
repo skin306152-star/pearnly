@@ -4,7 +4,9 @@
   右上 26 的「文件 N」（有文件才有）与会话栏开关（aria-pressed）。
 - 右侧会话栏：只在 Cowork 挂了公司的对话里；与文件预览共用一个停靠位；宽屏并排、窄屏浮层（Esc、返回键）、手机全屏；
   卡片顺序 / 折叠 / 开关记在本机（键带用户）；拖动与 Alt+↑/↓ 只在看得见的卡片间挪；详情按「公司|月份」缓存。
-- 公司页：概览 + 「对话 / 资料 / 定时任务」三个标签，对话按 进行中 / 等你处理 / 已完成 只用真实信号分组。
+- 公司页（10-16 改）：版式同对话页——中间标题 + 输入框（同对话的输入框与下巴）+ 这家的对话列表（行同侧栏行、相对时间、
+  最新在前），公司的资料全在右侧会话栏（默认开着），没有标签。
+- 卡头摘要一直显示（「2 条」「需处理 2」），把手的槽固定留宽、摘要一列对齐；拖动用 dnd-kit 排序列表（键盘、触屏长按、读屏播报）。
 - 列表页（公司、待处理、定时任务）：标题、搜索、排序（公司）。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
@@ -60,7 +62,10 @@ class TitleBarSourceTests(unittest.TestCase):
         # 一个停靠位：预览开着时不显示会话栏；只在挂了公司的对话（ERP / DMS 的 kind 为空，useFiledCompany 回空）
         # 挂不挂看对话有没有服务端编号，不看消息条数（换对话时线程加载期间消息为 0，会话栏不卸下再挂上）
         self.assertIn("const saved = useAuiState((s) => !!s.threadListItem.remoteId);", layout)
-        self.assertIn("const hasPanel = view === \"chat\" && saved && !!filing.project;", layout)
+        self.assertIn("const hasPanel = (view === \"chat\" && saved && !!filing.project) || companyPage;", layout)
+        # 公司页也有会话栏（公司的资料全在这里），月份是公司页自己的
+        self.assertIn('const companyPage = view === "company" && !!kind && !!pageCompany;', layout)
+        self.assertIn('<SessionPanel page filing={{ project: pageCompany, period: pagePeriod, scope: "" }} mode={mode} onClose={closePanel} />', layout)
         self.assertNotIn("hasMessages", layout)
         # 窄屏：画第一帧前就量好放不放得下
         dock = app.split("function useDockFits(", 1)[1].split("\nfunction ", 1)[0]
@@ -69,9 +74,9 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn("}, [el]);", dock)
         self.assertIn("const [area, setArea] = useState<HTMLDivElement | null>(null);", layout)
         self.assertIn('<div ref={setArea} className="relative flex min-h-0 flex-1 flex-row">', layout)
-        self.assertIn("const panelShown = hasPanel && !results.open && (mode === \"docked\" ? panelOpen : overlay);", layout)
+        self.assertIn("const panelShown = hasPanel && !(view === \"chat\" && results.open) && (mode === \"docked\" ? panelOpen : overlay);", layout)
         self.assertIn('const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";', layout)
-        self.assertIn("{panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}", layout)
+        self.assertIn("<SessionPanel filing={filing} mode={mode} onClose={closePanel} />", layout)
         # 返回键：原有两层不变，会话栏浮层 / 全屏另登记
         self.assertIn('useBackLayer(isMobile && view === "chat" && results.open, () => results.setOpen(false));', layout)
         self.assertIn('useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));', layout)
@@ -80,10 +85,13 @@ class TitleBarSourceTests(unittest.TestCase):
         # 输入法选字时的 Esc 不关会话栏
         self.assertIn('if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;', panel)
         # 换到另一家时各卡重新挂上（知识库的新增框不把这条写进另一家）
-        self.assertIn("<Fragment key={`${company}:${id}`}>{cards[id]}</Fragment>", panel)
-        # 公司页换公司（有缓存不经过加载态）：整页重新挂上，输入框的分店、所在标签不串到另一家
+        self.assertIn("<Fragment key={`${scope}:${id}`}>{cards[id] ?? null}</Fragment>", panel)
+        self.assertIn("<SortableCards cards={cards} scope={company} />", panel)
+        # 公司页换公司（有缓存不经过加载态）：整页重新挂上，输入框的字与分店不串到另一家
         self.assertIn("<Master key={detail.company.id} detail={detail}", read("components/company-page.tsx"))
         self.assertIn('if (mode === "docked") return;', panel)
+        # 拖着卡片按 Esc 只取消拖动，不关浮着的会话栏
+        self.assertIn("if (DRAGGING in document.documentElement.dataset) return;", panel)
 
     def test_new_words_exist_in_every_language(self):
         i18n = read("i18n.ts")
@@ -92,12 +100,20 @@ class TitleBarSourceTests(unittest.TestCase):
             self.assertTrue({"showPanel", "hidePanel", "reorder"} <= keys(block(messages, f"  {lang}: {{")), lang)
             company = block(block(i18n, "const COMPANY = {"), f"  {lang}: {{")
             self.assertTrue({"company", "thisMonth", "library", "sortBy", "sortRecent", "sortName", "chatRunning", "chatWaiting",
-                             "chatDone", "noChats"} <= keys(company), lang)
+                             "chatDone", "noChats", "card"} <= keys(company), lang)
+            card = block(company, "    card: {")
+            self.assertEqual({"sets", "notes", "tasks", "choices", "docs", "drafts", "files", "folders", "toDo", "toCheck", "pickedUp",
+                              "movedTo", "droppedAt", "cancelled", "instructions"}, keys(card), lang)
         self.assertNotIn("sessionPanel", i18n)
         self.assertIn('showPanel: "显示右侧栏",', i18n)
         self.assertIn('hidePanel: "隐藏右侧栏",', i18n)
         self.assertIn('reorder: "调整顺序",', i18n)
         self.assertIn('noChats: "还没有对话。"', i18n)
+        for words in ('notes: (n: number) => `${n} 条`', 'tasks: (n: number) => `${n} 个任务`', 'choices: (n: number) => `${n} 项`',
+                      'docs: (n: number) => `${n} 张`', 'drafts: (n: number) => `${n} 份`', 'files: (n: number) => `${n} 个文件`',
+                      'sets: (n: number) => `${n} 本`', 'toDo: (n: number) => `需处理 ${n}`',
+                      'notes: (n: number) => (n === 1 ? "1 note" : `${n} notes`)'):
+            self.assertIn(words, i18n)
         self.assertIn('chatWaiting: "等你处理"', i18n)
 
 
@@ -116,9 +132,11 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertIn("--cc-panel-ring: inset 0 0 0 1px var(--cc-line);", css)
         # 卡片：透明底 + 1px 内环、圆角 10、上下内边距 8；卡头 26、12px；卡内行 26、13/19
         card = css.split(".cc-panel-card {", 1)[1].split("}", 1)[0]
-        self.assertIn("padding-block: var(--cc-panel-pad); border-radius: var(--cc-radius-panel);", card)
-        self.assertIn("box-shadow: var(--cc-panel-ring);", card)
+        self.assertIn("padding-block: var(--cc-panel-pad);", card)
+        self.assertIn("border-radius: var(--cc-radius-panel); box-shadow: var(--cc-panel-ring);", card)
+        self.assertIn("margin: 0;", card)   # 卡片间距只用会话栏的一个变量
         self.assertNotIn("background", card)
+        self.assertIn("gap: var(--cc-panel-gap);", css.split(".cc-panel {", 1)[1].split("}", 1)[0])
         self.assertIn("height: var(--cc-panel-head);", css.split(".cc-panel-card-head {", 1)[1].split("}", 1)[0])
         self.assertIn("font-size: var(--cc-text-caption);", css.split(".cc-panel-card-toggle {", 1)[1].split("}", 1)[0])
         self.assertIn("min-height: var(--cc-panel-row);", css.split(".cc-panel-row {", 1)[1].split("}", 1)[0])
@@ -134,11 +152,14 @@ class PanelStylesSourceTests(unittest.TestCase):
 
     def test_review_fixes_for_tools_title_bar_and_grid(self):
         css = read("globals.css")
-        # 卡头操作：公司页一直显示（空标签的「＋」看得见）；会话栏里悬停才出、不能悬停的触屏常显
+        # 卡头操作：悬停 / 聚焦卡头才出，盖在摘要那一格上（摘要一列不挪动）；手机变体与不能悬停的触屏接在摘要后面常显
         tools = css.split(".cc-panel-card-tools {", 1)[1].split("}", 1)[0]
-        self.assertNotIn("opacity: var(--cc-reveal-rest)", tools)
-        self.assertIn(".cc-panel .cc-panel-card-tools { opacity: var(--cc-reveal-rest); }", css)
-        self.assertIn("@media (hover: none) { .cc-panel .cc-panel-card-tools { opacity: 1; } }", css)
+        self.assertIn("opacity: var(--cc-reveal-rest); pointer-events: none;", tools)
+        self.assertIn(".cc-panel-card-end > * { grid-area: 1 / 1; }", css)
+        self.assertIn(".cc-panel-card-head:is(:hover, :focus-within) .cc-panel-card-tools { opacity: 1; pointer-events: auto; }", css)
+        self.assertIn(".cc-panel-card-head:is(:hover, :focus-within) .cc-panel-card-end:has(.cc-panel-card-tools) .cc-panel-card-summary { opacity: 0; }", css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-panel-card-end { display: flex; gap: 0.25rem; }', css)
+        self.assertIn("@media (hover: none) {\n    .cc-panel-card-end { display: flex; gap: 0.25rem; }", css)
         # 网页标题栏实高 32（设计文档 3.9）：不再加上下外边距
         topbar = css.split(".cc-topbar {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-topbar-h);", topbar)
@@ -176,15 +197,16 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertNotIn("setFor(", card)
 
     def test_the_panel_pending_card_lists_only_other_months(self):
-        # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡；公司页、待处理页不变
-        self.assertIn("pending: <PendingCard company={company} period={period} />,", read("components/session-panel.tsx"))
-        self.assertIn("<PendingCard company={id} />", read("components/company-page.tsx"))
+        # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡；公司页（会话栏 page）列全部月份
+        panel = read("components/session-panel.tsx")
+        self.assertIn("pending: <PendingCard company={company} period={period} />,", panel)
+        self.assertIn("pending: <PendingCard company={company} />,", panel)
         self.assertIn('<PendingList company={company} search={search} />', read("components/pending.tsx"))
         cards = read("components/company-cards.tsx")
         card = cards.split("const OtherMonthsPending: FC", 1)[1].split("\n};", 1)[0]
         self.assertIn("otherMonths(state.items, period)", card)
         self.assertIn("if (!items?.length && !state.error) return null;", card)
-        self.assertIn("summary={items?.length ?? 0}", card)
+        self.assertIn("summary={items?.length ? co.card.docs(items.length) : undefined}", card)
 
 @NEEDS_NODE
 class PanelLogicTests(unittest.TestCase):
@@ -323,7 +345,7 @@ assert.equal(dockFits(663, 384, 280), false);
 
     def test_chat_states_use_real_signals_only(self):
         self.run_page(r"""
-import { chatState, groupChats, unreadRuns } from "@/lib/company-panel";
+import { chatMark, chatState, newestFirst, relativeWhen, unreadRuns } from "@/lib/company-panel";
 const idle = { status: "idle", awaiting_approval: [] } as any;
 // 还在跑、读回里有等你点「允许」的 → 等你处理
 assert.equal(chatState("running", { status: "requires_action", awaiting_approval: ["t1"] } as any), "waiting");
@@ -339,11 +361,26 @@ assert.equal(chatState(undefined, null, true), "waiting");
 // 其余（含「跑完没看」的回复圆点）→ 已完成
 assert.equal(chatState("unread"), "done");
 assert.equal(chatState(undefined), "done");
-const rows = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
-const states: Record<string, any> = { a: "done", b: "running", c: "done", d: "waiting" };
-assert.deepEqual(groupChats(rows, (r) => states[r.id]).map(([s, list]) => [s, list.map((r) => r.id)]),
-  [["running", ["b"]], ["waiting", ["d"]], ["done", ["a", "c"]]]);
-assert.deepEqual(groupChats([], () => "done"), []);
+// 行尾装饰（同侧栏行）：在跑脉冲点、等你处理提醒点、跑完没看圆点，其余不标
+assert.equal(chatMark("running", "running"), "running");
+assert.equal(chatMark("waiting", "running"), "notice");
+assert.equal(chatMark("waiting", undefined), "notice");
+assert.equal(chatMark("done", "unread"), "unread");
+assert.equal(chatMark("done", undefined), null);
+// 最新的在前；没有时间的放最后，同时间保持原顺序
+const rows = [{ id: "a", updated_at: "2026-10-01T00:00:00Z" }, { id: "b", updated_at: "2026-10-03T00:00:00Z" }, { id: "c" },
+  { id: "d", updated_at: "2026-10-03T00:00:00Z" }];
+assert.deepEqual(newestFirst(rows).map((r) => r.id), ["b", "d", "a", "c"]);
+// 相对时间（同 Claude 项目页）
+const now = Date.parse("2026-10-16T12:00:00Z");
+assert.equal(relativeWhen("2026-10-16T11:59:30Z", now, "en-US"), "now");
+assert.equal(relativeWhen("2026-10-16T11:55:00Z", now, "en-US"), "5 minutes ago");
+assert.equal(relativeWhen("2026-10-16T09:00:00Z", now, "en-US"), "3 hours ago");
+assert.equal(relativeWhen("2026-10-15T12:00:00Z", now, "en-US"), "yesterday");
+assert.equal(relativeWhen("2026-09-25T12:00:00Z", now, "en-US"), "3 weeks ago");
+assert.equal(relativeWhen("2026-10-16T11:55:00Z", now, "zh-CN"), "5分钟前");
+assert.equal(relativeWhen("", now), "");
+assert.equal(relativeWhen("not a date", now), "");
 // 页面开着时才开始跑的：没读过运行状态、也没请服务端读过的才补读
 assert.deepEqual(unreadRuns(["a", "b", "c"], { a: idle }, new Set(["b"])), ["c"]);
 assert.deepEqual(unreadRuns([], {}, new Set()), []);
@@ -382,34 +419,242 @@ assert.deepEqual(sortCompanies(rows, "recent").map((r) => r.title), ["beta", "Al
 assert.deepEqual(sortCompanies(rows, "name").map((r) => r.title), ["Alpha", "beta", "gamma 9", "gamma 10"]);
 """)
 
-    def test_cards_toggle_and_reorder_only_inside_the_panel(self):
+    def test_cards_toggle_summaries_and_grip_slot(self):
         self.run_page(r"""
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
-import { PanelCard, PanelControlContext, PendingCard } from "@/components/company-cards";
+import { DndContext } from "@dnd-kit/core";
+import { SortableContext } from "@dnd-kit/sortable";
+import { folderSummary, PanelCard, PanelControlContext, PendingCard } from "@/components/company-cards";
 import { usePendingCounts } from "@/lib/companies";
-const card = (props: any = {}) => createElement(PanelCard, { id: "notes", title: "Notes", summary: 2, ...props }, createElement("p", null, "body"));
-// 公司页（没有会话栏控制）：默认展开、没有拖动把手；整行开关带 aria-expanded；摘要在开关里
+const card = (props: any = {}) => createElement(PanelCard, { id: "notes", title: "Notes", summary: "2 notes", ...props }, createElement("p", null, "body"));
+// 不在会话栏里：默认展开、没有把手（不留把手槽）；标题 + 箭头是开关，带 aria-expanded；摘要在右侧一列，读屏念作开关的说明
 const page = renderToStaticMarkup(card());
-assert.match(page, /<button type="button" class="cc-panel-card-toggle" aria-expanded="true">/);
+assert.match(page, /<button type="button" class="cc-panel-card-toggle" aria-expanded="true" aria-describedby="([^"]+)">/);
+const described = page.match(/aria-describedby="([^"]+)"/)![1];
+assert.ok(page.includes(`<span class="cc-panel-card-end" data-slot="cc-card-end"><span id="${described}" class="cc-panel-card-summary">2 notes</span></span>`));
 assert.ok(page.includes(">body<"));
-assert.ok(!page.includes("cc-panel-grip"));
-assert.ok(page.includes('<span class="cc-panel-card-summary">2</span>'));
-// 摘要为 0 不显示
+assert.ok(!page.includes("cc-panel-grip") && !page.includes("cc-card-grip"));
+// 摘要为 0、空不显示（开关也不带说明）
 assert.ok(!renderToStaticMarkup(card({ summary: 0 })).includes("cc-panel-card-summary"));
-// 会话栏里：折叠记在会话栏（折叠了不画内容），有拖动把手（Drag to reorder）
-const control = { collapsed: ["notes"], dragging: null, toggle() {}, move() {}, drag() {} };
-const panel = renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control }, card()));
+assert.ok(!renderToStaticMarkup(card({ summary: "" })).includes("aria-describedby"));
+// 卡头操作与摘要叠在同一格（悬停才出，盖住摘要）；一直显示的控件在标题后面
+const tools = renderToStaticMarkup(card({ action: createElement("button", null, "+"), extra: createElement("b", null, "Sep") }));
+assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span id="[^"]+" class="cc-panel-card-summary">2 notes<\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
+// 会话栏里（排序列表里）：折叠记在会话栏（折叠了不画内容）；每张卡最右边都有把手槽，把手接上排序（dnd-kit 的属性）
+const control = { collapsed: ["notes"], toggle() {}, move() {}, register: () => () => {} };
+const inPanel = (child: any) => renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control },
+  createElement(DndContext, null, createElement(SortableContext, { items: ["notes"] }, child))));
+const panel = inPanel(card());
 assert.match(panel, /aria-expanded="false"/);
 assert.ok(!panel.includes(">body<"));
-assert.match(panel, /class="cc-panel-btn cc-panel-grip" aria-label="Reorder"/);
+assert.match(panel, /<span class="cc-panel-card-grip" data-slot="cc-card-grip"><button type="button" role="button" tabindex="0"[^>]*aria-roledescription="sortable"[^>]*class="cc-panel-btn cc-panel-grip" aria-label="Reorder" title="Reorder">/);
+assert.match(panel, /<section class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移
 // 正在里面新增 / 编辑（forceOpen）：折叠了也展开
-assert.ok(renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control }, card({ forceOpen: true }))).includes(">body<"));
-// 待处理：这家计数为 0 不显示
+assert.ok(inPanel(card({ forceOpen: true })).includes(">body<"));
+// 待处理：这家计数为 0 不显示（有的写「N 张」，见下面的源码断言；服务端渲染读不到改过的计数）
 usePendingCounts.setState({ loaded: true, total: 0, companies: {} });
 assert.equal(renderToStaticMarkup(createElement(PendingCard, { company: "comp_abc" })), "");
+// 单据文件夹：一个写状态，几个写个数，没有不写
+assert.equal(folderSummary([{ state: "ok" } as any]), "Ready");
+assert.equal(folderSummary([{ state: "ok" }, { state: "offline" }] as any), "2 folders");
+assert.equal(folderSummary([]), "");
+""")
+        cards = read("components/company-cards.tsx")
+        for line in ('<PanelCard id="pending" title={co.pending} summary={co.card.docs(count)} slot="cc-company-pending">',
+                     "summary={list.length ? co.card.notes(list.length) : undefined}",
+                     "summary={tasks.length ? co.card.tasks(tasks.length) : undefined}",
+                     '<PanelCard id="drafts" title={co.taxDrafts} summary={co.card.drafts(drafts.length)} slot="cc-company-drafts">',
+                     '<PanelCard id="choices" title={co.remembered} summary={co.card.choices(list.length)} slot="cc-company-choices">',
+                     '<PanelCard id="folders" title={co.docFolder} summary={folderSummary(folders)} slot="cc-company-folders">'):
+            self.assertIn(line, cards)
+        panel = read("components/session-panel.tsx")
+        self.assertIn('<PanelCard id="outputs" title={t("files")} summary={co.card.files(files.length)} slot="cc-panel-outputs">', panel)
+        self.assertEqual(panel.count("summary={sets.length ? co.card.sets(sets.length) : undefined}"), 2)
+
+    def test_summaries_in_every_language_and_the_month_head(self):
+        self.run_page(r"""
+import { co } from "@/i18n";
+import { monthSummary } from "@/components/month-ledger";
+assert.equal(co.card.notes(2), "2 条");
+assert.equal(co.card.tasks(1), "1 个任务");
+assert.equal(co.card.choices(10), "10 项");
+assert.equal(co.card.docs(2), "2 张");
+assert.equal(co.card.drafts(1), "1 份");
+assert.equal(co.card.files(3), "3 个文件");
+assert.equal(co.card.sets(3), "3 本");
+const stage = (state: string) => ({ state });
+const month = (items: any[], states: string[]) => ({ exceptions: { items, total: items.length, counts: {} },
+  stages: { intake: stage(states[0]), entry: stage(states[1]), verify: stage(states[2]), tax: stage(states[3]) } }) as any;
+// 有需处理写「需处理 N」，再是需留意；都没有写走到哪一段
+assert.equal(monthSummary(month([{ severity: "action" }, { severity: "action" }, { severity: "warn" }], ["clear", "open", "empty", "empty"])), "需处理 2");
+assert.equal(monthSummary(month([{ severity: "warn" }, { severity: "info" }], ["clear", "open", "empty", "empty"])), "需留意 1");
+assert.equal(monthSummary(month([{ severity: "info" }], ["clear", "open", "empty", "empty"])), "录账 · 进行中");
+assert.equal(monthSummary(month([], ["clear", "clear", "clear", "clear"])), "已完成");
+assert.equal(monthSummary(month([], ["empty", "empty", "empty", "empty"])), "暂无");
+""", lang="zh")
+        self.run_page(r"""
+import { co } from "@/i18n";
+assert.equal(co.card.notes(1), "1 note");
+assert.equal(co.card.notes(2), "2 notes");
+assert.equal(co.card.tasks(1), "1 task");
+assert.equal(co.card.files(3), "3 files");
+assert.equal(co.card.sets(1), "1 account set");
+assert.equal(co.card.toDo(2), "2 to do");
+assert.equal(co.card.pickedUp("Notes"), "Picked up Notes.");
+""")
+        self.run_page(r"""
+import { co } from "@/i18n";
+assert.equal(co.card.notes(2), "2 รายการ");
+assert.equal(co.card.tasks(1), "1 งาน");
+assert.equal(co.card.toDo(2), "ต้องทำ 2");
+assert.ok(co.card.instructions.includes("Space") && co.card.instructions.includes("Esc"));
+""", lang="th")
+
+    def test_drag_drop_order_and_announcements(self):
+        self.run_page(r"""
+import { cardAnnouncements, dropOrder } from "@/components/session-panel";
+import { orderCards } from "@/lib/company-panel";
+const order = orderCards(null);
+const shown = ["company", "pending", "notes", "outputs"];
+const ev = (active: string, over: string | null) => ({ active: { id: active }, over: over ? { id: over } : null }) as any;
+// 放下：在看得见的卡片里挪到落点（看不见的本月卡不占位）
+assert.deepEqual(dropOrder(order, shown, ev("outputs", "company"))!.filter((c) => shown.includes(c)), ["outputs", "company", "pending", "notes"]);
+assert.deepEqual(dropOrder(order, shown, ev("company", "notes"))!.filter((c) => shown.includes(c)), ["pending", "notes", "company", "outputs"]);
+// 没动、落在外面、认不出：不改
+assert.equal(dropOrder(order, shown, ev("notes", "notes")), null);
+assert.equal(dropOrder(order, shown, ev("notes", null)), null);
+assert.equal(dropOrder(order, shown, ev("month", "notes")), null);
+// 读屏播报：名字用卡片标题，位置只数看得见的
+const say = cardAnnouncements(shown, { company: "Company", pending: "Pending", notes: "Notes", outputs: "Files" });
+assert.equal(say.onDragStart({ active: { id: "notes" } } as any), "Picked up Notes.");
+assert.equal(say.onDragOver({ active: { id: "notes" }, over: { id: "company" } } as any), "Notes moved to position 1 of 4.");
+assert.equal(say.onDragEnd({ active: { id: "notes" }, over: { id: "outputs" } } as any), "Notes dropped at position 4 of 4.");
+assert.equal(say.onDragOver({ active: { id: "notes" }, over: null } as any), undefined);
+assert.equal(say.onDragCancel({ active: { id: "notes" } } as any), "Moving Notes was cancelled.");
 """)
 
+    def test_company_page_month_is_shared_with_the_panel(self):
+        self.run_page(r"""
+import { pagePeriod, setPagePeriod, usePagePeriod } from "@/lib/company-panel";
+// 还没选过：按设置取上个月（产品不按月份时为空）；选了以后输入框与「月结」卡都用它
+assert.equal(pagePeriod(null, true, "2026-09"), "2026-09");
+assert.equal(pagePeriod(null, false, "2026-09"), "");
+setPagePeriod("2026-07");
+assert.equal(usePagePeriod.getState().period, "2026-07");
+assert.equal(pagePeriod(usePagePeriod.getState().period, true, "2026-09"), "2026-07");
+assert.equal(pagePeriod("", true, "2026-09"), "");   // 选了「不指定」
+""")
+
+
+class SortableSourceTests(unittest.TestCase):
+    def test_the_panel_is_a_dnd_kit_sortable_list(self):
+        panel = read("components/session-panel.tsx")
+        self.assertIn('import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";', panel)
+        self.assertIn('import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";', panel)
+        # 鼠标按住动 3px 才开始、手机长按 250ms（5px 内）、键盘（空格拿起、方向键、空格放下、Esc 取消）
+        self.assertIn("const MOUSE_START = { distance: 3 };", panel)
+        self.assertIn("const TOUCH_START = { delay: 250, tolerance: 5 };", panel)
+        self.assertIn("useSensor(MouseSensor, { activationConstraint: MOUSE_START }),", panel)
+        self.assertIn("useSensor(TouchSensor, { activationConstraint: TOUCH_START }),", panel)
+        self.assertIn("useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),", panel)
+        self.assertNotIn("PointerSensor", panel)   # 鼠标与触屏分开：触屏要长按，鼠标不用
+        # 只能上下、不出会话栏；读屏播报三种语言
+        self.assertIn("const MODIFIERS = [restrictToVerticalAxis, restrictToParentElement];", panel)
+        self.assertIn("screenReaderInstructions: { draggable: co.card.instructions }", panel)
+        self.assertIn("<SortableContext items={items} strategy={verticalListSortingStrategy}>", panel)
+        self.assertIn("const items = useMemo(() => order.filter((id) => id in titles), [order, titles]);", panel)
+        self.assertIn("onDragEnd={onDragEnd}", panel)
+        self.assertIn("if (next) setCardOrder(next);", panel)
+        # 旧的自写指针拖动删掉了
+        for old in ("pointermove", "onPointerDown", "getBoundingClientRect", "dragging"):
+            self.assertNotIn(old, panel, old)
+        cards = read("components/company-cards.tsx")
+        self.assertNotIn("onPointerDown", cards)
+        self.assertNotIn("ReactPointerEvent", cards)
+        self.assertIn("const sortable = useSortable({ id: props.id });", cards)
+        self.assertIn("style={sortable ? { transform: CSS.Translate.toString(sortable.transform) } : undefined}", cards)
+        self.assertIn("data-dragging={sortable?.isDragging || undefined}", cards)
+        self.assertIn('data-moving={sortable?.transition ? "" : undefined}', cards)
+        self.assertIn("ref={sortable.setActivatorNodeRef}", cards)
+        self.assertIn("useLayoutEffect(() => register(props.id, props.title), [register, props.id, props.title]);", cards)
+        package = read("../package.json")
+        for dep in ('"@dnd-kit/core": "6.3.1"', '"@dnd-kit/sortable": "10.0.0"', '"@dnd-kit/modifiers": "9.0.0"', '"@dnd-kit/utilities": "3.2.2"'):
+            self.assertIn(dep, package)
+
+    def test_drag_lift_and_grip_slot_styles(self):
+        css = read("globals.css")
+        self.assertIn("--cc-drag-scale: 1.02;", css)
+        self.assertIn("--cc-drag-opacity: 0.9;", css)
+        lifted = css.split(".cc-panel-card[data-dragging] {", 1)[1].split("}", 1)[0]
+        self.assertIn("box-shadow: var(--cc-panel-ring), var(--cc-shadow-pop);", lifted)
+        self.assertIn("opacity: var(--cc-drag-opacity); scale: var(--cc-drag-scale);", lifted)
+        self.assertIn("background: var(--cc-bg-popover);", lifted)
+        # 其余卡片让位的过渡用动效变量
+        moving = css.split(".cc-panel-card[data-moving] {", 1)[1].split("}", 1)[0]
+        self.assertIn("transform var(--cc-dur) var(--cc-ease)", moving)
+        self.assertIn(":root[data-cc-card-drag] * { cursor: grabbing; }", css)
+        self.assertIn(".cc-panel-grip { cursor: grab;", css)
+        # 把手槽固定宽、平时把手透明，摘要一列右对齐
+        self.assertIn(".cc-panel-card-grip { position: relative; display: inline-flex; flex-shrink: 0; width: var(--cc-panel-btn); }", css)
+        self.assertIn(".cc-panel-card-grip .cc-panel-grip { opacity: var(--cc-reveal-rest); }", css)
+        end = css.split(".cc-panel-card-end {", 1)[1].split("}", 1)[0]
+        self.assertIn("justify-items: end;", end)
+        self.assertIn("margin-inline-start: auto;", end)
+
+
+class CompanyPageSkeletonTests(unittest.TestCase):
+    def test_the_company_page_is_the_conversation_skeleton(self):
+        page = read("components/company-page.tsx")
+        master = page.split("const Master: FC", 1)[1].split("\n};", 1)[0]
+        lines = [line.strip() for line in master.split('<div className="cc-company-page" data-slot="cc-company-page">', 1)[1].strip().splitlines()]
+        self.assertEqual(lines[0], "<Header detail={detail} reload={reload} />")
+        self.assertTrue(lines[2].startswith("<CompanyComposer company={id} title={detail.company.title} period={period}"), lines)
+        self.assertEqual(lines[3], "<Conversations company={id} />")
+        # 不再有标签与左栏的卡片：资料全在会话栏
+        for gone in ("Tabs", "cc-tabs", "CompanyTabs", "cc-company-cols", "MonthSection", "SetsSection company", "<PendingCard"):
+            self.assertNotIn(gone, master, gone)
+        self.assertNotIn('from "radix-ui"', page)
+        # 输入框同对话：输入框 + 下巴（公司固定，月份胶囊 = 本页的月份，分店胶囊）
+        composer = page.split("const CompanyComposer: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn('<div className="cc-composer cc-composer-inline">', composer)
+        self.assertIn('<div className="cc-composer-chin" data-slot="cc-composer-chin">', composer)
+        self.assertIn('<span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">', composer)
+        self.assertIn('{withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}', composer)
+        self.assertIn("<BranchChip look=\"cc-chin-btn\" side=\"top\" branches={branches} value={scope} onChange={setScope} />", composer)
+        # 对话列表：行同侧栏行（标题、月份 · 分店、相对时间），最新在前，显示更多
+        chats = page.split("export const Conversations: FC", 1)[1]
+        self.assertIn("{newestFirst(rows).map((row) => {", chats)
+        self.assertIn('const meta = [monthShort(row.period ?? ""), branchShort(row.scope ?? "")].filter(Boolean).join(" · ");', chats)
+        self.assertIn('<span className="cc-chat-row-when">{relativeWhen(row.updated_at)}</span>', chats)
+        self.assertIn('<span className="cc-row-title">{row.title || t("untitled")}</span>', chats)
+        self.assertIn("onClick={() => void load(next)}", chats)
+        # 手机：标题旁打开盖满屏的会话栏
+        self.assertIn("onClick={() => setPanelOverlay(true)}", page)
+        # 页宽同对话
+        css = read("globals.css")
+        self.assertIn("max-width: calc(var(--cc-thread-w) + 2rem);", css.split(".cc-company-page {", 1)[1].split("}", 1)[0])
+        for gone in (".cc-tabs", ".cc-tab {", ".cc-company-cols", ".cc-company-pane"):
+            self.assertNotIn(gone, css, gone)
+
+    def test_the_company_page_panel_holds_the_company_cards(self):
+        panel = read("components/session-panel.tsx")
+        page = panel.split("const cards: Record<CardId, ReactNode> = page", 1)[1].split("    : {", 1)[0]
+        for line in ("company: detail ? <CompanyPageCard detail={detail} period={period} /> : null,",
+                     "month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,",
+                     "pending: <PendingCard company={company} />,",
+                     "notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} keepEmpty /> : null,",
+                     "folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} /> : null,",
+                     "tasks: detail ? <TasksSection company={company} detail={detail} period={period} keepEmpty /> : null,",
+                     "outputs: null,"):
+            self.assertIn(line, page)
+        self.assertIn("<ChoicesSection", page)
+        self.assertIn("<DraftsSection", page)
+        card = panel.split("const CompanyPageCard: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("<SetsList sets={sets} branches={branches.length > 1 ? branches : []} period={period} />", card)
+        self.assertIn("summary={sets.length ? co.card.sets(sets.length) : undefined}", card)
+        # 公司页的「月结」卡：月份胶囊一直显示（不是悬停才出的操作）
+        self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', read("components/month-ledger.tsx"))
 
 if __name__ == "__main__":
     unittest.main()

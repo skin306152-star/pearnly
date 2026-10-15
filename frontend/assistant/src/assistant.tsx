@@ -93,7 +93,7 @@ import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
-import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePanel } from "@/lib/company-panel";
+import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -882,8 +882,13 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const overlay = usePanel((s) => s.overlay);
   const mode: PanelMode = isMobile ? "phone" : fits ? "docked" : "floating";
   useEffect(() => setPanelDocked(mode === "docked"), [mode]);
-  const hasPanel = view === "chat" && saved && !!filing.project;
-  const panelShown = hasPanel && !results.open && (mode === "docked" ? panelOpen : overlay);
+  // 公司页同样有会话栏（公司的资料全在这里，默认开着；开关与对话共用），月份是公司页自己的
+  const kind = useProjects((s) => s.kind);
+  const pageCompany = useCompanyNav((s) => s.company);
+  const pagePeriod = usePageMonth();
+  const companyPage = view === "company" && !!kind && !!pageCompany;
+  const hasPanel = (view === "chat" && saved && !!filing.project) || companyPage;
+  const panelShown = hasPanel && !(view === "chat" && results.open) && (mode === "docked" ? panelOpen : overlay);
   useEffect(() => setPanelOverlay(false), [results.sessionId, view]);
   // 点了「公司名 ›」（或手机菜单里的公司名）：预览开着时换回会话栏
   const focusAt = usePanel((s) => s.focus?.at ?? 0);
@@ -893,8 +898,9 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   }, [focusAt, setPreviewOpen]);
   const closePanel = useCallback(() => (mode === "docked" ? setPanelOpen(false) : setPanelOverlay(false)), [mode]);
   const togglePanel = () => {
-    if (results.open) results.setOpen(false);
-    const next = results.open || !panelShown;
+    const preview = view === "chat" && results.open;
+    if (preview) results.setOpen(false);
+    const next = preview || !panelShown;
     if (mode === "docked") setPanelOpen(next);
     else setPanelOverlay(next);
   };
@@ -965,7 +971,12 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
             className="max-md:fixed max-md:inset-0 max-md:z-50 max-md:w-full"
           />
         )}
-        {panelShown && <SessionPanel filing={filing} mode={mode} onClose={closePanel} />}
+        {panelShown &&
+          (companyPage ? (
+            <SessionPanel page filing={{ project: pageCompany, period: pagePeriod, scope: "" }} mode={mode} onClose={closePanel} />
+          ) : (
+            <SessionPanel filing={filing} mode={mode} onClose={closePanel} />
+          ))}
       </div>
     </>
   );

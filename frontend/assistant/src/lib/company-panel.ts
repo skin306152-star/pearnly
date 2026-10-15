@@ -1,24 +1,26 @@
-// 右侧会话栏（设计文档 3.13 / 4.4，只在 Cowork 挂了公司的对话里）的状态与数据：
+// 右侧会话栏（设计文档 3.13 / 4.4，只在 Cowork 挂了公司的对话与公司页里）的状态与数据：
 //
-//   卡片     默认顺序 公司 / 本月（第 1 期月结台账，这个月什么都没有时不显示）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 /
-//            申报草稿 / 输出文件；顺序、折叠、开关记在这台设备（键带用户，跨设备不同步）。拖动或 Alt+↑/↓ 调顺序时只在
-//            看得见的卡片之间挪（空卡不显示，也不占位）。
-//   开关     宽屏停靠时按记下的「开着」显示；窄屏浮在对话上、手机盖满屏时只在点了之后显示（overlay，换对话就收起），
-//            不因为记着「开着」一打开对话就把对话盖住。
+//   卡片     默认顺序 公司 / 本月（第 1 期月结台账）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 / 申报草稿 / 输出文件；
+//            顺序、折叠、开关记在这台设备（键带用户，跨设备不同步），对话与公司页共用同一份。拖动（dnd-kit）或 Alt+↑/↓ 调顺序时
+//            只在看得见的卡片之间挪（空卡不显示，也不占位）。
+//   开关     宽屏停靠时按记下的「开着」显示（公司页同样，默认开着）；窄屏浮在页面上、手机盖满屏时只在点了之后显示
+//            （overlay，换对话、换页就收起），不因为记着「开着」一打开就把页面盖住。
+//   公司页   自己的月份（usePagePeriod）：「在这家新建对话」输入框的月份胶囊与会话栏「本月」卡的月份胶囊是同一个。
 //   公司详情 按「公司|月份」缓存：先用缓存显示、后台再取；只在会话栏看得见时（组件挂着）跟着站点事件、回到前台重取
 //            （lib/live.ts）；别处改了这家重取，删了清掉。
-//   对话分组 公司页「对话」按进行中 / 等你处理 / 已完成：只用现有的真实信号（见 chatState）。
+//   对话行   公司页的对话列表：行尾装饰只用现有的真实信号（见 chatState），时间写相对时间（relativeWhen）。
 //
 // 本文件不画界面；样式在 globals.css。
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { type Detail, loadDetail, TASK_EVENTS } from "@/lib/companies";
+import { lang } from "@/i18n";
+import { type Detail, lastMonth, loadDetail, TASK_EVENTS } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import type { Activity } from "@/lib/managed-agents/activity";
 import type { RunStatus } from "@/lib/managed-agents/events";
-import { hintTitle } from "@/lib/managed-agents/projects";
+import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 
 // ---------------------------------------------------------------- 卡片顺序
@@ -161,6 +163,25 @@ export function cssPx(value: string, rootFont = 16): number {
   return text.endsWith("rem") ? number * rootFont : number;
 }
 
+// ---------------------------------------------------------------- 公司页自己的月份
+/** 公司页的月份：null = 还没选过（按设置取上个月，产品不按月份时为空）；换公司不重置（同原来页面里的月份）。 */
+export const usePagePeriod = create<{ period: string | null }>(() => ({ period: null }));
+
+export function setPagePeriod(period: string) {
+  usePagePeriod.setState({ period });
+}
+
+/** 公司页此刻的月份（输入框与会话栏「本月」卡共用）。 */
+export function pagePeriod(saved: string | null, withPeriod: boolean, fallback = lastMonth()): string {
+  return saved ?? (withPeriod ? fallback : "");
+}
+
+export function usePageMonth(): string {
+  const saved = usePagePeriod((s) => s.period);
+  const withPeriod = useProjects((s) => s.period);
+  return pagePeriod(saved, withPeriod);
+}
+
 // ---------------------------------------------------------------- 公司详情（按 公司|月份 缓存）
 const details = new Map<string, Detail>();
 export const detailKey = (company: string, period: string) => `${company}|${period}`;
@@ -220,17 +241,16 @@ export function usePanelDetail(company: string, period: string) {
   return { detail: current ? state.detail : (details.get(key) ?? null), error: current ? state.error : "", reload };
 }
 
-// ---------------------------------------------------------------- 公司页「对话」分组
+// ---------------------------------------------------------------- 公司页的对话行
 export type ChatState = "running" | "waiting" | "done";
-export const CHAT_STATES: readonly ChatState[] = ["running", "waiting", "done"];
 
-/** 一段对话在公司页「对话」里归哪一组，只用现有的真实信号：
+/** 一段对话的状态，只用现有的真实信号：
  *  - 进行中：只看实时状态（activity，lib/managed-agents/activity.ts）。取列表时服务端读回的运行状态先交给 noteRun 校正它，
  *    之后跟着推送走；读回的那一刻的快照不再单独算数（页面开着时跑完 / 又开始跑，快照会过期）；
  *  - 等你处理：实时状态在跑、且读回的运行状态里有等你点「允许」的调用（awaiting_approval，只有侧栏以为在跑的对话才会去读），
  *    或有你还没看的 CC 提醒（列表的 unread、实时推来的提醒圆点）；
  *  - 其余：已完成。
- *  待处理单据按公司记、不挂在某段对话上，不参与这里的分组（公司页概览与会话栏「待处理」卡显示）。 */
+ *  待处理单据按公司记、不挂在某段对话上，不算在这里（会话栏「待处理」卡显示）。 */
 export function chatState(
   activity: Activity | undefined,
   run?: Pick<RunStatus, "awaiting_approval"> | null,
@@ -241,14 +261,43 @@ export function chatState(
   return "done";
 }
 
+/** 对话行行尾的装饰（同侧栏行）：在跑 = 脉冲点；等你处理 = 提醒圆点；跑完没看 = 圆点；其余不标。 */
+export function chatMark(state: ChatState, activity: Activity | undefined): "running" | "notice" | "unread" | null {
+  if (state === "running") return "running";
+  if (state === "waiting") return "notice";
+  return activity === "unread" ? "unread" : null;
+}
+
 /** 在跑的对话里，取列表那一刻还没读过运行状态的（之后才开始跑的）：要向服务端补读的。 */
 export function unreadRuns(running: readonly string[], runs: Readonly<Record<string, unknown>>, checked: ReadonlySet<string>): string[] {
   return running.filter((id) => !(id in runs) && !checked.has(id));
 }
 
-/** 按 进行中 / 等你处理 / 已完成 分好，各组内保持原顺序（服务端按最后活动倒序）；空组不列。 */
-export function groupChats<T extends { id: string }>(rows: readonly T[], stateOf: (row: T) => ChatState): Array<[ChatState, T[]]> {
-  const groups = new Map<ChatState, T[]>(CHAT_STATES.map((state) => [state, []]));
-  for (const row of rows) groups.get(stateOf(row))!.push(row);
-  return CHAT_STATES.map((state) => [state, groups.get(state)!] as [ChatState, T[]]).filter(([, list]) => list.length > 0);
+/** 按最后活动倒序（最新的在前；没有时间的放最后，其余保持原顺序）。 */
+export function newestFirst<T extends { updated_at?: string | null }>(rows: readonly T[]): T[] {
+  const time = (row: T) => {
+    const at = row.updated_at ? new Date(row.updated_at).getTime() : Number.NaN;
+    return Number.isNaN(at) ? -Infinity : at;
+  };
+  return [...rows].sort((a, b) => time(b) - time(a));
+}
+
+const RELATIVE_LOCALE: Record<string, string> = { th: "th-TH", zh: "zh-CN", en: "en-US" };
+const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ["second", 60], ["minute", 60], ["hour", 24], ["day", 7], ["week", 4.35], ["month", 12], ["year", Infinity],
+];
+
+/** 相对时间（「5 分钟前」「昨天」「3 周前」，同 Claude 项目页的对话列表）；一分钟内写「现在」，读不出的时间回空。 */
+export function relativeWhen(value: string | null | undefined, now = Date.now(), locale = RELATIVE_LOCALE[lang] ?? "en-US"): string {
+  if (!value) return "";
+  const at = new Date(value).getTime();
+  if (Number.isNaN(at)) return "";
+  const format = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  let amount = (at - now) / 1000;
+  if (Math.abs(amount) < 60) return format.format(0, "second");
+  for (const [unit, size] of RELATIVE_STEPS) {
+    if (Math.abs(amount) < size) return format.format(Math.round(amount), unit);
+    amount /= size;
+  }
+  return "";
 }

@@ -2000,8 +2000,11 @@ class CompanyMasterSourceTests(unittest.TestCase):
 
     def test_company_styles_only_use_the_design_variables(self):
         colour = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|style=\{")
+        # 唯一的行内样式：会话栏卡片拖动时 dnd-kit 算出的位移（只能写在行内，别的样式都在 globals.css）
+        sortable = "style={sortable ? { transform: CSS.Translate.toString(sortable.transform) } : undefined}"
+        self.assertEqual(read("components/company-cards.tsx").count(sortable), 1)
         for name in COMPANY_SOURCES:
-            self.assertIsNone(colour.search(read(name)), name)
+            self.assertIsNone(colour.search(read(name).replace(sortable, "")), name)
         css = read("globals.css")
         start = css.index("/* ── 公司主档（ADR-020")
         section = css[start:css.index("\n}\n", start)]
@@ -3066,7 +3069,7 @@ const empty = html(FolderSection, { company: "comp_abc", folders: [], reload: no
 assert.ok(text(empty).includes("Choose on computer"));     // 一行字，不是按钮
 assert.deepEqual(buttons(empty), ["Documents folder"]);    // 唯一的按钮是卡头的折叠开关（卡片外框，CC 外壳）
 const bound = html(FolderSection, { company: "comp_abc", folders: [folder], reload: noop });
-assert.deepEqual(text(bound), ["Documents folder", "PC-9 · \\\\nas\\ABC", "Ready · This month: 2569-09"]);
+assert.deepEqual(text(bound), ["Documents folder", "Ready", "PC-9 · \\\\nas\\ABC", "Ready · This month: 2569-09"]);   // 卡头摘要：一个文件夹写状态
 assert.deepEqual(buttons(bound), ["Documents folder"]);
 // 会话栏（hideEmpty）：浏览器、手机里没有绑定的文件夹时整张卡不显示；绑了的照样显示
 assert.deepEqual(text(html(FolderSection, { company: "comp_abc", folders: [], reload: noop, hideEmpty: true })), []);
@@ -3174,10 +3177,10 @@ assert.equal(useTaskOverview.getState().loaded, true);
         self.assertNotIn(".cc-project-tasks", read("globals.css"))
 
     def test_the_company_page_lists_its_own_chats_from_the_server(self):
-        # 主档页「对话」按这家从服务端取（分组列表 group=<公司>，分页），不靠侧栏已加载的几条
+        # 公司页的对话按这家从服务端取（分组列表 group=<公司>，分页），不靠侧栏已加载的几条
         page = read("components/company-page.tsx")
         chats = page.split("export const Conversations: FC", 1)[1].split("\n// ----", 1)[0]
-        # 顺带核对侧栏以为在跑的那几个（同侧栏的 check）：读回的运行状态里有等你点「允许」的归「等你处理」
+        # 顺带核对侧栏以为在跑的那几个（同侧栏的 check）：读回的运行状态里有等你点「允许」的标「等你处理」
         self.assertIn("const check = runningSessions();", chats)
         self.assertIn("await listGrouped({ group: company, after, check });", chats)
         # 读回的运行状态交给 noteRun 校正实时状态（同侧栏 absorb），之后才开始跑的补读一次
@@ -3186,8 +3189,8 @@ assert.equal(useTaskOverview.getState().loaded, true);
         self.assertIn("listGrouped({ group: company, check: ids })", chats)
         # 加载中转圈、没有对话时说一句，不是一片空白
         self.assertIn("if (!rows) return <LoaderIcon", chats)
-        self.assertIn("if (!rows.length) return <p className=\"text-ink-3 text-sm\">{co.noChats}</p>;", chats)
-        self.assertIn("groupChats(rows, (row) => chatState(activities[row.id], runs[row.id], row.unread))", chats)
+        self.assertIn('{!rows.length && <p className="cc-company-empty">{co.noChats}</p>}', chats)
+        self.assertIn("const mark = chatMark(chatState(activities[row.id], runs[row.id], row.unread), activities[row.id]);", chats)
         self.assertIn("onClick={() => void load(next)}", chats)
         self.assertNotIn("threadItems", chats)
         # 别家的移动不重取；移进这家、从这一页移走的才重取，侧栏条数变化与推送合成一次
@@ -3217,7 +3220,7 @@ const sets = [{ connection: "c", key: "69HQ", label: "ABC 69", year_label: "69",
   { connection: "c", key: "69B1", label: "ABC 69 B1", year_label: "69" }];
 const branches = [{ branch: "00000", label: "", account_sets: [sets[0]] }, { branch: "00001", label: "Rama 9", account_sets: [sets[1]] }];
 assert.deepEqual(text(html(SetsSection, { sets, branches, period: "2026-09" })),
-  ["Account sets", "Head office", "ABC 69", "69", "Rama 9", "ABC 69 B1", "69"]);
+  ["Account sets", "2 account sets", "Head office", "ABC 69", "69", "Rama 9", "ABC 69 B1", "69"]);   // 卡头摘要：账套数
 // 付款方式能直接改（原生下拉）；从 Express 历史学到的只读、可删，写明来源
 const pay = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment", subject_label: "ACME",
   value: "credit", editable: true, year_label: "69" }, onSet() {}, onForget() {} }));

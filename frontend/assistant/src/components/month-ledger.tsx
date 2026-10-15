@@ -1,5 +1,5 @@
-// 月结台账（数字会计员第 1 期，lib/month.ts）：右侧会话栏「本月」卡（对话挂的公司与月份）与公司页概览第一节（带月份胶囊，
-// 默认上个月）共用同一套。
+// 月结台账（数字会计员第 1 期，lib/month.ts）：右侧会话栏「本月」卡（对话挂的公司与月份）与公司页会话栏的「月结」卡（带月份
+// 胶囊，默认上个月）共用同一套。卡头右侧一句状态见 monthSummary。
 //
 //   四段   收单 / 录账 / 核对 / 报税，一行一段：状态点（empty 空心、open 进行中、attention 有待办、clear 已完成）+ 段名 +
 //          右侧 12px 淡色短计数；服务端给 null 的段（不是 Express、没有录入 / 报税权限）不列。核对一段写谁、何时回读的
@@ -27,7 +27,6 @@ import { co } from "@/i18n";
 import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
-  attentionCount,
   choosableException,
   dayShort,
   dayTime,
@@ -86,6 +85,23 @@ export function stageSummary(stage: Stage, month: Pick<Month, "stages">): string
   }
   const due = taxDue(s.tax);
   return due ? co.ledger.due(dayShort(due)) : "";
+}
+
+/** 卡头右侧的一句（开发窗口 10-16 定）：有需处理的写「需处理 N」，否则有需留意的写「需留意 N」；都没有时写这个月走到哪：
+ *  每一段都完成写「已完成」，都还没有写「暂无」，否则写第一段没完成的「段名 · 状态」。 */
+export function monthSummary(month: Month): string {
+  const action = severityCount(month, "action");
+  if (action) return co.card.toDo(action);
+  const warn = severityCount(month, "warn");
+  if (warn) return co.card.toCheck(warn);
+  const stages = shownStages(month);
+  if (!stages.length) return "";
+  const states = stages.map((stage) => month.stages[stage]!.state);
+  if (states.every((state) => state === "clear")) return co.ledger.state.clear ?? "";
+  if (states.every((state) => state === "empty")) return co.ledger.state.empty ?? "";
+  const at = stages.find((stage) => month.stages[stage]!.state !== "clear")!;
+  const state = month.stages[at]!.state;
+  return `${co.ledger.stage[at]} · ${co.ledger.state[state] ?? state}`;
 }
 
 /** 码名（认不出的码用服务端的原因文字，再没有写码本身）。 */
@@ -259,7 +275,7 @@ export const MonthCard: FC<{ company: string; period: string }> = ({ company, pe
   if (month && emptyMonth(month) && !error) return null;
   const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);
   return (
-    <PanelCard id="month" title={title} summary={month ? attentionCount(month) : undefined} slot="cc-panel-month">
+    <PanelCard id="month" title={title} summary={month ? monthSummary(month) : undefined} slot="cc-panel-month">
       {error && <p role="alert" className="px-1 text-danger text-sm">{error}</p>}
       {month && <LedgerBody month={month} company={company} {...handlers} />}
     </PanelCard>
@@ -267,8 +283,8 @@ export const MonthCard: FC<{ company: string; period: string }> = ({ company, pe
 };
 
 // ---------------------------------------------------------------- 公司页概览第一节
-/** 公司页的月结台账：卡头月份胶囊（最近 12 个月，不列「不指定」）与「在这家新建对话」共用页面的月份，页面是「不指定」时
- *  看上个月；一直显示，取的时候转圈。 */
+/** 公司页的月结台账（在公司页的会话栏里）：卡头月份胶囊（最近 12 个月，不列「不指定」）与「在这家新建对话」共用页面的
+ *  月份（lib/company-panel 的 usePagePeriod），页面是「不指定」时看上个月；一直显示，取的时候转圈。 */
 export const MonthSection: FC<{ company: string; period: string; onPeriod: (p: string) => void }> = ({ company, period: chosen, onPeriod }) => {
   const period = isPeriod(chosen) ? chosen : lastMonth();
   const { month, error, loading, reload, drop } = useMonth(company, period);
@@ -277,9 +293,9 @@ export const MonthSection: FC<{ company: string; period: string; onPeriod: (p: s
     <PanelCard
       id="month"
       title={co.ledger.title}
-      summary={month ? attentionCount(month) : undefined}
+      summary={month ? monthSummary(month) : undefined}
       slot="cc-company-month"
-      action={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}
+      extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}
     >
       {loading && (
         <div className="flex justify-center py-2 text-ink-3">

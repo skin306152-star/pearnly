@@ -498,6 +498,24 @@ const COMPANY = {
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
     chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done", noChats: "No chats yet.",
+    // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
+    card: {
+      sets: (n: number) => (n === 1 ? "1 account set" : `${n} account sets`),
+      notes: (n: number) => (n === 1 ? "1 note" : `${n} notes`),
+      tasks: (n: number) => (n === 1 ? "1 task" : `${n} tasks`),
+      choices: (n: number) => (n === 1 ? "1 choice" : `${n} choices`),
+      docs: (n: number) => (n === 1 ? "1 document" : `${n} documents`),
+      drafts: (n: number) => (n === 1 ? "1 draft" : `${n} drafts`),
+      files: (n: number) => (n === 1 ? "1 file" : `${n} files`),
+      folders: (n: number) => (n === 1 ? "1 folder" : `${n} folders`),
+      toDo: (n: number) => `${n} to do`,
+      toCheck: (n: number) => `${n} to check`,
+      pickedUp: (title: string) => `Picked up ${title}.`,
+      movedTo: (title: string, at: number, total: number) => `${title} moved to position ${at} of ${total}.`,
+      droppedAt: (title: string, at: number, total: number) => `${title} dropped at position ${at} of ${total}.`,
+      cancelled: (title: string) => `Moving ${title} was cancelled.`,
+      instructions: "To pick up a card, press Space. Use the up and down arrow keys to move it, press Space again to drop it, or press Escape to cancel.",
+    },
     // 月结台账（数字会计员第 1 期：会话栏「本月」卡、公司页概览第一节）：段名、状态、严重度、异常码的短名（服务端只给码）
     ledger: {
       title: "Month-end",
@@ -556,6 +574,24 @@ const COMPANY = {
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
     chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成", noChats: "还没有对话。",
+    // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
+    card: {
+      sets: (n: number) => `${n} 本`,
+      notes: (n: number) => `${n} 条`,
+      tasks: (n: number) => `${n} 个任务`,
+      choices: (n: number) => `${n} 项`,
+      docs: (n: number) => `${n} 张`,
+      drafts: (n: number) => `${n} 份`,
+      files: (n: number) => `${n} 个文件`,
+      folders: (n: number) => `${n} 个文件夹`,
+      toDo: (n: number) => `需处理 ${n}`,
+      toCheck: (n: number) => `需留意 ${n}`,
+      pickedUp: (title: string) => `已拿起「${title}」。`,
+      movedTo: (title: string, at: number, total: number) => `「${title}」移到第 ${at} 位，共 ${total} 张。`,
+      droppedAt: (title: string, at: number, total: number) => `「${title}」放在第 ${at} 位，共 ${total} 张。`,
+      cancelled: (title: string) => `已取消移动「${title}」。`,
+      instructions: "按空格键拿起卡片，用上下方向键移动，再按空格键放下，按 Escape 键取消。",
+    },
     // 月结台账（数字会计员第 1 期：会话栏「本月」卡、公司页概览第一节）：段名、状态、严重度、异常码的短名（服务端只给码）
     ledger: {
       title: "月结",
@@ -614,6 +650,24 @@ const COMPANY = {
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
     chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว", noChats: "ยังไม่มีแชท",
+    // 会话栏卡头右侧的一句状态（同 Claude 卡头摘要，用我们自己的词）与拖动调顺序的读屏播报（开发窗口 10-16 定）
+    card: {
+      sets: (n: number) => `${n} ชุด`,
+      notes: (n: number) => `${n} รายการ`,
+      tasks: (n: number) => `${n} งาน`,
+      choices: (n: number) => `${n} รายการ`,
+      docs: (n: number) => `${n} ฉบับ`,
+      drafts: (n: number) => `${n} ฉบับ`,
+      files: (n: number) => `${n} ไฟล์`,
+      folders: (n: number) => `${n} โฟลเดอร์`,
+      toDo: (n: number) => `ต้องทำ ${n}`,
+      toCheck: (n: number) => `ควรดู ${n}`,
+      pickedUp: (title: string) => `หยิบ ${title} แล้ว`,
+      movedTo: (title: string, at: number, total: number) => `ย้าย ${title} ไปตำแหน่งที่ ${at} จาก ${total}`,
+      droppedAt: (title: string, at: number, total: number) => `วาง ${title} ที่ตำแหน่งที่ ${at} จาก ${total}`,
+      cancelled: (title: string) => `ยกเลิกการย้าย ${title}`,
+      instructions: "กด Space เพื่อหยิบการ์ด ใช้ปุ่มลูกศรขึ้นลงเพื่อย้าย กด Space อีกครั้งเพื่อวาง หรือกด Escape เพื่อยกเลิก",
+    },
     // 月结台账（数字会计员第 1 期：会话栏「本月」卡、公司页概览第一节）：段名、状态、严重度、异常码的短名（服务端只给码）
     ledger: {
       title: "ปิดงวด",

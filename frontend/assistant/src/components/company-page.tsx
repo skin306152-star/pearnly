@@ -1,48 +1,34 @@
 // 公司页（?company=<编号>；公司列表、侧栏组「···」「打开公司」、会话栏公司卡点进来）。一家客户一份，全所共用（Cowork companies 域）。
-// 设计文档 3.15 / 4.5：照 Claude Code 的项目页做成管理页，日常的公司信息在右侧会话栏（components/session-panel.tsx）。
+// 设计文档 4.5（用户 10-16 定「中间应该是对话框，信息放右侧」，同 claude.ai 的项目页）：版式同对话页——
 //
-//   顶部     名称（点了就地改名，手机用输入框）；「···」：改名、刷新账套、删除公司（不确认）
-//   左边     「在这家新建对话」输入框（月份胶囊：最近 12 个月 + 不指定，默认上个月；多分店时分店胶囊；发出 = 在这家开对话并发出）
-//            → 月结台账（components/month-ledger.tsx，卡头月份胶囊与输入框的同一个；「不指定」时看上个月）
-//            → 概览（法定名 · 税号 · 分店，合并申报的写「合并申报」）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 待处理（这家的）
-//   右边     大面板，标签「对话 / 资料 / 定时任务」：
-//            对话  只列我的，从服务端按这家取（分组列表 group=<公司>，分页），按 进行中 / 等你处理 / 已完成 分组（只用真实信号，
-//                  lib/company-panel 的 chatState），组内按活动倒序，带月份短写
-//            资料  知识库、单据文件夹、记住的选择、申报草稿（卡片同会话栏，components/company-cards.tsx）
-//            定时任务  这家的任务（点一行跳任务页，「＋」带预填）；没有录入权限时不出现
-//   手机单栏：先左边，再大面板。
+//   中间一栏（宽 768，同对话）  标题 = 公司名（点了就地改名，手机用输入框）；「···」：改名、刷新账套、删除公司（不确认）
+//                              → 输入框（同新对话的输入框 + 下巴：公司固定，月份胶囊最近 12 个月 + 不指定、默认上个月，
+//                                多分店时分店胶囊；发出 = 在这家开对话并发出）
+//                              → 这家的对话（只列我的，从服务端按这家取，分组列表 group=<公司>，分页「显示更多」）：行同侧栏行，
+//                                标题、第二行「月份 · 分店」、右侧相对时间，最新的在前；行尾装饰只用真实信号（lib/company-panel 的 chatState）
+//   右侧会话栏                 公司页默认开着（开关、卡片顺序与折叠同对话共用）：公司（信息 + 账套）、月结（月份胶囊 = 本页的月份）、
+//                              待处理（全部月份）、知识库（空时「让 CC 起草」）、单据文件夹、定时任务、记住的选择、申报草稿
+//                              （components/session-panel.tsx 的 page）。不再有「对话 / 资料 / 定时任务」标签。
+//   手机                       单栏；标题旁的按钮打开盖满屏的会话栏。
 //
 // 别处改了这家（pearnly.project upsert）重取，删了（delete）回到公司列表。文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
 import { useAui } from "@assistant-ui/react";
-import { ArrowUpIcon, LoaderIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
-import { Tabs } from "radix-ui";
+import { ArrowUpIcon, Building2Icon, LoaderIcon, MoreHorizontalIcon, PanelRightIcon, PencilIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
 import { DropdownMenu } from "@/components/ui/menu";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
-import { companyLine } from "@/components/companies";
-import {
-  ChoicesSection,
-  DraftsSection,
-  FolderSection,
-  NotesSection,
-  PanelCard,
-  PendingCard,
-  SetsSection,
-  TasksSection,
-} from "@/components/company-cards";
-import { MonthSection } from "@/components/month-ledger";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
 import { useSidebar } from "@/components/ui/sidebar";
 import { co, t } from "@/i18n";
 import {
   type Branch,
   branchesOf,
+  branchShort,
   deleteCompany,
   type Detail,
   dropCachedDetail,
   forgetAnyCompany,
-  lastMonth,
   loadDetail,
   monthShort,
   refreshCatalogs,
@@ -50,7 +36,19 @@ import {
   useCompanyNav,
   TASK_EVENTS,
 } from "@/lib/companies";
-import { type ChatState, cachedPanelDetail, chatState, forgetPanelDetail, groupChats, rememberDetail, unreadRuns } from "@/lib/company-panel";
+import {
+  cachedPanelDetail,
+  chatMark,
+  chatState,
+  forgetPanelDetail,
+  newestFirst,
+  relativeWhen,
+  rememberDetail,
+  setPagePeriod,
+  setPanelOverlay,
+  unreadRuns,
+  usePageMonth,
+} from "@/lib/company-panel";
 import { useLiveRefresh } from "@/lib/live";
 import { noteRun, runningSessions, useActivities } from "@/lib/managed-agents/activity";
 import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
@@ -60,7 +58,7 @@ import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 
-// 卡片与各节的内容搬到了 company-cards.tsx（会话栏与本页共用）；原来从本文件导入的照样能用
+// 卡片与各节的内容搬到了 company-cards.tsx（会话栏用）；原来从本文件导入的照样能用
 export {
   ChoiceRow,
   choiceSection,
@@ -81,8 +79,8 @@ export {
 export const CompanyPage: FC = () => {
   const company = useCompanyNav((s) => s.company);
   const { setView } = useView();
-  const withPeriod = useProjects((s) => s.period);
-  const [period, setPeriod] = useState(() => (withPeriod ? lastMonth() : ""));
+  // 本页的月份：输入框的月份胶囊与会话栏「月结」卡的月份胶囊同一个
+  const period = usePageMonth();
   const [detail, setDetail] = useState<Detail | null>(() => cachedPanelDetail(company, period));
   const [error, setError] = useState("");
   const asked = useRef(0);
@@ -132,52 +130,21 @@ export const CompanyPage: FC = () => {
       </div>
     );
   }
-  // 键带公司：换到另一家（有缓存时不经过加载态）时整页重新挂上，输入框的字与分店、所在标签、新增 / 编辑框不串到另一家
-  return <Master key={detail.company.id} detail={detail} period={period} onPeriod={setPeriod} reload={reload} error={error} />;
+  // 键带公司：换到另一家（有缓存时不经过加载态）时整页重新挂上，输入框的字与分店不串到另一家
+  return <Master key={detail.company.id} detail={detail} period={period} reload={reload} error={error} />;
 };
 
-const Master: FC<{ detail: Detail; period: string; onPeriod: (p: string) => void; reload: () => Promise<void>; error: string }> = ({
-  detail,
-  period,
-  onPeriod,
-  reload,
-  error,
-}) => {
+const Master: FC<{ detail: Detail; period: string; reload: () => Promise<void>; error: string }> = ({ detail, period, reload, error }) => {
   const id = detail.company.id;
-  const branches = branchesOf(detail);
-  const multi = branches.length > 1;
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="cc-page cc-company-page" data-slot="cc-company-page">
+      <div className="cc-company-page" data-slot="cc-company-page">
         <Header detail={detail} reload={reload} />
-        {error && <div role="alert" className="mb-4 rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
-        <div className="cc-company-cols">
-          <div className="cc-company-overview">
-            <CompanyComposer company={id} period={period} onPeriod={onPeriod} branches={branches} />
-            <MonthSection company={id} period={period} onPeriod={onPeriod} />
-            <Overview detail={detail} />
-            <SetsSection sets={detail.account_sets} branches={multi ? branches : []} period={period} />
-            <PendingCard company={id} />
-          </div>
-          <CompanyTabs detail={detail} period={period} reload={reload} />
-        </div>
+        {error && <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-danger text-sm">{error}</div>}
+        <CompanyComposer company={id} title={detail.company.title} period={period} branches={branchesOf(detail)} />
+        <Conversations company={id} />
       </div>
     </div>
-  );
-};
-
-/** 概览：法定名（与名称不同才写）、税号 · 分店 · 年度、合并申报。 */
-const Overview: FC<{ detail: Detail }> = ({ detail }) => {
-  const c = detail.company;
-  const legal = c.legal_name && c.legal_name !== c.title ? c.legal_name : "";
-  const line = companyLine(c);
-  if (!legal && !line && !c.combined_vat) return null;
-  return (
-    <PanelCard id="overview" title={co.company} slot="cc-company-overview">
-      {legal && <div className="cc-panel-row text-ink">{legal}</div>}
-      {line && <div className="cc-panel-row">{line}</div>}
-      {!!c.combined_vat && <span className="cc-chip self-start">{co.combinedVat}</span>}
-    </PanelCard>
   );
 };
 
@@ -261,6 +228,12 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
         )}
         {error && <p role="alert" className="mt-1 text-danger text-sm">{error}</p>}
       </div>
+      {/* 手机：会话栏盖满屏，从这里打开（电脑上用标题栏右上的开关） */}
+      {isMobile && (
+        <button type="button" className="cc-icon-btn" aria-label={t("showPanel")} title={t("showPanel")} onClick={() => setPanelOverlay(true)}>
+          <PanelRightIcon />
+        </button>
+      )}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger className="cc-icon-btn" aria-label={t("more")}>
           <MoreHorizontalIcon />
@@ -288,12 +261,8 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
 };
 
 // ---------------------------------------------------------------- 输入框
-const CompanyComposer: FC<{ company: string; period: string; onPeriod: (p: string) => void; branches: Branch[] }> = ({
-  company,
-  period,
-  onPeriod,
-  branches,
-}) => {
+/** 同新对话的输入框与下巴（设计文档 3.12）：下巴里公司固定（不可换），月份、分店胶囊；发出 = 在这家开对话并发出。 */
+const CompanyComposer: FC<{ company: string; title: string; period: string; branches: Branch[] }> = ({ company, title, period, branches }) => {
   const start = useStartIn();
   const withPeriod = useProjects((s) => s.period);
   const withScope = useProjects((s) => s.scope);
@@ -306,86 +275,56 @@ const CompanyComposer: FC<{ company: string; period: string; onPeriod: (p: strin
     start({ project: company, period: withPeriod ? period : "", scope: withScope ? scope : "" }, value, true);
   };
   return (
-    <div className="cc-composer" data-slot="cc-company-composer">
-      <textarea
-        rows={2}
-        value={text}
-        aria-label={t("placeholder")}
-        placeholder={t("placeholder")}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            send();
-          }
-        }}
-        className="block max-h-72 min-h-6 w-full resize-none bg-transparent px-1 font-sans text-base outline-none"
-      />
-      <div className="flex items-center gap-1.5">
-        {withPeriod && <PeriodChip value={period} onChange={onPeriod} />}
-        {withScope && <BranchChip branches={branches} value={scope} onChange={setScope} />}
-        <span className="flex-1" />
-        <button type="button" className="cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
-          <ArrowUpIcon />
-        </button>
+    <div className="flex w-full flex-col" data-slot="cc-company-composer">
+      <div className="cc-composer cc-composer-inline">
+        <textarea
+          rows={1}
+          value={text}
+          aria-label={t("placeholder")}
+          placeholder={t("placeholder")}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          className="block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans outline-none"
+        />
+        <div className="aui-composer-action-wrapper relative flex items-center justify-between">
+          <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
+            <button type="button" className="cc-send" aria-label={t("send")} title={t("send")} disabled={!text.trim()} onClick={send}>
+              <ArrowUpIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="cc-composer-chin" data-slot="cc-composer-chin">
+        <span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">
+          <Building2Icon />
+          <span className="min-w-0 truncate">{title}</span>
+        </span>
+        {withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}
+        {withScope && <BranchChip look="cc-chin-btn" side="top" branches={branches} value={scope} onChange={setScope} />}
       </div>
     </div>
   );
 };
 
-// ---------------------------------------------------------------- 大面板
-type Tab = "chats" | "library" | "tasks";
-
-const CompanyTabs: FC<{ detail: Detail; period: string; reload: () => Promise<void> }> = ({ detail, period, reload }) => {
-  const id = detail.company.id;
-  const [tab, setTab] = useState<Tab>("chats");
-  const branches = branchesOf(detail);
-  const tabs: Array<[Tab, string]> = [["chats", co.conversations], ["library", co.library]];
-  if (detail.tasks) tabs.push(["tasks", t("scheduledTasks")]);
-  return (
-    <Tabs.Root value={tab} onValueChange={(next) => setTab(next as Tab)} className="cc-company-pane" data-slot="cc-company-pane">
-      <Tabs.List className="cc-tabs" aria-label={detail.company.title}>
-        {tabs.map(([value, label]) => (
-          <Tabs.Trigger key={value} value={value} className="cc-tab">
-            {label}
-          </Tabs.Trigger>
-        ))}
-      </Tabs.List>
-      <Tabs.Content value="chats" className="outline-none">
-        <Conversations company={id} />
-      </Tabs.Content>
-      <Tabs.Content value="library" className="cc-company-cards outline-none">
-        <NotesSection company={id} notes={detail.notes} reload={reload} keepEmpty />
-        <FolderSection company={id} folders={detail.folders} reload={reload} />
-        <ChoicesSection company={id} choices={detail.choices} period={period} reload={reload} />
-        {detail.drafts && (
-          <DraftsSection company={id} drafts={detail.drafts} branches={branches.length > 1 ? branches : []} combined={!!detail.company.combined_vat} />
-        )}
-      </Tabs.Content>
-      {detail.tasks && (
-        <Tabs.Content value="tasks" className="cc-company-cards outline-none">
-          <TasksSection company={id} detail={detail} period={period} keepEmpty />
-        </Tabs.Content>
-      )}
-    </Tabs.Root>
-  );
-};
-
 // ---------------------------------------------------------------- 对话
+const MARK_LABEL: Record<"running" | "notice" | "unread", () => string> = {
+  running: () => t("running"),
+  notice: () => t("newNotice"),
+  unread: () => t("unread"),
+};
 // 页面开着时开始跑的对话：等这么久再补读运行状态（几段一起开始跑时合成一次请求）
 const RUN_RECHECK_MS = 1000;
 // 侧栏条数变化与移动推送常常前后脚到：这么久内的合成一次重取
 const RELOAD_MERGE_MS = 150;
 
-const STATE_LABEL: Record<ChatState, () => string> = {
-  running: () => co.chatRunning,
-  waiting: () => co.chatWaiting,
-  done: () => co.chatDone,
-};
-
-/** 我在这家的对话：按这家从服务端取（分组列表 group=<公司>，同侧栏「显示更多」的翻页），按 进行中 / 等你处理 / 已完成 分组，
- *  组内按活动倒序，带月份短写；点了切过去。顺带请服务端核对侧栏以为在跑的那几个（check，最多 10 个，同侧栏的做法），
- *  读回的运行状态交给 noteRun 校正实时状态（同侧栏 session-list-adapter 的 absorb），分组只看实时状态；读回里有等你点
+/** 我在这家的对话：按这家从服务端取（分组列表 group=<公司>，同侧栏「显示更多」的翻页），最新的在前；一行同侧栏行：标题、
+ *  第二行「月份 · 分店」、右侧相对时间，行尾装饰（在跑脉冲点 / 等你处理 / 跑完没看）；点了切过去。顺带请服务端核对侧栏以为在跑的那几个（check，最多 10 个，同侧栏的做法），
+ *  读回的运行状态交给 noteRun 校正实时状态（同侧栏 session-list-adapter 的 absorb），装饰只看实时状态；读回里有等你点
  *  「允许」的、且还在跑的算「等你处理」。页面开着时才开始跑的对话补读一次它的运行状态；不在跑了丢掉读回的，下次开始跑再读。
  *  这家的对话有进出（新建、移入移出、侧栏挂上的条数变了）或公司有变化时重取第一页。 */
 export const Conversations: FC<{ company: string }> = ({ company }) => {
@@ -480,37 +419,38 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
     return () => clearTimeout(timer);
   }, [missing, company, absorbRuns]);
   if (!rows) return <LoaderIcon className="size-4 animate-spin text-ink-3" aria-hidden />;
-  if (!rows.length) return <p className="text-ink-3 text-sm">{co.noChats}</p>;
-  const groups = groupChats(rows, (row) => chatState(activities[row.id], runs[row.id], row.unread));
   return (
-    <div className="flex flex-col gap-2" data-slot="cc-company-chats">
-      {groups.map(([state, list]) => (
-        <section key={state} className="flex flex-col" data-chat-state={state}>
-          <div className="cc-subheading flex items-center gap-1.5">
-            <span>{STATE_LABEL[state]()}</span>
-            <span className="tabular-nums">{list.length}</span>
-          </div>
-          {list.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              className="cc-list-row"
-              onClick={() => {
-                setView("chat");
-                void aui.threads().switchToThread(row.id);
-              }}
-            >
-              <span className="min-w-0 flex-1 truncate text-ink">{row.title || t("untitled")}</span>
-              {row.period && <span className="shrink-0 text-ink-3 text-xs">{monthShort(row.period)}</span>}
-            </button>
-          ))}
-        </section>
-      ))}
+    <section className="flex flex-col" data-slot="cc-company-chats" aria-label={co.conversations}>
+      <h2 className="cc-subheading">{co.conversations}</h2>
+      {!rows.length && <p className="cc-company-empty">{co.noChats}</p>}
+      {newestFirst(rows).map((row) => {
+        const mark = chatMark(chatState(activities[row.id], runs[row.id], row.unread), activities[row.id]);
+        const meta = [monthShort(row.period ?? ""), branchShort(row.scope ?? "")].filter(Boolean).join(" · ");
+        return (
+          <button
+            key={row.id}
+            type="button"
+            className="cc-chat-row"
+            data-slot="cc-company-chat"
+            onClick={() => {
+              setView("chat");
+              void aui.threads().switchToThread(row.id);
+            }}
+          >
+            <span className="cc-row-text">
+              <span className="cc-row-title">{row.title || t("untitled")}</span>
+              {meta && <span className="cc-row-meta">{meta}</span>}
+            </span>
+            {mark && <span className="cc-activity" data-activity={mark} role="img" aria-label={MARK_LABEL[mark]()} />}
+            <span className="cc-chat-row-when">{relativeWhen(row.updated_at)}</span>
+          </button>
+        );
+      })}
       {next && (
         <button type="button" className="cc-show-more" disabled={busy} onClick={() => void load(next)}>
           {co.showMore}
         </button>
       )}
-    </div>
+    </section>
   );
 };

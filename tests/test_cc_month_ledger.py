@@ -72,13 +72,13 @@ class LedgerSourceTests(unittest.TestCase):
         panel = read("components/session-panel.tsx")
         self.assertIn("month: <MonthCard company={company} period={period} />,", panel)
         self.assertNotIn("const MonthCard: FC = () => null;", panel)
-        page = read("components/company-page.tsx")
-        overview = page.split('<div className="cc-company-overview">', 1)[1].split("</div>", 1)[0]
-        lines = [line.strip() for line in overview.strip().splitlines()]
-        self.assertTrue(lines[0].startswith("<CompanyComposer "), lines)
-        self.assertEqual(lines[1], "<MonthSection company={id} period={period} onPeriod={onPeriod} />")  # 概览第一节，月份同输入框
+        # 公司页的「月结」卡在公司页的会话栏里，月份胶囊与输入框的同一个（公司页自己的月份）
+        self.assertIn("month: <MonthSection company={company} period={period} onPeriod={setPagePeriod} />,", panel)
+        self.assertIn("{withPeriod && <PeriodChip look=\"cc-chin-btn\" side=\"top\" value={period} onChange={setPagePeriod} />}",
+                      read("components/company-page.tsx"))
         ledger = read("components/month-ledger.tsx")
-        self.assertIn('action={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', ledger)
+        self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', ledger)
+        self.assertIn("summary={month ? monthSummary(month) : undefined}", ledger)
         self.assertIn("const period = isPeriod(chosen) ? chosen : lastMonth();", ledger)  # 页面「不指定」时看上个月
         # 会话栏：没取到、空月不显示；出错显示原因
         card = ledger.split("export const MonthCard: FC", 1)[1].split("\n};", 1)[0]

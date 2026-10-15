@@ -1,27 +1,31 @@
-// 公司资料的卡片（ADR-020，只在 Cowork）：右侧会话栏（components/session-panel.tsx）与公司页（company-page.tsx 的概览、
-// 「资料」「定时任务」标签）共用同一套，日常在会话栏里改，公司页做管理和总览。
+// 公司资料的卡片（ADR-020，只在 Cowork）：右侧会话栏（components/session-panel.tsx）用的一套，对话里与公司页里都是它
+// （公司页的资料全在会话栏，开发窗口 10-16 定）。
 //
-//   卡片外框 PanelCard（设计文档 3.13）：透明底 + 1px 内环、圆角 10；卡头 26 高，整行（标题 + 箭头 + 右侧淡色摘要）点了折叠；
-//            卡头右侧操作（＋）与 6 点拖动把手悬停才出；在会话栏里（PanelControlContext）折叠、顺序记在本机，拖动或
-//            Alt+↑/↓ 调顺序；别处（公司页）各自记在页面里，默认展开。
+//   卡片外框 PanelCard（设计文档 3.13）：透明底 + 1px 内环、圆角 10；卡头 26：标题 + 箭头是折叠开关（整行都能点），右侧一列
+//            12px 淡色摘要（「2 条」「1 个任务」「需处理 2」，一直显示），卡头操作（＋）悬停 / 聚焦时盖在摘要的位置上；最右边留着
+//            6 点把手的宽度，把手悬停 / 聚焦才出，摘要一列右对齐、不因把手或操作出现而挪动。在会话栏里（PanelControlContext）
+//            折叠、顺序记在本机，拖动（dnd-kit 排序列表）或 Alt+↑/↓ 调顺序；不在会话栏里时各自记折叠、默认展开、没有把手。
 //   各卡     待处理（这家的，当场选沿用 F18 规则）→ 知识库（新增 / 修改有「取消」「保存」，F11e）→ 单据文件夹（只有 CC 桌面版
 //            窗口能选，桥 pick_folder 的结果原样交给 folder_bind）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 定时任务
 //            （点一行跳任务页，「＋」带预填）→ 申报草稿（按分店分组）→ 记住的选择（按类别；付款方式、简易税票抵不抵能直接改，
 //            其余只能删；Express 历史学到的只读可删）。没内容的卡在会话栏里不显示（keepEmpty 时照样显示，公司页用）。
 //   公司规则（数字会计员第 2 期）：「记住的选择」里公司规则的行写明「全公司 / 分店 X」，付款 / 抵进项可用下拉直接改；账套行与
-//            历史行多一个「设为全公司」。公司页「资料」里知识库是空的时给「让 CC 起草」（新对话里预填、不自动发送）。
+//            历史行多一个「设为全公司」。公司页知识库是空的时给「让 CC 起草」（新对话里预填、不自动发送）。
 //
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
 import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   createContext,
   type FC,
   type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useContext,
   useEffect,
+  useId,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -78,6 +82,12 @@ export function folderState(folder: Pick<CompanyFolder, "state">): string {
   }
 }
 
+/** 单据文件夹卡头的一句：一个文件夹写它的状态，几个写个数，没有不写。 */
+export function folderSummary(folders: ReadonlyArray<Pick<CompanyFolder, "state">>): string {
+  if (folders.length === 1) return folderState(folders[0]!);
+  return folders.length ? co.card.folders(folders.length) : "";
+}
+
 /** 记住的选择分小节：Express 按类别，其余按来源（vat 预设叫「增值税核对」，免得与简易税票那一类混）。 */
 export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
   if (choice.source === "express" || choice.source === "rule") return choice.kind;
@@ -88,28 +98,59 @@ export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
 const SECTION_ORDER = ["party", "account", "payment", "vat", "item", "department", "receipt", "pos", "income", "vatCheck", "history"];
 
 // ---------------------------------------------------------------- 卡片外框
-/** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓、拖动把手）。公司页不给，卡片各自记折叠、没有把手。 */
+/** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的 dnd-kit 排序列表负责）、登记看得见的卡片
+ *  （排序列表只在登记了的卡片之间排，空卡不显示也不占位；标题给读屏播报用）。不在会话栏里时卡片各自记折叠、没有把手。 */
 export type PanelControl = {
   collapsed: readonly string[];
   toggle: (id: string) => void;
   move: (id: string, delta: number) => void;
-  drag: (id: string, e: ReactPointerEvent<HTMLElement>) => void;
-  dragging: string | null;
+  register: (id: string, title: string) => () => void;
 };
 export const PanelControlContext = createContext<PanelControl | null>(null);
 
-/** 一张卡：卡头整行（标题、箭头、摘要）是一个折叠开关；右侧操作与拖动把手；forceOpen = 正在里面新增 / 编辑，折叠了也展开。 */
-export const PanelCard: FC<{
+type CardProps = {
   id: string;
   title: string;
+  /** 卡头右侧淡色的一句状态（「2 条」「需处理 2」）；空、0 不显示。 */
   summary?: ReactNode;
+  /** 卡头操作（＋）：悬停、键盘聚焦卡头时才出，盖在摘要的位置上（摘要那一列不挪动）。 */
   action?: ReactNode;
+  /** 一直显示的卡头控件（公司页「本月」的月份胶囊），在标题后面。 */
+  extra?: ReactNode;
   slot?: string;
   forceOpen?: boolean;
   children: ReactNode;
-}> = ({ id, title, summary, action, slot, forceOpen = false, children }) => {
+};
+
+/** 一张卡：卡头标题与箭头是折叠开关（整行都能点）；右侧摘要一列右对齐，操作悬停时盖在它上面；会话栏里最右边留出把手的
+ *  宽度（6 点把手悬停、聚焦时才出，摘要不因它出现而挪动）。forceOpen = 正在里面新增 / 编辑，折叠了也展开。 */
+export const PanelCard: FC<CardProps> = (props) => {
   const control = useContext(PanelControlContext);
+  return control ? <SortableCard {...props} control={control} /> : <CardFrame {...props} control={null} sortable={null} />;
+};
+
+/** 会话栏里的卡：登记自己、接上排序列表（components/session-panel.tsx 的 DndContext / SortableContext）。 */
+const SortableCard: FC<CardProps & { control: PanelControl }> = ({ control, ...props }) => {
+  const { register } = control;
+  useLayoutEffect(() => register(props.id, props.title), [register, props.id, props.title]);
+  const sortable = useSortable({ id: props.id });
+  return <CardFrame {...props} control={control} sortable={sortable} />;
+};
+
+const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: ReturnType<typeof useSortable> | null }> = ({
+  id,
+  title,
+  summary,
+  action,
+  extra,
+  slot,
+  forceOpen = false,
+  children,
+  control,
+  sortable,
+}) => {
   const [folded, setFolded] = useState(false);
+  const summaryId = useId();
   const collapsed = !forceOpen && (control ? control.collapsed.includes(id) : folded);
   const toggle = () => (control ? control.toggle(id) : setFolded((v) => !v));
   const keys = (e: ReactKeyboardEvent) => {
@@ -124,28 +165,53 @@ export const PanelCard: FC<{
   };
   const shownSummary = summary !== undefined && summary !== null && summary !== "" && summary !== 0;
   return (
-    <section className="cc-panel-card" data-card={id} data-slot={slot} data-dragging={control?.dragging === id || undefined}>
+    <section
+      ref={sortable?.setNodeRef}
+      style={sortable ? { transform: CSS.Translate.toString(sortable.transform) } : undefined}
+      className="cc-panel-card"
+      data-card={id}
+      data-slot={slot}
+      data-dragging={sortable?.isDragging || undefined}
+      data-moving={sortable?.transition ? "" : undefined}
+    >
       <div className="cc-panel-card-head">
-        <button type="button" className="cc-panel-card-toggle" aria-expanded={!collapsed} onClick={toggle} onKeyDown={keys}>
+        <button
+          type="button"
+          className="cc-panel-card-toggle"
+          aria-expanded={!collapsed}
+          aria-describedby={shownSummary ? summaryId : undefined}
+          onClick={toggle}
+          onKeyDown={keys}
+        >
           <span className="truncate">{title}</span>
           <ChevronRightIcon className="cc-panel-card-chevron" aria-hidden />
-          {shownSummary && <span className="cc-panel-card-summary">{summary}</span>}
         </button>
-        {(action || control) && (
-          <span className="cc-panel-card-tools">
-            {action}
-            {control && (
-              <button
-                type="button"
-                className="cc-panel-btn cc-panel-grip"
-                aria-label={t("reorder")}
-                title={t("reorder")}
-                onPointerDown={(e) => control.drag(id, e)}
-                onKeyDown={keys}
-              >
-                <GripVerticalIcon aria-hidden />
-              </button>
-            )}
+        {extra && <span className="cc-panel-card-extra">{extra}</span>}
+        <span className="cc-panel-card-end" data-slot="cc-card-end">
+          {shownSummary && (
+            <span id={summaryId} className="cc-panel-card-summary">
+              {summary}
+            </span>
+          )}
+          {action && <span className="cc-panel-card-tools">{action}</span>}
+        </span>
+        {sortable && (
+          <span className="cc-panel-card-grip" data-slot="cc-card-grip">
+            <button
+              type="button"
+              ref={sortable.setActivatorNodeRef}
+              {...sortable.attributes}
+              {...sortable.listeners}
+              className="cc-panel-btn cc-panel-grip"
+              aria-label={t("reorder")}
+              title={t("reorder")}
+              onKeyDown={(e) => {
+                keys(e);
+                if (!e.defaultPrevented) sortable.listeners?.onKeyDown?.(e);
+              }}
+            >
+              <GripVerticalIcon aria-hidden />
+            </button>
           </span>
         )}
       </div>
@@ -163,7 +229,7 @@ export const PendingCard: FC<{ company: string; period?: string }> = ({ company,
   if (!count) return null;
   if (period === undefined) {
     return (
-      <PanelCard id="pending" title={co.pending} summary={count} slot="cc-company-pending">
+      <PanelCard id="pending" title={co.pending} summary={co.card.docs(count)} slot="cc-company-pending">
         <PendingList company={company} embedded />
       </PanelCard>
     );
@@ -176,7 +242,7 @@ const OtherMonthsPending: FC<{ company: string; period: string }> = ({ company, 
   const items = useMemo(() => (state.items ? otherMonths(state.items, period) : null), [state.items, period]);
   if (!items?.length && !state.error) return null;
   return (
-    <PanelCard id="pending" title={co.pending} summary={items?.length ?? 0} slot="cc-company-pending">
+    <PanelCard id="pending" title={co.pending} summary={items?.length ? co.card.docs(items.length) : undefined} slot="cc-company-pending">
       <PendingItems {...state} items={items} company={company} embedded />
     </PanelCard>
   );
@@ -241,7 +307,7 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
     <PanelCard
       id="notes"
       title={co.notes}
-      summary={list.length}
+      summary={list.length ? co.card.notes(list.length) : undefined}
       slot="cc-company-notes"
       forceOpen={adding || !!editing}
       action={
@@ -397,7 +463,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
   };
   if (hideEmpty && !app && !folders.length && !error) return null;
   return (
-    <PanelCard id="folders" title={co.docFolder} slot="cc-company-folders">
+    <PanelCard id="folders" title={co.docFolder} summary={folderSummary(folders)} slot="cc-company-folders">
       <div className="flex flex-col gap-1">
         {folders.map((f) => (
           <div key={`${f.reader}-${f.device}`} className="cc-folder-line" data-state={f.state}>
@@ -446,25 +512,33 @@ const SetRow: FC<{ set: AccountSet; covering: boolean }> = ({ set, covering }) =
   </div>
 );
 
-export const SetsSection: FC<{ sets: AccountSet[]; branches: Branch[]; period: string }> = ({ sets, branches, period }) => {
+/** 账套清单（多分店按分店分组，覆盖这个月的高亮）：账套卡与公司页会话栏的「公司」卡共用。 */
+export const SetsList: FC<{ sets: AccountSet[]; branches: Branch[]; period: string }> = ({ sets, branches, period }) => {
   const covering = setFor(sets, period);
   if (!sets.length) return null;
-  return (
-    <PanelCard id="sets" title={co.accountSets} slot="cc-company-sets">
-      {branches.length ? (
-        branches.map((b) => (
-          <div key={b.branch} className="flex flex-col">
-            <div className="cc-subheading">{branchName(b)}</div>
-            {b.account_sets.map((set) => (
-              <SetRow key={`${set.connection}-${set.key}`} set={set} covering={setFor(b.account_sets, period) === set} />
-            ))}
-          </div>
-        ))
-      ) : (
-        <div className="flex flex-col">
-          {sets.map((set) => <SetRow key={`${set.connection}-${set.key}`} set={set} covering={covering === set} />)}
+  return branches.length ? (
+    <>
+      {branches.map((b) => (
+        <div key={b.branch} className="flex flex-col">
+          <div className="cc-subheading">{branchName(b)}</div>
+          {b.account_sets.map((set) => (
+            <SetRow key={`${set.connection}-${set.key}`} set={set} covering={setFor(b.account_sets, period) === set} />
+          ))}
         </div>
-      )}
+      ))}
+    </>
+  ) : (
+    <div className="flex flex-col">
+      {sets.map((set) => <SetRow key={`${set.connection}-${set.key}`} set={set} covering={covering === set} />)}
+    </div>
+  );
+};
+
+export const SetsSection: FC<{ sets: AccountSet[]; branches: Branch[]; period: string }> = ({ sets, branches, period }) => {
+  if (!sets.length) return null;
+  return (
+    <PanelCard id="sets" title={co.accountSets} summary={co.card.sets(sets.length)} slot="cc-company-sets">
+      <SetsList sets={sets} branches={branches} period={period} />
     </PanelCard>
   );
 };
@@ -497,7 +571,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
     <PanelCard
       id="tasks"
       title={t("scheduledTasks")}
-      summary={tasks.length}
+      summary={tasks.length ? co.card.tasks(tasks.length) : undefined}
       slot="cc-company-tasks"
       action={
         <button type="button" className="cc-panel-btn" aria-label={co.add} title={co.add} onClick={add}>
@@ -538,7 +612,7 @@ export const DraftsSection: FC<{ company: string; drafts: Draft[]; branches: Bra
   );
   const grouped = branches.length > 1 && !combined;
   return (
-    <PanelCard id="drafts" title={co.taxDrafts} summary={drafts.length} slot="cc-company-drafts">
+    <PanelCard id="drafts" title={co.taxDrafts} summary={co.card.drafts(drafts.length)} slot="cc-company-drafts">
       {combined && <span className="cc-chip self-start">{co.combinedVat}</span>}
       {grouped ? (
         branches.map((b) => {
@@ -607,7 +681,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
     }
   };
   return (
-    <PanelCard id="choices" title={co.remembered} summary={list.length} slot="cc-company-choices">
+    <PanelCard id="choices" title={co.remembered} summary={co.card.choices(list.length)} slot="cc-company-choices">
       {groups.map(([section, rows]) => (
         <div key={section} className="flex flex-col">
           <div className="cc-subheading">{co.kind[section] ?? section}</div>
