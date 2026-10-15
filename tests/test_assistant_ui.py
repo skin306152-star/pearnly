@@ -1894,7 +1894,11 @@ g.done();
         item = block(thread_list, "export const ThreadListItem: FC")
         self.assertIn("<ThreadListItemPrimitive.Title", item)
         self.assertIn("<ThreadActivity />", item)  # 行尾在跑、未读圆点照旧
-        self.assertIn("data-active:bg-active", item)  # 选中、悬停照旧
+        # 悬停与选中同一个底色（会话列表靠主色字区分选中，设计文档 3.5），行高按变体
+        self.assertIn("hover:bg-row-hover", item)
+        self.assertIn("data-active:bg-row-hover", item)
+        self.assertIn("data-active:text-ink", item)
+        self.assertIn("h-(--cc-row-h)", item)
         # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪
         self.assertIn("s.threads.isLoading && !s.threads.threadIds.length", thread_list)
         realtime = read("lib/managed-agents/realtime.ts")
