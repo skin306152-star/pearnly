@@ -9,7 +9,12 @@ import { uploadFile, type UploadedFile } from "./api";
 import { beginPending, clearPending } from "./pending-send";
 import { shownError } from "@/lib/frappe";
 
-export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
+/** 可以附上的类型，同服务端 contracts.UPLOAD_EXTENSIONS（只认扩展名）；图片另写 MIME，iPhone 据此给「拍照」「照片图库」。
+ *  不写 image/* 这类通配：它会放进服务端不收的图片（bmp、tiff…）。不收视频。组件库在交给 add 之前就按它挡掉别的类型。 */
+export const UPLOAD_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif", ".pdf",
+  ".xlsx", ".xls", ".csv", ".tsv", ".docx", ".txt", ".md", ".json"] as const;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
+export const ACCEPT = [...IMAGE_TYPES, ...UPLOAD_EXTENSIONS].join(",");
 
 /** 已上传附件在沙箱里的位置，按 assistant-ui 的附件编号记，发送时拼进消息。 */
 const uploaded = new Map<string, UploadedFile>();

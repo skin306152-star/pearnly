@@ -6,10 +6,18 @@
 //   - 回到离底部 NEAR_BOTTOM_PX 以内、且离上次往上翻已过 COOLDOWN_MS（惯性还在走的那一下不算），接着跟；
 //   - 只在这一轮在跑时跟；新的一轮（用户又发了一条）从跟随开始；
 //   - 组件库还在给这一轮留空白（顶部锚定的占位还有高度）时不插手，免得抢它把消息推到顶上的那一下。
+//
+// 打开一段对话（settle）停在最新一条：组件库只在消息第一次出现时滚到底一次，「这一轮从顶上开始」时它不再跟着内容长
+// （autoScroll 关着），而打开后内容还会变高——消息用 content-visibility 先按估计高度排、滚到哪儿才量出真实高度，
+// 正文排版、文件卡片、缩略图随后才到——于是停在中间（2026-10-15 三星 A14 实测 F11f）。打开后内容一变高就贴回最底下，
+// 直到内容静下来 SETTLE_QUIET_MS（最多 SETTLE_MAX_MS），或用户一碰（滚轮、按下手指 / 鼠标、按键）就交还：
+// 往上翻照旧立刻停、不拉回。
 // 只看本页的滚动与尺寸，不发请求、不开定时。
 
 export const NEAR_BOTTOM_PX = 48;
 export const COOLDOWN_MS = 400;
+export const SETTLE_QUIET_MS = 1500;
+export const SETTLE_MAX_MS = 10_000;
 const DRAG_PX = 4;
 const UP_KEYS = new Set(["PageUp", "ArrowUp", "Home"]);
 
@@ -34,6 +42,9 @@ function editable(target: unknown): boolean {
 export class StreamFollower {
   following = true;
   private pausedAt = Number.NEGATIVE_INFINITY;
+  // 打开对话后贴底：从哪一刻起、内容最近一次变高在哪一刻（-∞ = 不在贴底）
+  private settleFrom = Number.NEGATIVE_INFINITY;
+  private settleLast = Number.NEGATIVE_INFINITY;
   private touchY: number | null = null;
   private dragging = false;
   private lastTop: number;
@@ -54,9 +65,11 @@ export class StreamFollower {
       this.off.push(() => viewport.removeEventListener(type, listener));
     };
     on("wheel", (e: { deltaY: number }) => {
+      this.unsettle();
       if (e.deltaY < 0) this.pause();
     });
     on("touchstart", (e: { touches: ArrayLike<{ clientY: number }> }) => {
+      this.unsettle();
       this.touchY = e.touches[0]?.clientY ?? null;
     });
     on("touchmove", (e: { touches: ArrayLike<{ clientY: number }> }) => {
@@ -73,10 +86,12 @@ export class StreamFollower {
     on("touchend", release);
     on("touchcancel", release);
     on("keydown", (e: { key: string; target: unknown }) => {
+      this.unsettle();
       if (UP_KEYS.has(e.key) && !editable(e.target)) this.pause();
     });
     // 按在视口自己身上（不是里面的内容）= 在拖滚动条
     on("pointerdown", (e: { target: unknown }) => {
+      this.unsettle();
       this.dragging = e.target === viewport;
     });
     on("pointerup", release);
@@ -94,9 +109,27 @@ export class StreamFollower {
     this.pausedAt = Number.NEGATIVE_INFINITY;
   }
 
+  /** 打开了一段对话（换到另一段、或这段的消息刚取回）：贴到最底下，内容还在长就接着贴（见文件头）。 */
+  settle() {
+    this.resume();
+    this.settleFrom = this.settleLast = this.now();
+    this.toBottom();
+  }
+
+  /** 正在打开后的贴底：用户没碰过、内容最近还在变、没超过上限。 */
+  get settling(): boolean {
+    const now = this.now();
+    return this.following && now - this.settleLast < SETTLE_QUIET_MS && now - this.settleFrom < SETTLE_MAX_MS;
+  }
+
+  private unsettle() {
+    this.settleFrom = this.settleLast = Number.NEGATIVE_INFINITY;
+  }
+
   private pause() {
     this.following = false;
     this.pausedAt = this.now();
+    this.unsettle();
   }
 
   private distance(): number {
@@ -118,9 +151,15 @@ export class StreamFollower {
   }
 
   private onResize() {
-    if (!this.live()) return;
+    const settling = this.settling;
+    if (!this.live() && !settling) return;
+    if (settling) this.settleLast = this.now();
     this.maybeResume();
     if (!this.following) return;
+    this.toBottom();
+  }
+
+  private toBottom() {
     // 组件库正把这一轮推到顶上（占位还有高度）：位置归它管
     const reserve = this.viewport.querySelector<HTMLElement>("[data-aui-top-anchor-reserve]");
     if ((reserve?.offsetHeight ?? 0) > 0) return;

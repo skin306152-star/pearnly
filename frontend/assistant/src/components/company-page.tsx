@@ -65,6 +65,7 @@ import { forgetProject, hintTitle, renameProjectLocally, useProjects } from "@/l
 import { onProjectChange } from "@/lib/managed-agents/realtime";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
+import { touchOnly } from "@/lib/touch";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 
@@ -222,16 +223,22 @@ const Header: FC<{ detail: Detail }> = ({ detail }) => {
   const { isMobile } = useSidebar();
   const { setView } = useView();
   const c = detail.company;
+  // 改名成功就显示新名字（服务端回的那份），不等整页重取；重取到了以服务端为准
+  const [title, setTitle] = useState(c.title);
+  useEffect(() => setTitle(c.title), [c.title]);
   const [renaming, setRenaming] = useState(false);
   const [value, setValue] = useState(c.title);
   const [error, setError] = useState("");
-  const save = async (title: string) => {
-    const next = title.trim();
+  const save = async (input: string) => {
+    const next = input.trim();
     setRenaming(false);
-    if (!next || next === c.title) return;
+    if (!next || next === title) return;
+    setError("");
     try {
-      await renameCompany(c.id, next);
-      renameProjectLocally(c.id, next);
+      const out = await renameCompany(c.id, next);
+      const saved = (out as { title?: string } | null)?.title || next;
+      setTitle(saved);
+      renameProjectLocally(c.id, saved);
       dropCachedDetail(c.id);
     } catch (e) {
       setError(shownError(e));
@@ -239,10 +246,10 @@ const Header: FC<{ detail: Detail }> = ({ detail }) => {
   };
   const rename = () => {
     if (!isMobile) {
-      setValue(c.title);
+      setValue(title);
       return setRenaming(true);
     }
-    const next = window.prompt(t("rename"), c.title);
+    const next = window.prompt(t("rename"), title);
     if (next) void save(next);
   };
   const remove = async () => {
@@ -274,10 +281,10 @@ const Header: FC<{ detail: Detail }> = ({ detail }) => {
             className="cc-input w-full text-lg"
           />
         ) : (
-          <h1 className="cc-greeting truncate text-3xl">{c.title}</h1>
+          <h1 className="cc-greeting truncate text-3xl">{title}</h1>
         )}
         <div className="mt-1 flex flex-wrap items-center gap-2 text-ink-3 text-sm">
-          <span className="truncate">{[c.legal_name && c.legal_name !== c.title ? c.legal_name : "", companyLine(c)].filter(Boolean).join(" · ")}</span>
+          <span className="truncate">{[c.legal_name && c.legal_name !== title ? c.legal_name : "", companyLine(c)].filter(Boolean).join(" · ")}</span>
           {!!c.combined_vat && <span className="cc-chip">{co.combinedVat}</span>}
         </div>
         {error && <p role="alert" className="mt-1 text-danger text-sm">{error}</p>}
@@ -419,18 +426,49 @@ const PendingSection: FC<{ company: string }> = ({ company }) => (
 );
 
 // ---------------------------------------------------------------- 知识库
+/** 同服务端 notes.clean：连续空白（含换行）并成一个空格。 */
+export const noteText = (text: string) => text.replace(/\s+/g, " ").trim();
+
+/** 存好的那一条放进列表：改的替换原位，新的接在最后（服务端按创建先后列）。 */
+export function putNote(notes: readonly Note[], saved: Note): Note[] {
+  return notes.some((n) => n.id === saved.id) ? notes.map((n) => (n.id === saved.id ? { ...n, ...saved } : n)) : [...notes, saved];
+}
+
+/** 存一条，回「把它放进列表」：页面直接用服务端回的那一条，不等之后整页重取（重取失败时也不丢；2026-10-15 F11e）。
+ *  回的是更新函数，交给 setState 时套在那一刻的列表上（保存期间整页重取到了也不被盖回旧的）。 */
+export async function commitNote(company: string, text: string, note?: string): Promise<(notes: readonly Note[]) => Note[]> {
+  const saved = await saveNote(company, text, note);
+  return (notes) => (saved?.id ? putNote(notes, saved) : [...notes]);
+}
+
+/** 删一条，回「从列表里拿掉它」。 */
+export async function removeNote(company: string, note: string): Promise<(notes: readonly Note[]) => Note[]> {
+  await deleteNote(company, note);
+  return (notes) => notes.filter((n) => n.id !== note);
+}
+
 const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Promise<void> }> = ({ company, notes, reload }) => {
+  // 页面上显示的知识库：整页重取到了就以服务端为准；存 / 删成功时先按服务端的回应改这里
+  const [list, setList] = useState(notes);
+  useEffect(() => setList(notes), [notes]);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState("");
   const [error, setError] = useState("");
-  const run = async (work: () => Promise<unknown>) => {
+  const remove = async (id: string) => {
     setError("");
     try {
-      await work();
-      await reload();
+      setList(await removeNote(company, id));
+      void reload();
     } catch (e) {
       setError(shownError(e));
     }
+  };
+  /** 编辑框的保存：成功就收起编辑框；失败抛给编辑框，它留着字并显示报错。 */
+  const save = async (text: string, id?: string) => {
+    setList(await commitNote(company, text, id));
+    if (id) setEditing("");
+    else setAdding(false);
+    void reload();
   };
   return (
     <Section
@@ -444,16 +482,9 @@ const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Promise<v
       }
     >
       <div className="flex flex-col gap-1">
-        {notes.map((note) =>
+        {list.map((note) =>
           editing === note.id ? (
-            <NoteInput
-              key={note.id}
-              initial={note.text}
-              onDone={(text) => {
-                setEditing("");
-                if (text && text !== note.text) void run(() => saveNote(company, text, note.id));
-              }}
-            />
+            <NoteEditor key={note.id} initial={note.text} onSave={(text) => save(text, note.id)} onCancel={() => setEditing("")} />
           ) : (
             <div key={note.id} className="cc-note group/note">
               <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(note.id)}>
@@ -464,61 +495,90 @@ const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Promise<v
                 className="cc-group-btn opacity-0 group-hover/note:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
                 aria-label={t("delete")}
                 title={t("delete")}
-                onClick={() => void run(() => deleteNote(company, note.id))}
+                onClick={() => void remove(note.id)}
               >
                 <XIcon />
               </button>
             </div>
           ),
         )}
-        {adding && (
-          <NoteInput
-            initial=""
-            onDone={(text) => {
-              setAdding(false);
-              if (text) void run(() => saveNote(company, text));
-            }}
-          />
-        )}
+        {adding && <NoteEditor initial="" onSave={(text) => save(text)} onCancel={() => setAdding(false)} />}
         {error && <p role="alert" className="text-danger text-sm">{error}</p>}
       </div>
     </Section>
   );
 };
 
-/** 就地编辑一条：回车或离开保存，Esc 放弃；Shift+回车换行。 */
-const NoteInput: FC<{ initial: string; onDone: (text: string) => void }> = ({ initial, onDone }) => {
+/** 编辑框里按键要不要保存：电脑上回车保存（Shift+回车换行，原有快捷键）；手机上回车换行、保存靠按钮；
+ *  Ctrl / ⌘+回车两边都保存。选字中的回车（isComposing、keyCode 229）不算。 */
+export function noteKey(e: { key: string; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; keyCode?: number;
+  nativeEvent?: { isComposing?: boolean } }, touch: boolean): "save" | "cancel" | null {
+  if (e.key === "Escape") return "cancel";
+  if (e.key !== "Enter" || e.nativeEvent?.isComposing || e.keyCode === 229) return null;
+  if (e.ctrlKey || e.metaKey) return "save";
+  return touch || e.shiftKey ? null : "save";
+}
+
+/** 新增、修改一条知识库：多行输入框 + 「取消」「保存」（电脑与手机一样）。保存中按钮不可点；失败时留着字、在下面显示报错。 */
+export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise<void>; onCancel: () => void }> = ({
+  initial,
+  onSave,
+  onCancel,
+}) => {
   const [value, setValue] = useState(initial);
-  const finished = useRef(false);
-  const done = (text: string) => {
-    if (finished.current) return;
-    finished.current = true;
-    onDone(text.replace(/\s+/g, " ").trim());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const text = noteText(value);
+  const canSave = !!text && text !== noteText(initial) && !busy;
+  const save = async () => {
+    if (!canSave) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onSave(text);
+    } catch (e) {
+      setError(shownError(e));
+      setBusy(false);
+    }
   };
   return (
-    <textarea
-      autoFocus
-      rows={2}
-      maxLength={NOTE_MAX}
-      value={value}
-      aria-label={co.notes}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={() => done(value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+    <div className="flex flex-col gap-2" data-slot="cc-note-editor">
+      <textarea
+        autoFocus
+        rows={2}
+        maxLength={NOTE_MAX}
+        value={value}
+        aria-label={co.notes}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          const action = noteKey(e, touchOnly());
+          if (!action) return;
           e.preventDefault();
-          done(value);
-        }
-        if (e.key === "Escape") done(initial);
-      }}
-      className="cc-input h-auto w-full py-1.5"
-    />
+          if (action === "cancel") onCancel();
+          else void save();
+        }}
+        className="cc-input h-auto w-full py-1.5"
+      />
+      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" className="cc-btn cc-tap" disabled={busy} onClick={onCancel}>
+          {t("cancel")}
+        </button>
+        <button type="button" className="cc-btn cc-tap" data-primary="" disabled={!canSave} onClick={() => void save()}>
+          {t("save")}
+        </button>
+      </div>
+    </div>
   );
 };
 
 // ---------------------------------------------------------------- 单据文件夹
-export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; reload: () => Promise<void> }> = ({ company, folders, reload }) => {
+export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; reload: () => Promise<void> }> = ({ company, folders: all, reload }) => {
   const { app, companyFolders } = useDesktopFeatures();
+  // 刚移除的（服务端已删）先不显示，不等整页重取；重取到了以服务端为准
+  const [gone, setGone] = useState<string[]>([]);
+  useEffect(() => setGone([]), [all]);
+  const folders = all.filter((f) => !gone.includes(f.reader));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const readers = knownReaders();
@@ -536,6 +596,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       }
       rememberReader(picked.binding.reader);
       await bindFolder(company, picked.binding);
+      setGone((before) => before.filter((reader) => reader !== picked.binding.reader));
       await reload();
     } catch (e) {
       setError(shownError(e));
@@ -547,7 +608,8 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
     setError("");
     try {
       await unbindFolder(company, reader);
-      await reload();
+      setGone((before) => [...before, reader]);
+      void reload();
     } catch (e) {
       setError(shownError(e));
     }
@@ -717,19 +779,32 @@ const EDITABLE: Record<string, Array<{ value: string; label: () => string }>> = 
   ],
 };
 
+/** 改了一条记住的选择后列表的样子：值与显示名换成刚选的（选项的显示名在 EDITABLE）。 */
+export function setChoiceShown(choices: readonly Choice[], key: string, value: string): Choice[] {
+  return choices.map((c) => {
+    if (c.key !== key) return c;
+    const label = EDITABLE[c.kind]?.find((o) => o.value === value)?.label();
+    return { ...c, value, ...(label ? { value_label: label } : {}) };
+  });
+}
+
 const ChoicesSection: FC<{ company: string; choices: Choice[]; period: string; reload: () => Promise<void> }> = ({ company, choices, period, reload }) => {
+  // 页面上显示的：改 / 删成功时先按刚做的改这里（下拉框不弹回旧值），整页重取到了以服务端为准
+  const [list, setList] = useState(choices);
+  useEffect(() => setList(choices), [choices]);
   const [error, setError] = useState("");
   const groups = useMemo(() => {
     const map = new Map<string, Choice[]>();
-    for (const c of choices) map.set(choiceSection(c), [...(map.get(choiceSection(c)) ?? []), c]);
+    for (const c of list) map.set(choiceSection(c), [...(map.get(choiceSection(c)) ?? []), c]);
     return [...map.entries()].sort((a, b) => SECTION_ORDER.indexOf(a[0]) - SECTION_ORDER.indexOf(b[0]));
-  }, [choices]);
-  if (!choices.length) return null;
-  const run = async (work: () => Promise<unknown>) => {
+  }, [list]);
+  if (!list.length) return null;
+  const run = async (work: () => Promise<unknown>, shown: (rows: readonly Choice[]) => Choice[]) => {
     setError("");
     try {
       await work();
-      await reload();
+      setList(shown);
+      void reload();
     } catch (e) {
       setError(shownError(e));
     }
@@ -740,7 +815,12 @@ const ChoicesSection: FC<{ company: string; choices: Choice[]; period: string; r
         <div key={section} className="flex flex-col">
           <div className="cc-subheading">{co.kind[section] ?? section}</div>
           {rows.map((c) => (
-            <ChoiceRow key={c.key} choice={c} onSet={(v) => void run(() => setChoice(company, c.key, v, period))} onForget={() => void run(() => forgetChoice(company, c.key))} />
+            <ChoiceRow
+              key={c.key}
+              choice={c}
+              onSet={(v) => void run(() => setChoice(company, c.key, v, period), (rows) => setChoiceShown(rows, c.key, v))}
+              onForget={() => void run(() => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key))}
+            />
           ))}
         </div>
       ))}

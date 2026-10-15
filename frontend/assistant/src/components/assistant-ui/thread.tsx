@@ -212,17 +212,25 @@ function useFollowStream() {
     for (let i = s.thread.messages.length - 1; i >= 0; i--) if (s.thread.messages[i]!.role === "user") return s.thread.messages[i]!.id;
     return undefined;
   });
+  // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到最新一条（follow-scroll 的 settle）
+  const opened = useAuiState((s) => (s.thread.messages.length > 0 ? s.threadListItem.id : ""));
+  const openedNow = useRef(opened);
+  openedNow.current = opened;
   const follower = useRef<StreamFollower | null>(null);
   useEffect(() => {
     if (!viewport || !content) return;
     const created = new StreamFollower(viewport, content, () => live.current);
     follower.current = created;
+    if (openedNow.current) created.settle();
     return () => {
       created.dispose();
       if (follower.current === created) follower.current = null;
     };
   }, [viewport, content]);
   useEffect(() => follower.current?.resume(), [turn]);
+  useEffect(() => {
+    if (opened) follower.current?.settle();
+  }, [opened]);
   return { viewport: setViewport, content: setContent };
 }
 
