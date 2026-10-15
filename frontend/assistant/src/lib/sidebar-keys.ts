@@ -32,10 +32,11 @@ export function toggleIn(ids: readonly string[], id: string): string[] {
   return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
 }
 
-export function selectRange(order: readonly string[], target: string) {
+/** Shift 点 / Shift + ↑ ↓：从起点选到 target。current：正开着的那一行（还没有起点时从它算起，同 Claude Code）。 */
+export function selectRange(order: readonly string[], target: string, current: string | null = null) {
   const { anchor, ids } = useSidebarSelection.getState();
-  // 还没有起点：正开着的那一行（或第一次点的这一行）算起点
-  const from = anchor ?? (ids.length ? ids[0]! : null);
+  // 还没有起点：正开着的那一行（不在眼前就是点的这一行）算起点
+  const from = anchor ?? (ids.length ? ids[0]! : current && order.includes(current) ? current : null);
   useSidebarSelection.setState({ ids: rangeBetween(order, from, target), anchor: from ?? target });
 }
 
@@ -63,6 +64,30 @@ export async function runInOrder<T>(items: readonly T[], run: (item: T) => unkno
     }
   }
   return done;
+}
+
+// ---------------------------------------------------------------- 菜单里的单字母
+type Letter = "KeyP" | "KeyR" | "KeyD";
+type LetterEvent = { code: string; target: EventTarget | null; currentTarget: EventTarget | null; metaKey: boolean; ctrlKey: boolean; altKey: boolean; preventDefault(): void };
+
+/** 这个键是不是按在这一层菜单本身：子菜单（宽屏旁边展开的 SubContent、窄屏原菜单里换上的那一页）里的键沿组件树冒上来时
+ *  不算——组件库在子菜单里按字母跳转不拦冒泡，否则在「移到 ▸」里按 D 想跳到某家公司会删掉对话。 */
+export function ownMenuKey(target: EventTarget | null, menu: EventTarget | null): boolean {
+  const el = target as Element | null;
+  if (!el || typeof el.closest !== "function") return false;
+  return el.closest('[role="menu"]') === menu && !el.closest('[data-slot="cc-menu-subpage"]');
+}
+
+/** 行菜单开着时的单字母快捷键（按物理键认，泰文等键盘下也一样）：只认按在这一层菜单本身的（ownMenuKey）。 */
+export function menuLetterKeys(actions: Partial<Record<Letter, () => void>>, close: () => void) {
+  return (event: LetterEvent) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const run = actions[event.code as Letter];
+    if (!run || !ownMenuKey(event.target, event.currentTarget)) return;
+    event.preventDefault();
+    close();
+    run();
+  };
 }
 
 // ---------------------------------------------------------------- 方向键
@@ -93,18 +118,37 @@ export function rowOrder(from: Element | null): string[] {
   return [...root.querySelectorAll<HTMLElement>(`${ROW}[data-row-id]`)].map((row) => row.dataset.rowId!).filter(Boolean);
 }
 
+/** 眼前正开着的那一行（本页编号）；没有回 null。 */
+export function currentRow(from: Element | null): string | null {
+  const root = from?.closest('[data-slot="aui_thread-list-root"]') ?? from;
+  return root?.querySelector<HTMLElement>(`${ROW}[aria-current="true"][data-row-id]`)?.dataset.rowId ?? null;
+}
+
 const isDesktopWindow = () => document.documentElement.dataset.ccVariant === "desktop";
 
-/** 挂在侧栏内容上（返回的回调当 ref）：roving 焦点、方向键、Esc 清空多选、桌面窗口的 ⌘ / Ctrl + 1–9 与数字提示。 */
-export function useSidebarKeys(): (node: HTMLElement | null) => void {
+/** 挂在侧栏内容上（返回的回调当 ref）：roving 焦点、方向键、组标题右侧操作区、Esc 清空多选、桌面窗口的 ⌘ / Ctrl + 1–9 与数字提示。
+ *  companies：有公司分组的产品（Cowork）。多选（Shift + ↑ ↓）与 ⌘ / Ctrl + 1–9 只在这时有，ERP / DMS 的侧栏不变。 */
+export function useSidebarKeys(companies: boolean): (node: HTMLElement | null) => void {
   const detach = useRef<(() => void) | null>(null);
+  const enabled = useRef(companies);
+  enabled.current = companies;
   return useCallback((node: HTMLElement | null) => {
     detach.current?.();
-    detach.current = node ? attach(node) : null;
+    detach.current = node ? attach(node, () => enabled.current) : null;
   }, []);
 }
 
-function attach(root: HTMLElement): () => void {
+const GROUP_TOGGLE = "[data-roving][aria-expanded]";
+const GROUP_ACTION = ".cc-group-actions > :is(button, [role='button'])";
+
+/** 组标题右侧操作区里眼前的按钮（待处理数、···、分组和排序、新建；悬停才出的没出来时不算）。 */
+function groupActions(toggle: Element | null): HTMLElement[] {
+  const row = toggle?.closest(".cc-group-row");
+  if (!row) return [];
+  return [...row.querySelectorAll<HTMLElement>(GROUP_ACTION)].filter((el) => el.getClientRects().length > 0 && !el.hasAttribute("disabled"));
+}
+
+function attach(root: HTMLElement, companies: () => boolean): () => void {
   let current: HTMLElement | null = null;
   const items = () =>
     [...root.querySelectorAll<HTMLElement>("[data-roving]")].filter((el) => !el.closest("[hidden]") && el.getClientRects().length > 0);
@@ -145,15 +189,18 @@ function attach(root: HTMLElement): () => void {
 
   const onKeyDown = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement;
-    if (!target.matches("[data-roving]") || event.altKey || event.metaKey || event.ctrlKey) return;
+    if (event.altKey || event.metaKey || event.ctrlKey) return;
+    if (target.matches(GROUP_ACTION)) return onActionKey(event, target);
+    if (!target.matches("[data-roving]")) return;
     const list = items();
     const index = list.indexOf(target);
     if (index < 0) return;
     const expanded = target.getAttribute("aria-expanded");
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       if (expanded !== null) {
-        // 组标题开关：← 收起、→ 展开（已经是那样就不动）
+        // 组标题开关：← 收起、→ 展开；已展开时 → 进右侧操作区（分组和排序、···、新建、待处理数，键盘只能从这里到）
         if ((event.key === "ArrowLeft") === (expanded === "true")) target.click();
+        else if (event.key === "ArrowRight") groupActions(target)[0]?.focus();
       } else if (event.key === "ArrowLeft" && target.matches(ROW_TRIGGER)) {
         // 对话行：← 回到所在组的标题
         focus(list.slice(0, index).reverse().find((el) => el.hasAttribute("aria-expanded")));
@@ -166,7 +213,7 @@ function attach(root: HTMLElement): () => void {
     event.preventDefault();
     const to = list[next]!;
     // Shift + ↑ ↓：从起点选到这一行（只在对话行之间）
-    if (event.shiftKey && to.matches(ROW_TRIGGER) && target.matches(ROW_TRIGGER)) {
+    if (event.shiftKey && companies() && to.matches(ROW_TRIGGER) && target.matches(ROW_TRIGGER)) {
       const id = (el: HTMLElement) => el.closest<HTMLElement>(ROW)?.dataset.rowId;
       const from = id(target);
       const toId = id(to);
@@ -178,6 +225,26 @@ function attach(root: HTMLElement): () => void {
     focus(to);
   };
 
+  // 组标题右侧操作区：← → 在操作之间走（最左再 ← 回到组标题），↑ ↓ 回到 roving 那一组（从组标题算上一个 / 下一个）
+  const onActionKey = (event: KeyboardEvent, target: HTMLElement) => {
+    const toggle = target.closest(".cc-group-row")?.querySelector<HTMLElement>(GROUP_TOGGLE);
+    if (!toggle || !root.contains(toggle)) return;
+    const actions = groupActions(toggle);
+    const index = actions.indexOf(target);
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const next = index + (event.key === "ArrowRight" ? 1 : -1);
+      if (next < 0) focus(toggle);
+      else actions[next]?.focus();
+      return;
+    }
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    const list = items();
+    const at = list.indexOf(toggle);
+    focus(list[nextIndex(event.key, at, list.length) ?? at]);
+  };
+
   // Esc：清空多选（菜单开着时 Esc 只关菜单）
   const onWindowKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
@@ -187,7 +254,7 @@ function attach(root: HTMLElement): () => void {
       }
       return;
     }
-    if (!isDesktopWindow()) return;
+    if (!isDesktopWindow() || !companies()) return;
     if (event.key === "Meta" || event.key === "Control") {
       if (!event.repeat) startHints();
       return;

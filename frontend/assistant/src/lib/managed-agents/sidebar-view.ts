@@ -3,7 +3,7 @@
 //
 //   分组依据 — 公司（默认）/ 处理月份 / 无
 //   排序方式 — 上次更新（默认）/ 创建日期 / 名称，降序（默认）/ 升序
-//   显示     — 元数据（行的第二行「9 月 · 分店 00012」，默认开）/ 空分组（没有对话的公司组，默认开）
+//   显示     — 元数据（行的第二行「9 月 · 分店 00012」，默认关：行高同 Code 的 32，设计文档 3.5）/ 空分组（没有对话的公司组，默认开）
 //
 // 每台设备、每个用户各记各的（localStorage，键带用户；不跨设备同步），存不了（无痕窗口）时本次照样生效。
 // 按公司分组时列表用分组接口（grouped=1）；按月份、不分组时用普通的按上次更新分页的列表（服务端每行同样带公司、月份、分店），
@@ -15,7 +15,7 @@ export type GroupBy = "company" | "month" | "none";
 export type SortBy = "updated" | "created" | "name";
 export type SidebarView = { by: GroupBy; sort: SortBy; desc: boolean; meta: boolean; empty: boolean };
 
-export const DEFAULT_VIEW: SidebarView = { by: "company", sort: "updated", desc: true, meta: true, empty: true };
+export const DEFAULT_VIEW: SidebarView = { by: "company", sort: "updated", desc: true, meta: false, empty: true };
 
 const GROUPS: readonly GroupBy[] = ["company", "month", "none"];
 const SORTS: readonly SortBy[] = ["updated", "created", "name"];
@@ -69,22 +69,31 @@ let owner = (() => {
 
 export const useSidebarView = create<SidebarView>(() => (owner ? read(owner) : DEFAULT_VIEW));
 
-/** 知道当前用户了：换成这个人记下的（与上次登录的是同一人就不变）。 */
+// 这台设备还没记过是谁、资料没到之前就改了「分组和排序」：先只在本页生效，知道是谁时按这次改的存下（不被读回的覆盖）
+let unsaved = false;
+
+/** 知道当前用户了：换成这个人记下的（与上次登录的是同一人就不变；之前还不知道是谁时改过的，留着并存给这个人）。 */
 export function bindSidebarViewUser(user: string) {
   if (!user || user === owner) return;
+  const keep = !owner && unsaved;
   owner = user;
+  unsaved = false;
   try {
     storage()?.setItem(USER_KEY, user);
   } catch {
     // 存不了：本次照样按这个人的
   }
-  useSidebarView.setState(read(user), true);
+  if (keep) setSidebarView({});
+  else useSidebarView.setState(read(user), true);
 }
 
 export function setSidebarView(patch: Partial<SidebarView>) {
   const next = { ...useSidebarView.getState(), ...patch };
   useSidebarView.setState(next, true);
-  if (!owner) return;
+  if (!owner) {
+    unsaved = true;
+    return;
+  }
   try {
     if (isDefaultView(next)) storage()?.removeItem(viewKey(owner));
     else storage()?.setItem(viewKey(owner), JSON.stringify(next));

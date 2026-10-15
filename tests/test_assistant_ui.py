@@ -2515,10 +2515,18 @@ class SidebarShellSourceTests(unittest.TestCase):
         app = read("assistant.tsx")
         nav = app.split("function SidebarNav()", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('data-active={(view === "tasks" && !taskCompany) || undefined}', nav)
+        pending = app.split("function PendingNav(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn('data-active={(view === "pending" && !pendingCompany) || undefined}', pending)
+        self.assertIn("if (!kind || total <= 0) return null;", pending)
         company = app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0]
-        self.assertIn('data-active={(view === "pending" && !pendingCompany) || undefined}', company)
         self.assertIn('data-active={view === "companies" || undefined}', company)   # 主档页不再把「公司」选中
         self.assertNotIn('view === "company" ||', company)
+        # 顺序（设计文档 4.2）：新建、待处理 N、定时任务、公司；手机抽屉同序
+        order = [nav.index(x) for x in ("<ThreadListNew ", "<PendingNav />", "hasScheduledTasks(profile)", "<CompanyNav />")]
+        self.assertEqual(order, sorted(order))
+        drawer = app.split('<div className="cc-drawer ', 1)[1].split("<ThreadList ", 1)[0]
+        order = [drawer.index(x) for x in ("<PendingNav onPick={close} />", "hasScheduledTasks(profile)", "<CompanyNav onPick={close} />")]
+        self.assertEqual(order, sorted(order))
         # 带修饰键点对话是多选：不切回对话页
         self.assertIn("if (e.shiftKey || e.metaKey || e.ctrlKey) return;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
 
@@ -2589,11 +2597,25 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<Building2Icon />} label={sb.moveToN(sessions.length)} className="cc-menu !min-w-52 max-w-72">', projects)
         self.assertIn('runInOrder(sessions, (id) => fileSession(id, { project, period: "", scope: "" }), report)', projects)
         # 单字母快捷键：按物理键认（泰文键盘下也一样），批量时只有 P、D
-        self.assertIn("letterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)", rows)
-        self.assertIn("letterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)", rows)
+        self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}", rows)
+        self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}", rows)
+        self.assertNotIn("function letterKeys", rows)
         keys = read("lib/sidebar-keys.ts")
         self.assertIn('const isDesktopWindow = () => document.documentElement.dataset.ccVariant === "desktop";', keys)
-        self.assertIn("if (!isDesktopWindow()) return;", keys)
+        # 多选、批量、⌘ / Ctrl + 1–9 只在有公司分组的产品（ERP / DMS 的侧栏不变）
+        self.assertIn("if (!isDesktopWindow() || !companies()) return;", keys)
+        self.assertIn("if (event.shiftKey && companies() && to.matches(ROW_TRIGGER) && target.matches(ROW_TRIGGER)) {", keys)
+        self.assertIn("if (isMobile || !companies || (event.target as HTMLElement).closest(", rows)
+        self.assertIn("const bulk = companies && selection.length > 1 && selection.includes(localId);", rows)
+        self.assertIn("selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));", rows)
+        self.assertIn("const keys = useSidebarKeys(companies);", read("assistant.tsx"))
+        # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）
+        day = rows.split("const DayGroups: FC", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('data-slot="aui_thread-list-group-label"\n          data-roving=""\n          className="cc-section-label cc-section-toggle"', day)
+        # 组标题右侧操作（tabIndex -1）键盘从组开关进：已展开时 →，操作之间 ← →，最左再 ← 回组开关
+        self.assertIn('else if (event.key === "ArrowRight") groupActions(target)[0]?.focus();', keys)
+        self.assertIn("if (target.matches(GROUP_ACTION)) return onActionKey(event, target);", keys)
+        self.assertIn("if (next < 0) focus(toggle);", keys)
         self.assertIn("const HINT_DELAY_MS = 300;", keys)
         self.assertIn("<SidebarContent ref={keys}", read("assistant.tsx"))
 
@@ -2603,7 +2625,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("<SidebarProvider style={sidebarWidth.style} open={sidebarOpen} onOpenChange={setSidebarOpen}>", app)
         view = read("lib/managed-agents/sidebar-view.ts")
         self.assertIn("const viewKey = (user: string) => `cc.sidebar.view:${user}`;", view)
-        self.assertIn('export const DEFAULT_VIEW: SidebarView = { by: "company", sort: "updated", desc: true, meta: true, empty: true };', view)
+        self.assertIn('export const DEFAULT_VIEW: SidebarView = { by: "company", sort: "updated", desc: true, meta: false, empty: true };', view)
         self.assertIn("if (useProjects.getState().kind && grouped(now.by) !== grouped(before.by)) void threads().reload()",
                       read("lib/managed-agents/list-sync.ts"))
         css = read("globals.css")
@@ -2681,10 +2703,17 @@ const g = globalThis as any;
 assert.deepEqual(parseView({ by: "month", sort: "bogus", desc: false, meta: "x" }), { ...DEFAULT_VIEW, by: "month", desc: false });
 assert.deepEqual(parseView(null), DEFAULT_VIEW);
 assert.ok(isDefaultView(useSidebarView.getState()));
+// 还不知道是谁时改的：先只在本页生效，知道是谁时按这次改的存给这个人（不被读回的默认覆盖）
+setSidebarView({ sort: "name" });
+assert.equal(g.storage.size, 0);
+bindSidebarViewUser("z@x.test");
+assert.equal(useSidebarView.getState().sort, "name");
+assert.deepEqual(JSON.parse(g.storage.get("cc.sidebar.view:z@x.test")), { ...DEFAULT_VIEW, sort: "name" });
+resetSidebarView();
 bindSidebarViewUser("a@x.test");
-setSidebarView({ by: "month", meta: false });
+setSidebarView({ by: "month", meta: true });
 assert.equal(g.storage.get("cc.sidebar.user"), "a@x.test");
-assert.deepEqual(JSON.parse(g.storage.get("cc.sidebar.view:a@x.test")), { ...DEFAULT_VIEW, by: "month", meta: false });
+assert.deepEqual(JSON.parse(g.storage.get("cc.sidebar.view:a@x.test")), { ...DEFAULT_VIEW, by: "month", meta: true });
 assert.ok(!isDefaultView(useSidebarView.getState()));
 // 换一个人：用他自己的（没记过就是默认）；换回来照旧
 bindSidebarViewUser("b@x.test");
@@ -2696,6 +2725,52 @@ resetSidebarView();
 assert.ok(!g.storage.has("cc.sidebar.view:a@x.test"));
 assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
 """, stubs={"cc-storage": STORAGE_STUB})
+
+    def test_menu_letters_only_fire_on_the_menu_itself(self):
+        # 审查 B1：子菜单（「移到 ▸」「移到… (N)」）里的键沿组件树冒到行菜单的 onKeyDown；在里面按 D 不能删对话、按 P 不能置顶
+        self.run_page(r"""
+import { menuLetterKeys, ownMenuKey } from "@/lib/sidebar-keys";
+type Node = { attrs: Record<string, string>; parent: Node | null; closest(sel: string): Node | null };
+const el = (attrs: Record<string, string>, parent: Node | null = null): Node => ({
+  attrs, parent,
+  closest(sel: string) {
+    const [, name, value] = /^\[([\w-]+)="([^"]*)"\]$/.exec(sel)!;
+    for (let n: Node | null = this; n; n = n.parent) if (n.attrs[name] === value) return n;
+    return null;
+  },
+});
+const menu = el({ role: "menu" });
+const item = el({ role: "menuitem" }, menu);
+const sub = el({ role: "menu" }, menu);                                // 宽屏：旁边展开的子菜单（组件树上在行菜单里）
+const subItem = el({ role: "menuitem" }, sub);
+const subInput = el({}, sub);
+const page = el({ "data-slot": "cc-menu-subpage" }, menu);             // 窄屏：原菜单里换上的子菜单那一页
+const pageItem = el({ role: "menuitem" }, page);
+assert.ok(ownMenuKey(item, menu));
+assert.ok(!ownMenuKey(subItem, menu));
+assert.ok(!ownMenuKey(subInput, menu));
+assert.ok(!ownMenuKey(pageItem, menu));
+assert.ok(!ownMenuKey(null, menu));
+const ran: string[] = [];
+let closed = 0;
+const keys = menuLetterKeys({ KeyP: () => ran.push("pin"), KeyD: () => ran.push("delete") }, () => closed++);
+const press = (code: string, target: Node, mods: Partial<Record<"metaKey" | "ctrlKey" | "altKey", boolean>> = {}) => {
+  let prevented = false;
+  keys({ code, target: target as any, currentTarget: menu as any, metaKey: false, ctrlKey: false, altKey: false, ...mods,
+         preventDefault: () => { prevented = true; } });
+  return prevented;
+};
+assert.equal(press("KeyD", subItem), false);
+assert.equal(press("KeyD", pageItem), false);
+assert.equal(press("KeyP", subItem), false);
+assert.deepEqual(ran, []);
+assert.equal(closed, 0);
+assert.equal(press("KeyD", item, { metaKey: true }), false);          // 带修饰键不是快捷键
+assert.equal(press("KeyR", item), false);                              // 没给的字母不管
+assert.equal(press("KeyD", item), true);
+assert.deepEqual(ran, ["delete"]);
+assert.equal(closed, 1);
+""")
 
     def test_selection_keys_and_one_by_one(self):
         self.run_page(r"""
@@ -2716,6 +2791,13 @@ selectRange(order, "a");
 assert.deepEqual(useSidebarSelection.getState().ids, ["a", "b"]);
 clearSelection();
 assert.deepEqual(useSidebarSelection.getState(), { ids: [], anchor: null });
+// 第一次 Shift 点：从正开着的那一行选到点的这一行（同 Claude Code）；正开着的不在眼前就只选点的这一行
+selectRange(order, "d", "b");
+assert.deepEqual(useSidebarSelection.getState(), { ids: ["b", "c", "d"], anchor: "b" });
+clearSelection();
+selectRange(order, "d", "gone");
+assert.deepEqual(useSidebarSelection.getState(), { ids: ["d"], anchor: "d" });
+clearSelection();
 // 方向键到头不绕回
 assert.equal(nextIndex("ArrowDown", 4, 5), 4);
 assert.equal(nextIndex("ArrowUp", 0, 5), 0);

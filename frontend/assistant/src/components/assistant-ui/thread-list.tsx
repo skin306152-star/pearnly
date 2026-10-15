@@ -26,6 +26,8 @@ import { useView } from "@/lib/nav";
 import { useProfile } from "@/lib/profile";
 import {
   clearSelection,
+  currentRow,
+  menuLetterKeys,
   rowOrder,
   runInOrder,
   selectRange,
@@ -437,6 +439,7 @@ const DayGroups: FC<{ searchQuery?: string }> = ({
         <button
           type="button"
           data-slot="aui_thread-list-group-label"
+          data-roving=""
           className="cc-section-label cc-section-toggle"
           aria-expanded={open}
           onClick={() => toggle(group.key)}
@@ -535,18 +538,20 @@ export const ThreadListItem: FC = () => {
   const { current, isMain } = useCurrent();
   const { isMobile } = useSidebar();
   const selected = useSidebarSelection((s) => s.ids.includes(localId));
+  const companies = !!useProjects((s) => s.kind);
   const reenter = (event: React.MouseEvent) => {
     if (!current) return;
     if (!isMain) event.preventDefault();
     if (id) getSessionController(id).refreshStatus();
   };
-  // 电脑上 Shift 点一段、⌘ / Ctrl 点单条：只选不切对话；不带修饰键点一行就清空多选（同 Claude Code）
+  // 电脑上 Shift 点一段（第一次从正开着的那一行算起）、⌘ / Ctrl 点单条：只选不切对话；不带修饰键点一行就清空多选（同 Claude Code）。
+  // 只在有公司分组的产品（Cowork）：ERP / DMS 的侧栏不变
   const pick = (event: ReactMouseEvent<HTMLElement>) => {
-    if (isMobile || (event.target as HTMLElement).closest('[data-slot="aui_thread-list-item-more"], [role="menu"], input')) return;
+    if (isMobile || !companies || (event.target as HTMLElement).closest('[data-slot="aui_thread-list-item-more"], [role="menu"], input')) return;
     if (!(event.shiftKey || event.metaKey || event.ctrlKey)) return clearSelection();
     event.preventDefault();
     event.stopPropagation();
-    if (event.shiftKey) selectRange(rowOrder(event.currentTarget), localId);
+    if (event.shiftKey) selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));
     else toggleSelected(localId);
   };
   return (
@@ -559,7 +564,7 @@ export const ThreadListItem: FC = () => {
       data-slot="aui_thread-list-item"
       onClickCapture={pick}
       onMouseDown={(e) => {
-        if (e.shiftKey && !isMobile) e.preventDefault(); // Shift 点不选中文字
+        if (e.shiftKey && !isMobile && companies) e.preventDefault(); // Shift 点不选中文字
       }}
       onKeyDown={(e) => {
         if (!renaming && isMenuKey(e)) {
@@ -634,18 +639,6 @@ const ThreadActivity: FC = () => {
 /** 菜单项右边的单字母快捷键（菜单开着时按这个键就执行；触屏不显示）。 */
 const MenuKey: FC<{ letter: string }> = ({ letter }) => (showShortcuts() ? <span className="cc-menu-key">{letter}</span> : null);
 
-/** 菜单开着时的单字母快捷键（按物理键认，泰文等键盘下也一样）。 */
-function letterKeys(actions: Partial<Record<"KeyP" | "KeyR" | "KeyD", () => void>>, close: () => void) {
-  return (event: React.KeyboardEvent) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const run = actions[event.code as "KeyP" | "KeyR" | "KeyD"];
-    if (!run) return;
-    event.preventDefault();
-    close();
-    run();
-  };
-}
-
 // 行内改名（同 claude.ai）：回车或离开输入框保存，Esc 放弃；空标题不保存。
 export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }> = ({ onDone, className }) => {
   const aui = useAui();
@@ -686,7 +679,8 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   const localId = useAuiState((s) => s.threadListItem.id);
   const selection = useSidebarSelection((s) => s.ids);
   const starred = !!custom?.starred;
-  const bulk = selection.length > 1 && selection.includes(localId);
+  const companies = !!useProjects((s) => s.kind);
+  const bulk = companies && selection.length > 1 && selection.includes(localId);
   const close = () => onOpenChange(false);
   // 展开写法：组件库整份替换 custom，以后加的键不能被冲掉
   const pin = () => void aui.threadListItem().updateCustom({ ...custom, starred: !starred });
@@ -715,7 +709,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
             sideOffset={4}
             data-slot="aui_thread-list-item-more-content"
             className="cc-menu !min-w-44"
-            onKeyDown={letterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}
+            onKeyDown={menuLetterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}
           >
             <DropdownMenu.Item className="cc-menu-item" onSelect={pin}>
               {starred ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
@@ -767,7 +761,7 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids, clo
       sideOffset={4}
       data-slot="aui_thread-list-item-more-content"
       className="cc-menu !min-w-44"
-      onKeyDown={letterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}
+      onKeyDown={menuLetterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}
     >
       <DropdownMenu.Item className="cc-menu-item" onSelect={pinAll}>
         {allPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}

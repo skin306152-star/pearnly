@@ -3,7 +3,7 @@
 //   GroupHeader   — 带高 32（手机 44）：整行（除右侧操作区）是一个开关（aria-expanded），名字 13/16 淡色、鼠标在组标题上变
 //                   次要色；名字后 12px 箭头（收起 ›、展开 ⌄），鼠标进侧栏才淡入（手机、触屏常显）。右侧操作 24×24：
 //                   平时只露「分组和排序」，悬停组标题再出「···」与「新建」（手机、触屏常显）。已置顶、各公司、各月、最近共用
-//   GroupSortMenu — 分组依据（公司 / 处理月份 / 无）、排序方式（上次更新 / 创建日期 / 名称 + 降序 / 升序）、显示（元数据 /
+//   GroupSortMenu — 分组依据（公司 / 月份 / 无）、排序方式（上次更新 / 创建日期 / 名称 + 降序 / 升序）、显示（元数据 /
 //                   空分组）、恢复默认设置（改过才可点）；父项右侧写当前值，选中的打 ✓（lib/managed-agents/sidebar-view.ts）
 //   GroupNew      — 组标题右侧的「新建」：在这一组（公司 / 最近）开新对话
 //
@@ -96,7 +96,7 @@ export const GroupNew: FC<{ onClick: () => void }> = ({ onClick }) => {
 };
 
 // ---------------------------------------------------------------- 分组和排序
-const GROUP_LABEL: Record<GroupBy, () => string> = { company: () => co.companies, month: () => co.period, none: () => sb.none };
+const GROUP_LABEL: Record<GroupBy, () => string> = { company: () => co.companies, month: () => sb.month, none: () => sb.none };
 const SORT_LABEL: Record<SortBy, () => string> = { updated: () => sb.lastUpdated, created: () => sb.dateCreated, name: () => sb.name };
 
 /** 父项：名字 + 右侧当前值（13px 淡色）。 */

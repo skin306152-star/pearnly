@@ -366,7 +366,7 @@ function WindowButtons({ maximized, toggle }: { maximized: boolean; toggle: () =
 
 // ── 侧栏 ───────────────────────────────────────────────────────────────────────────────────────
 
-// 顶部导航（设计文档 3.3、4.2）：新建、定时任务、待处理 N（有才出现）、公司。只有当前页选中：只看某家的定时任务、待处理
+// 顶部导航（设计文档 3.3、4.2）：新建、待处理 N（有才出现）、定时任务、公司。只有当前页选中：只看某家的定时任务、待处理
 // （从公司组、主档页进去的）与主档页都不算，顶部那一行不选中。键盘上与组标题、对话行是同一组 roving 焦点（data-roving）
 function SidebarNav() {
   const profile = useProfile();
@@ -375,6 +375,7 @@ function SidebarNav() {
   return (
     <div className="flex flex-col gap-0.5">
       <ThreadListNew onClick={() => setView("chat")} />
+      <PendingNav />
       {hasScheduledTasks(profile) && (
         <button
           type="button"
@@ -396,40 +397,54 @@ function SidebarNav() {
   );
 }
 
-/** 侧栏「公司」与「待处理 N」（只在有公司分组的产品；N 为 0 时不显示待处理）。onPick：手机上点了收起抽屉。 */
-function CompanyNav({ onPick }: { onPick?: () => void }) {
+/** 侧栏「待处理 N」（只在有公司分组的产品；N 为 0 时不显示）：紧跟「新建」，在「定时任务」上面（设计文档 4.2）。
+ *  onPick：手机上点了收起抽屉。 */
+function PendingNav({ onPick }: { onPick?: () => void }) {
   const kind = useProjects((s) => s.kind);
   const total = usePendingCounts((s) => s.total);
   const pendingCompany = useCompanyNav((s) => s.pendingCompany);
   const { view, setView } = useView();
-  if (!kind) return null;
-  const go = (next: View) => {
-    if (next === "pending") useCompanyNav.setState({ pendingCompany: "" });
-    setView(next);
-    onPick?.();
-  };
-  // 「待处理 N」紧跟在「定时任务」下面（补充乙），然后是「公司」
+  if (!kind || total <= 0) return null;
   return (
-    <>
-      {total > 0 && (
-        <button
-          type="button"
-          data-roving=""
-          className="cc-nav-item"
-          title={co.pending}
-          data-active={(view === "pending" && !pendingCompany) || undefined}
-          onClick={() => go("pending")}
-        >
-          <span className="cc-nav-icon"><InboxIcon /></span>
-          <span className="cc-nav-label flex-1">{co.pending}</span>
-          <span className="cc-count">{total}</span>
-        </button>
-      )}
-      <button type="button" data-roving="" className="cc-nav-item" title={co.companies} data-active={view === "companies" || undefined} onClick={() => go("companies")}>
-        <span className="cc-nav-icon"><Building2Icon /></span>
-        <span className="cc-nav-label">{co.companies}</span>
-      </button>
-    </>
+    <button
+      type="button"
+      data-roving=""
+      className="cc-nav-item"
+      title={co.pending}
+      data-active={(view === "pending" && !pendingCompany) || undefined}
+      onClick={() => {
+        useCompanyNav.setState({ pendingCompany: "" });
+        setView("pending");
+        onPick?.();
+      }}
+    >
+      <span className="cc-nav-icon"><InboxIcon /></span>
+      <span className="cc-nav-label flex-1">{co.pending}</span>
+      <span className="cc-count">{total}</span>
+    </button>
+  );
+}
+
+/** 侧栏「公司」（只在有公司分组的产品），在「定时任务」下面。onPick：手机上点了收起抽屉。 */
+function CompanyNav({ onPick }: { onPick?: () => void }) {
+  const kind = useProjects((s) => s.kind);
+  const { view, setView } = useView();
+  if (!kind) return null;
+  return (
+    <button
+      type="button"
+      data-roving=""
+      className="cc-nav-item"
+      title={co.companies}
+      data-active={view === "companies" || undefined}
+      onClick={() => {
+        setView("companies");
+        onPick?.();
+      }}
+    >
+      <span className="cc-nav-icon"><Building2Icon /></span>
+      <span className="cc-nav-label">{co.companies}</span>
+    </button>
   );
 }
 
@@ -448,7 +463,8 @@ function useBackToChatOnPick(onNavigate?: () => void) {
 function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; onResize: (width: number | null) => void }) {
   const [search, setSearch] = useState("");
   const pick = useBackToChatOnPick();
-  const keys = useSidebarKeys();
+  const companies = !!useProjects((s) => s.kind);
+  const keys = useSidebarKeys(companies);
   const { toggleSidebar } = useSidebar();
   const logo = assistantLogo();
   return (
@@ -515,6 +531,7 @@ function MobileDrawer() {
         </div>
       )}
       <div className="cc-drawer flex-1 overflow-y-auto px-3 pb-28" onClickCapture={pick}>
+        <PendingNav onPick={close} />
         {hasScheduledTasks(profile) && (
           <button
             type="button"
