@@ -25,6 +25,7 @@
 // 按公司分组（projects.ts，只在产品有公司分组时）：列表用 grouped=1，第一页 = 全部置顶 + 最近一页 + 每家公司最新几条；
 // 之后组件库每要一页，按复合游标只翻一组（「显示更多」要的那组 → 最近 → 活动最近、还有更多的公司）。每一页带回的
 // 归属（公司、处理月份、分店）记进 filings（组件库遇到已认得的编号不更新，所以不放在 custom 里）。新对话建在待建的公司里。
+// 侧栏「分组依据」改成处理月份或不分组时（sidebar-view.ts）用普通列表（服务端每行同样带归属），换的时候整表重拉（list-sync.ts）。
 
 import type { RemoteThreadListAdapter } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -60,6 +61,7 @@ import {
 } from "./projects";
 import { latestTitle, listen } from "./realtime";
 import { dropSessionController } from "./session-controller";
+import { byCompany, noteCreated } from "./sidebar-view";
 
 const TITLE_MAX = 60; // 同服务端 assistant/contracts.py TITLE_MAX
 
@@ -69,6 +71,7 @@ export function absorb(page: SessionPage, asked: number) {
   for (const s of page.sessions) {
     if (s.unread) seedUnread(s.id);
     else if (s.unread === false) clearUnread(s.id, asked);
+    noteCreated(s.id, s.created_at);
   }
   for (const [id, run] of Object.entries(page.runs ?? {})) noteRun(id, run);
   // 归属：每一页都按服务端的覆盖（已认得的编号也覆盖）；请求发出后本页自己移动或新建过的不盖
@@ -80,9 +83,14 @@ export function absorb(page: SessionPage, asked: number) {
   noteFilings(filings);
 }
 
-/** 侧栏第一页（list 与 list-sync 的核对共用）：有公司分组时按公司分组取。 */
+/** 这次按公司分组取吗：产品有公司分组，且侧栏「分组依据」是公司（按月份、不分组用普通列表）。 */
+async function groupedListing(): Promise<boolean> {
+  return !!(await projectsReady()) && byCompany();
+}
+
+/** 侧栏第一页（list 与 list-sync 的核对共用）：有公司分组且按公司分组时用分组接口。 */
 export async function firstPage(check: readonly string[]): Promise<SessionPage> {
-  return (await projectsReady()) ? listGrouped({ check }) : listSessions(undefined, check);
+  return (await groupedListing()) ? listGrouped({ check }) : listSessions(undefined, check);
 }
 
 // ---------------------------------------------------------------- quiet：并入别处的改动时不再发请求
@@ -140,10 +148,11 @@ export const sessionListAdapter: RemoteThreadListAdapter = {
   async list(params) {
     const asked = Date.now();
     const after = params?.after;
-    if (!(await projectsReady())) {
+    if (!(await groupedListing())) {
       // 第一页顺带核对侧栏标着在跑的对话（在别处跑完了、推送漏了的不再转圈）
       const page = await listSessions(after, after ? [] : runningSessions());
       absorb(page, asked);
+      if (useProjects.getState().kind && !after) noteCursor({ recent: null, groups: {} });
       return { threads: page.sessions.map(toThreadMetadata), nextCursor: page.nextCursor ?? undefined };
     }
     if (!after) {

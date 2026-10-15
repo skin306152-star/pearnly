@@ -320,6 +320,16 @@ class TextTests(unittest.TestCase):
         self.assertEqual(sets["en"], sets["th"])
         # 用户可见处叫「CC 桌面版」，不叫小助手 / Companion
         self.assertNotRegex(company, r"小助手|Companion")
+        # 侧栏的分组和排序、批量项、组标题菜单（CC 外壳设计 3.4–3.7）：三种语言一样多
+        sidebar = block(i18n, "const SIDEBAR = {")
+        words = {lang: keys(block(sidebar, f"  {lang}: {{")) for lang in ("en", "zh", "th")}
+        self.assertTrue({"groupAndSort", "groupBy", "none", "sortBy", "lastUpdated", "dateCreated", "name", "descending", "ascending",
+                         "show", "metadata", "emptyGroups", "resetDefaults", "noMonth", "newChatHere", "pinN", "unpinN", "moveToN",
+                         "deleteN"} <= words["en"])
+        self.assertEqual(words["en"], words["zh"])
+        self.assertEqual(words["en"], words["th"])
+        self.assertIn('groupAndSort: "分组和排序", groupBy: "分组依据"', sidebar)
+        self.assertIn('resetDefaults: "恢复默认设置"', sidebar)
 
 
 class ShortcutTests(unittest.TestCase):
@@ -1925,7 +1935,9 @@ class CompanyMasterSourceTests(unittest.TestCase):
         thread_list = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("return kind ? <CompanyGroups searchQuery={searchQuery} /> : <DayGroups searchQuery={searchQuery} />;", thread_list)
         adapter = read("lib/managed-agents/session-list-adapter.ts")
-        self.assertIn("if (!(await projectsReady())) {", adapter)
+        # 普通列表：没有公司分组，或侧栏「分组依据」不是公司（按月份 / 不分组，sidebar-view.ts）
+        self.assertIn("if (!(await groupedListing())) {", adapter)
+        self.assertIn("return !!(await projectsReady()) && byCompany();", adapter)
         app = read("assistant.tsx")
         self.assertIn("if (!kind) return null;", app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0])
 
@@ -2452,6 +2464,34 @@ assert.equal(useProjects.getState().shown.comp_abc, 15);
 assert.ok(!("comp_abc" in useProjects.getState().more.groups));  // 这家翻完了
 """)
 
+    def test_grouping_by_month_or_none_uses_the_plain_listing(self):
+        # 侧栏「分组依据」（CC 外壳设计 3.6）：按月份 / 不分组时用普通列表（按上次更新分页），换回公司时用分组接口；换的那一刻整表重拉
+        self.run_page(r"""
+import { createdOf, setSidebarView } from "@/lib/managed-agents/sidebar-view";
+site.sessions = [row("sesn_aaa001", "Input VAT", 1, { project: "comp_abc", period: "2026-09" }), row("sesn_bbb001", "Loose", 2)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+assert.equal(calls("listing")[0].args.grouped, "1");
+assert.equal(createdOf("sesn_aaa001"), Date.parse(site.sessions[0].created_at));   // 排序「创建日期」用
+setSidebarView({ by: "month" });
+await g.sleep(30);
+assert.equal(calls("listing").length, 2);
+assert.equal(calls("listing")[1].args.grouped, undefined);
+assert.deepEqual(filingOf("sesn_aaa001"), { project: "comp_abc", period: "2026-09", scope: "" });   // 普通列表也带归属
+assert.deepEqual(useProjects.getState().more, { recent: null, groups: {} });
+// 月份与不分组之间换只是重排，不重拉
+setSidebarView({ by: "none" });
+await g.sleep(30);
+assert.equal(calls("listing").length, 2);
+// 回到公司：分组接口
+setSidebarView({ by: "company" });
+await g.sleep(30);
+assert.equal(calls("listing").length, 3);
+assert.equal(calls("listing")[2].args.grouped, "1");
+""")
+
     def test_products_without_companies_keep_the_old_listing(self):
         self.run_page(r"""
 site.kind = null;
@@ -2465,6 +2505,325 @@ setDraft({ project: "comp_abc", period: "2026-09" });   // 没有公司分组：
 await core.switchToNewThread();
 await core.initialize(core.mainThreadId);
 assert.deepEqual(calls("create").at(-1).body, {});
+""")
+
+
+# ── CC 外壳第 1 批 · 左侧栏（docs/work/2026-10-16-cc-shell-design.md 3.1–3.8、3.16、4.2）──────────────────────────────────
+
+class SidebarShellSourceTests(unittest.TestCase):
+    def test_only_the_current_page_is_selected_in_the_nav(self):
+        app = read("assistant.tsx")
+        nav = app.split("function SidebarNav()", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn('data-active={(view === "tasks" && !taskCompany) || undefined}', nav)
+        pending = app.split("function PendingNav(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn('data-active={(view === "pending" && !pendingCompany) || undefined}', pending)
+        self.assertIn("if (!kind || total <= 0) return null;", pending)
+        company = app.split("function CompanyNav(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn('data-active={view === "companies" || undefined}', company)   # 主档页不再把「公司」选中
+        self.assertNotIn('view === "company" ||', company)
+        # 顺序（设计文档 4.2）：新建、待处理 N、定时任务、公司；手机抽屉同序
+        order = [nav.index(x) for x in ("<ThreadListNew ", "<PendingNav />", "hasScheduledTasks(profile)", "<CompanyNav />")]
+        self.assertEqual(order, sorted(order))
+        drawer = app.split('<div className="cc-drawer ', 1)[1].split("<ThreadList ", 1)[0]
+        order = [drawer.index(x) for x in ("<PendingNav onPick={close} />", "hasScheduledTasks(profile)", "<CompanyNav onPick={close} />")]
+        self.assertEqual(order, sorted(order))
+        # 带修饰键点对话是多选：不切回对话页
+        self.assertIn("if (e.shiftKey || e.metaKey || e.ctrlKey) return;", app.split("function useBackToChatOnPick(", 1)[1].split("\n}\n", 1)[0])
+
+    def test_group_headers_toggle_as_a_whole_and_reveal_their_actions(self):
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        header = group.split("export const GroupHeader: FC", 1)[1].split("\n);\n", 1)[0]
+        self.assertIn('data-roving=""', header)
+        self.assertIn("aria-expanded={open}", header)
+        self.assertIn("onClick={onToggle}", header)
+        self.assertIn('<ChevronRightIcon className="cc-group-caret" aria-hidden />', header)  # 名字后的 12px 箭头
+        self.assertLess(header.index("cc-group-name"), header.index("cc-group-caret"))
+        projects = read("components/assistant-ui/projects.tsx")
+        head = projects.split("export const ProjectHeader: FC", 1)[1].split("\n};\n", 1)[0]
+        # 名字不再打开主档页：只在「···」里（打开公司、在这家新建对话）
+        self.assertEqual(head.count("openCompany(project.id)"), 1)
+        self.assertIn("{co.openCompany}", head)
+        self.assertIn("{sb.newChatHere}", head)
+        self.assertIn("onClick={() => go(() => openPending(project.id))}", head)   # 待处理数：只看这家
+        # 右侧：待处理数、···、分组和排序、新建（新建在最右，悬停才出）
+        order = [head.index(x) for x in ('className="cc-group-count"', "cc-group-more", "<GroupSortMenu />", "<GroupNew ")]
+        self.assertEqual(order, sorted(order))
+        css = read("globals.css")
+        self.assertIn(".cc-group-more, .cc-group-new { display: none; }", css)
+        self.assertIn(".cc-group-row:is(:hover, :focus-within, [data-open]) :is(.cc-group-more, .cc-group-new)", css)
+        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-group-caret', css)
+        self.assertIn(".cc-group-row:hover .cc-group-toggle, .cc-group-toggle:focus-visible { color: var(--cc-ink-2); }", css)
+        # 触屏平板（宽屏、不能悬停）与手机：箭头、组操作常显
+        self.assertIn('@media (hover: none) {\n  [data-slot="sidebar"] { --cc-reveal-rest: 1; }\n'
+                      '  [data-slot="sidebar"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }', css)
+        self.assertIn(':root[data-cc-variant="phone"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }', css)
+        self.assertNotIn(".cc-project-name", css + projects)
+
+    def test_rows_fade_pulse_and_take_a_metadata_line(self):
+        rows = read("components/assistant-ui/thread-list.tsx")
+        item = block(rows, "export const ThreadListItem: FC")
+        self.assertIn("data-row-id={localId}", item)
+        self.assertIn('data-selected={selected ? "" : undefined}', item)
+        self.assertIn('data-roving=""', item)
+        self.assertIn("<RowMeta />", item)
+        self.assertIn('<span className="cc-row-end">', item)
+        self.assertNotIn("FilingTag", rows)
+        self.assertNotIn("LoaderIcon className=\"size-3.5 animate-spin\" />}\n    </span>", rows)
+        meta = rows.split("const RowMeta: FC", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('by === "company" ? [month, branch] : by === "month" ? [company, branch] : [company, month, branch]', meta)
+        self.assertIn("if (!kind || !meta || !filing.project) return null;", meta)
+        css = read("globals.css")
+        self.assertIn("mask-image: linear-gradient(to right, black calc(100% - var(--cc-row-fade)), transparent);", css)
+        self.assertIn("animation: cc-pulse var(--cc-pulse) ease-in-out infinite;", css)
+        self.assertIn("width: var(--cc-row-pulse); height: var(--cc-row-pulse);", css)
+        self.assertIn('[data-slot="aui_thread-list-item"][data-selected] { background: var(--cc-row-selected); color: var(--cc-ink); }', css)
+        self.assertIn("[data-jump-hints] .cc-row-end[data-jump]::after { content: attr(data-jump); }", css)
+        # 手机抽屉：行字仍 14（不再放大到 17），行与组标题带 44 由手机变体给
+        drawer = css.split("/* 手机抽屉（设计文档 3.16）", 1)[1].split("/* 手机顶栏与抽屉里的圆按钮", 1)[0]
+        self.assertNotIn("font-size", drawer)
+        self.assertIn('.cc-drawer [data-slot="aui_thread-list-item"] { min-height: var(--cc-row-h);', drawer)
+
+    def test_multi_select_has_no_bulk_bar_and_runs_one_by_one(self):
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertNotIn("BulkBar", rows)
+        bulk = rows.split("const BulkItems: FC", 1)[1]
+        self.assertIn("sb.pinN(ids.length)", bulk)
+        self.assertIn("sb.unpinN(ids.length)", bulk)
+        self.assertIn("sb.deleteN(ids.length)", bulk)
+        self.assertIn("<BulkMoveMenu sessions={sessions} onDone={clearSelection} />", bulk)
+        self.assertEqual(bulk.count("runInOrder("), 2)
+        self.assertIn("await item.updateCustom({ ...custom, starred: !allPinned });", bulk)   # 保留 custom 里别的键
+        projects = read("components/assistant-ui/projects.tsx")
+        self.assertIn('<SubMenu icon={<Building2Icon />} label={sb.moveToN(sessions.length)} className="cc-menu !min-w-52 max-w-72">', projects)
+        self.assertIn('runInOrder(sessions, (id) => fileSession(id, { project, period: "", scope: "" }), report)', projects)
+        # 单字母快捷键：按物理键认（泰文键盘下也一样），批量时只有 P、D
+        self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}", rows)
+        self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}", rows)
+        self.assertNotIn("function letterKeys", rows)
+        keys = read("lib/sidebar-keys.ts")
+        self.assertIn('const isDesktopWindow = () => document.documentElement.dataset.ccVariant === "desktop";', keys)
+        # 多选、批量、⌘ / Ctrl + 1–9 只在有公司分组的产品（ERP / DMS 的侧栏不变）
+        self.assertIn("if (!isDesktopWindow() || !companies()) return;", keys)
+        self.assertIn("if (event.shiftKey && companies() && to.matches(ROW_TRIGGER) && target.matches(ROW_TRIGGER)) {", keys)
+        self.assertIn("if (isMobile || !companies || (event.target as HTMLElement).closest(", rows)
+        self.assertIn("const bulk = companies && selection.length > 1 && selection.includes(localId);", rows)
+        self.assertIn("selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));", rows)
+        self.assertIn("const keys = useSidebarKeys(companies);", read("assistant.tsx"))
+        # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）
+        day = rows.split("const DayGroups: FC", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('data-slot="aui_thread-list-group-label"\n          data-roving=""\n          className="cc-section-label cc-section-toggle"', day)
+        # 组标题右侧操作（tabIndex -1）键盘从组开关进：已展开时 →，操作之间 ← →，最左再 ← 回组开关
+        self.assertIn('else if (event.key === "ArrowRight") groupActions(target)[0]?.focus();', keys)
+        self.assertIn("if (target.matches(GROUP_ACTION)) return onActionKey(event, target);", keys)
+        self.assertIn("if (next < 0) focus(toggle);", keys)
+        self.assertIn("const HINT_DELAY_MS = 300;", keys)
+        self.assertIn("<SidebarContent ref={keys}", read("assistant.tsx"))
+
+    def test_collapse_and_grouping_are_remembered_on_this_device(self):
+        app = read("assistant.tsx")
+        self.assertIn('const SIDEBAR_OPEN_KEY = "cc.sidebar.open";', app)
+        self.assertIn("<SidebarProvider style={sidebarWidth.style} open={sidebarOpen} onOpenChange={setSidebarOpen}>", app)
+        view = read("lib/managed-agents/sidebar-view.ts")
+        self.assertIn("const viewKey = (user: string) => `cc.sidebar.view:${user}`;", view)
+        self.assertIn('export const DEFAULT_VIEW: SidebarView = { by: "company", sort: "updated", desc: true, meta: false, empty: true };', view)
+        self.assertIn("if (useProjects.getState().kind && grouped(now.by) !== grouped(before.by)) void threads().reload()",
+                      read("lib/managed-agents/list-sync.ts"))
+        css = read("globals.css")
+        self.assertIn('[data-slot="sidebar"][data-state="collapsed"] ~ [data-slot="sidebar-inset"] .cc-topbar > .cc-icon-btn:first-child '
+                      "{ border-radius: var(--cc-radius-full); }", css)
+
+
+STORAGE_STUB = r"""
+const store = new Map<string, string>();
+(globalThis as any).localStorage = {
+  getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+  setItem: (k: string, v: string) => void store.set(k, String(v)),
+  removeItem: (k: string) => void store.delete(k),
+};
+(globalThis as any).storage = store;
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class SidebarShellBehaviourTests(unittest.TestCase):
+    def run_page(self, body, stubs=None):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
+               stubs={"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+                      **(stubs or {})})
+
+    def test_sorting_month_and_flat_groups(self):
+        self.run_page(r"""
+import { companySections, compareRows, flatSections, monthSections } from "@/lib/managed-agents/sidebar-groups";
+const at = (m: number) => Date.UTC(2026, 9, 15, 12, 0) - m * 60000;
+const projects = [{ id: "comp_A", title: "Beta Co", last_active: new Date(at(50)).toISOString() },
+                  { id: "comp_B", title: "Alpha Co", last_active: new Date(at(60)).toISOString() },
+                  { id: "comp_E", title: "Empty Co", last_active: new Date(at(70)).toISOString() }];
+const rows = [
+  { index: 0, title: "zeta", starred: false, time: at(1), group: "comp_A", created: at(300), period: "2026-09" },
+  { index: 1, title: "alpha", starred: false, time: at(5), group: "comp_A", created: at(100), period: "2026-08" },
+  { index: 2, title: "mid", starred: false, time: at(3), group: "comp_B", created: at(10), period: "2026-09" },
+  { index: 3, title: "loose", starred: false, time: at(2), group: "", created: at(400), period: "" },
+  { index: 4, title: "pinned", starred: true, time: at(9), group: "comp_B", created: at(1), period: "2026-07" },
+];
+const keys = (s: any[] | null) => s!.map((x) => x.key);
+const idx = (s: any[] | null, key: string) => s!.find((x) => x.key === key).indices;
+// 默认（上次更新、降序）：公司按最近活动，空的公司也显示
+let s = companySections(rows, projects);
+assert.deepEqual(keys(s), ["pinned", "project:comp_A", "project:comp_B", "project:comp_E", "recents"]);
+assert.deepEqual(idx(s, "project:comp_A"), [0, 1]);
+// 名称升序：公司按公司名、组内按标题
+s = companySections(rows, projects, { sort: { by: "name", desc: false } });
+assert.deepEqual(keys(s), ["pinned", "project:comp_B", "project:comp_A", "project:comp_E", "recents"]);
+assert.deepEqual(idx(s, "project:comp_A"), [1, 0]);
+// 创建日期降序：组内新建的在前；公司按这家最新创建的对话
+s = companySections(rows, projects, { sort: { by: "created", desc: true }, empty: false });
+assert.deepEqual(keys(s), ["pinned", "project:comp_B", "project:comp_A", "recents"]);   // 关掉空分组：Empty Co 不显示
+assert.deepEqual(idx(s, "project:comp_A"), [1, 0]);
+// 本页新建、还没有创建时间的行按上次更新算
+assert.ok(compareRows({ by: "created", desc: true })({ index: 9, title: "", starred: false, time: at(0), group: "" }, rows[3] as any) < 0);
+// 按月份：已置顶 → 新的月份在前 → 未指定月份；升序时旧的在前
+s = monthSections(rows, projects);
+assert.deepEqual(keys(s), ["pinned", "month:2026-09", "month:2026-08", "month:"]);
+assert.deepEqual(idx(s, "month:2026-09"), [0, 2]);
+assert.deepEqual(keys(monthSections(rows, projects, { sort: { by: "updated", desc: false } })), ["pinned", "month:2026-08", "month:2026-09", "month:"]);
+// 搜索也认公司名
+assert.deepEqual(keys(monthSections(rows, projects, { query: "alpha co" })), ["pinned", "month:2026-09"]);
+assert.equal(monthSections(rows, projects, { query: "nothing" }), null);
+// 不分组：已置顶 + 其余一组
+s = flatSections(rows, projects);
+assert.deepEqual(keys(s), ["pinned", "recents"]);
+assert.deepEqual(idx(s, "recents"), [0, 3, 2, 1]);
+""")
+
+    def test_view_preferences_are_kept_per_user(self):
+        self.run_page(r"""
+import "cc-storage";
+import { bindSidebarViewUser, DEFAULT_VIEW, isDefaultView, parseView, resetSidebarView, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
+const g = globalThis as any;
+assert.deepEqual(parseView({ by: "month", sort: "bogus", desc: false, meta: "x" }), { ...DEFAULT_VIEW, by: "month", desc: false });
+assert.deepEqual(parseView(null), DEFAULT_VIEW);
+assert.ok(isDefaultView(useSidebarView.getState()));
+// 还不知道是谁时改的：先只在本页生效，知道是谁时按这次改的存给这个人（不被读回的默认覆盖）
+setSidebarView({ sort: "name" });
+assert.equal(g.storage.size, 0);
+bindSidebarViewUser("z@x.test");
+assert.equal(useSidebarView.getState().sort, "name");
+assert.deepEqual(JSON.parse(g.storage.get("cc.sidebar.view:z@x.test")), { ...DEFAULT_VIEW, sort: "name" });
+resetSidebarView();
+bindSidebarViewUser("a@x.test");
+setSidebarView({ by: "month", meta: true });
+assert.equal(g.storage.get("cc.sidebar.user"), "a@x.test");
+assert.deepEqual(JSON.parse(g.storage.get("cc.sidebar.view:a@x.test")), { ...DEFAULT_VIEW, by: "month", meta: true });
+assert.ok(!isDefaultView(useSidebarView.getState()));
+// 换一个人：用他自己的（没记过就是默认）；换回来照旧
+bindSidebarViewUser("b@x.test");
+assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
+bindSidebarViewUser("a@x.test");
+assert.equal(useSidebarView.getState().by, "month");
+// 恢复默认：不再留着这一项
+resetSidebarView();
+assert.ok(!g.storage.has("cc.sidebar.view:a@x.test"));
+assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
+""", stubs={"cc-storage": STORAGE_STUB})
+
+    def test_menu_letters_only_fire_on_the_menu_itself(self):
+        # 审查 B1：子菜单（「移到 ▸」「移到… (N)」）里的键沿组件树冒到行菜单的 onKeyDown；在里面按 D 不能删对话、按 P 不能置顶
+        self.run_page(r"""
+import { menuLetterKeys, ownMenuKey } from "@/lib/sidebar-keys";
+type Node = { attrs: Record<string, string>; parent: Node | null; closest(sel: string): Node | null };
+const el = (attrs: Record<string, string>, parent: Node | null = null): Node => ({
+  attrs, parent,
+  closest(sel: string) {
+    const [, name, value] = /^\[([\w-]+)="([^"]*)"\]$/.exec(sel)!;
+    for (let n: Node | null = this; n; n = n.parent) if (n.attrs[name] === value) return n;
+    return null;
+  },
+});
+const menu = el({ role: "menu" });
+const item = el({ role: "menuitem" }, menu);
+const sub = el({ role: "menu" }, menu);                                // 宽屏：旁边展开的子菜单（组件树上在行菜单里）
+const subItem = el({ role: "menuitem" }, sub);
+const subInput = el({}, sub);
+const page = el({ "data-slot": "cc-menu-subpage" }, menu);             // 窄屏：原菜单里换上的子菜单那一页
+const pageItem = el({ role: "menuitem" }, page);
+assert.ok(ownMenuKey(item, menu));
+assert.ok(!ownMenuKey(subItem, menu));
+assert.ok(!ownMenuKey(subInput, menu));
+assert.ok(!ownMenuKey(pageItem, menu));
+assert.ok(!ownMenuKey(null, menu));
+const ran: string[] = [];
+let closed = 0;
+const keys = menuLetterKeys({ KeyP: () => ran.push("pin"), KeyD: () => ran.push("delete") }, () => closed++);
+const press = (code: string, target: Node, mods: Partial<Record<"metaKey" | "ctrlKey" | "altKey", boolean>> = {}) => {
+  let prevented = false;
+  keys({ code, target: target as any, currentTarget: menu as any, metaKey: false, ctrlKey: false, altKey: false, ...mods,
+         preventDefault: () => { prevented = true; } });
+  return prevented;
+};
+assert.equal(press("KeyD", subItem), false);
+assert.equal(press("KeyD", pageItem), false);
+assert.equal(press("KeyP", subItem), false);
+assert.deepEqual(ran, []);
+assert.equal(closed, 0);
+assert.equal(press("KeyD", item, { metaKey: true }), false);          // 带修饰键不是快捷键
+assert.equal(press("KeyR", item), false);                              // 没给的字母不管
+assert.equal(press("KeyD", item), true);
+assert.deepEqual(ran, ["delete"]);
+assert.equal(closed, 1);
+""")
+
+    def test_selection_keys_and_one_by_one(self):
+        self.run_page(r"""
+import { clearSelection, jumpDigit, nextIndex, rangeBetween, runInOrder, selectRange, toggleIn, toggleSelected, useSidebarSelection } from "@/lib/sidebar-keys";
+const order = ["a", "b", "c", "d", "e"];
+assert.deepEqual(rangeBetween(order, "b", "d"), ["b", "c", "d"]);
+assert.deepEqual(rangeBetween(order, "d", "b"), ["b", "c", "d"]);   // 往上选也按页面先后
+assert.deepEqual(rangeBetween(order, null, "c"), ["c"]);
+assert.deepEqual(rangeBetween(order, "gone", "c"), ["c"]);
+assert.deepEqual(rangeBetween(order, "a", "gone"), []);
+assert.deepEqual(toggleIn(["a", "c"], "c"), ["a"]);
+assert.deepEqual(toggleIn(["a"], "c"), ["a", "c"]);
+// ⌘ / Ctrl 点起头，Shift 点到哪儿选到哪儿（跨组按页面先后）；Esc 清空
+toggleSelected("b");
+selectRange(order, "e");
+assert.deepEqual(useSidebarSelection.getState(), { ids: ["b", "c", "d", "e"], anchor: "b" });
+selectRange(order, "a");
+assert.deepEqual(useSidebarSelection.getState().ids, ["a", "b"]);
+clearSelection();
+assert.deepEqual(useSidebarSelection.getState(), { ids: [], anchor: null });
+// 第一次 Shift 点：从正开着的那一行选到点的这一行（同 Claude Code）；正开着的不在眼前就只选点的这一行
+selectRange(order, "d", "b");
+assert.deepEqual(useSidebarSelection.getState(), { ids: ["b", "c", "d"], anchor: "b" });
+clearSelection();
+selectRange(order, "d", "gone");
+assert.deepEqual(useSidebarSelection.getState(), { ids: ["d"], anchor: "d" });
+clearSelection();
+// 方向键到头不绕回
+assert.equal(nextIndex("ArrowDown", 4, 5), 4);
+assert.equal(nextIndex("ArrowUp", 0, 5), 0);
+assert.equal(nextIndex("End", 1, 5), 4);
+assert.equal(nextIndex("Home", 3, 5), 0);
+assert.equal(nextIndex("Enter", 3, 5), null);
+// 跳转按物理键：主键盘、小键盘 1–9；0 不算
+assert.equal(jumpDigit("Digit3"), 3);
+assert.equal(jumpDigit("Numpad9"), 9);
+assert.equal(jumpDigit("Digit0"), 0);
+assert.equal(jumpDigit("KeyA"), 0);
+// 批量：一条做完再下一条，失败的不挡后面的，只报第一个错
+const log: string[] = [];
+let running = 0;
+const errors: unknown[] = [];
+const done = await runInOrder(["x", "y", "z"], async (id) => {
+  running++;
+  assert.equal(running, 1);
+  await (globalThis as any).sleep(5);
+  log.push(id);
+  running--;
+  if (id !== "z") throw new Error(id);
+}, (e) => errors.push(e));
+assert.deepEqual(log, ["x", "y", "z"]);
+assert.equal(done, 1);
+assert.equal(errors.length, 1);
 """)
 
 
@@ -2608,10 +2967,10 @@ await setChoice("comp_abc", "k1", "cash", "2026-09");
 assert.deepEqual(g.calls.at(-1).body, { company: "comp_abc", key: "k1", value: "cash", period: "2026-09" });
 """, stubs={"cc-pending-fixture": "export default " + fixture + ";"})
 
-    def test_each_company_group_shows_its_scheduled_tasks(self):
-        # 用户 2026-10-15 同意：公司组里对话列表上面一行「⏱ 定时任务 N」；有出错或停了单的任务时一个点；没任务不出现
+    def test_task_overview_is_read_once_and_company_groups_hold_only_chats(self):
+        # 定时任务总览一次取全部（定时任务页按公司分组用）。公司组里不再有「⏱ 定时任务 N」一行：用户 2026-10-15 夜同意设计文档 4.2，
+        # 改由右侧栏「定时任务」卡与公司页「定时任务」标签承担（同 Claude Code：分组里只放会话）
         self.run_page(r"""
-import { CompanyTasks } from "@/components/assistant-ui/projects";
 import { refreshTaskOverview, useTaskOverview } from "@/lib/companies";
 g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: {
   companies: { comp_abc: { count: 3, alert: true }, comp_xyz: { count: 1, alert: false } }, tasks: { R1: "comp_abc" }, titles: {} } }) });
@@ -2619,15 +2978,11 @@ await refreshTaskOverview();
 assert.equal(g.calls.at(-1).method, "/api/method/pearnly_cowork.companies.api.task_overview");   // 一次取全部
 assert.deepEqual(useTaskOverview.getState().companies.comp_abc, { count: 3, alert: true });
 assert.equal(useTaskOverview.getState().loaded, true);
-// 服务端渲染只看得到初始状态（还没取到）：这家没有任务时不出现
-assert.deepEqual(text(html(CompanyTasks, { company: "comp_none" })), []);
 """)
-        row = read("components/assistant-ui/projects.tsx").split("export const CompanyTasks: FC", 1)[1].split("\n};", 1)[0]
-        self.assertIn("if (!found?.count) return null;", row)
-        self.assertIn('{found.alert && <span className="cc-task-alert" data-slot="cc-task-alert" aria-hidden />}', row)
-        self.assertIn('useCompanyNav.setState({ taskCompany: company, taskFocus: "", taskSeed: null });', row)
-        self.assertIn('setView("tasks");', row)
-        self.assertIn("<CompanyTasks company={section.project.id} />", read("components/assistant-ui/thread-list.tsx"))
+        for rel in ("components/assistant-ui/projects.tsx", "components/assistant-ui/thread-list.tsx"):
+            self.assertNotIn("CompanyTasks", read(rel), rel)
+            self.assertNotIn("cc-project-tasks", read(rel), rel)
+        self.assertNotIn(".cc-project-tasks", read("globals.css"))
 
     def test_the_company_page_lists_its_own_chats_from_the_server(self):
         # 主档页「对话」按这家从服务端取（分组列表 group=<公司>，分页），不靠侧栏已加载的几条

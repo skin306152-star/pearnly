@@ -12,7 +12,8 @@
 //
 // 公司分组（projects.ts）走同一个通道：pearnly.project 的改名（upsert）、删公司（delete）、移动对话或换月份（move）
 // 随推随并；移来的对话本页还没加载就重拉一次列表。核对的那几个时刻同时重取一次 projects()；产品从没有公司分组变成有
-// （或反过来）时整表重拉。按公司分组的第一页里，每一组各按它自己翻到哪儿判断「不在这一页」是不是在别处删了。
+// （或反过来）时整表重拉；侧栏「分组依据」在公司与月份 / 不分组之间换（取的接口跟着换，sidebar-view.ts）时也整表重拉。
+// 按公司分组的第一页里，每一组各按它自己翻到哪儿判断「不在这一页」是不是在别处删了。
 
 import type { SessionPage } from "./api";
 import { runningSessions } from "./activity";
@@ -20,6 +21,7 @@ import { noticeReloader } from "./notice-reload";
 import { applyProjectChange, groupOf, refreshProjects, useProjects } from "./projects";
 import { onConnectionChange, onProjectChange, onSessionChange, type SessionChange } from "./realtime";
 import { absorb, firstPage, quietly, touchedSince } from "./session-list-adapter";
+import { useSidebarView } from "./sidebar-view";
 
 // 推来的几条合成一次重拉
 const RELOAD_MS = 1000;
@@ -146,6 +148,11 @@ export function watchList(threads: () => ListThreads): () => void {
   const offKind = useProjects.subscribe((now, before) => {
     if (before.loaded && now.kind !== before.kind) void threads().reload().catch(() => undefined);
   });
+  // 按公司取用分组接口，按月份 / 不分组用普通列表：在这两类之间换时整表按新的方式重拉（月份与不分组之间换只是重排）
+  const offView = useSidebarView.subscribe((now, before) => {
+    const grouped = (by: string) => by === "company";
+    if (useProjects.getState().kind && grouped(now.by) !== grouped(before.by)) void threads().reload().catch(() => undefined);
+  });
   let checking = false;
   let again = false;
   const check = async () => {
@@ -189,6 +196,7 @@ export function watchList(threads: () => ListThreads): () => void {
     offChange();
     offProject();
     offKind();
+    offView();
     offConnection();
     reloader.stop();
     document.removeEventListener("visibilitychange", onVisible);

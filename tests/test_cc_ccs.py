@@ -143,13 +143,13 @@ CODE_SHARED = {
     "pad-1": "6px", "pad-2": "8px", "pad-3": "12px", "pad-4": "16px", "pad-5": "24px", "icon": "20px", "icon-sm": "16px",
     "sidebar-w": "288px", "sidebar-head": "44px", "search-h": "32px", "row": "32px", "row-desktop": "30px", "row-phone": "44px",
     "row-gap": "2px", "row-radius": "8px", "row-pad": "10px", "row-ctl": "24px", "row-lead": "28px",
-    "group-band": "32px", "group-band-phone": "44px", "group-top": "16px", "group-top-desktop": "14px", "group-chevron": "12px",
+    "group-band": "32px", "group-band-phone": "44px", "group-top": "16px", "group-top-desktop": "14px", "group-chevron": "12px", "row-pulse": "6px",
     "tray": "48px", "tray-btn": "32px", "sidebar-float": "8px",
     "menu-pad": "4px", "menu-min-w": "128px", "menu-item": "32px", "menu-item-py": "6px", "menu-item-px": "10px",
     "menu-sep-inset": "10px", "menu-sep-gap": "4px", "menu-sep": "1px",
     "ease": "cubic-bezier(0.32, 0.72, 0, 1)", "ease-fast": "cubic-bezier(0.2, 0, 0, 1)",
     "ease-out": "cubic-bezier(0.165, 0.84, 0.44, 1)",
-    "dur-1": "60ms", "dur-2": "120ms", "dur-3": "200ms", "dur-4": "300ms", "dur-5": "450ms",
+    "dur-1": "60ms", "dur-2": "120ms", "dur-3": "200ms", "dur-4": "300ms", "dur-5": "450ms", "pulse": "1.2s",
 }
 PAGE_BG = {"light": "#fcfcfb", "dark": "#151515"}
 
