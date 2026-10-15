@@ -54,10 +54,11 @@ export type MonthStages = {
 /** 一条异常：码、段、严重度、去处；单据层的（group 是原待处理粗分）带单据字段，汇总的带 count，其余按码带任务 / 账套 / 草稿。 */
 export type MonthException = {
   code: string; stage: Stage; severity: Severity; action: ExceptionAction; group: string | null; document: string | null;
-  invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; reason_label?: string; detail?: string;
+  invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string;
+  reason_label?: string; detail?: string;
   choice?: PendingChoice | null; others?: string[]; count?: number;
   /** 同号的一组（duplicate_number）：每张的单号、对方、金额、日期（不在本月的被匹配那张也在里面）。 */
-  documents?: Array<{ document: string; invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string }>;
+  documents?: Array<{ document: string; invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string }>;
   task?: string; title?: string;
   connection?: string; account_set_key?: string; label?: string; readback?: string | null;
   draft?: string; kind?: string; branch?: string; issue?: string; issue_label?: string;
@@ -111,7 +112,7 @@ export function unlisted(month: Pick<Month, "exceptions">): number {
 export function pendingOf(item: MonthException, company: string): PendingItem {
   return {
     document: item.document ?? "", company, reason_code: item.group ?? item.code, code: item.code, reason_label: item.reason_label ?? "",
-    invoice_no: item.invoice_no, counterparty: item.counterparty, amount: item.amount, date: item.date,
+    invoice_no: item.invoice_no, counterparty: item.counterparty, amount: item.amount, date: item.date, filename: item.filename,
     action: item.action === "choose" ? "choose" : "open", choice: item.choice ?? null,
   };
 }

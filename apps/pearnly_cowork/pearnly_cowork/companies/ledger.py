@@ -161,7 +161,7 @@ def _document_item(row, code, group, company_tax) -> dict:
 
     fields = {"group": group, "document": row.name, "invoice_no": row.get("invoice_no") or "",
               "counterparty": pending.counterparty(row, company_tax), "amount": pending.amount(row.get("total_amount")),
-              "date": str(row.get("invoice_date") or ""),
+              "date": str(row.get("invoice_date") or ""), "filename": row.get("filename") or "",
               "reason_label": pending._reason_label(group, row.get("last_push_reason")),
               "detail": export_facts.reason_code(row.get("last_push_reason"))
               if code in ("push_manual", "push_failed") else ""}
@@ -207,10 +207,10 @@ def _live_matches(rows) -> dict:
 
 
 def _line(row, company_tax) -> dict:
-    """同号一组里的一张：单号、对方、金额、日期（交给 CC 时按这些找，不写内部记录名）。"""
+    """同号一组里的一张：单号、对方、金额、日期（交给 CC 时按这些找，不写内部记录名）；四项都没有时用文件名。"""
     return {"document": row.name, "invoice_no": row.get("invoice_no") or "",
             "counterparty": pending.counterparty(row, company_tax), "amount": pending.amount(row.get("total_amount")),
-            "date": str(row.get("invoice_date") or "")}
+            "date": str(row.get("invoice_date") or ""), "filename": row.get("filename") or ""}
 
 
 def _duplicates(rows, company_tax) -> list:
@@ -283,9 +283,11 @@ def month(company, period, limit=None) -> dict:
 
     drafts = _drafts(row, period)
     # 测试窗口第 3 轮：什么都没有的月份（没收到单、没推过、没有申报草稿）也报「还没回读」，「本月」卡就一直不隐藏。
-    # 没有可核对的就不催回读；核对一段只按推过的单算，没推过（也没有回读发现）时是 empty
+    # 没有可核对的就不催回读；核对一段只按推过的单算，没推过（也没有回读发现）时是 empty。复审第 3 轮按派单口径收紧：
+    # 收到了单但一张没推的月份也不催（核对一段为空；收单 / 录账两段照常列这些单，卡片不会被误藏）。有申报草稿时照旧催
+    # （草稿要用回读出）；已有的回读发现（含直接在 Express 记的单）不论推没推都照常报
     pushed = counted["pushed"] + counted["in_flight"]
-    needed = bool(documents) or pushed > 0 or bool((drafts or {}).get("drafts"))
+    needed = pushed > 0 or bool((drafts or {}).get("drafts"))
 
     verify = None
     verify_items = []

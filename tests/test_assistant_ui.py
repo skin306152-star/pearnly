@@ -2200,6 +2200,8 @@ const open = [{ ...item, invoice_no: "INV-1", document: "OCR-1", date: "2026-08-
 assert.equal(handText(open), "Handle these: \nINV-1 · 2026-08-30\nShop · 2026-09-01\nINV-3 · 2026-09-02");
 assert.equal(handText([{ ...open[0], counterparty: "Makro", amount: "1070.5" }]), "Handle this one: INV-1 · Makro · 1,070.50 · 2026-08-30");
 assert.ok(!/OCR-\d/.test(handText(open)));
+// 四项都没有时写文件名（复审第 3 轮），不丢这张、也不写记录名
+assert.equal(handText([...open, { ...item, document: "OCR-4", date: "", filename: "scan.pdf" }]).split("\n").length, 5);
 assert.equal(monthOfItems(open), "2026-09");
 assert.equal(monthOfItems([{ ...item, date: "" }]), "");
 """)
@@ -2861,6 +2863,10 @@ assert.equal(open("project:comp_A"), false);
 // 服务端说这家还有更多（本页还没取到它的对话）：也算有对话
 const more = companySections([], projects, { serverMore: { comp_H: "x|y" } })!;
 assert.equal(groupOpen(more.find((s) => s.key === "project:comp_H") as any, new Set(), false), true);
+// 公司先到、对话还没到：照公司顺序前 5 家展开，不是全收着
+const early = companySections([], projects)!;
+const earlyOpen = (key: string) => groupOpen(early.find((s) => s.key === key) as any, new Set(), false);
+assert.deepEqual(["A", "B", "C", "D", "E", "F"].map((x) => earlyOpen(`project:comp_${x}`)), [true, true, true, true, true, false]);
 """)
         tree = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("const collapsed = useSidebarFold((s) => s.collapsed);", tree)

@@ -73,7 +73,8 @@ export type Detail = {
 export type PendingChoice = { connection: string; account_set_key: string; kinds: string[] };
 export type PendingItem = {
   document: string; company: string | null; reason_code: string; code?: string; reason_label: string;
-  invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; month?: string; action: "choose" | "open";
+  invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string; month?: string;
+  action: "choose" | "open";
   choice?: PendingChoice | null;
 };
 
@@ -240,9 +241,12 @@ export function branchesOf(detail: Pick<Detail, "branches" | "account_sets"> | n
 }
 
 /** 千分位、保留服务端给的小数（不经浮点）。 */
-/** 交给 CC 时写一张单：单号 · 对方 · 金额 · 日期（测试窗口第 3 轮：预填里不写内部记录名 CWH-…，CC 按单号找得到）。 */
-export function docLine(item: { invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string }): string {
-  return [item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ");
+/** 交给 CC 时写一张单：单号 · 对方 · 金额 · 日期（测试窗口第 3 轮：预填里不写内部记录名 CWH-…，CC 按单号找得到）。
+ *  四项都没有（推送失败、没识别出来的那类）时写文件名，不把这张静默丢掉（复审第 3 轮；CC 按文件名也找得到）。 */
+export type DocFacts = { invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string };
+export function docLine(item: DocFacts): string {
+  const facts = [item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ");
+  return facts || item.filename || "";
 }
 
 /** 交给 CC 的几张单：一张时接在句子后面，几张时每张一行。 */

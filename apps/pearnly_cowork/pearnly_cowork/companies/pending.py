@@ -30,7 +30,7 @@ HISTORY = "Cowork OCR History"
 PUSH_RECORD = "Cowork Push Record"
 FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
           "total_amount", "intake_target", "push_connection", "push_account_set", "last_push_status",
-          "last_push_reason", "last_push_record", "last_pushed_at", "owner", "creation", "modified"]
+          "last_push_reason", "last_push_record", "last_pushed_at", "filename", "owner", "creation", "modified"]
 TARGETS = ("express", "mrerp")
 SETTLED = ("pending", "success")
 SETTLE_MINUTES = 15
@@ -208,7 +208,7 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
                 "reason_label": _reason_label(code, row.get("last_push_reason")),
                 "invoice_no": row.get("invoice_no") or "", "counterparty": counterparty(row, tax_ids.get(company, "")),
                 "amount": amount(row.get("total_amount")), "date": str(row.get("invoice_date") or ""),
-                "month": month_of(row),
+                "filename": row.get("filename") or "", "month": month_of(row),
                 "action": "choose" if code == "choice_needed" and row.get("push_connection") else "open"}
         if item["action"] == "choose":
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",

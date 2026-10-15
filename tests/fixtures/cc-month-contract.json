@@ -115,6 +115,7 @@
      "counterparty": "Makro",
      "amount": "1070.50",
      "date": "2026-09-20",
+     "filename": "",
      "reason_label": "text:choice_needed:party",
      "detail": "",
      "choice": {
@@ -136,6 +137,7 @@
      "counterparty": "Makro",
      "amount": "1070.50",
      "date": "2026-09-20",
+     "filename": "",
      "reason_label": "text:The own tax ID on this document does not match the chosen account set. Check the account set and send it again.",
      "detail": ""
     },
@@ -150,6 +152,7 @@
      "counterparty": "Makro",
      "amount": "1070.50",
      "date": "2026-09-20",
+     "filename": "",
      "reason_label": "cowork.company.pending.not_pushed",
      "detail": ""
     },
@@ -164,6 +167,7 @@
      "counterparty": "Makro",
      "amount": "1070.50",
      "date": "2026-09-01",
+     "filename": "",
      "reason_label": "text:push.failed",
      "detail": "push.failed"
     },
@@ -226,14 +230,16 @@
        "invoice_no": "INV-7",
        "counterparty": "Makro",
        "amount": "1070.50",
-       "date": "2026-09-20"
+       "date": "2026-09-20",
+       "filename": ""
       },
       {
        "document": "h7",
        "invoice_no": "INV-7",
        "counterparty": "Makro",
        "amount": "1070.50",
-       "date": "2026-09-20"
+       "date": "2026-09-20",
+       "filename": ""
       }
      ]
     },

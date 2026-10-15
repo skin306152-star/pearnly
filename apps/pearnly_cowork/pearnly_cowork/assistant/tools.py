@@ -123,8 +123,8 @@ GUIDANCE = [
     # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张
     "When the user names documents by invoice number, counterparty, amount and date (for example a message "
     "prefilled from the pending list or the month card), find each one with cowork_list_documents search set to "
-    "its invoice number (or the counterparty when there is no number), and use the amount and date to tell apart "
-    "documents with the same number.",
+    "its invoice number (or the counterparty when there is no number, or the file name when only a file name is "
+    "given), and use the amount and date to tell apart documents with the same number.",
     "When the user says which company a document belongs to (for example 'this one is X's'), enter it into that "
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
@@ -365,7 +365,8 @@ def _scope_pairs(sets) -> set:
 
 
 def _written_of(status, record):
-    """一张推送成功的票怎么写进 Express 的（`written`，验收 F19）；没成功、没记录、不是 Express 的回 None。"""
+    """一张推送成功的票怎么写进 ERP 的（`written`，验收 F19：现赊、科目，加上单号；MR.ERP 只有单号）；没成功、没记录、
+    什么都没有的回 None。"""
     if status != "success" or not record:
         return None
     return application.written([record]).get(record)
@@ -434,7 +435,8 @@ def list_documents(tool_input) -> str:
     if search:
         # 按单号、双方名称或税号找（税号去掉分隔符比），不限最近几张；「失败」那组条件改在取回后筛
         digits = "".join(ch for ch in search if ch.isdigit())
-        or_filters = [[field, "like", f"%{search}%"] for field in ("invoice_no", "seller_name", "buyer_name")]
+        # 文件名也算（复审第 3 轮：「交给 CC」预填里单号、对方、金额、日期都没有的单写文件名）
+        or_filters = [[field, "like", f"%{search}%"] for field in ("invoice_no", "seller_name", "buyer_name", "filename")]
         if len(digits) >= 5:
             or_filters += [[field, "like", f"%{digits}%"] for field in ("seller_tax", "buyer_tax", "invoice_no")]
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
@@ -3467,7 +3469,7 @@ TOOLS = [
                     "pending, success, failed), upload date, invoice date, where they are pushed (connection and "
                     "account_set_key as listed by "
                     "cowork_intake_options) or direction; search finds documents by invoice number, seller or buyer "
-                    "name, or tax ID across all documents, not only the latest ones. Up to 50 per call: total is how "
+                    "name, tax ID or file name across all documents, not only the latest ones. Up to 50 per call: total is how "
                     "many match; pass next_offset as offset for the next page. totals adds the sums of all matching "
                     "documents (credit notes summed separately; without_value counts documents with no recognized "
                     "value). Without account_set_key and search, by_account_set gives every account set (company) "

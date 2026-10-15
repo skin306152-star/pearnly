@@ -1798,7 +1798,7 @@ class MonthLedgerTests(unittest.TestCase):
         same, = [item for item in found["exceptions"]["items"] if item["code"] == "duplicate_number"]
         self.assertEqual((same["document"], same["count"], same["others"]), ("h3", 2, ["h7"]))
         self.assertEqual([line["document"] for line in same["documents"]], ["h3", "h7"])
-        self.assertEqual(set(same["documents"][0]), {"document", "invoice_no", "counterparty", "amount", "date"})
+        self.assertEqual(set(same["documents"][0]), {"document", "invoice_no", "counterparty", "amount", "date", "filename"})
         severities = [item["severity"] for item in found["exceptions"]["items"]]
         self.assertEqual(severities, sorted(severities, key=["action", "warn", "info"].index))
         # 定时任务的文件按登记时间归月：[本月一号, 下月一号)
@@ -1846,14 +1846,22 @@ class MonthLedgerTests(unittest.TestCase):
         self.assertEqual(found["exceptions"]["items"], [])
         self.assertEqual({stage: found["stages"][stage]["state"] for stage in ("intake", "entry", "verify", "tax")},
                          dict.fromkeys(("intake", "entry", "verify", "tax"), "empty"))
-        # 有申报草稿（要用回读出）、或收到过单：照旧催回读；收到了单但一张没推，核对一段仍不算「已推」
+        # 有申报草稿（要用回读出）：照旧催回读
         with mock.patch.object(tax_service, "month_drafts", lambda tax, period: json.loads(json.dumps(MONTH_DRAFTS))):
             self.assertIn("readback_needed", self.month()["exceptions"]["counts"])
+        # 收到了单但一张没推（复审第 3 轮按派单口径）：不催回读、核对一段为空；收单 / 录账两段照常列这张，卡片不藏
         frappe.db.tables["Cowork OCR History"] = {"h5": history("h5")}
         with mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
             found = self.month()
-        self.assertIn("readback_needed", found["exceptions"]["counts"])
+        self.assertNotIn("readback_needed", found["exceptions"]["counts"])
         self.assertEqual(found["stages"]["entry"]["pushed"], 0)
+        self.assertEqual(found["stages"]["verify"]["state"], "empty")
+        self.assertEqual(found["stages"]["intake"]["received"], 1)
+        self.assertNotEqual(found["stages"]["entry"]["state"], "empty")
+        # 推过一张：过完的月份没回读就催
+        frappe.db.tables["Cowork OCR History"] = {"h5": history("h5", last_push_status="success")}
+        with mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            self.assertIn("readback_needed", self.month()["exceptions"]["counts"])
 
     def test_nothing_pushed_leaves_the_verify_stage_empty(self):
         # 没推过的月份：回读一段没有可核对的（没有发现时是 empty，不是「进行中」）

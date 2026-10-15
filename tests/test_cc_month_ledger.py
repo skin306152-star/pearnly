@@ -315,6 +315,15 @@ assert.equal(handText([one]), `Handle this one: ${[one.invoice_no, one.counterpa
 const two = handText([one, { ...one, document: "CWH-0002", invoice_no: "INV-9", amount: "5", date: "" }]);
 assert.equal(two, `Handle these: \n${[one.invoice_no, one.counterparty, "1,070.50", one.date].join(" · ")}\nINV-9 · Makro · 5.00`);
 assert.ok(!two.includes("CWH-") && !two.includes(`[${one.document}]`));
+// 单号、对方、金额、日期都没有的单（推送失败、没识别出来的）写文件名，不静默丢掉（复审第 3 轮）：选 3 张就写 3 张
+const bare = { ...one, document: "CWH-0003", invoice_no: "", counterparty: "", amount: null, date: "", filename: "scan-0915.pdf" };
+assert.equal(handText([one, bare, { ...bare, document: "CWH-0004", filename: "IMG_2231.jpg" }]).split("\n").length, 4);
+assert.equal(handText([bare]), "Handle this one: scan-0915.pdf");
+assert.equal(handText([pendingOf({ ...month.exceptions.items.find((i: any) => i.code === "push_failed"), ...bare } as any, "COMPANY")]),
+             "Handle this one: scan-0915.pdf");
+const blank = { ...dup, invoice_no: "", documents: [{ document: "h3", invoice_no: "INV-7", counterparty: "Makro", amount: "1070.5", date: "2026-09-20" },
+  { document: "h9", invoice_no: "", counterparty: "", amount: null, date: "", filename: "dup.pdf" }] };
+assert.equal(duplicatePrefill(blank), "Check these documents with the same number: \nINV-7 · Makro · 1,070.50 · 2026-09-20\ndup.pdf");
 """)
         self.run_page(r"""
 import { duplicatePrefill } from "@/components/month-ledger";

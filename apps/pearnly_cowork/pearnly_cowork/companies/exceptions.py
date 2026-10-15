@@ -128,7 +128,7 @@ def exact_match(row) -> str:
 
 def readback_items(sets, ended, needed=True) -> list:
     """回读的发现（Express 里改了、删了、作废了、找不到 CC 推的单，或直接在 Express 记的）；月份已结束、还没有完成的回读的
-    账套给 readback_needed——``needed`` 为假（这个月没收到单、没推过、也没有申报草稿，没有可核对的）时不给。
+    账套给 readback_needed——``needed`` 为假（这个月没推过、也没有申报草稿，没有可核对的）时不给。
     ``sets``：`readback.service.month_status` 的形状。"""
     out = []
     for found in sets or ():

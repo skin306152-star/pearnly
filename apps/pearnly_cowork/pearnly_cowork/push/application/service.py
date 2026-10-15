@@ -680,7 +680,8 @@ def outcomes(records):
     """推送的人看自己这几次推送此刻的结论（CC 推送后等写账结果，用户 2026-10-13 第 9 条）：
     ``{记录名: {"status", "reason", "docnum", "result_unknown", "written"}}``；status 是账本状态（pending / leased 还在路上，
     success 已入账，manual 要人处理）。docnum 只在入账成功时给：ERP 回报的单号（Express 由 CC 桌面版写完回读）。
-    written 也只在入账成功时给：Express 载荷里现购 / 赊购、哪层定的、记的科目（`pushed.written`，验收 F19），别的为 None。
+    written 也只在入账成功时给：Express 载荷里现购 / 赊购、哪层定的、记的科目加上单号（`_entered`，验收 F19；同单据详情、
+    推送结果，复审第 3 轮），别的为 None。
 
     只认本人发起（actor）的记录，别人的、不存在的不回；只读、不加锁、不改任何东西。调用方要看别的请求刚提交的结论时，
     先自己 ``frappe.db.rollback()`` 换一份新快照。"""
@@ -693,7 +694,7 @@ def outcomes(records):
     return {row.name: {"status": row.status, "reason": row.reason or "",
                        "docnum": (row.external_docnum or "") if row.status == "success" else "",
                        "result_unknown": bool(row.result_unknown),
-                       "written": pushed_rules.written(_loads(row.payload_json)) if row.status == "success" else None}
+                       "written": _entered(row) if row.status == "success" else None}
             for row in rows}
 
 

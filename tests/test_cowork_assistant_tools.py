@@ -213,6 +213,7 @@ class BehaviourTests(unittest.TestCase):
         call = frappe.calls[-1]
         self.assertIn(["seller_tax", "like", "%0107565000620%"], call["or_filters"])
         self.assertIn(["seller_name", "like", "%0107-5650-00620%"], call["or_filters"])
+        self.assertIn(["filename", "like", "%0107-5650-00620%"], call["or_filters"])  # 预填只有文件名的单（复审第 3 轮）
         self.assertIn("seller_tax", call["fields"])
         tools.list_documents({"search": "Advice", "push_state": "failed"})
         self.assertEqual(frappe.calls[-1]["limit_page_length"], tools.LIST_SCAN_PAGE)  # 失败条件改在取回后筛
@@ -2135,7 +2136,7 @@ class PushOutcomeServiceTests(unittest.TestCase):
         found = service.outcomes(["PR1", "PR2", "PR3", "PR4", "PR1", ""])
         self.assertEqual(found, {
             "PR1": {"status": "success", "reason": "", "docnum": "HP691013-001", "result_unknown": False,
-                    "written": self.CASH},
+                    "written": {**self.CASH, "docnum": "HP691013-001"}},
             "PR2": {"status": "manual", "reason": "[X] no", "docnum": "", "result_unknown": True, "written": None},
             "PR4": {"status": "leased", "reason": "", "docnum": "", "result_unknown": False, "written": None}})
         (query, values), = queries
@@ -2155,10 +2156,13 @@ class PushOutcomeServiceTests(unittest.TestCase):
     def test_credit_default_and_records_that_are_not_express_or_older(self):
         service, _queries = _push_service(self.ROWS)
         found = service.outcomes(["PR5", "PR6", "PR7"])
-        self.assertEqual(found["PR5"]["written"], {**self.CASH, "payment": "credit", "payment_from": "default"})
-        self.assertIsNone(found["PR6"]["written"])  # MR.ERP：不是 Express 载荷，不猜
+        self.assertEqual(found["PR5"]["written"], {**self.CASH, "payment": "credit", "payment_from": "default",
+                                                   "docnum": "RR691013-001"})
+        # MR.ERP：不是 Express 载荷，不猜现赊，只带单号（对话推送这条路的 written 也有单号，复审第 3 轮）
+        self.assertEqual(found["PR6"]["written"], {"docnum": "PO-1"})
         # 改版前的记录没有 doctype_src：照实给现 / 赊，不编来源
-        self.assertEqual(found["PR7"]["written"], {key: value for key, value in self.CASH.items() if key != "payment_from"})
+        self.assertEqual(found["PR7"]["written"], {**{key: value for key, value in self.CASH.items() if key != "payment_from"},
+                                                   "docnum": "HP690901-001"})
 
     def test_results_list_reads_what_was_written_for_entered_records_only(self):
         # cowork_push_results 那条路：记录名来自已按权限取到的单据，这里不按人筛；没成功的不回。单号一律从推送记录带上

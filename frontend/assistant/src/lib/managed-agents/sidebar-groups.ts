@@ -84,7 +84,9 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
     return (sort.desc ? -order : order) || a.title.localeCompare(b.title);
   });
   // 默认展开的「前 5 家」只数有对话的公司（测试窗口第 3 轮：手机上没有对话的空公司组排在前面，占掉了 5 个位置，有对话的
-  // 各组一打开都收着）；空公司组排在它们之后，默认收着
+  // 各组一打开都收着）；空公司组排在它们之后，默认收着。对话列表还没到（一条对话都还没归到任何公司、服务端也没说哪家还有）时
+  // 照公司顺序数前 5 家（复审第 3 轮：公司先到、对话后到的那段时间不能全收着）
+  const anyChats = rows.some((row) => !!groupOf(row)) || Object.keys(options.serverMore ?? {}).length > 0;
   let rank = 0;
   let empties = 0;
   for (const project of ordered) {
@@ -94,7 +96,7 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
     const indices = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
     const serverHas = project.id in (options.serverMore ?? {});
     const more = !query && (all.length > indices.length || serverHas);
-    const order = all.length || serverHas ? rank++ : OPEN_FIRST + empties++;
+    const order = !anyChats || all.length || serverHas ? rank++ : OPEN_FIRST + empties++;
     sections.push({ type: "project", key: `project:${project.id}`, project, rank: order, indices, all, more });
   }
 
