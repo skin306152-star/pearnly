@@ -20,7 +20,7 @@ PAGE_STUBS = {"socket.io-client": SOCKET_STUB,
 
 class NotesSourceTests(unittest.TestCase):
     def test_note_editor_has_cancel_and_save_and_no_save_on_blur(self):
-        page = read("components/company-page.tsx")
+        page = read("components/company-cards.tsx")  # 知识库卡片（会话栏与公司页共用，CC 外壳 2026-10-16）
         editor = page[page.index("export const NoteEditor"):page.index("// ---------------------------------------------------------------- 单据文件夹")]
         self.assertIn('{t("cancel")}', editor)
         self.assertIn('{t("save")}', editor)
@@ -43,7 +43,8 @@ class NotesSourceTests(unittest.TestCase):
         page = read("components/company-page.tsx")
         header = page[page.index("const Header: FC"):page.index("// ---------------------------------------------------------------- 输入框")]
         self.assertIn("setTitle(saved);", header)
-        self.assertIn("{title}</h1>", header)
+        self.assertIn("{title}</button></h1>", header)  # 公司页标题：点名字就地改名（设计文档 3.15）
+        page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
         self.assertIn("setChoiceShown(rows, c.key, v)", choices)
         self.assertIn("rows.filter((row) => row.key !== c.key)", choices)

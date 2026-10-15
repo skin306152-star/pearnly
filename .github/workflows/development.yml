@@ -142,6 +142,8 @@ jobs:
         run: python3 tests/test_cc_mobile_overlays.py
       - name: Verify the ccs values match the official table and cards in the conversation follow the card rules
         run: python3 tests/test_cc_ccs.py
+      - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
+        run: python3 tests/test_cc_session_panel.py
       - name: Verify offline DMS editor snapshot rendering
         run: |
           npm ci --prefix frontend

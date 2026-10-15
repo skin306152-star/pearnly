@@ -28,6 +28,7 @@ import {
   PencilIcon,
   PlayIcon,
   PlusIcon,
+  SearchIcon,
   TrashIcon,
   XIcon,
 } from "lucide-react";
@@ -304,6 +305,13 @@ function useNewTask(open: (seed: TaskSeed | null) => void) {
 
 // ── 列表 ────────────────────────────────────────────────────────────────────────────────────────
 
+/** 定时任务页的搜索：任务名、目标账套、文件夹里有这几个字（不分大小写）。 */
+export function matchesRule(rule: Pick<Rule, "title" | "account_label" | "folder" | "root_label">, search: string): boolean {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return true;
+  return [rule.title, rule.account_label, rule.folder, rule.root_label].map((part) => String(part ?? "")).join(" ").toLowerCase().includes(needle);
+}
+
 export function ScheduledTasks() {
   const tr = useTerms();
   const toast = useToast();
@@ -353,20 +361,29 @@ export function ScheduledTasks() {
     document.querySelector(`[data-task="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: "center" });
   }, [focus, rules]);
   // 只看这家：总览还没取到时先不列（不闪出别家的任务）
-  const shown = rules && taskCompany ? (overview.loaded ? rules.filter((rule) => overview.tasks[rule.name] === taskCompany) : null) : rules;
+  const [search, setSearch] = useState("");
+  const byCompany = rules && taskCompany ? (overview.loaded ? rules.filter((rule) => overview.tasks[rule.name] === taskCompany) : null) : rules;
+  // 搜索（列表页样式，设计文档 4.5）：任务名、账套、文件夹里有这几个字
+  const shown = byCompany && search.trim() ? byCompany.filter((rule) => matchesRule(rule, search)) : byCompany;
   const groups = shown && !taskCompany ? groupTasks(shown, overview.tasks, order, overview.titles) : shown ? [[taskCompany, shown] as [string, Rule[]]] : [];
   const headed = !taskCompany && groups.some(([id]) => id);
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="cc-greeting text-3xl">{tr("cowork.folder.title")}</h1>
-          <button type="button" className="cc-btn" data-primary="" onClick={() => newTask(taskCompany)}>
-            <PlusIcon className="size-4" />
+      <div className="cc-page">
+        <div className="cc-page-head">
+          <h1 className="cc-page-title">{tr("cowork.folder.title")}</h1>
+          <button type="button" className="cc-btn-sm" data-primary="" onClick={() => newTask(taskCompany)}>
+            <PlusIcon />
             {tr("cowork.folder.new")}
           </button>
         </div>
+        {!!byCompany?.length && (
+          <label className="cc-page-search">
+            <SearchIcon />
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
+          </label>
+        )}
         {taskCompany && (
           <div className="mb-4">
             <span className="cc-chip">
@@ -387,6 +404,8 @@ export function ScheduledTasks() {
           <div className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => <div key={i} className="cc-card h-20 animate-pulse" />)}
           </div>
+        ) : shown.length === 0 && search.trim() ? (
+          <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
         ) : shown.length === 0 ? (
           <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
             <ClockIcon className="size-8 text-ink-3" />
@@ -408,7 +427,7 @@ export function ScheduledTasks() {
                   key={rule.name}
                   data-task={rule.name}
                   data-selected={focus === rule.name ? "" : undefined}
-                  className="cc-card cc-card-hover cc-enter flex items-start gap-3 px-4 py-3"
+                  className="cc-list-item cc-enter items-start"
                 >
                   <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(rule)}>
                     <div className="flex flex-wrap items-center gap-2">

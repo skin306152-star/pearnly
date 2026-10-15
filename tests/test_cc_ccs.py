@@ -147,6 +147,10 @@ CODE_SHARED = {
     "tray": "48px", "tray-btn": "32px", "sidebar-float": "8px",
     "menu-pad": "4px", "menu-min-w": "128px", "menu-item": "32px", "menu-item-py": "6px", "menu-item-px": "10px",
     "menu-sep-inset": "10px", "menu-sep-gap": "4px", "menu-sep": "1px",
+    # 标题栏（3.9）、右侧会话栏（3.13）、列表页（3.14）
+    "titlebar": "32px", "titlebar-btn": "26px",
+    "panel-w": "280px", "panel-gap": "10px", "panel-pad": "8px", "panel-head": "26px", "panel-row": "26px", "panel-btn": "20px",
+    "list-w": "960px", "list-search-h": "36px", "list-btn": "24px", "list-card-w": "314px", "list-card-h": "108px",
     "ease": "cubic-bezier(0.32, 0.72, 0, 1)", "ease-fast": "cubic-bezier(0.2, 0, 0, 1)",
     "ease-out": "cubic-bezier(0.165, 0.84, 0.44, 1)",
     "dur-1": "60ms", "dur-2": "120ms", "dur-3": "200ms", "dur-4": "300ms", "dur-5": "450ms", "pulse": "1.2s",

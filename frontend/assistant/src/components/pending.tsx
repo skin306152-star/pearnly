@@ -1,5 +1,5 @@
 // 待处理（补充乙）：要人处理的单统一一个入口——侧栏「待处理 N」打开的视图（?view=pending，可带 &company=），
-// 公司主档页右栏最上面也是同一个组件（只列这家）。
+// 右侧会话栏与公司页的「待处理」卡也是同一个组件（只列这家）。
 //
 //   数据：companies.api.pending（服务端从推送记录与录入状态现算，不新增存储）。按公司分组；归不上公司的放最后。
 //   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
@@ -9,7 +9,7 @@
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronDownIcon, InboxIcon, LoaderIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
@@ -89,6 +89,17 @@ export function monthOfItems(items: readonly PendingItem[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0]?.[0] ?? "";
 }
 
+/** 待处理页的搜索：单号、对方、单据编号、原因、金额、日期里有这几个字（不分大小写）。 */
+export function matchesPending(item: PendingItem, search: string): boolean {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return true;
+  return [item.invoice_no, item.counterparty, item.document, item.reason_label, item.amount, item.date]
+    .map((part) => String(part ?? ""))
+    .join(" ")
+    .toLowerCase()
+    .includes(needle);
+}
+
 /** 公司编号 → 名称：侧栏里有的直接用，其余取全所公司第一页，再没有的逐家读一次。 */
 function useTitles(ids: readonly string[]): Record<string, string> {
   const projects = useProjects((s) => s.projects);
@@ -118,8 +129,8 @@ function useTitles(ids: readonly string[]): Record<string, string> {
   return { ...found, ...Object.fromEntries(projects.map((p) => [p.id, p.title])) };
 }
 
-/** 待处理列表；company 给了只列这家（主档页右栏，没有待处理时整块不出现）。 */
-export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ company = "", embedded = false }) => {
+/** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
+export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string }> = ({ company = "", embedded = false, search = "" }) => {
   const [items, setItems] = useState<PendingItem[] | null>(null);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
@@ -139,13 +150,13 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
 
   const groups = useMemo(() => {
     const map = new Map<string, PendingItem[]>();
-    for (const item of items ?? []) {
+    for (const item of (items ?? []).filter((row) => matchesPending(row, search))) {
       const id = company || item.company || "";
       map.set(id, [...(map.get(id) ?? []), item]);
     }
     // 归不上公司的放最后
     return [...map.entries()].sort((a, b) => Number(!a[0]) - Number(!b[0]));
-  }, [items, company]);
+  }, [items, company, search]);
   const titles = useTitles(groups.map(([id]) => id).filter(Boolean));
 
   const done = (document: string) => {
@@ -169,6 +180,8 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
         <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-ink-3">
           <InboxIcon className="size-8" />
         </div>
+      ) : !groups.length ? (
+        <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
       ) : (
         groups.map(([id, rows]) => (
           <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} />
@@ -224,7 +237,7 @@ const Summary: FC<{ item: PendingItem }> = ({ item }) => (
 );
 
 const PendingRow: FC<{ item: PendingItem }> = ({ item }) => (
-  <div className="cc-card flex items-center gap-3 px-3 py-2.5" data-slot="cc-pending-row">
+  <div className="cc-list-item items-center" data-slot="cc-pending-row">
     <Summary item={item} />
   </div>
 );
@@ -277,7 +290,7 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
   };
   const kinds = (item.choice?.kinds ?? []).map((kind) => co.kind[kind] ?? kind).join(" · ");
   return (
-    <div className="cc-card flex flex-col gap-2 px-3 py-2.5" data-slot="cc-pending-choose">
+    <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-open={open || undefined}>
       <button type="button" className="cc-pending-toggle flex min-w-0 items-center gap-2 text-start" aria-expanded={open} onClick={toggle}>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-ink text-sm">
@@ -331,14 +344,21 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
   );
 };
 
-/** 待处理视图（?view=pending）：标题 + 列表；从公司组头或主档页来的只看这家。 */
+/** 待处理视图（?view=pending）：列表页样式（设计文档 3.14 / 4.5：标题、搜索、行同侧栏行）；从公司组头或公司页来的只看这家。 */
 export const PendingView: FC = () => {
   const company = useCompanyNav((s) => s.pendingCompany);
   const title = useTitles(company ? [company] : [])[company] ?? "";
+  const [search, setSearch] = useState("");
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
-        <h1 className="cc-greeting mb-6 text-3xl">{co.pending}</h1>
+      <div className="cc-page">
+        <div className="cc-page-head">
+          <h1 className="cc-page-title">{co.pending}</h1>
+        </div>
+        <label className="cc-page-search">
+          <SearchIcon />
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
+        </label>
         {company && (
           <div className="mb-4">
             <span className="cc-chip">
@@ -349,7 +369,7 @@ export const PendingView: FC = () => {
             </span>
           </div>
         )}
-        <PendingList company={company} />
+        <PendingList company={company} search={search} />
       </div>
     </div>
   );
