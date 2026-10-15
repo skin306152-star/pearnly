@@ -170,6 +170,15 @@ function fixture({ acquire, decode, muted = 0, devices = [], ua = 'Mozilla/5.0 (
   assert.equal(liff.p.scan_liff_first(true), false, 'inside LIFF the camera is used directly');
   const iphone = fixture({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Safari Line/26.15.0' });
   assert.equal(iphone.p.scan_liff_first(true), false, 'LINE on iPhone can use the camera');
+  // LIFF 里授权窗可能开着好一会儿（网页的、再到系统给 LINE 的）：不提前提示。
+  const asking = fixture({ ua: 'Mozilla/5.0 (Linux; Android 13; wv) Chrome/106 Line/26.15.1 LIFF',
+    acquire: () => new Promise(() => {}) });
+  const asking_waits = [];
+  const asking_reader = asking.p.scan_reader({ host: {}, on_result: () => {}, on_waiting: reason => asking_waits.push(reason) });
+  void asking_reader.start(); await flush();
+  assert.equal([...asking.timers ? [] : []].length, 0);
+  assert.equal(asking_waits.length, 0, 'no early hint while a LIFF permission prompt is open');
+  asking_reader.stop();
   console.log('PASS camera failures are classified (blocked, LINE, other in-app browser, busy, decoder), a hanging LINE request gets a hint, a picky rear camera is retried by device');
   // 电脑上「拍照」（框架上传器）打不开相机：同一套第 ③ 步提示，不再是笼统的一句。
   class Capture {

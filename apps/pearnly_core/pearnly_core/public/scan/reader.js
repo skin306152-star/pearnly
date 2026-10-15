@@ -143,7 +143,8 @@
 				if (stopped) return;
 				const reading = decoder(kind).catch(error => { throw failure("decoder", error); });
 				reading.catch(() => {});
-				const slow = in_app() ? window.setTimeout(() => {
+				// LIFF 里请求会弹原生授权（网页的、再到系统给 LINE 的），人还在看授权窗时不能抢先提示，所以不计时。
+				const slow = in_app() && !/\bLIFF\b/.test(agent()) ? window.setTimeout(() => {
 					if (!stopped && !stream) on_waiting?.(in_line() ? "in_line" : "in_app");
 				}, SLOW_MS) : null;
 				try {
