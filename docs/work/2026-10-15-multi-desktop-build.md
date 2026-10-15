@@ -350,3 +350,54 @@ Site，第 7 批按新口径重写。
   `scheduled-tasks.tsx` 改读 `writers_known`；对话页每次打开带设备密钥调 `register`（第 5 节第 7 条的契约测试）。
 - 第 7 批：真实 Site 迁移与回读（`config_json` / `record_revision` 未变、v1 排队 / 领取中为 0）、部署前 v1 单只读统计与回退演练或书面确认
   不可回退（ADR-021「兼容」节的回退前提）、两台电脑场景 ①–⑤、3 租户 × 10 台并发压测领取（每份账套只看排头的查询量、连接行热锁）。
+
+### 第 3 批对抗审查与修复（2026-10-16，本地提交，未推送）
+
+审查范围 `bf8aa969..3f412e29`，9 条（无高危）。提交：`53e8f68e` fix（服务端与测试）、`483cd2f2` fix（CC 定时任务页认主连接）、
+本条 docs（ADR-021 第 16–18、20、21 条与有意变化「主连接」、架构说明、本记录）。没有新补丁、没有新词条、没有改已有文案。
+
+| # | 审查结论 | 处理 |
+|---|---|---|
+| 1 中 | 领取核对把整张科目映射表（本站不分工作空间）与按录入人的银行流水窗口都算进 `basis_hash`，D4 让单子排得久，排队期间改一条无关映射就把整队转人工 | 已修：`push.express.referenced.used_facts` 只取本单用到的——映射只留 `erp_code` 是载荷里某个科目的行、客户映射（本就只有这条连接的客户）与本单卖方的供应商画像原样、主档行照旧；不含银行流水（方案第 8 节第 30 条）。`preparation.basis(used)` 只算指纹。代价写进 ADR 第 18 条：本单走兜底科目、后来才给它的类别加映射，领取时看不出（人确认仍整份比对） |
+| 2 中 | 领取在锁着连接行时逐份账套查可达、登记、解析旧行载荷，可能再走整份 `ledger.lease` | 已修：可达（`pool.reachers_of`）、登记（`pool.registrations_of`）、旧行载荷版本（`queue_heads.payload_versions`）各一条查询；`ledger.lease` 前先 `ledger.lock_busy` 不加锁看写者锁与该让着的记录，占着的跳过、不做整份重核。连接行锁等待第 7 批压测量 |
+| 3 中 | `MAX_PENDING_SCAN=5000` 跨账套截断，一份账套积压能饿住别的账套；v2 排头遇到全池只支持 1 时既不领也不隔离，堵住后面的 v1 单，且第 6 批前用户看不到 | 已修：`companion.queue_heads.heads` 按账套分组取最早建立时间再取那一刻的单（无 `LIMIT`；`route_contracts.heads` 按名字取第一张），取这台够得到的每一份账套（不再只看前 50 份）。全池够得到它的电脑都报过更低的最高版本（`NEEDS_UPDATE`）时隔离为人工，原因码 `payload_version_outdated`（第 3 批之前准备时就拦下的同一个码，网页 / 导出按现有词条 `intake.error.payload_version_outdated` 显示），同一账套后面的单照常写；有一台支持（`VERSION`）或旧版不报版本的照旧跳过不隔离 |
+| 4 中 | `scheduled-tasks.tsx` 两处仍取「列表第一条」 | 已修：`mainOf` 只认 `main`（与 `targets.js` 同口径，不退到别的连接）；`HelperConnect` 同改。有意变化补登记进 ADR-021：没有主连接使用权、只有后建连接使用权的用户整个看不到 Express。第 7 批前只读核 erpcowork 那 1 把有效密钥、13 张人工单、现有规则各挂在哪条连接上，见下方第 7 批前提 |
+| 5 低 | `has_writer` 不核签发人，`pool.state` 核 | 已修：一个判据 `connections.pool.writers(doc, key, peers)`：登记着、可达可写、在 `presence` 里（密钥没吊销、电脑没退役）、至少一把密钥的签发人此刻仍能用这条连接（新 `connections.access.usable_by`，不加锁；`credentials.issuer_valid` 改为转调它）。`has_writer` 与 `companion.pool.state` 都用它 |
+| 6 低 | 公司锁取准备那一刻的内容键（不带详情上报建的登记为空）；部署前 v1 单没有公司锁，`_older_writer` 只看同账套键 | 已修：`_older_writer` 再按这份账套**现在**登记的内容键查同一工作空间里领走 / 结果不明的记录（联登记表）；可能在别的连接上，不加锁读（不抢别的连接的行锁、不在快照隔离下撞 1020）。登记一直没有内容键时仍挡不住，第 7 批前核 erpcowork 13 张人工单里结果不明的张数与它们账套的内容键 |
+| 7 低 | 池状态的排头查询过滤与领取不同 | 已修：`pool.state` 与 `transport` 共用 `queue_heads.Q_HEADS` |
+| 8 低 | 一台电脑挂两条连接时「每台一件」守不住 | 不改代码，写进 ADR 第 16 条与 `_busy` 注释：只在一条连接内严格成立。严格做要在加锁顺序（Connection → Credential → 池各行 → Device）里提前锁电脑行，与回执路径顺序相反，不值 |
+| 9 低 | MariaDB 11.8 快照隔离下 `_locks` 的加锁读可能撞 1020（锁行跨连接共用） | 未改代码：`lock_busy` 的不加锁预看减少走到加锁读的次数，但撞上时整次领取仍失败。列入第 7 批并发压测清单（下方） |
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`；容器 `pearnly/frappe-sample:16.34.1`、`--network none`、工作树只读挂载）：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_express_dispatch.py` | 50 OK（42 → 50）：领取只核本单用到的映射 / 画像 / 主档、无关映射与银行流水变了 `basis_hash` 不变、本单那条映射改了会变；全池不支持 → `payload_version_outdated` 隔离且后面的单照领、有一台支持或旧版不报 → 跳过不隔离；批量读（排头、可达、登记各一次）与锁被占时不做整份领取；旧行载荷版本一条查询；`has_writer` 走 `pool.writers`；`_older_writer` 按现在登记的内容键不加锁再查；`lock_busy` 不加锁；`payload_version_outdated` 是隔离原因；`pool.state` 与领取同一条排头查询；`Q_HEADS` 在 SQLite 上实跑（3000 张积压不挡别的账套、过滤与领取一致、同一时刻按名字、旧行读回冻结载荷版本） |
+| `tests/test_cowork_express_account_sets.py` | 67 OK（新增：`reachers_of` / `registrations_of` 一次取多份；`pool.writers` 关机也算、签发人失权 / 密钥吊销 / 没登记不算） |
+| `tests/test_cowork_cc_desktop_devices.py` | 57 OK（`issuer_valid` 转调 `access.usable_by`） |
+| 容器内导入改过的 13 个模块；`tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（不含源码对照） | 导入 OK；185 个文件 183 OK，`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py` 与基线相同的两个失败 |
+| `python3 scripts/check-architecture.py` | PASS（0 violations） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 88 步全过，退出码 0（代码提交后与本条文档后各跑一次） |
+
+没做 / 没验：同第 3 批（真实 Site、MariaDB 加锁与执行计划、HTTP 链、真机在第 7 批）。`Q_HEADS` 的分组子查询在推送记录上没有
+（connection, status, account_key, created_at）组合索引，与以前 `_pending` 一样按连接扫；第 7 批压测量它，慢了再加索引（原生
+`on_doctype_update`）。
+
+第 7 批前提与压测清单（本条新增）：
+
+- 只读核生产 erpcowork：两条启用的 Express 连接里哪条是主连接（最早建、启用、不挂客户）；那 1 把有效密钥、13 张人工单、现有
+  定时任务规则各挂在哪条连接上——挂在后建那条的，切换后网页会失去 Express，要先定迁移办法再部署。
+- 部署前 v1 记录里结果不明的张数（目标 0）与它们账套的内容键；不为 0 时要人先在 ERP 核对解除。
+- 并发压测（3 租户 × 10 台）：连接行锁等待、`Q_HEADS` 执行计划与耗时、领取时 `_locks` 加锁读撞 1020 的次数（锁行跨连接共用，
+  erpcowork 两条连接）、同一台电脑挂两条连接时「每台一件」。
+
+留给后面几批（在第 3 批所列之上更新）：
+
+- 第 4 批：照第 3 批所列（定时任务读者三元组与补丁第 4 步、定时任务推送按池口径 D4、读者 / 按需请求按设备、「电脑」列表每台一行等）。
+  `folder_intake.destinations.ready` 读 `has_writer`，本批起与池的状态同一判据，第 4 批改推送口径时不用再对齐。
+- 第 5 批（CC 桌面版 1.6.0）：照第 3 批所列。
+- 第 6 批：照第 3 批所列；`scheduled-tasks.tsx` 已认主连接，第 6 批只改它读 `writers_known` 与新文案；推送记录上「需更新」现在
+  是人工 + `payload_version_outdated`，第 6 批的「需更新」状态按账套问 `api.online` 时与它一致。
+- 第 7 批：照第 3 批所列，加上上面的前提与压测清单；实验室脚本按证据 v2 / 新领取口径重写。
+- 第 8 批：照方案。
+
