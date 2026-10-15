@@ -401,3 +401,65 @@ Site，第 7 批按新口径重写。
 - 第 7 批：照第 3 批所列，加上上面的前提与压测清单；实验室脚本按证据 v2 / 新领取口径重写。
 - 第 8 批：照方案。
 
+
+### 第 4 批：读文件夹的电脑、按需请求按电脑、全所可用（服务端，2026-10-16，本地提交，未推送）
+
+提交：`2ad8fab5` feat（代码与测试）、本条 docs（ADR-021 第 25–32 条与有意变化、架构说明、本记录）。补丁 `v0_0_21_reader_devices`（方案 4.1
+第 4 步）、`v0_0_22_express_all_members`（第 5 步）。新词条只有 4 个字段标签（四种语言）；没改已有文案；前端（`frontend/assistant`、Desk 的
+定时任务页）不动，属第 6 批。
+
+做了什么（对照方案第 9 节第 4 行、2.7、2.9、4.1 第 4–5 步）：
+
+- 读者三元组：`folder_intake.readers`（新）解析（电脑，成员连接）；任务、文件、运行、公司文件夹加 `reader_device`；同步只下发这台电脑这个成员的
+  任务（`machine._sync` 按 `reader = 成员连接 AND reader_device = 电脑`），`_rule` / 文件状态 / 取结果表格同时核电脑；本机情况（`agent`）按
+  （电脑，成员连接）存；表单选项、`computers()` 一台电脑一行；每台最多 50 个按电脑计；同一台电脑不分成员按根目录比重叠；读者被移除标
+  `reader_gone`；电脑改挂（`devices._move`）经钩子 `cowork_reader_device_moved` 转移任务、文件、待发简报的运行、公司文件夹。
+- 旧写法：只给连接时按根目录认电脑（改任务时原来那台还报着就仍是它）；任务列表 `reader` 仍是成员连接，另给 `reader_device` / `reader_id`，
+  Desk 与 React 定时任务页、主档页的公司文件夹在第 6 批前照常可用（一条连接上只有一台电脑时与今天完全一样）。
+- CC 工具：选项的 `reader` 给读者编号；改任务以现值为底时传回读者编号（不被认成换了文件夹）；卡片上的根目录名按编号取；任务列表带 `reader_gone`。
+- 按需请求：`Cowork Companion Request` 加 `target_device` / `account_key` / `lease_device`；`fetch` 定向给持有根目录的电脑；回读与科目历史带
+  规范键、按分派顺序交给够得到它的电脑、位置换成它的写法（`request_contracts.LOCATION_KEYS` / `localize`）；在场与租约按电脑；`waiting` 按
+  电脑 / 按够得到账套的各台、版本取电脑行；领取只扫这台能领的、逐件加锁；过期不再锁整条连接。
+- 提醒与简报按读者（电脑|连接）分组（部署前的提醒去重键仍认）；限流按推送连接 + 账套；定时任务推送按池的口径（D4，`destinations.queueable`）。
+- 全所可用：连接加 `all_members`；`connections.access.listed` 一个判据替换 `access.require_connection`、`service.records`、`service.read_for_log`
+  三处；新建 Express 池默认全所可用；连接详情带 `all_members`。
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`；需要 Frappe 的在一次性离线容器 `pearnly/frappe-sample:16.34.1`、`--network none`、
+工作树只读挂载里跑）：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_companion_requests.py` | 33 OK（新增 `PoolRequestTests` 7 项：定向只给持根目录的电脑、没定向的谁都行、在场与租约按电脑、读账套先给发起人的电脑且换成它的写法、120 秒或发起人电脑不在就换人、`waiting` 问够得到账套的各台、过期只锁到期的那件；契约 `target` / `localize`） |
+| `tests/test_cowork_folder_intake.py` | 119 OK（同步按电脑下发与接手、运行记电脑且别的电脑报的不收、文件按电脑认、D4 排队、公司文件夹按根目录认电脑 / 两台各一行 / 只给连接不猜 / 接手老行、`readers.adopt` 只接手报了根目录的、`readers.moved` 四张表、读者编号、补丁 `v0_0_21` 回填与留空） |
+| `tests/test_cowork_folder_task_batch.py`（用真 `readers`） | 28 OK（新增 `ReaderDevices` 6 项：池里每台一项、只给连接按根目录认 / 编号要持根目录 / 改任务保留原电脑、50 个按电脑、同一台电脑跨成员重叠、`reader_gone`、`waiting` 两种写法） |
+| `tests/test_cowork_folder_reminders.py` | 42 OK（新增：同一个池两台电脑各一条提醒、部署前的去重键仍认、各一份简报） |
+| `tests/test_cowork_connection_read_locks.py` | 11 OK（新增：`listed` 一个判据、MR.ERP 不看 `all_members`、列表对全所可用的池、补丁 `v0_0_22` 只设主连接、不改修改时间与版本） |
+| `tests/test_companion_contract.py` | 58 OK（新增 `PoolRequests`：位置键 = 两种读账参数都有的键 = 客户端两个处理函数读的键；领取请求体不变；服务端按电脑与账套键定向） |
+| 改过的旧测试 | `folder_tasks_mrerp`（真 `readers`）8、`assistant_tools` 175（新增：池里每台电脑一项、改任务保留读者编号）、`readback` 41、`account_suggest` 34、`companies` 54、`cc_desktop_devices` 57（改挂时钩子随可达行一起转）、`express_account_sets` 67、`delete_everything` 7 — 全部 OK |
+| 变异核对 | 领取不按电脑过滤：契约测试失败；轮不到也领：请求测试 2 项失败；同步不按电脑：文件夹测试失败 |
+| 容器内导入改过的 23 个模块与两个补丁；`tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（不含源码对照） | 导入 OK（钩子 `cowork_reader_device_moved` 解析到 `readers.moved`）；185 个文件 183 OK，`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py` 与基线相同的两个失败；`test_cowork_folder_computers.py` 改成按电脑一行（新增池里两台各一行） |
+| `python3 scripts/check-architecture.py`、`i18n-build.py --check` | PASS / PASS |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 88 步全过，退出码 0 |
+
+与方案的出入及理由：
+
+- 读者对外编号「电脑|连接」只给 CC 工具与第 6 批；任务列表的 `reader` 与读者选项的 `connection` 仍是成员连接，第 6 批之前的网页 / Desk 页拼下拉
+  值（`reader|root|folder`）不会被编号里的竖线拆错。只给连接时按根目录认电脑（方案没写旧写法怎么认）。
+- 文件行不由补丁回填：没记电脑的文件按连接认（在途的照常走完）；电脑改挂时文件不论走到哪一步都转（之后还要按它取结果表格）。
+- 补丁认不出电脑（读者连接上没有有效密钥）的任务，由这条连接上报了它那个根目录的电脑来同步时接手（`readers.adopt`，条件更新）；方案只写了回填。
+- 读账套请求的「在线」按这一种按需请求 90 秒内来领过算，不按心跳：心跳在、却从不来领按需请求的旧版不该让别的电脑等 120 秒。不黏住、不看载荷版本（只读）。
+- 读账套请求的资格是可达行状态正常，不要求能写（读不写）。
+- 公司文件夹（ADR-020，方案之后才有）一并按电脑：绑定按根目录认电脑，只给连接的解绑在几台电脑各有一行时不删。
+- 定时任务推送 D4 用 `destinations.queueable`（`writers_known`）；`destinations.online` 保留给 CC 工具报「CC 桌面版在线」。
+- 全所可用补丁只设每个归属的 Express **主连接**（同方案）；erpcowork 后建的那条 Express 连接仍按名单。
+
+没做 / 没验：真实 Site 上的迁移与两个补丁、MariaDB 加锁（领取按需请求时单行加锁读在快照隔离下撞 1020 的情形与以前相同，列入第 7 批压测）、
+HTTP 链、真机（第 7 批）。`test_cowork_companion_reports_source_parity.py` 等源码对照没跑（本批没改上报解析）。
+
+留给后面几批（在第 3 批所列之上更新）：
+
+- 第 5 批（CC 桌面版 1.6.0）：照第 3 批所列；桥交回的文件夹绑定可直接带 `reader_device`（服务端已收）；请求体不变。
+- 第 6 批：定时任务页（React 与 Desk `intake-folders.js`）、主档页的公司文件夹改用 `reader_id` / `reader` 编号作下拉值与解绑参数，「电脑已移除」
+  按 `reader_gone` 显示；「连接」列表一台电脑一行已由服务端给出；连接详情的 `all_members` 是否在设置页显示由第 6 批定。
+- 第 7 批：照第 3 批所列，加上补丁 `v0_0_21` / `v0_0_22` 在真实 Site 上的回读（任务 `reader_device` 回填数、主连接 `all_members`、
+  `record_revision` 未变）、两台电脑各读各的文件夹（场景 ②④）、按需请求在两台之间的分派。
