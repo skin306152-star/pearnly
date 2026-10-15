@@ -2038,13 +2038,16 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn('<DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu !min-w-52 max-w-72">', draft)
         self.assertIn('<PeriodChip look="cc-chin-btn" side="top" value={draft.period} onChange={(period) => setDraft({ ...draft, period })} />',
                       draft)
-        # 已有对话：公司名打开右侧会话栏的公司卡（事件，没人接就开主档页），月份、分店改了就 move
+        # 已有对话：公司名打开右侧会话栏并展开公司卡（与顶栏「公司名 ›」同一个 openCompanyCard），月份、分店改了就 move；
+        # 月份、分店只在下巴：标题栏不再有 ConversationFiling
         session = block(projects, "const SessionChin: FC = () => {")
-        self.assertIn("onClick={() => openCompanyCard(project, openCompany)}", session)
+        self.assertIn('<button type="button" className="cc-chin-btn" data-slot="cc-chin-company" onClick={openCompanyCard}>', session)
         self.assertIn('<FilingChips look="cc-chin-btn" side="top" />', session)
-        self.assertIn('export const OPEN_COMPANY_CARD = "cc:open-company-card";', projects)
-        self.assertIn("const event = new CustomEvent(OPEN_COMPANY_CARD, { detail: { company }, cancelable: true });", projects)
-        self.assertIn("if (window.dispatchEvent(event)) fallback(company);", projects)
+        self.assertIn('import { openCompanyCard } from "@/lib/company-panel";', projects)
+        self.assertIn('export const openCompanyCard = () => showCard("company");', read("lib/company-panel.ts"))
+        self.assertNotIn("cc:open-company-card", projects)
+        self.assertNotIn("ConversationFiling", projects)
+        self.assertNotIn("ConversationFiling", page)
         self.assertIn("const change = (next: Partial<Filing>) => void fileSession(remoteId, { ...filing, ...next }).catch(report);",
                       projects.split("const FilingChips: FC<", 1)[1].split("\n};", 1)[0])
         # 手机胶囊菜单只留「移到…」：月份在下巴里

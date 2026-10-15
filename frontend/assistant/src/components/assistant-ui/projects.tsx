@@ -6,7 +6,7 @@
 //   MoveToMenu          — 对话菜单里的「移到 ▸」：我最近的公司 + 搜索 + 添加公司… + 最近；移入公司时月份留空，不改置顶
 //   BulkMoveMenu        — 多选时行菜单里的「移到… (N)」：同一份选公司的菜单，选了逐条移动（不并发）
 //   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
-//                         对话挂哪家（至少有一家公司时才显示）；已有对话里点公司名打开右侧会话栏的公司卡（OPEN_COMPANY_CARD），
+//                         对话挂哪家（至少有一家公司时才显示）；已有对话里点公司名打开右侧会话栏的公司卡（同顶栏，lib/company-panel 的 openCompanyCard），
 //                         月份、分店改了就 move
 //   ConversationCompany — 对话顶栏「ABC 有限公司 ›」（点了打开右侧会话栏的公司卡）；手机在胶囊菜单最上面（MobileCompanyItem）
 //
@@ -293,14 +293,6 @@ function useCompanyTitle(id: string): string {
   return fromSidebar ?? title;
 }
 
-/** 下巴里点已有对话的公司名：打开右侧会话栏的公司卡。右侧栏监听这个事件（detail.company）并 preventDefault；没人接就打开主档页。 */
-export const OPEN_COMPANY_CARD = "cc:open-company-card";
-
-function openCompanyCard(company: string, fallback: (company: string) => void) {
-  const event = new CustomEvent(OPEN_COMPANY_CARD, { detail: { company }, cancelable: true });
-  if (window.dispatchEvent(event)) fallback(company);
-}
-
 /** 输入框下巴：ERP / DMS（没有公司分组）不出现；新对话「公司 ▾」+ 月份 + 分店（草稿）；已有对话「公司」+ 月份 + 分店（改了就 move）。 */
 export const ComposerChin: FC = () => {
   const kind = useProjects((s) => s.kind);
@@ -351,18 +343,17 @@ const DraftChin: FC = () => {
   );
 };
 
-/** 已有对话：挂在公司下才有。公司名点了打开右侧栏公司卡；月份、分店改了就 move（会话还没建好时先不可改）。 */
+/** 已有对话：挂在公司下才有。公司名点了打开右侧会话栏并展开公司卡（同顶栏）；月份、分店改了就 move（会话还没建好时先不可改）。 */
 const SessionChin: FC = () => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const localId = useAuiState((s) => s.threadListItem.id);
   useProjects((s) => s.filings);
   const project = filingOf(remoteId, localId).project;
   const title = useCompanyTitle(project);
-  const openCompany = useOpenCompany();
   if (!project) return null;
   return (
     <>
-      <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" onClick={() => openCompanyCard(project, openCompany)}>
+      <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" onClick={openCompanyCard}>
         <Building2Icon />
         <span className="min-w-0 truncate">{title || co.companies}</span>
       </button>
@@ -408,10 +399,7 @@ export const MobileCompanyItem: FC = () => {
   );
 };
 
-/** 对话的处理月份与分店（挂在公司下才有）：改了就 move，不改最后活动时间。 */
-export const ConversationFiling: FC = () => <FilingChips />;
-
-/** 月份、分店两个按钮（顶栏胶囊、下巴共用）。 */
+/** 对话的处理月份与分店（挂在公司下才有，只在输入框下巴）：改了就 move，不改最后活动时间。 */
 const FilingChips: FC<{ look?: "cc-chip-btn" | "cc-chin-btn"; side?: "top" | "bottom" }> = ({ look, side }) => {
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
   const withPeriod = useProjects((s) => s.period);
