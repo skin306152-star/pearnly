@@ -1,5 +1,9 @@
 """Pure queue decisions from the deployed Express and confirmed-push writers.
 
+Only the legacy branch (binding generation 0) is accepted. The old platform's
+managed shared-agent branch was never enabled and is retired (D9): a managed
+branch or a nonzero generation is rejected or never matches.
+
 This is not an executor. Callers must authorize, lock the endpoint and record,
 check current generation, and apply a decision with CAS in one transaction.
 No lease/ACK RPC or writer is registered by this module.
@@ -55,7 +59,7 @@ class Transition:
 
 
 def _branch(branch):
-    if branch not in {"legacy", "managed"}:
+    if branch != "legacy":
         raise LifecycleError("push.branch_invalid")
 
 
@@ -83,15 +87,6 @@ def account_key(row):
     return str(value if value is not None else "").strip(" ").lower()
 
 
-def payload_generation(row):
-    body = _body(row)
-    meta = body.get("meta") if isinstance(body.get("meta"), dict) else {}
-    value = meta.get("managed_generation")
-    if value is None:
-        value = body.get("managed_generation")
-    return str(value) if value is not None else ""
-
-
 def duplicate_confirmed(value):
     """Match SQL JSON ->> and lower(), deliberately NOT Python bool()/strip()."""
     if value is None:
@@ -104,9 +99,8 @@ def duplicate_confirmed(value):
 def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
     """State effects after a valid owned ACK. Transport/lease auth is separate.
 
-    Preserve the real branch difference: managed waiting_lock increments the
-    wire attempt to invalidate its signed handle; legacy leaves it unchanged.
-    Both source branches also use this counter for failure exhaustion.
+    Legacy waiting_lock leaves the wire attempt unchanged; the same counter
+    drives failure exhaustion.
     """
     _branch(branch)
     if type(attempt) is not int or attempt < 0:
@@ -116,14 +110,14 @@ def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
     if stage == common.STAGE_SUCCESS:
         return Transition("success", attempt, stage)
     if stage == common.STAGE_WAITING_LOCK:
-        return Transition("pending", attempt + int(branch == "managed"), stage, retry=True)
+        return Transition("pending", attempt, stage, retry=True)
     if stage in {common.STAGE_NEEDS_MAPPING, common.STAGE_NEEDS_REVIEW}:
         return Transition("manual", attempt, stage, str(error or "")[:500] or stage)
     if stage == common.STAGE_FAILED and error_code(error) in NEEDS_PERSON_CODES:
         return Transition("manual", attempt, common.STAGE_NEEDS_REVIEW, str(error)[:500])
     # Legacy applies `int(log.attempt or 1)` only on the failure branch;
     # success/waiting/manual leave the stored attempt unchanged, including zero.
-    attempt = (attempt or 1) if branch == "legacy" else attempt
+    attempt = attempt or 1
     status = "manual" if attempt >= MAX_ATTEMPTS else "pending"
     reason = (str(error or "")[:500] or "agent_failed")
     return Transition(status, attempt + 1, stage, reason, status == "pending")
@@ -134,24 +128,19 @@ def lease_decision(row, *, branch, endpoint_id, binding_generation, owner,
     """Return a detached patch for one eligible locked row, else None.
 
     Input contains server-loaded row/history values. It is never client input.
-    Legacy endpoint/account filters and managed generation are not interchangeable.
+    A nonzero binding generation never leases.
     The caller must persist the returned lease before emitting the payload.
     """
     _branch(branch)
     now = _utc(now)
     if not owner or not endpoint_id:
         raise LifecycleError("push.lease_identity_required")
-    if ((branch == "legacy" and binding_generation != 0)
-            or (branch == "managed" and binding_generation <= 0)):
+    if binding_generation != 0:
         return None
     if row.get("endpoint_id") != endpoint_id or row.get("status") != "pending":
         return None
     if history_source in INTERNAL_SOURCES:
         return None
-    if branch == "managed" and payload_generation(row) != str(binding_generation):
-        return None
-    if branch == "managed" and allowed_accounts is None:
-        raise LifecycleError("push.allowed_accounts_required")
     if allowed_accounts is not None:
         allowed = {str(v or "").strip().casefold() for v in allowed_accounts if str(v or "").strip()}
         if account_key(row) not in allowed:
@@ -163,19 +152,11 @@ def lease_decision(row, *, branch, endpoint_id, binding_generation, owner,
         expires = row.get("lease_expires_at")
         if expires is not None and _utc(expires) >= now:
             return None
-    patch = {"lease_owner": owner, "lease_expires_at": now + timedelta(seconds=LEASE_SECONDS)}
-    if branch == "managed":
-        patch["attempt"] = int(row.get("attempt") or 0) + int(was_leased)
-    return patch
+    return {"lease_owner": owner, "lease_expires_at": now + timedelta(seconds=LEASE_SECONDS)}
 
 
 def close_expired_legacy_confirmed(row, *, endpoint_id, binding_generation, now):
-    """The deployed legacy sweep is at-most-once only for duplicate-confirmed jobs.
-
-    Managed code does not call this sweep: it can leave an expired confirmed
-    job pending but unleaseable. That source gap is documented, not hidden by
-    treating it as an ordinary retry. A native repair policy is still required.
-    """
+    """The deployed legacy sweep is at-most-once only for duplicate-confirmed jobs."""
     now = _utc(now)
     if binding_generation != 0 or row.get("endpoint_id") != endpoint_id:
         return None
@@ -194,19 +175,15 @@ def close_expired_legacy_confirmed(row, *, endpoint_id, binding_generation, now)
 def ack_matches(row, *, branch, endpoint_id, owner, attempt=None, binding_generation=0):
     """Contract predicate, not token authentication. No expiry check in old ACKs.
 
-    Old legacy acknowledges a terminal success idempotently before owner check;
-    managed requires a pending row and its exact signed attempt/generation.
-    Native service must add an unforgeable attempt token for legacy workers too.
+    Old legacy acknowledges a terminal success idempotently before owner check
+    and has no attempt fence (`attempt` is accepted and ignored). Native service
+    must add an unforgeable attempt token for legacy workers.
     """
     _branch(branch)
     if row.get("endpoint_id") != endpoint_id or not owner:
         return False
-    if branch == "legacy":
-        return binding_generation == 0 and (row.get("status") == "success"
-            or (row.get("lease_owner") or "") == owner)
-    return (binding_generation > 0 and row.get("status") == "pending"
-        and row.get("lease_owner") == owner and row.get("attempt") == attempt
-        and payload_generation(row) == str(binding_generation))
+    return binding_generation == 0 and (row.get("status") == "success"
+        or (row.get("lease_owner") or "") == owner)
 
 
 def owned_ack_decision(row, *, branch, endpoint_id, owner, success, outcome=None,
@@ -220,7 +197,7 @@ def owned_ack_decision(row, *, branch, endpoint_id, owner, success, outcome=None
     if not ack_matches(row, branch=branch, endpoint_id=endpoint_id, owner=owner,
                        attempt=attempt, binding_generation=binding_generation):
         return {"accepted": False, "idempotent": False, "transition": None}
-    if branch == "legacy" and row.get("status") == "success":
+    if row.get("status") == "success":
         return {"accepted": True, "idempotent": True, "transition": None}
     transition = acknowledgement(branch=branch, attempt=row["attempt"],
                                   success=success, outcome=outcome, error=error)

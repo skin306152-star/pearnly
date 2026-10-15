@@ -153,27 +153,33 @@ class NativePush(unittest.TestCase):
         self.assertEqual((late['status'], late['external_docnum']), ('success', 'SYNTHETIC-OK'))
         self.assertEqual(frappe.db.count(self.native.WRITER_LOCK, {'holder': name}), 0)
 
-    def test_response_body_matches_source_branch_and_stage_combinations(self):
-        # Fixed ec2e5c agent_store.ack/_build_response_body and
-        # shared_express_agent_queue.ack_managed/_response_body call contracts.
+    def test_response_body_matches_source_stage_combinations(self):
+        # Fixed ec2e5c agent_store.ack/_build_response_body call contract. The
+        # managed shared-agent branch was never enabled and is retired (D9).
         # Source callers pass line_modes only on success. The intentionally
         # corrected stale meta.stage behavior has a separate real ACK test.
         modes = [{'mode': self.native.common.ITEM_MODE_DIRECT, 'reason': 'fallback'},
                  {'mode': self.native.common.ITEM_MODE_STOCK, 'stkcod': 'SYNTHETIC-CODE'}]
-        for branch in ('legacy', 'managed'):
-            for stage in self.native.common.ACK_OUTCOMES:
-                expected = {'ok': stage == 'success',
-                    'express_docnum': 'SYNTHETIC-REF' if stage == 'success' else None,
-                    'meta': {'docnum': 'SYNTHETIC-META', 'stage': stage}}
-                if stage == 'success':
-                    expected['line_modes'] = modes
-                    if branch == 'legacy':
-                        expected['fallback_count'] = 1
-                        expected['meta']['created_masters'] = ['SYNTHETIC-CODE']
-                with self.subTest(branch=branch, stage=stage):
-                    actual = self.native._response(branch, stage, 'SYNTHETIC-REF', modes,
-                        {'docnum': 'SYNTHETIC-META', 'stage': stage})
-                    self.assertEqual(actual, expected)
+        for stage in self.native.common.ACK_OUTCOMES:
+            expected = {'ok': stage == 'success',
+                'express_docnum': 'SYNTHETIC-REF' if stage == 'success' else None,
+                'meta': {'docnum': 'SYNTHETIC-META', 'stage': stage}}
+            if stage == 'success':
+                expected['line_modes'] = modes
+                expected['fallback_count'] = 1
+                expected['meta']['created_masters'] = ['SYNTHETIC-CODE']
+            with self.subTest(stage=stage):
+                actual = self.native._response('legacy', stage, 'SYNTHETIC-REF', modes,
+                    {'docnum': 'SYNTHETIC-META', 'stage': stage})
+                self.assertEqual(actual, expected)
+
+    def test_retired_managed_branch_cannot_reserve(self):
+        # D9: a managed context is rejected before any ledger row exists.
+        name, context = self.prepared()
+        for generation in (0, 1):
+            with self.subTest(generation=generation), self.assertRaises(self.native.PushLedgerError):
+                replace(context, branch='managed', binding_generation=generation)
+        self.assertEqual(frappe.db.get_value(self.native.RECORD, name, 'branch'), 'legacy')
 
     def test_three_failed_attempts_exhaust_and_duplicate_ack_is_idempotent(self):
         name, context, claim = self.claimed()

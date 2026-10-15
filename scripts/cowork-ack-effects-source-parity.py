@@ -32,5 +32,7 @@ cases=[None,[],[{}],[{'mode':'stock_item','created':True}],
 for modes in cases:
  seen.clear(); ns[old.name]('synthetic',deepcopy(modes))
  assert new[node.name]('legacy',deepcopy(modes)) == sum(seen)
- assert new[node.name]('managed',deepcopy(modes)) == 0
-print(f'PASS {len(cases)} fixed-source legacy count cases; managed has no stock delta')
+ # D9: the managed branch is retired; any non-legacy branch never bumps stock counts.
+ for branch in ('managed', '', None):
+  assert new[node.name](branch,deepcopy(modes)) == 0
+print(f'PASS {len(cases)} fixed-source legacy count cases; non-legacy branches have no stock delta')

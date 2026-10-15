@@ -70,6 +70,10 @@ def freeze_target(endpoint: dict, *, access: TargetAccess, evidence: TargetEvide
         raise TargetSelectionError(409, detail="erp.target_context_invalid")
     if endpoint.get("enabled") is not True:
         raise TargetSelectionError(409, detail="erp.endpoint_disabled")
+    # Only legacy bindings (generation 0) exist; the never-enabled managed
+    # shared-agent branch is retired (D9) and never freezes a target.
+    if int(endpoint.get("binding_generation") or 0) != 0:
+        raise TargetSelectionError(409, detail="erp.target_context_invalid")
     adapter = str(endpoint.get("adapter") or "").strip().lower()
     if adapter not in {"express", "mrerp"}:
         raise TargetSelectionError(409, detail="erp.account_set_unavailable")
@@ -111,7 +115,7 @@ def freeze_target(endpoint: dict, *, access: TargetAccess, evidence: TargetEvide
         tenant_id=access.tenant_id, user_id=access.user_id, endpoint_id=access.endpoint_id,
         workspace_client_id=access.workspace_client_id, adapter=adapter, account_set=account,
         root_key=root_key,
-        binding_generation=int(endpoint.get("binding_generation") or 0),
+        binding_generation=0,
         bound_profile_key=str(endpoint.get("bound_profile_key") or ""),
         catalog_refresh_request_id=proof.get("request_id"),
         catalog_projection_revision=proof.get("revision"), proof_required=proof["proof_required"],

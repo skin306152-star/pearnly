@@ -43,8 +43,7 @@ def _context(doc, loaded, account=""):
     return ledger.ReservationContext(actor=frappe.session.user, workspace=doc.workspace,
         client=doc.client or "", history=doc.name, history_version=int(doc.record_version),
         connection=loaded.doc.name, account_key=account,
-        branch="managed" if int(loaded.endpoint.get("binding_generation") or 0) else "legacy",
-        binding_generation=int(loaded.endpoint.get("binding_generation") or 0),
+        branch="legacy", binding_generation=0,
         connection_revision=loaded.revision)
 
 

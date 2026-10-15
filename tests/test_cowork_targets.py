@@ -89,11 +89,17 @@ class TargetTests(unittest.TestCase):
         self.assertEqual(selection.resolve_account_choice(endpoint(), tenant_id="tenant-1", user_id="user-1"),
                          {"key": "6:1", "comidyear": "6", "seldb": "1"})
 
-    def test_managed_default_uses_bound_account_as_source_does(self):
-        ep = endpoint("express", binding_generation=3, bound_account_set=r"C:\ERP\BOUND", config={})
-        selected = selection.resolve_account_choice(ep, tenant_id="tenant-1", user_id="user-1")
-        self.assertEqual(selected["key"], r"c:\erp\bound")
-        self.assertEqual(selected["account_dir"], r"C:\ERP\BOUND")
+    def test_retired_managed_bound_account_is_never_a_default(self):
+        # D9: the managed branch's bound account set no longer supplies a default target.
+        for generation in (0, 3):
+            ep = endpoint("express", binding_generation=generation, bound_account_set=r"C:\ERP\BOUND", config={})
+            self.assertIsNone(selection.resolve_account_choice(ep, tenant_id="tenant-1", user_id="user-1"))
+            ep = endpoint("express", binding_generation=generation, bound_account_set=r"C:\ERP\BOUND")
+            selected = selection.resolve_account_choice(ep, tenant_id="tenant-1", user_id="user-1")
+            self.assertEqual((selected["key"], selected["account_dir"]), (r"c:\erp\old", r"C:\ERP\OLD"))
+            with self.assertRaises(TargetSelectionError):
+                selection.resolve_account_choice(ep, tenant_id="tenant-1", user_id="user-1",
+                                                 account_set_key=r"C:\ERP\BOUND")
 
     def test_nondefault_receipt_when_given_must_be_valid(self):
         for request_id, revision, reason in ((None, 7, "proof_missing"), (REQUEST_ID, None, "proof_missing"),
@@ -257,33 +263,18 @@ class TargetTests(unittest.TestCase):
         self.assertIsNone(result.catalog_projection_revision)
         self.assertEqual(result.account_config()["express_root"], "D:/APP/./")
 
-    def test_freeze_managed_bound_default_uses_explicit_server_root_without_refresh(self):
-        ep = endpoint("express", binding_generation=3, bound_account_set=r"C:\BOUND", bound_profile_key="profile-3",
-                      config={"account_set": r"C:\OLD", "express_root": r"D:\APP", "ar_acc": "old"})
-        result = freeze_target(ep, access=access(), evidence=rows("express", latest_refresh=None, snapshot=None),
-                               account_set_key=r"C:\BOUND")
-        self.assertEqual(result.account_set, r"c:\bound")
-        self.assertEqual(result.root_key, r"d:\app")
-        self.assertEqual((result.binding_generation, result.bound_profile_key), (3, "profile-3"))
-        self.assertFalse(result.proof_required)
-        self.assertIsNone(result.catalog_refresh_request_id)
-        self.assertNotIn("ar_acc", result.account_config())
-
-    def test_freeze_rejects_managed_proof_for_one_account_and_final_config_for_another(self):
-        ep = endpoint("express", binding_generation=3, bound_account_set=r"C:\BOUND",
+    def test_freeze_rejects_a_retired_managed_binding(self):
+        # D9: only legacy bindings (generation 0) freeze; bound_profile_key stays a read-only copy.
+        for adapter, account in (("express", r"C:\BOUND"), ("express", None), ("mrerp", None)):
+            ep = endpoint(adapter, binding_generation=3, bound_account_set=r"C:\BOUND", bound_profile_key="profile-3")
+            with self.subTest(adapter=adapter, account=account), self.assertRaises(TargetSelectionError) as caught:
+                freeze_target(ep, access=access(), evidence=rows(adapter, latest_refresh=None, snapshot=None),
+                              account_set_key=account)
+            self.assertEqual(caught.exception.code, "erp.target_context_invalid")
+        ep = endpoint("express", bound_profile_key="profile-0",
                       config={"account_set": r"C:\OLD", "express_root": r"D:\APP"})
-        arguments = dict(tenant_id="tenant-1", user_id="user-1", account_set_key=r"C:\BOUND",
-                         trusted_account_config={"account_dir": r"C:\BOUND", "root_key": r"D:\APP"})
-        proof = selection.require_catalog_evidence(ep, **arguments)
-        configured = choice.endpoint_with_account_choice(ep, selection.resolve_account_choice(ep, **arguments))
-        self.assertFalse(proof["proof_required"])
-        self.assertEqual(proof["account_set_key"], r"c:\bound")
-        self.assertEqual(configured["config"]["account_set"], r"C:\OLD")
-        self.assertEqual(configured["config"]["account_dir"], r"C:\BOUND")
-        with self.assertRaises(TargetSelectionError) as caught:
-            freeze_target(ep, access=access(), evidence=rows("express", latest_refresh=None, snapshot=None),
-                          account_set_key=arguments["account_set_key"], trusted_account_config=arguments["trusted_account_config"])
-        self.assertEqual(caught.exception.reason, "frozen_account_mismatch")
+        result = freeze_target(ep, access=access(), evidence=rows("express", latest_refresh=None, snapshot=None))
+        self.assertEqual((result.binding_generation, result.bound_profile_key), (0, "profile-0"))
 
     def test_freeze_compares_mrerp_final_year_database_to_the_proven_key(self):
         with self.assertRaises(TargetSelectionError) as caught:

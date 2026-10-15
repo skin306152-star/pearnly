@@ -30,27 +30,24 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(value, {"status": "pending", "error_msg": "EXPRESS_QUEUED", "retry_delay_sec": None})
         self.assertTrue(retry.counts_as_endpoint_success("pending"))  # old non-failure statistic only
 
-    def test_waiting_lock_has_real_branch_difference(self):
+    def test_legacy_waiting_lock_keeps_the_wire_attempt(self):
         old = flow.acknowledgement(branch="legacy", attempt=1, success=False, outcome="waiting_lock")
-        managed = flow.acknowledgement(branch="managed", attempt=1, success=False, outcome="waiting_lock")
         self.assertEqual((old.status, old.attempt, old.retry), ("pending", 1, True))
-        self.assertEqual((managed.status, managed.attempt, managed.retry), ("pending", 2, True))
 
     def test_zero_attempt_legacy_normalizes_only_on_failure(self):
         for outcome in ("success", "waiting_lock", "needs_review"):
             self.assertEqual(flow.acknowledgement(branch="legacy", attempt=0, success=False, outcome=outcome).attempt, 0)
         self.assertEqual(flow.acknowledgement(branch="legacy", attempt=0, success=False).attempt, 2)
-        self.assertEqual(flow.acknowledgement(branch="managed", attempt=0, success=False).attempt, 1)
 
     def test_explicit_outcome_beats_success_boolean(self):
-        for branch in ("legacy", "managed"):
+        for branch in ("legacy",):
             blocked = flow.acknowledgement(branch=branch, attempt=1, success=True, outcome="needs_mapping")
             self.assertEqual((blocked.status, blocked.stage), ("manual", "needs_mapping"))
             confirmed = flow.acknowledgement(branch=branch, attempt=1, success=False, outcome="success")
             self.assertEqual(confirmed.status, "success")
 
     def test_failures_exhaust_and_rollback_is_not_success(self):
-        for branch in ("legacy", "managed"):
+        for branch in ("legacy",):
             for attempt in (1, 2, 3, 4):
                 for outcome in (None, "failed", "rolled_back", "unknown"):
                     state = flow.acknowledgement(branch=branch, attempt=attempt, success=False, outcome=outcome)
@@ -60,7 +57,7 @@ class QueueTests(unittest.TestCase):
 
     def test_a_rejection_retrying_cannot_change_goes_to_a_person(self):
         # 2026-09-28 压测：同税号两个客户档先按普通失败重试 3 次，列表一直「录入中」
-        for branch in ("legacy", "managed"):
+        for branch in ("legacy",):
             state = flow.acknowledgement(branch=branch, attempt=1, success=False,
                                          error="[CUSTOMER_BRANCH_AMBIGUOUS] ARMAS tax 0105554131661 matches 2 parties")
             self.assertEqual((state.status, state.stage, state.retry), ("manual", "needs_review", False))
@@ -122,23 +119,23 @@ class QueueTests(unittest.TestCase):
         self.assertIsNone(patch["lease_owner"])
         self.assertIsNone(flow.close_expired_legacy_confirmed(value, endpoint_id="E1", binding_generation=1, now=later))
 
-    def test_managed_reclaim_changes_attempt_and_old_ack_is_stale(self):
+    def test_retired_managed_branch_is_rejected(self):
+        # D9: the never-enabled managed shared-agent branch is retired; only legacy/0 exists.
         value = row(request_body={"account_set": "BOOK", "meta": {"managed_generation": 4}},
                     lease_owner="worker", lease_expires_at=NOW - timedelta(seconds=1))
-        patch = self.lease(value, branch="managed", binding_generation=4)
-        self.assertEqual(patch["attempt"], 2)
-        value.update(patch)
-        args = dict(branch="managed", endpoint_id="E1", owner="worker", binding_generation=4)
-        self.assertFalse(flow.ack_matches(value, **args, attempt=1))
-        self.assertTrue(flow.ack_matches(value, **args, attempt=2))
-        args["binding_generation"] = 5
-        self.assertFalse(flow.ack_matches(value, **args, attempt=2))
-
-    def test_managed_requires_generation_and_account_evidence(self):
-        self.assertIsNone(self.lease(branch="managed", binding_generation=4))
-        value = row(request_body={"account_set": "BOOK", "managed_generation": 4})
-        with self.assertRaises(flow.LifecycleError):
-            self.lease(value, branch="managed", binding_generation=4, allowed_accounts=None)
+        for call in (lambda: flow.acknowledgement(branch="managed", attempt=1, success=False),
+                     lambda: self.lease(value, branch="managed", binding_generation=4),
+                     lambda: self.lease(value, branch="managed", binding_generation=0),
+                     lambda: flow.ack_matches(value, branch="managed", endpoint_id="E1", owner="worker",
+                                              attempt=1, binding_generation=4),
+                     lambda: flow.owned_ack_decision(value, branch="managed", endpoint_id="E1", owner="worker",
+                                                     success=True, attempt=1, binding_generation=4)):
+            with self.assertRaises(flow.LifecycleError):
+                call()
+        self.assertIsNone(self.lease(value, binding_generation=4))
+        self.assertFalse(flow.ack_matches(value, branch="legacy", endpoint_id="E1", owner="worker",
+                                          binding_generation=4))
+        self.assertFalse(hasattr(flow, "payload_generation"))
 
     def test_legacy_ack_limitation_is_visible(self):
         value = row(status="success")

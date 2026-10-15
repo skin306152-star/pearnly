@@ -79,6 +79,10 @@ class NativePushContract(unittest.TestCase):
         for changes in ({'branch':'legacy','binding_generation':1},{'branch':'managed','binding_generation':0},
                 {'history_version':True},{'history_version':0},{'connection_revision':-1}):
             with self.assertRaises(PushLedgerError):replace(self.context,**changes)
+        # D9: the never-enabled managed shared-agent branch is retired at every generation.
+        for generation in (1,4):
+            with self.subTest(generation=generation),self.assertRaises(PushLedgerError):
+                replace(self.context,branch='managed',binding_generation=generation)
         with self.assertRaises(PushLedgerError):encode({'amount':float('nan')})
 
     def test_unknown_and_success_never_mean_retryable(self):

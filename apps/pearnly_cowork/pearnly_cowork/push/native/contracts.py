@@ -71,9 +71,8 @@ class ReservationContext:
         integer(self.history_version, minimum=1)
         integer(self.connection_revision)
         integer(self.binding_generation)
-        if ((self.branch == 'legacy' and self.binding_generation != 0)
-                or (self.branch == 'managed' and self.binding_generation < 1)
-                or self.branch not in {'legacy', 'managed'}):
+        # Only the legacy branch exists; the never-enabled managed branch is retired (D9).
+        if self.branch != 'legacy' or self.binding_generation != 0:
             raise PushLedgerError('push.branch_invalid')
 
     @property

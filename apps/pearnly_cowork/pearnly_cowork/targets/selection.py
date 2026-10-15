@@ -1,5 +1,8 @@
 """Resolve legacy account choices from injected server-owned projections.
 
+The default target is the connection's configured account set; the retired
+managed branch's bound account set (`bound_account_set`) is never a default (D9).
+
 The removed store reads were scoped by tenant/user. The future IO adapter must
 authorize those scopes before injecting state; these arguments are source
 context, not an authorization check. Call require_catalog_evidence before a
@@ -25,7 +28,7 @@ def _requested_key(endpoint: dict[str, Any], account_set_key: object, trusted_ac
         if year and database:
             return f'{year}:{database}'
         return f"{str(config.get('comidyear') or '6').strip()}:{str(config.get('seldb') or '1').strip()}"
-    return str(choice.get('account_set') or choice.get('account_dir') or config.get('account_set') or config.get('account_dir') or endpoint.get('bound_account_set') or '').strip()
+    return str(choice.get('account_set') or choice.get('account_dir') or config.get('account_set') or config.get('account_dir') or '').strip()
 
 def _projection_probe(endpoint: dict[str, Any], state: dict[str, Any] | None) -> dict[str, Any]:
     snapshot = (state or {}).get('snapshot') or {}
@@ -69,13 +72,9 @@ def _configured_default_choice(endpoint: dict[str, Any], requested: str) -> dict
     if adapter != 'express':
         return None
     configured = str(config.get('account_set') or config.get('account_dir') or '').strip()
-    bound = str(endpoint.get('bound_account_set') or '').strip()
-    default_key = bound if int(endpoint.get('binding_generation') or 0) > 0 else configured
-    default_key = default_key or configured or bound
-    if not default_key or not _matches(adapter, requested, default_key):
+    if not configured or not _matches(adapter, requested, configured):
         return None
-    account_dir = configured if configured and _matches(adapter, configured, default_key) else default_key
-    return {'key': normalize_express_account_key(default_key), 'root_key': str(config.get('express_root') or '').strip(), 'account_set': normalize_express_account_key(default_key), 'account_dir': account_dir, 'account_company': str(config.get('account_company') or '').strip(), 'account_set_row': int(config.get('account_set_row') or 0), 'writable': True}
+    return {'key': normalize_express_account_key(configured), 'root_key': str(config.get('express_root') or '').strip(), 'account_set': normalize_express_account_key(configured), 'account_dir': configured, 'account_company': str(config.get('account_company') or '').strip(), 'account_set_row': int(config.get('account_set_row') or 0), 'writable': True}
 
 def _bound_account_key(endpoint: dict[str, Any]) -> str:
     adapter = str(endpoint.get('adapter') or '').strip().lower()
@@ -84,11 +83,7 @@ def _bound_account_key(endpoint: dict[str, Any]) -> str:
         return f"{str(config.get('comidyear') or '6').strip()}:{str(config.get('seldb') or '1').strip()}"
     if adapter != 'express':
         return ''
-    managed_bound = str(endpoint.get('bound_account_set') or '').strip()
-    configured = str(config.get('account_set') or config.get('account_dir') or '').strip()
-    if int(endpoint.get('binding_generation') or 0) > 0:
-        return managed_bound or configured
-    return configured or managed_bound
+    return str(config.get('account_set') or config.get('account_dir') or '').strip()
 
 def require_catalog_evidence(endpoint: dict[str, Any], *, tenant_id: str, user_id: str, account_set_key: object=None, trusted_account_config: dict[str, Any] | None=None, request_id: object=None, revision: object=None, latest_refresh=None, snapshot=None) -> dict[str, Any] | None:
     """Fail closed when a web-selected non-default target lacks fresh evidence."""

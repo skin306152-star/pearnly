@@ -227,10 +227,12 @@ def run(root=None, source_texts=None):
 
     # Source default selection has no refresh dependency. Its proof may omit
     # root_key, but the explicit server root remains authoritative for default.
-    for generation in (0, 3):
+    # Only the legacy binding (generation 0) is compared: the managed branch
+    # was never enabled and is retired (D9), so a managed binding never freezes.
+    for generation in (0,):
         ep = endpoint("express", binding_generation=generation, bound_account_set=r"C:\BOUND",
             config={"account_set": r"C:\OLD", "express_root": "D:/APP/./", "ar_acc": "old"})
-        key = r"C:\BOUND" if generation else None
+        key = None
         args = dict(tenant_id="tenant-1", user_id="user-1", account_set_key=key)
         source_proof = old.selection.require_catalog_evidence(ep, **args, cur=Cursor([]))
         assert source_proof["ok"] and source_proof["proof_required"] is False
@@ -274,10 +276,13 @@ def run(root=None, source_texts=None):
                         account_set_key=key, request_id=REQUEST_ID, revision=7))
         compare(("conflict", 409, {"code": "catalog_refresh_invalid", "reason": reason}), actual, ("native_guard", reason))
 
+    managed = endpoint("express", binding_generation=3, bound_account_set=r"C:\BOUND",
+                       config={"account_set": r"C:\OLD", "express_root": r"D:\APP"})
+    for key in (r"C:\BOUND", None):
+        actual = outcome(lambda: freeze_target(managed, access=access(), evidence=target_evidence("express",
+                         latest_refresh=None, snapshot=None), account_set_key=key))
+        compare(("conflict", 409, "erp.target_context_invalid"), actual, ("retired_managed", key))
     account_cases = [
-        (endpoint("express", binding_generation=3, bound_account_set=r"C:\BOUND",
-                  config={"account_set": r"C:\OLD", "express_root": r"D:\APP"}), r"C:\BOUND",
-         {"account_dir": r"C:\BOUND", "root_key": r"D:\APP"}),
         (endpoint(), None, {"comidyear": " ", "seldb": " "}),
     ]
     for ep, key, trusted in account_cases:
@@ -295,7 +300,8 @@ def run(root=None, source_texts=None):
         compare(("conflict", 409, {"code": "catalog_refresh_invalid", "reason": "frozen_account_mismatch"}),
                 actual, ("native_guard", ep["adapter"], "frozen_account_mismatch"))
     print("PASS source=" + SOURCE_SHA + " " + " ".join(f"{key}={value}" for key, value in counts.items())
-          + f" total={sum(counts.values())} intentional_composition_rejections={len(native_cases) + len(account_cases)}")
+          + f" total={sum(counts.values())} intentional_composition_rejections={len(native_cases) + len(account_cases)}"
+          + " retired_managed_rejections=2")
 
 
 if __name__ == "__main__":

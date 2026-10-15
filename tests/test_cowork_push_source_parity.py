@@ -21,7 +21,6 @@ HASHES = {
     "services/erp/push_retry.py": "0452eb43208fe14291c673d3ff3f4c24b0270f8869d52359711f2a727b81e79f",
     "services/erp/express_push/common.py": "e00c6410c711208cf2bcbf20579d9d67e365b2957aa9d90a3cd9f68e4fe09f58",
     "services/erp/express_push/agent_store.py": "03d86de7de82761f33f386913d3d32a93874953a237a8151e02c4e5e3000c9bb",
-    "services/erp/shared_express_agent_queue.py": "f7d5484d01d4fac2d1fce001fd21b428b0c98f82f5b4e2ad879a7c5c7bfa11ab",
     "services/erp/confirmed_push_reservation.py": "0ce2b8ad49862e9b6ac26a8b4e5af89f1b7bf41fd674af01d5233bf1acb49e2d",
     "services/erp/confirmed_push.py": "550cef504360acb444c9a8304d22139de462030d22cc0cf0c7b330eeaaa6aac8",
     "services/erp/external_ref.py": "456836bd76a07773e58c64f35721d3be6923d3df89524e9c8b5ab664281ed1cc",
@@ -54,16 +53,14 @@ def definitions(content, names, extra=None):
 
 
 class Sink:
-    def __init__(self, branch, row):
-        self.branch, self.row = branch, row
+    def __init__(self, row):
+        self.row = row
         self.patch, self.rowcount = None, 1
 
     def execute(self, sql, params=()):
         if "UPDATE erp_push_logs" not in sql:
             return
-        if self.branch == "managed":
-            self.patch = {"status": params[0], "attempt": params[4], "body": params[2], "error": params[3]}
-        elif "status = 'success'" in sql:
+        if "status = 'success'" in sql:
             self.patch = {"status": "success", "attempt": self.row["attempt"], "body": params[0], "error": None}
         elif "status = 'pending'" in sql:
             self.patch = {"status": "pending", "attempt": self.row["attempt"], "body": params[0], "error": None}
@@ -112,34 +109,35 @@ def verify(source):
         assert old_retry["counts_as_endpoint_success"](status) == retry.counts_as_endpoint_success(status)
         counters["classifications"] += 1
 
-    for branch in ("legacy", "managed"):
-        path = "services/erp/express_push/agent_store.py" if branch == "legacy" else "services/erp/shared_express_agent_queue.py"
-        fn = "ack" if branch == "legacy" else "ack_managed"
-        for attempt in (0, 1, 2, 3, 4):
-            for outcome in (None, "bad", *common.ACK_OUTCOMES):
-                for success in (False, True):
-                    for error in (None, "timeout", "x" * 600):
-                        row = {"id": "L1", "status": "pending", "history_id": "H1", "attempt": attempt,
-                               "lease_owner": "W", "request_body": {"meta": {"managed_generation": 4}}}
-                        sink = Sink(branch, row)
-                        extra = {"C": common, "common": common, "db": sink, "_MAX_ATTEMPTS": 3,
-                            "_load_owned_log": lambda *a: deepcopy(row), "_build_response_body": lambda **kw: kw,
-                            "_response_body": lambda **kw: kw, "_mirror_history_status": lambda *a: None,
-                            "_bump_created_stock_masters": lambda *a: None, "_mirror_history": lambda *a: None,
-                            "_agent_id": lambda value: value,
-                            "_authenticate_managed": lambda *a: ({"id": "E1", "binding_generation": 4}, "digest"),
-                            "_decode_handle": lambda *a: ("L1", attempt), "_payload_generation": lambda payload: 4,
-                            "ManagedAgentQueueError": ValueError}
-                        old = definitions(contents[path], {fn}, extra)[fn]
-                        args = dict(success=success, error=error, outcome=outcome, express_docnum="IV69001")
-                        result = (old("E1", "L1", "W", **args) if branch == "legacy"
-                                  else old("token", "handle", "W", **args))
-                        assert result.get("ok") and sink.patch, (branch, result)
-                        expected = sink.patch
-                        new = lifecycle.acknowledgement(branch=branch, attempt=attempt, **{k: args[k] for k in ("success", "error", "outcome")})
-                        assert (expected["status"], expected["attempt"], expected["body"]["stage"], expected["error"] or "") == (
-                            new.status, new.attempt, new.stage, new.reason), (branch, attempt, args, expected, new)
-                        counters["ack_transitions"] += 1
+    # Only the legacy agent_store.ack is compared: the managed shared-agent
+    # branch (shared_express_agent_queue.ack_managed) was never enabled and is
+    # retired (D9), so the native lifecycle rejects it outright.
+    try:
+        lifecycle.acknowledgement(branch="managed", attempt=1, success=True)
+    except lifecycle.LifecycleError:
+        pass
+    else:
+        raise AssertionError("retired managed branch was accepted")
+    for attempt in (0, 1, 2, 3, 4):
+        for outcome in (None, "bad", *common.ACK_OUTCOMES):
+            for success in (False, True):
+                for error in (None, "timeout", "x" * 600):
+                    row = {"id": "L1", "status": "pending", "history_id": "H1", "attempt": attempt,
+                           "lease_owner": "W", "request_body": {}}
+                    sink = Sink(row)
+                    extra = {"C": common, "common": common, "db": sink, "_MAX_ATTEMPTS": 3,
+                        "_load_owned_log": lambda *a: deepcopy(row), "_build_response_body": lambda **kw: kw,
+                        "_mirror_history_status": lambda *a: None, "_bump_created_stock_masters": lambda *a: None,
+                        "_agent_id": lambda value: value}
+                    ack = definitions(contents["services/erp/express_push/agent_store.py"], {"ack"}, extra)["ack"]
+                    args = dict(success=success, error=error, outcome=outcome, express_docnum="IV69001")
+                    result = ack("E1", "L1", "W", **args)
+                    assert result.get("ok") and sink.patch, result
+                    expected = sink.patch
+                    new = lifecycle.acknowledgement(branch="legacy", attempt=attempt, **{k: args[k] for k in ("success", "error", "outcome")})
+                    assert (expected["status"], expected["attempt"], expected["body"]["stage"], expected["error"] or "") == (
+                        new.status, new.attempt, new.stage, new.reason), (attempt, args, expected, new)
+                    counters["ack_transitions"] += 1
 
     external_names = {"_EMPTY", "_result", "request_payload", "_coerce_body", "_derive_mrerp", "_derive_express",
                       "_derive_default", "derive_external_ref"}

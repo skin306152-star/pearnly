@@ -53,9 +53,12 @@ class TargetEvidence:
 class FrozenTarget:
     """Immutable target receipt; no credential, capability or write success.
 
-    Legacy keys are retained. account_config_json is a private, immutable
-    serialization of only the selected account fields/mapping slots; each
-    account_config() call returns a detached value.
+    Legacy keys are retained. binding_generation is always 0 and
+    bound_profile_key is a read-only compatibility copy of the connection
+    field; the managed branch they once described is retired (D9).
+    account_config_json is a private, immutable serialization of only the
+    selected account fields/mapping slots; each account_config() call returns
+    a detached value.
     """
 
     tenant_id: str
