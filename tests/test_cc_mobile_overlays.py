@@ -415,9 +415,12 @@ g.done();
 class LongPressTests(unittest.TestCase):
     def test_long_press_rows_do_not_select_text_but_inputs_still_do(self):
         css = read("globals.css")
-        block = css.split("  @media (hover: none) {\n    [data-slot=\"aui_thread-list-item\"], .cc-project-row", 1)[1].split("\n  }", 1)[0]
+        block = css.split('    [data-slot="aui_thread-list-item"], .cc-project-row, .cc-mdrawer, [data-slot="sidebar"] {', 1)[1].split("\n  }", 1)[0]
         self.assertIn("-webkit-user-select: none; user-select: none; -webkit-touch-callout: none;", block)
-        self.assertIn('[data-slot="aui_thread-list-item"] input, .cc-project-row input { -webkit-user-select: text; user-select: text;', block)
+        # 整个手机抽屉与平板侧栏都不可选：只关行本身时长按会改选抽屉顶上的「CC」并弹 Google 触摸搜索（部署后重验 F11c）
+        self.assertIn('.cc-mdrawer :is(input, textarea)', block)
+        self.assertIn('[data-slot="sidebar"] :is(input, textarea)', block)
+        self.assertIn('[data-slot="aui_thread-list-item"] input, .cc-project-row input,', block)
         # 对话正文、输入框不在这个规则里
         self.assertNotIn("aui-thread", block)
         hook = read("hooks/use-long-press.ts")
