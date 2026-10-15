@@ -175,6 +175,16 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertIn('className="cc-panel-row cc-panel-indent" title={set.label}', card)
         self.assertNotIn("setFor(", card)
 
+    def test_the_panel_pending_card_lists_only_other_months(self):
+        # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡；公司页、待处理页不变
+        self.assertIn("pending: <PendingCard company={company} period={period} />,", read("components/session-panel.tsx"))
+        self.assertIn("<PendingCard company={id} />", read("components/company-page.tsx"))
+        self.assertIn('<PendingList company={company} search={search} />', read("components/pending.tsx"))
+        cards = read("components/company-cards.tsx")
+        card = cards.split("const OtherMonthsPending: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("otherMonths(state.items, period)", card)
+        self.assertIn("if (!items?.length && !state.error) return null;", card)
+        self.assertIn("summary={items?.length ?? 0}", card)
 
 @NEEDS_NODE
 class PanelLogicTests(unittest.TestCase):
@@ -337,6 +347,24 @@ assert.deepEqual(groupChats([], () => "done"), []);
 // 页面开着时才开始跑的：没读过运行状态、也没请服务端读过的才补读
 assert.deepEqual(unreadRuns(["a", "b", "c"], { a: idle }, new Set(["b"])), ["c"]);
 assert.deepEqual(unreadRuns([], {}, new Set()), []);
+""")
+
+    def test_pending_months_follow_the_ledger(self):
+        self.run_page(r"""
+import { otherMonths, pendingMonth } from "@/components/pending";
+const row = (document: string, extra: any) => ({ document, company: "C", reason_code: "choice_needed", reason_label: "", action: "choose", ...extra });
+// 服务端给的 month 优先（没有单据日期的按上传月份，同月结台账）；旧服务端没给时取单据日期
+assert.equal(pendingMonth({ month: "2026-10", date: "" }), "2026-10");
+assert.equal(pendingMonth({ date: "2026-09-30" }), "2026-09");
+assert.equal(pendingMonth({ date: "" }), "");
+const items: any[] = [row("a", { date: "2026-09-20", month: "2026-09" }), row("b", { date: "2026-08-02", month: "2026-08" }),
+  row("c", { date: "", month: "2026-09" }), row("d", { date: "2026-07-01" }), row("e", { date: "", month: "" })];
+// 对话是 2026-09：那个月的（含按上传月份算进来的）只在「本月」卡
+assert.deepEqual(otherMonths(items, "2026-09").map((i) => i.document), ["b", "d", "e"]);
+// 全是对话那个月的：一张不剩（卡不显示）
+assert.deepEqual(otherMonths(items.slice(0, 1), "2026-09"), []);
+// 对话没有月份：全列
+assert.deepEqual(otherMonths(items, "").map((i) => i.document), ["a", "b", "c", "d", "e"]);
 """)
 
     def test_list_page_search_and_sort(self):

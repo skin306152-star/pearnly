@@ -1,5 +1,5 @@
 // 待处理（补充乙）：要人处理的单统一一个入口——侧栏「待处理 N」打开的视图（?view=pending，可带 &company=），
-// 右侧会话栏与公司页的「待处理」卡也是同一个组件（只列这家）。
+// 右侧会话栏与公司页的「待处理」卡也是同一个组件（只列这家；会话栏的只列对话月份以外的，otherMonths）。
 //
 //   数据：companies.api.pending（服务端从推送记录与录入状态现算，不新增存储）。按公司分组；归不上公司的放最后。
 //   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
@@ -89,6 +89,15 @@ export function monthOfItems(items: readonly PendingItem[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0]?.[0] ?? "";
 }
 
+/** 一张单记在哪个月：服务端的 month（同月结台账：单据日期，没有的按上传月份）；旧服务端没给时取单据日期的月份。 */
+export const pendingMonth = (item: Pick<PendingItem, "month" | "date">) => item.month ?? String(item.date ?? "").slice(0, 7);
+
+/** 会话栏「待处理」卡只列对话月份以外的单（开发窗口 10-16 定）：对话那个月的只在「本月」卡的异常清单里，两张卡不重复列；
+ *  对话没有月份时全列。公司页、待处理页不用它，照旧全列。 */
+export function otherMonths(items: readonly PendingItem[], period: string): PendingItem[] {
+  return isPeriod(period) ? items.filter((item) => pendingMonth(item) !== period) : [...items];
+}
+
 /** 待处理页的搜索：单号、对方、单据编号、原因、金额、日期里有这几个字（不分大小写）。 */
 export function matchesPending(item: PendingItem, search: string): boolean {
   const needle = search.trim().toLowerCase();
@@ -129,8 +138,8 @@ function useTitles(ids: readonly string[]): Record<string, string> {
   return { ...found, ...Object.fromEntries(projects.map((p) => [p.id, p.title])) };
 }
 
-/** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
-export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string }> = ({ company = "", embedded = false, search = "" }) => {
+/** 待处理单的列表状态（列表与会话栏卡共用）：读取，站点事件来了、回到前台重取，作答成功的当场拿掉。 */
+export function usePendingItems(company: string) {
   const [items, setItems] = useState<PendingItem[] | null>(null);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
@@ -147,7 +156,34 @@ export const PendingList: FC<{ company?: string; embedded?: boolean; search?: st
     void reload();
   }, [reload]);
   useLiveRefresh(reload, { events: PENDING_EVENTS });
+  const done = useCallback((document: string) => {
+    setItems((before) => (before ?? []).filter((i) => i.document !== document));
+    void refreshPendingCounts();
+  }, []);
+  const changed = useCallback(() => {
+    void reload();
+    void refreshPendingCounts();
+  }, [reload]);
+  return { items, error, done, changed };
+}
 
+type PendingState = ReturnType<typeof usePendingItems>;
+
+/** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
+export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string }> = ({ company = "", embedded = false, search = "" }) => (
+  <PendingItems company={company} embedded={embedded} search={search} {...usePendingItems(company)} />
+);
+
+/** 列表本身（数据由 usePendingItems 给；会话栏卡先按月份筛过再交进来）。 */
+export const PendingItems: FC<PendingState & { company: string; embedded?: boolean; search?: string }> = ({
+  items,
+  error,
+  done,
+  changed,
+  company,
+  embedded = false,
+  search = "",
+}) => {
   const groups = useMemo(() => {
     const map = new Map<string, PendingItem[]>();
     for (const item of (items ?? []).filter((row) => matchesPending(row, search))) {
@@ -158,15 +194,6 @@ export const PendingList: FC<{ company?: string; embedded?: boolean; search?: st
     return [...map.entries()].sort((a, b) => Number(!a[0]) - Number(!b[0]));
   }, [items, company, search]);
   const titles = useTitles(groups.map(([id]) => id).filter(Boolean));
-
-  const done = (document: string) => {
-    setItems((before) => (before ?? []).filter((i) => i.document !== document));
-    void refreshPendingCounts();
-  };
-  const changed = () => {
-    void reload();
-    void refreshPendingCounts();
-  };
 
   if (embedded && (!items || !items.length) && !error) return null;
   return (

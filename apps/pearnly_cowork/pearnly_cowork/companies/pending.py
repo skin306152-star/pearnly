@@ -108,6 +108,13 @@ def amount(value) -> str:
     return format(number.quantize(Decimal("0.01")), "f") if number.is_finite() else ""
 
 
+def month_of(row) -> str:
+    """这张单记在哪个月（YYYY-MM）：单据日期的月份；没有单据日期的按上传（建）的月份。与月结台账取单同一口径
+    （`ledger._documents`：有日期按日期、没日期按本月上传），会话栏「待处理」卡据此只列对话月份以外的（当月的在「本月」卡）。"""
+    when = row.get("invoice_date") or row.get("creation")
+    return str(when or "")[:7]
+
+
 def choice_kinds(reason) -> list:
     text = str(reason or "")
     if not text.startswith("choice_needed:"):
@@ -201,6 +208,7 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
                 "reason_label": _reason_label(code, row.get("last_push_reason")),
                 "invoice_no": row.get("invoice_no") or "", "counterparty": counterparty(row, tax_ids.get(company, "")),
                 "amount": amount(row.get("total_amount")), "date": str(row.get("invoice_date") or ""),
+                "month": month_of(row),
                 "action": "choose" if code == "choice_needed" and row.get("push_connection") else "open"}
         if item["action"] == "choose":
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
@@ -346,5 +354,5 @@ def _titles(names) -> dict:
                                                                 fields=["name", "title"], limit_page_length=0)}
 
 
-__all__ = ["classify", "company_of", "counts", "digest_text", "is_new", "morning", "morning_due", "pending",
+__all__ = ["classify", "company_of", "counts", "digest_text", "is_new", "month_of", "morning", "morning_due", "pending",
            "pending_counts"]

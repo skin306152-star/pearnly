@@ -4,6 +4,7 @@
 //          「对话最窄 + 会话栏」时浮在对话上方（Esc、× 关）；手机盖满屏，从对话页胶囊菜单里的公司名打开，返回键关。
 //          与文件预览共用右侧一个位置：打开文件时换成预览，关了预览回到会话栏（assistant.tsx 的 Layout）。
 //   卡片   默认顺序 公司 / 本月（月结台账，components/month-ledger.tsx）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 / 申报草稿 / 输出文件；没内容的不显示；
+//          「待处理」只列对话月份以外的单（对话那个月的在「本月」卡的异常清单里，开发窗口 10-16 定）。
 //          顺序、折叠记在这台设备（lib/company-panel.ts），卡头 6 点把手拖动或 Alt+↑/↓ 调顺序。
 //   数据   公司详情按「公司|月份」缓存，只在会话栏挂着（看得见）时跟着站点事件重取（lib/company-panel 的 usePanelDetail）。
 //
@@ -120,7 +121,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   const cards: Record<CardId, ReactNode> = {
     company: detail ? <CompanyCard detail={detail} period={period} scope={scope} /> : null,
     month: <MonthCard company={company} period={period} />,
-    pending: <PendingCard company={company} />,
+    pending: <PendingCard company={company} period={period} />,
     notes: detail ? <NotesSection company={company} notes={detail.notes} reload={reload} /> : null,
     folders: detail ? <FolderSection company={company} folders={detail.folders} reload={reload} hideEmpty /> : null,
     tasks: detail ? <TasksSection company={company} detail={detail} period={period} /> : null,

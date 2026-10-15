@@ -10,6 +10,7 @@
   "counterparty": "Makro",
   "amount": "1070.50",
   "date": "2026-09-20",
+  "month": "2026-09",
   "action": "choose",
   "choice": {
    "connection": "C1",

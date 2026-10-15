@@ -24,7 +24,7 @@ import {
   useState,
 } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
-import { PendingList } from "@/components/pending";
+import { otherMonths, PendingItems, PendingList, usePendingItems } from "@/components/pending";
 import { branchName } from "@/components/period-chip";
 import { co, t } from "@/i18n";
 import {
@@ -150,13 +150,29 @@ export const PanelCard: FC<{
 };
 
 // ---------------------------------------------------------------- 待处理
-/** 这家的待处理（当场选、交给 CC 都在 PendingList 里，F18 规则不变）；计数为 0 不显示。 */
-export const PendingCard: FC<{ company: string }> = ({ company }) => {
+/** 这家的待处理（当场选、交给 CC 都在 PendingList 里，F18 规则不变）；计数为 0 不显示。
+ *  会话栏给 period：只列对话月份以外的（开发窗口 10-16 定，对话那个月的只在「本月」卡），一张不剩时同别的空卡一样不显示；
+ *  公司页不给，照旧全列。 */
+export const PendingCard: FC<{ company: string; period?: string }> = ({ company, period }) => {
   const count = usePendingCounts((s) => s.companies[company] ?? 0);
   if (!count) return null;
+  if (period === undefined) {
+    return (
+      <PanelCard id="pending" title={co.pending} summary={count} slot="cc-company-pending">
+        <PendingList company={company} embedded />
+      </PanelCard>
+    );
+  }
+  return <OtherMonthsPending company={company} period={period} />;
+};
+
+const OtherMonthsPending: FC<{ company: string; period: string }> = ({ company, period }) => {
+  const state = usePendingItems(company);
+  const items = useMemo(() => (state.items ? otherMonths(state.items, period) : null), [state.items, period]);
+  if (!items?.length && !state.error) return null;
   return (
-    <PanelCard id="pending" title={co.pending} summary={count} slot="cc-company-pending">
-      <PendingList company={company} embedded />
+    <PanelCard id="pending" title={co.pending} summary={items?.length ?? 0} slot="cc-company-pending">
+      <PendingItems {...state} items={items} company={company} embedded />
     </PanelCard>
   );
 };

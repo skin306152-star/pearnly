@@ -1068,6 +1068,14 @@ def history(name, **fields):
 class PendingTests(unittest.TestCase):
     CUTOFF = datetime(2026, 10, 15, 8, 45)
 
+    def test_month_follows_the_ledger(self):
+        # 会话栏「待处理」卡只列对话月份以外的（开发窗口 10-16 定）：月份与月结台账取单同一口径——
+        # 有单据日期按日期，没有的按上传的月份
+        self.assertEqual(pending.month_of(history("a")), "2026-09")
+        self.assertEqual(pending.month_of(history("b", invoice_date=None)), "2026-10")
+        self.assertEqual(pending.month_of(history("c", invoice_date="", creation="2026-08-31 23:59:59.000001")), "2026-08")
+        self.assertEqual(pending.month_of(history("d", invoice_date=None, creation=None)), "")
+
     def test_each_reason_is_classified(self):
         classify = pending.classify
         self.assertEqual(classify(history("a", last_push_status="manual", last_push_reason="choice_needed:party,vat"),
