@@ -295,8 +295,14 @@ V1 推送前查科目建议时每次都请电脑读历史、每次都失败；�
 
 - 核对：`Cowork Company Folder` 只有 `company_folders.bind` 一个写入口，新绑定与更换都经 `companies.service.folder_bind`，都
   `announce("upsert", part="folders")`；主档页收到同一家的 upsert 就重载 `detail`（不走缓存，`folder_label` 会带上新子文件夹）。
-- 判断（待证据确认）：更换后几台设备同时重载 `detail`，撞上本记录第一节的 1213（`detail → records`，同 F7 的栈），重载失败，页面留在旧数据。
-  已请测试窗口查 14:50:20–14:51:30 的 Error Log；若属实，随第一节修复一并解决，部署后重验。
+- 证据：测试窗口查 testcowork 14:50:00–14:52:00 Error Log 为 0 条，那段时间 Mac 页面也没有报错横幅——不是 1213 连带（先前的判断不成立）。
+  开发窗口只读核对生产：`Cowork Company Folder` 那一行 `folder = 原件`、`label` 带 `\原件`，服务端 `company_folders.view` 此刻算出的显示名也带
+  `\原件`、状态 ok。服务端数据与显示名都对，是 Mac 页面没有重取。
+- 原因：主档页只靠推来的 `pearnly.project` upsert 重取，错过那一次就一直停着；不像待处理、定时任务页那样在回到前台、拿回焦点、实时通道重连时
+  核对。测试用的 Mac 标签页由扩展驱动、多在后台（同 F14），后台标签页的实时连接会被浏览器节流断开，正好错过。
+- 改动：`components/company-page.tsx` 接上站点通用的 `useLiveRefresh(reload, { events: TASK_EVENTS })`（电脑同步文件夹事件、回到前台、
+  拿回焦点、重连时重取，另有 60 秒兜底，同待处理与定时任务页）。测试：`tests/test_assistant_ui.py` `CompanyPageLiveTests`。
+- 未做：未部署；部署后在两台设备上重验（一台「更换…」，另一台前台打开主档页应在几秒内更新）。
 
 ## F9 新建定时任务默认 include_existing=1（口径确认，不改）
 

@@ -2718,5 +2718,17 @@ assert.equal(logged.length, 4);
 console.log("HARNESS OK");
 """, lang="zh")
 
+
+class CompanyPageLiveTests(unittest.TestCase):
+    def test_the_company_page_rechecks_like_the_other_lists(self):
+        # 验收 F8：另一台设备「更换…」文件夹后，这页错过那次推送（后台标签页、实时通道断过）就一直停在旧路径。
+        # 同待处理、定时任务页：电脑同步文件夹、回到前台、拿回焦点、重连时重取，另有兜底定时
+        page = read("components/company-page.tsx")
+        self.assertIn("useLiveRefresh(reload, { events: TASK_EVENTS })", page)
+        self.assertIn('export const TASK_EVENTS = ["cowork_folder_changed"]', read("lib/companies.ts"))
+        live = read("lib/live.ts")
+        for hook in ("onConnectionChange", "visibilitychange", "\"focus\""):
+            self.assertIn(hook, live)
+
 if __name__ == "__main__":
     unittest.main()

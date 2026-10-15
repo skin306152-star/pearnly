@@ -58,7 +58,9 @@ import {
   taskSeedOf,
   unbindFolder,
   useCompanyNav,
+  TASK_EVENTS,
 } from "@/lib/companies";
+import { useLiveRefresh } from "@/lib/live";
 import { knownReaders, openSettings, pickFolder, rememberReader, useDesktopFeatures } from "@/lib/desktop";
 import { type ListedSession, listGrouped } from "@/lib/managed-agents/api";
 import { forgetProject, hintTitle, renameProjectLocally, useProjects } from "@/lib/managed-agents/projects";
@@ -126,6 +128,9 @@ export const CompanyPage: FC = () => {
     setError("");
   }, [company]);
   useEffect(() => void reload(), [reload]);
+  // 推来的主档变化之外，再按站点通用的做法核对：电脑同步文件夹、回到前台、窗口拿回焦点、实时通道重连时重取，另有 60 秒兜底
+  // （2026-10-15 验收 F8：另一台设备「更换…」文件夹后，这页错过了那次推送就一直停在旧路径）
+  useLiveRefresh(reload, { events: TASK_EVENTS });
   useEffect(
     () =>
       onProjectChange((change) => {
