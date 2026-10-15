@@ -99,6 +99,7 @@ Batch No,Batch No
 Bind this account first,Bind this account first
 Binding code,Binding code
 Block Duplicate Documents,Block Duplicate Documents
+Book,Book
 Book position,Book position
 Book quantity,Book quantity
 Book quantity {0} {1},Book quantity {0} {1}
@@ -284,6 +285,7 @@ Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Description,Description
 Details,Details
+Diff,Diff
 Difference,Difference
 Difference value,Difference value
 Differences,Differences
@@ -1445,6 +1447,7 @@ stock.count.addEntryTitle,Add a count — {0}
 stock.count.back,Back
 stock.count.blank,Not set
 stock.count.book,Book quantity
+stock.count.bookShort,Book
 stock.count.chart,Chart
 stock.count.chartEmpty,Nothing counted yet
 stock.count.chartTotals,Book {0} · counted {1} · difference {2}
@@ -1455,6 +1458,7 @@ stock.count.counted,Counted quantity
 stock.count.countedAt,Counted at
 stock.count.countedBy,Counted by
 stock.count.countedRows,Counted
+stock.count.countedShort,Counted
 stock.count.created,"Stock count created, {0} rows"
 stock.count.createdAt,Created
 stock.count.deleteBlocked,Only an active count can be deleted
@@ -1463,6 +1467,7 @@ stock.count.deleteNotice,Deleted {0}
 stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
 stock.count.diffRankHint,"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts."
+stock.count.diffShort,Diff
 stock.count.difference,Difference
 stock.count.differenceRows,With differences
 stock.count.differenceValue,Difference value

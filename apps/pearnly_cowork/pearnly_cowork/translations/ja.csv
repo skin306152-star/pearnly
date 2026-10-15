@@ -556,6 +556,7 @@ Deposit receipts need a person to decide how to post them in Express,預り金�
 Description,摘要
 Detail,詳細
 Details,詳細
+Diff,差異
 Difference,差異あり
 Difference Amount,差異金額
 Difference Count,差異件数
@@ -2517,18 +2518,21 @@ cowork.stock.col.warehouse,倉庫
 cowork.stock.continuous,連続棚卸
 cowork.stock.count.blank,未入力
 cowork.stock.count.book,帳簿数量
+cowork.stock.count.bookShort,帳簿
 cowork.stock.count.close,棚卸を終了
 cowork.stock.count.closed,棚卸を終了しました
 cowork.stock.count.counted,実地数量
 cowork.stock.count.countedAt,日時
 cowork.stock.count.countedBy,担当者
 cowork.stock.count.countedRows,棚卸済み
+cowork.stock.count.countedShort,実地
 cowork.stock.count.created,棚卸を作成しました（{0} 行）
 cowork.stock.count.createdAt,作成日時
 cowork.stock.count.deleteBlocked,進行中の棚卸のみ削除できます
 cowork.stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 cowork.stock.count.deleteSelected,選択を削除（{0}）
 cowork.stock.count.deleted,棚卸を {0} 件削除しました
+cowork.stock.count.diffShort,差異
 cowork.stock.count.differenceRows,差異あり
 cowork.stock.count.differenceValue,差異金額
 cowork.stock.count.entries,記録

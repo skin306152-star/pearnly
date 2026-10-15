@@ -99,6 +99,7 @@ Batch No,หมายเลขล็อต
 Bind this account first,กรุณาผูกบัญชี ERP ก่อนใช้งาน
 Binding code,รหัสผูกบัญชี
 Block Duplicate Documents,ป้องกันเอกสารซ้ำ
+Book,บัญชี
 Book position,คลัง / ตำแหน่งตามบัญชี
 Book quantity,จำนวนตามบัญชี
 Book quantity {0} {1},จำนวนตามบัญชี {0} {1}
@@ -284,6 +285,7 @@ Deleted {0},ลบแล้ว {0}
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
 Description,คำอธิบาย
 Details,รายละเอียด
+Diff,ผลต่าง
 Difference,ผลต่าง
 Difference value,มูลค่าผลต่าง
 Differences,ผลต่างรวม
@@ -1445,6 +1447,7 @@ stock.count.addEntryTitle,บันทึกการนับ — {0}
 stock.count.back,กลับ
 stock.count.blank,ยังไม่กรอก
 stock.count.book,จำนวนตามบัญชี
+stock.count.bookShort,บัญชี
 stock.count.chart,แผนภูมิ
 stock.count.chartEmpty,ยังไม่มีการนับ
 stock.count.chartTotals,ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}
@@ -1455,6 +1458,7 @@ stock.count.counted,จำนวนที่นับได้
 stock.count.countedAt,เวลาที่นับ
 stock.count.countedBy,ผู้ตรวจนับ
 stock.count.countedRows,นับแล้ว
+stock.count.countedShort,นับได้
 stock.count.created,สร้างการตรวจนับแล้ว {0} แถว
 stock.count.createdAt,สร้างเมื่อ
 stock.count.deleteBlocked,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
@@ -1463,6 +1467,7 @@ stock.count.deleteNotice,ลบ {0} รายการแล้ว
 stock.count.deleteSelected,ลบที่เลือก ({0})
 stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
 stock.count.diffRankHint,ผลต่างจำนวน เรียงจากมากไปน้อย แท่งเทาคือจำนวนตามบัญชี แท่งสีคือจำนวนที่นับได้ วางเมาส์บนแท่งเพื่อดูสินค้า ตำแหน่ง และจำนวน
+stock.count.diffShort,ผลต่าง
 stock.count.difference,ผลต่าง
 stock.count.differenceRows,มีผลต่าง
 stock.count.differenceValue,มูลค่าผลต่าง

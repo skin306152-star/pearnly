@@ -99,6 +99,7 @@ Batch No,バッチ番号
 Bind this account first,先に ERP アカウントを連携してください
 Binding code,連携コード
 Block Duplicate Documents,重複伝票をブロック
+Book,帳簿
 Book position,帳簿上の倉庫・棚番
 Book quantity,帳簿数量
 Book quantity {0} {1},帳簿数量 {0} {1}
@@ -284,6 +285,7 @@ Deleted {0},{0} 件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Description,説明
 Details,詳細
+Diff,差異
 Difference,差異
 Difference value,差異金額
 Differences,差異合計
@@ -1445,6 +1447,7 @@ stock.count.addEntryTitle,カウントを記録 — {0}
 stock.count.back,戻る
 stock.count.blank,未入力
 stock.count.book,帳簿数量
+stock.count.bookShort,帳簿
 stock.count.chart,グラフ
 stock.count.chartEmpty,まだ棚卸記録がありません
 stock.count.chartTotals,帳簿 {0} · 実地 {1} · 差異 {2}
@@ -1455,6 +1458,7 @@ stock.count.counted,実地数量
 stock.count.countedAt,日時
 stock.count.countedBy,担当者
 stock.count.countedRows,棚卸済み
+stock.count.countedShort,実地
 stock.count.created,棚卸を作成しました（{0} 行）
 stock.count.createdAt,作成日時
 stock.count.deleteBlocked,進行中の棚卸のみ削除できます
@@ -1463,6 +1467,7 @@ stock.count.deleteNotice,{0}件を削除しました
 stock.count.deleteSelected,選択を削除（{0}）
 stock.count.deleted,棚卸を {0} 件削除しました
 stock.count.diffRankHint,数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。
+stock.count.diffShort,差異
 stock.count.difference,差異
 stock.count.differenceRows,差異あり
 stock.count.differenceValue,差異金額

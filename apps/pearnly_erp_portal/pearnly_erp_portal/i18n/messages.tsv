@@ -1323,3 +1323,6 @@ The amount payable cannot be negative	应付金额不能为负数	ยอดท�
 Category	分类	หมวดหมู่	カテゴリ	stock.col.category
 Area	区域	พื้นที่	エリア	stock.workbench.area
 Already recorded:	已记录：	บันทึกไว้แล้ว:	記録済み:	stock.workbench.recorded
+Book	账面	บัญชี	帳簿	stock.count.bookShort
+Counted	实盘	นับได้	実地	stock.count.countedShort
+Diff	差异	ผลต่าง	差異	stock.count.diffShort

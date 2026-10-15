@@ -2204,3 +2204,6 @@ Warehouse	仓库	คลังสินค้า	倉庫	cowork.stock.col.warehous
 Category	商品类别	หมวดสินค้า	カテゴリ	cowork.stock.col.category
 Area	区域	พื้นที่	エリア	cowork.stock.workbench.area
 Already recorded:	已记录：	บันทึกไว้แล้ว:	記録済み:	cowork.stock.workbench.recorded
+Book	账面	บัญชี	帳簿	cowork.stock.count.bookShort
+Counted	实盘	นับได้	実地	cowork.stock.count.countedShort
+Diff	差异	ผลต่าง	差異	cowork.stock.count.diffShort

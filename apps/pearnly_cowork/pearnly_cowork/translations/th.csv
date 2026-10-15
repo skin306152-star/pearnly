@@ -185,7 +185,7 @@ Board archived,เก็บถาวรบอร์ดแล้ว
 Board members,สมาชิกบอร์ด
 Board name,ชื่อบอร์ด
 Board settings,ตั้งค่าบอร์ด
-Book,ตามบัญชี
+Book,บัญชี
 Book Qty,จำนวนตามบัญชี
 Book location,ตำแหน่งตามบัญชี
 Book position,คลัง / ตำแหน่งตามบัญชี
@@ -556,6 +556,7 @@ Deposit receipts need a person to decide how to post them in Express,ใบร�
 Description,คำอธิบาย
 Detail,รายละเอียด
 Details,รายละเอียด
+Diff,ผลต่าง
 Difference,มีผลต่าง
 Difference Amount,จำนวนเงินผลต่าง
 Difference Count,จำนวนรายการที่มีผลต่าง
@@ -2517,18 +2518,21 @@ cowork.stock.col.warehouse,คลังสินค้า
 cowork.stock.continuous,ตรวจนับต่อเนื่อง
 cowork.stock.count.blank,ยังไม่กรอก
 cowork.stock.count.book,จำนวนตามบัญชี
+cowork.stock.count.bookShort,บัญชี
 cowork.stock.count.close,ปิดการตรวจนับ
 cowork.stock.count.closed,ปิดการตรวจนับแล้ว
 cowork.stock.count.counted,จำนวนที่นับได้
 cowork.stock.count.countedAt,เวลาที่นับ
 cowork.stock.count.countedBy,ผู้ตรวจนับ
 cowork.stock.count.countedRows,นับแล้ว
+cowork.stock.count.countedShort,นับได้
 cowork.stock.count.created,สร้างการตรวจนับแล้ว จำนวน {0} แถว
 cowork.stock.count.createdAt,สร้างเมื่อ
 cowork.stock.count.deleteBlocked,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 cowork.stock.count.deleteConfirm,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 cowork.stock.count.deleteSelected,ลบที่เลือก ({0})
 cowork.stock.count.deleted,ลบการตรวจนับ {0} รายการแล้ว
+cowork.stock.count.diffShort,ผลต่าง
 cowork.stock.count.differenceRows,มีผลต่าง
 cowork.stock.count.differenceValue,มูลค่าผลต่าง
 cowork.stock.count.entries,รายการ

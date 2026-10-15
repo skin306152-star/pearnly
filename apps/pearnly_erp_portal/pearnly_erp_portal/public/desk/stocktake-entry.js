@@ -106,7 +106,7 @@
 				.map(record => `${record.counted_by} · ${record.warehouse_name} / ${record.location || t("stock.count.blank")} · `
 					+ p.number(record.qty))
 				.join("；");
-			host.$wrapper.append($("<p class='text-muted small mb-0'>").text(`${w("recorded")} ${text}`));
+			host.$wrapper.append($("<p class='text-muted small'>").text(`${w("recorded")} ${text}`));
 		}
 		function editor(show) {
 			d.set_df_property("scan_section", "hidden", show);
@@ -218,7 +218,12 @@
 			d.set_df_property("video", "hidden", false);
 			scanner = p.scan_reader({ host: d.fields_dict.video.$wrapper, kind: "all",
 				on_result: code => match(code),
-				on_error: error => { scanner?.stop(); scanner = null; camera = false; message(p.scan_failure_text(error)); },
+				on_error: error => {
+					// 打不开就把黑框收起来，只留原因那一句（手动输入编码照常可用）。
+					scanner?.stop(); scanner = null; camera = false;
+					d.set_df_property("video", "hidden", true); d.set_df_property("torch", "hidden", true);
+					message(p.scan_failure_text(error));
+				},
 			});
 			await scanner.start();
 			d.set_df_property("torch", "hidden", !scanner?.has_torch());

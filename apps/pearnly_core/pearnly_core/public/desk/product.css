@@ -451,3 +451,11 @@ body.pearnly-product-desk .dt-cell--header {
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius);
 }
+
+/* 盘点「各区进度」小表（ERP / Cowork 盘点页，`stocktake.js` 的 `pearnly-stock-areas`）：
+   框架在手机上把**所有**表格的滚动区强制成「屏高 − 260px」（`!important`），只有几行的小表
+   也撑满一屏，把下面的明细表挤出屏幕（2026-10-15 测试机 375 宽实测）。这张表用表格组件自己按行数
+   算出的高度（页面画完后记在 `--pearnly-areas-height` 上；行是绝对定位绘制的，不能用 auto）。 */
+body.pearnly-product-desk .pearnly-stock-areas .datatable .dt-scrollable {
+	height: var(--pearnly-areas-height, auto) !important;
+}

@@ -99,7 +99,8 @@
 			// 库存被别的业务改过时要重盘：这条警告原先挂在汇总卡片里，卡片删掉后直接排在表格上方
 			// （空字符串时不留任何痕迹）。
 			conflict = $("<p class='text-danger'></p>").appendTo(page.main);
-			area_host = $("<div class='report-wrapper mb-4'>").appendTo(page.main);
+			// 手机上框架把表格滚动区强制成一整屏高，这张小表在 product.css 里按行数定高。
+			area_host = $("<div class='report-wrapper pearnly-stock-areas mb-4'>").hide().appendTo(page.main);
 			area_host.on("click", ".dt-row", event => {
 				const key = $(event.currentTarget).find("[data-count-area]").attr("data-count-area");
 				if (key == null) return;
@@ -214,7 +215,8 @@
 			const label = value => value === BLANK ? t("cowork.stock.count.blank") : value;
 			const fill = async (control, values, chosen, name = label) => {
 				const options = [...new Set(values)].sort((a, b) => name(a).localeCompare(name(b), undefined, { numeric: true }));
-				control.df.options = [{ value: "", label: t("cowork.stock.count.filter.all") },
+				// 「不限」那一项就显示字段名（仓库 / 类别），一眼看得出这一格在选什么。
+				control.df.options = [{ value: "", label: control.df.label },
 					...options.map(value => ({ value, label: name(value) }))];
 				control.df.hidden = options.length > 1 ? 0 : 1;
 				control.refresh();
@@ -247,9 +249,10 @@
 		// 只在没选范围、而且不止一个区时出现；点一行就把范围切到那个区。
 		async function render_areas() {
 			area_table?.destroy(); area_table = null;
-			area_host.empty();
+			area_host.empty().hide();
 			const chosen = scope();
 			const by_category = !scope_category.df.hidden;
+			const by_warehouse = !scope_warehouse.df.hidden;
 			if (chosen.warehouse || chosen.category) return;
 			const owner = new Map(state.items.map(r => [r.name, r]));
 			const areas = new Map();
@@ -269,6 +272,11 @@
 			if (areas.size < 2) return;
 			const label = value => value === BLANK ? t("cowork.stock.count.blank") : value;
 			const size = screen();
+			// 按行数 × 行高给这张小表定高：手机上框架会用 `!important` 把它盖成一整屏（见 product.css）。
+			// 先按常见行高预设（表格按容器高度决定画几行，0 高就一行都不画），画完再按实际行高校正。
+			const fit = height => area_host[0].style.setProperty("--pearnly-areas-height", `${Math.ceil(height * areas.size) + 2}px`);
+			fit(40);
+			area_host.show();
 			area_table = await p.table(area_host, [
 				{ name: w("area"), width: size === "full" ? 260 : 4, format: value => value },
 				{ name: t("cowork.stock.count.countedRows"), width: size === "full" ? 110 : 2 },
@@ -276,12 +284,16 @@
 				...(size === "phone" ? [] : [{ name: t("cowork.stock.count.countedBy"), width: size === "full" ? 260 : 3 }]),
 			], [...areas].map(([key, area]) => {
 				const [warehouse, category] = JSON.parse(key);
-				const name = [label(warehouse), category ? category_label(category) : ""].filter(Boolean).join(" · ");
+				// 只有一个仓时区名只写类别，只有一种类别时只写仓库（手机上不被截断）。
+				const name = [by_warehouse || !category ? label(warehouse) : "", category ? category_label(category) : ""]
+					.filter(Boolean).join(" · ");
 				const cells = [`<a href="#" data-count-area="${p.escape(key)}">${p.escape(name)}</a>`,
 					`${area.counted} / ${area.rows}`, area.differences ? danger(area.differences) : "0"];
 				if (size !== "phone") cells.push([...area.people].join(", "));
 				return cells;
 			}), { ...table_options(), ...(size === "full" ? {} : { layout: "ratio" }) });
+			const row = area_host.find(".dt-body .dt-row")[0]?.getBoundingClientRect().height;
+			if (row) fit(row);
 		}
 		function entry_form(row = null, continuous = false, entry = null) {
 			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: own_refresh,
@@ -322,14 +334,16 @@
 				{ name: w("bookPosition"), fit: [160, 3, null] },
 				// 这几列会自己拼红字（差异那几格），所以不走默认的 `p.escape`。
 				{ name: w("actualPositions"), fit: [230, null, null], format: value => value },
-				{ name: t("cowork.stock.col.unit"), fit: [70, null, null] }, { name: t("cowork.stock.count.book"), fit: [90, 2, 2] },
-				{ name: t("cowork.stock.count.counted"), fit: [90, 2, 2] },
-				{ name: w("quantityDiff"), fit: [90, 2, 2], format: value => value },
+				{ name: t("cowork.stock.col.unit"), fit: [70, null, null] }, { name: t("cowork.stock.count.book"), short: t("cowork.stock.count.bookShort"), fit: [90, 2, 2] },
+				{ name: t("cowork.stock.count.counted"), short: t("cowork.stock.count.countedShort"), fit: [90, 2, 2] },
+				{ name: w("quantityDiff"), short: t("cowork.stock.count.diffShort"), fit: [90, 2, 2], format: value => value },
 				...(state.can_view_costs ? [{ name: t("cowork.stock.count.differenceValue"), fit: [110, null, null], format: value => value }] : []),
 				{ name: t("cowork.stock.col.status"), fit: [140, 3, null], format: value => value },
 			];
 			const slot = { full: 0, compact: 1, phone: 2 }[size];
-			const shown = columns.map((column, index) => [{ ...column, width: column.fit[slot] }, index])
+			// 手机竖屏列窄，数量三列用短列名（账面 / 实盘 / 差异），不被截成「账…」。
+			const shown = columns.map((column, index) => [{ ...column, width: column.fit[slot],
+				name: size === "phone" && column.short ? column.short : column.name }, index])
 				.filter(([column]) => column.width != null);
 			const pick = cells => shown.map(([_column, index]) => cells[index]);
 			table = await p.table(table_host, shown.map(([c])=>({ ...c, format: c.format || p.escape })), rows.map(r=>{

@@ -556,6 +556,7 @@ Deposit receipts need a person to decide how to post them in Express,Deposit rec
 Description,Description
 Detail,Detail
 Details,Details
+Diff,Diff
 Difference,Difference
 Difference Amount,Difference Amount
 Difference Count,Difference Count
@@ -2517,18 +2518,21 @@ cowork.stock.col.warehouse,Warehouse
 cowork.stock.continuous,Continuous counting
 cowork.stock.count.blank,Not set
 cowork.stock.count.book,Book quantity
+cowork.stock.count.bookShort,Book
 cowork.stock.count.close,Close count
 cowork.stock.count.closed,Count closed
 cowork.stock.count.counted,Counted quantity
 cowork.stock.count.countedAt,Counted at
 cowork.stock.count.countedBy,Counted by
 cowork.stock.count.countedRows,Counted
+cowork.stock.count.countedShort,Counted
 cowork.stock.count.created,"Stock count created, {0} rows"
 cowork.stock.count.createdAt,Created
 cowork.stock.count.deleteBlocked,Only an active count can be deleted
 cowork.stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted.
 cowork.stock.count.deleteSelected,Delete selected ({0})
 cowork.stock.count.deleted,Deleted {0} stock counts
+cowork.stock.count.diffShort,Diff
 cowork.stock.count.differenceRows,With differences
 cowork.stock.count.differenceValue,Difference value
 cowork.stock.count.entries,Entries

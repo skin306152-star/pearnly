@@ -556,6 +556,7 @@ Deposit receipts need a person to decide how to post them in Express,押金或�
 Description,摘要
 Detail,详情
 Details,详细信息
+Diff,差异
 Difference,有差异
 Difference Amount,差异金额
 Difference Count,差异笔数
@@ -2517,18 +2518,21 @@ cowork.stock.col.warehouse,仓库
 cowork.stock.continuous,连续盘点
 cowork.stock.count.blank,未填
 cowork.stock.count.book,账面数量
+cowork.stock.count.bookShort,账面
 cowork.stock.count.close,结束盘点
 cowork.stock.count.closed,盘点已结束
 cowork.stock.count.counted,实盘数量
 cowork.stock.count.countedAt,盘点时间
 cowork.stock.count.countedBy,盘点人
 cowork.stock.count.countedRows,已盘点
+cowork.stock.count.countedShort,实盘
 cowork.stock.count.created,盘点已创建，{0} 行
 cowork.stock.count.createdAt,创建时间
 cowork.stock.count.deleteBlocked,只能删除进行中的盘点
 cowork.stock.count.deleteConfirm,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 cowork.stock.count.deleteSelected,删除所选（{0}）
 cowork.stock.count.deleted,已删除 {0} 份盘点
+cowork.stock.count.diffShort,差异
 cowork.stock.count.differenceRows,有差异
 cowork.stock.count.differenceValue,差异金额
 cowork.stock.count.entries,记录
