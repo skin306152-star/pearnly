@@ -1075,6 +1075,13 @@ class PendingTests(unittest.TestCase):
         self.assertEqual(classify(history("e", last_push_reason="push.companion_account_unreported"), self.CUTOFF),
                          "failed")
         self.assertEqual(classify(history("f"), self.CUTOFF), "not_pushed")
+        # CC 对话、定时任务在推之前停下要人选：只记原因、状态不变（空，或上一次的失败），也是要人选（验收 F12）
+        self.assertEqual(classify(history("l", last_push_reason="choice_needed:payment,account"), self.CUTOFF),
+                         "choice_needed")
+        self.assertEqual(classify(history("m", last_push_status="failed", last_push_reason="choice_needed:account"),
+                                  self.CUTOFF), "choice_needed")
+        self.assertIsNone(classify(history("n", last_push_status="success", last_push_reason="choice_needed:account"),
+                                   self.CUTOFF))
         # 不算：推送成功、在推、刚上传还在路上、只识别不推
         for row in (history("g", last_push_status="success"), history("h", last_push_status="pending"),
                     history("i", creation=datetime(2026, 10, 15, 8, 50)), history("j", intake_target="none"),

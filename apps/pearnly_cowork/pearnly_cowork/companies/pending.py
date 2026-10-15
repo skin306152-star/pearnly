@@ -58,9 +58,11 @@ def classify(row, cutoff, unknown=frozenset()) -> str | None:
     reason = str(row.get("last_push_reason") or "")
     if status in SETTLED:
         return None
+    if reason.startswith("choice_needed"):
+        # 要人选：推送服务停在复核时状态是 manual；CC 对话、定时任务在推之前就停下时只记原因（`push_state.record_failure`），
+        # 状态不变（空，或上一次的失败）——都是要人选，不能当成「失败、请重新提交」（2026-10-15 验收 F12）
+        return "choice_needed"
     if status == "manual":
-        if reason.startswith("choice_needed"):
-            return "choice_needed"
         if row.get("last_push_record") in unknown or "RESULT_UNKNOWN" in reason.upper():
             return "result_unknown"
         return "manual"
