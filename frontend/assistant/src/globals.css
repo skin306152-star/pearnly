@@ -672,6 +672,7 @@
   --cc-panel-font: var(--code-text-footnote);
   --cc-panel-lh: var(--code-text-panel-lh);
   --cc-panel-ring: inset 0 0 0 1px var(--cc-line);
+  --cc-dot-ring: inset 0 0 0 var(--cc-ring-w) var(--cc-ink-4);  /* 月结台账「暂无」那一段的空心状态点 */
   --cc-radius-panel: var(--code-radius-10);
   /* 列表页（公司、待处理、定时任务；设计文档 3.14）：内容宽 960、标题 24/31 字重 500、搜索框 36 圆角 7、主按钮 24、卡片约 314×108 */
   --cc-list-w: var(--code-list-w);
@@ -1454,6 +1455,30 @@
   .cc-panel-card-body .cc-subheading { padding: 0.375rem 0.25rem 0.125rem; }
   .cc-panel-card-body .cc-list-item { padding: 0.375rem 0.25rem; }
   .cc-panel-card-body .cc-chip { margin-block: 0.125rem; }
+  /* 月结台账（数字会计员第 1 期，components/month-ledger.tsx；会话栏「本月」卡、公司页概览第一节）：
+     四段一行 = 状态点（20 槽里画行尾脉冲点大小的圆，颜色用状态变量；空的只画 1px 圈）+ 段名 + 右侧 12px 淡色短计数；
+     异常一行 26 = 码名 + 12px 淡色单据 / 对方 + 金额 + 去处图标；知悉的整行淡色。当场选那一行沿用待处理的展开（行变体） */
+  .cc-month-dot {
+    display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; box-sizing: content-box;
+    width: var(--cc-icon-sm); height: var(--cc-icon-sm); padding-inline: 0.125rem;
+  }
+  .cc-month-dot::before { content: ""; width: var(--cc-row-pulse); height: var(--cc-row-pulse); border-radius: var(--cc-radius-full); }
+  .cc-month-dot[data-state="empty"]::before { box-shadow: var(--cc-dot-ring); }
+  .cc-month-dot[data-state="open"]::before { background: var(--cc-status-processing); }
+  .cc-month-dot[data-state="attention"]::before { background: var(--cc-status-attention); }
+  .cc-month-dot[data-state="clear"]::before { background: var(--cc-status-online); }
+  .cc-month-code { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-month-sub {
+    flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink-3);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
+  .cc-panel-row[data-severity="info"] { color: var(--cc-ink-3); }
+  .cc-list-item[data-variant="row"], .cc-panel-card-body .cc-list-item[data-variant="row"] {
+    gap: 0.375rem; padding: 0; border-radius: var(--cc-radius-row-ctl);
+  }
+  .cc-list-item[data-variant="row"]:hover { background: transparent; }
+  .cc-list-item[data-variant="row"][data-open] { padding-bottom: var(--cc-panel-pad); }
+  .cc-list-item[data-variant="row"] > :not(:first-child) { margin-inline: 0.25rem; }
 
   /* 公司页（设计文档 3.15 / 4.5）：顶栏名称（点了改名）与「···」；左边「在这家新建对话」、概览、账套、待处理；
      右边大面板（1px 内环、圆角 10），标签「对话 / 资料 / 定时任务」；手机与窄屏单栏 */

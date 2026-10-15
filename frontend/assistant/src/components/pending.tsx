@@ -10,7 +10,7 @@
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
 import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
@@ -216,8 +216,8 @@ const PendingGroup: FC<{
   );
 };
 
-/** 交给 CC：在这家公司下开新对话（月份取单据月份），预填「处理这几张：…」，不自动发送。 */
-function useAskCC(company: string, title: string) {
+/** 交给 CC：在这家公司下开新对话（月份取单据月份），预填「处理这几张：…」，不自动发送（会话栏「本月」卡同一个）。 */
+export function useAskCC(company: string, title: string) {
   const start = useStartIn();
   const withPeriod = useProjects((s) => s.period);
   return (items: readonly PendingItem[]) => {
@@ -242,12 +242,14 @@ const PendingRow: FC<{ item: PendingItem }> = ({ item }) => (
   </div>
 );
 
-/** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。 */
-const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void }> = ({
+/** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。
+ *  head：会话栏「本月」卡的一行 26 高（码名 · 单据 · 金额，components/month-ledger.tsx），换掉默认的两行摘要；展开后同一套。 */
+export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
   item,
   onDone,
   onChanged,
   onAsk,
+  head,
 }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ChoicesView | null>(null);
@@ -290,14 +292,17 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
   };
   const kinds = (item.choice?.kinds ?? []).map((kind) => co.kind[kind] ?? kind).join(" · ");
   return (
-    <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-open={open || undefined}>
-      <button type="button" className="cc-pending-toggle flex min-w-0 items-center gap-2 text-start" aria-expanded={open} onClick={toggle}>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-ink text-sm">
-            {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
+    <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-variant={head ? "row" : undefined} data-open={open || undefined}>
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+        aria-expanded={open} onClick={toggle}>
+        {head ?? (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-ink text-sm">
+              {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
+            </span>
+            <span className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</span>
           </span>
-          <span className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</span>
-        </span>
+        )}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
       {open && !view && !error && (

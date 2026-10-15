@@ -144,6 +144,8 @@ jobs:
         run: python3 tests/test_cc_ccs.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
+      - name: Verify the month-end ledger card and company page section (digital accountant phase 1)
+        run: python3 tests/test_cc_month_ledger.py
       - name: Verify offline DMS editor snapshot rendering
         run: |
           npm ci --prefix frontend

@@ -478,6 +478,29 @@ const COMPANY = {
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
     chatRunning: "In progress", chatWaiting: "Waiting for you", chatDone: "Done", noChats: "No chats yet.",
+    // 月结台账（数字会计员第 1 期：会话栏「本月」卡、公司页概览第一节）：段名、状态、严重度、异常码的短名（服务端只给码）
+    ledger: {
+      title: "Month-end",
+      stage: { intake: "Intake", entry: "Entry", verify: "Verify", tax: "Tax" } as Record<string, string>,
+      state: { empty: "Nothing yet", open: "In progress", attention: "Needs attention", clear: "Done" } as Record<string, string>,
+      severity: { action: "To do", warn: "Check", info: "FYI" } as Record<string, string>,
+      code: {
+        choice_needed: "Needs a choice", result_unknown: "Result unknown", account_tax_mismatch: "Tax ID mismatch",
+        account_period_mismatch: "Period mismatch", account_branch_mismatch: "Branch mismatch", push_manual: "Stopped",
+        push_failed: "Push failed", not_pushed: "Not entered", duplicate_number: "Duplicate number",
+        task_folder_missing: "Folder not found", intake_file_failed: "File failed", pos_layout_needed: "POS layout needed",
+        not_invoice: "Not an invoice", express_changed: "Changed in Express", express_deleted: "Deleted in Express",
+        express_voided: "Voided in Express", express_missing: "Not found in Express", express_direct: "Entered directly in Express",
+        readback_needed: "Not read back", tax_issue: "Draft issue", tax_draft_stale: "Draft out of date",
+      } as Record<string, string>,
+      docs: (n: number) => `${n} documents`,
+      entered: (done: number, total: number) => `${done}/${total} entered`,
+      readBack: (day: string) => `Read back ${day}`,
+      reading: "Reading…",
+      due: (day: string) => `Due ${day}`,
+      openTask: "Open task",
+      readbackText: (label: string, period: string) => `Check the Express readback for ${label}, ${period}`,
+    },
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
@@ -500,6 +523,29 @@ const COMPANY = {
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
     chatRunning: "进行中", chatWaiting: "等你处理", chatDone: "已完成", noChats: "还没有对话。",
+    // 月结台账（数字会计员第 1 期：会话栏「本月」卡、公司页概览第一节）：段名、状态、严重度、异常码的短名（服务端只给码）
+    ledger: {
+      title: "月结",
+      stage: { intake: "收单", entry: "录账", verify: "核对", tax: "报税" } as Record<string, string>,
+      state: { empty: "暂无", open: "进行中", attention: "要处理", clear: "已完成" } as Record<string, string>,
+      severity: { action: "要处理", warn: "看一眼", info: "知悉" } as Record<string, string>,
+      code: {
+        choice_needed: "要人选", result_unknown: "结果不明", account_tax_mismatch: "税号不符",
+        account_period_mismatch: "期间不符", account_branch_mismatch: "分店不符", push_manual: "已停下",
+        push_failed: "推送失败", not_pushed: "未录入", duplicate_number: "单号重复",
+        task_folder_missing: "找不到文件夹", intake_file_failed: "文件读取失败", pos_layout_needed: "要定 POS 版式",
+        not_invoice: "不是发票", express_changed: "Express 里改了", express_deleted: "Express 里删了",
+        express_voided: "Express 里作废了", express_missing: "Express 里找不到", express_direct: "直接在 Express 记的",
+        readback_needed: "还没回读", tax_issue: "草稿有问题", tax_draft_stale: "草稿已过期",
+      } as Record<string, string>,
+      docs: (n: number) => `${n} 张`,
+      entered: (done: number, total: number) => `已录 ${done}/${total}`,
+      readBack: (day: string) => `${day} 回读`,
+      reading: "回读中…",
+      due: (day: string) => `${day} 截止`,
+      openTask: "打开任务",
+      readbackText: (label: string, period: string) => `核对 ${label} ${period} 的 Express 回读`,
+    },
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
@@ -522,6 +568,29 @@ const COMPANY = {
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
     chatRunning: "กำลังดำเนินการ", chatWaiting: "รอคุณดำเนินการ", chatDone: "เสร็จแล้ว", noChats: "ยังไม่มีแชท",
+    // 月结台账（数字会计员第 1 期：会话栏「本月」卡、公司页概览第一节）：段名、状态、严重度、异常码的短名（服务端只给码）
+    ledger: {
+      title: "ปิดงวด",
+      stage: { intake: "รับเอกสาร", entry: "บันทึกบัญชี", verify: "ตรวจสอบ", tax: "ภาษี" } as Record<string, string>,
+      state: { empty: "ยังไม่มี", open: "กำลังดำเนินการ", attention: "ต้องดูแล", clear: "เรียบร้อย" } as Record<string, string>,
+      severity: { action: "ต้องทำ", warn: "ควรดู", info: "แจ้งเพื่อทราบ" } as Record<string, string>,
+      code: {
+        choice_needed: "ต้องเลือก", result_unknown: "ไม่ทราบผล", account_tax_mismatch: "เลขภาษีไม่ตรง",
+        account_period_mismatch: "งวดไม่ตรง", account_branch_mismatch: "สาขาไม่ตรง", push_manual: "หยุดไว้",
+        push_failed: "ส่งไม่สำเร็จ", not_pushed: "ยังไม่บันทึก", duplicate_number: "เลขที่ซ้ำ",
+        task_folder_missing: "ไม่พบโฟลเดอร์", intake_file_failed: "อ่านไฟล์ไม่สำเร็จ", pos_layout_needed: "ต้องกำหนดรูปแบบ POS",
+        not_invoice: "ไม่ใช่ใบกำกับ", express_changed: "แก้ไขใน Express", express_deleted: "ลบใน Express",
+        express_voided: "ยกเลิกใน Express", express_missing: "ไม่พบใน Express", express_direct: "บันทึกตรงใน Express",
+        readback_needed: "ยังไม่อ่านกลับ", tax_issue: "ร่างมีปัญหา", tax_draft_stale: "ร่างไม่เป็นปัจจุบัน",
+      } as Record<string, string>,
+      docs: (n: number) => `${n} ฉบับ`,
+      entered: (done: number, total: number) => `บันทึกแล้ว ${done}/${total}`,
+      readBack: (day: string) => `อ่านกลับ ${day}`,
+      reading: "กำลังอ่าน…",
+      due: (day: string) => `ครบกำหนด ${day}`,
+      openTask: "เปิดงาน",
+      readbackText: (label: string, period: string) => `ตรวจผลอ่านกลับจาก Express ของ ${label} งวด ${period}`,
+    },
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
