@@ -124,7 +124,7 @@ PAYMENT_FROM = {"manual": "chosen", "remembered": "remembered", "task_default": 
 
 def written(payload: Any) -> Optional[Dict[str, str]]:
     """推送记录里冻结的 Express 载荷 → 这张单是怎么写进 Express 的几项事实（验收 F19：CC 只知道单号，答不出现购还是
-    赊购，叫用户去 Express 核对）：{payment, payment_from?, expense_account | revenue_account, vat?}。
+    赊购，叫用户去 Express 核对）：{payment, payment_from?, debit_account | revenue_account, vat?}。
     不是 Express 进 / 销项载荷（MR.ERP 等）回 None。不带单号、对方、金额等别的东西，结果要小。"""
     payload = payload if isinstance(payload, dict) else {}
     direction = payload.get("direction")
@@ -138,7 +138,9 @@ def written(payload: Any) -> Optional[Dict[str, str]]:
         out["payment_from"] = source
     account = str(payload.get("items_account") or "").strip()
     if account:
-        out["expense_account" if direction == "purchase" else "revenue_account"] = account
+        # 进项叫 debit_account（费用或库存采购的借方都可能，期末盘存制账套 CC 桌面版还会把默认存货科目换成购货科目，
+        # 复审 L3），销项是收入科目
+        out["debit_account" if direction == "purchase" else "revenue_account"] = account
     if direction == "purchase":
         vat = _amount(payload.get("vat_amount"))
         if payload.get("doc_lane") == "expense":

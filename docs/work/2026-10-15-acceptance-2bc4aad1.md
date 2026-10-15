@@ -461,7 +461,7 @@ HP690929-001，总控按 Express 表核对：APTRN `RECTYP=1`（现购）、GLJN
 - 改动：
   - `push/express/pushed.py: written`：从推送记录冻结的 Express 载荷取几项事实——`payment`（HP / HS = cash，RR / IV = credit）、`payment_from`（`doctype_src`
     一一对应：manual → chosen、remembered、task_default、explicit → document、doc_type → document_type、profile → supplier_profile、bank、
-    config_default → default；POS 日汇总为 pos_summary；没有 `doctype_src` 的旧记录、认不出的值不给）、`expense_account` / `revenue_account`、进项 `vat`
+    config_default → default；POS 日汇总为 pos_summary；没有 `doctype_src` 的旧记录、认不出的值不给）、`debit_account`（进项）/ `revenue_account`（销项）、进项 `vat`
     （claimed / added_to_cost / none）。不是 Express 载荷（MR.ERP）不给。
   - `push/application/service.py`：`outcomes` 入账成功时带 `written`；新增 `written(records)` 给列推送结果用（只读、只要入账成功的）。
   - `assistant/tools.py`：推送后入账的结果、`cowork_list_documents` / `cowork_push_results` 里入账的行带 `written`（推送记录名只用来查，不交给模型）；
@@ -470,4 +470,12 @@ HP690929-001，总控按 Express 表核对：APTRN `RECTYP=1`（现购）、GLJN
     （remembered / task_default），`push/express/mapper.py` 据此写 `doctype_src`；本票人工裁决仍是 `manual`。改版前的记录照旧是 `manual`（说成 chosen）。
 - 测试：`tests/test_cowork_assistant_tools.py`（入账现购带 remembered、赊购默认、列结果那条路、旧记录无 `doctype_src`、MR.ERP 不给、来源逐项对应、
   列表不露记录名）；`tests/test_cowork_express_mapper.py`、`tests/test_cowork_express_choices.py`（remembered / task_default 留痕）。
-- 未做：未部署（随下一批）；部署后由测试窗口重验：对现购的单问 CC「是现金吗」，应直接答现购、贷现金科目及原因。
+- 复审跟进（同分支第二个提交）：
+  - M1：`cowork_document_detail`（`_detail`）对入账的票也带 `written`，工具说明拼上同一段说明——用户问单张「是不是现金」时 CC 最常查的是详情。
+  - L1：已入账的票重推（`already_success`）回执带当时的 `written`。
+  - L2：改版前「这家记过的 / 定时任务默认」也存成 `manual`，冻结的载荷分不开；说明改成 chosen = 有人的选择（本票上传或复核时选的，旧单也可能是这家记过的或任务默认），
+    不许说成「有人专门为这张选了」。没加载荷版本标记：载荷键是 CC 桌面版契约，不为一句说法加键。
+  - L3：进项键名 `expense_account` 改为 `debit_account`（库存采购借的是存货科目；期末盘存制账套 CC 桌面版会把默认存货科目改记购货科目 ACCNUM18，说明里写明）。
+  - L4：说明不再写「HP 一定贷账套现金科目」（账套没设可过账的现金科目 ACCNUM00 时桌面版保留应付占位），改为 HP = 现购（付现）。
+  - 说明补上简式税票按已付（`pearnly_core` `paid_hint`）。
+- 未做：未部署（随下一批）；部署后由测试窗口重验：对现购的单问 CC「是现金吗」，应直接答现购及原因；同时用单据详情问一次（复审 M1）。

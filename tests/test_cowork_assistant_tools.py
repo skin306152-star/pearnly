@@ -1965,15 +1965,29 @@ class PushWaitTests(unittest.TestCase):
 
     def test_entered_says_how_it_was_written_so_cc_never_sends_the_user_to_express(self):
         # 验收 F19：用户说「จ่ายเงินสด」、这家记成现购，推进去的是 HP 现购（贷现金），CC 却两次叫用户去 Express 核对
-        written = {"payment": "cash", "payment_from": "remembered", "expense_account": "53-05-02-00", "vat": "claimed"}
+        written = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
         self.timeline = [{"PR-H1": {"status": "success", "docnum": "HP690923-001", "written": written}}]
         item, = self._push("H1")["results"]
         self.assertEqual((item["status"], item["docnum"], item["written"]), ("entered", "HP690923-001", written))
         self.assertNotIn("record", item)
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_documents")["description"]
-        for words in ("payment cash = a cash purchase (HP) credited to the account set's cash account", "remembered",
+        for words in ("payment cash = a cash purchase (HP, paid in cash)", "remembered", "simplified tax invoice = paid",
+                      "do not claim it was picked for this one document", "periodic inventory",
                       "never ask them to check Express"):
             self.assertIn(words, description)
+
+    def test_an_entered_document_pushed_again_still_says_how_it_was_written(self):
+        # 复审 L1：已入账的不再推，但回执照样带当时怎么写的；记录名只用来查
+        self.docs["H1"].last_push_status = "success"
+        self.docs["H1"].last_push_record = "PR-H1"
+        written = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00"}
+        asked = []
+        with mock.patch.object(tools.application, "written", create=True,
+                               new=lambda records: asked.append(list(records)) or {"PR-H1": written}):
+            item, = self._push("H1")["results"]
+        self.assertEqual(item, {"document": "H1", "status": "already_success", "written": written})
+        self.assertEqual(asked, [["PR-H1"]])
+        self.assertEqual((self.reads, self.sleeps), ([], []))
 
     def test_a_refusal_comes_back_with_its_reason_and_an_unknown_result_is_not_called_failed(self):
         self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}},
@@ -2107,7 +2121,7 @@ class PushOutcomeServiceTests(unittest.TestCase):
             {"name": "PR7", "actor": "a@example.com", "status": "success", "reason": "",
              "external_docnum": "HP690901-001", "result_unknown": 0,
              "payload_json": json.dumps({key: value for key, value in CASH_PAYLOAD.items() if key != "doctype_src"})}]
-    CASH = {"payment": "cash", "payment_from": "remembered", "expense_account": "53-05-02-00", "vat": "claimed"}
+    CASH = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
 
     def test_only_my_own_pushes_and_the_number_only_when_entered(self):
         service, queries = _push_service(self.ROWS)
@@ -2268,7 +2282,7 @@ class ListAndRunsTests(unittest.TestCase):
         frappe.rows[1].update(last_push_status="failed", last_push_record="PR8")
         frappe.rows[2].update(last_push_status="success", last_push_record="PR7")  # 旧记录 / MR.ERP：查不到就不给
         asked = []
-        cash = {"payment": "cash", "payment_from": "remembered", "expense_account": "53-05-02-00"}
+        cash = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00"}
 
         def written(records):
             asked.append(sorted(records))
@@ -2281,6 +2295,30 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertEqual([d.get("written") for d in docs], [cash, None, None, None, None])
         self.assertFalse(any("last_push_record" in d for d in docs))
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_results")["description"]
+        self.assertIn("never ask them to check Express", description)
+
+    def test_the_detail_of_an_entered_document_says_how_it_was_written(self):
+        # 复审 M1：用户问「这张是不是现金」CC 最常查详情；入账的带 written，没入账的不查，记录名不给
+        cash = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
+        asked = []
+
+        def written(records):
+            asked.append(list(records))
+            return {"PR9": cash}
+
+        with mock.patch.object(tools.application, "written", written, create=True):
+            entered = tools._detail({"name": "D1", "last_push_status": "success", "last_push_record": "PR9",
+                                     "push_connection": "EXP1", "pages": []})
+            failed = tools._detail({"name": "D2", "last_push_status": "manual", "last_push_record": "PR8",
+                                    "push_connection": "EXP1", "pages": []})
+            older = tools._detail({"name": "D3", "last_push_status": "success", "last_push_record": "PR7",
+                                   "push_connection": "EXP1", "pages": []})
+        self.assertEqual(entered["written"], cash)
+        self.assertNotIn("written", failed)
+        self.assertNotIn("written", older)  # 旧记录 / MR.ERP：查不到就不给
+        self.assertEqual(asked, [["PR9"], ["PR7"]])
+        self.assertFalse(any("last_push_record" in out or "PR9" in json.dumps(out) for out in (entered, failed, older)))
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_document_detail")["description"]
         self.assertIn("never ask them to check Express", description)
 
     def test_runs_and_tasks_carry_results(self):
