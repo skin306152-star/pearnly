@@ -8,6 +8,8 @@
 - 分店（补充 甲.3，用户 2026-10-15）：同一法人在这条连接里有不止一个分店的账套时，进项票票面的买方分店（销项看卖方分店）
   只认这个分店的账套；票面没有本方分店（简易税票、收据）时用 CC 对话指定的分店（``work_branch``）。与所选账套的分店
   不同就拦，不静默改。只有一个分店的公司不按分店拦（分店号没有校验位、识别常读错一位，一套账服务所有分店时更不能拦）。
+  「几个分店」只数同一期间的账套：覆盖单据日期的；票上没有日期时与所选账套期间重叠的（2026-10-15 验收 F16：
+  一家 39 份账套都是分店 00001、只有 2014 年一份旧账套是 00000，被当成两个分店，当期的总公司票全被拦）。
 读不出、账套没报的都不拦（判断不了就按用户的选择）。
 """
 from __future__ import annotations
@@ -73,10 +75,30 @@ def _attributes(row: Any) -> Mapping[str, Any]:
     return found if isinstance(found, Mapping) else {}
 
 
-def company_branches(catalog: Any, tax: str) -> set:
-    """这条连接的目录里同一税号的账套报的分店号。"""
-    return {_branch5(_attributes(row).get("branch")) for row in catalog or () if isinstance(row, Mapping)
-            and _digits(_attributes(row).get("tax_id")) == tax and _digits(_attributes(row).get("branch"))}
+def _period(attributes: Mapping[str, Any]) -> tuple[dt.date | None, dt.date | None]:
+    return _day(attributes.get("period_start")), _day(attributes.get("next_end")) or _day(attributes.get("period_end"))
+
+
+def company_branches(catalog: Any, tax: str, *, day: dt.date | None = None,
+                     period: tuple[dt.date | None, dt.date | None] | None = None) -> set:
+    """这条连接的目录里同一税号的账套报的分店号。给了 ``day`` 只数覆盖那天的账套；没给 ``day`` 给了 ``period``（起，止）
+    只数期间与它重叠的；都没给数全部。没报期间的账套照数（判不出就不排除）。"""
+    found = set()
+    start_of, end_of = period or (None, None)
+    for row in catalog or ():
+        if not isinstance(row, Mapping):
+            continue
+        attributes = _attributes(row)
+        if _digits(attributes.get("tax_id")) != tax or not _digits(attributes.get("branch")):
+            continue
+        start, end = _period(attributes)
+        if start and end:
+            if day and not start <= day <= end:
+                continue
+            if not day and start_of and end_of and (end < start_of or start > end_of):
+                continue
+        found.add(_branch5(attributes.get("branch")))
+    return found
 
 
 def wrong_branch(attributes: Mapping[str, Any], catalog: Any, direction: str, fields: Mapping[str, Any],
@@ -85,7 +107,7 @@ def wrong_branch(attributes: Mapping[str, Any], catalog: Any, direction: str, fi
     tax, book_branch = _digits(attributes.get("tax_id")), attributes.get("branch")
     if len(tax) != 13 or not _digits(book_branch) or direction not in ("purchase", "sales"):
         return False
-    if len(company_branches(catalog, tax)) < 2:
+    if len(company_branches(catalog, tax, day=_day(fields.get("date")), period=_period(attributes))) < 2:
         return False
     own = "buyer" if direction == "purchase" else "seller"
     wanted = printed_branch(fields.get(f"{own}_branch"))
@@ -110,8 +132,7 @@ def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: o
     if wrong_branch(attributes, catalog, str(direction or ""), fields, work_branch):
         return BRANCH_MISMATCH
     day = _day(fields.get("date"))
-    start = _day(attributes.get("period_start"))
-    end = _day(attributes.get("next_end")) or _day(attributes.get("period_end"))
+    start, end = _period(attributes)
     if day and start and end and not start <= day <= end:
         return PERIOD_MISMATCH
     return ""

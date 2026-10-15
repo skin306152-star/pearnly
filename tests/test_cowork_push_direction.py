@@ -220,6 +220,30 @@ class BranchRouting(unittest.TestCase):
         self.assertEqual(account_match.company_branches(rows + [{"attributes": {"tax_id": OTHER, "branch": "00099"}}],
                                                         BOOK_TAX), {"00000", "00012"})
 
+    def test_branches_are_counted_within_the_same_period(self):
+        """验收 F16：39 份账套都是分店 00001、只有 2014 年一份旧账套是 00000——当期只有一个分店，总公司票不按分店拦。"""
+        def book(key, branch, start, end):
+            return {"source_id": key, "attributes": {"tax_id": BOOK_TAX, "branch": branch, "period_start": start,
+                                                     "period_end": end}}
+        old = book("old", "00000", "2014-01-01", "2014-12-31")
+        current = book("t9asc", "00001", "2026-01-01", "2026-12-31")
+        head_office = {"buyer_tax": BOOK_TAX, "buyer_branch": "สำนักงานใหญ่", "date": "2026-09-30"}
+        conflict = account_match.conflict
+        self.assertEqual(conflict("express", current, direction="purchase", fields=head_office, catalog=[old, current]), "")
+        # 没有日期：数与所选账套期间重叠的
+        undated = {key: value for key, value in head_office.items() if key != "date"}
+        self.assertEqual(conflict("express", current, direction="purchase", fields=undated, catalog=[old, current]), "")
+        # 同一期间真有两个分店：照拦
+        other = book("t9asc-hq", "00000", "2026-01-01", "2026-12-31")
+        self.assertEqual(conflict("express", current, direction="purchase", fields=head_office,
+                                  catalog=[old, current, other]), account_match.BRANCH_MISMATCH)
+        self.assertEqual(account_match.company_branches([old, current, other], BOOK_TAX,
+                                                        day=account_match._day("2014-06-01")), {"00000"})
+        # 没报期间的账套照数（判不出就不排除）
+        bare = {"source_id": "bare", "attributes": {"tax_id": BOOK_TAX, "branch": "00000"}}
+        self.assertEqual(account_match.company_branches([current, bare], BOOK_TAX, day=account_match._day("2026-09-30")),
+                         {"00000", "00001"})
+
 
 if __name__ == "__main__":
     unittest.main()
