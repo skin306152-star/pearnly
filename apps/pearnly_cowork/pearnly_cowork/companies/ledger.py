@@ -195,25 +195,56 @@ def _entry(rows, company_tax):
     return counted, items
 
 
-def _live_matches(rows) -> set:
-    """识别查重判为同号、被匹配的那张不在本月的：一次查询看它还在不在（删了的不再标重复）。"""
+def _live_matches(rows) -> dict:
+    """识别查重判为同号、被匹配的那张不在本月的：一次查询取回还在的（删了的不再标重复），``{单据: 行}``——同号的一组
+    交给 CC 核对时要写出它的单号、对方、金额与日期。"""
     here = {row.name for row in rows}
     wanted = sorted({match for match in map(exceptions.exact_match, rows) if match and match not in here})
     if not wanted:
-        return set()
-    return set(frappe.get_list(HISTORY, filters={"name": ["in", wanted]}, pluck="name",
-                               limit_page_length=len(wanted)))
+        return {}
+    found = frappe.get_list(HISTORY, filters={"name": ["in", wanted]}, fields=FIELDS, limit_page_length=len(wanted))
+    return {row.name: row for row in found}
+
+
+def _line(row, company_tax) -> dict:
+    """同号一组里的一张：单号、对方、金额、日期（交给 CC 时按这些找，不写内部记录名）。"""
+    return {"document": row.name, "invoice_no": row.get("invoice_no") or "",
+            "counterparty": pending.counterparty(row, company_tax), "amount": pending.amount(row.get("total_amount")),
+            "date": str(row.get("invoice_date") or "")}
 
 
 def _duplicates(rows, company_tax) -> list:
-    found = exceptions.month_duplicates(rows, company_tax, _live_matches(rows))
-    out = []
+    """月内重复单号：同号的几张（同对方同号，或识别查重判为同号的）合成一条（测试窗口第 3 轮：一张一行时同一组列两遍）。
+    一条带 ``count``（张数）与 ``documents``（每张的单号、对方、金额、日期；不在本月的被匹配那张也在里面），
+    其余字段取这组里排在最前的一张（本月单据的顺序：单据日期新 → 旧）。"""
+    live = _live_matches(rows)
+    found = exceptions.month_duplicates(rows, company_tax, set(live))
+    linked = {}
+    for name, others in found.items():
+        for other in others:
+            linked.setdefault(name, set()).add(other)
+            linked.setdefault(other, set()).add(name)
+    known = {**live, **{row.name: row for row in rows}}
+    order = [row.name for row in rows] + sorted(name for name in linked if name not in {row.name for row in rows})
+    rank = {name: index for index, name in enumerate(order)}
+    out, seen = [], set()
     for row in rows:
-        if row.name in found:
-            out.append(exceptions.item(
-                "duplicate_number", document=row.name, invoice_no=row.get("invoice_no") or "",
-                counterparty=pending.counterparty(row, company_tax), amount=pending.amount(row.get("total_amount")),
-                date=str(row.get("invoice_date") or ""), others=found[row.name]))
+        if row.name not in linked or row.name in seen:
+            continue
+        group, todo = set(), [row.name]
+        while todo:
+            name = todo.pop()
+            if name not in group:
+                group.add(name)
+                todo.extend(linked.get(name, ()))
+        seen |= group
+        names = sorted((name for name in group if name in known), key=lambda name: rank.get(name, len(order)))
+        lines = [_line(known[name], company_tax) for name in names]
+        first = lines[0]
+        out.append(exceptions.item(
+            "duplicate_number", document=first["document"], invoice_no=first["invoice_no"],
+            counterparty=first["counterparty"], date=first["date"], count=len(lines),
+            others=[line["document"] for line in lines[1:]], documents=lines))
     return out
 
 
@@ -250,19 +281,25 @@ def month(company, period, limit=None) -> dict:
     files = _files(tasks, first, after) if tasks else {}
     intake_items = _duplicates(documents, tax_id) + exceptions.file_items(files, tasks or {})
 
+    drafts = _drafts(row, period)
+    # 测试窗口第 3 轮：什么都没有的月份（没收到单、没推过、没有申报草稿）也报「还没回读」，「本月」卡就一直不隐藏。
+    # 没有可核对的就不催回读；核对一段只按推过的单算，没推过（也没有回读发现）时是 empty
+    pushed = counted["pushed"] + counted["in_flight"]
+    needed = bool(documents) or pushed > 0 or bool((drafts or {}).get("drafts"))
+
     verify = None
     verify_items = []
     if row.adapter == "express" and scope.allowed("intake"):
         express = [item for item in covering if item.get("adapter") == "express"]
         found = _readback(express, period)
         if found is not None:
-            verify_items = exceptions.readback_items(found, ended)
+            verify_items = exceptions.readback_items(found, ended, needed)
             waiting = any(item["status"] != "ready" or item.get("newer") == "reading" for item in found)
-            verify = {"sets": found, "state": exceptions.stage_state(len(found), verify_items, not ended or waiting)}
+            verify = {"sets": found, "state": exceptions.stage_state(len(found) if pushed else 0, verify_items,
+                                                                     not ended or waiting)}
 
     tax = None
     tax_items = []
-    drafts = _drafts(row, period)
     if drafts is not None:
         latest = {(item["connection"], item["key"].casefold()): item["readback"]
                   for item in (verify or {}).get("sets") or () if item.get("status") == "ready"}

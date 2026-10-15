@@ -117,6 +117,14 @@ GUIDANCE = [
     "a company otherwise covers only that company), and answer company by company from by_account_set, including "
     "those with none.",
     # 2026-10-13 录屏：拍了简易税票说「这张是某公司的，文具费」，CC 只识别，说票上没有这家公司的名字、要推送请告诉公司名
+    # 测试窗口第 3 轮：CC 把金额说成「元」。金额都是泰铢
+    "Amounts in tool results are Thai baht. Say the currency in the user's language (" + "บาท" + " in Thai, "
+    + "泰铢" + " in Chinese, THB or baht in English); never call it yuan or " + "元" + ".",
+    # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张
+    "When the user names documents by invoice number, counterparty, amount and date (for example a message "
+    "prefilled from the pending list or the month card), find each one with cowork_list_documents search set to "
+    "its invoice number (or the counterparty when there is no number), and use the amount and date to tell apart "
+    "documents with the same number.",
     "When the user says which company a document belongs to (for example 'this one is X's'), enter it into that "
     "company's account set (find it with cowork_intake_options search) without asking for the company again. "
     "Abbreviated tax invoices and receipts often name no buyer: the user's word is enough. Point out a conflict "
@@ -3203,7 +3211,9 @@ CC_DESKTOP = ("The Windows program on the user's computer that reads their folde
 # 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目及其来源，`pushed.written`）：推送与查推送
 # 结果共用一段说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对；测试窗口第 2 轮：没报 ERP
 # 单号、没说科目从哪来。
-WRITTEN_NOTE = ("An entered Express document carries written: the facts of how it was written. payment cash = a cash "
+WRITTEN_NOTE = ("An entered document carries written: the facts of how it was written. written.docnum is the ERP "
+                "document number it got (on every entered document, however it was pushed: in a chat, from the "
+                "pending page or by a scheduled task). For Express, payment cash = a cash "
                 "purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
                 "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
@@ -3224,8 +3234,11 @@ WRITTEN_NOTE = ("An entered Express document carries written: the facts of how i
                 "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
                 "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
                 "user its ERP document number (docnum). Say plainly whether it was entered as cash or credit and "
-                "which account it went to, each with where that came from; never ask the user to check Express for "
-                "the number, cash or credit, or the account.")
+                "which account it went to, each with where that came from, described in the user's own language "
+                "(for example 'you chose it for this supplier' or 'remembered from before'); never show the codes "
+                "themselves (chosen, remembered, task_default, express_history, matched, default and the like); "
+                "never ask the user to check Express for the number, cash or credit, or the account, and never "
+                "end with a suggestion to check or confirm in Express what you have just told them.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},

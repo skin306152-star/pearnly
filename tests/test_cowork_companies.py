@@ -1455,6 +1455,27 @@ class ProviderAndToolTests(unittest.TestCase):
         listed = json.loads(tools.companies({}))
         self.assertEqual(listed["companies"][0]["branches"], ["00000", "00012"])
 
+    def test_profile_times_reach_cc_as_local_time_with_the_offset(self):
+        # 测试窗口第 3 轮：主档给页面的是 UTC（Z），CC 把 14:08Z 说成曼谷 14:08；交给 CC 的换成站点时区并带偏移
+        tools = self._tools()
+        self.assertEqual(tools.local_iso("2026-10-15T14:08:00Z"), "2026-10-15T21:08:00+07:00")
+        self.assertEqual(tools.local_iso("2026-10-15T14:08:00+00:00"), "2026-10-15T21:08:00+07:00")
+        for kept in ("2026-09-30", "", None, "not a time", "2026-10-15 14:08:00"):  # 只有日期、空、读不出、没带时区
+            self.assertEqual(tools.local_iso(kept), kept)
+        detail = {"company": {"id": self.abc, "created_at": "2026-10-01T03:00:00Z"},
+                  "notes": [{"id": "N1", "updated_at": "2026-10-02T00:30:00Z"}],
+                  "choices": [{"kind": "payment", "set_at": "2026-10-15T14:08:00Z"},
+                              {"kind": "account", "set_at": "2026-09-30"}],  # Express 历史：最后日期
+                  "drafts": None, "tasks": []}
+        with mock.patch.object(service, "detail", lambda company, period=None: json.loads(json.dumps(detail))):
+            found = json.loads(tools.profile({"company": self.abc}))
+        self.assertEqual(found["company"]["created_at"], "2026-10-01T10:00:00+07:00")
+        self.assertEqual(found["notes"][0]["updated_at"], "2026-10-02T07:30:00+07:00")
+        self.assertEqual([item["set_at"] for item in found["choices"]], ["2026-10-15T21:08:00+07:00", "2026-09-30"])
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_company_profile")["description"]
+        self.assertIn("local time with its UTC offset", description)
+        self.assertIn("never by its source code", description)
+
     def test_a_company_conversation_defaults_to_that_companys_account_sets(self):
         """2026-10-15 测试机：公司对话里不带账套问「这个月哪些单进了 Express」，答出了别家三份账套的单。默认范围 = 这家的
         全部账套（各年度、各分店）；对话指定分店只看该分店；all_companies 放开；没挂公司照旧（None）。"""
@@ -1692,7 +1713,13 @@ def _month_readback(sets, period):
                         "direct": 0}, "newer": None} for item in sets]
 
 
-sys.modules["month_readback_double"] = types.SimpleNamespace(month_status=_month_readback)
+def _month_not_read(sets, period):
+    """回读钩子的替身：每本账套都还没回读过。"""
+    return [{"connection": item["connection"], "key": item["key"], "label": item["label"], "status": "none",
+             "readback": None, "counts": None, "newer": None} for item in sets]
+
+
+sys.modules["month_readback_double"] = types.SimpleNamespace(month_status=_month_readback, not_read=_month_not_read)
 MONTH_DRAFTS = {"drafts": [{"name": "CTD-9", "kind": "vat_return", "branch": "00000", "connection": "C1",
                             "account_set": "S:\\69EXP\\ABC", "source_ref": "RB0",
                             "updated_at": "2026-10-01 10:00:00", "tax_total": "70.00",
@@ -1766,7 +1793,12 @@ class MonthLedgerTests(unittest.TestCase):
                                   "not_invoice": 1, "express_changed": 1, "express_missing": 1, "tax_issue": 1,
                                   "tax_draft_stale": 1})
         documents = {item["document"] for item in found["exceptions"]["items"] if item["document"]}
-        self.assertEqual(documents, {"h1", "h2", "h3", "h5", "h7", "h11"})  # 别家（h8）、上个月（h9）不在
+        self.assertEqual(documents, {"h1", "h2", "h3", "h5", "h11"})  # 别家（h8）、上个月（h9）不在
+        # 同号的 h3、h7 合成一条（测试窗口第 3 轮），每张的单号、对方、金额、日期都在 documents 里
+        same, = [item for item in found["exceptions"]["items"] if item["code"] == "duplicate_number"]
+        self.assertEqual((same["document"], same["count"], same["others"]), ("h3", 2, ["h7"]))
+        self.assertEqual([line["document"] for line in same["documents"]], ["h3", "h7"])
+        self.assertEqual(set(same["documents"][0]), {"document", "invoice_no", "counterparty", "amount", "date"})
         severities = [item["severity"] for item in found["exceptions"]["items"]]
         self.assertEqual(severities, sorted(severities, key=["action", "warn", "info"].index))
         # 定时任务的文件按登记时间归月：[本月一号, 下月一号)
@@ -1778,9 +1810,13 @@ class MonthLedgerTests(unittest.TestCase):
         rows["h6"].update(duplicate_check_status="matched", duplicate_level="exact", duplicate_match="h9")  # 上个月那张还在
         rows["h11"].update(duplicate_check_status="matched", duplicate_level="exact", duplicate_match="gone")  # 删了
         rows["h5"].update(duplicate_check_status="matched", duplicate_level="party", duplicate_match="h9")  # 不是同号
-        found = {item["document"]: item.get("others") for item in self.month()["exceptions"]["items"]
+        found = {item["document"]: item for item in self.month()["exceptions"]["items"]
                  if item["code"] == "duplicate_number"}
-        self.assertEqual(found, {"h3": ["h7"], "h7": ["h3"], "h6": ["h9"]})
+        self.assertEqual({name: item["others"] for name, item in found.items()}, {"h3": ["h7"], "h6": ["h9"]})
+        # 被匹配的上个月那张（h9）不在本月，也写出它的单号、日期给 CC 核对
+        self.assertEqual([(line["document"], line["date"]) for line in found["h6"]["documents"]],
+                         [("h6", "2026-09-20"), ("h9", "2026-08-31")])
+        self.assertEqual(found["h6"]["count"], 2)
 
     def test_documents_found_only_by_account_set_are_found_in_any_slash_spelling(self):
         # 按名称建、没有税号可比的单据只能靠推送去向的账套认：斜杠写法、末尾分隔符不同也要查得到
@@ -1798,6 +1834,38 @@ class MonthLedgerTests(unittest.TestCase):
         self.assertEqual(found["stages"]["intake"]["state"], "open")
         self.assertEqual(found["stages"]["entry"]["state"], "open")
         self.assertNotIn("readback_needed", found["exceptions"]["counts"])
+
+    def test_a_month_with_nothing_asks_for_no_readback_and_every_stage_is_empty(self):
+        # 测试窗口第 3 轮：没收到单、没推过、没有申报草稿的月份也报「还没回读」，会话栏「本月」卡一直不隐藏
+        frappe.db.tables["Cowork OCR History"] = {}
+        frappe.db.tables["Cowork Folder Intake Rule"] = {}
+        frappe.hooks = {"cowork_company_month_readback": ["month_readback_double.not_read"]}
+        with mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            found = self.month()
+        self.assertTrue(found["ended"])
+        self.assertEqual(found["exceptions"]["items"], [])
+        self.assertEqual({stage: found["stages"][stage]["state"] for stage in ("intake", "entry", "verify", "tax")},
+                         dict.fromkeys(("intake", "entry", "verify", "tax"), "empty"))
+        # 有申报草稿（要用回读出）、或收到过单：照旧催回读；收到了单但一张没推，核对一段仍不算「已推」
+        with mock.patch.object(tax_service, "month_drafts", lambda tax, period: json.loads(json.dumps(MONTH_DRAFTS))):
+            self.assertIn("readback_needed", self.month()["exceptions"]["counts"])
+        frappe.db.tables["Cowork OCR History"] = {"h5": history("h5")}
+        with mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            found = self.month()
+        self.assertIn("readback_needed", found["exceptions"]["counts"])
+        self.assertEqual(found["stages"]["entry"]["pushed"], 0)
+
+    def test_nothing_pushed_leaves_the_verify_stage_empty(self):
+        # 没推过的月份：回读一段没有可核对的（没有发现时是 empty，不是「进行中」）
+        frappe.db.tables["Cowork OCR History"] = {}
+        frappe.db.tables["Cowork Folder Intake Rule"] = {}
+        frappe.hooks = {"cowork_company_month_readback": ["month_readback_double.not_read"]}
+        with mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            found = self.month("2026-10")  # 还没过完的月份
+        self.assertEqual(found["stages"]["verify"]["state"], "empty")
+        frappe.db.tables["Cowork OCR History"] = {"h3": history("h3", invoice_date="2026-10-02", last_push_status="success")}
+        with mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}}):
+            self.assertEqual(self.month("2026-10")["stages"]["verify"]["state"], "open")
 
     def test_documents_are_read_in_one_bounded_query_and_marked_when_cut(self):
         calls = []
@@ -1817,8 +1885,8 @@ class MonthLedgerTests(unittest.TestCase):
         self.assertLessEqual(found["stages"]["intake"]["received"], 3)
         found = self.month(limit=2)
         self.assertEqual(len(found["exceptions"]["items"]), 2)
-        self.assertEqual(found["exceptions"]["total"], 13)
-        self.assertEqual(found["exceptions"]["severities"], {"action": 7, "warn": 2, "info": 4})  # 截断前的全数
+        self.assertEqual(found["exceptions"]["total"], 12)
+        self.assertEqual(found["exceptions"]["severities"], {"action": 7, "warn": 2, "info": 3})  # 截断前的全数
 
     def test_a_cut_month_is_never_clear(self):
         frappe.db.tables["Cowork OCR History"] = {name: history(name, last_push_status="success", invoice_no=name)

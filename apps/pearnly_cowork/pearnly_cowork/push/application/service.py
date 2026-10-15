@@ -700,16 +700,28 @@ def outcomes(records):
 WRITTEN_MAX = 50  # 同 CC 列单据一页的上限
 
 
+def _entered(row):
+    """一条入账成功的记录给 CC 的 ``written``：Express 载荷里怎么写的（`pushed.written`），加上 ERP 回报的单号 ``docnum``
+    （测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，CC 后来查详情 / 推送结果时只有现赊与科目，没有单号）。
+    不是 Express 的（MR.ERP）只给单号；既没有载荷事实也没有单号回 None。"""
+    item = dict(pushed_rules.written(_loads(row.payload_json)) or {})
+    docnum = str(getattr(row, "external_docnum", None) or "").strip()
+    if docnum:
+        item["docnum"] = docnum
+    return item or None
+
+
 def written(records):
-    """推送成功的这几条记录各自怎么写进 Express 的（`pushed.written`）：``{记录名: {...}}``，不是 Express 的、没成功的不回。
-    给 CC 列推送结果用（验收 F19）：记录名取自调用方已按权限取到的单据（``last_push_record``），这里不再按人筛；只读。"""
+    """推送成功的这几条记录各自怎么写进 ERP 的（`_entered`）：``{记录名: {...}}``，没成功的、什么都没有的不回。
+    给 CC 列推送结果、单据详情、已入账重推用（验收 F19）：记录名取自调用方已按权限取到的单据（``last_push_record``），
+    这里不再按人筛；只读。走哪条路推的（对话、待处理页当场选、定时任务）都一样，单号都从推送记录取。"""
     scope.require_read()
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:WRITTEN_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, payload_json FROM `tabCowork Push Record`
+    rows = frappe.db.sql("""SELECT name, payload_json, external_docnum FROM `tabCowork Push Record`
         WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
-    found = {row.name: pushed_rules.written(_loads(row.payload_json)) for row in rows}
+    found = {row.name: _entered(row) for row in rows}
     return {name: item for name, item in found.items() if item}
 
 

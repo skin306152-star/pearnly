@@ -313,7 +313,7 @@ class TextTests(unittest.TestCase):
                              "taxDrafts", "remembered", "noPeriod", "period", "branch", "noBranch", "headOffice", "branchShort",
                              "combinedVat", "moveTo", "showMore", "deleteCompany", "chooseOnComputer", "changeFolder",
                              "removeFolder", "updateDesktop", "folderOk", "folderWaiting", "folderOffline", "folderMissing",
-                             "payCash", "payCredit", "vatClaim", "vatExpense", "pending", "handToCC", "handToCCText",
+                             "payCash", "payCredit", "vatClaim", "vatExpense", "pending", "handToCC", "handToCCText", "handToCCOne",
                              "fromHistory", "history", "vatCheck"} <= sets[lang], lang)
             self.assertIn("earlierFolders:", block(settings, f"  {lang}: {{"), lang)
         self.assertEqual(sets["en"], sets["zh"])
@@ -2196,7 +2196,10 @@ const item: any = { document: "OCR-0001", company: "comp_a", reason_code: "faile
 const open = [{ ...item, invoice_no: "INV-1", document: "OCR-1", date: "2026-08-30" },
   { ...item, invoice_no: "", counterparty: "Shop", document: "OCR-2", date: "2026-09-01" },
   { ...item, invoice_no: "INV-3", document: "OCR-3", date: "2026-09-02" }];
-assert.equal(handText(open), "Handle these: INV-1 [OCR-1]、Shop [OCR-2]、INV-3 [OCR-3]");
+// 单号 · 对方 · 金额 · 日期，几张时每张一行；不写内部记录名（测试窗口第 3 轮）
+assert.equal(handText(open), "Handle these: \nINV-1 · 2026-08-30\nShop · 2026-09-01\nINV-3 · 2026-09-02");
+assert.equal(handText([{ ...open[0], counterparty: "Makro", amount: "1070.5" }]), "Handle this one: INV-1 · Makro · 1,070.50 · 2026-08-30");
+assert.ok(!/OCR-\d/.test(handText(open)));
 assert.equal(monthOfItems(open), "2026-09");
 assert.equal(monthOfItems([{ ...item, date: "" }]), "");
 """)
@@ -2800,6 +2803,69 @@ resetSidebarView();
 assert.ok(!g.storage.has("cc.sidebar.view:a@x.test"));
 assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
 """, stubs={"cc-storage": STORAGE_STUB})
+
+    def test_group_folds_are_kept_per_user_on_every_device(self):
+        # 测试窗口第 3 轮（手机）：重开 App 后各组都收着、电脑却记得。折叠按用户记在本机（同「分组和排序」），首屏就按这台设备上次
+        # 登录的人读；电脑、手机同一份 store；有对话的前 5 家默认展开，没有对话的空公司组不占位
+        seed = r"""
+const s = (globalThis as any).storage as Map<string, string>;
+s.set("cc.sidebar.user", "a@x.test");
+s.set("cc.sidebar.collapsed:a@x.test", JSON.stringify(["project:comp_A", "open:project:comp_F"]));
+s.set("cc.sidebar.collapsed", JSON.stringify(["project:comp_B"]));
+"""
+        self.run_page(r"""
+import "cc-storage";
+import "cc-seed";
+import { bindFoldUser, foldKey, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
+const g = globalThis as any;
+const fold = () => [...useSidebarFold.getState().collapsed].sort();
+// 重开：资料还没到，首屏就是上次那个人记下的
+assert.deepEqual(fold(), ["open:project:comp_F", "project:comp_A"]);
+toggleFoldSection({ key: "project:comp_A", rank: 0 });
+assert.deepEqual(JSON.parse(g.storage.get(foldKey("a@x.test"))), ["open:project:comp_F"]);
+bindFoldUser("a@x.test");   // 同一人：不变
+assert.deepEqual(fold(), ["open:project:comp_F"]);
+// 换一个人：他没记过 → 用设备上原来的那份；之后记在他自己的键
+bindFoldUser("b@x.test");
+assert.deepEqual(fold(), ["project:comp_B"]);
+toggleFold("2026-10-15");
+assert.deepEqual(JSON.parse(g.storage.get(foldKey("b@x.test"))), ["project:comp_B", "2026-10-15"]);
+bindFoldUser("a@x.test");
+assert.deepEqual(fold(), ["open:project:comp_F"]);
+""", stubs={"cc-storage": STORAGE_STUB, "cc-seed": seed})
+        # 这台设备第一次：还不知道是谁时点的、改版前设备上的那份，登录后存给这个人
+        self.run_page(r"""
+import "cc-storage";
+import "cc-seed";
+import { bindFoldUser, foldKey, toggleFold, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
+const g = globalThis as any;
+assert.deepEqual([...useSidebarFold.getState().collapsed], ["recents"]);
+toggleFold("pinned");
+assert.deepEqual(JSON.parse(g.storage.get("cc.sidebar.collapsed")), ["recents", "pinned"]);
+bindFoldUser("c@x.test");
+assert.deepEqual(JSON.parse(g.storage.get(foldKey("c@x.test"))), ["recents", "pinned"]);
+""", stubs={"cc-storage": STORAGE_STUB,
+            "cc-seed": '(globalThis as any).storage.set("cc.sidebar.collapsed", JSON.stringify(["recents"]));'})
+        self.run_page(r"""
+import { companySections, groupOpen } from "@/lib/managed-agents/sidebar-groups";
+const at = (m: number) => Date.UTC(2026, 9, 15, 12, 0) - m * 60000;
+// 7 家空公司活动更近（排在前面），有对话的 G、H 在后：G、H 仍是默认展开的前两家，空公司组默认收着
+const projects = ["A", "B", "C", "D", "E", "F", "G", "H"].map((x, i) => ({ id: `comp_${x}`, title: `Company ${x}`, last_active: new Date(at(i)).toISOString() }));
+const rows = [{ index: 0, title: "g", starred: false, time: at(500), group: "comp_G" }, { index: 1, title: "h", starred: false, time: at(600), group: "comp_H" }];
+const sections = companySections(rows, projects)!;
+const open = (key: string) => groupOpen(sections.find((s) => s.key === key) as any, new Set(), false);
+assert.deepEqual(sections.map((s) => s.key).slice(0, 3), ["project:comp_A", "project:comp_B", "project:comp_C"]);
+assert.equal(open("project:comp_G"), true);
+assert.equal(open("project:comp_H"), true);
+assert.equal(open("project:comp_A"), false);
+// 服务端说这家还有更多（本页还没取到它的对话）：也算有对话
+const more = companySections([], projects, { serverMore: { comp_H: "x|y" } })!;
+assert.equal(groupOpen(more.find((s) => s.key === "project:comp_H") as any, new Set(), false), true);
+""")
+        tree = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("const collapsed = useSidebarFold((s) => s.collapsed);", tree)
+        self.assertIn("bindFoldUser(user);", tree)
+        self.assertNotIn("localStorage", tree)
 
     def test_menu_letters_only_fire_on_the_menu_itself(self):
         # 审查 B1：子菜单（「移到 ▸」「将 N 项移到…」）里的键沿组件树冒到行菜单的 onKeyDown；在里面按 D 不能删对话、按 P 不能置顶

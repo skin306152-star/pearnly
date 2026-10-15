@@ -20,7 +20,8 @@ import { shownError } from "@/lib/frappe";
 import { useActivity, useBumps } from "@/lib/managed-agents/activity";
 import { NO_FILING, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
-import { companySections, flatSections, groupOpen, monthSections, toggleGroup } from "@/lib/managed-agents/sidebar-groups";
+import { bindFoldUser, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
+import { companySections, flatSections, groupOpen, monthSections } from "@/lib/managed-agents/sidebar-groups";
 import { bindSidebarViewUser, createdOf, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { useView } from "@/lib/nav";
 import { useProfile } from "@/lib/profile";
@@ -174,43 +175,10 @@ const ThreadListMore: FC<{ searching: boolean }> = ({ searching }) => {
 
 type ThreadListGroup = { key: string; label: string; indices: number[] };
 
-// 分组可以点标题折叠（同 Claude 侧栏的「今天 ⌄」），折叠哪些记在本机
-const COLLAPSED_KEY = "cc.sidebar.collapsed";
-
-function readCollapsed(): Set<string> {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]") as string[]);
-  } catch {
-    return new Set();
-  }
-}
-
-function saveCollapsed(next: Set<string>) {
-  try {
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
-  } catch {
-    // 无痕窗口等存不了：本次照样折叠
-  }
-}
-
+// 分组可以点标题折叠（同 Claude 侧栏的「今天 ⌄」），折叠哪些记在本机、按用户（lib/managed-agents/sidebar-fold.ts）
 function useCollapsedGroups() {
-  const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
-  const toggle = (key: string) =>
-    setCollapsed((previous) => {
-      const next = new Set(previous);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      saveCollapsed(next);
-      return next;
-    });
-  /** 公司组：前 5 家默认展开，其余默认收起（键 project:<编号>，见 sidebar-groups 的 groupOpen）。 */
-  const toggleSection = (section: { key: string; rank?: number }) =>
-    setCollapsed((previous) => {
-      const next = toggleGroup(section, previous);
-      saveCollapsed(next);
-      return next;
-    });
-  return { collapsed, toggle, toggleSection };
+  const collapsed = useSidebarFold((s) => s.collapsed);
+  return { collapsed, toggle: toggleFold, toggleSection: toggleFoldSection };
 }
 
 const dayKey = (day: Date) => `${day.getFullYear()}-${day.getMonth() + 1}-${day.getDate()}`;
@@ -262,7 +230,9 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   // 「分组和排序」按用户记：知道是谁了就换成这个人的
   const user = useProfile()?.user;
   useEffect(() => {
-    if (user) bindSidebarViewUser(user);
+    if (!user) return;
+    bindSidebarViewUser(user);
+    bindFoldUser(user);
   }, [user]);
 
   const sections = useMemo(() => {

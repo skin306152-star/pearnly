@@ -9,7 +9,8 @@
 //          问题与分店）、金额（汇总的写「N 张」，草稿问题写「N 项」），行尾是去处：
 //            choice_needed  当场选（pending.tsx 的 ChooseRow，F18 规则：只预选已定的或服务端建议的，没有就空着必须人选）
 //            task           到定时任务页并定位到那个任务
-//            其余           交给 CC：在这家开新对话、预填不自动发送（单据同待处理的「交给 CC」，重复单号、回读、草稿各有一句）
+//            其余           交给 CC：在这家开新对话、预填不自动发送（单据同待处理的「交给 CC」，重复单号、回读、草稿各有一句；
+//                           单据写单号 · 对方 · 金额 · 日期，不写内部记录名）。同号的几张服务端合成一条，行写「单号 · N 张」
 //          知悉的整行淡色（不催）。
 //   空态   会话栏：没取到、取不到月份、整个月什么都没有时整张卡不显示；出错时显示原因；卡头是当月写「本月」，否则写月份。
 //          公司页：一直显示，月份胶囊与「在这家新建对话」的同一个（页面选「不指定」时台账看上个月），取的时候转圈。
@@ -23,12 +24,13 @@ import { PanelCard } from "@/components/company-cards";
 import { ChooseRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
-import { branchShort, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
+import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
   attentionCount,
   choosableException,
   dayShort,
+  dayTime,
   emptyMonth,
   exceptionSubject,
   groupExceptions,
@@ -56,7 +58,7 @@ export const FORM_NAME: Record<string, string> = { vat_return: "ภ.พ.30", wit
 /** 一本账套的回读：还在读、谁何时读的、失败、还没读。 */
 export function setSummary(set: ReadbackSet): string {
   if (set.status === "reading" || set.newer === "reading") return co.ledger.reading;
-  if (set.status === "ready") return co.ledger.readBack(dayShort(set.ready_at), set.requested_by_name || set.requested_by || "");
+  if (set.status === "ready") return co.ledger.readBack(dayTime(set.ready_at), set.requested_by_name || set.requested_by || "");
   if (set.status === "failed") return co.ledger.readFailed;
   return co.ledger.code.readback_needed;
 }
@@ -112,13 +114,17 @@ const StageRow: FC<{ stage: Stage; month: Month }> = ({ stage, month }) => {
   );
 };
 
-/** 一条异常的一行内容：码名、单据 / 对方、金额（汇总的写「N 张」，草稿问题写「N 项」）。 */
+/** 同号的一组（服务端合成一条，带每张的单号等）。 */
+export const sameNumberGroup = (item: MonthException) => item.code === "duplicate_number" && (item.documents?.length ?? 0) > 1;
+
+/** 一条异常的一行内容：码名、单据 / 对方、金额（汇总的写「N 张」，草稿问题写「N 项」）；同号的一组写「单号 · N 张」。 */
 const ItemHead: FC<{ item: MonthException }> = ({ item }) => {
-  const extra = formatAmount(item.amount) || (item.count ? (item.code === "tax_issue" ? co.ledger.issues(item.count) : co.ledger.docs(item.count)) : "");
+  const group = sameNumberGroup(item);
+  const extra = group ? "" : formatAmount(item.amount) || (item.count ? (item.code === "tax_issue" ? co.ledger.issues(item.count) : co.ledger.docs(item.count)) : "");
   return (
     <>
       <span className="cc-month-code">{codeName(item)}</span>
-      <span className="cc-month-sub">{exceptionSubject(item, branchShort)}</span>
+      <span className="cc-month-sub">{group ? co.ledger.sameNumber(item.invoice_no || "", item.documents!.length) : exceptionSubject(item, branchShort)}</span>
       {extra && <span className="cc-panel-extra tabular-nums">{extra}</span>}
     </>
   );
@@ -197,6 +203,13 @@ export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> 
 };
 
 // ---------------------------------------------------------------- 去处
+/** 重复单号只是知悉（推送不查重不拦）：同号的几张一起交过去，说明是核对同号，不是「处理」。每张一行：单号 · 对方 · 金额 ·
+ *  日期，不写内部记录名（测试窗口第 3 轮）；旧服务端没给 documents 时只写这一张。 */
+export function duplicatePrefill(item: MonthException): string {
+  const lines = (item.documents?.length ? item.documents : [item]).map(docLine).filter(Boolean);
+  return co.ledger.duplicateText(docList(lines));
+}
+
 /** 点了一条异常：任务 → 任务页定位；单据 → 交给 CC（同待处理）；回读 / 草稿 → 在这家开新对话、预填一句（都不自动发送）。 */
 function useLedgerActions(company: string, period: string, drop: (document: string) => void, reload: () => Promise<void>): LedgerHandlers {
   const start = useStartIn();
@@ -212,11 +225,7 @@ function useLedgerActions(company: string, period: string, drop: (document: stri
     }
     const filing = { project: company, period: withPeriod ? period : "", scope: "" };
     if (item.code === "duplicate_number" && item.document) {
-      // 重复单号只是知悉（推送不查重不拦）：同号的几张一起交过去，说明是核对同号，不是「处理」
-      const list = [item, ...(item.others ?? []).map((document) => ({ document, invoice_no: "" }))]
-        .map((i) => [i.invoice_no || "", `[${i.document}]`].filter(Boolean).join(" "))
-        .join("、");
-      start(filing, co.ledger.duplicateText(list), false);
+      start(filing, duplicatePrefill(item), false);
       return;
     }
     if (item.document) {

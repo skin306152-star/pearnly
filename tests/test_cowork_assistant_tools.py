@@ -2161,10 +2161,12 @@ class PushOutcomeServiceTests(unittest.TestCase):
         self.assertEqual(found["PR7"]["written"], {key: value for key, value in self.CASH.items() if key != "payment_from"})
 
     def test_results_list_reads_what_was_written_for_entered_records_only(self):
-        # cowork_push_results 那条路：记录名来自已按权限取到的单据，这里不按人筛；没成功的、不是 Express 的不回
+        # cowork_push_results 那条路：记录名来自已按权限取到的单据，这里不按人筛；没成功的不回。单号一律从推送记录带上
+        # （测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，详情 / 推送结果里没有单号）；MR.ERP 只有单号
         service, queries = _push_service(self.ROWS)
         self.assertEqual(service.written(["PR3", "PR2", "PR6", "PR1", "PR3", None]),
-                         {"PR3": self.CASH, "PR1": self.CASH})
+                         {"PR3": {**self.CASH, "docnum": "HP691013-002"}, "PR6": {"docnum": "PO-1"},
+                          "PR1": {**self.CASH, "docnum": "HP691013-001"}})
         (query, values), = queries
         self.assertIn("WHERE status='success' AND name IN %s", query)
         self.assertEqual(values, (("PR3", "PR2", "PR6", "PR1"),))
@@ -2344,6 +2346,24 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertFalse(any("last_push_record" in out or "PR9" in json.dumps(out) for out in (entered, failed, older)))
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_document_detail")["description"]
         self.assertIn("never ask the user to check Express", description)
+
+    def test_entered_documents_carry_the_erp_number_and_cc_speaks_the_users_words(self):
+        # 测试窗口第 3 轮：待处理页当场选完重推的票，CC 查详情时没有 Express 单号；写的是「元」；把 remembered 原样念出来、
+        # 说完还叫人去 Express 看。written 带 docnum（服务端从推送记录取，见 PushOutcomeServiceTests），说明讲清这几条
+        entered = {"payment": "credit", "payment_from": "chosen", "debit_account": "53-05-02-00", "docnum": "RR691015-004"}
+        with mock.patch.object(tools.application, "written", lambda records: {"PR9": entered}, create=True):
+            detail = tools._detail({"name": "D1", "last_push_status": "success", "last_push_record": "PR9",
+                                    "push_connection": "EXP1", "pages": []})
+        self.assertEqual(detail["written"]["docnum"], "RR691015-004")
+        note = tools.WRITTEN_NOTE
+        self.assertIn("written.docnum is the ERP document number", note)
+        self.assertIn("from the pending page or by a scheduled task", note)
+        self.assertIn("never show the codes", note)
+        self.assertIn("never end with a suggestion to check or confirm in Express", note)
+        guidance = " ".join(tools.GUIDANCE)
+        self.assertIn("Amounts in tool results are Thai baht", guidance)
+        self.assertIn("never call it yuan", guidance)
+        self.assertIn("cowork_list_documents search set to its invoice number", guidance)
 
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},

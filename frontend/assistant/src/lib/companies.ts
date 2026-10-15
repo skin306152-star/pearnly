@@ -240,6 +240,16 @@ export function branchesOf(detail: Pick<Detail, "branches" | "account_sets"> | n
 }
 
 /** 千分位、保留服务端给的小数（不经浮点）。 */
+/** 交给 CC 时写一张单：单号 · 对方 · 金额 · 日期（测试窗口第 3 轮：预填里不写内部记录名 CWH-…，CC 按单号找得到）。 */
+export function docLine(item: { invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string }): string {
+  return [item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ");
+}
+
+/** 交给 CC 的几张单：一张时接在句子后面，几张时每张一行。 */
+export function docList(lines: readonly string[]): string {
+  return lines.length > 1 ? `\n${lines.join("\n")}` : (lines[0] ?? "");
+}
+
 export function formatAmount(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "";
   const text = String(value).trim();

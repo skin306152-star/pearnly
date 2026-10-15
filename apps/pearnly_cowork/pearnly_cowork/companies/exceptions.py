@@ -126,9 +126,10 @@ def exact_match(row) -> str:
     return match if match and match != row.get("name") else ""
 
 
-def readback_items(sets, ended) -> list:
+def readback_items(sets, ended, needed=True) -> list:
     """回读的发现（Express 里改了、删了、作废了、找不到 CC 推的单，或直接在 Express 记的）；月份已结束、还没有完成的回读的
-    账套给 readback_needed。``sets``：`readback.service.month_status` 的形状。"""
+    账套给 readback_needed——``needed`` 为假（这个月没收到单、没推过、也没有申报草稿，没有可核对的）时不给。
+    ``sets``：`readback.service.month_status` 的形状。"""
     out = []
     for found in sets or ():
         where = {"connection": found.get("connection"), "account_set_key": found.get("key"),
@@ -138,7 +139,7 @@ def readback_items(sets, ended) -> list:
             for change in EXPRESS_CHANGES:
                 if int(counted.get(change) or 0) > 0:
                     out.append(item(f"express_{change}", count=int(counted[change]), **where))
-        elif ended and found.get("status") != "reading":
+        elif ended and needed and found.get("status") != "reading":
             out.append(item("readback_needed", **where))
     return out
 

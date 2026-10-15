@@ -19,6 +19,8 @@ import {
   cachedDetail,
   type ChoiceNeeded,
   type ChoicesView,
+  docLine,
+  docList,
   formatAmount,
   isPeriod,
   listCompanies,
@@ -73,10 +75,11 @@ export function choosable(item: PendingItem): boolean {
   return item.action === "choose" && !!item.choice?.connection;
 }
 
-/** 「交给 CC」预填的话：处理这几张：INV-001 [单据编号]、…（不自动发送）。 */
+/** 「交给 CC」预填的话（不自动发送）：一张「处理这张：INV-001 · 对方 · 1,070.00 · 2026-09-05」，几张时每张一行。
+ *  只写单号、对方、金额、日期，不写内部记录名（测试窗口第 3 轮）；CC 按单号找（工具说明里讲了）。 */
 export function handText(items: readonly PendingItem[]): string {
-  const list = items.map((i) => [i.invoice_no || i.counterparty || "", `[${i.document}]`].filter(Boolean).join(" ")).join("、");
-  return co.handToCCText(list);
+  const lines = items.map(docLine).filter(Boolean);
+  return lines.length === 1 ? co.handToCCOne(lines[0]!) : co.handToCCText(docList(lines));
 }
 
 /** 这几张单的月份（取最多的那个月；没有日期的不算）。 */

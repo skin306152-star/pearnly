@@ -88,7 +88,8 @@ class LedgerSourceTests(unittest.TestCase):
         # 卡头：当月写「本月」，对话挂的是别的月写那个月
         self.assertIn("const title = period === periodOf(new Date()) ? co.thisMonth : monthLabel(period);", card)
         # 重复单号只是知悉：单独一句「核对同号」，不用「处理这几张」；草稿用表名，不带内部码
-        self.assertIn("start(filing, co.ledger.duplicateText(list), false);", ledger)
+        self.assertIn("start(filing, duplicatePrefill(item), false);", ledger)
+        self.assertIn("return co.ledger.duplicateText(docList(lines));", ledger)
         self.assertIn('co.draftText(FORM_NAME[item.kind ?? ""] ?? item.kind ?? "", month)', ledger)
         # 当场选沿用待处理的 ChooseRow（F18 规则在它里面）；交给 CC 同一个 useAskCC
         self.assertIn("<ChooseRow item={pendingOf(item, company)} head={<ItemHead item={item} />}", ledger)
@@ -143,7 +144,7 @@ import { renderToStaticMarkup } from "react-dom/server.browser";
 import fixture from "cc-month-fixture";
 import { LedgerBody, GROUP_SHOWN, GROUP_SHOWN_BY, stageSummary, codeName } from "@/components/month-ledger";
 import { choosable } from "@/components/pending";
-import { attentionCount, dayShort, emptyMonth, exceptionSubject, groupExceptions, loadMonth, pendingOf, readingNow, shownStages, taxDue, unlisted } from "@/lib/month";
+import { attentionCount, dayShort, dayTime, emptyMonth, exceptionSubject, groupExceptions, loadMonth, pendingOf, readingNow, shownStages, taxDue, unlisted } from "@/lib/month";
 
 const g = globalThis as any;
 const month: any = fixture.month;
@@ -169,23 +170,35 @@ assert.deepEqual(stages, [["intake", "attention"], ["entry", "attention"], ["ver
 assert.equal(stageSummary("intake", month), "9 documents");
 // 录账写出另有 2 张只识别（收单 9 = 录账 7 + 只识别 2）；核对写谁、何时读的（能用这条连接的人都看得到）
 assert.equal(stageSummary("entry", month), "2/7 entered · 2 recognized only");
-assert.equal(stageSummary("verify", month), `Read back ${dayShort("2026-10-02T03:01:00Z")} · Bee`);
-assert.equal(stageSummary("tax", { stages: { ...month.stages, tax: { ...month.stages.tax } } }), `Due ${dayShort(taxDue(month.stages.tax))}`);
+assert.equal(stageSummary("verify", month), `Read back ${dayTime("2026-10-02T03:01:00Z")} · Bee`);
+const due = taxDue(month.stages.tax);
+assert.equal(stageSummary("tax", { stages: { ...month.stages, tax: { ...month.stages.tax } } }), due ? `Due ${dayShort(due)}` : "");
+// 都过了：不写截止日，行上写状态词（不写「逾期」）
+const late = { stages: { ...month.stages, tax: { ...month.stages.tax, deadlines: { pp30: { efiling: "2020-01-23" }, pnd: { efiling: "2020-01-15" } } } } };
+assert.equal(stageSummary("tax", late), "");
 assert.equal(dayShort("2026-10-23"), "Oct 23");
 assert.ok(text(page).slice(0, 12).join("|").startsWith("Intake|9 documents|Entry|2/7 entered · 2 recognized only|Verify|Read back"));
-// 截止日：只有 ภ.พ.30 → 它；有 ภ.ง.ด. 草稿 → 更早的 ภ.ง.ด.；过了的跳过；都过了写最晚的（不说逾期）
+// 截止日：只有 ภ.พ.30 → 它；有 ภ.ง.ด. 草稿 → 更早的 ภ.ง.ด.；过了的跳过；都过了不写截止日（也不说逾期，测试窗口第 3 轮）
 const tax = month.stages.tax;
 assert.equal(taxDue(tax, "2026-10-10"), "2026-10-23");
 const withWht = { ...tax, wht: [{ draft: "W1" }] };
 assert.equal(taxDue(withWht, "2026-10-10"), "2026-10-15");
 assert.equal(taxDue(withWht, "2026-10-16"), "2026-10-23");
-assert.equal(taxDue(withWht, "2026-11-01"), "2026-10-23");
+assert.equal(taxDue(withWht, "2026-11-01"), "");
+assert.equal(taxDue(tax, "2026-10-24"), "");
+// 核对一段的回读时刻写到时分（这台设备的时区），只有日期的照旧
+process.env.TZ = "Asia/Bangkok";
+assert.equal(dayTime("2026-10-02T03:01:00Z"), "Oct 2, 10:01");
+assert.equal(dayTime("2026-10-02T15:30:00Z"), "Oct 2, 22:30");
+assert.equal(dayTime("2026-10-23"), "Oct 23");
+assert.equal(dayTime(""), "");
+assert.equal(dayTime("soon"), "soon");
 // 多本账套：主行写读了几本，每本一行缩进子行（谁、何时；还在读；还没读）
 const set0 = month.stages.verify.sets[0];
 const two = { ...month, stages: { ...month.stages, verify: { ...month.stages.verify, sets: [set0, { ...set0, key: "s:\\b", label: "B", status: "none", readback: null, requested_by: "", requested_by_name: "", ready_at: "", counts: null }] } } };
 assert.equal(stageSummary("verify", two), "1/2 read back");
 const subs = [...html(two).matchAll(/data-slot="cc-month-set">([\s\S]*?)<\/div>/g)].map((m) => text(m[1]).join(" · "));
-assert.deepEqual(subs, [`ABC 69 · Read back ${dayShort(set0.ready_at)} · Bee`, "B · Not read back"]);
+assert.deepEqual(subs, [`ABC 69 · Read back ${dayTime(set0.ready_at)} · Bee`, "B · Not read back"]);
 assert.equal(readingNow(two), false);
 // 状态点有可读的名字
 assert.match(page, /<span class="cc-month-dot" data-state="attention" role="img" aria-label="Needs attention" title="Needs attention"><\/span>/);
@@ -207,7 +220,7 @@ const page = html(month);
 assert.deepEqual(groupExceptions(month.exceptions.items).map(([s, list]) => [s, list.map((i: any) => i.code)]), [
   ["action", ["task_folder_missing", "intake_file_failed", "choice_needed", "account_tax_mismatch", "not_pushed", "push_failed", "tax_issue"]],
   ["warn", ["express_missing", "tax_draft_stale"]],
-  ["info", ["duplicate_number", "duplicate_number", "not_invoice", "express_changed"]],
+  ["info", ["duplicate_number", "not_invoice", "express_changed"]],
 ]);
 assert.deepEqual([...page.matchAll(/data-slot="cc-month-group" data-severity="(\w+)"/g)].map((m) => m[1]), ["action", "warn", "info"]);
 assert.ok(text(page).join("|").includes("To do|7"));
@@ -239,7 +252,9 @@ assert.deepEqual(items[2], ["account_tax_mismatch", "action", "Ask CC", "Tax ID 
 assert.deepEqual(items.find((i) => i[0] === "express_missing"), ["express_missing", "warn", "Ask CC", "Not found in Express · ABC 69 · 1 document · Ask CC"]);
 assert.deepEqual(items.find((i) => i[0] === "tax_draft_stale"), ["tax_draft_stale", "warn", "Ask CC", "Draft out of date · Head office · Ask CC"]);
 assert.deepEqual(items.find((i) => i[0] === "tax_issue"), ["tax_issue", "action", "Ask CC", "Draft issue · Past the 6-month claim period · Head office · 1 issue · Ask CC"]);
-assert.deepEqual(items.filter((i) => i[1] === "info").map((i) => i[0]), ["duplicate_number", "duplicate_number", "not_invoice"]);  // 知悉先列 3 条
+assert.deepEqual(items.filter((i) => i[1] === "info").map((i) => i[0]), ["duplicate_number", "not_invoice", "express_changed"]);  // 知悉先列 3 条
+// 同号的一组只占一行：「单号 · N 张」（测试窗口第 3 轮）
+assert.deepEqual(items.find((i) => i[0] === "duplicate_number"), ["duplicate_number", "info", "Ask CC", "Duplicate number · INV-7 · 2 documents · Ask CC"]);
 // 每个码都有短名（不显示码本身）
 for (const item of month.exceptions.items) assert.notEqual(codeName(item), item.code, item.code);
 // 每组先列 8 条，其余「显示更多」
@@ -284,8 +299,31 @@ const asked = g.calls.at(-1);
 assert.equal(asked.method, "/api/method/pearnly_cowork.companies.api.month");
 assert.deepEqual(asked.args, { company: "COMPANY", period: "2026-09" });
 assert.equal(asked.body, null);
-assert.equal(got.exceptions.total, 13);
+assert.equal(got.exceptions.total, 12);
 """)
+
+    def test_hand_to_cc_names_documents_by_number_never_by_record(self):
+        # 测试窗口第 3 轮：「交给 CC」的预填写了 CWH-…；改成单号 · 对方 · 金额 · 日期，一张 / 几张各一种说法；同号的一组列每一张
+        self.run_page(r"""
+import { duplicatePrefill } from "@/components/month-ledger";
+import { handText } from "@/components/pending";
+const dup = month.exceptions.items.find((i: any) => i.code === "duplicate_number");
+assert.equal(duplicatePrefill(dup), "Check these documents with the same number: \nINV-7 · Makro · 1,070.50 · 2026-09-20\nINV-7 · Makro · 1,070.50 · 2026-09-20");
+assert.ok(!/\b(h3|h7)\b/.test(duplicatePrefill(dup)));
+const one = pendingOf(month.exceptions.items.find((i: any) => i.code === "push_failed"), "COMPANY");
+assert.equal(handText([one]), `Handle this one: ${[one.invoice_no, one.counterparty, "1,070.50", one.date].join(" · ")}`);
+const two = handText([one, { ...one, document: "CWH-0002", invoice_no: "INV-9", amount: "5", date: "" }]);
+assert.equal(two, `Handle these: \n${[one.invoice_no, one.counterparty, "1,070.50", one.date].join(" · ")}\nINV-9 · Makro · 5.00`);
+assert.ok(!two.includes("CWH-") && !two.includes(`[${one.document}]`));
+""")
+        self.run_page(r"""
+import { duplicatePrefill } from "@/components/month-ledger";
+import { handText } from "@/components/pending";
+const one = pendingOf(month.exceptions.items.find((i: any) => i.code === "push_failed"), "COMPANY");
+assert.ok(handText([one]).startsWith("处理这张："));
+assert.ok(handText([one, one]).startsWith("处理这几张：\n"));
+assert.ok(duplicatePrefill(month.exceptions.items.find((i: any) => i.code === "duplicate_number")).startsWith("核对这几张同号单据：\n"));
+""", lang="zh")
 
     def test_card_waits_hidden_and_the_company_section_shows_its_month(self):
         self.run_page(r"""
@@ -310,7 +348,8 @@ const zh = text(html(month));
 assert.deepEqual([zh[0], zh[2], zh[4], zh[6]], ["收单", "录账", "核对", "报税"]);
 assert.equal(zh[1], "9 张");
 assert.equal(zh[3], "已录 2/7 · 仅识别 2");
-assert.equal(zh[5], `Bee ${dayShort("2026-10-02T03:01:00Z")} 回读`);
+assert.equal(zh[5], `Bee ${dayTime("2026-10-02T03:01:00Z")} 回读`);
+assert.ok(zh.includes("INV-7 · 2 张"));
 assert.ok(zh.includes("需处理") && zh.includes("需留意") && zh.includes("知悉"));
 assert.ok(zh.includes("要人选") && zh.includes("Express 中找不到"));
 """, lang="zh")

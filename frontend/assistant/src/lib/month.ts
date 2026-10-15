@@ -56,6 +56,8 @@ export type MonthException = {
   code: string; stage: Stage; severity: Severity; action: ExceptionAction; group: string | null; document: string | null;
   invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; reason_label?: string; detail?: string;
   choice?: PendingChoice | null; others?: string[]; count?: number;
+  /** 同号的一组（duplicate_number）：每张的单号、对方、金额、日期（不在本月的被匹配那张也在里面）。 */
+  documents?: Array<{ document: string; invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string }>;
   task?: string; title?: string;
   connection?: string; account_set_key?: string; label?: string; readback?: string | null;
   draft?: string; kind?: string; branch?: string; issue?: string; issue_label?: string;
@@ -139,6 +141,15 @@ export function dayShort(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", ...(day ? { timeZone: "UTC" } : {}) }).format(date);
 }
 
+/** 「10月15日 21:08」「Oct 15, 21:08」「15 ต.ค. 21:08」：带时间的按这台设备的时区写到时分（核对一段的回读时刻）；
+ *  只有日期的同 dayShort；认不出原样。 */
+export function dayTime(value: string | null | undefined): string {
+  if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return dayShort(value);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+}
+
 /** 有没有账套还在回读（最新那份或比完成的那份更新的一份）。 */
 export function readingNow(month: Pick<Month, "stages"> | null | undefined): boolean {
   return !!month?.stages.verify?.sets.some((set) => set.status === "reading" || set.newer === "reading");
@@ -149,11 +160,11 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export const today = (now = new Date()) => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
 /** 报税一段写的截止日：ภ.พ.30 电子申报，有 ภ.ง.ด. 草稿时加上 ภ.ง.ด. 电子申报（更早），取最早、还没过的那个；
- *  都过了写最晚的那个（第 1 期不知道报没报，不说逾期）。 */
+ *  都过了就不写截止日（测试窗口第 3 轮：也不写「逾期」——第 1 期不知道报没报）。 */
 export function taxDue(tax: MonthStages["tax"], on = today()): string {
   if (!tax) return "";
   const dates = [tax.deadlines?.pp30?.efiling, tax.wht.length ? tax.deadlines?.pnd?.efiling : ""].filter((d): d is string => !!d).sort();
-  return dates.find((d) => d >= on) ?? dates.at(-1) ?? "";
+  return dates.find((d) => d >= on) ?? "";
 }
 
 // ---------------------------------------------------------------- 读取（按 公司|月份 缓存）

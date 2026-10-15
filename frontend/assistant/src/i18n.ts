@@ -473,6 +473,7 @@ const COMPANY = {
     payCash: "Cash", payCredit: "Credit", vatClaim: "Claim VAT", vatExpense: "Expense it",
     pending: "Pending", handToCC: "Ask CC", confirm: "Confirm", other: "Other", chooseCompany: "Choose company",
     handToCCText: (list: string) => `Handle these: ${list}`,
+    handToCCOne: (doc: string) => `Handle this one: ${doc}`,
     draftText: (kind: string, period: string) => `Review the ${kind} draft for ${period}`,
     fromHistory: (n: number) => `From Express history · ${n}`,
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
@@ -507,6 +508,7 @@ const COMPANY = {
       moreItems: (n: number) => `${n} more not listed`,
       readbackText: (label: string, period: string) => `Check the Express readback for ${label}, ${period}`,
       duplicateText: (list: string) => `Check these documents with the same number: ${list}`,
+      sameNumber: (no: string, n: number) => `${no} · ${n} documents`,
     },
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
@@ -525,6 +527,7 @@ const COMPANY = {
     payCash: "现购", payCredit: "赊购", vatClaim: "抵进项", vatExpense: "计费用",
     pending: "待处理", handToCC: "交给 CC", confirm: "确认", other: "其他", chooseCompany: "选择公司",
     handToCCText: (list: string) => `处理这几张：${list}`,
+    handToCCOne: (doc: string) => `处理这张：${doc}`,
     draftText: (kind: string, period: string) => `看一下 ${period} 的 ${kind} 申报草稿`,
     fromHistory: (n: number) => `来自 Express 历史 · ${n} 次`,
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
@@ -559,6 +562,7 @@ const COMPANY = {
       moreItems: (n: number) => `另有 ${n} 条未列出`,
       readbackText: (label: string, period: string) => `核对 ${label} ${period} 的 Express 回读`,
       duplicateText: (list: string) => `核对这几张同号单据：${list}`,
+      sameNumber: (no: string, n: number) => `${no} · ${n} 张`,
     },
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
@@ -577,6 +581,7 @@ const COMPANY = {
     payCash: "เงินสด", payCredit: "เงินเชื่อ", vatClaim: "ขอคืนภาษีซื้อ", vatExpense: "ลงค่าใช้จ่าย",
     pending: "รอดำเนินการ", handToCC: "ให้ CC จัดการ", confirm: "ยืนยัน", other: "อื่น ๆ", chooseCompany: "เลือกบริษัท",
     handToCCText: (list: string) => `จัดการเอกสารเหล่านี้: ${list}`,
+    handToCCOne: (doc: string) => `จัดการเอกสารนี้: ${doc}`,
     draftText: (kind: string, period: string) => `ตรวจร่างแบบ ${kind} งวด ${period}`,
     fromHistory: (n: number) => `จากประวัติ Express · ${n} ครั้ง`,
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
@@ -611,6 +616,7 @@ const COMPANY = {
       moreItems: (n: number) => `อีก ${n} รายการที่ไม่ได้แสดง`,
       readbackText: (label: string, period: string) => `ตรวจผลอ่านกลับจาก Express ของ ${label} งวด ${period}`,
       duplicateText: (list: string) => `ตรวจเอกสารเลขที่ซ้ำเหล่านี้: ${list}`,
+      sameNumber: (no: string, n: number) => `${no} · ${n} ฉบับ`,
     },
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",

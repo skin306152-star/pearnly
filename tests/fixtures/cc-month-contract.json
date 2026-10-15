@@ -215,25 +215,26 @@
      "document": "h3",
      "invoice_no": "INV-7",
      "counterparty": "Makro",
-     "amount": "1070.50",
      "date": "2026-09-20",
+     "count": 2,
      "others": [
       "h7"
-     ]
-    },
-    {
-     "code": "duplicate_number",
-     "stage": "intake",
-     "severity": "info",
-     "action": "open",
-     "group": null,
-     "document": "h7",
-     "invoice_no": "INV-7",
-     "counterparty": "Makro",
-     "amount": "1070.50",
-     "date": "2026-09-20",
-     "others": [
-      "h3"
+     ],
+     "documents": [
+      {
+       "document": "h3",
+       "invoice_no": "INV-7",
+       "counterparty": "Makro",
+       "amount": "1070.50",
+       "date": "2026-09-20"
+      },
+      {
+       "document": "h7",
+       "invoice_no": "INV-7",
+       "counterparty": "Makro",
+       "amount": "1070.50",
+       "date": "2026-09-20"
+      }
      ]
     },
     {
@@ -261,7 +262,7 @@
      "readback": "RB1"
     }
    ],
-   "total": 13,
+   "total": 12,
    "counts": {
     "task_folder_missing": 1,
     "intake_file_failed": 2,
@@ -279,7 +280,7 @@
    "severities": {
     "action": 7,
     "warn": 2,
-    "info": 4
+    "info": 3
    }
   }
  }

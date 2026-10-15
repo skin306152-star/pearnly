@@ -2,7 +2,7 @@
 //
 //   按公司（companySections，默认）
 //     已置顶 — 置顶的对话只在这里（不论属于哪家公司），取消置顶回到所属公司；没有就不显示
-//     各公司 — 我有对话的公司，默认按组内对话的最近活动排（提醒浮顶的也算）；前 5 家默认展开；每组先显示 5 条，
+//     各公司 — 我有对话的公司，默认按组内对话的最近活动排（提醒浮顶的也算）；有对话的前 5 家默认展开（空公司组不占位、默认收着）；每组先显示 5 条，
 //              「显示更多」每次加 10 条；「显示 → 空分组」关掉时不显示没有对话的公司
 //     最近   — 不属于任何公司的对话
 //   按处理月份（monthSections）：已置顶 → 各月（新的在前，升序时旧的在前）→ 未指定月份
@@ -83,14 +83,19 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
     const order = sort.by === "name" ? a.title.localeCompare(b.title) : companyKey(a) - companyKey(b);
     return (sort.desc ? -order : order) || a.title.localeCompare(b.title);
   });
+  // 默认展开的「前 5 家」只数有对话的公司（测试窗口第 3 轮：手机上没有对话的空公司组排在前面，占掉了 5 个位置，有对话的
+  // 各组一打开都收着）；空公司组排在它们之后，默认收着
   let rank = 0;
+  let empties = 0;
   for (const project of ordered) {
     const all = sorted.filter((row) => !row.starred && groupOf(row) === project.id && matches(row)).map((row) => row.index);
     if (query && !all.length && !project.title.toLowerCase().includes(query)) continue;
     if (!query && !all.length && options.empty === false) continue;
     const indices = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
-    const more = !query && (all.length > indices.length || project.id in (options.serverMore ?? {}));
-    sections.push({ type: "project", key: `project:${project.id}`, project, rank: rank++, indices, all, more });
+    const serverHas = project.id in (options.serverMore ?? {});
+    const more = !query && (all.length > indices.length || serverHas);
+    const order = all.length || serverHas ? rank++ : OPEN_FIRST + empties++;
+    sections.push({ type: "project", key: `project:${project.id}`, project, rank: order, indices, all, more });
   }
 
   const recents = sorted.filter((row) => !row.starred && !groupOf(row) && matches(row)).map((row) => row.index);

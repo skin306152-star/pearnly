@@ -5,6 +5,8 @@
 单独成模块（不并进 `tools.py`）：两边各自登记在 hooks `pearnly_assistant_tools` / `pearnly_assistant_guidance`。
 """
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
@@ -37,6 +39,34 @@ GUIDANCE = [
 
 def _json(value) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
+
+
+# 主档给页面的时刻是 UTC（`service.when`：`2026-10-15T14:08:00Z`，页面按设备时区显示）；交给 CC 前换成站点时区并带上偏移
+# （`2026-10-15T21:08:00+07:00`）。测试窗口第 3 轮：CC 把记住选择的 14:08Z 当曼谷时间说成「14:08 记下的」。
+PROFILE_TIMES = (("company", "created_at"), ("notes", "updated_at"), ("choices", "set_at"), ("drafts", "updated_at"))
+
+
+def local_iso(value) -> str:
+    """带时区的 ISO 时刻（含 ``Z``）→ 站点时区、带偏移的 ISO（到秒）；只有日期的、空的、读不出的、没带时区的原样回。"""
+    text = str(value or "").strip()
+    if len(text) <= 10:
+        return value
+    try:
+        moment = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+    except ValueError:
+        return value
+    if moment.tzinfo is None:
+        return value
+    return moment.astimezone(ZoneInfo(frappe.utils.get_system_timezone())).isoformat(timespec="seconds")
+
+
+def _local_profile(found) -> dict:
+    for key, field in PROFILE_TIMES:
+        block = found.get(key)
+        for item in ([block] if isinstance(block, dict) else block or ()):
+            if isinstance(item, dict) and item.get(field):
+                item[field] = local_iso(item[field])
+    return found
 
 
 def _session() -> str:
@@ -119,7 +149,7 @@ def profile(tool_input) -> str:
                             for item in found["choices"][:CHOICES_MAX]]
     if filed == row.name and filed_scope:
         found["work_branch"] = filed_scope
-    return _json(found)
+    return _json(_local_profile(found))
 
 
 def note_save(tool_input) -> str:
@@ -180,7 +210,9 @@ TOOLS = [
                     "branches, the account set covering the work month (period YYYY-MM), its documents folder on each "
                     "computer with its state and month folder, all team notes (with ids), remembered push choices, "
                     "scheduled tasks and tax drafts. Without company it reads the company this conversation is filed "
-                    "under; work_branch is the branch this conversation works on.",
+                    "under; work_branch is the branch this conversation works on. Times (set_at, updated_at, created_at) "
+                    "are the user's local time with its UTC offset: say them as local time. Describe where a "
+                    "remembered choice came from in the user's own words, never by its source code.",
      "input_schema": {"type": "object", "properties": {"company": COMPANY_PROP, "period": {"type": "string"}}},
      "handler": "pearnly_cowork.assistant.company_tools.profile"},
     {"name": "cowork_company_note_save", "label": "Saved a company note",
