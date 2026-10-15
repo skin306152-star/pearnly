@@ -33,6 +33,9 @@
 		// 多人分区盘点（用户 2026-10-15："a 在 a 仓库盘某类商品，b 在某仓库盘某类商品"）：
 		// 每人选自己负责的「仓库 / 类别」，表格与进度只看这一片；没选时上面列出各区进度和谁在盘。
 		let scope_warehouse, scope_category, area_host, area_table, scoping = false, shown_screen;
+		// 自己刚保存过：服务端也会推给本人（另一台设备要刷新），这一页 3 秒内就不再重取一遍。
+		let saved_at = 0;
+		const own_refresh = () => { saved_at = Date.now(); return refresh(); };
 		const BLANK = "\u0000";
 		const area_of = row => row.warehouse_name || BLANK;
 		// ERP 的类别是商品主档上的编号（纯数字），单独显示一个数看不出是什么，前面带上「分类」。
@@ -281,7 +284,7 @@
 			}), { ...table_options(), ...(size === "full" ? {} : { layout: "ratio" }) });
 		}
 		function entry_form(row = null, continuous = false, entry = null) {
-			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: refresh,
+			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: own_refresh,
 				on_done: () => filter?.set_value("differences") });
 		}
 		async function render_data() {
@@ -370,7 +373,7 @@
 				d.set_secondary_action_label(w("recount"));
 				d.set_secondary_action(() => frappe.confirm(w("recountConfirm"), async () => {
 					await p.call(api + "api_stock_count_recount", { count, product: row.product }, "POST");
-					await refresh(); later(()=>entry_form(row));
+					await own_refresh(); later(()=>entry_form(row));
 				}));
 			}
 			d.on_page_show = async () => {
@@ -427,7 +430,7 @@
 				const entry = entries.find(e=>e.name===event.currentTarget.dataset.voidCountEntry);
 				frappe.confirm(t("cowork.stock.count.voidConfirm", qty(entry.qty)), async () => {
 					await p.call(api + "api_stock_count_edit_entry", { entry: entry.name, version: entry.version, voided: 1 }, "POST");
-					d.hide(); await refresh();
+					d.hide(); await own_refresh();
 				});
 			});
 			d.show();
@@ -533,7 +536,7 @@
 			const route = frappe.get_route();
 			if (route[0] !== root) return;
 			if (!route[1]) void list?.reload?.();
-			else if (data?.count === count) void refresh();
+			else if (data?.count === count && Date.now() - saved_at > 3000) void refresh();
 		}, 800);
 		frappe.realtime.off("pearnly_stocktake_changed");
 		frappe.realtime.on("pearnly_stocktake_changed", data => live(data));
