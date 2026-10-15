@@ -183,7 +183,7 @@ class OfficialValuesTests(unittest.TestCase):
             self.assertEqual(cc.get(name), f"var({target})", name)
         # 强调色仍是 CC 橘黄；手机外壳实测值、侧栏宽、输入框圆角保留
         self.assertEqual(cc["--cc-brand"], "#f28c28")
-        for name, value in {"--cc-sidebar-w": "18rem", "--cc-radius-composer": "20px", "--cc-mbtn-bg": "#f6f6f4"}.items():
+        for name, value in {"--cc-radius-composer": "20px", "--cc-mbtn-bg": "#f6f6f4", "--cc-menu-max-list": "20rem"}.items():
             self.assertEqual(cc[name], value, name)
         self.assertIn("外壳实测", self.css)
         # 另配的旧状态色、旧页面底色不再出现
@@ -199,7 +199,15 @@ class OfficialValuesTests(unittest.TestCase):
             self.assertEqual(light.get("--code-" + name), value, name)
             self.assertNotIn("--code-" + name, dark, name)
         self.assertEqual(light["--code-sidebar-w"], "288px")
-        self.assertEqual(cc_block(self.css, ":root")["--cc-sidebar-w"], "18rem")  # 同一个 288
+        self.assertEqual(cc_block(self.css, ":root")["--cc-sidebar-w"], "var(--code-sidebar-w)")  # 只有一处 288
+
+    def test_only_variables_read_the_code_layer(self):
+        # 分层：--code-* 只给 --cc-* 变量取值，样式规则与组件一律用 --cc-*（设计文档 4.1）
+        for line in self.css.splitlines():
+            if "var(--code-" in line:
+                self.assertTrue(line.strip().startswith("--"), line)
+        for path in SRC.rglob("*.ts*"):
+            self.assertNotIn("--code-", path.read_text(encoding="utf-8"), path)
 
     def test_cc_structure_points_at_the_code_layer(self):
         cc = cc_block(self.css, ":root")
@@ -211,7 +219,7 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-bg-overlay": "--code-backdrop",
             "--cc-alpha-1": "--code-alpha-1", "--cc-alpha-2": "--code-alpha-2", "--cc-alpha-3": "--code-alpha-3",
             "--cc-fill-hover": "--code-fill-hover", "--cc-fill-selected": "--code-fill-selected",
-            "--cc-row-hover": "--code-row-hover", "--cc-row-selected": "--code-row-selected", "--cc-list-selected": "--cc-row-hover",
+            "--cc-row-hover": "--code-row-hover", "--cc-row-selected": "--code-row-selected",
             "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong", "--cc-line-stronger": "--code-line-stronger",
             "--cc-link": "--code-link", "--cc-code-ink": "--code-code-ink", "--cc-code-bg": "--code-code-bg",
             "--cc-tooltip-bg": "--code-tooltip-bg", "--cc-tooltip-ink": "--code-tooltip-ink", "--cc-search-bg": "--code-search-bg",
@@ -225,7 +233,8 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-group-font": "--code-text-group", "--cc-group-lh": "--code-text-group-lh", "--cc-row-ctl": "--code-row-ctl",
             "--cc-row-lead": "--code-row-lead", "--cc-icon": "--code-icon", "--cc-control": "--code-control",
             "--cc-search-h": "--code-search-h", "--cc-menu-pad": "--code-menu-pad", "--cc-menu-min-w": "--code-menu-min-w",
-            "--cc-menu-item-h": "--code-menu-item",
+            "--cc-menu-item-h": "--code-menu-item", "--cc-menu-item-py": "--code-menu-item-py", "--cc-menu-item-px": "--code-menu-item-px",
+            "--cc-menu-sep": "--code-menu-sep", "--cc-menu-sep-gap": "--code-menu-sep-gap", "--cc-menu-sep-inset": "--code-menu-sep-inset",
             "--cc-ease": "--code-ease", "--cc-ease-fast": "--code-ease-fast", "--cc-ease-out": "--code-ease-out",
             "--cc-dur-instant": "--code-dur-1", "--cc-dur-fast": "--code-dur-2", "--cc-dur": "--code-dur-3",
             "--cc-dur-slow": "--code-dur-4", "--cc-dur-pop": "--code-dur-5", "--cc-reveal": "--cc-dur-fast",
@@ -263,8 +272,11 @@ class OfficialValuesTests(unittest.TestCase):
         self.assertIn('import { MOBILE_QUERY } from "@/hooks/use-mobile";', variant)
         self.assertIn('import { isDesktopApp } from "@/lib/desktop";', variant)
         self.assertIn("root.dataset.ccVariant = pickVariant(desktop, narrow.matches);", variant)
+        self.assertIn('  apply();\n  narrow.addEventListener("change", apply);', variant)  # 桌面窗口拉窄也跟着换
         mobile = (SRC / "hooks/use-mobile.ts").read_text(encoding="utf-8")
         self.assertIn("window.matchMedia(MOBILE_QUERY)", mobile)
+        self.assertEqual(mobile.count("setIsMobile(mql.matches);"), 2)  # 与变体同一个判断，不用 innerWidth
+        self.assertNotIn("window.innerWidth", mobile)
         main = (SRC / "main.tsx").read_text(encoding="utf-8")
         self.assertLess(main.index("installVariant();"), main.index("createRoot("))
 
@@ -275,7 +287,7 @@ import "cc-test-setup";
 import assert from "node:assert/strict";
 import { pickVariant } from "@/lib/variant";
 assert.equal(pickVariant(true, false), "desktop");
-assert.equal(pickVariant(true, true), "desktop");
+assert.equal(pickVariant(true, true), "phone");  // 桌面窗口拉到分界以下换手机外壳，密度跟着换
 assert.equal(pickVariant(false, true), "phone");
 assert.equal(pickVariant(false, false), "web");
 (globalThis as any).done();
@@ -299,7 +311,10 @@ assert.equal(pickVariant(false, false), "web");
         for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-group-font);", "line-height: var(--cc-group-lh);",
                      "transition: color var(--cc-reveal) var(--cc-ease);"):
             self.assertIn(part, label)
-        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-section-label { color: var(--cc-ink-2); }', css)
+        # 鼠标在组标题上才变次要色（设计文档 3.4）；鼠标进侧栏只淡入箭头，不改组标题字色
+        self.assertIn(".cc-section-toggle:hover, .cc-section-toggle:focus-visible { color: var(--cc-ink-2); }", css)
+        self.assertNotIn('[data-slot="sidebar-inner"]:hover .cc-section-label', css)
+        self.assertIn('[data-slot="sidebar-inner"]:hover .cc-section-chevron', css)
         search = rule(".cc-search")
         for part in ("height: var(--cc-search-h);", "border-radius: var(--cc-radius-row);", "background: var(--cc-search-bg);",
                      "box-shadow: inset 0 0 0 var(--cc-hairline) var(--cc-line), var(--cc-shadow-search);"):
@@ -314,13 +329,13 @@ assert.equal(pickVariant(false, false), "web");
                      "border-radius: var(--cc-radius-menu);", "box-shadow: inset 0 0 0 1px var(--cc-line), var(--cc-shadow-pop);"):
             self.assertIn(part, menu)
         item = rule(".cc-menu-item")
-        for part in ("min-height: var(--cc-menu-item-h);", "padding: var(--code-menu-item-py) var(--code-menu-item-px);",
+        for part in ("min-height: var(--cc-menu-item-h);", "padding: var(--cc-menu-item-py) var(--cc-menu-item-px);",
                      "border-radius: var(--cc-radius-row);", "font-size: var(--cc-row-font); line-height: var(--cc-row-lh);"):
             self.assertIn(part, item)
         self.assertIn(".cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }", css)
         self.assertIn("font-size: var(--cc-text-footnote);", rule(".cc-menu-value"))
-        self.assertIn(".cc-menu-sep { height: 0; margin: var(--code-menu-sep-gap) var(--code-menu-sep-inset); "
-                      "border-top: var(--code-menu-sep) solid var(--cc-line); }", css)
+        self.assertIn(".cc-menu-sep { height: 0; margin: var(--cc-menu-sep-gap) var(--cc-menu-sep-inset); "
+                      "border-top: var(--cc-menu-sep) solid var(--cc-line); }", css)
         self.assertIn(".cc-input:focus { box-shadow: var(--cc-shadow-focus); }", css)
         self.assertIn(".cc-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }", css)
         # 对话正文 14/20（手机 16/24，变体切），字体仍按设置；用户气泡叠色 1、圆角 10、内边距 8/12
@@ -369,6 +384,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn('THEMES = {"light": (252, 252, 251), "dark": (21, 21, 21)}', splash)
         tomo = (ROOT / "companion/src/companion/gui_tomo.py").read_text(encoding="utf-8")
         self.assertIn('APP_BG = {"light": "#fcfcfb", "dark": "#151515"}', tomo)
+        self.assertIn('APP_INK = {"light": "#0b0b0b", "dark": "#f0efec"}', tomo)  # 同 --code-ink-1 浅 / 深
         vite = (ROOT / "frontend/assistant/vite.config.ts").read_text(encoding="utf-8")
         self.assertIn('background_color: "#fcfcfb",', vite)
         for text in (html, api, splash, tomo, vite):

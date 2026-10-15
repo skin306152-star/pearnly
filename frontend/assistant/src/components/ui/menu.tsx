@@ -75,27 +75,46 @@ function Content({ collisionPadding = MENU_EDGE, side, sideOffset = 0, ref, chil
   const [chosen, setChosen] = useState<Side | null>(null);
   const setRef = useCallback((node: HTMLDivElement | null) => setEl(node), []);
   const merged = useMemo(() => mergeRefs<HTMLDivElement>(setRef, ref), [setRef, ref]);
-  // 绘制前按完整高度选上 / 下（组件库定位前菜单在屏外，不会闪）；只管上下开的菜单，旁边展开的子菜单不动
+  // 绘制前按完整高度选上 / 下（组件库定位前菜单在屏外，不会闪）；只管上下开的菜单，旁边展开的子菜单不动。
+  // 打开期间内容变高（异步加载出更多项）、键盘弹出 / 收起（visualViewport 变化）时重选；离边距离按传进来的 collisionPadding
+  const sideways = side === "left" || side === "right";
+  const edgeTop = typeof collisionPadding === "number" ? collisionPadding : (collisionPadding?.top ?? 0);
+  const edgeBottom = typeof collisionPadding === "number" ? collisionPadding : (collisionPadding?.bottom ?? 0);
   useBrowserLayoutEffect(() => {
-    if (!el || (side && side !== "top" && side !== "bottom")) return;
+    if (!el || sideways) return;
     const id = el.getAttribute("aria-labelledby");
     const trigger = id ? document.getElementById(id) : null;
     if (!trigger) return;
-    const box = trigger.getBoundingClientRect();
-    const view = window.visualViewport;
-    const top = view?.offsetTop ?? 0;
-    const bottom = top + (view?.height ?? window.innerHeight);
-    const gap = sideOffset + MENU_EDGE;
-    const style = getComputedStyle(el);
-    const borders = (Number.parseFloat(style.borderTopWidth) || 0) + (Number.parseFloat(style.borderBottomWidth) || 0);
-    const need = Math.min(el.scrollHeight + borders, lengthPx(style.getPropertyValue("--cc-menu-max")));
-    setChosen(pickSide(side ?? "bottom", need, bottom - box.bottom - gap, box.top - top - gap));
-  }, [el, side, sideOffset, open]);
+    const measure = () => {
+      const box = trigger.getBoundingClientRect();
+      const view = window.visualViewport;
+      const top = view?.offsetTop ?? 0;
+      const bottom = top + (view?.height ?? window.innerHeight);
+      const style = getComputedStyle(el);
+      const borders = (Number.parseFloat(style.borderTopWidth) || 0) + (Number.parseFloat(style.borderBottomWidth) || 0);
+      const need = Math.min(el.scrollHeight + borders, lengthPx(style.getPropertyValue("--cc-menu-max")));
+      const below = bottom - box.bottom - sideOffset - edgeBottom;
+      const above = box.top - top - sideOffset - edgeTop;
+      setChosen(pickSide(side ?? "bottom", need, below, above));
+    };
+    measure();
+    // 菜单本身变高（还没到限高）用 ResizeObserver；限高后再加项只改 scrollHeight，靠 MutationObserver 看增减的项
+    const resized = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    resized?.observe(el);
+    const changed = new MutationObserver(measure);
+    changed.observe(el, { childList: true, subtree: true });
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      resized?.disconnect();
+      changed.disconnect();
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [el, side, sideways, sideOffset, edgeTop, edgeBottom, open]);
   return (
     <Radix.Content
       ref={merged}
       collisionPadding={collisionPadding}
-      side={chosen ?? side}
+      side={sideways ? side : (chosen ?? side)}
       sideOffset={sideOffset}
       {...props}
     >

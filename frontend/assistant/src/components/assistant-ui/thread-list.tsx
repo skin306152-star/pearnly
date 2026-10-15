@@ -507,7 +507,7 @@ export const ThreadListItem: FC = () => {
       data-active={current ? "true" : undefined}
       aria-current={current ? "true" : undefined}
       data-slot="aui_thread-list-item"
-      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink relative flex h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
+      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink has-focus-visible:text-ink relative flex h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
@@ -599,7 +599,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
           data-slot="aui_thread-list-item-more"
           className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
         >
-          <MoreHorizontalIcon className="size-3.5" />
+          <MoreHorizontalIcon className="size-(--cc-icon-sm)" />
           <span className="sr-only">{t("more")}</span>
         </Button>
       </DropdownMenu.Trigger>

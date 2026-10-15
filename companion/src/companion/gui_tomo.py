@@ -114,9 +114,9 @@ class TomoPage(QWebEnginePage):
 OPEN_WINDOW = None   # 进程内唯一的 Tomo 窗口（gui_tray._window_open 看它是否正在用）
 
 RESIZE_MARGIN = 4    # 无边框窗口四周留给系统拉伸的宽度（像素，最大化时为 0）
-# 窗口底色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app，浅 / 深各一个），拉伸边与登录页标题栏用它
+# 窗口底色 / 字色跟对话页一致（frontend/assistant/src/globals.css 的 --cc-bg-app / --cc-ink，浅 / 深各一个），拉伸边与登录页标题栏用它
 APP_BG = {"light": "#fcfcfb", "dark": "#151515"}
-APP_INK = {"light": "#1a1a1a", "dark": "#faf9f5"}
+APP_INK = {"light": "#0b0b0b", "dark": "#f0efec"}
 
 
 def _scheme() -> str:

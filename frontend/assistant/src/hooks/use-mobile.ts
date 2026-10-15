@@ -11,11 +11,12 @@ export function useIsMobile() {
 
   React.useEffect(() => {
     const mql = window.matchMedia(MOBILE_QUERY);
+    // 用 mql.matches 而不是 innerWidth：浏览器缩放出小数宽度时与 lib/variant.ts 判得一样
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+      setIsMobile(mql.matches);
     };
     mql.addEventListener("change", onChange);
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    setIsMobile(mql.matches);
     return () => mql.removeEventListener("change", onChange);
   }, []);
 

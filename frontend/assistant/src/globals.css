@@ -459,7 +459,6 @@
   /* 侧栏行：悬停 / 选中（导航）；会话列表里选中 = 悬停色，靠主色字区分。悬停不改字色 */
   --cc-row-hover: var(--code-row-hover);
   --cc-row-selected: var(--code-row-selected);
-  --cc-list-selected: var(--cc-row-hover);
 
   --cc-ink: var(--code-ink-1);              /* 正文 */
   --cc-ink-2: var(--code-ink-2);            /* 次要（侧栏行默认） */
@@ -563,6 +562,11 @@
   --cc-menu-pad: var(--code-menu-pad);
   --cc-menu-min-w: var(--code-menu-min-w);
   --cc-menu-item-h: var(--code-menu-item);
+  --cc-menu-item-py: var(--code-menu-item-py);
+  --cc-menu-item-px: var(--code-menu-item-px);
+  --cc-menu-sep: var(--code-menu-sep);
+  --cc-menu-sep-gap: var(--code-menu-sep-gap);
+  --cc-menu-sep-inset: var(--code-menu-sep-inset);
 
   --cc-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "PingFang SC", "Microsoft YaHei", sans-serif;
   --cc-font-serif: "Source Serif 4 Variable", ui-serif, Georgia, "Noto Serif Thai", "Songti SC", "Noto Serif SC", serif;
@@ -576,9 +580,10 @@
   --cc-svh: 100vh;
   /* 可见区域高：lib/viewport.ts 按 visualViewport 写 --cc-vvh（键盘弹出时变矮），没有时取整屏高 */
   --cc-viewport-h: var(--cc-vvh, var(--cc-vh));
-  --cc-sidebar-w: 18rem;          /* 侧栏宽：外壳实测（同 Claude 桌面端）；拖动分隔条后由页面按本机记下的值覆盖 */
+  --cc-sidebar-w: var(--code-sidebar-w);  /* 侧栏宽：设计系统实测 288（同 Claude 桌面端）；拖动分隔条后由页面按本机记下的值覆盖 */
   --cc-sidebar-min-w: 14rem;      /* 侧栏最窄 */
   --cc-sidebar-max-w: 28rem;      /* 侧栏最宽 */
+  --cc-menu-max-list: 20rem;      /* 长列表菜单（月份等）的限高：页面写 [--cc-menu-max:var(--cc-menu-max-list)]，再长在菜单里滚动 */
   --cc-sidebar-w-mobile: 80vw;    /* 手机抽屉宽（外壳实测，同 Claude 手机端） */
   --cc-mcard-radius: 2.5rem;      /* 抽屉打开时被推开的页面卡片圆角（外壳实测） */
   --cc-mscrim-bg: #f9faf7;        /* 抽屉全开时盖在页面卡片上的一层：浅色模式是变淡（外壳实测），深色模式变暗 */
@@ -759,12 +764,11 @@
   .cc-nav-item[data-active], .cc-nav-item[data-active="true"] { background: var(--cc-row-selected); color: var(--cc-ink); }
   .cc-nav-item svg { width: var(--cc-icon); height: var(--cc-icon); flex-shrink: 0; }
   .cc-nav-icon { display: inline-flex; align-items: center; justify-content: center; width: var(--cc-row-lead); height: var(--cc-row-lead); flex-shrink: 0; }
-  /* 分组标题：13/16 淡色；鼠标在侧栏里时变次要色（120ms） */
+  /* 分组标题：13/16 淡色；鼠标在组标题上变次要色（120ms，下面 .cc-section-toggle:hover；手机抽屉里只是标题、不变） */
   .cc-section-label {
     padding: var(--cc-group-top) var(--cc-row-pad) 0.25rem; color: var(--cc-ink-3); font-size: var(--cc-group-font); line-height: var(--cc-group-lh);
     font-weight: 500; transition: color var(--cc-reveal) var(--cc-ease);
   }
-  [data-slot="sidebar-inner"]:hover .cc-section-label { color: var(--cc-ink-2); }
   /* 分组标题可点折叠：12px 箭头平时隐藏（手机常显）、鼠标进侧栏或已折叠时出现，折叠时转向右 */
   .cc-section-toggle { display: flex; align-items: center; gap: 0.25rem; width: 100%; text-align: start; outline: none; }
   .cc-section-toggle:hover, .cc-section-toggle:focus-visible { color: var(--cc-ink-2); }
@@ -853,7 +857,7 @@
   }
   /* 菜单项：高 32、圆角 8、内边距 6/10、14/20；危险项红字；不可用 40% */
   .cc-menu-item {
-    display: flex; align-items: center; gap: 0.625rem; min-height: var(--cc-menu-item-h); padding: var(--code-menu-item-py) var(--code-menu-item-px);
+    display: flex; align-items: center; gap: 0.625rem; min-height: var(--cc-menu-item-h); padding: var(--cc-menu-item-py) var(--cc-menu-item-px);
     border-radius: var(--cc-radius-row); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); cursor: pointer; outline: none; user-select: none;
   }
   .cc-menu-item:hover, .cc-menu-item:focus, .cc-menu-item[data-highlighted], .cc-menu-item[data-state="open"] { background: var(--cc-bg-hover); }
@@ -863,7 +867,7 @@
   .cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }
   /* 父项右侧的当前值（13px 淡色） */
   .cc-menu-value { margin-inline-start: auto; padding-inline-start: 0.75rem; color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
-  .cc-menu-sep { height: 0; margin: var(--code-menu-sep-gap) var(--code-menu-sep-inset); border-top: var(--code-menu-sep) solid var(--cc-line); }
+  .cc-menu-sep { height: 0; margin: var(--cc-menu-sep-gap) var(--cc-menu-sep-inset); border-top: var(--cc-menu-sep) solid var(--cc-line); }
 
   /* 手机抽屉底部「新建」胶囊（同 Claude 手机端：深色里白底黑字，浅色里黑底白字） */
   .cc-pill {

@@ -395,7 +395,7 @@ export const MobileFilingItems: FC = () => {
     <>
       <MoveToMenu sessionId={remoteId} localId={localId} />
       {withPeriod && filing.project && (
-        <SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:20rem]">
+        <SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">
           <PeriodItems value={filing.period} onPick={(period) => void fileSession(remoteId, { ...filing, period }).catch(report)} />
         </SubMenu>
       )}

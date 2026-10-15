@@ -1898,6 +1898,9 @@ g.done();
         self.assertIn("hover:bg-row-hover", item)
         self.assertIn("data-active:bg-row-hover", item)
         self.assertIn("data-active:text-ink", item)
+        self.assertIn('<MoreHorizontalIcon className="size-(--cc-icon-sm)" />', thread_list)  # 行尾「···」图标 16，同 .cc-row-btn
+        self.assertIn("has-focus-visible:text-ink", item)  # 键盘焦点同选中一样主色字（设计文档 3.5），悬停不改字色
+        self.assertNotIn("hover:text-", item)
         self.assertIn("h-(--cc-row-h)", item)
         # 只有第一次加载显示骨架：之后重拉列表（别处新建了对话）时旧列表留着，不闪
         self.assertIn("s.threads.isLoading && !s.threads.threadIds.length", thread_list)

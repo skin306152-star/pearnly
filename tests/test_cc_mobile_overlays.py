@@ -500,14 +500,24 @@ class MenuEdgeTests(unittest.TestCase):
                       "var(--radix-dropdown-menu-content-available-height, 100vh)); overflow-y: auto;", css)
         for rel in ("components/period-chip.tsx", "components/assistant-ui/projects.tsx"):
             self.assertNotIn("max-h-80", read(rel), rel)
-        self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu !min-w-40 [--cc-menu-max:20rem]"'), 2)
+        self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]"'), 2)
         # 方向：按触发按钮（aria-labelledby）上下的空间与内容完整高度选，换子菜单那一页时重选
         self.assertIn('const id = el.getAttribute("aria-labelledby");', menu)
         self.assertIn("el.scrollHeight + borders", menu)
         self.assertIn('lengthPx(style.getPropertyValue("--cc-menu-max"))', menu)
-        self.assertIn("const gap = sideOffset + MENU_EDGE;", menu)
-        self.assertIn("}, [el, side, sideOffset, open]);", menu)
-        self.assertIn("side={chosen ?? side}", menu)
+        # 离边距离按传进来的 collisionPadding（数字或分边写）；打开期间内容变高、键盘弹出收起时重选
+        self.assertIn('const edgeTop = typeof collisionPadding === "number" ? collisionPadding : (collisionPadding?.top ?? 0);', menu)
+        self.assertIn('const edgeBottom = typeof collisionPadding === "number" ? collisionPadding : (collisionPadding?.bottom ?? 0);', menu)
+        self.assertIn("const below = bottom - box.bottom - sideOffset - edgeBottom;", menu)
+        self.assertIn("const above = box.top - top - sideOffset - edgeTop;", menu)
+        self.assertIn("resized?.observe(el);", menu)
+        self.assertIn("changed.observe(el, { childList: true, subtree: true });", menu)
+        self.assertIn('window.visualViewport?.addEventListener("resize", measure);', menu)
+        self.assertIn('window.visualViewport?.removeEventListener("resize", measure);', menu)
+        self.assertIn("}, [el, side, sideways, sideOffset, edgeTop, edgeBottom, open]);", menu)
+        # 旁边展开（left / right）照传进来的方向，之前选过的上 / 下不盖掉它
+        self.assertIn('const sideways = side === "left" || side === "right";', menu)
+        self.assertIn("side={sideways ? side : (chosen ?? side)}", menu)
 
     def test_submenus_use_the_wrapper_and_the_drawer_row_menu_opens_downwards(self):
         page = read("assistant.tsx")
@@ -515,7 +525,7 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>', page)
         projects = read("components/assistant-ui/projects.tsx")
         self.assertIn('<SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">', projects)
-        self.assertIn('<SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:20rem]">', projects)
+        self.assertIn('<SubMenu label={co.period} className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]">', projects)
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn('side={isMobile ? "bottom" : "right"}', rows)
         self.assertIn('<DropdownMenu.Content side={isMobile ? "bottom" : "right"} align="start"', projects)
