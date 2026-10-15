@@ -356,6 +356,25 @@ def _scope_pairs(sets) -> set:
     return {(str(item.get("connection") or ""), _account_key(item.get("key"))) for item in sets}
 
 
+def _written_of(status, record):
+    """一张推送成功的票怎么写进 Express 的（`written`，验收 F19）；没成功、没记录、不是 Express 的回 None。"""
+    if status != "success" or not record:
+        return None
+    return application.written([record]).get(record)
+
+
+def _attach_written(rows) -> None:
+    """推送成功的行补上怎么写进 Express 的（`written`：现购 / 赊购、哪层定的、记的科目，验收 F19）；
+    推送记录名只用来查，不交给模型（同 `_push_one`）。"""
+    records = {row.get("last_push_record"): row for row in rows
+               if row.get("last_push_status") == "success" and row.get("last_push_record")}
+    found = application.written(list(records)) if records else {}
+    for row in rows:
+        record = row.pop("last_push_record", None)
+        if record in found:
+            row["written"] = found[record]
+
+
 def list_documents(tool_input) -> str:
     scope.require_read()
     company = _company_scope(tool_input)
@@ -411,7 +430,7 @@ def list_documents(tool_input) -> str:
         if len(digits) >= 5:
             or_filters += [[field, "like", f"%{digits}%"] for field in ("seller_tax", "buyer_tax", "invoice_no")]
     # 走 DocType 自己的权限查询条件（与录入列表同一判据），看不见的行取不到。
-    query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages"],
+    query = {"filters": filters, "or_filters": or_filters, "fields": DOC_FIELDS + ["pages", "last_push_record"],
              "order_by": "modified desc, name desc"}
     out, matched, complete = {}, None, True
     if exact and not (search and failed_only) and not direction and not tool_input.get("totals"):
@@ -455,6 +474,7 @@ def list_documents(tool_input) -> str:
                            "the rest. Counts in by_account_set are only what was checked: never say a company has "
                            "none from it; narrow the dates or ask about that company with its account_set_key.")
     next_offset = offset + len(rows)
+    _attach_written(rows)
     names = {}
     for row in rows:
         row["last_push_reason"] = _reason(row.get("last_push_reason"))
@@ -576,7 +596,12 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
         frappe.clear_messages()
         return {"document": name, "status": "not_found"}
     if doc.last_push_status in ("pending", "success"):
-        return {"document": name, "status": "already_" + doc.last_push_status}
+        out = {"document": name, "status": "already_" + doc.last_push_status}
+        # 已入账的重推不再推，但照样说清当时怎么写的（现 / 赊、哪层定的），免得 CC 又叫用户去 Express 核对（验收 F19）
+        written = _written_of(doc.last_push_status, getattr(doc, "last_push_record", None))
+        if written:
+            out["written"] = written
+        return out
     target = connection or doc.push_connection
     if not target:
         return {"document": name, "status": "failed", "reason": "no_push_target"}
@@ -667,6 +692,8 @@ def _concluded(item, outcome) -> bool:
         item["status"] = "entered"
         if outcome.get("docnum"):
             item["docnum"] = outcome["docnum"]
+        if outcome.get("written"):
+            item["written"] = outcome["written"]  # 现购 / 赊购、哪层定的、记的科目（验收 F19）
     elif status == "manual":
         # 结果不明（写没写进 ERP 说不准）不说失败：要人去 ERP 核对后用 cowork_resolve_push_result 记下，别重推
         item.update(status="unconfirmed" if outcome.get("result_unknown") else "failed",
@@ -1354,6 +1381,10 @@ def _detail(doc) -> dict:
     reason = str(doc.get("last_push_reason") or "")
     if reason.startswith("document_policy_needed_"):
         out["handling_choice_needed"] = reason[len("document_policy_needed_"):]
+    # 用户问「这张是不是现金」时 CC 最常查的就是详情：入账的票带上怎么写进去的（验收 F19 复审 M1），记录名不给
+    written = _written_of(doc.get("last_push_status"), doc.get("last_push_record"))
+    if written:
+        out["written"] = written
     return _filled(out)
 
 
@@ -3167,6 +3198,22 @@ CC_DESKTOP = ("The Windows program on the user's computer that reads their folde
               "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
               + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
               "never by a generic description.")
+# 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目，`pushed.written`）：推送与查推送结果共用一段
+# 说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对。
+WRITTEN_NOTE = ("An entered Express document carries written: the facts of how it was written. payment cash = a cash "
+                "purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
+                "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
+                "for this document at upload or on review, or on older documents possibly the choice remembered for "
+                "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
+                "remembered (the choice saved for this supplier in this account set), task_default (the "
+                "scheduled folder task's default), document (written on the document), document_type (receipt or "
+                "simplified tax invoice = paid, tax invoice = credit), supplier_profile, bank (a matching bank "
+                "payment), pos_summary (POS daily sales, always cash), default (no signal: the account set's "
+                "default). debit_account is the account the purchase lines were sent with (an account set on "
+                "periodic inventory may post the default stock account to its purchases account instead); "
+                "revenue_account is the account of the sales lines; vat is claimed, added_to_cost (not claimed, in "
+                "the cost) or none. Tell the user plainly how it was entered and why; never ask them to check "
+                "Express for this.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},
@@ -3293,7 +3340,8 @@ TOOLS = [
     {"name": "cowork_document_detail", "label": "Viewed a document",
      "description": "All recognized fields of one document on the Intake workbench (the review page): seller and "
                     "buyer, tax IDs, invoice number, date, amounts, line items, push status, and the version needed "
-                    "to edit it. handling_choice_needed means the push waits for cowork_choose_document_policy.",
+                    "to edit it. handling_choice_needed means the push waits for cowork_choose_document_policy. "
+                    + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"}}, "required": ["document"]},
      "handler": "pearnly_cowork.assistant.tools.document_detail"},
     {"name": "cowork_edit_document", "label": "Edited a document",
@@ -3433,7 +3481,7 @@ TOOLS = [
                     "pushed document can only be changed by a person in Express, then read back with "
                     "cowork_express_readback). connection and account_set_key choose where to push (from "
                     "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
-                    "upload is used.",
+                    "upload is used. " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": PUSH_MAX},
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},
@@ -3871,7 +3919,8 @@ TOOLS = [
      "description": "Show recent push results: documents whose push failed (with the reason), is pending (on its way "
                     "to the ERP), or succeeded (entered). Documents still waiting to be entered (never pushed or "
                     "failed) are push_state waiting in cowork_list_documents. In a conversation filed under a company "
-                    "it covers only that company's account sets (scope names it) unless all_companies is true.",
+                    "it covers only that company's account sets (scope names it) unless all_companies is true. "
+                    + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
          "push_state": {"type": "string", "enum": ["pending", "success", "failed"]},
          "offset": {"type": "integer", "minimum": 0},

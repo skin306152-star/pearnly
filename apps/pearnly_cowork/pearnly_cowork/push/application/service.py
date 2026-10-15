@@ -659,8 +659,9 @@ OUTCOMES_MAX = 20  # 同 CC 一次推送的张数上限
 
 def outcomes(records):
     """推送的人看自己这几次推送此刻的结论（CC 推送后等写账结果，用户 2026-10-13 第 9 条）：
-    ``{记录名: {"status", "reason", "docnum", "result_unknown"}}``；status 是账本状态（pending / leased 还在路上，
+    ``{记录名: {"status", "reason", "docnum", "result_unknown", "written"}}``；status 是账本状态（pending / leased 还在路上，
     success 已入账，manual 要人处理）。docnum 只在入账成功时给：ERP 回报的单号（Express 由 CC 桌面版写完回读）。
+    written 也只在入账成功时给：Express 载荷里现购 / 赊购、哪层定的、记的科目（`pushed.written`，验收 F19），别的为 None。
 
     只认本人发起（actor）的记录，别人的、不存在的不回；只读、不加锁、不改任何东西。调用方要看别的请求刚提交的结论时，
     先自己 ``frappe.db.rollback()`` 换一份新快照。"""
@@ -668,11 +669,29 @@ def outcomes(records):
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:OUTCOMES_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown FROM `tabCowork Push Record`
-        WHERE actor=%s AND name IN %s""", (frappe.session.user, tuple(names)), as_dict=True)
+    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json
+        FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""", (frappe.session.user, tuple(names)), as_dict=True)
     return {row.name: {"status": row.status, "reason": row.reason or "",
                        "docnum": (row.external_docnum or "") if row.status == "success" else "",
-                       "result_unknown": bool(row.result_unknown)} for row in rows}
+                       "result_unknown": bool(row.result_unknown),
+                       "written": pushed_rules.written(_loads(row.payload_json)) if row.status == "success" else None}
+            for row in rows}
+
+
+WRITTEN_MAX = 50  # 同 CC 列单据一页的上限
+
+
+def written(records):
+    """推送成功的这几条记录各自怎么写进 Express 的（`pushed.written`）：``{记录名: {...}}``，不是 Express 的、没成功的不回。
+    给 CC 列推送结果用（验收 F19）：记录名取自调用方已按权限取到的单据（``last_push_record``），这里不再按人筛；只读。"""
+    scope.require_read()
+    names = list(dict.fromkeys(str(name) for name in records or () if name))[:WRITTEN_MAX]
+    if not names:
+        return {}
+    rows = frappe.db.sql("""SELECT name, payload_json FROM `tabCowork Push Record`
+        WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
+    found = {row.name: pushed_rules.written(_loads(row.payload_json)) for row in rows}
+    return {name: item for name, item in found.items() if item}
 
 
 def records(connection, start=0, limit=50):

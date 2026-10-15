@@ -444,3 +444,38 @@ Keycloak 密码页默认不勾，只有自动提交（`#pn=…&rm=1`）走成时
 - 改动：`initialChoice`——只预填已定的（`current`）或服务端建议中第一项在可选值里的；都没有就空着，下拉显示「—」，所有项选完才能点确认。付款方式、抵不抵进项同样不再默认第一项。
 - 测试：`tests/test_assistant_ui.py` `PendingChoiceDefaultTests`。
 - 未做：未部署（随下一批）。待处理页明天按 Code 框架重构为异常清单时沿用这条规则。
+
+## V9 重验通过（科目历史）
+
+生产 testcowork 三项都已通过（19:10–19:18）：同一供应商推满 3 张后第 4 张直接用历史科目、主档页出现「来自 Express 历史 · N 次」、删掉后再推又问。
+历史读取没有等自然到期，由开发窗口 19:03 强制重读了一次。
+
+## F19 现金采购写对了，CC 却叫用户去 Express 核对
+
+测试窗口（生产 testcowork）：用户对 CC 说「จ่ายเงินสด」，公司页记住了供应商 0105562012340 → 现购。推进 C 盘测试账套 T9NIEXCP 的 HP690923-001、HP690928-001、
+HP690929-001，总控按 Express 表核对：APTRN `RECTYP=1`（现购）、GLJNLIT 借 53-05-02-00 / 贷 11-01-01-00（账套 ISINFO.ACCNUM00 现金科目）、摘要「ซื้อสดจาก …」。
+**写入是对的**：载荷单据类型 HP = 现购，CC 桌面版写入（`companion/src/companion/dbf_writer.py: _write_all`）把载荷里占位的应付贷方换成现金科目。
+
+- 真问题：CC 两次答「系统没让选付款方式，没法确认是现金，请去 Express 打开单据核对」，把核对推给用户。原因是 CC 拿到的推送结果
+  （`assistant/tools.py: _push_one / _settle / _concluded`，以及 `cowork_push_results`）只有「已入账 + 单号」，没有写成什么样。
+- 改动：
+  - `push/express/pushed.py: written`：从推送记录冻结的 Express 载荷取几项事实——`payment`（HP / HS = cash，RR / IV = credit）、`payment_from`（`doctype_src`
+    一一对应：manual → chosen、remembered、task_default、explicit → document、doc_type → document_type、profile → supplier_profile、bank、
+    config_default → default；POS 日汇总为 pos_summary；没有 `doctype_src` 的旧记录、认不出的值不给）、`debit_account`（进项）/ `revenue_account`（销项）、进项 `vat`
+    （claimed / added_to_cost / none）。不是 Express 载荷（MR.ERP）不给。
+  - `push/application/service.py`：`outcomes` 入账成功时带 `written`；新增 `written(records)` 给列推送结果用（只读、只要入账成功的）。
+  - `assistant/tools.py`：推送后入账的结果、`cowork_list_documents` / `cowork_push_results` 里入账的行带 `written`（推送记录名只用来查，不交给模型）；
+    两个工具说明（模型看的英文）讲清 cash = 现购记贷现金科目、各来源的意思，照实告诉用户，不要叫用户去 Express 核对。
+  - 来源分清：原来「这家记过的」和「定时任务默认」都记成 `manual`，和本票人工裁决分不开。`push/express/choices.py` 套用时给出 `payment_from`
+    （remembered / task_default），`push/express/mapper.py` 据此写 `doctype_src`；本票人工裁决仍是 `manual`。改版前的记录照旧是 `manual`（说成 chosen）。
+- 测试：`tests/test_cowork_assistant_tools.py`（入账现购带 remembered、赊购默认、列结果那条路、旧记录无 `doctype_src`、MR.ERP 不给、来源逐项对应、
+  列表不露记录名）；`tests/test_cowork_express_mapper.py`、`tests/test_cowork_express_choices.py`（remembered / task_default 留痕）。
+- 复审跟进（同分支第二个提交）：
+  - M1：`cowork_document_detail`（`_detail`）对入账的票也带 `written`，工具说明拼上同一段说明——用户问单张「是不是现金」时 CC 最常查的是详情。
+  - L1：已入账的票重推（`already_success`）回执带当时的 `written`。
+  - L2：改版前「这家记过的 / 定时任务默认」也存成 `manual`，冻结的载荷分不开；说明改成 chosen = 有人的选择（本票上传或复核时选的，旧单也可能是这家记过的或任务默认），
+    不许说成「有人专门为这张选了」。没加载荷版本标记：载荷键是 CC 桌面版契约，不为一句说法加键。
+  - L3：进项键名 `expense_account` 改为 `debit_account`（库存采购借的是存货科目；期末盘存制账套 CC 桌面版会把默认存货科目改记购货科目 ACCNUM18，说明里写明）。
+  - L4：说明不再写「HP 一定贷账套现金科目」（账套没设可过账的现金科目 ACCNUM00 时桌面版保留应付占位），改为 HP = 现购（付现）。
+  - 说明补上简式税票按已付（`pearnly_core` `paid_hint`）。
+- 未做：未部署（随下一批）；部署后由测试窗口重验：对现购的单问 CC「是现金吗」，应直接答现购及原因；同时用单据详情问一次（复审 M1）。
