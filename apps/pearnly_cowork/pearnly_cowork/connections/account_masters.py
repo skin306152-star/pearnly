@@ -55,15 +55,18 @@ def view(doc, account, now=None):
     够得到它、能写）/ ``update_needed``（电脑上的 CC 桌面端只读得了它当前选的那份）。
     ``selected``：这份资料是某台电脑按期上报它当前选的账套时带来的、还新（那台会自己接着报，不另排）。
     ``request`` 为 ``"new"`` 表示该请电脑读（没有，或别的账套读过很久了），否则 ``None``。
-    在线与版本仍看连接当前上报的那台（第 3 批换成池的判据）。"""
+    在线与版本看池里够得到这份账套的电脑（`member.presence`，由 Companion 经钩子提供）：任一台在线就算在线，任一台的
+    CC 桌面端读得了别的账套就不算要升级；池里还没有电脑报过账套名单时看池里任一台。"""
     now = now or _now()
     account = normalize_express_account_key(account)
     result = {"state": READY, "account_set": account, "selected": False, "present": True, "request": None}
     if doc.adapter != "express" or not account:
         return result
-    report = model.parse(doc.get("report_json"), {})
-    binding = preparation.current_binding(doc, report)
-    online = binding.get("online") is True
+    peers = pool.presence(doc.name)
+    reachers = [device for device in pool.reachers(doc.name, account, writable=True) if device in peers]
+    pool_reported = pool.any_reach(doc.name)
+    relevant = reachers if pool_reported else list(peers)
+    online = any(peers[device].get("online") for device in relevant)
     facts = pool.facts(doc.name, account) or {}
     seen = facts.get("_seen_at")
     selected = bool(facts.get("_routine") and seen and now - seen < 2 * REREAD_AFTER)
@@ -79,7 +82,8 @@ def view(doc, account, now=None):
             result["request"] = "new"
         result["state"] = READY if online else OFFLINE
         return result
-    if binding and not selected and not refresh.reads_any_account_set(refresh.desktop_version(doc)):
+    if (relevant and not selected
+            and not any(refresh.reads_any_account_set(peers[device].get("version")) for device in relevant)):
         result["state"] = UPDATE_NEEDED  # 旧版只读它当前选的那份：别的账套的请求不会交给它
         return result
     if pending:
@@ -91,7 +95,7 @@ def view(doc, account, now=None):
         # 刚读过还是没有科目表（读失败，或那份账套读不出科目）：照实说，过一阵再请电脑读
         result.update(state=FAILED, error_code=error_code or "ERR_CHART_EMPTY")
         return result
-    if binding and pool.any_reach(doc.name) and not pool.reachers(doc.name, account, writable=True):
+    if peers and pool_reported and not reachers:
         result["state"] = UNAVAILABLE  # 池里没有电脑够得到它、能写：读不到，也推不了
         return result
     result.update(state=READING if online else OFFLINE, request="new")

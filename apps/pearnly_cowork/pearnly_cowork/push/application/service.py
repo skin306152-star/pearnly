@@ -53,9 +53,15 @@ def _view(row):
         "name", "status", "revision", "history", "connection", "history_version",
         "connection_revision", "reason", "result_unknown", "replayed", "blocked_by", "blocked_reason")}
     result["checks"] = deepcopy(row.get("checks") or [])
-    evidence = (row.get('frozen_target') or {}).get('preparation_evidence') or {}
+    target = row.get('frozen_target') or {}
+    evidence = target.get('preparation_evidence') or {}
     result['preparation_states'] = deepcopy(evidence.get('states') or {})
-    result['has_reported_credential'] = bool(evidence.get('credential'))
+    # 这份准备能不能确认：池里至少一台电脑够得到这份账套（电脑关着也算，D4）。只对还没确认的 Express 准备查一次。
+    # 旧名 `has_reported_credential` 保留同一个值（实验室脚本与旧调用方读它）。
+    writer = bool(target.get('adapter') == 'express' and row.get('status') == 'prepared'
+                  and int(evidence.get('version') or 1) >= 2
+                  and ledger.has_writer(row.get('connection'), row.get('account_key')))
+    result['has_writer'] = result['has_reported_credential'] = writer
     result["external_reference"] = derive_external_ref(
         (row.get("frozen_target") or {}).get("adapter"), row.get("response_body"), row.get("status"))
     return result
@@ -170,7 +176,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
         row = ledger.reserve(context=context, request_key=request_key, frozen_target={**asdict(target),
             "request_intent": intent, "connection_revision": loaded.revision, "original_history": prior,
             "preparation_date": datetime.now(ZoneInfo("Asia/Bangkok")).date().isoformat(),
-            "own_tax_id": own_tax, "preparation_evidence": evidence},
+            "own_tax_id": own_tax, "preparation_evidence": evidence,
+            **ledger.writer_scope(loaded.doc.name, target.account_set)},
             frozen_payload={"adapter": "express", "choice_needed": decision["needed"]},
             disposition="manual", reason=f"choice_needed:{kinds}", checks=[])
         return _view(row)
@@ -181,14 +188,16 @@ def prepare(history, connection, request_key, expected_history_version, expected
             tenant_id=loaded.access.tenant_id, mappings=preparation["mappings"],
             supplier_profile=preparation["supplier_profiles"].get(seller_tax),
             bank_index=preparation["bank_index"], prior_docnum=prior_docnum))
-    frozen = asdict(target)
-    frozen.update(request_intent=intent, connection_revision=loaded.revision,
-        original_history=prior, preparation_date=today.isoformat(), own_tax_id=own_tax,
-        preparation_evidence=evidence)
     payload = prepared.payload or {}
     if confirm_duplicate and payload:
         # 小助手的查重闸认这个键：Express 已有同号不同内容 / 上一版还在时，会计确认过就照写（`duplicate_gate`）。
         payload["duplicate_confirmed"] = True
+    # 电脑来领时只核这一份（证据 v2，D5）：服务端事实 + 这份载荷实际用到的主档行，不比日期、电脑、版本
+    evidence = {**evidence, "basis_hash": ledger.basis_hash(preparation, payload)}
+    frozen = asdict(target)
+    frozen.update(request_intent=intent, connection_revision=loaded.revision,
+        original_history=prior, preparation_date=today.isoformat(), own_tax_id=own_tax,
+        preparation_evidence=evidence, **ledger.writer_scope(loaded.doc.name, target.account_set))
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
@@ -592,8 +601,9 @@ def cancel_prepared(name, expected_revision):
         expected_revision=storage.revision(expected_revision)))
 
 
-def confirm(name, expected_revision, request_key, *, credential):
-    """Called by authenticated Companion submission orchestration, never RPC."""
+def confirm(name, expected_revision, request_key):
+    """Called by authenticated Companion submission orchestration, never RPC. Express needs no computer's key
+    (ADR-021): the ledger checks the actor's grant and that some computer reaches the account set."""
     scope.require('intake')
     row = frappe.db.get_value('Cowork Push Record', name,
         ['connection', 'workspace', 'client', 'history'], as_dict=True)
@@ -604,7 +614,7 @@ def confirm(name, expected_revision, request_key, *, credential):
     original_history(history)
     doc = frappe.get_doc('Cowork Push Record', name, for_update=True)
     context = _context(history, loaded, doc.account_key)
-    return _view(ledger.confirm(name, context=context, credential=credential,
+    return _view(ledger.confirm(name, context=context,
         expected_revision=storage.revision(expected_revision), request_key=request_key))
 
 
@@ -617,7 +627,7 @@ def confirm_server(name, expected_revision, request_key):
         frappe.throw(_('push.record_not_found'), frappe.DoesNotExistError)
     if (frappe.parse_json(row.target_json or '{}') or {}).get('adapter') != 'mrerp':
         frappe.throw(_('push.native_target_changed'))
-    result = confirm(name, expected_revision, request_key, credential=None)
+    result = confirm(name, expected_revision, request_key)
     if result.get('status') == 'pending':
         runner.dispatch(name)
     return result

@@ -89,14 +89,28 @@ def document_identity(context):
     return digest([context.workspace, context.client or '', context.history, context.connection, context.account])
 
 
+# 锁口径（ADR-021 D6）。冻结目标里写着 ``lock_scheme: 2`` 的 Express 记录用 v2；没写的（这一批之前的、MR.ERP）永远按 v1 算：
+# 领取、回执、过期回收、隔离、人工核对每一步都从冻结目标重算锁，口径一改旧记录就放不掉锁。
+LOCK_SCHEME = 2
+
+
 def writer_identities(context, target):
-    # Endpoint serialization plus a conservative same-company/account lock.
-    # Different connections pointing to the same reported root/data path cannot
-    # write together; unrelated companies with the same local folder stay apart.
+    """这条记录要持有的写者锁 ``[(锁键, 种类)]``。
+
+    v1：一把整条连接的 endpoint 锁 + 一把账套锁（工作空间 + 数据根 + 账套键，同一份账套跨连接也互斥）。
+    v2（Express，``lock_scheme: 2``）：不再锁整条连接（D6）；账套锁公式不变（规范根 + 规范键，登记后永不改，与部署前在途的
+    旧记录取同一把）；冻结了内容键（税号 + 分店 + 期初）的再加一把公司锁：认定万一把同一份账套拆成两份登记、或同公司同期
+    在两台电脑本机各有一份拷贝时，也不会同时写。一张结果不明只挡这份账套和同公司同期的副本。"""
     text(context.account_key, length=1024)
-    endpoint = digest(['endpoint', context.connection])
     account = digest(['account', context.workspace,
                       normalize_express_account_key(target.get('root_key')), context.account])
+    if target.get('lock_scheme') == LOCK_SCHEME:
+        identities = [(account, 'account')]
+        company = str(target.get('company_key') or '').strip()
+        if company:
+            identities.append((digest(['company', context.workspace, company]), 'company'))
+        return sorted(identities)
+    endpoint = digest(['endpoint', context.connection])
     return sorted(((endpoint, 'endpoint'), (account, 'account')))
 
 
@@ -112,6 +126,11 @@ def frozen_values(context, target, payload, disposition, reason, checks):
             or normalize_express_account_key(target.get('account_set')) != context.account
             or target.get('binding_generation') != context.binding_generation
             or target.get('adapter') not in ('express', 'mrerp')):
+        raise PushLedgerError('push.native_target_mismatch')
+    # v2 锁口径只给 Express（电脑领取、每台同时一件）；MR.ERP 由服务端直连执行，仍靠整条连接的 endpoint 锁串行
+    if (target.get('lock_scheme') not in (None, LOCK_SCHEME)
+            or (target.get('lock_scheme') == LOCK_SCHEME and target.get('adapter') != 'express')
+            or not isinstance(target.get('company_key', ''), str)):
         raise PushLedgerError('push.native_target_mismatch')
     reason = text(reason, length=500, optional=True)
     values = {'context': asdict(context), 'target': target, 'payload': payload,

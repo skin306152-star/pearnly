@@ -386,6 +386,7 @@ Completed By,ผู้ทำรายการเสร็จสิ้น
 Completion Evidence,หลักฐานการเสร็จสิ้น
 Computer,คอมพิวเตอร์
 Computer Name,ชื่อคอมพิวเตอร์
+Computer Owner,ผู้ลงทะเบียนคอมพิวเตอร์
 Condition,เงื่อนไข
 Condition code not allowed,เงื่อนไขไม่ถูกต้อง
 Confirmation Request,คำขอยืนยัน
@@ -666,6 +667,7 @@ Enter a valid quantity with no more than six decimal places.,กรุณาร�
 Enter list name,กรอกชื่อรายการ
 Enter the company's 13-digit tax ID.,กรุณาระบุเลขประจำตัวผู้เสียภาษี 13 หลักของบริษัท
 Enter the user name,กรุณากรอกชื่อผู้ใช้
+Entered By,ผู้บันทึก
 Entered by,ผู้บันทึก
 Entered in Express,บันทึกใน Express โดยตรง
 Entered into Express,ส่งแล้ว
@@ -826,6 +828,7 @@ Income type not chosen,ยังไม่ระบุประเภทเงิ
 Income type not on this form,ประเภทเงินได้ไม่อยู่ในแบบนี้
 Income type to choose,ประเภทเงินได้ที่ต้องระบุ
 Index Rebuild Pending,รอสร้างดัชนีใหม่
+Index Rebuild Pending Folder IDs,รหัสโฟลเดอร์ที่รอสร้างดัชนีใหม่
 Initial Password,รหัสผ่านเริ่มต้น
 Input tax report,รายงานภาษีซื้อ
 Input tax this month,ภาษีซื้อเดือนนี้ (ตามหลักฐานใบกำกับภาษีของยอดซื้อตาม 6.)
@@ -1030,6 +1033,7 @@ No account sets yet. Use Reload in New Intake first.,ยังไม่มีร
 No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
+"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No files were given.,ไม่ได้ระบุไฟล์
@@ -1172,6 +1176,7 @@ Payee tax ID missing,ไม่มีเลขประจำตัวผู้�
 Payees,จำนวนราย
 Payer not clear,ไม่ชัดเจนว่าใครเป็นผู้จ่าย
 Payload Json,ข้อมูลส่งที่ตรึงไว้ (JSON)
+Payload Version,เวอร์ชันข้อมูลงาน
 Payment,วิธีชำระเงิน
 Payment Date,วันที่จ่าย
 Payment Evidence,หลักฐานการชำระเงิน
@@ -1236,6 +1241,7 @@ Quantity counted this time,จำนวนที่นับครั้งน�
 Quantity differences,ผลต่างจำนวน
 Questions,คำถาม
 Queued,รอคิว
+Queued At (UTC),เวลาเข้าคิว (UTC)
 "Queued, {0} ahead",กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
 "Queued, {0} tasks ahead",อยู่ในคิว มีงานก่อนหน้า {0} งาน
 Rate %,อัตราร้อยละ
@@ -2081,7 +2087,9 @@ Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก
 Workspace,ชุดบัญชีบริษัท
 Writable,เขียนได้
+Write Route,การมอบหมายการเขียน
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
+Written By Computer,คอมพิวเตอร์ที่เขียน
 Yearly,ทุกปี
 Yellow,เหลือง
 "Yes, keep reconciling it",นำมากระทบยอด
@@ -3416,6 +3424,7 @@ push.native_stale_attempt,การพยายามส่งครั้งน
 push.native_state_invalid,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
 push.native_target_changed,ปลายทางการส่งเปลี่ยนแปลงแล้ว กรุณาเตรียมเอกสารใหม่
 push.native_target_mismatch,ปลายทางการส่งที่ล็อกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
+push.no_writer,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
 push.original_reference_invalid,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 push.posting_kind_invalid,ประเภทการลงบัญชีไม่ถูกต้อง
 push.preparation_cancelled,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว

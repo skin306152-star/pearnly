@@ -4,15 +4,14 @@ from frappe import _
 
 from pearnly_cowork.push.application import service
 from pearnly_cowork.push.application.api import _local_transaction
-from . import credentials
 
 
 def _confirm(name, expected_revision, request_key):
     connection = frappe.db.get_value('Cowork Push Record', name, 'connection')
     if not connection:
         frappe.throw(_('push.record_not_found'), frappe.DoesNotExistError)
-    credential = credentials.for_confirmation(connection)
-    return service.confirm(name, expected_revision, request_key, credential=credential)
+    # 确认不再要哪台电脑的密钥（ADR-021）：录入人有权限、这份账套登记着、池里至少一台电脑够得到它（`ledger.confirm`）
+    return service.confirm(name, expected_revision, request_key)
 
 
 @frappe.whitelist(methods=['POST'])

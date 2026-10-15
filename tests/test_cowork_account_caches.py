@@ -80,8 +80,9 @@ class AccountCacheTest(unittest.TestCase):
         reported = facts["reported_config"]
         self.assertEqual(reported["catalog_fingerprint"], {"stock_master_count": 0})
         self.assertEqual(reported["reported_stock_acc_groups"][0]["acccod"], "LJ")
-        self.assertEqual((reported["max_payload_version"], reported["companion_version"]), (2, "1.3.0"))
-        self.assertEqual(evidence["credential"]["credential_id"], "CRED")
+        # 第 3 批：资料不含版本号（载荷版本在领取时按领取的电脑判），证据不绑密钥，只认这份账套
+        self.assertFalse({"max_payload_version", "companion_version"} & set(reported))
+        self.assertEqual((evidence["version"], evidence["route"]["account_key"]), (2, OTHER.lower()))
 
     def test_stock_group_candidates_come_from_the_same_source_as_push_preparation(self):
         """选存货科目组的候选（用户 2026-09-28）：每份账套用它自己的资料；没读过的算「不知道」（None），不当成「没有组」。"""

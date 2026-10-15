@@ -63,7 +63,8 @@ class ReportWrites(unittest.TestCase):
         self.report(heartbeat())
         self.assertEqual(len(self.writes), 1)  # 升级后第一拍：去掉旧时间戳与旧名单，写一次
         stored = json.loads(self.doc.report_json)
-        self.assertEqual(set(stored), {"_preparation_binding", "companion_version"})
+        # 第 3 批：上报绑定与版本也不再记在连接行上（证据 v2 不绑密钥，版本属于各台电脑）
+        self.assertEqual(set(stored), set())
         for minute in range(1, 6):
             self.report(heartbeat(), minute)
         self.assertEqual(len(self.writes), 1)  # 之后每分钟内容相同：一行都不写
@@ -73,11 +74,15 @@ class ReportWrites(unittest.TestCase):
         self.report(heartbeat(accounts=[{"code": "1100"}, {"code": "2100"}]), 1)
         self.assertEqual(len(self.writes), 1)
         self.assertEqual(len(pool.facts("CONN", BOOK)["reported_accounts"]), 2)
-        # 换了上报的密钥（同一台电脑重新配对）：连接这一行写一次
+        # 换了上报的密钥（同一台电脑重新配对）、另一台电脑轮流上报：连接这一行都不写（第 2 批审查 9b）
         self.pc.credential, self.pc.generation = "CRED-NEW", 3
         self.report(heartbeat(), 2)
-        self.assertEqual(len(self.writes), 2)
-        self.assertEqual((self.doc.report_credential, self.doc.report_generation), ("CRED-NEW", 3))
+        other = fake.Computer(self.doc, "PC-2", credential="CRED-2")
+        for minute in (3, 4, 5):
+            (other if minute % 2 else self.pc).report(heartbeat(companion_version="1.6.0" if minute % 2 else "1.5.1"),
+                                                      NOW + timedelta(minutes=minute))
+        self.assertEqual(len(self.writes), 1)
+        self.assertEqual((self.doc.report_credential, self.doc.report_generation), ("CRED", 1))
 
     def test_heartbeats_never_rewrite_the_configuration(self):
         before = (self.doc.config_json, self.doc.record_revision)
@@ -97,12 +102,12 @@ class ReportWrites(unittest.TestCase):
         self.assertEqual(len(self.writes), 1)
         self.assertEqual(len(fake.DB.rows("Cowork ERP Snapshot")), published)
 
-    def test_going_offline_is_recorded_once(self):
+    def test_going_offline_does_not_rewrite_the_connection(self):
+        # 下线记在这把密钥的报到时间上（`credentials.record_seen(offline=True)`），连接行不写
         self.report(heartbeat())
         self.report({"offline": True}, 1)
         self.report({"offline": True}, 2)
-        self.assertEqual(len(self.writes), 2)
-        self.assertFalse(json.loads(self.doc.report_json)["_preparation_binding"]["online"])
+        self.assertEqual(len(self.writes), 1)
 
 
 class SnapshotHeads(unittest.TestCase):

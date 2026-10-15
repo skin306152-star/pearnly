@@ -23,12 +23,14 @@ from pearnly_cowork.history import push_state
 from . import completion
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import access as connection_access
+from pearnly_cowork.connections import pool as account_pool
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.contracts.push import PushContractError, require_external_history
 from pearnly_cowork.push.express import common
 from pearnly_cowork.push.lifecycle import acknowledgement, LEASE_SECONDS
+from pearnly_cowork.push.express.referenced import used_masters
 from pearnly_cowork.push.native.contracts import (
-    ACTIVE_STATUSES, PushLedgerError, ReservationContext, business_identity, digest, document_identity,
+    ACTIVE_STATUSES, LOCK_SCHEME, PushLedgerError, ReservationContext, business_identity, digest, document_identity,
     duplicate_reason, encode, frozen_values, integer, request_identity, text, utc,
     writer_identities,
 )
@@ -193,8 +195,8 @@ def lookup_request(context, request_key):
 def _locks(context, target):
     result = []
     for name, kind in call(writer_identities, context, target):
-        # Account identity spans clients/connections in one company. Path/root
-        # equality is conservative only; no global physical-device proof exists.
+        # Account identity spans clients/connections in one company: canonical root + canonical key, never changed
+        # once registered (ADR-021). The company lock (lock scheme 2) is keyed by the frozen content key only.
         values = {'lock_key': name, 'lock_kind': kind, 'workspace': context.workspace,
                   'client': context.client or '' if kind == 'endpoint' else '',
                   'connection': context.connection if kind == 'endpoint' else '',
@@ -203,6 +205,20 @@ def _locks(context, target):
             _insert_unique(_new(WRITER_LOCK, name, **values))
         result.append(_current(WRITER_LOCK, name))
     return result
+
+
+def _older_writer(row, target):
+    """锁口径 v2 的记录还要让着同一连接、同一账套键上已经领走或结果不明的别的记录（不论它按哪种口径持锁）。
+
+    v2 不再取整条连接的 endpoint 锁；部署前在途的旧记录如果冻结的是空的程序目录（补丁按今天的目录登记了规范根），
+    它持的账套锁与 v2 记录算出的不是同一把——按账套键再核一次，结果不明的旧单照样挡住这份账套（ADR-021，D6）。
+    调用方已锁连接行：同一连接上的记录状态变化都先锁它，这里的加锁读看到的是最新提交的。"""
+    if target.get('lock_scheme') != LOCK_SCHEME:
+        return False
+    return bool(frappe.db.sql('''SELECT name FROM `tabCowork Push Record`
+        WHERE connection=%s AND account_key=%s AND name<>%s
+          AND (status='leased' OR (status='manual' AND COALESCE(result_unknown,0)=1)) LIMIT 1 FOR UPDATE''',
+        (row.connection, row.account_key, row.name)))
 
 
 def _validate_target(context, loaded, frozen, *, reject=fail):
@@ -262,7 +278,9 @@ def reserve(*, context, request_key, frozen_target, frozen_payload,
             connection=context.connection, connection_revision=context.connection_revision,
             account_key=context.account, branch=context.branch, binding_generation=context.binding_generation,
             status=disposition, revision=1, fence=0, wire_attempt=1, failure_count=0,
-            created_at=timestamp, updated_at=timestamp, **values)
+            created_at=timestamp, updated_at=timestamp,
+            # 录入人（写账路由第 ① 档按它比，D7）与这张单要的载荷版本（领取时按领取的电脑判，方案 2.5）
+            entered_by=context.actor, payload_version=_payload_version(frozen_payload), **values)
         if not _insert_unique(row):
             # A DB unique constraint is the final guard, even if a future caller
             # accidentally omits the ordered admission lock.
@@ -273,18 +291,51 @@ def reserve(*, context, request_key, frozen_target, frozen_payload,
         return {**project(row), 'replayed': False}
 
 
+def _payload_version(payload):
+    try:
+        return max(1, int((payload or {}).get('payload_version') or 1))
+    except (TypeError, ValueError, AttributeError):
+        return 1
+
+
+def _evidence_version(target):
+    try:
+        return int((target.get('preparation_evidence') or {}).get('version') or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def writer_scope(connection, account_key):
+    """Express 冻结目标里的写者锁口径 v2（ADR-021 D6）：不锁整条连接；账套锁按规范根 + 规范键（冻结目标里本就有），
+    登记有内容键（税号 + 分店 + 期初）的再加一把公司锁（``company_key``）。只读。"""
+    found = account_pool.registration(connection, account_key) or {}
+    return {'lock_scheme': LOCK_SCHEME, 'company_key': str(found.get('content_key') or '')}
+
+
+def basis_hash(facts, payload):
+    """准备证据 v2 里电脑来领时要核的那一份（D5）：服务端事实 + 这份载荷实际用到的主档行。准备时与领取时同一个函数。"""
+    return preparation_sources.basis(facts, used_masters(payload, facts['reported_config']))
+
+
+def has_writer(connection, account_key):
+    """池里至少一台电脑够得到这份 Express 账套、能写（不要求在线，D4）：确认与「这份准备还能不能确认」的判据。只读。"""
+    return bool(account_pool.registration(connection, account_key)
+                and account_pool.reachers(connection, account_key, writable=True))
+
+
 def _still_confirmable(row, context, loaded):
     """这份没发出过的准备现在还能不能确认发送（与 `confirm` 同一套核对）。
 
-    准备时小助手不在线 / 这会儿没报上这份账套（没有凭据）、准备过了一天、凭据换过、账套资料变了，确认一律被拒；
-    这时再点推送若还返回这份旧准备，就永远卡在「推送目标已变更」（2026-09-28 录制：小助手重扫账套的两分钟里
-    推的一张票，恢复后重推两次都被拒）。确认不了的就当过期，由新的准备替换——它没领过、没写过，不碰写者锁。"""
+    池里没有一台电脑够得到这份账套、准备过了一天、账套资料变了，确认一律被拒；这时再点推送若还返回这份旧准备，
+    就永远卡在「推送目标已变更」（2026-09-28 录制）。确认不了的就当过期，由新的准备替换——它没领过、没写过，不碰写者锁。
+    证据 v1（绑定准备那会儿上报的那把密钥，ADR-021 之前准备的）一律确认不了。"""
     target = json.loads(row.target_json or '{}')
-    if target.get('adapter') == 'express' and not (target.get('preparation_evidence') or {}).get('credential'):
+    if target.get('adapter') == 'express' and (_evidence_version(target) < 2
+                                               or not has_writer(context.connection, context.account)):
         return False
     messages = len(frappe.local.message_log or [])
     try:
-        _dispatch_target(context, loaded, target)
+        _dispatch_target(context, loaded, target, mode='confirm')
     except DispatchRejected:
         # 只是核对：拒绝的提示不带给这次推送的页面。
         del frappe.local.message_log[messages:]
@@ -337,16 +388,23 @@ class AdapterContext:
     owner: str
     binding_generation: int
     _capability: object = field(default=None, repr=False, compare=False)
+    # 问责（ADR-021）：哪台电脑来领的、它的登记人、按哪一档分派（own / always_on / other / sticky）。服务端直连的
+    # MR.ERP 执行器不填。它们只记进写入尝试与推送记录，不授予任何权限。
+    device: str = ''
+    device_owner: str = ''
+    route: str = ''
 
 
-def trusted_adapter_context(connection, owner, binding_generation=0):
+def trusted_adapter_context(connection, owner, binding_generation=0, *, device='', device_owner='', route=''):
     """Internal injection seam, not identity verification or a public credential API.
 
     The internal Companion transport must authenticate its credential before
     calling; native tests can inject a synthetic adapter through the same seam.
     """
     return AdapterContext(call(text, connection), call(text, owner),
-                          call(integer, binding_generation), _ADAPTER_CAPABILITY)
+                          call(integer, binding_generation), _ADAPTER_CAPABILITY,
+                          call(text, device, optional=True), call(text, device_owner, optional=True),
+                          call(text, route, length=20, optional=True))
 
 
 def _adapter(context, adapter):
@@ -382,7 +440,9 @@ def _dispatch_record(row, context):
         raise DispatchRejected('push.native_target_changed')
 
 
-def _dispatch_target(context, loaded, target):
+def _dispatch_target(context, loaded, target, *, mode, payload=None):
+    """``mode``：``confirm``（人确认、激活、`_still_confirmable`：准备证据整份相等，含日期）或 ``lease``（电脑来领：
+    只核这份账套的登记仍在、服务端事实与本单载荷 ``payload`` 实际用到的主档行没变，方案 2.5「准备证据 v2」，D5）。"""
     # Snapshot refresh does not have to change the connection revision. Keep
     # the original proof identity and reject an expired/superseded proof; never
     # silently choose a new target or regenerate the frozen payload.
@@ -391,8 +451,12 @@ def _dispatch_target(context, loaded, target):
     except TargetSelectionError:
         raise DispatchRejected('push.native_target_changed') from None
     if target.get('preparation_evidence'):
+        if target.get('adapter') == 'express' and _evidence_version(target) < 2:
+            # 证据 v1 绑定准备那会儿上报的那把密钥、整份重算；多台电脑后不再保留这条核对（ADR-021，方案 4.4）
+            raise DispatchRejected('push.native_target_changed')
+        rows = (lambda masters: used_masters(payload, masters)) if mode == 'lease' else None
         try:
-            preparation_sources.revalidate(loaded, current, target['preparation_evidence'])
+            preparation_sources.revalidate(loaded, current, target['preparation_evidence'], mode=mode, used=rows)
         except frappe.ValidationError:
             raise DispatchRejected('push.native_target_changed') from None
         own_tax = frappe.db.get_value('Cowork Workspace', context.workspace, 'tax_id', for_update=True) or ''
@@ -410,8 +474,11 @@ def _dispatch_target(context, loaded, target):
             raise DispatchRejected('push.native_target_changed')
 
 
-def confirm(name, *, context, credential, expected_revision, request_key):
-    """Human prepared -> pending CAS with a durable confirmation receipt."""
+def confirm(name, *, context, expected_revision, request_key):
+    """Human prepared -> pending CAS with a durable confirmation receipt.
+
+    Express no longer needs any computer's key (ADR-021): the actor's current grant, the account set's registration
+    and at least one computer that reaches it (online or not, D4). MR.ERP is executed server-side as before."""
     _context(context, account=True)
     operation = call(request_identity, context, 'confirm:' + call(text, request_key, length=180))
     call(integer, expected_revision, minimum=1)
@@ -437,19 +504,17 @@ def confirm(name, *, context, credential, expected_revision, request_key):
             fail('ERR_EXPRESS_DISABLED')
         _dispatch_record(row, context)
         if target.get('adapter') == 'express':
-            evidence = target.get('preparation_evidence') or {}
-            if not evidence.get('credential'):
-                # 准备时小助手不在线或没报上这份账套：说清楚，重推会换一份新的准备（`_still_confirmable`）。
-                fail('push.companion_account_unreported')
-            if evidence['credential'] != credential:
+            if _evidence_version(target) < 2:
+                # ADR-021 之前准备的（证据绑定一把密钥）：重推会换一份新的准备（`_still_confirmable`）
                 fail('push.native_target_changed')
-        elif credential is not None:
-            # MR.ERP 由服务端直连执行，不存在小助手凭据；带了就是调用方搞错了通道。
-            fail('push.native_target_changed')
-        _dispatch_target(context, loaded, target)
+            if not has_writer(context.connection, context.account):
+                # 池里没有一台电脑够得到这份账套：排上也没人写。电脑关着不算（D4，开机后写）
+                fail('push.no_writer')
+        _dispatch_target(context, loaded, target, mode='confirm')
         row.confirmation_request, row.confirmation_revision = operation, expected_revision
         row.status, row.reason = 'pending', ''
-        _save_record(row, now_utc(), select_history=True)
+        row.queued_at = now_utc()
+        _save_record(row, row.queued_at, select_history=True)
         return project(row)
 
 
@@ -463,7 +528,7 @@ def activate(name, *, context, adapter):
         if not raw:
             fail('push.native_record_not_found')
         target = json.loads(raw)
-        _dispatch_target(context, loaded, target)
+        _dispatch_target(context, loaded, target, mode='confirm')
         locks = _locks(context, target)
         row = _record(name, context)
         _dispatch_record(row, context)
@@ -472,7 +537,8 @@ def activate(name, *, context, adapter):
         if row.status != 'prepared' or row.result_unknown:
             fail('push.native_state_invalid')
         row.status, row.reason = 'pending', ''
-        _save_record(row, now_utc(), select_history=True)
+        row.queued_at = now_utc()
+        _save_record(row, row.queued_at, select_history=True)
         return project(row)
 
 
@@ -484,13 +550,14 @@ def lease(name, *, context, adapter, now=None):
         if not raw:
             fail('push.native_record_not_found')
         target = json.loads(raw)
-        _dispatch_target(context, loaded, target)
+        payload = json.loads(frappe.db.get_value(RECORD, name, 'payload_json') or '{}')
+        _dispatch_target(context, loaded, target, mode='lease', payload=payload)
         locks = _locks(context, target)
         row = _record(name, context)
         _dispatch_record(row, context)
         if row.status != 'pending' or row.result_unknown:
             raise LeaseUnavailable()
-        if any(lock.holder for lock in locks):
+        if any(lock.holder for lock in locks) or _older_writer(row, target):
             return {'leased': False, 'reason': 'waiting_lock', 'record': project(row)}
         timestamp = now_utc(now)
         token = secrets.token_urlsafe(32)
@@ -499,13 +566,16 @@ def lease(name, *, context, adapter, now=None):
         attempt = _new(ATTEMPT, attempt_name, push_record=row.name, workspace=row.workspace,
             client=row.client or '', connection=row.connection, fence=fence, owner_id=adapter.owner,
             token_digest=hashlib.sha256(token.encode()).hexdigest(), binding_generation=row.binding_generation,
-            started_at=timestamp, lease_expires_at=timestamp + timedelta(seconds=LEASE_SECONDS), status='leased')
+            started_at=timestamp, lease_expires_at=timestamp + timedelta(seconds=LEASE_SECONDS), status='leased',
+            device=adapter.device or None, device_owner=adapter.device_owner or None, route=adapter.route or None)
         persist(attempt)
         for lock in locks:
             lock.holder, lock.holder_fence, lock.lease_expires_at = row.name, fence, attempt.lease_expires_at
             persist(lock)
         row.status, row.fence, row.active_attempt = 'leased', fence, attempt_name
         row.lease_owner, row.lease_expires_at = adapter.owner, attempt.lease_expires_at
+        # 由哪台电脑写、按哪一档分派（问责；推送记录的 actor 仍是录入人）。每台同时只领一件按它判（`companion.transport`）
+        row.written_by_device, row.write_route = adapter.device or None, adapter.route or None
         _save_record(row, timestamp)
         return {'leased': True, 'record': project(row), 'fence': fence, 'attempt_token': token,
                 'payload': deepcopy(json.loads(row.payload_json)), 'target': deepcopy(json.loads(row.target_json))}
@@ -645,6 +715,8 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         row.result_unknown, row.lease_expires_at = 0, None
         row.external_docnum = docnum if transition.status == 'success' else None
         row.completed_at = timestamp if transition.status in {'success', 'manual'} else None
+        if transition.status == 'pending':
+            row.queued_at = timestamp  # 退回排队（等账套、可重试的失败）：换手计时从这里重新算
         if transition.status == 'success':
             completion.success(row, timestamp)
         # Preserve owner/active_attempt for exact duplicate ACK verification;

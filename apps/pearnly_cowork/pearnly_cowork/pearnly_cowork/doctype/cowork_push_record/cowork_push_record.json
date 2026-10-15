@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-16 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -53,7 +53,12 @@
   "blocked_by",
   "confirmation_request",
   "confirmation_revision",
-  "completion_json"
+  "completion_json",
+  "queued_at",
+  "entered_by",
+  "payload_version",
+  "written_by_device",
+  "write_route"
  ],
  "fields": [
   {
@@ -345,6 +350,40 @@
    "read_only": 1,
    "options": "JSON",
    "hidden": 1
+  },
+  {
+   "fieldname": "queued_at",
+   "label": "Queued At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entered_by",
+   "label": "Entered By",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payload_version",
+   "label": "Payload Version",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "written_by_device",
+   "label": "Written By Computer",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "write_route",
+   "label": "Write Route",
+   "fieldtype": "Data",
+   "length": 20,
+   "read_only": 1
   }
  ],
  "permissions": [

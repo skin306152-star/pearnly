@@ -94,6 +94,7 @@ class Db:
         self.docs.clear()
         self.saved.clear()
         self.locks.clear()
+        PRESENCE.clear()
 
     def check(self, doc):
         check = self.checks.get(doc["doctype"])
@@ -158,6 +159,13 @@ class Db:
             if base == " ".join(pool.Q_REACHERS.split()):
                 return [Doc(device=row.device, writable=row.writable) for row in reach
                         if row.connection == values[0] and row.account_key == values[1] and row.state == "ok"]
+            if base == " ".join(pool.Q_WRITABLE.split()):
+                return [Doc(account_key=row.account_key, path=row.path, root=row.root, registry_row=row.registry_row)
+                        for row in reach if row.connection == values[0] and row.device == values[1]
+                        and row.state == "ok" and row.writable]
+            if base == " ".join(pool.Q_WRITERS.split()):
+                return [Doc(device=device) for device in sorted({row.device for row in reach if row.connection == values[0]
+                                                                 and row.state == "ok" and row.writable})]
             if base == " ".join(pool.Q_ANY_REACH.split()):
                 return [Doc(name=row.name) for row in reach if row.connection == values[0]][:1]
             if base == " ".join(pool.Q_DEVICES.split()):
@@ -182,6 +190,11 @@ class Db:
 
 
 DB = Db()
+# 池里各台电脑此刻的情况（真站点上由 companion 经 ``cowork_pool_presence`` 钩子给，`connections.pool.presence`）：
+# ``{连接: {设备: {"online", "version", ...}}}``；`Computer.report` 报到时记上
+PRESENCE = {}
+_HOOKS = {"cowork_pool_presence": ["fake.presence"]}
+_ATTRS = {"fake.presence": lambda connection: PRESENCE.get(connection, {})}
 
 
 def _throw(message, exc=None):
@@ -207,7 +220,8 @@ def install(*, push_inputs=None, bank_window=None):
                            PermissionError=PermissionError_, QueryDeadlockError=QueryDeadlockError,
                            DoesNotExistError=ValidationError, clear_messages=lambda: None,
                            local=types.SimpleNamespace(site="testcowork.pearnly.com"),
-                           session=types.SimpleNamespace(user="owner@example.com"), _dict=Doc)
+                           session=types.SimpleNamespace(user="owner@example.com"), _dict=Doc,
+                           get_hooks=lambda name: list(_HOOKS.get(name, [])), get_attr=lambda path: _ATTRS[path])
     model = types.ModuleType("frappe.model")
     document = types.ModuleType("frappe.model.document")
     document.Document = Doc
@@ -275,6 +289,10 @@ class Computer:
         if not plan.offline:
             self.state.update({k: v for k, v in plan.patch.items()
                                if k in SELECTED_KEYS | MAPPING_KEYS | {"companion_version", "max_payload_version"}})
+        PRESENCE.setdefault(self.doc.name, {})[self.device] = {
+            "user": "", "always_on": False, "online": not plan.offline,
+            "version": str(self.state.get("companion_version") or ""),
+            "payload_version": self.state.get("max_payload_version"), "index_pending": None, "issuers": {self.issuer}}
         return result
 
     def lease(self, now, selected=None):

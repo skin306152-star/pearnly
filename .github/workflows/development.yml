@@ -73,6 +73,8 @@ jobs:
         run: python3 tests/test_cowork_cc_desktop_devices.py
       - name: Verify the account-set register, reach and facts of a pool (identity rules, union directory, refresh hand-out, patch)
         run: python3 tests/test_cowork_express_account_sets.py
+      - name: Verify Express write dispatch across computers (routing, lease v2, lock scheme v2, evidence v2, pool state)
+        run: python3 tests/test_cowork_express_dispatch.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_express_preflight.py && PYTHONPATH=apps/pearnly_cowork:apps/pearnly_core python3 tests/test_cowork_push_native_contract.py
       - name: Verify heartbeats keep masters per account set and never rewrite the connection every minute
         run: python3 tests/test_cowork_report_writes.py && python3 tests/test_cowork_account_caches.py && python3 tests/test_cowork_preparation_dynamic.py
       - name: Verify on-demand requests to CC Desktop and fetching files from authorised folders

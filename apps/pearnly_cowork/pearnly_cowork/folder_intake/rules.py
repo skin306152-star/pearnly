@@ -150,7 +150,9 @@ def _reader_view(doc):
     # 自动更新被 Windows 拦下：Express 以心跳报的为准（同在线），只读文件夹的 MR.ERP 成员以文件夹同步报的为准；
     # 被拦的版本不比这台电脑现在跑的新（已手动装上）就不显示。
     if doc.adapter == "express" and isinstance(report, dict):
-        blocked, running = report.get(desktop_update.KEY), report.get("companion_version")
+        # 版本第 3 批起只记在各台电脑上（连接的上报记录不再存，ADR-021）：取池里最新的那台
+        blocked = report.get(desktop_update.KEY)
+        running = report.get("companion_version") or devices.newest_version(doc.name)
     else:
         blocked, running = state.get(desktop_update.KEY), state.get("version")
     return {"connection": doc.name, "adapter": doc.adapter, "label": str(label or doc.name)[:80],
@@ -162,7 +164,7 @@ def computers():
     """网页设置里只读的「连接」（2026-10-10）：本工作空间里连着电脑的 Express / MR.ERP 连接 —— 哪台电脑、在不在线、
     网页可读取的文件夹。只能看；连接、断开、加减文件夹都只在那台电脑的 CC 桌面端上做（文件夹权限是电脑上的安全边界）。
     与定时任务页同一判据：录入权限 + 这条连接的使用授权；没有连过电脑的连接不列。"""
-    from pearnly_cowork.companion import credentials
+    from pearnly_cowork.companion import pool
 
     _require()
     result = []
@@ -175,8 +177,8 @@ def computers():
             frappe.clear_messages()
             continue
         view = _reader_view(doc)
-        # Express 以心跳为准（3 分钟内报过到）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
-        online = bool(credentials.online(doc.name)) if doc.adapter == "express" else view["fresh"]
+        # Express 以心跳为准（池里能写的电脑 3 分钟内报过到，`companion.pool.state`）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
+        online = bool(pool.for_user(doc.name)["online"]) if doc.adapter == "express" else view["fresh"]
         if not (online or view["version"]):
             continue
         row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],

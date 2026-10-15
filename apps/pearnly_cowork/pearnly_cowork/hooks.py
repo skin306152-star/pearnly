@@ -586,6 +586,9 @@ cowork_company_history_forget = ["pearnly_cowork.readback.history.company_forget
 cowork_push_work_branch = ["pearnly_cowork.companies.provider.work_branch"]
 # 定时任务的提醒 / 完成简报属于哪家公司（点开到这家的主档页）：folder_intake 不导入 companies（反过来依赖）。
 cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
+# Express 池里各台电脑此刻在不在线、版本（`connections.pool.presence`，账套主档要不要请电脑读、会不会要升级）：电脑与
+# 密钥归 companion，connections 不导入它（ADR-021）。
+cowork_pool_presence = ["pearnly_cowork.companion.credentials.pool_peers"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

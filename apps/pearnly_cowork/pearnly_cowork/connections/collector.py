@@ -13,8 +13,9 @@ Several computers report into one connection (ADR-021, plan 2.3):
   replaces only this computer's reach; the published endpoint directory is the union
   of every computer's reach (`pool.catalog`). An empty list clears only this computer;
 - masters read for an account set go into that account set's Account Facts, whichever
-  computer read them; the connection's report keeps only the current reporter binding
-  (v1 preparation evidence, until batch 3), its versions and the update-blocked note.
+  computer read them. The connection's report keeps only the update-blocked note: no
+  reporter binding and no versions any more (preparation evidence v2 binds no key; versions
+  live on each computer), so two computers reporting in turn never rewrite the connection row.
 """
 from datetime import datetime, timezone
 
@@ -22,18 +23,18 @@ import frappe
 from frappe import _
 from pearnly_cowork.connections import desktop_update
 from pearnly_cowork.targets.projection import normalize_projection
-from . import access, model, pool, preparation, refresh, snapshots, state
+from . import access, model, pool, refresh, snapshots, state
 
 # 心跳带来的每次都变、又没有读的人：不写进任何地方（报到时间记在密钥行，`companion.credentials.record_seen`）。
 VOLATILE_KEYS = frozenset(('agent_last_seen_at', 'account_sets_seen_at', 'accounts_seen_at',
                            'catalog_seen_at', 'stock_acc_groups_seen_at'))
-# 连接的上报记录里还留的：当前上报那台的版本（证据 v1 的载荷版本，第 3 批改为按领取的电脑判）与被拦的自动更新。
-REPORT_KEYS = frozenset(('max_payload_version', 'companion_version', desktop_update.KEY))
+# 连接的上报记录里还留的：被拦的自动更新。版本属于各台电脑（电脑行），载荷版本在领取时按领取的电脑判（ADR-021 第 3 批）。
+REPORT_KEYS = frozenset((desktop_update.KEY,))
 
 
 def _slim(report):
-    """上报记录只留绑定、版本与被拦的更新；账套名单、主档、旧的按账套缓存都不再放在连接这一行（ADR-021）。"""
-    for key in [key for key in report if key not in REPORT_KEYS and key != '_preparation_binding']:
+    """上报记录只留被拦的更新；上报绑定、版本、账套名单、主档、旧的按账套缓存都不再放在连接这一行（ADR-021）。"""
+    for key in [key for key in report if key not in REPORT_KEYS]:
         report.pop(key, None)
     return report
 
@@ -64,23 +65,14 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, member, protec
                                             device=member.device, canonical=canonical)
     report = _slim(model.parse(doc.get('report_json'), {}))
     report.update({key: value for key, value in plan.patch.items() if key == desktop_update.KEY})
-    # 当前上报这台的版本（它这次报的，没报就是它上次报的），证据 v1 按它判载荷版本
-    for key, value in (('companion_version', member.version), ('max_payload_version', member.payload_version)):
-        if value not in (None, ''):
-            report[key] = value
-        else:
-            report.pop(key, None)
-    preparation.bind_report(report, plan, credential_id, token_generation, issuer, member.device)
     encoded = model.dumps(report)
     if len(encoded.encode()) > 16 * 1024 * 1024:
         frappe.throw(_('connection.snapshot_too_large'))
-    # 内容、上报凭据都没变就不写连接这一行。`report_received_at` 因此是「上报内容最近一次变化」的时间。
-    if (encoded != (doc.get('report_json') or '') or doc.report_credential != credential_id
-            or int(doc.report_generation or 0) != int(token_generation)):
+    # 内容没变就不写连接这一行（两台电脑轮流上报也不来回重写，第 2 批审查 9b）；`report_credential` 不再随上报改
+    # （证据 v2 不绑密钥，在线看每台电脑自己的密钥，`companion.pool.state`）。`report_received_at` 是「上报内容最近一次变化」。
+    if encoded != (doc.get('report_json') or ''):
         doc.report_json = encoded
         doc.report_received_at = now
-        doc.report_credential = credential_id
-        doc.report_generation = token_generation
         access.write(doc)
     result = {'ok': True, 'endpoint_id': doc.name, **plan.response,
               'connection': {'endpoint_id': doc.name, 'endpoint_name': doc.label or 'Express',

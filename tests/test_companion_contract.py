@@ -639,6 +639,52 @@ class AccountSetIdentity(unittest.TestCase):
         self.assertEqual((reported - {"name"}) - attribute, set())
 
 
+class WriteDispatch(unittest.TestCase):
+    """多台电脑分派写账（ADR-021，方案 2.5、第 5 节第 4–6 条，服务端一侧；客户端一侧在第 5 批补齐）：
+
+    - 领取回复的每件任务：四个旧键照旧必有，可选键只有登记过的 ``attended``；今天的客户端只读四键里的三个，多出的忽略；
+    - 领取请求的可选键 ``index_pending``：服务端认它，旧服务端忽略；
+    - 写前文件号对不上回 ``waiting_lock`` + ``[ERR_ACCOUNT_UID_MISMATCH]``：服务端据此标 stale；
+    - 下发副本里换成领取电脑写法的位置字段，覆盖客户端 `_task_settings` 读的每一个位置键。"""
+
+    QUEUE = SERVER / "queue_contracts.py"
+    LOCATION = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "express" / "wire_location.py"
+
+    def constants(self, path, *names):
+        found = {}
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in names:
+                found[node.targets[0].id] = ast.literal_eval(node.value.args[0] if isinstance(node.value, ast.Call)
+                                                             else node.value)
+        return found
+
+    def test_jobs_keep_the_four_keys_and_register_the_optional_ones(self):
+        found = self.constants(self.QUEUE, "_JOB_KEYS", "JOB_OPTIONAL_KEYS", "LEASE_OPTIONAL_KEYS")
+        self.assertEqual(set(found["_JOB_KEYS"]), {"log_id", "history_id", "invoice_no", "payload"})
+        self.assertEqual(set(found["JOB_OPTIONAL_KEYS"]), {"attended"})
+        self.assertEqual(set(found["LEASE_OPTIONAL_KEYS"]), {"index_pending"})
+        poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
+        read = set(re.findall(r"""job(?:\.get\(|\[)['"]([a-z_]+)['"]""", poll))
+        self.assertEqual(read, {"log_id", "invoice_no", "payload"})  # 今天的客户端只按键取这三个，多出的可选键不碍事
+        self.assertTrue(read <= set(found["_JOB_KEYS"]))
+
+    def test_the_uid_mismatch_code_is_named_once_and_acted_on(self):
+        self.assertEqual(module_constants(self.QUEUE)["ERR_ACCOUNT_UID_MISMATCH"], "ERR_ACCOUNT_UID_MISMATCH")
+        transport = (SERVER / "transport.py").read_text(encoding="utf-8")
+        self.assertIn("queue_contracts.ERR_ACCOUNT_UID_MISMATCH", transport)
+        self.assertIn("mark_stale(", transport)
+        self.assertIn("request_full_report(", transport)
+
+    def test_the_substituted_location_covers_what_the_helper_reads(self):
+        keys = set(ast.literal_eval(next(
+            node.value for node in ast.parse(self.LOCATION.read_text(encoding="utf-8")).body
+            if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "LOCATION_KEYS")))
+        settings = method_source_of(COMPANION / "worker.py", "_task_settings")
+        read = set(re.findall(r"""payload or \{\}\)\.get\(['"]([a-z_]+)['"]\)""", settings))
+        self.assertEqual(read, {"account_set", "account_root"})
+        self.assertTrue(read <= keys)
+
+
 def _module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)

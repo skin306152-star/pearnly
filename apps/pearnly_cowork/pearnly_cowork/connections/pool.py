@@ -45,6 +45,9 @@ Q_REACH = (f"SELECT name, device, account_key, path, root, registry_row, writabl
 Q_MINE = (f"SELECT account_key, path, state FROM `tab{REACH}` WHERE connection=%s AND device=%s "
           f"AND state<>'pending_identity'")
 Q_REACHERS = f"SELECT device, writable FROM `tab{REACH}` WHERE connection=%s AND account_key=%s AND state='ok'"
+Q_WRITABLE = (f"SELECT account_key, path, root, registry_row FROM `tab{REACH}` WHERE connection=%s AND device=%s "
+              f"AND state='ok' AND writable=1")
+Q_WRITERS = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s AND state='ok' AND writable=1"
 Q_ANY_REACH = f"SELECT name FROM `tab{REACH}` WHERE connection=%s LIMIT 1"
 Q_DEVICES = f"SELECT DISTINCT device FROM `tab{REACH}` WHERE connection=%s"
 Q_PENDING = f"SELECT name FROM `tab{REACH}` WHERE connection=%s AND device=%s AND state='pending_identity' LIMIT 1"
@@ -92,7 +95,7 @@ def registration(connection, account_key):
         return None
     return frappe.db.get_value(ACCOUNT_SET, registration_name(connection, key),
                                ["account_key", "root_key", "path", "root", "label", "uid", "location", "content_key",
-                                "scope_device"], as_dict=True)
+                                "scope_device", "last_writer_device", "last_written_at"], as_dict=True)
 
 
 def reaches(connection, device, account_key, root=None):
@@ -108,6 +111,53 @@ def reaches(connection, device, account_key, root=None):
     found = registration(connection, key)
     wanted = identity(root)
     return bool(found) and not (found.root_key and wanted and found.root_key != wanted)
+
+
+def presence(connection):
+    """池里各台电脑此刻的情况：``{设备: {"user", "always_on", "online", "version", "payload_version", "index_pending"}}``
+    （`companion.credentials.pool_peers`）。电脑与密钥归 Companion，连接域不依赖它：经 ``cowork_pool_presence`` 钩子取，
+    没有钩子回空。只读。"""
+    for path in frappe.get_hooks("cowork_pool_presence") or []:
+        return frappe.get_attr(path)(connection) or {}
+    return {}
+
+
+def writable_reach(connection, device):
+    """这台电脑够得到、状态正常、能写的账套：``{规范键: 可达行（本机写法 path / root / registry_row）}``。"""
+    return {row.account_key: row for row in _rows(Q_WRITABLE, (connection, device))}
+
+
+def writer_devices(connection):
+    """够得到池里任一份账套、状态正常、能写的电脑。"""
+    return {row.device for row in _rows(Q_WRITERS, (connection,))}
+
+
+def mark_stale(connection, device, account_key):
+    """写前核文件号对不上（1.6.0 回 ``ERR_ACCOUNT_UID_MISMATCH``）：这台电脑对这份账套的可达行标 ``stale``，不再派写入，
+    直到它下一次整份上报（调用方同时要它整份重报）。回有没有改。调用方已锁连接行。"""
+    key = identity(account_key)
+    name = reach_name(connection, device, key) if connection and device and key else ""
+    if not name or not frappe.db.get_value(REACH, name, "name", for_update=True):
+        return False
+    record = frappe.get_doc(REACH, name, for_update=True)
+    if record.state != OK:
+        return False
+    record.state = STALE
+    access.write(record)
+    return True
+
+
+def note_written(connection, account_key, device, at):
+    """这台电脑刚写成这份账套（回执成功）：记在登记上。旧版 CC 桌面版不报主档索引还没重建的账套，按「最近写过」近似黏住
+    （`companion.route_contracts.sticky_holder`）。没登记不编。调用方已锁连接行。"""
+    key = identity(account_key)
+    name = registration_name(connection, key) if connection and key else ""
+    if not name or not device or not frappe.db.get_value(ACCOUNT_SET, name, "name", for_update=True):
+        return False
+    record = frappe.get_doc(ACCOUNT_SET, name, for_update=True)
+    record.update({"last_writer_device": str(device)[:140], "last_written_at": at})
+    access.write(record)
+    return True
 
 
 def reachers(connection, account_key, *, writable=False):
@@ -644,7 +694,7 @@ def seed_legacy(connection, *, device, referenced=None, now, protected=None):
 
 __all__ = ["ACCOUNT_SET", "FACTS", "FACTS_PER_CONNECTION", "FACT_KEYS", "OK", "PENDING_IDENTITY", "REACH", "STALE",
            "add_stock_masters", "any_reach", "apply_report", "ensure_registered", "seed_legacy", "canonical", "catalog", "devices", "facts",
-           "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "masters", "move_device",
-           "put_facts",
+           "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "mark_stale", "masters",
+           "move_device", "note_written", "presence", "put_facts", "writable_reach", "writer_devices",
            "reach_name", "reachers", "reaches", "reconsider", "registration", "registration_name", "retain", "touch",
            "union_observation"]

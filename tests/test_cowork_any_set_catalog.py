@@ -153,7 +153,8 @@ class AnySetCatalog(unittest.TestCase):
         report = model.parse(self.doc.report_json)
         self.assertNotIn("reported_accounts", report)
         self.assertNotIn("_account_caches", report)
-        self.assertEqual(set(report), {"_preparation_binding", "companion_version"})
+        # 第 3 批：上报记录也不再存上报绑定与版本（证据 v2 不绑密钥，版本属于各台电脑），两台轮流上报不来回重写连接行
+        self.assertEqual(set(report), set())
 
     def test_every_reader_takes_the_account_sets_own_masters(self):
         account_masters.ensure(self.doc, KEYS["DEMO02"], "owner@example.com", self.now)
@@ -179,10 +180,11 @@ class AnySetCatalog(unittest.TestCase):
         facts, evidence = preparation.collect(loaded, target, seller_tax="0105599210021", invoice_date="2026-10-01")
         self.assertEqual(len(facts["reported_config"]["reported_accounts"]), 37)
         self.assertEqual(facts["reported_config"]["reported_suppliers"][0]["code"], "S1")
-        self.assertEqual(facts["reported_config"]["companion_version"], self.version)
+        self.assertNotIn("companion_version", facts["reported_config"])  # 载荷版本在领取时按领取的电脑判
         self.assertEqual(evidence["states"]["reported_config"], "present")
-        self.assertEqual(evidence["credential"], {"credential_id": "CRED", "generation": 1,
-                                                  "issuer": "owner@example.com"})
+        # 证据 v2 不绑任何电脑或密钥（ADR-021 第 3 批）：只认这份账套
+        self.assertEqual((evidence["version"], evidence["route"]), (2, {"connection": "CONN", "account_key": KEYS["DEMO02"]}))
+        self.assertNotIn("credential", evidence)
         # 确认发送时重核：同一份资料，证据一致
         preparation.revalidate(loaded, target, evidence)
 

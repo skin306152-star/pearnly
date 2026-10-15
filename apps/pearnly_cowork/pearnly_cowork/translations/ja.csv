@@ -386,6 +386,7 @@ Completed By,完了者
 Completion Evidence,完了証跡
 Computer,コンピューター
 Computer Name,コンピューター名
+Computer Owner,コンピューターの登録者
 Condition,条件
 Condition code not allowed,条件コードが無効
 Confirmation Request,確認リクエスト
@@ -666,6 +667,7 @@ Enter a valid quantity with no more than six decimal places.,有効な数量を�
 Enter list name,リスト名を入力
 Enter the company's 13-digit tax ID.,会社の 13 桁の納税者番号を入力してください。
 Enter the user name,ユーザー名を入力してください
+Entered By,入力者
 Entered by,入力者
 Entered in Express,Express で直接入力
 Entered into Express,登録済み
@@ -826,6 +828,7 @@ Income type not chosen,所得の種類が未選択
 Income type not on this form,この様式にない所得の種類
 Income type to choose,選ぶ必要がある所得の種類
 Index Rebuild Pending,インデックス再構築待ち
+Index Rebuild Pending Folder IDs,インデックス再構築待ちのフォルダー ID
 Initial Password,初期パスワード
 Input tax report,仕入税報告
 Input tax this month,当月の仕入税額
@@ -1030,6 +1033,7 @@ No account sets yet. Use Reload in New Intake first.,帳簿一覧がまだあり
 No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
+"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
 No documents were given.,書類が指定されていません。
 No due date,期日なし
 No files were given.,ファイルが指定されていません。
@@ -1172,6 +1176,7 @@ Payee tax ID missing,受取人の納税者番号なし
 Payees,受取人数
 Payer not clear,支払者が不明
 Payload Json,固定ペイロードJSON
+Payload Version,ペイロードバージョン
 Payment,支払方法
 Payment Date,支払日
 Payment Evidence,支払証跡
@@ -1236,6 +1241,7 @@ Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
 Questions,質問
 Queued,順番待ち
+Queued At (UTC),順番待ち開始日時 (UTC)
 "Queued, {0} ahead",順番待ち · 前に {0} 件
 "Queued, {0} tasks ahead",待機中（前に {0} 件）
 Rate %,税率 %
@@ -2081,7 +2087,9 @@ Work Name,バックグラウンドタスク識別子
 Workbook Revision,ワークブック改訂番号
 Workspace,会社帳簿
 Writable,書き込み可
+Write Route,書き込みの割り当て
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
+Written By Computer,書き込んだコンピューター
 Yearly,毎年
 Yellow,黄
 "Yes, keep reconciling it",照合に含める
@@ -3416,6 +3424,7 @@ push.native_stale_attempt,この送信試行は無効になっています。
 push.native_state_invalid,現在の送信状態ではこの操作はできません。
 push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
 push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
+push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
 push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
 push.posting_kind_invalid,転記タイプが無効です。
 push.preparation_cancelled,未送信の準備を取り消しました。

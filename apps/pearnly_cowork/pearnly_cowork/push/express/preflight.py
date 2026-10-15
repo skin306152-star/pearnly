@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional
 from pearnly_cowork.contracts import push as direction_mod
 from pearnly_cowork.contracts.push import clean_tax_id
 from pearnly_cowork.push.express.account_rules import account_set_allowed, chart_codes, wire_account_set
-from pearnly_cowork.push.express.common import PAYLOAD_VERSION
 from pearnly_cowork.push.express.doc_sanity import check_document
 from pearnly_cowork.push.express.mapper import build_express_payload
 from pearnly_cowork.push.express.sales_mapper import build_express_sales_payload
@@ -222,21 +221,8 @@ def preflight_express(
         )
     pf.checks.append(Check("account_set", OK))
 
-    # 载荷版本协商:小助手心跳上报过 max_payload_version 且低于当前契约 → 拦下(会推一份它
-    # 解析不了的字段)。未上报(老客户端 · 未升级过心跳)→ 视同支持 1,绝不误拦现有推送。
-    reported_pv = config.get("max_payload_version")
-    if reported_pv is not None:
-        try:
-            supported_pv = int(reported_pv)
-        except (TypeError, ValueError):
-            supported_pv = PAYLOAD_VERSION  # 脏值读不出数 → 不拿它误拦,按支持最新处理
-        if supported_pv < PAYLOAD_VERSION:
-            return _block(
-                pf,
-                "payload_version",
-                reason=f"payload_version_outdated:{supported_pv}",
-                request_body={"adapter": "express", "max_payload_version": supported_pv},
-            )
+    # 载荷版本协商不在准备时做(ADR-021,方案 2.5):多台电脑时准备那会儿还不知道由哪台写。电脑来领时按领取的那台判
+    # (`companion.route_contracts`):支持这张单载荷版本的电脑都不在线就等,池里一台都不支持就显示「需更新」。
     pf.checks.append(Check("payload_version", OK))
 
     try:
@@ -302,10 +288,7 @@ def preflight_express(
                 body["items"] = mres.items
             return _block(pf, "mapping", reason=mres.reason, request_body=body)
         payload = mres.payload
-        # 带了选定存货码 / 部门码的载荷是 2:小助手报过支持的版本更低就拦下(旧版会静默忽略这两个键)。
-        if reported_pv is not None and int(payload.get("payload_version") or 1) > supported_pv:
-            return _block(pf, "payload_version", reason=f"payload_version_outdated:{supported_pv}",
-                          request_body={"adapter": "express", "max_payload_version": supported_pv})
+        # 带了选定存货码 / 部门码的载荷是 2:旧版会静默忽略这两个键,领取时只交给报过支持 2 的电脑(`route_contracts`)。
         pf.payload = payload
         payload.update(
             {

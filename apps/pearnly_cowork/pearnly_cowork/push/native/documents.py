@@ -10,9 +10,10 @@ _IDENTITY = {
     NOTIFICATION: ('record_id', 'push_record', 'workspace', 'client', 'history', 'actor', 'connection', 'status', 'payload_json'),
     TYPES[0]: ('record_id', 'workspace', 'client', 'actor', 'history', 'connection', 'account_key',
                'request_digest', 'request_fingerprint', 'document_key', 'business_key', 'invoice_no', 'seller_name', 'history_version',
-               'connection_revision', 'branch', 'binding_generation', 'target_json', 'payload_json', 'checks_json'),
+               'connection_revision', 'branch', 'binding_generation', 'target_json', 'payload_json', 'checks_json',
+               'entered_by', 'payload_version'),
     TYPES[1]: ('record_id', 'push_record', 'workspace', 'client', 'connection', 'fence', 'owner_id',
-               'token_digest', 'binding_generation', 'started_at', 'lease_expires_at'),
+               'token_digest', 'binding_generation', 'started_at', 'lease_expires_at', 'device', 'device_owner', 'route'),
     TYPES[2]: ('record_id', 'lock_key', 'lock_kind', 'workspace', 'client', 'connection', 'account_key'),
 }
 

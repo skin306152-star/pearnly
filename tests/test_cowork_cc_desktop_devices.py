@@ -217,16 +217,29 @@ class FakeDB:
         if "SELECT name, host_names FROM `tabCowork CC Desktop Device`" in q:
             return [Row(name=r["name"], host_names=r.get("host_names")) for r in _rows(DEVICE)
                     if r["workspace"] == values[0] and not r.get("retired_at")]
-        if "k.last_seen_at" in q or "SELECT d.companion_version" in q:
+        if "SELECT d.label FROM" in q and "ORDER BY k.last_seen_at DESC" in q:
             devices_ = STORE.get(DEVICE, {})
             found = [(r, devices_[r["device"]]) for r in _rows(CREDENTIAL)
                      if r["connection"] == values[0] and _active_row(r) and r.get("device") in devices_
-                     and not devices_[r["device"]].get("retired_at")]
-            if "SELECT d.companion_version" in q:
-                return [(d.get("companion_version"),) for _, d in found]
-            return [Row(device=k["device"], token_generation=k["token_generation"], last_seen_at=k.get("last_seen_at"),
+                     and not devices_[r["device"]].get("retired_at") and r.get("last_seen_at")]
+            found.sort(key=lambda pair: pair[0]["last_seen_at"], reverse=True)
+            return [(d.get("label"),) for _, d in found[:1]]
+        if "LEFT JOIN `tabCowork CC Desktop Device` d" in q:
+            devices_ = STORE.get(DEVICE, {})
+            found = [(r, devices_.get(r.get("device") or "", {})) for r in _rows(CREDENTIAL)
+                     if r["connection"] == values[0] and _active_row(r)
+                     and (not r.get("device") or not devices_.get(r["device"], {}).get("retired_at"))]
+            return [Row(name=k["name"], device=k.get("device"), issuer=k.get("issuer"),
+                        token_generation=k["token_generation"], last_seen_at=k.get("last_seen_at"),
                         last_seen_generation=k.get("last_seen_generation"), signed_in_user=d.get("signed_in_user"),
-                        always_on=d.get("always_on")) for k, d in found]
+                        always_on=d.get("always_on"), companion_version=d.get("companion_version"),
+                        max_payload_version=d.get("max_payload_version"),
+                        index_pending_uids=d.get("index_pending_uids")) for k, d in found]
+        if "SELECT d.companion_version" in q:
+            devices_ = STORE.get(DEVICE, {})
+            return [(devices_[r["device"]].get("companion_version"),) for r in _rows(CREDENTIAL)
+                    if r["connection"] == values[0] and _active_row(r) and r.get("device") in devices_
+                    and not devices_[r["device"]].get("retired_at")]
         if "JOIN `tabCowork ERP Connection` c ON c.name = k.connection" in q:
             out = []
             for row in sorted(_rows(CREDENTIAL), key=lambda r: (r["creation"], r["name"])):
@@ -338,6 +351,19 @@ def _install_connections(frappe):
     model.parse = lambda value, default=None: json.loads(value) if isinstance(value, str) else (
         value if value is not None else default)
     service = types.ModuleType("pearnly_cowork.connections.service")
+    service.MAIN_ADAPTERS = ("express", "mrerp")
+
+    def main_connections(workspace, *, enabled=True):
+        # 同 `connections.service.main_connections`：最早建、启用、不挂客户（FakeDB 认这句只回启用的）
+        assert enabled
+        found = {}
+        for row in frappe.db.sql("""SELECT name, adapter FROM `tabCowork ERP Connection`
+                WHERE workspace=%s AND COALESCE(client,'')='' AND enabled=1 AND binding_generation=0
+                AND adapter IN %s ORDER BY creation, name""", (workspace, service.MAIN_ADAPTERS), as_dict=True):
+            found.setdefault(row.adapter, row.name)
+        return found
+
+    service.main_connections = main_connections
 
     def configure(workspace, adapter, request_key, label, config, **ignored):
         actor = require_actor(management=True)
@@ -535,7 +561,7 @@ class Schema(unittest.TestCase):
         self.assertEqual(doc["name"], "Cowork CC Desktop Device")
         self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "label", "secret_digest",
                                        "always_on", "companion_version", "max_payload_version", "selection_json",
-                                       "host_names", "index_pending", "retired_at", "retired_by"})
+                                       "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids"})
         self.assertEqual(fields["secret_digest"]["unique"], 1)
         self.assertEqual(fields["secret_digest"].get("reqd", 0), 0)  # 补丁建的旧电脑留空，等认领
         self.assertEqual(doc["field_order"], [f["fieldname"] for f in doc["fields"]])
@@ -806,20 +832,44 @@ class DigestAuthentication(Base):
         finally:
             access.roles[ADMIN] = {"Cowork Admin"}
 
-    def test_online_and_confirmation_follow_the_reporting_key(self):
+    def test_each_computer_is_online_by_its_own_key_and_confirmation_needs_no_key(self):
+        # 第 3 批：在线不再看连接当前的上报凭据，池里每台电脑看自己的密钥；确认不再要哪台电脑的密钥（ADR-021）
         a = self.register(device_key=KEY_A)
         b = self.register(device_key=KEY_B)
         row = self.row(b["token"])
-        STORE[CONNECTION][self.express].update(report_credential=row["name"], report_generation=row["token_generation"])
-        proof = credentials.for_confirmation(self.express)
-        self.assertEqual((proof["credential_id"], proof["generation"]), (row["name"], 2))
         credentials.record_seen(row["name"], row["token_generation"])
-        self.assertTrue(credentials.online(self.express))
+        peers = credentials.pool_peers(self.express)
+        self.assertEqual((peers[b["device"]]["online"], peers[a["device"]]["online"]), (True, False))
+        self.assertEqual(peers[b["device"]]["issuers"], {ADMIN})
+        self.assertEqual((peers[b["device"]]["payload_version"], peers[b["device"]]["index_pending"]), (None, None))
+        self.assertFalse(hasattr(credentials, "for_confirmation"))
+        self.assertFalse(hasattr(credentials, "online"))
         credentials.leave(self.auth(b["token"]))
-        self.assertFalse(credentials.online(self.express))
-        with self.assertRaises(ValidationError):
-            credentials.for_confirmation(self.express)  # 没有旧槽位、上报的那把也失效：与今天一样没有凭据
+        self.assertNotIn(b["device"], credentials.pool_peers(self.express))
         self.assertEqual(self.auth(a["token"]).issuer, ADMIN)
+        doc = STORE[CONNECTION][self.express]
+        self.assertTrue(credentials.issuer_valid(Document(doc), ADMIN))
+        self.assertFalse(credentials.issuer_valid(Document(doc), OUTSIDER))
+
+    def test_index_pending_is_kept_on_the_computer_only_when_it_changes(self):
+        a = self.register(device_key=KEY_A)
+        self.assertFalse(devices.note_index_pending(a["device"], None))  # 旧版不报：不动
+        self.assertIsNone(credentials.pool_peers(self.express)[a["device"]]["index_pending"])
+        self.assertTrue(devices.note_index_pending(a["device"], ["c8d5876c:1", "c8d5876c:2"]))
+        self.assertFalse(devices.note_index_pending(a["device"], ["c8d5876c:2", "c8d5876c:1"]))
+        self.assertEqual(credentials.pool_peers(self.express)[a["device"]]["index_pending"],
+                         frozenset({"c8d5876c:1", "c8d5876c:2"}))
+        self.assertEqual(STORE[DEVICE][a["device"]]["index_pending"], 1)
+        self.assertTrue(devices.note_index_pending(a["device"], []))
+        self.assertEqual((STORE[DEVICE][a["device"]]["index_pending"],
+                          credentials.pool_peers(self.express)[a["device"]]["index_pending"]), (0, frozenset()))
+
+    def test_a_uid_mismatch_asks_the_express_key_for_one_full_report(self):
+        a = self.register(device_key=KEY_A)
+        row = self.row(a["token"])
+        self.assertTrue(credentials.request_full_report(row["name"]))
+        self.assertFalse(credentials.request_full_report(row["name"]))  # 已经在等整份
+        self.assertTrue(credentials.full_report_due(row["name"], full_report=False))
 
 
 # ── device_hello / device_leave ──────────────────────────────────────────────

@@ -84,8 +84,12 @@ def _install():
         "pearnly_cowork.access.scope": dict(require_read=lambda: None, require=lambda feature: None),
         "pearnly_cowork.connections.api": dict(request_refresh=lambda *a: {},
                                                 ensure_account_masters=lambda *a: {"state": "ready"}),
-        "pearnly_cowork.connections.service": dict(records=lambda *a: [], targets=lambda name: {}),
-        "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, of=lambda adapter: None),
+        "pearnly_cowork.connections.service": dict(
+            records=lambda *a: [], targets=lambda name: {},
+            main_of=lambda rows, adapter: next((r for r in rows or () if r.get("adapter") == adapter and r.get("main")),
+                                               None)),
+        "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, selectable=lambda *a: True,
+                                                          of=lambda adapter: None),
         "pearnly_cowork.folder_intake.agent": dict(read=lambda reader: {}),
         "pearnly_cowork.folder_intake.rules": dict(listing=lambda: {}, run_now=lambda n: {}, runs=lambda n: {},
                                                    waiting=lambda *a: None, account_label=lambda c, k: k,
@@ -661,10 +665,11 @@ class IntakeChoiceTests(unittest.TestCase):
         search.search = lambda adapter, rows, query: [{"value": r["source_id"], "label": r["label"]}
                                                       for r in rows if query.lower() in r["label"].lower()]
         sys.modules["pearnly_cowork.connections.account_search"] = search
+        # 每种 ERP 只认主连接（服务端 `records` 标的 `main`，ADR-021）；列表顺序（按修改时间）不再决定用哪条
         tools.connections.records = lambda *a: [
-            {"name": "EXP1", "adapter": "express", "enabled": True, "label": "Office"},
-            {"name": "EXP2", "adapter": "express", "enabled": True},
-            {"name": "MR1", "adapter": "mrerp", "enabled": False}]
+            {"name": "EXP2", "adapter": "express", "enabled": True, "main": False},
+            {"name": "EXP1", "adapter": "express", "enabled": True, "label": "Office", "main": True},
+            {"name": "MR1", "adapter": "mrerp", "enabled": False, "main": True}]
         tools.connections.targets = lambda name: {"account_sets": [
             {"source_id": "c:\\70exp\\dat", "label": "Z. blank", "attributes": {"root_label": "70EXP"}},
             {"source_id": "A", "label": "Alpha Co", "attributes": {"root_label": "59EXP"}},
@@ -672,6 +677,7 @@ class IntakeChoiceTests(unittest.TestCase):
             {"source_id": "B", "label": "Beta Co", "attributes": {"root_label": "68EXP"}},
             {"source_id": "X", "label": "Old Co", "active": False}]}
         tools.destinations.online = lambda adapter, name: True
+        tools.destinations.selectable = lambda adapter, name: True
         self.batch_filters = []
         frappe.get_all = lambda doctype, **kw: self.batch_filters.append(kw["filters"]) or [
             {"intake_target": "express", "target_connection": "EXP1", "target_account_set": "b",
@@ -707,8 +713,11 @@ class IntakeChoiceTests(unittest.TestCase):
         self.assertNotIn("account_label", out["last_used_unavailable"])  # 目录里没有了：没有名字可给，只留键
         self.assertNotIn("_keys", out["targets"][0])
 
-    def test_offline_cc_desktop_is_not_ready(self):
+    def test_no_computer_that_can_write_is_not_ready_but_an_offline_one_is(self):
+        # D4（ADR-021）：能写的电脑关着照样能选（排队、开机后写）；池里一台能写的都没有才不能选
         tools.destinations.online = lambda adapter, name: False
+        self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "ready")
+        tools.destinations.selectable = lambda adapter, name: False
         self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "cc_desktop_offline")
 
     def test_stock_group_and_mrerp_choices_go_through_the_connection_services(self):

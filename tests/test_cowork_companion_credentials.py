@@ -138,7 +138,7 @@ class CredentialContracts(unittest.TestCase):
         # online 只回在不在线（录入角色也要能选 Express），走连接的使用授权、不要求管理权限
         online = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'online')
         self.assertIn("methods=['GET']", ast.unparse(online.decorator_list[0]))
-        self.assertIn('credentials.online(connection)', ast.unparse(online))
+        self.assertIn('pool.for_user(connection', ast.unparse(online))  # 池的状态（ADR-021），形状兼容旧页面
         installer = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'installer')
         self.assertIn("methods=['GET']", ast.unparse(installer.decorator_list[0]))
         self.assertIn('access.require_actor()', ast.unparse(installer))

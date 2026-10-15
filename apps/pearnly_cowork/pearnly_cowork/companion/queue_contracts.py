@@ -16,6 +16,15 @@ LEASE_SECONDS = 120
 MAX_JOBS = 50
 _ACK_KEYS = ("log_id", "result", "express_docnum", "error", "agent_id", "line_modes", "outcome", "meta")
 _JOB_KEYS = frozenset(("log_id", "history_id", "invoice_no", "payload"))
+# 领取回复里每件任务的可选键（ADR-021）：``attended`` = 录入人本人就在这台电脑前（第 ① 档、不是常驻电脑）。没有这一键的
+# 旧服务端照旧，旧客户端只按键取它认识的。
+JOB_OPTIONAL_KEYS = frozenset(("attended",))
+# 领取请求的可选键（ADR-021）：``index_pending`` = 这台电脑主档索引还没重建的账套文件号（按账套黏住用）。旧服务端忽略。
+LEASE_OPTIONAL_KEYS = frozenset(("index_pending",))
+MAX_INDEX_PENDING = 500
+# 写前核文件号对不上（1.6.0 起，回执按 ``waiting_lock`` 回报、错误原因带这个码）：服务端把这台电脑对这份账套的可达行标
+# stale、要它整份重报，单子回到排队交给别的电脑（ADR-021，方案 2.5）。
+ERR_ACCOUNT_UID_MISMATCH = "ERR_ACCOUNT_UID_MISMATCH"
 _REFRESH_KEYS = frozenset(("request_id", "account_set_key", "scope_kind"))
 
 
@@ -82,13 +91,28 @@ def _json_copy(value, *, response=False):
         _invalid(response)
 
 
+def _index_pending(value):
+    """``index_pending``：文件号字符串的列表；形状不对当没报（旧服务端同样忽略它，不为一个可选键拒绝整次领取）。"""
+    if not isinstance(value, list) or len(value) > MAX_INDEX_PENDING:
+        return None
+    if any(not isinstance(item, str) or not item.strip() or len(item) > 200 for item in value):
+        return None
+    return sorted({item.strip() for item in value})
+
+
 def lease_request(raw: dict) -> dict:
-    """Old defaults and 1..50 range; extras ignored, integer coercion rejected."""
+    """Old defaults and 1..50 range; extras ignored, integer coercion rejected.
+
+    ``index_pending`` (ADR-021) is returned only when the computer sent a well-formed list."""
     raw = _object(raw)
     maximum = raw.get("max", 10)
     if type(maximum) is not int or not 1 <= maximum <= MAX_JOBS:
         _invalid()
-    return {"max": maximum, "agent_id": _optional_text(raw.get("agent_id"))}
+    result = {"max": maximum, "agent_id": _optional_text(raw.get("agent_id"))}
+    pending = _index_pending(raw.get("index_pending")) if "index_pending" in raw else None
+    if pending is not None:
+        result["index_pending"] = pending
+    return result
 
 
 def ack_request(raw: dict) -> dict:
@@ -113,8 +137,8 @@ def ack_request(raw: dict) -> dict:
     return _json_copy(result)
 
 
-def job(log_id: str, native_record: dict) -> dict:
-    """Project only the four legacy wire fields from native.service.project().
+def job(log_id: str, native_record: dict, attended: bool | None = None) -> dict:
+    """Project only the four legacy wire fields from native.service.project(), plus optional ``attended``.
 
     The UUID identifies the caller's opaque mapping, never the native record or
     attempt. Frozen target, actor, fence and attempt token are not projected.
@@ -122,9 +146,14 @@ def job(log_id: str, native_record: dict) -> dict:
     record = _object(native_record, response=True)
     payload = _object(record.get("frozen_payload"), response=True)
     history = _optional_text(record.get("history"), response=True) or ""
-    return {"log_id": _uuid(log_id, response=True), "history_id": history,
-            "invoice_no": _optional_text(record.get("invoice_no"), response=True),
-            "payload": _json_copy(payload, response=True)}
+    result = {"log_id": _uuid(log_id, response=True), "history_id": history,
+              "invoice_no": _optional_text(record.get("invoice_no"), response=True),
+              "payload": _json_copy(payload, response=True)}
+    if attended is not None:
+        if type(attended) is not bool:
+            _invalid(True)
+        result["attended"] = attended
+    return result
 
 
 def lease_response(jobs: list, refresh: dict | None = None) -> dict:
@@ -134,10 +163,10 @@ def lease_response(jobs: list, refresh: dict | None = None) -> dict:
     values = []
     for row in jobs:
         row = _object(row, response=True)
-        if set(row) != _JOB_KEYS:
+        if not _JOB_KEYS <= set(row) or set(row) - _JOB_KEYS - JOB_OPTIONAL_KEYS:
             _invalid(True)
         values.append(job(row["log_id"], {"history": row["history_id"],
-            "invoice_no": row["invoice_no"], "frozen_payload": row["payload"]}))
+            "invoice_no": row["invoice_no"], "frozen_payload": row["payload"]}, row.get("attended")))
     result = {"ok": True, "lease_seconds": LEASE_SECONDS, "jobs": values}
     if refresh is not None:
         _object(refresh, response=True)

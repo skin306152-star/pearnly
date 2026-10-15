@@ -386,6 +386,7 @@ Completed By,Completed By
 Completion Evidence,Completion Evidence
 Computer,Computer
 Computer Name,Computer Name
+Computer Owner,Computer Owner
 Condition,Condition
 Condition code not allowed,Condition code not allowed
 Confirmation Request,Confirmation Request
@@ -666,6 +667,7 @@ Enter a valid quantity with no more than six decimal places.,Enter a valid quant
 Enter list name,Enter list name
 Enter the company's 13-digit tax ID.,Enter the company's 13-digit tax ID.
 Enter the user name,Enter the user name
+Entered By,Entered By
 Entered by,Entered by
 Entered in Express,Entered in Express
 Entered into Express,Entered into Express
@@ -826,6 +828,7 @@ Income type not chosen,Income type not chosen
 Income type not on this form,Income type not on this form
 Income type to choose,Income type to choose
 Index Rebuild Pending,Index Rebuild Pending
+Index Rebuild Pending Folder IDs,Index Rebuild Pending Folder IDs
 Initial Password,Initial Password
 Input tax report,Input tax report
 Input tax this month,Input tax this month
@@ -1030,6 +1033,7 @@ No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Re
 No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
 No changes were given.,No changes were given.
+"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again","No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
 No documents were given.,No documents were given.
 No due date,No due date
 No files were given.,No files were given.
@@ -1172,6 +1176,7 @@ Payee tax ID missing,Payee tax ID missing
 Payees,Payees
 Payer not clear,Payer not clear
 Payload Json,Payload Json
+Payload Version,Payload Version
 Payment,Payment
 Payment Date,Payment Date
 Payment Evidence,Payment Evidence
@@ -1236,6 +1241,7 @@ Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Questions,Questions
 Queued,Queued
+Queued At (UTC),Queued At (UTC)
 "Queued, {0} ahead","Queued, {0} ahead"
 "Queued, {0} tasks ahead","Queued, {0} tasks ahead"
 Rate %,Rate %
@@ -2081,7 +2087,9 @@ Work Name,Work Name
 Workbook Revision,Workbook Revision
 Workspace,Workspace
 Writable,Writable
+Write Route,Write Route
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
+Written By Computer,Written By Computer
 Yearly,Yearly
 Yellow,Yellow
 "Yes, keep reconciling it","Yes, keep reconciling it"
@@ -3416,6 +3424,7 @@ push.native_stale_attempt,This push attempt is no longer current.
 push.native_state_invalid,This action is not allowed in the current push state.
 push.native_target_changed,The push target has changed. Prepare the invoice again.
 push.native_target_mismatch,The frozen push target does not match the authorized target.
+push.no_writer,"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
 push.original_reference_invalid,The original invoice reference is invalid or unavailable.
 push.posting_kind_invalid,Invalid posting type.
 push.preparation_cancelled,The unsent preparation was cancelled.

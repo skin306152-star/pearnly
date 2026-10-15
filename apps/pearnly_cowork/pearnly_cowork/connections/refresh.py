@@ -50,11 +50,6 @@ def reads_any_account_set(version):
     return bool(str(version or "").strip()) and version_tuple(version) >= version_tuple(ANY_ACCOUNT_SET_MIN_VERSION)
 
 
-def desktop_version(doc):
-    """最近一次上报的 CC 桌面端版本（心跳里的 `companion_version`，当前上报的那台）。"""
-    return str(model.parse(doc.get("report_json"), {}).get("companion_version") or "")
-
-
 def tier(actor, peer):
     """这台电脑读这份请求的优先档：0 = 登录它的就是发起人，1 = 常驻电脑，2 = 其他。"""
     peer = peer or {}

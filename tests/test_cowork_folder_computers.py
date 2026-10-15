@@ -36,7 +36,8 @@ class Computers(unittest.TestCase):
                 mock.patch.object(rules.connections, "records", return_value=records), \
                 mock.patch.object(rules, "_connection", side_effect=connection), \
                 mock.patch.object(rules, "_reader_view", side_effect=lambda d: VIEWS[d.name]), \
-                mock.patch("pearnly_cowork.companion.credentials.online", side_effect=lambda n: n in online), \
+                mock.patch("pearnly_cowork.companion.pool.for_user",
+                           side_effect=lambda n: {"online": n in online, "writers_known": True, "needs_update": False}), \
                 mock.patch.object(rules.frappe, "clear_messages"):
             result = rules.computers()
         require.assert_called_once_with()   # 与定时任务页同一判据：录入权限
@@ -69,6 +70,7 @@ class Computers(unittest.TestCase):
 
         def view(adapter, report, state):
             with mock.patch.object(rules.agent, "read", return_value=state), \
+                    mock.patch.object(rules.devices, "reporter_label", return_value=""), \
                     mock.patch.object(rules.agent, "fresh", return_value=True), \
                     mock.patch.object(rules.frappe, "db", SimpleNamespace(get_value=lambda *a, **k: json.dumps(report))):
                 return rules._reader_view(doc("C-1", adapter))["update_blocked"]

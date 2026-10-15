@@ -76,6 +76,14 @@ class Db:
 
     def sql(self, query, values=(), as_dict=False):
         self.queries.append(" ".join(query.split()))
+        if "FROM `tabCowork ERP Connection`" in query and "adapter IN" in query:
+            # 每种 ERP 的主连接（`service.main_connections`）：不挂客户、代数 0；启用的在前，再按建立先后
+            workspace, adapters = values
+            rows = [row for row in self.docs.get(CONNECTION, {}).values()
+                    if row.workspace == workspace and not row.client and not row.binding_generation
+                    and row.adapter in adapters and (row.enabled or "enabled=1" not in query)]
+            rows.sort(key=lambda row: (-int(row.enabled or 0), row.get("creation") or 0, row.name))
+            return [Doc(name=row.name, adapter=row.adapter) for row in rows]
         if "FROM `tabCowork ERP Connection`" in query:
             workspace, client = values[0], values[1]
             return [Doc(name=name) for name, row in self.docs.get(CONNECTION, {}).items()
@@ -201,7 +209,26 @@ class ConnectionReadLocks(unittest.TestCase):
         self.assertEqual(sorted(row["name"] for row in rows), ["CONN", "MRERP"])
         facts = service.account_set_facts("CONN")
         self.assertEqual(facts["account_sets"][0]["attributes"]["tax_id"], "0105599210021")
-        self.assertEqual(len(DB.queries), 1)  # 列表那一句，确实跑过
+        self.assertEqual(len(DB.queries), 2)  # 列表与每种 ERP 的主连接（ADR-021）两句，确实跑过、都不加锁
+        self.assertNoLocks()
+
+    def test_each_erp_has_one_main_connection_for_every_entry(self):
+        """ADR-021（方案 2.10）：每种 ERP 的主连接 = 最早建、启用、不挂客户；列表按修改时间排不再决定用哪条。
+        一条启用的都没有时列表标最早建的那条停用的（入口照旧显示「已停用」），电脑登记只认启用的。"""
+        DB.docs[CONNECTION] = {
+            "EXP-NEW": connection("EXP-NEW", creation=3),
+            "EXP-OLD": connection("EXP-OLD", creation=1),
+            "EXP-OFF": connection("EXP-OFF", creation=0, enabled=0),
+            "EXP-CLIENT": connection("EXP-CLIENT", creation=-1, client="CL"),
+            "MR-OFF": connection("MR-OFF", adapter="mrerp", creation=2, enabled=0)}
+        self.assertEqual(service.main_connections("W"), {"express": "EXP-OLD"})
+        self.assertEqual(service.main_connections("W", enabled=False), {"express": "EXP-OLD", "mrerp": "MR-OFF"})
+        rows = service.records(None, None, 0, 100)  # 录入角色：只列启用、在名单里的
+        self.assertEqual(service.main_of(rows, "express")["name"], "EXP-OLD")
+        self.assertIsNone(service.main_of(rows, "mrerp"))
+        self.assertEqual(sorted(row["name"] for row in rows if row["main"]), ["EXP-OLD"])
+        self.assertNotIn("EXP-CLIENT", {row["name"] for row in rows})  # 挂客户的连接不在这个范围，更不会是主连接
+        self.assertIsNone(service.main_of([row for row in rows if row["name"] != "EXP-OLD"], "express"))
         self.assertNoLocks()
 
     def test_every_read_only_connection_view_takes_no_row_locks(self):

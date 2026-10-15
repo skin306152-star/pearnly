@@ -367,10 +367,42 @@ def record_report(device, connection, plan):
 
 
 def reporter_label(connection):
-    """连接当前上报的那把密钥所在电脑的名字（网页「连接」里显示）；没有回空串。"""
-    key = frappe.db.get_value(CONNECTION, connection, 'report_credential')
-    device = frappe.db.get_value(CREDENTIAL, key, 'device') if key else None
-    return str(frappe.db.get_value(DOCTYPE, device, 'label') or '') if device else ''
+    """这条连接上最近报到的那台电脑的名字（网页「连接」里显示，第 4 批改成每台电脑一行）；没有回空串。连接行上的
+    「上报凭据」第 3 批起不再随上报改（两台轮流上报不来回重写连接行），按各把密钥自己的报到时间取。"""
+    rows = frappe.db.sql(f'''SELECT d.label FROM `tab{CREDENTIAL}` k JOIN `tab{DOCTYPE}` d ON d.name = k.device
+        WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>'' AND d.retired_at IS NULL
+        AND k.last_seen_at IS NOT NULL ORDER BY k.last_seen_at DESC LIMIT 1''', (connection,))
+    return str(rows[0][0] or '') if rows else ''
+
+
+# 领取请求里报的「主档索引还没重建的账套文件号」最多记这么多个（`queue_contracts.MAX_INDEX_PENDING`）
+def index_pending(value):
+    """电脑行上存的「主档索引还没重建的账套文件号」：没报过（旧版）是 None，报过空的是空集合。"""
+    if value in (None, ''):
+        return None
+    try:
+        found = json.loads(value)
+    except (TypeError, ValueError):
+        return None
+    return frozenset(str(item) for item in found if isinstance(item, str) and item) if isinstance(found, list) else None
+
+
+def note_index_pending(device, uids):
+    """领取请求带来的「主档索引还没重建的账套」（1.6.0 起，`index_pending`）记到这台电脑上，别的电脑领取时据此让着它
+    （按账套黏住，方案 2.5）。没带（旧版）不动；内容没变不碰电脑行；变了才锁（加锁顺序的最后一位）。"""
+    if uids is None:
+        return False
+    row = frappe.db.get_value(DOCTYPE, device, ['name', 'index_pending_uids', 'retired_at'], as_dict=True) if device else None
+    if not row or row.retired_at:
+        return False
+    encoded = json.dumps(sorted(set(uids)), ensure_ascii=False)
+    if (row.index_pending_uids or '') == encoded:
+        return False
+    doc = read(device)
+    doc.index_pending_uids = encoded
+    doc.index_pending = 1 if uids else 0
+    persist(doc)
+    return True
 
 
 def newest_version(connection):

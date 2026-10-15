@@ -451,6 +451,13 @@ Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ�
 Refresh Lease Computer	刷新租约电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新リースのコンピューター
 Parent Refresh Request	上级刷新请求	คำขอรีเฟรชหลัก	親の更新リクエスト
 Selected Account Set	所选账套	ชุดบัญชีที่เลือก	選択した会計データ
+Queued At (UTC)	排队时间（UTC）	เวลาเข้าคิว (UTC)	順番待ち開始日時 (UTC)
+Entered By	录入人	ผู้บันทึก	入力者
+Payload Version	载荷版本	เวอร์ชันข้อมูลงาน	ペイロードバージョン
+Written By Computer	写入的电脑	คอมพิวเตอร์ที่เขียน	書き込んだコンピューター
+Write Route	写入分派	การมอบหมายการเขียน	書き込みの割り当て
+Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพิวเตอร์	コンピューターの登録者
+Index Rebuild Pending Folder IDs	索引待重建的文件夹编号	รหัสโฟลเดอร์ที่รอสร้างดัชนีใหม่	インデックス再構築待ちのフォルダー ID
 Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.
 The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
 This request key was used for another credential operation.	此请求标识已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict
@@ -1563,6 +1570,7 @@ Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入
 Recognition was interrupted (not charged). Upload this file again	识别已中断（未扣费），请重新上传此文件	การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
 CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
+No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again	没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่	この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください	push.no_writer
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again
 Add Row	添加行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認	

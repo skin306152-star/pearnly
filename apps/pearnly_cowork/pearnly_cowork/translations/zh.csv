@@ -386,6 +386,7 @@ Completed By,完成人
 Completion Evidence,完成证据
 Computer,电脑
 Computer Name,电脑名称
+Computer Owner,电脑登记人
 Condition,条件
 Condition code not allowed,条件码不适用
 Confirmation Request,确认请求
@@ -666,6 +667,7 @@ Enter a valid quantity with no more than six decimal places.,请输入有效数�
 Enter list name,输入列表名称
 Enter the company's 13-digit tax ID.,请输入公司的 13 位税号。
 Enter the user name,请填写用户名
+Entered By,录入人
 Entered by,录入人
 Entered in Express,Express 直接录入
 Entered into Express,已推送
@@ -826,6 +828,7 @@ Income type not chosen,未选所得类型
 Income type not on this form,此表不含该所得类型
 Income type to choose,待选所得类型
 Index Rebuild Pending,索引待重建
+Index Rebuild Pending Folder IDs,索引待重建的文件夹编号
 Initial Password,初始密码
 Input tax report,进项税报告
 Input tax this month,本月进项税额
@@ -1030,6 +1033,7 @@ No account sets yet. Use Reload in New Intake first.,还没有账套目录。请
 No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
 No changes were given.,没有指定要改的内容。
+"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
 No documents were given.,没有指定单据。
 No due date,无到期日
 No files were given.,没有指定文件。
@@ -1172,6 +1176,7 @@ Payee tax ID missing,缺收款方税号
 Payees,收款方数
 Payer not clear,付款方不明
 Payload Json,冻结载荷（JSON）
+Payload Version,载荷版本
 Payment,付款方式
 Payment Date,付款日期
 Payment Evidence,付款凭证
@@ -1236,6 +1241,7 @@ Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
 Questions,问题
 Queued,排队等待
+Queued At (UTC),排队时间（UTC）
 "Queued, {0} ahead",排队中 · 前面还有 {0} 份
 "Queued, {0} tasks ahead",排队中，前面还有 {0} 个任务
 Rate %,税率 %
@@ -2081,7 +2087,9 @@ Work Name,后台任务标识
 Workbook Revision,工作簿版本
 Workspace,公司账套
 Writable,可写
+Write Route,写入分派
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
+Written By Computer,写入的电脑
 Yearly,每年
 Yellow,黄
 "Yes, keep reconciling it",参与对账
@@ -3416,6 +3424,7 @@ push.native_stale_attempt,此推送尝试已失效。
 push.native_state_invalid,当前推送状态不允许此操作。
 push.native_target_changed,推送目标已变更，请重新准备票据。
 push.native_target_mismatch,已冻结的推送目标与授权目标不一致。
+push.no_writer,没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
 push.original_reference_invalid,原票据引用无效或不可访问。
 push.posting_kind_invalid,过账类型无效。
 push.preparation_cancelled,尚未发送的推送准备已撤销。

@@ -447,12 +447,13 @@ class Facts(Base):
         self.assertEqual(stock_effects.apply("CONN", {"account_set": r"S:\NONE", "root_key": ""}, 1)["state"],
                          "target_changed")
 
-    def test_preparation_binds_the_reporter_only_when_its_computer_reaches_the_account_set(self):
-        """证据 v1（第 3 批换成按账套分派）：当前上报那台在线、够得到这份账套、可写才有凭据；主档取账套资料。"""
+    def test_preparation_evidence_v2_names_the_account_set_not_a_computer(self):
+        """证据 v2（第 3 批）：不绑任何电脑或密钥，只认（连接，规范键）；主档取这份账套自己的资料（哪台读的都一样），
+        不含版本号（载荷版本在领取时按领取的电脑判）。电脑来领时只核登记仍在与本单用到的那几行。"""
         book_a = row(r"C:\EXP\BOOK", r"C:\EXP", uid="a:1")
-        self.a.report(body(book_a, selected=r"C:\EXP\BOOK", accounts=[{"code": "1100"}], max_payload_version=2), NOW)
-        self.b.report(body(row(r"C:\EXP\BOOK", r"C:\EXP", uid="b:1")), NOW)  # B 上报：B 是当前上报的那台
-        self.doc.report_credential, self.doc.report_generation = "KB", 1
+        self.a.report(body(book_a, selected=r"C:\EXP\BOOK", accounts=[{"code": "1100"}, {"code": "2100"}],
+                           max_payload_version=2), NOW)
+        self.b.report(body(row(r"C:\EXP\BOOK", r"C:\EXP", uid="b:1")), NOW)  # B 后报：与证据无关
         loaded = types.SimpleNamespace(doc=types.SimpleNamespace(name="CONN"), revision=1,
                                        access=types.SimpleNamespace(user_id="owner@example.com"))
 
@@ -460,19 +461,30 @@ class Facts(Base):
             return types.SimpleNamespace(account_set=key, root_key=root, endpoint_id="CONN", user_id="owner@example.com",
                                          tenant_id="testcowork.pearnly.com", binding_generation=0)
 
-        facts, evidence = preparation.collect(loaded, target(r"\\acc-01\c$\exp\book", r"\\acc-01\c$\exp"))
-        self.assertIsNone(evidence["credential"])  # B 够不到 A 本机的账套
-        facts, evidence = preparation.collect(loaded, target(r"\\acc-02\c$\exp\book", r"\\acc-02\c$\exp"))
-        self.assertEqual(evidence["credential"], {"credential_id": "KB", "generation": 1, "issuer": "owner@example.com"})
-        self.assertEqual(facts["reported_config"].get("companion_version"), "1.6.0")
-        self.a.report(body(book_a, selected=r"C:\EXP\BOOK"), NOW + timedelta(minutes=1))
-        facts, evidence = preparation.collect(loaded, target(r"\\acc-01\c$\exp\book", r"\\acc-01\c$\exp"))
-        self.assertEqual(evidence["credential"]["credential_id"], "KA")
-        self.assertEqual(facts["reported_config"]["reported_accounts"], [{"code": "1100"}])
-        self.assertEqual(facts["reported_config"]["max_payload_version"], 2)
-        # 根对不上（推送时冻结的规范根）：凭据不成立
-        facts, evidence = preparation.collect(loaded, target(r"\\acc-01\c$\exp\book", r"D:\OTHER"))
-        self.assertIsNone(evidence["credential"])
+        key = r"\\acc-01\c$\exp\book"
+        facts, evidence = preparation.collect(loaded, target(key, r"\\acc-01\c$\exp"))
+        self.assertEqual((evidence["version"], evidence["route"]), (2, {"connection": "CONN", "account_key": key}))
+        self.assertNotIn("credential", evidence)
+        self.assertEqual(facts["reported_config"]["reported_accounts"], [{"code": "1100"}, {"code": "2100"}])
+        self.assertNotIn("max_payload_version", facts["reported_config"])
+        used = lambda masters: [row for row in masters.get("reported_accounts") or [] if row["code"] == "1100"]
+        evidence["basis_hash"] = preparation.basis(facts, used(facts["reported_config"]))
+        preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence)  # 人确认：整份相等（不看 basis_hash）
+        preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence, mode="lease", used=used)
+        # 本单没用到的科目变了：领取照常；人确认（整份）不成立
+        self.a.report(body(book_a, selected=r"C:\EXP\BOOK", accounts=[{"code": "1100"}, {"code": "2100", "name": "x"}]),
+                      NOW + timedelta(minutes=1))
+        preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence, mode="lease", used=used)
+        with self.assertRaises(fake.ValidationError):
+            preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence)
+        # 本单用到的那一行变了：领取不成立（照旧转人工）
+        self.a.report(body(book_a, selected=r"C:\EXP\BOOK", accounts=[{"code": "1100", "name": "renamed"}]),
+                      NOW + timedelta(minutes=2))
+        with self.assertRaises(fake.ValidationError):
+            preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence, mode="lease", used=used)
+        # 没有 used（调用方漏传）一律不成立，不放行
+        with self.assertRaises(fake.ValidationError):
+            preparation.revalidate(loaded, target(key, r"\\acc-01\c$\exp"), evidence, mode="lease")
 
     def test_account_master_view_reads_the_pool(self):
         self.a.report(body(row(r"S:\X\B", r"S:\X", uid="u1"), selected=r"S:\X\B", accounts=[{"code": "1"}]), NOW)
@@ -480,6 +492,54 @@ class Facts(Base):
         view = account_masters.view(self.doc, key, NOW + timedelta(minutes=5))
         self.assertEqual((view["state"], view["selected"], view["request"]), ("ready", True, None))
         self.assertEqual(account_masters.view(self.doc, r"S:\NOT\IN\POOL", NOW)["state"], "unavailable")
+
+
+class Dispatch(Base):
+    """第 3 批（方案 2.5、2.10）：分派要的池里几样——这台电脑可写的账套与本机写法、池里能写的电脑、写成后记在登记上
+    （旧版近似黏住）、写前文件号对不上标 stale（直到整份上报）、账套主档按池里够得到它的电脑判在不在线 / 要不要升级。"""
+
+    S_BOOK = row(r"S:\2569\BOOK", r"S:\2569", uid="v1:1", share=r"\\srv\pas\2569\BOOK", **TAX)
+    Z_BOOK = row(r"Z:\2569\BOOK", r"Z:\2569", uid="v1:1", share=r"\\srv\pas\2569\BOOK", **TAX)
+    KEY = r"\\srv\pas\2569\book"
+
+    def test_each_computer_writes_with_its_own_spelling(self):
+        self.a.report(body(self.S_BOOK), NOW)
+        self.b.report(body({**self.Z_BOOK, "attributes": {**self.Z_BOOK["attributes"], "writable": False}}), NOW)
+        self.assertEqual(pool.writable_reach("CONN", "CCD-A")[self.KEY].path, r"S:\2569\BOOK")
+        self.assertEqual(pool.writable_reach("CONN", "CCD-B"), {})  # 只读够得到的不派写入
+        self.assertEqual(pool.writer_devices("CONN"), {"CCD-A"})
+        self.assertEqual(pool.reachers("CONN", self.KEY, writable=True), ["CCD-A"])
+
+    def test_a_write_is_noted_on_the_registration_and_a_uid_mismatch_goes_stale_until_a_full_report(self):
+        self.a.report(body(self.S_BOOK), NOW)
+        self.assertTrue(pool.note_written("CONN", self.KEY, "CCD-A", NOW))
+        found = pool.registration("CONN", self.KEY)
+        self.assertEqual((found.last_writer_device, found.last_written_at), ("CCD-A", NOW))
+        self.assertFalse(pool.note_written("CONN", r"\\srv\none", "CCD-A", NOW))
+        self.assertTrue(pool.mark_stale("CONN", "CCD-A", self.KEY))
+        self.assertFalse(pool.mark_stale("CONN", "CCD-A", self.KEY))  # 已经是 stale
+        self.assertEqual(pool.writable_reach("CONN", "CCD-A"), {})
+        self.assertEqual(pool.reachers("CONN", self.KEY), [])
+        self.assertIn(self.KEY, union())  # 目录里照旧列着（只是这台暂时不写，别的电脑照样能写）
+        self.a.report(body(self.S_BOOK), NOW + timedelta(minutes=1))  # 整份上报：恢复
+        self.assertEqual(list(pool.writable_reach("CONN", "CCD-A")), [self.KEY])
+
+    def test_account_masters_follow_any_computer_of_the_pool(self):
+        self.a.report(body(self.S_BOOK, selected=r"S:\2569\BOOK", accounts=[{"code": "1"}]), NOW)
+        self.b.report(body(self.Z_BOOK), NOW)
+        fake.PRESENCE["CONN"]["CCD-A"]["online"] = False  # A 关机，B 在线：照样「可用」
+        view = account_masters.view(self.doc, self.KEY, NOW + timedelta(minutes=1))
+        self.assertEqual(view["state"], "ready")
+        fake.PRESENCE["CONN"]["CCD-B"]["online"] = False
+        self.assertEqual(account_masters.view(self.doc, self.KEY, NOW + timedelta(minutes=1))["state"], "offline")
+        # 另一份账套：池里有一台 CC 桌面版读得了别的账套，就不算「要升级」
+        other = r"\\srv\pas\2569\other"
+        self.b.report(body(self.Z_BOOK, row(r"Z:\2569\OTHER", r"Z:\2569", uid="v1:2", share=r"\\srv\pas\2569\OTHER")),
+                      NOW + timedelta(minutes=2))
+        fake.PRESENCE["CONN"]["CCD-B"]["version"] = "1.2.4"
+        self.assertEqual(account_masters.view(self.doc, other, NOW + timedelta(minutes=2))["state"], "update_needed")
+        fake.PRESENCE["CONN"]["CCD-B"]["version"] = "1.6.0"
+        self.assertEqual(account_masters.view(self.doc, other, NOW + timedelta(minutes=2))["state"], "reading")
 
 
 class Refresh(Base):

@@ -340,13 +340,12 @@ def _choose_stock_group(payload, acccod):
 
 
 def _connections():
-    """本人能用的连接（与网页同一个接口，按当前会话用户判），每种目标取第一条。"""
+    """本人能用的连接（与网页同一个接口，按当前会话用户判），每种目标只认主连接（最早建、启用、不挂客户，
+    `connections.service.main_connections`；与电脑登记、网页、CC 同一条，ADR-021）。"""
     from pearnly_cowork.connections import service
 
-    found = {}
-    for row in service.records(None, limit=100) or []:
-        found.setdefault(row.get("adapter"), row)
-    return found
+    rows = service.records(None, limit=100) or []
+    return {adapter: row for adapter in service.MAIN_ADAPTERS if (row := service.main_of(rows, adapter))}
 
 
 def _state(adapter, connection):
@@ -356,13 +355,15 @@ def _state(adapter, connection):
     if not connection.get("enabled"):
         return False, _("connect.state.disabled")
     if adapter == "express":
-        from pearnly_cowork.companion import credentials
+        from pearnly_cowork.companion import pool
 
+        # 池里有能写的电脑就能选（关着也排队，开机后写，D4，ADR-021）；一台都没有才不能选
         try:
-            online = credentials.online(connection["name"])
-        except frappe.PermissionError:
-            online = False
-        if not online:
+            usable = pool.for_user(connection["name"])["writers_known"]
+        except (frappe.PermissionError, frappe.DoesNotExistError):
+            frappe.clear_messages()
+            usable = False
+        if not usable:
             return False, _("intake.agent.state.missing")
     return True, ""
 

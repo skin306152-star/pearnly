@@ -5,7 +5,7 @@ import frappe
 # `pearnly_cowork.access` 不在它的允许列表里，不能在这里直接 import）。
 from pearnly_cowork.connections import access
 
-from . import credentials
+from . import credentials, pool
 
 INSTALLER_URL = 'https://pearnly.com/downloads/companion/CC-Setup.exe'
 
@@ -28,11 +28,13 @@ def _local_transaction(function, *args, **kwargs):
 
 
 @frappe.whitelist(methods=['GET'])
-def online(connection):
-    """录入入口看 Express 能不能选：本人能用这条连接、助手当前在线。不要求管理权限（与 LINE 同一判据）。
+def online(connection, account_set_key=None):
+    """录入入口看 Express 能不能选：本人能用这条连接时池的状态（`pool.state`）。不要求管理权限（与 LINE 同一判据）。
 
-    只有「录入」角色的员工原来走 `status`（管理用）被拒，进不了上传（2026-09-28 录制发现）。"""
-    return {'connection': connection, 'online': bool(credentials.online(connection))}
+    形状兼容旧页面：``online`` 仍是「池里有能写的电脑在线」；另加 ``writers_known``（有能写的电脑，关着也算，D4：能选、
+    排队等开机）与 ``needs_update``（排头要的载荷版本没有电脑支持）。只有「录入」角色的员工原来走 `status`（管理用）被拒，
+    进不了上传（2026-09-28 录制发现）。"""
+    return {'connection': connection, **pool.for_user(connection, account_set_key or None)}
 
 
 @frappe.whitelist(methods=['GET'])

@@ -29,12 +29,15 @@
 	const RECOGNIZE_ONLY = "none";
 	const key = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-	/** 两条通道的现状：连接记录，外加 Express 的助手绑定状态。 */
+	/** 每种 ERP 只认主连接（服务端 `records` 标的 `main`：最早建、启用、不挂客户），与电脑登记、LINE、CC 同一条。 */
+	const main_of = (rows, adapter) => (rows || []).find(row => row.adapter === adapter && row.main) || null;
+
+	/** 两条通道的现状：连接记录，外加 Express 池的状态（有没有能写的电脑、在不在线）。 */
 	async function state() {
 		const rows = (await p.call(API.connections + "records", {limit: 100})) || [];
 		const connections = {};
 		for (const target of TARGETS) {
-			connections[target.adapter] = rows.find(row => row.adapter === target.adapter) || null;
+			connections[target.adapter] = main_of(rows, target.adapter);
 		}
 		// 助手在不在线走不要求管理权限的 `online`：只有录入角色的员工也要能选 Express。
 		const express = connections.express;
@@ -53,13 +56,13 @@
 		return {text: __("intake.agent.state.missing"), tone: "orange"};
 	}
 
-	/** 能不能进上传识别：MR.ERP 要有可用连接，Express 要助手在线。 */
+	/** 能不能进上传识别：MR.ERP 要有可用连接；Express 要池里有能写的电脑（`writers_known`，关着也算：排队等开机后写）。 */
 	function ready(adapter, snapshot) {
 		if (adapter === RECOGNIZE_ONLY) return true;
 		const connection = snapshot.connections[adapter];
 		if (!connection || !connection.enabled) return false;
 		if (adapter === "mrerp") return true;
-		return Boolean(snapshot.agent?.online);
+		return Boolean(snapshot.agent?.writers_known ?? snapshot.agent?.online);
 	}
 
 	/** 助手安装包：没配地址就如实说，不猜一个我们并不拥有的下载链接。 */
@@ -125,7 +128,7 @@
 			if (!connection && adapter) {
 				// 还没有通道：电脑登录 CC 时服务端会建，建好后接着问它
 				const rows = await frappe.xcall(API.connections + "records", {limit: 100}).catch(() => []);
-				connection = (rows || []).find(row => row.adapter === adapter) || null;
+				connection = main_of(rows, adapter);
 			}
 			if (!connection) return paint(false);
 			const result = await frappe.xcall(API.companion + "online", {connection: connection.name}).catch(() => null);

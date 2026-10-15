@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-10-16 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -29,7 +29,10 @@
   "ack_digest",
   "outcome",
   "response_json",
-  "completed_at"
+  "completed_at",
+  "device",
+  "device_owner",
+  "route"
  ],
  "fields": [
   {
@@ -150,6 +153,27 @@
    "fieldname": "completed_at",
    "label": "Completed At",
    "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "device",
+   "label": "Computer",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "device_owner",
+   "label": "Computer Owner",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "route",
+   "label": "Write Route",
+   "fieldtype": "Data",
+   "length": 20,
    "read_only": 1
   }
  ],

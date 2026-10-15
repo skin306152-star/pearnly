@@ -1126,12 +1126,13 @@ MRERP_READ_WAIT_SECONDS = 60
 
 
 def _target_state(row) -> str:
-    """同 LINE `flow._state`：没连、停用、Express 的小助手不在线都不能选。"""
+    """同 LINE `flow._state`：没连、停用、Express 池里一台能写的电脑都没有，都不能选。能写的电脑关着照样能选（排队，
+    开机后写，D4，ADR-021）；状态码沿用 ``cc_desktop_offline``。"""
     if not row:
         return "not_connected"
     if not row.get("enabled"):
         return "disabled"
-    if row.get("adapter") == "express" and not destinations.online("express", row["name"]):
+    if row.get("adapter") == "express" and not destinations.selectable("express", row["name"]):
         return "cc_desktop_offline"
     return "ready"
 
@@ -1179,9 +1180,9 @@ def intake_options(tool_input) -> str:
 
     scope.require("intake")
     search = str(tool_input.get("search") or "").strip()
-    first = {}
-    for row in connections.records(None, None, 0, 100) or []:
-        first.setdefault(row.get("adapter"), row)  # 每种 ERP 取第一条连接，同 LINE
+    rows = connections.records(None, None, 0, 100) or []
+    # 每种 ERP 只认主连接（最早建、启用、不挂客户），同 LINE、网页与电脑登记（ADR-021）
+    first = {adapter: row for adapter in ("express", "mrerp") if (row := connections.main_of(rows, adapter))}
     last = _last_used()
     targets, names = [], {}
     for adapter in ("express", "mrerp"):

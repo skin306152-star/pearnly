@@ -161,11 +161,11 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(prior_history_id({'id': 'new'}, {'history_id': ' old '}), 'old')
         self.assertEqual(prior_history_id({'id': 'new'}, {'history_id': ''}), 'new')
 
-    def test_old_dirty_payload_version_remains_permissive(self):
-        self.endpoint['config']['max_payload_version'] = 'dirty'
-        self.assertTrue(self.pf().ready)
-        self.endpoint['config']['max_payload_version'] = 0
-        self.assertEqual(self.pf().reason, 'payload_version_outdated:0')
+    def test_payload_version_is_decided_when_a_computer_leases_not_when_preparing(self):
+        # ADR-021：准备时不知道由哪台电脑写，载荷版本在领取时按领取的那台判（`companion.route_contracts`）
+        for reported in ('dirty', 0, 1):
+            self.endpoint['config']['max_payload_version'] = reported
+            self.assertTrue(self.pf().ready, reported)
 
     def test_explicit_stock_does_not_enable_auto_stock_lane(self):
         self.assertFalse(stock_lane_enabled({'stock_enabled': True}))

@@ -206,6 +206,30 @@ def account_set_facts(name):
     return result
 
 
+MAIN_ADAPTERS = ("express", "mrerp")
+
+
+def main_connections(workspace, *, enabled=True):
+    """每种 ERP 的主连接（ADR-021，方案 2.10）：本归属下、不挂客户、启用、代数为 0 的连接里最早建的那条，``{adapter: 名字}``。
+
+    电脑登记（`companion.credentials.register`）、网页录入、LINE、CC 都按它认，不再各取「列表里第一条」（列表按修改时间排，
+    erpcowork 有两条启用的 Express 连接时网页和电脑可能各认一条）。``enabled=False``（只给列表标记用）：这种 ERP 一条启用的都
+    没有时，标最早建的那条停用的，入口照旧显示「已停用」而不是「未连接」。只读。"""
+    rows = frappe.db.sql("""SELECT name, adapter FROM `tabCowork ERP Connection`
+        WHERE workspace=%s AND COALESCE(client,'')='' AND binding_generation=0 AND adapter IN %s"""
+        + (" AND enabled=1" if enabled else "") + " ORDER BY enabled DESC, creation, name",
+        (workspace, MAIN_ADAPTERS), as_dict=True)
+    found = {}
+    for row in rows:
+        found.setdefault(row.adapter, row.name)
+    return found
+
+
+def main_of(rows, adapter):
+    """``records()`` 里这种 ERP 的主连接那一行（带 ``main``）；本人不能用主连接时没有，不退到别的连接。"""
+    return next((row for row in rows or () if row.get("adapter") == adapter and row.get("main")), None)
+
+
 def records(workspace, client=None, start=0, limit=50):
     actor = frappe.session.user
     management = _manager_view()
@@ -221,11 +245,13 @@ def records(workspace, client=None, start=0, limit=50):
         WHERE workspace=%s AND COALESCE(client,'')=%s ORDER BY modified DESC,name
         LIMIT %s OFFSET %s""", (workspace, client or "", limit, start), as_dict=True)
     result = []
+    main = set(main_connections(workspace, enabled=False).values()) if not client else set()
     for row in names:
         doc = _read(CONNECTION, row.name, lock=False)
         if management or (doc.enabled and actor in model.parse(doc.allowed_users, [])):
             access.require_connection(doc, management=management, enabled=not management, lock=False)
-            result.append(_dto(doc))
+            # 每种 ERP 的主连接（`main_connections`）：录入入口、LINE、CC 只认带它的那一行
+            result.append({**_dto(doc), "main": doc.name in main})
     return result
 
 

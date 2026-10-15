@@ -123,21 +123,6 @@ def _active(doc):
     return _read(DOCTYPE, rows[0][0]) if rows else None
 
 
-def _reporter(doc):
-    """The key whose report is this connection's current one, while it is still current; otherwise the original slot.
-
-    With one computer both are the same key, as before. Online state and the confirmation proof follow the report,
-    which is what the preparation evidence was taken from."""
-    name = doc.get('report_credential')
-    if name:
-        rows = frappe.db.sql('''SELECT name FROM `tabCowork Express Agent Credential`
-            WHERE name=%s AND connection=%s AND revoked_at IS NULL AND COALESCE(active_key,'')<>'' FOR UPDATE''',
-            (name, doc.name))
-        if rows:
-            return _read(DOCTYPE, rows[0][0])
-    return _active(doc)
-
-
 def _latest(doc):
     rows = frappe.db.sql('''SELECT name FROM `tabCowork Express Agent Credential`
         WHERE connection=%s ORDER BY token_generation DESC, name DESC LIMIT 1 FOR UPDATE''', (doc.name,))
@@ -154,35 +139,11 @@ def _row_scope(row, doc):
 ONLINE_SECONDS = 180
 
 
-def _online(doc, row, now=None):
-    """助手实际连上：**当前这把**有效密钥最近 3 分钟内报过到。只生成了密钥、旧密钥报的、
-    时间缺失或读不出，一律算没连上（旧版同样“拿不准一律判离线”）。
-
-    报到时间记在密钥这一小行上（`record_seen`），不在连接的上报记录里：心跳每分钟一次，
-    记在上报记录里会让整份（几百 KB）每分钟重写一遍、全量进数据库日志。"""
-    if row is None or row.revoked_at or not row.active_key:
-        return False
-    if (doc.get('report_credential') != row.name
-            or int(doc.get('report_generation') or 0) != int(row.token_generation)):
-        return False
-    seen = getattr(row, 'last_seen_at', None)
-    if int(getattr(row, 'last_seen_generation', None) or 0) != int(row.token_generation):
-        return False
-    if isinstance(seen, str):
-        try:
-            seen = datetime.fromisoformat(seen)
-        except ValueError:
-            return False
-    if not isinstance(seen, datetime):
-        return False
-    if seen.tzinfo is None:
-        seen = seen.replace(tzinfo=timezone.utc)  # 库里存的是 UTC 无时区
-    age = ((now or datetime.now(timezone.utc)) - seen).total_seconds()
-    return 0 <= age < ONLINE_SECONDS
-
-
 def _fresh(seen, seen_generation, token_generation, now=None):
-    """这把密钥最近 3 分钟内报过到（同 `_online` 的判据，不看它是不是连接的上报凭据）。"""
+    """这把密钥最近 3 分钟内报过到（旧线上 `erp-agent-liveness.ts` 同一判据）。时间缺失、读不出、换钥前的报到一律算没连上
+    （旧版同样「拿不准一律判离线」）。报到时间记在密钥这一小行上（`record_seen`），不在连接的上报记录里。
+
+    多台电脑后不再要求它是连接当前的上报凭据（ADR-021）：池里每台电脑各看自己的密钥（`pool_peers`）。"""
     if int(seen_generation or 0) != int(token_generation or 0):
         return False
     if isinstance(seen, str):
@@ -204,18 +165,48 @@ def device_of(credential_id):
 
 
 def pool_peers(connection, now=None):
-    """池里各台电脑此刻的情况（目录刷新分派用，ADR-021）：``{设备: {"user", "always_on", "online"}}``。
-    ``user`` 是这台电脑上最近登录 CC 的人（不是登记人）；任一把有效密钥 3 分钟内报过到就算在线。只读。"""
-    rows = frappe.db.sql(f'''SELECT k.device, k.token_generation, k.last_seen_at, k.last_seen_generation,
-        d.signed_in_user, d.always_on FROM `tab{DOCTYPE}` k JOIN `tab{devices.DOCTYPE}` d ON d.name = k.device
-        WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>'' AND d.retired_at IS NULL''',
-        (connection,), as_dict=True)
+    """池里各台电脑此刻的情况（ADR-021：目录刷新与写账分派、`connections.pool.presence`、`pool.state`）：
+    ``{设备: {"user", "always_on", "online", "version", "payload_version", "index_pending", "issuers"}}``。
+
+    ``user`` 是这台电脑上最近登录 CC 的人（不是登记人）；任一把有效密钥 3 分钟内报过到就算在线；``payload_version`` 没报过
+    是 None（旧版，不拿它拦）；``index_pending`` 是它主档索引还没重建的账套文件号，旧版不报是 None。补丁之前旧路径发、
+    还没挂电脑的密钥按密钥编号算一台（它上报的可达行也记在这个编号下）。只读。"""
+    rows = frappe.db.sql(f'''SELECT k.name, k.device, k.issuer, k.token_generation, k.last_seen_at, k.last_seen_generation,
+        d.signed_in_user, d.always_on, d.companion_version, d.max_payload_version, d.index_pending_uids
+        FROM `tab{DOCTYPE}` k LEFT JOIN `tab{devices.DOCTYPE}` d ON d.name = k.device
+        WHERE k.connection=%s AND k.revoked_at IS NULL AND COALESCE(k.active_key,'')<>''
+        AND (k.device IS NULL OR k.device='' OR d.retired_at IS NULL)''', (connection,), as_dict=True)
     peers = {}
     for row in rows:
-        peer = peers.setdefault(row.device, {'user': row.signed_in_user, 'always_on': bool(row.always_on),
-                                             'online': False})
+        payload = int(row.max_payload_version or 0)
+        peer = peers.setdefault(row.device or row.name, {
+            'user': row.signed_in_user or '', 'always_on': bool(row.always_on), 'online': False,
+            'version': str(row.companion_version or ''), 'payload_version': payload if payload >= 1 else None,
+            'index_pending': devices.index_pending(row.index_pending_uids), 'issuers': set()})
         peer['online'] = peer['online'] or _fresh(row.last_seen_at, row.last_seen_generation, row.token_generation, now)
+        peer['issuers'].add(row.issuer)
     return peers
+
+
+def issuer_valid(connection_doc, issuer):
+    """签发人此刻仍能让机器用这条连接（录入或管理 + 使用名单，同 `_issuer`）；不抛错。只读视图用（`pool.state`，录入入口
+    的 GET）：不加锁读，读自己的快照（MariaDB 11.8 快照隔离下只读请求的加锁读会撞 1020）。"""
+    try:
+        access.require_connection(connection_doc, actor=issuer, lock=False)
+    except frappe.PermissionError:
+        frappe.clear_messages()
+        return False
+    return True
+
+
+def request_full_report(credential_id):
+    """要这把密钥的电脑下一次心跳整份重报账套名单（写前文件号对不上之后，可达行标了 stale，等整份名单才恢复）。
+    只给 Express 密钥打。密钥行由调用方锁好。"""
+    row = frappe.db.get_value(DOCTYPE, credential_id, ['connection', 'full_report_due'], as_dict=True)
+    if not row or row.full_report_due or frappe.db.get_value(CONNECTION, row.connection, 'adapter') != 'express':
+        return False
+    frappe.db.set_value(DOCTYPE, credential_id, 'full_report_due', 1, update_modified=False)
+    return True
 
 
 def record_seen(credential_id, generation, *, offline=False, now=None):
@@ -235,7 +226,8 @@ def _dto(doc, row):
             'state': 'active' if row.active_key and not row.revoked_at else 'revoked',
             'tail': row.token_tail, 'issuer': row.issuer, 'issued_at': row.issued_at,
             'revoked_at': row.revoked_at, 'connection_enabled': bool(doc.enabled),
-            'online': _online(doc, row)}
+            'online': bool(row.active_key and not row.revoked_at
+                           and _fresh(row.get('last_seen_at'), row.get('last_seen_generation'), row.token_generation))}
 
 
 def _find_receipt(doc, operation, intent):
@@ -328,16 +320,12 @@ def _device_connection(express):
     """这台电脑该连哪条连接：装了 Express 的只连 Express（本站还没有就回 None，由 `register` 新建），绝不退到
     MR.ERP——退过去这台电脑就写不了 Express、定时任务也用不了（2026-10-13 录制：testcowork 只剩 MR.ERP 连接时，
     装了 Express 的新笔记本连成了 MR.ERP）；没装的连 MR.ERP（只读文件夹给定时任务），没有 MR.ERP 再退回 Express。
-    只看本站那一份归属下启用的连接，网页上每种只用一条。"""
-    rows = frappe.db.sql('''SELECT name, adapter FROM `tabCowork ERP Connection`
-        WHERE workspace=%s AND COALESCE(client,'')='' AND enabled=1 AND binding_generation=0
-        AND adapter IN %s ORDER BY creation, name''', (access.default_workspace(), HELPER_ADAPTERS), as_dict=True)
+    每种 ERP 只认主连接（`connections.service.main_connections`：最早建、启用、不挂客户），与网页、LINE、CC 同一条。"""
+    from pearnly_cowork.connections import service
+
+    found = service.main_connections(access.default_workspace())
     order = ('express',) if express else ('mrerp', 'express')
-    for adapter in order:
-        found = next((row.name for row in rows if row.adapter == adapter), None)
-        if found:
-            return found
-    return None
+    return next((found[adapter] for adapter in order if found.get(adapter)), None)
 
 
 def register(request_key, express=False, replace=False, expected_generation=None,
@@ -461,25 +449,6 @@ def status(connection):
     """Management-only, internal (lab and operations scripts); no RPC since ADR-021. Original slot first."""
     doc, _ = _management(connection)
     return _dto(doc, _active(doc) or _latest(doc))
-
-
-def online(connection):
-    """录入入口（LINE 里选目标）看 Express 能不能选：本人能用这条连接、助手当前在线。不要求管理权限。"""
-    doc = _connection(connection)
-    access.require_connection(doc)
-    return _online(doc, _reporter(doc))
-
-
-def for_confirmation(connection):
-    """Internal human submission proof; no token disclosure or machine login."""
-    _enabled()
-    doc = _connection(connection)
-    access.require_connection(doc)
-    row = _reporter(doc)
-    if row is None:
-        _error('companion.credential_not_found')
-    _issuer(doc, row)
-    return {'credential_id': row.name, 'generation': int(row.token_generation), 'issuer': row.issuer}
 
 
 def _issuer(doc, row):
