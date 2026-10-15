@@ -563,7 +563,7 @@ class PushDecisions(unittest.TestCase):
     仍要人选。真的选择规则（`push/express/choices.py`），历史经钩子替身。"""
     FIELDS = {"seller_name": "ศรีกรุง เครื่องเขียน", "seller_tax": "0105556012345", "payment_status": "paid"}
 
-    def decide(self, settled, remembered=None, fixed=None, chart=BLANK, accounts=None):
+    def decide(self, settled, remembered=None, fixed=None, chart=BLANK, accounts=None, since=None, chosen_at=None):
         from test_cowork_push_fixed import _service, BOOK
 
         service, frappe_module, _calls = _service()
@@ -579,10 +579,12 @@ class PushDecisions(unittest.TestCase):
         service.resolve_account_sourced = lambda *a: (None, "none")
         service.resolve_posting_kind = lambda kind, flat: kind
         service._pos_receipts = lambda flat: []
+        self.chosen_asked = []
         service.choice_store = types.SimpleNamespace(remembered=lambda *a: {"account": dict(remembered or {})},
-                                                     record=lambda *a: True)
+                                                     record=lambda *a: True,
+                                                     chosen_at=lambda *a: self.chosen_asked.append(a) or chosen_at)
         return service._decisions("C1", BOOK, {}, dict(self.FIELDS), "purchase", "service",
-                                  {"reported_accounts": chart}, {"mappings": {}}, fixed)
+                                  {"reported_accounts": chart}, {"mappings": {}}, fixed, since=since)
 
     SUBJECT = "purchase|0105556012345"
 
@@ -611,6 +613,26 @@ class PushDecisions(unittest.TestCase):
         self.assertNotIn("history", decision)
         decision = self.decide(settled, fixed={"account": "5310-01"})
         self.assertEqual((decision["applied"]["account"], self.asked), ("5310-01", []))
+
+    def test_the_account_says_where_it_came_from(self):
+        # 测试窗口第 2 轮（F19 后续）：Express 历史定的、任务默认、这张票传上来以后人选的、之前记过的，分开记
+        import datetime as dt
+        settled = {"code": "5320-01", "docs": 4, "last": "2026-10-02"}
+        self.assertEqual(self.decide(settled)["applied"]["account_from"], "express_history")
+        self.assertEqual(self.decide(None, fixed={"account": "5310-01"})["applied"]["account_from"], "task_default")
+        uploaded = dt.datetime(2026, 10, 15, 9, 0)
+        after = self.decide(None, remembered={self.SUBJECT: "5390-99"}, since=uploaded,
+                            chosen_at=dt.datetime(2026, 10, 15, 9, 5))
+        self.assertEqual(after["applied"]["account_from"], "chosen")
+        self.assertEqual(self.chosen_asked, [("C1", self.chosen_asked[0][1], "account", self.SUBJECT)])
+        before = self.decide(None, remembered={self.SUBJECT: "5390-99"}, since="2026-10-15 09:00:00.000000",
+                             chosen_at=dt.datetime(2026, 9, 1, 8, 0))
+        self.assertEqual(before["applied"]["account_from"], "remembered")
+        # 不知道票什么时候传的（没给 since）：照「记过的」说，不查选的时间
+        self.assertEqual(self.decide(None, remembered={self.SUBJECT: "5390-99"})["applied"]["account_from"], "remembered")
+        self.assertEqual(self.chosen_asked, [])
+        # 还要人选的不带来源
+        self.assertNotIn("account_from", self.decide(None)["applied"])
 
     def test_an_account_no_longer_in_the_chart_is_not_used(self):
         decision = self.decide({"code": "9999-99", "docs": 9, "last": "2026-10-02"})

@@ -206,6 +206,9 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
         value = chosen("account", party_key)
         if value and (not accounts or value in _codes(accounts)):
             applied["account"] = value
+            # 哪来的（写进载荷 account_source，CC 推送结果据此说清科目怎么定的，验收 F19）；人这次选的 / 历史定的由
+            # 推送服务再细分（`push.application.service._decisions`）
+            applied["account_from"] = "task_default" if str((fixed or {}).get("account") or "").strip() else "remembered"
         else:
             needed.append({"kind": "account", "subject": party_key, "label": name, "current": value or ""})
 

@@ -1973,8 +1973,14 @@ class PushWaitTests(unittest.TestCase):
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_documents")["description"]
         for words in ("payment cash = a cash purchase (HP, paid in cash)", "remembered", "simplified tax invoice = paid",
                       "do not claim it was picked for this one document", "periodic inventory",
-                      "never ask them to check Express"):
+                      # 测试窗口第 2 轮：入账一定报 ERP 单号；现 / 赊与科目都说清来源；不叫用户去 Express 核对
+                      "always give the user its ERP document number (docnum)",
+                      "whether it was entered as cash or credit and which account it went to, each with where that "
+                      "came from", "never ask the user to check Express for the number, cash or credit, or the account",
+                      "account_from = what decided the account", "express_history", "matched", "never guess a source"):
             self.assertIn(words, description)
+        for name in ("cowork_push_results", "cowork_document_detail"):
+            self.assertIn(tools.WRITTEN_NOTE, next(t for t in tools.TOOLS if t["name"] == name)["description"])
 
     def test_an_entered_document_pushed_again_still_says_how_it_was_written(self):
         # 复审 L1：已入账的不再推，但回执照样带当时怎么写的；记录名只用来查
@@ -2180,6 +2186,23 @@ class WrittenFactsTests(unittest.TestCase):
             self.assertEqual(self.pushed.written({**CASH_PAYLOAD, "doctype_src": source})["payment_from"], word)
         self.assertNotIn("payment_from", self.pushed.written({**CASH_PAYLOAD, "doctype_src": "something_new"}))
 
+    def test_the_account_says_where_it_came_from_and_older_records_leave_it_out(self):
+        # 测试窗口第 2 轮：科目也要说清哪来的（载荷 account_source），一一对应；旧记录（笼统的 choice、没有这项）不给
+        expected = {"chosen": "chosen", "remembered": "remembered", "task_default": "task_default",
+                    "express_history": "express_history", "category_map": "matched", "config_default": "default"}
+        for source, word in expected.items():
+            out = self.pushed.written({**CASH_PAYLOAD, "account_source": source})
+            self.assertEqual((out["debit_account"], out["account_from"]), ("53-05-02-00", word))
+        for source in ("choice", "", None, "something_new"):
+            self.assertNotIn("account_from", self.pushed.written({**CASH_PAYLOAD, "account_source": source}))
+        self.assertNotIn("account_from", self.pushed.written(CASH_PAYLOAD))
+        sale = {"direction": "sales", "doctype": "IV", "items_account": "41-01-00-00", "account_source": "category_map"}
+        self.assertEqual(self.pushed.written(sale), {"payment": "credit", "revenue_account": "41-01-00-00",
+                                                     "account_from": "matched"})
+        # 没有科目就不说科目的来源
+        self.assertNotIn("account_from", self.pushed.written({**CASH_PAYLOAD, "items_account": "",
+                                                              "account_source": "config_default"}))
+
     def test_sales_vat_handling_and_what_is_not_express(self):
         sale = {"direction": "sales", "doctype": "HS", "doctype_src": "bank", "items_account": "41-01-00-00"}
         self.assertEqual(self.pushed.written(sale),
@@ -2295,7 +2318,7 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertEqual([d.get("written") for d in docs], [cash, None, None, None, None])
         self.assertFalse(any("last_push_record" in d for d in docs))
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_results")["description"]
-        self.assertIn("never ask them to check Express", description)
+        self.assertIn("never ask the user to check Express", description)
 
     def test_the_detail_of_an_entered_document_says_how_it_was_written(self):
         # 复审 M1：用户问「这张是不是现金」CC 最常查详情；入账的带 written，没入账的不查，记录名不给
@@ -2319,7 +2342,7 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertEqual(asked, [["PR9"], ["PR7"]])
         self.assertFalse(any("last_push_record" in out or "PR9" in json.dumps(out) for out in (entered, failed, older)))
         description = next(t for t in tools.TOOLS if t["name"] == "cowork_document_detail")["description"]
-        self.assertIn("never ask them to check Express", description)
+        self.assertIn("never ask the user to check Express", description)
 
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},

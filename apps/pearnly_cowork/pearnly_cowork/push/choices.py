@@ -51,6 +51,15 @@ def remembered(connection, account_set) -> dict:
     return found
 
 
+def chosen_at(connection, account_set, kind, subject):
+    """这份账套里这一项（类别 + 归类键）最近一次选的时间；没记过（或值为空）回 None。"""
+    account_set = normalize_express_account_key(account_set)
+    found = frappe.db.sql(f"""SELECT chosen_at FROM `tab{DOCTYPE}`
+        WHERE connection=%s AND account_set=%s AND kind=%s AND subject=%s AND COALESCE(value, '')!=''
+        LIMIT 1""", (connection, account_set, kind, subject))
+    return found[0][0] if found else None
+
+
 def latest(connection, account_sets, kind, subjects) -> dict:
     """几份账套里同一类别、这些归类键最近一次选的值：`{subject: value}`（按选的时间，新的优先；值为空的不算）。"""
     sets = sorted({normalize_express_account_key(item) for item in account_sets or () if item})

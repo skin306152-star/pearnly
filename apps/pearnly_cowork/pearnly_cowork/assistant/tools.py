@@ -3198,8 +3198,9 @@ CC_DESKTOP = ("The Windows program on the user's computer that reads their folde
               "CC Desktop. Call it by its name in the user's language: CC Desktop in English, "
               + "CC 桌面版" + " in Chinese, " + "CC เดสก์ท็อป" + " in Thai and CC デスクトップ in Japanese; "
               "never by a generic description.")
-# 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目，`pushed.written`）：推送与查推送结果共用一段
-# 说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对。
+# 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目及其来源，`pushed.written`）：推送与查推送
+# 结果共用一段说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对；测试窗口第 2 轮：没报 ERP
+# 单号、没说科目从哪来。
 WRITTEN_NOTE = ("An entered Express document carries written: the facts of how it was written. payment cash = a cash "
                 "purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
                 "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
@@ -3211,9 +3212,17 @@ WRITTEN_NOTE = ("An entered Express document carries written: the facts of how i
                 "payment), pos_summary (POS daily sales, always cash), default (no signal: the account set's "
                 "default). debit_account is the account the purchase lines were sent with (an account set on "
                 "periodic inventory may post the default stock account to its purchases account instead); "
-                "revenue_account is the account of the sales lines; vat is claimed, added_to_cost (not claimed, in "
-                "the cost) or none. Tell the user plainly how it was entered and why; never ask them to check "
-                "Express for this.")
+                "revenue_account is the account of the sales lines. account_from = what decided the account: chosen "
+                "(a person picked it after this document came in, on the pending page, the upload review or in this "
+                "chat; kept for this supplier), remembered (picked earlier for this supplier in this account set), "
+                "task_default (the scheduled folder task's default), express_history (this supplier was posted to "
+                "this account consistently in Express before), matched (the document's category matched an account "
+                "mapping), default (the account set's default account; worth a look). Older documents may have no "
+                "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
+                "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
+                "user its ERP document number (docnum). Say plainly whether it was entered as cash or credit and "
+                "which account it went to, each with where that came from; never ask the user to check Express for "
+                "the number, cash or credit, or the account.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},

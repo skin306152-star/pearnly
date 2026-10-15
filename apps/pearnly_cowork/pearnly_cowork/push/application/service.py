@@ -154,7 +154,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
                           selected['config'], preparation, fixed,
-                          siblings=lambda: _same_company(loaded, target.account_set))
+                          siblings=lambda: _same_company(loaded, target.account_set), since=getattr(doc, "creation", None))
     if decision["needed"]:
         masters = connections.ensure_account_masters(loaded.doc.name, target.account_set)
         wait = masters_wait(masters, decision["needed"])
@@ -271,12 +271,12 @@ def _fixed(history, connection, account_set, fixed):
 
 
 def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None,
-               siblings=None):
+               siblings=None, *, since=None):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
     票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。
     ``siblings``：取同一家公司其他账套的函数（`_same_company`；只有 POS 票才取），POS 收款科目按公司问一次
-    （`_borrow_receipts`）。"""
+    （`_borrow_receipts`）。``since``：这张票传上来的时间，给费用科目分清来源（`_account_from`）。"""
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
     remembered = choice_store.remembered(connection, account_set)
@@ -296,6 +296,8 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
                                         receipts=receipts)
         decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
     applied = decision["applied"]
+    if applied.get("account"):
+        applied["account_from"] = _account_from(decision, connection, account_set, fields, direction, since)
     remember = applied.pop("remember_payment", None)
     if remember:
         name, tax = ((fields.get("seller_name"), fields.get("seller_tax")) if direction == "purchase"
@@ -303,6 +305,29 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         choice_store.record(connection, account_set, "payment",
                             choice_rules.supplier_subject(direction, tax, name), remember, name)
     return decision
+
+
+def _moment(value):
+    """库里的时间（datetime 或 'YYYY-MM-DD HH:MM:SS[.ffffff]'）→ datetime，比先后用（同一站点时区，不带时区）。"""
+    return value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+
+
+def _account_from(decision, connection, account_set, fields, direction, since):
+    """费用科目哪来的（写进载荷 account_source，CC 推送结果照实说，验收 F19）：任务默认（task_default）、Express 历史
+    很一致（express_history）、这张票传上来以后有人选的（chosen：待处理页、复核页或对话里为它选的，按供应商记下）、
+    之前就记过的（remembered）。"""
+    applied = decision["applied"]
+    if applied.get("account_from") == "task_default":
+        return "task_default"
+    if decision.get("history"):
+        return "express_history"
+    if since and direction == "purchase":
+        name, tax = fields.get("seller_name"), fields.get("seller_tax") or fields.get("seller_tax_id")
+        chosen_at = choice_store.chosen_at(connection, account_set, "account",
+                                           choice_rules.supplier_subject(direction, tax, name))
+        if chosen_at and _moment(chosen_at) >= _moment(since):
+            return "chosen"
+    return "remembered"
 
 
 def _settled_account(needed, connection, account_set, fields, config, fixed):

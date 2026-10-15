@@ -203,7 +203,8 @@ def build_express_payload(
         accounts, category, config.get("fallback_acc")
     )
     if choices.get("account"):
-        purchase_acc, acc_source = str(choices["account"]), "choice"
+        # 来源细分（人这次选的 / 记过的 / 任务默认 / Express 历史，`choices.resolve` 与推送服务定）；没给的照旧记 choice
+        purchase_acc, acc_source = str(choices["account"]), str(choices.get("account_from") or "choice")
     if not purchase_acc:
         return fail("no_purchase_account")
     ap_acc = resolve_account(accounts, "accounts_payable", config.get("ap_acc"))

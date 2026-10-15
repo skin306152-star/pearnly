@@ -479,3 +479,12 @@ HP690929-001，总控按 Express 表核对：APTRN `RECTYP=1`（现购）、GLJN
   - L4：说明不再写「HP 一定贷账套现金科目」（账套没设可过账的现金科目 ACCNUM00 时桌面版保留应付占位），改为 HP = 现购（付现）。
   - 说明补上简式税票按已付（`pearnly_core` `paid_hint`）。
 - 未做：未部署（随下一批）；部署后由测试窗口重验：对现购的单问 CC「是现金吗」，应直接答现购及原因；同时用单据详情问一次（复审 M1）。
+- 测试窗口第 2 轮跟进（10-15 21:00–21:18，分支 `pearnly/cc-shell-rebuild`，本地提交、未推送）：
+  - 科目也说来源：`written` 加 `account_from`，照冻结载荷的 `account_source` 一一对应——chosen（这张票传上来以后有人在待处理页 / 复核页 / 对话里选的，按供应商记下）、
+    remembered（之前就记过）、task_default、express_history（Express 历史很一致）、matched（`category_map` 分类映射）、default（`config_default` 账套默认）；
+    改版前笼统的 `choice` 与没有这项的旧记录不给。来源在准备推送时分清：`push/express/choices.py` 套用时给 remembered / task_default，
+    `push/application/service.py: _account_from` 再分 express_history（历史定的）与 chosen（`push/choices.py: chosen_at` 选的时间不早于票的上传时间），
+    `push/express/mapper.py` 写进 `account_source`（`account_source` 只在服务端用，CC 桌面版不读，载荷键不变）。
+  - `WRITTEN_NOTE`（模型看的英文）：入账一定告诉用户 ERP 单号（docnum）；现购 / 赊购与记的科目都说清来源；不叫用户去 Express 核对单号、现赊、科目；旧单没有来源就只说有的，不猜。
+  - 测试：`test_cowork_assistant_tools.py`（来源逐项对应、旧记录不给、销项、说明三处都带）、`test_cowork_account_suggest.py`（四种来源）、`test_cowork_express_choices.py`、`test_cowork_express_mapper.py`。
+  - 未做：未部署；部署后测试窗口重验：推一张记过科目的票，CC 应报 ERP 单号、现 / 赊及来源、科目及来源，不叫人去 Express 看。
