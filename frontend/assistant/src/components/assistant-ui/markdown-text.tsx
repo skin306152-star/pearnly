@@ -134,7 +134,7 @@ const defaultComponents = memoizeMarkdownComponents({
   p: ({ className, ...props }) => (
     <p
       className={cn(
-        "aui-md-p my-3 leading-relaxed first:mt-0 last:mb-0",
+        "aui-md-p my-3 first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -143,7 +143,7 @@ const defaultComponents = memoizeMarkdownComponents({
   a: ({ className, ...props }) => (
     <a
       className={cn(
-        "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
+        "aui-md-a text-link hover:text-link/80 underline underline-offset-2",
         className,
       )}
       {...props}
@@ -161,7 +161,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ul: ({ className, ...props }) => (
     <ul
       className={cn(
-        "aui-md-ul marker:text-muted-foreground my-3 ms-5 list-disc [&>li]:mt-1",
+        "aui-md-ul marker:text-muted-foreground mt-(--cc-md-list-top) mb-3 ps-(--cc-md-list-indent) list-disc first:mt-0 [&>li]:mt-1 [&>li]:ps-(--cc-md-li-indent)",
         className,
       )}
       {...props}
@@ -170,7 +170,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ol: ({ className, ...props }) => (
     <ol
       className={cn(
-        "aui-md-ol marker:text-muted-foreground my-3 ms-5 list-decimal [&>li]:mt-1",
+        "aui-md-ol marker:text-muted-foreground mt-(--cc-md-list-top) mb-3 ps-(--cc-md-list-indent) list-decimal first:mt-0 [&>li]:mt-1 [&>li]:ps-(--cc-md-li-indent)",
         className,
       )}
       {...props}
@@ -219,7 +219,7 @@ const defaultComponents = memoizeMarkdownComponents({
     />
   ),
   li: ({ className, ...props }) => (
-    <li className={cn("aui-md-li leading-relaxed", className)} {...props} />
+    <li className={cn("aui-md-li", className)} {...props} />
   ),
   strong: ({ className, ...props }) => (
     <strong
@@ -248,7 +248,7 @@ const defaultComponents = memoizeMarkdownComponents({
       <code
         className={cn(
           !isCodeBlock &&
-            "aui-md-inline-code bg-muted rounded-md px-1.5 py-0.5 font-mono text-[0.85em]",
+            "aui-md-inline-code bg-code-bg text-code-ink rounded-code px-1 py-0.5 font-mono text-[0.9em]",
           className,
         )}
         {...props}

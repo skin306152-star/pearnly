@@ -33,7 +33,7 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="start" sideOffset={6} className="cc-menu !min-w-40 max-h-80 overflow-y-auto">
+        <DropdownMenu.Content align="start" sideOffset={6} className="cc-menu !min-w-40 [--cc-menu-max:20rem]">
           {months.map((month) => (
             <Choice key={month} chosen={month === value} onSelect={() => month !== value && onChange(month)}>
               {monthLabel(month)}
@@ -71,7 +71,7 @@ export const BranchChip: FC<{ branches: readonly Branch[]; value: string; onChan
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="start" sideOffset={6} className="cc-menu !min-w-40 max-h-80 overflow-y-auto">
+        <DropdownMenu.Content align="start" sideOffset={6} className="cc-menu !min-w-40 [--cc-menu-max:20rem]">
           {branches.map((b) => (
             <Choice key={b.branch} chosen={b.branch === value} onSelect={() => b.branch !== value && onChange(b.branch)}>
               {branchName(b)}

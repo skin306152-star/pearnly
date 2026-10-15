@@ -42,6 +42,13 @@
   --color-info: var(--cc-info);
   --color-info-soft: var(--cc-info-soft);
   --color-fill-muted: var(--cc-fill-muted);
+  --color-link: var(--cc-link);
+  --color-code-ink: var(--cc-code-ink);
+  --color-code-bg: var(--cc-code-bg);
+  --color-row-hover: var(--cc-row-hover);
+  --color-row-selected: var(--cc-row-selected);
+  --color-tooltip: var(--cc-tooltip-bg);
+  --color-tooltip-ink: var(--cc-tooltip-ink);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -73,14 +80,20 @@
   --radius-xl: var(--cc-radius-xl);
   --radius-bubble: var(--cc-radius-bubble);
   --radius-dialog: var(--cc-radius-dialog);
+  --radius-code: var(--cc-radius-code);
   /* 阴影、细线、字号也接到 ccs：组件里的 shadow-* / border / text-* 工具类就是官方取值（scripts/check-frontend-tokens.py
-     只放行这里接过的档位：shadow-hairline/xs/sm/md/lg，rounded-xs…xl/full/bubble/dialog） */
+     只放行这里接过的档位：shadow-hairline/xs/sm/md/lg/pop/float/focus，rounded-xs…xl/full/bubble/dialog/code） */
   --shadow-hairline: var(--cc-shadow-hairline);
   --shadow-xs: var(--cc-shadow-hairline);
   --shadow-sm: var(--cc-shadow-sm);
   --shadow-md: var(--cc-shadow-md);
   --shadow-lg: var(--cc-shadow-lg);
   --shadow-pop: var(--cc-shadow-pop);
+  --shadow-float: var(--cc-shadow-float);
+  --shadow-focus: var(--cc-shadow-focus);
+  --ease-cc: var(--cc-ease);
+  --ease-cc-fast: var(--cc-ease-fast);
+  --ease-cc-out: var(--cc-ease-out);
   --default-border-width: var(--cc-hairline);
   /* Tailwind 字号名按顺序落到官方字号表：xs 12 / sm 14 / base 16 / lg 20 / xl 24 / 2xl 28 / 3xl、4xl 36 */
   --text-xs: var(--ccs-text-xs-size);
@@ -131,8 +144,11 @@
    （scripts/check-frontend-tokens.py 拦）。分三层：
    1. --ccs-*：Anthropic 官方公开的 Claude 样式变量，照录 https://claude.com/docs/connectors/building/mcp-apps/design-guidelines
       「Style variables」（2026-10-15 核对；浅色在 :root、深色在 .dark，深浅色跟随系统，main.tsx 给 <html> 加 .dark）；
-   2. 官方表没覆盖的 Claude 外壳实测值（主区与侧栏底色、侧栏宽、输入框、用户气泡、手机外壳），逐项注明「外壳实测」；
+   2. --code-*：Claude 设计系统实测（Claude Code 本身的设计变量，docs/work/2026-10-16-cc-shell-design.md 第 2 节）：
+      结构色（文字、表面、叠色、线、链接、焦点）、字号、尺寸、阴影、动效。--cc-* 的结构部分引用这一层；
+      再往下几处官方表与设计系统都没覆盖的手机外壳值（抽屉、圆按钮）逐项注明「外壳实测」；
    3. 强调色：CC 橘黄（logo 同色）。官方规矩是「结构用官方色，品牌色只做强调」。
+   三个变体（网页 / 桌面窗口 / 手机）按 <html data-cc-variant>（lib/variant.ts）切侧栏底色与密度，见本文件「变体」一段。
    字体保留 CC 现有的（官方的 Anthropic Sans / Serif 只给本地开发下载，没写可用于别的产品）。 */
 :root {
   /* 背景 */
@@ -246,37 +262,219 @@
   --ccs-ring-warning: rgb(168 120 41 / 0.5);
 }
 
-/* ── CC 变量：组件用的名字。结构色、状态色、细线、圆角、阴影、字号引用上面的官方取值；外壳实测与品牌色在这里给值并注明。 */
+/* ── Claude 设计系统实测（--code-*）：开发窗口 2026-10-15 夜在 claude.ai/code 读设计系统变量与计算后的值，
+   照录 docs/work/2026-10-16-cc-shell-design.md 第 2 节（2.1 颜色、2.2 字号、2.3 尺寸、2.4 阴影与动效）。浅色在 :root、深色在 .dark；
+   「黑 / 白 N%」写成 rgb(0 0 0 / N) / rgb(255 255 255 / N)。组件不直接用这一层，用下面的 --cc-* 名字。 */
+:root {
+  /* 文字：主 / 次 / 淡 / 禁用 */
+  --code-ink-1: #0b0b0b;
+  --code-ink-2: #52514e;
+  --code-ink-3: #898781;
+  --code-ink-disabled: rgb(0 0 0 / 0.35);
+  /* 表面 0–3 与弹层（菜单、输入框、提示） */
+  --code-surface-0: #f9f9f7;
+  --code-surface-1: #fcfcfb;
+  --code-surface-2: #ffffff;
+  --code-surface-3: #ffffff;
+  --code-surface-popover: #ffffff;
+  /* 侧栏底：网页贴边（表面 0、1 各半）/ 桌面窗口浮起的卡片 */
+  --code-sidebar-web: #fafaf9;
+  --code-sidebar-desktop: #ffffff;
+  /* 叠色 1–3、幽灵按钮悬停 / 选中、侧栏行悬停 / 选中（网页侧栏是实色） */
+  --code-alpha-1: rgb(0 0 0 / 0.05);
+  --code-alpha-2: rgb(0 0 0 / 0.1);
+  --code-alpha-3: rgb(0 0 0 / 0.2);
+  --code-fill-hover: rgb(0 0 0 / 0.05);
+  --code-fill-selected: rgb(0 0 0 / 0.1);
+  --code-row-hover: #f0efec;
+  --code-row-selected: #edece8;
+  /* 线 / 强线 / 更强 */
+  --code-line: rgb(0 0 0 / 0.1);
+  --code-line-strong: rgb(0 0 0 / 0.2);
+  --code-line-stronger: rgb(0 0 0 / 0.4);
+  /* 链接、行内代码 */
+  --code-link: #184f95;
+  --code-code-ink: #8e2626;
+  --code-code-bg: rgb(0 0 0 / 0.05);
+  /* 危险 / 成功 / 警告文字：照录；CC 的状态色仍用官方表（设计文档 2.1：官方表已有的不改） */
+  --code-danger: #8e2626;
+  --code-success: #006300;
+  --code-warning: #734500;
+  /* 焦点：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕 */
+  --code-focus: #2a78d6;
+  --code-focus-halo: #cde2fb;
+  /* 品牌强调 clay：照录；CC 仍用自己的橘黄（--cc-brand） */
+  --code-clay: #d97757;
+  --code-backdrop: rgb(0 0 0 / 0.4);
+  --code-tooltip-bg: #0b0b0b;
+  --code-tooltip-ink: #ffffff;
+  /* 侧栏搜索框（设计文档 3.2）：白 50% 底 + 0.5px 内环 + 轻投影 */
+  --code-search-bg: rgb(255 255 255 / 0.5);
+  --code-shadow-search: 0 1px 2px rgb(0 0 0 / 0.05);
+  /* 阴影：卡片 / 悬浮 / 弹出（菜单另加 1px 内环）/ 输入框（1px 环 + 投影） */
+  --code-shadow-card: 0 0 0 1px rgb(0 0 0 / 0.06), 0 4px 24px rgb(0 0 0 / 0.04);
+  --code-shadow-float: 0 0 0 0.5px #0000000d, 0 2px 8px #0000000a, 0 12px 32px #00000008;
+  --code-shadow-pop: 0 0 0 0.5px #0000000f, 0 4px 12px #0000000f, 0 16px 40px #00000014;
+  --code-shadow-composer: 0 0 0 1px var(--code-line), 0 4px 20px rgb(0 0 0 / 0.035);
+
+  /* 字号 / 行高（深浅色同一套） */
+  --code-text-caption: 12px;    --code-text-caption-lh: 17px;
+  --code-text-footnote: 13px;   --code-text-footnote-lh: 17px;
+  --code-text-panel-lh: 19px;   /* 右侧栏正文 13/19 */
+  --code-text-body: 14px;       --code-text-body-lh: 20px;
+  --code-text-heading: 15px;    --code-text-heading-lh: 20px;
+  --code-text-prose: 16px;      --code-text-prose-lh: 24px;
+  --code-text-title: 22px;      --code-text-title-lh: 28px;
+  --code-text-page: 24px;       --code-text-page-lh: 31px;    --code-text-page-weight: 500;
+  --code-text-group: 13px;      --code-text-group-lh: 16px;
+  /* 尺寸：控件高、圆角、间距、内边距、图标 */
+  --code-control: 32px;
+  --code-control-nested: 22px;
+  --code-control-xs: 24px;
+  --code-control-sm: 28px;
+  --code-control-lg: 40px;
+  --code-radius-code: 5px;      /* 行内代码（设计文档 3.10） */
+  --code-radius-6: 6px;
+  --code-radius-7: 7px;
+  --code-radius-8: 8px;
+  --code-radius-10: 10px;
+  --code-radius-menu: 12px;
+  --code-radius-input: 14px;
+  --code-gap-1: 8px;  --code-gap-2: 12px;  --code-gap-3: 16px;  --code-gap-4: 28px;  --code-gap-5: 40px;
+  --code-pad-1: 6px;  --code-pad-2: 8px;   --code-pad-3: 12px;  --code-pad-4: 16px;  --code-pad-5: 24px;
+  --code-icon: 20px;
+  --code-icon-sm: 16px;
+  /* 侧栏：宽、标题区、搜索、行（网页 32 / 桌面窗口 30 / 手机 44）、行间、行圆角、行左内边距、行尾控件、组标题带、组上间距、底部托盘 */
+  --code-sidebar-w: 288px;
+  --code-sidebar-head: 44px;
+  --code-search-h: 32px;
+  --code-row: 32px;
+  --code-row-desktop: 30px;
+  --code-row-phone: 44px;
+  --code-row-gap: 2px;
+  --code-row-radius: 8px;
+  --code-row-pad: 10px;
+  --code-row-ctl: 24px;
+  --code-row-lead: 28px;        /* 导航行图标的前导槽 */
+  --code-group-band: 32px;
+  --code-group-band-phone: 44px;
+  --code-group-top: 16px;
+  --code-group-top-desktop: 14px;
+  --code-group-chevron: 12px;
+  --code-tray: 48px;
+  --code-tray-btn: 32px;
+  --code-sidebar-float: 8px;    /* 桌面窗口：侧栏卡片离窗口边 */
+  /* 菜单（设计文档 3.6） */
+  --code-menu-pad: 4px;
+  --code-menu-min-w: 128px;
+  --code-menu-item: 32px;
+  --code-menu-item-py: 6px;
+  --code-menu-item-px: 10px;
+  --code-menu-sep-inset: 10px;
+  --code-menu-sep-gap: 4px;
+  --code-menu-sep: 1px;
+  /* 动效：主 / 快 / 淡出；时长 60 / 120 / 200 / 300 / 450ms */
+  --code-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --code-ease-fast: cubic-bezier(0.2, 0, 0, 1);
+  --code-ease-out: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --code-dur-1: 60ms;
+  --code-dur-2: 120ms;
+  --code-dur-3: 200ms;
+  --code-dur-4: 300ms;
+  --code-dur-5: 450ms;
+}
+
+.dark {
+  --code-ink-1: #f0efec;
+  --code-ink-2: #c3c2b7;
+  --code-ink-3: #898781;
+  --code-ink-disabled: rgb(255 255 255 / 0.35);
+  --code-surface-0: #0b0b0b;
+  --code-surface-1: #151515;
+  --code-surface-2: #1a1a19;
+  --code-surface-3: #20201f;
+  --code-surface-popover: #20201f;
+  --code-sidebar-web: #111111;  /* 页面底 #151515 的 80% 混黑 */
+  --code-sidebar-desktop: #262626;
+  --code-alpha-1: rgb(255 255 255 / 0.05);
+  --code-alpha-2: rgb(255 255 255 / 0.1);
+  --code-alpha-3: rgb(255 255 255 / 0.2);
+  --code-fill-hover: rgb(255 255 255 / 0.075);
+  --code-fill-selected: rgb(255 255 255 / 0.15);
+  --code-row-hover: rgb(255 255 255 / 0.075);
+  --code-row-selected: rgb(255 255 255 / 0.15);
+  --code-line: rgb(255 255 255 / 0.1);
+  --code-line-strong: rgb(255 255 255 / 0.2);
+  --code-line-stronger: rgb(255 255 255 / 0.4);
+  --code-link: #6da7ec;
+  --code-code-ink: #ec7e7e;
+  --code-code-bg: rgb(255 255 255 / 0.05);
+  --code-danger: #ec7e7e;
+  --code-success: #0ca30c;
+  --code-warning: #db9300;
+  --code-focus-halo: rgb(24 79 149 / 0.6);
+  --code-backdrop: rgb(0 0 0 / 0.5);
+  --code-tooltip-bg: #20201f;
+  --code-tooltip-ink: #f0efec;
+  --code-search-bg: rgb(255 255 255 / 0.05);
+  --code-shadow-card: inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 4px 24px rgb(0 0 0 / 0.08);
+  --code-shadow-float: 0 0 0 0.5px #ffffff0f, 0 2px 8px #0000004d, 0 12px 32px #00000040;
+  --code-shadow-pop: 0 0 0 0.5px #ffffff14, 0 4px 12px #00000066, 0 16px 40px #00000080;
+  /* 输入框深色投影设计文档没给，沿用 CC 原值（黑 25%）；环跟着线色变 */
+  --code-shadow-composer: 0 0 0 1px var(--code-line), 0 4px 20px rgb(0 0 0 / 0.25);
+}
+
+/* ── CC 变量：组件用的名字。结构色、尺寸、阴影、动效引用上面的 Claude 设计系统实测（--code-*）；状态色、细线宽、圆角档位、
+   官方阴影、字号表引用官方取值（--ccs-*）；手机外壳实测与品牌色在这里给值并注明。 */
 :root {
   --cc-brand: #f28c28;            /* 品牌强调：CC logo 橘黄 */
   --cc-brand-hover: #e07a17;
   --cc-brand-ink: #ffffff;        /* 橘黄底上的字 */
   --cc-brand-soft: #fdecd9;
   --cc-brand-soft-ink: #4a2a0c;
-  --cc-bubble-bg: var(--cc-bg-subtle);   /* 用户气泡：同 Claude，中性灰底 */
+  --cc-bubble-bg: var(--cc-alpha-1);     /* 用户气泡：叠色 1（设计文档 3.10） */
   --cc-bubble-ink: var(--cc-ink);
   --cc-bubble-shadow: none;   /* 同 Claude：气泡没有阴影 */
   --cc-bubble-sheen: rgb(255 255 255 / 0.55); /* 发送中扫过气泡的浅光（外壳动效） */
-  --cc-focus-ring: var(--ccs-ring-primary);   /* 键盘聚焦环（官方） */
-  --cc-focus-halo: rgb(20 20 19 / 0.08);      /* 输入框聚焦时外圈的淡晕（外壳实测，官方表未覆盖） */
+  --cc-focus-ring: var(--code-focus);         /* 键盘聚焦的蓝（设计系统） */
+  --cc-focus-halo: var(--code-focus-halo);    /* 聚焦光晕 */
+  /* 聚焦：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕（按钮、输入框、行、搜索框统一用它） */
+  --cc-shadow-focus: inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--code-focus), 0 0 0 6px var(--code-focus-halo);
 
-  /* 底色：外壳实测，官方表未覆盖（2026-10-12 claude.ai 截图取色：主区接近中性的白，侧栏略暖，选中 / 分隔都是很淡的中性灰） */
-  --cc-bg-app: #fbfbfb;           /* 主区域（外壳实测 #fcfbfc） */
-  --cc-bg-sidebar: #fbfaf8;       /* 侧栏 / 抽屉（外壳实测 #fcfaf8），与主区只靠一条细线分开 */
-  --cc-bg-surface: var(--ccs-bg-primary);   /* 输入框、卡片、菜单 */
-  --cc-bg-subtle: #efefed;        /* 分段按钮底、图标底、代码块、用户气泡（外壳实测 #efefed） */
-  --cc-bg-hover: rgb(31 28 20 / 0.04);      /* 外壳实测 */
-  --cc-bg-active: rgb(31 28 20 / 0.06);     /* 侧栏选中行（外壳实测 #eeece8） */
-  --cc-bg-selected: rgb(0 0 0 / 0.1);       /* 设置弹窗左栏选中项（外壳实测 #e3e3e3） */
-  --cc-bg-overlay: rgb(0 0 0 / 0.4);        /* 弹窗遮罩（外壳实测遮住后 #979797） */
+  /* 底色（设计系统）：页面底 = 表面 1，所有变体（含手机）同一个；侧栏底按变体切（见「变体」一段） */
+  --cc-bg-app: var(--code-surface-1);
+  --cc-bg-sidebar: var(--code-sidebar-web);
+  --cc-bg-surface: var(--code-surface-2);      /* 卡片 */
+  --cc-bg-popover: var(--code-surface-popover);   /* 菜单、输入框、提示等弹层 */
+  --cc-bg-subtle: var(--code-alpha-1);         /* 分段按钮底、图标底、代码块 */
+  --cc-bg-hover: var(--code-fill-hover);       /* 幽灵按钮悬停 */
+  --cc-bg-active: var(--code-fill-selected);   /* 幽灵按钮选中 */
+  --cc-bg-selected: var(--code-fill-selected); /* 设置弹窗左栏选中项 */
+  --cc-bg-overlay: var(--code-backdrop);       /* 弹窗遮罩 */
+  --cc-alpha-1: var(--code-alpha-1);
+  --cc-alpha-2: var(--code-alpha-2);
+  --cc-alpha-3: var(--code-alpha-3);
+  --cc-fill-hover: var(--code-fill-hover);
+  --cc-fill-selected: var(--code-fill-selected);
+  /* 侧栏行：悬停 / 选中（导航）；会话列表里选中 = 悬停色，靠主色字区分。悬停不改字色 */
+  --cc-row-hover: var(--code-row-hover);
+  --cc-row-selected: var(--code-row-selected);
+  --cc-list-selected: var(--cc-row-hover);
 
-  --cc-ink: var(--ccs-text-primary);        /* 正文 */
-  --cc-ink-2: var(--ccs-text-secondary);    /* 次要 */
-  --cc-ink-3: var(--ccs-text-tertiary);     /* 说明、分组标题 */
-  --cc-ink-4: var(--ccs-text-disabled);     /* 占位、禁用 */
+  --cc-ink: var(--code-ink-1);              /* 正文 */
+  --cc-ink-2: var(--code-ink-2);            /* 次要（侧栏行默认） */
+  --cc-ink-3: var(--code-ink-3);            /* 淡：说明、分组标题 */
+  --cc-ink-4: var(--code-ink-disabled);     /* 占位、禁用 */
   --cc-hairline: var(--ccs-border-width);   /* 细线宽 0.5px（Tailwind 的 border 默认也是它） */
-  --cc-line: var(--ccs-border-tertiary);    /* 细线：卡片、菜单、侧栏右边线 */
-  --cc-line-strong: var(--ccs-border-secondary);   /* 聚焦 / 悬停时加深的边线、手机上描边明显的按钮 */
+  --cc-line: var(--code-line);              /* 线：卡片、菜单内环、侧栏右边线 */
+  --cc-line-strong: var(--code-line-strong);   /* 强线：聚焦 / 悬停时加深的边线、手机上描边明显的按钮 */
+  --cc-line-stronger: var(--code-line-stronger);
+  --cc-link: var(--code-link);
+  --cc-code-ink: var(--code-code-ink);      /* 行内代码 */
+  --cc-code-bg: var(--code-code-bg);
+  --cc-tooltip-bg: var(--code-tooltip-bg);
+  --cc-tooltip-ink: var(--code-tooltip-ink);
+  --cc-search-bg: var(--code-search-bg);
   --cc-fill-muted: var(--ccs-border-tertiary);     /* 浅灰填充：滚动条、关着的开关 */
   --cc-danger: var(--ccs-text-danger);
   --cc-danger-soft: var(--ccs-bg-danger);
@@ -301,11 +499,13 @@
   --cc-shadow-sm: var(--ccs-shadow-sm);
   --cc-shadow-md: var(--ccs-shadow-md);
   --cc-shadow-lg: var(--ccs-shadow-lg);
-  --cc-shadow-card: var(--ccs-shadow-sm);   /* 对话里的卡片悬停 */
-  --cc-shadow-composer: 0 0.25rem 1.25rem rgb(0 0 0 / 0.035);   /* 输入框：外壳实测，官方表未覆盖 */
-  --cc-shadow-composer-focus: 0 0.25rem 1.25rem rgb(0 0 0 / 0.075);
+  --cc-shadow-card: var(--code-shadow-card);     /* 卡片（桌面窗口里浮起的侧栏、对话里的卡片悬停） */
+  --cc-shadow-float: var(--code-shadow-float);   /* 悬浮层 */
+  --cc-shadow-pop: var(--code-shadow-pop);       /* 菜单、弹窗（菜单另加 1px 内环，见 .cc-menu） */
+  --cc-shadow-search: var(--code-shadow-search);
+  --cc-shadow-composer: var(--code-shadow-composer);   /* 输入框：1px 环 + 投影 */
+  --cc-shadow-composer-focus: 0 0 0 1px var(--code-line-strong), 0 4px 20px rgb(0 0 0 / 0.075);   /* 聚焦时环加深（CC 自定） */
   --cc-shadow-composer-mobile: 0 1px 3px rgb(0 0 0 / 0.04);     /* 手机输入框：外壳实测 */
-  --cc-shadow-pop: 0 10px 32px -8px rgb(20 20 19 / 0.18), 0 2px 6px rgb(20 20 19 / 0.06);   /* 菜单、弹窗：外壳，官方表未覆盖弹层 */
   --cc-shadow-pill: 0 6px 18px -4px rgb(20 20 19 / 0.22);      /* 手机抽屉「新建」胶囊：外壳 */
 
   --cc-radius-xs: var(--ccs-radius-xs);     /* 4 */
@@ -316,13 +516,53 @@
   --cc-radius-full: var(--ccs-radius-full);
   --cc-radius-composer: 20px;     /* 输入框：外壳实测，官方表未覆盖 */
   --cc-radius-composer-mobile: 1.5rem;   /* 手机输入框：外壳实测 */
-  --cc-radius-bubble: 18px;       /* 用户气泡：外壳实测，官方表未覆盖 */
+  --cc-radius-bubble: var(--code-radius-10);   /* 用户气泡（设计文档 3.10） */
+  --cc-radius-code: var(--code-radius-code);   /* 行内代码 */
+  --cc-radius-menu: var(--code-radius-menu);   /* 菜单 */
+  --cc-radius-row: var(--code-row-radius);     /* 侧栏行、菜单项、搜索框 */
+  --cc-radius-row-ctl: var(--code-radius-6);   /* 行里 24 的图标按钮 */
   --cc-radius-dialog: 16px;       /* 设置等整窗弹窗：外壳实测，官方表未覆盖 */
   --cc-radius-mrow: 16px;         /* 手机抽屉里的对话行：外壳实测 */
 
   --cc-text-xs: var(--ccs-text-xs-size);        /* 步骤详情里的命令输出 */
   --cc-text-sm: var(--ccs-text-sm-size);        /* 表格、代码块、源码预览、批准说明 */
   --cc-text-heading: var(--ccs-heading-md-size);   /* 设置里的小标题 */
+  --cc-text-caption: var(--code-text-caption);     /* 快捷键提示、卡片标题 */
+  --cc-text-caption-lh: var(--code-text-caption-lh);
+  --cc-text-footnote: var(--code-text-footnote);   /* 菜单里的当前值 */
+  --cc-text-footnote-lh: var(--code-text-footnote-lh);
+  /* 对话正文：电脑（网页、桌面窗口）14/20，手机 16/24（变体切）；字体仍按设置「对话字体」 */
+  --cc-body-size: var(--code-text-body);
+  --cc-body-lh: var(--code-text-body-lh);
+  /* 回复里的列表：上外边距约 21px（14px 正文的 1.5 倍）、缩进 28 + 7 */
+  --cc-md-list-top: 1.5em;
+  --cc-md-list-indent: 28px;
+  --cc-md-li-indent: 7px;
+
+  /* 密度（设计系统舒适档；网页默认，桌面窗口 / 手机在「变体」一段覆盖） */
+  --cc-control: var(--code-control);        /* 按钮、输入框高 */
+  --cc-icon: var(--code-icon);
+  --cc-icon-sm: var(--code-icon-sm);
+  --cc-row-h: var(--code-row);              /* 导航行、会话行 */
+  --cc-row-gap: var(--code-row-gap);
+  --cc-row-pad: var(--code-row-pad);
+  --cc-row-ctl: var(--code-row-ctl);
+  --cc-row-lead: var(--code-row-lead);
+  --cc-row-font: var(--code-text-body);
+  --cc-row-lh: var(--code-text-body-lh);
+  --cc-group-h: var(--code-group-band);     /* 组标题带 */
+  --cc-group-top: var(--code-group-top);    /* 组上间距 */
+  --cc-group-font: var(--code-text-group);
+  --cc-group-lh: var(--code-text-group-lh);
+  --cc-group-chevron: var(--code-group-chevron);
+  --cc-reveal-rest: 0;                      /* 组箭头、组操作平时的透明度：电脑悬停才出现，手机常显 */
+  --cc-search-h: var(--code-search-h);
+  --cc-sidebar-head-h: var(--code-sidebar-head);
+  --cc-sidebar-foot-h: var(--code-tray);
+  --cc-sidebar-float: 0px;                  /* 侧栏卡片离窗口边：网页贴边 */
+  --cc-menu-pad: var(--code-menu-pad);
+  --cc-menu-min-w: var(--code-menu-min-w);
+  --cc-menu-item-h: var(--code-menu-item);
 
   --cc-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "PingFang SC", "Microsoft YaHei", sans-serif;
   --cc-font-serif: "Source Serif 4 Variable", ui-serif, Georgia, "Noto Serif Thai", "Songti SC", "Noto Serif SC", serif;
@@ -360,18 +600,21 @@
   --cc-mbtn-size: var(--cc-tap);
   /* 手机抽屉与页面同色（2026-10-12 用户定）：主屏幕网页 app 的状态栏只在启动时按页面色上色，抽屉一深就在顶上断出一条「顶栏」 */
   --cc-bg-drawer: var(--cc-bg-app);
-  --cc-mrow-h: 3rem;
   --cc-results-in: 240ms;         /* 右侧面板滑入 */
   --cc-titlebar-h: 40px;          /* 桌面端自画标题栏 */
   --cc-win-close: #c42b1c;        /* Windows 关闭按钮的系统红（深浅色同一个；系统色，官方表未覆盖） */
   --cc-win-close-ink: #ffffff;
-  /* 动效：时长与缓动也只在这里 */
-  --cc-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 动效：时长与缓动也只在这里（设计系统：主 / 快 / 淡出；60 / 120 / 200 / 300 / 450ms）。弹一下的 spring 是 CC 发送气泡自己的 */
+  --cc-ease: var(--code-ease);
+  --cc-ease-fast: var(--code-ease-fast);
+  --cc-ease-out: var(--code-ease-out);
   --cc-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-  --cc-dur-fast: 120ms;
-  --cc-dur: 200ms;
-  --cc-dur-slow: 320ms;
-  --cc-dur-pop: 480ms;
+  --cc-dur-instant: var(--code-dur-1);
+  --cc-dur-fast: var(--code-dur-2);
+  --cc-dur: var(--code-dur-3);
+  --cc-dur-slow: var(--code-dur-4);
+  --cc-dur-pop: var(--code-dur-5);
+  --cc-reveal: var(--cc-dur-fast);          /* 悬停揭示（组标题变色、箭头淡入） */
 
   --radius: var(--cc-radius-md);
 }
@@ -383,26 +626,34 @@
   --cc-brand-soft: #4a2f17;
   --cc-brand-soft-ink: #fde3c6;
   --cc-bubble-sheen: rgb(255 255 255 / 0.12);
-  --cc-focus-halo: rgb(250 249 245 / 0.1);
-
-  --cc-bg-app: #262624;           /* 外壳实测（与官方 bg-secondary 深色同值） */
-  --cc-bg-sidebar: #1f1e1d;       /* 外壳实测 */
-  --cc-bg-subtle: #3a3a37;        /* 外壳实测 */
-  --cc-bg-hover: rgb(250 249 245 / 0.06);
-  --cc-bg-active: rgb(250 249 245 / 0.1);
-  --cc-bg-overlay: rgb(0 0 0 / 0.55);
-  --cc-bg-selected: rgb(250 249 245 / 0.12);
   --cc-mbtn-bg: #30302e;
   --cc-mcard-line: var(--cc-line-strong);
   --cc-mcard-shadow: 0;
   --cc-mscrim-bg: #000000;
   --cc-mscrim-max: 0.45;
 
-  --cc-shadow-composer: 0 0.25rem 1.25rem rgb(0 0 0 / 0.25);
-  --cc-shadow-composer-focus: 0 0.25rem 1.25rem rgb(0 0 0 / 0.35);
-  --cc-shadow-pop: 0 10px 32px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(250 249 245 / 0.06);
+  --cc-shadow-composer-focus: 0 0 0 1px var(--code-line-strong), 0 4px 20px rgb(0 0 0 / 0.35);
   --cc-shadow-pill: 0 6px 18px -4px rgb(0 0 0 / 0.5);
 }
+
+/* ── 变体（设计文档 4.1）：lib/variant.ts 在 <html data-cc-variant> 写 web / desktop / phone。网页是上面的默认值
+   （侧栏贴边、行 32、组上间距 16）；桌面窗口里侧栏浮成卡片（离窗口边 8px，白卡 / 深色 #262626，卡片阴影）、行 30、组上间距 14；
+   手机抽屉行与组标题带 44、组箭头与组操作常显、对话正文 16/24。 */
+:root[data-cc-variant="desktop"] {
+  --cc-bg-sidebar: var(--code-sidebar-desktop);
+  --cc-row-h: var(--code-row-desktop);
+  --cc-group-top: var(--code-group-top-desktop);
+  --cc-sidebar-float: var(--code-sidebar-float);
+}
+:root[data-cc-variant="phone"] {
+  --cc-row-h: var(--code-row-phone);
+  --cc-group-h: var(--code-group-band-phone);
+  --cc-reveal-rest: 1;
+  --cc-body-size: var(--code-text-prose);
+  --cc-body-lh: var(--code-text-prose-lh);
+}
+:root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); border-inline-width: 0; }
+:root[data-cc-variant="desktop"] [data-slot="sidebar-inner"] { border-radius: var(--cc-radius-menu); box-shadow: var(--cc-shadow-card); }
 
 /* shadcn / assistant-ui 自带组件用的变量，全部接到上面的 CC 变量（不另设一套数值） */
 @supports (height: 100dvh) { :root { --cc-vh: 100dvh; } }
@@ -413,7 +664,7 @@
   --foreground: var(--cc-ink);
   --card: var(--cc-bg-surface);
   --card-foreground: var(--cc-ink);
-  --popover: var(--cc-bg-surface);
+  --popover: var(--cc-bg-popover);
   --popover-foreground: var(--cc-ink);
   --primary: var(--cc-ink);
   --primary-foreground: var(--cc-bg-app);
@@ -468,13 +719,23 @@
 @layer components {
   .cc-icon-btn {
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-    width: 2rem; height: 2rem; border-radius: var(--cc-radius-md); color: var(--cc-ink-3);
+    width: var(--cc-control); height: var(--cc-control); border-radius: var(--cc-radius-md); color: var(--cc-ink-3); outline: none;
     transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-icon-btn:hover, .cc-icon-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-icon-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-icon-btn:active { transform: scale(0.94); }
   .cc-icon-btn:disabled { opacity: 0.35; pointer-events: none; }
-  .cc-icon-btn svg { width: 1.125rem; height: 1.125rem; }
+  .cc-icon-btn svg { width: var(--cc-icon); height: var(--cc-icon); }
+  /* 行里的图标按钮（会话行「···」、组标题的操作）：24、圆角 6、图标 16 */
+  .cc-row-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: var(--cc-row-ctl); height: var(--cc-row-ctl); border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-3); outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), opacity var(--cc-reveal) var(--cc-ease);
+  }
+  .cc-row-btn:hover, .cc-row-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-row-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-row-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
 
   /* 手机顶栏的圆形按钮（同 Claude 手机端） */
   .cc-round-btn {
@@ -486,38 +747,53 @@
   .cc-round-btn:active { transform: scale(0.92); }
   .cc-round-btn svg { width: 1.25rem; height: 1.25rem; }
 
+  /* 导航行（新建、待处理、定时任务、公司）：行高按变体、14/20 次要色、20 的图标放在 28 的前导槽、圆角 8。
+     悬停只换底不换字色；当前页 = 选中底 + 主色字；键盘焦点 = 蓝色焦点环 */
   .cc-nav-item {
-    display: flex; align-items: center; gap: 0.625rem; width: 100%; height: 2rem; padding: 0 0.625rem;
-    border-radius: var(--cc-radius-md); color: var(--cc-ink-2); font-size: var(--cc-text-sm); text-align: start; outline: none;
+    display: flex; align-items: center; gap: 0.375rem; width: 100%; height: var(--cc-row-h); padding: 0 0.375rem;
+    border-radius: var(--cc-radius-row); color: var(--cc-ink-2); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); text-align: start; outline: none;
     transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease);
   }
-  .cc-nav-item:hover, .cc-nav-item:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
-  .cc-nav-item[data-active], .cc-nav-item[data-active="true"] { background: var(--cc-bg-active); color: var(--cc-ink); }
-  .cc-nav-item svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
-  .cc-nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
-  .cc-section-label { padding: 1rem 0.625rem 0.25rem; color: var(--cc-ink-3); font-size: var(--cc-text-xs); font-weight: 500; }
-  /* 分组标题可点折叠（同 Claude「今天 ⌄」）：箭头平时隐藏、悬停或已折叠时出现，折叠时转向右 */
+  .cc-nav-item:hover { background: var(--cc-row-hover); }
+  .cc-nav-item:focus-visible { box-shadow: var(--cc-shadow-focus); color: var(--cc-ink); }
+  .cc-nav-item[data-active], .cc-nav-item[data-active="true"] { background: var(--cc-row-selected); color: var(--cc-ink); }
+  .cc-nav-item svg { width: var(--cc-icon); height: var(--cc-icon); flex-shrink: 0; }
+  .cc-nav-icon { display: inline-flex; align-items: center; justify-content: center; width: var(--cc-row-lead); height: var(--cc-row-lead); flex-shrink: 0; }
+  /* 分组标题：13/16 淡色；鼠标在侧栏里时变次要色（120ms） */
+  .cc-section-label {
+    padding: var(--cc-group-top) var(--cc-row-pad) 0.25rem; color: var(--cc-ink-3); font-size: var(--cc-group-font); line-height: var(--cc-group-lh);
+    font-weight: 500; transition: color var(--cc-reveal) var(--cc-ease);
+  }
+  [data-slot="sidebar-inner"]:hover .cc-section-label { color: var(--cc-ink-2); }
+  /* 分组标题可点折叠：12px 箭头平时隐藏（手机常显）、鼠标进侧栏或已折叠时出现，折叠时转向右 */
   .cc-section-toggle { display: flex; align-items: center; gap: 0.25rem; width: 100%; text-align: start; outline: none; }
   .cc-section-toggle:hover, .cc-section-toggle:focus-visible { color: var(--cc-ink-2); }
-  .cc-section-chevron { width: 0.875rem; height: 0.875rem; opacity: 0; transition: opacity var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease); }
-  .cc-section-toggle:hover .cc-section-chevron, .cc-section-toggle:focus-visible .cc-section-chevron, .cc-section-toggle[aria-expanded="false"] .cc-section-chevron { opacity: 1; }
+  .cc-section-chevron {
+    width: var(--cc-group-chevron); height: var(--cc-group-chevron); opacity: var(--cc-reveal-rest);
+    transition: opacity var(--cc-reveal) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
+  }
+  [data-slot="sidebar-inner"]:hover .cc-section-chevron, .cc-section-toggle:focus-visible .cc-section-chevron,
+  .cc-section-toggle[aria-expanded="false"] .cc-section-chevron { opacity: 1; }
   .cc-section-toggle[aria-expanded="false"] .cc-section-chevron { transform: rotate(-90deg); }
 
+  /* 搜索框（设计文档 3.2）：高 32、圆角 8；浅色白 50% / 深色白 5% 底，0.5px 内环 + 轻投影；占位字淡色；右侧 12px 淡色快捷键提示槽 */
   .cc-search {
-    display: flex; align-items: center; gap: 0.5rem; height: 2.25rem; padding: 0 0.75rem; border-radius: var(--cc-radius-md);
-    background: var(--cc-bg-surface); border: var(--cc-hairline) solid var(--cc-line); color: var(--cc-ink-3);
-    transition: border-color var(--cc-dur-fast) var(--cc-ease);
+    display: flex; align-items: center; gap: 0.5rem; height: var(--cc-search-h); padding: 0 0.625rem; border-radius: var(--cc-radius-row);
+    background: var(--cc-search-bg); box-shadow: inset 0 0 0 var(--cc-hairline) var(--cc-line), var(--cc-shadow-search); color: var(--cc-ink-3);
+    transition: box-shadow var(--cc-dur-fast) var(--cc-ease);
   }
-  .cc-search:focus-within { border-color: var(--cc-line-strong); }
-  .cc-search input { flex: 1; min-width: 0; background: transparent; outline: none; color: var(--cc-ink); font-size: var(--cc-text-sm); }
-  .cc-search input::placeholder { color: var(--cc-ink-4); }
+  .cc-search:focus-within { box-shadow: var(--cc-shadow-focus); }
+  .cc-search input { flex: 1; min-width: 0; background: transparent; outline: none; color: var(--cc-ink); font-size: var(--cc-row-font); }
+  .cc-search input::placeholder { color: var(--cc-ink-3); }
+  .cc-search-hint { flex-shrink: 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
 
+  /* 输入框：弹层底、1px 环 + 投影（--cc-shadow-composer）；透明边框留给拖文件时的虚线与手机外壳 */
   .cc-composer {
     display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding: 0.875rem 0.875rem 0.625rem;
-    background: var(--cc-bg-surface); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-composer);
+    background: var(--cc-bg-popover); border: var(--cc-hairline) solid transparent; border-radius: var(--cc-radius-composer);
     box-shadow: var(--cc-shadow-composer); transition: border-color var(--cc-dur) var(--cc-ease), box-shadow var(--cc-dur) var(--cc-ease);
   }
-  .cc-composer:focus-within { border-color: var(--cc-line-strong); box-shadow: var(--cc-shadow-composer-focus); }
+  .cc-composer:focus-within { box-shadow: var(--cc-shadow-composer-focus); }
   .cc-composer[data-dragging="true"] { border-style: dashed; border-color: var(--cc-ink-3); }
   .cc-composer textarea { color: var(--cc-ink); }
   .cc-composer textarea::placeholder { color: var(--cc-ink-4); }
@@ -544,8 +820,8 @@
   /* 对话气泡：用户一侧是 CC 橘黄的浅底，出现时轻弹一下（同 Claude 的气泡形状） */
   .cc-bubble-user {
     position: relative; isolation: isolate; border-radius: var(--cc-radius-bubble); background: var(--cc-bubble-bg);
-    color: var(--cc-bubble-ink); box-shadow: var(--cc-bubble-shadow);
-    padding: 0.625rem 1rem; overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
+    color: var(--cc-bubble-ink); box-shadow: var(--cc-bubble-shadow); font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
+    padding: 0.5rem 0.75rem; overflow-wrap: anywhere; white-space: pre-wrap; transform-origin: bottom right;
   }
   /* 发出：从右下角轻轻弹出 */
   .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
@@ -556,8 +832,10 @@
     background: linear-gradient(105deg, transparent 30%, var(--cc-bubble-sheen) 50%, transparent 70%);
     background-size: 220% 100%; animation: cc-sheen 1.4s var(--cc-ease) infinite;
   }
+  /* 回复正文：电脑 14/20、手机 16/24（--cc-body-*，变体切）；字体按设置「对话字体」 */
   .cc-reply {
     color: var(--cc-ink); font-family: var(--cc-font-reply); font-variant-numeric: lining-nums tabular-nums;
+    font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
     animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
   }
   .cc-card { background: var(--cc-bg-surface); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md); }
@@ -565,22 +843,27 @@
   .cc-card-hover { transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease); }
   .cc-card-hover:hover { border-color: var(--cc-line-strong); box-shadow: var(--cc-shadow-card); }
 
+  /* 菜单（设计文档 3.6）：圆角 12、内边距 4、最小宽 128；弹层底、1px 内环 + 弹出阴影 */
   .cc-menu {
-    z-index: 60; min-width: 14rem; padding: 0.375rem; background: var(--cc-bg-surface); color: var(--cc-ink);
-    border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-xl); box-shadow: var(--cc-shadow-pop);
+    z-index: 60; min-width: var(--cc-menu-min-w); padding: var(--cc-menu-pad); background: var(--cc-bg-popover); color: var(--cc-ink);
+    border-radius: var(--cc-radius-menu); box-shadow: inset 0 0 0 1px var(--cc-line), var(--cc-shadow-pop);
     animation: cc-pop-in var(--cc-dur) var(--cc-ease) both;
-    /* 不超出屏幕（离边 8px，components/ui/menu.tsx）：放不下时菜单里滚动，键盘弹出时也一样 */
-    max-width: var(--radix-dropdown-menu-content-available-width); max-height: var(--radix-dropdown-menu-content-available-height); overflow-y: auto;
+    /* 不超出屏幕（离边 8px，components/ui/menu.tsx 按完整高度选上 / 下）：页面可用 [--cc-menu-max:…] 限高，放不下时菜单里滚动，键盘弹出时也一样 */
+    max-width: var(--radix-dropdown-menu-content-available-width); max-height: min(var(--cc-menu-max, 100vh), var(--radix-dropdown-menu-content-available-height, 100vh)); overflow-y: auto;
   }
+  /* 菜单项：高 32、圆角 8、内边距 6/10、14/20；危险项红字；不可用 40% */
   .cc-menu-item {
-    display: flex; align-items: center; gap: 0.625rem; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-md);
-    font-size: var(--cc-text-sm); cursor: pointer; outline: none; user-select: none;
+    display: flex; align-items: center; gap: 0.625rem; min-height: var(--cc-menu-item-h); padding: var(--code-menu-item-py) var(--code-menu-item-px);
+    border-radius: var(--cc-radius-row); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); cursor: pointer; outline: none; user-select: none;
   }
   .cc-menu-item:hover, .cc-menu-item:focus, .cc-menu-item[data-highlighted], .cc-menu-item[data-state="open"] { background: var(--cc-bg-hover); }
-  .cc-menu-item svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+  .cc-menu-item svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
   .cc-menu-item[data-danger] { color: var(--cc-danger); }
   .cc-menu-item[data-danger]:hover, .cc-menu-item[data-danger]:focus { background: var(--cc-danger-soft); }
-  .cc-menu-sep { height: 0; margin: 0.25rem 0; border-top: var(--cc-hairline) solid var(--cc-line); }
+  .cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }
+  /* 父项右侧的当前值（13px 淡色） */
+  .cc-menu-value { margin-inline-start: auto; padding-inline-start: 0.75rem; color: var(--cc-ink-3); font-size: var(--cc-text-footnote); line-height: var(--cc-text-footnote-lh); }
+  .cc-menu-sep { height: 0; margin: var(--code-menu-sep-gap) var(--code-menu-sep-inset); border-top: var(--code-menu-sep) solid var(--cc-line); }
 
   /* 手机抽屉底部「新建」胶囊（同 Claude 手机端：深色里白底黑字，浅色里黑底白字） */
   .cc-pill {
@@ -615,16 +898,18 @@
 
   .cc-field { display: flex; flex-direction: column; gap: 0.375rem; font-size: var(--cc-text-sm); color: var(--cc-ink-2); }
   .cc-input {
-    height: 2.25rem; padding: 0 0.75rem; border-radius: var(--cc-radius-md); border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-surface);
-    color: var(--cc-ink); font-size: var(--cc-text-sm); outline: none; transition: border-color var(--cc-dur-fast) var(--cc-ease);
+    height: var(--cc-control); padding: 0 0.75rem; border-radius: var(--cc-radius-md); border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-popover);
+    color: var(--cc-ink); font-size: var(--cc-text-sm); outline: none; transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease);
   }
-  .cc-input:focus { border-color: var(--cc-line-strong); box-shadow: 0 0 0 3px var(--cc-focus-halo); }
+  .cc-input:focus { box-shadow: var(--cc-shadow-focus); }
   .cc-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.875rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: var(--cc-control); padding: 0 0.875rem;
     border-radius: var(--cc-radius-md); font-size: var(--cc-text-sm); font-weight: 500; border: var(--cc-hairline) solid var(--cc-line); color: var(--cc-ink);
-    background: var(--cc-bg-surface); transition: background-color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
+    background: var(--cc-bg-surface); outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-btn:hover { background: var(--cc-bg-hover); }
+  .cc-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-btn:active { transform: scale(0.97); }
   .cc-btn:disabled { opacity: 0.4; pointer-events: none; }
   .cc-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); border-color: transparent; }
@@ -769,12 +1054,12 @@
   .cc-project-name:hover, .cc-project-name:focus-visible { color: var(--cc-ink); }
   .cc-group-btn {
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 1.5rem; height: 1.5rem;
-    border-radius: var(--cc-radius-xs); color: var(--cc-ink-3); outline: none;
-    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), opacity var(--cc-dur-fast) var(--cc-ease);
+    border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-3); outline: none;
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease), opacity var(--cc-reveal) var(--cc-ease);
   }
   .cc-group-btn:hover, .cc-group-btn:focus-visible, .cc-group-btn[data-state="open"] { background: var(--cc-bg-active); color: var(--cc-ink); }
   .cc-group-btn svg { width: 0.875rem; height: 0.875rem; }
-  .cc-project-more, .cc-project-add { opacity: 0; }
+  .cc-project-more, .cc-project-add { opacity: var(--cc-reveal-rest); }   /* 电脑悬停才出，手机变体常显 */
   .cc-project-row:hover .cc-project-more, .cc-project-row:hover .cc-project-add, .cc-project-row:focus-within .cc-project-more,
   .cc-project-row:focus-within .cc-project-add, .cc-project-row[data-open] .cc-project-more { opacity: 1; }
   .cc-count { flex-shrink: 0; padding-inline: 0.25rem; color: var(--cc-ink-3); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
@@ -874,12 +1159,12 @@
 /* 手机抽屉里的对话行：更高、更大的字（同 Claude 手机端） */
 .cc-drawer { scrollbar-width: none; }
 .cc-drawer::-webkit-scrollbar { display: none; }
-.cc-drawer [data-slot="aui_thread-list-item"] { height: var(--cc-mrow-h); border-radius: var(--cc-radius-mrow); color: var(--cc-ink); }
+.cc-drawer [data-slot="aui_thread-list-item"] { height: var(--cc-row-h); border-radius: var(--cc-radius-mrow); color: var(--cc-ink); }
 .cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline: 0.75rem; font-size: 1.0625rem; }
 .cc-drawer [data-slot="aui_thread-list-group-label"] { font-size: 0.9375rem; padding: 1.5rem 0.75rem 0.5rem; }
-.cc-drawer .cc-nav-item { height: var(--cc-mrow-h); font-size: 1.0625rem; padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
+.cc-drawer .cc-nav-item { height: var(--cc-row-h); font-size: 1.0625rem; padding-inline: 0.75rem; gap: 0.875rem; color: var(--cc-ink); }
 /* 手机抽屉里的公司组头：同对话行的高度，＋ 一直在（手机没有悬停），长按出菜单 */
-.cc-drawer .cc-project-row { height: var(--cc-mrow-h); margin-top: 0.75rem; font-size: 1rem; color: var(--cc-ink); }
+.cc-drawer .cc-project-row { height: var(--cc-group-h); margin-top: 0.75rem; font-size: 1rem; color: var(--cc-ink); }
 .cc-drawer .cc-project-add { opacity: 1; }
 .cc-drawer .cc-group-btn { width: 2.25rem; height: 2.25rem; }
 .cc-drawer .cc-group-btn svg { width: 1.125rem; height: 1.125rem; }
@@ -889,9 +1174,8 @@
   border-width: var(--cc-hairline); border-color: var(--cc-line-strong); box-shadow: var(--cc-shadow-hairline);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
-/* 手机（2026-10-12 用 iPhone 镜像与 Claude 手机 app 同屏逐项量过）：页面底色 #f9f9f7；输入框约 96 高、白底、描边明显、
-   「+」是浅灰实心圆；问候语约 20 号深灰、图标小 */
-@media (max-width: 767px) { :root:not(.dark) { --cc-bg-app: #f9f9f7; } }
+/* 手机（2026-10-12 用 iPhone 镜像与 Claude 手机 app 同屏逐项量过）：输入框约 96 高、白底、描边明显、
+   「+」是浅灰实心圆；问候语约 20 号深灰、图标小。页面底色与电脑同一个（设计系统表面 1，2026-10-15 实测） */
 .cc-mshell .cc-composer { min-height: 6rem; justify-content: space-between; border-color: var(--cc-line-strong); border-radius: var(--cc-radius-composer-mobile); box-shadow: var(--cc-shadow-composer-mobile); }
 .cc-mshell .cc-attach { width: 2.125rem; height: 2.125rem; border-color: transparent; background: var(--cc-bg-subtle); }
 .cc-mshell .cc-greeting { font-size: 1.25rem; color: var(--cc-ink-2); }

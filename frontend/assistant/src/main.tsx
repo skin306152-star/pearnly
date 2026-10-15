@@ -6,7 +6,11 @@ import { Assistant } from "./assistant";
 import "./globals.css";
 import { pref } from "@/lib/appearance";
 import { installBackKey } from "@/lib/back-stack";
+import { installVariant } from "@/lib/variant";
 import { trackViewport } from "@/lib/viewport";
+
+// 外壳变体（网页 / 桌面窗口 / 手机，lib/variant.ts）：先于首帧写好，侧栏底色与行高不跳
+installVariant();
 
 // 深浅色默认跟随系统（同 Claude）：系统改了也即时跟着变；设置里也可以固定。样式变量在 globals.css 的 :root / .dark。
 const scheme = window.matchMedia("(prefers-color-scheme: dark)");

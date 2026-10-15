@@ -507,7 +507,7 @@ export const ThreadListItem: FC = () => {
       data-active={current ? "true" : undefined}
       aria-current={current ? "true" : undefined}
       data-slot="aui_thread-list-item"
-      className="group/item hover:bg-hover focus-visible:bg-hover data-active:bg-active has-focus-visible:bg-hover has-data-[state=open]:bg-hover text-ink-2 data-active:text-ink relative flex h-8 items-center rounded-sm transition-colors focus-visible:outline-none"
+      className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink relative flex h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
     >
       {renaming ? (
         <ThreadListItemRename onDone={() => setRenaming(false)} />
@@ -516,7 +516,7 @@ export const ThreadListItem: FC = () => {
           <ThreadListItemPrimitive.Trigger
             data-slot="aui_thread-list-item-trigger"
             onClick={reenter}
-            className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9 focus-visible:ring-[3px]"
+            className="focus-visible:shadow-focus flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover/item:pe-9 group-has-focus-visible/item:pe-9 group-has-data-[state=open]/item:pe-9"
           >
             <span
               data-slot="aui_thread-list-item-title"
@@ -597,7 +597,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
           variant="ghost"
           size="icon"
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
+          className="data-[state=open]:bg-hover absolute end-1.5 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
           <span className="sr-only">{t("more")}</span>

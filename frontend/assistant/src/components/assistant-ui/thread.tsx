@@ -443,7 +443,7 @@ const AssistantMessage: FC = () => {
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="cc-reply px-2 text-base leading-[1.7rem] wrap-break-word"
+        className="cc-reply px-2 wrap-break-word"
       >
         {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
         <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">

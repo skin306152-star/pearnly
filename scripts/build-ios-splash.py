@@ -2,7 +2,7 @@
 """iPhone 主屏幕 app 的启动图（2026-10-12：iOS 做到网页 app 的极限）。
 
 点开主屏幕上的 CC，页面下载完之前 iOS 默认显示黑屏；给出按屏幕尺寸的启动图，iOS 一点开就显示（同 Claude 原生 app 的启动画面：
-浅底中间一个标志）。浅色底同手机页面 #f9f9f7，深色底同 #262624；标志用 frontend/assistant/public/icon-512.png。
+浅底中间一个标志）。底色同页面（globals.css 的 --cc-bg-app）：浅色 #fcfcfb，深色 #151515；标志用 frontend/assistant/public/icon-512.png。
 苹果在「添加到主屏幕」那一刻读取，已添加的要删掉重加才生效。页面里的引用由 vite.config.ts 的 ccIcons 生成（带内容指纹）。
 
 用法：`python3 scripts/build-ios-splash.py`（需要 Pillow）；`--check` 只核对文件齐不齐。
@@ -19,7 +19,7 @@ DEVICES = (
     (440, 956, 3), (430, 932, 3), (428, 926, 3), (414, 896, 3), (414, 896, 2), (402, 874, 3),
     (393, 852, 3), (390, 844, 3), (375, 812, 3), (375, 667, 2), (360, 780, 3),
 )
-THEMES = {"light": (249, 249, 247), "dark": (38, 38, 36)}
+THEMES = {"light": (252, 252, 251), "dark": (21, 21, 21)}
 LOGO_PT = 96  # 标志边长（逻辑点）
 
 

@@ -39,9 +39,9 @@ function ccIcons(): Plugin {
         start_url: "/assistant",
         scope: "/assistant",
         display: "standalone",
-        // 启动画面与标题栏颜色 = 手机上的页面底色（globals.css 的 --cc-bg-app，手机 #f9f9f7）
-        background_color: "#f9f9f7",
-        theme_color: "#f9f9f7",
+        // 启动画面与标题栏颜色 = 页面底色（globals.css 的 --cc-bg-app，浅色 #fcfcfb）
+        background_color: "#fcfcfb",
+        theme_color: "#fcfcfb",
         icons: [
           { src: icon("icon-192.png"), sizes: "192x192", type: "image/png" },
           { src: icon("icon-512.png"), sizes: "512x512", type: "image/png" },
