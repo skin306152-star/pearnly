@@ -63,6 +63,8 @@ jobs:
         run: python3 tests/test_companion_contract.py
       - name: Verify any account set on the computer gets its chart read on demand and choices wait for it
         run: python3 tests/test_cowork_any_set_catalog.py
+      - name: Verify read-only connection views take no row locks and write paths still lock
+        run: python3 tests/test_cowork_connection_read_locks.py
       - name: Verify the companion machine envelope and its method tables (push, folder, on-demand requests)
         run: PYTHONPATH=apps/pearnly_cowork python3 tests/test_cowork_companion_http_auth.py
       - name: Verify on-demand requests to CC Desktop and fetching files from authorised folders
