@@ -2304,6 +2304,11 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn(".cc-chin-btn[data-chosen] { color: var(--cc-ink); }", css)
         self.assertIn(":root:not([data-cc-variant=\"phone\"]) .cc-composer-inline :is(.cc-attach, .cc-send) "
                       "{ width: var(--cc-composer-btn); height: var(--cc-composer-btn); }", css)
+        # 公司页的输入框同一套格子：「＋」要带 aui-composer-add-attachment 才落在 add 格，和光标、发送同一行（用户 10-16 截图：「＋」跑到上一行）
+        company_page = read("components/company-page.tsx")
+        self.assertIn('className="cc-composer cc-composer-inline"', company_page)
+        self.assertIn('className="aui-composer-add-attachment cc-attach"', company_page)
+        self.assertIn('className="aui-composer-send-slot', company_page)
 
     def test_hand_to_cc_and_drafts_prefill_without_sending(self):
         pending = read("components/pending.tsx")

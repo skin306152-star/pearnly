@@ -327,7 +327,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
           className="block max-h-72 min-h-6 w-full resize-none overflow-y-auto bg-transparent font-sans outline-none"
         />
         <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-          <button type="button" className="cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
+          <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
             <PlusIcon className="stroke-[1.5px]" />
           </button>
           <input ref={picker} type="file" multiple accept={ACCEPT} hidden onChange={(e) => attach(e.target.files)} />
