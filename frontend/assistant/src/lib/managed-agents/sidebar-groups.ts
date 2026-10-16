@@ -54,6 +54,23 @@ export type SectionOptions = {
 
 const UPDATED_DESC: SortOptions = { by: "updated", desc: true };
 
+/** 选了文件还没发的空对话（用户 10-16：侧栏里「选了文件但还没发」会多出一条「新对话」）：输入框加附件要先建会话，会话一建就成了
+ *  侧栏普通一行（标题空）。标题空 = 还没发过消息（首条消息一发就有临时标题，session-list-adapter.ts 的 generateTitle），这样的行
+ *  不列；当前打开的那条（按本页编号，或与它同一个服务端编号的另一行）照常显示。只在侧栏拼行时滤，不动服务端列表与组件库的数据：
+ *  侧栏多设备同步（list-sync.ts）会把本该在这一页却没有的当成在别处删了。返回要藏的本页编号。 */
+export function unsentDrafts(
+  items: readonly { id: string; remoteId?: string | undefined; title?: string | undefined }[],
+  mainId: string | undefined,
+): Set<string> {
+  const openRemote = items.find((item) => item.id === mainId)?.remoteId;
+  const hidden = new Set<string>();
+  for (const item of items) {
+    if (item.title?.trim() || item.id === mainId || (openRemote && item.remoteId === openRemote)) continue;
+    hidden.add(item.id);
+  }
+  return hidden;
+}
+
 /** 已置顶的那一组：按排序方式，手排过的按手排的先后（新置顶的在最上面）。 */
 function pinnedIndices(sorted: readonly SidebarRow[], keep: (row: SidebarRow) => boolean, order: readonly string[] | undefined): number[] {
   const rows = sorted.filter((row) => row.starred && keep(row));

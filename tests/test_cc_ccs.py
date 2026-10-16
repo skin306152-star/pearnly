@@ -116,7 +116,7 @@ CODE_COLORS = {
     "line-stronger": (BLACK.format(0.4), WHITE.format(0.4)),
     "link": ("#184f95", "#6da7ec"), "code-ink": ("#8e2626", "#ec7e7e"), "code-bg": (BLACK.format(0.05), WHITE.format(0.05)),
     "danger": ("#8e2626", "#ec7e7e"), "success": ("#006300", "#0ca30c"), "warning": ("#734500", "#db9300"),
-    "focus": ("#2a78d6", "#2a78d6"), "focus-halo": ("#cde2fb", "rgb(24 79 149 / 0.6)"), "clay": ("#d97757", "#d97757"),
+    "focus": ("#2a78d6", "#2a78d6"), "clay": ("#d97757", "#d97757"),
     "backdrop": (BLACK.format(0.4), BLACK.format(0.5)),
     "tooltip-bg": ("#0b0b0b", "#20201f"), "tooltip-ink": ("#ffffff", "#f0efec"),
     "search-bg": (WHITE.format(0.5), WHITE.format(0.05)),
@@ -232,7 +232,7 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong", "--cc-line-stronger": "--code-line-stronger",
             "--cc-link": "--code-link", "--cc-code-ink": "--code-code-ink", "--cc-code-bg": "--code-code-bg",
             "--cc-tooltip-bg": "--code-tooltip-bg", "--cc-tooltip-ink": "--code-tooltip-ink", "--cc-search-bg": "--code-search-bg",
-            "--cc-focus-ring": "--code-focus", "--cc-focus-halo": "--code-focus-halo", "--cc-bubble-bg": "--cc-alpha-1",
+            "--cc-focus-ring": "--code-focus", "--cc-bubble-bg": "--cc-alpha-1",
             "--cc-shadow-card": "--code-shadow-card", "--cc-shadow-float": "--code-shadow-float", "--cc-shadow-pop": "--code-shadow-pop",
             "--cc-shadow-composer": "--code-shadow-composer", "--cc-shadow-search": "--code-shadow-search",
             "--cc-radius-bubble": "--code-radius-10", "--cc-radius-code": "--code-radius-code", "--cc-radius-menu": "--code-radius-menu",
@@ -258,15 +258,17 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-chin-btn": "--code-chin-btn", "--cc-chin-font": "--code-text-footnote", "--cc-radius-chin": "--code-radius-5",
         }.items():
             self.assertEqual(cc.get(name), f"var({target})", name)
-        # 聚焦：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕
-        self.assertEqual(cc["--cc-shadow-focus"],
-                         "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--code-focus), 0 0 0 6px var(--code-focus-halo)")
+        # 聚焦：内描 1px 页面色 + 外 1px 蓝描边，没有光晕（用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」）；
+        # 光晕变量浅色、深色都删掉，不留不用的变量
+        self.assertEqual(cc["--cc-shadow-focus"], "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--cc-focus-ring)")
+        self.assertEqual(cc["--cc-shadow-focus-inset"], "inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring)")
+        self.assertNotIn("halo", self.css)
         self.assertEqual(cc["--cc-reveal-rest"], "0")
         self.assertEqual(cc["--cc-sidebar-float"], "0px")
         # 结构色只在 --code-* 里分深浅：--cc-* 深色块不再另给底色、叠色与弹层阴影；页面底色所有变体（含手机）同一个
         dark = [b for b in re.findall(r"^\.dark \{\n(.*?)\n\}", self.css, re.M | re.S) if "--cc-brand:" in b][0]
         for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-active", "--cc-shadow-pop",
-                     "--cc-shadow-composer:", "--cc-focus-halo"):
+                     "--cc-shadow-composer:", "--cc-shadow-focus"):
             self.assertNotIn(name, dark, name)
         self.assertEqual(self.css.count("--cc-bg-app:"), 1)
         self.assertNotIn("@media (max-width: 767px) { :root", self.css)
@@ -372,9 +374,14 @@ assert.equal(pickVariant(false, false), "web");
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        for rel in ("components/ui/button.tsx", "components/ui/input.tsx"):
+        for rel in ("components/ui/button.tsx", "components/ui/input.tsx", "components/ui/dialog.tsx", "components/ui/sheet.tsx",
+                    "components/ui/sidebar.tsx"):
             self.assertIn("focus-visible:shadow-focus", read(rel), rel)
-            self.assertNotIn("ring-[3px]", read(rel), rel)
+        # 聚焦不带光晕（用户 10-16）：整个 CC 前端不再有 ring 光晕写法（ring-[3px]、半透明 ring、ring-offset、focus 时的 ring-2）
+        halo = re.compile(r"ring-\[\d|ring-ring|ring-offset|(?:focus|focus-visible|aria-invalid):ring-|ring-[a-z-]+/\d|outline-ring/\d")
+        for path in sorted(SRC.rglob("*.ts*")) + [SRC / "globals.css"]:
+            self.assertIsNone(halo.search(path.read_text(encoding="utf-8")), path)
+        self.assertEqual(read("components/ui/sidebar.tsx").count("focus-visible:shadow-focus"), 5)
         self.assertIn("shadow-pop", read("components/ui/dialog.tsx"))
         self.assertIn("bg-tooltip text-tooltip-ink", read("components/ui/tooltip.tsx"))
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")

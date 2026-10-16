@@ -48,7 +48,9 @@ export const AddCompanyDialog: FC = () => {
           className="cc-card cc-enter cc-dialog cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:0.8]"
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
+              <Marquee className="block truncate">{title}</Marquee>
+            </DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>

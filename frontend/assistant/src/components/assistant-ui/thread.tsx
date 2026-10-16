@@ -534,7 +534,7 @@ const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   return (
     <div data-slot="cc-run-indicator" data-kind={activity.kind} className={cn("flex min-w-0 items-center font-sans", className)}>
       <TypingDots label={label} showLabel={false} />
-      <span className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</span>
+      <Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>
     </div>
   );
 };

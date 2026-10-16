@@ -42,7 +42,7 @@ import { useActivity, useBumps } from "@/lib/managed-agents/activity";
 import { NO_FILING, type ProjectRow, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { bindFoldUser, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
-import { companySections, flatSections, groupOpen, monthSections } from "@/lib/managed-agents/sidebar-groups";
+import { companySections, flatSections, groupOpen, monthSections, unsentDrafts } from "@/lib/managed-agents/sidebar-groups";
 import { bindOrderUser, forgetPinned, moveBy, moveTo, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import {
   companyDrag,
@@ -222,11 +222,19 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({ searchQuery = "" }
   return kind ? <CompanyGroups searchQuery={searchQuery} /> : <DayGroups searchQuery={searchQuery} />;
 };
 
+/** 选了文件还没发的空对话不进侧栏行，当前打开的那条照常显示（sidebar-groups.ts 的 unsentDrafts，用户 10-16）。 */
+function useUnsent(): ReadonlySet<string> {
+  const threadItems = useAuiState((s) => s.threads.threadItems);
+  const mainId = useAuiState((s) => s.threads.mainThreadId);
+  return useMemo(() => unsentDrafts(threadItems, mainId), [threadItems, mainId]);
+}
+
 /** 侧栏每行的最后活动时间：列表给的与本页收到提醒的时间里较晚的一个（提醒到的对话浮到最上面）。 */
 function useDates() {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
   const bumps = useBumps();
+  const unsent = useUnsent();
   return useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
     const dates = threadIds.map((id) => {
@@ -235,8 +243,8 @@ function useDates() {
       const listed = item?.lastMessageAt;
       return bumped && (!listed || bumped > listed.getTime()) ? new Date(bumped) : listed;
     });
-    return { threadIds, itemsById, dates };
-  }, [threadIds, threadItems, bumps]);
+    return { threadIds, itemsById, dates, unsent };
+  }, [threadIds, threadItems, bumps, unsent]);
 }
 
 const NoResults: FC = () => (
@@ -256,7 +264,7 @@ const RowScopeContext = createContext<RowScope | null>(null);
 
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
-  const { threadIds, itemsById, dates } = useDates();
+  const { threadIds, itemsById, dates, unsent } = useDates();
   const projects = useProjects((s) => s.projects);
   const filings = useProjects((s) => s.filings);
   const shown = useProjects((s) => s.shown);
@@ -289,10 +297,12 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
 
   const sections = useMemo(() => {
-    const rows = threadIds.map((id, index) => {
+    // 选了文件还没发的空对话不列（当前打开的那条照列）；index 仍是组件库 threadIds 里的位置
+    const rows = threadIds.flatMap((id, index) => {
+      if (unsent.has(id)) return [];
       const item = itemsById.get(id);
       const filing = (item?.remoteId ? filings[item.remoteId] : undefined) ?? filings[id];
-      return {
+      return [{
         index,
         title: item?.title || t("untitled"),
         starred: !!item?.custom?.starred,
@@ -301,14 +311,14 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
         period: filing?.project ? filing.period : "",
         created: createdOf(item?.remoteId),
         key: item?.remoteId ?? id,
-      };
+      }];
     });
     const sort = { by: view.sort, desc: view.desc };
     const pinnedOrder = order.pinned;
     if (view.by === "month") return monthSections(rows, projects, { query, sort, pinnedOrder });
     if (view.by === "none") return flatSections(rows, projects, { query, sort, pinnedOrder });
     return companySections(rows, projects, { query, shown, serverMore, sort, empty: view.empty, companyOrder: order.companies, pinnedOrder });
-  }, [threadIds, itemsById, dates, projects, filings, shown, serverMore, query, view, order]);
+  }, [threadIds, itemsById, dates, unsent, projects, filings, shown, serverMore, query, view, order]);
 
   if (!sections) return <NoResults />;
   const local = (index: number) => threadIds[index]!;
@@ -491,6 +501,7 @@ const DayGroups: FC<{ searchQuery?: string }> = ({
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
   const bumps = useBumps();
+  const unsent = useUnsent();
   const { isMobile } = useSidebar();
   const { collapsed, toggle } = useCollapsedGroups();
 
@@ -509,10 +520,11 @@ const DayGroups: FC<{ searchQuery?: string }> = ({
       .map((id, index) => ({ id, index }))
       .filter(
         ({ id }) =>
-          !query ||
-          (itemsById.get(id)?.title || t("untitled"))
-            .toLowerCase()
-            .includes(query),
+          !unsent.has(id) &&
+          (!query ||
+            (itemsById.get(id)?.title || t("untitled"))
+              .toLowerCase()
+              .includes(query)),
       )
       .map(({ index }) => index);
     if (!filteredIndices.some((index) => dates[index] || itemsById.get(threadIds[index]!)?.custom?.starred)) {
@@ -543,7 +555,7 @@ const DayGroups: FC<{ searchQuery?: string }> = ({
       result.push(...byDay);
     }
     return { filteredIndices, groups: result };
-  }, [threadIds, threadItems, bumps, query, isMobile]);
+  }, [threadIds, threadItems, bumps, unsent, query, isMobile]);
 
   if (query && filteredIndices.length === 0) {
     return (

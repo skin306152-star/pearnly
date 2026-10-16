@@ -437,7 +437,8 @@ const card = (props: any = {}) => createElement(PanelCard, { id: "notes", title:
 const page = renderToStaticMarkup(card());
 assert.match(page, /<button type="button" class="cc-panel-card-toggle" aria-expanded="true" aria-describedby="([^"]+)">/);
 const described = page.match(/aria-describedby="([^"]+)"/)![1];
-assert.ok(page.includes(`<span class="cc-panel-card-end" data-slot="cc-card-end"><span id="${described}" class="cc-panel-card-summary">2 notes</span></span>`));
+// 摘要也是单行截断的文字（放不下时末尾渐隐，同侧栏；用户 10-16「统一渐隐」）
+assert.ok(page.includes(`<span class="cc-panel-card-end" data-slot="cc-card-end"><span class="cc-marquee cc-panel-card-summary" id="${described}"><span class="cc-marquee-text">2 notes</span></span></span>`));
 assert.ok(page.includes(">body<"));
 assert.ok(!page.includes("cc-panel-grip") && !page.includes("cc-card-grip"));
 // 摘要为 0、空不显示（开关也不带说明）
@@ -445,7 +446,7 @@ assert.ok(!renderToStaticMarkup(card({ summary: 0 })).includes("cc-panel-card-su
 assert.ok(!renderToStaticMarkup(card({ summary: "" })).includes("aria-describedby"));
 // 卡头操作与摘要叠在同一格（悬停才出，盖住摘要）；一直显示的控件在标题后面
 const tools = renderToStaticMarkup(card({ action: createElement("button", null, "+"), extra: createElement("b", null, "Sep") }));
-assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span id="[^"]+" class="cc-panel-card-summary">2 notes<\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
+assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span class="cc-marquee cc-panel-card-summary" id="[^"]+"><span class="cc-marquee-text">2 notes<\/span><\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
 // 会话栏里（排序列表里）：折叠记在会话栏（折叠了不画内容）；每张卡最右边都有把手槽，把手接上排序（dnd-kit 的属性）
 const control = { collapsed: ["notes"], toggle() {}, move() {}, register: () => () => {} };
 const texts = { instructions: "", pickedUp: String, movedTo: String, droppedAt: String, cancelled: String };

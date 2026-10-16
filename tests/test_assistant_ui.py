@@ -513,8 +513,9 @@ g.done();
     def test_hover_scroll_waits_measures_and_snaps_back(self):
         # 悬停约 150ms 后量：超出多少（加上原有右端渐隐）就滚多少，每秒 40px、至少 0.3s；离开立即回到开头；
         # 放得下的不滚；减少动态效果、触屏、按着键拖进来、行里开着输入框都不滚。
-        # 第 5 轮：比框窄不到一个渐隐宽度（最后几个字在渐隐里）的也滚；只有键盘操作带来的焦点才滚（鼠标关菜单后焦点被还回来不算，
-        # 立即回到开头）；滚动中文字变了回到开头重新量
+        # 只有键盘操作带来的焦点才滚（鼠标关菜单后焦点被还回来不算，立即回到开头）；滚动中文字变了回到开头重新量。
+        # 用户 10-16「统一渐隐」：放不放得下与静止时的末尾渐隐同一个量法（lib/overflow-fade.ts）——只有真的放不下才渐隐、才滚，
+        # 比框窄（哪怕不到一个渐隐宽度）的放得下，末尾不淡、也不滚（第 5 轮「渐隐里的也滚」随之不再需要）
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
@@ -546,6 +547,7 @@ function row(scroll: number, client: number, end = "") {
   const attrs = new Map<string, string>();
   const style = new Map<string, string>();
   const box: any = {
+    isConnected: true, getBoundingClientRect: () => ({ width: box.clientWidth }),
     scrollWidth: scroll, clientWidth: client, offsetWidth: client, vars: { "--cc-marquee-end": end },
     text: scroll,   // 里面那层文字的宽（没有内边距时 = scrollWidth）
     querySelector: () => ({ getBoundingClientRect: () => ({ width: box.text }) }),
@@ -578,13 +580,26 @@ await g.sleep(200);
 assert.equal(r.style.get("--cc-marquee-dur"), "300ms");
 r.detach();
 
-// 比框窄 10px、右端渐隐 20px：最后 10px 在渐隐里，也滚（滚 10px，最短 0.3s）
+// 比框窄 10px、右端渐隐 20px：放得下（静止时末尾不淡），不滚
 r = row(190, 200, "20px");
 r.box.scrollWidth = 200;
 r.handlers.pointerenter!(mouse);
 await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+// 刚好等宽、只多出 0.4px（取整误差）：放得下，不滚
+r = row(200.4, 200, "20px");
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
+assert.equal(r.attrs.has("data-marquee"), false);
+r.detach();
+// 只多出 4px、右端渐隐 20px：滚到最后一个字越过渐隐（滚 24px，最短 0.3s）
+r = row(204, 200, "20px");
+r.handlers.pointerenter!(mouse);
+await g.sleep(200);
 assert.equal(r.attrs.get("data-marquee"), "run");
-assert.equal(r.style.get("--cc-marquee-x"), "-10px");
+assert.equal(r.style.get("--cc-marquee-x"), "-24px");
+assert.equal(r.style.get("--cc-marquee-dur"), "600ms");
 // 滚动中文字变了：回到开头，还悬停着就重新量（变长了滚得更远）
 const watching = observers.filter((o) => o.on);
 assert.equal(watching.length, 1);
@@ -2931,15 +2946,16 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertNotIn("new ResizeObserver", hook)                    # 悬停时才量
         # 放不放得下按「框宽 - 右端渐隐」比；滚动中只观察这一个元素的文字变化
         self.assertIn("const distance = distanceOf(box);", hook)
-        self.assertIn("return text + box.padding - box.width + box.fade;", hook)
+        self.assertIn("return overflows(over) ? over + fade : 0;", hook)        # 放得下不滚；放不下滚到越过末尾渐隐
+        self.assertIn("scrollDistance(overflowOf(box), ", hook)                     # 与静止时的渐隐同一个量法
         self.assertIn("changes.observe(box, { childList: true, characterData: true, subtree: true });", hook)
         self.assertIn("useHoverScroll<HTMLElement>()", marquee)
         self.assertIn('<span className="cc-marquee-text">{children}</span>', marquee)
         for line in ("--cc-marquee-delay: 150ms;", "--cc-marquee-speed: 40;", "--cc-marquee-min: 300ms;", "--cc-marquee-fade: var(--code-pad-5);"):
             self.assertIn(line, css)
-        self.assertIn("display: inline-block; transform: translateX(var(--cc-marquee-x, 0px)); transition: transform var(--cc-marquee-dur, 0ms) linear;", css)
-        self.assertIn("mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end, 0px)), transparent);", css)
-        self.assertIn("--cc-marquee-end: var(--cc-row-fade); }", css)   # 右端保留原有渐隐
+        self.assertIn("transform: translateX(var(--cc-marquee-x, 0px)); transition: transform var(--cc-marquee-dur, 0ms) linear;", css)
+        self.assertIn("mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end)), transparent);", css)
+        self.assertIn(".cc-marquee, .cc-fade-cell { --cc-marquee-end: var(--cc-row-fade); text-overflow: clip; }", css)   # 右端保留末尾渐隐
         self.assertIn("@media (prefers-reduced-motion: reduce), (hover: none) {\n  .cc-marquee[data-marquee] > .cc-marquee-text { transform: none; transition: none; }", css)
         # 用到的地方：标题栏对话名、会话栏行、公司页对话行、菜单里的公司名
         self.assertIn('<Marquee className="truncate">{title || t("untitled")}</Marquee>', read("assistant.tsx"))
@@ -2962,7 +2978,9 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('by === "company" ? [month, branch] : by === "month" ? [company, branch] : [company, month, branch]', meta)
         self.assertIn("if (!kind || !meta || !filing.project) return null;", meta)
         css = read("globals.css")
-        self.assertIn("mask-image: linear-gradient(to right, black calc(100% - var(--cc-row-fade)), transparent);", css)
+        # 标题超长末尾渐隐：同所有单行截断的文字，只在放不下时（[data-overflow]，用户 10-16「统一渐隐」）
+        self.assertIn(".cc-row-title { overflow: hidden; white-space: nowrap; }", css)
+        self.assertIn(":is(.cc-marquee, .cc-fade-cell)[data-overflow] {\n  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--cc-marquee-end)), transparent);", css)
         self.assertIn("animation: cc-pulse var(--cc-pulse) ease-in-out infinite;", css)
         self.assertIn("width: var(--cc-row-pulse); height: var(--cc-row-pulse);", css)
         self.assertIn('[data-slot="aui_thread-list-item"][data-selected] { background: var(--cc-row-selected); color: var(--cc-ink); }', css)
@@ -4254,6 +4272,160 @@ assert.equal(focused, 1);           // 点击当下就聚焦（手机上这样�
 await g.sleep(20);
 assert.equal(focused, 2);           // 新对话换上来后再聚焦一次
 """)
+
+
+class UserAsks20261016Tests(unittest.TestCase):
+    """用户 2026-10-16 三件：单行放不下统一末尾渐隐；聚焦不要光晕；侧栏不列选了文件还没发的空对话。"""
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_single_lines_fade_only_when_they_do_not_fit(self):
+        # 「一行放不下时，侧栏末尾是渐隐，右侧栏是省略号，统一渐隐」：整页一个 ResizeObserver 量框与文字，放不下才设 data-overflow
+        # （CSS 用 mask 渐隐末尾）；放得下（含按内容收缩宽度、刚好等宽、只差取整误差）末尾不淡；文字变了、框变了重量
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { attachOverflowFade, markOverflow, overflowOf, watchOverflow } from "@/lib/overflow-fade";
+
+const g = globalThis as any;
+g.getComputedStyle = (el: any) => ({ paddingLeft: el.pad ?? "0px", paddingRight: el.pad ?? "0px", getPropertyValue: () => "" });
+const observers: any[] = [];
+g.ResizeObserver = class {
+  run: (entries: any[]) => void;
+  seen = new Set<any>();
+  constructor(run: (entries: any[]) => void) { this.run = run; observers.push(this); }
+  observe(el: any) { this.seen.add(el); }
+  unobserve(el: any) { this.seen.delete(el); }
+  fire(els: any[]) { this.run(els.filter((el) => this.seen.has(el)).map((target) => ({ target }))); }
+};
+let writes = 0;
+function marquee(text: number, client: number, pad?: string) {
+  const attrs = new Map<string, string>();
+  const inner: any = { width: text, getBoundingClientRect: () => ({ width: inner.width * box.scale }) };
+  const box: any = {
+    isConnected: true, clientWidth: client, offsetWidth: client, scale: 1, pad, attrs, inner,
+    getBoundingClientRect: () => ({ width: box.offsetWidth * box.scale }),
+    querySelector: (q: string) => (q === ":scope > .cc-marquee-text" ? inner : null),
+    hasAttribute: (n: string) => attrs.has(n),
+    toggleAttribute: (n: string, on: boolean) => { writes++; on ? attrs.set(n, "") : attrs.delete(n); return on; },
+  };
+  return box;
+}
+const fades = (box: any) => box.attrs.has("data-overflow");
+
+const long = marquee(300, 200);          // 放不下
+const short = marquee(150, 200);         // 放得下（比框窄）
+const hug = marquee(120, 120);           // 按内容收缩宽度：框 = 文字宽
+const edge = marquee(200.4, 200);        // 只差取整误差
+const one = marquee(201, 200);           // 多 1px 就算放不下
+const padded = marquee(190, 200, "8px"); // 文字 190 + 左右内边距 16 > 框 200
+const inline = marquee(300, 0);          // 行内元素（不截断）
+const boxes = [long, short, hug, edge, one, padded, inline];
+const detach = boxes.map((box) => attachOverflowFade(box));
+assert.equal(observers.length, 1);                          // 整页一个观察器，不是每一行一个
+const ro = observers[0];
+assert.ok(boxes.every((box) => ro.seen.has(box) && ro.seen.has(box.inner)));   // 框与文字两层都观察
+ro.fire(boxes);
+assert.deepEqual(boxes.map(fades), [true, false, false, false, true, true, false]);
+assert.equal(overflowOf(long), 100);
+// 文字变短（改名、计数变了）→ 文字那层尺寸变，去掉渐隐；框变窄 → 加上
+long.inner.width = 180;
+ro.fire([long.inner]);
+assert.equal(fades(long), false);
+short.clientWidth = short.offsetWidth = 100;
+ro.fire([short]);
+assert.equal(fades(short), true);
+// 拖动浮层放大 1.02：量到的宽同比放大，按缩放换回版面宽，放得下的不因此渐隐
+hug.scale = 1.02;
+ro.fire([hug]);
+assert.equal(fades(hug), false);
+// 没变的不写属性（只在变了时写）
+writes = 0;
+ro.fire(boxes);
+assert.equal(writes, 0);
+// 卸下：两层都不再观察
+detach[0]!();
+assert.ok(!ro.seen.has(long) && !ro.seen.has(long.inner));
+// 表格（结果文件预览，最多 500 × 40 格）：整张表一处登记，表变了把所有格子重量（格子没有里层文字，比 scrollWidth）
+const cell = (scroll: number, client: number) => ({ ...marquee(0, client), querySelector: () => null, scrollWidth: scroll });
+const cells = [cell(300, 288), cell(80, 120)];
+const table = {};
+const off = watchOverflow([table], () => cells);
+assert.equal(observers.length, 1);
+ro.fire([table]);
+assert.deepEqual(cells.map(fades), [true, false]);
+off();
+assert.ok(!ro.seen.has(table));
+markOverflow([]);
+g.done();
+""")
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_sidebar_hides_unsent_drafts_but_keeps_the_open_one(self):
+        # 选了文件但还没发的空对话（输入框加附件要先建会话）不进侧栏行；当前打开的那条（或与它同一个服务端编号的另一行）照常显示
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { unsentDrafts } from "@/lib/managed-agents/sidebar-groups";
+const items = [
+  { id: "a", remoteId: "r1", title: "Invoice 9" },
+  { id: "b", remoteId: "r2", title: "" },      // 选了文件、没发
+  { id: "c", remoteId: "r3" },                 // 标题还没有
+  { id: "d", remoteId: "r4", title: "  " },
+  { id: "e", remoteId: "r2", title: "" },      // 同一段对话重拉列表后的另一行
+  { id: "f", title: "" },                      // 本页新建、还没存到服务端
+];
+const sorted = (set: Set<string>) => [...set].sort();
+assert.deepEqual(sorted(unsentDrafts(items, "a")), ["b", "c", "d", "e", "f"]);
+assert.deepEqual(sorted(unsentDrafts(items, "b")), ["c", "d", "f"]);   // 当前打开的 b 与它的另一行 e 照常显示
+assert.deepEqual(sorted(unsentDrafts(items, "f")), ["b", "c", "d", "e"]);
+assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f"]);
+(globalThis as any).done();
+""")
+        rows = read("components/assistant-ui/thread-list.tsx")
+        # 侧栏拼行的两处（按公司 / 月份 / 不分组的 Cowork、按日子的 ERP / DMS）都滤；只在拼行时滤，不动服务端列表与同步
+        self.assertIn("return useMemo(() => unsentDrafts(threadItems, mainId), [threadItems, mainId]);", rows)
+        self.assertIn("      if (unsent.has(id)) return [];", rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0])
+        self.assertIn("          !unsent.has(id) &&", rows.split("const DayGroups: FC", 1)[1])
+        for rel in ("lib/managed-agents/list-sync.ts", "lib/managed-agents/session-list-adapter.ts", "lib/managed-agents/projects.ts"):
+            self.assertNotIn("unsent", read(rel), rel)
+
+    def test_every_single_line_truncation_fades(self):
+        marquee = read("components/ui/marquee.tsx")
+        fade = read("lib/overflow-fade.ts")
+        css = read("globals.css")
+        self.assertIn("useEffect(() => (ref.current ? attachOverflowFade(ref.current) : undefined), [ref]);", marquee)
+        self.assertEqual(fade.count("new ResizeObserver"), 1)
+        self.assertIn("export const overflows = (over: number) => over > 0.5;", fade)
+        # 静止时：放不下才渐隐（宽度沿用侧栏的 --cc-row-fade），不用省略号；文字一直是 inline-block（观察器量得到它）
+        self.assertIn(".cc-marquee-text { display: inline-block; white-space: nowrap; }", css)
+        self.assertIn("mask-image: linear-gradient(to right, black calc(100% - var(--cc-marquee-end)), transparent);", css)
+        self.assertNotIn("ellipsis", css.replace("各组件类里的省略号", ""))
+        self.assertNotIn("text-overflow: ellipsis", css)
+        # 原来还在用 truncate / 省略号的单行：卡头摘要、列表页标题、对话框标题、菜单项、设置里的 Express 路径、工作状态行、表格格子
+        self.assertIn('<Marquee id={summaryId} className="cc-panel-card-summary">', read("components/company-cards.tsx"))
+        for rel, title in (("components/companies.tsx", "{co.companies}"), ("components/pending.tsx", "{co.pending}"),
+                           ("components/scheduled-tasks.tsx", '{tr("cowork.folder.title")}')):
+            self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
+        for rel in ("components/add-company.tsx", "components/scheduled-tasks.tsx"):
+            self.assertIn('<DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
+        self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 2)
+        self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
+        self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
+        panel = read("components/results-panel.tsx")
+        self.assertIn('"cc-fade-cell max-w-72 border border-line px-2.5 py-1.5"', panel)
+        self.assertIn('watchOverflow([el], () => el.querySelectorAll<HTMLElement>("td.cc-fade-cell"))', panel)
+        # 其余还写着 truncate 的只能在 Marquee 上（盖掉省略号）；保留原样的：文件下拉框（原生控件）、没用到的官方侧栏组件
+        allowed = {("components/results-panel.tsx", "<select"), ("components/ui/sidebar.tsx", "[&>span:last-child]:truncate")}
+        for path in sorted(SRC.rglob("*.tsx")):
+            rel = path.relative_to(SRC).as_posix()
+            text = path.read_text(encoding="utf-8")
+            for i, line in enumerate(text.splitlines()):
+                if not re.search(r"\btruncate\b", line) or "Marquee" in line:
+                    continue
+                context = "\n".join(text.splitlines()[max(0, i - 3):i + 1])
+                self.assertTrue(any(rel == f and key in context for f, key in allowed), f"{rel}:{i + 1}: {line.strip()}")
+        # 多行截断（line-clamp）不在这次范围，保持原样
+        self.assertIn("line-clamp-2", read("components/assistant-ui/thread.tsx"))
 
 if __name__ == "__main__":
     unittest.main()

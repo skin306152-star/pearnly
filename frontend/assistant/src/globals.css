@@ -300,9 +300,9 @@
   --code-danger: #8e2626;
   --code-success: #006300;
   --code-warning: #734500;
-  /* 焦点：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕 */
+  /* 焦点蓝（Claude Code 实测 #2a78d6）。实测外面还有一圈 6px 浅蓝光晕，CC 不用（用户 2026-10-16：「全局这种光晕取消掉，可以用边框，
+     但是不能有光晕」） */
   --code-focus: #2a78d6;
-  --code-focus-halo: #cde2fb;
   /* 品牌强调 clay：照录；CC 仍用自己的橘黄（--cc-brand） */
   --code-clay: #d97757;
   --code-backdrop: rgb(0 0 0 / 0.4);
@@ -452,7 +452,6 @@
   --code-danger: #ec7e7e;
   --code-success: #0ca30c;
   --code-warning: #db9300;
-  --code-focus-halo: rgb(24 79 149 / 0.6);
   --code-backdrop: rgb(0 0 0 / 0.5);
   --code-tooltip-bg: #20201f;
   --code-tooltip-ink: #f0efec;
@@ -477,9 +476,9 @@
   --cc-bubble-shadow: none;   /* 同 Claude：气泡没有阴影 */
   --cc-bubble-sheen: rgb(255 255 255 / 0.55); /* 发送中扫过气泡的浅光（外壳动效） */
   --cc-focus-ring: var(--code-focus);         /* 键盘聚焦的蓝（设计系统） */
-  --cc-focus-halo: var(--code-focus-halo);    /* 聚焦光晕 */
-  /* 聚焦：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕（按钮、输入框、行、搜索框统一用它） */
-  --cc-shadow-focus: inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--code-focus), 0 0 0 6px var(--code-focus-halo);
+  /* 聚焦：内描 1px 页面色 + 外 1px 蓝描边，没有光晕（用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」；
+     按钮、输入框、行、搜索框、卡片统一用它，浅色深色同一个） */
+  --cc-shadow-focus: inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--cc-focus-ring);
 
   /* 底色（设计系统）：页面底 = 表面 1，所有变体（含手机）同一个；侧栏底按变体切（见「变体」一段） */
   --cc-bg-app: var(--code-surface-1);
@@ -676,7 +675,7 @@
   --cc-radius-inline-edit: var(--code-radius-3);
   --cc-inline-edit-px: 0.25rem;
   --cc-focus-w: var(--code-focus-w);
-  /* 紧凑聚焦：32 的标题栏、侧栏搜索框里用（6px 光晕会被窗口顶边、栏边裁掉）——只画在控件里面的 1.5px 蓝描边 */
+  /* 紧凑聚焦：32 的标题栏、侧栏搜索框里用（外描边会被窗口顶边、栏边裁掉）——只画在控件里面的 1.5px 蓝描边 */
   --cc-shadow-focus-inset: inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring);
   /* 你发的消息里的附件卡片（同 Claude）：宽 120、缩略图 128 高（整张约 2:3）；圆角、内环同会话栏卡片 */
   --cc-attach-w: 7.5rem;
@@ -810,7 +809,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;   /* 浏览器自带的聚焦框也只是一圈实色蓝（不用半透明那一圈，用户 10-16 不要光晕） */
     /* 细滚动条、不带上下箭头（Windows 桌面端默认是带箭头的粗条），同 claude.ai */
     scrollbar-width: thin;
     scrollbar-color: var(--cc-fill-muted) transparent;
@@ -907,7 +906,7 @@
   }
   .cc-group-row:hover .cc-group-toggle, .cc-group-toggle:focus-visible { color: var(--cc-ink-2); }
   .cc-group-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-group-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .cc-group-name { min-width: 0; overflow: hidden; white-space: nowrap; }
   .cc-group-caret {
     flex-shrink: 0; width: var(--cc-group-chevron); height: var(--cc-group-chevron); opacity: var(--cc-reveal-rest);
     transition: opacity var(--cc-reveal) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
@@ -943,9 +942,9 @@
   .cc-row-trigger { gap: 0.25rem; padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) 0.25rem; }
   .cc-row-trigger:has(.cc-row-meta) { padding-block: 0.375rem; }
   .cc-row-text { display: flex; min-width: 0; flex: 1; flex-direction: column; font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
-  .cc-row-title { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(to right, black calc(100% - var(--cc-row-fade)), transparent); --cc-marquee-end: var(--cc-row-fade); }
+  .cc-row-title { overflow: hidden; white-space: nowrap; }
   .cc-row-meta {
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--cc-ink-3);
+    overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
   .cc-row-end {
@@ -1247,7 +1246,7 @@
   .cc-bar-btn[aria-pressed="true"] { background: var(--cc-bg-active); color: var(--cc-ink); }
   .cc-bar-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-bar-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
-  /* 32 的标题栏里（电脑对话顶部、桌面窗口标题栏）：聚焦用紧凑描边——6px 光晕会被窗口顶边裁掉 */
+  /* 32 的标题栏里（电脑对话顶部、桌面窗口标题栏）：聚焦用紧凑描边——外描边会被窗口顶边裁掉 */
   :is(.cc-topbar, .cc-titlebar) :is(.cc-icon-btn, .cc-title-btn, .cc-title-company, .cc-row-btn, .cc-bar-btn, .cc-winbtn):focus-visible {
     box-shadow: var(--cc-shadow-focus-inset);
   }
@@ -1304,11 +1303,11 @@
   .cc-attach-tile svg { width: var(--cc-icon); height: var(--cc-icon); }
   .cc-attach-meta { display: flex; min-width: 0; flex-direction: column; padding: var(--cc-attach-pad); }
   .cc-attach-name {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--cc-text-footnote);
+    overflow: hidden; white-space: nowrap; font-size: var(--cc-text-footnote);
     line-height: var(--cc-text-footnote-lh); font-weight: 500;
   }
   .cc-attach-type {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink-3); font-size: var(--cc-text-caption);
+    overflow: hidden; white-space: nowrap; color: var(--cc-ink-3); font-size: var(--cc-text-caption);
     line-height: var(--cc-text-caption-lh);
   }
 
@@ -1318,7 +1317,7 @@
   @media (min-width: 768px) { .cc-page { padding-top: 2.5rem; } }
   .cc-page-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
   .cc-page-title {
-    min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink);
+    min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; color: var(--cc-ink);
     font-size: var(--cc-text-page); line-height: var(--cc-text-page-lh); font-weight: var(--cc-text-page-weight);
   }
   /* 可改名的标题（公司页）：按钮不裁切、焦点环完整露出，截断与悬停滚动在里面那层文字上 */
@@ -1327,7 +1326,7 @@
     display: flex; min-width: 0; max-width: 100%; border-radius: var(--cc-radius-row-ctl);
     text-align: start; outline: none; transition: color var(--cc-dur-fast) var(--cc-ease);
   }
-  .cc-page-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-page-title-text { display: block; min-width: 0; overflow: hidden; white-space: nowrap; }
   .cc-page-title-btn:hover { color: var(--cc-ink-2); }
   .cc-page-title-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-page-search {
@@ -1421,7 +1420,7 @@
   }
   .cc-grid-card:hover { box-shadow: var(--cc-panel-ring), var(--cc-shadow-card); }
   .cc-grid-card:focus-visible { box-shadow: var(--cc-shadow-focus); }
-  .cc-grid-card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: 500; }
+  .cc-grid-card-title { overflow: hidden; white-space: nowrap; color: var(--cc-ink); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: 500; }
   .cc-grid-card-foot { display: flex; align-items: center; gap: 0.75rem; margin-top: auto; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
   .cc-grid-card-foot svg { width: 0.875rem; height: 0.875rem; }
   .cc-project-chevron { width: 0.875rem; height: 0.875rem; transition: transform var(--cc-dur-fast) var(--cc-ease); }
@@ -1538,7 +1537,7 @@
   }
   .cc-panel-card-end > * { grid-area: 1 / 1; }
   .cc-panel-card-summary {
-    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink-3);
+    max-width: 100%; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-weight: 400; font-variant-numeric: tabular-nums;
     transition: opacity var(--cc-reveal) var(--cc-ease);
   }
@@ -1588,7 +1587,7 @@
   .cc-panel-row[data-strong] { color: var(--cc-ink); font-weight: 500; }
   .cc-panel-indent { padding-inline-start: 1.75rem; }
   .cc-panel-extra {
-    flex-shrink: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink-3);
+    flex-shrink: 0; max-width: 60%; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
   /* 卡里沿用的主档行（对话、账套、任务、草稿、知识库、文件夹、记住的选择）：按会话栏的行高与字号 */
@@ -1610,9 +1609,9 @@
   .cc-month-dot[data-state="open"]::before { background: var(--cc-status-processing); }
   .cc-month-dot[data-state="attention"]::before { background: var(--cc-status-attention); }
   .cc-month-dot[data-state="clear"]::before { background: var(--cc-status-online); }
-  .cc-month-code { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-month-code { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
   .cc-month-sub {
-    flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-ink-3);
+    flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
   .cc-panel-row[data-severity="info"] { color: var(--cc-ink-3); }
@@ -1660,17 +1659,26 @@
   .cc-choice-row:hover { background: var(--cc-bg-hover); }
 }
 
-/* 悬停滚动（components/ui/marquee.tsx + lib/hover-scroll.ts）：静止时文字是普通行内文字，原来的渐隐 / 省略号照旧；
-   滚动中（[data-marquee]）改成 inline-block 线性平移到 --cc-marquee-x，省略号换成裁切，左端加 24 渐隐、右端保留原有渐隐
-   （--cc-marquee-end）。离开时去掉 [data-marquee]，平移与过渡一起没了，立即回到开头。放在分层外：要盖住 Tailwind 的 truncate */
-.cc-marquee-text { white-space: nowrap; }
-.cc-marquee[data-marquee] {
-  text-overflow: clip;
-  -webkit-mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end, 0px)), transparent);
-  mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end, 0px)), transparent);
+/* 单行截断的文字（components/ui/marquee.tsx）：放不下时末尾渐隐，不用省略号（用户 2026-10-16「一行放不下时，侧栏末尾是渐隐，
+   右侧栏是省略号，统一渐隐」）。只有真的放不下才渐隐：lib/overflow-fade.ts 整页一个观察器量文字与框，放不下才设 [data-overflow]，
+   放得下（含按内容收缩宽度的元素）末尾不淡。渐隐宽度 --cc-marquee-end，默认同侧栏行的 --cc-row-fade（24）。
+   悬停滚动（lib/hover-scroll.ts）：滚动中（[data-marquee]）线性平移到 --cc-marquee-x，左端加 24 渐隐（--cc-marquee-fade）、右端
+   保留末尾渐隐；离开时去掉 [data-marquee]，平移与过渡一起没了，立即回到开头。文字一直是 inline-block（观察器才量得到它的宽）。
+   放在分层外：要盖住 Tailwind 的 truncate 与各组件类里的省略号 */
+.cc-marquee, .cc-fade-cell { --cc-marquee-end: var(--cc-row-fade); text-overflow: clip; }
+.cc-marquee-text { display: inline-block; white-space: nowrap; }
+:is(.cc-marquee, .cc-fade-cell)[data-overflow] {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--cc-marquee-end)), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - var(--cc-marquee-end)), transparent);
 }
+.cc-marquee[data-marquee] {
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end)), transparent);
+  mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end)), transparent);
+}
+/* 表格这类一次成百上千格、不悬停滚动的（结果文件预览）：同一个末尾渐隐，由整张表一处登记量（lib/overflow-fade.ts 的 watchOverflow） */
+.cc-fade-cell { overflow: hidden; white-space: nowrap; }
 .cc-marquee[data-marquee] > .cc-marquee-text {
-  display: inline-block; transform: translateX(var(--cc-marquee-x, 0px)); transition: transform var(--cc-marquee-dur, 0ms) linear;
+  transform: translateX(var(--cc-marquee-x, 0px)); transition: transform var(--cc-marquee-dur, 0ms) linear;
 }
 /* 系统减少动态效果、触屏：不滚（脚本本来就不启动，这里再兜一层） */
 @media (prefers-reduced-motion: reduce), (hover: none) {

@@ -122,7 +122,7 @@ const SORT_LABEL: Record<SortBy, () => string> = { updated: () => sb.lastUpdated
 /** 父项：名字 + 右侧当前值（13px 淡色）。 */
 const Parent: FC<{ label: string; value?: string }> = ({ label, value }) => (
   <span className="flex w-full min-w-0 items-center">
-    <span className="min-w-0 flex-1 truncate">{label}</span>
+    <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
     {value && <span className="cc-menu-value">{value}</span>}
   </span>
 );
@@ -136,7 +136,7 @@ const Choice: FC<{ label: string; on: boolean; onPick: () => void; keep?: boolea
       onPick();
     }}
   >
-    <span className="min-w-0 flex-1 truncate">{label}</span>
+    <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
     {on && <CheckIcon />}
   </DropdownMenu.Item>
 );

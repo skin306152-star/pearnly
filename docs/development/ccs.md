@@ -19,7 +19,7 @@ ccs = **Anthropic 官方公开的 Claude 样式变量** + **Claude 设计系统�
 - 组件用的是 `--cc-*` 名字：结构色（`--cc-ink*`、`--cc-bg-*`、`--cc-line*`、`--cc-row-*`、`--cc-link`、`--cc-code-*`）、尺寸、阴影、动效引用 `--code-*`；状态色（`--cc-danger` …）、细线宽、圆角档位、官方阴影、字号表引用 `--ccs-*`。Tailwind 的 `text-ink`、`bg-surface`、`bg-row-hover`、`text-link`、`border`（0.5px）、`rounded-md`（8）、`rounded-code`（5）、`shadow-pop`、`shadow-focus`、`text-sm`（14/1.4）都已接到这些变量。
 - 少数官方表与设计系统都没覆盖的手机外壳值（抽屉、圆按钮、手机输入框）沿用截图实测，变量旁注明「外壳实测」。
 - 页面底 = 表面 1（浅 `#fcfcfb` / 深 `#151515`），电脑、手机、桌面窗口同一个；抄在别处的同色（`pearnly_core/www/assistant.html` 启动画面与 theme-color、`assistant/api.py` 离线页、`scripts/build-ios-splash.py` 启动图、`companion/…/gui_tomo.py` 的 `APP_BG`、`vite.config.ts` 的 manifest）跟着改，`tests/test_cc_ccs.py` 核对。
-- 焦点一律 `--cc-shadow-focus`（内描 1px 页面色 + 外 1px `#2a78d6` + 6px 光晕），按钮、输入框、行、搜索框同一个；不再用 3px 的 ring。
+- 焦点一律 `--cc-shadow-focus`（内描 1px 页面色 + 外 1px `#2a78d6` 描边，**没有光晕**：用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」），按钮、输入框、行、搜索框、卡片同一个；32 的标题栏与侧栏搜索框用 1.5px 里描边（`--cc-shadow-focus-inset`），就地改名 1.5px 描边；不用 ring 光晕（`ring-[3px]`、半透明 ring、`ring-offset`），`tests/test_cc_ccs.py` 拦。
 - 字体保留 CC 现有的（官方 Anthropic Sans / Serif 只给本地开发下载）；对话正文字号行高 14/20（手机 16/24），字体仍按设置「对话字体」。
 - 动效：主缓动 `cubic-bezier(.32,.72,0,1)`、快 `(.2,0,0,1)`、淡出 `(.165,.84,.44,1)`，时长 60 / 120 / 200 / 300 / 450ms；悬停揭示 120ms（`--cc-reveal`）。
 

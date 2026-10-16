@@ -452,9 +452,9 @@ function Connections({ api }: { api: Desktop }) {
 
       {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
-          <span className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
+          <Marquee className={cn("max-w-[22rem] truncate text-sm", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
-          </span>
+          </Marquee>
           <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void run("scan", "rescan")}>
             {st.findAgain}
           </Button>

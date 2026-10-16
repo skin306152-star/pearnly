@@ -173,9 +173,9 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
         {extra && <span className="cc-panel-card-extra">{extra}</span>}
         <span className="cc-panel-card-end" data-slot="cc-card-end">
           {shownSummary && (
-            <span id={summaryId} className="cc-panel-card-summary">
+            <Marquee id={summaryId} className="cc-panel-card-summary">
               {summary}
-            </span>
+            </Marquee>
           )}
           {action && <span className="cc-panel-card-tools">{action}</span>}
         </span>

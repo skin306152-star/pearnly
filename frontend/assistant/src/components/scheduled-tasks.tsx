@@ -177,7 +177,9 @@ function Modal({ open, onClose, title, children, footer, wide }: {
           className={`cc-card cc-enter cc-modal fixed left-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col shadow-[var(--cc-shadow-pop)] ${wide ? "max-w-2xl" : "max-w-md"}`}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-2">
-            <DialogPrimitive.Title className="cc-greeting truncate text-xl">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">
+              <Marquee className="block truncate">{title}</Marquee>
+            </DialogPrimitive.Title>
             <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
             </DialogPrimitive.Close>
@@ -377,7 +379,7 @@ export function ScheduledTasks() {
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-page">
         <div className="cc-page-head">
-          <h1 className="cc-page-title">{tr("cowork.folder.title")}</h1>
+          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{tr("cowork.folder.title")}</Marquee></h1>
           <button type="button" className="cc-btn-sm" data-primary="" onClick={() => newTask(taskCompany)}>
             <PlusIcon />
             {tr("cowork.folder.new")}
