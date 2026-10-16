@@ -56,7 +56,6 @@ import {
   type FC,
   type PropsWithChildren,
 } from "react";
-import { Marquee } from "@/components/ui/marquee";
 
 // 触屏设备（手机、平板，lib/touch.ts）：打开页面不自动聚焦输入框
 const TOUCH = touchOnly();
@@ -581,7 +580,7 @@ const MessageFiles: FC = () => {
               <FileTypeIcon filename={file.filename} className="size-4.5" />
             </span>
             <span className="min-w-0">
-              <Marquee className="block truncate font-medium text-ink text-sm">{file.filename}</Marquee>
+              <span className="block truncate font-medium text-ink text-sm">{file.filename}</span>
               <span className="block text-ink-3 text-xs">{fileTypeLabel(file.filename)}</span>
             </span>
           </button>

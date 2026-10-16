@@ -316,7 +316,7 @@ const DraftChin: FC = () => {
         <DropdownMenu.Trigger asChild>
           <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" data-chosen={draft.project ? "" : undefined}>
             <Building2Icon />
-            <Marquee className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</Marquee>
+            <span className="min-w-0 truncate">{draft.project ? title || co.companies : co.companies}</span>
             <ChevronDownIcon />
           </button>
         </DropdownMenu.Trigger>
@@ -349,7 +349,7 @@ const SessionChin: FC = () => {
       {/* 会话栏要对话已存到服务端：还没存好的那一小段时间先不可点 */}
       <button type="button" className="cc-chin-btn" data-slot="cc-chin-company" disabled={!remoteId} onClick={openCompanyCard}>
         <Building2Icon />
-        <Marquee className="min-w-0 truncate">{title || co.companies}</Marquee>
+        <span className="min-w-0 truncate">{title || co.companies}</span>
       </button>
       <FilingChips look="cc-chin-btn" side="top" />
     </>
@@ -374,7 +374,7 @@ const UnfiledChin: FC<{ remoteId: string | undefined }> = ({ remoteId }) => {
       <DropdownMenu.Trigger asChild>
         <button type="button" className="cc-chin-btn" data-slot="cc-chin-company">
           <Building2Icon />
-          <Marquee className="min-w-0 truncate">{co.companies}</Marquee>
+          <span className="min-w-0 truncate">{co.companies}</span>
           <ChevronDownIcon />
         </button>
       </DropdownMenu.Trigger>

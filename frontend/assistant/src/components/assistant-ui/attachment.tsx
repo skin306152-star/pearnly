@@ -40,7 +40,6 @@ import { fileUrl, type SessionFile } from "@/lib/managed-agents/api";
 import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
-import { Marquee } from "@/components/ui/marquee";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -298,8 +297,8 @@ export const AttachmentCard: FC<{ name: string; label: string; typeLine: string;
         <AttachmentThumbnail src={image} filename={name} />
       </span>
       <span className="cc-attach-meta" aria-hidden>
-        <Marquee className="cc-attach-name">{name}</Marquee>
-        {typeLine && <Marquee className="cc-attach-type">{typeLine}</Marquee>}
+        <span className="cc-attach-name">{name}</span>
+        {typeLine && <span className="cc-attach-type">{typeLine}</span>}
       </span>
     </>
   );

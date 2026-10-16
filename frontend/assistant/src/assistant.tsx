@@ -193,7 +193,7 @@ function UserMenu({ children }: { children: ReactNode }) {
       <DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side="top" align="start" sideOffset={6} className="cc-menu">
-          <Marquee as="div" className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</Marquee>
+          <div className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</div>
           <DropdownMenu.Item onSelect={() => openSettings()} className="cc-menu-item">
             <SettingsIcon />
             <span className="flex-1">{t("settings")}</span>
@@ -243,10 +243,10 @@ function UserFooter() {
           <span className="cc-nav-icon">
             <span className="cc-avatar size-6">{initials(profile)}</span>
           </span>
-          <Marquee className="cc-nav-label min-w-0 flex-1 truncate">
+          <span className="cc-nav-label min-w-0 flex-1 truncate">
             {profile.full_name || profile.user}
             <span className="text-ink-3"> · {profile.product_label}</span>
-          </Marquee>
+          </span>
         </button>
       </UserMenu>
       <button type="button" className="cc-icon-btn" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>

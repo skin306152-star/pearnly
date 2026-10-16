@@ -14,7 +14,6 @@ import { co, t } from "@/i18n";
 import { create } from "zustand";
 import { branchShort, type Candidate, createCompany, listCandidates, refreshCatalogs, requestKey } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
-import { Marquee } from "@/components/ui/marquee";
 
 type AddState = { open: boolean; then: ((id: string) => void) | null; title: string };
 export const useAddCompany = create<AddState>(() => ({ open: false, then: null, title: "" }));
@@ -146,8 +145,8 @@ const Candidates: FC = () => {
               onClick={() => void pick(row)}
             >
               <span className="min-w-0 flex-1">
-                <Marquee className="block truncate text-ink">{row.title}</Marquee>
-                <Marquee className="block truncate text-ink-3 text-xs">{candidateLine(row)}</Marquee>
+                <span className="block truncate text-ink">{row.title}</span>
+                <span className="block truncate text-ink-3 text-xs">{candidateLine(row)}</span>
               </span>
               {busy === row.identity ? (
                 <LoaderIcon className="size-4 shrink-0 animate-spin text-ink-3" />
