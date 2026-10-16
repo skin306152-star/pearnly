@@ -5515,6 +5515,13 @@ class Round5SmallFixesTests(unittest.TestCase):
         run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
                stubs={"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }"})
 
+    def test_menu_items_show_the_highlight_not_a_blue_ring(self):
+        # 用户 10-16：「这个边框颜色不要太泛滥吧」——菜单项、下拉选项只用底色表示当前项，不画蓝框
+        css = read("globals.css")
+        self.assertIn(':is(.cc-menu-item, [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"]):is(:focus, :focus-visible) {', css)
+        rule = css.split('[role="option"]):is(:focus, :focus-visible) {', 1)[1].split("}", 1)[0]
+        self.assertIn("outline: none; box-shadow: none;", rule)
+
     def test_every_focusable_control_shows_the_focus_outline(self):
         # 用户 10-16：聚焦只有蓝色描边、没有光晕（--cc-shadow-focus，1px）。第 5 轮查出几处能聚焦却没有任何描边
         css = read("globals.css")

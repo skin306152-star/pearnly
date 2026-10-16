@@ -1108,6 +1108,11 @@
     border-radius: var(--cc-radius-row); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); cursor: pointer; outline: none; user-select: none;
   }
   .cc-menu-item:hover, .cc-menu-item:focus, .cc-menu-item[data-highlighted], .cc-menu-item[data-state="open"] { background: var(--cc-bg-hover); }
+  /* 菜单项、下拉选项靠底色表示「当前这一项」，不再画蓝框（用户 10-16：「这个边框颜色不要太泛滥吧」；同 Claude 的菜单）：
+     去掉浏览器自带的那圈 outline 与兜底描边，键盘上下移动时照样是底色跟着走 */
+  :is(.cc-menu-item, [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"]):is(:focus, :focus-visible) {
+    outline: none; box-shadow: none;
+  }
   .cc-menu-item svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
   .cc-menu-item[data-danger] { color: var(--cc-danger); }
   .cc-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }
