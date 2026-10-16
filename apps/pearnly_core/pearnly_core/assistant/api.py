@@ -114,6 +114,21 @@ def page_image(session_id, file_id, page=1, size="thumb"):
     return files.page_image(session_id, file_id, page=page, size=size)
 
 
+# 外壳的个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）：按人存、跨设备同步，只读写自己的（`prefs`）
+@frappe.whitelist(methods=["GET"])
+def layout():
+    from pearnly_core.assistant import prefs
+
+    return {"prefs": prefs.read()}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_layout(prefs):
+    from pearnly_core.assistant import prefs as layout_prefs
+
+    return {"prefs": layout_prefs.save(prefs)}
+
+
 @frappe.whitelist(methods=["GET"])
 def tool_labels():
     return tools.labels()

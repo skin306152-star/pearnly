@@ -5,10 +5,12 @@
 //   置顶   — 已置顶的对话可拖着排先后（三种分组方式都一样）；新置顶的排最上面（取消置顶就从记下的顺序里去掉，再置顶算新的）。
 //   恢复默认设置（「分组和排序」菜单）一并清掉这两份手排的顺序。改排序方式不清：手排过的公司组、置顶仍按手排的先后。
 //
-// 按人记住：同「分组和排序」、折叠（sidebar-view.ts、sidebar-fold.ts）与右侧栏卡片顺序（lib/company-panel.ts）一样，每台设备、
-// 每个用户各记各的（localStorage，键带用户；不跨设备同步）；存不了（无痕窗口）时本次照样生效。
+// 按人记住、跨设备同步（同「分组和排序」sidebar-view.ts 与右侧栏卡片 lib/company-panel.ts，见 lib/prefs-sync.ts）：存在服务端
+// 当前用户的那份里，本机仍记一份（localStorage，键带用户）让打开时立刻生效、离线照样能用；存不了（无痕窗口）时本次照样生效。
+// 侧栏各组的折叠（sidebar-fold.ts）仍按设备记。
 
 import { create } from "zustand";
+import { prefChanged, registerPref } from "@/lib/prefs-sync";
 
 export type SidebarOrder = { companies: string[]; pinned: string[] };
 
@@ -64,8 +66,8 @@ export function bindOrderUser(user: string) {
   useSidebarOrder.setState(read(user), true);
 }
 
-function save(patch: Partial<SidebarOrder>) {
-  const next = { ...useSidebarOrder.getState(), ...patch };
+/** 换成 next 并记进本机（不同步）。 */
+function keep(next: SidebarOrder) {
   useSidebarOrder.setState(next, true);
   if (!owner) return; // 还不知道是谁：本次照样生效，不写进不带人的键
   try {
@@ -75,6 +77,25 @@ function save(patch: Partial<SidebarOrder>) {
     // 无痕窗口等存不了：本次照样生效
   }
 }
+
+function save(patch: Partial<SidebarOrder>, tidy = false) {
+  keep({ ...useSidebarOrder.getState(), ...patch });
+  prefChanged(tidy);
+}
+
+// 存到服务端的那份：各列表最多记这么多（手排时没显示的接在后面、一直留着；最旧的先丢），整份不超过服务端的上限
+export const SYNC_LIMIT = 300;
+registerPref("order", {
+  read: () => {
+    const { companies, pinned } = useSidebarOrder.getState();
+    return { companies: companies.slice(0, SYNC_LIMIT), pinned: pinned.slice(0, SYNC_LIMIT) };
+  },
+  changed: () => hasManualOrder(useSidebarOrder.getState()),
+  apply: (value, user) => {
+    bindOrderUser(user);
+    keep(parseOrder(JSON.stringify(value ?? null)));
+  },
+});
 
 /** 手排后的公司组顺序（shown：拖完眼前的先后；之前记下、这次没显示的接在后面，相对先后不变）。 */
 export function setCompanyOrder(shown: readonly string[]) {
@@ -90,7 +111,7 @@ export function setPinnedOrder(shown: readonly string[]) {
 export function forgetPinned(keys: readonly string[]) {
   const { pinned } = useSidebarOrder.getState();
   const next = pinned.filter((key) => !keys.includes(key));
-  if (next.length !== pinned.length) save({ pinned: next });
+  if (next.length !== pinned.length) save({ pinned: next }, true); // 按数据收拾的，不是人改的（lib/prefs-sync.ts）
 }
 
 /** 「恢复默认设置」：手排的公司组与置顶顺序都不要了，回到按排序方式排。 */

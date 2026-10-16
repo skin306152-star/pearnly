@@ -2180,6 +2180,62 @@ def _preferences(native, synced=True):
     return module, written
 
 
+class LayoutPrefsTests(unittest.TestCase):
+    """外壳的个人排列按人存到服务端（测试窗口第 7 轮第 2 项）：只读写当前用户自己的一份 JSON，顶层只认三项，32 KB 上限。"""
+
+    def setUp(self):
+        self.stored = {}
+        self.saved_defaults = getattr(frappe, "defaults", None)
+        self.saved_user = frappe.session.user
+        frappe.defaults = types.SimpleNamespace(
+            get_user_default=lambda key, user=None: self.stored.get((user, key)),
+            set_user_default=lambda key, value, user=None: self.stored.__setitem__((user, key), value))
+        self.prefs = _load("pearnly_core.assistant.prefs", CORE / "assistant/prefs.py")
+
+    def tearDown(self):
+        frappe.defaults = self.saved_defaults
+        frappe.session.user = self.saved_user
+
+    def test_each_user_reads_and_writes_only_their_own(self):
+        frappe.session.user = "a@example.com"
+        self.assertIsNone(self.prefs.read())                       # 没存过：对话页把本机原有的迁上来
+        kept = self.prefs.save({"order": {"companies": ["c1"], "pinned": []}, "view": {"by": "month"},
+                                "cards": {"order": ["tasks"], "collapsed": []}, "fold": {"x": 1}})
+        self.assertEqual(sorted(kept), ["cards", "order", "view"])  # 折叠等不认识的不存
+        self.assertEqual(json.loads(self.stored[("a@example.com", "pearnly_cc_layout")]), kept)
+        self.assertEqual(self.prefs.read(), kept)
+        frappe.session.user = "b@example.com"
+        self.assertIsNone(self.prefs.read())                       # 别人的读不到
+        self.prefs.save('{"view": {"by": "none"}}')                # 表单传来的 JSON 字符串也收
+        self.assertEqual(self.prefs.read(), {"view": {"by": "none"}})
+        frappe.session.user = "a@example.com"
+        self.assertEqual(self.prefs.read()["view"], {"by": "month"})
+        self.stored[("a@example.com", "pearnly_cc_layout")] = "not json"
+        self.assertIsNone(self.prefs.read())                       # 存坏了当没存过
+
+    def test_guests_and_bad_values_are_refused(self):
+        frappe.session.user = "Guest"
+        with self.assertRaises(frappe.PermissionError):
+            self.prefs.read()
+        with self.assertRaises(frappe.PermissionError):
+            self.prefs.save({"view": {}})
+        frappe.session.user = "a@example.com"
+        for bad in ("[1]", "nope", 3, {"view": [1]}, {"order": {"companies": ["x" * 40] * 1000}}):
+            with self.assertRaises(frappe.ValidationError):
+                self.prefs.save(bad)
+        self.assertEqual(self.stored, {})
+
+    def test_endpoints_keep_reads_and_writes_apart(self):
+        api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        self.assertIn('@frappe.whitelist(methods=["GET"])\ndef layout():', api)
+        self.assertIn('@frappe.whitelist(methods=["POST"])\ndef save_layout(prefs):', api)
+        source = (CORE / "assistant/prefs.py").read_text(encoding="utf-8")
+        # 只按会话用户：接口不收用户名
+        self.assertNotIn("def read(user", source)
+        self.assertNotIn("def save(prefs, user", source)
+        self.assertIn('if not user or user == "Guest":', source)
+
+
 class InterfaceLanguageTests(unittest.TestCase):
     def test_tags_map_to_the_page_languages(self):
         for tag, want in (("th-TH", "th"), ("TH", "th"), ("zh-CN", "zh"), ("zh_TW", "zh"), ("zh-Hant-HK", "zh"),

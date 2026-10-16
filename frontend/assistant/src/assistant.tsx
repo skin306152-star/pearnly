@@ -95,6 +95,7 @@ import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
+import { syncPrefs } from "@/lib/prefs-sync";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -874,6 +875,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   // 宽屏并排（开关记在本机）；对话区放不下时浮在对话上、手机盖满屏（点了才开，换对话收起）
   const profile = useProfile();
   useEffect(() => loadPanelPrefs(profile?.user ?? ""), [profile?.user]);
+  // 个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）按人存在服务端：知道是谁了就取，本机记下的先顶着（lib/prefs-sync.ts）
+  useEffect(() => void syncPrefs(profile?.user ?? ""), [profile?.user]);
   const [area, setArea] = useState<HTMLDivElement | null>(null);
   const fits = useDockFits(area);
   const filing = useFiledCompany();

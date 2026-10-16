@@ -20,7 +20,7 @@
 - 批量操作在前端逐条顺序调用现有接口（rename / star / delete / move），不并发（F7 出现过 1213 死锁），不加服务端批量接口，不动 `pearnly_core`。
 - 删除照旧不确认（用户口径：无确认步骤）。
 - 右侧只有一个停靠位：会话栏（278px，不可拖宽）与文件预览（保留比例宽与分隔条）互相切换；只在 Cowork 公司对话出现，ERP / DMS 与未挂公司的对话保持原样（ADR-020）。
-- 卡片顺序、折叠、开关记在本机（键带用户），不做跨设备同步。
+- 卡片顺序、折叠、开关记在本机（键带用户），不做跨设备同步。（第 7 轮改：卡片顺序与开合、侧栏手排顺序、分组和排序按人存到服务端跨设备同步，见进度第 7 轮；停靠时开着没有、侧栏组折叠仍按设备。）
 - 菜单翻面：在包装组件里按内容完整高度选上 / 下，原方向放得下不动、反方向放得下就翻、两边都放不下取大的一边在菜单内滚动；`max-h-80` 改成 `--cc-menu-max`。
 - 设计变量新增一层 `--code-*`（Claude Code 实测），`--cc-*` 结构色改指它；`--ccs-*` 官方表原样保留。深色底随之变暗（#0b0b0b / #151515），启动图、离线页、CC 桌面版窗口底色同步。
 
@@ -321,3 +321,9 @@
   - ⑥ 公司组头长按菜单左边露出各行首字：菜单按「···」右对齐，左边缘（54）正好落在组里各行文字起点（46）右边几像素。手机上（`alignHead={isMobile}`）公司组头的菜单改为左边贴着组头开关的左边（`align="start"` + 打开时量出的 `alignOffset`），盖住各行起点；电脑照旧右对齐。实测（390 宽、长按 Alpha 组头 0.8s）：菜单左边 54 → 22（组头图标那一列），各行文字起点 46 在菜单下；截图 `scratchpad/r7/after-longpress-menu.png`。
   - 测试：`test_assistant_ui.py` 新增 `test_drop_is_announced_by_what_really_happened`、`test_the_float_turns_see_through_over_a_folded_group_head`、`test_group_and_sort_choices_say_which_one_is_picked`、`test_phone_company_menu_lines_up_with_the_head`、`test_shortcuts_use_command_on_mac_and_ctrl_elsewhere`；排序落回原位的断言由「放到第 3 位」改为念取消（第 7 轮定的口径），iPhone 接键盘那条按 ⌘ 断言；`ShortcutTests` 允许 shortcut.tsx 里那一行换字表；组头菜单接线断言按新属性改。
   - 没在测试机与真机上点验（交测试窗口第 8 轮：读屏真念、手机半透明的观感、菜单位置）。
+- 2026-10-16 第 7 轮第 2 项：个人排列按人跨设备同步（单独一个提交，本地、未推送）。用户 10-16 选「公司可拖 + 置顶可拖」时说的是「按人记住」，原来侧栏手排顺序、右侧栏卡片顺序与开合、侧栏「分组和排序」都只存 localStorage。
+  - 服务端：`pearnly_core/assistant/prefs.py`（读 `read()`、存 `save(prefs)`）+ `assistant/api.py` 两个接口：`GET pearnly_core.assistant.api.layout` → `{prefs: {...} | null}`，`POST pearnly_core.assistant.api.save_layout(prefs)` → `{prefs}`。存在当前会话用户自己的用户默认值（Frappe User Default，`DefaultValue` 表 parent = 用户），键 `pearnly_cc_layout`，一份 JSON；只按会话用户读写（接口不收用户名），Guest 拒（Not Permitted）；只收 JSON 对象、顶层只留 `order` / `view` / `cards`（各自是对象），序列化后上限 32 KB，不合规拒（Invalid value）。同侧栏页面顺序 `desk/navigation.py` 的 `pearnly_sidebar_order_*` 一样的存法，不加 DocType、不加迁移。
+  - 前端：`lib/prefs-sync.ts`（各份由自己的模块 `registerPref` 登记，不反向导入，不绕循环）：知道是谁了（`assistant.tsx` 的 `syncPrefs(profile.user)`）、回到前台（隔 10 秒以上）时取；服务端有就换成它（后写的为准），各份照样写进本机缓存；改了就存（400ms 内连着的改动合成一次，三份合成整份覆盖）；存不上（离线）记 `cc.prefs.unsaved:<用户>`，回到前台、联网、下次打开时把本机的补存上去，不被服务端旧的盖掉；取的时候本机又改了，同样本机为准；服务端还没有时把本机原来记下的（不是默认的）整份迁上去。`sidebar-order.ts`（order：公司组、置顶，各最多 300 条）、`sidebar-view.ts`（view）、`company-panel.ts`（cards：卡片顺序与开合）各自登记；按数据自动收拾的改动（取消置顶了从手排置顶顺序里去掉，`forgetPinned`）在取服务端那份期间不算人改的，不因此把本机的当成后写的、盖掉别的设备改的（换成服务端的以后照新的那份再收拾一遍）；会话栏停靠时开着没有、侧栏组折叠（`sidebar-fold.ts`）仍按设备，不同步。本机缓存保留：打开时先按它显示，离线照样能用。
+  - 实测（无界面 Chrome、构建出的整页、接口桩带 layout / save_layout）：设备 1 本机有旧版记下的公司顺序 Gamma, Alpha, Beta, Delta 与按名称排 → 打开后服务端收到同一份（迁上去）；设备 2 清空本机 → 打开后侧栏就是 Gamma, Alpha, Beta, Delta、本机缓存写上；设备 2 上 Alt+↓ 挪 Gamma → 服务端变成 comp_A, comp_C, comp_B, comp_D。改前（c401da96）设备 2 是默认顺序、服务端没有请求。
+  - 测试：`test_assistant.py` 新增 `LayoutPrefsTests`（只读写自己的、Guest 与坏值拒收、32 KB、接口读写分开）；`test_assistant_ui.py` 新增 `test_personal_layout_follows_the_user_across_devices`（迁移、整份覆盖、折叠与停靠开关不触发、换成服务端的并写本机缓存、离线时改的补存、取的时候又改了本机为准、取的时候自动收拾不算）。
+  - 没在测试机与真机上点验（交测试窗口第 8 轮：两台设备真拖一遍，看手机主屏幕 app 回到前台后是否换成另一台改的）。
