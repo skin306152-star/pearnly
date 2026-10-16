@@ -278,3 +278,28 @@
   （`companies.identity.for_day`，经钩子）、`prior_pushes` 取这份账套成功推送（`pushed.project` 形状）、`layers` 用 `automation.layers`、
   `history_read` / `uploaded` / `source_total`；`decide` 透传历史已定的 `version`，`account_history` v2 接上之前 Express 历史一律 B；
   `reason_codes` 给 `auto_reasons`，`duplicate_number` 码给第 1 期异常清单。
+- **阶段 B（10-16）**：第 9 条存储 `16ddcbe6`（`Cowork Company Automation` 一家一行、守卫同公司规则、删主档一起删；票上 `auto_*` 五列经
+  `push_state.record_assessment` 写、不升版本；推送记录 `verify_state` / `verify_json`）；第 3、7、8 条 `38d219f6`（纯规则
+  `push/automation/rules.py`、`companies/automation_rules.py`，`companies/automation.py` 的档位、钩子 `cowork_push_company_tier` /
+  `cowork_push_day_books` / `cowork_push_verify_mismatch` / `cowork_readback_ready` / `cowork_company_month_changes`，阈值建议 A 常量表）；
+  第 4、5、10 条 `3b24ff6b`（`application.assess`、定时任务 `_judge`、扫描 `push/automation/sweep.py` 挂 `*/5`、领单重核、自动推不弹框、
+  测试站点路径守卫、写的电脑须能回核对）；第 16 条测试 `tests/test_cowork_da_tiers.py`（44 条，CI 加一步），既有测试只补替身；全闸门 93 步全过。
+  与设计的出入（按设计意图的最小纠正）：
+  - 领单重核的「账套记忆与公司规则指纹」只算这张单用得着的归类键（对方档按对方 + 分店，科目 / 付款 / 抵进项按对方，存货按对方开头，
+    部门，POS 收款科目只在 POS 票上）：照字面整份账套任一选择变了都会撤掉排队中的全部自动推；
+  - 领单时记录已确认（pending），`cancel_prepared` 只撤 prepared：改为 lease 里转 `cancelled`（原因 `push.automation_changed`，补四语词条），
+    票清回「没推」并按载荷冻结提议；
+  - L0 → L1 的「A 类 ≥20 张」把定时任务在 L0 自动推的 A 类一并算作 A 类样本（同受合格回读检验），否则以定时任务为主的公司凑不够提议数；
+  - 合格回读的截止日取 ภ.พ.30 电子申报截止（有延期时 23 号），否则纸质 15 号；
+  - 「没有新回读就暂停」只管靠档位放行的推送，定时任务 A 类的基线推送不受影响（否则新客户第一个月照推 A 类不成立）；
+  - 没建主档的公司按目录里同一身份的行现算「按日期该推往的账套」（T1 同一判据），否则旧定时任务的票全成 C；
+  - 定时任务判成提议 / C 的票：任务结局记 `held`（`automation:proposal` / `automation:review`，任务结果归「待处理 · review」，简报文案随第 14 条），
+    票上不记失败原因，待处理照第 11 条落 `not_pushed`；
+  - 回读差异表截断（只存 200 行、存下的单少于摘要里的变化张数）时，被它覆盖的单全当被改；
+  - 扫描里没权限、判的时候出错也记 `auto_checked_at`（只判一次），留给人；测试站点路径守卫拦下的改出提议（码 `test_path`）。
+  留给后面阶段的接口：阶段 C 在 `ack` 里对带 `automation` 的记录核不上时调 `push.automation.service.mismatch`（已接 `companies.automation.on_mismatch`），
+  写 `verify_state` / `verify_json`（评估已读 `verify_state`）；带核对的 CC 桌面版须 ≥ `rules.VERIFY_MIN_VERSION`（1.8.0），在它发版前所有自动推
+  （含定时任务 A 类）都改出提议；`account_history` v2 的「已定」把读的日子一并给，`assess` 再填 `history_read`（现为 None，各层说法不一暂不比 Express 历史）。
+  阶段 D：`pending.classify` 的 `cc_proposal` 按票上 `auto_class` / `auto_proposal` / `edit_count`，`ledger.month` 的 `automation` 用
+  `companies.automation.view`，降档原因码 `changed` / `written_mismatch`；试点手动触发 `push.automation.sweep.run(now=…)` 与
+  `companies.automation.on_readback(连接, 账套, 期间)`。
