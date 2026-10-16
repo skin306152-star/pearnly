@@ -1975,7 +1975,11 @@ class PushWaitTests(unittest.TestCase):
         for words in ("payment cash = a cash purchase (HP, paid in cash)", "remembered", "simplified tax invoice = paid",
                       "do not claim it was picked for this one document", "periodic inventory",
                       # 测试窗口第 2 轮：入账一定报 ERP 单号；现 / 赊与科目都说清来源；不叫用户去 Express 核对
-                      "always give the user its ERP document number (docnum)",
+                      # 第 5 轮测试 8：单号说成 Express / MR.ERP 的，不说「ERP」；已入账的不指去待处理 / 复核 / Express 改
+                      "always give the user its document number (docnum), amounts in baht and times in local time",
+                      "Call the program by its name, Express or MR.ERP, never 'the ERP'",
+                      "never point the user to the pending page, the review page or Express to check or change it",
+                      "written into Express or MR.ERP; docnum is its document number there",
                       "whether it was entered as cash or credit and which account it went to, each with where that "
                       "came from", "never ask the user to check Express for the number, cash or credit, or the account",
                       "account_from = what decided the account", "express_history", "matched", "never guess a source",
@@ -2361,13 +2365,19 @@ class ListAndRunsTests(unittest.TestCase):
                                     "push_connection": "EXP1", "pages": []})
         self.assertEqual(detail["written"]["docnum"], "RR691015-004")
         note = tools.WRITTEN_NOTE
-        self.assertIn("written.docnum is the ERP document number", note)
+        self.assertIn("written.docnum is the document number it got in the accounting program it went into "
+                      "(Express, or MR.ERP for an MR.ERP account set)", note)
+        self.assertNotIn("ERP document number", note)
+        self.assertIn("An entered document is done: it is no longer on the pending page", note)
         self.assertIn("from the pending page or by a scheduled task", note)
         self.assertIn("never show the codes", note)
         self.assertIn("never end with a suggestion to check or confirm in Express", note)
         guidance = " ".join(tools.GUIDANCE)
         self.assertIn("Amounts in tool results are Thai baht", guidance)
         self.assertIn("never call it yuan", guidance)
+        # 第 5 轮测试 8：程序按名字说（Express / MR.ERP），已入账的不指去待处理页 / 复核页
+        self.assertIn("Call the accounting program by its name, Express or MR.ERP", guidance)
+        self.assertIn("never suggest checking or changing it on the pending page or the review page", guidance)
         self.assertIn("cowork_list_documents search set to its invoice number", guidance)
 
     def test_runs_and_tasks_carry_results(self):

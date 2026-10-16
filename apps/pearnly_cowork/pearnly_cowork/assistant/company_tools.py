@@ -305,19 +305,25 @@ def _described(row, tool_input) -> tuple:
     return " → ".join(part for part in (subject, _(label) if label else value) if part), "", "document"
 
 
-def preview_choice_save(tool_input) -> list:
-    row = _company(tool_input)
-    text, _branch, _source = _described(row, tool_input)
+def _choice_rows(row, text, branch) -> list:
+    """存 / 删公司规则的卡片行：公司、范围、这一条（对象 → 值），只列一次、不写「改前 → 改后」。"""
     return [{"field": _("Company"), "before": "", "after": row.title if row else ""},
-            {"field": _("Scope"), "before": "", "after": _scope_text(str(tool_input.get("branch") or ""))},
+            {"field": _("Scope"), "before": "", "after": _scope_text(branch)},
             {"field": _("Value"), "before": "", "after": text}]
 
 
+def preview_choice_save(tool_input) -> list:
+    row = _company(tool_input)
+    text, _branch, _source = _described(row, tool_input)
+    return _choice_rows(row, text, str(tool_input.get("branch") or ""))
+
+
 def preview_choice_remove(tool_input) -> list:
+    """删哪一条（第 5 轮测试 5）：同保存卡的三行，问句「删除这条公司规则？」已说明是删。原来公司写成「改前 → 改后」两遍、
+    这一条写在「改前」后面跟一个空的「→」，卡上看着乱。找不到这一条（已删、不是这家的）时值那一行空着，执行时报找不到。"""
     row = _company(tool_input)
     text, branch, _source = _described(row, tool_input)
-    return [{"field": _("Company"), "before": row.title if row else "", "after": row.title if row else ""},
-            {"field": _("Value"), "before": f"{text} · {_scope_text(branch)}", "after": ""}]
+    return _choice_rows(row, text, branch)
 
 
 COMPANY_PROP = {"type": "string", "description": "Company id from cowork_companies; leave out for the company this "

@@ -157,11 +157,19 @@ export type DocBlock =
 export type FilePreview =
   | { type: "sheets"; sheets: Array<{ name: string; rows: string[][] }> }
   | { type: "document"; blocks: DocBlock[] }
+  | { type: "pdf"; pages: number }
   | { type: "none" };
 
 /** 结果文件的结构化预览：Excel 表格、Word 文档；其余类型或读不出是 none（页面给下载）。 */
 export function previewFile(id: string, fileId: string): Promise<FilePreview> {
   return get("preview", { session_id: id, file_id: fileId });
+}
+
+/** PDF 的一页画成的图（服务端 files.page_image）：thumb = 附件卡片缩略图（第一页），page = 手机上的整页预览。
+ *  同一个文件编号的内容不变，服务端给私有缓存头，浏览器同一张只取一次。 */
+export function pageUrl(id: string, fileId: string, page: number, size: "thumb" | "page"): string {
+  const query = new URLSearchParams({ session_id: id, file_id: fileId, page: String(page), size });
+  return `/api/method/pearnly_core.assistant.api.page_image?${query}`;
 }
 
 /** 结果文件（与用户发的附件）的地址。inline 只对图片、PDF 生效，其余类型服务端一律按下载给出。 */

@@ -144,6 +144,19 @@
   - 证据：`test_cc_session_panel.py`（新增 clampToList、moving 的行为测试与样式断言）、`test_assistant.py`（附件不碰引擎、没留存记一次、会话时间 UTC）、`test_assistant_ui.py`（输入框、共用详情、多选 Esc）；`SKIP_NPM_CI=1 gate.sh` 85 步全过（lock 未变）。没在浏览器里逐帧看拖动与放下过渡（内置浏览器面板隐藏时动画帧不走），留给测试窗口第 4 轮。
 - 10-15 夜 用户侧栏反馈（配图与录屏来自 DeepSeek 桌面端；「只改我提到的地方 其它不要动」），本地提交、未推送：A 公司组头最左 `Building2Icon`（`.cc-group-icon`）+ 公司名同会话行标题字号字色（`.cc-project-row .cc-group-toggle`），这家的对话行缩进到公司名起点（`[data-slot="cc-project-items"]` 的 `--cc-row-indent`，电脑 / 桌面窗口 / 手机抽屉、改名输入框同样）；B 单行截断文字悬停滚动（`lib/hover-scroll.ts` 的 `attachHoverScroll` / `useHoverScroll`、`components/ui/marquee.tsx` 的 `Marquee`，`--cc-marquee-*`；侧栏、会话栏、公司页、菜单、标题栏、列表页等原有 `truncate` / 渐隐的单行都换成 `Marquee`）；C 公司组「···」= 分组和排序菜单（`GroupSortMenu` 改成「···」触发，公司组受控，长按 / 菜单键同开），「打开公司」「在这家新建对话」去掉，`sb.newChatHere` 三种语言删除；D「＋」照旧；E 漏斗按钮去掉，已置顶 / 最近 / 月份组标题右侧同一个「···」。公司页入口核对：电脑顶栏「公司名 ›」、手机胶囊菜单 → 会话栏公司卡名称，侧栏「公司」→ 列表页卡片，两端都有。证据：`test_assistant_ui.py` 新增 A–E 源码断言与悬停滚动行为测试（等 150ms、超出 + 右端渐隐、40px/s、最短 0.3s、离开归位、触屏 / 按键拖入 / 改名中 / 减少动态效果不滚、键盘焦点也滚），静态页用构建出的样式在内置浏览器量过：公司名与对话标题文字起点同为 56px、最近组的行不缩进，悬停滚动每 0.5s 约 20px、到末尾停住、离开立即回到省略号。
 
+- 10-16 第 5 轮 C 线（内容与后端，工作树 `cc-r5-content`、分支 `pearnly/cc-r5-content`，本地提交、未推送）：第 4 轮测试窗口实测（lab `5db7cd1a`，网页 + 安卓）8 项。
+  - ① PDF 附件没有缩略图：消息里的 PDF 卡片改为第一页缩略图——服务端 `files.page_image`（新接口 `pearnly_core.assistant.api.page_image`，GET，`size` 只收 thumb 240 / page 1240，页码 1–500）用镜像里已有的 PyMuPDF（`frappe.Dockerfile` 锁定 1.28.2，识别流水线同一个）把一页画成 PNG，回应带 `Cache-Control: private, max-age=604800`（文件编号对应的内容不变，浏览器同一张只取一次），取法、认法同 `download`（只认这个对话、先读本站留存的那份）；不是 PDF、页码不对、加密、画不出都当作不存在。卡片里从页顶显示，载不出退回文件图标。图片附件照旧显示图片本身。前端没有加 PDF 渲染库（pdf.js 要带 worker / wasm / 字体映射，老 iOS 兼容另算；服务端画图一次到位，安卓、iPhone 一样）。
+  - ② 手机 PDF 预览没内容：右侧面板的 PDF 在不能内嵌的设备（`navigator.pdfViewerEnabled` 为假或触屏）改成 `PdfPages`——服务端逐页画的图一页一张往下排，`loading="lazy"` 看得见才取、取到前按 A4 比例占位（`--cc-pdf-page-ratio`），最多 100 页、其余给下载，第一页画不出给下载；页数先看列表（附件），没有问 `preview`（PDF 现在回 `{type: "pdf", pages}`）。电脑上原生查看器照用。用户看不到接口名。
+  - ③ 公司页「··· → 重命名」焦点被菜单还给「···」：菜单 `onCloseAutoFocus` 在从菜单点了重命名时 `preventDefault`，焦点留在改名框（对话标题那条路径改名时菜单整个卸下，所以没这个问题）。公司页标题从 `Marquee as="button"` 改成按钮里面放 `Marquee`：遮罩只盖文字，按钮与 h1 不裁切，焦点环完整。
+  - ④ 公司页「＋」选文件后侧栏多一条「新对话」——原因见下方「④ 查到的原因」，本线没改（改动点在 D 线的侧栏文件）。
+  - ⑤ 删公司规则的「允许」卡：`preview_choice_remove` 原来把公司写成「改前 → 改后」两遍、这一条写在「改前」后面跟一个空「→」；改成与保存卡同一组三行（公司、范围、对象 → 值），问句已说明是删。
+  - ⑥ 记住的选择里只记了税号的行（付款规则 0105565099871）补名称：`choices.listing` 先借同一税号别的行记的名称（对方档、历史行），再读一次覆盖这个月那份账套的供应商 / 客户主档（只读这两张；没权限、没读过就照旧写税号）；页面数据不带内部字段。
+  - ⑦ 待处理当场选：行上第二行按展开后读到的要选项写（`choiceLine`），规则已定、没有要选的（按钮是「推送」）不再写「付款方式 · 费用科目」；没展开时仍按列表给的类别（服务端列表不逐张读主档，这一点没改）。
+  - ⑧ CC 说法：`WRITTEN_NOTE` 与推送说明里的「ERP 单号」改为「推进去的那个程序的单号（Express，MR.ERP 账套是 MR.ERP）」，并要求程序按名字说、不说「ERP」；入账后报单号、泰铢、本地时间，已入账的单「不在待处理里、不指人去待处理页 / 复核页 / Express 检查或修改」；`GUIDANCE` 加同一条（全对话生效）；改单据说明里「只有人能在 ERP 里改」改成「在 Express 或 MR.ERP 里」。
+  - 没加新的界面文案（PDF 页图的读屏名字用「文件名 · 页 / 共几页」），messages.tsv 不动。
+  - 测试：`test_assistant.py`（page_image 宽度、缓存头、拒绝情形、没有 PyMuPDF 不报 500；preview 的 PDF 页数）、`test_assistant_ui.py`（PDF 卡片缩略图地址与 data-page、PdfPages 懒加载 / 上限 / 下载、nativePdf 判定、choiceLine）、`test_cc_mobile_content.py`（标题按钮结构、菜单焦点）、`test_cowork_companies.py`（删除卡三行、税号补名称两条来源）、`test_cowork_assistant_tools.py`（Express / MR.ERP 说法、已入账不指路）。本机用 PyMuPDF 1.28.2 实画过：A4 首页 240×340（1.7KB）、整页 1240×1755（15KB）、长条页高封顶 6 倍。没在手机上看过，测试机未点验。
+  - ④ 查到的原因：输入框加附件时附件适配器先要会话（`attachments.ts` 的 `getSessionId` → `runtime-provider.tsx: ensureSession` → `aui.threadListItem().initialize()` → `sessions.create`），这是上传的前提（文件要放进引擎的那段会话）。会话一建，组件库就把这条新对话从「新对话」变成侧栏里的普通一行（标题空，显示「新对话」），挂在草稿里的公司下；服务端也已有这条记录（标题空），刷新、别的设备、公司页对话列表都会列出，用户不发就一直留着。不只公司页「＋」，任何新对话拖文件 / 粘贴截图都一样。小范围修法（归 D 线，`thread-list.tsx` 拼侧栏行的那一段）：标题为空、又不是当前打开的对话不进侧栏行（服务端标题空 ⇔ 还没发过消息：首条消息会先当临时标题写进本站）；当前打开那条（测试窗口看到的正是这种情况）要不要也藏到发出为止，请开发窗口对照 Claude 定。不能在服务端列表里直接滤掉：`list-sync.ts` 核对时会把「本该在这一页里却没有的」当成别处删了，从本页去掉，正在写的那条新对话会被删掉。
+
 ## 暂停交接（10-16 凌晨，用户关机，次日接着做）
 
 停在安全点：所有改动都已提交，各工作树干净，没有在跑的代理、构建或本机服务。都没推送、没合入 main、没部署。

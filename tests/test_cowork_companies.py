@@ -932,6 +932,29 @@ class ChoiceTests(unittest.TestCase):
                          (True, "69EXP", "Credit", "Makro"))
         self.assertFalse(next(row for row in express if row["kind"] == "party")["editable"])
 
+    def test_a_row_remembered_by_tax_id_only_shows_the_party_name(self):
+        # 第 5 轮测试 6：付款（全公司规则）只显示税号 0105565099871 —— 记的时候没有名称。先借同一税号别的行记的名称，
+        # 再找覆盖这个月那份账套的供应商主档；都没有照旧写税号；内部的 _tax 不出现在页面数据里
+        express_choices.rows[:] = []
+        supplier = "purchase|" + OTHER_TAX
+        choice("payment", supplier, "credit", day=2)                                   # 没有名称
+        choice("party", f"purchase|{OTHER_TAX}|00000|makro", "S001", day=3, label="Makro")
+        choice("account", "purchase|" + "0" * 13, "5300", day=4)                         # 没有名称、也没处借
+        rows = {row["kind"]: row for row in choices.listing(self.company, self.sets)}
+        self.assertEqual((rows["payment"]["subject_label"], rows["account"]["subject_label"]), ("Makro", "0" * 13))
+        self.assertTrue(all("_tax" not in row for row in rows.values()))
+        express_choices.rows[:] = []
+        choice("payment", supplier, "credit", day=2)
+        preparation.reported = {"reported_suppliers": [{"code": "S9", "name": "สยามแม็คโคร", "tax_id": OTHER_TAX}]}
+        try:
+            [row] = choices.listing(self.company, self.sets)
+        finally:
+            preparation.reported = None
+        self.assertEqual(row["subject_label"], "สยามแม็คโคร")
+        self.assertEqual(preparation.asked[-1][2], ("reported_suppliers", "reported_customers"))
+        self.assertEqual([choices.tax_in(v) for v in (supplier, "purchase|name:makro", "*", f"{supplier}|00012|x")],
+                         [OTHER_TAX, "", "", OTHER_TAX])
+
     def test_forget_removes_every_year_and_branch_so_it_is_asked_again(self):
         rows = {row["kind"]: row for row in choices.listing(self.company, self.sets)}
         self.assertEqual(choices.forget(self.company, self.sets, rows["payment"]["key"]), {"removed": 2})
@@ -2359,8 +2382,20 @@ class CompanyRuleToolTests(unittest.TestCase):
         key = choices.encode("rule", "gone")
         preview = self.tools.preview_choice_remove({"key": key})
         self.assertNotIn(key, json.dumps(preview))
-        self.assertEqual(preview[1]["before"], " · " + "cowork.company.whole_company")
+        self.assertEqual(preview, [{"field": "Company", "before": "", "after": "บริษัท เอบีซี จำกัด"},
+                                   {"field": "Scope", "before": "", "after": "cowork.company.whole_company"},
+                                   {"field": "Value", "before": "", "after": ""}])
         self.assertNotIn(key, json.dumps(self.tools.preview_choice_save({"key": key})))
+
+    def test_the_remove_card_says_which_rule_like_the_save_card(self):
+        # 第 5 轮测试 5：删除卡只说删哪一条（公司、范围、对象 → 值），同保存卡；不再写「公司 X → X」「值… · 全公司 →（空）」
+        self.tools.choice_save({"document": "h1", "kind": "payment", "value": "cash"})
+        [rule] = json.loads(self.tools.profile({}))["rules"]
+        preview = self.tools.preview_choice_remove({"key": rule["key"]})
+        self.assertEqual(preview, [{"field": "Company", "before": "", "after": "บริษัท เอบีซี จำกัด"},
+                                   {"field": "Scope", "before": "", "after": "cowork.company.whole_company"},
+                                   {"field": "Value", "before": "", "after": "Makro → Cash"}])
+        self.assertTrue(all(not row["before"] for row in preview))
 
     def test_profile_keeps_keys_only_where_cc_can_act_on_them(self):
         profile = json.loads(self.tools.profile({}))

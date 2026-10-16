@@ -1392,6 +1392,38 @@ boundary.state = ErrorBoundary.getDerivedStateFromError();
 assert.match(renderToStaticMarkup(boundary.render() as any), DOWNLOAD);
 """)
 
+    def test_pdf_pages_are_server_drawn_images_where_pdf_cannot_be_embedded(self):
+        # 第 5 轮测试 2：安卓 Chrome 不能 iframe 显示 PDF（只有图标、内部地址和「打开」）：不能内嵌的设备按页取服务端画的图，
+        # 看得见才取（lazy），第一页画不出给下载；电脑上原生查看器照用
+        self.run_page(r"""
+import { nativePdf, PdfPages, PDF_PAGES_SHOWN } from "@/components/results-panel";
+import { pageUrl } from "@/lib/managed-agents/api";
+const pdf = { ...file, id: "file_P", filename: "ใบกำกับ.pdf", pages: 3 };
+assert.equal(pageUrl("s1", "file_P", 2, "page"), "/api/method/pearnly_core.assistant.api.page_image?session_id=s1&file_id=file_P&page=2&size=page");
+const markup = html(PdfPages, { sessionId: "s1", file: pdf });
+assert.equal((markup.match(/<img class="cc-pdf-page"/g) ?? []).length, 3);
+assert.match(markup, /^<div class="cc-pdf-pages" data-slot="cc-pdf-pages"><img class="cc-pdf-page" src="\/api\/method\/pearnly_core\.assistant\.api\.page_image\?session_id=s1&amp;file_id=file_P&amp;page=1&amp;size=page" alt="ใบกำกับ\.pdf · 1\/3" loading="lazy" decoding="async" draggable="false"\/>/);
+assert.doesNotMatch(markup, /pearnly_core\.assistant\.api\.download|iframe/);
+// 页数很多：列前 PDF_PAGES_SHOWN 页，其余给下载
+const many = html(PdfPages, { sessionId: "s1", file: { ...pdf, pages: PDF_PAGES_SHOWN + 5 } });
+assert.equal((many.match(/<img /g) ?? []).length, PDF_PAGES_SHOWN);
+assert.match(many, /href="\/api\/method\/pearnly_core\.assistant\.api\.download\?session_id=s1&amp;file_id=file_P&amp;inline=0"/);
+// 列表里没有页数（结果文件）：先转圈，问服务端（preview 给 {type: "pdf", pages}）
+assert.doesNotMatch(html(PdfPages, { sessionId: "s1", file: { ...pdf, pages: undefined } }), /<img/);
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { type: "pdf", pages: 2 } }) });
+assert.deepEqual(await loadPreview("s1", "file_P"), { type: "pdf", pages: 2 });
+// 浏览器自带 PDF 查看器（pdfViewerEnabled）、能悬停的设备：原生查看器；安卓 Chrome（pdfViewerEnabled 为假）按页看图
+Object.defineProperty(globalThis.navigator, "pdfViewerEnabled", { value: false, configurable: true });
+assert.equal(nativePdf(), false);
+Object.defineProperty(globalThis.navigator, "pdfViewerEnabled", { value: true, configurable: true });
+g.matchMedia = (query: string) => ({ matches: query === "(hover: none)", addEventListener() {}, removeEventListener() {} });
+if (g.window) g.window.matchMedia = g.matchMedia;
+assert.equal(nativePdf(), false);   // 触屏（iPhone / iPad 的 Safari 在 iframe 里只显示第一页）
+g.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+if (g.window) g.window.matchMedia = g.matchMedia;
+assert.equal(nativePdf(), true);
+""")
+
     def test_document_renders_as_text_with_tables_that_scroll_on_phones(self):
         self.run_page(r"""
 const png = "data:image/png;base64,iVBORw0KGgo=";
@@ -3242,7 +3274,7 @@ class CompanyPageBehaviourTests(unittest.TestCase):
         # 数字会计员第 2 期：公司规则写明「全公司 / 分店 X」、付款可用下拉直接改；账套行与历史行多一个「设为全公司」
         self.run_page(r"""
 import { promoteChoice } from "@/lib/companies";
-import { settledView } from "@/components/pending";
+import { choiceLine, settledView } from "@/components/pending";
 const row = (choice: any, promote = true) => renderToStaticMarkup(createElement(ChoiceRow, { choice, onSet() {}, onForget() {},
   ...(promote ? { onPromote() {} } : {}) }));
 const rule = row({ key: "r1", source: "rule", kind: "payment", subject_label: "ACME", value: "cash", editable: true, branch: "", set_by: "a" });
@@ -3268,6 +3300,12 @@ assert.deepEqual(g.calls.at(-1).body, { company: "comp_abc", key: "k2", period: 
 assert.equal(settledView({ needed: [] } as any), true);
 assert.equal(settledView({ needed: [], wait: { state: "reading", message: "" } } as any), false);
 assert.equal(settledView({ needed: [{ kind: "account", subject: "s" }] } as any), false);
+// 第 5 轮测试 7：行上的说明按展开后读到的要选项写；规则定下了、没有要选的（按钮是「推送」）不再写「付款方式 · 费用科目」
+const stuck: any = { document: "D1", action: "choose", choice: { connection: "C1", kinds: ["payment", "account"] } };
+assert.equal(choiceLine(stuck, null), "Payment · Expense account");
+assert.equal(choiceLine(stuck, { needed: [] } as any), "");
+assert.equal(choiceLine(stuck, { needed: [{ kind: "account", subject: "s" }, { kind: "account", subject: "t" }] } as any), "Expense account");
+assert.equal(choiceLine(stuck, { needed: [], wait: { state: "reading", message: "" } } as any), "Payment · Expense account");
 """)
 
     def test_browsers_and_phones_only_read_the_folder(self):
@@ -3674,13 +3712,17 @@ assert.equal(attachmentTypeLine("statement.pdf", 52000), "PDF");          // 页
 assert.equal(attachmentTypeLine("GL-05.xlsx", 12800), "XLSX · 13 KB");
 assert.equal(attachmentTypeLine("GL-05.xlsx"), "XLSX");
 
-// 气泡：每个文件一张卡片按钮，读屏名字是「Attachment: 名字 · 类型说明」；PDF 没有缩略图时是类型方块
+// 气泡：每个文件一张卡片按钮，读屏名字是「Attachment: 名字 · 类型说明」；PDF 的缩略图是服务端画的第一页（第 5 轮测试 1），
+// 从页顶显示（data-page）；别的类型是类型方块
 const html = bubble([att("statement.pdf", PDF), att("GL-05.xlsx", XLSX)], results(listed));
 assert.equal((html.match(/<button type="button" class="cc-attach-card"/g) ?? []).length, 2);
 assert.match(html, /aria-label="Attachment: statement\.pdf · PDF · 3 pages"/);
 assert.match(html, /<span class="cc-marquee cc-attach-name"><span class="cc-marquee-text">statement\.pdf<\/span><\/span><span class="cc-marquee cc-attach-type"><span class="cc-marquee-text">PDF · 3 pages<\/span><\/span>/);
 assert.match(html, /<span class="cc-marquee cc-attach-type"><span class="cc-marquee-text">XLSX · 13 KB<\/span><\/span>/);
-assert.match(html, /<span class="cc-attach-tile"><svg[^>]*lucide-file-text[^>]*>.*?<\/svg><span>PDF<\/span><\/span>/);
+assert.match(html, /<span class="cc-attach-thumb" aria-hidden="true" data-page="true"><img src="\/api\/method\/pearnly_core\.assistant\.api\.page_image\?session_id=s1&amp;file_id=file_011CPdf&amp;page=1&amp;size=thumb" alt="" loading="lazy"/);
+assert.match(html, /<span class="cc-attach-tile"><svg[^>]*lucide-file-spreadsheet[^>]*>.*?<\/svg><span>XLSX<\/span><\/span>/);
+assert.equal(attachmentCard(PDF, "statement.pdf", results(listed)).page, true);
+assert.equal(attachmentCard(XLSX, "GL-05.xlsx", results(listed)).page, undefined);
 assert.doesNotMatch(html, /Document attachment|attachment,/);
 assert.doesNotMatch(html, /#[0-9a-fA-F]{3,8}\b|rgb\(/);
 
@@ -3703,6 +3745,9 @@ assert.equal(attachmentCard(PDF, "statement.pdf", results(listed, null)).open, u
 const plain = bubble([att("old.pdf", "old.pdf")], results(listed));
 assert.doesNotMatch(plain, /<button/);
 assert.match(plain, /<div class="cc-attach-card" role="img" aria-label="Attachment: old\.pdf · PDF"/);
+// 认不出文件编号的 PDF：没有缩略图可取，是类型方块
+assert.match(plain, /<span class="cc-attach-tile"><svg[^>]*lucide-file-text[^>]*>.*?<\/svg><span>PDF<\/span><\/span>/);
+assert.doesNotMatch(plain, /page_image/);
 """)
 
     def test_reader_names_follow_the_page_language(self):

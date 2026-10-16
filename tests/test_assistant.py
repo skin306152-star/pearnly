@@ -2653,7 +2653,8 @@ class DocumentPreviewTests(unittest.TestCase):
                 {"type": "paragraph", "runs": [{"text": "สรุป"}], "style": "title", "align": "center"}]})
             for fid in ("file_bad", "file_empty", "file_big", "file_doc", "file_pdf", "file_lie"):
                 self.assertEqual(files.preview("s1", fid), {"type": "none"}, fid)
-        self.assertEqual(reads, ["file_ok", "file_bad", "file_empty", "file_lie"])
+        # PDF 读一次数页数（这里读不出页数，给 none）
+        self.assertEqual(reads, ["file_ok", "file_bad", "file_empty", "file_pdf", "file_lie"])
         # docx 下载照常是附件（不在可内联的类型里）
         self.assertNotIn("application/vnd.openxmlformats-officedocument.wordprocessingml.document", files.INLINE_TYPES)
 
@@ -2724,7 +2725,8 @@ class DocumentPreviewTests(unittest.TestCase):
                 self.assertEqual(frappe.local.response.type, "download")
                 # Word 附件同样有结构化预览
                 self.assertEqual(files.preview("s1", "file_W")["type"], "document")
-                self.assertEqual(files.preview("s1", "file_P"), {"type": "none"})
+                # PDF：给页数，手机上按页取图（第 5 轮测试 2）
+                self.assertEqual(files.preview("s1", "file_P"), {"type": "pdf", "pages": 3})
                 self.assertEqual(engine_lists, [])
                 # 结果文件照常从引擎取
                 with mock.patch.object(Api, "read_file", lambda self, remote, fid: b"xlsx", create=True):
@@ -2751,6 +2753,97 @@ class DocumentPreviewTests(unittest.TestCase):
                     delattr(frappe, name)
                 else:
                     setattr(frappe, name, value)
+
+    def test_a_pdf_page_is_drawn_as_a_cached_image_for_thumbnails_and_phones(self):
+        """第 5 轮测试 1、2：附件卡片的 PDF 缩略图（第一页）与手机上的 PDF 预览（安卓 Chrome 不能 iframe 显示 PDF）都取
+        page_image：只认这个对话的 PDF，只有 thumb / page 两种宽度，回应是 PNG、带私有缓存头；不是 PDF、页码不对、画不出、
+        别的对话的都当作不存在。"""
+        import tempfile
+
+        files = self._files()
+        root = tempfile.mkdtemp()
+        drawn = []
+
+        class Page:
+            rect = types.SimpleNamespace(width=595.0, height=842.0)
+
+            def get_pixmap(self, matrix, alpha):
+                drawn.append((round(matrix.scale, 4), alpha))
+                return types.SimpleNamespace(tobytes=lambda kind: b"PNG:" + kind.encode())
+
+        class Document:
+            def __init__(self, stream, filetype):
+                if not stream.startswith(b"%PDF"):
+                    raise RuntimeError("cannot open broken document")
+                self.needs_pass = b"locked" in stream
+                self.page_count = 2
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def __getitem__(self, index):
+                return Page()
+
+        fitz = types.SimpleNamespace(open=Document, Matrix=lambda a, b: types.SimpleNamespace(scale=a))
+
+        class Response:
+            def __init__(self, body, mimetype, headers):
+                self.body, self.mimetype, self.headers = body, mimetype, headers
+
+        class Api:
+            def files(self, remote):
+                return []
+
+        owners = {"s1": "row1", "s2": "row2"}
+        sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name=owners[sid]),
+                                         _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"],
+                                         SESSION="Pearnly Assistant Session")
+        saved = {name: getattr(frappe, name, None) for name in ("get_site_path", "get_all", "DoesNotExistError")}
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.get_all = lambda *a, **k: []
+        frappe.DoesNotExistError = type("DoesNotExistError", (Exception,), {})
+        try:
+            with mock.patch.object(files, "sessions", sessions), \
+                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
+                    mock.patch.dict(sys.modules, {"pymupdf": fitz, "werkzeug": types.ModuleType("werkzeug"),
+                                                  "werkzeug.wrappers": types.SimpleNamespace(Response=Response)}):
+                row = types.SimpleNamespace(name="row1")
+                files._keep(row, "file_P", "ใบกำกับ.pdf", b"%PDF-1.7 two pages")
+                files._keep(row, "file_L", "locked.pdf", b"%PDF locked")
+                files._keep(row, "file_B", "broken.pdf", b"not a pdf")
+                files._keep(row, "file_I", "slip.jpg", b"jpeg")
+                files._keep(types.SimpleNamespace(name="row2"), "file_X", "other.pdf", b"%PDF other")
+                out = files.page_image("s1", "file_P", page="1", size="thumb")
+                self.assertEqual((out.body, out.mimetype), (b"PNG:png", "image/png"))
+                self.assertEqual(out.headers["Cache-Control"], "private, max-age=604800")
+                self.assertEqual(out.headers["X-Content-Type-Options"], "nosniff")
+                files.page_image("s1", "file_P", page=2, size="page")
+                # 宽度按页宽缩放：缩略图 240、整页 1240（A4 宽 595pt），不透明底
+                self.assertEqual(drawn, [(round(240 / 595, 4), False), (round(1240 / 595, 4), False)])
+                for args in (("file_P", 3, "page"), ("file_P", 0, "thumb"), ("file_P", "x", "thumb"),
+                             ("file_P", 1, "huge"), ("file_L", 1, "thumb"), ("file_B", 1, "thumb"),
+                             ("file_I", 1, "thumb"), ("file_X", 1, "thumb"), ("file_NOPE", 1, "thumb")):
+                    with self.assertRaises(frappe.DoesNotExistError, msg=str(args)):
+                        files.page_image("s1", args[0], page=args[1], size=args[2])
+                self.assertEqual(len(drawn), 2)
+            # 镜像里没有 PyMuPDF（不该发生）：画不出，不报 500
+            with mock.patch.dict(sys.modules, {"pymupdf": None}):
+                self.assertIsNone(files.render_page(b"%PDF", 1, 240))
+        finally:
+            for name, value in saved.items():
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
+
+    def test_the_page_image_endpoint_is_a_whitelisted_get(self):
+        api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
+        block = api.split("def page_image(", 1)[0].rsplit("\n\n", 1)[1]
+        self.assertIn('@frappe.whitelist(methods=["GET"])', block)
+        self.assertIn("return files.page_image(session_id, file_id, page=page, size=size)", api)
 
 
 class _Doc(types.SimpleNamespace):

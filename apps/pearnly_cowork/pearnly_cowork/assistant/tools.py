@@ -120,6 +120,10 @@ GUIDANCE = [
     # 测试窗口第 3 轮：CC 把金额说成「元」。金额都是泰铢
     "Amounts in tool results are Thai baht. Say the currency in the user's language (" + "บาท" + " in Thai, "
     + "泰铢" + " in Chinese, THB or baht in English); never call it yuan or " + "元" + ".",
+    # 第 5 轮测试 8：推到 Express 后 CC 说「เลขที่เอกสารใน ERP」；入账后又叫人去待处理页检查或修改（已入账的不在待处理里）
+    "Call the accounting program by its name, Express or MR.ERP (the one the account set uses); never say 'the ERP' or "
+    "'ERP' for it. A document already entered there is done: never suggest checking or changing it on the pending "
+    "page or the review page.",
     # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张
     "When the user names documents by invoice number, counterparty, amount and date (for example a message "
     "prefilled from the pending list or the month card), find each one with cowork_list_documents search set to "
@@ -3213,10 +3217,11 @@ CC_DESKTOP = ("The Windows program on the user's computer that reads their folde
 # 入账结果里的 written（推送记录冻结的 Express 载荷：现 / 赊、哪层定的、科目及其来源，`pushed.written`）：推送与查推送
 # 结果共用一段说明。验收 F19：CC 只拿到单号，答不出现购还是赊购，两次叫用户去 Express 核对；测试窗口第 2 轮：没报 ERP
 # 单号、没说科目从哪来。
-WRITTEN_NOTE = ("An entered document carries written: the facts of how it was written. written.docnum is the ERP "
-                "document number it got (on every entered document, however it was pushed: in a chat, from the "
-                "pending page or by a scheduled task). For Express, payment cash = a cash "
-                "purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
+WRITTEN_NOTE = ("An entered document carries written: the facts of how it was written. written.docnum is the document "
+                "number it got in the accounting program it went into (Express, or MR.ERP for an MR.ERP account set), "
+                "on every entered document however it was pushed: in a chat, from the pending page or by a scheduled "
+                "task. Call the program by its name, Express or MR.ERP, never 'the ERP'. For Express, payment cash = "
+                "a cash purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
                 "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
                 "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
@@ -3237,7 +3242,9 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "mapping), default (the account set's default account; worth a look). Older documents may have no "
                 "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
                 "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
-                "user its ERP document number (docnum). Say plainly whether it was entered as cash or credit and "
+                "user its document number (docnum), amounts in baht and times in local time. An entered document "
+                "is done: it is no longer on the pending page, so never point the user to the pending page, the "
+                "review page or Express to check or change it. Say plainly whether it was entered as cash or credit and "
                 "which account it went to, each with where that came from, described in the user's own language "
                 "(for example 'you chose it for this supplier' or 'remembered from before'); never show the codes "
                 "themselves (chosen, remembered, task_default, express_history, company_rule, matched, default and "
@@ -3382,8 +3389,9 @@ TOOLS = [
                     "empty value clears it); date takes the date as written (Thai Buddhist years are fine); amounts "
                     "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
                     "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
-                    "and tell the user. This changes the record in Pearnly only: a document already entered into the "
-                    "ERP is not changed there and is not pushed again; only a person can change it in the ERP. "
+                    "and tell the user. This changes the record in Pearnly only: a document already entered into "
+                    "Express or MR.ERP is not changed there and is not pushed again; only a person can change it in "
+                    "that program. "
                     "For Express, read it back afterwards with cowork_express_readback.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"},
@@ -3502,7 +3510,7 @@ TOOLS = [
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time. After "
                     f"sending it waits up to about {PUSH_WAIT_SECONDS} seconds for the ERP's result (writing "
                     "usually takes a few seconds), so do not wait or check again yourself. Each result says "
-                    "entered (written into the ERP; docnum is the ERP document number, tell it to the user), queued "
+                    "entered (written into Express or MR.ERP; docnum is its document number there, tell it to the user), queued "
                     "(no result yet, or CC Desktop is offline: it is entered later; check with cowork_push_results "
                     "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
                     "failed with a reason, unconfirmed with a reason (the ERP may or may not have it: the user checks "
