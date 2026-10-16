@@ -629,7 +629,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("setDragging(true);", drag)
         self.assertIn("letGo.flush(false); // 卸下时还在等落位的放下当场结束\n      setDragging(false);\n      landing.land(); // 卸下时还没交的放下照样交（移动请求照发）", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
-        self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>', drag)
+        self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} data-peek={peek ? "" : undefined} inert aria-hidden>', drag)
         for name in ('"data-card"', '"data-row-id"', '"data-roving"', '"data-selected"'):
             self.assertIn(name, drag.split("const STRIP = [", 1)[1].split("];", 1)[0])
         layers = read("lib/layers.ts")

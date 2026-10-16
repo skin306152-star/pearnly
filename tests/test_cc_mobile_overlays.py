@@ -539,7 +539,9 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)
         # 组标题「···」（分组和排序，公司组与已置顶 / 最近 / 月份共用）
         group = read("components/assistant-ui/sidebar-group.tsx")
-        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align="end"\n          sideOffset={4}', group)
+        # 右对齐；只有手机上的公司组头（alignHead）左边贴着组头开关的左边（第 7 轮：各行首字从菜单左边露出）
+        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align={head ? "start" : "end"}\n          alignOffset={head ? offset : 0}\n          sideOffset={4}', group)
+        self.assertIn("const head = alignHead && offset !== null;", group)
 
     @NEEDS_NODE
     def test_menus_keep_8px_from_the_edge_and_phones_open_submenus_in_place(self):

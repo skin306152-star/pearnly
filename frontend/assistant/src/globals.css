@@ -697,6 +697,7 @@
   --cc-drag-opacity: 0.9;
   --cc-drag-ghost: 0.4;           /* 多选里一起拖的其余各行留的淡影 */
   --cc-drag-fold: 0.96;           /* 对话落到收着的组：浮层落到组头时收起（略缩、淡掉） */
+  --cc-drag-peek: 0.5;            /* 浮层停在收着的组头上（只能高亮组头）：变半透明，透出组头的高亮 */
   --cc-dot-ring: inset 0 0 0 var(--cc-ring-w) var(--cc-ink-3);  /* 月结台账「暂无」那一段的空心状态点 */
   --cc-radius-panel: var(--code-radius-10);
   /* 列表页（公司、待处理、定时任务；设计文档 3.14）：内容宽 960、标题 24/31 字重 500、搜索框 36 圆角 7、主按钮 24、卡片约 314×108 */
@@ -1703,7 +1704,8 @@
 /* 共用拖动（components/ui/drag.tsx，同 Claude 视频 IMG_5192；放在分层外，盖过行上的工具类）：拿起的那一项换成浮层（克隆原来的样子）——
    弹层底、弹出阴影、略透明、略放大，拿起时从原样浮起；放下时（data-dropping）阴影、放大随落位动画一起收回，落到收着的组
    （data-dropping="into"）同时淡掉收起。原位留空（gap，排序与侧栏对话拖到别的公司一样；多选里一起拖的其余各行留淡影）；落位动画
-   播完前落点那一项先不显示（data-drag-landing）。对话要去的组收着（放不下空档）时整块（组头）用悬停色高亮。拖动中整页 grabbing */
+   播完前落点那一项先不显示（data-drag-landing）。对话要去的组收着（放不下空档）时整块（组头）用悬停色高亮，浮层同时变半透明
+   （data-peek，透出被它盖住的组头高亮）。拖动中整页 grabbing */
 .cc-drag-overlay { cursor: grabbing; }
 .cc-drag-float, .cc-drag-lift { height: 100%; }
 .cc-drag-lift {
@@ -1712,6 +1714,7 @@
   transition: scale var(--cc-dur) var(--cc-ease), opacity var(--cc-dur) var(--cc-ease), box-shadow var(--cc-dur) var(--cc-ease);
 }
 .cc-drag-float[data-kind="card"] .cc-drag-lift { border-radius: var(--cc-radius-panel); }
+.cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }
 .cc-drag-overlay[data-dropping] .cc-drag-lift { scale: 1; opacity: 1; box-shadow: none; }
 .cc-drag-overlay[data-dropping="into"] .cc-drag-lift { scale: var(--cc-drag-fold); opacity: 0; }
 .cc-drag-count {

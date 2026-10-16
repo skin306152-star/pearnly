@@ -27,6 +27,7 @@
 //   范围   只在本列竖着拖：浮层上下边不出这一列（排序：这一列第一项顶边到最后一项底边；组之间：能放的各组加原来那组）。
 //          浮层是 fixed、不撑大滚动区，拖到边上自动滚动只到列表首尾（第 4 轮：原来限位只限住指针位移，拖动库随后又把滚动差
 //          加到那张卡上，卡被推出列表、撑大了可滚范围，会话栏一路滚进空白）。
+//          浮层停在只能高亮组头的落点上（去的组收着）时变半透明（data-peek），透出组头的高亮，离开就恢复。
 //   键盘   空格拿起、方向键移动（组之间：一组一组跳，含原来那组）、空格（或回车）放下、Esc 取消，三种语言读屏播报（文案由调用方给）。
 //          Esc 只取消拖动：不关浮着的会话栏、不清侧栏多选（lib/layers.ts 的 isDragEscape）。
 //   动效   时长、缓动取 globals.css 的 --cc-dur / --cc-ease；系统或设置要求减少动态效果时不播过渡。
@@ -143,14 +144,25 @@ function position(over: Over | Active | null | undefined): { at: number; total: 
 }
 
 /** dnd-kit 的读屏播报：名字用 label；排序时位置按这一列（看得见的）算，在组之间移动时念组名（去过别的组再回到原来那组念
- *  「将移到「原组」」，放下时按空档所在：别的组念移到哪，原组念取消）。placed 是此刻空档所在的组（null = 原组）。
+ *  「将移到「原组」」）。placed 是此刻空档所在的组（null = 原组）。
+ *
+ *  放下按实际结果念（测试窗口第 7 轮：对话真的移过去了、发了移动请求，最后却念「已取消移动」，5 次复现）：在组之间移动的念
+ *  dropped（放下那一刻定下的去处：交给调用方移过去的那一组，null = 没移、回原组）——不能再看 placed：拖动库先调放下的处理、
+ *  后发播报，落位已经播完时放下的处理当场把这一项交给调用方并把空档清回 null，播报读到的就成了「原组」。排序的念放到第几位，
+ *  落回原位（经过的是它自己）或没有落点念取消，同放下的处理里动没动（onDragEnd）。
  *
  *  拿起的那一刻拖动库紧跟着报一次「经过」，经过的就是拿起的这一项自己（排序时它在原位、离自己最近）或它所在的那一组（在组之间
  *  移动）：这一次不念，留着「已拿起」（测试窗口第 5 轮：公司组头空格拿起念成「移到第 3 位，共 4 项」，卡片、置顶同样）。挪开过
  *  以后再回到原位照常念（第 6 轮：对话拖回原组念的是「已拿起」，该念「将移到「原组」」）。 */
 export function dragAnnouncements(
   texts: DragTexts,
-  mover?: { accepts: AreaProps["accepts"]; placed: () => DragData | null; lifted?: (active: Active) => DragData | undefined },
+  mover?: {
+    accepts: AreaProps["accepts"];
+    placed: () => DragData | null;
+    lifted?: (active: Active) => DragData | undefined;
+    /** 放下那一刻定下的去处（null = 没移；undefined = 没记，按 placed）。 */
+    dropped?: () => DragData | null | undefined;
+  },
 ): Announcements {
   const name = (entry: WithData) => dataOf(entry)?.label ?? "";
   let moved = false; // 这一次拖动挪开过原位没有（拿起时清零）
@@ -159,7 +171,8 @@ export function dragAnnouncements(
     const to = dataOf(over);
     if (mover && isMover(from)) {
       if (end) {
-        const target = mover.placed();
+        const dropped = mover.dropped?.();
+        const target = dropped !== undefined ? dropped : mover.placed();
         return target ? texts.droppedIn?.(name(active), target.label) : texts.cancelled(name(active));
       }
       const target = to && placeOf(from, to, mover.accepts);
@@ -171,6 +184,7 @@ export function dragAnnouncements(
     if (!end && over && over.id === active.id && !moved) return undefined;
     if (over && over.id !== active.id) moved = true;
     if (!over) return end ? texts.cancelled(name(active)) : undefined;
+    if (end && over.id === active.id) return texts.cancelled(name(active)); // 落回原位：没动
     if (from?.list && to?.list === from.list) {
       const at = position(over);
       if (!at) return undefined;
@@ -747,6 +761,8 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   const [placed, setPlaced] = useState<DragData | null>(null);
   // 拿起时的那份说明：在组之间移动的那一项会换组重挂（侧栏的行按所在的组给 group），拖动中一直按拿起时的认（原来那组不变）
   const lifted = useRef<DragData | null>(null);
+  // 在组之间移动：放下那一刻定下的去处（读屏按它念，见 dragAnnouncements；undefined = 还没放下）
+  const dropped = useRef<DragData | null | undefined>(undefined);
   const activeOf = (active: WithData & { id: string | number }) =>
     active && lifted.current?.id === active.id ? lifted.current : dataOf(active);
   const landing = useMemo(() => new Landing(), []);
@@ -897,6 +913,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
         accepts: (a, b) => latest.current.accepts(a, b),
         placed: () => placedRef.current,
         lifted: (active) => activeOf(active),
+        dropped: () => dropped.current,
       }),
       screenReaderInstructions: { draggable: texts.instructions },
     }),
@@ -925,6 +942,9 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
     if (isMover(from)) {
       const done = release.current;
       release.current = null;
+      // 先记下去处再交：落位已播完时下面当场交给调用方、空档清回 null，拖动库随后才发放下的播报
+      const target = placedRef.current;
+      dropped.current = target && latest.current.accepts(from, target) ? target : null;
       // 空档已在去的那一组：落位播完再交给调用方（发请求），请求做完前整列仍跟着动；交过之后空档才回 null（调用方那时已按
       // 移过去的样子排好，同一处）。回到原组：落回原位，不交
       const queued = settleMove(from, placedRef.current, latest.current.accepts, {
@@ -956,6 +976,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
               setDragging(true);
               const data = dataOf(active);
               lifted.current = data ?? null;
+              dropped.current = undefined;
               if (isMover(data)) {
                 placedRef.current = null;
                 setPlaced(null);
@@ -973,6 +994,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
             onDragCancel={({ active }) => {
               holdStill(stash.current.node, landWait);
               finish();
+              dropped.current = null;
               const from = activeOf(active);
               if (!isMover(from)) return;
               place(from, null); // 取消：空档回原位，浮层滑回去
@@ -1107,6 +1129,13 @@ const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; landing
   const { active, activeNode, droppableContainers, dragOverlay } = useDndContext();
   stash.current = { containers: droppableContainers, node: activeNode, overlay: dragOverlay.nodeRef };
   const data = dataOf(active);
+  // 浮层停在只能高亮组头的落点上（去的组收着、放不下空档：组头带 data-drop-target）：浮层变半透明，透出组头的高亮，离开就恢复
+  // （测试窗口第 7 轮：手机上浮层正好盖住收着的组头，看不到高亮）。高亮与空档换组同一次提交，提交后看一眼
+  const placed = useContext(PlacedContext);
+  const [peek, setPeek] = useState(false);
+  useLayoutEffect(() => {
+    setPeek(!!active && !!placed && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));
+  }, [active, placed]);
   // 结束拖动那次提交里拖动库要播的落位（见 dropAnimation）：松手时已经起播（landOverlay）的接着等它播完；取消时从此刻滑回原位
   const drop = useMemo(() => dropAnimation(transition, () => landing.land(), into), [transition, landing, into]);
   // 键盘拖动时浮层一格一格挪，也用动效变量过渡
@@ -1116,7 +1145,7 @@ const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; landing
   const overlay = (
     <DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">
       {active ? (
-        <div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>
+        <div className="cc-drag-float" data-kind={data?.kind} data-peek={peek ? "" : undefined} inert aria-hidden>
           <div className="cc-drag-lift">
             <Copy id={active.id} node={activeNode} />
             {(data?.count ?? 0) > 1 && <span className="cc-drag-count">{data!.count}</span>}

@@ -174,7 +174,7 @@ export const ProjectHeader: FC<{
           {pending}
         </button>
       )}
-      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />
+      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />
       <GroupNew onClick={() => newChatIn(project.id)} />
     </GroupHeader>
   );

@@ -365,9 +365,12 @@ class ShortcutTests(unittest.TestCase):
             for number, line in enumerate(text.splitlines(), 1):
                 if not self.KEYS.search(line):
                     continue
+                if name == "components/shortcut.tsx":
+                    # 只有苹果设备的换字表（第 7 轮：Mac 上 Ctrl 显示成 ⌘），这里不写提示
+                    self.assertEqual(line, 'const APPLE: Record<string, string> = { Ctrl: "⌘", Alt: "⌥" };', number)
+                    continue
                 self.assertRegex(line, r'<Shortcut keys="[^"]+"( kbd)? />', f"{name}:{number} 快捷键提示要经 <Shortcut>")
                 hints.append(re.search(r'keys="([^"]+)"', line).group(1))
-                self.assertNotEqual(name, "components/shortcut.tsx")
             if name != "components/shortcut.tsx":
                 self.assertNotIn("<kbd", text, name)
         # 用户菜单的设置，桌面端应用菜单的新建 / 设置 / 重新加载 / 缩放，设置里快捷提问的组合键
@@ -1061,14 +1064,33 @@ assert.doesNotMatch(row(), /Ctrl/);
 
 g.device.touch = false;
 assert.equal(showShortcuts(), true);
-assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
-assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), /^<kbd class="[^"]*">Ctrl \+ Alt \+ Space<\/kbd>$/);
+// 苹果设备接了键盘：按 ⌘ / ⌥ 显示（第 7 轮）
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">⌘ ,</span>');
+assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), /^<kbd class="[^"]*">⌘ \+ ⌥ \+ Space<\/kbd>$/);
 
 g.device.touch = true;
 g.qt = { webChannelTransport: {} };
 assert.equal(showShortcuts(), true);
-assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-xs">Ctrl N</span>');
+assert.equal(html(Shortcut, { keys: "Ctrl N" }), '<span class="text-ink-3 text-xs">⌘ N</span>');
 """, lang="th")
+
+    def test_shortcuts_use_command_on_mac_and_ctrl_elsewhere(self):
+        # 测试窗口第 7 轮：Mac 上用户菜单的「设置」写成「Ctrl ,」，应为「⌘ ,」；Windows / Linux 照旧 Ctrl
+        self.on_device("windows-chrome", r"""
+import { appleKeys, keysFor } from "@/components/shortcut";
+assert.equal(appleKeys(), false);
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), />Ctrl \+ Alt \+ Space<\/kbd>$/);
+assert.equal(keysFor("Ctrl R", true), "⌘ R");
+assert.equal(keysFor("Ctrl + Alt + Space", true), "⌘ + ⌥ + Space");
+assert.equal(keysFor("Ctrl =", false), "Ctrl =");
+(navigator as any).userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
+assert.equal(appleKeys(), true);
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">⌘ ,</span>');
+(navigator as any).userAgentData = { platform: "Linux" };
+assert.equal(appleKeys(), false);
+assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="text-ink-3 text-xs">Ctrl ,</span>');
+""")
 
     def test_iphone_safari_tab_shows_the_row_with_add_to_home_screen(self):
         self.on_device("iphone-safari", r"""
@@ -2860,7 +2882,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         head = projects.split("export const ProjectHeader: FC", 1)[1].split("\n};\n", 1)[0]
         self.assertIn("onClick={() => go(() => openPending(project.id))}", head)   # 待处理数：只看这家
         # 右侧：待处理数、···（分组和排序）、新建（新建在最右，悬停才出）
-        order = [head.index(x) for x in ('className="cc-group-count"', "<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />", "<GroupNew ")]
+        order = [head.index(x) for x in ('className="cc-group-count"', "<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />", "<GroupNew ")]
         self.assertEqual(order, sorted(order))
         css = read("globals.css")
         self.assertIn(".cc-group-more, .cc-group-new { display: none; }", css)
@@ -2907,7 +2929,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertNotIn("openCompany", head)
         self.assertNotIn("newChatHere", head + group)
         self.assertNotIn("DropdownMenu.Item", head)
-        self.assertIn("<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />", head)
+        self.assertIn("<GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />", head)
         # 长按出菜单；拿起后手指动了（真的在拖）就收起菜单（第 6 轮第 2 项）
         self.assertIn("const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));", head)
         self.assertIn("onMenuKey={() => setMenuOpen(true)}", head)
@@ -3987,6 +4009,94 @@ assert.equal(storage.has(orderKey("skin3@x")), false);
         self.assertIn("if (gone.length) forgetPinned(gone);", groups)
         # 「恢复默认设置」：分组和排序跟默认一样、也没手排过才不可点
         self.assertIn("disabled={isDefaultView(view) && !manual} onSelect={resetSidebarView}", read("components/assistant-ui/sidebar-group.tsx"))
+
+    def test_drop_is_announced_by_what_really_happened(self):
+        # 测试窗口第 7 轮第 1 项：真的移过去了（发了移动请求、对话已在新组），最后却念「已取消移动」（电脑拖到组头、手机拖到行上、
+        # 自动滚动后落到别组、键盘 ↑ + 空格，共 5 次）。根因：拖动库先调放下的处理、后发播报；落位已播完时放下的处理当场把这一项
+        # 交给调用方并把空档清回 null，播报读到的成了「原组」。改为按放下那一刻定下的去处念
+        self.run_page(r"""
+import { dragAnnouncements } from "@/components/ui/drag";
+import { sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
+const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: () => "moved", droppedAt: () => "dropped",
+  cancelled: (n: string) => `cancel ${n}`, over: (n: string, g: string) => `over ${n} ${g}`, droppedIn: (n: string, g: string) => `in ${n} ${g}` };
+const row = { id: "row:t1", kind: "row", label: "lelo", group: "A" };
+const company = (id: string) => ({ id: `company:${id}`, kind: "company", label: id, list: "companies", group: id });
+const entry = (d: any) => ({ id: d.id, data: { current: { drag: d } } });
+let placed: any = company("B");
+let dropped: any = undefined;
+const say = dragAnnouncements(texts, { accepts: sidebarAccepts, placed: () => placed, lifted: () => row, dropped: () => dropped });
+say.onDragStart!({ active: entry(row) } as any);
+assert.equal(say.onDragOver!({ active: entry(row), over: entry(company("B")) } as any), "over lelo B");
+// 放下：先交给调用方（空档清回 null），播报在后——按放下那一刻定下的去处念
+dropped = company("B");
+placed = null;
+assert.equal(say.onDragEnd!({ active: entry({ ...row, group: "B" }), over: entry(company("B")) } as any), "in lelo B");
+// 拖回原组放下：没移，念取消
+dropped = null;
+placed = company("B");
+assert.equal(say.onDragEnd!({ active: entry(row), over: entry(company("A")) } as any), "cancel lelo");
+// 没记（旧的调用方）：照旧按此刻的空档
+dropped = undefined;
+assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in lelo B");
+""")
+        drag = read("components/ui/drag.tsx")
+        end = drag.split("const onDragEnd = ({ active, over }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
+        # 先记去处、再交（settleMove 落位已播完时当场交、清空档）
+        self.assertLess(end.index("dropped.current = target && latest.current.accepts(from, target) ? target : null;"),
+                        end.index("const queued = settleMove("))
+        self.assertIn("dropped: () => dropped.current,", drag)
+        self.assertIn("if (end && over.id === active.id) return texts.cancelled(name(active)); // 落回原位：没动", drag)
+
+    def test_the_float_turns_see_through_over_a_folded_group_head(self):
+        # 第 7 轮第 3 项：手机上浮层停在收着的组头上，盖住了组头的高亮。停在只能高亮组头的落点上时浮层半透明，离开就恢复（共用拖动）
+        drag = read("components/ui/drag.tsx")
+        self.assertIn('setPeek(!!active && !!placed && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));', drag)
+        self.assertIn('data-peek={peek ? "" : undefined}', drag)
+        css = read("globals.css")
+        self.assertIn("--cc-drag-peek: 0.5;", css)
+        self.assertIn(".cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }", css)
+        # 过渡沿用浮层已有的 opacity 过渡（动效变量）；落到组头时的淡出写在它后面，照样盖过它
+        lift = css.split("\n.cc-drag-lift {", 1)[1].split("}", 1)[0]
+        self.assertIn("opacity var(--cc-dur) var(--cc-ease)", lift)
+        self.assertLess(css.index(".cc-drag-float[data-peek] .cc-drag-lift"), css.index('.cc-drag-overlay[data-dropping="into"] .cc-drag-lift'))
+
+    def test_group_and_sort_choices_say_which_one_is_picked(self):
+        # 第 7 轮第 5 项：子菜单选项原是普通 menuitem，读屏听不出当前选的是哪个：单选用 menuitemradio、勾选用 menuitemcheckbox，带
+        # aria-checked（组件库 RadioItem / CheckboxItem），✓ 的样子不变；「显示」里的两项点了菜单不关
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        menu = group.split("export const GroupSortMenu", 1)[1]
+        self.assertEqual(menu.count("<DropdownMenu.RadioGroup"), 3)
+        self.assertIn("<DropdownMenu.RadioItem className=\"cc-menu-item\" value={value}>", group)
+        self.assertIn("<DropdownMenu.CheckboxItem className=\"cc-menu-item\" checked={on} onCheckedChange={onChange} onSelect={(event) => event.preventDefault()}>", group)
+        self.assertEqual(group.count("<DropdownMenu.ItemIndicator asChild>\n      <CheckIcon />"), 2)
+        self.assertNotIn("onPick", group)
+        self.run_page(r"""
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { DropdownMenu as Radix } from "radix-ui";
+// 组件库的单选、勾选项：role 与 aria-checked
+const html = renderToStaticMarkup(createElement(Radix.Root, { open: true, modal: false },
+  createElement(Radix.Content, { forceMount: true },
+    createElement(Radix.RadioGroup, { value: "b" }, createElement(Radix.RadioItem, { value: "a" }, "A"), createElement(Radix.RadioItem, { value: "b" }, "B")),
+    createElement(Radix.CheckboxItem, { checked: true }, "C"))));
+assert.match(html, /role="menuitemradio" aria-checked="false"/);
+assert.match(html, /role="menuitemradio" aria-checked="true"/);
+assert.match(html, /role="menuitemcheckbox" aria-checked="true"/);
+""", stubs={})
+
+    def test_phone_company_menu_lines_up_with_the_head(self):
+        # 第 7 轮第 6 项：手机长按公司组头的菜单按「···」右对齐，左边缘正好落在组里各行文字起点右边几像素，各行首字从菜单左边
+        # 露出一点。手机上公司组头的菜单改为左边贴着组头开关的左边，盖住各行的起点
+        self.run_page(r"""
+import { headOffset } from "@/components/assistant-ui/sidebar-group";
+assert.equal(headOffset({ left: 240 }, { left: 16 }), -224);
+assert.equal(headOffset(null, { left: 16 }), null);
+assert.equal(headOffset({ left: 240 }, undefined), null);
+""")
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        self.assertIn('align={head ? "start" : "end"}', group)
+        self.assertIn("alignOffset={head ? offset : 0}", group)
+        self.assertIn('const head = button?.closest(".cc-group-row")?.querySelector(".cc-group-toggle");', group)
 
     def test_what_can_be_dropped_where(self):
         self.run_page(r"""
@@ -5181,7 +5291,8 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
             self.assertIn(f'<h1 className="cc-page-title"><Marquee className="cc-page-title-text">{title}</Marquee></h1>', read(rel), rel)
         for rel in ("components/add-company.tsx", "components/scheduled-tasks.tsx"):
             self.assertIn('<DialogPrimitive.Title className="cc-greeting min-w-0 text-xl">\n              <Marquee className="block truncate">{title}</Marquee>', read(rel), rel)
-        self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 2)
+        # 父项、单选项、勾选项（第 7 轮：单选 / 勾选分成 RadioItem / CheckboxItem 两个）
+        self.assertEqual(read("components/assistant-ui/sidebar-group.tsx").count('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>'), 3)
         self.assertIn('<Marquee className={cn("max-w-[22rem] truncate text-sm"', read("components/settings.tsx"))
         self.assertIn('<Marquee className="typing-dots-label ms-2.5 min-w-0 truncate" aria-hidden="true">{text}</Marquee>', read("components/assistant-ui/thread.tsx"))
         panel = read("components/results-panel.tsx")
@@ -5267,7 +5378,9 @@ for (const say of [dragAnnouncements(texts), dragAnnouncements(texts, { accepts:
   assert.equal(say.onDragOver!({ active: c, over: c } as any), undefined);             // 拿起当下经过自己：不念，留着「已拿起」
   assert.equal(say.onDragOver!({ active: c, over: entry("company:d", 3) } as any), "c to 4/4");
   assert.equal(say.onDragOver!({ active: c, over: c } as any), "c to 3/4");             // 挪开过再回到原位：念位置
-  assert.equal(say.onDragEnd!({ active: c, over: c } as any), "c at 3/4");
+  assert.equal(say.onDragEnd!({ active: c, over: c } as any), "cancel c");             // 落回原位：没动，念取消（第 7 轮）
+  assert.equal(say.onDragEnd!({ active: c, over: entry("company:a", 0) } as any), "c at 1/4");   // 真的挪了：念放到第几位
+  assert.equal(say.onDragEnd!({ active: c, over: null } as any), "cancel c");
   assert.equal(say.onDragStart!({ active: c } as any), "up c");                        // 再拿起：重新算
   assert.equal(say.onDragOver!({ active: c, over: c } as any), undefined);
   assert.equal(say.onDragCancel!({ active: c } as any), "cancel c");

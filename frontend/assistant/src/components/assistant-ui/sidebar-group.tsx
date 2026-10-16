@@ -15,7 +15,7 @@
 // 颜色、尺寸只用 globals.css 的变量（.cc-group-*、.cc-row-btn）。组名放不下时悬停滚动（components/ui/marquee.tsx）。
 
 import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
-import type { FC, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import { type FC, type HTMLAttributes, type KeyboardEvent, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { altMove, chain, type DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
@@ -127,57 +127,89 @@ const Parent: FC<{ label: string; value?: string }> = ({ label, value }) => (
   </span>
 );
 
-/** 单选 / 勾选项：选中的打 ✓。keep：点了菜单不关（显示里的两项可以连着点）。 */
-const Choice: FC<{ label: string; on: boolean; onPick: () => void; keep?: boolean }> = ({ label, on, onPick, keep }) => (
-  <DropdownMenu.Item
-    className="cc-menu-item"
-    onSelect={(event) => {
-      if (keep) event.preventDefault();
-      onPick();
-    }}
-  >
+/** 单选项（分组依据、排序方式、升降序）：读屏念成单选菜单项并带选中状态（menuitemradio + aria-checked，测试窗口第 7 轮：原来是
+ *  普通菜单项，听不出选的是哪个）；选中的打 ✓，样子不变。放在 RadioGroup 里，value 是它的值。 */
+const Choice: FC<{ label: string; value: string }> = ({ label, value }) => (
+  <DropdownMenu.RadioItem className="cc-menu-item" value={value}>
     <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
-    {on && <CheckIcon />}
-  </DropdownMenu.Item>
+    <DropdownMenu.ItemIndicator asChild>
+      <CheckIcon />
+    </DropdownMenu.ItemIndicator>
+  </DropdownMenu.RadioItem>
 );
 
-/** 组标题右侧的「···」：打开「分组和排序」。open / onOpenChange 只有公司组头传（长按组头、菜单键也打开它）。 */
-export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) => void }> = ({ open, onOpenChange }) => {
+/** 勾选项（显示里的元数据、空分组）：menuitemcheckbox + aria-checked；点了菜单不关（两项可以连着点），勾上的打 ✓。 */
+const Toggle: FC<{ label: string; on: boolean; onChange: (on: boolean) => void }> = ({ label, on, onChange }) => (
+  <DropdownMenu.CheckboxItem className="cc-menu-item" checked={on} onCheckedChange={onChange} onSelect={(event) => event.preventDefault()}>
+    <Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>
+    <DropdownMenu.ItemIndicator asChild>
+      <CheckIcon />
+    </DropdownMenu.ItemIndicator>
+  </DropdownMenu.CheckboxItem>
+);
+
+/** 菜单左边贴着组头开关的左边（组头那一行的内容起点）要的 alignOffset：菜单按「···」左对齐（align start）后再挪这么多。
+ *  量不到回 null（照常按「···」右对齐）。 */
+export function headOffset(trigger: { left: number } | null | undefined, head: { left: number } | null | undefined): number | null {
+  return trigger && head ? Math.round(head.left - trigger.left) : null;
+}
+
+/** 组标题右侧的「···」：打开「分组和排序」。open / onOpenChange 只有公司组头传（长按组头、菜单键也打开它）。
+ *  alignHead（手机上的公司组头）：菜单左边贴着组头开关的左边、盖住组里各行的起点（测试窗口第 7 轮：长按组头出的菜单按「···」
+ *  右对齐，左边缘正好落在组里各行文字起点右边几像素，各行首字从菜单左边露出一点）。菜单盖在列表上照常，只是不再切在字头上。 */
+export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) => void; alignHead?: boolean }> = ({ open, onOpenChange, alignHead }) => {
   const view = useSidebarView();
   // 「恢复默认设置」也清手排的公司组、置顶顺序：两样都跟默认一样才不可点
   const manual = useSidebarOrder(hasManualOrder);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [offset, setOffset] = useState<number | null>(null);
+  // 打开时量（菜单定位在同一次提交里随后重算，看不到挪动）
+  useLayoutEffect(() => {
+    if (!alignHead || !open) return;
+    const button = trigger.current;
+    const head = button?.closest(".cc-group-row")?.querySelector(".cc-group-toggle");
+    setOffset(headOffset(button?.getBoundingClientRect(), head?.getBoundingClientRect()));
+  }, [alignHead, open]);
+  const head = alignHead && offset !== null;
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
-        <button type="button" tabIndex={-1} className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}>
+        <button ref={trigger} type="button" tabIndex={-1} className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}>
           <MoreHorizontalIcon />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           side="bottom"
-          align="end"
+          align={head ? "start" : "end"}
+          alignOffset={head ? offset : 0}
           sideOffset={4}
           className="cc-menu !min-w-52"
           data-slot="cc-group-sort-menu"
           aria-label={sb.groupAndSort}
         >
           <SubMenu label={<Parent label={sb.groupBy} value={GROUP_LABEL[view.by]()} />} className="cc-menu !min-w-40">
-            {(["company", "month", "none"] as const).map((by) => (
-              <Choice key={by} label={GROUP_LABEL[by]()} on={view.by === by} onPick={() => setSidebarView({ by })} />
-            ))}
+            <DropdownMenu.RadioGroup value={view.by} onValueChange={(by) => setSidebarView({ by: by as GroupBy })}>
+              {(["company", "month", "none"] as const).map((by) => (
+                <Choice key={by} label={GROUP_LABEL[by]()} value={by} />
+              ))}
+            </DropdownMenu.RadioGroup>
           </SubMenu>
           <SubMenu label={<Parent label={sb.sortBy} value={SORT_LABEL[view.sort]()} />} className="cc-menu !min-w-40">
-            {(["updated", "created", "name"] as const).map((sort) => (
-              <Choice key={sort} label={SORT_LABEL[sort]()} on={view.sort === sort} onPick={() => setSidebarView({ sort })} />
-            ))}
+            <DropdownMenu.RadioGroup value={view.sort} onValueChange={(sort) => setSidebarView({ sort: sort as SortBy })}>
+              {(["updated", "created", "name"] as const).map((sort) => (
+                <Choice key={sort} label={SORT_LABEL[sort]()} value={sort} />
+              ))}
+            </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator className="cc-menu-sep" />
-            <Choice label={sb.descending} on={view.desc} onPick={() => setSidebarView({ desc: true })} />
-            <Choice label={sb.ascending} on={!view.desc} onPick={() => setSidebarView({ desc: false })} />
+            <DropdownMenu.RadioGroup value={view.desc ? "desc" : "asc"} onValueChange={(dir) => setSidebarView({ desc: dir === "desc" })}>
+              <Choice label={sb.descending} value="desc" />
+              <Choice label={sb.ascending} value="asc" />
+            </DropdownMenu.RadioGroup>
           </SubMenu>
           <SubMenu label={<Parent label={sb.show} />} className="cc-menu !min-w-40">
-            <Choice keep label={sb.metadata} on={view.meta} onPick={() => setSidebarView({ meta: !view.meta })} />
-            <Choice keep label={sb.emptyGroups} on={view.empty} onPick={() => setSidebarView({ empty: !view.empty })} />
+            <Toggle label={sb.metadata} on={view.meta} onChange={(meta) => setSidebarView({ meta })} />
+            <Toggle label={sb.emptyGroups} on={view.empty} onChange={(empty) => setSidebarView({ empty })} />
           </SubMenu>
           <DropdownMenu.Separator className="cc-menu-sep" />
           <DropdownMenu.Item className="cc-menu-item" disabled={isDefaultView(view) && !manual} onSelect={resetSidebarView}>
