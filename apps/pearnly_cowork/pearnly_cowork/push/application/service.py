@@ -22,7 +22,7 @@ from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
-from pearnly_cowork.push.express import company_choices
+from pearnly_cowork.push.express import decide as decide_rules
 from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
 from pearnly_cowork.push.express.prepare import prepare_express
@@ -312,32 +312,14 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
     company, rules_read = _company_rules(connection, account_set, account_row)
-    rules, branch = (company or {}).get("rules") or (), (company or {}).get("branch") or ""
-    remembered, sources = company_choices.overlay(choice_store.remembered(connection, account_set), rules, branch, config)
-    # 科目表没读到而先没用的公司规则：这一项不拿 Express 历史顶替，照常要选、等电脑读科目表（`company_choices.held_back`）
-    held = company_choices.held_back(remembered, rules, branch, config)
-    kind = resolve_posting_kind(posting_kind, flat)
-    receipts = _pos_receipts(flat)
-    _borrow_receipts(remembered, connection, siblings, receipts, config)
-    trace = {}
-    decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
-                                    remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
-                                    receipts=receipts, trace=trace)
-    waiting = any(item.get("kind") == "account" and item.get("subject") in held.get("account", ())
-                  for item in decision["needed"])
-    settled = _settled_account(decision["needed"], connection, account_set, fields, config, fixed) \
-        if rules_read and not waiting else None
-    if settled:
-        # 历史很一致：当作这家已记住的科目用（只这一次判断，不写进账套记忆；主档页可见可删）
-        subject = next(item["subject"] for item in decision["needed"] if item.get("kind") == "account")
-        remembered = {**remembered, "account": {**(remembered.get("account") or {}), subject: settled["code"]}}
-        sources = {**sources, "account": {**(sources.get("account") or {}), subject: "express_history"}}
-        trace = {}
-        decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
-                                        remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
-                                        receipts=receipts, trace=trace)
-        decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
-    company_choices.finish(decision, trace, sources)
+    # 判定核心是纯函数（`push.express.decide`，回放共用）；这里只取数：账套记忆、公司规则、借的收款科目、Express 历史
+    decision, sources = decide_rules.decide(
+        fields, direction=direction, posting_kind=resolve_posting_kind(posting_kind, flat), config=config,
+        remembered=choice_store.remembered(connection, account_set), rules=(company or {}).get("rules") or (),
+        branch=(company or {}).get("branch") or "", rules_read=rules_read, account_resolved=source == SRC_CATEGORY,
+        fixed=fixed, receipts=_pos_receipts(flat),
+        borrow=lambda remembered, receipts: _borrow_receipts(remembered, connection, siblings, receipts, config),
+        settle=lambda needed: _settled_account(needed, connection, account_set, fields, config, fixed))
     applied = decision["applied"]
     if applied.get("account"):
         applied["account_from"] = _account_from(decision, connection, account_set, fields, direction, since, sources)

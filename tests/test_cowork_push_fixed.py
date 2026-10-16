@@ -41,6 +41,13 @@ company_choices = _load("company_choices_fixed", APP / "push/express/company_cho
     "pearnly_cowork.push.express.choices": types.SimpleNamespace(
         KINDS=("party", "item", "account", "payment", "vat", "department", "receipt"), NEW="__new__",
         PAYMENT_VALUES=("cash", "credit"), VAT_VALUES=("claim", "expense"))})
+# 推送服务的判定核心（第 3 期第 11 条）：真的选择规则 + 上面的公司规则
+_payment = _load("payment_fixed", APP / "push/express/payment.py", {})
+_choice_rules = _load("choices_fixed", APP / "push/express/choices.py",
+                      {"pearnly_cowork.push.express.payment": _payment})
+DECIDE = _load("decide_fixed", APP / "push/express/decide.py", {
+    "pearnly_cowork": types.ModuleType("pearnly_cowork"), "pearnly_cowork.push": types.ModuleType("pearnly_cowork.push"),
+    "pearnly_cowork.push.express": types.SimpleNamespace(choices=_choice_rules, company_choices=company_choices)})
 
 
 class Translated(Exception):
@@ -184,6 +191,8 @@ def _service(hooks=(), providers=None):
     modules["pearnly_cowork.push"].choices = choice_store
     modules["pearnly_cowork.push.express"].choices = choice_rules
     modules["pearnly_cowork.push.express"].company_choices = company_choices
+    # 判定核心（`push.express.decide`，第 3 期第 11 条抽出）是纯函数：用真的，选择规则也用真的
+    modules["pearnly_cowork.push.express"].decide = DECIDE
     service = _load("push_service_fixed", APP / "push/application/service.py", modules)
     return service, frappe_module, calls
 
