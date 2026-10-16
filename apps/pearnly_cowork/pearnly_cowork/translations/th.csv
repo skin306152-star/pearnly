@@ -1289,6 +1289,7 @@ Reading the invoices,กำลังอ่านใบกำกับ
 Reading the scanned or photographed document took too long. Try again later.,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 Ready At (UTC),เวลาเสร็จ (UTC)
 Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
+Ready to push,รอส่ง
 Reason,เหตุผล
 Receipt,ใบเสร็จรับเงิน
 Receivable account,บัญชีลูกหนี้
@@ -2215,6 +2216,7 @@ cowork.company.note_invalid,บันทึกว่างหรือยาว�
 cowork.company.note_not_found,ไม่พบบันทึกนี้
 cowork.company.notes,บันทึก
 cowork.company.notes_full,บันทึกเต็มแล้ว
+cowork.company.pending.cc_proposal,รอส่ง
 cowork.company.pending.more,อีก {0} บริษัท
 cowork.company.pending.no_target,เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง
 cowork.company.pending.not_pushed,ยังไม่ได้ส่ง
@@ -2252,6 +2254,7 @@ cowork.folder.brief.why.offline,CC เดสก์ท็อปออฟไลน
 cowork.folder.brief.why.party,ข้อมูลคู่ค้า
 cowork.folder.brief.why.posLayout,รอกำหนดคอลัมน์ไฟล์ส่งออก POS
 cowork.folder.brief.why.purchasesFirst,รอบันทึกรายการซื้อก่อน
+cowork.folder.brief.why.review,รอส่ง
 cowork.folder.brief.why.taskOff,งานปิดอยู่หรือไม่มีสิทธิ์
 cowork.folder.cardHint,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 cowork.folder.catalogEmpty,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
@@ -3481,6 +3484,7 @@ push.record_not_found,ไม่พบรายการส่ง
 push.request_conflict,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 push.request_invalid,คำขอส่งไม่ถูกต้อง
 push.utc_required,ต้องระบุเวลา UTC พร้อมเขตเวลา
+ready to push,รอส่ง
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
 reconciliation.amount_invalid,มีจำนวนเงินที่อ่านไม่ได้ กรุณาตรวจสอบรูปแบบจำนวนเงินในไฟล์

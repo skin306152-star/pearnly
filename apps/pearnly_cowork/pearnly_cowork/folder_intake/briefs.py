@@ -162,6 +162,9 @@ def _stop_reasons(found):
         reasons.append(_("cowork.folder.brief.why.human"))
     if found["stop_reasons"].get("task_off"):
         reasons.append(_("cowork.folder.brief.why.taskOff"))
+    if found["stop_reasons"].get("review"):
+        # 自动推前判成提议（CC 判断的 B 类在 L0 / L1）或没过核对的 C 类：留给人在待处理里推（数字会计员第 3 期第 4、14 条）
+        reasons.append(_("cowork.folder.brief.why.review"))
     if found["stop_reasons"].get("account_set"):
         # 跟随公司当年账套的任务这张票的账套定不下来（T1）：同「待选」的说法
         reasons.append(_("cowork.folder.brief.why.choice").format(_("intake.target.accountSet")))

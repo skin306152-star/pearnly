@@ -2236,6 +2236,40 @@ class PushOutcomeServiceTests(unittest.TestCase):
         self.assertEqual(service.outcomes(["PR1"])["PR1"]["written"]["writer"], "ACC-02")
 
 
+class AutomationWrittenTests(unittest.TestCase):
+    """数字会计员第 3 期第 13 条：推送结果的 written 带自动推的类别 / 档位 / 触发与推后核对；单据详情带票上的判定。"""
+
+    def test_written_says_it_was_automatic_and_how_the_write_check_went(self):
+        target = {"automation": {"class": "B", "tier": "L2", "trigger": "line", "reasons": ["cc_inferred"],
+                                 "hash": "H", "scope": {}, "account_row": {"source_id": "x"}}}
+        rows = [{"name": "PR1", "actor": "a@example.com", "status": "success", "reason": "", "external_docnum": "HP1",
+                 "result_unknown": 0, "payload_json": json.dumps(CASH_PAYLOAD), "target_json": json.dumps(target),
+                 "verify_state": "mismatch", "verify_json": json.dumps({"state": "mismatch", "fields": ["refnum"],
+                                                                        "party": {"tax_id": "1"}})},
+                {"name": "PR2", "actor": "a@example.com", "status": "success", "reason": "", "external_docnum": "HP2",
+                 "result_unknown": 0, "payload_json": json.dumps(CASH_PAYLOAD), "target_json": "{}",
+                 "verify_state": "unverified", "verify_json": "{}"}]
+        service, queries = _push_service(rows)
+        found = service.written(["PR1", "PR2"])
+        self.assertEqual(found["PR1"]["automation"], {"class": "B", "tier": "L2", "trigger": "line",
+                                                      "reasons": ["cc_inferred"]})
+        self.assertEqual(found["PR1"]["verify"], {"state": "mismatch", "fields": ["refnum"]})  # 不带对方档的原值
+        self.assertNotIn("automation", found["PR2"])
+        self.assertEqual(found["PR2"]["verify"], {"state": "unverified", "fields": []})
+        self.assertIn("verify_state, verify_json", queries[0][0])
+        self.assertEqual(service.outcomes(["PR1"])["PR1"]["written"]["automation"]["class"], "B")
+
+    def test_the_detail_carries_the_judgement_on_the_ticket(self):
+        found = {"auto_class": "B", "auto_tier": "L0", "auto_reasons": "tier,cc_inferred", "auto_proposal": "{}"}
+        with mock.patch.object(frappe.db, "get_value", lambda *a, **k: found, create=True), \
+                mock.patch.object(tools.application, "written", lambda records: {}, create=True):
+            detail = tools._detail({"name": "D1", "push_connection": "EXP1", "pages": []})
+        self.assertEqual(detail["automation"], {"class": "B", "tier": "L0", "reasons": ["tier", "cc_inferred"],
+                                                "proposal": True})
+        with mock.patch.object(frappe.db, "get_value", lambda *a, **k: {"auto_class": ""}, create=True):
+            self.assertNotIn("automation", tools._detail({"name": "D2", "push_connection": "EXP1", "pages": []}))
+
+
 class WrittenFactsTests(unittest.TestCase):
     """推送记录冻结的 Express 载荷 → 怎么写进去的（验收 F19）：现 / 赊按单据类型，来源照 doctype_src 一一对应。"""
 

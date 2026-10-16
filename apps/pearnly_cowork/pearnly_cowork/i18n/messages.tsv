@@ -1871,6 +1871,7 @@ Results: {0}	结果：{0}	ผลลัพธ์: {0}	結果：{0}	cowork.folder.
 {0} ({1})	{0}（{1}）	{0} ({1})	{0}（{1}）	cowork.folder.brief.reasons
 choose {0}	待选{0}	ต้องเลือก{0}	{0}の選択待ち	cowork.folder.brief.why.choice
 changed by a person	已有人改动	มีผู้แก้ไขแล้ว	手動で変更済み	cowork.folder.brief.why.human
+ready to push	待推送	รอส่ง	送信待ち	cowork.folder.brief.why.review
 task off or no access	任务已停用或无权限	งานปิดอยู่หรือไม่มีสิทธิ์	タスク停止中または権限なし	cowork.folder.brief.why.taskOff
 low balance	余额不足	ยอดคงเหลือไม่พอ	残高不足	cowork.folder.brief.why.lowBalance
 CC Desktop offline	CC 桌面版离线	CC เดสก์ท็อปออฟไลน์	CC デスクトップがオフライン	cowork.folder.brief.why.offline
@@ -2255,6 +2256,7 @@ Documents to handle	待处理单据	เอกสารรอดำเนิน�
 {0} documents are waiting for you	{0} 份单等你处理	มีเอกสาร {0} รายการรอคุณดำเนินการ	{0} 件の書類があなたの処理を待っています	cowork.company.pending.text_plain
 {0} more companies	另有 {0} 家	อีก {0} บริษัท	ほか {0} 社	cowork.company.pending.more
 Not pushed yet	还没推送	ยังไม่ได้ส่ง	まだ送信していません	cowork.company.pending.not_pushed
+Ready to push	待推送	รอส่ง	送信待ち	cowork.company.pending.cc_proposal
 This document has no push target	这张单还没选推送去向	เอกสารนี้ยังไม่ได้เลือกปลายทางการส่ง	この書類はまだ送信先が選ばれていません	cowork.company.pending.no_target
 Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบริษัท	Cowork 会社マスター
 Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート

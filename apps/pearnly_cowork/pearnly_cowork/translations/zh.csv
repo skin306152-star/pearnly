@@ -1289,6 +1289,7 @@ Reading the invoices,读取发票
 Reading the scanned or photographed document took too long. Try again later.,扫描件或照片读取超时，请稍后再试。
 Ready At (UTC),完成时间（UTC）
 Ready for the next product,可以盘下一个商品了
+Ready to push,待推送
 Reason,原因
 Receipt,收据
 Receivable account,应收科目
@@ -2215,6 +2216,7 @@ cowork.company.note_invalid,说明为空或过长
 cowork.company.note_not_found,找不到这条说明
 cowork.company.notes,知识库
 cowork.company.notes_full,知识库已满
+cowork.company.pending.cc_proposal,待推送
 cowork.company.pending.more,另有 {0} 家
 cowork.company.pending.no_target,这张单还没选推送去向
 cowork.company.pending.not_pushed,还没推送
@@ -2252,6 +2254,7 @@ cowork.folder.brief.why.offline,CC 桌面版离线
 cowork.folder.brief.why.party,对方档案
 cowork.folder.brief.why.posLayout,待确认 POS 导出的列
 cowork.folder.brief.why.purchasesFirst,等进货先录入
+cowork.folder.brief.why.review,待推送
 cowork.folder.brief.why.taskOff,任务已停用或无权限
 cowork.folder.cardHint,设一个本机文件夹，每月自动识别推送
 cowork.folder.catalogEmpty,还没有账套目录。请先在新建录入里点重新读取。
@@ -3481,6 +3484,7 @@ push.record_not_found,找不到推送记录。
 push.request_conflict,此请求标识已用于其他推送内容。
 push.request_invalid,推送请求无效。
 push.utc_required,必须提供带时区的 UTC 时间。
+ready to push,待推送
 recognized,已识别
 recognizing,识别中
 reconciliation.amount_invalid,部分金额无法读取，请检查文件中的金额格式

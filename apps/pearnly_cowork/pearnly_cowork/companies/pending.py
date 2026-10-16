@@ -30,14 +30,18 @@ HISTORY = "Cowork OCR History"
 PUSH_RECORD = "Cowork Push Record"
 FIELDS = ["name", "invoice_no", "invoice_date", "seller_name", "seller_tax", "buyer_name", "buyer_tax",
           "total_amount", "intake_target", "push_connection", "push_account_set", "last_push_status",
-          "last_push_reason", "last_push_record", "last_pushed_at", "filename", "owner", "creation", "modified"]
+          "last_push_reason", "last_push_record", "last_pushed_at", "filename", "owner", "creation", "modified",
+          "edit_count", "auto_class"]
 TARGETS = ("express", "mrerp")
 SETTLED = ("pending", "success")
 SETTLE_MINUTES = 15
 PENDING_MAX = 500
 LIMIT_MAX = 200
-REASONS = ("choice_needed", "result_unknown", "manual", "failed", "not_pushed")
+REASONS = ("choice_needed", "result_unknown", "manual", "failed", "cc_proposal", "not_pushed")
 NOT_PUSHED_LABEL = "cowork.company.pending.not_pushed"
+PROPOSAL_LABEL = "cowork.company.pending.cc_proposal"
+# 自动推前判过、冻结了提议的类（数字会计员第 3 期）：A / B 在 L0 / L1 只出提议；C 类照旧落「没推」
+PROPOSED = ("A", "B")
 # 早上汇总
 KIND = "cowork.pending_digest"
 MORNING = time(8, 30)
@@ -68,9 +72,18 @@ def classify(row, cutoff, unknown=frozenset()) -> str | None:
         return "manual"
     if reason:
         return "failed"
+    if proposal(row):
+        return "cc_proposal"
     if row.get("intake_target") in TARGETS and row.get("creation") and _naive(row["creation"]) < _naive(cutoff):
         return "not_pushed"
     return None
+
+
+def proposal(row) -> bool:
+    """CC 准备好、等人点「推送」的提议（数字会计员第 3 期第 3、5、11 条）：自动推前判成 A / B、没人动过票（改了就作废提议、
+    交给人）、有推送去向、还没推。调用方已排除推成功 / 在推 / 停下 / 失败的。"""
+    return (str(row.get("auto_class") or "") in PROPOSED and not int(row.get("edit_count") or 0)
+            and row.get("intake_target") in TARGETS and bool(row.get("push_connection")))
 
 
 def _naive(value):
@@ -240,6 +253,8 @@ def _reason_label(code, reason):
 
     if code == "not_pushed":
         return _(NOT_PUSHED_LABEL)
+    if code == "cc_proposal":
+        return _(PROPOSAL_LABEL)
     return export_facts.reason_text(reason) if reason else ""
 
 
@@ -264,6 +279,11 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
         if item["action"] == "choose":
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                               "kinds": choice_kinds(row.get("last_push_reason"))}
+        elif code == "cc_proposal":
+            # CC 准备好的提议：页面当场「推送」（`assistant.pending_api.answer` 交空的选择，同一条路重判、推）
+            item["action"] = "push"
+            item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                              "kinds": []}
         elif account_set_stop(row):
             # 定时任务跟随公司当年账套停在「待选账套」（T1）：页面当场换一份账套重推（`assistant.pending_api.choose_account_set`，
             # 可换的由 `account_sets` 按这张单的公司与单据日期现算），不用交给 CC
@@ -412,4 +432,4 @@ def _titles(names) -> dict:
 
 
 __all__ = ["classify", "company_of", "counts", "digest_text", "is_new", "month_of", "morning", "morning_due", "pending",
-           "pending_counts"]
+           "pending_counts", "proposal"]

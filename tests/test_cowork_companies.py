@@ -1822,13 +1822,13 @@ class ExceptionCodeTests(unittest.TestCase):
         for code, (stage, severity, action) in exceptions.CODES.items():
             self.assertIn(stage, exceptions.STAGES, code)
             self.assertIn(severity, exceptions.SEVERITIES, code)
-            self.assertIn(action, ("choose", "open", "task", "readback", "draft"), code)
+            self.assertIn(action, ("choose", "push", "open", "task", "readback", "draft"), code)
         self.assertEqual(set(exceptions.CODES), {
             "choice_needed", "result_unknown", "account_tax_mismatch", "account_period_mismatch",
             "account_branch_mismatch", "push_manual", "push_failed", "not_pushed", "duplicate_number",
             "task_folder_missing", "intake_file_failed", "pos_layout_needed", "not_invoice", "express_changed",
             "express_deleted", "express_voided", "express_missing", "express_direct", "tax_issue", "tax_draft_stale",
-            "readback_needed"})
+            "readback_needed", "cc_proposal", "cc_judged", "written_mismatch"})
         self.assertEqual(exceptions.RESERVED, ("missing_document", "rule_conflict", "month_reopened"))
         self.assertFalse(set(exceptions.RESERVED) & set(exceptions.CODES))
         self.assertEqual(exceptions.CODES["duplicate_number"][1], "info")  # 推送不查重不拦：只列
@@ -1996,7 +1996,7 @@ class MonthLedgerTests(unittest.TestCase):
                                             "tasks": {"count": 1, "enabled": 1, "attention": 1},
                                             "files": {"failed": 2, "not_invoice": 1, "pos_layout_needed": 0},
                                             "state": "attention"})
-        self.assertEqual(stages["entry"], {"pushed": 2, "in_flight": 1, "waiting": 3, "not_pushed": 1,
+        self.assertEqual(stages["entry"], {"pushed": 2, "auto": 0, "in_flight": 1, "waiting": 3, "not_pushed": 1,
                                            "state": "attention"})
         self.assertEqual(stages["verify"]["state"], "attention")  # 回读发现 Express 里少了一张（warn）
         self.assertEqual([item["key"] for item in stages["verify"]["sets"]], ["s:\\69exp\\abc"])
@@ -2208,6 +2208,82 @@ class MonthContractTests(unittest.TestCase):
             case.doCleanups()
         expected = json.loads(json.dumps(self.FIXTURE["month"]).replace("COMPANY", case.company))
         self.assertEqual(json.loads(json.dumps(found)), expected)
+
+
+class AutomationLedgerTests(unittest.TestCase):
+    """数字会计员第 3 期第 6、11、12 条：提议进待处理与「本月」卡（当场推送、全部推送）、已推里自动推的张数、整月档自动推的
+    B 类只列、推后核对不符要人看（核对一段），台账带这家的档位。"""
+
+    def setUp(self):
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
+        self.company = make()["id"]
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("p1", auto_class="A", edit_count=0),  # 提议：没人动过
+            history("p2", auto_class="B", edit_count=2),  # 人改过票：提议作废，交给人
+            history("p3", auto_class="C", edit_count=0),  # 没过核对：照旧「没推」
+            history("p4", auto_class="B", edit_count=0, push_connection="", intake_target=""),  # 没有去向
+            history("a1", auto_class="A", last_push_status="success", last_push_record="PR1"),
+            history("a2", auto_class="B", last_push_status="success", last_push_record="PR2"),
+            history("m1", last_push_status="success", last_push_record="PR3"),
+            history("h1", auto_class="A", last_push_status="success", last_push_record="PR4"))}
+        automated = {"automation": {"class": "A", "tier": "L1", "trigger": "upload", "reasons": []}}
+        judged = {"automation": {"class": "B", "tier": "L2", "trigger": "line", "reasons": ["cc_inferred"]}}
+        frappe.db.tables["Cowork Push Record"] = {
+            "PR1": Row(name="PR1", target_json=json.dumps(automated), verify_state="ok", verify_json="{}"),
+            "PR2": Row(name="PR2", target_json=json.dumps(judged), verify_state="ok", verify_json="{}"),
+            "PR3": Row(name="PR3", target_json="{}", verify_state="mismatch",
+                       verify_json=json.dumps({"state": "mismatch", "fields": ["refnum", "party_tax"]})),
+            "PR4": Row(name="PR4", target_json=json.dumps({"proposal": {"class": "A"}}), verify_state="unverified",
+                       verify_json="{}")}
+        frappe.db.tables["Cowork Company Automation"] = {"CA1": Row(
+            name="CA1", company=self.company, tier="L1", since=datetime(2026, 9, 1, 3, 0), reason="readback",
+            evidence_json="{}", history_json="[]")}
+        frappe.hooks = {"cowork_company_month_readback": ["month_readback_double.not_read"]}
+        rules = types.SimpleNamespace(month_files=lambda names, start, end: {})
+        patches = [mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake.rules": rules}),
+                   mock.patch.object(tax_service, "month_drafts", lambda tax, period: {"drafts": [], "deadlines": {}})]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        fresh_request()
+
+    def test_a_proposal_is_pushed_on_the_spot_and_an_edited_one_is_left_to_people(self):
+        cutoff = datetime(2026, 10, 15, 8, 45)
+        rows = frappe.db.tables["Cowork OCR History"]
+        self.assertEqual([pending.classify(rows[name], cutoff) for name in ("p1", "p2", "p3", "p4")],
+                         ["cc_proposal", "not_pushed", "not_pushed", None])
+        # 停下、失败的照旧（提议只在没推、没原因时算）
+        self.assertEqual(pending.classify(history("x", auto_class="A", last_push_reason="push.failed"), cutoff), "failed")
+        self.assertIsNone(pending.classify(history("y", auto_class="A", last_push_status="pending"), cutoff))
+        items = {item["document"]: item for item in pending.pending()["items"]}
+        self.assertEqual((items["p1"]["action"], items["p1"]["code"], items["p1"]["reason_label"]),
+                         ("push", "cc_proposal", "cowork.company.pending.cc_proposal"))
+        self.assertEqual(items["p1"]["choice"], {"connection": "C1", "account_set_key": "S:\\69EXP\\ABC", "kinds": []})
+        self.assertEqual(items["p2"]["action"], "open")
+        self.assertEqual(exceptions.CODES["cc_proposal"], ("entry", "action", "push"))
+        self.assertEqual(exceptions.CODES["cc_judged"], ("entry", "info", "open"))
+        self.assertEqual(exceptions.CODES["written_mismatch"], ("verify", "action", "open"))
+
+    def test_the_month_counts_automatic_pushes_lists_judged_and_mismatched_ones_and_shows_the_tier(self):
+        found = ledger.month(self.company, "2026-09")
+        entry = found["stages"]["entry"]
+        self.assertEqual((entry["pushed"], entry["auto"], entry["waiting"], entry["not_pushed"]), (4, 2, 1, 2))
+        self.assertEqual(found["automation"], {"tier": "L1", "since": "2026-09-01T03:00:00Z", "reason": "readback"})
+        by_code = {}
+        for item in found["exceptions"]["items"]:
+            by_code.setdefault(item["code"], []).append(item)
+        self.assertEqual([item["document"] for item in by_code["cc_proposal"]], ["p1"])
+        self.assertEqual((by_code["cc_proposal"][0]["action"], by_code["cc_proposal"][0]["choice"]["kinds"]), ("push", []))
+        self.assertEqual([item["document"] for item in by_code["cc_judged"]], ["a2"])  # 人推的提议、A 类不列
+        self.assertEqual(by_code["cc_judged"][0]["severity"], "info")
+        mismatch = by_code["written_mismatch"]
+        self.assertEqual([(item["document"], item["stage"], item["detail"]) for item in mismatch],
+                         [("m1", "verify", "refnum,party_tax")])
+        self.assertEqual(found["stages"]["verify"]["state"], "attention")  # 写入与预期不符算核对一段要人看的
+        self.assertEqual(ledger.proposals(self.company, "2026-09"), [("p1", "C1")])
+
+    def test_an_mr_erp_company_has_no_tier(self):
+        self.assertIsNone(ledger._automation(Row(name="X", adapter="mrerp")))
 
 
 # ---------------- 公司规则（数字会计员第 2 期统一客户规则） ----------------

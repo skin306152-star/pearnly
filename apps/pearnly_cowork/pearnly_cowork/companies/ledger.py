@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timedelta
 
 import frappe
@@ -177,7 +178,11 @@ def _document_item(row, code, group, company_tax) -> dict:
               "reason_label": pending._reason_label(group, row.get("last_push_reason")),
               "detail": export_facts.reason_code(row.get("last_push_reason"))
               if code in ("push_manual", "push_failed") else ""}
-    if code == "choice_needed":
+    if code == "cc_proposal":
+        # CC 准备好的提议：当场「推送」（同待处理，数字会计员第 3 期第 12 条）
+        fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                            "kinds": []}
+    elif code == "choice_needed":
         if row.get("push_connection"):
             fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                                 "kinds": pending.choice_kinds(row.get("last_push_reason"))}
@@ -191,11 +196,57 @@ def _document_item(row, code, group, company_tax) -> dict:
     return exceptions.item(code, **fields)
 
 
+def _written(rows) -> dict:
+    """推送成功的单的推送记录：``{记录名: {"automation": 冻结的自动推（人推的为 None）, "verify": 推后核对}}``（数字会计员
+    第 3 期第 6、11 条）。一次查询；冻结目标只在票上判过自动推（``auto_class``）时才取（只有它们可能是自动推的）。"""
+    names = [row.last_push_record for row in rows if row.get("last_push_status") == "success" and row.get("last_push_record")]
+    if not names:
+        return {}
+    auto = {row.last_push_record for row in rows if row.get("auto_class") and row.get("last_push_record")}
+    found = frappe.get_all(pending.PUSH_RECORD, filters={"name": ["in", names]},
+                           fields=["name", "verify_state", "verify_json"], limit_page_length=0)
+    targets = {}
+    if auto:
+        targets = {row.name: row.target_json for row in frappe.get_all(
+            pending.PUSH_RECORD, filters={"name": ["in", sorted(auto)]}, fields=["name", "target_json"],
+            limit_page_length=0)}
+    out = {}
+    for row in found:
+        target = _json(targets.get(row.name))
+        automation = target.get("automation") if isinstance(target.get("automation"), dict) else None
+        verify = _json(row.verify_json)
+        out[row.name] = {"automation": automation, "verify": row.verify_state or "",
+                         "fields": list(verify.get("fields") or [])}
+    return out
+
+
+def _json(value) -> dict:
+    try:
+        found = json.loads(value) if value else {}
+    except (TypeError, ValueError):
+        return {}
+    return found if isinstance(found, dict) else {}
+
+
+def _pushed_items(row, record, company_tax) -> list:
+    """推成功的单还要列的：写入与预期不符（``written_mismatch``，人推的也列），整月档自动推的 B 类（``cc_judged``）。"""
+    out = []
+    fields = {"document": row.name, "invoice_no": row.get("invoice_no") or "",
+              "counterparty": pending.counterparty(row, company_tax), "amount": pending.amount(row.get("total_amount")),
+              "date": str(row.get("invoice_date") or ""), "filename": row.get("filename") or ""}
+    if record.get("verify") == "mismatch":
+        out.append(exceptions.item("written_mismatch", detail=",".join(record.get("fields") or ()), **fields))
+    if (record.get("automation") or {}).get("class") == "B":
+        out.append(exceptions.item("cc_judged", **fields))
+    return out
+
+
 def _entry(rows, company_tax):
-    """录账一段的计数与单据层的异常。"""
+    """录账一段的计数与单据层的异常。``auto``：推成功的单里自动推的张数（「已推 N（自动 M）」）。"""
     cutoff, unknown = pending._cutoff(), pending._unknown(rows)
-    counted = {"pushed": 0, "in_flight": 0, "waiting": 0, "not_pushed": 0, "recognized_only": 0}
+    counted = {"pushed": 0, "auto": 0, "in_flight": 0, "waiting": 0, "not_pushed": 0, "recognized_only": 0}
     items = []
+    written = _written(rows)
     for row in rows:
         status = str(row.get("last_push_status") or "")
         found = exceptions.document_code(row, cutoff, unknown)
@@ -205,6 +256,9 @@ def _entry(rows, company_tax):
             items.append(_document_item(row, code, group, company_tax))
         elif status == "success":
             counted["pushed"] += 1
+            record = written.get(row.get("last_push_record")) or {}
+            counted["auto"] += int(bool(record.get("automation")))
+            items.extend(_pushed_items(row, record, company_tax))
         elif status == "pending" or row.get("intake_target") in pending.TARGETS:
             counted["in_flight"] += 1  # 在推，或刚上传还在路上（`pending.SETTLE_MINUTES`）
         else:
@@ -314,8 +368,10 @@ def month(company, period, limit=None) -> dict:
         if found is not None:
             verify_items = exceptions.readback_items(found, ended, needed)
             waiting = any(item["status"] != "ready" or item.get("newer") == "reading" for item in found)
-            verify = {"sets": found, "state": exceptions.stage_state(len(found) if pushed else 0, verify_items,
-                                                                     not ended or waiting)}
+            # 推后核对写入与预期不符（`written_mismatch`，第 3 期第 6 条）也是核对一段要人看的
+            written = [item for item in entry_items if item["stage"] == "verify"]
+            verify = {"sets": found, "state": exceptions.stage_state(len(found) if pushed else 0,
+                                                                     verify_items + written, not ended or waiting)}
 
     tax = None
     tax_items = []
@@ -337,15 +393,42 @@ def month(company, period, limit=None) -> dict:
     intake["state"] = exceptions.stage_state(len(documents) + sum((file_totals or {}).values()), intake_items,
                                              not ended or truncated)
     entry = {key: counted[key] for key in ("pushed", "in_flight", "waiting", "not_pushed")}
-    entry["state"] = exceptions.stage_state(sum(entry.values()), entry_items,
+    entry_only = [found for found in entry_items if found["stage"] == "entry"]
+    entry["state"] = exceptions.stage_state(sum(entry.values()), entry_only,
                                             not ended or truncated or counted["in_flight"] > 0)
+    entry["auto"] = counted["auto"]
 
     items = exceptions.ordered(intake_items + entry_items + verify_items + tax_items)
-    return {"company": row.name, "period": period, "ended": ended,
+    return {"company": row.name, "period": period, "ended": ended, "automation": _automation(row),
             "generated_at": service.when(str(frappe.utils.now_datetime())), "truncated": truncated,
             "stages": {"intake": intake, "entry": entry, "verify": verify, "tax": tax},
             "exceptions": {"items": items[:limit], "total": len(items), "counts": exceptions.tally(items),
                            "severities": exceptions.severities(items)}}
 
 
-__all__ = ["LEDGER_MAX", "bounds", "month"]
+def proposals(company, period) -> list:
+    """这家这个月 CC 准备好、等人推的提议（`pending.classify` 的 ``cc_proposal``，单据范围同 `month`）：``[(单据, 推送连接)]``，
+    单据日期新 → 旧。权限同台账读（每张推的时候再按录入权限与读取范围核）。"""
+    service.require_read()
+    period = _period(period)
+    row = service._company_row(company)
+    sets = service.books(row, None)
+    first, after = bounds(period)
+    dated, undated, _truncated = _documents(row, sets, first, after)
+    cutoff, unknown = pending._cutoff(), frozenset()
+    return [(found.name, found.push_connection) for found in dated + undated
+            if pending.classify(found, cutoff, unknown) == "cc_proposal"]
+
+
+def _automation(row):
+    """这家的自动推送档位（数字会计员第 3 期第 11、12 条）：``{tier, since, reason}``；只有 Express 公司有，其余 None。
+    读权限同台账（统计另由 CC 看，`automation.view`）。"""
+    if row.adapter != "express":
+        return None
+    from pearnly_cowork.companies import automation
+
+    found = automation.view(row.name)
+    return {key: found[key] for key in ("tier", "since", "reason")}
+
+
+__all__ = ["LEDGER_MAX", "bounds", "month", "proposals"]

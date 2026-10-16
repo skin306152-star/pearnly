@@ -36,6 +36,11 @@ GUIDANCE = [
     "words.",
     "A choice the user wants for the whole company (or one branch) rather than one account set goes in with "
     "cowork_company_choice_save; a choice said for this document only is saved with cowork_save_push_choices as usual.",
+    # 数字会计员第 3 期第 13 条：档位只由数据升降，没有改档位的工具；为什么没自动推按票上的原因码照实说
+    "Automatic pushing for a company (automation in cowork_company_profile: L0 propose only, L1 by rules, L2 whole "
+    "month) moves only by data (qualified month readbacks, write checks); there is no tool or setting to change it, so "
+    "never offer to. When asked why a document was not pushed automatically, answer from automation.reasons in "
+    "cowork_document_detail as they are, in plain words.",
     "In a conversation filed under a company, cowork_list_documents, cowork_push_results and cowork_folder_tasks "
     "cover only that company's account sets (all its years, or only the work branch); scope in the result names the "
     "company. Answer for that company only and never list other companies' documents or tasks there. Pass "
@@ -50,7 +55,8 @@ def _json(value) -> str:
 
 # 主档给页面的时刻是 UTC（`service.when`：`2026-10-15T14:08:00Z`，页面按设备时区显示）；交给 CC 前换成站点时区并带上偏移
 # （`2026-10-15T21:08:00+07:00`）。测试窗口第 3 轮：CC 把记住选择的 14:08Z 当曼谷时间说成「14:08 记下的」。
-PROFILE_TIMES = (("company", "created_at"), ("notes", "updated_at"), ("choices", "set_at"), ("drafts", "updated_at"))
+PROFILE_TIMES = (("company", "created_at"), ("notes", "updated_at"), ("choices", "set_at"), ("drafts", "updated_at"),
+                 ("automation", "since"))
 
 
 def local_iso(value) -> str:
@@ -161,6 +167,10 @@ def profile(tool_input) -> str:
                           for item in rules.listing(row.name, CHOICES_MAX)]
     if filed == row.name and filed_scope:
         found["work_branch"] = filed_scope
+    # 自动推送的档位（第 3 期第 13 条）：档位、自何时、原因码；有录入权限时带近两期统计（`automation.view`）
+    from pearnly_cowork.companies import automation  # 档位要读报税期间（`tax.periods`），只在读资料时加载
+
+    found["automation"] = automation.view(row.name)
     return _json(_local_profile(found))
 
 

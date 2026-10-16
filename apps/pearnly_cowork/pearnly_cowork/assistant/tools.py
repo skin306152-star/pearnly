@@ -1423,7 +1423,24 @@ def _detail(doc) -> dict:
     written = _written_of(doc.get("last_push_status"), doc.get("last_push_record"))
     if written:
         out["written"] = written
+    automation = _automation_of(doc.get("name"))
+    if automation:
+        out["automation"] = automation
     return _filled(out)
+
+
+def _automation_of(name):
+    """这张票自动推前的判定（数字会计员第 3 期第 9、13 条）：类别 A / B / C、判时这家的档位、原因码（``auto_reasons``，CC 问到
+    为什么没自动推时照实说）、有没有冻结的提议；没判过回 None。"""
+    if not name:
+        return None
+    found = frappe.db.get_value("Cowork OCR History", name, ["auto_class", "auto_tier", "auto_reasons", "auto_proposal"],
+                                as_dict=True)
+    if not isinstance(found, dict) or not found.get("auto_class"):
+        return None
+    return {"class": found["auto_class"], "tier": found.get("auto_tier") or "",
+            "reasons": [code for code in str(found.get("auto_reasons") or "").split(",") if code],
+            "proposal": bool(found.get("auto_proposal"))}
 
 
 def _read(name):

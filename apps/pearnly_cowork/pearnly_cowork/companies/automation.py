@@ -25,7 +25,6 @@ from pearnly_cowork.companies import automation_rules, identity, service, tasks
 from pearnly_cowork.companies.access import AUTOMATION, read, write
 from pearnly_cowork.companies.rules import account_company
 from pearnly_cowork.push.automation import rules as tier_rules
-from pearnly_cowork.tax import periods as tax_periods
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
 THRESHOLDS = automation_rules.THRESHOLDS
@@ -138,6 +137,8 @@ def _set(company, tier, reason, *, evidence=None, period=""):
 
 def _deadline(period) -> dt.date:
     """这一期 ภ.พ.30 的截止日：电子申报有延期时取电子申报的，否则纸质。"""
+    from pearnly_cowork.tax import periods as tax_periods  # 只在评估时用（看档位、给 CC 的资料不加载报税）
+
     found = tax_periods.deadlines("pp30", int(period[:4]), int(period[5:7]))
     return found.get("efiling") or found["paper"]
 
@@ -168,6 +169,8 @@ def _records(connection, key, first, last):
 
 def documents(company, period) -> tuple:
     """这家这一期的单（`automation_rules.tally` 的输入）与这期有没有合格回读：(单, 合格)。不核权限。"""
+    from pearnly_cowork.tax import periods as tax_periods
+
     first, last = tax_periods.bounds(int(period[:4]), int(period[5:7]))
     books = [item for item in service.books(service.get(company), None) if item.get("adapter") == "express"]
     sets = [{"connection": item["connection"], "key": item["key"], "label": item.get("label") or ""}

@@ -1289,6 +1289,7 @@ Reading the invoices,Reading the invoices
 Reading the scanned or photographed document took too long. Try again later.,Reading the scanned or photographed document took too long. Try again later.
 Ready At (UTC),Ready At (UTC)
 Ready for the next product,Ready for the next product
+Ready to push,Ready to push
 Reason,Reason
 Receipt,Receipt
 Receivable account,Receivable account
@@ -2215,6 +2216,7 @@ cowork.company.note_invalid,Note is empty or too long
 cowork.company.note_not_found,Note not found
 cowork.company.notes,Notes
 cowork.company.notes_full,Notes are full
+cowork.company.pending.cc_proposal,Ready to push
 cowork.company.pending.more,{0} more companies
 cowork.company.pending.no_target,This document has no push target
 cowork.company.pending.not_pushed,Not pushed yet
@@ -2252,6 +2254,7 @@ cowork.folder.brief.why.offline,CC Desktop offline
 cowork.folder.brief.why.party,contact record
 cowork.folder.brief.why.posLayout,POS export columns to choose
 cowork.folder.brief.why.purchasesFirst,waiting for purchases
+cowork.folder.brief.why.review,ready to push
 cowork.folder.brief.why.taskOff,task off or no access
 cowork.folder.cardHint,Set a local folder once; documents are read and entered every month
 cowork.folder.catalogEmpty,No account sets yet. Use Reload in New Intake first.
@@ -3481,6 +3484,7 @@ push.record_not_found,Push record not found.
 push.request_conflict,This request key was used for different push content.
 push.request_invalid,Invalid push request.
 push.utc_required,A timezone-aware UTC timestamp is required.
+ready to push,ready to push
 recognized,recognized
 recognizing,recognizing
 reconciliation.amount_invalid,An amount could not be read. Check the amount format in the file

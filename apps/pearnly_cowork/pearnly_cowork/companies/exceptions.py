@@ -3,7 +3,11 @@
 码表 `CODES`：码 → (段, 严重度, 去处)。
 - 段（`STAGES`）：收单 intake / 录账 entry / 核对 verify（Express 回读）/ 报税 tax。第 1 期不出对账与签字两段（第 6 期）。
 - 严重度：action（要人处理）、warn（要看一眼）、info（只列、不催）。段的状态只看 action / warn（`stage_state`）。
-- 去处（页面点开去哪）：choose 当场选、open 交给 CC 看这张单、task 定时任务、readback 回读、draft 申报草稿。
+- 去处（页面点开去哪）：choose 当场选、push 当场推（CC 准备好的提议，数字会计员第 3 期）、open 交给 CC 看这张单、
+  task 定时任务、readback 回读、draft 申报草稿。
+- 自动推送（第 3 期第 11 条）：``cc_proposal`` 提议（A / B 类在 L0 / L1 冻结了 CC 准备好的做法，人点「推送」）、
+  ``cc_judged`` 整月档自动推的 B 类（CC 按数据判断的项，只列，随第 6 期签字了结）、``written_mismatch`` 推后核对写入与预期
+  不符（不回滚、不重推，交给 CC 看）。
 - 单据层的码在待处理的粗分（`pending.classify` 的 `REASONS`，即 ``group``）里再细分：推送拦下的分店 / 税号 / 期间不符按
   `targets.account_match.CONFLICT_MESSAGES` 认回码，其余停下 / 失败是 push_manual / push_failed。
 - 重复单号只列（info）：推送照写不拦（用户定「推送不查重不拦」）。
@@ -28,6 +32,9 @@ CODES = {
     "push_manual": ("entry", ACTION, "open"),
     "push_failed": ("entry", ACTION, "open"),
     "not_pushed": ("entry", ACTION, "open"),
+    "cc_proposal": ("entry", ACTION, "push"),
+    "cc_judged": ("entry", INFO, "open"),
+    "written_mismatch": ("verify", ACTION, "open"),
     "duplicate_number": ("intake", INFO, "open"),
     "task_folder_missing": ("intake", ACTION, "task"),
     "intake_file_failed": ("intake", ACTION, "task"),

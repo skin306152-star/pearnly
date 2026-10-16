@@ -783,7 +783,7 @@ def outcomes(records):
     if not names:
         return {}
     rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json, target_json,
-        written_by_device FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""",
+        written_by_device, verify_state, verify_json FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""",
         (frappe.session.user, tuple(names)), as_dict=True)
     written = _with_writers(rows, {row.name: _entered(row) for row in rows if row.status == "success"})
     return {row.name: {"status": row.status, "reason": row.reason or "",
@@ -806,6 +806,15 @@ def _entered(row):
     docnum = str(getattr(row, "external_docnum", None) or "").strip()
     if docnum:
         item["docnum"] = docnum
+    # 数字会计员第 3 期第 13 条：自动推的单说清是哪一类、按哪一档、谁触发的；写完核对的结论（只防写入走样与挂错对方）
+    automation = target.get("automation") if isinstance(target, dict) else None
+    if isinstance(automation, dict):
+        item["automation"] = {key: automation.get(key) for key in ("class", "tier", "trigger", "reasons")}
+    state = str(getattr(row, "verify_state", None) or "")
+    if state:
+        checked = _loads(getattr(row, "verify_json", None))
+        item["verify"] = {"state": state,
+                          "fields": list(checked.get("fields") or []) if isinstance(checked, dict) else []}
     return item or None
 
 
@@ -817,8 +826,8 @@ def written(records):
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:WRITTEN_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum, written_by_device
-        FROM `tabCowork Push Record` WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
+    rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum, written_by_device, verify_state,
+        verify_json FROM `tabCowork Push Record` WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
     found = _with_writers(rows, {row.name: _entered(row) for row in rows})
     return {name: item for name, item in found.items() if item}
 

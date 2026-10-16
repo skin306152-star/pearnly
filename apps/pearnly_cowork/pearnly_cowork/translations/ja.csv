@@ -1289,6 +1289,7 @@ Reading the invoices,請求書を読み込み中
 Reading the scanned or photographed document took too long. Try again later.,スキャンや写真の書類の読み取りに時間がかかりすぎました。後でもう一度お試しください。
 Ready At (UTC),完了日時（UTC）
 Ready for the next product,次の商品を棚卸できます
+Ready to push,送信待ち
 Reason,理由
 Receipt,領収書
 Receivable account,売掛金勘定
@@ -2215,6 +2216,7 @@ cowork.company.note_invalid,ノートが空か長すぎます
 cowork.company.note_not_found,ノートが見つかりません
 cowork.company.notes,ノート
 cowork.company.notes_full,ノートが上限です
+cowork.company.pending.cc_proposal,送信待ち
 cowork.company.pending.more,ほか {0} 社
 cowork.company.pending.no_target,この書類はまだ送信先が選ばれていません
 cowork.company.pending.not_pushed,まだ送信していません
@@ -2252,6 +2254,7 @@ cowork.folder.brief.why.offline,CC デスクトップがオフライン
 cowork.folder.brief.why.party,取引先
 cowork.folder.brief.why.posLayout,POS エクスポートの列の指定待ち
 cowork.folder.brief.why.purchasesFirst,仕入の登録待ち
+cowork.folder.brief.why.review,送信待ち
 cowork.folder.brief.why.taskOff,タスク停止中または権限なし
 cowork.folder.cardHint,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
 cowork.folder.catalogEmpty,帳簿一覧がまだありません。先に新規取込で再読み込みしてください。
@@ -3481,6 +3484,7 @@ push.record_not_found,送信記録が見つかりません。
 push.request_conflict,この要求キーは別の送信内容に使用されています。
 push.request_invalid,送信要求が無効です。
 push.utc_required,タイムゾーン付きのUTC時刻が必要です。
+ready to push,送信待ち
 recognized,認識済み
 recognizing,認識中
 reconciliation.amount_invalid,読み取れない金額があります。ファイルの金額の書式を確認してください
