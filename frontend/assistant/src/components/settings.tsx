@@ -178,7 +178,8 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           aria-label={icon ? label : undefined}
           aria-pressed={value === key}
           className={cn(
-            "flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4",
+            // 选中的那一格带 shadow-sm（盖过 base 层的聚焦兜底），聚焦描边自己写
+            "flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",
             value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >

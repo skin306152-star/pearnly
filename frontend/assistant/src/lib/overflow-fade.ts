@@ -9,9 +9,9 @@
 //   悬停滚动 — lib/hover-scroll.ts 用同一个量法：放得下的不滚；放不下的滚到最后一个字越过末尾渐隐
 //   补量 — 观察器只在尺寸变了时回调，几种时候会漏（测试窗口第 5 轮：页面在后台时刷新，电脑上一个 data-overflow 也没有）：
 //          页面在后台（不排版、不回调）、字体后到（换字体后文字宽了，框没变）、窗口或侧栏宽度变了但某些框本身没变宽。所以
-//          页面回到前台（visibilitychange / pageshow）、字体载完（document.fonts 的 ready 与 loadingdone）、窗口变宽变窄（resize）、
-//          整页根节点与侧栏的宽度变了（同一个观察器多看这两处）时，把登记过的框全部重量一遍（下一帧一次，合并多次触发）。
-//          仍只有整页一个观察器
+//          页面回到前台（visibilitychange / pageshow）、字体载完（document.fonts 的 ready 与 loadingdone）时下一帧全部重量一遍
+//          （合并多次触发）；窗口变宽变窄、侧栏宽度变了由同一个观察器多看整页根节点与侧栏两处，回调里全部重量（不另听 resize：
+//          根节点的宽就是窗口宽，再听一次每帧要量两遍）。仍只有整页一个观察器
 //
 // 用法：components/ui/marquee.tsx 的 <Marquee> 自动挂上；表格这类一次成百上千格的，调 watchOverflow(容器, 量哪些框) 只观察容器。
 const TEXT = ":scope > .cc-marquee-text";
@@ -73,7 +73,6 @@ function install(ro: ResizeObserver) {
   if (typeof document === "undefined" || typeof window === "undefined") return;
   document.addEventListener?.("visibilitychange", onVisible);
   window.addEventListener?.("pageshow", remeasureAll);
-  window.addEventListener?.("resize", remeasureAll);
   const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
   if (fonts) {
     void fonts.ready.then(remeasureAll, () => undefined);

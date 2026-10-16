@@ -154,8 +154,13 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
   const summaryId = useId();
   const collapsed = !forceOpen && (control ? control.collapsed.includes(id) : folded);
   const toggle = () => (control ? control.toggle(id) : setFolded((v) => !v));
-  // Alt+↑/↓ 挪一格（挪动时 React 可能把这个节点摘下再插回，altMove 挪完把焦点放回原来的按钮）
-  const keys = (e: ReactKeyboardEvent) => control !== null && altMove(e, (delta) => sortable?.moved(control.move(id, delta)));
+  // Alt+↑/↓ 挪一格（挪动时 React 可能把这个节点摘下再插回，altMove 挪完把焦点放回原来的按钮）。先挪再念：没有播报也照样挪
+  const keys = (e: ReactKeyboardEvent) =>
+    control !== null &&
+    altMove(e, (delta) => {
+      const spot = control.move(id, delta);
+      sortable?.moved(spot);
+    });
   const shownSummary = summary !== undefined && summary !== null && summary !== "" && summary !== 0;
   return (
     <section {...sortable?.node} className="cc-panel-card" data-card={id} data-slot={slot}>

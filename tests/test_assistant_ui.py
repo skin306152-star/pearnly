@@ -4917,7 +4917,9 @@ class Round5SmallFixesTests(unittest.TestCase):
         # 兜底：能聚焦的控件没写自己的聚焦样式时也是同一个描边（输入框的描边在外框上，不在这里）
         self.assertIn(':where(button, a[href], summary, [role="button"], [role="link"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"],\n'
                       '    [role="separator"][tabindex], [tabindex]:not([tabindex="-1"], input, textarea, select, [contenteditable])):focus-visible {\n'
+                      "    outline: none;\n"
                       "    box-shadow: var(--cc-shadow-focus);", base)
+        # 兜底同时去掉浏览器自带的 outline:auto：原来靠它显示焦点的按钮（待处理组头、任务行、输入框「＋」）不再是两道
         self.assertNotIn("0 0 0 3px", base)
         # 点名的几处：组头待处理数、记住的选择「设为全公司」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、组按钮、胶囊、标题栏公司名
         for rule in (".cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }",
@@ -4933,6 +4935,14 @@ class Round5SmallFixesTests(unittest.TestCase):
         self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
         # 侧栏宽度拖把（分隔条）：键盘聚焦时那根线换成聚焦蓝、1px
         self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: 1px; }", css)
+        # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
+        # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
+        self.assertIn('"flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",', read("components/settings.tsx"))
+        self.assertIn(".cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }", block(css, "@layer components {"))
+        mobile = css.index(".cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {")
+        self.assertGreater(css.index(".cc-mtopbar .cc-round-btn:focus-visible, .cc-mdrawer .cc-round-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }"), mobile)
+        # 只有那根线：12px 宽的按住区不套兜底描边（审查：原来是一个 12px 蓝框套着中间蓝线，三条竖线）
+        self.assertIn(".cc-split:focus-visible { box-shadow: none; }", block(css, "@layer components {"))
         # 32 标题栏、侧栏搜索框、就地改名仍是 1.5px 里描边
         self.assertIn("box-shadow: var(--cc-shadow-focus-inset);", css)
         self.assertIn(".cc-search:focus-within { box-shadow: var(--cc-shadow-focus-inset); }", css)
@@ -4984,7 +4994,9 @@ assert.equal(spotIn(["a"], "x"), null);
         self.assertIn("onMove={scope.locked ? undefined : (delta) => drag.moved(scope.move(id, delta))}", rows)
         self.assertIn('move: (id, delta) => spotIn(savePins(moveBy(pinIds, id, delta)), id)', rows)
         cards = read("components/company-cards.tsx")
-        self.assertIn("altMove(e, (delta) => sortable?.moved(control.move(id, delta)))", cards)
+        # 先挪再念：没有 sortable（不播报）时也照样挪，不能被可选链连同挪动一起短路
+        self.assertIn("const spot = control.move(id, delta);\n      sortable?.moved(spot);", cards)
+        self.assertNotIn("sortable?.moved(control.move(", cards)
         panel = read("components/session-panel.tsx")
         self.assertIn("return shown.indexOf(id) === visible.indexOf(id) ? null : spotIn(visible, id);", panel)
 
@@ -5051,8 +5063,9 @@ g.document.visibilityState = "visible"; fire("visibilitychange"); await g.sleep(
 assert.deepEqual(fades(), [true, false]);                // 回到前台：补量
 b.inner.width = 260; fire("fonts:loadingdone"); await g.sleep(5);
 assert.deepEqual(fades(), [true, true]);                 // 字体载完、文字变宽
-a.clientWidth = a.offsetWidth = 400; fire("resize"); await g.sleep(5);
-assert.deepEqual(fades(), [false, true]);                // 窗口改宽：放得下的去掉渐隐
+a.clientWidth = a.offsetWidth = 400; ro.run([{ target: g.document.documentElement }]);
+assert.deepEqual(fades(), [false, true]);                // 窗口改宽（根节点回调）：放得下的去掉渐隐
+assert.equal(on.resize, undefined);                      // 不另听 resize（根节点观察已覆盖，否则每帧量两遍）
 b.clientWidth = b.offsetWidth = 300; ro.run([{ target: sidebar }]);
 assert.deepEqual(fades(), [false, false]);               // 侧栏变宽（只有侧栏回调）：全部重量
 a.clientWidth = a.offsetWidth = 150; ro.run([{ target: g.document.documentElement }]);
@@ -5064,6 +5077,7 @@ assert.deepEqual(fades(), [true, false]);                // 从往返缓存回�
 """)
         fade = read("lib/overflow-fade.ts")
         self.assertEqual(fade.count("new ResizeObserver"), 1)
+        self.assertNotIn('"resize"', fade)
 
 if __name__ == "__main__":
     unittest.main()

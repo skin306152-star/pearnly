@@ -821,10 +821,11 @@
   }
   button:disabled, [aria-disabled="true"], [data-disabled] { cursor: default; }
   /* 键盘聚焦的兜底（测试窗口第 5 轮：有几处能聚焦却没有任何描边）：能聚焦的控件没写自己的聚焦样式时，也是同一个蓝色描边
-     （--cc-shadow-focus：1px，没有光晕）。各控件自己的 :focus-visible 写在 components 层，照样盖过这里；输入框的描边在外框上
-     （搜索框、输入框的 :focus-within），不在这里 */
+     （--cc-shadow-focus：1px，没有光晕），同时去掉浏览器自带的那圈 outline:auto（约 2px，叠上描边就成了两道）。各控件自己的
+     :focus-visible 写在 components 层，照样盖过这里；输入框的描边在外框上（搜索框、输入框的 :focus-within），不在这里 */
   :where(button, a[href], summary, [role="button"], [role="link"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"],
     [role="separator"][tabindex], [tabindex]:not([tabindex="-1"], input, textarea, select, [contenteditable])):focus-visible {
+    outline: none;
     box-shadow: var(--cc-shadow-focus);
   }
   /* iOS / 手机上网页 app 能做的细节（2026-10-12 iOS 收尾）：点按不出灰色闪块、不双击放大（点了不延迟）、横屏不自动放大字 */
@@ -870,6 +871,8 @@
     transition: transform var(--cc-dur-fast) var(--cc-ease), background-color var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-round-btn:active { transform: scale(0.92); }
+  /* 自带阴影的按钮盖过了 base 层的聚焦兜底：聚焦时换成同一个描边（圆按钮、抽屉「新建」胶囊） */
+  .cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-round-btn svg { width: 1.25rem; height: 1.25rem; }
 
   /* 导航行（新建、待处理、定时任务、公司）：行高按变体、14/20 次要色、20 的图标放在 28 的前导槽、圆角 8。
@@ -1403,7 +1406,9 @@
     transition: opacity var(--cc-dur-fast) var(--cc-ease);
   }
   .cc-split:hover::before, .cc-split:focus-visible::before, .cc-split[data-dragging]::before { background: var(--cc-line-strong); width: 2px; }
-  /* 键盘聚焦：那根线换成聚焦蓝、1px（同所有控件的聚焦描边，没有光晕；把手照样出来） */
+  /* 键盘聚焦：那根线换成聚焦蓝、1px（同所有控件的聚焦描边，没有光晕；把手照样出来）。只有这根线：12px 宽的按住区不套
+     base 层兜底的描边（否则是三条竖线） */
+  .cc-split:focus-visible { box-shadow: none; }
   .cc-split:focus-visible::before { background: var(--cc-focus-ring); width: 1px; }
   .cc-split:hover::after, .cc-split:focus-visible::after, .cc-split[data-dragging]::after { opacity: 1; }
 
@@ -1758,6 +1763,7 @@
   border-width: var(--cc-hairline); border-color: var(--cc-line-strong); box-shadow: var(--cc-shadow-hairline);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
+.cc-mtopbar .cc-round-btn:focus-visible, .cc-mdrawer .cc-round-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
 /* 手机（2026-10-12 用 iPhone 镜像与 Claude 手机 app 同屏逐项量过）：输入框约 96 高、白底、描边明显、
    「+」是浅灰实心圆；问候语约 20 号深灰、图标小。页面底色与电脑同一个（设计系统表面 1，2026-10-15 实测） */
 .cc-mshell .cc-composer { min-height: 6rem; justify-content: space-between; border-color: var(--cc-line-strong); border-radius: var(--cc-radius-composer-mobile); box-shadow: var(--cc-shadow-composer-mobile); }
