@@ -246,8 +246,13 @@ def apply(binding: dict, line_user_id: str, record: str, nonce: str, choices: di
         # 还没发出就失败（连不上、被挤下线……）：卡还给他，同一张卡再点一次即可。
         _save({**card, "status": OPEN})
         _release(record, nonce)
+        # 话术与开单 / 建档的重试同一条规则（`line.errors.retry_text`）：卡还能再点，就不叫人联系管理员。
+        from pearnly_dms.line.errors import retry_text
+
         friendly = (result or {}).get("error_friendly") or {}
-        _out.push_or_reply_text(line_user_id, friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL)
+        lang = i18n.line_lang()
+        _out.push_or_reply_text(line_user_id, retry_text(
+            (result or {}).get("error_code") or "", friendly.get(lang) or cards.TXT_BOOKING_FAIL, lang))
         return
     if status == LOCKED:
         _finish(card, cards.TXT_REVIEW_LOCKED)

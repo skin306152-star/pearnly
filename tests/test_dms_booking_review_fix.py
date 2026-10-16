@@ -185,6 +185,10 @@ class Buttons(Isolated):
         self.endpoint_ok = True
         self.stub("pearnly_dms.booking.booking_ledger", log_amend=lambda **kw: self.audits.append(kw))
         self.stub("pearnly_dms.adapter.operations", run_logged_in=self.session)
+        # The shared retry wording (pinned in test_dms_login_retry): "unreachable" while a retry is still offered
+        # says "try again later", never "contact the administrator".
+        self.stub("pearnly_dms.line.errors", retry_text=lambda code, text, lang: (
+            "dms.err.ERR_DMS_TECHNICAL" if code == "ERR_DMS_UNREACHABLE" else text))
         self.fix = importlib.import_module("pearnly_dms.booking.conversation.review_fix")
         self.cards = importlib.import_module("pearnly_dms.line.cards")
         self.nonce = self.fix.open_card(RECORD, UID, BOOKING_NO, BOOKING_ID, [DIFF])
@@ -237,7 +241,7 @@ class Buttons(Isolated):
                                "error_friendly": {"th": "dms.err.ERR_DMS_UNREACHABLE"}}
         self.tap(self.cards.ACT_REVIEW_UPDATE)
         self.run_queued()
-        self.assertEqual((self.pushes, self.audits), (["dms.err.ERR_DMS_UNREACHABLE"], []))
+        self.assertEqual((self.pushes, self.audits), (["dms.err.ERR_DMS_TECHNICAL"], []))
         self.session_result = None
         self.tap(self.cards.ACT_REVIEW_UPDATE)  # the same card works again
         self.run_queued()
