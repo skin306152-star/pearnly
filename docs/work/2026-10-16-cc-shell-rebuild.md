@@ -174,6 +174,7 @@
   - `page_image`：画好的页图存进这个对话私有目录的 `rendered/`（`_kept` 不扫子目录，不进附件列表；删对话随 `forget` 一起删），同一页再取直接给；引擎里的结果 PDF 第一次取来后在同一目录留一份原件，之后的页图、页数都读它（不再每页列引擎文件、整份下载）；PDF 页数记进缓存；列表记过「本站没留存」的老附件直接 404、不问引擎。前端只在本站确有留存时（本页刚发的，或列表带了大小）取 PDF 缩略图。含图的页编 JPEG（质量 80），纯文字 / 矢量页仍 PNG：本机用 PyMuPDF 1.24.10 实画，矢量页缩略图 1.7KB / 整页 15KB（PNG），满幅噪点照片页（JPEG 的最坏情况）整页 2.4MB，真实拍照会小得多。
   - 公司页对话列表不列标题空的会话（还没发过消息：选了文件就建了会话、没发）；这个列表自己取数，不经 `list-sync`，不会被当成别处删了。侧栏那边仍归 D 线。
   - 测试：`test_cowork_companies.py`（存货品名不出借、规则不露归类键、超过 30 条仍找得到、找不到时的卡片）、`test_cowork_assistant_tools.py`（工具说明不再有「the ERP」、改单说明口径）、`test_assistant.py`（页图落盘复用、JPEG / PNG、引擎结果只下载一次、老附件不问引擎、preview 留原件）、`test_assistant_ui.py`（没留存的老附件不取缩略图、刚发的取）、`test_cc_mobile_content.py`（公司页只列发过的对话）。
+- 10-16 第 5 轮 C、D 两线合入本分支（本地、未推送）：基线 `cb1df1a1`（含 80393ae0 显示更多缩进、e5d0f4bf 悬停滚动覆盖面）；`de76bdf4` 合入 `pearnly/cc-r5-drag`（`d69ea1c5`），`6c650329` 合入 `pearnly/cc-r5-content`（`b23c979f`），两次都无文本冲突（`globals.css`、任务记录、设计文档、`test_assistant_ui.py` 两边改的段落不重叠，git 自动合并，两边内容都在）。`frontend/assistant` `npm ci` 后两个前端 `npm run build` 通过；完整闸门 85 步全过（`gate.sh` 的每步 stdin 接 `/dev/null` 跑的草稿副本：原脚本里 `check-dms-offline.py` 会读走剩余步骤列表，只跑前 14 步就返回 0）。仍未做：侧栏里「选了文件没发」的空标题对话仍会列出（C 线 ④ 查到的原因，修法待开发窗口定）、测试机第 5 轮点验、`cand-run.sh`、推送与合入 main。
 
 ## 暂停交接（10-16 凌晨，用户关机，次日接着做）
 
