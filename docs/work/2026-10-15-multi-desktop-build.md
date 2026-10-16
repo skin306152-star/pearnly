@@ -206,6 +206,7 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
 | `tests/test_cowork_cc_desktop_devices.py`（新增心跳里的电脑 5 项：Member、所选与版本记在电脑行、补丁交接默认账套、最新版本 / 在线 / 电脑名、心跳不读写连接配置；退役删可达行） | 51 OK |
 | `tests/test_companion_contract.py`（新增两处白名单收 `uid` / `share`、客户端今天报的账套行键都在白名单；刷新指令键名不变） | 53 OK |
 | `tests/test_cowork_report_writes.py` / `_account_caches.py` / `_preparation_dynamic.py`（改成不依赖 Frappe，进 CI） | 6 / 4 / 2 OK |
+| 变异核对 | 去掉移除前按连接加锁：设备测试 2 项失败；去掉页面 exists 后的 rekey 重试：页面测试失败 |
 | 容器内 `tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（不含源码对照） | 182 个文件 OK；`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py` 两个基线上就失败（与本批无关，基线同样） |
 | 新模块与补丁在 Frappe 16.34.1 下可导入 | 17 个模块 OK |
 | `test_cowork_companion_source_parity.py --source legacy-ec2e5c95` / `test_cowork_push_source_parity.py` | PASS 244 组 / PASS |
@@ -789,3 +790,98 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
    账套从目录消失而落到「其他」；`service.tasks_of` 加 `company`，主档页也列这类任务。测试：`MonthLedgerTests` 加一项（任务存 68 年度键，
    2026-09 照样计数、`month_files` 收到它；分店不符、没记公司、别家的不算；2025-09 按存下的键照旧）；`TaskOverviewTests` 加一项
    （归属、提醒点开、主档已删回落、收件人用不了连接、主档页清单）。
+
+## 第 6 批：界面（建在新的 CC 外壳上，2026-10-16，本地提交，未推送）
+
+分支 `pearnly/multi-desktop`，基线 `53402f13`（并入 CC 外壳分支与合并审查修复之后）。提交：`decf1704` feat（代码与测试）、本条 docs（ADR-021 第 41–48 条
+与有意变化、架构说明两处、本记录）。没有新补丁、没有新 DocType 字段；新词条服务端 5 条（en / zh / th / ja）、CC 页面 6 个词（en / zh / th）；
+没改已有文案。界面只用 `globals.css` 变量与现有零件（设置的 Row / Heading / Switch / 菜单，任务页的 Field / Chip，待处理的当场选那一套），
+没有新样式、没有拖动。
+
+做了什么（对照本记录各批「留给第 6 批」与 T1「前端待办」）：
+
+- **对话页每次打开带设备密钥登记**（`lib/desktop.ts`）：`thisComputer(state)` 只在桥 features 含 `devices` 且有 `device.key` 时成立；
+  `register` 带 `device_key` / `device_name`（有设备密钥时不再带旧路的 `replace`）；`exists` 而本机没有能用的成员（`needsKey`：一个成员都
+  没有，或有成员带 `device_state`）→ 换请求号带 `rekey` 再登记；`superseded` 第一次就带 `rekey`；`update_needed` → 新的 `Link`
+  `update_needed`（设置「连接」写「需更新」+「下载新版」，桥的 `download_update`）。`useAutoConnect`：1.7.0 每次打开都登记，之后听桥的
+  `changed`，成员新出现 `device_state` 马上再登记一次（每个成员每种状态自动试一次）。旧版桥照旧（没有成员才连、不带设备密钥）。
+- **常驻电脑碰到 `claimed_elsewhere`**：选「页面自动恢复」（ADR 第 42 条）；停着期间别的电脑在「电脑」列表看到它连接中断。
+- **「电脑」列表与移除**：服务端 `rules.computers` 每行多 `id` / `connection` / `always_on` / `can_remove`（`devices.owners` +
+  `credentials.manages`）；`companion.api.remove_device` → `credentials.remove_device`（加锁顺序与幂等见 ADR 第 43 条；可达行的连接由
+  `connections.pool.device_connections` 给）。页面 `PoolComputers`：浏览器的「连接」与桌面版「此电脑 → 连接」下的「电脑」同一个组件，
+  常驻的写「常驻模式」，能移除的行尾「···」→「移除」（同侧栏行菜单，不加确认）。
+- **全所可用开关**：`connections.service.set_members` / `api.set_members`（ADR 第 44 条）；`records` 每行带 `manageable`；页面 `AllMembers`
+  只对管理员、Express 主连接出现，关掉后逐人开关名单（团队成员取 `team.api.api_list_members`）。
+- **录入入口状态**：`companion.pool.state` 加 `computers`；Desk `targets.js` 的 `describe` 四种状态、新 `account_note`（按账套问
+  `needs_update`）接到「新建录入」弹窗（`intake-choices.js` 账套下拉的说明）；CC 定时任务页的目标卡片同一套、选定 Express 账套后同样提示；
+  LINE `_state` 有电脑却没有能写的说「没有能写的电脑」；CC 工具 `intake_options` 多给 `cc_desktop_online`。
+- **读者编号**：CC 与 Desk 定时任务页文件夹下拉值 = `folderValue(读者编号, 根目录编号, 相对路径)`（各自编码后竖线连），保存传读者编号，
+  文件夹计数按读者编号找；`reader_gone` → 状态「电脑已移除」（排在「CC 桌面版不在线」之前），原来的文件夹照样摆着并写明。公司文件夹
+  `company_folders.view` 多给 `reader_gone`；页面解绑、刚移除先藏都按 `reader_id`，本机那一行按 `folderIsMine`（连接 + 电脑名），电脑已移除的行
+  哪里都能「移除」；主档页「＋」预填任务文件夹用 `folderValue`、不拿电脑已移除的那一行。
+- **T1 前端**：任务列表 / 表单 / 主档页与会话栏的任务行写「跟随公司当年账套」（`companies.service.tasks_of` 多给 `follows`）；列表与
+  运行记录列 `results.account_sets`（「账套名 张数」，用 ` · ` 连）。待处理页与月结台账：`companies.pending._items` / `ledger._document_item`
+  对 `account_set_stop` 的单给 `action = "account_set"`；新接口 `assistant.pending_api.account_sets` / `choose_account_set`；页面
+  `AccountSetRow`（同当场选那一行的样子：点开、一个下拉、「确认」，没有可换的「交给 CC」）。
+- **推送记录由哪台电脑写入**：`written.writer`（ADR 第 48 条，钩子 `cowork_device_labels`）。
+
+新文案（都是新键，没有改已有的）：
+
+| 键 | en | zh | th | ja |
+|---|---|---|---|---|
+| `intake.agent.state.offline` | Computer offline | 电脑离线 | คอมพิวเตอร์ออฟไลน์ | コンピューターがオフライン |
+| `intake.agent.state.noWriter` | No computer can write | 没有能写的电脑 | ไม่มีคอมพิวเตอร์ที่บันทึกได้ | 書き込めるコンピューターがありません |
+| `intake.agent.state.needsUpdate` | CC Desktop needs update | CC 桌面版需更新 | CC เดสก์ท็อปต้องอัปเดต | CC デスクトップの更新が必要 |
+| `cowork.folder.readerGone` | Computer removed | 电脑已移除 | นำคอมพิวเตอร์ออกแล้ว | コンピューターは削除済み |
+| `cowork.folder.followCompany` | Company's account set for the year | 跟随公司当年账套 | ชุดบัญชีของบริษัทตามปี | 会社のその年の会計データ |
+| CC `st.computers` | Computers | 电脑 | คอมพิวเตอร์ | — |
+| CC `st.needsUpdate` | Update required | 需更新 | ต้องอัปเดต | — |
+| CC `st.allMembers` | Everyone in the firm | 全所可用 | ทุกคนในสำนักงานใช้ได้ | — |
+| CC `st.members` | Members | 成员 | สมาชิก | — |
+| CC `co.folderGone` | Computer removed | 电脑已移除 | นำคอมพิวเตอร์ออกแล้ว | — |
+| CC `co.followCompany` | Company's account set for the year | 跟随公司当年账套 | ชุดบัญชีของบริษัทตามปี | — |
+
+沿用的已有词：「常驻模式」（`st.alwaysOn`，用在「电脑」列表一行的说明里）、「移除」「重试」「下载新版」「需要管理员账号」「CC 桌面版未连接」、
+`co.accountSets`「账套」、`co.confirm`、`co.handToCC`。
+
+证据：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_cc_desktop_devices.py` | 66 OK（新增 `RemoveDevice` 8 项：登记人移除、两条连接按名字顺序先锁再锁密钥最后锁电脑行、只有可达行的连接也锁、别人 / 外人拒而管理员能、别的归属与不存在同样拒、移除两次只一次、移除后同一台作为新电脑回来、`owners` / `labels`、`manages`） |
+| `tests/test_cowork_companion_credentials.py` | 17 OK（公开接口集合加 `remove_device`，只收 POST、走 `_local_transaction`） |
+| `tests/test_cowork_connection_read_locks.py` | 13 OK（新增 `set_members`：只改两项不升版本、只核新加的人、相同不写、名单不能空 / 重复 / 坏 JSON、MR.ERP 拒、非管理员拒、`records` 带 `manageable`） |
+| `tests/test_cowork_express_dispatch.py` | 51 OK（池的状态带 `computers`，分清没有能写的电脑与一台都没有） |
+| `tests/test_cowork_companies.py` | 114 OK（新增：待选账套停下的单给 `account_set`、没去向的照旧交 CC；`account_sets` 只列覆盖单据日期的、`choose_account_set` 先抄到票上再按 CC 同一条路重推，别的年度 / 空 / 不在列的拒、非待选账套的单不给、没日期不给、没有录入权限拒；月结台账同样给 `account_set`） |
+| `tests/test_cowork_folder_intake.py` | 124 OK（公司文件夹带 `reader_gone`，按读者编号解绑） |
+| `tests/test_cowork_folder_computers.py`（容器内） | 7 OK（每行多 `id` / `connection` / `always_on` / `can_remove`；登记人与管理员才能移除，旧槽位密钥不给） |
+| `tests/test_cowork_assistant_tools.py` | 187 OK（`written.writer` 一次取齐电脑名、没记电脑的不给，`outcomes` 同样） |
+| `tests/test_companion_contract.py` | 68 OK（新增页面一侧：从桥的 `device` 取设备密钥、参数与服务端同名、`superseded` 带 `rekey`、每次打开都登记、听 `changed`） |
+| `tests/test_assistant_ui.py` | 新增 `MultiDesktopBehaviourTests`（真跑 `lib/desktop.ts` 七种情形：新电脑配对、每次打开 exists 不配对、superseded rekey、本机没成员 exists 换请求号 rekey、claimed_elsewhere 先按自己的电脑登记、rekey 403 → 需要管理员账号、旧版不带设备密钥 → 需更新；读者编号编码拆得回原样、本机那一行按电脑名认、预填不拿电脑已移除的行）、「电脑」一行的常驻与「···」、第 6 批新词三种语言齐全；改了 3 处旧断言（`taskSeedOf` 多传电脑名、`setGone` 按读者编号，都是有意改的） |
+| `tests/test_cc_mobile_content.py` | 改 1 处旧断言（同上 `setGone`） |
+| 容器内 `tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（186 个文件，不含源码对照） | 184 OK；`test_cowork_invoice_checks.py`、`test_cowork_table_input_runtime.py`（缺 `docx`）与基线相同的两个失败 |
+| `python3 scripts/check-architecture.py`、`i18n-build.py --check`、`check-i18n.py --strict` | PASS / PASS / 0 |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（含两个前端构建） | 91 步全过，退出码 0（第一次跑架构检查拦下 `assistant → targets` 新依赖：待选账套的比较挪进 `companies.pending`，不扩大基线；改后整套重跑全过） |
+
+给测试窗口的点验（第 7 批真机前，测试机实时源码 + CC 桌面版 1.7.0）：
+
+1. 对话页打开：服务端电脑行的 `signed_in_user` 是这次登录的人；再开一次不换密钥（`token_generation` 不变）。
+2. 两台电脑同一个账号或不同账号各开 CC：「电脑」列表两行；一台关机后显示「连接中断」，Desk / CC 录入入口的 Express 写「电脑离线」且能选、能确认排队。
+3. 「···」移除另一台（登记人或管理员）：那台的密钥失效、列表少一行；它读的定时任务状态「电脑已移除」、公司文件夹那一行「电脑已移除」可移除；那台重开 CC 后作为新电脑回来。非登记人非管理员看不到「···」。
+4. 管理员在「电脑」下关掉「全所可用」：名单出现；关掉某个成员后那人在录入入口看不到 Express；再打开全所可用恢复；连接的 `record_revision` 不变、账套目录不需重读。
+5. 两台都映射 S 盘时新建定时任务：文件夹下拉每项前面带电脑名，保存后任务的 `reader_device` 是选的那台。
+6. T1 任务：列表写「跟随公司当年账套」，运行记录列出实际推往的账套与张数；T8 / T9 同期停下的票在待处理页点开选一份「确认」后推往那份，票上的去向换成它。
+7. 1.6 的桌面版在已有 1.7.0 的池里打开对话页：设置「连接」写「需更新」+「下载新版」。
+8. 配对码抄到两台（`claimed_elsewhere`）：对话页开着的那台自己重新登记、成员恢复；常驻电脑窗口开着时同样自愈。
+
+没做 / 拿不准：
+
+- 只在本机闸门与替身上验过；真实 Site、HTTP 链、测试机、真 Windows 都没跑（第 7 批）。`remove_device` 在 MariaDB 上逐条连接 `FOR UPDATE` 的锁等待没量。
+- 网页没有推送记录详情页，「由 {电脑} 写入」只进了 CC 的 `written.writer`，没加网页界面与词条。
+- 全所可用关掉后的名单只能从团队成员里勾（团队成员接口只限管理员，开关本来就只给管理员）；连接名单里已有、团队里已停用的人照样列出、可以勾掉。
+- 自动恢复靠对话页开着：常驻电脑窗口被关掉（托盘里没开窗口）时要等有人打开 CC；没加服务端心跳信号（心跳带不出登录会话，换不了密钥）。
+- 「电脑离线」等状态在 Desk 只改了录入入口卡片与「新建录入」的账套说明；定时任务弹窗沿用同一个 `describe`，CC 工具只多给布尔值，没有新文案。
+
+第 7 批真机要验：上面点验 1–8 各项在两台真机上走一遍；`remove_device` 与心跳 / 领取并发（连接行锁等待、快照隔离 1020）；1.7.0 收到
+`remove` 后的表现（密钥 401 时成员状态、重开对话页作为新电脑回来）；`set_members` 收窄名单后排队单按录入人转人工的数量；对话页每次打开
+都 `register` 的请求量（3 租户 × 10 台）。
