@@ -1,7 +1,8 @@
 // 右侧结果面板（同 claude.ai 的 Artifacts 面板）：智能体产出的文件在这里预览、下载。
 //
 // 预览方式沿用 assistant-ui 官方 Artifacts 示例：网页放进无同源权限的沙箱 iframe（srcDoc），并可切到代码；
-// 图片、PDF 用服务端的内联地址；Excel 由服务端读成表格后显示；Word（.docx）由服务端读成段落与表格的纯数据，
+// 图片、PDF 用服务端的内联地址（PDF 在不能内嵌显示的设备上——安卓 Chrome、iPhone / iPad——改由服务端逐页画成图，
+// 第 5 轮测试 2）；Excel 由服务端读成表格后显示；Word（.docx）由服务端读成段落与表格的纯数据，
 // 按需载入的 document-view 按文字渲染（2026-10-13 教程第 3 条）；文本按原文显示；其余类型、读不出时给下载。
 // 新结果出现时自动打开；对话里的文件卡片点一下打开对应文件（ResultsContext）。
 // 用户发的附件（消息气泡里的附件卡片）也在这里打开：服务端取本站留存的那份（引擎不让下载用户上传的文件），预览方式同结果文件。
@@ -18,7 +19,8 @@ import {
   XIcon,
 } from "lucide-react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { fileUrl, listSessionFiles, previewFile, type FilePreview, type SessionFile } from "@/lib/managed-agents/api";
+import { fileUrl, listSessionFiles, pageUrl, previewFile, type FilePreview, type SessionFile } from "@/lib/managed-agents/api";
+import { touchOnly } from "@/lib/touch";
 import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { SplitHandle, resultsSize, useStoredSize } from "@/components/split-handle";
@@ -245,6 +247,62 @@ export function DocumentPreview({ sessionId, file, preview }: { sessionId: strin
   );
 }
 
+/** 这台设备能不能在页面里直接显示 PDF（浏览器自带的查看器）：电脑上的 Chrome / Edge / Firefox / Safari 能；安卓 Chrome
+ *  不能（iframe 里只有图标、内部地址和「打开」按钮，第 5 轮测试 2），iPhone / iPad 的 Safari 在 iframe 里只显示第一页、
+ *  不能滚——触屏设备一律按页看图。 */
+export function nativePdf(): boolean {
+  return typeof navigator !== "undefined" && navigator.pdfViewerEnabled !== false && !touchOnly();
+}
+
+// 手机上一份 PDF 最多列这么多页，再多的下载看
+export const PDF_PAGES_SHOWN = 100;
+
+/** 不能内嵌 PDF 的设备：服务端逐页画成图（files.page_image），一页一张往下排、可双指放大。看得见才取（loading="lazy"，
+ *  取到前按 A4 比例占位，免得一打开就把每页都取了）；同一页浏览器有缓存。页数先看列表里的（附件），没有再问服务端；
+ *  读不出页数、第一页画不出给下载。 */
+export function PdfPages({ sessionId, file }: { sessionId: string; file: SessionFile }) {
+  const [pages, setPages] = useState<number | null>(file.pages ?? null);
+  const [broken, setBroken] = useState(false);
+  useEffect(() => {
+    setBroken(false);
+    if (file.pages) {
+      setPages(file.pages);
+      return;
+    }
+    setPages(null);
+    let cancelled = false;
+    void loadPreview(sessionId, file.id).then((preview) => !cancelled && setPages(preview.type === "pdf" ? preview.pages : 0));
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, file.id, file.pages]);
+  if (pages === null) return <Loading />;
+  if (!pages || broken) return <NoPreview sessionId={sessionId} file={file} />;
+  const shown = Math.min(pages, PDF_PAGES_SHOWN);
+  return (
+    <div className="cc-pdf-pages" data-slot="cc-pdf-pages">
+      {Array.from({ length: shown }, (_, i) => (
+        <img
+          key={i}
+          className="cc-pdf-page"
+          src={pageUrl(sessionId, file.id, i + 1, "page")}
+          alt={`${file.filename} · ${i + 1}/${pages}`}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={i === 0 ? () => setBroken(true) : undefined}
+        />
+      ))}
+      {pages > shown && (
+        <a href={fileUrl(sessionId, file.id)} className="cc-btn self-center">
+          <DownloadIcon className="size-4" />
+          {t("download")}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
   const kind = kindOf(file.filename);
   const preview = usePreview(sessionId, kind === "sheet" || kind === "doc" ? file.id : null);
@@ -254,6 +312,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
     return <img src={fileUrl(sessionId, file.id, true)} alt={file.filename} className="mx-auto max-h-full max-w-full object-contain" />;
   }
   if (kind === "pdf") {
+    if (!nativePdf()) return <PdfPages sessionId={sessionId} file={file} />;
     return <iframe title={file.filename} src={fileUrl(sessionId, file.id, true)} className="h-full w-full" />;
   }
   if (kind === "text") {

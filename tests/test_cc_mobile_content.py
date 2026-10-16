@@ -49,8 +49,21 @@ class NotesSourceTests(unittest.TestCase):
         page = read("components/company-page.tsx")
         header = page[page.index("const Header: FC"):page.index("// ---------------------------------------------------------------- 输入框")]
         self.assertIn("setTitle(saved);", header)
-        self.assertIn("{title}</Marquee></h1>", header)  # 公司页标题：点名字就地改名（设计文档 3.15；按钮本身就是悬停滚动的那一格）
-        self.assertIn('<Marquee as="button" type="button" className="cc-page-title-btn"', header)
+        # 公司页标题：点名字就地改名（设计文档 3.15）。第 5 轮：按钮里面放滚动的文字，滚动时的遮罩不再把按钮的焦点环裁掉
+        self.assertIn('<button type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>\n'
+                      '              <Marquee className="cc-page-title-text">{title}</Marquee>\n            </button>', header)
+        self.assertNotIn('as="button"', header)
+        css = read("globals.css")
+        button = css.split("  .cc-page-title-btn {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("overflow", button)                                    # 按钮自己不裁切
+        self.assertIn(".cc-page-title[data-editable] { display: flex; overflow: visible; }", css)
+        self.assertIn(".cc-page-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }", css)
+        # 第 5 轮测试 3：「··· → 重命名」后菜单关上时不把焦点还给「···」，改名框直接能输入
+        self.assertIn("const renameFromMenu = useRef(false);", header)
+        self.assertIn("renameFromMenu.current = !isMobile;", header)
+        close = header.split("onCloseAutoFocus={(e) => {", 1)[1].split("}}", 1)[0]
+        self.assertIn("if (!renameFromMenu.current) return;", close)
+        self.assertIn("e.preventDefault();", close)
         page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
         self.assertIn("setChoiceShown(rows, c.key, v)", choices)
@@ -58,6 +71,13 @@ class NotesSourceTests(unittest.TestCase):
         self.assertNotIn("await reload()", choices)
         folders = page[page.index("export const FolderSection"):page.index("// ---------------------------------------------------------------- 账套")]
         self.assertIn("setGone((before) => [...before, reader]);", folders)
+
+    def test_the_company_page_lists_only_conversations_that_were_sent(self):
+        # 第 5 轮测试 4 / 审查：公司页「＋」选了文件就建了会话，不发也在服务端留一条空标题的；公司页对话列表不列它
+        # （标题空 = 还没发过消息）。列表自己取数，不经侧栏的多设备同步
+        page = read("components/company-page.tsx")
+        chats = page[page.index("const load = useCallback("):page.index("useEffect(() => void load(), [load]);")]
+        self.assertIn("page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at && row.title)", chats)
 
 
 class OpenAtBottomSourceTests(unittest.TestCase):

@@ -18,6 +18,9 @@
 - 分店（补充 甲.5）：对方档（`party`）的归类键带分店号，同一税号各分店按税号合并成一行显示，删的时候各分店一起删；
   费用科目、付款、抵进项本来就按对方税号记（不分店），同一供应商不同分店共用。
 - 页面上的 `key` 是服务端给的不透明串（`encode`），解出来后再核一次它确实属于这家公司。
+- 对象只记了税号（记的时候票面没有名称，或旧记录）的行补上名称（第 5 轮测试 6：付款规则只显示 0105565099871）：
+  先找同一税号别的行记的名称（只在对方档、付款、抵进项、费用科目之间借：存货行的标签是品名），再找覆盖这个月那份账套的
+  供应商 / 客户主档；都没有照旧显示税号（`_name_parties`）。
 - 每类最多显示 `SHOWN` 条，每张表一次 IN 查询、最多读 `READ_MAX` 条。预扣税记忆（按收款方、全所通用）、供应商默认、
   单据录不录、银行预设（键里没有公司）不显示。
 """
@@ -97,6 +100,7 @@ def merge_express(rows, connection, years) -> list:
             continue
         merged[(row["kind"], group)] = {
             "key": encode("express", connection, row["kind"], group), "source": "express", "kind": row["kind"],
+            "_tax": tax_in(row["subject"]),
             "subject_label": subject_name(row["kind"], row["subject"], row.get("label")),
             "value": row.get("value") or "", "editable": row["kind"] in EDITABLE,
             "year_label": years.get((connection, str(row.get("account_set") or "").casefold()), ""),
@@ -191,6 +195,7 @@ def history_rows(company, sets) -> list:
                 continue
             item = {field: row.get(field) for field in HISTORY_FIELDS}
             out.append({"key": encode("history", str(item["supplier_tax"]), str(item["account"])), "source": "history",
+                        "_tax": tax_in("purchase|" + str(item["supplier_tax"])),
                         "kind": "account", "subject_label": str(item.get("supplier_name") or item["supplier_tax"]),
                         "value": str(item["account"]), "value_label": str(item.get("account_label") or item["account"]),
                         "editable": False, "year_label": "", "set_by": "", "set_at": str(item.get("last_date") or ""),
@@ -207,16 +212,16 @@ def rule_rows(company) -> list:
     """这家公司的规则（页面「记住的选择」里显示「全公司 / 分店 X」的那几行）：付款 / 抵进项可直接改。"""
     out = []
     for row in rules.listing(company["name"]):
-        out.append({"key": encode("rule", row["id"]), "source": "rule", "kind": row["kind"],
-                    "subject_label": row["subject_label"] or row["subject"], "value": row["value"],
+        out.append({"key": encode("rule", row["id"]), "source": "rule", "kind": row["kind"], "_tax": tax_in(row["subject"]),
+                    "subject_label": subject_name(row["kind"], row["subject"], row["subject_label"]), "value": row["value"],
                     "value_label": _value_label(row["kind"], row["value"]) or row["value_label"] or row["value"],
                     "editable": row["kind"] in EDITABLE, "branch": row["branch"], "year_label": "",
                     "set_by": row["set_by"], "set_at": row["set_at"], "merged": 1})
     return out
 
 
-def listing(company, sets) -> list:
-    """这家公司记住的选择，按来源、类别分好，每类最多 `SHOWN` 条（新 → 旧）。"""
+def _all(company, sets) -> list:
+    """这家公司记住的全部选择（补好名称、不截断）。"""
     found = []
     for part in (lambda: rule_rows(company), lambda: _express(sets), lambda: _pos(sets), lambda: _income(company),
                  lambda: history_rows(company, sets)):
@@ -224,6 +229,18 @@ def listing(company, sets) -> list:
             found += part()
         except (frappe.PermissionError, frappe.ValidationError):
             frappe.clear_messages()
+    _name_parties(found, sets)
+    return found
+
+
+def find(company, sets, key):
+    """按页面 / CC 给的 ``key`` 找一条（卡片说明用）：不经每类 `SHOWN` 截断，名称与列表一致；找不到回 None。"""
+    return next((row for row in _all(company, sets) if row.get("key") == key), None) if key else None
+
+
+def listing(company, sets) -> list:
+    """这家公司记住的选择，按来源、类别分好，每类最多 `SHOWN` 条（新 → 旧）。"""
+    found = _all(company, sets)
     shown, counts = [], {}
     for row in found:
         bucket = (row["source"], row["kind"])
@@ -231,6 +248,69 @@ def listing(company, sets) -> list:
         if counts[bucket] <= SHOWN:
             shown.append(row)
     return shown
+
+
+def tax_in(subject) -> str:
+    """归类键里对方的税号（「方向|税号|…」的第二段，13 位）；按名字记的（name:…）、部门（*）等没有，回空串。纯函数。"""
+    parts = str(subject or "").split("|")
+    tax = parts[1] if len(parts) > 1 else ""
+    return tax if len(tax) == 13 and tax.isdigit() else ""
+
+
+# 对象就是对方本身、标签就是对方名称的类别；存货（标签是品名）、部门、收款科目不出借也不接收名称
+PARTY_KINDS = ("party", "payment", "vat", "account")
+
+
+def _named(row) -> bool:
+    label = str(row.get("subject_label") or "").strip()
+    return bool(label) and label != row.get("_tax")
+
+
+def _party_tax(row) -> str:
+    return row.get("_tax") or "" if row.get("kind") in PARTY_KINDS else ""
+
+
+def name_parties(rows, masters=None) -> list:
+    """对象只记了税号的行（名称空着或就是税号）补上名称：同一税号别的行记的名称优先，其次 ``masters``（供应商 / 客户主档的
+    ``{tax_id, name}``）；都没有照旧。只在 `PARTY_KINDS` 之间借（存货行的标签是品名，不是对方名称）。就地改 ``rows``
+    （行上内部的 ``_tax`` 由 `_name_parties` 收掉），返回还缺名称的税号。不读库。"""
+    known = {}
+    for row in rows:
+        if _party_tax(row) and _named(row):
+            known.setdefault(row["_tax"], str(row["subject_label"]).strip())
+    for row in (masters or ()):
+        tax, name = "".join(ch for ch in str(row.get("tax_id") or "") if ch.isdigit()), str(row.get("name") or "").strip()
+        if len(tax) == 13 and name:
+            known.setdefault(tax, name)
+    missing = []
+    for row in rows:
+        tax = _party_tax(row)
+        if tax and not _named(row):
+            if tax in known:
+                row["subject_label"] = known[tax]
+            elif tax not in missing:
+                missing.append(tax)
+    return missing
+
+
+def _name_parties(rows, sets) -> None:
+    """`name_parties` 先用同一税号别的行；还缺的再读一次覆盖这个月那份账套的供应商 / 客户主档（没权限、没读过就算了）。"""
+    try:
+        if name_parties(rows):
+            from pearnly_cowork.connections import preparation
+            from pearnly_cowork.targets.identity import normalize_express_account_key
+
+            target = target_set(sets, "", "")
+            doc = frappe.get_doc("Cowork ERP Connection", target["connection"])
+            masters = preparation.reported_masters(doc, normalize_express_account_key(target["key"]),
+                                                   keys=("reported_suppliers", "reported_customers")) or {}
+            name_parties(rows, [row for key in ("reported_suppliers", "reported_customers")
+                                for row in masters.get(key) or [] if isinstance(row, dict)])
+    except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+    finally:
+        for row in rows:
+            row.pop("_tax", None)
 
 
 def _require_connection(connection, sets):
@@ -494,5 +574,5 @@ def promote(company, sets, key, branch="", period="", session="") -> dict:
     frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
 
 
-__all__ = ["decode", "encode", "forget", "group_of", "history_rows", "listing", "merge_express", "promote", "rule_rows",
-           "save_rule", "set_value", "target_set"]
+__all__ = ["decode", "encode", "find", "forget", "group_of", "history_rows", "listing", "merge_express", "name_parties", "promote",
+           "rule_rows", "save_rule", "set_value", "target_set", "tax_in"]

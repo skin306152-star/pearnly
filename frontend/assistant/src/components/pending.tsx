@@ -76,6 +76,13 @@ export function settledView(view: ChoicesView | null | undefined): boolean {
   return !!view && !view.wait && view.needed.length === 0;
 }
 
+/** 当场选那一行的说明（第二行）：还要选哪几类（「付款方式 · 费用科目」）。列表给的是推送停下时要选的类别；展开读到要选的项后
+ *  按读到的写——公司规则已定、没有要选的（按钮是「推送」）就不写这串（第 5 轮测试 7），也不退回原因那句。 */
+export function choiceLine(item: PendingItem, view: ChoicesView | null): string {
+  const kinds = view && !view.wait ? [...new Set(view.needed.map((need) => need.kind))] : (item.choice?.kinds ?? []);
+  return kinds.map((kind) => co.kind[kind] ?? kind).join(" · ");
+}
+
 /** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
   return item.action === "choose" && !!item.choice?.connection;
@@ -326,7 +333,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
       setBusy(false);
     }
   };
-  const kinds = (item.choice?.kinds ?? []).map((kind) => co.kind[kind] ?? kind).join(" · ");
+  const kinds = choiceLine(item, view);
   return (
     <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-variant={head ? "row" : undefined} data-open={open || undefined}>
       <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
@@ -336,7 +343,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
             <Marquee className="block truncate text-ink text-sm">
               {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
             </Marquee>
-            <Marquee className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</Marquee>
+            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</Marquee>}
           </span>
         )}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />

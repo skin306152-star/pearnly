@@ -3,6 +3,7 @@
 // - 输入框里：小方块（缩略图 / 文件图标），右上角移除，上传中转圈，上传失败标红并在提示里说原因；图片点开看大图。
 // - 你发出的消息里：每个文件一张卡片（缩略图、文件名一行、类型说明「PDF · N 页」/ 大小），点开在右侧面板预览
 //   （与 CC 产出的文件同一个预览；服务端取本站留存的那份，PDF 也能看）。读屏名字跟页面语言。
+//   缩略图同 Claude：图片是图片本身，PDF 是第一页（服务端画的小图，page_image thumb，第 5 轮测试 1），载不出退回文件图标。
 import { type PropsWithChildren, useEffect, useState, type FC } from "react";
 import {
   XIcon,
@@ -36,7 +37,7 @@ import {
 } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
-import { fileUrl, type SessionFile } from "@/lib/managed-agents/api";
+import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
 import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
@@ -246,7 +247,7 @@ export function attachmentCard(
   mountPath: string,
   name: string,
   results: Pick<Results, "sessionId" | "uploads">,
-): { label: string; typeLine: string; image?: string; open?: SessionFile } {
+): { label: string; typeLine: string; image?: string; page?: boolean; open?: SessionFile } {
   const { sessionId, uploads } = results;
   const fileId = uploadFileId(mountPath);
   const listed = fileId ? uploads.find((f) => f.id === fileId) : undefined;
@@ -254,9 +255,18 @@ export function attachmentCard(
   const size = listed?.size_bytes || local?.size;
   const pages = listed?.pages ?? local?.pages;
   const typeLine = attachmentTypeLine(name, size, pages);
-  // 图片：本页刚发的用本地预览；刷新后、别的设备上用服务端留存的那份（内联地址）
+  // 图片：本页刚发的用本地预览；刷新后、别的设备上用服务端留存的那份（内联地址）。PDF：服务端画的第一页（page = 是页面图，
+  // 卡片里从页顶显示）。只在本站确有留存时取（本页刚发的，或列表带了大小 = 服务端读到了那份）：很早以前没留存的附件
+  // 引擎也不给下载，取缩略图只会白问一趟引擎再 404（第 5 轮审查），直接是类型方块
+  const kind = kindOf(name);
+  const remote = sessionId && fileId ? { sessionId, fileId } : null;
+  const page = kind === "pdf" && !!remote && !!(listed?.size_bytes || local);
   const image =
-    kindOf(name) === "image" ? (localPreview(mountPath) ?? (sessionId && fileId ? fileUrl(sessionId, fileId, true) : undefined)) : undefined;
+    kind === "image"
+      ? (localPreview(mountPath) ?? (remote ? fileUrl(remote.sessionId, remote.fileId, true) : undefined))
+      : page
+        ? pageUrl(remote!.sessionId, remote!.fileId, 1, "thumb")
+        : undefined;
   const label = t("attachment").replace("{0}", [name, typeLine].filter(Boolean).join(" · "));
   const open: SessionFile | undefined =
     sessionId && fileId
@@ -271,7 +281,7 @@ export function attachmentCard(
           ...(pages ? { pages } : {}),
         }
       : undefined;
-  return { label, typeLine, ...(image ? { image } : {}), ...(open ? { open } : {}) };
+  return { label, typeLine, ...(image ? { image } : {}), ...(page ? { page } : {}), ...(open ? { open } : {}) };
 }
 
 /** 你发出的消息里的一个附件：卡片（缩略图、文件名一行、类型说明），点开在右侧面板预览。 */
@@ -285,16 +295,17 @@ const MessageAttachment: FC = () => {
 };
 
 /** 附件卡片本身（不读状态）：能打开时是按钮，否则只是一张卡片。 */
-export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; onOpen?: () => void }> = ({
+export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; page?: boolean; onOpen?: () => void }> = ({
   name,
   label,
   typeLine,
   image,
+  page,
   onOpen,
 }) => {
   const body = (
     <>
-      <span className="cc-attach-thumb" aria-hidden>
+      <span className="cc-attach-thumb" aria-hidden data-page={page || undefined}>
         <AttachmentThumbnail src={image} filename={name} />
       </span>
       <span className="cc-attach-meta" aria-hidden>
@@ -317,7 +328,7 @@ export const AttachmentCard: FC<{ name: string; label: string; typeLine: string;
   );
 };
 
-/** 卡片上半部分：图片显示图片（载不出就退回文件图标）；其余类型是文件图标 + 类型。 */
+/** 卡片上半部分：图片显示图片、PDF 显示第一页（载不出就退回文件图标）；其余类型是文件图标 + 类型。 */
 const AttachmentThumbnail: FC<{ src?: string; filename: string }> = ({ src, filename }) => {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);

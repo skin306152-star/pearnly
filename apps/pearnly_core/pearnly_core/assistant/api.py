@@ -108,6 +108,12 @@ def preview(session_id, file_id):
     return files.preview(session_id, file_id)
 
 
+# PDF 的一页画成图：附件卡片缩略图、手机上的 PDF 预览（files.page_image）
+@frappe.whitelist(methods=["GET"])
+def page_image(session_id, file_id, page=1, size="thumb"):
+    return files.page_image(session_id, file_id, page=page, size=size)
+
+
 @frappe.whitelist(methods=["GET"])
 def tool_labels():
     return tools.labels()

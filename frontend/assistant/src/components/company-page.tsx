@@ -131,6 +131,8 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
   const [renaming, setRenaming] = useState(false);
   const [value, setValue] = useState(c.title);
   const [error, setError] = useState("");
+  // 从「···」菜单点了重命名：菜单关上时不把焦点还给「···」按钮（第 5 轮测试 3：焦点被抢走，要再点一下改名框才能输入）
+  const renameFromMenu = useRef(false);
   const save = async (input: string) => {
     const next = input.trim();
     setRenaming(false);
@@ -183,8 +185,12 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
         {renaming ? (
           <TitleRename value={value} onChange={setValue} onDone={(saveIt) => (saveIt ? void save(value) : setRenaming(false))} />
         ) : (
-          <h1 className="cc-page-title">
-            <Marquee as="button" type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>{title}</Marquee></h1>
+          // 按钮里面放滚动的文字（不是按钮自己滚）：滚动时的渐隐遮罩只盖文字，不把按钮的焦点环裁掉
+          <h1 className="cc-page-title" data-editable="">
+            <button type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>
+              <Marquee className="cc-page-title-text">{title}</Marquee>
+            </button>
+          </h1>
         )}
         {error && <p role="alert" className="mt-1 text-danger text-sm">{error}</p>}
       </div>
@@ -199,8 +205,23 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
           <MoreHorizontalIcon />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu !min-w-44">
-            <DropdownMenu.Item className="cc-menu-item" onSelect={rename}>
+          <DropdownMenu.Content
+            align="end"
+            sideOffset={4}
+            className="cc-menu !min-w-44"
+            onCloseAutoFocus={(e) => {
+              if (!renameFromMenu.current) return;
+              renameFromMenu.current = false;
+              e.preventDefault(); // 焦点留在刚出现的改名框里
+            }}
+          >
+            <DropdownMenu.Item
+              className="cc-menu-item"
+              onSelect={() => {
+                renameFromMenu.current = !isMobile;
+                rename();
+              }}
+            >
               <PencilIcon />
               {t("rename")}
             </DropdownMenu.Item>
@@ -369,10 +390,12 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
         const check = runningSessions();
         const page = await listGrouped({ group: company, after, check });
         if (mine !== asked.current) return;
+        // 标题空 = 还没发过消息（首条消息一发就有临时标题）：输入框加附件要先建会话，选了文件不发也会在服务端留一条
+        // （第 5 轮测试 4）。公司页只列发过的；这个列表自己取数，不经侧栏的多设备同步，滤掉不会被当成别处删了
         setRows((before) => {
           const kept = after ? (before ?? []) : [];
           const seen = new Set(kept.map((row) => row.id));
-          return [...kept, ...page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at)];
+          return [...kept, ...page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at && row.title)];
         });
         absorbRuns(check, page.runs);
         setNext(page.nextCursor);
