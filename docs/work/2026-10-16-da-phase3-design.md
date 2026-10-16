@@ -263,3 +263,18 @@
 - 写代码：主功能约 13 小时（判定抽取与分类 4、档位与评估 3、扫描与定时任务接入 2、推后核对与 CC 桌面版 2、界面与 CC 2）；回放工具约 7 小时。合计约 20 小时。
 - 机器：补回放库约 10 分钟；判定层 + 识别闸层每轮几分钟；S 盘只读导出视缺口约 1–2 小时（夜里）；写入回归在 WSL ext4 约 0.5–1.5 小时；全闸门每次约 15 分钟。
 - 等人：四项拍板、生产机答案齐不齐的核实结果、测试机真机点验、试点里 L0 期人在待处理推单。
+
+## 进度
+
+- **阶段 A（10-16）**：第 11 条第 1 项机械搬移 `32a878e4`（`push/express/decide.py`，推送服务只留取数，行为不变）；第 1、2 条 `06d94da6`
+  （`push/express/automation.py`：`classify` / `checks` / `tiers` / `layers` / `conflicts` / `reason_codes`，纯函数不连库）；第 16 条对应测试
+  `tests/test_cowork_da_automation.py`（36 条，CI 加一步）；check-i18n 登记泰文字样 `2335217e`；全闸门 92 步全过。与设计的出入（按设计意图的最小纠正）：
+  - 日月对调「对调后也落在期间内」按同一组日期条件判两可（期间内、不晚于今天、不早于上传前 60 天），否则一年期账套里日 ≤12 的单全成 C；
+  - 抵不抵进项只在有税额（`vat_amount` 或 `vat_capitalized` > 0）时算一项；存货由公司规则、任务默认定的也算 A（A 的定义「人或规则定」）；
+  - 各层说法不一只看这张单真用了这几层定的类（`decided_by` 里有的），票面写明的现 / 赊不因下层不一归 C；
+  - POS 导出、回导工作簿的票也不是文字层 PDF，照「文字层 PDF 才能进 A / B」现归 C（码 `image`），要不要放开待回放后定；
+  - 文字层里找日期只认日 / 月 / 年（另认年-月-日、泰文 / 英文月名），月 / 日写法找不到 → C。
+  留给后面阶段的接口：`automation.Facts` 由 `application.assess` 填——`text` 从原件 PDF 重抽文字层（库里不存，零费用）、`day_books` 按 T1 同一判据
+  （`companies.identity.for_day`，经钩子）、`prior_pushes` 取这份账套成功推送（`pushed.project` 形状）、`layers` 用 `automation.layers`、
+  `history_read` / `uploaded` / `source_total`；`decide` 透传历史已定的 `version`，`account_history` v2 接上之前 Express 历史一律 B；
+  `reason_codes` 给 `auto_reasons`，`duplicate_number` 码给第 1 期异常清单。
