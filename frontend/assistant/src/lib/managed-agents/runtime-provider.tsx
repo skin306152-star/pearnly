@@ -21,12 +21,13 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
 import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
+import { attemptSend, type ComposerLike } from "./send-failure";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
@@ -115,7 +116,11 @@ function useSessionThreadRuntime() {
   // 本站提醒卡片在这里才并进对话（reducer.withNotices）：发送、批准、回复完成通知都只看引擎消息。
   const messages = useMemo(() => withNotices(snapshot.messages, snapshot.notices), [snapshot.messages, snapshot.notices]);
 
-  return useExternalStoreRuntime<ThreadMessageLike>({
+  // 发送没成功时原因记在这段对话上，字和附件放回这段对话的输入框（send-failure.ts）
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const composer = useRef<ComposerLike | null>(null);
+
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     // Cast is safe: the reducer's message model is a structural subset of
     // ThreadMessageLike (see reducer.ts).
     messages: messages as readonly ThreadMessageLike[],
@@ -135,14 +140,25 @@ function useSessionThreadRuntime() {
       // 按下发送立刻出现气泡（新对话要先建会话，约 1 秒）；真正的气泡放进对话、并且画出来了才撤（thread.tsx 的
       // PendingSendBubble），不会两个都在，也不会两个都不在。发送请求结束时（至少一次往返，早已画出）兜底撤掉。
       beginPendingText(text);
-      const send = (id: string) => getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), pendingShownAs);
+      // 建会话或发出没成功（没设置 CC、没有权限、断网、服务端出错）：组件库不接这个错、也不放回输入框。attemptSend 把原因写在
+      // 输入框上方、没发出去的字和附件放回输入框，不抛出（send-failure.ts）；临时气泡与「思考中」由下面 finally 撤掉
+      // （已有对话的乐观气泡会话控制器已撤回）。
+      const restore = { composer: composer.current, text, attachments: message.attachments };
+      let ok = false;
       try {
-        // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）
-        if (controller) await send(await ensureSession());
-        else await newChat.run(ensureSession, send, (id) => getSessionController(id).interrupt());
+        ok = await attemptSend(threadId, restore, async (sent) => {
+          const send = async (id: string) => {
+            await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), pendingShownAs);
+            sent();
+          };
+          // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）
+          if (controller) await send(await ensureSession());
+          else await newChat.run(ensureSession, send, (id) => getSessionController(id).interrupt());
+        });
       } finally {
         clearPending();
       }
+      if (!ok) return;
       // 会话由我们自己建（initialize 在发送前），组件库「首轮结束后取标题」的钩子不会触发；
       // 这里自己取：先是首条消息（服务端的临时标题），第一轮结束后服务端起好主题标题推过来，侧栏就地换上（list-sync.ts）。
       if (isFirst) void aui.threadListItem().generateTitle();
@@ -160,6 +176,8 @@ function useSessionThreadRuntime() {
       controller?.respondToApproval(approvalId, approved, reason);
     },
   });
+  composer.current = runtime.thread.composer;
+  return runtime;
 }
 
 // ---------------------------------------------------------------- provider
