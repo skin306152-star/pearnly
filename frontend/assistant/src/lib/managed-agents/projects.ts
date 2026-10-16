@@ -348,6 +348,12 @@ export function setError(text: string) {
   store.setState({ error: text });
 }
 
+/** 整批移到某家公司（project "" = 最近）时真要动的：已经在这家的不动（不发请求、月份分店不清空；同「拖回原组不动」），
+ *  拖动整批与行菜单「将 N 项移到…」共用。 */
+export function notIn(sessions: readonly string[], project: string): string[] {
+  return sessions.filter((id) => filingOf(id).project !== project);
+}
+
 /** 把对话移到某家公司（project "" = 最近），或改它的处理月份、分店。不改置顶。 */
 export async function fileSession(sessionId: string, target: Filing): Promise<void> {
   const before = filingOf(sessionId);

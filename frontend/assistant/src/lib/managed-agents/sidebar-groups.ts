@@ -9,13 +9,26 @@
 //   不分组（flatSections）：已置顶 → 其余全部（标题「最近」）
 //
 // 组内按排序方式排：上次更新 / 创建日期 / 名称，降序或升序；公司组按同一种方式排（名称 = 公司名）。
+// 手排（用户 10-16，sidebar-order.ts）：公司组拖过以后按手排的顺序（新出现的公司排最上面）；置顶的对话拖过以后按手排的先后
+// （新置顶的排最上面）。组里其余对话照排序方式排。
 // 搜索同时匹配对话标题和公司名（公司名命中时这家的对话都算）；搜索时每组都显示全部命中的，没命中的组不显示。
 
 import { FIRST_SHOWN, OPEN_FIRST, type ProjectRow, rowActivity } from "./projects";
+import { arrange } from "./sidebar-order";
 import type { SortBy } from "./sidebar-view";
 
-/** 侧栏的一行对话：index 是组件库 threadIds 里的位置；created 创建时间（列表带回的，本页新建的没有）、period 处理月份。 */
-export type SidebarRow = { index: number; title: string; starred: boolean; time: number; group: string; created?: number; period?: string };
+/** 侧栏的一行对话：index 是组件库 threadIds 里的位置；created 创建时间（列表带回的，本页新建的没有）、period 处理月份；
+ *  key 是记手排顺序用的对话编号（服务端编号，本页新建还没存的用本页编号）。 */
+export type SidebarRow = {
+  index: number;
+  title: string;
+  starred: boolean;
+  time: number;
+  group: string;
+  created?: number;
+  period?: string;
+  key?: string;
+};
 
 export type SidebarSection =
   | { type: "pinned"; key: "pinned"; indices: number[] }
@@ -33,9 +46,19 @@ export type SectionOptions = {
   sort?: SortOptions;
   /** 显示没有对话的公司组（默认显示）。 */
   empty?: boolean;
+  /** 手排的公司组顺序（公司编号；空 = 按排序方式）。 */
+  companyOrder?: readonly string[];
+  /** 手排的置顶顺序（行的 key；空 = 按排序方式）。 */
+  pinnedOrder?: readonly string[];
 };
 
 const UPDATED_DESC: SortOptions = { by: "updated", desc: true };
+
+/** 已置顶的那一组：按排序方式，手排过的按手排的先后（新置顶的在最上面）。 */
+function pinnedIndices(sorted: readonly SidebarRow[], keep: (row: SidebarRow) => boolean, order: readonly string[] | undefined): number[] {
+  const rows = sorted.filter((row) => row.starred && keep(row));
+  return arrange(rows, (row) => row.key ?? String(row.index), order).map((row) => row.index);
+}
 
 /** 行的先后：按排序方式，降序时反过来；一样时按原来的先后（组件库列表里的位置）。 */
 export function compareRows(sort: SortOptions = UPDATED_DESC): (a: SidebarRow, b: SidebarRow) => number {
@@ -63,7 +86,7 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   const recentFirst = [...rows].sort(compareRows(UPDATED_DESC));
 
   const sections: SidebarSection[] = [];
-  const pinned = sorted.filter((row) => row.starred && matches(row)).map((row) => row.index);
+  const pinned = pinnedIndices(sorted, matches, options.pinnedOrder);
   if (pinned.length) sections.push({ type: "pinned", key: "pinned", indices: pinned });
 
   // 公司的先后：上次更新 = 服务端给的最近活动、本页这家对话的时间（含提醒浮顶）里最晚的一个；创建日期 = 这家最新创建的对话；
@@ -79,10 +102,12 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   }
   const activity = (p: ProjectRow) => Math.max(rowActivity(p), latest.get(p.id) ?? 0);
   const companyKey = (p: ProjectRow) => (sort.by === "created" ? (newest.get(p.id) ?? 0) : activity(p));
-  const ordered = [...projects].sort((a, b) => {
+  const sortedProjects = [...projects].sort((a, b) => {
     const order = sort.by === "name" ? a.title.localeCompare(b.title) : companyKey(a) - companyKey(b);
     return (sort.desc ? -order : order) || a.title.localeCompare(b.title);
   });
+  // 手排过：按手排的顺序，新出现的公司排最上面
+  const ordered = arrange(sortedProjects, (p) => p.id, options.companyOrder);
   // 默认展开的「前 5 家」只数有对话的公司（测试窗口第 3 轮：手机上没有对话的空公司组排在前面，占掉了 5 个位置，有对话的
   // 各组一打开都收着）；空公司组排在它们之后，默认收着。对话列表还没到（一条对话都还没归到任何公司、服务端也没说哪家还有）时
   // 照公司顺序数前 5 家（复审第 3 轮：公司先到、对话后到的那段时间不能全收着）
@@ -113,7 +138,7 @@ export function monthSections(rows: readonly SidebarRow[], projects: readonly Pr
   const sort = options.sort ?? UPDATED_DESC;
   const sorted = [...rows].sort(compareRows(sort)).filter(matches);
   const sections: SidebarSection[] = [];
-  const pinned = sorted.filter((row) => row.starred).map((row) => row.index);
+  const pinned = pinnedIndices(sorted, () => true, options.pinnedOrder);
   if (pinned.length) sections.push({ type: "pinned", key: "pinned", indices: pinned });
   const months = new Map<string, number[]>();
   for (const row of sorted) {
@@ -134,7 +159,7 @@ export function flatSections(rows: readonly SidebarRow[], projects: readonly Pro
   const { q: query, matches } = searcher(projects, options.query ?? "");
   const sorted = [...rows].sort(compareRows(options.sort ?? UPDATED_DESC)).filter(matches);
   const sections: SidebarSection[] = [];
-  const pinned = sorted.filter((row) => row.starred).map((row) => row.index);
+  const pinned = pinnedIndices(sorted, () => true, options.pinnedOrder);
   if (pinned.length) sections.push({ type: "pinned", key: "pinned", indices: pinned });
   const rest = sorted.filter((row) => !row.starred).map((row) => row.index);
   if (rest.length) sections.push({ type: "recents", key: "recents", indices: rest });

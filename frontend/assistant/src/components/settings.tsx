@@ -400,7 +400,7 @@ function Connections({ api }: { api: Desktop }) {
 
   return (
     <>
-      <div className="flex items-center gap-3 border-b py-4">
+      <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
@@ -470,7 +470,7 @@ function Connections({ api }: { api: Desktop }) {
             <Heading>{st.earlierFolders}</Heading>
           </div>
           {legacy.map((root) => (
-            <div key={`${root.member}-${root.id}`} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
+            <div data-marquee-host="" key={`${root.member}-${root.id}`} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
               <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={root.path}>
                 {root.path}
@@ -500,7 +500,7 @@ function Connections({ api }: { api: Desktop }) {
           </div>
           {!main.folders.length && <p className="py-3 text-muted-foreground text-sm">{st.noFolders}</p>}
           {main.folders.map((path) => (
-            <div key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
+            <div data-marquee-host="" key={path} className="flex items-center gap-3 border-b py-3 text-sm last:border-b-0">
               <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
               <Marquee className="min-w-0 flex-1 truncate" title={path}>
                 {path}
@@ -613,7 +613,7 @@ export function ComputerSection({ row }: { row: Computer }) {
   const status = row.online ? "online" : "offline";
   return (
     <section className="mb-8 last:mb-0">
-      <div className="flex items-center gap-3 border-b py-4">
+      <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
           <div className="text-muted-foreground text-xs">{row.adapter === "mrerp" ? "MR.ERP" : "Express"}</div>

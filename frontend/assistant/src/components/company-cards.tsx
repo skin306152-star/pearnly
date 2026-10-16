@@ -4,7 +4,7 @@
 //   卡片外框 PanelCard（设计文档 3.13）：透明底 + 1px 内环、圆角 10；卡头 26：标题 + 箭头是折叠开关（整行都能点），右侧一列
 //            12px 淡色摘要（「2 条」「1 个任务」「需处理 2」，一直显示），卡头操作（＋）悬停 / 聚焦时盖在摘要的位置上；最右边留着
 //            6 点把手的宽度，把手悬停 / 聚焦才出，摘要一列右对齐、不因把手或操作出现而挪动。在会话栏里（PanelControlContext）
-//            折叠、顺序记在本机，拖动（dnd-kit 排序列表）或 Alt+↑/↓ 调顺序；不在会话栏里时各自记折叠、默认展开、没有把手。
+//            折叠、顺序记在本机，拖动（共用拖动 components/ui/drag.tsx）或 Alt+↑/↓ 调顺序；不在会话栏里时各自记折叠、默认展开、没有把手。
 //   各卡     待处理（这家的，当场选沿用 F18 规则）→ 知识库（新增 / 修改有「取消」「保存」，F11e）→ 单据文件夹（只有 CC 桌面版
 //            窗口能选，桥 pick_folder 的结果原样交给 folder_bind）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 定时任务
 //            （点一行跳任务页，「＋」带预填）→ 申报草稿（按分店分组）→ 记住的选择（按类别；付款方式、简易税票抵不抵能直接改，
@@ -15,8 +15,6 @@
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
 import { ChevronRightIcon, FolderIcon, GripVerticalIcon, LoaderIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   createContext,
   type FC,
@@ -62,6 +60,7 @@ import { useProjects } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { touchOnly } from "@/lib/touch";
+import { altMove, useSortableItem } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
@@ -99,7 +98,7 @@ export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
 const SECTION_ORDER = ["party", "account", "payment", "vat", "item", "department", "receipt", "pos", "income", "vatCheck", "history"];
 
 // ---------------------------------------------------------------- 卡片外框
-/** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的 dnd-kit 排序列表负责）、登记看得见的卡片
+/** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的共用拖动负责）、登记看得见的卡片
  *  （排序列表只在登记了的卡片之间排，空卡不显示也不占位；标题给读屏播报用）。不在会话栏里时卡片各自记折叠、没有把手。 */
 export type PanelControl = {
   collapsed: readonly string[];
@@ -130,21 +129,15 @@ export const PanelCard: FC<CardProps> = (props) => {
   return control ? <SortableCard {...props} control={control} /> : <CardFrame {...props} control={null} sortable={null} />;
 };
 
-/** 会话栏里的卡：登记自己、接上排序列表（components/session-panel.tsx 的 DndContext / SortableContext）。 */
+/** 会话栏里的卡：登记自己、接上共用拖动的排序列表（components/session-panel.tsx 的 DragArea / DragList）。 */
 const SortableCard: FC<CardProps & { control: PanelControl }> = ({ control, ...props }) => {
   const { register } = control;
   useLayoutEffect(() => register(props.id, props.title), [register, props.id, props.title]);
-  const sortable = useSortable({ id: props.id });
+  const sortable = useSortableItem({ id: props.id, kind: "card", label: props.title, list: "cards" });
   return <CardFrame {...props} control={control} sortable={sortable} />;
 };
 
-/** 让位 / 放下要过渡：dnd-kit 给的过渡串不是「transform 0ms」才算。放下后那一帧它故意给 0ms（先把卡放到新位置的反向
- *  位移上，下一帧再从那里过渡到 0，这才是放下的动画）；那一帧也套动效变量，没挪位置的卡就会先跳开一格再滑回来。 */
-export function moving(transition: string | undefined | null): boolean {
-  return !!transition && !/(^|\s)0m?s\b/.test(transition);
-}
-
-const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: ReturnType<typeof useSortable> | null }> = ({
+const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: ReturnType<typeof useSortableItem> | null }> = ({
   id,
   title,
   summary,
@@ -160,27 +153,11 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
   const summaryId = useId();
   const collapsed = !forceOpen && (control ? control.collapsed.includes(id) : folded);
   const toggle = () => (control ? control.toggle(id) : setFolded((v) => !v));
-  const keys = (e: ReactKeyboardEvent) => {
-    if (!control || !e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
-    e.preventDefault();
-    // 挪动时 React 可能把这个节点摘下再插回，焦点会丢：挪完把焦点放回原来的按钮
-    const el = e.currentTarget as HTMLElement;
-    control.move(id, e.key === "ArrowUp" ? -1 : 1);
-    requestAnimationFrame(() => {
-      if (el.isConnected && document.activeElement !== el) el.focus();
-    });
-  };
+  // Alt+↑/↓ 挪一格（挪动时 React 可能把这个节点摘下再插回，altMove 挪完把焦点放回原来的按钮）
+  const keys = (e: ReactKeyboardEvent) => control !== null && altMove(e, (delta) => control.move(id, delta));
   const shownSummary = summary !== undefined && summary !== null && summary !== "" && summary !== 0;
   return (
-    <section
-      ref={sortable?.setNodeRef}
-      style={sortable ? { transform: CSS.Translate.toString(sortable.transform) } : undefined}
-      className="cc-panel-card"
-      data-card={id}
-      data-slot={slot}
-      data-dragging={sortable?.isDragging || undefined}
-      data-moving={moving(sortable?.transition) ? "" : undefined}
-    >
+    <section {...sortable?.node} className="cc-panel-card" data-card={id} data-slot={slot}>
       <div className="cc-panel-card-head">
         <button
           type="button"
@@ -206,15 +183,12 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
           <span className="cc-panel-card-grip" data-slot="cc-card-grip">
             <button
               type="button"
-              ref={sortable.setActivatorNodeRef}
-              {...sortable.attributes}
-              {...sortable.listeners}
+              {...sortable.handle}
               className="cc-panel-btn cc-panel-grip"
               aria-label={t("reorder")}
               title={t("reorder")}
               onKeyDown={(e) => {
-                keys(e);
-                if (!e.defaultPrevented) sortable.listeners?.onKeyDown?.(e);
+                if (!keys(e)) sortable.handle.onKeyDown?.(e);
               }}
             >
               <GripVerticalIcon aria-hidden />

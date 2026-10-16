@@ -3,7 +3,9 @@
 //   GroupHeader   — 带高 32（手机 44）：整行（除右侧操作区）是一个开关（aria-expanded），名字 13/16 淡色、鼠标在组标题上变
 //                   次要色；名字后 12px 箭头（收起 ›、展开 ⌄），鼠标进侧栏才淡入（手机、触屏常显）。右侧操作 24×24：
 //                   悬停组标题才出「···」与「新建」（手机、触屏常显）。已置顶、各公司、各月、最近共用。公司组头另有最左的公司图标
-//                   （icon），名字同会话行标题的字号字色（projects.tsx 的 ProjectHeader，用户 2026-10-15 夜参考 DeepSeek 桌面端）
+//                   （icon），名字同会话行标题的字号字色（projects.tsx 的 ProjectHeader，用户 2026-10-15 夜参考 DeepSeek 桌面端）。
+//                   公司组头的开关也是这一组的拖动把手（共用拖动 components/ui/drag.tsx：拖成任意顺序，Alt+↑/↓ 挪一格）；
+//                   菜单键 / Shift+F10 打开这一组的「···」（各组都是受控菜单）
 //   GroupSortMenu — 组标题右侧的「···」，打开「分组和排序」（用户 2026-10-15 夜：原来的漏斗按钮去掉，公司组「···」里的
 //                   打开公司、在这家新建对话换成这份菜单）：分组依据（公司 / 月份 / 无）、排序方式（上次更新 / 创建日期 /
 //                   名称 + 降序 / 升序）、显示（元数据 / 空分组）、恢复默认设置（改过才可点）；父项右侧写当前值，选中的打 ✓
@@ -14,6 +16,7 @@
 
 import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import type { FC, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import { altMove, chain, type DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -26,6 +29,7 @@ import {
   type SortBy,
   useSidebarView,
 } from "@/lib/managed-agents/sidebar-view";
+import { hasManualOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { cn } from "@/lib/utils";
 
 /** 组标题的菜单键（键盘上的菜单键、Shift + F10）：打开这一组的「···」。 */
@@ -45,25 +49,34 @@ type HeaderProps = {
   dot?: ReactNode;
   /** 键盘菜单键：打开这一组的「···」。 */
   onMenuKey?: () => void;
+  /** 开关同时是这一组的拖动把手（公司组排序）。 */
+  handle?: DragHandle;
+  /** Alt+↑ / Alt+↓：这一组挪一格。 */
+  onMove?: (delta: -1 | 1) => void;
   /** 右侧操作区（待处理数、···（分组和排序）、新建）。 */
   children?: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "title" | "children">;
 
-export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggle, dot, onMenuKey, children, className, ...rest }) => (
+export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggle, dot, onMenuKey, handle, onMove, children, className, ...rest }) => (
   <div data-slot="cc-group" data-marquee-host="" {...rest} className={cn("cc-group-row", className)}>
     <button
       type="button"
+      {...handle}
       data-roving=""
       data-slot="aui_thread-list-group-label"
       className="cc-group-toggle"
       aria-expanded={open}
       title={title}
       onClick={onToggle}
+      onKeyUp={chain(handle?.onKeyUp)}
       onKeyDown={(e) => {
         if (onMenuKey && isMenuKey(e)) {
           e.preventDefault();
           onMenuKey();
+          return;
         }
+        if (onMove && altMove(e, onMove)) return;
+        handle?.onKeyDown?.(e);
       }}
     >
       {icon}
@@ -131,6 +144,8 @@ const Choice: FC<{ label: string; on: boolean; onPick: () => void; keep?: boolea
 /** 组标题右侧的「···」：打开「分组和排序」。open / onOpenChange 只有公司组头传（长按组头、菜单键也打开它）。 */
 export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) => void }> = ({ open, onOpenChange }) => {
   const view = useSidebarView();
+  // 「恢复默认设置」也清手排的公司组、置顶顺序：两样都跟默认一样才不可点
+  const manual = useSidebarOrder(hasManualOrder);
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
@@ -165,7 +180,7 @@ export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) 
             <Choice keep label={sb.emptyGroups} on={view.empty} onPick={() => setSidebarView({ empty: !view.empty })} />
           </SubMenu>
           <DropdownMenu.Separator className="cc-menu-sep" />
-          <DropdownMenu.Item className="cc-menu-item" disabled={isDefaultView(view)} onSelect={resetSidebarView}>
+          <DropdownMenu.Item className="cc-menu-item" disabled={isDefaultView(view) && !manual} onSelect={resetSidebarView}>
             {sb.resetDefaults}
           </DropdownMenu.Item>
         </DropdownMenu.Content>

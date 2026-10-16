@@ -1,7 +1,9 @@
 // 手机上长按弹菜单（侧栏对话行、公司组头共用）。
 import { useRef } from "react";
+import { isDragging } from "@/lib/layers";
 
-const LONG_PRESS_MS = 500;
+/** 长按出菜单的时长；共用拖动（components/ui/drag.tsx）按到这个时间就不再拿起，两边同一个数。 */
+export const LONG_PRESS_MS = 500;
 const LONG_PRESS_SLOP = 10;
 const CONTEXT_MENU_WINDOW_MS = 1500;
 
@@ -29,6 +31,8 @@ export function useLongPress(onLongPress: () => void) {
       origin.current = { x: p.clientX, y: p.clientY };
       timer.current = window.setTimeout(() => {
         timer.current = null;
+        // 按住 250ms 后动了就是拖动（共用拖动 components/ui/drag.tsx 的 touch="move"）：不再出菜单
+        if (isDragging()) return;
         fired.current = true;
         window.getSelection?.()?.removeAllRanges();
         navigator.vibrate?.(10);

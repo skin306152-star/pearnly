@@ -1,5 +1,6 @@
 import { t } from "@/i18n";
 import { useEffect, useRef, type ReactNode } from "react";
+import { isDragging } from "@/lib/layers";
 
 // 手机（同 Claude 手机端）：抽屉在底下不动，当前页面是盖在上面的一张卡片。按住页面任意处左右拖，卡片跟着手指走，
 // 一离开原位就是圆角细边，越往右越淡（深色模式越暗）；松手按甩的方向（甩得快）或停的位置（过半）决定停在打开还是收起。
@@ -76,6 +77,11 @@ export function MobileShell({
     const onMove = (e: TouchEvent) => {
       const p = e.touches[0];
       if (!g || !p) return;
+      // 抽屉里正在拖对话、公司组（共用拖动）：手指横着偏一点也不推抽屉
+      if (isDragging() && !g.locked) {
+        g = null;
+        return;
+      }
       const dx = p.clientX - g.x0;
       const dy = p.clientY - g.y0;
       if (!g.locked) {
