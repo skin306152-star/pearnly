@@ -208,7 +208,10 @@ class ItemTiers(unittest.TestCase):
             self.assertEqual(self.tier("vat", payload=claim, text=text), "B", text[:20])
         # 识别判不抵（记费用），原文却是印着买方税号的完整税票：B；核不到原文（乱码、没有文字层）照 A，不多抵税
         self.assertEqual(self.tier("vat", payload=expense), "B")
-        self.assertEqual(self.tier("vat", payload=expense, text=""), "A")
+        # 判不抵：标题要正是简式税票 / 收据才算 A；核不到原文（乱码、没有文字层、标题印成别的）算 B（第四轮回放 9/10 会计抵了）
+        self.assertEqual(self.tier("vat", payload=expense, text=TEXT.replace("ใบกำกับภาษี", "ใบกำกับภาษีอย่างย่อ")), "A")
+        for text in ("", TEXT.replace("ใบกำกับภาษี", "ใบแจ้งหนี้")):
+            self.assertEqual(self.tier("vat", payload=expense, text=text), "B", text[:20])
         self.assertEqual(self.tier("vat", payload=_payload(item_src="")), "C")
         # 没有税额：抵不抵无从说起，不列
         self.assertIsNone(self.tier("vat", payload=_payload(item_src="judge_direction=expense", vat_amount="0.00")))
@@ -256,12 +259,14 @@ class ItemTiers(unittest.TestCase):
                                                         item_src="judge_direction=purchase_invoice")))
         self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:account",)))
 
-    def test_the_company_goods_posting_choice_is_a_rule(self):
-        """永续 / 混合库存账套的商品单：这家公司选过的入账方式（`goods_posting`）算人定的规则，列 posting = A。"""
-        self.assertEqual(self.tier("posting", posting_from="company_choice"), "A")
+    def test_the_company_goods_posting_choice_is_a_cc_judgement(self):
+        """永续 / 混合库存账套的商品单：这家公司选过的入账方式（`goods_posting`）只是这家多数单的做法，列 posting = B
+        （审查处理 10-16，第四轮回放各家 1%～6% 的单与会计记法不同）。"""
+        self.assertEqual(self.tier("posting", posting_from="company_choice"), "B")
         self.assertIsNone(self.tier("posting", posting_from="declared"))
         self.assertIsNone(self.tier("posting"))
-        self.assertEqual(auto.classify(_facts(posting_from="company_choice")).cls, "A")
+        verdict = auto.classify(_facts(posting_from="company_choice"))
+        self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:posting",)))
 
     def test_a_c_item_makes_the_document_c(self):
         verdict = auto.classify(_facts(config={}))

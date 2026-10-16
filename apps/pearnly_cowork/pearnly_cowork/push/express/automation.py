@@ -4,8 +4,9 @@
 取数由调用方做好放进 `Facts`；这里只判：
 
 - **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目要最近连续 3 张有证据的同科目）、公司规则、任务默认、v2 历史已定、
-  按方向推断抵进项（原文核得到票种）、公司选过的商品单入账方式……），且第 2 条核对全过；
-- **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的记忆科目……）；
+  按方向推断抵进项（原文核得到票种）……），且第 2 条核对全过；
+- **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的记忆科目、
+  按公司选的商品单入账方式……）；
 - **C 要人**：有要人选的项、任一核对不过、或被硬闸拦下。
 
 第 2 条的核对全部确定性、零费用，**只作内部信号**：原因码记在票上给 CC 与月结台账用，不出提示文案、不拦人推
@@ -21,7 +22,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
-from pearnly_core.tax_documents.codes import TAX_INVOICE
+from pearnly_core.tax_documents.codes import RECEIPT, SIMPLIFIED_TAX_INVOICE, TAX_INVOICE
 from pearnly_core.tax_documents.rules import from_title
 
 from pearnly_cowork.push.express import choices as choice_rules
@@ -547,8 +548,19 @@ def claim_in_text(direction: str, fields: Mapping[str, Any], text: Optional[str]
         tax_in_text((fields or {}).get(f"{_own_side(direction)}_tax"), text)
 
 
+def no_claim_in_text(text: Optional[str]) -> bool:
+    """原件文字层的标题正是不能抵进项的票种（简式税票、收据；`rules.from_title` 先认「อย่างย่อ」、再认完整税票、最后才认收据，
+    「ใบเสร็จรับเงิน/ใบกำกับภาษี」合一单算完整税票）。"""
+    text = text if isinstance(text, str) else ""
+    return bool(text.strip()) and from_title(text) in (SIMPLIFIED_TAX_INVOICE, RECEIPT)
+
+
 def _claim_printed(facts: Facts) -> bool:
     return claim_in_text(facts.direction, facts.fields, facts.text)
+
+
+def _no_claim_printed(facts: Facts) -> bool:
+    return no_claim_in_text(facts.text)
 
 
 def memory_evidence(entries: Iterable[Mapping[str, Any]]) -> List[str]:
@@ -601,7 +613,7 @@ def _vat_applies(payload: Mapping[str, Any]) -> bool:
 
 def tiers(facts: Facts) -> Dict[str, str]:
     """第 1 条每一项的档 ``{类: A|B|C}``：party 对方档、item 存货、account 费用 / 收入科目、payment 现 / 赊、vat 抵不抵进项、
-    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）、posting 商品单入账方式（这家公司选过的）。
+    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）、posting 商品单入账方式（这家公司选过的，B）。
     用不上的项不列。没出载荷时只列对方档。"""
     payload, decided = _payload(facts), dict((facts.decision or {}).get("decided_by") or {})
     out: Dict[str, str] = {"party": _party_tier(facts, decided.get("party"))}
@@ -633,13 +645,18 @@ def tiers(facts: Facts) -> Dict[str, str]:
         elif source == "judge_direction=purchase_invoice":
             out["vat"] = A if _claim_printed(facts) else B
         elif source.startswith("judge_direction="):
-            out["vat"] = B if _claim_printed(facts) else A
+            # 判不抵（记费用）：文字层标题要正是简式税票 / 收据才算 A；核不到（乱码、标题印成别的）算 B —— 第四轮回放闸层
+            # 判不抵且核不到原文的 10 张里 9 张会计抵了进项（审查处理 10-16）
+            out["vat"] = A if _no_claim_printed(facts) else B
         else:
             out["vat"] = C
         # 本票人工裁决（manual）不按对方作键；choice 来自按对方记下的那一层
         keyed["vat"] = (decided.get("vat") or "chosen") if source == "choice" else ""
     if facts.posting_from == "company_choice":
-        out["posting"] = A  # 商品单入账方式：这家公司选过（`goods_posting`，人定的规则）
+        # 商品单入账方式按公司选过的（`goods_posting`）：会交人的这类单不只是商品（进项所有可抵进项的完整税票、销项全部单），
+        # 公司选的值只是这家多数单的做法。第四轮回放：按公司多数选，各家仍有 1%～6% 的单与会计的记法（有没有存货明细）不同，
+        # 所以算 CC 判断（B），不算规则定（审查处理 10-16）
+        out["posting"] = B
     out["department"] = A  # 记过的照用，没记过取单据簿默认部门或不记（不再问，用户 10-08）
     # 本方：票面印的本方税号正是推往账套的（A）；票面没印本方的收据 / 简式税票（B，去向是上传时选的，不是票面说的）。
     # 印了却对不上、正式税票没印由第 2 条 ``own_tax`` 归 C；账套没有 13 位税号核不了，不列
@@ -733,4 +750,5 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
 __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim_in_text", "CLASSES", "classify",
            "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_SOURCES", "Facts", "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
-           "prior_entry", "reason_codes", "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer", "tiers", "Verdict"]
+           "no_claim_in_text", "prior_entry", "reason_codes", "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",
+           "tiers", "Verdict"]

@@ -207,7 +207,7 @@ class JudgementLayer(unittest.TestCase):
         later = [row for row in rows if row["entered"] > posting[0]["entered"] and row["docnum"].startswith("RR6801")]
         self.assertTrue(later)
         for row in later:
-            self.assertEqual((row["posting_from"], row["items"].get("posting")), ("company_choice", "A"), row)
+            self.assertEqual((row["posting_from"], row["items"].get("posting")), ("company_choice", "B"), row)
             self.assertFalse(str(row["prepare"]).startswith("posting_needs_review"))
         # 同线上不预先声明（审查处理 10-16）：答案里没有存货明细的单也按公司选的「走库存」走，与答案比 posting 计错
         self.assertEqual(by_number["HP680302-001"]["posting_from"], "company_choice")

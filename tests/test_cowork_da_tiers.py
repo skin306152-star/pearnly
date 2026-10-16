@@ -1002,9 +1002,9 @@ class Judging(unittest.TestCase):
         self.assertEqual(_assess(recent=chosen, marks={})[0]["class"], "A")
 
     def test_the_company_goods_posting_choice_reaches_the_judgement(self):
-        """商品单入账方式按公司选过（`service._goods_posting`）：判定用选的入账类型，posting 一项算 A。"""
+        """商品单入账方式按公司选过（`service._posting_decision`）：判定用选的入账类型，posting 一项算 B（审查处理 10-16）。"""
         found, seen = _assess(posting=("stock", "company_choice"))
-        self.assertEqual((found["class"], found["items"].get("posting")), ("A", "A"))
+        self.assertEqual((found["class"], found["items"].get("posting")), ("B", "B"))
         self.assertEqual(seen["posting"][3], None)  # 调用方给的入账类型原样交给它判
 
     def test_boundaries_turn_a_push_into_a_proposal(self):

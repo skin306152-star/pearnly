@@ -641,11 +641,13 @@ class Memory:
 
 class CompanyChoice:
     """一家公司按公司记的选择（工作空间 ``document_policy`` 的 ``goods_posting|<公司>``，`push.express.goods_posting`）：
-    商品单入账方式。模拟的人在第一张因此交人的单上按答案选一次（有存货明细 = 走库存，没有 = 记费用），之后这家照此。
-    回放同线上：单都不预先声明入账类型，会交人的全按公司选的走（审查处理 10-16）。"""
+    商品单入账方式。模拟的人在第一张因此交人的单上替这家公司选一次，之后这家照此。回放同线上：单都不预先声明入账类型，会交人的
+    全按公司选的走（审查处理 10-16）。人选哪个：``preferred``（`judge_company` 按这家答案里多数单有没有存货明细定：会计知道这家记不记
+    库存；第四轮先按第一张单的答案选，NEWLINK 等几家第一张恰好是服务、此后十几万张商品单全被记成费用，那是模拟的人选错，不是规则）。"""
 
-    def __init__(self):
+    def __init__(self, preferred: Optional[str] = None):
         self.goods_posting: Optional[str] = None
+        self.preferred = preferred
 
 
 _READBACK_DAYS: Dict[str, dt.date] = {}
@@ -760,8 +762,8 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
         except Exception as error:  # noqa: BLE001 — 一张单准备失败就当没准备好（C），不中断回放
             reason = f"prepare_error:{type(error).__name__}"
     if reason.startswith(m["goods_posting"].NEEDED_PREFIX) and company.goods_posting is None:
-        # 模拟的人在复核页点「走库存 / 记费用」：按这张单的答案（有存货明细 = 走库存）替这家公司选一次
-        company.goods_posting = "stock" if doc["stock"] else "service"
+        # 模拟的人在复核页点「走库存 / 记费用」：按这家多数单的记法替这家公司选一次（没给多数就按这张单的答案）
+        company.goods_posting = company.preferred or ("stock" if doc["stock"] else "service")
     # 账套记忆定的科目要最近连续 3 张有证据的同科目（`automation.memory_settled` / `memory_evidence`）：同线上，数的是这家
     # 供应商（13 位税号）在这份账套里之前推出去的科目（A / B 是载荷的、C 是模拟的人按答案选的），凭记忆推的要合格回读核过
     # 才算（审查处理 10-16：原先取会计最终记的答案科目，CC 自己推错又攒成「连续 3 张」的偏差量不到）
@@ -892,7 +894,9 @@ def judge_company(m, books: Sequence[Mapping[str, Any]]) -> Tuple[List[Dict[str,
     memories = collections.defaultdict(Memory)
     priors = collections.defaultdict(dict)
     purchases = {book["key"]: history_index(book["docs"], m["choices"].norm_name) for book in books}
-    company, shaped = CompanyChoice(), shaped_books(m, books)  # 语料一家公司一个目录：按公司选的入账方式一家一份
+    stock = sum(1 for item in queue if item[4]["stock"])
+    preferred = "stock" if stock * 2 >= len(queue) else "service"
+    company, shaped = CompanyChoice(preferred), shaped_books(m, books)  # 语料一家公司一个目录：按公司选的入账方式一家一份
     pushed = collections.defaultdict(dict)  # 每份账套：供应商 → 推出去的科目（`pushed_evidence`）
     for _entered, _day, _number, book, doc in queue:
         out.append(judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
