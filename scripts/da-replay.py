@@ -21,10 +21,11 @@
 
     python3 da-replay.py inventory --corpus /mnt/c/PearnlyStress/语料/06-录入推送 --gold /mnt/c/PearnlyStress/语料/金标-2026-10 --out OUT
     python3 da-replay.py judge --corpus ... --out OUT [--company 名称]
-    PYTHONPATH=<含 pypdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 --out OUT
+    PYTHONPATH=<含 pypdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
+        --manifest /mnt/c/PearnlyStress/语料/06-录入推送/清单.tsv --out OUT
     python3 da-replay.py report --out OUT
 
-金额一律 Decimal；日期按单据所属会计期间（不看墙上时间）。脚本拒绝 ``\\\\`` 与 ``S:`` 开头的路径（不碰局域网真账）。
+金额一律 Decimal；日期按单据所属会计期间（不看墙上时间）。脚本拒绝 ``\\\\`` 与 ``S:`` 开头的路径（不碰局域网真账），读写都拒。
 """
 from __future__ import annotations
 
@@ -380,6 +381,13 @@ def answer_books(corpus: Path, only: Optional[str] = None) -> List[Tuple[str, st
 # ── 判定层：造「识别全对」的票面，走推送同一套判定 ─────────────────────────────────
 
 
+def entered_on(doc: Mapping[str, Any]) -> dt.date:
+    """这张答案单录进 Express 的日子：凭证录入日（GLJNL.CREDAT，不早于单据日期才认），没有取单据日期后 ``ENTRY_LAG_DAYS`` 天。"""
+    entered = doc.get("entered")
+    return entered if isinstance(entered, dt.date) and entered >= doc["date"] else \
+        doc["date"] + dt.timedelta(days=ENTRY_LAG_DAYS)
+
+
 def _modules():
     from pearnly_cowork.companies import automation_rules
     from pearnly_cowork.push.automation import rules as tier_rules
@@ -414,7 +422,8 @@ def synthetic_text(fields: Mapping[str, Any]) -> str:
     """判定层不测识别：原文核对（含税额、日期在文字层里）按「原件上印着」造一段文字层，够 `automation.text_layer` 的字数。"""
     day = str(fields.get("date") or "")
     printed = f"{day[8:10]}/{day[5:7]}/{day[:4]}" if len(day) >= 10 else ""
-    body = f"{fields.get('invoice_number') or ''} {printed} {fields.get('total_amount') or ''}"
+    taxes = " ".join(str(fields.get(key) or "") for key in ("seller_tax", "buyer_tax"))
+    body = f"{fields.get('invoice_number') or ''} {printed} {fields.get('total_amount') or ''} {taxes}"
     return (body + " ") * 20
 
 
@@ -556,6 +565,15 @@ def payload_values(payload: Mapping[str, Any], book: Mapping[str, Any], fields: 
 
 
 SCORED = ("party", "account", "payment", "vat")
+# 本层核不了的项：销项现 / 赊（票面单据类型按「有税额 = 正式税票」造，现销的税票 / 收据合一单在真实识别里可能是
+# receipt_tax_invoice，判法不同），单列、不计入准确率（审查处理 10-16）
+NOT_EVALUABLE = {("sales", "payment")}
+
+
+def evaluable_correct(direction: str, scored: Mapping[str, str]) -> bool:
+    """去掉本层核不了的项后全对（`NOT_EVALUABLE`）。"""
+    kept = {item: value for item, value in (scored or {}).items() if (direction, item) not in NOT_EVALUABLE}
+    return bool(scored) and all(value in ("ok", "n/a") for value in kept.values())
 
 
 def score(answer: Mapping[str, Any], pushed: Mapping[str, Any]) -> Dict[str, str]:
@@ -625,8 +643,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     fields = perfect_fields(doc, book)
     direction = doc["direction"]
     day = doc["date"]
-    entered = doc["entered"] if isinstance(doc["entered"], dt.date) and doc["entered"] >= day else \
-        day + dt.timedelta(days=ENTRY_LAG_DAYS)
+    entered = entered_on(doc)
     party = "buyer" if direction == "sales" else "seller"
     subject = m["choices"].party_subject(direction, fields.get(f"{party}_tax"), fields.get(f"{party}_branch"),
                                          fields.get(f"{party}_name"))
@@ -634,7 +651,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     tax = digits(fields.get("seller_tax"))
     mine = history_entries.get(tax if len(tax) == 13 else "name:" + m["choices"].norm_name(fields.get("seller_name")),
                                []) if direction == "purchase" else []
-    data = history_data(mine, entered - dt.timedelta(days=365), min(entered, day + dt.timedelta(days=1)), entered)
+    # 防泄漏（审查处理 10-16）：Express 历史只含这张单录入之前已录进去的单（按录入日，不按单据日期），不含它自己
+    earlier = [item for item in mine if item is not doc and item["date"] and entered_on(item) < entered]
+    data = history_data(earlier, entered - dt.timedelta(days=365), entered, entered)
     remembered = {kind: dict(values) for kind, values in memory.kinds.items()}
     # 入账类型：答案里没有存货明细（STCRD）的单按「服务」（录入第一步每批的选择；人这样选不改任何计分项），有存货明细的
     # 不声明（永续 / 混合账套的商品单照生产交人）
@@ -643,6 +662,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
                                             remembered=remembered, branch=book["branch"],
                                             settle=_settle(m, data, fields, config, entered)
                                             if direction == "purchase" else None)
+    if decision.get("history") and decision["applied"].get("account"):
+        # 同推送服务 `_account_from`：历史已定的科目来源记 express_history（不报成账套记忆）
+        decision["applied"]["account_from"] = "express_history"
     payload, ready, reason = None, False, ""
     if not decision["needed"]:
         config["choices"] = decision["applied"]
@@ -663,6 +685,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     facts = automation.Facts(
         direction=direction, fields=fields, decision=decision, payload=payload, config=config, today=entered,
         ready=ready, blocked=reason, pages=pages, review_reasons=(), text=synthetic_text(fields),
+        page_texts=[synthetic_text(fields)],
         account=account_row(book), catalog=catalog, day_books=[book["key"]], uploaded=entered, source_total=1,
         prior_pushes=prior.get(_ref_key(m, fields["invoice_number"]), []), history_read=entered,
         layers=automation.layers(fields, direction=direction, remembered=remembered,
@@ -682,8 +705,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             "outside": "" if not (book["period"][0] and book["period"][1]) else
             "next_year" if day > book["period"][1] else "before" if day < book["period"][0] else "",
             "prepare": reason, "sources": {key: (payload or {}).get(key) for key in ("doctype_src", "account_source",
-                                                                                      "item_src")},
+                                                                                      "item_src", "doctype")},
             "scored": scored, "correct": bool(scored) and all(value in ("ok", "n/a") for value in scored.values()),
+            "correct_eval": evaluable_correct(direction, scored),
             "vat_direction_only": verdict.cls == "B" and list(verdict.reasons) == ["judged:vat"]}
 
 
@@ -751,9 +775,7 @@ def judge_company(m, books: Sequence[Mapping[str, Any]]) -> Tuple[List[Dict[str,
             if why:
                 skipped[why] += 1
                 continue
-            entered = doc["entered"] if isinstance(doc["entered"], dt.date) and doc["entered"] >= doc["date"] else \
-                doc["date"] + dt.timedelta(days=ENTRY_LAG_DAYS)
-            queue.append((entered, doc["date"], doc["docnum"], book, doc))
+            queue.append((entered_on(doc), doc["date"], doc["docnum"], book, doc))
     queue.sort(key=lambda item: (item[0], item[1], item[2]))
     memories = collections.defaultdict(Memory)
     priors = collections.defaultdict(dict)
@@ -777,6 +799,11 @@ THRESHOLD_SETS = {
 }
 
 
+def _row_ok(row: Mapping[str, Any]) -> bool:
+    """推出去算不算对（回读里不被改）：本层能核的项全对（旧存档没有 ``correct_eval`` 时按全部项）。"""
+    return bool(row.get("correct_eval", row.get("correct")))
+
+
 def readback_day(m, period: str) -> dt.date:
     """合格回读：这一期 ภ.พ.30 截止日（电子申报有延期取电子的）之后一天发起（`companies.automation._deadline` 同口径）。"""
     found = m["tax_periods"].deadlines("pp30", int(period[:4]), int(period[5:7]))
@@ -786,11 +813,12 @@ def readback_day(m, period: str) -> dt.date:
 def timeline(m, rows: Sequence[Mapping[str, Any]], thresholds: Mapping[str, Any], *, trigger: str = "upload",
              b_at_l2: Optional[bool] = None) -> Dict[str, Any]:
     """一家公司按录入日走一遍档位：起点 L0；每期回读（截止日后一天）用 `automation_rules.tally` / `evaluate` 评一次；
-    推错的单（反事实计分不全对）在回读里就是「被改」。回 ``{"changes": [...], "final", "auto", "proposals", "stopped",
-    "auto_wrong"}``。"""
+    推错的单（反事实计分不全对）在回读里就是「被改」。每张单按 `push.automation.rules.action` 定怎么办：回读不旧按最近一次
+    评过的期算；定时任务 A 类在 L0 的基线按 `automation_rules.baseline`（新客户照推、之后看证据）。回 ``{"changes": [...],
+    "final", "auto", "proposals", "stopped", "auto_wrong"}``。"""
     tier_rules, rules = m["tier_rules"], m["automation_rules"]
     b_at_l2 = tier_rules.B_AT_L2 if b_at_l2 is None else b_at_l2
-    tier, since = tier_rules.L0, None
+    tier, since, reason_now, last_read = tier_rules.L0, None, "", ""
     periods = sorted({row["period"] for row in rows})
     evaluations = sorted((readback_day(m, period), period) for period in periods)
     stats: Dict[str, Dict[str, int]] = {}
@@ -801,23 +829,26 @@ def timeline(m, rows: Sequence[Mapping[str, Any]], thresholds: Mapping[str, Any]
     cursor = 0
 
     def evaluate_until(day: dt.date):
-        nonlocal tier, since
+        nonlocal tier, since, reason_now, last_read
         while pending and pending[0][0] <= day:
             at, period = pending.pop(0)
             stats[period] = rules.tally(covered.get(period, []))
+            last_read = max(last_read, period)
             new, reason = rules.evaluate(tier, since, stats, thresholds=thresholds, b_at_l2=b_at_l2)
             if new != tier:
                 changes.append({"period": period, "at": at.isoformat(), "from": tier, "to": new, "reason": reason})
-                tier, since = new, at
+                tier, since, reason_now = new, at, reason
 
     while cursor < len(ordered):
         row = ordered[cursor]
         entered = dt.date.fromisoformat(row["entered"])
         evaluate_until(entered)
-        action, _why = tier_rules.action(row["class"], tier, trigger)
+        baseline = rules.baseline(tier, since, stats, reason_now, thresholds=thresholds)
+        action, _why = tier_rules.action(row["class"], tier, trigger, baseline=baseline,
+                                         readback=tier_rules.readback_ok(last_read, row["period"]))
         if action == tier_rules.PUSH:
             counts["auto"] += 1
-            counts["auto_wrong"] += int(not row["correct"])
+            counts["auto_wrong"] += int(not _row_ok(row))
         elif action == tier_rules.PROPOSE:
             counts["proposals"] += 1
         else:
@@ -825,7 +856,7 @@ def timeline(m, rows: Sequence[Mapping[str, Any]], thresholds: Mapping[str, Any]
         if row["class"] in ("A", "B") and action != tier_rules.STOP:
             covered[row["period"]].append({"automated": action == tier_rules.PUSH, "proposal": action == tier_rules.PROPOSE,
                                            "cls": row["class"], "covered": entered < readback_day(m, row["period"]),
-                                           "readback": "" if row["correct"] else "changed", "verify": "ok"})
+                                           "readback": "" if _row_ok(row) else "changed", "verify": "ok"})
         cursor += 1
     evaluate_until(dt.date.max)
     return {"changes": changes, "final": tier, **{key: counts[key] for key in ("auto", "auto_wrong", "proposals", "stopped")}}
@@ -834,8 +865,8 @@ def timeline(m, rows: Sequence[Mapping[str, Any]], thresholds: Mapping[str, Any]
 # ── 识别闸层：真识别结果 × 独立金标 ─────────────────────────────────────────────
 
 # 第 2 条里属于识别侧与原文核对的原因码（日期、账套、分店、重复等属判定层，这一层不判）
-GATE_REASONS = ("review_flag", "review_reasons", "image", "text_missing", "text_total", "text_date", "amount_inferred",
-                "amount_math", "party_tax", "void", "split", "evidence")
+GATE_REASONS = ("review_flag", "review_reasons", "image", "text_missing", "text_total", "text_date", "text_tax",
+                "amount_inferred", "amount_math", "party_tax", "void", "split", "evidence")
 GATE_FIELDS = ("invoice_number", "date", "party_tax", "party_branch", "subtotal", "vat", "total")
 SALES_CATEGORIES = ("销项发票",)
 
@@ -911,8 +942,10 @@ def pdf_texts(path: Path) -> Optional[List[str]]:
     try:
         import pypdf
 
+        from pearnly_cowork.history.pdf_text import page_text  # 同生产：带隐形识别文字层的页给空串
+
         reader = pypdf.PdfReader(str(path))
-        return [page.extract_text() or "" for page in reader.pages]
+        return [page_text(page) for page in reader.pages]
     except Exception:  # noqa: BLE001 — 读不出就当没有文字层
         return None
 
@@ -945,16 +978,18 @@ def gate_invoice(m, invoice: Mapping[str, Any], *, direction: str, own_tax: str,
     fields["direction"] = direction
     page = {"fields": fields, "_validation_warnings": list(invoice.get("warnings") or []),
             "_needs_manual_review": bool(invoice.get("review")), "_layer_chain": ["direct"]}
-    pages = [page]
-    reasons = review.reasons(pages, direction=direction, own_tax=own_tax or None)
+    count = max(1, int(invoice.get("pages") or 1))
+    # 跨页的票按原件页数造同样多的页（生产按原件这几页逐页判文字层，审查处理 10-16），后几页只占位
+    pages = [page, *({"fields": {}, "_layer_chain": ["direct"]} for _ in range(count - 1))]
+    reasons = review.reasons(pages[:1], direction=direction, own_tax=own_tax or None)
     number = int(invoice.get("page") or 1)
-    text = None
+    text, page_texts = None, None
     if texts:
-        span = range(number, number + max(1, int(invoice.get("pages") or 1)))
-        text = "\n".join(texts[index - 1] for index in span if 1 <= index <= len(texts)).strip() or None
+        page_texts = [texts[index - 1] for index in range(number, number + count) if 1 <= index <= len(texts)]
+        text = "\n".join(page_texts).strip() or None
     facts = automation.Facts(direction=direction, fields=fields, decision={}, payload={"total_amount": fields.get("total_amount")},
                              config={}, today=dt.date.today(), ready=True, pages=pages, review_reasons=reasons, text=text,
-                             source_total=source_total)
+                             page_texts=page_texts, source_total=source_total)
     return [code for code in automation.checks(facts) if code in GATE_REASONS]
 
 
@@ -962,6 +997,7 @@ def gate_invoice(m, invoice: Mapping[str, Any], *, direction: str, own_tax: str,
 
 
 def _write_json(path: Path, value: Any) -> None:
+    path = refuse_lan(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
 
@@ -979,7 +1015,7 @@ def _gold(gold_dir: Path) -> Tuple[Dict[str, Any], Dict[str, Dict[str, str]]]:
 
 
 def cmd_inventory(args) -> int:
-    corpus, out = refuse_lan(args.corpus), Path(args.out)
+    corpus, out = refuse_lan(args.corpus), refuse_lan(args.out)
     books, coverage = [], collections.Counter()
     calendars = fiscal_calendars(Path(args.express) if args.express else None,
                                  [corpus / "_脚本" / name for name in ("expsets.tsv", "expsets7.tsv")])
@@ -1045,7 +1081,7 @@ def _inventory_real(args, books, coverage, out) -> None:
 
 def cmd_judge(args) -> int:
     m = _modules()
-    corpus, out = refuse_lan(args.corpus), Path(args.out)
+    corpus, out = refuse_lan(args.corpus), refuse_lan(args.out)
     by_company = collections.defaultdict(list)
     calendars = fiscal_calendars(Path(args.express) if args.express else None,
                                  [corpus / "_脚本" / name for name in ("expsets.tsv", "expsets7.tsv")])
@@ -1080,14 +1116,14 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
 
 def cmd_gate(args) -> int:
     m = _modules()
-    gold_dir, out = refuse_lan(args.gold), Path(args.out)
+    gold_dir, out = refuse_lan(args.gold), refuse_lan(args.out)
     gold, sample = _gold(gold_dir)
     corpus_root = refuse_lan(args.originals)
     taxes = {}
-    if args.manifest:
-        for row in _read_tsv(Path(args.manifest)):
-            if row.get("税号"):
-                taxes.setdefault(row.get("公司"), row["税号"])
+    # 本方税号（复核原因要比本方）：必填，否则复核原因比生产少、复跑出不来存档结果（审查处理 10-16）
+    for row in _read_tsv(Path(args.manifest)):
+        if row.get("税号"):
+            taxes.setdefault(row.get("公司"), row["税号"])
     flags = {}
     for line in open(refuse_lan(gold_dir / "金标" / args.flags), encoding="utf-8"):
         record = json.loads(line)
@@ -1117,7 +1153,8 @@ def cmd_gate(args) -> int:
                          "passed": not reasons, "entry": truth.get("entry"), "paired": index is not None,
                          "result": result, "uncertain": uncertain,
                          "wrong": [key for key, value in result.items() if value == "wrong"]})
-    _write_json(out / "gate.json", {"rows": rows, "records": args.records, "flags": args.flags})
+    _write_json(out / "gate.json", {"rows": rows, "records": args.records, "flags": args.flags,
+                                    "manifest": str(args.manifest)})
     print(f"gate rows {len(rows)}", flush=True)
     return 0
 
@@ -1132,6 +1169,7 @@ CAUSES = (
     ("number", "答案没有对方单号", lambda row: "invoice_no_missing" in str(row.get("prepare") or "")),
     ("party", "对方档定不下（无 13 位税号 / 同税号多档 / 分店不符）", lambda row: "item:party" in row["reasons"]),
     ("party_tax", "对方税号校验位不对", lambda row: "party_tax" in row["reasons"]),
+    ("own_tax", "本方税号对不上推往账套", lambda row: "own_tax" in row["reasons"]),
     ("day_month", "日、月都 ≤12 读法两可", lambda row: "day_month" in row["reasons"]),
     ("duplicate", "同账套已推过同对方同单号同金额", lambda row: "duplicate_number" in row["reasons"]),
     ("preflight", "推送预检不过（其他）", lambda row: "not_ready" in row["reasons"] or "blocked" in row["reasons"]),
@@ -1145,9 +1183,9 @@ def primary_cause(row: Mapping[str, Any]) -> str:
     return "other"
 
 
-def _accuracy(rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+def _accuracy(rows: Sequence[Mapping[str, Any]], key: str = "correct") -> Dict[str, Any]:
     n = len(rows)
-    ok = sum(1 for row in rows if row["correct"])
+    ok = sum(1 for row in rows if (_row_ok(row) if key == "correct_eval" else row[key]))
     lower, upper = wilson(ok, n)
     return {"n": n, "ok": ok, "point": ok / n if n else None, "lower": lower, "upper": upper, "bar": passes_bar(ok, n)}
 
@@ -1173,8 +1211,8 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             "periods": len({row["period"] for row in mine}),
             "cause": (collections.Counter(primary_cause(row) for row in mine if row["class"] == "C").most_common(1)
                       or [("", 0)])[0][0],
-            "A_acc": _accuracy([row for row in mine if row["class"] == "A"]),
-            "B_acc": _accuracy([row for row in mine if row["class"] == "B"]),
+            "A_acc": _accuracy([row for row in mine if row["class"] == "A"], "correct_eval"),
+            "B_acc": _accuracy([row for row in mine if row["class"] == "B"], "correct_eval"),
             "tiers": {name: {"changes": value["changes"], "final": value["final"], "auto": value["auto"],
                              "auto_wrong": value["auto_wrong"], "proposals": value["proposals"],
                              "stopped": value["stopped"]} for name, value in tiers.items()},
@@ -1191,7 +1229,16 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             items[key]["wrong"] += int(value != "ok")
     without_payment = [dict(row, correct=all(value in ("ok", "n/a") for item, value in row["scored"].items()
                                              if item != "payment") and bool(row["scored"])) for row in a_rows]
+    sales_payment = [row for row in a_rows + b_rows if row["direction"] == "sales"
+                     and row["scored"].get("payment", "n/a") != "n/a"]
     return {"docs": len(rows), "classes": dict(by_class), "A": _accuracy(a_rows), "B": _accuracy(b_rows),
+            "A_eval": _accuracy(a_rows, "correct_eval"), "B_eval": _accuracy(b_rows, "correct_eval"),
+            "AB_eval": _accuracy(a_rows + b_rows, "correct_eval"),
+            "sales_payment": {"n": len(sales_payment),
+                              "wrong": sum(1 for row in sales_payment if row["scored"]["payment"] != "ok"),
+                              "by_doctype": dict(collections.Counter(
+                                  f"{row['class']}:{(row.get('sources') or {}).get('doctype') or '-'}:"
+                                  f"{'ok' if row['scored']['payment'] == 'ok' else 'wrong'}" for row in sales_payment))},
             "A_without_payment": _accuracy(without_payment),
             "item_errors": {key: dict(value) for key, value in sorted(items.items(), key=lambda kv: -kv[1]["wrong"])},
             "AB": _accuracy(a_rows + b_rows), "wrong_items": dict(wrong_items.most_common()),
@@ -1202,7 +1249,11 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
                                    **{key: sum(1 for row in rows if row["direction"] == way and row["class"] == key)
                                       for key in "ABC"},
                                    "A_acc": _accuracy([row for row in a_rows if row["direction"] == way]),
-                                   "B_acc": _accuracy([row for row in b_rows if row["direction"] == way])}
+                                   "B_acc": _accuracy([row for row in b_rows if row["direction"] == way]),
+                                   "A_eval": _accuracy([row for row in a_rows if row["direction"] == way],
+                                                       "correct_eval"),
+                                   "B_eval": _accuracy([row for row in b_rows if row["direction"] == way],
+                                                       "correct_eval")}
                              for way in ("purchase", "sales")},
             "skipped": {key: sum(value.get(key, 0) for value in data["skipped"].values())
                         for key in sorted({k for value in data["skipped"].values() for k in value})},
@@ -1219,7 +1270,8 @@ def summarize_gate(data: Mapping[str, Any]) -> Dict[str, Any]:
         disputed = [row for row in wrong if row["uncertain"]]
         not_invoice = [row for row in passed if row["entry"] == "not_invoice"]
         unpaired = [row for row in passed if row["entry"] == "enter" and not row["paired"]]
-        n = len(scored) + len(not_invoice)
+        # 过了闸却配不上金标的：识别错到对不上也会这样，并进分母按错算（保守，审查处理 10-16）
+        n = len(scored) + len(not_invoice) + len(unpaired)
         ok = len(scored) - len(wrong)
         lower, upper = wilson(ok, n)
         return {"invoices": len(selected), "passed": len(passed), "scored": len(scored), "wrong": len(wrong),
@@ -1264,14 +1316,21 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                   f"- 回放 {s['docs']} 张：A {s['classes'].get('A', 0)}、B {s['classes'].get('B', 0)}、C {s['classes'].get('C', 0)}"
                   f"（能自动的占比 A {pct(s['classes'].get('A', 0) / s['docs'] if s['docs'] else None)}、A+B "
                   f"{pct((s['classes'].get('A', 0) + s['classes'].get('B', 0)) / s['docs'] if s['docs'] else None)}）。",
-                  f"- A 类准确率 {pct(s['A']['point'])}（95% 下限 {pct(s['A']['lower'])}，n={s['A']['n']}，"
-                  f"{'达标' if s['A']['bar'] else '未达标'}）；B 类 {pct(s['B']['point'])}（下限 {pct(s['B']['lower'])}，"
-                  f"n={s['B']['n']}，{'达标' if s['B']['bar'] else '未达标'}）。",
+                  f"- 准确率（不计本层核不了的销项现 / 赊）：A 类 {pct(s['A_eval']['point'])}（95% 下限 "
+                  f"{pct(s['A_eval']['lower'])}，n={s['A_eval']['n']}，{'达标' if s['A_eval']['bar'] else '未达标'}）；B 类 "
+                  f"{pct(s['B_eval']['point'])}（下限 {pct(s['B_eval']['lower'])}，n={s['B_eval']['n']}，"
+                  f"{'达标' if s['B_eval']['bar'] else '未达标'}）。",
+                  f"- 原值（四项全计）：A 类 {pct(s['A']['point'])}（下限 {pct(s['A']['lower'])}）；B 类 {pct(s['B']['point'])}"
+                  f"（下限 {pct(s['B']['lower'])}）。",
+                  f"- 销项现 / 赊（本层核不了，单列）：计分 {s['sales_payment']['n']}、与答案不同 {s['sales_payment']['wrong']}；"
+                  "按 类别:单据类型:结果 " + "、".join(f"{k} {v}" for k, v in sorted(s['sales_payment']['by_doctype'].items())) + "。",
                   f"- B 类里只因「按方向判抵进项」（`judge_direction`）成 B 的 {s['b_vat_direction_only']} 张。", "",
-                  "| 方向 | 张数 | A | B | C | A 准确率（下限） | B 准确率（下限） |", "|---|---|---|---|---|---|---|"]
+                  "| 方向 | 张数 | A | B | C | A 准确率（下限） | B 准确率（下限） | A 原值 | B 原值 |",
+                  "|---|---|---|---|---|---|---|---|---|"]
         for way, row in s["by_direction"].items():
-            lines.append(f"| {way} | {row['docs']} | {row['A']} | {row['B']} | {row['C']} | {pct(row['A_acc']['point'])}"
-                         f"（{pct(row['A_acc']['lower'])}） | {pct(row['B_acc']['point'])}（{pct(row['B_acc']['lower'])}） |")
+            lines.append(f"| {way} | {row['docs']} | {row['A']} | {row['B']} | {row['C']} | {pct(row['A_eval']['point'])}"
+                         f"（{pct(row['A_eval']['lower'])}） | {pct(row['B_eval']['point'])}（{pct(row['B_eval']['lower'])}） | "
+                         f"{pct(row['A_acc']['point'])} | {pct(row['B_acc']['point'])} |")
         lines += ["", f"不算现 / 赊这一项时 A 类准确率 {pct(s['A_without_payment']['point'])}（下限 "
                       f"{pct(s['A_without_payment']['lower'])}）。", "",
                   "A / B 各项按来源的错率（方向 | 项 | 来源）：", "", "| 方向 | 项 | 来源 | 计分 | 错 | 错率 |",
@@ -1316,8 +1375,9 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                          f"{total['proposals']} | {total['stopped']} |")
         task = {key: sum((row["tiers"].get("A_task") or {}).get(key, 0) for row in s["companies"].values())
                 for key in ("auto", "auto_wrong", "proposals", "stopped")}
-        lines += ["", f"定时任务入口（A 类从 L0 起照推）按建议 A：自动推 {task['auto']}（推错 {task['auto_wrong']}）、"
-                      f"提议 {task['proposals']}、停下 {task['stopped']}。", ""]
+        lines += ["", f"定时任务入口（A 类在 L0 按基线：新客户照推、之后看证据）按建议 A：自动推 {task['auto']}"
+                      f"（推错 {task['auto_wrong']}）、提议 {task['proposals']}、停下 {task['stopped']}。"
+                      "没有模拟任务默认值（任务里设的现 / 赊、科目），只换了触发方，这一行不作定时任务安不安全的结论。", ""]
     if gate:
         g = gate
         lines += ["## 识别闸层（金标 215 份 × 生产读法 3.8 的真识别结果）", "",
@@ -1330,15 +1390,17 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
         lines += ["", "闸后仍错的字段：" + ("、".join(f"{k} {v}" for k, v in g["all"]["fields"].items()) or "无"), "",
                   "拦下的原因：" + "、".join(f"{k} {v}" for k, v in g["all"]["stopped_by"].items()), ""]
     if judge and gate:
-        a, t = judge["A"], gate["text_pdf"]
+        a, raw, t = judge["A_eval"], judge["A"], gate["text_pdf"]
         merged = combined(a["ok"], a["n"], t["ok"], t["n"])
+        original = combined(raw["ok"], raw["n"], t["ok"], t["n"])
         lines += ["## 合并估计（A 类 × 文字层 PDF 闸后）", "",
-                  f"自动推准确率 ≈ {pct(merged['point'])}（95% 区间 {pct(merged['lower'])} ～ {pct(merged['upper'])}）。", ""]
+                  f"自动推准确率 ≈ {pct(merged['point'])}（95% 区间 {pct(merged['lower'])} ～ {pct(merged['upper'])}；"
+                  f"不计销项现 / 赊）；四项全计 ≈ {pct(original['point'])}。", ""]
     return "\n".join(lines) + "\n"
 
 
 def cmd_report(args) -> int:
-    out = Path(args.out)
+    out = refuse_lan(args.out)
     judge = load_judge(out)
     gate = json.loads((out / "gate.json").read_text(encoding="utf-8")) if (out / "gate.json").exists() else None
     inventory = json.loads((out / "inventory.json").read_text(encoding="utf-8")) if (out / "inventory.json").exists() else None
@@ -1379,7 +1441,7 @@ def main(argv=None) -> int:
     gate = sub.add_parser("gate")
     gate.add_argument("--gold", required=True)
     gate.add_argument("--originals", required=True, help="样本.tsv 里「路径」的根（语料目录）")
-    gate.add_argument("--manifest", help="06-录入推送/清单.tsv（公司 → 本方税号）")
+    gate.add_argument("--manifest", required=True, help="06-录入推送/清单.tsv（公司 → 本方税号）")
     gate.add_argument("--records", default="gold-gemini-code.jsonl", help="当前生产代码的识别结果（按记录）")
     gate.add_argument("--flags", default="gold-gemini-rec.jsonl", help="同一轮带复核标记与校验提示的记录")
     gate.add_argument("--out", required=True)

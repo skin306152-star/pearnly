@@ -9,8 +9,10 @@
 - 识别闸层：与金标逐字段比（单号只差前缀不算错）、配对、原文核对。
 纯标准库，不连库、不依赖 Frappe。
 """
+import contextlib
 import datetime as dt
 import importlib.util
+import io
 import pathlib
 import struct
 import sys
@@ -207,6 +209,42 @@ class JudgementLayer(unittest.TestCase):
         lonely = replay._party_rows(self.book["suppliers"], "0000000000000", ())
         self.assertEqual(len(lonely), 1)  # 没有同税号的档：留一行别家的，「主档报上来了」不变
 
+    def test_express_history_holds_only_documents_entered_before_this_one(self):
+        # 审查处理 10-16：历史不含这张单自己、不含录入更晚的；历史定的科目来源记 express_history（同推送服务）
+        m = replay._modules()
+        purchases = replay.history_index(self.book["docs"], m["choices"].norm_name)
+        docs = {doc["docnum"]: doc for doc in self.book["docs"]}
+        subject = m["choices"].supplier_subject("purchase", SELLER, "")
+
+        def judge(number):
+            memory = replay.Memory()
+            memory.kinds["payment"][subject] = "credit"
+            return replay.judge_document(m, docs[number], self.book, memory, {}, [replay.account_row(self.book)],
+                                         purchases)
+
+        third = judge("RR680102-001")  # 之前只录了 2 张：不够「已定」，照常要人选
+        self.assertIn("account", third["needed"])
+        fourth = judge("RR680103-001")  # 之前 3 张都记 52-01：历史已定
+        self.assertEqual((fourth["needed"], fourth["sources"]["account_source"]), ([], "express_history"))
+        self.assertEqual(fourth["scored"]["account"], "ok")
+        changed = judge("RR680301-009")  # 之前 6 张记 52-01、这张记 52-02：历史定成 52-01，计错
+        self.assertEqual((changed["sources"]["account_source"], changed["scored"]["account"]),
+                         ("express_history", "wrong:52-01"))
+
+    def test_the_task_timeline_pushes_a_only_on_its_baseline(self):
+        m = replay._modules()
+        base = m["automation_rules"].THRESHOLDS
+
+        def row(number, day, ok):
+            return {"docnum": number, "class": "A", "period": day[:7], "entered": day, "correct": ok,
+                    "correct_eval": ok}
+
+        rows = [row(f"J{i}", "2025-01-20", False) for i in range(10)]
+        rows += [row(f"M{i}", "2025-03-10", True) for i in range(5)]
+        found = replay.timeline(m, rows, base, trigger="task")
+        # 一月：新客户照推；一月的回读（截止日后）显示 A 类被改：三月改出提议
+        self.assertEqual((found["auto"], found["auto_wrong"], found["proposals"]), (10, 10, 5))
+
     def test_book_period_prefers_the_window_with_most_documents(self):
         days = [dt.date(2024, 12, 20)] + [dt.date(2025, month, 5) for month in range(1, 13)] * 3
         self.assertEqual(replay.book_period(days), (dt.date(2025, 1, 1), dt.date(2025, 12, 31)))
@@ -315,7 +353,7 @@ class GateLayer(unittest.TestCase):
         fields = {"document_type": "tax_invoice", "invoice_number": "IV-0012", "date": "2025-03-04",
                   "seller_tax": SELLER, "seller_branch": "00000", "buyer_tax": OWN, "buyer_branch": "00000",
                   "subtotal": "1000.00", "vat": "70.00", "total_amount": "1070.00"}
-        text = ["ใบกำกับภาษี IV-0012 วันที่ 04/03/2568 รวมทั้งสิ้น 1,070.00 " + "x" * 200]
+        text = [f"ใบกำกับภาษี {SELLER} IV-0012 วันที่ 04/03/2568 รวมทั้งสิ้น 1,070.00 " + "x" * 200]
         invoice = {"page": 1, "fields": fields, "review": False, "warnings": []}
         self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", own_tax=OWN, texts=text,
                                              source_total=1), [])
@@ -327,6 +365,28 @@ class GateLayer(unittest.TestCase):
         self.assertIn("text_total", replay.gate_invoice(m, {**invoice, "fields": {**fields, "total_amount": "1170.00",
                                                                                    "subtotal": "1100.00"}},
                                                         direction="purchase", own_tax=OWN, texts=text, source_total=1))
+        # 跨页的票按原件页数逐页判文字层（审查处理 10-16）：第二页没有文字层就是图片单
+        two = {**invoice, "pages": 2}
+        self.assertIn("image", replay.gate_invoice(m, two, direction="purchase", own_tax=OWN, texts=text + [""],
+                                                   source_total=1))
+        self.assertEqual(replay.gate_invoice(m, two, direction="purchase", own_tax=OWN, texts=text + ["y" * 220],
+                                             source_total=1), [])
+
+    def test_passed_but_unpaired_counts_as_wrong(self):
+        row = {"id": "1", "form": "电子PDF", "company": "ACME", "direction": "purchase", "page": 1, "text_pdf": True,
+               "reasons": [], "passed": True, "entry": "enter", "paired": True, "result": {"date": "ok"},
+               "uncertain": [], "wrong": []}
+        found = replay.summarize_gate({"rows": [row, {**row, "id": "2", "paired": False, "result": {}}]})
+        self.assertEqual((found["text_pdf"]["n"], found["text_pdf"]["ok"], found["text_pdf"]["unpaired_passed"]),
+                         (2, 1, 1))
+
+    def test_the_gate_needs_the_manifest_and_writes_are_refused_on_the_lan(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            replay.main(["gate", "--gold", "/tmp/g", "--originals", "/tmp/o", "--out", "/tmp/x"])
+        with self.assertRaises(SystemExit):
+            replay.main(["report", "--out", "/mnt/s/EXP69/out"])
+        with self.assertRaises(SystemExit):
+            replay._write_json(pathlib.Path("S:/x/gate.json"), {})
 
 
 if __name__ == "__main__":
