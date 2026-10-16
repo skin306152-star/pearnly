@@ -650,6 +650,9 @@ class SortableSourceTests(unittest.TestCase):
         # 抓手光标归共用拖动的把手标记（会话栏卡片把手、侧栏行、置顶行、公司组头同一条，第 5 轮审查）；把手里的输入框是文字光标
         self.assertIn("[data-drag-handle] { cursor: grab; }", css)
         self.assertIn("[data-drag-handle] :is(input, textarea) { cursor: text; }", css)
+        # 侧栏里悬停是手指、不是抓手（用户 10-16，只改光标不改行为）：排在抓手那条后面、选择器更具体
+        self.assertIn(':is([data-slot="sidebar"], .cc-drawer) [data-drag-handle] { cursor: pointer; }', css)
+        self.assertLess(css.index("[data-drag-handle] { cursor: grab; }"), css.index(':is([data-slot="sidebar"], .cc-drawer) [data-drag-handle] { cursor: pointer; }'))
         self.assertIn('"data-drag-handle": "" as const,', read("components/ui/drag.tsx"))
         # 第 4 轮的放下过渡（data-moving / data-landing）删掉了
         for old in ("data-moving", "data-landing", "--cc-land-y", "data-cc-card-drag"):

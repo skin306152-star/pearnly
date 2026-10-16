@@ -173,25 +173,27 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
   );
 };
 
-/** 按下发送到真正的气泡画出来之前，先显示发送中的用户气泡（附件名旁一块骨架在闪，不用转圈：ccs 卡片规矩；lib/managed-agents/pending-send.ts）。
+/** 按下发送到真正的气泡画出来之前，先显示用户气泡（附件名旁一块骨架在闪，不用转圈：ccs 卡片规矩；lib/managed-agents/pending-send.ts）。
  *  对话里画出了接替它的那一条才撤（同一次提交里换过去），中间不会两个都不在。 */
 const PendingSendBubble: FC = () => {
   const pending = useShownPending();
   if (!pending) return null;
+  // 用户气泡同 Claude：发出去就是平常的样子，不加「发送中」的扫光；工作状态行在 CC 这一侧（左边），
+  // 和正式回复下面的状态行同一列（px-2），不跟着用户气泡靠右（用户 10-16：「发送时我方不应该出现气泡，cc 那边正常出现」）
   return (
-    <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
-      <div className="flex flex-wrap justify-end gap-2">
-        {pending.files.map((name, i) => (
-          <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
-            <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
-            {name}
-          </span>
-        ))}
+    <div>
+      <div data-role="user" className="grid grid-cols-[minmax(20%,1fr)_auto] content-start gap-y-2 px-2 [&>*]:col-start-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {pending.files.map((name, i) => (
+            <span key={i} className="cc-card flex items-center gap-1.5 px-2.5 py-1.5 text-sm">
+              <Skeleton aria-hidden className="size-3.5 shrink-0 rounded-xs bg-subtle" />
+              {name}
+            </span>
+          ))}
+        </div>
+        {pending.text && <div className="cc-bubble-user" data-enter="">{pending.text}</div>}
       </div>
-      {pending.text && (
-        <div className="cc-bubble-user" data-enter="" data-sending="">{pending.text}</div>
-      )}
-      <RunIndicator className="col-span-full col-start-1 pt-4" />
+      <RunIndicator className="px-2 pt-4" />
     </div>
   );
 };

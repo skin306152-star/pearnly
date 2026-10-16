@@ -486,7 +486,13 @@ g.respond = respond;
         self.assertNotIn('case "indicator"', thread)
         # 状态行挂在临时气泡下、这一轮的回复（或组件库补的占位）里：放在回复外面会被「推到顶上」留的空白挤到屏幕最下面
         bubble = thread[thread.index("const PendingSendBubble"):thread.index("function useShownPending")]
-        self.assertIn('<RunIndicator className="col-span-full col-start-1 pt-4" />', bubble)
+        # 状态行在 CC 一侧（左，px-2 同回复），不在用户气泡那一列；用户气泡发送时不扫光（用户 10-16，同 Claude）
+        self.assertIn('<RunIndicator className="px-2 pt-4" />', bubble)
+        self.assertNotIn("col-start-1", bubble)
+        self.assertNotIn("data-sending", bubble)
+        css = (SRC / "globals.css").read_text(encoding="utf-8")
+        self.assertNotIn("data-sending", css)
+        self.assertNotIn("cc-sheen", css)
         reply = thread[thread.index("const AssistantMessage"):thread.index("const LastReplyIndicator")]
         self.assertLess(reply.index("<LastReplyIndicator />"), reply.index('data-slot="aui_assistant-message-footer"'))
         self.assertNotIn("<RunIndicator />\n          </div>", thread)

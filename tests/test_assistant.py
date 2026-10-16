@@ -2761,6 +2761,87 @@ class DocumentPreviewTests(unittest.TestCase):
                 else:
                     setattr(frappe, name, value)
 
+    def test_after_a_refresh_the_message_attachment_keeps_its_upload_id(self):
+        """第 5 轮测试 1：PDF 缩略图只在上传那一刻有。上传时引擎给的编号（file_01K…）记在消息的挂载位置里、本站留存也用它；
+        挂进会话后引擎在会话范围另存一份（另一个编号、不可下载），会话文件列表把那份列成 kind = output，刷新后、别的设备上
+        卡片按消息里的编号对不上，既没缩略图也没页数。附件改按挂载位置里的编号列，另存的那份不再列成结果。"""
+        import tempfile
+
+        files = self._files()
+        root = tempfile.mkdtemp()
+        uploads = claude.UPLOADS
+
+        def item(**kw):
+            return types.SimpleNamespace(**kw)
+
+        def adapter(resources, scoped):
+            api = types.SimpleNamespace(beta=types.SimpleNamespace(
+                sessions=types.SimpleNamespace(resources=types.SimpleNamespace(list=lambda conversation: list(resources))),
+                files=types.SimpleNamespace(list=lambda scope_id, betas: list(scoped))))
+            sdk.api = api
+            return claude.Adapter(KEY, "claude-opus-5-5")
+
+        scoped = [item(id="file_017iCopy", filename="PP-6909-0077.pdf", size_bytes=20, mime_type="application/pdf",
+                       downloadable=False, created_at="2026-10-16 09:00:01"),
+                  item(id="file_011NCopy", filename="slip.jpg", size_bytes=4, mime_type="image/jpeg",
+                       downloadable=False, created_at="2026-10-16 09:00:02"),
+                  item(id="file_OUT", filename="GL.xlsx", size_bytes=9, mime_type="application/vnd.ms-excel",
+                       downloadable=True, created_at="2026-10-16 09:05:00")]
+        # 挂载记录指向另存的那份（测试窗口看到的情形）；挂载位置里仍是上传时的编号
+        pointed = [item(type="file", file_id="file_017iCopy", mount_path=f"{uploads}/file_01KgUp/PP-6909-0077.pdf",
+                        created_at="2026-10-16 09:00:00"),
+                   item(type="file", file_id="file_011NCopy", mount_path=f"{uploads}/file_012gUp/slip.jpg",
+                        created_at="2026-10-16 09:00:00")]
+        listed = adapter(pointed, scoped).files("sesn_remote")
+        self.assertEqual(sorted((f["id"], f["kind"]) for f in listed),
+                         [("file_012gUp", "upload"), ("file_01KgUp", "upload"), ("file_OUT", "output")])
+        # 挂载记录仍是原编号、另存的那份编号无从对上：同名、不可下载的那份当作它的副本，不列成结果；可下载的同名结果照列
+        original = [item(type="file", file_id="file_01KgUp", mount_path=f"{uploads}/file_01KgUp/PP-6909-0077.pdf",
+                         created_at="2026-10-16 09:00:00")]
+        result = item(id="file_OUT2", filename="PP-6909-0077.pdf", size_bytes=30, mime_type="application/pdf",
+                      downloadable=True, created_at="2026-10-16 09:06:00")
+        listed = adapter(original, scoped[:1] + [result]).files("sesn_remote")
+        self.assertEqual([(f["id"], f["kind"]) for f in listed], [("file_01KgUp", "upload"), ("file_OUT2", "output")])
+        # 老会话：挂载位置不是这个写法时照旧用挂载记录上的编号
+        odd = [item(type="file", file_id="file_old", mount_path="/somewhere/old.pdf", created_at="")]
+        self.assertEqual([f["id"] for f in adapter(odd, []).files("sesn_remote")], ["file_old"])
+
+        # 经会话文件列表：刷新后附件按上传时的编号列出，带本站留存那份的大小与页数（卡片据此显示第一页与「PDF · N 页」）
+        sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name="row1"),
+                                         _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"],
+                                         SESSION="Pearnly Assistant Session")
+
+        class PdfReader:
+            def __init__(self, stream):
+                self.pages = [1, 2]
+
+        saved = {name: getattr(frappe, name, None) for name in ("get_site_path", "get_all")}
+        frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
+        frappe.get_all = lambda *a, **k: []
+        frappe.store.clear()
+        engine_api = adapter(pointed, scoped)
+        try:
+            with mock.patch.object(files, "sessions", sessions), \
+                    mock.patch.object(files, "engine", types.SimpleNamespace(adapter=lambda: engine_api)), \
+                    mock.patch.dict(sys.modules, {"pypdf": types.SimpleNamespace(PdfReader=PdfReader)}):
+                files._keep(types.SimpleNamespace(name="row1"), "file_01KgUp", "PP-6909-0077.pdf", b"%PDF-1.7 two pages")
+                out = files.listing("s1")
+                card = next(f for f in out if f["id"] == "file_01KgUp")
+                self.assertEqual((card["kind"], card["size_bytes"], card["pages"]), ("upload", 18, 2))
+                # 本站没留存的老附件：编号对上，但不带大小 → 卡片退回类型方块、不去取缩略图
+                old = next(f for f in out if f["id"] == "file_012gUp")
+                self.assertEqual((old["kind"], old["size_bytes"]), ("upload", 0))
+                self.assertNotIn("pages", old)
+                self.assertFalse({"file_017iCopy", "file_011NCopy"} & {f["id"] for f in out})
+                self.assertEqual([f["id"] for f in out if f["kind"] == "output"], ["file_OUT"])
+        finally:
+            frappe.store.clear()
+            for name, value in saved.items():
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
+
     def test_a_pdf_page_is_drawn_as_a_cached_image_for_thumbnails_and_phones(self):
         """第 5 轮测试 1、2：附件卡片的 PDF 缩略图（第一页）与手机上的 PDF 预览（安卓 Chrome 不能 iframe 显示 PDF）都取
         page_image：只认这个对话的 PDF，只有 thumb / page 两种宽度，回应带私有缓存头；不是 PDF、页码不对、画不出、

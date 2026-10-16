@@ -118,7 +118,8 @@ class Adapter(abc.ABC):
     @abc.abstractmethod
     def files(self, conversation: str) -> list[dict]:
         """本会话的文件：`{"id", "filename", "size_bytes", "mime_type", "downloadable", "created_at",
-        "kind": "upload" | "output"}`。"""
+        "kind": "upload" | "output"}`。附件（upload）的 `id` 是 `attach` 返回的那个编号（消息里记的、本站留存用的都是它），
+        引擎内部另存的副本不列成结果。"""
 
     @abc.abstractmethod
     def read_file(self, conversation: str, file_id: str) -> bytes:
