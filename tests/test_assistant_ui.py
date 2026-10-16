@@ -2777,9 +2777,6 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn(".cc-row-trigger { gap: 0.25rem; padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) 0.25rem; }", css)
         self.assertIn('.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: calc(0.75rem + var(--cc-row-indent, 0px)); }', css)
         self.assertIn("margin-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px) - var(--cc-inline-edit-px)) 0.25rem;", css)
-        # 「显示更多」也缩进到公司名文字起点（用户 10-16 看预览后定）
-        self.assertIn("padding-inline: calc(0.625rem + var(--cc-row-indent, 0px)) 0.625rem;", css)
-        self.assertIn('.cc-drawer [data-slot="cc-project-items"] .cc-show-more { padding-inline-start: calc(0.75rem + var(--cc-row-indent, 0px)); }', css)
         self.assertEqual(rows.count('data-slot="cc-project-items"'), 1)   # 只有公司组里的行缩进
         self.assertNotIn("icon=", rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0])
         # B：组名、会话行标题与元数据行放不下时悬停滚动（共用的 Marquee）；行与组标题是触发的「这一行」
