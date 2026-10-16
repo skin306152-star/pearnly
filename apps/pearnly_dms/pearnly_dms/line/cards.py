@@ -392,3 +392,41 @@ def booking_receipt_text(
         delivery_date_be=delivery_date_be or "—",
     )
     return f"{text}\n{_t('TXT_RECEIPT_ADVISOR', name=advisor_name)}" if advisor_name else text
+
+
+def booking_receipt_message(
+    booking_no: str, car: str, delivery_date_be: str, advisor_name: str,
+    *, review: Dict[str, Any] | None = None, attach_ok: bool = True,
+) -> Dict[str, Any]:
+    """订车成功回执（一条消息）：按开单后的逐项复核（`booking.booking_review`）定形状。
+
+    · 没有复核结果（拿不到回读表单）→ 原回执文字，不加任何一行。
+    · 全部一致且附件齐 → 原回执文字 + 「ผลการตรวจสอบกับ DMS: ถูกต้อง」一行。
+      附件没挂齐时不加这一行（附件交给 `delivery` 后台补，补不上另有提示），不说"全部一致"。
+    · 有不一致 → 换成差异卡：单号 + 逐条「确认时的值 → DMS 里的值」+ 请在 DMS 中修改。
+      不放按钮：系统不改已经建成的订车单。
+    """
+    text = booking_receipt_text(booking_no, car, delivery_date_be, advisor_name)
+    diffs = (review or {}).get("diffs") or []
+    if review is None or (not diffs and not attach_ok):
+        return {"type": "text", "text": text}
+    if not diffs:
+        return {"type": "text", "text": f"{text}\n{_t('TXT_REVIEW_OK')}"}
+    head = _t("TXT_REVIEW_DIFF_HEAD")
+    rows: List[Dict[str, Any]] = [
+        {"type": "text", "text": _t("TXT_REVIEW_BOOKING_NO", booking_no=booking_no or "—"),
+         "size": "sm", "wrap": True},
+        {"type": "separator", "margin": "sm"},
+        {"type": "text", "text": _t("TXT_DIFF_HEADER"), "size": "xs", "color": "#8a8a8a"},
+        *diff_rows([{"label": _t(d.get("item") or ""), "old": d.get("sent"), "new": d.get("dms")}
+                    for d in diffs]),
+        {"type": "separator", "margin": "sm"},
+        {"type": "text", "text": _t("TXT_REVIEW_FIX"), "size": "sm", "wrap": True},
+    ]
+    return {
+        "type": "flex",
+        "altText": head,
+        "contents": {"type": "bubble", "body": {"type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [{"type": "text", "text": head, "weight": "bold", "size": "md", "wrap": True},
+                         {"type": "separator", "margin": "sm"}, *rows]}},
+    }

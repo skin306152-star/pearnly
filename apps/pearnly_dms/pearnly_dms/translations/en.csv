@@ -41,6 +41,7 @@ Delivery date: {delivery_date_be}","Booking created
 Booking no.: {booking_no}
 Model: {car}
 Delivery date: {delivery_date_be}"
+"Booking created, but some data in DMS differs from what was confirmed","Booking created, but some data in DMS differs from what was confirmed"
 Booking date,Booking date
 Booking failed · Retry,Booking failed · Retry
 Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.
@@ -48,6 +49,7 @@ Booking has not been submitted: required customer details are missing in DMS. As
 Booking location,Booking location
 Booking location — choose below,Booking location — choose below
 Booking no.: {booking_no},Booking no.: {booking_no}
+Booking number: {booking_no},Booking number: {booking_no}
 Booking summary — check before confirming,Booking summary — check before confirming
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
@@ -115,6 +117,7 @@ Customer records,Customer records
 DMS,DMS
 DMS System Account,DMS System Account
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.
+DMS check: Matched,DMS check: Matched
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS data has not been read yet. The system reads it automatically; please try again after it finishes.
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.","DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page."
@@ -239,6 +242,7 @@ Please choose a menu,Please choose a menu
 Please choose a menu below to get started,Please choose a menu below to get started
 "Please choose from the card above, or type restart to begin a new item","Please choose from the card above, or type restart to begin a new item"
 Please choose the type of data to search,Please choose the type of data to search
+Please correct it in DMS.,Please correct it in DMS.
 Please send a photo of the customer's ID card,Please send a photo of the customer's ID card
 Please send the customer's ID card photo and phone number,Please send the customer's ID card photo and phone number
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes","Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
@@ -559,7 +563,11 @@ Customer ID: {customer_code}
 Name: {name}"
 dms.card.TXT_RESET,Started over. Take a photo of the ID card to start a customer record.
 dms.card.TXT_RETAKE,Please take the ID card photo again
+dms.card.TXT_REVIEW_BOOKING_NO,Booking number: {booking_no}
+dms.card.TXT_REVIEW_DIFF_HEAD,"Booking created, but some data in DMS differs from what was confirmed"
+dms.card.TXT_REVIEW_FIX,Please correct it in DMS.
 dms.card.TXT_REVIEW_MISSING,{text} ({fields})
+dms.card.TXT_REVIEW_OK,DMS check: Matched
 dms.card.TXT_SAME,This customer already exists and the data matches
 dms.card.TXT_SAME_ALT,Customer data matches
 dms.card.TXT_SAVE_FAIL,Save failed. Please try again.

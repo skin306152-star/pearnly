@@ -97,6 +97,9 @@ def booking_log_response_body(result: Dict[str, Any]) -> Dict[str, Any]:
         body["attach_ok"] = result.get("attach_ok")
         body["attached"] = result.get("attached", 0)
         body["attach_failed"] = result.get("attach_failed") or []
+    if result.get("review") is not None:
+        # 回执复核只留**项目名**（不留值）：日后能查"开单后 DMS 和确认卡对不上"发生过几次、是哪几项。
+        body["review_diff_items"] = [d.get("item") for d in result["review"].get("diffs") or []]
     if not ok:
         body["raw_error"] = (result.get("response_body") or {}).get("raw_error", "")
     return body

@@ -105,15 +105,18 @@ def _read_candidate(client, row_id: str) -> dict:
     )
 
 
-def _readback_once(client, docno: str, submitted: dict) -> tuple:
+def _readback_once(client, docno: str, submitted: dict, sink: dict | None = None) -> tuple:
     """一轮只读回读。返回 `(booking_id, 阶段, 脱敏字段名, 告警字段名, 搜索页数)`。
 
     只读：`showdata` + `form.php`。任何一轮都不会 POST `drfcbc/new.php`。
     首页已确认就停，不白翻第二页；首页没结论才按需翻页（上限 `_MAX_SEARCH_PAGES`）。
+    `sink`：核实成功时把那张单读到的表单放进 `sink["form"]`（开单回执的逐项复核用，
+    不参与任何判定）。
     """
     # 原生视图会给新会话初始化可见性筛选。它不写任何东西。
     client._post_text("drfcbc/view.php", {"idmenu": "25", "menulv": "2"})
     seen: list = []
+    forms: dict = {}
     mismatch_stage = None
     mismatch_fields: tuple = ()
     pages = 0
@@ -141,6 +144,7 @@ def _readback_once(client, docno: str, submitted: dict) -> tuple:
             outcome = evaluate_candidate(submitted, form, row_id)
             if outcome.status == STAGE_VERIFIED:
                 identity_hits.append(row_id)
+                forms[row_id] = form
                 warnings = outcome.warnings
             elif mismatch_stage is None:
                 # 只要有一行是我们那张单，别的模糊命中就不算事；它们只在全军覆没时定因。
@@ -150,6 +154,8 @@ def _readback_once(client, docno: str, submitted: dict) -> tuple:
             # 多张完全匹配的单据无法区分是哪一张 —— 报歧义，不许随便挑一张。
             return None, STAGE_AMBIGUOUS, (), warnings, pages
         if identity_hits:
+            if sink is not None:
+                sink["form"] = forms[identity_hits[0]]
             return identity_hits[0], STAGE_VERIFIED, (), warnings, pages
         if page_is_last(body, _SEARCH_PAGE_SIZE):
             break
@@ -176,7 +182,9 @@ def _log_readback(
         logger.info("[dms] 回读只有展示字段差异：%s", extra)
 
 
-def _readback_with_retries(client, docno: str, submitted: dict, source: str) -> tuple:
+def _readback_with_retries(
+    client, docno: str, submitted: dict, source: str, sink: dict | None = None
+) -> tuple:
     """同一会话内有限次重查：短时搜索不可见/索引延迟不该直接判"订单不存在"。"""
     stage = None
     diagnostic: tuple = ()
@@ -187,7 +195,7 @@ def _readback_with_retries(client, docno: str, submitted: dict, source: str) -> 
         attempts = attempt
         try:
             booking_id, outcome, fields, found_warnings, pages = _readback_once(
-                client, docno, submitted
+                client, docno, submitted, sink
             )
         except Exception as exc:  # 传输/解析异常：只读失败也要留下定因
             logger.warning(
@@ -240,7 +248,7 @@ def verify_created_booking(
     booking_id = None
     try:
         booking_id, stage, attempts, _pages, warnings = _readback_with_retries(
-            client, docno, submitted, "sales"
+            client, docno, submitted, "sales", stage_out
         )
         if booking_id:
             if stage_out is not None:
@@ -267,7 +275,7 @@ def verify_created_booking(
                 )
             return None
         booking_id, admin_stage, admin_attempts, _pages, admin_warnings = _readback_with_retries(
-            reader, docno, submitted, "admin"
+            reader, docno, submitted, "admin", stage_out
         )
         stage = merge_stage(stage, admin_stage)
         attempts += admin_attempts
@@ -295,7 +303,9 @@ def _rejected(docno: str, body: str) -> DmsClientError:
     return exc
 
 
-def _confirm_rejected(client, docno: str, submitted: dict, status, body: str) -> str:
+def _confirm_rejected(
+    client, docno: str, submitted: dict, status, body: str, sink: dict | None = None
+) -> str:
     """非重号 `err::` 之后，同一会话只读回读**一轮**（`showdata` + `form.php`，绝不碰 `new.php`）。
 
     拒收之后允许操作员改了再确认 —— 那是一次新的 POST，所以"没建单"不能只凭 `err::`：
@@ -303,7 +313,7 @@ def _confirm_rejected(client, docno: str, submitted: dict, status, body: str) ->
     或读取本身出错 → 抛结果未知（宁可当未知，也不给出可能重复建单的路）。
     """
     try:
-        booking_id, stage, fields, warnings, pages = _readback_once(client, docno, submitted)
+        booking_id, stage, fields, warnings, pages = _readback_once(client, docno, submitted, sink)
         source = "sales"
     except Exception as exc:  # 只读也会失败：读不到不等于没有
         logger.warning("[dms] 拒单后的回读失败：%s", type(exc).__name__)
@@ -320,6 +330,12 @@ def _confirm_rejected(client, docno: str, submitted: dict, status, body: str) ->
     )
 
 
+def _hand_out(readback_out: dict | None, sink: dict, submitted: dict) -> None:
+    """把核实那一轮读到的表单交给调用方（只读结果的转交，不参与判定）。"""
+    if readback_out is not None and sink.get("form"):
+        readback_out.update({"form": sink["form"], "submitted": dict(submitted)})
+
+
 def submit_booking(
     client,
     base: dict,
@@ -328,6 +344,7 @@ def submit_booking(
     on_attempt=None,
     write_payload=None,
     readback_payload=None,
+    readback_out: dict | None = None,
 ) -> tuple[str, str]:
     """**只有明确的重复号拒绝才允许再写一次。**
 
@@ -337,6 +354,9 @@ def submit_booking(
 
     重复号 bump 走 `state.with_docno`：数字主体与 `natn` 同步前进，绝不脱节；
     非重复错误与 outcome unknown 都**不会**重写（后者抛异常交调用方保留草稿）。
+
+    `readback_out`：核实成功时放进 `{"form": 回读表单, "submitted": 回读比对视图}`，
+    只给开单回执做逐项复核；不改变任何写入、重试或"结果未知"的判定。
     """
     if isinstance(state, str):
         state = _LegacyDocnoState(state)
@@ -384,10 +404,14 @@ def submit_booking(
                 state = state.with_docno(dms_docno.bump_docno(docno))
                 continue
             # 非重号拒收：只读回读一轮再定是"真没建"、"其实建了"还是"不知道"。
-            return _confirm_rejected(client, docno, readback_input, status, last_body), docno
+            sink: dict = {}
+            booking_id = _confirm_rejected(client, docno, readback_input, status, last_body, sink)
+            _hand_out(readback_out, sink, readback_input)
+            return booking_id, docno
         readback = {}
         booking_id = verify_created_booking(client, docno, readback_input, stage_out=readback)
         if booking_id:
+            _hand_out(readback_out, readback, readback_input)
             return booking_id, docno
         raise DmsBookingOutcomeUnknown(
             docno,

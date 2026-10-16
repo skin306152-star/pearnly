@@ -41,6 +41,7 @@ Delivery date: {delivery_date_be}","订车单已建立
 订车单号：{booking_no}
 车型：{car}
 交车日期：{delivery_date_be}"
+"Booking created, but some data in DMS differs from what was confirmed",订车单已建立，但 DMS 中部分资料与确认时不一致
 Booking date,订车日期
 Booking failed · Retry,订车单建立失败 · 重试
 Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,订车尚未提交：DMS 中客户必填资料不全。请管理员在 DMS 中补全。
@@ -48,6 +49,7 @@ Booking has not been submitted: required customer details are missing in DMS. As
 Booking location,订车地点
 Booking location — choose below,订车地点 — 请在下方选择
 Booking no.: {booking_no},订车单号：{booking_no}
+Booking number: {booking_no},订车单号：{booking_no}
 Booking summary — check before confirming,订车单汇总 — 确认前请核对
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
@@ -115,6 +117,7 @@ Customer records,客户资料
 DMS,DMS
 DMS System Account,DMS 系统账号
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS 中已有此证号的客户，请重新核对差异并确认；资料未被自动覆盖。
+DMS check: Matched,DMS 核对结果：一致
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS 资料尚未读取，系统将自动读取，完成后请重试。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS 资料还在读取中，读完即可使用，请稍后再试。若一直未就绪，请管理员在 DMS 连接页确认已添加读档账号。
@@ -239,6 +242,7 @@ Please choose a menu,请选择需要的菜单
 Please choose a menu below to get started,请选择下方菜单开始使用
 "Please choose from the card above, or type restart to begin a new item",请从上方卡片中选择，或输入「重新开始」办理新业务
 Please choose the type of data to search,请选择要查询的资料类型
+Please correct it in DMS.,请在 DMS 中修改。
 Please send a photo of the customer's ID card,请发送客户的身份证照片
 Please send the customer's ID card photo and phone number,请发送客户的身份证照片和电话号码
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes",请先在其他地方退出 DMS，再在 30 分钟内点「重试」
@@ -559,7 +563,11 @@ dms.card.TXT_RECEIPT_SAVE,"保存成功 · {action}
 姓名：{name}"
 dms.card.TXT_RESET,已重新开始，拍摄身份证即可登记客户。
 dms.card.TXT_RETAKE,请重新拍摄身份证
+dms.card.TXT_REVIEW_BOOKING_NO,订车单号：{booking_no}
+dms.card.TXT_REVIEW_DIFF_HEAD,订车单已建立，但 DMS 中部分资料与确认时不一致
+dms.card.TXT_REVIEW_FIX,请在 DMS 中修改。
 dms.card.TXT_REVIEW_MISSING,{text}（{fields}）
+dms.card.TXT_REVIEW_OK,DMS 核对结果：一致
 dms.card.TXT_SAME,该客户已存在，资料一致
 dms.card.TXT_SAME_ALT,客户资料一致
 dms.card.TXT_SAVE_FAIL,保存失败，请重试。

@@ -153,12 +153,15 @@ def _repair_files(doc, marker):
     return bool(result.get("ok"))
 
 
-def _receipt_text(doc, marker):
+def _receipt_message(doc, marker):
+    """回执（一条 LINE 消息）：带上开单后的逐项复核结论（`result.review`，没有就照旧）。"""
     qa = marker["context"].get("qa") or {}
     answers = qa.get("answers") or {}
-    return cards.booking_receipt_text(doc.booking_no,
+    result = marker.get("result") or {}
+    return cards.booking_receipt_message(doc.booking_no,
         str((answers.get("car") or {}).get("label") or ""),
-        str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""))
+        str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""),
+        review=result.get("review"), attach_ok=bool(result.get("attach_ok", True)))
 
 
 def _attachment_notice(doc):
@@ -236,8 +239,8 @@ def deliver(name):
             from pearnly_dms import i18n
 
             with i18n.line_language(doc.line_user_id):  # 回执按收件人自己的手机语言
-                receipt_text = _receipt_text(doc, marker)
-            receipt = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(), "text": receipt_text}
+                message = _receipt_message(doc, marker)
+            receipt = {"key": str(uuid.uuid4()), "created_at": frappe.utils.now(), "message": message}
             marker["receipt"] = receipt
         _save(doc, marker)
         frappe.db.commit()
@@ -247,7 +250,9 @@ def deliver(name):
         if age(receipt["created_at"]) >= WINDOW_SECONDS:
             _save(doc, marker, status="Review", error="receipt_key_expired")
             return False
-        accepted = line.push(doc.line_user_id, [{"type": "text", "text": receipt["text"]}], retry_key=receipt["key"])
+        # 新记录存整条消息（可能是差异卡）；升级前定好的旧记录只有 `text`，照原样重发。
+        message = receipt.get("message") or {"type": "text", "text": receipt["text"]}
+        accepted = line.push(doc.line_user_id, [message], retry_key=receipt["key"])
         if accepted and not marker["result"].get("attach_ok"):
             # 回执不等附件：和正常成功同一刻、同一句送到；这一轮不补，缺的附件交给后面几轮。
             receipt["accepted_at"] = frappe.utils.now()

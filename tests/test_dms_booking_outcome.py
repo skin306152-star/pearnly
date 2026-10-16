@@ -209,6 +209,7 @@ class Harness(unittest.TestCase):
         self.endpoint_live = True   # the submitter's DMS endpoint still resolves
         self.found = "R-1"          # what a read-only readback finds (None = nothing)
         self.posts, self.reads, self.pushes, self.texts, self.cards = 0, 0, [], [], []
+        self.replies = []
         self.outcome = lambda number: {"ok": True, "booking_id": "R-%s" % number, "booking_no": number,
                                        "attach_ok": True, "attached": 0, "attach_failed": []}
         self.db.tables[ENDPOINT].update({
@@ -269,9 +270,13 @@ class Harness(unittest.TestCase):
                    ACT_RETRY_BOOKING="retry", TXT_BOOKING_FAIL="TXT_BOOKING_FAIL", TXT_EXPIRED="TXT_EXPIRED",
                    TXT_SYSTEM_ERROR="TXT_SYSTEM_ERROR", TXT_BOOKING_CANCELLED="TXT_BOOKING_CANCELLED",
                    field_labels=lambda: {},
-                   booking_receipt_text=lambda number, car, date, advisor: "receipt " + number)
+                   booking_receipt_text=lambda number, car, date, advisor: "receipt " + number,
+                   booking_receipt_message=lambda number, car, date, advisor, review=None, attach_ok=True: {
+                       "type": "text", "text": "receipt " + number + (
+                           "" if review is None else " review=%d" % len(review["diffs"]))})
         self._stub("pearnly_dms.line.out", push_text=lambda uid, text: self.texts.append((uid, text)) or True,
-                   reply_text=lambda token, text: None, enqueue=lambda *a: None, start_loading=lambda uid: None,
+                   reply_text=lambda token, text: self.replies.append((token, text)), enqueue=lambda *a: None,
+                   start_loading=lambda uid: None,
                    send=lambda uid, msg, token="": self.cards.append((uid, msg)))
         self._stub("pearnly_dms.booking.conversation.qa_cards", TXT_MASTER_CHANGED="TXT_MASTER_CHANGED",
                    preview_card=lambda qa, nonce, notice="": {"card": nonce, "notice": notice},
@@ -625,6 +630,56 @@ class NormalPath(Harness):
         self.assertEqual((self.texts, self.cards), ([], []))
         log, = self.logs()
         self.assertEqual((log["status"], log["business_key"]), ("success", "BK-1"))
+
+
+class ReceiptReview(Harness):
+    """The receipt review rides with the verified result to the durable receipt; the ledger keeps item names only."""
+
+    def reviewed(self, diffs):
+        self.outcome = lambda number: {"ok": True, "booking_id": "R-" + number, "booking_no": number,
+                                       "attach_ok": True, "attached": 0, "attach_failed": [],
+                                       "review": {"diffs": diffs}}
+        self.confirm()
+        log, = self.logs()
+        return json.loads(log["response_body"])
+
+    def test_differences_reach_the_receipt_and_the_ledger_keeps_no_values(self):
+        body = self.reviewed([{"item": "sum.phone", "sent": "0810000001", "dms": "0810000002"}])
+        self.assertEqual([text for _, text, _ in self.pushes], ["receipt BK-1 review=1"])
+        self.assertEqual(body["review_diff_items"], ["sum.phone"])
+        self.assertNotIn("0810000002", json.dumps(body))
+        record, = self.records()
+        self.assertEqual(json.loads(record["attempt"])["result"]["review"]["diffs"][0]["item"], "sum.phone")
+
+    def test_all_matched_is_recorded_as_no_differences(self):
+        body = self.reviewed([])
+        self.assertEqual([text for _, text, _ in self.pushes], ["receipt BK-1 review=0"])
+        self.assertEqual(body["review_diff_items"], [])
+
+
+class SecondTap(Harness):
+    """2026-10-12: a second tap on Confirm said "expired" before the first tap's booking receipt arrived."""
+
+    def tap(self, nonce, token, action="confirm"):
+        self.flow.handle_postback(BINDING, UID, token, action, {"nonce": nonce})
+
+    def test_second_tap_while_the_same_card_is_submitting_says_nothing(self):
+        for action in ("confirm", "retry"):
+            self.store.set_session(UID, "booking_review", {"nonce": "n-" + action, "qa": QA})
+            self.tap("n-" + action, "t1", action)
+            self.tap("n-" + action, "t2", action)
+            self.assertEqual(self.replies, [])
+            self.assertEqual(self.session()["payload"]["booking_claim"], "n-" + action)
+            self.store.clear_session(UID)
+        self.assertEqual(self.posts, 0)  # the queued job is not run here; nothing was submitted twice
+
+    def test_a_card_that_is_done_or_replaced_is_still_expired(self):
+        payload = self.confirm()
+        self.tap(payload["nonce"], "t1")
+        self.store.set_session(UID, "booking_review", {"nonce": "n-new", "qa": QA})
+        self.tap("n-old", "t2", "retry")
+        self.assertEqual(self.replies, [("t1", "TXT_EXPIRED"), ("t2", "TXT_EXPIRED")])
+        self.assertEqual(self.posts, 1)
 
 
 class ReleaseFunction(Harness):

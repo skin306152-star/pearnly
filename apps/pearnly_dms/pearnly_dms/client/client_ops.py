@@ -131,6 +131,7 @@ class DmsClientOpsMixin:
         booking: DMSBookingPayload,
         card: ThaiIdCardPayload,
         on_attempt=None,
+        readback_out: Optional[dict] = None,
     ) -> tuple:
         """走 DMS **原生订车单表单**建单 · 由 DMS autonum 出 BK 号（符合公司规则·零手填）。
         返回 `(booking_id, booking_no)`。
@@ -139,6 +140,7 @@ class DmsClientOpsMixin:
         建单前先**只读扫列表**，从实际最大流水之后选号，并把 `natn` 同量前移；
         撞重复仍往后顺号重试（数字主体与 `natn` 同步 +1），跳过被占用的号。
         `booking_no` / 回读 / 台账一律用**完整号**（DMS 返回的前缀 + 数字主体）。
+        `readback_out` 见 `submit_booking`：核实那一轮读到的表单，只给回执复核用。
         """
         form_html = self._post_text("drfcbc/form.php", {"status": "n"})
         base = self._parse_form_defaults(form_html)
@@ -162,6 +164,7 @@ class DmsClientOpsMixin:
             on_attempt=on_attempt,
             write_payload=self._booking_write_payload,
             readback_payload=self._booking_readback_payload,
+            readback_out=readback_out,
         )
 
     def _next_booking_docno(self, branch_id: str) -> dms_docno.DMSBookingAutonumState:

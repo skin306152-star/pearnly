@@ -325,7 +325,7 @@ class BookingService(unittest.TestCase):
     def preflight(self, qa, directory):
         return {"status": "ok", "qa": dict(qa), "masters": {}, "paints": []}
 
-    def create_booking(self, *, customer_id, booking, card, on_attempt):
+    def create_booking(self, *, customer_id, booking, card, on_attempt, readback_out=None):
         self.timeline.append(("booking", card.birthday_be, card.prefix_id, card.address.house_no))
         on_attempt({"booking_no": "BK-1"})
         return "booking-1", "BK-1"

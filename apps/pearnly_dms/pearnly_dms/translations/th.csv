@@ -41,6 +41,7 @@ Delivery date: {delivery_date_be}","เปิดใบจองสำเร็�
 เลขที่ใบจอง: {booking_no}
 รุ่นรถ: {car}
 วันที่ส่งมอบ: {delivery_date_be}"
+"Booking created, but some data in DMS differs from what was confirmed",เปิดใบจองสำเร็จ แต่ข้อมูลใน DMS บางรายการไม่ตรงกับที่ยืนยัน
 Booking date,วันที่จอง
 Booking failed · Retry,สร้างใบจองไม่สำเร็จ · ลองใหม่
 Booking has not been submitted: required customer details are missing in DMS. Ask the admin to fill them in DMS.,ยังไม่ได้ส่งใบจอง: ข้อมูลลูกค้าที่จำเป็นใน DMS ไม่ครบ กรุณาแจ้งผู้ดูแลระบบให้กรอกให้ครบใน DMS
@@ -48,6 +49,7 @@ Booking has not been submitted: required customer details are missing in DMS. As
 Booking location,สถานที่รับจอง
 Booking location — choose below,สถานที่รับจอง — กรุณาเลือกด้านล่าง
 Booking no.: {booking_no},เลขที่รายการ: {booking_no}
+Booking number: {booking_no},เลขที่ใบจอง: {booking_no}
 Booking summary — check before confirming,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
@@ -115,6 +117,7 @@ Customer records,ข้อมูลลูกค้า
 DMS,DMS
 DMS System Account,บัญชีระบบ DMS
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
+DMS check: Matched,ผลการตรวจสอบกับ DMS: ถูกต้อง
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,ยังไม่ได้อ่านข้อมูล DMS ระบบจะอ่านให้อัตโนมัติ กรุณาลองใหม่เมื่ออ่านเสร็จ
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง
 "DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",ข้อมูล DMS กำลังอ่านอยู่ อ่านเสร็จแล้วจึงใช้งานได้ กรุณาลองใหม่ภายหลัง หากยังไม่พร้อมเป็นเวลานาน กรุณาให้ผู้ดูแลระบบตรวจสอบว่าได้เพิ่มบัญชีอ่านข้อมูลในหน้าการเชื่อมต่อ DMS แล้ว
@@ -239,6 +242,7 @@ Please choose a menu,กรุณาเลือกเมนูที่ต้�
 Please choose a menu below to get started,กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน
 "Please choose from the card above, or type restart to begin a new item",กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
 Please choose the type of data to search,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
+Please correct it in DMS.,กรุณาแก้ไขใน DMS
 Please send a photo of the customer's ID card,กรุณาส่งรูปบัตรประชาชนของลูกค้า
 Please send the customer's ID card photo and phone number,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
 "Please sign out of DMS elsewhere, then tap Retry within 30 minutes",กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
@@ -559,7 +563,11 @@ dms.card.TXT_RECEIPT_SAVE,"บันทึกสำเร็จ · {action}
 ชื่อ: {name}"
 dms.card.TXT_RESET,เริ่มใหม่แล้ว กรุณาถ่ายรูปบัตรประชาชนเพื่อลงทะเบียนลูกค้า
 dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนอีกครั้ง
+dms.card.TXT_REVIEW_BOOKING_NO,เลขที่ใบจอง: {booking_no}
+dms.card.TXT_REVIEW_DIFF_HEAD,เปิดใบจองสำเร็จ แต่ข้อมูลใน DMS บางรายการไม่ตรงกับที่ยืนยัน
+dms.card.TXT_REVIEW_FIX,กรุณาแก้ไขใน DMS
 dms.card.TXT_REVIEW_MISSING,{text} ({fields})
+dms.card.TXT_REVIEW_OK,ผลการตรวจสอบกับ DMS: ถูกต้อง
 dms.card.TXT_SAME,มีข้อมูลลูกค้ารายนี้อยู่แล้ว และข้อมูลตรงกัน
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
 dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
