@@ -1779,8 +1779,9 @@ class TaskSources(unittest.TestCase):
         sources = (APP / "folder_intake/reminders.py").read_text() + (APP / "folder_intake/briefs.py").read_text()
         used = set(re.findall(r'_\("(cowork\.[A-Za-z0-9_.]+)"\)', sources))
         new = {key for key in used if key.startswith(("cowork.folder.remind.", "cowork.folder.brief."))}
-        # 2026-10-13 加 remind.date（两天及以后写日期）与 POS 导出停着等认列（brief.why.posLayout）
-        self.assertEqual(len(new), 31)
+        # 2026-10-13 加 remind.date（两天及以后写日期）与 POS 导出停着等认列（brief.why.posLayout）；
+        # 数字会计员第 3 期加 brief.why.review（自动推前判成提议或要人核对：待推送）
+        self.assertEqual(len(new), 32)
         self.assertTrue({"cowork.folder.line", "cowork.folder.more", "cowork.folder.moving", "cowork.folder.folderMissing",
                          "cowork.folder.state.registered", "cowork.choice.account", "cowork.folder.rootItself"} <= used)
         for key in used:

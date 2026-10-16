@@ -180,7 +180,9 @@ class HistoryRules(unittest.TestCase):
         self.assertEqual(data["suppliers"][0], {"name": "ศรีกรุง เครื่องเขียน", "tax_id": "0105556012345",
                                                 "branch": "00000",
                                                 "accounts": [{"code": "5320-01", "docs": 3, "last": "2026-09-30"}]})
-        for bad in (None, [], history_raw(version=2), history_raw(read_at="yesterday"),
+        # 第 3 期起收 v1 与 v2（v2 排除了 Pearnly 写的单）；认不出的版本照旧拒收
+        self.assertEqual(R.parse(history_raw(version=2))["version"], 2)
+        for bad in (None, [], history_raw(version=3), history_raw(read_at="yesterday"),
                     history_raw(suppliers="x"), history_raw(suppliers=[{"name": "A", "accounts": [
                         {"code": "5320-01", "docs": -1, "last": "2026-09-30"}]}]),
                     history_raw(suppliers=[{"name": "A", "accounts": [
@@ -438,7 +440,9 @@ class SettledHistory(unittest.TestCase):
 
     def test_a_consistent_supplier_is_settled_others_are_suggestions(self):
         found = self.history.for_push("C1", self.BOOK, SELLER)
-        self.assertEqual(found["settled"], {"code": "5320-01", "docs": 4, "last": "2026-10-02"})
+        # 推送用时带上这份汇总的版本（v1：Pearnly 写的单也在里面，自动推最高算 CC 判断）与读的日子（第 3 期）
+        self.assertEqual(found["settled"], {"code": "5320-01", "docs": 4, "last": "2026-10-02", "version": 1,
+                                            "read": "2026-10-15"})
         self.assertIsNone(self.history.for_push("C1", self.BOOK, {"tax": "", "name": "ร้านป้าแดง"})["settled"])
         mixed = self.history.for_push("C1", self.BOOK, {"tax": "0994000165510", "name": ""})
         self.assertIsNone(mixed["settled"])
