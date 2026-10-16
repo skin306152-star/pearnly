@@ -474,7 +474,6 @@
   --cc-bubble-bg: var(--cc-alpha-1);     /* 用户气泡：叠色 1（设计文档 3.10） */
   --cc-bubble-ink: var(--cc-ink);
   --cc-bubble-shadow: none;   /* 同 Claude：气泡没有阴影 */
-  --cc-bubble-sheen: rgb(255 255 255 / 0.55); /* 发送中扫过气泡的浅光（外壳动效） */
   --cc-focus-ring: var(--code-focus);         /* 键盘聚焦的蓝（设计系统） */
   /* 聚焦：内描 1px 页面色 + 外 1px 蓝描边，没有光晕（用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」；
      按钮、输入框、行、搜索框、卡片统一用它，浅色深色同一个） */
@@ -744,7 +743,6 @@
   --cc-brand-ink: #1f1e1d;
   --cc-brand-soft: #4a2f17;
   --cc-brand-soft-ink: #fde3c6;
-  --cc-bubble-sheen: rgb(255 255 255 / 0.12);
   --cc-mbtn-bg: #30302e;
   --cc-mcard-line: var(--cc-line-strong);
   --cc-mcard-shadow: 0;
@@ -1027,13 +1025,6 @@
   }
   /* 发出：从右下角轻轻弹出 */
   .cc-bubble-user[data-enter] { animation: cc-send-pop var(--cc-dur-pop) var(--cc-ease-spring) both; }
-  /* 发送中（还没送达服务端）：一道浅光从左往右扫过气泡 */
-  .cc-bubble-user[data-sending] { overflow: hidden; }
-  .cc-bubble-user[data-sending]::before {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(105deg, transparent 30%, var(--cc-bubble-sheen) 50%, transparent 70%);
-    background-size: 220% 100%; animation: cc-sheen 1.4s var(--cc-ease) infinite;
-  }
   /* 回复正文：电脑 14/20、手机 16/24（--cc-body-*，变体切）；字体按设置「对话字体」 */
   .cc-reply {
     color: var(--cc-ink); font-family: var(--cc-font-reply); font-variant-numeric: lining-nums tabular-nums;
@@ -1811,7 +1802,6 @@ html:has(.cc-mshell), html:has(.cc-mshell) body { height: 100%; overflow: hidden
   60% { opacity: 1; transform: translateY(-1px) scale(1.01); }
   100% { opacity: 1; transform: none; }
 }
-@keyframes cc-sheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
