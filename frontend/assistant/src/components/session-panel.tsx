@@ -40,7 +40,7 @@ import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggle
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
 import { isDragEscape } from "@/lib/layers";
-import { DragArea, type DragData, DragList, type DragTexts } from "@/components/ui/drag";
+import { DragArea, type DragData, DragList, type DragTexts, spotIn } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 
 export type PanelMode = "docked" | "floating" | "phone";
@@ -99,7 +99,14 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
     () => ({
       collapsed,
       toggle: (id) => toggleCard(id as CardId),
-      move: (id, delta) => setCardOrder(moveCard(usePanel.getState().order, id as CardId, delta, itemsNow.current)),
+      move: (id, delta) => {
+        const shown: readonly string[] = itemsNow.current;
+        const next = moveCard(usePanel.getState().order, id as CardId, delta, shown);
+        setCardOrder(next);
+        // 挪完在看得见的卡片里的位置（Alt+↑/↓ 念它）；到头了没挪不念
+        const visible: string[] = next.filter((card) => shown.includes(card));
+        return shown.indexOf(id) === visible.indexOf(id) ? null : spotIn(visible, id);
+      },
       register,
     }),
     [collapsed, register],
@@ -140,13 +147,15 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
     card.scrollIntoView({ block: "nearest" });
   }, [focus, detail]);
 
-  // 浮层、全屏：Esc 关（菜单、弹窗开着时它们先关）
+  // 浮层、全屏：Esc 关（菜单、弹窗开着时它们先关）。一次只关一层：关了会话栏就标记已处理，侧栏多选（挂在 window 上、随后
+  // 才收到同一个 Esc）这一次不清，再按一次才清（测试窗口第 5 轮：取消拖动后再按 Esc，会话栏和多选被一起清掉）
   useEffect(() => {
     if (mode === "docked") return;
     const onKey = (e: KeyboardEvent) => {
       // 输入法选字时的 Esc 只是取消候选词；拖动中的 Esc 只是取消拖动（鼠标、键盘拖都一样）
       if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
       if (isDragEscape(e)) return;
+      e.preventDefault();
       onClose();
     };
     document.addEventListener("keydown", onKey);

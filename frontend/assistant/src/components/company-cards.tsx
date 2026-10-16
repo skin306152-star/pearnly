@@ -60,7 +60,7 @@ import { useProjects } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { touchOnly } from "@/lib/touch";
-import { altMove, useSortableItem } from "@/components/ui/drag";
+import { altMove, type MoveSpot, useSortableItem } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
@@ -103,7 +103,8 @@ const SECTION_ORDER = ["party", "account", "payment", "vat", "item", "department
 export type PanelControl = {
   collapsed: readonly string[];
   toggle: (id: string) => void;
-  move: (id: string, delta: number) => void;
+  /** 挪一格；回挪完在看得见的卡片里的位置（到头了没挪回 null），Alt+↑/↓ 据此念。 */
+  move: (id: string, delta: number) => MoveSpot | null;
   register: (id: string, title: string) => () => void;
 };
 export const PanelControlContext = createContext<PanelControl | null>(null);
@@ -154,7 +155,7 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
   const collapsed = !forceOpen && (control ? control.collapsed.includes(id) : folded);
   const toggle = () => (control ? control.toggle(id) : setFolded((v) => !v));
   // Alt+↑/↓ 挪一格（挪动时 React 可能把这个节点摘下再插回，altMove 挪完把焦点放回原来的按钮）
-  const keys = (e: ReactKeyboardEvent) => control !== null && altMove(e, (delta) => control.move(id, delta));
+  const keys = (e: ReactKeyboardEvent) => control !== null && altMove(e, (delta) => sortable?.moved(control.move(id, delta)));
   const shownSummary = summary !== undefined && summary !== null && summary !== "" && summary !== 0;
   return (
     <section {...sortable?.node} className="cc-panel-card" data-card={id} data-slot={slot}>

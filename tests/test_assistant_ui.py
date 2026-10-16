@@ -3036,7 +3036,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("const observer = new MutationObserver(onMutation);", keys)
         self.assertNotIn("new MutationObserver(sync)", keys)
         # 拖动中的 Esc 只取消拖动，不清多选（审查第 4 轮；第 4 轮测试机第 9 项：取消拖动的那一下 Esc 本身也认得出，见 isDragEscape）
-        self.assertIn("if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered() && !isDragEscape(event)) {", keys)
+        # 一次只关一层（第 5 轮第 4 项）：上面一层已经用掉这个 Esc（标记已处理）就不清多选
+        self.assertIn("if (useSidebarSelection.getState().ids.length && !event.isComposing && !event.defaultPrevented && !layered() && !isDragEscape(event)) {", keys)
         self.assertIn("if (event.altKey || event.metaKey || event.ctrlKey || isDragging()) return;", keys)   # 键盘拖动中方向键归拖动
         self.assertIn("|| event.altKey || event.shiftKey || layered()) return;", keys)
 
@@ -4231,8 +4232,9 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         # 公司组整块拖（组头开关是把手），搜索时不能调序；Alt+↑/↓ 挪一格
         self.assertIn('{ id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },', groups)
         self.assertIn("{ disabled: locked, ownFocus: true, shut: !open || !!fold },", groups)
-        self.assertIn("handle={drag.handle} onMove={locked ? undefined : onMove}", groups)
-        self.assertIn("onMove={(delta) => saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta))}", groups)
+        # Alt+↑/↓ 挪完念新位置（第 5 轮第 2 项：同键盘拖动的播报）
+        self.assertIn("handle={drag.handle} onMove={locked ? undefined : (delta) => drag.moved(onMove(delta))}", groups)
+        self.assertIn("onMove={(delta) => spotIn(saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta)), companyDrag(section.project.id))}", groups)
         # 拖对话时没有「最近」组就临时出一个（同一处渲染：空档进了它也不换组件）；多选里拖一条，其余选中的也变淡
         self.assertIn("const out = noRecents && (lifted || place?.group === \"\") ? withRecents(sections) : sections;", groups)
         self.assertIn("<RecentsGroup key={section.key} open={temp || open} fold={leavesResults(\"\")} onToggle={temp ? () => undefined : toggle} onNew={() => newChatIn(\"\")}>", groups)
@@ -4898,6 +4900,170 @@ assert.deepEqual(sorted(unsentDrafts(items, undefined)), ["b", "c", "d", "e", "f
                 self.assertTrue(any(rel == f and key in context for f, key in allowed), f"{rel}:{i + 1}: {line.strip()}")
         # 多行截断（line-clamp）不在这次范围，保持原样
         self.assertIn("line-clamp-2", read("components/assistant-ui/thread.tsx"))
+
+
+class Round5SmallFixesTests(unittest.TestCase):
+    """测试窗口第 5 轮（lab 20b9f387）五处小问题：聚焦描边、组头 Alt+↑/↓ 播报、拿起的播报、Esc 一次一层、渐隐补量。"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
+               stubs={"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }"})
+
+    def test_every_focusable_control_shows_the_focus_outline(self):
+        # 用户 10-16：聚焦只有蓝色描边、没有光晕（--cc-shadow-focus，1px）。第 5 轮查出几处能聚焦却没有任何描边
+        css = read("globals.css")
+        self.assertIn("--cc-shadow-focus: inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--cc-focus-ring);", css)
+        base = block(css, "@layer base {")
+        # 兜底：能聚焦的控件没写自己的聚焦样式时也是同一个描边（输入框的描边在外框上，不在这里）
+        self.assertIn(':where(button, a[href], summary, [role="button"], [role="link"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"],\n'
+                      '    [role="separator"][tabindex], [tabindex]:not([tabindex="-1"], input, textarea, select, [contenteditable])):focus-visible {\n'
+                      "    box-shadow: var(--cc-shadow-focus);", base)
+        self.assertNotIn("0 0 0 3px", base)
+        # 点名的几处：组头待处理数、记住的选择「设为全公司」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、组按钮、胶囊、标题栏公司名
+        for rule in (".cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     "button.cc-list-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-show-more:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-group-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-chip-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-title-company:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     # 消息下面的「复制」、知识库表单的「取消」本来就有（Button 的 focus-visible:shadow-focus、.cc-btn）
+                     ".cc-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }"):
+            self.assertIn(rule, css)
+        self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
+        # 侧栏宽度拖把（分隔条）：键盘聚焦时那根线换成聚焦蓝、1px
+        self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: 1px; }", css)
+        # 32 标题栏、侧栏搜索框、就地改名仍是 1.5px 里描边
+        self.assertIn("box-shadow: var(--cc-shadow-focus-inset);", css)
+        self.assertIn(".cc-search:focus-within { box-shadow: var(--cc-shadow-focus-inset); }", css)
+        self.assertIn(".cc-inline-edit:focus { outline: var(--cc-focus-w) solid var(--cc-focus-ring); outline-offset: 0; }", css)
+        # 侧栏行尾「···」不在 Tab 顺序里，但被聚焦（菜单关了焦点还回来）时自己也露出来
+        rows = read("components/assistant-ui/thread-list.tsx")
+        more = rows.split('data-slot="aui_thread-list-item-more"\n', 1)[1].split("\n", 1)[0]
+        self.assertIn("focus-visible:opacity-100", more)
+        self.assertIn("group-has-focus-visible/item:opacity-100", more)
+
+    def test_lifting_announces_picked_up_not_a_position(self):
+        # 第 5 轮第 3 项：公司组头空格拿起念成「移到第 3 位，共 4 项」。拖动库拿起后紧跟着报一次「经过」，经过的是拿起的那一项自己
+        # （排序时它在原位）：这一次不念，留着「已拿起」。挪开过再回到原位照常念位置；下一次拿起重新算
+        self.run_page(r"""
+import { dragAnnouncements } from "@/components/ui/drag";
+const texts = { instructions: "", pickedUp: (n: string) => `up ${n}`, movedTo: (n: string, a: number, t: number) => `${n} to ${a}/${t}`,
+  droppedAt: (n: string, a: number, t: number) => `${n} at ${a}/${t}`, cancelled: (n: string) => `cancel ${n}` };
+const items = ["company:a", "company:b", "company:c", "company:d"];
+const entry = (id: string, index: number) => ({ id, data: { current: { drag: { id, kind: "company", label: id.slice(8), list: "companies", group: id.slice(8) }, sortable: { index, items } } } });
+for (const say of [dragAnnouncements(texts), dragAnnouncements(texts, { accepts: (a, b) => a.list === b.list, placed: () => null })]) {
+  const c = entry("company:c", 2);
+  assert.equal(say.onDragStart!({ active: c } as any), "up c");
+  assert.equal(say.onDragOver!({ active: c, over: c } as any), undefined);             // 拿起当下经过自己：不念，留着「已拿起」
+  assert.equal(say.onDragOver!({ active: c, over: entry("company:d", 3) } as any), "c to 4/4");
+  assert.equal(say.onDragOver!({ active: c, over: c } as any), "c to 3/4");             // 挪开过再回到原位：念位置
+  assert.equal(say.onDragEnd!({ active: c, over: c } as any), "c at 3/4");
+  assert.equal(say.onDragStart!({ active: c } as any), "up c");                        // 再拿起：重新算
+  assert.equal(say.onDragOver!({ active: c, over: c } as any), undefined);
+  assert.equal(say.onDragCancel!({ active: c } as any), "cancel c");
+}
+""")
+        # 卡片、置顶同一份（共用拖动）
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("if (!end && over && over.id === active.id && !moved) return undefined;", drag)
+
+    def test_alt_arrow_moves_are_announced_like_dragging(self):
+        # 第 5 轮第 2 项：公司组头 Alt+↑/↓ 挪一格时读屏什么也没念。挪完念新位置，文案同键盘拖动的 movedTo（三语）；置顶、卡片同样
+        self.run_page(r"""
+import { spotIn } from "@/components/ui/drag";
+assert.deepEqual(spotIn(["a", "b", "c"], "b"), { at: 2, total: 3 });
+assert.equal(spotIn(null, "b"), null);          // 到头了没挪：不念
+assert.equal(spotIn(["a"], "x"), null);
+""")
+        drag = read("components/ui/drag.tsx")
+        self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="sr-only" data-slot="cc-move-live">', drag)
+        self.assertIn("const text = texts.movedTo(name, spot.at, spot.total);", drag)
+        self.assertIn("if (spot) say?.(data.label, spot);", drag)
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("onMove={scope.locked ? undefined : (delta) => drag.moved(scope.move(id, delta))}", rows)
+        self.assertIn('move: (id, delta) => spotIn(savePins(moveBy(pinIds, id, delta)), id)', rows)
+        cards = read("components/company-cards.tsx")
+        self.assertIn("altMove(e, (delta) => sortable?.moved(control.move(id, delta)))", cards)
+        panel = read("components/session-panel.tsx")
+        self.assertIn("return shown.indexOf(id) === visible.indexOf(id) ? null : spotIn(visible, id);", panel)
+
+    def test_escape_closes_one_layer_at_a_time(self):
+        # 第 5 轮第 4 项：窄窗口多选 2 条、打开浮动会话栏、键盘拿起卡片：第一下 Esc 只取消拖动；第二下原来把会话栏和多选一起清掉。
+        # 关掉一层的处理都标记已处理，下面一层见到就不动：第二下只关会话栏，第三下才清多选
+        panel = read("components/session-panel.tsx")
+        self.assertIn("      if (isDragEscape(e)) return;\n      e.preventDefault();\n      onClose();", panel)
+        keys = read("lib/sidebar-keys.ts")
+        self.assertIn("!event.defaultPrevented && !layered() && !isDragEscape(event)", keys)
+        # 会话栏在 document 上、多选在 window 上（同一个 Esc 先到会话栏）
+        self.assertIn('document.addEventListener("keydown", onKey);', panel)
+        self.assertIn('window.addEventListener("keydown", onWindowKey);', keys)
+        # 改名、知识库编辑框的 Esc 本来就标记已处理
+        self.assertIn('if (e.key === "Escape" && !e.nativeEvent.isComposing) {\n          e.preventDefault();\n          finish(false);', read("components/assistant-ui/thread-list.tsx"))
+        self.assertIn("if (!action) return;\n          e.preventDefault();", read("components/company-cards.tsx"))
+
+    def test_overflow_fade_is_rechecked_when_the_observer_would_miss_it(self):
+        # 第 5 轮第 5 项：页面在后台时刷新，电脑上一个 data-overflow 也没有。观察器只在尺寸变了时回调：回到前台、字体载完、窗口改宽窄、
+        # 根节点或侧栏宽度变了时全部重量；仍只有整页一个观察器
+        self.run_page(r"""
+const g = globalThis as any;
+const on: Record<string, Array<() => void>> = {};
+const listen = (type: string, run: () => void) => (on[type] ??= []).push(run);
+const fire = (type: string) => (on[type] ?? []).forEach((run) => run());
+const sidebar = { isConnected: true };
+let fontsReady!: () => void;
+g.document.visibilityState = "visible";
+g.document.addEventListener = listen;
+g.document.querySelector = (q: string) => (q.includes("sidebar-container") ? sidebar : null);
+g.document.documentElement.isConnected = true;
+g.document.fonts = { ready: new Promise<void>((r) => (fontsReady = r)), addEventListener: (type: string, run: () => void) => listen("fonts:" + type, run) };
+g.addEventListener = listen;
+g.requestAnimationFrame = (run: () => void) => setTimeout(run, 0);
+g.getComputedStyle = () => ({ paddingLeft: "0px", paddingRight: "0px" });
+const observers: any[] = [];
+g.ResizeObserver = class {
+  run: (entries: any[]) => void;
+  seen = new Set<any>();
+  constructor(run: (entries: any[]) => void) { this.run = run; observers.push(this); }
+  observe(el: any) { this.seen.add(el); }
+  unobserve(el: any) { this.seen.delete(el); }
+};
+const { attachOverflowFade } = await import("@/lib/overflow-fade");
+function marquee(text: number, client: number) {
+  const attrs = new Set<string>();
+  const inner: any = { width: text, getBoundingClientRect: () => ({ width: inner.width }) };
+  const box: any = { isConnected: true, clientWidth: client, offsetWidth: client, inner, attrs,
+    getBoundingClientRect: () => ({ width: box.offsetWidth }),
+    querySelector: () => inner, hasAttribute: (n: string) => attrs.has(n),
+    toggleAttribute: (n: string, v: boolean) => (v ? attrs.add(n) : attrs.delete(n), v) };
+  return box;
+}
+const a = marquee(300, 200), b = marquee(100, 200);
+attachOverflowFade(a); attachOverflowFade(b);
+assert.equal(observers.length, 1);                       // 仍是整页一个观察器
+const ro = observers[0];
+assert.ok(ro.seen.has(g.document.documentElement) && ro.seen.has(sidebar));   // 多看根节点与侧栏
+const fades = () => [a.attrs.has("data-overflow"), b.attrs.has("data-overflow")];
+assert.deepEqual(fades(), [false, false]);               // 观察器还没回调（页面在后台）
+g.document.visibilityState = "hidden"; fire("visibilitychange"); await g.sleep(5);
+assert.deepEqual(fades(), [false, false]);               // 在后台：不量
+g.document.visibilityState = "visible"; fire("visibilitychange"); await g.sleep(5);
+assert.deepEqual(fades(), [true, false]);                // 回到前台：补量
+b.inner.width = 260; fire("fonts:loadingdone"); await g.sleep(5);
+assert.deepEqual(fades(), [true, true]);                 // 字体载完、文字变宽
+a.clientWidth = a.offsetWidth = 400; fire("resize"); await g.sleep(5);
+assert.deepEqual(fades(), [false, true]);                // 窗口改宽：放得下的去掉渐隐
+b.clientWidth = b.offsetWidth = 300; ro.run([{ target: sidebar }]);
+assert.deepEqual(fades(), [false, false]);               // 侧栏变宽（只有侧栏回调）：全部重量
+a.clientWidth = a.offsetWidth = 150; ro.run([{ target: g.document.documentElement }]);
+assert.deepEqual(fades(), [true, false]);                // 根节点变了：全部重量
+a.clientWidth = a.offsetWidth = 500; fontsReady(); await g.sleep(5);
+assert.deepEqual(fades(), [false, false]);               // 字体全部载完（fonts.ready）
+a.clientWidth = a.offsetWidth = 100; fire("pageshow"); await g.sleep(5);
+assert.deepEqual(fades(), [true, false]);                // 从往返缓存回来
+""")
+        fade = read("lib/overflow-fade.ts")
+        self.assertEqual(fade.count("new ResizeObserver"), 1)
 
 if __name__ == "__main__":
     unittest.main()

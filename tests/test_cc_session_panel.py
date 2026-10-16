@@ -577,7 +577,7 @@ class SortableSourceTests(unittest.TestCase):
     def test_the_panel_uses_the_shared_drag(self):
         panel = read("components/session-panel.tsx")
         # 会话栏卡片走共用拖动：一个拖动区 + 一列（只认同一列的卡片），放下记顺序
-        self.assertIn('import { DragArea, type DragData, DragList, type DragTexts } from "@/components/ui/drag";', panel)
+        self.assertIn('import { DragArea, type DragData, DragList, type DragTexts, spotIn } from "@/components/ui/drag";', panel)
         self.assertIn("<DragArea accepts={sameColumn} onDrop={onDrop} texts={texts}>", panel)
         self.assertIn('<DragList id="cards" items={items}>', panel)
         self.assertIn("const items = useMemo(() => order.filter((id) => id in titles), [order, titles]);", panel)

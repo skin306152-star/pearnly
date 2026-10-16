@@ -1,5 +1,8 @@
 // 页面上开着的组件库弹层：弹窗（含警告框）、下拉菜单与它的子菜单。关着的还在退场动画里的是 data-state="closed"，不算。
 // 返回键栈（lib/back-stack.ts）、侧栏键盘（lib/sidebar-keys.ts）、会话栏的 Esc 共用；本文件不引任何模块。
+//
+// Esc 一次只关一层，最上面的先关：弹窗、菜单（组件库）> 拖动 > 改名、编辑框 > 浮着的会话栏 > 侧栏多选。关掉一层的处理都
+// 标记已处理（preventDefault），下面各层见到已处理的 Esc 就不动（测试窗口第 5 轮第 4 项）。
 export const OPEN_LAYERS =
   '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-menu-content][data-state="open"]';
 

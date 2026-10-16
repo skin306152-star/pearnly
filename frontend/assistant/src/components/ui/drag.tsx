@@ -132,13 +132,19 @@ function position(over: Over | Active | null | undefined): { at: number; total: 
 }
 
 /** dnd-kit 的读屏播报：名字用 label；排序时位置按这一列（看得见的）算，在组之间移动时念组名（回到原来那组念「已拿起」，
- *  放下时按空档所在：别的组念移到哪，原组念取消）。placed 是此刻空档所在的组（null = 原组）。 */
+ *  放下时按空档所在：别的组念移到哪，原组念取消）。placed 是此刻空档所在的组（null = 原组）。
+ *
+ *  拿起的那一刻拖动库紧跟着报一次「经过」，经过的就是拿起的这一项自己（排序时它在原位、离自己最近）：这一次不念位置，
+ *  留着「已拿起」（测试窗口第 5 轮：公司组头空格拿起念成「移到第 3 位，共 4 项」，卡片、置顶同样）。挪开过以后再回到原位照常念位置。 */
 export function dragAnnouncements(
   texts: DragTexts,
   mover?: { accepts: AreaProps["accepts"]; placed: () => DragData | null; lifted?: (active: Active) => DragData | undefined },
 ): Announcements {
   const name = (entry: WithData) => dataOf(entry)?.label ?? "";
+  let moved = false; // 这一次拖动挪开过原位没有（拿起时清零）
   const say = (active: Active, over: Over | null, end: boolean) => {
+    if (!end && over && over.id === active.id && !moved) return undefined;
+    if (over && over.id !== active.id) moved = true;
     const from = mover?.lifted?.(active) ?? dataOf(active);
     const to = dataOf(over);
     if (mover && isMover(from)) {
@@ -159,7 +165,10 @@ export function dragAnnouncements(
     return (end ? texts.droppedIn : texts.over)?.(name(active), to?.label ?? "");
   };
   return {
-    onDragStart: ({ active }) => texts.pickedUp(name(active)),
+    onDragStart: ({ active }) => {
+      moved = false;
+      return texts.pickedUp(name(active));
+    },
     onDragOver: ({ active, over }) => say(active, over, false),
     onDragEnd: ({ active, over }) => say(active, over, true),
     onDragCancel: ({ active }) => texts.cancelled(name(active)),
@@ -555,6 +564,18 @@ type AreaProps = {
 /** 空档此刻在哪一组（组的拖动编号；null = 没在组之间移动或在原组）：收着的组据此高亮组头。 */
 const PlacedContext = createContext<string | null>(null);
 
+/** Alt+↑ / Alt+↓ 挪完的位置：这一列（看得见的）里第几项、共几项。 */
+export type MoveSpot = { at: number; total: number };
+
+/** 挪完的新顺序里 id 在第几位；没挪（到头了，新顺序为 null）或找不到回 null。 */
+export function spotIn(list: readonly string[] | null | undefined, id: string): MoveSpot | null {
+  const index = list ? list.indexOf(id) : -1;
+  return list && index >= 0 ? { at: index + 1, total: list.length } : null;
+}
+
+/** 区域里的播报（Alt+↑/↓ 挪一格不经过拖动库，播报走这里）：念「名字 移到第几位，共几项」，文案同键盘拖动的 movedTo。 */
+const SayMoveContext = createContext<((name: string, spot: MoveSpot) => void) | null>(null);
+
 /** 一块共用拖动的区域：传感器、碰撞（只认能放的地方）、键盘移动、限位、浮层与放下动画、读屏播报、组之间移动的空档与整列滑动。 */
 export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, onActive, flow, texts, touch = "hold" }) => {
   const latest = useRef({ accepts, onDrop, onPlace, onActive });
@@ -678,6 +699,16 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
     useSensor(HoldTouchSensor, { ...TOUCH_START, moveToLift: touch === "move" }),
     useSensor(KeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS }),
   );
+  // Alt+↑/↓ 挪一格的播报（第 5 轮：公司组头挪动时读屏什么也没念）：同拖动库的播报区一样是 assertive、整段念；
+  // 同一句连着两次（极少）末尾补一个不占位的空格，读屏才会再念
+  const [said, setSaid] = useState("");
+  const sayMove = useMemo(
+    () => (name: string, spot: MoveSpot) => {
+      const text = texts.movedTo(name, spot.at, spot.total);
+      setSaid((before) => (before === text ? `${text}\u00a0` : text));
+    },
+    [texts],
+  );
   const accessibility = useMemo(
     () => ({
       announcements: dragAnnouncements(texts, {
@@ -727,49 +758,62 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   };
   return (
     <MotionContext.Provider value={transition}>
-      <PlacedContext.Provider value={placed?.id ?? null}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={collisions}
-          modifiers={modifiers}
-          accessibility={accessibility}
-          onDragStart={({ active }) => {
-            landing.land(); // 上一次的落位还没播完就又拿起：先交掉
-            setDragging(true);
-            const data = dataOf(active);
-            lifted.current = data ?? null;
-            if (isMover(data)) {
-              placedRef.current = null;
-              setPlaced(null);
+      <SayMoveContext.Provider value={sayMove}>
+        <PlacedContext.Provider value={placed?.id ?? null}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={collisions}
+            modifiers={modifiers}
+            accessibility={accessibility}
+            onDragStart={({ active }) => {
+              landing.land(); // 上一次的落位还没播完就又拿起：先交掉
+              setDragging(true);
+              const data = dataOf(active);
+              lifted.current = data ?? null;
+              if (isMover(data)) {
+                placedRef.current = null;
+                setPlaced(null);
+                release.current?.();
+                release.current = hold();
+              }
+              if (data) latest.current.onActive?.(data);
+            }}
+            onDragOver={({ active, over }) => {
+              const from = activeOf(active);
+              if (!isMover(from)) return;
+              const target = placeOf(from, dataOf(over), latest.current.accepts);
+              if (target !== undefined) place(from, target);
+            }}
+            onDragCancel={({ active }) => {
+              finish();
+              holdStill(stash.current.node, landWait);
+              const from = activeOf(active);
+              if (!isMover(from)) return;
+              place(from, null); // 取消：空档回原位，浮层滑回去
               release.current?.();
-              release.current = hold();
-            }
-            if (data) latest.current.onActive?.(data);
-          }}
-          onDragOver={({ active, over }) => {
-            const from = activeOf(active);
-            if (!isMover(from)) return;
-            const target = placeOf(from, dataOf(over), latest.current.accepts);
-            if (target !== undefined) place(from, target);
-          }}
-          onDragCancel={({ active }) => {
-            finish();
-            holdStill(stash.current.node, landWait);
-            const from = activeOf(active);
-            if (!isMover(from)) return;
-            place(from, null); // 取消：空档回原位，浮层滑回去
-            release.current?.();
-            release.current = null;
-          }}
-          onDragEnd={onDragEnd}
-        >
-          {children}
-          <Lifted stash={stash} transition={transition} landing={landing} placed={placedRef} />
-          {flow && <Flow selector={flow} running={busy > 0} transition={transition} placed={placed?.id ?? null} />}
-        </DndContext>
-      </PlacedContext.Provider>
+              release.current = null;
+            }}
+            onDragEnd={onDragEnd}
+          >
+            {children}
+            <Lifted stash={stash} transition={transition} landing={landing} placed={placedRef} />
+            {flow && <Flow selector={flow} running={busy > 0} transition={transition} placed={placed?.id ?? null} />}
+          </DndContext>
+          <MoveLive text={said} />
+        </PlacedContext.Provider>
+      </SayMoveContext.Provider>
     </MotionContext.Provider>
   );
+};
+
+/** Alt+↑/↓ 挪一格的播报区（挂在 body 上，同拖动库自己的播报区；看不见、不占位）。 */
+const MoveLive: FC<{ text: string }> = ({ text }) => {
+  const region = (
+    <div role="status" aria-live="assertive" aria-atomic="true" className="sr-only" data-slot="cc-move-live">
+      {text}
+    </div>
+  );
+  return typeof document !== "undefined" && document.body ? createPortal(region, document.body) : region;
 };
 
 /** 在组之间移动的那段时间（拿起到请求做完）：整列跟着动（flowLayout）；空档换了组，各组的位置变了，重量能放的各处（碰撞按新位置算），
@@ -965,7 +1009,12 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
   const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
   const sortable = useSortable({ id: data.id, data: drag, disabled: options.disabled, transition });
   const crossing = useContext(PlacedContext) === data.id && !!options.shut;
+  const say = useContext(SayMoveContext);
   return {
+    /** Alt+↑/↓ 挪完：念新位置（没挪动——到头了——不念）。 */
+    moved: (spot: MoveSpot | null | void) => {
+      if (spot) say?.(data.label, spot);
+    },
     node: {
       ref: sortable.setNodeRef,
       style: { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition } as CSSProperties,
@@ -998,7 +1047,8 @@ export function useDropTarget(data: DragData, shut = false) {
   return { ref: droppable.setNodeRef, "data-drop-target": placed && shut ? "" : undefined };
 }
 
-/** Alt+↑ / Alt+↓ 挪一格（会话栏卡片、侧栏公司组头、置顶对话）；挪完焦点留在原来的按钮上。是这两个键回 true。 */
+/** Alt+↑ / Alt+↓ 挪一格（会话栏卡片、侧栏公司组头、置顶对话）；挪完焦点留在原来的按钮上。是这两个键回 true。
+ *  读屏播报由调用方在 move 里交给 useSortableItem 的 moved（同键盘拖动一套文案）。 */
 export function altMove(event: ReactKeyboardEvent, move: (delta: -1 | 1) => void): boolean {
   if (!event.altKey || event.metaKey || event.ctrlKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return false;
   event.preventDefault();

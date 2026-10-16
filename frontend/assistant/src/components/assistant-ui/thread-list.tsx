@@ -28,6 +28,8 @@ import {
   type DragHandle,
   DragList,
   type DragTexts,
+  type MoveSpot,
+  spotIn,
   useDragItem,
   useDropTarget,
   useSortableItem,
@@ -272,7 +274,7 @@ const Items: FC<{ indices: readonly number[]; threadIds: readonly string[] }> = 
 // 有公司分组时（Cowork）：按「分组和排序」分组、排序；手机上各组也能折叠。折叠状态每台设备各记各的（pinned、recents、
 // project:<编号>、month:<月份>）。每个组标题右侧都有「···」（分组和排序）；公司组、最近另有「新建」。拖动见文件头
 /** 侧栏行在哪一种拖动里（行组件由组件库按编号渲染，拿不到参数，靠所在的组给）。 */
-type RowScope = { mode: "pin"; locked: boolean; move: (id: string, delta: -1 | 1) => void } | { mode: "row"; group: string };
+type RowScope = { mode: "pin"; locked: boolean; move: (id: string, delta: -1 | 1) => MoveSpot | null } | { mode: "row"; group: string };
 const RowScopeContext = createContext<RowScope | null>(null);
 
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
@@ -377,10 +379,17 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const pinned = sections.find((section) => section.type === "pinned");
   const pinIds = pinned ? pinned.indices.map((index) => pinDrag(local(index))) : [];
   const pinKey = new Map((pinned?.indices ?? []).map((index) => [pinDrag(local(index)), itemsById.get(local(index))?.remoteId ?? local(index)]));
-  const savePins = (next: string[] | null) => next && setPinnedOrder(next.map((id) => pinKey.get(id) ?? fromDrag(id)));
+  // 存下新顺序，回同一份（Alt+↑/↓ 据此念新位置；没挪动为 null）
+  const savePins = (next: string[] | null) => {
+    if (next) setPinnedOrder(next.map((id) => pinKey.get(id) ?? fromDrag(id)));
+    return next;
+  };
   const companies = shownSections.filter((section) => section.type === "project");
   const companyIds = companies.map((section) => companyDrag(section.project.id));
-  const saveCompanies = (next: string[] | null) => next && setCompanyOrder(next.map(fromDrag));
+  const saveCompanies = (next: string[] | null) => {
+    if (next) setCompanyOrder(next.map(fromDrag));
+    return next;
+  };
 
   const onDrop = (active: DragData, target: DragData) => {
     if (active.kind === "pin") savePins(moveTo(pinIds, active.id, target.id));
@@ -421,7 +430,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
       {pinned && (
         <SectionGroup label={t("starred")} open={groupOpen({ key: "pinned" }, collapsed, searching)} onToggle={() => toggleSection({ key: "pinned" })}>
           <RowScopeContext.Provider
-            value={{ mode: "pin", locked: searching, move: (id, delta) => savePins(moveBy(pinIds, id, delta)) }}
+            value={{ mode: "pin", locked: searching, move: (id, delta) => spotIn(savePins(moveBy(pinIds, id, delta)), id) }}
           >
             <DragList id="pins" items={pinIds}>
               <Items indices={pinned.indices} threadIds={threadIds} />
@@ -439,7 +448,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
               onToggle={() => toggleSection(section)}
               sessions={sessionsOf(section.all)}
               locked={searching}
-              onMove={(delta) => saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta))}
+              onMove={(delta) => spotIn(saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta)), companyDrag(section.project.id))}
               fold={leavesResults(section.project.id)}
               more={
                 section.more
@@ -545,7 +554,7 @@ const CompanyGroup: FC<{
   onToggle: () => void;
   sessions: readonly string[];
   locked: boolean;
-  onMove: (delta: -1 | 1) => void;
+  onMove: (delta: -1 | 1) => MoveSpot | null;
   more?: () => void;
   children: ReactNode;
 }> = ({ project, open, fold, onToggle, sessions, locked, onMove, more, children }) => {
@@ -556,7 +565,7 @@ const CompanyGroup: FC<{
   const scope = useMemo<RowScope>(() => ({ mode: "row", group: project.id }), [project.id]);
   return (
     <div {...drag.node} className="cc-group-section" data-slot="cc-group-section">
-      <ProjectHeader project={project} open={open} onToggle={onToggle} sessions={sessions} handle={drag.handle} onMove={locked ? undefined : onMove} />
+      <ProjectHeader project={project} open={open} onToggle={onToggle} sessions={sessions} handle={drag.handle} onMove={locked ? undefined : (delta) => drag.moved(onMove(delta))} />
       {open && (
         <div data-slot="cc-project-items" className="cc-group-items">
           <RowScopeContext.Provider value={scope}>{children}</RowScopeContext.Provider>
@@ -779,7 +788,8 @@ const PinnedRow: FC<{ scope: Extract<RowScope, { mode: "pin" }> }> = ({ scope })
   const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
   const id = pinDrag(localId);
   const drag = useSortableItem({ id, kind: "pin", label: title, list: "pins" }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });
-  return <Row drag={drag} onMove={scope.locked ? undefined : (delta) => scope.move(id, delta)} />;
+  // Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）
+  return <Row drag={drag} onMove={scope.locked ? undefined : (delta) => drag.moved(scope.move(id, delta))} />;
 };
 
 const MovableRow: FC<{ group: string }> = ({ group }) => {
@@ -989,7 +999,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
           size="icon"
           tabIndex={-1}
           data-slot="aui_thread-list-item-more"
-          className="data-[state=open]:bg-hover absolute end-1 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 data-[state=open]:opacity-100"
+          className="data-[state=open]:bg-hover absolute end-1 top-1/2 size-(--cc-row-ctl) -translate-y-1/2 rounded-sm p-0 opacity-0 group-hover/item:opacity-100 group-has-focus-visible/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-(--cc-icon-sm)" />
           <span className="sr-only">{t("more")}</span>
