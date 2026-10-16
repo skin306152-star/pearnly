@@ -122,9 +122,11 @@ const StageRow: FC<{ stage: Stage; month: Month }> = ({ stage, month }) => {
       </div>
       {sets.length > 1 &&
         sets.map((set) => (
-          <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent" data-slot="cc-month-set">
-            <Marquee className="cc-month-sub">{set.label || set.key}</Marquee>
-            <Marquee className="cc-panel-extra cc-month-status">{setSummary(set)}</Marquee>
+          // 账套行两行（第 8 轮：电脑 1024 宽、右侧栏 280 时一行放不下「谁 何时 回读」）：账套名一行、状态一行（12px 淡色），各自全宽，
+          // 各自是一行悬停滚动的范围——同一行不会两处一起滚
+          <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent cc-month-set" data-slot="cc-month-set">
+            <Marquee className="cc-month-set-name" data-marquee-host="">{set.label || set.key}</Marquee>
+            <Marquee className="cc-month-set-status" data-marquee-host="">{setSummary(set)}</Marquee>
           </div>
         ))}
     </>

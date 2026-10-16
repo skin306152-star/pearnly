@@ -457,9 +457,15 @@ class RelayTests(unittest.TestCase):
                 mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append((name, data)) or ("saved", False)):
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")  # 重复点击不再执行
+            # 拒绝：不执行；交回模型的结果带 status: denied（不随语言变，对话页重开时据此把这一步写成没做，第 8 轮）
+            rows["r2"] = {"status": "awaiting_approval", "tool": "always", "tool_input": "{}"}
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_2", False), "denied")
         self.assertEqual(ran, [("always", {"task": "T1"})])
         self.assertEqual((rows["r1"]["status"], rows["r1"]["result"]), ("done", "saved"))
-        self.assertEqual(len(posted), 1)
+        self.assertEqual(len(posted), 2)
+        denied = json.loads(rows["r2"]["result"])
+        self.assertEqual((rows["r2"]["status"], denied["status"]), ("denied", "denied"))
+        self.assertIn("did not allow this change", denied["message"])
         # 卡片在点之前说清改什么：工具的 preview 现算；没写就列参数；ask 没写用步骤名
         declared = [{"name": "always", "label": "Saved", "ask": "Save?", "approval": True, "preview": "x.preview"},
                     {"name": "plain", "label": "Did", "approval": True}]
@@ -972,6 +978,10 @@ class RelayTests(unittest.TestCase):
             self.assertIn(words, instruction)
         for _language, example in engines.base.TITLE_EXAMPLES:
             self.assertTrue(contracts.title_fits(example), example)  # 示例本身放得下
+        # 年份按标题的语言写（第 8 轮：英文标题写成「Express Sep 2569 push log」）：泰文可留佛历，其余语言用公历（减 543）
+        for words in ("a Thai title may keep the Buddhist Era year (2569)", "in every other language use the Gregorian "
+                      "year (2026)", "(subtract 543)", "never 'Sep 2569'"):
+            self.assertIn(words, instruction)
 
     def test_a_too_wide_title_is_asked_again_once_then_cut_at_a_boundary(self):
         asked = []
@@ -1162,7 +1172,11 @@ class ToolAndDefinitionTests(unittest.TestCase):
         product.TOOLS = [{"name": "p_read", "label": "Read it", "description": "d", "input_schema": {"type": "object"},
                           "handler": "fake_steps.go"},
                          {"name": "p_plain", "label": "Did it", "description": "d", "input_schema": {"type": "object"},
-                          "handler": "fake_steps.go"}]
+                          "handler": "fake_steps.go"},
+                         {"name": "p_write", "label": "Saved it", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_steps.go", "approval": True, "ask": "Save it?"},
+                         {"name": "p_gate", "label": "Changed it", "description": "d", "input_schema": {"type": "object"},
+                          "handler": "fake_steps.go", "approval": ["x"]}]
         product.STEP_NAMES = {"p_read": "Reading it", "p_gone": "Not a declared tool", "p_plain": ""}
         sys.modules["fake_steps"] = product
         hooks = {"pearnly_assistant_tools": ["fake_steps.TOOLS"], "pearnly_assistant_step_names": ["fake_steps.STEP_NAMES"]}
@@ -1171,6 +1185,8 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertEqual(steps["running"], {"pearnly_whoami": "Checking your account",
                                             "pearnly_tax_id_lookup": "Looking up a tax ID", "p_read": "Reading it"})
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
+        # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
+        self.assertEqual(steps["ask"], {"p_write": "Save it?", "p_gate": "Changed it"})
         api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
         self.assertIn("def tool_steps():\n    return tools.steps()", api)
 

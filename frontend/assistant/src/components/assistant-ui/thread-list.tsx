@@ -39,6 +39,7 @@ import { showShortcuts } from "@/components/shortcut";
 import { useLongPress } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
 import { isImeEnter } from "@/lib/ime";
+import { isDragging } from "@/lib/layers";
 import { co, dayLabel, sb, t } from "@/i18n";
 import { branchShort, monthLabel, monthShort } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
@@ -874,6 +875,8 @@ const Row: FC<{ drag?: RowDrag; onMove?: (delta: -1 | 1) => void }> = ({ drag, o
       }}
       onKeyDown={(e) => {
         if (renaming) return;
+        // 键盘拖动中：键只归拖动（方向键由把手标成已处理，组件库行自带的 ↑ ↓ 不移焦点；不开菜单）
+        if (isDragging()) return dragKey?.(e);
         if (isMenuKey(e)) {
           e.preventDefault();
           setMenuOpen(true);

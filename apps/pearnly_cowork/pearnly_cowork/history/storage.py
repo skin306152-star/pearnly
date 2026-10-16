@@ -245,6 +245,18 @@ def read(name, *, for_update=False):
     return doc
 
 
+def by_invoice_no(invoice_no, limit=6) -> list:
+    """票面单号是这个的单据（本人看得到的，权限同列表；新的在前，最多 ``limit`` 张）：``[{name, invoice_date, seller_name,
+    buyer_name}]``。CC 按单据存公司规则时把票面单号当成了单据编号，用它认出是哪一张（`assistant.company_tools._document`）。"""
+    scope.require_read()
+    value = str(invoice_no or "").strip()
+    if not value:
+        return []
+    return frappe.get_list(DOCTYPE, filters={"invoice_no": value},
+                           fields=["name", "invoice_date", "seller_name", "buyer_name"],
+                           order_by="creation desc", limit_page_length=int(limit))
+
+
 def project(doc):
     result = {key: doc.get(key) for key in (
         "name", "workspace", "client", "source", "staged", "record_version", *PUSH_FIELDS,

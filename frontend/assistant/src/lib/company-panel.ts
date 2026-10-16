@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
 import { lang } from "@/i18n";
 import { type Detail, dropCachedDetail, lastMonth, loadDetail, TASK_EVENTS } from "@/lib/companies";
-import { shownError } from "@/lib/frappe";
+import { shownError, withRetry } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import type { Activity } from "@/lib/managed-agents/activity";
 import type { RunStatus } from "@/lib/managed-agents/events";
@@ -238,10 +238,14 @@ function fetchDetail(company: string, period: string): Promise<void> {
   const key = detailKey(company, period);
   const mine = (asked.get(key) ?? 0) + 1;
   asked.set(key, mine);
+  // 再取一次时，上一次留下的报错先收起（还没有详情时显示转圈），这一次也失败才再显示
+  if (useDetails.getState()[key]?.error) useDetails.setState((before) => ({ [key]: { detail: before[key]?.detail ?? null, error: "" } }));
   let run: Promise<void> | null = null;
   run = (async () => {
     try {
-      const next = await loadDetail(company, period);
+      // 一时的失败（网络、网关、数据库死锁）隔一会儿再取，不把「出了点问题」留在刚打开的会话栏上（第 8 轮测试机：手机第一次
+      // 打开公司信息报错，关掉重开就好；同时发出的还有月结、待处理与排列同步的请求）
+      const next = await withRetry(() => loadDetail(company, period));
       if (asked.get(key) !== mine) return;
       details.set(key, next);
       hintTitle(next.company.id, next.company.title);

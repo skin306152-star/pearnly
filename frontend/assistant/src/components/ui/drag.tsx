@@ -29,7 +29,10 @@
 //          加到那张卡上，卡被推出列表、撑大了可滚范围，会话栏一路滚进空白）。
 //          浮层停在只能高亮组头的落点上（去的组收着）时变半透明（data-peek），透出组头的高亮，离开就恢复。
 //   键盘   空格拿起、方向键移动（组之间：一组一组跳，含原来那组）、空格（或回车）放下、Esc 取消，三种语言读屏播报（文案由调用方给）。
-//          Esc 只取消拖动：不关浮着的会话栏、不清侧栏多选（lib/layers.ts 的 isDragEscape）。
+//          Esc 只取消拖动：不关浮着的会话栏、不清侧栏多选（lib/layers.ts 的 isDragEscape）。焦点一直在被拖的那一项的把手上
+//          （换组重挂了也跟过去，useFollowFocus）；拖动中方向键只归拖动（handleOf 标成已处理，组件库行自带的方向键导航不接手），
+//          放下 / 取消后焦点留在移动后的那一行（之后请求做完又重挂一次也跟过去，只在焦点丢了时）。第 8 轮测试机：对话行跨组后
+//          原来那行卸下，组件库行的 ↑ ↓ 把焦点挪到邻行，之后方向键只移焦点、拖动卡住或一次只能跨一组。
 //   动效   时长、缓动取 globals.css 的 --cc-dur / --cc-ease；系统或设置要求减少动态效果时不播过渡。
 //
 // 样式：globals.css 的 .cc-drag-*、[data-drag-source]、[data-drop-target]；这里只有拖动算出的位移是行内样式（组之间滑动用
@@ -79,6 +82,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type TouchEvent as ReactTouchEvent,
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -88,7 +92,7 @@ import {
 } from "react";
 import { cssMs } from "@/lib/hover-scroll";
 import { LONG_PRESS_MS, LONG_PRESS_SLOP } from "@/hooks/use-long-press";
-import { markDragMoved, releaseDrag, setDragging } from "@/lib/layers";
+import { isDragging, markDragMoved, releaseDrag, setDragging } from "@/lib/layers";
 
 // ---------------------------------------------------------------- 拖的是什么
 /** 一项拖动的说明（放在 dnd-kit 的 data.drag 里）：kind 是哪一种（card / company / pin / row / recents），label 是读屏念的名字，
@@ -734,6 +738,9 @@ type AreaProps = {
 /** 空档此刻在哪一组（组的拖动编号；null = 没在组之间移动或在原组）：收着的组据此高亮组头。 */
 const PlacedContext = createContext<string | null>(null);
 
+/** 键盘拿起的那一项的拖动编号（鼠标、手机拿起或没在拖时 null）：焦点跟着它（useFollowFocus）。 */
+const KeyedContext = createContext<string | number | null>(null);
+
 /** Alt+↑ / Alt+↓ 挪完的位置：这一列（看得见的）里第几项、共几项。 */
 export type MoveSpot = { at: number; total: number };
 
@@ -759,6 +766,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   // 在组之间移动：空档所在的组（null = 原组）、落位后才交的放下、整列跟着动的时段（拿起到请求做完）
   const placedRef = useRef<DragData | null>(null);
   const [placed, setPlaced] = useState<DragData | null>(null);
+  const [keyed, setKeyed] = useState<string | number | null>(null);
   // 拿起时的那份说明：在组之间移动的那一项会换组重挂（侧栏的行按所在的组给 group），拖动中一直按拿起时的认（原来那组不变）
   const lifted = useRef<DragData | null>(null);
   // 在组之间移动：放下那一刻定下的去处（读屏按它念，见 dragAnnouncements；undefined = 还没放下）
@@ -929,16 +937,21 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
     [landing, letGo],
   );
   const finish = () => {
+    setKeyed(null);
     setDragging(false);
     latest.current.onActive?.(null);
   };
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
+  const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {
+    const from = activeOf(active);
+    // 键盘放下：焦点留在移动后的那一行（落进收着的组就给组头）
+    const going = placedRef.current;
+    const groupNode = going && isMover(from) && latest.current.accepts(from, going) ? stash.current.containers?.get(going.id)?.node.current : null;
+    keepFocusOn(active.id, groupNode ?? null, activatorEvent);
     // 落位是不是已经播完了（松手时起播的）：在组之间移动的当场交给调用方，与结束拖动同一次提交
     const landed = letGo.landed;
     // 先量再改根节点的拖动标记（反过来量的时候整页样式、布局要重算一遍：第 6 轮 6 倍节流实测 25ms）
     holdStill(stash.current.node, landWait);
     finish();
-    const from = activeOf(active);
     if (isMover(from)) {
       const done = release.current;
       release.current = null;
@@ -966,47 +979,52 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
     <MotionContext.Provider value={transition}>
       <SayMoveContext.Provider value={sayMove}>
         <PlacedContext.Provider value={placed?.id ?? null}>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={collisions}
-            modifiers={modifiers}
-            accessibility={accessibility}
-            onDragStart={({ active }) => {
-              landing.land(); // 上一次的落位还没播完就又拿起：先交掉
-              setDragging(true);
-              const data = dataOf(active);
-              lifted.current = data ?? null;
-              dropped.current = undefined;
-              if (isMover(data)) {
-                placedRef.current = null;
-                setPlaced(null);
+          <KeyedContext.Provider value={keyed}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={collisions}
+              modifiers={modifiers}
+              accessibility={accessibility}
+              onDragStart={({ active, activatorEvent }) => {
+                keepFocusOn(active.id, null, null);
+                setKeyed(byKeyboard(activatorEvent) ? active.id : null);
+                landing.land(); // 上一次的落位还没播完就又拿起：先交掉
+                setDragging(true);
+                const data = dataOf(active);
+                lifted.current = data ?? null;
+                dropped.current = undefined;
+                if (isMover(data)) {
+                  placedRef.current = null;
+                  setPlaced(null);
+                  release.current?.();
+                  release.current = hold();
+                }
+                if (data) latest.current.onActive?.(data);
+              }}
+              onDragOver={({ active, over }) => {
+                const from = activeOf(active);
+                if (!isMover(from)) return;
+                const target = placeOf(from, dataOf(over), latest.current.accepts);
+                if (target !== undefined) place(from, target);
+              }}
+              onDragCancel={({ active, activatorEvent }) => {
+                keepFocusOn(active.id, null, activatorEvent);
+                holdStill(stash.current.node, landWait);
+                finish();
+                dropped.current = null;
+                const from = activeOf(active);
+                if (!isMover(from)) return;
+                place(from, null); // 取消：空档回原位，浮层滑回去
                 release.current?.();
-                release.current = hold();
-              }
-              if (data) latest.current.onActive?.(data);
-            }}
-            onDragOver={({ active, over }) => {
-              const from = activeOf(active);
-              if (!isMover(from)) return;
-              const target = placeOf(from, dataOf(over), latest.current.accepts);
-              if (target !== undefined) place(from, target);
-            }}
-            onDragCancel={({ active }) => {
-              holdStill(stash.current.node, landWait);
-              finish();
-              dropped.current = null;
-              const from = activeOf(active);
-              if (!isMover(from)) return;
-              place(from, null); // 取消：空档回原位，浮层滑回去
-              release.current?.();
-              release.current = null;
-            }}
-            onDragEnd={onDragEnd}
-          >
-            {children}
-            <Lifted stash={stash} transition={transition} landing={landing} into={into} />
-            {flow && <Flow selector={flow} running={busy > 0} transition={transition} placed={placed?.id ?? null} />}
-          </DndContext>
+                release.current = null;
+              }}
+              onDragEnd={onDragEnd}
+            >
+              {children}
+              <Lifted stash={stash} transition={transition} landing={landing} into={into} />
+              {flow && <Flow selector={flow} running={busy > 0} transition={transition} placed={placed?.id ?? null} />}
+            </DndContext>
+          </KeyedContext.Provider>
           <MoveLive text={said} />
         </PlacedContext.Provider>
       </SayMoveContext.Provider>
@@ -1158,6 +1176,79 @@ const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; landing
   return typeof document !== "undefined" && document.body ? createPortal(overlay, document.body) : overlay;
 };
 
+// ---------------------------------------------------------------- 键盘拖动的焦点
+// 拖动中归拖动的键：方向键、Home / End、翻页（拖动库收在 document 上；按在把手上时标成已处理，组件库行自带的方向键导航不再移焦点）
+const DRAG_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+const byKeyboard = (event: Event | null | undefined) => !!event && "key" in event;
+// 各项眼前的把手（拖动编号 → 节点），键盘放下后找回焦点用
+const handles = new Map<string | number, HTMLElement>();
+// 键盘拖动放下 / 取消之后的几秒里（落位后交给调用方、请求做完按新数据重排，这一项可能又重挂、或落进收着的组看不见了）：焦点丢了
+// （落到 body）就接回这一项的把手；它不在眼前（落进收着的组）就给那一组的第一个按钮（组头开关）。焦点在别处（人自己挪了）不抢
+let refocus: { id: string | number; group: HTMLElement | null; until: number } | null = null;
+let refocusFrame = 0;
+const REFOCUS_MS = 5000;
+
+function focusLost(): boolean {
+  const el = document.activeElement;
+  return !el || el === document.body || !el.isConnected;
+}
+
+const shown = (el: HTMLElement | undefined): el is HTMLElement => !!el?.isConnected && el.getClientRects().length > 0;
+
+/** 登记 / 注销一项眼前的把手（useFollowFocus 的 ref；同一项换组重挂时先卸后挂，卸的不是登记着的那个就不动）。 */
+export function rememberHandle(id: string | number, node: HTMLElement | null, before: HTMLElement | null = null) {
+  if (node) handles.set(id, node);
+  else if (handles.get(id) === before) handles.delete(id);
+}
+
+/** 拖动结束（放下 / 取消）后接下来几秒：键盘拿起的（activatorEvent 带 key）焦点丢了就接回这一项的把手，它不在眼前就给 group
+ *  （落进收着的组时那一组的节点）里的第一个按钮；别的拿起方式不管。 */
+export function keepFocusOn(id: string | number, group: HTMLElement | null, activatorEvent: Event | null) {
+  if (typeof window === "undefined") return;
+  if (refocusFrame) window.cancelAnimationFrame(refocusFrame);
+  refocusFrame = 0;
+  refocus = byKeyboard(activatorEvent) ? { id, group, until: performance.now() + REFOCUS_MS } : null;
+  const watch = () => {
+    refocusFrame = 0;
+    if (!refocus || performance.now() > refocus.until) {
+      refocus = null;
+      return;
+    }
+    if (focusLost()) {
+      const own = handles.get(refocus.id);
+      const to = shown(own) ? own : (refocus.group?.querySelector<HTMLElement>("button") ?? undefined);
+      if (shown(to)) to.focus({ preventScroll: true });
+    }
+    refocusFrame = window.requestAnimationFrame(watch);
+  };
+  if (!refocus) return;
+  // 人用鼠标 / 手指点了别处：不再把焦点接回来（只停这一次的，之后的拖动不受影响）
+  const mine = refocus;
+  window.addEventListener("pointerdown", () => refocus === mine && (refocus = null), { once: true, capture: true });
+  refocusFrame = window.requestAnimationFrame(watch);
+}
+
+/** 把手的 ref：键盘拖动中焦点一直在被拖的这一项的把手上（换组重挂、原来那个节点卸下也跟到新节点）；登记眼前的把手，放下 / 取消后
+ *  焦点丢了按它接回来（keepFocusOn）。 */
+function useFollowFocus(id: string | number, drag: Draggable & { isDragging: boolean }) {
+  const el = useRef<HTMLElement | null>(null);
+  const { setActivatorNodeRef } = drag;
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      rememberHandle(id, node, el.current);
+      el.current = node;
+      setActivatorNodeRef(node);
+    },
+    [setActivatorNodeRef, id],
+  );
+  const keyed = useContext(KeyedContext) === id && drag.isDragging;
+  useLayoutEffect(() => {
+    const node = el.current;
+    if (keyed && node?.isConnected && document.activeElement !== node) node.focus({ preventScroll: true });
+  });
+  return ref;
+}
+
 // ---------------------------------------------------------------- 各项
 type HandleOptions = {
   disabled?: boolean;
@@ -1192,13 +1283,17 @@ function handleOf(drag: Draggable, { disabled, ownFocus, skip }: HandleOptions):
   return {
     ref: drag.setActivatorNodeRef,
     ...(ownFocus ? aria : { ...drag.attributes, role, tabIndex }),
+    // 拖动中按在把手上的方向键只归拖动（拖动库在 document 上收）：标成已处理，接在后面的方向键导航（组件库对话行的 ↑ ↓）不接手
+    onKeyDown: (event: ReactKeyboardEvent) => {
+      if (isDragging() && DRAG_KEYS.has(event.key)) event.preventDefault();
+      else listeners?.onKeyDown?.(event);
+    },
     ...(listeners
       ? {
           // 能拖的把手：悬停出抓手光标（globals.css 的 [data-drag-handle]，各处同一条；不能拖时——搜索中、没存到服务端——不加）
           "data-drag-handle": "" as const,
           onMouseDown: (event: ReactMouseEvent) => !skipped(event) && listeners.onMouseDown?.(event),
           onTouchStart: (event: ReactTouchEvent) => !skipped(event) && listeners.onTouchStart?.(event),
-          onKeyDown: (event: ReactKeyboardEvent) => listeners.onKeyDown?.(event),
           // 空格是拿起 / 放下：松开空格不再当成点击（不打开对话、不折叠组）
           onKeyUp: (event: ReactKeyboardEvent) => event.code === "Space" && event.preventDefault(),
         }
@@ -1211,6 +1306,7 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
   const transition = useContext(MotionContext);
   const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
   const sortable = useSortable({ id: data.id, data: drag, disabled: options.disabled, transition });
+  const handleRef = useFollowFocus(data.id, sortable);
   const crossing = useContext(PlacedContext) === data.id && !!options.shut;
   const say = useContext(SayMoveContext);
   return {
@@ -1225,7 +1321,7 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
       "data-drag-source": sortable.isDragging ? "gap" : undefined,
       "data-drop-target": crossing ? "" : undefined,
     },
-    handle: handleOf(sortable, options),
+    handle: handleOf({ ...sortable, setActivatorNodeRef: handleRef }, options),
     dragging: sortable.isDragging,
   };
 }
@@ -1235,9 +1331,10 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
 export function useDragItem(data: DragData, options: HandleOptions = {}) {
   const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
   const draggable = useDraggable({ id: data.id, data: drag, disabled: options.disabled });
+  const handleRef = useFollowFocus(data.id, draggable);
   return {
     node: { ref: draggable.setNodeRef, "data-drag-id": data.id, "data-drag-source": draggable.isDragging ? "gap" : undefined },
-    handle: handleOf(draggable, options),
+    handle: handleOf({ ...draggable, setActivatorNodeRef: handleRef }, options),
     dragging: draggable.isDragging,
   };
 }
@@ -1253,7 +1350,8 @@ export function useDropTarget(data: DragData, shut = false) {
 /** Alt+↑ / Alt+↓ 挪一格（会话栏卡片、侧栏公司组头、置顶对话）；挪完焦点留在原来的按钮上。是这两个键回 true。
  *  读屏播报由调用方在 move 里交给 useSortableItem 的 moved（同键盘拖动一套文案）。 */
 export function altMove(event: ReactKeyboardEvent, move: (delta: -1 | 1) => void): boolean {
-  if (!event.altKey || event.metaKey || event.ctrlKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return false;
+  // 键盘拖动中 Alt+方向键也归拖动（交给把手的 onKeyDown 标成已处理）
+  if (isDragging() || !event.altKey || event.metaKey || event.ctrlKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return false;
   event.preventDefault();
   const el = event.target as HTMLElement;
   move(event.key === "ArrowUp" ? -1 : 1);

@@ -79,10 +79,21 @@ class LedgerSourceTests(unittest.TestCase):
         ledger = read("components/month-ledger.tsx")
         self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', ledger)
         self.assertIn("summary={month ? monthSummary(month) : undefined}", ledger)
-        # 段与账套行右侧的状态完整显示，左边名字让位、放不下时由它滚；同一行不会两处一起滚（用户 10-16 截图）
-        self.assertEqual(ledger.count('className="cc-panel-extra cc-month-status"'), 2)
+        # 段行右侧的状态完整显示，左边段名让位、放不下时由它滚；同一行不会两处一起滚（用户 10-16 截图）
+        self.assertEqual(ledger.count('className="cc-panel-extra cc-month-status"'), 1)
         css = read("globals.css")
-        self.assertIn(".cc-panel-extra.cc-month-status { max-width: calc(100% - 4rem); }", css)
+        self.assertIn('[data-slot="cc-month-stage"] > .cc-panel-extra.cc-month-status { max-width: calc(100% - 4rem); }', css)
+        # 账套行两行（第 8 轮：1024 宽、右侧栏 280 时状态要 178px 只给了 156px、账套名压到 60px）：账套名一行、状态一行（12px 淡色），
+        # 各自全宽、各自是一行悬停滚动的范围
+        self.assertIn('<div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent cc-month-set" data-slot="cc-month-set">\n'
+                      '            <Marquee className="cc-month-set-name" data-marquee-host="">{set.label || set.key}</Marquee>\n'
+                      '            <Marquee className="cc-month-set-status" data-marquee-host="">{setSummary(set)}</Marquee>', ledger)
+        self.assertIn(".cc-panel-row.cc-month-set { flex-direction: column; align-items: stretch; gap: 0; padding-block: 0.1875rem; }", css)
+        status = css.split("  .cc-month-set-status {", 1)[1].split("}", 1)[0]
+        for part in ("min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);",
+                     "font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);"):
+            self.assertIn(part, status)
+        self.assertNotIn("max-width", status)
         self.assertIn("const period = isPeriod(chosen) ? chosen : lastMonth();", ledger)  # 页面「不指定」时看上个月
         # 会话栏：没取到、空月不显示；出错显示原因
         card = ledger.split("export const MonthCard: FC", 1)[1].split("\n};", 1)[0]

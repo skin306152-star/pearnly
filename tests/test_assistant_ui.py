@@ -4236,7 +4236,7 @@ dropped = undefined;
 assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in lelo B");
 """)
         drag = read("components/ui/drag.tsx")
-        end = drag.split("const onDragEnd = ({ active, over }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
+        end = drag.split("const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
         # 先记去处、再交（settleMove 落位已播完时当场交、清空档）
         self.assertLess(end.index("dropped.current = target && latest.current.accepts(from, target) ? target : null;"),
                         end.index("const queued = settleMove("))
@@ -4249,7 +4249,7 @@ assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in lelo
         self.assertIn('setPeek(!!active && !!placed && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));', drag)
         self.assertIn('data-peek={peek ? "" : undefined}', drag)
         css = read("globals.css")
-        self.assertIn("--cc-drag-peek: 0.5;", css)
+        self.assertIn("--cc-drag-peek: 0.15;", css)   # 第 8 轮：再淡、字隐去（Round8Tests）
         self.assertIn(".cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }", css)
         # 过渡沿用浮层已有的 opacity 过渡（动效变量）；落到组头时的淡出写在它后面，照样盖过它
         lift = css.split("\n.cc-drag-lift {", 1)[1].split("}", 1)[0]
@@ -5094,10 +5094,10 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
         self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, beforeEnd }),", drag)
         self.assertIn("letGo.hold(end, animation, landWait, node ? () => freezeScroll(node) : undefined);", drag)
         # 先量再改根节点的拖动标记（反过来量时整页样式、布局重算：6 倍节流 25ms）；落位已播完的在组之间移动当场交给调用方
-        end = drag.split("const onDragEnd = ({ active, over }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
+        end = drag.split("const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
         self.assertLess(end.index("holdStill(stash.current.node, landWait);"), end.index("finish();"))
         self.assertIn("if (queued && landed) landing.land();", end)
-        cancel = drag.split("onDragCancel={({ active }) => {", 1)[1].split("}}", 1)[0]
+        cancel = drag.split("onDragCancel={({ active, activatorEvent }) => {", 1)[1].split("}}", 1)[0]
         self.assertLess(cancel.index("holdStill(stash.current.node, landWait);"), cancel.index("finish();"))
         rows = read("components/assistant-ui/thread-list.tsx")
         groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
@@ -5799,6 +5799,151 @@ assert.equal(giveFocusBack(el("gone", { isConnected: false }), back), trigger);
         self.assertIn('useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open || !!fold || !!shut);', groups)
         # 空档排不排进去仍只看展开与搜索结果（不因为高亮改落点）
         self.assertIn("return index >= 0 && open && stays ? liftRow(out, rows, index, place.group, { by: view.sort, desc: view.desc }) : out;", groups)
+
+
+class Round8Tests(unittest.TestCase):
+    """测试窗口第 8 轮（lab 49de1497，手机 CDP + 电脑）查出的前端几处。"""
+
+    def run_page(self, body, lang="en"):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body
+               + "\n(globalThis as any).done();\n", lang=lang)
+
+    def test_keyboard_drag_keeps_focus_on_the_dragged_item(self):
+        # 第 1 项：从「最近」空格拿起一行，↑ 进别的公司组后焦点落到邻行（组件库对话行自带的 ↑ ↓ 导航挪的；原来那一行换组重挂、
+        # 节点卸下），之后方向键只移焦点、拖动卡住。现在：拖动中按在把手上的方向键只归拖动（标成已处理，组件库的导航不接手）；
+        # 键盘拿起的那一项换组重挂后焦点跟到新节点；放下 / 取消后焦点留在移动后的那一行（落进收着的组就给组头）
+        drag = read("components/ui/drag.tsx")
+        self.assertIn('const DRAG_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);', drag)
+        self.assertIn("      if (isDragging() && DRAG_KEYS.has(event.key)) event.preventDefault();\n"
+                      "      else listeners?.onKeyDown?.(event);", drag)
+        self.assertIn("setKeyed(byKeyboard(activatorEvent) ? active.id : null);", drag)
+        self.assertIn("const keyed = useContext(KeyedContext) === id && drag.isDragging;", drag)
+        self.assertIn("if (keyed && node?.isConnected && document.activeElement !== node) node.focus({ preventScroll: true });", drag)
+        self.assertEqual(drag.count("const handleRef = useFollowFocus(data.id, "), 2)   # 排序项、在组之间移动的项
+        self.assertIn("keepFocusOn(active.id, groupNode ?? null, activatorEvent);", drag)
+        self.assertIn("keepFocusOn(active.id, null, activatorEvent);", drag)            # 取消
+        self.assertIn("  if (isDragging() || !event.altKey", drag)                     # Alt+方向键在拖动中也归拖动
+        rows = read("components/assistant-ui/thread-list.tsx")
+        self.assertIn("        if (renaming) return;\n"
+                      "        // 键盘拖动中：键只归拖动（方向键由把手标成已处理，组件库行自带的 ↑ ↓ 不移焦点；不开菜单）\n"
+                      "        if (isDragging()) return dragKey?.(e);", rows)
+        self.run_page(r"""
+import { keepFocusOn, rememberHandle } from "@/components/ui/drag";
+const g = globalThis as any;
+let frames: Array<() => void> = [];
+g.requestAnimationFrame = (fn: () => void) => (frames.push(fn), frames.length);
+g.cancelAnimationFrame = () => {};
+const presses: Array<() => void> = [];
+g.addEventListener = (type: string, fn: () => void) => void (type === "pointerdown" && presses.push(fn));
+const tick = () => { const run = frames; frames = []; for (const f of run) f(); };
+const body = { name: "body", isConnected: true };
+g.document.body = body;
+const focused: string[] = [];
+const el = (name: string, extra: any = {}) => {
+  const e: any = { name, isConnected: true, getClientRects: () => [1], focus() { focused.push(name); g.document.activeElement = e; }, ...extra };
+  return e;
+};
+// 键盘放下：这一项换组重挂（新节点先挂、旧节点后卸也不丢登记），焦点掉到 body → 接回新节点
+const before = el("old"), after = el("new");
+rememberHandle("row:a", before);
+rememberHandle("row:a", after);
+rememberHandle("row:a", null, before);
+g.document.activeElement = body;
+keepFocusOn("row:a", null, { key: " " } as any);
+tick();
+assert.deepEqual(focused, ["new"]);
+// 人自己把焦点挪去了别处：不抢
+g.document.activeElement = el("composer");
+tick();
+assert.deepEqual(focused, ["new"]);
+// 落进收着的组：这一行不在眼前 → 给那一组的第一个按钮（组头开关）
+rememberHandle("row:b", el("hidden", { getClientRects: () => [] }));
+keepFocusOn("row:b", { querySelector: (sel: string) => (sel === "button" ? el("head") : null) } as any, { key: "Enter" } as any);
+g.document.activeElement = body;
+tick();
+assert.equal(focused.at(-1), "head");
+// 鼠标、手指拿起的不管
+focused.length = 0;
+keepFocusOn("row:a", null, { clientX: 1 } as any);
+g.document.activeElement = body;
+tick();
+assert.deepEqual(focused, []);
+// 点了别处（pointerdown）以后不再接回
+keepFocusOn("row:a", null, { key: " " } as any);
+presses.at(-1)!();
+tick();
+assert.deepEqual(focused, []);
+""")
+
+    def test_the_float_steps_aside_over_a_folded_group_head(self):
+        # 第 6 项：手机把对话拖到收着的组头上，浮层半透明（0.5）后浮层的字与组头的字叠在一起。现在浮层的字、条数隐去，只剩很淡的
+        # 一层底（0.15），组头的字与高亮清楚可读；共用拖动一条规则（卡片、组头、置顶、对话都走它）
+        css = read("globals.css")
+        self.assertIn("--cc-drag-peek: 0.15;", css)
+        self.assertIn(".cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }\n"
+                      ".cc-drag-lift > * { transition: opacity var(--cc-dur-fast) var(--cc-ease); }\n"
+                      ".cc-drag-float[data-peek] .cc-drag-lift > * { opacity: 0; }", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce) { .cc-drag-lift, .cc-drag-lift > * { animation: none; transition: none; } }", css)
+        self.assertIn('{(data?.count ?? 0) > 1 && <span className="cc-drag-count">{data!.count}</span>}', read("components/ui/drag.tsx"))
+
+    def test_a_repeated_preview_start_reuses_its_part_and_a_retry_drops_half_lines(self):
+        # 第 4 项「การ」残句：同一条回复的预览从头再推一遍（推送线程重接）时，原来那段接着用、清空重写，不另开一段留下前几个字；
+        # 出错重试（status_rescheduled）时还没写完的预览不会再有正式事件收口，清掉
+        self.run_page(r"""
+import { applyEvent, project } from "@/lib/managed-agents/reducer";
+const at = (s: number) => `2026-10-16T10:00:${String(s).padStart(2, "0")}Z`;
+const texts = (state: any) => state.messages.flatMap((m: any) => (m.role === "assistant" ? m.content : [])).filter((p: any) => p.type === "text").map((p: any) => p.text);
+const start = (id: string) => ({ type: "event_start", event: { id, type: "agent.message" } }) as any;
+const delta = (id: string, text: string) => ({ type: "event_delta", event_id: id, delta: { type: "content_delta", content: { type: "text", text } } }) as any;
+let s = project([{ id: "u1", type: "user.message", processed_at: at(1), content: [{ type: "text", text: "hi" }] }] as any);
+s = applyEvent(s, start("m1"));
+s = applyEvent(s, delta("m1", "การ"));
+s = applyEvent(s, start("m1"));                 // 重接后从头再来
+s = applyEvent(s, delta("m1", "การบันทึก"));
+s = applyEvent(s, delta("m1", "ไม่สำเร็จ"));
+s = applyEvent(s, { id: "m1", type: "agent.message", processed_at: at(3), content: [{ type: "text", text: "การบันทึกไม่สำเร็จ" }] } as any);
+assert.deepEqual(texts(s).filter(Boolean), ["การบันทึกไม่สำเร็จ"]);
+// 出错重试：前一次的半句清掉，重试的那条照常
+s = applyEvent(s, start("m2"));
+s = applyEvent(s, delta("m2", "การ"));
+s = applyEvent(s, { id: "rs1", type: "session.status_rescheduled", processed_at: at(4) } as any);
+assert.equal(s.previews.size, 0);
+s = applyEvent(s, start("m3"));
+s = applyEvent(s, { id: "m3", type: "agent.message", processed_at: at(6), content: [{ type: "text", text: "ok" }] } as any);
+assert.deepEqual(texts(s).filter(Boolean), ["การบันทึกไม่สำเร็จ", "ok"]);
+assert.equal(s.isRunning, true);
+""")
+
+    def test_company_detail_retries_a_passing_failure_before_showing_an_error(self):
+        # 第 5 项：手机第一次打开公司信息报「出了点问题」，关掉重开就好。同时发出的还有月结、待处理与排列同步；「出了点问题」只在
+        # 不是本站拒收时出现（网络断开、网关错误、数据库死锁 1213 / 等锁超时 1205——10-15 生产公司页出现过）。现在公司详情碰到
+        # 这类一时的失败隔一会儿再取（最多 3 次），再取时先收起上一次的报错；本站拒收（带原文）照常马上显示
+        panel = read("lib/company-panel.ts")
+        self.assertIn("const next = await withRetry(() => loadDetail(company, period));", panel)
+        self.assertIn('if (useDetails.getState()[key]?.error) useDetails.setState((before) => ({ [key]: { detail: before[key]?.detail ?? null, error: "" } }));', panel)
+        self.run_page(r"""
+import { RequestError, SiteError, transientError, withRetry } from "@/lib/frappe";
+assert.equal(transientError(new TypeError("Failed to fetch")), true);
+assert.equal(transientError(new RequestError("request failed (502)", 502)), true);
+assert.equal(transientError(new RequestError("(1213, 'Deadlock found when trying to get lock')", 417)), true);
+assert.equal(transientError(new RequestError("Lock wait timeout exceeded", 417)), true);
+assert.equal(transientError(new RequestError("request failed (404)", 404)), false);
+assert.equal(transientError(new SiteError("ไม่มีสิทธิ์")), false);
+let calls = 0;
+const flaky = async () => { calls++; if (calls < 3) throw new TypeError("Failed to fetch"); return "detail"; };
+assert.equal(await withRetry(flaky, 3, 1), "detail");
+assert.equal(calls, 3);
+calls = 0;
+await assert.rejects(withRetry(async () => { calls++; throw new SiteError("ไม่มีสิทธิ์"); }, 3, 1), SiteError);
+assert.equal(calls, 1);                           // 本站拒收不重试
+calls = 0;
+await assert.rejects(withRetry(async () => { calls++; throw new RequestError("request failed (503)", 503); }, 3, 1), RequestError);
+assert.equal(calls, 3);                           // 最多 3 次
+// 站点回了错误码、没有原文：带上状态
+g.respond = async () => ({ ok: false, status: 502, json: async () => null });
+const { get } = await import("@/lib/frappe");
+await assert.rejects(get("layout"), (error: any) => error instanceof RequestError && error.status === 502);
+""".replace("g.respond", "(globalThis as any).respond"))
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,12 +11,12 @@ import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/re
 import { ChevronRightIcon } from "lucide-react";
 import { createContext, useContext, useMemo, useState, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
-import { stepFailed, summarize, summaryText } from "@/lib/step-summary";
+import { askStem, stepDenied, stepFailed, summarize, summaryText } from "@/lib/step-summary";
 import { detailArgs, detailOutput } from "@/lib/step-detail";
 import { knownEntries, parseResult, stepSubject } from "@/lib/step-subject";
 import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
-import { steps } from "@/i18n";
+import { steps, t } from "@/i18n";
 import { ApprovalBar } from "./approval-bar";
 import { TypingDots } from "@/components/typing-dots";
 import { Marquee } from "@/components/ui/marquee";
@@ -165,6 +165,8 @@ export const StepRow: ToolCallMessagePartComponent = ({
   const subject = step.own ? stepSubject(args as Args, output?.text, known) : "";
   // Held for Allow/Deny: say what it is about to do, not the past-tense label ("Saved …" before anything ran).
   const asking = awaiting ? (approval as ToolApproval).ask : undefined;
+  // 点了「拒绝」：没做，写卡片上那句问话（下面的结论行写「已拒绝」），不写做完的说法（第 8 轮测试机：仍写「记下了公司选择」）
+  const denied = stepDenied({ result, approval }) ? askStem((approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] ?? step.verb) : undefined;
   // 本站工具的结果只显示给人看的（同参数，lib/step-detail.ts）；内置工具（命令、文件）照原样
   const outputText = step.showOutput ? output?.text ?? "" : "";
   const shownOutput = useMemo(() => (outputText ? (step.own ? detailOutput(outputText) : outputText) : ""), [outputText, step.own]);
@@ -180,12 +182,14 @@ export const StepRow: ToolCallMessagePartComponent = ({
         className="cc-step-row cc-tap"
       >
         <Marquee className="min-w-0 flex-1 truncate">
-          {asking ?? step.verb}
+          {asking ?? denied ?? step.verb}
           {step.target && <span className="cc-step-target">{` ${step.target}`}</span>}
           {subject && <span className="cc-step-target">{` · ${subject}`}</span>}
         </Marquee>
         {running && <TypingDots size="sm" className="shrink-0" />}
         {errored && <span className="cc-step-failed">{steps.failed}</span>}
+        {/* 重开对话时没有卡片下面那行结论：「已拒绝」写在行尾（同「失败」的位置，淡色） */}
+        {denied && approval?.approved === undefined && <span className="cc-step-denied">{t("denied")}</span>}
         {expandable && <ChevronRightIcon aria-hidden />}
       </button>
       {open && expandable && (
@@ -230,7 +234,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
   if (!tools.length) return null;
   const title = groupLive(group.status)
     ? steps.running
-    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done);
+    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t("denied"), asks: labels.ask });
 
   return (
     <div className="aui-steps cc-steps">
@@ -249,6 +253,6 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
 
 /** 组里的一个工具调用部件 → 摘要要的工具名与是否失败。 */
 function toStepPart(part: unknown) {
-  const tool = part as { toolName: string; result?: unknown; isError?: boolean; status?: { type: string } };
-  return { toolName: tool.toolName, failed: stepFailed(tool) };
+  const tool = part as { toolName: string; result?: unknown; isError?: boolean; status?: { type: string }; approval?: ToolApproval };
+  return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool) };
 }

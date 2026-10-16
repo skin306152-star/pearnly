@@ -253,6 +253,43 @@ def preview_note_remove(tool_input) -> list:
 # ---------------- 公司规则（第 2 期） ----------------
 
 RULE_KINDS = ("party", "item", "account", "payment", "vat", "department")
+DOCUMENT_CANDIDATES = 5  # 传成票面单号、看得到的有几张时，原因里列几张
+
+
+class UnknownDocument(frappe.ValidationError):
+    """按单据存规则时认不出是哪张单（编号不在、票面单号对上不止一张或一张都没有）：原因交给模型，不出「允许」卡片。"""
+
+
+def _document(value):
+    """按单据存规则时的那张单：``document`` 是单据编号（工具结果里的 name）。第 8 轮测试机：CC 传了票面单号
+    「SD-6909-1010」，单据编号找不到，卡片上就算不出对方、只写了值，看着像全公司所有单都改这个科目。传成票面单号时，
+    本人看得到的只有一张就用它；几张、一张都没有、或读不了就抛 `UnknownDocument`（原因里列出看得到的几张），由出卡片前的
+    核对拒掉，不出卡片。"""
+    from pearnly_cowork.history import storage
+
+    value = " ".join(str(value or "").split())[:140]
+    if not value:
+        raise UnknownDocument("document is missing: pass the name (from the document tool results) of the document "
+                              "the rule comes from. Nothing was saved.")
+    try:
+        return storage.read(value)
+    except frappe.DoesNotExistError:
+        frappe.clear_messages()
+    except frappe.PermissionError:
+        frappe.clear_messages()
+        raise UnknownDocument(f"document {json.dumps(value, ensure_ascii=False)} cannot be read here. Nothing was "
+                              f"saved.") from None
+    found = storage.by_invoice_no(value, DOCUMENT_CANDIDATES + 1)
+    if len(found) == 1:
+        return storage.read(found[0]["name"])
+    if not found:
+        raise UnknownDocument(f"document {json.dumps(value, ensure_ascii=False)} is not a document name: pass the "
+                              f"name (from the document tool results) of the document the rule comes from. Nothing "
+                              f"was saved.")
+    listed = "; ".join(f"{row['name']} ({row.get('invoice_date') or ''}, seller {row.get('seller_name') or ''}, "
+                       f"buyer {row.get('buyer_name') or ''})" for row in found[:DOCUMENT_CANDIDATES])
+    raise UnknownDocument(f"Several documents have invoice number {json.dumps(value, ensure_ascii=False)}: {listed}. "
+                          f"Pass the name of the one the user means as document. Nothing was saved.")
 
 
 def _party(tool_input) -> tuple:
@@ -265,7 +302,7 @@ def _party(tool_input) -> tuple:
     kind = str(tool_input.get("kind") or "")
     if kind not in RULE_KINDS or kind == "department":
         frappe.throw(_("cowork.company.choice_unsupported"))
-    doc = storage.read(str(tool_input.get("document") or ""))
+    doc = _document(tool_input.get("document"))
     fields = primary_page_fields(storage.project(doc).get("pages") or [])
     direction = "sales" if tool_input.get("direction") == "sales" and kind in ("party", "item") else "purchase"
     side = "buyer" if direction == "sales" else "seller"
@@ -285,14 +322,16 @@ def _subject_of(tool_input) -> tuple:
     if kind == "department":
         return kind, "*", ""
     kind, direction, side, name, tax, fields = _party(tool_input)
+    # 卡片与规则上写的对方：单据上的名称；单据只有税号时写税号（不留空，免得卡上只剩值）
+    label = name or choice_rules.digits(tax)
     if kind == "party":
-        return kind, choice_rules.party_subject(direction, tax, fields.get(f"{side}_branch") or "", name), name
+        return kind, choice_rules.party_subject(direction, tax, fields.get(f"{side}_branch") or "", name), label
     if kind == "item":
         item = str(tool_input.get("item") or "").strip()[:50]
         if not item:
             frappe.throw(_("cowork.company.choice_unsupported"))
         return kind, choice_rules.item_subject(direction, tax, name, item), item
-    return kind, choice_rules.supplier_subject("purchase", tax, name), name
+    return kind, choice_rules.supplier_subject("purchase", tax, name), label
 
 
 NAME_COVER = 0.6  # 单据没有税号时，名称一方包含另一方：短的至少占长的这么多才算同一方
@@ -324,6 +363,10 @@ def mismatch(tool_input) -> str | None:
     try:
         _subject_of(tool_input)  # 形状不对（缺品名、不支持的类别）由保存时照常报错，这里不抢先说对象
         _kind, _direction, side, name, tax, _fields = _party(tool_input)
+    except UnknownDocument as err:
+        # 认不出是哪张单：算不出对方，不出卡片（卡上只写值会像全公司所有单都改）
+        frappe.clear_messages()
+        return str(err)
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
         frappe.clear_messages()
         return None
@@ -365,13 +408,13 @@ def choice_save(tool_input) -> str:
     if tool_input.get("key"):
         saved = saved_choices.promote(row, sets, str(tool_input["key"]), branch, period, session=_session())
     else:
-        kind, subject, label = _subject_of(tool_input)
         reason = mismatch(tool_input)  # 卡片前已核过；点「允许」后再核一遍（单据可能已改）
         if reason:
             return _json({"status": "not_saved", "reason": reason})
+        kind, subject, label = _subject_of(tool_input)
         saved = saved_choices.save_rule(row, sets, kind, subject, str(tool_input.get("value") or ""), branch, period,
                                         subject_label=label, session=_session(),
-                                        evidence={"from": "cc", "document": str(tool_input.get("document") or "")})
+                                        evidence={"from": "cc", "document": _document(tool_input.get("document")).name})
     service.announce("upsert", row.name, part="choices")
     rule = saved["rule"]
     parts = str(rule.get("subject") or "").split("|")
@@ -505,7 +548,9 @@ TOOLS = [
                     "value is checked against the account set covering the work month. Only what the user asked for; "
                     "the user sees Allow / Deny first.",
      "input_schema": {"type": "object", "properties": {
-         "company": COMPANY_PROP, "key": {"type": "string"}, "document": {"type": "string"},
+         "company": COMPANY_PROP, "key": {"type": "string"},
+         "document": {"type": "string", "description": "The document's name from the document tool results (not its "
+                                                       "invoice number)."},
          "expect_party": {"type": "string", "description": "With document: the tax ID (or name) of the party the rule "
                                                            "is for, as you told the user."},
          "kind": {"type": "string", "enum": list(RULE_KINDS)}, "value": {"type": "string"},

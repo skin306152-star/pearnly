@@ -2562,6 +2562,57 @@ class CompanyRuleToolTests(unittest.TestCase):
                                    {"field": "Value", "before": "", "after": "Makro → Cash"}])
         self.assertTrue(all(not row["before"] for row in preview))
 
+    def test_a_card_always_names_the_party_worked_out_from_the_document(self):
+        """第 8 轮测试机：CC 传了票面单号「SD-6909-1010」当 document，单据编号找不到，卡片只写「公司 / 范围 / 值 53-05-28-00」，
+        没写对方，看着像全公司所有单都改这个科目。现在：传成票面单号、看得到的只有一张就用它，卡片照样写「对方 → 值」（对方按
+        服务端从单据算的）；几张、一张都没有就不出卡片、回原因（列出看得到的几张）；单据只有税号时写税号。"""
+        clean = "0105562012340"
+        docs = {"CWH-a1": ("บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", clean, "SD-6909-1010"),
+                "CWH-b1": ("", OTHER_TAX, "RP-1"), "CWH-c1": ("A", OTHER_TAX, "DUP-1"), "CWH-c2": ("B", clean, "DUP-1")}
+
+        def read(name):
+            if name not in docs:
+                raise frappe.DoesNotExistError(name)
+            return Row(name=name)
+
+        def by_invoice_no(value, limit):
+            return [{"name": n, "invoice_date": "2026-09-20", "seller_name": d[0], "buyer_name": "นิภา"}
+                    for n, d in docs.items() if d[2] == value][:limit]
+
+        storage = types.SimpleNamespace(read=read, by_invoice_no=by_invoice_no, project=lambda found: {"pages": [{"fields": {
+            "seller_name": docs[found.name][0], "seller_tax": docs[found.name][1], "seller_branch": "00000",
+            "invoice_number": docs[found.name][2]}}]})
+        ask = {"document": "SD-6909-1010", "kind": "account", "value": "53-05-28-00", "expect_party": clean}
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.history": types.SimpleNamespace(storage=storage),
+                                           "pearnly_cowork.history.storage": storage}):
+            # 票面单号、只有一张：同单据编号一样
+            self.assertIsNone(self.tools.choice_refusal(ask))
+            self.assertEqual(self.tools.preview_choice_save(ask)[2]["after"],
+                             "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด → 53-05-28-00")
+            self.assertEqual(self.tools.preview_choice_save({**ask, "document": "CWH-a1"}), self.tools.preview_choice_save(ask))
+            out = json.loads(self.tools.choice_save(ask))
+            self.assertEqual((out["status"], out["rule"]["subject_label"]), ("saved", "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด"))
+            saved = next(row for row in frappe.db.tables[RULE].values() if row["subject"] == f"purchase|{clean}")
+            self.assertEqual(json.loads(saved["evidence_json"])["document"], "CWH-a1")   # 记的是认出的那张
+            # 删除卡同样写出对方
+            rule = next(row for row in json.loads(self.tools.profile({}))["rules"] if row["value"] == "53-05-28-00")
+            self.assertEqual(self.tools.preview_choice_remove({"key": rule["key"]})[2]["after"],
+                             "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด → 53-05-28-00")
+            # 认不出：不出卡片（出卡片前就拒）、点了允许也不写库，原因里说清
+            before = len(frappe.db.tables[RULE])
+            for document, words in (("NOPE-1", "is not a document name"), ("DUP-1", "Several documents have invoice number"),
+                                    ("", "document is missing")):
+                refused = json.loads(self.tools.choice_refusal({**ask, "document": document}))
+                self.assertEqual(refused["status"], "not_saved", document)
+                self.assertIn(words, refused["reason"])
+                self.assertEqual(json.loads(self.tools.choice_save({**ask, "document": document}))["status"], "not_saved")
+            self.assertIn("CWH-c1 (2026-09-20, seller A, buyer นิภา); CWH-c2", json.loads(
+                self.tools.choice_refusal({**ask, "document": "DUP-1"}))["reason"])
+            self.assertEqual(len(frappe.db.tables[RULE]), before)
+            # 单据只有税号：卡上写税号，不留空
+            self.assertEqual(self.tools.preview_choice_save({"document": "CWH-b1", "kind": "payment", "value": "cash",
+                                                             "expect_party": OTHER_TAX})[2]["after"], f"{OTHER_TAX} → Cash")
+
     def test_profile_keeps_keys_only_where_cc_can_act_on_them(self):
         profile = json.loads(self.tools.profile({}))
         express = [row for row in profile["choices"] if row["source"] == "express"]

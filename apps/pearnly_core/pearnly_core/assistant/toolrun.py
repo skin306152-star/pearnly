@@ -112,7 +112,10 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     if not claimed:
         return "not_waiting"
     if not allow:
-        text = _("The user did not allow this change. Do not try it again unless the user asks.")
+        # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）
+        text = json.dumps({"status": "denied",
+                           "message": _("The user did not allow this change. Do not try it again unless the user asks.")},
+                          ensure_ascii=False)
         engine.adapter().post(remote, [contracts.tool_result(use_id, text, False)])
         frappe.db.set_value(TOOL_RUN, name, "result", text)
         frappe.db.commit()

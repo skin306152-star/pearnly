@@ -500,9 +500,16 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         lastError: null,
       };
 
-    case "session.status_rescheduled":
+    case "session.status_rescheduled": {
       // Transient error; the session retries on its own. Keep showing "busy".
-      return { ...state, isRunning: true };
+      // 出错的那次模型请求还没写完的预览不会再有正式事件来收口（重试是新的一条）：清掉，不留半句在回复里
+      if (state.previews.size === 0) return { ...state, isRunning: true };
+      const messages = draft(state.messages);
+      for (const [, preview] of state.previews) {
+        updatePart(messages, preview.messageIndex, preview.partIndex, (part) => (part.type === "text" ? { ...part, text: "" } : part));
+      }
+      return { ...state, messages, previews: new Map(), isRunning: true };
+    }
 
     case "session.status_idle": {
       const stop = event.stop_reason;
@@ -578,6 +585,15 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       // the persisted copy dedupes on `seen`, so nothing would ever
       // reconcile the duplicate away.
       if (state.seen.has(event.event.id)) return state;
+      // 同一条的预览又从头来了一遍（推送线程断了重接，事件流把还没写完的这一条从头再推）：接着用原来那一段、清空重写，
+      // 不另开一段——否则先到的几个字留在回复里，没有正式事件来收口（第 8 轮测试机：拒绝后的回复里多出一段只有「การ」）
+      const open = state.previews.get(event.event.id);
+      if (open) {
+        if (event.event.type === "agent.thinking") return state;
+        const restarted = draft(state.messages);
+        updatePart(restarted, open.messageIndex, open.partIndex, (part) => (part.type === "text" ? { ...part, text: "" } : part));
+        return { ...state, messages: restarted };
+      }
       const messages = draft(state.messages);
       const mi = currentAssistantIndex(messages);
       const msg = messages[mi]!;
