@@ -642,6 +642,10 @@ class ServiceHarness:
         frappe.clear_messages = lambda: None
         frappe.log_error = lambda title=None, message=None: self.calls.append(("log_error", title))
         frappe.get_traceback = lambda: "Traceback"
+        # 回读处理完叫的钩子（第 3 期 `cowork_readback_ready`）：默认没有登记
+        self.hooks, self.attrs = {}, {}
+        frappe.get_hooks = lambda name: list(self.hooks.get(name, []))
+        frappe.get_attr = lambda path: self.attrs[path]
 
         def throw(message, exc=None):
             raise (exc or ValidationError)(message)
@@ -654,7 +658,9 @@ class ServiceHarness:
         frappe.db = types.SimpleNamespace(
             sql=self.sql, exists=lambda doctype, name: name in self.rows,
             delete=lambda doctype, filters: self.rows.pop(filters["name"], None),
-            after_commit=types.SimpleNamespace(add=self.after.append))
+            after_commit=types.SimpleNamespace(add=self.after.append),
+            savepoint=lambda name: self.calls.append(("savepoint", name)),
+            rollback=lambda save_point=None: self.calls.append(("rollback", save_point)))
         utils = types.ModuleType("frappe.utils")
         utils.get_datetime = lambda value: value
         sys.modules["frappe"], sys.modules["frappe.utils"] = frappe, utils
@@ -726,6 +732,12 @@ class ServiceHarness:
                                                                   row.status) == (connection, key, period, "ready")),
                            key=lambda row: (row.ready_at, row.name), reverse=True)
             return [(found[0].name,)] if found else []
+        if "WHERE period = %s AND status = 'ready' AND connection IN" in query:  # 档位证据（第 3 期 `month_changes`）
+            period, *linked = values
+            found = sorted((row for row in self.rows.values() if row.period == period and row.connection in linked
+                            and row.status == "ready"), key=lambda row: (row.ready_at, row.name), reverse=True)
+            return [Row({key: row.get(key) for key in ("name", "connection", "account_set_key", "summary_json",
+                                                       "changes_json", "requested_at", "ready_at")}) for row in found]
         if "WHERE period = %s AND connection IN" in query:
             period, *linked = values
             found = sorted((row for row in self.rows.values() if row.period == period and row.connection in linked),
@@ -1069,6 +1081,45 @@ class Service(unittest.TestCase):
         self.h.intake = False
         self.assertIsNone(self.service.month_status(sets, "2026-05"))
 
+    def test_a_finished_read_tells_the_automation_hook_and_a_failing_hook_does_not_block_it(self):
+        """数字会计员第 3 期第 8 条：回读处理完（写路径上）叫 ``cowork_readback_ready``，按这期统计升降公司档位；入口出错只回滚
+        它自己那一点、记日志，这份回读照样 ready。"""
+        seen = []
+        self.h.hooks["cowork_readback_ready"] = ["good.ready", "bad.ready"]
+        self.h.attrs["good.ready"] = lambda *args: seen.append(args)
+
+        def broken(*args):
+            raise RuntimeError("boom")
+
+        self.h.attrs["bad.ready"] = broken
+        made, row = self._start()
+        self.h.finish(row.request, raw())
+        self.assertEqual(self.service.status(made["readback"])["status"], "ready")
+        self.assertEqual(seen, [("EXP1", row.account_set_key, "2026-05", made["readback"])])
+        self.assertIn(("rollback", "cowork_readback_ready"), self.h.calls)
+        self.assertIn(("log_error", "Cowork readback ready hook failed"), self.h.calls)
+
+    def test_month_changes_give_the_changed_pushes_of_the_newest_finished_readback(self):
+        """第 3 期第 7 条的证据（钩子 ``cowork_company_month_changes``）：完成时间最晚那份回读里每条推送记录的变化；差异表存下的
+        单比摘要里的变化张数少就标 ``truncated``；没有完成的回读的账套不列。"""
+        made, row = self._start()
+        self.h.finish(row.request, raw())
+        self.service.status(made["readback"])
+        row.changes_json = json.dumps({"changes": [
+            {"record": "CWP-1", "change": "changed", "field": "party"}, {"record": "CWP-1", "change": "changed",
+                                                                        "field": "total"},
+            {"record": "CWP-2", "change": "deleted"}, {"record": "", "change": "changed"}], "direct": []})
+        row.summary_json = json.dumps({"pushed": {"pushed": 5, "changed": 1, "deleted": 1}})
+        sets = [{"connection": "EXP1", "key": "s:/exp69/t9sincer/"}, {"connection": "EXP1", "key": "S:\\EXP69\\X"}]
+        found = self.service.month_changes(sets, "2026-05")
+        self.assertEqual(len(found), 1)
+        self.assertEqual((found[0]["readback"], found[0]["changes"], found[0]["truncated"]),
+                         (made["readback"], {"CWP-1": "changed", "CWP-2": "deleted"}, False))
+        self.assertEqual(found[0]["requested_at"], row.requested_at)
+        row.summary_json = json.dumps({"pushed": {"pushed": 500, "changed": 300}})
+        self.assertTrue(self.service.month_changes(sets, "2026-05")[0]["truncated"])
+        self.assertEqual(self.service.month_changes(sets, "bad"), [])
+
     def test_month_status_takes_the_readback_that_finished_last(self):
         # A 早发起、晚完成；B 晚发起、早完成：税务草稿取的是完成时间最晚的 A，台账认的也得是 A（否则误报草稿过期）
         first, first_row = self._start()  # a 发起
@@ -1108,7 +1159,7 @@ def push_service(rows):
     frappe.get_doc = lambda doctype, name, **kwargs: types.SimpleNamespace(doctype=doctype, name=name)
     modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork")}
     for name in ("access", "connections", "targets", "contracts", "contracts.history", "contracts.push", "history",
-                 "push", "push.application", "push.application.provenance", "push.express", "push.express.common",
+                 "push", "push.application", "push.application.provenance", "push.automation", "push.express", "push.express.common",
                  "push.express.prepare", "push.express.preflight", "push.express.history", "push.mrerp",
                  "push.native", "push.receipts", "targets.choice", "targets.contracts", "targets.freeze",
                  "targets.selection"):

@@ -127,7 +127,7 @@ def context_rows(company) -> list:
              "value_label": row.value_label or "", "branch": row.branch or ""} for row in rows]
 
 
-def _company_of(connection, account_row) -> tuple:
+def account_company(connection, account_row) -> tuple:
     """账套目录这一行属于哪份主档（同 `identity.belongs`：身份相同；没有税号的按建档连接与名称键）→ (主档, 这份账套的分店)。"""
     found = identity.company_identity("express", connection, account_row)
     if not found:
@@ -144,7 +144,7 @@ def for_push(connection, account_set, account_row) -> dict | None:
     subject, value, branch}]}``；目录里没有这一行、没建主档回 None。直接按身份查公司（不读账套目录、不缓存）；出错由推送那边
     接住（这一张不用「历史已定」）。推送服务已核过录入权限与这条连接的使用授权；规则全所共用。"""
     del account_set  # 归属由目录这一行定
-    name, branch = _company_of(connection, account_row)
+    name, branch = account_company(connection, account_row)
     if not name:
         return None
     rows = frappe.get_all(CHOICE, filters={"company": name}, fields=["kind", "subject", "value", "branch"],
@@ -154,5 +154,5 @@ def for_push(connection, account_set, account_row) -> dict | None:
                       for row in rows]}
 
 
-__all__ = ["CONTEXT_MAX", "KIND_WORDS", "RULES_MAX", "context_rows", "delete", "for_push", "forget_company", "listing",
+__all__ = ["CONTEXT_MAX", "KIND_WORDS", "RULES_MAX", "account_company", "context_rows", "delete", "for_push", "forget_company", "listing",
            "one", "rule_key", "save"]

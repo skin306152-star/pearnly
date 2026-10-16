@@ -594,6 +594,16 @@ cowork_push_work_branch = ["pearnly_cowork.companies.provider.work_branch"]
 # 推送准备的公司规则（第 2 期统一客户规则）：这份账套所属公司的规则垫在账套记忆之下（`push/application/service.py` 的
 # `_decisions`）；按目录这一行的身份直接查公司、不缓存。push 域不导入 companies（companies 依赖 push）。
 cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]
+# 自动推送档位（数字会计员第 3 期第 3、5 条）：这份账套所属公司此刻的档位与最近一次合格回读覆盖的期间；按这张单日期该推往哪份
+# 账套（T1 同一判据，自动推前的核对用）。push 域不导入 companies；取不到按 L0、按「选不出」。
+cowork_push_company_tier = ["pearnly_cowork.companies.automation.tier_for_push"]
+cowork_push_day_books = ["pearnly_cowork.companies.automation.day_books"]
+# 自动推的单写入核不上：这家立刻降到 L0（第 8 条，推送回执调用）。
+cowork_push_verify_mismatch = ["pearnly_cowork.companies.automation.on_mismatch"]
+# 回读处理完按这期统计升降档位（第 8 条，`readback.service._process` 结束时）；统计用的回读变化由 readback 提供（第 7 条）。
+# readback 与 companies 互不导入。
+cowork_readback_ready = ["pearnly_cowork.companies.automation.on_readback"]
+cowork_company_month_changes = ["pearnly_cowork.readback.service.month_changes"]
 # 定时任务的提醒 / 完成简报属于哪家公司（点开到这家的主档页）：folder_intake 不导入 companies（反过来依赖）。
 cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
 # 定时任务跟随公司当年账套（T1）：保存任务时所选账套属于哪家主档（与分店），到点按单据日期取这家公司覆盖那天的账套

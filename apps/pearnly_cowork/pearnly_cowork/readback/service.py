@@ -348,7 +348,25 @@ def _process(name):
     write(row)
     _drop_request(row)
     _drop_older(row)
+    _announce_ready(row)
     return row
+
+
+READY_HOOK = "cowork_readback_ready"
+
+
+def _announce_ready(row):
+    """回读处理完（数字会计员第 3 期第 8 条）：告诉登记了 ``cowork_readback_ready`` 的入口（`companies.automation.on_readback`
+    按这期统计升降这家公司的自动推送档位），同一事务，写路径上做（GET 不写库）。readback 不导入 companies；入口出错只记日志、
+    回滚它自己写的那一点，不挡这份回读。"""
+    for path in frappe.get_hooks(READY_HOOK) or []:
+        try:
+            frappe.db.savepoint("cowork_readback_ready")
+            frappe.get_attr(path)(row.connection, row.account_set_key, row.period, row.name)
+        except Exception:  # noqa: BLE001 — 见上
+            frappe.db.rollback(save_point="cowork_readback_ready")
+            frappe.clear_messages()
+            frappe.log_error(title="Cowork readback ready hook failed", message=frappe.get_traceback()[-1500:])
 
 
 def _build(row, raw, data):
@@ -561,4 +579,45 @@ def month_status(sets, period):
     return out
 
 
-__all__ = ["data", "delete", "file", "month_status", "request", "status", "vat_records", "view"]
+def month_changes(sets, period) -> list:
+    """自动推送档位的证据（钩子 ``cowork_company_month_changes``，`companies.automation.documents`）：给的 Express 账套
+    （``[{connection, key}]``）这个月完成时间最晚的那份回读（谁发起的都算，同月结台账「核对」一段）→ ``[{"connection", "key",
+    "readback", "requested_at", "changes": {推送记录: changed|deleted|voided|missing}, "truncated"}]``；没有完成的回读的账套不列。
+    ``truncated``：差异表只存前 `CHANGES_KEPT` 行，存下的单比摘要里的变化张数少（调用方把覆盖的单都当被改）。只给评估用，不核权限、
+    不出给页面；只读。"""
+    try:
+        when = contracts.period(period)
+    except contracts.ContractError:
+        return []
+    wanted = {}
+    for item in sets or ():
+        connection = str((item or {}).get("connection") or "")
+        key = normalize_express_account_key((item or {}).get("key"))
+        if connection and key:
+            wanted[(connection, key.casefold())] = (connection, key)
+    if not wanted:
+        return []
+    connections_ = sorted({connection for connection, _key in wanted.values()})
+    marks = ", ".join(["%s"] * len(connections_))
+    rows = frappe.db.sql(f"""SELECT name, connection, account_set_key, summary_json, changes_json, requested_at, ready_at
+        FROM `tab{READBACK}` WHERE period = %s AND status = 'ready' AND connection IN ({marks})
+        ORDER BY ready_at DESC, name DESC LIMIT {MONTH_SCAN_MAX}""", (when, *connections_), as_dict=True)
+    out, seen = [], set()
+    for row in rows:
+        found = (row.connection, normalize_express_account_key(row.account_set_key).casefold())
+        if found not in wanted or found in seen:
+            continue
+        seen.add(found)
+        changes = {}
+        for item in _json(row.changes_json, {}).get("changes") or []:
+            record, change = str(item.get("record") or ""), str(item.get("change") or "")
+            if record and change in diff.CHANGES:
+                changes.setdefault(record, change)
+        counted = _json(row.summary_json, {}).get("pushed") or {}
+        expected = sum(int(counted.get(name) or 0) for name in diff.CHANGES)
+        out.append({"connection": row.connection, "key": wanted[found][1], "readback": row.name,
+                    "requested_at": row.requested_at, "changes": changes, "truncated": len(changes) < expected})
+    return out
+
+
+__all__ = ["data", "delete", "file", "month_changes", "month_status", "request", "status", "vat_records", "view"]
