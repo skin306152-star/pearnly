@@ -18,6 +18,7 @@ import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from "lucid
 import { type FC, type HTMLAttributes, type KeyboardEvent, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { altMove, chain, type DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
+import { isDragging } from "@/lib/layers";
 import { DropdownMenu, SubMenu } from "@/components/ui/menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { co, sb, t } from "@/i18n";
@@ -70,6 +71,8 @@ export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggl
       onClick={onToggle}
       onKeyUp={chain(handle?.onKeyUp)}
       onKeyDown={(e) => {
+        // 键盘拖动中：键只归拖动（同对话行；不开「···」、Alt+方向键不挪组）
+        if (isDragging()) return handle?.onKeyDown?.(e);
         if (onMenuKey && isMenuKey(e)) {
           e.preventDefault();
           onMenuKey();

@@ -8,6 +8,7 @@
 要跑 clipText 的那一条需要 node 与前端依赖（npm ci --prefix frontend/assistant），没有就跳过。
 """
 import importlib.util
+import json
 import pathlib
 import re
 import subprocess
@@ -32,6 +33,22 @@ def _gate():
 
 
 gate = _gate()
+
+
+def declared_asks():
+    """各产品工具声明的「允许」卡片问话（``ask`` / ``ask_when``，英文原文）连同服务端词条表里的中、泰、日译文。"""
+    found = set()
+    for path in (ROOT / "apps").glob("*/*/**/*.py"):
+        text = path.read_text(encoding="utf-8")
+        for block in re.findall(r'"ask(?:_when)?": (\{[^{}]*\}|"[^"]*")', text):
+            found.update(re.findall(r'"([^"]+\?)"', block))
+    asks = set(found)
+    for table in (ROOT / "apps").glob("*/*/i18n/messages.tsv"):
+        for line in table.read_text(encoding="utf-8").splitlines():
+            cells = line.split("\t")
+            if cells[0] in found:
+                asks.update(cell for cell in cells[1:] if cell)
+    return sorted(asks)
 
 
 def css_block(css, selector):
@@ -558,9 +575,9 @@ class CardRuleTests(unittest.TestCase):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         group = steps[steps.index("export const StepsGroup"):]
         self.assertIn("const title = groupLive(group.status)\n    ? steps.running\n"
-                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t(\"denied\"), asks: labels.ask });", group)
+                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t(\"denied\"), asks: labels.ask, failed: steps.failed });", group)
         # 第 8 轮：点了「拒绝」的一步没做，摘要与行都写卡片上的问话（去掉问号）加「已拒绝」，不写做完的说法
-        self.assertIn("return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool) };", steps)
+        self.assertIn("return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool), undone: stepUndone(tool) };", steps)
         self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
                       group)
         # 一张卡片、一步一行：组给卡片，组里的每一步不再各包一层（测试窗口 S2：外卡套内卡）
@@ -581,7 +598,9 @@ class CardRuleTests(unittest.TestCase):
                       '        {/* 重开对话时没有卡片下面那行结论：「已拒绝」写在行尾（同「失败」的位置，淡色） */}\n'
                       '        {denied && approval?.approved === undefined && <span className="cc-step-denied">{t("denied")}</span>}\n'
                       '        {expandable && <ChevronRightIcon aria-hidden />}\n      </button>', row)
-        self.assertIn("{asking ?? denied ?? step.verb}", row)
+        self.assertIn("{asking ?? denied ?? undone ?? step.verb}", row)
+        # 第 8 轮审查：点了允许、结果写明没存上（not_saved / failed）的同样写问话，行尾「失败」，不先读到做完的说法
+        self.assertIn("const undoneAsk = !denied && stepUndone({ result }) ? (approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] : undefined;", row)
         self.assertIn("const denied = stepDenied({ result, approval }) ? askStem((approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] ?? step.verb) : undefined;", row)
         # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；
         # 只在展开的行里用，摘要行（按类计数）与工作状态行不用
@@ -678,11 +697,11 @@ assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: tr
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { askStem, stepDenied, stepFailed, summarize, summaryText } from "@/lib/step-summary";
+import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
 import { steps, t } from "@/i18n";
 const done = { cowork_company_choice_save: "记下了公司选择" };
 const asks = { cowork_company_choice_save: "把这个选择记到公司？" };
-const denial = { word: t("denied"), asks };
+const denial = { word: t("denied"), asks, failed: steps.failed };
 assert.equal(askStem("把这个选择记到公司？"), "把这个选择记到公司");
 assert.equal(askStem("Save this choice for the company? "), "Save this choice for the company");
 // 本页点了拒绝；重开后按结果认；允许了、还在等的不算
@@ -691,6 +710,8 @@ assert.equal(stepDenied({ result: { text: JSON.stringify({ status: "denied", mes
 assert.equal(stepDenied({ approval: { approved: true }, result: { text: "{\"status\": \"saved\"}", isError: false } }), false);
 assert.equal(stepDenied({ approval: {} }), false);
 assert.equal(stepDenied({ result: { text: "plain", isError: false } }), false);
+// 第 8 轮以前的旧对话：拒绝交回的是那句原文（服务端不翻译），重开时同样认出
+assert.equal(stepDenied({ result: { text: "The user did not allow this change. Do not try it again unless the user asks.", isError: false } }), true);
 // 摘要：拒绝的写问话 + 已拒绝，存上的照旧写做完的说法；几次时 ×n
 const parts = [{ toolName: "cowork_company_choice_save", failed: false, denied: true }];
 assert.equal(summaryText(summarize(parts, done), steps.summary, done, denial), "把这个选择记到公司 · 已拒绝");
@@ -703,8 +724,30 @@ assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "not_saved", 
 assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "failed", reason: "x" }), isError: false } }), true);
 assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
 assert.equal(stepFailed({ result: { text: "{not json", isError: false } }), false);
+// 第 8 轮审查：结果写明没存上的（点了允许、二次核对没过）不写做完的说法：问话 + 失败；几次 ×n；没有问话的工具照做完的说法加失败数
+const notSaved = { text: JSON.stringify({ status: "not_saved", reason: "x" }), isError: false };
+assert.equal(stepUndone({ result: notSaved }), true);
+assert.equal(stepUndone({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
+const undone = { toolName: "cowork_company_choice_save", failed: true, undone: true };
+assert.equal(summaryText(summarize([undone], done), steps.summary, done, denial), "把这个选择记到公司 · 失败");
+assert.equal(summaryText(summarize([undone, undone], done), steps.summary, done, denial), "把这个选择记到公司 ×2 · 失败");
+assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: true, undone: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了（1 个失败）");
+assert.equal(summaryText(summarize([undone, ...parts], done), steps.summary, done, denial), "把这个选择记到公司 · 失败, 把这个选择记到公司 · 已拒绝");
+// 问话去掉疑问的写法：中文「要…吗」，泰文句末 ไหม / หรือไม่，日文句末「か」（第 8 轮审查：只去问号时读着仍在问）
+assert.equal(askStem("要删除这些定时任务吗？"), "删除这些定时任务");
+assert.equal(askStem("บันทึกตัวเลือกนี้ให้บริษัทไหม"), "บันทึกตัวเลือกนี้ให้บริษัท");
+assert.equal(askStem("ลบงานตามกำหนดเวลาเหล่านี้หรือไม่"), "ลบงานตามกำหนดเวลาเหล่านี้");
+assert.equal(askStem("この選択を会社に保存しますか？"), "この選択を会社に保存します");
+// 各工具声明的问话（四种语言，服务端词条表）去掉后都不再是问句
+const declared = __ASKS__ as string[];
+assert.ok(declared.length >= 40, String(declared.length));
+for (const ask of declared) {
+  const stem = askStem(ask);
+  assert.ok(stem.length > 0, ask);
+  assert.doesNotMatch(stem, /[?？吗]$|ไหม$|หรือไม่$|か$/u, ask);
+}
 (globalThis as any).done();
-""", lang="zh")
+""".replace("__ASKS__", json.dumps(declared_asks(), ensure_ascii=False)), lang="zh")
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_step_subject_names_the_record_not_its_internal_name(self):

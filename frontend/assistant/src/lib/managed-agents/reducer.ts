@@ -148,6 +148,9 @@ export type Projection = {
   seen: ReadonlySet<string>;
   /** Live token previews keyed by the event id they'll reconcile into. */
   previews: ReadonlyMap<string, Preview>;
+  /** 出错的模型请求收口时补了「 …」的预览：随后的重试（status_rescheduled）把它们清空，不留半句；本轮结束、会话终止时照旧留着。
+   *  span 结束与 rescheduled 谁先到都一样（第 8 轮审查）。 */
+  cutPreviews: readonly Preview[];
   /** All tool-use events seen, keyed by event id (drives requires_action). */
   toolUses: ReadonlyMap<string, ToolUseEvent>;
   /** Most recent session.error, cleared by the next running/message. */
@@ -170,6 +173,7 @@ export const initialProjection = (): Projection => ({
   echoedOptimistic: new Set(),
   seen: new Set(),
   previews: new Map(),
+  cutPreviews: [],
   toolUses: new Map(),
   lastError: null,
   notices: [],
@@ -502,13 +506,14 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
 
     case "session.status_rescheduled": {
       // Transient error; the session retries on its own. Keep showing "busy".
-      // 出错的那次模型请求还没写完的预览不会再有正式事件来收口（重试是新的一条）：清掉，不留半句在回复里
-      if (state.previews.size === 0) return { ...state, isRunning: true };
+      // 出错的那次模型请求还没写完的预览不会再有正式事件来收口（重试是新的一条）：清掉，不留半句在回复里。span 先结束时预览已
+      // 补「 …」收口、记在 cutPreviews；rescheduled 先到时还在 previews——两处一起清
+      if (state.previews.size === 0 && state.cutPreviews.length === 0) return { ...state, isRunning: true };
       const messages = draft(state.messages);
-      for (const [, preview] of state.previews) {
+      for (const preview of [...state.previews.values(), ...state.cutPreviews]) {
         updatePart(messages, preview.messageIndex, preview.partIndex, (part) => (part.type === "text" ? { ...part, text: "" } : part));
       }
-      return { ...state, messages, previews: new Map(), isRunning: true };
+      return { ...state, messages, previews: new Map(), cutPreviews: [], isRunning: true };
     }
 
     case "session.status_idle": {
@@ -523,6 +528,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
           pendingApprovals: [],
           parkedIds: [],
           pendingCustomTools: [],
+          cutPreviews: [],
           lastError: clearRetrying(state.lastError),
         };
       }
@@ -572,6 +578,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         pendingApprovals: [],
         parkedIds: [],
         pendingCustomTools: [],
+        cutPreviews: [],
       };
 
     // ------------------------------------------------------------- thinking
@@ -692,7 +699,7 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
           part.type === "text" ? { ...part, text: `${part.text} …` } : part,
         );
       }
-      return { ...state, messages, previews: new Map() };
+      return { ...state, messages, previews: new Map(), cutPreviews: [...state.cutPreviews, ...state.previews.values()] };
     }
 
     // ------------------------------------------------------------- tools

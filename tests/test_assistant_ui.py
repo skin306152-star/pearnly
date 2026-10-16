@@ -4250,11 +4250,11 @@ assert.equal(say.onDragEnd!({ active: entry(row), over: null } as any), "in lelo
         self.assertIn('data-peek={peek ? "" : undefined}', drag)
         css = read("globals.css")
         self.assertIn("--cc-drag-peek: 0.15;", css)   # 第 8 轮：再淡、字隐去（Round8Tests）
-        self.assertIn(".cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }", css)
+        self.assertIn(".cc-drag-overlay:not([data-dropping]) .cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }", css)
         # 过渡沿用浮层已有的 opacity 过渡（动效变量）；落到组头时的淡出写在它后面，照样盖过它
         lift = css.split("\n.cc-drag-lift {", 1)[1].split("}", 1)[0]
         self.assertIn("opacity var(--cc-dur) var(--cc-ease)", lift)
-        self.assertLess(css.index(".cc-drag-float[data-peek] .cc-drag-lift"), css.index('.cc-drag-overlay[data-dropping="into"] .cc-drag-lift'))
+        self.assertLess(css.index(".cc-drag-overlay:not([data-dropping]) .cc-drag-float[data-peek] .cc-drag-lift"), css.index('.cc-drag-overlay[data-dropping="into"] .cc-drag-lift'))
 
     def test_group_and_sort_choices_say_which_one_is_picked(self):
         # 第 7 轮第 5 项：子菜单选项原是普通 menuitem，读屏听不出当前选的是哪个：单选用 menuitemradio、勾选用 menuitemcheckbox，带
@@ -5827,6 +5827,12 @@ class Round8Tests(unittest.TestCase):
         self.assertIn("        if (renaming) return;\n"
                       "        // 键盘拖动中：键只归拖动（方向键由把手标成已处理，组件库行自带的 ↑ ↓ 不移焦点；不开菜单）\n"
                       "        if (isDragging()) return dragKey?.(e);", rows)
+        # 第 8 轮审查：公司组头拖动中同样只归拖动（菜单键不开「···」，同对话行）
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        self.assertIn("      onKeyDown={(e) => {\n"
+                      "        // 键盘拖动中：键只归拖动（同对话行；不开「···」、Alt+方向键不挪组）\n"
+                      "        if (isDragging()) return handle?.onKeyDown?.(e);\n"
+                      "        if (onMenuKey && isMenuKey(e)) {", group)
         self.run_page(r"""
 import { keepFocusOn, rememberHandle } from "@/components/ui/drag";
 const g = globalThis as any;
@@ -5880,9 +5886,12 @@ assert.deepEqual(focused, []);
         # 一层底（0.15），组头的字与高亮清楚可读；共用拖动一条规则（卡片、组头、置顶、对话都走它）
         css = read("globals.css")
         self.assertIn("--cc-drag-peek: 0.15;", css)
-        self.assertIn(".cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }\n"
+        # 第 8 轮审查：让开只在拖动中——取消（data-dropping=""，滑回原位）时字与条数回来，不是空白的底滑回去；落进收着的组
+        # （"into"）时字仍隐着、底随落位淡掉（into 那条 opacity: 0 不被让开那条盖过）
+        self.assertIn(".cc-drag-overlay:not([data-dropping]) .cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }\n"
                       ".cc-drag-lift > * { transition: opacity var(--cc-dur-fast) var(--cc-ease); }\n"
-                      ".cc-drag-float[data-peek] .cc-drag-lift > * { opacity: 0; }", css)
+                      ".cc-drag-overlay:not([data-dropping=\"\"]) .cc-drag-float[data-peek] .cc-drag-lift > * { opacity: 0; }", css)
+        self.assertNotIn("\n.cc-drag-float[data-peek]", css)
         self.assertIn("@media (prefers-reduced-motion: reduce) { .cc-drag-lift, .cc-drag-lift > * { animation: none; transition: none; } }", css)
         self.assertIn('{(data?.count ?? 0) > 1 && <span className="cc-drag-count">{data!.count}</span>}', read("components/ui/drag.tsx"))
 
@@ -5912,6 +5921,21 @@ s = applyEvent(s, start("m3"));
 s = applyEvent(s, { id: "m3", type: "agent.message", processed_at: at(6), content: [{ type: "text", text: "ok" }] } as any);
 assert.deepEqual(texts(s).filter(Boolean), ["การบันทึกไม่สำเร็จ", "ok"]);
 assert.equal(s.isRunning, true);
+// 第 8 轮审查：span 先结束（补「 …」收口）、rescheduled 后到——半句同样清掉
+s = applyEvent(s, start("m4"));
+s = applyEvent(s, delta("m4", "การ"));
+s = applyEvent(s, { id: "sp1", type: "span.model_request_end", is_error: true, processed_at: at(7) } as any);
+assert.deepEqual(texts(s).filter(Boolean), ["การบันทึกไม่สำเร็จ", "ok", "การ …"]);
+s = applyEvent(s, { id: "rs2", type: "session.status_rescheduled", processed_at: at(8) } as any);
+assert.deepEqual(texts(s).filter(Boolean), ["การบันทึกไม่สำเร็จ", "ok"]);
+assert.equal(s.cutPreviews.length, 0);
+// 出错后不再重试（本轮结束）：「 …」留着，说明这句没说完
+s = applyEvent(s, start("m5"));
+s = applyEvent(s, delta("m5", "ยัง"));
+s = applyEvent(s, { id: "sp2", type: "span.model_request_end", is_error: true, processed_at: at(9) } as any);
+s = applyEvent(s, { id: "id1", type: "session.status_idle", processed_at: at(10), stop_reason: { type: "end_turn" } } as any);
+assert.deepEqual(texts(s).filter(Boolean), ["การบันทึกไม่สำเร็จ", "ok", "ยัง …"]);
+assert.equal(s.cutPreviews.length, 0);
 """)
 
     def test_company_detail_retries_a_passing_failure_before_showing_an_error(self):

@@ -1638,7 +1638,11 @@
   /* 账套子行两行（第 8 轮：1024 宽、右侧栏 280 时「testcowork 10月15日 21:55 回读」要 178px 只给了 156px，账套名被压到 60px）：
      第一行账套名、第二行状态（12px 淡色），各自全宽、放不下各自渐隐；每一行自己是悬停滚动的范围，同一行不会两处一起滚 */
   .cc-panel-row.cc-month-set { flex-direction: column; align-items: stretch; gap: 0; padding-block: 0.1875rem; }
-  .cc-month-set-name { min-width: 0; overflow: hidden; white-space: nowrap; }
+  /* 账套名沿用原来子行的 12px 淡色（第 8 轮审查：不比段名同级），状态同字号、同色在下一行 */
+  .cc-month-set-name {
+    min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
   .cc-month-set-status {
     min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
@@ -1732,9 +1736,11 @@
   transition: scale var(--cc-dur) var(--cc-ease), opacity var(--cc-dur) var(--cc-ease), box-shadow var(--cc-dur) var(--cc-ease);
 }
 .cc-drag-float[data-kind="card"] .cc-drag-lift { border-radius: var(--cc-radius-panel); }
-.cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }
+/* 让开只在拖动中：取消（data-dropping=""，滑回原位）时字与条数回来，不是一个空白的底滑回去（第 8 轮审查；拖动库落位动画用的是
+   上一次渲染的浮层，data-peek 还在）；落进收着的组（"into"）时字仍隐着，底随落位淡掉 */
+.cc-drag-overlay:not([data-dropping]) .cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }
 .cc-drag-lift > * { transition: opacity var(--cc-dur-fast) var(--cc-ease); }
-.cc-drag-float[data-peek] .cc-drag-lift > * { opacity: 0; }
+.cc-drag-overlay:not([data-dropping=""]) .cc-drag-float[data-peek] .cc-drag-lift > * { opacity: 0; }
 .cc-drag-overlay[data-dropping] .cc-drag-lift { scale: 1; opacity: 1; box-shadow: none; }
 .cc-drag-overlay[data-dropping="into"] .cc-drag-lift { scale: var(--cc-drag-fold); opacity: 0; }
 .cc-drag-count {

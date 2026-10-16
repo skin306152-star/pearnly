@@ -117,8 +117,9 @@ const StageRow: FC<{ stage: Stage; month: Month }> = ({ stage, month }) => {
     <>
       <div className="cc-panel-row" data-slot="cc-month-stage" data-stage={stage} data-state={state}>
         <span className="cc-month-dot" data-state={state} role="img" aria-label={word} title={word} />
-        <Marquee className="min-w-0 flex-1 truncate">{co.ledger.stage[stage]}</Marquee>
-        <Marquee className="cc-panel-extra cc-month-status">{stageSummary(stage, month) || word}</Marquee>
+        {/* 段名、状态各自是悬停滚动的范围（第 8 轮审查：都放不下时不再两处一起滚） */}
+        <Marquee className="min-w-0 flex-1 truncate" data-marquee-host="">{co.ledger.stage[stage]}</Marquee>
+        <Marquee className="cc-panel-extra cc-month-status" data-marquee-host="">{stageSummary(stage, month) || word}</Marquee>
       </div>
       {sets.length > 1 &&
         sets.map((set) => (

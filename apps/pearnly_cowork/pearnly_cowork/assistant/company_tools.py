@@ -260,11 +260,11 @@ class UnknownDocument(frappe.ValidationError):
     """按单据存规则时认不出是哪张单（编号不在、票面单号对上不止一张或一张都没有）：原因交给模型，不出「允许」卡片。"""
 
 
-def _document(value):
+def _document(value, company_tax=""):
     """按单据存规则时的那张单：``document`` 是单据编号（工具结果里的 name）。第 8 轮测试机：CC 传了票面单号
     「SD-6909-1010」，单据编号找不到，卡片上就算不出对方、只写了值，看着像全公司所有单都改这个科目。传成票面单号时，
-    本人看得到的只有一张就用它；几张、一张都没有、或读不了就抛 `UnknownDocument`（原因里列出看得到的几张），由出卡片前的
-    核对拒掉，不出卡片。"""
+    本人看得到、且规则所属公司（税号 ``company_tax``）是买方或卖方的只有一张就用它（第 8 轮审查：别家客户的同号单不算）；
+    几张、一张都没有、或读不了就抛 `UnknownDocument`（原因里列出看得到的几张），由出卡片前的核对拒掉，不出卡片。"""
     from pearnly_cowork.history import storage
 
     value = " ".join(str(value or "").split())[:140]
@@ -279,13 +279,13 @@ def _document(value):
         frappe.clear_messages()
         raise UnknownDocument(f"document {json.dumps(value, ensure_ascii=False)} cannot be read here. Nothing was "
                               f"saved.") from None
-    found = storage.by_invoice_no(value, DOCUMENT_CANDIDATES + 1)
+    found = storage.by_invoice_no(value, DOCUMENT_CANDIDATES + 1, party_tax=company_tax)
     if len(found) == 1:
         return storage.read(found[0]["name"])
     if not found:
-        raise UnknownDocument(f"document {json.dumps(value, ensure_ascii=False)} is not a document name: pass the "
-                              f"name (from the document tool results) of the document the rule comes from. Nothing "
-                              f"was saved.")
+        raise UnknownDocument(f"document {json.dumps(value, ensure_ascii=False)} is not a document name of this "
+                              f"company: pass the name (from the document tool results) of the document the rule comes "
+                              f"from. Nothing was saved.")
     listed = "; ".join(f"{row['name']} ({row.get('invoice_date') or ''}, seller {row.get('seller_name') or ''}, "
                        f"buyer {row.get('buyer_name') or ''})" for row in found[:DOCUMENT_CANDIDATES])
     raise UnknownDocument(f"Several documents have invoice number {json.dumps(value, ensure_ascii=False)}: {listed}. "
@@ -302,7 +302,7 @@ def _party(tool_input) -> tuple:
     kind = str(tool_input.get("kind") or "")
     if kind not in RULE_KINDS or kind == "department":
         frappe.throw(_("cowork.company.choice_unsupported"))
-    doc = _document(tool_input.get("document"))
+    doc = _document(tool_input.get("document"), _company_tax(tool_input))
     fields = primary_page_fields(storage.project(doc).get("pages") or [])
     direction = "sales" if tool_input.get("direction") == "sales" and kind in ("party", "item") else "purchase"
     side = "buyer" if direction == "sales" else "seller"
@@ -311,6 +311,20 @@ def _party(tool_input) -> tuple:
     if not str(name).strip() and not choice_rules.digits(tax):
         frappe.throw(_("cowork.company.choice_unsupported"))
     return kind, direction, side, str(name).strip(), tax, fields
+
+
+def _company_tax(tool_input) -> str:
+    """规则所属公司（参数或本对话那家）的税号；认不出回空串（票面单号就不按公司筛）。"""
+    row = _company(tool_input, write=True)
+    return str(row.get("tax_id") or "") if row else ""
+
+
+def _evidence_document(tool_input) -> str:
+    """规则上记的来源单据：按单据算对象的类别记认出的那张单的编号（传成票面单号时也是编号）；部门整份一个、不按单据算，照参数
+    原样记（同以前；第 8 轮审查：部门规则不带单据也能存，不能在点「允许」之后才因认不出单据失败）。"""
+    if str(tool_input.get("kind") or "") == "department":
+        return str(tool_input.get("document") or "")
+    return _document(tool_input.get("document"), _company_tax(tool_input)).name
 
 
 def _subject_of(tool_input) -> tuple:
@@ -414,7 +428,7 @@ def choice_save(tool_input) -> str:
         kind, subject, label = _subject_of(tool_input)
         saved = saved_choices.save_rule(row, sets, kind, subject, str(tool_input.get("value") or ""), branch, period,
                                         subject_label=label, session=_session(),
-                                        evidence={"from": "cc", "document": _document(tool_input.get("document")).name})
+                                        evidence={"from": "cc", "document": _evidence_document(tool_input)})
     service.announce("upsert", row.name, part="choices")
     rule = saved["rule"]
     parts = str(rule.get("subject") or "").split("|")

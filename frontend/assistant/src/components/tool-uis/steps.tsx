@@ -11,7 +11,7 @@ import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/re
 import { ChevronRightIcon } from "lucide-react";
 import { createContext, useContext, useMemo, useState, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
-import { askStem, stepDenied, stepFailed, summarize, summaryText } from "@/lib/step-summary";
+import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
 import { detailArgs, detailOutput } from "@/lib/step-detail";
 import { knownEntries, parseResult, stepSubject } from "@/lib/step-subject";
 import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
@@ -167,6 +167,9 @@ export const StepRow: ToolCallMessagePartComponent = ({
   const asking = awaiting ? (approval as ToolApproval).ask : undefined;
   // 点了「拒绝」：没做，写卡片上那句问话（下面的结论行写「已拒绝」），不写做完的说法（第 8 轮测试机：仍写「记下了公司选择」）
   const denied = stepDenied({ result, approval }) ? askStem((approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] ?? step.verb) : undefined;
+  // 点了「允许」但结果写明没存上（not_saved / failed）：同样写问话、行尾「失败」，不先读到做完的说法（第 8 轮审查）
+  const undoneAsk = !denied && stepUndone({ result }) ? (approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] : undefined;
+  const undone = undoneAsk ? askStem(undoneAsk) : undefined;
   // 本站工具的结果只显示给人看的（同参数，lib/step-detail.ts）；内置工具（命令、文件）照原样
   const outputText = step.showOutput ? output?.text ?? "" : "";
   const shownOutput = useMemo(() => (outputText ? (step.own ? detailOutput(outputText) : outputText) : ""), [outputText, step.own]);
@@ -182,7 +185,7 @@ export const StepRow: ToolCallMessagePartComponent = ({
         className="cc-step-row cc-tap"
       >
         <Marquee className="min-w-0 flex-1 truncate">
-          {asking ?? denied ?? step.verb}
+          {asking ?? denied ?? undone ?? step.verb}
           {step.target && <span className="cc-step-target">{` ${step.target}`}</span>}
           {subject && <span className="cc-step-target">{` · ${subject}`}</span>}
         </Marquee>
@@ -234,7 +237,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
   if (!tools.length) return null;
   const title = groupLive(group.status)
     ? steps.running
-    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t("denied"), asks: labels.ask });
+    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t("denied"), asks: labels.ask, failed: steps.failed });
 
   return (
     <div className="aui-steps cc-steps">
@@ -254,5 +257,5 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
 /** 组里的一个工具调用部件 → 摘要要的工具名与是否失败。 */
 function toStepPart(part: unknown) {
   const tool = part as { toolName: string; result?: unknown; isError?: boolean; status?: { type: string }; approval?: ToolApproval };
-  return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool) };
+  return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool), undone: stepUndone(tool) };
 }

@@ -2514,6 +2514,53 @@ class CompanyRuleToolTests(unittest.TestCase):
         self.assertIsNone(self.tools.mismatch({"key": "anything"}))
         self.assertIsNone(self.tools.mismatch({"kind": "department", "value": "D1"}))
 
+    def test_a_department_rule_saves_without_a_document(self):
+        # 第 8 轮审查：部门整份一个、不按单据算——出卡片前不认单据，点「允许」后也不能因为没带单据（或带的认不出）才失败；
+        # 规则上照参数原样记来源（同以前）
+        storage = types.SimpleNamespace(read=mock.Mock(side_effect=AssertionError("部门规则不读单据")),
+                                        by_invoice_no=mock.Mock(side_effect=AssertionError("部门规则不找单据")))
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.history": types.SimpleNamespace(storage=storage),
+                                           "pearnly_cowork.history.storage": storage}):
+            for document in (None, "DUP-1"):
+                ask = {"kind": "department", "value": "D1", **({"document": document} if document else {})}
+                self.assertIsNone(self.tools.choice_refusal(ask))
+                out = json.loads(self.tools.choice_save(ask))
+                self.assertEqual(out["status"], "saved", out)
+                rule = next(row for row in frappe.db.tables[RULE].values() if row["value"] == "D1")
+                self.assertEqual(json.loads(rule["evidence_json"]), {"from": "cc", "document": document or ""})
+
+    def test_by_invoice_no_keeps_only_this_companys_documents(self):
+        # 第 8 轮审查：`storage.by_invoice_no` 给了规则所属公司的 13 位税号时，只要这家是买方或卖方的单（税号写法带横线也认）；
+        # 不给或不是 13 位不筛。只编译这一个函数，列表查询换成替身
+        import ast
+        source = (APP / "history/storage.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        wanted = [node for node in tree.body if (isinstance(node, ast.FunctionDef) and node.name == "by_invoice_no")
+                  or (isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "PARTY_SCAN")]
+        rows = [{"name": "h3", "invoice_date": "2026-09-22", "seller_name": "S", "buyer_name": "Other",
+                 "seller_tax": "0105562012340", "buyer_tax": "0105540000011"},
+                {"name": "h2", "invoice_date": "2026-09-21", "seller_name": "S", "buyer_name": "ABC",
+                 "seller_tax": "0105562012340", "buyer_tax": "0-1055-36082-80-8"},
+                {"name": "h1", "invoice_date": "2026-09-20", "seller_name": "ABC", "buyer_name": "C",
+                 "seller_tax": TAX, "buyer_tax": ""}]
+        calls = []
+
+        def get_list(doctype, filters, fields, order_by, limit_page_length):
+            calls.append((filters, tuple(fields), limit_page_length))
+            return [{key: row[key] for key in fields} for row in rows][:limit_page_length]
+
+        env = {"frappe": types.SimpleNamespace(get_list=get_list), "re": re, "DOCTYPE": "Cowork OCR History",
+               "scope": types.SimpleNamespace(require_read=lambda: None)}
+        exec(compile(ast.Module(body=wanted, type_ignores=[]), "storage.py", "exec"), env)
+        found = env["by_invoice_no"]("SD-1", 6, party_tax=TAX)
+        self.assertEqual([row["name"] for row in found], ["h2", "h1"])
+        self.assertEqual(set(found[0]), {"name", "invoice_date", "seller_name", "buyer_name"})
+        self.assertEqual(calls[-1][0], {"invoice_no": "SD-1"})
+        self.assertEqual(len(env["by_invoice_no"]("SD-1", 1, party_tax=TAX)), 1)
+        self.assertEqual([row["name"] for row in env["by_invoice_no"]("SD-1", 6)], ["h3", "h2", "h1"])
+        self.assertEqual(len(env["by_invoice_no"]("SD-1", 6, party_tax="123")), 3)
+        self.assertEqual(env["by_invoice_no"]("  ", 6, party_tax=TAX), [])
+
     def test_the_rule_key_is_the_one_push_looks_up(self):
         # 复审 2：推送按 `choices._party` 只认 seller_tax；票面只有 seller_tax_id 时按名字记，规则也要按名字存
         storage = types.SimpleNamespace(read=lambda name: Row(name=name), project=lambda found: {"pages": [{"fields": {
@@ -2567,17 +2614,24 @@ class CompanyRuleToolTests(unittest.TestCase):
         没写对方，看着像全公司所有单都改这个科目。现在：传成票面单号、看得到的只有一张就用它，卡片照样写「对方 → 值」（对方按
         服务端从单据算的）；几张、一张都没有就不出卡片、回原因（列出看得到的几张）；单据只有税号时写税号。"""
         clean = "0105562012340"
-        docs = {"CWH-a1": ("บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", clean, "SD-6909-1010"),
-                "CWH-b1": ("", OTHER_TAX, "RP-1"), "CWH-c1": ("A", OTHER_TAX, "DUP-1"), "CWH-c2": ("B", clean, "DUP-1")}
+        third = "0105540000011"  # 本所另一家客户
+        # (卖方名, 卖方税号, 票面单号, 买方税号)：本对话公司（TAX）是买方；CWH-x1 是另一家客户的同号单
+        docs = {"CWH-a1": ("บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", clean, "SD-6909-1010", TAX),
+                "CWH-x1": ("C", clean, "SD-6909-1010", third),
+                "CWH-b1": ("", OTHER_TAX, "RP-1", TAX), "CWH-c1": ("A", OTHER_TAX, "DUP-1", TAX),
+                "CWH-c2": ("B", clean, "DUP-1", TAX), "CWH-y1": ("D", clean, "ELSE-1", third)}
+        asked = []
 
         def read(name):
             if name not in docs:
                 raise frappe.DoesNotExistError(name)
             return Row(name=name)
 
-        def by_invoice_no(value, limit):
+        def by_invoice_no(value, limit, party_tax=""):
+            # 同 storage.by_invoice_no：给了 13 位税号只要这家是买方或卖方的
+            asked.append(party_tax)
             return [{"name": n, "invoice_date": "2026-09-20", "seller_name": d[0], "buyer_name": "นิภา"}
-                    for n, d in docs.items() if d[2] == value][:limit]
+                    for n, d in docs.items() if d[2] == value and (not party_tax or party_tax in (d[1], d[3]))][:limit]
 
         storage = types.SimpleNamespace(read=read, by_invoice_no=by_invoice_no, project=lambda found: {"pages": [{"fields": {
             "seller_name": docs[found.name][0], "seller_tax": docs[found.name][1], "seller_branch": "00000",
@@ -2594,6 +2648,10 @@ class CompanyRuleToolTests(unittest.TestCase):
             self.assertEqual((out["status"], out["rule"]["subject_label"]), ("saved", "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด"))
             saved = next(row for row in frappe.db.tables[RULE].values() if row["subject"] == f"purchase|{clean}")
             self.assertEqual(json.loads(saved["evidence_json"])["document"], "CWH-a1")   # 记的是认出的那张
+            # 第 8 轮审查：按票面单号找只看本对话公司是买方或卖方的单——另一家客户的同号单（CWH-x1）不算，单号只属于别家的认不出
+            self.assertEqual(set(asked), {TAX})
+            self.assertIn("is not a document name of this company", json.loads(
+                self.tools.choice_refusal({**ask, "document": "ELSE-1"}))["reason"])
             # 删除卡同样写出对方
             rule = next(row for row in json.loads(self.tools.profile({}))["rules"] if row["value"] == "53-05-28-00")
             self.assertEqual(self.tools.preview_choice_remove({"key": rule["key"]})[2]["after"],

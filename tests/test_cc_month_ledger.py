@@ -94,6 +94,13 @@ class LedgerSourceTests(unittest.TestCase):
                      "font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);"):
             self.assertIn(part, status)
         self.assertNotIn("max-width", status)
+        # 第 8 轮审查：账套名沿用原来子行的 12px 淡色（不与段名同级）；段行的段名、状态各自是悬停滚动的范围（都放不下时不两处一起滚）
+        name = css.split("  .cc-month-set-name {", 1)[1].split("}", 1)[0]
+        for part in ("color: var(--cc-ink-3);", "font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);"):
+            self.assertIn(part, name)
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate" data-marquee-host="">{co.ledger.stage[stage]}</Marquee>\n'
+                      '        <Marquee className="cc-panel-extra cc-month-status" data-marquee-host="">{stageSummary(stage, month) || word}</Marquee>',
+                      ledger)
         self.assertIn("const period = isPeriod(chosen) ? chosen : lastMonth();", ledger)  # 页面「不指定」时看上个月
         # 会话栏：没取到、空月不显示；出错显示原因
         card = ledger.split("export const MonthCard: FC", 1)[1].split("\n};", 1)[0]
