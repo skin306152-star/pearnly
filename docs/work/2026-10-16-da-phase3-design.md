@@ -303,3 +303,35 @@
   阶段 D：`pending.classify` 的 `cc_proposal` 按票上 `auto_class` / `auto_proposal` / `edit_count`，`ledger.month` 的 `automation` 用
   `companies.automation.view`，降档原因码 `changed` / `written_mismatch`；试点手动触发 `push.automation.sweep.run(now=…)` 与
   `companies.automation.on_readback(连接, 账套, 期间)`。
+- **阶段 C（10-16）**：第 6 条与第 11 条 CC 桌面版一项 `7f0da01b`（CC 桌面版 1.8.0 `write_verify`：进项 / 销项写完、原有读回通过后，拿写路自己换完科目
+  的那份载荷比本次写入行的对方码、各行科目、日期、单别、参考号、税记录税号与分店，另读实际挂到的对方档税号与分店，回执 `meta.verify`，
+  只报不回滚，`task_journal` 随 meta 存下、重发照样带回；`pos_journal.verify` 另回转账凭证日期不符；`account_history` 结果版本 2 排除
+  Pearnly 写的单；服务端 `push/express/written_check`：`sanitize_push_meta` 只收三个键、准备时冻结票面对方 `party_face`、`ack` 成功时写
+  `verify_state` / `verify_json`、自动推核不上经钩子立刻降 L0；`history_rules` 收 v1 / v2，「已定」带版本与读的日子，`assess` 填
+  `history_read`）；第 11 条页面要的服务端、第 13 条、第 14 条服务端 `482fd64e`（`pending.classify` 的 `cc_proposal`、三个异常码、
+  `ledger.month` 的 `entry.auto` 与 `automation`、`push_proposals`；CC 公司资料带档位、单据详情带判定、推送结果带 `automation` 与
+  `verify`、GUIDANCE；定时任务简报「待推送」；词条四语）；第 12 条与第 14 条页面 `767b3cf7`；第 16 条对应测试（新增
+  `tests/test_cowork_da_verify.py` 14 条、CI 加一步，`test_cowork_companies` / `test_cowork_assistant_tools` / `test_cc_month_ledger` /
+  `test_companion_contract` 各加一组，CC 桌面版 `companion/tests/test_write_verify.py` 13 条；既有断言只按有意变化改了期望值：码表加三个码、
+  录账段多 `auto`、卡头下一行多了档位行后的文字下标、`account_history` 版本 1 → 2、v2 不再算认不出的版本（改用 3）、「已定」多带版本
+  与读的日子、简报词条 31 → 32）；全闸门 94 步全过。与设计的出入（按设计意图的最小纠正）：
+  - 第 11 条页面要用的服务端（`pending.classify` 的 `cc_proposal`、异常码、`ledger.month` 的档位与自动推计数、`push_proposals`）阶段 B
+    记给了阶段 D，但第 12 条界面离不开它们，在本阶段一并做了；阶段 D 不再重复；
+  - 「全部推送」放在 `assistant.pending_api.push_proposals`，不在 `companies.api`：推送走待处理同一条路要用 `tools._push_one`，
+    companies 不能导入 assistant（assistant 依赖 companies，会成环）；页面一张张推也走 `pending_api.answer`（交空的选择）；
+  - CC 桌面版比的是「写路自己换完科目、要写下去的那一份」（期末盘存制换购货、现购换现金、应付换供应商档科目之后），所以大部分项只防
+    写入走样（列宽、编码、找错行）；真正能抓挂错的是税记录分店（对方档的分店 vs 载荷分店）与服务端拿票面比 `party`；
+  - 不符项：CC 桌面版另报 `party_master`（写进单据的对方码在主档里找不到）与 `unreadable`（读不出，宁严勿松）；POS 收款科目不符原本就
+    整单回滚，不另列；服务端另比出 `party_tax` / `party_branch`。票面有 13 位税号而对方档没登税号也算不符；分店两边都有才比；
+  - `account_history` v2 除 APTRN `USERID` 外，GLJNL `CREBY` = `PEARNLY` 的凭证也不算（两处都是写路写的）；
+  - 自动推冻结目标里另存这份账套的目录行（`automation.account_row`）：回执是电脑身份、可能已没有连接授权，核不上降档要按它认公司；
+    `party_face` 对所有 Express 推送冻结，旧记录没有就只看 CC 桌面版自己比的；
+  - `written_mismatch` 属核对一段，也计进核对段的状态；提议计在录账段的「待处理」（`waiting`）；
+  - 提议行在「本月」卡与待处理页都是行尾直接一个「推送」（沿用第 2 期「推送」的词与 `answer` 那条路），不用先展开；没有确认步骤；
+  - 「已推 N（自动 M）」沿用录账段现有的「已录 N/总数」写法，后面加「（自动 M）」；档位行的原因只在最近一次是降档（核不上 / 被改）时写；
+  - `companies/automation.py` 的 `tax.periods` 改为评估时才导入（看档位、给 CC 的资料不加载报税）；
+  - 单据详情给 CC 的 `automation` 带原因码（`auto_reasons` 拆成表），CC 照实说为什么没自动推。
+  CC 桌面版测试：scratchpad 临时虚拟环境（Python 3.11，PySide6、httpx、dbf、pytest）跑 `companion/` 完整 pytest，904 过、41 跳过（Windows
+  专属），跑完删除。留给后面的：第 15 条回放（`scripts/da-replay.py`）与试点没做；上线须先服务端、再发 CC 桌面版 1.8.0（版本号已在
+  `version.py` 改好，未发布），1.8.0 发布前自动推全部只出提议；回放的判定层可直接用 `decide.decide`、`automation.classify` 与
+  `written_check`（写入层回归核 `verify` 全为 ok）。
