@@ -152,6 +152,7 @@
   - 悬停滚动四处（`lib/hover-scroll.ts`）：只认真正键盘操作带来的焦点（`keyboardLast`）、鼠标关菜单焦点被还回不滚并立即复位；放不放得下按「框宽 - 右端渐隐」（`scrollDistance`）；滚动中文字变了复位重量（只在滚动中观察）；设置里的行、浮着的会话栏顶部补 `data-marquee-host`。
   - 新建对话光标进输入框：`projects.tsx` 的 `focusComposer`（点击当下聚焦一次、新对话换上来后再聚焦一次），`useStartIn`（组头「＋」、公司页、待处理「交给 CC」等）与顶部「新建」都用。
   - 证据：`tsc` 与 `npm run build` 通过；`test_assistant_ui.py` 新增 `SidebarDragTests`（手排顺序 / 新公司置顶、按人记住、能放到哪、拖进公司逐条移且服务端原文显示在出错行 / 被拒的退回、拖动中 Esc、触屏按住与长按菜单、接线、光标进输入框）与悬停滚动行为用例（渐隐内的也滚、文字变了重量、鼠标还回焦点不滚）；`test_cc_session_panel.py` 改成共用拖动的用例；完整闸门见提交说明。没在测试机与真机上点验（交测试窗口第 5 轮）。
+  - 审查修正（9 条，含侧栏五处补审中归本线的部分；本地提交、未推送）：① 浮层克隆丢祖先样式（公司组对话行拿起左跳 22px、抽屉 24px，抽屉公司名变淡）→ `cloneOf` 外套一层层祖先空壳（`display: contents`，去标记；外壳去掉 role，不让返回键 / Esc 多数一层弹层）；② 公司组克隆带类上的组上间距、下移 14–16px 底部被裁 → 克隆根 `margin: 0`。静态页用构建出的样式在 headless Chrome 量（网页 / 桌面 / 手机 × 浅 / 深）：公司组里的行、组头、组最后一行、置顶行的文字偏移都为 0、裁切 0、字色同原位（改前复现出 -22 / -24 / -2px、16 / 14px 裁切、ink → ink-2）。③ 取消置顶不出手排顺序 → `sidebar-order.ts` 的 `forgetPinned`，`CompanyGroups` 按已加载的行收拾（单条、批量、别的设备都覆盖）。④「恢复默认设置」一并清手排顺序（`clearSidebarOrder`、`hasManualOrder`，可点条件同改）；改排序方式不清手排，待用户定。⑤ 整批拖进 / 「将 N 项移到…」跳过已在那家的（`lib/managed-agents/projects.ts` 的 `notIn`）。⑥ 长按菜单与拖动同一帧冲突 → `HoldTouchSensor` 按到 `LONG_PRESS_MS` 就不再拿起。⑦ 悬停抓手光标统一 → 共用模块给把手加 `data-drag-handle`，`[data-drag-handle] { cursor: grab; }`（headless Chrome 量：行开关、组头、卡片把手 grab，「···」pointer，输入框 text，不能拖的 pointer）。用例：`SidebarDragTests` 新增取消置顶 / 恢复默认、整批跳过已在那家、500ms 后再动不拿起、克隆带祖先空壳；`test_cc_session_panel.py` 光标断言改到共用标记。
 
 ## 暂停交接（10-16 凌晨，用户关机，次日接着做）
 

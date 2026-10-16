@@ -2,9 +2,9 @@
 // 右侧栏拖卡片的录屏 IMG_5192）。会话栏卡片（session-panel.tsx）、侧栏公司组排序、置顶对话排序、对话拖到别的公司
 // （thread-list.tsx）都走这一份；修一处就在这里修。基于 dnd-kit（MIT，版本锁在 package.json）。
 //
-//   拿起   鼠标按住动 3px（点一下照样是点）；手机长按 250ms 且没挪出 5px（没到时间就动 = 在滚动）；键盘 空格。把手 / 抓手光标
-//          由各处样式给（悬停出把手，拖动中整页 grabbing）。侧栏的行与组头长按另有菜单（touch="move"）：按住 250ms 后再动才拿起，
-//          按住不动到 500ms 照旧出长按菜单，菜单出来后就不再拿起，两者不冲突。
+//   拿起   鼠标按住动 3px（点一下照样是点）；手机长按 250ms 且没挪出 5px（没到时间就动 = 在滚动）；键盘 空格。能拖的把手带
+//          data-drag-handle，悬停出抓手光标（globals.css 同一条），拖动中整页 grabbing。侧栏的行与组头长按另有菜单（touch="move"）：按住 250ms 后再动才拿起，
+//          按住不动到 500ms 照旧出长按菜单，按到 500ms 后（菜单出来或正要出来）就不再拿起，两者不冲突。
 //   浮起   拿起的那一项换成浮层（DragOverlay，克隆原来那一项的样子，挂在 body 上）：弹层底、弹出阴影、略透明、略放大，实时跟手。
 //          排序时原位留空（其余各项拖动中就带过渡滑开让位，过渡用动效变量）；拖到别的组时原位留淡影（没有谁让位），
 //          落点那一组高亮（悬停色）。
@@ -66,6 +66,7 @@ import {
   useMemo,
   useRef,
 } from "react";
+import { LONG_PRESS_MS } from "@/hooks/use-long-press";
 import { cssMs } from "@/lib/hover-scroll";
 import { OPEN_LAYERS, setDragging } from "@/lib/layers";
 
@@ -169,6 +170,7 @@ export class HoldTouchSensor implements SensorInstance {
 
   private readonly props: SensorProps<HoldOptions>;
   private readonly origin: { x: number; y: number };
+  private readonly since = Date.now();
   private readonly listening: Listen[] = [];
   private timer = 0;
   private armed = false;
@@ -223,7 +225,9 @@ export class HoldTouchSensor implements SensorInstance {
         return;
       }
       if (event.cancelable) event.preventDefault(); // 已按住：不再让页面滚
-      if (document.querySelector(OPEN_LAYERS)) return this.cancel(); // 长按菜单已经出来：不拿起
+      // 按到了长按菜单的时间就归菜单（菜单出来了，或计时已到、菜单要等下一次提交才挂上 data-state=open 的那一帧）：不拿起。
+      // 两边用同一个时长（hooks/use-long-press.ts）；没到这个时间就动了，拿起时已标记在拖，长按计时到了也不出菜单
+      if (Date.now() - this.since >= LONG_PRESS_MS || document.querySelector(OPEN_LAYERS)) return this.cancel();
       if (!far) return;
       this.lift();
     }
@@ -455,6 +459,7 @@ const STRIP = [
   "data-row-id",
   "data-roving",
   "data-drag-list",
+  "data-drag-handle",
   "data-drag-source",
   "data-drag-landing",
   "data-drop-target",
@@ -466,16 +471,31 @@ const STRIP = [
 ];
 
 // 浮层挂在 body 上（不在会话栏、侧栏里：它们是滚动区，又可能因为动画、变换成了 fixed 的定位基准，浮层会跟着滚走——
-// 第 5 轮实测会话栏滚到底时浮层被带出了可视区）。原来那一项从祖先继承来的字体、字色照抄到克隆上，看起来同原来一样
-const INHERITED = ["color", "font-family", "font-size", "font-weight", "line-height", "letter-spacing", "direction"];
+// 第 5 轮实测会话栏滚到底时浮层被带出了可视区）。挂到 body 上就离开了原来的祖先：靠祖先生效的样式（公司组里对话行的缩进变量
+// --cc-row-indent 定义在 [data-slot="cc-project-items"] 上，手机抽屉的行、组头规则挂在 .cc-drawer 下，字体字色从祖先继承）
+// 都会丢，拿起时文字横跳、变色（第 5 轮审查）。所以克隆外面再套一层层祖先的空壳（只抄元素本身、不带兄弟，display: contents
+// 不占版面）：后代选择器、变量与继承都同原来一样，看起来就是原来那一项。
+function strip(el: Element) {
+  for (const name of STRIP) el.removeAttribute(name);
+}
 
-function cloneOf(node: HTMLElement): HTMLElement {
+export function cloneOf(node: HTMLElement): HTMLElement {
   const copy = node.cloneNode(true) as HTMLElement;
-  for (const el of [copy, ...copy.querySelectorAll<HTMLElement>("*")]) for (const name of STRIP) el.removeAttribute(name);
-  for (const name of ["transform", "transition", "opacity", "margin"]) copy.style.removeProperty(name);
-  const style = getComputedStyle(node);
-  for (const name of INHERITED) copy.style.setProperty(name, style.getPropertyValue(name));
-  return copy;
+  for (const el of [copy, ...copy.querySelectorAll<HTMLElement>("*")]) strip(el);
+  for (const name of ["transform", "transition", "opacity"]) copy.style.removeProperty(name);
+  // 外边距不要（公司组类上的组上间距也盖掉）：浮层的高度是原来那一项的框高，带着外边距整块会下移、底部被裁
+  copy.style.setProperty("margin", "0");
+  let shell: HTMLElement = copy;
+  for (let up = node.parentElement; up && up !== document.body && up !== document.documentElement; up = up.parentElement) {
+    const wrap = up.cloneNode(false) as HTMLElement;
+    strip(wrap);
+    // 外壳不算一层弹层（浮着的会话栏、抽屉是对话框时，按 role 数开着的层——返回键、Esc——不能多数一份）
+    for (const name of ["role", "aria-modal"]) wrap.removeAttribute(name);
+    wrap.style.setProperty("display", "contents", "important");
+    wrap.appendChild(shell);
+    shell = wrap;
+  }
+  return shell;
 }
 
 const Copy: FC<{ node: HTMLElement | null }> = ({ node }) => {
@@ -542,7 +562,7 @@ type HandleOptions = {
 
 type Draggable = Pick<ReturnType<typeof useDraggable>, "attributes" | "listeners" | "setActivatorNodeRef">;
 
-export type DragHandle = { ref: (el: HTMLElement | null) => void } & Pick<
+export type DragHandle = { ref: (el: HTMLElement | null) => void; "data-drag-handle"?: "" } & Pick<
   HTMLAttributes<HTMLElement>,
   | "role"
   | "tabIndex"
@@ -565,6 +585,8 @@ function handleOf(drag: Draggable, { disabled, ownFocus, skip }: HandleOptions):
     ...(ownFocus ? aria : { ...drag.attributes, role, tabIndex }),
     ...(listeners
       ? {
+          // 能拖的把手：悬停出抓手光标（globals.css 的 [data-drag-handle]，各处同一条；不能拖时——搜索中、没存到服务端——不加）
+          "data-drag-handle": "" as const,
           onMouseDown: (event: ReactMouseEvent) => !skipped(event) && listeners.onMouseDown?.(event),
           onTouchStart: (event: ReactTouchEvent) => !skipped(event) && listeners.onTouchStart?.(event),
           onKeyDown: (event: ReactKeyboardEvent) => listeners.onKeyDown?.(event),

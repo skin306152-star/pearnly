@@ -2,7 +2,8 @@
 import { useRef } from "react";
 import { isDragging } from "@/lib/layers";
 
-const LONG_PRESS_MS = 500;
+/** 长按出菜单的时长；共用拖动（components/ui/drag.tsx）按到这个时间就不再拿起，两边同一个数。 */
+export const LONG_PRESS_MS = 500;
 const LONG_PRESS_SLOP = 10;
 const CONTEXT_MENU_WINDOW_MS = 1500;
 

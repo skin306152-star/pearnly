@@ -10,6 +10,7 @@
 // 换分组方式整表重拉（list-sync.ts）。「创建日期」只排已经加载的行：服务端分页仍按上次更新（列表行带 created_at），不加服务端排序。
 
 import { create } from "zustand";
+import { clearSidebarOrder } from "./sidebar-order";
 
 export type GroupBy = "company" | "month" | "none";
 export type SortBy = "updated" | "created" | "name";
@@ -102,8 +103,10 @@ export function setSidebarView(patch: Partial<SidebarView>) {
   }
 }
 
+/** 「恢复默认设置」：分组和排序回默认，手排的公司组、置顶顺序也清掉（回到按排序方式排）。 */
 export function resetSidebarView() {
   setSidebarView(DEFAULT_VIEW);
+  clearSidebarOrder();
 }
 
 /** 列表按公司分组取（分组接口）；按月份、不分组时用普通列表。 */

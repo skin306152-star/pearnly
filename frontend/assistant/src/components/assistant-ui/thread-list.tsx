@@ -43,7 +43,7 @@ import { NO_FILING, type ProjectRow, setDraft, setError, showMore, useProjects }
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { bindFoldUser, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
 import { companySections, flatSections, groupOpen, monthSections } from "@/lib/managed-agents/sidebar-groups";
-import { bindOrderUser, moveBy, moveTo, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindOrderUser, forgetPinned, moveBy, moveTo, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import {
   companyDrag,
   fromDrag,
@@ -275,6 +275,16 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     bindFoldUser(user);
     bindOrderUser(user);
   }, [user]);
+  // 取消置顶了（单条、批量、别的设备上）：从手排的置顶顺序里去掉，以后再置顶算新的、排最上面。只看已加载的行（没加载的不知道）
+  useEffect(() => {
+    if (!order.pinned.length) return;
+    const unpinned = threadIds.flatMap((id) => {
+      const item = itemsById.get(id);
+      return item && !item.custom?.starred ? [item.remoteId ?? id] : [];
+    });
+    const gone = unpinned.filter((key) => order.pinned.includes(key));
+    if (gone.length) forgetPinned(gone);
+  }, [threadIds, itemsById, order.pinned]);
   // 拖动中侧栏被卸下（换产品、退出）：多选整批变淡的标记一并去掉
   useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
 

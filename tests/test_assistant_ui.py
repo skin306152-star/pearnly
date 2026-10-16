@@ -2863,7 +2863,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("<MoreHorizontalIcon />", menu)
         order = [menu.index(x) for x in ("sb.groupBy", "sb.sortBy", "sb.show", "{sb.resetDefaults}")]
         self.assertEqual(order, sorted(order))
-        self.assertIn("disabled={isDefaultView(view)}", menu)
+        # 恢复默认设置：跟默认一样、也没手排过公司组 / 置顶（第 5 轮）才不可点
+        self.assertIn("disabled={isDefaultView(view) && !manual}", menu)
         # D：「＋」照旧：在这家开新对话（月份 = 上个月）
         self.assertIn("<GroupNew onClick={() => newChatIn(project.id)} />", head)
         self.assertIn('start(project ? { project, period: period ? lastMonth() : "" } : NO_FILING);', projects)
@@ -2951,7 +2952,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("await item.updateCustom({ ...custom, starred: !allPinned });", bulk)   # 保留 custom 里别的键
         projects = read("components/assistant-ui/projects.tsx")
         self.assertIn('<SubMenu icon={<Building2Icon />} label={sb.moveToN(sessions.length)} className="cc-menu !min-w-52 max-w-72">', projects)
-        self.assertIn('runInOrder(sessions, (id) => fileSession(id, { project, period: "", scope: "" }), report)', projects)
+        # 已经在那家的不动（第 5 轮审查，同拖动整批）
+        self.assertIn('runInOrder(notIn(sessions, project), (id) => fileSession(id, { project, period: "", scope: "" }), report)', projects)
         # 单字母快捷键：按物理键认（泰文键盘下也一样），批量时只有 P、D
         self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pin, KeyR: onRename, KeyD: remove }, close)}", rows)
         self.assertIn("onKeyDown={menuLetterKeys({ KeyP: pinAll, KeyD: deleteAll }, close)}", rows)
@@ -3871,6 +3873,43 @@ bindOrderUser("other@x");
 assert.deepEqual(useSidebarOrder.getState().companies, ["comp_C"]);
 """)
 
+    def test_unpinned_chats_leave_the_manual_order_and_reset_clears_it(self):
+        # 第 5 轮审查：取消置顶不从手排顺序里去掉，再置顶时回到旧位置（不在最上面）；「恢复默认设置」也不清手排顺序
+        self.run_page(STORAGE_STUB + r"""
+import { bindOrderUser, clearSidebarOrder, forgetPinned, hasManualOrder, orderKey, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { companySections } from "@/lib/managed-agents/sidebar-groups";
+import { DEFAULT_VIEW, resetSidebarView, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
+bindOrderUser("skin3@x");
+const row = (index: number, key: string, starred: boolean) => ({ index, title: key, starred, time: 1000 - index, group: "", key });
+// 置顶 A、B、C，把 A 拖到最后：[B, C, A]
+setPinnedOrder(["sB", "sC", "sA"]);
+const pinnedOf = (rows: any[]) => companySections(rows, [], { pinnedOrder: useSidebarOrder.getState().pinned })!.find((x: any) => x.key === "pinned")!.indices;
+// 取消 A 的置顶 → 从记下的顺序里去掉（不认得的键不动）
+forgetPinned(["sA", "nope"]);
+assert.deepEqual(useSidebarOrder.getState().pinned, ["sB", "sC"]);
+assert.deepEqual(JSON.parse(storage.get(orderKey("skin3@x"))!).pinned, ["sB", "sC"]);
+// 再置顶 D 和 A：两条都是新置顶的，排最上面（它们之间照排序方式）
+assert.deepEqual(pinnedOf([row(0, "sA", true), row(1, "sB", true), row(2, "sC", true), row(3, "sD", true)]), [0, 3, 1, 2]);
+// 恢复默认设置：分组和排序回默认，手排的公司组、置顶顺序一起清掉，本机记下的也删掉
+setCompanyOrder(["comp_B", "comp_A"]);
+setSidebarView({ sort: "name" });
+assert.equal(hasManualOrder(useSidebarOrder.getState()), true);
+resetSidebarView();
+assert.deepEqual(useSidebarView.getState(), DEFAULT_VIEW);
+assert.deepEqual(useSidebarOrder.getState(), { companies: [], pinned: [] });
+assert.equal(hasManualOrder(useSidebarOrder.getState()), false);
+assert.equal(storage.has(orderKey("skin3@x")), false);
+clearSidebarOrder();                                   // 本来就空：不再写
+assert.equal(storage.has(orderKey("skin3@x")), false);
+""")
+        rows = read("components/assistant-ui/thread-list.tsx")
+        groups = rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0]
+        # 侧栏按已加载的行收拾：不再置顶的（单条、批量、别的设备）从手排顺序里去掉
+        self.assertIn("return item && !item.custom?.starred ? [item.remoteId ?? id] : [];", groups)
+        self.assertIn("if (gone.length) forgetPinned(gone);", groups)
+        # 「恢复默认设置」：分组和排序跟默认一样、也没手排过才不可点
+        self.assertIn("disabled={isDefaultView(view) && !manual} onSelect={resetSidebarView}", read("components/assistant-ui/sidebar-group.tsx"))
+
     def test_what_can_be_dropped_where(self):
         self.run_page(r"""
 import { sidebarAccepts } from "@/lib/managed-agents/sidebar-drag";
@@ -3928,7 +3967,22 @@ assert.equal(useProjects.getState().error, "ไม่มีสิทธิ์ใ
 assert.equal(filingOf("sesn_b").project, "comp_A");              // 被拒的那条退回原来的公司
 assert.equal(filingOf("sesn_c").project, "");
 assert.deepEqual(useSidebarSelection.getState().ids, []);
+// 第 5 轮审查：整批里已经在目标公司的不动（不发请求、月份分店不清空；同拖回原组不动），其余照样逐条移
+noteFilings({ sesn_x: { project: "comp_A", period: "", scope: "" },
+              sesn_y: { project: "comp_B", period: "2026-09", scope: "" }, sesn_z: { project: "comp_B", period: "2026-09", scope: "00012" } });
+const before = moves().length;
+await moveDragged(["sesn_x", "sesn_y", "sesn_z"], "comp_B", true);
+assert.deepEqual(moves().slice(before).map((m: any) => m.session_id), ["sesn_x"]);
+assert.deepEqual(filingOf("sesn_y"), { project: "comp_B", period: "2026-09", scope: "" });
+assert.deepEqual(filingOf("sesn_z"), { project: "comp_B", period: "2026-09", scope: "00012" });
+// 移出公司：本来就在「最近」的不动
+const before2 = moves().length;
+await moveDragged(["sesn_a", "sesn_x"], "", true);
+assert.deepEqual(moves().slice(before2).map((m: any) => [m.session_id, m.project]), [["sesn_x", ""]]);
 """)
+        # 行菜单「将 N 项移到…」同一个过滤
+        self.assertIn("void runInOrder(notIn(sessions, project), (id) => fileSession(id, { project, period: \"\", scope: \"\" }), report).then(onDone);",
+                      read("components/assistant-ui/projects.tsx"))
 
     def test_escape_while_dragging_only_cancels_the_drag(self):
         # 第 4 轮测试机第 9 项：键盘拿起卡片按 Esc，拖动库在 document 上收到就结束了拖动，挂在 window 上的侧栏 Esc 随后才收到同一个
@@ -4006,6 +4060,87 @@ p = press({ moveToLift: true });
 await g.sleep(280);
 p.on.touchend!({});
 assert.deepEqual(p.log, ["abort", "end"]);
+// 第 5 轮审查：按到长按菜单的时间（菜单计时已到、要下一次提交才挂上）再动：归菜单，不拿起，两者不同时出现
+p = press({ moveToLift: true });
+await g.sleep(520);
+p.move(100, 130);
+assert.deepEqual(p.log, ["abort", "cancel"]);
+""")
+        # 两边同一个时长
+        self.assertIn("export const LONG_PRESS_MS = 500;", read("hooks/use-long-press.ts"))
+        self.assertIn("if (Date.now() - this.since >= LONG_PRESS_MS || document.querySelector(OPEN_LAYERS)) return this.cancel();",
+                      read("components/ui/drag.tsx"))
+
+    def test_lifted_copy_keeps_the_ancestor_scoped_styles(self):
+        # 第 5 轮审查：浮层挂在 body 上，克隆丢了祖先给的变量与规则（公司组里对话行的 --cc-row-indent、手机抽屉 .cc-drawer 下的
+        # 内边距与字色），拿起时文字左跳、变淡；公司组克隆带着类上的组上间距，整块下移、底部被裁。现在克隆外面套一层层祖先的空壳
+        # （只抄元素本身、display: contents 不占版面），克隆根的外边距清零
+        self.run_page(r"""
+import { cloneOf } from "@/components/ui/drag";
+const g = globalThis as any;
+type El = { tag: string; attrs: Map<string, string>; style: Map<string, string>; kids: El[]; parentElement: El | null; [k: string]: any };
+function el(tag: string, attrs: Record<string, string> = {}, kids: El[] = []): El {
+  const e: El = {
+    tag, attrs: new Map(Object.entries(attrs)), style: new Map(), kids: [], parentElement: null,
+    removeAttribute(n: string) { e.attrs.delete(n); },
+    appendChild(k: El) { k.parentElement = e; e.kids.push(k); return k; },
+    cloneNode(deep: boolean) {
+      const c = el(tag, Object.fromEntries(e.attrs));
+      for (const [k, v] of e.style) c.style.set(k, v);
+      if (deep) for (const k of e.kids) c.appendChild(k.cloneNode(true));
+      return c;
+    },
+    querySelectorAll() { const all: El[] = []; const walk = (x: El) => x.kids.forEach((k) => (all.push(k), walk(k))); walk(e); return all; },
+  };
+  e.style = Object.assign(new Map<string, string>(), {
+    setProperty(n: string, v: string, p?: string) { (e.style as any).set(n, p ? `${v} !${p}` : v); },
+    removeProperty(n: string) { (e.style as any).delete(n); },
+  }) as any;
+  for (const k of kids) e.appendChild(k);
+  return e;
+}
+const html = el("html");
+const body = html.appendChild(el("body"));
+g.document.body = body;
+g.document.documentElement = html;
+// 抽屉 → 公司组 → 这组的行区域 → 一行（行里的开关是把手）
+const sheet = body.appendChild(el("div", { role: "dialog", "data-state": "open", "aria-modal": "true" }));
+const drawer = sheet.appendChild(el("div", { class: "cc-drawer", id: "drawer" }));
+const section = drawer.appendChild(el("div", { class: "cc-group-section", "data-drop-target": "" }));
+const items = section.appendChild(el("div", { "data-slot": "cc-project-items", class: "cc-group-items" }));
+const row = items.appendChild(el("li", { "data-slot": "aui_thread-list-item", "data-row-id": "t1", "data-selected": "", "data-drag-source": "ghost" },
+  [el("button", { "data-slot": "aui_thread-list-item-trigger", "data-roving": "", "data-drag-handle": "", "aria-describedby": "dnd-1" })]));
+row.style.set("transform", "translate3d(0, 4px, 0)");
+row.style.set("transition", "transform 200ms");
+const shell = cloneOf(row as any) as any as El;
+// 外面是一层层祖先的空壳，从抽屉起（不含 body），各层不占版面、只带自己的类与 data-slot
+const chain: El[] = [];
+for (let at: El | undefined = shell; at; at = at.kids[0]) chain.push(at);
+assert.deepEqual(chain.map((x) => x.tag), ["div", "div", "div", "div", "li", "button"]);
+// 外壳不算一层弹层（按 role 数开着的层不多一份），状态类属性照留（样式按它）
+assert.equal(chain[0]!.attrs.has("role"), false);
+assert.equal(chain[0]!.attrs.has("aria-modal"), false);
+assert.equal(chain[0]!.attrs.get("data-state"), "open");
+chain.shift();
+assert.deepEqual(chain.slice(0, 3).map((x) => x.attrs.get("class")), ["cc-drawer", "cc-group-section", "cc-group-items"]);
+assert.equal(chain[2]!.attrs.get("data-slot"), "cc-project-items");
+for (const wrap of chain.slice(0, 3)) {
+  assert.equal(wrap.kids.length, 1);                              // 不带兄弟
+  assert.equal(wrap.style.get("display"), "contents !important");
+}
+assert.equal(chain[0]!.attrs.has("id"), false);                   // 会被别处按属性找到的标记都去掉
+assert.equal(chain[1]!.attrs.has("data-drop-target"), false);
+// 克隆本身：去掉标记与拖动位移，外边距清零（盖过类上的组上间距）
+const copy = chain[3]!;
+for (const name of ["data-row-id", "data-selected", "data-drag-source"]) assert.equal(copy.attrs.has(name), false, name);
+assert.equal(copy.attrs.get("data-slot"), "aui_thread-list-item");
+assert.equal(copy.style.has("transform"), false);
+assert.equal(copy.style.has("transition"), false);
+assert.equal(copy.style.get("margin"), "0");
+for (const name of ["data-roving", "data-drag-handle", "aria-describedby"]) assert.equal(chain[4]!.attrs.has(name), false, name);
+// 原来那一项不动
+assert.equal(row.parentElement, items);
+assert.equal(row.attrs.get("data-row-id"), "t1");
 """)
 
     def test_sidebar_drag_wiring(self):

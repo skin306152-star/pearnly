@@ -29,6 +29,7 @@ import {
   type SortBy,
   useSidebarView,
 } from "@/lib/managed-agents/sidebar-view";
+import { hasManualOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { cn } from "@/lib/utils";
 
 /** 组标题的菜单键（键盘上的菜单键、Shift + F10）：打开这一组的「···」。 */
@@ -143,6 +144,8 @@ const Choice: FC<{ label: string; on: boolean; onPick: () => void; keep?: boolea
 /** 组标题右侧的「···」：打开「分组和排序」。open / onOpenChange 只有公司组头传（长按组头、菜单键也打开它）。 */
 export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) => void }> = ({ open, onOpenChange }) => {
   const view = useSidebarView();
+  // 「恢复默认设置」也清手排的公司组、置顶顺序：两样都跟默认一样才不可点
+  const manual = useSidebarOrder(hasManualOrder);
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
@@ -177,7 +180,7 @@ export const GroupSortMenu: FC<{ open?: boolean; onOpenChange?: (open: boolean) 
             <Choice keep label={sb.emptyGroups} on={view.empty} onPick={() => setSidebarView({ empty: !view.empty })} />
           </SubMenu>
           <DropdownMenu.Separator className="cc-menu-sep" />
-          <DropdownMenu.Item className="cc-menu-item" disabled={isDefaultView(view)} onSelect={resetSidebarView}>
+          <DropdownMenu.Item className="cc-menu-item" disabled={isDefaultView(view) && !manual} onSelect={resetSidebarView}>
             {sb.resetDefaults}
           </DropdownMenu.Item>
         </DropdownMenu.Content>

@@ -2,7 +2,8 @@
 //
 //   公司组 — 按公司分组时公司组可拖成任意顺序；拖过一次以后各组按手排的顺序，新出现的公司（手排时还没有的）排最上面
 //            （按排序方式排在它们自己之间）。组里的对话照排序方式排，不能在组里调序。
-//   置顶   — 已置顶的对话可拖着排先后（三种分组方式都一样）；新置顶的排最上面。
+//   置顶   — 已置顶的对话可拖着排先后（三种分组方式都一样）；新置顶的排最上面（取消置顶就从记下的顺序里去掉，再置顶算新的）。
+//   恢复默认设置（「分组和排序」菜单）一并清掉这两份手排的顺序。改排序方式不清：手排过的公司组、置顶仍按手排的先后。
 //
 // 按人记住：同「分组和排序」、折叠（sidebar-view.ts、sidebar-fold.ts）与右侧栏卡片顺序（lib/company-panel.ts）一样，每台设备、
 // 每个用户各记各的（localStorage，键带用户；不跨设备同步）；存不了（无痕窗口）时本次照样生效。
@@ -68,7 +69,8 @@ function save(patch: Partial<SidebarOrder>) {
   useSidebarOrder.setState(next, true);
   if (!owner) return; // 还不知道是谁：本次照样生效，不写进不带人的键
   try {
-    storage()?.setItem(orderKey(owner), JSON.stringify(next));
+    if (next.companies.length || next.pinned.length) storage()?.setItem(orderKey(owner), JSON.stringify(next));
+    else storage()?.removeItem(orderKey(owner));
   } catch {
     // 无痕窗口等存不了：本次照样生效
   }
@@ -83,6 +85,22 @@ export function setCompanyOrder(shown: readonly string[]) {
 export function setPinnedOrder(shown: readonly string[]) {
   save({ pinned: mergeOrder(shown, useSidebarOrder.getState().pinned) });
 }
+
+/** 这些对话不再置顶了：从手排的置顶顺序里去掉，以后再置顶时算新的、排最上面（第 5 轮审查：只增不减时再置顶会回到旧位置）。 */
+export function forgetPinned(keys: readonly string[]) {
+  const { pinned } = useSidebarOrder.getState();
+  const next = pinned.filter((key) => !keys.includes(key));
+  if (next.length !== pinned.length) save({ pinned: next });
+}
+
+/** 「恢复默认设置」：手排的公司组与置顶顺序都不要了，回到按排序方式排。 */
+export function clearSidebarOrder() {
+  const { companies, pinned } = useSidebarOrder.getState();
+  if (companies.length || pinned.length) save(EMPTY);
+}
+
+/** 手排过（「恢复默认设置」可点）。 */
+export const hasManualOrder = (order: SidebarOrder) => order.companies.length > 0 || order.pinned.length > 0;
 
 // ---------------------------------------------------------------- 纯函数
 /** 眼前的新先后 + 之前记下、这次没显示的（接在后面，相对先后不变）。 */

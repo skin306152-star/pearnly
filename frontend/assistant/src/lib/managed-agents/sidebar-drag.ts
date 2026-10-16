@@ -10,7 +10,7 @@
 import type { DragData } from "@/components/ui/drag";
 import { shownError } from "@/lib/frappe";
 import { clearSelection, runInOrder } from "@/lib/sidebar-keys";
-import { fileSession, setError } from "./projects";
+import { fileSession, notIn, setError } from "./projects";
 
 export const pinDrag = (local: string) => `pin:${local}`;
 export const rowDrag = (local: string) => `row:${local}`;
@@ -25,8 +25,8 @@ export function sidebarAccepts(active: DragData, target: DragData): boolean {
   return !!active.list && active.list === target.list;
 }
 
-/** 拖到别的公司 / 最近：一条做完再下一条，某一条失败不挡后面的，第一个错误写在侧栏出错行；整批的做完清空多选。 */
+/** 拖到别的公司 / 最近：已经在那里的不动，其余一条做完再下一条，某一条失败不挡后面的，第一个错误写在侧栏出错行；整批的做完清空多选。 */
 export async function moveDragged(sessions: readonly string[], project: string, bulk: boolean): Promise<void> {
-  await runInOrder(sessions, (id) => fileSession(id, { project, period: "", scope: "" }), (error) => setError(shownError(error)));
+  await runInOrder(notIn(sessions, project), (id) => fileSession(id, { project, period: "", scope: "" }), (error) => setError(shownError(error)));
   if (bulk) clearSelection();
 }

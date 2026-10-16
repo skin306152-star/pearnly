@@ -46,6 +46,7 @@ import {
   filingOf,
   hintTitle,
   NO_FILING,
+  notIn,
   type ProjectRow,
   setDraft,
   setError,
@@ -279,7 +280,7 @@ export const BulkMoveMenu: FC<{ sessions: readonly string[]; onDone: () => void 
   const kind = useProjects((s) => s.kind);
   if (!kind || !sessions.length) return null;
   const move = (project: string) =>
-    void runInOrder(sessions, (id) => fileSession(id, { project, period: "", scope: "" }), report).then(onDone);
+    void runInOrder(notIn(sessions, project), (id) => fileSession(id, { project, period: "", scope: "" }), report).then(onDone);
   return (
     <SubMenu icon={<Building2Icon />} label={sb.moveToN(sessions.length)} className="cc-menu !min-w-52 max-w-72">
       <CompanyChoices current={NO_CURRENT} onPick={move} />
