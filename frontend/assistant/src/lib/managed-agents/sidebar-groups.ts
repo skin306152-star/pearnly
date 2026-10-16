@@ -50,6 +50,8 @@ export type SectionOptions = {
   companyOrder?: readonly string[];
   /** 手排的置顶顺序（行的 key；空 = 按排序方式）。 */
   pinnedOrder?: readonly string[];
+  /** 要留在眼前的行（key）：在公司组「显示更多」之外时接在已显示的最后（刚拖进这一组的对话，落在哪就留在哪）。 */
+  keep?: readonly string[];
 };
 
 const UPDATED_DESC: SortOptions = { by: "updated", desc: true };
@@ -101,6 +103,8 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   const sort = options.sort ?? UPDATED_DESC;
   const sorted = [...rows].sort(compareRows(sort));
   const recentFirst = [...rows].sort(compareRows(UPDATED_DESC));
+  const keys = new Map(rows.map((row) => [row.index, row.key ?? String(row.index)]));
+  const keyOf = (index: number) => keys.get(index) ?? String(index);
 
   const sections: SidebarSection[] = [];
   const pinned = pinnedIndices(sorted, matches, options.pinnedOrder);
@@ -135,7 +139,9 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
     const all = sorted.filter((row) => !row.starred && groupOf(row) === project.id && matches(row)).map((row) => row.index);
     if (query && !all.length && !project.title.toLowerCase().includes(query)) continue;
     if (!query && !all.length && options.empty === false) continue;
-    const indices = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
+    const first = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
+    const kept = options.keep?.length ? all.slice(first.length).filter((index) => options.keep!.includes(keyOf(index))) : [];
+    const indices = kept.length ? [...first, ...kept] : first;
     const serverHas = project.id in (options.serverMore ?? {});
     const more = !query && (all.length > indices.length || serverHas);
     const order = !anyChats || all.length || serverHas ? rank++ : OPEN_FIRST + empties++;
@@ -147,6 +153,50 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
 
   if (query && !sections.length) return null;
   return sections;
+}
+
+/** 拖对话时眼前没有「最近」组：补一个空的（好拖出公司；同 companySections 的排法，在最后）。 */
+export function withRecents(sections: SidebarSection[]): SidebarSection[] {
+  return sections.some((section) => section.type === "recents") ? sections : [...sections, { type: "recents", key: "recents", indices: [] }];
+}
+
+/** 拖动中对话的空档去了别的组（按公司分组，共用拖动的 onPlace）：把这一行从原来那组拿掉，按排序方式排进 to（公司编号，"" = 最近）
+ *  那一组——就是它移过去以后的位置；那组「显示更多」之外的放在已显示的最后。各组的名次、展开、「显示更多」不变（只是摆法）；
+ *  去最近而眼前没有最近组时补一个。找不到那一组（不在眼前）回原样。 */
+export function liftRow(
+  sections: SidebarSection[],
+  rows: readonly SidebarRow[],
+  index: number,
+  to: string,
+  sort: SortOptions = UPDATED_DESC,
+): SidebarSection[] {
+  const lifted = rows.find((row) => row.index === index);
+  const base = to ? sections : withRecents(sections);
+  const target = base.find((section) => (to ? section.type === "project" && section.project.id === to : section.type === "recents"));
+  if (!lifted || !target) return sections;
+  const byIndex = new Map(rows.map((row) => [row.index, row]));
+  const compare = compareRows(sort);
+  const order = (a: number, b: number) => {
+    const x = byIndex.get(a);
+    const y = byIndex.get(b);
+    return x && y ? compare(x, y) : a - b;
+  };
+  const without = (list: readonly number[]) => list.filter((at) => at !== index);
+  return base.map((section) => {
+    if (section.type === "pinned" || section.type === "month") return section;
+    const indices = without(section.indices);
+    if (section !== target) {
+      return section.type === "project" ? { ...section, indices, all: without(section.all) } : { ...section, indices };
+    }
+    const rest = without(section.type === "project" ? section.all : section.indices);
+    const all = [...rest, index].sort(order);
+    const at = all.indexOf(index);
+    // 已显示的前面那一段（不含接在后面留着的）里才按位置插，之外的接在最后
+    let shown = 0;
+    while (shown < indices.length && indices[shown] === rest[shown]) shown++;
+    const placed = at < shown ? [...indices.slice(0, at), index, ...indices.slice(at)] : [...indices, index];
+    return section.type === "project" ? { ...section, indices: placed, all } : { ...section, indices: placed };
+  });
 }
 
 /** 按处理月份：已置顶 → 各月（降序新的在前，升序旧的在前）→ 未指定月份（键 month:）。 */

@@ -696,7 +696,8 @@
   --cc-panel-ring: inset 0 0 0 1px var(--cc-line);
   --cc-drag-scale: 1.02;          /* 共用拖动：拿起的那一项略放大、略透明（同 Claude 会话栏，开发窗口 10-16 定） */
   --cc-drag-opacity: 0.9;
-  --cc-drag-ghost: 0.4;           /* 拖到别的组时原位（与多选里一起拖的其余各行）留的淡影 */
+  --cc-drag-ghost: 0.4;           /* 多选里一起拖的其余各行留的淡影 */
+  --cc-drag-fold: 0.96;           /* 对话落到收着的组：浮层落到组头时收起（略缩、淡掉） */
   --cc-dot-ring: inset 0 0 0 var(--cc-ring-w) var(--cc-ink-3);  /* 月结台账「暂无」那一段的空心状态点 */
   --cc-radius-panel: var(--code-radius-10);
   /* 列表页（公司、待处理、定时任务；设计文档 3.14）：内容宽 960、标题 24/31 字重 500、搜索框 36 圆角 7、主按钮 24、卡片约 314×108 */
@@ -1685,9 +1686,9 @@
   .cc-marquee[data-marquee] > .cc-marquee-text { transform: none; transition: none; }
 }
 /* 共用拖动（components/ui/drag.tsx，同 Claude 视频 IMG_5192；放在分层外，盖过行上的工具类）：拿起的那一项换成浮层（克隆原来的样子）——
-   弹层底、弹出阴影、略透明、略放大，拿起时从原样浮起；放下时（data-dropping）阴影、放大随落位动画一起收回。原位：排序时留空（gap），
-   拖到别的组时留淡影（ghost，多选里一起拖的其余各行也是）；落位动画播完前落点那一项先不显示（data-drag-landing）。能放的组经过时
-   整块用悬停色高亮。拖动中整页 grabbing */
+   弹层底、弹出阴影、略透明、略放大，拿起时从原样浮起；放下时（data-dropping）阴影、放大随落位动画一起收回，落到收着的组
+   （data-dropping="into"）同时淡掉收起。原位留空（gap，排序与侧栏对话拖到别的公司一样；多选里一起拖的其余各行留淡影）；落位动画
+   播完前落点那一项先不显示（data-drag-landing）。对话要去的组收着（放不下空档）时整块（组头）用悬停色高亮。拖动中整页 grabbing */
 .cc-drag-overlay { cursor: grabbing; }
 .cc-drag-float, .cc-drag-lift { height: 100%; }
 .cc-drag-lift {
@@ -1697,13 +1698,15 @@
 }
 .cc-drag-float[data-kind="card"] .cc-drag-lift { border-radius: var(--cc-radius-panel); }
 .cc-drag-overlay[data-dropping] .cc-drag-lift { scale: 1; opacity: 1; box-shadow: none; }
+.cc-drag-overlay[data-dropping="into"] .cc-drag-lift { scale: var(--cc-drag-fold); opacity: 0; }
 .cc-drag-count {
   position: absolute; inset-block-start: 50%; inset-inline-end: var(--cc-row-pad); translate: 0 -50%; min-width: var(--cc-row-ctl);
   padding-inline: 0.375rem; border-radius: var(--cc-radius-full); background: var(--cc-ink); color: var(--cc-bg-app);
   font-size: var(--cc-text-caption); line-height: var(--cc-row-ctl); text-align: center; font-variant-numeric: tabular-nums;
 }
 [data-drag-source="gap"] { opacity: 0; }
-[data-drag-source="ghost"], :root[data-cc-drag-bulk] [data-slot="aui_thread-list-item"][data-selected] { opacity: var(--cc-drag-ghost); }
+/* 多选里一起拖的其余各行：拖的那一条自己是空档、落位前不显示，不归这一条 */
+:root[data-cc-drag-bulk] [data-slot="aui_thread-list-item"][data-selected]:not([data-drag-source], [data-drag-landing]) { opacity: var(--cc-drag-ghost); }
 [data-drag-landing] { opacity: 0; }
 [data-drop-target] { background: var(--cc-row-hover); }
 :root[data-cc-drag] * { cursor: grabbing; }

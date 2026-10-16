@@ -610,10 +610,10 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("start: [KeyboardCode.Space],", drag)
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
         # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
-        self.assertIn('<DragOverlay dropAnimation={dropAnimation} transition={keyboardMove} className="cc-drag-overlay">', drag)
+        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} className="cc-drag-overlay">', drag)
         # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走
         self.assertIn("createPortal(overlay, document.body)", drag)
-        self.assertIn('landing.node.dataset.dragLanding = "";', drag)
+        self.assertIn('active.node.dataset.dragLanding = "";', drag)
         self.assertIn('return { duration: cssMs(css.getPropertyValue("--cc-dur"), 200), easing: css.getPropertyValue("--cc-ease").trim() || "ease" };', drag)
         self.assertIn('if (root.dataset.ccMotion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return null;', drag)
         # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区
@@ -624,7 +624,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("return pointerWithin({ ...args, droppableContainers, pointerCoordinates });", drag)
         # 拖动标记：Esc 只取消拖动
         self.assertIn("setDragging(true);", drag)
-        self.assertIn("useEffect(() => () => setDragging(false), []);", drag)
+        self.assertIn("setDragging(false);\n      landing.land(); // 卸下时还没交的放下照样交（移动请求照发）", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
         self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>', drag)
         for name in ('"data-card"', '"data-row-id"', '"data-roving"', '"data-selected"'):
