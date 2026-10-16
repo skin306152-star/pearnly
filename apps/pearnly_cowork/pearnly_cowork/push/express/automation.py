@@ -42,6 +42,9 @@ VOID_WORDS = ("ยกเลิก", "ใบรับคืน")
 _VOID_LATIN = re.compile(r"\bvoid\b", re.IGNORECASE)
 # 文字层 PDF 的页：识别链第一段是 PDF 文字层（`ocr.engine.runner.pipeline_page` 的 ``["text", "L2"]``）
 TEXT_STAGE = "text"
+# 文字层 PDF 的原件：每页平均至少这么多字（同识别取文字层的门槛 `ocr.inputs_runtime.source._text_pages`）。
+# 生产的文字层快路关着（10-02 eval8：泰文字体乱码），电子 PDF 照图片直读，所以只看识别链判不出原件是不是电子 PDF。
+TEXT_CHARS_PER_PAGE = 200
 # 录入时由识别后处理推出、不是读出来的金额：简式税票按 7/107 拆的（`ocr.pages.INCLUDED_VAT_AUDIT`）、补出的折扣
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
@@ -229,10 +232,16 @@ def date_in_text(day: Optional[dt.date], text: Optional[str]) -> bool:
 # ── 第 2 条：自动推前的核对 ──────────────────────────────────────────────────────
 
 
-def text_layer(pages: Sequence[Mapping[str, Any]]) -> bool:
-    """这张票的每一页都是从 PDF 文字层读的（不是图片、不是图片转的 PDF）。"""
+def text_layer(pages: Sequence[Mapping[str, Any]], text: Optional[str] = None) -> bool:
+    """这张票的原件是文字层 PDF（不是拍照、扫描件、图片转的 PDF）：每一页都是从 PDF 文字层读的；或者原件这几页的
+    文字层（``text``，`history.text_layer`）每页平均够 `TEXT_CHARS_PER_PAGE` 字 —— 生产里电子 PDF 也照图片直读，
+    识别链第一段不是 ``text``（第 15 条回放查出，按设计「文字层 PDF 才能进 A / B」的原意纠正）。"""
     pages = [page for page in pages or () if isinstance(page, Mapping)]
-    return bool(pages) and all(list(page.get("_layer_chain") or [])[:1] == [TEXT_STAGE] for page in pages)
+    if not pages:
+        return False
+    if all(list(page.get("_layer_chain") or [])[:1] == [TEXT_STAGE] for page in pages):
+        return True
+    return isinstance(text, str) and len(text.strip()) >= TEXT_CHARS_PER_PAGE * len(pages)
 
 
 def _notes(pages) -> List[str]:
@@ -346,7 +355,7 @@ def checks(facts: Facts) -> List[str]:
         found.append("review_reasons")
     # 票种：文字层 PDF 才能进 A / B
     text = facts.text if isinstance(facts.text, str) else ""
-    is_text = text_layer(facts.pages)
+    is_text = text_layer(facts.pages, text)
     if not is_text and not IMAGES_ALLOWED:
         found.append("image")
     day = _invoice_date(facts)
@@ -562,5 +571,5 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
 
 
 __all__ = ["A", "AMOUNT_TOLERANCE", "B", "C", "CLASSES", "EARLIEST_DAYS", "Facts", "HISTORY_FRESH_DAYS",
-           "IMAGES_ALLOWED", "Verdict", "amount_in_text", "checks", "classify", "conflicts", "date_in_text", "layers",
-           "reason_codes", "text_layer", "tiers"]
+           "IMAGES_ALLOWED", "TEXT_CHARS_PER_PAGE", "Verdict", "amount_in_text", "checks", "classify", "conflicts",
+           "date_in_text", "layers", "reason_codes", "text_layer", "tiers"]

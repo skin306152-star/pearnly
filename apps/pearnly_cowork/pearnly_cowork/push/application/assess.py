@@ -93,7 +93,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     facts = automation.Facts(
         direction=direction, fields=dated, decision=decision, payload=payload, config=config, today=today,
         ready=ready, blocked=blocked or conflict or reason, pages=pages, review_reasons=_list(doc.review_reasons),
-        text=text_layer.text(doc) if automation.text_layer(pages) else None, account=account_row, catalog=catalog,
+        text=text_layer.text(doc), account=account_row, catalog=catalog,
         day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
         history_read=_read_day((decision.get("history") or {}).get("read")),
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc),

@@ -251,6 +251,19 @@ class Checks(unittest.TestCase):
         self.assertIn("image", self.reasons(pages=[{"_layer_chain": ["text", "L2"]}, {"_layer_chain": ["L1", "L2"]}]))
         self.assertIn("image", self.reasons(pages=[]))
 
+    def test_an_electronic_pdf_read_like_an_image_counts_by_its_text_layer(self):
+        # 生产的文字层快路关着：电子 PDF 照图片直读（识别链不以 text 开头），按原件文字层的字数认（同识别取文字层的门槛）
+        self.assertEqual(auto.TEXT_CHARS_PER_PAGE, 200)
+        source = (APP / "ocr/inputs_runtime/source.py").read_text(encoding="utf-8")
+        self.assertIn("sum(map(len, texts)) < 200 * page_count", source)
+        direct = [{"_layer_chain": ["direct"], "fields": _fields()}]
+        long_text = TEXT + " " * 5 + "x" * (200 - len(TEXT))
+        self.assertEqual(self.reasons(pages=direct, text=long_text), [])
+        self.assertIn("image", self.reasons(pages=direct, text=TEXT))
+        self.assertIn("image", self.reasons(pages=direct * 2, text=long_text))
+        self.assertTrue(auto.text_layer(direct * 2, long_text * 2))
+        self.assertFalse(auto.text_layer([], long_text))
+
     def test_the_text_layer_must_show_the_total_and_the_date(self):
         self.assertIn("text_missing", self.reasons(text=None))
         self.assertIn("text_missing", self.reasons(text="  "))
