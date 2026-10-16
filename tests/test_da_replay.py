@@ -1,0 +1,333 @@
+"""数字会计员第 3 期第 15 条：两层回放工具（`scripts/da-replay.py`）的配对与计分，用合成样例：
+
+- 统计：Wilson 下限与达标线（0 错 381 张、1 错 563、2 错 726 张才到 99.0%）、合并估计；
+- 只读 DBF（cp874、删除行、数值 / 日期 / 双精度列）、拒绝局域网路径；
+- 判定层：合成一份 Express 账套答案（APTRN / ISVAT / GLJNL / GLJNLIT / APMAS / GLACC / ISINFO），按录入日顺序走推送同一套
+  判定：同一家供应商第一张要人选（C，模拟的人按答案选、记进账套记忆），之后按记忆定（进项正式税票的抵进项按方向推断 → B），
+  反事实计分对上答案；科目换了的那张计错；
+- 档位时间线：三套阈值并排、推错即「被改」；
+- 识别闸层：与金标逐字段比（单号只差前缀不算错）、配对、原文核对。
+纯标准库，不连库、不依赖 Frappe。
+"""
+import datetime as dt
+import importlib.util
+import pathlib
+import struct
+import sys
+import tempfile
+import unittest
+from decimal import Decimal
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
+sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
+for _name in [n for n in sys.modules if n.split(".")[0] == "pearnly_cowork"]:
+    del sys.modules[_name]
+
+_spec = importlib.util.spec_from_file_location("da_replay", ROOT / "scripts/da-replay.py")
+replay = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(replay)
+
+OWN, SELLER, OTHER = "0994000333447", "0107561000013", "0105556012341"
+
+
+def write_dbf(path, fields, rows, deleted=()):
+    """最小的 dBase III 写法（只给测试造表）：fields [(名, 类型, 长度)]，类型 C / D / N / B。"""
+    header = 32 + 32 * len(fields) + 1
+    size = 1 + sum(length for _, _, length in fields)
+    out = bytearray(struct.pack("<BBBBIHH20x", 0x30, 126, 10, 16, len(rows), header, size))
+    for name, kind, length in fields:
+        out += struct.pack("<11sc4xBB14x", name.encode("ascii"), kind.encode("ascii"), length, 2 if kind == "N" else 0)
+    out += b"\x0D"
+    for index, row in enumerate(rows):
+        out += b"*" if index in deleted else b" "
+        for name, kind, length in fields:
+            value = row.get(name)
+            if kind == "C":
+                out += str(value or "").encode("cp874").ljust(length, b" ")[:length]
+            elif kind == "D":
+                out += (value.strftime("%Y%m%d") if value else "").encode("ascii").ljust(length, b" ")
+            elif kind == "N":
+                out += ("" if value is None else f"{Decimal(value):.2f}").encode("ascii").rjust(length, b" ")
+            elif kind == "B":
+                out += struct.pack("<d", float(value or 0))
+    out += b"\x1A"
+    pathlib.Path(path).write_bytes(bytes(out))
+
+
+def make_book(folder, docs):
+    """一份合成账套答案：docs [(单号, 日期, 供应商码, 科目, 未税, 税, RECTYP)]。"""
+    tables = pathlib.Path(folder) / "原表"
+    tables.mkdir(parents=True)
+    write_dbf(tables / "ISINFO.DBF", [("ACCNUM04", "C", 15), ("ACCNUM06", "C", 15), ("ACCNUM07", "C", 15),
+                                      ("ACCNUM00", "C", 15), ("ACCNUM10", "C", 15), ("ACCNUM11", "C", 15),
+                                      ("ACCNUM02", "C", 15), ("ORGNUM", "N", 5), ("TAXID", "C", 15)],
+              [{"ACCNUM04": "51-01", "ACCNUM06": "11-50", "ACCNUM07": "21-01", "ACCNUM00": "11-01",
+                "ACCNUM10": "21-50", "ACCNUM11": "41-01", "ACCNUM02": "11-30", "ORGNUM": 0, "TAXID": OWN}])
+    write_dbf(tables / "GLACC.DBF", [("ACCNUM", "C", 15), ("ACCNAM", "C", 50)],
+              [{"ACCNUM": code, "ACCNAM": name} for code, name in (
+                  ("51-01", "ซื้อ"), ("52-01", "ค่าน้ำมัน"), ("52-02", "ค่าซ่อม"), ("11-50", "ภาษีซื้อ"),
+                  ("21-01", "เจ้าหนี้การค้า"), ("11-01", "เงินสด"), ("41-01", "ขาย"), ("21-50", "ภาษีขาย"))])
+    write_dbf(tables / "APMAS.DBF", [("SUPCOD", "C", 10), ("PRENAM", "C", 15), ("SUPNAM", "C", 60), ("TAXID", "C", 15),
+                                     ("ORGNUM", "N", 5), ("ACCNUM", "C", 15)],
+              [{"SUPCOD": "S001", "PRENAM": "บริษัท", "SUPNAM": "ผู้ขาย จำกัด", "TAXID": SELLER, "ORGNUM": 0,
+                "ACCNUM": "21-01"},
+               {"SUPCOD": "S002", "PRENAM": "บริษัท", "SUPNAM": "อีกราย จำกัด", "TAXID": OTHER, "ORGNUM": 0,
+                "ACCNUM": "21-01"}])
+    write_dbf(tables / "ARMAS.DBF", [("CUSCOD", "C", 10), ("CUSNAM", "C", 60), ("TAXID", "C", 15), ("ORGNUM", "N", 5)], [])
+    aptrn, isvat, gljnl, lines = [], [], [], []
+    for number, day, party, account, net, vat, rectyp in docs:
+        net, vat = Decimal(net), Decimal(vat)
+        aptrn.append({"RECTYP": rectyp, "DOCNUM": number, "DOCDAT": day, "REFNUM": "IV" + number[-6:], "SUPCOD": party,
+                      "TOTAL": net, "VATAMT": vat, "NETAMT": net + vat, "DOCSTAT": "N", "USERID": "ACC"})
+        isvat.append({"VATREC": "P", "DOCNUM": number, "DOCDAT": day, "REFNUM": "IV" + number[-6:],
+                      "TAXID": SELLER if party == "S001" else OTHER, "ORGNUM": 0, "AMT01": net, "VAT01": vat,
+                      "DOCSTAT": "N"})
+        gljnl.append({"VOUCHER": number, "DOCSTAT": "N", "CREDAT": day + dt.timedelta(days=2), "CREBY": "ACC"})
+        lines += [{"VOUCHER": number, "ACCNUM": account, "TRNTYP": "0", "AMOUNT": net},
+                  {"VOUCHER": number, "ACCNUM": "11-50", "TRNTYP": "0", "AMOUNT": vat},
+                  {"VOUCHER": number, "ACCNUM": "21-01", "TRNTYP": "1", "AMOUNT": net + vat}]
+    write_dbf(tables / "APTRN.DBF", [("RECTYP", "C", 1), ("DOCNUM", "C", 12), ("DOCDAT", "D", 8), ("REFNUM", "C", 15),
+                                     ("SUPCOD", "C", 10), ("TOTAL", "B", 8), ("VATAMT", "B", 8), ("NETAMT", "B", 8),
+                                     ("DOCSTAT", "C", 1), ("USERID", "C", 8)], aptrn)
+    write_dbf(tables / "ARTRN.DBF", [("RECTYP", "C", 1), ("DOCNUM", "C", 12), ("DOCDAT", "D", 8), ("CUSCOD", "C", 10),
+                                     ("TOTAL", "B", 8), ("VATAMT", "B", 8), ("NETAMT", "B", 8), ("DOCSTAT", "C", 1)], [])
+    write_dbf(tables / "ISVAT.DBF", [("VATREC", "C", 1), ("DOCNUM", "C", 12), ("DOCDAT", "D", 8), ("REFNUM", "C", 15),
+                                     ("TAXID", "C", 15), ("ORGNUM", "N", 5), ("AMT01", "B", 8), ("VAT01", "B", 8),
+                                     ("DOCSTAT", "C", 1)], isvat)
+    write_dbf(tables / "GLJNL.DBF", [("VOUCHER", "C", 12), ("DOCSTAT", "C", 1), ("CREDAT", "D", 8), ("CREBY", "C", 8)],
+              gljnl)
+    write_dbf(tables / "GLJNLIT.DBF", [("VOUCHER", "C", 12), ("ACCNUM", "C", 15), ("TRNTYP", "C", 1),
+                                       ("AMOUNT", "N", 13)], lines)
+
+
+class Statistics(unittest.TestCase):
+    def test_the_bar_matches_the_design_sample_sizes(self):
+        for errors, enough in ((0, 381), (1, 563), (2, 726)):
+            self.assertGreaterEqual(replay.wilson(enough - errors, enough)[0], 0.990, errors)
+            self.assertLess(replay.wilson(enough - 1 - errors, enough - 1)[0], 0.990, errors)
+        self.assertTrue(replay.passes_bar(381, 381))
+        self.assertFalse(replay.passes_bar(380, 380))
+        self.assertFalse(replay.passes_bar(990, 1000))  # 点估计 99.0% < 99.5%
+        self.assertEqual(replay.wilson(0, 0), (None, None))
+
+    def test_combined_estimate_multiplies_both_layers(self):
+        merged = replay.combined(990, 1000, 98, 100)
+        self.assertAlmostEqual(merged["point"], 0.99 * 0.98)
+        self.assertLess(merged["lower"], merged["point"])
+        self.assertGreater(merged["upper"], merged["point"])
+        self.assertIsNone(replay.combined(0, 0, 1, 1)["point"])
+
+
+class ReadOnlyTables(unittest.TestCase):
+    def test_reads_typed_columns_and_skips_deleted_rows(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder, "T.DBF")
+            write_dbf(path, [("CODE", "C", 6), ("DAY", "D", 8), ("AMT", "N", 10), ("DBL", "B", 8)],
+                      [{"CODE": "ก01", "DAY": dt.date(2025, 3, 4), "AMT": "12.50", "DBL": 2044.77},
+                       {"CODE": "X", "DAY": None, "AMT": None, "DBL": 0}], deleted=(1,))
+            rows = list(replay.dbf_rows(path))
+            self.assertEqual(rows, [{"CODE": "ก01", "DAY": dt.date(2025, 3, 4), "AMT": Decimal("12.50"),
+                                     "DBL": Decimal("2044.77")}])
+            self.assertEqual(list(replay.dbf_rows(path, ["CODE"])), [{"CODE": "ก01"}])
+            self.assertEqual(replay.dbf_fields(path), ["CODE", "DAY", "AMT", "DBL"])
+            self.assertEqual(list(replay.dbf_rows(pathlib.Path(folder, "NONE.DBF"))), [])
+
+    def test_lan_paths_are_refused(self):
+        for path in (r"\\Accserver\d$\ACCOUNT", "S:\\2569\\EXP69", "s:/x", "/mnt/s/EXP69"):
+            with self.assertRaises(SystemExit):
+                replay.refuse_lan(path)
+        self.assertEqual(replay.refuse_lan("/mnt/c/PearnlyStress"), pathlib.Path("/mnt/c/PearnlyStress"))
+
+
+class JudgementLayer(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        book_dir = pathlib.Path(self.folder.name, "68ACME")
+        days = [dt.date(2025, 1, 10) + dt.timedelta(days=7 * index) for index in range(6)]
+        docs = [(f"RR6801{index:02d}-001", day, "S001", "52-01", "1000.00", "70.00", "3")
+                for index, day in enumerate(days)]
+        docs.append(("RR680301-009", dt.date(2025, 3, 1), "S001", "52-02", "500.00", "35.00", "3"))  # 换了科目
+        docs.append(("HP680302-001", dt.date(2025, 3, 2), "S002", "52-01", "200.00", "14.00", "1"))
+        make_book(book_dir, docs)
+        self.book = replay.load_book(book_dir, company="ACME", own_tax=OWN, key="C:\\PearnlyExpress\\T8ACME")
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def test_answers_carry_party_account_payment_and_vat(self):
+        doc = self.book["docs"][0]
+        self.assertEqual((doc["party_code"], doc["party_tax"], doc["accounts"], doc["rectyp"], doc["register"]),
+                         ("S001", SELLER, {"52-01": "1000.00"}, "3", True))
+        self.assertEqual(replay.answer_values(doc), {"party": "S001", "account": "52-01", "payment": "credit",
+                                                     "vat": "claim"})
+        self.assertEqual(self.book["period"], (dt.date(2025, 1, 1), dt.date(2025, 12, 31)))
+        self.assertEqual(self.book["defaults"]["vat_input_acc"], "11-50")
+
+    def test_first_document_is_chosen_by_people_then_memory_decides(self):
+        m = replay._modules()
+        rows, skipped = replay.judge_company(m, [self.book])
+        self.assertEqual(dict(skipped), {})
+        by_number = {row["docnum"]: row for row in rows}
+        first = by_number["RR680100-001"]
+        self.assertEqual(first["class"], "C")
+        self.assertEqual(sorted(first["needed"]), ["account", "payment"])
+        second = by_number["RR680101-001"]
+        # 记忆定的科目与付款是 A；进项正式税票的抵进项按方向推断 → B
+        self.assertEqual(second["class"], "B", second)
+        self.assertEqual(second["reasons"], ["judged:vat"])
+        self.assertTrue(second["vat_direction_only"])
+        self.assertTrue(second["correct"])
+        self.assertEqual(second["scored"], {"party": "ok", "account": "ok", "payment": "ok", "vat": "ok"})
+        changed = by_number["RR680301-009"]
+        self.assertFalse(changed["correct"])
+        self.assertEqual(changed["scored"]["account"], "wrong:52-01")
+        other = by_number["HP680302-001"]
+        self.assertEqual(other["class"], "C")  # 新供应商：要人选
+
+    def test_trimmed_masters_decide_like_the_full_masters(self):
+        # 回放按单只给用得着的对方主档行（省时间）：判定与全表一样
+        m = replay._modules()
+        extra = [{"code": f"X{index}", "name": "อื่น", "prefix": "", "tax_id": f"01055560{index:05d}",
+                  "branch": "00000", "account": ""} for index in range(30)]
+        self.book["suppliers"] = self.book["suppliers"] + extra
+        for doc in self.book["docs"]:
+            fields = replay.perfect_fields(doc, self.book)
+            for remembered in ({}, {"party": {"x": "S002"}}):
+                memory = {kind: {} for kind in ("party", "account", "payment", "vat")}
+                memory.update(remembered)
+                full = replay.book_config(self.book, full=True)
+                trimmed = replay.book_config(self.book, party_tax=doc["party_tax"], keep=memory["party"].values())
+                self.assertLess(len(trimmed["reported_suppliers"]), len(full["reported_suppliers"]))
+                one = m["decide"].decide(fields, direction="purchase", posting_kind="service", config=full,
+                                         remembered=memory)
+                two = m["decide"].decide(fields, direction="purchase", posting_kind="service", config=trimmed,
+                                         remembered=memory)
+                self.assertEqual(one, two)
+        lonely = replay._party_rows(self.book["suppliers"], "0000000000000", ())
+        self.assertEqual(len(lonely), 1)  # 没有同税号的档：留一行别家的，「主档报上来了」不变
+
+    def test_book_period_prefers_the_window_with_most_documents(self):
+        days = [dt.date(2024, 12, 20)] + [dt.date(2025, month, 5) for month in range(1, 13)] * 3
+        self.assertEqual(replay.book_period(days), (dt.date(2025, 1, 1), dt.date(2025, 12, 31)))
+        self.assertEqual(replay.book_period([]), (None, None))
+
+    def test_timelines_count_wrong_pushes_as_changed(self):
+        m = replay._modules()
+        rows, _ = replay.judge_company(m, [self.book])
+        lines = {name: replay.timeline(m, rows, value or m["automation_rules"].THRESHOLDS)
+                 for name, value in replay.THRESHOLD_SETS.items()}
+        # 只有 B 类（L0 / L1 都只出提议）：自动推 0，样本不够升档
+        for value in lines.values():
+            self.assertEqual((value["auto"], value["final"]), (0, "L0"))
+            self.assertEqual(value["proposals"] + value["stopped"], len(rows))
+        task = replay.timeline(m, rows, m["automation_rules"].THRESHOLDS, trigger="task")
+        self.assertEqual(task["auto"], sum(1 for row in rows if row["class"] == "A"))
+
+    def test_report_renders_both_layers(self):
+        m = replay._modules()
+        rows, skipped = replay.judge_company(m, [self.book])
+        base = m["automation_rules"].THRESHOLDS
+        tiers = {name: replay.timeline(m, rows, value or base) for name, value in replay.THRESHOLD_SETS.items()}
+        tiers["A_task"] = replay.timeline(m, rows, base, trigger="task")
+        judge = replay.summarize_judge({"rows": rows, "skipped": {"ACME": dict(skipped)}, "tiers": {"ACME": tiers}})
+        self.assertEqual(judge["docs"], len(rows))
+        self.assertEqual(sum(judge["c_causes"].values()), judge["classes"]["C"])
+        self.assertEqual(replay.primary_cause(rows[0]), "needed")
+        gate = replay.summarize_gate({"rows": [
+            {"id": "1", "form": "电子PDF", "company": "ACME", "direction": "purchase", "page": 1, "text_pdf": True,
+             "reasons": [], "passed": True, "entry": "enter", "paired": True, "result": {"date": "ok"}, "uncertain": [],
+             "wrong": []},
+            {"id": "2", "form": "照片", "company": "ACME", "direction": "purchase", "page": 1, "text_pdf": False,
+             "reasons": ["image"], "passed": False, "entry": "enter", "paired": True, "result": {}, "uncertain": [],
+             "wrong": []}]})
+        self.assertEqual((gate["text_pdf"]["n"], gate["text_pdf"]["ok"], gate["image"]["passed"]), (1, 1, 0))
+        text = replay.render(judge, gate, None)
+        self.assertIn("判定层", text)
+        self.assertIn("识别闸层", text)
+        self.assertIn("合并估计", text)
+
+    def test_a_document_carried_into_the_next_years_book_is_replayed_once(self):
+        # Express 新年度账套由上一年复制而来，带着往年的单：只在本年期间盖住单据日期的那份账套里回放
+        later = pathlib.Path(self.folder.name, "69ACME")
+        make_book(later, [("RR680100-001", dt.date(2025, 1, 10), "S001", "52-01", "1000.00", "70.00", "3"),
+                          *[(f"RR6901{index:02d}-001", dt.date(2026, 1, 10) + dt.timedelta(days=7 * index), "S001",
+                             "52-01", "1000.00", "70.00", "3") for index in range(3)]])
+        next_book = replay.load_book(later, company="ACME", own_tax=OWN, key="C:\\PearnlyExpress\\T9ACME")
+        self.assertEqual(next_book["period"], (dt.date(2026, 1, 1), dt.date(2026, 12, 31)))
+        owner = replay.owners([self.book, next_book])
+        carried = next(doc for doc in next_book["docs"] if doc["docnum"] == "RR680100-001")
+        self.assertEqual(owner[replay.doc_key(carried)], self.book["key"])
+        rows, skipped = replay.judge_company(replay._modules(), [self.book, next_book])
+        self.assertEqual(skipped["copy_in_other_book"], 1)
+        self.assertEqual(sum(1 for row in rows if row["docnum"] == "RR680100-001"), 1)
+
+    def test_eligibility(self):
+        doc = dict(self.book["docs"][0])
+        self.assertIsNone(replay.eligible(doc))
+        self.assertEqual(replay.eligible({**doc, "cancelled": True}), "cancelled")
+        self.assertEqual(replay.eligible({**doc, "rectyp": "5"}), "rectyp_5")
+        self.assertEqual(replay.eligible({**doc, "total": Decimal("0")}), "zero_amount")
+        self.assertEqual(replay.eligible({**doc, "pearnly": True}), "pearnly")
+
+
+class Scoring(unittest.TestCase):
+    def test_score_items(self):
+        answer = {"party": "S1", "account": "*multi", "payment": "cash"}
+        self.assertEqual(replay.score(answer, {"party": "S1", "account": "52", "payment": "credit", "vat": "claim"}),
+                         {"party": "ok", "account": "wrong:multi_account", "payment": "wrong:credit", "vat": "n/a"})
+
+    def test_cc_party_follows_the_desktop_cascade(self):
+        masters = [{"code": "A", "name": "ผู้ขาย", "tax_id": SELLER, "branch": "00000"},
+                   {"code": "B", "name": "ผู้ขาย", "tax_id": OTHER, "branch": "00000"},
+                   {"code": "C", "name": "ผู้ขาย", "tax_id": OTHER, "branch": "00001"},
+                   {"code": "D", "name": "ร้านค้า", "tax_id": "", "branch": "00000"}]
+        self.assertEqual(replay.cc_party(masters, SELLER, "x", "00000"), "A")
+        self.assertEqual(replay.cc_party(masters, SELLER, "x", "00002"), "new")
+        self.assertEqual(replay.cc_party(masters, OTHER, "ผู้ขาย", "00001"), "C")
+        self.assertEqual(replay.cc_party(masters, OTHER, "ผู้ขาย", ""), "ambiguous")
+        self.assertEqual(replay.cc_party(masters, "", "ร้านค้า", ""), "D")
+        self.assertEqual(replay.cc_party(masters, "", "ใหม่", ""), "new")
+
+
+class GateLayer(unittest.TestCase):
+    GOLD = {"page": 1, "invoice_number": "IV-0012", "date": "2025-03-04", "seller_tax": SELLER, "seller_branch": "00000",
+            "subtotal": "1000.00", "vat": "70.00", "total": "1070.00"}
+
+    def test_compare_against_the_gold(self):
+        fields = {"invoice_number": "0012", "date": "2025-03-04", "seller_tax": SELLER, "seller_branch": "0",
+                  "subtotal": "1000", "vat": "70.00", "total_amount": "1070.001"}
+        self.assertEqual(replay.compare_gold(fields, self.GOLD, "purchase"),
+                         {"invoice_number": "prefix_only", "date": "ok", "party_tax": "ok", "party_branch": "ok",
+                          "subtotal": "ok", "vat": "ok", "total": "ok"})
+        wrong = replay.compare_gold({**fields, "date": "2025-04-03", "vat": None}, self.GOLD, "purchase")
+        self.assertEqual((wrong["date"], wrong["vat"]), ("wrong", "wrong"))
+        self.assertEqual(replay.compare_gold(fields, {"page": 1}, "purchase")["date"], "n/a")
+
+    def test_pairing(self):
+        golds = [{"page": 1, "invoice_number": "A1", "total": "5.00"}, self.GOLD]
+        invoice = {"page": 1, "fields": {"invoice_number": "IV0012", "total_amount": "1070.00"}}
+        self.assertEqual(replay.pair_gold(invoice, golds), 1)
+        self.assertIsNone(replay.pair_gold({"page": 3, "fields": {"total_amount": "9"}}, golds))
+
+    def test_gate_uses_the_text_layer_and_recognition_flags(self):
+        m = replay._modules()
+        fields = {"document_type": "tax_invoice", "invoice_number": "IV-0012", "date": "2025-03-04",
+                  "seller_tax": SELLER, "seller_branch": "00000", "buyer_tax": OWN, "buyer_branch": "00000",
+                  "subtotal": "1000.00", "vat": "70.00", "total_amount": "1070.00"}
+        text = ["ใบกำกับภาษี IV-0012 วันที่ 04/03/2568 รวมทั้งสิ้น 1,070.00 " + "x" * 200]
+        invoice = {"page": 1, "fields": fields, "review": False, "warnings": []}
+        self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", own_tax=OWN, texts=text,
+                                             source_total=1), [])
+        self.assertEqual(replay.gate_invoice(m, invoice, direction="purchase", own_tax=OWN, texts=None,
+                                             source_total=1), ["image"])
+        flagged = {**invoice, "review": True}
+        self.assertIn("review_flag", replay.gate_invoice(m, flagged, direction="purchase", own_tax=OWN, texts=text,
+                                                         source_total=1))
+        self.assertIn("text_total", replay.gate_invoice(m, {**invoice, "fields": {**fields, "total_amount": "1170.00",
+                                                                                   "subtotal": "1100.00"}},
+                                                        direction="purchase", own_tax=OWN, texts=text, source_total=1))
+
+
+if __name__ == "__main__":
+    unittest.main()

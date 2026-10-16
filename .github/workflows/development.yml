@@ -113,6 +113,8 @@ jobs:
         run: python3 tests/test_cowork_da_tiers.py
       - name: Verify the post-push write check, Express history v2, push-all proposals and what CC says about tiers
         run: python3 tests/test_cowork_da_verify.py
+      - name: Verify the two-layer replay tool pairs and scores documents (synthetic answers, gold comparison, tier timelines)
+        run: python3 tests/test_da_replay.py
       - name: Verify the helper installer receiver refuses anything but one verified installer
         run: python3 tests/test_companion_receiver.py
       - name: Verify the pearnly.com website builds with complete SEO tags and working links

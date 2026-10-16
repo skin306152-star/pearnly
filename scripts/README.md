@@ -19,6 +19,7 @@
 | 回放压测开关（只给测试租户） | `ocr-replay.py` | 在站点所在 bench 里 `--site test<app>.pearnly.com on|off|status`，改站点配置里的回放开关：开着时识别交回以前的真结果、不调谷歌、识别费 0；站点名不是 `testcowork` / `testerp` / `testdms` 系列直接拒绝，`check-architecture.py` 拦误开；在该租户没有在途识别时切 |
 | 简式税票拆税回放（离线、只读） | `cowork-vat-included-replay.py <目录> [--all] [--json]` | 递归读目录里已存的识别结果 JSON / JSONL（`results.jsonl`、识别记录 `pages`、`PipelineResult`），列出含税价拆税规则会改的票与改前改后数；不连站点、不调模型、不写文件，输入格式见文件头 |
 | 识别金标评测（只在生产机一次性容器） | `eval-invoices.py` | `run` 按真实入口提交、真实识别、按页计费；`gold` / `subset` / `l1` 在已有结果上零费用打分；用法与闸门见 [识别改动上线闸门](../docs/development/verification.md#识别改动上线闸门) |
+| 数字会计员两层回放（离线、只读、零费用） | `da-replay.py inventory / judge / gate / report` | 只读语料答案（Express 原表副本）、测试机本地测试账套的 ISPRD 与金标已有识别结果，导入推送同一套纯函数判 A / B / C、计分、比三套阈值；不连站点、不调识别与模型、不写账套，拒绝 `\\` / `S:` 开头的路径；语料只在测试机，源码复制到 WSL `/tmp` 跑、跑完删；用法见文件头 |
 | DMS LINE 图文菜单画图 | `draw-dms-line-menu-originals.py` → `render-dms-line-menus.py` | 离线、幂等：前者重画泰文原版 `rich-{basic,query}.png` 与菜单 6 图标，后者据此生成 en / zh / ja 版；改完 `dms.card.rich.*` 词条后按此顺序重跑，再重新发布菜单 |
 
 Compose project 默认固定为 `pearnly-sample`。工作树独立不代表运行环境独立，执行前核对 context、project、Site、卷与源码挂载；不要接管其他任务正在使用的栈。
