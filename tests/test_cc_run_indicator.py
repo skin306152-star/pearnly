@@ -429,6 +429,162 @@ await chat.run(async () => "sesn_new4c", send("third"), interrupt);
 assert.equal(posted("interrupt").length, 1);
 """)
 
+    def test_a_failed_send_says_why_and_keeps_what_was_typed(self):
+        # 2026-10-16 测试窗口（lab testerp，站点没配 CC）：新对话发第一条，create 回 417，气泡和「思考中」闪约 100ms 就没了，
+        # 打的字也没了，界面不报错，控制台只有一条未捕获的「本站点尚未设置 CC。」。组件库按下发送先清空输入框、调发送不等也不接错。
+        # 现在（用组件库真实的输入框与对话运行时走一遍）：原因按服务端原文写在输入框上方、字与附件放回、没有未捕获的错误、重试时清掉；
+        # 没有原文（断网等）用通用的一句；已有对话发出被拒同样处理；已发出、只是之后的打断没成功不放回。
+        self.run_page(r"""
+import { ExternalStoreThreadRuntimeCore } from "@assistant-ui/core/internal";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { NewChatSend } from "@/lib/managed-agents/new-chat-send";
+import { createSession } from "@/lib/managed-agents/api";
+import { attemptSend, sendFailureOf } from "@/lib/managed-agents/send-failure";
+import { attachedFilesOf } from "@/lib/managed-agents/attachments";
+import { t } from "@/i18n";
+---
+const unhandled: unknown[] = [];
+process.on("unhandledRejection", (reason) => unhandled.push(reason));
+const respond = g.respond;
+const rejected = (status: number, message: string) => ({
+  ok: false, status,
+  json: async () => ({ exception: `frappe.exceptions.ValidationError: ${message}`, _server_messages: JSON.stringify([JSON.stringify({ message })]) }),
+});
+let createReply: () => any = () => rejected(417, "本站点尚未设置 CC。");
+let sendReply: (() => any) | null = null;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "create") return createReply();
+  if (method === "send" && sendReply) return sendReply();
+  return respond(method, args, body);
+};
+const posted = (method: string) => g.calls.filter((c: any) => c.method === method);
+const textOf = (m: any) => m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n").trim();
+
+// 同 runtime-provider.tsx 的 onNew：新对话先建会话再发出，已有对话直接发出；都经 attemptSend
+function chat(thread: string, session: string | null) {
+  const newChat = new NewChatSend();
+  let core: any;
+  const composer = {
+    getState: () => ({ text: core.composer.text }),
+    setText: (text: string) => core.composer.setText(text),
+    addAttachment: (a: any) => core.composer.addAttachment(a),
+  };
+  const store: any = {
+    messages: [], isRunning: false, convertMessage: (m: any) => m,
+    onNew: async (message: any) => {
+      const text = textOf(message);
+      await attemptSend(thread, { composer, text, attachments: message.attachments }, async (sent) => {
+        const send = async (id: string) => {
+          await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments));
+          sent();
+        };
+        if (session) await send(session);
+        else await newChat.run(async () => (session = (await createSession()).id), send, (id) => getSessionController(id).interrupt());
+      });
+    },
+  };
+  core = new ExternalStoreThreadRuntimeCore({ getModelContext: () => ({}), subscribe: () => () => {} } as any, store);
+  return { core, newChat };
+}
+
+// ① 新对话、站点没配 CC：create 417
+const a = chat("thread-new", null);
+a.core.composer.setText("ช่วยดูบิลนี้");
+await a.core.composer.send();
+assert.equal(a.core.composer.text, "");                    // 组件库按下发送就清空了输入框
+await g.sleep(30);
+assert.equal(sendFailureOf("thread-new"), "本站点尚未设置 CC。");  // 服务端原文
+assert.equal(a.core.composer.text, "ช่วยดูบิลนี้");          // 字放回输入框
+assert.equal(posted("send").length, 0);
+assert.equal(a.newChat.isSending(), false);                 // 发送键恢复可发送
+assert.equal(sendFailureOf("thread-other"), "");            // 只在这段对话
+// 重试：一按发送就清掉原因；这次建好会话、发出
+createReply = async () => { await g.sleep(40); return ok({ id: "sesn_retry1", title: "" }); };
+await a.core.composer.send();
+assert.equal(a.newChat.isSending(), true);                  // 还在建会话
+assert.equal(sendFailureOf("thread-new"), "");               // 原因已清掉
+await g.sleep(80);
+assert.equal(sendFailureOf("thread-new"), "");
+assert.deepEqual(posted("send").map((c: any) => [c.body.session_id, c.body.text]), [["sesn_retry1", "ช่วยดูบิลนี้"]]);
+assert.equal(a.core.composer.text, "");
+
+// ② 没有服务端原文（断网）：通用的一句；等的时候又打了字，两段都留着
+createReply = () => { throw new TypeError("Failed to fetch"); };
+const b = chat("thread-offline", null);
+b.core.composer.setText("first");
+await b.core.composer.send();
+b.core.composer.setText("more");
+await g.sleep(30);
+assert.equal(sendFailureOf("thread-offline"), t("somethingWrong"));
+assert.equal(sendFailureOf("thread-offline"), "出了点问题，请重试。");
+assert.equal(b.core.composer.text, "first\nmore");
+
+// ③ 已有对话发出被拒（附件已传进会话）：乐观气泡撤回，原因原文，字和附件（编号、位置不变）放回，再发照样带上附件
+site.log.length = 0;                                         // 假站点的事件记录各对话共用：这段从空的开始
+const c = chat("thread-old", "sesn_old3");
+getSessionController("sesn_old3").attach();
+await g.sleep(30);
+sendReply = () => rejected(417, "ไม่มีสิทธิ์ในบริษัทนี้");
+const file = { type: "file", filename: "r.pdf", data: "r.pdf", mimeType: "application/pdf" };
+await c.core.composer.addAttachment({ id: "att-r", type: "document", name: "r.pdf", contentType: "application/pdf", content: [file] });
+c.core.composer.setText("ดูไฟล์นี้");
+await c.core.composer.send();
+assert.equal(c.core.composer.attachments.length, 0);
+await g.sleep(30);
+assert.equal(sendFailureOf("thread-old"), "ไม่มีสิทธิ์ในบริษัทนี้");
+assert.equal(c.core.composer.text, "ดูไฟล์นี้");
+assert.deepEqual(c.core.composer.attachments.map((x: any) => [x.id, x.name, x.status.type, x.content[0].data]), [["att-r", "r.pdf", "complete", "r.pdf"]]);
+assert.ok(!getSessionController("sesn_old3").getSnapshot().messages.some((m: any) => m.role === "user"));  // 没留下像是发出去了的气泡
+assert.equal(getSessionController("sesn_old3").getSnapshot().isRunning, false);
+sendReply = null;
+let delivered: any = null;
+c.core.__internal_setAdapter({ ...c.core._store, onNew: async (m: any) => { delivered = m; } });
+await c.core.composer.send();
+assert.deepEqual(delivered.attachments.map((x: any) => x.id), ["att-r"]);
+assert.equal(textOf(delivered), "ดูไฟล์นี้");
+
+// ④ 已发出、只是之后的打断没成功：说原因，不放回（消息已在对话里）
+const d = { text: "", setText(v: string) { d.text = v; }, getState: () => ({ text: d.text }), addAttachment: async () => { throw new Error("no"); } };
+const outcome = await attemptSend("thread-int", { composer: d, text: "sent already" }, async (sent) => { sent(); throw new Error("interrupt failed"); });
+assert.equal(outcome, false);
+assert.equal(d.text, "");
+assert.equal(sendFailureOf("thread-int"), "出了点问题，请重试。");
+
+// ⑤ 没传上的附件（新对话没设置 CC 时选的文件：上传前建会话就被拒，那一项标着出错）：放回原文件重新传，不当成传好了的
+const added: any[] = [];
+const e = { text: "", setText(v: string) { e.text = v; }, getState: () => ({ text: e.text }), addAttachment: async (a: any) => { added.push(a); } };
+const photo = new File(["x"], "p.jpg", { type: "image/jpeg" });
+const never = { id: "att-never", type: "image", name: "p.jpg", contentType: "image/jpeg", file: photo, status: { type: "complete" },
+  content: [{ type: "file", filename: "p.jpg", data: "p.jpg", mimeType: "image/jpeg" }] };
+await attemptSend("thread-photo", { composer: e, text: "ดูรูป", attachments: [never as any] }, async () => { throw new Error("x"); });
+assert.equal(e.text, "ดูรูป");
+assert.equal(added.length, 1);
+assert.ok(added[0] instanceof File);
+assert.equal(added[0], photo);
+
+await g.sleep(30);
+assert.deepEqual(unhandled, []);                             // 一个未捕获的错误都没有
+g.respond = respond;
+""")
+
+    def test_send_failure_wiring(self):
+        # onNew 经 attemptSend（不抛出）；原因写在输入框上方，同对话里出错那一行的样子；放回的图片按会话位置取本页预览
+        provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
+        on_new = provider.split("onNew: async (message: AppendMessage) => {", 1)[1].split("\n    // Stop button", 1)[0]
+        self.assertIn("ok = await attemptSend(threadId, restore, async (sent) => {", on_new)
+        self.assertIn("const restore = { composer: composer.current, text, attachments: message.attachments };", on_new)
+        self.assertIn("if (!ok) return;", on_new)
+        self.assertLess(on_new.index("if (!ok) return;"), on_new.index("generateTitle()"))   # 没发出去不取标题
+        self.assertIn("composer.current = runtime.thread.composer;", provider)
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
+        self.assertIn("<SendFailure />\n            <Composer />", thread)
+        failure = thread.split("const SendFailure: FC = () => {", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('<div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>', failure)
+        self.assertIn('<p className="line-clamp-2">{message}</p>', failure)
+        self.assertIn('<ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>', thread)
+        attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")
+        self.assertIn("(placed ? localPreview(placed) : undefined)", attachment)
+
     def test_new_chat_wiring_is_per_conversation(self):
         # 组件库每段对话一个 useSessionThreadRuntime 实例（后台挂着的对话也在）：「正在建会话」是这一段自己的，不读模块级的
         # 发送中气泡（pending-send.ts 是整页一个）

@@ -35,6 +35,11 @@ export function uploadFileId(mountPath: string): string | null {
   return /\/uploads\/([A-Za-z0-9_.:-]+)\/[^/]+$/.exec(mountPath)?.[1] ?? null;
 }
 
+/** 这一项已传进会话（发送没成功放回输入框时，传过的原样放回，没传上的重新传，send-failure.ts）。 */
+export function isUploaded(attachmentId: string): boolean {
+  return uploaded.has(attachmentId);
+}
+
 export function attachedFilesOf(attachments: readonly CompleteAttachment[] | undefined) {
   return (attachments ?? [])
     .map((a) => uploaded.get(a.id))

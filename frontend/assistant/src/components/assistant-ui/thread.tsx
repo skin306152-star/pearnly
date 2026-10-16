@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
 import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
+import { useSendFailure } from "@/lib/managed-agents/send-failure";
 import { useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
 import { StreamFollower } from "@/lib/follow-scroll";
@@ -162,6 +163,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
           >
             <ThreadScrollToBottom />
             <ThreadFollowupSuggestions />
+            <SendFailure />
             <Composer />
             <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
               <ThreadSuggestions />
@@ -416,13 +418,29 @@ const ComposerAction: FC = () => {
   );
 };
 
+// 对话里出错那一行（回复出错、发送没成功）同一个样子：淡红底、红字、最多两行
+const ERROR_BOX = "border-danger-line bg-danger-soft text-danger rounded-md border p-3 text-sm";
+
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root border-danger-line bg-danger-soft text-danger mt-2 rounded-md border p-3 text-sm">
+      <ErrorPrimitive.Root className={cn("aui-message-error-root mt-2", ERROR_BOX)}>
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
+  );
+};
+
+/** 这段对话上次发送没成功（新对话建会话被拒——例如本站点没设置 CC——、没有权限、断网、服务端出错）：原因写在输入框上方，
+ *  同对话里出错那一行；打的字与附件已放回输入框，再发送时清掉（lib/managed-agents/send-failure.ts）。 */
+const SendFailure: FC = () => {
+  const thread = useAuiState((s) => s.threadListItem.id);
+  const message = useSendFailure(thread);
+  if (!message) return null;
+  return (
+    <div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>
+      <p className="line-clamp-2">{message}</p>
+    </div>
   );
 };
 
