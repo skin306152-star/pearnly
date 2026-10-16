@@ -53,6 +53,12 @@ def _plain(obj) -> dict:
     return obj.to_dict(mode="json")
 
 
+def _mounted_id(mount_path: str) -> str | None:
+    """挂载位置（`{UPLOADS}/<文件编号>/<文件名>`，`attach` 定的）里的文件编号；不是这个写法回 None。"""
+    parts = mount_path[len(UPLOADS) + 1:].split("/") if mount_path.startswith(UPLOADS + "/") else []
+    return parts[0] if len(parts) == 2 and parts[0] and parts[1] else None
+
+
 def _gone(err) -> bool:
     """会话在 Anthropic 那边已不存在（删了 / 过期 / 编号不对）。"""
     return isinstance(err, anthropic.APIStatusError) and err.status_code in (400, 404, 410)
@@ -175,18 +181,36 @@ class Adapter(base.Adapter):
         return {"file_id": stored.id, "path": path}
 
     def files(self, conversation: str) -> list[dict]:
-        found = {}
-        for f in self.api.beta.files.list(scope_id=conversation, betas=[BETA]):
-            found[f.id] = {"id": f.id, "filename": f.filename, "size_bytes": f.size_bytes, "mime_type": f.mime_type,
-                           "downloadable": bool(getattr(f, "downloadable", False)), "created_at": str(f.created_at),
-                           "kind": "output"}
+        """附件按挂载位置里的编号列（`attach` 返回、随消息记下、本站留存用的都是这个编号）。
+
+        挂进会话时引擎在会话范围里另存一份（另一个编号、不可下载），会话范围的文件列表把它和智能体的结果混在一起列出；
+        第 5 轮测试：刷新后附件被列成 kind = output、编号对不上消息里记的，卡片没有缩略图和页数。这些另存的一份不列成结果：
+        挂载记录上的编号就是它（引擎把挂载记录指向另存的那份时），或同名、不可下载、还没认领的（挂载记录仍是原编号时）。"""
+        uploads, copies = {}, {}
         for r in self.api.beta.sessions.resources.list(conversation):
-            if getattr(r, "type", "") != "file" or r.file_id in found:
+            if getattr(r, "type", "") != "file":
                 continue
-            found[r.file_id] = {"id": r.file_id, "filename": (r.mount_path or "").rsplit("/", 1)[-1] or r.file_id,
-                                "size_bytes": 0, "mime_type": "application/octet-stream", "downloadable": False,
-                                "created_at": str(getattr(r, "created_at", "")), "kind": "upload"}
-        return list(found.values())
+            mount = getattr(r, "mount_path", None) or ""
+            fid = _mounted_id(mount) or r.file_id
+            copies[r.file_id] = fid
+            uploads.setdefault(fid, {"id": fid, "filename": mount.rsplit("/", 1)[-1] or fid, "size_bytes": 0,
+                                     "mime_type": "application/octet-stream", "downloadable": False,
+                                     "created_at": str(getattr(r, "created_at", "")), "kind": "upload"})
+        unclaimed = [item["filename"] for item in uploads.values()]
+        outputs = {}
+        for f in self.api.beta.files.list(scope_id=conversation, betas=[BETA]):
+            downloadable = bool(getattr(f, "downloadable", False))
+            if f.id in uploads or f.id in copies:
+                name = uploads[copies.get(f.id, f.id)]["filename"]
+                if name in unclaimed:
+                    unclaimed.remove(name)
+                continue
+            if not downloadable and f.filename in unclaimed:
+                unclaimed.remove(f.filename)
+                continue
+            outputs[f.id] = {"id": f.id, "filename": f.filename, "size_bytes": f.size_bytes, "mime_type": f.mime_type,
+                             "downloadable": downloadable, "created_at": str(f.created_at), "kind": "output"}
+        return list(uploads.values()) + list(outputs.values())
 
     def read_file(self, conversation: str, file_id: str) -> bytes:
         return self.api.files.download(file_id).read()

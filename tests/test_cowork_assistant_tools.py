@@ -1978,7 +1978,7 @@ class PushWaitTests(unittest.TestCase):
                       # 第 5 轮测试 8：单号说成 Express / MR.ERP 的，不说「ERP」；已入账的不指去待处理 / 复核 / Express 改
                       "always give the user its document number (docnum), amounts in baht and times in local time",
                       "Call the program by its name, Express or MR.ERP, never 'the ERP'",
-                      "never point the user to the pending page, the review page or Express to check or change it",
+                      "never point the user to the pending page, the review page, Express or MR.ERP to check or change it",
                       "written into Express or MR.ERP; docnum is its document number there",
                       "whether it was entered as cash or credit and which account it went to, each with where that "
                       "came from", "never ask the user to check Express for the number, cash or credit, or the account",
@@ -2385,9 +2385,47 @@ class ListAndRunsTests(unittest.TestCase):
         for words in ("the ERP", "an ERP", "ERP's", "target ERP", "ERP document"):
             self.assertNotIn(words, said)
         edit = next(tool["description"] for tool in tools.TOOLS if tool["name"] == "cowork_edit_document")
-        self.assertIn("Never send the user to Express or MR.ERP to change an entered document", edit)
+        self.assertIn(tools.ENTERED_NOTE, edit)
         self.assertNotIn("only a person can change it", edit)
         self.assertIn("cowork_list_documents search set to its invoice number", guidance)
+
+    def test_an_entered_document_that_cannot_be_changed_is_never_sent_to_express(self):
+        """第 5 轮测试：让 CC 把已入账的 SD-6909-1010 改科目，它答改不了，又给「自己去 Express 改 HP690920-001，我再回读」
+        的选项。F19 验收口径：不叫人去 Express（或 MR.ERP、待处理页、复核页）改已入账的单；只说明改不到，给单号、泰铢、
+        当地时间；回读照常可以提。说明（GUIDANCE、WRITTEN_NOTE、改单 / 推送 / 回读）与改单、选项工具的结果提示同一口径。"""
+        note = tools.ENTERED_NOTE
+        for words in ("CC cannot change a document that is already entered into Express or MR.ERP",
+                      "say plainly that it cannot be changed from here",
+                      "docnum), amounts in baht and times in local time",
+                      "Do not suggest, as an option or a next step, that the user changes it in Express or MR.ERP",
+                      "nor offer to check it after they have",
+                      "Offering a readback of that month (cowork_express_readback) to show what Express holds is fine"):
+            self.assertIn(words, note)
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn(note, " ".join(tools.GUIDANCE))
+        self.assertIn(note, tools.WRITTEN_NOTE)
+        for name in ("cowork_edit_document", "cowork_push_documents", "cowork_document_detail", "cowork_push_results"):
+            self.assertIn(note, by_name[name], name)
+        # 说明文字（CC 读到的全部说明与结果提示）里不再有引导人去 Express / MR.ERP 改已入账单的写法
+        said = " ".join(list(by_name.values()) + list(tools.GUIDANCE) + [tools.WRITTEN_NOTE, tools.ENTERED_RESULT,
+                                                                         tools.PUSH_QUEUED_NOTE])
+        said = said.replace(note, "").replace(tools.ENTERED_RESULT, "")
+        for words in ("can only be changed by a person in Express", "changed by a person in Express",
+                      "corrected a pushed document in Express", "read it back afterwards",
+                      "change it in Express", "change it in MR.ERP", "fix it in Express", "correct it in Express",
+                      "edit it in Express", "then read back", "then read it back"):
+            self.assertNotIn(words, said)
+        self.assertNotRegex(said, r"(?i)(change|correct|fix|edit)[^.]{0,60}\bin (Express|MR\.ERP)[^.]{0,60}(then|and)"
+                                  r"[^.]{0,30}read")
+        self.assertIn("do not suggest changing it in Express or MR.ERP", tools.ENTERED_RESULT)
+        # 结果提示：已入账的单改了 Pearnly 里的记录、查 / 存选项时带上 entered_note；没入账的不带
+        self.assertEqual(tools._entered_note("success"), {"entered_note": tools.ENTERED_RESULT})
+        for status in (None, "", "pending", "failed", "manual"):
+            self.assertEqual(tools._entered_note(status), {})
+        source = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py").read_text(encoding="utf-8")
+        self.assertIn('return _json({"status": "saved", **out, **_entered_note(out.get("push_status"))})', source)
+        self.assertIn('return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})', source)
+        self.assertIn('"result": result, **_entered_note(getattr(doc, "last_push_status", None))})', source)
 
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},

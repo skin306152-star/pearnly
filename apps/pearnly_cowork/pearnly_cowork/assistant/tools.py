@@ -99,6 +99,29 @@ def _json(value, utc=(), local=()) -> str:
 
 # ---------------- 账套给人看的名字 ----------------
 
+# 已入账的单 CC 改不了时怎么说（第 5 轮测试：让 CC 把已入账的 SD-6909-1010 改科目，它答改不了，又给了「自己去 Express
+# 改 HP690920-001，我再回读」的选项）。用户在 F19 验收时定的口径：不叫人去 Express（或 MR.ERP、待处理页、复核页）改已入账
+# 的单；只说明改不到，给这张的单号、泰铢金额、当地时间；回读照常可以提。GUIDANCE、WRITTEN_NOTE、改单 / 推送 / 回读的说明与
+# 结果提示共用这一段，免得几处说法走样。
+ENTERED_NOTE = ("CC cannot change a document that is already entered into Express or MR.ERP (its account, cash or "
+                "credit, amounts or anything else). When the user asks to change one, say plainly that it cannot be "
+                "changed from here and give that document's number there (docnum), amounts in baht and times in local "
+                "time. Do not suggest, as an option or a next step, that the user changes it in Express or MR.ERP, on "
+                "the pending page or on the review page, nor offer to check it after they have; just say it cannot be "
+                "changed. Offering a readback of that month (cowork_express_readback) to show what Express holds "
+                "is fine.")
+# 改单、选项工具碰到已入账的单时随结果带上的提示（同一口径的短句）
+ENTERED_RESULT = ("This document is already entered into Express or MR.ERP and stays as entered there: CC cannot "
+                  "change it, and choices saved now apply only to later documents. Tell the user it cannot be "
+                  "changed, with its docnum, amounts in baht and times in local time; do not suggest changing it in "
+                  "Express or MR.ERP, on the pending page or on the review page.")
+
+
+def _entered_note(status) -> dict:
+    """已入账（推送成功）的单在改单 / 选项工具的结果里带上 `entered_note`；别的状态不带。"""
+    return {"entered_note": ENTERED_RESULT} if status == "success" else {}
+
+
 # 给模型的「怎么说话」：Cowork 自己的几条，接在共用说明后面（hooks `pearnly_assistant_guidance`）。
 # 2026-10-13 录屏：CC 对会计说账套「demo02」（Express 数据文件夹名）；会计认公司，不认文件夹代码。
 GUIDANCE = [
@@ -123,7 +146,7 @@ GUIDANCE = [
     # 第 5 轮测试 8：推到 Express 后 CC 说「เลขที่เอกสารใน ERP」；入账后又叫人去待处理页检查或修改（已入账的不在待处理里）
     "Call the accounting program by its name, Express or MR.ERP (the one the account set uses); never say 'the ERP' or "
     "'ERP' for it. A document already entered there is done: never suggest checking or changing it on the pending "
-    "page or the review page.",
+    "page or the review page. " + ENTERED_NOTE,
     # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张
     "When the user names documents by invoice number, counterparty, amount and date (for example a message "
     "prefilled from the pending list or the month card), find each one with cowork_list_documents search set to "
@@ -1466,7 +1489,8 @@ def edit_document(tool_input) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"status": "saved", **_detail(saved)})
+    out = _detail(saved)
+    return _json({"status": "saved", **out, **_entered_note(out.get("push_status"))})
 
 
 ORIGINAL_PAGES_MAX = 3
@@ -1568,7 +1592,7 @@ def push_choices(tool_input) -> str:
     if view.get("fixed"):
         # 来自定时任务、推往该任务账套的票：任务默认处理已定的类别（推送服务按任务取，不再问、不记进账套）
         out["task_defaults"] = view["fixed"]
-    return _json(out)
+    return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})
 
 
 def save_push_choices(tool_input) -> str:
@@ -1587,7 +1611,7 @@ def save_push_choices(tool_input) -> str:
         frappe.db.rollback()
         frappe.clear_messages()
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
-    return _json({"document": name, "status": "saved", "result": result})
+    return _json({"document": name, "status": "saved", "result": result, **_entered_note(getattr(doc, "last_push_status", None))})
 
 
 def resolve_push_result(tool_input) -> str:
@@ -3244,7 +3268,7 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
                 "user its document number (docnum), amounts in baht and times in local time. An entered document "
                 "is done: it is no longer on the pending page, so never point the user to the pending page, the "
-                "review page or Express to check or change it. Say plainly whether it was entered as cash or credit and "
+                "review page, Express or MR.ERP to check or change it. " + ENTERED_NOTE + " Say plainly whether it was entered as cash or credit and "
                 "which account it went to, each with where that came from, described in the user's own language "
                 "(for example 'you chose it for this supplier' or 'remembered from before'); never show the codes "
                 "themselves (chosen, remembered, task_default, express_history, company_rule, matched, default and "
@@ -3390,9 +3414,8 @@ TOOLS = [
                     "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
                     "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
                     "and tell the user. This changes the record in Pearnly only: a document already entered into "
-                    "Express or MR.ERP is not changed there and is not pushed again. Never send the user to Express "
-                    "or MR.ERP to change an entered document; only when they ask, say plainly that this edit does not "
-                    "reach it. For Express, read it back afterwards with cowork_express_readback.",
+                    "Express or MR.ERP is not changed there and is not pushed again; only when the user asks, say "
+                    "plainly that this edit does not reach it. " + ENTERED_NOTE,
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"},
          "version": {"type": "integer"},
@@ -3517,9 +3540,8 @@ TOOLS = [
                     "there, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
                     "(get the choices with cowork_push_choices, ask the user, save them and push again), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
-                    "or already_success / already_pending (already entered or on its way; it is not pushed again: a "
-                    "pushed document can only be changed by a person in Express, then read back with "
-                    "cowork_express_readback). connection and account_set_key choose where to push (from "
+                    "or already_success / already_pending (already entered or on its way; it is not pushed again and "
+                    "CC cannot change it, see below). connection and account_set_key choose where to push (from "
                     "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
                     "upload is used. " + WRITTEN_NOTE,
      "input_schema": {"type": "object", "properties": {
@@ -3639,7 +3661,7 @@ TOOLS = [
                     "output VAT check left_files), purchase_vat (the input VAT report) and changes (documents Pearnly "
                     "pushed that were changed, cancelled or deleted in Express, and entries made directly in Express). "
                     "Read-only: Express may stay open, nothing is recognized or charged. Use it for Express's own "
-                    "figures, after the user corrected a pushed document in Express, and before reconciling or "
+                    "figures, after the user says they changed Express themselves, and before reconciling or "
                     "checking tax. connection and account_set_key as listed by cowork_intake_options; period is "
                     "YYYY-MM; accounts narrows the general ledger to those account codes (prefixes), e.g. the bank "
                     "account. Waits up to 90 seconds; reading means the computer is still reading: check with "
