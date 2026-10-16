@@ -6,6 +6,8 @@
   ``snapshot``），只复制这里要读的几张表。
 - 读什么：APTRN 里单据日期不早于 ``since``、没作废、没软删的单据（供应商代码 SUPCOD），对应凭证（GLJNL.VOUCHER 与
   单据号相同，Express 与 CC 桌面版写入都是这样）在 GLJNLIT 的借方行；凭证作废的整张不算。
+- 结果版本 2（数字会计员第 3 期）：Pearnly 写的单（APTRN.USERID 或 GLJNL.CREBY = ``PEARNLY``）不算 —— CC 自己推的单
+  不能攒成「已定」再拿来自动推（服务端只认 v2 的「已定」为规则定）。
 - 不算的科目：账套设置 ISINFO 里的现金（ACCNUM00）、进项税（ACCNUM06）、应付（ACCNUM07），以及这家供应商档上挂的
   应付科目（APMAS.ACCNUM，16% 的供应商不用账套默认的应付）。现金、银行只出现在进项凭证的贷方，借方行本来就没有。
   是不是费用科目由服务端按科目表核（这里不判断，期末盘存制账套的「购货」照样交回）。
@@ -25,12 +27,13 @@ from pathlib import Path
 from typing import Callable
 
 from . import express_read
+from .dbf_schema import PEARNLY_USERID
 from .logger import get_logger
 from .request_contract import MAX_BYTES, RequestFailed, Result
 
 log = get_logger(__name__)
 
-RESULT_VERSION = 1
+RESULT_VERSION = 2
 TABLES = ("ISINFO", "APMAS", "APTRN", "GLJNL", "GLJNLIT")
 REQUIRED = ("APTRN", "GLJNLIT")
 # ISINFO 里不算「常用科目」的默认科目：现金、进项税、应付（索引含义见 ``account_probe._ISINFO_DEFAULT_SLOTS``）。
@@ -55,6 +58,11 @@ def _since(value) -> dt.date:
 
 def _key(value) -> str:
     return express_read._text(value).upper()
+
+
+def _pearnly(user) -> bool:
+    """这一行是不是 Pearnly（CC 桌面版）写的（写路的 ``USERID`` / ``CREBY``）。"""
+    return str(user or "").strip().upper() == PEARNLY_USERID
 
 
 def collect(folder: Path, since: dt.date) -> dict:
@@ -88,7 +96,8 @@ def collect(folder: Path, since: dt.date) -> dict:
     def document(rec, columns, _gone):
         docnum, party = _key(get(rec, columns, "DOCNUM")), text(get(rec, columns, "SUPCOD"))
         when = day(get(rec, columns, "DOCDAT"))
-        if docnum and party and when and when >= since and text(get(rec, columns, "DOCSTAT")).upper() != CANCELLED:
+        if docnum and party and when and when >= since and text(get(rec, columns, "DOCSTAT")).upper() != CANCELLED \
+                and not _pearnly(text(get(rec, columns, "USERID"))):
             documents[docnum] = (party, when)
         return None
 
@@ -96,8 +105,9 @@ def collect(folder: Path, since: dt.date) -> dict:
 
     def head(rec, columns, _gone):
         voucher = _key(get(rec, columns, "VOUCHER"))
-        if voucher in documents and text(get(rec, columns, "DOCSTAT")).upper() == CANCELLED:
-            documents.pop(voucher)  # 凭证作废：这张单不算
+        if voucher in documents and (text(get(rec, columns, "DOCSTAT")).upper() == CANCELLED
+                                     or _pearnly(text(get(rec, columns, "CREBY")))):
+            documents.pop(voucher)  # 凭证作废、或是 Pearnly 写的：这张单不算
         return None
 
     express_read._rows(folder, "GLJNL", diag, head)

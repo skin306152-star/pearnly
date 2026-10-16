@@ -29,6 +29,7 @@ from pearnly_cowork.push.express.payment import (  # noqa: F401,E402
 
 from pearnly_cowork.contracts.line_items import TOLERANCE as _ITEMS_TOL, matched_target
 from pearnly_cowork.push.express.primitives import _d, parse_invoice_date
+from pearnly_cowork.push.express.written_check import clean as clean_verify
 
 
 _CENT = Decimal("0.01")
@@ -408,6 +409,10 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
         v = raw.get(k)
         if isinstance(v, list):
             out[k] = [str(x).strip()[:60] for x in v[:_META_MAX_LIST] if str(x).strip()]
+    # 写完顺手核对（数字会计员第 3 期第 6 条，CC 桌面版 1.8.0 起）：只留 state / fields / party 三个键的白名单
+    verify = clean_verify(raw.get("verify"))
+    if verify is not None:
+        out["verify"] = verify
     notes = raw.get("notes")
     vouchers = notes.get(POS_VOUCHERS) if isinstance(notes, dict) else None
     if isinstance(vouchers, list):

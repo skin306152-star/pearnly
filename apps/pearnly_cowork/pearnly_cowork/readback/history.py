@@ -164,7 +164,7 @@ def for_push(connection, account_set, seller=None, refresh=False) -> dict:
         if rules.supplier_key(seller.get("tax"), seller.get("name")) in _forgotten(slot):
             return out  # 主档页删过：这家在这份账套里不再按历史用
         out["accounts"] = rules.supplier_accounts(stored, seller.get("tax"), seller.get("name"))
-        out["settled"] = rules.settled(out["accounts"], now.date(), stored.get("taken_at"))
+        out["settled"] = rules.stamp(rules.settled(out["accounts"], now.date(), stored.get("taken_at")), stored)
     except Exception:  # noqa: BLE001 — 建议是锦上添花：任何意外都不挡推送
         frappe.log_error(title="Cowork account history failed", message=frappe.get_traceback()[-1500:])
         frappe.clear_messages()

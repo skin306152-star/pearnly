@@ -165,14 +165,24 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
     return [{"voucher": item["voucher"], "acc": item["acc"], "amount": item["amount"]} for item in written]
 
 
-def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int]) -> None:
-    """读回:每张凭证的表头在(普通日记账)、恰好两行分录、借收款科目 = 贷现金 = 这种方式的金额。不符抛写盘错误(回滚)。"""
+def _day(value):
+    return value.date() if hasattr(value, "date") and callable(value.date) else value
+
+
+def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int], docdat=None) -> List[str]:
+    """读回:每张凭证的表头在(普通日记账)、恰好两行分录、借收款科目 = 贷现金 = 这种方式的金额。不符抛写盘错误(回滚)。
+
+    另回只报不回滚的不符(写完顺手核对,数字会计员第 3 期第 6 条,`write_verify`):凭证日期(表头与分录 VOUDAT)不是
+    这张日汇总单的日期 → ``["pos_date"]``;都对回空表。"""
     if not written:
-        return
+        return []
     gj = _open(Path(account_dir), "GLJNL", dbf.READ_ONLY)
     try:
-        heads = {(r.VOUCHER or "").strip(): (r.JNLTYP or "").strip()
-                 for r in S.live_rows(gj) if dbf.recno(r) >= since.get("GLJNL", 0)}
+        heads, days = {}, {}
+        for r in S.live_rows(gj):
+            if dbf.recno(r) >= since.get("GLJNL", 0):
+                heads[(r.VOUCHER or "").strip()] = (r.JNLTYP or "").strip()
+                days.setdefault((r.VOUCHER or "").strip(), set()).add(_day(r.VOUDAT))
     finally:
         gj.close()
     gi = _open(Path(account_dir), "GLJNLIT", dbf.READ_ONLY)
@@ -182,6 +192,7 @@ def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int
             if dbf.recno(r) >= since.get("GLJNLIT", 0):
                 lines.setdefault((r.VOUCHER or "").strip(), []).append(
                     ((r.TRNTYP or "").strip(), (r.ACCNUM or "").strip(), Decimal(str(r.AMOUNT))))
+                days.setdefault((r.VOUCHER or "").strip(), set()).add(_day(r.VOUDAT))
     finally:
         gi.close()
     for item in written:
@@ -197,3 +208,6 @@ def verify(account_dir, written: List[Dict], cash_acc: str, since: Dict[str, int
                 {"kind": "readback_verify", "table": "GLJNLIT", "docnum": voucher, "expected_total": float(amount),
                  "rows": len(rows)},
             )
+    if docdat is not None and any(days.get(item["voucher"], set()) != {_day(docdat)} for item in written):
+        return ["pos_date"]
+    return []

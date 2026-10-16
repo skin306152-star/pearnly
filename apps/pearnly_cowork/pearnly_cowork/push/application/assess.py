@@ -95,6 +95,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         ready=ready, blocked=blocked or conflict or reason, pages=pages, review_reasons=_list(doc.review_reasons),
         text=text_layer.text(doc) if automation.text_layer(pages) else None, account=account_row, catalog=catalog,
         day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
+        history_read=_read_day((decision.get("history") or {}).get("read")),
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc),
         layers=automation.layers(dated, direction=direction, fixed=fixed, remembered=remembered,
                                  rules=(company or {}).get("rules") or (), branch=(company or {}).get("branch") or "",
@@ -138,6 +139,14 @@ def _day(value):
     if not value:
         return None
     return value.date() if isinstance(value, datetime) else frappe.utils.getdate(value)
+
+
+def _read_day(value):
+    """Express 历史读的日子（`readback.history_rules.stamp`）；没有、认不出回 None（各层说法不一不比 Express 历史）。"""
+    try:
+        return datetime.strptime(str(value or "")[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 def _prior(connection, account_set, doc):

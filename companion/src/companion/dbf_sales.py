@@ -26,6 +26,7 @@ from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
 from . import pos_journal
+from . import write_verify
 from . import stock_sale
 from . import cdx_reindex
 from .consistency import account_company_matches
@@ -278,7 +279,7 @@ def write_sale(
         # 库存卖行随即复用①真扣库存 + 移动均价 COGS。期初或后续过账任一失败 → 一并回滚,不留半吊子。
         if opening_stock:
             stock_sale.set_opening_stock(account_dir, opening_stock, docdat)
-        docnum, line_modes, has_stock, notes = _write_all(
+        docnum, line_modes, has_stock, notes, gl_rows = _write_all(
             account_dir,
             entry,
             docdate_be,
@@ -325,11 +326,18 @@ def write_sale(
             has_stock=has_stock,
             since=since,
         )
-        if vouchers:
-            pos_journal.verify(account_dir, vouchers, cash_acc, journal_since)
+        pos_differ = (pos_journal.verify(account_dir, vouchers, cash_acc, journal_since, docdat=docdat)
+                      if vouchers else [])
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AR_DOCNUM, docnum)
         clock.lap("index_check")
+        # 写完顺手核对(第 3 期第 6 条):只报不回滚,随回执 meta.verify 交回
+        verify = write_verify.check(account_dir, write_verify.Expected(
+            side="sales", docnum=docnum, party_code=entry.customer_code, docdat=docdat,
+            rectyp=S.SALES_RECTYP[entry.doctype], refnum=entry.ref_no, lines=gl_rows,
+            tax_id=entry.customer_tax_id, branch=entry.customer_branch, has_vat=has_vat, since=since),
+            extra=pos_differ)
+        clock.lap("write_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
         clock.lap("cleanup")
         clock.log(docnum, "ok")
@@ -341,6 +349,7 @@ def write_sale(
             created_party=created_customer,
             line_modes=line_modes,
             notes=notes,
+            verify=verify,
         )
     except Exception as e:
         clock.lap("failed_step")
@@ -383,7 +392,7 @@ def _write_all(
     userid,
     depcod="",
 ) -> tuple:
-    """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注)。"""
+    """写完销项六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷)])。"""
     prefix = entry.doctype  # IV / HS
     cash = prefix == "HS"
     # 按这套账自己的设置(2026-10-08):单据簿的日记账 / 默认部门;赊销的应收行记客户档上的科目、到期日按客户档
@@ -526,9 +535,10 @@ def _write_all(
         gj.close()
 
     departmental = _department_accounts(account_dir) if depcod else frozenset()
+    gl_rows = _gl_rows(entry) + cogs_rows
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
     try:
-        for seqit, accnum, trntyp, amt in _gl_rows(entry) + cogs_rows:
+        for seqit, accnum, trntyp, amt in gl_rows:
             gi.append(
                 _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
             )
@@ -537,7 +547,7 @@ def _write_all(
 
     _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_arbal(account_dir, entry.customer_code, docdat, prefix, total)
-    return docnum, line_modes, stock_sale.has_stock_lines(line_modes), notes
+    return docnum, line_modes, stock_sale.has_stock_lines(line_modes), notes, [row[:3] for row in gl_rows]
 
 
 def _write_stcrd_detail(

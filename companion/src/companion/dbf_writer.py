@@ -31,6 +31,7 @@ from . import dbf_schema as S
 from . import fiscal_period
 from . import master_create
 from . import purchase_lines
+from . import write_verify
 from .consistency import account_company_matches
 from .write_result import DbfWriteResult  # noqa: F401  re-export · dbf_sales 与测试从本模块取
 from .dbf_fields import (
@@ -366,7 +367,7 @@ def write_purchase(
             account_dir, entry, created_date=docdat, userid=userid
         )
         created_supplier = bool(not existing_code)
-        docnum, line_modes, has_stock, notes = _write_all(
+        docnum, line_modes, has_stock, notes, gl_rows = _write_all(
             account_dir,
             entry,
             payload,
@@ -404,6 +405,12 @@ def write_purchase(
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AP_DOCNUM, docnum)
         clock.lap("index_check")
+        # 写完顺手核对(第 3 期第 6 条):只报不回滚,随回执 meta.verify 交回
+        verify = write_verify.check(account_dir, write_verify.Expected(
+            side="purchase", docnum=docnum, party_code=entry.supplier_code, docdat=docdat,
+            rectyp=S.RECTYP[prefix], refnum=entry.ref_no, lines=gl_rows,
+            tax_id=entry.supplier_tax_id, branch=entry.supplier_branch, has_vat=has_vat))
+        clock.lap("write_check")
         _discard_backup(backup_dir)  # 校验通过(已提交)→ 删快照,磁盘恒定
         clock.lap("cleanup")
         clock.log(docnum, "ok")
@@ -415,6 +422,7 @@ def write_purchase(
             created_party=created_supplier,
             line_modes=line_modes,
             notes=notes,
+            verify=verify,
         )
     except Exception as e:  # 任何失败 → 回滚还原
         clock.lap("failed_step")
@@ -476,7 +484,7 @@ def _write_all(
     userid,
     depcod="",
 ) -> tuple:
-    """写完采购六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注)。"""
+    """写完采购六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷, 金额)])。"""
     rectyp = S.RECTYP[prefix]
     paid = prefix == "HP"
     # 按这套账自己的设置(2026-10-08):这本单据簿挂哪本日记账、设没设默认部门;赊购的应付行记供应商档上的科目、
@@ -621,7 +629,7 @@ def _write_all(
 
     _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_apbal(account_dir, prefix, entry.supplier_code, docdat, total)
-    return docnum, line_modes, purchase_lines.has_stock_lines(line_modes), notes
+    return docnum, line_modes, purchase_lines.has_stock_lines(line_modes), notes, [row[:3] for row in gl_rows]
 
 
 def _update_apbal(

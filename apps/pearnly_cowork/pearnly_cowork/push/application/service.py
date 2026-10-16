@@ -26,6 +26,7 @@ from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import decide as decide_rules
 from pearnly_cowork.push.express import pushed as pushed_rules
+from pearnly_cowork.push.express import written_check
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
 from pearnly_cowork.push.express.prepare import prepare_express
 from pearnly_cowork.push.express.preflight import ExpressContext
@@ -212,12 +213,17 @@ def prepare(history, connection, request_key, expected_history_version, expected
     if decision.get("decided_by"):
         # 每一类按什么定的（账套记忆 / 公司规则 / Express 历史 / 任务默认），经 F19 的 written 交给 CC 说清楚
         frozen["decided_by"] = dict(decision["decided_by"])
+    # 推后核对拿票面的对方税号 / 分店比实际挂到的对方档（数字会计员第 3 期第 6 条，`ack` 里比）
+    frozen["party_face"] = written_check.face(direction, fields)
     if automation:
         subjects = automation_rules.subjects(direction, fields, pos=isinstance(payload.get("pos"), dict))
+        account_row = _account_row(loaded, target)
         frozen["automation"] = automation_rules.frozen(
             automation.get("class"), automation.get("tier"), automation.get("trigger"), automation.get("reasons") or (),
             automation_service.current_hash(doc.record_version, loaded.doc.name, target.account_set,
-                                            _account_row(loaded, target), subjects), subjects)
+                                            account_row, subjects), subjects)
+        # 写入核不上时按这一行认公司、立刻降到 L0（回执里不再读连接目录）
+        frozen["automation"]["account_row"] = account_row
     else:
         outcome = _proposal_outcome(doc, loaded.doc.name, target.account_set, fields, direction, payload)
         if outcome:

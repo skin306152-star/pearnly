@@ -50,6 +50,8 @@ def decide(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[
             # 汇总的版本（CC 桌面版 `account_history.RESULT_VERSION`）：只有排除了 Pearnly 自己写的行（v2）的「已定」才算
             # 规则定（`automation.tiers`），v1 的最高算 CC 判断（第 3 期第 1、11 条）
             decision["history"]["version"] = settled["version"]
+        if settled.get("read"):
+            decision["history"]["read"] = str(settled["read"])[:10]  # 读的日子：各层说法不一只比近 31 天内读的
     company_choices.finish(decision, trace, sources)
     return decision, sources
 

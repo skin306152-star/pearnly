@@ -13,7 +13,10 @@ from typing import Any, Dict, List
 from pearnly_cowork.push.express.choices import digits, norm_name
 from pearnly_cowork.readback.contracts import PATH_MAX, ContractError
 
-RESULT_VERSION = 1
+RESULT_VERSION = 2
+# 收得下的版本：v1 是 CC 桌面版 1.8.0 之前（Pearnly 自己写的单也算进去），v2 排除了它们（数字会计员第 3 期第 3、11 条）。
+# 只有 v2 的「已定」才算规则定（`push.express.automation`），v1 的照旧作建议、自动用，最高算 CC 判断
+VERSIONS = (1, RESULT_VERSION)
 # 近 12 个月
 SINCE_DAYS = 365
 SUPPLIERS_MAX = 5000
@@ -67,9 +70,9 @@ def _list(value: Any, limit: int) -> list:
 
 
 def parse(raw: Any) -> Dict[str, Any]:
-    """交回的汇总 → ``{"since", "read_at", "suppliers": [{name, tax_id, branch, accounts: [{code, docs, last}]}]}``；
+    """交回的汇总 → ``{"version", "since", "read_at", "suppliers": [{name, tax_id, branch, accounts: [{code, docs, last}]}]}``；
     形状不对抛 ``ContractError``。"""
-    if not isinstance(raw, dict) or raw.get("version") != RESULT_VERSION:
+    if not isinstance(raw, dict) or type(raw.get("version")) is not int or raw.get("version") not in VERSIONS:
         raise ContractError(INVALID)
     try:
         read_at = dt.datetime.strptime(str(raw.get("read_at") or ""), "%Y-%m-%dT%H:%M:%SZ")
@@ -90,7 +93,7 @@ def parse(raw: Any) -> Dict[str, Any]:
         if accounts and (name or tax):
             suppliers.append({"name": name, "tax_id": tax, "branch": _text(item.get("branch"), 5),
                               "accounts": accounts})
-    return {"since": _day(raw.get("since")), "read_at": read_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    return {"version": raw["version"], "since": _day(raw.get("since")), "read_at": read_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "suppliers": suppliers}
 
 
@@ -105,7 +108,8 @@ def supplier_key(tax: Any, name: Any) -> str:
 
 def settled(accounts: Any, today: dt.date, read_at: Any = None) -> Dict[str, Any] | None:
     """这家供应商的历史是否一致到可以直接用（`SETTLED_DOCS`）：合并后只有一个科目、近 12 个月至少 3 张、最近一次在
-    12 个月内，且这份历史是 `SETTLED_FRESH_DAYS` 天内读的。是就回 ``{code, docs, last}``，否则 None（仍作建议、问一次）。"""
+    12 个月内，且这份历史是 `SETTLED_FRESH_DAYS` 天内读的。是就回 ``{code, docs, last}``，否则 None（仍作建议、问一次）。
+    推送用时另带上这份汇总的版本与读的日子（`stamp`）。"""
     rows = [row for row in accounts or [] if isinstance(row, dict) and row.get("code")]
     if len(rows) != 1:
         return None
@@ -167,3 +171,14 @@ def supplier_accounts(data: Any, tax: Any, name: Any) -> List[Dict[str, Any]]:
     out.sort(key=lambda item: item["last"], reverse=True)
     out.sort(key=lambda item: item["docs"], reverse=True)
     return out
+
+
+def stamp(found: Dict[str, Any] | None, stored: Any) -> Dict[str, Any] | None:
+    """「已定」带上这份汇总的版本（存下的旧汇总没有版本 = 1）与读的日子（``read``，`YYYY-MM-DD`）：自动推只认 v2 的「已定」为
+    规则定，各层说法不一只比近 31 天内读的历史（数字会计员第 3 期第 1、11 条）。"""
+    if not found:
+        return found
+    stored = stored if isinstance(stored, dict) else {}
+    version = stored.get("version")
+    return {**found, "version": version if type(version) is int else 1,
+            "read": str(stored.get("read_at") or stored.get("taken_at") or "")[:10]}

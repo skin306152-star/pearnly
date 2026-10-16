@@ -27,6 +27,7 @@ from pearnly_cowork.connections import pool as account_pool
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.contracts.push import PushContractError, require_external_history
 from pearnly_cowork.push.express import common
+from pearnly_cowork.push.express import written_check
 from pearnly_cowork.push.lifecycle import acknowledgement, LEASE_SECONDS
 from pearnly_cowork.push.express.referenced import used_facts
 from pearnly_cowork.push.native.contracts import (
@@ -858,12 +859,38 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         row.result_unknown, row.lease_expires_at = 0, None
         row.external_docnum = docnum if transition.status == 'success' else None
         row.completed_at = timestamp if transition.status in {'success', 'manual'} else None
+        checked = None
         if transition.status == 'success':
             completion.success(row, timestamp)
+            checked = _written_check(row, target, response)
         # Preserve owner/active_attempt for exact duplicate ACK verification;
         # they no longer confer a lease and the next claim has a higher fence.
         _save_record(row, timestamp)
+        if checked == written_check.MISMATCH and isinstance(target.get('automation'), dict):
+            _automation_mismatch(row, target)
         return {**project(row), 'replayed': False}
+
+
+def _written_check(row, target, response):
+    """推后核对（数字会计员第 3 期第 6 条，`push.express.written_check`）：CC 桌面版回的 ``verify`` 照收，另拿准备时冻结的
+    票面对方税号 / 分店比实际挂到的对方档；写进推送记录 ``verify_state`` / ``verify_json``。只记不拦：不回滚、不重推。
+    旧版 CC 桌面版不带 → ``unverified``。MR.ERP 不核。"""
+    if (target.get('adapter') or 'express') != 'express':
+        return None
+    meta = (response or {}).get('meta') if isinstance(response, dict) else None
+    found = written_check.outcome((meta or {}).get('verify'), target.get('party_face'))
+    row.verify_state = found['state']
+    row.verify_json = call(encode, found)
+    return found['state']
+
+
+def _automation_mismatch(row, target):
+    """自动推的单写入核不上：这家立刻降到 L0（经钩子 ``cowork_push_verify_mismatch``，出错只记日志、不挡回执）。"""
+    from pearnly_cowork.push.automation import service as automation_service  # 只有自动推的单才用得着
+
+    automation = target.get('automation') or {}
+    account_row = automation.get('account_row') if isinstance(automation.get('account_row'), dict) else None
+    automation_service.mismatch(row.connection, row.account_key, account_row)
 
 
 def recover_expired(name, *, context, adapter, now=None):

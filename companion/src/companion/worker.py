@@ -392,6 +392,9 @@ def _push_meta(res, direction: str, account_dir: str) -> dict:
         m[key] = bool(getattr(res, "created_party", False))
         # True = 同一任务重发、上次已写过,本次未重写(docnum 是上次写的那张)。
         m["duplicate_skipped"] = bool(getattr(res, "skipped", False))
+        # 写完顺手核对(数字会计员第 3 期第 6 条):{state, fields, party}。随 meta 进 task_journal,重发时照样带回。
+        if getattr(res, "verify", None):
+            m["verify"] = dict(res.verify)
     if (getattr(res, "error_code", "") or "") in (
         "CDX_REINDEX_FAILED",
         "ACCOUNT_BUSY_LOCKED",

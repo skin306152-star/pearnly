@@ -49,6 +49,12 @@
     重新配对。
   - 只有真机能验的：真的 DPAPI、`GetFileInformationByHandle` / `WNetGetConnectionW` / 共享表 / 网卡表在 NAS 与服务器共享上的结果、
     两台电脑同一份账套的分派与写前核对，见 `docs/work/2026-10-15-multi-desktop-build.md` 第 7 批。
+- 1.8.0（数字会计员第 3 期，`docs/work/2026-10-16-da-phase3-design.md`；**与服务端同批发**，服务端在它之前上线时所有自动推只出提议）：
+  - 写完顺手核对（`write_verify.py`，第 6 条）：进项 / 销项写完、原有读回通过之后，拿实际要写的载荷比本次写入行的对方码、各行
+    科目、日期、单别、参考号、税记录的税号与分店，另读实际挂到的对方档（APMAS / ARMAS）的税号与分店；POS 转账凭证另比日期。
+    只报不回滚，回执 `meta.verify {state: ok|mismatch, fields, party}`，随 `task_journal` 存下，重发时照样带回；
+  - `account_history` 结果版本 2：汇总排除 Pearnly 写的单（APTRN `USERID` / GLJNL `CREBY` = `PEARNLY`），CC 自己推的单
+    不再攒成「已定」。
 
 ## 本机测试
 

@@ -29,6 +29,9 @@ class DbfWriteResult:
     # 失败时的结构化现场证据(readback_verify / detail_mismatch / detail_sum_mismatch)——
     # 随 ack meta.evidence 回云端,支持/会计一眼看到卡在哪个表哪一行。成功路径恒 None。
     evidence: Optional[dict] = None
+    # 写完顺手核对(数字会计员第 3 期第 6 条,write_verify):{state: ok|mismatch, fields, party}。只报不回滚,
+    # 随 ack meta.verify 回云端;失败路径恒 None。
+    verify: Optional[dict] = None
 
     @property
     def written(self) -> bool:

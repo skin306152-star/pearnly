@@ -137,7 +137,7 @@ def test_counts_each_suppliers_usual_accounts_without_touching_the_books(books):
     assert _state(books.acct) == before  # 只读：账套里每个文件都不变
     assert result.meta == {"format": "json.gz", "version": account_history.RESULT_VERSION, "suppliers": 2,
                            "documents": 5}
-    assert (data["version"], data["since"], data["account_set"]) == (1, SINCE.isoformat(), "DAOWNUEA")
+    assert (data["version"], data["since"], data["account_set"]) == (2, SINCE.isoformat(), "DAOWNUEA")
     assert data["read_at"].endswith("Z")
     assert data["excluded"] == sorted([CASH, INPUT_VAT, PAYABLE])
     suppliers = {row["code"]: row for row in data["suppliers"]}

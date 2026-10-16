@@ -549,6 +549,51 @@ class ExpressReadback(unittest.TestCase):
             encoding="utf-8"))
 
 
+class WriteCheck(unittest.TestCase):
+    """写完顺手核对（数字会计员第 3 期第 6 条）：CC 桌面版 `write_verify` 回执 ``meta.verify {state, fields, party}``，服务端
+    `push.express.written_check` 只收这三个键、同一组不符项；随回执进 task_journal、重发照样带回；自动推只派给能回核对的版本。"""
+
+    PUSH = ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push"
+
+    def test_both_sides_name_the_same_mismatches(self):
+        helper = number_constants(COMPANION / "write_verify.py", ("FIELDS", "STATE_OK", "STATE_MISMATCH"))
+        server = number_constants(self.PUSH / "express" / "written_check.py", ("COMPANION_FIELDS",))
+        self.assertEqual(helper["FIELDS"], server["COMPANION_FIELDS"])
+        self.assertIn(f'OK, MISMATCH, UNVERIFIED = "{helper["STATE_OK"]}", "{helper["STATE_MISMATCH"]}", "unverified"',
+                      (self.PUSH / "express" / "written_check.py").read_text(encoding="utf-8"))
+
+    def test_the_receipt_carries_exactly_state_fields_and_party(self):
+        result = method_source_of(COMPANION / "write_verify.py", "result")
+        for key in ("state", "fields", "party"):
+            self.assertTrue(quoted(result, key), key)
+        clean = method_source_of(self.PUSH / "express" / "written_check.py", "clean")
+        for key in ("state", "fields", "party", "tax_id", "branch"):
+            self.assertTrue(quoted(clean, key), key)
+        self.assertIn("out['verify'] = verify", method_source_of(self.PUSH / "express" / "common.py",
+                                                                   "sanitize_push_meta"))
+        meta = method_source_of(COMPANION / "worker.py", "_push_meta")
+        self.assertIn("m['verify'] = dict(res.verify)", meta)
+        # task_journal 存的就是整份 meta：重发（duplicate_skipped）照样带回 verify
+        handle = method_source_of(COMPANION / "worker.py", "_handle_dbf_task")
+        self.assertIn("task_journal.remember(task.id, {'docnum': res.docnum, 'line_modes': res.line_modes, 'meta': meta})",
+                      handle)
+        self.assertIn("meta={**(done.get('meta') or {}), 'written': False, 'duplicate_skipped': True}", handle)
+
+    def test_automatic_pushes_only_go_to_a_version_that_returns_the_check(self):
+        server = module_constants(self.PUSH / "automation" / "rules.py")["VERIFY_MIN_VERSION"]
+        helper = module_constants(COMPANION / "version.py")["VERSION"]
+        self.assertGreaterEqual(tuple(map(int, helper.split("."))), tuple(map(int, server.split("."))))
+        for writer in ("dbf_writer.py", "dbf_sales.py"):
+            self.assertIn("verify=verify", (COMPANION / writer).read_text(encoding="utf-8"), writer)
+
+    def test_account_history_v2_leaves_out_what_pearnly_wrote(self):
+        collect = method_source_of(COMPANION / "account_history.py", "collect")
+        self.assertIn("_pearnly(text(get(rec, columns, 'USERID')))", collect)
+        self.assertIn("_pearnly(text(get(rec, columns, 'CREBY')))", collect)
+        self.assertIn("PEARNLY_USERID", (COMPANION / "account_history.py").read_text(encoding="utf-8"))
+        self.assertEqual(module_constants(COMPANION / "dbf_schema.py")["PEARNLY_USERID"], "PEARNLY")
+
+
 class AccountHistory(unittest.TestCase):
     """科目建议 B（2026-10-15）：服务端 `readback.history` 请电脑读一本账套近 12 个月「供应商 → 常用科目」，小助手
     `account_history` 交回汇总。两边同一组参数、结果版本与上限；读的时候不碰「等账套」；结果属于连接与账套。"""
