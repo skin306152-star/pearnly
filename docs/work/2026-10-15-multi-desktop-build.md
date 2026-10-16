@@ -1094,3 +1094,64 @@ CC 桌面版（`C` = `companion/src/companion`）：删 `C/always_on.py`（防�
   这些单不会被新编号的电脑领。真机遇到再定（可在 `readers.moved` 里顺带改排队中记录的 `route_device`），这次没做。
 - 没挂电脑、按密钥编号算一台的旧槽位密钥当读者时，`route_device` 是密钥编号；它在推送连接上不是同一编号时那张单「访问不到」。补丁之后应已没有这种读者，没另做。
 - `tests/test_cowork_folder_computers.py` 本机没跑（要 frappe）；真实 Site、HTTP 链、测试机、真 Windows 都没跑。
+
+### 「谁的活谁的电脑做」对抗审查与修复（2026-10-16，本地提交，未推送）
+
+审查在 `ecbb67a7` 上读代码（没在真 Site、真 Windows 上复现），没有阻塞项：9 条（4 中、5 低）逐条核实**全部成立**，其中第 1、6 条是同一处
+（改挂 / 移除时冻结的 `route_device` 没人管）。6 处改代码、1 处只改注释（第 9 条）、1 处只改记录（第 7 条）。修复为本节之前的 `fix:` 提交，记录与 ADR 为随后的 `docs:` 提交；ADR-021 第 57 条，
+第 30、51 条与「兼容」一节对应补注。没有新补丁、没有新 DocType 字段、没有新界面词条；新加一个 hooks 键 `cowork_device_retiring`。
+
+| # | 级别 | 问题 | 核实 | 处理 |
+|---|---|---|---|---|
+| 1 / 6 | 中 | 定时任务单冻结的 `route_device` 在电脑改挂（`_move`）或移除（`retire`）时不跟着处理，已排队的单永远没人写、不报原因 | 成立：`queue_heads._OWNED` 只认 `route_device` 等于来领的那台；`readers.moved` 只转任务、文件、运行、公司文件夹；`remove_device` / `retire_orphan` 不碰推送记录；1.6 升 1.7.0 的补丁旧电脑就会走到 `_move` | 已修：推送域加 `push.native.service.reroute(connection, old, new)`，挂在同一个钩子 `cowork_reader_device_moved` 上（companion 仍不直接写推送表），把这条连接上冻结给旧记录、状态为已准备 / 排队 / 正在写的记录改由新记录写（`documents.reroute` 是唯一能改 `route_device` 的入口，带专用标记，其余身份字段照旧不可改；只换这一列、升一次版本）。新钩子 `cowork_device_retiring` → `release_route(device)`：电脑退役前（`credentials.remove_device` 吊销密钥后、锁电脑行前；`devices.retire_orphan` 对没人认领的旧电脑在锁电脑行前）把冻结给它、还在排队的单转人工，原因现有 `push.no_writer`，结果不明的不碰。两处都先不加锁挑（`route_device` 没有索引，加锁读会锁住扫过的每一行），再按主键逐张锁住复核。测试：账本 `reroute` 只改冻结给旧记录、未写完的两张，`release_route` 只转排队、不碰结果不明，挑选查询不加锁；身份字段守卫只放行 `reroute` 改 `route_device`；电脑移除时钩子在吊销密钥之后、锁电脑行之前；旧电脑退役前在改挂之后叫钩子；hooks 登记 |
+| 2 | 中 | 读文件夹的电脑够不到账套（永久）被当成「CC 桌面版未连接」，每十分钟重试、约 6 小时才失败 | 成立：`queueable` 只回真假，`_push_to` 与 T1 的 `UNREACHABLE` 都按「没连上」重试 | 已修：`destinations.queueable` 换成三态 `writer_state`：`READY`（能写，关着也算）/ `UNREACHABLE`（给了读者电脑而它够不到能写的账套，或旧任务的负责人有电脑却都够不到）/ `MISSING`（负责人一台电脑都没有）。只有 `MISSING` 才回 `retry`；`UNREACHABLE` 照常准备、确认，由确认按现有 `push.no_writer` 第一次就记下（撤回那次准备、原因记在票上），跟随公司时第一次就停在 `cowork.folder.account_set_unreachable`。测试：读者电脑够不到时第一次推就记 `push.no_writer`、不重试、撤回准备；T1 跟随同样第一次就停下；负责人一台电脑都没有仍重试 |
+| 3 | 中 | 待处理页当场补选重推定时任务的票时没带 `route_device`，改归点按钮的人自己的电脑写 | 成立：`pending_api.answer` / `choose_account_set` → `tools._push_one` → `application.submit` 不传 `route_device` | 已修（口径见下）：`folder_intake.push.reader_of(history, connection)` 按原件找回出这张票的文件行与任务（与 `source_rules` 同一条路），回读它所在文件夹的电脑（文件行优先，没有按任务上的；不是定时任务的票、任务删了、推往别的连接回空）；`pending_api` 两处把它传进 `_push_one(route_device=)`，Express 时交给 `submit`。CC 对话里主动推送仍按发起人。测试：`reader_of` 文件行优先 / 回落任务 / 别的连接与非定时任务为空；两处补选都带上读者电脑 |
+| 4 | 低 | T1 跟随判够不够得到用 `rule.reader_device`，推送冻结的是文件行优先的 `_reader(entry, rule)` | 成立 | 已修：`follow.choose(rule, history, device=)`，`push_one` 先算 `_reader(entry, rule)` 再同一个值传给 `choose` 与推送。测试：任务改由新电脑读、在途文件行仍记旧电脑时，判据与冻结都是旧电脑 |
+| 5 | 低 | CC 工具把「有电脑但都够不到能写的账套」也报成 `cc_desktop_offline` | 成立：`_target_state` 只看 `writers_known` | 已修：`destinations.intake_state`（与 LINE `flow._state` 同一口径）；`cowork_intake_options` 的 Express 状态分 `no_writer` 与 `cc_desktop_not_connected`，各带一句给模型的英文说明（`TARGET_NOTES`，不是界面文案），`cc_desktop_offline` 不再出现。账套清单按本人电脑筛**没做**（审查也说可留到第 7 批）：乙选了只有甲的电脑够得到的账套，确认时回 `push.no_writer`。测试：两种状态与说明、不列账套 |
+| 7 | 低 | 网页去掉常驻开关后，1.6 用户在 1.7.0 推到之前关不掉本机常驻 | 成立（影响只在服务端部署到 1.7.0 推到之间） | 按审查建议第一条只改记录：ADR「兼容」与第 57 条写明，发布时 CC 桌面版紧跟服务端部署；不加只关不开的临时开关（用户要求界面不出现常驻） |
+| 8 | 低 | 回读：发起人一台自己的电脑都没有时回 `offline`，CC 会叫他去把电脑开机 | 成立 | 已修：`request_service.waiting(…, user=)` 不定向、他一台登录过 CC 的电脑都没有时回新原因 `missing`（给不给账套都一样）；`READBACK_WAITING["missing"]` 一句给模型的英文说明。测试：`missing` 两种、定向读者电脑不按人判；CC 工具带上这句说明 |
+| 9 | 低 | 两处注释仍按档位 / 常驻写 | 成立 | 已改：`queue_contracts` 的 `attended` 注释改为「不是定时任务、录入人在这台电脑上登录过 CC（第 55 条）」；桌面端 `device_key_backup` 去掉「常驻电脑更是没人去点」 |
+
+第 3 条的口径：审查建议先请用户定「补选后算定时任务的活还是点按钮的人的活」。本窗口没法问用户，按 ADR 第 51 条「定时任务由读那个文件夹的电脑做」与
+「T1 跟随不变」取**仍算定时任务**（审查推荐的一种，F18 / T1 的待处理闭环不受影响）；要改成按点按钮的人，只需 `pending_api` 不传 `route_device`。
+
+文案：没有新增、没有改动界面词条。给模型看的英文说明加三句（`TARGET_NOTES` 两句、`READBACK_WAITING["missing"]` 一句），不进术语表。
+不再使用：CC 工具状态码 `cc_desktop_offline`（给模型的，不是界面文案）。
+
+检查（提交前的工作树）：
+
+| 命令 | 结果 |
+|---|---|
+| `python3 tests/test_cowork_express_dispatch.py` | 63 OK（新：账本 `reroute` / `release_route`；身份字段守卫） |
+| `python3 tests/test_cowork_cc_desktop_devices.py` | 68 OK（移除电脑时推送钩子的锁顺序；旧电脑退役前钩子在改挂之后） |
+| `python3 tests/test_cowork_folder_intake.py` | 126 OK（新：读者电脑够不到第一次就记 `push.no_writer`；hooks 登记两处） |
+| `python3 tests/test_cowork_folder_follow_year.py` | 30 OK（够不到第一次就停；文件行电脑优先、判据与冻结同一台） |
+| `python3 tests/test_cowork_companies.py` | 117 OK（新：待处理补选带读者电脑） |
+| `python3 tests/test_cowork_push_fixed.py` | 19 OK（新：`reader_of`） |
+| `python3 tests/test_cowork_companion_requests.py` | 38 OK（`missing`） |
+| `python3 tests/test_cowork_assistant_tools.py` | 187 OK（`no_writer` / `cc_desktop_not_connected` 与说明；回读 `missing` 说明） |
+| `check-architecture.py` | PASS |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（含两个前端构建） | 91 步全过，退出码 0（含 `frontend/assistant` 构建）；另跑 `npm --prefix frontend run build` 通过（产物按 `.gitignore` 不入库） |
+
+CC 桌面版只改了一行注释，没重跑它的 pytest；`tests/test_cowork_folder_computers.py`（要 frappe）本机仍没跑。
+
+给测试窗口的点验（在上一节 1–9 之上加）：
+
+10. 读文件夹的电脑在、却够不到这份账套（例如只装了 CC、没装 Express 的电脑读文件夹）：票第一次推就失败，原因「没有能写这份账套的电脑…」，不再显示
+    「推送时 CC 桌面版未连接，将于十分钟后重新推送」；跟随公司当年账套的任务第一次就停在「这份账套没有电脑够得到」。
+11. 定时任务的票停在「要人选」或「待选账套」：只用网页 / 手机、没有自己电脑的会计员在待处理页补选 → 能确认，由读文件夹的那台电脑写（推送记录「由 某电脑 写入」）。
+12. 在「电脑」列表移除读文件夹的那台电脑：它名下还在排队的定时任务单转到待处理，原因「没有能写这份账套的电脑…」，能重推；不再永远停在「推送中」。
+13. CC 里问「录到 Express」：自己有电脑但账套都在同事电脑上 → CC 说没有能写的电脑；一台电脑都没有 → CC 说还没连 CC 桌面版；回读时一台电脑都没有同样说没连。
+
+第 7 批真机要验（加在上一节之上）：
+
+- 1.6 升 1.7.0：补丁旧电脑改挂到新记录那一刻，排着的定时任务单是否随之改挂、由新记录领走（`reroute`，取代上一节「改挂前排着的单会不会停住」那条）；
+- 真库上 `route_device` 无索引的不加锁挑选在推送记录多时的耗时（只在改挂、退役时跑一次）；
+- 1.6 本机常驻在服务端部署后、1.7.0 推到前关不掉，发布时 CC 桌面版紧跟服务端。
+
+没做 / 拿不准（替换上一节「改挂电脑只转读者字段」那条，其余照旧）：
+
+- CC / LINE 识别时的账套清单仍是全池并集，不按本人电脑筛：选了只有同事电脑够得到的账套，先识别，确认时才回 `push.no_writer`。留到第 7 批。
+- 电脑退役只转「排队」的单；「已准备」的确认时自会按 `push.no_writer` 被拒，「正在写」的照旧等回执或租约过期转「结果不明」。
+- `retire_orphan` 判「没人认领」用的是锁电脑行之前的不加锁预看：极少数情况下那一刻电脑刚被认领，排着的单会被转人工（能重推，不丢）。
+- 第 3 条口径按「仍算定时任务」施工，没问用户（见上）。

@@ -181,7 +181,8 @@
     接受；要合并按人发时再改）；
     定时任务推送的限流按推送连接 + 账套计（同一份账套同时最多 5 张「录入中」），不再按读者连接。
 30. **定时任务推送按池的口径（D4）**：池里有能写的电脑（关着也算，`destinations.queueable` = `pool.state` 的 `writers_known`）就准备、确认、
-    排队，开机后写；一台能写的电脑都没有才按「电脑没连上」过一会儿再推。〔10-16 起「池里」改为读这个文件夹的那台，第 51 条〕
+    排队，开机后写；一台能写的电脑都没有才按「电脑没连上」过一会儿再推。〔10-16 起「池里」改为读这个文件夹的那台，第 51 条；
+    `queueable` 换成三态 `writer_state`，那台够不到时第一次就记 `push.no_writer`，只有负责人一台电脑都没有才重试，第 57 条〕
 31. **全所可用（D2）**：Express 连接加 `all_members`；连接的使用名单只有一个判据 `connections.access.listed`（Express 池勾了全所可用就是本归属下
     每个人，否则看 `allowed_users`；MR.ERP 只看名单），用连接（`require_connection`）、连接列表（`service.records`）、看推送记录
     （`service.read_for_log`，另要推送记录角色）都按它。新建的 Express 池默认全所可用；不往名单里放 `*`。补丁 `v0_0_22_express_all_members`
@@ -324,8 +325,8 @@
     A 的电脑关着时，同一份账套里 B 的单照样由 B 的电脑写（以前靠 120 秒后谁都能领才不卡）；同一份账套同时写仍由写者锁排队（`_older_writer`
     只让着领走 / 结果不明的，不按排队先后跨人卡）。定时任务：`folder_intake.push` 把文件行记的读者电脑（没有就取任务上的；补丁前的旧任务都没有
     就按负责人自己的电脑）经 `application.submit` → `prepare` → `ledger.reserve` 冻结进推送记录的 `route_device`（只读、不可改、不进请求指纹）；
-    `destinations.queueable` / `selectable`、跟随公司选账套（`follow.choose` 的 `has_writer`）都按那台判，那台够不到就是现有的
-    `cowork.folder.account_set_unreachable`（跟随时）或 `push.no_writer`。`queued_at`、`HANDOFF_SECONDS`、`tier`、`BETTER`、`queued()` 删掉。
+    `destinations.writer_state`（10-16 审查前叫 `queueable`）、跟随公司选账套（`follow.choose` 的 `has_writer`）都按那台判，那台够不到就是现有的
+    `cowork.folder.account_set_unreachable`（跟随时）或 `push.no_writer`（第 57 条：第一次就记，不按「没连上」重试）。`queued_at`、`HANDOFF_SECONDS`、`tier`、`BETTER`、`queued()` 删掉。
 52. **发起人的电脑都离线：排队，开机后接着写**。能不能选、确认只看「他的电脑里有能写的」（关着也算，D4 不变）；录入入口、LINE、CC 工具的
     状态按当前用户自己的电脑算（`pool.for_user` → `state(user=…)`）：他能写的电脑都关着 →「电脑离线（仍可选）」，同事的电脑在线也不算他在线；
     「需更新」只看他自己的排头。不让同事的电脑替他写，不再有 120 秒后谁都能领。
@@ -348,6 +349,28 @@
     的字段（加载本来就按字段白名单，旧 `companion.json` 里的 `always_on` 读时忽略、下次写回时丢掉）。电脑睡了就是离线，单子排队等它醒。
     服务端：电脑表删 `always_on` 列定义（这张表没进 main，生产没有这列；测试环境残留的列无害），`hello` 不再解析它（多出的键照旧忽略，
     1.7.0 开发版发来照样接受），「电脑」列表不再给，服务端不按它挑电脑；DocType 标签 `Always On` 与前端 `st.alwaysOn`（三种语言）随之删。
+
+57. **10-16 审查补齐「谁的活谁的电脑做」的几处断口**（9 条审查意见都成立：第 1、6 条是同一处；6 处改代码、1 处只改注释、1 处只改记录）：
+    - **改挂与退役不丢定时任务的单**：同一台电脑的旧记录改挂到新记录时（`devices._move`，1.6 升 1.7.0 的补丁旧电脑就会走到），推送域挂在同一个钩子
+      `cowork_reader_device_moved` 上的 `push.native.service.reroute` 把这条连接上冻结给旧记录、还没写完（已准备 / 排队 / 正在写）的推送记录的
+      `route_device` 换成新记录（`documents.reroute` 是唯一能改这一身份字段的入口，其余身份字段照旧不可改；只换这一列、升一次版本，不改状态、
+      不碰写者锁）。电脑退役前（「电脑」列表移除、没人认领的旧电脑密钥用完）新钩子 `cowork_device_retiring` → `release_route`：冻结给它、还在
+      排队的单转人工，原因用现有 `push.no_writer`，待处理页能看到、能重推；结果不明的不碰。两处都先不加锁挑（`route_device` 没有索引），再按主键
+      逐张锁住复核，推送记录在电脑行之前锁。
+    - **读文件夹的电脑够不到不是「没连上」**（`destinations.writer_state` 三态）：那台在、却够不到能写的账套（只读成员、账套只在别人电脑上、已移除），
+      或旧任务的负责人有电脑却都够不到 → 照常准备、确认，由确认按现有 `push.no_writer`（跟随时停在 `cowork.folder.account_set_unreachable`）第一次就
+      记下；只有负责人一台电脑都没有才按「CC 桌面版未连接」每十分钟重试、最后一次记失败。
+    - **定时任务的票在待处理页补选后仍由读文件夹的电脑写**：`answer` / `choose_account_set` 经 `folder_intake.push.reader_of`（文件行记的电脑优先，
+      没有按任务上的；不是定时任务的票、推往别的连接回空）把 `route_device` 传进 `tools._push_one` → `application.submit`。CC 对话里主动推送仍按
+      发起人。〔审查建议先请用户定口径；按第 51 条「定时任务由读那个文件夹的电脑做」与 T1 / F18 闭环不变的要求取「仍算定时任务」，在汇报里说明〕
+    - **跟随公司判够不够得到与推送冻结的是同一台**：`follow.choose(rule, history, device=)` 收 `push._reader(entry, rule)`（文件行优先）。
+    - **CC 工具不再把「没有能写的电脑」说成离线**：`cowork_intake_options` 的 Express 状态分 `no_writer`（有自己的电脑、都够不到能写的账套）与
+      `cc_desktop_not_connected`（一台都没有），各带一句给模型的英文说明（`TARGET_NOTES`，不是界面文案），原 `cc_desktop_offline` 不再出现；
+      `destinations.selectable(adapter, connection)` 换成 `intake_state`。账套清单仍是全池并集（选了只有同事电脑够得到的账套，确认时才回
+      `push.no_writer`），按本人电脑筛留到第 7 批。
+    - **回读：发起人一台登录过 CC 的电脑都没有**回 `waiting(…, user=)` 新原因 `missing`（给模型的说明加一句，不是界面文案），不再说哪台电脑离线。
+    - 注释：`queue_contracts` 的 `attended`、桌面端 `device_key_backup` 不再提常驻 / 档位。网页设置去掉常驻开关后 1.6 的本机常驻关不掉（见「兼容」）：
+      不加只关不开的临时开关（界面不再出现常驻），服务端部署后紧跟着发 CC 桌面版 1.7.0。
 
 ## 有意变化（迁移保护「身份、授权」与「外部写者锁」里的登记）
 
@@ -423,7 +446,9 @@
   谁领都行，部署前登记的文件按连接认。网页与 Desk 的定时任务页在第 6 批前仍传成员连接，服务端按根目录认电脑。数据可回退（新字段旧代码不读，
   `reader` 与 `rule_revision` 没动；`all_members` 旧代码不读，回退后名单回到 `allowed_users`）。
 - 10-16：没有登录记录的电脑（补丁建的旧电脑、1.6 及更早、只认过电脑的）在过渡期照旧什么单都写（第 50 条）；旧版桌面端本机的常驻设置
-  （防睡眠、不弹框）在升级到 1.7.0 前仍然生效，网页上已没有开关能关它；1.7.0 读配置时忽略它。新字段 `route_device`、`signed_in_users`
+  （防睡眠、开机锁屏、不弹框）在升级到 1.7.0 前仍然生效，网页上已没有开关能关它（反过来也打不开）；1.7.0 读配置时忽略它。这段时间只在
+  服务端部署到 1.7.0 推到之间，发布时 CC 桌面版紧跟服务端部署（第 57 条，审查第 7 条）。补丁建的旧电脑升级时改挂到新记录，排着的定时任务单
+  随之改挂（第 57 条）。新字段 `route_device`、`signed_in_users`
   都可为空，空值有明确含义（录入人自己的电脑；没有登录记录），不用补丁；电脑表、`queued_at`、`write_route` 都没进 main，直接删改。
 - 第 3 批：旧 CC 桌面版（≤1.5.x）照常领：下发副本的位置就是它自己可达行里的写法（与它上报的一致），多出的 `attended` /
   `account_uid` 按键取值时忽略；不报 `index_pending` 按「最近写过」近似黏住；不核文件号。领取请求、回复只加可选键，旧服务端
