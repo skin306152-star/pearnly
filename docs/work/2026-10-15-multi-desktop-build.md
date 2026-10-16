@@ -805,7 +805,8 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
   没有，或有成员带 `device_state`）→ 换请求号带 `rekey` 再登记；`superseded` 第一次就带 `rekey`；`update_needed` → 新的 `Link`
   `update_needed`（设置「连接」写「需更新」+「下载新版」，桥的 `download_update`）。`useAutoConnect`：1.7.0 每次打开都登记，之后听桥的
   `changed`，成员新出现 `device_state` 马上再登记一次（每个成员每种状态自动试一次）。旧版桥照旧（没有成员才连、不带设备密钥）。
-- **常驻电脑碰到 `claimed_elsewhere`**：选「页面自动恢复」（ADR 第 42 条）；停着期间别的电脑在「电脑」列表看到它连接中断。
+- **常驻电脑碰到 `claimed_elsewhere`**：选「页面自动恢复」（ADR 第 42 条）。（审查第 3 条更正：停着的那台在池里没有自己的电脑行，别的
+  电脑的「电脑」列表**不列它**；窗口没开时没有任何地方提示，见下方审查一节。）
 - **「电脑」列表与移除**：服务端 `rules.computers` 每行多 `id` / `connection` / `always_on` / `can_remove`（`devices.owners` +
   `credentials.manages`）；`companion.api.remove_device` → `credentials.remove_device`（加锁顺序与幂等见 ADR 第 43 条；可达行的连接由
   `connections.pool.device_connections` 给）。页面 `PoolComputers`：浏览器的「连接」与桌面版「此电脑 → 连接」下的「电脑」同一个组件，
@@ -885,3 +886,86 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 第 7 批真机要验：上面点验 1–8 各项在两台真机上走一遍；`remove_device` 与心跳 / 领取并发（连接行锁等待、快照隔离 1020）；1.7.0 收到
 `remove` 后的表现（密钥 401 时成员状态、重开对话页作为新电脑回来）；`set_members` 收窄名单后排队单按录入人转人工的数量；对话页每次打开
 都 `register` 的请求量（3 租户 × 10 台）。
+
+### 第 6 批对抗审查与修复（2026-10-16，本地提交，未推送）
+
+审查在 `723bffec` 上读代码（没在真 Site、真 Windows 上复现），没有阻塞项：6 中、8 低，共 14 条，全部成立；13 条已修，1 条（第 3 条）更正记录
+与 ADR、本机一侧已修、窗口没开时的提示列为没做。修复提交 `15b41627`（基线 `723bffec`），本条 docs 另一个提交。没有新补丁、没有新 DocType 字段、
+没有新词条；改了本批新加、尚未发布的 `cowork.folder.followCompany` 的 en / th / ja 与 CC `co.followCompany` 的 en / th（中文不变），没改已有文案。
+
+| # | 级别 | 问题 | 处理 |
+|---|---|---|---|
+| 1 | 中 | 签发人失权（全所可用关掉、名单里去掉他）后那台电脑的密钥作废，有权的人打开 CC 时 register v2 只回 `exists`，电脑一直写不了 | 已修：`credentials._register_device` 的 `exists` 分支里那把密钥的签发人已用不了这条连接（`issuer_valid`，同认证 `_issuer`），按 rekey 吊销旧钥、发本人签发的新钥、回 `created`；不要求登记人或管理员（本人已过 `_use`），登记人不变。测试：签发人移出名单后名单里另一人打开 → 新钥、旧钥吊销、只剩一把，再开回 `exists`；签发人有效时别人打开不换 |
+| 2 | 中 | 「···」移除不持久：对话页每次打开都 register，碰到退役电脑就交出摘要、建新电脑发钥，几秒内悄悄回来；ADR 写的是要有人重新登录 | 已修（服务端一侧）：退役电脑的自动登记回 `{"status": "removed"}`，不交摘要、不建电脑、不发钥（登记人、管理员、`rekey` 都一样）；只有带 `rejoin`（页面上人亲手点「连接」）才走「作为新电脑加入」。页面 `Link` 加 `removed`：设置「连接」写「电脑已移除」（现有 `co.folderGone`）+「连接」，点了带 `rejoin`。测试：移除后三种人自动登记都回 `removed` 且库不变、`rejoin` 才 `created`；页面行为测试第 8 步（自动登记不带 `rejoin` → `removed` 不配对；点「连接」带 `rejoin` → 配对） |
+| 3 | 中 | 记录与 ADR 第 42 条说常驻电脑碰到 `claimed_elsewhere` 停着时别人在「电脑」列表看到它「连接中断」——不成立：它在池里没有自己的密钥与电脑行，列表不列它，录入入口照样「已连接」 | 成立。ADR 第 42 条与本记录更正；本机设置「连接」那一行现在写现有「已在另一台电脑连接」+「重试」（第 8 条）。**窗口没开时仍没有任何地方提示**（要服务端记下认领冲突、或桌面端托盘通知，都要新文案或新字段），列为没做，第 7 批真机后定 |
+| 4 | 低 | 待处理页可换的账套按票上现算的公司、不传分店：会列出别的分店甚至别家公司的账套；选了以后任务默认不套用、可能被硬闸拒，而去向已先 commit、原因被换掉，再也选不了 | 已修：`folder_intake.push.source_rules`（`fixed_for` 同一条路，`fixed_for` 改用它）找回出这张票的任务，`companies.pending.account_sets_for` 按任务记的公司与分店调 `tasks.books_of`，找不到任务才退回现算归属；`choose_account_set` 改为先推、推成了（或停在要人选）才 `retarget`，推不成也没进账本就把原来的去向与「待选账套」原因放回，这次的原因只回给页面。测试：分店任务只列该分店两份、选总部那份回 `stale` 不推；任务删了退回现算（四份）；推不成放回原因与去向、不 `retarget`；推成先推后抄 |
+| 5 | 低 | 1.6 升 1.7.0 首启时对话页的登记先于旧槽位密钥 `device_hello`：服务端建新电脑发新钥，配对换掉旧钥，旧槽位密钥留在没人认领的「旧电脑」上永不吊销，写账可能分派给它 | 已修（CC 桌面版 1.7.0 一侧，尚未发布）：`DesktopSettings.pair` 按端点换掉成员旧密钥前，旧钥没有 `device_state` 就先 `device_link.settle_old_key`（拿旧钥 `device_hello`）：服务端照「新版先 register、后 hello」回 `superseded`、吊销旧钥、把旧电脑的可达行与读文件夹任务转给这台再退役旧电脑。不用 `device_leave`（同一配对码抄到两台时会吊销另一台正在用的钥匙）；失败、旧服务端、旧钥已失效都不拦配对。ADR 第 49 条。测试：桌面端 3 项（先 hello 再配对、带标记 / 同一把 / 新成员不发、hello 抛错照常配对、`settle_old_key` 用旧钥发 hello 且吞掉 401）、契约 1 项（`pair` 里先 settle 后配对、用 hello 不用 leave） |
+| 6 | 低 | 名单候选取 `team.api.api_list_members`（另一种管理员、列只有别的产品角色的人）；管理员关掉全所可用而自己不在名单里时「电脑」列表变空、移除不了 | 已修：新 `connections.api.member_choices`（只收 GET，`service.member_choices`：只限管理员、只给 Express，候选 = `access.assignees`，与 `require_assignee` 同一组角色、启用），页面改用它；`rules.computers` 对管理员不在名单上的连接按管理口径读（`_managed_connection`，同 `records`）。测试：`member_choices` 只给管理员、MR.ERP 拒、不加锁；`assignees` 的 SQL 与角色；管理员不在名单上照样列电脑且能移除、非管理员仍不列 |
+| 7 | 中 | 桌面版「此电脑 → 连接」下的「电脑」一节没电脑时写「还没有电脑连接」+「下载 CC 桌面版」 | 已修：`PoolComputers` 加 `inDesktop`，桌面版里一台电脑都没有时整节（含「电脑」标题）不出现，只剩管理员的「全所可用」；浏览器照旧 |
+| 8 | 中 | 成员带 `device_state` 时设置只写「未连接 / 连接」，看不出被另一台顶掉 | 已修：`LinkAction` 收 `deviceState`，`claimed_elsewhere` 写现有「已在另一台电脑连接」、`superseded` 写「未连接」，按钮都是现有「重试」；没加新词 |
+| 9 | 低 | 任务表单的「跟随公司当年账套」看存下的旧任务、不看当前选的账套 | 已修：CC 与 Desk 的表单都去掉这句，只在列表与主档页 / 会话栏的任务行写；表单只按账套提示「CC 桌面版需更新」 |
+| 10 | 低 | 推往的账套拼成「账套名 张数」、用「 · 」连，和账套名里的「 · 」混在一起 | 已修：每份用现有 `cowork.folder.pair`（「{0}：{1}」），几份之间用分号；运行记录里单独一行（CC 与 Desk 同一写法） |
+| 11 | 低 | Desk 列表结果列不列推往的账套；Desk 定时任务弹窗不提示「CC 桌面版需更新」 | 已修：结果列在计数后用分号接上推往的账套；弹窗账套下拉按账套调 `p.intake_targets.account_note`，写在下拉说明里 |
+| 12 | 低 | `followCompany` 的 en / th / ja 只是名词短语，看不出「跟随」 | 已改（本批新词，未发布）：en「Follows the company's account set for the year」、th「ตามชุดบัญชีของบริษัทในแต่ละปี」、ja「会社のその年の会計データに従う」；CC `co.followCompany` 的 en / th 同步；翻译包按 `i18n-build.py` 重生成，删掉旧英文原文的那一行别名 |
+| 13 | 低 | 选的账套不在列时借用「请在新建录入中重新读取」 | 已修：`choose_account_set` 回 `{"status": "stale"}`，页面重取可换的账套再让人选，不弹错误，不借词 |
+| 14 | 低 | 任务列表的文件夹一栏、编辑时补回的那一项不带读文件夹的电脑名 | 已修：`listing` 在池里不止一台电脑时给 `reader_label`（同步报的电脑名 → 电脑记录上的），CC 与 Desk 的列表文件夹一栏、补回的下拉项前面带「电脑名 · 」；一台时不给 |
+
+文案（给用户看）：
+
+- 没有新增词条。沿用的已有词：「电脑已移除」（`co.folderGone`，设置「连接」那一行）、「已在另一台电脑连接」（`st.inUse`）、「重试」「连接」、
+  `cowork.folder.pair`「{0}：{1}」。
+- 改了本批新加、尚未发布的一条（四种语言里中文不变）：
+
+| 键 | en | zh | th | ja |
+|---|---|---|---|---|
+| `cowork.folder.followCompany` / CC `co.followCompany` | Follows the company's account set for the year（原 Company's account set for the year） | 跟随公司当年账套（不变） | ตามชุดบัญชีของบริษัทในแต่ละปี（原 ชุดบัญชีของบริษัทตามปี） | 会社のその年の会計データに従う（原 会社のその年の会計データ；CC 没有 ja） |
+
+- 想改的已有文案（这次都没改）：同第 6 批——「CC 桌面版未连接」只在池里一台电脑都没有时出现，文字没动；「常驻模式」（`st.alwaysOn`）用在
+  「电脑」列表每行的说明里，可考虑缩成「常驻」。
+
+证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`，python3 3.12；需要 Frappe 的在一次性离线容器 `pearnly/frappe-sample:16.34.1`、
+`--network none`、工作树只读挂载里跑）：
+
+| 检查 | 结果 |
+|---|---|
+| `tests/test_cowork_cc_desktop_devices.py` | 68 OK（66 → 68：签发人失权换钥、签发人有效不换；「移除后同一台作为新电脑回来」改成「自动登记只回 removed、rejoin 才回来」；加锁顺序测试改走 `rejoin`） |
+| `tests/test_cowork_companies.py` | 116 OK（114 → 116：推不成放回能再选、按任务的公司与分店列；原测试改为先推后抄、不在列回 `stale`） |
+| `tests/test_cowork_connection_read_locks.py` | 15 OK（13 → 15：`member_choices`、`assignees`） |
+| `tests/test_cowork_folder_task_batch.py` | 33 OK（32 → 33：`reader_label` 只在多台时给） |
+| `tests/test_cowork_folder_computers.py`（容器内） | 8 OK（7 → 8：管理员不在名单上照样列、能移除） |
+| `tests/test_companion_contract.py` | 69 OK（68 → 69：换钥前用 hello 不用 leave；`register` 参数与页面多 `rejoin`，两处旧断言有意改） |
+| `tests/test_assistant_ui.py` | 127 OK（页面行为第 8 步 removed / rejoin；设置页与任务页审查修复的源码断言两项） |
+| `tests/test_cowork_folder_intake.py`、`folder_follow_year`、`push_fixed`、`companion_credentials` | 124 / 29 / 18 / 17 OK（`fixed_for` 改用 `source_rules` 后照旧） |
+| CC 桌面版 `companion/tests/test_device_link.py`、`test_desktop_settings.py` | 本机没有 PySide6 / httpx / dbf / pytest，用替身脚本逐个函数跑：改前 29 OK + 3 个替身导致的失败 / 20 OK，改后 32 OK + 同样 3 个 / 20 OK（新增 3 项全过）；完整 `pytest`（Companion checks，Windows）没跑，第 7 批 |
+| 变异核对 | 去掉 `removed` 分支、去掉签发人失权判断、去掉推不成放回、改回现算公司、去掉 `member_choices` 的 Express 限制、`reader_label` 不看台数：对应测试各自失败（6 / 6） |
+| 容器内 `tests/test_cowork_*.py`、`test_companion*.py`、`test_queue_targets.py`（不含源码对照） | 改前（`723bffec` 导出）与改后同一组结果：174 个文件 OK，其余 15 个在这个容器的跑法下改前改后同样失败（含基线的 `invoice_checks`、`table_input_runtime`；其余 13 个是这次在 `sites` 目录下跑的环境差异，与本次改动无关） |
+| `check-architecture.py`、`i18n-build.py --check`、`check-i18n.py --strict`、`check-frontend-i18n.py --strict` | PASS / PASS / 0 / PASS（不扩基线） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（含两个前端构建） | 91 步全过，退出码 0（提交前的工作树，含本条文档；代码与 `15b41627` 相同） |
+
+给测试窗口的点验（替换第 6 批清单对应项，测试机实时源码 + CC 桌面版 1.7.0）：
+
+1. 对话页打开：电脑行的「最近登录的人」是这次登录的人；再开一次密钥代数不变。
+2. 两台电脑各开 CC：「电脑」列表两行；关掉一台后 Desk 和 CC 的 Express 写「电脑离线」，仍能选、能确认排队。
+3. 登记人或管理员用「···」移除另一台：那台密钥失效、列表少一行；它读的定时任务与公司文件夹标「电脑已移除」、公司文件夹那一行能移除；
+   **那台重开 CC、刷新、重启都不回来**，设置「连接」写「电脑已移除」+「连接」，点「连接」后作为新电脑回来；非登记人非管理员看不到「···」。
+4. 管理员关掉「全所可用」：名单只列有录入 / 推送记录 / 管理角色的人；关掉某人后他看不到 Express；**管理员自己不在名单里时「电脑」列表照样
+   有行、能移除**；再打开恢复，连接版本不变。
+5. 签发人失权：甲在一台全所共用的电脑上登记，管理员关掉全所可用、名单只留乙 → 乙在那台电脑上打开 CC，电脑换成乙签发的新钥、恢复写账
+   （不需要管理员 rekey）。
+6. 两台都映射了 S 盘：新建任务的下拉每项带电脑名；**任务列表文件夹一栏也带电脑名**；只有一台时不带。
+7. T1：列表写「跟随公司当年账套」，表单不写；列表与运行记录的推往账套写成「ABC · 2569：2; ABC · 2568：3」，运行记录里单独一行；Desk
+   列表结果列同样有。T8 / T9 同期停下的单在待处理页点开只列这家公司这个分店的账套；选一份推不成时那一行下面写原因、仍能再选。
+8. 1.6 桌面版在已有 1.7.0 的池里：设置写「需更新」+「下载新版」。**1.6 升 1.7.0 首启**：「电脑」列表不多出一台永远离线的旧电脑。
+9. 配对码抄到两台：对话页开着的那台自己恢复；没恢复时本机设置写「已在另一台电脑连接」+「重试」。
+10. 在 CC 桌面版里、池里还没有电脑时打开设置「此电脑 → 连接」：没有「电脑」一节、没有「下载 CC 桌面版」。
+
+没做 / 拿不准：
+
+- 常驻电脑碰到 `claimed_elsewhere` 而窗口没开：任何地方都没有提示（第 3 条）。要么服务端记下认领冲突在「电脑」列表那台的行上说一句，要么
+  桌面端托盘通知——都要新文案，先列给用户定。
+- 第 5 条只在桌面端一侧修：升级首启时旧钥的 hello 要连得上服务端；连不上时旧电脑照旧残留（不拦配对）。真机时序没验。
+- 名单候选按角色列，不看团队页的启用以外的状态；名单里已有、现在已停用或失去角色的人照样列出、能勾掉。
+- 只在本机替身、离线容器与闸门上验过；真实 Site、HTTP 链、测试机、真 Windows 都没跑；CC 桌面版完整 `pytest` 没跑。
+
+第 7 批真机要验（在第 6 批所列之上加）：上面点验 3、5、8 的升级首启时序；`removed` 之后点「连接」的 `rejoin` 在真 Site 上的锁顺序；
+`member_choices` 在真库上的人数与排序；`choose_account_set` 推不成放回原因后早上汇总与月结台账的计数。
