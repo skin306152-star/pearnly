@@ -118,13 +118,13 @@ const StageRow: FC<{ stage: Stage; month: Month }> = ({ stage, month }) => {
       <div className="cc-panel-row" data-slot="cc-month-stage" data-stage={stage} data-state={state}>
         <span className="cc-month-dot" data-state={state} role="img" aria-label={word} title={word} />
         <Marquee className="min-w-0 flex-1 truncate">{co.ledger.stage[stage]}</Marquee>
-        <Marquee className="cc-panel-extra">{stageSummary(stage, month) || word}</Marquee>
+        <Marquee className="cc-panel-extra cc-month-status">{stageSummary(stage, month) || word}</Marquee>
       </div>
       {sets.length > 1 &&
         sets.map((set) => (
           <div key={`${set.connection}|${set.key}`} className="cc-panel-row cc-panel-indent" data-slot="cc-month-set">
             <Marquee className="cc-month-sub">{set.label || set.key}</Marquee>
-            <Marquee className="cc-panel-extra">{setSummary(set)}</Marquee>
+            <Marquee className="cc-panel-extra cc-month-status">{setSummary(set)}</Marquee>
           </div>
         ))}
     </>

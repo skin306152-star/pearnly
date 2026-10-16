@@ -1626,6 +1626,9 @@
   .cc-month-dot[data-state="attention"]::before { background: var(--cc-status-attention); }
   .cc-month-dot[data-state="clear"]::before { background: var(--cc-status-online); }
   .cc-month-code { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+  /* 段与账套行右侧的状态（「已回读 1/3」「testcowork 10月15日 21:55 回读」）完整显示，左边的段名 / 账套名让位，放不下时由它渐隐、悬停滚动；
+     同一行不会两处一起滚（用户 10-16 截图：右边状态被截成「0月15日」、两处同时滚）。左边至少留 4rem，状态再长才轮到它渐隐 */
+  .cc-panel-extra.cc-month-status { max-width: calc(100% - 4rem); }
   .cc-month-sub {
     flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);

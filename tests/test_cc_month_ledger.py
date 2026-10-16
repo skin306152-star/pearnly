@@ -79,6 +79,10 @@ class LedgerSourceTests(unittest.TestCase):
         ledger = read("components/month-ledger.tsx")
         self.assertIn('extra={<PeriodChip value={period} onChange={onPeriod} allowNone={false} look="cc-chin-btn" />}', ledger)
         self.assertIn("summary={month ? monthSummary(month) : undefined}", ledger)
+        # 段与账套行右侧的状态完整显示，左边名字让位、放不下时由它滚；同一行不会两处一起滚（用户 10-16 截图）
+        self.assertEqual(ledger.count('className="cc-panel-extra cc-month-status"'), 2)
+        css = read("globals.css")
+        self.assertIn(".cc-panel-extra.cc-month-status { max-width: calc(100% - 4rem); }", css)
         self.assertIn("const period = isPeriod(chosen) ? chosen : lastMonth();", ledger)  # 页面「不指定」时看上个月
         # 会话栏：没取到、空月不显示；出错显示原因
         card = ledger.split("export const MonthCard: FC", 1)[1].split("\n};", 1)[0]
