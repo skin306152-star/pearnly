@@ -27,7 +27,7 @@ export type Stage = (typeof STAGES)[number];
 export type StageState = "empty" | "open" | "attention" | "clear";
 export const SEVERITIES = ["action", "warn", "info"] as const;
 export type Severity = (typeof SEVERITIES)[number];
-export type ExceptionAction = "choose" | "open" | "task" | "readback" | "draft";
+export type ExceptionAction = "choose" | "open" | "task" | "readback" | "draft" | "account_set";
 
 export type ReadbackSet = {
   connection: string; key: string; label: string; status: "none" | "reading" | "ready" | "failed" | string;
@@ -113,8 +113,13 @@ export function pendingOf(item: MonthException, company: string): PendingItem {
   return {
     document: item.document ?? "", company, reason_code: item.group ?? item.code, code: item.code, reason_label: item.reason_label ?? "",
     invoice_no: item.invoice_no, counterparty: item.counterparty, amount: item.amount, date: item.date, filename: item.filename,
-    action: item.action === "choose" ? "choose" : "open", choice: item.choice ?? null,
+    action: item.action === "choose" ? "choose" : item.action === "account_set" ? "account_set" : "open", choice: item.choice ?? null,
   };
+}
+
+/** 这条异常是不是「待选账套」、能当场换账套（服务端 action account_set、带推送去向，T1，第 6 批）。 */
+export function accountSetException(item: MonthException): boolean {
+  return item.action === "account_set" && !!item.document && !!item.choice?.connection;
 }
 
 /** 这条异常是不是「当场选」（服务端 action choose、带推送去向）。 */

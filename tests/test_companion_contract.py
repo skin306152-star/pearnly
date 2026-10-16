@@ -174,6 +174,34 @@ class DeviceMethods(unittest.TestCase):
         identity = method_source_of(self.LINK, "identity")
         self.assertIn("'key': key", identity)
 
+    def test_the_chat_page_registers_with_the_bridges_device_key_on_every_open(self):
+        """第 5 节第 7 条（ADR-021 第 6 批，页面一侧）：对话页从桥的 state() 取 ``device``（features 含 ``devices`` 才算），
+        每次打开都带 ``device_key`` / ``device_name`` 调 register v2（与服务端参数同名），成员的 ``device_state`` 触发
+        ``rekey``；两端认的成员状态名相同；旧版桥照旧不带设备密钥。"""
+        page = (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8")
+        api = (SERVER / "api.py").read_text(encoding="utf-8")
+        register = next(node for node in ast.parse(api).body if isinstance(node, ast.FunctionDef) and node.name == "register")
+        params = {arg.arg for arg in register.args.args}
+        for key in ("device_key", "device_name", "rekey"):
+            self.assertIn(key, params)
+            self.assertIn(f"{key}: ", page)
+        self.assertIn("{ device_key: device.key, device_name: device.name, ...(rekey ? { rekey: true } : {}) }", page)
+        self.assertIn('export const DEVICES = "devices";', page)
+        self.assertIn('"devices"', (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8"))
+        self.assertIn("state?.features?.includes(DEVICES) && key", page)
+        # 两端的成员状态名一致（服务端 device_contracts，桌面端 device_link 照抄标到成员上）；页面见到 superseded 带 rekey，
+        # 别的状态（claimed_elsewhere）先按新电脑登记，回 exists 再 rekey
+        contracts = (SERVER / "device_contracts.py").read_text(encoding="utf-8")
+        link = self.LINK.read_text(encoding="utf-8")
+        for state in ("superseded", "claimed_elsewhere"):
+            self.assertIn(f"'{state}'", contracts)
+            self.assertIn(state, link)
+        self.assertIn('member.device_state === "superseded"', page)
+        # 每次打开都登记（有设备密钥时不只在没有成员时），本机状态变了、新出现 device_state 再登记一次
+        hook = page[page.index("export function useAutoConnect"):]
+        self.assertIn("if (!state.members.length || thisComputer(state)) await connectComputer(api);", hook)
+        self.assertIn("off = api.onChanged(", hook)
+
     def test_register_takes_the_device_key_and_the_management_rpcs_are_gone(self):
         api = (SERVER / "api.py").read_text(encoding="utf-8")
         register = next(node for node in ast.parse(api).body if isinstance(node, ast.FunctionDef) and node.name == "register")

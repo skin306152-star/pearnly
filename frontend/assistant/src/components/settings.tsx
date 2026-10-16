@@ -1,9 +1,12 @@
 // 设置（同 Claude：左下角菜单 →「设置」，或 Ctrl+,）。左边分栏，右边内容；选中 / 悬停用全站同一套中性灰（--muted），不用暖色：
 //
 //   常规      — 主题、对话字体、对话文字大小、对话记录宽度、动效、语言（同 Claude 设置的「外观」）、通知（浏览器 / 手机推送）
-//   连接      — 只在浏览器里（Cowork 站点）出现：只读，连着哪台电脑、在不在线；改只在电脑上的 CC 里
+//   连接      — 只在浏览器里（Cowork 站点）出现：池里的电脑（一台一行）、在不在线；连接、文件夹只在电脑上的 CC 里改。
+//               第 6 批（ADR-021）：登记人或管理员可在「···」移除一台电脑；管理员另有 Express 的「全所可用」开关，
+//               关掉以后按成员名单（MR.ERP 没有这个开关）
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
-//     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）
+//     连接    — 这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）；
+//               下面「电脑」同浏览器里的「连接」（池里每台电脑、移除、全所可用）
 //
 // 单据文件夹改在公司主档页按公司选（ADR-020，只在 CC 桌面版里经原生选择框）：桌面版声明了 company_folders 时这里不再有
 // 「网页可读取的文件夹」，只在还有以前授权、现在没人用的文件夹（state().legacy_roots）时多一行「以前授权的文件夹」可移除；
@@ -33,7 +36,7 @@ import {
 import { useInstallGuide } from "@/components/install-prompt";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
-import { chooseLanguage, siteFetch } from "@/lib/frappe";
+import { chooseLanguage, postMethod, shownError, siteFetch } from "@/lib/frappe";
 import { useProfile } from "@/lib/profile";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
@@ -397,6 +400,8 @@ function Connections({ api }: { api: Desktop }) {
     const result = await run("roots", "pick_roots");
     if (result.ok && !members.length) connect(); // 找到 Express 就接着连上
   };
+  // 需更新（旧版在已有新版电脑的池里登记，服务端回 update_needed）：桌面端在系统浏览器打开官网下载
+  const download = () => void run("download", "download_update");
 
   return (
     <>
@@ -405,12 +410,19 @@ function Connections({ api }: { api: Desktop }) {
           <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
         </div>
+        {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因、
+            点「重试」再登记（同还没连上时那一行） */}
+        {main && main.device_state && (
+          <LinkAction link={linkState} onConnect={connect} onDownload={download} disabled={!!busy} />
+        )}
         {main ? (
           <>
-            <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[main.status] }}>
-              <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[main.status] }} />
-              {st.status[main.status] ?? main.status}
-            </span>
+            {!main.device_state && (
+              <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[main.status] }}>
+                <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[main.status] }} />
+                {st.status[main.status] ?? main.status}
+              </span>
+            )}
             <DropdownMenu.Root onOpenChange={(o) => o && setError("")}>
               <DropdownMenu.Trigger
                 disabled={!!busy}
@@ -439,7 +451,7 @@ function Connections({ api }: { api: Desktop }) {
             </DropdownMenu.Root>
           </>
         ) : (
-          <LinkAction link={linkState} onConnect={connect} disabled={!!busy} />
+          <LinkAction link={linkState} onConnect={connect} onDownload={download} disabled={!!busy} />
         )}
       </div>
       {main && linkState.kind === "other_site" && state.site !== location.host && (
@@ -520,15 +532,32 @@ function Connections({ api }: { api: Desktop }) {
         </>
       )}
       {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+
+      <div className="mt-8">
+        <Heading>{st.computers}</Heading>
+      </div>
+      <PoolComputers />
     </>
   );
 }
 
 /** 还没连上时公司一行右边：正在连接 / 被另一台电脑用着（改用这台）/ 不是管理员 / 失败重试 / 连接。 */
-function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?: { replace?: number }) => void; disabled: boolean }) {
+function LinkAction({ link, onConnect, onDownload, disabled }: {
+  link: Link; onConnect: (o?: { replace?: number }) => void; onDownload: () => void; disabled: boolean;
+}) {
   const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-sm", tone)}>{text}</span>;
   if (link.kind === "connecting") return note(st.connecting);
   if (link.kind === "not_admin") return note(st.notAdmin);
+  // 这台是旧版、池里已有新版认领过的电脑（服务端不让旧版顶掉新版）：更新 CC 桌面版
+  if (link.kind === "update_needed")
+    return (
+      <>
+        {note(st.needsUpdate, "text-danger")}
+        <Button variant="outline" size="sm" disabled={disabled} onClick={onDownload}>
+          {st.downloadNew}
+        </Button>
+      </>
+    );
   if (link.kind === "in_use")
     return (
       <>
@@ -551,6 +580,7 @@ function LinkAction({ link, onConnect, disabled }: { link: Link; onConnect: (o?:
 // ── 浏览器里：只读的连接（连着哪台电脑、在不在线；pearnly_cowork.folder_intake.api.computers）。文件夹在公司主档页看 ──
 
 // update_blocked：这台电脑的 CC 桌面版自动更新被 Windows 拦下（被拦的版本 + 时刻，UTC；服务端 connections/desktop_update.py）
+// 第 6 批（ADR-021）：id = 电脑编号（「···」移除用）、always_on = 常驻、can_remove = 本人是登记人或管理员
 export type Computer = {
   adapter: string;
   device: string;
@@ -558,6 +588,10 @@ export type Computer = {
   version: string;
   folders: string[];
   update_blocked?: { version: string; at: string } | null;
+  id?: string;
+  connection?: string;
+  always_on?: boolean;
+  can_remove?: boolean;
 };
 
 /** 「Windows 拦截了 v1.5.2 的自动更新」；带时刻时接上「· 昨天 18:18」（按这台设备的时区，同对话里的时间）。 */
@@ -575,48 +609,83 @@ async function getJson<T>(method: string): Promise<T | null> {
 }
 
 function WebConnections() {
+  return <PoolComputers />;
+}
+
+const COMPUTERS = "pearnly_cowork.folder_intake.api.computers";
+const REMOVE_COMPUTER = "pearnly_cowork.companion.api.remove_device";
+
+/** 池里的电脑（一台一行，服务端 `folder_intake.rules.computers`）：在不在线、常驻、自动更新被拦；登记人或管理员「···」移除
+ *  （`companion.api.remove_device`：吊销它的密钥、让它退役；它读的定时任务留着、标「电脑已移除」）。下面是管理员的「全所可用」。 */
+export function PoolComputers() {
   const [rows, setRows] = useState<Computer[] | null>(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const load = useCallback(() => void getJson<Computer[]>(COMPUTERS).then((r) => setRows(r ?? [])), []);
   useEffect(() => {
-    const load = () => void getJson<Computer[]>("pearnly_cowork.folder_intake.api.computers").then((r) => setRows(r ?? []));
     load();
     const timer = setInterval(load, 10000);
     return () => clearInterval(timer);
-  }, []);
+  }, [load]);
+  const remove = async (row: Computer) => {
+    if (!row.id) return;
+    setBusy(row.id);
+    setError("");
+    try {
+      await postMethod(REMOVE_COMPUTER, { device: row.id });
+      setRows((before) => (before ?? []).filter((item) => item.id !== row.id));
+      load();
+    } catch (e) {
+      setError(shownError(e));
+    } finally {
+      setBusy("");
+    }
+  };
   if (!rows) return null;
-  if (!rows.length)
-    return (
-      <Row label={<span className="text-muted-foreground">{st.noComputer}</span>}>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            void getJson<{ url?: string }>("pearnly_cowork.companion.api.installer").then(
-              (info) => info?.url && window.open(info.url, "_blank", "noopener,noreferrer"),
-            )
-          }
-        >
-          {st.download}
-        </Button>
-      </Row>
-    );
   return (
     <>
-      {rows.map((row, i) => (
-        <ComputerSection key={`${row.adapter}-${row.device}-${i}`} row={row} />
-      ))}
+      {!rows.length ? (
+        <Row label={<span className="text-muted-foreground">{st.noComputer}</span>}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              void getJson<{ url?: string }>("pearnly_cowork.companion.api.installer").then(
+                (info) => info?.url && window.open(info.url, "_blank", "noopener,noreferrer"),
+              )
+            }
+          >
+            {st.download}
+          </Button>
+        </Row>
+      ) : (
+        rows.map((row, i) => (
+          <ComputerSection
+            key={`${row.adapter}-${row.id ?? row.device}-${i}`}
+            row={row}
+            busy={!!row.id && busy === row.id}
+            onRemove={row.can_remove && row.id ? () => void remove(row) : undefined}
+          />
+        ))
+      )}
+      {error && <p role="alert" className="mt-3 text-danger text-sm">{error}</p>}
+      <AllMembers />
     </>
   );
 }
 
-/** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。 */
-export function ComputerSection({ row }: { row: Computer }) {
+/** 一台电脑：名字、ERP（常驻的写上）、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。
+ *  能移除时行尾「···」→「移除」（同侧栏行菜单，不另加确认）。 */
+export function ComputerSection({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
   const status = row.online ? "online" : "offline";
   return (
     <section className="mb-8 last:mb-0">
       <div data-marquee-host="" className="flex items-center gap-3 border-b py-4">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
-          <div className="text-muted-foreground text-xs">{row.adapter === "mrerp" ? "MR.ERP" : "Express"}</div>
+          <div className="text-muted-foreground text-xs">
+            {[row.adapter === "mrerp" ? "MR.ERP" : "Express", row.always_on ? st.alwaysOn : ""].filter(Boolean).join(" · ")}
+          </div>
           {row.update_blocked && (
             <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
           )}
@@ -625,8 +694,96 @@ export function ComputerSection({ row }: { row: Computer }) {
           <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[status] }} />
           {st.status[status]}
         </span>
+        {onRemove && (
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger
+              disabled={busy}
+              aria-label={t("more")}
+              className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+            >
+              <MoreHorizontalIcon className="size-4" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-surface p-1.5 shadow-lg">
+                <DropdownMenu.Item className={cn(menuItem, "text-danger")} onSelect={onRemove}>
+                  {st.remove}
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        )}
       </div>
     </section>
+  );
+}
+
+type PoolConnection = { name: string; adapter: string; main?: boolean; manageable?: boolean; all_members?: boolean; users?: string[] };
+type TeamMember = { email: string; display?: string; enabled?: boolean };
+
+/** 「全所可用」（D2，ADR-021 第 31 条）：Express 主连接、只给管理员。打开 = 本所每个有录入权限的人都能用这个池（在自己的电脑上
+ *  登录 CC 就加入）；关掉以后只有名单上的人能用，名单在下面逐人开关（`connections.api.set_members`，只改这两项、不升版本）。
+ *  名单不能空：只剩一个人时那一个的开关不能关。MR.ERP 没有全所可用，不显示。 */
+function AllMembers() {
+  const [pool, setPool] = useState<PoolConnection | null>(null);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    void getJson<PoolConnection[]>("pearnly_cowork.connections.api.records?limit=100").then((rows) =>
+      setPool((rows ?? []).find((row) => row.adapter === "express" && row.main && row.manageable) ?? null),
+    );
+  }, []);
+  useEffect(() => {
+    if (!pool || pool.all_members) return;
+    void getJson<{ members?: TeamMember[] }>("pearnly_cowork.team.api.api_list_members").then((found) =>
+      setTeam((found?.members ?? []).filter((member) => member.enabled !== false)),
+    );
+  }, [pool]);
+  if (!pool) return null;
+  const users = pool.users ?? [];
+  const save = async (values: { all_members?: boolean; users?: string[] }) => {
+    setBusy(true);
+    setError("");
+    try {
+      const next = await postMethod<PoolConnection>("pearnly_cowork.connections.api.set_members", {
+        name: pool.name,
+        ...(values.all_members === undefined ? {} : { all_members: values.all_members ? 1 : 0 }),
+        ...(values.users ? { users: JSON.stringify(values.users) } : {}),
+      });
+      setPool((before) => (before ? { ...before, all_members: next.all_members, users: next.users } : before));
+    } catch (e) {
+      setError(shownError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const listed = [...new Set([...team.map((member) => member.email), ...users])];
+  const name = (email: string) => team.find((member) => member.email === email)?.display || email;
+  return (
+    <div className="mt-8">
+      <Row label={st.allMembers}>
+        <Switch checked={!!pool.all_members} disabled={busy} label={st.allMembers} onChange={(on) => void save({ all_members: on })} />
+      </Row>
+      {!pool.all_members && (
+        <>
+          <Heading>{st.members}</Heading>
+          {listed.map((email) => {
+            const on = users.includes(email);
+            return (
+              <Row key={email} label={<Marquee className="block truncate">{name(email)}</Marquee>}>
+                <Switch
+                  checked={on}
+                  disabled={busy || (on && users.length === 1)}
+                  label={name(email)}
+                  onChange={(next) => void save({ users: next ? [...users, email] : users.filter((user) => user !== email) })}
+                />
+              </Row>
+            );
+          })}
+        </>
+      )}
+      {error && <p role="alert" className="mt-3 text-danger text-sm">{error}</p>}
+    </div>
   );
 }
 

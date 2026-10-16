@@ -38,9 +38,11 @@ export type AccountSet = {
 /** 一家公司（法人）下的分店：分店号、显示名、各自的账套（服务端从目录现算，新年度在前）。 */
 export type Branch = { branch: string; label?: string; account_sets: AccountSet[] };
 export type FolderState = "ok" | "waiting" | "offline" | "missing" | "folder_missing";
+/** reader 是成员连接（旧写法），reader_id 是读者编号「电脑|连接」（ADR-021 第 4 批），解绑、预填任务文件夹都用它；
+ *  reader_gone：读它的电脑已被移除（第 6 批，页面写「电脑已移除」）。 */
 export type CompanyFolder = {
   reader: string; device: string; label: string; state: FolderState; month_folder?: string | null;
-  month_candidates?: string[]; mine?: boolean; root_id?: string; folder?: string;
+  month_candidates?: string[]; mine?: boolean; root_id?: string; folder?: string; reader_id?: string; reader_gone?: boolean;
 };
 export type Note = { id: string; text: string; origin?: "person" | "cc"; updated_by?: string; updated_at?: string };
 /** 记住的选择（rule / express / pos / income / vat / history）；history = 从 Express 历史学到的「供应商 → 科目」，只读可删；
@@ -50,7 +52,10 @@ export type Choice = {
   year_label?: string; set_by?: string; set_at?: string; count?: number; last_date?: string;
   supplier_name?: string; account_label?: string; branch?: string; promotable?: boolean;
 };
-export type TaskRow = { name: string; title: string; enabled?: boolean | number; account_label?: string; folder_label?: string };
+/** follows：跟随公司当年账套（T1，任务记了公司），账套处写「跟随公司当年账套」，account_label 只作兜底。 */
+export type TaskRow = {
+  name: string; title: string; enabled?: boolean | number; account_label?: string; folder_label?: string; follows?: boolean;
+};
 export type Draft = { name: string; kind: string; period: string; updated_at?: string; branch?: string; company_branch?: string };
 export type Detail = {
   company: {
@@ -75,7 +80,8 @@ export type PendingChoice = { connection: string; account_set_key: string; kinds
 export type PendingItem = {
   document: string; company: string | null; reason_code: string; code?: string; reason_label: string;
   invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string; month?: string;
-  action: "choose" | "open";
+  // account_set：定时任务跟随公司当年账套停在「待选账套」（T1），当场换一份账套重推（ADR-021 第 6 批）
+  action: "choose" | "open" | "account_set";
   choice?: PendingChoice | null;
 };
 
@@ -161,6 +167,17 @@ export function answerChoices(item: Pick<PendingItem, "document">, view: Choices
   return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.answer", { document: item.document, items: JSON.stringify(items) });
 }
 
+/** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）。 */
+export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<Array<{ key: string; label: string }>> {
+  return getMethod<{ account_sets?: Array<{ key: string; label: string }> }>("pearnly_cowork.assistant.pending_api.account_sets",
+    { document: item.document }).then((found) => found?.account_sets ?? []);
+}
+
+/** 换到选的那份账套并重推这一张（assistant.pending_api.choose_account_set）；结果同 answerChoices。 */
+export function chooseAccountSet(item: Pick<PendingItem, "document">, key: string): Promise<AnswerResult> {
+  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.choose_account_set", { document: item.document, account_set_key: key });
+}
+
 /** 账套目录还没读到时「刷新账套」：本人能用的每条连接各请电脑读一次目录（connections.request_refresh，同网页）。 */
 export async function refreshCatalogs(): Promise<void> {
   const rows = (await getMethod<Array<{ name: string; enabled?: number | boolean }>>("pearnly_cowork.connections.api.records", { limit: 100 })) ?? [];
@@ -172,7 +189,7 @@ export async function refreshCatalogs(): Promise<void> {
 }
 
 // ---------------------------------------------------------------- 当前看的是哪家
-/** 定时任务表单的预填（主档页「＋」）：覆盖本月的账套；本机已绑定文件夹时连同文件夹（reader|root_id|folder）。 */
+/** 定时任务表单的预填（主档页「＋」）：覆盖本月的账套；本机已绑定文件夹时连同文件夹（`folderValue` 的写法）。 */
 export type TaskSeed = { adapter: string; connection: string; account_set_key: string; folder?: string };
 type CompanyNav = {
   company: string; // 主档页看的是哪家
@@ -433,17 +450,37 @@ export function groupTasks<T extends { name: string }>(rules: readonly T[], task
   return [...map.entries()].sort((a, b) => rank(a[0]) - rank(b[0]) || (titles[a[0]] ?? "").localeCompare(titles[b[0]] ?? ""));
 }
 
+/** 定时任务表单里文件夹下拉的值（ADR-021 第 6 批）：读者编号（「电脑|连接」，本身带竖线）、根目录编号、相对路径各自编码后
+ *  用竖线连起来，拆的时候不会被编号里的竖线拆错（Desk 定时任务页同一写法）。 */
+export const folderValue = (reader: string, rootId: string, folder = "") =>
+  [reader, rootId, folder].map(encodeURIComponent).join("|");
+
+export function folderParts(value: string): { reader: string; root_id: string; folder: string } {
+  const [reader = "", root_id = "", folder = ""] = String(value || "").split("|").map(decodeURIComponent);
+  return { reader, root_id, folder };
+}
+
+/** 这一行文件夹是不是本机的（这台电脑在这家公司绑的那一行）：服务端给了 mine 就以它为准；否则成员连接在本机记过，
+ *  并且（CC 桌面版 1.7.0 起有电脑名时）电脑名也相同——同一条连接上几台电脑各绑一行时不把别人那行认成本机。 */
+export function folderIsMine(folder: Pick<CompanyFolder, "mine" | "reader" | "device">, readers: readonly string[],
+  deviceName = ""): boolean {
+  if (folder.mine) return true;
+  return readers.includes(folder.reader) && (!deviceName || !folder.device || folder.device === deviceName);
+}
+
 /** 新建定时任务的预填（主档页「＋」、总览「＋」先选公司）：覆盖这个月的账套；这台电脑绑了文件夹时连同文件夹，只需再选子文件夹。 */
 export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "company">, period: string, readers: readonly string[] = [],
-  desktop = false): TaskSeed | null {
+  desktop = false, deviceName = ""): TaskSeed | null {
   const set = setForPeriod(detail.account_sets, period);
   if (!set) return null;
-  const folder = desktop ? detail.folders.find((f) => f.mine || readers.includes(f.reader)) : undefined;
+  const folder = desktop
+    ? detail.folders.find((f) => !f.reader_gone && folderIsMine(f, readers, deviceName))
+    : undefined;
   return {
     adapter: set.adapter ?? detail.company.adapter ?? "",
     connection: set.connection,
     account_set_key: set.key,
-    ...(folder?.root_id ? { folder: `${folder.reader}|${folder.root_id}|${folder.folder ?? ""}` } : {}),
+    ...(folder?.root_id ? { folder: folderValue(folder.reader_id || folder.reader, folder.root_id, folder.folder ?? "") } : {}),
   };
 }
 

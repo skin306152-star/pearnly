@@ -135,11 +135,25 @@
 				set_value(name, list[0].value);  // 只有一个可选就直接选上（例如 MR.ERP 进项只有赊账）
 			}
 		};
+		// 选定的 Express 账套：够得到它的电脑都不支持排头要的载荷版本时，在下拉下面写「CC 桌面版需更新」（仍可选，第 6 批）
+		let noted = null;
+		const note_account = () => {
+			const connection = snapshot?.connections?.[picked.target];
+			const key = picked.target === "express" ? picked.account_set_key : null;
+			if (key === noted) return;
+			noted = key;
+			d.set_df_property("year", "description", "");
+			if (!key) return;
+			void p.intake_targets.account_note(connection, key).then(text => {
+				if (noted === key) d.set_df_property("year", "description", text);
+			});
+		};
 		const paint_year = () => {
 			paint("year");
 			const year = options.year().find(row => row.value === picked.account_set_key);
 			const company = options.company().find(row => row.value === picked.company);
 			picked.account_label = year ? [company?.label, year.label].filter(Boolean).join(" · ") : null;
+			note_account();
 		};
 		const paint_mode = () => {
 			d.set_df_property("posting_kind", "hidden", mode() !== "posting_kind");

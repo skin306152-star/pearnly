@@ -2215,6 +2215,20 @@ class PushOutcomeServiceTests(unittest.TestCase):
         self.assertEqual(service.written([]), {})
         self.assertEqual(len(queries), 1)
 
+    def test_the_computer_that_wrote_it_is_named(self):
+        # 第 6 批：Express 记录记了写入的电脑（`written_by_device`），``written.writer`` 给电脑名（电脑归 companion，经钩子
+        # `cowork_device_labels` 一次取齐）；没记电脑的（MR.ERP、部署前的）不加
+        rows = [{**row, "written_by_device": "CCD-2" if row["name"] in ("PR1", "PR3") else None} for row in self.ROWS]
+        service, _queries = _push_service(rows)
+        asked = []
+        service.frappe.get_hooks = lambda name: ["companion.devices.labels"] if name == "cowork_device_labels" else []
+        service.frappe.get_attr = lambda path: (lambda names: asked.append(list(names)) or {"CCD-2": "ACC-02"})
+        found = service.written(["PR1", "PR3", "PR6"])
+        self.assertEqual((found["PR1"]["writer"], found["PR3"]["writer"]), ("ACC-02", "ACC-02"))
+        self.assertNotIn("writer", found["PR6"])
+        self.assertEqual(asked, [["CCD-2"]])
+        self.assertEqual(service.outcomes(["PR1"])["PR1"]["written"]["writer"], "ACC-02")
+
 
 class WrittenFactsTests(unittest.TestCase):
     """推送记录冻结的 Express 载荷 → 怎么写进去的（验收 F19）：现 / 赊按单据类型，来源照 doctype_src 一一对应。"""

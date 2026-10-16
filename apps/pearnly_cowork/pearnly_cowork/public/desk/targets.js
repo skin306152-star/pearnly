@@ -51,9 +51,22 @@
 		const connection = snapshot.connections[adapter];
 		if (!connection) return {text: __("connect.state.notConnected"), tone: "gray"};
 		if (!connection.enabled) return {text: __("connect.state.disabled"), tone: "red"};
-		// Express 以助手**实际连上**为准（服务端 `online`：当前密钥 3 分钟内报过到），只生成密钥不算。
+		// Express 以池里能写的电脑**实际连上**为准（服务端 `online`：3 分钟内报过到），只生成密钥不算。
 		if (adapter === "mrerp" || snapshot.agent?.online) return {text: __("connect.state.connected"), tone: "green"};
-		return {text: __("intake.agent.state.missing"), tone: "orange"};
+		// 第 6 批（ADR-021，D4）：能写的电脑都关着 →「电脑离线」，仍可选（排队，开机后写）；池里有电脑、却没有一台能写 →
+		// 「没有能写的电脑」；一台电脑都没有 → 现有「CC 桌面版未连接」。
+		if (snapshot.agent?.writers_known) return {text: __("intake.agent.state.offline"), tone: "orange"};
+		return {text: __(snapshot.agent?.computers ? "intake.agent.state.noWriter" : "intake.agent.state.missing"),
+			tone: "orange"};
+	}
+
+	/** 选定 Express 账套后：排在这份账套最前面的单要的载荷版本，池里够得到它的电脑没有一台支持（`api.online` 按账套问的
+	 *  `needs_update`，与推送记录上的 `payload_version_outdated` 同一判据）→「CC 桌面版需更新」；否则空串。读不出也是空串。 */
+	async function account_note(connection, account_set_key) {
+		if (connection?.adapter !== "express" || !account_set_key) return "";
+		const found = await frappe.xcall(API.companion + "online", {connection: connection.name, account_set_key})
+			.catch(() => null);
+		return found?.needs_update ? __("intake.agent.state.needsUpdate") : "";
 	}
 
 	/** 能不能进上传识别：MR.ERP 要有可用连接；Express 要池里有能写的电脑（`writers_known`，关着也算：排队等开机后写）。 */
@@ -431,7 +444,7 @@
 		return text === `intake.catalog.${code}` ? __("intake.catalog.ERR_UNEXPECTED") : text;
 	}
 
-	p.intake_targets = {TARGETS, RECOGNIZE_ONLY, catalog, catalog_error, connect_dialog, describe, download_agent,
+	p.intake_targets = {TARGETS, RECOGNIZE_ONLY, account_note, catalog, catalog_error, connect_dialog, describe, download_agent,
 		prefetch_account,
 		express_dialog, helper_dialog,
 		stock_group, stock_group_needed, stock_group_options, choose_stock_group, ask_stock_group,

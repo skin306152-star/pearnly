@@ -131,7 +131,11 @@ class CredentialContracts(unittest.TestCase):
         exposed = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.decorator_list}
         # installer 只回安装包地址（部署配置），同样是登录用户的 GET、先过 require_actor。
         # register 只收 POST（CC 桌面端登记这台电脑）；管理用的 issue / revoke / status 已下线（ADR-021）。
-        self.assertEqual(exposed, {'online', 'installer', 'register'})
+        # remove_device 只收 POST（第 6 批「电脑」列表的移除，登记人或管理员，在 credentials 里判）。
+        self.assertEqual(exposed, {'online', 'installer', 'register', 'remove_device'})
+        remove = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'remove_device')
+        self.assertIn("methods=['POST']", ast.unparse(remove.decorator_list[0]))
+        self.assertIn('_local_transaction(credentials.remove_device', ast.unparse(remove))
         register = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'register')
         self.assertIn("methods=['POST']", ast.unparse(register.decorator_list[0]))
         self.assertIn('_local_transaction(credentials.register', ast.unparse(register))

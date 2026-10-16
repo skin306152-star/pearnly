@@ -604,6 +604,9 @@ cowork_pool_presence = ["pearnly_cowork.companion.credentials.pool_peers"]
 # 同一台电脑的旧记录改挂到它已认领的记录上（`companion.devices`）：按电脑记的读文件夹任务、在途文件、公司文件夹一并转过去
 # （ADR-021 第 4 批；companion 不导入文件夹域）
 cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved"]
+# 推送记录由哪台电脑写入（`written_by_device` → 电脑名，ADR-021 第 6 批：CC 列推送结果 / 单据详情的 ``written.writer``）：
+# 电脑归 companion，push 不导入它
+cowork_device_labels = ["pearnly_cowork.companion.devices.labels"]
 
 pearnly_worker_preload = [
     "pearnly_cowork.recon_center.jobs",

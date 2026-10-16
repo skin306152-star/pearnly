@@ -40,6 +40,20 @@
 	const files_hint = (count, partial) => (count == null ? "" : ft("cowork.folder.waiting", partial ? `${count}+` : count));
 	// 「还有 N 份未处理，到点处理」：任务的待处理数（还没处理过、到点会处理的，不是文件夹里现有几份）；0 或不知道不显示。
 	const pending_hint = (count, partial) => (count > 0 ? ft("cowork.folder.pending", partial ? `${count}+` : count) : "");
+	// 文件夹下拉的值（第 6 批，ADR-021 第 26 条）：读者编号（「电脑|连接」，本身带竖线）、根目录编号、相对路径各自编码后
+	// 用竖线连起来，拆的时候不会被编号里的竖线拆错。读者编号取任务的 `reader_id` / 读者选项的 `reader`，旧服务端没给时退回连接。
+	const folder_value = (reader, root_id, folder) => [reader, root_id, folder || ""].map(encodeURIComponent).join("|");
+	const folder_parts = value => {
+		const [reader = "", root_id = "", folder = ""] = String(value || "").split("|").map(decodeURIComponent);
+		return {reader, root_id, folder};
+	};
+	const rule_folder = rule => folder_value(rule.reader_id || rule.reader, rule.root_id, rule.folder);
+	const reader_id = reader => reader.reader || reader.connection;
+	// 跟随公司当年账套（T1）的任务：账套处写这一句，存下的账套名只作兜底
+	const account_text = row => (row.company ? ft("cowork.folder.followCompany") : row.account_label || "");
+	// 这些票实际推往了哪几份账套、各几张（跟随公司当年账套的任务才有）
+	const account_sets_text = results => (results?.account_sets || [])
+		.map(item => `${item.account_label} ${item.tickets}`).join(" · ");
 
 	p.intake_folders = async ({page, t, still_current}) => {
 		const root = "pearnly-intake";
@@ -48,7 +62,9 @@
 		let data = {rules: [], connections: []};
 		// 文件夹不可用：小助手报这个任务的文件夹不在了（授权移除 / 改名 / 子文件夹删了），到点也不会跑。
 		// 处理中：这个任务还有文件在识别、推送的路上（`results.moving`，按文件数），走完自动刷新回「启用中」。
+		// 电脑已移除（第 6 批）：读文件夹的那台电脑被移除了，任务留着原电脑，等负责人重选文件夹（不自动换电脑读）。
 		const status = row => (!row.enabled ? ["gray", ft("cowork.folder.off")]
+			: row.reader_gone ? ["red", ft("cowork.folder.readerGone")]
 			: !row.agent_fresh ? ["orange", ft("cowork.folder.agentStale")]
 			: ["root_missing", "folder_missing"].includes(row.folder_state) ? ["red", ft("cowork.folder.folderMissing")]
 			: row.results?.moving ? ["blue", ft("cowork.folder.moving", row.results.moving)]
@@ -78,7 +94,8 @@
 				{fieldname: "title", width: 200, min_width: 140, label: ft("cowork.folder.field.title")},
 				{fieldname: "adapter", width: 110, min_width: 90, label: __("intake.target.title"),
 					format: value => p.intake_targets.TARGETS.find(row => row.adapter === value)?.label || ""},
-				{fieldname: "account_label", width: 180, min_width: 110, label: __("intake.target.accountSet")},
+				{fieldname: "account_label", width: 180, min_width: 110, label: __("intake.target.accountSet"),
+					format: (value, row) => account_text(row)},
 				{fieldname: "folder", width: 160, min_width: 100, label: ft("cowork.folder.field.folder"),
 					format: (value, row) => value || row.root_label || ""},
 				{fieldname: "run_day", width: 110, min_width: 90, label: ft("cowork.folder.col.schedule"),
@@ -165,7 +182,8 @@
 			{fieldtype: "Select", fieldname: "year", label: __("Company"), options: [], onchange: () => void on_group()},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "account_set_key", label: __("intake.target.year"), reqd: 1, options: [],
-				max_items: 1000, onchange: () => void on_account()},
+				max_items: 1000, onchange: () => void on_account(),
+				description: rule?.company ? ft("cowork.folder.followCompany") : ""},
 			row(),
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"), reqd: 1,
 				options: [{value: "purchase", label: t("intake.dir.purchase")}, {value: "sales", label: t("intake.dir.sales")}],
@@ -222,14 +240,14 @@
 			for (const kind of ["payment", "vat", "account", "department", "item"]) {
 				if (express() && !d.fields_dict["d_" + kind].df.hidden && values["d_" + kind]) defaults[kind] = values["d_" + kind];
 			}
-			const [reader, root_id, ...folder] = String(values.folder || "").split("|");
+			const {reader, root_id, folder} = folder_parts(values.folder);
 			const remind_times = Array.from({length: REMIND_MAX}, (_, i) => ({
 				days_before: Number(values[`remind_day_${i}`] || 0), time: hhmm(values[`remind_time_${i}`])}))
 				.filter(item => item.time);
 			await p.call(API + "save", {values: JSON.stringify({name: rule?.name || null, title: values.title,
 				connection: target.name, reader, account_set_key: values.account_set_key, direction: values.direction,
 				posting_kind: express() ? values.posting_kind : "", payment: express() ? "" : values.payment,
-				root_id, folder: folder.join("|"), run_day: Number(values.run_day), run_time: values.run_time, defaults,
+				root_id, folder, run_day: Number(values.run_day), run_time: values.run_time, defaults,
 				remind: values.remind ? 1 : 0, ...(values.remind ? {remind_times} : {})})},
 			"POST");
 			d.hide();
@@ -328,13 +346,15 @@
 			const many = readers.filter(reader => (reader.roots || []).length).length > 1;
 			const prefix = reader => (many ? `${reader.label} · ` : "");
 			const folders = readers.flatMap(reader => (reader.roots || []).flatMap(item => [
-				{value: `${reader.connection}|${item.id}|`, label: prefix(reader) + item.label},
-				...(item.folders || []).map(name => ({value: `${reader.connection}|${item.id}|${name}`,
+				{value: folder_value(reader_id(reader), item.id, ""), label: prefix(reader) + item.label},
+				...(item.folders || []).map(name => ({value: folder_value(reader_id(reader), item.id, name),
 					label: `${prefix(reader)}${item.label}\\${name}`}))]));
-			// 小助手这会儿还没报上来（刚重启等）：任务原来的文件夹照样摆着，不让编辑时被清空。
-			const saved = rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : null;
+			// 小助手这会儿还没报上来（刚重启等）、读它的电脑已被移除：任务原来的文件夹照样摆着，不让编辑时被清空；
+			// 电脑已移除的写明（第 6 批），由负责人另选一台电脑上的文件夹。
+			const saved = rule ? rule_folder(rule) : null;
 			if (saved && !folders.some(row => row.value === saved)) {
-				folders.unshift({value: saved, label: [rule.root_label, rule.folder].filter(Boolean).join("\\") || rule.folder});
+				const label = [rule.root_label, rule.folder].filter(Boolean).join("\\") || rule.folder;
+				folders.unshift({value: saved, label: rule.reader_gone ? `${ft("cowork.folder.readerGone")} · ${label}` : label});
 			}
 			set_options("folder", folders, saved);
 			enable("folder", Boolean(folders.length));
@@ -352,15 +372,15 @@
 		const folder_files = () => {
 			const value = d.get_value("folder");
 			if (!value) return null;
-			if (rule && value === `${rule.reader}|${rule.root_id}|${rule.folder || ""}`) {
+			if (rule && value === rule_folder(rule)) {
 				return rule.waiting == null ? null : {files: rule.waiting, partial: rule.waiting_partial, pending: true};
 			}
-			const [reader, root_id, ...rest] = String(value).split("|");
-			const root = (state.options?.readers || []).find(row => row.connection === reader)?.roots
+			const {reader, root_id, folder} = folder_parts(value);
+			const root = (state.options?.readers || []).find(row => reader_id(row) === reader)?.roots
 				?.find(row => row.id === root_id);
 			// 推往 Express 的销售任务也收 POS 导出（Excel / CSV，2026-10-13）：连它们一起数
-			const tables = express() && d.get_value("direction") === "sales" ? root?.table_counts?.[rest.join("|")] || 0 : 0;
-			return root?.counts ? {files: (root.counts[rest.join("|")] || 0) + tables, partial: Boolean(root.partial)} : null;
+			const tables = express() && d.get_value("direction") === "sales" ? root?.table_counts?.[folder] || 0 : 0;
+			return root?.counts ? {files: (root.counts[folder] || 0) + tables, partial: Boolean(root.partial)} : null;
 		};
 		const paint_folder_hint = () => {
 			const found = folder_files();
@@ -486,7 +506,8 @@
 			const {entered = 0, attention = 0} = run.results || {};
 			const states = [...(entered || attention ? [ft("cowork.folder.counts", entered, attention)] : []),
 				...STATES.filter(name => run.states?.[name])
-					.map(name => `${ft("cowork.folder.state." + name)} ${run.states[name]}`)].join(" · ");
+					.map(name => `${ft("cowork.folder.state." + name)} ${run.states[name]}`),
+					account_sets_text(run.results)].filter(Boolean).join(" · ");
 			const missing = ["root_missing", "folder_missing"].includes(run.note) ? ` · ${ft("cowork.folder.folderMissing")}` : "";
 			return `<div class="pearnly-folder-run"><div>${p.escape(frappe.datetime.str_to_user(run.started_at))} · `
 				+ `${p.escape(ft("cowork.folder.trigger." + (run.trigger || "schedule")) + missing)}</div>`

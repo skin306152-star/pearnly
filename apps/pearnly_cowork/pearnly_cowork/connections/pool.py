@@ -518,6 +518,14 @@ def touch(connection, device, now):
     frappe.db.sql(Q_TOUCH, (now, connection, device, now - TOUCH_EVERY))
 
 
+def device_connections(device):
+    """这台电脑在哪几条连接上有可达行（不加锁）：移除电脑前按它们逐条锁连接行（`companion.credentials.remove_device`）。"""
+    if not device:
+        return []
+    return sorted({row[0] for row in frappe.db.sql(f"SELECT DISTINCT connection FROM `tab{REACH}` WHERE device=%s",
+                                                   (device,)) if row[0]})
+
+
 def forget_device(device, *, connection=None):
     """电脑被移除 / 退役（``connection`` 给了：它在这条连接上一把有效密钥都不剩）：删它的可达行（登记留着，别的电脑或
     历史还在用），读请求的分派、待认定的等待与下次发布的目录都不再算它够得到。"""

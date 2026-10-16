@@ -24,7 +24,8 @@ VIEWS = {
 
 
 class Computers(unittest.TestCase):
-    def run_computers(self, records, online=(), denied=(), members=None):
+    def run_computers(self, records, online=(), denied=(), members=None, owners=None, user="me@example.com",
+                      manager=False):
         """``members``：各条连接上的电脑（ADR-021 第 4 批：一台电脑一行）；不给就每条连接一台，在线按 ``online``。"""
         docs = {r["name"]: doc(r["name"], r["adapter"]) for r in records}
         members = members if members is not None else {
@@ -39,6 +40,10 @@ class Computers(unittest.TestCase):
                 mock.patch.object(rules.connections, "records", return_value=records), \
                 mock.patch.object(rules, "_connection", side_effect=connection), \
                 mock.patch.object(rules.readers, "members", side_effect=lambda n: members.get(n, {})), \
+                mock.patch.object(rules.devices, "owners", side_effect=lambda names: {
+                    name: owner for name, owner in (owners or {}).items() if name in names}), \
+                mock.patch("pearnly_cowork.companion.credentials.manages", return_value=manager), \
+                mock.patch.object(rules.frappe, "session", SimpleNamespace(user=user)), \
                 mock.patch.object(rules, "_reader_view",
                                   side_effect=lambda d, device="", peer=None: VIEWS.get(f"{device}|{d.name}", VIEWS[d.name])), \
                 mock.patch.object(rules.frappe, "clear_messages"):
@@ -50,8 +55,25 @@ class Computers(unittest.TestCase):
         result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1},
                                      {"name": "C-OLD", "adapter": "mrerp", "enabled": 1}], online={"C-E"})
         self.assertEqual(result, [
-            {"adapter": "express", "device": "OFFICE-PC", "online": True, "version": "1.4.0", "folders": [r"D:\\Invoices"]},
-            {"adapter": "mrerp", "device": "OLD-PC", "online": False, "version": "1.3.20", "folders": []}])
+            {"adapter": "express", "device": "OFFICE-PC", "online": True, "version": "1.4.0", "folders": [r"D:\\Invoices"],
+             "id": "PC-C-E", "connection": "C-E", "always_on": False, "can_remove": False},
+            {"adapter": "mrerp", "device": "OLD-PC", "online": False, "version": "1.3.20", "folders": [],
+             "id": "PC-C-OLD", "connection": "C-OLD", "always_on": False, "can_remove": False}])
+
+    def test_the_owner_or_an_admin_may_remove_a_computer(self):
+        """第 6 批「电脑」列表：登记人或管理员才给 ``can_remove``；没挂电脑的旧槽位密钥（不是电脑记录）不给。"""
+        members = {"C-E": {"PC1": {"online": True, "always_on": True}, "PC2": {"online": False},
+                           "KEY-OLD": {"online": False}}}
+        views = {**VIEWS, "PC2|C-E": {**VIEWS["C-E"], "label": "ACC-02"}, "KEY-OLD|C-E": {**VIEWS["C-E"], "label": "OLD"}}
+        owners = {"PC1": "me@example.com", "PC2": "boss@example.com"}
+        records = [{"name": "C-E", "adapter": "express", "enabled": 1}]
+        with mock.patch.dict(VIEWS, views):
+            mine = self.run_computers(records, members=members, owners=owners)
+            boss = self.run_computers(records, members=members, owners=owners, user="admin@example.com", manager=True)
+        self.assertEqual([(row["id"], row["can_remove"], row["always_on"]) for row in mine],
+                         [("KEY-OLD", False, False), ("PC1", True, True), ("PC2", False, False)])
+        self.assertEqual([(row["id"], row["can_remove"]) for row in boss],
+                         [("KEY-OLD", False), ("PC1", True), ("PC2", True)])
 
     def test_express_online_follows_the_heartbeat_not_the_folder_sync(self):
         result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1}], online=())

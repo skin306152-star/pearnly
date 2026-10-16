@@ -480,6 +480,8 @@ def tasks_of(sets, company="") -> list | None:
         out.append({"name": row.name, "title": row.title or "", "enabled": bool(row.enabled),
                     "account_label": row.account_label or "", "connection": row.connection,
                     "account_set_key": row.account_set_key or "",
+                    # 跟随公司当年账套（T1）：页面在账套处写「跟随公司当年账套」，账套名只作兜底（第 6 批）
+                    "follows": bool(row.get("company")),
                     "folder_label": folder_contracts.folder_label(roots, row.root_id, row.folder or "", "")})
         if len(out) >= TASKS_MAX:
             break

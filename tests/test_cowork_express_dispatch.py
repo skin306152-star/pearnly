@@ -896,9 +896,20 @@ class PoolState(unittest.TestCase):
         self.pool = _load("pearnly_cowork.companion._pool_under_test", APP / "companion/pool.py", modules)
 
     def test_writers_known_while_offline_and_online_when_one_is(self):
-        self.assertEqual(self.pool.state("CONN"), {"online": True, "writers_known": True, "needs_update": False})
-        self.assertEqual(self.pool.state("CONN", "s2"), {"online": False, "writers_known": True, "needs_update": False})
+        self.assertEqual(self.pool.state("CONN"),
+                         {"online": True, "writers_known": True, "needs_update": False, "computers": True})
+        self.assertEqual(self.pool.state("CONN", "s2"),
+                         {"online": False, "writers_known": True, "needs_update": False, "computers": True})
         self.assertEqual(self.pool.state("CONN", "nope")["writers_known"], False)
+
+    def test_computers_tells_no_writer_apart_from_no_computer(self):
+        # 第 6 批：录入入口分清「没有能写的电脑」（池里有电脑）与「CC 桌面版未连接」（一台都没有）
+        self.valid = set()
+        self.assertEqual(self.pool.state("CONN"),
+                         {"online": False, "writers_known": False, "needs_update": False, "computers": True})
+        self.peers = {}
+        self.assertEqual(self.pool.state("CONN"),
+                         {"online": False, "writers_known": False, "needs_update": False, "computers": False})
 
     def test_a_computer_whose_issuer_lost_access_is_no_writer(self):
         self.valid = {OTHER}
@@ -913,7 +924,8 @@ class PoolState(unittest.TestCase):
 
     def test_mrerp_only_asks_whether_a_folder_reader_is_online(self):
         self.adapter = "mrerp"
-        self.assertEqual(self.pool.state("CONN"), {"online": True, "writers_known": True, "needs_update": False})
+        self.assertEqual(self.pool.state("CONN"),
+                         {"online": True, "writers_known": True, "needs_update": False, "computers": True})
 
 
 if __name__ == "__main__":

@@ -357,14 +357,15 @@ def _state(adapter, connection):
     if adapter == "express":
         from pearnly_cowork.companion import pool
 
-        # 池里有能写的电脑就能选（关着也排队，开机后写，D4，ADR-021）；一台都没有才不能选
+        # 池里有能写的电脑就能选（关着也排队，开机后写，D4，ADR-021）；一台都没有才不能选：池里有电脑、却没有一台能写
+        # （只读文件夹的成员、登记人已失权）说「没有能写的电脑」，一台电脑都没有仍说「CC 桌面版未连接」（第 6 批）
         try:
-            usable = pool.for_user(connection["name"])["writers_known"]
+            found = pool.for_user(connection["name"])
         except (frappe.PermissionError, frappe.DoesNotExistError):
             frappe.clear_messages()
-            usable = False
-        if not usable:
-            return False, _("intake.agent.state.missing")
+            found = {}
+        if not found.get("writers_known"):
+            return False, _("intake.agent.state.noWriter" if found.get("computers") else "intake.agent.state.missing")
     return True, ""
 
 

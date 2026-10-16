@@ -21,12 +21,13 @@ import { ChevronRightIcon, LoaderIcon, SparklesIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { PanelCard } from "@/components/company-cards";
-import { ChooseRow, useAskCC } from "@/components/pending";
+import { AccountSetRow, ChooseRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
 import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
+  accountSetException,
   choosableException,
   dayShort,
   dayTime,
@@ -159,6 +160,9 @@ export type LedgerHandlers = {
 const ExceptionRow: FC<{ item: MonthException; company: string } & LedgerHandlers> = ({ item, company, onAct, onDone, onChanged }) => {
   if (choosableException(item)) {
     return <ChooseRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} onAsk={() => onAct(item)} />;
+  }
+  if (accountSetException(item)) {
+    return <AccountSetRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} onAsk={() => onAct(item)} />;
   }
   const task = item.action === "task" && !!item.task;
   const label = task ? co.ledger.openTask : co.handToCC;

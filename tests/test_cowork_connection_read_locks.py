@@ -275,6 +275,51 @@ class ConnectionReadLocks(unittest.TestCase):
         api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/api.py").read_text(encoding="utf-8")
         self.assertIn("credentials, all_members)", api)  # 网页接口照传
 
+    def test_set_members_changes_only_who_may_use_the_pool(self):
+        """第 6 批：设置里「全所可用」开关与名单（`service.set_members`）只改这两个字段，不升版本、不动配置（改谁能用不该让
+        目录、刷新、主档的证据失效）；勾掉全所可用时名单不能空；只核新加进名单的人；MR.ERP 没有这个开关；只限管理员。"""
+        config = model.dumps({"system_url": "x"})
+        DB.docs[CONNECTION] = {"CONN": connection("CONN", all_members=1, allowed_users=model.dumps([USER]),
+                                                  record_revision=4, config_json=config),
+                               "MR": connection("MR", adapter="mrerp")}
+        checked = []
+        with mock.patch.object(access, "require_assignee", lambda user, *a, **k: checked.append(user), create=True):
+            closed = service.set_members("CONN", all_members=False, users=[USER, "boss@x.com"])
+            self.assertEqual((closed["all_members"], closed["users"]), (False, sorted([USER, "boss@x.com"])))
+            row = DB.docs[CONNECTION]["CONN"]
+            self.assertEqual((row["all_members"], row["record_revision"], row["config_json"]), (0, 4, config))
+            self.assertEqual(checked, ["boss@x.com"])
+            # 只给开关：名单不变
+            opened = service.set_members("CONN", all_members=True)
+            self.assertEqual((opened["all_members"], opened["users"]), (True, sorted([USER, "boss@x.com"])))
+            self.assertEqual(DB.docs[CONNECTION]["CONN"]["record_revision"], 4)
+            # 与现值相同不写
+            with mock.patch.object(access, "write", side_effect=AssertionError("written")):
+                self.assertTrue(service.set_members("CONN", all_members=True, users=["boss@x.com", USER])["all_members"])
+            for bad in ({"all_members": False, "users": []}, {"all_members": False, "users": [USER, USER]},
+                        {"users": "nope"}):
+                with self.assertRaises(ValidationError):
+                    service.set_members("CONN", **bad)
+            with self.assertRaises(model.ConnectionError):
+                service.set_members("CONN", all_members="maybe")
+            with self.assertRaises(ValidationError):  # MR.ERP 没有全所可用
+                service.set_members("MR", all_members=False, users=[USER])
+
+            def no_admin(actor=None, *, management=False, **kwargs):
+                if management:
+                    raise PermissionError_("Not Permitted")
+                return actor or USER
+
+            with mock.patch.object(access, "require_actor", no_admin):
+                with self.assertRaises(PermissionError_):
+                    service.set_members("CONN", all_members=False, users=[USER])
+            self.assertEqual(DB.docs[CONNECTION]["CONN"]["all_members"], 1)
+        # 列表给每行 ``manageable``（设置里只给管理员显示开关）
+        self.assertTrue(all("manageable" in row for row in service.records(None, None, 0, 100)))
+        api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/api.py").read_text(encoding="utf-8")
+        self.assertIn("_call(service.set_members, name, all_members, users)", api)
+        self.assertIn('@frappe.whitelist(methods=["POST"])\ndef set_members', api)
+
     def test_every_read_only_connection_view_takes_no_row_locks(self):
         self.assertEqual(service.detail("CONN")["name"], "CONN")
         found = service.targets("CONN")

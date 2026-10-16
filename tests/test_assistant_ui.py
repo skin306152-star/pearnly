@@ -1311,6 +1311,29 @@ for (const blocked of [null, undefined]) {
 }
 """, lang="en")
 
+    def test_the_pool_list_offers_remove_only_where_the_server_allows_it(self):
+        # 第 6 批「电脑」：常驻的写上；登记人或管理员（服务端 can_remove）才有「···」→ 移除
+        self.run_page(r"""
+const computer = { adapter: "express", device: "ACC-02", online: false, version: "1.7.0", folders: [] as string[], id: "CCD-2",
+  connection: "CWEC-1", always_on: true, can_remove: true };
+const shown = html(ComputerSection, { row: computer, onRemove: () => {} });
+assert.deepEqual(text(shown), ["ACC-02", "Express · Always on", "Disconnected"]);
+assert.match(shown, /aria-label="More"/);
+const plain = html(ComputerSection, { row: { ...computer, always_on: false, can_remove: false } });
+assert.deepEqual(text(plain), ["ACC-02", "Express", "Disconnected"]);
+assert.doesNotMatch(plain, /aria-label="More"/);
+""", lang="en")
+
+    def test_the_new_words_of_batch_6_are_in_every_page_language(self):
+        settings = block(read("i18n.ts"), "const SETTINGS = {")
+        company = block(read("i18n.ts"), "const COMPANY = {")
+        for lang in ("en", "zh", "th"):
+            words = block(settings, f"  {lang}: {{")
+            for word in ("computers:", "needsUpdate:", "allMembers:", "members:"):
+                self.assertIn(word, words, lang)
+            for word in ("folderGone:", "followCompany:"):
+                self.assertIn(word, block(company, f"  {lang}: {{"), lang)
+
     def test_every_page_language_has_the_two_new_words(self):
         settings = block(read("i18n.ts"), "const SETTINGS = {")
         for lang in ("en", "zh", "th"):
@@ -3333,6 +3356,138 @@ const noop = async () => {};
 """
 
 
+# 多台电脑（ADR-021 第 6 批）：1.7.0 的桥（features 含 devices，state().device 带设备密钥），成员与 register 的回复由测试给
+MULTI_DESKTOP_ENV = r"""
+const g = globalThis as any;
+g.qt = { webChannelTransport: {} };
+g.bridgeCalls = [] as any[];
+g.STATE = { version: "1.7.0", site: "", express_roots: ["C:\\\\EXP"], members: [], autostart: false, hotkey: true,
+  update: { state: "", version: "" }, features: ["company_folders", "devices"], legacy_roots: [],
+  device: { key: "K".repeat(43), name: "ACC-02" } };
+g.tomoDesktop = {
+  state(cb: (json: string) => void) { cb(JSON.stringify(g.STATE)); },
+  call(method: string, args: string, cb: (json: string) => void) {
+    g.bridgeCalls.push({ method, args: JSON.parse(args) });
+    cb(JSON.stringify({ ok: true }));
+  },
+  changed: { connect() {}, disconnect() {} },
+  done: { connect() {}, disconnect() {} },
+};
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class MultiDesktopBehaviourTests(unittest.TestCase):
+    """对话页每次打开带设备密钥调 register v2（第 5 节第 7 条的页面一侧）、exists 时按本机成员决定要不要 rekey、旧版的
+    update_needed；读者编号写进文件夹下拉的值、主档页按电脑名认本机那一行。"""
+
+    def run_page(self, body):
+        stubs = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+                 "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+                 "cc-multi-desktop-env": MULTI_DESKTOP_ENV}
+        run_ts('import "cc-test-setup";\nimport "cc-multi-desktop-env";\nimport assert from "node:assert/strict";\n'
+               'const g = globalThis as any;\n' + body + "\n(globalThis as any).done();\n", stubs=stubs)
+
+    def test_every_open_registers_with_this_computers_device_key(self):
+        self.run_page(r"""
+import { connectComputer, currentLink, desktop, needsKey, thisComputer } from "@/lib/desktop";
+const REGISTER = "/api/method/pearnly_cowork.companion.api.register";
+const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+let replies: any[] = [];
+g.respond = async (method: string) => (method === REGISTER ? ok(replies.shift()) : ok(null));
+const registered = () => g.calls.filter((c: any) => c.method === REGISTER).map((c: any) => c.body);
+const pairs = () => g.bridgeCalls.filter((c: any) => c.method === "pair");
+const api = (await desktop())!;
+assert.deepEqual(thisComputer(g.STATE), { key: "K".repeat(43), name: "ACC-02" });
+assert.equal(thisComputer({ ...g.STATE, features: ["company_folders"] }), null);   // 1.6 的桥：走旧路
+
+// 1) 新电脑：带设备密钥与电脑名登记，created 的密钥交给桌面端配对
+replies = [{ status: "created", token: "exp_C1_new" }];
+await connectComputer(api);
+let body = registered().at(-1);
+assert.equal(body.device_key, "K".repeat(43));
+assert.equal(body.device_name, "ACC-02");
+assert.equal(body.express, true);
+assert.ok(!("rekey" in body) && !("replace" in body));
+assert.equal(pairs().at(-1).args.code.split("@")[0], "exp_C1_new");
+assert.equal(currentLink().kind, "idle");
+
+// 2) 每次打开都登记（服务端记最近登录的人）：成员都好着、回 exists → 不配对、不 rekey
+g.STATE.members = [{ id: "m1", name: "Express", kind: "express", paused: false, status: "online", folders: null }];
+assert.equal(needsKey(g.STATE), false);
+replies = [{ status: "exists", device: "CCD-1" }];
+let before = pairs().length;
+await connectComputer(api);
+assert.equal(registered().length, 2);
+assert.equal(pairs().length, before);
+assert.equal(currentLink().kind, "idle");
+
+// 3) 服务端说这把密钥不再用（superseded）：带 rekey 登记，新密钥交给桌面端（同一条连接的成员换上，device_state 清掉）
+g.STATE.members = [{ ...g.STATE.members[0], status: "attention", device_state: "superseded" }];
+replies = [{ status: "created", token: "exp_C1_rekeyed" }];
+await connectComputer(api);
+assert.equal(registered().at(-1).rekey, true);
+assert.equal(pairs().at(-1).args.code.split("@")[0], "exp_C1_rekeyed");
+
+// 4) 本机没有成员（重装过）、服务端说这台已有密钥（exists）：换一个请求号再带 rekey 登记一次
+g.STATE.members = [];
+replies = [{ status: "exists", device: "CCD-1" }, { status: "created", token: "exp_C1_back" }];
+await connectComputer(api);
+const [first, second] = registered().slice(-2);
+assert.ok(!first.rekey && second.rekey === true);
+assert.notEqual(first.request_key, second.request_key);
+assert.equal(pairs().at(-1).args.code.split("@")[0], "exp_C1_back");
+
+// 5) 配对码抄到两台（claimed_elsewhere）：这台登记成自己的电脑（不 rekey），created 就配对
+g.STATE.members = [{ id: "m1", name: "Express", kind: "express", paused: false, status: "attention", folders: null,
+                     device_state: "claimed_elsewhere" }];
+replies = [{ status: "created", token: "exp_C1_own" }];
+await connectComputer(api);
+assert.ok(!registered().at(-1).rekey);
+assert.equal(pairs().at(-1).args.code.split("@")[0], "exp_C1_own");
+
+// 6) 不是登记人也不是管理员 rekey：服务端 403 → 现有「需要管理员账号」
+g.STATE.members = [];
+g.respond = async (method: string) => (method === REGISTER
+  ? (registered().length % 2 ? ok({ status: "exists" }) : { ok: false, status: 403, json: async () => ({}) }) : ok(null));
+await connectComputer(api);
+assert.equal(currentLink().kind, "not_admin");
+
+// 7) 旧版桥（没有 devices）：不带设备密钥；池里已有新版认领过的电脑 → 需更新
+g.STATE.features = ["company_folders"];
+g.respond = async (method: string) => (method === REGISTER ? ok({ status: "update_needed" }) : ok(null));
+before = pairs().length;
+await connectComputer(api);
+assert.ok(!("device_key" in registered().at(-1)));
+assert.equal(currentLink().kind, "update_needed");
+assert.equal(pairs().length, before);
+""")
+
+    def test_reader_ids_go_into_folder_values_and_this_computers_row_is_found_by_name(self):
+        self.run_page(r"""
+import { folderIsMine, folderParts, folderValue, taskSeedOf } from "@/lib/companies";
+// 读者编号本身带竖线、路径可能带竖线和反斜杠：编码后拆得回原样
+const value = folderValue("CCD-2|CWEC-1", "r1", "ABC|x\\2569");
+assert.deepEqual(folderParts(value), { reader: "CCD-2|CWEC-1", root_id: "r1", folder: "ABC|x\\2569" });
+assert.deepEqual(folderParts(folderValue("CWEC-1", "r1")), { reader: "CWEC-1", root_id: "r1", folder: "" });
+// 同一条连接上两台电脑各绑一行：本机按电脑名认（服务端给了 mine 以它为准）；旧桌面版没有电脑名时照旧按连接
+const mine = { reader: "CWEC-1", device: "ACC-02", reader_id: "CCD-2|CWEC-1", label: "D:\\A", state: "ok" as const };
+const theirs = { ...mine, device: "ACC-01", reader_id: "CCD-1|CWEC-1" };
+assert.equal(folderIsMine(theirs, ["CWEC-1"], "ACC-02"), false);
+assert.equal(folderIsMine(mine, ["CWEC-1"], "ACC-02"), true);
+assert.equal(folderIsMine(theirs, ["CWEC-1"]), true);
+assert.equal(folderIsMine({ ...theirs, mine: true }, [], "ACC-02"), true);
+// 主档页「＋」预填：本机那一行的读者编号进文件夹的值；读它的电脑已被移除的那一行不拿来预填
+const detail: any = { company: { id: "c", title: "ABC", adapter: "express" },
+  account_sets: [{ connection: "CWEC-1", adapter: "express", key: "k69", label: "ABC 69", period_start: "2026-01-01", period_end: "2026-12-31" }],
+  folders: [{ ...theirs, root_id: "r1", folder: "x" }, { ...mine, root_id: "r2", folder: "y" }] };
+assert.deepEqual(folderParts(taskSeedOf(detail, "2026-09", ["CWEC-1"], true, "ACC-02")!.folder!),
+  { reader: "CCD-2|CWEC-1", root_id: "r2", folder: "y" });
+detail.folders[1].reader_gone = true;
+assert.equal(taskSeedOf(detail, "2026-09", ["CWEC-1"], true, "ACC-02")!.folder, undefined);
+""")
+
+
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class CompanyPageBehaviourTests(unittest.TestCase):
     STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
@@ -3532,7 +3687,8 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         self.assertNotIn("useTaskCompanies", tasks)   # 不再为侧栏每家读一次详情
         self.assertIn("groupTasks(shown, overview.tasks, order, overview.titles)", tasks)
         self.assertIn("co.other", tasks)
-        self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders),", read("components/company-cards.tsx"))
+        self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders, deviceName),",
+                      read("components/company-cards.tsx"))
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""

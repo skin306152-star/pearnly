@@ -741,12 +741,14 @@ def outcomes(records):
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:OUTCOMES_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json, target_json
-        FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""", (frappe.session.user, tuple(names)), as_dict=True)
+    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json, target_json,
+        written_by_device FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""",
+        (frappe.session.user, tuple(names)), as_dict=True)
+    written = _with_writers(rows, {row.name: _entered(row) for row in rows if row.status == "success"})
     return {row.name: {"status": row.status, "reason": row.reason or "",
                        "docnum": (row.external_docnum or "") if row.status == "success" else "",
                        "result_unknown": bool(row.result_unknown),
-                       "written": _entered(row) if row.status == "success" else None}
+                       "written": written.get(row.name) if row.status == "success" else None}
             for row in rows}
 
 
@@ -774,10 +776,26 @@ def written(records):
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:WRITTEN_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum FROM `tabCowork Push Record`
-        WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
-    found = {row.name: _entered(row) for row in rows}
+    rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum, written_by_device
+        FROM `tabCowork Push Record` WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
+    found = _with_writers(rows, {row.name: _entered(row) for row in rows})
     return {name: item for name, item in found.items() if item}
+
+
+def _with_writers(rows, found):
+    """``written`` 再加由哪台电脑写入（Express，ADR-021 第 6 批 ``writer``：电脑名，CC 说「由 ACC-02 写入」）。电脑归
+    companion，经钩子 ``cowork_device_labels`` 一次取齐；记录没记电脑（MR.ERP、部署前的）不加。"""
+    devices = [name for name in dict.fromkeys(getattr(row, "written_by_device", None) for row in rows) if name]
+    labels = {}
+    for path in (frappe.get_hooks("cowork_device_labels") or []) if devices else []:
+        labels = dict(frappe.get_attr(path)(devices) or {})
+        if labels:
+            break
+    for row in rows:
+        label = labels.get(getattr(row, "written_by_device", None) or "")
+        if label and found.get(row.name):
+            found[row.name] = {**found[row.name], "writer": label}
+    return found
 
 
 def records(connection, start=0, limit=50):

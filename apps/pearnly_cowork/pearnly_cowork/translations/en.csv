@@ -238,6 +238,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop is out of date. Update CC Desktop and submit again,CC Desktop is out of date. Update CC Desktop and submit again
 CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.
+CC Desktop needs update,CC Desktop needs update
 CC Desktop offline,CC Desktop offline
 CC Desktop offline or needs update,CC Desktop offline or needs update
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop","CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop"
@@ -379,6 +380,7 @@ Company choices are full,Company choices are full
 Company not found,Company not found
 Company tax ID,Company tax ID
 Company tax ID not on the document,Company tax ID not on the document
+Company's account set for the year,Company's account set for the year
 CompanyA-purchase-service,CompanyA-purchase-service
 CompanyA-sales,CompanyA-sales
 Complete,Complete
@@ -391,6 +393,8 @@ Completion Evidence,Completion Evidence
 Computer,Computer
 Computer Name,Computer Name
 Computer Owner,Computer Owner
+Computer offline,Computer offline
+Computer removed,Computer removed
 Condition,Condition
 Condition code not allowed,Condition code not allowed
 Confirmation Request,Confirmation Request
@@ -1044,6 +1048,7 @@ No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
 No changes were given.,No changes were given.
 No computer can reach the account set for the document date.,No computer can reach the account set for the document date.
+No computer can write,No computer can write
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again","No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
 No documents were given.,No documents were given.
 No due date,No due date
@@ -2289,6 +2294,7 @@ cowork.folder.field.time,Run time
 cowork.folder.field.title,Task name
 cowork.folder.folderHint,One folder per scheduled task. PDF and image files only.
 cowork.folder.folderMissing,Folder not available
+cowork.folder.followCompany,Company's account set for the year
 cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 cowork.folder.guide.result,"made by the system, do not put documents here"
 cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
@@ -2322,6 +2328,7 @@ cowork.folder.owner_not_ready,The task owner can no longer enter documents with 
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,"Choose a folder inside the allowed root, without system folders."
 cowork.folder.pending,"{0} files not processed yet, processed at the run time"
+cowork.folder.readerGone,Computer removed
 cowork.folder.reading_masters,CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.
 cowork.folder.remind.add,Add time
 cowork.folder.remind.count,{0} files not processed yet.
@@ -3259,6 +3266,9 @@ history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
 image,image
 in,in
+intake.agent.state.needsUpdate,CC Desktop needs update
+intake.agent.state.noWriter,No computer can write
+intake.agent.state.offline,Computer offline
 intake.catalog.reload,Read again
 intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 intake.error.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set

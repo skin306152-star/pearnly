@@ -115,6 +115,42 @@ def month_of(row) -> str:
     return str(when or "")[:7]
 
 
+def account_set_stop(row) -> bool:
+    """停在「待选账套」：定时任务跟随公司当年账套时没有 / 多于一份 / 够不到单据日期的账套（T1 的三个原因码），且有推送去向。"""
+    from pearnly_cowork.folder_intake.contracts import ACCOUNT_SET_STOPS
+
+    return bool(row.get("push_connection")) and str(row.get("last_push_reason") or "") in ACCOUNT_SET_STOPS \
+        and str(row.get("last_push_status") or "") not in SETTLED
+
+
+def company_for(row) -> str:
+    """这张单归哪家主档（同列表：推送去向的账套 → 买方 → 卖方税号，按本人能用的连接现算）；归不上回空串。"""
+    by_set, by_tax, _tax_ids = _attribution()
+    return company_of(row, by_set, by_tax)
+
+
+def account_sets_for(row) -> list:
+    """停在「待选账套」的单可换的账套：``[{"key", "label"}]`` = 这张单归的公司在推送去向那条连接上覆盖单据日期的账套
+    （同定时任务选账套的 `tasks.books_of`）；不是这种单、没有单据日期、归不上公司回空表（第 6 批，待处理页当场换账套）。"""
+    from pearnly_cowork.companies import tasks
+
+    if not account_set_stop(row):
+        return []
+    day = str(row.get("invoice_date") or "")[:10]
+    company = company_for(row) if day else ""
+    if not company:
+        return []
+    return [{"key": item["key"], "label": item.get("label") or item["key"]}
+            for item in tasks.books_of(company, row["push_connection"], day) or []]
+
+
+def account_set_pick(row, key) -> dict | None:
+    """会计员选的那份（只认 :func:`account_sets_for` 列出的，按规整后的账套键比）；不在列回 None。"""
+    wanted = normalize_express_account_key(key)
+    return next((item for item in account_sets_for(row)
+                 if wanted and normalize_express_account_key(item["key"]) == wanted), None)
+
+
 def choice_kinds(reason) -> list:
     text = str(reason or "")
     if not text.startswith("choice_needed:"):
@@ -213,6 +249,12 @@ def _items(rows, by_set, by_tax, tax_ids) -> list:
         if item["action"] == "choose":
             item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
                               "kinds": choice_kinds(row.get("last_push_reason"))}
+        elif account_set_stop(row):
+            # 定时任务跟随公司当年账套停在「待选账套」（T1）：页面当场换一份账套重推（`assistant.pending_api.choose_account_set`，
+            # 可换的由 `account_sets` 按这张单的公司与单据日期现算），不用交给 CC
+            item["action"] = "account_set"
+            item["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                              "kinds": []}
         out.append(item)
     return out
 

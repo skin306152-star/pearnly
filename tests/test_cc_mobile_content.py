@@ -70,7 +70,9 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn("rows.filter((row) => row.key !== c.key)", choices)
         self.assertNotIn("await reload()", choices)
         folders = page[page.index("export const FolderSection"):page.index("// ---------------------------------------------------------------- 账套")]
-        self.assertIn("setGone((before) => [...before, reader]);", folders)
+        # 第 6 批：按读者编号（「电脑|连接」）记刚移除的那一行，同一条连接上别的电脑那一行不跟着藏
+        self.assertIn("setGone((before) => [...before, idOf(f)]);", folders)
+        self.assertIn("const idOf = (f: CompanyFolder) => f.reader_id || f.reader;", folders)
 
     def test_the_company_page_lists_only_conversations_that_were_sent(self):
         # 第 5 轮测试 4 / 审查：公司页「＋」选了文件就建了会话，不发也在服务端留一条空标题的；公司页对话列表不列它

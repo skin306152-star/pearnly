@@ -13,7 +13,7 @@ from uuid import uuid4
 import frappe
 from frappe import _
 
-from pearnly_cowork.connections import access
+from pearnly_cowork.connections import access, pool
 from . import contracts, device_contracts, devices
 from .contracts import AgentContext, CredentialError
 from .documents import DOCTYPE, persist
@@ -421,6 +421,50 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
         row, token = _new_key(doc, actor, operation, intent, device=device.name)
         return {'status': 'created', 'connection': doc.name, 'adapter': adapter, 'device': device.name,
                 'token': token}
+
+
+def manages(actor):
+    """这个人是不是管理员（不抛错）：「电脑」列表据此给 ``can_remove``（登记人或管理员才能移除一台电脑）。"""
+    return _manager(actor)
+
+
+def remove_device(device):
+    """「电脑」列表的「···」移除一台电脑（ADR-021 第 6 批）：吊销它在各条连接上的每一把密钥，再让电脑退役。
+
+    权限同 ``rekey``：这台电脑的登记人或管理员；别的归属的电脑、不存在的编号一律按无权拒（不说有没有）。已经移除过的
+    回 ``removed``（``replayed``），重复点、两人同时点都只移除一次。退役后它的密钥不再认（认证核「电脑没退役」），可达行
+    随退役删掉，它读的定时任务与公司文件夹留着、标「电脑已移除」等负责人重选（不自动换电脑读）。同一台电脑以后再登录
+    CC，对话页按设备密钥 `register` 时旧记录交出摘要，这台作为新电脑加入。
+
+    加锁顺序 Connection → Credential → Device：一台电脑可以在好几条连接上各有密钥、各有可达行（第 2 批记录：「移除一台
+    够得到多条连接的电脑时要先锁那些连接」），先不加锁地找出这些连接，按名字顺序逐条锁，再锁它的密钥行，最后才锁电脑行
+    并复核；电脑行在这期间被并发改了（另一个人刚移除）就按已移除回。"""
+    _enabled()
+    actor = access.require_actor()
+    name = _value(contracts.text, device)
+    with _atomic():
+        found = frappe.db.get_value(devices.DOCTYPE, name, ['workspace', 'device_owner', 'retired_at'], as_dict=True)
+        if not found or found.workspace != access.default_workspace():
+            access.deny()
+        if actor != found.device_owner and not _manager(actor):
+            access.deny()
+        if found.retired_at:
+            return {'status': 'removed', 'device': name, 'replayed': True}
+        connections = sorted({row[0] for row in frappe.db.sql(f'''SELECT connection FROM `tab{DOCTYPE}`
+            WHERE device=%s AND revoked_at IS NULL AND COALESCE(active_key,'')<>''
+            ''', (name,)) if row[0]}
+            | set(pool.device_connections(name)))
+        for connection in connections:
+            frappe.db.get_value(CONNECTION, connection, 'name', for_update=True)
+        keys = frappe.db.sql(f'''SELECT name FROM `tab{DOCTYPE}` WHERE device=%s AND revoked_at IS NULL
+            ORDER BY name FOR UPDATE''', (name,))
+        for (key,) in keys:
+            _revoke(_read(DOCTYPE, key), actor, 'device_removed')
+        doc = devices.read(name)  # lock order Connection -> Credential -> Device
+        if doc.retired_at:
+            return {'status': 'removed', 'device': name, 'replayed': True}
+        devices.retire(doc, actor)
+    return {'status': 'removed', 'device': name, 'replayed': False}
 
 
 def revoke(connection, request_key, expected_generation, reason=''):

@@ -5,6 +5,8 @@
 //   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
 //   （push.application.api.choices，同复核页、CC 的判定；列表不逐行读账套主档）。建议项排第一、预选，要点「确认」才作答：
 //   assistant.pending_api.answer 记下选择并按 CC 推送同一条路重推（只记不推不会进账）。可选值没读到的那张就地「交给 CC」。
+//   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1）：点开取
+//   可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推（choose_account_set）；没有可换的就地「交给 CC」。
 //   其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），输入框预填「处理这几张：…」并带上单据编号，不自动发送。
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
@@ -17,6 +19,7 @@ import {
   answerChoices,
   answered,
   cachedDetail,
+  chooseAccountSet,
   type ChoiceNeeded,
   type ChoicesView,
   docLine,
@@ -24,6 +27,7 @@ import {
   formatAmount,
   isPeriod,
   listCompanies,
+  loadAccountSets,
   loadChoices,
   loadPending,
   PENDING_EVENTS,
@@ -86,6 +90,11 @@ export function choiceLine(item: PendingItem, view: ChoicesView | null): string 
 /** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
   return item.action === "choose" && !!item.choice?.connection;
+}
+
+/** 停在「待选账套」、能当场换账套的那一类（服务端 action account_set，带推送去向）。 */
+export function accountSetChoosable(item: PendingItem): boolean {
+  return item.action === "account_set" && !!item.choice?.connection;
 }
 
 /** 「交给 CC」预填的话（不自动发送）：一张「处理这张：INV-001 · 对方 · 1,070.00 · 2026-09-05」，几张时每张一行。
@@ -238,13 +247,15 @@ const PendingGroup: FC<{
   company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
 }> = ({ company, title, items, onDone, onChanged }) => {
   const ask = useAskCC(company, title);
-  const hand = items.filter((item) => !choosable(item));
+  const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item));
   return (
     <section className="flex flex-col gap-2">
       {title && <h2 className="cc-section-label !px-0 !pt-0">{title}</h2>}
       {items.map((item) =>
         choosable(item) ? (
           <ChooseRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
+        ) : accountSetChoosable(item) ? (
+          <AccountSetRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
         ) : (
           <PendingRow key={item.document} item={item} />
         ),
@@ -392,6 +403,94 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
             {co.handToCC}
           </button>
         </>
+      )}
+      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+    </div>
+  );
+};
+
+/** 停在「待选账套」的单：点开取可换的账套（一个下拉，只有一份时预选，几份时要人选），「确认」换到它并重推；没有可换的
+ *  （新年度账套还没建、目录还没报上来）就地「交给 CC」。样式与当场选那一行同一套。 */
+export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
+  item,
+  onDone,
+  onChanged,
+  onAsk,
+  head,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [sets, setSets] = useState<Array<{ key: string; label: string }> | null>(null);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    setError("");
+    setSets(null);
+    try {
+      const found = await loadAccountSets(item);
+      setSets(found);
+      setValue(found.length === 1 ? found[0]!.key : "");
+    } catch (e) {
+      setError(shownError(e));
+    }
+  }, [item]);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !sets) void load();
+  };
+  const confirm = async () => {
+    if (!value) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await chooseAccountSet(item, value);
+      if (answered(result)) onDone(item.document);
+      else {
+        // 还要人选（科目等）或推不成：原因记在单上，列表重取后按新原因显示
+        setError(result.reason ?? "");
+        onChanged();
+      }
+    } catch (e) {
+      setError(shownError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="cc-list-item flex-col" data-slot="cc-pending-account-set" data-variant={head ? "row" : undefined} data-open={open || undefined}>
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+        aria-expanded={open} onClick={toggle}>
+        {head ?? <Summary item={item} />}
+        <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
+      </button>
+      {open && !sets && !error && (
+        <div className="flex justify-center py-2 text-ink-3">
+          <LoaderIcon className="size-4 animate-spin" />
+        </div>
+      )}
+      {open && sets && sets.length > 0 && (
+        <>
+          <label className="cc-field">
+            <span className="text-xs">{co.accountSets}</span>
+            <select className="cc-input" value={value} onChange={(e) => setValue(e.target.value)}>
+              {!value && <option value="" disabled>—</option>}
+              {sets.map((set) => (
+                <option key={set.key} value={set.key}>{set.label}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="cc-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
+            {busy && <LoaderIcon className="size-4 animate-spin" />}
+            {co.confirm}
+          </button>
+        </>
+      )}
+      {open && sets && !sets.length && (
+        <button type="button" className="cc-btn self-start" onClick={onAsk}>
+          <SparklesIcon className="size-4" />
+          {co.handToCC}
+        </button>
       )}
       {error && <p role="alert" className="text-danger text-sm">{error}</p>}
     </div>

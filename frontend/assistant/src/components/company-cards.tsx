@@ -50,6 +50,7 @@ import {
   setChoice,
   setForPeriod,
   taskSeedOf,
+  folderIsMine,
   unbindFolder,
   useCompanyNav,
   usePendingCounts,
@@ -69,7 +70,9 @@ const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
 export const setFor: (sets: readonly AccountSet[], period: string) => AccountSet | undefined = setForPeriod;
 
 /** 文件夹状态的字。 */
-export function folderState(folder: Pick<CompanyFolder, "state">): string {
+export function folderState(folder: Pick<CompanyFolder, "state" | "reader_gone">): string {
+  // 读它的电脑已被移除（ADR-021 第 6 批）：别的状态都无从说起
+  if (folder.reader_gone) return co.folderGone;
   switch (folder.state) {
     case "ok":
       return co.folderOk;
@@ -83,7 +86,7 @@ export function folderState(folder: Pick<CompanyFolder, "state">): string {
 }
 
 /** 单据文件夹卡头的一句：一个文件夹写它的状态，几个写个数，没有不写。 */
-export function folderSummary(folders: ReadonlyArray<Pick<CompanyFolder, "state">>): string {
+export function folderSummary(folders: ReadonlyArray<Pick<CompanyFolder, "state" | "reader_gone">>): string {
   if (folders.length === 1) return folderState(folders[0]!);
   return folders.length ? co.card.folders(folders.length) : "";
 }
@@ -403,15 +406,17 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
   reload,
   hideEmpty = false,
 }) => {
-  const { app, companyFolders } = useDesktopFeatures();
-  // 刚移除的（服务端已删）先不显示，不等整页重取；重取到了以服务端为准
+  const { app, companyFolders, deviceName } = useDesktopFeatures();
+  // 刚移除的（服务端已删）先不显示，不等整页重取；重取到了以服务端为准。按读者编号（「电脑|连接」）认行：
+  // 同一条连接上几台电脑各绑一行（ADR-021 第 6 批），只按连接会把别人那行也藏掉、解绑时服务端不猜是哪台
   const [gone, setGone] = useState<string[]>([]);
   useEffect(() => setGone([]), [all]);
-  const folders = all.filter((f) => !gone.includes(f.reader));
+  const idOf = (f: CompanyFolder) => f.reader_id || f.reader;
+  const folders = all.filter((f) => !gone.includes(idOf(f)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const readers = knownReaders();
-  const mine = (f: CompanyFolder) => !!f.mine || readers.includes(f.reader);
+  const mine = (f: CompanyFolder) => !f.reader_gone && folderIsMine(f, readers, deviceName);
   const hasMine = folders.some(mine);
   const choose = async () => {
     setError("");
@@ -425,7 +430,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       }
       rememberReader(picked.binding.reader);
       await bindFolder(company, picked.binding);
-      setGone((before) => before.filter((reader) => reader !== picked.binding.reader));
+      setGone([]);
       await reload();
     } catch (e) {
       setError(shownError(e));
@@ -433,11 +438,11 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
       setBusy(false);
     }
   };
-  const remove = async (reader: string) => {
+  const remove = async (f: CompanyFolder) => {
     setError("");
     try {
-      await unbindFolder(company, reader);
-      setGone((before) => [...before, reader]);
+      await unbindFolder(company, idOf(f));
+      setGone((before) => [...before, idOf(f)]);
       void reload();
     } catch (e) {
       setError(shownError(e));
@@ -448,7 +453,7 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
     <PanelCard id="folders" title={co.docFolder} summary={folderSummary(folders)} slot="cc-company-folders">
       <div className="flex flex-col gap-1">
         {folders.map((f) => (
-          <div key={`${f.reader}-${f.device}`} className="cc-folder-line" data-state={f.state}>
+          <div key={`${idOf(f)}-${f.device}`} className="cc-folder-line" data-state={f.reader_gone ? "missing" : f.state}>
             <FolderIcon />
             <span className="min-w-0 flex-1">
               <Marquee className="block truncate" title={f.label}>{[f.device, f.label].filter(Boolean).join(" · ")}</Marquee>
@@ -461,10 +466,16 @@ export const FolderSection: FC<{ company: string; folders: CompanyFolder[]; relo
                 <button type="button" className="cc-link-btn" disabled={busy} onClick={() => void choose()}>
                   {co.changeFolder}
                 </button>
-                <button type="button" className="cc-link-btn" disabled={busy} onClick={() => void remove(f.reader)}>
+                <button type="button" className="cc-link-btn" disabled={busy} onClick={() => void remove(f)}>
                   {co.removeFolder}
                 </button>
               </>
+            )}
+            {/* 读它的电脑已被移除：那台电脑不会再来，哪台电脑、浏览器里都能把这一行移除 */}
+            {f.reader_gone && (
+              <button type="button" className="cc-link-btn" disabled={busy} onClick={() => void remove(f)}>
+                {co.removeFolder}
+              </button>
             )}
           </div>
         ))}
@@ -534,7 +545,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
   keepEmpty = false,
 }) => {
   const { setView } = useView();
-  const { app, companyFolders } = useDesktopFeatures();
+  const { app, companyFolders, deviceName } = useDesktopFeatures();
   const tasks = detail.tasks ?? [];
   const open = (name: string) => {
     useCompanyNav.setState({ taskCompany: company, taskFocus: name, taskSeed: null });
@@ -544,7 +555,7 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
     useCompanyNav.setState({
       taskCompany: company,
       taskFocus: "",
-      taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders),
+      taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders, deviceName),
     });
     setView("tasks");
   };
@@ -566,7 +577,9 @@ export const TasksSection: FC<{ company: string; detail: Detail; period: string;
           <button key={task.name} type="button" className="cc-list-row" onClick={() => open(task.name)}>
             <span className="min-w-0 flex-1">
               <Marquee className="block truncate text-ink">{task.title}</Marquee>
-              <Marquee className="block truncate text-ink-3 text-xs">{[task.account_label, task.folder_label].filter(Boolean).join(" · ")}</Marquee>
+              <Marquee className="block truncate text-ink-3 text-xs">
+                {[task.follows ? co.followCompany : task.account_label, task.folder_label].filter(Boolean).join(" · ")}
+              </Marquee>
             </span>
           </button>
         ))}

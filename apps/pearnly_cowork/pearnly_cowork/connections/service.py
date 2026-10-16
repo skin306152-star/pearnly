@@ -147,6 +147,36 @@ def configure(workspace, adapter, request_key, label, config, client=None, users
     return _dto(doc)
 
 
+def set_members(name, all_members=None, users=None):
+    """设置里「电脑」的「全所可用」开关与名单（ADR-021 第 6 批；第 31 条说界面开关在第 6 批）：只限管理员、只给 Express 池
+    （MR.ERP 没有全所可用，按配置无效拒）。只改 ``all_members`` 与 ``allowed_users`` 两个字段，不升 ``record_revision``、不动
+    配置与目录（同补丁 `v0_0_22`：改谁能用不该让账套目录、刷新、读主档的证据失效）；``None`` = 那一项不变。勾掉全所可用时
+    名单不能空（否则谁都用不了）；名单里每个人照 `configure` 逐个核（启用、有录入 / 推送记录 / 管理角色、在本归属）。
+    与现值相同不写。放宽不作废排队的单；收窄后被移出的人录的单，电脑领取时按录入人重核权限（`_authorize`）照旧转人工。"""
+    access.require_actor(management=True)
+    doc = _read(CONNECTION, name)
+    access.require_connection(doc, management=True, enabled=False)
+    if doc.adapter != "express":
+        _error("connection.config_invalid")
+    current = model.parse(doc.allowed_users, [])
+    flag = int(doc.get("all_members") or 0) if all_members is None else model.boolean(all_members)
+    try:
+        wanted = current if users is None else model.parse(users, None)
+    except ValueError:
+        wanted = None
+    if (not isinstance(wanted, list) or len(wanted) > 200 or len(wanted) != len(set(wanted))
+            or any(not isinstance(u, str) or not u or len(u) > 140 for u in wanted) or (not flag and not wanted)):
+        _error("connection.config_invalid")
+    if (flag, sorted(wanted)) == (int(doc.get("all_members") or 0), sorted(current)):
+        return _dto(doc)
+    for user in wanted:
+        if user not in current:
+            access.require_assignee(user, doc.workspace, doc.client or None)
+    doc.update({"all_members": flag, "allowed_users": model.dumps(sorted(wanted))})
+    access.write(doc)
+    return _dto(doc)
+
+
 def detail(name):
     doc = _read(CONNECTION, name, lock=False)
     # A manager can inspect disabled/unassigned configuration without acquiring
@@ -266,7 +296,8 @@ def records(workspace, client=None, start=0, limit=50):
         if management or (doc.enabled and access.listed(doc, actor)):
             access.require_connection(doc, management=management, enabled=not management, lock=False)
             # 每种 ERP 的主连接（`main_connections`）：录入入口、LINE、CC 只认带它的那一行
-            result.append({**_dto(doc), "main": doc.name in main})
+            # ``manageable``：本人是管理员（设置里「全所可用」开关与名单只给管理员，第 6 批）
+            result.append({**_dto(doc), "main": doc.name in main, "manageable": management})
     return result
 
 

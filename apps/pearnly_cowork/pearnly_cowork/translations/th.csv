@@ -238,6 +238,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop is out of date. Update CC Desktop and submit again,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
 CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้จากคอมพิวเตอร์ กรุณาลองใหม่อีกครั้งในอีกสักครู่
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ
+CC Desktop needs update,CC เดสก์ท็อปต้องอัปเดต
 CC Desktop offline,CC เดสก์ท็อปออฟไลน์
 CC Desktop offline or needs update,CC เดสก์ท็อปออฟไลน์หรือต้องอัปเดต
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -379,6 +380,7 @@ Company choices are full,ตัวเลือกของบริษัทเ�
 Company not found,ไม่พบบริษัท
 Company tax ID,เลขประจำตัวบริษัท
 Company tax ID not on the document,ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร
+Company's account set for the year,ชุดบัญชีของบริษัทตามปี
 CompanyA-purchase-service,บริษัทA-ซื้อ-บริการ
 CompanyA-sales,บริษัทA-ขาย
 Complete,เสร็จ
@@ -391,6 +393,8 @@ Completion Evidence,หลักฐานการเสร็จสิ้น
 Computer,คอมพิวเตอร์
 Computer Name,ชื่อคอมพิวเตอร์
 Computer Owner,ผู้ลงทะเบียนคอมพิวเตอร์
+Computer offline,คอมพิวเตอร์ออฟไลน์
+Computer removed,นำคอมพิวเตอร์ออกแล้ว
 Condition,เงื่อนไข
 Condition code not allowed,เงื่อนไขไม่ถูกต้อง
 Confirmation Request,คำขอยืนยัน
@@ -1044,6 +1048,7 @@ No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
 No computer can reach the account set for the document date.,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
+No computer can write,ไม่มีคอมพิวเตอร์ที่บันทึกได้
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
@@ -2289,6 +2294,7 @@ cowork.folder.field.time,เวลาทำงาน
 cowork.folder.field.title,ชื่องาน
 cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 cowork.folder.folderMissing,ไม่พบโฟลเดอร์
+cowork.folder.followCompany,ชุดบัญชีของบริษัทตามปี
 cowork.folder.guide.oneRule,หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 cowork.folder.guide.result,ระบบสร้างเอง ห้ามวางเอกสาร
 cowork.folder.guide.resultRule,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป
@@ -2322,6 +2328,7 @@ cowork.folder.owner_not_ready,ผู้รับผิดชอบงานต�
 cowork.folder.pair,{0}: {1}
 cowork.folder.path_invalid,กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 cowork.folder.pending,ยังไม่ได้ประมวลผล {0} ไฟล์ จะประมวลผลเมื่อถึงเวลา
+cowork.folder.readerGone,นำคอมพิวเตอร์ออกแล้ว
 cowork.folder.reading_masters,CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ
 cowork.folder.remind.add,เพิ่มเวลา
 cowork.folder.remind.count,ยังไม่ได้ประมวลผล {0} ไฟล์
@@ -3259,6 +3266,9 @@ history.source_invalid,ไม่รองรับแหล่งที่มา
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 image,รูปภาพ
 in,ฝาก
+intake.agent.state.needsUpdate,CC เดสก์ท็อปต้องอัปเดต
+intake.agent.state.noWriter,ไม่มีคอมพิวเตอร์ที่บันทึกได้
+intake.agent.state.offline,คอมพิวเตอร์ออฟไลน์
 intake.catalog.reload,อ่านใหม่
 intake.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 intake.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี

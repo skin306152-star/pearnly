@@ -1,11 +1,13 @@
 """池的状态（ADR-021，方案 2.10）：录入入口、LINE、CC 工具、定时任务问「Express 现在能不能选、能不能写」的唯一判据。
 
-``state(connection, account_key=None)`` → ``{online, writers_known, needs_update}``：
+``state(connection, account_key=None)`` → ``{online, writers_known, needs_update, computers}``：
 
 - ``writers_known``：池里至少一台电脑够得到（这份 / 任一份）账套、能写，它的密钥有效、签发人此刻仍有权、没退役——
   有它就能选 Express、确认、排队（D4：电脑关着也排，开机后写）。与确认同一个判据（`connections.pool.writers`）；
 - ``online``：这些电脑里有一台此刻在线（任一把有效密钥 3 分钟内报过到），与以前的「助手在线」同一个意思；
-- ``needs_update``：给了账套、它有排队的单，而够得到它的电脑没有一台支持排头要的载荷版本（只能等人更新 CC 桌面版）。
+- ``needs_update``：给了账套、它有排队的单，而够得到它的电脑没有一台支持排头要的载荷版本（只能等人更新 CC 桌面版）；
+- ``computers``：池里有没有电脑（有一把有效密钥、没退役，能不能写都算）。录入入口据此分清「CC 桌面版未连接」（一台都没有）
+  与「没有能写的电脑」（有电脑，但没有一台够得到能写的账套，如只读文件夹的成员、或登记人已失权，第 6 批）。
 
 只读，不加锁，调用方负责权限（`api.online` 先过连接使用授权）。MR.ERP 由服务端直连写，这里只看有没有读文件夹的电脑在线。
 """
@@ -26,7 +28,7 @@ def state(connection, account_key=None, *, now=None):
     peers = credentials.pool_peers(doc.name, now)
     if doc.adapter != 'express':
         online = any(peer.get('online') for peer in peers.values())
-        return {'online': online, 'writers_known': bool(peers), 'needs_update': False}
+        return {'online': online, 'writers_known': bool(peers), 'needs_update': False, 'computers': bool(peers)}
     key = normalize_express_account_key(account_key) if account_key else ''
     # 与确认的判据（`push.native.service.has_writer`）同一个：`connections.pool.writers`
     writers = account_pool.writers(doc, key or None, peers=peers)
@@ -40,7 +42,7 @@ def state(connection, account_key=None, *, now=None):
             known = {device: route_contracts.Peer(payload_version=peers[device].get('payload_version'))
                      for device in writers}
             needs_update = route_contracts.needs_update(version, writers, known)
-    return {'online': online, 'writers_known': bool(writers), 'needs_update': needs_update}
+    return {'online': online, 'writers_known': bool(writers), 'needs_update': needs_update, 'computers': bool(peers)}
 
 
 def for_user(connection, account_key=None):

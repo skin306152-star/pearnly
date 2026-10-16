@@ -2088,7 +2088,10 @@ class CompanyFolderBindings(unittest.TestCase):
             device, connection = contracts.parse_reader(value)
             return device or ("PC1" if connection == "C1" and root_id == "R1" else ""), connection
 
+        # 池里的电脑：C1 上 PC1、PC2 两台（PC9 已移除），C2 上一台没有（第 6 批「电脑已移除」按它判）
+        pools = {"C1": {"PC1": {}, "PC2": {}}, "C2": {}}
         readers = types.SimpleNamespace(
+            members=lambda connection: pools.get(connection, {}),
             resolve=resolve, state=lambda device, connection: states.get(connection, {}) if device else {},
             of=lambda row: (row.get("reader_device") or "", row.get("reader") or row.get("connection")),
             ref=lambda row: contracts.reader_ref(row.get("reader_device"), row.get("reader")))
@@ -2145,6 +2148,19 @@ class CompanyFolderBindings(unittest.TestCase):
             self.assertEqual(len(rows), 2)
             self.assertEqual(row["state"], "offline")  # C2 这台没同步过
             self.assertEqual([item["reader"] for item in module.view("co1")], ["C1", "C2"])
+            self.assertEqual([item["reader_gone"] for item in module.view("co1")], [False, False])  # 没认出电脑不算移除
+
+    def test_a_folder_read_by_a_removed_computer_says_so(self):
+        """第 6 批：读它的电脑已被移除（这条连接上不在了）的公司文件夹带 ``reader_gone``，页面写「电脑已移除」、按读者编号解绑。"""
+        for module, rows, _deleted, _sql in self._module():
+            rows["gone"] = Row(name="gone", binding_key="gone", company="co1", reader="C1", reader_device="PC9",
+                               root_id="R1", folder="ABC")
+            rows["here"] = Row(name="here", binding_key="here", company="co1", reader="C1", reader_device="PC2",
+                               root_id="R1", folder="ABC")
+            found = {item["reader_id"]: item["reader_gone"] for item in module.view("co1")}
+            self.assertEqual(found, {"PC9|C1": True, "PC2|C1": False})
+            self.assertTrue(module.unbind("co1", "PC9|C1"))
+            self.assertEqual(list(rows), ["here"])
 
     def test_computers_on_one_connection_each_have_a_row_and_unbinding_does_not_guess(self):
         """同一个池里两台电脑各绑一行（读者编号「电脑|连接」）；只给连接的旧页面在有两行时不删（不猜是哪台）；补丁认不出

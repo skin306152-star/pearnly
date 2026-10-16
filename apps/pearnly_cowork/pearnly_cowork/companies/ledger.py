@@ -183,6 +183,11 @@ def _document_item(row, code, group, company_tax) -> dict:
                                 "kinds": pending.choice_kinds(row.get("last_push_reason"))}
         else:
             fields["action"] = "open"
+    elif pending.account_set_stop(row):
+        # 定时任务跟随公司当年账套停在「待选账套」（T1）：同待处理页，当场换账套重推（第 6 批）
+        fields["action"] = "account_set"
+        fields["choice"] = {"connection": row.push_connection, "account_set_key": row.get("push_account_set") or "",
+                            "kinds": []}
     return exceptions.item(code, **fields)
 
 

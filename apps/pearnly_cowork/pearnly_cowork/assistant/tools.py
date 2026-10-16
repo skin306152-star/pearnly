@@ -1233,6 +1233,9 @@ def intake_options(tool_input) -> str:
         if row:
             item["connection"] = row["name"]
             item["label"] = row.get("label")
+        if item["state"] == "ready" and adapter == "express":
+            # 能写的电脑此刻都关着（第 6 批「电脑离线（仍可选）」）：照样能选、确认，排队等开机后写，CC 照实告诉用户
+            item["cc_desktop_online"] = destinations.online("express", row["name"])
         if item["state"] == "ready":
             try:
                 catalog = connections.targets(row["name"])

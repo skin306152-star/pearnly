@@ -185,6 +185,8 @@ class FakeDB:
         if doctype == "Cowork Workspace":
             return name
         row = STORE.get(doctype, {}).get(name)
+        if for_update and row is not None:
+            _lock(doctype, [name])
         if isinstance(field, (list, tuple)):
             return Row({key: row.get(key) for key in field}) if row is not None else None
         return (row or {}).get(field)
@@ -265,6 +267,18 @@ class FakeDB:
             found = [r for r in _rows(CREDENTIAL) if r["connection"] == values[0] and r.get("device") == values[1]
                      and r["name"] != values[2] and _active_row(r)]
             return [(r["name"],) for r in sorted(found, key=lambda r: -r["token_generation"])]
+        # 第 6 批：电脑名（推送记录由哪台写入）、登记人（「电脑」列表的移除）
+        if "SELECT name, label FROM `tabCowork CC Desktop Device` WHERE name IN %s" in q:
+            return [(r["name"], r.get("label")) for r in _rows(DEVICE) if r["name"] in values[0]]
+        if "SELECT name, device_owner FROM `tabCowork CC Desktop Device` WHERE name IN %s AND retired_at IS NULL" in q:
+            return [(r["name"], r.get("device_owner")) for r in _rows(DEVICE)
+                    if r["name"] in values[0] and not r.get("retired_at")]
+        # 第 6 批「移除」：这台电脑有有效密钥的连接；它全部没吊销的密钥（按名字逐个锁）
+        if "SELECT connection FROM `tabCowork Express Agent Credential` WHERE device=%s" in q:
+            return [(r["connection"],) for r in _rows(CREDENTIAL) if r.get("device") == values[0] and _active_row(r)]
+        if "WHERE device=%s AND revoked_at IS NULL ORDER BY name FOR UPDATE" in q:
+            return [(r["name"],) for r in sorted(_rows(CREDENTIAL), key=lambda r: r["name"])
+                    if r.get("device") == values[0] and not r.get("revoked_at")]
         if "WHERE device=%s AND revoked_at IS NULL" in q:
             return [(r["name"],) for r in _rows(CREDENTIAL) if r.get("device") == values[0] and _active_row(r)][:1]
         if "WHERE connection=%s AND active_key=%s" in q:
@@ -394,6 +408,9 @@ def _install_connections(frappe):
         pool.EVENTS.append(("move", connection, old, new))
 
     pool.forget_device, pool.move_device = forget_device, move_device
+    # 第 6 批：电脑在哪几条连接上有可达行（移除前按它们锁连接）；替身按测试里登记的给
+    pool.REACHES = {}
+    pool.device_connections = lambda device: sorted(pool.REACHES.get(device, ()))
     spec = importlib.util.spec_from_file_location("pearnly_cowork.connections.member", APP / "connections/member.py")
     member = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(member)
@@ -446,6 +463,7 @@ class Base(unittest.TestCase):
         frappe.db.committed = {}
         sys.modules["pearnly_cowork.connections.pool"].FORGOTTEN.clear()
         sys.modules["pearnly_cowork.connections.pool"].EVENTS.clear()
+        sys.modules["pearnly_cowork.connections.pool"].REACHES.clear()
         frappe.session.user = ADMIN
         self.requests = itertools.count()
         self.express = add_connection("express", users=[ADMIN, ENTRY, OTHER])
@@ -1314,6 +1332,99 @@ class PatchSeedsOldComputers(Base):
         self.before_deploy()
         self.assertEqual(devices.seed_legacy(None), 1)
         self.assertEqual([d["label"] for d in _rows(DEVICE)], ["express"])
+
+
+# ── 第 6 批：「电脑」列表的移除 ───────────────────────────────────────────────
+
+
+class RemoveDevice(Base):
+    def remove(self, device, user=ADMIN):
+        frappe.session.user = user
+        return self.retrying(lambda: credentials.remove_device(device))
+
+    def test_the_owner_removes_their_computer_everywhere(self):
+        mrerp = add_connection("mrerp", users=[ADMIN, ENTRY, OTHER])
+        a = self.register(ENTRY, device_key=KEY_A)
+        b = self.register(ENTRY, express=False, device_key=KEY_A)  # 同一台电脑在 MR.ERP 上也有一把
+        self.assertEqual(a["device"], b["device"])
+        other = self.register(OTHER, device_key=KEY_B)
+        LOCKS.clear()
+        result = self.remove(a["device"], ENTRY)
+        order = [entry for entry in LOCKS if entry[0] != "BEGIN"]
+        self.assertEqual(result, {"status": "removed", "device": a["device"], "replayed": False})
+        self.assertTrue(STORE[DEVICE][a["device"]]["retired_at"])
+        self.assertEqual(STORE[DEVICE][a["device"]]["retired_by"], ENTRY)
+        for token in (a["token"], b["token"]):
+            self.assertTrue(self.row(token)["revoked_at"])
+            self.assertEqual(self.row(token)["revocation_reason"], "device_removed")
+            with self.assertRaises(AuthenticationError):
+                self.auth(token)
+        self.assertEqual(self.auth(other["token"]).connection, self.express)  # 别人的电脑不动
+        self.assertIn(a["device"], sys.modules["pearnly_cowork.connections.pool"].FORGOTTEN)
+        # 先按名字顺序锁它够得到的每条连接，再锁密钥，最后才锁电脑行
+        self.assertEqual([name for kind, name in order if kind == CONNECTION], sorted([self.express, mrerp]))
+        first_key = next(i for i, (kind, _n) in enumerate(order) if kind == CREDENTIAL)
+        last_connection = max(i for i, (kind, _n) in enumerate(order) if kind == CONNECTION)
+        self.assertLess(last_connection, first_key)
+        self.assertEqual(order[-1], (DEVICE, a["device"]))
+        self.assert_lock_order()
+
+    def test_a_connection_reached_without_a_key_is_locked_too(self):
+        a = self.register(device_key=KEY_A)
+        other = add_connection("express", users=[ADMIN])
+        sys.modules["pearnly_cowork.connections.pool"].REACHES[a["device"]] = [other]
+        LOCKS.clear()
+        self.remove(a["device"])
+        self.assertIn((CONNECTION, other), LOCKS)
+
+    def test_only_the_owner_or_an_admin_may_remove(self):
+        mine = self.register(ENTRY, device_key=KEY_A)
+        with self.assertRaises(PermissionError_):
+            self.remove(mine["device"], OTHER)
+        with self.assertRaises(PermissionError_):
+            self.remove(mine["device"], OUTSIDER)
+        self.assertFalse(STORE[DEVICE][mine["device"]].get("retired_at"))
+        self.assertFalse(self.row(mine["token"]).get("revoked_at"))
+        self.assertEqual(self.remove(mine["device"], ADMIN)["status"], "removed")
+
+    def test_unknown_or_foreign_computers_are_refused_alike(self):
+        a = self.register(device_key=KEY_A)
+        STORE[DEVICE][a["device"]]["workspace"] = "OTHER-WS"
+        for name in (a["device"], "CCD-missing"):
+            with self.assertRaises(PermissionError_):
+                self.remove(name)
+        self.assertFalse(STORE[DEVICE][a["device"]].get("retired_at"))
+
+    def test_removing_twice_is_one_removal(self):
+        a = self.register(device_key=KEY_A)
+        self.remove(a["device"])
+        stamp = STORE[DEVICE][a["device"]]["retired_at"]
+        again = self.remove(a["device"])
+        self.assertEqual(again, {"status": "removed", "device": a["device"], "replayed": True})
+        self.assertEqual(STORE[DEVICE][a["device"]]["retired_at"], stamp)
+
+    def test_the_removed_computer_signs_in_again_as_a_new_one(self):
+        a = self.register(ENTRY, device_key=KEY_A)
+        self.remove(a["device"], ENTRY)
+        again = self.register(ENTRY, device_key=KEY_A)
+        self.assertEqual(again["status"], "created")
+        self.assertNotEqual(again["device"], a["device"])
+        self.assertEqual(self.auth(again["token"]).connection, self.express)
+
+    def test_owners_and_labels_for_the_list_and_the_push_records(self):
+        a = self.register(ENTRY, device_key=KEY_A, device_name="ACC-01")
+        b = self.register(OTHER, device_key=KEY_B, device_name="ACC-02")
+        self.assertEqual(devices.owners([a["device"], b["device"], "KEY-ONLY", ""]),
+                         {a["device"]: ENTRY, b["device"]: OTHER})
+        self.remove(b["device"], OTHER)
+        self.assertEqual(devices.owners([a["device"], b["device"]]), {a["device"]: ENTRY})  # 移除了的不能再移除
+        # 推送记录写的时候它还在：移除后照样给名字
+        self.assertEqual(devices.labels([a["device"], b["device"], None]), {a["device"]: "ACC-01", b["device"]: "ACC-02"})
+        self.assertEqual((devices.owners([]), devices.labels([])), ({}, {}))
+
+    def test_manages_says_who_is_an_admin(self):
+        self.assertTrue(credentials.manages(ADMIN))
+        self.assertFalse(credentials.manages(ENTRY))
 
 
 if __name__ == "__main__":

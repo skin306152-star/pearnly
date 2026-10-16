@@ -59,3 +59,9 @@ def register(request_key, express=False, replace=False, expected_generation=None
     新版带 `device_key` / `device_name` / `rekey`（ADR-021）；不带的照旧走一条连接一个槽位。"""
     return _local_transaction(credentials.register, request_key, express, replace, expected_generation,
                               device_key, device_name, rekey)
+
+
+@frappe.whitelist(methods=['POST'])
+def remove_device(device):
+    """「电脑」列表的「···」移除一台电脑（ADR-021 第 6 批）：登记人或管理员；吊销它的各把密钥并让它退役。"""
+    return _local_transaction(credentials.remove_device, device)

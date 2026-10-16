@@ -73,6 +73,25 @@ def retire(doc, actor):
         pool.forget_device(doc.name)
 
 
+def owners(names):
+    """这几台电脑的登记人 ``{电脑: 登记人}``（不加锁；没退役的；不是电脑记录的编号——没挂电脑的旧槽位密钥——不在里面）。"""
+    names = [name for name in dict.fromkeys(names or ()) if name]
+    if not names:
+        return {}
+    return {row[0]: row[1] or '' for row in frappe.db.sql(
+        f'SELECT name, device_owner FROM `tab{DOCTYPE}` WHERE name IN %s AND retired_at IS NULL', (tuple(names),))}
+
+
+def labels(names):
+    """几台电脑的电脑名 ``{电脑: 名}``（钩子 ``cowork_device_labels``：推送记录「由哪台电脑写入」，ADR-021 第 6 批）。
+    退役的也给（写的时候它还在），没名字的不给。只读。"""
+    names = [name for name in dict.fromkeys(names or ()) if name]
+    if not names:
+        return {}
+    return {row[0]: row[1] for row in frappe.db.sql(f'SELECT name, label FROM `tab{DOCTYPE}` WHERE name IN %s',
+                                                    (tuple(names),)) if row[1]}
+
+
 def pool_claimed(connection):
     """池里已有电脑认领过（新版 CC 桌面版报过设备密钥）：旧版不带设备密钥的登记不能再顶掉它。
 

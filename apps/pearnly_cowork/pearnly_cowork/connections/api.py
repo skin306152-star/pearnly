@@ -28,6 +28,12 @@ def configure(workspace=None, adapter=None, request_key=None, label=None, config
                  users, name, expected_revision, enabled, credentials, all_members)
 
 
+@frappe.whitelist(methods=["POST"])
+def set_members(name, all_members=None, users=None):
+    # 设置里「电脑」的「全所可用」开关与名单（ADR-021 第 6 批）：只改这两项，不升版本（见 service.set_members）
+    return _call(service.set_members, name, all_members, users)
+
+
 @frappe.whitelist()
 def detail(name):
     return _call(service.detail, name)

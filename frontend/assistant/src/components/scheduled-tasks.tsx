@@ -1,6 +1,10 @@
 // 定时任务（CC 侧栏「定时任务」，只在 Cowork 出现；用户 2026-10-12：功能同 Pearnly 那边，界面照 Claude）。
 //
 // 功能逐项对应 Cowork 网页的定时任务页（apps/pearnly_cowork/.../desk/intake-folders.js 与 targets.js）：
+//   多台电脑（ADR-021 第 6 批）：文件夹下拉的值用读者编号（「电脑|连接」，`folderValue` 编码，同 Desk 页），读它的电脑被移除的
+//   任务标「电脑已移除」；Express 卡片按池的状态写「已连接 / 电脑离线（仍可选）/ 没有能写的电脑 / CC 桌面版未连接」，
+//   选定账套后够得到它的电脑都不支持排头的载荷版本时写「CC 桌面版需更新」。跟随公司当年账套（T1）的任务在账套处写
+//   「跟随公司当年账套」，结果与运行记录列出实际推往的账套与张数。
 //   列表：任务名、目标 ERP、账套、文件夹、每月几号几点、结果（已推送 / 待处理 / 处理中）、文件夹里还没处理的份数、状态；
 //         立即运行、待处理的单据、编辑、运行记录、停用 / 启用、删除。列表自己刷新（lib/live.ts：定时任务服务的实时事件
 //         cowork_folder_changed 为主，有处理中的每 10 秒、否则每 60 秒兜底，回到前台马上刷）。
@@ -39,6 +43,8 @@ import { Switch } from "@/components/settings";
 import { openAddCompany } from "@/components/add-company";
 import {
   cachedDetail,
+  folderParts,
+  folderValue,
   groupTasks,
   lastMonth,
   refreshTaskOverview,
@@ -92,20 +98,30 @@ type Rule = {
   reader: string; account_set_key: string; account_label?: string; direction: string; posting_kind: string;
   payment: string; root_id: string; root_label?: string; folder: string; run_day: number; run_time: string;
   defaults: Record<string, string>; agent_fresh?: boolean; folder_state?: string | null;
-  results?: { entered?: number; attention?: number; moving?: number };
+  results?: { entered?: number; attention?: number; moving?: number; account_sets?: AccountSetCount[] };
+  // 多台电脑（ADR-021）：reader_id = 读者编号（「电脑|连接」），reader_gone = 读它的电脑已被移除；company = 跟随公司当年账套（T1）
+  reader_id?: string; reader_gone?: boolean; company?: string;
   // include_existing：到点处理文件夹里所有还没处理过的（新任务）；remind：运行前提醒，remind_times：提醒时刻（服务端给
   // 生效的那组，没选过是前一天 08:00、14:00）；waiting：文件夹里还没处理的份数（不知道是 null），waiting_partial：数到上限（显示 N+）
   include_existing?: number; remind?: number; remind_times?: RemindTime[]; waiting?: number | null; waiting_partial?: boolean;
 };
+// 跟随公司当年账套的任务：这些票实际推往了哪份账套、各几张（服务端 `contracts.account_sets`）
+type AccountSetCount = { account_set_key: string; account_label: string; tickets: number };
+const accountSetsText = (rows?: AccountSetCount[]) => (rows ?? []).map((row) => `${row.account_label} ${row.tickets}`).join(" · ");
 // 提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM，最多 3 个（同服务端 contracts.remind_times）
 type RemindTime = { days_before: number; time: string };
 type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string>; main?: boolean };
-type Snapshot = { connections: Record<string, Connection | null>; agent: { online?: boolean } | null };
+// 池的状态（`companion.api.online`，ADR-021）：writers_known = 有能写的电脑（关着也算，能选、排队），computers = 池里有电脑
+type PoolState = { online?: boolean; writers_known?: boolean; needs_update?: boolean; computers?: boolean };
+type Snapshot = { connections: Record<string, Connection | null>; agent: PoolState | null };
 type Group = { value: string; label: string; items: Array<{ value: string; label: string }> };
 // counts：文件夹（相对路径，"" 是根目录）里现有几份会被录入的文件，没数过就没有这个键；partial：数到上限；
 // table_counts：POS 导出（Excel / CSV）另数，只有推往 Express 的销售任务收它们
 type Root = { id: string; label: string; folders?: string[]; counts?: Record<string, number>; table_counts?: Record<string, number>; partial?: boolean };
-type Reader = { connection: string; label: string; version?: string; fresh?: boolean; roots?: Root[] };
+// reader：读者编号（「电脑|连接」，第 4 批起服务端给；旧服务端没有时退回 connection）
+type Reader = { connection: string; reader?: string; device?: string; label: string; version?: string; fresh?: boolean; roots?: Root[] };
+const readerId = (r: Pick<Reader, "reader" | "connection">) => r.reader || r.connection;
+const ruleFolder = (rule: Rule) => folderValue(rule.reader_id || rule.reader, rule.root_id, rule.folder || "");
 type StockGroup = { known?: boolean; chosen?: string; groups?: Array<{ acccod: string; label: string; used_by?: number }> };
 type Options = { readers?: Reader[]; accounts?: Array<{ code: string; name: string }>; departments?: Array<{ code: string; name: string }>; stock_group?: StockGroup };
 
@@ -123,7 +139,7 @@ async function snapshotNow(): Promise<Snapshot> {
   const connections: Snapshot["connections"] = {};
   for (const a of ADAPTERS) connections[a.adapter] = mainOf(rows, a.adapter);
   const express = connections.express;
-  const agent = express ? await getMethod<{ online?: boolean }>(COMPANION + "online", { connection: express.name }).catch(() => null) : null;
+  const agent = express ? await getMethod<PoolState>(COMPANION + "online", { connection: express.name }).catch(() => null) : null;
   return { connections, agent };
 }
 
@@ -132,12 +148,14 @@ function describe(adapter: string, s: Snapshot, tr: Tr): { text: string; tone: "
   if (!c) return { text: tr("connect.state.notConnected"), tone: "" };
   if (!c.enabled) return { text: tr("connect.state.disabled"), tone: "bad" };
   if (adapter === "mrerp" || s.agent?.online) return { text: tr("connect.state.connected"), tone: "ok" };
-  return { text: tr("intake.agent.state.missing"), tone: "wait" };
+  // 能写的电脑都关着：仍可选（排队，开机后写，D4）；池里有电脑却没有一台能写；一台电脑都没有（同 Desk 录入入口）
+  if (s.agent?.writers_known) return { text: tr("intake.agent.state.offline"), tone: "wait" };
+  return { text: tr(s.agent?.computers ? "intake.agent.state.noWriter" : "intake.agent.state.missing"), tone: "wait" };
 }
 function ready(adapter: string, s: Snapshot) {
   const c = s.connections[adapter];
   if (!c || !c.enabled) return false;
-  return adapter === "mrerp" || Boolean(s.agent?.online);
+  return adapter === "mrerp" || Boolean(s.agent?.writers_known ?? s.agent?.online);
 }
 
 const days = (tr: Tr) => [
@@ -161,6 +179,8 @@ const plus = (n: number, partial?: boolean) => (partial ? `${n}+` : String(n));
 
 function status(rule: Rule, tr: Tr): { text: string; tone: "ok" | "bad" | "wait" | "" } {
   if (!rule.enabled) return { text: tr("cowork.folder.off"), tone: "" };
+  // 读文件夹的电脑已被移除：任务留着原电脑，等负责人另选文件夹（不自动换电脑读）
+  if (rule.reader_gone) return { text: tr("cowork.folder.readerGone"), tone: "bad" };
   if (!rule.agent_fresh) return { text: tr("cowork.folder.agentStale"), tone: "wait" };
   if (["root_missing", "folder_missing"].includes(rule.folder_state || "")) return { text: tr("cowork.folder.folderMissing"), tone: "bad" };
   return { text: tr("cowork.folder.on"), tone: "ok" };
@@ -297,12 +317,12 @@ function useCompanyTitle(company: string): string {
 
 /** 新建任务从公司里建：给了公司就按这家预填（同主档页「＋」）；没给先在添加公司对话框里选公司。 */
 function useNewTask(open: (seed: TaskSeed | null) => void) {
-  const { app, companyFolders } = useDesktopFeatures();
+  const { app, companyFolders, deviceName } = useDesktopFeatures();
   const withPeriod = useProjects((s) => s.period);
   const seedFor = async (company: string) => {
     const detail = await cachedDetail(company);
     useCompanyNav.setState({ taskCompany: company, taskFocus: "" });
-    open(detail ? taskSeedOf(detail, withPeriod ? lastMonth() : "", knownReaders(), app && companyFolders) : null);
+    open(detail ? taskSeedOf(detail, withPeriod ? lastMonth() : "", knownReaders(), app && companyFolders, deviceName) : null);
   };
   return (company: string) => (company ? void seedFor(company) : openAddCompany((id) => void seedFor(id), co.chooseCompany));
 }
@@ -442,7 +462,7 @@ export function ScheduledTasks() {
                       <Chip tone={s.tone}>{s.text}</Chip>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-sm">
-                      <span>{[target, rule.account_label].filter(Boolean).join(" · ")}</span>
+                      <span>{[target, rule.company ? tr("cowork.folder.followCompany") : rule.account_label].filter(Boolean).join(" · ")}</span>
                       <span className="flex items-center gap-1">
                         <FolderIcon className="size-3.5" />
                         {rule.folder || rule.root_label || ""}
@@ -456,6 +476,9 @@ export function ScheduledTasks() {
                       {tr("cowork.folder.counts", rule.results?.entered || 0, rule.results?.attention || 0)}
                       {rule.results?.moving ? ` · ${tr("cowork.folder.moving", rule.results.moving)}` : ""}
                     </div>
+                    {rule.results?.account_sets?.length ? (
+                      <div className="mt-0.5 text-ink-3 text-sm">{accountSetsText(rule.results.account_sets)}</div>
+                    ) : null}
                     {rule.enabled && rule.waiting ? (
                       <div className="mt-0.5 text-ink-3 text-sm">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
                     ) : null}
@@ -573,7 +596,8 @@ export function ScheduledTasks() {
 
 type Run = {
   started_at: string; trigger?: string; note?: string; found?: number; new_files?: number; skipped?: number;
-  upload_failed?: number; results?: { entered?: number; attention?: number }; states?: Record<string, number>;
+  upload_failed?: number; results?: { entered?: number; attention?: number; account_sets?: AccountSetCount[] };
+  states?: Record<string, number>;
 };
 const STATES = ["pushing", "recognized", "submitted", "source_ready", "uploaded", "registered", "not_invoice"];
 
@@ -595,7 +619,8 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
             const states = [
               ...(entered || attention ? [tr("cowork.folder.counts", entered, attention)] : []),
               ...STATES.filter((n) => run.states?.[n]).map((n) => `${tr(`cowork.folder.state.${n}`)} ${run.states![n]}`),
-            ].join(" · ");
+              accountSetsText(run.results?.account_sets),
+            ].filter(Boolean).join(" · ");
             const missing = ["root_missing", "folder_missing"].includes(run.note || "") ? ` · ${tr("cowork.folder.folderMissing")}` : "";
             return (
               <div key={i} className="py-2.5 text-sm">
@@ -648,7 +673,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const [postingKind, setPostingKind] = useState(rule?.posting_kind || "service");
   const [payment, setPayment] = useState(rule?.payment || "");
   const [stockGroup, setStockGroup] = useState("");
-  const [folder, setFolder] = useState(rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : seed?.folder || "");
+  const [folder, setFolder] = useState(rule ? ruleFolder(rule) : seed?.folder || "");
   const [runDay, setRunDay] = useState(String(rule?.run_day ?? 1));
   const [runTime, setRunTime] = useState(rule?.run_time || "22:00");
   const [remind, setRemind] = useState(Boolean(rule?.remind));
@@ -745,6 +770,22 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [express, accountSet]);
 
+  // 选定的 Express 账套：够得到它的电脑都不支持排头要的载荷版本（`api.online` 按账套问，同推送记录上的
+  // payload_version_outdated）→ 账套下面写「CC 桌面版需更新」，仍可选
+  const [needsUpdate, setNeedsUpdate] = useState(false);
+  useEffect(() => {
+    setNeedsUpdate(false);
+    if (!express || !connection || !accountSet) return;
+    let alive = true;
+    void getMethod<PoolState>(COMPANION + "online", { connection: connection.name, account_set_key: accountSet })
+      .then((found) => alive && setNeedsUpdate(Boolean(found?.needs_update)), () => undefined);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [express, connection?.name, accountSet]);
+  const accountHint = needsUpdate ? tr("intake.agent.state.needsUpdate") : rule?.company ? tr("cowork.folder.followCompany") : undefined;
+
   const yearItems = groups.find((g) => g.value === year)?.items ?? [];
   useEffect(() => {
     if (yearItems.length === 1 && !yearItems.some((i) => i.value === accountSet)) setAccountSet(yearItems[0]!.value);
@@ -761,18 +802,21 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [direction, target]);
 
-  // 文件夹：能读文件夹的小助手允许读取的根目录与其下文件夹，值是「小助手连接|根目录编号|相对路径」
+  // 文件夹：能读文件夹的电脑允许读取的根目录与其下文件夹，值是读者编号 + 根目录编号 + 相对路径（`folderValue`）。
+  // 池里不止一台电脑有根目录时前面带电脑名（几台都映射了 S 盘也分得清是哪台的）
   const readers = options?.readers || [];
   const many = readers.filter((r) => (r.roots || []).length).length > 1;
   const folders: Option[] = readers.flatMap((r) =>
     (r.roots || []).flatMap((item) => [
-      { value: `${r.connection}|${item.id}|`, label: (many ? `${r.label} · ` : "") + item.label },
-      ...(item.folders || []).map((name) => ({ value: `${r.connection}|${item.id}|${name}`, label: `${many ? `${r.label} · ` : ""}${item.label}\\${name}` })),
+      { value: folderValue(readerId(r), item.id), label: (many ? `${r.label} · ` : "") + item.label },
+      ...(item.folders || []).map((name) => ({ value: folderValue(readerId(r), item.id, name), label: `${many ? `${r.label} · ` : ""}${item.label}\\${name}` })),
     ]),
   );
-  const saved = rule ? `${rule.reader}|${rule.root_id}|${rule.folder || ""}` : null;
+  const saved = rule ? ruleFolder(rule) : null;
   if (saved && !folders.some((f) => f.value === saved)) {
-    folders.unshift({ value: saved, label: [rule!.root_label, rule!.folder].filter(Boolean).join("\\") || rule!.folder });
+    // 电脑这会儿没报上来、或读它的电脑已被移除：原来的文件夹照样摆着（编辑时不被清空），移除了的写明
+    const label = [rule!.root_label, rule!.folder].filter(Boolean).join("\\") || rule!.folder;
+    folders.unshift({ value: saved, label: rule!.reader_gone ? `${tr("cowork.folder.readerGone")} · ${label}` : label });
   }
   const unpaired = Boolean(target) && Boolean(options) && !readers.some((r) => r.version);
   const folderHint = !options ? "cowork.folder.folderHint" : unpaired ? "cowork.folder.noRootsAny"
@@ -784,10 +828,9 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const folderCount = ((): string => {
     if (!folder) return "";
     if (rule && pendingHint) return rule.enabled && rule.waiting ? plus(rule.waiting, rule.waiting_partial) : "";
-    const [reader, rootId, ...rest] = folder.split("|");
-    const root = readers.find((r) => r.connection === reader)?.roots?.find((item) => item.id === rootId);
+    const { reader, root_id: rootId, folder: path } = folderParts(folder);
+    const root = readers.find((r) => readerId(r) === reader)?.roots?.find((item) => item.id === rootId);
     if (!root?.counts) return "";
-    const path = rest.join("|");
     const pick = (counts?: Record<string, number>) =>
       counts ? (counts[path] ?? Object.entries(counts).find(([k]) => k.toLowerCase() === path.toLowerCase())?.[1] ?? 0) : 0;
     // 推往 Express 的销售任务也收 POS 导出（同 Desk 表单）：连它们一起数
@@ -817,12 +860,12 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
       if (!express && !(await mrerpMenuReady(connection, accountSet, direction, setMenuView, setMenuAsk))) return;
       const chosen: Record<string, string> = {};
       if (express) for (const kind of Object.keys(showDefault)) if (showDefault[kind] && defaults[kind]) chosen[kind] = defaults[kind]!;
-      const [reader, root_id, ...rest] = folder.split("|");
+      const { reader, root_id, folder: path } = folderParts(folder);
       await postMethod(API + "save", {
         values: JSON.stringify({
           name: rule?.name || null, title: title.trim(), connection: connection.name, reader, account_set_key: accountSet,
           direction, posting_kind: express ? postingKind : "", payment: express ? "" : payment, root_id,
-          folder: rest.join("|"), run_day: Number(runDay), run_time: runTime, defaults: chosen, remind: remind ? 1 : 0,
+          folder: path, run_day: Number(runDay), run_time: runTime, defaults: chosen, remind: remind ? 1 : 0,
           ...(remind ? { remind_times: remindTimes } : {}),
         }),
       });
@@ -894,7 +937,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
             <Field label={express ? tr("intake.target.year") : tr("Company")} hint={catalogNote}>
               <Select value={year} disabled={!enabled || !groups.length} options={groups.map((g) => ({ value: g.value, label: g.label }))} onChange={(v) => { setYear(v); setAccountSet(""); }} />
             </Field>
-            <Field label={express ? tr("intake.target.accountSet") : tr("intake.target.year")}>
+            <Field label={express ? tr("intake.target.accountSet") : tr("intake.target.year")} hint={express ? accountHint : undefined}>
               <Select value={accountSet} disabled={!enabled || !yearItems.length} options={yearItems} onChange={setAccountSet} />
             </Field>
             <Field label={tr("intake.field.direction")}>

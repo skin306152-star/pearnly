@@ -238,6 +238,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop is out of date. Update CC Desktop and submit again,CC デスクトップが古いバージョンです。更新して再送信してください
 CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC デスクトップがこの会計データの勘定科目表をパソコンから読み込んでいます。しばらくしてからもう一度お試しください。
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。
+CC Desktop needs update,CC デスクトップの更新が必要
 CC Desktop offline,CC デスクトップがオフライン
 CC Desktop offline or needs update,CC デスクトップがオフラインか更新が必要
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください
@@ -379,6 +380,7 @@ Company choices are full,会社の選択が上限です
 Company not found,会社が見つかりません
 Company tax ID,自社の番号
 Company tax ID not on the document,書類に自社の納税者番号なし
+Company's account set for the year,会社のその年の会計データ
 CompanyA-purchase-service,会社A-仕入-サービス
 CompanyA-sales,会社A-売上
 Complete,完了
@@ -391,6 +393,8 @@ Completion Evidence,完了証跡
 Computer,コンピューター
 Computer Name,コンピューター名
 Computer Owner,コンピューターの登録者
+Computer offline,コンピューターがオフライン
+Computer removed,コンピューターは削除済み
 Condition,条件
 Condition code not allowed,条件コードが無効
 Confirmation Request,確認リクエスト
@@ -1044,6 +1048,7 @@ No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
 No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるコンピューターがありません。
+No computer can write,書き込めるコンピューターがありません
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
 No documents were given.,書類が指定されていません。
 No due date,期日なし
@@ -2289,6 +2294,7 @@ cowork.folder.field.time,実行時刻
 cowork.folder.field.title,タスク名
 cowork.folder.folderHint,1 フォルダーに 1 定期タスク。PDF と画像のみ。
 cowork.folder.folderMissing,フォルダーが見つかりません
+cowork.folder.followCompany,会社のその年の会計データ
 cowork.folder.guide.oneRule,1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 cowork.folder.guide.result,システムが作成。書類を置かないでください
 cowork.folder.guide.resultRule,各請求書の結果表は _Pearnly结果 に保存され、翌日確認できます。
@@ -2322,6 +2328,7 @@ cowork.folder.owner_not_ready,定期タスクの担当者はこの接続で登�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,許可されたルート内の、システム以外のフォルダーを選んでください。
 cowork.folder.pending,未処理 {0} 件、実行時刻に処理します
+cowork.folder.readerGone,コンピューターは削除済み
 cowork.folder.reading_masters,CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。
 cowork.folder.remind.add,時間を追加
 cowork.folder.remind.count,未処理のファイルが {0} 件あります。
@@ -3259,6 +3266,9 @@ history.source_invalid,このレコードの取得元には対応していませ
 history.source_not_public,この画面からは手入力のレコードのみ作成できます。
 image,画像
 in,入金
+intake.agent.state.needsUpdate,CC デスクトップの更新が必要
+intake.agent.state.noWriter,書き込めるコンピューターがありません
+intake.agent.state.offline,コンピューターがオフライン
 intake.catalog.reload,再読み込み
 intake.error.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください

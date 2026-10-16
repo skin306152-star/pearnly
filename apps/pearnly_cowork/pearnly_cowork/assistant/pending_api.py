@@ -8,6 +8,10 @@
 - 不等写账结论（CC 桌面版写入是几秒到几分钟的事，网页请求不占着等）；结论由推送状态的实时事件带回列表。
 - 推送去向取这张单识别时选的连接与账套（`push_connection / push_account_set`）；权限：录入权限 + 这张单的读取范围 +
   这条连接的推送授权（都在被调的服务里判）。
+- 停在「待选账套」的（定时任务跟随公司当年账套 T1：没有 / 多于一份 / 够不到单据日期的账套，ADR-021 第 6 批）：
+  `account_sets` 列这张单归的公司在推送去向那条连接上覆盖单据日期的账套（与定时任务选账套同一判据
+  `companies.tasks.books_of`），`choose_account_set` 只收其中一份：抄到票上（`push_state.retarget`）再按同一条路重推，
+  推送照旧过 `account_match` 的期间、税号、分店硬闸与定时任务的默认处理（`push.fixed_for`）。
 """
 import json
 
@@ -15,7 +19,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.history import storage
+from pearnly_cowork.history import push_state, storage
 from pearnly_cowork.push.application import api as application_api
 
 ITEMS_MAX = 50
@@ -41,6 +45,43 @@ def answer(document, items):
     from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
 
     result = tools._push_one(name)
+    frappe.db.commit()
+    out = {"document": name, "status": str(result.get("status") or "")}
+    if result.get("reason"):
+        out["reason"] = str(result["reason"])[:300]
+    return out
+
+
+def _row(doc):
+    return doc if isinstance(doc, dict) else doc.as_dict()
+
+
+@frappe.whitelist(methods=["GET"])
+def account_sets(document):
+    scope.require("intake")
+    name = str(document or "")
+    from pearnly_cowork.companies import pending
+
+    return {"document": name, "account_sets": pending.account_sets_for(_row(storage.read(name)))}
+
+
+@frappe.whitelist(methods=["POST"])
+def choose_account_set(document, account_set_key):
+    """换到会计员选的那份账套并重推这一张；回同 `answer`。只收 `account_sets` 列出的那几份（别的回
+    ``cowork.folder.account_set_invalid``）。"""
+    scope.require("intake")
+    name = str(document or "")
+    from pearnly_cowork.companies import pending
+
+    doc = storage.read(name)
+    picked = pending.account_set_pick(_row(doc), account_set_key)
+    if not picked:
+        frappe.throw(_("cowork.folder.account_set_invalid"))
+    push_state.retarget(name, doc.push_connection, picked["key"])
+    frappe.db.commit()
+    from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
+
+    result = tools._push_one(name, doc.push_connection, picked["key"])
     frappe.db.commit()
     out = {"document": name, "status": str(result.get("status") or "")}
     if result.get("reason"):

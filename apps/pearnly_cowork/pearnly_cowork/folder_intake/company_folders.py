@@ -151,16 +151,18 @@ def _bound_seconds(row) -> float:
 
 def view(company, states=None) -> list:
     """这家公司各台电脑上的文件夹：`[{reader, reader_device, reader_id, device, label, root_id, folder, share, state,
-    bound_by, bound_at, reported}]`。`reader` 仍是成员连接（第 6 批之前的页面按它认「本机这一行」），`reader_id` 是
+    reader_gone, bound_by, bound_at, reported}]`。`reader` 仍是成员连接（第 6 批之前的页面按它认「本机这一行」），`reader_id` 是
     读者编号（电脑|连接）。`reported` 是这台电脑为这个根目录上报的下级文件夹名（找月份子文件夹用，`None` = 没报）。
     每台电脑读一次最近同步的情况（`states` 可传入请求内缓存，按读者编号）。"""
     states = {} if states is None else states
-    result = []
+    result, members = [], {}
     for row in rows(company):
         reader = readers.ref(row)
         if reader not in states:
             states[reader] = readers.state(*readers.of(row))
         state = states[reader]
+        if row.reader not in members:
+            members[row.reader] = readers.members(row.reader)
         roots = state.get("roots") or []
         reported = next((item for item in roots if isinstance(item, dict) and item.get("id") == row.root_id), None)
         result.append({
@@ -171,6 +173,8 @@ def view(company, states=None) -> list:
             "device": state.get("device") or row.device or "",
             "state": contracts.folder_state(agent.fresh(state), roots, row.root_id, row.folder or "",
                                             _bound_seconds(row)),
+            # 读它的电脑已被移除（这条连接上它一把有效密钥都不剩，第 6 批「电脑已移除」，同定时任务的 `reader_gone`）
+            "reader_gone": bool(row.reader_device) and row.reader_device not in members[row.reader],
             "bound_by": row.bound_by or "", "bound_at": str(row.bound_at or ""),
             "stored_label": row.label or "", "stored_device": row.device or "",
             "reported": list(reported.get("folders") or []) if reported and "folders" in reported else None})

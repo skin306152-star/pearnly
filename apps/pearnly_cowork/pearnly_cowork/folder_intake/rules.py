@@ -170,10 +170,13 @@ def _reader_view(doc, device="", peer=None):
 
 
 def computers():
-    """网页设置里只读的「连接」（2026-10-10）：本工作空间里连着电脑的 Express / MR.ERP 连接上的每台电脑（ADR-021 第 4 批：
-    一台电脑一行）—— 哪台电脑、在不在线、网页可读取的文件夹。只能看；连接、断开、加减文件夹都只在那台电脑的 CC 桌面端上
-    做（文件夹权限是电脑上的安全边界）。与定时任务页同一判据：录入权限 + 这条连接的使用授权；没有连过电脑的不列。"""
+    """设置里的「电脑」（2026-10-10 起只读的「连接」）：本工作空间里连着电脑的 Express / MR.ERP 连接上的每台电脑（ADR-021
+    第 4 批：一台电脑一行）—— 哪台电脑、在不在线、常驻、网页可读取的文件夹。连接、加减文件夹只在那台电脑的 CC 桌面端上做
+    （文件夹权限是电脑上的安全边界）；第 6 批起登记人或管理员可在这里「···」移除一台电脑（``can_remove``，按 ``id`` 调
+    `companion.api.remove_device`）。与定时任务页同一判据：录入权限 + 这条连接的使用授权；没有连过电脑的不列。"""
     _require()
+    actor = frappe.session.user
+    manager = None
     result = []
     for row in connections.records(None, None, 0, 100) or []:
         if row.get("adapter") not in ("express", "mrerp") or not row.get("enabled"):
@@ -184,14 +187,23 @@ def computers():
             frappe.clear_messages()
             continue
         peers = readers.members(doc.name)
+        owners = devices.owners(list(peers))
         for device in sorted(peers):
             view = _reader_view(doc, device, peers[device])
             # Express 以这台电脑的心跳为准（任一把有效密钥 3 分钟内报过到）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
             online = bool(peers[device].get("online")) if doc.adapter == "express" else view["fresh"]
             if not (online or view["version"]):
                 continue
+            # 第 6 批「电脑」列表：电脑编号（「···」移除用，`companion.api.remove_device`）、常驻、能不能移除（登记人或管理员；
+            # 没挂电脑的旧槽位密钥不是一台电脑记录，不给移除）
+            if device in owners and owners[device] != actor and manager is None:
+                from pearnly_cowork.companion import credentials
+
+                manager = credentials.manages(actor)
             row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
-                   "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)]}
+                   "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)],
+                   "id": device, "connection": doc.name, "always_on": bool(peers[device].get("always_on")),
+                   "can_remove": device in owners and (owners[device] == actor or bool(manager))}
             if view.get("update_blocked"):
                 row["update_blocked"] = view["update_blocked"]   # {version, at}：网页如实显示一句
             result.append(row)

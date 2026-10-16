@@ -1188,12 +1188,30 @@ class PendingTests(unittest.TestCase):
         self.assertEqual((items["h2"]["action"], items["h2"]["amount"], items["h2"]["counterparty"]),
                          ("open", "1070.50", "Makro"))
         self.assertEqual(items["h3"]["counterparty"], "Shop")  # 本方是卖方：对方是买方
+        self.assertNotIn("choice", items["h2"])
         self.assertIsNone(items["h4"]["company"])
         fresh_request()
         self.assertEqual([item["document"] for item in pending.pending(company=xyz)["items"]], ["h3"])
         scope.features = set()
         with self.assertRaises(frappe.PermissionError):
             pending.pending()
+
+    def test_a_task_stopped_for_an_account_set_is_switched_on_the_spot(self):
+        # 第 6 批：定时任务跟随公司当年账套停在「待选账套」（T1 三个原因码）→ action account_set，带推送去向
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
+        make()
+        frappe.db.tables["Cowork OCR History"] = {row.name: row for row in (
+            history("t1", last_push_reason="cowork.folder.account_set_none"),
+            history("t2", last_push_reason="cowork.folder.account_set_unreachable"),
+            history("t3", last_push_reason="cowork.folder.account_set_ambiguous", push_connection=""))}
+        fresh_request()
+        items = {item["document"]: item for item in pending.pending()["items"]}
+        for name in ("t1", "t2"):
+            self.assertEqual((items[name]["action"], items[name]["choice"]),
+                             ("account_set", {"connection": "C1", "account_set_key": "S:\\69EXP\\ABC", "kinds": []}))
+        self.assertEqual(items["t3"]["action"], "open")  # 没有推送去向：交给 CC
+        self.assertFalse(pending.account_set_stop(history("x", last_push_status="success",
+                                                          last_push_reason="cowork.folder.account_set_none")))
 
     def test_the_morning_digest_is_sent_only_when_there_is_something_new(self):
         reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69")])
@@ -1282,13 +1300,15 @@ class PendingAnswerTests(unittest.TestCase):
         """按真实导入加载 `assistant.pending_api`；单据读取、记选择、CC 的重推换成替身（整个测试期间挂着）。"""
         calls = []
         storage = types.SimpleNamespace(read=lambda name: doc)
+        push_state = types.SimpleNamespace(retarget=lambda *args: calls.append(("retarget",) + args))
         application_api = types.SimpleNamespace(
             save_choices=lambda *args: calls.append(("save",) + args) or {"saved": 1})
-        tools = types.SimpleNamespace(_push_one=lambda name: calls.append(("push", name)) or dict(pushed))
+        tools = types.SimpleNamespace(_push_one=lambda *args: calls.append(("push",) + args) or dict(pushed))
         frappe.db.commits = 0
         patcher = mock.patch.dict(sys.modules, {
-            "pearnly_cowork.history": types.SimpleNamespace(storage=storage),
+            "pearnly_cowork.history": types.SimpleNamespace(storage=storage, push_state=push_state),
             "pearnly_cowork.history.storage": storage,
+            "pearnly_cowork.history.push_state": push_state,
             "pearnly_cowork.push.application": types.SimpleNamespace(api=application_api),
             "pearnly_cowork.push.application.api": application_api,
             "pearnly_cowork.assistant.tools": tools})
@@ -1338,6 +1358,47 @@ class PendingAnswerTests(unittest.TestCase):
         try:
             with self.assertRaises(frappe.PermissionError):
                 module.answer("h1", "[{}]")
+        finally:
+            scope.features = {"intake", "ocr_history"}
+
+    def test_a_document_waiting_for_an_account_set_is_switched_here(self):
+        """第 6 批（T1 前端待办第 3 条）：定时任务跟随公司当年账套停在「待选账套」的单，待处理页当场换账套：可换的是这张单
+        归的公司在推送去向那条连接上覆盖单据日期的账套（同定时任务的判据），只收其中一份；抄到票上再按 CC 同一条路重推。"""
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy"),
+                  express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP", start="2025-01-01", end="2025-12-31")])
+        make()
+        doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous")
+        module, calls = self._answer(doc, {"status": "sent"})
+        fresh_request()
+        found = module.account_sets("h1")["account_sets"]
+        self.assertEqual(sorted(item["key"] for item in found), ["s:\\69exp\\abc", "s:\\69exp\\abc2"])
+        self.assertEqual(sorted(item["label"] for item in found)[0][:6], "ABC 69")
+        fresh_request()
+        out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
+        self.assertEqual(out, {"document": "h1", "status": "sent"})
+        # 抄到票上的、推往的都是目录里的那份（同定时任务选到时记的键）
+        self.assertEqual(calls, [("retarget", "h1", "C1", "s:\\69exp\\abc2"), ("push", "h1", "C1", "s:\\69exp\\abc2")])
+        # 不在可换之列（别的年度）、不是待选账套停下的单：拒，不推
+        calls.clear()
+        for key in ("S:\\68EXP\\ABC", "", "S:\\NOPE"):
+            fresh_request()
+            with self.assertRaises(frappe.ValidationError):
+                module.choose_account_set("h1", key)
+        doc.last_push_reason = "push.failed"
+        fresh_request()
+        self.assertEqual(module.account_sets("h1")["account_sets"], [])
+        with self.assertRaises(frappe.ValidationError):
+            module.choose_account_set("h1", "S:\\69EXP\\ABC")
+        doc.last_push_reason, doc.invoice_date = "cowork.folder.account_set_none", ""
+        fresh_request()
+        self.assertEqual(module.account_sets("h1")["account_sets"], [])  # 没有单据日期：无从选
+        self.assertEqual(calls, [])
+        scope.features = {"ocr_history"}
+        try:
+            with self.assertRaises(frappe.PermissionError):
+                module.account_sets("h1")
+            with self.assertRaises(frappe.PermissionError):
+                module.choose_account_set("h1", "S:\\69EXP\\ABC")
         finally:
             scope.features = {"intake", "ocr_history"}
 
@@ -1895,6 +1956,13 @@ class MonthLedgerTests(unittest.TestCase):
         # 定时任务的文件按登记时间归月：[本月一号, 下月一号)
         self.assertEqual(self.files, [(["R1"], datetime(2026, 9, 1), datetime(2026, 10, 1))])
         self.assertEqual(READBACK_SETS[0][1], "2026-09")
+
+    def test_a_document_waiting_for_an_account_set_can_be_switched_from_the_month(self):
+        # 第 6 批：定时任务跟随公司当年账套停在「待选账套」的单，台账里同待处理页当场换账套（action account_set）
+        frappe.db.tables["Cowork OCR History"]["h12"] = history("h12", last_push_reason="cowork.folder.account_set_ambiguous")
+        item, = [row for row in self.month()["exceptions"]["items"] if row["document"] == "h12"]
+        self.assertEqual((item["action"], item["choice"]),
+                         ("account_set", {"connection": "C1", "account_set_key": "S:\\69EXP\\ABC", "kinds": []}))
 
     def test_recognition_duplicates_count_only_same_number_matches_that_still_exist(self):
         rows = frappe.db.tables["Cowork OCR History"]

@@ -238,6 +238,7 @@ CC Desktop is not allowed to write to this account set. Check the account set ch
 CC Desktop is out of date. Update CC Desktop and submit again,CC 桌面版版本过旧，请更新后重新提交
 CC Desktop is reading this account set's chart of accounts from the computer. Try again shortly.,CC 桌面版正在从电脑读取此账套的科目表，请稍后再试。
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.,CC 桌面版正在读取此账套的科目表，读完后推送。
+CC Desktop needs update,CC 桌面版需更新
 CC Desktop offline,CC 桌面版离线
 CC Desktop offline or needs update,CC 桌面版不在线或需升级
 "CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop",此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
@@ -379,6 +380,7 @@ Company choices are full,公司选择已满
 Company not found,找不到这家公司
 Company tax ID,本公司税号
 Company tax ID not on the document,票面无本公司税号
+Company's account set for the year,跟随公司当年账套
 CompanyA-purchase-service,公司A-进项-服务
 CompanyA-sales,公司A-销项
 Complete,完成
@@ -391,6 +393,8 @@ Completion Evidence,完成证据
 Computer,电脑
 Computer Name,电脑名称
 Computer Owner,电脑登记人
+Computer offline,电脑离线
+Computer removed,电脑已移除
 Condition,条件
 Condition code not allowed,条件码不适用
 Confirmation Request,确认请求
@@ -1044,6 +1048,7 @@ No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给你的卡片
 No changes were given.,没有指定要改的内容。
 No computer can reach the account set for the document date.,没有电脑能访问单据日期所在的账套。
+No computer can write,没有能写的电脑
 "No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
 No documents were given.,没有指定单据。
 No due date,无到期日
@@ -2289,6 +2294,7 @@ cowork.folder.field.time,运行时间
 cowork.folder.field.title,任务名称
 cowork.folder.folderHint,每个文件夹对应一个定时任务，仅支持 PDF 和图片文件。
 cowork.folder.folderMissing,文件夹不可用
+cowork.folder.followCompany,跟随公司当年账套
 cowork.folder.guide.oneRule,一个文件夹 = 一条规则 = 一家公司 + 一个年度账套 + 进项或销项 + 服务或存货。
 cowork.folder.guide.result,系统生成，别放单据
 cowork.folder.guide.resultRule,每张发票的结果表格放在 _Pearnly结果，第二天核对。
@@ -2322,6 +2328,7 @@ cowork.folder.owner_not_ready,定时任务负责人已无权使用此连接录�
 cowork.folder.pair,{0}：{1}
 cowork.folder.path_invalid,请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 cowork.folder.pending,还有 {0} 份未处理，到点处理
+cowork.folder.readerGone,电脑已移除
 cowork.folder.reading_masters,CC 桌面版正在读取此账套的科目表，读完后推送。
 cowork.folder.remind.add,添加时间
 cowork.folder.remind.count,还有 {0} 份未处理。
@@ -3259,6 +3266,9 @@ history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
 image,图像
 in,存入
+intake.agent.state.needsUpdate,CC 桌面版需更新
+intake.agent.state.noWriter,没有能写的电脑
+intake.agent.state.offline,电脑离线
 intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 intake.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
