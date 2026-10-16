@@ -7,6 +7,8 @@
 //   assistant.pending_api.answer 记下选择并按 CC 推送同一条路重推（只记不推不会进账）。可选值没读到的那张就地「交给 CC」。
 //   停在「待选账套」的（action account_set：定时任务跟随公司当年账套没有 / 多于一份 / 够不到单据日期的账套，T1）：点开取
 //   可换的账套（assistant.pending_api.account_sets），选一份「确认」= 换到它并重推（choose_account_set）；没有可换的就地「交给 CC」。
+//   CC 准备好的提议（action push，数字会计员第 3 期：自动推前判成 A / B、这家的档位还只出提议）：行尾一个「推送」，点了就按
+//   当场选同一条路推（assistant.pending_api.answer 交空的选择，服务端照常重判、算人发起），没有确认步骤。
 //   其余一组一行「交给 CC」：在这家公司下开新对话（月份取单据月份），输入框预填「处理这几张：…」并带上单据编号，不自动发送。
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
@@ -32,6 +34,7 @@ import {
   loadPending,
   PENDING_EVENTS,
   type PendingItem,
+  pushProposal,
   refreshPendingCounts,
   useCompanyNav,
 } from "@/lib/companies";
@@ -90,6 +93,11 @@ export function choiceLine(item: PendingItem, view: ChoicesView | null): string 
 /** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
   return item.action === "choose" && !!item.choice?.connection;
+}
+
+/** CC 准备好的提议、能当场「推送」的那一类（服务端 action push，带推送去向，数字会计员第 3 期）。 */
+export function proposal(item: PendingItem): boolean {
+  return item.action === "push" && !!item.choice?.connection;
 }
 
 /** 停在「待选账套」、能当场换账套的那一类（服务端 action account_set，带推送去向）。 */
@@ -247,7 +255,7 @@ const PendingGroup: FC<{
   company: string; title: string; items: PendingItem[]; onDone: (document: string) => void; onChanged: () => void;
 }> = ({ company, title, items, onDone, onChanged }) => {
   const ask = useAskCC(company, title);
-  const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item));
+  const hand = items.filter((item) => !choosable(item) && !accountSetChoosable(item) && !proposal(item));
   return (
     <section className="flex flex-col gap-2">
       {title && <h2 className="cc-section-label !px-0 !pt-0">{title}</h2>}
@@ -256,6 +264,8 @@ const PendingGroup: FC<{
           <ChooseRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
         ) : accountSetChoosable(item) ? (
           <AccountSetRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} onAsk={() => ask([item])} />
+        ) : proposal(item) ? (
+          <ProposalRow key={item.document} item={item} onDone={onDone} onChanged={onChanged} />
         ) : (
           <PendingRow key={item.document} item={item} />
         ),
@@ -404,6 +414,46 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
           </button>
         </>
       )}
+      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+    </div>
+  );
+};
+
+/** CC 准备好的提议：行尾「推送」，点了就推（同当场选完重推那一条路，交空的选择）；推不成或还要人选时原因写在这一行下面，
+ *  列表重取后按新的原因显示。head：会话栏「本月」卡的一行 26（码名 · 单据 · 金额）；没有时用待处理的两行摘要。 */
+export const ProposalRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; head?: ReactNode }> = ({
+  item,
+  onDone,
+  onChanged,
+  head,
+}) => {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const push = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await pushProposal(item);
+      if (answered(result)) onDone(item.document);
+      else {
+        setError(result.reason ?? "");
+        onChanged();
+      }
+    } catch (e) {
+      setError(shownError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="cc-list-item flex-col" data-slot="cc-pending-proposal" data-variant={head ? "row" : undefined}>
+      <div className={head ? "cc-panel-row" : "flex min-w-0 items-center gap-2"}>
+        {head ?? <Summary item={item} />}
+        <button type="button" className="cc-btn-sm" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void push()}>
+          {busy && <LoaderIcon className="animate-spin" />}
+          {co.pushNow}
+        </button>
+      </div>
       {error && <p role="alert" className="text-danger text-sm">{error}</p>}
     </div>
   );

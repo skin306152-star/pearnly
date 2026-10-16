@@ -81,7 +81,8 @@ export type PendingItem = {
   document: string; company: string | null; reason_code: string; code?: string; reason_label: string;
   invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string; month?: string;
   // account_set：定时任务跟随公司当年账套停在「待选账套」（T1），当场换一份账套重推（ADR-021 第 6 批）
-  action: "choose" | "open" | "account_set";
+  // push：CC 准备好的提议（数字会计员第 3 期），当场「推送」
+  action: "choose" | "open" | "account_set" | "push";
   choice?: PendingChoice | null;
 };
 
@@ -165,6 +166,17 @@ export function answerChoices(item: Pick<PendingItem, "document">, view: Choices
     .filter((need) => values[`${need.kind}\n${need.subject}`])
     .map((need) => ({ kind: need.kind, subject: need.subject, value: values[`${need.kind}\n${need.subject}`], label: need.label ?? "" }));
   return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.answer", { document: item.document, items: JSON.stringify(items) });
+}
+
+/** 推一张 CC 准备好的提议（数字会计员第 3 期第 12 条）：同当场选完重推那一条路（assistant.pending_api.answer），交空的选择，
+ *  服务端照常重判、算人发起；结果同 answerChoices（还要人选的会停在「要人选」）。 */
+export function pushProposal(item: Pick<PendingItem, "document">): Promise<AnswerResult> {
+  return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.answer", { document: item.document, items: "[]" });
+}
+
+/** 「全部推送」：这家这个月 CC 准备好的提议，一次最多 20 张（assistant.pending_api.push_proposals）；remaining 是还剩几张。 */
+export function pushProposals(company: string, period: string): Promise<{ results: AnswerResult[]; remaining: number }> {
+  return postMethod("pearnly_cowork.assistant.pending_api.push_proposals", { company, period });
 }
 
 /** 停在「待选账套」的单可换的账套：这张单归的公司在推送去向那条连接上覆盖单据日期的那几份（服务端现算，同定时任务的判据）。 */

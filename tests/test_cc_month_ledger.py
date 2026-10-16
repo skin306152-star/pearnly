@@ -38,10 +38,11 @@ def server_codes():
 class LedgerSourceTests(unittest.TestCase):
     def test_every_code_stage_state_and_severity_has_words_in_every_language(self):
         codes, reserved = server_codes()
-        self.assertEqual(len(codes), 21)
+        self.assertEqual(len(codes), 24)  # 第 3 期加 cc_proposal、cc_judged、written_mismatch
         self.assertEqual(reserved, {"missing_document", "rule_conflict", "month_reopened"})
         company = block(read("i18n.ts"), "const COMPANY = {")
         sets = {}
+        i18n = read("i18n.ts")
         for lang in ("en", "zh", "th"):
             ledger = block(block(company, f"  {lang}: {{"), "    ledger: {")
             self.assertEqual(keys(block(ledger, "code: {")) & codes, codes, lang)
@@ -53,7 +54,17 @@ class LedgerSourceTests(unittest.TestCase):
         self.assertEqual(sets["en"], sets["zh"])
         self.assertEqual(sets["en"], sets["th"])
         self.assertTrue({"title", "docs", "issues", "entered", "recognizedOnly", "readBack", "readCount", "readFailed", "reading",
-                         "due", "openTask", "partial", "moreItems", "readbackText", "duplicateText"} <= sets["en"])
+                         "due", "openTask", "partial", "moreItems", "readbackText", "duplicateText",
+                         "automation", "tier", "dropped", "auto"} <= sets["en"])
+        for lang in ("en", "zh", "th"):
+            ledger = block(block(company, f"  {lang}: {{"), "    ledger: {")
+            self.assertEqual(keys(block(ledger, "tier: {")), {"L0", "L1", "L2"}, lang)
+            self.assertEqual(keys(block(ledger, "dropped: {")), {"written_mismatch", "changed"}, lang)
+        # 第 3 期产品用词（点验时给用户看）：自动推送、三个档名、全部推送、三个码名
+        for words in ('automation: "自动推送"', 'tier: { L0: "只提议", L1: "按规则", L2: "整月" }', 'pushAll: "全部推送"',
+                      'cc_proposal: "待推送"', 'cc_judged: "CC 判断推送"', 'written_mismatch: "写入与预期不符"',
+                      'dropped: { written_mismatch: "核不上", changed: "被改" }'):
+            self.assertIn(words, i18n)
         i18n = read("i18n.ts")
         self.assertIn('stage: { intake: "收单", entry: "录账", verify: "核对", tax: "报税" }', i18n)
         # 已有文案不改：卡片标题仍是「本月」，交给 CC、显示更多沿用
@@ -177,7 +188,8 @@ assert.equal(stageSummary("tax", { stages: { ...month.stages, tax: { ...month.st
 const late = { stages: { ...month.stages, tax: { ...month.stages.tax, deadlines: { pp30: { efiling: "2020-01-23" }, pnd: { efiling: "2020-01-15" } } } } };
 assert.equal(stageSummary("tax", late), "");
 assert.equal(dayShort("2026-10-23"), "Oct 23");
-assert.ok(text(page).slice(0, 12).join("|").startsWith("Intake|9 documents|Entry|2/7 entered · 2 recognized only|Verify|Read back"));
+// 卡头下一行是自动推送的档位（第 3 期），再是四段
+assert.ok(text(page).slice(0, 14).join("|").startsWith("Auto push|Propose only|Intake|9 documents|Entry|2/7 entered · 2 recognized only|Verify|Read back"));
 // 截止日：只有 ภ.พ.30 → 它；有 ภ.ง.ด. 草稿 → 更早的 ภ.ง.ด.；过了的跳过；都过了不写截止日（也不说逾期，测试窗口第 3 轮）
 const tax = month.stages.tax;
 assert.equal(taxDue(tax, "2026-10-10"), "2026-10-23");
@@ -206,7 +218,7 @@ assert.match(page, /<span class="cc-month-dot" data-state="attention" role="img"
 const reading = { ...month, stages: { ...month.stages, verify: { ...month.stages.verify, sets: [{ ...month.stages.verify.sets[0], newer: "reading" }] } } };
 assert.equal(stageSummary("verify", reading), "Reading…");
 const quiet = { ...month, stages: { ...month.stages, intake: { ...month.stages.intake, received: 0, no_date: 0, state: "empty" } }, exceptions: { items: [], total: 0, counts: {} } };
-assert.ok(text(html(quiet)).slice(0, 2).join("|") === "Intake|Nothing yet");
+assert.ok(text(html(quiet)).slice(2, 4).join("|") === "Intake|Nothing yet");
 // 核对、报税给 null（不是 Express / 没有权限）：不列
 const limited = { ...month, stages: { ...month.stages, verify: null, tax: null } };
 assert.deepEqual(shownStages(limited), ["intake", "entry"]);
@@ -354,20 +366,140 @@ assert.match(section, /animate-spin/);
     def test_thai_and_chinese_words(self):
         self.run_page(r"""
 const zh = text(html(month));
-assert.deepEqual([zh[0], zh[2], zh[4], zh[6]], ["收单", "录账", "核对", "报税"]);
-assert.equal(zh[1], "9 张");
-assert.equal(zh[3], "已录 2/7 · 仅识别 2");
-assert.equal(zh[5], `Bee ${dayTime("2026-10-02T03:01:00Z")} 回读`);
+assert.deepEqual([zh[0], zh[1]], ["自动推送", "只提议"]);
+assert.deepEqual([zh[2], zh[4], zh[6], zh[8]], ["收单", "录账", "核对", "报税"]);
+assert.equal(zh[3], "9 张");
+assert.equal(zh[5], "已录 2/7 · 仅识别 2");
+assert.equal(zh[7], `Bee ${dayTime("2026-10-02T03:01:00Z")} 回读`);
 assert.ok(zh.includes("INV-7 · 2 张"));
 assert.ok(zh.includes("需处理") && zh.includes("需留意") && zh.includes("知悉"));
 assert.ok(zh.includes("要人选") && zh.includes("Express 中找不到"));
 """, lang="zh")
         self.run_page(r"""
 const th = text(html(month));
-assert.deepEqual([th[0], th[2], th[4], th[6]], ["รับเอกสาร", "บันทึกบัญชี", "ตรวจสอบ", "ภาษี"]);
+assert.deepEqual([th[0], th[1]], ["ส่งอัตโนมัติ", "เสนอเท่านั้น"]);
+assert.deepEqual([th[2], th[4], th[6], th[8]], ["รับเอกสาร", "บันทึกบัญชี", "ตรวจสอบ", "ภาษี"]);
 assert.ok(th.includes("ต้องเลือก"));
 assert.ok(th.includes("1 ฉบับ"));
 """, lang="th")
+
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class AutomationUiTests(unittest.TestCase):
+    """数字会计员第 3 期第 12、14 条：卡头下一行的自动推送档位（降过档时跟短原因）、录账段「（自动 M）」、提议行尾「推送」与组
+    标题旁「全部推送」（同待处理一条路，没有确认步骤）、写入与预期不符 / CC 判断推送交给 CC；手机同一组件，行不撑宽。"""
+
+    def run_page(self, body, lang="en"):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\n' + RENDER + AUTO + body + "\n(globalThis as any).done();\n",
+               stubs=STUBS, lang=lang)
+
+    def test_the_tier_line_and_automatic_pushes_in_the_entry_count(self):
+        self.run_page(r"""
+import { automationSummary } from "@/components/month-ledger";
+const line = (m: any) => [...html(m).matchAll(/data-slot="cc-month-automation" data-tier="(\w+)">([\s\S]*?)<\/div>/g)].map((x) => [x[1], text(x[2]).join(" · ")]);
+assert.deepEqual(line(month), [["L0", "Auto push · Propose only"]]);
+assert.deepEqual(line(withTier("L1", "readback")), [["L1", "Auto push · By rules"]]);          // 升档的原因不写
+assert.deepEqual(line(withTier("L0", "written_mismatch")), [["L0", "Auto push · Propose only · Write mismatch"]]);
+assert.deepEqual(line(withTier("L0", "changed")), [["L0", "Auto push · Propose only · Changed after push"]]);
+assert.equal(automationSummary({ tier: "L2" }), "Whole month");
+assert.deepEqual(line({ ...month, automation: null }), []);   // 不是 Express 公司
+assert.deepEqual(line({ ...month, automation: undefined }), []);  // 旧服务端
+const auto = { ...month, stages: { ...month.stages, entry: { ...month.stages.entry, auto: 1 } } };
+assert.equal(stageSummary("entry", auto), "2/7 entered (1 auto) · 2 recognized only");
+assert.equal(stageSummary("entry", month), "2/7 entered · 2 recognized only");
+""")
+        self.run_page(r"""
+const auto = { ...withTier("L1", "readback"), stages: { ...month.stages, entry: { ...month.stages.entry, auto: 1 } } };
+const zh = text(html(auto));
+assert.deepEqual(zh.slice(0, 2), ["自动推送", "按规则"]);
+assert.equal(zh[5], "已录 2/7（自动 1） · 仅识别 2");
+assert.deepEqual(text(html(withTier("L0", "written_mismatch"))).slice(0, 2), ["自动推送", "只提议 · 核不上"]);
+assert.ok(text(html(withItems([proposalItem, judged, mismatch]))).join("|").includes("待推送"));
+""", lang="zh")
+        self.run_page(r"""
+assert.deepEqual(text(html(withTier("L2", ""))).slice(0, 2), ["ส่งอัตโนมัติ", "ทั้งเดือน"]);
+""", lang="th")
+
+    def test_a_proposal_is_pushed_from_its_row_and_the_group_pushes_them_all(self):
+        self.run_page(r"""
+import { pushProposal, pushProposals } from "@/lib/companies";
+import { proposalException } from "@/lib/month";
+const page = html(withItems([proposalItem, { ...proposalItem, document: "p2", invoice_no: "INV-p2" }, mismatch, judged]));
+// 提议：码名 · 单据 · 金额，行尾「推送」（主按钮，不用展开、不弹确认）
+const proposals = [...page.matchAll(/data-slot="cc-pending-proposal" data-variant="row">([\s\S]*?)<\/button><\/div>/g)];
+assert.equal(proposals.length, 2);
+assert.deepEqual(text(proposals[0][1]), ["Ready to push", "INV-p1 · Makro", "1,070.50", "Push"]);
+assert.match(proposals[0][1], /<button type="button" class="cc-btn-sm" data-primary="" data-slot="cc-pending-push">/);
+assert.equal(proposalException(proposalItem), true);
+assert.equal(proposalException({ ...proposalItem, choice: null }), false);
+// 组标题旁「全部推送」：只在有提议的组（要处理）里
+assert.match(page, /data-slot="cc-month-group-head"><div class="cc-subheading flex items-center gap-1.5" role="heading" aria-level="3"><span>To do<\/span>/);
+assert.equal((page.match(/data-slot="cc-month-push-all"/g) ?? []).length, 1);
+assert.ok(!html(withItems([mismatch, judged])).includes("cc-month-push-all"));
+// 写入与预期不符、CC 判断推送：交给 CC（预填不发送，同其余单据）；CC 判断推送只是知悉
+const items = [...page.matchAll(/data-slot="cc-month-item" data-code="(\w+)" data-severity="(\w+)" title="([^"]+)"/g)].map((m) => [m[1], m[2], m[3]]);
+assert.deepEqual(items, [["written_mismatch", "action", "Ask CC"], ["cc_judged", "info", "Ask CC"]]);
+assert.equal(codeName(mismatch), "Written not as expected");
+assert.equal(codeName(judged), "Pushed on CC's judgement");
+// 推一张：同当场选完重推那一条路，交空的选择；全部推送：这家这个月
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { document: "p1", status: "sent" } }) });
+const one = await pushProposal({ document: "p1" });
+assert.equal(one.status, "sent");
+let asked = g.calls.at(-1);
+assert.equal(asked.method, "/api/method/pearnly_cowork.assistant.pending_api.answer");
+assert.deepEqual(asked.body, { document: "p1", items: "[]" });
+g.respond = async () => ({ ok: true, status: 200, json: async () => ({ message: { results: [], remaining: 0 } }) });
+await pushProposals("COMPANY", "2026-09");
+asked = g.calls.at(-1);
+assert.equal(asked.method, "/api/method/pearnly_cowork.assistant.pending_api.push_proposals");
+assert.deepEqual(asked.body, { company: "COMPANY", period: "2026-09" });
+""")
+
+    def test_the_pending_page_pushes_proposals_and_does_not_hand_them_to_cc(self):
+        self.run_page(r"""
+import { PendingItems, proposal } from "@/components/pending";
+const item = pendingOf(proposalItem, "COMPANY");
+assert.equal(item.action, "push");
+assert.equal(proposal(item), true);
+const other = pendingOf(mismatch, "COMPANY");
+const page = renderToStaticMarkup(createElement(PendingItems, { items: [item, other], error: "", done: noop, changed: noop, company: "COMPANY" }));
+assert.match(page, /data-slot="cc-pending-proposal"/);
+assert.ok(text(page).includes("Push"));
+// 「交给 CC」只带交给 CC 的那几张（提议自己有「推送」）
+assert.equal((page.match(/data-slot="cc-hand-to-cc"/g) ?? []).length, 1);
+""")
+
+    def test_rows_stay_within_a_phone_width(self):
+        # 手机同一组件（会话栏照 ERP 手机端）：行里的字可截断、按钮不缩，组标题一行放得下标题与「全部推送」
+        pending = read("components/pending.tsx")
+        row = pending.split("export const ProposalRow: FC<", 1)[1].split("\n};", 1)[0]
+        self.assertIn('<div className={head ? "cc-panel-row" : "flex min-w-0 items-center gap-2"}>', row)
+        self.assertIn('className="cc-btn-sm" data-primary="" data-slot="cc-pending-push"', row)
+        ledger = read("components/month-ledger.tsx")
+        self.assertIn('className="flex min-w-0 items-center justify-between gap-2" data-slot="cc-month-group-head"', ledger)
+        self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{co.ledger.automation}</Marquee>', ledger)
+        css = read("globals.css")
+        self.assertIn("flex-shrink: 0; align-items: center; gap: 0.25rem; height: var(--cc-list-btn);", css)  # .cc-btn-sm 不缩
+        # 只用 globals.css 现有的零件与变量：这一批不加新样式
+        self.assertNotIn("cc-month-automation {", css)
+        self.assertNotIn("cc-pending-proposal {", css)
+        # 没有确认步骤、不加说明文字
+        self.assertNotIn("confirm(", row)
+        self.assertNotIn("window.confirm", ledger)
+
+
+AUTO = r"""
+const withTier = (tier: string, reason: string) => ({ ...month, automation: { tier, since: "2026-09-01T03:00:00Z", reason } });
+const doc = { invoice_no: "INV-p1", counterparty: "Makro", amount: "1070.50", date: "2026-09-20", filename: "" };
+const proposalItem: any = { code: "cc_proposal", stage: "entry", severity: "action", action: "push", group: "cc_proposal",
+  document: "p1", ...doc, reason_label: "", choice: { connection: "C1", account_set_key: "S:\\69EXP\\ABC", kinds: [] } };
+const mismatch: any = { code: "written_mismatch", stage: "verify", severity: "action", action: "open", group: null,
+  document: "m1", ...doc, invoice_no: "INV-m1", detail: "refnum" };
+const judged: any = { code: "cc_judged", stage: "entry", severity: "info", action: "open", group: null,
+  document: "a2", ...doc, invoice_no: "INV-a2" };
+const withItems = (items: any[]) => ({ ...month, exceptions: { items, total: items.length, counts: {} } });
+"""
 
 
 if __name__ == "__main__":

@@ -497,7 +497,7 @@ const COMPANY = {
     fromHistory: (n: number) => `From Express history · ${n}`,
     // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
     wholeCompany: "Whole company", branchN: (b: string) => `Branch ${b}`, makeCompanyWide: "Set for whole company",
-    draftNotes: "Let CC draft", pushNow: "Push",
+    draftNotes: "Let CC draft", pushNow: "Push", pushAll: "Push all",
     draftNotesText: "Draft a few notes for this company from its push records, saved choices and Express history",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "Company", thisMonth: "This month", library: "Library", sortBy: "Sort by", sortRecent: "Recent activity", sortName: "Name",
@@ -534,6 +534,7 @@ const COMPANY = {
         not_invoice: "Not an invoice", express_changed: "Changed in Express", express_deleted: "Deleted in Express",
         express_voided: "Voided in Express", express_missing: "Not found in Express", express_direct: "Entered directly in Express",
         readback_needed: "Not read back", tax_issue: "Draft issue", tax_draft_stale: "Draft out of date",
+        cc_proposal: "Ready to push", cc_judged: "Pushed on CC's judgement", written_mismatch: "Written not as expected",
       } as Record<string, string>,
       docs: (n: number) => (n === 1 ? "1 document" : `${n} documents`),
       issues: (n: number) => (n === 1 ? "1 issue" : `${n} issues`),
@@ -550,6 +551,11 @@ const COMPANY = {
       readbackText: (label: string, period: string) => `Check the Express readback for ${label}, ${period}`,
       duplicateText: (list: string) => `Check these documents with the same number: ${list}`,
       sameNumber: (no: string, n: number) => `${no} · ${n} documents`,
+      // 自动推送（数字会计员第 3 期第 12、14 条）：档位名（产品用词）、降过档时的短原因、录账段里自动推的张数
+      automation: "Auto push",
+      tier: { L0: "Propose only", L1: "By rules", L2: "Whole month" } as Record<string, string>,
+      dropped: { written_mismatch: "Write mismatch", changed: "Changed after push" } as Record<string, string>,
+      auto: (n: number) => ` (${n} auto)`,
     },
     kind: {
       party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
@@ -574,7 +580,7 @@ const COMPANY = {
     fromHistory: (n: number) => `来自 Express 历史 · ${n} 次`,
     // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
     wholeCompany: "全公司", branchN: (b: string) => `分店 ${b}`, makeCompanyWide: "设为全公司",
-    draftNotes: "让 CC 起草", pushNow: "推送",
+    draftNotes: "让 CC 起草", pushNow: "推送", pushAll: "全部推送",
     draftNotesText: "按这家的推送记录、记住的选择和 Express 历史起草几条知识库",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "公司", thisMonth: "本月", library: "资料", sortBy: "排序方式", sortRecent: "最近活动", sortName: "名称",
@@ -611,6 +617,7 @@ const COMPANY = {
         not_invoice: "不是发票", express_changed: "Express 已修改", express_deleted: "Express 已删除",
         express_voided: "Express 已作废", express_missing: "Express 中找不到", express_direct: "Express 直接录入",
         readback_needed: "还没回读", tax_issue: "草稿有问题", tax_draft_stale: "草稿已过期",
+        cc_proposal: "待推送", cc_judged: "CC 判断推送", written_mismatch: "写入与预期不符",
       } as Record<string, string>,
       docs: (n: number) => `${n} 张`,
       issues: (n: number) => `${n} 项`,
@@ -627,6 +634,11 @@ const COMPANY = {
       readbackText: (label: string, period: string) => `核对 ${label} ${period} 的 Express 回读`,
       duplicateText: (list: string) => `核对这几张同号单据：${list}`,
       sameNumber: (no: string, n: number) => `${no} · ${n} 张`,
+      // 自动推送（数字会计员第 3 期第 12、14 条）：档位名（产品用词）、降过档时的短原因、录账段里自动推的张数
+      automation: "自动推送",
+      tier: { L0: "只提议", L1: "按规则", L2: "整月" } as Record<string, string>,
+      dropped: { written_mismatch: "核不上", changed: "被改" } as Record<string, string>,
+      auto: (n: number) => `（自动 ${n}）`,
     },
     kind: {
       party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
@@ -651,7 +663,7 @@ const COMPANY = {
     fromHistory: (n: number) => `จากประวัติ Express · ${n} ครั้ง`,
     // 公司规则（数字会计员第 2 期）：全公司 / 分店的选择、设为全公司、让 CC 起草知识库、当场选已由规则定下时直接推送
     wholeCompany: "ทั้งบริษัท", branchN: (b: string) => `สาขา ${b}`, makeCompanyWide: "ใช้กับทั้งบริษัท",
-    draftNotes: "ให้ CC ร่าง", pushNow: "ส่ง",
+    draftNotes: "ให้ CC ร่าง", pushNow: "ส่ง", pushAll: "ส่งทั้งหมด",
     draftNotesText: "ร่างบันทึกของบริษัทนี้สักสองสามข้อจากประวัติการส่ง ตัวเลือกที่จำไว้ และประวัติ Express",
     // 右侧会话栏、公司页、公司列表（CC 外壳，设计文档 4.4 / 4.5）
     company: "บริษัท", thisMonth: "เดือนนี้", library: "ข้อมูล", sortBy: "เรียงตาม", sortRecent: "กิจกรรมล่าสุด", sortName: "ชื่อ",
@@ -688,6 +700,7 @@ const COMPANY = {
         not_invoice: "ไม่ใช่ใบกำกับ", express_changed: "ถูกแก้ไขใน Express", express_deleted: "ถูกลบใน Express",
         express_voided: "ถูกยกเลิกใน Express", express_missing: "ไม่พบใน Express", express_direct: "บันทึกตรงใน Express",
         readback_needed: "ยังไม่อ่านกลับ", tax_issue: "ร่างมีปัญหา", tax_draft_stale: "ร่างไม่เป็นปัจจุบัน",
+        cc_proposal: "รอส่ง", cc_judged: "CC ตัดสินใจส่ง", written_mismatch: "บันทึกไม่ตรงที่คาดไว้",
       } as Record<string, string>,
       docs: (n: number) => `${n} ฉบับ`,
       issues: (n: number) => `${n} รายการ`,
@@ -704,6 +717,11 @@ const COMPANY = {
       readbackText: (label: string, period: string) => `ตรวจผลอ่านกลับจาก Express ของ ${label} งวด ${period}`,
       duplicateText: (list: string) => `ตรวจเอกสารเลขที่ซ้ำเหล่านี้: ${list}`,
       sameNumber: (no: string, n: number) => `${no} · ${n} ฉบับ`,
+      // 自动推送（数字会计员第 3 期第 12、14 条）：档位名（产品用词）、降过档时的短原因、录账段里自动推的张数
+      automation: "ส่งอัตโนมัติ",
+      tier: { L0: "เสนอเท่านั้น", L1: "ตามกฎ", L2: "ทั้งเดือน" } as Record<string, string>,
+      dropped: { written_mismatch: "บันทึกไม่ตรง", changed: "ถูกแก้ไขหลังส่ง" } as Record<string, string>,
+      auto: (n: number) => ` (อัตโนมัติ ${n})`,
     },
     kind: {
       party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",

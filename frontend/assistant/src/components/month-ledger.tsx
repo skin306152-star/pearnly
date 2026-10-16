@@ -12,6 +12,10 @@
 //            其余           交给 CC：在这家开新对话、预填不自动发送（单据同待处理的「交给 CC」，重复单号、回读、草稿各有一句；
 //                           单据写单号 · 对方 · 金额 · 日期，不写内部记录名）。同号的几张服务端合成一条，行写「单号 · N 张」
 //          知悉的整行淡色（不催）。
+//   自动推送（数字会计员第 3 期第 12 条）：卡头下一行「自动推送 · 只提议 / 按规则 / 整月」，降过档时跟一个短原因（核不上 /
+//          被改，按码翻译）；不是 Express 公司（服务端给 null）不显示。录账一段写「已录 N/总数（自动 M）」。CC 准备好的提议
+//          （cc_proposal）行尾「推送」（待处理的 ProposalRow），所在组标题旁「全部推送」（一次最多 20 张，多的再点）；
+//          写入与预期不符、CC 判断推送的交给 CC（预填不发送）。没有确认步骤，不加说明文字。
 //   空态   会话栏：没取到、取不到月份、整个月什么都没有时整张卡不显示；出错时显示原因；卡头是当月写「本月」，否则写月份。
 //          公司页：一直显示，月份胶囊与「在这家新建对话」的同一个（页面选「不指定」时台账看上个月），取的时候转圈。
 //
@@ -21,15 +25,18 @@ import { ChevronRightIcon, LoaderIcon, SparklesIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { PanelCard } from "@/components/company-cards";
-import { AccountSetRow, ChooseRow, useAskCC } from "@/components/pending";
+import { AccountSetRow, ChooseRow, ProposalRow, useAskCC } from "@/components/pending";
 import { PeriodChip } from "@/components/period-chip";
 import { co } from "@/i18n";
-import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
+import { branchShort, docLine, docList, formatAmount, isPeriod, lastMonth, monthLabel, periodOf, pushProposals, refreshPendingCounts, useCompanyNav } from "@/lib/companies";
+import { shownError } from "@/lib/frappe";
 import { useProjects } from "@/lib/managed-agents/projects";
 import {
   accountSetException,
+  type Automation,
   choosableException,
   dayShort,
+  droppedReason,
   dayTime,
   emptyMonth,
   exceptionSubject,
@@ -37,6 +44,7 @@ import {
   type Month,
   type MonthException,
   pendingOf,
+  proposalException,
   type ReadbackSet,
   type Severity,
   severityCount,
@@ -75,7 +83,9 @@ export function stageSummary(stage: Stage, month: Pick<Month, "stages">): string
     const e = s.entry;
     const total = e.pushed + e.in_flight + e.waiting + e.not_pushed;
     // 收单的张数里还有只识别、不录的：写出来，两段的数才对得上
-    const parts = [total ? co.ledger.entered(e.pushed, total) : "", s.intake.recognized_only ? co.ledger.recognizedOnly(s.intake.recognized_only) : ""];
+    // 已推里有自动推的（数字会计员第 3 期）：「已录 2/7（自动 1）」
+    const entered = total ? co.ledger.entered(e.pushed, total) + (e.auto ? co.ledger.auto(e.auto) : "") : "";
+    const parts = [entered, s.intake.recognized_only ? co.ledger.recognizedOnly(s.intake.recognized_only) : ""];
     return parts.filter(Boolean).join(" · ");
   }
   if (stage === "verify") {
@@ -104,6 +114,12 @@ export function monthSummary(month: Month): string {
   const at = stages.find((stage) => month.stages[stage]!.state !== "clear")!;
   const state = month.stages[at]!.state;
   return `${co.ledger.stage[at]} · ${co.ledger.state[state] ?? state}`;
+}
+
+/** 自动推送一行的右侧：档位名，降过档时跟短原因（「只提议 · 核不上」）。 */
+export function automationSummary(automation: Automation): string {
+  const reason = droppedReason(automation);
+  return [co.ledger.tier[automation.tier] ?? automation.tier, reason ? co.ledger.dropped[reason] : ""].filter(Boolean).join(" · ");
 }
 
 /** 码名（认不出的码用服务端的原因文字，再没有写码本身）。 */
@@ -158,6 +174,9 @@ export type LedgerHandlers = {
 };
 
 const ExceptionRow: FC<{ item: MonthException; company: string } & LedgerHandlers> = ({ item, company, onAct, onDone, onChanged }) => {
+  if (proposalException(item)) {
+    return <ProposalRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} />;
+  }
   if (choosableException(item)) {
     return <ChooseRow item={pendingOf(item, company)} head={<ItemHead item={item} />} onDone={onDone} onChanged={onChanged} onAsk={() => onAct(item)} />;
   }
@@ -179,11 +198,55 @@ const ExceptionRow: FC<{ item: MonthException; company: string } & LedgerHandler
 const itemKey = (item: MonthException, i: number) =>
   [item.code, item.document ?? item.task ?? item.draft ?? item.account_set_key ?? "", item.issue ?? "", i].join(":");
 
-/** 台账的内容：四段，再是按严重度分组的异常。 */
+/** 组标题：严重度与条数；组里有 CC 准备好的提议时右侧「全部推送」——这家这个月的提议一次推出去（服务端一次最多 20 张，
+ *  多的再点），推完重取；推不成的原因写在标题下面。 */
+const GroupHead: FC<{ month: Month; severity: Severity; proposals: boolean; onChanged: () => void }> = ({ month, severity, proposals, onChanged }) => {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const pushAll = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await pushProposals(month.company, month.period);
+    } catch (e) {
+      setError(shownError(e));
+    } finally {
+      setBusy(false);
+      onChanged();
+    }
+  };
+  const heading = (
+    <div className="cc-subheading flex items-center gap-1.5" role="heading" aria-level={3}>
+      <span>{co.ledger.severity[severity]}</span>
+      <span className="tabular-nums">{severityCount(month, severity)}</span>
+    </div>
+  );
+  if (!proposals) return heading;
+  return (
+    <>
+      <div className="flex min-w-0 items-center justify-between gap-2" data-slot="cc-month-group-head">
+        {heading}
+        <button type="button" className="cc-btn-sm" data-slot="cc-month-push-all" disabled={busy} onClick={() => void pushAll()}>
+          {busy && <LoaderIcon className="animate-spin" />}
+          {co.pushAll}
+        </button>
+      </div>
+      {error && <p role="alert" className="px-1 text-danger text-sm">{error}</p>}
+    </>
+  );
+};
+
+/** 台账的内容：自动推送档位，四段，再是按严重度分组的异常。 */
 export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> = ({ month, company, ...handlers }) => {
   const [more, setMore] = useState<Severity[]>([]);
   return (
     <>
+      {month.automation && (
+        <div className="cc-panel-row" data-slot="cc-month-automation" data-tier={month.automation.tier}>
+          <Marquee className="min-w-0 flex-1 truncate">{co.ledger.automation}</Marquee>
+          <Marquee className="cc-panel-extra">{automationSummary(month.automation)}</Marquee>
+        </div>
+      )}
       <div className="flex flex-col" data-slot="cc-month-stages">
         {shownStages(month).map((stage) => (
           <StageRow key={stage} stage={stage} month={month} />
@@ -194,10 +257,7 @@ export const LedgerBody: FC<{ month: Month; company: string } & LedgerHandlers> 
         const shown = GROUP_SHOWN_BY[severity];
         return (
           <div key={severity} className="flex flex-col" data-slot="cc-month-group" data-severity={severity}>
-            <div className="cc-subheading flex items-center gap-1.5" role="heading" aria-level={3}>
-              <span>{co.ledger.severity[severity]}</span>
-              <span className="tabular-nums">{severityCount(month, severity)}</span>
-            </div>
+            <GroupHead month={month} severity={severity} proposals={items.some(proposalException)} onChanged={handlers.onChanged} />
             {(all ? items : items.slice(0, shown)).map((item, i) => (
               <ExceptionRow key={itemKey(item, i)} item={item} company={company} {...handlers} />
             ))}

@@ -27,7 +27,7 @@ export type Stage = (typeof STAGES)[number];
 export type StageState = "empty" | "open" | "attention" | "clear";
 export const SEVERITIES = ["action", "warn", "info"] as const;
 export type Severity = (typeof SEVERITIES)[number];
-export type ExceptionAction = "choose" | "open" | "task" | "readback" | "draft" | "account_set";
+export type ExceptionAction = "choose" | "push" | "open" | "task" | "readback" | "draft" | "account_set";
 
 export type ReadbackSet = {
   connection: string; key: string; label: string; status: "none" | "reading" | "ready" | "failed" | string;
@@ -42,7 +42,8 @@ export type MonthStages = {
     files: { failed: number; not_invoice: number; pos_layout_needed: number } | null;
     state: StageState;
   };
-  entry: { pushed: number; in_flight: number; waiting: number; not_pushed: number; state: StageState };
+  /** auto：已推里自动推的张数（数字会计员第 3 期；旧服务端没有）。 */
+  entry: { pushed: number; auto?: number; in_flight: number; waiting: number; not_pushed: number; state: StageState };
   verify: { sets: ReadbackSet[]; state: StageState } | null;
   tax: {
     vat: TaxDraftRow[]; wht: TaxDraftRow[];
@@ -64,8 +65,13 @@ export type MonthException = {
   draft?: string; kind?: string; branch?: string; issue?: string; issue_label?: string;
 };
 
+/** 这家的自动推送档位（数字会计员第 3 期）：L0 只提议 / L1 按规则 / L2 整月；reason 是最近一次升降的原因码。
+ *  不是 Express 公司为 null，旧服务端没有。 */
+export type Automation = { tier: string; since?: string; reason?: string };
+
 export type Month = {
   company: string; period: string; ended: boolean; generated_at?: string; truncated?: boolean;
+  automation?: Automation | null;
   stages: MonthStages;
   exceptions: { items: MonthException[]; total: number; counts: Record<string, number>; severities?: Partial<Record<Severity, number>> };
 };
@@ -113,13 +119,26 @@ export function pendingOf(item: MonthException, company: string): PendingItem {
   return {
     document: item.document ?? "", company, reason_code: item.group ?? item.code, code: item.code, reason_label: item.reason_label ?? "",
     invoice_no: item.invoice_no, counterparty: item.counterparty, amount: item.amount, date: item.date, filename: item.filename,
-    action: item.action === "choose" ? "choose" : item.action === "account_set" ? "account_set" : "open", choice: item.choice ?? null,
+    action: item.action === "choose" || item.action === "account_set" || item.action === "push" ? item.action : "open",
+    choice: item.choice ?? null,
   };
 }
 
 /** 这条异常是不是「待选账套」、能当场换账套（服务端 action account_set、带推送去向，T1，第 6 批）。 */
 export function accountSetException(item: MonthException): boolean {
   return item.action === "account_set" && !!item.document && !!item.choice?.connection;
+}
+
+/** 这条异常是不是 CC 准备好的提议、能当场「推送」（服务端 action push、带推送去向，数字会计员第 3 期）。 */
+export function proposalException(item: MonthException): boolean {
+  return item.action === "push" && !!item.document && !!item.choice?.connection;
+}
+
+/** 降过档时跟的短原因码（核不上 / 被改）；升档的原因（readback）与没有原因的不写。 */
+export const DROP_REASONS = ["written_mismatch", "changed"] as const;
+export function droppedReason(automation: Automation | null | undefined): string {
+  const reason = automation?.reason ?? "";
+  return (DROP_REASONS as readonly string[]).includes(reason) ? reason : "";
 }
 
 /** 这条异常是不是「当场选」（服务端 action choose、带推送去向）。 */
@@ -179,6 +198,8 @@ export const IDLE_MS = 10 * 60_000;
 export const READING_POLL_MS = 15 * 60_000;
 
 const months = new Map<string, Month>();
+// 当场就处理完的码（选完重推、推了提议）：交出去就从列表里拿掉
+const DONE_ON_THE_SPOT = ["choice_needed", "cc_proposal"];
 const keyOf = (company: string, period: string) => `${company}|${period}`;
 
 export function forgetMonth(company?: string) {
@@ -227,12 +248,12 @@ export function useMonth(company: string, period: string) {
       }),
     [company],
   );
-  /** 当场选完一张：先从列表里拿掉（不等重取），再重取。 */
+  /** 当场选完 / 推完一张：先从列表里拿掉（不等重取），再重取。 */
   const drop = useCallback(
     (document: string) => {
       setState((before) => {
         if (!before.month) return before;
-        const items = before.month.exceptions.items.filter((item) => item.document !== document || item.code !== "choice_needed");
+        const items = before.month.exceptions.items.filter((item) => item.document !== document || !DONE_ON_THE_SPOT.includes(item.code));
         return { ...before, month: { ...before.month, exceptions: { ...before.month.exceptions, items } } };
       });
       void reload();
