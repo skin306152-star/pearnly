@@ -2378,6 +2378,15 @@ class ListAndRunsTests(unittest.TestCase):
         # 第 5 轮测试 8：程序按名字说（Express / MR.ERP），已入账的不指去待处理页 / 复核页
         self.assertIn("Call the accounting program by its name, Express or MR.ERP", guidance)
         self.assertIn("never suggest checking or changing it on the pending page or the review page", guidance)
+        # 第 5 轮审查：CC 读到的工具说明与结果提示都按名字说 Express / MR.ERP，不留「the ERP」让 CC 照抄成「ใน ERP」
+        # （只有「never say 'the ERP'」这条禁令本身带这个词）；改单说明不再叫人去那个程序改已入账的单
+        said = " ".join([tool["description"] for tool in tools.TOOLS] + [tools.PUSH_QUEUED_NOTE, note, guidance])
+        said = said.replace("'the ERP'", "").replace("'ERP'", "")
+        for words in ("the ERP", "an ERP", "ERP's", "target ERP", "ERP document"):
+            self.assertNotIn(words, said)
+        edit = next(tool["description"] for tool in tools.TOOLS if tool["name"] == "cowork_edit_document")
+        self.assertIn("Never send the user to Express or MR.ERP to change an entered document", edit)
+        self.assertNotIn("only a person can change it", edit)
         self.assertIn("cowork_list_documents search set to its invoice number", guidance)
 
     def test_runs_and_tasks_carry_results(self):
@@ -2458,7 +2467,7 @@ class WaitingDocumentTests(unittest.TestCase):
         properties = listing["input_schema"]["properties"]
         self.assertIn("waiting", properties["push_state"]["enum"])
         self.assertNotIn("waiting_review", properties)
-        self.assertIn("waiting = not in the ERP yet: never pushed or the push failed", listing["description"])
+        self.assertIn("waiting = not in Express or MR.ERP yet: never pushed or the push failed", listing["description"])
         self.assertIn("pushed successfully or on its way is never waiting", listing["description"])
         self.assertNotIn("waiting for review", listing["description"])
         self.assertIn("push_state waiting in cowork_list_documents", declared["cowork_push_results"]["description"])
@@ -3052,9 +3061,9 @@ class ReadbackTests(unittest.TestCase):
             self.assertNotIn("approval", by_name[name])  # 只读、不扣费：不弹「允许」卡
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(names.index("cowork_express_readback"), names.index("cowork_folder_fetch") + 1)
-        # L7：推送成功的单只能由人在 Express 里改，改完用回读看
+        # L7：推送成功的单 Pearnly 改不到，改完用回读看；第 5 轮审查：同 WRITTEN_NOTE，不再叫人去那个程序改已入账的单
         self.assertIn("cowork_express_readback", by_name["cowork_edit_document"]["description"])
-        self.assertIn("only a person can change it", by_name["cowork_edit_document"]["description"])
+        self.assertIn("is not changed there and is not pushed again", by_name["cowork_edit_document"]["description"])
         self.assertIn("cowork_express_readback", by_name["cowork_push_documents"]["description"])
         self.assertIn("cowork_express_readback", by_name["cowork_recon_start"]["description"])
 

@@ -286,15 +286,16 @@ def _scope_text(branch) -> str:
 
 
 def _described(row, tool_input) -> tuple:
-    """卡片上这条规则的「对象 → 值」与范围（只读、不写库；认不出的照参数显示）。"""
+    """卡片上这条规则的「对象 → 值」与范围（只读、不写库；认不出的照参数显示）。按 key 找时不经列表的每类截断
+    （`saved_choices.find`）；找不到（已删、不是这家的）回 None 当范围，卡上不露编码后的 key，执行时报找不到。"""
     key = str(tool_input.get("key") or "")
     if key and row:
         parts = saved_choices.decode(key)
-        for item in saved_choices.listing(row, service.books(row, limit=None)):
-            if item.get("key") == key:
-                value = item.get("value_label") or item.get("value") or ""
-                return f"{item.get('subject_label') or ''} → {value}", item.get("branch") or "", parts[0]
-        return "", "", parts[0]  # 找不到（已删、不是这家的）：卡上不露编码后的 key，执行时报找不到
+        item = saved_choices.find(row, service.books(row, limit=None), key)
+        if item:
+            value = item.get("value_label") or item.get("value") or ""
+            return f"{item.get('subject_label') or ''} → {value}", item.get("branch") or "", parts[0]
+        return "", None, parts[0]
     value = str(tool_input.get("value") or "")
     label = {"cash": "Cash", "credit": "Credit", "claim": "Claim VAT", "expense": "Expense it"}.get(value)
     try:
@@ -306,21 +307,24 @@ def _described(row, tool_input) -> tuple:
 
 
 def _choice_rows(row, text, branch) -> list:
-    """存 / 删公司规则的卡片行：公司、范围、这一条（对象 → 值），只列一次、不写「改前 → 改后」。"""
-    return [{"field": _("Company"), "before": "", "after": row.title if row else ""},
-            {"field": _("Scope"), "before": "", "after": _scope_text(branch)},
+    """存 / 删公司规则的卡片行：公司、范围、这一条（对象 → 值），只列一次、不写「改前 → 改后」。``branch`` 为 None
+    （按 key 找不到这一条）时不列范围，值那一行写「这条记住的选择已不在」，不像要删全公司的一条空规则。"""
+    company = {"field": _("Company"), "before": "", "after": row.title if row else ""}
+    if branch is None:
+        return [company, {"field": _("Value"), "before": "", "after": _("cowork.company.choice_not_found")}]
+    return [company, {"field": _("Scope"), "before": "", "after": _scope_text(branch)},
             {"field": _("Value"), "before": "", "after": text}]
 
 
 def preview_choice_save(tool_input) -> list:
     row = _company(tool_input)
-    text, _branch, _source = _described(row, tool_input)
-    return _choice_rows(row, text, str(tool_input.get("branch") or ""))
+    text, branch, _source = _described(row, tool_input)
+    return _choice_rows(row, text, None if branch is None else str(tool_input.get("branch") or ""))
 
 
 def preview_choice_remove(tool_input) -> list:
     """删哪一条（第 5 轮测试 5）：同保存卡的三行，问句「删除这条公司规则？」已说明是删。原来公司写成「改前 → 改后」两遍、
-    这一条写在「改前」后面跟一个空的「→」，卡上看着乱。找不到这一条（已删、不是这家的）时值那一行空着，执行时报找不到。"""
+    这一条写在「改前」后面跟一个空的「→」，卡上看着乱。找不到这一条（已删、不是这家的）时只写公司与「已不在」，执行时报找不到。"""
     row = _company(tool_input)
     text, branch, _source = _described(row, tool_input)
     return _choice_rows(row, text, branch)

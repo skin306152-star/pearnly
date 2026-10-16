@@ -256,10 +256,11 @@ export function attachmentCard(
   const pages = listed?.pages ?? local?.pages;
   const typeLine = attachmentTypeLine(name, size, pages);
   // 图片：本页刚发的用本地预览；刷新后、别的设备上用服务端留存的那份（内联地址）。PDF：服务端画的第一页（page = 是页面图，
-  // 卡片里从页顶显示）
+  // 卡片里从页顶显示）。只在本站确有留存时取（本页刚发的，或列表带了大小 = 服务端读到了那份）：很早以前没留存的附件
+  // 引擎也不给下载，取缩略图只会白问一趟引擎再 404（第 5 轮审查），直接是类型方块
   const kind = kindOf(name);
   const remote = sessionId && fileId ? { sessionId, fileId } : null;
-  const page = kind === "pdf" && !!remote;
+  const page = kind === "pdf" && !!remote && !!(listed?.size_bytes || local);
   const image =
     kind === "image"
       ? (localPreview(mountPath) ?? (remote ? fileUrl(remote.sessionId, remote.fileId, true) : undefined))

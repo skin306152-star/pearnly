@@ -17,7 +17,8 @@
   `download` / `preview` 找不到可下载的结果时取本站留存的那份；列表里的附件带上大小与 PDF 页数（附件卡片的说明行）。
 - PDF 的一页画成图（`page_image`，第 5 轮测试 1、2）：附件卡片的缩略图（第一页，`thumb`）、手机上的 PDF 预览（安卓 Chrome
   不能在 iframe 里显示 PDF，逐页 `page`）。用镜像里已有的 PyMuPDF（识别流水线同一个，frappe.Dockerfile 锁定），不给前端
-  加 PDF 渲染库；只有两种宽度，回应带私有缓存头（文件编号对应的内容不变），浏览器同一张只取一次。
+  加 PDF 渲染库；只有两种宽度，回应带私有缓存头（文件编号对应的内容不变），浏览器同一张只取一次。画好的页图与从引擎取来的
+  结果 PDF 原件留在本对话目录的 `rendered/` 里（随对话删），同一页各设备只画一次、引擎的结果只取一次（第 5 轮审查）。
 """
 import io
 import mimetypes
@@ -270,7 +271,7 @@ def _stored(row, api, fid) -> tuple[dict, callable]:
         if entry.startswith(fid + "--"):
             name = entry[len(fid) + 2:]
             mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
-            return {"id": fid, "filename": name, "mime_type": mime, "size_bytes": None}, read
+            return {"id": fid, "filename": name, "mime_type": mime, "size_bytes": None, "local": True}, read
     for remote in sessions.segments(row):
         for f in api.files(remote):
             if f["id"] == fid and f["downloadable"]:
@@ -320,13 +321,13 @@ def preview(session_id, file_id) -> dict:
     （页面按页取 `page_image`，手机上用）；其余类型、超过上限或读不出 `{"type": "none"}`，页面给下载。"""
     row = sessions.owned(session_id, allow_archived=True)
     fid = sessions._guard(contracts.file_id, file_id)
-    api = engine.adapter()
-    meta, read = _stored(row, api, fid)
+    meta, read = _opened(row, fid)
     if _is_pdf(meta):
-        if int(meta.get("size_bytes") or 0) > PDF_MAX_BYTES:
-            return {"type": "none"}
-        content = read()
-        pages = _pdf_pages(content) if len(content) <= PDF_MAX_BYTES else None
+        pages = _cached(PAGES_CACHE + fid)
+        if not isinstance(pages, int):
+            content = _pdf_content(row, fid, meta, read)
+            pages = _pdf_pages(content) if content else None
+            _remember(PAGES_CACHE + fid, pages or 0, META_TTL if pages else META_MISSING_TTL)
         return {"type": "pdf", "pages": pages} if pages else {"type": "none"}
     kind = preview_kind(meta["filename"])
     if not kind or int(meta.get("size_bytes") or 0) > PREVIEW_MAX_BYTES:
@@ -356,10 +357,19 @@ PAGE_MAX = 500
 PDF_MAX_BYTES = 60 * 1024 * 1024
 # 同一个文件编号的内容不变：浏览器留一周，同一张缩略图 / 同一页只取一次（只给本人的浏览器，不进共享缓存）
 PAGE_CACHE = "private, max-age=604800"
+# 含图的页（拍照、扫描的单据：本产品最常见的 PDF）编 JPEG，纯文字 / 矢量页编 PNG（字更清楚、也更小）（第 5 轮审查：
+# 照片页编 PNG 一页几 MB，手机流量和服务端编码都吃力）
+JPEG_QUALITY = 80
+# 画好的页图、从引擎取来的结果 PDF 原件，留在这个对话的私有目录的这个子目录里（`_kept` 不扫子目录里的文件，不进附件
+# 列表；删对话时随 `forget` 一起删）。第 5 轮审查：每看一页都去引擎列文件、整份下载再整份解析，新设备打开每张缩略图
+# 都重画一次；有了这份，引擎的结果只取一次，同一页各设备只画一次，留存在本对话目录里也就证明了它属于这个对话。
+RENDERED = "rendered"
+PAGES_CACHE = "pearnly_assistant:pdf-pages:"
+IMAGE_TYPES = {"png": "image/png", "jpg": "image/jpeg"}
 
 
-def render_page(content: bytes, number: int, width: int) -> bytes | None:
-    """PDF 第 ``number`` 页画成宽 ``width`` 的 PNG；页码超出、加密、读不出回 None。"""
+def render_page(content: bytes, number: int, width: int) -> tuple[bytes, str] | None:
+    """PDF 第 ``number`` 页画成宽 ``width`` 的图：(字节, 扩展名 png / jpg)；页码超出、加密、读不出回 None。"""
     try:
         import pymupdf
     except ImportError:
@@ -373,16 +383,75 @@ def render_page(content: bytes, number: int, width: int) -> bytes | None:
             if box.width <= 0 or box.height <= 0:
                 return None
             scale = min(width / box.width, width * PAGE_TALLEST / box.height)
-            return page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False)
+            if page.get_images(full=False):
+                return pixmap.tobytes("jpeg", jpg_quality=JPEG_QUALITY), "jpg"
+            return pixmap.tobytes("png"), "png"
     except Exception:  # 坏文件、不支持的写法：PyMuPDF 抛的类型不一（FileDataError / RuntimeError / ValueError…），一律当画不出
         return None
 
 
-def page_image(session_id, file_id, page=1, size="thumb"):
-    """本对话里一个 PDF 的一页（PNG）：附件卡片的缩略图（第一页、thumb）、手机上的 PDF 预览（逐页、page）。
-    文件的取法、认法同 `download`（只认这个对话的，先读本站留存的那份）；不是 PDF、页码不对、画不出都当作不存在。"""
+def _cached(key):
+    try:
+        return frappe.cache.get_value(key)
+    except Exception:
+        return None
+
+
+def _remember(key, value, ttl) -> None:
+    try:
+        frappe.cache.set_value(key, value, expires_in_sec=ttl)
+    except Exception:
+        pass
+
+
+def _rendered(row, name: str) -> str:
+    return os.path.join(_folder(row.name), RENDERED, name)
+
+
+def _save(path: str, content: bytes) -> None:
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path + ".part", "wb") as handle:
+            handle.write(content)
+        os.replace(path + ".part", path)
+    except OSError:
+        pass  # 存不下只是下次再取再画
+
+
+def _opened(row, fid) -> tuple[dict, callable]:
+    """同 `_stored`，另认本对话目录里留下的引擎结果 PDF 原件：有这份就不再去引擎列文件、下载。"""
+    source = _rendered(row, fid + ".pdf")
+    if os.path.isfile(source):
+        return ({"id": fid, "filename": fid + ".pdf", "mime_type": "application/pdf",
+                 "size_bytes": os.path.getsize(source), "local": True}, lambda: _read(source))
+    return _stored(row, engine.adapter(), fid)
+
+
+def _pdf_content(row, fid, meta, read) -> bytes | None:
+    """一个 PDF 的内容（画页、数页数用）；太大回 None。从引擎取来的结果在本对话目录留一份原件（`_opened` 下次读它）。"""
+    if int(meta.get("size_bytes") or 0) > PDF_MAX_BYTES:
+        return None
+    content = read()
+    if len(content) > PDF_MAX_BYTES:
+        return None
+    if not meta.get("local"):
+        _save(_rendered(row, fid + ".pdf"), content)
+    return content
+
+
+def _image(body: bytes, ext: str):
     from werkzeug.wrappers import Response
 
+    return Response(body, mimetype=IMAGE_TYPES[ext],
+                    headers={"Cache-Control": PAGE_CACHE, "X-Content-Type-Options": "nosniff"})
+
+
+def page_image(session_id, file_id, page=1, size="thumb"):
+    """本对话里一个 PDF 的一页（含图的页 JPEG，否则 PNG）：附件卡片的缩略图（第一页、thumb）、手机上的 PDF 预览
+    （逐页、page）。文件的取法、认法同 `download`（只认这个对话的，先读本站留存的那份）；不是 PDF、页码不对、画不出都当作
+    不存在。画好的存在本对话目录里，同一页再取（别的设备、刷新）直接给；列表记过「本站没留存」的老附件（引擎也不给下载
+    用户上传的文件）直接当不存在，不再去引擎白问一趟。"""
     row = sessions.owned(session_id, allow_archived=True)
     fid = sessions._guard(contracts.file_id, file_id)
     width = PAGE_WIDTHS.get(str(size or ""))
@@ -392,14 +461,21 @@ def page_image(session_id, file_id, page=1, size="thumb"):
         number = 0
     if not width or not 1 <= number <= PAGE_MAX:
         frappe.throw(_("File not found"), frappe.DoesNotExistError)
-    meta, read = _stored(row, engine.adapter(), fid)
-    if not _is_pdf(meta) or int(meta.get("size_bytes") or 0) > PDF_MAX_BYTES:
+    name = f"{fid}--{number}-{size}"
+    for ext in IMAGE_TYPES:
+        path = _rendered(row, f"{name}.{ext}")
+        if os.path.isfile(path):
+            return _image(_read(path), ext)
+    if _cached(META_CACHE + fid) == {}:
         frappe.throw(_("File not found"), frappe.DoesNotExistError)
-    content = read()
-    png = render_page(content, number, width) if len(content) <= PDF_MAX_BYTES else None
-    if not png:
+    meta, read = _opened(row, fid)
+    content = _pdf_content(row, fid, meta, read) if _is_pdf(meta) else None
+    drawn = render_page(content, number, width) if content else None
+    if not drawn:
         frappe.throw(_("File not found"), frappe.DoesNotExistError)
-    return Response(png, mimetype="image/png", headers={"Cache-Control": PAGE_CACHE, "X-Content-Type-Options": "nosniff"})
+    body, ext = drawn
+    _save(_rendered(row, f"{name}.{ext}"), body)
+    return _image(body, ext)
 
 
 def sheets(content: bytes) -> list[dict]:

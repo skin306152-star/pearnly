@@ -19,7 +19,8 @@
   费用科目、付款、抵进项本来就按对方税号记（不分店），同一供应商不同分店共用。
 - 页面上的 `key` 是服务端给的不透明串（`encode`），解出来后再核一次它确实属于这家公司。
 - 对象只记了税号（记的时候票面没有名称，或旧记录）的行补上名称（第 5 轮测试 6：付款规则只显示 0105565099871）：
-  先找同一税号别的行记的名称，再找覆盖这个月那份账套的供应商 / 客户主档；都没有照旧显示税号（`_name_parties`）。
+  先找同一税号别的行记的名称（只在对方档、付款、抵进项、费用科目之间借：存货行的标签是品名），再找覆盖这个月那份账套的
+  供应商 / 客户主档；都没有照旧显示税号（`_name_parties`）。
 - 每类最多显示 `SHOWN` 条，每张表一次 IN 查询、最多读 `READ_MAX` 条。预扣税记忆（按收款方、全所通用）、供应商默认、
   单据录不录、银行预设（键里没有公司）不显示。
 """
@@ -212,15 +213,15 @@ def rule_rows(company) -> list:
     out = []
     for row in rules.listing(company["name"]):
         out.append({"key": encode("rule", row["id"]), "source": "rule", "kind": row["kind"], "_tax": tax_in(row["subject"]),
-                    "subject_label": row["subject_label"] or row["subject"], "value": row["value"],
+                    "subject_label": subject_name(row["kind"], row["subject"], row["subject_label"]), "value": row["value"],
                     "value_label": _value_label(row["kind"], row["value"]) or row["value_label"] or row["value"],
                     "editable": row["kind"] in EDITABLE, "branch": row["branch"], "year_label": "",
                     "set_by": row["set_by"], "set_at": row["set_at"], "merged": 1})
     return out
 
 
-def listing(company, sets) -> list:
-    """这家公司记住的选择，按来源、类别分好，每类最多 `SHOWN` 条（新 → 旧）。"""
+def _all(company, sets) -> list:
+    """这家公司记住的全部选择（补好名称、不截断）。"""
     found = []
     for part in (lambda: rule_rows(company), lambda: _express(sets), lambda: _pos(sets), lambda: _income(company),
                  lambda: history_rows(company, sets)):
@@ -229,6 +230,17 @@ def listing(company, sets) -> list:
         except (frappe.PermissionError, frappe.ValidationError):
             frappe.clear_messages()
     _name_parties(found, sets)
+    return found
+
+
+def find(company, sets, key):
+    """按页面 / CC 给的 ``key`` 找一条（卡片说明用）：不经每类 `SHOWN` 截断，名称与列表一致；找不到回 None。"""
+    return next((row for row in _all(company, sets) if row.get("key") == key), None) if key else None
+
+
+def listing(company, sets) -> list:
+    """这家公司记住的选择，按来源、类别分好，每类最多 `SHOWN` 条（新 → 旧）。"""
+    found = _all(company, sets)
     shown, counts = [], {}
     for row in found:
         bucket = (row["source"], row["kind"])
@@ -245,17 +257,26 @@ def tax_in(subject) -> str:
     return tax if len(tax) == 13 and tax.isdigit() else ""
 
 
+# 对象就是对方本身、标签就是对方名称的类别；存货（标签是品名）、部门、收款科目不出借也不接收名称
+PARTY_KINDS = ("party", "payment", "vat", "account")
+
+
 def _named(row) -> bool:
     label = str(row.get("subject_label") or "").strip()
     return bool(label) and label != row.get("_tax")
 
 
+def _party_tax(row) -> str:
+    return row.get("_tax") or "" if row.get("kind") in PARTY_KINDS else ""
+
+
 def name_parties(rows, masters=None) -> list:
     """对象只记了税号的行（名称空着或就是税号）补上名称：同一税号别的行记的名称优先，其次 ``masters``（供应商 / 客户主档的
-    ``{tax_id, name}``）；都没有照旧。就地改 ``rows``（行上内部的 ``_tax`` 由 `_name_parties` 收掉），返回还缺名称的税号。不读库。"""
+    ``{tax_id, name}``）；都没有照旧。只在 `PARTY_KINDS` 之间借（存货行的标签是品名，不是对方名称）。就地改 ``rows``
+    （行上内部的 ``_tax`` 由 `_name_parties` 收掉），返回还缺名称的税号。不读库。"""
     known = {}
     for row in rows:
-        if row.get("_tax") and _named(row):
+        if _party_tax(row) and _named(row):
             known.setdefault(row["_tax"], str(row["subject_label"]).strip())
     for row in (masters or ()):
         tax, name = "".join(ch for ch in str(row.get("tax_id") or "") if ch.isdigit()), str(row.get("name") or "").strip()
@@ -263,7 +284,7 @@ def name_parties(rows, masters=None) -> list:
             known.setdefault(tax, name)
     missing = []
     for row in rows:
-        tax = row.get("_tax")
+        tax = _party_tax(row)
         if tax and not _named(row):
             if tax in known:
                 row["subject_label"] = known[tax]
@@ -553,5 +574,5 @@ def promote(company, sets, key, branch="", period="", session="") -> dict:
     frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
 
 
-__all__ = ["decode", "encode", "forget", "group_of", "history_rows", "listing", "merge_express", "name_parties", "promote",
+__all__ = ["decode", "encode", "find", "forget", "group_of", "history_rows", "listing", "merge_express", "name_parties", "promote",
            "rule_rows", "save_rule", "set_value", "target_set", "tax_in"]

@@ -3723,6 +3723,12 @@ assert.match(html, /<span class="cc-attach-thumb" aria-hidden="true" data-page="
 assert.match(html, /<span class="cc-attach-tile"><svg[^>]*lucide-file-spreadsheet[^>]*>.*?<\/svg><span>XLSX<\/span><\/span>/);
 assert.equal(attachmentCard(PDF, "statement.pdf", results(listed)).page, true);
 assert.equal(attachmentCard(XLSX, "GL-05.xlsx", results(listed)).page, undefined);
+// 第 5 轮审查：本站没留存的老附件（列表没给大小、也不是本页刚发的）不取缩略图（引擎不给下载，只会白问再 404）
+const OLD = "/mnt/session/uploads/file_011COld/old.pdf";
+const unkept = attachmentCard(OLD, "old.pdf", results([{ ...listed[0], id: "file_011COld", filename: "old.pdf", size_bytes: undefined, pages: undefined }]));
+assert.equal(unkept.page, undefined);
+assert.equal(unkept.image, undefined);
+assert.equal(attachmentCard(OLD, "old.pdf", results([])).page, undefined);   // 列表还没到：先是类型方块
 assert.doesNotMatch(html, /Document attachment|attachment,/);
 assert.doesNotMatch(html, /#[0-9a-fA-F]{3,8}\b|rgb\(/);
 
@@ -3772,6 +3778,8 @@ for await (const step of adapter.add!({ file }) as any) steps.push(step.status.t
 assert.deepEqual(steps, ["running", "requires-action"]);
 assert.deepEqual(localMeta("/mnt/session/uploads/file_011CNew/new.pdf"), { size: 4096, pages: 2 });
 assert.equal(attachmentCard("/mnt/session/uploads/file_011CNew/new.pdf", "new.pdf", results([])).typeLine, "PDF · 2 pages");
+// 本页刚发的（本站已留存）列表没到也取第一页缩略图
+assert.equal(attachmentCard("/mnt/session/uploads/file_011CNew/new.pdf", "new.pdf", results([])).page, true);
 """)
 
 if __name__ == "__main__":

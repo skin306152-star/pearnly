@@ -390,10 +390,12 @@ export const Conversations: FC<{ company: string }> = ({ company }) => {
         const check = runningSessions();
         const page = await listGrouped({ group: company, after, check });
         if (mine !== asked.current) return;
+        // 标题空 = 还没发过消息（首条消息一发就有临时标题）：输入框加附件要先建会话，选了文件不发也会在服务端留一条
+        // （第 5 轮测试 4）。公司页只列发过的；这个列表自己取数，不经侧栏的多设备同步，滤掉不会被当成别处删了
         setRows((before) => {
           const kept = after ? (before ?? []) : [];
           const seen = new Set(kept.map((row) => row.id));
-          return [...kept, ...page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at)];
+          return [...kept, ...page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at && row.title)];
         });
         absorbRuns(check, page.runs);
         setNext(page.nextCursor);

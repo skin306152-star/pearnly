@@ -72,6 +72,13 @@ class NotesSourceTests(unittest.TestCase):
         folders = page[page.index("export const FolderSection"):page.index("// ---------------------------------------------------------------- 账套")]
         self.assertIn("setGone((before) => [...before, reader]);", folders)
 
+    def test_the_company_page_lists_only_conversations_that_were_sent(self):
+        # 第 5 轮测试 4 / 审查：公司页「＋」选了文件就建了会话，不发也在服务端留一条空标题的；公司页对话列表不列它
+        # （标题空 = 还没发过消息）。列表自己取数，不经侧栏的多设备同步
+        page = read("components/company-page.tsx")
+        chats = page[page.index("const load = useCallback("):page.index("useEffect(() => void load(), [load]);")]
+        self.assertIn("page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at && row.title)", chats)
+
 
 class OpenAtBottomSourceTests(unittest.TestCase):
     def test_thread_settles_when_a_conversation_is_opened(self):

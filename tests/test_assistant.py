@@ -2646,13 +2646,20 @@ class DocumentPreviewTests(unittest.TestCase):
 
         sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name="row1"),
                                          _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"])
+        import tempfile
+
+        root = tempfile.mkdtemp()
         with mock.patch.object(files, "sessions", sessions), \
                 mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
-                mock.patch.object(files, "_kept", lambda fid=None, row=None: []):
+                mock.patch.object(files, "_kept", lambda fid=None, row=None: []), \
+                mock.patch.object(files, "_rendered", lambda row, name: os.path.join(root, row.name, name)):
             self.assertEqual(files.preview("s1", "file_ok"), {"type": "document", "blocks": [
                 {"type": "paragraph", "runs": [{"text": "สรุป"}], "style": "title", "align": "center"}]})
             for fid in ("file_bad", "file_empty", "file_big", "file_doc", "file_pdf", "file_lie"):
                 self.assertEqual(files.preview("s1", fid), {"type": "none"}, fid)
+            # 第 5 轮审查：引擎里的结果 PDF 取一次就在本对话目录留一份原件，再预览 / 画页不再去引擎下载
+            self.assertEqual(files.preview("s1", "file_pdf"), {"type": "none"})
+            self.assertTrue(os.path.isfile(os.path.join(root, "row1", "file_pdf.pdf")))
         # PDF 读一次数页数（这里读不出页数，给 none）
         self.assertEqual(reads, ["file_ok", "file_bad", "file_empty", "file_pdf", "file_lie"])
         # docx 下载照常是附件（不在可内联的类型里）
@@ -2756,26 +2763,38 @@ class DocumentPreviewTests(unittest.TestCase):
 
     def test_a_pdf_page_is_drawn_as_a_cached_image_for_thumbnails_and_phones(self):
         """第 5 轮测试 1、2：附件卡片的 PDF 缩略图（第一页）与手机上的 PDF 预览（安卓 Chrome 不能 iframe 显示 PDF）都取
-        page_image：只认这个对话的 PDF，只有 thumb / page 两种宽度，回应是 PNG、带私有缓存头；不是 PDF、页码不对、画不出、
-        别的对话的都当作不存在。"""
+        page_image：只认这个对话的 PDF，只有 thumb / page 两种宽度，回应带私有缓存头；不是 PDF、页码不对、画不出、
+        别的对话的都当作不存在。第 5 轮审查：含图的页（拍照、扫描）编 JPEG、纯文字页编 PNG；画好的留在本对话目录，同一页
+        再取不再画；引擎里的结果 PDF 只下载一次；列表记过「本站没留存」的老附件不去问引擎。"""
         import tempfile
 
         files = self._files()
         root = tempfile.mkdtemp()
-        drawn = []
+        drawn, encoded = [], []
 
         class Page:
             rect = types.SimpleNamespace(width=595.0, height=842.0)
 
+            def __init__(self, photo):
+                self.photo = photo
+
+            def get_images(self, full=False):
+                return [(7, 0, 1240, 1754)] if self.photo else []
+
             def get_pixmap(self, matrix, alpha):
                 drawn.append((round(matrix.scale, 4), alpha))
-                return types.SimpleNamespace(tobytes=lambda kind: b"PNG:" + kind.encode())
+
+                def tobytes(kind, **options):
+                    encoded.append((kind, options))
+                    return b"IMG:" + kind.encode()
+                return types.SimpleNamespace(tobytes=tobytes)
 
         class Document:
             def __init__(self, stream, filetype):
                 if not stream.startswith(b"%PDF"):
                     raise RuntimeError("cannot open broken document")
                 self.needs_pass = b"locked" in stream
+                self.photo = b"photo" in stream
                 self.page_count = 2
 
             def __enter__(self):
@@ -2785,7 +2804,7 @@ class DocumentPreviewTests(unittest.TestCase):
                 return False
 
             def __getitem__(self, index):
-                return Page()
+                return Page(self.photo)
 
         fitz = types.SimpleNamespace(open=Document, Matrix=lambda a, b: types.SimpleNamespace(scale=a))
 
@@ -2793,18 +2812,29 @@ class DocumentPreviewTests(unittest.TestCase):
             def __init__(self, body, mimetype, headers):
                 self.body, self.mimetype, self.headers = body, mimetype, headers
 
+        engine_calls = []
+
         class Api:
             def files(self, remote):
-                return []
+                engine_calls.append("files")
+                return [{"id": "file_R", "filename": "สรุป.pdf", "downloadable": True, "mime_type": "application/pdf",
+                         "size_bytes": 20}]
+
+            def read_file(self, remote, fid):
+                engine_calls.append("read")
+                return b"%PDF result"
 
         owners = {"s1": "row1", "s2": "row2"}
         sessions = types.SimpleNamespace(owned=lambda sid, allow_archived=False: types.SimpleNamespace(name=owners[sid]),
                                          _guard=lambda fn, *a: fn(*a), segments=lambda row: ["sesn_remote"],
                                          SESSION="Pearnly Assistant Session")
-        saved = {name: getattr(frappe, name, None) for name in ("get_site_path", "get_all", "DoesNotExistError")}
+        cache = {files.META_CACHE + "file_OLD": {}}
+        saved = {name: getattr(frappe, name, None) for name in ("get_site_path", "get_all", "DoesNotExistError", "cache")}
         frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
         frappe.get_all = lambda *a, **k: []
         frappe.DoesNotExistError = type("DoesNotExistError", (Exception,), {})
+        frappe.cache = types.SimpleNamespace(get_value=cache.get,
+                                             set_value=lambda key, value, expires_in_sec=None: cache.__setitem__(key, value))
         try:
             with mock.patch.object(files, "sessions", sessions), \
                     mock.patch.object(files, "engine", types.SimpleNamespace(adapter=Api)), \
@@ -2812,23 +2842,43 @@ class DocumentPreviewTests(unittest.TestCase):
                                                   "werkzeug.wrappers": types.SimpleNamespace(Response=Response)}):
                 row = types.SimpleNamespace(name="row1")
                 files._keep(row, "file_P", "ใบกำกับ.pdf", b"%PDF-1.7 two pages")
+                files._keep(row, "file_S", "scan.pdf", b"%PDF photo scan")
                 files._keep(row, "file_L", "locked.pdf", b"%PDF locked")
                 files._keep(row, "file_B", "broken.pdf", b"not a pdf")
                 files._keep(row, "file_I", "slip.jpg", b"jpeg")
                 files._keep(types.SimpleNamespace(name="row2"), "file_X", "other.pdf", b"%PDF other")
                 out = files.page_image("s1", "file_P", page="1", size="thumb")
-                self.assertEqual((out.body, out.mimetype), (b"PNG:png", "image/png"))
+                self.assertEqual((out.body, out.mimetype), (b"IMG:png", "image/png"))
                 self.assertEqual(out.headers["Cache-Control"], "private, max-age=604800")
                 self.assertEqual(out.headers["X-Content-Type-Options"], "nosniff")
                 files.page_image("s1", "file_P", page=2, size="page")
                 # 宽度按页宽缩放：缩略图 240、整页 1240（A4 宽 595pt），不透明底
                 self.assertEqual(drawn, [(round(240 / 595, 4), False), (round(1240 / 595, 4), False)])
+                # 同一页再取（刷新、别的设备）：读本对话目录里画好的那张，不再画
+                again = files.page_image("s1", "file_P", page=2, size="page")
+                self.assertEqual((again.body, again.mimetype, len(drawn)), (b"IMG:png", "image/png", 2))
+                # 拍照 / 扫描的页编 JPEG（质量 80），纯文字页编 PNG
+                scan = files.page_image("s1", "file_S", page=1, size="page")
+                self.assertEqual((scan.body, scan.mimetype), (b"IMG:jpeg", "image/jpeg"))
+                self.assertEqual(encoded[-1], ("jpeg", {"jpg_quality": files.JPEG_QUALITY}))
+                self.assertEqual(files.page_image("s1", "file_S", page=1, size="page").mimetype, "image/jpeg")
+                self.assertEqual(len(drawn), 3)
                 for args in (("file_P", 3, "page"), ("file_P", 0, "thumb"), ("file_P", "x", "thumb"),
                              ("file_P", 1, "huge"), ("file_L", 1, "thumb"), ("file_B", 1, "thumb"),
                              ("file_I", 1, "thumb"), ("file_X", 1, "thumb"), ("file_NOPE", 1, "thumb")):
                     with self.assertRaises(frappe.DoesNotExistError, msg=str(args)):
                         files.page_image("s1", args[0], page=args[1], size=args[2])
-                self.assertEqual(len(drawn), 2)
+                self.assertEqual(len(drawn), 3)
+                # 引擎里的结果 PDF：第一次列文件、下载一次，之后各页、页数都读本对话目录里那份
+                engine_calls.clear()
+                files.page_image("s1", "file_R", page=1, size="page")
+                files.page_image("s1", "file_R", page=2, size="page")
+                self.assertEqual(engine_calls, ["files", "read"])
+                # 列表记过「本站没留存」的老附件：直接不存在，不去问引擎
+                engine_calls.clear()
+                with self.assertRaises(frappe.DoesNotExistError):
+                    files.page_image("s1", "file_OLD", page=1, size="thumb")
+                self.assertEqual(engine_calls, [])
             # 镜像里没有 PyMuPDF（不该发生）：画不出，不报 500
             with mock.patch.dict(sys.modules, {"pymupdf": None}):
                 self.assertIsNone(files.render_page(b"%PDF", 1, 240))

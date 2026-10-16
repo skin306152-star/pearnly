@@ -689,7 +689,7 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
 # 与这里等价却多一套状态；写账回报（ACK）的请求里也不该去调模型厂商的接口。
 PUSH_WAIT_SECONDS = 25
 PUSH_WAIT_STEP = 2
-PUSH_QUEUED_NOTE = ("queued: sent, but the ERP has not reported a result yet (or CC Desktop on that computer is "
+PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (or CC Desktop on that computer is "
                     "offline: it is entered once CC Desktop is back). Tell the user it is queued; check later with "
                     "cowork_push_results when they ask. Do not wait or sleep.")
 
@@ -3313,7 +3313,7 @@ TOOLS = [
                     "file id: the folder "
                     "name after /mnt/session/uploads/ in the attachment note. Choices are optional; leave them all out "
                     "to recognize only. target express or mrerp also needs connection and account_set_key, as listed "
-                    "by cowork_intake_options; if the user wants the documents entered into an ERP and has not said "
+                    "by cowork_intake_options; if the user wants the documents entered into Express or MR.ERP and has not said "
                     "where in this conversation, get the choices there first (a company the user names is where: "
                     "its account set, found there with search). Otherwise call it directly, without "
                     "listing documents or checking CC Desktop first. Waits up to about 90 seconds and returns the "
@@ -3339,9 +3339,9 @@ TOOLS = [
          "required": ["files"]},
      "handler": "pearnly_cowork.assistant.tools.recognize_attachments"},
     {"name": "cowork_intake_options", "label": "Checked intake choices",
-     "description": "Where recognized documents can go, as on the web's New intake and in LINE: each target ERP "
-                    "(express, mrerp) with its state and account sets (the last-used one first), recognize only "
-                    "(none), and suggested: the choices of the user's previous recognition that went to an ERP, from "
+     "description": "Where recognized documents can go, as on the web's New intake and in LINE: each accounting "
+                    "program (express, mrerp) with its state and account sets (the last-used one first), recognize only "
+                    "(none), and suggested: the choices of the user's previous recognition that went to Express or MR.ERP, from "
                     "the web, LINE or this chat. Ask once: offer suggested first (say which account set it is by its "
                     "account_label), and "
                     "once the user agrees reuse it for the rest of the conversation without asking again. Only ready targets can be chosen. Large lists are cut to 30; pass search (company "
@@ -3390,9 +3390,9 @@ TOOLS = [
                     "are plain numbers; tax IDs are 13 digits. items replaces all line items. Pass the version from "
                     "cowork_document_detail so someone else's newer edit is not overwritten; if it was, read it again "
                     "and tell the user. This changes the record in Pearnly only: a document already entered into "
-                    "Express or MR.ERP is not changed there and is not pushed again; only a person can change it in "
-                    "that program. "
-                    "For Express, read it back afterwards with cowork_express_readback.",
+                    "Express or MR.ERP is not changed there and is not pushed again. Never send the user to Express "
+                    "or MR.ERP to change an entered document; only when they ask, say plainly that this edit does not "
+                    "reach it. For Express, read it back afterwards with cowork_express_readback.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"},
          "version": {"type": "integer"},
@@ -3477,7 +3477,7 @@ TOOLS = [
     {"name": "cowork_list_documents", "label": "Listed documents",
      "description": "List recognized documents (receipts, tax invoices) the user can see, newest first, with both "
                     "parties' names and tax IDs, document type, direction, the recognized subtotal, VAT and "
-                    "total, and the push status. Filter by push state (waiting = not in the ERP yet: never pushed or "
+                    "total, and the push status. Filter by push state (waiting = not in Express or MR.ERP yet: never pushed or "
                     "the push failed, so a document pushed successfully or on its way is never waiting; not_pushed, "
                     "pending, success, failed), upload date, invoice date, where they are pushed (connection and "
                     "account_set_key as listed by "
@@ -3492,7 +3492,7 @@ TOOLS = [
                     "none; narrow the dates or ask about that company with its account_set_key. In a conversation "
                     "filed under a company, a call without account_set_key or company covers only that "
                     "company's account sets (scope names it); all_companies true lifts that. Amounts are as "
-                    "recognized, not the ERP's figures.",
+                    "recognized, not the figures in Express or MR.ERP.",
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"},
          "push_state": {"type": "string", "enum": ["waiting", "not_pushed", "pending", "success", "failed"]},
@@ -3508,13 +3508,13 @@ TOOLS = [
     {"name": "cowork_push_documents", "label": "Pushed documents",
      "description": "Push recognized documents to their accounting target (Express through CC Desktop, or MR.ERP), "
                     "the same as Submit on the web page. Only when the user asked to push. Up to 20 at a time. After "
-                    f"sending it waits up to about {PUSH_WAIT_SECONDS} seconds for the ERP's result (writing "
+                    f"sending it waits up to about {PUSH_WAIT_SECONDS} seconds for the result from Express or MR.ERP (writing "
                     "usually takes a few seconds), so do not wait or check again yourself. Each result says "
                     "entered (written into Express or MR.ERP; docnum is its document number there, tell it to the user), queued "
                     "(no result yet, or CC Desktop is offline: it is entered later; check with cowork_push_results "
                     "when the user asks; last_attempt_failed means a try did not go through and it is tried again), "
-                    "failed with a reason, unconfirmed with a reason (the ERP may or may not have it: the user checks "
-                    "in the ERP, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
+                    "failed with a reason, unconfirmed with a reason (Express or MR.ERP may or may not have it: the user checks "
+                    "there, then record it with cowork_resolve_push_result; do not push it again), needs_choice "
                     "(get the choices with cowork_push_choices, ask the user, save them and push again), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
                     "or already_success / already_pending (already entered or on its way; it is not pushed again: a "
@@ -3563,8 +3563,8 @@ TOOLS = [
          "required": ["document", "items"]},
      "handler": "pearnly_cowork.assistant.tools.save_push_choices"},
     {"name": "cowork_resolve_push_result", "label": "Confirmed a push result",
-     "description": "When a push result is unknown (the ERP may or may not have it), record what the user found "
-                    "after checking in the ERP: entered true (with the ERP document number if they have it) or "
+     "description": "When a push result is unknown (Express or MR.ERP may or may not have it), record what the user "
+                    "found after checking there: entered true (with its document number there if they have it) or "
                     "false, so it can be pushed again. Only with the user's own answer; never guess.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string"}, "entered": {"type": "boolean"}, "docnum": {"type": "string"}},
@@ -3638,7 +3638,7 @@ TOOLS = [
                     "right_files; income reconciliation left_files), sales_vat (income reconciliation right_files; "
                     "output VAT check left_files), purchase_vat (the input VAT report) and changes (documents Pearnly "
                     "pushed that were changed, cancelled or deleted in Express, and entries made directly in Express). "
-                    "Read-only: Express may stay open, nothing is recognized or charged. Use it for the ERP's own "
+                    "Read-only: Express may stay open, nothing is recognized or charged. Use it for Express's own "
                     "figures, after the user corrected a pushed document in Express, and before reconciling or "
                     "checking tax. connection and account_set_key as listed by cowork_intake_options; period is "
                     "YYYY-MM; accounts narrows the general ledger to those account codes (prefixes), e.g. the bank "
@@ -3670,7 +3670,7 @@ TOOLS = [
                     "enters POS exports (Excel / CSV) there as daily sales without recognition; a task whose folder overlaps a "
                     "paused task continues it and only handles files put in after it is saved. Same rules as the web "
                     "form: Express needs posting_kind, MR.ERP needs payment; folders of enabled tasks cannot overlap; the "
-                    "target ERP of an existing task cannot change. When a task is changed (name given), values left "
+                    "accounting program of an existing task cannot change. When a task is changed (name given), values left "
                     "out keep their current ones. Change only the fields the user asked to change; any other value "
                     "you pass must be the task's current one. For two or more tasks use cowork_save_folder_tasks.",
      "input_schema": {"type": "object", "properties": FOLDER_TASK_PROPS,
@@ -3957,7 +3957,7 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.work_search"},
     {"name": "cowork_push_results", "label": "Checked push results",
      "description": "Show recent push results: documents whose push failed (with the reason), is pending (on its way "
-                    "to the ERP), or succeeded (entered). Documents still waiting to be entered (never pushed or "
+                    "to Express or MR.ERP), or succeeded (entered). Documents still waiting to be entered (never pushed or "
                     "failed) are push_state waiting in cowork_list_documents. In a conversation filed under a company "
                     "it covers only that company's account sets (scope names it) unless all_companies is true. "
                     + WRITTEN_NOTE,
