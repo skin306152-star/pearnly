@@ -57,6 +57,25 @@ def rule_fixed(defaults_json):
     return {kind: value for kind in contracts.KINDS if (value := contracts.default_value(defaults, kind))}
 
 
+def source_rules(history):
+    """这张票出自哪几条定时任务（按原件的文件行，回导工作簿生成的新票查不到）：任务的 ``connection`` / ``account_set_key`` /
+    ``defaults_json`` / ``company`` / ``company_branch``，任务已删的不在里面。只读。待处理页给停在「待选账套」的票列可换的
+    账套时按它找回任务的公司与分店（第 6 批审查第 4 条），与 :func:`fixed_for` 同一条路。"""
+    source = frappe.db.get_value(HISTORY, history, "source_file")
+    if not source:
+        return []
+    found = []
+    for row in frappe.get_all(FILE, filters={"source_file": source}, fields=["rule", "histories_json"],
+                              ignore_permissions=True):
+        if history not in json.loads(row.histories_json or "[]"):
+            continue
+        rule = frappe.db.get_value(RULE, row.rule, ["name", "connection", "account_set_key", "defaults_json", "company",
+                                                    "company_branch"], as_dict=True)
+        if rule:
+            found.append(rule)
+    return found
+
+
 def fixed_for(history, connection, account_set):
     """推送服务的钩子（``cowork_push_fixed_choices``）：这张票来自某个定时任务、且这次推往该任务的连接与账套时，
     回该任务的默认处理，否则 ``{}``。调用方已核过这张票的读取范围。
@@ -68,17 +87,11 @@ def fixed_for(history, connection, account_set):
     from pearnly_cowork.targets.identity import normalize_express_account_key
 
     try:
-        source = frappe.db.get_value(HISTORY, history, "source_file")
-        if not source or not connection:
+        if not connection:
             return {}
         key = normalize_express_account_key(account_set)
-        for row in frappe.get_all(FILE, filters={"source_file": source}, fields=["rule", "histories_json"],
-                                  ignore_permissions=True):
-            if history not in json.loads(row.histories_json or "[]"):
-                continue
-            rule = frappe.db.get_value(RULE, row.rule, ["connection", "account_set_key", "defaults_json", "company",
-                                                        "company_branch"], as_dict=True)
-            if not rule or rule.connection != connection:
+        for rule in source_rules(history):
+            if rule.connection != connection:
                 continue
             if normalize_express_account_key(rule.account_set_key) == key:
                 return rule_fixed(rule.defaults_json)

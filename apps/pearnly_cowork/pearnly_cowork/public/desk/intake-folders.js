@@ -51,9 +51,12 @@
 	const reader_id = reader => reader.reader || reader.connection;
 	// 跟随公司当年账套（T1）的任务：账套处写这一句，存下的账套名只作兜底
 	const account_text = row => (row.company ? ft("cowork.folder.followCompany") : row.account_label || "");
-	// 这些票实际推往了哪几份账套、各几张（跟随公司当年账套的任务才有）
+	// 这些票实际推往了哪几份账套、各几张（跟随公司当年账套的任务才有）：每份「账套名：张数」（现有词条 cowork.folder.pair），
+	// 几份之间用分号——账套名本身是「公司 · 年度」，不再用「 · 」连（第 6 批审查第 10 条，CC 定时任务页同一写法）
 	const account_sets_text = results => (results?.account_sets || [])
-		.map(item => `${item.account_label} ${item.tickets}`).join(" · ");
+		.map(item => ft("cowork.folder.pair", item.account_label, item.tickets)).join("; ");
+	// 读文件夹的电脑名：池里不止一台电脑时服务端才给（`reader_label`），文件夹前面带上（第 6 批审查第 14 条）
+	const folder_text = row => [row.reader_label, row.folder || row.root_label || ""].filter(Boolean).join(" · ");
 
 	p.intake_folders = async ({page, t, still_current}) => {
 		const root = "pearnly-intake";
@@ -97,14 +100,16 @@
 				{fieldname: "account_label", width: 180, min_width: 110, label: __("intake.target.accountSet"),
 					format: (value, row) => account_text(row)},
 				{fieldname: "folder", width: 160, min_width: 100, label: ft("cowork.folder.field.folder"),
-					format: (value, row) => value || row.root_label || ""},
+					format: (value, row) => folder_text(row)},
 				{fieldname: "run_day", width: 110, min_width: 90, label: ft("cowork.folder.col.schedule"),
 					format: (value, row) => `${day_label(value)} ${row.run_time || ""}`},
 				// 「ส่งแล้ว 100 · รอดำเนินการ 20」约 178 像素：最窄也放得下，窄窗口时先收任务名、账套、文件夹（10-09 #21）。
 				// 启用中的任务另带待处理数（同 CC 任务页），不另加列，免得窄屏挤掉状态药丸。
 				{fieldname: "counts", width: 210, min_width: 200, label: ft("cowork.folder.col.result"),
-					format: (value, row) => [ft("cowork.folder.counts", row.results?.entered || 0, row.results?.attention || 0),
-						row.enabled ? pending_hint(row.waiting, row.waiting_partial) : ""].filter(Boolean).join(" · ")},
+					// 跟随公司当年账套的任务另带实际推往的账套与张数（同 CC 任务页，第 6 批审查第 11 条）
+					format: (value, row) => [[ft("cowork.folder.counts", row.results?.entered || 0, row.results?.attention || 0),
+						row.enabled ? pending_hint(row.waiting, row.waiting_partial) : ""].filter(Boolean).join(" · "),
+						account_sets_text(row.results)].filter(Boolean).join("; ")},
 				// 状态列与对账任务列表同宽：泰文「เปิดใช้งานอยู่」等比中文长，90 宽会把药丸连圆角一起切掉（10-09）。
 				{fieldname: "enabled", width: 170, min_width: 140, label: t("intake.col.status"),
 					format: (value, row) => status(row)[1], cell_class: (value, row) => `indicator-pill ${status(row)[0]}`},
@@ -182,8 +187,7 @@
 			{fieldtype: "Select", fieldname: "year", label: __("Company"), options: [], onchange: () => void on_group()},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Select", fieldname: "account_set_key", label: __("intake.target.year"), reqd: 1, options: [],
-				max_items: 1000, onchange: () => void on_account(),
-				description: rule?.company ? ft("cowork.folder.followCompany") : ""},
+				max_items: 1000, onchange: () => void on_account()},
 			row(),
 			{fieldtype: "Select", fieldname: "direction", label: t("intake.field.direction"), reqd: 1,
 				options: [{value: "purchase", label: t("intake.dir.purchase")}, {value: "sales", label: t("intake.dir.sales")}],
@@ -353,7 +357,8 @@
 			// 电脑已移除的写明（第 6 批），由负责人另选一台电脑上的文件夹。
 			const saved = rule ? rule_folder(rule) : null;
 			if (saved && !folders.some(row => row.value === saved)) {
-				const label = [rule.root_label, rule.folder].filter(Boolean).join("\\") || rule.folder;
+				const label = [rule.reader_label, [rule.root_label, rule.folder].filter(Boolean).join("\\") || rule.folder]
+					.filter(Boolean).join(" · ");
 				folders.unshift({value: saved, label: rule.reader_gone ? `${ft("cowork.folder.readerGone")} · ${label}` : label});
 			}
 			set_options("folder", folders, saved);
@@ -455,8 +460,22 @@
 			enable("account_set_key", Boolean(items.length));
 			await on_account();
 		};
+		// 选定的 Express 账套：够得到它的电脑都不支持排头要的载荷版本时，下拉下面写「CC 桌面版需更新」（同「新建录入」与 CC
+		// 定时任务表单，仍可选；第 6 批审查第 11 条）。「跟随公司当年账套」只写在列表里：表单看的是存下的旧任务，不是当前选的账套
+		let noted = null;
+		const note_account = key => {
+			key = express() ? key : null;
+			if (key === noted) return;
+			noted = key;
+			d.set_df_property("account_set_key", "description", "");
+			if (!key) return;
+			void p.intake_targets.account_note(connection(), key).then(text => {
+				if (noted === key) d.set_df_property("account_set_key", "description", text);
+			});
+		};
 		const on_account = async () => {
 			const next = d.get_value("account_set_key") || null;
+			note_account(next);
 			// 换年度时下拉先被清空一次：不把任务原来的账套也清掉，等新的选项铺好再按它预选。
 			// 同一份账套只请求一次（预选时 on_group 与下拉的 onchange 都会走到这里）。
 			if (!next || next === state.requested) return;
@@ -507,12 +526,14 @@
 			const states = [...(entered || attention ? [ft("cowork.folder.counts", entered, attention)] : []),
 				...STATES.filter(name => run.states?.[name])
 					.map(name => `${ft("cowork.folder.state." + name)} ${run.states[name]}`),
-					account_sets_text(run.results)].filter(Boolean).join(" · ");
+				].join(" · ");
+			const sets = account_sets_text(run.results);
 			const missing = ["root_missing", "folder_missing"].includes(run.note) ? ` · ${ft("cowork.folder.folderMissing")}` : "";
 			return `<div class="pearnly-folder-run"><div>${p.escape(frappe.datetime.str_to_user(run.started_at))} · `
 				+ `${p.escape(ft("cowork.folder.trigger." + (run.trigger || "schedule")) + missing)}</div>`
 				+ `<div class="text-muted small">${p.escape(ft("cowork.folder.runScan", run.found || 0, run.new_files || 0,
-					run.skipped || 0, run.upload_failed || 0))}${states ? " · " + p.escape(states) : ""}</div></div>`;
+					run.skipped || 0, run.upload_failed || 0))}${states ? " · " + p.escape(states) : ""}</div>`
+				+ (sets ? `<div class="text-muted small">${p.escape(sets)}</div>` : "") + "</div>";
 		}).join("") || `<div class="text-muted">${p.escape(ft("cowork.folder.noRuns"))}</div>`;
 		const d = new frappe.ui.Dialog({title: `${ft("cowork.folder.runs")} · ${rule.title}`,
 			fields: [{fieldtype: "HTML", fieldname: "runs", options: lines}]});

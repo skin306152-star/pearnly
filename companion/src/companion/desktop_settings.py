@@ -112,6 +112,7 @@ class DesktopSettings:
     def __init__(self, *, states: Callable[[], Mapping[str, tuple]] = dict,
                  device: Callable[[], dict] = dict,
                  leave: Callable[[str, str], bool] = device_link.leave,
+                 settle_old: Callable[..., str] = device_link.settle_old_key,
                  update_status: Callable[[], tuple] = lambda: ("none", ""),
                  on_update: Callable[[], None] = lambda: None,
                  on_download: Callable[[], None] = lambda: None,
@@ -130,6 +131,7 @@ class DesktopSettings:
         # 多台电脑（ADR-021）：这台电脑的设备密钥与电脑名（device_link.identity，对话页登记时带上）；断开时先吊销本机这把密钥
         self._device = device
         self._leave = leave
+        self._settle_old = settle_old   # 配对换掉成员的旧密钥前，先拿旧密钥认一次电脑（device_link.settle_old_key）
         self._update_status = update_status
         self._on_update = on_update
         self._on_download = on_download
@@ -244,6 +246,8 @@ class DesktopSettings:
             # 这台电脑原来就连着这条连接（被别的电脑顶掉后重新连接）：换这个成员的密钥，不多出一个成员
             endpoint = pairing._endpoint_id_from_token(str(code or "").strip().partition("@")[0])
             profile_id = next((r.profile_id for r in store.profiles if endpoint and r.endpoint_id == endpoint), None)
+            if profile_id is not None:
+                self._settle_member(store, profile_id, str(code or "").strip().partition("@")[0])
         result = self._pair(store, code, lang, profile_id)
         if switched:
             result["profiles_changed"] = True   # 原来的成员已断开：失败也要重启取任务线程
@@ -282,6 +286,20 @@ class DesktopSettings:
         self._store().remove_profile(profile_id)
         self._on_profiles_changed()
         return {"ok": True}
+
+    def _settle_member(self, store: ProfileStore, profile_id: str, new_token: str) -> None:
+        """对话页登记来的新密钥要换掉这个成员的旧密钥：旧密钥还没被服务端说过不能再用（没有 ``device_state``）就先拿它认一次
+        电脑，让服务端把旧槽位那台「旧电脑」并进这台（device_link.settle_old_key）。被说过的不发（服务端已处理）；失败不拦配对。"""
+        record = next((r for r in store.profiles if r.profile_id == profile_id), None)
+        if record is None or getattr(record, "device_state", ""):
+            return
+        try:
+            cfg = store.runtime_config(profile_id)
+            old = str(cfg.bearer_token or "")
+            if old and old != new_token:
+                self._settle_old(str(cfg.backend_url or ""), old, always_on=bool(getattr(cfg, "always_on", False)))
+        except Exception:
+            log.exception("换密钥前旧密钥认电脑失败（照常配对）")
 
     def _leave_member(self, store: ProfileStore, profile_id: str) -> bool:
         """断开前先请服务端吊销这把密钥（device_leave）；旧服务端、连不上、密钥早已失效都不拦（只删本机）。"""

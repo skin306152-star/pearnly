@@ -1833,7 +1833,7 @@ Computer offline	电脑离线	คอมพิวเตอร์ออฟไล�
 No computer can write	没有能写的电脑	ไม่มีคอมพิวเตอร์ที่บันทึกได้	書き込めるコンピューターがありません	intake.agent.state.noWriter
 CC Desktop needs update	CC 桌面版需更新	CC เดสก์ท็อปต้องอัปเดต	CC デスクトップの更新が必要	intake.agent.state.needsUpdate
 Computer removed	电脑已移除	นำคอมพิวเตอร์ออกแล้ว	コンピューターは削除済み	cowork.folder.readerGone
-Company's account set for the year	跟随公司当年账套	ชุดบัญชีของบริษัทตามปี	会社のその年の会計データ	cowork.folder.followCompany
+Follows the company's account set for the year	跟随公司当年账套	ตามชุดบัญชีของบริษัทในแต่ละปี	会社のその年の会計データに従う	cowork.folder.followCompany
 Company Branch	公司分店	สาขาของบริษัท	会社の支店
 The result sheet is not ready yet.	结果表格尚未生成。	ตารางผลยังไม่พร้อม	結果表はまだ準備できていません。	cowork.folder.workbook_not_ready
 Original file name	原文件名	ชื่อไฟล์ต้นฉบับ	元のファイル	cowork.folder.wb.file

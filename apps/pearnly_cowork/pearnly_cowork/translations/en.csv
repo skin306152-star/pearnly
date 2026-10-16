@@ -380,7 +380,6 @@ Company choices are full,Company choices are full
 Company not found,Company not found
 Company tax ID,Company tax ID
 Company tax ID not on the document,Company tax ID not on the document
-Company's account set for the year,Company's account set for the year
 CompanyA-purchase-service,CompanyA-purchase-service
 CompanyA-sales,CompanyA-sales
 Complete,Complete
@@ -762,6 +761,7 @@ Folder results,Folder results
 Folder rule name,Folder rule name
 Folder rules work with Express connections only.,Folder rules work with Express connections only.
 Folder to read,Folder to read
+Follows the company's account set for the year,Follows the company's account set for the year
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
 Form,Form
 Formula Diff,Formula Diff
@@ -2294,7 +2294,7 @@ cowork.folder.field.time,Run time
 cowork.folder.field.title,Task name
 cowork.folder.folderHint,One folder per scheduled task. PDF and image files only.
 cowork.folder.folderMissing,Folder not available
-cowork.folder.followCompany,Company's account set for the year
+cowork.folder.followCompany,Follows the company's account set for the year
 cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
 cowork.folder.guide.result,"made by the system, do not put documents here"
 cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.

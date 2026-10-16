@@ -177,6 +177,17 @@ def set_members(name, all_members=None, users=None):
     return _dto(doc)
 
 
+def member_choices(name):
+    """「全所可用」名单能勾的人（第 6 批审查第 6 条）：只给管理员、只给 Express 池，候选与 `set_members` 核新加的人同一口径
+    （`access.assignees`）。只读。"""
+    access.require_actor(management=True, lock=False)
+    doc = _read(CONNECTION, name, lock=False)
+    access.require_connection(doc, management=True, enabled=False, lock=False)
+    if doc.adapter != "express":
+        _error("connection.config_invalid")
+    return access.assignees()
+
+
 def detail(name):
     doc = _read(CONNECTION, name, lock=False)
     # A manager can inspect disabled/unassigned configuration without acquiring

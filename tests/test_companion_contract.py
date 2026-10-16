@@ -182,10 +182,12 @@ class DeviceMethods(unittest.TestCase):
         api = (SERVER / "api.py").read_text(encoding="utf-8")
         register = next(node for node in ast.parse(api).body if isinstance(node, ast.FunctionDef) and node.name == "register")
         params = {arg.arg for arg in register.args.args}
-        for key in ("device_key", "device_name", "rekey"):
+        for key in ("device_key", "device_name", "rekey", "rejoin"):
             self.assertIn(key, params)
             self.assertIn(f"{key}: ", page)
-        self.assertIn("{ device_key: device.key, device_name: device.name, ...(rekey ? { rekey: true } : {}) }", page)
+        # rejoin（第 6 批审查第 2 条）：被移除的电脑只有人点「连接」才带，打开页面的自动登记不带
+        self.assertIn("{ device_key: device.key, device_name: device.name, ...(rekey ? { rekey: true } : {}), "
+                      "...(rejoin ? { rejoin: true } : {}) }", page)
         self.assertIn('export const DEVICES = "devices";', page)
         self.assertIn('"devices"', (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8"))
         self.assertIn("state?.features?.includes(DEVICES) && key", page)
@@ -202,11 +204,24 @@ class DeviceMethods(unittest.TestCase):
         self.assertIn("if (!state.members.length || thisComputer(state)) await connectComputer(api);", hook)
         self.assertIn("off = api.onChanged(", hook)
 
+    def test_replacing_a_members_key_lets_the_old_key_say_hello_not_leave(self):
+        """第 6 批审查第 5 条：配对按端点换掉成员的旧密钥前先拿旧密钥认一次电脑（服务端回 superseded 才吊销它、把旧电脑并进这台），
+        用的是 device_hello、不是 device_leave（同一配对码抄到两台时 leave 会吊销另一台正在用的密钥）；被说过不能再用的不发。"""
+        pair = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "pair")
+        self.assertLess(pair.index("self._settle_member("), pair.index("self._pair("))
+        settle = method_source(COMPANION / "desktop_settings.py", "DesktopSettings", "_settle_member")
+        self.assertIn("getattr(record, 'device_state', '')", settle)
+        self.assertNotIn("_leave", settle)
+        link = method_source_of(self.LINK, "settle_old_key")
+        self.assertIn("hello(backend_url, token, hello_body(key", link)
+        self.assertNotIn("LEAVE", link)
+
     def test_register_takes_the_device_key_and_the_management_rpcs_are_gone(self):
         api = (SERVER / "api.py").read_text(encoding="utf-8")
         register = next(node for node in ast.parse(api).body if isinstance(node, ast.FunctionDef) and node.name == "register")
         self.assertEqual([arg.arg for arg in register.args.args],
-                         ["request_key", "express", "replace", "expected_generation", "device_key", "device_name", "rekey"])
+                         ["request_key", "express", "replace", "expected_generation", "device_key", "device_name", "rekey",
+                          "rejoin"])
         for retired in ("issue", "revoke", "status"):
             self.assertFalse(any(isinstance(node, ast.FunctionDef) and node.name == retired
                                  for node in ast.parse(api).body), retired)

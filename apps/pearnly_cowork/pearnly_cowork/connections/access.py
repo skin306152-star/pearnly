@@ -113,12 +113,25 @@ def usable_by(doc, actor):
     return True
 
 
+ASSIGNEE_ROLES = ("Cowork Intake", "Cowork Push Log", "Cowork Admin")
+
+
 def require_assignee(actor, workspace, client=None):
     found = _current("SELECT enabled FROM `tabUser` WHERE name=%s", (actor,))
     if (not actor or actor == "Guest" or not found or not found[0].enabled
-            or not {"Cowork Intake", "Cowork Push Log", "Cowork Admin"}.intersection(roles(actor))):
+            or not set(ASSIGNEE_ROLES).intersection(roles(actor))):
         deny()
     require_scope(workspace, client, actor=actor)
+
+
+def assignees(limit=500):
+    """能进连接名单的人（同 :func:`require_assignee`：启用、有录入 / 推送记录 / 管理角色之一）：``[{email, display}]``，
+    按显示名排。设置里「全所可用」名单的候选只从这里取（第 6 批审查第 6 条），勾上的人 `set_members` 照样逐个核。只读、不加锁。"""
+    rows = frappe.db.sql("""SELECT DISTINCT u.name, u.full_name FROM `tabUser` u
+        JOIN `tabHas Role` r ON r.parent = u.name AND r.parenttype = 'User'
+        WHERE u.enabled = 1 AND u.name <> 'Guest' AND r.role IN %s
+        ORDER BY u.full_name, u.name LIMIT %s""", (ASSIGNEE_ROLES, int(limit)), as_dict=True)
+    return [{"email": row.name, "display": row.full_name or row.name} for row in rows]
 
 
 def default_workspace() -> str:

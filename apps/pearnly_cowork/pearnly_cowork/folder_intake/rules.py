@@ -56,6 +56,19 @@ def _require():
     scope.require("intake")
 
 
+def _managed_connection(name):
+    """管理员看「电脑」列表时、自己不在这条连接的使用名单上：按管理口径读（不看名单、不要启用）；读不了回 None。"""
+    try:
+        doc = frappe.get_doc(CONNECTION, name)
+        connection_access.require_connection(doc, management=True, enabled=False, lock=False)
+    except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        return None
+    if not destinations.supported(doc.adapter) or int(doc.binding_generation or 0) != 0:
+        return None
+    return doc
+
+
 def _catalog_item(connection, account_set_key):
     """年度账套必须在这条连接的账套目录里（与新建录入下拉同一份目录）。"""
     key = normalize_express_account_key(account_set_key)
@@ -185,7 +198,15 @@ def computers():
             doc = _connection(row["name"])
         except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
             frappe.clear_messages()
-            continue
+            # 管理员不在使用名单上（关掉全所可用、名单里没勾自己）也要看得到、移除得了池里的电脑（同 `records` 的管理口径，
+            # 第 6 批审查第 6 条）；别人照旧只看自己能用的连接
+            if manager is None:
+                from pearnly_cowork.companion import credentials
+
+                manager = credentials.manages(actor)
+            doc = _managed_connection(row["name"]) if manager else None
+            if doc is None:
+                continue
         peers = readers.members(doc.name)
         owners = devices.owners(list(peers))
         for device in sorted(peers):
@@ -596,6 +617,11 @@ def listing():
                 members[row["reader"]] = readers.members(row["reader"])
             # 读它的电脑已被移除（或这台电脑在这条连接上一把有效密钥都不剩）：任务留着原电脑，由负责人重选（方案 2.7）
             row["reader_gone"] = bool(row["reader_device"]) and row["reader_device"] not in members[row["reader"]]
+            # 读文件夹的那台电脑的名字：池里不止一台电脑时列表的文件夹一栏前面带上（几台都映射了 S 盘也分得清，第 6 批审查
+            # 第 14 条）；一台时不给（不加多余的字）。名字取法同读者选项（小助手同步时报的 → 电脑记录上的）
+            if len(members[row["reader"]]) > 1 and row["reader_device"]:
+                peer = members[row["reader"]].get(row["reader_device"]) or {}
+                row["reader_label"] = str(state.get("device") or peer.get("label") or "")[:80]
             roots = {item["id"]: item for item in state.get("roots") or []}
             fresh, root = agent.fresh(state), roots.get(row["root_id"]) or {}
             # 待处理数（1.4.4 起小助手报）：到点会处理、还没处理过的文件。停用的任务小助手不算；不知道就是 None（不用 0 冒充）。

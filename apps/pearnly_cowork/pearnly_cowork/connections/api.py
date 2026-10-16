@@ -34,6 +34,12 @@ def set_members(name, all_members=None, users=None):
     return _call(service.set_members, name, all_members, users)
 
 
+@frappe.whitelist(methods=["GET"])
+def member_choices(name):
+    # 「全所可用」名单能勾的人：只给管理员（见 service.member_choices）
+    return _call(service.member_choices, name)
+
+
 @frappe.whitelist()
 def detail(name):
     return _call(service.detail, name)

@@ -446,8 +446,11 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
     try {
       const result = await chooseAccountSet(item, value);
       if (answered(result)) onDone(item.document);
+      // 选的那份这会儿已不在可换之列（目录刚变）：重取可换的账套再让人选，不弹错误
+      else if (result.status === "stale") void load();
       else {
-        // 还要人选（科目等）或推不成：原因记在单上，列表重取后按新原因显示
+        // 还要人选（科目等）：原因记在单上，列表重取后按新原因显示；推不成（没进账本）：单回到「待选账套」能再选，
+        // 这次的原因显示在这一行下面
         setError(result.reason ?? "");
         onChanged();
       }

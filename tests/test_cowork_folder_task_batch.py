@@ -520,6 +520,16 @@ class ReaderDevices(Harness):
         self.assertEqual((row["reader"], row["reader_device"], row["reader_id"], row["reader_gone"]),
                          ("C1", "PC2", "PC2|C1", True))
 
+    def test_the_list_names_the_reading_computer_only_when_the_pool_has_several(self):
+        """第 6 批审查第 14 条：两台电脑都映射了 S 盘时列表的文件夹一栏分得清是哪台读的（``reader_label``）；一台时不给。"""
+        self.rules.save(self.values(reader="PC2|C1", root_id=self.ROOT_C, folder="A"))
+        self.rules.project = self.real_project
+        self.rules.counts = self.rules.results = lambda *args, **kwargs: {}
+        row = self.rules.listing()["rules"][0]
+        self.assertEqual(row["reader_label"], "ACC-02")  # 同步报的电脑名优先（同读者选项）
+        del self.members["C1"]["PC1"]
+        self.assertNotIn("reader_label", self.rules.listing()["rules"][0])
+
     def test_waiting_and_continues_take_a_reader_id_or_a_bare_connection(self):
         self.assertEqual(self.rules.waiting("PC1|C1", ROOT_A, ""), {"files": 9, "partial": True})
         self.assertEqual(self.rules.waiting("C1", ROOT_A, ""), {"files": 9, "partial": True})

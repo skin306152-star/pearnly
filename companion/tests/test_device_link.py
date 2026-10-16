@@ -462,6 +462,63 @@ def test_switching_to_another_company_leaves_every_old_member_first(tmp_path, mo
     assert result["ok"] and sorted(left) == ["exp_C1_secret", "exp_M1_x"]
 
 
+# ── 换掉成员的旧密钥前先拿它认一次电脑（第 6 批审查第 5 条） ──
+
+def test_replacing_a_members_key_lets_the_old_key_say_hello_first(tmp_path, monkeypatch):
+    """升级到 1.7.0 后对话页的登记先于旧槽位密钥认电脑：配对换钥前先拿旧钥认一次，服务端才会吊销它、把旧电脑并进这台。
+    被服务端说过不能再用的（device_state）、同一把密钥都不发。"""
+    store = _store(tmp_path, ("exp_C1_old", "express"), ("exp_C2_gone", "express"))
+    store.set_device_state(store.profiles[1].profile_id, "claimed_elsewhere")
+    settled, order = [], []
+    settings = DesktopSettings(load_store=lambda: _reload(store),
+                               settle_old=lambda url, token, **kw: settled.append((url, token, kw)) or order.append("hello")
+                               or "superseded")
+    monkeypatch.setattr(desktop_settings.pairing_flow, "run",
+                        lambda *args, **kwargs: order.append("pair") or SimpleNamespace(ok=True))
+    assert settings.pair("exp_C1_new@testcowork.pearnly.com", "zh")["ok"]
+    assert settled == [("https://testcowork.pearnly.com", "exp_C1_old", {"always_on": False})]
+    assert order == ["hello", "pair"]
+    settings.pair("exp_C2_new@testcowork.pearnly.com", "zh")   # 被说过不能再用：服务端已处理过，不发
+    settings.pair("exp_C1_old@testcowork.pearnly.com", "zh")   # 同一把密钥：不发
+    settings.pair("exp_C9_new@testcowork.pearnly.com", "zh")   # 新成员：没有旧密钥
+    assert len(settled) == 1
+
+
+def test_a_failing_old_key_hello_never_blocks_pairing(tmp_path, monkeypatch):
+    store = _store(tmp_path, ("exp_C1_old", "express"))
+
+    def boom(url, token, **kw):
+        raise RuntimeError("network")
+
+    settings = DesktopSettings(load_store=lambda: _reload(store), settle_old=boom)
+    monkeypatch.setattr(desktop_settings.pairing_flow, "run", lambda *args, **kwargs: SimpleNamespace(ok=True))
+    assert settings.pair("exp_C1_new@testcowork.pearnly.com", "zh") == {"ok": True, "profiles_changed": True}
+
+
+def test_settle_old_key_sends_hello_with_the_old_key_and_swallows_refusals(monkeypatch):
+    key = "k" * 43
+    sent = []
+    monkeypatch.setattr(device_link, "device_key", lambda *a, **k: key)
+    monkeypatch.setattr(device_link.device_facts, "host_names", lambda: ["ACC-01.local"])
+
+    def reply(url, token, body, timeout=15.0):
+        sent.append((url, token, body))
+        return {"ok": True, "status": device_link.SUPERSEDED}
+
+    monkeypatch.setattr(device_link, "hello", reply)
+    assert device_link.settle_old_key("https://t.pearnly.com", "exp_C1_old", always_on=True) == device_link.SUPERSEDED
+    assert sent[0][:2] == ("https://t.pearnly.com", "exp_C1_old")
+    assert sent[0][2]["device_key"] == key and sent[0][2]["always_on"] is True
+    assert device_link.settle_old_key("", "exp_C1_old") == "" and device_link.settle_old_key("https://t", "x") == ""
+    assert len(sent) == 1
+
+    def refused(url, token, body, timeout=15.0):
+        raise device_link.OldServer("401")
+
+    monkeypatch.setattr(device_link, "hello", refused)
+    assert device_link.settle_old_key("https://t.pearnly.com", "exp_C1_old") == ""
+
+
 # ── 没有 Express 也能加入池 ──
 
 def test_a_computer_without_express_joins_the_express_pool_as_a_read_only_member(tmp_path, monkeypatch):

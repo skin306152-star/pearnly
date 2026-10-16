@@ -330,7 +330,7 @@ def _device_connection(express):
 
 
 def register(request_key, express=False, replace=False, expected_generation=None,
-             device_key=None, device_name=None, rekey=False):
+             device_key=None, device_name=None, rekey=False, rejoin=False):
     """CC 桌面端用登录的账号连上这台电脑（2026-10-10 起取代手抄配对码，旧配对码照常有效）。
 
     权限（D1，ADR-021）：录入或管理角色、且在这条连接的可用名单里，就能给**自己的**电脑发密钥，签发人 = 本人，
@@ -343,7 +343,7 @@ def register(request_key, express=False, replace=False, expected_generation=None
     """
     _enabled()
     actor = access.require_actor()
-    express, replace, rekey = (contracts.wire_flag(v) in (True, 1) for v in (express, replace, rekey))
+    express, replace, rekey, rejoin = (contracts.wire_flag(v) in (True, 1) for v in (express, replace, rekey, rejoin))
     # 同一归属下串行：两台电脑同时登录不会各建一条 Express 连接
     frappe.db.get_value('Cowork Workspace', access.default_workspace(), 'name', for_update=True)
     name = _device_connection(express)
@@ -357,7 +357,7 @@ def register(request_key, express=False, replace=False, expected_generation=None
             _error(error.code)
     adapter = frappe.db.get_value(CONNECTION, name, 'adapter')
     if device_key not in (None, ''):
-        return _register_device(name, adapter, actor, request_key, device_key, device_name, rekey)
+        return _register_device(name, adapter, actor, request_key, device_key, device_name, rekey, rejoin)
     result = issue(name, request_key, replace, expected_generation if replace else None)
     if result.get('status') == 'update_needed':
         return {'status': 'update_needed', 'connection': name, 'adapter': adapter}
@@ -367,13 +367,16 @@ def register(request_key, express=False, replace=False, expected_generation=None
             'online': result['online'], 'issuer': result['issuer'], 'self': result['issuer'] == actor}
 
 
-def _register_device(name, adapter, actor, request_key, device_key, device_name, rekey):
+def _register_device(name, adapter, actor, request_key, device_key, device_name, rekey, rejoin=False):
     """register v2：这台电脑在池里的一把密钥，同一事务里认电脑、发 / 轮换它自己的密钥，从不吊销别的电脑。
 
     - 新电脑：建电脑（登记人 = 本人）并发密钥 → `created`；
     - 这台已有有效密钥：只记最近登录的人 → `exists`，不改登记人、不吊销（全所共用一台、各人用自己账号登录）；
     - 同上且 `rekey`（本机已没有这家的成员，比如重装过），本人是登记人或管理员：吊销旧的、发新的 → `created`；
-    - 电脑被移除过：旧记录交出摘要，这台作为新电脑加入。
+    - 同上但那把密钥的签发人已用不了这条连接（名单收窄、角色被收回：认证 `_issuer` 早已拒它，这台电脑写不了）：本人已过
+      `_use`，按 rekey 换成本人签发的新钥 → `created`，不要求登记人或管理员（旧钥反正已作废，第 6 批审查第 1 条）；
+    - 电脑被「电脑」列表移除过：对话页每次打开的自动登记只回 `removed`，不复活（第 6 批审查第 2 条：移除要持久）；
+      只有人在这台电脑的设置里亲手点「连接」（`rejoin`）时，旧记录才交出摘要，这台作为新电脑加入。
     加锁顺序 Connection → Credential → Device：先不加锁地按摘要找电脑，锁完这条连接上要动的密钥行，最后才锁电脑行
     并复核；电脑行在这期间被并发改了（退役、另一个成员刚建好同一台）就 ``devices.busy()``，整段重来。
     没装 Express 的电脑由 `_device_connection` 挂到 MR.ERP 主连接，没有就挂 Express 池当只读文件夹成员；
@@ -387,6 +390,8 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
         operation = _value(contracts.operation_identity, _site(), actor, doc.name, request_key)
         found, stale = devices.find(digest), None  # plain read: no computer row is locked yet
         if found and devices.retired(found):
+            if not rejoin:
+                return {'status': 'removed', 'connection': doc.name, 'adapter': adapter, 'device': found}
             stale, found = found, None
         current = None
         if found:
@@ -407,10 +412,12 @@ def _register_device(name, adapter, actor, request_key, device_key, device_name,
             if device.secret_digest != digest or device.retired_at:
                 raise devices.busy()
             devices.note_signed_in(device, actor)
-            if current is not None and not rekey:
+            # 签发人已用不了这条连接：这把密钥认证早就过不去（`_issuer`），留着它这台电脑永远写不了
+            lapsed = current is not None and current.issuer != actor and not issuer_valid(doc, current.issuer)
+            if current is not None and not rekey and not lapsed:
                 return {'status': 'exists', 'connection': doc.name, 'adapter': adapter, 'device': device.name,
                         'generation': int(current.token_generation)}
-            if current is not None and actor != device.device_owner and not _manager(actor):
+            if current is not None and not lapsed and actor != device.device_owner and not _manager(actor):
                 access.deny()
         else:
             device = devices.create_claimed(workspace=doc.workspace, owner=actor, label=label, secret_digest=digest,
@@ -433,8 +440,9 @@ def remove_device(device):
 
     权限同 ``rekey``：这台电脑的登记人或管理员；别的归属的电脑、不存在的编号一律按无权拒（不说有没有）。已经移除过的
     回 ``removed``（``replayed``），重复点、两人同时点都只移除一次。退役后它的密钥不再认（认证核「电脑没退役」），可达行
-    随退役删掉，它读的定时任务与公司文件夹留着、标「电脑已移除」等负责人重选（不自动换电脑读）。同一台电脑以后再登录
-    CC，对话页按设备密钥 `register` 时旧记录交出摘要，这台作为新电脑加入。
+    随退役删掉，它读的定时任务与公司文件夹留着、标「电脑已移除」等负责人重选（不自动换电脑读）。那台电脑上的对话页再打开
+    只看到「电脑已移除」（`register` 回 ``removed``，不自动复活）；有人在它的设置里亲手点「连接」（``rejoin``），旧记录才交出
+    摘要，这台作为新电脑加入。
 
     加锁顺序 Connection → Credential → Device：一台电脑可以在好几条连接上各有密钥、各有可达行（第 2 批记录：「移除一台
     够得到多条连接的电脑时要先锁那些连接」），先不加锁地找出这些连接，按名字顺序逐条锁，再锁它的密钥行，最后才锁电脑行

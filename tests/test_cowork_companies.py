@@ -1296,11 +1296,15 @@ class PendingAnswerTests(unittest.TestCase):
     （`push.application.api.choices`），作答经 `assistant.pending_api.answer`：先记下选择，再按 CC 推送同一条路重推。
     只记选择不会自动重推（推送记录停在「要人选」）。"""
 
-    def _answer(self, doc, pushed):
-        """按真实导入加载 `assistant.pending_api`；单据读取、记选择、CC 的重推换成替身（整个测试期间挂着）。"""
+    def _answer(self, doc, pushed, rules=()):
+        """按真实导入加载 `assistant.pending_api`；单据读取、记选择、CC 的重推换成替身（整个测试期间挂着）。
+        ``rules``：这张票出自的定时任务（`folder_intake.push.source_rules` 的替身）。"""
         calls = []
         storage = types.SimpleNamespace(read=lambda name: doc)
-        push_state = types.SimpleNamespace(retarget=lambda *args: calls.append(("retarget",) + args))
+        push_state = types.SimpleNamespace(retarget=lambda *args: calls.append(("retarget",) + args),
+                                           record_failure=lambda *args, **kw: calls.append(("restore",) + args
+                                                                                          + tuple(sorted(kw.items()))))
+        folder_push = types.SimpleNamespace(source_rules=lambda name: [Row(rule) for rule in rules])
         application_api = types.SimpleNamespace(
             save_choices=lambda *args: calls.append(("save",) + args) or {"saved": 1})
         tools = types.SimpleNamespace(_push_one=lambda *args: calls.append(("push",) + args) or dict(pushed))
@@ -1311,6 +1315,7 @@ class PendingAnswerTests(unittest.TestCase):
             "pearnly_cowork.history.push_state": push_state,
             "pearnly_cowork.push.application": types.SimpleNamespace(api=application_api),
             "pearnly_cowork.push.application.api": application_api,
+            "pearnly_cowork.folder_intake.push": folder_push,
             "pearnly_cowork.assistant.tools": tools})
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -1376,19 +1381,17 @@ class PendingAnswerTests(unittest.TestCase):
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
         self.assertEqual(out, {"document": "h1", "status": "sent"})
-        # 抄到票上的、推往的都是目录里的那份（同定时任务选到时记的键）
-        self.assertEqual(calls, [("retarget", "h1", "C1", "s:\\69exp\\abc2"), ("push", "h1", "C1", "s:\\69exp\\abc2")])
-        # 不在可换之列（别的年度）、不是待选账套停下的单：拒，不推
+        # 推往的、推成后抄到票上的都是目录里的那份（同定时任务选到时记的键）；先推、推成了才抄
+        self.assertEqual(calls, [("push", "h1", "C1", "s:\\69exp\\abc2"), ("retarget", "h1", "C1", "s:\\69exp\\abc2")])
+        # 不在可换之列（别的年度）、不是待选账套停下的单：回 stale（页面重取可换的），不推、不弹「去新建录入」的错
         calls.clear()
         for key in ("S:\\68EXP\\ABC", "", "S:\\NOPE"):
             fresh_request()
-            with self.assertRaises(frappe.ValidationError):
-                module.choose_account_set("h1", key)
+            self.assertEqual(module.choose_account_set("h1", key), {"document": "h1", "status": "stale"})
         doc.last_push_reason = "push.failed"
         fresh_request()
         self.assertEqual(module.account_sets("h1")["account_sets"], [])
-        with self.assertRaises(frappe.ValidationError):
-            module.choose_account_set("h1", "S:\\69EXP\\ABC")
+        self.assertEqual(module.choose_account_set("h1", "S:\\69EXP\\ABC")["status"], "stale")
         doc.last_push_reason, doc.invoice_date = "cowork.folder.account_set_none", ""
         fresh_request()
         self.assertEqual(module.account_sets("h1")["account_sets"], [])  # 没有单据日期：无从选
@@ -1401,6 +1404,42 @@ class PendingAnswerTests(unittest.TestCase):
                 module.choose_account_set("h1", "S:\\69EXP\\ABC")
         finally:
             scope.features = {"intake", "ocr_history"}
+
+    def test_a_failed_switch_puts_the_document_back_to_choose_again(self):
+        """第 6 批审查第 4 条：选了一份推不成、也没进账本（硬闸拒、主档没读到…）：票上的去向与「待选账套」原因原样放回，还能
+        再选；这次的原因只回给页面。推成了才抄去向。"""
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy")])
+        make()
+        doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous", push_account_set="S:\\69EXP\\ABC")
+        module, calls = self._answer(doc, {"status": "failed", "reason": "account_match:branch"})
+        fresh_request()
+        out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
+        self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "account_match:branch"})
+        self.assertEqual(calls, [("push", "h1", "C1", "s:\\69exp\\abc2"),
+                                 ("restore", "h1", "cowork.folder.account_set_ambiguous",
+                                  ("account_set", "S:\\69EXP\\ABC"), ("connection", "C1"))])
+
+    def test_switchable_account_sets_follow_the_tasks_company_and_branch(self):
+        """第 6 批审查第 4 条：可换的账套按出这张票的定时任务记的公司与分店列（同定时任务选账套），不按票上现算的归属——
+        分店任务不列总部的账套；任务删了才退回按归属现算。"""
+        reset(C1=[express_row("S:\\69EXP\\HQ", "ABC 69"), express_row("S:\\69EXP\\HQ2", "ABC 69 copy"),
+                  express_row("S:\\69EXP\\BR1", "ABC 69 branch 1", branch="00001"),
+                  express_row("S:\\69EXP\\BR1B", "ABC 69 branch 1 copy", branch="00001")])
+        company = make(key="S:\\69EXP\\HQ")["id"]
+        doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous", push_account_set="S:\\69EXP\\BR1")
+        module, calls = self._answer(doc, {"status": "sent"},
+                                     rules=[{"connection": "C9", "company": "other"},
+                                            {"connection": "C1", "company": company, "company_branch": "00001"}])
+        fresh_request()
+        found = sorted(item["key"] for item in module.account_sets("h1")["account_sets"])
+        self.assertEqual(found, ["s:\\69exp\\br1", "s:\\69exp\\br1b"])
+        fresh_request()
+        self.assertEqual(module.choose_account_set("h1", "S:\\69EXP\\HQ"), {"document": "h1", "status": "stale"})
+        self.assertEqual(calls, [])
+        # 任务已删：按这张票现算归属的公司列（不分店）
+        module, _calls = self._answer(doc, {"status": "sent"})
+        fresh_request()
+        self.assertEqual(len(module.account_sets("h1")["account_sets"]), 4)
 
     def test_the_pending_item_stays_light(self):
         # 列表每行只带推送去向与类别；可选项由页面展开时取（不让列表每行读账套主档）

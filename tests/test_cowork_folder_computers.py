@@ -39,6 +39,7 @@ class Computers(unittest.TestCase):
         with mock.patch.object(rules, "_require") as require, \
                 mock.patch.object(rules.connections, "records", return_value=records), \
                 mock.patch.object(rules, "_connection", side_effect=connection), \
+                mock.patch.object(rules, "_managed_connection", side_effect=lambda name: docs.get(name)), \
                 mock.patch.object(rules.readers, "members", side_effect=lambda n: members.get(n, {})), \
                 mock.patch.object(rules.devices, "owners", side_effect=lambda names: {
                     name: owner for name, owner in (owners or {}).items() if name in names}), \
@@ -74,6 +75,16 @@ class Computers(unittest.TestCase):
                          [("KEY-OLD", False, False), ("PC1", True, True), ("PC2", False, False)])
         self.assertEqual([(row["id"], row["can_remove"]) for row in boss],
                          [("KEY-OLD", False), ("PC1", True), ("PC2", True)])
+
+    def test_an_admin_off_the_use_list_still_sees_and_may_remove_the_computers(self):
+        """第 6 批审查第 6 条：管理员关掉全所可用、名单里没勾自己，「电脑」列表照样列池里的电脑（同 `records` 的管理口径），
+        不然就没人移除得了；不是管理员的照旧只看自己能用的连接。"""
+        records = [{"name": "C-E", "adapter": "express", "enabled": 1}]
+        members, owners = {"C-E": {"PC1": {"online": True}}}, {"PC1": "me@example.com"}
+        boss = self.run_computers(records, members=members, owners=owners, denied={"C-E"}, user="admin@example.com",
+                                  manager=True)
+        self.assertEqual([(row["id"], row["can_remove"]) for row in boss], [("PC1", True)])
+        self.assertEqual(self.run_computers(records, members=members, owners=owners, denied={"C-E"}), [])
 
     def test_express_online_follows_the_heartbeat_not_the_folder_sync(self):
         result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1}], online=())

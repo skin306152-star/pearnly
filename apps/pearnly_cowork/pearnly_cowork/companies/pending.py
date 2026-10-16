@@ -129,19 +129,34 @@ def company_for(row) -> str:
     return company_of(row, by_set, by_tax)
 
 
+def _task_company(row) -> tuple[str, str] | None:
+    """这张票出自的定时任务记的公司与分店（推往同一条连接、记了公司的那条，同 `folder_intake.push.fixed_for` 的路）；
+    找不到回 None。"""
+    from pearnly_cowork.folder_intake import push as folder_push
+
+    for rule in folder_push.source_rules(row.get("name")):
+        if rule.connection == row.get("push_connection") and rule.get("company"):
+            return rule.company, rule.get("company_branch") or ""
+    return None
+
+
 def account_sets_for(row) -> list:
-    """停在「待选账套」的单可换的账套：``[{"key", "label"}]`` = 这张单归的公司在推送去向那条连接上覆盖单据日期的账套
-    （同定时任务选账套的 `tasks.books_of`）；不是这种单、没有单据日期、归不上公司回空表（第 6 批，待处理页当场换账套）。"""
+    """停在「待选账套」的单可换的账套：``[{"key", "label"}]`` = 出这张单的定时任务所跟的公司（与分店）在推送去向那条连接上
+    覆盖单据日期的账套——与定时任务选账套同一判据（`tasks.books_of`，带分店），选了推送时任务默认处理照样套用
+    （`follow.member`）；找不到任务（已删）才退回按这张单现算归属的公司（推送去向账套 → 买方 → 卖方税号）。
+    不是这种单、没有单据日期、归不上公司回空表（第 6 批，待处理页当场换账套；分店筛选见第 6 批审查第 4 条）。"""
     from pearnly_cowork.companies import tasks
 
     if not account_set_stop(row):
         return []
     day = str(row.get("invoice_date") or "")[:10]
-    company = company_for(row) if day else ""
+    if not day:
+        return []
+    company, branch = _task_company(row) or (company_for(row), "")
     if not company:
         return []
     return [{"key": item["key"], "label": item.get("label") or item["key"]}
-            for item in tasks.books_of(company, row["push_connection"], day) or []]
+            for item in tasks.books_of(company, row["push_connection"], day, branch) or []]
 
 
 def account_set_pick(row, key) -> dict | None:

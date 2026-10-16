@@ -88,6 +88,30 @@ def leave(backend_url: str, token: str, timeout: float = 15.0) -> bool:
     return bool(isinstance(reply, dict) and reply.get("ok") and reply.get("status") == LEFT)
 
 
+def settle_old_key(backend_url: str, token: str, *, always_on: bool = False, timeout: float = 15.0) -> str:
+    """配对要把成员手里的旧密钥换成对话页刚登记来的这台电脑自己的新密钥时，先拿旧密钥认一次电脑（device_hello）。
+
+    升级到 1.7.0 后第一次打开：对话页的登记可能先于这个成员用旧槽位密钥认电脑，服务端就为这台电脑新建了记录并发新钥，
+    旧槽位密钥还挂在没人认领的「旧电脑」上，换掉以后再也不会去认电脑——那台「旧电脑」永远离线却不吊销，写账可能分派给它
+    （第 6 批审查第 5 条）。先认一次：服务端发现这台电脑在这条连接上已有自己的密钥 → ``superseded``，吊销旧钥，把旧电脑的
+    可达行、读文件夹任务转给这台再让旧电脑退役（`credentials.hello`）。旧钥是别的电脑认领过的（同一配对码抄到两台）回
+    ``claimed_elsewhere``、什么都不改；旧钥早已吊销、旧服务端回 401 等一律不管。从不抛，回服务端的状态（没发、失败是空串）。"""
+    if not str(backend_url or "").strip() or not str(token or "").startswith("exp_"):
+        return ""
+    key = device_key()
+    if not key:
+        return ""
+    try:
+        reply = hello(backend_url, token, hello_body(key, always_on=always_on), timeout)
+    except OldServer as error:
+        log.info("换密钥前旧密钥认电脑被拒（旧服务端或旧密钥已失效）: %s", error)
+        return ""
+    except Exception as error:
+        log.info("换密钥前旧密钥认电脑失败: %r", error)
+        return ""
+    return str(reply.get("status") or "") if isinstance(reply, dict) and reply.get("ok") else ""
+
+
 # ── 设备密钥（进程内只取一次） ─────────────────────────────────────────────────────
 
 _key_lock = threading.Lock()
@@ -232,5 +256,5 @@ def settle(store, profile_id: str, status: str) -> str:
 ANNOUNCER = Announcer()
 
 __all__ = ["ANNOUNCER", "ATTACHED", "Announcer", "CLAIMED_ELSEWHERE", "HELLO", "LEAVE", "LEFT", "NEEDS_REGISTER",
-           "OldServer", "REFUSED", "SUPERSEDED", "device_key", "hello", "hello_body", "identity", "leave",
+           "OldServer", "REFUSED", "SUPERSEDED", "device_key", "hello", "hello_body", "identity", "leave", "settle_old_key",
            "new_device_key", "settle"]

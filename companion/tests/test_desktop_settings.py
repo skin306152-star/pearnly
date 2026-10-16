@@ -36,6 +36,8 @@ def _store(tmp_path, monkeypatch, with_member=True):
 
 
 def _settings(store, **kwargs):
+    # 换掉成员旧密钥前的认电脑（device_link.settle_old_key）会联网：测试里默认不发
+    kwargs.setdefault("settle_old", lambda url, token, **kw: "")
     return DesktopSettings(load_store=lambda: ProfileStore.load(store.path, protector=_Protector()), **kwargs)
 
 

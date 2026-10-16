@@ -380,7 +380,6 @@ Company choices are full,会社の選択が上限です
 Company not found,会社が見つかりません
 Company tax ID,自社の番号
 Company tax ID not on the document,書類に自社の納税者番号なし
-Company's account set for the year,会社のその年の会計データ
 CompanyA-purchase-service,会社A-仕入-サービス
 CompanyA-sales,会社A-売上
 Complete,完了
@@ -762,6 +761,7 @@ Folder results,結果
 Folder rule name,ルール名
 Folder rules work with Express connections only.,Express 接続でのみ使えます。
 Folder to read,フォルダー
+Follows the company's account set for the year,会社のその年の会計データに従う
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 Form,様式
 Formula Diff,計算式差額
@@ -2294,7 +2294,7 @@ cowork.folder.field.time,実行時刻
 cowork.folder.field.title,タスク名
 cowork.folder.folderHint,1 フォルダーに 1 定期タスク。PDF と画像のみ。
 cowork.folder.folderMissing,フォルダーが見つかりません
-cowork.folder.followCompany,会社のその年の会計データ
+cowork.folder.followCompany,会社のその年の会計データに従う
 cowork.folder.guide.oneRule,1 フォルダー = 1 ルール = 1 社 + 1 年度の帳簿 + 仕入または売上 + サービスまたは在庫
 cowork.folder.guide.result,システムが作成。書類を置かないでください
 cowork.folder.guide.resultRule,各請求書の結果表は _Pearnly结果 に保存され、翌日確認できます。

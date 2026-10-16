@@ -320,6 +320,27 @@ class ConnectionReadLocks(unittest.TestCase):
         self.assertIn("_call(service.set_members, name, all_members, users)", api)
         self.assertIn('@frappe.whitelist(methods=["POST"])\ndef set_members', api)
 
+    def test_member_choices_are_the_assignees_and_only_for_admins_on_express(self):
+        """第 6 批审查第 6 条：「全所可用」名单的候选只给管理员、只给 Express 池，人选与 `set_members` 核新加的人同一口径
+        （`access.assignees`），不再借团队成员接口（那里要另一种管理员，还列只有别的产品角色的人）。只读、不加锁。"""
+        DB.docs[CONNECTION] = {"CONN": connection("CONN"), "MR": connection("MR", adapter="mrerp")}
+        people = [{"email": "boss@x.com", "display": "Boss"}]
+        with mock.patch.object(access, "assignees", lambda: people, create=True):
+            self.assertEqual(service.member_choices("CONN"), people)
+            with self.assertRaises(ValidationError):
+                service.member_choices("MR")
+
+            def no_admin(actor=None, *, management=False, **kwargs):
+                if management:
+                    raise PermissionError_("Not Permitted")
+                return actor or USER
+
+            with mock.patch.object(access, "require_actor", no_admin), self.assertRaises(PermissionError_):
+                service.member_choices("CONN")
+        self.assertNoLocks()
+        api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/api.py").read_text(encoding="utf-8")
+        self.assertIn('@frappe.whitelist(methods=["GET"])\ndef member_choices', api)
+
     def test_every_read_only_connection_view_takes_no_row_locks(self):
         self.assertEqual(service.detail("CONN")["name"], "CONN")
         found = service.targets("CONN")
@@ -444,6 +465,25 @@ class AccessReadLocks(unittest.TestCase):
         self.assertEqual(self.access.roles(USER, lock=False), {"Cowork Intake"})
         self.assertEqual(len(DB.queries), 9)  # 用户、角色、工作空间、客户 + 用户、角色 + 工作空间、客户 + 角色
         self.assertEqual(self.locking(), [])
+
+    def test_assignees_use_the_assignee_roles_of_enabled_users(self):
+        original, seen = DB.sql, []
+
+        def users(query, values=(), as_dict=False):
+            seen.append((" ".join(query.split()), values))
+            return [Doc(name="boss@x.com", full_name="Boss"), Doc(name="a@x.com", full_name="")]
+
+        DB.sql = users
+        try:
+            found = self.access.assignees()
+        finally:
+            DB.sql = original
+        self.assertEqual(found, [{"email": "boss@x.com", "display": "Boss"}, {"email": "a@x.com", "display": "a@x.com"}])
+        query, values = seen[0]
+        self.assertIn("u.enabled = 1", query)
+        self.assertNotIn("LOCK IN SHARE MODE", query.upper())
+        self.assertEqual(values[0], ("Cowork Intake", "Cowork Push Log", "Cowork Admin"))
+        self.assertEqual(self.access.ASSIGNEE_ROLES, values[0])  # 与 require_assignee 同一组角色
 
     def test_a_disabled_user_is_still_refused_without_locks(self):
         original = DB.sql

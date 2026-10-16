@@ -40,7 +40,7 @@ import { chooseLanguage, postMethod, shownError, siteFetch } from "@/lib/frappe"
 import { useProfile } from "@/lib/profile";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
-import { dayLabel, lang, LANGUAGES, st, t } from "../i18n";
+import { co, dayLabel, lang, LANGUAGES, st, t } from "../i18n";
 import { Marquee } from "@/components/ui/marquee";
 
 type Section = "general" | "connections" | "system";
@@ -389,6 +389,7 @@ function Connections({ api }: { api: Desktop }) {
           ? st.years(roots[0], roots.length)
           : roots[0];
   const kinds = [...new Set(members.map((m) => (m.kind === "folder" ? "MR.ERP" : "Express")))].join(" · ");
+  const relink = !!main && (!!main.device_state || linkState.kind === "removed");
   // 文件夹随公司选（1.6.0 起）：设置里只剩以前授权、现在没人用的那几个可移除
   const companyFolders = !!state.features?.includes(COMPANY_FOLDERS);
   const legacy = state.legacy_roots ?? [];
@@ -410,14 +411,15 @@ function Connections({ api }: { api: Desktop }) {
           <Marquee as="div" className="truncate text-sm">{state.site || location.host}</Marquee>
           {kinds && <div className="text-muted-foreground text-xs">{kinds}</div>}
         </div>
-        {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因、
-            点「重试」再登记（同还没连上时那一行） */}
-        {main && main.device_state && (
-          <LinkAction link={linkState} onConnect={connect} onDownload={download} disabled={!!busy} />
+        {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因
+            （被另一台电脑认领 = 现有「已在另一台电脑连接」）、点「重试」再登记。这台电脑被「电脑」列表移除过（登记回 removed）：
+            写「电脑已移除」，点「连接」才作为新电脑回来（第 6 批审查第 2、8 条） */}
+        {main && relink && (
+          <LinkAction link={linkState} deviceState={main.device_state} onConnect={connect} onDownload={download} disabled={!!busy} />
         )}
         {main ? (
           <>
-            {!main.device_state && (
+            {!relink && (
               <span className="flex items-center gap-1.5 text-sm" style={{ color: STATUS_COLOR[main.status] }}>
                 <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[main.status] }} />
                 {st.status[main.status] ?? main.status}
@@ -533,17 +535,17 @@ function Connections({ api }: { api: Desktop }) {
       )}
       {error && <p className="mt-3 text-danger text-sm">{error}</p>}
 
-      <div className="mt-8">
-        <Heading>{st.computers}</Heading>
-      </div>
-      <PoolComputers />
+      <PoolComputers inDesktop />
     </>
   );
 }
 
-/** 还没连上时公司一行右边：正在连接 / 被另一台电脑用着（改用这台）/ 不是管理员 / 失败重试 / 连接。 */
-function LinkAction({ link, onConnect, onDownload, disabled }: {
-  link: Link; onConnect: (o?: { replace?: number }) => void; onDownload: () => void; disabled: boolean;
+/** 还没连上时公司一行右边：正在连接 / 被另一台电脑用着（改用这台）/ 不是管理员 / 失败重试 / 电脑已移除 / 连接。
+ *  deviceState：成员的密钥被服务端说不再用（claimed_elsewhere = 同一配对码被另一台电脑认领，写现有「已在另一台电脑连接」；
+ *  superseded 写「未连接」），都给「重试」。 */
+function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }: {
+  link: Link; deviceState?: string; onConnect: (o?: { replace?: number; rejoin?: boolean }) => void; onDownload: () => void;
+  disabled: boolean;
 }) {
   const note = (text: string, tone = "text-muted-foreground") => <span className={cn("text-sm", tone)}>{text}</span>;
   if (link.kind === "connecting") return note(st.connecting);
@@ -558,6 +560,16 @@ function LinkAction({ link, onConnect, onDownload, disabled }: {
         </Button>
       </>
     );
+  // 这台电脑被「电脑」列表移除过：人点「连接」才作为新电脑回来（rejoin）
+  if (link.kind === "removed")
+    return (
+      <>
+        {note(co.folderGone, "text-danger")}
+        <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect({ rejoin: true })}>
+          {st.connect}
+        </Button>
+      </>
+    );
   if (link.kind === "in_use")
     return (
       <>
@@ -569,9 +581,11 @@ function LinkAction({ link, onConnect, onDownload, disabled }: {
     );
   return (
     <>
-      {link.kind === "failed" ? note(link.message || st.linkFailed, "text-danger") : note(st.notConnected)}
+      {link.kind === "failed"
+        ? note(link.message || st.linkFailed, "text-danger")
+        : note(deviceState === "claimed_elsewhere" ? st.inUse : st.notConnected)}
       <Button variant="outline" size="sm" disabled={disabled} onClick={() => onConnect()}>
-        {link.kind === "failed" ? st.retry : st.connect}
+        {link.kind === "failed" || deviceState ? st.retry : st.connect}
       </Button>
     </>
   );
@@ -612,12 +626,18 @@ function WebConnections() {
   return <PoolComputers />;
 }
 
+// 「全所可用」名单能勾的人：与服务端 `set_members` 核新加的人同一口径（启用、有录入 / 推送记录 / 管理角色），
+// 只给管理员（`connections.api.member_choices`；第 6 批审查第 6 条：不再借团队成员接口）
+const MEMBER_CHOICES = "pearnly_cowork.connections.api.member_choices";
+
 const COMPUTERS = "pearnly_cowork.folder_intake.api.computers";
 const REMOVE_COMPUTER = "pearnly_cowork.companion.api.remove_device";
 
 /** 池里的电脑（一台一行，服务端 `folder_intake.rules.computers`）：在不在线、常驻、自动更新被拦；登记人或管理员「···」移除
- *  （`companion.api.remove_device`：吊销它的密钥、让它退役；它读的定时任务留着、标「电脑已移除」）。下面是管理员的「全所可用」。 */
-export function PoolComputers() {
+ *  （`companion.api.remove_device`：吊销它的密钥、让它退役；它读的定时任务留着、标「电脑已移除」）。下面是管理员的「全所可用」。
+ *  inDesktop：CC 桌面版「此电脑 → 连接」下面那一节（带「电脑」标题）；一台电脑都没有时整节不出现，不在桌面版里请人下载桌面版
+ *  （第 6 批审查第 7 条）。浏览器的「连接」照旧写「还没有电脑连接」+「下载 CC 桌面版」。 */
+export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   const [rows, setRows] = useState<Computer[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -642,8 +662,14 @@ export function PoolComputers() {
     }
   };
   if (!rows) return null;
+  if (inDesktop && !rows.length) return <AllMembers heading />;
   return (
     <>
+      {inDesktop && (
+        <div className="mt-8">
+          <Heading>{st.computers}</Heading>
+        </div>
+      )}
       {!rows.length ? (
         <Row label={<span className="text-muted-foreground">{st.noComputer}</span>}>
           <Button
@@ -723,7 +749,7 @@ type TeamMember = { email: string; display?: string; enabled?: boolean };
 /** 「全所可用」（D2，ADR-021 第 31 条）：Express 主连接、只给管理员。打开 = 本所每个有录入权限的人都能用这个池（在自己的电脑上
  *  登录 CC 就加入）；关掉以后只有名单上的人能用，名单在下面逐人开关（`connections.api.set_members`，只改这两项、不升版本）。
  *  名单不能空：只剩一个人时那一个的开关不能关。MR.ERP 没有全所可用，不显示。 */
-function AllMembers() {
+function AllMembers({ heading = false }: { heading?: boolean }) {
   const [pool, setPool] = useState<PoolConnection | null>(null);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [busy, setBusy] = useState(false);
@@ -735,9 +761,7 @@ function AllMembers() {
   }, []);
   useEffect(() => {
     if (!pool || pool.all_members) return;
-    void getJson<{ members?: TeamMember[] }>("pearnly_cowork.team.api.api_list_members").then((found) =>
-      setTeam((found?.members ?? []).filter((member) => member.enabled !== false)),
-    );
+    void getJson<TeamMember[]>(`${MEMBER_CHOICES}?name=${encodeURIComponent(pool.name)}`).then((found) => setTeam(found ?? []));
   }, [pool]);
   if (!pool) return null;
   const users = pool.users ?? [];
@@ -761,6 +785,7 @@ function AllMembers() {
   const name = (email: string) => team.find((member) => member.email === email)?.display || email;
   return (
     <div className="mt-8">
+      {heading && <Heading>{st.computers}</Heading>}
       <Row label={st.allMembers}>
         <Switch checked={!!pool.all_members} disabled={busy} label={st.allMembers} onChange={(on) => void save({ all_members: on })} />
       </Row>

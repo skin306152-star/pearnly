@@ -1324,6 +1324,35 @@ assert.deepEqual(text(plain), ["ACC-02", "Express", "Disconnected"]);
 assert.doesNotMatch(plain, /aria-label="More"/);
 """, lang="en")
 
+    def test_batch_6_review_fixes_in_the_settings_page(self):
+        """第 6 批审查：桌面版「此电脑 → 连接」下的「电脑」一节没有电脑时整节不出现（不在桌面版里请人下载桌面版，第 7 条）；
+        成员被另一台电脑认领时写现有「已在另一台电脑连接」+「重试」（第 8 条）；电脑被移除过写「电脑已移除」+「连接」，点了才
+        rejoin（第 2 条）；名单候选取 `member_choices`（与 set_members 同口径，第 6 条）。"""
+        source = read("components/settings.tsx")
+        self.assertIn("<PoolComputers inDesktop />", source)
+        self.assertIn("if (inDesktop && !rows.length) return <AllMembers heading />;", source)
+        self.assertNotIn("<Heading>{st.computers}</Heading>\n      </div>\n      <PoolComputers />", source)
+        self.assertIn('deviceState === "claimed_elsewhere" ? st.inUse : st.notConnected', source)
+        self.assertIn("onConnect({ rejoin: true })", source)
+        self.assertIn("note(co.folderGone", source)
+        self.assertIn("pearnly_cowork.connections.api.member_choices", source)
+        self.assertNotIn("team.api.api_list_members", source)
+
+    def test_batch_6_review_fixes_in_the_task_pages(self):
+        """第 6 批审查：表单不写「跟随公司当年账套」（只在列表，第 9 条）；推往的账套写成「账套名：张数」用分号隔开（第 10 条）；
+        Desk 列表结果列也列推往的账套、Desk 表单按账套提示「CC 桌面版需更新」（第 11 条）；列表与补回的下拉项带读文件夹的电脑名
+        （第 14 条）。"""
+        tasks = read("components/scheduled-tasks.tsx")
+        self.assertIn('const accountHint = needsUpdate ? tr("intake.agent.state.needsUpdate") : undefined;', tasks)
+        self.assertIn('tr("cowork.folder.pair", row.account_label, row.tickets)).join("; ")', tasks)
+        self.assertIn("[rule.reader_label, rule.folder || rule.root_label", tasks)
+        desk = (ROOT / "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-folders.js").read_text(encoding="utf-8")
+        self.assertNotIn('description: rule?.company ? ft("cowork.folder.followCompany")', desk)
+        self.assertIn('ft("cowork.folder.pair", item.account_label, item.tickets)).join("; ")', desk)
+        self.assertIn("account_sets_text(row.results)].filter(Boolean)", desk)
+        self.assertIn('p.intake_targets.account_note(connection(), key)', desk)
+        self.assertIn("format: (value, row) => folder_text(row)", desk)
+
     def test_the_new_words_of_batch_6_are_in_every_page_language(self):
         settings = block(read("i18n.ts"), "const SETTINGS = {")
         company = block(read("i18n.ts"), "const COMPANY = {")
@@ -3461,6 +3490,23 @@ await connectComputer(api);
 assert.ok(!("device_key" in registered().at(-1)));
 assert.equal(currentLink().kind, "update_needed");
 assert.equal(pairs().length, before);
+
+// 8) 被「电脑」列表移除过（第 6 批审查第 2 条）：打开页面的自动登记不带 rejoin，服务端只回 removed，不配对；
+//    人在设置里点「连接」才带 rejoin，作为新电脑回来
+g.STATE.features = ["company_folders", "devices"];
+g.STATE.members = [{ id: "m1", name: "Express", kind: "express", paused: false, status: "error", folders: null }];
+replies = [{ status: "removed", device: "CCD-1" }];
+g.respond = async (method: string) => (method === REGISTER ? ok(replies.shift()) : ok(null));
+before = pairs().length;
+await connectComputer(api);
+assert.ok(!("rejoin" in registered().at(-1)));
+assert.equal(currentLink().kind, "removed");
+assert.equal(pairs().length, before);
+replies = [{ status: "created", token: "exp_C1_rejoined" }];
+await connectComputer(api, { rejoin: true });
+assert.equal(registered().at(-1).rejoin, true);
+assert.equal(pairs().at(-1).args.code.split("@")[0], "exp_C1_rejoined");
+assert.equal(currentLink().kind, "idle");
 """)
 
     def test_reader_ids_go_into_folder_values_and_this_computers_row_is_found_by_name(self):

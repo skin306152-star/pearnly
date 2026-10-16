@@ -380,7 +380,6 @@ Company choices are full,ตัวเลือกของบริษัทเ�
 Company not found,ไม่พบบริษัท
 Company tax ID,เลขประจำตัวบริษัท
 Company tax ID not on the document,ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร
-Company's account set for the year,ชุดบัญชีของบริษัทตามปี
 CompanyA-purchase-service,บริษัทA-ซื้อ-บริการ
 CompanyA-sales,บริษัทA-ขาย
 Complete,เสร็จ
@@ -762,6 +761,7 @@ Folder results,ผลลัพธ์
 Folder rule name,ชื่อกฎ
 Folder rules work with Express connections only.,การบันทึกอัตโนมัติใช้ได้เฉพาะการเชื่อมต่อ Express เท่านั้น
 Folder to read,โฟลเดอร์
+Follows the company's account set for the year,ตามชุดบัญชีของบริษัทในแต่ละปี
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น
 Form,แบบ
 Formula Diff,ผลต่างตามสูตร
@@ -2294,7 +2294,7 @@ cowork.folder.field.time,เวลาทำงาน
 cowork.folder.field.title,ชื่องาน
 cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 cowork.folder.folderMissing,ไม่พบโฟลเดอร์
-cowork.folder.followCompany,ชุดบัญชีของบริษัทตามปี
+cowork.folder.followCompany,ตามชุดบัญชีของบริษัทในแต่ละปี
 cowork.folder.guide.oneRule,หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
 cowork.folder.guide.result,ระบบสร้างเอง ห้ามวางเอกสาร
 cowork.folder.guide.resultRule,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป

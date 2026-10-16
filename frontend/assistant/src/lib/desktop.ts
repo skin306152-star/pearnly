@@ -334,6 +334,7 @@ export type Link =
   | { kind: "not_admin" }
   | { kind: "no_connection" }
   | { kind: "update_needed" }
+  | { kind: "removed" }
   | { kind: "failed"; message: string };
 
 let link: Link = { kind: "idle" };
@@ -357,7 +358,7 @@ type Registered =
   | { status: "created"; token: string }
   | { status: "in_use"; generation: number }
   | { status: "no_connection" }
-  | { status: "update_needed" | "exists"; token?: undefined };
+  | { status: "update_needed" | "exists" | "removed"; token?: undefined };
 
 /** 这台电脑（CC 桌面版 1.7.0 起，state().features 含 devices）：设备密钥与电脑名；旧版、取不到是 null（走一条连接一个槽位的旧路）。 */
 export type ThisComputer = { key: string; name: string } | null;
@@ -367,12 +368,13 @@ export function thisComputer(state: Pick<DesktopState, "features" | "device"> | 
   return state?.features?.includes(DEVICES) && key ? { key, name: String(state.device?.name ?? "") } : null;
 }
 
-type RegisterOptions = { replace?: number; device?: ThisComputer; rekey?: boolean };
+type RegisterOptions = { replace?: number; device?: ThisComputer; rekey?: boolean; rejoin?: boolean };
 
-async function register(express: boolean, { replace, device, rekey }: RegisterOptions = {}): Promise<Registered | Link> {
+async function register(express: boolean, { replace, device, rekey, rejoin }: RegisterOptions = {}): Promise<Registered | Link> {
   // register v2（ADR-021）：带设备密钥时每台电脑在池里各有自己的密钥、彼此不顶替（replace 只属于旧路）；rekey = 这台电脑
   // 已有密钥、本机却没有能用的成员（重装过、被服务端说不再用），换一把新的。每次都用新的请求号：同一个请求号重放 rekey
-  // 只回 exists、不带新密钥（第 1 批审查小 4）。设备密钥只进请求体，不进地址栏。
+  // 只回 exists、不带新密钥（第 1 批审查小 4）。rejoin = 这台电脑被「电脑」列表移除过，人在设置里亲手点了「连接」：
+  // 只有这时服务端才让它作为新电脑回来，打开页面的自动登记只回 removed（第 6 批审查第 2 条）。设备密钥只进请求体，不进地址栏。
   const res = await fetch("/api/method/pearnly_cowork.companion.api.register", {
     method: "POST",
     credentials: "same-origin",
@@ -381,7 +383,7 @@ async function register(express: boolean, { replace, device, rekey }: RegisterOp
       request_key: crypto.randomUUID(),
       express,
       ...(device
-        ? { device_key: device.key, device_name: device.name, ...(rekey ? { rekey: true } : {}) }
+        ? { device_key: device.key, device_name: device.name, ...(rekey ? { rekey: true } : {}), ...(rejoin ? { rejoin: true } : {}) }
         : replace
           ? { replace: true, expected_generation: replace }
           : {}),
@@ -404,8 +406,10 @@ export function needsKey(state: Pick<DesktopState, "members">): boolean {
  * - created：新电脑、或 rekey 换了新密钥 → 交给桌面端配对（同一条连接的成员换上新密钥，device_state 随之清掉）；
  * - exists：这台电脑在池里已有密钥。本机成员都好着 → 什么都不做；本机没有能用的成员（needsKey）→ 再带 rekey 登记一次
  *   换新密钥（不是登记人也不是管理员时服务端回 403，显示现有「需要管理员账号」）；
- * - update_needed：只回给不带设备密钥的旧版（池里已有新版认领过的电脑），提示更新 CC 桌面版。 */
-export async function connectComputer(api: Desktop, options: { replace?: number; switchSite?: boolean } = {}) {
+ * - update_needed：只回给不带设备密钥的旧版（池里已有新版认领过的电脑），提示更新 CC 桌面版；
+ * - removed：这台电脑被「电脑」列表移除过，设置里写「电脑已移除」+「连接」；人点了「连接」（rejoin）才作为新电脑回来。
+ * 签发人已用不了这条连接（名单收窄）时服务端自己换成本人签发的新钥、回 created（第 6 批审查第 1 条），页面照常配对。 */
+export async function connectComputer(api: Desktop, options: { replace?: number; switchSite?: boolean; rejoin?: boolean } = {}) {
   if (link.kind === "connecting") return;
   setLink({ kind: "connecting" });
   try {
@@ -415,7 +419,7 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
     const device = thisComputer(state);
     const express = roots.length > 0;
     const stale = state.members.some((member) => member.device_state === "superseded");
-    let found = await register(express, { replace: options.replace, device, rekey: !!device && stale });
+    let found = await register(express, { replace: options.replace, device, rekey: !!device && stale, rejoin: options.rejoin });
     if (!("kind" in found) && found.status === "exists" && device && needsKey(state)) {
       found = await register(express, { device, rekey: true });
     }
@@ -423,6 +427,7 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
     if (found.status === "in_use") return setLink({ kind: "in_use", generation: found.generation });
     if (found.status === "no_connection") return setLink({ kind: "no_connection" });
     if (found.status === "update_needed") return setLink({ kind: "update_needed" });
+    if (found.status === "removed") return setLink({ kind: "removed" });
     if (found.status === "exists") return setLink({ kind: "idle" });
     // 只有新发的密钥才交给桌面端；服务端将来的其他状态不带密钥，绝不拿 undefined 去配对
     if (found.status !== "created" || !found.token) return setLink({ kind: "failed", message: "" });

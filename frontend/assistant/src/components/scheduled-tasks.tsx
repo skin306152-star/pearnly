@@ -101,13 +101,18 @@ type Rule = {
   results?: { entered?: number; attention?: number; moving?: number; account_sets?: AccountSetCount[] };
   // 多台电脑（ADR-021）：reader_id = 读者编号（「电脑|连接」），reader_gone = 读它的电脑已被移除；company = 跟随公司当年账套（T1）
   reader_id?: string; reader_gone?: boolean; company?: string;
+  // 读文件夹的电脑名：池里不止一台电脑时服务端才给，列表的文件夹一栏与表单补回的那一项前面带上（第 6 批审查第 14 条）
+  reader_label?: string;
   // include_existing：到点处理文件夹里所有还没处理过的（新任务）；remind：运行前提醒，remind_times：提醒时刻（服务端给
   // 生效的那组，没选过是前一天 08:00、14:00）；waiting：文件夹里还没处理的份数（不知道是 null），waiting_partial：数到上限（显示 N+）
   include_existing?: number; remind?: number; remind_times?: RemindTime[]; waiting?: number | null; waiting_partial?: boolean;
 };
 // 跟随公司当年账套的任务：这些票实际推往了哪份账套、各几张（服务端 `contracts.account_sets`）
 type AccountSetCount = { account_set_key: string; account_label: string; tickets: number };
-const accountSetsText = (rows?: AccountSetCount[]) => (rows ?? []).map((row) => `${row.account_label} ${row.tickets}`).join(" · ");
+// 每份写成「账套名：张数」（现有词条 cowork.folder.pair），几份之间用分号：账套名本身是「公司 · 年度」，不再用「 · 」连
+// （第 6 批审查第 10 条；Desk 定时任务页同一写法）
+const accountSetsText = (tr: Tr, rows?: AccountSetCount[]) =>
+  (rows ?? []).map((row) => tr("cowork.folder.pair", row.account_label, row.tickets)).join("; ");
 // 提醒时刻：运行日前几天（0 = 当天，最多 7 天）+ 曼谷 HH:MM，最多 3 个（同服务端 contracts.remind_times）
 type RemindTime = { days_before: number; time: string };
 type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string>; main?: boolean };
@@ -465,7 +470,7 @@ export function ScheduledTasks() {
                       <span>{[target, rule.company ? tr("cowork.folder.followCompany") : rule.account_label].filter(Boolean).join(" · ")}</span>
                       <span className="flex items-center gap-1">
                         <FolderIcon className="size-3.5" />
-                        {rule.folder || rule.root_label || ""}
+                        {[rule.reader_label, rule.folder || rule.root_label || ""].filter(Boolean).join(" · ")}
                       </span>
                       <span className="flex items-center gap-1">
                         <ClockIcon className="size-3.5" />
@@ -477,7 +482,7 @@ export function ScheduledTasks() {
                       {rule.results?.moving ? ` · ${tr("cowork.folder.moving", rule.results.moving)}` : ""}
                     </div>
                     {rule.results?.account_sets?.length ? (
-                      <div className="mt-0.5 text-ink-3 text-sm">{accountSetsText(rule.results.account_sets)}</div>
+                      <div className="mt-0.5 text-ink-3 text-sm">{accountSetsText(tr, rule.results.account_sets)}</div>
                     ) : null}
                     {rule.enabled && rule.waiting ? (
                       <div className="mt-0.5 text-ink-3 text-sm">{tr("cowork.folder.pending", plus(rule.waiting, rule.waiting_partial))}</div>
@@ -619,8 +624,8 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
             const states = [
               ...(entered || attention ? [tr("cowork.folder.counts", entered, attention)] : []),
               ...STATES.filter((n) => run.states?.[n]).map((n) => `${tr(`cowork.folder.state.${n}`)} ${run.states![n]}`),
-              accountSetsText(run.results?.account_sets),
-            ].filter(Boolean).join(" · ");
+            ].join(" · ");
+            const sets = accountSetsText(tr, run.results?.account_sets);
             const missing = ["root_missing", "folder_missing"].includes(run.note || "") ? ` · ${tr("cowork.folder.folderMissing")}` : "";
             return (
               <div key={i} className="py-2.5 text-sm">
@@ -632,6 +637,7 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
                   {tr("cowork.folder.runScan", run.found || 0, run.new_files || 0, run.skipped || 0, run.upload_failed || 0)}
                   {states ? ` · ${states}` : ""}
                 </div>
+                {sets && <div className="text-ink-3 text-xs">{sets}</div>}
               </div>
             );
           })}
@@ -784,7 +790,9 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [express, connection?.name, accountSet]);
-  const accountHint = needsUpdate ? tr("intake.agent.state.needsUpdate") : rule?.company ? tr("cowork.folder.followCompany") : undefined;
+  // 「跟随公司当年账套」只写在列表与主档页的任务行：表单上看的是存下的旧任务、不是当前选的账套，写了会和保存结果对不上
+  // （第 6 批审查第 9 条）；表单只提示「CC 桌面版需更新」
+  const accountHint = needsUpdate ? tr("intake.agent.state.needsUpdate") : undefined;
 
   const yearItems = groups.find((g) => g.value === year)?.items ?? [];
   useEffect(() => {
@@ -815,7 +823,8 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const saved = rule ? ruleFolder(rule) : null;
   if (saved && !folders.some((f) => f.value === saved)) {
     // 电脑这会儿没报上来、或读它的电脑已被移除：原来的文件夹照样摆着（编辑时不被清空），移除了的写明
-    const label = [rule!.root_label, rule!.folder].filter(Boolean).join("\\") || rule!.folder;
+    const label = [rule!.reader_label, [rule!.root_label, rule!.folder].filter(Boolean).join("\\") || rule!.folder]
+      .filter(Boolean).join(" · ");
     folders.unshift({ value: saved, label: rule!.reader_gone ? `${tr("cowork.folder.readerGone")} · ${label}` : label });
   }
   const unpaired = Boolean(target) && Boolean(options) && !readers.some((r) => r.version);

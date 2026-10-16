@@ -783,7 +783,7 @@ class DeviceRegister(Base):
         self.register(ENTRY, device_key=KEY_A)  # exists
         self.register(ENTRY, device_key=KEY_A, rekey=True)
         devices.retire(devices.read(a["device"]), ADMIN)
-        self.register(ENTRY, device_key=KEY_A)  # a removed computer joins again
+        self.register(ENTRY, device_key=KEY_A, rejoin=True)  # a removed computer joins again
         self.assert_lock_order()
 
     def test_no_pool_only_management_creates_it(self):
@@ -819,10 +819,33 @@ class DeviceRegister(Base):
         self.assertIn(a["device"], sys.modules["pearnly_cowork.connections.pool"].FORGOTTEN)
         with self.assertRaises(AuthenticationError):
             self.auth(a["token"])
-        again = self.register(device_key=KEY_A)
+        again = self.register(device_key=KEY_A, rejoin="1")
         self.assertEqual(again["status"], "created")
         self.assertNotEqual(again["device"], a["device"])
         self.assertIsNone(STORE[DEVICE][a["device"]]["secret_digest"])
+
+    def test_a_signed_out_issuer_is_replaced_by_whoever_signs_in(self):
+        """Review batch 6 finding 1: the key's issuer lost the use grant (all-members off, not on the list). The key
+        stopped authenticating; the next person on the list who opens CC on that computer gets a key of their own,
+        without being the owner or an admin."""
+        shared = self.register(ENTRY, device_key=KEY_A)
+        STORE[CONNECTION][self.express]["allowed_users"] = json.dumps([ADMIN, OTHER])
+        with self.assertRaises(AuthenticationError):
+            self.auth(shared["token"])
+        LOCKS.clear()
+        again = self.register(OTHER, device_key=KEY_A)
+        self.assertEqual((again["status"], again["device"]), ("created", shared["device"]))
+        self.assertEqual(self.auth(again["token"]).issuer, OTHER)
+        self.assertTrue(self.row(shared["token"])["revoked_at"])
+        self.assertEqual(len(self.active_keys()), 1)
+        self.assertEqual(STORE[DEVICE][shared["device"]]["device_owner"], ENTRY)  # 登记人不变
+        self.assertEqual(self.register(OTHER, device_key=KEY_A)["status"], "exists")  # 新钥好着：不再换
+        self.assert_lock_order()
+
+    def test_a_valid_issuer_is_not_replaced_by_someone_else_signing_in(self):
+        shared = self.register(ENTRY, device_key=KEY_A)
+        self.assertEqual(self.register(OTHER, device_key=KEY_A)["status"], "exists")
+        self.assertEqual(self.auth(shared["token"]).issuer, ENTRY)
 
 
 # ── 按摘要认证 ───────────────────────────────────────────────────────────────
@@ -1403,10 +1426,18 @@ class RemoveDevice(Base):
         self.assertEqual(again, {"status": "removed", "device": a["device"], "replayed": True})
         self.assertEqual(STORE[DEVICE][a["device"]]["retired_at"], stamp)
 
-    def test_the_removed_computer_signs_in_again_as_a_new_one(self):
+    def test_the_removed_computer_stays_removed_until_someone_connects_it(self):
+        """Review batch 6 finding 2: the chat page registers on every open; that must not bring a removed computer
+        back. Only a person clicking Connect on that computer (rejoin) does."""
         a = self.register(ENTRY, device_key=KEY_A)
         self.remove(a["device"], ENTRY)
-        again = self.register(ENTRY, device_key=KEY_A)
+        before = (copy.deepcopy(STORE[CREDENTIAL]), copy.deepcopy(STORE[DEVICE]))
+        for user, rekey in ((ENTRY, False), (ADMIN, True), (OTHER, False)):
+            self.assertEqual(self.register(user, device_key=KEY_A, rekey=rekey),
+                             {"status": "removed", "connection": self.express, "adapter": "express",
+                              "device": a["device"]})
+        self.assertEqual((STORE[CREDENTIAL], STORE[DEVICE]), before)
+        again = self.register(ENTRY, device_key=KEY_A, rejoin=True)
         self.assertEqual(again["status"], "created")
         self.assertNotEqual(again["device"], a["device"])
         self.assertEqual(self.auth(again["token"]).connection, self.express)

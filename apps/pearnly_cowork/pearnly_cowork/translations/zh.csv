@@ -380,7 +380,6 @@ Company choices are full,公司选择已满
 Company not found,找不到这家公司
 Company tax ID,本公司税号
 Company tax ID not on the document,票面无本公司税号
-Company's account set for the year,跟随公司当年账套
 CompanyA-purchase-service,公司A-进项-服务
 CompanyA-sales,公司A-销项
 Complete,完成
@@ -762,6 +761,7 @@ Folder results,结果
 Folder rule name,规则名称
 Folder rules work with Express connections only.,自动录入只用于 Express 连接。
 Folder to read,文件夹
+Follows the company's account set for the year,跟随公司当年账套
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",拍摄提示：请将单据摆正、文字朝上，完整拍入画面。
 Form,表
 Formula Diff,公式差额
