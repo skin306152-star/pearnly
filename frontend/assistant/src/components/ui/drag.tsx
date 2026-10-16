@@ -8,10 +8,12 @@
 //   浮起   拿起的那一项换成浮层（DragOverlay，克隆原来那一项的样子，挂在 body 上）：弹层底、弹出阴影、略透明、略放大，实时跟手。
 //          原位留空（空档）。排序（一列里调先后）：其余各项拖动中就带过渡滑开让位（dnd-kit 的排序位移，过渡用动效变量）。
 //          在组之间移动（侧栏对话拖到别的公司：组里的先后由排序方式定、不能手调）：空档跟着去那一组，出现在调用方按排序方式算出的
-//          位置（onPlace），原来那组的空档合上——两组之间整列各行、组头的位置变了都带同样的过渡滑过去（flowLayout）；在原组里动
-//          空档不动；去的组收着（放不下空档）时组头高亮、原位空档留着。dnd-kit 多列排序的做法，只是空档的位置由排序方式定。
+//          位置（onPlace），原来那组的空档合上——两组之间整列各行、组头的位置变了都带同样的过渡滑过去（flowLayout，这段时间关掉
+//          滚动锚定）；空档的位置不跟指针，落在滚动区可见范围外时平滑滚进来（revealGap）；在原组里动空档不动；去的组收着（放不下
+//          空档）时组头高亮、原位空档留着。dnd-kit 多列排序的做法，只是空档的位置由排序方式定。
 //   放下   松手当帧就从放手处平滑落到空档（拖动库在放下那次提交里用 Web Animations 播，不等之后的重排；动效变量），落到收着的组
-//          就落到组头并收起；没落点 / 取消就滑回原位。在组之间移动的，落位播完才交给调用方（onDrop，如发移动请求），请求失败
+//          就落到组头并收起；落点在滚动区可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点 /
+//          取消就滑回原位。在组之间移动的，落位播完才交给调用方（onDrop，如发移动请求，settleMove），请求失败
 //          调用方退回原组时同样带过渡滑回去。第 4 轮测试机：原来拿起的就是列表里那张卡本身，放下靠自写的 translate 过渡，要等新顺序
 //          提交、整列重测之后的下一次样式计算才开始，手机上卡在放手处停了约 0.4s、压着下一张卡才滑进空位。
 //   范围   只在本列竖着拖：浮层上下边不出这一列（排序：这一列第一项顶边到最后一项底边；组之间：能放的各组加原来那组）。
@@ -338,8 +340,9 @@ const MotionContext = createContext<Motion | null>(null);
 // 正在滑的再变就从此刻看到的位置接着滑，不跳。空档（被拖的那一项）与正在落位的那一项看不见，不滑。
 const STILL = "[data-drag-source], [data-drag-landing]";
 
-/** 动画从此刻起算：不等到下一帧才定起点（放下那一帧主线程忙时——侧栏一次提交要重画一整列——落位照样按松手的时刻开始走，
- *  不比会话栏卡片晚一帧；headless Chrome 实测侧栏原来晚约 17ms 才动）。 */
+/** 落位动画从松手的时刻起算：不等到下一帧才定起点（放下那一帧主线程忙时——侧栏一次提交要重画一整列——落位照样按松手的
+ *  时刻开始走，不比会话栏卡片晚一帧；headless Chrome 实测侧栏原来晚约 17ms 才动）。代价：主线程忙多久，落位就少播多久的
+ *  前段（卡片与对话行同一个函数，彼此一致）。只用于落位；整列滑动不用（见 flowLayout）。 */
 function startNow(animation: Animation) {
   const now = typeof document !== "undefined" ? document.timeline?.currentTime : null;
   if (typeof now === "number" && animation.startTime === null) animation.startTime = now;
@@ -353,11 +356,16 @@ function shiftOf(el: Element): number {
   return parts.length > 1 ? Number.parseFloat(parts[1]!) || 0 : 0;
 }
 
-/** 盯着 root 里 selector 选中的各项，版面一变就让挪了位置的滑过去；返回停止（已在滑的照常滑完）。 */
+/** 盯着 root 里 selector 选中的各项，版面一变就让挪了位置的滑过去；返回停止（已在滑的照常滑完）。
+ *  盯着的这段时间关掉 root 的滚动锚定（overflow-anchor）：变动在可见区上方时（空档进了上面的组、多选其余各行从上面移走、
+ *  失败退回上面的原组），浏览器会自动改 scrollTop 让眼前的行不动，这里却按内容坐标算，没动的行会先跳一下再滑回、下面的行
+ *  直接跳（审查实测）。关掉后眼前的行照内容真实挪动、带过渡滑过去，同其他组。停止时还原。 */
 export function flowLayout(root: HTMLElement, selector: string, transition: Motion): () => void {
   const records = new Map<unknown, { top: number; el: Element }>();
   const sliding = new Map<Element, Animation>();
   const page = root === document.scrollingElement || root === document.documentElement || root === document.body;
+  const anchored = root.style.overflowAnchor;
+  root.style.overflowAnchor = "none";
   const origin = () => (page ? -window.scrollY : root.getBoundingClientRect().top - root.scrollTop);
   const pass = (animate: boolean) => {
     const base = origin();
@@ -377,8 +385,9 @@ export function flowLayout(root: HTMLElement, selector: string, transition: Moti
       if (el.matches(STILL)) continue;
       const dy = before.top + (before.el === el ? shift : 0) - top;
       if (Math.abs(dy) < 0.5) continue;
+      // 起点不回拨（不用 startNow）：同排序项的 CSS 过渡，从这次版面变化画出来的那一帧起算。回拨到上一帧会把这次重画整列
+      // 花掉的时间算进过渡里，主线程忙（手机）时让位一两帧就走完（审查：CPU 6 倍节流实测）
       const slide = el.animate([{ translate: `0 ${dy}px` }, { translate: "0 0" }], { duration: transition.duration, easing: transition.easing });
-      startNow(slide);
       sliding.set(el, slide);
       slide.onfinish = () => sliding.get(el) === slide && sliding.delete(el);
     }
@@ -387,7 +396,49 @@ export function flowLayout(root: HTMLElement, selector: string, transition: Moti
   pass(false);
   const observer = new MutationObserver(() => pass(true));
   observer.observe(root, { childList: true, subtree: true });
-  return () => observer.disconnect();
+  return () => {
+    observer.disconnect();
+    root.style.overflowAnchor = anchored;
+  };
+}
+
+// ---------------------------------------------------------------- 看得见的范围
+/** 一项所在滚动区此刻看得见的上下边（视口坐标，与窗口取交）；root 是那个滚动区（整页滚动时为 null）。 */
+export function viewOf(node: HTMLElement): { root: HTMLElement | null; top: number; bottom: number } {
+  const found = getScrollableAncestors(node, 1)[0] as HTMLElement | undefined;
+  const page = !found || found === document.scrollingElement || found === document.documentElement || found === document.body;
+  const box = page ? { top: 0, bottom: window.innerHeight } : found.getBoundingClientRect();
+  return { root: page ? null : found, top: Math.max(box.top, 0), bottom: Math.min(box.bottom, window.innerHeight) };
+}
+
+/** 框在不在看得见的范围里（差半像素不算出界）。 */
+export function inView(rect: { top: number; height: number }, view: { top: number; bottom: number }): boolean {
+  return rect.top >= view.top - 0.5 && rect.top + rect.height <= view.bottom + 0.5;
+}
+
+/** 把框挪进看得见的范围（上下边贴着范围的边；比范围还高时贴上边）。 */
+export function clampIntoView<R extends { top: number; height: number }>(rect: R, view: { top: number; bottom: number }): R {
+  const top = Math.max(view.top, Math.min(rect.top, view.bottom - rect.height));
+  return top === rect.top ? rect : { ...rect, top, bottom: top + rect.height };
+}
+
+/** 空档要能看见：在滚动区可见范围之外时平滑滚动滚动区，正好让它进来（只滚差的那一段，滚动到不越过首尾由浏览器管）。
+ *  在组之间移动时空档的位置由排序方式定、不跟指针，可能落在可见范围外（审查：拖到展开很长的组，空档在组顶、组顶在上面）。 */
+export function revealGap(node: HTMLElement, smooth: boolean) {
+  const view = viewOf(node);
+  const rect = node.getBoundingClientRect();
+  if (inView(rect, view)) return;
+  const by = rect.top < view.top ? rect.top - view.top : rect.top + rect.height - view.bottom;
+  const scroller: { scrollBy: (options: ScrollToOptions) => void } = view.root ?? window;
+  scroller.scrollBy({ top: by, behavior: smooth ? "smooth" : "auto" });
+}
+
+/** 放下时空档在可见范围外（拖着时又滚走了）：拖动库在落位前会对它 scrollIntoView（只看窗口，滚动区会瞬间跳一下）。
+ *  这一次不让它滚（落位改为落到可见范围的边上并收起，见 Lifted）；过 wait 毫秒还原。 */
+function holdStill(node: HTMLElement | null | undefined, wait: number) {
+  if (!node?.isConnected || inView(node.getBoundingClientRect(), viewOf(node))) return;
+  node.scrollIntoView = () => undefined;
+  setTimeout(() => delete (node as Partial<HTMLElement>).scrollIntoView, wait);
 }
 
 /** 在组之间移动的放下：落位动画播完才交给调用方（发移动请求）。land 由落位动画播完时调；动画没播（被打断、量不到）时
@@ -415,19 +466,48 @@ export class Landing {
   }
 }
 
+/** 在组之间移动的那一项放下了（松手；取消时 target 为 null）。空档在别的能放的组：落位播完（landing）才交给调用方（drop，
+ *  如发移动请求），交过之后 clear（空档回 null，调用方那时已按移过去的样子排好），drop 回的 Promise 做完才 done（整列停止
+ *  跟着动）；没播落位时过 wait 毫秒自己交。空档在原组 / 没有 / 不能放：clear、done，不交。回 true = 排上了要交。 */
+export function settleMove(
+  from: DragData,
+  target: DragData | null,
+  accepts: (active: DragData, target: DragData) => boolean,
+  hooks: { landing: Landing; wait: number; drop: (target: DragData) => unknown; clear: () => void; done?: (() => void) | null },
+): boolean {
+  if (!target || !accepts(from, target)) {
+    hooks.clear();
+    hooks.done?.();
+    return false;
+  }
+  hooks.landing.queue(() => {
+    const work = hooks.drop(target);
+    hooks.clear();
+    void Promise.resolve(work)
+      .catch(() => undefined)
+      .finally(() => hooks.done?.());
+  }, hooks.wait);
+  return true;
+}
+
 // 落位播完停在落点（同 dnd-kit 默认），浮层随后才卸下
 const STAY: FillMode = "forwards";
 
-/** 放下的落位动画（同 dnd-kit 默认那一种：浮层从放手处移到落点，Web Animations、放下当帧开始），多两件：落点可以是
- *  收着的组（into：落到组头并收起，浮层带 data-dropping="into"）；播完（或不播）调 landed。transition 为 null（减少动态效果）时不播。 */
-export function dropAnimation(transition: Motion | null, landed: () => void, into: (node: HTMLElement) => HTMLElement | null): DropAnimationFunction {
+/** 放下的落位动画（同 dnd-kit 默认那一种：浮层从放手处移到落点，Web Animations、放下当帧开始），多两件：落点可以不是
+ *  空档本身（into 回一个框：收着的组的组头、或空档在可见范围外时可见范围的边上），这时落到那里并收起（浮层带
+ *  data-dropping="into"）；播完（或不播）调 landed。transition 为 null（减少动态效果）时不播。 */
+export function dropAnimation(
+  transition: Motion | null,
+  landed: () => void,
+  into: (node: HTMLElement) => { top: number; left: number } | null,
+): DropAnimationFunction {
   return ({ active, dragOverlay, transform }) => {
     if (!transition) {
       landed();
       return;
     }
     const fold = into(active.node);
-    const to = fold ? getClientRect(fold, { ignoreTransform: true }) : active.rect;
+    const to = fold ?? active.rect;
     const final = { ...transform, x: transform.x - (dragOverlay.rect.left - to.left), y: transform.y - (dragOverlay.rect.top - to.top), scaleX: 1, scaleY: 1 };
     const frames = [{ transform: CSS.Transform.toString(transform) }, { transform: CSS.Transform.toString(final) }];
     // 浮层的略放大、阴影同时收回（落到收着的组：同时淡掉）；落点那一项在动画播完前不显示（不会一份在落点、一份在路上）
@@ -621,27 +701,23 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
     setDragging(false);
     latest.current.onActive?.(null);
   };
+  const landWait = (transition?.duration ?? 0) + 150;
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     finish();
+    holdStill(stash.current.node, landWait);
     const from = activeOf(active);
     if (isMover(from)) {
       const done = release.current;
       release.current = null;
-      const target = placedRef.current;
-      if (!target || !latest.current.accepts(from, target)) {
-        place(from, null); // 回到原组：落回原位，不交
-        done?.();
-        return;
-      }
       // 空档已在去的那一组：落位播完再交给调用方（发请求），请求做完前整列仍跟着动；交过之后空档才回 null（调用方那时已按
-      // 移过去的样子排好，同一处）
-      landing.queue(() => {
-        const work = latest.current.onDrop(from, target);
-        placedRef.current = null;
-        setPlaced(null);
-        latest.current.onPlace?.(from, null);
-        void Promise.resolve(work).catch(() => undefined).finally(() => done?.());
-      }, (transition?.duration ?? 0) + 150);
+      // 移过去的样子排好，同一处）。回到原组：落回原位，不交
+      settleMove(from, placedRef.current, latest.current.accepts, {
+        landing,
+        wait: landWait,
+        drop: (target) => latest.current.onDrop(from, target),
+        clear: () => place(from, null),
+        done,
+      });
       return;
     }
     const to = dataOf(over);
@@ -678,6 +754,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
           }}
           onDragCancel={({ active }) => {
             finish();
+            holdStill(stash.current.node, landWait);
             const from = activeOf(active);
             if (!isMover(from)) return;
             place(from, null); // 取消：空档回原位，浮层滑回去
@@ -695,16 +772,24 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onPlace, on
   );
 };
 
-/** 在组之间移动的那段时间（拿起到请求做完）：整列跟着动（flowLayout）；空档换了组，各组的位置变了，重量能放的各处（碰撞按新位置算）。 */
+/** 在组之间移动的那段时间（拿起到请求做完）：整列跟着动（flowLayout）；空档换了组，各组的位置变了，重量能放的各处（碰撞按新位置算），
+ *  空档在可见范围外就平滑滚进来（revealGap）。 */
 const Flow: FC<{ selector: string; running: boolean; transition: Motion | null; placed: string | null }> = ({ selector, running, transition, placed }) => {
-  const { activeNode, droppableContainers, measureDroppableContainers } = useDndContext();
+  const { active, activeNode, draggableNodes, droppableContainers, measureDroppableContainers } = useDndContext();
   const node = useRef<HTMLElement | null>(null);
   if (activeNode) node.current = activeNode;
   const containers = useRef(droppableContainers);
   containers.current = droppableContainers;
+  const lifted = useRef({ active, draggableNodes });
+  lifted.current = { active, draggableNodes };
   useLayoutEffect(() => {
-    if (running) measureDroppableContainers(containers.current.getEnabled().map((entry) => entry.id));
-  }, [placed, running, measureDroppableContainers]);
+    if (!running) return;
+    measureDroppableContainers(containers.current.getEnabled().map((entry) => entry.id));
+    // 换组重挂后的空档（这次提交里刚挂上，引用已更新）
+    const { active: now, draggableNodes: nodes } = lifted.current;
+    const gap = now ? nodes.get(now.id)?.node.current : null;
+    if (gap?.isConnected) revealGap(gap, !!transition);
+  }, [placed, running, measureDroppableContainers, transition]);
   useEffect(() => {
     const from = node.current;
     if (!running || !transition || !from?.isConnected) return;
@@ -798,7 +883,11 @@ const Lifted: FC<{
       dropAnimation(transition, () => landing.land(), (node) => {
         const target = placed.current;
         const group = target ? stash.current.containers?.get(target.id)?.node.current : null;
-        return group && !group.contains(node) ? group : null;
+        const fold = !!group && !group.contains(node);
+        const rect = getClientRect(fold ? group! : node, { ignoreTransform: true });
+        // 落点（空档或组头）在滚动区可见范围外（拖着时又滚走了）：落到可见范围的边上并收起，不飞出列表
+        const shown = clampIntoView(rect, viewOf(node));
+        return fold || shown !== rect ? shown : null;
       }),
     [transition, landing, placed, stash],
   );

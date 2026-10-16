@@ -41,13 +41,24 @@ import { co, dayLabel, sb, t } from "@/i18n";
 import { branchShort, monthLabel, monthShort } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { useActivity, useBumps } from "@/lib/managed-agents/activity";
-import { NO_FILING, type ProjectRow, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
+import { NO_FILING, notIn, type ProjectRow, setDraft, setError, showMore, showOneMore, shownOf, useProjects } from "@/lib/managed-agents/projects";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { bindFoldUser, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
-import { companySections, flatSections, groupOpen, liftRow, monthSections, unsentDrafts, withRecents } from "@/lib/managed-agents/sidebar-groups";
+import {
+  companySections,
+  flatSections,
+  groupOpen,
+  keepInView,
+  liftRow,
+  matchesAfterMove,
+  monthSections,
+  unsentDrafts,
+  withRecents,
+} from "@/lib/managed-agents/sidebar-groups";
 import { bindOrderUser, forgetPinned, moveBy, moveTo, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import {
   companyDrag,
+  draggedSessions,
   fromDrag,
   moveDragged,
   pinDrag,
@@ -277,10 +288,11 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const { collapsed, toggleSection } = useCollapsedGroups();
   const query = searchQuery.trim();
   const [lifting, setLifting] = useState<DragData | null>(null);
-  // 拖动中对话的空档去了哪一组（row 本页编号，group 公司编号 / "" 最近）；放下时那一组眼前的各行（含拖进去的）留在眼前
-  // （kept，行的 key），不因多了一条把最后一条挤进「显示更多」，直到下一次拖进别处
+  // 拖动中对话的空档去了哪一组（row 本页编号，group 公司编号 / "" 最近）。放下后移进去的各行留在眼前、眼前原有的不被挤走
+  // （keepInView）：排在眼前最后一条之前的每一条让那组多显示一条（showOneMore），排在「显示更多」之外的单独留着（kept，按组记
+  // 行的 key，只记移进去的这几条）。kept 在换搜索、排序、分组方式或点那组「显示更多」时清掉
   const [place, setPlace] = useState<{ row: string; group: string } | null>(null);
-  const [kept, setKept] = useState<readonly string[]>([]);
+  const [kept, setKept] = useState<readonly { group: string; key: string }[]>([]);
   // 「分组和排序」、折叠、手排的顺序按用户记：知道是谁了就换成这个人的
   const user = useProfile()?.user;
   useEffect(() => {
@@ -301,6 +313,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   }, [threadIds, itemsById, order.pinned]);
   // 拖动中侧栏被卸下（换产品、退出）：多选整批变淡的标记一并去掉
   useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
+  useEffect(() => setKept((list) => (list.length ? [] : list)), [query, view.by, view.sort, view.desc]);
 
   const { rows, sections } = useMemo(() => {
     // 选了文件还没发的空对话不列（当前打开的那条照列）；index 仍是组件库 threadIds 里的位置
@@ -323,7 +336,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     const pinnedOrder = order.pinned;
     if (view.by === "month") return { rows, sections: monthSections(rows, projects, { query, sort, pinnedOrder }) };
     if (view.by === "none") return { rows, sections: flatSections(rows, projects, { query, sort, pinnedOrder }) };
-    const keep = kept.length ? kept : undefined;
+    const keep = kept.length ? kept.map((entry) => entry.key) : undefined;
     return {
       rows,
       sections: companySections(rows, projects, { query, shown, serverMore, sort, empty: view.empty, companyOrder: order.companies, pinnedOrder, keep }),
@@ -332,7 +345,13 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const searching = !!query;
   const byCompany = view.by === "company";
 
-  // 眼前的摆法：拖对话时补一个空的「最近」（没有的话）；空档去了别的组（且那组开着）就把这一行按排序方式排进那一组
+  // 拖着的那一行；搜索时移到某一组以后就不在结果里了（标题、那家公司名都不含搜索词）：那一组不给它排空档，同收着的组
+  // （组头高亮、落到组头并收起），不然落进空档后当场从结果里消失
+  const liftedRow = lifting?.kind === "row" ? rows.find((row) => row.index === threadIds.indexOf(fromDrag(lifting.id))) : undefined;
+  const leavesResults = (group: string) => !!liftedRow && searching && !matchesAfterMove(liftedRow, group, projects, query);
+
+  // 眼前的摆法：拖对话时补一个空的「最近」（没有的话）；空档去了别的组（且那组开着、移过去还在结果里）就把这一行按排序方式
+  // 排进那一组
   const shownSections = useMemo(() => {
     if (!sections || !byCompany) return sections;
     const noRecents = !sections.some((section) => section.type === "recents");
@@ -344,8 +363,10 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
       ? sections.find((section) => section.type === "project" && section.project.id === place.group)
       : sections.find((section) => section.type === "recents");
     const open = place.group ? !!target && groupOpen(target, collapsed, searching) : !target || groupOpen(target, collapsed, searching);
-    return index >= 0 && open ? liftRow(out, rows, index, place.group, { by: view.sort, desc: view.desc }) : out;
-  }, [sections, rows, byCompany, lifting, place, threadIds, collapsed, searching, view.sort, view.desc]);
+    const row = rows.find((r) => r.index === index);
+    const stays = !searching || (!!row && matchesAfterMove(row, place.group, projects, query));
+    return index >= 0 && open && stays ? liftRow(out, rows, index, place.group, { by: view.sort, desc: view.desc }) : out;
+  }, [sections, rows, byCompany, lifting, place, threadIds, collapsed, searching, view.sort, view.desc, projects, query]);
 
   if (!sections || !shownSections) return <NoResults />;
   const local = (index: number) => threadIds[index]!;
@@ -366,15 +387,23 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     else if (active.kind === "company") saveCompanies(moveTo(companyIds, active.id, target.id));
     else if (active.kind === "row") {
       // 落位播完才到这里（共用拖动）：先移拖的这一条（它已经在空档里），多选的其余各条随后逐条跟过去
-      const selection = useSidebarSelection.getState().ids;
-      const bulk = (active.count ?? 0) > 1 && selection.includes(fromDrag(active.id));
-      const others = bulk ? selection.map((id) => itemsById.get(id)?.remoteId).filter((id): id is string => !!id && id !== active.session) : [];
-      const sessions = active.session ? [active.session, ...others] : others;
-      const into = shownSections.find((section) =>
-        target.group ? section.type === "project" && section.project.id === target.group : section.type === "recents");
-      const keys = new Map(rows.map((row) => [row.index, row.key]));
-      setKept([...(into?.indices ?? []).map((index) => keys.get(index) ?? ""), active.session ?? ""].filter(Boolean));
-      return moveDragged(sessions, target.group ?? "", bulk);
+      const { sessions, bulk } = draggedSessions(active, useSidebarSelection.getState().ids, (id) => itemsById.get(id)?.remoteId);
+      const group = target.group ?? "";
+      const into = shownSections.find((section) => (group ? section.type === "project" && section.project.id === group : section.type === "recents"));
+      // 移进去的各行留在眼前（眼前原有的不被挤进「显示更多」）：已在那家的不算
+      const indexOf = new Map(rows.map((row) => [row.key ?? "", row.index]));
+      const keyOf = new Map(rows.map((row) => [row.index, row.key ?? ""]));
+      const moving = notIn(sessions, group).flatMap((id) => (indexOf.has(id) ? [indexOf.get(id)!] : []));
+      const sort = { by: view.sort, desc: view.desc };
+      const { bump, keep } = keepInView(into, threadIds.indexOf(fromDrag(active.id)), moving, rows, shownOf(group), searching, sort);
+      const undo = new Map(bump.map((index) => [keyOf.get(index) ?? "", showOneMore(group)]));
+      const keys = new Set(sessions);
+      setKept((list) => [...list.filter((entry) => !keys.has(entry.key)), ...keep.map((index) => ({ group, key: keyOf.get(index) ?? "" }))]);
+      // 某一条被拒、退回原组：撤掉为它多显示的一条 / 留着的那一条
+      return moveDragged(sessions, group, bulk, (id) => {
+        undo.get(id)?.();
+        setKept((list) => list.filter((entry) => entry.key !== id));
+      });
     }
   };
   const onPlace = (active: DragData, target: DragData | null) =>
@@ -411,7 +440,15 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
               sessions={sessionsOf(section.all)}
               locked={searching}
               onMove={(delta) => saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta))}
-              more={section.more ? () => void showMore(section.project.id, section.all.length, () => aui.threads().loadMore()) : undefined}
+              fold={leavesResults(section.project.id)}
+              more={
+                section.more
+                  ? () => {
+                      setKept((list) => list.filter((entry) => entry.group !== section.project.id));
+                      void showMore(section.project.id, section.all.length, () => aui.threads().loadMore());
+                    }
+                  : undefined
+              }
             >
               <Items indices={section.indices} threadIds={threadIds} />
             </CompanyGroup>
@@ -427,7 +464,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
           // 拖对话时临时补的「最近」（本来没有）：开着、点了不收
           const temp = !sections.some((s) => s.type === "recents");
           return byCompany ? (
-            <RecentsGroup key={section.key} open={temp || open} onToggle={temp ? () => undefined : toggle} onNew={() => newChatIn("")}>
+            <RecentsGroup key={section.key} open={temp || open} fold={leavesResults("")} onToggle={temp ? () => undefined : toggle} onNew={() => newChatIn("")}>
               {items}
             </RecentsGroup>
           ) : (
@@ -477,9 +514,16 @@ const RECENTS_SCOPE: RowScope = { mode: "row", group: "" };
 // 对话的空档换组时整列一起滑的各项（共用拖动的 flowLayout）：行、组头、「显示更多」
 const FLOW = '[data-slot="aui_thread-list-item"], .cc-group-row, .cc-show-more';
 
-/** 按公司分组时的「最近」：没挂公司的对话（可以拖进公司）；也是把对话拖出公司的落点。 */
-const RecentsGroup: FC<{ open: boolean; onToggle: () => void; onNew: () => void; children?: ReactNode }> = ({ open, onToggle, onNew, children }) => {
-  const target = useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open);
+/** 按公司分组时的「最近」：没挂公司的对话（可以拖进公司）；也是把对话拖出公司的落点。fold：拖着的对话移进来就不在搜索结果里了
+ *  （同收着：不排空档，组头高亮、落到组头并收起）。 */
+const RecentsGroup: FC<{ open: boolean; fold?: boolean; onToggle: () => void; onNew: () => void; children?: ReactNode }> = ({
+  open,
+  fold,
+  onToggle,
+  onNew,
+  children,
+}) => {
+  const target = useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open || !!fold);
   return (
     <div {...target} className="cc-group-section" data-slot="cc-group-section">
       <SectionHeader label={t("recents")} open={open} onToggle={onToggle} onNew={onNew} />
@@ -492,20 +536,22 @@ const RecentsGroup: FC<{ open: boolean; onToggle: () => void; onNew: () => void;
   );
 };
 
-/** 一家公司的组：组头开关是这一组的拖动把手（整组跟着走），这组的行可以拖到别的公司；对话拖进来时整块高亮。 */
+/** 一家公司的组：组头开关是这一组的拖动把手（整组跟着走），这组的行可以拖到别的公司；收着时对话拖进来组头高亮。fold：拖着的
+ *  对话移进来就不在搜索结果里了（同收着）。 */
 const CompanyGroup: FC<{
   project: ProjectRow;
   open: boolean;
+  fold?: boolean;
   onToggle: () => void;
   sessions: readonly string[];
   locked: boolean;
   onMove: (delta: -1 | 1) => void;
   more?: () => void;
   children: ReactNode;
-}> = ({ project, open, onToggle, sessions, locked, onMove, more, children }) => {
+}> = ({ project, open, fold, onToggle, sessions, locked, onMove, more, children }) => {
   const drag = useSortableItem(
     { id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },
-    { disabled: locked, ownFocus: true, shut: !open },
+    { disabled: locked, ownFocus: true, shut: !open || !!fold },
   );
   const scope = useMemo<RowScope>(() => ({ mode: "row", group: project.id }), [project.id]);
   return (

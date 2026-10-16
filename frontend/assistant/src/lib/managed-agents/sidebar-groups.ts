@@ -191,12 +191,55 @@ export function liftRow(
     const rest = without(section.type === "project" ? section.all : section.indices);
     const all = [...rest, index].sort(order);
     const at = all.indexOf(index);
-    // 已显示的前面那一段（不含接在后面留着的）里才按位置插，之外的接在最后
+    // 已显示的前面那一段里按位置插；之外的放进接在后面留着的那一段（companySections 的 keep），在那一段里同样按排序方式排
+    // ——放下后 companySections 也这样排，落位后不再和留着的行换位
     let shown = 0;
     while (shown < indices.length && indices[shown] === rest[shown]) shown++;
-    const placed = at < shown ? [...indices.slice(0, at), index, ...indices.slice(at)] : [...indices, index];
+    const tail = [...indices.slice(shown), index].sort(order);
+    const placed = at < shown ? [...indices.slice(0, at), index, ...indices.slice(at)] : [...indices.slice(0, shown), ...tail];
     return section.type === "project" ? { ...section, indices: placed, all } : { ...section, indices: placed };
   });
+}
+
+/** 放下后要移进 section（已按 liftRow 摆好的那一组，拖的那一行 dragged 已排在里面）的各行（moving：拖的这一条和多选整批的其余
+ *  各条）怎么留在眼前：那组眼前原有的行一条都不被挤进「显示更多」，移进来的也不落位后当场消失。排在眼前最后一条之前的每一条
+ *  都让那组多显示一条（bump，projects.ts 的 showOneMore，同「显示更多」的计数）；排在「显示更多」之外的单独留着（keep，
+ *  companySections 的 keep，接在已显示的最后、按排序方式排）。shown 是这组此刻显示几条（shownOf）。搜索时（全显示）、最近（不限
+ *  条数）、去的组收着（拖的那一行没排进去）都不用。 */
+export function keepInView(
+  section: SidebarSection | undefined,
+  dragged: number,
+  moving: readonly number[],
+  rows: readonly SidebarRow[],
+  shown: number,
+  searching: boolean,
+  sort: SortOptions = UPDATED_DESC,
+): { bump: number[]; keep: number[] } {
+  const none = { bump: [], keep: [] };
+  if (searching || section?.type !== "project" || !section.indices.includes(dragged)) return none;
+  const byIndex = new Map(rows.map((row) => [row.index, row]));
+  const compare = compareRows(sort);
+  const order = (a: number, b: number) => {
+    const x = byIndex.get(a);
+    const y = byIndex.get(b);
+    return x && y ? compare(x, y) : a - b;
+  };
+  const incoming = new Set(moving);
+  const old = section.all.filter((index) => !incoming.has(index));
+  const all = [...old, ...incoming].sort(order);
+  // 眼前原有的最后一条前面每插进一条，它就往后挪一位；挪出已显示的那一段几位，就多显示几条（原来那组没满时先占空位）
+  const seen = old.slice(0, shown);
+  const last = seen.at(-1);
+  const before = last === undefined ? [] : [...incoming].filter((index) => all.indexOf(index) < all.indexOf(last)).sort(order);
+  const bump = before.slice(0, Math.max(0, seen.length + before.length - shown));
+  const visible = shown + bump.length;
+  return { bump, keep: [...incoming].filter((index) => all.indexOf(index) >= visible) };
+}
+
+/** 搜索时这一行移到 to（公司编号，"" = 最近）以后还在不在结果里（标题或那家公司名命中）；不搜索时都在。拖动时不在的不给它在
+ *  那一组排空档（落位后会从结果里消失），按收着的组处理：组头高亮、落到组头并收起。 */
+export function matchesAfterMove(row: SidebarRow, to: string, projects: readonly ProjectRow[], query: string): boolean {
+  return searcher(projects, query).matches({ ...row, group: to });
 }
 
 /** 按处理月份：已置顶 → 各月（降序新的在前，升序旧的在前）→ 未指定月份（键 month:）。 */

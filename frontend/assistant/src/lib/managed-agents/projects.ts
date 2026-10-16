@@ -306,8 +306,26 @@ export function shownOf(id: string): number {
   return store.getState().shown[id] ?? FIRST_SHOWN;
 }
 
+// 拖进来多显示的条数（每组；点「显示更多」后清零：那之后的计数是人自己要的）
+const bumped = new Map<string, number>();
+
+/** 拖进这一组的对话排在眼前最后一条之前：这组多显示一条（同「显示更多」的计数），眼前的最后一条不被挤进「显示更多」。
+ *  回撤销（那一条移动失败、退回原组时用；这期间点过「显示更多」就不撤）；撤过的不再撤。 */
+export function showOneMore(id: string): () => void {
+  bumped.set(id, (bumped.get(id) ?? 0) + 1);
+  store.setState((s) => ({ shown: { ...s.shown, [id]: shownOf(id) + 1 } }));
+  let undone = false;
+  return () => {
+    if (undone || !bumped.get(id)) return;
+    undone = true;
+    bumped.set(id, bumped.get(id)! - 1);
+    store.setState((s) => ({ shown: { ...s.shown, [id]: shownOf(id) - 1 } }));
+  };
+}
+
 /** 「显示更多」：这一组多显示 10 条；已加载的不够、服务端还有时只翻这一组（loadMore：组件库的加载下一页）。 */
 export async function showMore(id: string, loaded: number, loadMore: () => Promise<void>) {
+  bumped.delete(id);
   const limit = shownOf(id) + SHOW_MORE_STEP;
   store.setState((s) => ({ shown: { ...s.shown, [id]: limit } }));
   if (loaded >= limit || !(id in store.getState().more.groups)) return;
@@ -400,6 +418,7 @@ export function applyProjectChange(change: ProjectChange): string | undefined {
 export function resetProjects() {
   loading = null;
   moved.clear();
+  bumped.clear();
   provisional.clear();
   holds.clear();
   store.setState({
