@@ -46,6 +46,10 @@ def decide(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[
                                         remembered=remembered, account_resolved=account_resolved, fixed=fixed,
                                         receipts=receipts, trace=trace)
         decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
+        if settled.get("version"):
+            # 汇总的版本（CC 桌面版 `account_history.RESULT_VERSION`）：只有排除了 Pearnly 自己写的行（v2）的「已定」才算
+            # 规则定（`automation.tiers`），v1 的最高算 CC 判断（第 3 期第 1、11 条）
+            decision["history"]["version"] = settled["version"]
     company_choices.finish(decision, trace, sources)
     return decision, sources
 

@@ -107,6 +107,8 @@ jobs:
         run: python3 tests/test_cowork_account_suggest.py
       - name: Verify a push takes its direction from the chosen account set's tax ID when the workspace's cannot tell
         run: python3 tests/test_cowork_push_direction.py
+      - name: Verify each document is classed A / B / C for automatic push (sources per item, pre-push checks, the pure decision core)
+        run: python3 tests/test_cowork_da_automation.py
       - name: Verify the helper installer receiver refuses anything but one verified installer
         run: python3 tests/test_companion_receiver.py
       - name: Verify the pearnly.com website builds with complete SEO tags and working links
