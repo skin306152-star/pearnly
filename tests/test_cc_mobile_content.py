@@ -20,7 +20,7 @@ PAGE_STUBS = {"socket.io-client": SOCKET_STUB,
 
 class NotesSourceTests(unittest.TestCase):
     def test_note_editor_has_cancel_and_save_and_no_save_on_blur(self):
-        page = read("components/company-page.tsx")
+        page = read("components/company-cards.tsx")  # 知识库卡片（会话栏与公司页共用，CC 外壳 2026-10-16）
         editor = page[page.index("export const NoteEditor"):page.index("// ---------------------------------------------------------------- 单据文件夹")]
         self.assertIn('{t("cancel")}', editor)
         self.assertIn('{t("save")}', editor)
@@ -34,6 +34,12 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn("useEffect(() => setList(notes), [notes]);", section)
         self.assertIn("{list.map((note) =>", section)
         self.assertNotIn("await reload()", section)  # 重取失败不能挡住已存好的那一条
+        # 让 CC 起草（第 2 期）：只在公司页的空知识库里（keepEmpty），新对话里预填、不自动发送
+        self.assertIn("{keepEmpty && !list.length && !adding && (", section)
+        self.assertIn("co.draftNotesText, false);", section)
+        pending = read("components/pending.tsx")
+        self.assertIn("{open && view && settledView(view) && (", pending)
+        self.assertIn("{co.pushNow}", pending)
         i18n = read("i18n.ts")
         messages = block(i18n, "const MESSAGES = {")
         for lang in ("en", "zh", "th"):
@@ -43,13 +49,35 @@ class NotesSourceTests(unittest.TestCase):
         page = read("components/company-page.tsx")
         header = page[page.index("const Header: FC"):page.index("// ---------------------------------------------------------------- 输入框")]
         self.assertIn("setTitle(saved);", header)
-        self.assertIn("{title}</h1>", header)
+        # 公司页标题：点名字就地改名（设计文档 3.15）。第 5 轮：按钮里面放滚动的文字，滚动时的遮罩不再把按钮的焦点环裁掉
+        self.assertIn('<button type="button" className="cc-page-title-btn" title={t("rename")} onClick={rename}>\n'
+                      '              <Marquee className="cc-page-title-text">{title}</Marquee>\n            </button>', header)
+        self.assertNotIn('as="button"', header)
+        css = read("globals.css")
+        button = css.split("  .cc-page-title-btn {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("overflow", button)                                    # 按钮自己不裁切
+        self.assertIn(".cc-page-title[data-editable] { display: flex; overflow: visible; }", css)
+        self.assertIn(".cc-page-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }", css)
+        # 第 5 轮测试 3：「··· → 重命名」后菜单关上时不把焦点还给「···」，改名框直接能输入
+        self.assertIn("const renameFromMenu = useRef(false);", header)
+        self.assertIn("renameFromMenu.current = !isMobile;", header)
+        close = header.split("onCloseAutoFocus={(e) => {", 1)[1].split("}}", 1)[0]
+        self.assertIn("if (!renameFromMenu.current) return;", close)
+        self.assertIn("e.preventDefault();", close)
+        page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
         self.assertIn("setChoiceShown(rows, c.key, v)", choices)
         self.assertIn("rows.filter((row) => row.key !== c.key)", choices)
         self.assertNotIn("await reload()", choices)
         folders = page[page.index("export const FolderSection"):page.index("// ---------------------------------------------------------------- 账套")]
         self.assertIn("setGone((before) => [...before, reader]);", folders)
+
+    def test_the_company_page_lists_only_conversations_that_were_sent(self):
+        # 第 5 轮测试 4 / 审查：公司页「＋」选了文件就建了会话，不发也在服务端留一条空标题的；公司页对话列表不列它
+        # （标题空 = 还没发过消息）。列表自己取数，不经侧栏的多设备同步
+        page = read("components/company-page.tsx")
+        chats = page[page.index("const load = useCallback("):page.index("useEffect(() => void load(), [load]);")]
+        self.assertIn("page.sessions.filter((row) => !seen.has(row.id) && !row.archived_at && row.title)", chats)
 
 
 class OpenAtBottomSourceTests(unittest.TestCase):

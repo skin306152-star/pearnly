@@ -22,6 +22,7 @@ from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_cowork.push.express import company_choices
 from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
 from pearnly_cowork.push.express.prepare import prepare_express
@@ -159,7 +160,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
                           selected['config'], preparation, fixed,
-                          siblings=lambda: _same_company(loaded, target.account_set))
+                          siblings=lambda: _same_company(loaded, target.account_set),
+                          account_row=lambda: _account_row(loaded, target), since=getattr(doc, "creation", None))
     if decision["needed"]:
         masters = connections.ensure_account_masters(loaded.doc.name, target.account_set)
         wait = masters_wait(masters, decision["needed"])
@@ -198,6 +200,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
     frozen.update(request_intent=intent, connection_revision=loaded.revision,
         original_history=prior, preparation_date=today.isoformat(), own_tax_id=own_tax,
         preparation_evidence=evidence, **ledger.writer_scope(loaded.doc.name, target.account_set))
+    if decision.get("decided_by"):
+        # 每一类按什么定的（账套记忆 / 公司规则 / Express 历史 / 任务默认），经 F19 的 written 交给 CC 说清楚
+        frozen["decided_by"] = dict(decision["decided_by"])
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
@@ -212,14 +217,7 @@ def _apply_stock_group(config, connection, account_set):
         config["stock_acccod"] = chosen
 
 
-_ACCOUNT_CONFLICTS = {
-    account_match.TAX_MISMATCH: "The own tax ID on this document does not match the chosen account set. "
-                                "Check the account set and send it again.",
-    account_match.PERIOD_MISMATCH: "The document date is outside the fiscal period of the chosen account set. "
-                                   "Check the year and send it again.",
-    account_match.BRANCH_MISMATCH: "This document belongs to another branch than the chosen account set. "
-                                   "Choose that branch's account set and send it again.",
-}
+_ACCOUNT_CONFLICTS = account_match.CONFLICT_MESSAGES
 
 
 def _account_row(loaded, target):
@@ -278,32 +276,64 @@ def _fixed(history, connection, account_set, fixed):
     return {kind: value for kind, value in found.items() if kind != "party"} or None
 
 
+def _company_rules(connection, account_set, account_row):
+    """这份账套所属公司的规则（第 2 期统一客户规则，钩子 ``cowork_push_company_choices``，`companies.rules.for_push`；
+    push 域不导入 companies）：回 (``{"branch", "rules"}`` 或 None, 取到没有)。不缓存；钩子出错记日志、回 (None, False)，
+    调用方这一张不用「历史已定」（免得规则没读到却按别的来源自动写）。``account_row`` 可以是取那一行的函数（有钩子才取）。"""
+    for path in frappe.get_hooks("cowork_push_company_choices") or []:
+        try:
+            if callable(account_row):
+                account_row = account_row()
+            found = frappe.get_attr(path)(connection, account_set, account_row)
+        except Exception:  # noqa: BLE001 — 取规则失败只让这一张多问一次，不挡推送
+            frappe.log_error(title="Cowork push company choices failed", message=frappe.get_traceback()[-1500:])
+            frappe.clear_messages()
+            return None, False
+        if found:
+            return found, True
+    return None, True
+
+
 def _decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation, fixed=None,
-               siblings=None):
+               siblings=None, account_row=None, *, since=None):
     """这张票在这份账套里的选择（规则见 `push/express/choices.py`）：记过的套用，缺的列出来要人选。
 
     票上会计明确改过的付款方式按对方记下（「按对方记住会计第一次的选择」，用户 2026-09-28）。
     ``siblings``：取同一家公司其他账套的函数（`_same_company`；只有 POS 票才取），POS 收款科目按公司问一次
-    （`_borrow_receipts`）。"""
+    （`_borrow_receipts`）。``since``：这张票传上来的时间，给费用科目分清来源（`_account_from`）。
+
+    公司规则（第 2 期）：账套记忆之下垫一层这家公司的规则（``account_row`` 是目录里这份账套那一行，按它认公司与分店，
+    `push.express.company_choices.overlay`），再往下才是 Express 历史已定；取不到规则（钩子出错）这一张不用历史已定。
+    结果带 ``decided_by`` ``{kind: source}``（准备推送时冻结进目标，CC 据此说清按什么定的）。"""
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
-    remembered = choice_store.remembered(connection, account_set)
+    company, rules_read = _company_rules(connection, account_set, account_row)
+    remembered, sources = company_choices.overlay(choice_store.remembered(connection, account_set),
+                                                  (company or {}).get("rules") or (), (company or {}).get("branch") or "",
+                                                  config)
     kind = resolve_posting_kind(posting_kind, flat)
     receipts = _pos_receipts(flat)
     _borrow_receipts(remembered, connection, siblings, receipts, config)
+    trace = {}
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
                                     remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
-                                    receipts=receipts)
-    settled = _settled_account(decision["needed"], connection, account_set, fields, config, fixed)
+                                    receipts=receipts, trace=trace)
+    settled = _settled_account(decision["needed"], connection, account_set, fields, config, fixed) \
+        if rules_read else None
     if settled:
         # 历史很一致：当作这家已记住的科目用（只这一次判断，不写进账套记忆；主档页可见可删）
         subject = next(item["subject"] for item in decision["needed"] if item.get("kind") == "account")
         remembered = {**remembered, "account": {**(remembered.get("account") or {}), subject: settled["code"]}}
+        sources = {**sources, "account": {**(sources.get("account") or {}), subject: "express_history"}}
+        trace = {}
         decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
                                         remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
-                                        receipts=receipts)
+                                        receipts=receipts, trace=trace)
         decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
+    company_choices.finish(decision, trace, sources)
     applied = decision["applied"]
+    if applied.get("account"):
+        applied["account_from"] = _account_from(decision, connection, account_set, fields, direction, since, sources)
     remember = applied.pop("remember_payment", None)
     if remember:
         name, tax = ((fields.get("seller_name"), fields.get("seller_tax")) if direction == "purchase"
@@ -311,6 +341,33 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         choice_store.record(connection, account_set, "payment",
                             choice_rules.supplier_subject(direction, tax, name), remember, name)
     return decision
+
+
+def _moment(value):
+    """库里的时间（datetime 或 'YYYY-MM-DD HH:MM:SS[.ffffff]'）→ datetime，比先后用（同一站点时区，不带时区）。"""
+    return value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+
+
+def _account_from(decision, connection, account_set, fields, direction, since, sources=None):
+    """费用科目哪来的（写进载荷 account_source，CC 推送结果照实说，验收 F19）：任务默认（task_default）、Express 历史
+    很一致（express_history）、这家公司的规则（company_rule，第 2 期，``sources`` 是 `company_choices.overlay` 的来源）、
+    这张票传上来以后有人选的（chosen：待处理页、复核页或对话里为它选的，按供应商记下）、之前就记过的（remembered）。"""
+    applied = decision["applied"]
+    if applied.get("account_from") == "task_default":
+        return "task_default"
+    if decision.get("history"):
+        return "express_history"
+    # 与 choices.resolve 记科目的键同一取法（_party 只用 seller_tax），否则按名字记下的选择 / 规则查不到
+    name, tax = fields.get("seller_name"), fields.get("seller_tax")
+    subject = choice_rules.supplier_subject(direction, tax, name)
+    if ((sources or {}).get("account") or {}).get(subject) == "company_rule":
+        # 规则值并进了 remembered、同键的账套记忆存规则时已删，chosen_at 查不到：先认规则，不报成 remembered
+        return "company_rule"
+    if since and direction == "purchase":
+        chosen_at = choice_store.chosen_at(connection, account_set, "account", subject)
+        if chosen_at and _moment(chosen_at) >= _moment(since):
+            return "chosen"
+    return "remembered"
 
 
 def _settled_account(needed, connection, account_set, fields, config, fixed):
@@ -376,7 +433,8 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
     fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          config, preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set))
+                          config, preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set),
+                          account_row=lambda: _account_row(loaded, target))
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
     masters = account_masters(loaded.doc.name, target.account_set)
     kinds = {item["kind"] for item in decision["needed"]}
@@ -668,8 +726,10 @@ OUTCOMES_MAX = 20  # 同 CC 一次推送的张数上限
 
 def outcomes(records):
     """推送的人看自己这几次推送此刻的结论（CC 推送后等写账结果，用户 2026-10-13 第 9 条）：
-    ``{记录名: {"status", "reason", "docnum", "result_unknown"}}``；status 是账本状态（pending / leased 还在路上，
+    ``{记录名: {"status", "reason", "docnum", "result_unknown", "written"}}``；status 是账本状态（pending / leased 还在路上，
     success 已入账，manual 要人处理）。docnum 只在入账成功时给：ERP 回报的单号（Express 由 CC 桌面版写完回读）。
+    written 也只在入账成功时给：Express 载荷里现购 / 赊购、哪层定的、记的科目加上单号（`_entered`，验收 F19；同单据详情、
+    推送结果，复审第 3 轮），别的为 None。
 
     只认本人发起（actor）的记录，别人的、不存在的不回；只读、不加锁、不改任何东西。调用方要看别的请求刚提交的结论时，
     先自己 ``frappe.db.rollback()`` 换一份新快照。"""
@@ -677,11 +737,43 @@ def outcomes(records):
     names = list(dict.fromkeys(str(name) for name in records or () if name))[:OUTCOMES_MAX]
     if not names:
         return {}
-    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown FROM `tabCowork Push Record`
-        WHERE actor=%s AND name IN %s""", (frappe.session.user, tuple(names)), as_dict=True)
+    rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json, target_json
+        FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""", (frappe.session.user, tuple(names)), as_dict=True)
     return {row.name: {"status": row.status, "reason": row.reason or "",
                        "docnum": (row.external_docnum or "") if row.status == "success" else "",
-                       "result_unknown": bool(row.result_unknown)} for row in rows}
+                       "result_unknown": bool(row.result_unknown),
+                       "written": _entered(row) if row.status == "success" else None}
+            for row in rows}
+
+
+WRITTEN_MAX = 50  # 同 CC 列单据一页的上限
+
+
+def _entered(row):
+    """一条入账成功的记录给 CC 的 ``written``：Express 载荷里怎么写的（`pushed.written`，含冻结目标里的 ``decided_by``，
+    第 2 期按什么定的），加上 ERP 回报的单号 ``docnum``（测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，CC 后来
+    查详情 / 推送结果时只有现赊与科目，没有单号）。不是 Express 的（MR.ERP）只给单号；既没有载荷事实也没有单号回 None。"""
+    target = _loads(getattr(row, "target_json", None))
+    decided_by = target.get("decided_by") if isinstance(target, dict) else None
+    item = dict(pushed_rules.written(_loads(row.payload_json), decided_by) or {})
+    docnum = str(getattr(row, "external_docnum", None) or "").strip()
+    if docnum:
+        item["docnum"] = docnum
+    return item or None
+
+
+def written(records):
+    """推送成功的这几条记录各自怎么写进 ERP 的（`_entered`）：``{记录名: {...}}``，没成功的、什么都没有的不回。
+    给 CC 列推送结果、单据详情、已入账重推用（验收 F19）：记录名取自调用方已按权限取到的单据（``last_push_record``），
+    这里不再按人筛；只读。走哪条路推的（对话、待处理页当场选、定时任务）都一样，单号都从推送记录取。"""
+    scope.require_read()
+    names = list(dict.fromkeys(str(name) for name in records or () if name))[:WRITTEN_MAX]
+    if not names:
+        return {}
+    rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum FROM `tabCowork Push Record`
+        WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
+    found = {row.name: _entered(row) for row in rows}
+    return {name: item for name, item in found.items() if item}
 
 
 def records(connection, start=0, limit=50):

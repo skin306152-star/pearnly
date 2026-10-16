@@ -34,6 +34,11 @@ export function setPref<K extends keyof Prefs>(name: K, value: Prefs[K]) {
   apply();
 }
 
+/** 页面报给浏览器的深浅（<meta name="color-scheme">）：跟随系统时两种都支持，固定了就只报那一种。 */
+export function colorSchemeOf(theme: Theme): string {
+  return theme === "system" ? "light dark" : theme;
+}
+
 /** 把偏好写到 <html> 上；主题变了通知 main.tsx 重新决定深浅色。 */
 export function apply() {
   const root = document.documentElement;

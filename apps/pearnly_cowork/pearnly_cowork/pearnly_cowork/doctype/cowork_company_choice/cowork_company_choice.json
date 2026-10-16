@@ -1,0 +1,150 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Company Choice",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-16 06:00:00.000000",
+ "modified": "2026-10-16 06:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "description": "A push choice set for a whole client company or one of its branches (CC company master). Shared by the firm; a choice saved in one account set overrides it there.",
+ "field_order": [
+  "input_key",
+  "company",
+  "workspace",
+  "kind",
+  "subject",
+  "subject_label",
+  "value",
+  "value_label",
+  "branch",
+  "source",
+  "evidence_json",
+  "session",
+  "set_by",
+  "set_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "input_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "company",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Company",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "kind",
+   "label": "Kind",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "party\nitem\naccount\npayment\nvat\ndepartment\nreceipt",
+   "reqd": 1
+  },
+  {
+   "fieldname": "subject",
+   "label": "Subject",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "subject_label",
+   "label": "Subject Label",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "value",
+   "label": "Value",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 60,
+   "reqd": 1
+  },
+  {
+   "fieldname": "value_label",
+   "label": "Value Label",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "branch",
+   "label": "Branch",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 5
+  },
+  {
+   "fieldname": "source",
+   "label": "Source",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "person",
+   "reqd": 1
+  },
+  {
+   "fieldname": "evidence_json",
+   "label": "Evidence",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "session",
+   "label": "Conversation",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "set_by",
+   "label": "Set By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "set_at",
+   "label": "Set At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

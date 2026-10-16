@@ -12,7 +12,7 @@
 // 词条取 Cowork 的术语表（folder_intake.api.terms），不另存翻译。样式只用 globals.css 的 .cc-* 与变量。
 //
 // 公司主档（ADR-020）：任务表不加字段，属于哪家公司按账套推出来（companies.api.task_overview，一次取全部，不逐家读详情）。
-//   ?view=tasks&company=<公司>（侧栏公司组「定时任务 N」、主档页点任务、「＋」）只看这家，顶上一枚可关掉的公司胶囊；
+//   ?view=tasks&company=<公司>（公司页「定时任务」标签、会话栏定时任务卡里点任务或「＋」）只看这家，顶上一枚可关掉的公司胶囊；
 //   点的那条定位并高亮；主档页「＋」接着打开新建表单，预填覆盖本月的账套（本机绑了文件夹时连同文件夹）。
 //   全部任务时按公司分组（侧栏顺序的公司在前，其余按名称），归不到公司的放「其他」；新建统一从公司里建：「＋」先选公司
 //   （添加公司对话框里的公司选择），再同主档页「＋」一样预填。换文件夹、删公司都不改任务（避免重跑、重复扣费）。
@@ -28,6 +28,7 @@ import {
   PencilIcon,
   PlayIcon,
   PlusIcon,
+  SearchIcon,
   TrashIcon,
   XIcon,
 } from "lucide-react";
@@ -45,12 +46,14 @@ import {
   taskSeedOf,
   useCompanyNav,
   useTaskOverview,
+  watchTaskOverview,
 } from "@/lib/companies";
 import { knownReaders, useDesktopFeatures } from "@/lib/desktop";
 import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { co, t } from "@/i18n";
+import { Marquee } from "@/components/ui/marquee";
 
 const API = "pearnly_cowork.folder_intake.api.";
 const CONN = "pearnly_cowork.connections.api.";
@@ -306,6 +309,13 @@ function useNewTask(open: (seed: TaskSeed | null) => void) {
 
 // ── 列表 ────────────────────────────────────────────────────────────────────────────────────────
 
+/** 定时任务页的搜索：任务名、目标账套、文件夹里有这几个字（不分大小写）。 */
+export function matchesRule(rule: Pick<Rule, "title" | "account_label" | "folder" | "root_label">, search: string): boolean {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return true;
+  return [rule.title, rule.account_label, rule.folder, rule.root_label].map((part) => String(part ?? "")).join(" ").toLowerCase().includes(needle);
+}
+
 export function ScheduledTasks() {
   const tr = useTerms();
   const toast = useToast();
@@ -314,13 +324,16 @@ export function ScheduledTasks() {
   const [editing, setEditing] = useState<Rule | "new" | null>(null);
   const [runsOf, setRunsOf] = useState<Rule | null>(null);
   const [confirm, setConfirm] = useState<{ text: string; label: string; danger?: boolean; run: () => Promise<void> } | null>(null);
+  // 按公司分组用的总览（一次取全部，不逐家读详情）：只在定时任务页开着时跟着任务事件、回到前台再读
+  const companyKind = useProjects((s) => s.kind);
+  useEffect(() => (companyKind ? watchTaskOverview() : undefined), [companyKind]);
 
   const reload = useCallback(async () => {
     try {
       const data = await getMethod<{ rules: Rule[] }>(API + "listing");
       setRules(data?.rules ?? []);
       setError("");
-      void refreshTaskOverview();  // 任务建、删、改了：侧栏「定时任务 N」与分组跟着变
+      void refreshTaskOverview();  // 任务建、删、改了：按公司的分组跟着变
     } catch (e) {
       setError(shownError(e));
       // 自动刷新偶尔失败：已显示的列表留着，不闪成空的
@@ -355,20 +368,29 @@ export function ScheduledTasks() {
     document.querySelector(`[data-task="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: "center" });
   }, [focus, rules]);
   // 只看这家：总览还没取到时先不列（不闪出别家的任务）
-  const shown = rules && taskCompany ? (overview.loaded ? rules.filter((rule) => overview.tasks[rule.name] === taskCompany) : null) : rules;
+  const [search, setSearch] = useState("");
+  const byCompany = rules && taskCompany ? (overview.loaded ? rules.filter((rule) => overview.tasks[rule.name] === taskCompany) : null) : rules;
+  // 搜索（列表页样式，设计文档 4.5）：任务名、账套、文件夹里有这几个字
+  const shown = byCompany && search.trim() ? byCompany.filter((rule) => matchesRule(rule, search)) : byCompany;
   const groups = shown && !taskCompany ? groupTasks(shown, overview.tasks, order, overview.titles) : shown ? [[taskCompany, shown] as [string, Rule[]]] : [];
   const headed = !taskCompany && groups.some(([id]) => id);
 
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="cc-greeting text-3xl">{tr("cowork.folder.title")}</h1>
-          <button type="button" className="cc-btn" data-primary="" onClick={() => newTask(taskCompany)}>
-            <PlusIcon className="size-4" />
+      <div className="cc-page">
+        <div className="cc-page-head">
+          <h1 className="cc-page-title">{tr("cowork.folder.title")}</h1>
+          <button type="button" className="cc-btn-sm" data-primary="" onClick={() => newTask(taskCompany)}>
+            <PlusIcon />
             {tr("cowork.folder.new")}
           </button>
         </div>
+        {!!byCompany?.length && (
+          <label className="cc-page-search">
+            <SearchIcon />
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
+          </label>
+        )}
         {taskCompany && (
           <div className="mb-4">
             <span className="cc-chip">
@@ -389,6 +411,8 @@ export function ScheduledTasks() {
           <div className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => <div key={i} className="cc-card h-20 animate-pulse" />)}
           </div>
+        ) : shown.length === 0 && search.trim() ? (
+          <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
         ) : shown.length === 0 ? (
           <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-center">
             <ClockIcon className="size-8 text-ink-3" />
@@ -410,11 +434,11 @@ export function ScheduledTasks() {
                   key={rule.name}
                   data-task={rule.name}
                   data-selected={focus === rule.name ? "" : undefined}
-                  className="cc-card cc-card-hover cc-enter flex items-start gap-3 px-4 py-3"
+                  className="cc-list-item cc-enter items-start"
                 >
                   <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(rule)}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate font-medium text-ink">{rule.title}</span>
+                      <Marquee className="truncate font-medium text-ink">{rule.title}</Marquee>
                       <Chip tone={s.tone}>{s.text}</Chip>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-sm">

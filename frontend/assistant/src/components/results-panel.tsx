@@ -1,9 +1,11 @@
 // 右侧结果面板（同 claude.ai 的 Artifacts 面板）：智能体产出的文件在这里预览、下载。
 //
 // 预览方式沿用 assistant-ui 官方 Artifacts 示例：网页放进无同源权限的沙箱 iframe（srcDoc），并可切到代码；
-// 图片、PDF 用服务端的内联地址；Excel 由服务端读成表格后显示；Word（.docx）由服务端读成段落与表格的纯数据，
+// 图片、PDF 用服务端的内联地址（PDF 在不能内嵌显示的设备上——安卓 Chrome、iPhone / iPad——改由服务端逐页画成图，
+// 第 5 轮测试 2）；Excel 由服务端读成表格后显示；Word（.docx）由服务端读成段落与表格的纯数据，
 // 按需载入的 document-view 按文字渲染（2026-10-13 教程第 3 条）；文本按原文显示；其余类型、读不出时给下载。
 // 新结果出现时自动打开；对话里的文件卡片点一下打开对应文件（ResultsContext）。
+// 用户发的附件（消息气泡里的附件卡片）也在这里打开：服务端取本站留存的那份（引擎不让下载用户上传的文件），预览方式同结果文件。
 
 import { Tabs } from "radix-ui";
 import {
@@ -17,11 +19,13 @@ import {
   XIcon,
 } from "lucide-react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { fileUrl, listSessionFiles, previewFile, type FilePreview, type SessionFile } from "@/lib/managed-agents/api";
+import { fileUrl, listSessionFiles, pageUrl, previewFile, type FilePreview, type SessionFile } from "@/lib/managed-agents/api";
+import { touchOnly } from "@/lib/touch";
 import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { SplitHandle, resultsSize, useStoredSize } from "@/components/split-handle";
 import { t } from "@/i18n";
+import { Marquee } from "@/components/ui/marquee";
 
 // Word 预览的渲染按需载入：打开 .docx 时才下载这一小块，首屏包不变
 const DocumentView = lazy(() => import("@/components/document-view"));
@@ -64,18 +68,29 @@ export function fileTypeLabel(filename: string): string {
 export type Results = {
   sessionId: string | null;
   files: SessionFile[];
+  /** 用户发的附件（本会话文件列表里 kind = upload 的，带大小与 PDF 页数）：气泡里的附件卡片显示说明行 */
+  uploads: SessionFile[];
   openFile: (id: string) => void;
+  /** 在右侧面板打开用户发的附件：它不在结果文件里，面板临时多列这一项 */
+  openUpload: (file: SessionFile) => void;
 };
 
-export const ResultsContext = createContext<Results>({ sessionId: null, files: [], openFile: () => undefined });
+export const ResultsContext = createContext<Results>({
+  sessionId: null,
+  files: [],
+  uploads: [],
+  openFile: () => undefined,
+  openUpload: () => undefined,
+});
 
 export function useResults(): Results {
   return useContext(ResultsContext);
 }
 
-/** 本会话的结果文件；会话从「运行中」变回空闲时重新取一次（结果文件有 1–3 秒的入库延迟，取不到再补一次）。 */
+/** 本会话的结果文件与用户发的附件；会话从「运行中」变回空闲时重新取一次（结果文件有 1–3 秒的入库延迟，取不到再补一次）。 */
 export function useResultFiles(sessionId: string | null, isRunning: boolean) {
   const [files, setFiles] = useState<SessionFile[]>([]);
+  const [uploads, setUploads] = useState<SessionFile[]>([]);
   const [fresh, setFresh] = useState(false);
   const wasRunning = useRef(false);
   const known = useRef<Set<string>>(new Set());
@@ -83,6 +98,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
   useEffect(() => {
     known.current = new Set();
     setFiles([]);
+    setUploads([]);
     setFresh(false);
     if (!sessionId) return;
     let cancelled = false;
@@ -91,6 +107,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
       const outputs = list.filter((f) => f.kind === "output" && f.downloadable);
       outputs.forEach((f) => known.current.add(f.id));
       setFiles(outputs);
+      setUploads(list.filter((f) => f.kind === "upload"));
     }, () => undefined);
     return () => {
       cancelled = true;
@@ -109,6 +126,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
         const added = outputs.filter((f) => !known.current.has(f.id));
         outputs.forEach((f) => known.current.add(f.id));
         setFiles(outputs);
+        setUploads(list.filter((f) => f.kind === "upload"));
         if (added.length) setFresh(true);
         else if (retry > 0) setTimeout(() => void load(retry - 1), 2500);
       }, () => undefined);
@@ -119,7 +137,7 @@ export function useResultFiles(sessionId: string | null, isRunning: boolean) {
   }, [isRunning, sessionId]);
 
   const clearFresh = useCallback(() => setFresh(false), []);
-  return { files, fresh, clearFresh };
+  return { files, uploads, fresh, clearFresh };
 }
 
 function useText(url: string | null) {
@@ -203,7 +221,7 @@ function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
       <FileTypeIcon filename={file.filename} className="size-10" />
-      <span className="max-w-[80%] truncate text-foreground">{file.filename}</span>
+      <Marquee className="max-w-[80%] truncate text-foreground">{file.filename}</Marquee>
       <a
         href={fileUrl(sessionId, file.id)}
         className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-foreground hover:bg-muted"
@@ -229,6 +247,62 @@ export function DocumentPreview({ sessionId, file, preview }: { sessionId: strin
   );
 }
 
+/** 这台设备能不能在页面里直接显示 PDF（浏览器自带的查看器）：电脑上的 Chrome / Edge / Firefox / Safari 能；安卓 Chrome
+ *  不能（iframe 里只有图标、内部地址和「打开」按钮，第 5 轮测试 2），iPhone / iPad 的 Safari 在 iframe 里只显示第一页、
+ *  不能滚——触屏设备一律按页看图。 */
+export function nativePdf(): boolean {
+  return typeof navigator !== "undefined" && navigator.pdfViewerEnabled !== false && !touchOnly();
+}
+
+// 手机上一份 PDF 最多列这么多页，再多的下载看
+export const PDF_PAGES_SHOWN = 100;
+
+/** 不能内嵌 PDF 的设备：服务端逐页画成图（files.page_image），一页一张往下排、可双指放大。看得见才取（loading="lazy"，
+ *  取到前按 A4 比例占位，免得一打开就把每页都取了）；同一页浏览器有缓存。页数先看列表里的（附件），没有再问服务端；
+ *  读不出页数、第一页画不出给下载。 */
+export function PdfPages({ sessionId, file }: { sessionId: string; file: SessionFile }) {
+  const [pages, setPages] = useState<number | null>(file.pages ?? null);
+  const [broken, setBroken] = useState(false);
+  useEffect(() => {
+    setBroken(false);
+    if (file.pages) {
+      setPages(file.pages);
+      return;
+    }
+    setPages(null);
+    let cancelled = false;
+    void loadPreview(sessionId, file.id).then((preview) => !cancelled && setPages(preview.type === "pdf" ? preview.pages : 0));
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, file.id, file.pages]);
+  if (pages === null) return <Loading />;
+  if (!pages || broken) return <NoPreview sessionId={sessionId} file={file} />;
+  const shown = Math.min(pages, PDF_PAGES_SHOWN);
+  return (
+    <div className="cc-pdf-pages" data-slot="cc-pdf-pages">
+      {Array.from({ length: shown }, (_, i) => (
+        <img
+          key={i}
+          className="cc-pdf-page"
+          src={pageUrl(sessionId, file.id, i + 1, "page")}
+          alt={`${file.filename} · ${i + 1}/${pages}`}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={i === 0 ? () => setBroken(true) : undefined}
+        />
+      ))}
+      {pages > shown && (
+        <a href={fileUrl(sessionId, file.id)} className="cc-btn self-center">
+          <DownloadIcon className="size-4" />
+          {t("download")}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) {
   const kind = kindOf(file.filename);
   const preview = usePreview(sessionId, kind === "sheet" || kind === "doc" ? file.id : null);
@@ -238,6 +312,7 @@ function Preview({ sessionId, file }: { sessionId: string; file: SessionFile }) 
     return <img src={fileUrl(sessionId, file.id, true)} alt={file.filename} className="mx-auto max-h-full max-w-full object-contain" />;
   }
   if (kind === "pdf") {
+    if (!nativePdf()) return <PdfPages sessionId={sessionId} file={file} />;
     return <iframe title={file.filename} src={fileUrl(sessionId, file.id, true)} className="h-full w-full" />;
   }
   if (kind === "text") {

@@ -146,6 +146,32 @@ class ExpressMapperTests(unittest.TestCase):
         self.assertEqual(r.payload['doctype'], 'RR')
         self.assertEqual(r.payload['doctype_src'], SRC_MANUAL)
 
+    def test_payment_remembered_for_the_supplier_is_recorded_as_remembered(self):
+        # 验收 F19：这家记过现购（CC 按用户「จ่ายเงินสด」存下的）→ HP，留痕写 remembered，不与本票人工裁决混记
+        r = build_express_payload(_ptt_history(), config={**_CONFIG, 'choices': {'payment': 'cash', 'payment_from': 'remembered'}},
+                                  today=date(2026, 9, 21))
+        self.assertTrue(r.ok, r.reason)
+        self.assertEqual((r.payload['doctype'], r.payload['doctype_src']), ('HP', 'remembered'))
+        r = build_express_payload(_ptt_history(), config={**_CONFIG, 'choices': {'payment': 'credit', 'payment_from': 'task_default'}},
+                                  today=date(2026, 9, 21))
+        self.assertEqual((r.payload['doctype'], r.payload['doctype_src']), ('RR', 'task_default'))
+        # 本票人工裁决仍高于记过的，留痕仍是 manual
+        h = _ptt_history(fields={'posting_payment_manual': 'credit'})
+        r = build_express_payload(h, config={**_CONFIG, 'choices': {'payment': 'cash', 'payment_from': 'remembered'}},
+                                  today=date(2026, 9, 21))
+        self.assertEqual((r.payload['doctype'], r.payload['doctype_src']), ('RR', SRC_MANUAL))
+
+    def test_the_chosen_account_keeps_where_it_came_from(self):
+        # 测试窗口第 2 轮（F19 后续）：科目的来源细分写进 account_source（人这次选的 / 记过的 / 任务默认 / Express 历史）
+        for source in ('chosen', 'remembered', 'task_default', 'express_history'):
+            r = build_express_payload(_ptt_history(), config={**_CONFIG, 'choices': {'account': '53-05-02-00',
+                                      'account_from': source}}, today=date(2026, 9, 21))
+            self.assertTrue(r.ok, r.reason)
+            self.assertEqual((r.payload['items_account'], r.payload['account_source']), ('53-05-02-00', source))
+        r = build_express_payload(_ptt_history(), config={**_CONFIG, 'choices': {'account': '53-05-02-00'}},
+                                  today=date(2026, 9, 21))
+        self.assertEqual(r.payload['account_source'], 'choice')  # 没给来源照旧笼统记 choice
+
     def test_supplier_profile_from_mappings_drives_doctype(self):
         mappings = {'accounts': [], 'clients': [], '_supplier_profile': {'default_payment': 'cash'}}
         r = build_express_payload(_ptt_history(), config=_CONFIG, mappings=mappings, today=date(2026, 9, 21))

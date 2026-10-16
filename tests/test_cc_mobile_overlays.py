@@ -384,9 +384,13 @@ g.done();
 
     def test_the_browser_side_and_the_page_wiring(self):
         back = read("lib/back-stack.ts")
-        # 组件库弹层：弹窗、警告框、下拉菜单（含子菜单）；退场动画里的 closed 不算
+        # 组件库弹层：弹窗、警告框、下拉菜单（含子菜单）；退场动画里的 closed 不算。
+        # 选择器在不引任何模块的 lib/layers.ts（侧栏键盘也用），返回键栈引它、并照旧从这里导出
         self.assertIn('\'[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], '
-                      '[data-radix-menu-content][data-state="open"]\'', back)
+                      '[data-radix-menu-content][data-state="open"]\'', read("lib/layers.ts"))
+        self.assertIn('import { OPEN_LAYERS } from "@/lib/layers";', back)
+        self.assertIn('export { OPEN_LAYERS } from "@/lib/layers";', back)
+        self.assertIn("domLayers: () => document.querySelectorAll(OPEN_LAYERS).length,", back)
         # 关最上层 = 一次 Esc（组件库只关最上层）；记层数时保留 history.state 里别的键；同一地址
         self.assertIn('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));', back)
         self.assertIn('history.pushState({ ...(state() ?? {}), [KEY]: depth }, "")', back)
@@ -495,8 +499,29 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn("export const MENU_EDGE = 8;", menu)
         self.assertIn("export const DropdownMenu = { ...Radix, Content, SubContent };", menu)
         css = read("globals.css").split("  .cc-menu {", 1)[1].split("}", 1)[0]
-        self.assertIn("max-width: var(--radix-dropdown-menu-content-available-width); "
-                      "max-height: var(--radix-dropdown-menu-content-available-height); overflow-y: auto;", css)
+        # 限高：页面写的 --cc-menu-max（没写不封顶）与组件库量的可用高度取小；方向由包装按完整高度选（F11d）
+        self.assertIn("max-width: var(--radix-dropdown-menu-content-available-width); max-height: min(var(--cc-menu-max, 100vh), "
+                      "var(--radix-dropdown-menu-content-available-height, 100vh)); overflow-y: auto;", css)
+        for rel in ("components/period-chip.tsx", "components/assistant-ui/projects.tsx"):
+            self.assertNotIn("max-h-80", read(rel), rel)
+        self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu !min-w-40 [--cc-menu-max:var(--cc-menu-max-list)]"'), 2)
+        # 方向：按触发按钮（aria-labelledby）上下的空间与内容完整高度选，换子菜单那一页时重选
+        self.assertIn('const id = el.getAttribute("aria-labelledby");', menu)
+        self.assertIn("el.scrollHeight + borders", menu)
+        self.assertIn('lengthPx(style.getPropertyValue("--cc-menu-max"))', menu)
+        # 离边距离按传进来的 collisionPadding（数字或分边写）；打开期间内容变高、键盘弹出收起时重选
+        self.assertIn('const edgeTop = typeof collisionPadding === "number" ? collisionPadding : (collisionPadding?.top ?? 0);', menu)
+        self.assertIn('const edgeBottom = typeof collisionPadding === "number" ? collisionPadding : (collisionPadding?.bottom ?? 0);', menu)
+        self.assertIn("const below = bottom - box.bottom - sideOffset - edgeBottom;", menu)
+        self.assertIn("const above = box.top - top - sideOffset - edgeTop;", menu)
+        self.assertIn("resized?.observe(el);", menu)
+        self.assertIn("changed.observe(el, { childList: true, subtree: true });", menu)
+        self.assertIn('window.visualViewport?.addEventListener("resize", measure);', menu)
+        self.assertIn('window.visualViewport?.removeEventListener("resize", measure);', menu)
+        self.assertIn("}, [el, side, sideways, sideOffset, edgeTop, edgeBottom, open]);", menu)
+        # 旁边展开（left / right）照传进来的方向，之前选过的上 / 下不盖掉它
+        self.assertIn('const sideways = side === "left" || side === "right";', menu)
+        self.assertIn("side={sideways ? side : (chosen ?? side)}", menu)
 
     def test_submenus_use_the_wrapper_and_the_drawer_row_menu_opens_downwards(self):
         page = read("assistant.tsx")
@@ -504,10 +529,17 @@ class MenuEdgeTests(unittest.TestCase):
         self.assertIn('<SubMenu icon={<InfoIcon />} label={t("learnMore")} sideOffset={8}>', page)
         projects = read("components/assistant-ui/projects.tsx")
         self.assertIn('<SubMenu icon={<Building2Icon />} label={co.moveTo} className="cc-menu !min-w-52 max-w-72">', projects)
-        self.assertIn('<SubMenu label={co.period} className="cc-menu !min-w-40 max-h-80 overflow-y-auto">', projects)
+        # 手机胶囊菜单里的「处理月份」移到了输入框下巴（设计文档 4.3），菜单里只留「移到…」
+        self.assertNotIn("<SubMenu label={co.period}", projects)
         rows = read("components/assistant-ui/thread-list.tsx")
-        self.assertIn('side={isMobile ? "bottom" : "right"}', rows)
-        self.assertIn('<DropdownMenu.Content side={isMobile ? "bottom" : "right"} align="start"', projects)
+        # 行菜单、组标题菜单一律向下开、右对齐（设计文档 3.6，电脑同手机抽屉）；放不下时包装组件翻到上面（F11d）
+        more = rows.split("const ThreadListItemMore: FC", 1)[1]
+        self.assertEqual(more.count('side="bottom"\n            align="end"'), 1)
+        self.assertEqual(more.count('side="bottom"\n      align="end"'), 1)  # 多选时的批量项
+        self.assertNotIn('side={isMobile ? "bottom" : "right"}', rows)
+        # 组标题「···」（分组和排序，公司组与已置顶 / 最近 / 月份共用）
+        group = read("components/assistant-ui/sidebar-group.tsx")
+        self.assertIn('<DropdownMenu.Content\n          side="bottom"\n          align="end"\n          sideOffset={4}', group)
 
     @NEEDS_NODE
     def test_menus_keep_8px_from_the_edge_and_phones_open_submenus_in_place(self):
@@ -567,6 +599,26 @@ try { trigger.props.onSelect({ preventDefault: () => (prevented = true) }); } ca
 assert.equal(prevented, true);
 g.done();
 """
+        flip = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { pickSide } from "@/components/ui/menu";
+// 原方向放得下：不动
+assert.equal(pickSide("bottom", 120, 170, 500), "bottom");
+assert.equal(pickSide("top", 120, 500, 170), "top");
+// 靠下的行菜单：下边 170、上边 500，要 300 → 翻到上面；反过来同理
+assert.equal(pickSide("bottom", 300, 170, 500), "top");
+assert.equal(pickSide("top", 300, 500, 170), "bottom");
+// 刚好放得下也不翻
+assert.equal(pickSide("bottom", 170, 170, 500), "bottom");
+// 两边都放不下：取大的一边（菜单里滚动）；一样大不翻
+assert.equal(pickSide("bottom", 800, 170, 500), "top");
+assert.equal(pickSide("bottom", 800, 500, 170), "bottom");
+assert.equal(pickSide("top", 800, 500, 170), "bottom");
+assert.equal(pickSide("bottom", 800, 300, 300), "bottom");
+(globalThis as any).done();
+"""
+        run_ts(flip, stubs={"radix-ui": fake, "@/hooks/use-mobile": "export const useIsMobile = () => false;"})
         run_ts(wide, stubs={"radix-ui": fake, "@/hooks/use-mobile": "export const useIsMobile = () => false;"})
         run_ts(narrow, stubs={"radix-ui": fake, "@/hooks/use-mobile": "export const useIsMobile = () => true;"})
         menu = read("components/ui/menu.tsx")

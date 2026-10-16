@@ -43,11 +43,12 @@ export type CompanyFolder = {
   month_candidates?: string[]; mine?: boolean; root_id?: string; folder?: string;
 };
 export type Note = { id: string; text: string; origin?: "person" | "cc"; updated_by?: string; updated_at?: string };
-/** 记住的选择（express / pos / income / vat / history）；history = 从 Express 历史学到的「供应商 → 科目」，只读可删。 */
+/** 记住的选择（rule / express / pos / income / vat / history）；history = 从 Express 历史学到的「供应商 → 科目」，只读可删；
+ *  rule = 公司规则（第 2 期，branch 空 = 全公司）；promotable 的行（账套、历史）可「设为全公司」。 */
 export type Choice = {
   key: string; source: string; kind: string; subject_label: string; value: string; value_label?: string; editable?: boolean;
   year_label?: string; set_by?: string; set_at?: string; count?: number; last_date?: string;
-  supplier_name?: string; account_label?: string;
+  supplier_name?: string; account_label?: string; branch?: string; promotable?: boolean;
 };
 export type TaskRow = { name: string; title: string; enabled?: boolean | number; account_label?: string; folder_label?: string };
 export type Draft = { name: string; kind: string; period: string; updated_at?: string; branch?: string; company_branch?: string };
@@ -67,11 +68,14 @@ export type Detail = {
 };
 
 /** 待处理的一张单（补充乙，服务端 companies/pending.py 的 `_items`）：action choose = 推送停在「要人选一次」，带推送去向与
- *  要选的类别（列表不读账套主档）；可选项在页面展开那一行时取（loadChoices）。open = 交给 CC。 */
+ *  要选的类别（列表不读账套主档）；可选项在页面展开那一行时取（loadChoices）。open = 交给 CC。reason_code 是原有的粗分，
+ *  code 是统一异常清单的稳定码（companies/exceptions.py 的 CODES，与月结台账同一套）。month 是这张单记在哪个月
+ *  （单据日期，没有的按上传月份；同台账取单口径，pending.month_of）。 */
 export type PendingChoice = { connection: string; account_set_key: string; kinds: string[] };
 export type PendingItem = {
-  document: string; company: string | null; reason_code: string; reason_label: string;
-  invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; action: "choose" | "open";
+  document: string; company: string | null; reason_code: string; code?: string; reason_label: string;
+  invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string; month?: string;
+  action: "choose" | "open";
   choice?: PendingChoice | null;
 };
 
@@ -127,6 +131,11 @@ export const forgetChoice = (company: string, key: string) => postMethod(API + "
 export const setChoice = (company: string, key: string, value: string, period = "") =>
   postMethod(API + "choice_set", { company, key, value, ...(period ? { period } : {}) });
 
+/** 「设为全公司」（第 2 期公司规则）：账套行、Express 历史行提升成这家公司的规则；period 是页面当前的处理月份（按覆盖这个月的
+ *  账套核值）。服务端同一事务删掉各账套同键的记忆。 */
+export const promoteChoice = (company: string, key: string, period = "") =>
+  postMethod(API + "choice_promote", { company, key, ...(period ? { period } : {}) });
+
 /** 待处理的单（company 不给 = 全部有权看的）。 */
 export function loadPending(company = "", limit = 200): Promise<PendingItem[]> {
   return getMethod<PendingItem[] | { items?: PendingItem[] }>(API + "pending", { company: company || undefined, limit }).then((out) =>
@@ -143,7 +152,8 @@ export function loadChoices(item: Pick<PendingItem, "document" | "choice">): Pro
   }).then((view) => ({ ...view, needed: view?.needed ?? [] }));
 }
 
-/** 作答：记下选的，再按 CC 推送同一条路重推这一张（assistant.pending_api.answer；只记不推不会进账）。 */
+/** 作答：记下选的，再按 CC 推送同一条路重推这一张（assistant.pending_api.answer；只记不推不会进账）。要选的已由公司规则定下
+ *  （needed 为空）时交空的 items，服务端不记、直接重推。 */
 export function answerChoices(item: Pick<PendingItem, "document">, view: ChoicesView, values: Record<string, string>): Promise<AnswerResult> {
   const items = view.needed
     .filter((need) => values[`${need.kind}\n${need.subject}`])
@@ -238,6 +248,19 @@ export function branchesOf(detail: Pick<Detail, "branches" | "account_sets"> | n
 }
 
 /** 千分位、保留服务端给的小数（不经浮点）。 */
+/** 交给 CC 时写一张单：单号 · 对方 · 金额 · 日期（测试窗口第 3 轮：预填里不写内部记录名 CWH-…，CC 按单号找得到）。
+ *  四项都没有（推送失败、没识别出来的那类）时写文件名，不把这张静默丢掉（复审第 3 轮；CC 按文件名也找得到）。 */
+export type DocFacts = { invoice_no?: string; counterparty?: string; amount?: string | number | null; date?: string; filename?: string };
+export function docLine(item: DocFacts): string {
+  const facts = [item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ");
+  return facts || item.filename || "";
+}
+
+/** 交给 CC 的几张单：一张时接在句子后面，几张时每张一行。 */
+export function docList(lines: readonly string[]): string {
+  return lines.length > 1 ? `\n${lines.join("\n")}` : (lines[0] ?? "");
+}
+
 export function formatAmount(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "";
   const text = String(value).trim();
@@ -376,7 +399,7 @@ export function refreshTaskOverview(): Promise<void> {
   return overviewing;
 }
 
-/** 侧栏挂上后：读一次；任务事件来了（合成一次）、主档有变化、回到前台、实时通道重连时再读。不另开轮询。 */
+/** 定时任务页挂上后：读一次；任务事件来了（合成一次）、主档有变化、回到前台、实时通道重连时再读。不另开轮询。 */
 export function watchTaskOverview(): () => void {
   void refreshTaskOverview();
   let timer = 0;
@@ -424,11 +447,55 @@ export function taskSeedOf(detail: Pick<Detail, "account_sets" | "folders" | "co
   };
 }
 
+/** 账套的期间覆盖这一天（YYYY-MM-DD）。 */
+const covers = (s: AccountSet, day: string) =>
+  Boolean(s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10));
+
 /** 覆盖这个月的账套（没有月份或都不覆盖时取最新可写的）。 */
 export function setForPeriod(sets: readonly AccountSet[], period: string): AccountSet | undefined {
   const day = period ? `${period}-01` : "";
-  const covering = day ? sets.find((s) => s.period_start && s.period_end && s.period_start.slice(0, 10) <= day && day <= s.period_end.slice(0, 10)) : undefined;
+  const covering = day ? sets.find((s) => covers(s, day)) : undefined;
   return covering ?? sets.find((s) => s.writable !== false) ?? sets[0];
+}
+
+/** 一组账套里覆盖这个月的全部（没有月份时为空）。 */
+function coveringOf(sets: readonly AccountSet[], period: string): AccountSet[] {
+  const day = period ? `${period}-01` : "";
+  return day ? sets.filter((s) => covers(s, day)) : [];
+}
+
+/** 一组账套里覆盖这个月的全部；一个都不覆盖（或没有月份）时同 setForPeriod 取一份。 */
+function coveringOrNewest(sets: readonly AccountSet[], period: string): AccountSet[] {
+  const covering = coveringOf(sets, period);
+  if (covering.length) return covering;
+  const one = setForPeriod(sets, period);
+  return one ? [one] : [];
+}
+
+/** 公司卡上「这个月用哪份账套」（会话栏，测试窗口第 2 轮：没指定分店的对话只显示了分店 00012 的那份，推送却进了总店）：
+ *  对话指定了分店 → 这个分店覆盖这个月的（分店不在名单里时照旧取整家公司的一份）；没指定 → 覆盖这个月的全部，
+ *  总店在前，其余照服务端的分店顺序；一份都不覆盖（或没有月份）时才每个分店各取最新可写的一份。
+ *  只有一个分店（或没有分店信息）时就是整家公司覆盖这个月的。 */
+export function setsForScope(detail: Pick<Detail, "branches" | "account_sets">, period: string, scope: string): AccountSet[] {
+  const all = detail.account_sets ?? [];
+  const branches = branchesOf(detail);
+  if (scope) {
+    const chosen = branches.find((b) => b.branch === scope);
+    if (chosen) return coveringOrNewest(chosen.account_sets, period);
+    const one = setForPeriod(all, period);
+    return one ? [one] : [];
+  }
+  if (branches.length < 2) return coveringOrNewest(all, period);
+  const id = (s: AccountSet) => `${s.connection}|${s.key}`;
+  const inBranch = new Set(branches.flatMap((b) => b.account_sets.map(id)));
+  // 不属于任何分店的（旧服务端、账套上没有分店号）当总店那一组
+  const loose = all.filter((s) => !inBranch.has(id(s)));
+  const head = (b: Branch) => b.branch === HQ || !b.branch;
+  const groups = [...(loose.length ? [loose] : []), ...branches.filter(head).map((b) => b.account_sets),
+    ...branches.filter((b) => !head(b)).map((b) => b.account_sets)];
+  const covering = groups.flatMap((sets) => coveringOf(sets, period));
+  const out = covering.length ? covering : groups.flatMap((sets) => coveringOrNewest(sets, period));
+  return out.filter((s, i) => out.findIndex((other) => id(other) === id(s)) === i);
 }
 
 // ---------------------------------------------------------------- 全所有没有公司（新对话的公司条只在至少有一家时出现）

@@ -1,0 +1,293 @@
+{
+ "_comment": "跨端契约（数字会计员第 1 期月结台账，companies.api.month）：服务端测试断言这就是真实输出（tests/test_cowork_companies.py 的 MonthContractTests，COMPANY 换成主档编号），页面测试拿同一份当假数据。只给码与数据、不带文案（reason_label 沿用推送原因的现有词条）。改形状要两边一起改。",
+ "month": {
+  "company": "COMPANY",
+  "period": "2026-09",
+  "ended": true,
+  "generated_at": "2026-10-15T02:00:00Z",
+  "truncated": false,
+  "stages": {
+   "intake": {
+    "received": 8,
+    "recognized_only": 2,
+    "no_date": 1,
+    "tasks": {
+     "count": 1,
+     "enabled": 1,
+     "attention": 1
+    },
+    "files": {
+     "failed": 2,
+     "not_invoice": 1,
+     "pos_layout_needed": 0
+    },
+    "state": "attention"
+   },
+   "entry": {
+    "pushed": 2,
+    "in_flight": 1,
+    "waiting": 3,
+    "not_pushed": 1,
+    "state": "attention"
+   },
+   "verify": {
+    "sets": [
+     {
+      "connection": "C1",
+      "key": "s:\\69exp\\abc",
+      "label": "ABC 69",
+      "status": "ready",
+      "readback": "RB1",
+      "requested_by": "b@example.com",
+      "requested_by_name": "Bee",
+      "requested_at": "2026-10-02T03:00:00Z",
+      "ready_at": "2026-10-02T03:01:00Z",
+      "counts": {
+       "pushed": 3,
+       "unchanged": 2,
+       "changed": 1,
+       "deleted": 0,
+       "missing": 1,
+       "voided": 0,
+       "direct": 0
+      },
+      "newer": null
+     }
+    ],
+    "state": "attention"
+   },
+   "tax": {
+    "vat": [
+     {
+      "draft": "CTD-9",
+      "branch": "00000",
+      "updated_at": "2026-10-01T03:00:00Z",
+      "tax_total": "70.00",
+      "issues": 1,
+      "stale": true
+     }
+    ],
+    "wht": [],
+    "deadlines": {
+     "pp30": {
+      "paper": "2026-10-15",
+      "efiling": "2026-10-23"
+     },
+     "pnd": {
+      "paper": "2026-10-07",
+      "efiling": "2026-10-15"
+     }
+    },
+    "state": "attention"
+   }
+  },
+  "exceptions": {
+   "items": [
+    {
+     "code": "task_folder_missing",
+     "stage": "intake",
+     "severity": "action",
+     "action": "task",
+     "group": null,
+     "document": null,
+     "task": "R1",
+     "title": "Buy"
+    },
+    {
+     "code": "intake_file_failed",
+     "stage": "intake",
+     "severity": "action",
+     "action": "task",
+     "group": null,
+     "document": null,
+     "task": "R1",
+     "title": "Buy",
+     "count": 2
+    },
+    {
+     "code": "choice_needed",
+     "stage": "entry",
+     "severity": "action",
+     "action": "choose",
+     "group": "choice_needed",
+     "document": "h1",
+     "invoice_no": "INV-h1",
+     "counterparty": "Makro",
+     "amount": "1070.50",
+     "date": "2026-09-20",
+     "filename": "",
+     "reason_label": "text:choice_needed:party",
+     "detail": "",
+     "choice": {
+      "connection": "C1",
+      "account_set_key": "S:\\69EXP\\ABC",
+      "kinds": [
+       "party"
+      ]
+     }
+    },
+    {
+     "code": "account_tax_mismatch",
+     "stage": "entry",
+     "severity": "action",
+     "action": "open",
+     "group": "manual",
+     "document": "h2",
+     "invoice_no": "INV-h2",
+     "counterparty": "Makro",
+     "amount": "1070.50",
+     "date": "2026-09-20",
+     "filename": "",
+     "reason_label": "text:The own tax ID on this document does not match the chosen account set. Check the account set and send it again.",
+     "detail": ""
+    },
+    {
+     "code": "not_pushed",
+     "stage": "entry",
+     "severity": "action",
+     "action": "open",
+     "group": "not_pushed",
+     "document": "h5",
+     "invoice_no": "INV-h5",
+     "counterparty": "Makro",
+     "amount": "1070.50",
+     "date": "2026-09-20",
+     "filename": "",
+     "reason_label": "cowork.company.pending.not_pushed",
+     "detail": ""
+    },
+    {
+     "code": "push_failed",
+     "stage": "entry",
+     "severity": "action",
+     "action": "open",
+     "group": "failed",
+     "document": "h11",
+     "invoice_no": "INV-h11",
+     "counterparty": "Makro",
+     "amount": "1070.50",
+     "date": "2026-09-01",
+     "filename": "",
+     "reason_label": "text:push.failed",
+     "detail": "push.failed"
+    },
+    {
+     "code": "tax_issue",
+     "stage": "tax",
+     "severity": "action",
+     "action": "draft",
+     "group": null,
+     "document": null,
+     "issue": "input_over_six_months",
+     "issue_label": "Past the 6-month claim period",
+     "count": 1,
+     "draft": "CTD-9",
+     "kind": "vat_return",
+     "branch": "00000"
+    },
+    {
+     "code": "express_missing",
+     "stage": "verify",
+     "severity": "warn",
+     "action": "readback",
+     "group": null,
+     "document": null,
+     "count": 1,
+     "connection": "C1",
+     "account_set_key": "s:\\69exp\\abc",
+     "label": "ABC 69",
+     "readback": "RB1"
+    },
+    {
+     "code": "tax_draft_stale",
+     "stage": "tax",
+     "severity": "warn",
+     "action": "draft",
+     "group": null,
+     "document": null,
+     "readback": "RB1",
+     "draft": "CTD-9",
+     "kind": "vat_return",
+     "branch": "00000"
+    },
+    {
+     "code": "duplicate_number",
+     "stage": "intake",
+     "severity": "info",
+     "action": "open",
+     "group": null,
+     "document": "h3",
+     "invoice_no": "INV-7",
+     "counterparty": "Makro",
+     "date": "2026-09-20",
+     "count": 2,
+     "others": [
+      "h7"
+     ],
+     "documents": [
+      {
+       "document": "h3",
+       "invoice_no": "INV-7",
+       "counterparty": "Makro",
+       "amount": "1070.50",
+       "date": "2026-09-20",
+       "filename": ""
+      },
+      {
+       "document": "h7",
+       "invoice_no": "INV-7",
+       "counterparty": "Makro",
+       "amount": "1070.50",
+       "date": "2026-09-20",
+       "filename": ""
+      }
+     ]
+    },
+    {
+     "code": "not_invoice",
+     "stage": "intake",
+     "severity": "info",
+     "action": "task",
+     "group": null,
+     "document": null,
+     "task": "R1",
+     "title": "Buy",
+     "count": 1
+    },
+    {
+     "code": "express_changed",
+     "stage": "verify",
+     "severity": "info",
+     "action": "readback",
+     "group": null,
+     "document": null,
+     "count": 1,
+     "connection": "C1",
+     "account_set_key": "s:\\69exp\\abc",
+     "label": "ABC 69",
+     "readback": "RB1"
+    }
+   ],
+   "total": 12,
+   "counts": {
+    "task_folder_missing": 1,
+    "intake_file_failed": 2,
+    "choice_needed": 1,
+    "account_tax_mismatch": 1,
+    "not_pushed": 1,
+    "push_failed": 1,
+    "tax_issue": 1,
+    "express_missing": 1,
+    "tax_draft_stale": 1,
+    "duplicate_number": 2,
+    "not_invoice": 1,
+    "express_changed": 1
+   },
+   "severities": {
+    "action": 7,
+    "warn": 2,
+    "info": 3
+   }
+  }
+ }
+}

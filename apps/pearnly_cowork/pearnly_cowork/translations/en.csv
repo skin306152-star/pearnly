@@ -204,6 +204,7 @@ Bound at,Bound at
 Bound to {0},Bound to {0}
 Branch,Branch
 Branch No,Branch No
+Branch {0},Branch {0}
 Brief Key,Brief Key
 Brief Sent At,Brief Sent At
 Brief Status,Brief Status
@@ -374,6 +375,7 @@ Commission,Commission
 Company,Company
 Company Branch,Company Branch
 Company Name,Company Name
+Company choices are full,Company choices are full
 Company not found,Company not found
 Company tax ID,Company tax ID
 Company tax ID not on the document,Company tax ID not on the document
@@ -448,6 +450,7 @@ Cowork Client,Cowork Client
 Cowork Companion Delivery,Cowork CC Desktop Delivery
 Cowork Companion Request,Cowork CC Desktop Request
 Cowork Company,Cowork Company
+Cowork Company Choice,Cowork Company Choice
 Cowork Company Folder,Cowork Company Folder
 Cowork Company Note,Cowork Company Note
 Cowork ERP Connection,Cowork ERP Connection
@@ -688,6 +691,7 @@ Error Code,Error Code
 Event Key,Event Key
 Every unit needs a factor to the base unit.,Every unit needs a factor to the base unit.
 Every unit needs a name.,Every unit needs a name.
+Evidence,Evidence
 Evidence Fingerprint,Evidence Fingerprint
 Evidence Owner,Evidence Owner
 Examples Json,Examples Json
@@ -1034,6 +1038,7 @@ No ERP is ready to use,No ERP is ready to use
 No POS sales export headers were found in this file,No POS sales export headers were found in this file
 No account set matches “{0}”,No account set matches “{0}”
 No account set of this company covers the document date.,No account set of this company covers the document date.
+No account set of this company covers this month,No account set of this company covers this month
 No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
@@ -1353,8 +1358,11 @@ Remove color,Remove color
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Remove mirror,Remove mirror
 Remove template,Remove template
+Remove this company choice?,Remove this company choice?
 Remove this company note?,Remove this company note?
+Removed a company choice,Removed a company choice
 Removed a company note,Removed a company note
+Removing a company choice,Removing a company choice
 Rent,Rent
 Repeat,Repeat
 Replaced by your later submission of the same files.,Replaced by your later submission of the same files.
@@ -1442,14 +1450,17 @@ Same day,Same day
 Sample Key,Sample Key
 Save and next,Save and next
 Save these scheduled tasks?,Save these scheduled tasks?
+Save this choice for the company?,Save this choice for the company?
 Save this scheduled task?,Save this scheduled task?
 Save this to the company's notes?,Save this to the company's notes?
 Saved,Saved
+Saved a company choice,Saved a company choice
 Saved a company note,Saved a company note
 Saved a scheduled task,Saved a scheduled task
 Saved push choices,Saved push choices
 Saved scheduled tasks,Saved scheduled tasks
 Saved. Scan the next item.,Saved. Scan the next item.
+Saving a company choice,Saving a company choice
 Saving a scheduled task,Saving a scheduled task
 Saving push choices,Saving push choices
 Saving scheduled tasks,Saving scheduled tasks
@@ -1586,6 +1597,7 @@ Stop and let me choose,Stop and let me choose
 Stop watching,Stop watching
 Stored Page Previews,Stored Page Previews
 Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.
+Subject Label,Subject Label
 Submit,Submit
 Suggested,Suggested
 Summary,Summary
@@ -1865,6 +1877,7 @@ This account set is unavailable.,This account set is unavailable.
 This action is not allowed in the current push state.,This action is not allowed in the current push state.
 This board no longer exists,This board no longer exists
 This channel is not open yet,This channel is not open yet
+This choice cannot be saved,This choice cannot be saved
 This client still has {0} invoice record(s). Reassign them first.,This client still has {0} invoice record(s). Reassign them first.
 This company does not enter transfer slips; this one is not sent,This company does not enter transfer slips; this one is not sent
 This company does not enter withholding tax certificates (50 Tawi); this one is not sent,This company does not enter withholding tax certificates (50 Tawi); this one is not sent
@@ -1933,6 +1946,7 @@ This task uses the previous count format and cannot accept scan entries.,This ta
 This tax ID is already used by another company.,This tax ID is already used by another company.
 This tax id is already used by another client.,This tax id is already used by another client.
 This value cannot be chosen for this account set.,This value cannot be chosen for this account set.
+This value is not in this month's account set,This value is not in this month's account set
 Time left {0},Time left {0}
 Times Used,Times Used
 Title,Title
@@ -2042,6 +2056,7 @@ VAT report detail,VAT report detail
 VAT without a base amount,VAT without a base amount
 Valid,Valid
 Value,Value
+Value Label,Value Label
 Value of goods or services,Value of goods or services
 Version,Version
 View differences,View differences
@@ -2086,6 +2101,7 @@ When the document does not show cash or credit,When the document does not show c
 Where the documents go,Where the documents go
 Who can add and remove members,Who can add and remove members
 Who can comment,Who can comment
+Whole company,Whole company
 Why it is not in the review sheet,Why it is not in the review sheet
 Wire Attempt,Wire Attempt
 With differences,With differences
@@ -2181,8 +2197,13 @@ cowork.choice.receipt,Receiving account
 cowork.choice.task_default,This is set by the scheduled task's default handling. Change it in the task
 cowork.choice.title,Choose once for this account set
 cowork.choice.vat,Tax on this receipt
+cowork.company.branch_n,Branch {0}
+cowork.company.choice_invalid,This value is not in this month's account set
 cowork.company.choice_not_editable,Only payment and VAT choices can be changed here
 cowork.company.choice_not_found,This saved choice no longer exists
+cowork.company.choice_scope_invalid,No account set of this company covers this month
+cowork.company.choice_unsupported,This choice cannot be saved
+cowork.company.choices_full,Company choices are full
 cowork.company.not_found,Company not found
 cowork.company.not_in_catalog,This account set is not in the catalog
 cowork.company.note_invalid,Note is empty or too long
@@ -2198,6 +2219,7 @@ cowork.company.pending.title,Documents to handle
 cowork.company.period_invalid,Invalid month
 cowork.company.title_invalid,Please enter a name of up to 140 characters
 cowork.company.too_many,Too many companies
+cowork.company.whole_company,Whole company
 cowork.folder.account_set_ambiguous,More than one account set of this company covers the document date.
 cowork.folder.account_set_invalid,This account set is not in the connection's list. Reload the list in New Intake.
 cowork.folder.account_set_none,No account set of this company covers the document date.

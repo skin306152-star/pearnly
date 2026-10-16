@@ -69,4 +69,6 @@ STEP_NAMES = {
     "cowork_folder_tasks": "Checking scheduled tasks",
     "cowork_run_folder_task": "Starting a scheduled task",
     "cowork_folder_task_runs": "Checking scheduled task runs",
+    "cowork_company_choice_save": "Saving a company choice",
+    "cowork_company_choice_remove": "Removing a company choice",
 }

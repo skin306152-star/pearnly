@@ -80,11 +80,18 @@ def current(row) -> str:
     return segments(row)[-1]
 
 
+def _when(value) -> str:
+    """库里的时间（站点时区的裸时间）→ RFC3339 UTC，精确到秒。页面按浏览器时区解析：给裸时间时浏览器与站点时区不同，
+    公司页对话的相对时间与先后都会错（审查第 4 轮）。"""
+    return contracts.utc_iso(contracts.site_time(value).replace(microsecond=0), frappe.utils.get_system_timezone())
+
+
 def _summary(row, status=None, unread=False) -> dict:
-    """`status` 只放真读过的（建会话、取会话、侧栏核对过的）；没读就是 None，不替它说「空闲」。"""
+    """`status` 只放真读过的（建会话、取会话、侧栏核对过的）；没读就是 None，不替它说「空闲」。
+    时间都是带时区的 UTC（`_when`）。"""
     return {"id": row.session_id, "title": row.title or "", "status": status, "starred": bool(row.get("starred")),
-            "created_at": str(row.creation), "updated_at": str(row.modified),
-            "archived_at": str(row.modified) if row.archived else None, "unread": bool(unread),
+            "created_at": _when(row.creation), "updated_at": _when(row.modified),
+            "archived_at": _when(row.modified) if row.archived else None, "unread": bool(unread),
             "project": row.get("project") or "", "period": row.get("period") or "",
             "scope": row.get("project_scope") or ""}
 
@@ -362,7 +369,7 @@ def events(session_id, after=None, status=False) -> dict:
     _remember_context(row, part)
     history = contracts.merge_by_time(history, notices.feed(row.session_id, user))
     page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
-                                                         "archived_at": str(row.modified) if row.archived else None}}
+                                                         "archived_at": _when(row.modified) if row.archived else None}}
     if not status:
         return page
     return _with_run(page, row, api, lambda: contracts.latest_status(reversed(part)),

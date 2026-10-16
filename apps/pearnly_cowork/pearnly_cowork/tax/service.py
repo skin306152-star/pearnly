@@ -6,7 +6,7 @@
 - 先读数据、做完计算，写之前才锁，且只锁这份草稿（已有时锁行；两个请求同时首次写同一份时，后到的撞主键，
   回到保存点按已有的那份重算再写）；不锁工作空间行（推送准备也要锁它）。
 - 确定性计算、零费用：不调模型、不识别、不扣费；只出草稿，不写 Express、不代为申报。
-- ภ.พ.30 用当前用户该账套该月最近一次 Express 回读；没有就回 ``readback_needed``（先回读）。
+- ภ.พ.30 用该账套该月最近一次完成的 Express 回读（谁发起的都算，能用这条连接的人都看得到）；没有就回 ``readback_needed``（先回读）。
 - ภ.ง.ด.3 / 53 用识别记录与 50 ทวิ 参考记录；所得类型问一次记住（`memory`）。
 """
 import hashlib
@@ -316,6 +316,46 @@ def drafts_of(tax_id, branch=None, limit=24) -> list:
                           limit_page_length=max(1, min(int(limit or 24), 100)))
     return [{"name": row.name, "kind": row.kind, "period": row.period, "branch": row.company_branch or "",
              "updated_at": str(row.updated_at or row.modified or "")} for row in rows]
+
+
+def _levels() -> dict:
+    return {**input_vat.CODES, **wht.ISSUES}
+
+
+def month_drafts(tax_id, period) -> dict:
+    """月结台账「报税」一段（ADR-020）：一家公司（税号，各分店）这个月的申报草稿，一次查询：
+    ``{"drafts": [{name, kind, branch, connection, account_set, source_ref, updated_at, tax_total,
+    issues: [{code, level, count, label}]}], "deadlines": {"pp30": {paper, efiling}, "pnd": {paper, efiling}}}``；
+    ``label`` 是问题的现有词条（``cowork.tax.issue.<码>``，工作簿同一套），台账照原样显示。
+    只读；权限同 `drafts_of`（ภ.ง.ด. 草稿还要读识别记录的权限，没有就不列）。``updated_at`` 是站点时区的裸时间。"""
+    workspace = _workspace()
+    year, month = _period(period)
+    due = {form: {key: value.isoformat() if value else "" for key, value in periods.deadlines(form, year, month).items()}
+           for form in ("pp30", "pnd")}
+    tax_id = str(tax_id or "").strip()
+    if not tax_id:
+        return {"drafts": [], "deadlines": due}
+    filters = {"workspace": workspace, "company_tax_id": tax_id, "period": periods.text(year, month)}
+    if not scope.allowed_any(scope.READ_FEATURES):
+        filters["kind"] = VAT
+    rows = frappe.get_all(DOCTYPE, filters=filters,
+                          fields=["name", "kind", "company_branch", "connection", "account_set", "source_ref",
+                                  "tax_total", "summary_json", "updated_at", "modified"],
+                          order_by="kind asc, company_branch asc", ignore_permissions=True, limit_page_length=100)
+    levels, out = _levels(), []
+    for row in rows:
+        try:
+            counted = json.loads(row.summary_json or "{}").get("issues_by_code") or {}
+        except (TypeError, ValueError, AttributeError):
+            counted = {}
+        issues = [{"code": code, "level": levels.get(code, "warn"), "count": int(count or 0),
+                   "label": _("cowork.tax.issue." + code)}
+                  for code, count in sorted(counted.items()) if isinstance(code, str) and int(count or 0) > 0]
+        out.append({"name": row.name, "kind": row.kind, "branch": row.company_branch or "",
+                    "connection": row.connection or "", "account_set": row.account_set or "",
+                    "source_ref": row.source_ref or "", "updated_at": str(row.updated_at or row.modified or ""),
+                    "tax_total": row.tax_total or "", "issues": issues})
+    return {"drafts": out, "deadlines": due}
 
 
 def delete(drafts) -> dict:

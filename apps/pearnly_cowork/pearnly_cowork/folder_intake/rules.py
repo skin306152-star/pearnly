@@ -686,6 +686,30 @@ def _results(rule, run=None, now=None):
     return result
 
 
+MONTH_FILE_CODES = ("failed", "not_invoice", "pos_layout_needed")
+
+
+def month_files(rule_names, start, end) -> dict:
+    """月结台账「收单」一段：这几条任务在 [start, end)（站点时区，按文件登记时间归月）登记的文件里，读不了的（failed）、
+    不是发票的（not_invoice）、停着等人认列的 POS 导出（pos_layout_needed）各几份：``{任务: {码: 份数}}``。一次分组查询；
+    调用方已核过录入权限与这些任务所在连接的使用权。"""
+    names = [name for name in dict.fromkeys(rule_names or ()) if isinstance(name, str) and name][:MAX_RULES * 4]
+    if not names:
+        return {}
+    marks = ", ".join(["%s"] * len(names))
+    rows = frappe.db.sql(f"""SELECT rule, state, last_code, COUNT(*) AS total FROM `tab{FILE}`
+        WHERE rule IN ({marks}) AND registered_at >= %s AND registered_at < %s
+        AND (state IN ('failed', 'not_invoice') OR (state = 'source_ready' AND last_code = %s))
+        GROUP BY rule, state, last_code""", (*names, start, end, contracts.POS_LAYOUT_NEEDED), as_dict=True)
+    out = {}
+    for row in rows:
+        code = "pos_layout_needed" if contracts.layout_needed(row.state, row.last_code) else row.state
+        if code in MONTH_FILE_CODES:
+            found = out.setdefault(row.rule, {})
+            found[code] = found.get(code, 0) + int(row.total or 0)
+    return out
+
+
 def counts(rule, since=None):
     """这条规则（或某次运行）的文件各处在哪一步。"""
     sql = f"SELECT state, COUNT(*) AS total FROM `tab{FILE}` WHERE rule=%s"

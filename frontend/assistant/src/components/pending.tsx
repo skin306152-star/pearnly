@@ -1,5 +1,5 @@
 // 待处理（补充乙）：要人处理的单统一一个入口——侧栏「待处理 N」打开的视图（?view=pending，可带 &company=），
-// 公司主档页右栏最上面也是同一个组件（只列这家）。
+// 右侧会话栏与公司页的「待处理」卡也是同一个组件（只列这家；会话栏的只列对话月份以外的，otherMonths）。
 //
 //   数据：companies.api.pending（服务端从推送记录与录入状态现算，不新增存储）。按公司分组；归不上公司的放最后。
 //   能当场选的（action choose：推送停在「要人选一次」，服务端只给推送去向与类别）：点开那一行才取要选的项与可选值
@@ -9,8 +9,8 @@
 //   处理完实时消失：推送状态的站点事件（cowork_intake_changed）来了重取，回到前台重取（lib/live.ts）。
 //   金额是服务端的十进制字符串，只插千分位。样式只用 globals.css 的 .cc-* 与变量。
 
-import { ChevronDownIcon, InboxIcon, LoaderIcon, SparklesIcon, XIcon } from "lucide-react";
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDownIcon, InboxIcon, LoaderIcon, SearchIcon, SparklesIcon, XIcon } from "lucide-react";
+import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
 import { co, t } from "@/i18n";
 import {
@@ -19,6 +19,8 @@ import {
   cachedDetail,
   type ChoiceNeeded,
   type ChoicesView,
+  docLine,
+  docList,
   formatAmount,
   isPeriod,
   listCompanies,
@@ -32,6 +34,7 @@ import {
 import { useLiveRefresh } from "@/lib/live";
 import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 import { shownError } from "@/lib/frappe";
+import { Marquee } from "@/components/ui/marquee";
 
 const choiceKey = (need: Pick<ChoiceNeeded, "kind" | "subject">) => `${need.kind}\n${need.subject}`;
 const FIXED: () => Record<string, string> = () => ({ cash: co.payCash, credit: co.payCredit, claim: co.vatClaim, expense: co.vatExpense });
@@ -68,15 +71,28 @@ export function choosableView(view: ChoicesView | null | undefined): boolean {
   return !!view && !view.wait && view.needed.length > 0 && view.needed.every((need) => optionsOf(view, need).length > 0);
 }
 
+/** 展开后已经没有要选的（公司规则定下了，第 2 期）：按钮直接推送，交空的选择、服务端不记直接重推。 */
+export function settledView(view: ChoicesView | null | undefined): boolean {
+  return !!view && !view.wait && view.needed.length === 0;
+}
+
+/** 当场选那一行的说明（第二行）：还要选哪几类（「付款方式 · 费用科目」）。列表给的是推送停下时要选的类别；展开读到要选的项后
+ *  按读到的写——公司规则已定、没有要选的（按钮是「推送」）就不写这串（第 5 轮测试 7），也不退回原因那句。 */
+export function choiceLine(item: PendingItem, view: ChoicesView | null): string {
+  const kinds = view && !view.wait ? [...new Set(view.needed.map((need) => need.kind))] : (item.choice?.kinds ?? []);
+  return kinds.map((kind) => co.kind[kind] ?? kind).join(" · ");
+}
+
 /** 这张单是不是「当场选」那一类（服务端 action choose，带推送去向）。 */
 export function choosable(item: PendingItem): boolean {
   return item.action === "choose" && !!item.choice?.connection;
 }
 
-/** 「交给 CC」预填的话：处理这几张：INV-001 [单据编号]、…（不自动发送）。 */
+/** 「交给 CC」预填的话（不自动发送）：一张「处理这张：INV-001 · 对方 · 1,070.00 · 2026-09-05」，几张时每张一行。
+ *  只写单号、对方、金额、日期，不写内部记录名（测试窗口第 3 轮）；CC 按单号找（工具说明里讲了）。 */
 export function handText(items: readonly PendingItem[]): string {
-  const list = items.map((i) => [i.invoice_no || i.counterparty || "", `[${i.document}]`].filter(Boolean).join(" ")).join("、");
-  return co.handToCCText(list);
+  const lines = items.map(docLine).filter(Boolean);
+  return lines.length === 1 ? co.handToCCOne(lines[0]!) : co.handToCCText(docList(lines));
 }
 
 /** 这几张单的月份（取最多的那个月；没有日期的不算）。 */
@@ -87,6 +103,26 @@ export function monthOfItems(items: readonly PendingItem[]): string {
     if (isPeriod(month)) counts.set(month, (counts.get(month) ?? 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0]?.[0] ?? "";
+}
+
+/** 一张单记在哪个月：服务端的 month（同月结台账：单据日期，没有的按上传月份）；旧服务端没给时取单据日期的月份。 */
+export const pendingMonth = (item: Pick<PendingItem, "month" | "date">) => item.month ?? String(item.date ?? "").slice(0, 7);
+
+/** 会话栏「待处理」卡只列对话月份以外的单（开发窗口 10-16 定）：对话那个月的只在「本月」卡的异常清单里，两张卡不重复列；
+ *  对话没有月份时全列。公司页、待处理页不用它，照旧全列。 */
+export function otherMonths(items: readonly PendingItem[], period: string): PendingItem[] {
+  return isPeriod(period) ? items.filter((item) => pendingMonth(item) !== period) : [...items];
+}
+
+/** 待处理页的搜索：单号、对方、单据编号、原因、金额、日期里有这几个字（不分大小写）。 */
+export function matchesPending(item: PendingItem, search: string): boolean {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return true;
+  return [item.invoice_no, item.counterparty, item.document, item.reason_label, item.amount, item.date]
+    .map((part) => String(part ?? ""))
+    .join(" ")
+    .toLowerCase()
+    .includes(needle);
 }
 
 /** 公司编号 → 名称：侧栏里有的直接用，其余取全所公司第一页，再没有的逐家读一次。 */
@@ -118,8 +154,8 @@ function useTitles(ids: readonly string[]): Record<string, string> {
   return { ...found, ...Object.fromEntries(projects.map((p) => [p.id, p.title])) };
 }
 
-/** 待处理列表；company 给了只列这家（主档页右栏，没有待处理时整块不出现）。 */
-export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ company = "", embedded = false }) => {
+/** 待处理单的列表状态（列表与会话栏卡共用）：读取，站点事件来了、回到前台重取，作答成功的当场拿掉。 */
+export function usePendingItems(company: string) {
   const [items, setItems] = useState<PendingItem[] | null>(null);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
@@ -136,26 +172,44 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
     void reload();
   }, [reload]);
   useLiveRefresh(reload, { events: PENDING_EVENTS });
+  const done = useCallback((document: string) => {
+    setItems((before) => (before ?? []).filter((i) => i.document !== document));
+    void refreshPendingCounts();
+  }, []);
+  const changed = useCallback(() => {
+    void reload();
+    void refreshPendingCounts();
+  }, [reload]);
+  return { items, error, done, changed };
+}
 
+type PendingState = ReturnType<typeof usePendingItems>;
+
+/** 待处理列表；company 给了只列这家（会话栏、公司页的卡片，没有待处理时整块不出现）；search：待处理页的搜索。 */
+export const PendingList: FC<{ company?: string; embedded?: boolean; search?: string }> = ({ company = "", embedded = false, search = "" }) => (
+  <PendingItems company={company} embedded={embedded} search={search} {...usePendingItems(company)} />
+);
+
+/** 列表本身（数据由 usePendingItems 给；会话栏卡先按月份筛过再交进来）。 */
+export const PendingItems: FC<PendingState & { company: string; embedded?: boolean; search?: string }> = ({
+  items,
+  error,
+  done,
+  changed,
+  company,
+  embedded = false,
+  search = "",
+}) => {
   const groups = useMemo(() => {
     const map = new Map<string, PendingItem[]>();
-    for (const item of items ?? []) {
+    for (const item of (items ?? []).filter((row) => matchesPending(row, search))) {
       const id = company || item.company || "";
       map.set(id, [...(map.get(id) ?? []), item]);
     }
     // 归不上公司的放最后
     return [...map.entries()].sort((a, b) => Number(!a[0]) - Number(!b[0]));
-  }, [items, company]);
+  }, [items, company, search]);
   const titles = useTitles(groups.map(([id]) => id).filter(Boolean));
-
-  const done = (document: string) => {
-    setItems((before) => (before ?? []).filter((i) => i.document !== document));
-    void refreshPendingCounts();
-  };
-  const changed = () => {
-    void reload();
-    void refreshPendingCounts();
-  };
 
   if (embedded && (!items || !items.length) && !error) return null;
   return (
@@ -169,6 +223,8 @@ export const PendingList: FC<{ company?: string; embedded?: boolean }> = ({ comp
         <div className="cc-card cc-enter flex flex-col items-center gap-3 px-6 py-12 text-ink-3">
           <InboxIcon className="size-8" />
         </div>
+      ) : !groups.length ? (
+        <div className="py-6 text-center text-ink-3 text-sm">{t("noResults")}</div>
       ) : (
         groups.map(([id, rows]) => (
           <PendingGroup key={id || "none"} company={id} title={company ? "" : id ? (titles[id] ?? "") : co.other} items={rows} onDone={done} onChanged={changed} />
@@ -203,8 +259,8 @@ const PendingGroup: FC<{
   );
 };
 
-/** 交给 CC：在这家公司下开新对话（月份取单据月份），预填「处理这几张：…」，不自动发送。 */
-function useAskCC(company: string, title: string) {
+/** 交给 CC：在这家公司下开新对话（月份取单据月份），预填「处理这几张：…」，不自动发送（会话栏「本月」卡同一个）。 */
+export function useAskCC(company: string, title: string) {
   const start = useStartIn();
   const withPeriod = useProjects((s) => s.period);
   return (items: readonly PendingItem[]) => {
@@ -216,25 +272,27 @@ function useAskCC(company: string, title: string) {
 /** 一张单的摘要：单号 · 对方 · 金额 · 日期，下面一行原因。 */
 const Summary: FC<{ item: PendingItem }> = ({ item }) => (
   <span className="min-w-0 flex-1">
-    <span className="block truncate text-ink text-sm">
+    <Marquee className="block truncate text-ink text-sm">
       {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
-    </span>
-    <span className="block truncate text-ink-3 text-xs">{item.reason_label}</span>
+    </Marquee>
+    <Marquee className="block truncate text-ink-3 text-xs">{item.reason_label}</Marquee>
   </span>
 );
 
 const PendingRow: FC<{ item: PendingItem }> = ({ item }) => (
-  <div className="cc-card flex items-center gap-3 px-3 py-2.5" data-slot="cc-pending-row">
+  <div className="cc-list-item items-center" data-slot="cc-pending-row">
     <Summary item={item} />
   </div>
 );
 
-/** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。 */
-const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void }> = ({
+/** 能当场选的单：点开才取要选的项（每项一个下拉，建议项第一、预选），点「确认」记下并重推。
+ *  head：会话栏「本月」卡的一行 26 高（码名 · 单据 · 金额，components/month-ledger.tsx），换掉默认的两行摘要；展开后同一套。 */
+export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onChanged: () => void; onAsk: () => void; head?: ReactNode }> = ({
   item,
   onDone,
   onChanged,
   onAsk,
+  head,
 }) => {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ChoicesView | null>(null);
@@ -275,16 +333,19 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
       setBusy(false);
     }
   };
-  const kinds = (item.choice?.kinds ?? []).map((kind) => co.kind[kind] ?? kind).join(" · ");
+  const kinds = choiceLine(item, view);
   return (
-    <div className="cc-card flex flex-col gap-2 px-3 py-2.5" data-slot="cc-pending-choose">
-      <button type="button" className="cc-pending-toggle flex min-w-0 items-center gap-2 text-start" aria-expanded={open} onClick={toggle}>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-ink text-sm">
-            {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
+    <div className="cc-list-item flex-col" data-slot="cc-pending-choose" data-variant={head ? "row" : undefined} data-open={open || undefined}>
+      <button type="button" className={head ? "cc-pending-toggle cc-panel-row" : "cc-pending-toggle flex min-w-0 items-center gap-2 text-start"}
+        aria-expanded={open} onClick={toggle}>
+        {head ?? (
+          <span className="min-w-0 flex-1">
+            <Marquee className="block truncate text-ink text-sm">
+              {[item.invoice_no, item.counterparty, formatAmount(item.amount), item.date].filter(Boolean).join(" · ") || item.document}
+            </Marquee>
+            {(kinds || !settledView(view)) && <Marquee className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</Marquee>}
           </span>
-          <span className="block truncate text-ink-3 text-xs">{kinds || item.reason_label}</span>
-        </span>
+        )}
         <ChevronDownIcon className="cc-project-chevron shrink-0 text-ink-3" />
       </button>
       {open && !view && !error && (
@@ -296,7 +357,7 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
         <>
           {view.needed.map((need) => (
             <label key={choiceKey(need)} className="cc-field">
-              <span className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</span>
+              <Marquee className="truncate text-xs">{[co.kind[need.kind] ?? need.kind, need.label].filter(Boolean).join(" · ")}</Marquee>
               <select
                 className="cc-input"
                 value={values[choiceKey(need)] ?? ""}
@@ -316,7 +377,13 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
           </button>
         </>
       )}
-      {open && view && !choosableView(view) && (
+      {open && view && settledView(view) && (
+        <button type="button" className="cc-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
+          {busy && <LoaderIcon className="size-4 animate-spin" />}
+          {co.pushNow}
+        </button>
+      )}
+      {open && view && !choosableView(view) && !settledView(view) && (
         // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
         <>
           {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}
@@ -331,14 +398,21 @@ const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => void; onC
   );
 };
 
-/** 待处理视图（?view=pending）：标题 + 列表；从公司组头或主档页来的只看这家。 */
+/** 待处理视图（?view=pending）：列表页样式（设计文档 3.14 / 4.5：标题、搜索、行同侧栏行）；从公司组头或公司页来的只看这家。 */
 export const PendingView: FC = () => {
   const company = useCompanyNav((s) => s.pendingCompany);
   const title = useTitles(company ? [company] : [])[company] ?? "";
+  const [search, setSearch] = useState("");
   return (
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-(--cc-thread-w) px-4 pt-4 pb-10 md:pt-10">
-        <h1 className="cc-greeting mb-6 text-3xl">{co.pending}</h1>
+      <div className="cc-page">
+        <div className="cc-page-head">
+          <h1 className="cc-page-title">{co.pending}</h1>
+        </div>
+        <label className="cc-page-search">
+          <SearchIcon />
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t("search")} placeholder={t("search")} />
+        </label>
         {company && (
           <div className="mb-4">
             <span className="cc-chip">
@@ -349,7 +423,7 @@ export const PendingView: FC = () => {
             </span>
           </div>
         )}
-        <PendingList company={company} />
+        <PendingList company={company} search={search} />
       </div>
     </div>
   );

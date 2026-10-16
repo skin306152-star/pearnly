@@ -23,6 +23,16 @@ from pearnly_core.tax_documents.amounts import valid_tax_id
 TAX_MISMATCH = "account_tax_mismatch"
 PERIOD_MISMATCH = "account_period_mismatch"
 BRANCH_MISMATCH = "account_branch_mismatch"
+# 推送拦下时给人看的话（词条原文；推送按当前语言翻、记原因时还原成原文，`history.push_state.source_text`）。
+# 月结台账按这几句把记下的原因认回原因码（`companies.exceptions`），所以只在这里写一份。
+CONFLICT_MESSAGES = {
+    TAX_MISMATCH: "The own tax ID on this document does not match the chosen account set. "
+                  "Check the account set and send it again.",
+    PERIOD_MISMATCH: "The document date is outside the fiscal period of the chosen account set. "
+                     "Check the year and send it again.",
+    BRANCH_MISMATCH: "This document belongs to another branch than the chosen account set. "
+                     "Choose that branch's account set and send it again.",
+}
 # 票面「สำนักงานใหญ่ / Head office」写的是总公司，没有分店号
 HEAD_OFFICE = "00000"
 _HEAD_WORDS = ("สำนักงานใหญ่", "สนญ", "head office", "headoffice")
@@ -138,5 +148,5 @@ def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: o
     return ""
 
 
-__all__ = ["BRANCH_MISMATCH", "PERIOD_MISMATCH", "TAX_MISMATCH", "company_branches", "conflict", "printed_branch",
+__all__ = ["BRANCH_MISMATCH", "CONFLICT_MESSAGES", "PERIOD_MISMATCH", "TAX_MISMATCH", "company_branches", "conflict", "printed_branch",
            "wrong_branch"]

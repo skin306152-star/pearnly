@@ -46,14 +46,18 @@ def reported_stock_groups(doc, account):
 
 
 MASTER_LISTS = ('reported_accounts', 'reported_departments')
+# 公司规则（第 2 期）存之前按这份账套的全部主档核值
+ALL_MASTER_LISTS = ('reported_accounts', 'reported_departments', 'reported_products', 'reported_customers',
+                    'reported_suppliers')
 
 
-def reported_masters(doc, account):
+def reported_masters(doc, account, keys=MASTER_LISTS):
     """这份账套读到的科目表与部门（账套资料）：文件夹自动录入的规则页选默认科目 / 部门用。
 
-    没读过返回 ``None``，不当成「没有科目 / 部门」。只读。哪台电脑读的都一样：同一份物理账套（ADR-021）。"""
+    没读过返回 ``None``，不当成「没有科目 / 部门」。只读。哪台电脑读的都一样：同一份物理账套（ADR-021）。
+    ``keys`` 要哪几张（默认科目表与部门，公司规则校验要 ``ALL_MASTER_LISTS``）。"""
     found = pool.facts(doc.name, account) or {}
-    result = {key: deepcopy(found[key]) for key in MASTER_LISTS if isinstance(found.get(key), list)}
+    result = {key: deepcopy(found[key]) for key in keys if isinstance(found.get(key), list)}
     return result or None
 
 

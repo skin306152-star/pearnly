@@ -108,6 +108,12 @@ def preview(session_id, file_id):
     return files.preview(session_id, file_id)
 
 
+# PDF 的一页画成图：附件卡片缩略图、手机上的 PDF 预览（files.page_image）
+@frappe.whitelist(methods=["GET"])
+def page_image(session_id, file_id, page=1, size="thumb"):
+    return files.page_image(session_id, file_id, page=page, size=size)
+
+
 @frappe.whitelist(methods=["GET"])
 def tool_labels():
     return tools.labels()
@@ -124,10 +130,13 @@ def tool_steps():
 SERVICE_WORKER = pathlib.Path(__file__).with_name("service_worker.js")
 OFFLINE_PAGE = (
     '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+    '<meta name="color-scheme" content="light dark">'
+    '<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">'
+    '<meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)">'
     "<title>CC</title><style>body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;"
-    "justify-content:center;gap:16px;background:#f9f9f7;color:#3d3d3a;font:16px system-ui,-apple-system,sans-serif}"
+    "justify-content:center;gap:16px;background:#fcfcfb;color:#3d3d3a;font:16px system-ui,-apple-system,sans-serif}"
     "button{padding:10px 20px;border-radius:999px;border:1px solid rgba(31,30,29,.16);background:#fff;font:inherit;color:#1a1a1a}"
-    "@media (prefers-color-scheme:dark){body{background:#262624;color:#e5e3da}button{background:#30302e;color:#faf9f5;"
+    "@media (prefers-color-scheme:dark){body{background:#151515;color:#e5e3da}button{background:#30302e;color:#faf9f5;"
     "border-color:rgba(250,249,245,.2)}}</style></head><body><div>{title}</div>"
     '<button onclick="location.reload()">{retry}</button></body></html>'
 )

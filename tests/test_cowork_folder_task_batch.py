@@ -42,6 +42,7 @@ class Store:
 
     def __init__(self):
         self.rules, self.points, self.rollbacks, self.writes, self.counter = {}, {}, [], 0, 0
+        self.files, self.queries = [], []
 
     def savepoint(self, name):
         self.points[name] = copy.deepcopy(self.rules)
@@ -56,6 +57,18 @@ class Store:
 
     def sql(self, query, values=None, as_dict=False):
         query = " ".join(query.split())
+        if "GROUP BY rule, state, last_code" in query:  # 月结台账：这个月登记的文件（`rules.month_files`）
+            self.queries.append((" ".join(query.split()), values))
+            *names, start, end, pos = values
+            counted = {}
+            for row in self.files:
+                if row["rule"] in names and start <= row["registered_at"] < end and (
+                        row["state"] in ("failed", "not_invoice")
+                        or (row["state"] == "source_ready" and row["last_code"] == pos)):
+                    key = (row["rule"], row["state"], row["last_code"])
+                    counted[key] = counted.get(key, 0) + 1
+            return [Row(rule=rule, state=state, last_code=code, total=total)
+                    for (rule, state, code), total in counted.items()]
         if "COUNT(*)" in query:
             if "WHERE reader_device = %s" in query:  # 每台电脑最多 50 个（ADR-021 第 4 批按电脑计）
                 return [[sum(1 for row in self.rules.values() if row.get("reader_device") == values[0])]]
@@ -573,6 +586,29 @@ class CountsAndLabels(Harness):
         empty = {"accounts": {}, "departments": {}}
         self.assertEqual(self.rules.master_names("EX", "Y1"), empty)  # MR.ERP 没有 Express 主档
         self.assertEqual(self.rules.master_names("NOPE", "Y1"), empty)
+
+
+class MonthFiles(Harness):
+    """月结台账「收单」一段（数字会计员第 1 期）：任务这个月登记的文件里读不了、不是发票、等人认列的各几份，一次分组查询。"""
+
+    def test_files_registered_this_month_are_counted_per_task(self):
+        day = datetime(2026, 9, 10)
+        self.store.files = [
+            {"rule": "R1", "state": "failed", "last_code": "", "registered_at": day},
+            {"rule": "R1", "state": "failed", "last_code": "x", "registered_at": day},
+            {"rule": "R1", "state": "not_invoice", "last_code": "", "registered_at": day},
+            {"rule": "R1", "state": "source_ready", "last_code": contracts.POS_LAYOUT_NEEDED, "registered_at": day},
+            {"rule": "R1", "state": "source_ready", "last_code": "", "registered_at": day},  # 在路上，不算
+            {"rule": "R1", "state": "done", "last_code": "", "registered_at": day},
+            {"rule": "R1", "state": "failed", "last_code": "", "registered_at": datetime(2026, 10, 1)},  # 下个月
+            {"rule": "R2", "state": "failed", "last_code": "", "registered_at": day},
+            {"rule": "R9", "state": "failed", "last_code": "", "registered_at": day}]  # 没问的任务
+        found = self.rules.month_files(["R1", "R2", "R1", ""], datetime(2026, 9, 1), datetime(2026, 10, 1))
+        self.assertEqual(found, {"R1": {"failed": 2, "not_invoice": 1, "pos_layout_needed": 1}, "R2": {"failed": 1}})
+        self.assertEqual(len(self.store.queries), 1)
+        self.assertEqual(self.store.queries[0][1][:2], ("R1", "R2"))
+        self.assertEqual(self.rules.month_files([], datetime(2026, 9, 1), datetime(2026, 10, 1)), {})
+        self.assertEqual(len(self.store.queries), 1)  # 没有任务就不查
 
 
 if __name__ == "__main__":

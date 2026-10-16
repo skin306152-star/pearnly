@@ -203,7 +203,8 @@ def build_express_payload(
         accounts, category, config.get("fallback_acc")
     )
     if choices.get("account"):
-        purchase_acc, acc_source = str(choices["account"]), "choice"
+        # 来源细分（人这次选的 / 记过的 / 任务默认 / Express 历史，`choices.resolve` 与推送服务定）；没给的照旧记 choice
+        purchase_acc, acc_source = str(choices["account"]), str(choices.get("account_from") or "choice")
     if not purchase_acc:
         return fail("no_purchase_account")
     ap_acc = resolve_account(accounts, "accounts_payable", config.get("ap_acc"))
@@ -303,12 +304,16 @@ def build_express_payload(
     # 现购 HP / 赊购 RR:六级漏斗(common.payment_verdict)—— 人工裁决 > 票面显式字段 >
     # 票种语义(F3)> 供应商过账档案(F4)> 银行佐证(F6)> config 默认(B2B 缺省 RR)。
     # verdict_src 留痕排障用:现/赊哪层定的。
-    if choices.get("payment") in ("cash", "credit") and not fields.get("posting_payment_manual"):
+    chosen_payment = choices.get("payment") in ("cash", "credit") and not fields.get("posting_payment_manual")
+    if chosen_payment:
         # 这家记过现购 / 赊购(会计第一次选的)· 票面没人工裁决时按它,仍低于本票人工裁决。
         fields = {**fields, "posting_payment_manual": choices["payment"]}
     paid, verdict_src = payment_verdict_for(
         history, fields, mappings, direction="purchase", total=total
     )
+    if chosen_payment:
+        # 留痕分清:这家记过的(remembered)/ 定时任务的默认(task_default),不与本票人工裁决(manual)混记。
+        verdict_src = str(choices.get("payment_from") or "remembered")
     if paid is None:
         paid = str(config.get("default_doctype") or "RR").upper() == "HP"
     doctype = "HP" if paid else "RR"

@@ -94,6 +94,20 @@ class Choices(unittest.TestCase):
         needed = next(item for item in result["needed"] if item["kind"] == "account")
         self.assertEqual(needed["current"], "99-99-99-99")
 
+    def test_an_applied_account_says_whether_it_was_remembered_or_the_task_default(self):
+        # 测试窗口第 2 轮（F19 后续）：科目哪来的一并给出（写进载荷 account_source）
+        subject = C.supplier_subject("purchase", SUPPLIER, "BANGCHAK GREENNET CO.,LTD.")
+        plain = C.resolve(purchase(posting_payment_manual="credit"), direction="purchase", posting_kind="service",
+                          config=CONFIG, remembered={"account": {subject: "53-05-02-00"}})
+        ruled = C.resolve(purchase(posting_payment_manual="credit"), direction="purchase", posting_kind="service",
+                          config=CONFIG, remembered={"account": {subject: "53-05-02-00"}},
+                          fixed={"account": "11-04-02-00"})
+        self.assertEqual((plain["applied"]["account"], plain["applied"]["account_from"]), ("53-05-02-00", "remembered"))
+        self.assertEqual((ruled["applied"]["account"], ruled["applied"]["account_from"]), ("11-04-02-00", "task_default"))
+        mapped = C.resolve(purchase(posting_payment_manual="credit"), direction="purchase", posting_kind="service",
+                           config=CONFIG, remembered={}, account_resolved=True)
+        self.assertNotIn("account_from", mapped["applied"])  # 科目映射定的由映射器记 category_map
+
     def test_department_is_not_asked_but_a_remembered_one_is_used(self):
         # 用户 2026-10-08：部门不再问（没选过由小助手取单据簿默认部门或不记）；以前选过 / 自动录入规则设的照用
         config = {**CONFIG, "reported_departments": [{"code": "SUTI", "name": "สาขาที่ 1"},
@@ -129,6 +143,9 @@ class FolderRuleDefaults(unittest.TestCase):
                           remembered=remembered, account_resolved=True, fixed={"payment": "cash", "vat": "claim"})
         self.assertEqual(plain["applied"].get("payment"), "credit")
         self.assertEqual(ruled["applied"].get("payment"), "cash")
+        # 哪来的一并给出（写进载荷 doctype_src，CC 推送结果据此说清，验收 F19）
+        self.assertEqual(plain["applied"].get("payment_from"), "remembered")
+        self.assertEqual(ruled["applied"].get("payment_from"), "task_default")
         self.assertNotIn("payment", {item["kind"] for item in ruled["needed"]})
 
 

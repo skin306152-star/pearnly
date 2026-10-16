@@ -19,7 +19,7 @@ from frappe.utils import now_datetime
 
 from pearnly_core.assistant import projects
 from pearnly_cowork.access import scope
-from pearnly_cowork.companies import context, identity, months, notes
+from pearnly_cowork.companies import context, identity, months, notes, rules
 from pearnly_cowork.companies.access import COMPANY, NOTE, read, write
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import agent, company_folders
@@ -203,7 +203,7 @@ def _view_row(row, sets=None, mine=None) -> dict:
         out["branches"] = [item["branch"] for item in identity.branches(sets)]
     if mine is not None:
         stat = mine.get(row.name) or {}
-        out.update(mine_count=int(stat.get("count") or 0), mine_last_active=stat.get("last_active") or "")
+        out.update(mine_count=int(stat.get("count") or 0), mine_last_active=when(stat.get("last_active")))
     return out
 
 
@@ -414,10 +414,12 @@ def set_combined_vat(company, combined) -> dict:
 
 
 def delete(company) -> dict:
-    """删主档（不确认，入口在 ⋯ 菜单里）：知识库 → 文件夹绑定 → 对话归回「最近」→ 主档；账套、选择、任务、草稿都不动。"""
+    """删主档（不确认，入口在 ⋯ 菜单里）：知识库、公司规则 → 文件夹绑定 → 对话归回「最近」→ 主档；账套记忆、任务、草稿
+    都不动。"""
     require_write()
     row = _company_row(company, for_update=True)
     frappe.db.delete(NOTE, {"company": row.name})
+    rules.forget_company(row.name)
     company_folders.forget(row.name)
     projects.release(row.name)
     frappe.db.delete(COMPANY, {"name": row.name})
@@ -559,7 +561,7 @@ def context_text(company, period="", work_scope="") -> str:
         "title": row.title, "legal_name": row.legal_name, "tax_id": row.tax_id,
         "combined_vat": bool(row.get("combined_vat")), "period": period, "scope": work_scope,
         "account_sets": sets, "branches": identity.branches(sets), "covering": covering, "folders": folders,
-        "notes": notes.listing(row.name)})
+        "notes": notes.listing(row.name), "rules": rules.context_rows(row.name)})
 
 
 # ---------------- 文件夹 ----------------

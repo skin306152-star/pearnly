@@ -7,7 +7,7 @@ import {
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
-import { runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ import {
   type FC,
   type PropsWithChildren,
 } from "react";
+import { Marquee } from "@/components/ui/marquee";
 
 // 触屏设备（手机、平板，lib/touch.ts）：打开页面不自动聚焦输入框
 const TOUCH = touchOnly();
@@ -75,6 +76,8 @@ export type ThreadComponents = {
   /** 打开已有对话、消息还没取回时居中显示（同 Claude：形象 + 「正在加载消息」） */
   Loading?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
+  /** 输入框下面的「下巴」（设计文档 3.12）：产品自己的按钮（Cowork 的公司、月份、分店）；不给或给了但没内容时不占位 */
+  Chin?: ComponentType | undefined;
 };
 
 export type ThreadProps = {
@@ -125,7 +128,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
         <div
           ref={follow.content}
           className={cn(
-            "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
+            // 栏宽 768（设计文档 3.10）：内容区左右各留 1rem，正文与输入框正好 --thread-max-width
+            "mx-auto flex w-full max-w-[calc(var(--thread-max-width)+2rem)] flex-1 flex-col px-4 pt-4",
             (isEmpty || isLoading) && "justify-center",
           )}
         >
@@ -350,6 +354,7 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC = () => {
+  const { Chin } = useContext(ThreadComponentsContext);
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
   const placeholder = hasMessages ? t("reply") : t("placeholder");
@@ -358,13 +363,13 @@ const Composer: FC = () => {
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
-          className="cc-composer"
+          className="cc-composer cc-composer-inline"
         >
           <ComposerAttachments />
           <DraftWatcher />
           <ComposerPrimitive.Input
             placeholder={placeholder}
-            className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent px-1 font-sans text-base outline-none"
+            className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans outline-none"
             rows={1}
             autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
             enterKeyHint="send"
@@ -374,6 +379,11 @@ const Composer: FC = () => {
           <ComposerAction />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
+      {Chin && (
+        <div className="cc-composer-chin" data-slot="cc-composer-chin">
+          <Chin />
+        </div>
+      )}
     </ComposerPrimitive.Root>
   );
 };
@@ -384,7 +394,7 @@ const ComposerAction: FC = () => {
       <AuiIf condition={(s) => s.thread.capabilities.attachments}>
         <ComposerAddAttachment />
       </AuiIf>
-      <div className="ms-auto flex items-center gap-1.5">
+      <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send asChild>
             <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")}>
@@ -443,7 +453,7 @@ const AssistantMessage: FC = () => {
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="cc-reply px-2 text-base leading-[1.7rem] wrap-break-word"
+        className="cc-reply px-2 wrap-break-word"
       >
         {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
         <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
@@ -456,7 +466,14 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
               case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                // 不进组的只有等批准的那一步：同组里的步骤一样放进带环的卡片，不单独浮在正文里
+                return (
+                  part.toolUI ?? (
+                    <LoneStep>
+                      <ToolFallbackComponent {...part} />
+                    </LoneStep>
+                  )
+                );
               case "data":
                 return part.dataRendererUI;
               default:
@@ -553,7 +570,7 @@ const MessageFiles: FC = () => {
   }, [files, messages, id]);
   if (!sessionId || !mine.length) return null;
   return (
-    <div className="mt-3 flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       {mine.map((file) => (
         <div
           key={file.id}
@@ -564,7 +581,7 @@ const MessageFiles: FC = () => {
               <FileTypeIcon filename={file.filename} className="size-4.5" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate font-medium text-ink text-sm">{file.filename}</span>
+              <Marquee className="block truncate font-medium text-ink text-sm">{file.filename}</Marquee>
               <span className="block text-ink-3 text-xs">{fileTypeLabel(file.filename)}</span>
             </span>
           </button>
@@ -583,14 +600,14 @@ const MessageFiles: FC = () => {
 };
 
 // 回复下的操作（同 Claude）：只放引擎真能做到的「复制」——会话记录改不了，重试 / 编辑做不到原样替换，就不摆个点了没反应的按钮。
-// 电脑上最后一条一直显示、其余悬停时显示；手机没有悬停，每条都显示（同 Claude 手机端）。
+// 电脑上悬停这条回复时淡入（设计文档 3.10，.cc-reply-actions）；手机、平板没有悬停，每条都显示（同 Claude 手机端）。
 
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
-      autohide={TOUCH ? "never" : "not-last"}
-      className="aui-assistant-action-bar-root -ms-1 flex gap-0.5 text-ink-3"
+      autohide="never"
+      className="aui-assistant-action-bar-root cc-reply-actions -ms-1 flex gap-0.5 text-ink-3"
     >
       <CopyAction />
     </ActionBarPrimitive.Root>

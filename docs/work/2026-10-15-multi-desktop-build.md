@@ -712,3 +712,59 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 目录里没有会计期间的账套（读不到期间）一律不算覆盖：这样的公司每张单都停下（2026-09-27 起的 CC 桌面版都报期间）。
 - 新年度账套刚在 Express 建好、电脑还没上报目录前到点的单会停下，要人重推（不再自动落进旧账套的次年期间，见有意变化 1）。
 - 主档页 / 侧栏的「定时任务」仍按任务存下的账套归公司（前端待办第 4 条）。
+
+## 并入 CC 外壳分支（2026-10-16，本地提交，未推送）
+
+`git merge --no-ff pearnly/cc-shell-rebuild`（对方 `f5c04929`，67 个提交：CC 外壳重构、F19 推送摘要、数字会计员第 1 期月结台账、
+第 2 期统一客户规则）进 `pearnly/multi-desktop`（`2a1b25bf`，T5 第 1–5 批 + T1）。两边都从 main `7c9bb445` 分出。第 2 期设计第 4 条
+「推送接入在 T5 第 1–3 批合入后变基」由这次合并完成。
+
+### 冲突怎么解
+
+| 文件 | 解法 |
+|---|---|
+| `connections/preparation.py` `reported_masters` | 取本分支的来源（`pool.facts`：按物理账套存的账套资料，哪台电脑读的都一样），加上外壳分支的 `keys` 参数（默认科目表与部门，公司规则校验传 `ALL_MASTER_LISTS`）。外壳分支那版读连接 `report_json` 的凭据绑定 / 公共缓存，本分支第 2 批已不用这条路，不保留。`ALL_MASTER_LISTS` 五张都在 `pool.FACT_KEYS` 里 |
+| `push/application/service.py` `prepare` | 冻结目标只建一次：用本分支那版（准备证据 v2 带 `basis_hash`、`ledger.writer_scope` 写者锁口径 v2），之后加外壳分支的 `decided_by`（有才加）；删掉外壳分支在载荷之前另建的那份 `frozen`（否则后面那份覆盖它、`decided_by` 丢了）。`decided_by` 只进冻结目标，不进载荷，不改 `basis_hash` |
+| `translations/{en,ja,th,zh}.csv` | 不手拼：两边翻译包取并集（同一 msgid 两边译文不同的没有）作底，再 `python3 scripts/i18n-build.py` 按自动合并好的 `messages.tsv` 重新生成；`--check` PASS，合并后的四个包相对两边都没丢行 |
+| `tests/test_cowork_folder_task_batch.py` 替身 `sql` | 两段都留：先把查询压成单行（本分支），再认月结台账的分组查询（外壳分支），再按电脑计数 / 列任务（本分支第 4 批） |
+| `tests/test_cowork_readback.py` 替身 | 两边都留：`waited` / `targets`（本分支，按账套等电脑）与 `access_locks`（外壳分支，只读可见性检查不加锁）；`access.scope` 用外壳分支的 `require` / `allowed`，`companion.devices.newest_version` 与带 `account_key` 的 `waiting` 用本分支的，`connections.access` 用外壳分支带 `lock` 的替身 |
+
+自动合并的 `hooks.py`（两边各加的权限表、`cowork_company_month_readback`、`cowork_push_company_choices`、`cowork_task_company` /
+`cowork_task_books` / `cowork_pool_presence` / `cowork_reader_device_moved` 都在）、`patches.txt`（外壳分支没加补丁，本分支 v0_0_19–v0_0_23
+顺序不变；外壳分支新 DocType `Cowork Company Choice` 走原生迁移）、`assistant/tools.py`、`companies/service.py`、`folder_intake/rules.py`、
+`scheduled-tasks.tsx` 逐个看过，没有重复定义或互相覆盖。
+
+### 合并后另改的一处（语义冲突）
+
+`companies/ledger.py` 的 `_tasks`（月结台账「收单」段的任务与「文件夹不在了」）是外壳分支照合并前的 `service.tasks_of` 写的：
+按 `row.reader or row.connection` 取 `agent.read(reader)`。本分支第 4 批起任务按电脑读（读者 =（电脑，成员连接）），本机情况按
+`agent.read(连接, 电脑)` 存，老写法读到的是连接级那份，按电脑读的任务的「文件夹不在了」会漏报。改成与 `service.tasks_of` 一样走
+`folder_intake.readers.ref / state / of`，并在 `tests/test_cowork_companies.py` 加一项（任务挂在电脑 D2 上，台账取 D2 报的情况）。
+
+### 语义核对
+
+1. **推送服务四件同时成立**：`prepare` 里依次是写账分派与账套物理身份（`freeze_target` / `_account_row` 按池目录）→ `account_match`
+   硬闸 → `_decisions`（账套记忆 → 公司规则钩子 `cowork_push_company_choices` → Express 历史已定 → 任务默认，带 `decided_by`）→
+   冻结目标（证据 v2 + 写者锁 v2 + `decided_by`）。F19 的 `written` 从冻结目标读 `decided_by`（`service.py` `_entered` 读推送记录的 `target_json`）；租约 v2
+   领取只核 route 与 `basis_hash`，冻结目标里多一个 `decided_by` 不影响。T1 跟随当年账套是 `folder_intake.follow` 选好账套键再进
+   同一个 `prepare`，公司规则按那份账套的目录行认公司，所以换年度后规则照样生效。
+2. **公司规则按公司身份查、不依赖账套键**（第 2 期第 13 条）：`companies.rules.for_push` 丢掉 `account_set`，用目录这一行经
+   `identity.company_identity` 认公司（有税号按 `tax:<税号>`，没有按建档连接 + 公司名），再按主档名查 `Cowork Company Choice`。本分支
+   池目录（`pool.listing`）每行的 `attributes` 来自登记里的规范属性（税号、分店、公司名都在），所以带主机名的本机账套键换了也认得出同一家
+   公司；账套记忆（`choice_store.remembered`，按账套键）跟不过去，与第 13 条说的一致。
+3. **回读两条都成立**：发起时 `request_service.waiting / create` 带 `account_key`，只等、只交给够得到这份账套的电脑（本分支第 4 批）；
+   看结果按「能用这条连接」放开（`_visible` / `_usable`，外壳分支），别人发起、还在读的只回现状，推进与删除仍只认发起人；
+   `vat_records` 与 `month_status` 取「这本账套这个月最近一次完成的」，不分发起人。`require_connection(..., lock=False)` 本分支签名支持。
+4. **公司规则存之前核主档**（`companies/choices.py` `_masters`、`_name_parties`）现在读 `pool.facts`：同一份物理账套哪台电脑读的都算，
+   不再要求「出自当前凭据」（本分支第 2 批起账套资料就不绑电脑与密钥）。
+
+### 闸门
+
+完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`：91 步全过，退出码 0（在解完冲突、改完 `ledger._tasks` 的暂存树上跑，
+代码与合并提交相同，之后只加了本节文档）。合并带进了外壳分支 `frontend/assistant` 的新依赖 `@dnd-kit/*`，先 `npm ci --prefix frontend/assistant`
+（第一次单跑 `tests/test_cc_month_ledger.py` 因缺这些依赖失败 6 项，装好后 10 项 OK）。另单跑：`test_cowork_companies` 109、`readback` 44、
+`folder_task_batch` 32、`any_set_catalog` 11、`push_fixed` 18、`account_suggest` 43、`assistant_tools` 186，全部 OK；`check-architecture.py`
+0 违规；`i18n-build.py --check` PASS。
+
+没做 / 没验：真实 Site 迁移（`Cowork Company Choice` 新表 + 本分支补丁同批跑）、测试机与真 Express；外壳分支前端在多电脑场景下的点验
+（读者选择、电脑名显示）留给测试机一轮。

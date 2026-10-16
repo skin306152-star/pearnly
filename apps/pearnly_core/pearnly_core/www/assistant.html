@@ -9,17 +9,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#fbfbfb" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)" />
+    {# 页面支持深浅两种：深色系统下浏览器从第一帧就按深色画（安卓的系统导航条跟着变深，测试窗口第 2 轮：深色下仍是白条）；
+         设置里固定了浅 / 深色时 main.tsx 运行时改成那一种，theme-color 两个也一并改成当前底色。 #}
+    <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>CC</title>
     {# 启动画面：页面代码下载、运行之前就显示（主屏幕 app、安卓、桌面端启动时不再是一片空白）；
          React 第一次渲染会替换掉 #root 里的内容，它自然消失。猫与 frontend/assistant/src/brand/cc.svg 一致（tests/test_assistant.py 比对）。
-         颜色同 globals.css 的 --cc-bg-app（电脑 #fbfbfb、手机 #f9f9f7、深色 #262624）。 #}
+         颜色同 globals.css 的 --cc-bg-app（设计系统表面 1：浅色 #fcfcfb、深色 #151515，电脑与手机同一个）。 #}
     <style>
-      html, body { margin: 0; height: 100%; background: #fbfbfb; }
-      @media (max-width: 767px) { html, body { background: #f9f9f7; } }
-      @media (prefers-color-scheme: dark) { html, body { background: #262624; } }
+      html, body { margin: 0; height: 100%; background: #fcfcfb; }
+      @media (prefers-color-scheme: dark) { html, body { background: #151515; } }
       .cc-boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
       .cc-boot svg { height: 72px; width: auto; animation: cc-boot-bob 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite alternate; }
       @keyframes cc-boot-bob { to { transform: translateY(-6px); } }

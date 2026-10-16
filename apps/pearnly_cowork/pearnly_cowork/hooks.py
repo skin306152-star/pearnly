@@ -349,6 +349,7 @@ permission_query_conditions = {
     "Cowork Company Folder": "pearnly_cowork.folder_intake.access.deny_query",
     "Cowork Company": "pearnly_cowork.companies.access.deny_query",
     "Cowork Company Note": "pearnly_cowork.companies.access.deny_query",
+    "Cowork Company Choice": "pearnly_cowork.companies.access.deny_query",
     "Cowork Companion Request": "pearnly_cowork.companion.request_access.deny_query",
     "Cowork Express Readback": "pearnly_cowork.readback.access.deny_query",
 }
@@ -412,6 +413,7 @@ has_permission = {
     "Cowork Company Folder": "pearnly_cowork.folder_intake.access.deny",
     "Cowork Company": "pearnly_cowork.companies.access.deny",
     "Cowork Company Note": "pearnly_cowork.companies.access.deny",
+    "Cowork Company Choice": "pearnly_cowork.companies.access.deny",
     "Cowork Companion Request": "pearnly_cowork.companion.request_access.deny",
     "Cowork Express Readback": "pearnly_cowork.readback.access.deny",
 }
@@ -581,9 +583,15 @@ cowork_scheduled_notices = ["pearnly_cowork.companies.pending.morning"]
 # 按历史用）。存放在 readback 域（科目建议 B），companies 不导入它（readback 依赖 push，companies 也依赖 push，各走各的）。
 cowork_company_history_choices = ["pearnly_cowork.readback.history.company_choices"]
 cowork_company_history_forget = ["pearnly_cowork.readback.history.company_forget"]
+# 月结台账「核对」一段：这家公司各本 Express 账套这个月最近的回读（能用这条连接的人都看得到，逐条连接核）。
+# companies 不导入 readback（同上）。
+cowork_company_month_readback = ["pearnly_cowork.readback.service.month_status"]
 # 推送前核对分店（补充 甲.3）：票面没有本方分店时，CC 对话指定的分店（`project_scope`，只在推往这家公司的账套时算）。
 # push 域不导入 companies（companies 依赖 push）。
 cowork_push_work_branch = ["pearnly_cowork.companies.provider.work_branch"]
+# 推送准备的公司规则（第 2 期统一客户规则）：这份账套所属公司的规则垫在账套记忆之下（`push/application/service.py` 的
+# `_decisions`）；按目录这一行的身份直接查公司、不缓存。push 域不导入 companies（companies 依赖 push）。
+cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]
 # 定时任务的提醒 / 完成简报属于哪家公司（点开到这家的主档页）：folder_intake 不导入 companies（反过来依赖）。
 cowork_rules_company = ["pearnly_cowork.companies.service.company_of_rules"]
 # 定时任务跟随公司当年账套（T1）：保存任务时所选账套属于哪家主档（与分店），到点按单据日期取这家公司覆盖那天的账套

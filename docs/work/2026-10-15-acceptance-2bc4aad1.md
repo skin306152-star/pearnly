@@ -444,3 +444,50 @@ Keycloak 密码页默认不勾，只有自动提交（`#pn=…&rm=1`）走成时
 - 改动：`initialChoice`——只预填已定的（`current`）或服务端建议中第一项在可选值里的；都没有就空着，下拉显示「—」，所有项选完才能点确认。付款方式、抵不抵进项同样不再默认第一项。
 - 测试：`tests/test_assistant_ui.py` `PendingChoiceDefaultTests`。
 - 未做：未部署（随下一批）。待处理页明天按 Code 框架重构为异常清单时沿用这条规则。
+
+## V9 重验通过（科目历史）
+
+生产 testcowork 三项都已通过（19:10–19:18）：同一供应商推满 3 张后第 4 张直接用历史科目、主档页出现「来自 Express 历史 · N 次」、删掉后再推又问。
+历史读取没有等自然到期，由开发窗口 19:03 强制重读了一次。
+
+## F19 现金采购写对了，CC 却叫用户去 Express 核对
+
+测试窗口（生产 testcowork）：用户对 CC 说「จ่ายเงินสด」，公司页记住了供应商 0105562012340 → 现购。推进 C 盘测试账套 T9NIEXCP 的 HP690923-001、HP690928-001、
+HP690929-001，总控按 Express 表核对：APTRN `RECTYP=1`（现购）、GLJNLIT 借 53-05-02-00 / 贷 11-01-01-00（账套 ISINFO.ACCNUM00 现金科目）、摘要「ซื้อสดจาก …」。
+**写入是对的**：载荷单据类型 HP = 现购，CC 桌面版写入（`companion/src/companion/dbf_writer.py: _write_all`）把载荷里占位的应付贷方换成现金科目。
+
+- 真问题：CC 两次答「系统没让选付款方式，没法确认是现金，请去 Express 打开单据核对」，把核对推给用户。原因是 CC 拿到的推送结果
+  （`assistant/tools.py: _push_one / _settle / _concluded`，以及 `cowork_push_results`）只有「已入账 + 单号」，没有写成什么样。
+- 改动：
+  - `push/express/pushed.py: written`：从推送记录冻结的 Express 载荷取几项事实——`payment`（HP / HS = cash，RR / IV = credit）、`payment_from`（`doctype_src`
+    一一对应：manual → chosen、remembered、task_default、explicit → document、doc_type → document_type、profile → supplier_profile、bank、
+    config_default → default；POS 日汇总为 pos_summary；没有 `doctype_src` 的旧记录、认不出的值不给）、`debit_account`（进项）/ `revenue_account`（销项）、进项 `vat`
+    （claimed / added_to_cost / none）。不是 Express 载荷（MR.ERP）不给。
+  - `push/application/service.py`：`outcomes` 入账成功时带 `written`；新增 `written(records)` 给列推送结果用（只读、只要入账成功的）。
+  - `assistant/tools.py`：推送后入账的结果、`cowork_list_documents` / `cowork_push_results` 里入账的行带 `written`（推送记录名只用来查，不交给模型）；
+    两个工具说明（模型看的英文）讲清 cash = 现购记贷现金科目、各来源的意思，照实告诉用户，不要叫用户去 Express 核对。
+  - 来源分清：原来「这家记过的」和「定时任务默认」都记成 `manual`，和本票人工裁决分不开。`push/express/choices.py` 套用时给出 `payment_from`
+    （remembered / task_default），`push/express/mapper.py` 据此写 `doctype_src`；本票人工裁决仍是 `manual`。改版前的记录照旧是 `manual`（说成 chosen）。
+- 测试：`tests/test_cowork_assistant_tools.py`（入账现购带 remembered、赊购默认、列结果那条路、旧记录无 `doctype_src`、MR.ERP 不给、来源逐项对应、
+  列表不露记录名）；`tests/test_cowork_express_mapper.py`、`tests/test_cowork_express_choices.py`（remembered / task_default 留痕）。
+- 复审跟进（同分支第二个提交）：
+  - M1：`cowork_document_detail`（`_detail`）对入账的票也带 `written`，工具说明拼上同一段说明——用户问单张「是不是现金」时 CC 最常查的是详情。
+  - L1：已入账的票重推（`already_success`）回执带当时的 `written`。
+  - L2：改版前「这家记过的 / 定时任务默认」也存成 `manual`，冻结的载荷分不开；说明改成 chosen = 有人的选择（本票上传或复核时选的，旧单也可能是这家记过的或任务默认），
+    不许说成「有人专门为这张选了」。没加载荷版本标记：载荷键是 CC 桌面版契约，不为一句说法加键。
+  - L3：进项键名 `expense_account` 改为 `debit_account`（库存采购借的是存货科目；期末盘存制账套 CC 桌面版会把默认存货科目改记购货科目 ACCNUM18，说明里写明）。
+  - L4：说明不再写「HP 一定贷账套现金科目」（账套没设可过账的现金科目 ACCNUM00 时桌面版保留应付占位），改为 HP = 现购（付现）。
+  - 说明补上简式税票按已付（`pearnly_core` `paid_hint`）。
+- 未做：未部署（随下一批）；部署后由测试窗口重验：对现购的单问 CC「是现金吗」，应直接答现购及原因；同时用单据详情问一次（复审 M1）。
+- 测试窗口第 2 轮跟进（10-15 21:00–21:18，分支 `pearnly/cc-shell-rebuild`，本地提交、未推送）：
+  - 科目也说来源：`written` 加 `account_from`，照冻结载荷的 `account_source` 一一对应——chosen（这张票传上来以后有人在待处理页 / 复核页 / 对话里选的，按供应商记下）、
+    remembered（之前就记过）、task_default、express_history（Express 历史很一致）、matched（`category_map` 分类映射）、default（`config_default` 账套默认）；
+    改版前笼统的 `choice` 与没有这项的旧记录不给。来源在准备推送时分清：`push/express/choices.py` 套用时给 remembered / task_default，
+    `push/application/service.py: _account_from` 再分 express_history（历史定的）与 chosen（`push/choices.py: chosen_at` 选的时间不早于票的上传时间），
+    `push/express/mapper.py` 写进 `account_source`（`account_source` 只在服务端用，CC 桌面版不读，载荷键不变）。
+  - `WRITTEN_NOTE`（模型看的英文）：入账一定告诉用户 ERP 单号（docnum）；现购 / 赊购与记的科目都说清来源；不叫用户去 Express 核对单号、现赊、科目；旧单没有来源就只说有的，不猜。
+  - 测试：`test_cowork_assistant_tools.py`（来源逐项对应、旧记录不给、销项、说明三处都带）、`test_cowork_account_suggest.py`（四种来源）、`test_cowork_express_choices.py`、`test_cowork_express_mapper.py`。
+  - 未做：未部署；部署后测试窗口重验：推一张记过科目的票，CC 应报 ERP 单号、现 / 赊及来源、科目及来源，不叫人去 Express 看。
+  - 审查后修正：查选择时间的税号只用 `seller_tax`（与 `choices._party` 记选择的键一致，票面只有 `seller_tax_id` 时人刚选的不再被说成 remembered，`test_cowork_account_suggest.py` 补用例）；说明里 chosen 改为「这张票进来以后有人选过或改过（待处理页、复核页、公司页或对话），按供应商记下，同一供应商同时在等的票也算」。
+- 测试窗口第 3 轮跟进（10-15 21:50–22:06，分支 `pearnly/cc-shell-rebuild`，本地提交、未推送）：待处理 / 本月卡当场选完重推的票，CC 后来查详情、推送结果时没有 Express 单号——`written` 改由 `push/application/service.py: written` 统一带推送记录的 `external_docnum`（`docnum`），对话、待处理页、定时任务哪条路推的都一样（MR.ERP 只给单号）；说明加金额说泰铢不说元、来源用用户的话说不念码、说完不叫人去 Express 再看；公司档案里记住选择等时刻交给 CC 时换成站点时区带偏移。用例见 `test_cowork_assistant_tools.py`（`PushOutcomeServiceTests`、`test_entered_documents_carry_the_erp_number_and_cc_speaks_the_users_words`）、`test_cowork_companies.py`（`test_profile_times_reach_cc_as_local_time_with_the_offset`）。未部署；测试窗口重验：待处理页当场选完一张，再问 CC 这张进了没有，应报 ERP 单号、现赊与科目及来源（用中文说法），金额说泰铢、时间是曼谷时间。
+- 第 3 轮复审跟进（本地提交、未推送）：对话里推送后等结果（`push/application/service.py: outcomes`）的 `written` 也改用 `_entered`，带推送记录的单号，三条路的 `written.docnum` 至此一致（`PushOutcomeServiceTests` 断言）。

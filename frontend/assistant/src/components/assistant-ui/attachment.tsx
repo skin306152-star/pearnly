@@ -1,4 +1,9 @@
 
+// 附件（同 Claude）。
+// - 输入框里：小方块（缩略图 / 文件图标），右上角移除，上传中转圈，上传失败标红并在提示里说原因；图片点开看大图。
+// - 你发出的消息里：每个文件一张卡片（缩略图、文件名一行、类型说明「PDF · N 页」/ 大小），点开在右侧面板预览
+//   （与 CC 产出的文件同一个预览；服务端取本站留存的那份，PDF 也能看）。读屏名字跟页面语言。
+//   缩略图同 Claude：图片是图片本身，PDF 是第一页（服务端画的小图，page_image thumb，第 5 轮测试 1），载不出退回文件图标。
 import { type PropsWithChildren, useEffect, useState, type FC } from "react";
 import {
   XIcon,
@@ -12,7 +17,6 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   useAuiState,
-  useAui,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import {
@@ -32,9 +36,12 @@ import {
   AvatarFallback,
 } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { localPreview } from "@/lib/managed-agents/attachments";
+import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
+import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
+import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
+import { Marquee } from "@/components/ui/marquee";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -106,9 +113,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         {children}
       </DialogTrigger>
       <DialogContent className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&_svg]:text-background [&>button]:hover:[&_svg]:text-destructive p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
-        <DialogTitle className="aui-sr-only sr-only">
-          Image Attachment Preview
-        </DialogTitle>
+        <DialogTitle className="aui-sr-only sr-only">{t("imagePreview")}</DialogTitle>
         <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*0.8)] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
@@ -134,24 +139,9 @@ const AttachmentThumb: FC = () => {
   );
 };
 
-const AttachmentUI: FC = () => {
-  const aui = useAui();
-  const isComposer = aui.attachment.source !== "message";
-
-  const isImage = useAuiState((s) => s.attachment.type === "image");
-  const typeLabel = useAuiState((s) => {
-    const type = s.attachment.type;
-    switch (type) {
-      case "image":
-        return "Image";
-      case "document":
-        return "Document";
-      case "file":
-        return "File";
-      default:
-        return type;
-    }
-  });
+/** 输入框里的一个附件：小方块 + 移除。 */
+const ComposerAttachment: FC = () => {
+  const name = useAuiState((s) => s.attachment.name);
 
   const uploadState = useAuiState((s) =>
     s.attachment.status.type === "running"
@@ -173,14 +163,7 @@ const AttachmentUI: FC = () => {
 
   return (
     <Tooltip>
-      <AttachmentPrimitive.Root
-        className={cn(
-          "aui-attachment-root relative",
-          isImage &&
-            !isComposer &&
-            "aui-attachment-root-message only:*:first:size-24",
-        )}
-      >
+      <AttachmentPrimitive.Root className="aui-attachment-root relative">
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
             <div
@@ -190,9 +173,9 @@ const AttachmentUI: FC = () => {
               )}
               role="button"
               tabIndex={0}
-              aria-label={`${typeLabel} attachment${
-                isError ? ", upload failed" : isUploading ? ", uploading" : ""
-              }`}
+              aria-label={[t("attachment").replace("{0}", name), isError ? t("uploadFailed") : isUploading ? t("uploading") : ""]
+                .filter(Boolean)
+                .join(" · ")}
             >
               <AttachmentThumb />
               {isUploading && (
@@ -214,7 +197,7 @@ const AttachmentUI: FC = () => {
             </div>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
-        {isComposer && <AttachmentRemove />}
+        <AttachmentRemove />
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
@@ -240,11 +223,131 @@ const AttachmentRemove: FC = () => {
   );
 };
 
+/** 文件大小（同 Claude 的写法：B / KB / MB，不随语言变）。 */
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** 卡片的类型说明：PDF 带页数（「PDF · 3 页」），其余带大小（「XLSX · 12 KB」）；页数、大小不知道时只写类型。 */
+export function attachmentTypeLine(filename: string, size?: number, pages?: number): string {
+  const type = fileTypeLabel(filename);
+  if (kindOf(filename) === "pdf") {
+    if (!pages) return type;
+    return `${type} · ${pages === 1 ? t("onePage") : t("pageCount").replace("{0}", String(pages))}`;
+  }
+  return size ? [type, formatSize(size)].filter(Boolean).join(" · ") : type;
+}
+
+/** 你发出的消息里的一个附件该怎么显示（纯计算，测试直接调）：读屏名字、类型说明、缩略图地址，以及点开时交给右侧面板的文件
+ *  （没有会话、沙箱位置里认不出文件编号时没有，卡片不可点）。附件的编号是它在沙箱里的位置（events.ts 的 splitAttachmentNote）。
+ *  大小、页数先看本会话文件列表（服务端按留存的那份补的），刚发出、列表还没重取时用本页上传时记下的。 */
+export function attachmentCard(
+  mountPath: string,
+  name: string,
+  results: Pick<Results, "sessionId" | "uploads">,
+): { label: string; typeLine: string; image?: string; page?: boolean; open?: SessionFile } {
+  const { sessionId, uploads } = results;
+  const fileId = uploadFileId(mountPath);
+  const listed = fileId ? uploads.find((f) => f.id === fileId) : undefined;
+  const local = localMeta(mountPath);
+  const size = listed?.size_bytes || local?.size;
+  const pages = listed?.pages ?? local?.pages;
+  const typeLine = attachmentTypeLine(name, size, pages);
+  // 图片：本页刚发的用本地预览；刷新后、别的设备上用服务端留存的那份（内联地址）。PDF：服务端画的第一页（page = 是页面图，
+  // 卡片里从页顶显示）。只在本站确有留存时取（本页刚发的，或列表带了大小 = 服务端读到了那份）：很早以前没留存的附件
+  // 引擎也不给下载，取缩略图只会白问一趟引擎再 404（第 5 轮审查），直接是类型方块
+  const kind = kindOf(name);
+  const remote = sessionId && fileId ? { sessionId, fileId } : null;
+  const page = kind === "pdf" && !!remote && !!(listed?.size_bytes || local);
+  const image =
+    kind === "image"
+      ? (localPreview(mountPath) ?? (remote ? fileUrl(remote.sessionId, remote.fileId, true) : undefined))
+      : page
+        ? pageUrl(remote!.sessionId, remote!.fileId, 1, "thumb")
+        : undefined;
+  const label = t("attachment").replace("{0}", [name, typeLine].filter(Boolean).join(" · "));
+  const open: SessionFile | undefined =
+    sessionId && fileId
+      ? {
+          id: fileId,
+          filename: name,
+          size_bytes: size ?? 0,
+          mime_type: listed?.mime_type ?? "",
+          downloadable: false,
+          created_at: listed?.created_at ?? "",
+          kind: "upload",
+          ...(pages ? { pages } : {}),
+        }
+      : undefined;
+  return { label, typeLine, ...(image ? { image } : {}), ...(page ? { page } : {}), ...(open ? { open } : {}) };
+}
+
+/** 你发出的消息里的一个附件：卡片（缩略图、文件名一行、类型说明），点开在右侧面板预览。 */
+const MessageAttachment: FC = () => {
+  const name = useAuiState((s) => s.attachment.name);
+  const mountPath = useAuiState((s) => s.attachment.id);
+  const results = useResults();
+  const card = attachmentCard(mountPath, name, results);
+  const open = card.open;
+  return <AttachmentCard name={name} {...card} onOpen={open ? () => results.openUpload(open) : undefined} />;
+};
+
+/** 附件卡片本身（不读状态）：能打开时是按钮，否则只是一张卡片。 */
+export const AttachmentCard: FC<{ name: string; label: string; typeLine: string; image?: string; page?: boolean; onOpen?: () => void }> = ({
+  name,
+  label,
+  typeLine,
+  image,
+  page,
+  onOpen,
+}) => {
+  const body = (
+    <>
+      <span className="cc-attach-thumb" aria-hidden data-page={page || undefined}>
+        <AttachmentThumbnail src={image} filename={name} />
+      </span>
+      <span className="cc-attach-meta" aria-hidden>
+        <Marquee className="cc-attach-name">{name}</Marquee>
+        {typeLine && <Marquee className="cc-attach-type">{typeLine}</Marquee>}
+      </span>
+    </>
+  );
+  if (!onOpen) {
+    return (
+      <div className="cc-attach-card" role="img" aria-label={label} title={name}>
+        {body}
+      </div>
+    );
+  }
+  return (
+    <button type="button" className="cc-attach-card" aria-label={label} title={name} onClick={onOpen}>
+      {body}
+    </button>
+  );
+};
+
+/** 卡片上半部分：图片显示图片、PDF 显示第一页（载不出就退回文件图标）；其余类型是文件图标 + 类型。 */
+const AttachmentThumbnail: FC<{ src?: string; filename: string }> = ({ src, filename }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (src && !failed) {
+    return <img src={src} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setFailed(true)} />;
+  }
+  return (
+    <span className="cc-attach-tile">
+      <FileTypeIcon filename={filename} />
+      <span>{fileTypeLabel(filename)}</span>
+    </span>
+  );
+};
+
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2">
+    <div className="aui-user-message-attachments-end cc-attach-list col-span-full col-start-1 row-start-1">
       <MessagePrimitive.Attachments>
-        {() => <AttachmentUI />}
+        {() => <MessageAttachment />}
       </MessagePrimitive.Attachments>
     </div>
   );
@@ -254,7 +357,7 @@ export const ComposerAttachments: FC = () => {
   return (
     <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
       <ComposerPrimitive.Attachments>
-        {() => <AttachmentUI />}
+        {() => <ComposerAttachment />}
       </ComposerPrimitive.Attachments>
     </div>
   );

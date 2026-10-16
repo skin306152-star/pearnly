@@ -218,6 +218,7 @@ class BehaviourTests(unittest.TestCase):
         call = frappe.calls[-1]
         self.assertIn(["seller_tax", "like", "%0107565000620%"], call["or_filters"])
         self.assertIn(["seller_name", "like", "%0107-5650-00620%"], call["or_filters"])
+        self.assertIn(["filename", "like", "%0107-5650-00620%"], call["or_filters"])  # 预填只有文件名的单（复审第 3 轮）
         self.assertIn("seller_tax", call["fields"])
         tools.list_documents({"search": "Advice", "push_state": "failed"})
         self.assertEqual(frappe.calls[-1]["limit_page_length"], tools.LIST_SCAN_PAGE)  # 失败条件改在取回后筛
@@ -1996,6 +1997,43 @@ class PushWaitTests(unittest.TestCase):
         # 每次读之前换一份新快照（结论是别的请求提交的）
         self.assertGreaterEqual(self.rollbacks[0], len(self.reads))
 
+    def test_entered_says_how_it_was_written_so_cc_never_sends_the_user_to_express(self):
+        # 验收 F19：用户说「จ่ายเงินสด」、这家记成现购，推进去的是 HP 现购（贷现金），CC 却两次叫用户去 Express 核对
+        written = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
+        self.timeline = [{"PR-H1": {"status": "success", "docnum": "HP690923-001", "written": written}}]
+        item, = self._push("H1")["results"]
+        self.assertEqual((item["status"], item["docnum"], item["written"]), ("entered", "HP690923-001", written))
+        self.assertNotIn("record", item)
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_documents")["description"]
+        for words in ("payment cash = a cash purchase (HP, paid in cash)", "remembered", "simplified tax invoice = paid",
+                      "do not claim it was picked for this one document", "periodic inventory",
+                      # 测试窗口第 2 轮：入账一定报 ERP 单号；现 / 赊与科目都说清来源；不叫用户去 Express 核对
+                      # 第 5 轮测试 8：单号说成 Express / MR.ERP 的，不说「ERP」；已入账的不指去待处理 / 复核 / Express 改
+                      "always give the user its document number (docnum), amounts in baht and times in local time",
+                      "Call the program by its name, Express or MR.ERP, never 'the ERP'",
+                      "never point the user to the pending page, the review page or Express to check or change it",
+                      "written into Express or MR.ERP; docnum is its document number there",
+                      "whether it was entered as cash or credit and which account it went to, each with where that "
+                      "came from", "never ask the user to check Express for the number, cash or credit, or the account",
+                      "account_from = what decided the account", "express_history", "matched", "never guess a source",
+                      "a person picked or changed it after this document came in", "the company page"):
+            self.assertIn(words, description)
+        for name in ("cowork_push_results", "cowork_document_detail"):
+            self.assertIn(tools.WRITTEN_NOTE, next(t for t in tools.TOOLS if t["name"] == name)["description"])
+
+    def test_an_entered_document_pushed_again_still_says_how_it_was_written(self):
+        # 复审 L1：已入账的不再推，但回执照样带当时怎么写的；记录名只用来查
+        self.docs["H1"].last_push_status = "success"
+        self.docs["H1"].last_push_record = "PR-H1"
+        written = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00"}
+        asked = []
+        with mock.patch.object(tools.application, "written", create=True,
+                               new=lambda records: asked.append(list(records)) or {"PR-H1": written}):
+            item, = self._push("H1")["results"]
+        self.assertEqual(item, {"document": "H1", "status": "already_success", "written": written})
+        self.assertEqual(asked, [["PR-H1"]])
+        self.assertEqual((self.reads, self.sleeps), ([], []))
+
     def test_a_refusal_comes_back_with_its_reason_and_an_unknown_result_is_not_called_failed(self):
         self.timeline = [{"PR-H1": {"status": "pending"}, "PR-H2": {"status": "pending"}},
                          {"PR-H1": {"status": "manual", "reason": "[ACCOUNT_COMPANY_MISMATCH] wrong company"},
@@ -2063,6 +2101,19 @@ class PushWaitTests(unittest.TestCase):
         self.assertNotIn("note", out)
 
 
+def _pushed_module():
+    spec = importlib.util.spec_from_file_location("cowork_express_pushed", COWORK / "push/express/pushed.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# 验收 F19 那张：这家记过现购 → HP，借费用科目、贷（小助手换成账套的现金科目）
+CASH_PAYLOAD = {"direction": "purchase", "doctype": "HP", "doctype_src": "remembered", "items_account": "53-05-02-00",
+                "doc_lane": "goods", "vat_amount": "70.00", "base_amount": "1000.00", "total_amount": "1070.00",
+                "lines": [{"acc": "53-05-02-00", "side": "D", "amount": "1000.00"}], "supplier": {"tax_id": "0105562012340"}}
+
+
 def _push_service(rows):
     """真的 `push.application.service`（其余各域用替身），SQL 交给 ``rows`` 回答，记下每次查询。"""
     queries = []
@@ -2072,6 +2123,9 @@ def _push_service(rows):
 
     def sql(query, values=None, as_dict=False):
         queries.append((" ".join(query.split()), values))
+        if len(values) == 1:  # `written`：不按人筛，只要入账成功的
+            names, = values
+            return [types.SimpleNamespace(**row) for row in rows if row["status"] == "success" and row["name"] in names]
         actor, names = values
         return [types.SimpleNamespace(**row) for row in rows if row["actor"] == actor and row["name"] in names]
 
@@ -2079,10 +2133,12 @@ def _push_service(rows):
     modules = {"frappe": fake, "pearnly_cowork": types.ModuleType("pearnly_cowork")}
     for name in ("access", "connections", "targets", "contracts", "contracts.history", "contracts.push", "history",
                  "push", "push.application", "push.application.provenance", "push.express", "push.express.common",
-                 "push.express.prepare", "push.express.preflight", "push.express.history", "push.express.pushed",
+                 "push.express.prepare", "push.express.preflight", "push.express.history",
                  "push.mrerp", "push.native", "push.receipts", "targets.choice", "targets.contracts",
                  "targets.freeze", "targets.selection", "targets.identity"):
         modules["pearnly_cowork." + name] = mock.MagicMock()
+    pushed = modules["pearnly_cowork.push.express.pushed"] = _pushed_module()  # 纯函数：用真的
+    modules["pearnly_cowork.push.express"].pushed = pushed
     with mock.patch.dict(sys.modules, modules):
         spec = importlib.util.spec_from_file_location("push_service_outcomes", COWORK / "push/application/service.py")
         service = importlib.util.module_from_spec(spec)
@@ -2094,21 +2150,32 @@ class PushOutcomeServiceTests(unittest.TestCase):
     """推送的人看自己这几次推送此刻的结论：只认本人发起的记录，只读一条主键查询，单号只在入账成功时给。"""
 
     ROWS = [{"name": "PR1", "actor": "a@example.com", "status": "success", "reason": "",
-             "external_docnum": "HP691013-001", "result_unknown": 0},
+             "external_docnum": "HP691013-001", "result_unknown": 0, "payload_json": json.dumps(CASH_PAYLOAD)},
             {"name": "PR2", "actor": "a@example.com", "status": "manual", "reason": "[X] no",
-             "external_docnum": "HP-OLD", "result_unknown": 1},
+             "external_docnum": "HP-OLD", "result_unknown": 1, "payload_json": json.dumps(CASH_PAYLOAD)},
             {"name": "PR3", "actor": "b@example.com", "status": "success", "reason": "",
-             "external_docnum": "HP691013-002", "result_unknown": 0},
+             "external_docnum": "HP691013-002", "result_unknown": 0, "payload_json": json.dumps(CASH_PAYLOAD)},
             {"name": "PR4", "actor": "a@example.com", "status": "leased", "reason": None,
-             "external_docnum": None, "result_unknown": 0}]
+             "external_docnum": None, "result_unknown": 0, "payload_json": "{}"},
+            # 赊购、没有可判的信号（账套默认）；MR.ERP 的记录（载荷不是 Express 进 / 销项）；改版前的旧记录（没有 doctype_src）
+            {"name": "PR5", "actor": "a@example.com", "status": "success", "reason": "",
+             "external_docnum": "RR691013-001", "result_unknown": 0,
+             "payload_json": json.dumps({**CASH_PAYLOAD, "doctype": "RR", "doctype_src": "config_default"})},
+            {"name": "PR6", "actor": "a@example.com", "status": "success", "reason": "",
+             "external_docnum": "PO-1", "result_unknown": 0, "payload_json": json.dumps({"menu": "purchase"})},
+            {"name": "PR7", "actor": "a@example.com", "status": "success", "reason": "",
+             "external_docnum": "HP690901-001", "result_unknown": 0,
+             "payload_json": json.dumps({key: value for key, value in CASH_PAYLOAD.items() if key != "doctype_src"})}]
+    CASH = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
 
     def test_only_my_own_pushes_and_the_number_only_when_entered(self):
         service, queries = _push_service(self.ROWS)
         found = service.outcomes(["PR1", "PR2", "PR3", "PR4", "PR1", ""])
         self.assertEqual(found, {
-            "PR1": {"status": "success", "reason": "", "docnum": "HP691013-001", "result_unknown": False},
-            "PR2": {"status": "manual", "reason": "[X] no", "docnum": "", "result_unknown": True},
-            "PR4": {"status": "leased", "reason": "", "docnum": "", "result_unknown": False}})
+            "PR1": {"status": "success", "reason": "", "docnum": "HP691013-001", "result_unknown": False,
+                    "written": {**self.CASH, "docnum": "HP691013-001"}},
+            "PR2": {"status": "manual", "reason": "[X] no", "docnum": "", "result_unknown": True, "written": None},
+            "PR4": {"status": "leased", "reason": "", "docnum": "", "result_unknown": False, "written": None}})
         (query, values), = queries
         self.assertIn("WHERE actor=%s AND name IN %s", query)
         self.assertNotIn("FOR UPDATE", query)
@@ -2122,6 +2189,78 @@ class PushOutcomeServiceTests(unittest.TestCase):
         service.outcomes([f"PR{i}" for i in range(50)])
         self.assertEqual(len(queries[0][1][1]), service.OUTCOMES_MAX)
         self.assertEqual(service.OUTCOMES_MAX, tools.PUSH_MAX)
+
+    def test_credit_default_and_records_that_are_not_express_or_older(self):
+        service, _queries = _push_service(self.ROWS)
+        found = service.outcomes(["PR5", "PR6", "PR7"])
+        self.assertEqual(found["PR5"]["written"], {**self.CASH, "payment": "credit", "payment_from": "default",
+                                                   "docnum": "RR691013-001"})
+        # MR.ERP：不是 Express 载荷，不猜现赊，只带单号（对话推送这条路的 written 也有单号，复审第 3 轮）
+        self.assertEqual(found["PR6"]["written"], {"docnum": "PO-1"})
+        # 改版前的记录没有 doctype_src：照实给现 / 赊，不编来源
+        self.assertEqual(found["PR7"]["written"], {**{key: value for key, value in self.CASH.items() if key != "payment_from"},
+                                                   "docnum": "HP690901-001"})
+
+    def test_results_list_reads_what_was_written_for_entered_records_only(self):
+        # cowork_push_results 那条路：记录名来自已按权限取到的单据，这里不按人筛；没成功的不回。单号一律从推送记录带上
+        # （测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，详情 / 推送结果里没有单号）；MR.ERP 只有单号
+        service, queries = _push_service(self.ROWS)
+        self.assertEqual(service.written(["PR3", "PR2", "PR6", "PR1", "PR3", None]),
+                         {"PR3": {**self.CASH, "docnum": "HP691013-002"}, "PR6": {"docnum": "PO-1"},
+                          "PR1": {**self.CASH, "docnum": "HP691013-001"}})
+        (query, values), = queries
+        self.assertIn("WHERE status='success' AND name IN %s", query)
+        self.assertEqual(values, (("PR3", "PR2", "PR6", "PR1"),))
+        service.scope.require_read.assert_called_with()
+        self.assertEqual(service.written([]), {})
+        self.assertEqual(len(queries), 1)
+
+
+class WrittenFactsTests(unittest.TestCase):
+    """推送记录冻结的 Express 载荷 → 怎么写进去的（验收 F19）：现 / 赊按单据类型，来源照 doctype_src 一一对应。"""
+
+    def setUp(self):
+        self.pushed = _pushed_module()
+
+    def test_each_source_maps_to_one_word_and_unknown_ones_are_left_out(self):
+        expected = {"manual": "chosen", "remembered": "remembered", "task_default": "task_default",
+                    "explicit": "document", "doc_type": "document_type", "profile": "supplier_profile",
+                    "bank": "bank", "config_default": "default"}
+        for source, word in expected.items():
+            self.assertEqual(self.pushed.written({**CASH_PAYLOAD, "doctype_src": source})["payment_from"], word)
+        self.assertNotIn("payment_from", self.pushed.written({**CASH_PAYLOAD, "doctype_src": "something_new"}))
+
+    def test_the_account_says_where_it_came_from_and_older_records_leave_it_out(self):
+        # 测试窗口第 2 轮：科目也要说清哪来的（载荷 account_source），一一对应；旧记录（笼统的 choice、没有这项）不给
+        expected = {"chosen": "chosen", "remembered": "remembered", "task_default": "task_default",
+                    "express_history": "express_history", "company_rule": "company_rule", "category_map": "matched",
+                    "config_default": "default"}
+        for source, word in expected.items():
+            out = self.pushed.written({**CASH_PAYLOAD, "account_source": source})
+            self.assertEqual((out["debit_account"], out["account_from"]), ("53-05-02-00", word))
+        for source in ("choice", "", None, "something_new"):
+            self.assertNotIn("account_from", self.pushed.written({**CASH_PAYLOAD, "account_source": source}))
+        self.assertNotIn("account_from", self.pushed.written(CASH_PAYLOAD))
+        sale = {"direction": "sales", "doctype": "IV", "items_account": "41-01-00-00", "account_source": "category_map"}
+        self.assertEqual(self.pushed.written(sale), {"payment": "credit", "revenue_account": "41-01-00-00",
+                                                     "account_from": "matched"})
+        # 没有科目就不说科目的来源
+        self.assertNotIn("account_from", self.pushed.written({**CASH_PAYLOAD, "items_account": "",
+                                                              "account_source": "config_default"}))
+
+    def test_sales_vat_handling_and_what_is_not_express(self):
+        sale = {"direction": "sales", "doctype": "HS", "doctype_src": "bank", "items_account": "41-01-00-00"}
+        self.assertEqual(self.pushed.written(sale),
+                         {"payment": "cash", "payment_from": "bank", "revenue_account": "41-01-00-00"})
+        self.assertEqual(self.pushed.written({**sale, "doctype": "IV", "doctype_src": "config_default"})["payment"],
+                         "credit")
+        self.assertEqual(self.pushed.written({**sale, "pos": {"transfers": []}, "doctype_src": "manual"})["payment_from"],
+                         "pos_summary")
+        expense = {**CASH_PAYLOAD, "doc_lane": "expense", "vat_amount": "0.00", "vat_capitalized": "7.00"}
+        self.assertEqual(self.pushed.written(expense)["vat"], "added_to_cost")
+        self.assertEqual(self.pushed.written({**CASH_PAYLOAD, "vat_amount": "0.00"})["vat"], "none")
+        for payload in (None, {}, {"direction": "purchase", "doctype": "IV"}, {"direction": "x", "doctype": "HP"}):
+            self.assertIsNone(self.pushed.written(payload))
 
 
 def _history_row(name, direction, kind, subtotal, vat, total):
@@ -2205,6 +2344,84 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertEqual(detail["push_reason"], "said:document_policy_needed_transfer_slip")
         self.assertEqual(detail["handling_choice_needed"], "transfer_slip")  # 认码仍按原值
 
+    def test_entered_rows_say_how_they_were_written_without_the_record_name(self):
+        # cowork_push_results（push_state success）：每张入账的票带 written，推送记录名只用来查、不给模型（验收 F19）
+        frappe.rows[0].update(last_push_status="success", last_push_record="PR9")
+        frappe.rows[1].update(last_push_status="failed", last_push_record="PR8")
+        frappe.rows[2].update(last_push_status="success", last_push_record="PR7")  # 旧记录 / MR.ERP：查不到就不给
+        asked = []
+        cash = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00"}
+
+        def written(records):
+            asked.append(sorted(records))
+            return {"PR9": cash}
+
+        with mock.patch.object(tools.application, "written", written, create=True):
+            docs = json.loads(tools.list_documents({"push_state": "success", "limit": 5}))["documents"]
+        self.assertEqual(asked, [["PR7", "PR9"]])
+        self.assertIn("last_push_record", frappe.calls[0]["fields"])
+        self.assertEqual([d.get("written") for d in docs], [cash, None, None, None, None])
+        self.assertFalse(any("last_push_record" in d for d in docs))
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_push_results")["description"]
+        self.assertIn("never ask the user to check Express", description)
+
+    def test_the_detail_of_an_entered_document_says_how_it_was_written(self):
+        # 复审 M1：用户问「这张是不是现金」CC 最常查详情；入账的带 written，没入账的不查，记录名不给
+        cash = {"payment": "cash", "payment_from": "remembered", "debit_account": "53-05-02-00", "vat": "claimed"}
+        asked = []
+
+        def written(records):
+            asked.append(list(records))
+            return {"PR9": cash}
+
+        with mock.patch.object(tools.application, "written", written, create=True):
+            entered = tools._detail({"name": "D1", "last_push_status": "success", "last_push_record": "PR9",
+                                     "push_connection": "EXP1", "pages": []})
+            failed = tools._detail({"name": "D2", "last_push_status": "manual", "last_push_record": "PR8",
+                                    "push_connection": "EXP1", "pages": []})
+            older = tools._detail({"name": "D3", "last_push_status": "success", "last_push_record": "PR7",
+                                   "push_connection": "EXP1", "pages": []})
+        self.assertEqual(entered["written"], cash)
+        self.assertNotIn("written", failed)
+        self.assertNotIn("written", older)  # 旧记录 / MR.ERP：查不到就不给
+        self.assertEqual(asked, [["PR9"], ["PR7"]])
+        self.assertFalse(any("last_push_record" in out or "PR9" in json.dumps(out) for out in (entered, failed, older)))
+        description = next(t for t in tools.TOOLS if t["name"] == "cowork_document_detail")["description"]
+        self.assertIn("never ask the user to check Express", description)
+
+    def test_entered_documents_carry_the_erp_number_and_cc_speaks_the_users_words(self):
+        # 测试窗口第 3 轮：待处理页当场选完重推的票，CC 查详情时没有 Express 单号；写的是「元」；把 remembered 原样念出来、
+        # 说完还叫人去 Express 看。written 带 docnum（服务端从推送记录取，见 PushOutcomeServiceTests），说明讲清这几条
+        entered = {"payment": "credit", "payment_from": "chosen", "debit_account": "53-05-02-00", "docnum": "RR691015-004"}
+        with mock.patch.object(tools.application, "written", lambda records: {"PR9": entered}, create=True):
+            detail = tools._detail({"name": "D1", "last_push_status": "success", "last_push_record": "PR9",
+                                    "push_connection": "EXP1", "pages": []})
+        self.assertEqual(detail["written"]["docnum"], "RR691015-004")
+        note = tools.WRITTEN_NOTE
+        self.assertIn("written.docnum is the document number it got in the accounting program it went into "
+                      "(Express, or MR.ERP for an MR.ERP account set)", note)
+        self.assertNotIn("ERP document number", note)
+        self.assertIn("An entered document is done: it is no longer on the pending page", note)
+        self.assertIn("from the pending page or by a scheduled task", note)
+        self.assertIn("never show the codes", note)
+        self.assertIn("never end with a suggestion to check or confirm in Express", note)
+        guidance = " ".join(tools.GUIDANCE)
+        self.assertIn("Amounts in tool results are Thai baht", guidance)
+        self.assertIn("never call it yuan", guidance)
+        # 第 5 轮测试 8：程序按名字说（Express / MR.ERP），已入账的不指去待处理页 / 复核页
+        self.assertIn("Call the accounting program by its name, Express or MR.ERP", guidance)
+        self.assertIn("never suggest checking or changing it on the pending page or the review page", guidance)
+        # 第 5 轮审查：CC 读到的工具说明与结果提示都按名字说 Express / MR.ERP，不留「the ERP」让 CC 照抄成「ใน ERP」
+        # （只有「never say 'the ERP'」这条禁令本身带这个词）；改单说明不再叫人去那个程序改已入账的单
+        said = " ".join([tool["description"] for tool in tools.TOOLS] + [tools.PUSH_QUEUED_NOTE, note, guidance])
+        said = said.replace("'the ERP'", "").replace("'ERP'", "")
+        for words in ("the ERP", "an ERP", "ERP's", "target ERP", "ERP document"):
+            self.assertNotIn(words, said)
+        edit = next(tool["description"] for tool in tools.TOOLS if tool["name"] == "cowork_edit_document")
+        self.assertIn("Never send the user to Express or MR.ERP to change an entered document", edit)
+        self.assertNotIn("only a person can change it", edit)
+        self.assertIn("cowork_list_documents search set to its invoice number", guidance)
+
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},
                "states": {"done": 3}}
@@ -2283,7 +2500,7 @@ class WaitingDocumentTests(unittest.TestCase):
         properties = listing["input_schema"]["properties"]
         self.assertIn("waiting", properties["push_state"]["enum"])
         self.assertNotIn("waiting_review", properties)
-        self.assertIn("waiting = not in the ERP yet: never pushed or the push failed", listing["description"])
+        self.assertIn("waiting = not in Express or MR.ERP yet: never pushed or the push failed", listing["description"])
         self.assertIn("pushed successfully or on its way is never waiting", listing["description"])
         self.assertNotIn("waiting for review", listing["description"])
         self.assertIn("push_state waiting in cowork_list_documents", declared["cowork_push_results"]["description"])
@@ -2848,6 +3065,13 @@ class ReadbackTests(unittest.TestCase):
         self.assertIn("updated", out["note"])
         self.assertEqual([call[0] for call in self.calls], ["request"])  # 电脑领不了：不等、不查
 
+    def test_someone_elses_readback_still_reading_is_returned_at_once(self):
+        # 能用这条连接的人都看得到回读（用户 2026-10-15 夜定），但还在读的那份只由发起人推进：同事的 CC 不空等 90 秒
+        self.states = [{**self.made, "requested_by": "someone.else@example.com"}]
+        out = json.loads(tools.express_readback_status({"readback": "r" * 32}))
+        self.assertEqual(out["status"], "reading")
+        self.assertEqual([call[0] for call in self.calls if call[0] == "status"], ["status"])
+
     def test_refusals_come_back_as_reasons_and_delete_goes_through_the_service(self):
         def refuse(*args):
             raise frappe.ValidationError("cowork.readback.account_missing")
@@ -2870,9 +3094,9 @@ class ReadbackTests(unittest.TestCase):
             self.assertNotIn("approval", by_name[name])  # 只读、不扣费：不弹「允许」卡
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(names.index("cowork_express_readback"), names.index("cowork_folder_fetch") + 1)
-        # L7：推送成功的单只能由人在 Express 里改，改完用回读看
+        # L7：推送成功的单 Pearnly 改不到，改完用回读看；第 5 轮审查：同 WRITTEN_NOTE，不再叫人去那个程序改已入账的单
         self.assertIn("cowork_express_readback", by_name["cowork_edit_document"]["description"])
-        self.assertIn("only a person can change it", by_name["cowork_edit_document"]["description"])
+        self.assertIn("is not changed there and is not pushed again", by_name["cowork_edit_document"]["description"])
         self.assertIn("cowork_express_readback", by_name["cowork_push_documents"]["description"])
         self.assertIn("cowork_express_readback", by_name["cowork_recon_start"]["description"])
 
