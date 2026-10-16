@@ -434,6 +434,12 @@ class GateLayer(unittest.TestCase):
         self.assertEqual(replay.vat_claim(m, fields, full, gold, "utility", "")["result"], "n/a")
         self.assertEqual(replay.vat_claim(m, {**fields, "document_type": "receipt"}, full, gold, "tax_invoice", ""),
                          {"claims": False, "tier": "B", "gold": True, "result": "wrong"})
+        self.assertEqual(replay.vat_claim(m, {**fields, "document_type": "receipt"}, "", gold, "tax_invoice", "")["tier"],
+                         "B")  # 判不抵、核不到原文：B
+        self.assertEqual(replay.vat_claim(m, {**fields, "document_type": "receipt"}, short, gold, "receipt", "")["tier"],
+                         "A")
+        self.assertEqual(replay.vat_claim(m, {**fields, "document_type": "other"}, short, gold, "utility", "")["tier"],
+                         "B")
         self.assertTrue(replay.claim_gold({"vat": "7.00"}, "", replay.EXPRESS_GOLD))
         self.assertFalse(replay.claim_gold({"vat": "0"}, "", replay.EXPRESS_GOLD))
         self.assertFalse(replay.claim_gold({"vat": "7.00"}, "tax_invoice", ""))  # 没印买方

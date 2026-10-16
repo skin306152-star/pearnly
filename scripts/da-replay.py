@@ -1067,13 +1067,15 @@ def claim_gold(gold: Mapping[str, Any], kind: str, source: str) -> Optional[bool
 def vat_claim(m, fields: Mapping[str, Any], text: Optional[str], gold: Mapping[str, Any], kind: str,
               source: str) -> Dict[str, Any]:
     """进项、识别出税额的票：识别结果按方向推断抵不抵（`field_rules.judge_direction`），文字层核票种后的档（`automation.tiers`
-    同一规则：判抵且原文核得到完整税票与买方税号 A、核不到 B；判不抵而原文是完整税票 B、否则 A），与金标口径比。"""
+    同一规则：判抵且原文核得到完整税票与买方税号 A、核不到 B；判不抵且识别票种与原文标题都正是简式税票 / 收据 A、否则 B），与金标口径比。"""
     from pearnly_cowork.push.express.field_rules import judge_direction
 
     kind_ocr, _route = judge_direction(dict(fields), today=dt.date.today())
     claims = kind_ocr == "purchase_invoice"
-    printed = m["automation"].claim_in_text("purchase", fields, text)
-    tier = ("A" if printed else "B") if claims else ("B" if printed else "A")
+    if claims:
+        tier = "A" if m["automation"].claim_in_text("purchase", fields, text) else "B"
+    else:
+        tier = "A" if m["automation"].no_claim_in_text(fields, text) else "B"
     want = claim_gold(gold, kind, source)
     return {"claims": claims, "tier": tier, "gold": want,
             "result": "n/a" if want is None else "ok" if want == claims else "wrong"}

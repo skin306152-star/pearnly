@@ -201,7 +201,8 @@ class ItemTiers(unittest.TestCase):
         claim = _payload(item_src="judge_direction=purchase_invoice")
         expense = _payload(item_src="judge_direction=expense", vat_amount="0.00", vat_capitalized="70.00")
         self.assertEqual(self.tier("vat", payload=claim), "A")
-        self.assertEqual(self.tier("vat", payload=expense, text=TEXT.replace("ใบกำกับภาษี", "ใบเสร็จรับเงิน")), "A")
+        self.assertEqual(self.tier("vat", payload=expense, fields=_fields(document_type="receipt"),
+                                   text=TEXT.replace("ใบกำกับภาษี", "ใบเสร็จรับเงิน")), "A")
         # 识别判抵扣，原文却是简式税票 / 收据、或没印买方税号、文字层是空的：CC 判断（B）
         for text in (TEXT.replace("ใบกำกับภาษี", "ใบกำกับภาษีอย่างย่อ"), TEXT.replace("ใบกำกับภาษี", "ใบเสร็จรับเงิน"),
                      TEXT.replace(OWN, ""), ""):
@@ -209,9 +210,14 @@ class ItemTiers(unittest.TestCase):
         # 识别判不抵（记费用），原文却是印着买方税号的完整税票：B；核不到原文（乱码、没有文字层）照 A，不多抵税
         self.assertEqual(self.tier("vat", payload=expense), "B")
         # 判不抵：标题要正是简式税票 / 收据才算 A；核不到原文（乱码、没有文字层、标题印成别的）算 B（第四轮回放 9/10 会计抵了）
-        self.assertEqual(self.tier("vat", payload=expense, text=TEXT.replace("ใบกำกับภาษี", "ใบกำกับภาษีอย่างย่อ")), "A")
+        short = _fields(document_type="simplified_tax_invoice")
+        self.assertEqual(self.tier("vat", payload=expense, fields=short,
+                                   text=TEXT.replace("ใบกำกับภาษี", "ใบกำกับภาษีอย่างย่อ")), "A")
         for text in ("", TEXT.replace("ใบกำกับภาษี", "ใบแจ้งหนี้")):
-            self.assertEqual(self.tier("vat", payload=expense, text=text), "B", text[:20])
+            self.assertEqual(self.tier("vat", payload=expense, fields=short, text=text), "B", text[:20])
+        # 识别给「其他」票种（水电费收据这类，会计常抵进项）：标题是收据也算 B（第四轮闸层）
+        self.assertEqual(self.tier("vat", payload=expense, fields=_fields(document_type="other"),
+                                   text=TEXT.replace("ใบกำกับภาษี", "ใบเสร็จรับเงิน")), "B")
         self.assertEqual(self.tier("vat", payload=_payload(item_src="")), "C")
         # 没有税额：抵不抵无从说起，不列
         self.assertIsNone(self.tier("vat", payload=_payload(item_src="judge_direction=expense", vat_amount="0.00")))

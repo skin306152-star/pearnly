@@ -24,6 +24,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from pearnly_core.tax_documents.amounts import valid_tax_id
 from pearnly_core.tax_documents.codes import RECEIPT, SIMPLIFIED_TAX_INVOICE, TAX_INVOICE
 from pearnly_core.tax_documents.rules import from_title
+from pearnly_core.tax_documents.rules import normalize as normalize_document_type
 
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import company_choices
@@ -548,11 +549,14 @@ def claim_in_text(direction: str, fields: Mapping[str, Any], text: Optional[str]
         tax_in_text((fields or {}).get(f"{_own_side(direction)}_tax"), text)
 
 
-def no_claim_in_text(text: Optional[str]) -> bool:
-    """原件文字层的标题正是不能抵进项的票种（简式税票、收据；`rules.from_title` 先认「อย่างย่อ」、再认完整税票、最后才认收据，
-    「ใบเสร็จรับเงิน/ใบกำกับภาษี」合一单算完整税票）。"""
+def no_claim_in_text(fields: Mapping[str, Any], text: Optional[str]) -> bool:
+    """判不抵（记费用）核得到原文：识别出的票种正是简式税票 / 收据，原件文字层的标题也是（`rules.from_title` 先认「อย่างย่อ」、
+    再认完整税票、最后才认收据，「ใบเสร็จรับเงิน/ใบกำกับภาษี」合一单算完整税票）。识别给「其他」票种的（这类收据会计
+    常按税票抵进项）不算（审查处理 10-16，第四轮闸层）。"""
     text = text if isinstance(text, str) else ""
-    return bool(text.strip()) and from_title(text) in (SIMPLIFIED_TAX_INVOICE, RECEIPT)
+    kind = normalize_document_type((fields or {}).get("document_type"))
+    return bool(text.strip()) and kind in (SIMPLIFIED_TAX_INVOICE, RECEIPT) and \
+        from_title(text) in (SIMPLIFIED_TAX_INVOICE, RECEIPT)
 
 
 def _claim_printed(facts: Facts) -> bool:
@@ -560,7 +564,7 @@ def _claim_printed(facts: Facts) -> bool:
 
 
 def _no_claim_printed(facts: Facts) -> bool:
-    return no_claim_in_text(facts.text)
+    return no_claim_in_text(facts.fields, facts.text)
 
 
 def memory_evidence(entries: Iterable[Mapping[str, Any]]) -> List[str]:
@@ -645,8 +649,8 @@ def tiers(facts: Facts) -> Dict[str, str]:
         elif source == "judge_direction=purchase_invoice":
             out["vat"] = A if _claim_printed(facts) else B
         elif source.startswith("judge_direction="):
-            # 判不抵（记费用）：文字层标题要正是简式税票 / 收据才算 A；核不到（乱码、标题印成别的）算 B —— 第四轮回放闸层
-            # 判不抵且核不到原文的 10 张里 9 张会计抵了进项（审查处理 10-16）
+            # 判不抵（记费用）：识别的票种与文字层标题都正是简式税票 / 收据才算 A；核不到（乱码、标题印成别的、识别给「其他」）
+            # 算 B —— 第四轮回放闸层判不抵的 10 张里 9 张会计抵了进项（识别都给「其他」票种，审查处理 10-16）
             out["vat"] = A if _no_claim_printed(facts) else B
         else:
             out["vat"] = C
