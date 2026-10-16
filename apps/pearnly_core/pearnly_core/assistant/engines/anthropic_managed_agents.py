@@ -45,7 +45,11 @@ LIST_RETRIES = 3
 # 事件流两条事件之间最长等这么久；模型长时间思考时超时由转发线程查状态后重接。
 STREAM_TIMEOUT = 120
 # 侧栏标题只要几个词（泰文、中日文每个字的 token 多些，留足）；后台任务里调用，等不到就放弃（保留临时标题）。
-TITLE_TOKENS = 60
+# 2026-10-16 测试：标题模型默认开着思考，60 个 token 常被空的思考块用完（stop_reason max_tokens、没有文字），标题回空。
+# 起标题明确关掉思考（标题模型在默认思考强度下接受 disabled）；这个模型不接受关思考（400）时不带 thinking 再问一次，
+# 给思考留足 token。只认正常结束（end_turn）的回答，截断的不当标题。
+TITLE_TOKENS = 200
+TITLE_THINKING_TOKENS = 2000
 TITLE_TIMEOUT = 15
 
 
@@ -127,10 +131,18 @@ class Adapter(base.Adapter):
         return self.api.beta.sessions.retrieve(conversation).status
 
     def summarize(self, text: str, model: str) -> str | None:
-        reply = self.api.with_options(timeout=TITLE_TIMEOUT).messages.create(
-            model=model or self.model, max_tokens=TITLE_TOKENS, system=base.TITLE_INSTRUCTION,
-            messages=[{"role": "user", "content": text}])
-        return "".join(getattr(part, "text", "") for part in reply.content) or None
+        ask = dict(model=model or self.model, system=base.TITLE_INSTRUCTION, messages=[{"role": "user", "content": text}])
+        api = self.api.with_options(timeout=TITLE_TIMEOUT)
+        try:
+            reply = api.messages.create(max_tokens=TITLE_TOKENS, thinking={"type": "disabled"}, **ask)
+        except anthropic.APIStatusError as err:
+            if getattr(err, "status_code", None) != 400:
+                raise
+            reply = api.messages.create(max_tokens=TITLE_THINKING_TOKENS, **ask)
+        if getattr(reply, "stop_reason", None) != "end_turn":
+            return None
+        return "".join(getattr(part, "text", "") for part in reply.content
+                       if getattr(part, "type", "text") == "text") or None
 
     # 控制台 Manage → Webhooks 订阅这几类；通知只带类型与会话编号，等的是哪些调用再读事件列表（`contracts.pending_calls`）
     WAKE_EVENTS = ("session.status_idled", "session.requires_action", "session.idled")

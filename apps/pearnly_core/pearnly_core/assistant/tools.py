@@ -8,6 +8,8 @@
 - 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
   也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
   卡片上的问句是 `"ask"`；问法随参数变时另写 `"ask_when": {参数名: 问句}`，给了该参数就用那句。
+  出卡片前要先核对的另写 `"refuse": "<函数路径>"`（函数(参数) → 交回模型的拒绝结果文本或 None）：核出要拒绝的不出卡片、
+  不执行工具，直接把那段结果交回模型（`refusal`；2026-10-16：存公司规则时模型说给用户的对方与单据对不上，不该先让人点「允许」）。
 - 进行中的说法（对话底部的工作状态行、正在执行的那一步，如「正在识别单据」）另在 `pearnly_assistant_step_names`
   声明 `{工具名: 英文原文}`（共用工具在 `CORE_STEP_NAMES`），译文同样进声明它的 App 的术语表；没声明的显示 `label`。
 - 工具一律在本站服务端、以当前登录用户身份执行：权限、租户、套账与数据范围沿用各产品现有服务的
@@ -134,6 +136,22 @@ def approval_view(name: str, tool_input) -> dict:
     ask = next((text for key, text in (tool.get("ask_when") or {}).items() if _given(values, key)), None)
     ask = ask or tool.get("ask") or tool.get("label") or str(name or "")
     return {"ask": _(ask), "preview": rows[:PREVIEW_ROWS]}
+
+
+def refusal(name: str, tool_input) -> str | None:
+    """要「允许」的工具出卡片前的核对（工具声明的 `refuse`）：要拒绝回交给模型的结果文本（按出错交回），否则 None。
+    只读、不写；核对本身出错按不拒绝处理（照常出卡片，工具执行时自己会再核一遍）。"""
+    tool = next((t for t in declared() if t["name"] == str(name or "")), None) or {}
+    if not tool.get("refuse"):
+        return None
+    try:
+        text = frappe.get_attr(tool["refuse"])(tool_input if isinstance(tool_input, dict) else {})
+    except Exception:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="Assistant approval check failed")
+        return None
+    return str(text) if text else None
 
 
 REFUSED = ("not_saved", "not_started", "not_exported", "failed")

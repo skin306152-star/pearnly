@@ -495,6 +495,66 @@ class RelayTests(unittest.TestCase):
         confirm = source.split("def confirm(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("toolrun.decide(", confirm)  # 我们拦下的在本站处理，其余照旧交引擎
 
+    def test_a_call_the_tool_refuses_up_front_gets_no_card_and_does_not_run(self):
+        """2026-10-16：存公司规则时 CC 说给用户的对方与那张单对不上——不该先出「允许」卡片让人点。工具声明 `refuse`：
+        出卡片前核一遍（按这段对话现算），要拒绝的不出卡片、不执行，把拒绝结果按出错交回模型，留记录；核对出错照常出卡片。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        seen = []
+
+        def check(data):
+            seen.append(dict(toolrun.frappe.local.pearnly_assistant or {}))
+            return '{"status": "not_saved", "reason": "not this party"}' if data.get("bad") else None
+
+        declared = [{"name": "save_rule", "approval": True, "refuse": "x.check"}, {"name": "plain_save", "approval": True}]
+        broken = lambda data: 1 / 0  # noqa: E731
+        logged = []
+        with mock.patch.object(tools, "declared", return_value=declared), \
+                mock.patch.object(tools.frappe, "get_attr", side_effect=lambda path: {"x.check": check}[path], create=True), \
+                mock.patch.object(tools.frappe, "local", types.SimpleNamespace(pearnly_assistant={"session_id": "conv"}), create=True):
+            self.assertEqual(tools.refusal("save_rule", {"bad": True}), '{"status": "not_saved", "reason": "not this party"}')
+            self.assertIsNone(tools.refusal("save_rule", {}))
+            self.assertIsNone(tools.refusal("plain_save", {"bad": True}))  # 没声明 refuse：不核
+        with mock.patch.object(tools, "declared", return_value=declared), \
+                mock.patch.object(tools.frappe, "get_attr", return_value=broken, create=True), \
+                mock.patch.object(tools.frappe, "db", types.SimpleNamespace(rollback=lambda: None), create=True), \
+                mock.patch.object(tools.frappe, "clear_messages", lambda: None, create=True), \
+                mock.patch.object(tools.frappe, "log_error", lambda **kw: logged.append(kw), create=True):
+            self.assertIsNone(tools.refusal("save_rule", {"bad": True}))  # 核对本身出错：照常出卡片
+        self.assertEqual(len(logged), 1)
+
+        runs, posted, ran = {}, [], []
+        seen.clear()
+
+        class Doc:
+            def __init__(self, values):
+                self.values, self.name = values, f"run{len(runs) + 1}"
+
+            def insert(self, ignore_permissions=False):
+                runs[self.name] = self.values
+
+        db = types.SimpleNamespace(set_value=lambda doctype, name, values: runs[name].update(values),
+                                   commit=lambda: None, rollback=lambda: None)
+        adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        local = types.SimpleNamespace(cache={}, pearnly_assistant=None)
+        with mock.patch.object(tools, "declared", return_value=declared), \
+                mock.patch.object(tools.frappe, "get_attr", side_effect=lambda path: {"x.check": check}[path], create=True), \
+                mock.patch.object(toolrun.frappe, "get_doc", Doc, create=True), \
+                mock.patch.object(toolrun.frappe, "db", db, create=True), \
+                mock.patch.object(toolrun.frappe, "local", local, create=True), \
+                mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append(name) or ("saved", False)):
+            status = toolrun.execute("conv", "sesn", {"id": "sevt_1", "name": "save_rule", "input": {"bad": True}})
+            self.assertEqual(status, "error")
+            self.assertEqual(toolrun.execute("conv", "sesn", {"id": "sevt_2", "name": "save_rule", "input": {}}),
+                             "awaiting_approval")  # 对得上：照常等「允许」
+        self.assertEqual(ran, [])  # 拒绝的不执行工具
+        self.assertEqual(posted, [contracts.tool_result("sevt_1", '{"status": "not_saved", "reason": "not this party"}', True)])
+        self.assertEqual((runs["run1"]["status"], runs["run1"]["result"]),
+                         ("error", '{"status": "not_saved", "reason": "not this party"}'))
+        self.assertEqual(runs["run2"]["status"], "awaiting_approval")
+        self.assertEqual(seen, [{"session_id": "conv"}, {"session_id": "conv"}])  # 按这段对话现算
+        self.assertIsNone(local.pearnly_assistant)  # 算完还原
+
     def test_engine_callbacks_are_verified_and_find_the_waiting_calls(self):
         """页面关着由服务端接手（清单第 16 项）：回调按 Standard Webhooks 验签（官方示例向量），找出最近一次等待的调用。"""
         headers = {"Webhook-Id": "msg_p5jXN8AQM9LWM0D4loKWxJek", "Webhook-Timestamp": "1614265330",
@@ -949,17 +1009,48 @@ class RelayTests(unittest.TestCase):
     def test_title_summary_uses_the_registered_cheap_model(self):
         for e in engines.ENGINES:
             self.assertIn(e.title_model, ("",) + e.models, e.code)
-        created = []
-        api = types.SimpleNamespace(messages=types.SimpleNamespace(create=lambda **kw: created.append(kw) or types.SimpleNamespace(
-            content=[types.SimpleNamespace(type="text", text="Invoice summary")])))
+        created, replies = [], []
+
+        def create(**kw):
+            created.append(kw)
+            reply = replies.pop(0)
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
+
+        said = lambda stop, *parts: types.SimpleNamespace(stop_reason=stop, content=list(parts))  # noqa: E731
+        text = lambda value: types.SimpleNamespace(type="text", text=value)  # noqa: E731
+        thought = types.SimpleNamespace(type="thinking", thinking="", signature="sig")
+        api = types.SimpleNamespace(messages=types.SimpleNamespace(create=create))
         api.with_options = lambda **kw: api
         sdk.api = api
         adapter = claude.Adapter(KEY, "claude-opus-5-5")
         prompt = contracts.title_prompt("Please summarise all invoices", "Here is the summary")
+        replies.append(said("end_turn", text("Invoice summary")))
         self.assertEqual(adapter.summarize(prompt, "claude-haiku-5-5"), "Invoice summary")
         self.assertEqual(created[0]["model"], "claude-haiku-5-5")
         self.assertEqual(created[0]["system"], engines.base.TITLE_INSTRUCTION)
         self.assertEqual(created[0]["messages"], [{"role": "user", "content": prompt}])  # 站点拼好的内容原样交给模型
+        # 2026-10-16 测试：标题模型默认开着思考，60 个 token 被空的思考块用完、标题回空。明确关掉思考、放宽上限；
+        # 只收正常结束的回答（截断的、只有思考块的当没给，保留临时标题）
+        self.assertEqual(created[0]["thinking"], {"type": "disabled"})
+        self.assertGreaterEqual(created[0]["max_tokens"], 200)
+        for reply in (said("max_tokens", thought), said("max_tokens", text("Invoice sum")), said("refusal")):
+            replies.append(reply)
+            self.assertIsNone(adapter.summarize(prompt, "claude-haiku-5-5"))
+        replies.append(said("end_turn", thought, text("Invoice summary")))  # 思考块不算进标题
+        self.assertEqual(adapter.summarize(prompt, "claude-haiku-5-5"), "Invoice summary")
+        # 这个模型不接受关思考（400）：不带 thinking、给足 token 再问一次；别的错照抛
+        rejected = sdk.APIStatusError("thinking disabled is not supported")
+        rejected.status_code = 400
+        created.clear()
+        replies.extend([rejected, said("end_turn", thought, text("Invoice summary"))])
+        self.assertEqual(adapter.summarize(prompt, "claude-haiku-5-5"), "Invoice summary")
+        self.assertNotIn("thinking", created[1])
+        self.assertGreater(created[1]["max_tokens"], created[0]["max_tokens"])
+        replies.append(sdk.APIStatusError("down"))
+        with self.assertRaises(sdk.APIStatusError):
+            adapter.summarize(prompt, "claude-haiku-5-5")
 
     def test_sidebar_list_pages_by_last_activity_with_all_starred_first(self):
         # 2026-10-12 用户：侧栏原先一次最多 100 条、再往前的看不到；改成同 Claude 先一页、滚到底再加载
@@ -3259,6 +3350,82 @@ class SidebarSyncTests(unittest.TestCase):
                 mock.patch.object(titles.engine, "adapter", side_effect=AssertionError("no model call")):
             titles.summarize("row6")
         self.assertEqual((db.rows["row6"].title, db.rows["row6"].title_source), ("原文", titles.SUMMARY))
+
+    def test_the_title_comes_only_from_this_conversation_and_never_from_the_prompt_examples(self):
+        """2026-10-16 测试：一条改科目的对话（SD-6909-1010）被起名「ภาษีเดือน 9 สามบริษัท」。查明不是别的对话串来的：
+        那是提示里的示例原文，标题模型照抄了回来。素材只读本行对话编号的事件、只推给本行的主人；照抄示例的不收，重问一次，
+        仍抄就保留临时标题。"""
+        titles, db = self.titles, self.db
+        db.rows["rowA"] = _Row(name="rowA", session_id="sesn_rowA01", user=self.OWNER,
+                               title="SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00", title_source="message")
+        db.rows["rowB"] = _Row(name="rowB", session_id="sesn_rowB01", user="b@example.com",
+                               title="ภาษีเดือน 9 สามบริษัท ช่วยสรุปให้หน่อย", title_source="message")
+        say = lambda kind, text: {"type": kind, "content": [{"type": "text", "text": text}]}  # noqa: E731
+        histories = {
+            "sesn_rowA01": [say("user.message", "SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00"),
+                            say("agent.message", "ใบ SD-6909-1010 ของ บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด ลงบัญชีใน "
+                                                 "Express แล้วเป็น HP690920-001 ยอด 800.00 บาท")],
+            "sesn_rowB01": [say("user.message", "ภาษีเดือน 9 สามบริษัท ช่วยสรุปให้หน่อย"),
+                            say("agent.message", "ภาษีเดือน 9 ของสามบริษัท")]}
+        read, asked = [], []
+        answers = iter(["ภาษีเดือน 9 สามบริษัท is an example, not relevant. Topic: account change",
+                        "เปลี่ยนบัญชี SD-6909-1010"])
+        api = types.SimpleNamespace(events=lambda remote, newest_first=False: read.append(remote) or iter(histories[remote]),
+                                    summarize=lambda text, model: asked.append(text) or next(answers))
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("rowA")
+        self.assertEqual(read, ["sesn_rowA01"])  # 只读这段对话自己的事件
+        self.assertEqual(len(asked), 2)  # 照抄示例：重问一次
+        for text in asked:
+            self.assertIn("SD-6909-1010", text)
+            self.assertNotIn("สามบริษัท", text)  # 别的对话的内容不进提示
+        self.assertEqual(db.rows["rowA"].title, "เปลี่ยนบัญชี SD-6909-1010")
+        self.assertEqual([(user, message["event"]["session"]) for _e, message, user, _c in self.pushed],
+                         [(self.OWNER, "sesn_rowA01")])  # 只推给这段对话的主人
+        # 别的对话本身就在说这件事：同示例的标题照收
+        read.clear()
+        api.summarize = lambda text, model: "ภาษีเดือน 9 สามบริษัท"
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("rowB")
+        self.assertEqual((read, db.rows["rowB"].title), (["sesn_rowB01"], "ภาษีเดือน 9 สามบริษัท"))
+
+    def test_a_title_that_copies_a_prompt_example_is_not_used(self):
+        examples = engines.base.TITLE_EXAMPLES
+        source = ("SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00\nใบ SD-6909-1010 ของ บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส "
+                  "จำกัด ลงบัญชีใน Express แล้วเป็น HP690920-001 ยอด 800.00 บาท")
+
+        def model(*answers):
+            replies, calls = iter(answers), []
+
+            def ask(too_long):
+                calls.append(too_long)
+                return next(replies)
+            return ask, calls
+
+        cases = (
+            (("ภาษีเดือน 9 สามบริษัท", "เปลี่ยนบัญชี SD-6909-1010"), "เปลี่ยนบัญชี SD-6909-1010"),  # 原样抄：重问一次
+            (("ภาษีเดือน 9 สามบริษัท is an example, not relevant. Topic: x", "ภาษีเดือน 9 สามบริษัท"), ""),  # 两次都抄
+            (("Title: 九月三家公司增值税\nThis is just the example.", ""), ""),  # 示例 + 解释；重问没给
+            (("",), ""),  # 没给：不重问
+        )
+        for answers, want in cases:
+            ask, calls = model(*answers)
+            self.assertEqual(contracts.make_title(ask, source, examples), want, answers)
+            self.assertEqual(calls, [""] * len(answers), answers)  # 抄示例的重问不带 too_long；最多问两次
+        # 对话本身就在说这件事（「เมื่อคืนเป็นยังไงบ้าง」）：同示例的标题照收，不重问
+        ask, calls = model("ผลงานเมื่อคืน")
+        self.assertEqual(contracts.make_title(ask, "เมื่อคืนเป็นยังไงบ้าง\nเมื่อคืนงานเสร็จ 12 บิล", examples),
+                         "ผลงานเมื่อคืน")
+        self.assertEqual(calls, [""])
+        # 回归：本次素材起出的标题不等于任何示例
+        ask, _calls = model("ภาษีเดือน 9 สามบริษัท", "ภาษีเดือน 9 สามบริษัท")
+        self.assertNotIn(contracts.make_title(ask, source, examples), [title for _l, title in examples])
+        # 超宽重问时回了示例：第二次当没给，收短第一次的
+        ask, calls = model("Bank reconciliation for September statements", "Supplier invoice summary")
+        self.assertEqual(contracts.make_title(ask, "reconcile the bank for September", examples), "Bank reconciliation for")
+        # 示例来自 engines.base（不另存一份），titles 照它传
+        source_text = (CORE / "assistant/titles.py").read_text(encoding="utf-8")
+        self.assertIn("examples=engine_base.TITLE_EXAMPLES", source_text)
 
     def test_a_finished_turn_queues_the_title_once(self):
         titles, relay = self.titles, sys.modules["pearnly_core.assistant.relay"]

@@ -6,6 +6,7 @@
 单独成模块（不并进 `tools.py`）：两边各自登记在 hooks `pearnly_assistant_tools` / `pearnly_assistant_guidance`。
 """
 import json
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -32,8 +33,9 @@ GUIDANCE = [
     "amounts of a single document, passwords, ID card or bank account numbers; if the user declines, do not offer it "
     "again in this conversation.",
     "Remembered push choices are applied automatically when pushing; to change one, use the push choice tools as usual.",
-    "When a client choice (<client_choices>) or a team note decided how you handled something, say which one in a few "
-    "words.",
+    "When a client choice (<client_choices>) or a team note decided how you handled something in this chat, say which "
+    "one in a few words. For a document already entered, the choice that decided it is in its written.company_rules, "
+    "not in <client_choices>.",
     "A choice the user wants for the whole company (or one branch) rather than one account set goes in with "
     "cowork_company_choice_save; a choice said for this document only is saved with cowork_save_push_choices as usual.",
     "In a conversation filed under a company, cowork_list_documents, cowork_push_results and cowork_folder_tasks "
@@ -86,9 +88,31 @@ def _filed() -> tuple:
     return projects.of_session(session) if session else ("", "", "")
 
 
+def resolve(wanted, filed="") -> tuple:
+    """模型给的 ``company`` → (主档编号, 认不出的原因)。没给回 (``filed``, None)；是主档编号照用。2026-10-16 测试：说明里只有
+    税号，CC 把税号当 company 传，查单先失败一次——13 位数字按税号认：是本对话公司的税号就当没给（本对话那家），本所只有
+    一家是这个税号就用那家，几家同税号回失败并列出编号；都不是回 unknown company。"""
+    wanted = str(wanted or "").strip()
+    if not wanted:
+        return filed, None
+    if service.exists(wanted):
+        return wanted, None
+    tax = re.sub(r"[\s-]", "", wanted)
+    if len(tax) == 13 and tax.isdigit():
+        if filed and service.exists(filed) and (service.get(filed).get("tax_id") or "") == tax:
+            return filed, None
+        found = service.with_tax_id(tax)
+        if len(found) == 1:
+            return found[0], None
+        if found:
+            return "", (f"several companies have tax ID {tax}: pass one company id from cowork_companies "
+                        f"({', '.join(found)})")
+    return "", "unknown company: pass an id from cowork_companies"
+
+
 def _company(tool_input):
-    """要读 / 写的那家：参数给了用参数，否则用本对话挂的那家；都没有回 None。"""
-    wanted = str(tool_input.get("company") or "").strip() or _filed()[0]
+    """要读 / 写的那家：参数给了用参数（主档编号，或按税号认出的那家，`resolve`），否则用本对话挂的那家；都没有回 None。"""
+    wanted, _reason = resolve(tool_input.get("company"), _filed()[0])
     if not wanted or not service.exists(wanted):
         return None
     return service.get(wanted)
@@ -113,13 +137,14 @@ def default_scope(tool_input) -> dict | None:
       给了 → 不限，``scope`` 标 ``all_companies``，照「所有公司」逐家答。
     - 没挂公司、也没给 ``company``：回 None，照旧不限、不加 ``scope``。
 
-    ``company`` 给错回 ``{"failed": 原因}``。调用自己点了账套 / 连接的不走这里（由调用方判），照旧按点的取。"""
+    ``company`` 可以是主档编号或税号（`resolve`；本对话公司的税号等于没给）；给错回 ``{"failed": 原因}``。调用自己点了账套 / 连接的不走这里（由调用方判），照旧按点的取。"""
     filed, _period, work_scope = _filed()
     filed = filed if filed and service.exists(filed) else ""
-    wanted = str(tool_input.get("company") or "").strip()
+    given = str(tool_input.get("company") or "").strip()
+    wanted, reason = resolve(given, filed) if given else ("", None)
+    if reason:
+        return {"failed": reason}
     if wanted and wanted != filed:
-        if not service.exists(wanted):
-            return {"failed": "unknown company: pass an id from cowork_companies"}
         row = service.get(wanted)
         sets = service.work_sets(row.name)
         return {"scope": {"company": row.title, "company_id": row.name, "account_sets": len(sets)}, "sets": sets}
@@ -212,17 +237,16 @@ def preview_note_remove(tool_input) -> list:
 RULE_KINDS = ("party", "item", "account", "payment", "vat", "department")
 
 
-def _subject_of(tool_input) -> tuple:
-    """按单据算规则的归类键（同推送 `push.express.choices` 的键）→ (kind, subject, 写法)；认不出抛 choice_invalid。
-    付款、抵进项、费用科目按卖方（进项）；对方档按方向（进项卖方 / 销项买方，带分店）；存货要给票面品名 ``item``；部门整份一个。"""
+def _party(tool_input) -> tuple:
+    """按单据存规则时这条规则的对象：传进来的那张单（``document``）自己的对方 → (kind, direction, side, name, tax, fields)。
+    付款、抵进项、费用科目按卖方（进项）；对方档、存货按方向（进项卖方 / 销项买方）。认不出抛 choice_unsupported。
+    对象只按这张单算、不收模型给的名字（2026-10-16 测试：CC 把这张单的规则说成另一家供应商的）。"""
     from pearnly_cowork.contracts.history import primary_page_fields
     from pearnly_cowork.history import storage
 
     kind = str(tool_input.get("kind") or "")
-    if kind not in RULE_KINDS:
+    if kind not in RULE_KINDS or kind == "department":
         frappe.throw(_("cowork.company.choice_unsupported"))
-    if kind == "department":
-        return kind, "*", ""
     doc = storage.read(str(tool_input.get("document") or ""))
     fields = primary_page_fields(storage.project(doc).get("pages") or [])
     direction = "sales" if tool_input.get("direction") == "sales" and kind in ("party", "item") else "purchase"
@@ -231,6 +255,18 @@ def _subject_of(tool_input) -> tuple:
     name, tax = fields.get(f"{side}_name") or "", fields.get(f"{side}_tax") or ""
     if not str(name).strip() and not choice_rules.digits(tax):
         frappe.throw(_("cowork.company.choice_unsupported"))
+    return kind, direction, side, str(name).strip(), tax, fields
+
+
+def _subject_of(tool_input) -> tuple:
+    """按单据算规则的归类键（同推送 `push.express.choices` 的键）→ (kind, subject, 写法)；认不出抛 choice_invalid。
+    对象见 `_party`；对方档带分店；存货要给票面品名 ``item``；部门整份一个。"""
+    kind = str(tool_input.get("kind") or "")
+    if kind not in RULE_KINDS:
+        frappe.throw(_("cowork.company.choice_unsupported"))
+    if kind == "department":
+        return kind, "*", ""
+    kind, direction, side, name, tax, fields = _party(tool_input)
     if kind == "party":
         return kind, choice_rules.party_subject(direction, tax, fields.get(f"{side}_branch") or "", name), name
     if kind == "item":
@@ -239,6 +275,48 @@ def _subject_of(tool_input) -> tuple:
             frappe.throw(_("cowork.company.choice_unsupported"))
         return kind, choice_rules.item_subject(direction, tax, name, item), item
     return kind, choice_rules.supplier_subject("purchase", tax, name), name
+
+
+def _same_party(expected: str, name: str, tax) -> bool:
+    """模型说给用户的对方（``expect_party``：税号或名称）是不是这张单的对方：给的是 13 位税号就比税号；否则按归一后的名称
+    比（相同，或一方包含另一方且至少 3 个字），同推送 `choices.norm_name`。"""
+    digits = choice_rules.digits(expected)
+    if len(digits) == 13 and len(re.sub(r"[\s-]", "", expected)) == 13:
+        return digits == choice_rules.digits(tax)
+    wanted, actual = choice_rules.norm_name(expected), choice_rules.norm_name(name)
+    if not wanted or not actual:
+        return False
+    return wanted == actual or (min(len(wanted), len(actual)) >= 3 and (wanted in actual or actual in wanted))
+
+
+def mismatch(tool_input) -> str | None:
+    """按单据存规则（不是 ``key`` 提升、不是部门）时核对规则对象：没给 ``expect_party``、或给的与这张单的对方对不上 → 给模型的
+    原因（带这张单真正的对方）；对得上、或单据认不出（由保存时照常报错）回 None。只读。"""
+    if tool_input.get("key") or str(tool_input.get("kind") or "") in ("department", ""):
+        return None
+    try:
+        _subject_of(tool_input)  # 形状不对（缺品名、不支持的类别）由保存时照常报错，这里不抢先说对象
+        _kind, _direction, side, name, tax, _fields = _party(tool_input)
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError):
+        frappe.clear_messages()
+        return None
+    tax = choice_rules.digits(tax)
+    actual = f'"{name}"' + (f" (tax ID {tax})" if len(tax) == 13 else "")
+    expected = " ".join(str(tool_input.get("expect_party") or "").split())[:200]
+    if not expected:
+        return (f"expect_party is missing: pass the tax ID (or name) of the party you told the user this rule is for. "
+                f"A rule saved from this document is for its {side} {actual}.")
+    if _same_party(expected, name, tax):
+        return None
+    return (f"This document's {side} is {actual}, not {json.dumps(expected, ensure_ascii=False)}: a rule saved from "
+            f"it would be for {actual}. Nothing was saved. Pass the document the user means, or tell the user the "
+            f"rule is for {actual} and ask again.")
+
+
+def choice_refusal(tool_input) -> str | None:
+    """出「允许」卡片前的核对（工具声明的 ``refuse``）：对象对不上就不出卡片、直接回 not_saved。"""
+    reason = mismatch(tool_input)
+    return _json({"status": "not_saved", "reason": reason}) if reason else None
 
 
 def _period(row, tool_input) -> str:
@@ -257,13 +335,19 @@ def choice_save(tool_input) -> str:
         saved = saved_choices.promote(row, sets, str(tool_input["key"]), branch, period, session=_session())
     else:
         kind, subject, label = _subject_of(tool_input)
+        reason = mismatch(tool_input)  # 卡片前已核过；点「允许」后再核一遍（单据可能已改）
+        if reason:
+            return _json({"status": "not_saved", "reason": reason})
         saved = saved_choices.save_rule(row, sets, kind, subject, str(tool_input.get("value") or ""), branch, period,
                                         subject_label=label, session=_session(),
                                         evidence={"from": "cc", "document": str(tool_input.get("document") or "")})
     service.announce("upsert", row.name, part="choices")
     rule = saved["rule"]
+    parts = str(rule.get("subject") or "").split("|")
+    tax = parts[1] if len(parts) > 1 and len(parts[1]) == 13 and parts[1].isdigit() else ""
     return _json({"status": "saved", "company": row.title, "rule": {
-        "key": saved["key"], "kind": rule["kind"], "subject_label": rule["subject_label"], "value": rule["value"],
+        "key": saved["key"], "kind": rule["kind"], "subject_label": rule["subject_label"],
+        **({"subject_tax_id": tax} if tax else {}), "value": rule["value"],
         "value_label": rule["value_label"], "branch": rule["branch"] or "whole company",
         "removed_account_set_choices": rule.get("removed_memories", 0)}})
 
@@ -381,15 +465,22 @@ TOOLS = [
                     "or pass document, kind (party, item, account, "
                     "payment, vat, department) and value (an account, product or party code from cowork_push_choices, "
                     "or cash / credit, claim / expense), with item (the product name as on the document) for item "
-                    "and direction sales for a customer. The value is checked against the account set covering the "
-                    "work month. Only what the user asked for; the user sees Allow / Deny first.",
+                    "and direction sales for a customer. The rule is for that document's own party (its seller, its "
+                    "buyer for a sales customer), worked out from the document itself: pass only the document the "
+                    "user is talking about, and as expect_party the tax ID (or the name when it has none) of the party "
+                    "you told the user the rule is for; if it is not that document's party nothing is saved. The "
+                    "value is checked against the account set covering the work month. Only what the user asked for; "
+                    "the user sees Allow / Deny first.",
      "input_schema": {"type": "object", "properties": {
          "company": COMPANY_PROP, "key": {"type": "string"}, "document": {"type": "string"},
+         "expect_party": {"type": "string", "description": "With document: the tax ID (or name) of the party the rule "
+                                                           "is for, as you told the user."},
          "kind": {"type": "string", "enum": list(RULE_KINDS)}, "value": {"type": "string"},
          "item": {"type": "string"}, "direction": {"type": "string", "enum": ["purchase", "sales"]},
          "branch": {"type": "string"}, "period": {"type": "string"}}},
      "approval": True,
      "ask": "Save this choice for the company?",
+     "refuse": "pearnly_cowork.assistant.company_tools.choice_refusal",
      "preview": "pearnly_cowork.assistant.company_tools.preview_choice_save",
      "handler": "pearnly_cowork.assistant.company_tools.choice_save"},
     {"name": "cowork_company_choice_remove", "label": "Removed a company choice",

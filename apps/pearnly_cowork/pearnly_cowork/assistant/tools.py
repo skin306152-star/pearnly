@@ -106,6 +106,12 @@ def _json(value, utc=(), local=()) -> str:
 # 第 6 轮测试：CC 说了改不了、给了单号泰铢时间，最后一句仍是「ถ้าต้องการให้ใบนี้ลงบัญชี 53-05-28-00 ต้องแก้ใน Express
 # โดยตรง」（要记到那个科目就得在 Express 里直接改）——条件句、收尾句同样不许说；可以提议把以后的同类单记成规则（要用户允许）。
 # 三种语言的反例只是给模型看的说明（不做输出过滤）。
+# 存公司规则时规则的对象（2026-10-16 测试：SD-6909-1010 的卖方是สะอาดดี，CC 提议存规则时却说成说明里另一条规则的ซ่อมไว）：
+# 对象就是正说着的那张单自己的对方，按那张单上的名字说；document 只传那一张，expect_party 写出说给用户的对方（服务端核对）。
+RULE_SUBJECT_NOTE = ("Such a rule is always for that document's own party: its seller (its buyer for a sales "
+                     "customer), named exactly as on that document; never name the party of another document or of a "
+                     "rule in <client_choices>. To save it, pass that same document as document and that party's tax "
+                     "ID (or its name when it has none) as expect_party.")
 ENTERED_NOTE = ("CC cannot change a document that is already entered into Express or MR.ERP (its account, cash or "
                 "credit, amounts or anything else). When the user asks to change one, say plainly that it cannot be "
                 "changed from here and give that document's number there (docnum), amounts in baht and times in local "
@@ -118,8 +124,8 @@ ENTERED_NOTE = ("CC cannot change a document that is already entered into Expres
                 + "' or '" + "ไปแก้ใน Express" + "' in Thai, nothing like '" + "需要在 Express 里直接改" + "' or '"
                 + "去 Express 改" + "' in Chinese. What you may offer instead is to save a rule so that later "
                 "documents of the same kind go the way the user wants (cowork_company_choice_save for the whole "
-                "company; the user allows it first). Offering a readback of that month (cowork_express_readback) to "
-                "show what Express holds is fine.")
+                "company; the user allows it first). " + RULE_SUBJECT_NOTE + " Offering a readback of that month "
+                "(cowork_express_readback) to show what Express holds is fine.")
 # 改单、选项工具碰到已入账的单时随结果带上的提示（同一口径的短句）
 ENTERED_RESULT = ("This document is already entered into Express or MR.ERP and stays as entered there: CC cannot "
                   "change it, and choices saved now apply only to later documents. Tell the user it cannot be "
@@ -127,7 +133,7 @@ ENTERED_RESULT = ("This document is already entered into Express or MR.ERP and s
                   "Express or MR.ERP, on the pending page or on the review page. Never say it needs to be or can be "
                   "changed in Express, MR.ERP or anywhere else, not even as a condition or a closing sentence, in any "
                   "language. You may offer to save a rule for later documents of the same kind "
-                  "(cowork_company_choice_save; the user allows it first).")
+                  "(cowork_company_choice_save; the user allows it first). " + RULE_SUBJECT_NOTE)
 
 
 def _entered_note(status) -> dict:
@@ -3262,8 +3268,8 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "supplier) or a credit sale (IV). payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
                 "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
-                "remembered (the choice saved for this supplier in this account set), company_rule (the client "
-                "company's choice, see <client_choices>), task_default (the "
+                "remembered (the choice saved for this supplier in this account set), company_rule (a client "
+                "company choice, see written.company_rules), task_default (the "
                 "scheduled folder task's default), document (written on the document), document_type (receipt or "
                 "simplified tax invoice = paid, tax invoice = credit), supplier_profile, bank (a matching bank "
                 "payment), pos_summary (POS daily sales, always cash), default (no signal: the account set's "
@@ -3274,8 +3280,8 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "the company page or in this chat; kept for this supplier, so other documents of the same supplier "
                 "waiting at that time count too), remembered (picked earlier for this supplier in this account set), "
                 "task_default (the scheduled folder task's default), express_history (this supplier was posted to "
-                "this account consistently in Express before), company_rule (the client company's choice, see "
-                "<client_choices>), matched (the document's category matched an account "
+                "this account consistently in Express before), company_rule (a client company choice, see "
+                "written.company_rules), matched (the document's category matched an account "
                 "mapping), default (the account set's default account; worth a look). Older documents may have no "
                 "payment_from or account_from: then say only what is there, never guess a source. vat is claimed, "
                 "added_to_cost (not claimed, in the cost) or none. Whenever a document is entered, always give the "
@@ -3289,7 +3295,13 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "never end with a suggestion to check or confirm in Express what you have just told them. "
                 "decided_by, when present, says per kind what decided each choice with the same words (remembered, "
                 "company_rule, express_history, task_default; mixed when the lines of one kind came from different "
-                "places); describe those in the user's own words too.")
+                "places); describe those in the user's own words too. written.company_rules, when present, lists the client "
+                "company choices this document was entered by: kind, for (the party, or the item, the choice is for), "
+                "tax_id, value, branch and still_saved (false: that choice was removed or changed since; now_value is "
+                "the value it has now). When a company_rule decided something, name the choice from "
+                "written.company_rules only; when it is missing, say only that it was the company's choice. Never take "
+                "a choice from <client_choices> or the team notes as the one that decided an entered document: they "
+                "show today's choices, which may be for other parties.")
 # 定时任务的各项：单个保存与批量保存共用一份，免得两份说明走样
 FOLDER_TASK_PROPS = {
     "name": {"type": "string", "description": "Existing task to change; leave out to create one."},

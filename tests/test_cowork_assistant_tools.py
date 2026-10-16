@@ -2183,6 +2183,68 @@ class PushOutcomeServiceTests(unittest.TestCase):
         self.assertEqual(len(queries), 1)
 
 
+class PushRuleReadbackTests(unittest.TestCase):
+    """2026-10-16 测试：SD-6909-1010 按一条后来删掉的สะอาดดี规则入账，CC 把说明里仅剩的ซ่อมไว那条说成它的规则。written 读回
+    冻结的是哪一条（对象、税号、值），并经钩子一次查完现在还在不在；查不到不挡回读，只是不说还在不在。"""
+
+    RULES = [{"id": "R-CLEAN", "kind": "account", "subject": "purchase|0105562012340",
+              "label": "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", "value": "53-05-02-00", "value_label": "", "branch": ""}]
+
+    def rows(self):
+        target = json.dumps({"decided_by": {"account": "company_rule"}, "company_rules": self.RULES})
+        payload = json.dumps({**CASH_PAYLOAD, "account_source": "company_rule"})
+        return [{"name": "PR1", "actor": "a@example.com", "status": "success", "reason": "", "result_unknown": 0,
+                 "external_docnum": "HP690920-001", "payload_json": payload, "target_json": target},
+                {"name": "PR2", "actor": "a@example.com", "status": "success", "reason": "", "result_unknown": 0,
+                 "external_docnum": "HP690920-002", "payload_json": payload, "target_json": target}]
+
+    def service(self, values_now):
+        service, queries = _push_service(self.rows())
+        asked, logged = [], []
+
+        def provider(ids):
+            asked.append(ids)
+            if isinstance(values_now, Exception):
+                raise values_now
+            return values_now
+
+        service.frappe.get_hooks = lambda name: ["p.saved"] if name == "cowork_push_company_choices_saved" else []
+        service.frappe.get_attr = lambda path: provider
+        service.frappe.log_error = lambda **kw: logged.append(kw.get("title"))
+        service.frappe.get_traceback = lambda: ""
+        service.frappe.clear_messages = lambda: None
+        return service, asked, logged
+
+    def test_the_rule_that_decided_it_is_named_and_checked_once(self):
+        service, asked, _logged = self.service({})  # 规则已删
+        found = service.written(["PR1", "PR2"])
+        rule = {"kind": "account", "for": "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด", "value": "53-05-02-00",
+                "tax_id": "0105562012340", "branch": "whole company", "still_saved": False}
+        self.assertEqual(found["PR1"]["company_rules"], [rule])
+        self.assertEqual(found["PR1"]["account_from"], "company_rule")
+        self.assertEqual(asked, [["R-CLEAN"]])  # 几条记录一次查完
+        service, asked, _logged = self.service({"R-CLEAN": "53-05-02-00"})
+        self.assertTrue(service.outcomes(["PR1"])["PR1"]["written"]["company_rules"][0]["still_saved"])
+        service, _asked, logged = self.service(RuntimeError("db"))
+        self.assertNotIn("still_saved", service.written(["PR1"])["PR1"]["company_rules"][0])
+        self.assertEqual(logged, ["Cowork push company choices state failed"])
+
+    def test_cc_is_told_to_name_the_rule_from_written_never_from_client_choices(self):
+        note = tools.WRITTEN_NOTE
+        self.assertNotIn("see <client_choices>", note)
+        self.assertIn("company_rule (a client company choice, see written.company_rules)", note)
+        self.assertIn("name the choice from written.company_rules only; when it is missing, say only that it was the "
+                      "company's choice", note)
+        self.assertIn("Never take a choice from <client_choices> or the team notes as the one that decided an entered "
+                      "document", note)
+        for text in (tools.ENTERED_NOTE, tools.ENTERED_RESULT):
+            self.assertIn(tools.RULE_SUBJECT_NOTE, text)
+        self.assertIn("Such a rule is always for that document's own party: its seller (its buyer for a sales "
+                      "customer), named exactly as on that document", tools.RULE_SUBJECT_NOTE)
+        self.assertIn("pass that same document as document and that party's tax ID (or its name when it has none) as "
+                      "expect_party", tools.RULE_SUBJECT_NOTE)
+
+
 class WrittenFactsTests(unittest.TestCase):
     """推送记录冻结的 Express 载荷 → 怎么写进去的（验收 F19）：现 / 赊按单据类型，来源照 doctype_src 一一对应。"""
 
