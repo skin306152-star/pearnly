@@ -3,6 +3,8 @@
 Caller holds Connection -> History -> writer -> Record locks. No authorization
 upgrade, review edit, commit or external IO; old issued receipts survive revoke.
 """
+import json
+
 import frappe
 from frappe import _
 
@@ -136,3 +138,34 @@ def retarget(history, connection, account_set):
         return
     frappe.db.set_value('Cowork OCR History', history, {'push_connection': str(connection),
                                                          'push_account_set': str(account_set)}, update_modified=False)
+
+
+# 自动推送的判定记在票上（数字会计员第 3 期第 9 条）：类别、档位、原因码、提议，与判过的时刻（UTC，扫描据此不重判）
+ASSESSMENT_FIELDS = ('auto_class', 'auto_tier', 'auto_reasons', 'auto_proposal', 'auto_checked_at')
+REASONS_MAX = 140
+
+
+def record_assessment(history, *, cls, tier, reasons='', proposal=None, checked_at):
+    """记下这张票这次的判定（``cls`` A / B / C，``tier`` 判时这家的档位，``reasons`` 原因码简表，``proposal`` 冻结的提议，
+    没有为 None）。只改这几列、不升 ``record_version``、不改 ``modified``（不是人改票，不作废别的准备）。调用方已核过这张票的
+    读取范围。"""
+    frappe.db.set_value('Cowork OCR History', history, {
+        'auto_class': cls if cls in ('A', 'B', 'C') else '', 'auto_tier': tier if tier in ('L0', 'L1', 'L2') else '',
+        'auto_reasons': str(reasons or '')[:REASONS_MAX],
+        'auto_proposal': json.dumps(proposal, ensure_ascii=False, sort_keys=True, default=str) if proposal else None,
+        'auto_checked_at': checked_at}, update_modified=False)
+
+
+def withdraw_automation(row, reason):
+    """自动推的单还没写就作废（领单时这家档位、规则或记忆变了，第 3 期第 5 条）：推送记录已转 ``cancelled``，票上的推送状态
+    若还指着它就清回「没推」（改记成提议，人在待处理里推），原因码并进 ``auto_reasons``。不升 ``record_version``。"""
+    found = frappe.db.get_value('Cowork OCR History', row.history, ['last_push_record', 'auto_reasons'], as_dict=True)
+    if not found:
+        return
+    values = {'auto_reasons': ','.join(code for code in dict.fromkeys(
+        [*(str(found.auto_reasons or '').split(',')), reason]) if code)[:REASONS_MAX]}
+    if found.last_push_record == row.name:
+        values.update(last_push_status=None, last_pushed_at=None, last_push_record=None, last_push_reason='')
+    frappe.db.set_value('Cowork OCR History', row.history, values, update_modified=False)
+    _changed(row.history, row.get('owner'))
+    _announce(row.history)

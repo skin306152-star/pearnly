@@ -1,0 +1,89 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Company Automation",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-10-16 22:00:00.000000",
+ "modified": "2026-10-16 22:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "autoname": "field:company",
+ "description": "How far CC may push a client company's documents on its own (only proposes / pushes rule-decided documents / whole month). Moves only by measured evidence; there is no manual switch.",
+ "field_order": [
+  "company",
+  "workspace",
+  "tier",
+  "since",
+  "reason",
+  "evidence_json",
+  "history_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "label": "Company",
+   "fieldtype": "Link",
+   "options": "Cowork Company",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "options": "Cowork Workspace",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "tier",
+   "label": "Tier",
+   "fieldtype": "Select",
+   "options": "L0\nL1\nL2",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "since",
+   "label": "Since (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "label": "Reason",
+   "fieldtype": "Data",
+   "length": 60,
+   "read_only": 1
+  },
+  {
+   "fieldname": "evidence_json",
+   "label": "Evidence",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "history_json",
+   "label": "History",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

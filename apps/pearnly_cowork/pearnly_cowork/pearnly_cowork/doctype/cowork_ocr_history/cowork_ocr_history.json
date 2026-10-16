@@ -7,7 +7,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-20 00:00:00.000000",
- "modified": "2026-10-08 20:00:00.000000",
+ "modified": "2026-10-16 22:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
@@ -55,7 +55,12 @@
   "intake_target",
   "duplicate_check_status",
   "duplicate_level",
-  "duplicate_match"
+  "duplicate_match",
+  "auto_class",
+  "auto_tier",
+  "auto_reasons",
+  "auto_proposal",
+  "auto_checked_at"
  ],
  "fields": [
   {
@@ -361,6 +366,46 @@
    "length": 20,
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "auto_class",
+   "fieldtype": "Select",
+   "label": "Automation Class",
+   "options": "\nA\nB\nC",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "auto_tier",
+   "fieldtype": "Select",
+   "label": "Automation Tier",
+   "options": "\nL0\nL1\nL2",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "auto_reasons",
+   "fieldtype": "Data",
+   "label": "Automation Reasons",
+   "length": 140,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "auto_proposal",
+   "fieldtype": "Code",
+   "label": "Automation Proposal",
+   "options": "JSON",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "auto_checked_at",
+   "fieldtype": "Datetime",
+   "label": "Automation Checked At (UTC)",
+   "read_only": 1,
+   "hidden": 1,
+   "search_index": 1
   }
  ],
  "permissions": [

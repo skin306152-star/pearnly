@@ -350,6 +350,7 @@ permission_query_conditions = {
     "Cowork Company": "pearnly_cowork.companies.access.deny_query",
     "Cowork Company Note": "pearnly_cowork.companies.access.deny_query",
     "Cowork Company Choice": "pearnly_cowork.companies.access.deny_query",
+    "Cowork Company Automation": "pearnly_cowork.companies.access.deny_query",
     "Cowork Companion Request": "pearnly_cowork.companion.request_access.deny_query",
     "Cowork Express Readback": "pearnly_cowork.readback.access.deny_query",
 }
@@ -414,6 +415,7 @@ has_permission = {
     "Cowork Company": "pearnly_cowork.companies.access.deny",
     "Cowork Company Note": "pearnly_cowork.companies.access.deny",
     "Cowork Company Choice": "pearnly_cowork.companies.access.deny",
+    "Cowork Company Automation": "pearnly_cowork.companies.access.deny",
     "Cowork Companion Request": "pearnly_cowork.companion.request_access.deny",
     "Cowork Express Readback": "pearnly_cowork.readback.access.deny",
 }

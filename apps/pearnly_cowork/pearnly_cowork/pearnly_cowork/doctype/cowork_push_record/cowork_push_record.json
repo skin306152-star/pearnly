@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-10-16 18:00:00.000000",
+ "modified": "2026-10-16 22:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -58,7 +58,9 @@
   "route_device",
   "payload_version",
   "written_by_device",
-  "write_route"
+  "write_route",
+  "verify_state",
+  "verify_json"
  ],
  "fields": [
   {
@@ -385,6 +387,20 @@
    "label": "Write Route",
    "fieldtype": "Data",
    "length": 20,
+   "read_only": 1
+  },
+  {
+   "fieldname": "verify_state",
+   "label": "Write Check",
+   "fieldtype": "Select",
+   "options": "\nok\nmismatch\nunverified",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verify_json",
+   "label": "Write Check Detail",
+   "fieldtype": "Code",
+   "options": "JSON",
    "read_only": 1
   }
  ],

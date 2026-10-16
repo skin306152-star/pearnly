@@ -20,7 +20,7 @@ from frappe.utils import now_datetime
 from pearnly_core.assistant import projects
 from pearnly_cowork.access import scope
 from pearnly_cowork.companies import context, identity, months, notes, rules
-from pearnly_cowork.companies.access import COMPANY, NOTE, read, write
+from pearnly_cowork.companies.access import AUTOMATION, COMPANY, NOTE, read, write
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.folder_intake import agent, company_folders
 from pearnly_cowork.folder_intake import contracts as folder_contracts
@@ -414,12 +414,13 @@ def set_combined_vat(company, combined) -> dict:
 
 
 def delete(company) -> dict:
-    """删主档（不确认，入口在 ⋯ 菜单里）：知识库、公司规则 → 文件夹绑定 → 对话归回「最近」→ 主档；账套记忆、任务、草稿
-    都不动。"""
+    """删主档（不确认，入口在 ⋯ 菜单里）：知识库、公司规则、自动推送档位 → 文件夹绑定 → 对话归回「最近」→ 主档；
+    账套记忆、任务、草稿都不动。"""
     require_write()
     row = _company_row(company, for_update=True)
     frappe.db.delete(NOTE, {"company": row.name})
     rules.forget_company(row.name)
+    frappe.db.delete(AUTOMATION, {"company": row.name})
     company_folders.forget(row.name)
     projects.release(row.name)
     frappe.db.delete(COMPANY, {"name": row.name})

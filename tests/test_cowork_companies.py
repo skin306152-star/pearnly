@@ -2657,7 +2657,8 @@ class CompanyRuleToolTests(unittest.TestCase):
 
 class GuardTests(unittest.TestCase):
     TABLES = {"Cowork Company": "companies.access", "Cowork Company Note": "companies.access",
-              "Cowork Company Choice": "companies.access", "Cowork Company Folder": "folder_intake.access"}
+              "Cowork Company Choice": "companies.access", "Cowork Company Automation": "companies.access",
+              "Cowork Company Folder": "folder_intake.access"}
 
     def test_native_read_write_delete_and_share_are_refused(self):
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
@@ -2679,6 +2680,9 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(frappe.PermissionError):
             company_access.reject_share(types.SimpleNamespace(share_doctype="Cowork Company Choice"))
         self.assertIn("Cowork Company Choice", company_access.DOCTYPES)
+        with self.assertRaises(frappe.PermissionError):
+            company_access.reject_share(types.SimpleNamespace(share_doctype="Cowork Company Automation"))
+        self.assertIn("Cowork Company Automation", company_access.DOCTYPES)
         choice_meta = json.loads((APP / "pearnly_cowork/doctype/cowork_company_choice/cowork_company_choice.json")
                                  .read_text(encoding="utf-8"))
         self.assertEqual({field["fieldname"] for field in choice_meta["fields"] if field.get("unique")}, {"input_key"})
