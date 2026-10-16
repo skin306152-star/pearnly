@@ -7,11 +7,29 @@
 //            6px 脉冲点、未读点），悬停换成「···」；选中 = 悬停色 + 主色字；「显示 → 元数据」开时第二行「9 月 · 分店 00012」
 //   多选   — 电脑上 Shift 点一段、⌘ / Ctrl 点单条（lib/sidebar-keys.ts）；行「···」菜单在选中两条以上时换成「置顶 N」「移到… (N)」
 //            「删除 N」，逐条顺序执行；行菜单里单字母 P 置顶、R 重命名、D 删除
+//   拖动   — 共用拖动（components/ui/drag.tsx，用户 10-16 选「公司可拖 + 置顶可拖」；只在有公司分组的产品）：
+//            按公司分组时，对话行拖到别的公司组（组头或这组的行）= 移到那家（同「移到 ▸」：月份、分店留空，不改置顶），拖到「最近」
+//            = 移出公司（没有「最近」组时拖动中临时出一个）；经过的组整块高亮；同组里不调序（照排序方式排），拖回原组不动。多选里拖
+//            其中一条 = 整批逐条移（不并发，同批量「移到…」）。公司组拖成任意顺序（整组跟着组头走），按人记住，新出现的公司排最上面
+//            （lib/managed-agents/sidebar-order.ts）。已置顶的对话可拖着排先后（三种分组方式都可以）。搜索时只能把对话拖到别的公司。
+//            手机抽屉：长按 250ms 后再动 = 拖，长按不动 = 原来的长按菜单。Alt+↑/↓ 在公司组头、置顶行上挪一格。出错在侧栏出错行写服务端原文
 import { Button } from "@/components/ui/button";
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebar } from "@/components/ui/sidebar";
-import { BulkMoveMenu, MoveToMenu, ProjectHeader, SidebarError, useNewChatIn } from "@/components/assistant-ui/projects";
+import { BulkMoveMenu, focusComposer, MoveToMenu, ProjectHeader, SidebarError, useNewChatIn } from "@/components/assistant-ui/projects";
+import {
+  altMove,
+  chain,
+  DragArea,
+  type DragData,
+  type DragHandle,
+  DragList,
+  type DragTexts,
+  useDragItem,
+  useDropTarget,
+  useSortableItem,
+} from "@/components/ui/drag";
 import { GroupHeader, GroupNew, GroupSortMenu, isMenuKey } from "@/components/assistant-ui/sidebar-group";
 import { showShortcuts } from "@/components/shortcut";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -21,10 +39,20 @@ import { co, dayLabel, sb, t } from "@/i18n";
 import { branchShort, monthLabel, monthShort } from "@/lib/companies";
 import { shownError } from "@/lib/frappe";
 import { useActivity, useBumps } from "@/lib/managed-agents/activity";
-import { NO_FILING, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
+import { NO_FILING, type ProjectRow, setDraft, setError, showMore, useProjects } from "@/lib/managed-agents/projects";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { bindFoldUser, toggleFold, toggleFoldSection, useSidebarFold } from "@/lib/managed-agents/sidebar-fold";
 import { companySections, flatSections, groupOpen, monthSections } from "@/lib/managed-agents/sidebar-groups";
+import { bindOrderUser, moveBy, moveTo, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import {
+  companyDrag,
+  fromDrag,
+  moveDragged,
+  pinDrag,
+  RECENTS_TARGET,
+  rowDrag,
+  sidebarAccepts,
+} from "@/lib/managed-agents/sidebar-drag";
 import { bindSidebarViewUser, createdOf, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { useView } from "@/lib/nav";
 import { useProfile } from "@/lib/profile";
@@ -59,14 +87,17 @@ import {
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { DropdownMenu } from "@/components/ui/menu";
 import {
+  createContext,
   forwardRef,
   Fragment,
+  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
   type FC,
+  type ReactNode,
 } from "react";
 
 // 侧栏 / 手机抽屉里的对话列表：搜索框、「新建」「定时任务」「公司」「待处理」由外面统一排版（assistant.tsx），这里只排对话。
@@ -218,7 +249,11 @@ const Items: FC<{ indices: readonly number[]; threadIds: readonly string[] }> = 
   indices.map((index) => <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />);
 
 // 有公司分组时（Cowork）：按「分组和排序」分组、排序；手机上各组也能折叠。折叠状态每台设备各记各的（pinned、recents、
-// project:<编号>、month:<月份>）。每个组标题右侧都有「···」（分组和排序）；公司组、最近另有「新建」
+// project:<编号>、month:<月份>）。每个组标题右侧都有「···」（分组和排序）；公司组、最近另有「新建」。拖动见文件头
+/** 侧栏行在哪一种拖动里（行组件由组件库按编号渲染，拿不到参数，靠所在的组给）。 */
+type RowScope = { mode: "pin"; locked: boolean; move: (id: string, delta: -1 | 1) => void } | { mode: "row"; group: string };
+const RowScopeContext = createContext<RowScope | null>(null);
+
 const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const aui = useAui();
   const { threadIds, itemsById, dates } = useDates();
@@ -227,16 +262,21 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const shown = useProjects((s) => s.shown);
   const serverMore = useProjects((s) => s.more.groups);
   const view = useSidebarView();
+  const order = useSidebarOrder();
   const newChatIn = useNewChatIn();
   const { collapsed, toggleSection } = useCollapsedGroups();
   const query = searchQuery.trim();
-  // 「分组和排序」按用户记：知道是谁了就换成这个人的
+  const [lifting, setLifting] = useState<DragData | null>(null);
+  // 「分组和排序」、折叠、手排的顺序按用户记：知道是谁了就换成这个人的
   const user = useProfile()?.user;
   useEffect(() => {
     if (!user) return;
     bindSidebarViewUser(user);
     bindFoldUser(user);
+    bindOrderUser(user);
   }, [user]);
+  // 拖动中侧栏被卸下（换产品、退出）：多选整批变淡的标记一并去掉
+  useEffect(() => () => void delete document.documentElement.dataset.ccDragBulk, []);
 
   const sections = useMemo(() => {
     const rows = threadIds.map((id, index) => {
@@ -250,64 +290,188 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
         group: filing?.project ?? "",
         period: filing?.project ? filing.period : "",
         created: createdOf(item?.remoteId),
+        key: item?.remoteId ?? id,
       };
     });
     const sort = { by: view.sort, desc: view.desc };
-    if (view.by === "month") return monthSections(rows, projects, { query, sort });
-    if (view.by === "none") return flatSections(rows, projects, { query, sort });
-    return companySections(rows, projects, { query, shown, serverMore, sort, empty: view.empty });
-  }, [threadIds, itemsById, dates, projects, filings, shown, serverMore, query, view]);
+    const pinnedOrder = order.pinned;
+    if (view.by === "month") return monthSections(rows, projects, { query, sort, pinnedOrder });
+    if (view.by === "none") return flatSections(rows, projects, { query, sort, pinnedOrder });
+    return companySections(rows, projects, { query, shown, serverMore, sort, empty: view.empty, companyOrder: order.companies, pinnedOrder });
+  }, [threadIds, itemsById, dates, projects, filings, shown, serverMore, query, view, order]);
 
   if (!sections) return <NoResults />;
+  const local = (index: number) => threadIds[index]!;
   const sessionsOf = (indices: readonly number[]) =>
     indices.map((index) => itemsById.get(threadIds[index]!)?.remoteId).filter((id): id is string => !!id);
+  const searching = !!query;
+  const byCompany = view.by === "company";
+
+  // 置顶：拖动编号（本页编号）↔ 记顺序用的对话编号
+  const pinned = sections.find((section) => section.type === "pinned");
+  const pinIds = pinned ? pinned.indices.map((index) => pinDrag(local(index))) : [];
+  const pinKey = new Map((pinned?.indices ?? []).map((index) => [pinDrag(local(index)), itemsById.get(local(index))?.remoteId ?? local(index)]));
+  const savePins = (next: string[] | null) => next && setPinnedOrder(next.map((id) => pinKey.get(id) ?? fromDrag(id)));
+  const companies = sections.filter((section) => section.type === "project");
+  const companyIds = companies.map((section) => companyDrag(section.project.id));
+  const saveCompanies = (next: string[] | null) => next && setCompanyOrder(next.map(fromDrag));
+
+  const onDrop = (active: DragData, target: DragData) => {
+    if (active.kind === "pin") savePins(moveTo(pinIds, active.id, target.id));
+    else if (active.kind === "company") saveCompanies(moveTo(companyIds, active.id, target.id));
+    else if (active.kind === "row") {
+      const selection = useSidebarSelection.getState().ids;
+      const bulk = (active.count ?? 0) > 1 && selection.includes(fromDrag(active.id));
+      const ids = bulk ? selection : [];
+      const sessions = bulk
+        ? ids.map((id) => itemsById.get(id)?.remoteId).filter((id): id is string => !!id)
+        : active.session ? [active.session] : [];
+      void moveDragged(sessions, target.group ?? "", bulk);
+    }
+  };
+  const onActive = (active: DragData | null) => {
+    setLifting(active);
+    // 多选里拖其中一条：其余选中的行也变淡（整批一起走）
+    if (active?.kind === "row" && (active.count ?? 0) > 1) document.documentElement.dataset.ccDragBulk = "";
+    else delete document.documentElement.dataset.ccDragBulk;
+  };
+  const texts: DragTexts = sb.drag;
+  // 按公司分组、拿着公司里的对话、眼前没有「最近」组：临时出一个空的「最近」，好拖出公司
+  const recentsTarget =
+    byCompany && lifting?.kind === "row" && !!lifting.group && !sections.some((section) => section.type === "recents");
 
   return (
-    <>
+    <DragArea accepts={sidebarAccepts} onDrop={onDrop} onActive={onActive} texts={texts} touch="move">
       <SidebarError />
+      {pinned && (
+        <SectionGroup label={t("starred")} open={groupOpen({ key: "pinned" }, collapsed, searching)} onToggle={() => toggleSection({ key: "pinned" })}>
+          <RowScopeContext.Provider
+            value={{ mode: "pin", locked: searching, move: (id, delta) => savePins(moveBy(pinIds, id, delta)) }}
+          >
+            <DragList id="pins" items={pinIds}>
+              <Items indices={pinned.indices} threadIds={threadIds} />
+            </DragList>
+          </RowScopeContext.Provider>
+        </SectionGroup>
+      )}
+      <DragList id="companies" items={companyIds}>
+        {companies.map((section) =>
+          section.type === "project" ? (
+            <CompanyGroup
+              key={section.key}
+              project={section.project}
+              open={groupOpen(section, collapsed, searching)}
+              onToggle={() => toggleSection(section)}
+              sessions={sessionsOf(section.all)}
+              locked={searching}
+              onMove={(delta) => saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta))}
+              more={section.more ? () => void showMore(section.project.id, section.all.length, () => aui.threads().loadMore()) : undefined}
+            >
+              <Items indices={section.indices} threadIds={threadIds} />
+            </CompanyGroup>
+          ) : null,
+        )}
+      </DragList>
       {sections.map((section) => {
-        const open = groupOpen(section.type === "project" ? section : { key: section.key }, collapsed, !!query);
-        if (section.type === "project") {
-          return (
-            <Fragment key={section.key}>
-              <ProjectHeader project={section.project} open={open} onToggle={() => toggleSection(section)} sessions={sessionsOf(section.all)} />
-              {open && (
-                <div data-slot="cc-project-items" className="cc-group-items">
-                  <Items indices={section.indices} threadIds={threadIds} />
-                  {section.more && (
-                    <button
-                      type="button"
-                      data-roving=""
-                      className="cc-show-more"
-                      onClick={() => void showMore(section.project.id, section.all.length, () => aui.threads().loadMore())}
-                    >
-                      {co.showMore}
-                    </button>
-                  )}
-                </div>
-              )}
-            </Fragment>
+        if (section.type === "pinned" || section.type === "project") return null;
+        const open = groupOpen({ key: section.key }, collapsed, searching);
+        const toggle = () => toggleSection({ key: section.key });
+        if (section.type === "recents") {
+          const items = <Items indices={section.indices} threadIds={threadIds} />;
+          return byCompany ? (
+            <RecentsGroup key={section.key} open={open} onToggle={toggle} onNew={() => newChatIn("")}>
+              {items}
+            </RecentsGroup>
+          ) : (
+            <SectionGroup key={section.key} label={t("recents")} open={open} onToggle={toggle} onNew={() => newChatIn("")}>
+              {items}
+            </SectionGroup>
           );
         }
-        const label =
-          section.type === "pinned" ? t("starred")
-          : section.type === "month" ? (section.period ? monthLabel(section.period) : sb.noMonth)
-          : t("recents");
         return (
-          <Fragment key={section.key}>
-            <GroupHeader label={label} open={open} onToggle={() => toggleSection({ key: section.key })}>
-              <GroupSortMenu />
-              {section.type === "recents" && <GroupNew onClick={() => newChatIn("")} />}
-            </GroupHeader>
-            {open && (
-              <div className="cc-group-items">
-                <Items indices={section.indices} threadIds={threadIds} />
-              </div>
-            )}
-          </Fragment>
+          <SectionGroup key={section.key} label={section.period ? monthLabel(section.period) : sb.noMonth} open={open} onToggle={toggle}>
+            <Items indices={section.indices} threadIds={threadIds} />
+          </SectionGroup>
         );
       })}
-    </>
+      {recentsTarget && <RecentsGroup open onToggle={() => undefined} onNew={() => newChatIn("")} />}
+    </DragArea>
+  );
+};
+
+/** 已置顶、最近、月份组的组标题：「···」（分组和排序）是受控菜单，键盘菜单键 / Shift+F10 也打开它（第 5 轮视觉审查）；
+ *  菜单开着时 data-open 让「＋」照样露着、「···」不挪位。 */
+const SectionHeader: FC<{ label: string; open: boolean; onToggle: () => void; onNew?: () => void }> = ({ label, open, onToggle, onNew }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <GroupHeader label={label} open={open} onToggle={onToggle} data-open={menuOpen || undefined} onMenuKey={() => setMenuOpen(true)}>
+      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} />
+      {onNew && <GroupNew onClick={onNew} />}
+    </GroupHeader>
+  );
+};
+
+/** 一组（标题 + 这组的行）包成一块：公司组整块拖动、对话拖进来整块高亮都按这一块算。 */
+const SectionGroup: FC<{ label: string; open: boolean; onToggle: () => void; onNew?: () => void; children?: ReactNode }> = ({
+  label,
+  open,
+  onToggle,
+  onNew,
+  children,
+}) => (
+  <div className="cc-group-section" data-slot="cc-group-section">
+    <SectionHeader label={label} open={open} onToggle={onToggle} onNew={onNew} />
+    {open && children && <div className="cc-group-items">{children}</div>}
+  </div>
+);
+
+const RECENTS_SCOPE: RowScope = { mode: "row", group: "" };
+
+/** 按公司分组时的「最近」：没挂公司的对话（可以拖进公司）；也是把对话拖出公司的落点。 */
+const RecentsGroup: FC<{ open: boolean; onToggle: () => void; onNew: () => void; children?: ReactNode }> = ({ open, onToggle, onNew, children }) => {
+  const target = useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" });
+  return (
+    <div {...target} className="cc-group-section" data-slot="cc-group-section">
+      <SectionHeader label={t("recents")} open={open} onToggle={onToggle} onNew={onNew} />
+      {open && children && (
+        <div className="cc-group-items">
+          <RowScopeContext.Provider value={RECENTS_SCOPE}>{children}</RowScopeContext.Provider>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** 一家公司的组：组头开关是这一组的拖动把手（整组跟着走），这组的行可以拖到别的公司；对话拖进来时整块高亮。 */
+const CompanyGroup: FC<{
+  project: ProjectRow;
+  open: boolean;
+  onToggle: () => void;
+  sessions: readonly string[];
+  locked: boolean;
+  onMove: (delta: -1 | 1) => void;
+  more?: () => void;
+  children: ReactNode;
+}> = ({ project, open, onToggle, sessions, locked, onMove, more, children }) => {
+  const drag = useSortableItem(
+    { id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },
+    { disabled: locked, ownFocus: true },
+  );
+  const scope = useMemo<RowScope>(() => ({ mode: "row", group: project.id }), [project.id]);
+  return (
+    <div {...drag.node} className="cc-group-section" data-slot="cc-group-section">
+      <ProjectHeader project={project} open={open} onToggle={onToggle} sessions={sessions} handle={drag.handle} onMove={locked ? undefined : onMove} />
+      {open && (
+        <div data-slot="cc-project-items" className="cc-group-items">
+          <RowScopeContext.Provider value={scope}>{children}</RowScopeContext.Provider>
+          {more && (
+            <button type="button" data-roving="" className="cc-show-more" onClick={more}>
+              {co.showMore}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -447,9 +611,10 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
           className={cn("cc-nav-item", className)}
           {...props}
           onClick={(e) => {
-            // 顶部「新建」开在「最近」（组头 ＋、主档页输入框才开在公司里）
+            // 顶部「新建」开在「最近」（组头 ＋、主档页输入框才开在公司里）；光标直接进输入框（同 Claude）
             setDraft({});
             props.onClick?.(e);
+            focusComposer();
           }}
         >
           <span className="cc-nav-icon bg-subtle text-ink rounded-full">
@@ -499,8 +664,42 @@ function useCurrent(): { current: boolean; isMain: boolean } {
   return { current: isMain || sameConversation, isMain };
 }
 
-// 侧栏一行只有标题（同 Claude 侧栏，用户 2026-10-13：不要前面的对话气泡图标），「显示 → 元数据」开时下面一行月份、分店
+// 侧栏一行只有标题（同 Claude 侧栏，用户 2026-10-13：不要前面的对话气泡图标），「显示 → 元数据」开时下面一行月份、分店。
+// 在置顶组里可拖着排先后，在公司组 / 最近里可拖到别的公司（RowScopeContext，共用拖动）；ERP / DMS 与按月份、不分组时的其余行不能拖
 export const ThreadListItem: FC = () => {
+  const scope = useContext(RowScopeContext);
+  if (scope?.mode === "pin") return <PinnedRow scope={scope} />;
+  if (scope?.mode === "row") return <MovableRow group={scope.group} />;
+  return <Row />;
+};
+
+// 从行尾「···」、菜单、改名输入框按下不拿起
+const ROW_SKIP = '[data-slot="aui_thread-list-item-more"], [role="menu"], input';
+
+const PinnedRow: FC<{ scope: Extract<RowScope, { mode: "pin" }> }> = ({ scope }) => {
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
+  const id = pinDrag(localId);
+  const drag = useSortableItem({ id, kind: "pin", label: title, list: "pins" }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });
+  return <Row drag={drag} onMove={scope.locked ? undefined : (delta) => scope.move(id, delta)} />;
+};
+
+const MovableRow: FC<{ group: string }> = ({ group }) => {
+  const localId = useAuiState((s) => s.threadListItem.id);
+  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
+  // 多选里的一条：整批一起拖（浮层上写条数）
+  const count = useSidebarSelection((s) => (s.ids.length > 1 && s.ids.includes(localId) ? s.ids.length : 0));
+  const drag = useDragItem(
+    { id: rowDrag(localId), kind: "row", label: count ? sb.drag.items(count) : title, group, count: count || undefined, session: remoteId },
+    { disabled: !remoteId, ownFocus: true, skip: ROW_SKIP },
+  );
+  return <Row drag={drag} />;
+};
+
+type RowDrag = { node: { ref: (el: HTMLElement | null) => void } & Record<string, unknown>; handle: DragHandle };
+
+const Row: FC<{ drag?: RowDrag; onMove?: (delta: -1 | 1) => void }> = ({ drag, onMove }) => {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const press = useLongPress(() => setMenuOpen(true));
@@ -527,9 +726,15 @@ export const ThreadListItem: FC = () => {
     if (event.shiftKey) selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));
     else toggleSelected(localId);
   };
+  // 拖动：整行是拖动的那一项，行的开关按钮是把手（鼠标按住动 3px、手机长按后再动、键盘空格）
+  const { ref: handleRef, onMouseDown: dragMouse, onTouchStart: dragTouch, onKeyDown: dragKey, onKeyUp: dragKeyUp, ...handleAria } =
+    drag?.handle ?? ({} as Partial<DragHandle>);
   return (
     <ThreadListItemPrimitive.Root
       {...press}
+      {...drag?.node}
+      onTouchStart={chain(press.onTouchStart, renaming ? undefined : dragTouch)}
+      onKeyUp={renaming ? undefined : dragKeyUp}
       data-active={current ? "true" : undefined}
       aria-current={current ? "true" : undefined}
       data-row-id={localId}
@@ -539,12 +744,17 @@ export const ThreadListItem: FC = () => {
       onClickCapture={pick}
       onMouseDown={(e) => {
         if (e.shiftKey && !isMobile && companies) e.preventDefault(); // Shift 点不选中文字
+        if (!renaming) dragMouse?.(e);
       }}
       onKeyDown={(e) => {
-        if (!renaming && isMenuKey(e)) {
+        if (renaming) return;
+        if (isMenuKey(e)) {
           e.preventDefault();
           setMenuOpen(true);
+          return;
         }
+        if (onMove && altMove(e, onMove)) return;
+        dragKey?.(e);
       }}
       className="group/item hover:bg-row-hover focus-visible:bg-row-hover data-active:bg-row-hover has-focus-visible:bg-row-hover has-data-[state=open]:bg-row-hover text-ink-2 data-active:text-ink has-focus-visible:text-ink relative flex min-h-(--cc-row-h) items-center rounded-md transition-colors focus-visible:outline-none"
     >
@@ -553,6 +763,8 @@ export const ThreadListItem: FC = () => {
       ) : (
         <>
           <ThreadListItemPrimitive.Trigger
+            ref={handleRef}
+            {...handleAria}
             data-slot="aui_thread-list-item-trigger"
             data-roving=""
             onClick={reenter}

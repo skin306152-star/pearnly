@@ -717,6 +717,17 @@ const SIDEBAR = {
     emptyGroups: "Empty groups", resetDefaults: "Restore defaults", noMonth: "No month",
     pinN: (n: number) => `Pin ${n}`, unpinN: (n: number) => `Unpin ${n}`, moveToN: (n: number) => `Move ${n} to…`,
     deleteN: (n: number) => `Delete ${n}`,
+    // 侧栏拖动的读屏播报（共用拖动 components/ui/drag.tsx：公司组、置顶排序，对话拖到别的公司）
+    drag: {
+      instructions: "To pick up an item, press Space. Use the up and down arrow keys to move it, press Space again to drop it, or press Escape to cancel.",
+      pickedUp: (name: string) => `Picked up ${name}.`,
+      movedTo: (name: string, at: number, total: number) => `${name} moved to position ${at} of ${total}.`,
+      droppedAt: (name: string, at: number, total: number) => `${name} dropped at position ${at} of ${total}.`,
+      cancelled: (name: string) => `Moving ${name} was cancelled.`,
+      over: (name: string, group: string) => `${name} will move to ${group}.`,
+      droppedIn: (name: string, group: string) => `Moved ${name} to ${group}.`,
+      items: (n: number) => (n === 1 ? "1 chat" : `${n} chats`),
+    },
   },
   zh: {
     groupAndSort: "分组和排序", groupBy: "分组依据", month: "月份", none: "无", sortBy: "排序方式", lastUpdated: "上次更新",
@@ -724,6 +735,16 @@ const SIDEBAR = {
     emptyGroups: "空分组", resetDefaults: "恢复默认设置", noMonth: "未指定月份",
     pinN: (n: number) => `置顶 ${n}`, unpinN: (n: number) => `取消置顶 ${n}`, moveToN: (n: number) => `将 ${n} 项移到…`,
     deleteN: (n: number) => `删除 ${n}`,
+    drag: {
+      instructions: "按空格键拿起，用上下方向键移动，再按空格键放下，按 Escape 键取消。",
+      pickedUp: (name: string) => `已拿起「${name}」。`,
+      movedTo: (name: string, at: number, total: number) => `「${name}」移到第 ${at} 位，共 ${total} 项。`,
+      droppedAt: (name: string, at: number, total: number) => `「${name}」放在第 ${at} 位，共 ${total} 项。`,
+      cancelled: (name: string) => `已取消移动「${name}」。`,
+      over: (name: string, group: string) => `「${name}」将移到「${group}」。`,
+      droppedIn: (name: string, group: string) => `已把「${name}」移到「${group}」。`,
+      items: (n: number) => `${n} 个对话`,
+    },
   },
   th: {
     groupAndSort: "จัดกลุ่มและเรียงลำดับ", groupBy: "จัดกลุ่มตาม", month: "เดือน", none: "ไม่จัดกลุ่ม", sortBy: "เรียงตาม", lastUpdated: "อัปเดตล่าสุด",
@@ -731,6 +752,16 @@ const SIDEBAR = {
     emptyGroups: "กลุ่มที่ว่าง", resetDefaults: "คืนค่าเริ่มต้น", noMonth: "ไม่ระบุเดือน",
     pinN: (n: number) => `ปักหมุด ${n}`, unpinN: (n: number) => `เลิกปักหมุด ${n}`, moveToN: (n: number) => `ย้าย ${n} รายการไปที่…`,
     deleteN: (n: number) => `ลบ ${n}`,
+    drag: {
+      instructions: "กด Space เพื่อหยิบ ใช้ปุ่มลูกศรขึ้นลงเพื่อย้าย กด Space อีกครั้งเพื่อวาง หรือกด Escape เพื่อยกเลิก",
+      pickedUp: (name: string) => `หยิบ ${name} แล้ว`,
+      movedTo: (name: string, at: number, total: number) => `ย้าย ${name} ไปตำแหน่งที่ ${at} จาก ${total}`,
+      droppedAt: (name: string, at: number, total: number) => `วาง ${name} ที่ตำแหน่งที่ ${at} จาก ${total}`,
+      cancelled: (name: string) => `ยกเลิกการย้าย ${name}`,
+      over: (name: string, group: string) => `${name} จะย้ายไปที่ ${group}`,
+      droppedIn: (name: string, group: string) => `ย้าย ${name} ไปที่ ${group} แล้ว`,
+      items: (n: number) => `${n} แชท`,
+    },
   },
 };
 

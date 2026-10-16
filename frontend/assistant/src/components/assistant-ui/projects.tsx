@@ -3,7 +3,8 @@
 //   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：最左公司图标、公司名（同会话行标题
 //                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧这家的待处理数（淡色数字，点了只看
 //                         这家的待处理）、「···」（分组和排序，用户 2026-10-15 夜：打开公司、在这家新建对话不要了）、「＋」（在这家
-//                         开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出「···」菜单；收起时组里有在跑或没看过的，名字后一个点
+//                         开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出「···」菜单；收起时组里有在跑或没看过的，名字后一个点。
+//                         组头开关同时是拖动把手（thread-list.tsx 的公司组排序，共用拖动）
 //   MoveToMenu          — 对话菜单里的「移到 ▸」：我最近的公司 + 搜索 + 添加公司… + 最近；移入公司时月份留空，不改置顶
 //   BulkMoveMenu        — 多选时行菜单里的「移到… (N)」：同一份选公司的菜单，选了逐条移动（不并发）
 //   ComposerChin        — 输入框下巴（thread.tsx 的 Chin 插槽，设计文档 3.12）：公司、月份、分店三个幽灵按钮。新对话里「公司 ▾」选这段
@@ -21,6 +22,7 @@ import { type FC, type ReactNode, useEffect, useState } from "react";
 import { openAddCompany } from "@/components/add-company";
 import { BranchChip, PeriodChip } from "@/components/period-chip";
 import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/components/assistant-ui/sidebar-group";
+import type { DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -56,7 +58,17 @@ import { shownError } from "@/lib/frappe";
 
 const report = (error: unknown) => setError(shownError(error));
 
-/** 在某家公司（NO_FILING = 最近）开新对话：回到对话页、切到新对话；text 预填进输入框，send 才发出（交给 CC、草稿不发）。 */
+const COMPOSER_INPUT = "textarea.aui-composer-input";
+
+/** 新建对话后光标直接进输入框（同 Claude；侧栏组头「＋」、顶部「新建」、公司页、手机都一样）。点击当下先聚焦一次
+ *  （手机上只有在点击当下聚焦才弹键盘），新对话换上来后的下两帧再聚焦一次（输入框可能换了一个）。 */
+export function focusComposer(now = true) {
+  const focus = () => document.querySelector<HTMLTextAreaElement>(COMPOSER_INPUT)?.focus({ preventScroll: true });
+  if (now) focus();
+  requestAnimationFrame(() => requestAnimationFrame(focus));
+}
+
+/** 在某家公司（NO_FILING = 最近）开新对话：回到对话页、切到新对话，光标进输入框；text 预填进输入框，send 才发出（交给 CC、草稿不发）。 */
 export function useStartIn() {
   const aui = useAui();
   const { setView } = useView();
@@ -65,7 +77,10 @@ export function useStartIn() {
     setDraft(filing);
     setView("chat");
     void aui.threads().switchToNewThread();
-    if (!text && !files.length) return;
+    if (!text && !files.length) {
+      if (!send) focusComposer();
+      return;
+    }
     // 新对话切过去后下一帧才是当前对话，再把文字放进输入框（同 window.tomo.ask）；带着的文件同拖进输入框（lib/desktop.ts），
     // 上传、进度、出错都由新对话的输入框显示，不替用户发出
     requestAnimationFrame(() =>
@@ -74,6 +89,7 @@ export function useStartIn() {
         if (text) composer.setText(text);
         for (const file of files) void composer.addAttachment(file).catch(() => undefined);
         if (send && !files.length) composer.send();
+        else focusComposer(false);
       }),
     );
   };
@@ -98,12 +114,15 @@ export function useOpenCompany() {
 }
 
 // ---------------------------------------------------------------- 组头
-export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: () => void; sessions: readonly string[] }> = ({
-  project,
-  open,
-  onToggle,
-  sessions,
-}) => {
+export const ProjectHeader: FC<{
+  project: ProjectRow;
+  open: boolean;
+  onToggle: () => void;
+  sessions: readonly string[];
+  /** 组头开关同时是拖动把手（公司组排序）；Alt+↑/↓ 挪一格。 */
+  handle?: DragHandle;
+  onMove?: (delta: -1 | 1) => void;
+}> = ({ project, open, onToggle, sessions, handle, onMove }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isMobile } = useSidebar();
   const press = useLongPress(() => setMenuOpen(true));
@@ -129,6 +148,8 @@ export const ProjectHeader: FC<{ project: ProjectRow; open: boolean; onToggle: (
       open={open}
       onToggle={onToggle}
       onMenuKey={() => setMenuOpen(true)}
+      handle={handle}
+      onMove={onMove}
       dot={
         !open && activity ? (
           <span

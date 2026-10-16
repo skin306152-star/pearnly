@@ -6,7 +6,8 @@
   卡片顺序 / 折叠 / 开关记在本机（键带用户）；拖动与 Alt+↑/↓ 只在看得见的卡片间挪；详情按「公司|月份」缓存。
 - 公司页（10-16 改）：版式同对话页——中间标题 + 输入框（同对话的输入框与下巴）+ 这家的对话列表（行同侧栏行、相对时间、
   最新在前），公司的资料全在右侧会话栏（默认开着），没有标签。
-- 卡头摘要一直显示（「2 条」「需处理 2」），把手的槽固定留宽、摘要一列对齐；拖动用 dnd-kit 排序列表（键盘、触屏长按、读屏播报）。
+- 卡头摘要一直显示（「2 条」「需处理 2」），把手的槽固定留宽、摘要一列对齐；拖动走共用拖动 components/ui/drag.tsx
+  （dnd-kit 排序列表 + 浮层：键盘、触屏长按、读屏播报，松手当帧落位，浮层不出这一列）。
 - 列表页（公司、待处理、定时任务）：标题、搜索、排序（公司）。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
@@ -90,8 +91,8 @@ class TitleBarSourceTests(unittest.TestCase):
         # 公司页换公司（有缓存不经过加载态）：整页重新挂上，输入框的字与分店不串到另一家
         self.assertIn("<Master key={detail.company.id} detail={detail}", read("components/company-page.tsx"))
         self.assertIn('if (mode === "docked") return;', panel)
-        # 拖着卡片按 Esc 只取消拖动，不关浮着的会话栏
-        self.assertIn("if (isCardDragging()) return;", panel)
+        # 拖动中按 Esc 只取消拖动，不关浮着的会话栏（鼠标、键盘拖都一样；取消拖动的那一下 Esc 也认得出，lib/layers.ts）
+        self.assertIn("if (isDragEscape(e)) return;", panel)
 
     def test_new_words_exist_in_every_language(self):
         i18n = read("i18n.ts")
@@ -428,8 +429,7 @@ assert.deepEqual(sortCompanies(rows, "name").map((r) => r.title), ["Alpha", "bet
         self.run_page(r"""
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
-import { DndContext } from "@dnd-kit/core";
-import { SortableContext } from "@dnd-kit/sortable";
+import { DragArea, DragList } from "@/components/ui/drag";
 import { folderSummary, PanelCard, PanelControlContext, PendingCard } from "@/components/company-cards";
 import { usePendingCounts } from "@/lib/companies";
 const card = (props: any = {}) => createElement(PanelCard, { id: "notes", title: "Notes", summary: "2 notes", ...props }, createElement("p", null, "body"));
@@ -448,13 +448,15 @@ const tools = renderToStaticMarkup(card({ action: createElement("button", null, 
 assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span id="[^"]+" class="cc-panel-card-summary">2 notes<\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
 // 会话栏里（排序列表里）：折叠记在会话栏（折叠了不画内容）；每张卡最右边都有把手槽，把手接上排序（dnd-kit 的属性）
 const control = { collapsed: ["notes"], toggle() {}, move() {}, register: () => () => {} };
+const texts = { instructions: "", pickedUp: String, movedTo: String, droppedAt: String, cancelled: String };
 const inPanel = (child: any) => renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control },
-  createElement(DndContext, null, createElement(SortableContext, { items: ["notes"] }, child))));
+  createElement(DragArea, { accepts: () => true, onDrop() {}, texts }, createElement(DragList, { id: "cards", items: ["notes"] }, child))));
 const panel = inPanel(card());
 assert.match(panel, /aria-expanded="false"/);
 assert.ok(!panel.includes(">body<"));
-assert.match(panel, /<span class="cc-panel-card-grip" data-slot="cc-card-grip"><button type="button" role="button" tabindex="0"[^>]*aria-roledescription="sortable"[^>]*class="cc-panel-btn cc-panel-grip" aria-label="Reorder" title="Reorder">/);
-assert.match(panel, /<section class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移
+assert.match(panel, /<span class="cc-panel-card-grip" data-slot="cc-card-grip"><button type="button"[^>]*role="button"[^>]*tabindex="0"[^>]*aria-roledescription="sortable"[^>]*class="cc-panel-btn cc-panel-grip" aria-label="Reorder" title="Reorder">/);
+assert.match(panel, /<section data-drag-list="cards" class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移、不留空
+assert.ok(!panel.includes("data-drag-source") && !panel.includes("style="));
 // 正在里面新增 / 编辑（forceOpen）：折叠了也展开
 assert.ok(inPanel(card({ forceOpen: true })).includes(">body<"));
 // 待处理：这家计数为 0 不显示（有的写「N 张」，见下面的源码断言；服务端渲染读不到改过的计数）
@@ -518,45 +520,43 @@ assert.ok(co.card.instructions.includes("Space") && co.card.instructions.include
 
     def test_drag_drop_order_and_announcements(self):
         self.run_page(r"""
-import { cardAnnouncements, dropOrder } from "@/components/session-panel";
+import { cardTexts, dropOrder } from "@/components/session-panel";
+import { dragAnnouncements } from "@/components/ui/drag";
 import { orderCards } from "@/lib/company-panel";
 const order = orderCards(null);
 const shown = ["company", "pending", "notes", "outputs"];
-const ev = (active: string, over: string | null) => ({ active: { id: active }, over: over ? { id: over } : null }) as any;
 // 放下：在看得见的卡片里挪到落点（看不见的本月卡不占位）
-assert.deepEqual(dropOrder(order, shown, ev("outputs", "company"))!.filter((c) => shown.includes(c)), ["outputs", "company", "pending", "notes"]);
-assert.deepEqual(dropOrder(order, shown, ev("company", "notes"))!.filter((c) => shown.includes(c)), ["pending", "notes", "company", "outputs"]);
-// 没动、落在外面、认不出：不改
-assert.equal(dropOrder(order, shown, ev("notes", "notes")), null);
-assert.equal(dropOrder(order, shown, ev("notes", null)), null);
-assert.equal(dropOrder(order, shown, ev("month", "notes")), null);
-// 读屏播报：名字用卡片标题，位置只数看得见的
-const say = cardAnnouncements(shown, { company: "Company", pending: "Pending", notes: "Notes", outputs: "Files" });
-assert.equal(say.onDragStart({ active: { id: "notes" } } as any), "Picked up Notes.");
-assert.equal(say.onDragOver({ active: { id: "notes" }, over: { id: "company" } } as any), "Notes moved to position 1 of 4.");
-assert.equal(say.onDragEnd({ active: { id: "notes" }, over: { id: "outputs" } } as any), "Notes dropped at position 4 of 4.");
-assert.equal(say.onDragOver({ active: { id: "notes" }, over: null } as any), undefined);
-assert.equal(say.onDragCancel({ active: { id: "notes" } } as any), "Moving Notes was cancelled.");
+assert.deepEqual(dropOrder(order, shown, "outputs", "company")!.filter((c) => shown.includes(c)), ["outputs", "company", "pending", "notes"]);
+assert.deepEqual(dropOrder(order, shown, "company", "notes")!.filter((c) => shown.includes(c)), ["pending", "notes", "company", "outputs"]);
+// 没动、认不出：不改
+assert.equal(dropOrder(order, shown, "notes", "notes"), null);
+assert.equal(dropOrder(order, shown, "month", "notes"), null);
+// 读屏播报：名字用卡片标题（label），位置按这一列看得见的卡片
+const entry = (id: string, label: string, index?: number) =>
+  ({ id, data: { current: { drag: { id, kind: "card", label, list: "cards" }, ...(index === undefined ? {} : { sortable: { index, items: shown } }) } } });
+const say = dragAnnouncements(cardTexts());
+assert.equal(say.onDragStart({ active: entry("notes", "Notes") } as any), "Picked up Notes.");
+assert.equal(say.onDragOver({ active: entry("notes", "Notes"), over: entry("company", "Company", 0) } as any), "Notes moved to position 1 of 4.");
+assert.equal(say.onDragEnd({ active: entry("notes", "Notes"), over: entry("outputs", "Files", 3) } as any), "Notes dropped at position 4 of 4.");
+assert.equal(say.onDragOver({ active: entry("notes", "Notes"), over: null } as any), undefined);
+assert.equal(say.onDragEnd({ active: entry("notes", "Notes"), over: null } as any), "Moving Notes was cancelled.");
+assert.equal(say.onDragCancel({ active: entry("notes", "Notes") } as any), "Moving Notes was cancelled.");
 """)
 
     def test_lifted_card_stays_in_the_column_not_the_visible_box(self):
         # 审查第 4 轮：按会话栏看得见的框限制时，第 4 张卡（顶 279、高 300、会话栏高 400）往下移 20px 被拽到 91。
-        # 现在按整列卡片的版面位置限制：同样的卡往下 20 照样跟手（299），只在第一张的顶边与最后一张的底边之间
+        # 现在按整列卡片的位置限制：同样的卡往下 20 照样跟手（299），只在第一张的顶边与最后一张的底边之间。
+        # 第 5 轮：浮层是 fixed（视口坐标），这一列的上下边按此刻的位置量，会话栏滚动后照样对；浮层不撑大滚动区
         self.run_page(r"""
-import { clampToList } from "@/components/session-panel";
-import { moving } from "@/components/company-cards";
+import { clampToList } from "@/components/ui/drag";
 const list = { top: 0, bottom: 1000 };
 const tall = { top: 279, height: 300 };
 assert.equal(279 + clampToList(20, tall, list), 299);
 assert.equal(clampToList(-500, tall, list), -279);          // 不过第一张的顶边
 assert.equal(clampToList(900, tall, list), 1000 - 579);      // 不过最后一张的底边
 assert.equal(clampToList(5, { top: 0, height: 1200 }, list), 0);  // 比整列还高（不会发生）：不动
-// 让位 / 放下的过渡：dnd-kit 放下那一帧的 0ms 不算（否则让过位的卡先跳开一格再滑回来）
-assert.equal(moving("transform 200ms ease"), true);
-assert.equal(moving("transform 0ms linear"), false);
-assert.equal(moving("transform 0s linear"), false);
-assert.equal(moving(undefined), false);
-assert.equal(moving(""), false);
+// 会话栏往下滚了 400（这一列上移到 -400 ~ 600）：拿起时在 279 的卡最多下到 600 - 300
+assert.equal(clampToList(900, tall, { top: -400, bottom: 600 }), 600 - 579);
 """)
 
     def test_company_page_month_is_shared_with_the_panel(self):
@@ -573,63 +573,83 @@ assert.equal(pagePeriod("", true, "2026-09"), "");   // 选了「不指定」
 
 
 class SortableSourceTests(unittest.TestCase):
-    def test_the_panel_is_a_dnd_kit_sortable_list(self):
+    def test_the_panel_uses_the_shared_drag(self):
         panel = read("components/session-panel.tsx")
-        self.assertIn('import { restrictToVerticalAxis } from "@dnd-kit/modifiers";', panel)
-        self.assertNotIn("restrictToParentElement", panel)   # 按看得见的框限制会把长卡拽走（审查第 4 轮）
-        self.assertIn('import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";', panel)
-        # 鼠标按住动 3px 才开始、手机长按 250ms（5px 内）、键盘（空格拿起、方向键、空格放下、Esc 取消）
-        self.assertIn("const MOUSE_START = { distance: 3 };", panel)
-        self.assertIn("const TOUCH_START = { delay: 250, tolerance: 5 };", panel)
-        self.assertIn("useSensor(MouseSensor, { activationConstraint: MOUSE_START }),", panel)
-        self.assertIn("useSensor(TouchSensor, { activationConstraint: TOUCH_START }),", panel)
-        self.assertIn("useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),", panel)
-        self.assertNotIn("PointerSensor", panel)   # 鼠标与触屏分开：触屏要长按，鼠标不用
-        # 只能上下、不出会话栏；读屏播报三种语言
-        self.assertIn("const modifiers = useMemo(() => [restrictToVerticalAxis, withinList(lifted)], []);", panel)
-        self.assertIn("modifiers={modifiers}", panel)
-        # 放下 / 取消有过渡：放手处 → 新位置（translate，动效变量）；Esc 取消拖动不关会话栏、不清侧栏多选
-        self.assertIn("l.el.dataset.landing = \"\";", panel)
-        self.assertIn("if (isCardDragging()) return;", panel)
-        self.assertIn("screenReaderInstructions: { draggable: co.card.instructions }", panel)
-        self.assertIn("<SortableContext items={items} strategy={verticalListSortingStrategy}>", panel)
+        # 会话栏卡片走共用拖动：一个拖动区 + 一列（只认同一列的卡片），放下记顺序
+        self.assertIn('import { DragArea, type DragData, DragList, type DragTexts } from "@/components/ui/drag";', panel)
+        self.assertIn("<DragArea accepts={sameColumn} onDrop={onDrop} texts={texts}>", panel)
+        self.assertIn('<DragList id="cards" items={items}>', panel)
         self.assertIn("const items = useMemo(() => order.filter((id) => id in titles), [order, titles]);", panel)
-        self.assertIn("onDragEnd={onDragEnd}", panel)
         self.assertIn("if (next) setCardOrder(next);", panel)
-        # 旧的自写指针拖动删掉了
-        for old in ("pointermove", "onPointerDown", "dragging"):
+        self.assertIn("instructions: co.card.instructions,", panel)
+        # 旧的自写拖动、放下过渡都删掉了（第 4 轮的 data-landing / data-moving 与 dnd-kit 放下帧打架）
+        for old in ("pointermove", "onPointerDown", "landing", "withinList", "restrictToParentElement", "DndContext", "useSensor"):
             self.assertNotIn(old, panel, old)
         cards = read("components/company-cards.tsx")
         self.assertNotIn("onPointerDown", cards)
-        self.assertNotIn("ReactPointerEvent", cards)
-        self.assertIn("const sortable = useSortable({ id: props.id });", cards)
-        self.assertIn("style={sortable ? { transform: CSS.Translate.toString(sortable.transform) } : undefined}", cards)
-        self.assertIn("data-dragging={sortable?.isDragging || undefined}", cards)
-        self.assertIn('data-moving={moving(sortable?.transition) ? "" : undefined}', cards)
-        self.assertIn("ref={sortable.setActivatorNodeRef}", cards)
+        self.assertNotIn("@dnd-kit", cards)
+        self.assertNotIn("moving(", cards)
+        self.assertIn('const sortable = useSortableItem({ id: props.id, kind: "card", label: props.title, list: "cards" });', cards)
+        self.assertIn('<section {...sortable?.node} className="cc-panel-card" data-card={id} data-slot={slot}>', cards)
+        self.assertIn("{...sortable.handle}", cards)
+        self.assertIn("if (!keys(e)) sortable.handle.onKeyDown?.(e);", cards)   # Alt+↑/↓ 先，其余交给拖动（空格拿起）
         self.assertIn("useLayoutEffect(() => register(props.id, props.title), [register, props.id, props.title]);", cards)
         package = read("../package.json")
         for dep in ('"@dnd-kit/core": "6.3.1"', '"@dnd-kit/sortable": "10.0.0"', '"@dnd-kit/modifiers": "9.0.0"', '"@dnd-kit/utilities": "3.2.2"'):
             self.assertIn(dep, package)
 
+    def test_shared_drag_rules(self):
+        drag = read("components/ui/drag.tsx")
+        # 手感：鼠标按住动 3px、手机长按 250ms（5px 内）、键盘空格拿起 / 空格回车放下 / Esc 取消
+        self.assertIn("export const MOUSE_START = { distance: 3 };", drag)
+        self.assertIn("export const TOUCH_START = { delay: 250, tolerance: 5 };", drag)
+        self.assertIn("useSensor(MouseSensor, { activationConstraint: MOUSE_START }),", drag)
+        self.assertIn('useSensor(HoldTouchSensor, { ...TOUCH_START, moveToLift: touch === "move" }),', drag)
+        self.assertIn("useSensor(KeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS }),", drag)
+        self.assertIn("start: [KeyboardCode.Space],", drag)
+        self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
+        # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
+        self.assertIn('<DragOverlay dropAnimation={dropAnimation} transition={keyboardMove} className="cc-drag-overlay">', drag)
+        # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走
+        self.assertIn("createPortal(overlay, document.body)", drag)
+        self.assertIn('landing.node.dataset.dragLanding = "";', drag)
+        self.assertIn('return { duration: cssMs(css.getPropertyValue("--cc-dur"), 200), easing: css.getPropertyValue("--cc-ease").trim() || "ease" };', drag)
+        self.assertIn('if (root.dataset.ccMotion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return null;', drag)
+        # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区
+        self.assertIn("return { ...transform, x: 0, y: clampToList(transform.y, { top: start.top, height: start.height }, list) };", drag)
+        self.assertIn("const rect = getClientRect(node, { ignoreTransform: true });", drag)
+        # 碰撞只认能放的地方：排序最近的中心，拖到别的组看指针（键盘拖时是浮层中心）落在哪一组
+        self.assertIn("if (active.list) return closestCenter({ ...args, droppableContainers });", drag)
+        self.assertIn("return pointerWithin({ ...args, droppableContainers, pointerCoordinates });", drag)
+        # 拖动标记：Esc 只取消拖动
+        self.assertIn("setDragging(true);", drag)
+        self.assertIn("useEffect(() => () => setDragging(false), []);", drag)
+        # 克隆去掉会被别处按属性找到的标记，整块 inert
+        self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>', drag)
+        for name in ('"data-card"', '"data-row-id"', '"data-roving"', '"data-selected"'):
+            self.assertIn(name, drag.split("const STRIP = [", 1)[1].split("];", 1)[0])
+        layers = read("lib/layers.ts")
+        self.assertIn('window.addEventListener("keydown", markEscape, true);', layers)
+        self.assertIn("return escapes.has(event) || isDragging();", layers)
+
     def test_drag_lift_and_grip_slot_styles(self):
         css = read("globals.css")
         self.assertIn("--cc-drag-scale: 1.02;", css)
         self.assertIn("--cc-drag-opacity: 0.9;", css)
-        lifted = css.split(".cc-panel-card[data-dragging] {", 1)[1].split("}", 1)[0]
-        self.assertIn("box-shadow: var(--cc-panel-ring), var(--cc-shadow-pop);", lifted)
-        self.assertIn("opacity: var(--cc-drag-opacity); scale: var(--cc-drag-scale);", lifted)
-        self.assertIn("background: var(--cc-bg-popover);", lifted)
-        # 其余卡片让位的过渡用动效变量
-        moving = css.split(".cc-panel-card[data-moving] {", 1)[1].split("}", 1)[0]
-        self.assertIn("transform var(--cc-dur) var(--cc-ease)", moving)
-        landing = css.split(".cc-panel-card[data-landing] {", 1)[1].split("}", 1)[0]
-        self.assertIn("translate: 0 var(--cc-land-y);", landing)
-        self.assertNotIn("translate var(", landing)   # 摆回放手处时不过渡，去掉标记才过渡
-        base = css.split(".cc-panel-card {", 1)[1].split("}", 1)[0]
-        self.assertIn("translate var(--cc-dur) var(--cc-ease)", base)
-        self.assertIn(":root[data-cc-card-drag] * { cursor: grabbing; }", css)
+        self.assertIn("--cc-drag-ghost: 0.4;", css)
+        lift = css.split("\n.cc-drag-lift {", 1)[1].split("}", 1)[0]
+        self.assertIn("background: var(--cc-bg-popover); box-shadow: var(--cc-shadow-pop);", lift)
+        self.assertIn("opacity: var(--cc-drag-opacity); scale: var(--cc-drag-scale);", lift)
+        self.assertIn("transition: scale var(--cc-dur) var(--cc-ease)", lift)
+        self.assertIn('.cc-drag-overlay[data-dropping] .cc-drag-lift { scale: 1; opacity: 1; box-shadow: none; }', css)
+        self.assertIn('[data-drag-source="gap"] { opacity: 0; }', css)
+        self.assertIn("[data-drag-landing] { opacity: 0; }", css)
+        self.assertIn("[data-drop-target] { background: var(--cc-row-hover); }", css)
+        self.assertIn(":root[data-cc-drag] * { cursor: grabbing; }", css)
         self.assertIn(".cc-panel-grip { cursor: grab;", css)
+        # 第 4 轮的放下过渡（data-moving / data-landing）删掉了
+        for old in ("data-moving", "data-landing", "--cc-land-y", "data-cc-card-drag"):
+            self.assertNotIn(old, css)
         # 把手槽固定宽、平时把手透明，摘要一列右对齐
         self.assertIn(".cc-panel-card-grip { position: relative; display: inline-flex; flex-shrink: 0; width: var(--cc-panel-btn); }", css)
         self.assertIn(".cc-panel-card-grip .cc-panel-grip { opacity: var(--cc-reveal-rest); }", css)

@@ -8,32 +8,15 @@
 //          公司页（page）：公司卡写公司信息与全部账套，「月结」卡带月份胶囊（公司页自己的月份），待处理列全部月份，
 //          知识库（空时「让 CC 起草」）与定时任务空的也显示，没有输出文件。
 //          卡头右侧一句状态；顺序、折叠记在这台设备（lib/company-panel.ts，对话与公司页同一份）。
-//   拖动   同 Claude：dnd-kit 排序列表，只能上下、不出卡片这一列（按整列内容算，不按会话栏看得见的那一截，长卡、
-//          滚动中照样跟手；拖到边上会话栏自己滚）；6 点把手 grab / grabbing，拿起的卡浮起（阴影、略透明、略放大）
-//          跟着指针走，其余卡片实时让位（变换过渡用动效变量），放下有过渡、放下时记顺序；键盘 空格拿起、方向键移动、空格放下、
-//          Esc 取消（三种语言读屏播报）；手机长按 250ms（5px 内）开始拖。
+//   拖动   共用拖动（components/ui/drag.tsx，同 Claude 视频：浮起跟手、其余卡片让位、松手当帧平滑落位、只在这一列、Esc 只取消拖动、
+//          键盘与读屏、手机长按把手 250ms）；6 点把手 grab / grabbing。放下时记顺序；Alt+↑/↓ 同样挪。
 //   数据   公司详情按「公司|月份」缓存，只在会话栏挂着（看得见）时跟着站点事件重取（lib/company-panel 的 usePanelDetail）。
 //
 // 样式只用 globals.css 的 .cc-panel* 与变量。
 
-import {
-  type Announcements,
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  type DragStartEvent,
-  KeyboardSensor,
-  type Modifier,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useAuiState } from "@assistant-ui/react";
 import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, LoaderIcon, StoreIcon, XIcon } from "lucide-react";
-import { Fragment, type FC, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
 import {
@@ -56,7 +39,8 @@ import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "
 import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
-import { isCardDragging, setCardDragging } from "@/lib/layers";
+import { isDragEscape } from "@/lib/layers";
+import { DragArea, type DragData, DragList, type DragTexts } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 
 export type PanelMode = "docked" | "floating" | "phone";
@@ -71,51 +55,24 @@ export function useFiledCompany(): Filing {
 }
 
 /** 卡片拖动的读屏播报（三种语言；位置只数看得见的卡片）。 */
-export function cardAnnouncements(items: readonly string[], titles: Readonly<Record<string, string>>): Announcements {
-  const name = (id: string | number) => titles[String(id)] || String(id);
-  const at = (id: string | number | undefined) => (id === undefined ? 0 : items.indexOf(String(id)) + 1);
-  return {
-    onDragStart: ({ active }) => co.card.pickedUp(name(active.id)),
-    onDragOver: ({ active, over }) => (over ? co.card.movedTo(name(active.id), at(over.id), items.length) : undefined),
-    onDragEnd: ({ active, over }) => (over ? co.card.droppedAt(name(active.id), at(over.id), items.length) : undefined),
-    onDragCancel: ({ active }) => co.card.cancelled(name(active.id)),
-  };
-}
+export const cardTexts = (): DragTexts => ({
+  instructions: co.card.instructions,
+  pickedUp: co.card.pickedUp,
+  movedTo: co.card.movedTo,
+  droppedAt: co.card.droppedAt,
+  cancelled: co.card.cancelled,
+});
 
-/** 放下：在看得见的卡片里挪到落点的位置，记下整份顺序；没动、落在外面不改。 */
-export function dropOrder(order: readonly CardId[], items: readonly string[], event: Pick<DragEndEvent, "active" | "over">): CardId[] | null {
-  const { active, over } = event;
-  if (!over || active.id === over.id) return null;
-  const from = items.indexOf(String(active.id));
-  const to = items.indexOf(String(over.id));
+/** 放下：在看得见的卡片里挪到落点的位置，记下整份顺序；没动、认不出不改。 */
+export function dropOrder(order: readonly CardId[], items: readonly string[], active: string, over: string): CardId[] | null {
+  if (active === over) return null;
+  const from = items.indexOf(active);
+  const to = items.indexOf(over);
   if (from < 0 || to < 0) return null;
-  return moveCard(order, String(active.id) as CardId, to - from, items);
+  return moveCard(order, active as CardId, to - from, items);
 }
 
-// 拖动的手感（同 Claude 的会话栏）：鼠标按住动 3px 才开始（点一下照样是点），手机长按 250ms 且没挪出 5px 才开始（滑动照样滚动）
-const MOUSE_START = { distance: 3 };
-const TOUCH_START = { delay: 250, tolerance: 5 };
-
-/** 拿起的卡只在这一列卡片的上下边之间（第一张卡的顶边到最后一张的底边）。用版面位置（offsetTop，不含变换、不随滚动变），
- *  不用会话栏看得见的框：会话栏本身是滚动容器，按它限制时超出可视区的长卡一拿起就被拽上去、再也拖不下来（审查第 4 轮）。 */
-export function clampToList(y: number, card: { top: number; height: number }, list: { top: number; bottom: number }): number {
-  const min = list.top - card.top;
-  const max = list.bottom - (card.top + card.height);
-  return Math.min(Math.max(y, min), Math.max(min, max));
-}
-
-function withinList(node: { current: HTMLElement | null }): Modifier {
-  return ({ transform }) => {
-    const el = node.current;
-    const column = el?.parentElement;
-    if (!el || !column) return transform;
-    const cards = [...column.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.dataset.card !== undefined);
-    if (!cards.length) return transform;
-    const top = Math.min(...cards.map((c) => c.offsetTop));
-    const bottom = Math.max(...cards.map((c) => c.offsetTop + c.offsetHeight));
-    return { ...transform, y: clampToList(transform.y, { top: el.offsetTop, height: el.offsetHeight }, { top, bottom }) };
-  };
-}
+const sameColumn = (active: DragData, target: DragData) => active.list === "cards" && target.list === "cards";
 
 /** 会话栏里可拖动排序的那一列卡片（对话与公司页同一套）：登记看得见的卡片、dnd-kit 排序列表、折叠与 Alt+↑/↓。
  *  不画外框（卡片直接是会话栏的子节点，「不出会话栏」按父节点算）。cards 里给 null 的卡不显示、也不占位。 */
@@ -148,74 +105,21 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
     [collapsed, register],
   );
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: MOUSE_START }),
-    useSensor(TouchSensor, { activationConstraint: TOUCH_START }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-  const accessibility = useMemo(
-    () => ({ announcements: cardAnnouncements(items, titles), screenReaderInstructions: { draggable: co.card.instructions } }),
-    [items, titles],
-  );
-  // 拿起的那张卡（把手所在的 [data-card]）：限制在卡片这一列里用
-  const lifted = useRef<HTMLElement | null>(null);
-  const modifiers = useMemo(() => [restrictToVerticalAxis, withinList(lifted)], []);
-  useEffect(() => () => setCardDragging(false), []);
-  // 放下 / 取消的过渡：dnd-kit 不带 DragOverlay 时放下是直接跳到位。记下放手那一刻卡的位置（中线，不受略放大影响），
-  // 换到新位置的那次提交里先用 translate 摆回放手处、再过渡到 0（globals.css 的 data-landing，动效变量）。
-  // 用 translate 而不是 transform：transform 归 dnd-kit 管。
-  const landing = useRef<{ el: HTMLElement; mid: number } | null>(null);
-  const [landed, setLanded] = useState(0);
-  const release = () => {
-    const el = lifted.current;
-    lifted.current = null;
-    setCardDragging(false);
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    landing.current = { el, mid: r.top + r.height / 2 };
-    setLanded((n) => n + 1);
-  };
-  useLayoutEffect(() => {
-    const l = landing.current;
-    landing.current = null;
-    if (!l || !l.el.isConnected) return;
-    const r = l.el.getBoundingClientRect();
-    const dy = l.mid - (r.top + r.height / 2);
-    if (Math.abs(dy) < 1) return;
-    l.el.style.setProperty("--cc-land-y", `${dy}px`);
-    l.el.dataset.landing = "";
-    void l.el.offsetHeight; // 先在放手处排一次版，去掉标记后才有过渡
-    delete l.el.dataset.landing;
-  }, [landed]);
-  const onDragStart = (event: DragStartEvent) => {
-    const target = event.activatorEvent.target;
-    lifted.current = target instanceof Element ? target.closest<HTMLElement>("[data-card]") : null;
-    setCardDragging(true);
-  };
-  const onDragCancel = () => release();
-  const onDragEnd = (event: DragEndEvent) => {
-    release();
-    const next = dropOrder(usePanel.getState().order, itemsNow.current, event);
+  const texts = useMemo(cardTexts, []);
+  const onDrop = (active: DragData, target: DragData) => {
+    const next = dropOrder(usePanel.getState().order, itemsNow.current, active.id, target.id);
     if (next) setCardOrder(next);
   };
   return (
     <PanelControlContext.Provider value={control}>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={modifiers}
-        accessibility={accessibility}
-        onDragStart={onDragStart}
-        onDragCancel={onDragCancel}
-        onDragEnd={onDragEnd}
-      >
-        <SortableContext items={items} strategy={verticalListSortingStrategy}>
+      <DragArea accepts={sameColumn} onDrop={onDrop} texts={texts}>
+        <DragList id="cards" items={items}>
           {/* 键带公司：换到另一家时各卡重新挂上，新增 / 编辑框等不跟到另一家（同一家换对话时照常保留） */}
           {order.map((id) => (
             <Fragment key={`${scope}:${id}`}>{cards[id] ?? null}</Fragment>
           ))}
-        </SortableContext>
-      </DndContext>
+        </DragList>
+      </DragArea>
     </PanelControlContext.Provider>
   );
 };
@@ -240,9 +144,9 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
   useEffect(() => {
     if (mode === "docked") return;
     const onKey = (e: KeyboardEvent) => {
-      // 输入法选字时的 Esc 只是取消候选词；拖着卡片时的 Esc 只是取消拖动
+      // 输入法选字时的 Esc 只是取消候选词；拖动中的 Esc 只是取消拖动（鼠标、键盘拖都一样）
       if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
-      if (isCardDragging()) return;
+      if (isDragEscape(e)) return;
       onClose();
     };
     document.addEventListener("keydown", onKey);
@@ -288,7 +192,7 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
       aria-label={detail?.company.title || co.company}
     >
       {mode !== "docked" && (
-        <div className="cc-panel-top">
+        <div className="cc-panel-top" data-marquee-host="">
           <Marquee className="min-w-0 flex-1 truncate">{detail?.company.title ?? ""}</Marquee>
           <button type="button" className="cc-icon-btn" aria-label={t("close")} title={t("close")} onClick={onClose}>
             <XIcon />
