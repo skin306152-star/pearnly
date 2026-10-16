@@ -27,6 +27,8 @@ An admin account must be set up in Pearnly before updating.,请先在 Pearnly �
 Any other payment channel?,是否还有其他付款方式？
 Apply,执行
 Approve,批准
+As confirmed,确认时的值
+As in DMS,DMS 中的值
 Attached,已附上
 Awaiting manager,待销售经理审批
 Back to chat,返回聊天
@@ -51,6 +53,7 @@ Booking location — choose below,订车地点 — 请在下方选择
 Booking no.: {booking_no},订车单号：{booking_no}
 Booking number: {booking_no},订车单号：{booking_no}
 Booking summary — check before confirming,订车单汇总 — 确认前请核对
+Booking updated in DMS,已更新 DMS 中的订车单
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
 Brand,品牌
@@ -94,6 +97,7 @@ Continue booking,继续订车
 Contract not opened,未签合同
 Contract opened,已签合同
 Contract status,合同状态
+Correct the booking,修改订车单
 Could not check the customer data. Please try again.,核对客户资料失败，请重试。
 Could not read data from DMS. Please try again.,从 DMS 读取资料失败，请重试。
 Could not send the photo. Please try again.,照片发送失败，请重试。
@@ -180,6 +184,7 @@ ID number,身份证号
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","金额不正确，请输入数字，例如 5000 或 5,000.50"
 Invalid format. Please fill in both fields {hint},格式不正确，两栏均须填写 {hint}
 Keep existing data,使用原资料
+Kept the data in DMS.,已沿用 DMS 中的资料。
 Last Check,最近检查
 Last Checked At,最近检查时间
 Last Error,上次错误
@@ -314,6 +319,7 @@ Customer ID: {customer_code}
 Name: {name}","保存成功 · {action}
 客户编号：{customer_code}
 姓名：{name}"
+Saved. The result will be sent to LINE.,已保存，结果会发到 LINE。
 Scan ID card,扫描身份证
 Search data,查询资料
 Select at least one data group.,请至少选择一组资料。
@@ -362,7 +368,9 @@ The booking cannot be opened yet · The DMS account in use is «{username}»,暂
 The booking cannot be opened yet · The DMS account of this user cannot be read,暂时无法建立订车单 · 无法读取该用户的 DMS 账号
 The booking could not be created,订车单建立失败
 The booking could not be created. Please try again.,订车单建立失败，请重试。
+The booking could not be updated in DMS. Please correct it in DMS.,DMS 中的订车单未能更新，请在 DMS 中修改。
 The card could not be read clearly. Please take the photo again.,身份证看不清，请重新拍照。
+"The change was sent, but its result could not be confirmed. Please check it in DMS.",修改已提交，但结果尚未确认，请在 DMS 中核实。
 The check could not start. Please try again.,无法开始检查，请重试。
 The check failed. Please try again.,检查失败，请重试。
 The check stopped before it finished. Please try again.,检查未完成，请重试。
@@ -387,6 +395,8 @@ This account cannot search data in LINE yet. Ask the owner to enable it on the O
 This account is already in use by the connection or another system account,这个账号已被连接或其他系统账号使用
 This account is already the connection's own account,这个账号已经是连接自己的账号
 This account is already used by an operator or another system account,该账号已被操作员或其他系统账号使用
+This booking can no longer be changed here. Please correct it in DMS.,这张订车单已不能在此修改，请在 DMS 中修改。
+This card has expired. Use the latest card in LINE.,此卡片已失效，请使用 LINE 中最新的卡片。
 This customer already exists and the data matches,该客户已存在，资料一致
 This item has expired. Please start again.,此项已过期，请重新开始。
 This item has expired. Type menu to search again,此项已过期，请输入「菜单」重新查询
@@ -565,9 +575,14 @@ dms.card.TXT_RESET,已重新开始，拍摄身份证即可登记客户。
 dms.card.TXT_RETAKE,请重新拍摄身份证
 dms.card.TXT_REVIEW_BOOKING_NO,订车单号：{booking_no}
 dms.card.TXT_REVIEW_DIFF_HEAD,订车单已建立，但 DMS 中部分资料与确认时不一致
+dms.card.TXT_REVIEW_FAILED,DMS 中的订车单未能更新，请在 DMS 中修改。
 dms.card.TXT_REVIEW_FIX,请在 DMS 中修改。
+dms.card.TXT_REVIEW_KEPT,已沿用 DMS 中的资料。
+dms.card.TXT_REVIEW_LOCKED,这张订车单已不能在此修改，请在 DMS 中修改。
 dms.card.TXT_REVIEW_MISSING,{text}（{fields}）
 dms.card.TXT_REVIEW_OK,DMS 核对结果：一致
+dms.card.TXT_REVIEW_UNVERIFIED,修改已提交，但结果尚未确认，请在 DMS 中核实。
+dms.card.TXT_REVIEW_UPDATED,已更新 DMS 中的订车单
 dms.card.TXT_SAME,该客户已存在，资料一致
 dms.card.TXT_SAME_ALT,客户资料一致
 dms.card.TXT_SAVE_FAIL,保存失败，请重试。
@@ -923,6 +938,11 @@ dms.edit.province,府
 dms.edit.regis,登记名义
 dms.edit.regisName,登记人姓名
 dms.edit.remove,删除
+dms.edit.reviewConfirmed,确认时的值
+dms.edit.reviewExpired,此卡片已失效，请使用 LINE 中最新的卡片。
+dms.edit.reviewInDms,DMS 中的值
+dms.edit.reviewSaved,已保存，结果会发到 LINE。
+dms.edit.reviewTitle,修改订车单
 dms.edit.road,道路
 dms.edit.room,房间
 dms.edit.save,保存

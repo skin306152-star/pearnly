@@ -271,9 +271,15 @@ class Harness(unittest.TestCase):
                    TXT_SYSTEM_ERROR="TXT_SYSTEM_ERROR", TXT_BOOKING_CANCELLED="TXT_BOOKING_CANCELLED",
                    field_labels=lambda: {},
                    booking_receipt_text=lambda number, car, date, advisor: "receipt " + number,
-                   booking_receipt_message=lambda number, car, date, advisor, review=None, attach_ok=True: {
+                   booking_receipt_message=lambda number, car, date, advisor, review=None, attach_ok=True,
+                   record="", nonce="": {
                        "type": "text", "text": "receipt " + number + (
-                           "" if review is None else " review=%d" % len(review["diffs"]))})
+                           "" if review is None else " review=%d" % len(review["diffs"])) + (
+                           " card=" + nonce if nonce else "")})
+        # The difference card's buttons register their own card (``review_fix``); here only that it happens.
+        self.review_cards = []
+        self._stub("pearnly_dms.booking.conversation.review_fix", open_card=lambda record, uid, number, bid, diffs: (
+            self.review_cards.append((uid, number, bid, [d["item"] for d in diffs])), "c%d" % len(self.review_cards))[1])
         self._stub("pearnly_dms.line.out", push_text=lambda uid, text: self.texts.append((uid, text)) or True,
                    reply_text=lambda token, text: self.replies.append((token, text)), enqueue=lambda *a: None,
                    start_loading=lambda uid: None,
@@ -645,7 +651,8 @@ class ReceiptReview(Harness):
 
     def test_differences_reach_the_receipt_and_the_ledger_keeps_no_values(self):
         body = self.reviewed([{"item": "sum.phone", "sent": "0810000001", "dms": "0810000002"}])
-        self.assertEqual([text for _, text, _ in self.pushes], ["receipt BK-1 review=1"])
+        self.assertEqual([text for _, text, _ in self.pushes], ["receipt BK-1 review=1 card=c1"])
+        self.assertEqual(self.review_cards, [(UID, "BK-1", "R-BK-1", ["sum.phone"])])
         self.assertEqual(body["review_diff_items"], ["sum.phone"])
         self.assertNotIn("0810000002", json.dumps(body))
         record, = self.records()
@@ -654,6 +661,7 @@ class ReceiptReview(Harness):
     def test_all_matched_is_recorded_as_no_differences(self):
         body = self.reviewed([])
         self.assertEqual([text for _, text, _ in self.pushes], ["receipt BK-1 review=0"])
+        self.assertEqual(self.review_cards, [])
         self.assertEqual(body["review_diff_items"], [])
 
 

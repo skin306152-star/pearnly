@@ -249,6 +249,39 @@ def browser_page_deliver(ticket: str, code: str = "") -> dict:
     return {"delivered": True}
 
 
+# ── 开单回执差异卡的修改页 ───────────────────────────────────────────────
+def _review_user(ticket: str) -> str:
+    who = _ticket_line_user(ticket)
+    if who["mode"] != "review":
+        _fail("dms_booking.line_auth_required", 403)
+    return who["line_user_id"]
+
+
+@frappe.whitelist(allow_guest=True)
+def browser_review(ticket: str, draft: str) -> dict:
+    """修改页首屏：有差异的各项（确认时 / DMS 现值）与可手改的文字栏（`review_fix.page_load`）。"""
+    from pearnly_dms.booking.conversation import review_fix
+
+    line_user_id = _review_user(ticket)
+    try:
+        return review_fix.page_load(line_user_id, draft)
+    except PermissionError:
+        _fail("dms_booking.expired", 409)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def browser_review_save(ticket: str, draft: str, choices: Any = None) -> dict:
+    """修改页保存 → 排队改同一张单；结果由后台任务发回 LINE。"""
+    from pearnly_dms.booking.conversation import review_fix
+
+    line_user_id = _review_user(ticket)
+    try:
+        review_fix.page_save(line_user_id, draft, _as_dict(choices))
+    except PermissionError:
+        _fail("dms_booking.expired", 409)
+    return {"queued": True}
+
+
 # ── 扫身份证 ─────────────────────────────────────────────────────────────
 def _scan_user(ticket: str) -> str:
     who = _ticket_line_user(ticket)
@@ -322,6 +355,8 @@ __all__ = [
     "browser_geo",
     "browser_page_deliver",
     "browser_paints",
+    "browser_review",
+    "browser_review_save",
     "browser_save",
     "browser_text",
 ]

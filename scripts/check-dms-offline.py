@@ -36,6 +36,7 @@ UNIT_TESTS = (
     "tests/test_dms_booking_customer_gapfill.py",
     "tests/test_dms_booking_outcome.py",
     "tests/test_dms_booking_review.py",
+    "tests/test_dms_booking_review_fix.py",
     "tests/test_dms_booking_attach_repair.py",
     "tests/test_dms_login_retry.py",
     "tests/test_dms_input_checks.py",

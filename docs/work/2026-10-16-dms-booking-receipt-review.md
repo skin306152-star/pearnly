@@ -1,6 +1,6 @@
 # DMS 开单回执逐项复核 + 连点确认不再回「已过期」
 
-- 状态：实现与本地检查完成，待测试机用户试用
+- 状态：复核卡、连点修复、差异卡三个按钮实现完成，本地闸门通过，待测试机用户试用
 - 分支 / 工作树：`pearnly/dms-booking-readback-card` / `.claude/worktrees/dms-booking-readback-card`
 - 基线：`origin/main` `7c9bb445`（2026-10-16 开工时）
 - 集成目标：`main`；用户试用通过后再合入、部署（部署按批次另行记录）
@@ -68,3 +68,24 @@
   只有账号有 `e` 且 `data-cf` 为空才出「แก้ไข」按钮；`stcbc=2`（ใบจอง）打开修改页时所有文字栏只读。Pearnly 开出的单是 `stcbc=1`（แบบร่าง）。
 - ris 只读核对（测试销售账号 00000）：自己刚开的草稿 BKRY26001261 权限 `pvecgu`（可改），其余已转 ใบจอง / 已取消的单只有 `vu` / `pvu`（不可改）。
   测试公司销售 sale02 对自己的草稿单同样是 `pvecgu`、`data-cf` 为空。
+
+## 差异卡三个按钮：实现（2026-10-16 晚）
+
+用户 2026-10-16："按这个方案开工做三个按钮，和复核卡、连点修复一起上测试环境给我试。"
+
+| 按钮 | 做法 |
+|---|---|
+| อัปเดตข้อมูล | 后台用开单那个销售的 DMS 账号，把差异项的值改回确认时的值（同一张单），读回逐项核对：全一致回「已更新 + 单号 + 核对结果」，仍有差异发新的差异卡 |
+| ใช้ข้อมูลเดิม | 不写入，回「已沿用 DMS 中的资料」 |
+| แก้ไข | 打开编辑页（沿用 `/dms/editor` 地址，`editor=review`，路由表不加新页面）：每项二选一（确认时 / DMS），选确认时的文字栏可手改；保存后同上改单 |
+
+- 改单写入 `booking/booking_amend.py`：取新鲜 `form.php?status=e`，只换差异项字段，整张提交 `edit.php`；
+  写前检查 `stcbc=1`、列表行 `data-allo` 含 `e`、`data-cf` 为空，不满足回「已不能在此修改」；提交前登记"已发出"，
+  之后超时 / 断连只读回、绝不重发；读回核对单号与附件未丢。
+- 卡片状态 `booking/conversation/review_fix.py`：存不淘汰状态存储（23 小时），不写回执投递记录；
+  一张卡只认领一次（`SET NX`），同卡再点不回话，换过 / 过期的卡回「已过期」；还没发出就失败（连不上等）卡还给销售可再点。
+- 台账：每次真正尝试改单记一行 `operation=booking_amend`（只有项目名、字段名，无值）。
+- 不改开单写入、结果未知、附件补挂；不改客户主档；不开新单。
+- 新文案：`dms.card.TXT_REVIEW_KEPT / UPDATED / LOCKED / FAILED / UNVERIFIED`、`dms.edit.reviewTitle / reviewConfirmed / reviewInDms / reviewSaved / reviewExpired`（四语）。
+- 测试：新增 `tests/test_dms_booking_review_fix.py`（17 项，接入 `check-dms-offline.py`）；`scripts/test-dms-editor-snapshot.cjs` 补 `./ReviewPage.vue` 替身。
+- 本地闸门：development.yml 全部 83 步通过（Python 3.12，本机 macOS）。

@@ -164,3 +164,30 @@ def log_booking(
     except Exception:
         logger.warning("[dms] 订车台账写入失败（不影响业务结果）", exc_info=True)
         return None
+
+
+def log_amend(*, endpoint: Any, booking_no: str, booking_id: str, items: list, fields: list,
+              outcome: str, actor: Optional[str] = None) -> Optional[str]:
+    """改已开订车单（开单回执差异卡）落一行台账：只记项目名与字段名、不记值；写失败不影响业务结果。"""
+    try:
+        import frappe
+
+        doc = frappe.new_doc(LOG)
+        doc.status = "success" if outcome == "updated" else "failed"
+        doc.endpoint = endpoint_name(endpoint) or None
+        doc.trigger = "line"
+        doc.attempt = 1
+        doc.business_key = booking_no
+        doc.http_status = 200 if outcome == "updated" else 0
+        doc.request_body = json.dumps({"operation": "booking_amend", "items": list(items),
+                                       "fields": sorted(fields)}, ensure_ascii=False)
+        doc.response_body = json.dumps({"result": outcome, "booking_id": booking_id}, ensure_ascii=False)
+        doc.error_msg = "" if outcome == "updated" else str(outcome)[:2000]
+        if actor:
+            doc.actor = actor
+        doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+        return doc.name
+    except Exception:
+        logger.warning("[dms] 改单台账写入失败（不影响业务结果）", exc_info=True)
+        return None

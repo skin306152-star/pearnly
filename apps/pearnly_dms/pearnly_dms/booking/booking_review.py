@@ -5,7 +5,7 @@
 
 订车单写进 DMS 之后，按单号把这张单读回来，和确认前那张汇总卡**逐项**对一遍：
 全部一致，回执末尾加一行"ผลการตรวจสอบกับ DMS: ถูกต้อง"；有不一致，回执换成差异卡，
-逐条列出「确认时的值 → DMS 里的值」。
+逐条列出「确认时的值 → DMS 里的值」，并给三个按钮（更新资料 / 使用原资料 / 修改，见 `review_fix`）。
 
 ## 它不做什么
 
@@ -15,7 +15,7 @@
 
 ## 比对口径（避免 2026-09-12 那类假阴性）
 
-- 有编号的项比编号（顾问、地点、车、颜色、付款方式、上牌方式、省县区、邮编、称谓、银行），
+- 有编号的项比编号（顾问、地点、车、颜色、销售条件、上牌方式、省县区、邮编、称谓、银行），
   不比 DMS 回显的名称文字。
 - 金额按 `Decimal`：`1000` 与 `1,000.00` 相同。
 - 身份证号去噪后比；电话、账号只比数字。
@@ -23,14 +23,17 @@
 - 附件不在这里比：附件是建单之后另挂的，结果看 `attach_ok`（见 `delivery`）。
 
 每一项的展示值两边用同一组字段拼，所以差异卡上看到的就是"我们提交的"和"DMS 存下的"。
+差异项同时带上**这一项全部表单字段在提交时的值**（`write`，改单时写回同一张单），
+以及编辑页上可以手改的文字栏（`inputs`：`[字段, 标签键]`；编号类的栏只能二选一）。
 """
 
 from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.contracts.payments import _PAYMENT_MONEY_FIELD, _PAYMENT_TEXT_FIELD
@@ -41,7 +44,9 @@ _TEXT, _ID, _DIGITS, _MONEY, _PEOPLE_ID = "text", "id", "digits", "money", "peop
 
 _ADDRESS_TEXT = ("txthousenum", "txtbuilding", "txtfloor", "txtroom", "txtvillage",
                  "txtmoo", "txtsoi", "txtroad")
-_ADDRESS_SHOWN = (*_ADDRESS_TEXT, "txtsubdistricts", "txtdistricts", "txtprovinces")
+# 地址文字栏 → 编辑页标签（与客户档差异卡同一套 `dms.card.diff.*`）。
+_ADDRESS_LABELS = ("diff.house_no", "diff.building", "diff.floor", "diff.room", "diff.village",
+                   "diff.moo", "diff.soi", "diff.road")
 
 
 def _text(value: object) -> str:
@@ -65,71 +70,116 @@ def _norm(kind: str, value: object):
     return _text(value)
 
 
-def _join(form: dict, fields: Sequence[str], sep: str = " ") -> str:
-    return sep.join(v for v in (_text(form.get(f)) for f in fields) if v)
+def _amount(value: object) -> str:
+    money = _money(value)
+    return f"{money:,.2f}" if money is not None else _text(value)
 
 
-def _amount(form: dict, field: str) -> str:
-    value = _money(form.get(field))
-    return f"{value:,.2f}" if value is not None else _text(form.get(field))
+@dataclass(frozen=True)
+class _Item:
+    """汇总卡上的一项：标签键（`dms.card.<键>`）、比对字段与比法、展示字段、写回时连带的字段、可手改的文字栏。"""
+
+    label: str
+    checks: Tuple[Tuple[str, str], ...]
+    shown: Tuple[str, ...] = ()
+    sep: str = " "
+    money: str = ""  # 有值 = 展示时先放这一栏的金额
+    extra: Tuple[str, ...] = ()  # 不比、不上卡，只随写回（付款户名、支行……）
+    inputs: Tuple[Tuple[str, str], ...] = ()
+
+    def show(self, form: dict) -> str:
+        parts = [_amount(form.get(self.money))] if self.money else []
+        parts += [_text(form.get(f)) for f in self.shown]
+        return self.sep.join(p for p in parts if p)
+
+    def fields(self) -> Tuple[str, ...]:
+        """改单时要写回的字段：比对字段 + 展示镜像 + 连带字段，去重保序。"""
+        out: List[str] = []
+        for name in (*(f for f, _ in self.checks), *self.shown, self.money, *self.extra):
+            if name and name not in out:
+                out.append(name)
+        return tuple(out)
+
+    def matches(self, expected: dict, form: dict) -> bool:
+        return all(_norm(kind, expected.get(f)) == _norm(kind, form.get(f)) for f, kind in self.checks)
 
 
-# 汇总卡上的一项 → (标签键, [(字段, 比法)…], 展示函数)。
-# 标签键就是汇总卡用的那一条（`dms.card.<键>`），差异卡与汇总卡叫法完全一致。
-_Item = Tuple[str, Tuple[Tuple[str, str], ...], Callable[[dict], str]]
 _ITEMS: Tuple[_Item, ...] = (
-    ("sum.people_id", (("txtpeopleid", _PEOPLE_ID),), lambda f: _text(f.get("txtpeopleid"))),
-    ("sum.name", (("prefixval", _ID), ("txtcus", _TEXT)), lambda f: _join(f, ("txtprefix", "txtcus"))),
-    ("sum.birthday_be", (("txtbirthday", _TEXT),), lambda f: _text(f.get("txtbirthday"))),
-    ("sum.address",
-     (*((field, _TEXT) for field in _ADDRESS_TEXT),
-      ("provincesval", _ID), ("districtsval", _ID), ("subdistrictsval", _ID)),
-     lambda f: _join(f, _ADDRESS_SHOWN)),
-    ("qa.LBL_POSTCODE", (("zipcodesval", _ID),), lambda f: _text(f.get("txtzipcodes"))),
-    ("sum.phone", (("txttel", _DIGITS),), lambda f: _text(f.get("txttel"))),
-    ("qa.LBL_ADVISOR", (("usersval", _ID),), lambda f: _text(f.get("txtusers"))),
-    ("qa.LBL_PLACE", (("placebookval", _ID),), lambda f: _text(f.get("txtplacebook"))),
-    ("qa.LBL_CAR", (("carval", _ID), ("carpaintval", _ID)),
-     lambda f: _join(f, ("txtcar", "carpaintname"), " · ")),
-    ("qa.LBL_DELIVERY", (("txtcardeliverydate", _TEXT),), lambda f: _text(f.get("txtcardeliverydate"))),
-    ("qa.LBL_TERM", (("termsaleval", _ID),), lambda f: _text(f.get("txttermsale"))),
-    ("qa.LBL_REGIS", (("regisbehalfval", _ID), ("txtregisname", _TEXT)),
-     lambda f: _join(f, ("txtregisbehalf", "txtregisname"), " · ")),
+    _Item("sum.people_id", (("txtpeopleid", _PEOPLE_ID),), ("txtpeopleid",)),
+    _Item("sum.name", (("prefixval", _ID), ("txtcus", _TEXT)), ("txtprefix", "txtcus"),
+          inputs=(("txtcus", "diff.name"),)),
+    _Item("sum.birthday_be", (("txtbirthday", _TEXT),), ("txtbirthday",),
+          inputs=(("txtbirthday", "diff.birthday_be"),)),
+    _Item("sum.address",
+          (*((f, _TEXT) for f in _ADDRESS_TEXT),
+           ("provincesval", _ID), ("districtsval", _ID), ("subdistrictsval", _ID)),
+          (*_ADDRESS_TEXT, "txtsubdistricts", "txtdistricts", "txtprovinces"),
+          inputs=tuple(zip(_ADDRESS_TEXT, _ADDRESS_LABELS))),
+    _Item("qa.LBL_POSTCODE", (("zipcodesval", _ID),), ("txtzipcodes",)),
+    _Item("sum.phone", (("txttel", _DIGITS),), ("txttel",), inputs=(("txttel", "diff.phone"),)),
+    _Item("qa.LBL_ADVISOR", (("usersval", _ID),), ("txtusers",)),
+    _Item("qa.LBL_PLACE", (("placebookval", _ID),), ("txtplacebook",)),
+    _Item("qa.LBL_CAR", (("carval", _ID), ("carpaintval", _ID)), ("txtcar", "carpaintname"), " · "),
+    _Item("qa.LBL_DELIVERY", (("txtcardeliverydate", _TEXT),), ("txtcardeliverydate",)),
+    _Item("qa.LBL_TERM", (("termsaleval", _ID),), ("txttermsale",)),
+    _Item("qa.LBL_REGIS", (("regisbehalfval", _ID), ("txtregisname", _TEXT)),
+          ("txtregisbehalf", "txtregisname"), " · ", inputs=(("txtregisname", "qa.LBL_REGIS"),)),
 )
+_TOTAL = _Item("qa.LBL_TOTAL", (("txtearnestmoney", _MONEY),), money="txtearnestmoney")
 
 
-def _payment_items(submitted: dict, form: dict) -> List[_Item]:
-    """有金额的付款渠道（任一边非零）各成一项：金额 + 编号类字段 + 账号/票号（只比数字）。"""
-    items: List[_Item] = []
-    for channel, money_field in _PAYMENT_MONEY_FIELD.items():
-        if not any(_money(side.get(money_field)) for side in (submitted, form)):
-            continue
-        text_fields = _PAYMENT_TEXT_FIELD.get(channel, {})
-        checks = [(money_field, _MONEY)]
-        checks += [(field, _ID) for field in text_fields.values() if field.endswith("val")]
-        checks += [(field, _DIGITS) for slot, field in text_fields.items()
-                   if slot.endswith("_no")]
-        bank_name = next((field for slot, field in text_fields.items()
-                          if slot in ("dst_bank_name", "bank_name")), "")
-
-        def shown(f, money_field=money_field, bank_name=bank_name):
-            return " · ".join(v for v in (_amount(f, money_field), _text(f.get(bank_name)) if bank_name else "") if v)
-
-        items.append((f"qa.pay.{channel}", tuple(checks), shown))
-    return items
+def _payment_item(channel: str) -> _Item:
+    """一个付款渠道：金额 + 编号类字段 + 账号/票号（只比数字）；卡上显示金额 · 银行。"""
+    slots = _PAYMENT_TEXT_FIELD.get(channel, {})
+    checks = [(_PAYMENT_MONEY_FIELD[channel], _MONEY)]
+    checks += [(f, _ID) for f in slots.values() if f.endswith("val")]
+    checks += [(f, _DIGITS) for slot, f in slots.items() if slot.endswith("_no")]
+    bank = tuple(f for slot, f in slots.items() if slot in ("dst_bank_name", "bank_name"))
+    return _Item(f"qa.pay.{channel}", tuple(checks), bank, " · ", money=_PAYMENT_MONEY_FIELD[channel],
+                 extra=tuple(slots.values()))
 
 
-def compare(submitted: dict, form: dict) -> List[Dict[str, str]]:
-    """逐项比对。返回不一致的项（按汇总卡顺序）：`{"item": 标签键, "sent": 提交值, "dms": DMS 值}`。"""
+_PAYMENTS = {channel: _payment_item(channel) for channel in _PAYMENT_MONEY_FIELD}
+_BY_LABEL = {item.label: item for item in (*_ITEMS, *_PAYMENTS.values(), _TOTAL)}
+
+
+def _items(submitted: dict, form: dict) -> List[_Item]:
+    """有金额的付款渠道（任一边非零）才成一项。"""
+    paid = [item for item in _PAYMENTS.values()
+            if any(_money(side.get(item.money)) for side in (submitted, form))]
+    return [*_ITEMS, *paid, _TOTAL]
+
+
+def compare(submitted: dict, form: dict) -> List[Dict[str, object]]:
+    """逐项比对，返回不一致的项（按汇总卡顺序）。
+
+    每项：`item` 标签键、`sent` 提交值、`dms` DMS 值（都是展示文字），
+    `write` 这一项全部字段的提交值（改单时写回），`inputs` 编辑页可手改的 `[字段, 标签键]`。
+    """
     submitted, form = submitted or {}, form or {}
-    items = [*_ITEMS, *_payment_items(submitted, form),
-             ("qa.LBL_TOTAL", (("txtearnestmoney", _MONEY),), lambda f: _amount(f, "txtearnestmoney"))]
-    diffs: List[Dict[str, str]] = []
-    for label, checks, shown in items:
-        if all(_norm(kind, submitted.get(field)) == _norm(kind, form.get(field)) for field, kind in checks):
+    diffs: List[Dict[str, object]] = []
+    for item in _items(submitted, form):
+        if item.matches(submitted, form):
             continue
-        diffs.append({"item": label, "sent": shown(submitted), "dms": shown(form)})
+        diffs.append({"item": item.label, "sent": item.show(submitted), "dms": item.show(form),
+                      "write": {f: str(submitted.get(f) or "") for f in item.fields()},
+                      "inputs": [list(pair) for pair in item.inputs]})
     return diffs
+
+
+def unresolved(targets: Sequence[Dict[str, object]], form: dict) -> List[Dict[str, object]]:
+    """改单之后仍与要写的值不一致的项（`targets` 是写回的差异项，`write` 是实际写的值）。
+
+    返回与 `compare` 同形：`sent` 是这次要写的值、`dms` 是 DMS 现在的值。
+    """
+    out: List[Dict[str, object]] = []
+    for target in targets or []:
+        item = _BY_LABEL.get(str(target.get("item") or ""))
+        want = dict(target.get("write") or {})
+        if item is None or item.matches(want, form or {}):
+            continue
+        out.append({**target, "sent": item.show(want), "dms": item.show(form or {})})
+    return out
 
 
 def review(readback_out: Optional[dict]) -> Optional[Dict[str, list]]:
@@ -147,4 +197,4 @@ def review(readback_out: Optional[dict]) -> Optional[Dict[str, list]]:
         return None
 
 
-__all__ = ["compare", "review"]
+__all__ = ["compare", "review", "unresolved"]

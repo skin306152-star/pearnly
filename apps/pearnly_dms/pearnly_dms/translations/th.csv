@@ -27,6 +27,8 @@ An admin account must be set up in Pearnly before updating.,กรุณาต�
 Any other payment channel?,มีช่องทางชำระเงินอื่นอีกหรือไม่
 Apply,ดำเนินการ
 Approve,อนุมัติ
+As confirmed,ตามที่ยืนยัน
+As in DMS,ตามข้อมูลใน DMS
 Attached,แนบแล้ว
 Awaiting manager,รอผู้จัดการฝ่ายขายอนุมัติ
 Back to chat,กลับไปที่แชท
@@ -51,6 +53,7 @@ Booking location — choose below,สถานที่รับจอง — �
 Booking no.: {booking_no},เลขที่รายการ: {booking_no}
 Booking number: {booking_no},เลขที่ใบจอง: {booking_no}
 Booking summary — check before confirming,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
+Booking updated in DMS,อัปเดตใบจองใน DMS แล้ว
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
 Brand,ยี่ห้อ
@@ -94,6 +97,7 @@ Continue booking,ทำใบจองต่อ
 Contract not opened,ยังไม่เปิดสัญญา
 Contract opened,เปิดสัญญาแล้ว
 Contract status,สถานะสัญญา
+Correct the booking,แก้ไขใบจอง
 Could not check the customer data. Please try again.,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
 Could not read data from DMS. Please try again.,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
 Could not send the photo. Please try again.,ส่งรูปไม่สำเร็จ กรุณาลองอีกครั้ง
@@ -180,6 +184,7 @@ ID number,เลขบัตรประชาชน
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","จำนวนเงินไม่ถูกต้อง กรุณาพิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
 Invalid format. Please fill in both fields {hint},รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
 Keep existing data,ใช้ข้อมูลเดิม
+Kept the data in DMS.,ใช้ข้อมูลใน DMS แล้ว
 Last Check,ตรวจสอบล่าสุด
 Last Checked At,เวลาตรวจสอบล่าสุด
 Last Error,ข้อผิดพลาดล่าสุด
@@ -314,6 +319,7 @@ Customer ID: {customer_code}
 Name: {name}","บันทึกสำเร็จ · {action}
 รหัสลูกค้า: {customer_code}
 ชื่อ: {name}"
+Saved. The result will be sent to LINE.,บันทึกแล้ว ระบบจะส่งผลไปที่ LINE
 Scan ID card,สแกนบัตรประชาชน
 Search data,ค้นหาข้อมูล
 Select at least one data group.,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
@@ -362,7 +368,9 @@ The booking cannot be opened yet · The DMS account in use is «{username}»,ย
 The booking cannot be opened yet · The DMS account of this user cannot be read,ยังไม่สามารถเปิดใบจองได้ · ไม่สามารถอ่านบัญชี DMS ของผู้ใช้นี้ได้
 The booking could not be created,สร้างใบจองไม่สำเร็จ
 The booking could not be created. Please try again.,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
+The booking could not be updated in DMS. Please correct it in DMS.,อัปเดตใบจองใน DMS ไม่สำเร็จ กรุณาแก้ไขใน DMS
 The card could not be read clearly. Please take the photo again.,ภาพบัตรประชาชนไม่ชัด กรุณาถ่ายรูปใหม่
+"The change was sent, but its result could not be confirmed. Please check it in DMS.",ส่งการแก้ไขแล้ว แต่ยังยืนยันผลไม่ได้ กรุณาตรวจสอบใน DMS
 The check could not start. Please try again.,ไม่สามารถเริ่มการตรวจสอบได้ กรุณาลองใหม่อีกครั้ง
 The check failed. Please try again.,ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
 The check stopped before it finished. Please try again.,การตรวจสอบไม่เสร็จสมบูรณ์ กรุณาลองใหม่อีกครั้ง
@@ -387,6 +395,8 @@ This account cannot search data in LINE yet. Ask the owner to enable it on the O
 This account is already in use by the connection or another system account,บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว
 This account is already the connection's own account,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
 This account is already used by an operator or another system account,บัญชีนี้ถูกใช้โดยพนักงานหรือบัญชีระบบอื่นแล้ว
+This booking can no longer be changed here. Please correct it in DMS.,ใบจองนี้แก้ไขผ่านระบบไม่ได้แล้ว กรุณาแก้ไขใน DMS
+This card has expired. Use the latest card in LINE.,การ์ดนี้หมดอายุแล้ว กรุณาใช้การ์ดล่าสุดใน LINE
 This customer already exists and the data matches,มีข้อมูลลูกค้ารายนี้อยู่แล้ว และข้อมูลตรงกัน
 This item has expired. Please start again.,รายการนี้หมดอายุแล้ว กรุณาเริ่มใหม่อีกครั้ง
 This item has expired. Type menu to search again,รายการนี้หมดอายุแล้ว กรุณาพิมพ์ เมนู เพื่อค้นหาใหม่
@@ -565,9 +575,14 @@ dms.card.TXT_RESET,เริ่มใหม่แล้ว กรุณาถ่
 dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนอีกครั้ง
 dms.card.TXT_REVIEW_BOOKING_NO,เลขที่ใบจอง: {booking_no}
 dms.card.TXT_REVIEW_DIFF_HEAD,เปิดใบจองสำเร็จ แต่ข้อมูลใน DMS บางรายการไม่ตรงกับที่ยืนยัน
+dms.card.TXT_REVIEW_FAILED,อัปเดตใบจองใน DMS ไม่สำเร็จ กรุณาแก้ไขใน DMS
 dms.card.TXT_REVIEW_FIX,กรุณาแก้ไขใน DMS
+dms.card.TXT_REVIEW_KEPT,ใช้ข้อมูลใน DMS แล้ว
+dms.card.TXT_REVIEW_LOCKED,ใบจองนี้แก้ไขผ่านระบบไม่ได้แล้ว กรุณาแก้ไขใน DMS
 dms.card.TXT_REVIEW_MISSING,{text} ({fields})
 dms.card.TXT_REVIEW_OK,ผลการตรวจสอบกับ DMS: ถูกต้อง
+dms.card.TXT_REVIEW_UNVERIFIED,ส่งการแก้ไขแล้ว แต่ยังยืนยันผลไม่ได้ กรุณาตรวจสอบใน DMS
+dms.card.TXT_REVIEW_UPDATED,อัปเดตใบจองใน DMS แล้ว
 dms.card.TXT_SAME,มีข้อมูลลูกค้ารายนี้อยู่แล้ว และข้อมูลตรงกัน
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
 dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
@@ -923,6 +938,11 @@ dms.edit.province,จังหวัด
 dms.edit.regis,จดทะเบียนในนาม
 dms.edit.regisName,ชื่อผู้จดทะเบียน
 dms.edit.remove,ลบ
+dms.edit.reviewConfirmed,ตามที่ยืนยัน
+dms.edit.reviewExpired,การ์ดนี้หมดอายุแล้ว กรุณาใช้การ์ดล่าสุดใน LINE
+dms.edit.reviewInDms,ตามข้อมูลใน DMS
+dms.edit.reviewSaved,บันทึกแล้ว ระบบจะส่งผลไปที่ LINE
+dms.edit.reviewTitle,แก้ไขใบจอง
 dms.edit.road,ถนน
 dms.edit.room,ห้อง
 dms.edit.save,บันทึก

@@ -27,6 +27,8 @@ An admin account must be set up in Pearnly before updating.,An admin account mus
 Any other payment channel?,Any other payment channel?
 Apply,Apply
 Approve,Approve
+As confirmed,As confirmed
+As in DMS,As in DMS
 Attached,Attached
 Awaiting manager,Awaiting manager
 Back to chat,Back to chat
@@ -51,6 +53,7 @@ Booking location — choose below,Booking location — choose below
 Booking no.: {booking_no},Booking no.: {booking_no}
 Booking number: {booking_no},Booking number: {booking_no}
 Booking summary — check before confirming,Booking summary — check before confirming
+Booking updated in DMS,Booking updated in DMS
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
 Brand,Brand
@@ -94,6 +97,7 @@ Continue booking,Continue booking
 Contract not opened,Contract not opened
 Contract opened,Contract opened
 Contract status,Contract status
+Correct the booking,Correct the booking
 Could not check the customer data. Please try again.,Could not check the customer data. Please try again.
 Could not read data from DMS. Please try again.,Could not read data from DMS. Please try again.
 Could not send the photo. Please try again.,Could not send the photo. Please try again.
@@ -180,6 +184,7 @@ ID number,ID number
 "Invalid amount. Type a number, e.g. 5000 or 5,000.50","Invalid amount. Type a number, e.g. 5000 or 5,000.50"
 Invalid format. Please fill in both fields {hint},Invalid format. Please fill in both fields {hint}
 Keep existing data,Keep existing data
+Kept the data in DMS.,Kept the data in DMS.
 Last Check,Last Check
 Last Checked At,Last Checked At
 Last Error,Last Error
@@ -314,6 +319,7 @@ Customer ID: {customer_code}
 Name: {name}","Saved · {action}
 Customer ID: {customer_code}
 Name: {name}"
+Saved. The result will be sent to LINE.,Saved. The result will be sent to LINE.
 Scan ID card,Scan ID card
 Search data,Search data
 Select at least one data group.,Select at least one data group.
@@ -362,7 +368,9 @@ The booking cannot be opened yet · The DMS account in use is «{username}»,The
 The booking cannot be opened yet · The DMS account of this user cannot be read,The booking cannot be opened yet · The DMS account of this user cannot be read
 The booking could not be created,The booking could not be created
 The booking could not be created. Please try again.,The booking could not be created. Please try again.
+The booking could not be updated in DMS. Please correct it in DMS.,The booking could not be updated in DMS. Please correct it in DMS.
 The card could not be read clearly. Please take the photo again.,The card could not be read clearly. Please take the photo again.
+"The change was sent, but its result could not be confirmed. Please check it in DMS.","The change was sent, but its result could not be confirmed. Please check it in DMS."
 The check could not start. Please try again.,The check could not start. Please try again.
 The check failed. Please try again.,The check failed. Please try again.
 The check stopped before it finished. Please try again.,The check stopped before it finished. Please try again.
@@ -387,6 +395,8 @@ This account cannot search data in LINE yet. Ask the owner to enable it on the O
 This account is already in use by the connection or another system account,This account is already in use by the connection or another system account
 This account is already the connection's own account,This account is already the connection's own account
 This account is already used by an operator or another system account,This account is already used by an operator or another system account
+This booking can no longer be changed here. Please correct it in DMS.,This booking can no longer be changed here. Please correct it in DMS.
+This card has expired. Use the latest card in LINE.,This card has expired. Use the latest card in LINE.
 This customer already exists and the data matches,This customer already exists and the data matches
 This item has expired. Please start again.,This item has expired. Please start again.
 This item has expired. Type menu to search again,This item has expired. Type menu to search again
@@ -565,9 +575,14 @@ dms.card.TXT_RESET,Started over. Take a photo of the ID card to start a customer
 dms.card.TXT_RETAKE,Please take the ID card photo again
 dms.card.TXT_REVIEW_BOOKING_NO,Booking number: {booking_no}
 dms.card.TXT_REVIEW_DIFF_HEAD,"Booking created, but some data in DMS differs from what was confirmed"
+dms.card.TXT_REVIEW_FAILED,The booking could not be updated in DMS. Please correct it in DMS.
 dms.card.TXT_REVIEW_FIX,Please correct it in DMS.
+dms.card.TXT_REVIEW_KEPT,Kept the data in DMS.
+dms.card.TXT_REVIEW_LOCKED,This booking can no longer be changed here. Please correct it in DMS.
 dms.card.TXT_REVIEW_MISSING,{text} ({fields})
 dms.card.TXT_REVIEW_OK,DMS check: Matched
+dms.card.TXT_REVIEW_UNVERIFIED,"The change was sent, but its result could not be confirmed. Please check it in DMS."
+dms.card.TXT_REVIEW_UPDATED,Booking updated in DMS
 dms.card.TXT_SAME,This customer already exists and the data matches
 dms.card.TXT_SAME_ALT,Customer data matches
 dms.card.TXT_SAVE_FAIL,Save failed. Please try again.
@@ -923,6 +938,11 @@ dms.edit.province,Province
 dms.edit.regis,Register in the name of
 dms.edit.regisName,Registered owner name
 dms.edit.remove,Remove
+dms.edit.reviewConfirmed,As confirmed
+dms.edit.reviewExpired,This card has expired. Use the latest card in LINE.
+dms.edit.reviewInDms,As in DMS
+dms.edit.reviewSaved,Saved. The result will be sent to LINE.
+dms.edit.reviewTitle,Correct the booking
 dms.edit.road,Road
 dms.edit.room,Room
 dms.edit.save,Save
