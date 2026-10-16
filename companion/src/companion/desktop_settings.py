@@ -118,6 +118,7 @@ class DesktopSettings:
                  on_download: Callable[[], None] = lambda: None,
                  on_profiles_changed: Callable[[], None] = lambda: None,
                  on_folders_changed: Callable[[], None] = lambda: None,
+                 on_keep_awake: Callable[[bool, bool], None] = lambda enabled, on_battery: None,
                  hotkey: Callable[[], bool] = lambda: False,
                  report_roots: Callable[[str], bool] = lambda profile_id: False,
                  wake_folders: Callable[[], None] = lambda: None,
@@ -136,6 +137,7 @@ class DesktopSettings:
         self._on_download = on_download
         self._on_profiles_changed = on_profiles_changed
         self._on_folders_changed = on_folders_changed
+        self._on_keep_awake = on_keep_awake   # 保持电脑唤醒的两个开关变了：托盘马上拿住 / 放开（keep_awake.py）
         self._hotkey = hotkey
         # 文件夹线程（folder_worker.FolderIntake）的几样：快速同步、唤醒、最近一次的在用根目录与上限（按连接键）
         self._report_roots = report_roots
@@ -189,6 +191,9 @@ class DesktopSettings:
             "express_roots": roots,
             "members": members,
             "autostart": self._autostart(store),
+            # CC 开着时保持电脑唤醒 / 用电池时也保持（keep_awake.py，默认开）；旧版桥没有这两项，设置页据此不显示
+            "keep_awake": bool(store.global_settings.keep_awake),
+            "keep_awake_on_battery": bool(store.global_settings.keep_awake_on_battery),
             "hotkey": bool(self._hotkey()),
             "update": {"state": update_state, "version": update_version},
             "legacy_roots": legacy,
@@ -321,6 +326,18 @@ class DesktopSettings:
         cfg = store.new_runtime_config()
         cfg.update(autostart=bool(enabled))
         store.save_profile(cfg)
+        return {"ok": True}
+
+    def set_keep_awake(self, *, enabled: Optional[bool] = None, on_battery: Optional[bool] = None) -> dict:
+        """「CC 开着时保持电脑唤醒」「用电池时也保持」（keep_awake.py）：存进全局设置，托盘马上按新设置拿住 / 放开。"""
+        store = self._store()
+        cfg = store.new_runtime_config()
+        if enabled is not None:
+            cfg.update(keep_awake=bool(enabled))
+        if on_battery is not None:
+            cfg.update(keep_awake_on_battery=bool(on_battery))
+        store.save_profile(cfg)
+        self._on_keep_awake(bool(cfg.keep_awake), bool(cfg.keep_awake_on_battery))
         return {"ok": True}
 
     def change_roots(self, picked: str, lang: str) -> dict:

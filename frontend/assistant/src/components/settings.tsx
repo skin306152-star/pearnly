@@ -11,7 +11,8 @@
 // 单据文件夹改在公司主档页按公司选（ADR-020，只在 CC 桌面版里经原生选择框）：桌面版声明了 company_folders 时这里不再有
 // 「网页可读取的文件夹」，只在还有以前授权、现在没人用的文件夹（state().legacy_roots）时多一行「以前授权的文件夹」可移除；
 // 1.6.0 以前的桌面版没有 company_folders，保留原来的文件夹块过渡。
-//     系统    — 开机自动启动、快捷提问、版本与更新、日志
+//     系统    — 开机自动启动、CC 开着时保持电脑唤醒 / 用电池时也保持（同 Claude，companion keep_awake.py；旧版桌面端没有这两项就不显示）、
+//               快捷提问、版本与更新、日志
 //
 // 桌面端托盘「连接与设置」直接打开「连接」一栏（window.tomo.settings）。
 
@@ -822,6 +823,7 @@ function System({ api }: { api: Desktop }) {
       <Row label={st.autostart}>
         <Switch checked={state.autostart} label={st.autostart} onChange={(on) => void run("autostart", "autostart", { enabled: on })} />
       </Row>
+      <KeepAwakeRows state={state} onChange={(method, on) => void run(method, method, { enabled: on })} />
       <Row label={st.quickAsk}>
         {state.hotkey ? (
           <Shortcut keys="Ctrl + Alt + Space" kbd />
@@ -841,6 +843,32 @@ function System({ api }: { api: Desktop }) {
         </Button>
       </Row>
       {error && <p className="mt-3 text-danger text-sm">{error}</p>}
+    </>
+  );
+}
+
+/** 「CC 开着时保持电脑唤醒」「用电池时也保持」（同 Claude 桌面版，用户 10-16；companion keep_awake.py，默认都开）。只在「此电脑 → 系统」
+ *  （有桥才有），旧版桌面端的状态里没有这两项就不显示。 */
+export function KeepAwakeRows({
+  state,
+  onChange,
+}: {
+  state: Pick<DesktopState, "keep_awake" | "keep_awake_on_battery">;
+  onChange: (method: "keep_awake" | "keep_awake_on_battery", on: boolean) => void;
+}) {
+  if (state.keep_awake === undefined) return null;
+  return (
+    <>
+      <Row label={st.keepAwake}>
+        <Switch checked={state.keep_awake} label={st.keepAwake} onChange={(on) => onChange("keep_awake", on)} />
+      </Row>
+      <Row label={st.keepAwakeOnBattery}>
+        <Switch
+          checked={state.keep_awake_on_battery ?? true}
+          label={st.keepAwakeOnBattery}
+          onChange={(on) => onChange("keep_awake_on_battery", on)}
+        />
+      </Row>
     </>
   );
 }

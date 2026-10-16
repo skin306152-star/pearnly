@@ -234,6 +234,11 @@ class TrayApp(QObject):
             str(getattr(cfg, "profile_id", "") or ""), status)
         device_link.device_key()
         self.worker = self._spawn_worker()
+        # CC 开着时保持电脑唤醒（keep_awake.py，同 Claude 桌面版，用户 10-16）：有成员连着就不让系统空闲睡眠；不锁屏
+        from .keep_awake import KeepAwake
+
+        self._keep_awake = KeepAwake()
+        self._apply_keep_awake()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
         self.folder_notices.connect(self._on_folder_notices)
@@ -740,6 +745,7 @@ class TrayApp(QObject):
             states=lambda: dict(self._profile_states), update_status=self.update_status, on_update=self._update_now,
             on_download=self._open_download,
             on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
+            on_keep_awake=self._set_keep_awake,
             hotkey=lambda: bool(getattr(self._hotkey, "registered", False)),
             # 公司的文件夹（pick_folder）：新加了根目录马上快速同步一次、唤醒文件夹线程；设置页的旧授权清理行看最近一次
             # 服务端回的在用根目录；上限按服务端回的 max_roots（没收到过按 20）
@@ -789,6 +795,7 @@ class TrayApp(QObject):
         self._profile_states.clear()
         self._last_keys.clear()
         self._retranslate()
+        self._apply_keep_awake()   # 成员都断开 / 都暂停了马上放开，新连上马上拿住
         self._restart_worker()
         if getattr(self, "_folders", None) is not None:
             self._folders.start()
@@ -811,6 +818,24 @@ class TrayApp(QObject):
         bridge = getattr(self, "_bridge", None)
         if bridge is not None:
             bridge.changed.emit()
+
+    def _apply_keep_awake(self) -> None:
+        """（界面线程）按开关与成员拿住 / 放开：至少一个成员连着（配对有效：没暂停、密钥没被说不能再用）才保持。"""
+        keeper = getattr(self, "_keep_awake", None)
+        if keeper is None or self._quitting:
+            return
+        try:
+            keeper.apply(enabled=bool(getattr(self.cfg, "keep_awake", True)),
+                         on_battery=bool(getattr(self.cfg, "keep_awake_on_battery", True)),
+                         members=any(member_active(cfg) for cfg in self.configs))
+        except Exception:
+            log.exception("保持电脑唤醒失败（忽略）")
+
+    def _set_keep_awake(self, enabled: bool, on_battery: bool) -> None:
+        """（界面线程）设置里改了两个开关：各线程手上的配置一起改（它们写回配置时不把旧值盖回去），再拿住 / 放开。"""
+        for cfg in {id(c): c for c in [*self.configs, self.cfg]}.values():
+            cfg.update(keep_awake=bool(enabled), keep_awake_on_battery=bool(on_battery))
+        self._apply_keep_awake()
 
     def _start_folders(self) -> None:
         """设置里添加 / 移除了文件夹、公司选了文件夹：文件夹线程没在跑就起来，在跑就让下一轮马上开始。"""
@@ -875,6 +900,8 @@ class TrayApp(QObject):
         self._restart_pending = False
         activity("log_quit", lang=self.lang)
         self._watchdog.stop()
+        if getattr(self, "_keep_awake", None) is not None:
+            self._keep_awake.stop()   # 退出 CC 马上放开，系统按原电源设置睡眠
         if getattr(self, "_hotkey", None) is not None:
             self._hotkey.release()
         if getattr(self, "_bridge", None) is not None:

@@ -283,9 +283,9 @@ def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiti
     release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
     assert release.index("queue.ack_failure(") < release.index("self._ask_busy(lang)")
     assert 'outcome="waiting_lock"' in release
-    # 不再防睡眠、不再开机锁屏（电脑睡了就是离线，活等它醒）；关窗口进托盘照旧
+    # 不再开机锁屏；防睡眠改成「CC 开着时保持电脑唤醒」（keep_awake.py，第 58 条，见 test_keep_awake）；关窗口进托盘照旧
     tray = (root / "gui_tray.py").read_text(encoding="utf-8")
-    assert "KeepAwake" not in tray and "lock_screen" not in tray
+    assert "lock_screen" not in tray and "LockWorkStation" not in tray
     assert "setQuitOnLastWindowClosed(False)" in tray
     assert not (root / "always_on.py").exists()
 

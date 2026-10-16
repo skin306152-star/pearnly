@@ -51,6 +51,9 @@ class GlobalSettings:
     heartbeat_interval_s: int
     autostart: bool
     ui_lang: str
+    # CC 开着时保持电脑唤醒 / 用电池时也保持（keep_awake.py，默认开）
+    keep_awake: bool = True
+    keep_awake_on_battery: bool = True
 
     @classmethod
     def from_config(cls, cfg: CompanionConfig) -> "GlobalSettings":
@@ -63,6 +66,12 @@ class GlobalSettings:
         for field in fields(cls):
             if field.name in raw:
                 values[field.name] = raw[field.name]
+        # 1.4.2–1.6 的「常驻模式」（always_on）里防睡眠那一半就是现在的 keep_awake：开着的照旧开着（新默认本来也是开）；
+        # 旧键不在白名单里，下次写回时丢掉（ADR-021 第 58 条）
+        if "keep_awake" not in raw and raw.get("always_on") is True:
+            values["keep_awake"] = True
+        for name in ("keep_awake", "keep_awake_on_battery"):
+            values[name] = bool(values[name])
         return cls(**values)
 
 

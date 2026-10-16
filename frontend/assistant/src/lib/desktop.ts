@@ -160,6 +160,8 @@ export type DesktopState = {
   express_roots: string[];
   members: DesktopMember[];
   autostart: boolean;
+  keep_awake?: boolean; // CC 开着时保持电脑唤醒（companion keep_awake.py，1.7.0）；旧版桌面端没有这一项
+  keep_awake_on_battery?: boolean; // 用电池时也保持
   hotkey: boolean;
   update: { state: string; version: string };
   features?: string[]; // "company_folders"：文件夹随公司选（pick_folder）；1.6.0 以前的桌面端没有；"devices"：多台电脑（1.7.0）

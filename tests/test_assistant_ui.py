@@ -1240,7 +1240,7 @@ import "cc-update-env";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
-import { blockedLine, ComputerSection, VersionRow } from "@/components/settings";
+import { blockedLine, ComputerSection, KeepAwakeRows, VersionRow } from "@/components/settings";
 
 const g = globalThis as any;
 const html = (type: any, props: any = null) => renderToStaticMarkup(createElement(type, props));
@@ -4458,14 +4458,59 @@ assert.equal(focused, 2);           // 新对话换上来后再聚焦一次
 """)
 
 class NoAlwaysOnTests(unittest.TestCase):
-    """用户 10-16（ADR-021 第 56 条）：「常驻模式」从界面拿掉——CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），设置里
-    只留「开机时自动启动 CC」；电脑列表不再写「常驻」。旧桌面端的状态里还带 always_on 也不显示。"""
+    """用户 10-16（ADR-021 第 56、58 条）：「常驻模式」从界面拿掉——替别人接活、开机锁屏都没有了，电脑列表不再写「常驻」；
+    旧桌面端的状态里还带 always_on 也不显示。防睡眠照 Claude 改成「CC 开着时保持电脑唤醒」「用电池时也保持」（KeepAwakeTests）。"""
 
     def test_the_word_and_the_switch_are_gone(self):
         source = "\n".join(path.read_text(encoding="utf-8") for path in (FRONTEND / "src").rglob("*.ts*"))
         self.assertNotIn("alwaysOn", source)
         self.assertNotIn("always_on", source)
-        self.assertIn('autostart: "开机时自动启动 CC"', (FRONTEND / "src/i18n.ts").read_text(encoding="utf-8"))
+        i18n = (FRONTEND / "src/i18n.ts").read_text(encoding="utf-8")
+        self.assertIn('autostart: "开机时自动启动 CC"', i18n)
+        self.assertNotIn("常驻", i18n)
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class KeepAwakeTests(unittest.TestCase):
+    """「此电脑 → 系统」里的两个开关（同 Claude 桌面版「Keep computer awake」「Keep awake on battery power」，companion
+    keep_awake.py）：只在 CC 桌面版里（有桥才有「此电脑」），旧版桌面端的状态没有 keep_awake 就不显示；只有开关和标签。"""
+
+    STUBS = UpdateBlockedBehaviourTests.STUBS
+
+    def run_page(self, checks, lang):
+        run_ts(UPDATE_PAGE + checks + "\ng.done();\n", stubs=self.STUBS, lang=lang)
+
+    def test_two_switches_only_when_the_desktop_reports_them(self):
+        self.run_page(r"""
+const changed: string[] = [];
+const props = (state: any) => ({ state, onChange: (method: string, on: boolean) => changed.push(`${method}:${on}`) });
+const shown = html(KeepAwakeRows, props({ keep_awake: true, keep_awake_on_battery: false }));
+assert.deepEqual(text(shown), ["CC 开着时保持电脑唤醒", "用电池时也保持"]);
+assert.deepEqual([...shown.matchAll(/role="switch" aria-checked="(\w+)"/g)].map((m) => m[1]), ["true", "false"]);
+// 点开关：桥方法 keep_awake / keep_awake_on_battery
+const element: any = KeepAwakeRows(props({ keep_awake: true, keep_awake_on_battery: false }));
+const switches = element.props.children.map((row: any) => row.props.children);
+switches[0].props.onChange(false);
+switches[1].props.onChange(true);
+assert.deepEqual(changed, ["keep_awake:false", "keep_awake_on_battery:true"]);
+assert.equal(html(KeepAwakeRows, props({})), "");   // 旧版桌面端（没有这一项）：不显示
+""", lang="zh")
+        self.run_page(r"""
+assert.deepEqual(text(html(KeepAwakeRows, { state: { keep_awake: false, keep_awake_on_battery: true }, onChange() {} })),
+  ["Keep computer awake while CC is open", "Keep awake on battery power"]);
+""", lang="en")
+
+    def test_only_in_this_computer_system_section(self):
+        source = (FRONTEND / "src/components/settings.tsx").read_text(encoding="utf-8")
+        self.assertEqual(source.count("<KeepAwakeRows "), 1)
+        system = source.split("function System(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("<KeepAwakeRows ", system)
+        self.assertIn('{current === "system" && api && <System api={api} />}', source)   # 有桥才有「此电脑 → 系统」
+        i18n = (FRONTEND / "src/i18n.ts").read_text(encoding="utf-8")
+        for line in ('keepAwake: "CC 开着时保持电脑唤醒", keepAwakeOnBattery: "用电池时也保持"',
+                     'keepAwake: "Keep computer awake while CC is open", keepAwakeOnBattery: "Keep awake on battery power"',
+                     'keepAwake: "ไม่ให้คอมพิวเตอร์สลีปขณะเปิด CC", keepAwakeOnBattery: "รวมถึงขณะใช้แบตเตอรี่"'):
+            self.assertIn(line, i18n)
 
 
 if __name__ == "__main__":

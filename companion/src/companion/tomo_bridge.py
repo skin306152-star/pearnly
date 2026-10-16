@@ -144,6 +144,10 @@ class TomoBridge(QObject):
             return self._changed(s.set_folders(member, [p for p in self._folders(member) if p != path], lang))
         if method == "autostart":
             return self._changed(s.set_autostart(bool(args.get("enabled"))))
+        if method == "keep_awake":
+            return self._changed(s.set_keep_awake(enabled=bool(args.get("enabled"))))
+        if method == "keep_awake_on_battery":
+            return self._changed(s.set_keep_awake(on_battery=bool(args.get("enabled"))))
         if method == "update":
             return self._changed(s.update())
         if method == "download_update":

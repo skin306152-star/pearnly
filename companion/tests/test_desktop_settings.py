@@ -286,23 +286,64 @@ def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path,
     assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}
 
 
-def test_an_old_always_on_setting_is_ignored_and_dropped_on_the_next_save(tmp_path, monkeypatch):
-    # ADR-021 第 56 条（用户 10-16）：没有「常驻模式」了。CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），不防睡眠、
-    # 不锁屏；1.4.2–1.7.0 开发版写进 companion.json 的 always_on 读时忽略，下次写回时丢掉
+def test_an_old_always_on_setting_becomes_keep_awake_and_is_dropped_on_the_next_save(tmp_path, monkeypatch):
+    # ADR-021 第 56、58 条（用户 10-16）：「常驻模式」拆开——替别人接活删掉、开机锁屏删掉；防睡眠照 Claude 改成「CC 开着时
+    # 保持电脑唤醒」「用电池时也保持」，默认都开。1.4.2–1.6 写进 companion.json 的 always_on=True 迁成 keep_awake=True，
+    # 下次写回时旧键丢掉
     import json
 
     store = _store(tmp_path, monkeypatch)
     raw = json.loads(store.path.read_text(encoding="utf-8"))
     raw["global"]["always_on"] = True
+    raw["global"].pop("keep_awake", None)
+    raw["global"].pop("keep_awake_on_battery", None)
     store.path.write_text(json.dumps(raw), encoding="utf-8")
     loaded = ProfileStore.load(store.path, protector=_Protector())
     assert not hasattr(loaded.global_settings, "always_on")
-    assert all(not hasattr(cfg, "always_on") for cfg in loaded.runtime_configs(include_paused=True))
+    assert loaded.global_settings.keep_awake is True and loaded.global_settings.keep_awake_on_battery is True
+    assert all(not hasattr(cfg, "always_on") and cfg.keep_awake for cfg in loaded.runtime_configs(include_paused=True))
     monkeypatch.setattr(desktop_settings.autostart, "enable", lambda: None)
     monkeypatch.setattr(desktop_settings.autostart, "is_enabled", lambda: True)
     settings = _settings(loaded)
-    assert "always_on" not in settings.snapshot()
-    assert not hasattr(settings, "set_always_on")
-    assert settings.snapshot()["autostart"] is True   # 开机自启照旧是默认
+    snap = settings.snapshot()
+    assert "always_on" not in snap and not hasattr(settings, "set_always_on")
+    assert snap["keep_awake"] is True and snap["keep_awake_on_battery"] is True
+    assert snap["autostart"] is True   # 开机自启照旧是默认
     assert settings.set_autostart(True) == {"ok": True}
-    assert "always_on" not in json.loads(store.path.read_text(encoding="utf-8"))["global"]
+    saved = json.loads(store.path.read_text(encoding="utf-8"))["global"]
+    assert "always_on" not in saved and saved["keep_awake"] is True and saved["keep_awake_on_battery"] is True
+
+
+def test_keep_awake_defaults_on_and_an_explicit_off_is_not_overridden_by_always_on(tmp_path, monkeypatch):
+    import json
+
+    store = _store(tmp_path, monkeypatch)
+    assert store.global_settings.keep_awake is True and store.global_settings.keep_awake_on_battery is True
+    raw = json.loads(store.path.read_text(encoding="utf-8"))
+    raw["global"].update(always_on=False)
+    raw["global"].pop("keep_awake", None)
+    store.path.write_text(json.dumps(raw), encoding="utf-8")
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.keep_awake is True   # 新默认：开
+    raw["global"].update(always_on=True, keep_awake=False)
+    store.path.write_text(json.dumps(raw), encoding="utf-8")
+    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.keep_awake is False  # 新键说了算
+
+
+def test_the_two_keep_awake_switches_save_and_tell_the_tray(tmp_path, monkeypatch):
+    store = _store(tmp_path, monkeypatch)
+    told = []
+    settings = _settings(store, on_keep_awake=lambda enabled, on_battery: told.append((enabled, on_battery)))
+
+    assert settings.set_keep_awake(on_battery=False) == {"ok": True}
+    assert told[-1] == (True, False)
+    assert settings.set_keep_awake(enabled=False) == {"ok": True}
+    assert told[-1] == (False, False)
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    assert (reloaded.global_settings.keep_awake, reloaded.global_settings.keep_awake_on_battery) == (False, False)
+    assert all(not cfg.keep_awake for cfg in reloaded.runtime_configs(include_paused=True))
+    assert reloaded.profiles == store.profiles   # 成员不动
+    snap = settings.snapshot()
+    assert (snap["keep_awake"], snap["keep_awake_on_battery"]) == (False, False)
+    settings.set_keep_awake(enabled=True)
+    settings.set_keep_awake(on_battery=True)
+    assert told[-2:] == [(True, False), (True, True)]
