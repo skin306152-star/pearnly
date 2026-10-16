@@ -2,8 +2,8 @@
 
 任务存下时记了公司主档（`company`）与分店（`company_branch`，可空；见 `rules.save`），这里按单据日期在这家公司、这条连接
 上取覆盖那天的账套（有分店按分店筛）：
-- 正好一份、池里有电脑够得到（写账分派同一判据 `push.native.service.has_writer`）→ 推往它；
-- 一份都没有（含票上没有日期）、多于一份（如 Express 测试数据 T8 / T9 都是 2025 年）、或这份账套没有电脑够得到 →
+- 正好一份、读这个文件夹的那台电脑够得到（写账分派同一判据 `push.native.service.has_writer`，ADR-021 第 51 条）→ 推往它；
+- 一份都没有（含票上没有日期）、多于一份（如 Express 测试数据 T8 / T9 都是 2025 年）、或那台电脑够不到这份账套 →
   停下等人，不猜；原因码见下，三种语言在本 App 术语表。
 任务没记公司（旧任务对不上公司、不是 Express）或主档已删 → 不跟随，照旧推往任务的固定账套 `account_set_key`。
 
@@ -68,7 +68,10 @@ def choose(rule, history):
     if len(found) > 1:
         return {"stop": AMBIGUOUS}
     book = found[0]
-    if book.get("writable") is False or not ledger.has_writer(rule.connection, book["key"]):
+    # 够不够得到按这条任务读文件夹的那台电脑判（只有它写，ADR-021 第 51 条；旧任务没记电脑时按负责人自己的电脑）
+    if book.get("writable") is False or not ledger.has_writer(
+            rule.connection, book["key"], actor=frappe.session.user,
+            route_device=getattr(rule, "reader_device", None) or ""):
         return {"stop": UNREACHABLE, "key": book["key"], "label": book.get("label") or book["key"]}
     return {"key": book["key"], "label": book.get("label") or book["key"]}
 

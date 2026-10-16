@@ -270,11 +270,8 @@ class Base(unittest.TestCase):
             CoworkExpressAccountSet)
         DB.checks[pool.ACCOUNT_SET] = lambda doc, before: CoworkExpressAccountSet(doc).validate()
         self.doc = connection()
-        self.peers = {}
-        self.a = fake.Computer(self.doc, "CCD-A", credential="KA", legacy=False, host="acc-01", aliases=ALIASES,
-                               peers=lambda: self.peers)
-        self.b = fake.Computer(self.doc, "CCD-B", credential="KB", legacy=False, host="acc-02", aliases=ALIASES,
-                               peers=lambda: self.peers)
+        self.a = fake.Computer(self.doc, "CCD-A", credential="KA", legacy=False, host="acc-01", aliases=ALIASES)
+        self.b = fake.Computer(self.doc, "CCD-B", credential="KB", legacy=False, host="acc-02", aliases=ALIASES)
 
 
 class Pool(Base):
@@ -539,6 +536,21 @@ class Dispatch(Base):
         self.assertEqual(pool.writers(self.doc, self.KEY), [])
         self.assertEqual(pool.writers(self.doc, r"\\srv\none", peers={"CCD-A": {"issuers": {"owner@example.com"}}}), [])
 
+    def test_the_computers_doing_someones_work_are_his_own_or_the_folder_reader(self):
+        # 用户 10-16（ADR-021 第 50–53 条）：`owned` 筛出替这件活干的电脑；`writers` 只在里面找
+        peers = {"CCD-A": {"users": {"me@x.com"}, "issuers": {"owner@example.com"}},
+                 "CCD-B": {"users": {"other@x.com", "me@x.com"}, "issuers": {"owner@example.com"}},
+                 "CCD-C": {"users": frozenset(), "issuers": {"owner@example.com"}},
+                 "CCD-D": {"users": {"other@x.com"}, "issuers": {"owner@example.com"}}}
+        self.assertEqual(sorted(pool.owned(peers, "me@x.com")), ["CCD-A", "CCD-B", "CCD-C"])  # C 没有登录记录：过渡期算
+        self.assertEqual(sorted(pool.owned(peers, "other@x.com")), ["CCD-B", "CCD-C", "CCD-D"])
+        self.assertEqual(list(pool.owned(peers, "me@x.com", device="CCD-D")), ["CCD-D"])  # 定时任务：只有那台
+        self.assertEqual(pool.owned(peers, "me@x.com", device="CCD-GONE"), {})
+        self.assertEqual(pool.owned({}, "me@x.com"), {})
+        self.a.report(body(self.S_BOOK), NOW)
+        self.assertEqual(pool.writers(self.doc, self.KEY, peers=pool.owned(
+            {"CCD-A": {"users": {"me@x.com"}, "issuers": {"owner@example.com"}}}, "other@x.com")), [])
+
     def test_a_write_is_noted_on_the_registration_and_a_uid_mismatch_goes_stale_until_a_full_report(self):
         self.a.report(body(self.S_BOOK), NOW)
         self.assertTrue(pool.note_written("CONN", self.KEY, "CCD-A", NOW))
@@ -587,21 +599,24 @@ class Refresh(Base):
         refresh.create(self.doc, kind, scope_key, head_key, actor=actor, identity=name, signature="s", now=at)
         return name
 
-    def test_turn_table(self):
-        peers = {"A": {"user": "x", "online": True}, "B": {"always_on": True, "online": True}, "C": {"online": True}}
-        cases = [("A", ["A", "B", "C"], peers, 0, True), ("B", ["A", "B", "C"], peers, 0, False),
-                 ("B", ["A", "B", "C"], {**peers, "A": {"user": "x", "online": False}}, 0, True),
-                 ("C", ["A", "B", "C"], {**peers, "A": {"user": "x"}}, 0, False),
-                 ("C", ["A", "B", "C"], peers, refresh.HANDOFF_SECONDS, True), ("D", ["A"], peers, 999, False),
-                 ("C", ["C"], {}, 0, True)]
-        for device, reachers, table, waited, expected in cases:
-            self.assertEqual(refresh.my_turn(device, "x", reachers, table, waited), expected,
-                             (device, reachers, waited))
+    def test_an_account_set_read_goes_to_the_first_computer_that_reaches_it(self):
+        # 用户 10-16（ADR-021 第 54 条）：账套主档是这条连接的公共资料，够得到它的电脑谁先来谁读，没有档位、没有 120 秒
+        self.assertFalse(hasattr(refresh, "HANDOFF_SECONDS") or hasattr(refresh, "my_turn") or hasattr(refresh, "tier"))
+        self.request(self.KEY, actor="x@example.com")
+        leased = self.b.lease(NOW + timedelta(seconds=5))
+        self.assertEqual(leased["account_set_key"], r"z:\x\book")  # B 自己的写法
+        self.assertIsNone(self.a.lease(NOW + timedelta(seconds=6)))  # 已被 B 领走
+        # B 读完用它自己的写法交回，服务端换回规范键
+        self.b.report(body(self.BOOK_Z, selected=r"Z:\X\OTHER", accounts=[{"code": "9"}],
+                           catalog={"products": [], "customers": []}, master_refresh_request_id=leased["request_id"],
+                           master_refresh_scope="account_set", master_refresh_account_set=r"Z:\X\BOOK"),
+                      NOW + timedelta(seconds=30))
+        done = [r for r in DB.rows("Cowork ERP Refresh") if r.status == "succeeded"]
+        self.assertEqual(len(done), 1)
+        self.assertEqual(pool.facts("CONN", self.KEY)["reported_accounts"], [{"code": "9"}])
 
-    def test_an_account_set_read_goes_to_the_requesters_own_computer_first(self):
-        self.peers = {"CCD-A": {"user": "x@example.com", "online": True}, "CCD-B": {"always_on": True, "online": True}}
+    def test_an_account_set_read_lease_belongs_to_its_computer(self):
         self.request(self.KEY)
-        self.assertIsNone(self.b.lease(NOW + timedelta(seconds=5)))  # 常驻电脑先让给发起人自己的电脑
         leased = self.a.lease(NOW + timedelta(seconds=6))
         self.assertEqual(leased["account_set_key"], r"s:\x\book")  # A 自己的写法
         # 别的电脑来报到不判 A 的租约失败；同一台换了密钥才判
@@ -612,21 +627,6 @@ class Refresh(Base):
         self.a.report(body(unchanged=True), NOW + timedelta(seconds=8))
         row_ = DB.docs["Cowork ERP Refresh"][name]
         self.assertEqual((row_.status, row_.error_code), ("failed", "ERR_AGENT_CREDENTIAL_CHANGED"))
-
-    def test_after_the_handoff_wait_any_computer_that_reaches_it_reads_it(self):
-        self.peers = {"CCD-A": {"user": "x@example.com", "online": True}}
-        self.request(self.KEY)
-        self.assertIsNone(self.b.lease(NOW + timedelta(seconds=30)))
-        leased = self.b.lease(NOW + timedelta(seconds=refresh.HANDOFF_SECONDS))
-        self.assertEqual(leased["account_set_key"], r"z:\x\book")  # B 自己的写法
-        # B 读完用它自己的写法交回，服务端换回规范键
-        self.b.report(body(self.BOOK_Z, selected=r"Z:\X\OTHER", accounts=[{"code": "9"}],
-                           catalog={"products": [], "customers": []}, master_refresh_request_id=leased["request_id"],
-                           master_refresh_scope="account_set", master_refresh_account_set=r"Z:\X\BOOK"),
-                      NOW + timedelta(seconds=130))
-        done = [r for r in DB.rows("Cowork ERP Refresh") if r.status == "succeeded"]
-        self.assertEqual(len(done), 1)
-        self.assertEqual(pool.facts("CONN", self.KEY)["reported_accounts"], [{"code": "9"}])
 
     def test_a_whole_directory_read_gives_each_computer_its_own_child_lease(self):
         parent = self.request()

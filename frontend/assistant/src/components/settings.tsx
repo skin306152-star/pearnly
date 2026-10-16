@@ -594,7 +594,7 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
 // ── 浏览器里：只读的连接（连着哪台电脑、在不在线；pearnly_cowork.folder_intake.api.computers）。文件夹在公司主档页看 ──
 
 // update_blocked：这台电脑的 CC 桌面版自动更新被 Windows 拦下（被拦的版本 + 时刻，UTC；服务端 connections/desktop_update.py）
-// 第 6 批（ADR-021）：id = 电脑编号（「···」移除用）、always_on = 常驻、can_remove = 本人是登记人或管理员
+// 第 6 批（ADR-021）：id = 电脑编号（「···」移除用）、can_remove = 本人是登记人或管理员（10-16 起没有「常驻」，第 56 条）
 export type Computer = {
   adapter: string;
   device: string;
@@ -604,7 +604,6 @@ export type Computer = {
   update_blocked?: { version: string; at: string } | null;
   id?: string;
   connection?: string;
-  always_on?: boolean;
   can_remove?: boolean;
 };
 
@@ -633,7 +632,7 @@ const MEMBER_CHOICES = "pearnly_cowork.connections.api.member_choices";
 const COMPUTERS = "pearnly_cowork.folder_intake.api.computers";
 const REMOVE_COMPUTER = "pearnly_cowork.companion.api.remove_device";
 
-/** 池里的电脑（一台一行，服务端 `folder_intake.rules.computers`）：在不在线、常驻、自动更新被拦；登记人或管理员「···」移除
+/** 池里的电脑（一台一行，服务端 `folder_intake.rules.computers`）：在不在线、自动更新被拦；登记人或管理员「···」移除
  *  （`companion.api.remove_device`：吊销它的密钥、让它退役；它读的定时任务留着、标「电脑已移除」）。下面是管理员的「全所可用」。
  *  inDesktop：CC 桌面版「此电脑 → 连接」下面那一节（带「电脑」标题）；一台电脑都没有时整节不出现，不在桌面版里请人下载桌面版
  *  （第 6 批审查第 7 条）。浏览器的「连接」照旧写「还没有电脑连接」+「下载 CC 桌面版」。 */
@@ -700,7 +699,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   );
 }
 
-/** 一台电脑：名字、ERP（常驻的写上）、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。
+/** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。
  *  能移除时行尾「···」→「移除」（同侧栏行菜单，不另加确认）。 */
 export function ComputerSection({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
   const status = row.online ? "online" : "offline";
@@ -710,7 +709,7 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-sm">{row.device}</Marquee>
           <div className="text-muted-foreground text-xs">
-            {[row.adapter === "mrerp" ? "MR.ERP" : "Express", row.always_on ? st.alwaysOn : ""].filter(Boolean).join(" · ")}
+            {row.adapter === "mrerp" ? "MR.ERP" : "Express"}
           </div>
           {row.update_blocked && (
             <div className="text-muted-foreground text-xs">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
@@ -823,12 +822,6 @@ function System({ api }: { api: Desktop }) {
       <Row label={st.autostart}>
         <Switch checked={state.autostart} label={st.autostart} onChange={(on) => void run("autostart", "autostart", { enabled: on })} />
       </Row>
-      {/* 常驻模式：这台电脑当「CC 的电脑」——不睡眠、开机锁屏、不弹询问框（companion always_on.py）；打开时一并开机自启 */}
-      {state.always_on !== undefined && (
-        <Row label={st.alwaysOn}>
-          <Switch checked={state.always_on} label={st.alwaysOn} onChange={(on) => void run("always_on", "always_on", { enabled: on })} />
-        </Row>
-      )}
       <Row label={st.quickAsk}>
         {state.hotkey ? (
           <Shortcut keys="Ctrl + Alt + Space" kbd />

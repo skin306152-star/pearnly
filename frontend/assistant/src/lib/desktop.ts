@@ -160,7 +160,6 @@ export type DesktopState = {
   express_roots: string[];
   members: DesktopMember[];
   autostart: boolean;
-  always_on?: boolean; // 常驻模式（companion always_on.py）；旧版桌面端没有这一项
   hotkey: boolean;
   update: { state: string; version: string };
   features?: string[]; // "company_folders"：文件夹随公司选（pick_folder）；1.6.0 以前的桌面端没有；"devices"：多台电脑（1.7.0）
@@ -444,7 +443,7 @@ export async function connectComputer(api: Desktop, options: { replace?: number;
  * - 旧版（没有 devices）：照旧只在一个成员都没有时自动连；
  * - 1.7.0 起：每次打开都带设备密钥登记（成员都好着时服务端只记最近登录的人，回 exists，不换密钥）；之后本机状态变了
  *   （state().changed）、某个成员新被服务端说密钥不再用（device_state：superseded / claimed_elsewhere），马上再登记一次换新
- *   密钥——常驻电脑没人看着，窗口开着就自己恢复，不等人点（第 5 批审查第 3 条留给第 6 批的二选一）。同一个成员的同一种
+ *   密钥——窗口开着就自己恢复，不等人点（第 5 批审查第 3 条留给第 6 批的二选一）。同一个成员的同一种
  *   状态只自动试一次，不来回重试；失败的留在设置「连接」里（需处理 + 重试）。 */
 export function useAutoConnect(product: string | undefined) {
   useEffect(() => {

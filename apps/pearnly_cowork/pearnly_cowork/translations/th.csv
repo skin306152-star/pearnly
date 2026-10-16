@@ -107,7 +107,6 @@ Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Allowed root folder on the PC,โฟลเดอร์หลักที่อนุญาต
 Already exists,มีอยู่แล้ว
 Already recorded:,บันทึกไว้แล้ว:
-Always On,เปิดตลอดเวลา
 Amount,จำนวนเงิน
 Amount Tolerance,ค่าผลต่างยอมรับได้
 Amount not read,อ่านจำนวนเงินไม่ได้
@@ -1257,7 +1256,6 @@ Quantity counted this time,จำนวนที่นับครั้งน�
 Quantity differences,ผลต่างจำนวน
 Questions,คำถาม
 Queued,รอคิว
-Queued At (UTC),เวลาเข้าคิว (UTC)
 "Queued, {0} ahead",กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
 "Queued, {0} tasks ahead",อยู่ในคิว มีงานก่อนหน้า {0} งาน
 Rate %,อัตราร้อยละ
@@ -1532,6 +1530,7 @@ Show details,แสดงรายละเอียด
 Show on Card,แสดงบนการ์ด
 Show on card,แสดงบนการ์ด
 Signed-in User,ผู้ใช้ที่ลงชื่อเข้าใช้อยู่
+Signed-in Users,ผู้ใช้ที่เคยลงชื่อเข้าใช้
 Site,ไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)

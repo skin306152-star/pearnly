@@ -234,7 +234,7 @@ class FakeDB:
             return [Row(name=k["name"], device=k.get("device"), issuer=k.get("issuer"),
                         token_generation=k["token_generation"], last_seen_at=k.get("last_seen_at"),
                         last_seen_generation=k.get("last_seen_generation"), signed_in_user=d.get("signed_in_user"),
-                        always_on=d.get("always_on"), companion_version=d.get("companion_version"),
+                        signed_in_users=d.get("signed_in_users"), companion_version=d.get("companion_version"),
                         max_payload_version=d.get("max_payload_version"),
                         index_pending_uids=d.get("index_pending_uids")) for k, d in found]
         if "SELECT d.companion_version" in q:
@@ -452,7 +452,7 @@ KEY_A, KEY_B, KEY_C = "A" * 43, "B" * 43, "C" * 43
 
 
 def hello_body(key, name="ACC-01", **extra):
-    return {"device_key": key, "name": name, "always_on": False, "host_names": [name], **extra}
+    return {"device_key": key, "name": name, "host_names": [name], **extra}
 
 
 class Base(unittest.TestCase):
@@ -560,12 +560,13 @@ class PureContracts(unittest.TestCase):
 
     def test_hello_request_keeps_host_names_as_given(self):
         hosts = ["DESKTOP-MN2BRKR", "192.168.0.78", "172.27.224.1", "100.67.246.0"]  # 第 0 批：含 WSL、Tailscale
+        # 1.7.0 开发版还带 always_on：多出的键照旧忽略（ADR-021 第 56 条，10-16 起不再有常驻）
         value = device_contracts.hello_request({"device_key": KEY_A, "name": "PC", "always_on": True,
                                                 "host_names": hosts, "future": 1})
-        self.assertEqual(value, {"device_key": KEY_A, "name": "PC", "always_on": True, "host_names": hosts})
-        self.assertEqual(device_contracts.hello_request({"device_key": KEY_A}),
-                         {"device_key": KEY_A, "name": "", "always_on": False, "host_names": []})
-        for bad in ([], {}, {"device_key": KEY_A, "always_on": "1"}, {"device_key": KEY_A, "host_names": "PC"},
+        self.assertEqual(value, {"device_key": KEY_A, "name": "PC", "host_names": hosts})
+        self.assertEqual(device_contracts.hello_request({"device_key": KEY_A, "always_on": "1"}),
+                         {"device_key": KEY_A, "name": "", "host_names": []})
+        for bad in ([], {}, {"device_key": KEY_A, "host_names": "PC"},
                     {"device_key": KEY_A, "host_names": [""]}, {"device_key": KEY_A, "host_names": ["x"] * 33},
                     {"device_key": KEY_A, "name": "x" * 141}):
             with self.assertRaises(contracts.CredentialError):
@@ -588,8 +589,8 @@ class Schema(unittest.TestCase):
         doc = self.doctype("cowork_cc_desktop_device")
         fields = {f["fieldname"]: f for f in doc["fields"]}
         self.assertEqual(doc["name"], "Cowork CC Desktop Device")
-        self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "label", "secret_digest",
-                                       "always_on", "companion_version", "max_payload_version", "selection_json",
+        self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "signed_in_users", "label",
+                                       "secret_digest", "companion_version", "max_payload_version", "selection_json",
                                        "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids"})
         self.assertEqual(fields["secret_digest"]["unique"], 1)
         self.assertEqual(fields["secret_digest"].get("reqd", 0), 0)  # 补丁建的旧电脑留空，等认领
@@ -712,6 +713,14 @@ class DeviceRegister(Base):
                                  "device": a["device"], "generation": 1})
         device = STORE[DEVICE][a["device"]]
         self.assertEqual((device["device_owner"], device["signed_in_user"]), (ADMIN, ENTRY))
+        # 第 50 条：凡在这台电脑登录过 CC 的人都算这台电脑的（共用电脑每人登录一次），登录集合只会累加
+        self.assertEqual(json.loads(device["signed_in_users"]), sorted([ADMIN, ENTRY]))
+        self.register(device_key=KEY_A)
+        self.assertEqual((STORE[DEVICE][a["device"]]["signed_in_user"], json.loads(
+            STORE[DEVICE][a["device"]]["signed_in_users"])), (ADMIN, sorted([ADMIN, ENTRY])))
+        self.assertEqual(credentials.pool_peers(self.express)[a["device"]]["users"], frozenset({ADMIN, ENTRY}))
+        self.assertEqual(devices.signed_in_of(a["device"]), frozenset({ADMIN, ENTRY}))   # 领取写账时读的同一来源
+        self.assertEqual((devices.signed_in_of(""), devices.signed_in("not json", "")), (frozenset(), frozenset()))
         self.assertEqual(self.active_keys(), before)
         self.assertEqual(self.auth(a["token"]).issuer, ADMIN)
 
@@ -950,12 +959,14 @@ class MigratedPool(Base):
 
     def test_first_hello_claims_the_old_computer(self):
         row = self.row(self.express_key)
-        result = self.hello(self.express_key, hello_body(KEY_A, always_on=True))
+        result = self.hello(self.express_key, hello_body(KEY_A, always_on=True))   # 1.7.0 开发版还带常驻：忽略
         self.assertEqual(result, {"status": "attached", "device": row["device"]})
         device = STORE[DEVICE][row["device"]]
         self.assertEqual(device["secret_digest"], contracts.device_digest(SITE, KEY_A))
-        self.assertEqual((device["label"], device["always_on"], json.loads(device["host_names"])),
-                         ("ACC-01", 1, ["ACC-01"]))
+        self.assertEqual((device["label"], json.loads(device["host_names"])), ("ACC-01", ["ACC-01"]))
+        self.assertNotIn("always_on", device)
+        # 补丁建的旧电脑只认过电脑、没人打开过对话页：没有登录记录，过渡期谁的单都写（第 50 条）
+        self.assertEqual(credentials.pool_peers(self.express)[row["device"]]["users"], frozenset())
         self.assertTrue(self.row(self.express_key)["full_report_due"])
         self.assert_active_keys_unchanged()
         again = self.hello(self.express_key, hello_body(KEY_A))
@@ -1264,7 +1275,8 @@ class HeartbeatComputer(Base):
         devices.note_signed_in(devices.read(b["device"]), ENTRY)
         peers = credentials.pool_peers(self.express)
         self.assertEqual(peers[a["device"]]["online"], True)
-        self.assertEqual((peers[b["device"]]["online"], peers[b["device"]]["user"]), (False, ENTRY))
+        self.assertEqual(peers[b["device"]]["online"], False)
+        self.assertIn(ENTRY, peers[b["device"]]["users"])
         STORE[CONNECTION][self.express]["report_credential"] = row_a["name"]
         self.assertEqual(devices.reporter_label(self.express), "ACC-01")
         self.assertEqual(credentials.device_of(row_a["name"]), a["device"])

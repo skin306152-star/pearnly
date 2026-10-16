@@ -168,7 +168,7 @@ def _save_record(row, timestamp, *, select_history=False):
 def project(row):
     """Internal complete projection. Product API must explicitly remove secrets."""
     result = {key: row.get(key) for key in ('name', 'status', 'revision', 'workspace', 'client',
-        'actor', 'history', 'connection', 'account_key', 'history_version', 'connection_revision',
+        'actor', 'route_device', 'history', 'connection', 'account_key', 'history_version', 'connection_revision',
         'branch', 'binding_generation', 'reason', 'fence', 'failure_count', 'wire_attempt',
         'external_docnum', 'invoice_no', 'seller_name', 'blocked_by', 'created_at', 'updated_at', 'completed_at')}
     result['result_unknown'] = bool(row.result_unknown)
@@ -268,8 +268,11 @@ def _validate_target(context, loaded, frozen, *, reject=fail):
 
 
 def reserve(*, context, request_key, frozen_target, frozen_payload,
-            disposition='prepared', reason='', checks=None):
+            disposition='prepared', reason='', checks=None, route_device=''):
+    """``route_device``：定时任务读文件夹的那台电脑（ADR-021 第 51 条，只有它写这张单）；空 = 录入人自己的电脑写。
+    不进请求指纹：同一请求号重放回原来那条。"""
     _context(context, account=True)
+    route_device = call(text, route_device or '', length=140, optional=True) or ''
     values = call(frozen_values, context, frozen_target, frozen_payload, disposition, reason, checks or [])
     target = json.loads(values['target_json'])
     request_key = call(request_identity, context, request_key)
@@ -311,8 +314,10 @@ def reserve(*, context, request_key, frozen_target, frozen_payload,
             account_key=context.account, branch=context.branch, binding_generation=context.binding_generation,
             status=disposition, revision=1, fence=0, wire_attempt=1, failure_count=0,
             created_at=timestamp, updated_at=timestamp,
-            # 录入人（写账路由第 ① 档按它比，D7）与这张单要的载荷版本（领取时按领取的电脑判，方案 2.5）
-            entered_by=context.actor, payload_version=_payload_version(frozen_payload), **values)
+            # 录入人（这张单归他登录过 CC 的电脑写，第 50 条）、定时任务读文件夹的那台（只有它写，第 51 条）与这张单要的
+            # 载荷版本（领取时按领取的电脑判，方案 2.5）
+            entered_by=context.actor, route_device=route_device or None,
+            payload_version=_payload_version(frozen_payload), **values)
         if not _insert_unique(row):
             # A DB unique constraint is the final guard, even if a future caller
             # accidentally omits the ordered admission lock.
@@ -349,13 +354,18 @@ def basis_hash(facts, payload):
     return preparation_sources.basis(used_facts(payload, facts))
 
 
-def has_writer(connection, account_key):
-    """池里至少一台能写这份 Express 账套的电脑（不要求在线，D4）：确认与「这份准备还能不能确认」的判据。与池的状态
-    （`companion.pool.state` 的 ``writers_known``）同一个判据 `connections.pool.writers`：登记着、可达可写、密钥没吊销、
-    签发人此刻仍能用这条连接。只读。"""
+def has_writer(connection, account_key, *, actor, route_device=''):
+    """替这张单干活的电脑里至少一台能写这份 Express 账套（不要求在线，D4）：确认与「这份准备还能不能确认」的判据。
+
+    谁的活谁的电脑做（ADR-021 第 51–53 条，用户 10-16）：给了 ``route_device``（定时任务读文件夹的那台）只看它；否则只看
+    ``actor`` 自己登录过 CC 的电脑（`connections.pool.owned`）。同事的电脑够得到不算——它不会替他写。与池的状态
+    （`companion.pool.state` 的 ``writers_known``，同样按人）同一个判据 `connections.pool.writers`：登记着、可达可写、
+    密钥没吊销、签发人此刻仍能用这条连接。只读。"""
     if not connection or not account_key:
         return False
-    return bool(account_pool.writers(frappe.get_doc('Cowork ERP Connection', connection), account_key))
+    doc = frappe.get_doc('Cowork ERP Connection', connection)
+    mine = account_pool.owned(account_pool.presence(doc.name), actor, device=route_device or '')
+    return bool(mine) and bool(account_pool.writers(doc, account_key, peers=mine))
 
 
 def _still_confirmable(row, context, loaded):
@@ -365,8 +375,9 @@ def _still_confirmable(row, context, loaded):
     就永远卡在「推送目标已变更」（2026-09-28 录制）。确认不了的就当过期，由新的准备替换——它没领过、没写过，不碰写者锁。
     证据 v1（绑定准备那会儿上报的那把密钥，ADR-021 之前准备的）一律确认不了。"""
     target = json.loads(row.target_json or '{}')
-    if target.get('adapter') == 'express' and (_evidence_version(target) < 2
-                                               or not has_writer(context.connection, context.account)):
+    if target.get('adapter') == 'express' and (_evidence_version(target) < 2 or not has_writer(
+            context.connection, context.account, actor=row.entered_by or row.actor or context.actor,
+            route_device=row.route_device or '')):
         return False
     messages = len(frappe.local.message_log or [])
     try:
@@ -423,7 +434,7 @@ class AdapterContext:
     owner: str
     binding_generation: int
     _capability: object = field(default=None, repr=False, compare=False)
-    # 问责（ADR-021）：哪台电脑来领的、它的登记人、按哪一档分派（own / always_on / other / sticky）。服务端直连的
+    # 问责（ADR-021）：哪台电脑来领的、它的登记人、按什么分派（own / reader / sticky，第 51 条）。服务端直连的
     # MR.ERP 执行器不填。它们只记进写入尝试与推送记录，不授予任何权限。
     device: str = ''
     device_owner: str = ''
@@ -542,14 +553,15 @@ def confirm(name, *, context, expected_revision, request_key):
             if _evidence_version(target) < 2:
                 # ADR-021 之前准备的（证据绑定一把密钥）：重推会换一份新的准备（`_still_confirmable`）
                 fail('push.native_target_changed')
-            if not has_writer(context.connection, context.account):
-                # 池里没有一台电脑够得到这份账套：排上也没人写。电脑关着不算（D4，开机后写）
+            if not has_writer(context.connection, context.account, actor=row.entered_by or row.actor,
+                              route_device=row.route_device or ''):
+                # 录入人自己的电脑（定时任务：读文件夹的那台）没有一台够得到这份账套：排上也没人写，不转给同事的电脑
+                # （第 53 条）。电脑关着不算（D4，开机后写）
                 fail('push.no_writer')
         _dispatch_target(context, loaded, target, mode='confirm')
         row.confirmation_request, row.confirmation_revision = operation, expected_revision
         row.status, row.reason = 'pending', ''
-        row.queued_at = now_utc()
-        _save_record(row, row.queued_at, select_history=True)
+        _save_record(row, now_utc(), select_history=True)
         return project(row)
 
 
@@ -572,8 +584,7 @@ def activate(name, *, context, adapter):
         if row.status != 'prepared' or row.result_unknown:
             fail('push.native_state_invalid')
         row.status, row.reason = 'pending', ''
-        row.queued_at = now_utc()
-        _save_record(row, row.queued_at, select_history=True)
+        _save_record(row, now_utc(), select_history=True)
         return project(row)
 
 
@@ -752,8 +763,6 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         row.result_unknown, row.lease_expires_at = 0, None
         row.external_docnum = docnum if transition.status == 'success' else None
         row.completed_at = timestamp if transition.status in {'success', 'manual'} else None
-        if transition.status == 'pending':
-            row.queued_at = timestamp  # 退回排队（等账套、可重试的失败）：换手计时从这里重新算
         if transition.status == 'success':
             completion.success(row, timestamp)
         # Preserve owner/active_attempt for exact duplicate ACK verification;

@@ -54,8 +54,8 @@ class Pool:
     def __init__(self):
         self.writers, self.masters, self.asked = set(), {}, []
 
-    def has_writer(self, connection, key):
-        self.asked.append((connection, key))
+    def has_writer(self, connection, key, *, actor, route_device=""):
+        self.asked.append((connection, key, actor, route_device))
         return (connection, key) in self.writers
 
     def reported_masters(self, doc, key):
@@ -73,8 +73,9 @@ class Push:
         self.views.append(account_set)
         return {"needed": [], "account_set": account_set}
 
-    def submit(self, history, connection, key, version, revision, account_set, *args, fixed=None):
+    def submit(self, history, connection, key, version, revision, account_set, *args, fixed=None, route_device=""):
         self.submitted.append((history, account_set, fixed))
+        self.routes = getattr(self, "routes", []) + [route_device]
         return {"status": "prepared", "name": f"CWP-{len(self.submitted)}", "revision": 1}
 
     def record_failure(self, history, reason, **going):
@@ -97,7 +98,7 @@ def load_follow(pool):
 def load_push(follow, fake):
     confirm = types.SimpleNamespace(confirm=lambda *args: None)
     destinations = types.SimpleNamespace(of=lambda adapter: confirm, ready=lambda adapter, result: True,
-                                         queueable=lambda adapter, connection: fake.queueable)
+                                         queueable=lambda adapter, connection, device="": fake.queueable)
     application = types.SimpleNamespace(choices_view=fake.choices_view, submit=fake.submit,
                                         submission_failed=lambda *a: None, cancel_prepared=lambda *a: None)
     push_state = types.SimpleNamespace(record_failure=fake.record_failure, retarget=fake.retarget)
@@ -274,6 +275,15 @@ class CrossYearPushTests(Base):
         self.assertEqual(self.send(self.rule(), "H7", final=False), {"status": "retry", "reason": self.push.OFFLINE})
         self.assertEqual(self.fake.failures, [])
         self.assertEqual(self.send(self.rule(), "H7", final=True)["status"], "held")
+
+    def test_reachability_is_judged_by_the_computer_that_reads_the_folder(self):
+        # 用户 10-16（ADR-021 第 51 条）：跟到的账套够不够得到按读这个文件夹的那台电脑判（只有它写），推送也冻结它；
+        # 旧任务没记电脑时按负责人（当前身份）自己的电脑
+        self.send(self.rule(reader_device="CCD-R"), self.ticket("H8", date(2026, 3, 3)))
+        self.assertEqual(self.pool.asked[-1], ("C1", _key(Y26), frappe.session.user, "CCD-R"))
+        self.assertEqual(self.fake.routes[-1], "CCD-R")   # 文件行没记电脑（替身 entry 没有）：用任务上的
+        self.send(self.rule(), self.ticket("H9", date(2026, 3, 3)))
+        self.assertEqual((self.pool.asked[-1][3], self.fake.routes[-1]), ("", ""))
 
     def test_a_catalog_row_marked_not_writable_is_unreachable(self):
         env.reset(C1=[dict(self.CATALOG[1]), row(Y26, "SINCER 2569", "2026-01-01", "2026-12-31", writable=False)])

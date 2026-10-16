@@ -64,7 +64,8 @@ class IncomingTask:
     invoice_no: Optional[str]
     payload: dict
     attempt_count: int = 0  # P1 lease 不下发尝试次数,保留字段兼容 main.py 日志
-    # 多台电脑（ADR-021，1.7.0 起）：服务端说这张单的录入人此刻就在这台电脑前（True）还是替别人写 / 常驻电脑（False）。
+    # 多台电脑（ADR-021，1.7.0 起）：服务端说这张单的录入人可能就在这台电脑前（True）还是没人在（False：定时任务、
+    # 没有录入人登录记录的电脑，第 55 条）。
     # False 不弹「账套被占用」，按「等账套」回报；旧服务端不带 → None，按有人值守处理（gui_tray_workers）。
     attended: Optional[bool] = None
 

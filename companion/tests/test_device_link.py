@@ -131,7 +131,7 @@ def test_hello_and_leave_post_to_the_device_methods_with_the_member_key(monkeypa
         return httpx.Response(200, json={"message": {"ok": True, "protocol": 1, "status": status}})
 
     _transport(monkeypatch, handler)
-    body = {"device_key": "k" * 43, "name": "PC", "always_on": False, "host_names": ["PC"]}
+    body = {"device_key": "k" * 43, "name": "PC", "host_names": ["PC"]}
     assert device_link.hello("https://site.test", "exp_C1_s", body)["status"] == "attached"
     assert device_link.leave("https://site.test", "exp_C1_s") is True
     assert seen == [("POST", "/api/method/pearnly_cowork.companion.device_api.hello", "Bearer exp_C1_s", body),
@@ -185,20 +185,24 @@ def _cfg(token="exp_C1_secret", **extra):
     return CompanionConfig(profile_id="P1", backend_url="https://site.test", bearer_token=token, paired=True, **extra)
 
 
-def test_each_member_says_hello_once_with_the_device_key_name_always_on_and_host_names(monkeypatch):
-    monkeypatch.setattr(device_link, "_device_name", lambda: "PC1")
+def test_each_member_says_hello_once_with_the_device_key_name_and_host_names(monkeypatch):
+    # 1.7.0 起不再报「常驻」（ADR-021 第 56 条，用户 10-16）
+    names = ["PC1"]
+    monkeypatch.setattr(device_link, "_device_name", lambda: names[0])
     clock = _Clock()
     announcer, sent = _announcer([], clock)
-    assert announcer.announce(_cfg(always_on=True)) == "attached"
+    assert announcer.announce(_cfg()) == "attached"
     assert sent == [("https://site.test", "exp_C1_secret",
-                     {"device_key": "K" * 43, "name": "PC1", "always_on": True, "host_names": ["PC1", "192.168.0.78"]})]
-    assert announcer.announce(_cfg(always_on=True)) is None   # 内容没变：不再发
+                     {"device_key": "K" * 43, "name": "PC1", "host_names": ["PC1", "192.168.0.78"]})]
+    assert announcer.announce(_cfg()) is None   # 内容没变：不再发
     clock.now = 10_000
-    assert announcer.announce(_cfg(always_on=True)) is None
+    assert announcer.announce(_cfg()) is None
     assert len(sent) == 1
     assert announcer.announce(_cfg(token="exp_C2_other")) == "attached"   # 另一个成员（MR.ERP）各发各的
-    assert announcer.announce(_cfg(always_on=False)) == "attached"   # 常驻关了：马上再说一次
-    assert [body["always_on"] for _u, _t, body in sent] == [True, False, False]
+    names[0] = "PC1-NEW"
+    assert announcer.announce(_cfg()) == "attached"   # 电脑改了名：马上再说一次
+    assert [body["name"] for _u, _t, body in sent] == ["PC1", "PC1", "PC1-NEW"]
+    assert all("always_on" not in body for _u, _t, body in sent)
 
 
 def test_a_new_network_address_is_told_again(monkeypatch):
@@ -476,7 +480,7 @@ def test_replacing_a_members_key_lets_the_old_key_say_hello_first(tmp_path, monk
     monkeypatch.setattr(desktop_settings.pairing_flow, "run",
                         lambda *args, **kwargs: order.append("pair") or SimpleNamespace(ok=True))
     assert settings.pair("exp_C1_new@testcowork.pearnly.com", "zh")["ok"]
-    assert settled == [("https://testcowork.pearnly.com", "exp_C1_old", {"always_on": False})]
+    assert settled == [("https://testcowork.pearnly.com", "exp_C1_old", {})]
     assert order == ["hello", "pair"]
     settings.pair("exp_C2_new@testcowork.pearnly.com", "zh")   # 被说过不能再用：服务端已处理过，不发
     settings.pair("exp_C1_old@testcowork.pearnly.com", "zh")   # 同一把密钥：不发
@@ -506,9 +510,9 @@ def test_settle_old_key_sends_hello_with_the_old_key_and_swallows_refusals(monke
         return {"ok": True, "status": device_link.SUPERSEDED}
 
     monkeypatch.setattr(device_link, "hello", reply)
-    assert device_link.settle_old_key("https://t.pearnly.com", "exp_C1_old", always_on=True) == device_link.SUPERSEDED
+    assert device_link.settle_old_key("https://t.pearnly.com", "exp_C1_old") == device_link.SUPERSEDED
     assert sent[0][:2] == ("https://t.pearnly.com", "exp_C1_old")
-    assert sent[0][2]["device_key"] == key and sent[0][2]["always_on"] is True
+    assert sent[0][2]["device_key"] == key and "always_on" not in sent[0][2]
     assert device_link.settle_old_key("", "exp_C1_old") == "" and device_link.settle_old_key("https://t", "x") == ""
     assert len(sent) == 1
 

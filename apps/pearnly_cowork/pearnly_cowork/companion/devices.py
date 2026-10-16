@@ -42,18 +42,46 @@ def retired(name):
     return bool(frappe.db.get_value(DOCTYPE, name, 'retired_at'))
 
 
+def signed_in(stored, latest=''):
+    """在这台电脑上登录过 CC 的人（``signed_in_users`` 存的 JSON 列表，加上最近一个 ``signed_in_user``）：frozenset，
+    坏值当没有。没有登录记录的电脑是空集（`connections.member.serves`：过渡期谁的活都写）。"""
+    try:
+        found = json.loads(stored) if stored else []
+    except (TypeError, ValueError):
+        found = []
+    users = {str(item) for item in found if isinstance(item, str) and item} if isinstance(found, list) else set()
+    if latest:
+        users.add(str(latest))
+    return frozenset(users)
+
+
+def signed_in_of(device):
+    """这台电脑上登录过 CC 的人（:func:`signed_in`）；没有电脑行（没挂电脑的旧槽位密钥）是空集。领取写账时用，比
+    `credentials.pool_peers` 轻：平时没有排队的单，每 3 秒一次的领取不读全池。只读。"""
+    row = frappe.db.get_value(DOCTYPE, device, ['signed_in_user', 'signed_in_users'], as_dict=True) if device else None
+    return signed_in(row.signed_in_users, row.signed_in_user) if row else frozenset()
+
+
+def _with_user(stored, user):
+    users = sorted(signed_in(stored, user))
+    return json.dumps(users, ensure_ascii=False) if users else None
+
+
 def create(*, workspace, owner, label='', secret_digest=None, signed_in_user=None):
     doc = frappe.get_doc({'doctype': DOCTYPE, 'workspace': workspace, 'device_owner': owner,
-                          'signed_in_user': signed_in_user, 'label': (label or '')[:device_contracts.MAX_NAME],
-                          'secret_digest': secret_digest or None})
+                          'signed_in_user': signed_in_user, 'signed_in_users': _with_user(None, signed_in_user),
+                          'label': (label or '')[:device_contracts.MAX_NAME], 'secret_digest': secret_digest or None})
     persist(doc)
     return doc
 
 
 def note_signed_in(doc, user):
-    """这台电脑上最近登录 CC 的账号（只管写账路由）；不改登记人，不吊销任何密钥。"""
-    if doc.signed_in_user != user:
+    """有人在这台电脑上登录 CC（打开对话页登记）：记成最近一个，并并进登录过的人（ADR-021 第 50 条：凡在这台电脑登录过 CC
+    的人，他的活都归这台写；只管写账路由，不改登记人，不吊销任何密钥）。"""
+    users = _with_user(doc.get('signed_in_users'), user)
+    if doc.signed_in_user != user or doc.get('signed_in_users') != users:
         doc.signed_in_user = user
+        doc.signed_in_users = users
         persist(doc)
 
 
@@ -258,7 +286,6 @@ def hello(site, key, values):
         persist_key(key)
         retire_orphan(previous, key.issuer)
     doc.label = values['name'] or doc.label
-    doc.always_on = 1 if values['always_on'] else 0
     doc.host_names = json.dumps(values['host_names'], ensure_ascii=False)  # 原样存，不筛（第 0 批：含 WSL / VPN 地址）
     persist(doc)
     # 只有 Express 密钥发心跳；MR.ERP 的只读文件夹密钥打上也永远清不掉
@@ -351,7 +378,7 @@ def state(device, connection):
     return result
 
 
-def member(device, workspace, *, connection, peers=None, version=None, payload_version=None, pool_hosts=True):
+def member(device, workspace, *, connection, version=None, payload_version=None, pool_hosts=True):
     """连接域眼里的这台电脑（`connections.member.Member`）：设备编号、是不是旧版、主机名与全池的主机别名、版本、
     在这条连接上上次的所选。只做不加锁的读（电脑行在加锁顺序的最后，`record_report` 才锁）。``pool_hosts=False``（领任务，每 3 秒
     一次）不读全池的主机名：只有认账套（心跳带名单）才用得上。"""
@@ -368,7 +395,7 @@ def member(device, workspace, *, connection, peers=None, version=None, payload_v
                   aliases=host_aliases(hosts), version=str(version or known.get('companion_version') or ''),
                   payload_version=payload_version if payload_version is not None
                   else known.get('max_payload_version'),
-                  selected=str(known.get('account_set') or known.get('account_dir') or ''), peers=peers)
+                  selected=str(known.get('account_set') or known.get('account_dir') or ''))
 
 
 def record_report(device, connection, plan):

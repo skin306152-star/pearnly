@@ -107,8 +107,9 @@ class PollWorker(QThread):
 
     @staticmethod
     def _unattended(cfg: CompanionConfig, task) -> bool:
-        """没人点询问框：常驻电脑，或服务端说这张单是替别人写的（attended=False，多台电脑 ADR-021）。旧服务端不带 → 有人值守。"""
-        return bool(getattr(cfg, "always_on", False)) or getattr(task, "attended", None) is False
+        """没人点询问框：服务端说这张单没人在电脑前（attended=False：定时任务、或这台电脑没有录入人的登录记录，多台电脑
+        ADR-021 第 55 条）。旧服务端不带 → 有人值守。1.7.0 起不再有「常驻模式」（第 56 条）。"""
+        return getattr(task, "attended", None) is False
 
     def _ask_busy(self, lang: str) -> str:
         prompt = BusyPrompt(lang)
@@ -172,7 +173,7 @@ class PollWorker(QThread):
             self._abort_task(profile_id, queue, task, lang)
             batch["fail"] += 1
             return "error"
-        # 常驻电脑、替别人写的单没人点询问框：不问，交给写入时的占用检查按「等账套」回报，空出来自动再写（always_on.py）
+        # 没人在电脑前的单（定时任务等）不弹询问框：交给写入时的占用检查按「等账套」回报，空出来自动再写
         if not written and not self._unattended(cfg, task) and not self._stop:
             account_dir = self._account_dir(cfg, task)
             if account_dir and account_lock.is_account_busy(account_dir):

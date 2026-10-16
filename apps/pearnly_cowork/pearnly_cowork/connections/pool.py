@@ -21,7 +21,7 @@ from pearnly_cowork.targets import identity as rules
 from pearnly_cowork.targets.identity import normalize_express_account_key as identity
 from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 from . import access, model, state
-from .member import Member
+from .member import Member, serves
 
 ACCOUNT_SET, REACH, FACTS = access.POOL_TYPES
 OK, PENDING_IDENTITY, STALE = "ok", "pending_identity", "stale"
@@ -121,12 +121,22 @@ def reaches(connection, device, account_key, root=None):
 
 
 def presence(connection):
-    """池里各台电脑此刻的情况：``{设备: {"user", "always_on", "online", "version", "payload_version", "index_pending"}}``
+    """池里各台电脑此刻的情况：``{设备: {"users", "online", "version", "payload_version", "index_pending", "issuers"}}``
     （`companion.credentials.pool_peers`）。电脑与密钥归 Companion，连接域不依赖它：经 ``cowork_pool_presence`` 钩子取，
     没有钩子回空。只读。"""
     for path in frappe.get_hooks("cowork_pool_presence") or []:
         return frappe.get_attr(path)(connection) or {}
     return {}
+
+
+def owned(peers, actor, *, device=""):
+    """池里替这件活干的电脑（ADR-021 第 50–53 条，用户 10-16「谁的活谁的电脑做」）：给了 ``device``（定时任务读文件夹的那台）
+    就只有它；否则是 ``actor`` 自己登录过 CC 的电脑（`member.serves`，没有登录记录的电脑过渡期照旧算）。同事的电脑不算。
+    ``peers`` 是 :func:`presence` 的结果，回它的子集。纯函数。"""
+    peers = peers or {}
+    if device:
+        return {device: peers[device]} if device in peers else {}
+    return {name: peer for name, peer in peers.items() if serves((peer or {}).get("users"), actor)}
 
 
 def writable_reach(connection, device):
@@ -213,8 +223,9 @@ def registrations_of(connection, account_keys):
 
 
 def writers(doc, account_key=None, *, peers=None):
-    """池里能写（这份 / 任一份）账套的电脑：可达行状态正常、可写（给了账套还要它登记着），这台在 :func:`presence` 里
-    （有一把没吊销的密钥、没退役），而且至少一把密钥的签发人此刻仍能用这条连接（:func:`access.usable_by`）。不要求在线（D4）。
+    """池里能写（这份 / 任一份）账套的电脑：可达行状态正常、可写（给了账套还要它登记着），这台在 ``peers`` 里（默认
+    :func:`presence`：有一把没吊销的密钥、没退役；调用方按人或按电脑先筛过时只在那几台里找，:func:`owned`），
+    而且至少一把密钥的签发人此刻仍能用这条连接（:func:`access.usable_by`）。不要求在线（D4）。
 
     「能不能确认 / 能不能选 Express」（`push.native.service.has_writer`）与池的状态（`companion.pool.state`）都按它，
     不再各算各的（第 3 批审查：签发人被移出使用名单后，一边说没有能写的电脑、另一边照样确认，单子排着没人写）。只读。"""
@@ -771,6 +782,6 @@ def seed_legacy(connection, *, device, referenced=None, now, protected=None):
 __all__ = ["ACCOUNT_SET", "FACTS", "FACTS_PER_CONNECTION", "FACT_KEYS", "OK", "PENDING_IDENTITY", "REACH", "STALE",
            "add_stock_masters", "any_reach", "apply_report", "ensure_registered", "seed_legacy", "canonical", "catalog", "devices", "facts",
            "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "mark_stale", "masters",
-           "move_device", "note_written", "presence", "put_facts", "readable_reach", "writable_reach", "writer_devices",
+           "move_device", "note_written", "owned", "presence", "put_facts", "readable_reach", "writable_reach", "writer_devices",
            "reach_name", "reachers", "reachers_of", "reaches", "reconsider", "registration", "registration_name",
            "registrations_of", "retain", "touch", "union_observation", "writers"]

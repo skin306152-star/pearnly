@@ -277,9 +277,9 @@ class Computer:
     这台电脑上次报的所选、版本由它自己记着（服务端在电脑行上，`companion.devices`）。"""
 
     def __init__(self, doc, device, *, credential="CRED", generation=1, issuer="owner@example.com", legacy=True,
-                 host="", aliases=None, version="1.5.1", peers=None):
+                 host="", aliases=None, version="1.5.1"):
         self.doc, self.device, self.credential, self.generation, self.issuer = doc, device, credential, generation, issuer
-        self.legacy, self.host, self.aliases, self.version, self.peers = legacy, host, aliases or {}, version, peers
+        self.legacy, self.host, self.aliases, self.version = legacy, host, aliases or {}, version
         self.state = {}
 
     def member(self, plan=None):
@@ -288,7 +288,7 @@ class Computer:
         version = (plan.patch.get("companion_version") if plan else None) or self.state.get("companion_version")
         return Member(device=self.device, legacy=self.legacy, host=self.host, aliases=self.aliases,
                       version=version or "", payload_version=self.state.get("max_payload_version"),
-                      selected=str(self.state.get("account_set") or ""), peers=self.peers)
+                      selected=str(self.state.get("account_set") or ""))
 
     def report(self, body, now, *, protected=None):
         from datetime import timezone
@@ -304,7 +304,7 @@ class Computer:
             self.state.update({k: v for k, v in plan.patch.items()
                                if k in SELECTED_KEYS | MAPPING_KEYS | {"companion_version", "max_payload_version"}})
         PRESENCE.setdefault(self.doc.name, {})[self.device] = {
-            "user": "", "always_on": False, "online": not plan.offline,
+            "users": frozenset(), "online": not plan.offline,
             "version": str(self.state.get("companion_version") or ""),
             "payload_version": self.state.get("max_payload_version"), "index_pending": None, "issuers": {self.issuer}}
         return result

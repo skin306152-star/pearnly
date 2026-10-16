@@ -417,9 +417,9 @@ Revocation Reason	撤销原因	เหตุผลที่ยกเลิก	失
 Cowork CC Desktop Device	Cowork CC 桌面版电脑	คอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปของ Cowork	Cowork CC デスクトップのコンピューター
 Registered By	登记人	ผู้ลงทะเบียน	登録者
 Signed-in User	当前登录账号	ผู้ใช้ที่ลงชื่อเข้าใช้อยู่	サインイン中のユーザー
+Signed-in Users	登录过的账号	ผู้ใช้ที่เคยลงชื่อเข้าใช้	サインインしたことのあるユーザー
 Computer Name	电脑名称	ชื่อคอมพิวเตอร์	コンピューター名
 Device Key Digest	设备密钥摘要	แฮชคีย์อุปกรณ์	デバイスキーのダイジェスト
-Always On	常驻	เปิดตลอดเวลา	常時稼働
 Max Payload Version	最高载荷版本	เวอร์ชันข้อมูลงานสูงสุด	最大ペイロードバージョン
 Host Names	主机名	ชื่อโฮสต์	ホスト名
 Index Rebuild Pending	索引待重建	รอสร้างดัชนีใหม่	インデックス再構築待ち
@@ -451,7 +451,6 @@ Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ�
 Refresh Lease Computer	刷新租约电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新リースのコンピューター
 Parent Refresh Request	上级刷新请求	คำขอรีเฟรชหลัก	親の更新リクエスト
 Selected Account Set	所选账套	ชุดบัญชีที่เลือก	選択した会計データ
-Queued At (UTC)	排队时间（UTC）	เวลาเข้าคิว (UTC)	順番待ち開始日時 (UTC)
 Entered By	录入人	ผู้บันทึก	入力者
 Payload Version	载荷版本	เวอร์ชันข้อมูลงาน	ペイロードバージョン
 Written By Computer	写入的电脑	คอมพิวเตอร์ที่เขียน	書き込んだコンピューター

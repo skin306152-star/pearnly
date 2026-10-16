@@ -27,7 +27,7 @@ def _load(name, path):
 
 
 contracts = _load("request_contracts_under_test", APP / "companion/request_contracts.py")
-route_contracts = _load("route_contracts_for_requests", APP / "companion/route_contracts.py")
+member = _load("member_for_requests", APP / "connections/member.py")
 identity = _load("identity_for_requests", APP / "targets/identity.py")
 NOW = datetime(2026, 10, 13, 5, 0, 0)
 
@@ -274,8 +274,8 @@ class Pool:
 
     def __init__(self):
         self.devices = {"CRED-1": "PC1", "CRED-2": "PC2", "CRED-3": "PC3"}
-        self.peers = {"C1": {"PC1": {"user": "", "always_on": False, "version": ""}},
-                      "M1": {"PC1": {"user": "", "always_on": False, "version": ""}}}
+        self.peers = {"C1": {"PC1": {"users": set(), "version": ""}},
+                      "M1": {"PC1": {"users": set(), "version": ""}}}
         # {(连接, 电脑, 规范键): 可达行（本机写法）}
         self.reach = {}
 
@@ -291,6 +291,13 @@ class Pool:
 
     def reachers_of(self, connection, keys, writable=False):
         return {key: self.reachers(connection, key) for key in keys}
+
+    @staticmethod
+    def owned(peers, actor, *, device=""):
+        """同 `connections.pool.owned`（纯函数那一段，按真的 `member.serves`）。"""
+        if device:
+            return {device: peers[device]} if device in peers else {}
+        return {name: peer for name, peer in peers.items() if member.serves((peer or {}).get("users"), actor)}
 
 
 def _service(clock):
@@ -335,7 +342,7 @@ def _service(clock):
                "pearnly_cowork.companion.credentials": types.SimpleNamespace(
                    device_id=lambda credential: pool.devices.get(credential, credential),
                    pool_peers=lambda connection: {name: dict(peer) for name, peer in pool.peers.get(connection, {}).items()}),
-               "pearnly_cowork.companion.route_contracts": route_contracts,
+               "pearnly_cowork.connections.member": member,
                "pearnly_cowork.connections.pool": pool,
                "pearnly_cowork.targets": types.ModuleType("pearnly_cowork.targets"),
                "pearnly_cowork.targets.identity": identity}
@@ -346,7 +353,6 @@ def _service(clock):
         modules["pearnly_cowork.companion"].request_contracts = contracts
         modules["pearnly_cowork.companion"].request_store = store
         modules["pearnly_cowork.companion"].credentials = modules["pearnly_cowork.companion.credentials"]
-        modules["pearnly_cowork.companion"].route_contracts = route_contracts
         modules["pearnly_cowork.connections"].access = modules["pearnly_cowork.connections.access"]
         modules["pearnly_cowork.connections"].pool = pool
         service = _load("request_service_under_test", APP / "companion/request_service.py")
@@ -674,9 +680,9 @@ class PoolRequestTests(unittest.TestCase):
         self.service, self.frappe, self.state, self.allowed, self.store = _service(self.clock)
         self.db = self.frappe.db
         self.pool = self.service.test_pool
-        self.pool.peers["C1"] = {"PC1": {"user": "acc@x.com", "always_on": False, "version": "1.6.0"},
-                                 "PC2": {"user": "other@x.com", "always_on": False, "version": "1.6.0"},
-                                 "PC3": {"user": "", "always_on": False, "version": "1.6.0"}}
+        self.pool.peers["C1"] = {"PC1": {"users": {"acc@x.com"}, "version": "1.6.0"},
+                                 "PC2": {"users": {"other@x.com"}, "version": "1.6.0"},
+                                 "PC3": {"users": set(), "version": "1.6.0"}}
         # PC1 映射成 S:，PC2 用网络路径，PC3 够不到这份账套
         self.pool.reach[("C1", "PC1", self.KEY)] = Row(path="S:\\EXP\\DATA\\ACME69", root="S:\\EXP")
         self.pool.reach[("C1", "PC2", self.KEY)] = Row(path="\\\\nas\\exp\\data\\acme69", root="\\\\nas\\exp")
@@ -721,12 +727,14 @@ class PoolRequestTests(unittest.TestCase):
         self.assertFalse(self.service.presence("C1", "PC1")["seen"])
         self.assertEqual(self.db.rows[made["request"]].lease_device, "PC2")
 
-    def test_a_books_read_is_routed_to_the_askers_computer_first_with_its_own_writing(self):
+    def test_a_readback_is_done_only_by_the_askers_own_computer_with_its_own_writing(self):
+        # 用户 10-16（ADR-021 第 54 条）：回读只由发起人自己登录过 CC 的电脑做，同事的电脑等多久都不领
         params = {"account_set": self.KEY, "account_root": "\\\\nas\\exp", "period": "2026-09", "docnums": []}
-        self.assertIsNone(self.lease("CRED-1")["request"])  # PC1（发起人 acc 的电脑）此刻在、会读账套
         made = self.service.create("express_read", "C1", params, "readback:k1", account_key=self.KEY.upper())
         self.assertEqual(self.db.rows[made["request"]].account_key, self.KEY)  # 存规范键
-        self.assertIsNone(self.lease("CRED-2")["request"])  # PC2 不是发起人的电脑，PC1 又在线：先让着
+        self.assertIsNone(self.lease("CRED-2")["request"])  # PC2 是同事的电脑：不领
+        self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 300)
+        self.assertIsNone(self.lease("CRED-2")["request"])  # 发起人的电脑不在、等了很久：照样不领
         self.assertIsNone(self.lease("CRED-3")["request"])  # PC3 够不到这份账套，永远领不到
         leased = self.lease("CRED-1")["request"]  # 发起人自己的电脑
         self.assertEqual(leased["id"], made["request"])
@@ -734,24 +742,21 @@ class PoolRequestTests(unittest.TestCase):
                          ("S:\\EXP\\DATA\\ACME69", "S:\\EXP"))  # 换成 PC1 自己的写法
         self.assertEqual(json.loads(self.db.rows[made["request"]].params_json)["account_set"], self.KEY)  # 存着的不改
 
-    def test_a_books_read_moves_on_after_two_minutes_or_when_the_askers_computer_is_away(self):
+    def test_account_history_is_shared_so_whichever_computer_reaches_it_first_reads_it(self):
+        # 第 54 条：科目历史是账套的公共资料（同一请求号谁建都是同一件），够得到它的电脑谁先来谁读，不等发起人的电脑
         params = {"account_set": self.KEY, "account_root": "", "since": "2025-10-01"}
         made = self.service.create("account_history", "C1", params, "account_history:k1", account_key=self.KEY)
-
-        def asker_here():  # PC1（发起人的电脑）此刻在、会读账套，只是这一轮还没来领
-            self.service._remember("C1", "PC1", "1.6.0", ["account_history"], self.clock.now)
-
-        asker_here()
-        self.assertIsNone(self.lease("CRED-2")["request"])
-        self.clock.now += timedelta(seconds=route_contracts.HANDOFF_SECONDS + 1)
-        asker_here()
-        leased = self.lease("CRED-2")["request"]  # 排了 120 秒：够得到的谁都行
+        self.service._remember("C1", "PC1", "1.6.0", ["account_history"], self.clock.now)  # 发起人的电脑也在
+        self.assertIsNone(self.lease("CRED-3")["request"])  # PC3 够不到
+        leased = self.lease("CRED-2")["request"]
         self.assertEqual(leased["id"], made["request"])
         self.assertEqual(leased["params"]["account_set"], "\\\\nas\\exp\\data\\acme69")
-        # 发起人的电脑不在（SEEN_SECONDS 内没来领过）：够得到的另一台立刻领
-        other = self.service.create("account_history", "C1", params, "account_history:k2", account_key=self.KEY)
-        self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 1)
-        self.assertEqual(self.lease("CRED-2")["request"]["id"], other["request"])
+
+    def test_a_readback_goes_to_a_computer_nobody_signed_in_on_during_the_transition(self):
+        self.pool.peers["C1"]["PC2"]["users"] = set()
+        params = {"account_set": self.KEY, "account_root": "", "period": "2026-09", "docnums": []}
+        made = self.service.create("express_read", "C1", params, "readback:k9", account_key=self.KEY)
+        self.assertEqual(self.lease("CRED-2")["request"]["id"], made["request"])
 
     def test_waiting_for_a_books_read_asks_the_computers_that_reach_it(self):
         self.assertEqual(self.service.waiting("C1", "express_read", account_key=self.KEY)["reason"], "offline")
@@ -761,6 +766,20 @@ class PoolRequestTests(unittest.TestCase):
         self.assertEqual(self.service.waiting("C1", "express_read", account_key=self.KEY), {})
         self.assertEqual(self.service.waiting("C1", "express_read", account_key="\\\\nas\\none")["reason"],
                          "offline")  # 没有电脑够得到
+
+    def test_waiting_for_a_readback_asks_only_the_askers_own_computers(self):
+        # 第 54 条：回读按人问。同事的电脑在线不算；自己有电脑、却都够不到这份账套 → unreachable（不转给同事）
+        self.lease("CRED-2")
+        wait = lambda user, key=self.KEY: self.service.waiting("C1", "express_read", account_key=key, user=user)
+        self.assertEqual(wait("acc@x.com")["reason"], "offline")   # 自己的 PC1 够得到、此刻没来领
+        self.assertEqual(wait("other@x.com"), {})
+        self.lease("CRED-1")
+        self.assertEqual(wait("acc@x.com"), {})
+        self.pool.reach.pop(("C1", "PC1", self.KEY))
+        self.assertEqual(wait("acc@x.com"), {"status": "waiting_for_cc", "reason": "unreachable"})
+        # 一台登录过 CC 的电脑都没有：照旧「离线」（录入入口那边是「CC 桌面版未连接」）
+        self.pool.peers["C1"]["PC3"]["users"] = {"third@x.com"}
+        self.assertEqual(wait("new@x.com")["reason"], "offline")
 
     def test_books_reads_another_computer_cannot_take_do_not_fill_its_scan(self):
         """第 4 批审查 L1：PC1 是唯一够得到账套 X 的电脑；排着的 X 读请求比一次扫描的名额还多时，PC2 照样领得到后面
@@ -781,7 +800,7 @@ class PoolRequestTests(unittest.TestCase):
         """第 4 批审查 L2：认不出电脑（空）时不问部署前按连接记的在场、不算没记电脑的旧租约。"""
         self.service._remember("C1", "", "1.6.0", ["folder_list"], self.clock.now)
         self.assertEqual(self.service.waiting("C1", "folder_list", "1.6.0", device="")["reason"], "offline")
-        self.assertEqual(self.service._candidates("C1", ""), {})
+        self.assertEqual(self.service._candidates("C1", ""), ({}, True))
 
     def test_expiry_scans_without_locks_and_locks_only_what_expired(self):
         old = self.service.create("folder_list", "C1", {"p": 0}, "folder_list:old", target_device="PC1")

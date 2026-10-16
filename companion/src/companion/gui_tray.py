@@ -215,14 +215,6 @@ class TrayApp(QObject):
         self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
         activity("log_started", lang=self.lang)
-        # 常驻模式（always_on.py）：不让电脑睡眠；开机自启进来先锁屏（自动登录的桌面别人碰不到），之后照常干活
-        from .always_on import KeepAwake, lock_screen
-
-        self._keep_awake = KeepAwake()
-        if getattr(self.cfg, "always_on", False):
-            self._keep_awake.set(True)
-            if not open_tomo:
-                lock_screen()
         # 从 Program Files 迁到用户目录安装后，开机自启要指向新位置（只改已经开着的，不替人打开）。
         try:
             from . import autostart
@@ -748,7 +740,6 @@ class TrayApp(QObject):
             states=lambda: dict(self._profile_states), update_status=self.update_status, on_update=self._update_now,
             on_download=self._open_download,
             on_profiles_changed=self._reload_profiles, on_folders_changed=self._start_folders,
-            on_always_on=self._keep_awake.set,
             hotkey=lambda: bool(getattr(self._hotkey, "registered", False)),
             # 公司的文件夹（pick_folder）：新加了根目录马上快速同步一次、唤醒文件夹线程；设置页的旧授权清理行看最近一次
             # 服务端回的在用根目录；上限按服务端回的 max_roots（没收到过按 20）

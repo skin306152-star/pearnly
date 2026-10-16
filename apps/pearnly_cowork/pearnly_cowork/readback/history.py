@@ -238,6 +238,7 @@ def _refresh(connection, key, slot, stored, now):
     failed = _at(stored.get("failed_at"))
     if failed and now - failed < RETRY_AFTER_FAILURE:
         return NONE, False
+    # 科目历史是这份账套的公共资料（ADR-021 第 54 条）：够得到它的电脑谁先来谁读，不按发起人（不传 user）
     if request_service.waiting(connection, KIND, readback._known_version(connection), account_key=key):
         return NONE, False  # 电脑离线、CC 桌面版太旧（不认这种请求）：没有历史建议，不报错、不建
     catalog = _quiet(connections.targets, connection)

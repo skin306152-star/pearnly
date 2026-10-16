@@ -31,8 +31,8 @@ def _local_transaction(function, *args, **kwargs):
 def online(connection, account_set_key=None):
     """录入入口看 Express 能不能选：本人能用这条连接时池的状态（`pool.state`）。不要求管理权限（与 LINE 同一判据）。
 
-    形状兼容旧页面：``online`` 仍是「池里有能写的电脑在线」；另加 ``writers_known``（有能写的电脑，关着也算，D4：能选、
-    排队等开机）与 ``needs_update``（排头要的载荷版本没有电脑支持）。只有「录入」角色的员工原来走 `status`（管理用）被拒，
+    形状兼容旧页面：``online`` 仍是「有能写的电脑在线」；另加 ``writers_known``（有能写的电脑，关着也算，D4：能选、
+    排队等开机）与 ``needs_update``（排头要的载荷版本没有电脑支持）。10-16 起都只算本人自己登录过 CC 的电脑（ADR-021 第 52、53 条）。只有「录入」角色的员工原来走 `status`（管理用）被拒，
     进不了上传（2026-09-28 录制发现）。"""
     return {'connection': connection, **pool.for_user(connection, account_set_key or None)}
 

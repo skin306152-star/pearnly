@@ -274,6 +274,7 @@ class OfflineCompanionRetry(unittest.TestCase):
         def submit(history, connection, key, *args, **kwargs):
             calls["keys"].append(key)
             calls.setdefault("fixed", []).append(kwargs.get("fixed"))
+            calls.setdefault("route_device", []).append(kwargs.get("route_device"))
             return {"status": status, "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
 
         application = types.SimpleNamespace(
@@ -282,7 +283,8 @@ class OfflineCompanionRetry(unittest.TestCase):
             submission_failed=lambda history, reason: None)
         express = types.SimpleNamespace(confirm=lambda *args: calls["confirm"].append(args))
         destinations = types.SimpleNamespace(of=lambda adapter: express, online=lambda adapter, connection: False,
-                                             queueable=lambda adapter, connection: queueable(),
+                                             queueable=lambda adapter, connection, device="": (
+                                                 calls.setdefault("asked", []).append(device) or queueable()),
                                              ready=lambda adapter, prepared: bool(prepared.get("has_reported_credential")))
         modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    # 任务没记公司（T1 之前的任务）：不跟随，照旧推往固定账套
@@ -294,8 +296,9 @@ class OfflineCompanionRetry(unittest.TestCase):
                    "pearnly_cowork.push.application": types.SimpleNamespace(service=application)}
         with mock.patch.dict(sys.modules, modules):
             push = _load("folder_push_under_test", APP / "folder_intake/push.py")
-        rule = types.SimpleNamespace(connection="C", account_set_key="A", posting_kind="purchase", defaults_json="{}")
-        return push, rule, types.SimpleNamespace(name="E", filename="bill.pdf"), calls
+        rule = types.SimpleNamespace(connection="C", account_set_key="A", posting_kind="purchase", defaults_json="{}",
+                                     reader_device="CCD-RULE")
+        return push, rule, types.SimpleNamespace(name="E", filename="bill.pdf", reader_device="CCD-READ"), calls
 
     def test_days_from_a_pos_export_push_with_their_own_posting_kind(self):
         push, rule, entry, calls = self._push()
@@ -315,6 +318,19 @@ class OfflineCompanionRetry(unittest.TestCase):
         self.assertEqual((len(calls["keys"]), len(calls["confirm"]), calls["cancel"]), (1, 1, []))
         source = (APP / "folder_intake/push.py").read_text(encoding="utf-8")
         self.assertNotIn("destinations.online(", source)
+
+    def test_a_scheduled_ticket_is_frozen_to_the_computer_that_read_its_folder(self):
+        """用户 10-16（ADR-021 第 51 条）：定时任务由读那个文件夹的电脑写——能不能排按那台判，推送记录上冻结它。文件行记的
+        电脑优先于任务上的；都没记（补丁前的旧任务）按负责人自己的电脑。"""
+        push, rule, entry, calls = self._push(queueable=lambda: True)
+        push.push_one(entry, rule, "H", 0, final=False)
+        self.assertEqual((calls["asked"], calls["route_device"]), (["CCD-READ"], ["CCD-READ"]))
+        entry.reader_device = ""
+        push.push_one(entry, rule, "H", 1, final=False)
+        self.assertEqual(calls["route_device"][-1], "CCD-RULE")
+        entry.reader_device = rule.reader_device = None
+        push.push_one(entry, rule, "H", 2, final=False)
+        self.assertEqual((calls["asked"][-1], calls["route_device"][-1]), ("", ""))
 
     def test_offline_companion_waits_without_preparing(self):
         push, rule, entry, calls = self._push(online=lambda: False)

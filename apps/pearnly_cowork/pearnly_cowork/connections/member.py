@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Callable, Mapping, NamedTuple
+from typing import Iterable, Mapping, NamedTuple
 
 
 class Member(NamedTuple):
@@ -23,8 +23,14 @@ class Member(NamedTuple):
     payload_version: int | None = None
     # 这台电脑上次报的所选账套（它本机的写法）；领取请求没有心跳的所选时用它
     selected: str = ""
-    # 读目录刷新的分派要用：``{设备: {"user", "always_on", "online"}}``，只在要分派时才调用
-    peers: Callable[[], Mapping[str, Mapping]] | None = None
 
 
-__all__ = ["Member"]
+def serves(users: Iterable[str] | None, actor: str) -> bool:
+    """这台电脑写不写 ``actor`` 的活（ADR-021 第 50 条，用户 10-16「谁的活谁的电脑做」）：``users`` 是在这台电脑上登录过
+    CC 的人，``actor`` 在里面才算他的电脑。一个登录记录都没有的电脑（补丁建的旧电脑、1.6 及更早、只认过电脑还没打开过
+    对话页的）在过渡期照旧谁的活都写；一旦有人在上面登录 CC，就只归登录过的人。"""
+    users = {user for user in users or () if user}
+    return not users or bool(actor) and actor in users
+
+
+__all__ = ["Member", "serves"]

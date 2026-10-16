@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """这台电脑在池里的身份（多台电脑，ADR-021；CC 桌面版 1.7.0 起）：设备密钥、认电脑（``device_hello``）、断开（``device_leave``）。
 
-  POST /api/method/pearnly_cowork.companion.device_api.hello   {device_key, name, always_on, host_names}
+  POST /api/method/pearnly_cowork.companion.device_api.hello   {device_key, name, host_names}
   POST /api/method/pearnly_cowork.companion.device_api.leave   {}
 
 - **设备密钥**：首次运行生成 32 字节随机数，和配对密钥一起用当前 Windows 用户的 DPAPI 加密存在本机配置里
   （``ProfileStore.device_key``）。它只用来把这台电脑的几把密钥归成一台、证明「同一台重连」；机器身份仍只来自 ``exp_`` 密钥。
   对话页经桥拿到它（``tomo_bridge`` 的 ``state().device``），每次打开都带它登记（register v2，对话页一侧在第 6 批）。
-- **认电脑**：每个成员（Express 与 MR.ERP 的只读文件夹成员都算）启动后各发一次；之后名字、常驻、网卡地址（十分钟重查一次）
+- **认电脑**：每个成员（Express 与 MR.ERP 的只读文件夹成员都算）启动后各发一次；之后名字、网卡地址（十分钟重查一次）
   变了再发，内容没变也每 12 小时再发一次；换了密钥（重新配对）或上次被说不能再用、现在标记清掉了，马上再发。回复：
   - ``attached``：挂上了（服务端下一次心跳要整份账套名单，`worker` 照常处理）；
   - ``superseded``：这台电脑在这条连接上已有自己的密钥，这把（旧槽位）已被服务端吊销 → 本机丢掉它：同一条连接还有别的成员就删掉
@@ -88,7 +88,7 @@ def leave(backend_url: str, token: str, timeout: float = 15.0) -> bool:
     return bool(isinstance(reply, dict) and reply.get("ok") and reply.get("status") == LEFT)
 
 
-def settle_old_key(backend_url: str, token: str, *, always_on: bool = False, timeout: float = 15.0) -> str:
+def settle_old_key(backend_url: str, token: str, *, timeout: float = 15.0) -> str:
     """配对要把成员手里的旧密钥换成对话页刚登记来的这台电脑自己的新密钥时，先拿旧密钥认一次电脑（device_hello）。
 
     升级到 1.7.0 后第一次打开：对话页的登记可能先于这个成员用旧槽位密钥认电脑，服务端就为这台电脑新建了记录并发新钥，
@@ -102,7 +102,7 @@ def settle_old_key(backend_url: str, token: str, *, always_on: bool = False, tim
     if not key:
         return ""
     try:
-        reply = hello(backend_url, token, hello_body(key, always_on=always_on), timeout)
+        reply = hello(backend_url, token, hello_body(key), timeout)
     except OldServer as error:
         log.info("换密钥前旧密钥认电脑被拒（旧服务端或旧密钥已失效）: %s", error)
         return ""
@@ -150,8 +150,9 @@ def _reset_for_tests() -> None:
 
 # ── 认电脑 ──────────────────────────────────────────────────────────────────
 
-def hello_body(key: str, *, always_on: bool, names: Optional[list] = None) -> dict:
-    return {"device_key": key, "name": _device_name(), "always_on": bool(always_on),
+def hello_body(key: str, *, names: Optional[list] = None) -> dict:
+    """认电脑的内容：设备密钥、电脑名、网卡地址。1.7.0 起不再报「常驻」（ADR-021 第 56 条；服务端对多出的键本来就忽略）。"""
+    return {"device_key": key, "name": _device_name(),
             "host_names": list(device_facts.host_names() if names is None else names)}
 
 
@@ -189,7 +190,7 @@ class Announcer:
             return None
         try:
             # 网卡地址本身十分钟才重查一次（device_facts.host_names），这里每轮比一下很便宜
-            body = hello_body(key, always_on=bool(getattr(cfg, "always_on", False)), names=self._names())
+            body = hello_body(key, names=self._names())
         except Exception:
             log.warning("整理认电脑的内容失败", exc_info=True)
             return None

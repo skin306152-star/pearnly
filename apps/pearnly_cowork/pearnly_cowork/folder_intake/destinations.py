@@ -24,13 +24,14 @@ class ExpressTarget:
         return pool.for_user(connection)["online"]
 
     @staticmethod
-    def selectable(connection):
-        """池里有能写的电脑（关着也算，D4）：能选 Express、确认、排队，开机后写。"""
-        return pool.for_user(connection)["writers_known"]
+    def selectable(connection, device=""):
+        """当前用户自己的电脑（给了 ``device`` 就是那台，定时任务读文件夹的电脑）里有能写的（关着也算，D4）：能选 Express、
+        确认、排队，开机后写（ADR-021 第 51–53 条）。"""
+        return pool.for_user(connection, device=device)["writers_known"]
 
     @staticmethod
     def ready(prepared):
-        """池里有电脑够得到这份账套，确认才可能成功。"""
+        """替这张单干活的电脑够得到这份账套，确认才可能成功。"""
         return bool(prepared.get("has_writer"))
 
     @staticmethod
@@ -62,14 +63,14 @@ def online(adapter, connection):
         frappe.db.commit()  # 只读；判在线会锁住凭据行，读完立刻放开，不带着锁去准备推送（小助手报到也要这把锁）
 
 
-def queueable(adapter, connection):
-    """定时任务的票现在能不能确认、排队（ADR-021 第 4 批，D4）：Express 池里有能写的电脑就行，电脑关着也排，开机后写
-    （与录入入口、确认同一判据，`companion.pool.state` 的 ``writers_known``）；以前要电脑此刻在线，否则每 10 分钟重试、
-    6 小时后记失败。池里一台能写的电脑都没有时仍按「电脑没连上」过一会儿再推。MR.ERP 服务端直连，总能排。
-    读不出就当能排，照常走现有提交（确认那一步会按真判据拒）。"""
+def queueable(adapter, connection, *, device=""):
+    """定时任务的票现在能不能确认、排队（ADR-021 第 4 批，D4）：Express 读文件夹的那台电脑（``device``；旧任务没记电脑时
+    按负责人自己的电脑）能写就行，电脑关着也排，开机后写（第 51 条，与确认同一判据，`companion.pool.state` 的
+    ``writers_known``）；以前要电脑此刻在线，否则每 10 分钟重试、6 小时后记失败。那台够不到时仍按「电脑没连上」过一会儿再推，
+    最后一次照现有规则记失败。MR.ERP 服务端直连，总能排。读不出就当能排，照常走现有提交（确认那一步会按真判据拒）。"""
     target = ADAPTERS[adapter]
     try:
-        return target.selectable(connection) if hasattr(target, "selectable") else True
+        return target.selectable(connection, device) if hasattr(target, "selectable") else True
     except Exception:
         frappe.clear_messages()
         return True

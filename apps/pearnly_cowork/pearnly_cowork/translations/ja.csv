@@ -107,7 +107,6 @@ Allowed Users,許可ユーザー
 Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
 Already recorded:,記録済み:
-Always On,常時稼働
 Amount,金額
 Amount Tolerance,金額許容差
 Amount not read,金額を読めない
@@ -1257,7 +1256,6 @@ Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
 Questions,質問
 Queued,順番待ち
-Queued At (UTC),順番待ち開始日時 (UTC)
 "Queued, {0} ahead",順番待ち · 前に {0} 件
 "Queued, {0} tasks ahead",待機中（前に {0} 件）
 Rate %,税率 %
@@ -1532,6 +1530,7 @@ Show details,詳細を表示
 Show on Card,カードに表示
 Show on card,カードに表示
 Signed-in User,サインイン中のユーザー
+Signed-in Users,サインインしたことのあるユーザー
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）

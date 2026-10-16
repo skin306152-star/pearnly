@@ -9,13 +9,15 @@
 - ``status(name)`` / ``result(name)`` / ``drop(name)``：只给发起人；``drop`` 连行带结果字节一起删。结果属于连接与账套的
   种类（``request_contracts.SHARED_KINDS``，科目建议的历史）同一请求号谁建都是同一件，此刻能用这条连接的人都能看、取、删；
 - ``presence(connection, device)``：这台电脑最近什么时候来领过、什么版本、能做哪几种，手上有没做完的租约也算在线
-  （按电脑记：同一个池里好几台电脑各来各的）；``waiting(connection, kind, known_version, device=…, account_key=…)``
-  据此回「能领」或 waiting_for_cc（离线 / 要升级），业务域建请求前先问：给了电脑只问那台，给了账套问够得到它的各台。
+  （按电脑记：同一个池里好几台电脑各来各的）；``waiting(connection, kind, known_version, device=…, account_key=…,
+  user=…)`` 据此回「能领」或 waiting_for_cc（离线 / 要升级 / 他的电脑都够不到），业务域建请求前先问：给了电脑只问那台，
+  给了账套问够得到它的各台（给了 ``user`` 只问他自己的电脑，回读）。
 
 机器一侧（`request_api` 在配对码身份下调用，身份核对在 `http_auth`）：
 - ``lease_next(context, body)``：先把这条连接上等太久没人领、领了超时的标成过期，再按先来先做领一件：只看定向给这台
-  电脑的、没定向的；读账套的只扫这台够得到的那几份（`connections.pool.readable_keys`），按分派顺序轮到它
-  （`route_contracts.decide`，发起人当录入人），交出去的参数换成它的本机写法。发起人此刻已不能用这条连接的直接判失败，不交给电脑；
+  电脑的、没定向的；读账套的只扫这台够得到的那几份（`connections.pool.readable_keys`）。谁的活谁的电脑做（ADR-021
+  第 54 条，用户 10-16）：回读只由发起人自己登录过 CC 的电脑做，科目历史（``SHARED_KINDS``，账套的公共资料）够得到的
+  电脑先来先做；没有档位、没有「排了多久谁都行」。交出去的参数换成它的本机写法。发起人此刻已不能用这条连接的直接判失败，不交给电脑；
 - ``complete(context, body)``：交结果，一块一块按已收字节续传，最后一块核对大小与 sha256；或者交失败原因。
 """
 import hashlib
@@ -30,12 +32,13 @@ from frappe import _
 from frappe.utils import get_datetime
 from pearnly_core.execution import state as pearnly_state
 
-from pearnly_cowork.companion import credentials, route_contracts
+from pearnly_cowork.companion import credentials
 from pearnly_cowork.companion import request_contracts as contracts
 from pearnly_cowork.companion import request_store as store
 from pearnly_cowork.companion.request_access import REQUEST, read, write
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import pool as account_pool
+from pearnly_cowork.connections.member import serves
 from pearnly_cowork.targets.identity import normalize_express_account_key
 
 CONNECTION = "Cowork ERP Connection"
@@ -260,26 +263,32 @@ def presence(connection, device="") -> dict:
             "at": value.get("at") if at else None}
 
 
-def _candidates(connection, device=None, account_key=None):
-    """问谁能不能领：给了电脑就是那台（给了空串是一台都没有）；给了账套是够得到它（状态正常）的各台；都没给是这条连接上的每台电脑。
-    回 ``{电脑: 心跳 / 电脑行报的版本}``。"""
+def _candidates(connection, device=None, account_key=None, user=None):
+    """问谁能不能领：给了电脑就是那台（给了空串是一台都没有）；给了账套是够得到它（状态正常）的各台，给了 ``user`` 只留他自己
+    登录过 CC 的（`connections.pool.owned`）；都没给是这条连接上的每台电脑。回（``{电脑: 心跳 / 电脑行报的版本}``，
+    ``user`` 有没有自己的电脑）。"""
     peers = credentials.pool_peers(connection)
+    owned = account_pool.owned(peers, user) if user else peers
     if device is not None:
         # 认不出电脑（空）就谁都不问：不落到部署前按连接记的在场与没记电脑的旧租约上（第 4 批审查 L2）
         names = [device] if device else []
     elif account_key:
-        names = account_pool.reachers(connection, account_key)
+        names = [name for name in account_pool.reachers(connection, account_key) if not user or name in owned]
     else:
-        names = sorted(peers)
-    return {name: str((peers.get(name) or {}).get("version") or "") for name in names}
+        names = sorted(owned)
+    return {name: str((peers.get(name) or {}).get("version") or "") for name in names}, bool(owned)
 
 
-def waiting(connection, kind, known_version="", *, device=None, account_key=None) -> dict:
+def waiting(connection, kind, known_version="", *, device=None, account_key=None, user=None) -> dict:
     """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" |
-    "update_needed", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；``account_key``：
-    够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）。``known_version`` 是别处报过的 CC 桌面端版本
-    （文件夹同步），电脑从没来领过按需请求时与电脑行上的版本一起分辨「离线」与「要升级」。调用方先核过连接权限。"""
-    candidates = _candidates(connection, device, account_key)
+    "update_needed" | "unreachable", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
+    ``account_key``：够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）；``user``：只问他自己的电脑（回读只由
+    发起人的电脑做，第 54 条），他有电脑、却没有一台够得到这份账套回 ``unreachable``（不转给同事的电脑）。
+    ``known_version`` 是别处报过的 CC 桌面端版本（文件夹同步），电脑从没来领过按需请求时与电脑行上的版本一起分辨「离线」与
+    「要升级」。调用方先核过连接权限。"""
+    candidates, has_own = _candidates(connection, device, account_key, user)
+    if user and account_key and device is None and has_own and not candidates:
+        return {"status": "waiting_for_cc", "reason": "unreachable"}
     seen_any, versions = False, []
     for name, reported in candidates.items():
         seen = presence(connection, name)
@@ -341,37 +350,18 @@ def _actor_ready(row) -> bool:
         return False
 
 
-def _turns(connection, device, rows, now):
-    """这几件读账套的请求里轮到这台电脑的：``{请求名: 这台电脑那份账套的可达行}``。资格与顺序同写账分派
-    （`route_contracts.decide`）：这台够得到那份账套（状态正常，读不要求能写）；发起人自己的电脑 → 常驻 → 其他，排了
-    ``HANDOFF_SECONDS`` 谁都行。「在线」按领按需请求算（这一种 SEEN_SECONDS 内来领过），不按心跳：心跳在、却从不来领
-    按需请求的旧版不该让别的电脑干等。不看载荷版本、不黏住（只读）。"""
+def _turns(connection, device, rows):
+    """这几件读账套的请求里归这台电脑做的：``{请求名: 这台电脑那份账套的可达行}``（ADR-021 第 54 条，用户 10-16）。
+    这台够得到那份账套（状态正常，读不要求能写），而且：回读（属于发起人）只由发起人自己登录过 CC 的电脑做
+    （`connections.member.serves`，没有登录记录的电脑过渡期照旧算）；科目历史（``SHARED_KINDS``，账套的公共资料，同一请求号
+    谁建都是同一件）够得到的电脑先来先做。没有档位、不等更合适的电脑、不看载荷版本、不黏住（只读）。"""
     keys = {row.account_key for row in rows if row.account_key}
     mine = account_pool.readable_reach(connection, device, keys)
     if not mine:
         return {}
-    reachers = account_pool.reachers_of(connection, set(mine))
-    peers, known = credentials.pool_peers(connection), {}
-    result = {}
-    for row in rows:
-        if row.account_key not in mine:
-            continue
-        for name in reachers.get(row.account_key) or ():
-            if (name, row.kind) not in known:
-                seen = presence(connection, name)
-                peer = peers.get(name) or {}
-                known[(name, row.kind)] = route_contracts.Peer(
-                    user=peer.get("user") or "", always_on=bool(peer.get("always_on")),
-                    online=bool(seen["seen"] and row.kind in seen["kinds"]))
-        job = route_contracts.Job(name=row.name, account_key=row.account_key, actor=row.actor,
-                                  queued_at=_at(row.requested_at) or now)
-        decision = route_contracts.decide(
-            device, job, reachers.get(row.account_key) or (), {
-                name: known[(name, row.kind)] for name in reachers.get(row.account_key) or ()},
-            route_contracts.Account(), now)
-        if decision.take:
-            result[row.name] = mine[row.account_key]
-    return result
+    users = (credentials.pool_peers(connection).get(device) or {}).get("users") or ()
+    return {row.name: mine[row.account_key] for row in rows
+            if row.account_key in mine and (contracts.shared(row.kind) or serves(users, row.actor))}
 
 
 def lease_next(context, body) -> dict:
@@ -386,7 +376,7 @@ def lease_next(context, body) -> dict:
         return {"request": None}
     marks = ", ".join(["%s"] * len(kinds))
     # 只看这台能领的：定向给它的、没定向的；读账套的只看它够得到的那几份（不然别的电脑才够得到的一批会占满扫描名额，
-    # 后面定向给它的取文件要等那批过期，第 4 批审查 L1），轮没轮到它再按分派顺序看。先不加锁挑，再锁挑中的那一件
+    # 后面定向给它的取文件要等那批过期，第 4 批审查 L1），归不归它再按 `_turns` 看。先不加锁挑，再锁挑中的那一件
     reach = sorted(account_pool.readable_keys(context.connection, device))
     books = f"OR account_key IN ({', '.join(['%s'] * len(reach))})" if reach else ""
     rows = frappe.db.sql(f"""SELECT name, kind, actor, account_key, requested_at FROM `tab{REQUEST}`
@@ -394,7 +384,7 @@ def lease_next(context, body) -> dict:
         AND (IFNULL(account_key, '') = '' {books})
         ORDER BY requested_at, name LIMIT {LEASE_SCAN}""", (context.connection, *kinds, device, *reach), as_dict=True)
     accounts = [row for row in rows if row.account_key]
-    turns = _turns(context.connection, device, accounts, now) if accounts else {}
+    turns = _turns(context.connection, device, accounts) if accounts else {}
     for candidate in rows:
         if candidate.account_key and candidate.name not in turns:
             continue

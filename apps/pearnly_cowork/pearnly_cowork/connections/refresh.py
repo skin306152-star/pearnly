@@ -6,10 +6,9 @@ holds Connection then its authenticated Credential throughout this transaction.
 Several computers share an Express connection (ADR-021, plan 2.7). A computer is an
 opaque device string handed in by Companion (`member.Member`):
 
-- an account-set read is leased to one computer that reaches that account set,
-  the requester's own computer first, then an always-on one, then any other; a
-  lower tier takes it only when no better one is online or after
-  :data:`HANDOFF_SECONDS`;
+- an account-set read is leased to the first computer that reaches that account
+  set and comes to lease (the masters of an account set are shared facts of the
+  connection, not the requester's own work: ADR-021 decision 54, user 10-16);
 - a whole-directory read (``@endpoint``) gives each computer that reports within
   :data:`JOIN_SECONDS` its own child lease (``parent_request``); every child that
   comes back refreshes that computer's reach and republishes the union directory.
@@ -30,8 +29,6 @@ from . import access, model, pool, state
 LEASE_SECONDS = 900
 # 整目录读：请求后（第一台电脑领到起）这么久内来报到的电脑各领一份子租约
 JOIN_SECONDS = 120
-# 账套级读：更合适的电脑在线时先留给它，排了这么久还没人领就谁够得到谁读（同写账分派，方案 2.5）
-HANDOFF_SECONDS = 120
 # 读这台电脑上任一份账套（不只是它当前选的那份）的完整主档：科目表、商品、客户、供应商、部门、存货科目组。
 # 按单个账套读（`projection_refresh.collect_account`）从 1.2.3 起读完整目录，供应商与部门从 1.3.0 起才报；
 # 更早的 CC 桌面端只把它选的那份交给它读，其他账套的请求留着、照实告诉用户要升级（`account_masters`）。
@@ -48,28 +45,6 @@ def version_tuple(value):
 def reads_any_account_set(version):
     """这个版本的 CC 桌面端能读它当前选的账套以外的账套。"""
     return bool(str(version or "").strip()) and version_tuple(version) >= version_tuple(ANY_ACCOUNT_SET_MIN_VERSION)
-
-
-def tier(actor, peer):
-    """这台电脑读这份请求的优先档：0 = 登录它的就是发起人，1 = 常驻电脑，2 = 其他。"""
-    peer = peer or {}
-    if actor and peer.get("user") == actor:
-        return 0
-    return 1 if peer.get("always_on") else 2
-
-
-def my_turn(device, actor, reachers, peers, waited_seconds):
-    """纯函数：``device`` 现在能不能领这份账套级读。``reachers`` 是够得到它的电脑，``peers`` 是
-    ``{设备: {"user", "always_on", "online"}}``。在线的够得到它的电脑里，最好的一档轮到；排了
-    :data:`HANDOFF_SECONDS` 还没人领就谁都行。来领的这台本身就在线。"""
-    if device not in reachers:
-        return False
-    if waited_seconds >= HANDOFF_SECONDS:
-        return True
-    peers = peers or {}
-    online = [item for item in reachers if item == device or (peers.get(item) or {}).get("online")]
-    best = min(tier(actor, peers.get(item)) for item in online)
-    return tier(actor, peers.get(device)) <= best
 
 
 def _rows(doc, statuses=("requested", "leased")):
@@ -275,9 +250,9 @@ def lease(doc, member, selected, credential_id, token_generation, now):
 
     ``member`` is this computer (`member.Member`); ``selected`` is the account set this heartbeat (or, for the
     poll lease, the computer's last report) has selected, as the computer spells it. The selected account set and
-    the endpoint directory are read by every CC Desktop; any other account set only by one that reads any account
-    set (`reads_any_account_set`) and reaches it, in turn (:func:`my_turn`). A request for an account set no
-    computer of the pool reaches fails instead of waiting forever.
+    the endpoint directory are read by every CC Desktop; any other account set by the first computer that reads any
+    account set (`reads_any_account_set`) and reaches it. A request for an account set no computer of the pool
+    reaches fails instead of waiting forever.
     """
     expire(doc, now, credential_id=credential_id, token_generation=token_generation, device=member.device)
     rows = _rows(doc)
@@ -286,7 +261,7 @@ def lease(doc, member, selected, credential_id, token_generation, now):
     mine = pool.local_paths(doc.name, member.device)
     selected = pool.canonical(doc.name, member.device, selected) if selected else ""
     capable = reads_any_account_set(member.version)
-    peers, found = None, []
+    found = []
     for row in rows:
         if row.adapter != 'express' or row.get('parent_request'):
             continue
@@ -311,10 +286,6 @@ def lease(doc, member, selected, credential_id, token_generation, now):
                 fail(doc, row, 'ERR_ACCOUNT_SET_UNAVAILABLE', now)
             continue  # no directory yet: the endpoint read comes first, then this one
         if member.device not in reachers:
-            continue
-        if peers is None:
-            peers = member.peers() if callable(member.peers) else {}
-        if not my_turn(member.device, row.actor, reachers, peers, (now - row.requested_at).total_seconds()):
             continue
         found.append((2, row))
     if not found:

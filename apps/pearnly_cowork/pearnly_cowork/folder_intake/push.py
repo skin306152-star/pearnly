@@ -10,8 +10,9 @@
   不建推送记录；
 - 人已经动过的票（改过、推过）不碰，交给人；
 - 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录；
-- Express 池里有能写的电脑就确认、排队，电脑此刻关着也排，开机后写（ADR-021 第 4 批，D4，`destinations.queueable`）；
-  池里一台能写的电脑都没有才算「小助手没连上」：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好没有了的，撤掉这次
+- Express 由读这个文件夹的那台电脑写（ADR-021 第 51 条，用户 10-16「谁的活谁的电脑做」）：推送记录上冻结它
+  （``route_device``），它能写就确认、排队，此刻关着也排，开机后写（D4，`destinations.queueable`）；
+  它够不到这份账套才算「小助手没连上」：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好没有了的，撤掉这次
   准备再重来，重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。池里没有电脑够得到这份账套，照现有规则
   记失败；``final`` 时一律照现有规则走。
 - 要选的科目还没有可选值（这份账套的科目表还没读到，推送服务已请电脑读，`choices_view` 的 ``wait``，2026-10-13）：
@@ -122,7 +123,8 @@ def push_one(entry, rule, history, attempt=0, final=True):
     where = {"account_set": picked["key"], "account_label": picked["label"]} if picked.get("key") else {}
     if picked.get("stop"):
         adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
-        if picked["stop"] == follow.UNREACHABLE and not final and not destinations.queueable(adapter, rule.connection):
+        if (picked["stop"] == follow.UNREACHABLE and not final
+                and not destinations.queueable(adapter, rule.connection, device=_reader(entry, rule))):
             return {"status": "retry", "reason": OFFLINE}  # 池里一台能写的电脑都没有：同「电脑没连上」，过一会儿再推
         going = {"connection": rule.connection, "account_set": picked["key"]} if picked.get("key") else {}
         push_state.record_failure(history, picked["stop"], **going)
@@ -133,6 +135,12 @@ def push_one(entry, rule, history, attempt=0, final=True):
     frappe.db.commit()
     result = _push_to(entry, rule, history, row, picked["key"], fixed, attempt, final)
     return result if result.get("status") == "retry" else {**result, **where}
+
+
+def _reader(entry, rule):
+    """读这张票所在文件夹的那台电脑（文件行记的，没有按任务的）：Express 只由它写（ADR-021 第 51 条）。都没记（补丁前的旧任务）
+    回空串，按负责人自己的电脑写。"""
+    return str(getattr(entry, "reader_device", None) or getattr(rule, "reader_device", None) or "")
 
 
 def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
@@ -166,12 +174,14 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
         frappe.db.commit()
         return {"status": "held", "reason": reason}
     adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
-    if not final and not destinations.queueable(adapter, rule.connection):
+    device = _reader(entry, rule)
+    if not final and not destinations.queueable(adapter, rule.connection, device=device):
         return {"status": "retry", "reason": OFFLINE}
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
-                                account_set, None, None, posting_kind, fixed=fixed)
+                                account_set, None, None, posting_kind, fixed=fixed,
+                                route_device=device if adapter == "express" else "")
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}
@@ -182,7 +192,7 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
         return {"status": "failed", "reason": str(result.get("reason") or "push.preparation_cancelled")[:300]}
     if result.get("status") == "prepared":
         if (not final and not destinations.ready(adapter, result)
-                and not destinations.queueable(adapter, rule.connection)):
+                and not destinations.queueable(adapter, rule.connection, device=device)):
             _withdraw(result)
             return {"status": "retry", "reason": OFFLINE}
         try:

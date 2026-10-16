@@ -2634,7 +2634,11 @@ READBACK_STILL_READING = ("Still reading the books on the computer. Check again 
                           "when the user asks; do not wait with sleep.")
 READBACK_WAITING = {"offline": "The computer with this account set is offline. Nothing was read; ask the user to turn "
                                "it on or open CC Desktop there.",
-                    "update_needed": "CC Desktop on that computer must be updated before the books can be read back."}
+                    "update_needed": "CC Desktop on that computer must be updated before the books can be read back.",
+                    "unreachable": "None of the user's own computers with CC Desktop can open this account set (a "
+                                   "readback is only done by the requester's own computers, never a colleague's). "
+                                   "Nothing was read; ask the user to sign in to CC Desktop on a computer that can "
+                                   "open it."}
 
 
 def _readback_call(fn, *args, failed="failed"):
@@ -3662,7 +3666,8 @@ TOOLS = [
                     "YYYY-MM; accounts narrows the general ledger to those account codes (prefixes), e.g. the bank "
                     "account. Waits up to 90 seconds; reading means the computer is still reading: check with "
                     "cowork_express_readback_status when the user asks, never wait with sleep. waiting_for_cc means "
-                    "that computer is offline or its CC Desktop needs an update. Only the latest readback of an "
+                    "that computer is offline, its CC Desktop needs an update, or (unreachable) none of the user's own "
+                    "computers can open the account set. Only the latest readback of an "
                     "account set and month is kept.",
      "input_schema": {"type": "object", "properties": {
          "connection": {"type": "string"}, "account_set_key": {"type": "string"},

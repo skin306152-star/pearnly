@@ -99,8 +99,8 @@ def _peers(connection, device, request, now):
     """``{设备: route_contracts.Peer}``；来领的这台在线，它这次报的 ``index_pending`` 立即算数（电脑行在最后才写）。"""
     peers = {}
     for name, peer in credentials.pool_peers(connection, now).items():
-        peers[name] = route_contracts.Peer(user=peer.get('user') or '', always_on=bool(peer.get('always_on')),
-                                           online=bool(peer.get('online')), payload_version=peer.get('payload_version'),
+        peers[name] = route_contracts.Peer(users=frozenset(peer.get('users') or ()), online=bool(peer.get('online')),
+                                           payload_version=peer.get('payload_version'),
                                            index_pending=peer.get('index_pending'))
     mine = peers.get(device) or route_contracts.Peer()
     if 'index_pending' in request:
@@ -116,11 +116,14 @@ def _account(found):
 
 
 def _claim(credential, device, request, now):
-    """按账套排头分派，最多领一件（方案 2.5「transport.lease v2」）。"""
+    """按账套排头分派，最多领一件（方案 2.5「transport.lease v2」；谁的活谁的电脑做，ADR-021 第 51 条）。"""
     reach = account_pool.writable_reach(credential.connection, device)
     if not reach:
         return []  # 这台电脑够不到任何可写的账套（没装 Express、只读文件夹的成员）：领不到写入
-    heads = queue_heads.heads(credential.connection, credential.workspace, credential.client, reach)
+    # 只在这台能写的单里取各账套的排头：冻结给它的定时任务 + 录入人在它上面登录过 CC 的（没有登录记录的电脑谁的都写）
+    users = devices.signed_in_of(device) if device != credential.credential_id else frozenset()
+    heads = queue_heads.heads(credential.connection, credential.workspace, credential.client, reach,
+                              device=device, users=users)
     if not heads:
         return []
     keys = [head.account_key for head in heads]
@@ -132,18 +135,18 @@ def _claim(credential, device, request, now):
     clock = ledger.now_utc(now)
     for head in heads:
         key = head.account_key
-        job = route_contracts.Job(head.name, key, head.entered_by or head.actor,
-                                  route_contracts.queued(head.queued_at, head.created_at), versions[head.name])
+        job = route_contracts.Job(head.name, key, head.entered_by or head.actor, versions[head.name],
+                                  head.route_device or '')
         account = _account(registered.get(key))
         decision = route_contracts.decide(device, job, reachers.get(key) or [], peers, account, clock)
         if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
-            continue  # 不归这台、黏在别的电脑上、要别的电脑才有的 CC 桌面版：跳过，看下一份账套（不隔离）
+            continue  # 黏在别的电脑上、要更新的 CC 桌面版在录入人的另一台电脑上：跳过，看下一份账套（不隔离）
         row = frappe.get_doc(ledger.RECORD, head.name)
         reservation = _context(row, credential)
         adapter = _adapter(credential.connection, delivery_store.owner(credential), device=device,
                            device_owner=owner or '', route=decision.route)
         if not decision.take:
-            # 池里够得到它的电脑没有一台支持这张单的载荷版本：等不来，转人工（与以前准备时就拦下同一个原因与词条），
+            # 归这张单、够得到它的电脑没有一台支持这张单的载荷版本：等不来，转人工（与以前准备时就拦下同一个原因与词条），
             # 这份账套后面的单照常写。旧版不报最高版本的不算（`route_contracts.supports`）
             ledger.quarantine_pending(row.name, context=reservation, adapter=adapter, reason='payload_version_outdated')
             continue
@@ -167,7 +170,7 @@ def _claim(credential, device, request, now):
             claim['record']['frozen_payload'], path=spelling.path, root=spelling.root, row=spelling.registry_row,
             uid=account.uid)}
         delivery = delivery_store.create(credential=credential, claim=claim)
-        attended = route_contracts.attended(decision.route, peers.get(device))
+        attended = route_contracts.attended(job, peers.get(device))
         return [_value(queue_contracts.job, delivery.name, record, attended)]
     return []
 
@@ -183,8 +186,7 @@ def lease(context, body):
         jobs = [] if _busy(device, now) else _claim(credential, device, request, now)
         doc = frappe.get_doc('Cowork ERP Connection', credential.connection, for_update=True)
         # 没有心跳的所选：按这台电脑上次报的（ADR-021，每台各自一份）
-        member = devices.member(device, doc.workspace, connection=doc.name,
-                                peers=lambda: credentials.pool_peers(doc.name), pool_hosts=False)
+        member = devices.member(device, doc.workspace, connection=doc.name, pool_hosts=False)
         requested_refresh = refresh.lease(doc, member, member.selected, credential.credential_id,
                                           credential.token_generation, ledger.now_utc(now))
         # 电脑行在加锁顺序的最后：这次报的「主档索引还没重建的账套」

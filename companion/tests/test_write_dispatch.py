@@ -235,7 +235,7 @@ def test_a_failing_hello_never_stops_the_member():
 def _cfg(**extra):
     base = dict(method="dbf", express_root="S:\\2569", express_exe="", account_dir="S:\\2569\\HOME",
                 account_company="", account_set="S:\\2569\\HOME", account_set_row=1,
-                authorized_roots=["S:\\2568"], always_on=False)
+                authorized_roots=["S:\\2568"])
     base.update(extra)
     return SimpleNamespace(**base)
 
@@ -256,12 +256,38 @@ def _poll_worker():
     return PollWorker([])
 
 
-def test_nobody_is_asked_for_an_always_on_computer_or_a_task_written_for_someone_else():
+def test_only_the_servers_attended_flag_decides_whether_anyone_is_asked():
+    # ADR-021 第 55、56 条（用户 10-16）：没有「常驻模式」了，询问框只看服务端的 attended（定时任务、没有录入人登录记录的
+    # 电脑是 False）；旧配置里残留的 always_on 不再起作用
     unattended = _poll_worker()._unattended
-    assert unattended(_cfg(always_on=True), SimpleNamespace(attended=True)) is True
+    assert unattended(_cfg(always_on=True), SimpleNamespace(attended=True)) is False
     assert unattended(_cfg(), SimpleNamespace(attended=False)) is True
     assert unattended(_cfg(), SimpleNamespace(attended=True)) is False
     assert unattended(_cfg(), SimpleNamespace()) is False   # 旧服务端不带：有人值守，照旧问
+
+
+def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiting_lock_path():
+    # 没人点询问框：原先卡住 3 分钟后被看门狗重启、当成用户终止（USER_ABORTED_BUSY）
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "src/companion"
+    source = (root / "gui_tray_workers.py").read_text(encoding="utf-8")
+    handle = source.split("def handle_task(", 1)[1].split("\n    def ", 1)[0]
+    unattended = source.split("def _unattended(", 1)[1].split("\n    def ", 1)[0]
+    assert "always_on" not in unattended
+    assert 'getattr(task, "attended", None) is False' in unattended
+    assert "if not written and not self._unattended(cfg, task) and not self._stop:" in handle
+    # 这台写过的单先于占用探测（写过就照上次回执回报，不放回排队）
+    assert handle.index("task_journal.written(task.id)") < handle.index("account_lock.is_account_busy(")
+    # 有人值守、账套被占用：先放掉租约（按「等账套」回报）再问，不拿着租约等人点
+    release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
+    assert release.index("queue.ack_failure(") < release.index("self._ask_busy(lang)")
+    assert 'outcome="waiting_lock"' in release
+    # 不再防睡眠、不再开机锁屏（电脑睡了就是离线，活等它醒）；关窗口进托盘照旧
+    tray = (root / "gui_tray.py").read_text(encoding="utf-8")
+    assert "KeepAwake" not in tray and "lock_screen" not in tray
+    assert "setQuitOnLastWindowClosed(False)" in tray
+    assert not (root / "always_on.py").exists()
 
 
 @pytest.mark.parametrize("choice,expected", [("retry", "waiting_lock"), ("abort", "error")])

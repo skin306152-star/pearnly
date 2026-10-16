@@ -107,7 +107,6 @@ Allowed Users,Allowed Users
 Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
 Already recorded:,Already recorded:
-Always On,Always On
 Amount,Amount
 Amount Tolerance,Amount Tolerance
 Amount not read,Amount not read
@@ -1257,7 +1256,6 @@ Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Questions,Questions
 Queued,Queued
-Queued At (UTC),Queued At (UTC)
 "Queued, {0} ahead","Queued, {0} ahead"
 "Queued, {0} tasks ahead","Queued, {0} tasks ahead"
 Rate %,Rate %
@@ -1532,6 +1530,7 @@ Show details,Show details
 Show on Card,Show on Card
 Show on card,Show on card
 Signed-in User,Signed-in User
+Signed-in Users,Signed-in Users
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)

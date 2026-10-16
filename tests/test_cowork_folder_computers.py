@@ -57,12 +57,13 @@ class Computers(unittest.TestCase):
                                      {"name": "C-OLD", "adapter": "mrerp", "enabled": 1}], online={"C-E"})
         self.assertEqual(result, [
             {"adapter": "express", "device": "OFFICE-PC", "online": True, "version": "1.4.0", "folders": [r"D:\\Invoices"],
-             "id": "PC-C-E", "connection": "C-E", "always_on": False, "can_remove": False},
+             "id": "PC-C-E", "connection": "C-E", "can_remove": False},
             {"adapter": "mrerp", "device": "OLD-PC", "online": False, "version": "1.3.20", "folders": [],
-             "id": "PC-C-OLD", "connection": "C-OLD", "always_on": False, "can_remove": False}])
+             "id": "PC-C-OLD", "connection": "C-OLD", "can_remove": False}])
 
     def test_the_owner_or_an_admin_may_remove_a_computer(self):
-        """第 6 批「电脑」列表：登记人或管理员才给 ``can_remove``；没挂电脑的旧槽位密钥（不是电脑记录）不给。"""
+        """第 6 批「电脑」列表：登记人或管理员才给 ``can_remove``；没挂电脑的旧槽位密钥（不是电脑记录）不给。
+        测试环境残留的常驻标记不再列出（ADR-021 第 56 条）。"""
         members = {"C-E": {"PC1": {"online": True, "always_on": True}, "PC2": {"online": False},
                            "KEY-OLD": {"online": False}}}
         views = {**VIEWS, "PC2|C-E": {**VIEWS["C-E"], "label": "ACC-02"}, "KEY-OLD|C-E": {**VIEWS["C-E"], "label": "OLD"}}
@@ -71,8 +72,9 @@ class Computers(unittest.TestCase):
         with mock.patch.dict(VIEWS, views):
             mine = self.run_computers(records, members=members, owners=owners)
             boss = self.run_computers(records, members=members, owners=owners, user="admin@example.com", manager=True)
-        self.assertEqual([(row["id"], row["can_remove"], row["always_on"]) for row in mine],
-                         [("KEY-OLD", False, False), ("PC1", True, True), ("PC2", False, False)])
+        self.assertEqual([(row["id"], row["can_remove"]) for row in mine],
+                         [("KEY-OLD", False), ("PC1", True), ("PC2", False)])
+        self.assertFalse(any("always_on" in row for row in mine))
         self.assertEqual([(row["id"], row["can_remove"]) for row in boss],
                          [("KEY-OLD", False), ("PC1", True), ("PC2", True)])
 

@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-10-16 12:00:00.000000",
+ "modified": "2026-10-16 18:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -54,8 +54,8 @@
   "confirmation_request",
   "confirmation_revision",
   "completion_json",
-  "queued_at",
   "entered_by",
+  "route_device",
   "payload_version",
   "written_by_device",
   "write_route"
@@ -352,17 +352,19 @@
    "hidden": 1
   },
   {
-   "fieldname": "queued_at",
-   "label": "Queued At (UTC)",
-   "fieldtype": "Datetime",
-   "read_only": 1
-  },
-  {
    "fieldname": "entered_by",
    "label": "Entered By",
    "fieldtype": "Link",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "route_device",
+   "label": "Reader Device",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 140
   },
   {
    "fieldname": "payload_version",

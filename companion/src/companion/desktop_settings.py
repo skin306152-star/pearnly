@@ -118,7 +118,6 @@ class DesktopSettings:
                  on_download: Callable[[], None] = lambda: None,
                  on_profiles_changed: Callable[[], None] = lambda: None,
                  on_folders_changed: Callable[[], None] = lambda: None,
-                 on_always_on: Callable[[bool], None] = lambda enabled: None,
                  hotkey: Callable[[], bool] = lambda: False,
                  report_roots: Callable[[str], bool] = lambda profile_id: False,
                  wake_folders: Callable[[], None] = lambda: None,
@@ -137,7 +136,6 @@ class DesktopSettings:
         self._on_download = on_download
         self._on_profiles_changed = on_profiles_changed
         self._on_folders_changed = on_folders_changed
-        self._on_always_on = on_always_on
         self._hotkey = hotkey
         # 文件夹线程（folder_worker.FolderIntake）的几样：快速同步、唤醒、最近一次的在用根目录与上限（按连接键）
         self._report_roots = report_roots
@@ -191,7 +189,6 @@ class DesktopSettings:
             "express_roots": roots,
             "members": members,
             "autostart": self._autostart(store),
-            "always_on": bool(store.global_settings.always_on),
             "hotkey": bool(self._hotkey()),
             "update": {"state": update_state, "version": update_version},
             "legacy_roots": legacy,
@@ -297,7 +294,7 @@ class DesktopSettings:
             cfg = store.runtime_config(profile_id)
             old = str(cfg.bearer_token or "")
             if old and old != new_token:
-                self._settle_old(str(cfg.backend_url or ""), old, always_on=bool(getattr(cfg, "always_on", False)))
+                self._settle_old(str(cfg.backend_url or ""), old)
         except Exception:
             log.exception("换密钥前旧密钥认电脑失败（照常配对）")
 
@@ -324,19 +321,6 @@ class DesktopSettings:
         cfg = store.new_runtime_config()
         cfg.update(autostart=bool(enabled))
         store.save_profile(cfg)
-        return {"ok": True}
-
-    def set_always_on(self, enabled: bool) -> dict:
-        """常驻模式（always_on.py）。打开时一并打开开机自启：常驻电脑靠自动登录后随登录启动。"""
-        store = self._store()
-        cfg = store.new_runtime_config()
-        if enabled:
-            autostart.enable()
-            cfg.update(autostart=True)
-        cfg.update(always_on=bool(enabled))
-        store.save_profile(cfg)
-        self._on_always_on(bool(enabled))   # 马上保持 / 恢复睡眠
-        self._on_profiles_changed()         # 取任务线程按新设置重启（询问框开关）
         return {"ok": True}
 
     def change_roots(self, picked: str, lang: str) -> dict:

@@ -1312,14 +1312,14 @@ for (const blocked of [null, undefined]) {
 """, lang="en")
 
     def test_the_pool_list_offers_remove_only_where_the_server_allows_it(self):
-        # 第 6 批「电脑」：常驻的写上；登记人或管理员（服务端 can_remove）才有「···」→ 移除
+        # 第 6 批「电脑」：登记人或管理员（服务端 can_remove）才有「···」→ 移除；10-16 起没有「常驻」（ADR-021 第 56 条）
         self.run_page(r"""
 const computer = { adapter: "express", device: "ACC-02", online: false, version: "1.7.0", folders: [] as string[], id: "CCD-2",
-  connection: "CWEC-1", always_on: true, can_remove: true };
+  connection: "CWEC-1", can_remove: true };
 const shown = html(ComputerSection, { row: computer, onRemove: () => {} });
-assert.deepEqual(text(shown), ["ACC-02", "Express · Always on", "Disconnected"]);
+assert.deepEqual(text(shown), ["ACC-02", "Express", "Disconnected"]);
 assert.match(shown, /aria-label="More"/);
-const plain = html(ComputerSection, { row: { ...computer, always_on: false, can_remove: false } });
+const plain = html(ComputerSection, { row: { ...computer, can_remove: false } });
 assert.deepEqual(text(plain), ["ACC-02", "Express", "Disconnected"]);
 assert.doesNotMatch(plain, /aria-label="More"/);
 """, lang="en")
@@ -4456,6 +4456,17 @@ assert.equal(focused, 1);           // 点击当下就聚焦（手机上这样�
 await g.sleep(20);
 assert.equal(focused, 2);           // 新对话换上来后再聚焦一次
 """)
+
+class NoAlwaysOnTests(unittest.TestCase):
+    """用户 10-16（ADR-021 第 56 条）：「常驻模式」从界面拿掉——CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），设置里
+    只留「开机时自动启动 CC」；电脑列表不再写「常驻」。旧桌面端的状态里还带 always_on 也不显示。"""
+
+    def test_the_word_and_the_switch_are_gone(self):
+        source = "\n".join(path.read_text(encoding="utf-8") for path in (FRONTEND / "src").rglob("*.ts*"))
+        self.assertNotIn("alwaysOn", source)
+        self.assertNotIn("always_on", source)
+        self.assertIn('autostart: "开机时自动启动 CC"', (FRONTEND / "src/i18n.ts").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -33,9 +33,11 @@
   - 设备密钥（`device_link.py`）：第一次运行生成 32 字节随机数，和配对密钥一起用当前 Windows 用户的 DPAPI 加密存在
     `companion.json` 的 `device` 里，同一份密文另存 `HKCU\Software\Pearnly\CC Desktop`（`device_key_backup.py`：降级再升级时恢复；
     解不开或系统标识 `MachineGuid` 不是这台的才换新的）；对话页经桥（`state().device`）拿到它，每次打开带它登记（对话页一侧在第 6 批）；
-  - 认电脑：每个成员（Express 与 MR.ERP 只读成员）启动后各发一次 `device_api.hello`（设备密钥、电脑名、常驻、`host_names`），
+  - 认电脑：每个成员（Express 与 MR.ERP 只读成员）启动后各发一次 `device_api.hello`（设备密钥、电脑名、`host_names`），
     之后变了再发、没变也每 12 小时再发；回 `superseded` / `claimed_elsewhere` 的密钥本机停用、等对话页重新登记（沿用原密钥重配不解除）；「断开连接」先 `device_api.leave`
     吊销本机这把再删成员。两条方法回 401 / 403 / 404 一律当旧服务端，**从不当成配对失效**；
+  - 去掉 1.4.2 起的「常驻模式」（ADR-021 第 56 条，用户 10-16）：CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），
+    不再防睡眠、不再开机锁屏；电脑睡了就算离线，单子排队等它醒。旧配置里的 `always_on` 读时忽略、写回时丢掉；询问框只看服务端的 `attended`；
   - 心跳与配对上报的每行账套加 `uid`（目录的卷序列号 + 64 位文件号，`GetFileInformationByHandle`，只用 `FILE_READ_ATTRIBUTES`
     打开，不用 `FileIdInfo`）与 `share`（映射盘经 `WNetGetConnectionW`，本机共享经 `LanmanServer\Shares` 换成
     `\\本机名\共享名\…`），见 `device_facts.py`；`host_names` 只报有默认网关的网卡地址（不报 WSL / Hyper-V / VPN）；

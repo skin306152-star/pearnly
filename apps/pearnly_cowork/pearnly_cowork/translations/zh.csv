@@ -107,7 +107,6 @@ Allowed Users,授权用户
 Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
 Already recorded:,已记录：
-Always On,常驻
 Amount,金额
 Amount Tolerance,金额容差
 Amount not read,金额未读出
@@ -1257,7 +1256,6 @@ Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
 Questions,问题
 Queued,排队等待
-Queued At (UTC),排队时间（UTC）
 "Queued, {0} ahead",排队中 · 前面还有 {0} 份
 "Queued, {0} tasks ahead",排队中，前面还有 {0} 个任务
 Rate %,税率 %
@@ -1532,6 +1530,7 @@ Show details,显示详情
 Show on Card,在卡片上显示
 Show on card,显示在卡片正面
 Signed-in User,当前登录账号
+Signed-in Users,登录过的账号
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）

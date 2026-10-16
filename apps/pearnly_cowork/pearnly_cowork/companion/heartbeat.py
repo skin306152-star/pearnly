@@ -24,7 +24,7 @@ def _receive(context, body):
     known = devices.state(device, doc.name)
     shared = {key: value for key, value in model.parse(doc.get('report_json'), {}).items() if key not in _PER_COMPUTER}
     plan = plan_report(body, {**shared, **known}, datetime.now(timezone.utc))
-    member = devices.member(device, doc.workspace, connection=doc.name, peers=lambda: credentials.pool_peers(doc.name),
+    member = devices.member(device, doc.workspace, connection=doc.name,
                             version=plan.patch.get('companion_version') or known.get('companion_version'),
                             payload_version=plan.patch.get('max_payload_version') or known.get('max_payload_version'))
     # 心跳不再写连接配置（方案 2.3 第 1 条）：账套名单进可达行、主档进账套资料，所选与映射记在这台电脑上

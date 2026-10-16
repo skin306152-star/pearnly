@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-15 00:00:00.000000",
- "modified": "2026-10-16 12:00:00.000000",
+ "modified": "2026-10-16 18:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "title_field": "label",
@@ -21,9 +21,9 @@
   "workspace",
   "device_owner",
   "signed_in_user",
+  "signed_in_users",
   "label",
   "secret_digest",
-  "always_on",
   "companion_version",
   "max_payload_version",
   "selection_json",
@@ -62,6 +62,13 @@
    "options": "User"
   },
   {
+   "fieldname": "signed_in_users",
+   "label": "Signed-in Users",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
    "fieldname": "label",
    "label": "Computer Name",
    "fieldtype": "Data",
@@ -78,14 +85,6 @@
    "length": 64,
    "unique": 1,
    "hidden": 1
-  },
-  {
-   "fieldname": "always_on",
-   "label": "Always On",
-   "fieldtype": "Check",
-   "read_only": 1,
-   "no_copy": 1,
-   "default": "0"
   },
   {
    "fieldname": "companion_version",

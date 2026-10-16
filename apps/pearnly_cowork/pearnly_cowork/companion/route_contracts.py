@@ -1,40 +1,40 @@
-"""写账分派的纯规则（ADR-021，方案 2.5）：池里哪台电脑现在能领哪一张 Express 单。不导入框架、不做 IO。
+"""写账分派的纯规则（ADR-021 第 50–55 条，用户 10-16「谁的活谁的电脑做」）：池里哪台电脑现在能领哪一张 Express 单。
+不导入框架、不做 IO。
 
 准备时不选电脑，电脑来领任务（拉模式，每 3 秒一次）时才决定由谁写：
 
+- 归属（:func:`owns`）：定时任务的单冻结了读文件夹的那台（``route_device``），只有它写；其余的单只由录入人自己登录过
+  CC 的电脑写（`connections.member.serves`；一个登录记录都没有的电脑过渡期照旧谁的都写）。同事的电脑等多久都不领，
+  没有档位、没有「排了多久谁都能领」；
 - 资格：这台电脑够得到这份账套（可达行状态正常、可写），它的 CC 桌面版支持这张单的载荷版本；
-- 顺序：① 这台电脑上登录 CC 的人就是录入人 → ② 常驻电脑 → ③ 其他够得到的在线电脑。后一档只在前面各档都没有在线、
-  支持这张单的电脑时才能领，或这张单排队（``queued_at``）已超过 :data:`HANDOFF_SECONDS`；
 - 按账套黏住：一台电脑写过这份账套、主档索引还没重建（它领任务时报的 ``index_pending`` 里有这份账套的文件号；旧版不报，
-  按「它最近 :data:`STICKY_SECONDS` 内写过」近似）且它在线 → 这份账套只交给它；
-- 同一份账套严格按排队先后：只看每份账套的排头（:func:`heads`），排头不归这台、等锁或要更高的载荷版本，就跳过这份账套，
-  去看别的账套，不再整条连接停下。
+  按「它最近 :data:`STICKY_SECONDS` 内写过」近似）且它在线 → 这份账套只交给它；黏住的那台不归这张单时只挡、不接；
+- 同一份账套按排队先后：每台电脑只在它能写的单里取各账套的排头（`queue_heads`），A 的电脑关着时 A 的单不挡 B 的单。
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Iterable, Mapping, NamedTuple
 
-# 排头等了这么久还没有更合适的电脑来领，谁够得到谁写（与租约同长，`queue_contracts.LEASE_SECONDS`）
-HANDOFF_SECONDS = 120
+from pearnly_cowork.connections.member import serves
+
 # 旧版 CC 桌面版不报 ``index_pending``：按「这台最近这么久内写过这份账套」近似它的主档索引还没重建
 STICKY_SECONDS = 120
 # 一次领取最多看这么多份账套的排头
 MAX_HEADS = 50
 
-OWN, ALWAYS_ON, OTHER, STICKY = "own", "always_on", "other", "sticky"
-ROUTES = (OWN, ALWAYS_ON, OTHER, STICKY)
-_TIER_NAMES = (OWN, ALWAYS_ON, OTHER)
+# 按什么分派（问责记录）：录入人自己的电脑 / 定时任务读文件夹的那台 / 黏住的那台
+OWN, READER, STICKY = "own", "reader", "sticky"
+ROUTES = (OWN, READER, STICKY)
 
 # 不能领的原因（只给日志与测试；不进回复）
-UNREACHABLE, STUCK, VERSION, NEEDS_UPDATE, BETTER = "unreachable", "sticky", "version", "needs_update", "better"
+UNREACHABLE, NOT_MINE, STUCK, VERSION, NEEDS_UPDATE = "unreachable", "not_mine", "sticky", "version", "needs_update"
 
 
 class Peer(NamedTuple):
     """池里一台电脑此刻的情况（companion 读好交进来）。"""
-    # 这台电脑上最近登录 CC 的人（不是登记人，D7）
-    user: str = ""
-    always_on: bool = False
+    # 在这台电脑上登录过 CC 的人（空 = 没有登录记录，过渡期谁的单都写）
+    users: frozenset = frozenset()
     online: bool = False
     # 它支持的最高载荷版本；None = 没报过（旧版），与今天一样不拿它拦
     payload_version: int | None = None
@@ -46,11 +46,11 @@ class Job(NamedTuple):
     """一份账套的排头。"""
     name: str
     account_key: str
-    # 录入人（定时任务是规则负责人）：第 ① 档按它比
+    # 录入人（定时任务是规则负责人）
     actor: str
-    # 进入排队的时刻（确认、激活、退回排队时记；旧行为空时按建立时间，:func:`queued`）
-    queued_at: datetime
     payload_version: int = 1
+    # 定时任务：读文件夹的那台电脑（只有它写）；空 = 录入人自己的电脑写
+    route_device: str = ""
 
 
 class Account(NamedTuple):
@@ -62,22 +62,16 @@ class Account(NamedTuple):
 
 class Decision(NamedTuple):
     take: bool
-    # own / always_on / other / sticky（问责记录与 ``attended``）
+    # own / reader / sticky（问责记录）
     route: str = ""
     reason: str = ""
 
 
-def queued(queued_at, created_at):
-    """排队时刻：``queued_at`` 为空（这一批之前的行）时按建立时间。"""
-    return queued_at or created_at
-
-
-def tier(actor, peer: Peer | None) -> int:
-    """0 = 这台电脑上登录 CC 的就是录入人，1 = 常驻电脑，2 = 其他。"""
-    peer = peer or Peer()
-    if actor and peer.user == actor:
-        return 0
-    return 1 if peer.always_on else 2
+def owns(device: str, peer: Peer | None, actor: str, route_device: str = "") -> bool:
+    """这张单归不归 ``device`` 写：有 ``route_device`` 只归那台；否则 ``actor`` 在这台电脑上登录过 CC 才归它。"""
+    if route_device:
+        return device == route_device
+    return serves((peer or Peer()).users, actor)
 
 
 def supports(peer: Peer | None, version: int) -> bool:
@@ -87,7 +81,8 @@ def supports(peer: Peer | None, version: int) -> bool:
 
 
 def needs_update(version: int, reachers: Iterable[str], peers: Mapping[str, Peer]) -> bool:
-    """够得到这份账套的电脑没有一台支持这个载荷版本：等不来，界面显示「需更新」。没有电脑够得到不算（那是「没有能写的电脑」）。"""
+    """``reachers``（归这张单、又够得到这份账套的电脑）没有一台支持这个载荷版本：等不来，界面显示「需更新」。一台都没有
+    不算（那是「没有能写的电脑」）。"""
     reachers = list(reachers)
     return bool(reachers) and not any(supports(peers.get(device), version) for device in reachers)
 
@@ -123,21 +118,17 @@ def decide(device: str, job: Job, reachers: Iterable[str], peers: Mapping[str, P
     if device not in reachers:
         return Decision(False, reason=UNREACHABLE)
     peers = {**peers, device: (peers.get(device) or Peer())._replace(online=True)}
+    if not owns(device, peers[device], job.actor, job.route_device):
+        return Decision(False, reason=NOT_MINE)
     holder = sticky_holder(account, reachers, peers, now, current=device)
     if holder and holder != device:
         return Decision(False, reason=STUCK)
     if not supports(peers[device], job.payload_version):
-        return Decision(False, reason=NEEDS_UPDATE if needs_update(job.payload_version, reachers, peers) else VERSION)
+        mine = [item for item in reachers if owns(item, peers.get(item), job.actor, job.route_device)]
+        return Decision(False, reason=NEEDS_UPDATE if needs_update(job.payload_version, mine, peers) else VERSION)
     if holder == device:
         return Decision(True, STICKY)
-    mine = tier(job.actor, peers[device])
-    if now - job.queued_at >= timedelta(seconds=HANDOFF_SECONDS):
-        return Decision(True, _TIER_NAMES[mine])
-    able = [item for item in reachers if peers.get(item, Peer()).online and supports(peers.get(item), job.payload_version)]
-    best = min(tier(job.actor, peers.get(item)) for item in able)
-    if mine <= best:
-        return Decision(True, _TIER_NAMES[mine])
-    return Decision(False, reason=BETTER)
+    return Decision(True, READER if job.route_device else OWN)
 
 
 def heads(rows: Iterable[Mapping], limit: int = MAX_HEADS) -> list:
@@ -155,11 +146,12 @@ def heads(rows: Iterable[Mapping], limit: int = MAX_HEADS) -> list:
     return result
 
 
-def attended(route: str, peer: Peer | None) -> bool:
-    """这张单写的时候电脑前有没有录入人本人：只有第 ① 档、而且不是常驻电脑才算（常驻、替别人写都不弹框）。"""
-    return route == OWN and not (peer or Peer()).always_on
+def attended(job: Job, peer: Peer | None) -> bool:
+    """这张单写的时候电脑前可能有录入人本人（碰到账套被占用时弹询问框）：不是定时任务，而且录入人在这台电脑上登录过 CC。
+    定时任务、没有登录记录的电脑（过渡期替谁都写）都不弹框，按「等账套」回报、空出来自动再写。"""
+    return not job.route_device and bool(job.actor) and job.actor in (peer or Peer()).users
 
 
-__all__ = ["ALWAYS_ON", "Account", "Decision", "HANDOFF_SECONDS", "Job", "MAX_HEADS", "OTHER", "OWN", "Peer", "ROUTES",
-           "STICKY", "STICKY_SECONDS", "attended", "decide", "heads", "needs_update", "queued", "sticky_holder",
-           "supports", "tier"]
+__all__ = ["Account", "Decision", "Job", "MAX_HEADS", "NEEDS_UPDATE", "NOT_MINE", "OWN", "Peer", "READER", "ROUTES",
+           "STICKY", "STICKY_SECONDS", "STUCK", "UNREACHABLE", "VERSION", "attended", "decide", "heads", "needs_update",
+           "owns", "sticky_holder", "supports"]

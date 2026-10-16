@@ -57,11 +57,12 @@ def _view(row):
     target = row.get('frozen_target') or {}
     evidence = target.get('preparation_evidence') or {}
     result['preparation_states'] = deepcopy(evidence.get('states') or {})
-    # 这份准备能不能确认：池里至少一台电脑够得到这份账套（电脑关着也算，D4）。只对还没确认的 Express 准备查一次。
-    # 旧名 `has_reported_credential` 保留同一个值（实验室脚本与旧调用方读它）。
+    # 这份准备能不能确认：录入人自己的电脑（定时任务：读文件夹的那台）里至少一台够得到这份账套（电脑关着也算，D4；
+    # 第 51–53 条）。只对还没确认的 Express 准备查一次。旧名 `has_reported_credential` 保留同一个值（实验室脚本与旧调用方读它）。
     writer = bool(target.get('adapter') == 'express' and row.get('status') == 'prepared'
                   and int(evidence.get('version') or 1) >= 2
-                  and ledger.has_writer(row.get('connection'), row.get('account_key')))
+                  and ledger.has_writer(row.get('connection'), row.get('account_key'), actor=row.get('actor') or '',
+                                        route_device=row.get('route_device') or ''))
     result['has_writer'] = result['has_reported_credential'] = writer
     result["external_reference"] = derive_external_ref(
         (row.get("frozen_target") or {}).get("adapter"), row.get("response_body"), row.get("status"))
@@ -76,7 +77,9 @@ def _document_block(doc):
 
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-            *, confirm_duplicate=False, fixed=None):
+            *, confirm_duplicate=False, fixed=None, route_device=""):
+    """``route_device``：定时任务读文件夹的那台电脑，冻结在 Express 推送记录上、只有它写（ADR-021 第 51 条）；
+    网页、手机、LINE、CC 发起的不给，由录入人自己的电脑写。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -181,7 +184,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
             "own_tax_id": own_tax, "preparation_evidence": evidence,
             **ledger.writer_scope(loaded.doc.name, target.account_set)},
             frozen_payload={"adapter": "express", "choice_needed": decision["needed"]},
-            disposition="manual", reason=f"choice_needed:{kinds}", checks=[])
+            disposition="manual", reason=f"choice_needed:{kinds}", checks=[], route_device=route_device)
         return _view(row)
     selected['config']['choices'] = decision["applied"]
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
@@ -206,7 +209,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
-        reason=prepared.reason or "", checks=prepared.preflight.checks_json())
+        reason=prepared.reason or "", checks=prepared.preflight.checks_json(), route_device=route_device)
     return _view(row)
 
 
@@ -697,7 +700,7 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False, fixed=None):
+           *, confirm_duplicate=False, fixed=None, route_device=""):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
@@ -706,7 +709,7 @@ def submit(history, connection, request_key, expected_history_version, expected_
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate,
-            fixed=fixed)
+            fixed=fixed, route_device=route_device)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":

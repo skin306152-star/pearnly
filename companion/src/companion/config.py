@@ -98,7 +98,6 @@ class CompanionConfig:
     )
     paired: bool = False  # 是否完成首次配对
     autostart: bool = True  # 开机自启(配对成功后写注册表 Run)
-    always_on: bool = False  # 常驻模式：这台是「CC 的电脑」，不睡眠、开机锁屏、不弹询问框（always_on.py）
     ui_lang: str = ""  # 界面语言 th/zh(空=按 Windows 语言 · 配对窗可切换并记住)
     # F2 运行时身份。由 ProfileStore 持久化，旧 flat 配置下留空。
     profile_id: str = ""

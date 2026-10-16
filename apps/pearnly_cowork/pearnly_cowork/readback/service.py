@@ -11,8 +11,9 @@
 - ``request(connection, account_set_key, period, accounts=None)``：同一份还在读就回那一份；同一请求号（人、连接、账套、
   月、科目）的按需请求还在等、在做或做完没取走就接着等它（`request_service.find`，不问电脑在不在）；否则够得到这份账套的
   电脑此刻都没来领按需请求（离线 / CC 桌面版太旧）回 ``{"status": "waiting_for_cc", "reason"}``，什么都不建；能领就带上
-  推送过的单据号建一份 → ``reading``。请求不定向、带这份账套的规范键：池里够得到它的电脑按写账分派的顺序领（发起人自己的
-  电脑 → 常驻 → 其他），参数里的账套位置换成领取那台的写法（ADR-021 第 4 批，`request_contracts`）。
+  推送过的单据号建一份 → ``reading``。请求不定向、带这份账套的规范键：只由发起人自己登录过 CC 的、够得到它的电脑领
+  （ADR-021 第 54 条，用户 10-16「谁的活谁的电脑做」；他有电脑却都够不到这份账套回 ``reason: unreachable``，不转给同事的
+  电脑），参数里的账套位置换成领取那台的写法（ADR-021 第 4 批，`request_contracts`）。
 - ``status(name)``：还在读就看请求：电脑做完了就当场处理（gunzip → `contracts.parse` → 推送记录再按本月的单据、凭证与
   税务记录的单号补查 → `diff.compare` → 四份工作簿 → 留存 → ready，删掉同一份的旧回读），失败 / 过期 / 处理出错记 failed；
   电脑没来领回 waiting_for_cc。
@@ -155,7 +156,8 @@ def request(connection, account_set_key, period, accounts=None) -> dict:
             return found
         made = None  # 那份处理失败时请求已一并删掉
     if not made:
-        waiting = request_service.waiting(connection, KIND, _known_version(connection), account_key=account["key"])
+        waiting = request_service.waiting(connection, KIND, _known_version(connection), account_key=account["key"],
+                                          user=actor)
         if waiting:
             return waiting
         first, last = contracts.month_range(when)
@@ -266,7 +268,7 @@ def status(name) -> dict:
     out = view(row)
     if current["status"] == "requested":
         waiting = request_service.waiting(row.connection, KIND, _known_version(row.connection),
-                                          account_key=row.account_set_key)
+                                          account_key=row.account_set_key, user=row.actor)
         if waiting:
             out.update(waiting)
     return out

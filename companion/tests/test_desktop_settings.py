@@ -286,34 +286,23 @@ def test_find_again_authorizes_everything_found_or_says_none_was_found(tmp_path,
     assert _settings(store).rescan("zh") == {"ok": False, "message": t("express_not_found", "zh")}
 
 
-def test_always_on_turns_on_autostart_keeps_awake_and_restarts_the_worker(tmp_path, monkeypatch):
-    # 2026-10-12 方案 A：办公室一台电脑当「CC 的电脑」，自动登录后随登录启动；打开常驻模式也就打开开机自启
-    store = _store(tmp_path, monkeypatch)
-    calls = []
-    monkeypatch.setattr(desktop_settings.autostart, "enable", lambda: calls.append("autostart"))
-    monkeypatch.setattr(desktop_settings.autostart, "is_enabled", lambda: True)
-    settings = _settings(store, on_always_on=lambda on: calls.append(("awake", on)),
-                         on_profiles_changed=lambda: calls.append("restart"))
-
-    assert settings.snapshot()["always_on"] is False
-    assert settings.set_always_on(True) == {"ok": True}
-    assert calls == ["autostart", ("awake", True), "restart"]
-    reloaded = ProfileStore.load(store.path, protector=_Protector())
-    assert reloaded.global_settings.always_on is True and reloaded.global_settings.autostart is True
-    assert all(cfg.always_on for cfg in reloaded.runtime_configs(include_paused=True))  # 取任务线程按它跳过询问框
-    assert settings.snapshot()["always_on"] is True
-
-    calls.clear()
-    settings.set_always_on(False)
-    assert calls == [("awake", False), "restart"]   # 关掉不动开机自启
-    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.always_on is False
-
-
-def test_older_settings_files_read_always_on_as_off(tmp_path, monkeypatch):
+def test_an_old_always_on_setting_is_ignored_and_dropped_on_the_next_save(tmp_path, monkeypatch):
+    # ADR-021 第 56 条（用户 10-16）：没有「常驻模式」了。CC 桌面版默认就在后台运行（关窗口进托盘、开机自启），不防睡眠、
+    # 不锁屏；1.4.2–1.7.0 开发版写进 companion.json 的 always_on 读时忽略，下次写回时丢掉
     import json
 
     store = _store(tmp_path, monkeypatch)
     raw = json.loads(store.path.read_text(encoding="utf-8"))
-    raw["global"].pop("always_on", None)
+    raw["global"]["always_on"] = True
     store.path.write_text(json.dumps(raw), encoding="utf-8")
-    assert ProfileStore.load(store.path, protector=_Protector()).global_settings.always_on is False
+    loaded = ProfileStore.load(store.path, protector=_Protector())
+    assert not hasattr(loaded.global_settings, "always_on")
+    assert all(not hasattr(cfg, "always_on") for cfg in loaded.runtime_configs(include_paused=True))
+    monkeypatch.setattr(desktop_settings.autostart, "enable", lambda: None)
+    monkeypatch.setattr(desktop_settings.autostart, "is_enabled", lambda: True)
+    settings = _settings(loaded)
+    assert "always_on" not in settings.snapshot()
+    assert not hasattr(settings, "set_always_on")
+    assert settings.snapshot()["autostart"] is True   # 开机自启照旧是默认
+    assert settings.set_autostart(True) == {"ok": True}
+    assert "always_on" not in json.loads(store.path.read_text(encoding="utf-8"))["global"]
