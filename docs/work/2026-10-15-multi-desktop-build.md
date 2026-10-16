@@ -670,6 +670,9 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
    而同一家公司（同税号同分店，没有税号按目录公司名）已有本年期间覆盖这天的账套」（`newer_book_covers`，原因同期间不符）。测试：
    `test_cowork_folder_follow_year`（新账套已建 / 未建 / 两份同期三种）、`test_cowork_push_direction` 的 `NextYearPeriod`。分支
    `pearnly/da-phase3`，见 [第 3 期设计](2026-10-16-da-phase3-design.md)「有意变化」。
+   同日审查处理补：退到旧账套次年段前要核得了「新年度账套还没建」——同一家同一分店里有会计期间没报全的账套（CC 桌面版读 ISPRD 失败时
+   目录里没有起止，可能正是新的那份）、或本年起始晚于旧账套本年止的账套，就选不出、照旧停下等人；按月取账套（`identity.covering`，
+   月结台账、主档页、档位统计）用同一规则（`account_match.for_month`）。人推的期间硬闸照「读不出不拦」不变。
 
 前端待办（等 `pearnly/cc-shell-rebuild` 合入后在外壳里做；Desk `intake-folders.js` 同理）：
 
