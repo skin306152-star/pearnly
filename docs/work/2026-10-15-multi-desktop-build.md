@@ -1086,8 +1086,8 @@ CC 桌面版（`C` = `companion/src/companion`）：删 `C/always_on.py`（防�
 
 ### 没做 / 拿不准
 
-- 办公室测试机以前靠常驻模式保持在线（记忆「10-12 起保持 CC 常驻」）。升级 1.7.0 后屏幕一关就进待机，远程测试会断——要用户在 Windows 电源设置里改「从不睡眠」，
-  这是系统设置，要用户自己点。
+- ~~办公室测试机以前靠常驻模式保持在线（记忆「10-12 起保持 CC 常驻」）。升级 1.7.0 后屏幕一关就进待机，远程测试会断——要用户在 Windows 电源设置里改「从不睡眠」，
+  这是系统设置，要用户自己点。~~〔10-16 取代：防睡眠照 Claude 改回、默认开，见文末「CC 开着时保持电脑唤醒」，测试机不用改电源设置〕
 - 共用电脑每个人都要在那台 CC 上用自己的账号登录一次，那台才写他的单；帮同事登录过一次，那台以后也写他的单，除了移除整台电脑没有入口去掉。
 - 询问框仍可能卡住写入线程（第 7 批最后一条）。
 - 改挂电脑（`readers.moved`、`credentials` 的旧槽位改挂）只转读者字段，不改已冻结在推送记录上的 `route_device`：改挂前排着的定时任务单冻结的是旧电脑编号，旧电脑退役后
@@ -1155,3 +1155,71 @@ CC 桌面版只改了一行注释，没重跑它的 pytest；`tests/test_cowork_
 - 电脑退役只转「排队」的单；「已准备」的确认时自会按 `push.no_writer` 被拒，「正在写」的照旧等回执或租约过期转「结果不明」。
 - `retire_orphan` 判「没人认领」用的是锁电脑行之前的不加锁预看：极少数情况下那一刻电脑刚被认领，排着的单会被转人工（能重推，不丢）。
 - 第 3 条口径按「仍算定时任务」施工，没问用户（见上）。
+
+## CC 开着时保持电脑唤醒（用户 10-16，2026-10-16，本地提交，未推送）
+
+来源（用户 10-16 原话，在上面删掉常驻之后）：「卧槽，这个模式需要啊，我之前以为是电脑常驻的意思，之前是我理解错了呀，改成和 claude 一样的功能」；
+两个方案里选了「CC 开着就不睡」。原来的「常驻」拆成两件事：**替别人接活**（常驻电脑档位、开机锁屏、不弹询问框）按「谁的活谁的电脑做」删掉、不回来；
+**防睡眠**照 Claude 桌面版（「Keep computer awake while Claude works」「Keep awake on battery power」）改成两个开关，默认都开。ADR-021 第 58 条，
+第 56 条与「有意变化」「兼容」对应补注。
+
+### 改了什么
+
+- 新 `companion/src/companion/keep_awake.py`：`KeepAwake.apply(enabled, on_battery, members)` 两样都满足就起一条专用守护线程（`keep-awake`）拿住，
+  否则马上放开；线程里每 15 秒查一次电源（开关、成员一变马上重算），用电池且「用电池时也保持」关着就放开、插上电再拿起；`stop()` 退出时放开。
+  系统调用在 `WindowsPower`：`SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED [| ES_DISPLAY_REQUIRED])`、`GetSystemPowerStatus`
+  （`ACLineStatus == 0` 才算用电池）、`powrprof.GetPwrCapabilities`（`AoAc`，只查一次，查不出按现代待机）。非 Windows 什么都不做。
+- 用的调用与依据：找回 `ecabec82` 之前 `always_on.py` 的做法——同样的 `SetThreadExecutionState`、同样挂在专用线程上、放开时同一条线程只留
+  `ES_CONTINUOUS`。那套 2026-10-12 在办公室测试机（Windows、现代待机）实测：只保持系统 → 关屏立即待机；保持「系统 + 屏幕」再锁屏 → 4 分钟以上一直
+  在线、系统日志无待机记录。所以现代待机的电脑仍用「系统 + 屏幕」（屏幕不会自动关）；一般电脑（S3）只用「系统」，屏幕照常关。开机锁屏
+  （`LockWorkStation`）不带回来。没用 `PowerCreateRequest` / `PowerSetRequest`（没验证过）。
+- `config.py` / `profile_store.py`：`keep_awake`、`keep_awake_on_battery`（默认 True）进 `CompanionConfig` 与 `GlobalSettings`；旧 `always_on=true`
+  且没有 `keep_awake` 时迁成 `keep_awake=true`，旧键不在白名单里、下次写回时丢掉。
+- `desktop_settings.py`：快照多 `keep_awake`、`keep_awake_on_battery`；`set_keep_awake(enabled=, on_battery=)` 存全局设置后回调托盘。
+  `tomo_bridge.py`：桥方法 `keep_awake`、`keep_awake_on_battery`。
+- `gui_tray.py`：启动时建 `KeepAwake` 并 `_apply_keep_awake()`（开关取自配置，成员 = `any(member_active(cfg))`）；`_reload_profiles`（配对、断开、
+  暂停、移除、被顶掉都走这里）后重算；设置里改开关 → `_set_keep_awake` 先把各线程手上的配置一起改（它们写回配置时不把旧值盖回去）再重算；
+  `_quit` 先放开。
+- 前端（`frontend/assistant/src`）：`settings.tsx` 新 `KeepAwakeRows`，放在「此电脑 → 系统」的「开机时自动启动 CC」下面（有桥才有这一栏；
+  状态里没有 `keep_awake` 的旧版桌面端不显示）；`lib/desktop.ts` 的 `DesktopState` 多两项可选键；`i18n.ts` 三种语言各两条。
+- `companion/README.md` 改写 1.7.0 那一条。服务端没改（`hello` 不报、分派与询问框不看它）。
+
+### 文案（只放开关和标签，不加说明文字）
+
+| 键 | 中文 | English | ไทย |
+|---|---|---|---|
+| `keepAwake` | CC 开着时保持电脑唤醒 | Keep computer awake while CC is open | ไม่ให้คอมพิวเตอร์สลีปขณะเปิด CC |
+| `keepAwakeOnBattery` | 用电池时也保持 | Keep awake on battery power | รวมถึงขณะใช้แบตเตอรี่ |
+
+CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的服务端词条）。界面里不再出现「常驻」（测试守着 `i18n.ts`）。
+
+### 检查
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1 / httpx / dbf / pytest 临时虚拟环境） | 900 passed, 41 skipped（新 `test_keep_awake.py` 7 条：有成员才拿、成员都断开放开、关开关与退出马上放开、用电池按开关放开 / 插电再拿、现代待机加屏幕、非 Windows 不做事、`WindowsPower` 调的接口与查不出按现代待机、源码里没有锁屏调用与托盘接线；`test_desktop_settings` 3 条：旧 `always_on` 迁移与写回丢键、默认开与明写的关不被覆盖、两个开关保存并回调托盘） |
+| `python3 -m unittest tests.test_assistant_ui.KeepAwakeTests tests.test_assistant_ui.NoAlwaysOnTests` | OK（真跑 `KeepAwakeRows`：中英两种语言的两行标签、开关状态、点了调 `keep_awake` / `keep_awake_on_battery`、旧版桌面端不显示；只在「此电脑 → 系统」、有桥才渲染；界面不再有「常驻」） |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 91 步全过，退出码 0（含 `frontend/assistant` 构建、`check-architecture.py` PASS、`check-i18n.py --strict`）；另跑 `npm --prefix frontend run build` 通过（产物按 `.gitignore` 不入库）；记录与 ADR 改完后另跑 `check-architecture.py` 与 `git diff --check` 通过 |
+
+### 给测试窗口的点验（替换上面第 8 条里「不再防睡眠」那半句）
+
+8'. CC 桌面版 1.7.0 设置「此电脑 → 系统」：「开机时自动启动 CC」下面有「CC 开着时保持电脑唤醒」「用电池时也保持」两个开关，默认都开；网页（浏览器里）
+    设置没有这两行；任何地方没有「常驻」二字；开机后不锁屏。旧配置里打开过常驻的，升级后两个开关都是开。
+
+### 第 7 批真机要验（办公室测试机，Windows 现代待机）
+
+- 关屏后不睡：CC 连着、开关开着，等过电源设置的关屏 / 睡眠时间（或 `powercfg /requests` 看到 `SYSTEM` 与 `DISPLAY` 两项挂着 CC 的进程），
+  远程一直连得上、`powercfg /sleepstudy` / 系统日志没有进待机；现代待机的电脑屏幕不会自动关（预期）。
+- 拔电时按开关：「用电池时也保持」开着拔电 → 仍拿住；关掉后拔电 → 约 15 秒内放开（`powercfg /requests` 里 CC 那两项消失），插上电约 15 秒内又出现。
+- 退出 CC（托盘「退出」）后能睡：`powercfg /requests` 里没有 CC，按电源设置正常关屏、待机；关掉「CC 开着时保持电脑唤醒」、断开全部成员同样马上放开。
+- 合上笔记本盖子照样睡（录制笔记本上验）。
+
+### 没做 / 拿不准
+
+- 任务书说「屏幕照常可以关」，又说现代待机「以原来验证过的方式为准」：现代待机上两者冲突，取验证过的「系统 + 屏幕」，这种电脑屏幕不会自动关、
+  也就不会因关屏而自动锁屏；以前常驻靠开机锁屏挡住，现在不锁屏（Claude 没有），桌面会一直亮着、不上锁（屏幕保护程序的「恢复时显示登录屏幕」照样起作用）。
+  要不要在现代待机上另找只防睡眠、允许关屏的办法（例如 `PowerSetRequest` 的 `PowerRequestExecutionRequired`）没验证过，没做。
+- 「至少一个成员连着」按配对有效算（没暂停、密钥没被说不能再用），不看此刻网络通不通：断网时也拿住，网络回来照常接活。
+- 电源变化靠每 15 秒查一次，不是系统广播（`WM_POWERBROADCAST`）；拔插电后最多约 15 秒才跟上。
+- `AoAc` 按 `winnt.h` 的 `SYSTEM_POWER_CAPABILITIES` 第 20 字节读，开发机上只用假的验证，真机要看日志「这台电脑是 / 不是现代待机」核一次。
+- 托盘菜单里没加这两个开关（托盘菜单本来就没有设置项，设置都在对话页「此电脑」里）。
