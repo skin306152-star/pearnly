@@ -320,7 +320,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
       <div className="cc-composer-chin" data-slot="cc-composer-chin">
         <span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">
           <Building2Icon />
-          <span className="min-w-0 truncate">{title}</span>
+          <Marquee className="min-w-0 truncate">{title}</Marquee>
         </span>
         {withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}
         {withScope && <BranchChip look="cc-chin-btn" side="top" branches={branches} value={scope} onChange={setScope} />}

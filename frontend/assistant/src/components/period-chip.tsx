@@ -10,10 +10,11 @@ import { DropdownMenu } from "@/components/ui/menu";
 import type { FC, ReactNode } from "react";
 import { co } from "@/i18n";
 import { type Branch, branchShort, monthLabel, recentMonths } from "@/lib/companies";
+import { Marquee } from "@/components/ui/marquee";
 
 const Choice: FC<{ chosen: boolean; onSelect: () => void; children: ReactNode }> = ({ chosen, onSelect, children }) => (
   <DropdownMenu.Item className="cc-menu-item" onSelect={onSelect}>
-    <span className="min-w-0 flex-1 truncate">{children}</span>
+    <Marquee className="min-w-0 flex-1 truncate">{children}</Marquee>
     {chosen && <CheckIcon />}
   </DropdownMenu.Item>
 );
@@ -38,7 +39,7 @@ export const PeriodChip: FC<{ value: string; onChange: (period: string) => void;
       <DropdownMenu.Trigger asChild disabled={disabled}>
         <button type="button" className={look} data-slot="cc-period-chip" aria-label={co.period} title={co.period}>
           <CalendarIcon />
-          <span className="truncate">{monthLabel(value)}</span>
+          <Marquee className="truncate">{monthLabel(value)}</Marquee>
           <ChevronDownIcon />
         </button>
       </DropdownMenu.Trigger>
@@ -77,7 +78,7 @@ export const BranchChip: FC<
       <DropdownMenu.Trigger asChild disabled={disabled}>
         <button type="button" className={look} data-slot="cc-branch-chip" aria-label={co.branch} title={co.branch}>
           <StoreIcon />
-          <span className="truncate">{chosen ? branchName(chosen) : value ? branchShort(value) : co.noBranch}</span>
+          <Marquee className="truncate">{chosen ? branchName(chosen) : value ? branchShort(value) : co.noBranch}</Marquee>
           <ChevronDownIcon />
         </button>
       </DropdownMenu.Trigger>

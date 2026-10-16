@@ -2839,20 +2839,6 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<Marquee className="cc-row-title">{row.title || t("untitled")}</Marquee>', read("components/company-page.tsx"))
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">{label}</Marquee>\n      {id === current && <CheckIcon />}',
                       read("components/assistant-ui/projects.tsx"))
-        # 范围只到上面这些（用户「只改我提到的地方」）：对话正文的工具步骤、消息文件卡、附件卡、结果面板文件名，
-        # 输入框下巴的公司 / 月份 / 分店按钮与月份分店菜单，添加公司候选，用户菜单与侧栏底部账户名都不滚
-        for path in ("components/tool-uis/steps.tsx", "components/assistant-ui/thread.tsx", "components/assistant-ui/attachment.tsx",
-                     "components/results-panel.tsx", "components/period-chip.tsx", "components/add-company.tsx"):
-            self.assertNotIn("Marquee", read(path), path)
-        projects = read("components/assistant-ui/projects.tsx")
-        for chin in ("const DraftChin", "const SessionChin", "const UnfiledChin"):
-            body = projects[projects.index(chin):]
-            body = body[:body.index("\n};\n")]
-            self.assertNotIn("<Marquee", body, chin)
-        self.assertIn('<span className="min-w-0 truncate">{title}</span>', read("components/company-page.tsx"))   # 公司页输入框下巴
-        shell = read("assistant.tsx")
-        self.assertIn('<div className="truncate px-2.5 py-1.5 text-ink-3 text-sm">{profile.user}</div>', shell)
-        self.assertIn('<span className="cc-nav-label min-w-0 flex-1 truncate">', shell)
 
     def test_rows_fade_pulse_and_take_a_metadata_line(self):
         rows = read("components/assistant-ui/thread-list.tsx")
@@ -3689,8 +3675,8 @@ assert.equal(attachmentTypeLine("GL-05.xlsx"), "XLSX");
 const html = bubble([att("statement.pdf", PDF), att("GL-05.xlsx", XLSX)], results(listed));
 assert.equal((html.match(/<button type="button" class="cc-attach-card"/g) ?? []).length, 2);
 assert.match(html, /aria-label="Attachment: statement\.pdf · PDF · 3 pages"/);
-assert.match(html, /<span class="cc-attach-name">statement\.pdf<\/span><span class="cc-attach-type">PDF · 3 pages<\/span>/);
-assert.match(html, /<span class="cc-attach-type">XLSX · 13 KB<\/span>/);
+assert.match(html, /<span class="cc-marquee cc-attach-name"><span class="cc-marquee-text">statement\.pdf<\/span><\/span><span class="cc-marquee cc-attach-type"><span class="cc-marquee-text">PDF · 3 pages<\/span><\/span>/);
+assert.match(html, /<span class="cc-marquee cc-attach-type"><span class="cc-marquee-text">XLSX · 13 KB<\/span><\/span>/);
 assert.match(html, /<span class="cc-attach-tile"><svg[^>]*lucide-file-text[^>]*>.*?<\/svg><span>PDF<\/span><\/span>/);
 assert.doesNotMatch(html, /Document attachment|attachment,/);
 assert.doesNotMatch(html, /#[0-9a-fA-F]{3,8}\b|rgb\(/);

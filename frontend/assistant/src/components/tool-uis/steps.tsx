@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { steps } from "@/i18n";
 import { ApprovalBar } from "./approval-bar";
 import { TypingDots } from "@/components/typing-dots";
+import { Marquee } from "@/components/ui/marquee";
 
 type Args = Record<string, unknown> | undefined;
 type Step = { verb: string; target?: string; input?: string; showOutput: boolean; own?: boolean };
@@ -178,11 +179,11 @@ export const StepRow: ToolCallMessagePartComponent = ({
         onClick={() => setOpen((o) => !o)}
         className="cc-step-row cc-tap"
       >
-        <span className="min-w-0 flex-1 truncate">
+        <Marquee className="min-w-0 flex-1 truncate">
           {asking ?? step.verb}
           {step.target && <span className="cc-step-target">{` ${step.target}`}</span>}
           {subject && <span className="cc-step-target">{` · ${subject}`}</span>}
-        </span>
+        </Marquee>
         {running && <TypingDots size="sm" className="shrink-0" />}
         {errored && <span className="cc-step-failed">{steps.failed}</span>}
         {expandable && <ChevronRightIcon aria-hidden />}
@@ -234,7 +235,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
   return (
     <div className="aui-steps cc-steps">
       <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">
-        <span className="truncate">{title}</span>
+        <Marquee className="truncate">{title}</Marquee>
         <ChevronRightIcon aria-hidden />
       </button>
       {open && (

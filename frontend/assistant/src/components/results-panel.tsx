@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { SplitHandle, resultsSize, useStoredSize } from "@/components/split-handle";
 import { t } from "@/i18n";
+import { Marquee } from "@/components/ui/marquee";
 
 // Word 预览的渲染按需载入：打开 .docx 时才下载这一小块，首屏包不变
 const DocumentView = lazy(() => import("@/components/document-view"));
@@ -218,7 +219,7 @@ function NoPreview({ sessionId, file }: { sessionId: string; file: SessionFile }
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground text-sm">
       <FileTypeIcon filename={file.filename} className="size-10" />
-      <span className="max-w-[80%] truncate text-foreground">{file.filename}</span>
+      <Marquee className="max-w-[80%] truncate text-foreground">{file.filename}</Marquee>
       <a
         href={fileUrl(sessionId, file.id)}
         className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-foreground hover:bg-muted"
