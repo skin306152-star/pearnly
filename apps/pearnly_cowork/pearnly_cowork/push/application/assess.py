@@ -25,13 +25,14 @@ from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.automation import rules
 from pearnly_cowork.push.automation import service as automation_service
 from pearnly_cowork.push.express import automation
-from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express.preflight import ExpressContext
 from pearnly_cowork.push.express.prepare import prepare_express
 from pearnly_cowork.targets import account_match
 
 BANGKOK = ZoneInfo("Asia/Bangkok")
 PRIOR_MAX = 50
+# 重复分流算进去的推送记录状态：除作废（cancelled）以外都算（manual 是结果不明或推送失败待人看，宁严）
+PRIOR_STATUSES = ("prepared", "pending", "leased", "manual", "success")
 
 
 def run(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, trigger, route_device="",
@@ -89,20 +90,21 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         ready = prepared.disposition == "ready"
         reason = "" if ready else (prepared.reason or "preflight")
     pages = found["history_value"].get("pages") or []
+    page_texts = text_layer.pages(doc)
     tier = automation_service.tier(connection, account_set, account_row)
     facts = automation.Facts(
         direction=direction, fields=dated, decision=decision, payload=payload, config=config, today=today,
         ready=ready, blocked=blocked or conflict or reason, pages=pages, review_reasons=_list(doc.review_reasons),
-        text=text_layer.text(doc), account=account_row, catalog=catalog,
+        text=text_layer.text(doc, page_texts), page_texts=page_texts, account=account_row, catalog=catalog,
         day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
         history_read=_read_day((decision.get("history") or {}).get("read")),
-        source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc),
+        source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc, direction),
         layers=automation.layers(dated, direction=direction, fixed=fixed, remembered=remembered,
                                  rules=(company or {}).get("rules") or (), branch=(company or {}).get("branch") or "",
                                  history=(decision.get("history") or {}).get("account")))
     verdict = automation.classify(facts)
     action, why = rules.action(verdict.cls, tier["tier"], trigger,
-                               readback=rules.readback_ok(tier["readback"], day))
+                               readback=rules.readback_ok(tier["readback"], day), baseline=tier["baseline"])
     if action == rules.PUSH and not automation_service.test_site_ok(account_set):
         action, why = rules.PROPOSE, "test_path"
     if action == rules.PUSH and not automation_service.verify_capable(
@@ -149,20 +151,20 @@ def _read_day(value):
         return None
 
 
-def _prior(connection, account_set, doc):
-    """这份账套里已成功推送、单号与这张票相同的单（`pushed.project` 的形状），自动推专用的重复分流用（第 2 条）。"""
+def _prior(connection, account_set, doc, direction):
+    """这份账套里单号与这张票相同、已推成功或还在途中（准备好 / 排队 / 在写 / 结果不明）的单（`automation.prior_entry` 的形状），
+    自动推专用的重复分流用（第 2 条）。作废的不算；还没有 Express 单号的也算：同一轮扫描里先判的那张刚排进队列，后一张不能
+    再推（审查处理 10-16）。"""
     number = str(doc.invoice_no or "").strip()
     if not number:
         return []
-    rows = frappe.db.sql("""SELECT name, history, external_docnum, payload_json, response_json
-        FROM `tabCowork Push Record` WHERE connection=%s AND account_key=%s AND status='success' AND invoice_no=%s
-        AND history != %s ORDER BY creation DESC LIMIT %s""",
-                         (connection, account_set, number, doc.name, PRIOR_MAX), as_dict=True)
+    rows = frappe.db.sql("""SELECT payload_json FROM `tabCowork Push Record` WHERE connection=%s AND account_key=%s
+        AND status IN %s AND invoice_no=%s AND history != %s ORDER BY creation DESC LIMIT %s""",
+                         (connection, account_set, PRIOR_STATUSES, number, doc.name, PRIOR_MAX), as_dict=True)
     out = []
     for row in rows:
-        item = pushed_rules.project(row.name, row.history, row.external_docnum, service._loads(row.payload_json),
-                                    service._loads(row.response_json))
-        if item:
+        item = automation.prior_entry(service._loads(row.payload_json))
+        if item and item["direction"] == direction:
             out.append(item)
     return out
 

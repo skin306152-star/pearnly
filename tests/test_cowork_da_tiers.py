@@ -97,8 +97,20 @@ class TierTable(unittest.TestCase):
         self.assertFalse(rules.readback_ok("", "2026-10-05"))
         self.assertFalse(rules.readback_ok("2026-08", ""))
         self.assertEqual(rules.action("A", rules.L1, rules.UPLOAD, readback=False), (rules.PROPOSE, "readback_stale"))
-        # 定时任务 A 类的基线推送不靠档位，没有回读也照推（新客户第一个月就推 A 类）
+        # 定时任务 A 类的基线推送不靠档位，新客户没有回读也照推（新客户第一个月就推 A 类）
         self.assertEqual(rules.action("A", rules.L0, rules.TASK, readback=False), (rules.PUSH, ""))
+
+    def test_the_scheduled_task_baseline_is_only_for_new_customers(self):
+        # 审查处理 10-16：已有证据的按证据（被改 / 核不上出提议，回读旧了也出提议）；L1 / L2 同网页上传
+        task = lambda **kw: rules.action("A", rules.L0, rules.TASK, **kw)  # noqa: E731
+        self.assertEqual(task(baseline=rules.BASELINE_NEW), (rules.PUSH, ""))
+        self.assertEqual(task(baseline=rules.BASELINE_OK), (rules.PUSH, ""))
+        self.assertEqual(task(baseline=rules.BASELINE_OK, readback=False), (rules.PROPOSE, "readback_stale"))
+        self.assertEqual(task(baseline="changed"), (rules.PROPOSE, "changed"))
+        self.assertEqual(task(baseline="written_mismatch"), (rules.PROPOSE, "written_mismatch"))
+        self.assertEqual(rules.action("A", rules.L1, rules.TASK, readback=False), (rules.PROPOSE, "readback_stale"))
+        self.assertEqual(rules.action("A", rules.L1, rules.TASK, baseline="changed"), (rules.PUSH, ""))
+        self.assertEqual(rules.action("B", rules.L0, rules.TASK, baseline=rules.BASELINE_NEW), (rules.PROPOSE, "tier"))
 
     def test_only_computers_that_return_the_write_check_take_automatic_pushes(self):
         self.assertTrue(rules.verify_capable(["1.8.0", "1.9.2"]))
@@ -241,6 +253,22 @@ class Evidence(unittest.TestCase):
                          ("L1", "readback"))
         self.assertEqual(evidence.evaluate("L0", dt.date(2026, 10, 1), {"2026-10": good}), ("L0", ""))
 
+    def test_the_task_baseline_follows_the_latest_complete_period(self):
+        good = {"a": 30, "a_changed": 0, "mismatch": 0}
+        # 从没升降过、没有合格回读的期：新客户
+        self.assertEqual(evidence.baseline("L0", None, {}), "new")
+        self.assertEqual(evidence.baseline("L0", None, {"2026-10": good}), "ok")
+        # 最近一期 A 类被改超过 1%（不到 100 张即 0 张）、核不上：不推
+        self.assertEqual(evidence.baseline("L0", None, {"2026-10": {**good, "a_changed": 1}}), "changed")
+        self.assertEqual(evidence.baseline("L0", None, {"2026-10": {"a": 200, "a_changed": 2, "mismatch": 0}}), "ok")
+        self.assertEqual(evidence.baseline("L0", None, {"2026-10": {**good, "mismatch": 1}}), "written_mismatch")
+        self.assertEqual(evidence.baseline("L0", None, {"2026-09": {**good, "a_changed": 5}, "2026-10": good}), "ok")
+        # 降过档（或 L0 上核不上重新起算）、之后还没有完整期证据：不推，原因同上次
+        self.assertEqual(evidence.baseline("L0", dt.date(2026, 10, 16), {"2026-10": good}, "changed"), "changed")
+        self.assertEqual(evidence.baseline("L0", dt.date(2026, 10, 16), {}, "written_mismatch"), "written_mismatch")
+        self.assertEqual(evidence.baseline("L0", dt.date(2026, 10, 16), {"2026-11": good}, "changed"), "ok")
+        self.assertEqual(evidence.baseline("L1", None, {}), "ok")
+
     def test_history_keeps_the_last_24_changes(self):
         rows = []
         for index in range(30):
@@ -299,16 +327,19 @@ class PushSideLookups(unittest.TestCase):
             raise RuntimeError("boom")
 
         service, frappe = _automation_service({"cowork_push_company_tier": ["x.tier"]}, {"x.tier": broken})
-        self.assertEqual(service.tier("C1", BOOK, {}), {"company": "", "tier": "L0", "readback": ""})
+        self.assertEqual(service.tier("C1", BOOK, {}), {"company": "", "tier": "L0", "readback": "",
+                                                       "baseline": "tier_unknown"})
         self.assertEqual(frappe.logged, ["Cowork push company tier failed"])
         service, _frappe_module = _automation_service()
         self.assertEqual(service.tier("C1", BOOK, {})["tier"], "L0")  # 没建主档 / 没有行
         service, _frappe_module = _automation_service({"cowork_push_company_tier": ["x.tier"]},
                                                       {"x.tier": lambda *a: {"company": "CO1", "tier": "L9"}})
-        self.assertEqual(service.tier("C1", BOOK, {}), {"company": "CO1", "tier": "L0", "readback": ""})
+        self.assertEqual(service.tier("C1", BOOK, {}), {"company": "CO1", "tier": "L0", "readback": "",
+                                                       "baseline": "new"})
         service, _frappe_module = _automation_service({"cowork_push_company_tier": ["x.tier"]}, {
             "x.tier": lambda *a: {"company": "CO1", "tier": "L1", "readback": "2026-09"}})
-        self.assertEqual(service.tier("C1", BOOK, {}), {"company": "CO1", "tier": "L1", "readback": "2026-09"})
+        self.assertEqual(service.tier("C1", BOOK, {}), {"company": "CO1", "tier": "L1", "readback": "2026-09",
+                                                       "baseline": "new"})
 
     def test_day_books_that_fail_cannot_be_chosen(self):
         def broken(*args):
@@ -350,6 +381,30 @@ class PushSideLookups(unittest.TestCase):
         self.assertEqual(found, {"account", "payment"})  # 科目是提议之后选的（UTC 02:00）；付款是票上人改的
         self.assertEqual(service.chosen_kinds("C1", BOOK, fields, "purchase", {}, dt.datetime(2026, 10, 21, 3, 0)),
                          set())
+
+    def test_a_company_rule_or_task_default_changed_after_the_proposal_is_a_change_not_stale(self):
+        # 审查处理 10-16：会计改公司规则（设为全公司）或任务默认来纠正提议，算被改，不算过时
+        fields = {"seller_tax": SELLER, "seller_name": "ผู้ขาย", "seller_branch": "00000"}
+        subject = "purchase|" + SELLER
+        rules_found = {"company": "CO1", "branch": "00000", "rules": [
+            {"kind": "account", "subject": subject, "value": "5320", "branch": "", "at": "2026-10-21 10:00:00"},
+            {"kind": "payment", "subject": subject, "value": "cash", "branch": "", "at": "2026-10-19 10:00:00"}]}
+        service, _frappe_module = _automation_service({"cowork_push_company_choices": ["x.rules"]},
+                                                      {"x.rules": lambda *a: rules_found})
+        since = dt.datetime(2026, 10, 21, 1, 0)  # UTC；规则 10:00 曼谷 = 03:00 UTC，在提议之后
+        self.assertEqual(service.chosen_kinds("C1", BOOK, fields, "purchase", {}, since, {"source_id": BOOK}),
+                         {"account"})
+        self.assertEqual(service.chosen_kinds("C1", BOOK, fields, "purchase", {}, since), set())  # 目录里没有这一行
+        found = service.chosen_kinds("C1", BOOK, fields, "purchase",
+                                     {"doctype_src": "task_default", "account_source": "company_rule"}, None)
+        self.assertEqual(found, {"payment", "account"})
+        proposed = rules.proposal("A", "L0", "task", {"direction": "purchase", "items_account": "5310"}, {}, at=since)
+        outcome = rules.compare(proposed, {"direction": "purchase", "items_account": "5320"},
+                                chosen=service.chosen_kinds("C1", BOOK, fields, "purchase", {}, since,
+                                                            {"source_id": BOOK}))
+        self.assertEqual((outcome["changed"], outcome["stale"]), (["account"], []))
+        self.assertEqual(evidence.tally([{"proposal": True, "cls": "A", "covered": True, "outcome": outcome}])["a_changed"],
+                         1)
 
 
 # ── 第 9 条：票上记判定 ────────────────────────────────────────────────────────
@@ -476,7 +531,7 @@ class CompanyTier(unittest.TestCase):
         module = _companies(store)
         self.assertEqual(module.state("CO1")["tier"], "L0")
         self.assertEqual(module.tier_for_push("C1", BOOK, {"source_id": BOOK}),
-                         {"company": "CO1", "tier": "L0", "readback": ""})
+                         {"company": "CO1", "tier": "L0", "readback": "", "baseline": "new"})
         store.records[("C1", BOOK.lower())] = [_record(f"R{i}", proposal={"class": "A", "changed": [], "stale": [],
                                                                           "edited": False}) for i in range(19)]
         store.records[("C1", BOOK.lower())].append(_record("AUTO", automated="A"))
@@ -493,7 +548,7 @@ class CompanyTier(unittest.TestCase):
                          ("2026-10", 20, 1))
         self.assertEqual(json.loads(row.history_json)[-1]["to"], "L1")
         self.assertEqual(module.tier_for_push("C1", BOOK, {"source_id": BOOK}),
-                         {"company": "CO1", "tier": "L1", "readback": "2026-10"})
+                         {"company": "CO1", "tier": "L1", "readback": "2026-10", "baseline": "ok"})
 
     def test_pushes_after_the_readback_started_and_truncated_differences_are_not_trusted(self):
         store = Store()
@@ -519,6 +574,17 @@ class CompanyTier(unittest.TestCase):
         self.assertEqual((store.rows["CO1"].tier, store.rows["CO1"].reason), ("L0", "written_mismatch"))
         self.assertEqual(module.on_mismatch("C1", BOOK, {"source_id": BOOK})["changed"], False)
         self.assertIsNone(_companies(Store(), company=None).on_mismatch("C1", BOOK, {}))
+
+    def test_a_write_mismatch_at_l0_stops_the_task_baseline_until_new_evidence(self):
+        # 审查处理 10-16：已在 L0（定时任务基线推的）核不上也从现在重新起算，定时任务 A 类改出提议
+        store = Store()
+        module = _companies(store)
+        self.assertEqual(module.tier_for_push("C1", BOOK, {"source_id": BOOK})["baseline"], "new")
+        module.on_mismatch("C1", BOOK, {"source_id": BOOK})
+        row = store.rows["CO1"]
+        self.assertEqual((row.tier, row.reason, bool(row.since)), ("L0", "written_mismatch", True))
+        self.assertEqual(json.loads(row.history_json)[-1]["reason"], "written_mismatch")
+        self.assertEqual(module.tier_for_push("C1", BOOK, {"source_id": BOOK})["baseline"], "written_mismatch")
 
     def test_seeing_the_tier_needs_the_ledger_read_and_the_stats_need_intake(self):
         store = Store()
@@ -621,6 +687,12 @@ class ScheduledTask(unittest.TestCase):
         contracts = importlib.import_module("pearnly_cowork.folder_intake.contracts")
         self.assertEqual(contracts.ticket_state({"status": "held", "reason": "automation:proposal"}, ""),
                          ("stopped", "review"))
+        # 没过核对的 C 类不是现成的提议：简报不写「待推送」，同待处理的「还没推送」（审查处理 10-16）
+        self.assertEqual(contracts.ticket_state({"status": "held", "reason": "automation:review"}, ""),
+                         ("stopped", "checked"))
+        briefs = (APP / "folder_intake/briefs.py").read_text(encoding="utf-8")
+        checked = briefs.split('if found["stop_reasons"].get("checked"):', 1)[1].split("\n    if ", 1)[0]
+        self.assertIn('_("cowork.company.pending.not_pushed")', checked)
 
     def test_mr_erp_is_not_judged(self):
         push, rule, entry, calls = _folder_push(_judged("C", "stop"), adapter="mrerp")
@@ -784,7 +856,8 @@ class UploadSweep(unittest.TestCase):
 # ── 第 5 条：自动推前的判定（边界） ────────────────────────────────────────────
 
 
-def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09"):
+def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
+            prior=(), sql=None):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -798,7 +871,11 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
     seen = {"rollback": 0}
     frappe = types.ModuleType("frappe")
     frappe.session = ns(user="u@example.com")
-    frappe.db = ns(rollback=lambda: seen.__setitem__("rollback", seen["rollback"] + 1), sql=lambda *a, **k: [])
+    def run_sql(query, values=(), as_dict=False):
+        seen.setdefault("sql", []).append((query, values))
+        return [ns(payload_json=json.dumps(item)) for item in prior]
+
+    frappe.db = ns(rollback=lambda: seen.__setitem__("rollback", seen["rollback"] + 1), sql=sql or run_sql)
     frappe.utils = ns(getdate=lambda value: dt.date.fromisoformat(str(value)[:10]))
     doc = ns(name="H1", workspace="W1", client="", review_reasons="[]", creation=dt.datetime(2026, 10, 21, 9, 0),
              source_total=1, invoice_no="IV69-001")
@@ -819,10 +896,11 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         _decisions=lambda *a, **k: {"applied": {"account": "5310-01"}, "needed": list(needed),
                                     "decided_by": {"account": "remembered", "vat": "remembered"}})
     automation_service = ns(
-        tier=lambda *a: tier or {"company": "CO1", "tier": "L1", "readback": readback},
+        tier=lambda *a: tier or {"company": "CO1", "tier": "L1", "readback": readback, "baseline": "ok"},
         day_books=lambda *a: [BOOK.lower()], test_site_ok=lambda key: site_ok,
         verify_capable=lambda connection, key, actor, route_device="": capable)
-    text_layer = ns(text=lambda doc: "IV69-001 วันที่ 20/10/2569 รวม 1,000.00 ภาษี 70.00 รวมทั้งสิ้น 1,070.00")
+    printed = f"{SELLER} IV69-001 วันที่ 20/10/2569 รวม 1,000.00 ภาษี 70.00 รวมทั้งสิ้น 1,070.00"
+    text_layer = ns(pages=lambda doc: [printed], text=lambda doc, found=None: "\n".join(found or [printed]))
     prepared = ns(payload=payload, disposition="ready", reason="")
     module = _load("da_tiers_assess", APP / "push/application/assess.py", {
         "frappe": frappe, "pearnly_cowork.access": ns(scope=ns(require=lambda feature: None)),
@@ -834,7 +912,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         "pearnly_cowork.push.automation": ns(rules=rules, service=automation_service),
         "pearnly_cowork.push.express.preflight": ns(ExpressContext=lambda **kwargs: kwargs),
         "pearnly_cowork.push.express.prepare": ns(prepare_express=lambda *a, **k: prepared)})
-    return module.run("H1", "C1", BOOK, None, trigger="upload", today=dt.date(2026, 10, 25)), seen
+    return module.run("H1", "C1", BOOK, None, trigger=trigger, today=dt.date(2026, 10, 25)), seen
 
 
 class Judging(unittest.TestCase):
@@ -852,8 +930,32 @@ class Judging(unittest.TestCase):
         self.assertEqual((found["action"], found["why"]), ("propose", "verify_version"))
         found, _seen = _assess(readback="2026-07")
         self.assertEqual((found["action"], found["why"]), ("propose", "readback_stale"))
-        found, _seen = _assess(tier={"company": "", "tier": "L0", "readback": ""})
+        found, _seen = _assess(tier={"company": "", "tier": "L0", "readback": "", "baseline": "new"})
         self.assertEqual((found["action"], found["why"]), ("propose", "tier"))
+
+    def test_the_scheduled_task_pushes_a_at_l0_only_on_its_baseline(self):
+        found, _seen = _assess(trigger="task", tier={"company": "CO1", "tier": "L0", "readback": "", "baseline": "new"})
+        self.assertEqual((found["class"], found["action"]), ("A", "push"))
+        found, _seen = _assess(trigger="task", tier={"company": "CO1", "tier": "L0", "readback": "2026-09",
+                                                     "baseline": "changed"})
+        self.assertEqual((found["action"], found["why"]), ("propose", "changed"))
+        self.assertIn("changed", found["codes"])
+
+    def test_an_already_queued_same_document_is_not_pushed_again(self):
+        # 审查处理 10-16：同一轮扫描里先判的那张已排进队列（还没写、没有 Express 单号），后一张归 C、记 duplicate_number
+        queued = {"direction": "purchase", "supplier": {"tax_id": SELLER}, "ref_no": "IV69-001",
+                  "total_amount": "1070.00"}
+        found, seen = _assess(prior=[queued])
+        self.assertEqual((found["class"], found["action"]), ("C", "stop"))
+        self.assertIn("duplicate_number", found["reasons"])
+        query, values = seen["sql"][0]
+        self.assertIn("status IN %s", query)
+        self.assertEqual(values[2], ("prepared", "pending", "leased", "manual", "success"))
+        self.assertNotIn("cancelled", values[2])
+        found, _seen = _assess(prior=[{**queued, "total_amount": "1071.00"}])
+        self.assertEqual(found["class"], "A")
+        found, _seen = _assess(prior=[{**queued, "direction": "sales"}])
+        self.assertEqual(found["class"], "A")
 
     def test_images_and_needed_choices_stop(self):
         found, _seen = _assess(text=False)
@@ -919,6 +1021,25 @@ class LeaseRecheck(unittest.TestCase):
         source = (APP / "push/native/service.py").read_text(encoding="utf-8")
         lease = source.split("def lease(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("if _automation_stale(target, context, loaded):", lease)
+
+    def test_an_automatic_push_leased_by_an_older_cc_desktop_becomes_a_proposal(self):
+        # 审查处理 10-16：判定时写的电脑都够新，之后上线 / 配对的旧版也可能来领；领单时按来领的这台再核
+        module, saved, withdrawn = self._ledger(lambda version, account, scope: "H")
+        frozen = {"automation": {"class": "A", "tier": "L1", "trigger": "upload", "hash": "H"}}
+        self.assertTrue(module._automation_old_writer(frozen, ns(version="1.7.3")))
+        self.assertTrue(module._automation_old_writer(frozen, ns(version="")))
+        self.assertFalse(module._automation_old_writer(frozen, ns(version="1.8.0")))
+        self.assertFalse(module._automation_old_writer({}, ns(version="1.7.3")))  # 人发起的单不核
+        row = Row(name="CWP-2", history="H2", status="pending")
+        result = module._withdraw_automation(row, frozen, {"direction": "purchase"}, None, why="verify_version")
+        self.assertEqual((result["leased"], saved[-1]), (False, ("cancelled", "push.automation_changed")))
+        self.assertEqual(withdrawn[-1][:2], ("CWP-2", "verify_version"))
+        source = (APP / "push/native/service.py").read_text(encoding="utf-8")
+        lease = source.split("def lease(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("if _automation_old_writer(target, adapter):", lease)
+        transport = (APP / "companion/transport.py").read_text(encoding="utf-8")
+        self.assertIn("['device_owner', 'companion_version']", transport)
+        self.assertIn("route=decision.route, version=version)", transport)
 
     def test_automatic_pushes_never_ask_about_a_busy_account_set(self):
         peer = route_contracts.Peer(users=frozenset({"u@example.com"}))

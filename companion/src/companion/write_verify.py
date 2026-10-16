@@ -32,7 +32,8 @@ log = get_logger(__name__)
 
 STATE_OK = "ok"
 STATE_MISMATCH = "mismatch"
-# 回执里 fields 的取值（服务端白名单同一组，见 apps/pearnly_cowork/.../push/express/common.py `VERIFY_FIELDS`）
+# 回执里 fields 的取值（服务端白名单同一组，见 apps/pearnly_cowork/.../push/express/written_check.py `COMPANION_FIELDS`，
+# tests/test_companion_contract.py 锁两边一致）
 FIELDS = ("party_code", "party_master", "account", "date", "rectyp", "refnum", "vat_tax_id", "vat_branch",
           "pos_date", "unreadable")
 

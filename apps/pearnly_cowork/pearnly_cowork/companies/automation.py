@@ -82,13 +82,16 @@ def view(company) -> dict:
 def tier_for_push(connection, account_set, account_row) -> dict | None:
     """推送的钩子（``cowork_push_company_tier``）：这份账套所属公司此刻的档位 ``{"company", "tier", "readback"}``（``readback``
     是最近一次合格回读覆盖的期间 `YYYY-MM`，没有为空串）；目录里没有这一行、没建主档回 None（按 L0）。出错由推送那边接住按 L0。
-    推送服务已核过录入权限与这条连接的使用授权；档位全所共用。"""
+    ``baseline``：定时任务 A 类在 L0 的基线（`automation_rules.baseline`）。推送服务已核过录入权限与这条连接的使用授权；
+    档位全所共用。"""
     del account_set  # 归属由目录这一行定
     name, _branch = account_company(connection, account_row)
     if not name:
         return None
     found = state(name)
-    return {"company": name, "tier": found["tier"], "readback": found["readback"]}
+    since = get_datetime(found["since"]).date() if found["since"] else None
+    return {"company": name, "tier": found["tier"], "readback": found["readback"],
+            "baseline": automation_rules.baseline(found["tier"], since, found["periods"], found["reason"])}
 
 
 def day_books(connection, account_row, day, catalog=None) -> list | None:
@@ -111,8 +114,9 @@ def day_books(connection, account_row, day, catalog=None) -> list | None:
 # ---------------- 写 ----------------
 
 
-def _set(company, tier, reason, *, evidence=None, period=""):
-    """存这家的档位（同档只更新证据）；档位变了记一次升降。调用方在写路径上、负责提交。"""
+def _set(company, tier, reason, *, evidence=None, period="", restart=False):
+    """存这家的档位（同档只更新证据）；档位变了记一次升降。``restart``：同档也从现在重新起算（L0 上自动推核不上：定时任务的
+    基线推送要等之后的完整期证据）。调用方在写路径上、负责提交。"""
     workspace = frappe.db.get_value("Cowork Company", company, "workspace")
     if not workspace:
         return None
@@ -125,7 +129,7 @@ def _set(company, tier, reason, *, evidence=None, period=""):
     before = tier_rules.tier_of(doc.tier)
     if evidence is not None:
         doc.evidence_json = json.dumps(evidence, ensure_ascii=False, sort_keys=True)
-    if tier != before:
+    if tier != before or restart:
         now = now_datetime()
         doc.tier, doc.since, doc.reason = tier, now, reason
         doc.history_json = json.dumps(automation_rules.keep_history(
@@ -229,15 +233,15 @@ def on_readback(connection, account_set_key, period, readback=None) -> dict | No
 
 
 def on_mismatch(connection, account_set, account_row) -> dict | None:
-    """自动推的单写入核不上（推送回执，钩子 ``cowork_push_verify_mismatch``）：这家立刻降到 L0（原因 ``written_mismatch``）。
-    人推的单核不上不影响档位（调用方只对带 ``automation`` 的记录调）。没建主档回 None。"""
+    """自动推的单写入核不上（推送回执，钩子 ``cowork_push_verify_mismatch``）：这家立刻降到 L0（原因 ``written_mismatch``）；
+    已在 L0 的（定时任务基线推的）也从现在重新起算，之后的完整期证据达标前定时任务 A 类只出提议。人推的单核不上不影响档位
+    （调用方只对带 ``automation`` 的记录调）。没建主档回 None。"""
     del account_set
     company, _branch = account_company(connection, account_row)
     if not company:
         return None
     before = state(company)["tier"]
-    if before != tier_rules.L0:
-        _set(company, tier_rules.L0, "written_mismatch")
+    _set(company, tier_rules.L0, "written_mismatch", restart=True)
     return {"company": company, "tier": tier_rules.L0, "changed": before != tier_rules.L0}
 
 

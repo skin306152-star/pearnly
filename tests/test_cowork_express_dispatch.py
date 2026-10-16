@@ -350,7 +350,8 @@ class Transport(unittest.TestCase):
         frappe.throw = lambda message, exc=Exception: (_ for _ in ()).throw(exc(message))
         frappe.parse_json = json.loads
         frappe.db = types.SimpleNamespace(savepoint=lambda name: None, rollback=lambda **kw: None, sql=self.sql,
-                                          get_value=lambda doctype, name, field: "owner@example.com")
+                                          get_value=lambda doctype, name, field, as_dict=False: types.SimpleNamespace(
+                                              device_owner="owner@example.com", companion_version="1.8.0"))
         frappe.get_doc = lambda doctype, name, for_update=False: Record(
             name=name, connection="CONN", workspace="WS", client="", branch="legacy", binding_generation=0,
             actor=ME, history="H-" + name, history_version=1, account_key=self.key_of(name), connection_revision=1)

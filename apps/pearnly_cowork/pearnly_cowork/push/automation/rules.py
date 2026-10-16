@@ -4,8 +4,11 @@
 领单重核（`push.native.service.lease`）与公司档位的评估（`companies.automation`）共用。
 
 - **档位按公司**：L0 只提议（所有公司起点）/ L1 按规则（A 类自动推）/ L2 整月（A、B 都自动推）；C 类一律照现有停下。
-- **谁触发**：定时任务（任务默认值是人定的规则，A 类从 L0 起就照推，用户 10-16 定）、网页上传、LINE。CC 对话和待处理里人点的
-  推送是人发起的，不经这里。
+- **谁触发**：定时任务（任务默认值是人定的规则，新客户第一个月 A 类照推，用户 10-16 定）、网页上传、LINE。CC 对话和待处理里
+  人点的推送是人发起的，不经这里。
+- **定时任务 A 类的基线推送只给新客户**（``baseline``，`companies.automation_rules.baseline` 按这家的证据算）：L0 上还没有任何
+  合格回读、也没升降过的照推；已有合格回读的，最近一期 A 类被改不超过 1%、没有核不上才推（并要回读不旧），否则出提议；核不上或
+  被改降过档之后、还没有新的完整期证据的也出提议。L1 / L2 上同网页上传（审查处理 10-16：原先不看档位与证据，永久照推）。
 - **L2 推 B 类的全局前提**（`B_AT_L2`）与图片单（`push.express.automation.IMAGES_ALLOWED`）一样是写在代码里的常量，随发布改，
   不是租户开关：回放里 B 类单独过第 15 条达标线之前，L2 的 B 类仍只出提议。
 - **没有新回读就暂停**：这家最近一次合格回读覆盖的会计期间早于本单期间两个月以上，靠档位放行的自动推改出提议（定时任务 A 类
@@ -41,6 +44,8 @@ TEST_ROOT = "c:\\pearnlyexpress\\"
 PROPOSAL_KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt")
 # 档位不升不降的原因码与升降的原因码（存在 `Cowork Company Automation.reason`，界面按码翻译）
 REASONS = ("readback", "written_mismatch", "changed")
+# 定时任务 A 类在 L0 的基线推送（`companies.automation_rules.baseline`）：新客户 / 证据达标；其余是不推的原因码
+BASELINE_NEW, BASELINE_OK = "new", "ok"
 
 
 def tier_of(value: Any) -> str:
@@ -69,17 +74,23 @@ def readback_ok(last: Any, period: Any) -> bool:
     return bool(last and period) and months_between(last, period) <= READBACK_LAG_MONTHS
 
 
-def action(cls: str, tier: str, trigger: str, *, readback: bool = True) -> Tuple[str, str]:
+def action(cls: str, tier: str, trigger: str, *, readback: bool = True,
+           baseline: str = BASELINE_NEW) -> Tuple[str, str]:
     """这张单这次怎么办：``(push | propose | stop, 原因码)``。
 
     - C 类一律 ``stop``（照现有停下）；
-    - 定时任务：A 类照推（基线，不看档位与回读）；B 类只在 L2、全局前提成立、回读不旧时推，否则提议；
+    - 定时任务：A 类在 L0 按基线（``baseline``：``new`` 新客户照推；``ok`` 证据达标且回读不旧时推；其余码出提议、原因即该码），
+      L1 / L2 同网页上传；B 类只在 L2、全局前提成立、回读不旧时推，否则提议；
     - 网页上传 / LINE：A 类在 L1 / L2 且回读不旧时推；B 类同定时任务；其余提议。"""
     tier = tier_of(tier)
     if cls not in ("A", "B"):
         return STOP, ""
-    if trigger == TASK and cls == "A":
-        return PUSH, ""
+    if trigger == TASK and cls == "A" and tier == L0:
+        if baseline == BASELINE_NEW:
+            return PUSH, ""
+        if baseline != BASELINE_OK:
+            return PROPOSE, str(baseline or "tier")
+        return (PUSH, "") if readback else (PROPOSE, "readback_stale")
     if trigger not in TRIGGERS:
         return PROPOSE, "trigger"
     if cls == "B":
@@ -244,7 +255,7 @@ def compare(proposed: Optional[Mapping[str, Any]], payload: Optional[Mapping[str
             "stale": [kind for kind in differ if kind not in chosen]}
 
 
-__all__ = ["B_AT_L2", "L0", "L1", "L2", "LINE", "PROPOSAL_KINDS", "PROPOSE", "PUSH", "READBACK_LAG_MONTHS", "STOP",
+__all__ = ["BASELINE_NEW", "BASELINE_OK", "B_AT_L2", "L0", "L1", "L2", "LINE", "PROPOSAL_KINDS", "PROPOSE", "PUSH", "READBACK_LAG_MONTHS", "STOP",
            "TASK", "TEST_ROOT", "TIERS", "TRIGGERS", "UPLOAD", "VERIFY_MIN_VERSION", "action", "automation_hash",
            "compare", "digest", "fingerprint", "frozen", "months_between", "period_of", "proposal", "readback_ok",
            "subjects", "test_path_ok", "tier_of", "values", "verify_capable", "version_tuple"]

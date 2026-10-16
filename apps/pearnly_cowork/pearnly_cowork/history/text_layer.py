@@ -10,6 +10,7 @@ import frappe
 
 from pearnly_cowork.files import service as originals
 from pearnly_cowork.files.access import SOURCE
+from pearnly_cowork.history.pdf_text import page_text
 
 # 一张票最多抽这么多页的文字（发票一般一两页；挂了长附件的也只看前面这些页）
 PAGES_MAX = 20
@@ -23,26 +24,33 @@ def _pages(doc) -> list:
     return sorted({index for index in indices if type(index) is int and index >= 1})[:PAGES_MAX]
 
 
-def text(doc):
-    """票 ``doc``（`Cowork OCR History`）所在原件这几页的文字层，连成一段；没有为 None。"""
+def pages(doc):
+    """票 ``doc``（`Cowork OCR History`）所在原件这几页**各自**的文字层（按页序的字符串表）；带隐形文字（``3 Tr``，扫描件上
+    叠的识别文字层）的页给空串，按图片算（`history.pdf_text`）。不是 PDF、读不出回 None。"""
     if not doc.get("source_file"):
         return None
     source = frappe.get_doc(SOURCE, doc.source_file)
     if source.kind != "pdf":
         return None
-    pages = _pages(doc)
-    if not pages:
+    indices = _pages(doc)
+    if not indices:
         return None
     try:
         import pypdf
 
         reader = pypdf.PdfReader(io.BytesIO(originals.read_bytes(source)))
-        found = [reader.pages[index - 1].extract_text() or "" for index in pages if index <= len(reader.pages)]
+        found = [page_text(reader.pages[index - 1]) for index in indices if index <= len(reader.pages)]
     except Exception:  # noqa: BLE001 — 读不出就当没有原文（归 C），不挡判定
         frappe.clear_messages()
         return None
-    joined = "\n".join(found).strip()
+    return found
+
+
+def text(doc, found=None):
+    """票 ``doc`` 所在原件这几页的文字层，连成一段；没有为 None。``found`` 是已取好的 :func:`pages`（省一次读原件）。"""
+    found = pages(doc) if found is None else found
+    joined = "\n".join(found or ()).strip()
     return joined or None
 
 
-__all__ = ["PAGES_MAX", "text"]
+__all__ = ["PAGES_MAX", "pages", "text"]

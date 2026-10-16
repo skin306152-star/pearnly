@@ -16,6 +16,7 @@ from pearnly_cowork.connections import pool as account_pool
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.automation import rules
 from pearnly_cowork.push.express import choices as choice_rules
+from pearnly_cowork.push.express import company_choices
 
 TIER_HOOK = "cowork_push_company_tier"
 DAY_HOOK = "cowork_push_day_books"
@@ -29,17 +30,19 @@ def _log(title):
 
 
 def tier(connection, account_set, account_row) -> dict:
-    """这份账套所属公司此刻的档位：``{"company", "tier", "readback"}``；没建主档、没有行、钩子出错都按 L0（出错记日志）。"""
+    """这份账套所属公司此刻的档位：``{"company", "tier", "readback", "baseline"}``；没建主档、没有行按 L0、新客户；钩子出错
+    按 L0、基线不推（出错记日志）。``baseline`` 是定时任务 A 类在 L0 的基线（`rules.action`）。"""
     for path in frappe.get_hooks(TIER_HOOK) or []:
         try:
             found = frappe.get_attr(path)(connection, account_set, account_row)
         except Exception:  # noqa: BLE001 — 取不到档位按 L0：只会少推，不会多推
             _log("Cowork push company tier failed")
-            return {"company": "", "tier": rules.L0, "readback": ""}
+            return {"company": "", "tier": rules.L0, "readback": "", "baseline": "tier_unknown"}
         if found:
             return {"company": str(found.get("company") or ""), "tier": rules.tier_of(found.get("tier")),
-                    "readback": str(found.get("readback") or "")}
-    return {"company": "", "tier": rules.L0, "readback": ""}
+                    "readback": str(found.get("readback") or ""),
+                    "baseline": str(found.get("baseline") or rules.BASELINE_NEW)}
+    return {"company": "", "tier": rules.L0, "readback": "", "baseline": rules.BASELINE_NEW}
 
 
 def day_books(connection, account_row, day, catalog):
@@ -123,14 +126,20 @@ def _utc(value):
     return frappe.utils.get_datetime(value).replace(tzinfo=zone).astimezone(dt.timezone.utc).replace(tzinfo=None)
 
 
-def chosen_kinds(connection, account_set, fields, direction, payload, since) -> set:
-    """这次推送里人当场定的类别：提议之后（``since``，UTC）在这份账套里选过的（按对方记的归类键），加上载荷里来源是人的
-    （付款方式 ``doctype_src = manual``、费用科目 ``account_source = chosen``、抵进项 ``item_src = manual``）。"""
+# 载荷里这几项的来源是人定的规则（任务默认、公司规则）：值与提议不同就是人改过规则来纠正提议，不是提议过时
+HUMAN_RULE_SOURCES = ("task_default", "company_rule")
+
+
+def chosen_kinds(connection, account_set, fields, direction, payload, since, account_row=None) -> set:
+    """这次推送里人定的类别：提议之后（``since``，UTC）在这份账套里选过的（按对方记的归类键）、提议之后改过的公司规则（这份
+    账套适用的那条，``account_row`` 认公司与分店），加上载荷里来源是人的（付款方式 ``doctype_src`` = manual / 任务默认 / 公司规则、
+    费用科目 ``account_source`` = chosen / 任务默认 / 公司规则、抵进项 ``item_src = manual``）。只有来源不是人（Express 历史重读、
+    分类映射……）的变化才算提议过时（审查处理 10-16：改公司规则、任务默认纠正提议原先被记成过时、不进样本）。"""
     payload = payload if isinstance(payload, dict) else {}
     found = set()
-    if payload.get("doctype_src") == "manual":
+    if payload.get("doctype_src") in ("manual", *HUMAN_RULE_SOURCES):
         found.add("payment")
-    if payload.get("account_source") == "chosen":
+    if payload.get("account_source") in ("chosen", *HUMAN_RULE_SOURCES):
         found.add("account")
     if payload.get("item_src") == "manual":
         found.add("vat")
@@ -140,8 +149,17 @@ def chosen_kinds(connection, account_set, fields, direction, payload, since) -> 
     subjects = {"party": choice_rules.party_subject(direction, tax, branch, name), "account": supplier,
                 "payment": supplier, "vat": supplier, "department": "*"}
     since = frappe.utils.get_datetime(since) if since else None
+    if not since:
+        return found
     for kind, subject in subjects.items():
-        at = _utc(choice_store.chosen_at(connection, account_set, kind, subject)) if since else None
+        at = _utc(choice_store.chosen_at(connection, account_set, kind, subject))
+        if at and at >= since:
+            found.add(kind)
+    rules_found, branch = company_rules(connection, account_set, account_row) if account_row is not None else ((), "")
+    picked = company_choices.pick(rules_found, branch)
+    for kind, subject in subjects.items():
+        rule = (picked.get(kind) or {}).get(subject) or {}
+        at = _utc(rule.get("at")) if rule.get("at") else None
         if at and at >= since:
             found.add(kind)
     return found

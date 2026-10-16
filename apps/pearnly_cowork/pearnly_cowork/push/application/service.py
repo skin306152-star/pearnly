@@ -225,7 +225,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
         # 写入核不上时按这一行认公司、立刻降到 L0（回执里不再读连接目录）
         frozen["automation"]["account_row"] = account_row
     else:
-        outcome = _proposal_outcome(doc, loaded.doc.name, target.account_set, fields, direction, payload)
+        outcome = _proposal_outcome(doc, loaded.doc.name, target.account_set, fields, direction, payload,
+                                    lambda: _account_row(loaded, target))
         if outcome:
             frozen["proposal"] = outcome
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
@@ -235,7 +236,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
     return _view(row)
 
 
-def _proposal_outcome(doc, connection, account_set, fields, direction, payload):
+def _proposal_outcome(doc, connection, account_set, fields, direction, payload, account_row=None):
     """人推一张有提议（``auto_proposal``）的票：推出去的与提议比（`push.automation.rules.compare`）；没有提议回 None。"""
     raw = getattr(doc, "auto_proposal", None)
     try:
@@ -244,7 +245,10 @@ def _proposal_outcome(doc, connection, account_set, fields, direction, payload):
         return None
     if not isinstance(proposed, dict):
         return None
-    chosen = automation_service.chosen_kinds(connection, account_set, fields, direction, payload, proposed.get("at"))
+    if callable(account_row):
+        account_row = account_row()  # 有提议才取目录这一行
+    chosen = automation_service.chosen_kinds(connection, account_set, fields, direction, payload, proposed.get("at"),
+                                             account_row)
     return automation_rules.compare(proposed, payload, chosen=chosen, edited=int(getattr(doc, "edit_count", 0) or 0) > 0)
 
 

@@ -54,14 +54,18 @@ ATTACHMENT_PAGE = "attachment_page:"
 RULE_SOURCES = frozenset({"task_default", "remembered", "company_rule", "mixed"})
 # 按对方作键记下的来源：对方没有 13 位税号时键是名字，通用店名会串到别家，最高算 B
 KEYED_SOURCES = frozenset({"remembered", "company_rule", "express_history", "chosen", "mixed"})
-# 现 / 赊哪层定的（载荷 doctype_src，`payment.payment_verdict` 六级漏斗与 mapper 的记过 / 任务默认）
+# 现 / 赊哪层定的（载荷 doctype_src，`payment.payment_verdict` 六级漏斗与 mapper 的记过 / 任务默认）。票种口径 ``doc_type``
+# 只有「收据即已付」是规则（A）；「完整税票多为赊」是推断（B，`_payment_tier`）：第 15 条回放销项按票种判赊 93% 与会计不符
+# （回放造票种的口径另有偏差，见回放报告），没有能核实它的正确口径前不算人或规则定（审查处理，10-16）
 PAYMENT_TIERS = {"manual": A, "explicit": A, "doc_type": A, "remembered": A, "task_default": A, "company_rule": A,
                  "profile": B, "bank": B, "config_default": B}
+CASH_DOCTYPES = ("HP", "HS")
 # 记的科目哪层定的（载荷 account_source）。express_history 另看版本（v2 才算 A）。
 PURCHASE_ACCOUNT_TIERS = {"task_default": A, "remembered": A, "chosen": A, "company_rule": A,
                           "category_map": B, "config_default": B}
-# 销项的收入科目：人设在连接上的默认收入科目（config_default）就是人定的
-SALES_ACCOUNT_TIERS = {"config_default": A, "task_default": A, "remembered": A, "chosen": A, "company_rule": A,
+# 销项的收入科目：连接上的默认收入科目（config_default）同进项连接默认科目一样是兜底、不是为这张单定的，算 B（第 15 条回放
+# 44% 与会计记的收入科目不符：有几个收入科目的公司，审查处理 10-16）
+SALES_ACCOUNT_TIERS = {"config_default": B, "task_default": A, "remembered": A, "chosen": A, "company_rule": A,
                        "category_map": B}
 HISTORY_VERSION = 2
 STOCK_MODES = ("stock_item", "stock_sale")
@@ -81,9 +85,10 @@ class Facts:
     Express 载荷（没出载荷为 None）；``config``：这份账套的配置（含 CC 桌面版上报的 ``reported_*`` 主档）；
     ``ready`` / ``blocked``：硬闸（`account_match`、`doc_sanity`、`preflight_express`、录不录口径）全过 / 拦下的原因；
     ``pages`` / ``review_reasons``：票上的识别页与复核原因；``text``：原件的 PDF 文字层（全部页连起来，没有为 None）；
+    ``page_texts``：原件这几页各自的文字层（`history.text_layer.pages`，隐形识别文字层的页为空串；没给时 ``text`` 只当一页）；
     ``account`` / ``catalog``：推往账套在连接目录里的那一行 / 整个目录；``day_books``：按这张单日期选出的账套键
     （定时任务跟随公司当年账套 T1 同一判据，判不出为 None）；``uploaded``：上传日；``source_total``：同一原件拆出几张票；
-    ``prior_pushes``：这份账套里已成功推送的单（`pushed.project` 的形状）；``layers`` / ``history_read``：各层对同一项给的值
+    ``prior_pushes``：这份账套里成功推送或还在途中（准备好、排队、在写、结果不明）的单（`prior_entry` 的形状）；``layers`` / ``history_read``：各层对同一项给的值
     （`layers`）与 Express 历史读到的日子。"""
 
     direction: str
@@ -103,6 +108,7 @@ class Facts:
     uploaded: Optional[dt.date] = None
     source_total: int = 1
     prior_pushes: Sequence[Mapping[str, Any]] = ()
+    page_texts: Optional[Sequence[str]] = None
     layers: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     history_read: Optional[dt.date] = None
 
@@ -232,16 +238,29 @@ def date_in_text(day: Optional[dt.date], text: Optional[str]) -> bool:
 # ── 第 2 条：自动推前的核对 ──────────────────────────────────────────────────────
 
 
-def text_layer(pages: Sequence[Mapping[str, Any]], text: Optional[str] = None) -> bool:
-    """这张票的原件是文字层 PDF（不是拍照、扫描件、图片转的 PDF）：每一页都是从 PDF 文字层读的；或者原件这几页的
-    文字层（``text``，`history.text_layer`）每页平均够 `TEXT_CHARS_PER_PAGE` 字 —— 生产里电子 PDF 也照图片直读，
-    识别链第一段不是 ``text``（第 15 条回放查出，按设计「文字层 PDF 才能进 A / B」的原意纠正）。"""
+def text_layer(pages: Sequence[Mapping[str, Any]], page_texts: Any = None) -> bool:
+    """这张票的原件是文字层 PDF（不是拍照、扫描件、图片转的 PDF）：每一页都是从 PDF 文字层读的；或者原件这几页**每一页**的
+    文字层（``page_texts``，`history.text_layer.pages`）都够 `TEXT_CHARS_PER_PAGE` 字 —— 生产里电子 PDF 也照图片直读，
+    识别链第一段不是 ``text``（第 15 条回放查出）。逐页判：扫描发票页 + 长文字附页的混合 PDF、带隐形识别文字层的扫描件
+    （那几页给空串，`history.pdf_text`）都不算（审查处理 10-16）。给一段字符串时只当一页。"""
     pages = [page for page in pages or () if isinstance(page, Mapping)]
     if not pages:
         return False
     if all(list(page.get("_layer_chain") or [])[:1] == [TEXT_STAGE] for page in pages):
         return True
-    return isinstance(text, str) and len(text.strip()) >= TEXT_CHARS_PER_PAGE * len(pages)
+    if isinstance(page_texts, str):
+        page_texts = [page_texts]
+    texts = [str(item or "") for item in page_texts or ()]
+    return len(texts) >= len(pages) and all(len(item.strip()) >= TEXT_CHARS_PER_PAGE for item in texts)
+
+
+def tax_in_text(tax: Any, text: Optional[str]) -> bool:
+    """13 位税号在文字层里能找到原文（数字之间可夹空格、连字号：0-1055-12345-67-8 也算）。"""
+    number = _digits(tax)
+    if len(number) != 13 or not text:
+        return False
+    pattern = r"(?<!\d)" + r"[\s\-]?".join(number) + r"(?!\d)"
+    return re.search(pattern, str(text)) is not None
 
 
 def _notes(pages) -> List[str]:
@@ -318,8 +337,22 @@ def _evidence(pages) -> bool:
     return any(note.startswith(ATTACHMENT_PAGE) for note in _notes(pages))
 
 
+def prior_entry(payload: Any) -> Optional[Dict[str, str]]:
+    """一条推送记录冻结的载荷 → 重复分流比的几项 ``{direction, party_tax_id, ref_no, total}``（不要 Express 单号：还在途中的
+    记录也算）；不是 Express 进 / 销项载荷回 None。"""
+    payload = payload if isinstance(payload, Mapping) else {}
+    direction = payload.get("direction")
+    if direction not in ("purchase", "sales"):
+        return None
+    side = "customer" if direction == "sales" else "supplier"
+    party = payload.get(side) if isinstance(payload.get(side), Mapping) else {}
+    return {"direction": direction, "party_tax_id": _digits(party.get("tax_id")),
+            "ref_no": str(payload.get("ref_no") or "").strip(), "total": str(payload.get("total_amount") or "")}
+
+
 def _same_push(facts: Facts) -> bool:
-    """这份账套已成功推过同对方税号、同单号、同含税额的单（自动推专用的重复分流，用户 10-16 定；人推照旧不查不拦）。"""
+    """这份账套已推过（成功或还在途中）同对方税号、同单号、同含税额的单（自动推专用的重复分流，用户 10-16 定；人推照旧不查
+    不拦）。同一轮扫描里先判的那张刚排进队列、还没写，也算（审查处理 10-16）。"""
     payload = _payload(facts)
     side = "customer" if facts.direction == "sales" else "supplier"
     party = payload.get(side) if isinstance(payload.get(side), Mapping) else {}
@@ -335,6 +368,21 @@ def _same_push(facts: Facts) -> bool:
                 and _money(prior.get("total")) == total):
             return True
     return False
+
+
+def _own(facts: Facts) -> Tuple[str, str]:
+    """(推往账套的 13 位税号或空串, 票面印的本方税号数字)。"""
+    account = _digits(_attributes(facts.account).get("tax_id"))
+    return (account if len(account) == 13 else ""), _digits(facts.fields.get(f"{_own_side(facts.direction)}_tax"))
+
+
+def _own_mismatch(facts: Facts, tax_invoice: bool) -> bool:
+    account, printed = _own(facts)
+    if not account:
+        return False
+    if printed:
+        return printed != account
+    return tax_invoice
 
 
 def checks(facts: Facts) -> List[str]:
@@ -355,7 +403,7 @@ def checks(facts: Facts) -> List[str]:
         found.append("review_reasons")
     # 票种：文字层 PDF 才能进 A / B
     text = facts.text if isinstance(facts.text, str) else ""
-    is_text = text_layer(facts.pages, text)
+    is_text = text_layer(facts.pages, facts.page_texts if facts.page_texts is not None else text)
     if not is_text and not IMAGES_ALLOWED:
         found.append("image")
     day = _invoice_date(facts)
@@ -370,6 +418,9 @@ def checks(facts: Facts) -> List[str]:
                 found.append("text_date")
     # 金额是读出来的、不是推出来的；正式税票未税、税额都读到且勾稽成立（免税单税额为 0）
     tax_invoice = str(fields.get("document_type") or "").strip() == "tax_invoice"
+    if is_text and text.strip() and tax_invoice and not tax_in_text(
+            fields.get(f"{_party_side(facts.direction)}_tax"), text):
+        found.append("text_tax")  # 正式税票印着对方税号：文字层里要找得到原文
     if _inferred(facts):
         found.append("amount_inferred")
     elif tax_invoice and not _amounts_hold(fields):
@@ -378,6 +429,10 @@ def checks(facts: Facts) -> List[str]:
     party_tax = _digits(fields.get(f"{_party_side(facts.direction)}_tax"))
     if tax_invoice and not (len(party_tax) == 13 and valid_tax_id(party_tax)):
         found.append("party_tax")
+    # 本方：推往账套有 13 位税号时，票面印的本方税号要正好是它；正式税票必须印（`account_match` 只在本方读得出且校验位对时才拦，
+    # 读错一位、没印都放行 —— 人推照旧，自动推不放行，审查处理 10-16）
+    if _own_mismatch(facts, tax_invoice):
+        found.append("own_tax")
     # 日期：在推往账套的本年期间内、正是按日期选出的那份、不晚于今天、不早于上传前 60 天、日月对调不会两可
     if day is None:
         found.append("date_missing")
@@ -435,6 +490,13 @@ def _party_tier(facts: Facts, source: Optional[str]) -> str:
     return A if len(same) == 1 and exact else C
 
 
+def _payment_tier(source: str, payload: Mapping[str, Any]) -> str:
+    """现 / 赊的档：票种口径只有判成现购 / 现销（收据即已付）算 A，判成赊（完整税票多为赊）是推断，算 B。"""
+    if source == "doc_type":
+        return A if str(payload.get("doctype") or "").upper() in CASH_DOCTYPES else B
+    return PAYMENT_TIERS.get(source, C)
+
+
 def _stock_lines(payload: Mapping[str, Any]) -> bool:
     return any(isinstance(item, Mapping) and str(item.get("item_mode") or "") in STOCK_MODES
                for item in payload.get("items") or [])
@@ -460,7 +522,7 @@ def _vat_applies(payload: Mapping[str, Any]) -> bool:
 
 def tiers(facts: Facts) -> Dict[str, str]:
     """第 1 条每一项的档 ``{类: A|B|C}``：party 对方档、item 存货、account 费用 / 收入科目、payment 现 / 赊、vat 抵不抵进项、
-    department 部门、receipt POS 收款科目。用不上的项不列。没出载荷时只列对方档。"""
+    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）。用不上的项不列。没出载荷时只列对方档。"""
     payload, decided = _payload(facts), dict((facts.decision or {}).get("decided_by") or {})
     out: Dict[str, str] = {"party": _party_tier(facts, decided.get("party"))}
     if not payload:
@@ -478,7 +540,7 @@ def tiers(facts: Facts) -> Dict[str, str]:
             out["receipt"] = A if decided.get("receipt") in RULE_SOURCES else C
     else:
         source = str(payload.get("doctype_src") or "").strip()
-        out["payment"] = PAYMENT_TIERS.get(source, C)
+        out["payment"] = _payment_tier(source, payload)
         keyed["payment"] = source
     if facts.direction == "purchase" and _vat_applies(payload):
         source = str(payload.get("item_src") or "").strip()
@@ -486,6 +548,11 @@ def tiers(facts: Facts) -> Dict[str, str]:
         # 本票人工裁决（manual）不按对方作键；choice 来自按对方记下的那一层
         keyed["vat"] = (decided.get("vat") or "chosen") if source == "choice" else ""
     out["department"] = A  # 记过的照用，没记过取单据簿默认部门或不记（不再问，用户 10-08）
+    # 本方：票面印的本方税号正是推往账套的（A）；票面没印本方的收据 / 简式税票（B，去向是上传时选的，不是票面说的）。
+    # 印了却对不上、正式税票没印由第 2 条 ``own_tax`` 归 C；账套没有 13 位税号核不了，不列
+    account, printed = _own(facts)
+    if account and (printed == account or not printed):
+        out["own"] = A if printed else B
     # 按名字作键的来源最高算 B：对方没有 13 位税号时，账套记忆、公司规则、Express 历史都以名字为键
     if len(_digits(facts.fields.get(f"{_party_side(facts.direction)}_tax"))) != 13:
         for kind, source in keyed.items():
@@ -572,4 +639,4 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
 
 __all__ = ["A", "AMOUNT_TOLERANCE", "B", "C", "CLASSES", "EARLIEST_DAYS", "Facts", "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "TEXT_CHARS_PER_PAGE", "Verdict", "amount_in_text", "checks", "classify", "conflicts",
-           "date_in_text", "layers", "reason_codes", "text_layer", "tiers"]
+           "date_in_text", "layers", "prior_entry", "reason_codes", "tax_in_text", "text_layer", "tiers"]

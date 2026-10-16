@@ -441,9 +441,12 @@ class AdapterContext:
     device: str = ''
     device_owner: str = ''
     route: str = ''
+    # 来领的这台报的 CC 桌面版版本（自动推只交给能回写入核对的，第 3 期第 5 条）。不授予任何权限
+    version: str = ''
 
 
-def trusted_adapter_context(connection, owner, binding_generation=0, *, device='', device_owner='', route=''):
+def trusted_adapter_context(connection, owner, binding_generation=0, *, device='', device_owner='', route='',
+                            version=''):
     """Internal injection seam, not identity verification or a public credential API.
 
     The internal Companion transport must authenticate its credential before
@@ -452,7 +455,7 @@ def trusted_adapter_context(connection, owner, binding_generation=0, *, device='
     return AdapterContext(call(text, connection), call(text, owner),
                           call(integer, binding_generation), _ADAPTER_CAPABILITY,
                           call(text, device, optional=True), call(text, device_owner, optional=True),
-                          call(text, route, length=20, optional=True))
+                          call(text, route, length=20, optional=True), call(text, version, length=40, optional=True))
 
 
 def _adapter(context, adapter):
@@ -607,6 +610,8 @@ def lease(name, *, context, adapter, now=None):
             raise LeaseUnavailable()
         if _automation_stale(target, context, loaded):
             return _withdraw_automation(row, target, payload, now)
+        if _automation_old_writer(target, adapter):
+            return _withdraw_automation(row, target, payload, now, why='verify_version')
         if any(lock.holder for lock in locks) or _older_writer(row, target):
             return {'leased': False, 'reason': 'waiting_lock', 'record': project(row)}
         timestamp = now_utc(now)
@@ -652,8 +657,18 @@ def _automation_stale(target, context, loaded):
     return current != automation.get('hash')
 
 
-def _withdraw_automation(row, target, payload, now):
-    """领单时判定已过时：这条作废（``cancelled``，不写），票改记成提议（冻结这份载荷的做法），人在待处理里推。"""
+def _automation_old_writer(target, adapter):
+    """自动推的单来领的电脑回不了写入核对（CC 桌面版低于 ``VERIFY_MIN_VERSION``，或没报版本）：判定时写的电脑都够新，之后
+    上线 / 配对的旧版电脑也可能领到（审查处理 10-16）。人发起的单不核。"""
+    if not isinstance(target.get('automation'), dict):
+        return False
+    from pearnly_cowork.push.automation import rules as automation_rules
+
+    return not automation_rules.verify_capable([adapter.version])
+
+
+def _withdraw_automation(row, target, payload, now, why='automation_changed'):
+    """领单时判定已过时、或来领的电脑太旧：这条作废（``cancelled``，不写），票改记成提议（冻结这份载荷的做法），人在待处理里推。"""
     from pearnly_cowork.push.automation import rules as automation_rules
 
     automation = target.get('automation') or {}
@@ -662,7 +677,7 @@ def _withdraw_automation(row, target, payload, now):
     _save_record(row, timestamp)
     proposal = automation_rules.proposal(automation.get('class'), automation.get('tier'), automation.get('trigger'),
                                          payload, {}, at=timestamp.replace(tzinfo=None).isoformat())
-    push_state.withdraw_automation(row, 'automation_changed', proposal=proposal)
+    push_state.withdraw_automation(row, why, proposal=proposal)
     return {'leased': False, 'reason': 'automation_changed', 'record': project(row)}
 
 

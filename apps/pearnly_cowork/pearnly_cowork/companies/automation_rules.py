@@ -10,6 +10,8 @@
   - L1 → L2：在 L1 满 2 个完整期，自动推被改 ≤0.5%；B 类提议每期 ≥20 张、被改 ≤1%；另要 L2 推 B 类的全局前提；
   - 降一档：一期内自动推被改 ≥2 张且 >1%；自动推的单核不上立刻降到 L0（`companies.automation.on_mismatch`）。
 - **一次升一档**；降档（或升档）后只认之后开始的完整会计期间。
+- **定时任务 A 类的基线**（`baseline`，用户 10-16「新客户第一个月照推 A 类」）：L0 上从没升降过、也还没有合格回读的是新客户，
+  照推；之后按最近一个完整期的证据：A 类被改不超过 1%（同 L0 → L1 的比例）、没有核不上才推。
 """
 from __future__ import annotations
 
@@ -124,6 +126,25 @@ def evaluate(tier: str, since: Optional[dt.date], periods: Mapping[str, Mapping[
     return tier, ""
 
 
+def baseline(tier: str, since: Optional[dt.date], periods: Mapping[str, Mapping[str, int]], reason: str = "",
+             *, thresholds: Mapping[str, Mapping[str, Any]] = THRESHOLDS) -> str:
+    """定时任务 A 类在 L0 的基线推送（`push.automation.rules.action` 的 ``baseline``）：``new``（新客户：从没升降过、没有合格
+    回读的期）/ ``ok``（最近一个完整期 A 类被改 ≤ ``up_l1.a_rate``、没有核不上）/ 不推的原因码（``changed`` / ``written_mismatch``；
+    升降过档、之后还没有完整期证据的回上次的原因）。L1 / L2 不用基线，回 ``ok``。"""
+    if tier_rules.tier_of(tier) != L0:
+        return tier_rules.BASELINE_OK
+    eligible = sorted(period for period in periods if _after(period, since))
+    if not eligible:
+        return tier_rules.BASELINE_NEW if since is None else (reason if reason in ("changed", "written_mismatch")
+                                                               else "changed")
+    latest = periods[eligible[-1]]
+    if latest.get("mismatch", 0):
+        return "written_mismatch"
+    if latest.get("a_changed", 0) > allowed(latest.get("a", 0), thresholds["up_l1"]["a_rate"]):
+        return "changed"
+    return tier_rules.BASELINE_OK
+
+
 def history_entry(before: str, after: str, reason: str, at: Any, period: str = "") -> Dict[str, str]:
     return {"from": before, "to": after, "reason": reason, "at": str(at or ""), "period": period}
 
@@ -135,5 +156,5 @@ def keep_history(history: Sequence[Mapping[str, Any]], entry: Mapping[str, Any])
     return rows[-HISTORY_MAX:]
 
 
-__all__ = ["CHANGES", "COUNTS", "HISTORY_MAX", "THRESHOLDS", "allowed", "evaluate", "history_entry", "keep_history",
+__all__ = ["CHANGES", "COUNTS", "HISTORY_MAX", "THRESHOLDS", "allowed", "baseline", "evaluate", "history_entry", "keep_history",
            "qualified", "tally"]

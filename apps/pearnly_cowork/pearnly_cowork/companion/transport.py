@@ -131,7 +131,9 @@ def _claim(credential, device, request, now):
     registered = account_pool.registrations_of(credential.connection, keys)
     versions = queue_heads.payload_versions(heads)
     peers = _peers(credential.connection, device, request, now)
-    owner = frappe.db.get_value(devices.DOCTYPE, device, 'device_owner') if device != credential.credential_id else ''
+    found = frappe.db.get_value(devices.DOCTYPE, device, ['device_owner', 'companion_version'], as_dict=True) \
+        if device != credential.credential_id else None
+    owner, version = (found.device_owner or '', found.companion_version or '') if found else ('', '')
     clock = ledger.now_utc(now)
     for head in heads:
         key = head.account_key
@@ -144,7 +146,7 @@ def _claim(credential, device, request, now):
         row = frappe.get_doc(ledger.RECORD, head.name)
         reservation = _context(row, credential)
         adapter = _adapter(credential.connection, delivery_store.owner(credential), device=device,
-                           device_owner=owner or '', route=decision.route)
+                           device_owner=owner or '', route=decision.route, version=version)
         if not decision.take:
             # 归这张单、够得到它的电脑没有一台支持这张单的载荷版本：等不来，转人工（与以前准备时就拦下同一个原因与词条），
             # 这份账套后面的单照常写。旧版不报最高版本的不算（`route_contracts.supports`）

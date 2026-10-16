@@ -807,7 +807,8 @@ MOVING_CODES = {"insufficient_balance": "low_balance", COMPANION_OFFLINE: "offli
 
 def ticket_state(outcome: Any, status: Any) -> tuple:
     """一张票的（类别, 原因）：类别 pushed / stopped / failed / moving / deleted，原因只在 stopped 时有
-    （``choice:<种类,…>`` / ``human`` / ``task_off`` / ``account_set`` / ``review``：自动推前判成提议或要人核对）。
+    （``choice:<种类,…>`` / ``human`` / ``task_off`` / ``account_set`` / ``review``：自动推前判成提议，待推送 / ``checked``：
+    自动推前没过核对的 C 类，要人看）。
 
     ``outcome`` 是自动推送记下的这张票的去向（`push.push_one` 的 sent / held / human / failed / missing，
     规则停用或负责人无权时 `pump` 记的 stopped）；``status`` 是票上现在的推送状态（结果签名里的 `last_push_status`，
@@ -826,8 +827,10 @@ def ticket_state(outcome: Any, status: Any) -> tuple:
         reason = str(outcome.get("reason") or "")
         if reason in ACCOUNT_SET_STOPS:
             return "stopped", "account_set"
-        if reason in (AUTOMATION_PROPOSAL, AUTOMATION_REVIEW):
+        if reason == AUTOMATION_PROPOSAL:
             return "stopped", "review"
+        if reason == AUTOMATION_REVIEW:
+            return "stopped", "checked"
         return "stopped", "choice:" + (reason.split(":", 1)[1] if reason.startswith("choice_needed:") else "")
     if kind == "human":
         return "stopped", "human"

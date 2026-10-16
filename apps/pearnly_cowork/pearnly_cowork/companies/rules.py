@@ -141,17 +141,17 @@ def account_company(connection, account_row) -> tuple:
 
 def for_push(connection, account_set, account_row) -> dict | None:
     """推送准备的钩子（``cowork_push_company_choices``）：这份账套所属公司的规则 ``{"company", "branch", "rules": [{kind,
-    subject, value, branch}]}``；目录里没有这一行、没建主档回 None。直接按身份查公司（不读账套目录、不缓存）；出错由推送那边
+    subject, value, branch, at}]}``（``at`` 是规则最后改的时间，站点时区；人推提议时据此分清人改了规则还是提议过时）；目录里没有这一行、没建主档回 None。直接按身份查公司（不读账套目录、不缓存）；出错由推送那边
     接住（这一张不用「历史已定」）。推送服务已核过录入权限与这条连接的使用授权；规则全所共用。"""
     del account_set  # 归属由目录这一行定
     name, branch = account_company(connection, account_row)
     if not name:
         return None
-    rows = frappe.get_all(CHOICE, filters={"company": name}, fields=["kind", "subject", "value", "branch"],
+    rows = frappe.get_all(CHOICE, filters={"company": name}, fields=["kind", "subject", "value", "branch", "modified"],
                           limit_page_length=RULES_MAX)
     return {"company": name, "branch": branch,
-            "rules": [{"kind": row.kind, "subject": row.subject, "value": row.value, "branch": row.branch or ""}
-                      for row in rows]}
+            "rules": [{"kind": row.kind, "subject": row.subject, "value": row.value, "branch": row.branch or "",
+                       "at": str(row.modified or "")} for row in rows]}
 
 
 __all__ = ["CONTEXT_MAX", "KIND_WORDS", "RULES_MAX", "account_company", "context_rows", "delete", "for_push", "forget_company", "listing",

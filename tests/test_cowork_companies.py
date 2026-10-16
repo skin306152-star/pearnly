@@ -2579,7 +2579,10 @@ class CompanyRuleTests(unittest.TestCase):
         choices.promote(self.company, self.sets, self.row("express", "payment")["key"], "", "2026-09")
         found = rules.for_push("C1", "S:\\69EXP\\B12", express_row("S:\\69EXP\\B12", "ABC 12", branch="00012"))
         self.assertEqual((found["company"], found["branch"]), (self.company.name, "00012"))
-        self.assertEqual(found["rules"], [{"kind": "payment", "subject": SUPPLIER, "value": "credit", "branch": ""}])
+        # 每条带最后改的时间（人推提议时分清人改了规则还是提议过时，数字会计员第 3 期审查处理）
+        self.assertEqual([{key: value for key, value in rule.items() if key != "at"} for rule in found["rules"]],
+                         [{"kind": "payment", "subject": SUPPLIER, "value": "credit", "branch": ""}])
+        self.assertTrue(all("at" in rule for rule in found["rules"]))
         self.assertIsNone(rules.for_push("C1", "S:\\69EXP\\XYZ", express_row("S:\\69EXP\\XYZ", "XYZ", tax=OTHER_TAX)))
         self.assertIsNone(rules.for_push("C1", "S:\\X", None))
 

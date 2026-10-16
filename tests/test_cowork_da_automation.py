@@ -51,7 +51,8 @@ def _payload(**over):
 
 ACCOUNT = {"source_id": BOOK, "attributes": {"tax_id": OWN, "branch": "00000", "period_start": "2026-01-01",
                                              "period_end": "2026-12-31", "next_end": "2027-12-31"}}
-TEXT = "ใบกำกับภาษี เลขที่ IV69-001 วันที่ 20/10/2569 รวมเงิน 1,000.00 ภาษี 70.00 รวมทั้งสิ้น 1,070.00"
+TEXT = ("ใบกำกับภาษี ผู้ขาย เลขประจำตัวผู้เสียภาษี 0107561000013 เลขที่ IV69-001 วันที่ 20/10/2569 รวมเงิน 1,000.00 "
+        "ภาษี 70.00 รวมทั้งสิ้น 1,070.00")
 
 
 def _facts(**over):
@@ -76,7 +77,8 @@ class Baseline(unittest.TestCase):
     def test_a_clean_text_pdf_decided_by_rules_is_a(self):
         verdict = auto.classify(_facts())
         self.assertEqual((verdict.cls, verdict.reasons), ("A", ()))
-        self.assertEqual(verdict.items, {"party": "A", "account": "A", "payment": "A", "vat": "A", "department": "A"})
+        self.assertEqual(verdict.items, {"party": "A", "account": "A", "payment": "A", "vat": "A", "department": "A",
+                                         "own": "A"})
 
 
 class ItemTiers(unittest.TestCase):
@@ -106,7 +108,8 @@ class ItemTiers(unittest.TestCase):
                        payload=_payload(direction="sales", doctype="IV", customer={"tax_id": SELLER},
                                         account_source="config_default", doctype_src="doc_type"),
                        config={"reported_customers": [{"code": "C1", "tax_id": SELLER, "branch": "00000"}]})
-        self.assertEqual(auto.tiers(facts), {"party": "A", "account": "A", "payment": "A", "department": "A"})
+        # 默认收入科目、按票种判赊都是兜底 / 推断：B（审查处理 10-16，第 15 条回放）
+        self.assertEqual(auto.tiers(facts), {"party": "A", "account": "B", "payment": "B", "department": "A", "own": "A"})
 
     def test_purchase_account_sources(self):
         for source, tier in (("task_default", "A"), ("remembered", "A"), ("chosen", "A"), ("company_rule", "A"),
@@ -122,18 +125,26 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual(tier({"history": {"account": "5310-01", "docs": 4, "version": 1}}), "B")
         self.assertEqual(tier({"history": {"account": "5310-01", "docs": 4, "version": 2}}), "A")
 
-    def test_sales_revenue_account_set_by_a_person_is_a(self):
+    def test_sales_revenue_account_default_is_b_and_rules_are_a(self):
+        # 连接上的默认收入科目是兜底（同进项连接默认科目），第 15 条回放 44% 与会计记的不符：B（审查处理 10-16）
         sales = dict(direction="sales", fields=_fields(direction="sales", seller_tax=OWN, buyer_tax=SELLER))
         self.assertEqual(self.tier("account", payload=_payload(direction="sales", account_source="config_default"),
-                                   **sales), "A")
+                                   **sales), "B")
+        for source in ("task_default", "remembered", "chosen", "company_rule"):
+            self.assertEqual(self.tier("account", payload=_payload(direction="sales", account_source=source), **sales),
+                             "A", source)
         self.assertEqual(self.tier("account", payload=_payload(direction="sales", account_source="category_map"),
                                    **sales), "B")
 
     def test_payment_sources(self):
-        for source, tier in (("manual", "A"), ("explicit", "A"), ("doc_type", "A"), ("remembered", "A"),
+        for source, tier in (("manual", "A"), ("explicit", "A"), ("remembered", "A"),
                              ("task_default", "A"), ("company_rule", "A"), ("profile", "B"), ("bank", "B"),
                              ("config_default", "B"), ("", "C")):
             self.assertEqual(self.tier("payment", payload=_payload(doctype_src=source)), tier, source)
+        # 票种口径：收据即已付（现购 / 现销）是规则，A；完整税票判赊是推断，B（审查处理 10-16）
+        for doctype, tier in (("HP", "A"), ("HS", "A"), ("RR", "B"), ("IV", "B")):
+            self.assertEqual(self.tier("payment", payload=_payload(doctype_src="doc_type", doctype=doctype)), tier,
+                             doctype)
         # POS 日汇总：按导出写明的付款方式拆，收款科目要人或规则定
         pos = _payload(direction="sales", pos={"transfers": [{"acc": "1120", "amount": "50.00"}]})
         self.assertEqual(self.tier("payment", payload=pos), "A")
@@ -261,15 +272,54 @@ class Checks(unittest.TestCase):
         self.assertEqual(self.reasons(pages=direct, text=long_text), [])
         self.assertIn("image", self.reasons(pages=direct, text=TEXT))
         self.assertIn("image", self.reasons(pages=direct * 2, text=long_text))
-        self.assertTrue(auto.text_layer(direct * 2, long_text * 2))
+        self.assertTrue(auto.text_layer(direct * 2, [long_text, long_text]))
         self.assertFalse(auto.text_layer([], long_text))
+
+    def test_every_page_needs_its_own_text_layer(self):
+        # 逐页判（审查处理 10-16）：扫描发票页 + 长文字附页、一段字只当一页、隐形识别文字层的页（给空串）都不算
+        direct = [{"_layer_chain": ["direct"], "fields": _fields()}]
+        long_text = TEXT + " " + "x" * 200
+        self.assertFalse(auto.text_layer(direct * 2, ["", "y" * 450]))
+        self.assertFalse(auto.text_layer(direct * 2, "y" * 450))
+        self.assertFalse(auto.text_layer(direct * 2, [long_text]))
+        self.assertIn("image", self.reasons(pages=direct * 2, text="y" * 450 + TEXT, page_texts=["", "y" * 450 + TEXT]))
+        self.assertEqual(self.reasons(pages=direct * 2, text=long_text * 2, page_texts=[long_text, long_text]), [])
+
+    def test_a_formal_tax_invoice_shows_the_party_tax_id_in_the_text_layer(self):
+        self.assertIn("text_tax", self.reasons(text=TEXT.replace(SELLER, "")))
+        self.assertEqual(self.reasons(text=TEXT.replace(SELLER, "0 1075 61000 01 3")), [])
+        self.assertEqual(self.reasons(text=TEXT.replace(SELLER, "0-1075-61000-01-3")), [])
+        self.assertIn("text_tax", self.reasons(text=TEXT.replace(SELLER, "10107561000013")))
+        # 收据不要求
+        self.assertNotIn("text_tax", self.reasons(fields=_fields(document_type="receipt"), text=TEXT.replace(SELLER, "")))
+        self.assertTrue(auto.tax_in_text(SELLER, "TAX ID " + SELLER))
+        self.assertFalse(auto.tax_in_text("123", "123"))
+
+    def test_own_tax_must_be_the_account_sets(self):
+        # 本方税号读错一位（校验位不过）、印的是别家、正式税票没印：自动推不放行（人推照旧按 account_match）
+        self.assertIn("own_tax", self.reasons(fields=_fields(buyer_tax="0994000333448")))
+        self.assertIn("own_tax", self.reasons(fields=_fields(buyer_tax=OTHER)))
+        self.assertIn("own_tax", self.reasons(fields=_fields(buyer_tax="")))
+        # 收据 / 简式税票不印本方：本方这一项算 CC 判断（B）
+        receipt = _fields(buyer_tax="", document_type="receipt")
+        self.assertNotIn("own_tax", self.reasons(fields=receipt))
+        self.assertEqual(auto.tiers(_facts(fields=receipt))["own"], "B")
+        verdict = auto.classify(_facts(fields=receipt))
+        self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:own",)))
+        # 销项看卖方（本方）；账套没有 13 位税号核不了，不列
+        sales = _fields(direction="sales", seller_tax=OTHER, buyer_tax=SELLER)
+        self.assertIn("own_tax", self.reasons(direction="sales", fields=sales,
+                                              payload=_payload(direction="sales", doctype="HS")))
+        no_tax = {"source_id": BOOK, "attributes": {**ACCOUNT["attributes"], "tax_id": ""}}
+        self.assertNotIn("own_tax", self.reasons(fields=_fields(buyer_tax=OTHER), account=no_tax, catalog=[no_tax]))
+        self.assertNotIn("own", auto.tiers(_facts(account=no_tax, catalog=[no_tax])))
 
     def test_the_text_layer_must_show_the_total_and_the_date(self):
         self.assertIn("text_missing", self.reasons(text=None))
         self.assertIn("text_missing", self.reasons(text="  "))
-        self.assertEqual(self.reasons(text="Total 1070.00 Date 20 ต.ค. 2569"), [])
-        self.assertEqual(self.reasons(text="Grand total 1,070 dated October 20, 2026"), [])
-        self.assertEqual(self.reasons(text="Grand total 1,070.00 dated 20-Oct-26"), [])
+        self.assertEqual(self.reasons(text=f"Tax ID {SELLER} Total 1070.00 Date 20 ต.ค. 2569"), [])
+        self.assertEqual(self.reasons(text=f"Tax ID {SELLER} Grand total 1,070 dated October 20, 2026"), [])
+        self.assertEqual(self.reasons(text=f"Tax ID {SELLER} Grand total 1,070.00 dated 20-Oct-26"), [])
         self.assertIn("text_total", self.reasons(text="รวม 1,070.50 วันที่ 20/10/2569"))
         self.assertIn("text_total", self.reasons(text="รวม 11,070.00 วันที่ 20/10/2569"))
         self.assertIn("text_date", self.reasons(text="รวม 1,070.00 วันที่ 10/20/2026"))
