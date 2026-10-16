@@ -1018,6 +1018,11 @@ class CompanyFolders(unittest.TestCase):
         self.assertTrue(called, "frontend bridge calls")
         self.assertEqual(called - bridge, set())
         self.assertTrue({"pick_folder", "remove_folder", "add_folder"} <= bridge)
+        # 「CC 开着时保持电脑唤醒」「用电池时也保持」（ADR-021 第 58 条）：页面按字面量调，桥分别改两个开关
+        self.assertTrue({"keep_awake", "keep_awake_on_battery"} <= called)
+        self.assertIn('if method == "keep_awake":\n            return self._changed(s.set_keep_awake(enabled=', self.bridge)
+        self.assertIn('if method == "keep_awake_on_battery":\n            return self._changed(s.set_keep_awake(on_battery=',
+                      self.bridge)
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots

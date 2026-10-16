@@ -823,7 +823,15 @@ function System({ api }: { api: Desktop }) {
       <Row label={st.autostart}>
         <Switch checked={state.autostart} label={st.autostart} onChange={(on) => void run("autostart", "autostart", { enabled: on })} />
       </Row>
-      <KeepAwakeRows state={state} onChange={(method, on) => void run(method, method, { enabled: on })} />
+      {/* 方法名写成字面量：契约检查（tests/test_companion_contract.py）按 run("…", "方法") 核对桥里有没有 */}
+      <KeepAwakeRows
+        state={state}
+        onChange={(method, on) =>
+          void (method === "keep_awake"
+            ? run("keep_awake", "keep_awake", { enabled: on })
+            : run("keep_awake_on_battery", "keep_awake_on_battery", { enabled: on }))
+        }
+      />
       <Row label={st.quickAsk}>
         {state.hotkey ? (
           <Shortcut keys="Ctrl + Alt + Space" kbd />

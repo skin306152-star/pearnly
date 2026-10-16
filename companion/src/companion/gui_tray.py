@@ -238,6 +238,10 @@ class TrayApp(QObject):
         from .keep_awake import KeepAwake
 
         self._keep_awake = KeepAwake()
+        # 两个开关是这台电脑的全局设置：托盘单独记着（启动 / 重读配置时取文件里的值，设置里改了由 _set_keep_awake 更新），
+        # 不写进各成员的配置——取任务线程手上的配置副本存盘时只写它自己改过的全局项（profile_store.save_profile）
+        self._awake_settings = (bool(getattr(self.cfg, "keep_awake", True)),
+                                bool(getattr(self.cfg, "keep_awake_on_battery", True)))
         self._apply_keep_awake()
         # 文件夹自动录入：独立守护线程，只在本机给某条连接设了允许读取的根目录时才启动（folder_worker.py）。
         self.folder_status.connect(lambda profile_id, key: self._on_status(profile_id, key, ""))
@@ -795,6 +799,7 @@ class TrayApp(QObject):
         self._profile_states.clear()
         self._last_keys.clear()
         self._retranslate()
+        self._awake_settings = (bool(store.global_settings.keep_awake), bool(store.global_settings.keep_awake_on_battery))
         self._apply_keep_awake()   # 成员都断开 / 都暂停了马上放开，新连上马上拿住
         self._restart_worker()
         if getattr(self, "_folders", None) is not None:
@@ -824,17 +829,17 @@ class TrayApp(QObject):
         keeper = getattr(self, "_keep_awake", None)
         if keeper is None or self._quitting:
             return
+        enabled, on_battery = getattr(self, "_awake_settings", (True, True))
         try:
-            keeper.apply(enabled=bool(getattr(self.cfg, "keep_awake", True)),
-                         on_battery=bool(getattr(self.cfg, "keep_awake_on_battery", True)),
+            keeper.apply(enabled=enabled, on_battery=on_battery,
                          members=any(member_active(cfg) for cfg in self.configs))
         except Exception:
             log.exception("保持电脑唤醒失败（忽略）")
 
     def _set_keep_awake(self, enabled: bool, on_battery: bool) -> None:
-        """（界面线程）设置里改了两个开关：各线程手上的配置一起改（它们写回配置时不把旧值盖回去），再拿住 / 放开。"""
-        for cfg in {id(c): c for c in [*self.configs, self.cfg]}.values():
-            cfg.update(keep_awake=bool(enabled), keep_awake_on_battery=bool(on_battery))
+        """（界面线程）设置里改了两个开关（已存进文件）：按新值拿住 / 放开。不改各成员配置——取任务线程的配置副本
+        存盘时只写它自己改过的全局项，文件里的新值不会被旧副本盖回去（profile_store.save_profile）。"""
+        self._awake_settings = (bool(enabled), bool(on_battery))
         self._apply_keep_awake()
 
     def _start_folders(self) -> None:

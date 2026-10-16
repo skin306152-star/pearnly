@@ -4502,9 +4502,9 @@ assert.deepEqual(text(html(KeepAwakeRows, { state: { keep_awake: false, keep_awa
 
     def test_only_in_this_computer_system_section(self):
         source = (FRONTEND / "src/components/settings.tsx").read_text(encoding="utf-8")
-        self.assertEqual(source.count("<KeepAwakeRows "), 1)
+        self.assertEqual(source.count("<KeepAwakeRows"), 1)
         system = source.split("function System(", 1)[1].split("\n}\n", 1)[0]
-        self.assertIn("<KeepAwakeRows ", system)
+        self.assertIn("<KeepAwakeRows", system)
         self.assertIn('{current === "system" && api && <System api={api} />}', source)   # 有桥才有「此电脑 → 系统」
         i18n = (FRONTEND / "src/i18n.ts").read_text(encoding="utf-8")
         for line in ('keepAwake: "CC 开着时保持电脑唤醒", keepAwakeOnBattery: "用电池时也保持"',

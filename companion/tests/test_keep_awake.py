@@ -129,6 +129,9 @@ def test_windows_power_calls_the_verified_api_and_reads_aoac(monkeypatch):
     assert power.set_state(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) is True
     assert calls == [("state", ES_CONTINUOUS | ES_SYSTEM_REQUIRED)]
     assert power.on_battery() is True and power.modern_standby() is True
+    # GetPwrCapabilities 返回 BOOLEAN（1 字节）：按 c_ubyte 读，不把 EAX 高位残值当成功
+    assert windll.powrprof.GetPwrCapabilities.restype is ctypes.c_ubyte
+    assert keep_awake._AOAC_OFFSET == 20   # winnt.h：15 个 BOOLEAN + 两个 BYTE + FastSystemS4、Hiberboot、WakeAlarmPresent 之后
 
     def broken(ref):
         raise OSError("no powrprof")
@@ -144,9 +147,13 @@ def test_no_lock_screen_anywhere_and_the_tray_holds_and_lets_go_with_the_members
     tray = sources["gui_tray.py"]
     apply = tray.split("def _apply_keep_awake(", 1)[1].split("\n    def ", 1)[0]
     assert "members=any(member_active(cfg) for cfg in self.configs)" in apply
-    assert 'getattr(self.cfg, "keep_awake", True)' in apply and 'getattr(self.cfg, "keep_awake_on_battery", True)' in apply
+    assert 'getattr(self, "_awake_settings", (True, True))' in apply
     reload = tray.split("def _reload_profiles(", 1)[1].split("\n    def ", 1)[0]
     assert "self._apply_keep_awake()" in reload   # 成员断开 / 暂停 / 新连上（配对、断开、被顶掉都走这里）
+    assert "store.global_settings.keep_awake" in reload   # 重读配置时开关按文件里的值
+    # 设置里改开关只记在托盘上、不改各成员配置（取任务线程的旧副本存盘不会把它盖回去，见 test_profiles）
+    setter = tray.split("def _set_keep_awake(", 1)[1].split("\n    def ", 1)[0]
+    assert "self._awake_settings = (bool(enabled), bool(on_battery))" in setter and ".update(" not in setter
     quit_ = tray.split("def _quit(", 1)[1].split("\n    def ", 1)[0]
     assert "self._keep_awake.stop()" in quit_
     assert "on_keep_awake=self._set_keep_awake" in tray

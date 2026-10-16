@@ -278,6 +278,7 @@ class ProfileStore:
         cfg = CompanionConfig(**values)
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        _stamp_globals(cfg, self.global_settings)
         return cfg
 
     def runtime_configs(self, *, include_paused: bool = False) -> list[CompanionConfig]:
@@ -303,10 +304,43 @@ class ProfileStore:
         cfg.paired = False
         object.__setattr__(cfg, "_source_path", self.path)
         object.__setattr__(cfg, "_profile_save", self.save_profile)
+        _stamp_globals(cfg, self.global_settings)
         return cfg
 
     def save_profile(self, cfg: CompanionConfig, paused: Optional[bool] = None) -> Path:
-        global_settings = GlobalSettings.from_config(cfg)
+        with _DEVICE_LOCK:   # 读文件里最新的全局设置与写回之间不插进别的写
+            return self._save_profile_locked(cfg, paused)
+
+    def _merged_globals(self, cfg: CompanionConfig) -> GlobalSettings:
+        """这次要写的全局设置：只取这份配置**自己改过**的全局项，其余以文件里最新的为准。
+
+        同一台电脑的全局设置（界面语言、开机自启、保持电脑唤醒……）有好几个持有者：托盘、设置页、取任务线程各自的配置副本。
+        副本存盘（心跳同步账套名、连接名、新年度文件夹）时若整份写回自己读到时的全局设置，就会把别处刚改的新值盖回旧值
+        （10-16 审查：关掉「CC 开着时保持电脑唤醒」后被心跳写回成开）。所以从本文件读出的配置记着读到时的全局设置
+        （_globals_seen），存盘时与它相同的项沿用文件里最新的值；不是从本文件读出的（直接构造的）配置照旧整份写。"""
+        ours = GlobalSettings.from_config(cfg)
+        seen = getattr(cfg, "_globals_seen", None)
+        if not isinstance(seen, dict):
+            return ours
+        latest = asdict(self._latest_globals())
+        for name, value in asdict(ours).items():
+            if name not in seen or value != seen[name]:
+                latest[name] = value
+        return GlobalSettings(**latest)
+
+    def _latest_globals(self) -> GlobalSettings:
+        """文件里此刻的全局设置；读不到（还没有文件、不是这一版的格式）用手里这份。"""
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return self.global_settings
+        if raw.get("schema_version") in SUPPORTED_SCHEMA_VERSIONS and isinstance(raw.get("global"), dict):
+            return GlobalSettings.from_dict(raw["global"])
+        return self.global_settings
+
+    def _save_profile_locked(self, cfg: CompanionConfig, paused: Optional[bool] = None) -> Path:
+        global_settings = self._merged_globals(cfg)
+        _adopt_globals(cfg, global_settings)
         if not cfg.paired and not str(cfg.account_dir or "").strip():
             self._write(global_settings, self._profiles)
             self.global_settings = global_settings
@@ -503,6 +537,19 @@ def _machine_of(raw) -> str:
     device = raw.get("device") if isinstance(raw, dict) else None
     value = device.get("machine") if isinstance(device, dict) else ""
     return value if isinstance(value, str) else ""
+
+
+def _stamp_globals(cfg: CompanionConfig, settings: GlobalSettings) -> None:
+    """记下这份配置读到的全局设置（save_profile 据此只写它自己改过的项）。整份换掉、不原地改：取任务线程用 copy()
+    复制配置，副本与原件共用同一个字典。"""
+    object.__setattr__(cfg, "_globals_seen", asdict(settings))
+
+
+def _adopt_globals(cfg: CompanionConfig, settings: GlobalSettings) -> None:
+    """存盘后这份配置的全局项跟上文件里的值，并重新记下（下次存盘照样只写之后改过的）。"""
+    for name, value in asdict(settings).items():
+        setattr(cfg, name, value)
+    _stamp_globals(cfg, settings)
 
 
 def _read_device(path: Path) -> dict:

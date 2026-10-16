@@ -76,7 +76,11 @@ class WindowsPower:
         if self._aoac is None:
             try:
                 caps = (ctypes.c_ubyte * 256)()
-                if not ctypes.windll.powrprof.GetPwrCapabilities(ctypes.byref(caps)):
+                query = ctypes.windll.powrprof.GetPwrCapabilities
+                # 返回 BOOLEAN（1 字节）：不设 restype 时 ctypes 按 int 读整个 EAX，失败时高位残值会被当成成功、
+                # 读到全零的 caps，现代待机被当成 S3，只保持系统、关屏立即待机（10-16 审查）
+                query.restype = ctypes.c_ubyte
+                if not query(ctypes.byref(caps)):
                     raise OSError("GetPwrCapabilities")
                 self._aoac = bool(caps[_AOAC_OFFSET])
             except Exception:

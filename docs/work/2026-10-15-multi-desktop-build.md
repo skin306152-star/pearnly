@@ -1179,7 +1179,7 @@ CC 桌面版只改了一行注释，没重跑它的 pytest；`tests/test_cowork_
   `tomo_bridge.py`：桥方法 `keep_awake`、`keep_awake_on_battery`。
 - `gui_tray.py`：启动时建 `KeepAwake` 并 `_apply_keep_awake()`（开关取自配置，成员 = `any(member_active(cfg))`）；`_reload_profiles`（配对、断开、
   暂停、移除、被顶掉都走这里）后重算；设置里改开关 → `_set_keep_awake` 先把各线程手上的配置一起改（它们写回配置时不把旧值盖回去）再重算；
-  `_quit` 先放开。
+  `_quit` 先放开。〔审查改：只改托盘的配置并没改到取任务线程的副本，见文末「审查（10-16）」第 2 条〕
 - 前端（`frontend/assistant/src`）：`settings.tsx` 新 `KeepAwakeRows`，放在「此电脑 → 系统」的「开机时自动启动 CC」下面（有桥才有这一栏；
   状态里没有 `keep_awake` 的旧版桌面端不显示）；`lib/desktop.ts` 的 `DesktopState` 多两项可选键；`i18n.ts` 三种语言各两条。
 - `companion/README.md` 改写 1.7.0 那一条。服务端没改（`hello` 不报、分派与询问框不看它）。
@@ -1223,3 +1223,28 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 - 电源变化靠每 15 秒查一次，不是系统广播（`WM_POWERBROADCAST`）；拔插电后最多约 15 秒才跟上。
 - `AoAc` 按 `winnt.h` 的 `SYSTEM_POWER_CAPABILITIES` 第 20 字节读，开发机上只用假的验证，真机要看日志「这台电脑是 / 不是现代待机」核一次。
 - 托盘菜单里没加这两个开关（托盘菜单本来就没有设置项，设置都在对话页「此电脑」里）。
+
+### 审查（10-16）
+
+5 条发现（其中第 2、4 条是同一件事），逐条核实：
+
+| # | 发现 | 核实 | 处理 |
+|---|---|---|---|
+| 1 | 现代待机的电脑默认拿着 `ES_DISPLAY_REQUIRED`：屏幕永远不自动关、不会因关屏自动上锁，用电池时同样（高） | 成立（行为本来就这样，上面「拿不准」写了屏幕不关，但没写「不自动上锁」和用电池耗电的后果） | 不改代码：只防睡眠、允许关屏的调用在现代待机上没验证过，任务书要求按验证过的做；要不要在现代待机上让「用电池时也保持」默认关、或用电池时只保持系统，是产品取舍，等用户拍板。后果写进 ADR-021 第 58 条，列为待用户确认 |
+| 2 / 4 | `_set_keep_awake` 只改托盘的配置，取任务线程启动时 `copy()` 的副本还是旧值；心跳存盘（`_sync_connection_identity` / `_sync_account_set` / `_remember_roots`）经 `GlobalSettings.from_config(副本)` 把开关写回成开（中） | 成立：先在旧代码上复现（关开关后副本 `save()`，磁盘又成 `keep_awake=true`），新测试在旧 `profile_store.py` 上失败 | 按类修：`save_profile` 只写这份配置自己改过的全局项（读出时记 `_globals_seen`，与它相同的项以文件里最新的为准，读文件与写回在同一把锁里，存完副本跟上文件里的值）；界面语言、开机自启同样不再被旧副本盖回。直接构造、不是从文件读出的配置照旧整份写。托盘不再改各成员配置，开关单独记在 `_awake_settings`（启动 / `_reload_profiles` 取文件里的值，设置回调更新） |
+| 3 | `GetPwrCapabilities` 返回 `BOOLEAN` 却没设 `restype`，失败时 EAX 高位残值会被当成功、读到全零、现代待机被当 S3（低） | 成立（概率低，但后果正是要防的关屏即待机） | 设 `restype = c_ubyte`；`AoAc` 偏移 20 按 `winnt.h` 再核一遍（15 个 BOOLEAN + 两个 BYTE + `FastSystemS4`、`Hiberboot`、`WakeAlarmPresent`）；第 7 批真机加 `powercfg /a` 对照 |
+| 5 | 页面用变量 `run(method, method, …)` 调桥，契约检查的正则抓不到 `keep_awake` / `keep_awake_on_battery`，桥的分派也没测试（低） | 成立 | 页面改成字面量 `run("keep_awake", "keep_awake", …)` / `run("keep_awake_on_battery", …)`；`tests/test_companion_contract.py` 断言两个方法在页面调用里、桥分别调 `set_keep_awake(enabled=…)` 与 `set_keep_awake(on_battery=…)` |
+
+另见（没改，不在这次范围）：取任务线程那份配置所在的 `ProfileStore` 手里的成员列表也是启动时读的，副本存盘时整份写回成员列表；成员增删、暂停都经
+`_reload_profiles` 先停旧线程再起新线程，所以平常碰不到，只在停线程的那一小段里理论上可能盖掉别处刚改的成员。没有实际现象，按「只修实际问题」不动。
+
+检查：
+
+| 命令 | 结果 |
+|---|---|
+| CC 桌面版完整 pytest（companion/，Python 3.11 + PySide6 6.12.0 / httpx / dbf / pytest 临时虚拟环境，跑完删） | 901 passed, 41 skipped（新 `test_an_old_worker_copy_saving_on_a_heartbeat_does_not_put_the_switches_back`：关开关、关自启、换语言后，旧副本心跳存盘与托盘那份存盘都不盖回，副本自己改的账套名照样存下、持有者自己改的语言照样写；在旧 `profile_store.py` 上失败。`test_keep_awake` 补 `restype` 与偏移、托盘不改成员配置） |
+| `tests/test_companion_contract.py` | 69 passed |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` | 91 步全过，退出码 0（含 `frontend/assistant` 构建、`tests.test_assistant_ui` 的 `KeepAwakeTests` 改成核对多行写法的 `<KeepAwakeRows`）；另跑 `npm --prefix frontend run build` 通过 |
+
+第 7 批真机补一条：`powercfg /a` 列出「Standby (S0 Low Power Idle)」即现代待机，与日志「这台电脑是 / 不是现代待机」对照；现代待机上开着开关时
+屏幕不自动关、不自动上锁（预期，待用户确认要不要改）。

@@ -347,3 +347,38 @@ def test_the_two_keep_awake_switches_save_and_tell_the_tray(tmp_path, monkeypatc
     settings.set_keep_awake(enabled=True)
     settings.set_keep_awake(on_battery=True)
     assert told[-2:] == [(True, False), (True, True)]
+
+
+def test_an_old_worker_copy_saving_on_a_heartbeat_does_not_put_the_switches_back(tmp_path, monkeypatch):
+    # 10-16 审查：取任务线程启动时 copy() 了各成员的配置；设置里关掉开关后，心跳同步账套名 / 连接名 / 新年度文件夹时
+    # 副本存盘曾把读到时的全局设置整份写回，开关又变成开、下次重读配置又拿住。现在副本只写它自己改过的项。
+    from copy import copy
+
+    from src.companion.i18n import persist_ui_lang
+
+    store = _store(tmp_path, monkeypatch)
+    tray_cfg = store.runtime_configs(include_paused=True)[0]
+    worker_copy = copy(tray_cfg)   # gui_tray_workers.PollWorker 的做法
+    settings = _settings(store, on_keep_awake=lambda enabled, on_battery: None)
+    monkeypatch.setattr(desktop_settings.autostart, "disable", lambda: None)
+    settings.set_keep_awake(enabled=False)
+    settings.set_keep_awake(on_battery=False)
+    settings.set_autostart(False)
+    persist_ui_lang(ProfileStore.load(store.path, protector=_Protector()), "th")
+
+    worker_copy.update(account_set="NEW").save()   # worker._sync_account_set
+
+    reloaded = ProfileStore.load(store.path, protector=_Protector())
+    g = reloaded.global_settings
+    assert (g.keep_awake, g.keep_awake_on_battery, g.autostart, g.ui_lang) == (False, False, False, "th")
+    assert reloaded.runtime_configs(include_paused=True)[0].account_set == "NEW"   # 副本自己改的照样存下
+    assert worker_copy.keep_awake is False and worker_copy.ui_lang == "th"         # 存盘后副本跟上文件里的值
+    assert settings.snapshot()["keep_awake"] is False
+    tray_cfg.save()   # 托盘手上那份（同样读得早）存盘也一样
+    g = ProfileStore.load(store.path, protector=_Protector()).global_settings
+    assert (g.keep_awake, g.keep_awake_on_battery, g.autostart, g.ui_lang) == (False, False, False, "th")
+
+    # 持有者自己改的全局项照样写（旧副本改语言 → 写下；其余仍以文件为准）
+    tray_cfg.update(ui_lang="zh").save()
+    g = ProfileStore.load(store.path, protector=_Protector()).global_settings
+    assert (g.ui_lang, g.keep_awake, g.autostart) == ("zh", False, False)
