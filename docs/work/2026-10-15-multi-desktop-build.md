@@ -663,6 +663,13 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 2. 同一家公司同一天有两份账套（Express 测试数据 T8 / T9 都是 2025 年）一律停下，不按名称、新旧或可达去挑。
 3. 跟随的任务限流 / 存货先后按公司道算，不按任务存下的那份账套。
 4. 跟到别的年度时，科目 / 部门默认值要在那份账套的主档里才用。
+5. **2026-10-16 改（数字会计员第 3 期，用户定「新年度账套还没建时，下一年的单记进旧账套的下一年期间」）**：上面第 1 条「新年度账套还没建时
+   停下等人」改为「先找本年期间覆盖这天的账套；没有，就用期间里含这一天的旧账套（次年段，到 `next_end`）」——照会计实际做法；新年度账套
+   一建好就推往新账套。两份同期（本年或次年段）仍停下。判据只写一处（`targets.account_match.for_day`），`companies.identity.for_day`、
+   `identity.book` 多给 `next_end`、自动推的「推往的须是按日期选出的那份」与 `account_match` 期间硬闸都按它：硬闸另拦「单据在所选账套次年段、
+   而同一家公司（同税号同分店，没有税号按目录公司名）已有本年期间覆盖这天的账套」（`newer_book_covers`，原因同期间不符）。测试：
+   `test_cowork_folder_follow_year`（新账套已建 / 未建 / 两份同期三种）、`test_cowork_push_direction` 的 `NextYearPeriod`。分支
+   `pearnly/da-phase3`，见 [第 3 期设计](2026-10-16-da-phase3-design.md)「有意变化」。
 
 前端待办（等 `pearnly/cc-shell-rebuild` 合入后在外壳里做；Desk `intake-folders.js` 同理）：
 

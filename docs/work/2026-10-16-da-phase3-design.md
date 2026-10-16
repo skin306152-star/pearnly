@@ -186,6 +186,12 @@
     - 网页上传、LINE 的单在 L1 / L2 公司可能不点「提交」就被推（没人动、识别后满 15 分钟）。
     - 09-27「识别质量不拦推送」对人发起的推送不变；无人值守的推送把识别结果当内部闸，不出文案。
     - 自动推的单不弹「账套被占用」；回执多 `verify`，推送记录多核对结果；CC 自己推的单不再计入「Express 历史已定」。
+    - **第一轮回放后（10-16）**：
+      - 永续 / 混合库存账套里没声明入账类型的商品单：这家公司选过「走库存 / 记费用」就照选的推（人推、自动推一样），没选过照旧交人；
+        复核页推送原因 `posting_needs_review` 旁多两个按钮，CC 同一个工具多两个值。
+      - 新年度账套还没建时，下一年的单推进旧账套的次年段（T1 定时任务原先停下）；新年度账套已建时，人推往旧账套次年段的单被期间硬闸拦下
+        （原先放行）。自动推的日期核对认次年段，由「推往的须是按日期选出的那份」把关。
+      - 抵不抵进项按方向推断从 B 改 A；账套记忆定的科目要这家供应商在这份账套里最近连续 3 张同科目才算 A（原先记过一次就是 A）。
 
 19. **挪到后面 / 不做 / 已知缺口**：
     - 第 4 期：从纠正中学、「要不要记住」、`rule_conflict` 提示。L0 期间人当场选的照旧记进账套记忆，这就是本期的「学习」。
@@ -384,6 +390,21 @@
   （414、错 74、降档 4）；都没到 99.5%。既有断言只按有意变化改了期望值：A 类全项表多 `own`、销项按票种判赊与默认收入科目改 B、文字层
   `text_layer` 一段字只当一页、`tier` / `tier_for_push` 多 ``baseline``、`for_push` 的规则多 ``at``、电脑行替身多回版本、文字层样例补对方税号。
   拿不准的：没建主档的公司定时任务 A 类一直按新客户照推（没有地方积累证据）；隐形文字判据可能把少数用隐形文字的电子 PDF 也算成图片（只会多交人）。
+- **第一轮回放后的决定施工（10-16）** `b2cd114a`（判定层改动都在纯函数里，推送服务与 `scripts/da-replay.py` 共用；全闸门 96 步全过）：
+  1. 商品单入账方式按公司选一次：纯函数 `push/express/goods_posting.py`（`blocked` 与映射器「永续 / 混合库存、没声明 → 交人」同判据、`resolve`
+     声明的优先 / 公司选过的次之、`company_key` 同 `companies.identity`）；存储复用转账凭条 / 预扣税凭证那份（工作空间 `document_policy`，键
+     `goods_posting|<公司身份>`，值 `stock` / `service`）；推送准备、要选的项、自动推判定共用 `service._goods_posting`；写入口
+     `push.application.api.choose_goods_posting`；复核页推送原因 `posting_needs_review` 旁「走库存 / 记费用」两个按钮，CC
+     `cowork_choose_document_policy` 多两个值、单据详情 `handling_choice_needed = goods_posting`；公司选过的列 `posting` = A；词条 3 条四语。
+  2. 次年段：规则一处 `targets.account_match.fiscal_part` / `for_day` / `newer_book_covers`；`identity.book` 多 `next_end`、`identity.for_day`
+     先本年后次年段（T1 定时任务、自动推 `day_books` 同用）；`automation` 日期核对认到次年段、由「推往的须是按日期选出的那份」把关；期间硬闸
+     另拦「次年段、新年度账套已建」。T1 有意变化记在 [多电脑记录](2026-10-15-multi-desktop-build.md) T1 一节第 5 条。
+  3. 抵进项按方向推断改 A。4. 账套记忆定的科目：`automation.memory_settled`（最近连续 `MEMORY_STREAK` = 3 张同科目才 A），`Facts.account_recent`
+     由 `assess._recent_accounts` 取这家供应商在这份账套里最近推成功的单（按 `workspace_seller_tax_index`）。
+  回放工具同步：`judge_document` 用 `goods_posting.resolve`（模拟的人在第一张 `posting_needs_review` 上按答案替这家公司选一次，`CompanyChoice`）、
+  `account_recent` 取同账套这家供应商录入更早的答案科目、`day_books` 用 `identity.for_day`；账套带 `next_end`（ISPRD `END12NY`，读不到按本年止
+  加一年）；C 主因「次年段」改为「次年段且新年度账套已建」，另加「晚于次年段」。没做的：领单重核的指纹不含公司入账方式选择；回放的商品单
+  不造明细行，选「走库存」后这些单按连接默认科目（B），存货对照这层回放量不到；销项的按客户记科目没有（推送只按供应商记科目）。
 
 
 ## 第一轮回放后的决定（2026-10-16）
