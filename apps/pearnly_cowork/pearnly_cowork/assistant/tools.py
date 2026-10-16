@@ -1419,6 +1419,8 @@ def _detail(doc) -> dict:
     reason = str(doc.get("last_push_reason") or "")
     if reason.startswith("document_policy_needed_"):
         out["handling_choice_needed"] = reason[len("document_policy_needed_"):]
+    elif reason.startswith("posting_needs_review"):
+        out["handling_choice_needed"] = "goods_posting"  # 这家公司的商品单走库存还是记费用，选一次（`push.express.goods_posting`）
     # 用户问「这张是不是现金」时 CC 最常查的就是详情：入账的票带上怎么写进去的（验收 F19 复审 M1），记录名不给
     written = _written_of(doc.get("last_push_status"), doc.get("last_push_record"))
     if written:
@@ -1549,11 +1551,17 @@ def document_original(tool_input) -> str:
 
 def choose_document_policy(tool_input) -> str:
     from pearnly_cowork.history import document_policy
+    from pearnly_cowork.push.application import goods_posting
 
     scope.require("intake")
     name = str(tool_input.get("document") or "")
+    value = tool_input.get("value")
     try:
-        result = document_policy.choose(name, tool_input.get("value"))
+        if value in GOODS_POSTING_VALUES:
+            # 商品单入账方式按公司选（复核页「走库存 / 记费用」同一条路）
+            result = goods_posting.choose(name, value)
+        else:
+            result = document_policy.choose(name, value)
         frappe.db.commit()
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
         frappe.db.rollback()
@@ -2967,7 +2975,9 @@ DIRECTION_LABELS = {"purchase": "intake.dir.purchase", "sales": "intake.dir.sale
 POSTING_LABELS = {"service": "Service", "stock": "Stock"}
 PAYMENT_LABELS = {"cash": "Cash", "credit": "Credit"}
 POLICY_CLASS_LABELS = {"payment_evidence": "Transfer slips", "withholding_certificate": "Withholding tax certificates"}
-POLICY_VALUE_LABELS = {"enter": "cowork.policy.enter", "skip": "cowork.policy.skip"}
+POLICY_VALUE_LABELS = {"enter": "cowork.policy.enter", "skip": "cowork.policy.skip",
+                      "stock": "cowork.policy.stock", "service": "cowork.policy.service"}
+GOODS_POSTING_VALUES = ("stock", "service")
 
 
 def _shown(value) -> str:
@@ -3241,9 +3251,12 @@ def preview_choose_document_policy(tool_input) -> list:
     from pearnly_cowork.history import document_policy, storage
 
     doc = storage.read(str(tool_input.get("document") or ""))
+    label = lambda value: _(POLICY_VALUE_LABELS[value]) if value in POLICY_VALUE_LABELS else ""
+    if tool_input.get("value") in GOODS_POSTING_VALUES:
+        # 商品单入账方式：「之前」不另查公司（没选过才会停在这一步），只写这次选的
+        return [_change("Posting Kind", "", label(tool_input.get("value")))]
     kind = policy_rules.document_class(primary_page_fields(json.loads(doc.pages or "[]")))
     now = document_policy.read(doc.workspace).get(kind)
-    label = lambda value: _(POLICY_VALUE_LABELS[value]) if value in POLICY_VALUE_LABELS else ""
     return [_change(POLICY_CLASS_LABELS.get(kind, kind or "Document"), label(now), label(tool_input.get("value")))]
 
 
@@ -3467,10 +3480,13 @@ TOOLS = [
     {"name": "cowork_choose_document_policy", "label": "Chose how a kind of document is handled",
      "description": "For a transfer slip or withholding-tax certificate whose push waits for a handling choice: enter "
                     "records documents of this kind, skip leaves them out. It applies to every document of this kind "
-                    "for the whole company from now on (the user allows it in the chat). Then push the document "
-                    "again.",
+                    "for the whole company from now on (the user allows it in the chat). For handling_choice_needed "
+                    "goods_posting (a goods document of a company that keeps stock in Express): stock enters this "
+                    "company's goods documents to stock, service enters them as expense, from now on. Then push the "
+                    "document again.",
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
-                                                        "value": {"type": "string", "enum": ["enter", "skip"]}},
+                                                        "value": {"type": "string",
+                                                                  "enum": ["enter", "skip", "stock", "service"]}},
                       "required": ["document", "value"]},
      "approval": True,
      "ask": "Change how this kind of document is handled?",

@@ -222,11 +222,22 @@ def book_period(dates: Sequence[dt.date]) -> Tuple[Optional[dt.date], Optional[d
     return start, end
 
 
-def fiscal_calendars(express: Optional[Path], sets: Sequence[Path]) -> Dict[str, Tuple[dt.date, dt.date]]:
-    """测试机本地 Express 测试账套（``70EXP/T*``，各公司最新账套的副本）的会计期间（ISPRD 本年 CY：BEG1 ～ END12，与
-    CC 桌面版上报的 ``period_start`` / ``period_end`` 同一来源）：``{来源账套名: (起, 止)}``。对照表是语料脚本的
-    ``expsets*.tsv``（税号、年、来源账套、来源路径、测试账套……）。读不到的账套回放时按单据日期估。"""
-    found: Dict[str, Tuple[dt.date, dt.date]] = {}
+def next_year_end(end: Optional[dt.date]) -> Optional[dt.date]:
+    """次年段止的估计（ISPRD 读不到 NY 第 12 期时）：本年止再过一年（Express 每份账套都带下一年 12 期）。"""
+    if not end:
+        return None
+    try:
+        return end.replace(year=end.year + 1)
+    except ValueError:  # 2 月 29 日
+        return end.replace(year=end.year + 1, day=28)
+
+
+def fiscal_calendars(express: Optional[Path], sets: Sequence[Path]) -> Dict[str, Tuple[dt.date, dt.date, Optional[dt.date]]]:
+    """测试机本地 Express 测试账套（``70EXP/T*``，各公司最新账套的副本）的会计期间（ISPRD 本年 CY：BEG1 ～ END12，次年段
+    NY 止 END12NY，与 CC 桌面版上报的 ``period_start`` / ``period_end`` / ``next_end`` 同一来源）：``{来源账套名: (起, 止,
+    次年止)}``。对照表是语料脚本的 ``expsets*.tsv``（税号、年、来源账套、来源路径、测试账套……）。读不到的账套回放时按
+    单据日期估。"""
+    found: Dict[str, Tuple[dt.date, dt.date, Optional[dt.date]]] = {}
     if not express:
         return found
     for table in sets:
@@ -236,14 +247,15 @@ def fiscal_calendars(express: Optional[Path], sets: Sequence[Path]) -> Dict[str,
             parts = line.split("\t")
             if len(parts) < 5 or not parts[2].strip() or not parts[4].strip():
                 continue
-            row = next(dbf_rows(refuse_lan(express) / parts[4].strip() / "ISPRD.DBF", ["BEG1", "END12"]), None)
+            row = next(dbf_rows(refuse_lan(express) / parts[4].strip() / "ISPRD.DBF", ["BEG1", "END12", "END12NY"]),
+                       None)
             if row and row.get("BEG1") and row.get("END12"):
-                found[parts[2].strip().upper()] = (row["BEG1"], row["END12"])
+                found[parts[2].strip().upper()] = (row["BEG1"], row["END12"], row.get("END12NY") or None)
     return found
 
 
 def load_book(folder: Path, *, company: str, own_tax: str, key: str,
-              calendar: Optional[Tuple[dt.date, dt.date]] = None) -> Dict[str, Any]:
+              calendar: Optional[Tuple] = None) -> Dict[str, Any]:
     """一份账套答案（``答案/<账套>/原表``）→ 判定层要的全部事实。只读。"""
     tables = folder / "原表"
     info = next(dbf_rows(tables / "ISINFO.DBF", [*ISINFO_SLOTS.values(), "ORGNUM", "TAXID", "ISPERPETUA"]), {}) or {}
@@ -355,12 +367,15 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str,
                 "vat_booked": bool(vat_lines), "stock": docnum in stock_docs,
                 "pearnly": str(row.get("USERID") or "").strip().upper() == "PEARNLY",
             })
-    period = calendar or book_period([doc["date"] for doc in docs if doc["date"] and not doc["cancelled"]])
+    period = tuple(calendar[:2]) if calendar else \
+        book_period([doc["date"] for doc in docs if doc["date"] and not doc["cancelled"]])
+    following = (calendar[2] if calendar and len(calendar) > 2 else None) or next_year_end(period[1])
     return {"key": key, "folder": str(folder), "company": company, "own_tax": own_tax,
             "branch": branch5(info.get("ORGNUM")), "defaults": defaults, "accounts": list(accounts.values()),
             "suppliers": suppliers, "customers": customers, "products": products, "departments": departments,
             "fingerprint": fingerprint, "perpetual": str(info.get("ISPERPETUA") or "").strip().upper() == "Y",
-            "period": period, "period_source": "ISPRD" if calendar else "estimated", "docs": docs}
+            "period": period, "next_end": following, "period_source": "ISPRD" if calendar else "estimated",
+            "docs": docs}
 
 
 def answer_books(corpus: Path, only: Optional[str] = None) -> List[Tuple[str, str, Path]]:
@@ -390,8 +405,9 @@ def entered_on(doc: Mapping[str, Any]) -> dt.date:
 
 def _modules():
     from pearnly_cowork.companies import automation_rules
+    from pearnly_cowork.companies import identity
     from pearnly_cowork.push.automation import rules as tier_rules
-    from pearnly_cowork.push.express import automation, decide
+    from pearnly_cowork.push.express import automation, decide, goods_posting
     from pearnly_cowork.push.express import choices as choice_rules
     from pearnly_cowork.push.express.preflight import ExpressContext
     from pearnly_cowork.push.express.prepare import prepare_express
@@ -400,7 +416,7 @@ def _modules():
 
     return {"automation": automation, "decide": decide, "choices": choice_rules, "ExpressContext": ExpressContext,
             "prepare_express": prepare_express, "history_rules": history_rules, "automation_rules": automation_rules,
-            "tier_rules": tier_rules, "tax_periods": tax_periods}
+            "tier_rules": tier_rules, "tax_periods": tax_periods, "identity": identity, "goods_posting": goods_posting}
 
 
 def perfect_fields(doc: Mapping[str, Any], book: Mapping[str, Any]) -> Dict[str, Any]:
@@ -478,9 +494,23 @@ def book_config(book: Mapping[str, Any], *, party_tax: str = "", keep: Iterable[
 
 def account_row(book: Mapping[str, Any]) -> Dict[str, Any]:
     start, end = book["period"]
+    following = book.get("next_end")
     return {"source_id": book["key"], "attributes": {"tax_id": book["own_tax"], "branch": book["branch"],
                                                       "period_start": start.isoformat() if start else "",
-                                                      "period_end": end.isoformat() if end else ""}}
+                                                      "period_end": end.isoformat() if end else "",
+                                                      "next_end": following.isoformat() if following else ""}}
+
+
+def shaped_books(m, books: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    """这家公司各份账套给按日期选账套用的样子（`companies.identity.book`，带 ``next_end``）。"""
+    return [m["identity"].book("express", "replay", account_row(item)) for item in books]
+
+
+def day_books(m, shaped: Sequence[Mapping[str, Any]], book: Mapping[str, Any], day: dt.date) -> List[str]:
+    """按单据日期这张单该推往的账套键（生产 `companies.automation.day_books` 同一判据：这家公司这个分店的账套，
+    `companies.identity.for_day` —— 先本年期间覆盖这天的，没有再用次年段含这天的旧账套）。"""
+    identity = m["identity"]
+    return [item["key"] for item in identity.for_day(identity.for_branch(shaped, book["branch"]), day.isoformat())]
 
 
 def history_data(entries: Sequence[Mapping[str, Any]], since: dt.date, until: dt.date, read_at: dt.date
@@ -607,6 +637,14 @@ class Memory:
                 self.kinds[kind][subject] = value
 
 
+class CompanyChoice:
+    """一家公司按公司记的选择（工作空间 ``document_policy`` 的 ``goods_posting|<公司>``，`push.express.goods_posting`）：
+    商品单入账方式。模拟的人在第一张因此交人的单上按答案选一次（有存货明细 = 走库存，没有 = 记费用），之后这家照此。"""
+
+    def __init__(self):
+        self.goods_posting: Optional[str] = None
+
+
 def _settle(m, data, fields, config, today):
     """要人选费用科目、这家从没人选过时，Express 历史很一致的科目（`push.application.service._settled_account` 同口径）。"""
     rules = m["history_rules"]
@@ -637,8 +675,12 @@ def history_index(docs: Sequence[Mapping[str, Any]], norm) -> Dict[str, List[Map
     return index
 
 
-def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str, Any]]], catalog, history_entries):
-    """一张答案单走一遍推送判定 → 判定结果（类别、原因、逐项计分）。C 类由模拟的人按答案选（记进账套记忆）。"""
+def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str, Any]]], catalog, history_entries,
+                   company: Optional[CompanyChoice] = None, shaped: Optional[Sequence[Mapping[str, Any]]] = None):
+    """一张答案单走一遍推送判定 → 判定结果（类别、原因、逐项计分）。C 类由模拟的人按答案选（记进账套记忆）；商品单入账方式
+    因没选过交人时，模拟的人按这张单的答案替这家公司选一次（``company``）。``shaped``：这家公司各份账套（`shaped_books`），
+    按日期选账套用；没给只认这一份。"""
+    company = company if company is not None else CompanyChoice()
     automation = m["automation"]
     fields = perfect_fields(doc, book)
     direction = doc["direction"]
@@ -656,8 +698,10 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     data = history_data(earlier, entered - dt.timedelta(days=365), entered, entered)
     remembered = {kind: dict(values) for kind, values in memory.kinds.items()}
     # 入账类型：答案里没有存货明细（STCRD）的单按「服务」（录入第一步每批的选择；人这样选不改任何计分项），有存货明细的
-    # 不声明（永续 / 混合账套的商品单照生产交人）
-    posting_kind = None if doc["stock"] else "service"
+    # 不声明；没声明的商品单这家公司选过入账方式就照选的（`goods_posting.resolve`，与推送服务同一份），没选过照生产交人
+    posting_kind, posting_from = m["goods_posting"].resolve(
+        fields, direction=direction, config=config, posting_kind=None if doc["stock"] else "service",
+        chosen=company.goods_posting, today=entered)
     decision, _sources = m["decide"].decide(fields, direction=direction, posting_kind=posting_kind, config=config,
                                             remembered=remembered, branch=book["branch"],
                                             settle=_settle(m, data, fields, config, entered)
@@ -681,12 +725,22 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             reason = "" if ready else (prepared.reason or "preflight")
         except Exception as error:  # noqa: BLE001 — 一张单准备失败就当没准备好（C），不中断回放
             reason = f"prepare_error:{type(error).__name__}"
+    if reason.startswith(m["goods_posting"].NEEDED_PREFIX) and company.goods_posting is None:
+        # 模拟的人在复核页点「走库存 / 记费用」：按这张单的答案（有存货明细 = 走库存）替这家公司选一次
+        company.goods_posting = "stock" if doc["stock"] else "service"
+    # 账套记忆定的科目要最近连续 3 张同科目（`automation.memory_settled`）：这家供应商在这份账套里录入早于这张的单，
+    # 新的在前，记的科目取答案（推出去后 Express 里最终的样子；一单多科目记 *multi，断开连续）
+    recent = [answer_values(item).get("account") or "" for item in sorted(
+        (item for item in earlier if not item["cancelled"]),
+        key=lambda item: (entered_on(item), item["date"], item["docnum"]), reverse=True)[:12]]
     pages = [{"fields": fields, "_layer_chain": ["direct"]}]
     facts = automation.Facts(
         direction=direction, fields=fields, decision=decision, payload=payload, config=config, today=entered,
         ready=ready, blocked=reason, pages=pages, review_reasons=(), text=synthetic_text(fields),
         page_texts=[synthetic_text(fields)],
-        account=account_row(book), catalog=catalog, day_books=[book["key"]], uploaded=entered, source_total=1,
+        account=account_row(book), catalog=catalog,
+        day_books=day_books(m, shaped, book, day) if shaped is not None else [book["key"]], uploaded=entered,
+        source_total=1, posting_from=posting_from, account_recent=recent,
         prior_pushes=prior.get(_ref_key(m, fields["invoice_number"]), []), history_read=entered,
         layers=automation.layers(fields, direction=direction, remembered=remembered,
                                  history=(decision.get("history") or {}).get("account")))
@@ -703,7 +757,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             "period": period, "entered": entered.isoformat(), "class": verdict.cls, "reasons": list(verdict.reasons),
             "items": dict(verdict.items), "needed": [item.get("kind") for item in decision["needed"]],
             "outside": "" if not (book["period"][0] and book["period"][1]) else
+            "after" if book.get("next_end") and day > book["next_end"] else
             "next_year" if day > book["period"][1] else "before" if day < book["period"][0] else "",
+            "posting_from": posting_from,
             "prepare": reason, "sources": {key: (payload or {}).get(key) for key in ("doctype_src", "account_source",
                                                                                       "item_src", "doctype")},
             "scored": scored, "correct": bool(scored) and all(value in ("ok", "n/a") for value in scored.values()),
@@ -736,6 +792,12 @@ def _covers(book: Mapping[str, Any], day: dt.date) -> bool:
     return bool(start and end) and start <= day <= end
 
 
+def _covers_next(book: Mapping[str, Any], day: dt.date) -> bool:
+    start, end = book["period"]
+    following = book.get("next_end")
+    return bool(start and end and following) and end < day <= following
+
+
 def owners(books: Sequence[Mapping[str, Any]]) -> Dict[Tuple, str]:
     """同一张单在几份账套里都有（Express 新年度账套是上一年复制过来的，带着往年的单；还有备份副本）：只在一份里回放。
     键 (方向, 单号, 日期, 对方码, 含税额) → 回放它的账套：本年期间盖住单据日期的那份（ISPRD 的优先、再取单多的）；
@@ -748,7 +810,9 @@ def owners(books: Sequence[Mapping[str, Any]]) -> Dict[Tuple, str]:
     out = {}
     for key, holders in found.items():
         day = key[2]
-        covering = [book for book in holders if _covers(book, day)]
+        # 同推送按日期选账套（`identity.for_day`）：本年期间盖住的优先，没有再取次年段含这天的旧账套
+        covering = [book for book in holders if _covers(book, day)] or \
+            [book for book in holders if _covers_next(book, day)]
         pool = covering or holders
         pool = sorted(pool, key=lambda book: (book.get("period_source") == "ISPRD", len(book["docs"]),
                                               book["period"][0] or dt.date.min, book["key"]), reverse=True)
@@ -780,9 +844,10 @@ def judge_company(m, books: Sequence[Mapping[str, Any]]) -> Tuple[List[Dict[str,
     memories = collections.defaultdict(Memory)
     priors = collections.defaultdict(dict)
     purchases = {book["key"]: history_index(book["docs"], m["choices"].norm_name) for book in books}
+    company, shaped = CompanyChoice(), shaped_books(m, books)  # 语料一家公司一个目录：按公司选的入账方式一家一份
     for _entered, _day, _number, book, doc in queue:
         out.append(judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
-                                  purchases[book["key"]]))
+                                  purchases[book["key"]], company, shaped))
     return out, skipped
 
 
@@ -1163,7 +1228,9 @@ def cmd_gate(args) -> int:
 CAUSES = (
     ("posting", "商品单没声明入账类型（永续 / 混合库存账套交人）", lambda row: str(row.get("prepare") or "").startswith("posting_needs_review")),
     ("needed", "第一次见、要人选（对方档 / 科目 / 现赊）", lambda row: bool(row.get("needed"))),
-    ("next_year", "单据在账套次年段（不认 next_end）", lambda row: row.get("outside") == "next_year"),
+    ("next_year", "单据在账套次年段、新年度账套已建（该推往新账套）",
+     lambda row: row.get("outside") == "next_year" and bool({"period", "book"} & set(row["reasons"]))),
+    ("after", "单据晚于账套次年段", lambda row: row.get("outside") == "after"),
     ("before", "单据早于账套本年", lambda row: row.get("outside") == "before"),
     ("stale", "录入晚于单据日期 60 天以上", lambda row: "date_stale" in row["reasons"]),
     ("number", "答案没有对方单号", lambda row: "invoice_no_missing" in str(row.get("prepare") or "")),

@@ -15,6 +15,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
+from pearnly_cowork.targets import account_match
 from pearnly_cowork.targets.catalog_groups import year_rank
 from pearnly_cowork.targets.identity import account_set_company, normalize_express_account_key
 
@@ -113,7 +114,7 @@ def autofill(company: Mapping[str, Any], adapter: object, connection: object, ro
 
 def book(adapter: object, connection: object, row: Mapping[str, Any]) -> dict:
     """一份账套给页面与 CC 的样子：`{connection, adapter, key, label, year_label, branch, period_start, period_end,
-    writable}`。"""
+    next_end, writable}`（``next_end`` 是次年段止，Express ISPRD 的 NY 第 12 期；没报为空串）。"""
     attributes = _attributes(row)
     kind = _text(adapter).lower()
     key = _text(row.get("source_id"))
@@ -128,6 +129,7 @@ def book(adapter: object, connection: object, row: Mapping[str, Any]) -> dict:
             # 本年起止（不含次年）：「覆盖这个月」按本年算，次年的单据进下一年度的账套
             "period_start": _text(attributes.get("period_start"))[:10],
             "period_end": _text(attributes.get("period_end"))[:10],
+            "next_end": _text(attributes.get("next_end"))[:10],
             "writable": attributes.get("writable") is not False}
 
 
@@ -148,13 +150,15 @@ def covering(books: Iterable[Mapping[str, Any]], period: str) -> list:
 
 
 def for_day(books: Iterable[Mapping[str, Any]], day: object) -> list:
-    """覆盖这一天（`YYYY-MM-DD`）的账套（定时任务跟随公司当年账套，T1）：先按月 `covering`，再核到日（会计期间从月中
-    起止时，不把相邻两份都算上）。日期不是这个形状回空表。"""
+    """这一天（`YYYY-MM-DD`）该推往的账套（定时任务跟随公司当年账套 T1、自动推的「推往的须是按日期选出的那份」）：先找本年
+    期间覆盖这一天的（会计期间从月中起止时核到日，不把相邻两份都算上）；没有，就用期间里含这一天的旧账套（次年段，到
+    ``next_end``：新年度账套还没建时下一年的单记进旧账套的下一年期间，用户 2026-10-16）。两份同期都回（调用方停下）。
+    规则在 `targets.account_match.for_day`（推送的期间硬闸同一份）。日期不是这个形状回空表。"""
     day = str(day or "")[:10]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
         return []
-    return [item for item in covering(books, day[:7])
-            if str(item["period_start"])[:10] <= day <= str(item["period_end"])[:10]]
+    return account_match.for_day(books, day, lambda item: (item.get("period_start"), item.get("period_end"),
+                                                           item.get("next_end")))
 
 
 def for_branch(books: Iterable[Mapping[str, Any]], number: object) -> list:

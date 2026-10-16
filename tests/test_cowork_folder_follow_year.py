@@ -215,6 +215,18 @@ class PureRuleTests(unittest.TestCase):
         self.assertEqual([item["key"] for item in identity.for_day(books, "2025-07-10")], ["a"])
         self.assertEqual([item["key"] for item in identity.for_day(books, "2025-07-20")], ["b"])
 
+    def test_next_year_goes_into_the_old_book_until_the_new_one_exists(self):
+        """用户 2026-10-16：新年度账套还没建时，下一年的单记进旧账套的次年段（认 next_end）；建好就推往新账套；两份同期停下。"""
+        old = dict(self.book("a", "2025-01-01", "2025-12-31"), next_end="2026-12-31")
+        new = dict(self.book("b", "2026-01-01", "2026-12-31"), next_end="2027-12-31")
+        twin = dict(self.book("c", "2025-01-01", "2025-12-31"), next_end="2026-12-31")
+        keys = lambda found: [item["key"] for item in found]  # noqa: E731
+        self.assertEqual(keys(identity.for_day([old, new], "2026-03-01")), ["b"])        # 新账套已建
+        self.assertEqual(keys(identity.for_day([old], "2026-03-01")), ["a"])             # 未建：旧账套次年段
+        self.assertEqual(keys(identity.for_day([old, twin], "2026-03-01")), ["a", "c"])  # 两份同期：调用方停下
+        self.assertEqual(identity.for_day([old], "2027-01-01"), [])                     # 晚于次年段
+        self.assertEqual(identity.for_day([self.book("a", "2025-01-01", "2025-12-31")], "2026-03-01"), [])  # 没报次年段
+
     def test_books_without_a_period_never_cover_a_day(self):
         self.assertEqual(identity.for_day([self.book("a", "", "")], "2025-01-01"), [])
 
@@ -265,6 +277,37 @@ class CrossYearPushTests(Base):
         # 2026 年的票照样推往唯一的那份
         self.assertEqual(self.send(self.rule(company=company), self.ticket("H5", date(2026, 6, 30)))["account_set"],
                          _key(Y26))
+
+    def test_next_year_ticket_without_a_new_book_goes_into_the_old_books_next_year(self):
+        """有意变化（用户 2026-10-16）：原先「没有覆盖这一天的账套就停下」；现在新年度账套还没建时推往旧账套的次年段。"""
+        env.reset(C1=[dict(self.CATALOG[0]), row(T8, "SINCER 2568", "2025-01-01", "2025-12-31", next_end="2026-12-31")])
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["C1"].update(adapter="express", record_revision=1)
+        company = env.make("C1", T8)["id"]
+        result = self.send(self.rule(company=company), self.ticket("H3", date(2026, 2, 1)))
+        self.assertEqual((result["status"], result["account_set"]), ("sent", _key(T8)))
+        self.assertEqual(self.fake.submitted[-1][1], _key(T8))
+
+    def test_next_year_ticket_goes_to_the_new_book_once_it_exists(self):
+        catalog = [dict(self.CATALOG[0]), row(T8, "SINCER 2568", "2025-01-01", "2025-12-31", next_end="2026-12-31"),
+                   row(Y26, "SINCER 2569", "2026-01-01", "2026-12-31", next_end="2027-12-31")]
+        env.reset(C1=catalog)
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["C1"].update(adapter="express", record_revision=1)
+        company = env.make("C1", T8)["id"]
+        result = self.send(self.rule(company=company), self.ticket("H3", date(2026, 2, 1)))
+        self.assertEqual((result["status"], result["account_set"]), ("sent", _key(Y26)))
+
+    def test_two_old_books_with_the_same_next_year_stop(self):
+        catalog = [row(T8, "SINCER 2568", "2025-01-01", "2025-12-31", next_end="2026-12-31"),
+                   row(T9, "SINCER 2568 (2)", "2025-01-01", "2025-12-31", next_end="2026-12-31")]
+        env.reset(C1=catalog)
+        frappe.hooks = dict(HOOKS)
+        frappe.db.tables["Cowork ERP Connection"]["C1"].update(adapter="express", record_revision=1)
+        company = env.make("C1", T8)["id"]
+        result = self.send(self.rule(company=company), self.ticket("H3", date(2026, 2, 1)))
+        self.assertEqual(result, {"status": "held", "reason": folder_contracts.ACCOUNT_SET_AMBIGUOUS})
+        self.assertEqual(self.fake.submitted, [])
 
     def test_a_ticket_without_a_date_stops(self):
         result = self.send(self.rule(), self.ticket("H6", None))

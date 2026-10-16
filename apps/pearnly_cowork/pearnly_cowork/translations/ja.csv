@@ -702,6 +702,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV exported from online banking or the electronic PDF is most accurate,ネットバンキングの Excel/CSV か電子版 PDF が最も正確です
 Excess tax brought forward,繰越超過納付額
 Expected VAT,想定税額
+Expense (goods from now on),費用に計上（以後も同様）
 Expense account,費用勘定
 Expense account when no category matches,区分が一致しない費用の勘定科目
 Expense it,費用計上
@@ -798,6 +799,7 @@ General ledger detail,総勘定元帳明細
 Generation Key,認証情報世代キー
 Give a file path inside this folder.,このフォルダー内のファイルのパスを指定してください。
 Give the month as YYYY-MM.,月は YYYY-MM で指定してください。
+Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on,これは商品の伝票です。この会社の商品を在庫に計上しますか、費用に計上しますか。一度選ぶと以後の商品伝票に適用されます
 Gray,グレー
 Green,緑
 Group,グループ
@@ -1589,6 +1591,7 @@ Statement Withdrawal Only Amount,明細出金のみ金額
 Statement review is not available for this task.,このタスクには明細確認記録がありません。
 Status,状態
 Stock,在庫
+Stock (goods from now on),在庫に計上（以後も同様）
 Stock Account Group per Account Set,会計データ別在庫勘定グループ
 Stock changed; recount,在庫変動・再棚卸
 Stock count,棚卸
@@ -2415,8 +2418,10 @@ cowork.nav.reconVat,売上税報告チェック
 cowork.nav.work,タスク管理
 cowork.policy.enter,入力する（以後も同様）
 cowork.policy.invalid,この伝票ではこの選択は不要です
+cowork.policy.service,費用に計上（以後も同様）
 cowork.policy.skip,入力しない（以後も同様）
 cowork.policy.skipped,入力しない
+cowork.policy.stock,在庫に計上（以後も同様）
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.readback.account_missing,この接続にこの会計データはありません。
@@ -3359,6 +3364,7 @@ intake.error.pos_facts_invalid,この書類の POS 日計データが壊れて�
 intake.error.pos_payments_mismatch,支払方法の合計がその日の合計と一致しません。POS エクスポートを取り込み直してください
 intake.error.pos_receipt_account_missing,支払方法ごとの入金勘定を選んでください
 intake.error.posting_kind_needed,この伝票がサービスか在庫かを選んで再送信してください
+intake.error.posting_needs_review,これは商品の伝票です。この会社の商品を在庫に計上しますか、費用に計上しますか。一度選ぶと以後の商品伝票に適用されます
 intake.error.seller_buyer_same_tax,売手と買手の納税者番号が同じです。直して再送信してください
 intake.error.tax_id_invalid,納税者番号が正しくありません。直して再送信してください
 intake.mrerpDefault.ap_account,買掛金勘定

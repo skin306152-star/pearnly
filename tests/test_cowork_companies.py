@@ -287,9 +287,9 @@ connections = Connections()
 
 
 def express_row(path, label, *, company="บริษัท เอบีซี จำกัด", tax="0105536082808", branch="00000", year="69EXP",
-                start="2026-01-01", end="2026-12-31", writable=True):
+                start="2026-01-01", end="2026-12-31", writable=True, next_end=None):
     attributes = {"company": company, "tax_id": tax, "branch": branch, "root_label": year, "root": f"S:\\{year}",
-                  "period_start": start, "period_end": end, "writable": writable}
+                  "period_start": start, "period_end": end, "next_end": next_end, "writable": writable}
     return {"source_id": path, "label": label, "active": True,
             "attributes": {k: v for k, v in attributes.items() if v is not None}}
 

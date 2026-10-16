@@ -4,7 +4,9 @@
 - 票上本方税号（进项看买方、销项看卖方）是有效的 13 位税号（校验位对），账套也报了税号，两者不同
   —— 这张票不是这家公司的（旧项目 07-23：票写进了别家公司的账套）；方向判不出时只在买方是别家有效税号、
   卖方也不是这份账套时拦；
-- 单据日期落在这份账套整个会计期间（本年起 ~ 次年止）之外 —— 年度选错了。
+- 单据日期落在这份账套整个会计期间（本年起 ~ 次年止）之外 —— 年度选错了；落在次年段、而同一家公司（同税号同分店，
+  没有税号按目录公司名）已有本年期间覆盖这一天的新年度账套 —— 新年度账套已建，该推往它（用户 2026-10-16：新年度账套
+  还没建时下一年的单记进旧账套的下一年期间，一建好就推往新账套；按日期选账套的同一规则 :func:`for_day`）。
 - 分店（补充 甲.3，用户 2026-10-15）：同一法人在这条连接里有不止一个分店的账套时，进项票票面的买方分店（销项看卖方分店）
   只认这个分店的账套；票面没有本方分店（简易税票、收据）时用 CC 对话指定的分店（``work_branch``）。与所选账套的分店
   不同就拦，不静默改。只有一个分店的公司不按分店拦（分店号没有校验位、识别常读错一位，一套账服务所有分店时更不能拦）。
@@ -89,6 +91,53 @@ def _period(attributes: Mapping[str, Any]) -> tuple[dt.date | None, dt.date | No
     return _day(attributes.get("period_start")), _day(attributes.get("next_end")) or _day(attributes.get("period_end"))
 
 
+CURRENT, NEXT = "current", "next"
+
+
+def fiscal_part(start: Any, end: Any, next_end: Any, day: Any) -> str:
+    """这一天落在账套会计期间的哪一段：本年（``period_start``～``period_end``）回 `CURRENT`；本年之后、次年止（``next_end``）
+    之内回 `NEXT`；都不在（或期间没报全、日期认不出）回空串。参数是 `YYYY-MM-DD` 字符串或日期。"""
+    start, end, next_end, day = (_day(value) for value in (start, end, next_end, day))
+    if not (start and end and day):
+        return ""
+    if start <= day <= end:
+        return CURRENT
+    return NEXT if next_end and end < day <= next_end else ""
+
+
+def for_day(items: Any, day: Any, span) -> list:
+    """按单据日期选账套（T1 定时任务跟随公司当年账套、自动推的「推往的须是按日期选出的那份」、上面的期间硬闸共用）：
+    先找本年期间覆盖这一天的；没有，就用期间里含这一天的旧账套（次年段，新年度账套还没建）。``span(item)`` 回
+    ``(period_start, period_end, next_end)``。两份同期照样都回（调用方按「多于一份」停下）。"""
+    items = [item for item in items or ()]
+    current = [item for item in items if fiscal_part(*span(item), day) == CURRENT]
+    return current or [item for item in items if fiscal_part(*span(item), day) == NEXT]
+
+
+def _row_span(row: Any) -> tuple:
+    attributes = _attributes(row)
+    return attributes.get("period_start"), attributes.get("period_end"), attributes.get("next_end")
+
+
+def _same_company(row: Any, attributes: Mapping[str, Any]) -> bool:
+    """目录这一行与所选账套是同一家公司的同一个分店（同税号同分店；所选账套没有 13 位税号时按目录里的公司名）。"""
+    mine, other = _attributes(row), attributes
+    tax = _digits(other.get("tax_id"))
+    if len(tax) == 13:
+        return _digits(mine.get("tax_id")) == tax and _branch5(mine.get("branch")) == _branch5(other.get("branch"))
+    name = str(other.get("company") or other.get("company_name") or "").strip().casefold()
+    return bool(name) and not _digits(mine.get("tax_id")) and \
+        str(mine.get("company") or mine.get("company_name") or "").strip().casefold() == name
+
+
+def newer_book_covers(attributes: Mapping[str, Any], catalog: Any, day: Any) -> bool:
+    """单据日期在所选账套的次年段，而目录里同一家公司已有本年期间覆盖这一天的账套（新年度账套已建）。"""
+    if fiscal_part(*_row_span({"attributes": attributes}), day) != NEXT:
+        return False
+    return any(isinstance(row, Mapping) and _same_company(row, attributes)
+               and fiscal_part(*_row_span(row), day) == CURRENT for row in catalog or ())
+
+
 def company_branches(catalog: Any, tax: str, *, day: dt.date | None = None,
                      period: tuple[dt.date | None, dt.date | None] | None = None) -> set:
     """这条连接的目录里同一税号的账套报的分店号。给了 ``day`` 只数覆盖那天的账套；没给 ``day`` 给了 ``period``（起，止）
@@ -145,8 +194,10 @@ def conflict(adapter: object, account: Mapping[str, Any] | None, *, direction: o
     start, end = _period(attributes)
     if day and start and end and not start <= day <= end:
         return PERIOD_MISMATCH
+    if day and newer_book_covers(attributes, catalog, day):
+        return PERIOD_MISMATCH  # 次年段的单：新年度账套已建，推往新账套
     return ""
 
 
-__all__ = ["BRANCH_MISMATCH", "CONFLICT_MESSAGES", "PERIOD_MISMATCH", "TAX_MISMATCH", "company_branches", "conflict", "printed_branch",
-           "wrong_branch"]
+__all__ = ["BRANCH_MISMATCH", "CONFLICT_MESSAGES", "CURRENT", "NEXT", "PERIOD_MISMATCH", "TAX_MISMATCH", "company_branches",
+           "conflict", "fiscal_part", "for_day", "newer_book_covers", "printed_branch", "wrong_branch"]

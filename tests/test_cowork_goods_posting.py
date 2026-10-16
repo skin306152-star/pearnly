@@ -1,0 +1,207 @@
+"""商品单入账方式按公司选一次（数字会计员第 3 期第一轮回放后，用户 2026-10-16「按公司问一次记住」）。
+
+永续 / 混合库存账套里没声明入账类型的商品单，映射器照「铁律」交人（`posting_needs_review:*`）。这家公司选过「走库存 / 记费用」
+后，同样情形的单按选定值当作声明了入账类型；没选过的照旧交人。存储与问法同转账凭条 / 预扣税凭证的「选一次」
+（工作空间 ``document_policy``，键 ``goods_posting|<公司身份>``；复核页推送原因旁两个按钮；CC 同一个工具）。
+
+- 纯规则 `push.express.goods_posting`：会不会交人与映射器同一判据、选过的照用、公司身份与 `companies.identity` 一致；
+- 存储 `contracts.document_policy`：按公司的键与值、认不出的不留；
+- 写入口 `push.application.goods_posting.choose`：按推往账套的目录行认公司，权限经推送同一条读取，只记 Express。
+纯函数部分不依赖 Frappe；写入口用替身。
+"""
+import datetime as dt
+import importlib.util
+import json
+import pathlib
+import sys
+import types
+import unittest
+from unittest import mock
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
+sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
+for _name in [n for n in sys.modules if n.split(".")[0] == "pearnly_cowork"]:
+    del sys.modules[_name]
+
+from pearnly_cowork.companies import identity  # noqa: E402
+from pearnly_cowork.contracts import document_policy as policy  # noqa: E402
+from pearnly_cowork.push.express import goods_posting  # noqa: E402
+from pearnly_cowork.push.express.mapper import build_express_payload  # noqa: E402
+from pearnly_cowork.push.express.posting_profile import ESCALATE_REASON_PREFIX  # noqa: E402
+
+OWN, SELLER = "0994000333447", "0107561000013"
+TODAY = dt.date(2026, 10, 20)
+PERPETUAL = {"stcrd_lines": 10, "stcrd_lines_moving_stock": 9}
+MIXED = {"stcrd_lines": 10, "stcrd_lines_moving_stock": 4}
+NONE = {"stcrd_lines": 10, "stcrd_lines_moving_stock": 0}
+
+
+def goods(**over):
+    """进项完整税票（印了税额、写明买方）：商品单车道。"""
+    fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
+              "buyer_name": "ACME", "buyer_tax": OWN, "invoice_number": "IV-1", "date": "2026-10-10",
+              "subtotal": "1000.00", "vat": "70.00", "total_amount": "1070.00"}
+    fields.update(over)
+    return fields
+
+
+def config(fingerprint=PERPETUAL, **over):
+    found = {"account_set": "C:\\PearnlyExpress\\69ACME", "fallback_acc": "51-01", "ap_acc": "21-01",
+             "vat_input_acc": "11-50", "catalog_fingerprint": dict(fingerprint)}
+    found.update(over)
+    return found
+
+
+def row(tax=OWN, company="บริษัท เอซีเอ็มอี จำกัด", branch="00000"):
+    return {"source_id": "C:\\PearnlyExpress\\69ACME", "attributes": {"tax_id": tax, "company": company,
+                                                                      "branch": branch}}
+
+
+class Blocked(unittest.TestCase):
+    """会不会交人：与映射器的「永续 / 混合库存、没声明 → 交人」逐条一致。"""
+
+    def blocked(self, fields=None, *, direction="purchase", cfg=None, posting_kind=None):
+        return goods_posting.blocked(fields or goods(), direction=direction, config=cfg or config(),
+                                     posting_kind=posting_kind, today=TODAY)
+
+    def test_undeclared_goods_in_a_perpetual_or_mixed_book(self):
+        self.assertTrue(self.blocked())
+        self.assertTrue(self.blocked(cfg=config(MIXED)))
+        self.assertTrue(self.blocked(direction="sales", fields=goods(direction="sales", seller_tax=OWN, buyer_tax=SELLER)))
+
+    def test_what_never_stops_here(self):
+        self.assertFalse(self.blocked(posting_kind="service"))                       # 本票 / 本批声明了
+        self.assertFalse(self.blocked(posting_kind="stock"))
+        self.assertFalse(self.blocked(goods(items=[{"name": "A", "posting_kind": "stock"}])))  # 明细行逐行声明
+        self.assertFalse(self.blocked(cfg=config(NONE)))                              # 不管库存的账套
+        self.assertFalse(self.blocked(cfg=config(fingerprint={})))                    # 指纹没报：照旧按非库存
+        self.assertFalse(self.blocked(goods(document_type="receipt")))                # 进项费用单不动库存
+        # 会计确认过的画像（连接上锁的覆盖）不拦就不拦
+        self.assertFalse(self.blocked(cfg=config(posting_profile={"posting_mode": "non_stock"})))
+
+    def test_the_mapper_stops_exactly_when_blocked_says_so(self):
+        for fields, cfg in ((goods(), config()), (goods(), config(NONE)), (goods(document_type="receipt"), config())):
+            result = build_express_payload({"fields": fields}, config=cfg, today=TODAY, posting_kind=None)
+            stopped = not result.ok and str(result.reason).startswith(ESCALATE_REASON_PREFIX)
+            self.assertEqual(stopped, self.blocked(fields, cfg=cfg), (fields["document_type"], cfg["catalog_fingerprint"]))
+
+
+class Resolve(unittest.TestCase):
+    def resolve(self, chosen, *, posting_kind=None, fields=None, cfg=None):
+        return goods_posting.resolve(fields or goods(), direction="purchase", config=cfg or config(),
+                                     posting_kind=posting_kind, chosen=chosen, today=TODAY)
+
+    def test_a_company_choice_is_used_only_where_the_document_would_stop(self):
+        self.assertEqual(self.resolve("stock"), ("stock", goods_posting.COMPANY_CHOICE))
+        self.assertEqual(self.resolve("service"), ("service", goods_posting.COMPANY_CHOICE))
+        self.assertEqual(self.resolve(None), (None, ""))                  # 没选过：照旧交人
+        self.assertEqual(self.resolve("stock", cfg=config(NONE)), (None, ""))  # 不会交人：照旧按画像
+        self.assertEqual(self.resolve("stock", fields=goods(document_type="receipt")), (None, ""))
+        self.assertEqual(self.resolve("bogus"), (None, ""))
+
+    def test_a_declaration_wins_over_the_company_choice(self):
+        self.assertEqual(self.resolve("stock", posting_kind="service"), ("service", goods_posting.DECLARED))
+        self.assertEqual(self.resolve(None, posting_kind="STOCK"), ("stock", goods_posting.DECLARED))
+
+    def test_the_mapper_goes_on_with_the_chosen_kind(self):
+        kind, _source = self.resolve("service")
+        result = build_express_payload({"fields": goods()}, config=config(), today=TODAY, posting_kind=kind)
+        self.assertFalse(str(result.reason or "").startswith(ESCALATE_REASON_PREFIX), result.reason)
+
+
+class CompanyKey(unittest.TestCase):
+    def test_the_same_identity_as_the_company_master(self):
+        for item in (row(), row(branch="00012"), row(tax=""), row(tax="0994000333448"), row(tax="", company="")):
+            mine = identity.company_identity("express", "EXP1", item)
+            self.assertEqual(goods_posting.company_key("EXP1", item), (mine or {}).get("key", ""), item)
+        # 同税号各分店、各年度是一家
+        self.assertEqual(goods_posting.company_key("EXP1", row(branch="00012")), f"tax:{OWN}")
+        self.assertEqual(goods_posting.company_key("", row()), "")
+        self.assertEqual(goods_posting.company_key("EXP1", None), "")
+
+
+class Storage(unittest.TestCase):
+    def test_per_company_keys_share_the_document_policy_field(self):
+        key = policy.goods_posting_key(f"tax:{OWN}")
+        self.assertEqual(key, f"goods_posting|tax:{OWN}")
+        raw = {"payment_evidence": "enter", key: "stock", "goods_posting|tax:1": "bogus", "other": "stock",
+               "goods_posting|" + "x" * 300: "stock"}
+        self.assertEqual(policy.normalize(raw), {"payment_evidence": "enter", key: "stock"})
+        self.assertEqual(policy.goods_posting(policy.normalize(raw), f"tax:{OWN}"), "stock")
+        self.assertIsNone(policy.goods_posting({}, f"tax:{OWN}"))
+        self.assertIsNone(policy.goods_posting({key: "stock"}, ""))
+        self.assertEqual(policy.goods_posting_key(""), "")
+        # 转账凭条 / 预扣税凭证的门槛不受影响
+        self.assertIsNone(policy.push_block({"document_type": "tax_invoice"}, {key: "stock"}))
+
+
+class Choose(unittest.TestCase):
+    """写入口：按这张票推往的账套认公司，记进工作空间同一个字段。"""
+
+    def load(self, adapter="express", rows=None, doc=None):
+        seen = {"recorded": [], "read": []}
+
+        class Thrown(Exception):
+            pass
+
+        def throw(message, *args):
+            raise Thrown(message)
+
+        frappe = types.ModuleType("frappe")
+        frappe._ = lambda text, *a: text
+        frappe.throw = throw
+        doc = doc or types.SimpleNamespace(name="H1", workspace="W1", client="", push_connection="EXP1",
+                                           push_account_set="C:\\PearnlyExpress\\69ACME")
+        loaded = types.SimpleNamespace(endpoint={"adapter": adapter}, doc=types.SimpleNamespace(name="EXP1"),
+                                       evidence=types.SimpleNamespace(snapshot={"account_sets": json.dumps(
+                                           [row()] if rows is None else rows)}))
+
+        def read_for_push(connection, workspace, client, lock):
+            seen["read"].append((connection, workspace, client, lock))
+            return loaded
+
+        modules = {
+            "frappe": frappe,
+            "pearnly_cowork.access": types.SimpleNamespace(scope=types.SimpleNamespace(
+                require=lambda feature: seen.setdefault("scope", feature))),
+            "pearnly_cowork.connections": types.SimpleNamespace(service=types.SimpleNamespace(read_for_push=read_for_push)),
+            "pearnly_cowork.history": types.SimpleNamespace(
+                document_policy=types.SimpleNamespace(record=lambda *a: seen["recorded"].append(a)),
+                storage=types.SimpleNamespace(read=lambda name: doc))}
+        with mock.patch.dict(sys.modules, modules):
+            spec = importlib.util.spec_from_file_location("goods_posting_choose", APP / "push/application/goods_posting.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        return module, seen, Thrown
+
+    def test_records_the_company_of_the_target_account_set(self):
+        module, seen, _thrown = self.load()
+        self.assertEqual(module.choose("H1", "stock"), {"goods_posting": "stock"})
+        self.assertEqual(seen["recorded"], [("W1", f"goods_posting|tax:{OWN}", "stock")])
+        self.assertEqual((seen["scope"], seen["read"]), ("intake", [("EXP1", "W1", "", True)]))
+        # 复核页提交的那份账套优先于票上记的去向（按键归一后找目录行）
+        module.choose("H1", "service", "EXP1", "c:/pearnlyexpress/69acme/")
+        self.assertEqual(seen["recorded"][-1], ("W1", f"goods_posting|tax:{OWN}", "service"))
+
+    def test_refuses_what_it_cannot_tie_to_a_company(self):
+        module, seen, thrown = self.load()
+        for value in ("", "enter", "Stock"):
+            with self.assertRaises(thrown):
+                module.choose("H1", value)
+        module, seen, thrown = self.load(adapter="mrerp")
+        with self.assertRaises(thrown):
+            module.choose("H1", "stock")
+        module, seen, thrown = self.load(rows=[])
+        with self.assertRaises(thrown):
+            module.choose("H1", "stock")  # 目录里没有这份账套
+        module, seen, thrown = self.load(doc=types.SimpleNamespace(name="H1", workspace="W1", client="",
+                                                                    push_connection="", push_account_set=""))
+        with self.assertRaises(thrown):
+            module.choose("H1", "stock")  # 不知道推往哪
+        self.assertEqual(seen["recorded"], [])
+
+
+if __name__ == "__main__":
+    unittest.main()

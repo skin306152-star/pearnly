@@ -3,7 +3,7 @@
 - 统计：Wilson 下限与达标线（0 错 381 张、1 错 563、2 错 726 张才到 99.0%）、合并估计；
 - 只读 DBF（cp874、删除行、数值 / 日期 / 双精度列）、拒绝局域网路径；
 - 判定层：合成一份 Express 账套答案（APTRN / ISVAT / GLJNL / GLJNLIT / APMAS / GLACC / ISINFO），按录入日顺序走推送同一套
-  判定：同一家供应商第一张要人选（C，模拟的人按答案选、记进账套记忆），之后按记忆定（进项正式税票的抵进项按方向推断 → B），
+  判定：同一家供应商第一张要人选（C，模拟的人按答案选、记进账套记忆），之后按记忆定（记忆的科目要最近连续 3 张同科目才算 A），
   反事实计分对上答案；科目换了的那张计错；
 - 档位时间线：三套阈值并排、推错即「被改」；
 - 识别闸层：与金标逐字段比（单号只差前缀不算错）、配对、原文核对。
@@ -175,17 +175,67 @@ class JudgementLayer(unittest.TestCase):
         self.assertEqual(first["class"], "C")
         self.assertEqual(sorted(first["needed"]), ["account", "payment"])
         second = by_number["RR680101-001"]
-        # 记忆定的科目与付款是 A；进项正式税票的抵进项按方向推断 → B
+        # 抵进项按方向推断是 A（10-16）；记忆定的科目要这家最近连续 3 张同科目才算 A：之前只有 1 张 → B
         self.assertEqual(second["class"], "B", second)
-        self.assertEqual(second["reasons"], ["judged:vat"])
-        self.assertTrue(second["vat_direction_only"])
+        self.assertEqual(second["reasons"], ["judged:account"])
+        self.assertFalse(second["vat_direction_only"])
         self.assertTrue(second["correct"])
         self.assertEqual(second["scored"], {"party": "ok", "account": "ok", "payment": "ok", "vat": "ok"})
+        self.assertEqual(by_number["RR680102-001"]["class"], "B")  # 之前 2 张
+        fourth = by_number["RR680103-001"]  # 之前 3 张都记 52-01：A
+        self.assertEqual((fourth["class"], fourth["reasons"]), ("A", []))
         changed = by_number["RR680301-009"]
         self.assertFalse(changed["correct"])
         self.assertEqual(changed["scored"]["account"], "wrong:52-01")
         other = by_number["HP680302-001"]
         self.assertEqual(other["class"], "C")  # 新供应商：要人选
+
+    def test_goods_posting_is_chosen_once_per_company_then_followed(self):
+        """永续库存账套的商品单（第一轮回放后定，10-16）：第一张因没声明入账类型交人，模拟的人按答案替这家公司选一次，
+        之后同类单按选的走（`goods_posting.resolve`，与推送服务同一份），posting 一项算 A。"""
+        m = replay._modules()
+        self.book["fingerprint"] = {"stcrd_lines": 10, "stcrd_lines_moving_stock": 9}  # 永续库存
+        for doc in self.book["docs"]:
+            doc["stock"] = doc["party_code"] == "S001"
+        rows, _ = replay.judge_company(m, [self.book])
+        by_number = {row["docnum"]: row for row in rows}
+        posting = [row for row in rows if str(row["prepare"]).startswith("posting_needs_review")]
+        self.assertEqual(len(posting), 1, [(row["docnum"], row["prepare"]) for row in rows])
+        later = [row for row in rows if row["entered"] > posting[0]["entered"] and row["docnum"].startswith("RR6801")]
+        self.assertTrue(later)
+        for row in later:
+            self.assertEqual((row["posting_from"], row["items"].get("posting")), ("company_choice", "A"), row)
+            self.assertFalse(str(row["prepare"]).startswith("posting_needs_review"))
+        self.assertEqual(by_number["HP680302-001"]["posting_from"], "declared")  # 没有存货明细的照旧按「服务」声明
+
+    def test_next_year_documents_go_into_the_old_book_until_the_new_one_exists(self):
+        """新年度账套还没建时，下一年的单记进旧账套的次年段（认 next_end，用户 10-16）；新年度账套一建好就该推往新的。"""
+        m = replay._modules()
+        self.assertEqual(self.book["next_end"], dt.date(2026, 12, 31))  # 按单据估的期间：次年段再过一年
+        self.assertEqual(replay.account_row(self.book)["attributes"]["next_end"], "2026-12-31")
+        doc = dict(self.book["docs"][0], date=dt.date(2026, 2, 3), entered=dt.date(2026, 2, 5))
+        old_only = replay.shaped_books(m, [self.book])
+        self.assertEqual(replay.day_books(m, old_only, self.book, doc["date"]),
+                         [m["identity"].book("express", "replay", replay.account_row(self.book))["key"]])
+        found = replay.judge_document(m, doc, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
+                                      {}, replay.CompanyChoice(), old_only)
+        self.assertEqual(found["outside"], "next_year")
+        self.assertFalse({"period", "book"} & set(found["reasons"]), found["reasons"])
+        newer = dict(self.book, key="C:\\PearnlyExpress\\T9ACME", period=(dt.date(2026, 1, 1), dt.date(2026, 12, 31)),
+                     next_end=dt.date(2027, 12, 31), docs=[])
+        both = replay.shaped_books(m, [self.book, newer])
+        found = replay.judge_document(m, doc, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
+                                      {}, replay.CompanyChoice(), both)
+        self.assertIn("book", found["reasons"])
+        self.assertTrue(next(test for key, _label, test in replay.CAUSES if key == "next_year")(found))
+        # 晚于次年段：照旧不在期间里
+        late = dict(doc, date=dt.date(2027, 2, 3), entered=dt.date(2027, 2, 5))
+        found = replay.judge_document(m, late, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
+                                      {}, replay.CompanyChoice(), old_only)
+        self.assertEqual(found["outside"], "after")
+        self.assertIn("period", found["reasons"])
+        # 同一张单在新旧两份里都有：本年期间盖住的那份回放；只在旧的里有、新的盖不住：旧的次年段
+        self.assertEqual(replay.next_year_end(dt.date(2024, 2, 29)), dt.date(2025, 2, 28))
 
     def test_trimmed_masters_decide_like_the_full_masters(self):
         # 回放按单只给用得着的对方主档行（省时间）：判定与全表一样

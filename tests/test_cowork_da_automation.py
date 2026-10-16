@@ -65,7 +65,8 @@ def _facts(**over):
                 today=dt.date(2026, 10, 25), ready=True, blocked="",
                 pages=[{"_layer_chain": ["text", "L2"], "fields": fields, "_needs_manual_review": False}],
                 review_reasons=[], text=TEXT, account=ACCOUNT, catalog=[ACCOUNT], day_books=[BOOK],
-                uploaded=dt.date(2026, 10, 22), source_total=1, prior_pushes=[])
+                uploaded=dt.date(2026, 10, 22), source_total=1, prior_pushes=[],
+                account_recent=["5310-01", "5310-01", "5310-01"])
     base.update(over)
     return auto.Facts(**base)
 
@@ -116,6 +117,27 @@ class ItemTiers(unittest.TestCase):
                              ("category_map", "B"), ("config_default", "B"), ("choice", "C"), ("", "C")):
             self.assertEqual(self.tier("account", payload=_payload(account_source=source)), tier, source)
 
+    def test_a_remembered_account_needs_three_in_a_row(self):
+        """账套记忆按供应商记一个科目：这家在这份账套里最近连续至少 3 张同科目才算 A，否则 B（第一轮回放后定，10-16）。"""
+        def tier(recent):
+            return self.tier("account", payload=_payload(account_source="remembered"), account_recent=recent)
+        self.assertEqual(tier(["5310-01"] * 3), "A")
+        self.assertEqual(tier(["5310-01"] * 3 + ["5320-01"]), "A")      # 更早的不同不影响
+        self.assertEqual(tier(["5310-01", "5310-01"]), "B")             # 还不够 3 张
+        self.assertEqual(tier(["5310-01", "5320-01", "5310-01", "5310-01"]), "B")  # 中间断了
+        self.assertEqual(tier(["5320-01"] * 3), "B")                     # 最近都记别的科目
+        self.assertEqual(tier(["*multi", "5310-01", "5310-01", "5310-01"]), "B")   # 一单多科目也断开
+        self.assertEqual(tier([]), "B")
+        self.assertEqual(tier(None), "B")                                # 没取（旧调用方）按 0 张
+        # 只管账套记忆：任务默认、本票选的、公司规则不看连续张数
+        for source in ("task_default", "chosen", "company_rule"):
+            self.assertEqual(self.tier("account", payload=_payload(account_source=source), account_recent=[]), "A",
+                             source)
+        self.assertEqual(auto.MEMORY_STREAK, 3)
+        self.assertEqual(auto.memory_streak(["a", "a", "b", "a"], "a"), 2)
+        self.assertEqual(auto.memory_streak(["a"], ""), 0)
+        self.assertTrue(auto.memory_settled(["a", "a", "a"], "a"))
+
     def test_express_history_is_a_only_from_the_version_without_pearnly_rows(self):
         def tier(history):
             return self.tier("account", payload=_payload(account_source="express_history"),
@@ -155,9 +177,10 @@ class ItemTiers(unittest.TestCase):
     def test_input_vat(self):
         self.assertEqual(self.tier("vat", payload=_payload(item_src="manual")), "A")
         self.assertEqual(self.tier("vat", payload=_payload(item_src="choice")), "A")
-        self.assertEqual(self.tier("vat", payload=_payload(item_src="judge_direction=purchase_invoice")), "B")
+        # 按方向推断（全平台共用的法定口径）：第一轮回放 13,878 张 0 错，从 B 改 A（10-16）
+        self.assertEqual(self.tier("vat", payload=_payload(item_src="judge_direction=purchase_invoice")), "A")
         self.assertEqual(self.tier("vat", payload=_payload(item_src="judge_direction=expense", vat_amount="0.00",
-                                                           vat_capitalized="70.00")), "B")
+                                                           vat_capitalized="70.00")), "A")
         self.assertEqual(self.tier("vat", payload=_payload(item_src="")), "C")
         # 没有税额：抵不抵无从说起，不列
         self.assertIsNone(self.tier("vat", payload=_payload(item_src="judge_direction=expense", vat_amount="0.00")))
@@ -192,7 +215,14 @@ class ItemTiers(unittest.TestCase):
     def test_a_cc_inference_makes_b_and_lists_it(self):
         verdict = auto.classify(_facts(payload=_payload(account_source="category_map",
                                                         item_src="judge_direction=purchase_invoice")))
-        self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:account", "judged:vat")))
+        self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:account",)))
+
+    def test_the_company_goods_posting_choice_is_a_rule(self):
+        """永续 / 混合库存账套的商品单：这家公司选过的入账方式（`goods_posting`）算人定的规则，列 posting = A。"""
+        self.assertEqual(self.tier("posting", posting_from="company_choice"), "A")
+        self.assertIsNone(self.tier("posting", posting_from="declared"))
+        self.assertIsNone(self.tier("posting"))
+        self.assertEqual(auto.classify(_facts(posting_from="company_choice")).cls, "A")
 
     def test_a_c_item_makes_the_document_c(self):
         verdict = auto.classify(_facts(config={}))
@@ -366,9 +396,18 @@ class Checks(unittest.TestCase):
     def test_dates(self):
         text = lambda day: f"รวม 1,070.00 วันที่ {day}"  # noqa: E731
         self.assertIn("date_missing", self.reasons(fields=_fields(date="")))
-        # 只认本年期间，不认 next_end（防跨年写进去年账套）
-        self.assertIn("period", self.reasons(fields=_fields(date="2027-01-05"), text=text("05/01/2570"),
-                                             today=dt.date(2027, 1, 10), uploaded=dt.date(2027, 1, 8)))
+        # 次年段（到 next_end）也在期间里：新年度账套还没建时下一年的单记进旧账套（用户 10-16）；新年度账套已建时由
+        # 「推往的须是按日期选出的那份」拦（day_books 是新账套）
+        next_year = dict(fields=_fields(date="2027-01-05"), text=text("05/01/2570") + " " + SELLER,
+                         today=dt.date(2027, 1, 10),
+                         uploaded=dt.date(2027, 1, 8))
+        self.assertEqual(self.reasons(**next_year), [])
+        self.assertIn("book", self.reasons(day_books=[BOOK_OLD], **next_year))
+        # 晚于次年段、没报次年段：照旧不在期间里
+        self.assertIn("period", self.reasons(fields=_fields(date="2028-01-05"), text=text("05/01/2571"),
+                                             today=dt.date(2028, 1, 10), uploaded=dt.date(2028, 1, 8)))
+        no_next = {"source_id": BOOK, "attributes": {k: v for k, v in ACCOUNT["attributes"].items() if k != "next_end"}}
+        self.assertIn("period", self.reasons(account=no_next, catalog=[no_next], **next_year))
         self.assertIn("period_unknown", self.reasons(account={"source_id": BOOK, "attributes": {"tax_id": OWN}}))
         # 推往的账套须正好是按这张单日期选出的那份
         self.assertIn("book", self.reasons(day_books=None))

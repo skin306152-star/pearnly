@@ -71,6 +71,14 @@ def choices(history, connection, account_set_key=None, posting_kind=None):
 
 
 @frappe.whitelist(methods=["POST"])
+def choose_goods_posting(history, value, connection=None, account_set_key=None):
+    """复核页对「商品单入账方式」选「走库存 / 记费用」：这家公司以后的商品单都这样（`push.application.goods_posting`）。"""
+    from pearnly_cowork.push.application import goods_posting
+
+    return _local_transaction(goods_posting.choose, history, value, connection, account_set_key)
+
+
+@frappe.whitelist(methods=["POST"])
 def save_choices(history, connection, account_set_key, items):
     """记下会计选的，这份账套里同类以后自动套用。"""
     return _local_transaction(service.save_choices, history, connection, account_set_key, items)

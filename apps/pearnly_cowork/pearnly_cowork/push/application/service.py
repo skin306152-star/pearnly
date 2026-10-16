@@ -25,6 +25,7 @@ from pearnly_cowork.push.automation import service as automation_service
 from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import decide as decide_rules
+from pearnly_cowork.push.express import goods_posting
 from pearnly_cowork.push.express import pushed as pushed_rules
 from pearnly_cowork.push.express import written_check
 from pearnly_cowork.push.express.common import SRC_CATEGORY, resolve_account_sourced
@@ -168,6 +169,10 @@ def prepare(history, connection, request_key, expected_history_version, expected
     # Choice clears other-account caches before applying attributed observations.
     selected['config'].update(deepcopy(preparation['reported_config']))
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
+    today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
+    # 商品单的入账方式这家公司选过就照选的（没声明、会交人的那类，`push.express.goods_posting`）；意图里仍是调用方给的值
+    posting_kind, _posting_from = _goods_posting(doc, loaded.doc.name, lambda: _account_row(loaded, target),
+                                                 posting_kind, flat, direction, selected['config'], today)
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
                           selected['config'], preparation, fixed,
                           siblings=lambda: _same_company(loaded, target.account_set),
@@ -194,7 +199,6 @@ def prepare(history, connection, request_key, expected_history_version, expected
             disposition="manual", reason=f"choice_needed:{kinds}", checks=[], route_device=route_device)
         return _view(row)
     selected['config']['choices'] = decision["applied"]
-    today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
         context=ExpressContext(enabled=True, today=today, own_tax_id=own_tax, account_tax_id=account_tax,
             tenant_id=loaded.access.tenant_id, mappings=preparation["mappings"],
@@ -250,6 +254,20 @@ def _proposal_outcome(doc, connection, account_set, fields, direction, payload, 
     chosen = automation_service.chosen_kinds(connection, account_set, fields, direction, payload, proposed.get("at"),
                                              account_row)
     return automation_rules.compare(proposed, payload, chosen=chosen, edited=int(getattr(doc, "edit_count", 0) or 0) > 0)
+
+
+def _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today):
+    """这次用的入账类型与来源（`push.express.goods_posting.resolve`）：本票 / 本批声明的照用；永续 / 混合库存账套里没声明的
+    商品单，这家公司（按推往账套的目录行认，同 `companies.identity`）选过「走库存 / 记费用」就用选的；都没有回 (None, "")。
+    ``account_row`` 可以是取那一行的函数：只有这张单会因没声明交人时才取目录行、读这个工作空间记的选择。"""
+    fields, declared = flat.get("fields") or {}, resolve_posting_kind(posting_kind, flat)
+    chosen = None
+    if not declared and goods_posting.blocked(fields, direction=direction, config=config, posting_kind=None,
+                                              today=today):
+        company = goods_posting.company_key(connection, account_row() if callable(account_row) else account_row)
+        chosen = policy_rules.goods_posting(document_policy.read(doc.workspace), company) if company else None
+    return goods_posting.resolve(fields, direction=direction, config=config, posting_kind=declared, chosen=chosen,
+                                 today=today)
 
 
 def _apply_stock_group(config, connection, account_set):
@@ -460,6 +478,9 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         return {"needed": [], "options": {}}
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
     fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
+    posting_kind, _posting_from = _goods_posting(doc, loaded.doc.name, lambda: _account_row(loaded, target),
+                                                 posting_kind, flat, direction, config,
+                                                 datetime.now(ZoneInfo("Asia/Bangkok")).date())
     decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
                           config, preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set),
                           account_row=lambda: _account_row(loaded, target))

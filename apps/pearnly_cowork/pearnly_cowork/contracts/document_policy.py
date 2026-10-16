@@ -10,6 +10,11 @@
 认类别只在这里一处（:func:`document_class`）：识别存档（`ocr.results.prepare_history_batch` 调 :func:`apply_to_pages`，
 真识别、Cloud Run 回来的、回放压测取回的旧结果都走这一步）、推送前的门槛、复核页的选择、CC 与 ภ.ง.ด.3 / 53 草稿
 （`tax.wht`）都用它，同一张单据不因读法或入口不同而结果不同。
+
+同一份存储另记**按公司**选一次的商品单入账方式（数字会计员第 3 期，用户 2026-10-16「按公司问一次记住」）：永续 / 混合库存账套的
+商品单（没声明入账类型时推送交人，`push.express.posting_profile`）这家公司选「走库存 / 记费用」，键 ``goods_posting|<公司身份>``
+（公司身份同 `companies.identity.company_identity` 的 ``key``），值 ``stock`` / ``service``。没选过的照旧交人；怎么用见
+`push.express.goods_posting`。
 """
 from __future__ import annotations
 
@@ -24,6 +29,10 @@ VALUES = (ENTER, SKIP)
 NEEDED_PREFIX = "document_policy_needed_"
 SKIPPED_PREFIX = "document_policy_skip_"
 WARNING_PREFIX = "document_policy:"
+# 按公司记的商品单入账方式（见文件头）：键 ``goods_posting|<公司身份>``，值同推送的入账类型 `contracts.push.VALID_POSTING_KINDS`
+GOODS_POSTING = "goods_posting"
+GOODS_POSTING_VALUES = ("stock", "service")
+GOODS_POSTING_KEY_MAX = 240
 
 
 def _not_invoice(fields: Mapping[str, Any]) -> bool:
@@ -63,10 +72,30 @@ def document_class(fields: Mapping[str, Any]) -> str:
     return CERTIFICATE if certificate_shape(fields) else ""
 
 
+def goods_posting_key(company: Any) -> str:
+    """一家公司商品单入账方式的键；公司身份为空或太长回空串（不记）。"""
+    company = str(company or "").strip()
+    key = f"{GOODS_POSTING}|{company}" if company else ""
+    return key if len(key) <= GOODS_POSTING_KEY_MAX else ""
+
+
+def goods_posting(policy: Mapping[str, str], company: Any) -> Optional[str]:
+    """这家公司选过的商品单入账方式（``stock`` / ``service``）；没选过回 None。"""
+    key = goods_posting_key(company)
+    value = (policy or {}).get(key) if key else None
+    return value if value in GOODS_POSTING_VALUES else None
+
+
+def _known(key: Any, value: Any) -> bool:
+    if key in POLICY_CLASSES:
+        return value in VALUES
+    return (isinstance(key, str) and key.startswith(GOODS_POSTING + "|") and len(key) <= GOODS_POSTING_KEY_MAX
+            and value in GOODS_POSTING_VALUES)
+
+
 def normalize(raw: Any) -> Dict[str, str]:
-    """存着的口径 → 只留认得的类别与取值。"""
-    return {key: value for key, value in (raw if isinstance(raw, Mapping) else {}).items()
-            if key in POLICY_CLASSES and value in VALUES}
+    """存着的口径 → 只留认得的类别与取值（含按公司记的商品单入账方式）。"""
+    return {key: value for key, value in (raw if isinstance(raw, Mapping) else {}).items() if _known(key, value)}
 
 
 def push_block(fields: Mapping[str, Any], policy: Mapping[str, str]) -> Optional[str]:
@@ -116,5 +145,5 @@ def skipped_certificates(pages, policy: Mapping[str, str]) -> list:
     return found
 
 
-__all__ = ["CERTIFICATE", "ENTER", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES",
-           "apply_to_pages", "certificate_shape", "document_class", "normalize", "push_block", "skipped_certificates"]
+__all__ = ["CERTIFICATE", "ENTER", "GOODS_POSTING", "GOODS_POSTING_VALUES", "NEEDED_PREFIX", "POLICY_CLASSES", "SKIP", "SKIPPED_PREFIX", "VALUES",
+           "apply_to_pages", "certificate_shape", "document_class", "goods_posting", "goods_posting_key", "normalize", "push_block", "skipped_certificates"]

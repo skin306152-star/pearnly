@@ -857,7 +857,7 @@ class UploadSweep(unittest.TestCase):
 
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
-            prior=(), sql=None):
+            prior=(), sql=None, recent=None, posting=(None, "")):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -871,7 +871,14 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
     seen = {"rollback": 0}
     frappe = types.ModuleType("frappe")
     frappe.session = ns(user="u@example.com")
+    # 这家供应商在这份账套里最近推成功的单（账套记忆科目要连续 3 张同科目，`assess._recent_accounts`）：默认 3 张同科目
+    recent = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01"}] * 3 \
+        if recent is None else recent
+
     def run_sql(query, values=(), as_dict=False):
+        if "INNER JOIN" in query:
+            seen.setdefault("recent_sql", []).append((query, values))
+            return [ns(payload_json=json.dumps(item)) for item in recent]
         seen.setdefault("sql", []).append((query, values))
         return [ns(payload_json=json.dumps(item)) for item in prior]
 
@@ -893,6 +900,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         _document_block=lambda doc: None, _work_branch=lambda *a: "", _fixed=lambda *a: None,
         _company_rules=lambda *a: (None, True), _same_company=lambda *a: [], _apply_stock_group=lambda *a: None,
         _account_tax=lambda row: OWN, _loads=json.loads,
+        _goods_posting=lambda *a: seen.setdefault("posting", a) and posting,
         _decisions=lambda *a, **k: {"applied": {"account": "5310-01"}, "needed": list(needed),
                                     "decided_by": {"account": "remembered", "vat": "remembered"}})
     automation_service = ns(
@@ -922,6 +930,29 @@ class Judging(unittest.TestCase):
         self.assertEqual(found["automation"], {"class": "A", "tier": "L1", "trigger": "upload", "reasons": []})
         self.assertEqual(found["proposal"]["values"]["account"], "5310-01")
         self.assertEqual(seen["rollback"], 1)  # 只看不记：结束整笔回滚
+
+    def test_a_remembered_account_needs_three_recent_pushes_with_it(self):
+        """账套记忆的科目：这家供应商在这份账套里最近 3 张推成功的单都记这个科目才算 A（`_recent_accounts`，10-16）。"""
+        found, seen = _assess()
+        self.assertEqual(found["class"], "A")
+        query, values = seen["recent_sql"][0]
+        self.assertIn("h.workspace=%s AND h.seller_tax IN %s", query)
+        self.assertEqual((values[0], set(values[1]), values[2:5]), ("W1", {SELLER}, ("H1", "C1", BOOK)))
+        two = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01"}] * 2
+        found, _seen = _assess(recent=two)
+        self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:account"]))
+        other = two + [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5320-01"}]
+        self.assertEqual(_assess(recent=other)[0]["class"], "B")
+        # 别家（载荷里的供应商税号不同）、销项的不算，跳过后再数
+        mixed = [{"direction": "sales", "items_account": "5310-01"},
+                 {"direction": "purchase", "supplier": {"tax_id": "0105556012341"}, "items_account": "5310-01"}] + two * 2
+        self.assertEqual(_assess(recent=mixed)[0]["class"], "A")
+
+    def test_the_company_goods_posting_choice_reaches_the_judgement(self):
+        """商品单入账方式按公司选过（`service._goods_posting`）：判定用选的入账类型，posting 一项算 A。"""
+        found, seen = _assess(posting=("stock", "company_choice"))
+        self.assertEqual((found["class"], found["items"].get("posting")), ("A", "A"))
+        self.assertEqual(seen["posting"][3], None)  # 调用方给的入账类型原样交给它判
 
     def test_boundaries_turn_a_push_into_a_proposal(self):
         found, _seen = _assess(site_ok=False)

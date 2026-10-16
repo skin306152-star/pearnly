@@ -2397,6 +2397,12 @@ class ListAndRunsTests(unittest.TestCase):
                                 "push_connection": "EXP1", "pages": []})
         self.assertEqual(detail["push_reason"], "said:document_policy_needed_transfer_slip")
         self.assertEqual(detail["handling_choice_needed"], "transfer_slip")  # 认码仍按原值
+        # 永续库存账套的商品单没声明入账类型：这家公司选一次走库存 / 记费用（同一个工具，10-16）
+        detail = tools._detail({"name": "D1", "last_push_reason": "posting_needs_review:perpetual",
+                                "push_connection": "EXP1", "pages": []})
+        self.assertEqual(detail["handling_choice_needed"], "goods_posting")
+        schema = next(tool for tool in tools.TOOLS if tool["name"] == "cowork_choose_document_policy")["input_schema"]
+        self.assertEqual(schema["properties"]["value"]["enum"], ["enter", "skip", "stock", "service"])
 
     def test_entered_rows_say_how_they_were_written_without_the_record_name(self):
         # cowork_push_results（push_state success）：每张入账的票带 written，推送记录名只用来查、不给模型（验收 F19）

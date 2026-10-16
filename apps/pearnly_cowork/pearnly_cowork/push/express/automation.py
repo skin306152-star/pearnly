@@ -3,8 +3,9 @@
 纯函数，不连库、不依赖框架：推送服务（`push.application.service.assess`，后续阶段）与离线回放（`scripts/da-replay.py`）共用。
 取数由调用方做好放进 `Facts`；这里只判：
 
-- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆、公司规则、任务默认、v2 历史已定……），且第 2 条核对全过；
-- **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、按方向推断抵进项……）；
+- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目要最近连续 3 张同科目）、公司规则、任务默认、v2 历史已定、
+  按方向推断抵进项、公司选过的商品单入账方式……），且第 2 条核对全过；
+- **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的记忆科目……）；
 - **C 要人**：有要人选的项、任一核对不过、或被硬闸拦下。
 
 第 2 条的核对全部确定性、零费用，**只作内部信号**：原因码记在票上给 CC 与月结台账用，不出提示文案、不拦人推
@@ -45,6 +46,9 @@ TEXT_STAGE = "text"
 # 文字层 PDF 的原件：每页平均至少这么多字（同识别取文字层的门槛 `ocr.inputs_runtime.source._text_pages`）。
 # 生产的文字层快路关着（10-02 eval8：泰文字体乱码），电子 PDF 照图片直读，所以只看识别链判不出原件是不是电子 PDF。
 TEXT_CHARS_PER_PAGE = 200
+# 账套记忆定的科目（按供应商记一个）：这家供应商在这份账套里最近连续至少这么多张同科目才算规则定（A），否则 CC 判断（B）。
+# 第 15 条第一轮回放：记忆定的科目 7.6% 与会计记的不同（一家供应商不止一个科目），开发窗口按数据定（10-16）
+MEMORY_STREAK = 3
 # 录入时由识别后处理推出、不是读出来的金额：简式税票按 7/107 拆的（`ocr.pages.INCLUDED_VAT_AUDIT`）、补出的折扣
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
@@ -89,7 +93,9 @@ class Facts:
     ``account`` / ``catalog``：推往账套在连接目录里的那一行 / 整个目录；``day_books``：按这张单日期选出的账套键
     （定时任务跟随公司当年账套 T1 同一判据，判不出为 None）；``uploaded``：上传日；``source_total``：同一原件拆出几张票；
     ``prior_pushes``：这份账套里成功推送或还在途中（准备好、排队、在写、结果不明）的单（`prior_entry` 的形状）；``layers`` / ``history_read``：各层对同一项给的值
-    （`layers`）与 Express 历史读到的日子。"""
+    （`layers`）与 Express 历史读到的日子；``posting_from``：商品单的入账类型哪来的（`goods_posting.resolve`：``declared`` /
+    ``company_choice``，空 = 没用上）；``account_recent``：这家供应商在这份账套里最近几张单记的科目（新的在前，不含这张；
+    `memory_settled` 用，没给按 0 张算）。"""
 
     direction: str
     fields: Mapping[str, Any]
@@ -111,6 +117,8 @@ class Facts:
     page_texts: Optional[Sequence[str]] = None
     layers: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     history_read: Optional[dt.date] = None
+    posting_from: str = ""
+    account_recent: Optional[Sequence[str]] = None
 
 
 @dataclass(frozen=True)
@@ -294,9 +302,11 @@ def _amounts_hold(fields: Mapping[str, Any]) -> bool:
 
 
 def _period(account: Optional[Mapping[str, Any]]) -> Tuple[Optional[dt.date], Optional[dt.date]]:
-    """账套本年起止（不认 ``next_end``：次年的单据不写进去年账套）。"""
+    """账套整个会计期间的起止：本年起 ～ 次年段止（``next_end``，没报取本年止）。次年段的单只在新年度账套还没建时才推进旧账套：
+    由「推往的须正好是按日期选出的那份」（``day_books``，`targets.account_match.for_day` 同一规则）把关（用户 2026-10-16）。"""
     attributes = _attributes(account)
-    return _day(attributes.get("period_start")), _day(attributes.get("period_end"))
+    end = _day(attributes.get("next_end")) or _day(attributes.get("period_end"))
+    return _day(attributes.get("period_start")), end if _day(attributes.get("period_end")) else None
 
 
 def _target_key(facts: Facts) -> str:
@@ -433,7 +443,8 @@ def checks(facts: Facts) -> List[str]:
     # 读错一位、没印都放行 —— 人推照旧，自动推不放行，审查处理 10-16）
     if _own_mismatch(facts, tax_invoice):
         found.append("own_tax")
-    # 日期：在推往账套的本年期间内、正是按日期选出的那份、不晚于今天、不早于上传前 60 天、日月对调不会两可
+    # 日期：在推往账套的会计期间内（含次年段）、正是按日期选出的那份（新年度账套已建就是新的那份）、不晚于今天、
+    # 不早于上传前 60 天、日月对调不会两可
     if day is None:
         found.append("date_missing")
     else:
@@ -508,7 +519,26 @@ def _products(config: Mapping[str, Any]) -> bool:
                                           for row in rows)
 
 
+def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
+    """最近几张单（新的在前）连续记成 ``value`` 的张数；遇到别的科目（含一单多科目、没记科目）就断。"""
+    value = str(value or "").strip()
+    count = 0
+    for item in recent or ():
+        if not value or str(item or "").strip() != value:
+            break
+        count += 1
+    return count
+
+
+def memory_settled(recent: Optional[Sequence[Any]], value: Any) -> bool:
+    """账套记忆定的科目算规则定：这家供应商在这份账套里最近连续至少 `MEMORY_STREAK` 张都记这个科目（推送服务与回放共用）。"""
+    return memory_streak(recent, value) >= MEMORY_STREAK
+
+
 def _account_tier(facts: Facts, source: str) -> str:
+    if source == "remembered":
+        # 账套记忆按供应商只记一个科目：最近连续 3 张同科目才算 A，否则 B（第一轮回放后定）
+        return A if memory_settled(facts.account_recent, _payload(facts).get("items_account")) else B
     if source == "express_history":
         version = (facts.decision.get("history") or {}).get("version")
         return A if isinstance(version, int) and version >= HISTORY_VERSION else B
@@ -522,7 +552,8 @@ def _vat_applies(payload: Mapping[str, Any]) -> bool:
 
 def tiers(facts: Facts) -> Dict[str, str]:
     """第 1 条每一项的档 ``{类: A|B|C}``：party 对方档、item 存货、account 费用 / 收入科目、payment 现 / 赊、vat 抵不抵进项、
-    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）。用不上的项不列。没出载荷时只列对方档。"""
+    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）、posting 商品单入账方式（这家公司选过的）。
+    用不上的项不列。没出载荷时只列对方档。"""
     payload, decided = _payload(facts), dict((facts.decision or {}).get("decided_by") or {})
     out: Dict[str, str] = {"party": _party_tier(facts, decided.get("party"))}
     if not payload:
@@ -544,9 +575,13 @@ def tiers(facts: Facts) -> Dict[str, str]:
         keyed["payment"] = source
     if facts.direction == "purchase" and _vat_applies(payload):
         source = str(payload.get("item_src") or "").strip()
-        out["vat"] = A if source in ("manual", "choice") else B if source.startswith("judge_direction=") else C
+        # 按方向推断（`field_rules.judge_direction`，全平台共用的法定口径 `purchase_treatment`）也算规则定：第 15 条第一轮回放
+        # 13,878 张 0 错，开发窗口按数据从 B 改 A（10-16）
+        out["vat"] = A if source in ("manual", "choice") or source.startswith("judge_direction=") else C
         # 本票人工裁决（manual）不按对方作键；choice 来自按对方记下的那一层
         keyed["vat"] = (decided.get("vat") or "chosen") if source == "choice" else ""
+    if facts.posting_from == "company_choice":
+        out["posting"] = A  # 商品单入账方式：这家公司选过（`goods_posting`，人定的规则）
     out["department"] = A  # 记过的照用，没记过取单据簿默认部门或不记（不再问，用户 10-08）
     # 本方：票面印的本方税号正是推往账套的（A）；票面没印本方的收据 / 简式税票（B，去向是上传时选的，不是票面说的）。
     # 印了却对不上、正式税票没印由第 2 条 ``own_tax`` 归 C；账套没有 13 位税号核不了，不列
@@ -638,5 +673,6 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
 
 
 __all__ = ["A", "AMOUNT_TOLERANCE", "B", "C", "CLASSES", "EARLIEST_DAYS", "Facts", "HISTORY_FRESH_DAYS",
-           "IMAGES_ALLOWED", "TEXT_CHARS_PER_PAGE", "Verdict", "amount_in_text", "checks", "classify", "conflicts",
-           "date_in_text", "layers", "prior_entry", "reason_codes", "tax_in_text", "text_layer", "tiers"]
+           "IMAGES_ALLOWED", "MEMORY_STREAK", "TEXT_CHARS_PER_PAGE", "Verdict", "amount_in_text", "checks", "classify",
+           "conflicts", "date_in_text", "layers", "memory_settled", "memory_streak", "prior_entry", "reason_codes",
+           "tax_in_text", "text_layer", "tiers"]

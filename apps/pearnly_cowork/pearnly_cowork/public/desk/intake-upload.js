@@ -137,6 +137,8 @@
 	/** 转账凭条 / 预扣税凭证录不录：这个租户选一次（`contracts/document_policy.py`）；选了不录入的只是说明。 */
 	const POLICY_NEEDED = /^document_policy_needed_/;
 	const POLICY_SKIPPED = /^document_policy_skip_/;
+	/** 永续 / 混合库存账套的商品单没声明入账类型：这家公司选一次「走库存 / 记费用」（`push/express/goods_posting.py`）。 */
+	const GOODS_POSTING_NEEDED = /^posting_needs_review/;
 	/** 失败原因：有对应文案就用（`intake.error.<码>`），否则按原码查通用词条。 */
 	const code_text = code => {
 		if (!code) return "";
@@ -559,6 +561,12 @@
 							.on("click", () => void choose_policy(record, value)).appendTo(row);
 					}
 				}
+				if (GOODS_POSTING_NEEDED.test(reason) && !recognize_only) {
+					for (const value of ["stock", "service"]) {
+						$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__(`cowork.policy.${value}`))
+							.on("click", () => void choose_goods_posting(record, value)).appendTo(row);
+					}
+				}
 			}
 		};
 		// 推到 ERP 的两张目标卡片（用户 2026-09-27：账套上传前由用户选定，编辑页不再选）。
@@ -766,6 +774,12 @@
 		/** 「录入 / 不录入」：记下这个租户对这一类的选择，再提交这一张（不录入的会停在说明上，不推）。 */
 		const choose_policy = async (record, value) => {
 			await p.call(HISTORY + "choose_document_policy", {name: record.name, value}, "POST");
+			await submit({names: [record.name]});
+		};
+
+		/** 「走库存 / 记费用」：记下这张票推往的那家公司的商品单入账方式，再提交这一张。 */
+		const choose_goods_posting = async (record, value) => {
+			await p.call(PUSH + "choose_goods_posting", {history: record.name, value}, "POST");
 			await submit({names: [record.name]});
 		};
 

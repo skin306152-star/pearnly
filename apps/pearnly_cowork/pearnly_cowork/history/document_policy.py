@@ -1,6 +1,8 @@
 """这个租户对转账凭条 / 预扣税凭证选的「录入 / 不录入」（规则见 `contracts/document_policy.py`）。
 
 Cowork 一个租户一个工作空间、不按公司隔离（用户 2026-09-26），所以记在工作空间上，整个租户一条，复核页选一次。
+同一个字段另记按公司选一次的商品单入账方式（键 ``goods_posting|<公司身份>``，`contracts.document_policy`）：公司身份要按推往的
+账套目录现算，由推送域（`push.application.goods_posting.choose`）核过权限后经 :func:`record` 写。
 只经这里写：调用方要有录入权限、能读这张票；读出的值不认得的一律当作没选过。
 """
 import json
@@ -35,7 +37,14 @@ def choose(history, value):
     kind = rules.document_class(primary_page_fields(json.loads(doc.pages or "[]")))
     if not kind or value not in rules.VALUES:
         frappe.throw(_("cowork.policy.invalid"))
-    policy = _parse(frappe.db.get_value(DOCTYPE, doc.workspace, FIELD, for_update=True))
-    policy[kind] = value
-    frappe.db.set_value(DOCTYPE, doc.workspace, FIELD, json.dumps(policy, sort_keys=True), update_modified=False)
+    record(doc.workspace, kind, value)
     return {"document_class": kind, "value": value}
+
+
+def record(workspace, key, value):
+    """记一项（同键覆盖）；认不出的键与值不记（`rules.normalize`）。调用方已核过权限。"""
+    policy = _parse(frappe.db.get_value(DOCTYPE, workspace, FIELD, for_update=True))
+    if rules.normalize({key: value}) != {key: value}:
+        frappe.throw(_("cowork.policy.invalid"))
+    policy[key] = value
+    frappe.db.set_value(DOCTYPE, workspace, FIELD, json.dumps(policy, sort_keys=True), update_modified=False)

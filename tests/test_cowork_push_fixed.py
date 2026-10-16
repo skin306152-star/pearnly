@@ -193,6 +193,11 @@ def _service(hooks=(), providers=None):
     modules["pearnly_cowork.push.express"].company_choices = company_choices
     # 判定核心（`push.express.decide`，第 3 期第 11 条抽出）是纯函数：用真的，选择规则也用真的
     modules["pearnly_cowork.push.express"].decide = DECIDE
+    # 商品单入账方式按公司选（第 3 期，`push.express.goods_posting`）：这里只照传调用方给的入账类型，公司没选过
+    modules["pearnly_cowork.push.express"].goods_posting = types.SimpleNamespace(
+        company_key=lambda connection, row: "", blocked=lambda *a, **k: False,
+        resolve=lambda fields, *, direction, config, posting_kind, chosen, today: (
+            posting_kind, "declared" if posting_kind else ""))
     service = _load("push_service_fixed", APP / "push/application/service.py", modules)
     return service, frappe_module, calls
 

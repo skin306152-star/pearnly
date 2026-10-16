@@ -33,6 +33,8 @@ BANGKOK = ZoneInfo("Asia/Bangkok")
 PRIOR_MAX = 50
 # 重复分流算进去的推送记录状态：除作废（cancelled）以外都算（manual 是结果不明或推送失败待人看，宁严）
 PRIOR_STATUSES = ("prepared", "pending", "leased", "manual", "success")
+# 取这家供应商最近推成功的单最多这么多张（只要 `automation.MEMORY_STREAK` 张有科目的；载荷对不上的跳过）
+RECENT_MAX = 10
 
 
 def run(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, trigger, route_device="",
@@ -70,6 +72,9 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     if original_history(doc) != doc.name:
         blocked = blocked or "replacement"  # 改单 / 回导的票推往原单：交给人
     fixed = service._fixed(doc.name, connection, account_set, fixed)
+    # 商品单入账方式按公司选过的照用（同准备推送，`service._goods_posting`）
+    posting_kind, posting_from = service._goods_posting(doc, connection, account_row, posting_kind, flat, direction,
+                                                        config, today)
     remembered = choice_store.remembered(connection, account_set)
     company, _read = service._company_rules(connection, account_set, account_row)
     decision = service._decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation,
@@ -99,6 +104,7 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
         history_read=_read_day((decision.get("history") or {}).get("read")),
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc, direction),
+        posting_from=posting_from, account_recent=_recent_accounts(connection, account_set, doc, direction, dated),
         layers=automation.layers(dated, direction=direction, fixed=fixed, remembered=remembered,
                                  rules=(company or {}).get("rules") or (), branch=(company or {}).get("branch") or "",
                                  history=(decision.get("history") or {}).get("account")))
@@ -166,6 +172,36 @@ def _prior(connection, account_set, doc, direction):
         item = automation.prior_entry(service._loads(row.payload_json))
         if item and item["direction"] == direction:
             out.append(item)
+    return out
+
+
+def _recent_accounts(connection, account_set, doc, direction, fields):
+    """这家供应商在这份账套里最近几张推成功的单记的科目（新的在前，`automation.MEMORY_STREAK` 张为止）：账套记忆定的科目要
+    最近连续这么多张同科目才算规则定（`automation.memory_settled`，第一轮回放后开发窗口定）。只看进项、只认 13 位税号
+    （按名字作键的来源本来最高算 B）；取票按「本工作区 + 卖方税号」的索引（`workspace_seller_tax_index`），推送记录取它冻结的载荷。"""
+    if direction != "purchase":
+        return None
+    raw = str(fields.get("seller_tax") or fields.get("seller_tax_id") or "").strip()
+    tax = clean_tax_id(raw)
+    if len(tax) != 13:
+        return []
+    rows = frappe.db.sql("""SELECT r.payload_json FROM `tabCowork OCR History` h
+        INNER JOIN `tabCowork Push Record` r ON r.name = h.last_push_record
+        WHERE h.workspace=%s AND h.seller_tax IN %s AND h.name != %s AND h.last_push_status='success'
+          AND r.connection=%s AND r.account_key=%s AND r.status='success'
+        ORDER BY h.creation DESC LIMIT %s""",
+                         (doc.workspace, tuple({raw, tax}), doc.name, connection, account_set, RECENT_MAX), as_dict=True)
+    out = []
+    for row in rows:
+        payload = service._loads(row.payload_json)
+        if not isinstance(payload, dict) or payload.get("direction") != "purchase":
+            continue
+        supplier = payload.get("supplier") if isinstance(payload.get("supplier"), dict) else {}
+        if clean_tax_id(supplier.get("tax_id")) not in ("", tax):
+            continue
+        out.append(str(payload.get("items_account") or "").strip())
+        if len(out) >= automation.MEMORY_STREAK:
+            break
     return out
 
 

@@ -244,6 +244,62 @@ class BranchRouting(unittest.TestCase):
                          {"00000", "00001"})
 
 
+class NextYearPeriod(unittest.TestCase):
+    """新年度账套还没建时，下一年的单记进旧账套的次年段（认 ``next_end``）；新年度账套一建好就推往新账套（用户 2026-10-16）。
+    按日期选账套（T1、自动推）与推送的期间硬闸共用 `account_match.for_day` / `newer_book_covers`。"""
+
+    @staticmethod
+    def book(key, start, end, next_end="", tax=BOOK_TAX, branch="00000", company="ACME"):
+        return {"source_id": key, "attributes": {"tax_id": tax, "branch": branch, "company": company,
+                                                 "period_start": start, "period_end": end, "next_end": next_end}}
+
+    def test_the_part_of_the_fiscal_period(self):
+        part = account_match.fiscal_part
+        self.assertEqual(part("2025-01-01", "2025-12-31", "2026-12-31", "2025-06-01"), account_match.CURRENT)
+        self.assertEqual(part("2025-01-01", "2025-12-31", "2026-12-31", "2026-06-01"), account_match.NEXT)
+        self.assertEqual(part("2025-01-01", "2025-12-31", "2026-12-31", "2027-01-01"), "")
+        self.assertEqual(part("2025-01-01", "2025-12-31", "", "2026-01-01"), "")
+        self.assertEqual(part("", "", "2026-12-31", "2026-01-01"), "")
+
+    def test_three_cross_year_cases_pick_the_book(self):
+        span = lambda row: (row["attributes"]["period_start"], row["attributes"]["period_end"],  # noqa: E731
+                            row["attributes"]["next_end"])
+        old = self.book("t8", "2025-01-01", "2025-12-31", "2026-12-31")
+        new = self.book("y26", "2026-01-01", "2026-12-31", "2027-12-31")
+        twin = self.book("t9", "2025-01-01", "2025-12-31", "2026-12-31")
+        keys = lambda found: [row["source_id"] for row in found]  # noqa: E731
+        self.assertEqual(keys(account_match.for_day([old, new], "2026-03-01", span)), ["y26"])   # 新账套已建
+        self.assertEqual(keys(account_match.for_day([old], "2026-03-01", span)), ["t8"])         # 未建：旧账套次年段
+        self.assertEqual(keys(account_match.for_day([old, twin], "2026-03-01", span)), ["t8", "t9"])  # 两份同期：调用方停下
+        self.assertEqual(keys(account_match.for_day([old, new], "2025-03-01", span)), ["t8"])
+        self.assertEqual(account_match.for_day([old], "2027-03-01", span), [])
+
+    def test_the_hard_gate_sends_next_year_documents_to_the_new_book_once_it_exists(self):
+        conflict = account_match.conflict
+        old = self.book("t8", "2025-01-01", "2025-12-31", "2026-12-31")
+        new = self.book("y26", "2026-01-01", "2026-12-31", "2027-12-31")
+        fields = {"buyer_tax": BOOK_TAX, "date": "2026-03-01"}
+        self.assertEqual(conflict("express", old, direction="purchase", fields=fields, catalog=[old]), "")
+        self.assertEqual(conflict("express", old, direction="purchase", fields=fields, catalog=[old, new]),
+                         account_match.PERIOD_MISMATCH)
+        self.assertEqual(conflict("express", new, direction="purchase", fields=fields, catalog=[old, new]), "")
+        # 别家、别的分店建了新年度账套不算；没有税号的按目录公司名认同一家
+        self.assertEqual(conflict("express", old, direction="purchase", fields=fields,
+                                  catalog=[old, self.book("y26-other", "2026-01-01", "2026-12-31", tax=OTHER)]), "")
+        self.assertEqual(conflict("express", old, direction="purchase", fields=fields,
+                                  catalog=[old, self.book("y26-b1", "2026-01-01", "2026-12-31", branch="00001")]), "")
+        bare_old = self.book("n8", "2025-01-01", "2025-12-31", "2026-12-31", tax="")
+        bare_new = self.book("n26", "2026-01-01", "2026-12-31", tax="")
+        self.assertEqual(conflict("express", bare_old, direction="purchase", fields={"date": "2026-03-01"},
+                                  catalog=[bare_old, bare_new]), account_match.PERIOD_MISMATCH)
+        self.assertEqual(conflict("express", bare_old, direction="purchase", fields={"date": "2026-03-01"},
+                                  catalog=[bare_old, self.book("n26", "2026-01-01", "2026-12-31", tax="",
+                                                               company="OTHER")]), "")
+        # 晚于次年段：照旧拦
+        self.assertEqual(conflict("express", old, direction="purchase", fields={**fields, "date": "2027-01-02"},
+                                  catalog=[old]), account_match.PERIOD_MISMATCH)
+
+
 class FrozenTarget(unittest.TestCase):
     """冻结目标只建一次（并入 CC 外壳分支时冲突第 2 处，合并审查第 1 条）：``decided_by``（F19 的 written 读它）与准备证据
     v2 的 ``basis_hash``、写者锁 v2 并存；「仍然推送」写进载荷在算 ``basis_hash`` 之前；``decided_by`` 不进载荷。"""
