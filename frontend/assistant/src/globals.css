@@ -1564,6 +1564,9 @@
      按钮的手指；把手里的按钮（行尾「···」）仍是手指，输入框是文字光标 */
   [data-drag-handle] { cursor: grab; }
   [data-drag-handle] :is(input, textarea) { cursor: text; }
+  /* 侧栏里（对话行、置顶行、公司组头）悬停仍是平常点按的手指，不出抓手；只改光标，照样能拖（用户 10-16：「侧栏鼠标放上去任意地方，
+     应该是两个手指那个光标，不是 5 个手指的光标，只改变光标效果，不改行为」）。拖动进行中整页的 grabbing 不变 */
+  :is([data-slot="sidebar"], .cc-drawer) [data-drag-handle] { cursor: pointer; }
   .cc-panel-grip { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .cc-panel-card-body { display: flex; flex-direction: column; padding-inline: 0.375rem; color: var(--cc-ink-2); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh); }
   /* 卡内行：高 26、13/19、图标 16 放在 20 槽；右侧补充 12px 淡色 */
