@@ -150,6 +150,7 @@ At most {0} photos per entry,แต่ละรายการแนบรูป
 At time of due date,เมื่อถึงกำหนด
 Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
+Automatic push withdrawn: the rules changed before writing.,ถอนการส่งอัตโนมัติแล้ว เพราะกฎเปลี่ยนก่อนบันทึก
 Automation,ระบบอัตโนมัติ
 Back to list,กลับไปยังรายการ
 Balance,ยอดคงเหลือ
@@ -3454,6 +3455,7 @@ pos.vat_out_of_range,คอลัมน์ภาษีมูลค่าเพ�
 pos.xls_not_supported,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่
 probably {0},น่าจะเป็น {0}
 push.adapter_not_connected,อะแดปเตอร์ ERP นี้ยังไม่ได้เชื่อมต่อ
+push.automation_changed,ถอนการส่งอัตโนมัติแล้ว เพราะกฎเปลี่ยนก่อนบันทึก
 push.branch_invalid,โหมดการส่งไม่ถูกต้อง
 push.companion_account_unreported,ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่
 push.disabled,ไซต์นี้ยังไม่ได้เปิดใช้การส่งข้อมูล จึงไม่มีการส่งข้อมูลใด ๆ

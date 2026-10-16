@@ -604,6 +604,8 @@ def lease(name, *, context, adapter, now=None):
         _dispatch_record(row, context)
         if row.status != 'pending' or row.result_unknown:
             raise LeaseUnavailable()
+        if _automation_stale(target, context, loaded):
+            return _withdraw_automation(row, target, payload, now)
         if any(lock.holder for lock in locks) or _older_writer(row, target):
             return {'leased': False, 'reason': 'waiting_lock', 'record': project(row)}
         timestamp = now_utc(now)
@@ -626,6 +628,41 @@ def lease(name, *, context, adapter, now=None):
         _save_record(row, timestamp)
         return {'leased': True, 'record': project(row), 'fence': fence, 'attempt_token': token,
                 'payload': deepcopy(json.loads(row.payload_json)), 'target': deepcopy(json.loads(row.target_json))}
+
+
+AUTOMATION_CHANGED = 'push.automation_changed'
+
+
+def _automation_stale(target, context, loaded):
+    """自动推的单（冻结了 ``automation``）领单时再核一次（数字会计员第 3 期第 5 条）：票的版本（`_dispatch_context` 已核）、
+    这家当前档位、这张单用得着的账套记忆与公司规则，任一变了就不写旧判定。人发起的单没有这一项，不核。"""
+    automation = target.get('automation')
+    if not isinstance(automation, dict):
+        return False
+    from pearnly_cowork.push.automation import service as automation_service  # 只有自动推的单才用得着
+
+    rows = (loaded.evidence.snapshot or {}).get('account_sets') or []
+    if isinstance(rows, str):
+        rows = json.loads(rows)
+    account = next((row for row in rows if isinstance(row, dict)
+                    and normalize_express_account_key(row.get('source_id')) == context.account), None)
+    current = automation_service.current_hash(context.history_version, context.connection, context.account, account,
+                                              automation.get('scope'))
+    return current != automation.get('hash')
+
+
+def _withdraw_automation(row, target, payload, now):
+    """领单时判定已过时：这条作废（``cancelled``，不写），票改记成提议（冻结这份载荷的做法），人在待处理里推。"""
+    from pearnly_cowork.push.automation import rules as automation_rules
+
+    automation = target.get('automation') or {}
+    timestamp = now_utc(now)
+    row.status, row.reason, row.completed_at = 'cancelled', AUTOMATION_CHANGED, timestamp
+    _save_record(row, timestamp)
+    proposal = automation_rules.proposal(automation.get('class'), automation.get('tier'), automation.get('trigger'),
+                                         payload, {}, at=timestamp.replace(tzinfo=None).isoformat())
+    push_state.withdraw_automation(row, 'automation_changed', proposal=proposal)
+    return {'leased': False, 'reason': 'automation_changed', 'record': project(row)}
 
 
 def _receipt_scope(context, adapter):

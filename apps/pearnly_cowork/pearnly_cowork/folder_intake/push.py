@@ -9,6 +9,8 @@
 - 仍缺的（典型是同税号有几个档）只在票上记原因（`push_state.record_failure`，网页列表照常显示「失败 + 选择」按钮），
   不建推送记录；
 - 人已经动过的票（改过、推过）不碰，交给人；
+- 推 Express 之前判一次（数字会计员第 3 期第 4 条，`_judge`）：A 类照推（另过自动推前的核对），CC 判断的 B 类按公司档位
+  改成提议，C 类停下，都留给人在待处理里推；推出去的冻结 ``automation``，领单时再核一次。MR.ERP 不判，照旧；
 - 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录；
 - Express 由读这个文件夹的那台电脑写（ADR-021 第 51 条，用户 10-16「谁的活谁的电脑做」）：推送记录上冻结它
   （``route_device``），它能写就确认、排队，此刻关着也排，开机后写（D4，`destinations.writer_state`）；
@@ -46,6 +48,8 @@ OFFLINE = "cowork.folder.companion_offline"
 READING = "cowork.folder.reading_masters"
 # 等电脑读这份账套的科目表：一般十几秒就读完，每分钟再看一次（次数与离线重试共用 `pump.OFFLINE_RETRIES`）
 READING_SECONDS = 60
+# 自动推的判定里这是哪种触发（`push.automation.rules.TASK`）
+AUTOMATION_TRIGGER = "task"
 
 
 def push_key(entry, history, version, attempt=0):
@@ -76,6 +80,22 @@ def source_rules(history):
         if rule:
             found.append(rule)
     return found
+
+
+def task_histories(names):
+    """钩子 ``cowork_push_task_histories``：这几张票里出自定时任务的（原件登记在任务的文件行里）。网页上传 / LINE 的自动推扫描
+    据此不碰它们（定时任务的票由 :func:`push_one` 自己判）。只读。"""
+    names = [name for name in dict.fromkeys(names or ()) if name]
+    if not names:
+        return set()
+    rows = frappe.get_all(HISTORY, filters={"name": ["in", names]}, fields=["name", "source_file"],
+                          ignore_permissions=True, limit_page_length=0)
+    sources = sorted({row.source_file for row in rows if row.source_file})
+    if not sources:
+        return set()
+    known = set(frappe.get_all(FILE, filters={"source_file": ["in", sources]}, pluck="source_file",
+                               ignore_permissions=True, limit_page_length=0))
+    return {row.name for row in rows if row.source_file in known}
 
 
 def reader_of(history, connection):
@@ -197,11 +217,17 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
     device = _reader(entry, rule)
     if not final and destinations.writer_state(adapter, rule.connection, device=device) == destinations.MISSING:
         return {"status": "retry", "reason": OFFLINE}
+    automation = None
+    if adapter == "express":
+        judged = _judge(history, rule, going["account_set"], posting_kind, fixed, device)
+        if judged.get("status"):
+            return judged
+        automation = judged.get("automation")
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
     result = application.submit(history, rule.connection, key, row.record_version, revision,
                                 account_set, None, None, posting_kind, fixed=fixed,
-                                route_device=device if adapter == "express" else "")
+                                route_device=device if adapter == "express" else "", automation=automation)
     frappe.db.commit()
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}
@@ -226,6 +252,33 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
             frappe.db.commit()
             return {"status": "failed", "reason": str(error)[:300]}
     return {"status": "sent", "record": result.get("name") or ""}
+
+
+def _judge(history, rule, account_set, posting_kind, fixed, device):
+    """推 Express 之前判一次（数字会计员第 3 期第 4 条，`application.assess`）：任务默认值是人定的规则，A 类从 L0 起照推
+    （另过第 2 条核对），B 类在 L0 / L1 改成提议，C 类照现有停下（用户 10-16 定）。判的结果记在票上（类别、档位、原因码，提议
+    另冻结做法）。回 ``{"automation": {...}}`` 接着推，或这张票的去向（``held`` + ``automation:proposal`` / ``automation:review``，
+    或判的时候就失败了的 ``failed``）。推送身份、读文件夹的电脑、离线排队照 ADR-021 第 51–53、57 条不变。"""
+    frappe.db.commit()  # 判定只看不记，结束整笔回滚：先把前面的落掉
+    try:
+        found = application.assess(history, rule.connection, account_set, posting_kind, fixed=fixed,
+                                   trigger=AUTOMATION_TRIGGER, route_device=device)
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        reason = str(error)[:300]
+        application.submission_failed(history, reason)
+        frappe.db.commit()
+        return {"status": "failed", "reason": reason}
+    if not found.get("assessed"):
+        return {}
+    pushing = found["action"] == "push"
+    push_state.record_assessment(history, cls=found["class"], tier=found["tier"], reasons=found["codes"],
+                                 proposal=None if pushing or found["action"] == "stop" else found["proposal"],
+                                 checked_at=found["checked_at"])
+    frappe.db.commit()
+    if pushing:
+        return {"automation": found["automation"]}
+    held = contracts.AUTOMATION_PROPOSAL if found["action"] == "propose" else contracts.AUTOMATION_REVIEW
+    return {"status": "held", "reason": held}
 
 
 def _withdraw(prepared):

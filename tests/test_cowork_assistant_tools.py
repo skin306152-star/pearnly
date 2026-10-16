@@ -2138,7 +2138,7 @@ def _push_service(rows):
     fake.db = types.SimpleNamespace(sql=sql)
     modules = {"frappe": fake, "pearnly_cowork": types.ModuleType("pearnly_cowork")}
     for name in ("access", "connections", "targets", "contracts", "contracts.history", "contracts.push", "history",
-                 "push", "push.application", "push.application.provenance", "push.express", "push.express.common",
+                 "push", "push.application", "push.application.provenance", "push.automation", "push.express", "push.express.common",
                  "push.express.prepare", "push.express.preflight", "push.express.history",
                  "push.mrerp", "push.native", "push.receipts", "targets.choice", "targets.contracts",
                  "targets.freeze", "targets.selection", "targets.identity"):

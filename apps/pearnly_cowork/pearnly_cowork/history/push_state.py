@@ -156,14 +156,16 @@ def record_assessment(history, *, cls, tier, reasons='', proposal=None, checked_
         'auto_checked_at': checked_at}, update_modified=False)
 
 
-def withdraw_automation(row, reason):
+def withdraw_automation(row, reason, *, proposal=None):
     """自动推的单还没写就作废（领单时这家档位、规则或记忆变了，第 3 期第 5 条）：推送记录已转 ``cancelled``，票上的推送状态
-    若还指着它就清回「没推」（改记成提议，人在待处理里推），原因码并进 ``auto_reasons``。不升 ``record_version``。"""
+    若还指着它就清回「没推」（改记成提议 ``proposal``，人在待处理里推），原因码并进 ``auto_reasons``。不升 ``record_version``。"""
     found = frappe.db.get_value('Cowork OCR History', row.history, ['last_push_record', 'auto_reasons'], as_dict=True)
     if not found:
         return
     values = {'auto_reasons': ','.join(code for code in dict.fromkeys(
         [*(str(found.auto_reasons or '').split(',')), reason]) if code)[:REASONS_MAX]}
+    if proposal:
+        values['auto_proposal'] = json.dumps(proposal, ensure_ascii=False, sort_keys=True, default=str)
     if found.last_push_record == row.name:
         values.update(last_push_status=None, last_pushed_at=None, last_push_record=None, last_push_reason='')
     frappe.db.set_value('Cowork OCR History', row.history, values, update_modified=False)

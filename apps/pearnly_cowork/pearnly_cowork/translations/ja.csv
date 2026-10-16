@@ -150,6 +150,7 @@ At most {0} photos per entry,1件の記録につき写真は{0}枚まで
 At time of due date,期限時
 Attachments,添付ファイル
 Attempt Secret,試行用シークレット
+Automatic push withdrawn: the rules changed before writing.,書き込み前にルールが変わったため、自動送信を取り消しました。
 Automation,自動化
 Back to list,一覧に戻る
 Balance,残高
@@ -3454,6 +3455,7 @@ pos.vat_out_of_range,消費税の列がその日の売上の 7% を超えてい�
 pos.xls_not_supported,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 probably {0},おそらく {0}
 push.adapter_not_connected,このERPアダプターはまだ接続されていません。
+push.automation_changed,書き込み前にルールが変わったため、自動送信を取り消しました。
 push.branch_invalid,送信実行モードが無効です。
 push.companion_account_unreported,送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください
 push.disabled,このサイトでは送信が有効になっていないため、何も送信されていません。

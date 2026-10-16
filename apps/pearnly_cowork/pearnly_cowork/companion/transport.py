@@ -170,7 +170,9 @@ def _claim(credential, device, request, now):
             claim['record']['frozen_payload'], path=spelling.path, root=spelling.root, row=spelling.registry_row,
             uid=account.uid)}
         delivery = delivery_store.create(credential=credential, claim=claim)
-        attended = route_contracts.attended(job, peers.get(device))
+        # 自动推不弹「账套被占用」（第 3 期第 5 条）
+        automated = isinstance((claim.get('target') or {}).get('automation'), dict)
+        attended = route_contracts.attended(job._replace(automated=automated), peers.get(device))
         return [_value(queue_contracts.job, delivery.name, record, attended)]
     return []
 

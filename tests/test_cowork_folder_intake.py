@@ -230,7 +230,9 @@ class AdditiveGuards(unittest.TestCase):
         # 只在末尾追加，现有三项不动
         self.assertEqual(five, ["pearnly_cowork.push.mrerp.runner.sweep", "pearnly_cowork.work.reminders.run",
                                 "pearnly_cowork.recon_center.jobs.resume_abandoned",
-                                "pearnly_cowork.folder_intake.schedule.notices"])
+                                "pearnly_cowork.folder_intake.schedule.notices",
+                                # 数字会计员第 3 期：网页上传 / LINE 的票按公司档位自动推，同一个 5 分钟入口
+                                "pearnly_cowork.push.automation.sweep.run"])
         self.assertIn("pearnly_cowork.folder_intake.schedule.tick", events["cron"]["* * * * *"])
         self.assertNotIn("pearnly_cowork.folder_intake.schedule.notices", events["cron"]["* * * * *"])
 
@@ -250,6 +252,11 @@ class AdditiveGuards(unittest.TestCase):
         imported = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
         self.assertIn("pearnly_cowork.roundtrip.export", imported)
         self.assertNotIn("pearnly_cowork.roundtrip.export_writer", imported)
+
+
+# `application.assess` 判成 A 类、这次照推的样子（数字会计员第 3 期）
+PUSH_A = {"assessed": True, "class": "A", "tier": "L0", "action": "push", "why": "", "codes": "", "proposal": None,
+          "checked_at": None, "automation": {"class": "A", "tier": "L0", "trigger": "task", "reasons": []}}
 
 
 class OfflineCompanionRetry(unittest.TestCase):
@@ -282,10 +289,12 @@ class OfflineCompanionRetry(unittest.TestCase):
             calls.setdefault("route_device", []).append(kwargs.get("route_device"))
             return {"status": status, "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
 
+        # 推 Express 之前的判定（第 3 期 `application.assess`）：这里的票都判成 A 类、照推
         application = types.SimpleNamespace(
             choices_view=lambda *args, **kwargs: {"needed": []}, submit=submit,
             cancel_prepared=lambda name, revision: calls["cancel"].append(name),
-            submission_failed=lambda history, reason: None)
+            submission_failed=lambda history, reason: None,
+            assess=lambda *args, **kwargs: calls.setdefault("assessed", []).append(kwargs) or dict(PUSH_A))
         express = types.SimpleNamespace(confirm=lambda *args: calls["confirm"].append(args))
         destinations = types.SimpleNamespace(of=lambda adapter: express, online=lambda adapter, connection: False,
                                              READY="ready", UNREACHABLE="unreachable", MISSING="missing",
@@ -297,7 +306,8 @@ class OfflineCompanionRetry(unittest.TestCase):
                    "pearnly_cowork.folder_intake": types.SimpleNamespace(
                        contracts=contracts, destinations=destinations,
                        follow=types.SimpleNamespace(choose=lambda rule, history, device=None: None)),
-                   "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace()),
+                   "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace(
+                       record_assessment=lambda history, **kwargs: calls.setdefault("judged", []).append(kwargs))),
                    "pearnly_cowork.push": types.SimpleNamespace(choices=types.SimpleNamespace()),
                    "pearnly_cowork.push.application": types.SimpleNamespace(service=application)}
         with mock.patch.dict(sys.modules, modules):

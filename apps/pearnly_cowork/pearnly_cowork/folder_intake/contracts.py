@@ -799,12 +799,15 @@ ACCOUNT_SET_NONE = "cowork.folder.account_set_none"
 ACCOUNT_SET_AMBIGUOUS = "cowork.folder.account_set_ambiguous"
 ACCOUNT_SET_UNREACHABLE = "cowork.folder.account_set_unreachable"
 ACCOUNT_SET_STOPS = (ACCOUNT_SET_NONE, ACCOUNT_SET_AMBIGUOUS, ACCOUNT_SET_UNREACHABLE)
+# 自动推前判过（数字会计员第 3 期第 4 条）：CC 判断的 B 类在 L0 / L1 改成提议、没过核对的 C 类停下，都留给人在待处理里推
+AUTOMATION_PROPOSAL = "automation:proposal"
+AUTOMATION_REVIEW = "automation:review"
 MOVING_CODES = {"insufficient_balance": "low_balance", COMPANION_OFFLINE: "offline", WAITING_PURCHASES: "waiting_purchases"}
 
 
 def ticket_state(outcome: Any, status: Any) -> tuple:
     """一张票的（类别, 原因）：类别 pushed / stopped / failed / moving / deleted，原因只在 stopped 时有
-    （``choice:<种类,…>`` / ``human`` / ``task_off`` / ``account_set``）。
+    （``choice:<种类,…>`` / ``human`` / ``task_off`` / ``account_set`` / ``review``：自动推前判成提议或要人核对）。
 
     ``outcome`` 是自动推送记下的这张票的去向（`push.push_one` 的 sent / held / human / failed / missing，
     规则停用或负责人无权时 `pump` 记的 stopped）；``status`` 是票上现在的推送状态（结果签名里的 `last_push_status`，
@@ -823,6 +826,8 @@ def ticket_state(outcome: Any, status: Any) -> tuple:
         reason = str(outcome.get("reason") or "")
         if reason in ACCOUNT_SET_STOPS:
             return "stopped", "account_set"
+        if reason in (AUTOMATION_PROPOSAL, AUTOMATION_REVIEW):
+            return "stopped", "review"
         return "stopped", "choice:" + (reason.split(":", 1)[1] if reason.startswith("choice_needed:") else "")
     if kind == "human":
         return "stopped", "human"

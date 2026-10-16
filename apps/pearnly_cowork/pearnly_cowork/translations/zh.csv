@@ -150,6 +150,7 @@ At most {0} photos per entry,每条记录最多 {0} 张照片
 At time of due date,到期时
 Attachments,附件
 Attempt Secret,尝试密钥
+Automatic push withdrawn: the rules changed before writing.,写入前规则已变，自动推送已撤回。
 Automation,自动化
 Back to list,返回列表
 Balance,余额
@@ -3454,6 +3455,7 @@ pos.vat_out_of_range,增值税一栏超过当天销售额的 7%
 pos.xls_not_supported,不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送
 probably {0},疑似应为 {0}
 push.adapter_not_connected,此 ERP 适配器尚未接通。
+push.automation_changed,写入前规则已变，自动推送已撤回。
 push.branch_invalid,推送执行模式无效。
 push.companion_account_unreported,准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送
 push.disabled,本站点未启用推送，未发送任何内容。

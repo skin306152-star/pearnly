@@ -484,6 +484,8 @@ cowork_ocr_recognized = ["pearnly_cowork.line.intake.recognized", "pearnly_cowor
 # 推送时这张票已定的选择（push/application/service.py 的 `_fixed`）：定时任务的票推往该任务的连接与账套时带任务默认处理，
 # 网页复核页、手机、CC 重推同一口径；取不到回 {}（2026-10-12）。
 cowork_push_fixed_choices = ["pearnly_cowork.folder_intake.push.fixed_for"]
+# 哪些票出自定时任务（按原件的文件行）：网页上传 / LINE 的自动推扫描（`push.automation.sweep`）不碰它们，由定时任务自己判。
+cowork_push_task_histories = ["pearnly_cowork.folder_intake.push.task_histories"]
 # 要人选费用科目时的历史建议（push/application/service.py 的 `_suggest`）：这本账套近 12 个月这家供应商常用的科目，
 # 经按需请求请电脑读、按连接 + 账套存；取不到回 none、不抛错（科目建议 B，2026-10-15）。
 cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]
@@ -556,7 +558,9 @@ scheduler_events = {"cron": {"*/5 * * * *": ["pearnly_cowork.push.mrerp.runner.s
                                              # 部署 / 重启时被杀的对账续跑（recon_center/jobs.py）
                                              "pearnly_cowork.recon_center.jobs.resume_abandoned",
                                              # 定时任务的前一天提醒与完成简报（folder_intake/schedule.py）
-                                             "pearnly_cowork.folder_intake.schedule.notices"],
+                                             "pearnly_cowork.folder_intake.schedule.notices",
+                                             # 网页上传 / LINE 的票按公司档位自动推（数字会计员第 3 期，push/automation/sweep.py）
+                                             "pearnly_cowork.push.automation.sweep.run"],
                              "* * * * *": [
                                  # 等识别的对账：提醒万一没送到、时限到了、开始读了、名额腾出来了，放回队列（recon_center/waiting.py）
                                  "pearnly_cowork.recon_center.waiting.tick",

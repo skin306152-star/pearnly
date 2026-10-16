@@ -73,7 +73,13 @@ class Push:
         self.views.append(account_set)
         return {"needed": [], "account_set": account_set}
 
-    def submit(self, history, connection, key, version, revision, account_set, *args, fixed=None, route_device=""):
+    def assess(self, history, connection, account_set, posting_kind, **kwargs):
+        """推 Express 之前的判定（第 3 期）：这里只看换账套，票都判成 A 类、照推。"""
+        return {"assessed": True, "class": "A", "tier": "L0", "action": "push", "codes": "", "proposal": None,
+                "checked_at": None, "automation": {"class": "A", "tier": "L0", "trigger": "task", "reasons": []}}
+
+    def submit(self, history, connection, key, version, revision, account_set, *args, fixed=None, route_device="",
+               automation=None):
         self.submitted.append((history, account_set, fixed))
         self.routes = getattr(self, "routes", []) + [route_device]
         return {"status": "prepared", "name": f"CWP-{len(self.submitted)}", "revision": 1}
@@ -101,8 +107,10 @@ def load_push(follow, fake):
                                          READY="ready", UNREACHABLE="unreachable", MISSING="missing",
                                          writer_state=lambda adapter, connection, device="": fake.writer_state)
     application = types.SimpleNamespace(choices_view=fake.choices_view, submit=fake.submit,
-                                        submission_failed=lambda *a: None, cancel_prepared=lambda *a: None)
-    push_state = types.SimpleNamespace(record_failure=fake.record_failure, retarget=fake.retarget)
+                                        submission_failed=lambda *a: None, cancel_prepared=lambda *a: None,
+                                        assess=fake.assess)
+    push_state = types.SimpleNamespace(record_failure=fake.record_failure, retarget=fake.retarget,
+                                       record_assessment=lambda history, **kwargs: None)
     return _load("t1_folder_push", APP / "folder_intake/push.py", {
         "pearnly_cowork.folder_intake.destinations": destinations,
         "pearnly_cowork.folder_intake.follow": follow,

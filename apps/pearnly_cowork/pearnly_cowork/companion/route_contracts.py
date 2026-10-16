@@ -51,6 +51,8 @@ class Job(NamedTuple):
     payload_version: int = 1
     # 定时任务：读文件夹的那台电脑（只有它写）；空 = 录入人自己的电脑写
     route_device: str = ""
+    # 无人值守的自动推（冻结了 ``automation``，数字会计员第 3 期第 5 条）：电脑前不会有人等它
+    automated: bool = False
 
 
 class Account(NamedTuple):
@@ -147,9 +149,11 @@ def heads(rows: Iterable[Mapping], limit: int = MAX_HEADS) -> list:
 
 
 def attended(job: Job, peer: Peer | None) -> bool:
-    """这张单写的时候电脑前可能有录入人本人（碰到账套被占用时弹询问框）：不是定时任务，而且录入人在这台电脑上登录过 CC。
-    定时任务、没有登录记录的电脑（过渡期替谁都写）都不弹框，按「等账套」回报、空出来自动再写。"""
-    return not job.route_device and bool(job.actor) and job.actor in (peer or Peer()).users
+    """这张单写的时候电脑前可能有录入人本人（碰到账套被占用时弹询问框）：不是定时任务、不是自动推，而且录入人在这台电脑上
+    登录过 CC。定时任务、自动推（第 3 期第 5 条）、没有登录记录的电脑（过渡期替谁都写）都不弹框，按「等账套」回报、空出来
+    自动再写（同第 55 条）。"""
+    return (not job.route_device and not job.automated and bool(job.actor)
+            and job.actor in (peer or Peer()).users)
 
 
 __all__ = ["Account", "Decision", "Job", "MAX_HEADS", "NEEDS_UPDATE", "NOT_MINE", "OWN", "Peer", "READER", "ROUTES",

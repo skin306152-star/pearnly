@@ -150,6 +150,7 @@ At most {0} photos per entry,At most {0} photos per entry
 At time of due date,At time of due date
 Attachments,Attachments
 Attempt Secret,Attempt Secret
+Automatic push withdrawn: the rules changed before writing.,Automatic push withdrawn: the rules changed before writing.
 Automation,Automation
 Back to list,Back to list
 Balance,Balance
@@ -3454,6 +3455,7 @@ pos.vat_out_of_range,The VAT column is more than 7% of a day's sales
 pos.xls_not_supported,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 probably {0},probably {0}
 push.adapter_not_connected,This ERP adapter is not connected yet.
+push.automation_changed,Automatic push withdrawn: the rules changed before writing.
 push.branch_invalid,Invalid push execution mode.
 push.companion_account_unreported,"CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
 push.disabled,"Pushing is not enabled for this site, so nothing was sent."

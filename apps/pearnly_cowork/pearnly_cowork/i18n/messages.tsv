@@ -318,6 +318,7 @@ The original invoice reference is invalid or unavailable.	原票据引用无效�
 Invalid posting type.	过账类型无效。	ประเภทการลงบัญชีไม่ถูกต้อง	転記タイプが無効です。	push.posting_kind_invalid
 The unsent preparation was cancelled.	尚未发送的推送准备已撤销。	ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว	未送信の準備を取り消しました。	push.preparation_cancelled
 The outdated unsent preparation was replaced.	已替换过期且尚未发送的推送准备。	แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว	古い未送信の準備を置き換えました。	push.preparation_superseded
+Automatic push withdrawn: the rules changed before writing.	写入前规则已变，自动推送已撤回。	ถอนการส่งอัตโนมัติแล้ว เพราะกฎเปลี่ยนก่อนบันทึก	書き込み前にルールが変わったため、自動送信を取り消しました。	push.automation_changed
 A successful push has no ERP document number. Check its receipt.	已有成功推送缺少 ERP 凭证号，请核对回执。	มีรายการที่ส่งสำเร็จแต่ไม่มีเลขที่เอกสาร ERP กรุณาตรวจสอบผลตอบรับ	成功済みの送信にERP伝票番号がありません。確認応答を確認してください。	push.prior_document_number_missing
 Push record not found.	找不到推送记录。	ไม่พบรายการส่ง	送信記録が見つかりません。	push.record_not_found
 This request key was used for different push content.	此请求标识已用于其他推送内容。	รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว	この要求キーは別の送信内容に使用されています。	push.request_conflict

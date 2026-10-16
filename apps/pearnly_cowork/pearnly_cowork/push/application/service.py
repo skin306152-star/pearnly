@@ -20,6 +20,8 @@ from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, reso
 from pearnly_cowork.history import document_policy, push_state, storage
 from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.application.provenance import original_history
+from pearnly_cowork.push.automation import rules as automation_rules
+from pearnly_cowork.push.automation import service as automation_service
 from pearnly_cowork.push.express import account_suggest
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import decide as decide_rules
@@ -77,9 +79,13 @@ def _document_block(doc):
 
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-            *, confirm_duplicate=False, fixed=None, route_device=""):
+            *, confirm_duplicate=False, fixed=None, route_device="", automation=None):
     """``route_device``：定时任务读文件夹的那台电脑，冻结在 Express 推送记录上、只有它写（ADR-021 第 51 条）；
-    网页、手机、LINE、CC 发起的不给，由录入人自己的电脑写。"""
+    网页、手机、LINE、CC 发起的不给，由录入人自己的电脑写。
+
+    ``automation``（数字会计员第 3 期第 5 条）：无人值守的自动推（定时任务、网页上传 / LINE 的扫描）给 ``{class, tier,
+    trigger, reasons}``，冻结进目标并加领单重核用的指纹（`push.automation.service.current_hash`）；人发起的不给。人推一张有
+    提议的票时，推出去的与提议比的结果冻结成 ``proposal``（第 7 条证据）。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -206,11 +212,34 @@ def prepare(history, connection, request_key, expected_history_version, expected
     if decision.get("decided_by"):
         # 每一类按什么定的（账套记忆 / 公司规则 / Express 历史 / 任务默认），经 F19 的 written 交给 CC 说清楚
         frozen["decided_by"] = dict(decision["decided_by"])
+    if automation:
+        subjects = automation_rules.subjects(direction, fields, pos=isinstance(payload.get("pos"), dict))
+        frozen["automation"] = automation_rules.frozen(
+            automation.get("class"), automation.get("tier"), automation.get("trigger"), automation.get("reasons") or (),
+            automation_service.current_hash(doc.record_version, loaded.doc.name, target.account_set,
+                                            _account_row(loaded, target), subjects), subjects)
+    else:
+        outcome = _proposal_outcome(doc, loaded.doc.name, target.account_set, fields, direction, payload)
+        if outcome:
+            frozen["proposal"] = outcome
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
         reason=prepared.reason or "", checks=prepared.preflight.checks_json(), route_device=route_device)
     return _view(row)
+
+
+def _proposal_outcome(doc, connection, account_set, fields, direction, payload):
+    """人推一张有提议（``auto_proposal``）的票：推出去的与提议比（`push.automation.rules.compare`）；没有提议回 None。"""
+    raw = getattr(doc, "auto_proposal", None)
+    try:
+        proposed = json.loads(raw) if raw else None
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(proposed, dict):
+        return None
+    chosen = automation_service.chosen_kinds(connection, account_set, fields, direction, payload, proposed.get("at"))
+    return automation_rules.compare(proposed, payload, chosen=chosen, edited=int(getattr(doc, "edit_count", 0) or 0) > 0)
 
 
 def _apply_stock_group(config, connection, account_set):
@@ -537,8 +566,26 @@ def save_choices(history, connection, account_set_key, items):
     return {"saved": saved}
 
 
+def assess(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, trigger, route_device="",
+           today=None):
+    """自动推前的判定（数字会计员第 3 期，`push.application.assess.run`）：只看不记，回类别、档位与这次怎么办。调用方先提交。"""
+    from pearnly_cowork.push.application import assess as assessing
+
+    return assessing.run(history, connection, account_set_key, posting_kind, fixed=fixed, trigger=trigger,
+                         route_device=route_device, today=today)
+
+
 def _express_facts(doc, loaded, account_set_key):
     """与准备同一套取数：冻结目标、推送准备主档、方向、主页面字段。"""
+    found = _express_context(doc, loaded, account_set_key)
+    return (found["target"], found["flat"], found["fields"], found["direction"], found["preparation"],
+            found["selected"]["config"])
+
+
+def _express_context(doc, loaded, account_set_key):
+    """`_express_facts` 的全部取数（自动推送的判定 `push.application.assess` 还要整个选定的端点、票的投影、本方税号与
+    目录这一行）：``{target, flat, fields, direction, preparation, selected, history_value, own_tax, account_row,
+    invoice_date}``。"""
     try:
         target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
                                account_set_key=account_set_key, request_id=None, revision=None)
@@ -557,14 +604,17 @@ def _express_facts(doc, loaded, account_set_key):
     fields = primary.get("fields") or {}
     flat = flatten_history_for_mrerp(history_value)
     invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
+    account_row = _account_row(loaded, target)
     direction = resolve_account_direction(flat, history_value, own_tax_id=own_tax,
-                                          account_tax_id=_account_tax(_account_row(loaded, target)))
+                                          account_tax_id=_account_tax(account_row))
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
     preparation, _evidence = preparation_sources.collect(loaded, target,
         seller_tax=seller_tax if direction == 'purchase' else '',
         invoice_date=invoice_date.isoformat() if invoice_date else None)
     selected['config'].update(deepcopy(preparation['reported_config']))
-    return target, flat, fields, direction, preparation, selected['config']
+    return {"target": target, "flat": flat, "fields": fields, "direction": direction, "preparation": preparation,
+            "selected": selected, "history_value": history_value, "own_tax": own_tax, "account_row": account_row,
+            "invoice_date": invoice_date}
 
 
 def _prepare_mrerp(doc, loaded, request_key, intent, account_set_key, catalog_request_id, catalog_revision):
@@ -682,7 +732,7 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False, fixed=None, route_device=""):
+           *, confirm_duplicate=False, fixed=None, route_device="", automation=None):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
@@ -691,7 +741,7 @@ def submit(history, connection, request_key, expected_history_version, expected_
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate,
-            fixed=fixed, route_device=route_device)
+            fixed=fixed, route_device=route_device, automation=automation)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":
