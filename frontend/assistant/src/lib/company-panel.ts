@@ -89,10 +89,10 @@ type PanelState = PanelPrefs & {
 
 export const usePanel = create<PanelState>(() => ({ ...DEFAULT_PREFS, user: "", overlay: false, docked: true, focus: null }));
 
-/** 记进本机；synced：卡片顺序或开合变了，也存到服务端（停靠时开着没有只记本机）。 */
-function save(synced = false) {
+/** 记进本机；synced：卡片顺序（order）或开合（collapsed）变了，也存到服务端（停靠时开着没有只记本机）。 */
+function save(synced?: "order" | "collapsed") {
   const { user, open, order, collapsed } = usePanel.getState();
-  if (synced) prefChanged();
+  if (synced) prefChanged("cards", [synced]);
   if (!user) return; // 还没读到登录资料：本次照样能用，不写进不带人的公共键
   try {
     localStorage.setItem(panelKey(user), JSON.stringify({ open, order, collapsed }));
@@ -145,12 +145,12 @@ export function setPanelOverlay(overlay: boolean) {
 export function toggleCard(card: PanelCard) {
   const { collapsed } = usePanel.getState();
   usePanel.setState({ collapsed: collapsed.includes(card) ? collapsed.filter((c) => c !== card) : [...collapsed, card] });
-  save(true);
+  save("collapsed");
 }
 
 export function setCardOrder(order: readonly PanelCard[]) {
   usePanel.setState({ order: orderCards(order) });
-  save(true);
+  save("order");
 }
 
 /** 打开会话栏并展开、滚到这张卡（标题栏「公司名 ›」、输入框下巴的公司胶囊、手机胶囊菜单里的公司名）。
@@ -164,7 +164,7 @@ export function showCard(card: PanelCard = "company") {
     collapsed: opened,
     focus: { card, at: Date.now() },
   });
-  save(opened.length !== collapsed.length);
+  save(opened.length !== collapsed.length ? "collapsed" : undefined);
 }
 
 /** 停靠位此刻是不是并排（assistant.tsx 每次停靠方式变了就报）。 */

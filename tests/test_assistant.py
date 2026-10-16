@@ -2304,6 +2304,26 @@ class LayoutPrefsTests(unittest.TestCase):
         self.stored[("a@example.com", "pearnly_cc_layout")] = "not json"
         self.assertIsNone(self.prefs.read())                       # 存坏了当没存过
 
+    def test_saves_merge_by_field_so_another_device_is_not_rolled_back(self):
+        # 第 7 轮审查：整份覆盖时，一直开着、没重取过的设备改一项（折叠一张卡）就把别的设备改过的分组和排序、公司组顺序打回旧值。
+        # 改为对话页只交改了的项，这里按项并进已有的那份
+        frappe.session.user = "a@example.com"
+        self.prefs.save({"order": {"companies": ["c1", "c2"], "pinned": ["s1"]}, "view": {"by": "company", "sort": "name"},
+                         "cards": {"order": ["company"], "collapsed": []}})
+        self.prefs.save({"view": {"by": "month"}})                 # 设备 A：只改分组依据
+        merged = self.prefs.save({"cards": {"collapsed": ["notes"]}})  # 设备 B：只折叠一张卡
+        self.assertEqual(merged, {"order": {"companies": ["c1", "c2"], "pinned": ["s1"]}, "view": {"by": "month", "sort": "name"},
+                                  "cards": {"order": ["company"], "collapsed": ["notes"]}})
+        self.assertEqual(self.prefs.read(), merged)
+        self.prefs.save({"order": {"pinned": []}})                 # 清空一项也算交了这项
+        self.assertEqual(self.prefs.read()["order"], {"companies": ["c1", "c2"], "pinned": []})
+        # 合并后超上限：拒收，原来的不动
+        with self.assertRaises(frappe.ValidationError):
+            for i in range(3):
+                self.prefs.save({"order": {f"k{i}": ["x" * 40] * 300}})
+        self.assertEqual(self.prefs.read()["view"], {"by": "month", "sort": "name"})
+        self.assertNotIn("k2", self.prefs.read()["order"])
+
     def test_guests_and_bad_values_are_refused(self):
         frappe.session.user = "Guest"
         with self.assertRaises(frappe.PermissionError):
@@ -3295,14 +3315,15 @@ class SidebarSyncTests(unittest.TestCase):
             titles.summarize("row1")
             self.assertEqual((db.rows["row1"].title, db.rows["row1"].title_source), ("ผลงานเมื่อคืน", titles.SUMMARY))
             self.assertEqual(read, ["sesn_first1"])  # 第一段远端会话（对话编号）里读首条消息与第一段回复
+            # 回的「ผลงานเมื่อคืน」正是提示示例、首句只撑得起大半：重问一次，仍是它才收（第 7 轮审查）
             self.assertEqual(asked, [(contracts.title_prompt("เมื่อคืนเป็นยังไงบ้าง", "เมื่อคืนงานเสร็จ 12 บิล"),
-                                      engines.get(CLAUDE).title_model)])
+                                      engines.get(CLAUDE).title_model)] * 2)
             self.assertEqual(self.pushed, [(contracts.REALTIME_EVENT, self.change("titled", "sesn_first1", title="ผลงานเมื่อคืน"),
                                             self.OWNER, False)])
             self.assertIn("row1", db.locked)  # 认领与写回都在行锁下
             # 推送线程与补排同时排了两次：第二次不再调模型
             titles.summarize("row1")
-            self.assertEqual(len(asked), 1)
+            self.assertEqual(len(asked), 2)  # 仍是第一次的那两问
 
             # 概括期间用户手动改了名：写回前核对，用户的名字为准，不推自动标题
             def renamed_meanwhile(text, model):
@@ -3364,7 +3385,8 @@ class SidebarSyncTests(unittest.TestCase):
         histories = {
             "sesn_rowA01": [say("user.message", "SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00"),
                             say("agent.message", "ใบ SD-6909-1010 ของ บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด ลงบัญชีใน "
-                                                 "Express แล้วเป็น HP690920-001 ยอด 800.00 บาท")],
+                                                 "Express แล้วเป็น HP690920-001 ยอด 800.00 บาท ลงบัญชีในเดือน 9 "
+                                                 "ตามกฎของบริษัท ภาษีซื้อ 52.34 บาท")],
             "sesn_rowB01": [say("user.message", "ภาษีเดือน 9 สามบริษัท ช่วยสรุปให้หน่อย"),
                             say("agent.message", "ภาษีเดือน 9 ของสามบริษัท")]}
         read, asked = [], []
@@ -3388,11 +3410,17 @@ class SidebarSyncTests(unittest.TestCase):
         with mock.patch.object(titles.engine, "adapter", return_value=api):
             titles.summarize("rowB")
         self.assertEqual((read, db.rows["rowB"].title), (["sesn_rowB01"], "ภาษีเดือน 9 สามบริษัท"))
+        # 第 7 轮审查：CC 的回复里有「เดือน 9」「บริษัท」「ภาษีซื้อ」，模型两次都抄示例：不收，保留临时标题（首句）
+        db.rows["rowC"] = _Row(name="rowC", session_id="sesn_rowA01", user=self.OWNER,
+                               title="SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00", title_source="message")
+        api.summarize = lambda text, model: "ภาษีเดือน 9 สามบริษัท"
+        with mock.patch.object(titles.engine, "adapter", return_value=api):
+            titles.summarize("rowC")
+        self.assertEqual(db.rows["rowC"].title, "SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00")
 
     def test_a_title_that_copies_a_prompt_example_is_not_used(self):
         examples = engines.base.TITLE_EXAMPLES
-        source = ("SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00\nใบ SD-6909-1010 ของ บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส "
-                  "จำกัด ลงบัญชีใน Express แล้วเป็น HP690920-001 ยอด 800.00 บาท")
+        source = "SD-6909-1010 ช่วยเปลี่ยนบัญชีเป็น 53-05-28-00"  # 用户首句（titles 只拿它判断是否照抄）
 
         def model(*answers):
             replies, calls = iter(answers), []
@@ -3412,11 +3440,22 @@ class SidebarSyncTests(unittest.TestCase):
             ask, calls = model(*answers)
             self.assertEqual(contracts.make_title(ask, source, examples), want, answers)
             self.assertEqual(calls, [""] * len(answers), answers)  # 抄示例的重问不带 too_long；最多问两次
-        # 对话本身就在说这件事（「เมื่อคืนเป็นยังไงบ้าง」）：同示例的标题照收，不重问
-        ask, calls = model("ผลงานเมื่อคืน")
-        self.assertEqual(contracts.make_title(ask, "เมื่อคืนเป็นยังไงบ้าง\nเมื่อคืนงานเสร็จ 12 บิล", examples),
-                         "ผลงานเมื่อคืน")
+        # 用户首句撑得起示例（几乎原样说了）：照收，不重问
+        ask, calls = model("ภาษีเดือน 9 สามบริษัท")
+        self.assertEqual(contracts.make_title(ask, "ภาษีเดือน 9 สามบริษัท ช่วยสรุปให้หน่อย", examples), "ภาษีเดือน 9 สามบริษัท")
         self.assertEqual(calls, [""])
+        # 首句只撑得起大半（「เมื่อคืนเป็นยังไงบ้าง」→「ผลงานเมื่อคืน」）：重问一次，仍是它才收
+        ask, calls = model("ผลงานเมื่อคืน", "ผลงานเมื่อคืน")
+        self.assertEqual(contracts.make_title(ask, "เมื่อคืนเป็นยังไงบ้าง", examples), "ผลงานเมื่อคืน")
+        self.assertEqual(calls, ["", ""])
+        # 第 7 轮审查：示例里的记账常用词（เดือน 9、บริษัท、ภาษี、九月、公司、增值税）出现在 CC 回复里不算撑得起——只看首句
+        reply = ("ใบ SD-6909-1010 ของ บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด ลงบัญชีในเดือน 9 ตามกฎของบริษัท ภาษีซื้อ 52.34 บาท "
+                 "สาขา 00000")
+        self.assertFalse(contracts.copies_example("ภาษีเดือน 9 สามบริษัท", f"{source}\n{reply}", examples, 0.6))  # 原来按回复算：照收
+        self.assertTrue(contracts.copies_example("ภาษีเดือน 9 สามบริษัท", source, examples))
+        self.assertTrue(contracts.copies_example("九月三家公司增值税", "九月增值税怎么报", examples))
+        ask, _calls = model("ภาษีเดือน 9 สามบริษัท is an example", "ภาษีเดือน 9 สามบริษัท")
+        self.assertEqual(contracts.make_title(ask, source, examples), "")
         # 回归：本次素材起出的标题不等于任何示例
         ask, _calls = model("ภาษีเดือน 9 สามบริษัท", "ภาษีเดือน 9 สามบริษัท")
         self.assertNotIn(contracts.make_title(ask, source, examples), [title for _l, title in examples])
@@ -3426,6 +3465,7 @@ class SidebarSyncTests(unittest.TestCase):
         # 示例来自 engines.base（不另存一份），titles 照它传
         source_text = (CORE / "assistant/titles.py").read_text(encoding="utf-8")
         self.assertIn("examples=engine_base.TITLE_EXAMPLES", source_text)
+        self.assertIn("source=message, examples=", source_text)  # 只按用户首句，不带 CC 的回复
 
     def test_a_finished_turn_queues_the_title_once(self):
         titles, relay = self.titles, sys.modules["pearnly_core.assistant.relay"]

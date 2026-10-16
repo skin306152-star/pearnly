@@ -88,10 +88,12 @@ def _filed() -> tuple:
     return projects.of_session(session) if session else ("", "", "")
 
 
-def resolve(wanted, filed="") -> tuple:
+def resolve(wanted, filed="", write=False) -> tuple:
     """模型给的 ``company`` → (主档编号, 认不出的原因)。没给回 (``filed``, None)；是主档编号照用。2026-10-16 测试：说明里只有
     税号，CC 把税号当 company 传，查单先失败一次——13 位数字按税号认：是本对话公司的税号就当没给（本对话那家），本所只有
-    一家是这个税号就用那家，几家同税号回失败并列出编号；都不是回 unknown company。"""
+    一家是这个税号就用那家，几家同税号回失败并列出编号；都不是回 unknown company。
+    ``write``（存 / 删公司规则、团队笔记）：只认本对话公司的税号，别家的税号回失败并列出那家的编号（第 7 轮审查：模型容易把
+    这张单对方的税号当 company 传，对方恰好也是本所客户时规则就存到了那家名下），要改别家须传主档编号。"""
     wanted = str(wanted or "").strip()
     if not wanted:
         return filed, None
@@ -102,6 +104,11 @@ def resolve(wanted, filed="") -> tuple:
         if filed and service.exists(filed) and (service.get(filed).get("tax_id") or "") == tax:
             return filed, None
         found = service.with_tax_id(tax)
+        if write and found:
+            return "", (f"{tax} is the tax ID of client company {', '.join(found)}, not of the company this conversation "
+                        f"is filed under. Nothing was changed. For this conversation's company leave company out; a "
+                        f"supplier's or customer's tax ID never goes in company. To change that other company, check "
+                        f"with the user first, then pass its id as company.")
         if len(found) == 1:
             return found[0], None
         if found:
@@ -110,16 +117,27 @@ def resolve(wanted, filed="") -> tuple:
     return "", "unknown company: pass an id from cowork_companies"
 
 
-def _company(tool_input):
-    """要读 / 写的那家：参数给了用参数（主档编号，或按税号认出的那家，`resolve`），否则用本对话挂的那家；都没有回 None。"""
-    wanted, _reason = resolve(tool_input.get("company"), _filed()[0])
+def _company(tool_input, write=False):
+    """要读 / 写的那家：参数给了用参数（主档编号，或按税号认出的那家，`resolve`；写时只认本对话公司的税号），否则用本对话
+    挂的那家；都没有回 None。"""
+    wanted, _reason = resolve(tool_input.get("company"), _filed()[0], write)
     if not wanted or not service.exists(wanted):
         return None
     return service.get(wanted)
 
 
-def _no_company() -> str:
-    return _json({"status": "failed", "reason": "no company: pass company (an id from cowork_companies)"})
+def _no_company(tool_input=None, write=False) -> str:
+    reason = resolve(tool_input.get("company"), _filed()[0], write)[1] if (tool_input or {}).get("company") else None
+    return _json({"status": "failed", "reason": reason or "no company: pass company (an id from cowork_companies)"})
+
+
+def company_refusal(tool_input) -> str | None:
+    """写公司的工具（存 / 删团队笔记、公司规则）出「允许」卡片前（工具声明的 ``refuse``）：给的 company 认不出、或是别家的税号
+    就不出卡片，直接回失败与原因（卡上「公司」一行不写一家用户没说过的公司）。"""
+    if not tool_input.get("company"):
+        return None
+    _wanted, reason = resolve(tool_input.get("company"), _filed()[0], write=True)
+    return _json({"status": "failed", "reason": reason}) if reason else None
 
 
 # ---------------- 公司对话的默认范围 ----------------
@@ -191,9 +209,9 @@ def profile(tool_input) -> str:
 
 def note_save(tool_input) -> str:
     service.require_write()
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     if not row:
-        return _no_company()
+        return _no_company(tool_input, write=True)
     saved = notes.save(row.name, tool_input.get("text"), tool_input.get("note") or None,
                        workspace=scope.default_workspace(), origin="cc", session=_session())
     service.announce("upsert", row.name, part="notes")
@@ -202,9 +220,9 @@ def note_save(tool_input) -> str:
 
 def note_remove(tool_input) -> str:
     service.require_write()
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     if not row:
-        return _no_company()
+        return _no_company(tool_input, write=True)
     removed = notes.delete(row.name, str(tool_input.get("note") or ""))
     service.announce("upsert", row.name, part="notes")
     return _json({"status": "removed", "company": row.title, "note": removed["id"]})
@@ -221,14 +239,14 @@ def _before(row, note) -> str:
 
 
 def preview_note_save(tool_input) -> list:
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     return [{"field": _("Company"), "before": "", "after": row.title if row else ""},
             {"field": _("cowork.company.notes"), "before": _before(row, tool_input.get("note")),
              "after": " ".join(str(tool_input.get("text") or "").split())}]
 
 
 def preview_note_remove(tool_input) -> list:
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     return [{"field": _("cowork.company.notes"), "before": _before(row, tool_input.get("note")), "after": ""}]
 
 
@@ -277,16 +295,25 @@ def _subject_of(tool_input) -> tuple:
     return kind, choice_rules.supplier_subject("purchase", tax, name), name
 
 
+NAME_COVER = 0.6  # 单据没有税号时，名称一方包含另一方：短的至少占长的这么多才算同一方
+
+
 def _same_party(expected: str, name: str, tax) -> bool:
-    """模型说给用户的对方（``expect_party``：税号或名称）是不是这张单的对方：给的是 13 位税号就比税号；否则按归一后的名称
-    比（相同，或一方包含另一方且至少 3 个字），同推送 `choices.norm_name`。"""
+    """模型说给用户的对方（``expect_party``：税号或名称）是不是这张单的对方：给的是 13 位税号就比税号。给的是名称时按归一后
+    的名称（同推送 `choices.norm_name`）比：单据带 13 位税号就要完全相同（第 7 轮审查：「สยาม」被「สยามแม็คโคร」包含也算对上，
+    挡不住说成别家）；单据没有税号才允许一方包含另一方，且短的至少占长的 `NAME_COVER`。"""
     digits = choice_rules.digits(expected)
     if len(digits) == 13 and len(re.sub(r"[\s-]", "", expected)) == 13:
         return digits == choice_rules.digits(tax)
     wanted, actual = choice_rules.norm_name(expected), choice_rules.norm_name(name)
     if not wanted or not actual:
         return False
-    return wanted == actual or (min(len(wanted), len(actual)) >= 3 and (wanted in actual or actual in wanted))
+    if wanted == actual:
+        return True
+    if len(choice_rules.digits(tax)) == 13:
+        return False
+    short, long = sorted((wanted, actual), key=len)
+    return len(short) >= 3 and short in long and len(short) >= NAME_COVER * len(long)
 
 
 def mismatch(tool_input) -> str | None:
@@ -314,7 +341,11 @@ def mismatch(tool_input) -> str | None:
 
 
 def choice_refusal(tool_input) -> str | None:
-    """出「允许」卡片前的核对（工具声明的 ``refuse``）：对象对不上就不出卡片、直接回 not_saved。"""
+    """出「允许」卡片前的核对（工具声明的 ``refuse``）：公司认不出或是别家的税号（`company_refusal`）、对象对不上就不出卡片、
+    直接回失败与原因。"""
+    refused = company_refusal(tool_input)
+    if refused:
+        return refused
     reason = mismatch(tool_input)
     return _json({"status": "not_saved", "reason": reason}) if reason else None
 
@@ -326,9 +357,9 @@ def _period(row, tool_input) -> str:
 
 def choice_save(tool_input) -> str:
     service.require_write()
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     if not row:
-        return _no_company()
+        return _no_company(tool_input, write=True)
     sets = service.books(row, limit=None)
     branch, period = str(tool_input.get("branch") or ""), _period(row, tool_input)
     if tool_input.get("key"):
@@ -354,9 +385,9 @@ def choice_save(tool_input) -> str:
 
 def choice_remove(tool_input) -> str:
     service.require_write()
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     if not row:
-        return _no_company()
+        return _no_company(tool_input, write=True)
     key = str(tool_input.get("key") or "")
     if saved_choices.decode(key)[0] != "rule":
         frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
@@ -401,7 +432,7 @@ def _choice_rows(row, text, branch) -> list:
 
 
 def preview_choice_save(tool_input) -> list:
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     text, branch, _source = _described(row, tool_input)
     return _choice_rows(row, text, None if branch is None else str(tool_input.get("branch") or ""))
 
@@ -409,7 +440,7 @@ def preview_choice_save(tool_input) -> list:
 def preview_choice_remove(tool_input) -> list:
     """删哪一条（第 5 轮测试 5）：同保存卡的三行，问句「删除这条公司规则？」已说明是删。原来公司写成「改前 → 改后」两遍、
     这一条写在「改前」后面跟一个空的「→」，卡上看着乱。找不到这一条（已删、不是这家的）时只写公司与「已不在」，执行时报找不到。"""
-    row = _company(tool_input)
+    row = _company(tool_input, write=True)
     text, branch, _source = _described(row, tool_input)
     return _choice_rows(row, text, branch)
 
@@ -445,6 +476,7 @@ TOOLS = [
      "approval": True,
      "ask": "Save this to the company's notes?",
      "ask_when": {"note": "Update this company note?"},
+     "refuse": "pearnly_cowork.assistant.company_tools.company_refusal",
      "preview": "pearnly_cowork.assistant.company_tools.preview_note_save",
      "handler": "pearnly_cowork.assistant.company_tools.note_save"},
     {"name": "cowork_company_note_remove", "label": "Removed a company note",
@@ -454,6 +486,7 @@ TOOLS = [
                       "required": ["note"]},
      "approval": True,
      "ask": "Remove this company note?",
+     "refuse": "pearnly_cowork.assistant.company_tools.company_refusal",
      "preview": "pearnly_cowork.assistant.company_tools.preview_note_remove",
      "handler": "pearnly_cowork.assistant.company_tools.note_remove"},
     {"name": "cowork_company_choice_save", "label": "Saved a company choice",
@@ -490,6 +523,7 @@ TOOLS = [
                       "required": ["key"]},
      "approval": True,
      "ask": "Remove this company choice?",
+     "refuse": "pearnly_cowork.assistant.company_tools.company_refusal",
      "preview": "pearnly_cowork.assistant.company_tools.preview_choice_remove",
      "handler": "pearnly_cowork.assistant.company_tools.choice_remove"},
 ]

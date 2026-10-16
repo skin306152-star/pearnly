@@ -4012,24 +4012,32 @@ assert.equal(storage.has(orderKey("skin3@x")), false);
 
     def test_personal_layout_follows_the_user_across_devices(self):
         # 测试窗口第 7 轮第 2 项：侧栏手排顺序、分组和排序、会话栏卡片顺序与开合只记在本机。改成按人存到服务端（layout / save_layout），
-        # 打开时取、改了就存、后写的为准；本机缓存照样先顶着、离线照样能用；折叠仍按设备；服务端没有时把本机原有的迁上去
+        # 打开时取、改了就存、后写的为准；本机缓存照样先顶着、离线照样能用；折叠仍按设备；服务端没有时把本机原有的迁上去。
+        # 第 7 轮审查：只存改了的项（服务端按项合并），本机改了还没存上的项不被服务端的盖掉，别的项照样换成服务端的
         self.run_page(STORAGE_STUB + r"""
 import { bindOrderUser, forgetPinned, orderKey, setCompanyOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { bindSidebarViewUser, DEFAULT_VIEW, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { toggleFold } from "@/lib/managed-agents/sidebar-fold";
 import { loadPanelPrefs, panelKey, setCardOrder, setPanelOpen, toggleCard, usePanel } from "@/lib/company-panel";
-import { collectPrefs, SAVE_DELAY, syncPrefs } from "@/lib/prefs-sync";
+import { collectPrefs, REFETCH_AFTER, SAVE_DELAY, syncPrefs } from "@/lib/prefs-sync";
 const g = globalThis as any;
 let server: any = null;
 let offline = false;
+// 服务端按项合并（pearnly_core.assistant.prefs.save）
+const merge = (old: any, sent: any) => {
+  const out: any = { ...(old ?? {}) };
+  for (const [part, fields] of Object.entries(sent)) out[part] = { ...(out[part] ?? {}), ...(fields as any) };
+  return out;
+};
 g.respond = async (method: string, body: any) => {
   if (offline) throw new TypeError("Failed to fetch");
   if (method === "layout") return g.ok({ prefs: server });
-  if (method === "save_layout") { server = body.prefs; return g.ok({ prefs: body.prefs }); }
+  if (method === "save_layout") { server = merge(server, body.prefs); return g.ok({ prefs: server }); }
   return g.ok(null);
 };
 g.ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
 const saves = () => g.calls.filter((c: any) => c.method === "save_layout");
+const sent = () => saves().map((c: any) => JSON.parse(JSON.stringify(c.body.prefs)));
 
 // 这台设备上原来记下的（旧版本只记本机）：第一次登录、服务端还没有 → 整份迁上去
 storage.set("cc.sidebar.user", "skin3@x");
@@ -4046,7 +4054,7 @@ assert.equal(server.view.sort, "name");
 assert.deepEqual(server.cards.collapsed, []);
 assert.equal("open" in server.cards, false);                                   // 停靠时开着没有按设备记
 
-// 改了就存（连着几下合成一次），整份覆盖；折叠、停靠开关不触发
+// 改了就存（连着几下合成一次），只交改了的项；折叠、停靠开关不触发
 g.calls.length = 0;
 setCompanyOrder(["comp_A", "comp_B"]);
 toggleCard("notes");
@@ -4055,6 +4063,8 @@ toggleFold("project:comp_A");
 setPanelOpen(false);
 await g.sleep(SAVE_DELAY + 50);
 assert.equal(saves().length, 1);
+assert.deepEqual(sent()[0], { order: { companies: ["comp_A", "comp_B"] }, cards: { collapsed: ["notes"] }, view: { desc: false } });
+assert.deepEqual(server.order.pinned, ["s4"]);                                   // 没交的项服务端照旧
 assert.deepEqual(server.order.companies, ["comp_A", "comp_B"]);
 assert.deepEqual(server.cards.collapsed, ["notes"]);
 assert.equal(server.view.desc, false);
@@ -4085,24 +4095,29 @@ offline = true;
 setPinnedOrder(["s9"]);
 await g.sleep(SAVE_DELAY + 50);
 assert.deepEqual(useSidebarOrder.getState().pinned, ["s9"]);
-assert.equal(storage.get("cc.prefs.unsaved:skin3@x"), "1");
+assert.deepEqual(JSON.parse(storage.get("cc.prefs.unsaved:skin3@x")!), ["order.pinned"]);   // 记着哪项没存上
 offline = false;
+server = { ...server, view: { ...server.view, sort: "created" } };                // 这期间别的设备改了排序方式
 g.calls.length = 0;
 await syncPrefs("skin3@x");
-assert.deepEqual(g.calls.map((c: any) => c.method), ["save_layout"]);
-assert.deepEqual(server.order.pinned, ["s9"]);
+assert.deepEqual(g.calls.map((c: any) => c.method), ["layout", "save_layout"]);   // 先取：别的项换成服务端的，再补存没存上的那项
+assert.deepEqual(sent(), [{ order: { pinned: ["s9"] } }]);
+assert.deepEqual(server.order, { companies: ["comp_C"], pinned: ["s9"] });
+assert.equal(useSidebarView.getState().sort, "created");
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s9"]);
 assert.equal(storage.has("cc.prefs.unsaved:skin3@x"), false);
 
-// 取的时候本机又改了：本机的为准，存上去
+// 取的时候本机又改了：改的那项本机的为准，存上去；没改的项照样换成服务端的
 server = { order: { companies: ["old"], pinned: [] } };
 g.calls.length = 0;
 const pending = syncPrefs("skin3@x");
 setCardOrder(["outputs", "company"]);
 await pending;
 assert.equal(usePanel.getState().order[0], "outputs");
-assert.notDeepEqual(useSidebarOrder.getState().companies, ["old"]);
+assert.deepEqual(useSidebarOrder.getState().companies, ["old"]);
 assert.equal(server.cards.order[0], "outputs");
-assert.deepEqual(collectPrefs().cards, server.cards);
+assert.deepEqual(server.cards, { order: collectPrefs().cards.order });
+assert.deepEqual(sent(), [{ cards: { order: collectPrefs().cards.order } }]);
 
 // 取的时候按数据自动收拾的（取消置顶了从手排顺序里去掉）不算人改的：照样换成服务端的（别的设备改的不被盖掉）
 setPinnedOrder(["s1", "s2"]);
@@ -4114,12 +4129,82 @@ forgetPinned(["s1"]);
 await tidy;
 assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_Z"], pinned: ["s2", "s1"] });
 assert.deepEqual(g.calls.map((c: any) => c.method), ["layout"]);
+
+// 第 7 轮审查第 1 条：一直开着、很久没取过的设备上，别的设备取消置顶推过来（按数据收拾）。不拿本机过时的公司组顺序盖服务端：
+// 先取最新的、换进来，侧栏照新的那份再收拾一遍，这时才存，只存置顶这一项
+const realNow = performance.now.bind(performance);
+let skew = 0;
+(performance as any).now = () => realNow() + skew;
+skew += REFETCH_AFTER * 3;
+server = { ...server, order: { companies: ["comp_new"], pinned: ["s2", "s1"] } };
+g.calls.length = 0;
+forgetPinned(["s1"]);
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s2"]);                       // 本机马上去掉
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(g.calls.map((c: any) => c.method), ["layout"]);                  // 先取，不存
+assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_new"], pinned: ["s2", "s1"] });
+forgetPinned(["s1"]);                                                             // 侧栏照新的那份再收拾（刚取过）
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(sent(), [{ order: { pinned: ["s2"] } }]);
+assert.deepEqual(server.order, { companies: ["comp_new"], pinned: ["s2"] });
 """)
         # 打开页面知道是谁了就取；接口只读写自己的
         assistant = read("assistant.tsx")
         self.assertIn('useEffect(() => void syncPrefs(profile?.user ?? ""), [profile?.user]);', assistant)
         fold = read("lib/managed-agents/sidebar-fold.ts")
         self.assertNotIn("prefs-sync", fold)
+
+    def test_layout_sync_never_pushes_a_stale_layout_and_retries_failed_fetches(self):
+        # 第 7 轮审查第 5、7 条：资料没到之前侧栏先收拾了（取消置顶的从手排顺序里去掉）不算人改的，知道是谁以后照常取、换成服务端的，
+        # 不把本机旧的整份存上去；取失败不算取过（联网、拿到焦点时再取）；同时叫几次只取一次
+        self.run_page(STORAGE_STUB + r"""
+import { bindOrderUser, forgetPinned, orderKey, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindSidebarViewUser, DEFAULT_VIEW, useSidebarView } from "@/lib/managed-agents/sidebar-view";
+import { loadPanelPrefs } from "@/lib/company-panel";
+import { SAVE_DELAY, syncPrefs } from "@/lib/prefs-sync";
+const g = globalThis as any;
+const listeners: Record<string, () => void> = {};
+g.addEventListener = (type: string, fn: () => void) => void (listeners[type] = fn);
+g.document.addEventListener = (type: string, fn: () => void) => void (listeners[type] = fn);
+let server: any = { order: { companies: ["comp_A2"], pinned: ["s1"] }, view: { ...DEFAULT_VIEW, by: "month" } };
+let offline = false;
+g.ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+g.respond = async (method: string) => {
+  if (offline) throw new TypeError("Failed to fetch");
+  if (method === "layout") { await g.sleep(20); return g.ok({ prefs: server }); }
+  return g.ok({ prefs: server });
+};
+const methods = () => g.calls.map((c: any) => c.method);
+
+storage.set(orderKey("skin3@x"), JSON.stringify({ companies: ["comp_old"], pinned: ["sX", "s1"] }));
+bindOrderUser("skin3@x");
+bindSidebarViewUser("skin3@x");
+loadPanelPrefs("skin3@x");
+forgetPinned(["sX"]);                                  // 侧栏列表先回来（资料还没到）：只改本机
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1"]);
+await g.sleep(SAVE_DELAY + 50);
+const first = syncPrefs("skin3@x");
+assert.equal(syncPrefs("skin3@x"), first);             // 同时叫两次只取一次
+await first;
+assert.deepEqual(methods(), ["layout"]);               // 不存本机旧的
+assert.deepEqual(useSidebarOrder.getState(), { companies: ["comp_A2"], pinned: ["s1"] });
+assert.equal(useSidebarView.getState().by, "month");
+assert.equal(storage.has("cc.prefs.unsaved:skin3@x"), false);
+
+// 取失败（离线）不算取过：联网、拿到焦点时马上再取（不等 REFETCH_AFTER）
+g.calls.length = 0;
+offline = true;
+await syncPrefs("other@x");                          // 换了人（还没取过）：取不到，照本机的
+offline = false;
+server = { view: { ...DEFAULT_VIEW, sort: "name" } };
+listeners.online();
+await g.sleep(60);
+assert.deepEqual(methods(), ["layout", "layout"]);
+assert.equal(useSidebarView.getState().sort, "name");
+listeners.focus();                                     // 刚取过：不再取
+await g.sleep(60);
+assert.deepEqual(methods(), ["layout", "layout"]);
+""")
 
     def test_drop_is_announced_by_what_really_happened(self):
         # 测试窗口第 7 轮第 1 项：真的移过去了（发了移动请求、对话已在新组），最后却念「已取消移动」（电脑拖到组头、手机拖到行上、

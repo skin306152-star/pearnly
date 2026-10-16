@@ -107,7 +107,7 @@ function keep(next: SidebarView) {
 
 export function setSidebarView(patch: Partial<SidebarView>) {
   keep({ ...useSidebarView.getState(), ...patch });
-  prefChanged();
+  prefChanged("view", Object.keys(patch));
 }
 
 registerPref("view", {

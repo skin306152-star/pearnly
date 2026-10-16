@@ -80,7 +80,7 @@ function keep(next: SidebarOrder) {
 
 function save(patch: Partial<SidebarOrder>, tidy = false) {
   keep({ ...useSidebarOrder.getState(), ...patch });
-  prefChanged(tidy);
+  prefChanged("order", Object.keys(patch), tidy);
 }
 
 // 存到服务端的那份：各列表最多记这么多（手排时没显示的接在后面、一直留着；最旧的先丢），整份不超过服务端的上限

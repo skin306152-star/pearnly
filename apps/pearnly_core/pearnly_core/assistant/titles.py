@@ -70,7 +70,7 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
             message = message or row.title or ""
             title = contracts.make_title(
                 lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long), model),
-                source=f"{message}\n{reply}", examples=engine_base.TITLE_EXAMPLES)
+                source=message, examples=engine_base.TITLE_EXAMPLES)  # 只按用户首句判断是否照抄示例
         except Exception:
             frappe.log_error(title="Assistant title summary failed")
     _finish(row, title)

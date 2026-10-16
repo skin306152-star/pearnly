@@ -1607,6 +1607,29 @@ class ProviderAndToolTests(unittest.TestCase):
         self.assertEqual(tools.resolve(OTHER_TAX, abc), (xyz, None))
         self.assertEqual(tools._company({"company": TAX})["name"], abc)  # 公司工具同一认法
         self.assertEqual(tools._company({"company": OTHER_TAX})["name"], xyz)
+        # 第 7 轮审查：写工具（存 / 删团队笔记、公司规则）只认本对话公司的税号。别家的税号（多半是这张单对方的，对方恰好也是
+        # 本所客户）不落到那家：失败、原因里给那家的主档编号；出「允许」卡片前就拒，不写库
+        self.assertEqual(tools._company({"company": TAX}, write=True)["name"], abc)
+        self.assertIsNone(tools._company({"company": OTHER_TAX}, write=True))
+        wanted, reason = tools.resolve(OTHER_TAX, abc, write=True)
+        self.assertEqual(wanted, "")
+        self.assertIn(f"{OTHER_TAX} is the tax ID of client company {xyz}, not of the company this conversation", reason)
+        self.assertIsNone(tools.company_refusal({"company": TAX}))
+        self.assertIsNone(tools.company_refusal({}))
+        self.assertEqual(tools.company_refusal({"company": xyz}), None)  # 主档编号照用（改别家要明说是哪家）
+        notes_before = dict(frappe.db.tables.get(notes.NOTE, {}))
+        for refuse in (tools.company_refusal, tools.choice_refusal):
+            refused = json.loads(refuse({"company": OTHER_TAX, "text": "x", "document": "h1", "kind": "payment",
+                                         "value": "cash", "expect_party": OTHER_TAX}))
+            self.assertEqual(refused["status"], "failed")
+            self.assertIn(xyz, refused["reason"])
+        out = json.loads(tools.note_save({"company": OTHER_TAX, "text": "ซื้อของจาก Makro"}))
+        self.assertEqual(out["status"], "failed")
+        self.assertIn(xyz, out["reason"])
+        self.assertEqual(dict(frappe.db.tables.get(notes.NOTE, {})), notes_before)
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        for name in ("cowork_company_note_save", "cowork_company_note_remove", "cowork_company_choice_remove"):
+            self.assertEqual(declared[name]["refuse"], "pearnly_cowork.assistant.company_tools.company_refusal", name)
         for bad in ("nope", "0105536082809", "12345"):
             self.assertIn("unknown company", tools.default_scope({"company": bad})["failed"], bad)
             self.assertIsNone(tools._company({"company": bad}))
@@ -2459,7 +2482,13 @@ class CompanyRuleToolTests(unittest.TestCase):
                 self.assertEqual(json.loads(self.tools.choice_save({**ask, **wrong})), refused)  # 点了允许也再核一遍
             self.assertEqual({name: dict(row) for name, row in frappe.db.tables[RULE].items()}, before)
             # 说对了（税号或名称）：存的是这张单的卖方，不动ซ่อมไว那条
-            for right in ({"expect_party": clean}, {"expect_party": "สะอาดดี คลีนนิ่ง"}):
+            # 第 7 轮审查：单据带税号时，给名称要与单据上的名称（去掉法人前后缀）相同；只说出一部分（一方包含另一方）不算，
+            # 免得「สยาม」对上「สยามแม็คโคร」这样的别家
+            partial = json.loads(self.tools.choice_refusal({**ask, "expect_party": "สะอาดดี คลีนนิ่ง"}))
+            self.assertEqual(partial["status"], "not_saved")
+            self.assertIn(f"(tax ID {clean})", partial["reason"])
+            for right in ({"expect_party": clean}, {"expect_party": "สะอาดดี คลีนนิ่ง เซอร์วิส"},
+                          {"expect_party": "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด"}):
                 self.assertIsNone(self.tools.choice_refusal({**ask, **right}))
                 self.assertEqual(self.tools.preview_choice_save({**ask, **right})[2]["after"],
                                  "บริษัท สะอาดดี คลีนนิ่ง เซอร์วิส จำกัด → 53-05-28-00")
@@ -2474,6 +2503,13 @@ class CompanyRuleToolTests(unittest.TestCase):
             self.assertEqual(json.loads(self.tools.choice_save(other))["rule"]["subject_tax_id"], quick)
             self.assertEqual({row["subject"]: row["value"] for row in frappe.db.tables[RULE].values()}[f"purchase|{quick}"],
                              "53-05-28-00")
+        # 名称比对（第 7 轮审查）：单据带税号只认完整名称；没有税号才允许包含，且短的至少占长的 60%
+        same = self.tools._same_party
+        self.assertFalse(same("สยาม", "บริษัท สยามแม็คโคร จำกัด", OTHER_TAX))
+        self.assertTrue(same("สยามแม็คโคร", "บริษัท สยามแม็คโคร จำกัด", OTHER_TAX))
+        self.assertTrue(same(OTHER_TAX, "ชื่ออะไรก็ได้", OTHER_TAX))
+        self.assertFalse(same("สยาม", "สยามแม็คโคร", ""))
+        self.assertTrue(same("สยามแม็คโคร", "สยามแม็คโคร ค้าส่ง", ""))
         # 提升（key）与部门不按单据，不核对象
         self.assertIsNone(self.tools.mismatch({"key": "anything"}))
         self.assertIsNone(self.tools.mismatch({"kind": "department", "value": "D1"}))
