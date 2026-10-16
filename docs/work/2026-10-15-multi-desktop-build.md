@@ -768,3 +768,24 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 
 没做 / 没验：真实 Site 迁移（`Cowork Company Choice` 新表 + 本分支补丁同批跑）、测试机与真 Express；外壳分支前端在多电脑场景下的点验
 （读者选择、电脑名显示）留给测试机一轮。
+
+### 合并审查三条的处理（2026-10-16，本地提交，未推送）
+
+1. **冻结目标只有字符串断言守着（low，成立）**：`tests/test_cowork_push_direction.py` 加 `FrozenTarget` 两项行为测试，用推送服务真实
+   导入加替身跑整条 `prepare`，截获 `ledger.reserve` 收到的冻结目标：`decided_by`、准备证据 v2 的 `basis_hash`、`lock_scheme` / `company_key`
+   同时在；「仍然推送」的 `duplicate_confirmed` 在算 `basis_hash` 之前写进载荷；`decided_by` 不进载荷；没有 `decided_by` 时冻结目标不多这一项。
+   试过在 `reserve` 前再建一次 `frozen = asdict(target)`，两项都失败。原来的源码字符串断言保留。
+2. **T1 跟到科目表没读过的新年度账套时公司规则照样套用（low，成立，按方案一改）**：`push/express/company_choices.py` 的 `overlay`
+   对费用科目、收款科目（`WAIT_KINDS`，与推送准备的 `CHART_KINDS` 同一组，要选时会等电脑读科目表）在这份账套科目表没报上来时先不用
+   公司规则；新增 `held_back` 列出这些先没用的项，`push/application/service.py` `_decisions` 据此不让 Express 历史已定顶替（公司规则比历史
+   具体），这一项照常列为要选，`masters_wait` 请电脑读科目表、读到后再按规则推，与 `follow.fixed_in`「没读到也先不用」一致。账套自己记过的
+   照用；对方档、存货、部门、付款、抵进项照旧放行（对方档要选时不会等读主档，改了反而变成没得选的人工项；部门不再问）。规则存时的校验不变。
+   测试：`OverlayTests` 原「科目表没报上来照样套用」那条按新口径改写（科目、收款科目先不用，对方档仍放行，账套记忆照用，`config` 为 None
+   不核）；`CompanyRuleDecisions` 加一项（科目表空 + 公司规则 → 要选、不问历史；读到后按规则；只有别家供应商的规则时本张照旧按历史已定）。
+   没在 `test_cowork_folder_follow_year` 补：那里推送服务是替身，决策链在 `test_cowork_account_suggest` 里用真的 `_decisions` 测。
+3. **月结台账漏掉 T1 跟随任务（medium，成立）**：`companies/ledger.py` `_tasks` 加 `_follows`：任务记着这家公司（`company`），且它的连接上
+   有这家覆盖这个月的账套（按任务记的 `company_branch` 用 `identity.for_branch` 筛）也算，`month()` 传 `row.name`；任务文件计数随之带上。
+   顺带按建议：`service._rule_company` 先认任务记着的公司（主档还在、连接本人能用），`task_overview` / `company_of_rules` 不再因旧年度
+   账套从目录消失而落到「其他」；`service.tasks_of` 加 `company`，主档页也列这类任务。测试：`MonthLedgerTests` 加一项（任务存 68 年度键，
+   2026-09 照样计数、`month_files` 收到它；分店不符、没记公司、别家的不算；2025-09 按存下的键照旧）；`TaskOverviewTests` 加一项
+   （归属、提醒点开、主档已删回落、收件人用不了连接、主档页清单）。

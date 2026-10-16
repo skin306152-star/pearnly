@@ -664,7 +664,7 @@ class CompanyRuleDecisions(unittest.TestCase):
     SETTLED = {"code": "5320-01", "docs": 9, "last": "2026-10-02"}
 
     def decide(self, rules=None, remembered=None, broken=False, fields=None, branch="00000", since=None,
-               chosen_at=None):
+               chosen_at=None, chart=BLANK):
         from test_cowork_push_fixed import _service, BOOK
 
         service, frappe_module, _calls = _service()
@@ -693,11 +693,25 @@ class CompanyRuleDecisions(unittest.TestCase):
         service.choice_store = types.SimpleNamespace(remembered=lambda *a: {k: dict(v) for k, v in (remembered or {}).items()},
                                                      record=lambda *a: True, chosen_at=lambda *a: chosen_at)
         return service._decisions("C1", BOOK, {}, dict(fields or self.FIELDS), "purchase", "service",
-                                  {"reported_accounts": BLANK}, {"mappings": {}}, None,
+                                  {"reported_accounts": chart}, {"mappings": {}}, None,
                                   account_row=lambda: {"source_id": BOOK}, since=since)
 
-    def rule(self, kind, value, branch=""):
-        return {"kind": kind, "subject": self.SUBJECT, "value": value, "branch": branch}
+    def rule(self, kind, value, branch="", subject=None):
+        return {"kind": kind, "subject": subject or self.SUBJECT, "value": value, "branch": branch}
+
+    def test_a_rule_waits_for_a_chart_that_was_never_read_instead_of_the_history(self):
+        # 合并审查第 2 条：定时任务跟到新年度、这份账套的科目表还没读过（T1）。公司规则的费用科目先不用，也不拿 Express
+        # 历史顶替（公司规则比历史具体）；这一项照常要选，推送照现有规则请电脑读科目表、读到后再按规则推（同 fixed_in）
+        paid = {**self.FIELDS, "payment_status": "paid"}
+        decision = self.decide([self.rule("account", "5310-02")], fields=paid, chart=[])
+        self.assertEqual([item["kind"] for item in decision["needed"]], ["account"])
+        self.assertNotIn("account", decision["applied"])
+        self.assertEqual((self.asked, decision.get("history")), ([], None))
+        # 读到了：照规则定
+        self.assertEqual(self.decide([self.rule("account", "5310-02")], fields=paid)["applied"]["account"], "5310-02")
+        # 只有别家供应商的规则：这一张照旧可按历史已定
+        other = self.decide([self.rule("account", "5310-02", subject="purchase|0105559999996")], fields=paid, chart=[])
+        self.assertEqual((other["applied"]["account"], other["decided_by"]), ("5320-01", {"account": "express_history"}))
 
     def test_a_company_rule_is_used_before_the_history_and_says_so(self):
         decision = self.decide([self.rule("account", "5310-02"), self.rule("payment", "credit")])

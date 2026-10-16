@@ -454,8 +454,9 @@ def folders_view(company, period="") -> list:
     return out
 
 
-def tasks_of(sets) -> list | None:
-    """这家公司账套上的定时任务（有录入权限、连接能用的才列）；没有录入权限回 None。"""
+def tasks_of(sets, company="") -> list | None:
+    """这家公司账套上的定时任务（有录入权限、连接能用的才列），加上记着这家公司（T1 跟随当年账套，``company``）、存下的
+    账套已不在目录里的；没有录入权限回 None。"""
     if not scope.allowed("intake"):
         return None
     wanted = {(item["connection"], item["key"].casefold()) for item in sets}
@@ -464,13 +465,13 @@ def tasks_of(sets) -> list | None:
         return []
     rows = frappe.get_all(RULE, filters={"connection": ["in", usable]},
                           fields=["name", "title", "enabled", "connection", "reader", "reader_device", "account_set_key",
-                                  "account_label", "root_id", "folder"],
+                                  "account_label", "root_id", "folder", "company"],
                           order_by="creation asc", ignore_permissions=True, limit_page_length=0)
     states = _cache().setdefault("agents", {})
     out = []
     for row in rows:
         key = normalize_express_account_key(row.account_set_key) or str(row.account_set_key or "")
-        if (row.connection, key.casefold()) not in wanted:
+        if (row.connection, key.casefold()) not in wanted and not (company and row.get("company") == company):
             continue
         reader = folder_readers.ref(row)
         if reader not in states:
@@ -517,7 +518,7 @@ def detail(company, period=None) -> dict:
         "folders": folders_view(row.name, period),
         "notes": notes.listing(row.name),
         "choices": choices.listing(row, sets) if scope.allowed("intake") else None,
-        "tasks": tasks_of(sets),
+        "tasks": tasks_of(sets, row.name),
         "drafts": drafts_of(row),
     }
     # 库里的时间是站点时区的裸时间：给页面前换成带时区的 UTC（页面按这台设备的时区显示，不自己猜时区）
@@ -613,13 +614,26 @@ def attribution() -> tuple[dict, dict]:
 # ---------------- 定时任务按公司（侧栏「定时任务 N」、总览分组、提醒点开去哪家） ----------------
 
 
-def _rule_company(rule, by_set) -> str:
+def _names() -> set:
+    """全部主档编号（同一请求里只查一次）。"""
+    cache = _cache()
+    if "names" not in cache:
+        cache["names"] = set(frappe.get_all(COMPANY, pluck="name", limit_page_length=0))
+    return cache["names"]
+
+
+def _rule_company(rule, by_set, usable) -> str:
+    """任务归哪家：记着公司（T1 跟随当年账套）、主档还在、连接本人能用 → 就是它（存下的旧年度账套从目录里消失也不落到
+    「其他」，同月结台账 `ledger._follows`）；否则按存下的账套现算（`attribution`）。"""
+    company = str(rule.get("company") or "")
+    if company and rule.get("connection") in usable and company in _names():
+        return company
     key = normalize_express_account_key(rule.get("account_set_key")) or str(rule.get("account_set_key") or "")
     return by_set.get((rule.get("connection"), key.casefold())) or ""
 
 
 def task_overview() -> dict:
-    """定时任务归哪家公司（任务表不加字段，按账套现算，同 `attribution`）：
+    """定时任务归哪家公司（记着公司的按它，其余按账套现算，同 `attribution`；`_rule_company`）：
     ``{"companies": {主档: {"count", "alert"}}, "tasks": {任务: 主档}, "titles": {主档: 名称}}``。归不上的任务不在
     ``tasks`` 里（页面放「其他」）。任务表一次查询（本人能用的连接上的）；``alert`` = 有要人处理的票（停下待选 / 失败，
     `folder_intake.rules.results`，按文件行的戳缓存）或电脑报文件夹不在了。没有录入权限回空。"""
@@ -632,13 +646,13 @@ def task_overview() -> dict:
     if not usable:
         return empty
     rows = frappe.get_all(RULE, filters={"connection": ["in", usable]},
-                          fields=["name", "enabled", "connection", "reader", "reader_device", "account_set_key"],
+                          fields=["name", "enabled", "connection", "reader", "reader_device", "account_set_key", "company"],
                           order_by="creation asc", ignore_permissions=True, limit_page_length=0)
     by_set, _by_tax = attribution()
     states = _cache().setdefault("agents", {})
-    companies, tasks = {}, {}
+    companies, tasks, reachable = {}, {}, set(usable)
     for row in rows:
-        company = _rule_company(row, by_set)
+        company = _rule_company(row, by_set, reachable)
         if not company:
             continue
         tasks[row.name] = company
@@ -668,11 +682,13 @@ def company_of_rules(owner, rule_names) -> str:
     if not owner or not names:
         return ""
     try:
-        rows = frappe.get_all(RULE, filters={"name": ["in", names]}, fields=["name", "connection", "account_set_key"],
+        rows = frappe.get_all(RULE, filters={"name": ["in", names]},
+                              fields=["name", "connection", "account_set_key", "company"],
                               ignore_permissions=True, limit_page_length=0)
         with pending._as(owner):
             by_set, _by_tax = attribution()
-            found = {_rule_company(row, by_set) for row in rows}
+            usable = {row["name"] for row in usable_connections()}
+            found = {_rule_company(row, by_set, usable) for row in rows}
     except Exception:
         frappe.log_error(title="Cowork rules company failed")
         return ""

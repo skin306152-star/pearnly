@@ -303,14 +303,16 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     （`_borrow_receipts`）。``since``：这张票传上来的时间，给费用科目分清来源（`_account_from`）。
 
     公司规则（第 2 期）：账套记忆之下垫一层这家公司的规则（``account_row`` 是目录里这份账套那一行，按它认公司与分店，
-    `push.express.company_choices.overlay`），再往下才是 Express 历史已定；取不到规则（钩子出错）这一张不用历史已定。
+    `push.express.company_choices.overlay`），再往下才是 Express 历史已定；取不到规则（钩子出错）这一张不用历史已定；
+    公司规则因这份账套科目表没读到先没用的那一项也不用历史已定（等电脑读到科目表再按规则定）。
     结果带 ``decided_by`` ``{kind: source}``（准备推送时冻结进目标，CC 据此说清按什么定的）。"""
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
     company, rules_read = _company_rules(connection, account_set, account_row)
-    remembered, sources = company_choices.overlay(choice_store.remembered(connection, account_set),
-                                                  (company or {}).get("rules") or (), (company or {}).get("branch") or "",
-                                                  config)
+    rules, branch = (company or {}).get("rules") or (), (company or {}).get("branch") or ""
+    remembered, sources = company_choices.overlay(choice_store.remembered(connection, account_set), rules, branch, config)
+    # 科目表没读到而先没用的公司规则：这一项不拿 Express 历史顶替，照常要选、等电脑读科目表（`company_choices.held_back`）
+    held = company_choices.held_back(remembered, rules, branch, config)
     kind = resolve_posting_kind(posting_kind, flat)
     receipts = _pos_receipts(flat)
     _borrow_receipts(remembered, connection, siblings, receipts, config)
@@ -318,8 +320,10 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=kind, config=config,
                                     remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
                                     receipts=receipts, trace=trace)
+    waiting = any(item.get("kind") == "account" and item.get("subject") in held.get("account", ())
+                  for item in decision["needed"])
     settled = _settled_account(decision["needed"], connection, account_set, fields, config, fixed) \
-        if rules_read else None
+        if rules_read and not waiting else None
     if settled:
         # 历史很一致：当作这家已记住的科目用（只这一次判断，不写进账套记忆；主档页可见可删）
         subject = next(item["subject"] for item in decision["needed"] if item.get("kind") == "account")

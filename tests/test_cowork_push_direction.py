@@ -244,5 +244,45 @@ class BranchRouting(unittest.TestCase):
                          {"00000", "00001"})
 
 
+class FrozenTarget(unittest.TestCase):
+    """冻结目标只建一次（并入 CC 外壳分支时冲突第 2 处，合并审查第 1 条）：``decided_by``（F19 的 written 读它）与准备证据
+    v2 的 ``basis_hash``、写者锁 v2 并存；「仍然推送」写进载荷在算 ``basis_hash`` 之前；``decided_by`` 不进载荷。"""
+
+    def prepare(self, decided_by=None, confirm_duplicate=False):
+        service, _seen, _ = wired(courier(buyer_name="ซินเซียร์ไอซ์", buyer_tax=BOOK_TAX))
+        reserved, hashed = [], []
+        decision = {"needed": [], "applied": {}, **({"decided_by": decided_by} if decided_by else {})}
+        service._decisions = lambda *a, **k: copy.deepcopy(decision)
+        service.preparation_sources.collect = lambda *a, **k: (
+            {"reported_config": {}, "mappings": {}, "supplier_profiles": {}, "bank_index": ()}, {"version": 2})
+        service.prepare_express = lambda endpoint, value, *, posting_kind, context: types.SimpleNamespace(
+            payload={"doctype": "RR"}, disposition="ready", reason=None,
+            preflight=types.SimpleNamespace(checks_json=lambda: []))
+        service.ledger.basis_hash = lambda facts, payload: hashed.append(copy.deepcopy(payload)) or "H-1"
+        service.ledger.writer_scope = lambda connection, key: {"lock_scheme": "v2", "company_key": f"tax:{BOOK_TAX}"}
+        service.ledger.reserve = lambda **kwargs: reserved.append(kwargs) or {"name": "R1", "status": "prepared"}
+        service.prepare("CWH-9151", "C1", "req-1", 3, 7, BOOK, confirm_duplicate=confirm_duplicate)
+        self.assertEqual(len(reserved), 1)
+        return reserved[0], hashed
+
+    def test_decided_by_sits_beside_the_v2_evidence_and_the_writer_lock(self):
+        reserved, hashed = self.prepare({"account": "company_rule", "payment": "remembered"}, confirm_duplicate=True)
+        frozen = reserved["frozen_target"]
+        self.assertEqual(frozen["decided_by"], {"account": "company_rule", "payment": "remembered"})
+        self.assertEqual(frozen["preparation_evidence"], {"version": 2, "basis_hash": "H-1"})
+        self.assertEqual((frozen["lock_scheme"], frozen["company_key"]), ("v2", f"tax:{BOOK_TAX}"))
+        self.assertEqual((frozen["account_set"], frozen["request_intent"]["confirm_duplicate"]), (BOOK, True))
+        self.assertEqual(hashed, [{"doctype": "RR", "duplicate_confirmed": True}])  # 先写「仍然推送」再算
+        self.assertEqual(reserved["frozen_payload"], {"doctype": "RR", "duplicate_confirmed": True})
+        self.assertEqual(reserved["disposition"], "prepared")
+
+    def test_without_decided_by_the_frozen_target_is_unchanged(self):
+        reserved, hashed = self.prepare()
+        frozen = reserved["frozen_target"]
+        self.assertNotIn("decided_by", frozen)
+        self.assertEqual((frozen["preparation_evidence"]["basis_hash"], frozen["lock_scheme"]), ("H-1", "v2"))
+        self.assertEqual(hashed, [{"doctype": "RR"}])
+
+
 if __name__ == "__main__":
     unittest.main()

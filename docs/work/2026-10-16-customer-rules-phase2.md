@@ -41,6 +41,8 @@
    从历史提升 = 存规则 + 经钩子 `cowork_company_history_forget` 把这家供应商的历史记成忘掉；删规则后回到问人（V9 不变）。
 3. 纯函数 `push/express/company_choices.py`：`overlay`（账套记忆值还能用就说了算，记的值已不在主档里时落到规则）、`valid`
    （按这份账套主档核，主档没报上来放行）、`pick`（分店的比全公司的具体，别的分店不用）、`decided_by` / `finish`。
+   并入多电脑分支后改（合并审查第 2 条）：费用科目、收款科目这两类科目表没报上来时 `overlay` 先不用公司规则、也不拿 Express 历史顶替
+   （`held_back`），这一项照常要选，推送请电脑读科目表、读到后再按规则推，同 T1 任务默认 `follow.fixed_in`；其余各类照旧放行。
    `choices.resolve` 加了可选的 `trace`，不给时结果不变。
 4. 推送接入：单独一个提交「feat: push reads company choices…」，放在最后，便于多电脑 T5 第 1–3 批合入后变基。
    - 新钩子 `cowork_push_company_choices`（`companies.rules.for_push`）：按目录这一行的身份直接查公司，不缓存。

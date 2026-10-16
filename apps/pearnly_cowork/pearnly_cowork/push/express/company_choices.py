@@ -5,9 +5,11 @@
 优先级（最具体的说了算）：本票人工裁决 / 票面写明 > 账套记忆（人定，某份账套）> 公司规则（分店的 > 全公司的）
 > Express 历史已定 > 名称匹配。前两档与历史、名称匹配由 `choices.resolve` 与推送准备照旧判，这里只做「公司规则垫在账套记忆之下」：
 
-- `overlay`：账套记过的（值还在这份账套主档里）说了算；没记过、或记的值已不在主档里的，用公司规则补上（值须在这份账套主档里，
-  主档没报上来时放行，到小助手写入时再判）。
-- `valid`：一个值能不能用在这份账套（`config` 是推送准备的账套配置，带小助手上报的 `reported_*` 主档）。
+- `overlay`：账套记过的（值还在这份账套主档里）说了算；没记过、或记的值已不在主档里的，用公司规则补上（值须在这份账套主档里）。
+  主档没报上来时：费用科目、收款科目（`WAIT_KINDS`，靠科目表）先不用公司规则，这一项照常列为要选，推送按现有规则请电脑读科目表、
+  读到后再推（同定时任务跟到别的年度账套时的任务默认 `folder_intake.follow.fixed_in`：公司规则覆盖全公司各年度，新年度科目表
+  可能改过号）；其余各类放行，到 CC 桌面版写入时再判。
+- `valid`：一个值能不能用在这份账套（`config` 是推送准备的账套配置，带 CC 桌面版上报的 `reported_*` 主档）。
 - `decided_by` / `finish`：这张单每一类「按什么定的」（`task_default` 任务默认、`remembered` 账套记忆、`company_rule` 公司规则、
   `express_history` Express 历史；同一类几项来源不同记 `mixed`），付款方式由公司规则定时载荷的 `doctype_src` 记成 `company_rule`。
 """
@@ -23,6 +25,8 @@ SOURCES = ("task_default", "remembered", "company_rule", "express_history")  # �
 MASTERS = {"item": "reported_products", "account": "reported_accounts", "receipt": "reported_accounts",
            "department": "reported_departments"}
 VALUE_MAX = 60
+# 靠科目表的几类（同推送准备的 `CHART_KINDS`，要选时会等电脑读科目表）：主档没报上来时不套用公司规则
+WAIT_KINDS = ("account", "receipt")
 
 
 def branch_of(value: Any) -> str:
@@ -90,8 +94,8 @@ def overlay(remembered: Mapping[str, Mapping[str, str]], rules: Iterable[Mapping
             config: Optional[Mapping[str, Any]] = None) -> Tuple[Dict[str, Dict[str, str]], Dict[str, Dict[str, str]]]:
     """账套记忆之下垫一层公司规则 → `(合并后的 {kind: {subject: value}}, 来源 {kind: {subject: source}})`。
 
-    账套里记过、值还能用的照用（`remembered`）；没记过或记的值已不在这份账套主档里的，用适用的公司规则（`pick`，值须 `valid`）。
-    `config` 为 None 时不按主档核（只按形状）。不改入参。"""
+    账套里记过、值还能用的照用（`remembered`）；没记过或记的值已不在这份账套主档里的，用适用的公司规则（`pick`，值须 `valid`；
+    `WAIT_KINDS` 这份账套的科目表还没报上来时先不用，见文件头）。`config` 为 None 时不按主档核（只按形状）。不改入参。"""
     merged = {kind: dict(values or {}) for kind, values in (remembered or {}).items()}
     sources = {kind: {subject: "remembered" for subject in values} for kind, values in merged.items()}
     for kind, subjects in pick(rules, branch).items():
@@ -102,9 +106,29 @@ def overlay(remembered: Mapping[str, Mapping[str, str]], rules: Iterable[Mapping
             value = str(rule.get("value") or "").strip()
             if not valid(kind, value, config, subject):
                 continue
+            if config is not None and kind in WAIT_KINDS and _masters(kind, subject, config) is None:
+                continue  # 科目表没读到：先不用，要选时推送请电脑读、读到后再推
             merged.setdefault(kind, {})[subject] = value
             sources.setdefault(kind, {})[subject] = "company_rule"
     return merged, sources
+
+
+def held_back(merged: Mapping[str, Mapping[str, str]], rules: Iterable[Mapping[str, Any]], branch: str = "",
+              config: Optional[Mapping[str, Any]] = None) -> Dict[str, set]:
+    """`overlay` 因这份账套科目表没读到而先没用的公司规则：`{kind: {subject}}`（`merged` 是 `overlay` 合并后的结果）。
+    推送准备据此不拿 Express 历史顶替（公司规则比历史具体），这一项照常要选、等电脑读科目表。`config` 为 None 回空。"""
+    if config is None:
+        return {}
+    found: Dict[str, set] = {}
+    for kind, subjects in pick(rules, branch).items():
+        if kind not in WAIT_KINDS or _masters(kind, "", config) is not None:
+            continue
+        for subject, rule in subjects.items():
+            if str((merged.get(kind) or {}).get(subject) or "").strip():
+                continue
+            if valid(kind, str(rule.get("value") or "").strip(), config, subject):
+                found.setdefault(kind, set()).add(subject)
+    return found
 
 
 def decided_by(trace: Mapping[str, List[Optional[str]]], sources: Mapping[str, Mapping[str, str]]) -> Dict[str, str]:
@@ -131,4 +155,4 @@ def finish(decision: Dict[str, Any], trace: Mapping[str, List[Optional[str]]],
     return decision
 
 
-__all__ = ["MASTERS", "SOURCES", "branch_of", "decided_by", "finish", "overlay", "pick", "valid"]
+__all__ = ["MASTERS", "SOURCES", "WAIT_KINDS", "branch_of", "decided_by", "finish", "held_back", "overlay", "pick", "valid"]

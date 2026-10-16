@@ -1,6 +1,6 @@
 """月结台账（数字会计员第 1 期）：一家公司一个月走到哪一步、哪里要人处理。每次请求现算，不存。
 
-- 四段：收单 intake（单据日期在本月、归这家的识别记录，定时任务与它们这个月登记的文件）、录账 entry（推送结果）、
+- 四段：收单 intake（单据日期在本月、归这家的识别记录，定时任务（含跟着这家公司走当年账套的，T1）与它们这个月登记的文件）、录账 entry（推送结果）、
   核对 verify（Express 回读，只有 Express 公司有）、报税 tax（申报草稿）。每段给计数与状态（`exceptions.stage_state`）。
 - 统一异常清单：码见 `exceptions.CODES`，与「待处理」同一套；只给码与数据，文案在页面。``items`` 最多 ``limit`` 条，
   ``total`` / ``counts``（按码，汇总的按件数）/ ``severities``（按严重度的条数）都按全部算，页面卡头与组标题用它们。
@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.companies import exceptions, pending, service
+from pearnly_cowork.companies import exceptions, identity, pending, service
 from pearnly_cowork.folder_intake import agent
 from pearnly_cowork.folder_intake import readers as folder_readers
 from pearnly_cowork.folder_intake.access import RULE
@@ -93,9 +93,18 @@ def _documents(company, sets, first, after):
     return mine(dated), mine(undated), truncated
 
 
-def _tasks(covering) -> dict | None:
-    """覆盖这个月的账套上的定时任务（同 `service.tasks_of` 的判据）：``{任务: {title, enabled, missing}}``；
-    ``missing``：启用着、电脑报文件夹不在了。没有录入权限回 None。"""
+def _follows(row, company, covering) -> bool:
+    """这条任务跟着这家公司走（T1，`folder_intake.follow`）、这个月在它的连接上有这家覆盖这个月的账套（任务记了分店按分店筛，
+    同 `identity.for_branch`）：跟随的任务存下的是建任务那年的账套，到点按单据日期推往当年那份，新年度的月份里照样算这家的。"""
+    if not company or str(row.get("company") or "") != company:
+        return False
+    books = [item for item in covering if item["connection"] == row.connection]
+    return bool(identity.for_branch(books, row.get("company_branch") or ""))
+
+
+def _tasks(covering, company="") -> dict | None:
+    """覆盖这个月的账套上的定时任务（同 `service.tasks_of` 的判据），加上跟着这家公司走、这个月有账套可推的（`_follows`）：
+    ``{任务: {title, enabled, missing}}``；``missing``：启用着、电脑报文件夹不在了。没有录入权限回 None。"""
     if not scope.allowed("intake"):
         return None
     wanted = {(item["connection"], item["key"].casefold()) for item in covering}
@@ -103,13 +112,14 @@ def _tasks(covering) -> dict | None:
     if not usable:
         return {}
     rows = frappe.get_all(RULE, filters={"connection": ["in", usable]},
-                          fields=["name", "title", "enabled", "connection", "reader", "reader_device", "account_set_key"],
+                          fields=["name", "title", "enabled", "connection", "reader", "reader_device", "account_set_key",
+                                  "company", "company_branch"],
                           order_by="creation asc", ignore_permissions=True, limit_page_length=0)
     states = service._cache().setdefault("agents", {})
     out = {}
     for row in rows:
         key = normalize_express_account_key(row.account_set_key) or str(row.account_set_key or "")
-        if (row.connection, key.casefold()) not in wanted:
+        if (row.connection, key.casefold()) not in wanted and not _follows(row, company, covering):
             continue
         # 读者 =（电脑，成员连接）（ADR-021 第 4 批）：按任务那台电脑报的本机情况看文件夹在不在，同 `service.tasks_of`
         reader = folder_readers.ref(row)
@@ -279,7 +289,7 @@ def month(company, period, limit=None) -> dict:
     dated, undated, truncated = _documents(row, sets, first, after)
     documents = dated + undated
     counted, entry_items = _entry(documents, tax_id)
-    tasks = _tasks(covering)
+    tasks = _tasks(covering, row.name)
     files = _files(tasks, first, after) if tasks else {}
     intake_items = _duplicates(documents, tax_id) + exceptions.file_items(files, tasks or {})
 

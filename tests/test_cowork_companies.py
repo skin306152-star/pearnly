@@ -1435,6 +1435,27 @@ class TaskOverviewTests(unittest.TestCase):
         connections.users["C1"] = {"a@example.com"}
         self.assertEqual(service.company_of_rules("b@example.com", ["R1"]), "")  # 收件人用不了这条连接
 
+    def test_a_task_following_the_company_stays_with_it_after_its_old_account_set_is_gone(self):
+        # 合并审查第 3 条顺带：任务记着公司（T1）时就按它归，存下的旧年度账套从目录里消失也不落到「其他」；
+        # 主档已删、收件人用不了这条连接时照旧按账套现算
+        rules = frappe.db.tables[self.RULE]
+        rules["R4"].update(company=self.abc, company_branch="00000")
+        rules["R5"] = Row(name="R5", enabled=1, connection="C1", reader="C1", account_set_key="S:\\69EXP\\GONE",
+                          company="deleted-company", creation="2026-10-05")
+        self.results["R5"] = {"attention": 0}
+        found = service.task_overview()
+        self.assertEqual((found["tasks"]["R4"], found["companies"][self.abc]["count"]), (self.abc, 3))
+        self.assertNotIn("R5", found["tasks"])
+        self.assertEqual(service.company_of_rules("a@example.com", ["R1", "R4"]), self.abc)
+        self.assertEqual(service.company_of_rules("a@example.com", ["R5"]), "")
+        connections.users["C1"] = {"a@example.com"}
+        self.assertEqual(service.company_of_rules("b@example.com", ["R4"]), "")
+        # 主档页的任务清单也列它
+        fresh_request()
+        connections.users.pop("C1")
+        detail = service.detail(self.abc)
+        self.assertEqual([task["name"] for task in detail["tasks"]], ["R1", "R2", "R4"])
+
     def test_the_hooks_are_declared(self):
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
         for name, path in (("cowork_company_history_choices", "pearnly_cowork.readback.history.company_choices"),
@@ -1992,6 +2013,27 @@ class MonthLedgerTests(unittest.TestCase):
         self.assertIn(("D2", "C1"), asked)
         self.assertEqual(found["stages"]["intake"]["tasks"], {"count": 1, "enabled": 1, "attention": 1})
 
+    def test_a_task_following_the_company_counts_in_the_new_years_months(self):
+        # 合并审查第 3 条（T1）：任务记了公司，存下的是建任务那年（68）的账套，到点按单据日期推往当年那份；69 年度的月份里
+        # 这条任务照样在收单一段、它登记的文件照样计数。分店对不上的、没记公司的旧任务仍按存下的账套算
+        connections.catalogs["C1"].append(express_row("S:\\68EXP\\ABC", "ABC 68", year="68EXP",
+                                                      start="2025-01-01", end="2025-12-31"))
+        rules = frappe.db.tables["Cowork Folder Intake Rule"]
+        rules["R1"].update(account_set_key="S:\\68EXP\\ABC", company=self.company, company_branch="00000")
+        rules["R3"] = Row(name="R3", title="Other branch", enabled=1, connection="C1", reader="C1",
+                          account_set_key="S:\\68EXP\\ABC", company=self.company, company_branch="00012", creation="3")
+        rules["R4"] = Row(name="R4", title="Fixed", enabled=1, connection="C1", reader="C1",
+                          account_set_key="S:\\68EXP\\ABC", creation="4")
+        rules["R5"] = Row(name="R5", title="Other company", enabled=1, connection="C1", reader="C1",
+                          account_set_key="S:\\69EXP\\XYZ", company="someone-else", creation="5")
+        found = self.month()
+        self.assertEqual(found["stages"]["intake"]["tasks"], {"count": 1, "enabled": 1, "attention": 1})
+        self.assertEqual(self.files, [(["R1"], datetime(2026, 9, 1), datetime(2026, 10, 1))])
+        self.files[:] = []
+        old = self.month("2025-09")["stages"]["intake"]["tasks"]  # 68 年度的月份：存下的账套本就覆盖，R4 也在
+        self.assertEqual(old["count"], 3)
+        self.assertEqual(sorted(self.files[0][0]), ["R1", "R3", "R4"])
+
     def test_sections_follow_permissions(self):
         with mock.patch.object(tax_access, "allowed", lambda user=None: False):
             self.assertIsNone(self.month()["stages"]["tax"])
@@ -2101,8 +2143,26 @@ class OverlayTests(unittest.TestCase):
         self.assertIn("account", [item["kind"] for item in stale["needed"]])
         fallback = self.decide({"account": {SUPPLIER: "9999"}}, [self.rule("account", "5300")])
         self.assertEqual((fallback["applied"]["account"], fallback["decided_by"]["account"]), ("5300", "company_rule"))
-        unreported = self.decide({}, [self.rule("account", "1234")], config={})
-        self.assertEqual(unreported["applied"]["account"], "1234")  # 主档没报上来：放行，小助手写入时再判
+        # 科目表没报上来（如定时任务跟到新年度、还没读过的账套）：费用科目 / 收款科目的公司规则先不用，这一项照常要选，
+        # 推送请电脑读科目表、读到后再推（同 `follow.fixed_in`，合并审查第 2 条）；其余各类照旧放行，CC 桌面版写入时再判
+        rules = [self.rule("account", "1234"), self.rule("party", "S009", subject=f"{SUPPLIER}|00000|makro"),
+                 self.rule("receipt", "1120", subject="pos|transfer")]
+        unreported = self.decide({}, rules, config={})
+        self.assertNotIn("account", unreported["applied"])
+        self.assertIn("account", [item["kind"] for item in unreported["needed"]])
+        self.assertEqual(unreported["applied"]["party"], "S009")
+        merged, _sources = company_choices.overlay({}, rules, "", {})
+        self.assertEqual(company_choices.held_back(merged, rules, "", {}),
+                         {"account": {SUPPLIER}, "receipt": {"pos|transfer"}})
+        # 账套自己记过的照用，不算先没用的；不按主档核（config None）时照旧套用
+        remembered = {"account": {SUPPLIER: "7777"}}
+        merged, _sources = company_choices.overlay(remembered, rules, "", {})
+        self.assertEqual((merged["account"][SUPPLIER], company_choices.held_back(merged, rules, "", {}).get("account")),
+                         ("7777", None))
+        merged, _sources = company_choices.overlay({}, rules, "", None)
+        self.assertEqual((merged["account"][SUPPLIER], company_choices.held_back(merged, rules, "", None)), ("1234", {}))
+        # 科目表读到了：照常按主档核
+        self.assertEqual(company_choices.held_back({}, rules, "", self.CONFIG), {})
 
     def test_valid_and_the_shape_of_rules(self):
         self.assertTrue(company_choices.valid("payment", "cash", None))
