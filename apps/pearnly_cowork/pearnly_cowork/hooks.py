@@ -602,6 +602,8 @@ cowork_push_company_choices = ["pearnly_cowork.companies.rules.for_push"]
 # 账套（T1 同一判据，自动推前的核对用）。push 域不导入 companies；取不到按 L0、按「选不出」。
 cowork_push_company_tier = ["pearnly_cowork.companies.automation.tier_for_push"]
 cowork_push_day_books = ["pearnly_cowork.companies.automation.day_books"]
+# 账套记忆定的科目要最近连续 3 张有证据的同科目：凭记忆推出去的单在合格回读里覆盖、没被改才算（审查处理 10-16）。
+cowork_push_readback_marks = ["pearnly_cowork.companies.automation.readback_marks"]
 # 自动推的单写入核不上：这家立刻降到 L0（第 8 条，推送回执调用）。
 cowork_push_verify_mismatch = ["pearnly_cowork.companies.automation.on_mismatch"]
 # 回读处理完按这期统计升降档位（第 8 条，`readback.service._process` 结束时）；统计用的回读变化由 readback 提供（第 7 条）。

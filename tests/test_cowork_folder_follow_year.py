@@ -226,6 +226,24 @@ class PureRuleTests(unittest.TestCase):
         self.assertEqual(keys(identity.for_day([old, twin], "2026-03-01")), ["a", "c"])  # 两份同期：调用方停下
         self.assertEqual(identity.for_day([old], "2027-01-01"), [])                     # 晚于次年段
         self.assertEqual(identity.for_day([self.book("a", "2025-01-01", "2025-12-31")], "2026-03-01"), [])  # 没报次年段
+        # 新账套已建、但期间没报上来（ISPRD 读不到）：核不了「还没建」，停下（审查处理 10-16）
+        self.assertEqual(identity.for_day([old, self.book("b", "", "")], "2026-03-01"), [])
+
+    def test_a_month_in_the_next_year_period_is_covered_by_the_old_book(self):
+        """月结台账、主档页、档位统计按月取账套（`identity.covering`）同一规则：某个分店没有本年覆盖这个月的账套时，用这个
+        分店次年段含这个月的旧账套（审查处理 10-16：原先只认本年，次年那几个月归不到账套，档位统计、回读核对都漏掉）。"""
+        old = dict(self.book("a", "2025-01-01", "2025-12-31"), next_end="2026-12-31")
+        new = dict(self.book("b", "2026-01-01", "2026-12-31"), next_end="2027-12-31")
+        b12 = dict(self.book("c", "2026-01-01", "2026-12-31", "00012"), next_end="2027-12-31")
+        keys = lambda found: [item["key"] for item in found]  # noqa: E731
+        self.assertEqual(keys(identity.covering([old], "2026-02")), ["a"])
+        self.assertEqual(keys(identity.covering([old, new], "2026-02")), ["b"])
+        self.assertEqual(keys(identity.covering([old, b12], "2026-02")), ["a", "c"])   # 按分店各取各的
+        self.assertEqual(keys(identity.covering([old], "2025-12")), ["a"])
+        self.assertEqual(identity.covering([old], "2027-01"), [])
+        self.assertEqual(identity.covering([old, self.book("b", "", "")], "2026-02"), [])
+        self.assertEqual(identity.covering([old], "2026-13"), [])
+        self.assertEqual(identity.covering([old], ""), [])
 
     def test_books_without_a_period_never_cover_a_day(self):
         self.assertEqual(identity.for_day([self.book("a", "", "")], "2025-01-01"), [])

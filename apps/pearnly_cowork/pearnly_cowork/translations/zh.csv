@@ -703,6 +703,7 @@ Excel/CSV exported from online banking or the electronic PDF is most accurate,�
 Excess tax brought forward,上期结转的多缴税额
 Expected VAT,应为税额
 Expense (goods from now on),记费用（商品单据均记费用）
+Expense (this kind from now on),记费用（同类单据均记费用）
 Expense account,费用科目
 Expense account when no category matches,未匹配科目的费用
 Expense it,计费用
@@ -1592,6 +1593,7 @@ Statement review is not available for this task.,此任务没有逐行复核记�
 Status,状态
 Stock,库存
 Stock (goods from now on),走库存（商品单据均走库存）
+Stock (this kind from now on),走库存（同类单据均走库存）
 Stock Account Group per Account Set,各账套的存货科目组
 Stock changed; recount,库存已变动，需重新盘点
 Stock count,库存盘点
@@ -1602,6 +1604,7 @@ Stock count template,盘点表模板
 Stock count workbench,盘点工作台
 Stock item,存货
 Stock item not found in Express,Express 中无对应存货
+Stock or expense for this company's documents like this?,本公司这类单据走库存还是记费用？
 Stop and let me choose,暂停并手动选择
 Stop watching,取消关注
 Stored Page Previews,已存页面预览
@@ -2418,10 +2421,10 @@ cowork.nav.reconVat,销项税报告核查
 cowork.nav.work,任务管理
 cowork.policy.enter,录入（同类单据均录入）
 cowork.policy.invalid,此单据无需选择是否录入
-cowork.policy.service,记费用（商品单据均记费用）
+cowork.policy.service,记费用（同类单据均记费用）
 cowork.policy.skip,不录入（同类单据均不录入）
 cowork.policy.skipped,不录入
-cowork.policy.stock,走库存（商品单据均走库存）
+cowork.policy.stock,走库存（同类单据均走库存）
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.readback.account_missing,这条连接上没有这本账套。
@@ -3364,7 +3367,7 @@ intake.error.pos_facts_invalid,这张单据的 POS 日汇总数据已损坏，�
 intake.error.pos_payments_mismatch,各付款方式之和与当天合计不符，请重新导入 POS 导出
 intake.error.pos_receipt_account_missing,请为每种付款方式选择收款科目
 intake.error.posting_kind_needed,请为此发票选择服务或存货后重新提交
-intake.error.posting_needs_review,此单据为商品单据。本公司的商品单据走库存还是记费用？选择后，以后的商品单据将按此处理
+intake.error.posting_needs_review,本公司这类单据走库存还是记费用？
 intake.error.seller_buyer_same_tax,卖方和买方税号相同，请更正后重新提交
 intake.error.tax_id_invalid,税号无效，请更正后重新提交
 intake.mrerpDefault.ap_account,应付科目

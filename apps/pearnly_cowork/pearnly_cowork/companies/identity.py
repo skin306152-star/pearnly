@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date, timedelta
 from typing import Any, Iterable, Mapping
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
@@ -140,13 +141,28 @@ def newest_first(books: Iterable[Mapping[str, Any]]) -> list:
                   reverse=True)
 
 
+def _span(item: Mapping[str, Any]) -> tuple:
+    return item.get("period_start"), item.get("period_end"), item.get("next_end")
+
+
 def covering(books: Iterable[Mapping[str, Any]], period: str) -> list:
-    """覆盖这个月（`YYYY-MM`）的账套：会计期间起止都报了、且这个月落在里面。"""
-    if not period:
+    """覆盖这个月（`YYYY-MM`）的账套：会计期间起止都报了、且这个月落在本年期间里；某个分店没有本年覆盖这个月的账套时，
+    用这个分店次年段含这个月的旧账套（新年度账套还没建，与按日期选账套 :func:`for_day` 同一规则，审查处理 10-16：
+    月结台账、主档页、档位统计原先只认本年，次年那几个月归不到账套）。按原顺序回。"""
+    if not re.fullmatch(r"\d{4}-\d{2}", str(period or "")):
         return []
-    first, last = f"{period}-01", f"{period}-31"
-    return [item for item in books if item.get("period_start") and item.get("period_end")
-            and str(item["period_start"])[:10] <= last and str(item["period_end"])[:10] >= first]
+    books = list(books)
+    year, month = int(period[:4]), int(period[5:7])
+    if not 1 <= month <= 12:
+        return []
+    first = f"{period}-01"
+    last = f"{year + month // 12:04d}-{month % 12 + 1:02d}-01"
+    last = (date.fromisoformat(last) - timedelta(days=1)).isoformat()
+    chosen = []
+    for number in dict.fromkeys(item.get("branch") or "" for item in books):
+        group = [item for item in books if (item.get("branch") or "") == number]
+        chosen.extend(account_match.for_month(group, first, last, _span))
+    return [item for item in books if any(item is found for found in chosen)]
 
 
 def for_day(books: Iterable[Mapping[str, Any]], day: object) -> list:

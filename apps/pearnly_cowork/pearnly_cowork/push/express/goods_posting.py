@@ -9,7 +9,8 @@
 ``goods_posting|<公司身份>``）、同一种问法（复核页推送原因 `posting_needs_review` 旁两个按钮，CC 同一个工具）。
 
 - `blocked`：这张单推往这份账套时会不会因为「永续 / 混合库存、没声明」交人 —— 与 `mapper.build_express_payload` /
-  `sales_mapper.build_express_sales_payload` 的判据逐条一致（进项只看商品单：费用单不动库存，不受此闸约束）；
+  `sales_mapper.build_express_sales_payload` 的判据逐条一致（进项只看商品车道：费用单不动库存，不受此闸约束；车道用映射器
+  同一个 `field_rules.lane_verdict`，含这家选过的「小票 / 简易税票抵不抵进项」）；
 - `resolve`：这次实际用的入账类型与来源（``declared`` 本票 / 本批声明的、``company_choice`` 这家公司选过的、空 = 没有）；
 - `company_key`：账套目录一行 → 公司身份（同 `companies.identity.company_identity` 的 ``key``；push 域不导入 companies）。
 """
@@ -24,7 +25,7 @@ from pearnly_cowork.contracts.document_policy import GOODS_POSTING_VALUES
 from pearnly_cowork.contracts.push import item_posting_kinds, normalize_posting_kind
 from pearnly_cowork.push.express.account_rules import stock_lane_enabled
 from pearnly_cowork.push.express.choices import digits
-from pearnly_cowork.push.express.field_rules import item_verdict
+from pearnly_cowork.push.express.field_rules import lane_verdict
 from pearnly_cowork.push.express.posting_profile import ESCALATE_REASON_PREFIX, profile_from_config
 from pearnly_cowork.targets.identity import account_set_company
 
@@ -50,9 +51,10 @@ def company_key(connection: Any, row: Any) -> str:
 
 
 def blocked(fields: Mapping[str, Any], *, direction: str, config: Mapping[str, Any], posting_kind: Any,
-            today: dt.date) -> bool:
+            today: dt.date, vat_choice: Any = None) -> bool:
     """没声明入账类型的商品单推往永续 / 混合库存账套会交人（映射器同一判据）：本票 / 本批声明了、明细行逐行声明了、
-    画像不拦（非库存、指纹没报）、进项的费用单（不动库存）都不算。"""
+    画像不拦（非库存、指纹没报）、进项的费用单（不动库存）都不算。``vat_choice``：这家选过的小票 / 简易税票抵不抵进项
+    （`choices.resolve` 的 ``applied["vat"]``；选了抵进项的小票走商品车道，映射器同样会交人）。"""
     fields = fields if isinstance(fields, Mapping) else {}
     if normalize_posting_kind(posting_kind) or item_posting_kinds(fields.get("items")) is not None:
         return False
@@ -61,20 +63,20 @@ def blocked(fields: Mapping[str, Any], *, direction: str, config: Mapping[str, A
         return False
     if direction == "sales":
         return True
-    is_expense, _src = item_verdict(dict(fields), today=today)
+    is_expense, _src = lane_verdict(dict(fields), today=today, vat_choice=vat_choice)
     return not is_expense
 
 
 def resolve(fields: Mapping[str, Any], *, direction: str, config: Mapping[str, Any], posting_kind: Any,
-            chosen: Any, today: dt.date) -> Tuple[Optional[str], str]:
+            chosen: Any, today: dt.date, vat_choice: Any = None) -> Tuple[Optional[str], str]:
     """这次用的入账类型与来源：声明了的照声明（``declared``）；会交人、而这家公司选过的用选的值（``company_choice``）；
-    其余 ``(None, "")``（照旧：不拦的按画像，拦的交人）。"""
+    其余 ``(None, "")``（照旧：不拦的按画像，拦的交人）。``vat_choice`` 同 `blocked`。"""
     explicit = normalize_posting_kind(posting_kind)
     if explicit:
         return explicit, DECLARED
     value = str(chosen or "").strip()
     if value in GOODS_POSTING_VALUES and blocked(fields, direction=direction, config=config, posting_kind=None,
-                                                 today=today):
+                                                 today=today, vat_choice=vat_choice):
         return value, COMPANY_CHOICE
     return None, ""
 

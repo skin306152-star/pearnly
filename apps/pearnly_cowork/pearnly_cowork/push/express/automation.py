@@ -3,8 +3,8 @@
 纯函数，不连库、不依赖框架：推送服务（`push.application.service.assess`，后续阶段）与离线回放（`scripts/da-replay.py`）共用。
 取数由调用方做好放进 `Facts`；这里只判：
 
-- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目要最近连续 3 张同科目）、公司规则、任务默认、v2 历史已定、
-  按方向推断抵进项、公司选过的商品单入账方式……），且第 2 条核对全过；
+- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目要最近连续 3 张有证据的同科目）、公司规则、任务默认、v2 历史已定、
+  按方向推断抵进项（原文核得到票种）、公司选过的商品单入账方式……），且第 2 条核对全过；
 - **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的记忆科目……）；
 - **C 要人**：有要人选的项、任一核对不过、或被硬闸拦下。
 
@@ -21,6 +21,8 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pearnly_core.tax_documents.amounts import valid_tax_id
+from pearnly_core.tax_documents.codes import TAX_INVOICE
+from pearnly_core.tax_documents.rules import from_title
 
 from pearnly_cowork.push.express import choices as choice_rules
 from pearnly_cowork.push.express import company_choices
@@ -49,6 +51,10 @@ TEXT_CHARS_PER_PAGE = 200
 # 账套记忆定的科目（按供应商记一个）：这家供应商在这份账套里最近连续至少这么多张同科目才算规则定（A），否则 CC 判断（B）。
 # 第 15 条第一轮回放：记忆定的科目 7.6% 与会计记的不同（一家供应商不止一个科目），开发窗口按数据定（10-16）
 MEMORY_STREAK = 3
+# 连续张数只数有证据的单（`memory_evidence`）：推的时候科目由人或规则定的（这张单上传后有人选的、任务默认、公司规则、Express
+# 历史已定）；凭账套记忆推出去的单要被合格回读覆盖、没被改才算（CC 自己推的单不能攒成「连续 3 张」，审查处理 10-16）
+EVIDENCE_SOURCES = frozenset({"chosen", "task_default", "company_rule", "express_history"})
+CONFIRMED, CHANGED = "confirmed", "changed"
 # 录入时由识别后处理推出、不是读出来的金额：简式税票按 7/107 拆的（`ocr.pages.INCLUDED_VAT_AUDIT`）、补出的折扣
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
@@ -513,10 +519,53 @@ def _stock_lines(payload: Mapping[str, Any]) -> bool:
                for item in payload.get("items") or [])
 
 
-def _products(config: Mapping[str, Any]) -> bool:
-    rows = config.get("reported_products")
-    return isinstance(rows, list) and any(isinstance(row, Mapping) and str(row.get("kind") or "stock") == "stock"
-                                          for row in rows)
+def _items_known(facts: Facts) -> bool:
+    """每一行库存行都有着落：这份账套记过 / 公司规则 / 任务默认给的存货码（`choices.resolve` 的 ``applied["items"]``，按归一品名），
+    或 Express 有同名存货（归一后全等，同 `choices.resolve` 不问的那种）。只看「账套里有没有存货主档」不够：选「走库存」的
+    公司里一张服务费也会出库存行（审查处理 10-16）。"""
+    config = facts.config if isinstance(facts.config, Mapping) else {}
+    rows = config.get("reported_products") if isinstance(config.get("reported_products"), list) else []
+    names = {choice_rules.norm_name(row.get("name")) for row in rows
+             if isinstance(row, Mapping) and str(row.get("kind") or "stock") == "stock"}
+    applied = (facts.decision or {}).get("applied") if isinstance((facts.decision or {}).get("applied"), Mapping) else {}
+    mapped = applied.get("items") if isinstance(applied.get("items"), Mapping) else {}
+    lines = [item for item in _payload(facts).get("items") or []
+             if isinstance(item, Mapping) and str(item.get("item_mode") or "") in STOCK_MODES]
+    for item in lines:
+        name = choice_rules.norm_name(str(item.get("name") or "")[:50])
+        if not name or (name not in mapped and name not in names):
+            return False
+    return bool(lines)
+
+
+def claim_in_text(direction: str, fields: Mapping[str, Any], text: Optional[str]) -> bool:
+    """原件文字层里核得到「可抵进项的完整税票」：标题是完整税票（`rules.from_title`，「อย่างย่อ」简式税票、减项通知单都不算），
+    买方（本方）13 位税号印在上面。识别把简式税票 / 收据读成完整税票（或反过来）时这一步拦得住（审查处理 10-16）。
+    推送判档与回放识别闸层共用。"""
+    text = text if isinstance(text, str) else ""
+    return bool(text.strip()) and from_title(text) == TAX_INVOICE and \
+        tax_in_text((fields or {}).get(f"{_own_side(direction)}_tax"), text)
+
+
+def _claim_printed(facts: Facts) -> bool:
+    return claim_in_text(facts.direction, facts.fields, facts.text)
+
+
+def memory_evidence(entries: Iterable[Mapping[str, Any]]) -> List[str]:
+    """这家供应商在这份账套里最近推成功的单（新的在前，``{account, source, readback}``：载荷记的科目与来源 ``account_source``、
+    合格回读里的结果 `CONFIRMED` 覆盖且没被改 / `CHANGED` 被改 / 空 = 还没被合格回读覆盖）→ `memory_streak` 用的科目序列。
+    回读里被改的记空串（断开连续）；科目由人或规则定的（`EVIDENCE_SOURCES`）照记；凭账套记忆推出去、还没回读核过的不算证据，
+    跳过。推送服务（`push.application.assess._recent_accounts`）与回放共用。"""
+    out: List[str] = []
+    for entry in entries or ():
+        if not isinstance(entry, Mapping):
+            continue
+        account = str(entry.get("account") or "").strip()
+        if entry.get("readback") == CHANGED:
+            out.append("")
+        elif str(entry.get("source") or "") in EVIDENCE_SOURCES or entry.get("readback") == CONFIRMED:
+            out.append(account)
+    return out
 
 
 def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
@@ -560,7 +609,7 @@ def tiers(facts: Facts) -> Dict[str, str]:
         return out
     keyed: Dict[str, str] = {"party": decided.get("party") or ""}
     if _stock_lines(payload):
-        out["item"] = A if decided.get("item") in RULE_SOURCES or _products(facts.config) else C
+        out["item"] = A if _items_known(facts) else C
         keyed["item"] = decided.get("item") or ""
     if str(payload.get("items_account") or "").strip():
         source = str(payload.get("account_source") or "").strip()
@@ -576,8 +625,17 @@ def tiers(facts: Facts) -> Dict[str, str]:
     if facts.direction == "purchase" and _vat_applies(payload):
         source = str(payload.get("item_src") or "").strip()
         # 按方向推断（`field_rules.judge_direction`，全平台共用的法定口径 `purchase_treatment`）也算规则定：第 15 条第一轮回放
-        # 13,878 张 0 错，开发窗口按数据从 B 改 A（10-16）
-        out["vat"] = A if source in ("manual", "choice") or source.startswith("judge_direction=") else C
+        # 13,878 张 0 错，开发窗口按数据从 B 改 A（10-16）。但回放的票种是按答案造的，量不到识别把简式税票读成完整税票（或反过来）
+        # 的错，所以还要原文对得上（审查处理 10-16）：判成抵扣的，文字层里核得到完整税票标题与买方税号才算 A；判成不抵（记费用）的，
+        # 文字层里却是印着买方税号的完整税票（识别读错了票种），算 B。核不到原文（泰文字体乱码等）时判成不抵的照 A（不多抵税）
+        if source in ("manual", "choice"):
+            out["vat"] = A
+        elif source == "judge_direction=purchase_invoice":
+            out["vat"] = A if _claim_printed(facts) else B
+        elif source.startswith("judge_direction="):
+            out["vat"] = B if _claim_printed(facts) else A
+        else:
+            out["vat"] = C
         # 本票人工裁决（manual）不按对方作键；choice 来自按对方记下的那一层
         keyed["vat"] = (decided.get("vat") or "chosen") if source == "choice" else ""
     if facts.posting_from == "company_choice":
@@ -672,7 +730,7 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
     return text
 
 
-__all__ = ["A", "AMOUNT_TOLERANCE", "B", "C", "CLASSES", "EARLIEST_DAYS", "Facts", "HISTORY_FRESH_DAYS",
-           "IMAGES_ALLOWED", "MEMORY_STREAK", "TEXT_CHARS_PER_PAGE", "Verdict", "amount_in_text", "checks", "classify",
-           "conflicts", "date_in_text", "layers", "memory_settled", "memory_streak", "prior_entry", "reason_codes",
-           "tax_in_text", "text_layer", "tiers"]
+__all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim_in_text", "CLASSES", "classify",
+           "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_SOURCES", "Facts", "HISTORY_FRESH_DAYS",
+           "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
+           "prior_entry", "reason_codes", "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer", "tiers", "Verdict"]

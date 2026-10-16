@@ -84,7 +84,7 @@ from pearnly_cowork.push.express.field_clean import (
     clean_seller,
     clean_tax_id,
 )
-from pearnly_cowork.push.express.field_rules import item_verdict
+from pearnly_cowork.push.express.field_rules import lane_verdict
 
 
 
@@ -215,10 +215,8 @@ def build_express_payload(
     if line_kinds is not None and len(line_kinds) != len(fields.get("items") or []):
         return fail("posting_kind_needed", line_item_names(fields))
     # 货/费判据(单一事实源 · 与 MR.ERP routing.choose_doc_type 同判据,防两车道判据漂移)。
-    is_expense, item_src = item_verdict(fields, today=today)
     # 小票 / 简易税票抵不抵进项:这家选过就照选的(2026-09-28 压测:6 张会计抵了进项,推送按不抵)。
-    if choices.get("vat") in ("claim", "expense"):
-        is_expense, item_src = choices["vat"] == "expense", "choice"
+    is_expense, item_src = lane_verdict(fields, today=today, vat_choice=choices.get("vat"))
     # 记账画像:这家客户的商品行该怎么落(非库存/直接科目/库存/交人)。指纹未上报→unknown→
     # 非库存(=今天默认,行为不变)。★永续客户库存路未开时,goods 行绝不静默按周期制落
     # (会与其既有永续账双重计成本)→ escalate 交会计;费用票不动库存,不受此闸约束。

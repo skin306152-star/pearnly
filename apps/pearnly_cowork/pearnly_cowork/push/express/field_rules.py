@@ -52,6 +52,18 @@ def item_verdict(fields: Dict[str, Any], *, today: date) -> Tuple[bool, str]:
     return kind == "expense", f"judge_direction={kind}"
 
 
+VAT_CHOICES = ("claim", "expense")
+
+
+def lane_verdict(fields: Dict[str, Any], *, today: date, vat_choice: Any = None) -> Tuple[bool, str]:
+    """(is_expense, src)：进项映射器实际走的车道（`item_verdict`，再按这家选过的「小票 / 简易税票抵不抵进项」覆盖，
+    ``vat_choice`` = `choices.resolve` 的 ``applied["vat"]``）。映射器与「商品单入账方式」的交人判据
+    （`goods_posting.blocked`）共用这一个，两边不会一个说交人、一个说不交（审查处理 10-16）。"""
+    if vat_choice in VAT_CHOICES:
+        return vat_choice == "expense", "choice"
+    return item_verdict(fields, today=today)
+
+
 _VAT_INCL_NUM, _VAT_INCL_DEN = Decimal("7"), Decimal("107")
 
 def vat_from_inclusive(total: Decimal) -> Decimal:

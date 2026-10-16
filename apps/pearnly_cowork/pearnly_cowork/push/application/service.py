@@ -171,12 +171,13 @@ def prepare(history, connection, request_key, expected_history_version, expected
     _apply_stock_group(selected['config'], loaded.doc, target.account_set)
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     # 商品单的入账方式这家公司选过就照选的（没声明、会交人的那类，`push.express.goods_posting`）；意图里仍是调用方给的值
-    posting_kind, _posting_from = _goods_posting(doc, loaded.doc.name, lambda: _account_row(loaded, target),
-                                                 posting_kind, flat, direction, selected['config'], today)
-    decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          selected['config'], preparation, fixed,
-                          siblings=lambda: _same_company(loaded, target.account_set),
-                          account_row=lambda: _account_row(loaded, target), since=getattr(doc, "creation", None))
+    posting_kind, _posting_from, decision = _posting_decision(
+        doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, selected['config'],
+        today, lambda kind: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind,
+                                       selected['config'], preparation, fixed,
+                                       siblings=lambda: _same_company(loaded, target.account_set),
+                                       account_row=lambda: _account_row(loaded, target),
+                                       since=getattr(doc, "creation", None)))
     if decision["needed"]:
         masters = connections.ensure_account_masters(loaded.doc.name, target.account_set)
         wait = masters_wait(masters, decision["needed"])
@@ -256,18 +257,36 @@ def _proposal_outcome(doc, connection, account_set, fields, direction, payload, 
     return automation_rules.compare(proposed, payload, chosen=chosen, edited=int(getattr(doc, "edit_count", 0) or 0) > 0)
 
 
-def _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today):
+def _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today, vat_choice=None):
     """这次用的入账类型与来源（`push.express.goods_posting.resolve`）：本票 / 本批声明的照用；永续 / 混合库存账套里没声明的
     商品单，这家公司（按推往账套的目录行认，同 `companies.identity`）选过「走库存 / 记费用」就用选的；都没有回 (None, "")。
-    ``account_row`` 可以是取那一行的函数：只有这张单会因没声明交人时才取目录行、读这个工作空间记的选择。"""
+    ``account_row`` 可以是取那一行的函数：只有这张单会因没声明交人时才取目录行、读这个工作空间记的选择。``vat_choice``：
+    这家选过的小票 / 简易税票抵不抵进项（映射器按它定车道，`field_rules.lane_verdict`）。"""
     fields, declared = flat.get("fields") or {}, resolve_posting_kind(posting_kind, flat)
     chosen = None
     if not declared and goods_posting.blocked(fields, direction=direction, config=config, posting_kind=None,
-                                              today=today):
+                                              today=today, vat_choice=vat_choice):
         company = goods_posting.company_key(connection, account_row() if callable(account_row) else account_row)
         chosen = policy_rules.goods_posting(document_policy.read(doc.workspace), company) if company else None
     return goods_posting.resolve(fields, direction=direction, config=config, posting_kind=declared, chosen=chosen,
-                                 today=today)
+                                 today=today, vat_choice=vat_choice)
+
+
+def _posting_decision(doc, connection, account_row, posting_kind, flat, direction, config, today, decide):
+    """入账类型与这张票的选择一起定 → ``(posting_kind, posting_from, decision)``。先按声明 / 公司选过的定入账类型、再判选择
+    （``decide(入账类型)`` = `_decisions`）；选择里有这家记过的小票 / 简易税票抵不抵进项（``applied["vat"]``）时，映射器按它定
+    车道，入账类型按同一个值再定一次，变了就按新的重判（审查处理 10-16：选了抵进项的小票在永续账套里同样会交人，原先公司的
+    入账方式不套用，复核页点了按钮也推不动）。重判时记付款方式那一笔同值不重写（`push.choices.record`）。"""
+    kind, source = _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today)
+    decision = decide(kind)
+    vat = (decision.get("applied") or {}).get("vat")
+    if vat and source != goods_posting.DECLARED:
+        again = _goods_posting(doc, connection, account_row, posting_kind, flat, direction, config, today,
+                               vat_choice=vat)
+        if again != (kind, source):
+            kind, source = again
+            decision = decide(kind)
+    return kind, source, decision
 
 
 def _apply_stock_group(config, connection, account_set):
@@ -478,12 +497,12 @@ def choices_view(history, connection, account_set_key=None, posting_kind=None, *
         return {"needed": [], "options": {}}
     target, flat, fields, direction, preparation, config = _express_facts(doc, loaded, account_set_key)
     fixed = _fixed(doc.name, loaded.doc.name, target.account_set, fixed)
-    posting_kind, _posting_from = _goods_posting(doc, loaded.doc.name, lambda: _account_row(loaded, target),
-                                                 posting_kind, flat, direction, config,
-                                                 datetime.now(ZoneInfo("Asia/Bangkok")).date())
-    decision = _decisions(loaded.doc.name, target.account_set, flat, fields, direction, posting_kind,
-                          config, preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set),
-                          account_row=lambda: _account_row(loaded, target))
+    posting_kind, _posting_from, decision = _posting_decision(
+        doc, loaded.doc.name, lambda: _account_row(loaded, target), posting_kind, flat, direction, config,
+        datetime.now(ZoneInfo("Asia/Bangkok")).date(),
+        lambda kind: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
+                                preparation, fixed, siblings=lambda: _same_company(loaded, target.account_set),
+                                account_row=lambda: _account_row(loaded, target)))
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
     masters = account_masters(loaded.doc.name, target.account_set)
     kinds = {item["kind"] for item in decision["needed"]}

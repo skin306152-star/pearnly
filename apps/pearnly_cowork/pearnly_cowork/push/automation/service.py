@@ -1,8 +1,9 @@
 """自动推送在推送侧的取数（数字会计员第 3 期第 3–5、7 条）：这家此刻的档位、按单据日期该推往的账套、领单重核的指纹、替这张单
 干活的电脑能不能回写入核对、测试站点的路径守卫、人推提议时与提议比对。规则都在纯函数 `push.automation.rules`。
 
-push 域不导入 companies：档位、按日期选账套、公司规则、核不上即降都经框架钩子（``cowork_push_company_tier`` /
-``cowork_push_day_books`` / ``cowork_push_company_choices`` / ``cowork_push_verify_mismatch``）。取不到一律按 L0、按「选不出」，
+push 域不导入 companies：档位、按日期选账套、公司规则、核不上即降、推过的单在合格回读里的结果都经框架钩子
+（``cowork_push_company_tier`` / ``cowork_push_day_books`` / ``cowork_push_company_choices`` / ``cowork_push_verify_mismatch`` /
+``cowork_push_readback_marks``）。取不到一律按 L0、按「选不出」，
 只会让这张单多交给人一次，不会多推。
 """
 from __future__ import annotations
@@ -22,6 +23,7 @@ TIER_HOOK = "cowork_push_company_tier"
 DAY_HOOK = "cowork_push_day_books"
 RULES_HOOK = "cowork_push_company_choices"
 MISMATCH_HOOK = "cowork_push_verify_mismatch"
+MARKS_HOOK = "cowork_push_readback_marks"
 
 
 def _log(title):
@@ -58,6 +60,22 @@ def day_books(connection, account_row, day, catalog):
         if found is not None:
             return list(found)
     return None
+
+
+def readback_marks(connection, account_set, records) -> dict:
+    """几张推成功的单在合格回读里的结果 ``{推送记录: confirmed|changed}``（`companies.automation.readback_marks`）；取不到、出错
+    回 {}（凭记忆推的单都不算证据，只会少算 A）。"""
+    if not records:
+        return {}
+    for path in frappe.get_hooks(MARKS_HOOK) or []:
+        try:
+            found = frappe.get_attr(path)(connection, account_set, records)
+        except Exception:  # noqa: BLE001 — 取不到就当没核过
+            _log("Cowork push readback marks failed")
+            return {}
+        if isinstance(found, dict):
+            return found
+    return {}
 
 
 def company_rules(connection, account_set, account_row) -> tuple:

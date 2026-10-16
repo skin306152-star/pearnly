@@ -33,8 +33,8 @@ BANGKOK = ZoneInfo("Asia/Bangkok")
 PRIOR_MAX = 50
 # 重复分流算进去的推送记录状态：除作废（cancelled）以外都算（manual 是结果不明或推送失败待人看，宁严）
 PRIOR_STATUSES = ("prepared", "pending", "leased", "manual", "success")
-# 取这家供应商最近推成功的单最多这么多张（只要 `automation.MEMORY_STREAK` 张有科目的；载荷对不上的跳过）
-RECENT_MAX = 10
+# 取这家供应商最近推成功的单最多这么多张（只要 `automation.MEMORY_STREAK` 张有证据的；载荷对不上、凭记忆推出去还没回读核过的跳过）
+RECENT_MAX = 30
 
 
 def run(history, connection, account_set_key=None, posting_kind=None, *, fixed=None, trigger, route_device="",
@@ -72,14 +72,14 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     if original_history(doc) != doc.name:
         blocked = blocked or "replacement"  # 改单 / 回导的票推往原单：交给人
     fixed = service._fixed(doc.name, connection, account_set, fixed)
-    # 商品单入账方式按公司选过的照用（同准备推送，`service._goods_posting`）
-    posting_kind, posting_from = service._goods_posting(doc, connection, account_row, posting_kind, flat, direction,
-                                                        config, today)
     remembered = choice_store.remembered(connection, account_set)
     company, _read = service._company_rules(connection, account_set, account_row)
-    decision = service._decisions(connection, account_set, flat, fields, direction, posting_kind, config, preparation,
-                                  fixed, siblings=lambda: service._same_company(loaded, account_set),
-                                  account_row=account_row, since=getattr(doc, "creation", None))
+    # 商品单入账方式按公司选过的照用（同准备推送，`service._posting_decision`）
+    posting_kind, posting_from, decision = service._posting_decision(
+        doc, connection, account_row, posting_kind, flat, direction, config, today,
+        lambda kind: service._decisions(connection, account_set, flat, fields, direction, kind, config, preparation,
+                                        fixed, siblings=lambda: service._same_company(loaded, account_set),
+                                        account_row=account_row, since=getattr(doc, "creation", None)))
     payload, ready, reason = None, False, ""
     if not decision["needed"] and not blocked and not conflict:
         config["choices"] = decision["applied"]
@@ -104,7 +104,9 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
         history_read=_read_day((decision.get("history") or {}).get("read")),
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc, direction),
-        posting_from=posting_from, account_recent=_recent_accounts(connection, account_set, doc, direction, dated),
+        posting_from=posting_from,
+        account_recent=_recent_accounts(connection, account_set, doc, direction, dated)
+        if (payload or {}).get("account_source") == "remembered" else None,
         layers=automation.layers(dated, direction=direction, fixed=fixed, remembered=remembered,
                                  rules=(company or {}).get("rules") or (), branch=(company or {}).get("branch") or "",
                                  history=(decision.get("history") or {}).get("account")))
@@ -176,22 +178,25 @@ def _prior(connection, account_set, doc, direction):
 
 
 def _recent_accounts(connection, account_set, doc, direction, fields):
-    """这家供应商在这份账套里最近几张推成功的单记的科目（新的在前，`automation.MEMORY_STREAK` 张为止）：账套记忆定的科目要
-    最近连续这么多张同科目才算规则定（`automation.memory_settled`，第一轮回放后开发窗口定）。只看进项、只认 13 位税号
-    （按名字作键的来源本来最高算 B）；取票按「本工作区 + 卖方税号」的索引（`workspace_seller_tax_index`），推送记录取它冻结的载荷。"""
+    """这家供应商在这份账套里最近几张推成功的单（新的在前）里有证据的科目（`automation.memory_evidence`）：账套记忆定的科目要
+    最近连续 `automation.MEMORY_STREAK` 张有证据的同科目才算规则定（`automation.memory_settled`）。只在这张单的科目来自账套记忆时
+    取。证据：推的时候科目由人或规则定（载荷 ``account_source`` 是这张单上传后有人选的、任务默认、公司规则、Express 历史已定），
+    或被合格回读覆盖、没被改（经钩子 ``cowork_push_readback_marks``）；凭记忆推出去还没回读核过的不算，回读里被改的断开连续
+    （审查处理 10-16：CC 自己推出去的单不能攒成「连续 3 张」）。只看进项、只认 13 位税号（按名字作键的来源本来最高算 B）；
+    取票按「本工作区 + 卖方税号」的索引（`workspace_seller_tax_index`），推送记录取它冻结的载荷。"""
     if direction != "purchase":
         return None
     raw = str(fields.get("seller_tax") or fields.get("seller_tax_id") or "").strip()
     tax = clean_tax_id(raw)
     if len(tax) != 13:
         return []
-    rows = frappe.db.sql("""SELECT r.payload_json FROM `tabCowork OCR History` h
+    rows = frappe.db.sql("""SELECT r.name, r.payload_json, r.completed_at, h.invoice_date FROM `tabCowork OCR History` h
         INNER JOIN `tabCowork Push Record` r ON r.name = h.last_push_record
         WHERE h.workspace=%s AND h.seller_tax IN %s AND h.name != %s AND h.last_push_status='success'
           AND r.connection=%s AND r.account_key=%s AND r.status='success'
         ORDER BY h.creation DESC LIMIT %s""",
                          (doc.workspace, tuple({raw, tax}), doc.name, connection, account_set, RECENT_MAX), as_dict=True)
-    out = []
+    entries = []
     for row in rows:
         payload = service._loads(row.payload_json)
         if not isinstance(payload, dict) or payload.get("direction") != "purchase":
@@ -199,10 +204,14 @@ def _recent_accounts(connection, account_set, doc, direction, fields):
         supplier = payload.get("supplier") if isinstance(payload.get("supplier"), dict) else {}
         if clean_tax_id(supplier.get("tax_id")) not in ("", tax):
             continue
-        out.append(str(payload.get("items_account") or "").strip())
-        if len(out) >= automation.MEMORY_STREAK:
-            break
-    return out
+        entries.append({"record": row.name, "account": str(payload.get("items_account") or "").strip(),
+                        "source": str(payload.get("account_source") or ""),
+                        "invoice_date": str(row.invoice_date or "")[:10], "completed_at": row.completed_at})
+    marks = automation_service.readback_marks(connection, account_set, [
+        {key: entry[key] for key in ("record", "invoice_date", "completed_at")} for entry in entries])
+    for entry in entries:
+        entry["readback"] = marks.get(entry["record"], "")
+    return automation.memory_evidence(entries)
 
 
 __all__ = ["run"]

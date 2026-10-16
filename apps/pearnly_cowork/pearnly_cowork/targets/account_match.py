@@ -105,13 +105,56 @@ def fiscal_part(start: Any, end: Any, next_end: Any, day: Any) -> str:
     return NEXT if next_end and end < day <= next_end else ""
 
 
+def _newer_unknown(items: list, chosen: list, span) -> bool:
+    """「新年度账套还没建」核不了：同一组里（调用方给的同一家公司同一个分店的账套）有会计期间没报全的账套（CC 桌面版读
+    ISPRD 失败、文件缺失时目录里没有起止，可能正是新年度那份），或有本年起始晚于所选旧账套本年止的账套（新年度账套已在）。"""
+    ends = [_day(span(item)[1]) for item in chosen]
+    for item in items:
+        if item in chosen:
+            continue
+        start, end, _next_end = span(item)
+        start, end = _day(start), _day(end)
+        if not (start and end):
+            return True
+        if any(last and start > last for last in ends):
+            return True
+    return False
+
+
 def for_day(items: Any, day: Any, span) -> list:
     """按单据日期选账套（T1 定时任务跟随公司当年账套、自动推的「推往的须是按日期选出的那份」、上面的期间硬闸共用）：
     先找本年期间覆盖这一天的；没有，就用期间里含这一天的旧账套（次年段，新年度账套还没建）。``span(item)`` 回
-    ``(period_start, period_end, next_end)``。两份同期照样都回（调用方按「多于一份」停下）。"""
+    ``(period_start, period_end, next_end)``。两份同期照样都回（调用方按「多于一份」停下）。退到次年段前要确认新年度账套
+    确实还没建（`_newer_unknown`）：同组里有期间没报全的、或本年起始更晚的账套就回空表（调用方停下、交人，审查处理 10-16）。"""
     items = [item for item in items or ()]
     current = [item for item in items if fiscal_part(*span(item), day) == CURRENT]
-    return current or [item for item in items if fiscal_part(*span(item), day) == NEXT]
+    if current:
+        return current
+    following = [item for item in items if fiscal_part(*span(item), day) == NEXT]
+    return [] if following and _newer_unknown(items, following, span) else following
+
+
+def for_month(items: Any, first: Any, last: Any, span) -> list:
+    """按月取账套（月结台账、主档页、档位统计按期间取单）：本年期间与这个月（``first``～``last``）有重叠的；没有，就用次年段与
+    这个月有重叠的旧账套（同 :func:`for_day` 的次年段规则与「新年度账套确实还没建」的核对）。"""
+    items = [item for item in items or ()]
+    first, last = _day(first), _day(last)
+    if not (first and last):
+        return []
+
+    def overlaps(item, part):
+        start, end, next_end = (_day(value) for value in span(item))
+        if not (start and end):
+            return False
+        if part == CURRENT:
+            return start <= last and end >= first
+        return bool(next_end) and end < last and next_end >= first and next_end > end
+
+    current = [item for item in items if overlaps(item, CURRENT)]
+    if current:
+        return current
+    following = [item for item in items if overlaps(item, NEXT)]
+    return [] if following and _newer_unknown(items, following, span) else following
 
 
 def _row_span(row: Any) -> tuple:

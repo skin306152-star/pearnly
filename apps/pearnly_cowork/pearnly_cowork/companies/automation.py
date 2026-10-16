@@ -4,7 +4,7 @@
   最近 24 次升降（``history``）。**没有行的公司就是 L0**，不补数据。档位按公司主档算、不按租户、没有开关与手动升降按钮。
 - 推送经钩子 ``cowork_push_company_tier``（:func:`tier_for_push`，按目录这一行认公司，同第 2 期 `rules.for_push`）取这家此刻的
   档位与最近一次合格回读覆盖的期间；push 域不导入 companies。T1 的「按单据日期选出的那份账套」经 ``cowork_push_day_books``
-  （:func:`day_books`）。
+  （:func:`day_books`）。账套记忆定的科目要的「合格回读覆盖、没被改」经 ``cowork_push_readback_marks``（:func:`readback_marks`）。
 - 只在两条写路径上评估（GET 不写库）：回读处理完（readback 经钩子 ``cowork_readback_ready`` 叫 :func:`on_readback`）按这期统计
   升降一档；自动推的单写入核不上（推送回执经钩子 ``cowork_push_verify_mismatch`` 叫 :func:`on_mismatch`）立刻降到 L0。
 - 统计（`automation_rules.tally`）：单据范围是这家各本 Express 账套里单据日期在这期、推送成功的单；回读里的变化经钩子
@@ -197,12 +197,53 @@ def documents(company, period) -> tuple:
             automated = target.get("automation") if isinstance(target.get("automation"), dict) else None
             outcome = target.get("proposal") if isinstance(target.get("proposal"), dict) else None
             cls = (automated or outcome or {}).get("class") or row.auto_class or ""
-            covered = bool(good and requested and row.completed_at and get_datetime(row.completed_at) <= requested)
+            _good, mark = _covered(found, row.completed_at, deadline)
+            covered = bool(mark)
             change = changes.get(row.name) or ("changed" if covered and found.get("truncated") else "")
             out.append({"record": row.name, "history": row.history, "cls": cls, "automated": bool(automated),
                         "proposal": bool(outcome), "covered": covered, "readback": change,
                         "verify": row.verify_state or "", "outcome": outcome})
     return out, qualified
+
+
+def _covered(found, record_completed, deadline):
+    """一张推送记录被这期的回读覆盖成什么：``(合格, 结果)``，结果是 ``confirmed``（覆盖、没被改）/ ``changed``（被改、删、作废、
+    找不到，或差异表截断）/ 空（回读不合格、或推在回读发起之后）。`documents` 与 `readback_marks` 同一口径。"""
+    requested = get_datetime(found["requested_at"]) if found.get("requested_at") else None
+    good = automation_rules.qualified(_bangkok_day(requested), deadline)
+    if not (good and requested and record_completed and get_datetime(record_completed) <= requested):
+        return good, ""
+    return good, "changed" if found.get("record_change") or found.get("truncated") else "confirmed"
+
+
+def readback_marks(connection, account_set, records) -> dict:
+    """推送的钩子（``cowork_push_readback_marks``）：这份账套里几张推成功的单在合格回读里的结果 ``{推送记录: confirmed|changed}``
+    （没被合格回读覆盖的不列）。``records``：``[{record, invoice_date, completed_at}]``。账套记忆定的科目要最近连续 3 张有证据的
+    同科目才算 A（`push.express.automation.memory_evidence`）：凭记忆推出去的单要被合格回读覆盖、没被改才算证据。只读，不核权限
+    （推送服务已核过录入权限与连接授权）。"""
+    key = normalize_express_account_key(account_set)
+    if not connection or not key:
+        return {}
+    by_period = {}
+    for item in records or ():
+        period = tier_rules.period_of(str((item or {}).get("invoice_date") or "")[:7])
+        if period and item.get("record"):
+            by_period.setdefault(period, []).append(item)
+    out = {}
+    for period, items in by_period.items():
+        found = next((row for row in _changes([{"connection": connection, "key": key, "label": ""}], period)
+                      if isinstance(row, dict) and row.get("connection") == connection
+                      and normalize_express_account_key(row.get("key")).casefold() == key.casefold()), None)
+        if not found:
+            continue
+        deadline = _deadline(period)
+        changes = found.get("changes") if isinstance(found.get("changes"), dict) else {}
+        for item in items:
+            _good, mark = _covered({**found, "record_change": changes.get(item["record"])}, item.get("completed_at"),
+                                   deadline)
+            if mark:
+                out[item["record"]] = mark
+    return out
 
 
 def on_readback(connection, account_set_key, period, readback=None) -> dict | None:
@@ -245,4 +286,5 @@ def on_mismatch(connection, account_set, account_row) -> dict | None:
     return {"company": company, "tier": tier_rules.L0, "changed": before != tier_rules.L0}
 
 
-__all__ = ["THRESHOLDS", "day_books", "documents", "on_mismatch", "on_readback", "state", "tier_for_push", "view"]
+__all__ = ["THRESHOLDS", "day_books", "documents", "on_mismatch", "on_readback", "readback_marks", "state",
+           "tier_for_push", "view"]

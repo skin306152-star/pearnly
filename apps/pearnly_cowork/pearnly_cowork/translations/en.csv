@@ -703,6 +703,7 @@ Excel/CSV exported from online banking or the electronic PDF is most accurate,Ex
 Excess tax brought forward,Excess tax brought forward
 Expected VAT,Expected VAT
 Expense (goods from now on),Expense (goods from now on)
+Expense (this kind from now on),Expense (this kind from now on)
 Expense account,Expense account
 Expense account when no category matches,Expense account when no category matches
 Expense it,Expense it
@@ -1592,6 +1593,7 @@ Statement review is not available for this task.,Statement review is not availab
 Status,Status
 Stock,Stock
 Stock (goods from now on),Stock (goods from now on)
+Stock (this kind from now on),Stock (this kind from now on)
 Stock Account Group per Account Set,Stock Account Group per Account Set
 Stock changed; recount,Stock changed; recount
 Stock count,Stock count
@@ -1602,6 +1604,7 @@ Stock count template,Stock count template
 Stock count workbench,Stock count workbench
 Stock item,Stock item
 Stock item not found in Express,Stock item not found in Express
+Stock or expense for this company's documents like this?,Stock or expense for this company's documents like this?
 Stop and let me choose,Stop and let me choose
 Stop watching,Stop watching
 Stored Page Previews,Stored Page Previews
@@ -2418,10 +2421,10 @@ cowork.nav.reconVat,VAT Report Check
 cowork.nav.work,Task Management
 cowork.policy.enter,Enter (this kind from now on)
 cowork.policy.invalid,This document does not need this choice
-cowork.policy.service,Expense (goods from now on)
+cowork.policy.service,Expense (this kind from now on)
 cowork.policy.skip,Don't enter (this kind from now on)
 cowork.policy.skipped,Not entered
-cowork.policy.stock,Stock (goods from now on)
+cowork.policy.stock,Stock (this kind from now on)
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.readback.account_missing,This account set is not on this connection.
@@ -3364,7 +3367,7 @@ intake.error.pos_facts_invalid,The POS daily totals of this document are damaged
 intake.error.pos_payments_mismatch,The payment methods do not add up to the day's total. Import the POS export again
 intake.error.pos_receipt_account_missing,Choose the receiving account of each payment method
 intake.error.posting_kind_needed,Choose service or stock for this invoice and submit again
-intake.error.posting_needs_review,Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on
+intake.error.posting_needs_review,Stock or expense for this company's documents like this?
 intake.error.seller_buyer_same_tax,The seller and buyer have the same tax ID. Correct it and submit again
 intake.error.tax_id_invalid,The tax ID is not valid. Correct it and submit again
 intake.mrerpDefault.ap_account,Payable account

@@ -180,11 +180,14 @@ class JudgementLayer(unittest.TestCase):
         self.assertEqual(second["reasons"], ["judged:account"])
         self.assertFalse(second["vat_direction_only"])
         self.assertTrue(second["correct"])
-        self.assertEqual(second["scored"], {"party": "ok", "account": "ok", "payment": "ok", "vat": "ok"})
-        self.assertEqual(by_number["RR680102-001"]["class"], "B")  # 之前 2 张
-        fourth = by_number["RR680103-001"]  # 之前 3 张都记 52-01：A
-        self.assertEqual((fourth["class"], fourth["reasons"]), ("A", []))
-        changed = by_number["RR680301-009"]
+        self.assertEqual(second["scored"], {"party": "ok", "account": "ok", "payment": "ok", "vat": "ok",
+                                            "posting": "n/a"})
+        # 连续张数只数有证据的推送（审查处理 10-16）：第一张人选的（chosen）算；之后凭记忆推的要等这期的合格回读（一月期
+        # 2-24 前后）核过才算，所以一、二月里都还是 B
+        for number in ("RR680102-001", "RR680103-001", "RR680104-001", "RR680105-001"):
+            self.assertEqual(by_number[number]["class"], "B", number)
+        changed = by_number["RR680301-009"]  # 三月：一月那几张回读核过、都是 52-01 → 科目 A，但这张会计记成 52-02
+        self.assertEqual(changed["items"]["account"], "A")
         self.assertFalse(changed["correct"])
         self.assertEqual(changed["scored"]["account"], "wrong:52-01")
         other = by_number["HP680302-001"]
@@ -196,7 +199,7 @@ class JudgementLayer(unittest.TestCase):
         m = replay._modules()
         self.book["fingerprint"] = {"stcrd_lines": 10, "stcrd_lines_moving_stock": 9}  # 永续库存
         for doc in self.book["docs"]:
-            doc["stock"] = doc["party_code"] == "S001"
+            doc["stock"] = doc["party_code"] == "S001" and doc["docnum"] != "RR680104-001"
         rows, _ = replay.judge_company(m, [self.book])
         by_number = {row["docnum"]: row for row in rows}
         posting = [row for row in rows if str(row["prepare"]).startswith("posting_needs_review")]
@@ -206,7 +209,13 @@ class JudgementLayer(unittest.TestCase):
         for row in later:
             self.assertEqual((row["posting_from"], row["items"].get("posting")), ("company_choice", "A"), row)
             self.assertFalse(str(row["prepare"]).startswith("posting_needs_review"))
-        self.assertEqual(by_number["HP680302-001"]["posting_from"], "declared")  # 没有存货明细的照旧按「服务」声明
+        # 同线上不预先声明（审查处理 10-16）：答案里没有存货明细的单也按公司选的「走库存」走，与答案比 posting 计错
+        self.assertEqual(by_number["HP680302-001"]["posting_from"], "company_choice")
+        service = by_number["RR680104-001"]
+        self.assertEqual((service["posting_from"], service["scored"].get("posting")), ("company_choice", "wrong:stock"))
+        self.assertFalse(service["correct"])
+        self.assertEqual({row["scored"].get("posting") for row in later
+                          if row["scored"] and row["docnum"] != "RR680104-001"}, {"ok"})
 
     def test_next_year_documents_go_into_the_old_book_until_the_new_one_exists(self):
         """新年度账套还没建时，下一年的单记进旧账套的次年段（认 next_end，用户 10-16）；新年度账套一建好就该推往新的。"""
@@ -363,7 +372,25 @@ class Scoring(unittest.TestCase):
     def test_score_items(self):
         answer = {"party": "S1", "account": "*multi", "payment": "cash"}
         self.assertEqual(replay.score(answer, {"party": "S1", "account": "52", "payment": "credit", "vat": "claim"}),
-                         {"party": "ok", "account": "wrong:multi_account", "payment": "wrong:credit", "vat": "n/a"})
+                         {"party": "ok", "account": "wrong:multi_account", "payment": "wrong:credit", "vat": "n/a",
+                          "posting": "n/a"})
+        self.assertEqual(replay.score({"posting": "service"}, {"posting": "stock"})["posting"], "wrong:stock")
+
+    def test_pushed_evidence_matches_the_online_rule(self):
+        """回放的「连续 3 张」与线上 `assess._recent_accounts` 同口径（审查处理 10-16）：凭记忆推出去的要这期合格回读在这张
+        录入前核过才算，推错的（与会计最终记的不同）在回读里就是被改、断开；人选的照算。"""
+        m = replay._modules()
+        jan = {"period": "2025-01", "entered": dt.date(2025, 1, 20)}
+        log = [dict(jan, account="52-01", answer="52-01", source="chosen"),
+               dict(jan, account="52-01", answer="52-01", source="remembered"),
+               dict(jan, account="52-01", answer="52-02", source="remembered"),
+               dict(jan, account="52-01", answer="52-01", source="remembered")]
+        before = replay.pushed_evidence(m, log, dt.date(2025, 2, 1))
+        self.assertEqual(before, ["52-01"])  # 一月期的回读还没做：只有人选的那张
+        after = replay.pushed_evidence(m, log, dt.date(2025, 3, 10))
+        self.assertEqual(after, ["52-01", "", "52-01", "52-01"])  # 第三张推错：被改、断开
+        late = [dict(log[0], entered=dt.date(2025, 3, 1), source="remembered")]  # 推在回读之后：没被覆盖
+        self.assertEqual(replay.pushed_evidence(m, late, dt.date(2025, 3, 10)), [])
 
     def test_cc_party_follows_the_desktop_cascade(self):
         masters = [{"code": "A", "name": "ผู้ขาย", "tax_id": SELLER, "branch": "00000"},
@@ -381,6 +408,35 @@ class Scoring(unittest.TestCase):
 class GateLayer(unittest.TestCase):
     GOLD = {"page": 1, "invoice_number": "IV-0012", "date": "2025-03-04", "seller_tax": SELLER, "seller_branch": "00000",
             "subtotal": "1000.00", "vat": "70.00", "total": "1070.00"}
+
+    def test_express_answers_score_only_what_pairing_did_not_use(self):
+        """Express 答案作金标：答案是靠识别结果配上的，配对用到的项是自证（self），不计分（审查处理 10-16）。"""
+        fields = {"invoice_number": "IV-0012", "date": "2025-03-05", "seller_tax": SELLER, "seller_branch": "00001",
+                  "subtotal": "1000.00", "vat": "70.00", "total_amount": "1070.00"}
+        gold = {**self.GOLD, "matched_on": ["amount", "party_tax"]}
+        found = replay.compare_gold(fields, gold, "purchase", replay.EXPRESS_GOLD)
+        self.assertEqual(found, {"invoice_number": "ok", "date": "wrong", "party_tax": "self", "party_branch": "wrong",
+                                 "subtotal": "self", "vat": "self", "total": "self"})
+        self.assertEqual(replay.compare_gold(fields, gold, "purchase")["party_tax"], "ok")  # 独立金标照常比
+
+    def test_vat_claim_against_the_gold_kind(self):
+        """抵不抵进项（审查处理 10-16）：识别按方向推断，原文核得到完整税票与买方税号才算 A；与金标的票种口径比。"""
+        m = replay._modules()
+        fields = {"document_type": "tax_invoice", "buyer_tax": OWN, "buyer_name": "ACME", "vat": "70.00"}
+        full = f"ใบกำกับภาษี ผู้ซื้อ {OWN} " * 5
+        short = f"ใบกำกับภาษีอย่างย่อ {OWN} " * 5
+        gold = {"vat": "70.00", "buyer_tax": OWN}
+        self.assertEqual(replay.vat_claim(m, fields, full, gold, "tax_invoice", ""),
+                         {"claims": True, "tier": "A", "gold": True, "result": "ok"})
+        # 识别把简式税票读成完整税票：判抵扣，但原文是简式 → B，与金标不符
+        self.assertEqual(replay.vat_claim(m, fields, short, gold, "receipt", ""),
+                         {"claims": True, "tier": "B", "gold": False, "result": "wrong"})
+        self.assertEqual(replay.vat_claim(m, fields, full, gold, "utility", "")["result"], "n/a")
+        self.assertEqual(replay.vat_claim(m, {**fields, "document_type": "receipt"}, full, gold, "tax_invoice", ""),
+                         {"claims": False, "tier": "B", "gold": True, "result": "wrong"})
+        self.assertTrue(replay.claim_gold({"vat": "7.00"}, "", replay.EXPRESS_GOLD))
+        self.assertFalse(replay.claim_gold({"vat": "0"}, "", replay.EXPRESS_GOLD))
+        self.assertFalse(replay.claim_gold({"vat": "7.00"}, "tax_invoice", ""))  # 没印买方
 
     def test_compare_against_the_gold(self):
         fields = {"invoice_number": "0012", "date": "2025-03-04", "seller_tax": SELLER, "seller_branch": "0",

@@ -1565,9 +1565,9 @@ Enter (this kind from now on)	录入（同类单据均录入）	บันทึ�
 Don't enter (this kind from now on)	不录入（同类单据均不录入）	ไม่บันทึก (เอกสารประเภทนี้ทั้งหมด)	入力しない（以後も同様）	cowork.policy.skip
 Not entered	不录入	ไม่บันทึก	入力しない	cowork.policy.skipped
 This document does not need this choice	此单据无需选择是否录入	เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่	この伝票ではこの選択は不要です	cowork.policy.invalid
-Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on	此单据为商品单据。本公司的商品单据走库存还是记费用？选择后，以后的商品单据将按此处理	เอกสารนี้เป็นเอกสารสินค้า บริษัทนี้บันทึกสินค้าเข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย เมื่อเลือกแล้ว เอกสารสินค้าต่อจากนี้จะดำเนินการตามนี้	これは商品の伝票です。この会社の商品を在庫に計上しますか、費用に計上しますか。一度選ぶと以後の商品伝票に適用されます	intake.error.posting_needs_review
-Stock (goods from now on)	走库存（商品单据均走库存）	สินค้าคงเหลือ (เอกสารสินค้าทั้งหมด)	在庫に計上（以後も同様）	cowork.policy.stock
-Expense (goods from now on)	记费用（商品单据均记费用）	ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)	費用に計上（以後も同様）	cowork.policy.service
+Stock or expense for this company's documents like this?	本公司这类单据走库存还是记费用？	บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย	この会社のこの種類の伝票は在庫と費用のどちらに計上しますか	intake.error.posting_needs_review
+Stock (this kind from now on)	走库存（同类单据均走库存）	สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)	在庫に計上（以後も同様）	cowork.policy.stock
+Expense (this kind from now on)	记费用（同类单据均记费用）	ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)	費用に計上（以後も同様）	cowork.policy.service
 The chosen Express stock item no longer exists. Choose again	所选的 Express 存货已不存在，请重新选择	สินค้าคงเหลือที่เลือกไม่มีใน Express แล้ว กรุณาเลือกใหม่	選んだ Express の在庫品目はもうありません。選び直してください	intake.error.STOCK_ITEM_NOT_FOUND
 Checked in the ERP	已在 ERP 核对	ตรวจใน ERP แล้ว	ERP で確認済み	cowork.unknown.check
 Result in the ERP	ERP 里的结果	ผลใน ERP	ERP での結果	cowork.unknown.outcome

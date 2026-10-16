@@ -51,8 +51,8 @@ def _payload(**over):
 
 ACCOUNT = {"source_id": BOOK, "attributes": {"tax_id": OWN, "branch": "00000", "period_start": "2026-01-01",
                                              "period_end": "2026-12-31", "next_end": "2027-12-31"}}
-TEXT = ("ใบกำกับภาษี ผู้ขาย เลขประจำตัวผู้เสียภาษี 0107561000013 เลขที่ IV69-001 วันที่ 20/10/2569 รวมเงิน 1,000.00 "
-        "ภาษี 70.00 รวมทั้งสิ้น 1,070.00")
+TEXT = ("ใบกำกับภาษี ผู้ขาย เลขประจำตัวผู้เสียภาษี 0107561000013 ผู้ซื้อ ACME 0994000333447 เลขที่ IV69-001 "
+        "วันที่ 20/10/2569 รวมเงิน 1,000.00 ภาษี 70.00 รวมทั้งสิ้น 1,070.00")
 
 
 def _facts(**over):
@@ -138,6 +138,26 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual(auto.memory_streak(["a"], ""), 0)
         self.assertTrue(auto.memory_settled(["a", "a", "a"], "a"))
 
+    def test_the_streak_counts_only_pushes_with_evidence(self):
+        """连续张数只数有证据的单（`memory_evidence`，审查处理 10-16）：推的时候科目由人或规则定的照记；凭账套记忆推出去的
+        要合格回读覆盖、没被改；回读里被改的断开；凭记忆推、还没回读核过的跳过（CC 自己推的单攒不成「连续 3 张」）。"""
+        def entry(source="remembered", readback="", account="5310-01"):
+            return {"account": account, "source": source, "readback": readback}
+        evidence = auto.memory_evidence
+        self.assertEqual(evidence([entry()] * 5), [])
+        self.assertEqual(evidence([entry(readback="confirmed")] * 3), ["5310-01"] * 3)
+        self.assertEqual(evidence([entry(source=source) for source in ("chosen", "task_default", "company_rule",
+                                                                       "express_history")]), ["5310-01"] * 4)
+        mixed = [entry(), entry(readback="confirmed"), entry(), entry(source="chosen"), entry(readback="confirmed")]
+        self.assertEqual(evidence(mixed), ["5310-01"] * 3)
+        self.assertTrue(auto.memory_settled(evidence(mixed), "5310-01"))
+        # 回读里被改的：断开（哪怕推的时候是人选的）
+        broken = [entry(readback="confirmed"), entry(source="chosen", readback="changed"), entry(readback="confirmed"),
+                  entry(readback="confirmed")]
+        self.assertEqual(evidence(broken), ["5310-01", "", "5310-01", "5310-01"])
+        self.assertFalse(auto.memory_settled(evidence(broken), "5310-01"))
+        self.assertEqual(evidence([None, "x", entry(source="category_map", readback="")]), [])
+
     def test_express_history_is_a_only_from_the_version_without_pearnly_rows(self):
         def tier(history):
             return self.tier("account", payload=_payload(account_source="express_history"),
@@ -177,10 +197,18 @@ class ItemTiers(unittest.TestCase):
     def test_input_vat(self):
         self.assertEqual(self.tier("vat", payload=_payload(item_src="manual")), "A")
         self.assertEqual(self.tier("vat", payload=_payload(item_src="choice")), "A")
-        # 按方向推断（全平台共用的法定口径）：第一轮回放 13,878 张 0 错，从 B 改 A（10-16）
-        self.assertEqual(self.tier("vat", payload=_payload(item_src="judge_direction=purchase_invoice")), "A")
-        self.assertEqual(self.tier("vat", payload=_payload(item_src="judge_direction=expense", vat_amount="0.00",
-                                                           vat_capitalized="70.00")), "A")
+        # 按方向推断（全平台共用的法定口径）：第一轮回放 13,878 张 0 错，从 B 改 A（10-16）；原文要对得上（审查处理 10-16）
+        claim = _payload(item_src="judge_direction=purchase_invoice")
+        expense = _payload(item_src="judge_direction=expense", vat_amount="0.00", vat_capitalized="70.00")
+        self.assertEqual(self.tier("vat", payload=claim), "A")
+        self.assertEqual(self.tier("vat", payload=expense, text=TEXT.replace("ใบกำกับภาษี", "ใบเสร็จรับเงิน")), "A")
+        # 识别判抵扣，原文却是简式税票 / 收据、或没印买方税号、文字层是空的：CC 判断（B）
+        for text in (TEXT.replace("ใบกำกับภาษี", "ใบกำกับภาษีอย่างย่อ"), TEXT.replace("ใบกำกับภาษี", "ใบเสร็จรับเงิน"),
+                     TEXT.replace(OWN, ""), ""):
+            self.assertEqual(self.tier("vat", payload=claim, text=text), "B", text[:20])
+        # 识别判不抵（记费用），原文却是印着买方税号的完整税票：B；核不到原文（乱码、没有文字层）照 A，不多抵税
+        self.assertEqual(self.tier("vat", payload=expense), "B")
+        self.assertEqual(self.tier("vat", payload=expense, text=""), "A")
         self.assertEqual(self.tier("vat", payload=_payload(item_src="")), "C")
         # 没有税额：抵不抵无从说起，不列
         self.assertIsNone(self.tier("vat", payload=_payload(item_src="judge_direction=expense", vat_amount="0.00")))
@@ -192,8 +220,19 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual(self.tier("item", payload=stock,
                                    config={"reported_products": [{"code": "P1", "name": "A", "kind": "stock"}]}), "A")
         self.assertEqual(self.tier("item", payload=stock, config={}), "C")
+        # 每一行都要有着落：记过 / 规则给的存货码（按归一品名），或 Express 有同名存货；账套里「有存货主档」不算
+        # （审查处理 10-16：选「走库存」的公司里一张服务费也会出库存行）
         self.assertEqual(self.tier("item", payload=stock, config={},
-                                   decision={"needed": [], "decided_by": {"item": "remembered"}}), "A")
+                                   decision={"needed": [], "applied": {"items": {"a": "P1"}},
+                                             "decided_by": {"item": "remembered"}}), "A")
+        self.assertEqual(self.tier("item", payload=stock, config={},
+                                   decision={"needed": [], "decided_by": {"item": "remembered"}}), "C")
+        rent = _payload(items=[{"name": "ค่าเช่า", "item_mode": "stock_item"}])
+        self.assertEqual(self.tier("item", payload=rent,
+                                   config={"reported_products": [{"code": "P1", "name": "A", "kind": "stock"}]}), "C")
+        two = _payload(items=[{"name": "A", "item_mode": "stock_item"}, {"name": "ค่าเช่า", "item_mode": "stock_item"}])
+        self.assertEqual(self.tier("item", payload=two,
+                                   config={"reported_products": [{"code": "P1", "name": "A", "kind": "stock"}]}), "C")
         self.assertIsNone(self.tier("item"))
 
     def test_department_is_always_by_rule(self):

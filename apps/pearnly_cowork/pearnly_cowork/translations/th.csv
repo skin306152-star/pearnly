@@ -703,6 +703,7 @@ Excel/CSV exported from online banking or the electronic PDF is most accurate,�
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
 Expected VAT,ภาษีที่ควรเป็น
 Expense (goods from now on),ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)
+Expense (this kind from now on),ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)
 Expense account,บัญชีค่าใช้จ่าย
 Expense account when no category matches,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
 Expense it,ลงค่าใช้จ่าย
@@ -1592,6 +1593,7 @@ Statement review is not available for this task.,งานนี้ไม่ม�
 Status,สถานะ
 Stock,สินค้าคงคลัง
 Stock (goods from now on),สินค้าคงเหลือ (เอกสารสินค้าทั้งหมด)
+Stock (this kind from now on),สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)
 Stock Account Group per Account Set,กลุ่มรหัสบัญชีสินค้าคงเหลือของแต่ละชุดบัญชี
 Stock changed; recount,สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่
 Stock count,ตรวจนับสินค้า
@@ -1602,6 +1604,7 @@ Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
 Stock item,สินค้าคงเหลือ
 Stock item not found in Express,ไม่พบสินค้าใน Express
+Stock or expense for this company's documents like this?,บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย
 Stop and let me choose,หยุดเพื่อเลือกเอง
 Stop watching,เลิกติดตาม
 Stored Page Previews,ภาพตัวอย่างหน้าที่จัดเก็บไว้
@@ -2418,10 +2421,10 @@ cowork.nav.reconVat,ตรวจสอบรายงานภาษีขาย
 cowork.nav.work,จัดการงาน
 cowork.policy.enter,บันทึก (เอกสารประเภทนี้ทั้งหมด)
 cowork.policy.invalid,เอกสารนี้ไม่ต้องเลือกว่าจะบันทึกหรือไม่
-cowork.policy.service,ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)
+cowork.policy.service,ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)
 cowork.policy.skip,ไม่บันทึก (เอกสารประเภทนี้ทั้งหมด)
 cowork.policy.skipped,ไม่บันทึก
-cowork.policy.stock,สินค้าคงเหลือ (เอกสารสินค้าทั้งหมด)
+cowork.policy.stock,สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปจากการอ่าน
 cowork.readback.account_missing,ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้
@@ -3364,7 +3367,7 @@ intake.error.pos_facts_invalid,ข้อมูลยอดรวมรายว�
 intake.error.pos_payments_mismatch,ยอดตามวิธีชำระเงินรวมกันไม่เท่ากับยอดรวมของวัน กรุณานำเข้าไฟล์ส่งออก POS ใหม่
 intake.error.pos_receipt_account_missing,กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน
 intake.error.posting_kind_needed,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
-intake.error.posting_needs_review,เอกสารนี้เป็นเอกสารสินค้า บริษัทนี้บันทึกสินค้าเข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย เมื่อเลือกแล้ว เอกสารสินค้าต่อจากนี้จะดำเนินการตามนี้
+intake.error.posting_needs_review,บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย
 intake.error.seller_buyer_same_tax,ผู้ขายและผู้ซื้อมีเลขประจำตัวผู้เสียภาษีเดียวกัน กรุณาแก้ไขแล้วส่งใหม่
 intake.error.tax_id_invalid,เลขประจำตัวผู้เสียภาษีไม่ถูกต้อง กรุณาแก้แล้วส่งใหม่
 intake.mrerpDefault.ap_account,บัญชีเจ้าหนี้

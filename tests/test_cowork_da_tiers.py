@@ -352,6 +352,19 @@ class PushSideLookups(unittest.TestCase):
         self.assertEqual(service.day_books("C1", {}, "2026-10-20", []), [BOOK.lower()])
         self.assertIsNone(service.day_books("C1", {}, "", []))
 
+    def test_readback_marks_that_fail_count_as_unchecked(self):
+        def broken(*args):
+            raise RuntimeError("boom")
+
+        records = [{"record": "R1", "invoice_date": "2026-10-03", "completed_at": None}]
+        service, frappe = _automation_service({"cowork_push_readback_marks": ["x.marks"]}, {"x.marks": broken})
+        self.assertEqual(service.readback_marks("C1", BOOK, records), {})
+        self.assertEqual(frappe.logged, ["Cowork push readback marks failed"])
+        service, _frappe_module = _automation_service({"cowork_push_readback_marks": ["x.marks"]},
+                                                      {"x.marks": lambda *a: {"R1": "confirmed"}})
+        self.assertEqual(service.readback_marks("C1", BOOK, records), {"R1": "confirmed"})
+        self.assertEqual(service.readback_marks("C1", BOOK, []), {})
+
     def test_the_lab_path_guard_only_applies_on_test_sites(self):
         for site, key, ok in (("testcowork.pearnly.com", "s:\\70exp\\t9sincer", False),
                               ("testcowork.pearnly.com", "c:\\pearnlyexpress\\69acme", True),
@@ -563,6 +576,26 @@ class CompanyTier(unittest.TestCase):
         store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), truncated=True)]
         module.on_readback("C1", BOOK, "2026-10")
         self.assertEqual(json.loads(store.rows["CO1"].evidence_json)["periods"]["2026-10"]["a_changed"], 20)
+
+    def test_readback_marks_for_the_memory_streak(self):
+        """推送的钩子 `readback_marks`：几张推成功的单在合格回读里是 confirmed（覆盖、没被改）/ changed（被改、差异表截断）；
+        回读不合格、推在回读发起之后、没有回读的不列（同 `documents` 的覆盖口径，审查处理 10-16）。"""
+        store = Store()
+        module = _companies(store)
+        records = [{"record": "R1", "invoice_date": "2026-10-03", "completed_at": dt.datetime(2026, 10, 20, 5, 0)},
+                   {"record": "R2", "invoice_date": "2026-10-09", "completed_at": dt.datetime(2026, 10, 21, 5, 0)},
+                   {"record": "R3", "invoice_date": "2026-10-12", "completed_at": dt.datetime(2026, 11, 25, 5, 0)},
+                   {"record": "R4", "invoice_date": "2026-09-30", "completed_at": dt.datetime(2026, 10, 1, 5, 0)}]
+        store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), changes={"R2": "changed"})]
+        found = module.readback_marks("C1", BOOK, records)
+        self.assertEqual(found, {"R1": "confirmed", "R2": "changed", "R4": "confirmed"})
+        store.changes = [self._readback(dt.datetime(2026, 11, 23, 3, 0))]   # 截止日当天发起：不合格
+        self.assertEqual(module.readback_marks("C1", BOOK, records[:2]), {})
+        store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), truncated=True)]
+        self.assertEqual(module.readback_marks("C1", BOOK, records[:1]), {"R1": "changed"})
+        store.changes = []
+        self.assertEqual(module.readback_marks("C1", BOOK, records), {})
+        self.assertEqual(module.readback_marks("", BOOK, records), {})
 
     def test_a_write_mismatch_drops_to_l0_at_once(self):
         store = Store()
@@ -843,7 +876,7 @@ class UploadSweep(unittest.TestCase):
                   and node.targets[0].id in ("scheduler_events", "cowork_push_task_histories",
                                              "cowork_push_company_tier", "cowork_push_day_books",
                                              "cowork_readback_ready", "cowork_company_month_changes",
-                                             "cowork_push_verify_mismatch")}
+                                             "cowork_push_verify_mismatch", "cowork_push_readback_marks")}
         self.assertIn("pearnly_cowork.push.automation.sweep.run", values["scheduler_events"]["cron"]["*/5 * * * *"])
         self.assertEqual(values["cowork_push_task_histories"], ["pearnly_cowork.folder_intake.push.task_histories"])
         self.assertEqual(values["cowork_push_company_tier"], ["pearnly_cowork.companies.automation.tier_for_push"])
@@ -851,13 +884,14 @@ class UploadSweep(unittest.TestCase):
         self.assertEqual(values["cowork_readback_ready"], ["pearnly_cowork.companies.automation.on_readback"])
         self.assertEqual(values["cowork_company_month_changes"], ["pearnly_cowork.readback.service.month_changes"])
         self.assertEqual(values["cowork_push_verify_mismatch"], ["pearnly_cowork.companies.automation.on_mismatch"])
+        self.assertEqual(values["cowork_push_readback_marks"], ["pearnly_cowork.companies.automation.readback_marks"])
 
 
 # ── 第 5 条：自动推前的判定（边界） ────────────────────────────────────────────
 
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
-            prior=(), sql=None, recent=None, posting=(None, "")):
+            prior=(), sql=None, recent=None, posting=(None, ""), marks=None):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -871,14 +905,17 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
     seen = {"rollback": 0}
     frappe = types.ModuleType("frappe")
     frappe.session = ns(user="u@example.com")
-    # 这家供应商在这份账套里最近推成功的单（账套记忆科目要连续 3 张同科目，`assess._recent_accounts`）：默认 3 张同科目
-    recent = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01"}] * 3 \
-        if recent is None else recent
+    # 这家供应商在这份账套里最近推成功的单（账套记忆科目要连续 3 张有证据的同科目，`assess._recent_accounts`）：默认 3 张
+    # 凭记忆推的同科目单，合格回读都核过（``marks``，钩子 `cowork_push_readback_marks`）
+    recent = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
+               "account_source": "remembered"}] * 3 if recent is None else recent
+    marks = {f"R{index}": "confirmed" for index in range(len(recent))} if marks is None else marks
 
     def run_sql(query, values=(), as_dict=False):
         if "INNER JOIN" in query:
             seen.setdefault("recent_sql", []).append((query, values))
-            return [ns(payload_json=json.dumps(item)) for item in recent]
+            return [ns(name=f"R{index}", payload_json=json.dumps(item), completed_at=dt.datetime(2026, 9, 5),
+                       invoice_date=dt.date(2026, 9, 1)) for index, item in enumerate(recent)]
         seen.setdefault("sql", []).append((query, values))
         return [ns(payload_json=json.dumps(item)) for item in prior]
 
@@ -900,12 +937,14 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         _document_block=lambda doc: None, _work_branch=lambda *a: "", _fixed=lambda *a: None,
         _company_rules=lambda *a: (None, True), _same_company=lambda *a: [], _apply_stock_group=lambda *a: None,
         _account_tax=lambda row: OWN, _loads=json.loads,
-        _goods_posting=lambda *a: seen.setdefault("posting", a) and posting,
+        _posting_decision=lambda doc, connection, row, kind, flat, direction, config, today, decide: (
+            seen.setdefault("posting", (doc, connection, row, kind)) and (*posting, decide(posting[0]))),
         _decisions=lambda *a, **k: {"applied": {"account": "5310-01"}, "needed": list(needed),
                                     "decided_by": {"account": "remembered", "vat": "remembered"}})
     automation_service = ns(
         tier=lambda *a: tier or {"company": "CO1", "tier": "L1", "readback": readback, "baseline": "ok"},
         day_books=lambda *a: [BOOK.lower()], test_site_ok=lambda key: site_ok,
+        readback_marks=lambda connection, key, records: seen.setdefault("marks", (connection, key, records)) and marks,
         verify_capable=lambda connection, key, actor, route_device="": capable)
     printed = f"{SELLER} IV69-001 วันที่ 20/10/2569 รวม 1,000.00 ภาษี 70.00 รวมทั้งสิ้น 1,070.00"
     text_layer = ns(pages=lambda doc: [printed], text=lambda doc, found=None: "\n".join(found or [printed]))
@@ -932,21 +971,35 @@ class Judging(unittest.TestCase):
         self.assertEqual(seen["rollback"], 1)  # 只看不记：结束整笔回滚
 
     def test_a_remembered_account_needs_three_recent_pushes_with_it(self):
-        """账套记忆的科目：这家供应商在这份账套里最近 3 张推成功的单都记这个科目才算 A（`_recent_accounts`，10-16）。"""
+        """账套记忆的科目：这家供应商在这份账套里最近 3 张有证据的推送都记这个科目才算 A（`_recent_accounts`，10-16）。"""
         found, seen = _assess()
         self.assertEqual(found["class"], "A")
         query, values = seen["recent_sql"][0]
         self.assertIn("h.workspace=%s AND h.seller_tax IN %s", query)
         self.assertEqual((values[0], set(values[1]), values[2:5]), ("W1", {SELLER}, ("H1", "C1", BOOK)))
-        two = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01"}] * 2
+        connection, key, records = seen["marks"]
+        self.assertEqual((connection, key, records[0]["record"], records[0]["invoice_date"]), ("C1", BOOK, "R0",
+                                                                                              "2026-09-01"))
+        mine = {"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
+                "account_source": "remembered"}
+        two = [mine] * 2
         found, _seen = _assess(recent=two)
         self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:account"]))
-        other = two + [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5320-01"}]
+        other = two + [{**mine, "items_account": "5320-01"}]
         self.assertEqual(_assess(recent=other)[0]["class"], "B")
         # 别家（载荷里的供应商税号不同）、销项的不算，跳过后再数
         mixed = [{"direction": "sales", "items_account": "5310-01"},
                  {"direction": "purchase", "supplier": {"tax_id": "0105556012341"}, "items_account": "5310-01"}] + two * 2
-        self.assertEqual(_assess(recent=mixed)[0]["class"], "A")
+        self.assertEqual(_assess(recent=mixed, marks={f"R{i}": "confirmed" for i in range(6)})[0]["class"], "A")
+
+    def test_pushes_by_memory_count_only_after_a_qualified_readback(self):
+        """凭账套记忆推出去的单要合格回读覆盖、没被改才算证据（审查处理 10-16：CC 自己推的单不能攒成「连续 3 张」）；
+        推的时候科目由人选的（chosen）照算；回读里被改的断开。"""
+        self.assertEqual(_assess(marks={})[0]["class"], "B")                       # 都还没回读核过
+        self.assertEqual(_assess(marks={"R0": "confirmed", "R1": "changed", "R2": "confirmed"})[0]["class"], "B")
+        chosen = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
+                   "account_source": "chosen"}] * 3
+        self.assertEqual(_assess(recent=chosen, marks={})[0]["class"], "A")
 
     def test_the_company_goods_posting_choice_reaches_the_judgement(self):
         """商品单入账方式按公司选过（`service._goods_posting`）：判定用选的入账类型，posting 一项算 A。"""

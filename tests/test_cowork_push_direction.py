@@ -273,6 +273,30 @@ class NextYearPeriod(unittest.TestCase):
         self.assertEqual(keys(account_match.for_day([old, twin], "2026-03-01", span)), ["t8", "t9"])  # 两份同期：调用方停下
         self.assertEqual(keys(account_match.for_day([old, new], "2025-03-01", span)), ["t8"])
         self.assertEqual(account_match.for_day([old], "2027-03-01", span), [])
+        # 「新年度账套还没建」核不了就停下（审查处理 10-16）：同组里有会计期间没报全的账套（ISPRD 读不到，可能正是新的那份）、
+        # 或本年起始晚于旧账套本年止的账套
+        bare = self.book("y26", "", "", "")
+        later = self.book("y27", "2027-01-01", "2027-12-31", "2028-12-31")
+        older = self.book("t7", "2024-01-01", "2024-12-31", "2025-12-31")
+        self.assertEqual(account_match.for_day([old, bare], "2026-03-01", span), [])
+        self.assertEqual(account_match.for_day([old, later], "2026-03-01", span), [])
+        self.assertEqual(keys(account_match.for_day([old, older], "2026-03-01", span)), ["t8"])  # 更早的年度不挡
+        self.assertEqual(keys(account_match.for_day([old, bare], "2025-03-01", span)), ["t8"])   # 本年覆盖照旧
+
+    def test_by_month_the_same_rule(self):
+        """按月取账套（月结台账、主档页、档位统计）：本年期间与这个月有重叠的；没有就用次年段含这个月的旧账套，同按日期的规则。"""
+        span = lambda row: (row["attributes"]["period_start"], row["attributes"]["period_end"],  # noqa: E731
+                            row["attributes"]["next_end"])
+        keys = lambda found: [row["source_id"] for row in found]  # noqa: E731
+        old = self.book("t8", "2025-01-01", "2025-12-31", "2026-12-31")
+        new = self.book("y26", "2026-01-01", "2026-12-31", "2027-12-31")
+        month = account_match.for_month
+        self.assertEqual(keys(month([old, new], "2026-01-01", "2026-01-31", span)), ["y26"])
+        self.assertEqual(keys(month([old], "2026-01-01", "2026-01-31", span)), ["t8"])
+        self.assertEqual(keys(month([old], "2025-12-01", "2025-12-31", span)), ["t8"])
+        self.assertEqual(month([old], "2027-01-01", "2027-01-31", span), [])
+        self.assertEqual(month([old, self.book("y26", "", "", "")], "2026-01-01", "2026-01-31", span), [])
+        self.assertEqual(month([old], "", "2026-01-31", span), [])
 
     def test_the_hard_gate_sends_next_year_documents_to_the_new_book_once_it_exists(self):
         conflict = account_match.conflict

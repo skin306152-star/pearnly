@@ -88,6 +88,75 @@ class Blocked(unittest.TestCase):
             self.assertEqual(stopped, self.blocked(fields, cfg=cfg), (fields["document_type"], cfg["catalog_fingerprint"]))
 
 
+class SameLaneAsTheMapper(unittest.TestCase):
+    """`blocked` 与映射器用同一个车道判据（`field_rules.lane_verdict`），含这家选过的「小票 / 简易税票抵不抵进项」
+    （审查处理 10-16：选了抵进项的小票在永续账套里映射器交人，原先 `blocked` 说不交，公司选过的入账方式永远用不上）。"""
+
+    def test_blocked_agrees_with_the_mapper_under_a_remembered_vat_choice(self):
+        receipt = goods(document_type="receipt", buyer_tax="", buyer_name="")
+        for fields in (receipt, goods(), goods(document_type="simplified_tax_invoice")):
+            for vat in (None, "claim", "expense"):
+                cfg = config(choices={"vat": vat} if vat else {})
+                result = build_express_payload({"fields": fields}, config=cfg, today=TODAY, posting_kind=None)
+                stopped = not result.ok and str(result.reason).startswith(ESCALATE_REASON_PREFIX)
+                self.assertEqual(stopped, goods_posting.blocked(fields, direction="purchase", config=cfg,
+                                                                posting_kind=None, today=TODAY, vat_choice=vat),
+                                 (fields["document_type"], vat))
+
+    def test_a_claimed_receipt_follows_the_company_choice(self):
+        receipt = goods(document_type="receipt")
+        self.assertEqual(goods_posting.resolve(receipt, direction="purchase", config=config(), posting_kind=None,
+                                               chosen="service", today=TODAY), (None, ""))
+        kind, source = goods_posting.resolve(receipt, direction="purchase", config=config(), posting_kind=None,
+                                             chosen="service", today=TODAY, vat_choice="claim")
+        self.assertEqual((kind, source), ("service", goods_posting.COMPANY_CHOICE))
+        result = build_express_payload({"fields": receipt}, config=config(choices={"vat": "claim"}), today=TODAY,
+                                       posting_kind=kind)
+        self.assertFalse(str(result.reason or "").startswith(ESCALATE_REASON_PREFIX), result.reason)
+
+
+class ServiceUnderAStockChoice(unittest.TestCase):
+    """作用面：会交人的不只是商品（进项所有可抵进项的完整税票、销项全部单）。公司选「走库存」后一张服务费（房租）也走库存车道；
+    要保证它推不成 A：库存行要有着落（记过的存货码或 Express 同名存货），没有就要人选存货（C）；科目只是连接默认（B）。"""
+
+    def judge(self, items, products):
+        from pearnly_cowork.push.express import automation, decide
+
+        fields = goods(seller_name="เจ้าของอาคาร", invoice_number="R-1", subtotal="30000.00", vat="2100.00",
+                       total_amount="32100.00", posting_payment_manual="credit")
+        if items:
+            fields["items"] = items
+        cfg = config(reported_products=products, reported_suppliers=[{"code": "S1", "tax_id": SELLER, "branch": "00000"}])
+        kind, source = goods_posting.resolve(fields, direction="purchase", config=cfg, posting_kind=None,
+                                             chosen="stock", today=TODAY)
+        self.assertEqual((kind, source), ("stock", goods_posting.COMPANY_CHOICE))
+        decision, _sources = decide.decide(fields, direction="purchase", posting_kind=kind, config=cfg, remembered={})
+        payload = None
+        if not decision["needed"]:
+            cfg["choices"] = decision["applied"]
+            result = build_express_payload({"fields": fields}, config=cfg, today=TODAY, posting_kind=kind)
+            payload = result.payload if result.ok else None
+        text = "ใบกำกับภาษี 0107561000013 0994000333447 R-1 10/10/2026 32,100.00 " * 10
+        facts = automation.Facts(direction="purchase", fields=fields, decision=decision, payload=payload, config=cfg,
+                                 today=TODAY, ready=payload is not None, posting_from=source, text=text,
+                                 page_texts=[text], pages=[{"fields": fields}], account=row(), catalog=[row()],
+                                 day_books=[row()["source_id"].lower()], uploaded=TODAY)
+        return decision, payload, automation.classify(facts)
+
+    def test_a_service_line_is_never_a_under_a_stock_choice(self):
+        rent = [{"name": "ค่าเช่า", "subtotal": "30000.00"}]
+        decision, _payload, verdict = self.judge(rent, [{"code": "P1", "name": "สินค้า A"}])
+        self.assertIn("item", [item["kind"] for item in decision["needed"]])  # 要人选存货
+        self.assertEqual(verdict.cls, "C")
+        _decision, payload, verdict = self.judge(rent, [])  # 账套没报存货主档：不问，但存货一项 C
+        self.assertEqual([item["item_mode"] for item in payload["items"]], ["stock_item"])
+        self.assertEqual((verdict.cls, verdict.items.get("item")), ("C", "C"))
+        _decision, payload, verdict = self.judge(None, [{"code": "P1", "name": "สินค้า A"}])  # 没读出明细行
+        self.assertEqual(payload["items"], [])
+        self.assertNotEqual(verdict.cls, "A")
+        self.assertEqual(verdict.items.get("account"), "B")  # 库存车道的科目是连接默认
+
+
 class Resolve(unittest.TestCase):
     def resolve(self, chosen, *, posting_kind=None, fields=None, cfg=None):
         return goods_posting.resolve(fields or goods(), direction="purchase", config=cfg or config(),
