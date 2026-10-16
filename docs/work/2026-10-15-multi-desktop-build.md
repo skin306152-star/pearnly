@@ -11,7 +11,7 @@
 「我想要的使用场景：一个主 pearnly 号：添加成员，成员在自己的电脑自己的账号使用 cc 和 pearnly，每个人有每个人的独立账号，在自己的电脑使用，exp 还是依赖公司主体」。
 
 对应方案：主账号在「团队管理」加成员（各自独立账号、角色）；成员在自己电脑用自己账号登录 CC 桌面版即加入事务所的 Express 连接（D1，不用配对码、不顶替别人的电脑）；
-Express 仍是事务所一条连接（公司主体），账套按客户公司与物理位置认定，谁的电脑写都落同一本；谁录的单由谁的电脑写，关机时常驻或在线同事电脑代写（D3、D7）；
+Express 仍是事务所一条连接（公司主体），账套按客户公司与物理位置认定，谁的电脑写都落同一本；谁录的单由谁的电脑写，~~关机时常驻或在线同事电脑代写（D3、D7）~~ 关机时排队等他的电脑开机，不由同事代写〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕；
 对话各人各自，公司主档、知识库、记住的选择挂在公司上全所共用。第 7 批联调按此场景验收：testcowork「团队管理」加第二个测试成员，录制笔记本 acct 账号用该成员登录 CC 桌面版。
 
 ## 第 0 批：真机与生产只读核验（2026-10-15 18:30–19:10，曼谷）
@@ -188,7 +188,7 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
   名单没变的心跳一天补记一次可达行的报到时间；有待认定的行每次心跳重核，某份登记补上身份时也重核别的电脑的。
 - 两处白名单收 `uid` / `share`（`S/connections/reports.py`），`ReportPlan.account_sets` 带整份名单的投影行。
 - 中和默认账套：`model.pool_config` 在连接详情与推送读取两处去掉 Express 的所选与 6 个科目（数据不清、不升版本）。
-- 刷新改派（`S/connections/refresh.py`）：`lease_device`、`parent_request` 两个新字段；账套级按发起人自己的电脑 → 常驻 →
+- 刷新改派（`S/connections/refresh.py`）〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕：`lease_device`、`parent_request` 两个新字段；账套级按发起人自己的电脑 → 常驻 →
   其他（`my_turn` 纯函数，在线判据由 `credentials.pool_peers` 传入），120 秒后谁够得到谁读；交给电脑的是它自己的写法；
   整目录按 120 秒内来报到的电脑发子租约，`settle` 收尾；平时没有请求时领任务不查池。
 - 单槽读者改读：`preparation.collect / reported_stock_groups / reported_masters`、`stock_effects.apply`、
@@ -281,7 +281,7 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
 
 做了什么（对照方案第 9 节第 3 行、2.5、2.6、2.10、第 5 节第 4–8 条）：
 
-- 分派纯函数 `S/companion/route_contracts.py`：每份账套的排头、录入人自己的电脑 → 常驻 → 其他（120 秒换手）、按账套
+- 分派纯函数 `S/companion/route_contracts.py`〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕：每份账套的排头、录入人自己的电脑 → 常驻 → 其他（120 秒换手）、按账套
   黏住（`index_pending` 按文件号；旧版按登记上的「最近 120 秒内写过」近似）、载荷版本（不支持的跳过、池里一台都不支持
   算「需更新」）、`attended`。
 - `transport.lease` v2（`S/companion/transport.py`）：每台同时一件（`written_by_device`）；只看这台够得到、可写的账套的排头；
@@ -302,7 +302,7 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
   连接域经钩子 `cowork_pool_presence` 取各台在线与版本（`account_masters` 判「电脑离线 / 要升级」不再看连接当前上报的那台）。
 - 主连接统一解析 `connections.service.main_connections`，`records` 标 `main`；登记（`credentials._device_connection`）、
   Desk `targets.js`、LINE `_connections`、CC 工具 `intake_options` 都按它认。
-- 问责：推送记录 `entered_by` / `payload_version`（不可改）/ `queued_at` / `written_by_device`（建索引）/ `write_route`；写入尝试
+- 问责：推送记录 `entered_by` / `payload_version`（不可改）/ `queued_at`（10-16 删）/ `written_by_device`（建索引）/ `write_route`；写入尝试
   `device` / `device_owner` / `route`（不可改）。
 - 第 2 批审查 9b：连接的上报记录只留被拦的自动更新，`report_credential` 不再随上报改；两台轮流上报不再重写连接行。
 - MR.ERP 服务端直连不变（v1 锁口径、确认不带电脑、执行器不填问责字段）。
@@ -325,7 +325,7 @@ Express 仍是事务所一条连接（公司主体），账套按客户公司与
 与方案的出入及理由：
 
 - 排头按**建立时间**先后取，不按 `queued_at`：回执把单退回排队（等账套、可重试失败）时会重记 `queued_at`，按它排会让同一份账套
-  后来的单插到前面，违背「同一份账套严格按排队先后」。`queued_at` 只管 120 秒换手计时。
+  后来的单插到前面，违背「同一份账套严格按排队先后」。`queued_at` 只管 120 秒换手计时（10-16 随换手一起删）。
 - 黏住的「离线」用现成的在线判据（任一把密钥 3 分钟内报过到），不是方案写的 120 秒：要精确到 120 秒得每 3 秒领取都写一次电脑行。
 - 「一台都没有能写的电脑」时 LINE / CC / Desk 仍用现有文案「CC 桌面版未连接」，「电脑离线」（橙、仍可选）「需更新」等新文案在第 6 批；
   `scheduled-tasks.tsx` 等 React 端读 `online` 的照旧（第 6 批随前端构建改）。定时任务推送的 D4（不在线也确认排队）属第 4 批。
@@ -448,7 +448,7 @@ Site，第 7 批按新口径重写。
   值（`reader|root|folder`）不会被编号里的竖线拆错。只给连接时按根目录认电脑（方案没写旧写法怎么认）。
 - 文件行不由补丁回填：没记电脑的文件按连接认（在途的照常走完）；电脑改挂时文件不论走到哪一步都转（之后还要按它取结果表格）。
 - 补丁认不出电脑（读者连接上没有有效密钥）的任务，由这条连接上报了它那个根目录的电脑来同步时接手（`readers.adopt`，条件更新）；方案只写了回填。
-- 读账套请求的「在线」按这一种按需请求 90 秒内来领过算，不按心跳：心跳在、却从不来领按需请求的旧版不该让别的电脑等 120 秒。不黏住、不看载荷版本（只读）。
+- 〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕读账套请求的「在线」按这一种按需请求 90 秒内来领过算，不按心跳：心跳在、却从不来领按需请求的旧版不该让别的电脑等 120 秒。不黏住、不看载荷版本（只读）。
 - 读账套请求的资格是可达行状态正常，不要求能写（读不写）。
 - 公司文件夹（ADR-020，方案之后才有）一并按电脑：绑定按根目录认电脑，只给连接的解绑在几台电脑各有一行时不删。
 - 定时任务推送 D4 用 `destinations.queueable`（`writers_known`）；`destinations.online` 保留给 CC 工具报「CC 桌面版在线」。
@@ -514,7 +514,7 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 设备密钥（`C/device_link.py`、`C/profile_store.py`）：第一次运行生成 32 字节随机数，DPAPI 加密存在 `companion.json` 的 `device.key`，一经写下
   不换（读得早的配置副本写回时沿用文件里的那把，本进程的写串行）；托盘启动时先生成；桥 `state()` 给 `device: {key, name}`，`features` 加 `devices`。
 - 认电脑：Express 成员在取任务线程（`multi_profile_worker` 每轮先 `announce`）、MR.ERP 只读成员在文件夹线程里各发 `device_hello`（设备密钥、
-  电脑名 = 文件夹同步与绑定里的同一个 `_device_name`、常驻、`host_names`），内容变了马上再发；`superseded` 时本机同一条连接还有别的成员就删掉
+  电脑名 = 文件夹同步与绑定里的同一个 `_device_name`、常驻（10-16 删）、`host_names`），内容变了马上再发；`superseded` 时本机同一条连接还有别的成员就删掉
   这个，否则与 `claimed_elsewhere` 一样给成员标 `device_state`（停用、设置里 `attention`、桥给页面 `device_state`），配对写入新密钥时清掉。
   401 / 403 / 404 当旧服务端（半小时后再问），网络 / 报文问题五分钟后再试，都不动成员。
 - 断开：桥的 `remove` 改成后台任务 `disconnect`，先 `device_leave` 再删本机成员（旧服务端、连不上照样删）；改连别家公司时原来的成员也先各自 leave。
@@ -526,7 +526,7 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 - 领取：每次带 `index_pending`（全部成员 `IndexBatch` 还没重建的账套目录的文件号，十分钟缓存，空列表也报）；任务读 `attended`（只认布尔）。
 - 写：任务记录（写过就照上次回执）挪到找账套之前；带 `account_uid` 时找不到账套或文件号确实不同 → `waiting_lock` +
   `[ERR_ACCOUNT_UID_MISMATCH]`，并 `master_refresh.rescan_soon()` 让下一次心跳整套重扫；读不出文件号照旧按路径写。
-- 询问框（`C/gui_tray_workers.py`）：常驻或 `attended=false` 不问；有人值守时探**这张单的**账套（`worker.task_account_dir`，只在授权根目录下），
+- 询问框（`C/gui_tray_workers.py`）：常驻（10-16 删，只看 `attended`）或 `attended=false` 不问；有人值守时探**这张单的**账套（`worker.task_account_dir`，只在授权根目录下），
   被占用先按「等账套」放掉租约再问，「终止」作用到之后领到的那张。
 - 没有 Express 也能加入：Express 配对码、本机找不到 Express（没找过先找一次）→ `pair_folder(pool=True)` 当只读成员加入池；之后「更换… / 重新查找」
   找到 Express 时按原密钥重新配对成能写账的成员（`pairing.pair` 现在写 `kind="express"`）。
@@ -560,7 +560,7 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 与方案的出入及理由：
 
 - 版本号 1.7.0，不是 1.6.0（见上）。
-- `always_on` / `host_names` 只经 `device_hello` 报，心跳与文件夹同步不加（服务端第 1 批只从 `hello` 收；常驻开关一变，各线程重启、马上再认一次）。
+- `always_on`（10-16 删）/ `host_names` 只经 `device_hello` 报，心跳与文件夹同步不加（服务端第 1 批只从 `hello` 收；常驻开关一变，各线程重启、马上再认一次）。
 - `superseded` 而本机同一条连接没有别的成员时不删成员，标 `device_state` 等对话页 `rekey`：删了会丢掉这个成员的数据根与授权，重新登记时
   `pair` 按连接认回同一个成员、换上新密钥。
 - 「终止」不再立刻把这张单回报为终止（租约已经放了），而是作用到之后领到的那张（多半就是它）：同一批里的其余单照旧按终止回报。
@@ -805,9 +805,9 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
   没有，或有成员带 `device_state`）→ 换请求号带 `rekey` 再登记；`superseded` 第一次就带 `rekey`；`update_needed` → 新的 `Link`
   `update_needed`（设置「连接」写「需更新」+「下载新版」，桥的 `download_update`）。`useAutoConnect`：1.7.0 每次打开都登记，之后听桥的
   `changed`，成员新出现 `device_state` 马上再登记一次（每个成员每种状态自动试一次）。旧版桥照旧（没有成员才连、不带设备密钥）。
-- **常驻电脑碰到 `claimed_elsewhere`**：选「页面自动恢复」（ADR 第 42 条）。（审查第 3 条更正：停着的那台在池里没有自己的电脑行，别的
+- **常驻电脑碰到 `claimed_elsewhere`**〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕：选「页面自动恢复」（ADR 第 42 条）。（审查第 3 条更正：停着的那台在池里没有自己的电脑行，别的
   电脑的「电脑」列表**不列它**；窗口没开时没有任何地方提示，见下方审查一节。）
-- **「电脑」列表与移除**：服务端 `rules.computers` 每行多 `id` / `connection` / `always_on` / `can_remove`（`devices.owners` +
+- **「电脑」列表与移除**：服务端 `rules.computers` 每行多 `id` / `connection` / `always_on`（10-16 删）/ `can_remove`（`devices.owners` +
   `credentials.manages`）；`companion.api.remove_device` → `credentials.remove_device`（加锁顺序与幂等见 ADR 第 43 条；可达行的连接由
   `connections.pool.device_connections` 给）。页面 `PoolComputers`：浏览器的「连接」与桌面版「此电脑 → 连接」下的「电脑」同一个组件，
   常驻的写「常驻模式」，能移除的行尾「···」→「移除」（同侧栏行菜单，不加确认）。
@@ -842,7 +842,7 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 | CC `co.folderGone` | Computer removed | 电脑已移除 | นำคอมพิวเตอร์ออกแล้ว | — |
 | CC `co.followCompany` | Company's account set for the year | 跟随公司当年账套 | ชุดบัญชีของบริษัทตามปี | — |
 
-沿用的已有词：「常驻模式」（`st.alwaysOn`，用在「电脑」列表一行的说明里）、「移除」「重试」「下载新版」「需要管理员账号」「CC 桌面版未连接」、
+沿用的已有词：「常驻模式」（`st.alwaysOn`，用在「电脑」列表一行的说明里；10-16 删）、「移除」「重试」「下载新版」「需要管理员账号」「CC 桌面版未连接」、
 `co.accountSets`「账套」、`co.confirm`、`co.handToCC`。
 
 证据：
@@ -873,14 +873,14 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 5. 两台都映射 S 盘时新建定时任务：文件夹下拉每项前面带电脑名，保存后任务的 `reader_device` 是选的那台。
 6. T1 任务：列表写「跟随公司当年账套」，运行记录列出实际推往的账套与张数；T8 / T9 同期停下的票在待处理页点开选一份「确认」后推往那份，票上的去向换成它。
 7. 1.6 的桌面版在已有 1.7.0 的池里打开对话页：设置「连接」写「需更新」+「下载新版」。
-8. 配对码抄到两台（`claimed_elsewhere`）：对话页开着的那台自己重新登记、成员恢复；常驻电脑窗口开着时同样自愈。
+8. 配对码抄到两台（`claimed_elsewhere`）：对话页开着的那台自己重新登记、成员恢复；~~常驻电脑窗口开着时同样自愈~~（10-16 没有常驻了）。
 
 没做 / 拿不准：
 
 - 只在本机闸门与替身上验过；真实 Site、HTTP 链、测试机、真 Windows 都没跑（第 7 批）。`remove_device` 在 MariaDB 上逐条连接 `FOR UPDATE` 的锁等待没量。
 - 网页没有推送记录详情页，「由 {电脑} 写入」只进了 CC 的 `written.writer`，没加网页界面与词条。
 - 全所可用关掉后的名单只能从团队成员里勾（团队成员接口只限管理员，开关本来就只给管理员）；连接名单里已有、团队里已停用的人照样列出、可以勾掉。
-- 自动恢复靠对话页开着：常驻电脑窗口被关掉（托盘里没开窗口）时要等有人打开 CC；没加服务端心跳信号（心跳带不出登录会话，换不了密钥）。
+- 〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕自动恢复靠对话页开着：常驻电脑窗口被关掉（托盘里没开窗口）时要等有人打开 CC；没加服务端心跳信号（心跳带不出登录会话，换不了密钥）。
 - 「电脑离线」等状态在 Desk 只改了录入入口卡片与「新建录入」的账套说明；定时任务弹窗沿用同一个 `describe`，CC 工具只多给布尔值，没有新文案。
 
 第 7 批真机要验：上面点验 1–8 各项在两台真机上走一遍；`remove_device` 与心跳 / 领取并发（连接行锁等待、快照隔离 1020）；1.7.0 收到
@@ -920,7 +920,7 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 |---|---|---|---|---|
 | `cowork.folder.followCompany` / CC `co.followCompany` | Follows the company's account set for the year（原 Company's account set for the year） | 跟随公司当年账套（不变） | ตามชุดบัญชีของบริษัทในแต่ละปี（原 ชุดบัญชีของบริษัทตามปี） | 会社のその年の会計データに従う（原 会社のその年の会計データ；CC 没有 ja） |
 
-- 想改的已有文案（这次都没改）：同第 6 批——「CC 桌面版未连接」只在池里一台电脑都没有时出现，文字没动；「常驻模式」（`st.alwaysOn`）用在
+- 想改的已有文案（这次都没改）：同第 6 批——「CC 桌面版未连接」只在池里一台电脑都没有时出现（10-16 起改指「你没有电脑」），文字没动；「常驻模式」（`st.alwaysOn`，10-16 删）用在
   「电脑」列表每行的说明里，可考虑缩成「常驻」。
 
 证据（本机 `PATH=$HOME/pearnly-devtools/bin:$PATH`，python3 3.12；需要 Frappe 的在一次性离线容器 `pearnly/frappe-sample:16.34.1`、
@@ -961,7 +961,7 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 
 没做 / 拿不准：
 
-- 常驻电脑碰到 `claimed_elsewhere` 而窗口没开：任何地方都没有提示（第 3 条）。要么服务端记下认领冲突在「电脑」列表那台的行上说一句，要么
+- 〔10-16 取代，见文末「按用户 10-16 简化：谁的活谁的电脑做」〕常驻电脑碰到 `claimed_elsewhere` 而窗口没开：任何地方都没有提示（第 3 条）。要么服务端记下认领冲突在「电脑」列表那台的行上说一句，要么
   桌面端托盘通知——都要新文案，先列给用户定。
 - 第 5 条只在桌面端一侧修：升级首启时旧钥的 hello 要连得上服务端；连不上时旧电脑照旧残留（不拦配对）。真机时序没验。
 - 名单候选按角色列，不看团队页的启用以外的状态；名单里已有、现在已停用或失去角色的人照样列出、能勾掉。
@@ -969,3 +969,128 @@ SQL 形状，真实库里同表子查询的 `SELECT … IN (SELECT …)` 留第 
 
 第 7 批真机要验（在第 6 批所列之上加）：上面点验 3、5、8 的升级首启时序；`removed` 之后点「连接」的 `rejoin` 在真 Site 上的锁顺序；
 `member_choices` 在真库上的人数与排序；`choose_account_set` 推不成放回原因后早上汇总与月结台账的计数。
+
+## 按用户 10-16 简化：谁的活谁的电脑做（2026-10-16，本地提交，未推送）
+
+来源（用户 10-16 原话）：「我不太明白为什么会有什么常驻模式，不能像 claude 一样在那台电脑就处理那台电脑的工作吗？……我怎么听上去有很多阻碍」；
+开发窗口给出简化方案后用户回「以上可以」。规则与取代了哪几条见 [ADR-021](../adr/0021-cc-desktop-multiple-computers.md) 第 50–56 条与
+「有意变化」「兼容」里 10-16 的几条。基线 `254b2e28`（T5 第 1–6 批 + T1 + 已并入 CC 外壳分支 `f5c04929`）。
+提交：`ecabec82` refactor（代码与测试）、本条 docs（ADR-021 第 50–56 条与有意变化 / 兼容、方案 D3 标注、架构说明、本记录）。没有新补丁：新字段可为空，空值有明确含义。
+
+勘察时提给开发窗口的 6 点（D-a…D-f）按勘察推荐施工：
+
+| 点 | 定成 |
+|---|---|
+| D-a 定时任务谁写 | 读那个文件夹的电脑：推送记录新字段 `route_device`（文件行的 `reader_device`，没有取任务上的；补丁前的旧任务都没有 → 按负责人自己的电脑）。只读成员（没装 Express）读的任务因此一律「访问不到」 |
+| D-b 「他的电脑」 | 电脑行新字段 `signed_in_users`：凡在那台电脑登录过 CC 的人；共用电脑每人登录一次就都算，只能整台移除才去掉 |
+| D-c 没有登录记录的电脑 | 过渡口径：谁的单都写（不弹框），一旦有人登录 CC 就只归登录过的人（ADR 第 50 条的有意例外） |
+| D-d 同一份账套的排头卡死 | 排头只在这台能写的单里取（`queue_heads.scope`，内外两层同一套过滤） |
+| D-e 科目历史与主档刷新 | 当账套的公共资料：够得到就读、先来先读；严格按发起人的只剩回读与写账 |
+| D-f 询问框 | `attended` 只看是不是定时任务、录入人是否在这台电脑登录过 CC；桌面端不再看本机常驻设置 |
+
+按新规则自己纠正的一处：任务书写 `attended(job) = not job.route_device`；改成「不是定时任务 **且** 录入人在这台电脑登录过 CC」——没有登录记录的电脑
+（过渡期替谁都写）也不弹框，否则一台只认过电脑、没人打开过对话页的电脑会替别人的单弹询问框、卡住整台的写入线程（与以前「替别人写不弹框」一致）。
+
+另做的一处减负：领取写账时这台电脑的登录集合用 `devices.signed_in_of`（一次按主键取电脑行），排头为空时不再读全池（`pool_peers` 仍在有排头时才读），
+保持「平时没有排队的单，每 3 秒的领取不查池」。
+
+### 改了什么
+
+服务端（`S` = `apps/pearnly_cowork/pearnly_cowork`）：
+
+- 归属判据：`S/connections/member.py` 新纯函数 `serves(users, actor)`；`S/connections/pool.py` 新 `owned(peers, actor, device=)`（定时任务只有那台、
+  其余按人）；`Member.peers` 删掉（只有目录刷新的档位在用）。
+- 分派纯函数 `S/companion/route_contracts.py` 整份重写：删 `tier`、`ALWAYS_ON` / `OTHER` / `BETTER`、`HANDOFF_SECONDS`、`queued()`、`Peer.user` /
+  `Peer.always_on`、`Job.queued_at`；新 `Peer.users`、`Job.route_device`、`owns`、原因 `NOT_MINE`、问责 `READER`；判断顺序 够不到 → 不归它 → 黏在别处
+  （只挡不接）→ 载荷版本（只在归这张单、又够得到的电脑里判）→ `own` / `reader` / `sticky`；`attended(job, peer)` 见上。`STICKY_SECONDS` 保留。
+- 排头 `S/companion/queue_heads.py`：`Q_HEADS` 内外两层加 `_OWNED` 过滤（参数恒定，查询串不变）；`scope(device=, users=, user=)` 四种取法；
+  `heads(…, device=, users=, user=)`；选列去掉 `queued_at`、加 `route_device`。
+- 领取 `S/companion/transport.py`：排头按本机与它的登录集合取；`Job` 带 `route_device`；`attended` 用新函数；`_busy`、隔离、锁、位置替换不变。
+- 池里各台电脑 `S/companion/credentials.py:pool_peers`：`users` = `signed_in_users` + `signed_in_user`（`devices.signed_in`），不再给 `always_on`。
+- 电脑表 `cowork_cc_desktop_device.json`：删 `always_on`，加 `signed_in_users`（Small Text，只读，JSON）；`devices.note_signed_in` 同时并进登录集合，
+  `create` / `create_claimed` 带上首个使用人；`hello` 不再写 `always_on`；`device_contracts.hello_request` 不再解析、不再返回它（多出的键照旧忽略）。
+- 池的状态 `S/companion/pool.py`：`state(…, user=, device=)` 只看 `owned` 出来的电脑：`computers` = 他有没有电脑，`writers_known` / `online` 在他的电脑里判，
+  `needs_update` 看他自己的排头（按电脑时看冻结给那台的）；`for_user(…, device=)` 传当前用户。`api.online`、Desk `targets.js`、LINE、CC 工具的
+  `destinations.online / selectable` 随之按人，不用改。
+- 能不能确认 `S/push/native/service.py:has_writer(connection, key, *, actor, route_device='')`：确认、「还能不能确认」、准备回执的 `has_writer`（`S/push/application/service.py`）
+  都按录入人 / 读文件夹的电脑判；都不能写回现有 `push.no_writer`。`queued_at` 的三处写入删掉；`project` 多给 `route_device`。
+- 推送记录 `cowork_push_record.json`：删 `queued_at`，加 `route_device`（标签沿用「Reader Device / 读文件夹的电脑」，只读、不可复制，
+  进 `push/native/documents.py` 的不可改字段，不进请求指纹）；`ledger.reserve(…, route_device=)`、`application.prepare` / `submit(…, route_device=)`。
+- 定时任务 `S/folder_intake/`：`push._reader(entry, rule)` → `submit(route_device=)`（只 Express）；`destinations.queueable(…, device=)` /
+  `ExpressTarget.selectable(connection, device)` 按那台判；`follow.choose` 的 `has_writer` 带 `route_device=rule.reader_device`。
+- 按需请求 `S/companion/request_service.py`：`_turns` 去掉 `decide` 与在线档位——回读只给发起人登录过 CC 的电脑，`SHARED_KINDS`（科目历史）够得到就给；
+  `waiting(…, user=)` 只问他的电脑，有电脑却都够不到回 `reason: "unreachable"`；`readback/service.py` 两处传发起人，`readback/history.py` 不传（公共资料）；
+  CC 工具回读的 `READBACK_WAITING` 与工具说明加 `unreachable`（给模型看的英文，不是界面文案）。
+- 目录刷新 `S/connections/refresh.py`：删 `tier` / `my_turn` / `HANDOFF_SECONDS`，账套级读够得到它的电脑先来先读；`JOIN_SECONDS` 保留。
+- 「电脑」列表 `S/folder_intake/rules.py:computers` 不再给 `always_on`。
+
+CC 桌面版（`C` = `companion/src/companion`）：删 `C/always_on.py`（防睡眠、开机锁屏）；`gui_tray.py` 删 `KeepAwake` / `lock_screen` 与 `on_always_on`，
+保留 `setQuitOnLastWindowClosed(False)`、关窗口进托盘、自启指向核对；`desktop_settings.py` 删回调、快照的 `always_on`、`set_always_on`，换钥前旧钥认电脑不再带它；
+`tomo_bridge.py` 删 `always_on` 方法；`config.py` / `profile_store.py` 删字段（加载按字段白名单，旧文件里的读时忽略、写回丢掉）；`device_link.py` 的 `hello_body` /
+`settle_old_key` / `Announcer` 不再报常驻；`gui_tray_workers._unattended` 只看 `attended is False`；`README.md` 记一条。开机自启仍是默认（`autostart=True`，配对时写入），
+设置里「开机时自动启动 CC」保留。
+
+前端（`frontend/assistant/src`）：`settings.tsx` 删常驻开关与「电脑」一行里的「常驻模式」、`Computer.always_on`；`lib/desktop.ts` 删 `DesktopState.always_on`、
+改一句注释；`i18n.ts` 删 `alwaysOn`（三种语言）。
+
+### 去掉的复杂度
+
+档位（发起人 → 常驻 → 其他：`route_contracts.tier`、`refresh.tier` / `my_turn`、`request_service` 里的 `decide` 与在线档位）；两处 `HANDOFF_SECONDS`（120 秒谁都能领）
+与 `queued_at` 计时（字段、三处写入、`queued()`）；「更好的电脑在线就先等」（`BETTER`）；「替别人写不弹框」靠常驻推导；`Member.peers` 回调；常驻电脑窗口没开就没地方
+提示这个第 7 批待定项；桌面端 `always_on.py` 整个文件、设置开关、桥方法、`hello` 字段、`test_always_on.py`。
+
+### 文案
+
+- 新加界面文案：无。新加 DocType 字段标签一条：`Signed-in Users`（登录过的账号 / ผู้ใช้ที่เคยลงชื่อเข้าใช้ / サインインしたことのあるユーザー，术语表与翻译包同步）。
+  `route_device` 沿用已有标签「Reader Device / 读文件夹的电脑」。
+- 沿用的现有文案：「已连接」「电脑离线（仍可选）」「没有能写的电脑」「CC 桌面版未连接」（改指「你没有电脑」）「CC 桌面版需更新」、`push.no_writer`、
+  `cowork.folder.account_set_unreachable`、`cowork.folder.companion_offline`、「开机时自动启动 CC」。
+- 不再使用：「常驻模式」（`st.alwaysOn`，三种语言）；DocType 标签 `Always On`、`Queued At (UTC)`（术语表 `messages.tsv` 与 `translations/{en,zh,th,ja}.csv` 一并删）。
+
+### 检查
+
+| 命令 | 结果 |
+|---|---|
+| `python3 tests/test_cowork_express_dispatch.py` | 61 OK（分派规则整组重写：只由录入人自己的电脑写、同事电脑等多久都不领、共用电脑每个登录过的人都算、没有登录记录的电脑谁的都写、定时任务只由读文件夹那台写、载荷版本只在他的电脑里判、别人的电脑黏住只挡不接、`attended`；领取：同事的排头不挡我的单、同事的单永不领、定时任务按 `route_device`、无登录记录 `anyone`；排头查询在 SQLite 上按四种 `scope` 跑；账本：`has_writer` 按人 / 按读者电脑、只有同事电脑够得到时确认拒 `push.no_writer`、「还能不能确认」同口径、不再记 `queued_at`；池的状态：自己离线 → 离线仍可选、只有同事够得到 → 没有能写的电脑、自己一台都没有 → 未连接、同事在线不算自己在线、无登录记录的电脑过渡期算、按读者电脑、需更新只看自己的排头） |
+| `python3 tests/test_cowork_companion_requests.py` | 38 OK（回读只由发起人的电脑领、等多久同事都不领；科目历史够得到就领；无登录记录的电脑过渡期领回读；`waiting(user=)` 回 `unreachable`、没有自己的电脑照旧 `offline`） |
+| `python3 tests/test_cowork_express_account_sets.py` | 67 OK（目录刷新先到先读、租约归电脑；`pool.owned` 判据表） |
+| `python3 tests/test_cowork_cc_desktop_devices.py` | 68 OK（登录集合累加、`signed_in_of`、`pool_peers.users`、`hello` 带旧 `always_on` 照收不存、字段表） |
+| `test_cowork_folder_intake`（125）/ `folder_follow_year`（30）/ `readback`（44）/ `assistant_ui`（129）/ `companion_http_auth`（21） | 全 OK（定时任务冻结读者电脑、文件行优先于任务、旧任务回落负责人；跟随按读者电脑判够不够得到；回读按发起人问；「电脑」一行不再写常驻、前端源码里没有 `alwaysOn` / `always_on`） |
+| `tests/test_cowork_folder_computers.py`（要 bench 的 frappe） | 改了断言（不再有 `always_on`），本机没有 frappe 没跑；候选检查（`ci-candidate-checks.sh`）里跑 |
+| CC 桌面版 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1 / httpx / dbf / pytest 临时虚拟环境） | 891 passed, 41 skipped（基线 `254b2e28` 同一环境 892 passed, 43 skipped：删了 `test_always_on.py` 整个文件，其中「没人值守不弹框、先放租约」那条源码对照并入 `test_write_dispatch.py` 并改成只看 `attended`、断言不再防睡眠 / 锁屏；`test_desktop_settings` 两条常驻测试并成「旧配置里的 `always_on` 读时忽略、写回丢掉、开机自启仍默认」；`test_device_link` 三处不再带常驻、改测电脑改名时再认一次） |
+| `check-architecture.py`、`i18n-build.py --check` | PASS / PASS |
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（含两个前端构建） | 91 步全过，退出码 0（含两个前端构建；提交前的工作树） |
+
+### 给测试窗口的点验（测试机实时源码 + CC 桌面版 1.7.0；替换第 6 批清单里涉及常驻 / 代写的项）
+
+1. 甲、乙各在自己的电脑登录 CC：甲在网页 / 手机 / LINE / CC 推一张 → 只有甲的电脑写（推送记录「由 甲的电脑 写入」）；乙的电脑开着也不接。
+2. 甲的电脑关机或休眠后甲推一张：Desk、CC、LINE 写「电脑离线」、仍能选、确认排队；乙的电脑在线也不接；等两分钟以上仍在排队；甲开机后自动写进。
+3. 同一份账套：甲的单排在前面、甲关机；乙推同一份账套 → 乙的电脑照样写乙的单，甲的那张继续等甲开机。
+4. 账套只在甲电脑的 C 盘上：乙推这份账套 → 录入入口「没有能写的电脑」，确认回「没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送」，
+   不会由甲的电脑代写。乙在 CC 里回读这份账套 → 说明他自己的电脑够不到（`unreachable`），不建请求。
+5. 新成员丙一台登录过 CC 的电脑都没有 → Express 写「CC 桌面版未连接」（同事有电脑也一样）。
+6. 共用电脑：甲、乙先后在同一台电脑上打开 CC 对话页 → 两人的单那台都写；只认过电脑、没人打开过对话页的旧电脑（1.6 或补丁建的）照旧谁的单都写、不弹询问框。
+7. 定时任务：乙的电脑读的文件夹出的票只由乙的电脑写（负责人是甲也一样）；乙的电脑关着 → 排队等它；乙的电脑够不到跟随到的账套 → 停在
+   「这份账套没有电脑够得到」；定时任务的单碰到账套被占用不弹询问框。
+8. CC 桌面版 1.7.0：设置「此电脑」里没有「常驻模式」开关、「电脑」列表没有「常驻模式」字样；「开机时自动启动 CC」仍在且默认开；关掉窗口进托盘照常写账；
+   电脑睡眠后算离线，醒来自动接着写；旧配置里 `always_on` 打开过的升级后不再防睡眠、不再开机锁屏。
+9. 科目建议历史、账套主档刷新：哪台够得到就由哪台先读（不必等发起人的电脑）。
+
+### 第 7 批真机要验（加在第 6 批所列之上）
+
+- 甲关机 → 开机后排队的单自动写完（真 Windows 睡眠 / 现代待机醒来后的心跳与领取恢复时延）；
+- 1.6 升 1.7.0 首启：电脑行从「没有登录记录」变成只归登录过的人的那一刻，之前排着的别人的单是否按预期停下等各自的电脑（第 50 条过渡口径的边界）；
+- 定时任务 `route_device` 在真 Site 上随文件行冻结、`device_hello` 改挂电脑后（`readers.moved`）已冻结的旧值不随之改——改挂前排着的定时任务单要看会不会停住；
+- 真库上 `Q_HEADS` 加了 `_OWNED` 之后的执行计划与锁（压测时量）；
+- 询问框：录入人本人的电脑、本人不在电脑前时碰到账套被占用，写入线程会一直等人点（现状，没加处理）。
+
+### 没做 / 拿不准
+
+- 办公室测试机以前靠常驻模式保持在线（记忆「10-12 起保持 CC 常驻」）。升级 1.7.0 后屏幕一关就进待机，远程测试会断——要用户在 Windows 电源设置里改「从不睡眠」，
+  这是系统设置，要用户自己点。
+- 共用电脑每个人都要在那台 CC 上用自己的账号登录一次，那台才写他的单；帮同事登录过一次，那台以后也写他的单，除了移除整台电脑没有入口去掉。
+- 询问框仍可能卡住写入线程（第 7 批最后一条）。
+- 改挂电脑（`readers.moved`、`credentials` 的旧槽位改挂）只转读者字段，不改已冻结在推送记录上的 `route_device`：改挂前排着的定时任务单冻结的是旧电脑编号，旧电脑退役后
+  这些单不会被新编号的电脑领。真机遇到再定（可在 `readers.moved` 里顺带改排队中记录的 `route_device`），这次没做。
+- 没挂电脑、按密钥编号算一台的旧槽位密钥当读者时，`route_device` 是密钥编号；它在推送连接上不是同一编号时那张单「访问不到」。补丁之后应已没有这种读者，没另做。
+- `tests/test_cowork_folder_computers.py` 本机没跑（要 frappe）；真实 Site、HTTP 链、测试机、真 Windows 都没跑。
