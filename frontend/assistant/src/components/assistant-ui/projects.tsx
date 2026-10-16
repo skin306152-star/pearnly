@@ -126,7 +126,7 @@ export const ProjectHeader: FC<{
 }> = ({ project, open, onToggle, sessions, handle, onMove }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isMobile } = useSidebar();
-  const press = useLongPress(() => setMenuOpen(true));
+  const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   const activity = useGroupActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();

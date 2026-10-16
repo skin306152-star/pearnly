@@ -239,7 +239,7 @@ function UserFooter() {
   return (
     <>
       <UserMenu>
-        <button type="button" className="cc-nav-item min-w-0 flex-1">
+        <button type="button" className="cc-nav-item min-w-0 flex-1" data-slot="cc-user-menu">
           <span className="cc-nav-icon">
             <span className="cc-avatar size-6">{initials(profile)}</span>
           </span>
@@ -249,7 +249,7 @@ function UserFooter() {
           </Marquee>
         </button>
       </UserMenu>
-      <button type="button" className="cc-icon-btn" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
+      <button type="button" className="cc-icon-btn" data-slot="cc-settings-button" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
         <SettingsIcon />
       </button>
     </>
@@ -927,6 +927,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const panelButton = hasPanel ? (
     <button
       type="button"
+      data-slot="cc-panel-toggle"
       onClick={togglePanel}
       aria-pressed={panelShown}
       title={t(panelShown ? "hidePanel" : "showPanel")}

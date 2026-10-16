@@ -2427,6 +2427,38 @@ class ListAndRunsTests(unittest.TestCase):
         self.assertIn('return _json({**out, **_entered_note(getattr(doc, "last_push_status", None))})', source)
         self.assertIn('"result": result, **_entered_note(getattr(doc, "last_push_status", None))})', source)
 
+    def test_entered_documents_are_never_sent_anywhere_to_be_changed_in_any_language(self):
+        """第 6 轮测试：改已入账的 SD-6909-1010 科目，CC 说了改不了、给了单号泰铢时间，最后一句仍是「ถ้าต้องการให้ใบนี้ลงบัญชี
+        53-05-28-00 ต้องแก้ใน Express โดยตรง」（条件句：要记到那个科目就得在 Express 里直接改）。说明里点明：条件句、收尾句同样
+        不许说「需要 / 可以在 Express（或任何地方）改」，不指引去任何地方、任何人改；三种语言各给反例；可以提议把以后的同类单记成
+        规则（存规则要用户允许）。只检查给模型的说明，不做输出过滤。"""
+        note = tools.ENTERED_NOTE
+        for words in ("Never say either that it needs to be, has to be or can be changed in Express or MR.ERP or anywhere else",
+                      "not even as a condition or a closing sentence",
+                      "'if you want it under account X, it has to be changed in Express directly' is just as wrong",
+                      "never point to any place, program, page or person to change it",
+                      "That holds in every language",
+                      "nothing like '" + "ต้องแก้ใน Express โดยตรง" + "' or '" + "ไปแก้ใน Express" + "' in Thai",
+                      "nothing like '" + "需要在 Express 里直接改" + "' or '" + "去 Express 改" + "' in Chinese",
+                      "What you may offer instead is to save a rule so that later documents of the same kind go the way "
+                      "the user wants (cowork_company_choice_save for the whole company; the user allows it first)"):
+            self.assertIn(words, note)
+        # 存规则的工具确实要用户「允许」
+        company = (ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py").read_text(encoding="utf-8")
+        save = company.split('{"name": "cowork_company_choice_save"', 1)[1].split('{"name": ', 1)[0]
+        self.assertIn('"approval": True,', save)
+        # 改单工具的说明、结果提示与总说明都带同一口径
+        by_name = {tool["name"]: tool["description"] for tool in tools.TOOLS}
+        self.assertIn(note, by_name["cowork_edit_document"])
+        self.assertIn(note, " ".join(tools.GUIDANCE))
+        result = tools.ENTERED_RESULT
+        for words in ("Never say it needs to be or can be changed in Express, MR.ERP or anywhere else",
+                      "not even as a condition or a closing sentence, in any language",
+                      "You may offer to save a rule for later documents of the same kind (cowork_company_choice_save; "
+                      "the user allows it first)"):
+            self.assertIn(words, result)
+        self.assertEqual(tools._entered_note("success"), {"entered_note": result})
+
     def test_runs_and_tasks_carry_results(self):
         run = {"name": "RUN1", "trigger": "schedule", "found": 3, "results": {"entered": 2, "attention": 1, "moving": 0},
                "states": {"done": 3}}

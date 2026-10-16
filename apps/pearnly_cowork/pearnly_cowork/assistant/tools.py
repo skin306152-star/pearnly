@@ -103,18 +103,31 @@ def _json(value, utc=(), local=()) -> str:
 # 改 HP690920-001，我再回读」的选项）。用户在 F19 验收时定的口径：不叫人去 Express（或 MR.ERP、待处理页、复核页）改已入账
 # 的单；只说明改不到，给这张的单号、泰铢金额、当地时间；回读照常可以提。GUIDANCE、WRITTEN_NOTE、改单 / 推送 / 回读的说明与
 # 结果提示共用这一段，免得几处说法走样。
+# 第 6 轮测试：CC 说了改不了、给了单号泰铢时间，最后一句仍是「ถ้าต้องการให้ใบนี้ลงบัญชี 53-05-28-00 ต้องแก้ใน Express
+# โดยตรง」（要记到那个科目就得在 Express 里直接改）——条件句、收尾句同样不许说；可以提议把以后的同类单记成规则（要用户允许）。
+# 三种语言的反例只是给模型看的说明（不做输出过滤）。
 ENTERED_NOTE = ("CC cannot change a document that is already entered into Express or MR.ERP (its account, cash or "
                 "credit, amounts or anything else). When the user asks to change one, say plainly that it cannot be "
                 "changed from here and give that document's number there (docnum), amounts in baht and times in local "
                 "time. Do not suggest, as an option or a next step, that the user changes it in Express or MR.ERP, on "
                 "the pending page or on the review page, nor offer to check it after they have; just say it cannot be "
-                "changed. Offering a readback of that month (cowork_express_readback) to show what Express holds "
-                "is fine.")
+                "changed. Never say either that it needs to be, has to be or can be changed in Express or MR.ERP or "
+                "anywhere else, not even as a condition or a closing sentence ('if you want it under account X, it "
+                "has to be changed in Express directly' is just as wrong), and never point to any place, program, page "
+                "or person to change it. That holds in every language: nothing like '" + "ต้องแก้ใน Express โดยตรง"
+                + "' or '" + "ไปแก้ใน Express" + "' in Thai, nothing like '" + "需要在 Express 里直接改" + "' or '"
+                + "去 Express 改" + "' in Chinese. What you may offer instead is to save a rule so that later "
+                "documents of the same kind go the way the user wants (cowork_company_choice_save for the whole "
+                "company; the user allows it first). Offering a readback of that month (cowork_express_readback) to "
+                "show what Express holds is fine.")
 # 改单、选项工具碰到已入账的单时随结果带上的提示（同一口径的短句）
 ENTERED_RESULT = ("This document is already entered into Express or MR.ERP and stays as entered there: CC cannot "
                   "change it, and choices saved now apply only to later documents. Tell the user it cannot be "
                   "changed, with its docnum, amounts in baht and times in local time; do not suggest changing it in "
-                  "Express or MR.ERP, on the pending page or on the review page.")
+                  "Express or MR.ERP, on the pending page or on the review page. Never say it needs to be or can be "
+                  "changed in Express, MR.ERP or anywhere else, not even as a condition or a closing sentence, in any "
+                  "language. You may offer to save a rule for later documents of the same kind "
+                  "(cowork_company_choice_save; the user allows it first).")
 
 
 def _entered_note(status) -> dict:

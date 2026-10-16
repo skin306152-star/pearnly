@@ -346,6 +346,14 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   }, [threadIds, itemsById, dates, unsent, projects, filings, shown, serverMore, query, view, order, kept]);
   const searching = !!query;
   const byCompany = view.by === "company";
+  // 不搜索时收着的组（用户收起的、排在前几家之后默认收着的）：搜索时整组展开显示，对话的空档照旧排进去（看得见、落进空档），
+  // 组头另外同不搜索时一样高亮（第 6 轮第 5 项：搜索时把对话拖向收着的「最近」，组头不亮，不搜索时亮）
+  const shutOutside = useMemo(() => {
+    if (!searching || !byCompany) return null;
+    const sort = { by: view.sort, desc: view.desc };
+    const plain = companySections(rows, projects, { shown, serverMore, sort, empty: view.empty, companyOrder: order.companies, pinnedOrder: order.pinned }) ?? [];
+    return new Set(plain.flatMap((section) => (section.type !== "pinned" && !groupOpen(section, collapsed, false) ? [section.key] : [])));
+  }, [searching, byCompany, rows, projects, shown, serverMore, view.sort, view.desc, view.empty, order.companies, order.pinned, collapsed]);
 
   // 拖着的那一行；搜索时移到某一组以后就不在结果里了（标题、那家公司名都不含搜索词）：那一组不给它排空档，同收着的组
   // （组头高亮、落到组头并收起），不然落进空档后当场从结果里消失
@@ -425,7 +433,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   };
   const texts: DragTexts = sb.drag;
   return (
-    <DragArea accepts={sidebarAccepts} onDrop={onDrop} onPlace={onPlace} onActive={onActive} flow={FLOW} texts={texts} touch="move">
+    <DragArea accepts={sidebarAccepts} onDrop={onDrop} onPlace={onPlace} onActive={onActive} flow={FLOW} texts={texts}>
       <SidebarError />
       {pinned && (
         <SectionGroup label={t("starred")} open={groupOpen({ key: "pinned" }, collapsed, searching)} onToggle={() => toggleSection({ key: "pinned" })}>
@@ -450,6 +458,7 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
               locked={searching}
               onMove={(delta) => spotIn(saveCompanies(moveBy(companyIds, companyDrag(section.project.id), delta)), companyDrag(section.project.id))}
               fold={leavesResults(section.project.id)}
+              shut={!!shutOutside?.has(section.key)}
               more={
                 section.more
                   ? () => {
@@ -473,7 +482,14 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
           // 拖对话时临时补的「最近」（本来没有）：开着、点了不收
           const temp = !sections.some((s) => s.type === "recents");
           return byCompany ? (
-            <RecentsGroup key={section.key} open={temp || open} fold={leavesResults("")} onToggle={temp ? () => undefined : toggle} onNew={() => newChatIn("")}>
+            <RecentsGroup
+              key={section.key}
+              open={temp || open}
+              fold={leavesResults("")}
+              shut={!!shutOutside?.has(section.key)}
+              onToggle={temp ? () => undefined : toggle}
+              onNew={() => newChatIn("")}
+            >
               {items}
             </RecentsGroup>
           ) : (
@@ -524,15 +540,16 @@ const RECENTS_SCOPE: RowScope = { mode: "row", group: "" };
 const FLOW = '[data-slot="aui_thread-list-item"], .cc-group-row, .cc-show-more';
 
 /** 按公司分组时的「最近」：没挂公司的对话（可以拖进公司）；也是把对话拖出公司的落点。fold：拖着的对话移进来就不在搜索结果里了
- *  （同收着：不排空档，组头高亮、落到组头并收起）。 */
-const RecentsGroup: FC<{ open: boolean; fold?: boolean; onToggle: () => void; onNew: () => void; children?: ReactNode }> = ({
+ *  （同收着：不排空档，组头高亮、落到组头并收起）。shut：不搜索时收着（搜索时展开显示）：空档要来时组头同样高亮。 */
+const RecentsGroup: FC<{ open: boolean; fold?: boolean; shut?: boolean; onToggle: () => void; onNew: () => void; children?: ReactNode }> = ({
   open,
   fold,
+  shut,
   onToggle,
   onNew,
   children,
 }) => {
-  const target = useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open || !!fold);
+  const target = useDropTarget({ id: RECENTS_TARGET, kind: "recents", label: t("recents"), group: "" }, !open || !!fold || !!shut);
   return (
     <div {...target} className="cc-group-section" data-slot="cc-group-section">
       <SectionHeader label={t("recents")} open={open} onToggle={onToggle} onNew={onNew} />
@@ -546,21 +563,22 @@ const RecentsGroup: FC<{ open: boolean; fold?: boolean; onToggle: () => void; on
 };
 
 /** 一家公司的组：组头开关是这一组的拖动把手（整组跟着走），这组的行可以拖到别的公司；收着时对话拖进来组头高亮。fold：拖着的
- *  对话移进来就不在搜索结果里了（同收着）。 */
+ *  对话移进来就不在搜索结果里了（同收着）。shut：不搜索时收着（搜索时展开显示）：空档要来时组头同样高亮。 */
 const CompanyGroup: FC<{
   project: ProjectRow;
   open: boolean;
   fold?: boolean;
+  shut?: boolean;
   onToggle: () => void;
   sessions: readonly string[];
   locked: boolean;
   onMove: (delta: -1 | 1) => MoveSpot | null;
   more?: () => void;
   children: ReactNode;
-}> = ({ project, open, fold, onToggle, sessions, locked, onMove, more, children }) => {
+}> = ({ project, open, fold, shut, onToggle, sessions, locked, onMove, more, children }) => {
   const drag = useSortableItem(
     { id: companyDrag(project.id), kind: "company", label: project.title, list: "companies", group: project.id },
-    { disabled: locked, ownFocus: true, shut: !open || !!fold },
+    { disabled: locked, ownFocus: true, shut: !open || !!fold || !!shut },
   );
   const scope = useMemo<RowScope>(() => ({ mode: "row", group: project.id }), [project.id]);
   return (
@@ -810,7 +828,7 @@ type RowDrag = { node: { ref: (el: HTMLElement | null) => void } & Record<string
 const Row: FC<{ drag?: RowDrag; onMove?: (delta: -1 | 1) => void }> = ({ drag, onMove }) => {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const press = useLongPress(() => setMenuOpen(true));
+  const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态。
   // 点的是同一段对话的另一行数据：也不切换（切过去会另起一份，输入框里没发的字就没了）
   const id = useAuiState((s) => s.threadListItem.remoteId);

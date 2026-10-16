@@ -604,9 +604,12 @@ class SortableSourceTests(unittest.TestCase):
         # 手感：鼠标按住动 3px、手机长按 250ms（5px 内）、键盘空格拿起 / 空格回车放下 / Esc 取消
         self.assertIn("export const MOUSE_START = { distance: 3 };", drag)
         self.assertIn("export const TOUCH_START = { delay: 250, tolerance: 5 };", drag)
-        self.assertIn("useSensor(MouseSensor, { activationConstraint: MOUSE_START }),", drag)
-        self.assertIn('useSensor(HoldTouchSensor, { ...TOUCH_START, moveToLift: touch === "move" }),', drag)
-        self.assertIn("useSensor(KeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS }),", drag)
+        # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
+        self.assertIn("useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),", drag)
+        self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),", drag)
+        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, beforeEnd }),", drag)
+        self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);", drag)
+        self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
         # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
@@ -624,7 +627,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("return pointerWithin({ ...args, droppableContainers, pointerCoordinates });", drag)
         # 拖动标记：Esc 只取消拖动
         self.assertIn("setDragging(true);", drag)
-        self.assertIn("setDragging(false);\n      landing.land(); // 卸下时还没交的放下照样交（移动请求照发）", drag)
+        self.assertIn("letGo.flush(false); // 卸下时还在等落位的放下当场结束\n      setDragging(false);\n      landing.land(); // 卸下时还没交的放下照样交（移动请求照发）", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
         self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>', drag)
         for name in ('"data-card"', '"data-row-id"', '"data-roving"', '"data-selected"'):

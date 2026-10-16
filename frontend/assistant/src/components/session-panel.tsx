@@ -16,7 +16,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, LoaderIcon, StoreIcon, XIcon } from "lucide-react";
-import { Fragment, type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type FC, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
 import {
@@ -39,6 +39,7 @@ import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "
 import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
+import { opener, returnFocusAfterClose } from "@/lib/focus-return";
 import { isDragEscape } from "@/lib/layers";
 import { DragArea, type DragData, DragList, type DragTexts, spotIn } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
@@ -131,6 +132,9 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
   );
 };
 
+// 会话栏开关（顶栏右侧，assistant.tsx）：关掉浮着的会话栏后焦点的去处
+const PANEL_TOGGLE = '[data-slot="cc-panel-toggle"]';
+
 export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void; page?: boolean }> = ({ filing, mode, onClose, page = false }) => {
   const { project: company, period, scope } = filing;
   const { detail, error, reload } = usePanelDetail(company, period);
@@ -161,6 +165,19 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mode, onClose]);
+
+  // 浮层、全屏关掉（Esc、关闭按钮、换页）以后焦点回到打开它的控件（会话栏开关、「公司名 ›」）；那个不在了就回会话栏开关。
+  // 焦点原来在会话栏里才还（第 6 轮：Esc 关掉后焦点落到 BODY）。只在卸下时（停靠 ↔ 浮层切换不算），在节点拿走之前量
+  const [from] = useState(() => (mode === "docked" ? null : opener()));
+  const floating = useRef(mode !== "docked");
+  floating.current = mode !== "docked";
+  useLayoutEffect(
+    () => () => {
+      if (!floating.current) return;
+      returnFocusAfterClose(!!box.current?.contains(document.activeElement), from, PANEL_TOGGLE);
+    },
+    [from],
+  );
 
   const branches = detail ? branchesOf(detail) : [];
   const multi = branches.length > 1 ? branches : [];

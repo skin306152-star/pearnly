@@ -15,7 +15,7 @@
 import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { DropdownMenu } from "@/components/ui/menu";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   COMPANY_FOLDERS,
@@ -34,6 +34,7 @@ import { useInstallGuide } from "@/components/install-prompt";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
 import { chooseLanguage, siteFetch } from "@/lib/frappe";
+import { giveFocusBack, opener } from "@/lib/focus-return";
 import { useProfile } from "@/lib/profile";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,9 @@ import { dayLabel, lang, LANGUAGES, st, t } from "../i18n";
 import { Marquee } from "@/components/ui/marquee";
 
 type Section = "general" | "connections" | "system";
+
+// 设置关掉后焦点回到打开它的控件；那个控件不在了（菜单项随菜单卸下、窄屏藏起）就回齿轮或用户菜单按钮
+const SETTINGS_BACK = '[data-slot="cc-settings-button"], [data-slot="cc-user-menu"]';
 
 // 连接状态色：取 globals.css 的 --cc-status-*（深浅色各一套）
 const STATUS_COLOR: Record<string, string> = Object.fromEntries(
@@ -50,6 +54,14 @@ const STATUS_COLOR: Record<string, string> = Object.fromEntries(
 export function Settings() {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<Section>("general");
+  // 谁打开的（齿轮、用户菜单里的「设置」、Ctrl+,、公司页的按钮）：关掉后焦点还给它（第 6 轮：没有 Trigger，组件库关掉时
+  // 还焦点找不到去处，Esc 关掉后焦点落到 BODY）
+  const back = useRef<HTMLElement | null>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const remember = () => {
+    const from = opener();
+    if (!content.current?.contains(from)) back.current = from; // 开着时再按 Ctrl+, 不算
+  };
   const [api, setApi] = useState<Desktop | null>(null);
 
   useEffect(() => {
@@ -63,11 +75,13 @@ export function Settings() {
     const show = (event: Event) => {
       const wanted = String((event as CustomEvent).detail || "general") as Section;
       setSection(["general", "connections", "system"].includes(wanted) ? wanted : "general");
+      remember();
       setOpen(true);
     };
     const key = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === ",") {
         event.preventDefault();
+        remember();
         setOpen(true);
       }
     };
@@ -90,7 +104,12 @@ export function Settings() {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
+          ref={content}
           aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            giveFocusBack(back.current, SETTINGS_BACK);
+          }}
           className="cc-modal fixed left-1/2 z-[71] flex h-[min(680px,calc(var(--cc-viewport-h)*0.92))] w-[min(980px,95vw)] [--cc-modal-share:0.92] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-dialog border bg-surface text-ink shadow-pop outline-none md:flex-row"
         >
           <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-app p-3 md:w-56 md:flex-col md:border-r md:border-b-0">

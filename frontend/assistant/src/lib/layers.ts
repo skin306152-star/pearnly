@@ -19,8 +19,22 @@ function markEscape(event: KeyboardEvent) {
   if (event.key === "Escape") escapes.add(event);
 }
 
+// 手机按住拿起后，手指是不是真的动了（动出共用拖动的 TOUCH_DRAG_SLOP）：没动 = 还可能是长按菜单（按住不动到菜单时间照旧出
+// 菜单），动了 = 在拖，菜单不出、已经出来的收起（hooks/use-long-press.ts）。拿起、结束时清掉。
+let moved = false;
+
+export function markDragMoved(): void {
+  moved = true;
+}
+
+/** 正在拖、且按住拿起后手指已经挪动了（只有手机按住拿起时记；鼠标、键盘拖动没有长按菜单）。 */
+export function isDragMoving(): boolean {
+  return moved && isDragging();
+}
+
 export function setDragging(on: boolean): void {
   if (typeof document === "undefined") return;
+  moved = false;
   if (on) {
     document.documentElement.dataset[DRAG] = "";
     window.addEventListener("keydown", markEscape, true);
