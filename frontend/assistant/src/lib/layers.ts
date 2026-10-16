@@ -14,6 +14,9 @@ export const OPEN_LAYERS =
 // window 的捕获阶段（最先收到）先记下这次 Esc（isDragEscape），各处的 Esc 都先问它。
 const DRAG = "ccDrag";
 const escapes = new WeakSet<Event>();
+// 已经放手、在等落位播完（共用拖动松手后约 0.2 秒还算在拖，见 drag.tsx 的 ReleaseFirst）：这时的 Esc 不再是取消拖动的 Esc，
+// 照常关浮着的会话栏、清多选（审查：原来这一下被当成取消拖动吞掉，要再按一次）
+let released = false;
 
 function markEscape(event: KeyboardEvent) {
   if (event.key === "Escape") escapes.add(event);
@@ -35,6 +38,7 @@ export function isDragMoving(): boolean {
 export function setDragging(on: boolean): void {
   if (typeof document === "undefined") return;
   moved = false;
+  released = false;
   if (on) {
     document.documentElement.dataset[DRAG] = "";
     window.addEventListener("keydown", markEscape, true);
@@ -45,11 +49,17 @@ export function setDragging(on: boolean): void {
   }
 }
 
+/** 已经放手了，只等落位播完：之后的 Esc 不再记成取消拖动的（拖动中按下、已经记下的照旧算）。 */
+export function releaseDrag(): void {
+  released = true;
+  if (typeof window !== "undefined") window.removeEventListener("keydown", markEscape, true);
+}
+
 export function isDragging(): boolean {
   return typeof document !== "undefined" && DRAG in document.documentElement.dataset;
 }
 
 /** 这个 Esc 是不是用来取消拖动的（拖动中按下的；拖动库处理完已经结束拖动也算）。 */
 export function isDragEscape(event: Event): boolean {
-  return escapes.has(event) || isDragging();
+  return escapes.has(event) || (isDragging() && !released);
 }

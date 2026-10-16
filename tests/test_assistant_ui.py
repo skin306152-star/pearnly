@@ -4082,10 +4082,64 @@ assert.equal(isDragEscape({ key: "Escape" } as any), false);   // 不在拖动�
 assert.equal(capture.length, 0);                   // 拖完就摘掉监听
 """)
 
+    def test_escape_after_release_is_not_a_drag_escape(self):
+        # 审查：松手后到落位播完（约 0.2 秒，ReleaseFirst）还算在拖，这时按 Esc 被当成取消拖动的 Esc 记下，浮着的会话栏不关、
+        # 侧栏多选不清，要再按一次。现在开始等落位时（releaseDrag）不再记 Esc，isDragEscape 也不再因为「还在拖」回真；Esc 照样
+        # 当场结束拖动（press），不吞这个事件。拖动中按下、已经记下的 Esc 照旧算
+        self.run_page(r"""
+import { ReleaseFirst } from "@/components/ui/drag";
+import { isDragEscape, isDragging, setDragging } from "@/lib/layers";
+const g = globalThis as any;
+const capture = new Map<string, Array<(e: any) => void>>();
+g.addEventListener = (type: string, run: any) => capture.set(type, [...(capture.get(type) ?? []), run]);
+g.removeEventListener = (type: string, run: any) => capture.set(type, (capture.get(type) ?? []).filter((f) => f !== run));
+const fire = (type: string, e: any) => { for (const run of [...(capture.get(type) ?? [])]) run(e); };
+const animation = { playState: "running", finished: new Promise(() => {}) } as any;
+setDragging(true);
+const during = { key: "Escape" };
+fire("keydown", during);                                  // 拖动中按的 Esc：记下（取消拖动用）
+assert.equal(isDragEscape(during as any), true);
+const letGo = new ReleaseFirst();
+let ended = 0;
+letGo.hold(() => (ended++, setDragging(false)), animation, 1000);
+assert.equal(isDragging(), true);                         // 还在等落位
+const after = { key: "Escape" };
+assert.equal(isDragEscape(after as any), false);          // 已经放手：之后的 Esc 不是取消拖动的
+fire("keydown", after);                                   // 按下 Esc：当场结束拖动（press），不记成取消拖动的
+assert.equal(ended, 1);
+assert.equal(isDragging(), false);
+assert.equal(isDragEscape(after as any), false);          // 会话栏、侧栏多选照常处理这一下
+assert.equal(isDragEscape(during as any), true);          // 拖动中按下的那次照旧算
+// 下一次拖动重新记
+setDragging(true);
+const next = { key: "Escape" };
+fire("keydown", next);
+assert.equal(isDragEscape(next as any), true);
+setDragging(false);
+""")
+        self.assertIn("    releaseDrag();\n", read("components/ui/drag.tsx"))
+        self.assertIn("return escapes.has(event) || (isDragging() && !released);", read("lib/layers.ts"))
+
+    def test_lifted_overlay_sits_under_menus_and_over_drawers(self):
+        # 审查：手机按住不动 250ms 拿起、500ms 弹出长按菜单（行、公司组头）。浮层原来用拖动库默认的 z-index 999，菜单是 60，
+        # 菜单落在拿起的那一项（公司组是组头加整组的行）范围里时被浮层盖住、字叠在一起，要等松手落位播完才露出来。现在浮层在
+        # 抽屉、手机会话栏（50）之上，在菜单（60）之下
+        drag = read("components/ui/drag.tsx")
+        self.assertIn("export const OVERLAY_Z = 55;", drag)
+        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
+        css = read("globals.css")
+        menu = re.search(r"\.cc-menu \{\s*z-index: (\d+);", css)
+        phone = re.search(r'\.cc-panel\[data-mode="phone"\] \{\s*position: fixed; inset: 0; z-index: (\d+);', css)
+        self.assertIsNotNone(menu)
+        self.assertIsNotNone(phone)
+        self.assertLess(int(phone.group(1)), 55)
+        self.assertLess(55, int(menu.group(1)))
+
     def test_touch_hold_lifts_at_250ms_and_moving_wins_over_the_long_press_menu(self):
         # 第 6 轮第 2 项：原来侧栏的行按住 250ms 后要再动才拿起、按到 500ms 就归菜单，慢慢开始拖（按住 0.4s 后每步只移 8px，或
         # 按住 0.7s）的人一直进菜单、再也拖不起来。现在按住 250ms（5px 内）就拿起（行、组头、置顶、卡片把手同一规则）；之后手指
-        # 动出 3px 就是在拖（记到 layers，长按菜单不出、已经出来的收起，见下一个用例）；没到 250ms 就动 = 在滚动
+        # 离按下处动出 10px（同长按菜单作废的距离）就是在拖（记到 layers，长按菜单不出、已经出来的收起，见下一个用例）；没到
+        # 250ms 就动 = 在滚动。审查：原来动出 3px 就算在拖，拿起前允许漂 5px，按住时手指自然一抖长按菜单就出不来了
         self.run_page(r"""
 import { HoldTouchSensor, TOUCH_DRAG_SLOP } from "@/components/ui/drag";
 import { isDragMoving, setDragging } from "@/lib/layers";
@@ -4094,13 +4148,16 @@ g.document.querySelector = () => null;
 g.addEventListener = () => {};
 g.removeEventListener = () => {};
 g.getSelection = () => ({ removeAllRanges() {} });
-assert.equal(TOUCH_DRAG_SLOP, 3);
-function press(options: any = {}) {
+g.MouseEvent = class { type: string; init: any; constructor(type: string, init: any) { this.type = type; this.init = init; } };
+assert.equal(TOUCH_DRAG_SLOP, 10);
+const clicksOff: string[] = [];
+function press(options: any = {}, isConnected = true) {
   const on: Record<string, (e: any) => void> = {};
-  const target = { addEventListener: (t: string, f: any) => (on[t] = f), removeEventListener: (t: string) => delete on[t] };
   const log: string[] = [];
+  const target = { isConnected, addEventListener: (t: string, f: any) => (on[t] = f), removeEventListener: (t: string) => delete on[t],
+                   dispatchEvent: (e: any) => { log.push(`${e.type}@${e.init.clientX},${e.init.clientY}${e.init.bubbles ? " bubbles" : ""}`); return true; } };
   g.document.addEventListener = () => {};
-  g.document.removeEventListener = () => {};
+  g.document.removeEventListener = (type: string) => clicksOff.push(type);
   new HoldTouchSensor({
     active: "row:t1", event: { target, touches: [{ clientX: 100, clientY: 100 }] }, options: { delay: 250, tolerance: 5, ...options },
     onStart: () => { log.push("start"); setDragging(true); }, onMove: () => log.push("move"),
@@ -4117,12 +4174,23 @@ assert.deepEqual(p.log, ["start"]);
 assert.equal(isDragMoving(), false);                  // 还没动：长按菜单照旧可以出
 assert.equal(p.move(101, 102), true);                 // 拿起后滑动不滚页面；动了 2px 还不算在拖
 assert.equal(isDragMoving(), false);
-assert.equal(p.move(100, 108), true);                 // 慢慢动（8px）：在拖了
+assert.equal(p.move(100, 108), true);                 // 慢慢动，第一步 8px：还在长按菜单作废的距离里
+assert.equal(isDragMoving(), false);
+assert.equal(p.move(100, 116), true);                 // 第二步（16px）：在拖了
 assert.equal(isDragMoving(), true);
-assert.deepEqual(p.log, ["start", "move", "move"]);
+assert.deepEqual(p.log, ["start", "move", "move", "move"]);
 p.on.touchend!({});
-assert.deepEqual(p.log, ["start", "move", "move", "end"]);
+assert.deepEqual(p.log, ["start", "move", "move", "move", "end"]);
 assert.equal(isDragMoving(), false);                  // 结束时清掉
+// 审查：拿起前手指漂了 4px（没出 5px，照样拿起），拿起后再抖 1–2px：不算在拖，长按菜单照旧能出
+p = press();
+await g.sleep(100);
+p.move(103, 103);
+await g.sleep(180);
+assert.deepEqual(p.log, ["start"]);
+for (const [x, y] of [[104, 104], [102, 105], [105, 103], [103, 106]]) p.move(x, y);
+assert.equal(isDragMoving(), false);
+p.on.touchend!({ cancelable: true, preventDefault() {} });
 // 按住 0.7s 才动：照样拖得起来（原来归菜单、取消）
 p = press();
 await g.sleep(700);
@@ -4135,11 +4203,42 @@ p = press();
 await g.sleep(100);
 assert.equal(p.move(100, 120), false);
 assert.deepEqual(p.log, ["abort", "cancel"]);
-// 按住不动就松手：拿起过，照常结束（浮层原地落下，长按菜单开着的话留着）
+// 审查：拿起后没动、没到长按菜单的时间（500ms）就松手 = 点按（动作慢的人点按常超过 250ms）：取消拖动（浮层落回原位），系统的
+// click 不要（拦下 touchend），在按下的那个元素上补一个冒泡的 click（行打开对话、组头折叠）；拦点击的监听当场摘掉，不等 50ms
+for (const ms of [280, 450]) {
+  p = press();
+  await g.sleep(ms);
+  let prevented = false;
+  clicksOff.length = 0;
+  p.on.touchend!({ cancelable: true, preventDefault: () => (prevented = true) });
+  assert.deepEqual(p.log, ["start", "cancel", "click@100,100 bubbles"], `${ms}ms`);
+  assert.equal(prevented, true);
+  assert.ok(clicksOff.includes("click") && clicksOff.includes("selectionchange"));
+}
+// 拿起后抖了一下（没出 10px）也还是点按
 p = press();
 await g.sleep(280);
-p.on.touchend!({});
+p.move(102, 104);
+p.on.touchend!({ cancelable: true, preventDefault() {} });
+assert.deepEqual(p.log, ["start", "move", "cancel", "click@100,100 bubbles"]);
+// 元素已经不在页面上：只取消，不补点击
+p = press({}, false);
+await g.sleep(280);
+p.on.touchend!({ cancelable: true, preventDefault() {} });
+assert.deepEqual(p.log, ["start", "cancel"]);
+// 按住不动到菜单时间（500ms，菜单出来了）再松手：照常结束（浮层原地落下，菜单留着），不补点击、松手后的 click 照旧拦下
+p = press();
+await g.sleep(560);
+clicksOff.length = 0;
+p.on.touchend!({ cancelable: true, preventDefault() {} });
 assert.deepEqual(p.log, ["start", "end"]);
+assert.equal(clicksOff.includes("click"), false);
+// 拿起后动过（在拖）再松手：照常放下，不是点按
+p = press();
+await g.sleep(280);
+p.move(100, 130);
+p.on.touchend!({ cancelable: true, preventDefault() {} });
+assert.deepEqual(p.log, ["start", "move", "end"]);
 // 没按够就松手：点按照旧（没拿起）
 p = press();
 await g.sleep(50);
@@ -4161,9 +4260,14 @@ assert.deepEqual(p.log, ["abort", "end"]);
 """)
         drag = read("components/ui/drag.tsx")
         self.assertNotIn("moveToLift", drag)
-        self.assertNotIn("LONG_PRESS_MS", drag)
+        # 「在拖」与「菜单不出」同一个距离、点按与长按菜单同一个时间：都取 hooks/use-long-press.ts 的，不另写一份
+        self.assertIn('import { LONG_PRESS_MS, LONG_PRESS_SLOP } from "@/hooks/use-long-press";', drag)
+        self.assertIn("export const TOUCH_DRAG_SLOP = LONG_PRESS_SLOP;", drag)
+        self.assertIn("now() - this.pressedAt < LONG_PRESS_MS", drag)
         self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),", drag)
-        self.assertIn("export const LONG_PRESS_MS = 500;", read("hooks/use-long-press.ts"))
+        press = read("hooks/use-long-press.ts")
+        self.assertIn("export const LONG_PRESS_MS = 500;", press)
+        self.assertIn("export const LONG_PRESS_SLOP = 10;", press)
 
     def test_long_press_menu_opens_only_while_the_lifted_row_stays_still(self):
         # 第 6 轮第 2 项：拿起后一直不动、按到菜单时间（500ms）才出菜单；拿起后动了就不出；菜单出来后手指再动（真的拖起来了）
@@ -5342,12 +5446,22 @@ g.document.activeElement = composer;
 returnFocusAfterClose(false, gear, '[data-slot="cc-panel-toggle"]');
 await g.sleep(0);
 assert.deepEqual(focused.map((f) => f[0]), ["toggle"]);
+// 审查：去处按给的先后找，不按页面上的先后。用户菜单按钮在页面上排在齿轮前面：记不到打开者（焦点在 BODY 时按 Ctrl+,、
+// Safari 鼠标点按钮不拿焦点）时设置关掉先回齿轮，齿轮不在（窄屏藏起）才回用户菜单按钮
+const page = [trigger, gear];
+g.document.querySelectorAll = (sel: string) => page.filter((e) => (e === gear ? sel.includes("cc-settings-button") : sel.includes("cc-user-menu")));
+const back = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'];
+assert.equal(giveFocusBack(null, back), gear);
+assert.equal(giveFocusBack(null, back.join(", ")), trigger);        // 合成一个选择器就按页面先后：是用户菜单按钮（原来的问题）
+gear.getClientRects = () => [];
+assert.equal(giveFocusBack(null, back), trigger);
+assert.equal(giveFocusBack(el("gone", { isConnected: false }), back), trigger);
 """)
         settings = read("components/settings.tsx")
         self.assertIn("onCloseAutoFocus={(event) => {\n            event.preventDefault();\n            giveFocusBack(back.current, SETTINGS_BACK);", settings)
         self.assertEqual(settings.count("remember();\n"), 2)        # 齿轮 / 菜单 / 公司页按钮（事件）与 Ctrl+, 两处
         self.assertIn("if (!content.current?.contains(from)) back.current = from;", settings)
-        self.assertIn("const SETTINGS_BACK = '[data-slot=\"cc-settings-button\"], [data-slot=\"cc-user-menu\"]';", settings)
+        self.assertIn("const SETTINGS_BACK = ['[data-slot=\"cc-settings-button\"]', '[data-slot=\"cc-user-menu\"]'] as const;", settings)
         panel = read("components/session-panel.tsx")
         self.assertIn('const [from] = useState(() => (mode === "docked" ? null : opener()));', panel)
         self.assertIn("returnFocusAfterClose(!!box.current?.contains(document.activeElement), from, PANEL_TOGGLE);", panel)

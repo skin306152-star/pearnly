@@ -4,8 +4,10 @@
 //
 //   拿起   鼠标按住动 3px（点一下照样是点）；手机按住 250ms 且没挪出 5px 就拿起（没到时间就动 = 在滚动）；键盘 空格。能拖的把手带
 //          data-drag-handle，悬停出抓手光标（globals.css 同一条），拖动中整页 grabbing。侧栏的行与组头长按另有菜单：拿起后手指
-//          一动（超过 3px）就是拖动，不出菜单；一直不动按到菜单的时间（500ms，hooks/use-long-press.ts）才出菜单，菜单出来后
-//          手指再动就收起菜单、接着拖（第 6 轮测试机：原来按住 250ms 后要再动才拿起、按到 500ms 就归菜单，慢慢开始拖的人一直进菜单）。
+//          一动（离按下处超过 10px，同长按菜单作废的距离）就是拖动，不出菜单；一直不动按到菜单的时间（500ms，hooks/use-long-press.ts）
+//          才出菜单，菜单出来后手指再动就收起菜单、接着拖（第 6 轮测试机：原来按住 250ms 后要再动才拿起、按到 500ms 就归菜单，慢慢
+//          开始拖的人一直进菜单）。拿起后没动、没到菜单时间就松手是点按：浮层落回、照样打开对话 / 折叠组（动作慢的人点按常超过 250ms）。
+//          浮层在抽屉、手机会话栏（50）之上、菜单（60）之下：按住不动出来的长按菜单不被拿起的那一项盖住。
 //   浮起   拿起的那一项换成浮层（DragOverlay，克隆原来那一项的样子，挂在 body 上）：弹层底、弹出阴影、略透明、略放大，实时跟手。
 //          原位留空（空档）。排序（一列里调先后）：其余各项拖动中就带过渡滑开让位（dnd-kit 的排序位移，过渡用动效变量）。
 //          在组之间移动（侧栏对话拖到别的公司：组里的先后由排序方式定、不能手调）：空档跟着去那一组，出现在调用方按排序方式算出的
@@ -84,7 +86,8 @@ import {
   useState,
 } from "react";
 import { cssMs } from "@/lib/hover-scroll";
-import { markDragMoved, setDragging } from "@/lib/layers";
+import { LONG_PRESS_MS, LONG_PRESS_SLOP } from "@/hooks/use-long-press";
+import { markDragMoved, releaseDrag, setDragging } from "@/lib/layers";
 
 // ---------------------------------------------------------------- 拖的是什么
 /** 一项拖动的说明（放在 dnd-kit 的 data.drag 里）：kind 是哪一种（card / company / pin / row / recents），label 是读屏念的名字，
@@ -190,8 +193,10 @@ export function dragAnnouncements(
 // 鼠标按住动 3px 才开始（点一下照样是点），手机长按 250ms 且没挪出 5px 才开始（滑动照样滚动）
 export const MOUSE_START = { distance: 3 };
 export const TOUCH_START = { delay: 250, tolerance: 5 };
-// 手机拿起后手指动出这么多才算真的在拖（之前按住不动留给长按菜单）
-export const TOUCH_DRAG_SLOP = 3;
+// 手机拿起后手指离按下处动出这么多才算真的在拖（之前按住不动留给长按菜单）。同长按菜单作废的距离：「在拖」与「菜单不出」
+// 同一个判断。原来是 3px（审查：拿起前允许漂 5px，拿起后再来一个 touchmove 就算在拖；iPhone 按住时手指自然抖几像素，长按菜单
+// 就再也出不来——手机没有悬停，那是行、组头操作的唯一入口）
+export const TOUCH_DRAG_SLOP = LONG_PRESS_SLOP;
 // 空格拿起，空格 / 回车 / Tab 放下，Esc 取消（回车不拿起：对话行、组头上回车是打开 / 折叠）
 const KEYS = {
   start: [KeyboardCode.Space],
@@ -212,9 +217,12 @@ const clearSelection = () => window.getSelection?.()?.removeAllRanges();
 const prevent = (event: Event) => event.preventDefault();
 
 /** 手机长按拿起（dnd-kit 自带的触屏传感器到时间就拿起，但不认侧栏的长按菜单，放下也不先播落位）：按住 delay 且没挪出
- *  tolerance 就拿起（没到时间就动 = 在滚动，交还给页面）。拿起后手指动出 TOUCH_DRAG_SLOP 才算在拖：记到 lib/layers.ts
+ *  tolerance 就拿起（没到时间就动 = 在滚动，交还给页面）。拿起后手指离按下处动出 TOUCH_DRAG_SLOP 才算在拖：记到 lib/layers.ts
  *  （markDragMoved），长按菜单据此不出、已经出来的收起（hooks/use-long-press.ts）；按住不动到菜单时间，菜单照旧出来，
- *  拿起的那一项留着，手指再动就接着拖。拿起后滑动不再滚页面；松手先交给 beforeEnd（先播落位）。 */
+ *  拿起的那一项留着，手指再动就接着拖。拿起后滑动不再滚页面；松手先交给 beforeEnd（先播落位）。
+ *  拿起后一直没动、没到菜单时间就松手：是点按（审查：动作慢的人点按常超过 250ms，原来这一下被吞掉，对话打不开、组不折叠）。
+ *  取消拖动（浮层落回原位），这一下照样当点击：系统自己的 click 不要（拿起后的 touchmove 都拦了，各平台据此吞不吞 click 不一），
+ *  在按下的那个元素上补一个。 */
 export class HoldTouchSensor implements SensorInstance {
   autoScrollEnabled = true;
 
@@ -235,6 +243,7 @@ export class HoldTouchSensor implements SensorInstance {
   private readonly props: SensorProps<HoldOptions>;
   private readonly origin: { x: number; y: number };
   private readonly listening: Listen[] = [];
+  private readonly pressedAt = now();
   private timer = 0;
   private lifted = false;
   private moved = false;
@@ -293,24 +302,40 @@ export class HoldTouchSensor implements SensorInstance {
     if ((event as KeyboardEvent).key === "Escape") this.cancel();
   };
 
-  private readonly end = () => this.finish(false);
+  private readonly end = (event: Event) => {
+    if (!this.done && this.lifted && !this.moved && now() - this.pressedAt < LONG_PRESS_MS) {
+      if (event?.cancelable) event.preventDefault();
+      this.finish(true, true);
+      return;
+    }
+    this.finish(false);
+  };
   private readonly cancel = () => this.finish(true);
 
-  private finish(cancelled: boolean) {
+  private finish(cancelled: boolean, tap = false) {
     if (this.done) return;
     this.done = true;
     window.clearTimeout(this.timer);
     const clicks = this.listening.filter(([target, type]) => target === document && (type === "click" || type === "selectionchange"));
-    for (const [target, type, run, options] of this.listening) {
-      if (!clicks.some((entry) => entry[2] === run && entry[1] === type)) target.removeEventListener(type, run, options);
-    }
-    // 松手后紧跟着的 click 还要拦下：稍后再摘（同 dnd-kit）
-    window.setTimeout(() => clicks.forEach(([target, type, run, options]) => target.removeEventListener(type, run, options)), 50);
+    const off = ([target, type, run, options]: Listen) => target.removeEventListener(type, run, options);
+    for (const entry of this.listening) if (tap || !clicks.includes(entry)) off(entry);
+    // 松手后紧跟着的 click 还要拦下：稍后再摘（同 dnd-kit）。点按不拦（上面已经摘了），下面补一个
+    if (!tap) window.setTimeout(() => clicks.forEach(off), 50);
     if (!this.lifted) this.props.onAbort(this.props.active);
     if (cancelled) this.props.onCancel();
     else if (this.lifted && this.props.options.beforeEnd) this.props.options.beforeEnd(this.props.onEnd);
     else this.props.onEnd();
+    if (tap) clickOn(this.props.event.target, this.origin);
   }
+}
+
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+/** 在按下的那个元素上补一次点击（冒泡，同系统的 click：行打开对话、组头折叠）。元素已经不在页面上就不补。 */
+function clickOn(target: EventTarget | null, at: { x: number; y: number }) {
+  const el = target as (EventTarget & { isConnected?: boolean }) | null;
+  if (!el || el.isConnected === false || typeof el.dispatchEvent !== "function" || typeof MouseEvent === "undefined") return;
+  el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, view: window, detail: 1, clientX: at.x, clientY: at.y }));
 }
 
 /** 拖动库自带的鼠标、键盘传感器加一道：放下时先交给 options.beforeEnd（先播落位，播完才真正结束拖动）。拿起的条件、
@@ -628,6 +653,9 @@ export class ReleaseFirst {
   hold(end: () => void, animation: Animation | null, wait: number, freeze?: () => () => void) {
     this.flush(false);
     if (!animation) return end();
+    // 已经放手了：这段时间的 Esc 不再算取消拖动的 Esc（审查：落位那 0.2 秒按 Esc，浮着的会话栏不关、多选不清，要再按一次）。
+    // 按下 Esc 照样当场结束拖动（press），不吞这个事件
+    releaseDrag();
     const unfreeze = freeze?.();
     const press = () => this.flush(false);
     const PRESS = ["pointerdown", "touchstart", "keydown"];
@@ -1069,6 +1097,10 @@ const Copy: FC<{ id: string | number; node: HTMLElement | null }> = ({ id, node 
   return <div ref={box} className="cc-drag-copy" />;
 };
 
+// 浮层的层级：在抽屉、手机会话栏（50）之上，在菜单（.cc-menu 60）之下。拖动库默认 999，手机按住不动拿起后到 500ms 弹出的
+// 长按菜单（行、公司组头）落在拿起的那一项范围里时被浮层盖住、字叠在一起（审查）
+export const OVERLAY_Z = 55;
+
 type Stash = { containers: DroppableContainers | null; node: HTMLElement | null; overlay: { current: HTMLElement | null } | null };
 
 const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; landing: Landing; into: Into }> = ({ stash, transition, landing, into }) => {
@@ -1082,7 +1114,7 @@ const Lifted: FC<{ stash: { current: Stash }; transition: Motion | null; landing
     transition && event && "key" in event ? `transform ${transition.duration}ms ${transition.easing}` : undefined;
 
   const overlay = (
-    <DragOverlay dropAnimation={drop} transition={keyboardMove} className="cc-drag-overlay">
+    <DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">
       {active ? (
         <div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>
           <div className="cc-drag-lift">

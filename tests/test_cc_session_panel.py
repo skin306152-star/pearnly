@@ -613,7 +613,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("start: [KeyboardCode.Space],", drag)
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
         # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
-        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} className="cc-drag-overlay">', drag)
+        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
         # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走
         self.assertIn("createPortal(overlay, document.body)", drag)
         self.assertIn('active.node.dataset.dragLanding = "";', drag)
@@ -634,7 +634,7 @@ class SortableSourceTests(unittest.TestCase):
             self.assertIn(name, drag.split("const STRIP = [", 1)[1].split("];", 1)[0])
         layers = read("lib/layers.ts")
         self.assertIn('window.addEventListener("keydown", markEscape, true);', layers)
-        self.assertIn("return escapes.has(event) || isDragging();", layers)
+        self.assertIn("return escapes.has(event) || (isDragging() && !released);", layers)   # 已经放手、只等落位的不算（审查）
 
     def test_drag_lift_and_grip_slot_styles(self):
         css = read("globals.css")

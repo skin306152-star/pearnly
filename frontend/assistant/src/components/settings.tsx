@@ -43,8 +43,9 @@ import { Marquee } from "@/components/ui/marquee";
 
 type Section = "general" | "connections" | "system";
 
-// 设置关掉后焦点回到打开它的控件；那个控件不在了（菜单项随菜单卸下、窄屏藏起）就回齿轮或用户菜单按钮
-const SETTINGS_BACK = '[data-slot="cc-settings-button"], [data-slot="cc-user-menu"]';
+// 设置关掉后焦点回到打开它的控件；那个控件不在了（菜单项随菜单卸下、窄屏藏起）或没记到（焦点在 BODY 时按 Ctrl+,、Safari
+// 鼠标点按钮不拿焦点）就先回齿轮、齿轮不在再回用户菜单按钮（按这个先后，不按页面上的先后：用户菜单按钮排在齿轮前面）
+const SETTINGS_BACK = ['[data-slot="cc-settings-button"]', '[data-slot="cc-user-menu"]'] as const;
 
 // 连接状态色：取 globals.css 的 --cc-status-*（深浅色各一套）
 const STATUS_COLOR: Record<string, string> = Object.fromEntries(

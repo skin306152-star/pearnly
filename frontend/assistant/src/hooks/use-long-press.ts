@@ -4,7 +4,8 @@ import { isDragMoving } from "@/lib/layers";
 
 /** 长按出菜单的时长。共用拖动（components/ui/drag.tsx）按住 250ms 就拿起，拿起后手指不动、按到这个时间才出菜单。 */
 export const LONG_PRESS_MS = 500;
-const LONG_PRESS_SLOP = 10;
+/** 按住时手指离按下处动出这么多就不算长按（在滚列表）。共用拖动拿起后「算在拖」用同一个距离（菜单不出 = 在拖）。 */
+export const LONG_PRESS_SLOP = 10;
 const CONTEXT_MENU_WINDOW_MS = 1500;
 
 /** 手机上长按一条对话或公司组头弹出它的菜单（同 Claude 手机端）：手机没有悬停，「…」按钮不出现。手指一动就不算长按（在滚列表）。
