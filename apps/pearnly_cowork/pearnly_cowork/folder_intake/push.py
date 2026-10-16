@@ -11,10 +11,11 @@
 - 人已经动过的票（改过、推过）不碰，交给人；
 - 确认发送失败就用现有的撤回入口把自己那条「已准备」撤掉，不把它留成卡住别人的记录；
 - Express 由读这个文件夹的那台电脑写（ADR-021 第 51 条，用户 10-16「谁的活谁的电脑做」）：推送记录上冻结它
-  （``route_device``），它能写就确认、排队，此刻关着也排，开机后写（D4，`destinations.queueable`）；
-  它够不到这份账套才算「小助手没连上」：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好没有了的，撤掉这次
-  准备再重来，重试用新的请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。池里没有电脑够得到这份账套，照现有规则
-  记失败；``final`` 时一律照现有规则走。
+  （``route_device``），它能写就确认、排队，此刻关着也排，开机后写（D4，`destinations.writer_state`）；
+  那台够不到能写的账套（只读成员、账套只在别人电脑上、已移除）不是暂时的：照常准备、确认，由确认按现有原因
+  （``push.no_writer``）直接记下，不再按「没连上」重试 6 小时（10-16 审查）。只有负责人一台电脑都没有（旧任务没记读者电脑时）
+  才算「小助手没连上」：不准备、回 ``retry`` 让调用方过一会儿再推；准备那一刻刚好没有了的，撤掉这次准备再重来，重试用新的
+  请求号（旧号会重放已撤回的那条，重放出撤回的也按重试处理）。``final`` 时一律照现有规则走。
 - 要选的科目还没有可选值（这份账套的科目表还没读到，推送服务已请电脑读，`choices_view` 的 ``wait``，2026-10-13）：
   不记成「要人选」，回 ``retry`` 一分钟后再推；电脑要升级 / 读不到这份账套、或最后一次仍没读到，原因记在票上。
 
@@ -77,6 +78,24 @@ def source_rules(history):
     return found
 
 
+def reader_of(history, connection):
+    """这张票出自哪条定时任务、推往 ``connection`` 时由哪台电脑写：读它所在文件夹的那台（文件行记的优先，没有按任务上的，
+    同 :func:`_reader`）。待处理页当场补选（要人选 / 待选账套）重推定时任务的票时据此冻结 ``route_device``：这张票仍算定时任务
+    的活，由读文件夹的电脑写，不改归点按钮的人自己的电脑（ADR-021 第 51 条，10-16 审查）。不是定时任务的票、任务已删、推往
+    别的连接、都没记电脑（补丁前的旧任务）回空串（按录入人自己的电脑写）。调用方已核过这张票的读取范围。只读。"""
+    source = frappe.db.get_value(HISTORY, history, "source_file") if history and connection else None
+    if not source:
+        return ""
+    for row in frappe.get_all(FILE, filters={"source_file": source}, fields=["rule", "histories_json", "reader_device"],
+                              order_by="creation desc", ignore_permissions=True):
+        if history not in json.loads(row.histories_json or "[]"):
+            continue
+        rule = frappe.db.get_value(RULE, row.rule, ["connection", "reader_device"], as_dict=True)
+        if rule and rule.connection == connection:
+            return str(row.reader_device or rule.reader_device or "")
+    return ""
+
+
 def fixed_for(history, connection, account_set):
     """推送服务的钩子（``cowork_push_fixed_choices``）：这张票来自某个定时任务、且这次推往该任务的连接与账套时，
     回该任务的默认处理，否则 ``{}``。调用方已核过这张票的读取范围。
@@ -117,15 +136,16 @@ def push_one(entry, rule, history, attempt=0, final=True):
     # 不写进账套记忆（用户 2026-10-08：以前记成整份账套的选择，网页推送和同账套的其他规则都会跟着变）。
     # 显式传（没有默认值时是 {}）：推送服务就不再按钩子查一遍。
     fixed = rule_fixed(rule.defaults_json)
-    picked = follow.choose(rule, history)
+    device = _reader(entry, rule)
+    picked = follow.choose(rule, history, device=device)
     if not picked:
         return _push_to(entry, rule, history, row, rule.account_set_key, fixed, attempt, final)
     where = {"account_set": picked["key"], "account_label": picked["label"]} if picked.get("key") else {}
     if picked.get("stop"):
         adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
         if (picked["stop"] == follow.UNREACHABLE and not final
-                and not destinations.queueable(adapter, rule.connection, device=_reader(entry, rule))):
-            return {"status": "retry", "reason": OFFLINE}  # 池里一台能写的电脑都没有：同「电脑没连上」，过一会儿再推
+                and destinations.writer_state(adapter, rule.connection, device=device) == destinations.MISSING):
+            return {"status": "retry", "reason": OFFLINE}  # 负责人一台电脑都没有：同「电脑没连上」，过一会儿再推
         going = {"connection": rule.connection, "account_set": picked["key"]} if picked.get("key") else {}
         push_state.record_failure(history, picked["stop"], **going)
         frappe.db.commit()
@@ -175,7 +195,7 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
         return {"status": "held", "reason": reason}
     adapter = frappe.db.get_value(CONNECTION, rule.connection, "adapter")
     device = _reader(entry, rule)
-    if not final and not destinations.queueable(adapter, rule.connection, device=device):
+    if not final and destinations.writer_state(adapter, rule.connection, device=device) == destinations.MISSING:
         return {"status": "retry", "reason": OFFLINE}
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
@@ -192,7 +212,7 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
         return {"status": "failed", "reason": str(result.get("reason") or "push.preparation_cancelled")[:300]}
     if result.get("status") == "prepared":
         if (not final and not destinations.ready(adapter, result)
-                and not destinations.queueable(adapter, rule.connection, device=device)):
+                and destinations.writer_state(adapter, rule.connection, device=device) == destinations.MISSING):
             _withdraw(result)
             return {"status": "retry", "reason": OFFLINE}
         try:

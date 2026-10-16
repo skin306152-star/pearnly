@@ -777,9 +777,13 @@ class PoolRequestTests(unittest.TestCase):
         self.assertEqual(wait("acc@x.com"), {})
         self.pool.reach.pop(("C1", "PC1", self.KEY))
         self.assertEqual(wait("acc@x.com"), {"status": "waiting_for_cc", "reason": "unreachable"})
-        # 一台登录过 CC 的电脑都没有：照旧「离线」（录入入口那边是「CC 桌面版未连接」）
+        # 一台登录过 CC 的电脑都没有：「CC 桌面版未连接」（missing），不说哪台电脑离线（规则 4，10-16 审查）；不给账套时同样
         self.pool.peers["C1"]["PC3"]["users"] = {"third@x.com"}
-        self.assertEqual(wait("new@x.com")["reason"], "offline")
+        self.assertEqual(wait("new@x.com"), {"status": "waiting_for_cc", "reason": "missing"})
+        self.assertEqual(wait("new@x.com", None), {"status": "waiting_for_cc", "reason": "missing"})
+        # 给了定向的电脑（读文件夹）不按人判
+        self.assertNotEqual(self.service.waiting("C1", "express_read", device="PC1", user="new@x.com").get("reason"),
+                            "missing")
 
     def test_books_reads_another_computer_cannot_take_do_not_fill_its_scan(self):
         """第 4 批审查 L1：PC1 是唯一够得到账套 X 的电脑；排着的 X 读请求比一次扫描的名额还多时，PC2 照样领得到后面

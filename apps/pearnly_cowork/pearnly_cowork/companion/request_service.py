@@ -281,13 +281,17 @@ def _candidates(connection, device=None, account_key=None, user=None):
 
 def waiting(connection, kind, known_version="", *, device=None, account_key=None, user=None) -> dict:
     """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" |
-    "update_needed" | "unreachable", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
+    "update_needed" | "unreachable" | "missing", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
     ``account_key``：够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）；``user``：只问他自己的电脑（回读只由
-    发起人的电脑做，第 54 条），他有电脑、却没有一台够得到这份账套回 ``unreachable``（不转给同事的电脑）。
+    发起人的电脑做，第 54 条），他有电脑、却没有一台够得到这份账套回 ``unreachable``（不转给同事的电脑），一台登录过 CC 的电脑
+    都没有回 ``missing``（「CC 桌面版未连接」）。
     ``known_version`` 是别处报过的 CC 桌面端版本（文件夹同步），电脑从没来领过按需请求时与电脑行上的版本一起分辨「离线」与
     「要升级」。调用方先核过连接权限。"""
     candidates, has_own = _candidates(connection, device, account_key, user)
-    if user and account_key and device is None and has_own and not candidates:
+    if user and device is None and not has_own:
+        # 他一台登录过 CC 的电脑都没有（同事的电脑都有登录记录）：是「CC 桌面版未连接」，不是哪台电脑离线（规则 4，10-16 审查）
+        return {"status": "waiting_for_cc", "reason": "missing"}
+    if user and account_key and device is None and not candidates:
         return {"status": "waiting_for_cc", "reason": "unreachable"}
     seen_any, versions = False, []
     for name, reported in candidates.items():

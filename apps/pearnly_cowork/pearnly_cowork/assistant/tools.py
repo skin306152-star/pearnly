@@ -604,7 +604,9 @@ def _key(name, version, last) -> str:
     return "assistant:" + hashlib.sha256(seed.encode()).hexdigest()[:56]
 
 
-def _push_one(name, connection=None, account_set_key=None, posting_kind=None) -> dict:
+def _push_one(name, connection=None, account_set_key=None, posting_kind=None, route_device="") -> dict:
+    """推一张票（CC 的 `cowork_push_documents` 每一张、待处理页当场补选都走这里）。``route_device``：定时任务的票由读文件夹的
+    那台电脑写（待处理页按 `folder_intake.push.reader_of` 给，ADR-021 第 51 条）；空 = 录入人自己的电脑写。"""
     try:
         doc = storage.read(name)
     except (frappe.DoesNotExistError, frappe.PermissionError):
@@ -652,7 +654,8 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None) ->
         frappe.db.commit()
         return {"document": name, "status": "needs_choice", "reason": reason}
     key = _key(name, doc.record_version, doc.last_push_record or doc.last_push_reason)
-    result = application.submit(name, target, key, doc.record_version, revision, account_set, None, None, posting_kind)
+    result = application.submit(name, target, key, doc.record_version, revision, account_set, None, None, posting_kind,
+                                route_device=route_device if adapter == "express" else "")
     frappe.db.commit()
     if result.get("status") in ("failed", "cancelled", "manual"):
         return {"document": name, "status": result.get("status"), "reason": str(result.get("reason") or "")[:300]}
@@ -1167,15 +1170,29 @@ OPTIONS_SHOWN = 30
 MRERP_READ_WAIT_SECONDS = 60
 
 
+# 不能选的 Express 状态给模型的说明（不是界面文案）：分清「没有能写的电脑」与「CC 桌面版未连接」（ADR-021 第 53 条，10-16 审查）
+TARGET_NOTES = {
+    "no_writer": "None of the user's own computers with CC Desktop can open this program's account sets (documents "
+                 "are written only by the user's own computers, never a colleague's). Tell the user and ask them to "
+                 "sign in to CC Desktop on a computer that can open the account set.",
+    "cc_desktop_not_connected": "The user has not connected CC Desktop on any computer yet. Tell the user to install "
+                                "CC Desktop on their own computer and sign in there.",
+}
+
+
 def _target_state(row) -> str:
-    """同 LINE `flow._state`：没连、停用、Express 池里一台能写的电脑都没有，都不能选。能写的电脑关着照样能选（排队，
-    开机后写，D4，ADR-021）；状态码沿用 ``cc_desktop_offline``。"""
+    """同 LINE `flow._state`：没连、停用、当前用户自己的电脑一台都没有（``cc_desktop_not_connected``）、有电脑却都够不到
+    能写的账套（``no_writer``，不转给同事的电脑），都不能选。能写的电脑关着照样能选（排队，开机后写，D4，ADR-021）。"""
     if not row:
         return "not_connected"
     if not row.get("enabled"):
         return "disabled"
-    if row.get("adapter") == "express" and not destinations.selectable("express", row["name"]):
-        return "cc_desktop_offline"
+    if row.get("adapter") == "express":
+        found = destinations.intake_state("express", row["name"])
+        if found == destinations.MISSING:
+            return "cc_desktop_not_connected"
+        if found == destinations.UNREACHABLE:
+            return "no_writer"
     return "ready"
 
 
@@ -1230,6 +1247,8 @@ def intake_options(tool_input) -> str:
     for adapter in ("express", "mrerp"):
         row = first.get(adapter)
         item = {"target": adapter, "state": _target_state(row)}
+        if item["state"] in TARGET_NOTES:
+            item["note"] = TARGET_NOTES[item["state"]]
         if row:
             item["connection"] = row["name"]
             item["label"] = row.get("label")
@@ -2638,7 +2657,10 @@ READBACK_WAITING = {"offline": "The computer with this account set is offline. N
                     "unreachable": "None of the user's own computers with CC Desktop can open this account set (a "
                                    "readback is only done by the requester's own computers, never a colleague's). "
                                    "Nothing was read; ask the user to sign in to CC Desktop on a computer that can "
-                                   "open it."}
+                                   "open it.",
+                    "missing": "The user has not connected CC Desktop on any computer yet (a readback is only done "
+                               "by the requester's own computers). Nothing was read; ask the user to install CC Desktop "
+                               "on a computer that can open this account set and sign in there."}
 
 
 def _readback_call(fn, *args, failed="failed"):

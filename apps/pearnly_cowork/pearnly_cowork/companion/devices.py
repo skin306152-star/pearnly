@@ -142,6 +142,14 @@ def _keys_of(device):
         AND COALESCE(active_key,'')<>'' LIMIT 1''', (device,))
 
 
+def retiring(name):
+    """这台电脑马上退役：冻结给它、还在排队的定时任务推送记录转人工（钩子 ``cowork_device_retiring`` →
+    `push.native.service.release_route`，原因 ``push.no_writer``），不永远排着（ADR-021 第 51、53 条，10-16 审查）。
+    在锁电脑行之前调用（推送记录在电脑行之前锁）。同一台电脑的新记录接手时（`_move`）那些单已改挂过去，这里一张都不剩。"""
+    for path in frappe.get_hooks('cowork_device_retiring') or []:
+        frappe.get_attr(path)(name)
+
+
 def retire_orphan(name, actor):
     """密钥吊销之后调用（密钥行已锁好）：还没被认领的旧电脑（补丁或旧路径建的，没有摘要）一把有效密钥都不剩，
     就再也没人能认领它，退役，免得「电脑」列表里留一台永远离线的假电脑。认领过的电脑留着：同一台再登录还是它。"""
@@ -150,6 +158,8 @@ def retire_orphan(name, actor):
     # 一把有效密钥都不剩的电脑够不到任何账套：池目录（下一次发布时）、读请求的分派、别的电脑的待认定都不再算它
     # （ADR-021，方案 2.4 第 5 条）。池里各行在电脑行之前锁。
     pool.forget_device(name)
+    if not (_plain(name) or {}).get('secret_digest'):
+        retiring(name)  # 推送记录同样在电脑行之前；不加锁的预看，锁住后照旧复核
     doc = read(name)
     if not doc.secret_digest:
         retire(doc, actor)
@@ -157,7 +167,8 @@ def retire_orphan(name, actor):
 
 def _move(connection, old, new):
     """同一台电脑的旧记录 ``old`` 在这条连接上的东西转给 ``new``：池里的可达行与本机登记（`connections.pool.move_device`），
-    还有按电脑记的读文件夹任务、在途文件、公司文件夹（钩子 ``cowork_reader_device_moved``，文件夹域不由本域导入）。
+    还有按电脑记的读文件夹任务、在途文件、公司文件夹，以及冻结给 ``old``、还没写完的定时任务推送记录（钩子
+    ``cowork_reader_device_moved``：`folder_intake.readers.moved`、`push.native.service.reroute`，10-16 审查）。
     调用方已锁连接与密钥行，电脑行还没锁（加锁顺序）。"""
     pool.move_device(connection, old, new)
     for path in frappe.get_hooks('cowork_reader_device_moved') or []:

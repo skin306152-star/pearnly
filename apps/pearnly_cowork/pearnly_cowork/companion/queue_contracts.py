@@ -16,7 +16,8 @@ LEASE_SECONDS = 120
 MAX_JOBS = 50
 _ACK_KEYS = ("log_id", "result", "express_docnum", "error", "agent_id", "line_modes", "outcome", "meta")
 _JOB_KEYS = frozenset(("log_id", "history_id", "invoice_no", "payload"))
-# 领取回复里每件任务的可选键（ADR-021）：``attended`` = 录入人本人就在这台电脑前（第 ① 档、不是常驻电脑）。没有这一键的
+# 领取回复里每件任务的可选键（ADR-021）：``attended`` = 录入人可能就在这台电脑前（不是定时任务、录入人在这台电脑上登录过 CC，
+# 第 55 条，`route_contracts.attended`）。没有这一键的
 # 旧服务端照旧，旧客户端只按键取它认识的。
 JOB_OPTIONAL_KEYS = frozenset(("attended",))
 # 领取请求的可选键（ADR-021）：``index_pending`` = 这台电脑主档索引还没重建的账套文件号（按账套黏住用）。旧服务端忽略。

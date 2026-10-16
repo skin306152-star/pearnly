@@ -13,6 +13,8 @@
   `companies.tasks.books_of`，按出这张单的任务的公司与分店），`choose_account_set` 只收其中一份：按同一条路重推，推成了才抄到
   票上（`push_state.retarget`），推不成就放回「待选账套」能再选；推送照旧过 `account_match` 的期间、税号、分店硬闸与定时任务的
   默认处理（`push.fixed_for`）。
+- 定时任务的票补选后仍由读它所在文件夹的那台电脑写（`folder_intake.push.reader_of` → 推送记录的 ``route_device``，ADR-021
+  第 51 条，10-16 审查）：点按钮的会计员只用网页或手机、或账套只在那台电脑上时照样推得进去。CC 对话里主动推送仍按发起人。
 """
 import json
 
@@ -45,12 +47,20 @@ def answer(document, items):
         frappe.db.commit()
     from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
 
-    result = tools._push_one(name)
+    result = tools._push_one(name, route_device=_reader(name, doc.push_connection))
     frappe.db.commit()
     out = {"document": name, "status": str(result.get("status") or "")}
     if result.get("reason"):
         out["reason"] = str(result["reason"])[:300]
     return out
+
+
+def _reader(document, connection):
+    """定时任务的票补选后仍算定时任务的活：由读它所在文件夹的那台电脑写（`folder_intake.push.reader_of`；不是定时任务的票回空，
+    按点按钮的人自己的电脑写）。ADR-021 第 51 条，10-16 审查。"""
+    from pearnly_cowork.folder_intake import push as folder_push
+
+    return folder_push.reader_of(document, connection)
 
 
 def _row(doc):
@@ -90,7 +100,8 @@ def choose_account_set(document, account_set_key):
             "record": doc.last_push_record}
     from pearnly_cowork.assistant import tools  # CC 工具模块很大：只在真要推时加载
 
-    result = tools._push_one(name, doc.push_connection, picked["key"])
+    result = tools._push_one(name, doc.push_connection, picked["key"],
+                             route_device=_reader(name, doc.push_connection))
     frappe.db.commit()
     status = str(result.get("status") or "")
     after = frappe.db.get_value("Cowork OCR History", name, ["last_push_record"], as_dict=True) or {}

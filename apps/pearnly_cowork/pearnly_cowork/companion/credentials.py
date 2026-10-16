@@ -469,6 +469,8 @@ def remove_device(device):
             ORDER BY name FOR UPDATE''', (name,))
         for (key,) in keys:
             _revoke(_read(DOCTYPE, key), actor, 'device_removed')
+        # 冻结给它、还在排队的定时任务单转人工（`push.no_writer`），推送记录在电脑行之前锁（10-16 审查）
+        devices.retiring(name)
         doc = devices.read(name)  # lock order Connection -> Credential -> Device
         if doc.retired_at:
             return {'status': 'removed', 'device': name, 'replayed': True}

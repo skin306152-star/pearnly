@@ -14,6 +14,10 @@ from pearnly_cowork.companion import pool
 from pearnly_cowork.push.application import service as application
 
 
+# 替这张单干活的电脑能不能写（`writer_state`）：能写（关着也算）/ 有电脑但够不到（直接按现有原因记下）/ 一台都没有（过一会儿再推）
+READY, UNREACHABLE, MISSING = "ready", "unreachable", "missing"
+
+
 class ExpressTarget:
     adapter = "express"
     intake_target = "express"
@@ -28,6 +32,16 @@ class ExpressTarget:
         """当前用户自己的电脑（给了 ``device`` 就是那台，定时任务读文件夹的电脑）里有能写的（关着也算，D4）：能选 Express、
         确认、排队，开机后写（ADR-021 第 51–53 条）。"""
         return pool.for_user(connection, device=device)["writers_known"]
+
+    @staticmethod
+    def writer_state(connection, device=""):
+        """替这张单干活的电脑（:func:`selectable` 同一口径）：有能写的 → ``READY``；读文件夹的那台（``device``）够不到能写的
+        账套（不在这个池里、只读成员、已移除），或负责人有电脑却都够不到 → ``UNREACHABLE``（不是暂时的）；负责人一台电脑都没有
+        → ``MISSING``（「CC 桌面版未连接」）。"""
+        found = pool.for_user(connection, device=device)
+        if found.get("writers_known"):
+            return READY
+        return UNREACHABLE if device or found.get("computers") else MISSING
 
     @staticmethod
     def ready(prepared):
@@ -63,30 +77,37 @@ def online(adapter, connection):
         frappe.db.commit()  # 只读；判在线会锁住凭据行，读完立刻放开，不带着锁去准备推送（小助手报到也要这把锁）
 
 
-def queueable(adapter, connection, *, device=""):
-    """定时任务的票现在能不能确认、排队（ADR-021 第 4 批，D4）：Express 读文件夹的那台电脑（``device``；旧任务没记电脑时
-    按负责人自己的电脑）能写就行，电脑关着也排，开机后写（第 51 条，与确认同一判据，`companion.pool.state` 的
-    ``writers_known``）；以前要电脑此刻在线，否则每 10 分钟重试、6 小时后记失败。那台够不到时仍按「电脑没连上」过一会儿再推，
-    最后一次照现有规则记失败。MR.ERP 服务端直连，总能排。读不出就当能排，照常走现有提交（确认那一步会按真判据拒）。"""
+def writer_state(adapter, connection, *, device=""):
+    """定时任务的票现在能不能确认、排队（ADR-021 第 4 批 D4；10-16 第 51、53 条与审查）：
+
+    - ``READY``：Express 读文件夹的那台电脑（``device``；旧任务没记电脑时按负责人自己的电脑）能写，电脑关着也排，开机后写；
+    - ``UNREACHABLE``：那台够不到能写的账套（只读成员、账套只在别人电脑上、已移除），或负责人有电脑却都够不到——不是暂时的，
+      不再每十分钟重试、6 小时后才记失败：照常准备、确认，由确认按现有原因（``push.no_writer``；跟随公司账套时
+      ``cowork.folder.account_set_unreachable``）直接记下；
+    - ``MISSING``：负责人一台电脑都没有（「CC 桌面版未连接」）：过一会儿再推，最后一次照现有规则记失败。
+
+    MR.ERP 服务端直连，总是 ``READY``。读不出也当 ``READY``，照常走现有提交（确认那一步会按真判据拒）。"""
     target = ADAPTERS[adapter]
     try:
-        return target.selectable(connection, device) if hasattr(target, "selectable") else True
+        return target.writer_state(connection, device) if hasattr(target, "writer_state") else READY
     except Exception:
         frappe.clear_messages()
-        return True
+        return READY
     finally:
         frappe.db.commit()  # 只读；不带着读到的锁去准备推送
 
 
-def selectable(adapter, connection):
-    """录入入口（CC 工具）能不能选这种 ERP：Express 要池里有能写的电脑（关着也算，D4）；MR.ERP 服务端直连，总能选。
-    读不出当不能选（与 LINE 一样，不让人选一个确认不了的去向）。"""
+def intake_state(adapter, connection):
+    """录入入口（CC 工具）能不能选这种 ERP、为什么不能（与 LINE `flow._state` 同一口径）：Express 按当前用户自己的电脑——
+    有能写的（关着也算，D4）``READY``；有电脑却都够不到能写的账套 ``UNREACHABLE``（「没有能写的电脑」，如账套只在别人电脑的
+    C 盘上）；一台电脑都没有 ``MISSING``（「CC 桌面版未连接」，ADR-021 第 53 条）。MR.ERP 服务端直连，总能选。读不出当
+    ``MISSING``（与 LINE 一样，不让人选一个确认不了的去向）。"""
     target = ADAPTERS[adapter]
     try:
-        return target.selectable(connection) if hasattr(target, "selectable") else True
+        return target.writer_state(connection) if hasattr(target, "writer_state") else READY
     except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
         frappe.clear_messages()
-        return False
+        return MISSING
 
 
 def ready(adapter, prepared):

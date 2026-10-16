@@ -322,9 +322,18 @@ def _install_frappe():
     frappe.db = FakeDB()
     frappe.get_doc = _get_doc
     # 电脑改挂时文件夹域的钩子（`cowork_reader_device_moved`，ADR-021 第 4 批）：记进池替身的事件里，与可达行转移排在一起
-    frappe.get_hooks = lambda name: ["folder.readers.moved"] if name == "cowork_reader_device_moved" else []
-    frappe.get_attr = lambda path: (lambda *args: sys.modules["pearnly_cowork.connections.pool"].EVENTS.append(
-        ("readers", *args)))
+    # 电脑退役前推送域的钩子（`cowork_device_retiring`，10-16 审查）：冻结给它的排队定时任务单转人工；记进事件，并在 LOCKS 里
+    # 记一笔（推送记录要在电脑行之前锁）
+    hooks = {"cowork_reader_device_moved": ["folder.readers.moved"], "cowork_device_retiring": ["push.release_route"]}
+    frappe.get_hooks = lambda name: hooks.get(name, [])
+
+    def get_attr(path):
+        events = sys.modules["pearnly_cowork.connections.pool"].EVENTS
+        if path == "push.release_route":
+            return lambda device: events.append(("retiring", device)) or LOCKS.append(("PUSH", device))
+        return lambda *args: events.append(("readers", *args))
+
+    frappe.get_attr = get_attr
     model = types.ModuleType("frappe.model")
     document = types.ModuleType("frappe.model.document")
     document.Document = Document
@@ -1045,6 +1054,8 @@ class MigratedPool(Base):
         self.assertEqual(pool.EVENTS[1], ("readers", self.express, old, claimed))
         self.assertIn(("forget", old, None), pool.EVENTS[1:])
         self.assertTrue(STORE[DEVICE][old]["retired_at"])
+        # 没人认领的旧电脑退役前也交出冻结给它的排队单（已在改挂时转走的，推送域那边一张都不剩）
+        self.assertLess(pool.EVENTS.index(("readers", self.express, old, claimed)), pool.EVENTS.index(("retiring", old)))
 
     def test_a_keyless_old_slot_key_hands_its_items_to_the_claimed_computer(self):
         """第 4 批审查 L6：补丁漏掉、没挂电脑的旧槽位密钥（池里按密钥编号算一台）改挂到同一台电脑已认领的记录上时，
@@ -1402,6 +1413,10 @@ class RemoveDevice(Base):
         last_connection = max(i for i, (kind, _n) in enumerate(order) if kind == CONNECTION)
         self.assertLess(last_connection, first_key)
         self.assertEqual(order[-1], (DEVICE, a["device"]))
+        # 冻结给它、还在排队的定时任务单转人工（10-16 审查）：推送记录在吊销密钥之后、锁电脑行之前
+        self.assertIn(("retiring", a["device"]), sys.modules["pearnly_cowork.connections.pool"].EVENTS)
+        self.assertLess(max(i for i, (kind, _n) in enumerate(order) if kind == CREDENTIAL), order.index(("PUSH", a["device"])))
+        self.assertLess(order.index(("PUSH", a["device"])), order.index((DEVICE, a["device"])))
         self.assert_lock_order()
 
     def test_a_connection_reached_without_a_key_is_locked_too(self):

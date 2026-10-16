@@ -101,6 +101,22 @@ class FixedFor(unittest.TestCase):
         self.assertEqual(push.fixed_for("H1", "C2", BOOK), {})
         self.assertEqual(push.fixed_for("H1", "", BOOK), {})
 
+    def test_the_reader_of_a_scheduled_ticket_is_the_computer_that_read_its_folder(self):
+        """10-16 审查：待处理页补选重推定时任务的票，仍由读它所在文件夹的电脑写（`reader_of` → ``route_device``）：文件行记的
+        优先，没有按任务上的；推往别的连接、不是这个任务的票、没有原件的回空串（按点按钮的人自己的电脑写）。"""
+        tables = self._tables()
+        tables[RULE]["R1"]["reader_device"] = "CCD-RULE"
+        tables[FILE]["F1"]["reader_device"] = "CCD-FILE"
+        push = self._push(tables)
+        self.assertEqual(push.reader_of("H1", "C1"), "CCD-FILE")
+        tables[FILE]["F1"]["reader_device"] = ""
+        self.assertEqual(self._push(tables).reader_of("H1", "C1"), "CCD-RULE")
+        self.assertEqual(push.reader_of("H1", "C2"), "")
+        self.assertEqual(push.reader_of("H2", "C1"), "")
+        self.assertEqual(push.reader_of("H1", ""), "")
+        self.assertEqual(self._push(self._tables(histories=("H9",))).reader_of("H1", "C1"), "")
+        self.assertEqual(self._push(self._tables(rule=False)).reader_of("H1", "C1"), "")
+
     def test_documents_not_from_this_task_get_nothing(self):
         # 同一原件但这张票不在这份文件的票里
         self.assertEqual(self._push(self._tables(histories=("H9",))).fixed_for("H1", "C1", BOOK), {})

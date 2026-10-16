@@ -6,6 +6,8 @@ from frappe.model.document import Document
 TYPES = ('Cowork Push Record', 'Cowork Push Attempt', 'Cowork Push Writer Lock')
 NOTIFICATION = 'Cowork Push Notification'
 _CAPABILITY = object()
+# 推送记录唯一能改的身份字段：同一台电脑的旧记录改挂到新记录时，冻结给旧记录的 ``route_device`` 跟过去（`service.reroute`）
+_REROUTE = object()
 _IDENTITY = {
     NOTIFICATION: ('record_id', 'push_record', 'workspace', 'client', 'history', 'actor', 'connection', 'status', 'payload_json'),
     TYPES[0]: ('record_id', 'workspace', 'client', 'actor', 'history', 'connection', 'account_key',
@@ -25,6 +27,13 @@ def denied():
 def persist(doc):
     doc.flags.cowork_push_native = _CAPABILITY
     return doc.insert(ignore_permissions=True) if doc.is_new() else doc.save(ignore_permissions=True)
+
+
+def reroute(doc, device):
+    """只给 `service.reroute`：把这条推送记录冻结的读文件夹电脑换成同一台电脑的新记录，其余身份字段照旧不可改。"""
+    doc.route_device = device
+    doc.flags.cowork_push_reroute = _REROUTE
+    return persist(doc)
 
 
 def native_permission(doc=None, ptype=None, user=None, **kwargs):
@@ -68,7 +77,9 @@ class PushDocument(Document):
         previous = self.get_doc_before_save()
         if self.name != self.record_id:
             denied()
-        if previous and any(self.get(key) != previous.get(key) for key in _IDENTITY[self.doctype]):
+        rerouted = self.flags.cowork_push_reroute is _REROUTE
+        if previous and any(self.get(key) != previous.get(key) for key in _IDENTITY[self.doctype]
+                            if not (rerouted and key == 'route_device')):
             denied()
 
     def check_permission(self, permtype='read', permlevel=None):

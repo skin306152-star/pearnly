@@ -35,6 +35,7 @@ from pearnly_cowork.push.native.contracts import (
     writer_identities,
 )
 from pearnly_cowork.push.native.documents import TYPES, persist
+from pearnly_cowork.push.native import documents as ledger_documents
 from pearnly_cowork.targets.freeze import freeze_target
 from pearnly_cowork.targets.contracts import TargetSelectionError
 from pearnly_cowork.targets.identity import normalize_express_account_key
@@ -678,6 +679,63 @@ def quarantine_pending(name, *, context, adapter, reason):
         row.status, row.reason = 'manual', reason
         _save_record(row, now_utc())
         return project(row)
+
+
+# 冻结给某台电脑、还没写完的定时任务单（`reroute` 跟着改挂；`release_route` 那台退役时转人工）
+_ROUTED_OPEN = ('prepared', 'pending', 'leased')
+
+
+def _routed(device, statuses, *, connection=''):
+    """冻结给 ``device`` 的这几种状态的记录名：先不加锁挑（``route_device`` 没有索引，加锁读会锁住扫过的每一行），调用方再按
+    主键逐张锁住复核。平时没有这种记录。"""
+    query = 'SELECT name FROM `tabCowork Push Record` WHERE route_device=%s AND status IN %s'
+    values = [device, tuple(statuses)]
+    if connection:
+        query += ' AND connection=%s'
+        values.append(connection)
+    return [row[0] for row in frappe.db.sql(query + ' ORDER BY name', tuple(values))]
+
+
+def reroute(connection, old, new):
+    """同一台电脑的旧记录 ``old`` 在这条连接上改挂到 ``new``（`companion.devices._move`：1.6 升 1.7.0 时补丁建的旧电脑被
+    新登记的记录接手等）：这条连接上冻结给 ``old``、还没写完的定时任务单（已准备 / 排队 / 正在写）改由 ``new`` 写
+    （ADR-021 第 51 条，10-16 审查）。不然 ``new`` 来领时按 ``route_device`` 筛不到它们，``old`` 又已退役，单子永远排着。
+    正在写的那件照常由原来的尝试回执（回执不看 ``route_device``），只是租约过期回收后由 ``new`` 接着领。
+
+    调用方已锁这条连接与密钥行（加锁顺序 Connection → Credential → 推送记录 → Device）；不改状态、不碰写者锁，只换这一列
+    （升一次版本）。回改了几张。"""
+    if not connection or not old or not new or old == new:
+        return 0
+    moved = 0
+    for name in _routed(old, _ROUTED_OPEN, connection=connection):
+        row = _current(RECORD, name)
+        if row.connection != connection or row.route_device != old or row.status not in _ROUTED_OPEN:
+            continue
+        row.revision = int(row.revision or 0) + 1
+        row.updated_at = now_utc()
+        ledger_documents.reroute(row, new)
+        moved += 1
+    return moved
+
+
+def release_route(device, *, reason='push.no_writer'):
+    """电脑 ``device`` 退役（「电脑」列表移除、没人认领的旧电脑一把密钥都不剩，且没有同一台的新记录接手）：冻结给它、还在排队的
+    定时任务单再也没人写，转人工，原因用现有的 ``push.no_writer``（「没有能写这份账套的电脑…」，待处理页显示、能重推），
+    不让它永远停在「推送中」（ADR-021 第 51、53 条，10-16 审查）。已准备的确认时自会按同一原因被拒；正在写的照常等回执或
+    租约过期转「结果不明」。排队的单不持写者锁（领取时才取），这里不碰锁。
+
+    调用方在锁电脑行之前调用（加锁顺序：推送记录在电脑行之前）。回转了几张。"""
+    if not device:
+        return 0
+    moved = 0
+    for name in _routed(device, ('pending',)):
+        row = _current(RECORD, name)
+        if row.status != 'pending' or row.result_unknown or row.route_device != device:
+            continue
+        row.status, row.reason = 'manual', reason
+        _save_record(row, now_utc())
+        moved += 1
+    return moved
 
 
 def _attempt(row, adapter, token, fence):

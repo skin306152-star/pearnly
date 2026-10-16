@@ -669,6 +669,68 @@ class QueueHeadsQuery(unittest.TestCase):
 # ── 推送账本的判据（替身模块上加载真 `push/native/service.py`）──────────────────────────────
 
 
+class RouteFieldGuard(unittest.TestCase):
+    """推送记录的身份字段不可改；唯一例外是 `documents.reroute` 改 ``route_device``（同一台电脑改挂，10-16 审查）。"""
+
+    def setUp(self):
+        frappe = types.ModuleType("frappe")
+        frappe._ = lambda text: text
+
+        class Denied(Exception):
+            pass
+
+        def throw(message, exc=None):
+            raise Denied(message)
+
+        frappe.throw, frappe.PermissionError = throw, Denied
+        model = types.ModuleType("frappe.model")
+        document = types.ModuleType("frappe.model.document")
+
+        class Document:
+            def __init__(self, **values):
+                self.__dict__.update(values)
+                self.flags = types.SimpleNamespace(cowork_push_native=None, cowork_push_reroute=None)
+                self.before = None
+
+            def get(self, key):
+                return self.__dict__.get(key)
+
+            def get_doc_before_save(self):
+                return self.before
+
+            def is_new(self):
+                return False
+
+            def save(self, ignore_permissions=False):
+                self.validate()
+                return self
+
+        document.Document = Document
+        self.denied = Denied
+        self.documents = _load("pearnly_cowork.push.native._documents_under_test", APP / "push/native/documents.py",
+                               {"frappe": frappe, "frappe.model": model, "frappe.model.document": document})
+
+    def _row(self):
+        row = self.documents.PushDocument(doctype="Cowork Push Record", name="CWP-1", record_id="CWP-1",
+                                          route_device="OLD", connection="CONN")
+        row.before = {"doctype": "Cowork Push Record", "record_id": "CWP-1", "route_device": "OLD",
+                      "connection": "CONN"}
+        return row
+
+    def test_only_reroute_may_change_the_frozen_computer(self):
+        row = self._row()
+        self.documents.reroute(row, "NEW")
+        self.assertEqual(row.route_device, "NEW")
+        row = self._row()
+        row.route_device = "NEW"
+        with self.assertRaises(self.denied):
+            self.documents.persist(row)
+        row = self._row()
+        row.connection = "OTHER"
+        with self.assertRaises(self.denied):
+            self.documents.reroute(row, "NEW")  # 其余身份字段照旧不可改
+
+
 class _Fail(Exception):
     pass
 
@@ -876,6 +938,43 @@ class Ledger(unittest.TestCase):
         self.older = []
         self.assertFalse(self.ledger.lock_busy("CWP-1", context=self.context))
         self.assertFalse(self.ledger.lock_busy("CWP-NONE", context=self.context))
+
+    def test_a_moved_computer_takes_over_its_frozen_scheduled_jobs_and_a_retired_ones_go_to_people(self):
+        """10-16 审查：定时任务的单冻结了读文件夹的电脑（``route_device``）。同一台电脑的旧记录改挂到新记录时（1.6 升 1.7.0
+        就会走到），这条连接上还没写完的跟过去，新记录领得到；电脑退役（移除、旧电脑密钥用完）时，还在排队的转人工
+        （``push.no_writer``），不永远排着。先不加锁挑（``route_device`` 没有索引），再按主键逐张锁住复核。"""
+        rows = {"CWP-1": Record(name="CWP-1", connection="CONN", route_device="OLD", status="pending", revision=2),
+                "CWP-2": Record(name="CWP-2", connection="CONN", route_device="OLD", status="leased", revision=1),
+                "CWP-3": Record(name="CWP-3", connection="CONN", route_device="OTHER", status="pending", revision=1),
+                "CWP-4": Record(name="CWP-4", connection="CONN", route_device="OLD", status="success", revision=5)}
+        self.older = [(name,) for name in rows]
+        rerouted = []
+        with mock.patch.object(self.ledger, "_current", side_effect=lambda doctype, name: rows[name]), \
+                mock.patch.object(self.ledger.ledger_documents, "reroute", create=True,
+                                  side_effect=lambda row, device: rerouted.append((row.name, device))
+                                  or row.update(route_device=device)):
+            self.assertEqual(self.ledger.reroute("CONN", "OLD", "NEW"), 2)
+            self.assertEqual(self.ledger.reroute("CONN", "SAME", "SAME"), 0)
+        self.assertEqual(rerouted, [("CWP-1", "NEW"), ("CWP-2", "NEW")])
+        self.assertEqual((rows["CWP-1"].revision, rows["CWP-1"].status), (3, "pending"))  # 只换这一列，不改状态
+        query, values = self.sql[-1]
+        self.assertNotIn("FOR UPDATE", query)
+        self.assertEqual(values, ("OLD", ("prepared", "pending", "leased"), "CONN"))
+        rows = {"CWP-5": Record(name="CWP-5", route_device="GONE", status="pending", result_unknown=0),
+                "CWP-6": Record(name="CWP-6", route_device="GONE", status="pending", result_unknown=1),
+                "CWP-7": Record(name="CWP-7", route_device="ELSE", status="pending", result_unknown=0)}
+        self.older = [(name,) for name in rows]
+        saved = []
+        with mock.patch.object(self.ledger, "_current", side_effect=lambda doctype, name: rows[name]), \
+                mock.patch.object(self.ledger, "_save_record", side_effect=lambda row, t, **k: saved.append(row.name)):
+            self.assertEqual(self.ledger.release_route("GONE"), 1)
+            self.assertEqual(self.ledger.release_route(""), 0)
+        self.assertEqual(saved, ["CWP-5"])
+        self.assertEqual((rows["CWP-5"].status, rows["CWP-5"].reason), ("manual", "push.no_writer"))
+        self.assertEqual(rows["CWP-6"].status, "pending")  # 结果不明的不碰（另由人核对）
+        query, values = self.sql[-1]
+        self.assertNotIn("FOR UPDATE", query)
+        self.assertEqual(values, ("GONE", ("pending",)))
 
     def test_payload_version_outdated_is_a_quarantine_reason(self):
         with self.assertRaisesRegex(_Fail, "push.native_request_invalid"):

@@ -88,7 +88,8 @@ def _install():
             records=lambda *a: [], targets=lambda name: {},
             main_of=lambda rows, adapter: next((r for r in rows or () if r.get("adapter") == adapter and r.get("main")),
                                                None)),
-        "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, selectable=lambda *a: True,
+        "pearnly_cowork.folder_intake.destinations": dict(online=lambda *a: True, intake_state=lambda *a: "ready",
+                                                          READY="ready", UNREACHABLE="unreachable", MISSING="missing",
                                                           of=lambda adapter: None),
         "pearnly_cowork.folder_intake.readers": dict(resolve=lambda value, root=None: ("", value),
                                                      state=lambda device, connection: {}),
@@ -260,7 +261,7 @@ class PushTargetTests(unittest.TestCase):
                                     record_version=2, last_push_record="", last_push_reason="")
         tools.storage.read = lambda name: doc
         tools.application.choices_view = lambda name, target, account_set, kind: seen.append((target, account_set, kind)) or {"needed": []}
-        tools.application.submit = lambda *a: {"status": "failed", "reason": "stop here"}
+        tools.application.submit = lambda *a, **k: {"status": "failed", "reason": "stop here"}
         tools._push_one("H1", "EXP1", "c:\\70exp\\t9", "stock")
         self.assertEqual(seen[-1], ("EXP1", "c:\\70exp\\t9", "stock"))
         doc.push_connection, doc.push_account_set = "EXP1", "c:\\70exp\\t8"
@@ -280,7 +281,7 @@ class PushWhileChartIsReadTests(unittest.TestCase):
                                          last_push_reason="")
         tools.storage.read = lambda name: self.doc
         tools.push_state.record_failure = lambda *a, **k: self.failures.append((*a, k))
-        tools.application.submit = lambda *a: self.fail("must not prepare while the chart is missing")
+        tools.application.submit = lambda *a, **k: self.fail("must not prepare while the chart is missing")
 
     def _push(self, state):
         tools.application.choices_view = lambda *a: {"needed": [{"kind": "account", "subject": "S"}], "options": {},
@@ -679,7 +680,7 @@ class IntakeChoiceTests(unittest.TestCase):
             {"source_id": "B", "label": "Beta Co", "attributes": {"root_label": "68EXP"}},
             {"source_id": "X", "label": "Old Co", "active": False}]}
         tools.destinations.online = lambda adapter, name: True
-        tools.destinations.selectable = lambda adapter, name: True
+        tools.destinations.intake_state = lambda adapter, name: "ready"
         self.batch_filters = []
         frappe.get_all = lambda doctype, **kw: self.batch_filters.append(kw["filters"]) or [
             {"intake_target": "express", "target_connection": "EXP1", "target_account_set": "b",
@@ -716,11 +717,16 @@ class IntakeChoiceTests(unittest.TestCase):
         self.assertNotIn("_keys", out["targets"][0])
 
     def test_no_computer_that_can_write_is_not_ready_but_an_offline_one_is(self):
-        # D4（ADR-021）：能写的电脑关着照样能选（排队、开机后写）；池里一台能写的都没有才不能选
+        # D4（ADR-021）：能写的电脑关着照样能选（排队、开机后写）；自己的电脑一台能写的都没有才不能选
         tools.destinations.online = lambda adapter, name: False
         self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "ready")
-        tools.destinations.selectable = lambda adapter, name: False
-        self.assertEqual(json.loads(tools.intake_options({}))["targets"][0]["state"], "cc_desktop_offline")
+        # 10-16 审查（第 53 条）：有电脑却都够不到能写的账套是「没有能写的电脑」，一台都没有才是「CC 桌面版未连接」；
+        # 各带一句给模型的说明，不再一律说成离线
+        for state, expected in (("unreachable", "no_writer"), ("missing", "cc_desktop_not_connected")):
+            tools.destinations.intake_state = lambda adapter, name, state=state: state
+            express = json.loads(tools.intake_options({}))["targets"][0]
+            self.assertEqual((express["state"], express["note"]), (expected, tools.TARGET_NOTES[expected]))
+            self.assertNotIn("account_sets", express)
 
     def test_stock_group_and_mrerp_choices_go_through_the_connection_services(self):
         calls = []
@@ -1968,7 +1974,7 @@ class PushWaitTests(unittest.TestCase):
                 (tools.storage, "read", lambda name: self.docs[name]),
                 (tools.application, "choices_view", lambda *a: {"needed": []}),
                 (tools.application, "submit",
-                 lambda history, *a: {"status": "prepared", "name": "PR-" + history, "revision": 1}),
+                 lambda history, *a, **k: {"status": "prepared", "name": "PR-" + history, "revision": 1}),
                 (tools.application, "outcomes", outcomes),
                 (tools.destinations, "of", lambda adapter: destination),
                 (tools.destinations, "online", lambda adapter, connection: self.online),
@@ -3078,6 +3084,11 @@ class ReadbackTests(unittest.TestCase):
         self.assertEqual((out["status"], out["version"]), ("waiting_for_cc", "1.4.4"))
         self.assertIn("updated", out["note"])
         self.assertEqual([call[0] for call in self.calls], ["request"])  # 电脑领不了：不等、不查
+        # 10-16 审查：发起人一台登录过 CC 的电脑都没有是「还没连 CC 桌面版」，不叫他去把哪台电脑开机
+        self.made = {"status": "waiting_for_cc", "reason": "missing"}
+        out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
+        self.assertEqual(out["note"], tools.READBACK_WAITING["missing"])
+        self.assertIn("not connected CC Desktop", out["note"])
 
     def test_someone_elses_readback_still_reading_is_returned_at_once(self):
         # 能用这条连接的人都看得到回读（用户 2026-10-15 夜定），但还在读的那份只由发起人推进：同事的 CC 不空等 90 秒

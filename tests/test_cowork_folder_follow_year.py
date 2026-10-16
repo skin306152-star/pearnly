@@ -67,7 +67,7 @@ class Push:
 
     def __init__(self):
         self.submitted, self.failures, self.retargeted, self.views = [], [], [], []
-        self.queueable = True
+        self.writer_state = "ready"
 
     def choices_view(self, history, connection, account_set, posting_kind, fixed=None):
         self.views.append(account_set)
@@ -98,7 +98,8 @@ def load_follow(pool):
 def load_push(follow, fake):
     confirm = types.SimpleNamespace(confirm=lambda *args: None)
     destinations = types.SimpleNamespace(of=lambda adapter: confirm, ready=lambda adapter, result: True,
-                                         queueable=lambda adapter, connection, device="": fake.queueable)
+                                         READY="ready", UNREACHABLE="unreachable", MISSING="missing",
+                                         writer_state=lambda adapter, connection, device="": fake.writer_state)
     application = types.SimpleNamespace(choices_view=fake.choices_view, submit=fake.submit,
                                         submission_failed=lambda *a: None, cancel_prepared=lambda *a: None)
     push_state = types.SimpleNamespace(record_failure=fake.record_failure, retarget=fake.retarget)
@@ -140,9 +141,10 @@ class Base(unittest.TestCase):
             source_file="SF-" + name)
         return name
 
-    def send(self, rule, history, final=True):
+    def send(self, rule, history, final=True, entry=None):
         env.fresh_request()
-        return self.push.push_one(types.SimpleNamespace(name="E1", filename="bill.pdf"), rule, history, 0, final=final)
+        entry = entry or types.SimpleNamespace(name="E1", filename="bill.pdf")
+        return self.push.push_one(entry, rule, history, 0, final=final)
 
 
 class CompanyOfTests(Base):
@@ -269,12 +271,15 @@ class CrossYearPushTests(Base):
         self.assertEqual(self.fake.failures, [("H7", folder_contracts.ACCOUNT_SET_UNREACHABLE,
                                                {"connection": "C1", "account_set": _key(Y26)})])
         self.assertEqual(self.fake.submitted, [])
-        # 池里一台能写的电脑都没有（电脑没连上）：不是这份账套的问题，过一会儿再推；最后一次照样停下
-        self.fake.queueable = False
+        # 负责人一台电脑都没有（电脑没连上）：不是这份账套的问题，过一会儿再推；最后一次照样停下
+        self.fake.writer_state = "missing"
         self.fake.failures.clear()
         self.assertEqual(self.send(self.rule(), "H7", final=False), {"status": "retry", "reason": self.push.OFFLINE})
         self.assertEqual(self.fake.failures, [])
         self.assertEqual(self.send(self.rule(), "H7", final=True)["status"], "held")
+        # 读文件夹的那台在、却一份能写的账套都够不到（10-16 审查）：不是暂时的，第一次就停在「访问不到」，不重试
+        self.fake.writer_state = "unreachable"
+        self.assertEqual(self.send(self.rule(), "H7", final=False)["reason"], folder_contracts.ACCOUNT_SET_UNREACHABLE)
 
     def test_reachability_is_judged_by_the_computer_that_reads_the_folder(self):
         # 用户 10-16（ADR-021 第 51 条）：跟到的账套够不够得到按读这个文件夹的那台电脑判（只有它写），推送也冻结它；
@@ -284,6 +289,10 @@ class CrossYearPushTests(Base):
         self.assertEqual(self.fake.routes[-1], "CCD-R")   # 文件行没记电脑（替身 entry 没有）：用任务上的
         self.send(self.rule(), self.ticket("H9", date(2026, 3, 3)))
         self.assertEqual((self.pool.asked[-1][3], self.fake.routes[-1]), ("", ""))
+        # 10-16 审查：文件行记的电脑优先于任务上的（任务改由别的电脑读，在途的票仍由读它的那台写），判够不够得到与冻结的是同一台
+        self.send(self.rule(reader_device="CCD-NEW"), self.ticket("H10", date(2026, 3, 3)),
+                  entry=types.SimpleNamespace(name="E-OLD", filename="b.pdf", reader_device="CCD-OLD"))
+        self.assertEqual((self.pool.asked[-1][3], self.fake.routes[-1]), ("CCD-OLD", "CCD-OLD"))
 
     def test_a_catalog_row_marked_not_writable_is_unreachable(self):
         env.reset(C1=[dict(self.CATALOG[1]), row(Y26, "SINCER 2569", "2026-01-01", "2026-12-31", writable=False)])

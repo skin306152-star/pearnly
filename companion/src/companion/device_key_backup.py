@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """设备密钥的第二份存放处与这台电脑的系统标识（多台电脑，ADR-021；CC 桌面版 1.7.0 起）。
 
-设备密钥（``device_link``）一变，这台电脑的所有成员都会被服务端判 ``claimed_elsewhere`` 而停用，常驻电脑更是没人去点。
+设备密钥（``device_link``）一变，这台电脑的所有成员都会被服务端判 ``claimed_elsewhere`` 而停用，没人在电脑前时更没人去点。
 所以它不能只靠 ``companion.json`` 里的一份：
 
 - **备份**：同一份 DPAPI 密文另存在 ``HKCU\\Software\\Pearnly\\CC Desktop`` 的 ``Device`` 值里（只有当前 Windows 用户能解）。

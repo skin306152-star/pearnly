@@ -53,9 +53,10 @@ def member(rule, account_set):
     return bool(key) and any(normalize_express_account_key(item.get("key")) == key for item in books(rule) or ())
 
 
-def choose(rule, history):
+def choose(rule, history, device=None):
     """这张票这次推往哪份账套：``None`` = 不跟随（用任务的固定账套）；``{"key", "label"}`` = 选到的；
-    ``{"stop": 原因码, "key"?}`` = 停下等人（够不到时带上选到的那份）。只读。"""
+    ``{"stop": 原因码, "key"?}`` = 停下等人（够不到时带上选到的那份）。``device``：读这张票所在文件夹的电脑（`push._reader`：
+    文件行记的优先，与推送冻结的 ``route_device`` 同一台，10-16 审查）；不给按任务上的。只读。"""
     if not getattr(rule, "company", None):
         return None
     day = frappe.db.get_value(HISTORY, history, "invoice_date")
@@ -68,10 +69,10 @@ def choose(rule, history):
     if len(found) > 1:
         return {"stop": AMBIGUOUS}
     book = found[0]
-    # 够不够得到按这条任务读文件夹的那台电脑判（只有它写，ADR-021 第 51 条；旧任务没记电脑时按负责人自己的电脑）
+    # 够不够得到按读这张票所在文件夹的那台电脑判（只有它写，ADR-021 第 51 条；旧任务没记电脑时按负责人自己的电脑）
+    reader = device if device is not None else (getattr(rule, "reader_device", None) or "")
     if book.get("writable") is False or not ledger.has_writer(
-            rule.connection, book["key"], actor=frappe.session.user,
-            route_device=getattr(rule, "reader_device", None) or ""):
+            rule.connection, book["key"], actor=frappe.session.user, route_device=reader or ""):
         return {"stop": UNREACHABLE, "key": book["key"], "label": book.get("label") or book["key"]}
     return {"key": book["key"], "label": book.get("label") or book["key"]}
 

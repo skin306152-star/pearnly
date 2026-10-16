@@ -602,8 +602,12 @@ cowork_task_books = ["pearnly_cowork.companies.tasks.books_of"]
 # 密钥归 companion，connections 不导入它（ADR-021）。
 cowork_pool_presence = ["pearnly_cowork.companion.credentials.pool_peers"]
 # 同一台电脑的旧记录改挂到它已认领的记录上（`companion.devices`）：按电脑记的读文件夹任务、在途文件、公司文件夹一并转过去
-# （ADR-021 第 4 批；companion 不导入文件夹域）
-cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved"]
+# （ADR-021 第 4 批；companion 不导入文件夹域），冻结给旧记录、还没写完的定时任务推送记录也改由新记录写（10-16 审查）
+cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved",
+                              "pearnly_cowork.push.native.service.reroute"]
+# 一台电脑要退役（「电脑」列表移除、没人认领的旧电脑密钥用完）：冻结给它、还在排队的定时任务推送记录转人工（`push.no_writer`），
+# 不永远排着（ADR-021 第 51、53 条，10-16 审查）
+cowork_device_retiring = ["pearnly_cowork.push.native.service.release_route"]
 # 推送记录由哪台电脑写入（`written_by_device` → 电脑名，ADR-021 第 6 批：CC 列推送结果 / 单据详情的 ``written.writer``）：
 # 电脑归 companion，push 不导入它
 cowork_device_labels = ["pearnly_cowork.companion.devices.labels"]

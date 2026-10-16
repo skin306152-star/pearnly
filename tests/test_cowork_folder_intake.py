@@ -256,8 +256,13 @@ class OfflineCompanionRetry(unittest.TestCase):
     """小助手没连上：不准备（或撤回刚好断线时的准备）、回 retry、重试换请求号；连着但没报上账套、或最后一次，照现有规则走。"""
 
     def _push(self, reported=True, online=lambda: True, status="prepared", queueable=None):
-        """``online``：池里有没有能写的电脑（`destinations.queueable`，D4：电脑关着也算）；``queueable`` 不给就同它。"""
+        """``online``：替这张单干活的电脑里有没有能写的（`destinations.writer_state`，D4：电脑关着也算）：真 = ``ready``、
+        假 = ``missing``（一台电脑都没有），也可直接回状态串；``queueable`` 不给就同它。"""
         queueable = queueable or online
+
+        def state():
+            found = queueable()
+            return found if isinstance(found, str) else ("ready" if found else "missing")
         calls = {"cancel": [], "confirm": [], "keys": []}
 
         class Error(Exception):
@@ -283,14 +288,15 @@ class OfflineCompanionRetry(unittest.TestCase):
             submission_failed=lambda history, reason: None)
         express = types.SimpleNamespace(confirm=lambda *args: calls["confirm"].append(args))
         destinations = types.SimpleNamespace(of=lambda adapter: express, online=lambda adapter, connection: False,
-                                             queueable=lambda adapter, connection, device="": (
-                                                 calls.setdefault("asked", []).append(device) or queueable()),
+                                             READY="ready", UNREACHABLE="unreachable", MISSING="missing",
+                                             writer_state=lambda adapter, connection, device="": (
+                                                 calls.setdefault("asked", []).append(device) or state()),
                                              ready=lambda adapter, prepared: bool(prepared.get("has_reported_credential")))
         modules = {"frappe": frappe, "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    # 任务没记公司（T1 之前的任务）：不跟随，照旧推往固定账套
                    "pearnly_cowork.folder_intake": types.SimpleNamespace(
                        contracts=contracts, destinations=destinations,
-                       follow=types.SimpleNamespace(choose=lambda rule, history: None)),
+                       follow=types.SimpleNamespace(choose=lambda rule, history, device=None: None)),
                    "pearnly_cowork.history": types.SimpleNamespace(push_state=types.SimpleNamespace()),
                    "pearnly_cowork.push": types.SimpleNamespace(choices=types.SimpleNamespace()),
                    "pearnly_cowork.push.application": types.SimpleNamespace(service=application)}
@@ -336,6 +342,21 @@ class OfflineCompanionRetry(unittest.TestCase):
         push, rule, entry, calls = self._push(online=lambda: False)
         self.assertEqual(push.push_one(entry, rule, "H", 0, final=False), {"status": "retry", "reason": push.OFFLINE})
         self.assertEqual((calls["keys"], calls["cancel"], calls["confirm"]), ([], [], []))
+
+    def test_a_reader_that_cannot_reach_a_writable_set_fails_at_once_instead_of_retrying(self):
+        """10-16 审查：读文件夹的那台电脑在、却够不到能写的账套（只读成员、账套只在别人电脑上、已移除）不是暂时的——不按
+        「CC 桌面版未连接」每十分钟重试 6 小时，照常准备、确认，由确认按现有原因（``push.no_writer``）直接记下。"""
+        push, rule, entry, calls = self._push(reported=False, queueable=lambda: "unreachable")
+        failed = []
+        push.application.submission_failed = lambda history, reason: failed.append((history, reason))
+
+        def refuse(*args):
+            raise push.frappe.ValidationError("push.no_writer")
+
+        push.destinations.of = lambda adapter: types.SimpleNamespace(confirm=refuse)
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=False), {"status": "failed", "reason": "push.no_writer"})
+        self.assertEqual((len(calls["keys"]), calls["cancel"], failed), (1, ["CWP-1"], [("H", "push.no_writer")]))
+        self.assertEqual(calls["asked"][0], "CCD-READ")
 
     def test_drop_while_preparing_is_withdrawn_and_retried_with_a_new_key(self):
         answers = iter([True, False, True, False])
@@ -1999,7 +2020,10 @@ class ReaderDevicesPlumbing(unittest.TestCase):
         self.assertEqual(readers.resolve("PC2|C1", "R1"), ("PC2", "C1"))  # 读者编号照常
         self.assertEqual(readers.resolve("C1", "R7"), ("", "C1"))  # 谁都没报过：等电脑（之后按根目录核时拒）
         hooks = (APP / "hooks.py").read_text(encoding="utf-8")
-        self.assertIn('cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved"]', hooks)
+        self.assertIn('cowork_reader_device_moved = ["pearnly_cowork.folder_intake.readers.moved",', hooks)
+        # 10-16 审查：冻结给旧记录的定时任务推送记录也跟着改挂（推送域同一个钩子）
+        self.assertIn('"pearnly_cowork.push.native.service.reroute"]', hooks)
+        self.assertIn('cowork_device_retiring = ["pearnly_cowork.push.native.service.release_route"]', hooks)
 
     def test_reader_ids(self):
         self.assertEqual(contracts.reader_ref("CCD-1", "CWEC-a"), "CCD-1|CWEC-a")

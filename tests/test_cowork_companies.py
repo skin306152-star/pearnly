@@ -1296,18 +1296,26 @@ class PendingAnswerTests(unittest.TestCase):
     （`push.application.api.choices`），作答经 `assistant.pending_api.answer`：先记下选择，再按 CC 推送同一条路重推。
     只记选择不会自动重推（推送记录停在「要人选」）。"""
 
-    def _answer(self, doc, pushed, rules=()):
+    def _answer(self, doc, pushed, rules=(), reader=""):
         """按真实导入加载 `assistant.pending_api`；单据读取、记选择、CC 的重推换成替身（整个测试期间挂着）。
-        ``rules``：这张票出自的定时任务（`folder_intake.push.source_rules` 的替身）。"""
+        ``rules``：这张票出自的定时任务（`folder_intake.push.source_rules` 的替身）；``reader``：读它所在文件夹的电脑
+        （`folder_intake.push.reader_of` 的替身，不是定时任务的票为空）。重推带了 ``route_device`` 时记在调用的最后一项。"""
         calls = []
         storage = types.SimpleNamespace(read=lambda name: doc)
         push_state = types.SimpleNamespace(retarget=lambda *args: calls.append(("retarget",) + args),
                                            record_failure=lambda *args, **kw: calls.append(("restore",) + args
                                                                                           + tuple(sorted(kw.items()))))
-        folder_push = types.SimpleNamespace(source_rules=lambda name: [Row(rule) for rule in rules])
+        folder_push = types.SimpleNamespace(source_rules=lambda name: [Row(rule) for rule in rules],
+                                            reader_of=lambda name, connection: calls.append(
+                                                ("reader", name, connection)) or reader)
         application_api = types.SimpleNamespace(
             save_choices=lambda *args: calls.append(("save",) + args) or {"saved": 1})
-        tools = types.SimpleNamespace(_push_one=lambda *args: calls.append(("push",) + args) or dict(pushed))
+
+        def push_one(*args, route_device=""):
+            calls.append(("push",) + args + ((("route_device", route_device),) if route_device else ()))
+            return dict(pushed)
+
+        tools = types.SimpleNamespace(_push_one=push_one)
         frappe.db.commits = 0
         patcher = mock.patch.dict(sys.modules, {
             "pearnly_cowork.history": types.SimpleNamespace(storage=storage, push_state=push_state),
@@ -1335,7 +1343,7 @@ class PendingAnswerTests(unittest.TestCase):
         self.assertEqual(out, {"document": "h1", "status": "sent"})  # 账本记录名不给页面
         fixture = json.loads((ROOT / "tests/fixtures/cc-pending-contract.json").read_text(encoding="utf-8"))
         self.assertEqual(out, fixture["answer"])  # 页面测试用的同一份
-        self.assertEqual([call[0] for call in calls], ["save", "push"])
+        self.assertEqual([call[0] for call in calls], ["save", "reader", "push"])
         self.assertEqual(calls[0][1:4], ("h1", "C1", "S:\\69EXP\\ABC"))
         self.assertEqual(json.loads(calls[0][4])[0]["value"], "5300")
         self.assertGreaterEqual(frappe.db.commits, 2)  # 选择先落库，重推再提交
@@ -1345,7 +1353,23 @@ class PendingAnswerTests(unittest.TestCase):
         doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC")
         module, calls = self._answer(doc, {"status": "sent"})
         self.assertEqual(module.answer("h1", "[]"), {"document": "h1", "status": "sent"})
-        self.assertEqual(calls, [("push", "h1")])
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1")])
+
+    def test_a_scheduled_ticket_is_still_written_by_the_computer_that_read_its_folder(self):
+        """10-16 审查：定时任务的票在待处理页补选（要人选 / 待选账套）后仍算定时任务的活，由读它所在文件夹的电脑写
+        （`folder_intake.push.reader_of` → ``route_device``），不改归点按钮的人自己的电脑。"""
+        doc = Row(name="h1", push_connection="C1", push_account_set="S:\\69EXP\\ABC")
+        module, calls = self._answer(doc, {"status": "sent"}, reader="CCD-R")
+        self.assertEqual(module.answer("h1", "[]"), {"document": "h1", "status": "sent"})
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", ("route_device", "CCD-R"))])
+        reset(C1=[express_row("S:\\69EXP\\ABC", "ABC 69"), express_row("S:\\69EXP\\ABC2", "ABC 69 copy")])
+        make()
+        doc = history("h1", last_push_reason="cowork.folder.account_set_ambiguous")
+        module, calls = self._answer(doc, {"status": "sent"}, reader="CCD-R")
+        fresh_request()
+        self.assertEqual(module.choose_account_set("h1", "S:\\69EXP\\ABC2")["status"], "sent")
+        self.assertEqual(calls[:2], [("reader", "h1", "C1"),
+                                     ("push", "h1", "C1", "s:\\69exp\\abc2", ("route_device", "CCD-R"))])
 
     def test_still_needs_a_choice_or_failed_is_reported_and_bad_input_refused(self):
         doc = Row(name="h1", push_connection="C1", push_account_set="")
@@ -1382,7 +1406,8 @@ class PendingAnswerTests(unittest.TestCase):
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
         self.assertEqual(out, {"document": "h1", "status": "sent"})
         # 推往的、推成后抄到票上的都是目录里的那份（同定时任务选到时记的键）；先推、推成了才抄
-        self.assertEqual(calls, [("push", "h1", "C1", "s:\\69exp\\abc2"), ("retarget", "h1", "C1", "s:\\69exp\\abc2")])
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
+                                 ("retarget", "h1", "C1", "s:\\69exp\\abc2")])
         # 不在可换之列（别的年度）、不是待选账套停下的单：回 stale（页面重取可换的），不推、不弹「去新建录入」的错
         calls.clear()
         for key in ("S:\\68EXP\\ABC", "", "S:\\NOPE"):
@@ -1415,7 +1440,7 @@ class PendingAnswerTests(unittest.TestCase):
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
         self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "account_match:branch"})
-        self.assertEqual(calls, [("push", "h1", "C1", "s:\\69exp\\abc2"),
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("restore", "h1", "cowork.folder.account_set_ambiguous",
                                   ("account_set", "S:\\69EXP\\ABC"), ("connection", "C1"))])
 
