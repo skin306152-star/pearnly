@@ -45,8 +45,21 @@
 
 - `scripts/check-production-capacity.py` 33 项、`scripts/production/test-offsite-backup.py` 25 项、`scripts/check-architecture.py` 通过。
 
+## 上线（10-17，曼谷 15:35–15:57）
+
+- 分支 CI run 39017941081 通过 → main 快进到 `d4697672` 并推送（远端回读一致）。并行窗口同意本批先走、不与其外壳批混合。
+- 构建 run 39018117249（候选检查 offline / flow / snapshot 三车道通过）→ `sha256:20a07692b2d254675e2ff01140c8fa0611bd2f1d615e3b9c7f93248a85c46ebb`；
+  stage run 39018544759 成功。
+- 生产只同步部署工具（`check-deploy-image.py` 输出 "Deploy tooling matches this image"，revision `d4697672`），**未激活任何产品**，
+  产品容器仍是 `b9da6b58`；`install-offsite-backup.sh` 装上 `pearnly-binlog-ship.timer`。
+- 回读：08:47 UTC 首次手动触发传 `binlog.000017`（压缩后 495 MiB，70 秒），08:52 定时器自动传 `binlog.000018`（6 秒）；
+  可用内存 21 GB、负载 2.6。存储桶 `binlog/2026-10-17/` 两个对象。
+- 甲骨文 `deploy.sh --check-binlog` 打开改动记录检查；当场检查：最新改动记录 0 分钟前、当天每日备份在、无告警。
+- 首次演练（10-17 15:32 曼谷，用当天 02:00 那份、尚无位置）：下载 12M、SHA256 一致、9 个库导入、关键表行数正常、密钥包解密成功，107 秒，报告已发信。
+
 ## 未完成 / 待办
 
-- 生产上线：本分支随「工作清单窗口交接」那批或其后一批进 main、构建、同步部署工具，然后 `install-offsite-backup.sh`、
-  第一份带位置的每日备份之后在甲骨文 `deploy.sh --check-binlog` 打开改动记录检查；上线后跑一次演练确认能回放到最近 5 分钟。
+- 第一份带位置的每日备份在 10-18 02:00（曼谷）生成；之后在甲骨文手动跑一次演练（`sudo systemctl start pearnly-drill.service`），
+  确认能回放到最近 5 分钟（本地已用 MariaDB 11.8 验过同样流程）。
+- `activate-product.sh` 的 swap 与等待在下一次产品激活时第一次实际执行（并行窗口外壳批）。
 - 后台容器统一封顶（slice MemoryMax）、PSI 守护：动宿主 systemd，待用户决定。
