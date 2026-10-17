@@ -8335,13 +8335,165 @@ assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
 composer = node("composer"); rows = ["a", "b", "c"];
 assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
 collapsed = false;
-// ③ 侧栏看得到但那一行聚焦不上（例如正在收起）：核对没到，接着回打开它的地方
+// ③ 侧栏看得到但那一行聚焦不上（例如正在收起）：核对没到，接着试上一条；都聚焦不上才回打开它的地方（第 11 轮重测 E 段：
+// 近的先试，一条聚焦不上就试下一条）
 rows = ["a", "b", "c"];
 triggers.c.focus = () => {};
-assert.equal(await run(["b"], { el: node("title-more-2"), row: "" }), "title-more-2");
+assert.equal(await run(["b"], { el: node("title-more-2"), row: "" }), "row:a");
+rows = ["a", "b", "c"];
+triggers.a.focus = () => {};
+assert.equal(await run(["b"], { el: node("title-more-3"), row: "" }), "title-more-3");
 // 没有侧栏：不可见
 assert.equal(sidebarVisible(null), false);
 """)
+
+    def test_focus_after_a_delete_follows_the_rows_in_view_and_survives_a_redraw(self):
+        # 第 11 轮重测 E 段：侧栏搜索「删测」后删掉结果里最后一条（Z1），焦点落到 body、没到上一条（Y1）。现在：下一条 / 上一条按侧栏
+        # 里眼前的行算（不占位置的不算），近的先试、聚焦不上就试下一条；落到一行后几帧内那一行被重画换掉（焦点掉到 body）按行号找回
+        self.run_page(r"""
+import { focusAfterDelete, rowsAfterDelete } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" });   // 测试窗口：触屏（手机 CDP 模拟电脑布局）
+g.document.body = { name: "body" };
+type R = { id: string; shown: boolean };
+let rows: R[] = [];
+const triggers: Record<string, any> = {};
+const makeTrigger = (id: string) => (triggers[id] = { name: `row:${id}`, isConnected: true,
+  focus() { if (rows.some((r) => r.id === id && r.shown)) g.document.activeElement = this; } });
+const sidebar = { closest: () => null,
+  querySelectorAll: () => rows.map((r) => ({ dataset: { rowId: r.id }, getClientRects: () => (r.shown ? [{}] : []) })) };
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.some((r) => r.id === m[1]) ? (triggers[m[1]] ?? makeTrigger(m[1])) : null;
+};
+const gone = { isConnected: false, focus() {} };
+const start = (ids: string[]) => {
+  g.document.activeElement = g.document.body;
+  focusAfterDelete(ids, { el: gone, row: "" }, () => "elsewhere")();
+  rows = rows.filter((r) => !ids.includes(r.id));
+};
+const shown = (...ids: string[]) => ids.map((id) => ({ id, shown: true }));
+const at = () => g.document.activeElement?.name ?? "body";
+
+// 先后：之后的各条（近的先），再是之前的各条（近的先）
+assert.deepEqual(rowsAfterDelete(["a", "b", "c", "d"], ["b"]), ["c", "d", "a"]);
+assert.deepEqual(rowsAfterDelete(["a", "b", "c", "d"], ["c", "d"]), ["b", "a"]);
+assert.deepEqual(rowsAfterDelete(["a", "b"], ["x"]), []);
+// ① 搜索结果里最后一条 Z1，后面还挂着眼前看不到的行：到上一条 Y1（以前去了看不到的那一行，聚焦不上，焦点掉到 body）
+rows = [...shown("Y2", "Y1", "Z1"), { id: "N", shown: false }];
+start(["Z1"]);
+await g.sleep(20);
+assert.equal(at(), "row:Y1");
+// ② 近的那一条聚焦不上：接着试下一条
+rows = shown("a", "b", "c", "d");
+makeTrigger("c").focus = () => {};
+start(["b"]);
+await g.sleep(20);
+assert.equal(at(), "row:d");
+// ③ 落到那一行后列表重画换掉了它（焦点掉到 body）：按行号找回到新换上的那一行
+rows = shown("a", "b", "c");
+delete triggers.c;
+start(["b"]);
+await g.sleep(8);
+assert.equal(at(), "row:c");
+const old = triggers.c;
+old.isConnected = false;
+makeTrigger("c");
+g.document.activeElement = g.document.body;
+await g.sleep(10);
+assert.equal(g.document.activeElement, triggers.c);
+assert.notEqual(g.document.activeElement, old);
+// ④ 用户自己把焦点挪到别处：不再拉回
+g.document.activeElement = { name: "search" };
+await g.sleep(10);
+assert.equal(at(), "search");
+""")
+
+    def test_deleting_the_open_chat_on_touch_lands_on_the_top_bar_toggle(self):
+        # 第 11 轮重测 E 段：手机抽屉关着从右上「…」删当前对话、iPad 侧栏收起时从顶栏「对话选项 ···」删当前对话：回到新对话页，
+        # 打开它的按钮跟着卸下、侧栏看不到、触屏不进输入框（不弹键盘），焦点掉到 body。现在：先等组件库切到新对话，放不上时落在顶栏的
+        # 导航钮（手机的菜单钮、侧栏收起时的展开钮，cc-nav-toggle）
+        self.run_page(r"""
+import { focusAfterDelete, NAV_TOGGLE } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = true;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+g.document.body = { name: "body" };
+let inert = false;
+let collapsed = false;
+const frame = { getAttribute: (k: string) => (k === "data-state" ? (collapsed ? "collapsed" : "expanded") : null) };
+let rows: string[] = ["a", "b", "c"];
+const node = (name: string, inertNode = false): any => ({ name, isConnected: true,
+  focus() { if (this.isConnected && !(inertNode && (inert || collapsed))) g.document.activeElement = this; } });
+const triggers: Record<string, any> = {};
+const sidebar = {
+  closest: (sel: string) => (sel === "[inert]" ? (inert ? {} : null) : sel === '[data-slot="sidebar"]' ? frame : null),
+  querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })),
+};
+let toggle: any = null;
+let composer: any = null;
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  if (sel === NAV_TOGGLE) return toggle;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`, true)) : null;
+};
+assert.equal(NAV_TOGGLE, '[data-slot="cc-nav-toggle"]');
+// 组件库删正开着的：先切到新对话（打开它的按钮随之卸下，焦点在它上面就掉到 body），再从侧栏移走
+let main = "b";
+const run = async (opener: any) => {
+  g.document.activeElement = g.document.body;
+  focusAfterDelete(["b"], { el: opener, row: "" }, () => main)();
+  await g.sleep(3);
+  main = "new";
+  opener.isConnected = false;
+  if (g.document.activeElement === opener) g.document.activeElement = g.document.body;
+  rows = rows.filter((id) => id !== "b");
+  await g.sleep(30);
+  return g.document.activeElement?.name ?? "body";
+};
+
+// ① 手机、抽屉关着（侧栏 inert）：从右上「…」删当前对话 → 顶栏菜单钮，不进输入框
+inert = true; main = "b"; rows = ["a", "b", "c"]; toggle = node("menu"); composer = node("composer");
+assert.equal(await run(node("pill-more")), "menu");
+inert = false;
+// ② iPad 侧栏收起：从顶栏「对话选项 ···」删当前对话 → 展开侧栏钮，不进收起的侧栏、不进输入框
+collapsed = true; main = "b"; rows = ["a", "b", "c"]; toggle = node("expand");
+assert.equal(await run(node("title-more")), "expand");
+// ③ 电脑（非触屏）同样收起：对话页照旧进新输入框
+touch = false; main = "b"; rows = ["a", "b", "c"];
+assert.equal(await run(node("title-more")), "composer");
+// ④ 侧栏看得到：照旧去侧栏下一条
+touch = true; collapsed = false; main = "b"; rows = ["a", "b", "c"];
+assert.equal(await run(node("pill-more")), "row:c");
+""")
+
+    def test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar(self):
+        # 第 11 轮重测 E 段：电脑上收起侧栏后，行在屏幕外（left=-274）却没有 inert / aria-hidden，还能 focus()，Tab 会走进看不见的侧栏。
+        # 现在：收起（offcanvas）时整块 inert，展开恢复；收起那一刻焦点在侧栏里就交给顶栏的展开钮。手机抽屉照旧 inert
+        sidebar = read("components/ui/sidebar.tsx")
+        self.assertIn('const offscreen = !isMobile && collapsible === "offcanvas" && state === "collapsed";', sidebar)
+        container = sidebar.split('data-slot="sidebar-container"', 1)
+        self.assertIn("ref={container}", container[0][-200:])
+        self.assertIn("inert={offscreen || undefined}", container[1][:200])
+        effect = sidebar.split("React.useLayoutEffect(() => {", 1)[1].split("}, [offscreen]);", 1)[0]
+        self.assertIn("if (!offscreen || !container.current?.contains(document.activeElement)) return;", effect)
+        self.assertIn("document.querySelector<HTMLElement>('[data-slot=\"cc-nav-toggle\"]')?.focus();", effect)
+        # 展开钮与 ⌘B 不在侧栏里：顶栏展开钮、桌面端标题栏（侧栏收起时那一份）、手机菜单钮都标成顶栏导航钮
+        page = read("assistant.tsx")
+        bar = page[page.index("function MainTopBar"):page.index("function MobileChatPill")]
+        self.assertIn('<button type="button" className="cc-round-btn" data-slot="cc-nav-toggle" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>', bar)
+        self.assertIn('<button type="button" className="cc-icon-btn" data-slot="cc-nav-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>', bar)
+        self.assertIn("{!open && <TitleBarLeft nav={nav} navToggle />}", bar)
+        self.assertIn('data-slot={navToggle ? "cc-nav-toggle" : undefined}', page)
+        self.assertIn("event.key === SIDEBAR_KEYBOARD_SHORTCUT &&", sidebar)
+        self.assertIn('window.addEventListener("keydown", handleKeyDown)', sidebar)
+        # 手机抽屉照旧
+        self.assertIn('<aside className="cc-mdrawer" aria-hidden={!open} inert={!open || undefined}>', read("components/mobile-shell.tsx"))
 
 if __name__ == "__main__":
     unittest.main()

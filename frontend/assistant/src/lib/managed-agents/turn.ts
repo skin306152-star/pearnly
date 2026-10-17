@@ -134,9 +134,11 @@ type ConnectionState = Pick<Projection, "lastError"> & {
 
 /** 对话顶部那一行（assistant.tsx 的 SessionStatusBar）此刻要不要说「正在重新连接…」：读写出错、引擎在重试、加载完了尾巴却
  *  没连上时说。只说这一句本地化的话，不显示原始报错（fetch 的「Failed to fetch」、引擎原文，多是英文：2026-10-15 安卓 F5），
- *  原文由页面写进控制台排查。对话内状态行已经在说「连接中断，正在重连…」（stalled）时不说，免得两处说同一件事。 */
+ *  原文由页面写进控制台排查。
+ *  只看连接本身，不看这一轮是不是「卡住了」（stalled）：断网超过 STALL_MS 时这一轮的状态行改说「连接中断，正在重连…」，顶部这一行
+ *  照旧在，直到补拉成功、尾巴连上才收起（第 11 轮重测 E 段：以前卡住时顶部不说，断网第 30 秒起这一行自己消失，网络其实还断着）。
+ *  卡住而连接看着是好的（引擎慢、推送通道没断）时顶部本来就不说，只有状态行说。 */
 export function showsReconnecting(state: ConnectionState): boolean {
-  if (state.stalled) return false;
   return !!state.transportError || state.lastError?.retryStatus === "retrying" || (state.isLoaded && !state.isTailing);
 }
 

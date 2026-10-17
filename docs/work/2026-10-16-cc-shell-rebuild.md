@@ -590,3 +590,47 @@
 - 问题 2 的服务端根因是按推送记录推断的，没看 web 进程输出（`assistant relay …: QueryDeadlockError` 那行）；要测试窗口在 lab 换上本提交后复测 A4 / A6：停止应 200、手机推来 requires_action 后 1 秒内出卡、推送里应能看到 requires_action 的 idle。
 - `sessions.send` 里 `api.post` 之后的 `context.active` 同样按请求开头的快照改会话行，期间别的请求（补拉记输入量、推送线程）提交过这一行时理论上也会 1020（消息已发出却回 500）；这次没有现象，没动。
 - 真机（A14）与测试机复测、推送、合并都还没做。
+
+## 10-17 第 11 轮重测 E 段
+
+测试窗口在 lab `84da6f81`（手机 A14；电脑布局用手机 CDP 模拟；真电脑键盘焦点在电脑浏览器测）重测 E 段，停止相关全部通过，新报 6 处。证据在 `~/pearnly-devtools/test-window/round11b/`（`e24`–`e30`、`g33`、`g34`、`g37`）。本地另用 esbuild 把真实运行时、对话组件与整页（`Assistant`，站点接口与实时通道打桩）打成页面，在内置浏览器里复现核对（临时文件，已删）。
+
+### 1. 只带附件的消息发送断在路上：读数里缩略图没放回（e26c）
+
+- 现象：1.3 秒出原因、`tiles=0`；1.6 秒回声到、原因消失。纯文字、文字加图正常。
+- 核对：数据上没有放回失败。用组件库自己的输入框 + 本站附件适配器（node 与真浏览器各一遍，手机视口）走同一流程：失败时附件按原编号放回（`complete`），回声到了与原因一起撤。差别在渲染：原因行（`useSyncExternalStore`）在第一次提交就画出，输入框附件块要组件库附件列表多一轮渲染才出来（实测原因出现那一刻 0 块、下一个任务 1 块）；e26c 失败后紧接着读的那一次正好落在两次渲染之间，约 0.3 秒后回声到达按设计撤掉。纯文字的字随第一次提交画出，所以「放回、回声撤」都读得到。
+- 处理：代码不改；`test_cc_run_indicator` 加一条用真实输入框与附件适配器的守护测试（放回同一编号、原因写出、回声到后一起撤、不发第二遍）。这条改前也通过——不是复现。复测时请在失败后多读几次（或用 MutationObserver 记缩略图出现的时刻），并让回声晚到（例如服务端收下前加延迟）再看。
+
+### 2. 侧栏搜索后删掉结果里最后一条，焦点落到 body
+
+- 本地真实整页（公司分组、搜索、分页加载、触屏、删当前与非当前）都落到上一条，没能复现；从代码看，「下一条」只取一条、聚焦不上就直接回打开它的地方（行已删）→ 触屏不进输入框 → body，任何让那一条聚焦不上或随后被重画换掉的情况都会掉到 body。
+- 改法（`delete-chats.tsx`）：`rowsAfterDelete` 给出先后（删掉的之后各条近的先，再之前各条近的先），只取侧栏里眼前的行（不占位置的不算），一条聚焦不上就试下一条；落到一行后看 30 帧，那一行被重画换掉、焦点掉到 body 就按行号找回，焦点被挪到别处就不管。
+- 测试：`test_assistant_ui` 新增 `test_focus_after_a_delete_follows_the_rows_in_view_and_survives_a_redraw`（搜索结果后挂着看不到的行时到上一条、近的聚焦不上试下一条、重画后找回、用户挪走不拉回），改前失败；`test_focus_after_a_delete_skips_a_sidebar_that_cannot_be_seen` 的 ③ 改为「下一条聚焦不上先试上一条，都不行才回打开处」（有意的行为变化）。
+
+### 3、4. 触屏删当前对话、打开处已不在：焦点在 body
+
+- 手机抽屉关着从右上「…」删、iPad（1180×820 触屏）侧栏收起时从顶栏「对话选项 ···」删：回到新对话页，打开它的按钮随之卸下，侧栏看不到，触屏不进输入框，原来就掉到 body。触屏删当前对话原来不等组件库切到新对话，先落在「…」上随即被卸下。
+- 改法：删的是正开着的对话一律等切到新对话再放（不只电脑）；都放不上时落在顶栏导航钮 `cc-nav-toggle`（手机顶栏菜单钮、侧栏收起时对话区顶栏的展开钮、桌面端标题栏收起时的那一份侧栏开关），看得见、不弹键盘。电脑（非触屏）在对话页照旧进输入框。
+- 本地整页核对：iPad 情形（触屏、侧栏收起、标题栏「对话选项」删当前）落在展开钮；侧栏展开时到下一条。手机情形同一路径，复现页没装手机外壳变体，只在单测里核对。
+- 测试：`test_deleting_the_open_chat_on_touch_lands_on_the_top_bar_toggle`（手机→菜单钮、iPad→展开钮、电脑→输入框、侧栏看得到→下一条），改前失败。
+
+### 5. 电脑上收起侧栏后，行还能聚焦、Tab 走进看不见的侧栏
+
+- 改法（`components/ui/sidebar.tsx`）：收起（offcanvas）时 `sidebar-container` 整块 `inert`，展开恢复；收起那一刻焦点在侧栏里（点侧栏里的收起钮、行上按 ⌘B）交给顶栏展开钮，不随 inert 掉到 body。展开钮在对话区顶栏、⌘B 挂在 window 上，都不受影响；手机抽屉照旧 inert。
+- 本地整页核对：⌘B 收起后 `inert=true`、行 `focus()` 不上、焦点在展开钮；点展开钮后恢复可聚焦。
+- 测试：`test_a_collapsed_sidebar_is_inert_and_hands_focus_to_the_top_bar`（源码断言），改前失败。
+
+### 6. 断网超过 30 秒，顶部「正在重新连接…」第 30 秒起自己消失（g34）
+
+- 根因：不是看门 `reconnect()` 清掉了出错状态（它不动 `transportError` / `isTailing`，新尾巴第一次补拉失败照旧报错）。是 `turn.ts` 的 `showsReconnecting` 在这一轮卡住（`stalled`）时按 F5 的设计不说，把位置让给状态行的「连接中断，正在重连…」；g34 的 `len` 在第 30 秒少 2 个字正是状态行换成了这句。测试窗口的读数只认「正在重新连接」。
+- 改法：顶部这一行只看连接本身（补拉出错、尾巴没连上、引擎在重试），卡住时照旧说，联网、补拉成功才收起。断网超过 30 秒时顶部与状态行会同时说（「正在重新连接…」「连接中断，正在重连…」），不新增文案；卡住而连接看着是好的（引擎慢）时仍只有状态行说。
+- 测试：`test_cc_run_indicator` 新增 `test_the_top_line_stays_while_the_network_is_down_past_the_stall`（断网、推送断开、补拉失败，看门重开后顶部一直在、状态行是「连接中断」，联网后两处收起），改前读数 `1 1 1 1 1 1 0s 0s …`；`test_the_top_line_only_says_reconnecting_in_the_page_language` 里「卡住时顶部不说」改成「照旧说」。
+
+### 检查
+
+- `tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-architecture`、`i18n-build --check`，`test_assistant`、`test_assistant_ui`、`test_cc_run_indicator`、`test_cc_mobile_content`、`test_cc_mobile_overlays`、`test_cc_session_panel`、`test_cc_ccs` 通过。
+
+### 还缺
+
+- 第 1 条判断为读数时机，没有真机证据；第 2 条没在本地复现出 body，改法是加固，需要测试窗口在 lab 换上本提交后按原步骤复测。
+- 第 3 条手机路径只在单测里核对。真机（A14、iPad）、电脑键盘 Tab 走查、推送、合并都还没做。

@@ -1122,6 +1122,132 @@ assert.equal(c.getSnapshot().messages.filter((m: any) => m.role === "user").leng
 g.respond = respond;
 """)
 
+    def test_the_top_line_stays_while_the_network_is_down_past_the_stall(self):
+        # 第 11 轮重测 E 段（g34）：断网超过 30 秒，第 5–25 秒顶部「正在重新连接…」，第 30 秒起这一行自己消失、网络其实还断着。
+        # 原因：这一轮卡住（stalled）时顶部那一行按设计不说（让给状态行的「连接中断，正在重连…」），看门重开尾巴本身没清掉出错状态。
+        # 现在顶部只看连接：补拉仍失败、推送通道仍断时一直在，联网、补拉成功才收起；状态行照旧说「连接中断」
+        self.run_page(r"""
+import { SessionController, getSessionController } from "@/lib/managed-agents/session-controller";
+import { showsReconnecting, turnActivity } from "@/lib/managed-agents/turn";
+---
+SessionController.stallMs = 80;
+const S = "sesn_offline30";
+site.engine = "running";
+site.echo = false;
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+await c.sendMessage("hello", []);
+push(S, ev("u1", "user.message", 1, { content: text("hello") }));
+push(S, ev("r1", "session.status_running", 2));
+await g.sleep(10);
+assert.equal(showsReconnecting(c.getSnapshot()), false);
+// 断网：推送通道断开，补拉一律失败（fetch 抛 TypeError）
+let offline = true;
+const respond = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (offline) throw new TypeError("Failed to fetch");
+  return respond(method, args, body);
+};
+g.socket.drop();
+c.refreshStatus();
+const seen: string[] = [];
+let stalledSeen = false;
+for (let i = 0; i < 30; i++) {
+  await g.sleep(10);
+  const s: any = c.getSnapshot();
+  if (s.stalled) stalledSeen = true;
+  seen.push(`${showsReconnecting(s) ? 1 : 0}${s.stalled ? "s" : ""}`);
+}
+assert.ok(stalledSeen, "the watchdog fired and reopened the tail: " + seen.join(" "));
+const first = seen.findIndex((x) => x.startsWith("1"));
+assert.ok(first >= 0, seen.join(" "));
+assert.ok(seen.slice(first).every((x) => x.startsWith("1")), "the top line stays while offline: " + seen.join(" "));
+assert.equal(turnActivity(c.getSnapshot()).kind, "reconnecting");   // 状态行照旧说连接中断
+// 联网：通道连上、补拉成功，两处都收起
+offline = false;
+g.socket.back();
+g.fire("online");
+await g.sleep(150);
+const back: any = c.getSnapshot();
+assert.equal(showsReconnecting(back), false);
+assert.equal(back.stalled, false);
+g.respond = respond;
+""")
+
+    def test_an_attachment_only_send_cut_off_puts_the_tile_back_in_the_real_composer(self):
+        # 第 11 轮重测 E 段（e26c）：只带附件的消息发送断在路上（服务端其实收下），测试窗口 1.3 秒那一次读到原因、没读到缩略图，0.3 秒后
+        # 回声到、原因消失。用组件库自己的输入框与本站的附件适配器走一遍：附件按原编号放回（传好了的），原因写出；回声到了放回的附件与
+        # 原因一起撤，不会发第二遍。缩略图要比原因晚一次渲染才画出来（组件库附件列表多一轮），1.3 秒那次读数落在两次渲染之间、紧接着
+        # 回声就把它撤了——这里守的是数据：放回确实发生、回声到了确实撤掉
+        self.run_page(r"""
+import { ExternalStoreThreadRuntimeCore } from "@assistant-ui/core/internal";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { attemptSend, sendFailureOf, sendLanded } from "@/lib/managed-agents/send-failure";
+import { createAttachmentAdapter, filesToSend } from "@/lib/managed-agents/attachments";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+const S = "sesn_att_real";
+const T = "thread-att-real";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+(globalThis as any).URL.createObjectURL = () => "blob:x";
+const fetch0 = g.fetch;
+g.fetch = (url: string, init: any = {}) => fetch0(url, init.body instanceof FormData ? { ...init, body: undefined } : init);
+let core: any;
+const composer = { getState: () => ({ text: core.composer.text, attachments: core.composer.attachments }), setText: (t: string) => core.composer.setText(t),
+  addAttachment: (a: any) => core.composer.addAttachment(a), clearAttachments: () => core.composer.clearAttachments() };
+const textOf = (m: any) => m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n").trim();
+const attachments = createAttachmentAdapter(async () => S);
+const adapter = () => ({
+  messages: c.getSnapshot().messages, isRunning: isBusy(c.getSnapshot()), convertMessage: (m: any) => m, adapters: { attachments },
+  onNew: async (message: any) => {
+    const typed = textOf(message);
+    await attemptSend(T, { composer, text: typed, attachments: message.attachments },
+      async (sent) => { await c.sendMessage(typed, filesToSend(message.attachments)); sent(); });
+  },
+});
+core = new ExternalStoreThreadRuntimeCore({ getModelContext: () => ({}), subscribe: () => () => {} } as any, adapter() as any);
+c.subscribe(() => core.__internal_setAdapter(adapter() as any));
+c.onDelivered((typed) => sendLanded(T, typed));
+const respond = g.respond;
+let release: () => void = () => {};
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "upload") return ok({ fileId: "f1", filename: "e26.png", mountPath: "/mnt/session/uploads/f1/e26.png", size_bytes: 100 });
+  if (method === "send") {
+    await new Promise<void>((resolve) => { release = resolve; });
+    // 服务端收下了（回声与开跑只在事件记录里，稍后随补拉 / 推送到），回应断在路上
+    site.log.push(ev("echoA", "user.message", 10, { content: text(String(body.text).trim()) }), ev("r1", "session.status_running", 11));
+    site.engine = "running";
+    throw new TypeError("Failed to fetch");
+  }
+  return respond(method, args, body);
+};
+await core.composer.addAttachment(new File(["png"], "e26.png", { type: "image/png" }));
+const id = core.composer.attachments[0].id;
+assert.equal(core.composer.attachments[0].status.type, "requires-action");
+void core.composer.send();
+await g.sleep(10);
+assert.equal(core.composer.attachments.length, 0);                     // 组件库按下发送就清空了输入框
+assert.equal(g.calls.filter((x: any) => x.method === "send").length, 1);
+release();
+await g.sleep(10);
+// 看不出收没收下：原样放回（同一编号、传好了的），原因写出
+assert.deepEqual(core.composer.attachments.map((a: any) => [a.id, a.status.type]), [[id, "complete"]]);
+assert.equal(sendFailureOf(T), "出了点问题，请重试。");
+// 回声随补拉到了：放回的附件与原因一起撤，不再发第二遍
+c.refreshStatus();
+await g.sleep(30);
+assert.equal(core.composer.attachments.length, 0);
+assert.equal(sendFailureOf(T), "");
+assert.equal(g.calls.filter((x: any) => x.method === "send").length, 1);
+g.respond = respond;
+g.fetch = fetch0;
+""")
+
     def test_a_reconnected_push_channel_waits_for_the_backfill(self):
         # 实时通道断开又连上（补拉一直正常）：断开期间的事件只在事件记录里，连上后先推来的要等补齐再并（缺口，session-controller 文件头）
         self.run_page(r"""
@@ -1515,7 +1641,7 @@ g.setTimeout = realSetTimeout;
 
     def test_the_top_line_only_says_reconnecting_in_the_page_language(self):
         # 2026-10-15 安卓（F5）：回复中途开飞行模式，对话顶部露出英文原文「Failed to fetch」。现在顶部只说本地化的
-        # 「正在重新连接…」，原文只进控制台；对话内状态行已在说「连接中断，正在重连…」时顶部不说。
+        # 「正在重新连接…」，原文只进控制台。顶部这一行只看连接本身（第 11 轮重测 E 段起，卡住时也照旧说）。
         self.run_page(r"""
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { connectionDetail, showsReconnecting } from "@/lib/managed-agents/turn";
@@ -1531,7 +1657,8 @@ await g.sleep(30);
 const s: any = c.getSnapshot();
 assert.equal(connectionDetail(s), "Failed to fetch");    // 原文留给控制台
 assert.equal(showsReconnecting(s), true);
-assert.equal(showsReconnecting({ ...s, stalled: true }), false);
+// 第 11 轮重测 E 段：只看连接本身。这一轮卡住（状态行已在说「连接中断」）而连接仍断着时顶部照旧说，不在第 30 秒自己消失
+assert.equal(showsReconnecting({ ...s, stalled: true }), true);
 const base = { isLoaded: true, isTailing: true, transportError: null, stalled: false, lastError: null };
 assert.equal(showsReconnecting(base), false);
 assert.equal(showsReconnecting({ ...base, isTailing: false }), true);

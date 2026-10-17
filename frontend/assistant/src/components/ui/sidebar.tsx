@@ -162,6 +162,16 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  // 收起（offcanvas，移到屏幕外）时整块 inert：不进 Tab 顺序、读屏读不到、程序也聚焦不上；展开恢复（第 11 轮重测 E 段：收起后行还能
+  // 聚焦，Tab 会走进看不见的侧栏）。展开钮在对话区顶栏（不在侧栏里），⌘B 挂在 window 上，都不受影响
+  const offscreen = !isMobile && collapsible === "offcanvas" && state === "collapsed";
+  const container = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    // 收起那一刻焦点在侧栏里（点了侧栏里的收起钮、焦点在行上按 ⌘B）：交给顶栏的展开钮（cc-nav-toggle，同一次提交里出现），
+    // 不随 inert 掉到页面最外层
+    if (!offscreen || !container.current?.contains(document.activeElement)) return;
+    document.querySelector<HTMLElement>('[data-slot="cc-nav-toggle"]')?.focus();
+  }, [offscreen]);
 
   if (collapsible === "none") {
     return (
@@ -225,7 +235,9 @@ function Sidebar({
         )}
       />
       <div
+        ref={container}
         data-slot="sidebar-container"
+        inert={offscreen || undefined}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-(--cc-svh) w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
