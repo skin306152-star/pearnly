@@ -10,7 +10,7 @@
 //          浮层在抽屉、手机会话栏（50）之上、菜单（60）之下：按住不动出来的长按菜单不被拿起的那一项盖住。
 //          拿起那一帧只做非做不可的（测试窗口第 11 轮 B14，A14 拿起 94–126ms）：各项的让位位移与过渡不经 React 传（useSortableItem
 //          直接写节点，行、组头不重画）；播报区、浮层不挂在拖动库或整列滑动盯着的地方（body、滚动区）；不给每一项建尺寸观察器、
-//          不做版面补偿的重量；整页光标只给鼠标、等这一帧画完再加；整列滑动等这一帧画完再开始记位置。拖动库自己拿起时还要连着
+//          不做版面补偿的重量；整页光标与压住悬停的挡板只给鼠标、等这一帧画完再盖；整列滑动等这一帧画完再开始记位置。拖动库自己拿起时还要连着
 //          重画所有能拖的项几次（激活、量拿起的那一项、开始排序、量各落点），这一层没法省，项越多越长。
 //   浮起   拿起的那一项换成浮层（DragOverlay，克隆原来那一项的样子，挂在 body 上）：弹层底、弹出阴影、略透明、略放大，实时跟手。
 //          原位留空（空档）。排序（一列里调先后）：其余各项拖动中就带过渡滑开让位（dnd-kit 的排序位移，过渡用动效变量）。
@@ -105,7 +105,7 @@ import {
 } from "react";
 import { cssMs } from "@/lib/hover-scroll";
 import { LONG_PRESS_MS, LONG_PRESS_SLOP } from "@/hooks/use-long-press";
-import { isDragging, markDragMoved, releaseDrag, setDragging } from "@/lib/layers";
+import { isDragging, markDragMoved, releaseDrag, setDragShield, setDragging } from "@/lib/layers";
 
 // ---------------------------------------------------------------- 拖的是什么
 /** 一项拖动的说明（放在 dnd-kit 的 data.drag 里）：kind 是哪一种（card / company / pin / row / pins），label 是读屏念的名字，
@@ -989,9 +989,11 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
         const scroll = liftScroll.current;
         const scrolled = scroll?.el ? scroll.el.scrollTop - scroll.top : 0;
         const slide = start ? slideOverlay(box, homeBox(start, scrolled, node), transition) : null;
-        // 已经取消了：之后的 Esc 照常关浮着的会话栏、清多选（同放下后等落位）。整页 grabbing 光标在 Esc 这一帧就去掉（量完浮层
-        // 再去，不逼着当场重算）：下一帧要挪回原组、整列重画，不再叠一次整页样式重算（第 11 轮 B14：Esc 下一帧）
-        releaseDrag(true);
+        // 已经取消了：之后的 Esc 照常关浮着的会话栏、清多选（同放下后等落位）。鼠标拖动的挡板这时不撤（"keep"）：撤掉那一下指针
+        // 下面的侧栏要换悬停、整块重算样式（原来去根节点标记更重，整页 838 个元素），放在 Esc 这一帧（下面 freezeScroll 读计算样式会
+        // 当场逼出来）或下一帧（挪回原组、整列重挂）都压在长帧上（第 11 轮 B14 审查）；起播滑回时 homeLanded 的 letGo.hold 再放一次手，
+        // 那一帧画完再撤，滑回只动 transform 不受它卡
+        releaseDrag("keep");
         const entry = {
           id: active.id,
           list: from.list,
@@ -1108,7 +1110,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
     const from = activeOf(active);
     // 键盘放下：焦点留在移动后的那一行（键盘不拖进另一列，不会落进收着的整块）
     keepFocusOn(active.id, activatorEvent);
-    // 先量再改根节点的拖动标记（反过来量的时候整页样式、布局要重算一遍：第 6 轮 6 倍节流实测 25ms）
+    // 先量再结束拖动（撤挡板、清标记：反过来量的时候样式、布局要重算一遍，第 6 轮 6 倍节流实测 25ms）
     holdStill(stash.current.node, landWait);
     finish();
     const to = dataOf(over);
@@ -1174,7 +1176,7 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
                 }}
                 onDragEnd={onDragEnd}
               >
-                {children}
+                <FlowAreaContext.Provider value={!!flow}>{children}</FlowAreaContext.Provider>
                 <Lifted stash={stash} transition={transition} into={into} />
                 {flow && <Flow selector={flow} transition={transition} paused={cancelling} />}
                 {onPointer && <PointerWatch report={reportPointer} />}
@@ -1380,16 +1382,47 @@ export function dragLayer(): HTMLElement | null {
   if (!layer?.isConnected) {
     layer = document.createElement("div");
     layer.dataset.slot = "cc-drag-layer";
+    layer.appendChild(dragShield());
     document.body.appendChild(layer);
   }
   return layer;
+}
+
+/** 鼠标拖动中盖住整页的透明挡板（lib/layers.ts 的 setDragShield：拿起那一帧画完盖上、松手那一帧画完撤掉）：整页 grabbing 光标，
+ *  指针下面的行、组头、卡片不出悬停；与浮层同在拖动层里（增删、显隐都不在拖动库盯着的地方）。挡着的时候滚轮转给指针下面那个
+ *  滚动区（侧栏、会话栏拖着时照样能滚）。 */
+function dragShield(): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "cc-drag-shield";
+  el.dataset.slot = "cc-drag-shield";
+  el.setAttribute("aria-hidden", "true");
+  el.addEventListener("wheel", (event) => wheelUnder(el, event), { passive: true });
+  setDragShield(el);
+  return el;
+}
+
+/** 挡板上的滚轮：交给指针下面最近的、能往这个方向滚的滚动区。 */
+export function wheelUnder(shield: HTMLElement, event: WheelEvent) {
+  const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+  const dy = event.deltaY * scale;
+  const dx = event.deltaX * scale;
+  for (const hit of document.elementsFromPoint(event.clientX, event.clientY)) {
+    if (hit === shield) continue;
+    for (let el: Element | null = hit; el && el !== document.documentElement; el = el.parentElement) {
+      if (!(el instanceof HTMLElement) || el.scrollHeight <= el.clientHeight) continue;
+      if (!/(auto|scroll)/.test(getComputedStyle(el).overflowY)) continue;
+      el.scrollBy({ top: dy, left: dx });
+      return;
+    }
+    return;
+  }
 }
 
 // ---------------------------------------------------------------- 键盘拖动的焦点
 // 拖动中归拖动的键：方向键、Home / End、翻页（拖动库收在 document 上；按在把手上时标成已处理，组件库行自带的方向键导航不再移焦点）
 const DRAG_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
 const byKeyboard = (event: Event | null | undefined) => !!event && "key" in event;
-// 鼠标拿起的（不是键盘、不是手指）：只有它要整页 grabbing 光标（lib/layers.ts）
+// 鼠标拿起的（不是键盘、不是手指）：只有它要挡板（整页 grabbing 光标、不出悬停，lib/layers.ts）
 const byMouse = (event: Event | null | undefined) => !!event && !("key" in event) && !("touches" in event);
 // 各项眼前的把手（拖动编号 → 节点），键盘放下后找回焦点用
 const handles = new Map<string | number, HTMLElement>();
@@ -1508,9 +1541,14 @@ function handleOf(drag: Draggable, { disabled, ownFocus, skip }: HandleOptions):
   };
 }
 
-// 拖动中不给每一项、每一块落点各挂一个尺寸观察器（拖动库默认拿起时给所有能放的地方各建一个 ResizeObserver：侧栏约 60 个，
-// 拿起那一帧里建、下一帧各回调一次，第 11 轮 B14）。拖动中各项大小不变；版面变了（拖进另一列）由整列滑动（flowLayout）重量
+// 有整列滑动（flow）的拖动区（侧栏）拖动中不给每一项、每一块落点各挂一个尺寸观察器（拖动库默认拿起时给所有能放的地方各建一个
+// ResizeObserver：侧栏约 60 个，拿起那一帧里建、下一帧各回调一次，第 11 轮 B14）：那里各项高度固定，增删、挪列由整列滑动
+// （flowLayout）的观察器重量。没有整列滑动的区（会话栏）照拖动库默认观察：卡片只有几张，拖动中内容会变高（本月卡定时刷新、
+// 公司页转圈换成内容、输出卡跟着对话变长），不观察碰撞与让位就按旧尺寸算（审查）
 const NO_RESIZE_WATCH = { disabled: true } as const;
+
+/** 这个拖动区有没有整列滑动（DragArea 的 flow）：有才关掉各项、各落点的尺寸观察（NO_RESIZE_WATCH）。 */
+const FlowAreaContext = createContext(false);
 
 /** 排序列表里的一项：node 给整项（位移、原位留空），handle 给把手（拿起的地方）。data-drag-id 让拖进另一列、在那里重挂的同一项
  *  接着滑（flowLayout）。
@@ -1523,12 +1561,19 @@ const NO_RESIZE_WATCH = { disabled: true } as const;
 export function useSortableItem(data: DragData, options: HandleOptions = {}) {
   const transition = useContext(MotionContext);
   const drag = useMemo(() => ({ drag: data }), [data.id, data.kind, data.label, data.list, data.group, data.count, data.session]);
-  const sortable = useSortable({ id: data.id, data: drag, disabled: options.disabled, transition, resizeObserverConfig: NO_RESIZE_WATCH });
+  const flowArea = useContext(FlowAreaContext);
+  const sortable = useSortable({
+    id: data.id,
+    data: drag,
+    disabled: options.disabled,
+    transition,
+    resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined,
+  });
   const handleRef = useFollowFocus(data.id, sortable);
   const say = useContext(SayMoveContext);
   // 取消后滑回原位的途中（settleBack 已去掉让位位移）：重画也不写回去
   const settling = useContext(SettleContext).current;
-  const shift = { transform: settling ? "" : (CSS.Translate.toString(sortable.transform) ?? ""), transition: sortable.transition ?? "" };
+  const shift = shiftStyle(sortable.transform, sortable.transition, settling);
   const { setNodeRef, isDragging, attributes, listeners } = sortable;
   const el = useRef<HTMLElement | null>(null);
   const ref = useCallback(
@@ -1565,24 +1610,54 @@ export function useSortableItem(data: DragData, options: HandleOptions = {}) {
   return useMemo(() => ({ moved, node, handle, dragging: isDragging }), [moved, node, handle, isDragging]);
 }
 
+/** 拖动库给这一项的让位（位移、过渡）换成要写到节点上的行内样式：取消后滑回原位的途中（settling）不写位移；位移取整后是零
+ *  （拿起时拖动库给每一项一个 {x:0, y:0}）当作没有位移——写出来虽然不动，那一项也要重算一次样式（第 11 轮 B14 审查：键盘
+ *  拿起组头、鼠标拿起行时不让位的各项照样写了一遍）。位移按浏览器读回的写法拼（第三个参数 0px）。 */
+export function shiftStyle(transform: { x: number; y: number } | null | undefined, transition: string | null | undefined, settling = false) {
+  const x = transform ? Math.round(transform.x) : 0;
+  const y = transform ? Math.round(transform.y) : 0;
+  return { transform: settling || (!x && !y) ? "" : `translate3d(${x}px, ${y}px, 0px)`, transition: transition ?? "" };
+}
+
+// 每个节点上次由 applyShift 写的值（raw）与写完浏览器读回的（seen：浏览器会改写法，如 0 → 0px、过渡补全默认值）。读回的还是
+// seen 就按 raw 比，不拿读回的写法与要写的比（那样永远不等，每次提交都重写一遍）；别处改过（滑回时 settleBack 直接清位移）
+// 读回的就不是 seen，按读回的比
+const written = new WeakMap<CSSStyleDeclaration, { transform: [string, string]; transition: [string, string] }>();
+
 /** 把让位的位移与过渡写到那一项的节点上（空串 = 去掉）。过渡只跟着位移写：位移要变（或身上还带着位移）时先写过渡、再写位移，
  *  同一次样式计算里位移的变化按新的过渡走；没在让位的项不写——拖动库一开始排序就给每一项一段过渡，原来拿起那一下整列每一项
- *  都改一次行内样式、都要重算样式（第 11 轮 B14），结束时又整列清一遍。身上留着过渡、已经不在让位的，结束时清掉。 */
+ *  都改一次行内样式、都要重算样式（第 11 轮 B14），结束时又整列清一遍。身上留着过渡、已经不在让位的，结束时清掉。同样的值
+ *  不写第二遍（按上次写的比，见 written）。 */
 export function applyShift(node: HTMLElement | null, shift: { transform: string; transition: string }) {
   if (!node) return;
   const style = node.style;
-  const moving = style.transform !== shift.transform;
-  if (moving || style.transform) {
-    if (style.transition !== shift.transition) style.transition = shift.transition;
-  } else if (style.transition && !shift.transition) style.transition = "";
-  if (moving) style.transform = shift.transform;
+  const last = written.get(style);
+  const now = (name: "transform" | "transition") => {
+    const seen = style[name];
+    return last && seen === last[name][1] ? last[name][0] : seen;
+  };
+  const record = { transform: [now("transform"), style.transform], transition: [now("transition"), style.transition] } as {
+    transform: [string, string];
+    transition: [string, string];
+  };
+  const set = (name: "transform" | "transition", value: string) => {
+    style[name] = value;
+    record[name] = [value, style[name]];
+  };
+  const moving = record.transform[0] !== shift.transform;
+  if (moving || record.transform[0]) {
+    if (record.transition[0] !== shift.transition) set("transition", shift.transition);
+  } else if (record.transition[0] && !shift.transition) set("transition", "");
+  if (moving) set("transform", shift.transform);
+  written.set(style, record);
 }
 
 /** 一列整块的落点（侧栏的已置顶、各组）：data.list 是它代表的那一列，shut = 此刻收着（放不下空档）——指着它时整块（就是组头）
  *  高亮，放下落到组头并收起。ref 给整块（组头 + 这一列的各项）。 */
 export function useDropZone(data: DragData, shut = false) {
   const drag = useMemo(() => ({ drag: { ...data, zone: true, shut } }), [data.id, data.kind, data.label, data.list, shut]);
-  const droppable = useDroppable({ id: data.id, data: drag, resizeObserverConfig: NO_RESIZE_WATCH });
+  const flowArea = useContext(FlowAreaContext);
+  const droppable = useDroppable({ id: data.id, data: drag, resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined });
   const over = useContext(ShutOverContext) === data.id;
   return { ref: droppable.setNodeRef, "data-drop-target": over && shut ? "" : undefined };
 }

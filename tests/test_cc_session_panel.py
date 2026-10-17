@@ -654,7 +654,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn('[data-drag-source="gap"] { opacity: 0; }', css)
         self.assertIn("[data-drag-landing] { opacity: 0; }", css)
         self.assertIn("[data-drop-target] { background: var(--cc-row-hover); }", css)
-        self.assertIn(":root[data-cc-drag] * { cursor: grabbing; }", css)
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)
         # 抓手光标归共用拖动的把手标记（会话栏卡片把手、侧栏行、置顶行、公司组头同一条，第 5 轮审查）；把手里的输入框是文字光标
         self.assertIn("[data-drag-handle] { cursor: grab; }", css)
         self.assertIn("[data-drag-handle] :is(input, textarea) { cursor: text; }", css)
