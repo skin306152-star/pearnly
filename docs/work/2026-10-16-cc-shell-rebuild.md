@@ -574,3 +574,4 @@
 - `tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-architecture`，`test_assistant_ui`（209）、`test_cc_session_panel`（25）、`test_cc_ccs`（23）通过。
 
 已知限制：只在本机测试脚本与复刻页里验证；测试机 lab 复测（真侧栏、真会话栏，鼠标 / 键盘 / 手机）、推送、合并都还没做。
+  - 审查后补修（交叉审查 1 条，开发窗口接手完成）：拖动中切到后台被取消时，松开发生在别的页面、本页收不到 mouseup / touchend，「松开前不当点击」的拦截原来一直不撤，切回来键盘回车 / 空格点按钮被吞、输入框打字时光标被清。改为：已在后台就不挂；挂着时切到后台当场撤；鼠标再动时左键已松开就当松开了；键盘激活的点击（detail 为 0）与输入框里的选区一直不管。测试 `test_release_block_never_outlives_a_release_the_page_cannot_see`（修前失败、修后通过）。

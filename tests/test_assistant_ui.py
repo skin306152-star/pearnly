@@ -8464,6 +8464,119 @@ assert.equal(clicked(), true);
         self.assertIn("if (release && self?.activated) blockReleaseClick(release);", drag)
         self.assertIn('if (cancelled && this.lifted && !tap && !over) blockReleaseClick("touch");', drag)
 
+    def test_release_block_never_outlives_a_release_the_page_cannot_see(self):
+        # 第 11 轮重测 B 段交叉审查：按着鼠标 / 手指切到后台（切标签页、窗口被挡住），拖动库按 visibilitychange 取消，原来照样挂上
+        # 「松开前不当点击」；松开发生在别的页面里，本页收不到 mouseup / touchend，拦截一直不撤——切回来键盘回车 / 空格点按钮被吞、
+        # 输入框打字时光标被清。现在：已在后台就不挂；挂着时切到后台当场撤；鼠标再动时左键已松开就当松开了；键盘激活的点击和
+        # 输入框里的选区一直不管
+        self.run_page(r"""
+import { HoldTouchSensor, LandingMouseSensor } from "@/components/ui/drag";
+const g = globalThis as any;
+const doc: any = new EventTarget();
+doc.visibilityState = "visible";
+doc.documentElement = { dataset: {} };
+doc.activeElement = null;
+let cleared = 0;
+const selection = () => ({ removeAllRanges() { cleared += 1; } });
+doc.getSelection = selection;
+g.document = doc;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+g.getSelection = selection;
+const fire = (type: string, extra: any = {}) => {
+  const event = Object.assign(new Event(type, { cancelable: true }), extra);
+  doc.dispatchEvent(event);
+  return event;
+};
+const clicked = (extra: any = { detail: 1 }) => {
+  const event = fire("click", extra);
+  return !(event.defaultPrevented || event.cancelBubble);
+};
+// 拖动库的鼠标传感器在 window 上听 visibilitychange，本仓的拦截在 document 上听：两边都发
+const hide = () => { doc.visibilityState = "hidden"; fire("visibilitychange"); page.dispatchEvent(new Event("visibilitychange")); };
+const show = () => { doc.visibilityState = "visible"; fire("visibilitychange"); page.dispatchEvent(new Event("visibilitychange")); };
+const log: string[] = [];
+const mouse = () =>
+  new (LandingMouseSensor as any)({
+    active: "row:t1", activeNode: { node: { current: null } }, event: { target: new EventTarget(), clientX: 100, clientY: 100 },
+    context: { current: {} }, options: { activationConstraint: { distance: 3 }, beforeEnd: (end: () => void) => end(),
+      beforeCancel: (cancel: () => void) => { log.push("slide back"); cancel(); } },
+    onStart: () => log.push("start"), onMove: () => log.push("move"), onEnd: () => log.push("end"), onCancel: () => log.push("cancel"),
+    onAbort: () => log.push("abort"), onPending: () => {},
+  });
+const lift = () => {
+  mouse();
+  fire("mousemove", { clientX: 100, clientY: 125, buttons: 1 });
+};
+const escape = () => fire("keydown", { code: "Escape", key: "Escape" });
+
+// 鼠标拿起后一直按着切到后台：拖动库取消（先滑回），松开在别处，切回来以后点击照常（拖动库自己那 50ms 过后）
+lift();
+hide();
+assert.deepEqual(log, ["start", "slide back", "cancel"]);
+show();
+await g.sleep(80);
+assert.equal(clicked(), true);
+assert.equal(clicked({ detail: 0 }), true);
+// 先 Esc 取消、按着再切到后台：拦截当场撤
+log.length = 0;
+lift();
+escape();
+await g.sleep(80);
+assert.equal(clicked(), false);                       // 还按着：照旧拦
+hide();
+show();
+assert.equal(clicked(), true);
+// 松开那一下没传回本页：鼠标再动时左键已松开，就当松开了（松开后 50ms 撤）；按着动照旧拦
+lift();
+escape();
+await g.sleep(80);
+fire("mousemove", { clientX: 90, clientY: 100, buttons: 1 });
+fire("pointermove", { clientX: 90, clientY: 100, buttons: 1 });
+await g.sleep(80);
+assert.equal(clicked(), false);
+fire("mousemove", { clientX: 90, clientY: 100, buttons: 0 });
+assert.equal(clicked(), false);                       // 紧跟着的点击还拦
+await g.sleep(80);
+assert.equal(clicked(), true);
+// 拦着的时候：键盘激活的点击（detail 为 0）照常；焦点在输入框里不清选区，在别处照旧清
+lift();
+escape();
+await g.sleep(80);
+assert.equal(clicked(), false);
+assert.equal(clicked({ detail: 0 }), true);
+cleared = 0;
+doc.activeElement = { tagName: "TEXTAREA", isContentEditable: false };
+fire("selectionchange");
+assert.equal(cleared, 0);
+doc.activeElement = { tagName: "DIV", isContentEditable: true };
+fire("selectionchange");
+assert.equal(cleared, 0);
+doc.activeElement = { tagName: "BUTTON", isContentEditable: false };
+fire("selectionchange");
+assert.equal(cleared, 1);
+fire("mouseup");
+await g.sleep(80);
+assert.equal(clicked(), true);
+doc.activeElement = null;
+
+// 手机：按住拿起后切到后台（visibilitychange 取消）：手指在别处松开，切回来以后点击照常
+const target = new EventTarget();
+log.length = 0;
+new HoldTouchSensor({
+  active: "row:t1", event: { target, touches: [{ clientX: 100, clientY: 100 }] }, options: { delay: 10, tolerance: 5 },
+  onStart: () => log.push("start"), onMove: () => log.push("move"), onEnd: () => log.push("end"), onCancel: () => log.push("cancel"),
+  onAbort: () => log.push("abort"), onPending: () => {},
+} as any);
+await g.sleep(30);
+hide();
+assert.deepEqual(log, ["start", "cancel"]);
+show();
+await g.sleep(80);
+assert.equal(clicked(), true);
+""")
+
     def test_keyboard_moves_follow_the_list_order_whatever_the_heights(self):
         # 会话栏：「公司」展开着 300 高，下一张「本月」收着 44 高。拖动库按「底边对齐下一张」挪浮层，再按最近中心找落点：浮层中心
         # 离原位（它自己）比离「本月」还近，算回它自己，放下念「已取消移动」。现在 ↑ ↓ 按这一列的先后换瞄准的那一项，落点就是它

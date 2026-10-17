@@ -372,13 +372,25 @@ const RELEASE_CLICK_MS = 50;
 export function blockReleaseClick(kind: "mouse" | "touch") {
   if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
   const doc = document;
+  // 页面已经切到后台（切标签页、窗口被挡住时拖动库按 visibilitychange 取消）：之后的松开落在别的页面 / 应用里，本页收不到
+  // mouseup / touchend，拦了就一直撤不掉——切回来键盘点按钮被吞、输入框打字光标被清（第 11 轮重测 B 段交叉审查）
+  if (doc.visibilityState === "hidden") return;
   const capture = { capture: true };
   // 自己的一份处理函数：同一个函数、同样的捕获再挂一次，浏览器只认一份。手机长按传感器拿起时也挂了 stopClick / clearSelection，
   // 它取消后 50ms 摘掉自己那份，用同一个函数的话这里的也一起没了
-  const block = (event: Event) => stopClick(event);
-  const unselect = () => clearSelection();
+  // 只拦指针松开补的那次点击：键盘回车 / 空格激活的点击（detail 为 0）照常
+  const block = (event: Event) => {
+    if ((event as MouseEvent).detail === 0) return;
+    stopClick(event);
+  };
+  // 焦点在输入框里（打字、选字）不清选区：这里只防按着往回移时选中经过的行字
+  const unselect = () => {
+    if (!typing()) clearSelection();
+  };
   const noDrag = (event: Event) => prevent(event);
   const release = kind === "mouse" ? ["mouseup", "pointerup"] : ["touchend", "touchcancel"];
+  // 鼠标兜底：松开那一下没传回本页（在别的应用里松开等），之后再动鼠标时左键已经不是按着的，就当已经松开
+  const moves = kind === "mouse" ? ["mousemove", "pointermove"] : [];
   let timer: ReturnType<typeof setTimeout> | null = null;
   const off = () => {
     if (timer) clearTimeout(timer);
@@ -386,16 +398,36 @@ export function blockReleaseClick(kind: "mouse" | "touch") {
     doc.removeEventListener("selectionchange", unselect);
     doc.removeEventListener("dragstart", noDrag, capture);
     doc.removeEventListener("pointerdown", off, capture);
+    doc.removeEventListener("visibilitychange", hidden);
     for (const type of release) doc.removeEventListener(type, released, capture);
+    for (const type of moves) doc.removeEventListener(type, moved, capture);
   };
   const released = () => {
     timer ??= setTimeout(off, RELEASE_CLICK_MS);
+  };
+  // 拦着的时候切到后台（先 Esc、再按着切走）：松开回不到本页，当场撤
+  const hidden = () => {
+    if (doc.visibilityState === "hidden") off();
+  };
+  const moved = (event: Event) => {
+    const buttons = (event as MouseEvent).buttons;
+    if (typeof buttons === "number" && (buttons & 1) === 0) released();
   };
   doc.addEventListener("click", block, capture);
   doc.addEventListener("selectionchange", unselect);
   doc.addEventListener("dragstart", noDrag, capture);
   doc.addEventListener("pointerdown", off, capture);
+  doc.addEventListener("visibilitychange", hidden);
   for (const type of release) doc.addEventListener(type, released, capture);
+  for (const type of moves) doc.addEventListener(type, moved, capture);
+}
+
+/** 焦点在可输入的地方（输入框、文本框、可编辑区）。 */
+function typing(): boolean {
+  const el = typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable === true;
 }
 
 /** 拖动库自带的鼠标、键盘传感器加一道：放下时先交给 options.beforeEnd（先播落位，播完才真正结束拖动）；给了
