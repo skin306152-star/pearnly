@@ -1338,3 +1338,90 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 闸门（追加提交的最终代码树，代码文件都在开跑前改完，跑完核过没有文件比日志新）：`SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`
 91 步全过、退出码 0；`cd frontend/assistant && npx tsc --noEmit -p .` 通过；`check-architecture.py` 0 违规；`i18n-build.py --check` PASS；
 `test_assistant_ui.py` 169 OK、`test_cowork_assistant_tools.py` 193 OK、`test_cowork_express_dispatch.py` 63 OK；文案闸门只读跑见第 1 条。
+
+## 并入 main（10-18，本地提交，未推送）
+
+`origin/main` 并进 `pearnly/multi-desktop`（`58d654f4`），用 merge、不变基、不改写历史（分支里有 4 个外壳合并提交）。合并基点
+（merge-base）`84da6f81`（外壳分支第 11 轮合并审查，含 main `5edbd5e4`）；main 这段 43 个提交（39 个非合并），到 `19a26d22`
+（开工时 `origin/main` 是 `8626eb39`，合并中途前进了一个提交：控制面 CC 设置改成全平台一份）。分两段合：
+
+| 合并提交 | 合到 | 带进来的 |
+|---|---|---|
+| `0a228f45` | `c4ab0c3e`（文案闸门 `662cacd9` 进 main 之前那个提交，35 个） | 统一原件层 ADR-024、Claude 识别三批与原件存甲骨文（ADR-023）、第 11 轮重测修复、CC 前端标准化 B0 闸门、交接与发布记录 |
+| `fd0cfd38` | `19a26d22`（其余 8 个） | 界面文案闸门与评审轮、存量文案清单、控制面 CC 设置全平台一份 |
+
+为什么分两段：提交钩子的文案检查（`check-copy.py --staged`）只比 HEAD → 暂存快照。一次合并时，它把 main 自己在闸门进 main
+之前（`a9f44116` ERP 原件层）加的词条当成本次提交新增，拦下合并提交（见下文「被拦的已有文案」）。这条是 main 上的已有文案，
+改它要用户登记同意，本分支不改、不豁免、不绕钩子。先合到闸门之前（暂存树里还没有闸门，钩子按设计跳过文案检查，架构检查照跑），
+再合余下的（钩子只看闸门那几个提交带来的：0 拦截，删除 5 条是控制面去掉的词条）。两段合完的树与一次 `git merge origin/main`
+完全相同：`git merge-tree --write-tree 58d654f4 19a26d22` = `fd0cfd38^{tree}` = `27b6d8da`。
+
+### 冲突怎么解
+
+两段都没有文本冲突。两边都改过的 6 个文件逐个核过语义：
+
+| 文件 | 解法 |
+|---|---|
+| `.github/workflows/development.yml` | 自动合并，两边的步骤都在：main 的 checkout `fetch-depth: 0`（文案闸门要读基线）、`test_cc_frontend_gate.py`（标准化闸门自测）、`test_check_copy.py`（文案闸门自测）、`check-copy.py --report`（带 `COPY_GATE_BASE`）、`check-frontend-i18n.py --strict`；本分支多电脑那几步（密钥值、多台电脑、账套登记、写账分派、心跳、跟随当年账套）原样。run 步骤 92 → 96 |
+| `apps/pearnly_cowork/pearnly_cowork/assistant/tools.py` | main 只把 `document_original` 里的 `pearnly_cowork.ocr.originals` 换成 `pearnly_core.originals.checks`；本分支的 `_push_one(route_device)`、`TARGET_NOTES`、`folder_readers` 在别的段，自动合并 |
+| `tests/test_cowork_assistant_tools.py` | main 只改 `OriginalTests` 的模块替身（原件层父包 `pearnly_core.originals` + `checks`）；本分支加的测试不受影响 |
+| `tests/test_cowork_delete_everything.py` | main 改 `OriginalPurge` / `CloudPrefix` 的替身（原件层 `store.parse`、`gcs`、`rules`）并加 `OraclePurge`；本分支只改 `FolderRuleDelete` 的替身（`companion.devices`、`folder_intake.readers` / `follow`），不同段 |
+| `tests/test_assistant_ui.py` | 两边各加的测试类都在，没有重名类，最后一个类在 `__main__` 之前；脚本方式运行 224 项全过 |
+| `docs/development/architecture.md` | main 改「Claude 识别路线」一段、加「统一原件层」一节；本分支改的是域表 push / connections / companion / folder_intake / companies 几行与机器接口一段，不同段 |
+
+补丁号与 ADR 号不撞：本分支 Cowork 补丁 `v0_0_19`–`v0_0_23`，main 这段只加了控制面 `v0_0_4_cc_settings_platform_wide`（另一个 App 的
+`patches.txt`）；ADR 本分支 021，main 022–024（main 上 `docs/adr/README.md` 的索引没列 022–024，属 main 的现状，这次不改）。
+依赖没变：`frontend/assistant`、`frontend` 的 `package*.json` 与 `companion/` 这段 main 都没改，没装、没重装 `node_modules`。
+
+### 语义核对
+
+1. **原件层搬走的旧模块本分支没有新调用**：`pearnly_cowork.ocr.originals` / `ocr.inputs` / `files.cloud` 搬进 `pearnly_core.originals`
+   后全仓只剩 `tests/test_cowork_ocr_contracts.py`、`tests/test_cowork_ocr_source_parity.py` 两处 `from pearnly_cowork.ocr import inputs`，
+   main 上同样如此、不在闸门里，不是这次带进来的。main 删掉的 `files.service._remote_ready` 本分支没有引用。
+2. **文件夹录入的原件入口签名不变**：本分支 `folder_intake/pump.py` 调 `files.service.create` / `finish_direct`、`machine.py` 调
+   `begin_direct`，参数与 main 一致；`begin_direct` 不直传时仍回 `{"direct": 0}`（`machine._upload_target` 认它改走经接口上传），
+   直传时回原件层 `store.begin_upload` 的结果（main 自己的测试守着）。
+3. **共用层对话底座**：main 第 11 轮重测改的 `pearnly_core.assistant` relay / sessions / toolrun 本分支没改过；前端 main 改的
+   `assistant.tsx`、`delete-chats.tsx`、`sidebar.tsx`、`drag.tsx`、`globals.css` 与本分支改的 `settings.tsx`、`pending.tsx` 等不重叠，
+   `tsc --noEmit` 通过。CC 前端标准化「已完成文件清单」（`scripts/frontend-tokens-strict.txt`）现在是空的，本分支文件不在里面。
+4. **控制面 CC 设置全平台一份**（`19a26d22`）只动 `pearnly_control` 与 `tests/test_assistant.py`，本分支没碰。
+
+### 闸门
+
+| 检查 | 结果 |
+|---|---|
+| 完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`（HEAD `fd0cfd38`，工作树干净，跑的期间没改文件） | 96 步全过，退出码 0 |
+| `cd frontend/assistant && npx tsc --noEmit -p .` | 无输出通过 |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/i18n-build.py --check` | PASS（5260 条文案） |
+| `python3 scripts/check-copy.py --report`（基线 = merge-base origin/main = `19a26d22`） | 新增 66、改动 0、删除 1（`SETTINGS.alwaysOn`「常驻模式」，10-16 去掉常驻时删的）、拦截 0、标黄 9（`Computer`、`intake.agent.state.offline`、`push.no_writer` 的 R-ALIGN，`Folder ID`、`Index Rebuild Pending Folder IDs` 的 R-DEV / R-LEN，`ERR_ACCOUNT_UID_MISMATCH` 的 R-SENT 等）；没有改已有文案，不需要登记 |
+| 提交钩子（两段合并） | 都过：架构 PASS；第一段文案检查按设计跳过，第二段 0 拦截 |
+| CC 桌面版 `QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests`（companion/，Python 3.11 + PySide6 6.11.1 / httpx 0.28.1 / dbf 0.99.11 / pytest 8.3.3 临时虚拟环境，跑完删） | 901 passed, 41 skipped（`companion/` 这次没变，与上次相同） |
+
+被拦的已有文案（main 上的，交用户定，本分支没改、没登记）：ERP 词条 `The file could not be saved. Please try again shortly.`
+（`apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv:1328`，中文「文件暂时保存不了，请稍后再试」，R-TALK「了，」进度口语）。
+它由 `a9f44116`（ERP 原件层）带进 main，晚于存量文案清单的基线 `786c376d`，不在存量清单里；main 和各分支的全量闸门因为它在基线里
+不判它，只有把 main 合进别的分支时提交钩子会碰到（下一个合 main 的分支同样会被拦）。
+
+没做 / 没验：推送与分支 CI（远端仍停在 `f87a0585`）、Windows 上的 Companion checks、真实 Site 迁移、测试机与真 Express。
+
+### 补登：10-17 两次并入外壳（`80ba3f8f`、`58d654f4`）
+
+`80ba3f8f`（第一父 `3e895ef3`，对方外壳 `9798f54e`：第 10 轮 B 修复、第 11 轮停止后的卡片、滚动与按钮照 Claude、删除确认、「记费用」、
+过期审批取消、当时的 main）：
+
+| 文件 | 解法 |
+|---|---|
+| `frontend/assistant/src/i18n.ts` 中文 `COMPANY` | 文本冲突：两边都要——本分支加的 `folderGone`「电脑已移除」、`followCompany`「跟随公司当年账套」，加外壳把 `vatExpense`「计费用」改成「记费用」 |
+| `tests/test_assistant_ui.py` | 文本冲突两处：① 外壳加的 `PREFS_STUB`（本分支那边是空），取外壳；② `Round10DragTests` 末尾：本分支那边是合并审查第 2 条挪到 `__main__` 之前时的旧断言（`save({ groups: … }, [groupField(group)], tidy)`），外壳那边同一类已改写（取消置顶 `unpinSettled` 先于 `forgetPinned`）并在后面加了第 10 轮 B、第 11 轮几类；取外壳那边，旧断言不留 |
+| `frontend/assistant/src/components/settings.tsx` | 没有文本冲突，但合并结果与两边都不同（`git show --cc` 可见）：「电脑」行尾「···」菜单从旧 `menuItem` 改成 `cc-menu` / `cc-menu-item`（`data-danger`），因为外壳第 11 轮删了 `menuItem`；之后 `38a86fb0` 再给触发钮加 `cc-tap`、`AccountSetRow` 两颗按钮改 `cc-card-btn`（见上文「并入外壳（10-17）」语义核对第 4 条） |
+
+`58d654f4`（第一父 `38a86fb0`，对方外壳 `84da6f81`：第 11 轮修复——卡片跟本站点的工具运行记录、经自己的中断停止、滚动、拖动帧、
+删除确认的焦点、触屏平板顶栏；当时的 main 含 Claude 识别路线）：
+
+| 文件 | 解法 |
+|---|---|
+| `tests/test_assistant_ui.py` `Round11ButtonsLikeClaudeTests` | 文本冲突一处，两边断言都留：待处理页 `cc-card-btn self-` 计数按两边相加改成 6（当场选 3 + 外壳 D32 列表底部「交给 CC」1 + 本分支 `AccountSetRow`「确认」「交给 CC」2）；本分支「电脑」行 `cc-tap` 断言与外壳 D26 触屏平板顶栏那组断言都在 |
+
+两次合并当时的闸门结果在本记录、开发交接（`~/pearnly-devtools/dev-window/交接-开发窗口-2026-10-18.md` 只写「最后一次闸门 91 步全过」，
+没绑定提交）和 `~/pearnly-devtools` 的日志里都查不到。以本节 `fd0cfd38` 上的 96 步全过为准，它包含这两次合并的全部内容。
