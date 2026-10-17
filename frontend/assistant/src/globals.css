@@ -93,6 +93,8 @@
   --ease-cc: var(--cc-ease);
   --ease-cc-fast: var(--cc-ease-fast);
   --ease-cc-out: var(--cc-ease-out);
+  /* 同运行中的脉冲点（明暗呼吸 1.2s）：骨架加载用 animate-cc-pulse（V5） */
+  --animate-cc-pulse: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;
   --default-border-width: var(--cc-hairline);
   /* Tailwind 字号名按顺序落到官方字号表：xs 12 / sm 14 / base 16 / lg 20 / xl 24 / 2xl 28 / 3xl、4xl 36 */
   --text-xs: var(--ccs-text-xs-size);
@@ -830,7 +832,6 @@
   --cc-dur-slow: var(--code-dur-4);
   --cc-dur-pop: var(--code-dur-5);
   --cc-spin-dur: 1s;              /* 现有值·CC 自定：按钮、行内转圈（.cc-spinner） */
-  --cc-skeleton-dur: 2s;          /* 现有值·CC 自定：骨架脉动（V5 改成 --cc-pulse） */
   --cc-bob-dur: 1.4s;             /* 现有值·CC 自定：加载页形象上下浮 */
   --cc-dots-dur: 1.2s;            /* 现有值·CC 自定：等待回复的四点转圈 */
   --cc-dots-step: 0.3s;           /* 现有值·CC 自定：四点依次错开 */
@@ -1007,6 +1008,14 @@
   --cc-mascot-tick-dur: 5s;       /* 照搬宣传页：泡泡里的勾 */
   --cc-mascot-ease: ease-in-out;  /* 照搬宣传页 */
   --cc-mascot-ease-out: ease-out; /* 照搬宣传页 */
+  /* 新共用类（标准化记录 2.3）用到的 */
+  --cc-toast-bottom: var(--cc-space-24);         /* toast 离底 */
+  --cc-toast-py: 10px;            /* 现有值·CC 自定：toast 上下 */
+  --cc-empty-py: 48px;            /* 现有值·CC 自定：空状态卡上下 */
+  --cc-tab-gap: var(--cc-space-16);              /* 页签之间（V24 取 HTML 页签那套） */
+  --cc-tab-py: var(--cc-space-8);                /* 页签上下 */
+  --cc-tab-indicator: 2px;        /* 现有值·CC 自定：页签指示线 */
+  --cc-spin-ease: linear;         /* 现有值·CC 自定：转圈匀速 */
 }
 
 /* ── 运行时层：由脚本或组件在运行时写入的变量，这里登记默认值（闸门把登记过的算作已定义）。默认值与原来写在 var() 里的回退值相同 */
@@ -1178,6 +1187,8 @@
     padding: var(--cc-group-top) var(--cc-row-pad) var(--cc-space-4); color: var(--cc-ink-3); font-size: var(--cc-group-font); line-height: var(--cc-group-lh);
     font-weight: var(--cc-weight-medium);
   }
+  /* 贴边的组标题（列表页里，左边与内容对齐、上面不另留组间距）：替代组件上的 !px-0 !pt-0 */
+  .cc-section-label[data-flush] { padding-inline: 0; padding-top: 0; }
 
   /* 侧栏组标题（设计文档 3.4，components/assistant-ui/sidebar-group.tsx）：带高 32（手机 44）、组上间距 16（桌面窗口 14）。
      整行（除右侧操作区）是一个开关：高 24、圆角 8、左内边距 10；名字 13/16 淡色，鼠标在组标题上变次要色；名字后 12px 箭头
@@ -1376,6 +1387,37 @@
     font-family: var(--cc-font-mono); font-size: var(--cc-text-xs); line-height: var(--cc-step-detail-lh);
   }
 
+  /* 弹窗（标准化记录 2.3、V14）：弹层底、整窗圆角 16（外壳实测，设置弹窗已用）、弹出阴影；居中定位用 .cc-modal，层级在调用处给
+     （普通弹窗 --cc-z-sheet，删除确认 --cc-z-confirm）。宽三档 data-size；头部 = 标题 + 关闭，主体滚动，脚部按钮靠右、上边一条线。
+     放在 .cc-card 前面：还带着 cc-card 的旧弹窗（添加公司）圆角照旧按 cc-card 的 8，B4 换成这一套后才是 16 */
+  .cc-dialog {
+    background: var(--cc-bg-surface); color: var(--cc-ink); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-dialog);
+    box-shadow: var(--cc-shadow-pop);
+  }
+  .cc-dialog[data-size] { width: calc(100% - var(--cc-dialog-gutter) * 2); }
+  .cc-dialog[data-size="sm"] { max-width: var(--cc-dialog-w-sm); }
+  .cc-dialog[data-size="md"] { max-width: var(--cc-dialog-w-md); }
+  .cc-dialog[data-size="lg"] { max-width: var(--cc-dialog-w-lg); }
+  .cc-dialog-head {
+    display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--cc-space-12);
+    padding: var(--cc-dialog-head-pt) var(--cc-dialog-px) var(--cc-space-8);
+  }
+  /* 标题：实测 title 档 22/28；Claude 确认框标题字体没有参照，保留现在的衬线（V14） */
+  .cc-dialog-title {
+    min-width: 0; color: var(--cc-ink); font-family: var(--cc-font-serif); font-size: var(--cc-text-title); line-height: var(--cc-text-title-lh);
+    font-weight: var(--cc-weight-regular); letter-spacing: -0.01em;
+  }
+  .cc-dialog-body { min-height: 0; flex: 1; overflow-y: auto; padding: var(--cc-space-8) var(--cc-dialog-px); }
+  .cc-dialog-foot {
+    display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--cc-space-8);
+    padding: var(--cc-dialog-foot-py) var(--cc-dialog-px); border-top: var(--cc-hairline) solid var(--cc-line);
+  }
+  /* 遮罩与弹层的进出场（替代 tw-animate 的 animate-in / fade-* / zoom-*）：主缓动、快档；关上时反着播 */
+  .cc-overlay { position: fixed; inset: 0; background: var(--cc-bg-overlay); animation: cc-fade-in var(--cc-dur-fast) var(--cc-ease) both; }
+  .cc-overlay[data-state="closed"] { animation: cc-fade-out var(--cc-dur-fast) var(--cc-ease) both; }
+  .cc-pop { animation: cc-pop-in var(--cc-dur-fast) var(--cc-ease) both; }
+  .cc-pop[data-state="closed"] { animation: cc-pop-out var(--cc-dur-fast) var(--cc-ease) both; }
+
   .cc-card { background: var(--cc-bg-surface); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md); }
   .cc-card[data-selected] { border-color: var(--cc-ink-3); }
   .cc-card-hover { transition: border-color var(--cc-dur-fast) var(--cc-ease), box-shadow var(--cc-dur-fast) var(--cc-ease); }
@@ -1451,16 +1493,19 @@
   details[open] > .cc-disclosure svg { transform: rotate(90deg); }
   :root[data-cc-touch] .cc-disclosure { min-height: var(--cc-tap); }
 
+  /* 开关（设置用，40×24、圆点 20 离边 2；V19：B4 设置开关改用它）：关着浅灰、开着正文色；圆点回弹 */
   .cc-switch {
-    position: relative; width: 2.25rem; height: 1.25rem; border-radius: var(--cc-radius-full); background: var(--cc-fill-muted);
+    position: relative; width: var(--cc-switch-w); height: var(--cc-switch-h); border-radius: var(--cc-radius-full); background: var(--cc-fill-muted);
     transition: background-color var(--cc-dur) var(--cc-ease); flex-shrink: 0;
   }
   .cc-switch::after {
-    content: ""; position: absolute; top: 2px; left: 2px; width: 1rem; height: 1rem; border-radius: var(--cc-radius-full);
+    content: ""; position: absolute; top: var(--cc-space-2); left: var(--cc-space-2);
+    width: calc(var(--cc-switch-h) - var(--cc-space-2) * 2); height: calc(var(--cc-switch-h) - var(--cc-space-2) * 2); border-radius: var(--cc-radius-full);
     background: var(--cc-bg-surface); box-shadow: var(--cc-shadow-sm); transition: transform var(--cc-dur) var(--cc-ease-spring);
   }
-  .cc-switch[data-on="true"] { background: var(--cc-ink); }
-  .cc-switch[data-on="true"]::after { transform: translateX(1rem); }
+  .cc-switch:is([data-on="true"], [aria-checked="true"]) { background: var(--cc-ink); }
+  .cc-switch:is([data-on="true"], [aria-checked="true"])::after { transform: translateX(calc(var(--cc-switch-w) - var(--cc-switch-h))); }
+  .cc-switch:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   /* 设置里的开关（settings.tsx 的 Switch，40×24）：手机点按区扩到 44×44，外观不变（按钮排查 H23） */
   :root[data-cc-touch] button[role="switch"]::before { content: ""; position: absolute; inset: calc((var(--cc-switch-h) - var(--cc-tap)) / 2) calc((var(--cc-switch-w) - var(--cc-tap)) / 2); }
   /* 弹窗里的按钮（设置的「连接」「换站点」「下载」等）：手机 44（按钮排查 H27）。官方 Button（components/ui/button.tsx）与
@@ -1487,6 +1532,7 @@
   .cc-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); border-color: transparent; }
   .cc-btn[data-primary]:hover { opacity: 0.88; }
   .cc-btn[data-danger] { color: var(--cc-danger); }
+  .cc-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
   /* 对话里卡片上的按钮：手机（粗指针）点按区不小于 44pt（官方卡片规矩）；手机变体（窄窗口）同样 */
   @media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }
   :root[data-cc-variant="phone"] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }
@@ -1886,6 +1932,120 @@
   .cc-enter { animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both; }
   .cc-drawer-in { animation: cc-drawer-in var(--cc-dur-slow) var(--cc-ease) both; }
 
+  /* ── 新共用类（标准化记录 2.3，B1 定义，B2–B7 迁移时改用；同一组外观不再在组件里各写一份） ── */
+  /* 出错框（V12 统一一套）：危险浅底、危险线、内边距 12、圆角 8、正文 14/20；紧凑变体（侧栏出错行）13px、6/10、圆角 6、无边 */
+  .cc-alert {
+    display: flex; align-items: flex-start; gap: var(--cc-space-8); padding: var(--cc-space-12); border: var(--cc-hairline) solid var(--cc-danger-line);
+    border-radius: var(--cc-radius-md); background: var(--cc-danger-soft); color: var(--cc-danger); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+  }
+  .cc-alert[data-size="sm"] {
+    padding: var(--cc-space-6) var(--cc-alert-sm-px); border: 0; border-radius: var(--cc-radius-sm); font-size: var(--cc-text-footnote); line-height: inherit;
+  }
+  /* toast（定时任务等页面底部的一条）：居中、离底 24，卡片底、弹出阴影，进场同 .cc-enter */
+  .cc-toast {
+    position: fixed; bottom: var(--cc-toast-bottom); left: 50%; z-index: var(--cc-z-modal); translate: -50% 0;
+    padding: var(--cc-toast-py) var(--cc-space-16); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md);
+    background: var(--cc-bg-surface); color: var(--cc-ink); box-shadow: var(--cc-shadow-pop); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+    animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
+  }
+  /* 空状态卡（列表页没有内容时）：卡片底、居中一列、图标 32 淡色 */
+  .cc-empty {
+    display: flex; flex-direction: column; align-items: center; gap: var(--cc-space-12); padding: var(--cc-empty-py) var(--cc-space-24); text-align: center;
+    border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md); background: var(--cc-bg-surface);
+  }
+  .cc-empty > svg { width: var(--cc-icon-xl); height: var(--cc-icon-xl); color: var(--cc-ink-3); }
+  /* 无结果、加载占位的一行：列表页居中；侧栏、抽屉里靠左，与行字对齐 */
+  .cc-empty-line { padding-block: var(--cc-space-24); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); text-align: center; }
+  :is([data-slot="sidebar"], .cc-drawer) .cc-empty-line { padding: var(--cc-space-16) var(--cc-row-pad); text-align: start; }
+  /* 按钮里、行内的转圈（与等待回复的四点转圈 .cc-spin 不同）：16、匀速 1 秒一圈；减少动效时照常转 */
+  .cc-spinner {
+    display: inline-block; flex-shrink: 0; width: var(--cc-icon-sm); height: var(--cc-icon-sm);
+    animation: cc-spin var(--cc-spin-dur) var(--cc-spin-ease) infinite;
+  }
+  /* 状态点（设置里 CC 桌面版的连接状态）：8 的圆点 + 同色的字，颜色按 data-status 取状态变量 */
+  .cc-status-line { display: inline-flex; align-items: center; gap: var(--cc-space-6); }
+  .cc-status-dot { display: inline-block; flex-shrink: 0; width: var(--cc-status-dot); height: var(--cc-status-dot); border-radius: var(--cc-radius-full); background: currentColor; }
+  .cc-status-line[data-status="online"] { color: var(--cc-status-online); }
+  .cc-status-line[data-status="processing"] { color: var(--cc-status-processing); }
+  .cc-status-line[data-status="attention"] { color: var(--cc-status-attention); }
+  .cc-status-line[data-status="offline"] { color: var(--cc-status-offline); }
+  .cc-status-line[data-status="connecting"] { color: var(--cc-status-connecting); }
+  .cc-status-line[data-status="paused"] { color: var(--cc-status-paused); }
+  /* 菜单里不能点的说明行（用户菜单顶上的账号、没有结果）：同菜单项的内边距与字号，淡色 */
+  .cc-menu-label {
+    padding: var(--cc-menu-item-py) var(--cc-menu-item-px); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
+  }
+  /* 快捷键格 */
+  .cc-kbd {
+    display: inline-flex; align-items: center; padding: var(--cc-space-2) var(--cc-space-8); border: var(--cc-hairline) solid var(--cc-line);
+    border-radius: var(--cc-radius-md); background: var(--cc-bg-app); color: var(--cc-ink-3); font-family: var(--cc-font-sans);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
+  /* 会话行本体（thread-list.tsx 的一行，替代那一长串工具类）：行高按变体、圆角 8、次要色；悬停、键盘停在里面、菜单开着、当前对话
+     都是悬停底，当前对话与键盘焦点换正文色 */
+  .cc-thread-row {
+    position: relative; display: flex; align-items: center; min-height: var(--cc-row-h); border-radius: var(--cc-radius-md); color: var(--cc-ink-2);
+    transition: background-color var(--cc-dur-fast) var(--cc-ease), color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-thread-row:is(:hover, :focus-visible, [data-active], :has(:focus-visible), :has([data-state="open"])) { background: var(--cc-row-hover); }
+  .cc-thread-row:is([data-active], :has(:focus-visible)) { color: var(--cc-ink); }
+  .cc-thread-row:focus-visible { outline: none; }
+  /* 你发的一条消息（气泡与附件靠右；左边一列至少占 --cc-bubble-min） */
+  .cc-user-row {
+    display: grid; grid-auto-rows: auto; grid-template-columns: minmax(var(--cc-bubble-min), 1fr) auto; align-content: start;
+    row-gap: var(--cc-space-8); padding-inline: var(--cc-space-8);
+  }
+  .cc-user-row > :where(*) { grid-column-start: 2; }
+  /* 对话里的提醒卡与结果文件卡：卡片底、最宽 --cc-card-max-w；左边 36 的图标格（圆角 6、叠色底、图标 18） */
+  .cc-file-card {
+    display: flex; max-width: var(--cc-card-max-w); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-md);
+    background: var(--cc-bg-surface); font-family: var(--cc-font-sans);
+  }
+  .cc-file-card-icon {
+    display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: var(--cc-file-icon); height: var(--cc-file-icon);
+    border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); color: var(--cc-ink-2);
+  }
+  .cc-file-card-icon svg { width: var(--cc-icon-md); height: var(--cc-icon-md); }
+  /* 滚到底（对话底部输入框上方居中的 40 圆钮）：比输入框顶高出一个钮减 4 */
+  .cc-scroll-btn {
+    position: absolute; top: calc(var(--cc-space-4) - var(--cc-control-lg)); z-index: var(--cc-z-float); align-self: center;
+    display: inline-flex; align-items: center; justify-content: center; width: var(--cc-control-lg); height: var(--cc-control-lg);
+    border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-full); background: var(--cc-bg-surface); color: var(--cc-ink-2);
+    box-shadow: var(--cc-shadow-composer); outline: none; transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-scroll-btn:hover { background: var(--cc-bg-hover); }
+  .cc-scroll-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-scroll-btn:disabled { visibility: hidden; }
+  .cc-scroll-btn svg { width: var(--cc-icon); height: var(--cc-icon); }
+  /* 代码块（V33）：头部（语言名 + 复制）与代码连成一块，圆角同对话里的块级卡片 10，代码 14/20 */
+  .cc-code-block-head {
+    display: flex; align-items: center; justify-content: space-between; padding: var(--cc-space-6) var(--cc-code-pad);
+    border: var(--cc-hairline) solid var(--cc-line); border-bottom: 0; border-radius: var(--cc-radius-code-block) var(--cc-radius-code-block) 0 0;
+    background: var(--cc-bg-subtle); color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
+  .cc-code-block {
+    overflow-x: auto; padding: var(--cc-code-pad); border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-code-block);
+    font-size: var(--cc-text-sm); line-height: var(--cc-code-lh);
+  }
+  .cc-code-block-head + .cc-code-block { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  /* 表格单元格（V13 统一对话 Markdown 那套）：左右 12、上下 6；最宽按场景（对话不限、结果面板 288、文档预览 320） */
+  .cc-table :is(th, td) {
+    min-width: var(--cc-cell-min-w); max-width: var(--cc-cell-max-w); padding: var(--cc-cell-py) var(--cc-cell-px); text-align: start;
+  }
+  .cc-table th { font-weight: var(--cc-weight-medium); }
+  .cc-table[data-kind="sheet"] { --cc-cell-min-w: 0px; --cc-cell-max-w: var(--cc-cell-max-w-sheet); }
+  .cc-table[data-kind="doc"] { --cc-cell-max-w: var(--cc-cell-max-w-doc); }
+  /* 页签（V24 统一一套）：间距 16、上下 8、淡色字；当前页签正文色 + 2 的指示线贴内容一侧（默认在下；工作表页签在表格下面，data-edge="top" 指示线在上） */
+  .cc-tabs { display: flex; gap: var(--cc-tab-gap); padding-inline: var(--cc-space-16); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
+  .cc-tabs [role="tab"] {
+    margin-bottom: calc(var(--cc-hairline) * -1); padding-block: var(--cc-tab-py); border-bottom: var(--cc-tab-indicator) solid transparent; color: var(--cc-ink-3);
+    outline: none; transition: color var(--cc-dur-fast) var(--cc-ease), border-color var(--cc-dur-fast) var(--cc-ease);
+  }
+  .cc-tabs [role="tab"]:focus-visible { box-shadow: var(--cc-shadow-focus-inset); }
+  .cc-tabs [role="tab"][data-state="active"] { border-color: var(--cc-ink); color: var(--cc-ink); }
+  .cc-tabs[data-edge="top"] [role="tab"] { margin-top: calc(var(--cc-hairline) * -1); margin-bottom: 0; border-top: var(--cc-tab-indicator) solid transparent; border-bottom: 0; }
+  .cc-tabs[data-edge="top"] [role="tab"][data-state="active"] { border-color: var(--cc-ink); }
+
   /* ── 公司主档（ADR-020，只在 Cowork）：侧栏公司组、月份分店胶囊、公司页、主档页、待处理 ── */
   /* 侧栏公司组头（.cc-project-row）的样式是通用组标题 .cc-group-*（上面「侧栏组标题」）；这里只留别处还在用的零件 */
   /* 卡片网格（公司列表）：约 314×108，1px 内环、圆角 10，悬停卡片阴影 */
@@ -1950,7 +2110,6 @@
   .cc-list-row[data-covering] { background: var(--cc-bg-selected); }
   /* 添加公司的候选行：同侧栏行（行高按变体、圆角 8、14/20；按钮排查 L5） */
   [data-slot="cc-candidates"] .cc-list-row { min-height: var(--cc-row-h); border-radius: var(--cc-radius-row); line-height: var(--cc-row-lh); }
-  .cc-dialog { box-shadow: var(--cc-shadow-pop); }
   /* 居中弹窗（定时任务、添加公司、设置、图片预览）：在可见区域里居中，最高占可见区域的 --cc-modal-share（键盘弹出时跟着变矮）。
      头尾不滚、主体（min-h-0 flex-1 overflow-y-auto）滚动：标题、关闭、取消 / 保存一直在屏内 */
   .cc-modal {
@@ -2220,6 +2379,7 @@
   }
   :root[data-cc-variant="phone"] .cc-choice-row { min-height: var(--cc-tap); }
   :root[data-cc-variant="phone"] .cc-choice-seg { border-radius: var(--cc-radius-full); }
+
 }
 
 /* 单行截断的文字（components/ui/marquee.tsx）：放不下时末尾渐隐，不用省略号（用户 2026-10-16「一行放不下时，侧栏末尾是渐隐，
@@ -2356,6 +2516,8 @@
 :root:not([data-cc-variant="phone"]) .cc-composer-inline .aui-composer-send-slot { grid-area: send; }
 :root:not([data-cc-variant="phone"]) .cc-composer-inline :is(.cc-attach, .cc-send) { width: var(--cc-composer-btn); height: var(--cc-composer-btn); }
 :root:not([data-cc-variant="phone"]) .cc-composer-inline :is(.cc-attach, .cc-send) svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+/* 停止钮里的方块比发送箭头小一档（14），电脑输入框里也一样 */
+.cc-send[data-stop] svg, :root:not([data-cc-variant="phone"]) .cc-composer-inline .cc-send[data-stop] svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
 .cc-mshell .cc-composer-chin { min-height: var(--cc-chin-h-phone); }
 .cc-mshell .cc-attach { width: var(--cc-mcomposer-btn); height: var(--cc-mcomposer-btn); border-color: transparent; background: var(--cc-bg-subtle); }
 /* 手机发送钮同「＋」一样是圆的（同 Claude 手机端输入框里的按钮） */
@@ -2379,6 +2541,8 @@
 .cc-mshell .cc-greeting { font-size: var(--cc-greeting-font); color: var(--cc-ink-2); }
 .cc-mshell .pearnly-mascot-host { height: var(--cc-mascot-h); }
 .cc-drawer .cc-nav-item svg { width: var(--cc-icon); height: var(--cc-icon); }
+/* 「新建」前的圆里的加号 16（抽屉里的导航图标是 20，这里要盖过它） */
+.cc-new-dot svg, .cc-drawer .cc-nav-item .cc-new-dot svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
 /* 抽屉里的图标用细线（同 Claude 手机端） */
 .cc-drawer svg, .cc-mdrawer .cc-round-btn svg { stroke-width: var(--cc-icon-stroke); }
 /* 抽屉左下头像：同圆按钮（浅灰白、细描边） */
@@ -2424,13 +2588,17 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 }
 @keyframes cc-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes cc-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
+@keyframes cc-pop-out { to { opacity: 0; transform: scale(0.97); } }
+@keyframes cc-fade-in { from { opacity: 0; } }
+@keyframes cc-fade-out { to { opacity: 0; } }
+@keyframes cc-spin { to { transform: rotate(360deg); } }
 @keyframes cc-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
 @keyframes cc-bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
 @keyframes cc-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 @keyframes cc-results-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .cc-bubble-user, .cc-bubble-user::before, .cc-reply, .cc-enter, .cc-menu, .cc-drawer-in, .cc-results, .cc-dropzone, .cc-loading .pearnly-mascot-host,
-  .cc-activity::before { animation: none !important; }
+  .cc-activity::before, .cc-overlay, .cc-pop, .cc-toast, .animate-cc-pulse { animation: none !important; }
 }
 
 /* 产品形象小单：与宣传页同一套规则（website/static/style.css「卡片角上的手绘小单」与 .hm 眨眼），照搬不改 */
@@ -2471,7 +2639,7 @@ html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden
 :root[data-cc-width="medium"] { --cc-thread-w: 56rem; /* 现有值·CC 自定 */ }
 :root[data-cc-width="wide"] { --cc-thread-w: 68rem; /* 现有值·CC 自定 */ }
 :root[data-cc-font="sans"] { --cc-font-reply: var(--cc-font-sans); }
-:root[data-cc-motion="reduce"] *:not(.animate-spin, .cc-spin i),
+:root[data-cc-motion="reduce"] *:not(.animate-spin, .cc-spinner, .cc-spin i),
 :root[data-cc-motion="reduce"] ::before,
 :root[data-cc-motion="reduce"] ::after { animation-duration: var(--cc-dur-reduced) !important; animation-iteration-count: 1 !important; transition-duration: var(--cc-dur-reduced) !important; scroll-behavior: auto !important; }
 

@@ -628,6 +628,62 @@ assert.equal(cn("font-medium text-caption", "text-ink-2"), "font-medium text-cap
             self.assertEqual(code[target], name.rsplit("-", 1)[1] + "px", name)
 
 
+# 2.4 第 6 条「每个 --cc-* 至少被引用一次」：B1 一次登记了后面各批组件迁移要用的用途变量（globals.css 只在 B1 补、B8 只删），
+# 组件还没接上的列在这里并写明由哪一批接上。表里的变量必须已定义、且确实还没人引用——一接上测试就要求从表里删掉；B8 时表必须为空。
+# 这不是豁免：表外的 --cc-* 没人引用就失败。
+AWAITING = {
+    # B2 组件库：菜单偏移与离边（menu.tsx 用时读）、提示框延时与层级（tooltip.tsx，V7）、侧栏头、骨架条
+    "--cc-menu-offset": "B2", "--cc-menu-sub-offset": "B2", "--cc-menu-edge": "B2", "--cc-tooltip-delay": "B2",
+    "--cc-z-tooltip": "B2", "--cc-sidebar-pad": "B2", "--cc-skeleton-h": "B2",
+    "--cc-preview-w": "B2", "--cc-preview-share": "B2",
+    # B3 外壳：欢迎页、侧栏头、手机抽屉
+    "--cc-sidebar-head-pt": "B3", "--cc-sidebar-head-pb": "B3", "--cc-mascot-h-wide": "B3", "--cc-welcome-gap": "B3",
+    "--cc-avatar-sm": "B3", "--cc-logo": "B3", "--cc-mdrawer-px": "B3", "--cc-mdrawer-list-px": "B3",
+    "--cc-mdrawer-tray-px": "B3", "--cc-mdrawer-tail": "B3",
+    "--cc-menu-w-sm": "B3", "--cc-menu-w-md": "B3", "--cc-menu-w-lg": "B3", "--cc-menu-w-max": "B3",
+    # B4 弹窗与列表页：设置弹窗、删除确认的层级、列表预取的 rootMargin
+    "--cc-settings-w": "B4", "--cc-settings-w-max": "B4", "--cc-settings-h": "B4", "--cc-settings-share": "B4",
+    "--cc-settings-nav-w": "B4", "--cc-settings-px": "B4", "--cc-settings-py": "B4", "--cc-settings-px-wide": "B4",
+    "--cc-settings-py-wide": "B4", "--cc-settings-close": "B4", "--cc-settings-section-pt": "B4",
+    "--cc-settings-section-pb": "B4", "--cc-settings-value-max": "B4", "--cc-z-confirm": "B4", "--cc-observe-margin": "B4",
+    "--cc-composer-input-max": "B4",
+    # B5 会话栏、结果、文档
+    "--cc-results-head-h": "B5", "--cc-link-offset": "B5", "--cc-icon-2xl": "B5",
+    # B6 侧栏列表：拖动浮层层级（drag.tsx 拿起时读）
+    "--cc-z-drag": "B6",
+    # B7 对话区
+    "--cc-thread-gutter": "B7", "--cc-turn-gap": "B7", "--cc-thread-tail": "B7", "--cc-run-gap": "B7", "--cc-run-gap-reply": "B7",
+    "--cc-reply-actions-h": "B7", "--cc-msg-intrinsic": "B7", "--cc-md-h1": "B7", "--cc-md-h2": "B7", "--cc-md-heading-lh": "B7",
+    "--cc-md-heading-scroll": "B7", "--cc-md-li-gap": "B7", "--cc-md-quote-w": "B7", "--cc-code-inline-size": "B7",
+    # 刻度层里还没有组件用到的一档：B2–B7 用到时接上，B8 时仍没人用就删
+    "--cc-control-nested": "B2–B7",
+}
+
+
+def cc_references():
+    """globals.css 与组件里对 --cc-* 的引用：var(--cc-x)、-(--cc-x)、JS 里写的名字；模板拼接 `--cc-status-${k}` 按前缀算（2.4 第 4 条）。"""
+    css = re.sub(r"/\*.*?\*/", "", (SRC / "globals.css").read_text(encoding="utf-8"), flags=re.S)
+    names = {m.group(1) for m in re.finditer(r"(?<![\w-])(--cc-[\w-]+)(?!\s*:)", css)}
+    prefixes = set()
+    for path in SRC.rglob("*.ts*"):
+        for m in re.finditer(r"(?<![\w-])(--cc-[\w-]*)(\$\{)?", path.read_text(encoding="utf-8")):
+            (prefixes if m.group(2) or m.group(1).endswith("-") else names).add(m.group(1))
+    defined = set(re.findall(r"(?<![\w-])(--cc-[\w-]+)\s*:", css))
+    return defined, names, prefixes
+
+
+class TokenUseTests(unittest.TestCase):
+    def test_every_cc_token_is_used_or_waits_for_a_named_batch(self):
+        defined, names, prefixes = cc_references()
+        used = lambda name: name in names or any(name.startswith(p) for p in prefixes)
+        unused = sorted(n for n in defined if not used(n) and n not in AWAITING)
+        self.assertEqual(unused, [], "定义了却没人引用：删掉，或写明由哪一批接上")
+        for name, batch in AWAITING.items():
+            self.assertIn(name, defined, name)
+            self.assertFalse(used(name), f"{name} 已经接上（{batch}），从 AWAITING 里删掉")
+            self.assertRegex(batch, r"^B[2-7]")
+
+
 class TokenGateTests(unittest.TestCase):
     THEME = """@theme inline {
   --color-ink: var(--cc-ink);

@@ -713,8 +713,10 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         # 页宽同对话
         css = read("globals.css")
         self.assertIn("max-width: calc(var(--cc-thread-w) + var(--cc-page-gutter) * 2);", css.split(".cc-company-page {", 1)[1].split("}", 1)[0])
-        for gone in (".cc-tabs", ".cc-tab {", ".cc-company-cols", ".cc-company-pane"):
+        # 原来公司页的页签与分栏都没了（.cc-tabs 这个名字 B1 起是结果面板的页签，标准化记录 V24，不在公司页）
+        for gone in (".cc-tab {", ".cc-company-cols", ".cc-company-pane"):
             self.assertNotIn(gone, css, gone)
+        self.assertNotIn("cc-tabs", page)
 
     def test_the_company_page_panel_holds_the_company_cards(self):
         panel = read("components/session-panel.tsx")
