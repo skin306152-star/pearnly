@@ -471,6 +471,9 @@ class RelayTests(unittest.TestCase):
             def set_value(self, *args):
                 pass
 
+            def get_value(self, doctype, name, field):
+                return 1  # 会话主人在用（User.enabled）
+
         adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
         for local, expected in ((types.SimpleNamespace(cache={}), True),
                                 (types.SimpleNamespace(cache={}, request=object()), False)):
@@ -502,6 +505,8 @@ class RelayTests(unittest.TestCase):
             _cursor = types.SimpleNamespace(rowcount=0)
 
             def get_value(self, doctype, filters, field, as_dict=False):
+                if doctype == "User":
+                    return 1  # 会话主人在用（User.enabled）
                 if isinstance(filters, dict):
                     return next((n for n, r in rows.items() if r["status"] == filters.get("status", r["status"])), None)
                 row = rows[filters]
@@ -630,6 +635,7 @@ class RelayTests(unittest.TestCase):
                 runs[self.name] = self.values
 
         db = types.SimpleNamespace(set_value=lambda doctype, name, values: runs[name].update(values),
+                                   get_value=lambda doctype, name, field: 1,  # 会话主人在用（User.enabled）
                                    commit=lambda: None, rollback=lambda: None)
         adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
         local = types.SimpleNamespace(cache={}, pearnly_assistant=None)
@@ -4604,6 +4610,8 @@ class ToolRunRecordTests(unittest.TestCase):
             _cursor = types.SimpleNamespace(rowcount=0)
 
             def get_value(self, doctype, filters, field, as_dict=False):
+                if doctype == "User":
+                    return 1  # 会话主人在用（User.enabled）
                 if isinstance(filters, dict):
                     return next((n for n, r in rows.items() if r["status"] == filters.get("status", r["status"])), None)
                 row = rows[filters]
@@ -4701,6 +4709,83 @@ class ToolRunRecordTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(toolrun.tools, "run", lambda name, data: ("saved", False)))
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
         self.assertEqual((rows["r1"]["status"], [p["custom_tool_use_id"] for p in posted]), ("done", ["sevt_1"]))
+
+    def test_a_disabled_owner_gets_no_tool_run(self):
+        """H1（存量文案审查 10-18）：推送线程、引擎回调在后台 `set_user(会话主人)` 后执行工具，不经网页登录那道关；主人被停用后
+        不再替他执行：不执行工具、不出「允许」卡片，执行记录记 error，交回引擎一个出错结果（给模型的英文指令不经 _()）。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        enabled = {"owner@x.test": 0}
+        runs, posted, ran = {}, [], []
+
+        class Doc:
+            def __init__(self, values):
+                self.values, self.name = values, f"run{len(runs) + 1}"
+
+            def insert(self, ignore_permissions=False):
+                runs[self.name] = self.values
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def get_value(self, doctype, filters, field, as_dict=False):
+                if doctype == "User":
+                    return enabled.get(filters)
+                if isinstance(filters, dict):  # decide 找还在等的那一条
+                    return next((n for n, r in runs.items() if r["status"] == filters.get("status")), None)
+                row = runs[filters]
+                return types.SimpleNamespace(**row) if as_dict else row[field]
+
+            def sql(self, query, values):
+                status, _, name = values
+                hit = runs[name]["status"] == "awaiting_approval"
+                if hit:
+                    runs[name]["status"] = status
+                self._cursor = types.SimpleNamespace(rowcount=int(hit))
+
+            def set_value(self, doctype, name, values):
+                runs[name].update(values)
+
+            def commit(self):
+                pass
+
+            rollback = commit
+
+        declared = [{"name": "plain"}, {"name": "always", "approval": True}]
+        adapter = types.SimpleNamespace(post=lambda remote, events: posted.append(events[0]))
+        with mock.patch.object(tools, "declared", return_value=declared), \
+                mock.patch.object(toolrun, "_use_lang", lambda conversation: None), \
+                mock.patch.object(toolrun.frappe, "get_doc", Doc, create=True), \
+                mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+                mock.patch.object(toolrun.frappe, "local", types.SimpleNamespace(cache={}, pearnly_assistant=None), create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(toolrun.frappe, "publish_realtime", lambda *args, **kwargs: None, create=True), \
+                mock.patch.object(toolrun.engine, "adapter", return_value=adapter), \
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append(name) or ("saved", False)):
+            # 不要「允许」的：不执行，按出错交回
+            self.assertEqual(toolrun.execute("conv", "sesn", {"id": "sevt_1", "name": "plain", "input": {}}), "error")
+            # 要「允许」的：不出卡片（不登记成等待），同样按出错交回，带「没问过用户」的标记
+            self.assertEqual(toolrun.execute("conv", "sesn", {"id": "sevt_2", "name": "always", "input": {}}), "error")
+            # 卡片出了、点「允许」之前主人被停用：点了也不执行
+            enabled["owner@x.test"] = 1
+            self.assertEqual(toolrun.execute("conv", "sesn", {"id": "sevt_3", "name": "always", "input": {}}),
+                             "awaiting_approval")
+            enabled["owner@x.test"] = 0
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_3", True), "error")
+            # 主人在用：照常执行
+            enabled["owner@x.test"] = 1
+            self.assertEqual(toolrun.execute("conv", "sesn", {"id": "sevt_4", "name": "plain", "input": {}}), "done")
+        self.assertEqual(ran, ["plain"])  # 只有主人在用的那一次执行了
+        blocked = toolrun.OWNER_DISABLED
+        result = json.loads(blocked)
+        self.assertEqual((result["status"], result["reason"]), ("failed", "user_disabled"))
+        self.assertTrue(result["instruction"].startswith("The account that owns this conversation is disabled"))
+        marked = tools.not_asked(blocked)
+        self.assertEqual(posted, [contracts.tool_result("sevt_1", blocked, True), contracts.tool_result("sevt_2", marked, True),
+                                  contracts.tool_result("sevt_3", blocked, True), contracts.tool_result("sevt_4", "saved", False)])
+        self.assertEqual([(r["status"], r.get("result")) for r in runs.values()],
+                         [("error", blocked), ("error", marked), ("error", blocked), ("done", "saved")])
+        # 给模型的指令不是界面文案：不经 _()
+        self.assertNotIn('_("The account that owns', (CORE / "assistant/toolrun.py").read_text(encoding="utf-8"))
 
     def test_a_card_answered_while_being_cancelled_is_not_reported_cancelled(self):
         """作废与点「允许」同一刻：作废逐条抢占，没抢到的（已被 decide 改成 running）不算作废、不推「已取消」。"""
