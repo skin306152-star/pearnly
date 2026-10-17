@@ -311,7 +311,7 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
             <NoteEditor key={note.id} initial={note.text} onSave={(text) => save(text, note.id)} onCancel={() => setEditing("")} />
           ) : (
             <div key={note.id} className="cc-note group/note">
-              <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(note.id)}>
+              <button type="button" className="cc-note-text" onClick={() => setEditing(note.id)}>
                 {note.text}
               </button>
               <button
@@ -390,11 +390,12 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
         className="cc-input h-auto w-full py-1.5"
       />
       {error && <p role="alert" className="text-danger text-sm">{error}</p>}
-      <div className="flex justify-end gap-2">
-        <button type="button" className="cc-btn cc-tap" disabled={busy} onClick={onCancel}>
+      {/* 同一栏其他卡片按钮（记住的选择、允许卡）：.cc-card-btn，电脑 24、手机 44 胶囊 */}
+      <div className="cc-card-actions">
+        <button type="button" className="cc-card-btn" disabled={busy} onClick={onCancel}>
           {t("cancel")}
         </button>
-        <button type="button" className="cc-btn cc-tap" data-primary="" disabled={!canSave} onClick={() => void save()}>
+        <button type="button" className="cc-card-btn" data-primary="" disabled={!canSave} onClick={() => void save()}>
           {t("save")}
         </button>
       </div>
@@ -688,13 +689,20 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   reload,
 }) => {
   // 页面上显示的：改 / 删成功时先按刚做的改这里（两段式不弹回旧值），整页重取到了以服务端为准
+  // 两段式改了还没回来的（键 → 刚选的值）：期间整页重取到的旧值不把它盖回去（第 11 轮审查）
+  const changing = useRef(new Map<string, string>());
+  const withChanging = (rows: readonly Choice[]) =>
+    [...changing.current].reduce<Choice[]>((acc, [key, value]) => setChoiceShown(acc, key, value), [...rows]);
   const [list, setList] = useState(choices ?? []);
-  useEffect(() => setList(choices ?? []), [choices]);
+  useEffect(() => setList(withChanging(choices ?? [])), [choices]);
   const [error, setError] = useState("");
   // 展开的那一条（键）；一张卡一次只开一条
   const [open, setOpen] = useState("");
-  // 请求还没回来的那一条：它的按钮先不能再点（连点「删除」会发两次，第二次回「找不到这条选择」显示成红字，第 10 轮审查）
+  // 请求还没回来的那一条：再点它的按钮不理（连点「删除」会发两次，第二次回「找不到这条选择」显示成红字，第 10 轮审查）。
+  // 按钮不设 disabled：设了刚按的那一格会失焦，键盘焦点掉到页面别处（第 10 轮 D28），只在按钮行标 aria-busy。
+  // 同一刻连点两下时 busy 还没重画，另记一份（pending）挡住第二下
   const [busy, setBusy] = useState("");
+  const pending = useRef(new Set<string>());
   // 删掉 / 提升走了一条后键盘焦点放到哪一条（下一条，没有就上一条）：按钮跟着那一条卸掉了，焦点不能落回页面最外层
   const [focusKey, setFocusKey] = useState("");
   const anchor = useRef<HTMLSpanElement>(null);
@@ -712,10 +720,19 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   }, [focusKey, list]);
   if (!list.length) return null;
   // gone：这一条做完就不在列表里了（删掉 / 提升成全公司），展开着的话收起，焦点放到它旁边那一条
-  const run = async (key: string, work: () => Promise<unknown>, shown: (rows: readonly Choice[]) => Choice[], gone = "") => {
-    if (busy === key) return;
+  const start = (key: string) => {
+    if (pending.current.has(key)) return false;
+    pending.current.add(key);
     setError("");
     setBusy(key);
+    return true;
+  };
+  const end = (key: string) => {
+    pending.current.delete(key);
+    setBusy((b) => (b === key ? "" : b));
+  };
+  const run = async (key: string, work: () => Promise<unknown>, shown: (rows: readonly Choice[]) => Choice[], gone = "") => {
+    if (!start(key)) return;
     try {
       await work();
       if (gone) setFocusKey(choiceAfter(groups.flatMap(([, rows]) => rows.map((row) => row.key)), gone));
@@ -725,7 +742,25 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
     } catch (e) {
       setError(shownError(e));
     } finally {
-      setBusy((b) => (b === key ? "" : b));
+      end(key);
+    }
+  };
+  // 两段式改现 / 赊：点下立即显示新选择（第 10 轮 D28：以前等接口回来约 200ms 才变）；没成功只把这一条的值退回原样
+  // （不整条换回点下那一刻的，期间重取到的别的字段留着），卡内报错
+  const change = async (c: Choice, v: string) => {
+    if (!start(c.key)) return;
+    changing.current.set(c.key, v);
+    setList((rows) => setChoiceShown(rows, c.key, v));
+    try {
+      await setChoice(company, c.key, v, period);
+      // 自己这次重取回来之前一直按刚选的显示（之前发出的重取可能还带着旧值）
+      void reload().finally(() => changing.current.get(c.key) === v && changing.current.delete(c.key));
+    } catch (e) {
+      changing.current.delete(c.key);
+      setList((rows) => setChoiceShown(rows, c.key, c.value));
+      setError(shownError(e));
+    } finally {
+      end(c.key);
     }
   };
   return (
@@ -740,7 +775,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
               open={open === c.key}
               busy={busy === c.key}
               onToggle={() => setOpen((o) => toggleChoice(o, c.key))}
-              onSet={(v) => void run(c.key, () => setChoice(company, c.key, v, period), (rows) => setChoiceShown(rows, c.key, v))}
+              onSet={(v) => void change(c, v)}
               onForget={() => void run(c.key, () => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
               onPromote={() => void run(c.key, () => promoteChoice(company, c.key, period), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
             />
@@ -760,7 +795,7 @@ type ChoiceRowProps = {
   choice: Choice;
   /** 展开着（由卡片管：一次只开一条）；不给按收起。 */
   open?: boolean;
-  /** 这一条的请求还没回来：按钮先不能点。 */
+  /** 这一条的请求还没回来：按钮行标 aria-busy，再点不理（不设 disabled，焦点留在刚按的那一格）。 */
   busy?: boolean;
   onToggle?: () => void;
   onSet: (value: string) => void;
@@ -773,7 +808,7 @@ type ChoiceRowProps = {
  *  不常驻按钮；整行是开合按钮（aria-expanded，回车 / 空格照原生按钮开合）。展开后整块填悬停底，对方名整段换行显示（手机上
  *  没有悬停滚动，看不全），下面 12px 淡色说明（范围 / 账套 · 谁设的 · 日期；Express 历史写来源与次数；代码类知道名称时再给
  *  「对方 → 代码 名称」），再下面靠右卡片按钮：能改的现 / 赊两段式、能提升的「设为全公司」、「删除」（幽灵、危险色字）；
- *  请求没回来时按钮不能点（busy）。不用 hook：状态在卡片上，测试可以直接调它拿元素树。 */
+ *  请求没回来时（busy）按钮行标 aria-busy、再点不理，不设 disabled（第 10 轮 D28：设了焦点会掉）。不用 hook：状态在卡片上，测试可以直接调它拿元素树。 */
 export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = false, onToggle, onSet, onForget, onPromote }) => {
   const history = choice.source === "history";
   const rule = choice.source === "rule";
@@ -796,7 +831,7 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
         <div className="cc-choice-detail" data-slot="cc-choice-detail">
           <Marquee className="block truncate">{meta.filter(Boolean).join(" · ")}</Marquee>
           {full && <span className="cc-choice-full">{full}</span>}
-          <div className="cc-card-actions">
+          <div className="cc-card-actions" aria-busy={busy || undefined}>
             {options && (
               <div role="group" aria-label={subject} className="cc-choice-seg" data-slot="cc-choice-seg">
                 {options.map((o) => (
@@ -805,8 +840,7 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
                     type="button"
                     className="cc-card-btn"
                     aria-pressed={choice.value === o.value}
-                    disabled={busy}
-                    onClick={() => choice.value !== o.value && onSet(o.value)}
+                    onClick={() => !busy && choice.value !== o.value && onSet(o.value)}
                   >
                     {o.label()}
                   </button>
@@ -814,11 +848,11 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
               </div>
             )}
             {onPromote && choice.promotable && (
-              <button type="button" className="cc-card-btn" data-slot="cc-choice-promote" disabled={busy} onClick={onPromote}>
+              <button type="button" className="cc-card-btn" data-slot="cc-choice-promote" onClick={() => !busy && onPromote()}>
                 {co.makeCompanyWide}
               </button>
             )}
-            <button type="button" className="cc-card-btn" data-ghost="" data-danger="" data-slot="cc-choice-forget" disabled={busy} onClick={onForget}>
+            <button type="button" className="cc-card-btn" data-ghost="" data-danger="" data-slot="cc-choice-forget" onClick={() => !busy && onForget()}>
               {t("delete")}
             </button>
           </div>

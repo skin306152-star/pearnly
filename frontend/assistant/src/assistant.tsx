@@ -52,6 +52,7 @@ import {
   ComposerChin,
   ConversationCompany,
   MobileCompanyItem,
+  MobileChatTitle,
   MobileFilingItems,
   WelcomeFiling,
 } from "@/components/assistant-ui/projects";
@@ -96,6 +97,7 @@ import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { syncPrefs } from "@/lib/prefs-sync";
+import { DeleteChatsHost, deleteChat } from "@/components/delete-chats";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -235,14 +237,14 @@ function UserMenu({ children }: { children: ReactNode }) {
   );
 }
 
-// 侧栏底部托盘（设计文档 3.1、4.2，同 Claude Code）：高 48；头像 + 名字 · 产品（点开用户菜单），右边 32 的「设置」
+// 侧栏底部托盘（设计文档 3.1、4.2，同 Claude Code）：高 48；头像 + 名字 · 产品（点开用户菜单，高 32 同托盘按钮），右边 32 的「设置」
 function UserFooter() {
   const profile = useProfile();
   if (!profile) return null;
   return (
     <>
       <UserMenu>
-        <button type="button" className="cc-nav-item min-w-0 flex-1" data-slot="cc-user-menu">
+        <button type="button" className="cc-nav-item h-(--cc-tray-btn) min-w-0 flex-1" data-slot="cc-user-menu">
           <span className="cc-nav-icon">
             <span className="cc-avatar size-6">{initials(profile)}</span>
           </span>
@@ -604,7 +606,7 @@ function DrawerIcon() {
 }
 
 // 对话区顶部。
-// - 手机（同 Claude 手机端对话页）：左边菜单，右边胶囊（新建对话、「…」对话选项），都浮在内容上。
+// - 手机（同 Claude 手机端对话页）：左边菜单，中间两行标题（对话名、公司名；8.webp），右边胶囊（新建对话、「…」对话选项），都浮在内容上。
 // - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、删除）；
 //   右上 26 的按钮：本对话的文件 N（有文件才出现）、右侧会话栏开关（挂了公司的 Cowork 对话才有）。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
@@ -615,13 +617,14 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const inChat = view === "chat" && hasMessages;
   if (isMobile) {
-    // 同 Claude 手机端的对话页：没有标题、没有横条，按钮浮在内容上，顶上一层上实下透的渐变；抽屉打开时照样在（随页面推开、被压淡）
+    // 同 Claude 手机端的对话页：没有横条，按钮浮在内容上，顶上一层上实下透的渐变；对话里中间是两行标题（不可点）；抽屉打开时照样在
+    // （随页面推开、被压淡）
     return (
       <div className="cc-mtopbar">
         <button type="button" className="cc-round-btn" onClick={() => setOpenMobile(true)} aria-label={t("menu")}>
           <DrawerIcon />
         </button>
-        <span />
+        {inChat ? <MobileChatTitle /> : <span />}
         {inChat ? <MobileChatPill onNew={() => { setView("chat"); setDraft({}); aui.threads().switchToNewThread(); }} /> : <span className="cc-mtopbar-slot" />}
       </div>
     );
@@ -689,7 +692,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
               {t("rename")}
             </DropdownMenu.Item>
             <MobileFilingItems />
-            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => deleteChat(aui.threadListItem())}>
               <TrashIcon />
               {t("delete")}
             </DropdownMenu.Item>
@@ -746,7 +749,7 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => deleteChat(aui.threadListItem())}>
             <TrashIcon />
             {t("delete")}
           </DropdownMenu.Item>
@@ -1066,6 +1069,7 @@ export function Assistant() {
   return (
     <ManagedAgentsRuntimeProvider>
       <Workspace />
+      <DeleteChatsHost />
     </ManagedAgentsRuntimeProvider>
   );
 }

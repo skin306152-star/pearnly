@@ -402,74 +402,54 @@ assert.equal(turnStartedAt([bubble("sevt_1", now + 9000)], sent, false, now), no
 assert.equal(turnStartedAt([], sent, true, now), sent);
 """)
 
-    def test_scrolling_up_while_streaming_stays_put_and_following_resumes_near_the_bottom(self):
+    def test_a_streaming_reply_is_not_followed_and_the_arrow_brings_the_reader_down(self):
+        # 照 Claude（用户 10-17 截图，三端一样）：回复在出时画面停在这一轮开头，不跟到底；下面有内容时输入框上方出 ↓，点了才到最新
         self.run_page(r"""
-import { COOLDOWN_MS, NEAR_BOTTOM_PX, StreamFollower } from "@/lib/follow-scroll";
+import { OpenSettler } from "@/lib/follow-scroll";
 ---
 let clock = 1000;
 const listeners: Record<string, Array<(e: any) => void>> = {};
-let reserve = 0;
 const vp: any = {
   scrollTop: 0, scrollHeight: 2000, clientHeight: 800, scrolls: 0,
   addEventListener(type: string, fn: any) { (listeners[type] ??= []).push(fn); },
   removeEventListener(type: string, fn: any) { listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn); },
   scrollTo({ top }: any) { this.scrolls++; this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); },
-  querySelector() { return { offsetHeight: reserve }; },
+  querySelector() { return { offsetHeight: 0 }; },
 };
-const fire = (type: string, e: any = {}) => (listeners[type] ?? []).forEach((fn) => fn(e));
 let grow: () => void = () => {};
-let live = true;
-const f = new StreamFollower(vp, {}, () => live, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
-vp.scrollTop = 1200;  // 在底部
-const more = (px: number) => { vp.scrollHeight += px; grow(); };
-// 跟随：内容长了就跟到底
-more(100);
-assert.equal(vp.scrollTop, 1300);
-// 组件库还在把这一轮推到顶上（占位有高度）时不插手
-reserve = 300; more(50); reserve = 0;
-assert.equal(vp.scrollTop, 1300);
-more(0); vp.scrollTop = 1350;
-// 手指往下拖（内容往上翻）：立刻停住，之后内容再长也不拉回去
-fire("touchstart", { touches: [{ clientY: 100 }] });
-fire("touchmove", { touches: [{ clientY: 160 }] });
-vp.scrollTop = 900; fire("scroll");
-more(200);
-assert.equal(vp.scrollTop, 900);
-fire("touchend");
-clock += 5000; more(200);
-assert.equal(vp.scrollTop, 900);  // 停在用户翻到的地方，多久都不动
-// 回到底部附近（容差内）：冷却过了，接着跟
-fire("touchstart", { touches: [{ clientY: 300 }] });
-fire("touchmove", { touches: [{ clientY: 200 }] });  // 手指往上推 = 往下翻，不算往上翻
-vp.scrollTop = vp.scrollHeight - vp.clientHeight - (NEAR_BOTTOM_PX - 10);
-fire("touchend");
-fire("scroll");
-more(100);
-assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
-// 滚轮往上：停；冷却内马上滚回底部附近不算，冷却过后再滚一下才接着跟
-fire("wheel", { deltaY: -40 });
-vp.scrollTop -= 20; fire("scroll");
-more(100);
-assert.notEqual(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
-clock += COOLDOWN_MS; vp.scrollTop = vp.scrollHeight - vp.clientHeight; fire("scroll");
-more(100);
-assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
-// 在输入框里按上键不算往上翻；在对话里按 PageUp 算
-fire("keydown", { key: "ArrowUp", target: { tagName: "TEXTAREA" } });
-more(50);
-assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
-fire("keydown", { key: "PageUp", target: { tagName: "DIV" } });
-vp.scrollTop -= 300; fire("scroll");
-more(50);
-assert.notEqual(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
-// 新的一轮从跟随开始；不在跑时内容变化不滚
-f.resume(); more(10);
-assert.equal(vp.scrollTop, vp.scrollHeight - vp.clientHeight);
-live = false; const top = vp.scrollTop; more(500);
-assert.equal(vp.scrollTop, top);
+const f = new OpenSettler(vp, {}, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
+vp.scrollTop = 1200;  // 在底部（这一轮刚顶到上面）
+const more = (px: number) => { clock += 200; vp.scrollHeight += px; grow(); };
+// 回复一直在长：位置不动，也不去滚
+for (let i = 0; i < 20; i++) more(120);
+assert.equal(vp.scrollTop, 1200);
+assert.equal(vp.scrolls, 0);
 f.dispose();
 assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
 """)
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
+        self.assertNotIn("resume()", thread)
+        self.assertIn('turnAnchor="top"', thread)
+        arrow = thread[thread.index("const ThreadScrollToBottom"):thread.index("const ThreadWelcome")]
+        # ↓ 照 13.webp：40 的圆、箭头 20、在输入框上方居中；点了平滑滚到最新；在底部时藏起来
+        self.assertIn('<ThreadPrimitive.ScrollToBottom asChild behavior="smooth">', arrow)
+        for cls in ("size-10", "p-0", "-top-9", "self-center", "rounded-full", "disabled:invisible"):
+            self.assertIn(cls, arrow)
+        self.assertNotIn("p-4", arrow)
+        self.assertIn('<ArrowDownIcon className="size-5" />', arrow)
+
+    def test_sending_on_a_phone_drops_the_keyboard(self):
+        # 手机（触屏或手机外壳）发出去就收起键盘（同 Claude 手机 app，11.webp）；电脑保持焦点；回车、发送键两条路都管
+        thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
+        composer = thread[thread.index("const Composer: FC"):thread.index("// 对话里出错那一行")]
+        self.assertIn("const dropKeyboard = TOUCH || phone;", composer)
+        self.assertIn("if (dropKeyboard && !emptyNow.current) input.current?.blur();", composer)
+        self.assertIn('onSubmit={sent}', composer)
+        self.assertIn("<ComposerAction onSend={sent} />", composer)
+        self.assertIn("onClick={onSend}", composer)
+        self.assertIn("ref={input}", composer)
+        self.assertIn("unstable_focusOnRunStart={!dropKeyboard", composer)
+        self.assertIn("unstable_focusOnScrollToBottom={!dropKeyboard}", composer)
 
     def test_ime_enter_does_not_send(self):
         self.run_page(r"""
@@ -981,7 +961,7 @@ g.respond = respond;
         self.assertLess(reply.index("<LastReplyIndicator />"), reply.index('data-slot="aui_assistant-message-footer"'))
         self.assertNotIn("<RunIndicator />\n          </div>", thread)
         self.assertIn("onKeyDown={holdImeEnter", thread)
-        self.assertIn("ref={follow.viewport}", thread)
+        self.assertIn("ref={settle.viewport}", thread)
         self.assertIn("pendingLanded(pending, s.thread.messages.map((m) => m.id))", thread)
         # 步骤组：不再另放一个在动的点，只有思考没有工具的不显示
         group = steps[steps.index("export const StepsGroup"):]

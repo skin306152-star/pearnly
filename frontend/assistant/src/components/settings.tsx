@@ -144,11 +144,9 @@ export function Settings() {
             {current === "connections" && web && <WebConnections />}
             {current === "system" && api && <System api={api} />}
           </main>
-          <DialogPrimitive.Close
-            aria-label={t("close")}
-            className="absolute top-3.5 right-3.5 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-          >
-            <XIcon className="size-4" />
+          {/* 关闭同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44） */}
+          <DialogPrimitive.Close aria-label={t("close")} className="cc-icon-btn absolute top-3.5 right-3.5">
+            <XIcon />
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -162,7 +160,8 @@ function NavItem({ active, onClick, icon, children }: { active: boolean; onClick
       type="button"
       onClick={onClick}
       className={cn(
-        "flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-start text-sm [&_svg]:size-4",
+        // 同侧栏导航行：行高按变体（网页 32、桌面窗口 30、手机 44）、圆角 8
+        "flex h-(--cc-row-h) shrink-0 items-center gap-2.5 whitespace-nowrap rounded-(--cc-radius-row) px-2.5 text-start text-sm [&_svg]:size-4",
         active ? "bg-(--cc-bg-selected) font-medium" : "hover:bg-hover",
       )}
     >
@@ -199,7 +198,8 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           aria-pressed={value === key}
           className={cn(
             // 选中的那一格带 shadow-sm（盖过 base 层的聚焦兜底），聚焦描边自己写
-            "flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",
+            // 文字格与图标格一样高 28（手机点按区 44）
+            "cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",
             value === key ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -313,7 +313,7 @@ export function Notifications() {
           {st.notifications}
           {usable && push.failure && <div className="text-danger text-xs">{push.failure}</div>}
           {push.state === "install" && (
-            <button type="button" className={cn(note, "block text-start underline underline-offset-2")} onClick={showGuide}>
+            <button type="button" className={cn(note, "cc-tap flex items-center text-start underline underline-offset-2")} onClick={showGuide}>
               {st.notificationsAddToHome}
             </button>
           )}
@@ -370,9 +370,6 @@ function useAction(api: Desktop, refresh: () => void) {
 
 // 这台电脑只连一家公司（登录的账号，2026-10-10 起不用配对码）：公司一行、Express 数据文件夹（旧桌面版另有网页可读取的文件夹）。
 // 公司下可能有 Express 和 MR.ERP 两个成员（旧配对留下的），合成一行；文件夹记在 Express 成员上，没有才记在 MR.ERP 上。
-
-const menuItem =
-  "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted focus:bg-muted";
 
 function useLink() {
   const [value, setValue] = useState<Link>(currentLink());
@@ -441,16 +438,18 @@ function Connections({ api }: { api: Desktop }) {
                 <MoreHorizontalIcon className="size-4" />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content align="end" sideOffset={4} className="z-[80] min-w-44 rounded-xl border bg-surface p-1.5 shadow-lg">
+                {/* 同其他菜单（.cc-menu）；盖在设置弹窗（z 71）上面 */}
+                <DropdownMenu.Content align="end" sideOffset={4} className="cc-menu z-[80] !min-w-44">
                   <DropdownMenu.Item
-                    className={menuItem}
+                    className="cc-menu-item"
                     onSelect={() => void Promise.all(members.map((m) => api.call("pause", { id: m.id, paused: !main.paused }))).then(refresh)}
                   >
                     {main.paused ? st.resume : st.pause}
                   </DropdownMenu.Item>
-                  <DropdownMenu.Separator className="my-1 border-t" />
+                  <DropdownMenu.Separator className="cc-menu-sep" />
                   <DropdownMenu.Item
-                    className={cn(menuItem, "text-danger")}
+                    className="cc-menu-item"
+                    data-danger=""
                     onSelect={() => void Promise.all(members.map((m) => api.call("remove", { id: m.id }))).then(refresh)}
                   >
                     {st.disconnect}
@@ -682,7 +681,7 @@ function System({ api }: { api: Desktop }) {
         onDownload={() => void run("download", "download_update")}
       />
       <Row label={st.logs}>
-        <Button variant="outline" size="sm" onClick={() => void run("logs", "logs")}>
+        <Button variant="outline" size="icon-sm" aria-label={st.logs} onClick={() => void run("logs", "logs")}>
           <FolderIcon className="size-4" />
         </Button>
       </Row>

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/drag";
 import { GroupHeader, GroupNew, GroupSortMenu, isMenuKey } from "@/components/assistant-ui/sidebar-group";
 import { showShortcuts } from "@/components/shortcut";
+import { askDelete, deleteChat } from "@/components/delete-chats";
 import { useLongPressMenu } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
 import { isImeEnter } from "@/lib/ime";
@@ -113,7 +114,6 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import {
-  ChevronDownIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PinIcon,
@@ -876,19 +876,10 @@ const DayRows: FC<{ searchQuery?: string }> = ({
         </Fragment>
       );
     }
+    // 电脑上同 Cowork 的组标题（sidebar-group.tsx 的 GroupHeader：带 32、开关 24、圆角 8，组上间距在带外；按钮排查 M6）
     return (
       <Fragment key={group.key}>
-        <button
-          type="button"
-          data-slot="aui_thread-list-group-label"
-          data-roving=""
-          className="cc-section-label cc-section-toggle"
-          aria-expanded={open}
-          onClick={() => toggle(group.key)}
-        >
-          {group.label}
-          <ChevronDownIcon className="cc-section-chevron" />
-        </button>
+        <GroupHeader label={group.label} open={open} onToggle={() => toggle(group.key)} />
         {open &&
           group.indices.map((index) => (
             <ThreadListPrimitive.ItemByIndex
@@ -922,8 +913,11 @@ export const ThreadListNew = forwardRef<HTMLButtonElement, ComponentPropsWithout
             focusComposer();
           }}
         >
-          <span className="cc-nav-icon bg-subtle text-ink rounded-full">
-            <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-3.5" />
+          {/* 28 的槽里放 20 的圆，加号图标框 16（同 Claude 侧栏，按钮排查 M5） */}
+          <span className="cc-nav-icon">
+            <span className="cc-new-dot">
+              <PlusIcon data-slot="aui_thread-list-new-icon" className="!size-4" />
+            </span>
           </span>
           <span data-slot="aui_thread-list-new-label" className="cc-nav-label whitespace-nowrap">
             {t("newChat")}
@@ -1220,7 +1214,7 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
   const close = () => onOpenChange(false);
   // 取消置顶回到它那一组的最上面（starChat）；失败写进侧栏出错行
   const pin = () => toggleStar(aui.threadListItem(), !starred);
-  const remove = () => void aui.threadListItem().delete();
+  const remove = () => deleteChat(aui.threadListItem());
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>
@@ -1293,7 +1287,8 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
       back.push(remoteId ?? id);
     }, report).then(clearSelection);
   };
-  const deleteAll = () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection);
+  const deleteAll = () =>
+    askDelete(ids.length, () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection));
   return (
     <DropdownMenu.Content
       side="bottom"

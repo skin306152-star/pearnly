@@ -61,7 +61,9 @@ class FeedTests(unittest.TestCase):
         events = read("lib/managed-agents/events.ts")
         self.assertIn('type: "pearnly.notice";', events)
         self.assertIn('return String(event.type).startsWith("pearnly.");', events)
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent;", events)
+        # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent;", events)
+        self.assertIn('type: "pearnly.answer";', events)
         poll = read("lib/managed-agents/poll-source.ts")
         self.assertIn("if (anchor && !isLocalEvent(event)) this.lastId = id;", poll)
         self.assertNotIn("if (anchor) this.lastId = id;", poll)
@@ -1488,17 +1490,21 @@ g.done();
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
         self.assertNotIn("@/components/ui/button", source)
         self.assertNotIn("lucide-react", source)
-        # 卡片按钮：电脑 28 高（设计系统小号控件）、13px、字重 500、两钮间距 8；手机（粗指针 / 手机外壳）大号全圆角胶囊约 48、16px
+        # 卡片按钮：电脑 24 高（设计系统 xs 档，6.webp「跳过 / 提交」，第 11 轮按钮排查 G4）、左右 8、13px、字重 500、两钮间距 8；
+        # 手机（粗指针 / 手机外壳）大号全圆角胶囊 44（8.webp 约 42–43，取点按区下限）、16px
         css = read("globals.css")
         rule = lambda selector: css.split("\n  " + selector + " {", 1)[1].split("}", 1)[0]
-        self.assertIn("--cc-control-sm: var(--code-control-sm);", css)
-        self.assertIn("--cc-card-btn-h-phone: 3rem;", css)
+        self.assertIn("--cc-card-btn-h: var(--code-control-xs);", css)
+        self.assertIn("--cc-card-btn-h-phone: var(--cc-tap);", css)
         self.assertIn("--cc-card-btn-font-phone: var(--code-text-prose);", css)
         btn = rule(".cc-card-btn")
         # 次要按钮是一块看得出的浅灰实心（叠色 2），悬停再深一档（叠色 3）：浅色模式下也有悬停反馈（第 10 轮审查）
-        for part in ("height: var(--cc-control-sm);", "background: var(--cc-alpha-2);", "font-size: var(--cc-text-footnote);",
+        for part in ("height: var(--cc-card-btn-h);", "padding: 0 0.5rem;", "background: var(--cc-alpha-2);", "font-size: var(--cc-text-footnote);",
                      "font-weight: 500;"):
             self.assertIn(part, btn)
+        self.assertIn(".cc-card-btn[data-icon] { width: var(--cc-card-btn-h);", css)
+        # 手机浮层右下的「允许」至少 112 宽（8.webp「提交」约 113）
+        self.assertIn(".cc-ask-sheet .cc-card-btn[data-primary] { min-width: 7rem; }", css)
         self.assertNotIn("border:", btn)
         self.assertIn("  .cc-card-btn:hover { background: var(--cc-alpha-3); }", css)
         self.assertIn("  .cc-card-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }", css)
@@ -1692,7 +1698,7 @@ g.done();
         sheet = css.split("\n  .cc-ask-sheet {", 1)[1].split("}", 1)[0]
         self.assertIn("border-radius: var(--cc-radius-sheet);", sheet)
         self.assertIn("background: var(--cc-bg-popover);", sheet)
-        self.assertIn("--cc-radius-sheet: 1.75rem;", css)
+        self.assertIn("--cc-radius-sheet: 1.5rem;", css)   # 8.webp 边缘拟合约 23.5（第 11 轮按钮排查 L9）
         self.assertIn("font-weight: 600;", css.split("\n  .cc-ask-sheet-q {", 1)[1].split("}", 1)[0])   # 问话粗体（照 Claude 手机端）
 
     def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
@@ -2637,7 +2643,9 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 输入框（设计文档 3.12，电脑）：一行里「＋」、输入、发送，单行高 44、内边距 8、按钮 28；圆角 14
         self.assertIn('className="cc-composer cc-composer-inline"', thread)
         self.assertIn("--cc-radius-composer: var(--code-radius-input);", css)
-        self.assertIn('grid-template-areas: "files files files" "add input send";', css)
+        # 附件一行从输入那一列开始（与输入的字对齐，照 Claude 桌面版 7.webp：离框左约 44、离框顶约 12，下隔 16；第 11 轮按钮排查 M7）
+        self.assertIn('grid-template-areas: ". files files" "add input send";', css)
+        self.assertIn("grid-area: files; padding: calc(var(--cc-composer-pad) / 2) var(--cc-composer-pad) 1rem;", css)
         # 内边距扣掉细线边框：border-box 下单行正好 44，不是 45
         self.assertIn("align-items: end; gap: 0; min-height: var(--cc-composer-h); "
                       "padding: calc(var(--cc-composer-pad) - var(--cc-hairline));", css)
@@ -3331,6 +3339,28 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertNotIn("font-size", drawer)
         self.assertIn('.cc-drawer [data-slot="aui_thread-list-item"] { min-height: var(--cc-row-h);', drawer)
 
+    def test_deleting_chats_asks_once_first(self):
+        """删除对话先确认一次（用户 10-17，同 Claude 手机 app）：标题「删除对话？」/ 多选「删除 N 个对话？」、「取消 / 删除」、
+        不加说明；四个入口和菜单里的 D 键都先问，弹窗挂在页面根上（菜单关、行卸载后仍在）。"""
+        host = (SRC / "components/delete-chats.tsx").read_text(encoding="utf-8")
+        app = (SRC / "assistant.tsx").read_text(encoding="utf-8")
+        rows = (SRC / "components/assistant-ui/thread-list.tsx").read_text(encoding="utf-8")
+        i18n = (SRC / "i18n.ts").read_text(encoding="utf-8")
+        self.assertIn("<DeleteChatsHost />", app)
+        self.assertEqual(app.count("deleteChat(aui.threadListItem())"), 2)  # 电脑标题栏「···」、手机右上「…」
+        self.assertIn("const remove = () => deleteChat(aui.threadListItem());", rows)  # 行「···」与手机长按菜单
+        self.assertIn("askDelete(ids.length, () => void runInOrder(ids,", rows)  # 多选「删除 N」
+        for source in (app, rows):
+            self.assertNotIn("onSelect={() => void aui.threadListItem().delete()}", source)
+        self.assertNotIn("const deleteAll = () => void runInOrder(", rows)
+        self.assertIn('n > 1 ? `删除 ${n} 个对话？` : "删除对话？"', i18n)
+        self.assertIn('n > 1 ? `Delete ${n} chats?` : "Delete chat?"', i18n)
+        self.assertIn('n > 1 ? `ลบ ${n} แชท?` : "ลบแชท?"', i18n)
+        self.assertIn('{t("cancel")}', host)
+        self.assertIn('{t("delete")}', host)
+        self.assertIn('className="sr-only"', host)  # 不加看得见的说明
+        self.assertIn("requestAnimationFrame(", host)  # 等菜单收起再开
+
     def test_multi_select_has_no_bulk_bar_and_runs_one_by_one(self):
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertNotIn("BulkBar", rows)
@@ -3358,9 +3388,13 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("const bulk = companies && selection.length > 1 && selection.includes(localId);", rows)
         self.assertIn("selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));", rows)
         self.assertIn("const keys = useSidebarKeys(companies);", read("assistant.tsx"))
-        # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）
+        # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）：电脑上同 Cowork 的组标题（GroupHeader 的开关带
+        # data-roving，第 11 轮按钮排查 M6）
         day = rows.split("const DayGroups: FC", 1)[1].split("\n};\n", 1)[0]
-        self.assertIn('data-slot="aui_thread-list-group-label"\n          data-roving=""\n          className="cc-section-label cc-section-toggle"', day)
+        self.assertIn("<GroupHeader label={group.label} open={open} onToggle={() => toggle(group.key)} />", day)
+        self.assertNotIn("cc-section-toggle", day)
+        header = read("components/assistant-ui/sidebar-group.tsx").split("export const GroupHeader", 1)[1].split("\n);", 1)[0]
+        self.assertIn('data-roving=""\n      data-slot="aui_thread-list-group-label"', header)
         # 组标题右侧操作（tabIndex -1）键盘从组开关进：已展开时 →，操作之间 ← →，最左再 ← 回组开关
         self.assertIn('else if (event.key === "ArrowRight") groupActions(target)[0]?.focus();', keys)
         self.assertIn("if (target.matches(GROUP_ACTION)) return onActionKey(event, target);", keys)
@@ -3807,9 +3841,15 @@ assert.equal(accountFull({ value: "5300", value_label: "5300" }), "5300");
 assert.equal(toggleChoice("", "k1"), "k1");
 assert.equal(toggleChoice("k1", "k1"), "");
 assert.equal(toggleChoice("k1", "k2"), "k2");
-// 请求没回来时：点开那一条的按钮都不能点（连点「删除」不会发两次）
-assert.ok(walk((ChoiceRow as any)({ ...props(pay, true), busy: true })).slice(1).every((b) => b.props.disabled === true));
-assert.ok(walk((ChoiceRow as any)(props(pay, true))).slice(1).every((b) => !b.props.disabled));
+// 请求没回来时：点开那一条的按钮再点不理（连点「删除」不会发两次）；不设 disabled（第 11 轮 D28：设了刚按的那一格失焦，
+// 键盘焦点掉到页面别处），按钮行标 aria-busy
+calls.length = 0;
+const busyRow = walk((ChoiceRow as any)({ ...props(pay, true), busy: true })).slice(1);
+assert.ok(busyRow.every((b) => !b.props.disabled));
+busyRow.forEach((b) => b.props.onClick());
+assert.deepEqual(calls, []);
+assert.match(renderToStaticMarkup(createElement(ChoiceRow, { ...props(pay, true), busy: true })), /<div class="cc-card-actions" aria-busy="true">/);
+assert.doesNotMatch(renderToStaticMarkup(createElement(ChoiceRow, props(pay, true))), /aria-busy|disabled/);
 // 点开后对方名整段换行显示（手机上没有悬停滚动，收起时看不全）
 assert.match(renderToStaticMarkup(createElement(ChoiceRow, props(pay, true))), /<span class="cc-choice-name">ACME<\/span>/);
 // 删掉 / 提升走了一条后焦点放到下一条，没有下一条放上一条，一条不剩回 ""
@@ -3824,6 +3864,17 @@ assert.equal(choiceAfter(["a"], "a"), "");
         self.assertIn("onToggle={() => setOpen((o) => toggleChoice(o, c.key))}", section)
         self.assertIn("if (gone) setOpen((o) => (o === gone ? \"\" : o));", section)
         self.assertIn("busy={busy === c.key}", section)
+        # 两段式点下立即显示新选择，没成功这一条退回原样、卡内报错（第 11 轮 D28）
+        change = section[section.index("const change = async (c: Choice, v: string) => {"):]
+        self.assertLess(change.index("setList((rows) => setChoiceShown(rows, c.key, v));"),
+                        change.index("await setChoice(company, c.key, v, period);"))
+        # 第 11 轮审查：没成功只退回这一条的值（不整条换回点下那一刻的）；请求期间整页重取到的旧值不把刚选的盖回去
+        self.assertIn("setList((rows) => setChoiceShown(rows, c.key, c.value));", change)
+        self.assertNotIn("row.key === c.key ? c : row", change)
+        self.assertIn("useEffect(() => setList(withChanging(choices ?? [])), [choices]);", section)
+        self.assertLess(change.index("changing.current.set(c.key, v);"), change.index("await setChoice(company, c.key, v, period);"))
+        self.assertIn("void reload().finally(() => changing.current.get(c.key) === v && changing.current.delete(c.key));", change)
+        self.assertIn("onSet={(v) => void change(c, v)}", section)
         self.assertIn("if (gone) setFocusKey(choiceAfter(", section)
         self.assertIn('row?.querySelector<HTMLElement>(".cc-choice-row")?.focus();', section)
         self.assertEqual(section.count("(rows) => rows.filter((row) => row.key !== c.key), c.key)"), 2)
@@ -5922,13 +5973,15 @@ class Round5SmallFixesTests(unittest.TestCase):
                       "    box-shadow: var(--cc-shadow-focus);", base)
         # 兜底同时去掉浏览器自带的 outline:auto：原来靠它显示焦点的按钮（待处理组头、任务行、输入框「＋」）不再是两道
         self.assertNotIn("0 0 0 3px", base)
-        # 点名的几处：组头待处理数、记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、组按钮、胶囊、标题栏公司名
+        # 点名的几处：组头待处理数、记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、
+        # 行按钮（侧栏出错 × 第 11 轮起改用 .cc-row-btn，.cc-group-btn 已删）、知识库一条、胶囊、标题栏公司名
         for rule in (".cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      "button.cc-list-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-show-more:focus-visible { box-shadow: var(--cc-shadow-focus); }",
-                     ".cc-group-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-row-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-note-text:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-chip-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-title-company:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      # 消息下面的「复制」、知识库表单的「取消」本来就有（Button 的 focus-visible:shadow-focus、.cc-btn）
@@ -5939,7 +5992,9 @@ class Round5SmallFixesTests(unittest.TestCase):
         self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: 1px; }", css)
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
         # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
-        self.assertIn('"flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",', read("components/settings.tsx"))
+        # 第 11 轮按钮排查 H26：文字格与图标格一样高 28、手机点按区 44（cc-tap）
+        self.assertIn('"cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",',
+                      read("components/settings.tsx"))
         self.assertIn(".cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }", block(css, "@layer components {"))
         mobile = css.index(".cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {")
         self.assertGreater(css.index(".cc-mtopbar .cc-round-btn:focus-visible, .cc-mdrawer .cc-round-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }"), mobile)
@@ -7087,6 +7142,303 @@ g.done();
         # 浮顶只用服务端时间
         activity = read("lib/managed-agents/activity.ts")
         self.assertNotIn("Date.now()", activity.split("function bump(", 1)[1].split("\n}\n", 1)[0])
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11CardTests(unittest.TestCase):
+    """测试窗口第 10 轮实测（lab 97553dd2）：C20 卡片没答就停止写成「允许 · 失败」；C22 另一台设备 6–17 秒才变成点完；
+    E30 断网点停止后已发出的那句被放回输入框。"""
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB}
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n'
+               + body.split("\n---\n", 1)[0] + "\nconst g = globalThis as any;\n" + FAKE_SITE
+               + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_a_card_left_unanswered_by_stop_reads_cancelled_live_and_reopened(self):
+        # 卡片出来后没答、直接点停止：引擎补来一条出错的结果，以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
+        # 现在 user.interrupt 时还开着的门标 cancelled：本页与重开都是问话 + 淡色「已取消」；晚到的问句不再把按钮放回来
+        self.run_page(r"""
+import { applyEvent, gateCustomTool, project } from "@/lib/managed-agents/reducer";
+import { approvalCard } from "@/lib/approval-card";
+---
+const gates = { ask: { pearnly_task_switch: "Turn it on?" } };
+const part = (state: any) => state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === "tz");
+const head = [ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
+  ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } })];
+const result = (isError: boolean, body: string) =>
+  ev("res", "user.custom_tool_result", 6, { custom_tool_use_id: "tz", content: text(body), is_error: isError });
+const stop = [ev("i1", "user.interrupt", 5), result(true, "interrupted"), ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })];
+// 本页：卡片等回答（问句向服务端要来的），点停止
+let live = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
+assert.deepEqual(approvalCard(part(live), gates), { phase: "ask" });
+live = project(stop as any, live);
+assert.deepEqual(approvalCard(part(live), gates), { phase: "cancelled" });
+assert.equal(part(live).approval, undefined);
+assert.deepEqual([live.pendingApprovals, live.pendingCustomTools, live.parkedIds, live.isRunning], [[], [], [], false]);
+// 重开对话：历史里没有点击记录，那一步也还没有门（问句要向服务端要），按停着等的那一步认
+const reopened = project([...head, ...stop] as any);
+assert.deepEqual(approvalCard(part(reopened), gates), { phase: "cancelled" });
+assert.equal(gateCustomTool(reopened, "tz", { ask: "Turn it on?" }), reopened);   // 晚到的问句不放回按钮
+// 对照：没停止、点了「允许」执行出错的，照旧「允许 · 失败」；结果写明拒绝的照旧「拒绝」
+const ran = project([...head, result(true, "The tool failed. Try again later."),
+  ev("p2", "session.status_idle", 7, { stop_reason: { type: "end_turn" } })] as any);
+assert.deepEqual(approvalCard(part(ran), gates), { phase: "answered", approved: true, failed: true });
+const denied = project([...head, ev("i1", "user.interrupt", 5),
+  result(false, JSON.stringify({ status: "denied", message: "The user did not allow this change." }))] as any);
+assert.deepEqual(approvalCard(part(denied), gates), { phase: "answered", approved: false, failed: false });
+// 已答的（本页点了「允许」、还没结果）不因停止改成「已取消」
+let answered = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
+answered = applyEvent(answered, ev("optimistic-confirm-1", "user.tool_confirmation", 5, { tool_use_id: "tz", result: "allow" }) as any);
+answered = applyEvent(answered, ev("i1", "user.interrupt", 6) as any);
+assert.equal(part(answered).approval.approved, true);
+assert.equal(part(answered).cancelled, undefined);
+// 第 11 轮审查：点了「允许」、工具执行中才停止，随后交回成功的结果：本页与重开都是「允许」（重开时历史里没有点击记录，
+// 停止那一刻照样标了 cancelled，不能因此写成「已取消」——写入已经发生了）
+const done = [ev("i1", "user.interrupt", 6), result(false, JSON.stringify({ status: "saved" })),
+  ev("p2", "session.status_idle", 8, { stop_reason: { type: "end_turn" } })];
+const liveRan = project(done as any, answered);
+assert.deepEqual(approvalCard(part(liveRan), gates), { phase: "answered", approved: true, failed: false });
+const reopenedRan = project([...head, ...done] as any);
+assert.equal(part(reopenedRan).cancelled, true);
+assert.deepEqual(approvalCard(part(reopenedRan), gates), { phase: "answered", approved: true, failed: false });
+// 不要「允许」的工具被停止：照常是步骤组里的一行，不是卡片
+const plain = project([ev("tp", "agent.custom_tool_use", 3, { name: "pearnly_read", input: {} }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tp"] } }), ev("i1", "user.interrupt", 5)] as any);
+assert.equal(approvalCard(plain.messages[0]!.content[0] as any, gates), null);
+""")
+
+    def test_an_answer_on_another_device_settles_the_card_from_the_push(self):
+        # 另一台设备点了「允许」：服务端回答落库就推 pearnly.answer（toolrun.decide），这边不等工具执行完、不等补拉，
+        # 收到推送当场定下（按钮没了、卡片是点完的样子），也不再算等这边点
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { dispatch } from "@/lib/managed-agents/realtime";
+import { approvalCard } from "@/lib/approval-card";
+---
+const S = "sesn_c22";
+site.log.push(ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
+  ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } }));
+site.runs = { tz: "awaiting_approval" };
+site.toolReply = async () => ({ status: "awaiting_approval", ask: "Turn it on?", preview: [] });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.deepEqual(c.getSnapshot().pendingApprovals, ["tz"]);
+const reads = eventsCalls(S).length;
+dispatch({ session_id: S, event: { type: "pearnly.answer", id: "panswer_tz", tool_use_id: "tz", result: "allow", processed_at: at(5) } as any });
+await g.sleep(0);
+const snap: any = c.getSnapshot();
+assert.equal(eventsCalls(S).length, reads);            // 没靠补拉
+assert.deepEqual(snap.pendingApprovals, []);
+assert.equal(toolPart(snap, "tz").approval.approved, true);
+assert.equal(toolPart(snap, "tz").approval.sending, undefined);
+assert.equal(toolPart(snap, "tz").approval.ask, "Turn it on?");
+assert.deepEqual(approvalCard(toolPart(snap, "tz"), { ask: { pearnly_task_switch: "Turn it on?" } }),
+  { phase: "answered", approved: true, failed: false });
+assert.equal(snap.isRunning, true);                    // 答完接着跑
+// 别的对话的推送不碰这一段
+dispatch({ session_id: "sesn_other", event: { type: "pearnly.answer", id: "panswer_x", tool_use_id: "tz", result: "deny", processed_at: at(6) } as any });
+await g.sleep(0);
+assert.equal(toolPart(c.getSnapshot(), "tz").approval.approved, true);
+""")
+
+    def test_a_message_the_server_already_has_is_not_rolled_back(self):
+        # 回复进行中断网：发出请求的回应没回来，但回声早已到了（服务端收下了）。以前照样当没发出、字放回输入框，再按发送重复一条；
+        # 现在算发出了（不抛、气泡留着）；回声没到的照旧撤回、抛出（发送没成功、字放回）
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_e30";
+site.log.push(ev("u0", "user.message", 1, { content: text("earlier") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+const users = () => c.getSnapshot().messages.filter((m: any) => m.role === "user").map((m: any) => m.content[0]?.text);
+g.respond = async (method: string, args: any, body: any) => {
+  if (method !== "send") return respond(method, args, body);
+  site.log.push(ev("echo1", "user.message", 3, { content: text(body.text) }), ev("r1", "session.status_running", 4));
+  c.refreshStatus();
+  await g.sleep(30);
+  throw new TypeError("Failed to fetch");
+};
+await c.sendMessage("hello", []);
+assert.deepEqual(users(), ["earlier", "hello"]);
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") throw new TypeError("Failed to fetch");
+  return respond(method, args, body);
+};
+await assert.rejects(c.sendMessage("again", []), /Failed to fetch/);
+assert.deepEqual(users(), ["earlier", "hello"]);
+""")
+
+    def test_the_new_chat_stop_failure_only_says_why(self):
+        # 新对话发出后补的打断没成功：同停止键，只写停止的原因，不当发送失败、不放回输入框
+        provider = read("lib/managed-agents/runtime-provider.tsx")
+        self.assertIn("else await newChat.run(ensureSession, send, async (id) => {\n"
+                      "            await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
+        controller = read("lib/managed-agents/session-controller.ts")
+        self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
+
+class Round11ButtonsLikeClaudeTests(unittest.TestCase):
+    """第 11 轮：按钮三端照 Claude（排查报告 G1–G15，用户 10-17）。电脑端已和 Claude 一致的值不动，手机档另加两条
+    （手机变体、粗指针且不是桌面窗口）；数值见 docs/work/2026-10-16-cc-shell-design.md 3.18。"""
+
+    def setUp(self):
+        self.css = read("globals.css")
+
+    def test_phone_tap_sizes_for_shared_controls(self):
+        css = self.css
+        # G2 / G3：文字按钮、输入框、图标按钮手机 44，电脑仍 32（--cc-control 不改）；电脑对话顶栏、桌面标题栏里的图标按钮不跟
+        self.assertIn("--cc-control: var(--code-control);", css)
+        self.assertIn(':root[data-cc-variant="phone"] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-icon-btn { width: var(--cc-tap); height: var(--cc-tap); }', css)
+        self.assertIn(':root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }', css)
+        # 组件里不再用 h-8 把 .cc-btn / .cc-input 钉在 32
+        self.assertNotIn("cc-btn h-8", read("components/scheduled-tasks.tsx"))
+        self.assertNotIn("cc-input h-8", read("components/assistant-ui/projects.tsx"))
+        # G6：抽屉组头操作与待处理数 44、不留缝；G7：「显示更多」跟行高
+        self.assertIn(".cc-drawer .cc-group-actions { gap: 0; padding-inline-end: 0; }", css)
+        self.assertIn(".cc-drawer .cc-group-actions .cc-row-btn { width: var(--cc-tap); height: var(--cc-tap); }", css)
+        self.assertIn("min-height: var(--cc-row-h); padding-inline:", block(css, "  .cc-show-more {"))
+        self.assertIn(".cc-panel-card-body .cc-show-more { min-height: var(--cc-panel-row); }", css)
+        # G5：会话栏手机档（卡头、行尾小按钮 44），电脑 26 / 20 不变
+        self.assertIn(':root[data-cc-variant="phone"] .cc-panel { --cc-panel-head: var(--cc-tap); --cc-panel-btn: var(--cc-tap); }', css)
+        self.assertIn("--cc-panel-head: var(--code-panel-head);", css)
+        # G8 / G10：手机胶囊 36（点按区补到 44）、列表页小按钮 44
+        self.assertIn("--cc-chin-btn-phone: 2.25rem;", css)
+        self.assertIn("inset: calc((var(--cc-chin-btn-phone) - var(--cc-tap)) / 2) 0;", css)
+        self.assertIn("height: var(--cc-tap); padding-inline: 0.875rem; border-radius: var(--cc-radius-full);", css)
+
+    def test_row_more_only_takes_taps_where_it_can_hover(self):
+        # G13：手机、触屏靠长按出菜单，透明的「···」不接点按；能悬停的设备悬停这一行才接
+        self.assertIn('[data-slot="aui_thread-list-item-more"]:not([data-state="open"], :focus-visible) { pointer-events: none; }', self.css)
+        self.assertIn('@media (hover: hover) {\n  [data-slot="aui_thread-list-item"]:hover [data-slot="aui_thread-list-item-more"] { pointer-events: auto; }\n}', self.css)
+
+    def test_mobile_chat_title_has_two_lines_and_no_click(self):
+        # M8：手机对话页顶栏中间两行标题（对话名 16 字重 600、公司名 13 淡色），屏幕居中，不可点
+        app = read("assistant.tsx")
+        self.assertIn("{inChat ? <MobileChatTitle /> : <span />}", app)
+        title = read("components/assistant-ui/projects.tsx").split("export const MobileChatTitle: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn('<Marquee className="cc-mtitle-name">{title || t("untitled")}</Marquee>', title)
+        self.assertIn('{kind && project && company && <Marquee className="cc-mtitle-sub">{company}</Marquee>}', title)
+        self.assertNotIn("onClick", title)
+        # 第 11 轮审查：两侧同宽（取右上胶囊宽），标题长了也在屏幕正中（原来 1fr auto 1fr 时长标题偏左约 20）
+        self.assertIn("grid-template-columns: var(--cc-mpill-w) minmax(0, 1fr) var(--cc-mpill-w);", block(self.css, "  .cc-mtopbar {"))
+        self.assertNotIn("grid-template-columns: 1fr auto 1fr", block(self.css, "  .cc-mtopbar {"))
+        self.assertIn("--cc-mpill-w: calc(2 * var(--cc-mpill-btn) + 0.5rem + 2 * var(--cc-hairline));", self.css)
+        self.assertIn("width: var(--cc-mpill-btn); height: 100%;", self.css)
+        self.assertIn("--cc-mtitle-font: var(--code-text-prose);", self.css)
+        self.assertIn("pointer-events: none;", block(self.css, "  .cc-mtitle {"))
+
+    def test_composer_attachment_tile_like_claude(self):
+        # M7：输入框里的附件方块 128（手机 72），图片整张放进方块，与输入的字对齐；移除 × 20，手机点按区 44
+        css = self.css
+        self.assertIn("--cc-attach-tile: 8rem;", css)
+        self.assertIn("--cc-attach-tile-phone: 4.5rem;", css)
+        self.assertIn("width: var(--cc-attach-tile); height: var(--cc-attach-tile);", block(css, "  .cc-compose-tile {"))
+        # 图片四周留约 5 的边（7.webp），整张放进去不裁
+        self.assertIn(".cc-compose-tile > img { width: 100%; height: 100%; padding: var(--cc-compose-img-inset); object-fit: contain; }", css)
+        self.assertIn("--cc-compose-img-inset: 0.3125rem;", css)
+        tile = read("components/assistant-ui/attachment.tsx")
+        self.assertIn('className="aui-attachment-tile cc-compose-tile"', tile)
+        self.assertIn("cc-compose-x", tile)
+        self.assertIn("size-5 rounded-full p-0", tile)
+        # 位置写在 globals.css（手机要挪到外角，工具类盖不住）：组件上不再写 end-1.5 top-1.5
+        self.assertNotIn("end-1.5 top-1.5", tile)
+        self.assertIn(".cc-compose-x { top: 0.375rem; inset-inline-end: 0.375rem; }", css)
+        self.assertNotIn("size-14", tile)
+        # 图片预览的关闭是自己的圆钮（电脑 32、手机 44）
+        self.assertIn("showCloseButton={false}", tile)
+        self.assertIn('<DialogClose className="cc-icon-btn cc-tap cc-preview-close"', tile)
+
+    def test_keyboard_composer_and_company_composer_on_phone(self):
+        # M9：键盘弹出、输入框展开时离屏边 8
+        # 第 11 轮复量只借 8 时是 9（页面卡片的细线）：连这条细线一起借
+        self.assertIn("width: calc(100% + 1rem + 2 * var(--cc-hairline)); margin-inline: calc(-0.5rem - var(--cc-hairline));",
+                      block(self.css, ':root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) {'))
+        # M10：公司页输入框同对话页，没在输入、也没有字时收成一行胶囊
+        page = read("components/company-page.tsx")
+        self.assertIn('data-collapsed={!typing && !text ? "" : undefined}', page)
+
+    def test_desktop_fixes(self):
+        css = self.css
+        # M3：桌面标题栏左侧四颗 26、圆角 6、图标 16
+        self.assertIn(".cc-titlebar .cc-icon-btn { width: var(--cc-bar-btn); height: var(--cc-bar-btn); border-radius: var(--cc-radius-row-ctl); }", css)
+        # M5：「新建」28 槽里 20 的圆
+        self.assertIn('<span className="cc-new-dot">', read("components/assistant-ui/thread-list.tsx"))
+        # L1：托盘用户按钮 32；L2「需要您的输入」上下 1；L3「更换」「移除」20；L5 候选行同侧栏行
+        self.assertIn('className="cc-nav-item h-(--cc-tray-btn) min-w-0 flex-1"', read("assistant.tsx"))
+        self.assertIn("padding: 0.0625rem 0.375rem;", block(css, "  .cc-needs-input {"))
+        self.assertIn("height: var(--cc-panel-btn); padding: 0 0.375rem;", block(css, "  .cc-link-btn {"))
+        self.assertIn('[data-slot="cc-candidates"] .cc-list-row { min-height: var(--cc-row-h);', css)
+        # M11：定时任务行「▶」「···」同侧栏行内按钮
+        tasks = read("components/scheduled-tasks.tsx")
+        self.assertEqual(tasks.count('className="cc-row-btn cc-tap"'), 2)
+        # H21 / H24：筛选 ×、「默认值」折叠标题
+        self.assertEqual(tasks.count('className="cc-chip-x"'), 1)
+        self.assertIn('<summary className="cc-disclosure">', tasks)
+        self.assertIn('className="cc-chip-x"', read("components/pending.tsx"))
+        # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
+        self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 3)
+
+
+class Round11ReviewTests(unittest.TestCase):
+    """第 11 轮三段合起来的审查意见（按钮段复量 + 行为审查）里成立、已修的几条。"""
+
+    css = read("globals.css")
+
+    def test_phone_attachment_remove_sits_on_the_outer_corner_and_leaves_the_middle_to_preview(self):
+        # 审查（复量 blocker）：手机 72 方块上 × 的点按区往四周扩 12，盖住了方块中心（点中间删掉了附件）；而且附件一行没有上内边距，
+        # 点按区被滚动容器裁成 38×44。现在 × 挪到方块右上外角（伸出 6），点按区只往外 6、往左下 18：44×44，覆盖方块的
+        # x 40–72、y 0–32，中心 (36, 36) 不在里面；附件一行上、右各留 12，正好装下伸出去的部分
+        css = self.css
+        for scope in (':root[data-cc-variant="phone"]', '  :root:not([data-cc-variant="desktop"])'):
+            self.assertIn(scope.strip() + " .cc-compose-x { top: -0.375rem; inset-inline-end: -0.375rem; }", css)
+        after = block(css, ':root[data-cc-variant="phone"] .cc-compose-x::after {')
+        self.assertIn("inset-block: -0.375rem -1.125rem; inset-inline: -1.125rem -0.375rem;", after)
+        self.assertNotIn("inset: -0.75rem", css.split(".cc-compose-x {", 1)[1].split("/* 列表页", 1)[0])
+        # 点按区几何：× 20、外角伸出 6；往上 6、往右 6、往下 18、往左 18
+        tile, x, out = 72, 20, 6
+        left, right = tile + out - x - 18, tile + out + 6
+        top, bottom = -out - 6, -out + x + 18
+        self.assertEqual((right - left, bottom - top), (44, 44))
+        self.assertFalse(left <= tile / 2 <= right and top <= tile / 2 <= bottom)   # 方块中心不归 ×
+        self.assertEqual((-top, right - tile), (12, 12))                            # 伸出去的正好是留出的 12
+        for rule in (':root[data-cc-variant="phone"] .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }',
+                     '  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }'):
+            self.assertIn(rule, css)
+        # 触屏这一条要排在电脑附件一行的内边距之后（同样的优先级，后写的生效）
+        self.assertLess(css.index(':root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-attachments {'),
+                        css.index('  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments {'))
+
+    def test_welcome_chips_are_spaced_8_on_phones(self):
+        # 审查：G8 写了问候下胶囊间距 4 → 8（手机胶囊 36 带底色后 4 显挤），漏了
+        self.assertIn(':root[data-cc-variant="phone"] .cc-welcome-filing { gap: 0.5rem; }', self.css)
+        self.assertIn('@media (pointer: coarse) { :root:not([data-cc-variant="desktop"]) .cc-welcome-filing { gap: 0.5rem; } }', self.css)
+
+    def test_company_composer_folds_on_android_back(self):
+        # 审查：公司页输入框加了收成胶囊，却没接安卓返回键收键盘（KEYBOARD_CLOSED），返回后仍是展开的
+        page = read("components/company-page.tsx")
+        composer = page[page.index("const CompanyComposer: FC"):]
+        self.assertIn('import { KEYBOARD_CLOSED } from "@/lib/viewport";', page)
+        self.assertIn("emptyNow.current = !text;", composer)
+        self.assertIn("if (emptyNow.current && document.activeElement === box.current) box.current?.blur();", composer)
+        self.assertIn("window.addEventListener(KEYBOARD_CLOSED, closed);", composer)
+        self.assertIn("return () => window.removeEventListener(KEYBOARD_CLOSED, closed);", composer)
+
+    def test_scheduled_task_target_cards_are_tappable_edge_to_edge(self):
+        # 审查（复量附录 #83）：写入目标卡（MR.ERP / Express）的内边距在卡片上，按钮只有 21–38 高；挪进按钮，手机至少 44
+        tasks = read("components/scheduled-tasks.tsx")
+        self.assertIn('<div key={a.adapter} className="cc-card flex items-center justify-between gap-2" data-selected={picked || undefined}>', tasks)
+        self.assertIn('className="cc-tap flex min-w-0 flex-1 flex-col items-start justify-center self-stretch rounded-md px-3 py-2.5 text-start disabled:cursor-default"', tasks)
+        self.assertIn('<button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>', tasks)
+        self.assertNotIn("cc-card flex items-center justify-between gap-2 px-3 py-2.5", tasks)
 
 
 if __name__ == "__main__":

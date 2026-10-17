@@ -518,6 +518,8 @@ def confirm(session_id, confirmations) -> int:
 def interrupt(session_id) -> None:
     row = owned(session_id)
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])
+    # 停在等「允许」时点了停止：这一轮结束，那张卡片作废（推送线程可能已到时限不在了，这里当场标，`toolrun.cancel_waiting`）
+    toolrun.cancel_waiting(row.session_id)
 
 
 def run_tool(session_id, tool_use_id) -> dict:

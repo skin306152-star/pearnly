@@ -426,3 +426,7 @@
   - 不带堆栈的边界（minor）：接受并写进 `api.no_traceback` 说明：进 before_request 之前抛的（如 CSRF）照 Frappe 默认；只认 `/api/method/`。彻底关要改系统设置 `allow_error_traceback`，属改配置，没做。
   - relay 等锁（minor，成立）：`context.active(wait=False)` 先 `select … for update skip locked`（MariaDB 11.8 支持），锁着就这次不记，不等锁；读事件时补记同样不等。
   - 测试：`test_assistant_ui.Round11Tests`（6 条）、`test_assistant` 新增 `test_reading_events_catches_up_a_reply_the_relay_missed` 并扩充最后活动时间那条（锁着跳过、按记录名）。只因旧口径改的断言：传感器选项写法、`useLongPressMenu`、onMove 依赖、两条 CSS 规则写法、别处取消置顶不再存、置顶浮顶的 `bump` 写法。真机（A14）与测试机复测都还没做。
+- 10-17 第 11 轮补做（用户 10-17 定）：
+  - 删除对话先确认一次（同 Claude 手机 app）：共用弹窗 `components/delete-chats.tsx`（挂在页面根上，菜单关、行卸载后仍在），标题「删除对话？」、多选「删除 N 个对话？」（en Delete chat? / Delete N chats?，th ลบแชท? / ลบ N แชท?），按钮「取消 / 删除」，不加说明，样子同定时任务的删除确认。四个入口都先问：侧栏行「···」与手机长按菜单、多选「删除 N」、电脑标题栏「···」、手机右上「…」；菜单里的 D 键同样。删公司不在这次范围，没改。
+  - 文案（用户 10-17 同意）：推送选择 VAT 那一项「计费用」→「记费用」（`i18n.ts` 的 `vatExpense`、Cowork 术语表 "Expense it" 中文，翻译包重新生成）。
+  - 停止后旧卡片不再执行（第 10 轮 C20 后开发窗口查出的服务端漏洞）：这一轮结束时（点了停止、出错收尾、会话终止）本对话还在等「允许」的工具调用标成 `cancelled`（`toolrun.cancel_waiting`；停止接口当场标一次，推送线程看到这一轮结束再标一次），`decide` 只认 `awaiting_approval`，别的设备上没刷新的旧卡片事后点「允许」不会执行；`Pearnly Assistant Tool Run` 的状态加 `cancelled`（要迁移），工作清单里写 "not run, stopped before the user answered"。测试：`test_assistant.py` 的 `test_a_card_left_unanswered_when_the_turn_ends_never_runs`、`test_assistant_ui.py` 的 `test_deleting_chats_asks_once_first`。还缺：真引擎上停止后再点旧卡片的实测（第 11 轮）。

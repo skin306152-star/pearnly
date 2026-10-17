@@ -12,6 +12,9 @@
 //   agent.tool_use / mcp / custom       → a tool-call part; toolCallId is the *event* id
 //   agent.tool_result / mcp / custom    → that part's result
 //   user.tool_confirmation              → that part's approval, settled
+//   pearnly.answer                      → the same, pushed by this site the moment a held Pearnly tool's
+//                                          answer is stored (另一台设备上的卡片立即点完，不等工具结果)
+//   user.interrupt                      → 还没答的门撤掉、标 cancelled（之后补来的出错结果不算点了「允许」）
 //   session.status_idle{requires_action} → approval:{id} on each blocked tool part
 //   session.status_running / idle       → whether the turn is live
 //   session.error                       → an error message + retry chip
@@ -71,6 +74,9 @@ export type ToolPart = {
   result?: ToolResultPayload;
   isError?: boolean;
   approval?: ToolApproval;
+  /** 卡片没答就点了停止（user.interrupt 时门还开着、也没有结果）：之后补来的结果（中断时引擎交回的出错结果）不当成点了
+   *  「允许」却失败，卡片写「已取消」（第 10 轮 C20，lib/approval-card.ts）。本页与重开对话都按事件记录里的这一条认。 */
+  cancelled?: boolean;
 };
 export type ContentPart = TextPart | ReasoningPart | ToolPart;
 
@@ -808,34 +814,19 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       };
     }
 
-    case "user.tool_confirmation": {
+    case "user.tool_confirmation":
       // Our Allow/Deny, echoed (live) or replayed (history). Settle the gate.
-      const id = event.tool_use_id;
       // A persisted (non-optimistic) confirmation is the server's own
       // record of the answer: from here on it can never be reopened.
-      const optimistic = event.id.startsWith("optimistic-confirm-");
-      const confirmedIds = optimistic ? state.confirmedIds : new Set(state.confirmedIds).add(id);
-      let messages: readonly ThreadMessage[] = state.messages;
-      const found = findToolPart(messages, id);
-      if (found) {
-        const next = draft(messages);
-        // 已有结果的（结果先到）以结果为准，回声不再改它；本页乐观点下的先标「发送中」
-        updatePart(next, found.mi, found.pi, updateTool((p) => ({
-          approval: p.result !== undefined && p.approval?.approved !== undefined
-            ? p.approval
-            : settleApproval(p.approval, event.result === "allow", id, event.deny_message ?? undefined, optimistic && p.result === undefined),
-        })));
-        messages = next;
-      }
-      const pendingApprovals = state.pendingApprovals.filter((x) => x !== id);
-      return {
-        ...state,
-        messages,
-        confirmedIds,
-        pendingApprovals,
-        isRunning: state.isRunning || resumes(state, id, pendingApprovals, state.pendingCustomTools),
-      };
-    }
+      return settleConfirmation(state, event.tool_use_id, event.result === "allow", event.deny_message ?? undefined,
+        event.id.startsWith("optimistic-confirm-"));
+
+    case "pearnly.answer":
+      // 本站拦下的调用，回答已落库（toolrun.decide 推来）：同一条已送到的确认，别的设备上点的也立即定下
+      return settleConfirmation(state, event.tool_use_id, event.result === "allow", undefined, false);
+
+    case "user.interrupt":
+      return cancelOpenGates(state);
 
     // ------------------------------------------------------------- errors
     case "session.error": {
@@ -863,6 +854,63 @@ function answered(state: Projection, id: string): boolean {
   const found = findToolPart(state.messages, id);
   const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
   return part?.type === "tool-call" && (part.result !== undefined || part.approval?.approved !== undefined);
+}
+
+/** 一张卡有了回答（确认的回声或重放、本站推来的回答、本页乐观点下的）：定下所选那一项，不再等这边点。 */
+function settleConfirmation(state: Projection, id: string, allow: boolean, denyMessage: string | undefined, optimistic: boolean): Projection {
+  const confirmedIds = optimistic ? state.confirmedIds : new Set(state.confirmedIds).add(id);
+  let messages: readonly ThreadMessage[] = state.messages;
+  const found = findToolPart(messages, id);
+  if (found) {
+    const next = draft(messages);
+    // 已有结果的（结果先到）以结果为准，回声不再改它；本页乐观点下的先标「发送中」
+    updatePart(next, found.mi, found.pi, updateTool((p) => ({
+      approval: p.result !== undefined && p.approval?.approved !== undefined
+        ? p.approval
+        : settleApproval(p.approval, allow, id, denyMessage, optimistic && p.result === undefined),
+    })));
+    messages = next;
+  }
+  const pendingApprovals = state.pendingApprovals.filter((x) => x !== id);
+  return {
+    ...state,
+    messages,
+    confirmedIds,
+    pendingApprovals,
+    isRunning: state.isRunning || resumes(state, id, pendingApprovals, state.pendingCustomTools),
+  };
+}
+
+/** 点了停止（user.interrupt）：还开着、没有结果的门撤掉并标 cancelled，卡片写「已取消」；中断后引擎补来的结果不再把它
+ *  定成「允许」（第 10 轮 C20：没点就停止，卡片写成「允许 · 失败」，重开一样）。重开对话时本站拦下的那一步还没有门
+ *  （问句要向服务端要，gateCustomTool），按服务端此刻停着等的（parkedIds）认。已答的、已有结果的不动；不是卡片的那一步
+ *  标了也照常是一行（lib/approval-card.ts 先看要不要「允许」）。 */
+function cancelOpenGates(state: Projection): Projection {
+  let changed = false;
+  const cancelled = new Set<string>();
+  const parked = new Set(state.parkedIds);
+  const messages = state.messages.map((msg) => {
+    if (msg.role !== "assistant") return msg;
+    let msgChanged = false;
+    const content = msg.content.map((part) => {
+      if (part.type !== "tool-call" || part.result !== undefined || part.approval?.approved !== undefined) return part;
+      if (!part.approval && !parked.has(part.toolCallId)) return part;
+      msgChanged = changed = true;
+      cancelled.add(part.toolCallId);
+      const { approval: _approval, ...rest } = part;
+      return { ...rest, cancelled: true };
+    });
+    return msgChanged ? { ...msg, content } : msg;
+  });
+  if (!changed) return state;
+  return {
+    ...state,
+    messages,
+    pendingApprovals: state.pendingApprovals.filter((id) => !cancelled.has(id)),
+    pendingCustomTools: state.pendingCustomTools.filter((id) => !cancelled.has(id)),
+    // 服务端不再停在这几步：随后补来的结果不算「答完接着跑」（resumes），确认没送到也不放回（restoreGates）
+    parkedIds: state.parkedIds.filter((id) => !cancelled.has(id)),
+  };
 }
 
 /** 答完 `id` 之后引擎会接着跑：服务端此刻正停在它上面，而停着等的其余调用也都答完了（没有还要用户点的门、还欠着的结果）。
@@ -1051,7 +1099,8 @@ export function gateCustomTool(
   const found = findToolPart(state.messages, id);
   if (!found) return state;
   const part = state.messages[found.mi]!.content[found.pi]!;
-  if (part.type !== "tool-call" || part.result !== undefined) return state;
+  // 已点了停止（cancelOpenGates）：晚到的问句不再把按钮放回来
+  if (part.type !== "tool-call" || part.result !== undefined || part.cancelled) return state;
   if (part.approval && part.approval.approved !== undefined) return state;
   const messages = draft(state.messages);
   updatePart(messages, found.mi, found.pi, updateTool({ approval: { id, ask: view.ask, preview: view.preview } }));

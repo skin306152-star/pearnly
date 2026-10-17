@@ -370,7 +370,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
               </select>
             </label>
           ))}
-          <button type="button" className="cc-btn self-end" data-primary=""
+          <button type="button" className="cc-card-btn self-end" data-primary=""
             disabled={busy || view.needed.some((need) => !values[choiceKey(need)])} onClick={() => void confirm()}>
             {busy && <LoaderIcon className="size-4 animate-spin" />}
             {co.confirm}
@@ -378,7 +378,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         </>
       )}
       {open && view && settledView(view) && (
-        <button type="button" className="cc-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
+        <button type="button" className="cc-card-btn self-end" data-primary="" data-slot="cc-pending-push" disabled={busy} onClick={() => void confirm()}>
           {busy && <LoaderIcon className="size-4 animate-spin" />}
           {co.pushNow}
         </button>
@@ -387,7 +387,7 @@ export const ChooseRow: FC<{ item: PendingItem; onDone: (document: string) => vo
         // 科目表还在读、可选值没报上来：这张交给 CC（它会等电脑读完再问）
         <>
           {view.wait?.message && <p className="text-ink-3 text-sm">{view.wait.message}</p>}
-          <button type="button" className="cc-btn self-start" onClick={onAsk}>
+          <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
             <SparklesIcon className="size-4" />
             {co.handToCC}
           </button>
@@ -417,8 +417,8 @@ export const PendingView: FC = () => {
           <div className="mb-4">
             <span className="cc-chip">
               {title}
-              <button type="button" className="-me-1 flex items-center" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>
-                <XIcon className="size-3.5" />
+              <button type="button" className="cc-chip-x" aria-label={t("close")} onClick={() => useCompanyNav.setState({ pendingCompany: "" })}>
+                <XIcon />
               </button>
             </span>
           </div>
