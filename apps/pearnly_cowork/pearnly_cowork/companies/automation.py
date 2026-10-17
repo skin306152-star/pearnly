@@ -239,7 +239,9 @@ def readback_marks(connection, account_set, records) -> dict:
     最近连续 3 张有证据的同值才算 A（`push.express.automation.memory_evidence`）：凭记忆推出去的单要被合格回读覆盖、没被改才算
     证据。按整张记录：差异比对（`readback.diff`）比日期、现 / 赊（单据类型）、对方、单号、金额、VAT，没写库存行的单再比分录科目
     （真写了库存行的单不比分录，调用方对这种单的科目不认 confirmed），任一被改就是 changed，三类一起断开。每期的回读在同一个
-    请求 / 后台任务里只取一次（`_month_found`，扫描一批单时各张共用）。只读，不核权限（推送服务已核过录入权限与连接授权）。"""
+    请求 / 后台任务里只取一次（`_month_found`，扫描一批单时各张共用）。查询数随 ``records`` 里不同的税期数（每期一次
+    `readback.service.month_changes`，最多读 `MONTH_SCAN_MAX` 行、只解析这份账套那一行的 2 段 JSON）：推送一侧（`assess._recent`）
+    一张单至多给 `push.express.automation.RECENT_PERIOD_MAX` 个不同的税期（审查处理 10-17）。只读，不核权限（推送服务已核过录入权限与连接授权）。"""
     key = normalize_express_account_key(account_set)
     if not connection or not key:
         return {}

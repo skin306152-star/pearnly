@@ -186,6 +186,33 @@ class ItemTiers(unittest.TestCase):
             rows = [{**entry(readback=readback), "payment": "RR"} for readback in ("", "confirmed", "changed", "")]
             self.assertEqual(auto.memory_window(rows, kind), auto.memory_evidence(rows, kind))
 
+    def test_the_evidence_window_stops_at_the_period_cap(self):
+        """证据窗口按税期截（审查处理 10-17，`window_take` / `RECENT_PERIOD_MAX`）：线上每个税期另查一次回读，所以往回最多跨 6 个
+        不同的税期——碰到第 7 个就截掉；税期为空的不算；``seen`` 带着前几批已占的税期；0 不设上限。截只决定候选，证据判定不变。"""
+        def entry(period, readback="", source="remembered"):
+            return {"account": "5310-01", "source": source, "readback": readback, "period": period}
+        self.assertEqual(auto.RECENT_PERIOD_MAX, 6)
+        months = [f"2026-{month:02d}" for month in range(9, 0, -1)]  # 2026-09 往回 9 期
+        rows = [entry(month) for month in months for _ in range(20)]
+        self.assertEqual(auto.window_take(rows, set()), 120)
+        self.assertEqual(auto.window_take(rows, set(), periods=0), len(rows))
+        self.assertEqual(auto.window_take(rows, set(), periods=2), 40)
+        seen = set()
+        self.assertEqual(auto.window_take(rows[:30], seen), 30)  # 第一批：两期
+        self.assertEqual(seen, {"2026-09", "2026-08"})
+        self.assertEqual(auto.window_take(rows[30:], seen), 90)  # 下一批接着数，合计还是 6 期
+        self.assertEqual(len(seen), 6)
+        self.assertEqual(auto.window_take([entry("")] * 5 + rows, set()), 125)  # 没有单据日期的不占税期
+        # 第 6 期核过的三张：在窗口里；第 7 期的够不着（0 不设上限时够得着）
+        sixth = [entry(month) for month in months[:5] for _ in range(20)] + [entry(months[5], "confirmed")] * 3
+        self.assertEqual(auto.memory_window(sixth), ["5310-01"] * 3)
+        seventh = [entry(month) for month in months[:6] for _ in range(20)] + [entry(months[6], "confirmed")] * 3
+        self.assertEqual(auto.memory_window(seventh), [])
+        self.assertEqual(auto.memory_window(seventh, periods=0), ["5310-01"] * 3)
+        # 截在税期上，跟证据判定无关：同一期里被改的照样断开、人定的照样算
+        broken = [entry("2026-09", "confirmed"), entry("2026-09", "changed"), entry("2026-08", source="chosen")]
+        self.assertEqual(auto.memory_window(broken), auto.memory_evidence(broken))
+
     def test_payment_and_party_evidence(self):
         """现 / 赊、对方档的证据口径（10-17）：现 / 赊推的时候由本票人工裁决、任务默认、公司规则定的照记，凭记忆（含人在待处理页
         选的，推出去也是 remembered）、票面写明、票种口径要回读核过；对方档只认回读；被改的断开；值为空的跳过。"""

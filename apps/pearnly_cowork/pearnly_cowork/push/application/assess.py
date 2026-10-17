@@ -36,9 +36,12 @@ PRIOR_MAX = 50
 PRIOR_STATUSES = ("prepared", "pending", "leased", "manual", "success")
 # 账套记忆的证据窗口（`automation.memory_window`，10-17 改取法）：先跳过凭记忆推出去、还没合格回读核过的推送，再在剩下能当证据的
 # 推送里取最近的。按上传先后分批往前取这家供应商推成功的单：第一批 `RECENT_FIRST` 张（多数供应商一批就凑够），之后每批
-# `RECENT_PAGE` 张，记忆定的每一类都凑够 `automation.MEMORY_STREAK` 张证据、或取完、或合计到 `automation.RECENT_SCAN_MAX` 张就停。
-# 最坏一张单：查询 1 + ceil((1000 − 30) / 200) = 6 次、读 1,000 行、解析 2,000 段 JSON（载荷与回执各一）、回读标记调 6 次（每期的回读
-# 在同一请求里只取一次）。原先只取最新 30 张再跳过，高频供应商两次回读之间推了 30 张以上就攒不出证据（第五轮回放）
+# `RECENT_PAGE` 张，记忆定的每一类都凑够 `automation.MEMORY_STREAK` 张证据、或取完、或合计到 `automation.RECENT_SCAN_MAX` 张、或
+# 碰到第 `automation.RECENT_PERIOD_MAX` + 1 个不同的税期（单据日期，`automation.window_take`）就停。最坏一张单：
+# - 取票：查询 1 + ceil((1000 − 30) / 200) = 6 次、读 1,000 行、解析 2,000 段 JSON（载荷与回执各一），回读标记钩子调 6 次；
+# - 回读：每个税期一次 `readback.service.month_changes`（同一请求 / 后台任务里按期缓存），至多 `RECENT_PERIOD_MAX` = 6 次，每次
+#   最多读 `MONTH_SCAN_MAX` = 500 行回读、只解析这份账套那一行的 2 段 JSON（摘要与差异表），合计至多 3,000 行、12 段 JSON。
+# 原先只取最新 30 张再跳过，高频供应商两次回读之间推了 30 张以上就攒不出证据（第五轮回放）；10-17 审查补上回读一侧的期数上限
 RECENT_FIRST = 30
 RECENT_PAGE = 200
 _RECENT_SQL = """SELECT h.name AS history_name, h.creation AS uploaded, r.name, r.payload_json, r.response_json,
@@ -213,8 +216,9 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
 
     窗口（10-17 改取法）：先跳过凭记忆推出去、还没合格回读核过的，再在剩下能当证据的里取最近的——取票按「本工作区 + 卖方税号」的
     索引（`workspace_seller_tax_index`）按上传先后分批往前取（`RECENT_FIRST`、之后每批 `RECENT_PAGE`），推送记录取它冻结的载荷与
-    回执，每批标完回读，记忆定的每一类都凑够 `MEMORY_STREAK` 张证据就停；取完或合计到 `automation.RECENT_SCAN_MAX` 张也停（硬上限，
-    证据真不够的照样 B）。"""
+    回执，每批先按税期截（`automation.window_take`：碰到第 `automation.RECENT_PERIOD_MAX` + 1 个不同的税期就截掉、不再往前取，
+    每个税期要另查一次回读），再标回读；记忆定的每一类都凑够 `MEMORY_STREAK` 张证据就停；取完、合计到 `automation.RECENT_SCAN_MAX`
+    张或碰到税期上限也停（硬上限，证据真不够的照样 B）。最坏查询、行数与 JSON 段数见文件头 `RECENT_FIRST` 上的注释。"""
     payload = payload if isinstance(payload, dict) else {}
     decided = (decision or {}).get("decided_by") or {}
     wanted = {"account": payload.get("account_source") == "remembered",
@@ -228,7 +232,7 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
     if len(tax) != 13:
         return {kind: [] if wanted[kind] else None for kind in RECENT_KINDS}
     branch = choice_rules.branch5(fields.get("seller_branch"))
-    taxes, entries, found = tuple({raw, tax}), [], {}
+    taxes, entries, found, periods = tuple({raw, tax}), [], {}, set()
     after, scanned, size = None, 0, RECENT_FIRST
     while True:
         size = min(size, automation.RECENT_SCAN_MAX - scanned)
@@ -237,6 +241,8 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
         rows = _recent_rows(doc, taxes, connection, account_set, after, size)
         scanned += len(rows)
         batch = [entry for entry in (_recent_entry(row, tax) for row in rows) if entry]
+        keep = automation.window_take(batch, periods)
+        capped, batch = keep < len(batch), batch[:keep]
         if batch:
             marks = automation_service.readback_marks(connection, account_set, [
                 {key: entry[key] for key in ("record", "invoice_date", "completed_at")} for entry in batch])
@@ -245,7 +251,7 @@ def _recent(connection, account_set, doc, direction, fields, payload, decision):
             entries.extend(batch)
         found = {"account": automation.memory_window(entries), "payment": automation.memory_window(entries, "payment"),
                  "party": automation.memory_window(entries, "party", branch=branch)}
-        if len(rows) < size or all(len(found[kind]) >= automation.MEMORY_STREAK
+        if capped or len(rows) < size or all(len(found[kind]) >= automation.MEMORY_STREAK
                                    for kind in RECENT_KINDS if wanted[kind]):
             break
         after, size = rows[-1], RECENT_PAGE
@@ -283,7 +289,8 @@ def _recent_entry(row, tax):
             "party": written, "party_changed": bool(planned and written != planned),
             "stock": any(isinstance(mode, dict) and str(mode.get("mode") or "").startswith("stock") for mode in modes),
             "branch": choice_rules.branch5(supplier.get("branch")),
-            "invoice_date": str(row.invoice_date or "")[:10], "completed_at": row.completed_at}
+            "invoice_date": str(row.invoice_date or "")[:10], "period": rules.period_of(str(row.invoice_date or "")[:10]),
+            "completed_at": row.completed_at}
 
 
 __all__ = ["run"]

@@ -412,10 +412,23 @@ estimated、d4compat 的 ask_once 是 5,370 / 5,986 / 244（46.29%），问 110,
   （每期的回读在同一请求里只取一次，`_month_found`）。1000 的来由：一期的推送要等次月申报截止后的回读才核得到，一个回读周期约一个半月，
   Paisarn 888 单月最多 407 张、约 610 张没核过的，留余量。测试锁住：`test_cowork_da_tiers` 的 `test_the_evidence_window_skips_unchecked_memory_pushes_first`
   （每批张数 30 / 200…/ 170、合计 1,000 行、6 次标回读；第 1,001 张以后的证据够不着），`test_cowork_da_automation` 的 `memory_window` 单测。
+- **上界更正（10-17 审查）**：上一条的「最坏 6 次查询」只算了推送一侧，漏了回读一侧——回读标记按税期取回读（`companies.automation.readback_marks`
+  → `_month_found` → `readback.service.month_changes`），每个没缓存的税期一次查询、最多读 `MONTH_SCAN_MAX = 500` 行回读，按期缓存只在同一请求 /
+  后台任务里有效。往回 1,000 张能跨很多期（月推 20 张、回读一直凑不出证据的供应商约 50 期，就是约 50 次回读查询），单张上传评估每次都付。
+  改为窗口再加一道税期上限：往回最多跨 `automation.RECENT_PERIOD_MAX = 6` 个不同的税期（单据日期的 `YYYY-MM`，`automation.window_take`），
+  碰到第 7 个就截掉这一批、不再往前取；空日期不占税期。线上 `assess._recent` 每批先截再标回读，`memory_window` 与回放 `pushed_evidence` 用同一个
+  `window_take`。6 期的来由：凭记忆推的单要等这期申报截止后的回读，没核过的多落在当期与上一期，6 期约半年、两个以上回读周期，再往前的证据也旧了；
+  Paisarn 888 单月几百张，先碰到 1,000 张的上限，税期上限不改变它的预期。完整最坏一张单：取票 ≤ 6 次查询、1,000 行、2,000 段 JSON，回读标记钩子 ≤ 6 次；
+  回读 ≤ 6 次 `month_changes`、≤ 3,000 行，只解析这份账套那一行的 2 段 JSON（≤ 12 段）。测试锁住：`test_cowork_da_tiers` 的
+  `test_the_evidence_window_bounds_readback_queries_by_tax_period`（真的 `readback_marks`，1,003 张、每 20 张一期：取 30 + 200 张就停，回读只查 6 期；
+  同一请求里第二张不再查；第 6 期内核过的 A、只有第 7 期起核过的 B），`test_cowork_da_automation` 的 `window_take` 单测。回放新增 `--recent-periods`
+  （默认跟 `--recent-max`：非 0 取 6，`--recent-max 0` 时也不设上限，对照口径不变），`summary.json` 记 `recent_periods`（旧存档记 0），
+  `memory_cap_lost` 现在量的是 1,000 张与 6 期两道上限一起丢掉的 A。
 - **回放同步**：`--recent-max` 改为证据窗口往回最多看几张推送，默认 1000（同线上，测试锁住两边常量相同）；`0` 不设上限照旧作对照；`30` 等于第五轮的
   旧取法。`memory_cap_lost` 现在量的是 1000 张上限丢掉的 A；`summary.json` 新增 `evidence_window`（`evidence_first`；没有这一项的旧存档记 `newest`）。
 - **待重跑验证**（开发窗口之后在甲骨文重跑 strict / estimated）：预期 Paisarn 888 这类高频供应商在有合格回读的期间能重新攒到证据，estimated 的 A
-  接近 d4compat-record（11,200 张、98.38%），多出的 A 不超过 7,290 张；`memory_cap_lost` 应接近 0（不为 0 就是 1000 不够，要回头看）。这些都基于
+  接近 d4compat-record（11,200 张、98.38%），多出的 A 不超过 7,290 张；`memory_cap_lost` 应接近 0（不为 0 就是 1000 张或 6 期不够，要回头看，
+  可以用 `--recent-periods 0` 单独对照税期上限）。这些都基于
   「每期都按时合格回读」的乐观假定，线上回读少时 A 照样少。本节以上的数都是旧取法的，不改。
 
 ## 第四轮（第三轮审查处理之后，10-16）

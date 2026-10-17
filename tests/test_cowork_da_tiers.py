@@ -941,12 +941,17 @@ class UploadSweep(unittest.TestCase):
 # ── 第 5 条：自动推前的判定（边界） ────────────────────────────────────────────
 
 
-def _paged(pushes):
+def _paged(pushes, per_period=None):
     """按上传先后（新的在前）排好的推成功的单 → 像库一样按 ``LIMIT`` 与「比上一批最后一张更早」取的 SQL 替身（`assess._recent`
-    分批往前取）；记下每批的参数与取回的行数。"""
+    分批往前取）；记下每批的参数与取回的行数。``per_period``：每这么多张往前一个税期（单据日期从 2026-09 往回），没给都在 2026-09。"""
     start = dt.datetime(2026, 10, 20, 12, 0)
+
+    def day(index):
+        back = index // per_period if per_period else 0
+        return dt.date(2026 - (back + 3) // 12, (8 - back) % 12 + 1, 1)
+
     rows = [ns(name=f"R{index}", history_name=f"H{100000 - index}", uploaded=start - dt.timedelta(minutes=index),
-               payload_json=json.dumps(item), completed_at=dt.datetime(2026, 9, 5), invoice_date=dt.date(2026, 9, 1))
+               payload_json=json.dumps(item), completed_at=dt.datetime(2026, 9, 5), invoice_date=day(index))
             for index, item in enumerate(pushes)]
     calls = []
 
@@ -967,7 +972,7 @@ def _paged(pushes):
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
             prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
-            suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history=""):
+            suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history="", marks_hook=None):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -1013,7 +1018,7 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
     def marked(connection, key, records):
         seen["marks_calls"] += 1
         seen.setdefault("marks", (connection, key, records))
-        return marks
+        return marks_hook(connection, key, records) if marks_hook else marks
     service = ns(
         _express_context=lambda doc, loaded, key: {
             "target": ns(account_set=BOOK), "flat": {}, "fields": fields, "direction": direction,
@@ -1234,6 +1239,55 @@ class Judging(unittest.TestCase):
         near = {f"R{index}": "confirmed" for index in range(997, 1000)}
         sql, calls = _paged([memory] * 1003)
         self.assertEqual(_assess(sql=sql, marks=near)[0]["class"], "A")
+
+    def test_the_evidence_window_bounds_readback_queries_by_tax_period(self):
+        """回读一侧的上界（审查处理 10-17）：每个税期另查一次回读（`companies.automation.readback_marks` → 钩子
+        ``cowork_company_month_changes``），按条数的上限挡不住期数——月推 20 张、一直凑不出证据的供应商往回 1,000 张跨 50 期。窗口
+        碰到第 `automation.RECENT_PERIOD_MAX` + 1 个不同的税期就截掉、不再往前取：一张单至多查 6 次回读；同一请求里第二张不再查；
+        证据真不够的照样 B，落在税期上限以内的照样 A。用真的 `readback_marks`，只数钩子按期的调用。"""
+        memory = {"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
+                  "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
+                  "doctype_src": "remembered"}
+        self.assertEqual(auto.RECENT_PERIOD_MAX, 6)
+        store = Store()
+        companies = _companies(store)
+        hook = companies.frappe.get_attr
+        asked = []
+        readback = {"connection": "C1", "key": BOOK.lower(), "readback": "RB1",
+                    "requested_at": dt.datetime(2026, 11, 24, 3, 0), "changes": {}, "truncated": False}
+
+        def run(checked_from, *, fresh=True):
+            """``checked_from``：这一期及更早的税期有合格回读（None 一期都没有）。"""
+            if fresh:
+                companies.frappe.local.cowork_readback_month_cache = {}  # 新的一个请求
+            store.changes = [readback]
+            companies.frappe.get_attr = lambda path: (
+                lambda sets, period: asked.append(period) or (
+                    hook(path)(sets, period) if checked_from and period <= checked_from else []))
+            asked.clear()
+            sql, calls = _paged([memory] * 1003, per_period=20)
+            found, seen = _assess(sql=sql, marks_hook=companies.readback_marks)
+            return found, seen, calls
+
+        # 一期都没有回读：取 30 + 200 张，第 121 张落进第 7 个税期就截掉、停；回读只查 6 期（旧的 1,000 张会查 50 期）
+        found, seen, calls = run(None)
+        self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:account"]))
+        self.assertEqual([call["limit"] for call in calls], [30, 200])
+        self.assertEqual(seen["marks_calls"], 2)
+        self.assertEqual(asked, ["2026-09", "2026-08", "2026-07", "2026-06", "2026-05", "2026-04"])
+        self.assertEqual(len(asked), auto.RECENT_PERIOD_MAX)
+        # 同一请求里再判一张：各期都在缓存里，不再查
+        found, _seen, _calls = run(None, fresh=False)
+        self.assertEqual((found["class"], asked), ("B", []))
+        # 最近三期还没回读核过、更早的核过：在税期上限以内凑够，A；查过的期不超过 6
+        found, _seen, calls = run("2026-06")
+        self.assertEqual(found["class"], "A")
+        self.assertLessEqual(len(asked), auto.RECENT_PERIOD_MAX)
+        # 只有第 7 期及更早的核过：够不着，B，照样只查 6 期
+        found, _seen, calls = run("2026-03")
+        self.assertEqual(found["class"], "B")
+        self.assertEqual(len(asked), auto.RECENT_PERIOD_MAX)
+        self.assertEqual(sum(call["rows"] for call in calls), 230)
 
     def test_boundaries_turn_a_push_into_a_proposal(self):
         found, _seen = _assess(site_ok=False)

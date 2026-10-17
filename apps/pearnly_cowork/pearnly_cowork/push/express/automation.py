@@ -72,6 +72,11 @@ CONFIRMED, CHANGED = "confirmed", "changed"
 # 永远 B（第五轮回放挤掉 7,290 张 A、7,281 张推对，7,264 张是 Paisarn 888）。往回最多看这么多张推成功的单（硬上限，按条数）：这期的
 # 推送要等次月申报截止后的回读才核得到，一个回读周期约一个半月，Paisarn 888 单月最多 407 张、约 610 张没核过的，留余量
 RECENT_SCAN_MAX = 1000
+# 往回最多跨这么多个不同的税期（单据日期的 ``YYYY-MM``，`window_take`）：线上每个税期要另查一次回读（`companies.automation.
+# readback_marks` → `readback.service.month_changes`，每次最多 `MONTH_SCAN_MAX` = 500 行，同一请求 / 后台任务里按期缓存），按条数的
+# 上限挡不住期数（月推 20 张、回读一直凑不出证据的供应商，1,000 张跨约 50 期，就是约 50 次回读查询）。凭记忆推的单要等这期申报
+# 截止后的回读，没核过的多落在当期与上一期；6 期约半年、两个以上回读周期，再往前才有回读的证据也旧了，证据不够照样 B（审查处理 10-17）
+RECENT_PERIOD_MAX = 6
 # 录入时由识别后处理推出、不是读出来的金额：简式税票按 7/107 拆的（`ocr.pages.INCLUDED_VAT_AUDIT`）、补出的折扣
 INCLUDED_VAT_AUDIT = "vat_included"
 DISCOUNT_INFERRED = "discount_inferred:"
@@ -717,23 +722,35 @@ def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account")
     return out
 
 
+def window_take(entries: Sequence[Any], seen: set, *, periods: int = RECENT_PERIOD_MAX) -> int:
+    """证据窗口按税期截：``entries``（新的在前，各带 ``period`` = 单据日期的 ``YYYY-MM``）从头数能留几条——碰到第 ``periods`` + 1
+    个不同的税期就停（税期为空的不算：线上也不为它查回读）。``seen`` 是之前几批已占的税期，就地更新；``periods`` 0 不设上限。
+    `memory_window` 与线上 `push.application.assess._recent` 分批取时共用（同一个判据，见 `RECENT_PERIOD_MAX`）。"""
+    for index, entry in enumerate(entries):
+        period = str((entry.get("period") if isinstance(entry, Mapping) else "") or "")
+        if not period or period in seen:
+            continue
+        if periods and periods > 0 and len(seen) >= periods:
+            return index
+        seen.add(period)
+    return len(entries)
+
+
 def memory_window(entries: Iterable[Mapping[str, Any]], kind: str = "account", *, branch: Optional[str] = None,
-                  scan: int = RECENT_SCAN_MAX) -> List[str]:
-    """证据窗口：这家供应商在这份账套里推成功的单（新的在前）往回最多看 ``scan`` 张（0 不设上限，回放对照用；先截、再筛），
-    ``branch`` 不是 None 时只留同一分店的（对方档），这一类的值是 None 的跳过（回放推不出这一类的近似，线上不会出现），其余交
-    `memory_evidence`——凭记忆推出去、还没合格回读核过的在那里跳过，剩下能当证据的按新到旧排，`memory_settled` 看它最前面
-    `MEMORY_STREAK` 张。所以「最近」是在能当证据的推送里数的，不是先截最新几张推送再跳过（10-17 改取法，见 `RECENT_SCAN_MAX`）。
-    只决定取哪些推送当候选，证据判定与连续计数照 `memory_evidence` / `memory_streak`。线上 `push.application.assess._recent`
-    分批往前取、每批之后调这里，凑够 `MEMORY_STREAK` 张或到上限就停（结果的前几张与一次取完相同）；回放 `pushed_evidence` 一次调。"""
-    rows: List[Mapping[str, Any]] = []
-    for index, entry in enumerate(entries or ()):
-        if scan and scan > 0 and index >= scan:
-            break
-        if not isinstance(entry, Mapping) or entry.get(kind) is None:
-            continue
-        if branch is not None and entry.get("branch") != branch:
-            continue
-        rows.append(entry)
+                  scan: int = RECENT_SCAN_MAX, periods: int = RECENT_PERIOD_MAX) -> List[str]:
+    """证据窗口：这家供应商在这份账套里推成功的单（新的在前）往回最多看 ``scan`` 张、跨 ``periods`` 个不同的税期（`window_take`；
+    两个 0 都是不设上限，回放对照用；先截、再筛），``branch`` 不是 None 时只留同一分店的（对方档），这一类的值是 None 的跳过（回放
+    推不出这一类的近似，线上不会出现），其余交 `memory_evidence`——凭记忆推出去、还没合格回读核过的在那里跳过，剩下能当证据的按新到
+    旧排，`memory_settled` 看它最前面 `MEMORY_STREAK` 张。所以「最近」是在能当证据的推送里数的，不是先截最新几张推送再跳过（10-17
+    改取法，见 `RECENT_SCAN_MAX`）。只决定取哪些推送当候选，证据判定与连续计数照 `memory_evidence` / `memory_streak`。线上
+    `push.application.assess._recent` 分批往前取、每批按 `window_take` 截了再标回读、之后调这里，凑够 `MEMORY_STREAK` 张或到上限
+    就停（结果的前几张与一次取完相同）；回放 `pushed_evidence` 一次调。"""
+    listed = list(entries or ())
+    if scan and scan > 0:
+        listed = listed[:scan]
+    listed = listed[:window_take(listed, set(), periods=periods)]
+    rows = [entry for entry in listed if isinstance(entry, Mapping) and entry.get(kind) is not None
+            and (branch is None or entry.get("branch") == branch)]
     return memory_evidence(rows, kind)
 
 
@@ -923,7 +940,7 @@ __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim
            "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_BY_KIND", "EVIDENCE_SOURCES", "Facts",
            "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
-           "memory_window", "RECENT_SCAN_MAX",
+           "memory_window", "RECENT_PERIOD_MAX", "RECENT_SCAN_MAX", "window_take",
            "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "posting_by_history", "prior_entry",
            "reason_codes", "REASONS_FIRST",
            "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",

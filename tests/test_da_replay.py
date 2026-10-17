@@ -1130,6 +1130,20 @@ class Scoring(unittest.TestCase):
         entries = [{"account": "52-01", "source": "remembered", "readback": ""}] * 30 + \
             [{"account": "52-01", "source": "remembered", "readback": "confirmed"}] * 3
         self.assertEqual(m["automation"].memory_window(entries), ["52-01"] * 3)
+        # 往回最多跨 6 个税期（同线上 `automation.RECENT_PERIOD_MAX`，同一个 `window_take`）：第 7 期核过的三张够不着；
+        # 不给税期上限时跟 ``limit``，``limit=0`` 一并不设上限（第四轮对照口径不变）
+        self.assertEqual((replay.RECENT_PERIODS, m["automation"].RECENT_PERIOD_MAX), (6, 6))
+        # 别的分店（对方档只数同一分店的）这六期推的单也占税期（线上照样为它们查回读），一月期核过的三张落在第 7 期
+        far = [dict(old, period="2024-01", entered=dt.date(2024, 1, 20))] * 3
+        months = [dict(fresh, period=f"2024-{month:02d}", entered=dt.date(2024, month, 20)) for month in range(2, 8)]
+        slow = far + months
+        day = dt.date(2024, 7, 25)
+        self.assertEqual(replay.pushed_evidence(m, slow, day, "party", "00000"), [])
+        self.assertEqual(replay.pushed_evidence(m, slow, day, "party", "00000", limit=0), ["S001"] * 3)
+        self.assertEqual(replay.pushed_evidence(m, slow, day, "party", "00000", periods=0), ["S001"] * 3)
+        self.assertEqual(replay.pushed_evidence(m, slow, day, "party", "00000", periods=7), ["S001"] * 3)
+        self.assertEqual(replay.pushed_evidence(m, slow[:2] + months[1:], day, "party", "00000"), ["S001"] * 2)
+        self.assertEqual((replay.window_periods(1000), replay.window_periods(0), replay.window_periods(0, 4)), (6, 0, 4))
         # 判定层：上限小到凑不够 3 张时，记忆定的项是 B，记下因上限丢掉的类
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
