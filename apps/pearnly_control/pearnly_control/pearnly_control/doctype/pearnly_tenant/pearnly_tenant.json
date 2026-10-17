@@ -11,9 +11,6 @@
   "column_break_main",
   "contact_name",
   "contact_phone",
-  "assistant_engine",
-  "assistant_model",
-  "assistant_api_key",
   "ocr_engine",
   "notes"
  ],
@@ -50,22 +47,6 @@
    "label": "Contact Phone"
   },
   {
-   "fieldname": "assistant_engine",
-   "fieldtype": "Select",
-   "label": "CC Engine"
-  },
-  {
-   "fieldname": "assistant_model",
-   "fieldtype": "Select",
-   "label": "CC Model"
-  },
-  {
-   "fieldname": "assistant_api_key",
-   "fieldtype": "Password",
-   "label": "CC API Key",
-   "length": 255
-  },
-  {
    "fieldname": "ocr_engine",
    "fieldtype": "Select",
    "label": "Recognition Engine",
@@ -81,7 +62,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-13 18:00:00.000000",
+ "modified": "2026-10-18 03:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Tenant",

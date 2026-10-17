@@ -322,7 +322,7 @@ class EngineRegistryTests(unittest.TestCase):
         vendor = re.compile(r"anthropic|sk-ant|claude-", re.I)
         shared = [p for p in (CORE / "assistant").rglob("*.py") if p.parent.name != "engines"]
         shared += [CORE / "assistant/engines/base.py", CONTROL / "onboarding/assistant.py",
-                   CONTROL / "public/js/assistant_settings.js", CONTROL / "provisioning.py", CONTROL / "issues.py",
+                   CONTROL / "patches/v0_0_4_cc_settings_platform_wide.py", CONTROL / "provisioning.py", CONTROL / "issues.py",
                    CONTROL / "pearnly_control/doctype/pearnly_tenant/pearnly_tenant.py"]
         for path in shared:
             self.assertIsNone(vendor.search(path.read_text(encoding="utf-8")), str(path.relative_to(ROOT)))
@@ -3342,60 +3342,59 @@ class DocumentPreviewTests(unittest.TestCase):
         self.assertIn("return files.page_image(session_id, file_id, page=page, size=size)", api)
 
 
-class _Doc(types.SimpleNamespace):
-    """开户单 / 租户表单替身：`stored` 是库里那份密钥，`before` 是保存前的字段。"""
-
-    def __init__(self, new=False, stored="", before=None, **fields):
-        super().__init__(flags=types.SimpleNamespace(),
-                         **{"assistant_engine": "", "assistant_model": "", "assistant_api_key": "", **fields})
-        self._new, self._stored, self._before = new, stored, before or {}
-
-    def is_new(self):
-        return self._new
-
-    def get(self, field):
-        return getattr(self, field, None)
-
-    def get_password(self, field, raise_exception=True):
-        return self._stored
-
-    def has_value_changed(self, field):
-        return self._before.get(field, "") != (getattr(self, field) or "")
-
-
 settings = _load("control_assistant_settings", CONTROL / "onboarding/assistant.py")
 
 
 class ControlPlaneSettingsTests(unittest.TestCase):
-    """引擎、模型、密钥由租户管理后台填写、可改可换，经开通步骤推到站点（ADR-019）。"""
+    """引擎、模型、密钥全平台一份（2026-10-18 起不在开户单 / 租户表单上填），存本机控制面站点配置，经开通步骤推到每个站点（ADR-019）。"""
 
-    def test_validation_follows_the_engine_registry(self):
-        settings.validate(_Doc(new=True))  # 三项全空：不开通
-        ok = _Doc(new=True, assistant_engine=CLAUDE, assistant_api_key=KEY)
-        settings.validate(ok)
-        self.assertTrue(ok.flags.assistant_changed)
-        self.assertEqual(settings.read(ok), {"engine": CLAUDE, "model": "", "api_key": KEY})
-        for bad in (_Doc(new=True, assistant_api_key=KEY), _Doc(new=True, assistant_engine=CLAUDE),
-                    _Doc(new=True, assistant_engine=CLAUDE, assistant_api_key="sk-other-1234567890123456789"),
-                    _Doc(new=True, assistant_engine="gone-vendor", assistant_api_key=KEY)):
+    def setUp(self):
+        self.saved = dict(frappe.conf)
+        self.addCleanup(lambda: (frappe.conf.clear(), frappe.conf.update(self.saved)))
+        frappe.conf.clear()
+
+    def configure(self, engine="", model="", key=""):
+        frappe.conf.update({"pearnly_assistant_engine": engine, "pearnly_assistant_model": model,
+                            "pearnly_assistant_api_key": key})
+
+    def test_one_platform_setting_follows_the_engine_registry(self):
+        self.assertEqual(settings.read(), {"engine": "", "model": "", "api_key": ""})  # 没配：全平台不开通
+        self.configure(CLAUDE, "claude-haiku-5-5", f" {KEY} ")
+        self.assertEqual(settings.read(), {"engine": CLAUDE, "model": "claude-haiku-5-5", "api_key": KEY})
+        for bad in ((CLAUDE, "", ""), ("", "", KEY), (CLAUDE, "", "sk-other-1234567890123456789"),
+                    ("gone-vendor", "", KEY), (CLAUDE, "not-a-model", KEY)):
+            self.configure(*bad)
             with self.assertRaises(frappe.ValidationError):
-                settings.validate(bad)
+                settings.read()  # 配错不下发半套
 
-    def test_saved_key_is_read_back_and_same_length_rotation_is_noticed(self):
-        masked = "*" * len(KEY)
-        kept = _Doc(stored=KEY, assistant_engine=CLAUDE, assistant_api_key=masked,
-                    before={"assistant_engine": CLAUDE, "assistant_api_key": masked})
-        settings.validate(kept)
-        self.assertFalse(kept.flags.assistant_changed)
-        self.assertEqual(settings.read(kept)["api_key"], KEY)
-        rotated = _Doc(stored=KEY, assistant_engine=CLAUDE, assistant_api_key="sk-ant-api03-" + "z" * 40,
-                       before={"assistant_engine": CLAUDE, "assistant_api_key": masked})
-        settings.validate(rotated)
-        self.assertTrue(rotated.flags.assistant_changed)
-        model = _Doc(stored=KEY, assistant_engine=CLAUDE, assistant_model="claude-sonnet-5-5",
-                     assistant_api_key=masked, before={"assistant_engine": CLAUDE, "assistant_api_key": masked})
-        settings.validate(model)
-        self.assertTrue(model.flags.assistant_changed)
+    def test_apply_to_all_requeues_every_tenant_after_checking_the_setting(self):
+        queued, committed = [], []
+        provisioning = types.ModuleType("pearnly_control.provisioning")
+        provisioning.queue_assistant_config = lambda tenant: queued.append(tenant) or 2
+        package = sys.modules.setdefault("pearnly_control", types.ModuleType("pearnly_control"))
+        saved = {name: getattr(frappe, name, None) for name in ("get_all",)}
+        saved_db = frappe.db
+        sys.modules["pearnly_control.provisioning"] = provisioning
+        package.provisioning = provisioning
+        frappe.get_all = lambda doctype, filters=None, pluck=None: ["T-1", "T-2"]
+        frappe.db = types.SimpleNamespace(commit=lambda: committed.append(1), rollback=lambda: None)
+        try:
+            self.configure(CLAUDE, "claude-haiku-5-5", KEY)
+            self.assertEqual(settings.apply_to_all(), 4)
+            self.assertEqual((queued, committed), (["T-1", "T-2"], [1]))
+            queued.clear()
+            self.configure(CLAUDE, "", "sk-other-1234567890123456789")
+            with self.assertRaises(frappe.ValidationError):
+                settings.apply_to_all()
+            self.assertEqual(queued, [])  # 配错了一个都不排
+        finally:
+            frappe.db = saved_db
+            for name, value in saved.items():
+                if value is None:
+                    delattr(frappe, name)
+                else:
+                    setattr(frappe, name, value)
+            sys.modules.pop("pearnly_control.provisioning", None)
 
     def test_production_agent_accepts_the_step(self):
         spec = importlib.util.spec_from_file_location("provision_agent", ROOT / "infrastructure/production/provision-agent.py")
@@ -3415,26 +3414,24 @@ class ControlPlaneSettingsTests(unittest.TestCase):
         self.assertIn('pearnly_assistant_webhook_secret=str(p.get("webhook_secret") or "") if engine else ""', branch)
         self.assertNotIn("restart", branch)
 
-    def test_plan_requeue_and_onboarding_carry_the_settings(self):
+    def test_plan_uses_the_platform_setting_and_forms_no_longer_carry_it(self):
         plan = (CONTROL / "provisioning.py").read_text(encoding="utf-8")
         self.assertLess(plan.index('f"{dep.name}:set_assistant"'), plan.index('f"{dep.name}:bind_user"'))
         self.assertIn("def queue_assistant_config(tenant", plan)
+        self.assertIn("settings = assistant.read()", plan)
         tenant = (CONTROL / "pearnly_control/doctype/pearnly_tenant/pearnly_tenant.py").read_text(encoding="utf-8")
-        self.assertIn("assistant.validate(self)", tenant)
-        self.assertIn("self.flags.assistant_changed", tenant)
         issue = (CONTROL / "pearnly_control/doctype/pearnly_issue/pearnly_issue.py").read_text(encoding="utf-8")
-        self.assertIn("assistant.validate(self)", issue)
-        self.assertIn("assistant.read(doc)", (CONTROL / "issues.py").read_text(encoding="utf-8"))
-        hooks = (CONTROL / "hooks.py").read_text(encoding="utf-8")
-        for doctype in ("Pearnly Tenant", "Pearnly Issue"):
-            self.assertIn(f'"{doctype}": "public/js/assistant_settings.js"', hooks)
+        issues = (CONTROL / "issues.py").read_text(encoding="utf-8")
+        for source in (tenant, issue, issues):
+            self.assertNotIn("assistant.validate", source)
+            self.assertNotIn("assistant_api_key", source)
+        self.assertNotIn("assistant_settings.js", (CONTROL / "hooks.py").read_text(encoding="utf-8"))
+        self.assertFalse((CONTROL / "public/js/assistant_settings.js").exists())
         for doctype in ("pearnly_tenant", "pearnly_issue"):
             meta = json.loads((CONTROL / f"pearnly_control/doctype/{doctype}/{doctype}.json").read_text(encoding="utf-8"))
-            fields = {f["fieldname"]: f for f in meta["fields"]}
-            self.assertEqual(fields["assistant_api_key"]["fieldtype"], "Password")
-            for name in ("assistant_engine", "assistant_model"):
-                self.assertEqual(fields[name]["fieldtype"], "Select")
-                self.assertNotIn("options", fields[name])  # 选项来自引擎目录，不写死在表单定义里
+            self.assertFalse([f for f in meta["fields"] if f["fieldname"].startswith("assistant_")])
+        self.assertIn("pearnly_control.patches.v0_0_4_cc_settings_platform_wide",
+                      (CONTROL / "patches.txt").read_text(encoding="utf-8"))
 
 
 class _SessionDb:

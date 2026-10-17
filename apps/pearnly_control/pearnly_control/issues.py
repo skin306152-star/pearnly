@@ -32,7 +32,6 @@ from pearnly_core.execution import state as pearnly_state
 from pearnly_core import keycloak_admin as kc
 from pearnly_control.account import identity_pools
 from pearnly_control import features as features_mod
-from pearnly_control.onboarding import assistant
 from pearnly_control.onboarding.targets import cloud_target_names, require_cloud_target
 
 ISSUE = "Pearnly Issue"
@@ -229,16 +228,9 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
         # 不再发邀请邮件：用户拿的就是初始密码，能直接登录。
         # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
         tenant = _find_or_create_tenant(doc.tenant_name)
-        # 开户单上填的智能体设置落到租户上（之后在租户表单改 / 换，ADR-019）；开户计划生成时读租户的这一份。
-        settings = assistant.read(doc)
         # 开户单选的识别引擎落到租户上（ADR-022）；开户计划的 set_ocr 读租户这一份。
         if (doc.get("ocr_engine") or "Google") != (frappe.db.get_value(TENANT, tenant, "ocr_engine") or "Google"):
             frappe.db.set_value(TENANT, tenant, "ocr_engine", doc.get("ocr_engine") or "Google")
-        if settings["engine"]:
-            tenant_doc = frappe.get_doc(TENANT, tenant)
-            tenant_doc.update({"assistant_engine": settings["engine"], "assistant_model": settings["model"],
-                               "assistant_api_key": settings["api_key"]})
-            tenant_doc.save(ignore_permissions=True)
         # 开出来的租户**余额是 0**（用户 2026-09-18 确认的口径）：
         # 钱包这时候就建好，免得第一次用 OCR 时才发现没账本。
         from pearnly_control import billing, infra

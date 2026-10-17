@@ -32,7 +32,7 @@
    - 租户：站点即租户。会话归属记在本站表 `Pearnly Assistant Session`，接口先按「本站 + 当前用户 + 当前引擎」核对归属再碰厂商服务；会话列表只读本站表。引擎侧会话带 `pearnly_site / pearnly_product / pearnly_user` 元数据，仅作追溯。
    - 用户权限、套账、数据范围：工具在服务端以当前登录用户身份执行，只调用产品已有服务（沿用其校验），业务拒绝作为 `is_error` 结果交回模型。工具名和参数由服务端从会话里读回，不信浏览器。
    - 幂等与审计：每次工具调用按唯一 `tool_use_id` 记一条 `Pearnly Assistant Tool Run`，同一调用只执行一遍。
-4. **引擎、模型与密钥**：站点配置 `pearnly_assistant_engine / pearnly_assistant_model / pearnly_assistant_api_key` 由**租户管理后台**在开户单或租户表单填写、之后可改可换，经开通步骤 `set_assistant` 推到该租户每个产品站点（与 LINE 凭据同一条链路，只写配置不重启）；用户不接触。模型留空用所选引擎的默认模型。远端资源**不需要人工配置**：站点按「引擎 + 密钥指纹 + 模型 + 智能体说明」缓存，由适配器在该账号中查找、缺则建、变了则更新（`engine.prepared`），换引擎 / 换密钥 / 换账号 / 换模型无需手工步骤。
+4. **引擎、模型与密钥**：站点配置 `pearnly_assistant_engine / pearnly_assistant_model / pearnly_assistant_api_key` **全平台一份**（2026-10-18 用户定：「所有租户默认，不在开户和自由切换」）：存本机控制面站点配置的同名三项（`pearnly_control.onboarding.assistant`），开户单与租户表单不再有这三项；开户计划的开通步骤 `set_assistant` 一律带这一份推到每个产品站点，改了用 `apply_to_all` 推到全部租户（与 LINE 凭据同一条链路，只写配置不重启）；用户不接触。模型留空用所选引擎的默认模型。远端资源**不需要人工配置**：站点按「引擎 + 密钥指纹 + 模型 + 智能体说明」缓存，由适配器在该账号中查找、缺则建、变了则更新（`engine.prepared`），换引擎 / 换密钥 / 换账号 / 换模型无需手工步骤。
 5. **前端**：`frontend/assistant/`（Vite + React 19 + assistant-ui，Tailwind 4），构建为静态文件放 `pearnly_core/public/assistant/`，由站点提供；**不新增 Node 服务**。PWA 清单随产物发布。会话逻辑与工具卡片改自 Anthropic 官方示例（`NOTICE.md`）。
 6. **例外范围**：React 只允许在 `frontend/assistant/`，只服务 `/assistant` 这一个入口；不得扩展成第二套普通产品 Web。
 7. **引擎可换，不写死厂商**（2026-10-10 用户：「任何可扩展可维护的框架不要写死」）：
