@@ -7385,7 +7385,16 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn('className="cc-chip-x"', read("components/pending.tsx"))
         # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
         self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
-        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 3)
+        # 当场选三颗 + 列表底部的「交给 CC」（第 11 轮 D32：电脑也是 24 的卡片按钮）
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 4)
+        self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))
+        # D26：触屏平板（网页布局 + 粗指针）对话顶栏 44、顶栏图标钮与侧栏收起钮点按区 44，鼠标与桌面版不跟
+        coarse = css.split("触屏平板（网页布局 + 粗指针", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("@media (pointer: coarse) {", css.split("触屏平板（网页布局 + 粗指针", 1)[0][-1200:])
+        self.assertIn(':root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', coarse)
+        self.assertIn(':root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
+        self.assertIn(':root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
+        self.assertIn('data-slot="cc-sidebar-toggle"', read("assistant.tsx"))
 
 
 class Round11ReviewTests(unittest.TestCase):

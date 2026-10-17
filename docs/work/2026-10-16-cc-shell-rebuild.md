@@ -430,3 +430,7 @@
   - 删除对话先确认一次（同 Claude 手机 app）：共用弹窗 `components/delete-chats.tsx`（挂在页面根上，菜单关、行卸载后仍在），标题「删除对话？」、多选「删除 N 个对话？」（en Delete chat? / Delete N chats?，th ลบแชท? / ลบ N แชท?），按钮「取消 / 删除」，不加说明，样子同定时任务的删除确认。四个入口都先问：侧栏行「···」与手机长按菜单、多选「删除 N」、电脑标题栏「···」、手机右上「…」；菜单里的 D 键同样。删公司不在这次范围，没改。
   - 文案（用户 10-17 同意）：推送选择 VAT 那一项「计费用」→「记费用」（`i18n.ts` 的 `vatExpense`、Cowork 术语表 "Expense it" 中文，翻译包重新生成）。
   - 停止后旧卡片不再执行（第 10 轮 C20 后开发窗口查出的服务端漏洞）：这一轮结束时（点了停止、出错收尾、会话终止）本对话还在等「允许」的工具调用标成 `cancelled`（`toolrun.cancel_waiting`；停止接口当场标一次，推送线程看到这一轮结束再标一次），`decide` 只认 `awaiting_approval`，别的设备上没刷新的旧卡片事后点「允许」不会执行；`Pearnly Assistant Tool Run` 的状态加 `cancelled`（要迁移），工作清单里写 "not run, stopped before the user answered"。测试：`test_assistant.py` 的 `test_a_card_left_unanswered_when_the_turn_ends_never_runs`、`test_assistant_ui.py` 的 `test_deleting_chats_asks_once_first`。还缺：真引擎上停止后再点旧卡片的实测（第 11 轮）。
+- 10-17 第 11 轮 D 段（测试窗口回报后）：
+  - D26 触屏平板（iPad 横屏，网页布局 + 粗指针）：对话顶栏原来特意不跟触屏规则（为了 32 高），顶栏「展开侧栏」「···」、右侧栏开关 24–26、侧栏标题区收起钮 24。改成网页变体在粗指针下顶栏 44 高，顶栏图标钮、对话名 / 公司名按钮、侧栏收起钮（`data-slot="cc-sidebar-toggle"`）点按区 44，图标大小不变；鼠标与 CC 桌面版不变。侧栏对话行、导航项仍是电脑密度 32（清单与按钮排查都没要求 44，网页版 Claude 在 iPad 上同样）。
+  - D32 电脑上待处理卡底部的「交给 CC」32 → 卡片按钮 24（手机 44 胶囊），与同一卡里每行的「确认 / 立即推送 / 交给 CC」一致。
+  - D24 / D25 图片四周「只有 1px」不改：`.cc-compose-tile > img` 用 5px 内边距（`--cc-compose-img-inset`，构建产物里在），量元素外框会把内边距算进去，看到的是方块的 1px 边框；请测试窗口量图片的内边距或内容区。
