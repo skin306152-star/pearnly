@@ -46,10 +46,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(413, {"error": "too_large"})
         try:
             body = json.loads(self.rfile.read(length))
-            images = [(i["media_type"], base64.b64decode(i["data"])) for i in body["images"]]
-            if not images or any(m not in MEDIA for m, _ in images):
+            images = [(i["media_type"], base64.b64decode(i["data"])) for i in body.get("images") or []]
+            text = body.get("text") or None
+            if not (images or isinstance(text, str)) or any(m not in MEDIA for m, _ in images):
                 return self._send(400, {"error": "bad_images"})
-            result = engine.run(self.client, body["kind"], images, body.get("own_tax"))
+            result = engine.run(self.client, body["kind"], images, body.get("own_tax"), text)
         except (KeyError, ValueError) as error:
             return self._send(400, {"error": type(error).__name__})
         except Exception as error:  # noqa: BLE001  Anthropic 出错：交给生产按工作单重试

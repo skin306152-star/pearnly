@@ -218,6 +218,19 @@ def _recognize(content, filename, pages, frozen, recon_job=None, file=None):
     from pearnly_cowork.recon_center import document_ocr
 
     environment = frozen["environment"]
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    if claude_ocr.uses_claude():
+        # 本租户选了 Claude 识别（ADR-022）：整份交 Claude（与录入同一个转换），不调谷歌、不交 Cloud Run。
+        from pearnly_cowork.ocr.execution import claude
+
+        if recon_job and document_ocr._recon_closed(recon_job, file):
+            raise document_ocr.ReconClosed()
+        anchor = date.fromisoformat(frozen["anchor_date"])
+        pipeline, _evidence = claude.recognize(content, filename, int(pages), anchor.year)
+        if recon_job and document_ocr._recon_closed(recon_job, file):
+            raise document_ocr.ReconClosed()
+        return records(PipelineResult.model_validate_json(pipeline, context={"anchor_year": anchor.year}).pages, filename)
     if forward.settings():
         # 在 Cloud Run 上读（ADR-015）：同一个引擎、同一份核查包装（recon_center.reading）；发出前、收到后各看一次核查是否已结束。
         if recon_job and document_ocr._recon_closed(recon_job, file):

@@ -17,6 +17,7 @@ import frappe
 import requests
 
 from pearnly_core import ocr
+from pearnly_core.claude_ocr import client as claude_route
 from pearnly_core.execution import budget, pool, provider, replay, work
 from pearnly_core.execution.errors import Deferred, Uncertain
 from pearnly_cowork.ocr.engine import errors as engine_errors
@@ -222,6 +223,7 @@ def _call(config, path, body, on_event, frozen, *, post=None, id_token=None, sle
     开了任务派发（``tasks``，站点配置 ``pearnly_cowork_ocr_tasks``）时改为交给 Cloud Tasks 就返回（抛 ``Deferred``，不占线程
     等），结果回调到了再进来取回；拿到的结果行与这里按行读到的同一形状，之后的处理完全相同。"""
     replay.refuse_paid("cloudrun" + path)  # 测试租户开着回放压测：交给 Cloud Run 也会付费，一律拒绝
+    claude_route.refuse_google("cloudrun" + path)  # 选了 Claude 识别的站点不交 Cloud Run（ADR-022）
     if tasks.active():
         bucket = budget.scope("cloudrun", frozen["environment"].get("GCP_PROJECT", ""), "cowork", path.rsplit("/", 1)[-1])
         try:

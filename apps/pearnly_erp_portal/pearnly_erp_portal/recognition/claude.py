@@ -6,6 +6,10 @@ import re
 from pearnly_core.claude_ocr import client
 
 
+# 不是采购 / 销售单据的种类（ERP 提示词口径「is_document：根本不是采购 / 销售单据时为 false」）：报价单、订单、送货单仍算单据。
+NOT_DOCUMENTS = {"statement", "vat_report_or_list", "other_non_invoice", "transfer_slip", "withholding_certificate"}
+
+
 def _num(value):
     return None if value in (None, "") else str(value)
 
@@ -68,7 +72,7 @@ def read_all(images, *, structured, review, label, finish=None, progress=None, o
         return []
     model = outcome["stages"][-1]["model"] if outcome.get("stages") else "claude"
     docs = read.get("documents") or []
-    if not docs:
+    if not docs or read.get("doc_kind") in NOT_DOCUMENTS:
         return [({"not_document": True, "lines": []}, [], model)]
     found = []
     for doc in docs:

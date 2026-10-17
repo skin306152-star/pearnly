@@ -775,7 +775,8 @@ def pipeline_rows(decoded, engine: str = "") -> List[Dict[str, Any]]:
 
 	The pipeline is what the deployed dispatch uses for images, Word, plain text and
 	any other format, and what it falls back to when a PDF needs the model. A row
-	without a real invoice number is dropped unless the engine is an enterprise one.
+	without a real invoice number is dropped unless the engine is an enterprise one (or the Claude route,
+	ADR-022, which reads the report image the same way).
 	"""
 	if decoded in (None, ""):
 		decoded = {}
@@ -788,7 +789,7 @@ def pipeline_rows(decoded, engine: str = "") -> List[Dict[str, Any]]:
 		for entry in document.get("entries") or []:
 			row_no += 1
 			invoice_no = str(entry.get("invoice_no") or "").strip()
-			if not str(engine).startswith("enterprise-") and not ALNUM_RE.search(invoice_no):
+			if not str(engine).startswith(("enterprise-", "claude_")) and not ALNUM_RE.search(invoice_no):
 				continue
 			seq_no = entry.get("seq_no")
 			parsed = {

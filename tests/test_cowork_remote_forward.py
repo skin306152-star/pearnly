@@ -69,6 +69,16 @@ def load():
     provider.http_post = lambda url, **kwargs: provider.posted.append(url) or provider.reply()
     replay = types.ModuleType("pearnly_core.execution.replay")
     replay.refuse_paid = lambda label: None  # 回放压测没开（开着时拒绝付费调用，见 pearnly_core/execution/test_replay.py）
+    route = types.ModuleType("pearnly_core.claude_ocr.client")
+    route.claude, route.refused = False, []
+
+    def refuse_google(label):  # 站点选了 Claude 识别时拒绝交 Cloud Run（ADR-022）
+        if route.claude:
+            route.refused.append(label)
+            raise RuntimeError("GoogleRefused " + label)
+    route.refuse_google = refuse_google
+    claude_ocr = types.ModuleType("pearnly_core.claude_ocr")
+    claude_ocr.client = route
     ocr = types.ModuleType("pearnly_core.ocr")
     ocr.credentials_path = lambda: "/run/secrets/ocr.json"
     core = types.ModuleType("pearnly_core")
@@ -100,14 +110,18 @@ def load():
                "pearnly_core.execution.errors": errors, "pearnly_core.execution.budget": budget,
                "pearnly_core.execution.work": work, "pearnly_core.execution.pool": pool,
                "pearnly_core.execution.provider": provider, "pearnly_core.execution.replay": replay,
+               "pearnly_core.claude_ocr": claude_ocr, "pearnly_core.claude_ocr.client": route,
                "pearnly_cowork.ocr.providers.client": client, "pearnly_cowork.ocr.engine": engine,
                "pearnly_cowork.ocr.engine.errors": errors_module}
     sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
+    # 调用时（``tasks.active`` 里）才导入的真 forward 要用候选树的共用层（含 claude_ocr），不用镜像里装的旧版
+    sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
     with patch.dict(sys.modules, modules):
         from pearnly_cowork.ocr.remote import contract
         namespace = {"__name__": "forward"}
         source = ROOT / "apps/pearnly_cowork/pearnly_cowork/ocr/remote/forward.py"
         exec(compile(source.read_text(), str(source), "exec"), namespace)
+    namespace["_route"] = route
     namespace["_pool"] = pool
     namespace["_provider"] = provider
     namespace["_errors"] = errors_module
@@ -142,6 +156,14 @@ class Forward(unittest.TestCase):
 
         return self.ns["recognize"](DOC, FROZEN, None, b"%PDF-1.7 synthetic", "a.pdf", self.pages.append,
                                     post=post, id_token=token or (lambda audience: "ID_TOKEN"))
+
+    def test_a_claude_site_never_reaches_cloud_run(self):
+        route = self.ns["_route"]
+        route.claude = True
+        with self.assertRaises(RuntimeError):
+            self.call({"event": "result", "status": "done", "pipeline": "{}", "evidence": []})
+        self.assertEqual(self.sent, [])  # 拒绝在发出之前
+        self.assertEqual(route.refused, ["cloudrun/v1/cowork/invoice"])
 
     def test_the_default_transport_is_the_shared_tls_post(self):
         # 不传 post 时走共用层的 http_post（共用 TLS 上下文），不是 requests.post

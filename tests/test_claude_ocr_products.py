@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Claude 识别路线（ADR-022）接入三个产品：站点侧客户端、ERP 转换、Cowork 结果结构、DMS 身份证分支。
+"""Claude 识别路线（ADR-022）接入三个产品：站点侧客户端、ERP 转换、Cowork 结果结构（录入、表格文件、对账三类文档）、
+DMS 身份证分支。
 不连 Frappe 站点、不联网（假 frappe / 假 Anthropic）；在生产镜像里跑（要 pydantic、Pillow、pymupdf）。"""
 import io
 import json
@@ -33,6 +34,8 @@ def stub_frappe():
     sys.modules["frappe"] = frappe
     errors = types.ModuleType("pearnly_core.execution.errors")
     errors.Deferred = Deferred
+    errors.Uncertain = type("Uncertain", (Exception,), {})
+    errors.QueueFull = type("QueueFull", (Exception,), {})
     sys.modules["pearnly_core.execution.errors"] = errors
     work = types.ModuleType("pearnly_core.execution.work")
 
@@ -107,10 +110,12 @@ class Client(unittest.TestCase):
         env = {"PEARNLY_CLAUDE_OCR_URL": "https://203.0.113.1:8443", "PEARNLY_CLAUDE_OCR_TOKEN": "t",
                "PEARNLY_CLAUDE_OCR_CERT_SHA256": "ab" * 32}
         answer = types.SimpleNamespace(status_code=200, json=lambda: outcome(voucher(doc())))
-        with patch.dict("os.environ", env), patch("requests.Session.post", return_value=answer) as post:
+        with patch.dict("os.environ", env), patch("requests.Session.post", autospec=True, return_value=answer) as post:
             first = client.read("voucher", [(jpeg(), "image/jpeg")])
             second = client.read("voucher", [(jpeg(), "image/jpeg")])
         self.assertEqual(post.call_count, 1)  # 第二次从断点取，不重复付费
+        # 自签证书只认钉死的指纹：默认的 CA 校验会把甲骨文的证书拒掉（10-18 闸门实测），必须关掉、只留指纹
+        self.assertFalse(post.call_args.args[0].verify)
         self.assertEqual((first["where"], second["where"]), ("oracle", "checkpoint"))
         self.assertTrue(post.call_args.kwargs["headers"]["Authorization"].startswith("Bearer "))
 
@@ -136,6 +141,21 @@ class Client(unittest.TestCase):
             client.read("voucher", [(jpeg(), "image/jpeg")])
 
 
+class Upright(unittest.TestCase):
+    def test_photos_and_pdf_pages_are_straightened_before_claude(self):
+        import pymupdf
+        pdf = pymupdf.open()
+        pdf.new_page()
+        calls = []
+
+        def orient(data, mime, **kwargs):
+            calls.append(mime)
+            return data, mime
+        with patch("pearnly_core.ocr_models.orient.orient", side_effect=orient):
+            client.prepare([(jpeg(), "image/jpeg"), (pdf.tobytes(), "application/pdf")])
+        self.assertEqual(calls, ["image/jpeg", "image/png"])
+
+
 class Erp(unittest.TestCase):
     def test_purchase_and_sales_fields(self):
         from pearnly_erp_portal.recognition import claude
@@ -149,6 +169,16 @@ class Erp(unittest.TestCase):
         sales = claude.to_raw(read, read["documents"][0], "sales")
         self.assertEqual((sales["seller_tax_id"], sales["buyer_type"]), (GOOD_TAX, "company"))
         self.assertNotIn("supplier_name", sales)
+
+    def test_non_purchase_kinds_are_not_documents(self):
+        from pearnly_erp_portal.recognition import claude
+        for kind in ("statement", "transfer_slip", "other_non_invoice"):
+            with patch.object(claude.client, "read", return_value=outcome(voucher(doc(), kind=kind, entry="not_invoice"))):
+                [(result, _c, _m)] = claude.read_all([(b"x", "image/jpeg")], structured=dict, review=lambda r: [], label="purchase")
+            self.assertTrue(result["not_document"], kind)
+        with patch.object(claude.client, "read", return_value=outcome(voucher(doc(), kind="quotation", entry="not_invoice"))):
+            [(result, _c, _m)] = claude.read_all([(b"x", "image/jpeg")], structured=dict, review=lambda r: [], label="purchase")
+        self.assertEqual(result["doc_no"], "IV001")  # 报价单对 ERP 仍是采购单据
 
     def test_read_all_multiple_documents(self):
         from pearnly_erp_portal.recognition import claude
@@ -222,6 +252,117 @@ class Dms(unittest.TestCase):
         self.assertEqual(result["id_card"]["prefix_name"], "นางสาว")
         self.assertEqual(result["id_card"]["expiry_date_be"], "LIFETIME")
         self.assertEqual(result["id_card"]["birthday_be"], "01/02/2530")
+        frappe.conf.clear()
+
+
+def bank_page(entries, opening="", closing="", no_data=""):
+    return {"bank_name": "KASIKORNBANK", "bank_code": "kbank", "account_name": "บริษัท", "account_number": "123-4-56789-0",
+            "account_last4": "7890", "period_start": "2026-05-01", "period_end": "2026-05-31", "opening_balance": opening,
+            "closing_balance": closing, "no_data_printed": no_data, "entries": entries}
+
+
+def bank_row(date, deposit=None, withdrawal=None, balance=None):
+    return {"transaction_date": date, "transaction_date_raw": date, "description": "TRF", "reference": None,
+            "deposit": deposit, "withdrawal": withdrawal, "amount": deposit or withdrawal,
+            "direction": "deposit" if deposit else "withdrawal", "balance": balance}
+
+
+class FakeSource:
+    def __init__(self, pages):
+        self.page_count, self.rendered = pages, []
+
+    def frame(self, number):
+        self.rendered.append(number)
+        return types.SimpleNamespace(image_bytes=b"page%d" % number, mime_type="image/jpeg")
+
+
+class CoworkRecon(unittest.TestCase):
+    def read(self, document_type, outcomes, pages):
+        from pearnly_cowork.ocr.execution import claude_documents
+        calls = []
+
+        def read_page(kind, image, mime, number):
+            calls.append((kind, image, number))
+            return outcomes[number - 1]
+        return claude_documents.read_document(FakeSource(pages), document_type, read_page), calls
+
+    def test_bank_pages_become_the_reconciliation_shape(self):
+        page1 = bank_page([bank_row("2026-05-01", deposit="500.00", balance="1500.00")], opening="1000.00", closing="1500.00")
+        page2 = bank_page([bank_row("2026-05-02", withdrawal="100.00", balance="1400.00")], opening="1500.00", closing="1400.00")
+        legacy, calls = self.read("bank_statement", [outcome(page1), outcome(page2, ("claude-haiku-5-5", "claude-opus-5-5"))], 2)
+        self.assertEqual([(k, n) for k, _i, n in calls], [("bank", 1), ("bank", 2)])
+        self.assertEqual(legacy["engine"], "claude_v1")
+        self.assertEqual([p["document_type"] for p in legacy["pages"]], ["bank_statement"] * 2)
+        rows = legacy["pages"][1]["document"]["entries"]
+        self.assertEqual((rows[0]["withdrawal"], rows[0]["balance"]), ("100.00", "1400.00"))
+        self.assertEqual(legacy["pages"][0]["document"]["opening_balance"], "1000.00")
+        self.assertTrue(legacy["pages"][1]["extraction_audit"]["claude"]["escalated"])
+
+    def test_unread_and_no_data_pages(self):
+        from pearnly_cowork.ocr.engine.errors import ContentError
+        empty = bank_page([], no_data="yes")
+        legacy, _calls = self.read("bank_statement", [{"read": None, "stages": []}, outcome(empty)], 2)
+        self.assertTrue(legacy["pages"][0]["extraction_audit"]["page_unreadable"])
+        self.assertTrue(legacy["pages"][1]["extraction_audit"]["no_data_printed"])
+        with self.assertRaises(ContentError):
+            self.read("bank_statement", [{"read": None, "stages": []}], 1)
+
+    def test_ledger_opening_from_the_first_printed_balance(self):
+        """总账第 1 页漏读「ยอดยกมา」（10-18 闸门 BBL6764）：按第一笔印的余额与借贷倒推期初。"""
+        gl = {"period_start": None, "period_end": None, "account_name": None, "account_number": "1113-01", "opening_balance": None,
+              "closing_balance": None, "total_debit": None, "total_credit": None, "no_data_printed": None,
+              "entries": [{"transaction_date": "2026-02-02", "transaction_date_raw": None, "voucher_no": "FP1", "account_code": None,
+                           "description": "x", "debit": "0.00", "credit": "20.00", "amount": "20.00", "direction": "credit",
+                           "balance": "-117538.81"},
+                          {"transaction_date": "2026-02-02", "transaction_date_raw": None, "voucher_no": "FP2", "account_code": None,
+                           "description": "y", "debit": "0.00", "credit": "53988.79", "amount": "53988.79", "direction": "credit",
+                           "balance": "-171527.60"}]}
+        legacy, _calls = self.read("general_ledger", [outcome(gl)], 1)
+        self.assertEqual(legacy["pages"][0]["document"]["opening_balance"], "-117518.81")
+        self.assertTrue(legacy["pages"][0]["extraction_audit"]["claude"]["opening_derived"])
+
+    def test_ledger_direction_and_vat_rows_kept(self):
+        from pearnly_cowork.reconciliation import vat_parse
+        gl = {"period_start": "2026-05-01", "period_end": "2026-05-31", "account_name": "ธนาคาร", "account_number": "1112-01",
+              "opening_balance": "100", "closing_balance": "150", "total_debit": None, "total_credit": None, "no_data_printed": None,
+              "entries": [{"transaction_date": "2026-05-03", "transaction_date_raw": "03/05/69", "voucher_no": "RV1",
+                           "account_code": None, "description": "รับเงิน", "debit": "50", "credit": None, "amount": "50",
+                           "direction": "debit", "balance": "150"}]}
+        legacy, _calls = self.read("general_ledger", [outcome(gl)], 1)
+        self.assertEqual(legacy["pages"][0]["document"]["entries"][0]["direction"], "deposit")
+        report = {"seller_name": "บริษัท", "seller_tax": GOOD_TAX, "period_year": "2026", "period_month": "05",
+                  "total_subtotal": None, "total_vat": None, "total_total": None,
+                  "entries": [{"seq_no": "1", "transaction_date": "2026-05-03", "transaction_date_raw": "03/05/69",
+                               "invoice_no": "-", "customer_name": "เงินสด", "customer_tax": None, "customer_branch": None,
+                               "subtotal": "100.00", "vat": "7.00", "total": "107.00"}]}
+        legacy, calls = self.read("vat_report", [outcome(report)], 1)
+        self.assertEqual(calls[0][0], "vat_report")
+        self.assertEqual(len(vat_parse.pipeline_rows(legacy, legacy["engine"])), 1)  # 没有字母数字单号的行照企业档保留
+
+    def test_spreadsheet_pages_read_as_text(self):
+        from pearnly_cowork.ocr.execution import claude
+        from pearnly_cowork.ocr.schema import Page
+        pages = tuple(Page(page_number=n, width=0, height=0, avg_confidence=1.0, blocks=[], full_text=f"Invoice | IV00{n}", table_headers=["A", "B"],
+                           table_rows=[{"A": "Invoice", "B": f"IV00{n}"}]) for n in (1, 2))
+        document = types.SimpleNamespace(pages=pages, page_count=2)
+        answers = [outcome(voucher(doc(invoice_number="IV001"))), outcome(voucher(doc(invoice_number="IV002")))]
+        with patch.object(claude.client, "read", side_effect=answers) as read:
+            body, evidence = claude.recognize_table(document, 2026)
+        result = json.loads(body)
+        self.assertEqual([p["page_number"] for p in result["pages"]], [1, 2])
+        self.assertEqual(result["pages"][1]["invoice"]["invoice_number"], "IV002")
+        self.assertEqual(read.call_args_list[0].args[:2], ("voucher", []))
+        self.assertIn("IV001", read.call_args_list[0].kwargs["text"])
+        self.assertEqual(len(evidence), 2)
+
+
+class GoogleRefused(unittest.TestCase):
+    def test_claude_sites_refuse_google_calls(self):
+        frappe.conf["pearnly_ocr_engine"] = "claude"
+        with self.assertRaises(client.GoogleRefused):
+            client.refuse_google("gemini-3.8-flash")
+        frappe.conf["pearnly_ocr_engine"] = "google"
+        client.refuse_google("gemini-3.8-flash")
         frappe.conf.clear()
 
 

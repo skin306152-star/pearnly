@@ -29,7 +29,7 @@
   review / finish）；采购不再调 Vision 取原文核对；采购把 ERP 公司税号交给更正。
 - Cowork：`ocr/execution/workflow._recognize` 选 Claude 且是图片 / PDF 时交 `ocr/execution/claude.recognize`，产出与 Cloud Run 同形的
   `(pipeline_json, evidence)`：每个实体页一条，同页多张进 additional_invoices，续页按非发票留作证据，第 9 页起按读不出标红；含税小票的
-  subtotal 按 Cowork 口径扣出税前；转账凭条 / 50 ทวิ 交给租户的单据口径。Excel / Word 表格仍走原表格读法（未接 Claude）。
+  subtotal 按 Cowork 口径扣出税前；转账凭条 / 50 ทวิ 交给租户的单据口径。（10-18 起表格文件也接 Claude，见下。）
 - 控制面：租户表单与开户单加「Recognition Engine」（Google / Claude，默认 Google）；开户的 `set_ocr` 带上引擎，租户改了重排 `set_ocr`
   （`provisioning.queue_ocr_engine`），执行器写站点配置 `pearnly_ocr_engine`。
 - 运行：甲骨文 `infrastructure/claude-ocr/` + `scripts/claude-ocr/deploy.sh`（容器 `pearnly-claude-ocr`，8443，自签证书、令牌、
@@ -43,8 +43,45 @@
   Cowork 结果经 `prepare_history_batch` 出 3 张票、DMS 身份证分支不调谷歌。
 - 甲骨文服务端到端：SM IMG_2575 小票单号、日期、税号、税额、合计、11 行明细正确，Haiku 单读 10.5 秒 $0.0023。
 
+## 10-18 补齐全部入口、闸门改走生产代码（main 5edbd5e4 之后，分支 `pearnly/claude-ocr-all`）
+
+用户 10-18：「claude 正式上线后还覆盖完所有入口啊，这个架构你要搭建要呀，测试的数据要和生产正式跑的时候对得上呀」。
+
+- 入口盘点（三个产品调识别模型的全部 8 处）：原来漏 4 处，都已接上 —— Cowork 表格文件（Excel / Word，逻辑页文字交 Claude，
+  `claude.recognize_table`）、销项税核查的发票（`recon_center/invoice_ocr`，与录入同一个转换）、对账三类文档扫描件 / 照片
+  （`recon_center/document_ocr._read_claude` → `ocr/execution/claude_documents`：一页一读，按企业档格式拼页，对账出行器
+  `enterprise_rows` 与税报解码同样认 `claude_v1`）。LINE 入口都落在这些入口上。
+- 硬闸：`provider.post` 与 `forward._call` 遇选了 Claude 的站点抛 `GoogleRefused`；源码守卫要求每个调谷歌识别的模块都先看路线。
+- 闸门实跑发现并修好的问题（单元测试都 mock 掉了，只有走生产路径才看得出）：
+  1. 甲骨文自签证书被 requests 默认 CA 校验拒掉，每次都退回本机直调 → 会话关 CA 校验、只认钉死指纹（指纹不对照样拒绝，已实测）；
+  2. 识别前没转正（谷歌路线有本地方向模型）→ 照片与 PDF 页先过 `ocr_models.orient`；
+  3. ERP：转账凭条、预扣税凭证、对账单、报表按 ERP 口径回「不是单据」（报价单 / 订单 / 送货单仍算）；
+  4. 对账：总账没印期末行时期末取最后一行印的余额；第 1 页漏读「ยอดยกมา」时按第一笔印的余额倒推期初；倒序网银账单不再被当成断链
+     白交 Opus。
+- 闸门工具：`scripts/claude-ocr/gate.py` + `run-gate.sh`。原件（金标 215、Express 250 从测试机直传甲骨文，不落 Mac）→ 上传检查
+  `originals.inspect` → Cowork `claude.recognize` → `prepare_history_batch`（存档前最后一步，租户口径按金标：凭条 / 凭证不录）；
+  同一次读法交 ERP 采购 `read_all` → `_structured`；对账走 `read_statement_file` / `read_ledger_file` / `report_source` → 配对
+  `bank_matching.reconcile`。容器 python 3.14 + 生产镜像同版本依赖，读法经甲骨文 claude-ocr 服务。
+
+| 闸门（生产代码，Claude） | 读错 | 非票据被录 | 多出 / 漏 | 每页 | 识别 p50 / p90 |
+|---|---|---|---|---|---|
+| 金标 215 份 · 谷歌**生产记录**（gold-gemini-rec） | 2.10% | 22 | 多 24 / 漏 0 | ฿0.155 | — |
+| 金标 215 份 · Claude 生产记录 | 2.13% | 2 | 多 0 / 漏 3 | ฿0.252（升级 13%） | 9.7s / 17.6s |
+| SM 热敏 86 张 | 0/238 格 | 对不上答案的 22 张录 2 | — | ฿0.187 | 8.7s / 13.7s |
+| Express 248 份（能对上账 49 份 86 张票） | 0.52%（3/572） | — | 漏 0 | ฿0.085 | 8.6s / 17.7s |
+
+读错格多是口径：电费单印的应付按 0.25 舍入（477.75），金标取未税 + 税额（477.76）；单号前缀（RCPT#）。ERP 换算与 Cowork 同一次读法，
+金标 185 份字段错数相同（另 30 份闸门假 Frappe 出错，已修，不是产品问题）。
+
+对账（账单 + 总账配对，与生产同一套）：GIZE BAY-CA 1 月扫描 10 页 416 行、链 0 断、配上 402（总账 544 行）、公式差 0，3 分钟 $0.03；
+冰厂 KBank / BBL 存折扫描、CamScanner 12 页、照片与 PDF 同一张结果一致；MrsFlowers SCB3061 35 行配上 31、BBL6764（倒序透支户）71 行
+配上 70、公式差 0；KBank 往来户扫描版与电子版结果相同。所有扫描账单余额链 0 断。SM 销项税报告照片 4 张 72 行全部对上登记簿，68 行金额
+全对（1 张有 4 行相邻行金额错位）。WZSHOP「税报扫描版」实为门店销售清单（电子版生产即拒为销售清单），不作税报样本。
+
+累计花费（甲骨文评测 + 本轮闸门）约 29.5 美元（预算 50）。
+
 ## 上线闸门（未完成项）
 
 1. DMS 身份证：从生产取真实件小批量测（用户同意，有多少用多少）。
 2. 测试环境：选 Claude 的测试租户实测从上传到出结果的速度（三个产品各一份）。
-3. 生产：runtime.env 加四行（`~/.config/pearnly-claude-ocr/runtime.env`）、随批部署；先开一个内部租户。
+3. 生产：runtime.env 四行 10-17 已加（备份 runtime.env.bak-claude-ocr-20261017）；随「工作清单窗口交接」的外壳批部署；先开一个内部租户。

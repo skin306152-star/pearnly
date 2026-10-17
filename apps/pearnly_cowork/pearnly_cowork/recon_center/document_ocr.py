@@ -16,6 +16,7 @@ Google Document AI 读字（每页约 0.05 泰铢），银行与总账先按版�
 import functools
 import hashlib
 import json
+import threading
 import time
 from contextlib import nullcontext
 
@@ -283,10 +284,48 @@ def reading_slot():
     交给 Cloud Run 的不占这个名额（ADR-015，与录入发票同一口径）：原来对账文档与销项税核查的发票连发往 Cloud Run 的也占着它，
     生产 4 个识别进程 × 每个 1 个名额 = 全平台同时只能有 4 份对账文件在云上读，三租户压测时对账识别卡在每分钟约 10 份，
     Cloud Run 空着 160 个并发（2026-10-01）。"""
-    return nullcontext() if forward.settings() else core_pool.local_slot()
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    return nullcontext() if forward.settings() and not claude_ocr.uses_claude() else core_pool.local_slot()
+
+
+def _read_claude(content, filename, pages, frozen, document_type, recon_job=None, file=None):
+    """本租户选了 Claude 识别（ADR-022）：在本机逐页渲染、逐页交 Claude，不调 Document AI / Gemini、不交 Cloud Run。
+    每页调用前同样看对账是否已结束、到时限让出；每页结果按内容存检查点，续跑不重复付费。"""
+    from pearnly_core.claude_ocr import client as claude_ocr
+    from pearnly_cowork.ocr.execution import claude_documents
+
+    started = time.monotonic()
+    counted, lock = {"done": 0}, threading.Lock()
+    _progress(file, state="reading")
+
+    def read_page(kind, image, mime, number):
+        frappe.db.commit()
+        if recon_job and _recon_closed(recon_job, file):
+            raise ReconClosed()
+        if time.monotonic() - started > YIELD_SECONDS:
+            raise Deferred("progress_yield", 1)
+        outcome = claude_ocr.read(kind, [(image, mime)])
+        with lock:
+            counted["done"] += 1
+            done = counted["done"]
+        _progress(file, read=done, done=done, state="reading")
+        progress.latest(recon_job, progress.page_summary(outcome.get("read"), filename, number, amounts=False))
+        return outcome
+
+    environment = frozen["environment"]
+    with PageSource(content, filename, expected_page_count=int(pages), enable_text_path=False,
+                    image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400")),
+                    orient=ocr.orient) as source:
+        return claude_documents.read_document(source, document_type, read_page,
+                                              map_pages=core_pages.mapper() if int(pages) > 1 else None)
 
 
 def _read(content, filename, pages, frozen, document_type, recon_job=None, file=None):
+    from pearnly_core.claude_ocr import client as claude_ocr
+
+    if claude_ocr.uses_claude():
+        return _read_claude(content, filename, pages, frozen, document_type, recon_job, file)
     environment = frozen["environment"]
     if forward.settings():
         return _read_remote(content, filename, pages, frozen, document_type, recon_job, file)
