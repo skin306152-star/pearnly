@@ -7,7 +7,7 @@
 - 公司页（10-16 改）：版式同对话页——中间标题 + 输入框（同对话的输入框与下巴）+ 这家的对话列表（行同侧栏行、相对时间、
   最新在前），公司的资料全在右侧会话栏（默认开着），没有标签。
 - 卡头摘要一直显示（「2 条」「需处理 2」），把手的槽固定留宽、摘要一列对齐；拖动走共用拖动 components/ui/drag.tsx
-  （dnd-kit 排序列表 + 浮层：键盘、触屏长按、读屏播报，松手当帧落位，浮层不出这一列）。
+  （自写的指针排序 + 浮层，第 12 轮起不再用 dnd-kit：键盘、触屏长按、读屏播报，松手先落位，浮层不出这一列）。
 - 列表页（公司、待处理、定时任务）：标题、搜索、排序（公司）。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
@@ -447,7 +447,7 @@ assert.ok(!renderToStaticMarkup(card({ summary: "" })).includes("aria-describedb
 // 卡头操作与摘要叠在同一格（悬停才出，盖住摘要）；一直显示的控件在标题后面
 const tools = renderToStaticMarkup(card({ action: createElement("button", null, "+"), extra: createElement("b", null, "Sep") }));
 assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span class="cc-marquee cc-panel-card-summary" id="[^"]+"><span class="cc-marquee-text">2 notes<\/span><\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
-// 会话栏里（排序列表里）：折叠记在会话栏（折叠了不画内容）；每张卡最右边都有把手槽，把手接上排序（dnd-kit 的属性）
+// 会话栏里（排序列表里）：折叠记在会话栏（折叠了不画内容）；每张卡最右边都有把手槽，把手接上排序（共用拖动给的读屏属性）
 const control = { collapsed: ["notes"], toggle() {}, move() {}, register: () => () => {} };
 const texts = { instructions: "", pickedUp: String, movedTo: String, droppedAt: String, cancelled: String };
 const inPanel = (child: any) => renderToStaticMarkup(createElement(PanelControlContext.Provider, { value: control },
@@ -607,16 +607,17 @@ class SortableSourceTests(unittest.TestCase):
         # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
         self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
-        self.assertIn("keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },", drag)
+        self.assertIn("keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, beforeEnd, beforeCancel },", drag)
         self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor, \"mouse\");", drag)
         self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
-        # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
-        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
+        # 浮层（克隆原来那一项）跟手，放下先播落位（动效变量），落点那一项在动画播完前不显示
+        overlay = drag.split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("copy.appendChild(cloneOf(node));", overlay)
         # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走。挂在 body 下一直留着的那一层
-        # （第 11 轮 B14：直接挂 body 时拖动库盯着 body 的观察器在拿起那一帧当场重量）
-        self.assertIn("const layer = dragLayer();\n  return layer ? createPortal(overlay, layer) : overlay;", drag)
+        # （拖动中 body 下不增删节点）
+        self.assertIn("dragLayer()?.appendChild(overlay);", overlay)
         self.assertIn("document.body.appendChild(layer);", drag.split("export function dragLayer()", 1)[1].split("\n}\n", 1)[0])
         # 落点那一项按拖动编号在此刻的页面里找（拖进另一列以后取消，拖动库给的是那一列里已经卸下的那一份）
         self.assertIn("const node = landingNode(active.id, active.node);", drag)
@@ -624,17 +625,19 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn('return { duration: cssMs(css.getPropertyValue("--cc-dur"), 200), easing: css.getPropertyValue("--cc-ease").trim() || "ease" };', drag)
         self.assertIn('if (root.dataset.ccMotion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return null;', drag)
         # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区
-        self.assertIn("return { ...transform, x: 0, y: clampToList(transform.y, { top: start.top, height: start.height }, list) };", drag)
-        self.assertIn("const rect = layoutRect(node);", drag.split("function spanOf(", 1)[1].split("\n}\n", 1)[0])
-        self.assertIn("const rect = getClientRect(node, { ignoreTransform: true });", drag.split("export function layoutRect(", 1)[1].split("\n}\n", 1)[0])
+        position = drag.split("  private position() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("const y = list ? clampToList(d.rawY, d.start, list) : d.rawY;", position)
+        self.assertIn("d.overlay.style.transform = transformOf({ x: 0, y, scaleX: 1, scaleY: 1 });", position)
+        self.assertIn("rects.push(this.rectNow(d, id));", position)
+        self.assertIn("const rect = untransformedRect(node);", drag.split("export function layoutRect(", 1)[1].split("\n}\n", 1)[0])
         # 碰撞只认能放的地方：按 narrowPool 收窄（键盘只在本列；指针进了哪一列的整块就认那一列）后取最近的中心
-        self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
+        self.assertIn("closestCenter({ collisionRect: box, droppableRects: rects, droppableContainers: pool })[0]", drag)
         self.assertNotIn("pointerWithin", drag)
         # 拖动标记：Esc 只取消拖动
         self.assertIn("setDragging(true, byMouse(activatorEvent));", drag)
-        self.assertIn("letGo.flush(); // 卸下时还在等落位的放下当场结束\n      setDragging(false);", drag)
+        self.assertIn("this.letGo.flush(); // 卸下时还在等落位的放下当场结束\n      if (this.drag) this.finish(this.drag, () => undefined);\n      setDragging(false);", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
-        self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} data-peek={peek ? "" : undefined} inert aria-hidden>', drag)
+        self.assertIn('float.className = "cc-drag-float";\n  float.dataset.kind = data.kind;\n  float.setAttribute("inert", "");\n  float.setAttribute("aria-hidden", "true");', drag)
         for name in ('"data-card"', '"data-row-id"', '"data-drag-id"', '"data-roving"', '"data-selected"'):
             self.assertIn(name, drag.split("const STRIP = [", 1)[1].split("];", 1)[0])
         layers = read("lib/layers.ts")

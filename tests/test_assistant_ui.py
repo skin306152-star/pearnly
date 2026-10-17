@@ -2555,14 +2555,15 @@ class CompanyMasterSourceTests(unittest.TestCase):
 
     def test_company_styles_only_use_the_design_variables(self):
         colour = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|style=\{")
-        # 唯一的行内样式是拖动时 dnd-kit 算出的位移，只在共用拖动里（components/ui/drag.tsx），各处展开它给的属性
+        # 唯一的行内样式是拖动算出的位移，只在共用拖动里（components/ui/drag.tsx），各处展开它给的属性
         for name in COMPANY_SOURCES:
             self.assertIsNone(colour.search(read(name)), name)
         drag = read("components/ui/drag.tsx")
-        # 第 11 轮 B14：位移、过渡不再放进 node 的 style，由共用拖动在提交时直接写到那一项的节点上（applyShift），仍只此一处
-        self.assertIn("const shift = shiftStyle(sortable.transform, sortable.transition, settling);", drag)   # 滑回途中（settling）不写位移
+        # 第 11 轮 B14 起位移、过渡不放进 node 的 style，由共用拖动直接写到那一项的节点上（applyShift），仍只此一处（第 12 轮：拖动区
+        # 在经过的项变了时写，滑回途中不写）
+        self.assertIn("applyShift(node, shiftStyle({ x: 0, y }, transition));", drag)
         self.assertIn('return { transform: settling || (!x && !y) ? "" : `translate3d(${x}px, ${y}px, 0px)`, transition: transition ?? "" };', drag)
-        self.assertIn("useLayoutEffect(() => applyShift(el.current, shift));", drag)
+        self.assertIn("if (!d || d.settle) return;", drag.split("  private shifts() {", 1)[1].split("\n  }\n", 1)[0])
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", drag))
         css = read("globals.css")
         start = css.index("/* ── 公司主档（ADR-020")
@@ -4782,10 +4783,12 @@ assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: entry(zone("ro
 assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: null } as any), "cancel lelo");
 """)
         drag = read("components/ui/drag.tsx")
-        end = drag.split("const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
+        end = drag.split("  private dropped() {", 1)[1].split("\n  }\n", 1)[0]
         # 停在自己的位置上：还在原来那一列 = 没动；已排进另一列 = 交那一列的整块（调用方按排好的位置算）
-        self.assertIn("const zone = into && into !== from.list ? zoneOf(into) : undefined;", end)
-        self.assertIn("if (zone) latest.current.onDrop(from, zone);", end)
+        self.assertIn("const zone = into && into !== from.list ? this.zoneOf(into) : undefined;", end)
+        self.assertIn("if (zone) this.props.onDrop(from, zone);", end)
+        # 念的是放下那一刻的落点（结束拖动前取好）
+        self.assertLess(end.index("this.say.onDragEnd("), end.index("this.finish(d, () => {"))
         self.assertIn("if (end && (over.id === active.id || to?.zone)) return texts.cancelled(name(active));", drag)
         for gone in ("dropped.current", "settleMove", "placedRef", "class Landing", "isMover", "placeOf("):
             self.assertNotIn(gone, drag)
@@ -4793,8 +4796,12 @@ assert.equal(say.onDragEnd!({ active: entry(row, "rows:A"), over: null } as any)
     def test_the_float_turns_see_through_over_a_folded_group_head(self):
         # 第 7 轮第 3 项：手机上浮层停在收着的组头上，盖住了组头的高亮。停在只能高亮组头的落点上时浮层半透明，离开就恢复（共用拖动）
         drag = read("components/ui/drag.tsx")
-        self.assertIn('setPeek(!!active && !!shutOver && typeof document !== "undefined" && !!document.querySelector?.("[data-drop-target]"));', drag)
-        self.assertIn('data-peek={peek ? "" : undefined}', drag)
+        # 收着的整块被指着（组头带 data-drop-target）那一次提交里浮层带 data-peek，离开、结束时去掉（自写引擎：浮层是自己建的节点）
+        zone = drag.split("export function useDropZone(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("if (!over || !shut) return;\n    engine.peek(true);\n    return () => engine.peek(false);", zone)
+        self.assertIn('return { ref, "data-drop-target": over && shut ? ("" as const) : undefined };', zone)
+        peek = drag.split("  peek(on: boolean) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn('if (on) float.dataset.peek = "";\n    else delete float.dataset.peek;', peek)
         css = read("globals.css")
         self.assertIn("--cc-drag-peek: 0.15;", css)   # 第 8 轮：再淡、字隐去（Round8Tests）
         self.assertIn(".cc-drag-overlay:not([data-dropping]) .cc-drag-float[data-peek] .cc-drag-lift { opacity: var(--cc-drag-peek); }", css)
@@ -4993,7 +5000,9 @@ setDragging(false);
         # 抽屉、手机会话栏（50）之上，在菜单（60）之下
         drag = read("components/ui/drag.tsx")
         self.assertIn("export const OVERLAY_Z = 55;", drag)
-        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
+        overlay = drag.split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('overlay.className = "cc-drag-overlay";', overlay)
+        self.assertIn("style.zIndex = String(OVERLAY_Z);", overlay)
         css = read("globals.css")
         menu = re.search(r"\.cc-menu \{\s*z-index: (\d+);", css)
         phone = re.search(r'\.cc-panel\[data-mode="phone"\] \{\s*position: fixed; inset: 0; z-index: (\d+);', css)
@@ -5495,14 +5504,24 @@ assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(true), home] as an
 assert.deepEqual(ids(narrowPool([self("rows:A"), a2, p1, pins(), home] as any, "row:t1", row as any, at(50, true))), ["row:t1", "row:t2"]);
 """)
         drag = read("components/ui/drag.tsx")
-        # 拖动区：碰撞按 narrowPool 收窄后取最近的中心；键盘方向键只在本列（排序项的那一列）；指针拖动经过时交给调用方（onOver）
-        self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
-        self.assertIn(".filter((entry) => !dataOf(entry)?.zone && allowed(active, entry, activeId) && listOf(entry) === active.list)", drag)
+        # 拖动区：碰撞按 narrowPool 收窄后，指针取最近的中心、键盘取瞄着的那一项；键盘方向键只在本列（排序项的那一列）；指针拖动
+        # 经过时交给调用方（onOver）
+        collide = drag.split("  private collide() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("const pool = narrowPool(entries, d.id, d.data, { keyboard, y: d.pointer?.y ?? box.top + box.height / 2, rects });", collide)
+        self.assertIn("closestCenter({ collisionRect: box, droppableRects: rects, droppableContainers: pool })[0]", collide)
+        step = drag.split("  private step(event: KeyboardEvent) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("return !!item && !item.zone && item.list === list;", step)
         # 经过的是它自己不交（无界面 Chrome 复刻侧栏实测：排进置顶重挂以后经过自己，它的说明还是原来那一组，交了就被当成回到
         # 原组，一进一出来回跳、最后放下排到置顶最上面）
-        self.assertIn("if (!from || keyedRef.current || over?.id === active.id) return;", drag)
-        self.assertIn("latest.current.onOver?.(from, to, below);", drag)
+        over = drag.split("  private overChanged(d: Session, next: string | null) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn('if (d.kind !== "keyboard" && next !== d.id) {', over)
+        self.assertIn("this.props.onOver?.(d.data, to, below);", over)
         self.assertNotIn("pointerWithin", drag)
+        # 能放的各处只认登记着、没禁用、调用方说能放的（它自己有 list 就算）
+        pool = drag.split("  private candidatesFor(d: Session): string[] {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("if (d.data.list) out.push(item.id);", pool)
+        self.assertIn("if (item.disabled) continue;", pool)
+        self.assertIn("if (this.props.accepts(d.data, item.data)) out.push(item.id);", pool)
 
     def test_drop_lands_first_then_hands_over(self):
         # 放下：浮层落到空档（或收着的那一列的组头并收起）；减少动态效果时不播
@@ -5729,42 +5748,41 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
     def test_dragged_chat_rows_use_the_shared_gap_and_landing(self):
         drag = read("components/ui/drag.tsx")
         # 对话行与其他排序项同一份（useSortableItem）：原位留空档（不再是淡影），拖进另一列在那里重挂的同一行按 data-drag-id 认
-        self.assertIn('"data-drag-id": data.id,', drag)
+        self.assertIn('"data-drag-id": drag.id,', drag)
         self.assertIn('"data-drag-source": isDragging ? ("gap" as const) : undefined,', drag)
         self.assertNotIn('"ghost"', drag)
         # 用户 10-17：组之间移动（空档按排序方式去别的组、落位后发移动请求）整套去掉
         for gone in ("useDragItem", "useDropTarget", "settleMove", "class Landing", "PlacedContext", "revealGap", "onPlace", "running={busy > 0}"):
             self.assertNotIn(gone, drag)
         # 拿起时的那份说明一直用到底（拖进置顶重挂的行仍按原来那一列认）
-        self.assertIn("lifted.current = data ?? null;", drag)
+        self.assertIn("  /** 拿起时的那份说明：拖进另一列的那一项会在那一列里重挂，拖动中一直按拿起时的认（原来那一列不变）。 */\n  data: DragData;", drag)
+        self.assertIn("lifted: (active) => (this.drag && this.drag.id === String(active.id) ? this.drag.data : dataOf(active)),", drag)
         # 收着的那一列整块：指着它时整块高亮、浮层半透明，落位落到组头并收起
-        self.assertIn('return { ref: droppable.setNodeRef, "data-drop-target": over && shut ? "" : undefined };', drag)
-        self.assertIn("setShutOver(to?.zone && to.shut && over ? String(over.id) : null);", drag)
+        self.assertIn('return { ref, "data-drop-target": over && shut ? ("" as const) : undefined };', drag)
+        self.assertIn("const shut = next && to?.zone && to.shut ? next : null;", drag)
         self.assertIn("const fold = !!zone && !zone.contains(node);", drag)
-        # 审查：落点在滚动区可见范围外时落到可见范围的边上并收起，不飞出列表；拖动库那一次的 scrollIntoView 不让滚
+        # 审查：落点在滚动区可见范围外时落到可见范围的边上并收起，不飞出列表（自写引擎落位前不滚落点那一项，列表不跳）
         self.assertIn("const shown = clampIntoView(rect, viewOf(node));", drag)
         self.assertIn("return fold || shown !== rect ? shown : null;", drag)
-        self.assertEqual(drag.count("holdStill(stash.current.node, landWait);"), 2)   # 松手、取消
-        # 整列一起滑：拖动中（拿起到结束那一次提交，布局阶段停）；版面变了就重量各落点（碰撞按新位置）
-        self.assertIn("{flow && <Flow selector={flow} transition={transition} paused={cancelling} />}", drag)
+        self.assertNotIn("scrollIntoView(", drag.split("  private finish(", 1)[1].split("\n  }\n", 1)[0])
+        self.assertNotIn("scrollIntoView(", drag.split("  private release(", 1)[1].split("\n  }\n", 1)[0])
+        # 整列一起滑：拖动中（拿起到结束：结束拖动的同步提交之前停）；版面变了就在下一帧重量各落点（碰撞按新位置）
+        watch = drag.split("  private watch(d: Session) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("const stop = flowLayout(root, this.flow, this.transition, () => this.remeasureSoon());", watch)
         # 拿起那一帧画完以后才开始盯（第 11 轮 B14：拿起那次提交里先量整列要当场算整页样式、布局）
-        self.assertIn("stop = flowLayout(root, selector, transition, remeasure);", drag)
-        self.assertIn("    afterPaint(() => {\n      const from = node.current;", drag)
-        self.assertIn("measure(all.getEnabled().map((entry) => entry.id));", drag)
-        flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
-        self.assertIn("const running = !!active;", flow)
-        self.assertIn("useLayoutEffect(() => {", flow)
+        self.assertIn("afterPaint(() => this.drag === d && this.watch(d));", drag)
+        again = drag.split("  private remeasureSoon() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("if (!d || d.cancelling || d.queued) return;", again)
+        self.assertIn("afterPaint(() => {", again)
+        self.assertIn("this.measure(d, true);", again)
+        finish = drag.split("  private finish(d: Session, work: () => void) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertLess(finish.index("for (const stop of d.stops.splice(0)) stop();"), finish.index("flushSync(run)"))
         # 第 6 轮：落位在松手那一下起播（landOverlay，从松手这一刻起算），结束拖动等落位播完（ReleaseFirst）；不再回拨到上一帧
         self.assertNotIn("startNow", drag)
         self.assertIn("fromNow(animation);", drag)
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
-        self.assertIn("keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },", drag)
-        self.assertIn("letGo.hold(end, animation, landWait, node ? () => freezeScroll(node) : undefined);", drag)
-        # 先量再改根节点的拖动标记（反过来量时整页样式、布局重算：6 倍节流 25ms）
-        end = drag.split("const onDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {", 1)[1].split("\n  };\n", 1)[0]
-        self.assertLess(end.index("holdStill(stash.current.node, landWait);"), end.index("finish();"))
-        cancel = drag.split("onDragCancel={({ active, activatorEvent }) => {", 1)[1].split("}}", 1)[0]
-        self.assertLess(cancel.index("holdStill(stash.current.node, landWait);"), cancel.index("finish();"))
+        self.assertIn("keyboard: { keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, step, beforeEnd, beforeCancel },", drag)
+        self.assertIn("this.letGo.hold(end, animation, this.landWait, () => freezeScroll(d.scrollers));", drag)
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("const FLOW = '[data-slot=\"aui_thread-list-item\"], .cc-group-row, .cc-show-more';", rows)
         css = read("globals.css")
@@ -5781,12 +5799,12 @@ assert.equal(root.style.overflowAnchor, "");          // 还原
         self.assertIn('export const KEYBOARD_SCROLL: ScrollBehavior = "auto";', drag)   # 不用 "instant"（旧 WebView 不认，scrollTo 报错）
         self.assertNotRegex(read("globals.css"), r"scroll-behavior:\s*smooth")              # auto 照 CSS：各滚动区都不平滑滚
         self.assertIn("scrollBehavior: KEYBOARD_SCROLL", drag)
-        # 拖动库每次按键现读这一项（选项里没给就是平滑滚动）；没装前端依赖时跳过这一段
-        core = FRONTEND / "node_modules/@dnd-kit/core/dist/core.esm.js"
-        if core.exists():
-            handle = core.read_text(encoding="utf-8").split("  handleKeyDown(event) {", 1)[1].split("\n  }\n", 1)[0]
-            self.assertIn("scrollBehavior = 'smooth'", handle)
-            self.assertIn("behavior: scrollBehavior", handle)
+        # 自写的键盘拖动每次按键现读这一项：目标落在滚动区下半截（往上时上半截）就立即滚到位，每一下都从滚好的位置算
+        step = drag.split("  private step(event: KeyboardEvent) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("el.scrollTo({ top: next, behavior: this.options.keyboard.scrollBehavior });", step)
+        self.assertIn("el.scrollBy({ top: -scrollDelta, behavior: this.options.keyboard.scrollBehavior });", step)
+        self.assertIn("if (d.scroller) d.scrolled = scrollTopOf(d.scroller);", step)   # 按下这一下现读滚动位置，不等滚动事件
+        self.assertNotIn("smooth", drag)
 
     def test_the_landing_stays_inside_the_list(self):
         # 落点在滚动区可见范围外：落到可见范围的边上（上下边贴边），在里面的不动
@@ -6083,7 +6101,8 @@ assert.equal(spotIn(["a"], "x"), null);
         drag = read("components/ui/drag.tsx")
         self.assertIn('<div role="status" aria-live="assertive" aria-atomic="true" className="cc-move-live sr-only">', drag)
         self.assertIn("const text = texts.movedTo(name, spot.at, spot.total);", drag)
-        self.assertIn("if (spot) say?.(label, spot);", drag)
+        self.assertIn("if (spot) say(label, spot);", drag)
+        self.assertIn("engine.sayMove = useMemo(", drag)   # 拖动区给的播报（同一个拖动区一份播报区）
         rows = read("components/assistant-ui/thread-list.tsx")
         # 同一份回调（第 10 轮 B 段：行记住，拖动库重画时不跟着重画）
         self.assertEqual(rows.count("const onMove = useCallback((delta: -1 | 1) => said(scope.move(id, delta)), [said, scope, id]);"), 2)
@@ -6294,12 +6313,14 @@ class Round8Tests(unittest.TestCase):
         drag = read("components/ui/drag.tsx")
         self.assertIn('const DRAG_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);', drag)
         self.assertIn("      if (isDragging() && DRAG_KEYS.has(event.key)) event.preventDefault();\n"
-                      "      else listeners?.onKeyDown?.(event);", drag)
-        self.assertIn("setKeyed(keyboard ? active.id : null);", drag)
-        self.assertIn("const keyed = useContext(KeyedContext) === id && drag.isDragging;", drag)
-        self.assertIn("if (keyed && node?.isConnected && document.activeElement !== node) node.focus({ preventScroll: true });", drag)
-        self.assertEqual(drag.count("const handleRef = useFollowFocus(data.id, "), 1)   # 排序项（对话行也是，用户 10-17）
-        self.assertEqual(drag.count("keepFocusOn(active.id, activatorEvent);"), 2)   # 放下（键盘不拖进另一列，不会落进收着的整块）、取消
+                      '      else if (!disabled) engine.press("keyboard", id, event);', drag)
+        # 键盘拿起的那一项（stateOf 为 2）：焦点跟着它的把手，重挂过的跟到新的把手上
+        self.assertIn('return d && d.id === id ? (d.kind === "keyboard" ? 2 : 1) : 0;', drag)
+        self.assertIn("if (this.stateOf(item.id) === 2 && node?.isConnected && document.activeElement !== node) node.focus({ preventScroll: true });", drag)
+        item = drag.split("export function useSortableItem(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("if (state === 2) engine.follow(item);", item)
+        self.assertIn("const handleRef = useCallback((node: HTMLElement | null) => engine.attachHandle(item, node), [engine, item]);", item)
+        self.assertEqual(drag.count("keepFocusOn(d.id, d.event);"), 2)   # 放下（键盘不拖进另一列，不会落进收着的整块）、取消
         self.assertIn("  if (isDragging() || !event.altKey", drag)                     # Alt+方向键在拖动中也归拖动
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("        if (renaming) return;\n"
@@ -6371,7 +6392,8 @@ assert.deepEqual(focused, []);
                       ".cc-drag-overlay:not([data-dropping=\"\"]) .cc-drag-float[data-peek] .cc-drag-lift > * { opacity: 0; }", css)
         self.assertNotIn("\n.cc-drag-float[data-peek]", css)
         self.assertIn("@media (prefers-reduced-motion: reduce) { .cc-drag-lift, .cc-drag-lift > * { animation: none; transition: none; } }", css)
-        self.assertIn('{(data?.count ?? 0) > 1 && <span className="cc-drag-count">{data!.count}</span>}', read("components/ui/drag.tsx"))
+        overlay = read("components/ui/drag.tsx").split("function liftOverlay(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('if ((data.count ?? 0) > 1) {\n    const count = document.createElement("span");\n    count.className = "cc-drag-count";', overlay)
 
     def test_a_repeated_preview_start_reuses_its_part_and_a_retry_drops_half_lines(self):
         # 第 4 项「การ」残句：同一条回复的预览从头再推一遍（推送线程重接）时，原来那段接着用、清空重写，不另开一段留下前几个字；
@@ -6480,10 +6502,12 @@ class Round10DragTests(unittest.TestCase):
         self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
         self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
         self.assertEqual(drag.count("beforeEnd, beforeCancel },"), 3)
-        # 只在那一项还在拿起时那一列里时先滑回（指针拖进了另一列：照旧由拖动库滑回）；滑回途中排序项不写让位位移
-        self.assertIn("const home = !!node?.isConnected && !!from?.list && listOf(active) === from.list;", drag)
-        self.assertIn("const animation = home && box ? settleBack(box, node!, transition, homeInto) : null;", drag)
-        self.assertIn("const shift = shiftStyle(sortable.transform, sortable.transition, settling);", drag)   # 滑回途中（settling）不写位移
+        # 只在那一项还在拿起时那一列里时先滑回（指针拖进了另一列：先挪回原列再滑回，见 Round10BTests）；滑回途中排序项不写让位位移
+        self.assertIn("const home = !!node?.isConnected && !!from.list && this.items.get(d.id)?.list === from.list;", drag)
+        self.assertIn("const animation = home && node ? settleBack(d.overlay, node, this.transition, homeInto) : null;", drag)
+        shifts = drag.split("  private shifts() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("if (!d || d.settle) return;", shifts)   # 滑回途中（settle）不写位移
+        self.assertIn("if (d.cancelling || d.released) return;", drag.split("  private move(at: Coordinates) {", 1)[1].split("\n  }\n", 1)[0])
         self.assertIn('return { transform: settling || (!x && !y) ? "" : `translate3d(${x}px, ${y}px, 0px)`, transition: transition ?? "" };', drag)
         # 文件头不再把约 1 秒的空帧定性成「那里出帧的问题」（审查：没坐实）
         self.assertNotIn("是那里出帧的问题", drag)
@@ -6926,25 +6950,28 @@ setDragShield(null);
         # 滑回（按拿起时的位置）、停住碰撞与自动滚动；画完这一帧再请侧栏把它挪回原来那一组（onReturn），重挂出来那次提交里核对落点、
         # 对不上就从此刻改滑；取消等滑回播完
         drag = read("components/ui/drag.tsx")
-        cancel = drag.split("  const beforeCancel = useMemo(", 1)[1].split("\n  const sensors = useSensors(", 1)[0]
-        cross = cancel.split("if (!home && from?.list && active && box && transition && latest.current.onReturn) {", 1)[1].split("\n      }\n", 1)[0]
-        self.assertIn("const slide = start ? slideOverlay(box, homeBox(start, scrolled, node), transition) : null;", cross)
+        cancel = drag.split("  private beforeCancel(cancel: () => void) {", 1)[1].split("\n  }\n", 1)[0]
+        cross = cancel.split("if (!home && from.list && this.transition && onReturn) {", 1)[1].split("\n    }\n", 1)[0]
+        self.assertIn("const slide = slideOverlay(d.overlay, homeBox(d.start, scrolled, node), this.transition);", cross)
         # 已经取消：之后的 Esc 照常（当场放手）；挡板先不撤（"keep"），Esc 那一帧与下一帧挪回原组的整列重画里都不再叠一次侧栏的悬停
         # 重算，起播滑回时再撤（第 11 轮 B14 审查）
         self.assertIn('releaseDrag("keep");', cross)
         self.assertLess(cross.index("slideOverlay("), cross.index('releaseDrag("keep");'))
-        self.assertIn("afterPaint(() => homing.current === entry && latest.current.onReturn?.(from));", cross)
-        self.assertIn("unfreeze: node ? freezeScroll(node) : () => undefined,", cross)
+        self.assertIn("afterPaint(() => this.homing === entry && onReturn(from));", cross)
+        self.assertIn("unfreeze: freezeScroll(d.scrollers),", cross)
         self.assertNotIn("letGo.hold(", cross)                 # 这一下不取消
-        self.assertIn("cancelling.current = true;", cancel)
-        self.assertIn("if (!active?.list || cancelling.current) return [];", drag)          # 碰撞不再算
-        self.assertIn("if (cancelling.current) return; // 已经取消、在等滑回：不再经过哪里", drag)
-        self.assertIn("if (paused.current || queued) return;", drag)                         # 不重量落点
-        self.assertIn("if (!live || paused.current) return;", drag)                          # 排到下一帧的那次也不量
-        self.assertIn("const node = nodeIn(entry.id, entry.list);\n    if (node) homeLanded(entry, node);", drag)
-        self.assertIn("letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);", drag)
+        self.assertIn("d.cancelling = true;", cancel)
+        self.assertIn("if (!d || d.cancelling || !d.data.list) return;", drag)                # 碰撞不再算（也就不再经过哪里）
+        self.assertIn("if (!d || d.cancelling || d.queued) return;", drag)                    # 不重量落点
+        self.assertIn("if (this.drag !== d || d.cancelling || d.released) return;", drag)     # 排到下一帧的那次也不量
+        # 挪回原列的那一项重挂出来（登记它的那次提交里）就起播滑回
+        register = drag.split("  register(item: Item, data: DragData, list: string | undefined, disabled: boolean) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("if (homing && homing.id === item.id && item.list === homing.list && item.node?.isConnected) {", register)
+        self.assertIn("this.homeLanded(homing, item.node);", register)
+        self.assertIn("this.letGo.hold(entry.cancel, animation, this.landWait, () => entry.unfreeze);", drag)
         # 「这一项此刻在哪一列」按它真的排在的那一列（拖进置顶重挂的那一行是置顶那一列）
-        self.assertIn('"data-drag-list": list === undefined ? undefined : String(list),', drag)
+        self.assertIn('"data-drag-list": where,', drag)
+        self.assertIn("const where = list ?? drag.list;", drag)
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("const onReturn = () => {\n    placeGuest(null);\n    setReveal(false);\n  };", rows)
         self.run_page(r"""
@@ -7175,9 +7202,12 @@ g.done();
 
     def test_review_small_fixes(self):
         drag = read("components/ui/drag.tsx")
-        # 传感器选项记住（拖动库按 [传感器, 选项] 记）：DragArea 重画时把手不跟着换
-        self.assertIn("const sensors = useSensors(\n    useSensor(LandingMouseSensor, sensorOptions.mouse),", drag)
-        self.assertNotIn("useSensor(LandingMouseSensor, {", drag)
+        # 输入方式的选项在拖动区建一次（DragEngine 构造时），DragArea 重画只换回调（engine.props）：把手不跟着换
+        self.assertIn("  constructor(transition: Motion | null, numbered = true) {", drag)
+        self.assertIn("    this.options = {\n      mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
+        self.assertIn("const engine = useMemo(() => new DragEngine(motion()), []);\n  engine.props = { accepts, onDrop, onOver, onActive, onReturn, onPointer };", drag)
+        item = drag.split("export function useSortableItem(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("[engine, drag.id, handleRef, disabled, ownFocus, skip, isDragging],", item)
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertNotIn("[drag, scope, id]", rows)
         self.assertNotIn("drag.moved(latestMove.current(delta)), [drag]", rows)
@@ -7208,12 +7238,15 @@ class Round11DragFramesTests(unittest.TestCase):
         item = drag.split("export function useSortableItem(", 1)[1].split("\n}\n", 1)[0]
         node = item.split("const node = useMemo(", 1)[1].split(");", 1)[0]
         self.assertNotIn("style", node)
-        self.assertIn("[ref, data.id, list, isDragging]", node)
-        self.assertIn("useLayoutEffect(() => applyShift(el.current, shift));", item)
-        self.assertIn("const shift = shiftStyle(sortable.transform, sortable.transition, settling);", item)
-        # 尺寸观察只在有整列滑动的区里关（见 test_only_flow_areas_skip_size_watching）
-        self.assertIn("resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined", item)
-        self.assertIn("resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined", drag.split("export function useDropZone(", 1)[1].split("\n}\n", 1)[0])
+        self.assertIn("[ref, drag.id, where, isDragging]", node)
+        # 位移、过渡不经 React：拖动区在经过的项变了时直接写到节点上（applyShift），各项不订阅拖动的上下文、只订阅自己
+        self.assertNotIn("applyShift", item)
+        self.assertNotIn("useContext(", item.replace("useContext(AreaContext)", "").replace("useContext(ListContext)", ""))
+        self.assertIn("const state = useSyncExternalStore(subscribe, () => engine.stateOf(drag.id), () => 0);", item)
+        shifts = drag.split("  private shifts() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("applyShift(node, shiftStyle({ x: 0, y }, transition));", shifts)
+        finish = drag.split("  private finish(d: Session, work: () => void) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertLess(finish.index("flushSync(run)"), finish.index("if (node) applyShift(node, NO_SHIFT);"))   # 新顺序提交后当场归位
         self.run_page(r"""
 import { applyShift } from "@/components/ui/drag";
 const writes: string[] = [];
@@ -7357,8 +7390,8 @@ setDragShield(null);
         # 起播滑回那一下（homeLanded → letGo.hold → ReleaseFirst.hold）再放一次手，挡板在那一帧画完后撤
         hold = drag.split("export class ReleaseFirst {", 1)[1].split("\n}\n", 1)[0]
         self.assertIn("    releaseDrag();\n", hold)
-        landed = drag.split("  const homeLanded = (", 1)[1].split("\n  };\n", 1)[0]
-        self.assertIn("letGo.hold(entry.cancel, animation, landWait, () => entry.unfreeze);", landed)
+        landed = drag.split("  private homeLanded(entry: Homing, node: HTMLElement | null) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("this.letGo.hold(entry.cancel, animation, this.landWait, () => entry.unfreeze);", landed)
         css = read("globals.css")
         # 浮层不接指针：拿起、落定时整个侧栏不换悬停、不整块重算样式；悬停与光标归挡板
         self.assertIn(".cc-drag-overlay { pointer-events: none; }", css)
@@ -7415,13 +7448,17 @@ assert.equal(scrolled.length, 2);
         # 公司页转圈换成内容、输出卡跟着对话变长），不观察就按旧尺寸算碰撞与让位。现在只有给了 flow 的区（侧栏：行高固定，增删、挪列
         # 由整列滑动重量）才关
         drag = read("components/ui/drag.tsx")
-        self.assertIn("const FlowAreaContext = createContext(false);", drag)
-        self.assertIn("<FlowAreaContext.Provider value={!!flow}>{children}</FlowAreaContext.Provider>", drag)
+        # 自写引擎：平时谁都不观察；拿起那一帧画完以后，有整列滑动的区盯版面（flowLayout），没有的区给能放的各项挂一个尺寸观察器
+        # （首轮回调是挂上时的，不算变化），变了下一帧重量；结束拖动时摘掉
+        watch = drag.split("  private watch(d: Session) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("if (this.flow) {", watch)
+        self.assertIn("} else if (typeof ResizeObserver === \"function\") {", watch)
+        self.assertIn("if (first) first = false;\n        else this.remeasureSoon();", watch)
+        self.assertIn("for (const id of d.candidates) {", watch)
+        self.assertIn("d.stops.push(() => observer.disconnect());", watch)
+        self.assertEqual(drag.count("new ResizeObserver("), 1)
         for name in ("export function useSortableItem(", "export function useDropZone("):
-            body = drag.split(name, 1)[1].split("\n}\n", 1)[0]
-            self.assertIn("const flowArea = useContext(FlowAreaContext);", body)
-            self.assertIn("resizeObserverConfig: flowArea ? NO_RESIZE_WATCH : undefined", body)
-        self.assertEqual(drag.count("flowArea ? NO_RESIZE_WATCH : undefined"), 2)   # 只这两处按 flowArea 关
+            self.assertNotIn("ResizeObserver", drag.split(name, 1)[1].split("\n}\n", 1)[0])
         panel = read("components/session-panel.tsx")
         self.assertIn("<DragArea accepts={sameColumn} onDrop={onDrop} texts={texts}>", panel)   # 会话栏：没有 flow，照拖动库默认观察
         rows = read("components/assistant-ui/thread-list.tsx")
@@ -7460,16 +7497,15 @@ assert.notEqual(dragLayer(), layer);
 assert.equal(appended.length, 2);
 """)
         drag = read("components/ui/drag.tsx")
-        self.assertIn("const MEASURING = { droppable: { measure: layoutRect } };", drag)
-        self.assertIn("                measuring={MEASURING}", drag)
-        self.assertIn("const AUTO_SCROLL = { layoutShiftCompensation: false } as const;", drag)
-        self.assertIn("                autoScroll={AUTO_SCROLL}", drag)
-        # 拖动库的播报区挂到 body 上（原来就地挂在侧栏、会话栏的滚动区里，每念一句都是一次增删）
-        self.assertIn("container: typeof document !== \"undefined\" && document.body ? document.body : undefined,", drag)
+        # 量能放的各处：拿起时只读框与行内样式（liftRect）；整列刚滑过、版面变了以后的重量按版面位置（layoutRect）
+        measure = drag.split("  private measure(d: Session, full: boolean) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("d.rects.set(id, full ? layoutRect(node) : liftRect(node));", measure)
+        # 播报区与说明在拖动区挂上时挂到 body 上，常驻（原来就地挂在侧栏、会话栏的滚动区里，每念一句都是一次增删）
+        mount = drag.split("  mount(): () => void {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("document.body.append(hidden, live);", mount)
+        self.assertIn("dragLayer();", mount)
         for name in ("layoutRect(node)", "layoutRect(fold ? zone! : node)"):
             self.assertIn(name, drag)
-        self.assertNotIn("getClientRect(node, { ignoreTransform: true })", drag.replace(
-            "  const rect = getClientRect(node, { ignoreTransform: true });\n  const slid", ""))
 
     def test_whole_list_redraws_skip_unchanged_groups(self):
         # 拖进已置顶、Esc 挪回原组、落定存顺序时侧栏整列重画：没变的组的行、组头不跟着重画；一列的各项按内容记住
@@ -7477,7 +7513,10 @@ assert.equal(appended.length, 2);
         lst = drag.split("export const DragList:", 1)[1].split("\n};\n", 1)[0]
         self.assertIn('const key = items.join("\\u0000");', lst)
         self.assertIn("const same = useMemo(() => items, [key]);", lst)
-        self.assertIn("items={same}", lst)
+        self.assertIn("engine.setList(id, same);", lst)
+        self.assertIn("}, [engine, id, same]);", lst)
+        # 各项从这一列只拿到它的编号（不随 items 变）：一列的先后变了，各项不跟着重画
+        self.assertIn("<ListContext.Provider value={id}>{children}</ListContext.Provider>", lst)
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("const Items = memo(function Items(", rows)
         self.assertIn("components={ITEM_COMPONENTS}", rows.split("const Items = memo(function Items(", 1)[1].split("\n});", 1)[0])
@@ -7487,18 +7526,21 @@ assert.equal(appended.length, 2);
         self.assertIn("const shownSessions = useMemo(() => sessions, [sessionsKey]);", group)
         self.assertIn("onToggle={toggle} sessions={shownSessions}", group)
         # 整列滑动在拿起那一帧画完以后才开始盯
-        flow = drag.split("const Flow: FC<", 1)[1].split("\n};\n", 1)[0]
-        self.assertLess(flow.index("afterPaint(() => {"), flow.index("stop = flowLayout(root, selector, transition, remeasure);"))
+        lift = drag.split("  private lift(id: string, activatorEvent: Event, kind: Kind, at: Coordinates) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("afterPaint(() => this.drag === d && this.watch(d));", lift)
+        self.assertNotIn("flowLayout(", lift)
 
     def test_pointer_is_not_reported_after_the_drag_ends(self):
         # 拖进已置顶后按 Esc：结束拖动那次提交里拖动库清掉落点，PointerWatch 随后还会跑一次；原来照样把停着的位置交给侧栏，侧栏又
         # 临时出一个空的「已置顶」留着。现在只在拿起到结束之间交
         drag = read("components/ui/drag.tsx")
-        report = drag.split("const reportPointer = useMemo(", 1)[1].split("\n  );", 1)[0]
-        self.assertIn("if (live.current && data && y !== null && !keyedRef.current && !cancelling.current)", report)
-        finish = drag.split("  const finish = () => {", 1)[1].split("\n  };", 1)[0]
-        self.assertIn("live.current = false;\n    pointerY.current = null;", finish)
-        self.assertIn("onDragStart={({ active, activatorEvent }) => {\n                  live.current = true;", drag)
+        # 自写引擎：指针位置只在算落点时交（collide），算落点只在拖动中、没在等滑回时；结束拖动先把这次拖动清掉再提交
+        collide = drag.split("  private collide() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("if (!d || d.cancelling || !d.data.list) return;", collide)
+        self.assertIn("if (!keyboard && d.pointer) this.props.onPointer?.(d.data, d.pointer.y);", collide)
+        finish = drag.split("  private finish(d: Session, work: () => void) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertLess(finish.index("this.drag = null;"), finish.index("flushSync(run)"))
+        self.assertIn("if (!d?.scroller) return;", drag.split("  private readonly onScroll = () => {", 1)[1].split("\n  };\n", 1)[0])
         # 侧栏收起临时的已置顶仍在挪回原组那一下（onReturn），随滑回一起
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertIn("const onReturn = () => {\n    placeGuest(null);\n    setReveal(false);\n  };", rows)
@@ -8913,8 +8955,7 @@ assert.equal(clicked(), true);
         # 会话栏：「公司」展开着 300 高，下一张「本月」收着 44 高。拖动库按「底边对齐下一张」挪浮层，再按最近中心找落点：浮层中心
         # 离原位（它自己）比离「本月」还近，算回它自己，放下念「已取消移动」。现在 ↑ ↓ 按这一列的先后换瞄准的那一项，落点就是它
         self.run_page(r"""
-import { closestCenter } from "@dnd-kit/core";
-import { keyboardAim, keyboardCollision, keyboardSlot } from "@/components/ui/drag";
+import { closestCenter, keyboardAim, keyboardCollision, keyboardSlot } from "@/components/ui/drag";
 const order = ["company", "month", "notes", "folders"];
 const H: Record<string, number> = { company: 300, month: 44, notes: 44, folders: 44 };
 const rects = new Map<string, any>();
@@ -8953,12 +8994,326 @@ assert.equal(keyboardCollision(pool, "notes", "gone")[0]!.id, "notes");
 assert.deepEqual(keyboardCollision([], "notes", "month"), []);
 """)
         drag = read("components/ui/drag.tsx")
-        area = drag.split("export const DragArea: FC<AreaProps> = (", 1)[1]
-        self.assertIn("if (keyedRef.current) return keyboardCollision(pool, args.active.id, keyAim.current);", area)
-        self.assertIn("const target = keyboardAim(order, activeId, keyAim.current, down);", area)
-        self.assertIn("keyAim.current = active.id;", area)
-        self.assertIn("keyAim.current = null;", area.split("  const finish = () => {", 1)[1].split("\n  };", 1)[0])
-        self.assertNotIn("sortableKeyboardCoordinates,", drag)   # 不再用拖动库的按几何找下一项
+        collide = drag.split("  private collide() {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("const hit = keyboard ? keyboardCollision(pool, d.id, d.aim)[0] :", collide)
+        step = drag.split("  private step(event: KeyboardEvent) {", 1)[1].split("\n  }\n", 1)[0]
+        self.assertIn("const target = keyboardAim(order, d.id, d.aim, down);", step)
+        self.assertIn("d.aim = String(target);", step)
+        self.assertIn("      aim: id,\n", drag.split("  private lift(", 1)[1])            # 拿起时瞄着它自己（每次拿起是新的一次）
+        self.assertNotIn("sortableKeyboardCoordinates", drag)   # 不再按几何找下一项
+        self.assertNotIn("@dnd-kit", drag)
+
+
+# 自写拖动引擎（第 12 轮）的行为用例用的假页面：只有拖动引擎用到的那一点 DOM（节点树、框、行内样式、事件、克隆）。各项的框按
+# rect 给，行内 transform 的竖向位移照算进 getBoundingClientRect（同浏览器）；读框次数记在 reads 里
+ENGINE_DOM = r"""
+import { DragEngine, dragLayer } from "@/components/ui/drag";
+const g = globalThis as any;
+const page = new EventTarget();
+g.addEventListener = page.addEventListener.bind(page);
+g.removeEventListener = page.removeEventListener.bind(page);
+g.innerHeight = 800;
+g.innerWidth = 1000;
+g.scrollY = 0;
+g.requestAnimationFrame = (run: () => void) => setTimeout(run, 0);
+g.cancelAnimationFrame = (id: any) => clearTimeout(id);
+g.matchMedia = () => ({ matches: false });
+g.getSelection = () => ({ removeAllRanges() {} });
+const shiftY = (value: string) => Number(/translate3d\(\s*-?[\d.]+px,\s*(-?[\d.]+)px/.exec(value || "")?.[1] ?? 0);
+g.getComputedStyle = (el: any) => {
+  const y = shiftY(el.style?.transform);
+  return { overflow: "visible", overflowX: "visible", overflowY: "visible", position: "", transformOrigin: "0px 0px", translate: "none",
+           transform: el.style?.transform ? `matrix(1, 0, 0, 1, 0, ${y})` : "none" };
+};
+const reads = { count: 0 };
+const all = new Set<any>();
+class El extends EventTarget {
+  tag: string; parentNode: any = null; children: any[] = []; attrs = new Map<string, string>(); dataset: Record<string, string> = {};
+  style: any; rect: { top: number; left: number; width: number; height: number }; nodeType = 1; hidden = false; className = "";
+  textContent = ""; id = ""; animations: any[] = [];
+  constructor(tag: string, rect = { top: 0, left: 0, width: 200, height: 0 }) {
+    super();
+    this.tag = tag;
+    this.rect = rect;
+    const style: any = { transform: "", transition: "" };
+    style.setProperty = (name: string, value: string) => (style[name] = value);
+    style.removeProperty = (name: string) => delete style[name];
+    this.style = style;
+    all.add(this);
+  }
+  get ownerDocument() { return doc; }
+  get parentElement() { return this.parentNode instanceof El ? this.parentNode : null; }
+  get isConnected(): boolean { for (let n: any = this; n; n = n.parentNode) if (n === doc.body) return true; return false; }
+  get firstElementChild() { return this.children[0] ?? null; }
+  appendChild(child: any) { child.parentNode?.removeChild?.(child); child.parentNode = this; this.children.push(child); doc.added.push([this, child]); return child; }
+  append(...kids: any[]) { for (const kid of kids) this.appendChild(kid); }
+  removeChild(child: any) { this.children = this.children.filter((c) => c !== child); child.parentNode = null; doc.removed.push([this, child]); }
+  remove() { this.parentNode?.removeChild(this); }
+  setAttribute(name: string, value: string) { this.attrs.set(name, String(value)); }
+  getAttribute(name: string) { return this.attrs.get(name) ?? null; }
+  removeAttribute(name: string) { this.attrs.delete(name); }
+  cloneNode(deep: boolean): any {
+    const copy = new El(this.tag, this.rect);
+    for (const [k, v] of this.attrs) copy.attrs.set(k, v);
+    Object.assign(copy.dataset, this.dataset);
+    copy.className = this.className;
+    copy.textContent = this.textContent;
+    if (deep) for (const kid of this.children) copy.appendChild(kid.cloneNode(true));
+    return copy;
+  }
+  querySelectorAll(): any[] { const out: any[] = []; const walk = (e: any) => e.children.forEach((k: any) => (out.push(k), walk(k))); walk(this); return out; }
+  contains(node: any) { for (let n = node; n; n = n.parentNode) if (n === this) return true; return false; }
+  // 框：自己给了 rect 的按 rect；浮层按行内 top / height（fixed）；没给的（浮层里的各层）同父节点。各层的行内位移一路加上去
+  layout(): { top: number; left: number; width: number; height: number } {
+    if (this.style.top) return { top: parseFloat(this.style.top), left: parseFloat(this.style.left), width: parseFloat(this.style.width), height: parseFloat(this.style.height) };
+    if (!this.rect.height && this.parentElement) return this.parentElement.layout();
+    return this.rect;
+  }
+  getBoundingClientRect() {
+    reads.count += 1;
+    const box = this.layout();
+    let top = box.top - (this.style.top ? 0 : g.scrollY);
+    for (let n: any = this; n instanceof El; n = n.parentNode) top += shiftY(n.style.transform);
+    return { top, left: box.left, width: box.width, height: box.height, right: box.left + box.width, bottom: top + box.height };
+  }
+  getClientRects() { return [1]; }
+  closest() { return null; }
+  focus() { doc.activeElement = this; }
+  scrollIntoView() {}
+  animate(frames: any, opts: any) {
+    let done: () => void = () => undefined;
+    const a: any = { frames, opts, startTime: null, playState: "running", finished: new Promise<void>((resolve) => (done = resolve)) };
+    a.finish = () => { a.playState = "finished"; done(); };
+    a.cancel = () => { a.playState = "idle"; done(); };
+    this.animations.push(a);
+    return a;
+  }
+}
+const doc: any = new EventTarget();
+doc.nodeType = 9;
+doc.visibilityState = "visible";
+doc.added = [] as any[];
+doc.removed = [] as any[];
+doc.documentElement = new El("html");
+doc.documentElement.dataset = {};
+doc.body = new El("body");
+doc.body.parentNode = doc.documentElement;
+doc.documentElement.parentNode = doc;
+doc.scrollingElement = doc.documentElement;
+doc.createElement = (tag: string) => new El(tag);
+doc.getSelection = () => ({ removeAllRanges() {} });
+doc.activeElement = doc.body;
+doc.querySelectorAll = (selector: string) => {
+  const key = selector === "[data-drag-list]" ? "dragList" : selector === "[data-drag-id]" ? "dragId" : null;
+  return key ? [...all].filter((e) => e.isConnected && e.dataset[key] !== undefined) : [];
+};
+doc.querySelector = () => null;
+g.document = doc;
+const fire = (type: string, extra: any = {}) => {
+  const event = Object.assign(new Event(type, { cancelable: true }), extra);
+  doc.dispatchEvent(event);
+  return event;
+};
+const texts = { instructions: "Space to lift", pickedUp: (n: string) => `up ${n}`, movedTo: (n: string, a: number, t: number) => `moved ${n} ${a}/${t}`,
+  droppedAt: (n: string, a: number, t: number) => `dropped ${n} ${a}/${t}`, cancelled: (n: string) => `cancel ${n}` };
+// 一列卡片：a、b、c，高 40，间距 10（顶 0 / 50 / 100）
+function column(engine: any, ids: string[], list = "cards", top = 0) {
+  const box = doc.body.appendChild(new El("div"));
+  const out: Record<string, { node: any; handle: any; item: any }> = {};
+  ids.forEach((id, i) => {
+    const node = box.appendChild(new El("section", { top: top + i * 50, left: 0, width: 200, height: 40 }));
+    node.dataset.dragId = id;
+    node.dataset.dragList = list;
+    const handle = node.appendChild(new El("button", { top: top + i * 50, left: 180, width: 20, height: 20 }));
+    const data = { id, kind: "card", label: id, list };
+    const item = { id, data, list: undefined, disabled: false, zone: false, node: null, handle: null, entry: null };
+    engine.attach(item, node);
+    engine.attachHandle(item, handle);
+    engine.register(item, data, list, false);
+    out[id] = { node, handle, item };
+  });
+  engine.setList(list, ids);
+  return out;
+}
+const key = (code: string) => ({ nativeEvent: Object.assign(new Event("keydown", { cancelable: true }), { code, key: code === "Space" ? " " : code }), preventDefault() {} });
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class DragEngineTests(unittest.TestCase):
+    """第 12 轮：共用拖动换成自写的指针排序（docs/work/2026-10-17-drag-engine.md）。直接驱动拖动引擎：拿起时一次量好、拖动中不再逐项
+    量；让位直接写节点；拿起、落定只通知被拖的那一项；拖动中 body 下不增删节点；放下、取消、读屏播报与原来一致。"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + ENGINE_DOM + body + "\n(globalThis as any).done();\n")
+
+    def test_keyboard_sort_writes_shifts_and_only_wakes_the_lifted_item(self):
+        self.run_page(r"""
+const drops: string[][] = [];
+const actives: Array<string | null> = [];
+const engine = new DragEngine(null);
+engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => drops.push([a.id, t.id]), onActive: (a: any) => actives.push(a?.id ?? null) };
+engine.setTexts(texts);
+const unmount = engine.mount();
+const live = doc.body.children.find((e: any) => e.attrs.get("aria-live") === "assertive");
+const hidden = doc.body.children.find((e: any) => e.id.startsWith("DndDescribedBy-"));
+assert.equal(live.attrs.get("role"), "status");
+assert.equal(live.attrs.get("aria-atomic"), "true");
+assert.equal(hidden.textContent, "Space to lift");
+assert.equal(hidden.style.display, "none");
+assert.equal(engine.describedBy, hidden.id);
+const cards = column(engine, ["a", "b", "c"]);
+const woken: Record<string, number> = { a: 0, b: 0, c: 0 };
+for (const id of ["a", "b", "c"]) engine.subscribe(id, () => (woken[id] += 1));
+const layer = dragLayer();
+doc.added.length = 0;
+doc.removed.length = 0;
+// 空格拿起：只在把手本身上按才算
+engine.press("keyboard", "a", { ...key("Space"), target: cards.b.handle } as any);
+assert.equal(engine.stateOf("a"), 0);
+reads.count = 0;
+engine.press("keyboard", "a", { ...key("Space"), target: cards.a.handle } as any);
+assert.equal(engine.stateOf("a"), 2);                          // 键盘拿起：焦点跟着它
+assert.deepEqual(woken, { a: 1, b: 0, c: 0 });                  // 拿起只叫醒被拖的那一项
+assert.deepEqual(actives, ["a"]);
+assert.equal(live.textContent, "up a");
+const overlay = layer!.children.find((e: any) => e.className === "cc-drag-overlay");
+assert.ok(overlay);
+assert.equal(overlay.style.zIndex, "55");
+assert.equal(overlay.style.top, "0px");
+assert.equal(overlay.style.height, "40px");
+assert.match(overlay.style.transition, /^$/);                   // 减少动态效果：键盘一格一格挪不带过渡
+const float = overlay.children[0];
+assert.equal(float.className, "cc-drag-float");
+assert.equal(float.dataset.kind, "card");
+assert.ok(float.attrs.has("inert"));
+assert.equal(float.attrs.get("aria-hidden"), "true");
+const liftReads = reads.count;
+assert.ok(liftReads >= 3 && liftReads <= 6, String(liftReads));   // 拿起时一次量好（三张卡 + 被拖的那一项本身）
+await g.sleep(5);                                               // 下一个任务才开始收键（拿起的那一下空格不算）
+reads.count = 0;
+fire("keydown", { code: "ArrowDown", key: "ArrowDown" });
+assert.equal(reads.count, 0);                                   // 拖动中不再逐项量
+assert.equal(live.textContent, "moved a 2/3");
+assert.equal(overlay.style.transform, "translate3d(0px, 50px, 0) scaleX(1) scaleY(1)");   // 底边对齐 b 的底边
+assert.equal(cards.a.node.style.transform, "translate3d(0px, 50px, 0px)");   // 空档挪到 b 的位置
+assert.equal(cards.b.node.style.transform, "translate3d(0px, -50px, 0px)");  // b 让到上面（高 40 + 间距 10）
+assert.equal(cards.c.node.style.transform, "");                              // 不让位的一次也不写
+assert.equal(cards.c.node.style.transition, "");
+assert.deepEqual(woken, { a: 1, b: 0, c: 0 });                  // 让位不经 React
+fire("keydown", { code: "ArrowDown", key: "ArrowDown" });
+fire("keydown", { code: "ArrowDown", key: "ArrowDown" });       // 到头了：不动、不念
+assert.equal(live.textContent, "moved a 3/3");
+fire("keydown", { code: "ArrowUp", key: "ArrowUp" });
+assert.equal(live.textContent, "moved a 2/3");
+assert.deepEqual(doc.added.filter(([parent]: any) => parent === doc.body), []);   // 拖动中 body 下不增删节点
+assert.deepEqual(doc.removed.filter(([parent]: any) => parent === doc.body), []);
+// 空格放下：没有动效时当场结束，交调用方，各项去掉让位、浮层卸下
+fire("keydown", { code: "Space", key: " " });
+assert.deepEqual(drops, [["a", "b"]]);
+assert.deepEqual(actives, ["a", null]);
+assert.equal(live.textContent, "dropped a 2/3");
+assert.deepEqual(woken, { a: 2, b: 0, c: 0 });                  // 落定只叫醒被拖的那一项
+assert.equal(engine.stateOf("a"), 0);
+for (const id of ["a", "b", "c"]) assert.equal(cards[id]!.node.style.transform, "", id);
+assert.equal(cards.b.node.style.transition, "");
+assert.equal(overlay.parentNode, null);
+assert.equal(doc.activeElement, doc.body);
+unmount();
+assert.equal(live.parentNode, null);
+assert.equal(hidden.parentNode, null);
+""")
+
+    def test_mouse_drag_follows_the_pointer_and_escape_slides_back_without_a_click(self):
+        self.run_page(r"""
+const drops: string[][] = [];
+const pointers: number[] = [];
+const engine = new DragEngine(null);
+engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => drops.push([a.id, t.id]), onPointer: (_a: any, y: number) => pointers.push(y) };
+engine.setTexts(texts);
+engine.mount();
+const live = doc.body.children.find((e: any) => e.attrs.get("aria-live") === "assertive");
+const cards = column(engine, ["a", "b", "c"]);
+const press = (id: string, y: number) =>
+  engine.press("mouse", id, { nativeEvent: { button: 0, clientX: 190, clientY: y, target: cards[id]!.handle, defaultPrevented: false }, target: cards[id]!.handle, preventDefault() {} } as any);
+// 右键、已经处理过的按下不拿起
+engine.press("mouse", "c", { nativeEvent: { button: 2, clientX: 190, clientY: 110, target: cards.c.handle }, target: cards.c.handle } as any);
+engine.press("mouse", "c", { nativeEvent: { button: 0, clientX: 190, clientY: 110, target: cards.c.handle, defaultPrevented: true }, target: cards.c.handle } as any);
+fire("mousemove", { clientX: 190, clientY: 130 });
+assert.equal(engine.stateOf("c"), 0);
+press("c", 110);
+fire("mousemove", { clientX: 190, clientY: 112 });             // 没动够 3px
+assert.equal(engine.stateOf("c"), 0);
+fire("mousemove", { clientX: 190, clientY: 114 });             // 动够了：拿起
+assert.equal(engine.stateOf("c"), 1);
+assert.equal(live.textContent, "up c");
+const overlay = dragLayer()!.children.find((e: any) => e.className === "cc-drag-overlay");
+reads.count = 0;
+fire("mousemove", { clientX: 230, clientY: 20 });              // 拖到 a 上（只竖着动，浮层不出这一列）
+assert.equal(reads.count, 0);
+assert.equal(overlay.style.transform, "translate3d(0px, -90px, 0) scaleX(1) scaleY(1)");   // 按下处起算（拿起前那 4px 也算）
+assert.equal(live.textContent, "moved c 1/3");
+assert.equal(cards.c.node.style.transform, "translate3d(0px, -100px, 0px)");
+assert.equal(cards.a.node.style.transform, "translate3d(0px, 50px, 0px)");
+assert.equal(cards.b.node.style.transform, "translate3d(0px, 50px, 0px)");
+fire("mousemove", { clientX: 190, clientY: -400 });            // 拖过头：浮层停在第一张的顶边
+assert.equal(overlay.style.transform, "translate3d(0px, -100px, 0) scaleX(1) scaleY(1)");
+assert.deepEqual(pointers.slice(-2), [20, -400]);
+// Esc：先滑回（这一列各项去掉让位），再取消；不交调用方
+fire("keydown", { code: "Escape", key: "Escape" });
+assert.deepEqual(drops, []);
+assert.equal(live.textContent, "cancel c");
+for (const id of ["a", "b", "c"]) assert.equal(cards[id]!.node.style.transform, "", id);
+assert.equal(engine.stateOf("c"), 0);
+const reported = pointers.length;
+fire("mousemove", { clientX: 190, clientY: 300 });             // 取消以后不再交指针位置
+assert.equal(pointers.length, reported);
+// 按键还按着就取消了：之后松开那一下不当点击
+fire("mouseup");
+const click = fire("click", { detail: 1 });
+assert.ok(click.defaultPrevented || (click as any).cancelBubble);
+await g.sleep(80);
+const later = fire("click", { detail: 1 });
+assert.ok(!later.defaultPrevented && !(later as any).cancelBubble);
+// 再拖一次、照常放下：落在 b 上
+press("a", 10);
+fire("mousemove", { clientX: 190, clientY: 15 });
+fire("mousemove", { clientX: 190, clientY: 65 });
+assert.equal(live.textContent, "moved a 2/3");
+fire("mouseup");
+assert.deepEqual(drops, [["a", "b"]]);
+assert.equal(live.textContent, "dropped a 2/3");
+""")
+
+    def test_release_lands_first_then_hands_over_in_one_go(self):
+        # 有动效时：松手只起播落位，交调用方、去掉让位、卸下浮层都等落位播完，并且在同一下里做完
+        self.run_page(r"""
+const log: string[] = [];
+const engine = new DragEngine({ duration: 200, easing: "ease" });
+engine.props = { accepts: (a: any, t: any) => a.list === t.list, onDrop: (a: any, t: any) => log.push(`drop ${a.id}>${t.id}`), onActive: (a: any) => log.push(`active ${a?.id ?? "-"}`) };
+engine.setTexts(texts);
+engine.mount();
+const cards = column(engine, ["a", "b", "c"]);
+engine.press("keyboard", "a", { ...key("Space"), target: cards.a.handle } as any);
+const overlay = dragLayer()!.children.find((e: any) => e.className === "cc-drag-overlay");
+assert.equal(overlay.style.transition, "transform 200ms ease");   // 键盘一格一格挪带过渡
+await g.sleep(5);
+fire("keydown", { code: "ArrowDown", key: "ArrowDown" });
+assert.equal(cards.b.node.style.transition, "transform 200ms ease");   // 让位带过渡（先写过渡再写位移）
+fire("keydown", { code: "Space", key: " " });
+assert.deepEqual(log, ["active a"]);                            // 还在落位：没交调用方
+const landing = overlay.animations.at(-1);
+assert.equal(overlay.dataset.dropping, "");
+assert.equal(landing.opts.fill, "forwards");
+assert.equal(landing.frames[1].transform, "translate3d(0px, 50px, 0) scaleX(1) scaleY(1)");   // 落到 b 的位置
+assert.equal(cards.b.node.style.transform, "translate3d(0px, -50px, 0px)");
+landing.finish();
+await g.sleep(0);
+assert.deepEqual(log, ["active a", "active -", "drop a>b"]);
+assert.equal(cards.b.node.style.transform, "");
+assert.equal(cards.b.node.style.transition, "");                // 结束时不带过渡、当场归位
+assert.equal(overlay.parentNode, null);
+""")
 
 if __name__ == "__main__":
     unittest.main()

@@ -456,3 +456,99 @@
   - 手机长按公司组头：拿起 68–82、落定 20–24。
 
   新引擎沿用同一口径对照，并另外交给测试窗口在 A14 上复测（目标：拿起 30–45ms、落定 15–25ms）。来源：`2026-10-16-cc-shell-rebuild.md:522-528`。
+
+## 施工（第 12 轮，开发窗口）
+
+状态：实现、本地检查、复刻页实测已做；**测试机复测、A14 真机复测还没做**（本轮不同步测试环境，交测试窗口）。分支 `pearnly/cc-drag-engine`，未推送、未合并。
+
+### 改法
+
+只改 `frontend/assistant/src/components/ui/drag.tsx`（`lib/layers.ts`、`globals.css` 不用改），`drag.tsx` 不再 import `@dnd-kit/*`；调用方（`thread-list.tsx`、`projects.tsx`、`sidebar-group.tsx`、`company-cards.tsx`、`session-panel.tsx`）一个字没动。`package.json` / `package-lock.json` 本轮不动，依赖下一轮删。
+
+- **拖动本身搬出 React**：每个 `DragArea` 一个 `DragEngine`（`useMemo` 建一次）。登记的各项、各列的先后、量好的位置、一次拖动的全部状态都在它里面；`DragArea` 每次重画只把最新的回调交给它（`engine.props`），拿起、放下都不重画 `DragArea`。
+- **各项只订阅自己**：`useSortableItem` / `useDropZone` 用 `useSyncExternalStore` 按拖动编号订阅「我是不是被拖的那一项」「我是不是被指着的收着的整块」。拿起、落定只叫醒被拖的那一项（重画成空档、键盘拿起时焦点跟着它），其余各项不重画。`DragList` 只把列的编号放进上下文，先后交给拖动区（`setList`），先后变了各项也不重画。
+- **一次量好**：拿起那一刻先只读（滚动祖先走一遍、拿起的那一项、能放的各处的框：`getBoundingClientRect` 加行内让位位移，不读计算样式），再写（浮层、播报、空档）。拖动中跟手、限位、落点、让位都按这份位置算，滚动只加滚动差（监听主滚动区的 scroll）。版面真变了才重量：侧栏由整列滑动（`flowLayout`）的观察器触发、下一帧重量一次；会话栏在拿起那一帧画完后给能放的卡片挂一个尺寸观察器（卡片拖动中会变高），变了下一帧重量。
+- **拖动中不经 React**：指针每动一下只写浮层的行内 `transform`；经过的项变了才算让位（同原来的竖排让位：原位与落点之间的各项挪「拖动项高 + 间距」，空档挪到落点），位移直接写到节点上（`applyShift`，先写过渡再写位移，不让位的不写）。
+- **浮层与播报区是自己建的节点**：浮层在拿起时克隆一次（`cloneOf` 不变），挂进 body 下常驻的拖动层（拖动区挂上时就建好）；说明（`DndDescribedBy-n`）与 assertive 播报区（`DndLiveRegion-n`）在拖动区挂上时建好常驻，播报直接改文字（同一句不重写）。拖动中 body 下不增删节点。
+- **结束拖动一次同步提交**：落位播完（`ReleaseFirst` 不变）以后，调用方存顺序（`onDrop`）、`onActive(null)`、被拖的那一项去掉空档放在同一个 `flushSync` 里提交；提交后各项去掉让位（不带过渡，新顺序已排好）、浮层卸下（落位没播完就等它播完，落点那一项先 `data-drag-landing`）。在 React 提交里结束的（挪回原列重挂出来、滑回没起播）不再嵌套同步提交。
+- **三种输入**：鼠标（`MouseSensor`：按下处移动超过 3px 拿起、松手后 50ms 拦点击、拖动中不选字不起系统拖放不出右键菜单、Esc / resize / 切后台取消）、键盘（`KeyboardSensor`：空格拿起、下一个任务起收键，放下 / 取消 / 其余交给 `step`）自己写，手机长按（`HoldTouchSensor`）、`landFirst`、`blockReleaseClick` 原样保留。拿起的判断同原来：右键、已处理过的按下（Shift 点对话行）、另一次拖动在进行、键盘焦点不在把手本身上都不拿起。
+- **键盘、落点、动效**：`narrowPool`、`keyboardAim` / `keyboardSlot` / `keyboardCollision`、`landOverlay` / `settleBack` / `slideOverlay`、跨列取消的 homing、`flowLayout`、`clampToList` 等纯函数原样保留；碰撞的「最近中心」改成自写的 `closestCenter`（同算法）。键盘目标落在滚动区下半截（往上时上半截）时改为立即滚动滚动区的算法照原来拖动库那一段写进 `step`。自动滚动照原来拖动库的默认（滚动区上下 20%、越深越快最快每 5ms 10px、只朝指针动过的方向、落位与滑回期间冻住）。
+
+### 复刻页实测（修前 `d70f7f00` / 修后本提交）
+
+做法：vite build 整页 + 假接口（scratchpad，3 条置顶、14 家公司 × 4 条、最近 8 条），无界面 Chrome，CPU 6 倍节流；电脑 1024×768 真鼠标、真键盘（CDP Input），手机 412×915 触屏。帧 = trace 里的 AnimationFrame（这一帧第一个任务开始 → 绘制结束），每个动作取时间窗里最长的一帧；各跑 3 遍取中位数（括号里是 3 遍原值）。打标记的任务与操作之间隔 40ms，免得标记那一下算进操作那一帧。单位 ms。
+
+| 场景 | 动作 | 修前 | 修后 |
+|---|---|---|---|
+| 电脑 鼠标拖组里的对话行 | 拿起（含之后挡板那一帧） | 53.6（50.3 / 57.1 / 53.6） | 36.8（36.8 / 37.2 / 36.2） |
+| | 拖动中（窗口内中位帧 / 最长帧） | 14.7 / 29.7 | 8.9 / 26.3 |
+| | 松手 | 32.2 | 31.2 |
+| | 落定 | 44.5（43.0 / 44.5 / 48.7） | 34.9（35.5 / 34.9 / 34.1） |
+| 电脑 鼠标拖对话进已置顶再 Esc | 拖进置顶 | 42.4 | 25.9 |
+| | Esc 那一帧 | 9.3 | 9.3 |
+| | Esc 下一帧（挪回原组） | 34.4 | 25.8 |
+| 电脑 键盘拖公司组头 | 空格拿起 | 79.3（58.9 / 79.3 / 94.2） | 32.4（30.2 / 33.0 / 32.4） |
+| | ↓（中位帧 / 最长帧） | 12.9 / 24.7 | 14.8 / 27.6 |
+| | 空格放下（这一下目标已滚到浮层下面，两版都当场结束） | 43.4 | 27.7 |
+| 手机 长按对话行 | 拿起（250ms） | 59.1（59.1 / 54.8 / 60.3） | 17.4（18.9 / 17.4 / 17.4） |
+| | 出长按菜单（500ms，组件库菜单） | 46.3 | 54.5 |
+| | 手指再动收菜单 | 31.6 | 29.7 |
+| | 拖动中（中位帧 / 最长帧） | 15.5 / 25.9 | 16.2 / 24.9 |
+| | 松手 | 16.4 | 18.5 |
+| | 落定 | 43.6（43.6 / 47.4 / 14.7） | 35.0（35.0 / 33.8 / 35.4） |
+| 手机 长按公司组头 | 拿起 | 55.4 | 18.8 |
+| | 出长按菜单 | 53.8 | 53.6 |
+| | 收菜单 | 19.2 | 29.8 |
+| | 拖动中（中位帧 / 最长帧） | 15.6 / 18.2 | 18.0 / 24.8 |
+| | 松手 | 17.0 | 19.8 |
+| | 落定 | 18.9 | 22.8 |
+
+同一时间窗里主线程的总忙碌时间（顶层任务合计，中位数）：鼠标拖行 拿起 146→101、拖动中 139→90、落定 115→110；键盘公司组 拿起 119→69、↓ 70→52、放下 50→35；手机对话行 拿起 87→43、拖动中 71→34、落定 81→69；手机公司组 拿起 84→45、收菜单 32→29、拖动中 61→26、落定 74→57；拖进置顶 255→193。
+
+读法与带 CPU 采样的拆解（scratchpad 的 `prof.py`）：
+
+- 拿起：手机 55–59 → 17–19，键盘 79 → 32。鼠标 37 里约一半是拿起后那一帧挡板盖上、指针下面的行换悬停引起的整块样式重算（约 690 个元素、6 倍节流约 13ms），修前也有，归第 11 轮的挡板设计，不在拖动库里；拿起那一下本身（量、克隆、播报、被拖的那一项重画）约 9ms。
+- 拖动中：每一下只写浮层位移，采样里拖动那一帧主线程只有约 1.5ms（触摸事件）。手机公司组的「拖动中 / 收菜单」最长帧比修前长 6–10ms，但同一窗口的总忙碌时间是 61→26、32→29：多出来的是帧里等下一次绘制的空闲（输入事件来得早、绘制在下一个刷新点），不是活多了；收菜单那一帧是组件库菜单卸下（Radix Presence / 焦点归还），两版同一份。
+- 落定：鼠标、手机拖对话行 44–45 → 35。剩下的主要是侧栏存了组里新顺序以后整列重排的那一次同步提交（调用方 `CompanyGroups` 按新顺序重算各组、14 个组头、这一组的行换位置，6 倍节流约 18ms），这是调用方的重画，本轮按任务书不改调用方；A14 目标 15–25 在复刻页上还没达到，要等真机复测再定要不要动侧栏那一侧。
+- 出长按菜单 46–54 两版相当（带采样那次修前 60.5、修后 57.3），全是组件库菜单与浮动定位；Z-03 的「拖动库 body 观察器同步量框」随拖动库一起没了，但菜单那一帧本身没有因此变短。
+- 「滑回后」那一段（Esc 之后 300–900ms）两版都只有应用自己的后台重画（输入框自动高度、会话轮询），与拖动无关，不列。
+
+### 对照清单逐条结果
+
+行为对照：复刻页上同一套脚本（scratchpad 的 `behave.mjs`，真鼠标、真键盘、触屏，不节流，每条新开一个无界面 Chrome）在修前、修后各跑一遍，逐项比较页面状态（各组先后、置顶、卡片顺序、两个播报区的字、正开着的对话、浮层 / 空档 / 让位位移是否清干净、焦点、`data-drop-target` / `data-peek`、读屏属性）。23 项检查修前修后**全部一致**：鼠标组内排序、拖进置顶放下、拖进置顶后 Esc 再回原行松开、组内拖开 Esc 回原行松开、点一下照常打开、键盘公司组排序 / Esc / 快按 4 下、Alt+↓、会话栏卡片鼠标与键盘排序及把手属性、手机点按、长按出菜单再拖、长按出菜单原地松手、touchcancel、拖动中改窗口大小、已置顶收着时拖到组头（高亮、半透明、放下置顶）、多选两条拖进置顶、多选两条组内整批、自动滚动与拖动中滚轮、置顶内排序、拖进置顶再拖回本组、没有置顶时临时出空的已置顶（放下置顶 / Esc 不留下）、读屏属性。
+
+- **P 拖动处**：P-01 至 P-10 通过（卡片、公司组头、置顶行、组里的行、多选、Alt 都在复刻页过了；P-06 搜索锁住、没存到服务端的行禁用走调用方原样的 `disabled`，引擎里禁用项不出把手、不拿起、不当落点，`Round6Tests` 与引擎用例覆盖，复刻页未单独操作搜索）。
+- **I 接口**：I-01 至 I-05、I-07 通过（调用方零改动，`tsc` 通过）。I-06：纯函数与 `ReleaseFirst`、`HoldTouchSensor`、`LandingMouseSensor`、`LandingKeyboardSensor`、`blockReleaseClick`、`cloneOf`、`dragLayer`、`wheelUnder`、`keepFocusOn`、`rememberHandle`、`applyShift`、`shiftStyle`、`OVERLAY_Z` 等照旧导出、用例期望值不变；有意变化见下。
+- **A 静态 ARIA**：A-01 至 A-09 通过（卡片把手 `role="button" tabindex="0" aria-disabled="false" aria-roledescription="sortable" aria-describedby="DndDescribedBy-1" data-drag-handle=""`，侧栏把手只有 `aria-roledescription` / `aria-describedby` / `data-drag-handle`，说明与播报区编号、位置、样式同原来；SSR 输出被 `panel:PanelLogicTests.test_cards_toggle_summaries_and_grip_slot` 锁住）。
+- **S 播报**：S-01 至 S-18 通过（拿起、经过、拿起时经过自己不念、拖进置顶「将置顶」、拖回本组念位置、放下按实际结果、取消、点按先「已拿起」再「已取消」、长按菜单原地松手念取消、Alt 另一个播报区，复刻页逐字一致）。时机：原来是拖动库在提交后的副作用里设，现在在同一时刻直接写播报区，念的字与先后不变。
+- **M 鼠标**：M-01 至 M-29 通过。M-18 见有意变化（`holdStill` 去掉）。
+- **T 触屏**：T-01 至 T-14 通过（T-10 切后台、外接键盘 Esc 由 `Round11RetestBDragTests` 两条用例覆盖，复刻页做了转屏同类的 resize 与 touchcancel）。
+- **K 键盘**：K-01 至 K-14 通过（K-02 键盘拿起时那一项在窗口外就滚到中间：同原来的条件写进引擎，复刻页未构造这种位置）。
+- **E Esc 与其它层**：E-01 至 E-04 通过（`lib/layers.ts`、`ReleaseFirst` 未改）。
+- **B 多选**：B-01 至 B-06 通过（条数徽标 2、其余选中变淡、拖进置顶整批、组内整批、「2 个对话」播报）。
+- **V 视觉与动效**：V-01 至 V-08 通过（浮层结构与类名、`data-kind` / `data-peek` / `data-dropping`、z-index 55、拖动层、动效变量与减少动态效果都同原来；样式表未改）。
+- **X 牵连模块**：X-01 至 X-04 通过（`isDragging()` 时间窗同原来，卸下当场结束）。
+- **Z 已知问题**：Z-01（挪回原组时第一行先往下跳约 16px）未查、未改；Z-02 无界面模式毛病不涉及；Z-03 拖动库 body 观察器没了，菜单那一帧本身未变短（见上）。
+- **R 测试**：R-01 的行为用例期望值都没改、全过。R-02 的源码字符串断言按同一意图改写到新引擎上（`SidebarDragTests` 6 条、`Round5SmallFixesTests`、`Round8Tests` 2 条、`Round10DragTests`、`Round10BTests`、`Round11Tests`、`Round11DragFramesTests` 7 条、`Round11RetestBDragTests`、`CompanyMasterSourceTests`、`panel:SortableSourceTests.test_shared_drag_rules`）；`test_fast_arrow_keys_each_move_one_step` 原来读拖动库源码的那段改成读自写的 `step`；`test_keyboard_moves_follow_the_list_order_whatever_the_heights` 的 `closestCenter` 改从 `drag.tsx` 导入。`panel:SortableSourceTests.test_the_panel_uses_the_shared_drag` 锁 `@dnd-kit/*` 版本那段留到删依赖那一轮。新增 `DragEngineTests` 3 条（直接驱动引擎：键盘排序写让位、拿起 / 落定只叫醒被拖的那一项、拖动中不再读框、body 下不增删节点、鼠标跟手与限位、Esc 先滑回且松开不当点击、有动效时先落位再在同一下交调用方并清让位）。
+
+### 有意变化（行为不变的实现差异）
+
+1. `holdStill` 去掉：它只为挡住拖动库落位前对落点那一项的 `scrollIntoView`；自写引擎落位前不滚动那一项，列表照样不跳（M-18 复刻页、`SidebarDragTests.test_the_landing_stays_inside_the_list` 通过）。
+2. 传感器是自写的类：构造参数仍是 `{ active, event, options, onStart, onMove, onEnd, onCancel, onAbort }`；键盘选项的 `coordinateGetter` 换成 `step`（方向键交给拖动区算）。`dropAnimation` 的参数仍是 `{ active, dragOverlay, transform }`。
+3. 新增导出 `DragEngine`（行为用例直接驱动）、`closestCenter`、`sortOffset`、`MouseSensor`、`KeyboardSensor`、`KeyboardCode`（Esc 键名写作 `Escape`，避开快捷键提示检查）及几个类型。
+4. 会话栏卡片的尺寸观察只在拖动中挂（拿起那一帧画完以后，结束时摘），原来拖动库挂着就一直观察；侧栏仍不观察尺寸。
+5. 拖进另一列重挂、还没重量（下一帧）的那一下不算那一列的让位：那一列的空档已经由版面让出来，原来按旧位置算会给空档写一段错位移（看不见，但松手那一下落点会偏），重量后照常。
+6. 播报、经过（`onOver`）、指针位置（`onPointer`）在算出落点的同一刻交，不再等拖动库提交后的副作用；先后与内容不变。
+
+### 本地检查
+
+- `tsc --noEmit` 通过；`check-frontend-tokens`、`check-frontend-viewport-units`、`check-frontend-i18n`、`check-architecture`（0 violations）通过。
+- `tests.test_assistant_ui`、`tests.test_cc_session_panel`、`tests.test_cc_ccs`、`tests.test_cc_mobile_overlays`、`tests.test_cc_mobile_content` 全过（306 条）。
+
+### 还缺什么
+
+- 测试机（实时源码）与 A14 真机复测：拿起、拖动中、拖进置顶、Esc 下一帧、落定各项，按本节同一口径；读屏（TalkBack / VoiceOver）实听。
+- 落定在复刻页 23–35ms，没到 A14 目标 15–25：剩下的是侧栏存顺序后整列重排的那一次同步提交（调用方），要不要改侧栏那一侧等真机数据再定。
+- 鼠标拿起后挡板盖上那一帧的悬停样式重算（约 13ms，6 倍节流）未动（第 11 轮的挡板设计）。
+- `@dnd-kit/*` 依赖、`package.json` 与 `panel:SortableSourceTests.test_the_panel_uses_the_shared_drag` 里锁版本那段，下一轮一起删；`session-panel.tsx`、`lib/company-panel.ts` 注释里还写着 dnd-kit，按本轮范围没动。
+- Z-01 未处理。
