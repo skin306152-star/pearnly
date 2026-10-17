@@ -211,7 +211,7 @@ def test_a_failed_write_has_no_verify():
     assert "verify" not in meta
 
 
-# ── account_history v2 ───────────────────────────────────────────────
+# ── account_history v2 起 ───────────────────────────────────────────────
 
 
 def test_account_history_v2_leaves_out_what_pearnly_wrote(tmp_path):
@@ -229,6 +229,6 @@ def test_account_history_v2_leaves_out_what_pearnly_wrote(tmp_path):
     F.seed(d, "GLJNL", [{"VOUCHER": num, "CREBY": by} for num, _, by in rows])
     F.seed(d, "GLJNLIT", [{"VOUCHER": num, "ACCNUM": "53-01-00-00", "TRNTYP": "0", "AMOUNT": 100} for num, _, _ in rows])
     found = account_history.collect(d, day - dt.timedelta(days=30))
-    assert found["version"] == account_history.RESULT_VERSION == 2
+    assert found["version"] == account_history.RESULT_VERSION == 3
     assert found["documents"] == 1
     assert found["suppliers"][0]["accounts"] == [{"code": "53-01-00-00", "docs": 1, "last": day.isoformat()}]

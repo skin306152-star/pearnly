@@ -4,9 +4,9 @@
 取数由调用方做好放进 `Facts`；这里只判：
 
 - **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目、现 / 赊、对方档都要最近连续 3 张有证据的同值）、公司规则、任务默认、
-  v2 历史已定、按方向推断抵进项（原文核得到票种）……），且第 2 条核对全过；
+  v2 历史已定、按方向推断抵进项（原文核得到票种）、公司选的商品单入账方式与这家供应商的 Express 历史一致……），且第 2 条核对全过；
 - **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的账套记忆、
-  按公司选的商品单入账方式……）；
+  按公司选、供应商历史没定下的商品单入账方式……）；
 - **C 要人**：有要人选的项、任一核对不过、或被硬闸拦下。
 
 第 2 条的核对全部确定性、零费用，**只作内部信号**：原因码记在票上给 CC 与月结台账用，不出提示文案、不拦人推
@@ -115,7 +115,10 @@ class Facts:
     （`layers`）与 Express 历史读到的日子；``posting_from``：商品单的入账类型哪来的（`goods_posting.resolve`：``declared`` /
     ``company_choice``，空 = 没用上）；``account_recent``：这家供应商在这份账套里最近几张单记的科目（新的在前，不含这张；
     `memory_settled` 用，没给按 0 张算）；``payment_recent``：同上，有证据的现 / 赊（载荷 ``doctype`` 大写 HP / RR）；
-    ``party_recent``：同一 13 位税号 + 同一分店最近几张单有证据的对方档码（都是 `memory_evidence` 的结果，没给按 0 张算）。"""
+    ``party_recent``：同一 13 位税号 + 同一分店最近几张单有证据的对方档码（都是 `memory_evidence` 的结果，没给按 0 张算）；
+    ``posting_kind``：这次用的入账类型（``stock`` / ``service``，`goods_posting.resolve` 的值）；``posting_history``：这家供应商在这份
+    账套里 Express 历史定下的入账方式（`readback.history_rules.posting_settled` 的 ``kind``，v3 起才有；空 = 没有 / 不够），
+    按公司选入账方式的单拿它定档（`posting_by_history`，用户 10-17）。"""
 
     direction: str
     fields: Mapping[str, Any]
@@ -141,6 +144,8 @@ class Facts:
     account_recent: Optional[Sequence[str]] = None
     payment_recent: Optional[Sequence[str]] = None
     party_recent: Optional[Sequence[str]] = None
+    posting_kind: str = ""
+    posting_history: str = ""
 
 
 @dataclass(frozen=True)
@@ -585,10 +590,7 @@ def _items_known(facts: Facts) -> bool:
     """每一行库存行都有着落：这份账套记过 / 公司规则 / 任务默认给的存货码（`choices.resolve` 的 ``applied["items"]``，按归一品名），
     或 Express 有同名存货（归一后全等，同 `choices.resolve` 不问的那种）。只看「账套里有没有存货主档」不够：选「走库存」的
     公司里一张服务费也会出库存行（审查处理 10-16）。"""
-    config = facts.config if isinstance(facts.config, Mapping) else {}
-    rows = config.get("reported_products") if isinstance(config.get("reported_products"), list) else []
-    names = {choice_rules.norm_name(row.get("name")) for row in rows
-             if isinstance(row, Mapping) and str(row.get("kind") or "stock") == "stock"}
+    names = _stock_names(facts)
     applied = (facts.decision or {}).get("applied") if isinstance((facts.decision or {}).get("applied"), Mapping) else {}
     mapped = applied.get("items") if isinstance(applied.get("items"), Mapping) else {}
     lines = [item for item in _payload(facts).get("items") or []
@@ -598,6 +600,52 @@ def _items_known(facts: Facts) -> bool:
         if not name or (name not in mapped and name not in names):
             return False
     return bool(lines)
+
+
+def _stock_names(facts: Facts) -> set:
+    """这份账套报上来的库存品（``kind`` 是 stock）归一后的品名。"""
+    config = facts.config if isinstance(facts.config, Mapping) else {}
+    rows = config.get("reported_products") if isinstance(config.get("reported_products"), list) else []
+    return {choice_rules.norm_name(row.get("name")) for row in rows
+            if isinstance(row, Mapping) and str(row.get("kind") or "stock") == "stock"} - {""}
+
+
+def posting_by_history(facts: Facts) -> str:
+    """按公司选入账方式（``posting_from == company_choice``）的商品单，拿这家供应商的 Express 历史（``posting_history``）定入账方式
+    一项的档（用户 10-17 批准）→ 判据：
+
+    - ``""``：入账方式不是按公司选的，这一层不适用；
+    - ``B``：历史没定下（没有 v3 历史、不够 3 张、两种记法都有、太旧）—— 照旧 CC 判断；
+    - ``conflict``：历史与公司选的相反 —— 照「各层说法不一」交人（C，``conflict:posting``）；
+    - ``no_lines``：一致、定成走库存，载荷却写不出库存行（没读出明细、明细没过对账闸）—— CC 桌面版只写表头，不给 A；
+    - ``items``：一致、走库存，但有库存行的存货没着落（`_items_known`）—— 不给 A（存货一项本身也是 C）；
+    - ``named``：一致、记费用，载荷却有库存行，或票面 / 载荷明细的品名与这份账套的库存品同名（第一次进货的可能）—— 不给 A；
+    - ``A``：一致，且载荷正好按这个方式写。
+
+    值始终取公司选的（优先级不变），历史只决定档位。推送服务与回放（`scripts/da-replay.py` 的 ``posting_tier_if_history``）共用。"""
+    if facts.posting_from != "company_choice":
+        return ""
+    history, value = str(facts.posting_history or "").strip(), str(facts.posting_kind or "").strip()
+    if not history or not value:
+        return B
+    if history != value:
+        return "conflict"
+    payload = _payload(facts)
+    if value == "stock":
+        if not _stock_lines(payload):
+            return "no_lines"
+        return A if _items_known(facts) else "items"
+    names = {choice_rules.norm_name(str(item.get("name") or "")[:50])
+             for item in [*(facts.fields.get("items") or []), *(payload.get("items") or [])] if isinstance(item, Mapping)}
+    if _stock_lines(payload) or names & _stock_names(facts):
+        return "named"
+    return A
+
+
+def _posting_tier(facts: Facts) -> str:
+    """入账方式一项的档：历史一致且载荷按它写 A，相反 C（原因记 ``conflict:posting``），其余 B（`posting_by_history`）。"""
+    found = posting_by_history(facts)
+    return A if found == A else C if found == "conflict" else B
 
 
 def claim_in_text(direction: str, fields: Mapping[str, Any], text: Optional[str]) -> bool:
@@ -697,7 +745,8 @@ def _vat_applies(payload: Mapping[str, Any]) -> bool:
 
 def tiers(facts: Facts) -> Dict[str, str]:
     """第 1 条每一项的档 ``{类: A|B|C}``：party 对方档、item 存货、account 费用 / 收入科目、payment 现 / 赊、vat 抵不抵进项、
-    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）、posting 商品单入账方式（这家公司选过的，B）。
+    department 部门、receipt POS 收款科目、own 本方（票面印的本方税号对上推往账套）、posting 商品单入账方式（这家公司选过的：
+    这家供应商的 Express 历史一致 A、相反 C、其余 B，`posting_by_history`）。
     用不上的项不列。没出载荷时只列对方档。"""
     payload, decided = _payload(facts), dict((facts.decision or {}).get("decided_by") or {})
     out: Dict[str, str] = {"party": _party_tier(facts, decided.get("party"))}
@@ -739,8 +788,10 @@ def tiers(facts: Facts) -> Dict[str, str]:
     if facts.posting_from == "company_choice":
         # 商品单入账方式按公司选过的（`goods_posting`）：会交人的这类单不只是商品（进项所有可抵进项的完整税票、销项全部单），
         # 公司选的值只是这家多数单的做法。第四轮回放：按公司多数选，各家仍有 1%～6% 的单与会计的记法（有没有存货明细）不同，
-        # 所以算 CC 判断（B），不算规则定（审查处理 10-16）
-        out["posting"] = B
+        # 所以单凭公司选的算 CC 判断（B，审查处理 10-16）；这家供应商的 Express 历史一致、载荷正好按它写才算规则定（A），
+        # 相反交人（用户 10-17，`posting_by_history`）。历史按对方作键：对方没有 13 位税号时按名字对，最高 B
+        out["posting"] = _posting_tier(facts)
+        keyed["posting"] = "express_history"
     out["department"] = A  # 记过的照用，没记过取单据簿默认部门或不记（不再问，用户 10-08）
     # 本方：票面印的本方税号正是推往账套的（A）；票面没印本方的收据 / 简式税票（B，去向是上传时选的，不是票面说的）。
     # 印了却对不上、正式税票没印由第 2 条 ``own_tax`` 归 C；账套没有 13 位税号核不了，不列
@@ -802,6 +853,9 @@ def conflicts(facts: Facts) -> List[str]:
                   if str(value or "").strip() and (source != "express_history" or fresh)}
         if len(values) >= 2:
             out.append(kind)
+    # 商品单入账方式：公司选的与这家供应商的 Express 历史（31 天内读的，`history_rules.posting_settled` 已核）相反（用户 10-17）
+    if posting_by_history(facts) == "conflict":
+        out.append("posting")
     return out
 
 
@@ -812,7 +866,8 @@ def classify(facts: Facts) -> Verdict:
     """第 1 条：每张单分 A / B / C（见文件头）。"""
     items = tiers(facts)
     reasons = checks(facts)
-    reasons += [f"item:{kind}" for kind, tier in items.items() if tier == C]
+    # 入账方式一项只在与 Express 历史相反时是 C，原因记 ``conflict:posting``（`conflicts`），不另记 ``item:posting``
+    reasons += [f"item:{kind}" for kind, tier in items.items() if tier == C and kind != "posting"]
     reasons += [f"conflict:{kind}" for kind in conflicts(facts)]
     if reasons:
         return Verdict(C, tuple(dict.fromkeys(reasons)), items)
@@ -835,6 +890,7 @@ __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim
            "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_BY_KIND", "EVIDENCE_SOURCES", "Facts",
            "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
-           "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "prior_entry", "reason_codes",
+           "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "posting_by_history", "prior_entry",
+           "reason_codes",
            "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",
            "tiers", "Verdict"]

@@ -55,6 +55,12 @@
     只报不回滚，回执 `meta.verify {state: ok|mismatch, fields, party}`，随 `task_journal` 存下，重发时照样带回；
   - `account_history` 结果版本 2：汇总排除 Pearnly 写的单（APTRN `USERID` / GLJNL `CREBY` = `PEARNLY`），CC 自己推的单
     不再攒成「已定」。
+- 1.9.0（数字会计员第 3 期，用户 10-17；**先部署收 v3 的服务端再发**，服务端收 v1–v3，旧服务端只收 v1 / v2、会把 v3 的结果当
+  不合规记失败，没有历史建议）：
+  - `account_history` 结果版本 3：每家供应商另交 `posting`（近 12 个月、会计亲手录的单里走库存 / 记费用各几张、最后一张的单据
+    日期）：STCRD 按 DOCNUM 挂单（PEOPLE 有值须是这家供应商），有一行库存品（STMAS `STKTYP=0`）或有库存影响的记走库存；
+    STCRD / STMAS 读不到、或 STCRD 在 300 秒内扫不完时整份不交 `posting`（`diagnostics.posting` 记原因，`stcrd_seconds` 记耗时）。
+    服务端拿它给按公司选入账方式的商品单定档（与这家供应商的历史一致 A、相反交人、没有照旧 B）。
 
 ## 本机测试
 

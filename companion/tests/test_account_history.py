@@ -137,7 +137,7 @@ def test_counts_each_suppliers_usual_accounts_without_touching_the_books(books):
     assert _state(books.acct) == before  # 只读：账套里每个文件都不变
     assert result.meta == {"format": "json.gz", "version": account_history.RESULT_VERSION, "suppliers": 2,
                            "documents": 5}
-    assert (data["version"], data["since"], data["account_set"]) == (2, SINCE.isoformat(), "DAOWNUEA")
+    assert (data["version"], data["since"], data["account_set"]) == (3, SINCE.isoformat(), "DAOWNUEA")
     assert data["read_at"].endswith("Z")
     assert data["excluded"] == sorted([CASH, INPUT_VAT, PAYABLE])
     suppliers = {row["code"]: row for row in data["suppliers"]}
@@ -207,3 +207,66 @@ def test_a_result_too_large_is_refused(books, monkeypatch):
 
 def test_the_request_thread_knows_how_to_read_the_history():
     assert request_worker.HANDLERS["account_history"] is account_history.read_history
+
+
+# ── 结果版本 3：商品单入账方式（用户 10-17）──────────────────────────────
+
+
+def _stock_line(docnum, code, days, people="", **extra):
+    return {"DOCNUM": docnum, "SEQNUM": "1", "DOCDAT": _days(days), "STKCOD": code, "PEOPLE": people,
+            "TRNQTY": 1.0, "NETVAL": 100.0, **extra}
+
+
+def _with_stock(books):
+    _append(books.acct / "STMAS.DBF", [{"STKCOD": "P01", "STKDES": "กระดาษ A4", "STKTYP": "0"},
+                                        {"STKCOD": "SV1", "STKDES": "ค่าบริการ", "STKTYP": "3"}])
+    _append(books.acct / "STCRD.DBF", [
+        _stock_line("RR-001", "P01", 30, "S001"),  # 库存品：走库存
+        _stock_line("RR-002", "SV1", 60, "S001"),  # 只有非库存品的明细、不动库存：记费用
+        _stock_line("RR-004", "P01", 120, "S001"),  # 作废的单：不算
+        _stock_line("RR-009", "P01", 5, "C999"),  # 单号撞上别家（PEOPLE 不是这家）：不挂
+        _stock_line("RR-008", "SV1", 20, "", PHYBAL=5.0),  # 非库存品但动了库存：走库存
+    ])
+
+
+def test_v3_counts_stock_and_service_documents_per_supplier(books):
+    _with_stock(books)
+    _result, data = _read(books)
+    suppliers = {row["code"]: row for row in data["suppliers"]}
+    # HP-003 没有明细、RR-002 只有服务明细、RR-009 的明细是别家的：都记费用
+    assert suppliers["S001"]["posting"] == {"stock": {"docs": 1, "last": _days(30).isoformat()},
+                                            "service": {"docs": 3, "last": _days(5).isoformat()}}
+    assert suppliers["S002"]["posting"] == {"stock": {"docs": 1, "last": _days(20).isoformat()},
+                                            "service": {"docs": 0, "last": ""}}
+    assert data["diagnostics"]["posting"] == "ok" and "stcrd_seconds" in data["diagnostics"]
+
+
+def test_v3_leaves_out_documents_pearnly_wrote_and_suppliers_without_accounts_still_count(books):
+    _with_stock(books)
+    _append(books.acct / "APMAS.DBF", [{"SUPCOD": "S003", "SUPNAM": "ร้านวัสดุ", "TAXID": "0105556099999"}])
+    _append(books.acct / "APTRN.DBF", [_doc("RR-020", "S003", 3), {**_doc("RR-021", "S003", 2), "USERID": "PEARNLY"}])
+    _append(books.acct / "GLJNL.DBF", [_head("RR-020", 3), _head("RR-021", 2)])
+    _append(books.acct / "STCRD.DBF", [_stock_line("RR-020", "P01", 3, "S003"), _stock_line("RR-021", "P01", 2, "S003")])
+    _result, data = _read(books)
+    s003 = next(row for row in data["suppliers"] if row["code"] == "S003")
+    # 凭证没有借方行（没有常用科目）也交入账方式；Pearnly 写的 RR-021 不算
+    assert (s003["accounts"], s003["documents"]) == ([], 0)
+    assert s003["posting"]["stock"] == {"docs": 1, "last": _days(3).isoformat()}
+
+
+def test_v3_sends_no_posting_when_it_cannot_tell(books, monkeypatch):
+    # 存货明细或主档读不到：不交 posting（不猜），其余照旧
+    _result, data = _read(books)
+    assert data["diagnostics"]["posting"] == "no_stock_master"
+    assert all("posting" not in row for row in data["suppliers"])
+    _with_stock(books)
+    (books.acct / "STMAS.DBF").unlink()
+    _result, data = _read(books)
+    assert data["diagnostics"]["posting"] == "tables_missing"
+    assert all("posting" not in row for row in data["suppliers"]) and data["suppliers"]
+    # 大账套在时限内扫不完：不交（只扫一半会把走库存的单算成记费用）
+    _table(books.acct / "STMAS.DBF", S.TABLE_SPECS["STMAS"], [{"STKCOD": "P01", "STKDES": "กระดาษ A4", "STKTYP": "0"}])
+    monkeypatch.setattr(account_history, "STCRD_SECONDS_MAX", -1)
+    _result, data = _read(books)
+    assert data["diagnostics"]["posting"] == "stcrd_too_slow"
+    assert all("posting" not in row for row in data["suppliers"])

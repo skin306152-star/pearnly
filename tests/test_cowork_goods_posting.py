@@ -157,6 +157,67 @@ class ServiceUnderAStockChoice(unittest.TestCase):
         self.assertEqual(verdict.items.get("account"), "B")  # 库存车道的科目是连接默认
 
 
+class History(unittest.TestCase):
+    """这家供应商在 Express 的历史决定公司选的入账方式一项的档（用户 10-17）：近 12 个月会计亲手录 ≥3 张、只有一种记法，与公司
+    选的一致、载荷正好按它写 → A；相反 → C（``conflict:posting``）；没有 / 不够 → B。值仍取公司选的。经映射器出真载荷。"""
+
+    STOCK = [{"code": "P1", "name": "กระดาษ A4", "kind": "stock"}]
+
+    def judge(self, chosen, history, items=None, products=(), **over):
+        from pearnly_cowork.push.express import automation, decide
+
+        fields = goods(posting_payment_manual="credit", **over)
+        if items:
+            fields["items"] = items
+        cfg = config(reported_products=list(products),
+                     reported_suppliers=[{"code": "S1", "tax_id": SELLER, "branch": "00000"}])
+        kind, source = goods_posting.resolve(fields, direction="purchase", config=cfg, posting_kind=None,
+                                             chosen=chosen, today=TODAY)
+        self.assertEqual((kind, source), (chosen, goods_posting.COMPANY_CHOICE))
+        # 记费用的单要费用科目：这家记过（账套记忆）
+        remembered = {"account": {f"purchase|{SELLER}" if over.get("seller_tax") is None else "purchase|name:ผู้ขาย":
+                                  "53-01"}}
+        decision, _sources = decide.decide(fields, direction="purchase", posting_kind=kind, config=cfg,
+                                           remembered=remembered)
+        self.assertEqual(decision["needed"], [])
+        cfg["choices"] = decision["applied"]
+        result = build_express_payload({"fields": fields}, config=cfg, today=TODAY, posting_kind=kind)
+        payload = result.payload if result.ok else None
+        self.assertIsNotNone(payload)
+        text = "ใบกำกับภาษี 0107561000013 0994000333447 IV-1 10/10/2026 1,070.00 " * 10
+        facts = automation.Facts(direction="purchase", fields=fields, decision=decision, payload=payload, config=cfg,
+                                 today=TODAY, ready=payload is not None, posting_from=source, posting_kind=kind,
+                                 posting_history=history, text=text, page_texts=[text], pages=[{"fields": fields}],
+                                 account=row(), catalog=[row()], day_books=[row()["source_id"].lower()], uploaded=TODAY)
+        return automation.posting_by_history(facts), automation.classify(facts)
+
+    def test_stock_history_agrees_with_a_stock_choice_only_when_stock_lines_are_written(self):
+        paper = [{"name": "กระดาษ A4", "qty": "10", "price": "100.00", "subtotal": "1000.00"}]
+        found, verdict = self.judge("stock", "stock", paper, self.STOCK)
+        self.assertEqual((found, verdict.items["posting"], verdict.items["item"]), ("A", "A", "A"))
+        found, verdict = self.judge("stock", "stock")  # 没读出明细行：CC 桌面版只写表头
+        self.assertEqual((found, verdict.items["posting"]), ("no_lines", "B"))
+        found, verdict = self.judge("stock", "", paper, self.STOCK)  # 没有历史
+        self.assertEqual((found, verdict.items["posting"]), ("B", "B"))
+
+    def test_service_history_needs_no_stock_named_line(self):
+        found, verdict = self.judge("service", "service")
+        self.assertEqual((found, verdict.items["posting"]), ("A", "A"))
+        paper = [{"name": "กระดาษ A4", "qty": "10", "price": "100.00", "subtotal": "1000.00"}]
+        found, verdict = self.judge("service", "service", paper, self.STOCK)  # 票面品名与库存品同名：可能是第一次进货
+        self.assertEqual((found, verdict.items["posting"]), ("named", "B"))
+
+    def test_history_against_the_choice_goes_to_a_person(self):
+        found, verdict = self.judge("service", "stock")
+        self.assertEqual((found, verdict.cls, verdict.items["posting"]), ("conflict", "C", "C"))
+        self.assertIn("conflict:posting", verdict.reasons)
+        self.assertNotIn("item:posting", verdict.reasons)
+
+    def test_a_supplier_without_a_tax_id_is_at_most_b(self):
+        found, verdict = self.judge("service", "service", seller_tax="")
+        self.assertEqual((found, verdict.items["posting"]), ("A", "B"))  # 历史按名字对上：判据成立，档位封顶 B
+
+
 class Resolve(unittest.TestCase):
     def resolve(self, chosen, *, posting_kind=None, fields=None, cfg=None):
         return goods_posting.resolve(fields or goods(), direction="purchase", config=cfg or config(),

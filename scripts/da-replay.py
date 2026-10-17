@@ -36,8 +36,8 @@
 （STCRD 按单号分组、按 SEQNUM 排、PEOPLE 防撞号，进销同号再按明细日期分），另记有没有明细；``--lines answer`` 把答案明细造进票面
 （``--line-names`` ``stkdes`` 品名照 Express 是乐观上界、``opaque`` 品名打码是「同名查找落空、记忆理想命中」的估计），默认 ``none``
 不造；入账方式不造明细时按声明值计分（同第四轮），造了明细按载荷实际会写什么计分（明细过对账闸才写 STCRD），存货逐行计分、逐行
-学记忆；每张单记这家供应商之前的 Express 存货历史（`stock_history` + 与线上将来共用的 `history_rules.posting_settled`）若用来定档会
-是什么档（上界；把之前判成 A / B 的单当 CC 推的剔掉另算一次是下界）；模拟的人替公司选入账方式按「第一次交人之前、会因入账方式交人
+学记忆；每张单记这家供应商之前的 Express 存货历史（`stock_history` + 与线上共用的 `history_rules.posting_settled`）按线上同一判据
+`automation.posting_by_history` 定的档（主判定不带这一层：上界；把之前判成 A / B 的单当 CC 推的剔掉另算一次是下界）；模拟的人替公司选入账方式按「第一次交人之前、会因入账方式交人
 的单里的多数」（``--company-choice prior``，不到 10 张退到全期多数；全期多数 ``full`` 作对照）。上传日另按「凭证录入日与税期 ภ.พ.30
 截止日取早」估一次（`upload_proxy`），只重判日期类核对（``class_alt``），报表在 C 类主因后加一行对照。
 
@@ -1239,7 +1239,8 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     ``pushed_from`` 记 payload / replanned / approx）。``lines`` / ``names``：票面造不造明细行、品名怎么写（`perfect_fields`，
     10-17）；造了明细时存货逐行计分（`answer_items`）、逐行学记忆。每张单另记 ``posting_history``（这家供应商之前的 Express 存货
     历史定下的入账方式，`stock_history` + `history_rules.posting_settled`）与 ``posting_tier_if_history``（按公司选入账方式的单
-    若加上这一层：一致 A、相反 conflict、定成走库存而载荷写不出库存行 no_lines、没定下 B；``auto`` 是之前判成 A / B 的单（``id``），
+    加上这一层的档，与线上同一判据 `automation.posting_by_history`：一致 A、相反 conflict、定成走库存而载荷写不出库存行 no_lines、
+    存货没着落 items、定成记费用却有库存行或与库存品同名 named、没定下 B；``auto`` 是之前判成 A / B 的单（``id``），
     ``posting_history_manual`` / ``posting_tier_if_history_manual`` 把它们当 CC 推的、从历史里剔掉再算一次：用户 10-17 定的口径不含
     CC 推的单，回放里能被自动推的单线上会是 USERID=PEARNLY、不进历史，所以不剔是上界、全剔是下界），以及按「录入日与税期截止日
     取早」估上传日重判日期核对的 ``class_alt``。``recent_max`` / ``readback_scope`` 见 `pushed_evidence` / `pushed_record`；
@@ -1274,7 +1275,7 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     # 防泄漏（审查处理 10-16）：Express 历史只含这张单录入之前已录进去的单（按录入日，不按单据日期），不含它自己
     earlier = [item for item in mine if item is not doc and item["date"] and entered_on(item) < entered]
     data = history_data(earlier, entered - dt.timedelta(days=365), entered, entered)
-    # 这家供应商之前的入账方式（10-17，只量不判）：会计亲手录、近 12 个月、只有一种记法且 ≥3 张（与线上将来共用同一个纯函数）
+    # 这家供应商之前的入账方式（10-17，主判定不带、另列）：会计亲手录、近 12 个月、只有一种记法且 ≥3 张（与线上共用同一个纯函数）
     settled = m["history_rules"].posting_settled(stock_history(earlier, entered - dt.timedelta(days=365), entered),
                                                  entered, entered) if direction == "purchase" else None
     posting_history = (settled or {}).get("kind") or ""
@@ -1356,17 +1357,16 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     verdict = automation.classify(facts)
 
     def history_tier(kind: str) -> Optional[str]:
-        """按公司选入账方式的单若加上供应商存货历史这一层的档（只量不判）：没定下 B；与公司选的相反 conflict（线上会交人）；一致、
-        但定成走库存而载荷写不出库存行（没造明细、明细没过对账闸、没出载荷）no_lines（线上要求 `_stock_lines` 为真才给 A，审查处理
-        10-17）；
-        一致 A。"""
+        """按公司选入账方式的单加上供应商存货历史这一层的档：调线上同一个判据 `automation.posting_by_history`（用户 10-17 批准接
+        线上，回放与线上同口径）——没定下 B；与公司选的相反 conflict（线上交人）；一致但定成走库存、载荷写不出库存行 no_lines、
+        库存行的存货没着落 items、定成记费用而载荷有库存行或明细与库存品同名 named（线上都不给 A）；一致 A。不是按公司选的回
+        None。回放的主判定不带这一层（回放分不清哪些单线上会是 CC 写的、不进历史），上下界分别看 ``posting_tier_if_history`` 与
+        ``posting_tier_if_history_manual``。"""
         if posting_from != m["goods_posting"].COMPANY_CHOICE:
             return None
-        if not kind:
-            return "B"
-        if kind != posting_kind:
-            return "conflict"
-        return "no_lines" if kind == "stock" and not written_items(payload or {}) else "A"
+        found = automation.posting_by_history(dataclasses.replace(facts, posting_kind=posting_kind or "",
+                                                                  posting_history=kind))
+        return found or None
 
     # 「最新 30 张」的上限丢掉的 A（审查处理 10-17）：记忆定的项判成 B，不设上限的证据却能定下的类
     cap_lost = []
@@ -2311,8 +2311,9 @@ def goods_summary(rows: Sequence[Mapping[str, Any]], choices: Mapping[str, Mappi
     - ``companies``：每家选了什么（``used``、凭什么 ``by``、那一刻之前的多数 ``prior`` 与张数 ``prior_docs``、全期多数 ``full``）、
       这类单张数、答案走库存的、只有非库存明细的（``detail_only``：旧口径算走库存、新口径不算）、与选的值不同的（``disagree_used``）、
       与全期多数不同的（``disagree_full``）——替换第四轮「0–15% 与会计记法不同」的口径；
-    - ``history``（`posting_tier_if_history`，只量不判）：若加上「这家供应商之前的 Express 存货历史」一层，A（与公司选的一致、载荷
-      真写得出库存行）/ no_lines（一致但定成走库存、载荷写不出库存行：线上不给 A）/ B（没定下）/ conflict（相反）各几张；A 里入账方式
+    - ``history``（`posting_tier_if_history`，线上同一判据 `automation.posting_by_history`，回放主判定不带）：加上「这家供应商之前的
+      Express 存货历史」一层，A（与公司选的一致、载荷正好按它写）/ no_lines（一致但定成走库存、载荷写不出库存行）/ items（存货没
+      着落）/ named（定成记费用却有库存行或与库存品同名）/ B（没定下）/ conflict（相反，线上交人）各几张（后三种线上不给 A）；A 里入账方式
       计分错的（``A_wrong``，按 ``scored["posting"]``，同报表计分口径）；现在只因入账方式是 B、会升 A 的（``extra_A``，其中整张推错
       ``extra_A_wrong``、入账方式本身判错 ``extra_A_posting_wrong``）；相反会多出的 C（``conflict_C``，其中真拦住了入账方式错的
       ``conflict_caught``）。``history_manual`` 同上，只是把之前判成 A / B 的单当 CC 推的剔掉（不含 CC 推的下界；``history`` 是
@@ -2599,9 +2600,10 @@ def _render_goods(s: Mapping[str, Any]) -> List[str]:
              "只有库存品（STKTYP=0）或有库存影响的明细才算走库存，只挂非库存品明细的不算（与第四轮不能直接比）。"
              f"这类单 {goods.get('docs', 0)} 张；载荷明细过闸情况 "
              + "、".join(f"{k} {v}" for k, v in sorted((goods.get("items_status") or {}).items())) + "。", "",
-             f"若加上「这家供应商之前的 Express 存货历史」一层（只量不判；近 12 个月会计亲手录、只有一种记法且 ≥3 张）：与公司选的一致 "
-             f"{history.get('A', 0)}（其中入账方式计错 {history.get('A_wrong', 0)}）、一致但定成走库存而载荷写不出库存行 "
-             f"{history.get('no_lines', 0)}（线上不给 A；不造明细的那两遍都落这里）、没定下 {history.get('B', 0)}、相反 "
+             f"加上「这家供应商之前的 Express 存货历史」一层（线上同一判据，回放主判定不带；近 12 个月会计亲手录、只有一种记法且 ≥3 张）："
+             f"与公司选的一致 {history.get('A', 0)}（其中入账方式计错 {history.get('A_wrong', 0)}）、一致但定成走库存而载荷写不出库存行 "
+             f"{history.get('no_lines', 0)}（不造明细的那两遍都落这里）、存货没着落 {history.get('items', 0)}、定成记费用却有库存行"
+             f"或与库存品同名 {history.get('named', 0)}（这三种线上不给 A）、没定下 {history.get('B', 0)}、相反 "
              f"{history.get('conflict', 0)}；现在只因入账方式是 B、会升 A 的 {history.get('extra_A', 0)} 张（整张推错 "
              f"{history.get('extra_A_wrong', 0)}、入账方式本身判错 {history.get('extra_A_posting_wrong', 0)}）；相反改交人会多出 C "
              f"{history.get('conflict_C', 0)} 张（其中真拦住入账方式错的 {history.get('conflict_caught', 0)}）。这是上界：回放里"

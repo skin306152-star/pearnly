@@ -103,6 +103,8 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
     page_texts = text_layer.pages(doc)
     tier = automation_service.tier(connection, account_set, account_row)
     recent = _recent(connection, account_set, doc, direction, dated, payload, decision)
+    # 按公司选的入账方式：这家供应商的 Express 历史定下的（只读存着的，用户 10-17），定档用（`automation.posting_by_history`）
+    posting_history = service._posting_history(connection, account_set, dated, direction, posting_from)
     facts = automation.Facts(
         direction=direction, fields=dated, decision=decision, payload=payload, config=config, today=today,
         ready=ready, blocked=blocked or conflict or reason, pages=pages, review_reasons=_list(doc.review_reasons),
@@ -110,7 +112,8 @@ def _assess(doc, loaded, account_set_key, posting_kind, fixed, trigger, route_de
         day_books=automation_service.day_books(connection, account_row, day, catalog), uploaded=_day(doc.creation),
         history_read=_read_day((decision.get("history") or {}).get("read")),
         source_total=int(doc.source_total or 1), prior_pushes=_prior(connection, account_set, doc, direction),
-        posting_from=posting_from, account_recent=recent["account"], payment_recent=recent["payment"],
+        posting_from=posting_from, posting_kind=posting_kind or "", posting_history=posting_history,
+        account_recent=recent["account"], payment_recent=recent["payment"],
         party_recent=recent["party"],
         layers=automation.layers(dated, direction=direction, fixed=fixed, remembered=remembered,
                                  rules=(company or {}).get("rules") or (), branch=(company or {}).get("branch") or "",

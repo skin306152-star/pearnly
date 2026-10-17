@@ -909,7 +909,7 @@ class UploadSweep(unittest.TestCase):
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
             prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
-            suppliers=None, direction="purchase", fields_over=None, responses=None):
+            suppliers=None, direction="purchase", fields_over=None, responses=None, posting_history=""):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -967,6 +967,8 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         _account_tax=lambda row: OWN, _loads=json.loads,
         _posting_decision=lambda doc, connection, row, kind, flat, direction, config, today, decide: (
             seen.setdefault("posting", (doc, connection, row, kind)) and (*posting, decide(posting[0]))),
+        _posting_history=lambda connection, key, fields, direction, posting_from: (
+            seen.setdefault("posting_history", (connection, key, direction, posting_from)) and posting_history),
         _decisions=lambda *a, **k: {"applied": {"account": "5310-01"}, "needed": list(needed),
                                     "decided_by": decided or {"account": "remembered", "vat": "remembered"}})
     automation_service = ns(
@@ -1116,6 +1118,14 @@ class Judging(unittest.TestCase):
         found, seen = _assess(posting=("stock", "company_choice"))
         self.assertEqual((found["class"], found["items"].get("posting")), ("B", "B"))
         self.assertEqual(seen["posting"][3], None)  # 调用方给的入账类型原样交给它判
+        # 这家供应商的 Express 历史（只读存着的，`service._posting_history`）：与公司选的相反交人（用户 10-17）
+        self.assertEqual(seen["posting_history"], ("C1", BOOK, "purchase", "company_choice"))
+        found, _seen = _assess(posting=("service", "company_choice"), posting_history="stock")
+        self.assertEqual((found["class"], found["items"]["posting"]), ("C", "C"))
+        self.assertIn("conflict:posting", found["reasons"])
+        # 一致、载荷正好按它写（记费用、没有库存行）：入账方式一项 A，整张 A
+        found, _seen = _assess(posting=("service", "company_choice"), posting_history="service")
+        self.assertEqual((found["class"], found["items"]["posting"]), ("A", "A"))
 
     def test_boundaries_turn_a_push_into_a_proposal(self):
         found, _seen = _assess(site_ok=False)

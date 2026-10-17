@@ -11,9 +11,15 @@
 - 不算的科目：账套设置 ISINFO 里的现金（ACCNUM00）、进项税（ACCNUM06）、应付（ACCNUM07），以及这家供应商档上挂的
   应付科目（APMAS.ACCNUM，16% 的供应商不用账套默认的应付）。现金、银行只出现在进项凭证的贷方，借方行本来就没有。
   是不是费用科目由服务端按科目表核（这里不判断，期末盘存制账套的「购货」照样交回）。
+- 结果版本 3（数字会计员第 3 期，用户 10-17）：每家供应商另交 ``posting``，商品单走库存 / 记费用各几张、最后一张的单据日期 ——
+  同上那批单（近 12 个月、没作废、不是 Pearnly 写的），在 STCRD 里（按 DOCNUM 挂单，PEOPLE 有值时须是这家供应商的码，防撞号）
+  有一行是库存品（STMAS.STKTYP = 0）或有库存影响（``dbf_schema.stcrd_no_stock_impact`` 为假）的记走库存，其余（没有明细、只有
+  非库存品的明细）记费用。STCRD、STMAS 都可选：任一张读不到、或 STCRD 太大在 ``STCRD_SECONDS_MAX`` 秒内扫不完，整份都不交
+  ``posting``（不猜：只扫了一半会把走库存的单算成记费用），原因记在 ``diagnostics.posting``，扫的秒数记 ``stcrd_seconds``。
+  STCRD 要从头扫到尾（行按录入先后排，只读近 12 个月的那部分做不到），大账套的读取时间看 ``read_seconds`` / ``stcrd_seconds``。
 - 交回：每家供应商（代码、名称、税号、分店号）最多 ``ACCOUNTS_PER_SUPPLIER`` 个科目，每个科目记「几张单用过」与最后
-  一次的单据日期；按用过的单据数取前 ``SUPPLIERS_MAX`` 家。只交次数，不交金额、不交单据明细。结果是 gzip 后的 JSON
-  （``RESULT_VERSION``，字段见 ``collect``）。
+  一次的单据日期，以及 ``posting``；按单据数取前 ``SUPPLIERS_MAX`` 家。只交次数，不交金额、不交单据明细。结果是 gzip 后的
+  JSON（``RESULT_VERSION``，字段见 ``collect``）。
 """
 
 from __future__ import annotations
@@ -26,6 +32,9 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Callable
 
+import dbf
+
+from . import dbf_schema as S
 from . import express_read
 from .dbf_schema import PEARNLY_USERID
 from .logger import get_logger
@@ -33,9 +42,15 @@ from .request_contract import MAX_BYTES, RequestFailed, Result
 
 log = get_logger(__name__)
 
-RESULT_VERSION = 2
-TABLES = ("ISINFO", "APMAS", "APTRN", "GLJNL", "GLJNLIT")
+RESULT_VERSION = 3
+TABLES = ("ISINFO", "APMAS", "APTRN", "GLJNL", "GLJNLIT", "STMAS", "STCRD")
 REQUIRED = ("APTRN", "GLJNLIT")
+# 商品单入账方式（v3）要的两张表：都在才交 ``posting``
+POSTING_TABLES = ("STMAS", "STCRD")
+# 库存品（STMAS.STKTYP）
+STOCK_TYPE = "0"
+# STCRD 最多扫这么久（秒）：扫不完整份不交 ``posting``（请求租约 900 秒，复制与其余几张表也在里面）
+STCRD_SECONDS_MAX = 300
 # ISINFO 里不算「常用科目」的默认科目：现金、进项税、应付（索引含义见 ``account_probe._ISINFO_DEFAULT_SLOTS``）。
 EXCLUDED_SLOTS = ("ACCNUM00", "ACCNUM06", "ACCNUM07")
 SUPPLIERS_MAX = 5000
@@ -129,27 +144,97 @@ def collect(folder: Path, since: dt.date) -> dict:
         return None
 
     express_read._rows(folder, "GLJNLIT", diag, line)
+    posting = _posting(folder, documents, diag)
 
     by_party: dict = defaultdict(list)
     party_docs: dict = defaultdict(set)
     for (party, account), docs in used.items():
         by_party[party].append({"code": account, "docs": len(docs), "last": last[(party, account)].isoformat()})
         party_docs[party] |= docs
-    ranked = sorted(by_party, key=lambda party: (-len(party_docs[party]), party))[:SUPPLIERS_MAX]
+    counted = {party: sum(row["docs"] for row in kinds.values()) for party, kinds in (posting or {}).items()}
+    ranked = sorted(set(by_party) | set(counted),
+                    key=lambda party: (-max(len(party_docs[party]), counted.get(party, 0)), party))[:SUPPLIERS_MAX]
     out = []
     for party in sorted(ranked):
         master = suppliers.get(party) or {}
         # 用过的单据多的在前；一样多时最近用过的在前，再按科目号
-        accounts = sorted(by_party[party], key=lambda item: item["code"])
+        accounts = sorted(by_party.get(party, []), key=lambda item: item["code"])
         accounts.sort(key=lambda item: item["last"], reverse=True)
         accounts.sort(key=lambda item: item["docs"], reverse=True)
-        out.append({"code": party, "name": master.get("name", ""), "tax_id": master.get("tax_id", ""),
-                    "branch": master.get("branch", ""), "documents": len(party_docs[party]),
-                    "accounts": accounts[:ACCOUNTS_PER_SUPPLIER]})
+        row = {"code": party, "name": master.get("name", ""), "tax_id": master.get("tax_id", ""),
+               "branch": master.get("branch", ""), "documents": len(party_docs[party]),
+               "accounts": accounts[:ACCOUNTS_PER_SUPPLIER]}
+        if posting is not None:
+            row["posting"] = posting.get(party) or _no_posting()
+        out.append(row)
     diag["read_seconds"] = round(time.monotonic() - started, 2)
     return {"version": RESULT_VERSION, "since": since.isoformat(), "excluded": sorted(excluded),
             "suppliers": out, "documents": len({doc for docs in party_docs.values() for doc in docs}),
             "diagnostics": diag}
+
+
+def _no_posting() -> dict:
+    return {"stock": {"docs": 0, "last": ""}, "service": {"docs": 0, "last": ""}}
+
+
+def _posting(folder: Path, documents: dict, diag: dict):
+    """这批单（``documents``：单号 → (供应商码, 单据日期)）按供应商汇总走库存 / 记费用各几张（口径见文件头）→
+    ``{供应商码: {"stock": {docs, last}, "service": {docs, last}}}``；表读不到或扫不完回 None（不交 ``posting``）。"""
+    if any(not (folder / f"{name}.DBF").is_file() for name in POSTING_TABLES):
+        diag["posting"] = "tables_missing"
+        return None
+    get, text = express_read._get, express_read._text
+    types = {}
+
+    def master(rec, columns, _gone):
+        code = text(get(rec, columns, "STKCOD"))
+        if code:
+            types[code] = text(get(rec, columns, "STKTYP"))
+        return None
+
+    express_read._rows(folder, "STMAS", diag, master)
+    if not types:
+        diag["posting"] = "no_stock_master"  # 存货主档读不出：库存品判不出，不猜
+        return None
+    stocked = set()
+    started = time.monotonic()
+    count = bad = 0
+    with express_read._table(folder, "STCRD") as table:
+        columns = {str(item).upper() for item in table.field_names}
+        try:
+            for rec in table:
+                if time.monotonic() - started > STCRD_SECONDS_MAX:
+                    diag["posting"] = "stcrd_too_slow"
+                    diag["stcrd_seconds"] = round(time.monotonic() - started, 2)
+                    return None
+                if dbf.is_deleted(rec):
+                    continue
+                count += 1
+                try:
+                    docnum = _key(get(rec, columns, "DOCNUM"))
+                    found = documents.get(docnum)
+                    if found is None or docnum in stocked:
+                        continue
+                    people = text(get(rec, columns, "PEOPLE"))
+                    if people and people != found[0]:
+                        continue  # 单号撞上别家（销项、别的供应商）的明细：不挂到这张
+                    if types.get(text(get(rec, columns, "STKCOD"))) == STOCK_TYPE or not S.stcrd_no_stock_impact(rec):
+                        stocked.add(docnum)
+                except Exception:  # noqa: BLE001 — 坏字节的单行跳过并计数，同 `express_read._rows`
+                    bad += 1
+        except Exception as error:
+            raise express_read._Unreadable(f"STCRD: {type(error).__name__}") from error
+    diag["rows"]["STCRD"] = count
+    if bad:
+        diag["bad_rows"]["STCRD"] = bad
+    diag["stcrd_seconds"] = round(time.monotonic() - started, 2)
+    out: dict = {}
+    for docnum, (party, when) in documents.items():
+        row = out.setdefault(party, _no_posting())["stock" if docnum in stocked else "service"]
+        row["docs"] += 1
+        row["last"] = max(row["last"], when.isoformat())
+    diag["posting"] = "ok"
+    return out
 
 
 # ── 处理函数（request_worker.HANDLERS["account_history"]）────────────────────

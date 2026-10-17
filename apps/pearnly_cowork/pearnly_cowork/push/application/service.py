@@ -289,6 +289,22 @@ def _posting_decision(doc, connection, account_row, posting_kind, flat, directio
     return kind, source, decision
 
 
+def _posting_history(connection, account_set, fields, direction, posting_from):
+    """按公司选入账方式的进项商品单：这家供应商在这份账套里 Express 历史定下的入账方式（``stock`` / ``service``，
+    `readback.history_rules.posting_settled`，用户 10-17）；不是按公司选的、销项、没有 v3 历史或没定下回空串。
+
+    经钩子 ``cowork_push_account_history`` 只读存着的那份（不请电脑、不写库，同 `_settled_account`）；只给自动推前的判档用
+    （`push.application.assess`），值仍取公司选的。"""
+    if posting_from != goods_posting.COMPANY_CHOICE or direction != "purchase":
+        return ""
+    seller = {"tax": fields.get("seller_tax") or fields.get("seller_tax_id") or "", "name": fields.get("seller_name") or ""}
+    for path in frappe.get_hooks("cowork_push_account_history") or []:
+        found = (frappe.get_attr(path)(connection, account_set, seller, False) or {}).get("posting")
+        if isinstance(found, dict) and found.get("kind") in policy_rules.GOODS_POSTING_VALUES:
+            return found["kind"]
+    return ""
+
+
 def _apply_stock_group(config, connection, account_set):
     """存货科目组每个账套选一次（用户 2026-09-28）：这份账套选过就用它，新建库存品都挂它；没选过照旧。"""
     chosen = stock_groups.chosen(connection.get("stock_acc_groups"), normalize_express_account_key(account_set))

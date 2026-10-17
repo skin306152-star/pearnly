@@ -11,6 +11,9 @@
 - 什么时候读：要人选费用科目、看「要选的项」时（``refresh``）缺了或超过 ``REREAD_AFTER`` 就请电脑读，照旧先用读过的那份；
   电脑离线、CC 桌面版太旧（不认这种请求）就不建，安静地没有历史建议；读失败 ``RETRY_AFTER_FAILURE`` 内不再请。
   准备推送（``refresh`` 假）只读存着的，不建请求、不写库。
+- 商品单入账方式（v3，用户 2026-10-17）：同一供应商近 12 个月会计亲手录的（不含 CC 推的）≥3 张、全部走库存或全部没有库存明细
+  （`history_rules.posting_settled`）→ 回 ``posting``；推送判档拿它和这家公司选的入账方式比（一致 A、相反交人、没有照旧 B，
+  `push.express.automation.posting_by_history`），值仍取公司选的。主档页删过的供应商同样不按历史用。
 - 很一致的直接用（用户 2026-10-15）：同一供应商近 12 个月 ≥3 张、全记同一个科目（`history_rules.settled`）→ 回
   ``settled``，推送准备当作已记住的选择用（会计员手选过的优先）。公司主档页经钩子 ``cowork_company_history_choices``
   列出这些、``cowork_company_history_forget`` 删：删了记在 ``<摘要>.forgotten.json``（与汇总分开存，重读不会冲掉），
@@ -141,12 +144,14 @@ def _quiet(fn, *args):
 
 def for_push(connection, account_set, seller=None, refresh=False) -> dict:
     """推送服务的钩子（``cowork_push_account_history``）：这张票的卖方（``seller`` ``{"tax", "name"}``）在这本账套里
-    近 12 个月常用的科目。回 ``{"state": "ready" | "reading" | "none", "accounts": [{code, docs, last}], "changed"}``：
-    ``reading`` 是电脑正在读（读完再看会有）；``changed`` 为真表示建了或了结了请求（调用方提交）。
+    近 12 个月常用的科目。回 ``{"state": "ready" | "reading" | "none", "accounts": [{code, docs, last}], "changed", "settled",
+    "posting"}``：``reading`` 是电脑正在读（读完再看会有）；``changed`` 为真表示建了或了结了请求（调用方提交）；``posting`` 是这家
+    商品单的入账方式一致到可以定档时的 ``{kind, docs, last, version, read}``（`history_rules.posting_settled`，v3 起才有，用户 10-17），
+    否则 None。
 
     ``refresh`` 才会请电脑读、取读好的结果；否则只看存着的。调用方已核过录入权限与这条连接的使用授权。取不到一律回
     ``none``、不抛错：没有历史建议，推送照常问人。"""
-    out = {"state": NONE, "accounts": [], "changed": False, "settled": None}
+    out = {"state": NONE, "accounts": [], "changed": False, "settled": None, "posting": None}
     try:
         key = normalize_express_account_key(account_set)
         if not key or connections.adapter_of(connection) != "express":
@@ -165,10 +170,13 @@ def for_push(connection, account_set, seller=None, refresh=False) -> dict:
             return out  # 主档页删过：这家在这份账套里不再按历史用
         out["accounts"] = rules.supplier_accounts(stored, seller.get("tax"), seller.get("name"))
         out["settled"] = rules.stamp(rules.settled(out["accounts"], now.date(), stored.get("taken_at")), stored)
+        out["posting"] = rules.stamp(rules.posting_settled(
+            rules.supplier_posting(stored, seller.get("tax"), seller.get("name")), now.date(), stored.get("taken_at")),
+            stored)
     except Exception:  # noqa: BLE001 — 建议是锦上添花：任何意外都不挡推送
         frappe.log_error(title="Cowork account history failed", message=frappe.get_traceback()[-1500:])
         frappe.clear_messages()
-        out.update(state=NONE, accounts=[], settled=None)
+        out.update(state=NONE, accounts=[], settled=None, posting=None)
     return out
 
 

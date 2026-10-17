@@ -170,10 +170,10 @@ class HistoryVersion(unittest.TestCase):
                           "accounts": [{"code": "53-01-00-00", "docs": 4, "last": "2026-10-01"}]}]}
 
     def test_both_versions_are_read_and_the_version_is_kept(self):
-        self.assertEqual(history_rules.RESULT_VERSION, 2)
-        self.assertEqual(history_rules.parse({**self.RAW, "version": 1})["version"], 1)
-        self.assertEqual(history_rules.parse({**self.RAW, "version": 2})["version"], 2)
-        for version in (3, "2", True, None):
+        self.assertEqual(history_rules.RESULT_VERSION, 3)  # v3 多带商品单入账方式（用户 10-17）
+        for version in (1, 2, 3):
+            self.assertEqual(history_rules.parse({**self.RAW, "version": version})["version"], version)
+        for version in (4, "2", True, None):
             with self.assertRaises(Exception):
                 history_rules.parse({**self.RAW, "version": version})
 

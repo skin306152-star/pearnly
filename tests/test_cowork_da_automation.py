@@ -374,13 +374,50 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:account",)))
 
     def test_the_company_goods_posting_choice_is_a_cc_judgement(self):
-        """永续 / 混合库存账套的商品单：这家公司选过的入账方式（`goods_posting`）只是这家多数单的做法，列 posting = B
-        （审查处理 10-16，第四轮回放各家 1%～6% 的单与会计记法不同）。"""
-        self.assertEqual(self.tier("posting", posting_from="company_choice"), "B")
-        self.assertIsNone(self.tier("posting", posting_from="declared"))
+        """永续 / 混合库存账套的商品单：这家公司选过的入账方式（`goods_posting`）只是这家多数单的做法，没有这家供应商的 Express
+        历史（v2 及以前、不够 3 张、两种记法都有）时列 posting = B（审查处理 10-16，第四轮回放各家 1%～6% 的单与会计记法不同）。"""
+        self.assertEqual(self.tier("posting", posting_from="company_choice", posting_kind="service"), "B")
+        self.assertIsNone(self.tier("posting", posting_from="declared", posting_history="service"))
         self.assertIsNone(self.tier("posting"))
-        verdict = auto.classify(_facts(posting_from="company_choice"))
+        verdict = auto.classify(_facts(posting_from="company_choice", posting_kind="service"))
         self.assertEqual((verdict.cls, verdict.reasons), ("B", ("judged:posting",)))
+
+    def test_the_suppliers_express_history_settles_the_company_goods_posting(self):
+        """这家供应商的 Express 历史（近 12 个月会计亲手录 ≥3 张、只有一种记法）与公司选的一致、载荷正好按它写 → A；相反 → C
+        ``conflict:posting``（照各层说法不一交人，不另记 ``item:posting``）；值仍取公司选的（用户 10-17）。"""
+        chosen = dict(posting_from="company_choice", posting_kind="service")
+        verdict = auto.classify(_facts(posting_history="service", **chosen))
+        self.assertEqual((verdict.cls, verdict.items["posting"]), ("A", "A"))
+        self.assertEqual(auto.posting_by_history(_facts(posting_history="service", **chosen)), "A")
+        verdict = auto.classify(_facts(posting_history="stock", **chosen))
+        self.assertEqual((verdict.cls, verdict.items["posting"], verdict.reasons), ("C", "C", ("conflict:posting",)))
+        # 对方没有 13 位税号：历史按名字对，最高 B
+        nameless = _facts(posting_history="service", fields=_fields(seller_tax="", document_type="receipt"), **chosen)
+        self.assertEqual(auto.tiers(nameless)["posting"], "B")
+        # 不是按公司选的（本票声明）：这一层不适用
+        self.assertEqual(auto.posting_by_history(_facts(posting_from="declared", posting_kind="service",
+                                                        posting_history="stock")), "")
+
+    def test_a_settled_posting_must_match_what_the_payload_writes(self):
+        """一致也要载荷正好按它写：走库存要有库存行、每行存货有着落；记费用不能有库存行，票面 / 载荷明细的品名也不能与这份
+        账套的库存品同名（第一次进货）。"""
+        stock = dict(posting_from="company_choice", posting_kind="stock", posting_history="stock")
+        line = {"name": "กระดาษ A4", "amount": "1000.00", "item_mode": "stock_item"}
+        products = {"reported_suppliers": [{"code": "S001", "tax_id": SELLER, "branch": "00000"}],
+                    "reported_accounts": [{"code": "5310-01"}],
+                    "reported_products": [{"code": "P1", "name": "กระดาษ A4", "kind": "stock"}]}
+        self.assertEqual(auto.posting_by_history(_facts(**stock)), "no_lines")  # 没读出明细：只写表头
+        self.assertEqual(auto.posting_by_history(_facts(payload=_payload(items=[line]), config=products, **stock)), "A")
+        self.assertEqual(auto.posting_by_history(_facts(payload=_payload(items=[{**line, "name": "ค่าขนส่ง"}]),
+                                                        config=products, **stock)), "items")
+        self.assertEqual(self.tier("posting", payload=_payload(items=[line]), **stock), "B")  # 没报存货主档：存货没着落
+        service = dict(posting_from="company_choice", posting_kind="service", posting_history="service")
+        self.assertEqual(auto.posting_by_history(_facts(config=products, **service)), "A")
+        self.assertEqual(auto.posting_by_history(_facts(config=products, fields=_fields(items=[{"name": "กระดาษ  a4"}]),
+                                                        **service)), "named")
+        self.assertEqual(auto.posting_by_history(_facts(payload=_payload(items=[line]), **service)), "named")
+        self.assertEqual(self.tier("posting", config=products, fields=_fields(items=[{"name": "กระดาษ A4"}]), **service),
+                         "B")
 
     def test_a_c_item_makes_the_document_c(self):
         verdict = auto.classify(_facts(config={}))

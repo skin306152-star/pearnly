@@ -24,6 +24,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from decimal import Decimal
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -613,6 +614,11 @@ class GoodsAndUpload(unittest.TestCase):
                                         "goods_posting": choices})["goods"]
         self.assertEqual((goods["history"]["A"], goods["history"]["A_wrong"], goods["history"]["no_lines"]), (3, 0, 1))
         self.assertEqual(goods["history_manual"].get("A", 0), 0)
+        # 与线上同一判据（用户 10-17 接线上）：档由 `automation.posting_by_history` 给，回放不另写一套
+        with mock.patch.object(m["automation"], "posting_by_history", return_value="named") as judged:
+            same = {row["docnum"]: row for row in replay.judge_company(m, [book], lines="answer")[0]}
+        self.assertEqual(same["G04"]["posting_tier_if_history"], "named")
+        self.assertEqual(judged.call_args.args[0].posting_from, "company_choice")
         self.assertIn("「同名查找落空、记忆理想命中」", "\n".join(replay._render_goods(
             replay.summarize_judge({"rows": list(answer.values()), "skipped": {}, "tiers": {}, "goods_posting": choices,
                                     "lines": ["answer:opaque"]}))))

@@ -632,6 +632,29 @@ class AccountHistory(unittest.TestCase):
         self.assertIn('data["read_at"] =', method_source_of(COMPANION / "account_history.py", "read_history")
                       .replace("'", '"'))
 
+    def test_the_v3_goods_posting_has_the_same_shape_on_both_sides(self):
+        """结果版本 3（用户 10-17）：每家供应商可带 ``posting`` ``{stock|service: {docs, last}}``，两边同一组记法；服务端只在 v3
+        起收它，判档前经同一个钩子只读存着的那份。"""
+        helper = (COMPANION / "account_history.py").read_text(encoding="utf-8")
+        self.assertIn('row["posting"] =', helper)
+        shape = ast.parse(method_source_of(COMPANION / "account_history.py", "_no_posting"))
+        kinds = {key.value for node in ast.walk(shape) if isinstance(node, ast.Dict) for key in node.keys
+                 if isinstance(key, ast.Constant)}
+        self.assertEqual(kinds, {"stock", "service", "docs", "last"})
+        server = number_constants(self.READBACK / "history_rules.py", ("POSTING_KINDS", "POSTING_VERSION"))
+        self.assertEqual(set(server["POSTING_KINDS"]), {"stock", "service"})
+        self.assertEqual(server["POSTING_VERSION"], number_constants(COMPANION / "account_history.py",
+                                                                      ("RESULT_VERSION",))["RESULT_VERSION"])
+        parser = method_source_of(self.READBACK / "history_rules.py", "parse")
+        self.assertIn("item.get('posting')", parser)  # ast.unparse 用单引号
+        # 两张表都可选：读不到不拒收整份（科目历史照交）
+        tables = number_constants(COMPANION / "account_history.py", ("TABLES", "REQUIRED", "POSTING_TABLES"))
+        self.assertTrue(set(tables["POSTING_TABLES"]) <= set(tables["TABLES"]))
+        self.assertFalse(set(tables["POSTING_TABLES"]) & set(tables["REQUIRED"]))
+        push = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "application" / "service.py").read_text(
+            encoding="utf-8")
+        self.assertIn('.get("posting")', push)
+
     def test_reading_never_waits_for_the_account_set_lock_and_only_express_does_it(self):
         tree = ast.parse((COMPANION / "account_history.py").read_text(encoding="utf-8"))
         imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)

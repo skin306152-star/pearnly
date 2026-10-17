@@ -180,9 +180,10 @@ class HistoryRules(unittest.TestCase):
         self.assertEqual(data["suppliers"][0], {"name": "ศรีกรุง เครื่องเขียน", "tax_id": "0105556012345",
                                                 "branch": "00000",
                                                 "accounts": [{"code": "5320-01", "docs": 3, "last": "2026-09-30"}]})
-        # 第 3 期起收 v1 与 v2（v2 排除了 Pearnly 写的单）；认不出的版本照旧拒收
+        # 第 3 期起收 v1 与 v2（v2 排除了 Pearnly 写的单），10-17 起收 v3（带商品单入账方式）；认不出的版本照旧拒收
         self.assertEqual(R.parse(history_raw(version=2))["version"], 2)
-        for bad in (None, [], history_raw(version=3), history_raw(read_at="yesterday"),
+        self.assertEqual(R.parse(history_raw(version=3))["version"], 3)
+        for bad in (None, [], history_raw(version=4), history_raw(read_at="yesterday"),
                     history_raw(suppliers="x"), history_raw(suppliers=[{"name": "A", "accounts": [
                         {"code": "5320-01", "docs": -1, "last": "2026-09-30"}]}]),
                     history_raw(suppliers=[{"name": "A", "accounts": [
@@ -192,6 +193,37 @@ class HistoryRules(unittest.TestCase):
             with self.assertRaises(readback_contracts.ContractError) as caught:
                 R.parse(bad)
             self.assertEqual(caught.exception.code, R.INVALID)
+
+    def test_v3_posting_is_kept_and_checked(self):
+        """v3 每家供应商可带 ``posting``（商品单走库存 / 记费用各几张，用户 10-17）：缺的记法按 0 张；只有入账方式、没有常用科目的
+        供应商也留下；v2 及以前的 ``posting`` 不收；形状不对拒收。"""
+        stock = {"stock": {"docs": 3, "last": "2026-09-30"}}
+        raw = history_raw(version=3, suppliers=[
+            {"name": "ศรีกรุง", "tax_id": "0105556012345", "branch": "00000", "accounts": [], "posting": stock}])
+        self.assertEqual(R.parse(raw)["suppliers"][0]["posting"],
+                         {"stock": {"docs": 3, "last": "2026-09-30"}, "service": {"docs": 0, "last": ""}})
+        self.assertEqual(R.parse({**raw, "version": 2})["suppliers"], [])  # v2 不收 posting，又没有常用科目：不留
+        for bad in ({"stock": {"docs": -1, "last": "2026-09-30"}}, {"stock": {"docs": 1, "last": ""}},
+                    {"other": {"docs": 1, "last": "2026-09-30"}}, {"stock": [1]}, ["stock"]):
+            with self.assertRaises(readback_contracts.ContractError):
+                R.parse(history_raw(version=3, suppliers=[{"name": "A", "accounts": [], "posting": bad}]))
+
+    def test_v3_posting_of_the_seller_adds_up_its_branches(self):
+        raw = history_raw(version=3, suppliers=[
+            {"name": "ศรีกรุง", "tax_id": "0105556012345", "branch": "00000", "accounts": [],
+             "posting": {"stock": {"docs": 2, "last": "2026-09-30"}}},
+            {"name": "ศรีกรุง สาขา 2", "tax_id": "0105556012345", "branch": "00002", "accounts": [],
+             "posting": {"stock": {"docs": 1, "last": "2026-10-02"}, "service": {"docs": 0, "last": ""}}},
+            {"name": "ร้านป้าแดง", "tax_id": "", "branch": "00000",
+             "accounts": [{"code": "5340-01", "docs": 2, "last": "2026-08-01"}],
+             "posting": {"service": {"docs": 4, "last": "2026-08-01"}}}])
+        data = R.parse(raw)
+        merged = R.supplier_posting(data, "0105556012345", "x")
+        self.assertEqual(merged, {"stock": {"docs": 3, "last": "2026-10-02"}, "service": {"docs": 0, "last": ""}})
+        self.assertEqual(R.posting_settled(merged, date(2026, 10, 15))["kind"], "stock")
+        self.assertEqual(R.supplier_posting(data, "", "บริษัท ร้านป้าแดง จำกัด")["service"]["docs"], 4)
+        self.assertEqual(R.supplier_posting(data, "0999999999999", "ร้านป้าแดง"), {})
+        self.assertEqual(R.supplier_posting(R.parse(history_raw()), "0105556012345", ""), {})  # v1 / v2 没有
 
     def test_the_seller_is_found_by_tax_id_across_its_records_or_by_name(self):
         data = R.parse(history_raw())
@@ -245,7 +277,7 @@ class SettledRules(unittest.TestCase):
                                            self.TODAY)["kind"], "stock")
         self.assertIsNotNone(R.posting_settled(stock, self.TODAY, "2026-10-01T00:00:00Z"))
         self.assertIsNone(R.posting_settled(stock, self.TODAY, "2026-09-01T00:00:00Z"))
-        self.assertEqual(R.VERSIONS, (1, 2))  # 这一段不改收数的版本
+        self.assertEqual(R.VERSIONS, (1, 2, 3))  # 10-17 接线上：收 v3
 
     def test_branches_of_one_tax_id_are_one_supplier(self):
         data = R.parse(history_raw())
@@ -356,7 +388,7 @@ class History(unittest.TestCase):
 
     def test_missing_history_is_requested_once_then_taken_and_kept_for_a_day(self):
         first = self.push("C1", "S:\\EXP69\\DN", SELLER, True)
-        self.assertEqual(first, {"state": "reading", "accounts": [], "changed": True, "settled": None})
+        self.assertEqual(first, {"state": "reading", "accounts": [], "changed": True, "settled": None, "posting": None})
         (_, kind, connection, params, key), = self.h.made()
         self.assertEqual((kind, connection), ("account_history", "C1"))
         self.assertEqual(params, {"account_set": "S:\\EXP69\\DN", "account_root": "S:\\EXP69", "since": "2025-10-15"})
@@ -389,7 +421,7 @@ class History(unittest.TestCase):
 
     def test_preparing_a_push_only_reads_what_is_kept(self):
         self.assertEqual(self.push("C1", "S:\\EXP69\\DN", SELLER, False),
-                         {"state": "none", "accounts": [], "changed": False, "settled": None})
+                         {"state": "none", "accounts": [], "changed": False, "settled": None, "posting": None})
         self.assertEqual(self.h.made(), [])
         self.assertNotIn("waiting", [call[0] for call in self.h.calls])
 
@@ -397,7 +429,7 @@ class History(unittest.TestCase):
         for reason in ("offline", "update_needed"):
             self.h.presence = {"status": "waiting_for_cc", "reason": reason}
             self.assertEqual(self.push("C1", "S:\\EXP69\\DN", SELLER, True),
-                             {"state": "none", "accounts": [], "changed": False, "settled": None})
+                             {"state": "none", "accounts": [], "changed": False, "settled": None, "posting": None})
         self.assertEqual(self.h.made(), [])
         self.assertIn(("waiting", "account_history", "1.5.2"), self.h.calls)
         self.h.adapter = "mrerp"
@@ -434,7 +466,7 @@ class History(unittest.TestCase):
     def test_anything_unexpected_means_no_history_not_a_failed_push(self):
         self.h.history.connections.adapter_of = mock.Mock(side_effect=RuntimeError("db gone"))
         self.assertEqual(self.push("C1", "S:\\EXP69\\DN", SELLER, True),
-                         {"state": "none", "accounts": [], "changed": False, "settled": None})
+                         {"state": "none", "accounts": [], "changed": False, "settled": None, "posting": None})
         self.assertEqual(self.h.logged, ["Cowork account history failed"])
 
 
@@ -467,6 +499,23 @@ class SettledHistory(unittest.TestCase):
         mixed = self.history.for_push("C1", self.BOOK, {"tax": "0994000165510", "name": ""})
         self.assertIsNone(mixed["settled"])
         self.assertEqual(mixed["accounts"][0]["code"], "5310-01")  # 仍按历史建议
+
+    def test_a_v3_history_settles_the_goods_posting_of_a_supplier(self):
+        """v3 的 ``posting``（用户 10-17）：这家近 12 个月只有一种记法且 ≥3 张 → 回 ``posting``（带版本与读的日子），推送判档用；
+        v2 的汇总、两种记法都有、主档页删过的都没有。"""
+        self.assertIsNone(self.history.for_push("C1", self.BOOK, SELLER)["posting"])  # 存着的是 v1
+        self.h.now += timedelta(days=2)
+        rows = [{"code": "S001", "name": "ศรีกรุง เครื่องเขียน", "tax_id": "0105556012345", "branch": "00000",
+                 "accounts": [{"code": "5320-01", "docs": 4, "last": "2026-10-02"}],
+                 "posting": {"stock": {"docs": 4, "last": "2026-10-02"}}},
+                {"code": "S002", "name": "การไฟฟ้า", "tax_id": "0994000165510", "branch": "00000", "accounts": [],
+                 "posting": {"stock": {"docs": 3, "last": "2026-10-01"}, "service": {"docs": 1, "last": "2026-09-01"}}}]
+        self.read(self.BOOK, history_raw(version=3, suppliers=rows))
+        self.assertEqual(self.history.for_push("C1", self.BOOK, SELLER)["posting"],
+                         {"kind": "stock", "docs": 4, "last": "2026-10-02", "version": 3, "read": "2026-10-15"})
+        self.assertIsNone(self.history.for_push("C1", self.BOOK, {"tax": "0994000165510", "name": ""})["posting"])
+        self.history.company_forget("0105536082808", "0105556012345", "5320-01", self.SETS)
+        self.assertIsNone(self.history.for_push("C1", self.BOOK, SELLER)["posting"])
 
     def test_the_company_page_lists_settled_suppliers_and_forgetting_stops_their_use(self):
         rows = self.history.company_choices("0105536082808", self.SETS)
