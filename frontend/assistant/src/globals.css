@@ -1543,10 +1543,9 @@
      电脑 32 不变（不改 --cc-control，它还管电脑的面板顶栏、抽屉组操作）。电脑对话顶栏、桌面标题栏里的图标按钮不跟 */
   :root[data-cc-touch] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }
   :root[data-cc-touch] .cc-btn { padding-inline: var(--cc-space-16); }
-  :root[data-cc-variant="phone"] .cc-icon-btn { width: var(--cc-tap); height: var(--cc-tap); }
-  @media (pointer: coarse) {
-    :root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }
-  }
+  /* 图标按钮：原来手机变体一份（所有图标按钮）、粗指针一份（除开电脑对话顶栏、桌面标题栏里的）两边不一样；以后写的粗指针那份为准
+     合成一份（V4）。手机上没有这两种栏，画面不变 */
+  :root[data-cc-touch] .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }
   /* 触屏平板（网页布局 + 触屏，iPad 横屏；第 11 轮 D26）：电脑对话顶栏抬到 44，顶栏里的图标钮（展开侧栏、对话选项「···」、
      文件、右侧栏开关）与对话名、公司名按钮点按区 44，侧栏标题区的收起钮 44（标题区本来就 44 高）；图标大小不变。
      鼠标（电脑）与 CC 桌面版（desktop 变体）不跟。顶栏高（--cc-topbar-h）写在文件前面不分层的触屏变量块里 */

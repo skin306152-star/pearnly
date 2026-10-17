@@ -8354,8 +8354,9 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # G2 / G3：文字按钮、输入框、图标按钮手机 44，电脑仍 32（--cc-control 不改）；电脑对话顶栏、桌面标题栏里的图标按钮不跟
         self.assertIn("--cc-control: var(--code-control);", css)
         self.assertIn(':root[data-cc-touch] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }', css)
-        self.assertIn(':root[data-cc-variant="phone"] .cc-icon-btn { width: var(--cc-tap); height: var(--cc-tap); }', css)
-        self.assertIn(':root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }', css)
+        # 手机变体与粗指针两份合成一份触屏规则（V4：以除开电脑顶栏、桌面标题栏的那份为准）
+        self.assertIn(':root[data-cc-touch] .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }', css)
+        self.assertNotIn(':root[data-cc-variant="phone"] .cc-icon-btn {', css)
         self.assertIn(':root[data-cc-touch] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }', css)
         # 组件里不再用 h-8 把 .cc-btn / .cc-input 钉在 32
         self.assertNotIn("cc-btn h-8", read("components/scheduled-tasks.tsx"))
