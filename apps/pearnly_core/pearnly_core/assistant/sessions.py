@@ -50,6 +50,7 @@ FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", 
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
                "project_scope"]
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
+SEGMENT_READERS = 4  # 整段重放时同时读几段远端会话的事件（`_segment_events`）
 
 
 def _guard(fn, *args, **kwargs):
@@ -431,10 +432,9 @@ def events(session_id, after=None, status=False) -> dict:
                                                                           recent=since is None),
                     "full": False}
             return _with_run(page, row, api, tap.latest, found[-1].get("processed_at")) if status else page
-    history = []
-    for remote in segments(row):
-        part = list(api.events(remote))
-        history += part
+    parts = _segment_events(api, segments(row))
+    history = [event for part in parts for event in part]
+    part = parts[-1]
     _remember_context(row, part)
     history = _with_tool_runs(contracts.merge_by_time(history, notices.feed(row.session_id, user)), row)
     page = {"events": history, "full": True, "session": {"id": row.session_id, "title": row.title or "",
@@ -443,6 +443,19 @@ def events(session_id, after=None, status=False) -> dict:
         return page
     return _with_run(page, row, api, lambda: contracts.latest_status(reversed(part)),
                      part[-1].get("processed_at") if part else None)
+
+
+def _segment_events(api, remotes) -> list[list]:
+    """各段远端会话的全部事件（旧 → 新），与 `remotes` 同序。接续过的长对话由几段组成，各段互不依赖：同时读（每段里仍按页
+    顺序读），整段重放的等待从各段相加变成最慢的那一段（2026-10-15 验收：2040 条事件的对话打开约 7 秒，都在这里）。
+    结果与逐段读相同；有一段读不到照旧抛出那一段的错。只有一段时就在本线程读。读事件只走引擎适配器，不碰站点库。"""
+    if len(remotes) < 2:
+        return [list(api.events(remote)) for remote in remotes]
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=min(len(remotes), SEGMENT_READERS),
+                            thread_name_prefix="pearnly-assistant-history") as pool:
+        return list(pool.map(lambda remote: list(api.events(remote)), remotes))
 
 
 def _with_run(page, row, api, latest, as_of) -> dict:

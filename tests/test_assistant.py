@@ -5142,6 +5142,83 @@ class StopRaceTests(unittest.TestCase):
         self.assertEqual(pushed, stream)
 
 
+class HistoryReadTests(unittest.TestCase):
+    """H9（2026-10-15 验收：打开 2040 条事件的长对话「正在加载消息」约 7 秒，浏览器只占约 16ms，时间在服务端按段、按页逐个从引擎
+    取完全部事件）：接续过的对话由几段远端会话组成，各段互不依赖，整段重放时同时读（每段里仍按页顺序读）；结果与逐段读完全相同。"""
+
+    def _sessions(self):
+        # 会话读写还导入 prefs（别的测试类排在后面才载入它）
+        if "pearnly_core.assistant.prefs" not in sys.modules:
+            _load("pearnly_core.assistant.prefs", CORE / "assistant/prefs.py")
+        return RunStatusTests._sessions(self)
+
+    def _row(self, segments):
+        return _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids=json.dumps(segments),
+                    context_tokens=0, modified=datetime.datetime(2026, 10, 14))
+
+    def _history(self, segments):
+        return {remote: [{"id": f"sevt_{remote}_{i}", "type": "agent.message",
+                          "processed_at": f"2026-10-1{3 + n}T08:{i:02d}:00Z"} for i in range(3)]
+                for n, remote in enumerate(segments)}
+
+    def test_segments_are_read_at_the_same_time_and_the_replay_is_unchanged(self):
+        sessions = self._sessions()
+        segments = ["sesn_seg1", "sesn_seg2", "sesn_seg3"]
+        history = self._history(segments)
+        history["sesn_seg3"].append(RunStatusTests.IDLE)
+        # 三段都到了才放行：逐段读时第一段就等不到另外两段（超时报错），同时读才过得去
+        gate = __import__("threading").Barrier(len(segments), timeout=5)
+        read = []
+
+        def events(remote, newest_first=False):
+            self.assertFalse(newest_first)  # 整段重放按旧 → 新
+            read.append(remote)
+            gate.wait()
+            return iter(list(history[remote]))
+
+        api = types.SimpleNamespace(events=events, status=lambda remote: "idle")
+        remembered = []
+        _, patches = RunStatusTests._patched(self, sessions, self._row(segments), api)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(sessions, "_remember_context",
+                                                  lambda row, part: remembered.append([e["id"] for e in part])))
+            page = sessions.events("sesn_mine1", status=True)
+        self.assertEqual(sorted(read), segments)
+        # 顺序同逐段读：各段旧 → 新依次接上；接续判断与运行状态只看当前（最后）一段
+        self.assertEqual([e["id"] for e in page["events"]], [e["id"] for remote in segments for e in history[remote]])
+        self.assertEqual(remembered, [[e["id"] for e in history["sesn_seg3"]]])
+        self.assertEqual((page["full"], page["run"]["status"], page["run"]["as_of"]),
+                         (True, "idle", RunStatusTests.IDLE["processed_at"]))
+
+    def test_one_segment_is_read_in_place_and_a_failed_segment_fails_the_replay_as_before(self):
+        import threading
+
+        sessions = self._sessions()
+        history = self._history(["sesn_mine1"])
+        threads = []
+
+        def events(remote, newest_first=False):
+            threads.append(threading.current_thread())
+            return iter(list(history[remote]))
+
+        api = types.SimpleNamespace(events=events, status=lambda remote: "idle")
+        _, patches = RunStatusTests._patched(self, sessions, self._row([]), api)
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            page = sessions.events("sesn_mine1")
+            self.assertEqual([e["id"] for e in page["events"]], [e["id"] for e in history["sesn_mine1"]])
+            self.assertEqual(threads, [threading.current_thread()])  # 只有一段：不另开线程
+            # 有一段读不到（引擎超时）：整段重放照旧报错（对话页按原来的重试走），不交出缺了一段的历史
+            api.events = lambda remote, newest_first=False: (_ for _ in ()).throw(TimeoutError(remote)) \
+                if remote == "sesn_seg2" else iter([])
+            stack.enter_context(mock.patch.object(sessions, "owned", return_value=self._row(["sesn_seg1", "sesn_seg2"])))
+            with self.assertRaises(TimeoutError):
+                sessions.events("sesn_mine1")
+
+
 class SetupSignalTests(unittest.TestCase):
     """H8（2026-10-16 测试窗口，lab testerp 没配 CC）：打开新对话页时就说本站还不能用 CC，不用等发了第一条被拒。
     外壳启动数据（`shell.describe`）带上原因：同建会话被拒时那一句（已有词条，按当前语言翻译）；能用是空串。"""
