@@ -16,3 +16,22 @@
 #   同意日期  YYYY-MM-DD
 #   出处      可追查的位置：主对话日期 + 窗口、docs/work 记录路径或提交说明
 pearnly_erp_portal:The file could not be saved. Please try again shortly.	zh	文件保存失败，请稍后重试	2026-10-18	docs/work/2026-10-18-originals-layer.md
+pearnly_dms:Multiple DMS connections exist for this operator	zh	该操作员有多条 DMS 连接	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:The recognition result needs checking. Please do not resend this image yet.	zh	识别结果待核实，请暂勿重复发送此图片。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_MENU_D5	zh	按权限查看 DMS 最新销售资料	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_MENU_SUBTITLE	zh	请选择菜单	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_MENU_TITLE	zh	Pearnly DMS	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.TXT_REVIEW_LOCKED	zh	此订车单已无法在此修改，请在 DMS 中修改。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.card.query.MANUAL_AS_OF	zh	读取于 {time} 的已保存结果	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.connect.cache.state.waiting	zh	账号繁忙，稍后继续	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.connect.cache.unconfirmed	zh	无法确认读取结果，请刷新页面查看。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.connect.read.scope	zh	读档账号只能看到 {seen} 位客户（{reference} 可看到 {total} 位），请改用可查看全部客户的账号。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_CUSTOMER_CHANGED	zh	客户资料在编辑后已被更改，请重新核对差异后再确认。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE	zh	DMS 未返回完整资料，未发布不完整结果。请在每晚读取完成后再试。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_SNAPSHOT_PENDING	zh	DMS 资料读取中，请稍后再试。长时间未就绪时，请管理员在 DMS 连接页确认已添加读档账号。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_dms:dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED	zh	DMS 连接或账号已变更，旧资料不再可用。新账号的资料读取完成后，请重新打开此页面。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.	zh	本站点为该操作员创建的账号。仅用于 LINE，不用于网页登录，无需密码。	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:No connection to test	zh	缺少要测试的连接	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:System URL is required	zh	系统地址为必填项	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Connection {0} is disabled	zh	连接 {0} 已停用	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）
+pearnly_core:Connection {0} has no password	zh	连接 {0} 未设置密码	2026-10-18	docs/work/2026-10-17-copy-stock-review.md（用户 10-18 同意第 3–14 节）

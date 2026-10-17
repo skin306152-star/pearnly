@@ -17,6 +17,7 @@ Account,アカウント
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first",同一アカウントで「{0}」に既定の接続が既にあります（{1}）。先にそちらの既定を解除してください
 Account With Write Access,書き込み権限のあるアカウント
 Account balance,口座残高
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作成したアカウント。LINE専用で、Webログインには使わず、パスワード不要です。
 Account name,口座名義
 Account number,口座番号
 Account with admin rights,権限アカウント
@@ -47,6 +48,7 @@ Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
 Attempt,試行回数
 Attempts,試行回数
+Authoritative push status.,送信ステータスの正本です。
 Auto Push,自動送信
 Automatic (by DMS account),自動照合（DMSアカウント基準）
 Back to home,ホームに戻る
@@ -135,6 +137,9 @@ Connection,接続
 "Connection ""{0}"" is disabled and cannot be used",接続「{0}」は無効化されており使えません
 Connection OK · {0},接続正常 · {0}
 Connection failed,接続に失敗しました
+Connection {0} has no password,接続 {0} にパスワードが設定されていません
+Connection {0} is disabled,接続 {0} は無効です
+Connection {0} is not an MR.ERP DMS connection,接続 {0} は MR.ERP DMS の接続ではありません
 Console,コンソール
 Contact support with the record ID,記録番号を添えてサポートへご連絡ください
 Conversation not found,会話が見つかりません
@@ -201,7 +206,6 @@ DMS login account,DMSログインアカウント
 DMS login password,DMSログインパスワード
 DMS password,DMSパスワード
 DMS refused the sign-in: {0},DMSがログインを拒否しました: {0}
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）
 DMS usage and balance,DMS側の利用量と残高
 DMS username,DMSユーザー名
 Date,日付
@@ -250,15 +254,11 @@ Edit operator,オペレーターを編集
 Elapsed (ms),所要時間(ms)
 Email,メール
 Email is required,メールアドレスは必須です
-Empty = matched automatically from the DMS account (the legacy product's default).,空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
 Enable,有効化
 "Enable ""{0}""? A new bind code is needed to link LINE again.",「{0}」を有効化しますか。LINE連携には新しい連携コードが必要です。
 Enabled,有効
 Enabled features,有効な機能
 Endpoint,接続先
-Endpoint {0} has no password configured,端点 {0} にパスワードが設定されていません
-Endpoint {0} is disabled,端点 {0} は無効です
-"Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} のアダプタは {1} で、mrerp_dms ではありません
 Entering,入力中
 Error Message,エラーメッセージ
 Event ID,イベントID
@@ -334,6 +334,7 @@ Item / description,品名・摘要
 "Kept as evidence, not a business field",証跡用で業務フィールドではありません
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
 Key,キー
+"Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.",接続先が重複判定に使うキー。例：DMS 顧客番号、請求書番号。
 Kind,種類
 LINE Display Name,LINE表示名
 LINE Login,LINEログイン
@@ -359,6 +360,7 @@ Lease Owner,リース保有者
 Lease Until,確保期限
 Leave blank to keep the current password.,空欄の場合、現在のパスワードを保持します。
 Leave blank to keep unchanged,空欄なら変更しません
+Leave empty to match from the DMS account automatically.,空欄の場合は DMS アカウントから自動照合します。
 Line Amount,行金額
 Line Discount,行値引
 Line No,行番号
@@ -403,6 +405,7 @@ No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定で
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
 No camera was found on this device. Enter the code instead.,このデバイスにカメラが見つかりません。コードを入力してください。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
+No connection to test,テストする接続が指定されていません
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
 No file was received.,ファイルを受信していません。
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
@@ -625,6 +628,7 @@ Supplier name,仕入先名
 Suppliers,仕入先
 System URL,システムURL
 System URL is not filled in,システムURLが未入力です
+System URL is required,システムURLは必須です
 Target ERP,連携先 ERP
 Tax Return Drafts,税務申告の下書き
 Team,チーム
@@ -641,10 +645,8 @@ The ID token has no sub,IDトークンに sub がありません
 The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
 The LINE channel is not configured for this account,このアカウントには LINE チャンネルが設定されていません
 The OCR service returned HTTP {0}: {1},OCRサービスが HTTP {0} を返しました: {1}
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
 The account is disabled,アカウントは無効化されています
 The account was created but no id came back,アカウントは作成されましたがIDが返りませんでした
-The admin session must be requested inside a `with` block,adminセッションは `with` ブロック内で要求する必要があります
 The balance could not be read,残高を読み取れません
 The balance grows once the platform confirms the transfer.,プラットフォームが着金を確認すると残高に反映されます。
 The barcode reader could not load. Refresh the page and try again.,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
@@ -667,9 +669,7 @@ The identity service returned an error: {0},アイデンティティサービス
 **One row per session** (a LINE user runs only one flow at a time inside one tenant).","多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。
 
 **1セッション1行**（1人のLINEユーザーは1テナント内で同時に1つのフローだけ進みます）。"
-"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。
 The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,旧製品ではこの接続では常にオフ（全手動：ウィザード＋確認ダイアログ）。
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。
 The legacy system's product identifier; it becomes a link once product master data lands,旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
 "The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",ロックは残り {0} 秒（プロセスが強制終了された際のデッドロックと思われます。誰も実行していなければこのkeyを削除できます）
@@ -696,7 +696,6 @@ The total is calculated automatically.,合計金額は自動計算されます�
 The truth is in erp_push_logs; this is only a display reference,真値は erp_push_logs。ここは表示用の参照のみ
 The two new passwords do not match,新しいパスワードが2回で一致しません
 The two passwords do not match,パスワードが一致しません
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
 "There is no DMS customer reference, so it cannot be pushed",DMS顧客参照がないため送信できません
 This ERP account has no company or year to choose.,この ERP アカウントには選択できる会社・年度がありません。
@@ -787,12 +786,12 @@ What Was Recognised,認識の記録
 Whether this LINE can sign in to this account; kept in step with the identity service.,このLINEでこのアカウントにログインできるか。ID サービスと自動で同期します。
 Which connection it went to. Empty = it failed before a connection was chosen.,どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。
-"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Withholding Tax,源泉税
 Work,読み取りジョブ
 Work together,コラボレーション
+Worker currently processing this row.,現在この行を処理している実行者。
 Workspace,ワークスペース
 Wrong ERP username or password. Check it under Connect and try again.,ERP のユーザー名またはパスワードが正しくありません。「接続」で確認して再試行してください。
 Yes,はい
@@ -912,7 +911,6 @@ connect.state.notConnected,未接続
 connect.title,DMSに接続
 connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
-endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
 home.balance.title,口座残高
 home.balance.used,今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
@@ -1243,7 +1241,7 @@ roster.subtitle,1行につき営業または管理者1名。各自のDMS資格�
 roster.title,オペレーター
 roster.unbindLine,LINE連携を解除
 roster.unbound,未連携
-"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+"sales = salesperson, admin = administrator",sales＝営業、admin＝管理者
 shell.backHome,ホームに戻る
 shell.boot.failed,起動に失敗しました（HTTP {0}）：{1}
 shell.boot.failedPlain,起動に失敗しました：{0}
@@ -1260,7 +1258,6 @@ shell.notBuilt.title,このページは利用できません
 shell.wait.elapsed,経過 {0} 秒
 shell.wait.pages,{0}/{1} ページ読み取り済み · {2}%
 state is invalid or has expired,state が無効か期限切れです
-system_url is required,system_url は必須です
 username / password are required,username / password は必須です
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ

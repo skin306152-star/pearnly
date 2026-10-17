@@ -17,6 +17,7 @@ Account,บัญชี
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first","บัญชี ""{0}"" มีการเชื่อมต่อเริ่มต้นอยู่แล้ว ({1}) กรุณายกเลิกการตั้งค่าเริ่มต้นของการเชื่อมต่อนั้นก่อน"
 Account With Write Access,บัญชีที่มีสิทธิ์แก้ไข
 Account balance,ยอดคงเหลือในบัญชี
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,บัญชีที่สร้างให้พนักงานรายนี้บนเว็บไซต์นี้ ใช้เฉพาะกับ LINE ไม่ใช้เข้าสู่ระบบผ่านเว็บและไม่ต้องใช้รหัสผ่าน
 Account name,ชื่อบัญชี
 Account number,เลขที่บัญชี
 Account with admin rights,บัญชีที่มีสิทธิ์ผู้ดูแลระบบ
@@ -47,6 +48,7 @@ Are you sure you want to sign out?,ต้องการออกจากระ
 Arguments,อาร์กิวเมนต์
 Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
+Authoritative push status.,สถานะการส่งยึดตามค่านี้
 Auto Push,ส่งอัตโนมัติ
 Automatic (by DMS account),อัตโนมัติ (ตามบัญชี DMS)
 Back to home,กลับหน้าหลัก
@@ -135,6 +137,9 @@ Connection,การเชื่อมต่อ
 "Connection ""{0}"" is disabled and cannot be used","การเชื่อมต่อ ""{0}"" ถูกปิดใช้งานแล้ว ไม่สามารถใช้งานได้"
 Connection OK · {0},การเชื่อมต่อปกติ · {0}
 Connection failed,เชื่อมต่อไม่สำเร็จ
+Connection {0} has no password,การเชื่อมต่อ {0} ยังไม่ได้ตั้งรหัสผ่าน
+Connection {0} is disabled,การเชื่อมต่อ {0} ถูกปิดใช้งาน
+Connection {0} is not an MR.ERP DMS connection,การเชื่อมต่อ {0} ไม่ใช่การเชื่อมต่อ MR.ERP DMS
 Console,คอนโซล
 Contact support with the record ID,กรุณาติดต่อฝ่ายบริการลูกค้าพร้อมแจ้งหมายเลขรายการ
 Conversation not found,ไม่พบการสนทนา
@@ -201,7 +206,6 @@ DMS login account,บัญชีเข้าสู่ระบบ DMS
 DMS login password,รหัสผ่านเข้าสู่ระบบ DMS
 DMS password,รหัสผ่าน DMS
 DMS refused the sign-in: {0},DMS ปฏิเสธการเข้าสู่ระบบ: {0}
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),การเข้าสู่ระบบ DMS ไม่เสร็จสมบูรณ์ (ลองใหม่แล้วแต่ไม่ได้รับการตอบกลับ checklogin ที่สำเร็จ และไม่มีการเปลี่ยนหน้า หน้าเว็บอาจโหลดช้าเกินไปหรือถูกบล็อก)
 DMS usage and balance,การใช้งานและยอดคงเหลือ DMS
 DMS username,ชื่อผู้ใช้ DMS
 Date,วันที่
@@ -250,15 +254,11 @@ Edit operator,แก้ไขพนักงาน
 Elapsed (ms),ใช้เวลา (ms)
 Email,อีเมล
 Email is required,กรุณากรอกอีเมล
-Empty = matched automatically from the DMS account (the legacy product's default).,เว้นว่างเพื่อจับคู่อัตโนมัติตามบัญชี DMS
 Enable,เปิดใช้งาน
 "Enable ""{0}""? A new bind code is needed to link LINE again.","ต้องการเปิดใช้งาน ""{0}"" ใช่หรือไม่ เมื่อเปิดใช้งานแล้ว ต้องสร้างรหัสผูกใหม่เพื่อเชื่อมต่อ LINE"
 Enabled,เปิดใช้งาน
 Enabled features,ฟังก์ชันที่เปิดใช้งาน
 Endpoint,ปลายทางการเชื่อมต่อ
-Endpoint {0} has no password configured,ปลายทาง {0} ยังไม่ได้ตั้งค่ารหัสผ่าน
-Endpoint {0} is disabled,ปลายทาง {0} ถูกปิดใช้งาน
-"Endpoint {0} uses adapter {1}, not mrerp_dms",ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms
 Entering,กำลังบันทึก
 Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
@@ -334,6 +334,7 @@ Item / description,ชื่อสินค้า / คำอธิบาย
 "Kept as evidence, not a business field",ใช้เป็นหลักฐานเท่านั้น ไม่ใช่ฟิลด์ธุรกิจ
 "Kept as evidence, not a business field; only the confirmed fields are.",ใช้เป็นหลักฐานเท่านั้น ไม่ใช่ฟิลด์ธุรกิจ ให้ยึดตามฟิลด์ที่ยืนยันแล้ว
 Key,คีย์
+"Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.",คีย์ที่ปลายทางใช้ตรวจสอบข้อมูลซ้ำ เช่น เลขลูกค้า DMS เลขที่ใบกำกับภาษี
 Kind,ประเภท
 LINE Display Name,ชื่อที่แสดงบน LINE
 LINE Login,เข้าสู่ระบบด้วย LINE
@@ -359,6 +360,7 @@ Lease Owner,ผู้จองงาน
 Lease Until,หมดอายุการจองงาน
 Leave blank to keep the current password.,เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่านปัจจุบัน
 Leave blank to keep unchanged,เว้นว่างไว้หากไม่แก้ไข
+Leave empty to match from the DMS account automatically.,เว้นว่างเพื่อจับคู่อัตโนมัติตามบัญชี DMS
 Line Amount,จำนวนเงินรายบรรทัด
 Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
@@ -403,6 +405,7 @@ No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",ยังไม่ได้ตั้งค่าบัญชี การเชื่อมต่อนี้จึงใช้งานไม่ได้ กรุณาตั้งค่าข้อมูลรับรองแล้วทดสอบการเชื่อมต่อ
 No camera was found on this device. Enter the code instead.,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงไม่สามารถส่งอีเมลเชิญได้
+No connection to test,ไม่ได้ระบุการเชื่อมต่อที่จะทดสอบ
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่ตรงกันและไม่ได้ระบุรหัสอ้างอิงลูกค้า DMS กรุณายืนยันด้วยตนเองก่อน
 No file was received.,ไม่ได้รับไฟล์
 No operators yet — add one above,ยังไม่มีพนักงาน กรุณาเพิ่มที่ด้านบน
@@ -625,6 +628,7 @@ Supplier name,ชื่อผู้จำหน่าย
 Suppliers,ผู้จำหน่าย
 System URL,ที่อยู่ระบบ
 System URL is not filled in,ต้องระบุที่อยู่ระบบ
+System URL is required,ต้องระบุที่อยู่ระบบ
 Target ERP,ERP ปลายทาง
 Tax Return Drafts,ร่างแบบยื่นภาษี
 Team,จัดการทีมงาน
@@ -641,10 +645,8 @@ The ID token has no sub,ID token ไม่มี sub
 The ID token issuer is not the identity service configured for this site,ผู้ออก ID token ไม่ใช่บริการยืนยันตัวตนที่ตั้งค่าไว้สำหรับเว็บไซต์นี้
 The LINE channel is not configured for this account,บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE
 The OCR service returned HTTP {0}: {1},บริการ OCR ตอบกลับ HTTP {0}: {1}
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,บัญชีที่สร้างให้พนักงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะกับ LINE** ไม่ใช้เข้าสู่ระบบผ่านเว็บและไม่ต้องใช้รหัสผ่าน
 The account is disabled,บัญชีถูกปิดใช้งาน
 The account was created but no id came back,สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา
-The admin session must be requested inside a `with` block,ต้องขอเซสชัน admin ภายในบล็อก `with`
 The balance could not be read,ไม่สามารถตรวจสอบยอดคงเหลือได้
 The balance grows once the platform confirms the transfer.,ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 The barcode reader could not load. Refresh the page and try again.,โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง
@@ -667,9 +669,7 @@ The identity service returned an error: {0},บริการตัวตนต
 **One row per session** (a LINE user runs only one flow at a time inside one tenant).","สถานะระหว่างทางของบทสนทนาหลายรอบ: คำถามปัจจุบัน ตัวเลือกที่พักไว้ และ nonce ป้องกันการส่งซ้ำ
 
 **หนึ่งแถวต่อหนึ่งเซสชัน** (ผู้ใช้ LINE หนึ่งคนดำเนินการได้ครั้งละหนึ่งขั้นตอนในพื้นที่ทำงานเดียวกัน)"
-"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",คีย์ที่ปลายทางใช้ตรวจสอบข้อมูลซ้ำ เช่น เลขลูกค้า DMS เลขที่ใบกำกับภาษี
 The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,การเชื่อมต่อนี้ไม่รองรับการส่งอัตโนมัติ ต้องยืนยันด้วยตนเอง
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,รูปแบบการทริกเกอร์ สายงานธุรกิจบันทึกไว้ใน reference_doctype
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",ข้อมูลรับรองชุดนี้ใช้สำหรับเชื่อมต่อ ตรวจสอบข้อมูลซ้ำ สร้างและแก้ไขข้อมูลลูกค้า การเขียนข้อมูลทางธุรกิจใช้ชุดนี้ ไม่ใช้ข้อมูลรับรองส่วนตัวของพนักงาน
 The legacy system's product identifier; it becomes a link once product master data lands,รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ
 "The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",ล็อกเหลือเวลาอีก {0} วินาที (อาจเป็นล็อกค้างจากโปรเซสที่หยุดทำงานผิดปกติ เมื่อยืนยันว่าไม่มีงานกำลังทำงานอยู่แล้วจึงลบ key นี้ได้)
@@ -696,7 +696,6 @@ The total is calculated automatically.,ระบบคำนวณยอดร�
 The truth is in erp_push_logs; this is only a display reference,ยึดตาม erp_push_logs ที่นี่ใช้แสดงผลเท่านั้น
 The two new passwords do not match,รหัสผ่านใหม่ที่กรอกสองครั้งไม่ตรงกัน
 The two passwords do not match,รหัสผ่านทั้งสองไม่ตรงกัน
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",ค่าที่ใช้ได้: success | failed | skipped_dup | pending | retrying | manual **สถานะการส่งยึดตามที่นี่เป็นแหล่งข้อมูลเดียว** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,webhookEventId จากแพลตฟอร์ม LINE มีข้อจำกัดไม่ให้ซ้ำ อีเวนต์ที่ส่งซ้ำจะไม่ถูกประมวลผลซ้ำ
 "There is no DMS customer reference, so it cannot be pushed",ไม่มีรหัสอ้างอิงลูกค้า DMS จึงไม่สามารถส่งได้
 This ERP account has no company or year to choose.,บัญชีผู้ใช้นี้ไม่มีบริษัทและปีบัญชีให้เลือกใน ERP ปลายทาง
@@ -787,12 +786,12 @@ What Was Recognised,หลักฐานการอ่านเอกสาร
 Whether this LINE can sign in to this account; kept in step with the identity service.,ระบุว่า LINE นี้เข้าสู่ระบบบัญชีนี้โดยไม่ต้องใช้รหัสผ่านได้หรือไม่ และซิงก์กับบริการยืนยันตัวตนโดยอัตโนมัติ
 Which connection it went to. Empty = it failed before a connection was chosen.,การเชื่อมต่อปลายทางของการส่ง เว้นว่างหมายถึงไม่สำเร็จก่อนเลือกการเชื่อมต่อ
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,ประเภทระบบปลายทาง (webhook | xero | flowaccount | mrerp | mrerp_dms | express) ปัจจุบันรองรับเฉพาะ mrerp_dms
-"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",ผู้ที่กำลังประมวลผลรายการนี้ การจองงานรับประกันว่าแต่ละรายการถูกส่งเพียงครั้งเดียว (เฉพาะสถานะ pending ที่มีการจองงาน และเมื่อหมดอายุแล้วผู้อื่นรับช่วงต่อได้)
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",บัญชีที่เป็นเจ้าของการเชื่อมต่อ **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** ใส่ค่า = การเชื่อมต่อส่วนตัวของพนักงานรายนั้น
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",โปรแกรม Windows ที่ติดตั้งบนเครื่องคอมพิวเตอร์บัญชีของร้านค้า สำหรับติดตั้ง จับคู่ และดึงงาน
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Work,งานอ่านเอกสาร
 Work together,ทำงานร่วมกัน
+Worker currently processing this row.,ผู้ที่กำลังประมวลผลรายการนี้
 Workspace,พื้นที่ทำงาน
 Wrong ERP username or password. Check it under Connect and try again.,ชื่อผู้ใช้หรือรหัสผ่าน ERP ไม่ถูกต้อง กรุณาตรวจสอบที่ «เชื่อมต่อ» แล้วลองใหม่
 Yes,ใช่
@@ -912,7 +911,6 @@ connect.state.notConnected,ยังไม่เชื่อมต่อ
 connect.title,เชื่อมต่อ DMS
 connect.yes,ใช่
 e.g. Ming (sales),เช่น สมชาย (ฝ่ายขาย)
-endpoint is missing (which connection to test),ไม่ได้ระบุ endpoint (การเชื่อมต่อที่จะทดสอบ)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
 home.balance.title,ยอดคงเหลือในบัญชี
 home.balance.used,เดือนนี้ใช้ไป {0} หน้า · แพ็กเกจ {1} รอบนี้คงเหลือ {2} หน้า
@@ -1243,7 +1241,7 @@ roster.subtitle,พนักงานขายหรือผู้ดูแล�
 roster.title,พนักงาน
 roster.unbindLine,ยกเลิกการผูก LINE
 roster.unbound,ยังไม่ผูก
-"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales = พนักงานขาย, admin = ผู้ดูแลระบบ"
+"sales = salesperson, admin = administrator","sales = พนักงานขาย, admin = ผู้ดูแลระบบ"
 shell.backHome,กลับหน้าหลัก
 shell.boot.failed,เริ่มระบบไม่สำเร็จ (HTTP {0}): {1}
 shell.boot.failedPlain,เริ่มระบบไม่สำเร็จ: {0}
@@ -1260,7 +1258,6 @@ shell.notBuilt.title,หน้านี้ไม่พร้อมใช้ง�
 shell.wait.elapsed,ผ่านไป {0} วินาที
 shell.wait.pages,อ่านแล้ว {0}/{1} หน้า · {2}%
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
-system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password
 {0} of {1} pages used this cycle; {2} remaining.,รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า
 {0} pages per cycle,{0} หน้าต่อรอบ

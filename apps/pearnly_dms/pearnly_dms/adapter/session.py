@@ -148,7 +148,7 @@ class MrerpDmsAdapter:
         slow_mo_ms: int = 0,
     ):
         if not system_url:
-            raise MissingCredentials(_("system_url is required"))
+            raise MissingCredentials(_("System URL is required"))
         if not username or not password:
             raise MissingCredentials(_("username / password are required"))
         self.login_url, self.base_url = self._normalize_urls(system_url)
@@ -192,15 +192,13 @@ class MrerpDmsAdapter:
 
         doc = frappe.get_doc("Pearnly ERP Endpoint", endpoint_name)
         if doc.adapter != "mrerp_dms":
-            raise MissingCredentials(
-                _("Endpoint {0} uses adapter {1}, not mrerp_dms").format(endpoint_name, doc.adapter)
-            )
+            raise MissingCredentials(_("Connection {0} is not an MR.ERP DMS connection").format(endpoint_name))
         if not doc.enabled:
-            raise MissingCredentials(_("Endpoint {0} is disabled").format(endpoint_name))
+            raise MissingCredentials(_("Connection {0} is disabled").format(endpoint_name))
         # 用共用读取口：解不开密文时只回空串，不会把框架的加密技术细节留在消息队列里。
         password = read_password("Pearnly ERP Endpoint", endpoint_name, "password")
         if not password:
-            raise MissingCredentials(_("Endpoint {0} has no password configured").format(endpoint_name))
+            raise MissingCredentials(_("Connection {0} has no password").format(endpoint_name))
         kwargs.setdefault("headless", True)
         if kwargs.get("screenshot_dir") is None:
             try:
@@ -565,9 +563,10 @@ class MrerpDmsAdapter:
         # 是空操作），要么对方说成功了却没把我们送进去。两种都是"对方那边没成"，该给
         # 「重试」、也该计入熔断 —— 老口径在这里报 `DmsAuthError`（不可重试、不计熔断），
         # 于是"对方慢"被说成了"账号/密码有问题"，用户看到的话术也是错的。
+        # 细节只进日志：重试后既没有成功的 checklogin 响应、也没有跳转（对方页面加载慢或被拦截）
+        logger.warning("DMS sign-in did not finish: no successful checklogin response and no redirect after retrying")
         raise DmsUnreachableError(
-            _("DMS sign-in did not finish (after retrying there was neither a successful "
-              "checklogin response nor a redirect · the page may be slow to load or blocked)")
+            _("DMS sign-in did not finish. Try again later.")
         )
 
     def _classify_login_body(self, body: str) -> None:
@@ -597,7 +596,7 @@ class MrerpDmsAdapter:
         if not self.has_admin_creds:
             raise DmsTechnicalError(_("An admin session was requested but no admin credentials are configured"))
         if self._session is None:
-            raise DmsTechnicalError(_("The admin session must be requested inside a `with` block"))
+            raise DmsTechnicalError("The admin session must be requested inside a `with` block")  # 程序内部断言，不是界面文案
         self._acquire_admin()
         secrets = [self._admin_password]
         if len(self._admin_username) >= 3:

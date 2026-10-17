@@ -39,7 +39,7 @@
    "options": "User",
    "reqd": 1,
    "unique": 1,
-   "description": "The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password."
+   "description": "Account created for this operator on this site. LINE only; not used for web sign-in and needs no password."
   },
   {
    "fieldname": "column_break_main",
@@ -53,7 +53,7 @@
    "label": "Role",
    "options": "sales\nadmin",
    "reqd": 1,
-   "description": "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
+   "description": "sales = salesperson, admin = administrator"
   },
   {
    "default": "active",
@@ -84,7 +84,7 @@
    "fieldname": "section_advisor",
    "fieldtype": "Section Break",
    "label": "Sales Commission Owner",
-   "description": "Empty = matched automatically from the DMS account (the legacy product's default)."
+   "description": "Leave empty to match from the DMS account automatically."
   },
   {
    "fieldname": "advisor_id",
@@ -116,7 +116,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-08 20:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly DMS",
  "name": "DMS Operator",

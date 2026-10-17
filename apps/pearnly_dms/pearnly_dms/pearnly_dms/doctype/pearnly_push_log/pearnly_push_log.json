@@ -43,7 +43,7 @@
    "label": "Status",
    "options": "pending\nretrying\nsuccess\nfailed\nskipped_dup\nmanual",
    "reqd": 1,
-   "description": "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any \"did it actually push\" decision must read here."
+   "description": "Authoritative push status."
   },
   {
    "fieldname": "endpoint",
@@ -67,7 +67,7 @@
    "label": "Trigger",
    "options": "manual\nline\nline_mirror\nauto",
    "reqd": 1,
-   "description": "The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; pearnly_core.line hands those to this product's handler); the business line itself lives on reference_doctype."
+   "description": "Trigger type. The business line is on Reference DocType."
   },
   {
    "default": "1",
@@ -98,7 +98,7 @@
    "fieldname": "business_key",
    "fieldtype": "Data",
    "label": "Business Key",
-   "description": "The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing."
+   "description": "Key the other system uses to detect duplicates, such as the DMS customer number or invoice number."
   },
   {
    "fieldname": "section_transport",
@@ -167,7 +167,7 @@
    "fieldname": "lease_owner",
    "fieldtype": "Data",
    "label": "Lease Owner",
-   "description": "Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over)."
+   "description": "Worker currently processing this row."
   },
   {
    "fieldname": "lease_expires_at",
@@ -205,7 +205,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-18 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly DMS",
  "name": "Pearnly Push Log",

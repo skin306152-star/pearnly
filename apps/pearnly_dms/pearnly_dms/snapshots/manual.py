@@ -11,6 +11,7 @@ import time
 import uuid
 
 import frappe
+from frappe import _
 
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.snapshots import store
@@ -49,18 +50,24 @@ def _collector(dataset, reader):
     raise ValueError("Unknown manual DMS dataset")
 
 
+def _refuse(reason: str):
+    """对外只说「不允许」（Frappe 自带说法，有官方译文）；原因只进日志。"""
+    logger.info("manual DMS read refused: %s", reason)
+    return frappe.PermissionError(_("Not permitted"))
+
+
 def _actor(endpoint, reader, actor):
     if not actor or actor == "Guest" or not frappe.db.get_value("User", actor, "enabled"):
-        raise frappe.PermissionError("Manual DMS reader is unavailable")
+        raise _refuse("reader unavailable")
     if reader == "sales":
         # Accept the `{"id": …, "name": …}` shape the LINE query path passes in:
         # a bare dict reached `get_value` before 2026-09-25 and produced
         # `Unknown column 'id'`, which is what menu 5 reported as a read failure.
         owner = frappe.db.get_value("Pearnly ERP Endpoint", endpoint_name(endpoint), "owner_user")
         if owner != actor:
-            raise frappe.PermissionError("Manual DMS reader does not own this connection")
+            raise _refuse("reader does not own this connection")
     elif not {"DMS Admin", "System Manager"}.intersection(frappe.get_roles(actor)):
-        raise frappe.PermissionError("Only a DMS admin may refresh shared data")
+        raise _refuse("only a DMS admin may refresh shared data")
 
 
 def _load(endpoint, dataset, reader):

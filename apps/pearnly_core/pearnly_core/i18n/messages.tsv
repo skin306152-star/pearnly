@@ -160,13 +160,12 @@ Summary	摘要	สรุป	摘要
 Connection	连接	การเชื่อมต่อ	接続
 Which connection it went to. Empty = it failed before a connection was chosen.	推送的目标连接。留空表示选定连接前已失败。	การเชื่อมต่อปลายทางของการส่ง เว้นว่างหมายถึงไม่สำเร็จก่อนเลือกการเชื่อมต่อ	どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
 Trigger	触发方式	รูปแบบการทริกเกอร์	トリガー
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.	触发方式。业务线记录在 reference_doctype。	รูปแบบการทริกเกอร์ สายงานธุรกิจบันทึกไว้ใน reference_doctype	旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
 Attempt	尝试次数	จำนวนครั้งที่พยายาม	試行回数
 What Was Pushed	推送单据	เอกสารที่ส่ง	何を送ったか
 Reference DocType	业务单据类型	DocType ของเอกสารธุรกิจ	業務伝票のDocType
 Reference Name	业务单据	เอกสารธุรกิจ	業務伝票
 Business Key	业务键	คีย์ธุรกิจ	業務キー
-The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.	对端用于判重的键，例如 DMS 客户号、发票号。	คีย์ที่ปลายทางใช้ตรวจสอบข้อมูลซ้ำ เช่น เลขลูกค้า DMS เลขที่ใบกำกับภาษี	相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。
+Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.	对端用于判重的键，例如 DMS 客户号、发票号。	คีย์ที่ปลายทางใช้ตรวจสอบข้อมูลซ้ำ เช่น เลขลูกค้า DMS เลขที่ใบกำกับภาษี	接続先が重複判定に使うキー。例：DMS 顧客番号、請求書番号。
 Transport Result	传输结果	ผลการรับส่ง	転送結果
 HTTP Status	HTTP 状态	สถานะ HTTP	HTTPステータス
 Elapsed (ms)	耗时（ms）	ใช้เวลา (ms)	所要時間(ms)
@@ -179,7 +178,7 @@ Retry Count	已重试次数	จำนวนครั้งที่ลองใ�
 Max Retries	最大重试次数	จำนวนครั้งลองใหม่สูงสุด	最大再試行
 Next Retry At	下次重试时间	ลองใหม่ครั้งถัดไปเมื่อ	次回再試行日時
 Lease Owner	租约持有者	ผู้จองงาน	リース保有者
-Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).	当前处理该记录的执行者。租约保证同一记录只推送一次（仅 pending 状态持有租约，过期后可被接管）。	ผู้ที่กำลังประมวลผลรายการนี้ การจองงานรับประกันว่าแต่ละรายการถูกส่งเพียงครั้งเดียว (เฉพาะสถานะ pending ที่มีการจองงาน และเมื่อหมดอายุแล้วผู้อื่นรับช่วงต่อได้)	今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
+Worker currently processing this row.	当前处理该记录的执行者。	ผู้ที่กำลังประมวลผลรายการนี้	現在この行を処理している実行者。
 Lease Expires	租约到期	การจองงานหมดอายุ	リース期限
 What Was Recognised	识别留证	หลักฐานการอ่านเอกสาร	認識の記録
 Recognition Raw	识别原始输出	ผลลัพธ์ดิบจากการอ่านเอกสาร	認識の生データ
@@ -189,7 +188,7 @@ Confirmed By	确认人	ยืนยันโดย	確認者
 Confirmed At	确认时间	ยืนยันเมื่อ	確認日時
 Push	推送	การส่ง	送信
 Push Log Reference	推送日志引用	อ้างอิงบันทึกการส่ง	送信ログ参照
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."	取值：success | failed | skipped_dup | pending | retrying | manual。**推送状态以此为唯一来源**，业务表上的 push_status 仅作引用。	ค่าที่ใช้ได้: success | failed | skipped_dup | pending | retrying | manual **สถานะการส่งยึดตามที่นี่เป็นแหล่งข้อมูลเดียว** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง	値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
+Authoritative push status.	推送状态以此为准。	สถานะการส่งยึดตามค่านี้	送信ステータスの正本です。
 Kept as evidence, not a business field; only the confirmed fields are.	仅作留证，非业务字段；以确认后的字段为准	ใช้เป็นหลักฐานเท่านั้น ไม่ใช่ฟิลด์ธุรกิจ ให้ยึดตามฟิลด์ที่ยืนยันแล้ว	証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
 Kept as evidence, not a business field	仅作留证，非业务字段	ใช้เป็นหลักฐานเท่านั้น ไม่ใช่ฟิลด์ธุรกิจ	証跡用で業務フィールドではありません
 Direction	方向	ทิศทาง	方向
@@ -229,15 +228,15 @@ Gender	性别	เพศ	性別
 ID Image	证件影像	ภาพบัตร	身分証画像
 Display Name	显示名	ชื่อที่แสดง	表示名
 The name the owner uses to tell people apart on this table, e.g. Ming (sales).	用于识别操作员的名称，例如：阿明（销售）	ชื่อสำหรับระบุพนักงาน เช่น มิ่ง (ฝ่ายขาย)	オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.	本站点为该操作员创建的账号。**仅用于 LINE**，不用于网页登录，无需密码。	บัญชีที่สร้างให้พนักงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะกับ LINE** ไม่ใช้เข้าสู่ระบบผ่านเว็บและไม่ต้องใช้รหัสผ่าน	このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.	本站点为该操作员创建的账号。仅用于 LINE，不用于网页登录，无需密码。	บัญชีที่สร้างให้พนักงานรายนี้บนเว็บไซต์นี้ ใช้เฉพาะกับ LINE ไม่ใช้เข้าสู่ระบบผ่านเว็บและไม่ต้องใช้รหัสผ่าน	このサイトでこのオペレーター用に作成したアカウント。LINE専用で、Webログインには使わず、パスワード不要です。
 Role	角色	บทบาท	ロール
-sales=salesperson, admin=administrator (the legacy product's two roles, no third one)	sales = 销售，admin = 管理员	sales = พนักงานขาย, admin = ผู้ดูแลระบบ	sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+sales = salesperson, admin = administrator	sales = 销售，admin = 管理员	sales = พนักงานขาย, admin = ผู้ดูแลระบบ	sales＝営業、admin＝管理者
 Once disabled its DMS pushes stop and the LINE binding is released	停用后其 DMS 推送停止并解除 LINE 绑定	เมื่อปิดใช้งาน การส่งไป DMS ของพนักงานรายนี้จะหยุดและยกเลิกการผูก LINE	無効にするとDMSへの送信が止まり、LINE連携も解除されます
 This Operator's Own DMS Credentials	该操作员的 DMS 凭据	ข้อมูลรับรอง DMS ของพนักงานรายนี้	このオペレーター自身のDMS資格情報
 DMS Username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名
 DMS Password	DMS 密码	รหัสผ่าน DMS	DMSパスワード
 Sales Commission Owner	销售提成归属	ผู้ได้รับค่าคอมมิชชันการขาย	販売手数料の帰属
-Empty = matched automatically from the DMS account (the legacy product's default).	留空则按 DMS 账号自动匹配	เว้นว่างเพื่อจับคู่อัตโนมัติตามบัญชี DMS	空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
+Leave empty to match from the DMS account automatically.	留空则按 DMS 账号自动匹配	เว้นว่างเพื่อจับคู่อัตโนมัติตามบัญชี DMS	空欄の場合は DMS アカウントから自動照合します。
 DMS Advisor ID	DMS 顾问 ID	DMS Advisor ID	DMSアドバイザーID
 DMS Advisor Name	DMS 顾问名称	ชื่อที่ปรึกษา DMS	DMSアドバイザー名
 Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE	LINEでの照会機能を許可
@@ -337,7 +336,7 @@ Site config is missing {0}_issuer	站点配置缺少 {0}_issuer	ค่าตั�
 Row {0}: unit price cannot be negative	第 {0} 行单价不能为负	บรรทัด {0}: ราคาต่อหน่วยต้องไม่ติดลบ	{0} 行目: 単価はマイナスにできません
 Row {0}: quantity must be greater than 0	第 {0} 行数量必须大于 0	บรรทัด {0}: จำนวนต้องมากกว่า 0	{0} 行目: 数量は0より大きい必要があります
 Binding needs a LINE user and a local account	绑定需要 LINE 用户与本地账号	การผูกต้องมีผู้ใช้ LINE และบัญชีภายในระบบ	連携にはLINEユーザーとローカルアカウントが必要です
-endpoint is missing (which connection to test)	缺少 endpoint（待测试的连接）	ไม่ได้ระบุ endpoint (การเชื่อมต่อที่จะทดสอบ)	endpoint がありません（どの接続をテストするか）
+No connection to test	缺少要测试的连接	ไม่ได้ระบุการเชื่อมต่อที่จะทดสอบ	テストする接続が指定されていません
 Missing code or state	缺少 code 或 state	ขาด code หรือ state	code または state がありません
 google-auth is missing (the image should have it): {0}	缺少 google-auth（镜像里应已安装）：{0}	ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}	google-auth がありません（イメージには入っているはず）: {0}
 Provide at least one line item	请至少填写一行明细	กรุณากรอกรายการอย่างน้อยหนึ่งบรรทัด	明細を1行以上入力してください
@@ -389,17 +388,15 @@ Cannot read the remaining time	无法读取剩余时间	ไม่สามาร
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}	等待 {0} 秒后仍未获取同一账号的锁（{1}）。同一账号不可并发登录。{2}	รอ {0} วินาทีแล้วยังไม่สามารถขอล็อกของบัญชีเดียวกันได้ ({1}) ไม่สามารถเข้าสู่ระบบบัญชีเดียวกันพร้อมกันได้ {2}	{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 Local sample site: not sent to LINE, the raw text is only recorded	本机样例站点：未发往 LINE，仅记录原文	เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ	ローカル見本サイト：LINEへは送信せず、原文のみ記録
 Unknown product: {0}	未知产品：{0}	ผลิตภัณฑ์ที่ไม่รู้จัก: {0}	不明な製品: {0}
-system_url is required	system_url 必填	ต้องระบุ system_url	system_url は必須です
+System URL is required	系统地址为必填项	ต้องระบุที่อยู่ระบบ	システムURLは必須です
 username / password are required	username / password 必填	ต้องระบุ username / password	username / password は必須です
-Endpoint {0} uses adapter {1}, not mrerp_dms	端点 {0} 的适配器是 {1}，不是 mrerp_dms	ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms	端点 {0} のアダプタは {1} で、mrerp_dms ではありません
-Endpoint {0} is disabled	端点 {0} 已停用	ปลายทาง {0} ถูกปิดใช้งาน	端点 {0} は無効です
-Endpoint {0} has no password configured	端点 {0} 未配置密码	ปลายทาง {0} ยังไม่ได้ตั้งค่ารหัสผ่าน	端点 {0} にパスワードが設定されていません
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录未完成（重试后未收到成功的 checklogin 响应，也未跳转；页面可能加载过慢或被拦截）	การเข้าสู่ระบบ DMS ไม่เสร็จสมบูรณ์ (ลองใหม่แล้วแต่ไม่ได้รับการตอบกลับ checklogin ที่สำเร็จ และไม่มีการเปลี่ยนหน้า หน้าเว็บอาจโหลดช้าเกินไปหรือถูกบล็อก)	DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）
+Connection {0} is not an MR.ERP DMS connection	连接 {0} 不是 MR.ERP DMS 连接	การเชื่อมต่อ {0} ไม่ใช่การเชื่อมต่อ MR.ERP DMS	接続 {0} は MR.ERP DMS の接続ではありません
+Connection {0} is disabled	连接 {0} 已停用	การเชื่อมต่อ {0} ถูกปิดใช้งาน	接続 {0} は無効です
+Connection {0} has no password	连接 {0} 未设置密码	การเชื่อมต่อ {0} ยังไม่ได้ตั้งรหัสผ่าน	接続 {0} にパスワードが設定されていません
 The DMS account is not approved to use the system	DMS 账号未被批准使用系统	บัญชี DMS ยังไม่ได้รับอนุมัติให้ใช้ระบบ	DMSアカウントはシステム利用が承認されていません
 The DMS account is marked as resigned	DMS 账号已标记为离职	บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว	DMSアカウントは退職として記録されています
 DMS refused the sign-in: {0}	DMS 拒绝登录：{0}	DMS ปฏิเสธการเข้าสู่ระบบ: {0}	DMSがログインを拒否しました: {0}
 An admin session was requested but no admin credentials are configured	已请求 admin 会话，但未配置 admin 凭据	มีการขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin	adminセッションが要求されましたが、admin資格情報が未設定です
-The admin session must be requested inside a `with` block	admin 会话必须在 `with` 块里请求	ต้องขอเซสชัน admin ภายในบล็อก `with`	adminセッションは `with` ブロック内で要求する必要があります
 DMS admin credentials failed to sign in: {0}	DMS 管理员凭据登录失败：{0}	เข้าสู่ระบบด้วยข้อมูลรับรองผู้ดูแล DMS ไม่สำเร็จ: {0}	DMS管理者の資格情報でログインできません: {0}
 The balance could not be read	无法查询余额	ไม่สามารถตรวจสอบยอดคงเหลือได้	残高を読み取れません
 ID card recognition	身份证识别	อ่านบัตรประชาชน	身分証認識	ID card recognition (tier A)

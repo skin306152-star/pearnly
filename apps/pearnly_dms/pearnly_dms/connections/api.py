@@ -180,7 +180,7 @@ def test_endpoint(endpoint: str) -> dict:
     """测试**已保存**的连接（界面上那个「测试」按钮）。"""
     _require_admin()
     if not endpoint:
-        frappe.throw(_("endpoint is missing (which connection to test)"))
+        frappe.throw(_("No connection to test"))
 
     from pearnly_dms.adapter.push import test_dms_endpoint
 

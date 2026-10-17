@@ -17,6 +17,7 @@ Account,账号
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first",账号「{0}」已有默认连接（{1}），请先取消该连接的默认设置
 Account With Write Access,有修改权限的账号
 Account balance,账户余额
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,本站点为该操作员创建的账号。仅用于 LINE，不用于网页登录，无需密码。
 Account name,收款户名
 Account number,收款账号
 Account with admin rights,具有管理权限的账号
@@ -47,6 +48,7 @@ Are you sure you want to sign out?,确定要退出登录吗？
 Arguments,参数
 Attempt,尝试次数
 Attempts,尝试次数
+Authoritative push status.,推送状态以此为准。
 Auto Push,自动推送
 Automatic (by DMS account),自动匹配（按 DMS 账号）
 Back to home,返回首页
@@ -135,6 +137,9 @@ Connection,连接
 "Connection ""{0}"" is disabled and cannot be used",连接「{0}」已停用，不能使用
 Connection OK · {0},连接正常 · {0}
 Connection failed,连接失败
+Connection {0} has no password,连接 {0} 未设置密码
+Connection {0} is disabled,连接 {0} 已停用
+Connection {0} is not an MR.ERP DMS connection,连接 {0} 不是 MR.ERP DMS 连接
 Console,控制台
 Contact support with the record ID,请提供记录编号联系客服
 Conversation not found,未找到对话
@@ -201,7 +206,6 @@ DMS login account,DMS 登录账号
 DMS login password,DMS 登录密码
 DMS password,DMS 密码
 DMS refused the sign-in: {0},DMS 拒绝登录：{0}
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录未完成（重试后未收到成功的 checklogin 响应，也未跳转；页面可能加载过慢或被拦截）
 DMS usage and balance,DMS 用量与余额
 DMS username,DMS 用户名
 Date,日期
@@ -250,15 +254,11 @@ Edit operator,编辑操作员
 Elapsed (ms),耗时（ms）
 Email,邮件
 Email is required,邮箱不能为空
-Empty = matched automatically from the DMS account (the legacy product's default).,留空则按 DMS 账号自动匹配
 Enable,启用
 "Enable ""{0}""? A new bind code is needed to link LINE again.",确定要启用「{0}」吗？启用后需重新生成绑定码以连接 LINE。
 Enabled,启用
 Enabled features,已开通功能
 Endpoint,连接端点
-Endpoint {0} has no password configured,端点 {0} 未配置密码
-Endpoint {0} is disabled,端点 {0} 已停用
-"Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} 的适配器是 {1}，不是 mrerp_dms
 Entering,录入中
 Error Message,错误信息
 Event ID,事件 ID
@@ -334,6 +334,7 @@ Item / description,品名 / 说明
 "Kept as evidence, not a business field",仅作留证，非业务字段
 "Kept as evidence, not a business field; only the confirmed fields are.",仅作留证，非业务字段；以确认后的字段为准
 Key,密钥
+"Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.",对端用于判重的键，例如 DMS 客户号、发票号。
 Kind,类型
 LINE Display Name,LINE 昵称
 LINE Login,LINE 登录
@@ -359,6 +360,7 @@ Lease Owner,租约持有者
 Lease Until,租约到期
 Leave blank to keep the current password.,留空则不修改当前密码。
 Leave blank to keep unchanged,留空则不修改
+Leave empty to match from the DMS account automatically.,留空则按 DMS 账号自动匹配
 Line Amount,行金额
 Line Discount,行折扣
 Line No,行号
@@ -403,6 +405,7 @@ No OCR key configured (site config pearnly_ocr_api_key),未配置 OCR 密钥（�
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",未配置账号，此连接不可用。请配置凭据后测试连接。
 No camera was found on this device. Enter the code instead.,此设备上没有找到相机。请手动输入编码。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",未配置「邀请链接客户端 ID」，无法发送邀请邮件
+No connection to test,缺少要测试的连接
 No existing customer matched and no DMS customer reference was given: confirm manually first,未匹配到已有客户，且未提供 DMS 客户引用，请先人工确认
 No file was received.,未收到文件。
 No operators yet — add one above,暂无操作员，请在上方新增
@@ -625,6 +628,7 @@ Supplier name,供应商名称
 Suppliers,供应商
 System URL,系统地址
 System URL is not filled in,系统地址不能为空
+System URL is required,系统地址为必填项
 Target ERP,目标 ERP
 Tax Return Drafts,报税草稿
 Team,团队管理
@@ -641,10 +645,8 @@ The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
 The LINE channel is not configured for this account,该账号未配置 LINE 通道
 The OCR service returned HTTP {0}: {1},OCR 服务返回 HTTP {0}：{1}
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,本站点为该操作员创建的账号。**仅用于 LINE**，不用于网页登录，无需密码。
 The account is disabled,账号已停用
 The account was created but no id came back,账号已创建，但未返回 id
-The admin session must be requested inside a `with` block,admin 会话必须在 `with` 块里请求
 The balance could not be read,无法查询余额
 The balance grows once the platform confirms the transfer.,平台确认到账后计入余额。
 The barcode reader could not load. Refresh the page and try again.,扫码组件加载失败。请刷新页面后重试。
@@ -667,9 +669,7 @@ The identity service returned an error: {0},身份服务返回错误：{0}
 **One row per session** (a LINE user runs only one flow at a time inside one tenant).","多轮对话的中间状态：当前问题、已暂存的选择及防重复提交的 nonce。
 
 **每个会话一行**（同一 LINE 用户在同一租户内同时只进行一个流程）。"
-"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",对端用于判重的键，例如 DMS 客户号、发票号。
 The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,该连接不支持自动推送，须手动确认。
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,触发方式。业务线记录在 reference_doctype。
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",该组凭据用于连接、查重、建档和改写客户档案；业务写入使用该组凭据，不使用操作员个人凭据。
 The legacy system's product identifier; it becomes a link once product master data lands,旧系统的物料标识；物料主数据落地后再换成链接
 "The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",锁剩余 {0} 秒（可能为异常终止的进程遗留的死锁；确认无任务运行后可删除该 key）
@@ -696,7 +696,6 @@ The total is calculated automatically.,合计金额自动计算。
 The truth is in erp_push_logs; this is only a display reference,以 erp_push_logs 为准，此处仅作展示
 The two new passwords do not match,两次输入的新密码不一致
 The two passwords do not match,两次输入不一致
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",取值：success | failed | skipped_dup | pending | retrying | manual。**推送状态以此为唯一来源**，业务表上的 push_status 仅作引用。
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINE 平台的 webhookEventId，具有唯一约束，重复投递的事件不会重复处理。
 "There is no DMS customer reference, so it cannot be pushed",缺少 DMS 客户引用，无法推送
 This ERP account has no company or year to choose.,此账号在目标 ERP 中没有可选的公司和年度。
@@ -787,12 +786,12 @@ What Was Recognised,识别留证
 Whether this LINE can sign in to this account; kept in step with the identity service.,该 LINE 账号能否免密登录此账号，与身份服务自动同步。
 Which connection it went to. Empty = it failed before a connection was chosen.,推送的目标连接。留空表示选定连接前已失败。
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,对端系统类型（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。目前仅支持 mrerp_dms。
-"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",当前处理该记录的执行者。租约保证同一记录只推送一次（仅 pending 状态持有租约，过期后可被接管）。
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",连接所属账号。**留空 = 本站点共享连接**；填写 = 该操作员的个人连接。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",安装在商家会计电脑上的 Windows 程序，提供安装、配对与任务拉取
 Withholding Tax,预扣税
 Work,识别作业
 Work together,工作协作
+Worker currently processing this row.,当前处理该记录的执行者。
 Workspace,工作区
 Wrong ERP username or password. Check it under Connect and try again.,目标 ERP 账号或密码错误，请在「连接」中检查后重试。
 Yes,是
@@ -912,7 +911,6 @@ connect.state.notConnected,未连接
 connect.title,连接 DMS
 connect.yes,是
 e.g. Ming (sales),如：阿明（销售）
-endpoint is missing (which connection to test),缺少 endpoint（待测试的连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
 home.balance.title,账户余额
 home.balance.used,本月已用 {0} 页 · 套餐 {1} 本周期剩余 {2} 页
@@ -1243,7 +1241,7 @@ roster.subtitle,每位销售或管理员使用各自的 DMS 账号，并分别�
 roster.title,操作员
 roster.unbindLine,解绑 LINE
 roster.unbound,未绑定
-"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales = 销售，admin = 管理员
+"sales = salesperson, admin = administrator",sales = 销售，admin = 管理员
 shell.backHome,返回首页
 shell.boot.failed,启动失败（HTTP {0}）：{1}
 shell.boot.failedPlain,启动失败：{0}
@@ -1260,7 +1258,6 @@ shell.notBuilt.title,页面暂不可用
 shell.wait.elapsed,已用 {0} 秒
 shell.wait.pages,已识别 {0}/{1} 页 · {2}%
 state is invalid or has expired,state 无效或已过期
-system_url is required,system_url 必填
 username / password are required,username / password 必填
 {0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
 {0} pages per cycle,每周期 {0} 页

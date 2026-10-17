@@ -3,7 +3,7 @@
 Account & password,修改账号密码
 Account busy — click Read later to continue,账号忙，请稍后点击读取继续
 Account busy — click Update data later to continue,账号忙，请稍后点击更新数据继续
-Account busy — the read will continue shortly,账号繁忙，将稍后自动继续读取
+Account busy; resuming shortly,账号繁忙，稍后继续
 Action,操作
 Add,添加
 Add a channel,添加付款方式
@@ -58,7 +58,6 @@ Booking updated in DMS,已更新 DMS 中的订车单
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
 Brand,品牌
 Building,楼宇
-Cached result captured at {time},已缓存结果读取于 {time}
 Cancel,取消
 Cannot open the camera. Please send the ID card photo in the chat instead.,无法打开相机，请返回聊天直接发送身份证照片。
 Car,车辆
@@ -78,14 +77,15 @@ Cheque,支票
 Choose a bank,选择银行
 Choose a car model ({n} found),选择车型（共 {n} 项）
 Choose a colour for {car},选择 {car} 的颜色
+Choose a menu,请选择菜单
 Choose a period and number of items (all branches/teams this account can see),选择时间段和条数（此账号可见的全部分店/团队）
 Choose a status,选择状态
 Choose a topic to play its video,选择一个主题播放教程视频
 Choose an item to continue,选择一项继续
+Choose one main condition; the search runs right away.,请选择一个主要条件，系统将立即查询。
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
 Choose the matching customer,请选择对应的客户
 Colour,颜色
-Coming soon,即将推出
 Company information,公司资料
 Complete Snapshot,完整快照
 Confirm,确认
@@ -123,12 +123,12 @@ DMS System Account,DMS 系统账号
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS 中已有此证号的客户，请重新核对差异并确认；资料未被自动覆盖。
 DMS check: Matched,DMS 核对结果：一致
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS 资料尚未读取，系统将自动读取，完成后请重试。
+"DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.",DMS 资料读取中，请稍后再试。长时间未就绪时，请管理员在 DMS 连接页确认已添加读档账号。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。
-"DMS data is still being read and can be used once the read finishes; please try again later. If it never becomes ready, ask an administrator to check that a read account is added on the DMS connection page.",DMS 资料还在读取中，读完即可使用，请稍后再试。若一直未就绪，请管理员在 DMS 连接页确认已添加读档账号。
-"DMS did not return complete data, so no partial data was published. The system re-reads DMS data automatically every night; please try again after that read.",DMS 未返回完整资料，没有发布不完整结果。系统每天凌晨会自动重新读取，读完后再试。
-"DMS has no customer branch 00000 (head office), so the customer cannot be saved. Ask the admin to add branch 00000 in DMS, then try again.",DMS 中不存在客户分店 00000（总公司），无法保存客户。请管理员在 DMS 中添加 00000 分店后重试。
+"DMS has no customer branch 00000 (head office). Ask the admin to add it in DMS, then try again.",DMS 中不存在客户分店 00000（总公司），无法保存客户。请管理员在 DMS 中添加 00000 分店后重试。
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.",DMS 中尚未设置「{item}」选项，请联系管理员在 DMS 中添加后重试。
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录未完成（重试后未收到成功的 checklogin 响应或跳转，对方页面可能加载缓慢或被拦截）
+"DMS returned incomplete data, so nothing was published. Try again after the nightly read.",DMS 未返回完整资料，未发布不完整结果。请在每晚读取完成后再试。
+DMS sign-in did not finish. Try again later.,DMS 登录未完成，请稍后重试
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS 同步未取得完整资料，没有发布不完整结果。请等待同步成功后重试。
 Data as of {time},资料时间：{time}
 Data captured at,资料取得时间
@@ -198,13 +198,13 @@ Latest sales from DMS,DMS 最新销售
 Manage system accounts,管理系统账号
 Manual,使用手册
 Manual Read Request,手动读取请求
-"Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.",DMS 当前使用人数较多，本次排队超时，未提交任何内容。请稍后再试。
+"Many people are using DMS, so the request timed out in the queue and nothing was submitted. Try again shortly.",DMS 当前使用人数较多，本次排队超时，未提交任何内容。请稍后再试。
 Master data and all vehicle colors,主档与全部车型颜色
 Menu,菜单
 Model year,生产年份
 Model/colour,车型/颜色
 Moo,村组（Moo）
-Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
+Multiple DMS connections exist for this operator,该操作员有多条 DMS 连接
 Multiple primary DMS connections exist; ask an administrator to check the configuration,存在多条 DMS 主连接，请管理员检查配置
 Name,姓名
 New customer,新客户
@@ -239,12 +239,11 @@ Open DMS,进入 DMS
 Open Pearnly DMS without typing your password again,无需重新输入密码，直接打开 Pearnly DMS
 Other,其他
 Page,页
+Pearnly DMS,Pearnly DMS
 Phone,电话
 Phone number received. Please take a photo of the customer's ID card.,已收到电话号码，请拍摄客户的身份证。
 Pick a date,选择日期
-Pick just one main condition and the search runs right away. No need to answer everything.,请选择一个主要条件，系统将立即查询。
 Please choose a menu,请选择需要的菜单
-Please choose a menu below to get started,请选择下方菜单开始使用
 "Please choose from the card above, or type restart to begin a new item",请从上方卡片中选择，或输入「重新开始」办理新业务
 Please choose the type of data to search,请选择要查询的资料类型
 Please correct it in DMS.,请在 DMS 中修改。
@@ -312,7 +311,7 @@ Save failed. Please try again.,保存失败，请重试。
 Save new customer,保存新客户
 Saved,已保存
 Saved DMS data,DMS 已读取资料
-"Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
+Saved result read at {time},读取于 {time} 的已保存结果
 "Saved · {action}
 Customer ID: {customer_code}
 Name: {name}","保存成功 · {action}
@@ -360,7 +359,7 @@ The DMS account is busy. The read retries automatically; please wait.,DMS 账号
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS 账号持续占用，自动重试未成功，请稍后再试。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 连接中断，本次读取已暂停。系统将从断点继续读取，已完成的组仍保留。
 The DMS connection is not set up yet. Please contact the admin.,尚未设置 DMS 连接，请联系管理员。
-"The DMS connection or account changed, so the previous data cannot be used. The system reads the new account's data automatically; reopen this page after it finishes.",DMS 连接或账号已变更，不能继续使用旧资料。系统会自动读取新账号的资料，读完后重新打开此页面。
+"The DMS connection or account changed, so the previous data cannot be used. Reopen this page after the new account's data is read.",DMS 连接或账号已变更，旧资料不再可用。新账号的资料读取完成后，请重新打开此页面。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
 The booking cannot be opened yet · The DMS account in use is «{username}»,暂时无法建立订车单 · 当前使用的 DMS 账号是「{username}」
@@ -374,14 +373,14 @@ The check could not start. Please try again.,无法开始检查，请重试。
 The check failed. Please try again.,检查失败，请重试。
 The check stopped before it finished. Please try again.,检查未完成，请重试。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
-The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
+The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在编辑后已被更改，请重新核对差异后再确认。
 "The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.",客户地址信息不完整。请点击「编辑」，补全府、县、镇及邮编后重新保存。
 The data volume exceeds the read limit. Please contact an administrator.,数据量超过读取上限，请联系管理员。
 "The following similar customers were found. Please select the matching customer, or select New customer if none of them match.",系统找到以下相似客户，请选择对应的客户；如均不符合，请选择「新客户」。
 The photo is too large. Please try again.,照片过大，请重试。
 The read status changed. Refresh the page to check before trying again.,读取状态已变化，请刷新页面确认后再试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
-The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
+The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请暂勿重复发送此图片。
 "The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",现有 DMS 资料已过期，暂不能使用。请等待同步完成后重试。
 The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.,现有 DMS 资料已过期，暂不能使用。系统每天凌晨会自动重新读取，读完后再试。
 The saved credentials cannot be read back; check the site encryption key,无法读取已保存的凭据，请检查站点加密密钥
@@ -394,7 +393,7 @@ This account cannot search data in LINE yet. Ask the owner to enable it on the O
 This account is already in use by the connection or another system account,这个账号已被连接或其他系统账号使用
 This account is already the connection's own account,这个账号已经是连接自己的账号
 This account is already used by an operator or another system account,该账号已被操作员或其他系统账号使用
-This booking can no longer be changed here. Please correct it in DMS.,这张订车单已不能在此修改，请在 DMS 中修改。
+This booking can no longer be changed here. Please correct it in DMS.,此订车单已无法在此修改，请在 DMS 中修改。
 This card has expired. Use the latest card in LINE.,此卡片已失效，请使用 LINE 中最新的卡片。
 This customer already exists and the data matches,该客户已存在，资料一致
 This item has expired. Please start again.,此项已过期，请重新开始。
@@ -405,7 +404,7 @@ This month Top 20,本月前 20 名
 This month Top 30,本月前 30 名
 This month Top 5,本月前 5 名
 This query is queued.,本次查询已排队。
-"This read account can only see {seen} customers, while {reference} sees {total}. DMS limits the customer list by account permission; use an account that can see every customer as the read account.",这个读档账号只能看到 {seen} 位客户，{reference} 能看到 {total} 位。DMS 按账号权限限制客户列表，请换一个能看到全部客户的账号作为读档账号。
+This read account sees only {seen} customers ({reference} sees {total}). Use an account that can see every customer.,读档账号只能看到 {seen} 位客户（{reference} 可看到 {total} 位），请改用可查看全部客户的账号。
 This read failed. Click Read to retry.,本次读取失败，可点击读取重试。
 This read failed. Please try again later.,本次读取失败，请稍后再试。
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.",本次读取已中断，此前成功的资料仍保留。系统会重新读取，请稍后再试。
@@ -425,6 +424,7 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,销售排行
 Top sales from DMS,DMS 销售排行
 Total deposit,订金合计
+Trigger type. The business line is on Reference DocType.,触发方式。业务线见关联单据类型。
 Try again,重试
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",请输入日期范围和条数，例如 01/08/2569-31/08/2569 15（佛历）
 "Type bank name | card type, e.g. KBank | VISA",请输入 银行名称 | 卡种，例如 KBank | VISA
@@ -441,7 +441,7 @@ Type the engine number,请输入发动机号
 Type the sales advisor's name,请输入销售顾问姓名
 Type the sales document number,请输入销售单据号
 Type what you want to search for,请输入要查询的内容
-Unable to confirm the read result. Refresh the page to check; the background read may still be running.,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
+Unable to confirm the read result. Refresh the page to check.,无法确认读取结果，请刷新页面查看。
 Update data,更新资料
 Update failed — click Update data to retry,更新失败，点击更新数据可重试
 Update failed. Please ask the admin to check the admin password in Pearnly.,更新失败，请通知管理员检查 Pearnly 中的管理员密码。
@@ -459,10 +459,9 @@ Verified Write Results,已核实的写入结果
 Video guides,教程视频
 View result,查看结果
 View result / status,查看结果／状态
-View the latest sales data from DMS within your permissions,按你的权限查看 DMS 最新的销售资料
+View the latest sales data from DMS within your permissions,按权限查看 DMS 最新销售资料
 Village,村（小区）
 Watch step-by-step video guides,观看分步骤的教程视频
-Welcome to Pearnly DMS,欢迎使用 Pearnly DMS
 Write accounts,改写权限账号
 cars,台
 customer details,客户资料
@@ -536,7 +535,7 @@ dms.card.TXT_MENU_D1,用身份证建立新客户，或更新已有客户的资�
 dms.card.TXT_MENU_D2,建立订车单：选择车型、颜色并保存
 dms.card.TXT_MENU_D3,无需重新输入密码，直接打开 Pearnly DMS
 dms.card.TXT_MENU_D4,更新保存在 Pearnly 里的 DMS 用户名和密码
-dms.card.TXT_MENU_D5,按你的权限查看 DMS 最新的销售资料
+dms.card.TXT_MENU_D5,按权限查看 DMS 最新销售资料
 dms.card.TXT_MENU_D6,观看分步骤的教程视频
 dms.card.TXT_MENU_GREETING,"你好 🙏
 欢迎使用 Pearnly DMS
@@ -551,8 +550,8 @@ dms.card.TXT_MENU_ITEM6,使用手册
 dms.card.TXT_MENU_PICK,请选择需要的菜单
 dms.card.TXT_MENU_PICK_SUB,选择一项继续
 dms.card.TXT_MENU_SEND_CARD,请发送客户的身份证照片
-dms.card.TXT_MENU_SUBTITLE,请选择下方菜单开始使用
-dms.card.TXT_MENU_TITLE,欢迎使用 Pearnly DMS
+dms.card.TXT_MENU_SUBTITLE,请选择菜单
+dms.card.TXT_MENU_TITLE,Pearnly DMS
 dms.card.TXT_MORE_RESULTS,还有更多结果，请点击「查看结果」继续查看。
 dms.card.TXT_NEED_BOTH,请发送客户的身份证照片和电话号码
 dms.card.TXT_NEW_CARD_ALT,确认保存新客户
@@ -576,7 +575,7 @@ dms.card.TXT_REVIEW_DIFF_HEAD,订车单已建立，但 DMS 中部分资料与确
 dms.card.TXT_REVIEW_FAILED,DMS 中的订车单未能更新，请在 DMS 中修改。
 dms.card.TXT_REVIEW_FIX,请在 DMS 中修改。
 dms.card.TXT_REVIEW_KEPT,已沿用 DMS 中的资料。
-dms.card.TXT_REVIEW_LOCKED,这张订车单已不能在此修改，请在 DMS 中修改。
+dms.card.TXT_REVIEW_LOCKED,此订车单已无法在此修改，请在 DMS 中修改。
 dms.card.TXT_REVIEW_MISSING,{text}（{fields}）
 dms.card.TXT_REVIEW_OK,DMS 核对结果：一致
 dms.card.TXT_REVIEW_UNVERIFIED,修改已提交，但结果尚未确认，请在 DMS 中核实。
@@ -694,7 +693,6 @@ dms.card.query.ASK_TOP_GROUP,请选择销售排行依据
 dms.card.query.ASK_TOP_METRIC,请选择排行指标：台数或金额
 dms.card.query.ASK_TOP_PERIOD,选择时间段和条数（此账号可见的全部分店/团队）
 dms.card.query.ASK_VEHICLE,请输入车型
-dms.card.query.CARD_NOTE,DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
 dms.card.query.CARD_TITLE,DMS 销售记录
 dms.card.query.DIM_ADVISOR,销售顾问
 dms.card.query.DIM_ALLOCATION,配车
@@ -726,7 +724,7 @@ dms.card.query.LBL_FINANCE,贷款
 dms.card.query.LBL_PAGE,页
 dms.card.query.LBL_READ_AT,资料取得时间
 dms.card.query.LBL_UNKNOWN_TIME,读取时间未知
-dms.card.query.MANUAL_AS_OF,已缓存结果读取于 {time}
+dms.card.query.MANUAL_AS_OF,读取于 {time} 的已保存结果
 dms.card.query.MANUAL_FAILED,本次读取失败，请稍后再试。
 dms.card.query.MANUAL_IDLE,正在读取该条件的记录，完成后将立即发送结果。
 dms.card.query.MANUAL_PROGRESS,进度 {processed}/{total}
@@ -784,7 +782,6 @@ dms.card.rich.portal.sub,使用后台系统
 dms.card.rich.portal.title,进入 DMS
 dms.card.rich.query.sub,DMS 最新销售
 dms.card.rich.query.title,查询资料
-dms.card.rich.soon,即将推出
 dms.card.sum.address,地址
 dms.card.sum.birthday_be,出生日期
 dms.card.sum.name,姓名
@@ -838,9 +835,9 @@ dms.connect.cache.state.idle,尚未读取
 dms.connect.cache.state.queued,已排队
 dms.connect.cache.state.running,正在读取
 dms.connect.cache.state.succeeded,资料已更新
-dms.connect.cache.state.waiting,账号繁忙，将稍后自动继续读取
+dms.connect.cache.state.waiting,账号繁忙，稍后继续
 dms.connect.cache.title,DMS 已读取资料
-dms.connect.cache.unconfirmed,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
+dms.connect.cache.unconfirmed,无法确认读取结果，请刷新页面查看。
 dms.connect.pool.action,操作
 dms.connect.pool.add,添加系统账号
 dms.connect.pool.added,已添加 {0}
@@ -860,7 +857,7 @@ dms.connect.pool.removed,已移除 {0}
 dms.connect.pool.summary,已登记 {0} 个，可用 {1} 个
 dms.connect.pool.testAndAdd,测试并添加
 dms.connect.pool.toggle,停用 / 启用
-dms.connect.read.scope,这个读档账号只能看到 {seen} 位客户，{reference} 能看到 {total} 位。DMS 按账号权限限制客户列表，请换一个能看到全部客户的账号作为读档账号。
+dms.connect.read.scope,读档账号只能看到 {seen} 位客户（{reference} 可看到 {total} 位），请改用可查看全部客户的账号。
 dms.doctype.system_account,DMS 系统账号
 dms.doctype.system_account.description,系统专用的额外 DMS 账号，用于管理员读取和客户资料写入。
 dms.doctype.system_account.last_checked_at,最近检查时间
@@ -987,7 +984,7 @@ dms.err.ERR_DMS_BOOKING_PATCH,回填订车单资料失败 · 请稍后重试
 dms.err.ERR_DMS_BUSY,DMS 当前使用人数较多，本次排队超时，未提交任何内容。请稍后再试。
 dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出其他登录后重试
 dms.err.ERR_DMS_CUSTOMER_BRANCH,DMS 中不存在客户分店 00000（总公司），无法保存客户。请管理员在 DMS 中添加 00000 分店后重试。
-dms.err.ERR_DMS_CUSTOMER_CHANGED,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
+dms.err.ERR_DMS_CUSTOMER_CHANGED,客户资料在编辑后已被更改，请重新核对差异后再确认。
 dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS 中已有此证号的客户，请重新核对差异并确认；资料未被自动覆盖。
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE,订车尚未提交：DMS 中客户必填资料不全。请点击「编辑」补全后再次确认。
 dms.err.ERR_DMS_CUSTOMER_INCOMPLETE_ADMIN,订车尚未提交：DMS 中客户必填资料不全。请管理员在 DMS 中补全。
@@ -1003,13 +1000,13 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
 dms.err.ERR_DMS_QUERY_SCOPE,当前 DMS 账号未开放销售排行，请联系 DMS 管理员。
 dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS 账号持续占用，自动重试未成功，请稍后再试。
-dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS 未返回完整资料，没有发布不完整结果。系统每天凌晨会自动重新读取，读完后再试。
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS 未返回完整资料，未发布不完整结果。请在每晚读取完成后再试。
 dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,本次读取已中断，此前成功的资料仍保留。系统会重新读取，请稍后再试。
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,DMS 资料尚未读取，系统将自动读取，完成后请重试。
-dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS 资料还在读取中，读完即可使用，请稍后再试。若一直未就绪，请管理员在 DMS 连接页确认已添加读档账号。
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS 资料读取中，请稍后再试。长时间未就绪时，请管理员在 DMS 连接页确认已添加读档账号。
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
 dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 连接中断，本次读取已暂停。系统将从断点继续读取，已完成的组仍保留。
-dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS 连接或账号已变更，不能继续使用旧资料。系统会自动读取新账号的资料，读完后重新打开此页面。
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS 连接或账号已变更，旧资料不再可用。新账号的资料读取完成后，请重新打开此页面。
 dms.err.ERR_DMS_SNAPSHOT_STALE,现有 DMS 资料已过期，暂不能使用。系统每天凌晨会自动重新读取，读完后再试。
 dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,数据量超过读取上限，请联系管理员。
 dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试

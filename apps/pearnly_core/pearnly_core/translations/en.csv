@@ -17,6 +17,7 @@ Account,Account
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first","Account ""{0}"" already has a default connection ({1}); clear that one's default first"
 Account With Write Access,Account With Write Access
 Account balance,Account balance
+Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.
 Account name,Account name
 Account number,Account number
 Account with admin rights,Account with admin rights
@@ -47,6 +48,7 @@ Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
 Attempt,Attempt
 Attempts,Attempts
+Authoritative push status.,Authoritative push status.
 Auto Push,Auto Push
 Automatic (by DMS account),Automatic (by DMS account)
 Back to home,Back to home
@@ -135,6 +137,9 @@ Connection,Connection
 "Connection ""{0}"" is disabled and cannot be used","Connection ""{0}"" is disabled and cannot be used"
 Connection OK · {0},Connection OK · {0}
 Connection failed,Connection failed
+Connection {0} has no password,Connection {0} has no password
+Connection {0} is disabled,Connection {0} is disabled
+Connection {0} is not an MR.ERP DMS connection,Connection {0} is not an MR.ERP DMS connection
 Console,Console
 Contact support with the record ID,Contact support with the record ID
 Conversation not found,Conversation not found
@@ -201,7 +206,6 @@ DMS login account,DMS login account
 DMS login password,DMS login password
 DMS password,DMS password
 DMS refused the sign-in: {0},DMS refused the sign-in: {0}
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
 DMS usage and balance,DMS usage and balance
 DMS username,DMS username
 Date,Date
@@ -250,15 +254,11 @@ Edit operator,Edit operator
 Elapsed (ms),Elapsed (ms)
 Email,Email
 Email is required,Email is required
-Empty = matched automatically from the DMS account (the legacy product's default).,Empty = matched automatically from the DMS account (the legacy product's default).
 Enable,Enable
 "Enable ""{0}""? A new bind code is needed to link LINE again.","Enable ""{0}""? A new bind code is needed to link LINE again."
 Enabled,Enabled
 Enabled features,Enabled features
 Endpoint,Endpoint
-Endpoint {0} has no password configured,Endpoint {0} has no password configured
-Endpoint {0} is disabled,Endpoint {0} is disabled
-"Endpoint {0} uses adapter {1}, not mrerp_dms","Endpoint {0} uses adapter {1}, not mrerp_dms"
 Entering,Entering
 Error Message,Error Message
 Event ID,Event ID
@@ -333,6 +333,7 @@ Item / description,Item / description
 "Kept as evidence, not a business field","Kept as evidence, not a business field"
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
 Key,Key
+"Key the other system uses to detect duplicates, such as the DMS customer number or invoice number.","Key the other system uses to detect duplicates, such as the DMS customer number or invoice number."
 Kind,Kind
 LINE Display Name,LINE Display Name
 LINE Login,LINE Login
@@ -358,6 +359,7 @@ Lease Owner,Lease Owner
 Lease Until,Lease Until
 Leave blank to keep the current password.,Leave blank to keep the current password.
 Leave blank to keep unchanged,Leave blank to keep unchanged
+Leave empty to match from the DMS account automatically.,Leave empty to match from the DMS account automatically.
 Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
@@ -402,6 +404,7 @@ No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (s
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
 No camera was found on this device. Enter the code instead.,No camera was found on this device. Enter the code instead.
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
+No connection to test,No connection to test
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
 No file was received.,No file was received.
 No operators yet — add one above,No operators yet — add one above
@@ -623,6 +626,7 @@ Supplier name,Supplier name
 Suppliers,Suppliers
 System URL,System URL
 System URL is not filled in,System URL is not filled in
+System URL is required,System URL is required
 Target ERP,Target ERP
 Tax Return Drafts,Tax Return Drafts
 Team,Team
@@ -639,10 +643,8 @@ The ID token has no sub,The ID token has no sub
 The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
 The LINE channel is not configured for this account,The LINE channel is not configured for this account
 The OCR service returned HTTP {0}: {1},The OCR service returned HTTP {0}: {1}
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.
 The account is disabled,The account is disabled
 The account was created but no id came back,The account was created but no id came back
-The admin session must be requested inside a `with` block,The admin session must be requested inside a `with` block
 The balance could not be read,The balance could not be read
 The balance grows once the platform confirms the transfer.,The balance grows once the platform confirms the transfer.
 The barcode reader could not load. Refresh the page and try again.,The barcode reader could not load. Refresh the page and try again.
@@ -665,9 +667,7 @@ The identity service returned an error: {0},The identity service returned an err
 **One row per session** (a LINE user runs only one flow at a time inside one tenant).","The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
 
 **One row per session** (a LINE user runs only one flow at a time inside one tenant)."
-"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.","The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing."
 The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.","The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials."
 The legacy system's product identifier; it becomes a link once product master data lands,The legacy system's product identifier; it becomes a link once product master data lands
 "The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)","The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)"
@@ -694,7 +694,6 @@ The total is calculated automatically.,The total is calculated automatically.
 The truth is in erp_push_logs; this is only a display reference,The truth is in erp_push_logs; this is only a display reference
 The two new passwords do not match,The two new passwords do not match
 The two passwords do not match,The two passwords do not match
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.
 "There is no DMS customer reference, so it cannot be pushed","There is no DMS customer reference, so it cannot be pushed"
 This ERP account has no company or year to choose.,This ERP account has no company or year to choose.
@@ -785,12 +784,12 @@ What Was Recognised,What Was Recognised
 Whether this LINE can sign in to this account; kept in step with the identity service.,Whether this LINE can sign in to this account; kept in step with the identity service.
 Which connection it went to. Empty = it failed before a connection was chosen.,Which connection it went to. Empty = it failed before a connection was chosen.
 Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.
-"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).","Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over)."
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.","Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull","Windows app on the merchant's accounting PC: installer, pairing, outbound pull"
 Withholding Tax,Withholding Tax
 Work,Work
 Work together,Work together
+Worker currently processing this row.,Worker currently processing this row.
 Workspace,Workspace
 Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP username or password. Check it under Connect and try again.
 Yes,Yes
@@ -910,7 +909,6 @@ connect.state.notConnected,Not connected
 connect.title,Connect DMS
 connect.yes,Yes
 e.g. Ming (sales),e.g. Ming (sales)
-endpoint is missing (which connection to test),endpoint is missing (which connection to test)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
 home.balance.title,Account balance
 home.balance.used,"Used {0} pages this month · plan {1}, {2} left this cycle"
@@ -1241,7 +1239,7 @@ roster.subtitle,One row per salesperson/administrator: each has their own DMS cr
 roster.title,Operators
 roster.unbindLine,Unbind LINE
 roster.unbound,Not linked
-"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
+"sales = salesperson, admin = administrator","sales = salesperson, admin = administrator"
 shell.backHome,Back to home
 shell.boot.failed,Failed to start (HTTP {0}): {1}
 shell.boot.failedPlain,Failed to start: {0}
@@ -1258,7 +1256,6 @@ shell.notBuilt.title,Page unavailable
 shell.wait.elapsed,{0} seconds so far
 shell.wait.pages,Recognized {0}/{1} pages · {2}%
 state is invalid or has expired,state is invalid or has expired
-system_url is required,system_url is required
 username / password are required,username / password are required
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle
