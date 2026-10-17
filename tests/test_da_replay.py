@@ -174,10 +174,12 @@ class JudgementLayer(unittest.TestCase):
         first = by_number["RR680100-001"]
         self.assertEqual(first["class"], "C")
         self.assertEqual(sorted(first["needed"]), ["account", "payment"])
+        self.assertEqual(first["pushed_from"], "replanned")  # 模拟的人选完、学进记忆后照线上再出一次载荷推出去
         second = by_number["RR680101-001"]
-        # 抵进项按方向推断是 A（10-16）；记忆定的科目要这家最近连续 3 张同科目才算 A：之前只有 1 张 → B
+        # 抵进项按方向推断是 A（10-16）；记忆定的科目要这家最近连续 3 张同科目才算 A：之前只有 1 张 → B。现 / 赊同（10-17）：
+        # 第一张人选的先进账套记忆、推出去也是 remembered，不算证据，要等回读 → B
         self.assertEqual(second["class"], "B", second)
-        self.assertEqual(second["reasons"], ["judged:account"])
+        self.assertEqual(second["reasons"], ["judged:account", "judged:payment"])
         self.assertFalse(second["vat_direction_only"])
         self.assertTrue(second["correct"])
         self.assertEqual(second["scored"], {"party": "ok", "account": "ok", "payment": "ok", "vat": "ok",
@@ -188,10 +190,60 @@ class JudgementLayer(unittest.TestCase):
             self.assertEqual(by_number[number]["class"], "B", number)
         changed = by_number["RR680301-009"]  # 三月：一月那几张回读核过、都是 52-01 → 科目 A，但这张会计记成 52-02
         self.assertEqual(changed["items"]["account"], "A")
+        self.assertEqual(changed["items"]["payment"], "A")  # 一月那几张赊购整张回读核过：现 / 赊也攒够了
         self.assertFalse(changed["correct"])
         self.assertEqual(changed["scored"]["account"], "wrong:52-01")
         other = by_number["HP680302-001"]
         self.assertEqual(other["class"], "C")  # 新供应商：要人选
+
+    def test_payment_and_party_memory_need_three_confirmed_pushes(self):
+        """账套记忆定的现 / 赊、对方档要最近连续 3 张有证据（10-17 推广）：ASIA-FA 那种第一张人选现购、之后会计都记赊购的供应商，
+        凭记忆推的现购在回读里被改，现 / 赊再也到不了 A；同税号两个档、会计中途换了档：换档后到下一次回读之前那几张仍是 A
+        （记忆还撑着，已知残留），回读之后 B。"""
+        folder = pathlib.Path(self.folder.name, "68SWITCH")
+        days = [dt.date(2025, month, day) for month in range(1, 7) for day in (15, 22, 28)]
+        docs = [(f"RR68-1{day:%m%d}", day, "S001", "52-01", "1000.00", "70.00", "3") for day in days]
+        docs += [(f"HP68-2{day:%m%d}", day, "S002", "52-01", "200.00", "14.00", "1" if index == 0 else "3")
+                 for index, day in enumerate(days)]
+        make_book(folder, docs)
+        book = replay.load_book(folder, company="SWITCH", own_tax=OWN, key="C:\\PearnlyExpress\\T8SWITCH")
+        book["suppliers"] = book["suppliers"] + [dict(book["suppliers"][0], code="S003")]  # 同税号两个档
+        for doc in book["docs"]:
+            if doc["party_code"] == "S001" and doc["date"] >= dt.date(2025, 4, 1):
+                doc["party_code"] = "S003"  # 会计四月起换用另一个档
+        m = replay._modules()
+        rows, _ = replay.judge_company(m, [book])
+        readback = {period: replay.readback_day(m, period) for period in {row["period"] for row in rows}}
+        cash_first = [row for row in rows if row["docnum"].startswith("HP")]
+        self.assertEqual((cash_first[0]["class"], sorted(cash_first[0]["needed"])), ("C", ["account", "payment"]))
+        for row in cash_first[1:]:
+            self.assertEqual(row["scored"]["payment"], "wrong:cash", row["docnum"])  # 记忆推现购、会计记赊购
+            self.assertNotEqual(row["items"]["payment"], "A", row["docnum"])
+        switched = [row for row in rows if row["docnum"].startswith("RR")]
+        self.assertIn("party", switched[0]["needed"])
+        self.assertEqual(switched[1]["sources"]["party_source"], "remembered")
+        # 一月那几张回读核过后（二月下旬）对方档 A；四月换档后、四月期回读之前仍是 A 但推错（残留）；之后 B
+        settled = [row for row in switched if dt.date.fromisoformat(row["entered"]) > readback["2025-01"]
+                   and row["period"] < "2025-04"]
+        self.assertTrue(settled)
+        self.assertTrue(all(row["items"]["party"] == "A" and row["scored"]["party"] == "ok" for row in settled))
+        residual = [row for row in switched if row["period"] >= "2025-04"
+                    and dt.date.fromisoformat(row["entered"]) < readback["2025-04"]]
+        self.assertTrue(residual)
+        self.assertTrue(all(row["items"]["party"] == "A" and row["scored"]["party"] == "wrong:S001"
+                            for row in residual))
+        after = [row for row in switched if dt.date.fromisoformat(row["entered"]) >= readback["2025-04"]]
+        self.assertTrue(after)
+        self.assertTrue(all(row["items"]["party"] == "B" for row in after), [row["items"] for row in after])
+        # 整张记录口径：对方档推错的那几张回读里被改，同一家的科目、现 / 赊也一起断开
+        self.assertTrue(all(row["items"]["account"] == "B" and row["items"]["payment"] == "B" for row in after))
+        summary = replay.summarize_judge({"rows": rows, "skipped": {}, "tiers": {}})
+        memory = summary["memory_sources"]
+        self.assertGreaterEqual(memory["party"]["SWITCH"]["A"], len(settled) + len(residual))
+        self.assertEqual(memory["party"]["SWITCH"]["A_wrong"], len(residual))
+        self.assertEqual(memory["payment"]["SWITCH"].get("A_wrong", 0), 0)
+        self.assertIn("purchase|party|remembered", summary["item_errors"])
+        self.assertEqual(summary["pushed_from"].get("replanned"), 2)
 
     def test_goods_posting_is_chosen_once_per_company_then_followed(self):
         """永续库存账套的商品单（第一轮回放后定，10-16）：第一张因没声明入账类型交人，模拟的人按答案替这家公司选一次，
@@ -343,6 +395,10 @@ class JudgementLayer(unittest.TestCase):
         self.assertIn("判定层", text)
         self.assertIn("识别闸层", text)
         self.assertIn("合并估计", text)
+        # 10-17：账套记忆定的三类按家统计、推送记录来源
+        self.assertIn("账套记忆定的项", text)
+        self.assertEqual(set(judge["memory_sources"]), {"account", "payment", "party"})
+        self.assertEqual(sum(judge["pushed_from"].values()), len(rows))
 
     def test_a_document_carried_into_the_next_years_book_is_replayed_once(self):
         # Express 新年度账套由上一年复制而来，带着往年的单：只在本年期间盖住单据日期的那份账套里回放
@@ -377,20 +433,50 @@ class Scoring(unittest.TestCase):
         self.assertEqual(replay.score({"posting": "service"}, {"posting": "stock"})["posting"], "wrong:stock")
 
     def test_pushed_evidence_matches_the_online_rule(self):
-        """回放的「连续 3 张」与线上 `assess._recent_accounts` 同口径（审查处理 10-16）：凭记忆推出去的要这期合格回读在这张
-        录入前核过才算，推错的（与会计最终记的不同）在回读里就是被改、断开；人选的照算。"""
+        """回放的「连续 3 张」与线上 `assess._recent` 同口径（审查处理 10-16；10-17 推广到现 / 赊与对方档）：凭记忆推出去的要这期
+        合格回读在这张录入前核过才算，整张记录推错（与会计最终记的有任一项不同）在回读里就是被改、三类一起断开；人选的照算。"""
         m = replay._modules()
-        jan = {"period": "2025-01", "entered": dt.date(2025, 1, 20)}
-        log = [dict(jan, account="52-01", answer="52-01", source="chosen"),
-               dict(jan, account="52-01", answer="52-01", source="remembered"),
-               dict(jan, account="52-01", answer="52-02", source="remembered"),
-               dict(jan, account="52-01", answer="52-01", source="remembered")]
+        jan = {"period": "2025-01", "entered": dt.date(2025, 1, 20), "payment": "RR", "payment_source": "remembered",
+               "party": "S001", "party_source": "", "branch": "00000", "ok": True}
+        log = [dict(jan, account="52-01", source="chosen"),
+               dict(jan, account="52-01", source="remembered"),
+               dict(jan, account="52-01", source="remembered", ok=False),
+               dict(jan, account="52-01", source="remembered")]
         before = replay.pushed_evidence(m, log, dt.date(2025, 2, 1))
         self.assertEqual(before, ["52-01"])  # 一月期的回读还没做：只有人选的那张
         after = replay.pushed_evidence(m, log, dt.date(2025, 3, 10))
         self.assertEqual(after, ["52-01", "", "52-01", "52-01"])  # 第三张推错：被改、断开
         late = [dict(log[0], entered=dt.date(2025, 3, 1), source="remembered")]  # 推在回读之后：没被覆盖
         self.assertEqual(replay.pushed_evidence(m, late, dt.date(2025, 3, 10)), [])
+        # 现 / 赊、对方档：同一份记录，各自的证据口径；对方档只数同一分店
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 2, 1), "payment"), [])
+        self.assertEqual(replay.pushed_evidence(m, log, dt.date(2025, 3, 10), "payment"), ["RR", "", "RR", "RR"])
+        manual = [dict(jan, payment_source="manual", entered=dt.date(2025, 3, 1))]
+        self.assertEqual(replay.pushed_evidence(m, manual, dt.date(2025, 3, 10), "payment"), ["RR"])
+        other = log + [dict(jan, account="52-01", source="remembered", branch="00001")]
+        self.assertEqual(replay.pushed_evidence(m, other, dt.date(2025, 3, 10), "party", "00000"),
+                         ["S001", "", "S001", "S001"])
+        self.assertEqual(replay.pushed_evidence(m, other, dt.date(2025, 3, 10), "party", "00001"), ["S001"])
+        # 推不出这一类（None）：跳过
+        unknown = [dict(jan, account=None, payment=None, party=None)] + log
+        self.assertEqual(replay.pushed_evidence(m, unknown, dt.date(2025, 3, 10)), after)
+
+    def test_pushed_record_scores_the_whole_record(self):
+        """推出去的单整张对才算回读里没被改（`pushed_record`）：科目对、现 / 赊错也是被改；要人选的按答案；没载荷只比要人选的。"""
+        answer = {"party": "S001", "account": "52-01", "payment": "credit", "vat": "claim"}
+        payload = {"supplier": {"code": "S001"}, "items_account": "52-01", "account_source": "remembered",
+                   "doctype": "HP", "doctype_src": "remembered"}
+        values = {"party": "S001", "account": "52-01", "payment": "cash", "vat": "claim"}
+        found = replay.pushed_record(answer, payload, values, [])
+        self.assertEqual((found["ok"], found["account"], found["payment"], found["party"]),
+                         (False, "52-01", "HP", "S001"))
+        found = replay.pushed_record(answer, payload, values, ["payment"])
+        self.assertEqual((found["ok"], found["payment"], found["payment_source"]), (True, "RR", "remembered"))
+        found = replay.pushed_record(answer, None, {}, ["account"])
+        self.assertEqual((found["ok"], found["account"], found["source"], found["payment"]),
+                         (True, "52-01", "chosen", None))
+        multi = replay.pushed_record({**answer, "account": "*multi"}, None, {}, ["account"])
+        self.assertFalse(multi["ok"])
 
     def test_cc_party_follows_the_desktop_cascade(self):
         masters = [{"code": "A", "name": "ผู้ขาย", "tax_id": SELLER, "branch": "00000"},

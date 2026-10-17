@@ -653,21 +653,68 @@ class CompanyChoice:
 _READBACK_DAYS: Dict[str, dt.date] = {}
 
 
-def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date) -> List[str]:
-    """回放里这家供应商在这份账套里之前推出去的单（``log`` 按推的先后，``{account, source, answer, period, entered}``）→
-    `automation.memory_evidence` 的科目序列（新的在前），与线上 `assess._recent_accounts` 同口径：推的时候科目由人或规则定的照记；
-    凭账套记忆推出去的，要这期的合格回读（截止日后一天）在这张单录入之前、而且在那张推出去之后，推的科目与会计最终记的相同才算
-    （不同就是回读里被改，断开连续）；还没回读核过的不算证据。"""
+def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind: str = "account",
+                    branch: Optional[str] = None) -> List[str]:
+    """回放里这家供应商在这份账套里之前推出去的单（``log`` 按推的先后，``{account, source, payment, payment_source, party,
+    party_source, branch, ok, period, entered}``）→ `automation.memory_evidence` 的 ``kind`` 序列（新的在前），与线上
+    `assess._recent` 同口径：推的时候由人或规则定的照记；凭账套记忆推出去的，要这期的合格回读（截止日后一天）在这张单录入之前、
+    而且在那张推出去之后，整张记录（对方档、科目、现 / 赊、抵进项）与会计最终记的都相同才算（``ok``；任一不同就是回读里被改，
+    三类一起断开，同线上 `readback_marks` 按整张记录，10-17：原先只比科目，比线上宽）；还没回读核过的不算证据。``branch``：
+    对方档只数同一分店的。值为 None 的是回放推不出这一类（C 类重出载荷也没出，`judge_document` 的近似），跳过。"""
     entries = []
     for record in reversed(log or ()):
+        if branch is not None and record.get("branch") != branch:
+            continue
+        if record.get(kind) is None:
+            continue
         day = _READBACK_DAYS.get(record["period"])
         if day is None:
             day = _READBACK_DAYS[record["period"]] = readback_day(m, record["period"])
         mark = ""
         if record["entered"] <= day <= entered:
-            mark = "confirmed" if record["account"] == record["answer"] else "changed"
-        entries.append({"account": record["account"], "source": record["source"], "readback": mark})
-    return m["automation"].memory_evidence(entries)
+            mark = "confirmed" if record.get("ok") else "changed"
+        entries.append({"account": record.get("account"), "source": record.get("source") or "",
+                        "payment": record.get("payment"), "payment_source": record.get("payment_source") or "",
+                        "party": record.get("party"), "party_source": record.get("party_source") or "",
+                        "readback": mark})
+    return m["automation"].memory_evidence(entries, kind)
+
+
+PUSHED_KINDS = ("party", "account", "payment", "vat")
+
+
+def pushed_record(answer: Mapping[str, Any], payload: Optional[Mapping[str, Any]], values: Mapping[str, Any],
+                  needed: Iterable[str]) -> Dict[str, Any]:
+    """这张推出去的单记进 ``pushed`` 的样子（`pushed_evidence` 用）：值与来源取推出去的载荷（对方档取载荷写定的码，同线上
+    `assess._recent`）；这次要人选的类按答案（模拟的人选的）——科目来源记 ``chosen``（推送服务按上传后有人选细分），现 / 赊记
+    ``remembered``（线上人选的先进账套记忆、载荷 ``doctype_src`` 也是 remembered），对方档来源不在载荷里。``ok``：推出去的对方档
+    （CC 桌面版找的档按 `payload_values`）、科目、现 / 赊、抵进项都与答案相同（答案没有这一项不比，一单多科目算不同）——合格回读
+    里整张没被改。没载荷时（推不出）各类记 None，``ok`` 只比要人选的几类（乐观近似）。"""
+    payload = payload if isinstance(payload, Mapping) else None
+    needed = set(needed or ())
+    block = (payload or {}).get("supplier")
+    block = block if isinstance(block, Mapping) else {}
+    doctype = str((payload or {}).get("doctype") or "").strip().upper()
+    out = {"account": None, "source": "", "payment": None, "payment_source": "", "party": None, "party_source": ""}
+    if payload is not None:
+        out.update(account=str(payload.get("items_account") or "").strip(),
+                   source=str(payload.get("account_source") or ""), payment=doctype,
+                   payment_source=str(payload.get("doctype_src") or ""), party=str(block.get("code") or "").strip())
+    pushed = {kind: values.get(kind) for kind in PUSHED_KINDS} if payload is not None else {}
+    if "account" in needed:
+        out.update(account=str(answer.get("account") or ""), source="chosen")
+        pushed["account"] = answer.get("account")
+    if "payment" in needed:
+        out.update(payment={"cash": "HP", "credit": "RR"}.get(answer.get("payment"), ""), payment_source="remembered")
+        pushed["payment"] = answer.get("payment")
+    if "party" in needed:
+        out.update(party=str(answer.get("party") or ""), party_source="")
+        pushed["party"] = answer.get("party")
+    if "vat" in needed:
+        pushed["vat"] = answer.get("vat")
+    out["ok"] = all(answer.get(kind) is None or (kind not in pushed and payload is None)
+                    or (answer[kind] != "*multi" and pushed.get(kind) == answer[kind]) for kind in PUSHED_KINDS)
+    return out
 
 
 def _settle(m, data, fields, config, today):
@@ -705,8 +752,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
                    pushed: Optional[Dict[str, List[Dict[str, Any]]]] = None):
     """一张答案单走一遍推送判定 → 判定结果（类别、原因、逐项计分）。C 类由模拟的人按答案选（记进账套记忆）；商品单入账方式
     因没选过交人时，模拟的人按这张单的答案替这家公司选一次（``company``）。``shaped``：这家公司各份账套（`shaped_books`），
-    按日期选账套用；没给只认这一份。``pushed``：这份账套里各家供应商（13 位税号）之前推出去的科目（`pushed_evidence`），
-    判完把这张也记进去。"""
+    按日期选账套用；没给只认这一份。``pushed``：这份账套里各家供应商（13 位税号）之前推出去的单（科目、现 / 赊、对方档与整张
+    记录对不对，`pushed_record` / `pushed_evidence`），判完把这张也记进去（C 类没出载荷的学完记忆后再出一次，结果里
+    ``pushed_from`` 记 payload / replanned / approx）。"""
     company = company if company is not None else CompanyChoice()
     pushed = pushed if pushed is not None else {}
     automation = m["automation"]
@@ -733,42 +781,51 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
                                   remembered=remembered, branch=book["branch"],
                                   settle=_settle(m, data, fields, config, entered) if direction == "purchase" else None)
 
-    posting_kind, posting_from = m["goods_posting"].resolve(
-        fields, direction=direction, config=config, posting_kind=None, chosen=company.goods_posting, today=entered)
-    decision, _sources = decide_with(posting_kind)
-    vat_choice = decision["applied"].get("vat")
-    if vat_choice:
-        again = m["goods_posting"].resolve(fields, direction=direction, config=config, posting_kind=None,
-                                           chosen=company.goods_posting, today=entered, vat_choice=vat_choice)
-        if again != (posting_kind, posting_from):
-            (posting_kind, posting_from), (decision, _sources) = again, decide_with(again[0])
-    if decision.get("history") and decision["applied"].get("account"):
-        # 同推送服务 `_account_from`：历史已定的科目来源记 express_history（不报成账套记忆）
-        decision["applied"]["account_from"] = "express_history"
-    payload, ready, reason = None, False, ""
-    if not decision["needed"]:
-        config["choices"] = decision["applied"]
-        history = {"id": doc["docnum"], "workspace_client_id": "replay", "tenant_id": "replay",
-                   "invoice_no": fields["invoice_number"], "invoice_date": fields["date"], "direction": direction,
-                   "total_amount": fields["total_amount"], "confidence": "high", "pages": [{"fields": fields}]}
-        context = m["ExpressContext"](enabled=True, today=entered, own_tax_id=book["own_tax"], tenant_id="replay",
-                                      mappings={}, account_tax_id=book["own_tax"])
-        try:
-            prepared = m["prepare_express"]({"id": "replay", "config": config}, history, context=context,
-                                            posting_kind=posting_kind)
-            payload = prepared.payload or None
-            ready = prepared.disposition == "ready"
-            reason = "" if ready else (prepared.reason or "preflight")
-        except Exception as error:  # noqa: BLE001 — 一张单准备失败就当没准备好（C），不中断回放
-            reason = f"prepare_error:{type(error).__name__}"
+    def plan():
+        """按此刻的账套记忆、公司选的入账方式定这张单、出载荷 → (入账类型, 哪来的, 决定, 载荷, 准备好, 原因)。"""
+        kind, origin = m["goods_posting"].resolve(
+            fields, direction=direction, config=config, posting_kind=None, chosen=company.goods_posting, today=entered)
+        found, _sources = decide_with(kind)
+        vat_choice = found["applied"].get("vat")
+        if vat_choice:
+            again = m["goods_posting"].resolve(fields, direction=direction, config=config, posting_kind=None,
+                                               chosen=company.goods_posting, today=entered, vat_choice=vat_choice)
+            if again != (kind, origin):
+                (kind, origin), (found, _sources) = again, decide_with(again[0])
+        if found.get("history") and found["applied"].get("account"):
+            # 同推送服务 `_account_from`：历史已定的科目来源记 express_history（不报成账套记忆）
+            found["applied"]["account_from"] = "express_history"
+        out, good, why = None, False, ""
+        if not found["needed"]:
+            config["choices"] = found["applied"]
+            history = {"id": doc["docnum"], "workspace_client_id": "replay", "tenant_id": "replay",
+                       "invoice_no": fields["invoice_number"], "invoice_date": fields["date"], "direction": direction,
+                       "total_amount": fields["total_amount"], "confidence": "high", "pages": [{"fields": fields}]}
+            context = m["ExpressContext"](enabled=True, today=entered, own_tax_id=book["own_tax"], tenant_id="replay",
+                                          mappings={}, account_tax_id=book["own_tax"])
+            try:
+                prepared = m["prepare_express"]({"id": "replay", "config": config}, history, context=context,
+                                                posting_kind=kind)
+                out = prepared.payload or None
+                good = prepared.disposition == "ready"
+                why = "" if good else (prepared.reason or "preflight")
+            except Exception as error:  # noqa: BLE001 — 一张单准备失败就当没准备好（C），不中断回放
+                why = f"prepare_error:{type(error).__name__}"
+        return kind, origin, found, out, good, why
+
+    posting_kind, posting_from, decision, payload, ready, reason = plan()
     if reason.startswith(m["goods_posting"].NEEDED_PREFIX) and company.goods_posting is None:
         # 模拟的人在复核页点「走库存 / 记费用」：按这家多数单的记法替这家公司选一次（没给多数就按这张单的答案）
         company.goods_posting = company.preferred or ("stock" if doc["stock"] else "service")
-    # 账套记忆定的科目要最近连续 3 张有证据的同科目（`automation.memory_settled` / `memory_evidence`）：同线上，数的是这家
-    # 供应商（13 位税号）在这份账套里之前推出去的科目（A / B 是载荷的、C 是模拟的人按答案选的），凭记忆推的要合格回读核过
-    # 才算（审查处理 10-16：原先取会计最终记的答案科目，CC 自己推错又攒成「连续 3 张」的偏差量不到）
+    # 账套记忆定的科目、现 / 赊、对方档都要最近连续 3 张有证据的同值（`automation.memory_settled` / `memory_evidence`）：同线上，
+    # 数的是这家供应商（13 位税号）在这份账套里之前推出去的单（A / B 是载荷的、C 是模拟的人推的），凭记忆推的要合格回读核过、
+    # 整张没被改才算；对方档只数同一分店的（审查处理 10-16 科目；10-17 推广到现 / 赊与对方档）。销项不查（同线上），按 0 张算
     supplier = digits(doc["party_tax"]) if direction == "purchase" else ""
-    recent = pushed_evidence(m, pushed.get(supplier, []), entered) if len(supplier) == 13 else []
+    branch = branch5(fields.get("seller_branch"))
+    log = pushed.get(supplier, []) if len(supplier) == 13 else []
+    recent = {"account": pushed_evidence(m, log, entered), "payment": pushed_evidence(m, log, entered, "payment"),
+              "party": pushed_evidence(m, log, entered, "party", branch)} if direction == "purchase" else \
+        {"account": [], "payment": None, "party": None}
     pages = [{"fields": fields, "_layer_chain": ["direct"]}]
     facts = automation.Facts(
         direction=direction, fields=fields, decision=decision, payload=payload, config=config, today=entered,
@@ -776,7 +833,8 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
         page_texts=[synthetic_text(fields)],
         account=account_row(book), catalog=catalog,
         day_books=day_books(m, shaped, book, day) if shaped is not None else [book["key"]], uploaded=entered,
-        source_total=1, posting_from=posting_from, account_recent=recent,
+        source_total=1, posting_from=posting_from, account_recent=recent["account"],
+        payment_recent=recent["payment"], party_recent=recent["party"],
         prior_pushes=prior.get(_ref_key(m, fields["invoice_number"]), []), history_read=entered,
         layers=automation.layers(fields, direction=direction, remembered=remembered,
                                  history=(decision.get("history") or {}).get("account")))
@@ -790,15 +848,21 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     scored = score(answer, values) if payload else {}
     if verdict.cls == "C":
         memory.learn(decision["needed"], answer)
+    pushed_from = ""
     if len(supplier) == 13:
-        # 这张推出去的科目（A / B 照载荷；C 由模拟的人推：要人选科目的按答案选、记 chosen，其余照载荷）
-        needed_account = any(item.get("kind") == "account" for item in decision["needed"])
-        account = answer.get("account") if needed_account else (payload or {}).get("items_account")
-        source = "chosen" if needed_account else str((payload or {}).get("account_source") or "")
-        if account:
-            pushed.setdefault(supplier, []).append({"account": str(account), "source": source,
-                                                    "answer": answer.get("account"), "period": day.strftime("%Y-%m"),
-                                                    "entered": entered})
+        # 这张推出去的单（A / B 照载荷；C 由模拟的人推：要人选的按答案选，没出载荷的学完记忆、公司选过入账方式后照线上再出一次，
+        # 拿到人真正会推出去的载荷；还是出不来的按 `pushed_record` 的乐观近似）
+        pushed_payload, pushed_from = payload, "payload"
+        if payload is None:
+            config = book_config(book, party_tax=digits(doc["party_tax"]), keep=[memory.kinds["party"].get(subject)])
+            remembered = {kind: dict(values) for kind, values in memory.kinds.items()}
+            _kind, _origin, _decision, pushed_payload, _ready, _reason = plan()
+            pushed_from = "replanned" if pushed_payload else "approx"
+        record = pushed_record(answer, pushed_payload,
+                               payload_values(pushed_payload, book, fields) if pushed_payload else {},
+                               [item.get("kind") for item in decision["needed"]])
+        pushed.setdefault(supplier, []).append(dict(record, branch=branch, period=day.strftime("%Y-%m"),
+                                                    entered=entered))
     prior.setdefault(_ref_key(m, fields["invoice_number"]), []).append(
         {"direction": direction, "party_tax_id": doc["party_tax"], "ref_no": fields["invoice_number"],
          "total": str(doc["total"])})
@@ -810,8 +874,10 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             "after" if book.get("next_end") and day > book["next_end"] else
             "next_year" if day > book["period"][1] else "before" if day < book["period"][0] else "",
             "posting_from": posting_from,
-            "prepare": reason, "sources": {key: (payload or {}).get(key) for key in ("doctype_src", "account_source",
-                                                                                      "item_src", "doctype")},
+            "prepare": reason, "sources": {**{key: (payload or {}).get(key) for key in ("doctype_src", "account_source",
+                                                                                         "item_src", "doctype")},
+                                           "party_source": (decision.get("decided_by") or {}).get("party")},
+            "pushed_from": pushed_from, "party_tax": doc["party_tax"],
             "scored": scored, "correct": bool(scored) and all(value in ("ok", "n/a") for value in scored.values()),
             "correct_eval": evaluable_correct(direction, scored),
             "vat_direction_only": verdict.cls == "B" and list(verdict.reasons) == ["judged:vat"]}
@@ -897,7 +963,7 @@ def judge_company(m, books: Sequence[Mapping[str, Any]]) -> Tuple[List[Dict[str,
     stock = sum(1 for item in queue if item[4]["stock"])
     preferred = "stock" if stock * 2 >= len(queue) else "service"
     company, shaped = CompanyChoice(preferred), shaped_books(m, books)  # 语料一家公司一个目录：按公司选的入账方式一家一份
-    pushed = collections.defaultdict(dict)  # 每份账套：供应商 → 推出去的科目（`pushed_evidence`）
+    pushed = collections.defaultdict(dict)  # 每份账套：供应商 → 推出去的单（科目、现 / 赊、对方档，`pushed_evidence`）
     for _entered, _day, _number, book, doc in queue:
         out.append(judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
                                   purchases[book["key"]], company, shaped, pushed[book["key"]]))
@@ -1396,7 +1462,7 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
                              "auto_wrong": value["auto_wrong"], "proposals": value["proposals"],
                              "stopped": value["stopped"]} for name, value in tiers.items()},
         }
-    sources = {"account": "account_source", "payment": "doctype_src", "vat": "item_src"}
+    sources = {"account": "account_source", "payment": "doctype_src", "vat": "item_src", "party": "party_source"}
     items: Dict[str, Dict[str, int]] = collections.defaultdict(lambda: collections.Counter())
     for row in a_rows + b_rows:
         for item, value in row["scored"].items():
@@ -1407,6 +1473,19 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             key = f"{row['direction']}|{item}|{source}"
             items[key]["n"] += 1
             items[key]["wrong"] += int(value != "ok")
+    # 账套记忆定的现 / 赊、对方档（10-17 推广「连续 3 张有证据」）：各家 A / B 张数与 A 里错的（第四轮 ASIA-FA 现 / 赊 260、对方档 65）
+    memory: Dict[str, Dict[str, Dict[str, int]]] = {kind: collections.defaultdict(collections.Counter)
+                                                    for kind in ("account", "payment", "party")}
+    for row in a_rows + b_rows:
+        for kind in memory:
+            remembered = (row.get("sources") or {}).get(sources[kind]) == "remembered"
+            if not remembered or row["items"].get(kind) not in ("A", "B"):
+                continue
+            tier = row["items"][kind]
+            counter = memory[kind][row["company"]]
+            counter[tier] += 1
+            if row["class"] == "A" and row["scored"].get(kind, "n/a") not in ("ok", "n/a"):
+                counter["A_wrong"] += 1
     without_payment = [dict(row, correct=all(value in ("ok", "n/a") for item, value in row["scored"].items()
                                              if item != "payment") and bool(row["scored"])) for row in a_rows]
     sales_payment = [row for row in a_rows + b_rows if row["direction"] == "sales"
@@ -1422,6 +1501,10 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             "A_without_payment": _accuracy(without_payment),
             "item_errors": {key: dict(value) for key, value in sorted(items.items(), key=lambda kv: -kv[1]["wrong"])},
             "AB": _accuracy(a_rows + b_rows), "wrong_items": dict(wrong_items.most_common()),
+            "memory_sources": {kind: {company: dict(counter) for company, counter in sorted(found.items())}
+                               for kind, found in memory.items()},
+            # 回放里「推出去的单」从哪来：payload 照载荷、replanned C 类学完记忆再出的载荷、approx 推不出（乐观近似）
+            "pushed_from": dict(collections.Counter(row.get("pushed_from") or "-" for row in rows)),
             "c_reasons": dict(reasons.most_common(30)), "c_causes": dict(causes.most_common()),
             "b_judged": dict(judged.most_common()),
             "b_vat_direction_only": sum(1 for row in b_rows if row.get("vat_direction_only")),
@@ -1532,6 +1615,13 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                     f"{pct(value['wrong'] / value['n'] if value['n'] else None)} |"
                     for key, value in list(s["item_errors"].items())[:16]], "",
                   "A / B 推错的项：" + "、".join(f"{key} {value}" for key, value in list(s["wrong_items"].items())[:12]), "",
+                  "账套记忆定的项（要最近连续 3 张有证据，10-17 推广到现 / 赊与对方档；按家 A / B / A 里错）：", "",
+                  "| 项 | 公司 | A | B | A 里错 |", "|---|---|---|---|---|",
+                  *[f"| {kind} | {company} | {value.get('A', 0)} | {value.get('B', 0)} | {value.get('A_wrong', 0)} |"
+                    for kind, found in (s.get("memory_sources") or {}).items()
+                    for company, value in sorted(found.items(), key=lambda kv: -kv[1].get("A_wrong", 0))[:8]], "",
+                  "推送记录来源（payload 照载荷 / replanned C 类学完记忆再出 / approx 推不出的乐观近似）："
+                  + "、".join(f"{key} {value}" for key, value in (s.get("pushed_from") or {}).items()), "",
                   "C 类按主要原因（每张只算一类）：", "", "| 主要原因 | 张数 |", "|---|---|",
                   *[f"| {dict((k, l) for k, l, _t in CAUSES).get(key, '其他')} | {value} |"
                     for key, value in s["c_causes"].items()], "",

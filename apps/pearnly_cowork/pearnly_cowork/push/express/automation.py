@@ -3,9 +3,9 @@
 纯函数，不连库、不依赖框架：推送服务（`push.application.service.assess`，后续阶段）与离线回放（`scripts/da-replay.py`）共用。
 取数由调用方做好放进 `Facts`；这里只判：
 
-- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目要最近连续 3 张有证据的同科目）、公司规则、任务默认、v2 历史已定、
-  按方向推断抵进项（原文核得到票种）……），且第 2 条核对全过；
-- **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的记忆科目、
+- **A 规则定**：每一项都由人或规则定（票面写明、账套记忆（科目、现 / 赊、对方档都要最近连续 3 张有证据的同值）、公司规则、任务默认、
+  v2 历史已定、按方向推断抵进项（原文核得到票种）……），且第 2 条核对全过；
+- **B CC 判断**：核对全过，但至少一项是 CC 按数据推断的（分类映射、默认科目、供应商档案、银行佐证、还没攒够连续 3 张的账套记忆、
   按公司选的商品单入账方式……）；
 - **C 要人**：有要人选的项、任一核对不过、或被硬闸拦下。
 
@@ -56,6 +56,13 @@ MEMORY_STREAK = 3
 # 连续张数只数有证据的单（`memory_evidence`）：推的时候科目由人或规则定的（这张单上传后有人选的、任务默认、公司规则、Express
 # 历史已定）；凭账套记忆推出去的单要被合格回读覆盖、没被改才算（CC 自己推的单不能攒成「连续 3 张」，审查处理 10-16）
 EVIDENCE_SOURCES = frozenset({"chosen", "task_default", "company_rule", "express_history"})
+# 现 / 赊、对方档同一个「连续 3 张有证据」（第四轮回放：A 类错 465 张里 ASIA-FA 账套记忆定的现 / 赊 260、对方档 65，记忆只认会计
+# 第一次的选择，开发窗口 10-17 推广）。现 / 赊的证据（载荷 ``doctype_src``）：本票人工裁决、任务默认、公司规则；票面写明 / 票种口径不算
+# （记忆只用在票面没写的单上，写了现金的收据跟没写的单不是同一类）；人在待处理页为这张单选的现 / 赊先进账套记忆、推出去也记
+# ``remembered``，跟凭记忆推的分不开，同样要等回读。对方档的来源不在载荷里（只冻结在推送记录的 ``target_json``），只认回读
+PAYMENT_EVIDENCE_SOURCES = frozenset({"manual", "task_default", "company_rule"})
+PARTY_EVIDENCE_SOURCES: frozenset = frozenset()
+EVIDENCE_BY_KIND = {"account": EVIDENCE_SOURCES, "payment": PAYMENT_EVIDENCE_SOURCES, "party": PARTY_EVIDENCE_SOURCES}
 CONFIRMED, CHANGED = "confirmed", "changed"
 # 录入时由识别后处理推出、不是读出来的金额：简式税票按 7/107 拆的（`ocr.pages.INCLUDED_VAT_AUDIT`）、补出的折扣
 INCLUDED_VAT_AUDIT = "vat_included"
@@ -69,7 +76,8 @@ KEYED_SOURCES = frozenset({"remembered", "company_rule", "express_history", "cho
 # 现 / 赊哪层定的（载荷 doctype_src，`payment.payment_verdict` 六级漏斗与 mapper 的记过 / 任务默认）。票种口径 ``doc_type``
 # 只有「收据即已付」是规则（A）；「完整税票多为赊」是推断（B，`_payment_tier`）：第 15 条回放销项按票种判赊 93% 与会计不符
 # （回放造票种的口径另有偏差，见回放报告），没有能核实它的正确口径前不算人或规则定（审查处理，10-16）
-PAYMENT_TIERS = {"manual": A, "explicit": A, "doc_type": A, "remembered": A, "task_default": A, "company_rule": A,
+# 账套记忆（remembered）先在 `_payment_tier` 里按「连续 3 张有证据」判，表里只是兜底值
+PAYMENT_TIERS = {"manual": A, "explicit": A, "doc_type": A, "remembered": B, "task_default": A, "company_rule": A,
                  "profile": B, "bank": B, "config_default": B}
 CASH_DOCTYPES = ("HP", "HS")
 # 记的科目哪层定的（载荷 account_source）。express_history 另看版本（v2 才算 A）。
@@ -103,7 +111,8 @@ class Facts:
     ``prior_pushes``：这份账套里成功推送或还在途中（准备好、排队、在写、结果不明）的单（`prior_entry` 的形状）；``layers`` / ``history_read``：各层对同一项给的值
     （`layers`）与 Express 历史读到的日子；``posting_from``：商品单的入账类型哪来的（`goods_posting.resolve`：``declared`` /
     ``company_choice``，空 = 没用上）；``account_recent``：这家供应商在这份账套里最近几张单记的科目（新的在前，不含这张；
-    `memory_settled` 用，没给按 0 张算）。"""
+    `memory_settled` 用，没给按 0 张算）；``payment_recent``：同上，有证据的现 / 赊（载荷 ``doctype`` 大写 HP / RR）；
+    ``party_recent``：同一 13 位税号 + 同一分店最近几张单有证据的对方档码（都是 `memory_evidence` 的结果，没给按 0 张算）。"""
 
     direction: str
     fields: Mapping[str, Any]
@@ -127,6 +136,8 @@ class Facts:
     history_read: Optional[dt.date] = None
     posting_from: str = ""
     account_recent: Optional[Sequence[str]] = None
+    payment_recent: Optional[Sequence[str]] = None
+    party_recent: Optional[Sequence[str]] = None
 
 
 @dataclass(frozen=True)
@@ -490,27 +501,50 @@ def checks(facts: Facts) -> List[str]:
 # ── 第 1 条：每一项按什么定 ──────────────────────────────────────────────────────
 
 
-def _party_tier(facts: Facts, source: Optional[str]) -> str:
-    if source in RULE_SOURCES:
-        return A
+def _master(facts: Facts) -> Tuple[str, str]:
+    """票面对方税号 + 分店在这份账套主档里的着落 → (档位, 码)：只对上一个档 (A, 码)；没有同税号的档 (B, "")（照票面新建）；
+    税号不是 13 位、主档没报上来、同税号几个档、分店对不上 (C, "")。"""
     side = _party_side(facts.direction)
     tax = _digits(facts.fields.get(f"{side}_tax"))
     if len(tax) != 13:
-        return C  # 不列对方、交 CC 桌面版按名字找
+        return C, ""  # 不列对方、交 CC 桌面版按名字找
     rows = facts.config.get("reported_customers" if facts.direction == "sales" else "reported_suppliers")
     rows = [row for row in rows if isinstance(row, Mapping)] if isinstance(rows, list) else []
     if not rows:
-        return C  # 这份账套的主档没报上来
+        return C, ""  # 这份账套的主档没报上来
     same = [row for row in rows if _digits(row.get("tax_id")) == tax]
     if not same:
-        return B  # 没有同税号的档：照票面新建
+        return B, ""  # 没有同税号的档：照票面新建
     branch = _branch5(facts.fields.get(f"{side}_branch"))
     exact = [row for row in same if _branch5(row.get("branch")) == branch]
-    return A if len(same) == 1 and exact else C
+    if len(same) == 1 and exact:
+        return A, str(exact[0].get("code") or "").strip()
+    return C, ""
 
 
-def _payment_tier(source: str, payload: Mapping[str, Any]) -> str:
-    """现 / 赊的档：票种口径只有判成现购 / 现销（收据即已付）算 A，判成赊（完整税票多为赊）是推断，算 B。"""
+def _party_code(facts: Facts) -> str:
+    """载荷里写定的对方档码（销项 ``customer``、进项 ``supplier``；记忆值是新建时为空）。"""
+    block = _payload(facts).get("customer" if facts.direction == "sales" else "supplier")
+    return str(block.get("code") or "").strip() if isinstance(block, Mapping) else ""
+
+
+def _party_tier(facts: Facts, source: Optional[str]) -> str:
+    if source == "remembered":
+        # 账套记忆定的对方档：记的正是主档里唯一对上的那一档（规则本来就给 A），或同税号 + 分店最近连续 3 张有证据的同一档才算 A；
+        # 记的是新建（码为空）一律 B（10-17 推广「连续 3 张」，第四轮 ASIA-FA 对方档错 65 张）
+        code = _party_code(facts)
+        tier, master = _master(facts)
+        return A if code and ((tier == A and code == master) or memory_settled(facts.party_recent, code)) else B
+    if source in RULE_SOURCES:
+        return A
+    return _master(facts)[0]
+
+
+def _payment_tier(facts: Facts, source: str, payload: Mapping[str, Any]) -> str:
+    """现 / 赊的档：票种口径只有判成现购 / 现销（收据即已付）算 A，判成赊（完整税票多为赊）是推断，算 B；账套记忆定的要这家
+    最近连续 3 张有证据的同一记法才算 A（10-17 推广，第四轮 ASIA-FA 推现购、会计记赊购 260 张）。"""
+    if source == "remembered":
+        return A if memory_settled(facts.payment_recent, str(payload.get("doctype") or "").strip().upper()) else B
     if source == "doc_type":
         return A if str(payload.get("doctype") or "").upper() in CASH_DOCTYPES else B
     return PAYMENT_TIERS.get(source, C)
@@ -567,25 +601,36 @@ def _no_claim_printed(facts: Facts) -> bool:
     return no_claim_in_text(facts.fields, facts.text)
 
 
-def memory_evidence(entries: Iterable[Mapping[str, Any]]) -> List[str]:
-    """这家供应商在这份账套里最近推成功的单（新的在前，``{account, source, readback}``：载荷记的科目与来源 ``account_source``、
-    合格回读里的结果 `CONFIRMED` 覆盖且没被改 / `CHANGED` 被改 / 空 = 还没被合格回读覆盖）→ `memory_streak` 用的科目序列。
-    回读里被改的记空串（断开连续）；科目由人或规则定的（`EVIDENCE_SOURCES`）照记；凭账套记忆推出去、还没回读核过的不算证据，
-    跳过。推送服务（`push.application.assess._recent_accounts`）与回放共用。"""
+def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account") -> List[str]:
+    """这家供应商在这份账套里最近推成功的单（新的在前）→ `memory_streak` 用的序列。``kind`` 是哪一类：
+
+    - ``account``（默认）：``{account, source, readback}``，载荷记的科目与来源 ``account_source``；证据来源 `EVIDENCE_SOURCES`；
+    - ``payment``：``{payment, payment_source, readback}``，载荷 ``doctype`` 大写与来源 ``doctype_src``；证据来源
+      `PAYMENT_EVIDENCE_SOURCES`（本票人工裁决、任务默认、公司规则）；
+    - ``party``：``{party, party_source, readback}``，载荷写定的对方档码；只认回读（`PARTY_EVIDENCE_SOURCES` 为空）。
+
+    ``readback``：合格回读里的结果，`CONFIRMED` 覆盖且整张没被改 / `CHANGED` 被改 / 空 = 还没被合格回读覆盖（按整张记录：科目、
+    现 / 赊、对方档任一被改，三类一起断开）。回读里被改的记空串（断开连续）；推的时候由人或规则定的照记；凭账套记忆推出去、
+    还没回读核过的不算证据，跳过。现 / 赊、对方档值为空（没记、对方档是新建或 CC 自己找档）的跳过，不当成换了记法；科目照旧。
+    推送服务（`push.application.assess._recent`）与回放共用。"""
+    sources = EVIDENCE_BY_KIND[kind]
+    origin = "source" if kind == "account" else f"{kind}_source"
     out: List[str] = []
     for entry in entries or ():
         if not isinstance(entry, Mapping):
             continue
-        account = str(entry.get("account") or "").strip()
+        value = str(entry.get(kind) or "").strip()
         if entry.get("readback") == CHANGED:
             out.append("")
-        elif str(entry.get("source") or "") in EVIDENCE_SOURCES or entry.get("readback") == CONFIRMED:
-            out.append(account)
+        elif not value and kind != "account":
+            continue
+        elif str(entry.get(origin) or "") in sources or entry.get("readback") == CONFIRMED:
+            out.append(value)
     return out
 
 
 def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
-    """最近几张单（新的在前）连续记成 ``value`` 的张数；遇到别的科目（含一单多科目、没记科目）就断。"""
+    """最近几张单（新的在前）连续记成 ``value`` 的张数；遇到别的值（含一单多科目、没记科目、回读里被改的空串）就断。"""
     value = str(value or "").strip()
     count = 0
     for item in recent or ():
@@ -596,7 +641,8 @@ def memory_streak(recent: Optional[Sequence[Any]], value: Any) -> int:
 
 
 def memory_settled(recent: Optional[Sequence[Any]], value: Any) -> bool:
-    """账套记忆定的科目算规则定：这家供应商在这份账套里最近连续至少 `MEMORY_STREAK` 张都记这个科目（推送服务与回放共用）。"""
+    """账套记忆定的科目 / 现 / 赊 / 对方档算规则定：这家供应商在这份账套里最近连续至少 `MEMORY_STREAK` 张有证据的都记这个值
+    （推送服务与回放共用）。"""
     return memory_streak(recent, value) >= MEMORY_STREAK
 
 
@@ -636,7 +682,7 @@ def tiers(facts: Facts) -> Dict[str, str]:
             out["receipt"] = A if decided.get("receipt") in RULE_SOURCES else C
     else:
         source = str(payload.get("doctype_src") or "").strip()
-        out["payment"] = _payment_tier(source, payload)
+        out["payment"] = _payment_tier(facts, source, payload)
         keyed["payment"] = source
     if facts.direction == "purchase" and _vat_applies(payload):
         source = str(payload.get("item_src") or "").strip()
@@ -752,7 +798,9 @@ def reason_codes(verdict: Verdict, limit: int = 140) -> str:
 
 
 __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim_in_text", "CLASSES", "classify",
-           "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_SOURCES", "Facts", "HISTORY_FRESH_DAYS",
+           "conflicts", "date_in_text", "EARLIEST_DAYS", "EVIDENCE_BY_KIND", "EVIDENCE_SOURCES", "Facts",
+           "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
-           "no_claim_in_text", "prior_entry", "reason_codes", "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",
+           "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "prior_entry", "reason_codes",
+           "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",
            "tiers", "Verdict"]

@@ -157,6 +157,89 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual(evidence(broken), ["5310-01", "", "5310-01", "5310-01"])
         self.assertFalse(auto.memory_settled(evidence(broken), "5310-01"))
         self.assertEqual(evidence([None, "x", entry(source="category_map", readback="")]), [])
+        self.assertEqual(evidence([entry(account="")]), [])
+        self.assertEqual(evidence([entry(account="", source="chosen")]), [""])  # 科目照旧：没记科目也断开
+
+    def test_payment_and_party_evidence(self):
+        """现 / 赊、对方档的证据口径（10-17）：现 / 赊推的时候由本票人工裁决、任务默认、公司规则定的照记，凭记忆（含人在待处理页
+        选的，推出去也是 remembered）、票面写明、票种口径要回读核过；对方档只认回读；被改的断开；值为空的跳过。"""
+        def pay(source="remembered", readback="", value="RR"):
+            return {"payment": value, "payment_source": source, "readback": readback}
+
+        def party(readback="", value="S2", source=""):
+            return {"party": value, "party_source": source, "readback": readback}
+        evidence = auto.memory_evidence
+        self.assertEqual(evidence([pay(source=source) for source in ("manual", "task_default", "company_rule")],
+                                  "payment"), ["RR"] * 3)
+        self.assertEqual(evidence([pay(source=source) for source in ("remembered", "explicit", "doc_type", "profile")],
+                                  "payment"), [])
+        self.assertEqual(evidence([pay(readback="confirmed"), pay(source="explicit", readback="confirmed"),
+                                   pay(readback="changed"), pay(source="manual", readback="changed")], "payment"),
+                         ["RR", "RR", "", ""])
+        self.assertEqual(evidence([pay(value=""), pay(value="", readback="confirmed"), pay(source="manual")],
+                                  "payment"), ["RR"])
+        self.assertEqual(evidence([party(), party(source="company_rule"), party(readback="confirmed"),
+                                   party(readback="changed"), party(value="", readback="confirmed")], "party"),
+                         ["S2", ""])
+        self.assertEqual(auto.EVIDENCE_BY_KIND["account"], auto.EVIDENCE_SOURCES)
+        self.assertEqual(auto.PARTY_EVIDENCE_SOURCES, frozenset())
+        # 科目的结果不传 kind 与传 "account" 一样
+        rows = [{"account": "5310-01", "source": "chosen", "payment": "RR", "readback": ""}]
+        self.assertEqual(evidence(rows), evidence(rows, "account"))
+
+    def test_a_remembered_payment_needs_three_in_a_row(self):
+        """账套记忆定的现 / 赊同科目一样：这家最近连续至少 3 张有证据的同一记法才算 A，否则 B（10-17 推广，第四轮 ASIA-FA 推现购、
+        会计记赊购 260 张）。"""
+        def tier(recent, **over):
+            return self.tier("payment", payload=_payload(**{"doctype": "RR", "doctype_src": "remembered", **over}),
+                             payment_recent=recent)
+        self.assertEqual(tier(["RR"] * 3), "A")
+        self.assertEqual(tier(["RR", "RR"]), "B")
+        self.assertEqual(tier(["HP"] * 3), "B")
+        self.assertEqual(tier(["RR", "HP", "RR", "RR"]), "B")
+        self.assertEqual(tier(["", "RR", "RR", "RR"]), "B")  # 回读里被改的断开
+        self.assertEqual(tier([]), "B")
+        self.assertEqual(tier(None), "B")
+        self.assertEqual(tier(["HP"] * 3, doctype="hp"), "A")  # 记法按大写比
+        # 本票人工裁决、任务默认、公司规则不看连续张数；票种口径收据即已付照 A
+        for source in ("manual", "task_default", "company_rule"):
+            self.assertEqual(self.tier("payment", payload=_payload(doctype_src=source), payment_recent=[]), "A", source)
+        self.assertEqual(self.tier("payment", payload=_payload(doctype_src="doc_type", doctype="HP"),
+                                   payment_recent=[]), "A")
+
+    def test_a_remembered_party_needs_three_in_a_row(self):
+        """账套记忆定的对方档：记的正是主档里唯一对上的那一档照 A；否则要同税号 + 分店最近连续 3 张有证据的同一档才 A；记的是
+        新建（码为空）一律 B；公司规则照 A（10-17 推广，第四轮 ASIA-FA 对方档错 65 张）。"""
+        remembered = {"needed": [], "decided_by": {"party": "remembered"}}
+        two = [{"code": "S1", "tax_id": SELLER, "branch": "00000"}, {"code": "S2", "tax_id": SELLER, "branch": "00000"}]
+
+        def tier(code, recent, config=None, **over):
+            supplier = {"code": code, "tax_id": SELLER, "name": "ผู้ขาย"}
+            return self.tier("party", decision=remembered, payload=_payload(supplier=supplier), party_recent=recent,
+                             config=config if config is not None else {"reported_suppliers": two}, **over)
+        # 主档唯一对上、记的就是那一档：A，不看连续张数
+        self.assertEqual(tier("S001", None, {"reported_suppliers": [{"code": "S001", "tax_id": SELLER,
+                                                                     "branch": "00000"}]}), "A")
+        self.assertEqual(tier("S9", None, {"reported_suppliers": [{"code": "S001", "tax_id": SELLER,
+                                                                   "branch": "00000"}]}), "B")
+        # 同税号几个档：记的那一档要最近连续 3 张有证据
+        self.assertEqual(tier("S2", ["S2"] * 3), "A")
+        self.assertEqual(tier("S2", ["S2", "S2"]), "B")
+        self.assertEqual(tier("S2", ["S1"] * 3), "B")
+        self.assertEqual(tier("S2", ["S2", "", "S2", "S2"]), "B")
+        self.assertEqual(tier("S2", None), "B")
+        self.assertEqual(tier("", [""] * 3), "B")  # 记的是新建
+        # 公司规则定的照 A
+        self.assertEqual(self.tier("party", decision={"needed": [], "decided_by": {"party": "company_rule"}},
+                                   config={"reported_suppliers": two}), "A")
+        # 销项：记忆定的对方档、主档有歧义、没取连续张数（销项不查）→ B
+        fields = _fields(direction="sales", seller_tax=OWN, buyer_tax=SELLER, buyer_branch="00000")
+        facts = _facts(direction="sales", fields=fields, decision=remembered,
+                       payload=_payload(direction="sales", doctype="IV", customer={"code": "C2", "tax_id": SELLER},
+                                        account_source="config_default", doctype_src="doc_type"),
+                       config={"reported_customers": [{"code": "C1", "tax_id": SELLER, "branch": "00000"},
+                                                      {"code": "C2", "tax_id": SELLER, "branch": "00000"}]})
+        self.assertEqual(auto.tiers(facts)["party"], "B")
 
     def test_express_history_is_a_only_from_the_version_without_pearnly_rows(self):
         def tier(history):
@@ -179,7 +262,8 @@ class ItemTiers(unittest.TestCase):
                                    **sales), "B")
 
     def test_payment_sources(self):
-        for source, tier in (("manual", "A"), ("explicit", "A"), ("remembered", "A"),
+        # 账套记忆定的现 / 赊要连续 3 张有证据（10-17，`test_a_remembered_payment_needs_three_in_a_row`）：没取按 0 张，B
+        for source, tier in (("manual", "A"), ("explicit", "A"), ("remembered", "B"),
                              ("task_default", "A"), ("company_rule", "A"), ("profile", "B"), ("bank", "B"),
                              ("config_default", "B"), ("", "C")):
             self.assertEqual(self.tier("payment", payload=_payload(doctype_src=source)), tier, source)

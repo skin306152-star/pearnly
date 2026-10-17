@@ -891,7 +891,8 @@ class UploadSweep(unittest.TestCase):
 
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
-            prior=(), sql=None, recent=None, posting=(None, ""), marks=None):
+            prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
+            suppliers=None, direction="purchase"):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
@@ -902,13 +903,15 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
                "supplier": {"code": "S001", "tax_id": SELLER}, "base_amount": "1000.00", "vat_amount": "70.00",
                "total_amount": "1070.00", "items": [], "items_account": "5310-01", "account_source": "remembered",
                "doctype_src": "explicit", "item_src": "choice"}
-    seen = {"rollback": 0}
+    payload.update(payload_over or {})
+    seen = {"rollback": 0, "marks_calls": 0}
     frappe = types.ModuleType("frappe")
     frappe.session = ns(user="u@example.com")
-    # 这家供应商在这份账套里最近推成功的单（账套记忆科目要连续 3 张有证据的同科目，`assess._recent_accounts`）：默认 3 张
-    # 凭记忆推的同科目单，合格回读都核过（``marks``，钩子 `cowork_push_readback_marks`）
-    recent = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
-               "account_source": "remembered"}] * 3 if recent is None else recent
+    # 这家供应商在这份账套里最近推成功的单（账套记忆定的科目、现 / 赊、对方档要连续 3 张有证据的同值，`assess._recent`）：
+    # 默认 3 张凭记忆推的同科目、同记法、同一档的单，合格回读都核过（``marks``，钩子 `cowork_push_readback_marks`）
+    recent = [{"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
+               "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
+               "doctype_src": "remembered"}] * 3 if recent is None else recent
     marks = {f"R{index}": "confirmed" for index in range(len(recent))} if marks is None else marks
 
     def run_sql(query, values=(), as_dict=False):
@@ -925,12 +928,17 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
              source_total=1, invoice_no="IV69-001")
     loaded = ns(endpoint={"adapter": "express"}, doc=ns(name="C1"), access=ns(tenant_id="T"),
                 evidence=ns(snapshot={"account_sets": [account]}))
-    config = {"reported_suppliers": [{"code": "S001", "tax_id": SELLER, "branch": "00000"}],
+    config = {"reported_suppliers": suppliers or [{"code": "S001", "tax_id": SELLER, "branch": "00000"}],
               "reported_accounts": [{"code": "5310-01"}]}
     pages = [{"_layer_chain": ["text", "L2"] if text else ["direct"], "fields": fields, "_needs_manual_review": False}]
+
+    def marked(connection, key, records):
+        seen["marks_calls"] += 1
+        seen.setdefault("marks", (connection, key, records))
+        return marks
     service = ns(
         _express_context=lambda doc, loaded, key: {
-            "target": ns(account_set=BOOK), "flat": {}, "fields": fields, "direction": "purchase",
+            "target": ns(account_set=BOOK), "flat": {}, "fields": fields, "direction": direction,
             "preparation": {"mappings": {}, "supplier_profiles": {}, "bank_index": ()},
             "selected": {"config": config}, "history_value": {"pages": pages}, "own_tax": OWN,
             "account_row": account, "invoice_date": dt.date(2026, 10, 20)},
@@ -940,11 +948,11 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
         _posting_decision=lambda doc, connection, row, kind, flat, direction, config, today, decide: (
             seen.setdefault("posting", (doc, connection, row, kind)) and (*posting, decide(posting[0]))),
         _decisions=lambda *a, **k: {"applied": {"account": "5310-01"}, "needed": list(needed),
-                                    "decided_by": {"account": "remembered", "vat": "remembered"}})
+                                    "decided_by": decided or {"account": "remembered", "vat": "remembered"}})
     automation_service = ns(
         tier=lambda *a: tier or {"company": "CO1", "tier": "L1", "readback": readback, "baseline": "ok"},
         day_books=lambda *a: [BOOK.lower()], test_site_ok=lambda key: site_ok,
-        readback_marks=lambda connection, key, records: seen.setdefault("marks", (connection, key, records)) and marks,
+        readback_marks=marked,
         verify_capable=lambda connection, key, actor, route_device="": capable)
     printed = f"{SELLER} IV69-001 วันที่ 20/10/2569 รวม 1,000.00 ภาษี 70.00 รวมทั้งสิ้น 1,070.00"
     text_layer = ns(pages=lambda doc: [printed], text=lambda doc, found=None: "\n".join(found or [printed]))
@@ -971,7 +979,7 @@ class Judging(unittest.TestCase):
         self.assertEqual(seen["rollback"], 1)  # 只看不记：结束整笔回滚
 
     def test_a_remembered_account_needs_three_recent_pushes_with_it(self):
-        """账套记忆的科目：这家供应商在这份账套里最近 3 张有证据的推送都记这个科目才算 A（`_recent_accounts`，10-16）。"""
+        """账套记忆的科目：这家供应商在这份账套里最近 3 张有证据的推送都记这个科目才算 A（`_recent`，10-16）。"""
         found, seen = _assess()
         self.assertEqual(found["class"], "A")
         query, values = seen["recent_sql"][0]
@@ -1000,6 +1008,49 @@ class Judging(unittest.TestCase):
         chosen = [{"direction": "purchase", "supplier": {"tax_id": SELLER}, "items_account": "5310-01",
                    "account_source": "chosen"}] * 3
         self.assertEqual(_assess(recent=chosen, marks={})[0]["class"], "A")
+
+    def test_remembered_payment_and_party_need_three_pushes_with_evidence(self):
+        """账套记忆定的现 / 赊、对方档同科目（10-17 推广）：一次查询取这家最近推成功的单、回读只调一次，三类各数各的；对方档只数
+        同税号 + 同一分店的；一张单回读里被改，三类一起断开；都不是账套记忆定的不查库；销项不查、记忆定的对方档按 0 张。"""
+        two = [{"code": code, "tax_id": SELLER, "branch": "00000"} for code in ("S001", "S002")]
+        memory = dict(decided={"account": "remembered", "vat": "remembered", "party": "remembered"},
+                      payload_over={"doctype_src": "remembered", "supplier": {"code": "S001", "tax_id": SELLER}},
+                      suppliers=two)
+        found, seen = _assess(**memory)
+        self.assertEqual((found["class"], found["items"]["party"], found["items"]["payment"]), ("A", "A", "A"))
+        self.assertEqual((len(seen["recent_sql"]), seen["marks_calls"]), (1, 1))
+        # 现 / 赊只有 2 张核过（科目这几张是人选的、照算）：现 / 赊 B
+        chosen = [{"direction": "purchase", "supplier": {"tax_id": SELLER, "code": "S001", "branch": "00000"},
+                   "items_account": "5310-01", "account_source": "chosen", "doctype": "RR",
+                   "doctype_src": "remembered"}] * 3
+        found, _seen = _assess(recent=chosen, marks={"R0": "confirmed", "R1": "confirmed"}, **memory)
+        self.assertEqual((found["class"], found["reasons"]), ("B", ["judged:party", "judged:payment"]))
+        # 记的现 / 赊与最近几张不同：B
+        found, _seen = _assess(**{**memory, "payload_over": {**memory["payload_over"], "doctype": "HP"}})
+        self.assertEqual((found["items"]["payment"], found["items"]["party"]), ("B", "A"))
+        # 别的分店推的不算对方档的连续
+        branches = [{**chosen[0], "account_source": "remembered",
+                     "supplier": {**chosen[0]["supplier"], "branch": branch}}
+                    for branch in ("00000", "00001", "00000", "00000")]
+        found, _seen = _assess(recent=branches, **memory)
+        self.assertEqual((found["items"]["party"], found["items"]["payment"]), ("A", "A"))
+        found, _seen = _assess(recent=branches[:3], **memory)
+        self.assertEqual((found["items"]["party"], found["items"]["payment"]), ("B", "A"))
+        # 一张回读里被改：科目、现 / 赊、对方档一起断开
+        found, _seen = _assess(marks={"R0": "confirmed", "R1": "changed", "R2": "confirmed"}, **memory)
+        self.assertEqual((found["items"]["account"], found["items"]["payment"], found["items"]["party"]),
+                         ("B", "B", "B"))
+        # 都不是账套记忆定的：不查库
+        found, seen = _assess(payload_over={"account_source": "chosen"})
+        self.assertEqual(found["class"], "A")
+        self.assertNotIn("recent_sql", seen)
+        self.assertEqual(seen["marks_calls"], 0)
+        # 销项：记忆定的对方档不查、按 0 张算
+        sales = {"direction": "sales", "doctype": "IV", "doctype_src": "explicit", "account_source": "task_default",
+                 "customer": {"code": "C2", "tax_id": SELLER}}
+        found, seen = _assess(direction="sales", decided={"party": "remembered"}, payload_over=sales)
+        self.assertEqual(found["items"]["party"], "B")
+        self.assertNotIn("recent_sql", seen)
 
     def test_the_company_goods_posting_choice_reaches_the_judgement(self):
         """商品单入账方式按公司选过（`service._posting_decision`）：判定用选的入账类型，posting 一项算 B（审查处理 10-16）。"""
