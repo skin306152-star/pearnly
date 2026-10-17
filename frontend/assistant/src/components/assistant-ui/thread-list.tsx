@@ -301,8 +301,10 @@ const NoResults: FC = () => (
   </div>
 );
 
-const Items: FC<{ indices: readonly number[]; threadIds: readonly string[] }> = ({ indices, threadIds }) =>
-  indices.map((index) => <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={{ ThreadListItem }} />);
+// 记住（memo）：侧栏整列重画（拖进已置顶、挪回原组、落定存顺序）时，没变的组的行不跟着重画（第 11 轮 B14）
+const Items = memo(function Items({ indices, threadIds }: { indices: readonly number[]; threadIds: readonly string[] }) {
+  return indices.map((index) => <ThreadListPrimitive.ItemByIndex key={threadIds[index]} index={index} components={ITEM_COMPONENTS} />);
+});
 
 // 有公司分组时（Cowork）：按「分组和排序」分组、排序；手机上各组也能折叠。折叠状态每台设备各记各的（pinned、recents、
 // project:<编号>、month:<月份>）。每个组标题右侧都有「···」（分组和排序）；公司组、最近另有「新建」。拖动见文件头
@@ -746,6 +748,13 @@ const CompanyGroup: FC<{
   // 只依赖播报（drag.moved 按名字记住）：整份 drag 在拖动中随位移、过渡变，依赖它组头的 onMove 也跟着变（审查）
   const said = drag.moved;
   const move = useCallback((delta: -1 | 1) => said(latestMove.current(delta)), [said]);
+  // 开关、这组的对话也给稳定的一份：侧栏整列重画（拖进已置顶、挪回原组、落定存顺序）时上面每次都是新的函数、新的数组，组头
+  // （memo）原来跟着全部重画（第 11 轮 B14：落定、Esc 下一帧的整列重画里一半是 14 个组头）
+  const latestToggle = useRef(onToggle);
+  latestToggle.current = onToggle;
+  const toggle = useCallback(() => latestToggle.current(), []);
+  const sessionsKey = sessions.join("\n");
+  const shownSessions = useMemo(() => sessions, [sessionsKey]);
   const ref = useCallback(
     (el: HTMLElement | null) => {
       dragRef(el);
@@ -755,7 +764,7 @@ const CompanyGroup: FC<{
   );
   return (
     <div {...node} ref={ref} className="cc-group-section" data-slot="cc-group-section">
-      <ProjectHeader project={project} open={open} onToggle={onToggle} sessions={sessions} handle={drag.handle} onMove={locked ? undefined : move} />
+      <ProjectHeader project={project} open={open} onToggle={toggle} sessions={shownSessions} handle={drag.handle} onMove={locked ? undefined : move} />
       {open && (
         <div data-slot="cc-project-items" className="cc-group-items">
           {children}
@@ -973,6 +982,9 @@ export const ThreadListItem: FC = () => {
   if (scope?.mode === "row") return <GroupRow scope={scope} />;
   return <Row />;
 };
+
+// 侧栏各组的行用的同一份（Items 记住时组件表不每次新建）
+const ITEM_COMPONENTS = { ThreadListItem };
 
 // 从行尾「···」、菜单、改名输入框按下不拿起
 const ROW_SKIP = '[data-slot="aui_thread-list-item-more"], [role="menu"], input';

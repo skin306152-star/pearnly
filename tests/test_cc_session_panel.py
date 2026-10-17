@@ -614,8 +614,10 @@ class SortableSourceTests(unittest.TestCase):
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
         # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
         self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
-        # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走
-        self.assertIn("createPortal(overlay, document.body)", drag)
+        # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走。挂在 body 下一直留着的那一层
+        # （第 11 轮 B14：直接挂 body 时拖动库盯着 body 的观察器在拿起那一帧当场重量）
+        self.assertIn("const layer = dragLayer();\n  return layer ? createPortal(overlay, layer) : overlay;", drag)
+        self.assertIn("document.body.appendChild(layer);", drag.split("export function dragLayer()", 1)[1].split("\n}\n", 1)[0])
         # 落点那一项按拖动编号在此刻的页面里找（拖进另一列以后取消，拖动库给的是那一列里已经卸下的那一份）
         self.assertIn("const node = landingNode(active.id, active.node);", drag)
         self.assertIn('node.dataset.dragLanding = "";', drag)
@@ -623,12 +625,13 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn('if (root.dataset.ccMotion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return null;', drag)
         # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区
         self.assertIn("return { ...transform, x: 0, y: clampToList(transform.y, { top: start.top, height: start.height }, list) };", drag)
-        self.assertIn("const rect = getClientRect(node, { ignoreTransform: true });", drag)
+        self.assertIn("const rect = layoutRect(node);", drag.split("function spanOf(", 1)[1].split("\n}\n", 1)[0])
+        self.assertIn("const rect = getClientRect(node, { ignoreTransform: true });", drag.split("export function layoutRect(", 1)[1].split("\n}\n", 1)[0])
         # 碰撞只认能放的地方：按 narrowPool 收窄（键盘只在本列；指针进了哪一列的整块就认那一列）后取最近的中心
         self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
         self.assertNotIn("pointerWithin", drag)
         # 拖动标记：Esc 只取消拖动
-        self.assertIn("setDragging(true);", drag)
+        self.assertIn("setDragging(true, byMouse(activatorEvent));", drag)
         self.assertIn("letGo.flush(); // 卸下时还在等落位的放下当场结束\n      setDragging(false);", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
         self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} data-peek={peek ? "" : undefined} inert aria-hidden>', drag)
@@ -651,7 +654,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn('[data-drag-source="gap"] { opacity: 0; }', css)
         self.assertIn("[data-drag-landing] { opacity: 0; }", css)
         self.assertIn("[data-drop-target] { background: var(--cc-row-hover); }", css)
-        self.assertIn(":root[data-cc-drag] * { cursor: grabbing; }", css)
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)
         # 抓手光标归共用拖动的把手标记（会话栏卡片把手、侧栏行、置顶行、公司组头同一条，第 5 轮审查）；把手里的输入框是文字光标
         self.assertIn("[data-drag-handle] { cursor: grab; }", css)
         self.assertIn("[data-drag-handle] :is(input, textarea) { cursor: text; }", css)

@@ -2046,7 +2046,9 @@
    播完前落点那一项先不显示（data-drag-landing）。已置顶收着（放不下空档）时对话拖进去整块（组头）用悬停色高亮，浮层同时让开
    （data-peek：里面的字、条数隐去，只剩很淡的一层底，被它盖住的组头文字与高亮清楚可读；第 8 轮测试机：半透明时浮层的字和
    组头的字叠在一起）。拖动中整页 grabbing */
-.cc-drag-overlay { cursor: grabbing; }
+/* 浮层不接指针（同里面那一层 inert）：悬停留在侧栏里，拿起、落定时不因为浮层出现 / 消失让整个侧栏换悬停、整块重算样式（第 11 轮
+   B14：每次约 680 个元素；侧栏里有「悬停 + 任意后代」的规则，组件库 group-hover 生成的）。光标与压住悬停由挡板给（.cc-drag-shield） */
+.cc-drag-overlay { pointer-events: none; }
 .cc-drag-float, .cc-drag-lift { height: 100%; }
 .cc-drag-lift {
   position: relative; overflow: hidden; border-radius: var(--cc-radius-row); background: var(--cc-bg-popover); box-shadow: var(--cc-shadow-pop);
@@ -2071,7 +2073,10 @@
 :root[data-cc-drag-bulk] [data-slot="aui_thread-list-item"][data-selected]:not([data-drag-source], [data-drag-landing]) { opacity: var(--cc-drag-ghost); }
 [data-drag-landing] { opacity: 0; }
 [data-drop-target] { background: var(--cc-row-hover); }
-:root[data-cc-drag] * { cursor: grabbing; }
+/* 鼠标拖动中盖住整页的透明挡板（components/ui/drag.tsx 的 dragShield，lib/layers.ts 拿起那一帧画完盖上、松手那一帧画完撤掉）：整页
+   grabbing 光标，指针下面的行、组头、卡片不出悬停（浮层不接指针，第 11 轮 B14 审查：原来露出悬停底、「···」、深色字与折叠箭头、
+   卡片把手）；落点只按 [data-drop-target] 高亮，碰撞与自动滚动看的是指针坐标、不靠命中。在浮层下面（浮层同在拖动层里） */
+.cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }
 @keyframes cc-drag-lift { from { scale: 1; opacity: 1; box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { .cc-drag-lift, .cc-drag-lift > * { animation: none; transition: none; } }
 /* 覆盖对话列表里组件自带的工具类（放在分层外，优先于 Tailwind 的 utilities 层） */
