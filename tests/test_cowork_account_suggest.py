@@ -227,6 +227,22 @@ class SettledRules(unittest.TestCase):
         self.assertIsNotNone(R.settled(rows, self.TODAY, "2026-10-01T00:00:00Z"))
         self.assertIsNone(R.settled(rows, self.TODAY, "2026-09-01T00:00:00Z"))
 
+    def test_goods_posting_is_settled_only_by_one_way_three_times_within_a_year(self):
+        """商品单入账方式（用户 10-17，第 3 期第三段先只供回放量）：只有一种记法有单、另一种为 0，≥3 张，最后一张 12 个月内，
+        汇总 31 天内读的 → 定下；两种都有、张数不够、太旧、读得太久都定不下。"""
+        stock = {"stock": {"docs": 3, "last": "2026-09-30"}, "service": {"docs": 0, "last": ""}}
+        self.assertEqual(R.posting_settled(stock, self.TODAY), {"kind": "stock", "docs": 3, "last": "2026-09-30"})
+        self.assertEqual(R.posting_settled({"service": {"docs": 4, "last": "2026-10-01"}}, self.TODAY)["kind"],
+                         "service")
+        self.assertIsNone(R.posting_settled({**stock, "service": {"docs": 1, "last": "2026-10-01"}}, self.TODAY))
+        self.assertIsNone(R.posting_settled({"stock": {"docs": 2, "last": "2026-09-30"}}, self.TODAY))
+        self.assertIsNone(R.posting_settled({"stock": {"docs": 9, "last": "2025-10-01"}}, self.TODAY))
+        self.assertIsNone(R.posting_settled({}, self.TODAY))
+        self.assertIsNone(R.posting_settled({"stock": {"docs": "3", "last": "2026-09-30"}}, self.TODAY))
+        self.assertIsNotNone(R.posting_settled(stock, self.TODAY, "2026-10-01T00:00:00Z"))
+        self.assertIsNone(R.posting_settled(stock, self.TODAY, "2026-09-01T00:00:00Z"))
+        self.assertEqual(R.VERSIONS, (1, 2))  # 这一段不改收数的版本
+
     def test_branches_of_one_tax_id_are_one_supplier(self):
         data = R.parse(history_raw())
         found = R.suppliers_of(data)

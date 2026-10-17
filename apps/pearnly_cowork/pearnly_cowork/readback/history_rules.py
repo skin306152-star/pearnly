@@ -130,6 +130,44 @@ def settled(accounts: Any, today: dt.date, read_at: Any = None) -> Dict[str, Any
     return {"code": str(row["code"]), "docs": int(row["docs"]), "last": last.isoformat()}
 
 
+# 商品单入账方式的两种记法（`contracts.document_policy.GOODS_POSTING_VALUES` 同值）：有库存明细（走库存）/ 没有（记费用）
+POSTING_KINDS = ("stock", "service")
+
+
+def posting_settled(posting: Any, today: dt.date, read_at: Any = None) -> Dict[str, Any] | None:
+    """这家供应商在这本账套里的商品单入账方式是否一致到可以定档（用户 10-17：近 12 个月会计亲手录、不含 CC 推的，至少 3 张，
+    全部走库存或全部没有库存明细）。``posting``：``{"stock": {docs, last}, "service": {docs, last}}``（各记法的单据数、最后一张的
+    单据日期；缺一种按 0 张）。口径同 `settled`：只有一种记法有单、另一种为 0，张数 ≥ `SETTLED_DOCS`，最后一张在 12 个月内，
+    这份汇总在 `SETTLED_FRESH_DAYS` 天内读的。是就回 ``{kind, docs, last}``，否则 None。
+    第 3 期第三段先只供回放量（`scripts/da-replay.py` 的 ``posting_history``），线上判档等回放数字出来后另接，`VERSIONS` 不变。"""
+    posting = posting if isinstance(posting, dict) else {}
+    used = []
+    for kind in POSTING_KINDS:
+        row = posting.get(kind)
+        docs = row.get("docs") if isinstance(row, dict) else 0
+        if type(docs) is not int or docs < 0:
+            return None
+        if docs:
+            used.append((kind, row))
+    if len(used) != 1:
+        return None
+    kind, row = used[0]
+    try:
+        last = dt.date.fromisoformat(str(row.get("last") or "")[:10])
+    except ValueError:
+        return None
+    if row["docs"] < SETTLED_DOCS or last < today - dt.timedelta(days=SINCE_DAYS):
+        return None
+    if read_at is not None:
+        try:
+            taken = dt.date.fromisoformat(str(read_at)[:10])
+        except ValueError:
+            return None
+        if taken < today - dt.timedelta(days=SETTLED_FRESH_DAYS):
+            return None
+    return {"kind": kind, "docs": row["docs"], "last": last.isoformat()}
+
+
 def suppliers_of(data: Any) -> Dict[str, Dict[str, Any]]:
     """一份历史里按供应商键（`supplier_key`）合并的科目：``{键: {name, accounts: [{code, docs, last}]}}``。"""
     out: Dict[str, Dict[str, Any]] = {}

@@ -8,7 +8,10 @@
 - 档位时间线：三套阈值并排、推错即「被改」；
 - 识别闸层：与金标逐字段比（单号只差前缀不算错）、配对、原文核对；
 - 期间与两份同期（10-17）：ISPRD 与 CC 桌面版 `_fiscal_window` 同口径、来源优先级、strict / estimated、按日期选账套的情形
-  与 C 类原因拆分、盘点的期间检验与重叠、登记表、两份同期时各挑法的模拟。
+  与 C 类原因拆分、盘点的期间检验与重叠、登记表、两份同期时各挑法的模拟；
+- 商品单与上传日（10-17 第三段）：答案只认库存品 / 有库存影响的明细为走库存、PEOPLE 防撞号，明细造进票面（stkdes / opaque），
+  入账方式按载荷实际写什么计分、存货逐行计分与学记忆，供应商存货历史只用录入在前的单，替公司选入账方式按此前多数，估上传日只
+  重判日期核对，报表与明细多出的行与列。
 纯标准库，不连库、不依赖 Frappe。
 """
 import contextlib
@@ -60,8 +63,9 @@ def write_dbf(path, fields, rows, deleted=()):
     pathlib.Path(path).write_bytes(bytes(out))
 
 
-def make_book(folder, docs):
-    """一份合成账套答案：docs [(单号, 日期, 供应商码, 科目, 未税, 税, RECTYP)]。"""
+def make_book(folder, docs, *, stcrd=(), stmas=(), credat=None, vatprd=None):
+    """一份合成账套答案：docs [(单号, 日期, 供应商码, 科目, 未税, 税, RECTYP)]。``stcrd`` 存货明细行（STCRD 列名为键）、``stmas``
+    存货主档 [(码, 品名, STKTYP)]；``credat`` / ``vatprd``：{单号: 日子}，凭证录入日（默认单据日 + 2 天）与税登记税期。"""
     tables = pathlib.Path(folder) / "原表"
     tables.mkdir(parents=True)
     write_dbf(tables / "ISINFO.DBF", [("ACCNUM04", "C", 15), ("ACCNUM06", "C", 15), ("ACCNUM07", "C", 15),
@@ -87,8 +91,9 @@ def make_book(folder, docs):
                       "TOTAL": net, "VATAMT": vat, "NETAMT": net + vat, "DOCSTAT": "N", "USERID": "ACC"})
         isvat.append({"VATREC": "P", "DOCNUM": number, "DOCDAT": day, "REFNUM": "IV" + number[-6:],
                       "TAXID": SELLER if party == "S001" else OTHER, "ORGNUM": 0, "AMT01": net, "VAT01": vat,
-                      "DOCSTAT": "N"})
-        gljnl.append({"VOUCHER": number, "DOCSTAT": "N", "CREDAT": day + dt.timedelta(days=2), "CREBY": "ACC"})
+                      "DOCSTAT": "N", "VATPRD": (vatprd or {}).get(number)})
+        gljnl.append({"VOUCHER": number, "DOCSTAT": "N", "CREDAT": (credat or {}).get(number, day + dt.timedelta(days=2)),
+                      "CREBY": "ACC"})
         lines += [{"VOUCHER": number, "ACCNUM": account, "TRNTYP": "0", "AMOUNT": net},
                   {"VOUCHER": number, "ACCNUM": "11-50", "TRNTYP": "0", "AMOUNT": vat},
                   {"VOUCHER": number, "ACCNUM": "21-01", "TRNTYP": "1", "AMOUNT": net + vat}]
@@ -99,11 +104,18 @@ def make_book(folder, docs):
                                      ("TOTAL", "B", 8), ("VATAMT", "B", 8), ("NETAMT", "B", 8), ("DOCSTAT", "C", 1)], [])
     write_dbf(tables / "ISVAT.DBF", [("VATREC", "C", 1), ("DOCNUM", "C", 12), ("DOCDAT", "D", 8), ("REFNUM", "C", 15),
                                      ("TAXID", "C", 15), ("ORGNUM", "N", 5), ("AMT01", "B", 8), ("VAT01", "B", 8),
-                                     ("DOCSTAT", "C", 1)], isvat)
+                                     ("DOCSTAT", "C", 1), ("VATPRD", "D", 8)], isvat)
     write_dbf(tables / "GLJNL.DBF", [("VOUCHER", "C", 12), ("DOCSTAT", "C", 1), ("CREDAT", "D", 8), ("CREBY", "C", 8)],
               gljnl)
     write_dbf(tables / "GLJNLIT.DBF", [("VOUCHER", "C", 12), ("ACCNUM", "C", 15), ("TRNTYP", "C", 1),
                                        ("AMOUNT", "N", 13)], lines)
+    if stmas:
+        write_dbf(tables / "STMAS.DBF", [("STKCOD", "C", 20), ("STKDES", "C", 50), ("STKTYP", "C", 1)],
+                  [{"STKCOD": code, "STKDES": name, "STKTYP": kind} for code, name, kind in stmas])
+    if stcrd:
+        write_dbf(tables / "STCRD.DBF", [("STKCOD", "C", 20), ("DOCNUM", "C", 12), ("SEQNUM", "C", 3), ("PEOPLE", "C", 10),
+                                         ("TRNQTY", "B", 8), ("UNITPR", "B", 8), ("TRNVAL", "B", 8), ("NETVAL", "B", 8),
+                                         ("STKDES", "C", 50), ("PHYBAL", "B", 8)], list(stcrd))
 
 
 class Statistics(unittest.TestCase):
@@ -186,7 +198,7 @@ class JudgementLayer(unittest.TestCase):
         self.assertFalse(second["vat_direction_only"])
         self.assertTrue(second["correct"])
         self.assertEqual(second["scored"], {"party": "ok", "account": "ok", "payment": "ok", "vat": "ok",
-                                            "posting": "n/a"})
+                                            "posting": "n/a", "item": "n/a"})
         # 连续张数只数有证据的推送（审查处理 10-16）：第一张人选的（chosen）算；之后凭记忆推的要等这期的合格回读（一月期
         # 2-24 前后）核过才算，所以一、二月里都还是 B
         for number in ("RR680102-001", "RR680103-001", "RR680104-001", "RR680105-001"):
@@ -264,13 +276,15 @@ class JudgementLayer(unittest.TestCase):
         for row in later:
             self.assertEqual((row["posting_from"], row["items"].get("posting")), ("company_choice", "B"), row)
             self.assertFalse(str(row["prepare"]).startswith("posting_needs_review"))
-        # 同线上不预先声明（审查处理 10-16）：答案里没有存货明细的单也按公司选的「走库存」走，与答案比 posting 计错
+        # 同线上不预先声明（审查处理 10-16）：答案里没有存货明细的单也按公司选的「走库存」走
         self.assertEqual(by_number["HP680302-001"]["posting_from"], "company_choice")
+        # 10-17：入账方式按载荷实际会写什么计分 —— 票面不造明细（``--lines none``）时载荷没有库存行，CC 桌面版只写表头（等于
+        # 记费用）：答案走库存的单计错，答案是服务的那张反而对上（造明细的口径见 `GoodsAndUpload`）
         service = by_number["RR680104-001"]
-        self.assertEqual((service["posting_from"], service["scored"].get("posting")), ("company_choice", "wrong:stock"))
-        self.assertFalse(service["correct"])
+        self.assertEqual((service["posting_from"], service["scored"].get("posting")), ("company_choice", "ok"))
         self.assertEqual({row["scored"].get("posting") for row in later
-                          if row["scored"] and row["docnum"] != "RR680104-001"}, {"ok"})
+                          if row["scored"] and row["docnum"] != "RR680104-001"}, {"wrong:service"})
+        self.assertEqual({row["items_status"] for row in later if row["scored"]}, {"empty"})
 
     def test_next_year_documents_go_into_the_old_book_until_the_new_one_exists(self):
         """新年度账套还没建时，下一年的单记进旧账套的次年段（认 next_end，用户 10-16）；新年度账套一建好就该推往新的。"""
@@ -429,6 +443,218 @@ class JudgementLayer(unittest.TestCase):
         self.assertEqual(replay.eligible({**doc, "rectyp": "5"}), "rectyp_5")
         self.assertEqual(replay.eligible({**doc, "total": Decimal("0")}), "zero_amount")
         self.assertEqual(replay.eligible({**doc, "pearnly": True}), "pearnly")
+
+
+class GoodsAndUpload(unittest.TestCase):
+    """商品单与上传日（10-17 第三段，只在回放里量）：答案口径、明细造进票面、入账方式按载荷实际写什么计分、存货逐行计分与学记忆、
+    供应商存货历史、替公司选入账方式按此前多数、估上传日只重判日期核对。"""
+
+    STMAS = (("P01", "ปูนซีเมนต์", "0"), ("SV1", "ค่าขนส่ง", "3"))
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.folder.name)
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def line(self, number, seq, code, name, amount, people="S001", moving=0):
+        return {"DOCNUM": number, "SEQNUM": str(seq), "STKCOD": code, "STKDES": name, "PEOPLE": people,
+                "TRNQTY": 1, "UNITPR": amount, "TRNVAL": amount, "NETVAL": amount, "PHYBAL": moving}
+
+    def goods_book(self, name="GOODS", **options):
+        """S001 每周一张：G01–G06 走库存（库存品 P01）、G07 只有非库存品明细（运费 SV1）、G08 没有明细。"""
+        days = [dt.date(2025, 1, 6) + dt.timedelta(days=7 * index) for index in range(8)]
+        docs = [(f"G{index + 1:02d}", day, "S001", "51-01", "1000.00", "70.00", "3") for index, day in enumerate(days)]
+        stcrd = [self.line(f"G{index:02d}", 1, "P01", "ปูนซีเมนต์", 1000, moving=1) for index in range(1, 7)]
+        stcrd.append(self.line("G07", 1, "SV1", "ค่าขนส่ง", 1000))
+        make_book(self.root / name, docs, stcrd=stcrd, stmas=self.STMAS, **options)
+        book = replay.load_book(self.root / name, company=name, own_tax=OWN, key=f"C:\\PearnlyExpress\\{name}")
+        book["fingerprint"] = {"stcrd_lines": 10, "stcrd_lines_moving_stock": 9}  # 永续库存：商品单交人
+        return book
+
+    def test_only_stock_items_make_a_stock_answer(self):
+        docs = [("RR01", dt.date(2025, 1, 6), "S001", "51-01", "1000.00", "70.00", "3"),
+                ("RR02", dt.date(2025, 1, 7), "S001", "51-01", "1000.00", "70.00", "3"),
+                ("RR03", dt.date(2025, 1, 8), "S002", "51-01", "1000.00", "70.00", "3")]
+        stcrd = [self.line("RR01", 1, "SV1", "ค่าขนส่ง", 1000),
+                 self.line("RR02", 2, "SV1", "", 200), self.line("RR02", 1, "P01", "ปูนซีเมนต์", 800),
+                 self.line("RR03", 1, "P01", "ปูนซีเมนต์", 1000)]  # 单号撞上：PEOPLE 是 S001，不挂到 S002 的单
+        make_book(self.root / "ACME", docs, stcrd=stcrd, stmas=self.STMAS)
+        book = replay.load_book(self.root / "ACME", company="ACME", own_tax=OWN, key="ACME")
+        found = {doc["docnum"]: doc for doc in book["docs"]}
+        # 只挂非库存品（服务费 STKTYP=3）的明细不算走库存（第四轮按「有任何明细」算）；有库存品的算
+        self.assertEqual((found["RR01"]["stock"], found["RR01"]["detail"]), (False, True))
+        self.assertEqual((found["RR02"]["stock"], found["RR02"]["detail"]), (True, True))
+        self.assertEqual((found["RR03"]["stock"], found["RR03"]["detail"]), (False, False))
+        # 按 SEQNUM 排；明细没写品名的取主档名；金额 Decimal 写法
+        self.assertEqual([(line.code, line.name, line.amount, line.kind) for line in found["RR02"]["lines"]],
+                         [("P01", "ปูนซีเมนต์", "800.00", "stock"), ("SV1", "ค่าขนส่ง", "200.00", "non_stock")])
+        self.assertEqual(book["stcrd"], {"lines": 4, "attached": 3, "people_blank": 0, "people_other": 1})
+        self.assertEqual(replay.answer_items(found["RR02"]), ("P01",))
+        moving = replay.Line("X9", "ของ", "1", "5", "5.00", "unknown", True)
+        self.assertTrue(replay.stock_line(moving))  # 主档里没有、但动了库存：算
+
+    def test_answer_lines_become_invoice_items(self):
+        book = self.goods_book()
+        docs = {doc["docnum"]: doc for doc in book["docs"]}
+        self.assertNotIn("items", replay.perfect_fields(docs["G01"], book))  # 默认不造（与第四轮可比）
+        fields = replay.perfect_fields(docs["G01"], book, "answer")
+        self.assertEqual(fields["items"], [{"name": "ปูนซีเมนต์", "qty": "1.0", "price": "1000.0",
+                                            "subtotal": "1000.00"}])
+        opaque = replay.perfect_fields(docs["G01"], book, "answer", "opaque")["items"][0]["name"]
+        self.assertTrue(opaque.startswith("L-"))
+        self.assertNotEqual(opaque, "ปูนซีเมนต์")
+        self.assertEqual(replay.perfect_fields(docs["G02"], book, "answer", "opaque")["items"][0]["name"], opaque)
+        self.assertNotIn("items", replay.perfect_fields(docs["G08"], book, "answer"))  # 没有明细的单照旧
+        # 存货主档只给同名的、记过的码与另一行；同名查找与全表一样
+        config = replay.book_config(book, party_tax=SELLER, item_names=["ปูนซีเมนต์"])
+        self.assertEqual([row["code"] for row in config["reported_products"]], ["P01", "SV1"])
+        self.assertEqual([row["code"] for row in replay.book_config(book, item_keep=["SV1"])["reported_products"]],
+                         ["SV1", "P01"])
+        # 造了明细的走库存单：明细过了对账闸、载荷写库存行
+        rows, _ = replay.judge_company(replay._modules(), [book], lines="answer")
+        by_number = {row["docnum"]: row for row in rows}
+        self.assertEqual(by_number["G03"]["items_status"], "ok")
+        self.assertEqual(by_number["G03"]["posting_kind"], "stock")
+
+    def test_posting_is_scored_by_what_the_payload_writes(self):
+        book = self.goods_book()
+        payload = {"direction": "purchase", "items_status": "ok", "supplier": {"code": "S001"},
+                   "items": [{"name": "ปูนซีเมนต์", "item_mode": "stock_item"}, {"name": "ค่าขนส่ง", "item_mode": "stock_item",
+                                                                                    "code": "SV1"}]}
+        fields = replay.perfect_fields(book["docs"][0], book)
+        found = replay.payload_values(payload, book, fields)
+        self.assertEqual((found["posting"], found["item"]), ("stock", ("P01", "SV1")))  # 没写码的按同名在全量主档里找
+        # 明细没过对账闸：CC 桌面版只写表头（等于记费用），不写 STCRD
+        found = replay.payload_values(dict(payload, items_status="mismatch"), book, fields)
+        self.assertEqual((found["posting"], found["item"]), ("service", ()))
+        found = replay.payload_values(dict(payload, items=[{"name": "x", "item_mode": "non_stock_item"}]), book, fields)
+        self.assertEqual(found["posting"], "service")
+        m = replay._modules()
+        none, _ = replay.judge_company(m, [book])
+        answer, _ = replay.judge_company(m, [book], lines="answer")
+        none, answer = ({row["docnum"]: row for row in rows} for rows in (none, answer))
+        # 不造明细：公司选了走库存，载荷没有库存行，走库存的单计错、没有明细的那张对上
+        self.assertEqual(none["G03"]["scored"]["posting"], "wrong:service")
+        self.assertEqual(none["G08"]["scored"]["posting"], "ok")
+        # 造了明细（stkdes）：走库存的单写进库存行，入账方式与存货都对；只有运费明细的那张要人选存货（主档没有同名库存品）
+        self.assertEqual((answer["G03"]["scored"]["posting"], answer["G03"]["scored"]["item"]), ("ok", "ok"))
+        self.assertEqual(answer["G03"]["items"]["item"], "A")
+        self.assertEqual(answer["G07"]["class"], "C")
+        self.assertIn("item", answer["G07"]["needed"])
+        self.assertEqual(answer["G08"]["scored"]["posting"], "ok")
+
+    def test_items_are_scored_and_learned_per_line(self):
+        """打码品名（悲观下界）：同名查找落空，第一次见要人选存货，模拟的人按答案那一行的码记进账套记忆，之后同品名 A。"""
+        book = self.goods_book()
+        rows, _ = replay.judge_company(replay._modules(), [book], lines="answer", names="opaque")
+        by_number = {row["docnum"]: row for row in rows}
+        self.assertEqual(sorted(by_number["G01"]["needed"]), ["account", "payment"])  # 第一张：新供应商要人选
+        self.assertEqual(by_number["G02"]["prepare"][:20], "posting_needs_review")  # 第二张：替公司选入账方式
+        self.assertIn("item", by_number["G03"]["needed"])  # 第三张：走库存后存货第一次见
+        self.assertEqual(by_number["G03"]["class"], "C")
+        later = by_number["G04"]
+        self.assertEqual((later["items"]["item"], later["scored"]["item"], later["scored"]["posting"]), ("A", "ok", "ok"))
+        self.assertEqual(later["needed"], [])
+
+    def test_supplier_stock_history_uses_only_documents_entered_before(self):
+        m = replay._modules()
+        doc = {"date": dt.date(2025, 3, 1), "cancelled": False, "pearnly": False, "stock": True}
+        entries = [dict(doc, date=dt.date(2025, 3, day)) for day in (1, 2, 3)]
+        found = replay.stock_history(entries + [dict(doc, pearnly=True), dict(doc, cancelled=True),
+                                                dict(doc, date=dt.date(2024, 1, 1))],
+                                     dt.date(2024, 3, 10), dt.date(2025, 3, 10))
+        self.assertEqual(found, {"stock": {"docs": 3, "last": "2025-03-03"}, "service": {"docs": 0, "last": ""}})
+        self.assertEqual(m["history_rules"].posting_settled(found, dt.date(2025, 3, 10), dt.date(2025, 3, 10))["kind"],
+                         "stock")
+        # 录入在这张之后的单不算（G02 晚录到四月）：G04 之前只剩 G01、G03 两张，不到 3 张
+        late = self.goods_book("LATE", credat={"G02": dt.date(2025, 4, 1)})
+        rows = {row["docnum"]: row for row in replay.judge_company(m, [late])[0]}
+        self.assertEqual(rows["G04"]["posting_history"], "")
+        self.assertEqual(rows["G05"]["posting_history"], "stock")
+        book = self.goods_book()
+        rows = {row["docnum"]: row for row in replay.judge_company(m, [book])[0]}
+        self.assertEqual((rows["G04"]["posting_history"], rows["G04"]["posting_tier_if_history"]), ("stock", "A"))
+        self.assertEqual(rows["G03"]["posting_history"], "")
+        # 服务单夹进来以后两种记法都有：定不下
+        self.assertEqual((rows["G07"]["posting_history"], rows["G08"]["posting_history"]), ("stock", ""))
+        self.assertEqual(rows["G08"]["posting_tier_if_history"], "B")
+        summary = replay.summarize_judge({"rows": list(rows.values()), "skipped": {}, "tiers": {},
+                                          "goods_posting": {"GOODS": {"used": "stock", "by": "answer", "prior": None,
+                                                                      "full": "stock"}}})
+        goods = summary["goods"]
+        self.assertEqual(goods["history"]["A_wrong"], 1)  # G07：历史说走库存、会计记的是服务
+        self.assertEqual(goods["companies"]["GOODS"]["disagree_used"], 2)  # G07、G08 与公司选的不同
+        self.assertEqual(goods["companies"]["GOODS"]["detail_only"], 1)
+
+    def test_company_posting_follows_the_majority_entered_before(self):
+        """替公司选入账方式（10-17 主口径）：第一次交人那一刻之前已录单的多数，不看以后；全期多数只记下作对照。"""
+        m = replay._modules()
+        book = self.goods_book()
+        for doc in book["docs"]:
+            if doc["docnum"] in ("G01", "G02", "G03"):
+                doc.update(vat=Decimal("0.00"), total=doc["net"])  # 收据：费用车道、不交人
+            if doc["docnum"] in ("G01", "G02", "G03", "G04"):
+                doc["stock"] = doc["docnum"] != "G04"
+        choice = {}
+        rows, _ = replay.judge_company(m, [book], choice=choice)
+        first = next(row for row in rows if str(row["prepare"]).startswith("posting_needs_review"))
+        self.assertEqual(first["docnum"], "G04")
+        self.assertEqual(choice, {"used": "stock", "by": "prior", "prior": "stock", "full": "stock"})
+        full = {}
+        replay.judge_company(m, [book], choice_mode="full", choice=full)
+        self.assertEqual((full["used"], full["by"]), ("stock", "full"))
+
+    def test_upload_proxy_takes_the_earlier_of_entry_and_vat_deadline(self):
+        m = replay._modules()
+        day = dt.date(2025, 1, 10)
+        doc = {"date": day, "entered": day + dt.timedelta(days=120), "vat_period": dt.date(2025, 1, 1)}
+        deadline = replay.vat_deadline(m, 2025, 1)
+        self.assertEqual(replay.upload_proxy(m, doc), (deadline, "vat_deadline"))
+        self.assertEqual(replay.readback_day(m, "2025-01"), deadline + dt.timedelta(days=1))
+        later = dict(doc, vat_period=dt.date(2025, 5, 1))  # 税期在录入之后：仍按录入日
+        self.assertEqual(replay.upload_proxy(m, later), (doc["entered"], "entered"))
+        self.assertEqual(replay.upload_proxy(m, dict(doc, vat_period=None)), (doc["entered"], "entered"))
+
+    def test_the_alternative_upload_only_rejudges_the_date_checks(self):
+        """CREDAT 比单据晚 120 天、税期是单据当月：现行按录入日 date_stale；估上传日取申报截止日，不再 stale。只重判日期核对，
+        其余原因与计分不变；报表加「录入晚 60 天」一行，明细多三列。"""
+        m = replay._modules()
+        days = [dt.date(2025, 1, 6) + dt.timedelta(days=7 * index) for index in range(8)]
+        docs = [(f"L{index:02d}", day, "S001", "52-01", "1000.00", "70.00", "3") for index, day in enumerate(days)]
+        make_book(self.root / "SLOW", docs, credat={number: day + dt.timedelta(days=120) for number, day, *_ in docs},
+                  vatprd={number: day.replace(day=1) for number, day, *_ in docs})
+        book = replay.load_book(self.root / "SLOW", company="SLOW", own_tax=OWN, key="C:\\PearnlyExpress\\SLOW")
+        self.assertEqual(book["docs"][0]["vat_period"], dt.date(2025, 1, 1))
+        rows, _ = replay.judge_company(m, [book])
+        dates = {"date_stale", "day_month", "date_future"}
+        for row in rows:
+            self.assertIn("date_stale", row["reasons"])
+            self.assertEqual(row["uploaded_src"], "vat_deadline")
+            alt = row.get("reasons_alt", row["reasons"])
+            self.assertNotIn("date_stale", alt)
+            # C 类原因除日期类外一样（变成 B 的那几张，B 只列 judged:*）
+            self.assertEqual({code for code in row["reasons"] if code not in dates},
+                             {code for code in alt if code not in dates and not code.startswith("judged:")}, row)
+        freed = [row for row in rows if row["class"] == "C" and row["class_alt"] != "C"]
+        self.assertTrue(freed)
+        summary = replay.summarize_judge({"rows": rows, "skipped": {}, "tiers": {}})
+        upload = summary["upload_alt"]
+        self.assertEqual((upload["stale"], upload["stale_alt"]), ({"purchase": len(rows)}, {}))
+        self.assertEqual(upload["freed"], {"purchase": len(freed)})
+        text = "\n".join(replay._render_upload(summary))
+        self.assertIn(f"上传日按凭证录入日 {len(rows)} 张", text)
+        out = self.root / "out"
+        (out / "judge").mkdir(parents=True)
+        (out / "judge" / "SLOW.json").write_text(json.dumps({"rows": rows, "skipped": {"SLOW": {}}, "tiers": {},
+                                                             "lines": "none"}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            replay.main(["report", "--out", str(out)])
+        header = (out / "明细.tsv").read_text(encoding="utf-8").splitlines()[0].split("\t")
+        self.assertEqual(header[-3:], ["估上传日", "来源", "类别（估上传日）"])
+        self.assertIn("录入晚 60 天", (out / "报表.md").read_text(encoding="utf-8"))
+        self.assertIn("商品单（按公司选入账方式的单）", (out / "报表.md").read_text(encoding="utf-8"))
 
 
 def cause(key):
@@ -652,6 +878,14 @@ class Periods(unittest.TestCase):
                           for name, row in books.items()},
                          {"68ACME": ("answer", 1, True, 0), "69ACME": ("answer", 1, False, 1)})
         self.assertEqual(books["69ACME"]["last_entered"], "2027-03-03")
+        # 商品单与上传日（10-17）：列名清单、录入滞后 / 税期滞后分桶、成批录入的日子、明细挂单统计
+        self.assertIn("VATPRD", books["68ACME"]["columns"]["ISVAT"])
+        self.assertEqual(books["68ACME"]["columns"]["STCRD"], [])
+        self.assertEqual(books["68ACME"]["entry_lag"], {"<=7": 4})
+        self.assertEqual(books["68ACME"]["vat_lag"], {"none": 4})
+        self.assertEqual((books["68ACME"]["batch_days"], books["68ACME"]["stcrd"]), ([], {"lines": 0}))
+        self.assertEqual(replay._lag_bucket(45), "<=60")
+        self.assertEqual(replay._month_bucket(5), "4-6")
         overlap = data["overlaps"]["ACME"]
         self.assertEqual(len(overlap), 1)
         self.assertEqual((overlap[0]["current"], overlap[0]["next"], overlap[0]["only"]),
@@ -719,8 +953,12 @@ class Scoring(unittest.TestCase):
         answer = {"party": "S1", "account": "*multi", "payment": "cash"}
         self.assertEqual(replay.score(answer, {"party": "S1", "account": "52", "payment": "credit", "vat": "claim"}),
                          {"party": "ok", "account": "wrong:multi_account", "payment": "wrong:credit", "vat": "n/a",
-                          "posting": "n/a"})
+                          "posting": "n/a", "item": "n/a"})
         self.assertEqual(replay.score({"posting": "service"}, {"posting": "stock"})["posting"], "wrong:stock")
+        # 存货逐行（10-17）：答案库存行的码按行序成元组
+        self.assertEqual(replay.score({"item": ("P01", "P02")}, {"item": ("P01", "P02")})["item"], "ok")
+        self.assertEqual(replay.score({"item": ("P01",)}, {"item": ("new", "P02")})["item"], "wrong:new+P02")
+        self.assertEqual(replay.score({"item": ("P01",)}, {"item": ()})["item"], "wrong:none")
 
     def test_pushed_evidence_matches_the_online_rule(self):
         """回放的「连续 3 张」与线上 `assess._recent` 同口径（审查处理 10-16；10-17 推广到现 / 赊与对方档）：凭记忆推出去的要这期
