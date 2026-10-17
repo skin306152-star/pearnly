@@ -2,7 +2,8 @@
 
 - 主档页知识库：新增、修改都有「取消」「保存」；存好的那一条直接用服务端回的放进列表，不等之后整页重取；失败照 shownError 报；
   同页改名、记住的选择、移除文件夹同样先按服务端的回应显示。
-- 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），用户一碰就交还、不拉回。
+- 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），用户一碰就交还、不拉回；打开正在回复的对话停在这一轮开头
+  （提问顶在上面），上面的内容后来变高也对回去，之后不跟随（第 11 轮 C19）。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
 """
@@ -192,21 +193,28 @@ g.done();
 """, stubs=PAGE_STUBS, lang="zh")
 
     def test_opening_a_long_conversation_settles_at_the_bottom_without_undoing_scroll_up(self):
+        # 已结束的对话停在最新一条；正在回复的停在这一轮开头（第 11 轮 C19，用户 10-17 截图照 Claude 手机端）
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { OpenSettler, SETTLE_MAX_MS, SETTLE_QUIET_MS } from "@/lib/follow-scroll";
+import { OpenSettler, SETTLE_MAX_MS, SETTLE_QUIET_MS, turnStart } from "@/lib/follow-scroll";
 
 const g = globalThis as any;
 let clock = 1000;
 const listeners: Record<string, Array<(e: any) => void>> = {};
-let reserve: number | null = null;  // 组件库的占位：只在有在跑的一轮时挂着
+// 组件库标的这一轮的提问（data-aui-top-anchor-user）：只在有在跑的一轮时有；offset = 它在滚动内容里的上沿
+let anchor: { offset: number; height: number } | null = null;
 const vp: any = {
   scrollTop: 0, scrollHeight: 6000, clientHeight: 800,
   addEventListener(type: string, fn: any) { (listeners[type] ??= []).push(fn); },
   removeEventListener(type: string, fn: any) { listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn); },
-  scrollTo({ top }: any) { this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); },
-  querySelector() { return reserve === null ? null : { offsetHeight: reserve }; },
+  scrollTo({ top }: any) { this.scrollTop = Math.max(0, Math.min(top, this.scrollHeight - this.clientHeight)); },
+  getBoundingClientRect() { return { top: 50 }; },
+  querySelector(sel: string) {
+    if (!sel.includes("top-anchor-user") || !anchor) return null;
+    const a = anchor;
+    return { offsetHeight: a.height, getBoundingClientRect: () => ({ top: 50 + a.offset - vp.scrollTop }) };
+  },
 };
 const fire = (type: string, e: any = {}) => (listeners[type] ?? []).forEach((fn) => fn(e));
 let grow: () => void = () => {};
@@ -248,21 +256,34 @@ f.settle();
 for (let i = 0; i < Math.ceil(SETTLE_MAX_MS / 1000); i++) more(50, 1000);
 top = vp.scrollTop; more(500, 100); assert.equal(vp.scrollTop, top);
 
-// 组件库在把在跑的这一轮推到顶上（占位有高度）时不插手
-reserve = 300; vp.scrollTop = 100; f.settle();
-assert.equal(vp.scrollTop, 100);
-// 第 11 轮审查：有在跑的一轮就交还——回复超出一屏、占位缩成 0 之后内容再长，也不跟到底
-reserve = 0; more(900); assert.equal(vp.scrollTop, 100);
-more(900); assert.equal(vp.scrollTop, 100);
-// 新对话：贴底时还没有占位，随后这一轮开跑（占位先有高度、再缩成 0），回复接着长：不滚
-reserve = null; vp.scrollHeight = 800; vp.scrollTop = 0; f.settle();
-reserve = 400; more(0);
-reserve = 0; more(1500); more(1500);
+// 第 11 轮 C19：打开一段正在回复的对话——停在这一轮开头（提问顶在上面），不停在最底下、也不停在上一轮回复中间
+anchor = { offset: 4200, height: 80 }; vp.scrollHeight = 6000; vp.scrollTop = 0; f.settle();
+assert.equal(vp.scrollTop, 4200);
+// 上面的内容后来才变高（content-visibility 量出上一轮回复的真实高度、文件列表取回后多出结果文件卡）：提问被往下推 967，
+// 对回去，提问仍顶在上面（A14 实测正是差了这 967：画面停在上一轮回复中间，提问在屏幕下面）
+anchor.offset += 967; more(967); assert.equal(vp.scrollTop, 4200 + 967);
+// 回复接着长（提问的位置不变）：不跟随，停在这一轮开头
+for (let i = 0; i < 5; i++) { more(900); assert.equal(vp.scrollTop, 5167); }
+// 用户一碰就交还：之后上面再变高也不替他滚
+fire("touchstart", { touches: [{ clientY: 300 }] });
+anchor.offset += 200; more(200); assert.equal(vp.scrollTop, 5167);
+// 提问很高（超过 10em）：同组件库，只把最后 6em 留在上面
+anchor = { offset: 1000, height: 400 }; vp.scrollHeight = 6000; vp.scrollTop = 0; f.settle();
+assert.equal(vp.scrollTop, 1000 + 400 - 6 * 16);
+assert.equal(turnStart(1000, 400, 16), 1304);
+assert.equal(turnStart(1000, 150, 16), 1000);
+// 打开时这一轮还没标出来（组件库下一帧才标）：先到最底下，标出来以后（占位撑高了内容）对到这一轮开头，回复再长也不跟
+anchor = null; vp.scrollHeight = 3000; vp.scrollTop = 0; f.settle();
+assert.equal(vp.scrollTop, 2200);
+anchor = { offset: 2500, height: 60 }; more(600); assert.equal(vp.scrollTop, 2500);
+more(1500); more(1500); assert.equal(vp.scrollTop, 2500);
+// 新对话第一句（C18）：提问在最上面（12），占位先撑高、回复接着长，停在 12 不被拉到底
+anchor = null; vp.scrollHeight = 800; vp.scrollTop = 0; f.settle();
 assert.equal(vp.scrollTop, 0);
-// 打开一段正在回复的对话（占位已在、高度 0）：不贴底，停在组件库给的这一轮开头
-vp.scrollTop = 500; f.settle();
-more(800); assert.equal(vp.scrollTop, 500);
-reserve = null;
+anchor = { offset: 12, height: 60 }; more(400);
+assert.equal(vp.scrollTop, 12);
+more(1500); more(1500); assert.equal(vp.scrollTop, 12);
+anchor = null;
 f.dispose();
 assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
 g.done();

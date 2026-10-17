@@ -215,15 +215,16 @@ function useShownPending() {
   return landed ? null : pending;
 }
 
-/** 打开一段对话停在最新一条（lib/follow-scroll.ts）。回复在出时不跟到底，下面有内容就出 ↓（同 Claude，三端一样）。 */
+/** 打开一段对话：已结束的停在最新一条，正在回复的停在这一轮开头（提问顶在上面）（lib/follow-scroll.ts）。
+ *  回复在出时不跟到底，下面有内容就出 ↓（同 Claude，三端一样）。 */
 function useSettleOnOpen() {
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
-  // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到最新一条（follow-scroll 的 settle）
+  // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到该停的位置（follow-scroll 的 settle）
   const opened = useAuiState((s) => (s.thread.messages.length > 0 ? s.threadListItem.id : ""));
   const openedNow = useRef(opened);
   openedNow.current = opened;
-  // 本页刚发出（发送中的气泡还在）：新对话第一条落进来不算打开，位置交给组件库的「这一轮顶到上面」，不贴底
+  // 本页刚发出（发送中的气泡还在）：新对话第一条落进来不算打开，位置交给组件库的「这一轮顶到上面」
   const sending = useRef(false);
   sending.current = usePendingSend() !== null;
   const settler = useRef<OpenSettler | null>(null);
@@ -318,12 +319,14 @@ const NoticeMessage: FC = () => {
 };
 
 /** 下面还有内容时在输入框上方居中出 ↓，点了平滑滚到最新（同 Claude，13.webp / 12.webp）。
- *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距）；在底部时组件库把它禁用，这里藏起来。 */
+ *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距）；在底部时组件库把它禁用，这里藏起来
+ *  （visibility: hidden：读屏读不到、Tab 走不到）。读屏名写在 aria-label 上（第 11 轮 C21：只靠按钮里的隐藏文字时属性是空的）。 */
 const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom asChild behavior="smooth">
       <TooltipIconButton
         tooltip={t("scrollToBottom")}
+        aria-label={t("scrollToBottom")}
         variant="outline"
         className="aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-9 z-10 size-10 self-center rounded-full p-0 shadow-[var(--cc-shadow-composer)] disabled:invisible"
       >

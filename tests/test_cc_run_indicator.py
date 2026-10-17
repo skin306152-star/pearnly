@@ -433,6 +433,9 @@ assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
         arrow = thread[thread.index("const ThreadScrollToBottom"):thread.index("const ThreadWelcome")]
         # ↓ 照 13.webp：40 的圆、箭头 20、在输入框上方居中；点了平滑滚到最新；在底部时藏起来
         self.assertIn('<ThreadPrimitive.ScrollToBottom asChild behavior="smooth">', arrow)
+        # 第 11 轮 C21：读屏名写在 aria-label 上（复用 scrollToBottom 词条）；到底时 visibility: hidden，读屏读不到、Tab 走不到
+        self.assertIn('aria-label={t("scrollToBottom")}', arrow)
+        self.assertIn('tooltip={t("scrollToBottom")}', arrow)
         for cls in ("size-10", "p-0", "-top-9", "self-center", "rounded-full", "disabled:invisible"):
             self.assertIn(cls, arrow)
         self.assertNotIn("p-4", arrow)
