@@ -16,6 +16,7 @@ from typing import Optional
 
 import httpx
 
+from . import http_tls
 from .logger import get_logger
 from .version import VERSION, version_tuple
 
@@ -33,7 +34,7 @@ def check_update(backend_url: str, current_version: str = VERSION, timeout: floa
         return None
     url = backend_url.rstrip("/") + _LATEST_PATH
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=True) as c:
+        with httpx.Client(timeout=timeout, follow_redirects=True, verify=http_tls.context()) as c:
             r = c.get(url, params={"t": str(int(time.time()))})  # 时间戳破 CDN 缓存,拿最新发布信息
             r.raise_for_status()
             data = r.json()
@@ -52,7 +53,7 @@ def download_installer(backend_url: str, rel_url: str, timeout: float = 180.0) -
     full = rel_url if rel_url.startswith("http") else backend_url.rstrip("/") + rel_url
     fd, path = tempfile.mkstemp(suffix=".exe", prefix="CC-Setup_")
     os.close(fd)
-    with httpx.Client(timeout=timeout, follow_redirects=True) as c:
+    with httpx.Client(timeout=timeout, follow_redirects=True, verify=http_tls.context()) as c:
         with c.stream("GET", full) as r:
             r.raise_for_status()
             with open(path, "wb") as f:

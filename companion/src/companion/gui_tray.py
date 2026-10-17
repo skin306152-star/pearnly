@@ -327,21 +327,26 @@ class TrayApp(QObject):
     def _render_status(self) -> None:
         if not self._profile_states:
             text = t("tray_starting" if self.configs else "tray_no_connection", self.lang)
-            self.tray.setIcon(_status_icon("offline"))
-            self.tray.setToolTip(f"{t('tray_tooltip', self.lang)} · {text}")
-            if self._status_action:
-                self._status_action.setText(text)
+            self._show_status("offline", f"{t('tray_tooltip', self.lang)} · {text}", text)
             return
         overall, display_profile, display_detail = self._aggregate_status()
-        self.tray.setIcon(_status_icon(overall))
         label = t("st_" + overall, self.lang) if overall in _LABELED_STATES else overall
         detail = self._detail_text(display_detail)
         text = f"{label} · {detail}" if detail else label
         if len([cfg for cfg in self.configs if not cfg.paused]) > 1 and display_profile:
             text = f"{self._profile_label(display_profile)} · {text}"
-        self.tray.setToolTip(f"{t('tray_tooltip', self.lang)} · {text}")
-        if self._status_action:
-            self._status_action.setText(_menu_text(text))
+        self._show_status(overall, f"{t('tray_tooltip', self.lang)} · {text}", _menu_text(text))
+
+    def _show_status(self, icon: str, tooltip: str, menu: str) -> None:
+        """只在变了时才重画托盘图标 / 悬停提示 / 菜单状态行（取任务线程每 3 秒报一次「空闲」，2026-10-18 轻量化）。"""
+        shown = getattr(self, "_shown_status", (None, None, None))
+        if shown[0] != icon:
+            self.tray.setIcon(_status_icon(icon))
+        if shown[1] != tooltip:
+            self.tray.setToolTip(tooltip)
+        if shown[2] != menu and self._status_action:
+            self._status_action.setText(menu)
+        self._shown_status = (icon, tooltip, menu)
 
     def _on_update_available(self, version: str, url: str) -> None:
         if not self._auto_update.offer(version, url):
