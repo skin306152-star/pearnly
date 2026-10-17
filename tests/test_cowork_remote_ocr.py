@@ -285,7 +285,7 @@ class StoredPreviews(unittest.TestCase):
     """识别时顺手把各页预览图存进原件桶：与服务器现画同一份 render_page（字节一致），识别结果与计费一字不差。"""
 
     def test_every_page_is_stored_with_the_same_bytes_the_server_would_draw(self):
-        from pearnly_cowork.ocr import originals as original_files
+        from pearnly_core.originals import checks as original_files
 
         content = pdf(3)
         store = PreviewBucket()
@@ -1067,7 +1067,7 @@ class DirectOriginals(unittest.TestCase):
 
     def test_inspect_gives_the_same_facts_as_the_server_check(self):
         import hashlib
-        from pearnly_cowork.ocr import originals as checks
+        from pearnly_core.originals import checks as checks
 
         content = pdf(3)
         name = OBJECT.replace(".png", ".pdf")
@@ -1113,7 +1113,7 @@ class DirectOriginals(unittest.TestCase):
 
     def test_a_preview_on_cloud_run_is_the_same_picture_the_server_draws(self):
         import hashlib
-        from pearnly_cowork.ocr import originals as checks
+        from pearnly_core.originals import checks as checks
 
         content = pdf(2)
         name = OBJECT.replace(".png", ".pdf")
@@ -1131,7 +1131,7 @@ class DirectOriginals(unittest.TestCase):
 
     def test_a_large_photo_preview_is_sent_as_jpeg_and_text_pages_stay_png(self):
         import os
-        from pearnly_cowork.ocr import originals as checks
+        from pearnly_core.originals import checks as checks
 
         noisy = Image.frombytes("RGB", (1600, 1200), os.urandom(1600 * 1200 * 3))
         out = io.BytesIO()

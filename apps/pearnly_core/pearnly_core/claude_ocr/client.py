@@ -159,7 +159,7 @@ def read(kind, files, own_tax=None, text=None):
 
 
 def read_original(kind, object_name, sha256, own_tax=None):
-    """读一份存在甲骨文上的原件（Cowork 直传，见 ``pearnly_cowork.files.edge``）：只交对象名与 sha256，甲骨文自己读文件、
+    """读一份存在甲骨文上的原件（原件层 ``pearnly_core.originals``）：只交对象名与 sha256，甲骨文自己读文件、
     转正、渲染、交 Claude —— 原件字节不经过生产。只走甲骨文：连不上抛 ``Deferred``，工作单稍后重试（原件本来就在那台上）。
     检查点同 :func:`read`，同一份重跑不重复付费。"""
     from pearnly_core.execution import work

@@ -11,7 +11,7 @@ from frappe.core.doctype.file.exceptions import MaxFileSizeReachedError
 from frappe.core.doctype.file.utils import decode_file_content, generate_file_name, get_content_hash
 from frappe.utils import call_hook_method, get_hook_method
 from pearnly_cowork.files import access
-from pearnly_cowork.ocr.inputs import MAX_FILE_BYTES
+from pearnly_core.originals.rules import MAX_FILE_BYTES
 
 WRITE_CAPABILITY = object()
 READ_CAPABILITY = object()

@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 for app in ("pearnly_core", "pearnly_cowork"):
     sys.path.insert(0, str(ROOT / "apps" / app))
 
-from pearnly_cowork.files import edge_links  # noqa: E402
+from pearnly_core.originals import links as edge_links  # noqa: E402
 
 KEY = "k" * 64
 SITE = "erpcowork.pearnly.com"
@@ -56,7 +56,7 @@ class Links(unittest.TestCase):
 
 class Server(unittest.TestCase):
     def setUp(self):
-        from pearnly_cowork.files import edge_server
+        from pearnly_core.originals import server as edge_server
         self.edge = edge_server
         self.dir = tempfile.mkdtemp()
         self.env = patch.dict(os.environ, {"ORIGINALS_ROOT": self.dir})

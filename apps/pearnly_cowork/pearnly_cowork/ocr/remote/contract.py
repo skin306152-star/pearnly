@@ -9,13 +9,15 @@ import hashlib
 import json
 import re
 
-VERSION = 1
+# 原件的核对 / 预览请求与公共常量在共用层（ADR-024，ERP 站点也用）；这里的识别请求沿用同一个版本号与站点 / 原件格式。
+from pearnly_core.originals.cloud_run import (ORIGINAL, SHA256, SITE, VERSION, _original, inspect_request, original,
+                                              parse_inspect, parse_preview, preview_request)
+
 # Cloud Run 的 HTTP/1 请求体上限 32 MiB；base64 放大约 4/3，原件最多 20 MiB。
 MAX_CONTENT_BYTES = 20 * 1024 * 1024
 # 一次请求最多跑多久（与本机执行同一口径：超过就让出，带着检查点下次接着读，见 workflow._recognize）。
 YIELD_SECONDS = 420
 WORK = re.compile(r"[0-9a-f]{64}")
-SITE = re.compile(r"[a-z0-9][a-z0-9.-]{0,252}")
 BATCH = re.compile(r"[0-9a-f]{64}")
 STATUSES = ("done", "deferred", "uncertain", "refused", "error")
 # 读法：发票录入；销项税核查的发票（抽取结果不明重发一次、一页读不出不作废整份，见 ocr.recon_reading.vat_callbacks）。
@@ -64,12 +66,9 @@ def evidence(calls):
     return result
 
 
-# 原件桶里的对象：``<站点>/originals/<原件名><扩展名>``（``files.cloud.object_name``）。
-ORIGINAL = re.compile(r"originals/CWS-[0-9a-f]{48}\.[a-z0-9]{1,5}")
-SHA256 = re.compile(r"[0-9a-f]{64}")
 SOURCE = re.compile(r"CWS-[0-9a-f]{48}")
 
-# 识别时顺手存好的预览图（与 ``ocr.originals.render_page`` 同一份画法）。画法变了就加 1：旧版本存的图不再用，
+# 识别时顺手存好的预览图（与 ``originals.checks.render_page`` 同一份画法）。画法变了就加 1：旧版本存的图不再用，
 # 服务器回到现画，保证页面上看到的和现画的一模一样。
 PREVIEW_VERSION = 1
 PREVIEW_TYPES = ("image/png", "image/jpeg")
@@ -120,25 +119,6 @@ def parse_previews(items, *, site, source, sha256, page_count):
     return items["bucket"], pages
 
 
-def original(*, object, generation, sha256):
-    """存在原件桶里的原件：Cloud Run 按版本号读出、核对 sha256 后再读，不经过我们服务器。"""
-    return {"object": object, "generation": int(generation), "sha256": sha256}
-
-
-def _original(body):
-    value = body.get("original")
-    if not isinstance(value, dict) or not isinstance(value.get("object"), str):
-        raise ValueError("invalid original")
-    site, _sep, rest = value["object"].partition("/")
-    if site != body["site"] or not ORIGINAL.fullmatch(rest):
-        raise ValueError("invalid original")
-    if type(value.get("generation")) is not int or value["generation"] < 1:
-        raise ValueError("invalid original")
-    if not isinstance(value.get("sha256"), str) or not SHA256.fullmatch(value["sha256"]):
-        raise ValueError("invalid original")
-    return value
-
-
 def request(*, site, work, batch, filename, content=None, page_count, anchor_date, environment, policy,
             examples=None, variant="intake", yield_seconds=YIELD_SECONDS, original=None, previews=None):
     body = {"version": VERSION, "kind": "cowork.invoice", "site": site, "work": work, "batch": batch,
@@ -152,51 +132,6 @@ def request(*, site, work, batch, filename, content=None, page_count, anchor_dat
         body["content"] = base64.b64encode(content).decode("ascii")
     parse_request(body)
     return body
-
-
-def inspect_request(*, site, object, filename):
-    """浏览器直传的原件：让 Cloud Run 读一遍，核对类型 / 页数、算 sha256（同 ``ocr.originals.inspect``），并告诉
-    服务器这个对象的版本号（同一个对象名只能写一次，所以只有一个版本）。"""
-    body = {"version": VERSION, "kind": "cowork.inspect", "site": site, "original": {"object": object},
-            "filename": filename}
-    parse_inspect(body)
-    return body
-
-
-def preview_request(*, site, object, generation, sha256, kind, page):
-    """原件桶里一份原件的一页预览（ADR-016）：Cloud Run 按版本号读、核对 sha256、生成预览图，只传回图。"""
-    body = {"version": VERSION, "kind": "cowork.preview", "site": site,
-            "original": original(object=object, generation=generation, sha256=sha256), "file_kind": kind, "page": page}
-    parse_preview(body)
-    return body
-
-
-def parse_preview(body):
-    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.preview":
-        raise ValueError("unsupported request")
-    if not isinstance(body.get("site"), str) or not SITE.fullmatch(body["site"]):
-        raise ValueError("invalid site")
-    if body.get("file_kind") not in ("pdf", "image"):
-        raise ValueError("invalid file_kind")
-    if type(body.get("page")) is not int or not 1 <= body["page"] <= 500:
-        raise ValueError("invalid page")
-    return _original(body)
-
-
-def parse_inspect(body):
-    if not isinstance(body, dict) or body.get("version") != VERSION or body.get("kind") != "cowork.inspect":
-        raise ValueError("unsupported request")
-    if not isinstance(body.get("site"), str) or not SITE.fullmatch(body["site"]):
-        raise ValueError("invalid site")
-    if not isinstance(body.get("filename"), str) or not 1 <= len(body["filename"]) <= 255:
-        raise ValueError("invalid filename")
-    value = body.get("original")
-    if not isinstance(value, dict) or not isinstance(value.get("object"), str):
-        raise ValueError("invalid original")
-    site, _sep, rest = value["object"].partition("/")
-    if site != body["site"] or not ORIGINAL.fullmatch(rest) or set(value) != {"object"}:
-        raise ValueError("invalid original")
-    return value
 
 
 # 对账三类文档（银行账单 / 总账 / 销项税报告）：企业档管线（ocr.recon_reading.read_document）。

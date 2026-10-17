@@ -14,6 +14,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 APP = ROOT / "apps/pearnly_cowork/pearnly_cowork"
+CORE = ROOT / "apps/pearnly_core/pearnly_core"
 
 
 class Row(dict):
@@ -163,17 +164,26 @@ class OriginalPurge(unittest.TestCase):
             (v[5:].split("/", 1)[0], v[5:].split("/", 1)[1].rpartition("#")[0], 7) if v and v.startswith("gs://") else None))
         package = types.ModuleType("pearnly_cowork.files")
         package.access = types.SimpleNamespace(SOURCE="Cowork Source File", HISTORY="Cowork OCR History")
-        package.cloud = cloud
         package.guard = types.SimpleNamespace()
-        package.edge = types.SimpleNamespace()  # 甲骨文原件存储（ADR-023）：删除走后台任务，这里只看排了什么
-        package.edge_links = _load("edge_links_under_test", APP / "files/edge_links.py", {})
-        ocr = types.SimpleNamespace(originals=types.SimpleNamespace(),
-                                    inputs=types.SimpleNamespace(IMAGE_EXTENSIONS=frozenset(), MAX_FILE_BYTES=1, OcrInputError=Exception))
+        # 原件层（ADR-024）：引用解析用真的签名模块与上面的谷歌解析，删除走后台任务，这里只看排了什么
+        links = _load("links_under_test", CORE / "originals/links.py", {})
+
+        def parse(ref):
+            found = links.parse_url(ref)
+            if found:
+                return "oracle", found
+            found = cloud.parse_url(ref)
+            return ("gcs", found) if found else None
+        layer = types.ModuleType("pearnly_core.originals")
+        layer.gcs, layer.checks = cloud, types.SimpleNamespace()
+        layer.store = types.SimpleNamespace(parse=parse, ORACLE="oracle", GCS="gcs")
+        rules = types.SimpleNamespace(IMAGE_EXTENSIONS=frozenset(), TABLE_EXTENSIONS=frozenset(), MAX_FILE_BYTES=1,
+                                      OcrInputError=Exception)
         modules = {"frappe": frappe, "frappe.utils": types.SimpleNamespace(cint=int),
                    "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                    "pearnly_cowork.access": types.SimpleNamespace(scope=types.SimpleNamespace()),
-                   "pearnly_cowork.files": package, "pearnly_cowork.ocr": ocr,
-                   "pearnly_cowork.ocr.inputs": ocr.inputs}
+                   "pearnly_cowork.files": package, "pearnly_core.originals": layer,
+                   "pearnly_core.originals.rules": rules}
         return _load("files_service_under_test", APP / "files/service.py", modules), frappe
 
     def test_unused_original_and_its_storage_are_removed(self):
@@ -234,9 +244,9 @@ class OriginalPurge(unittest.TestCase):
 
 class CloudPrefix(unittest.TestCase):
     def test_only_single_original_prefixes_are_accepted(self):
-        source = (APP / "files/cloud.py").read_text()
+        source = (CORE / "originals/gcs.py").read_text()
         frappe = types.SimpleNamespace(conf={})
-        cloud = _load("files_cloud_under_test", APP / "files/cloud.py", {"frappe": frappe})
+        cloud = _load("files_cloud_under_test", CORE / "originals/gcs.py", {"frappe": frappe})
         for prefix in ("", "testcowork.pearnly.com/", "testcowork.pearnly.com/originals/",
                        "testcowork.pearnly.com/originals/x", "nosite/originals/CWS-a", "a.b/other/CWS-a"):
             with self.assertRaises(ValueError, msg=prefix):
@@ -245,7 +255,7 @@ class CloudPrefix(unittest.TestCase):
 
     def test_deletes_every_version_and_treats_missing_as_deleted(self):
         frappe = types.SimpleNamespace(conf={})
-        cloud = _load("files_cloud_under_test", APP / "files/cloud.py", {"frappe": frappe})
+        cloud = _load("files_cloud_under_test", CORE / "originals/gcs.py", {"frappe": frappe})
         calls = []
 
         class Response:

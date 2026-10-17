@@ -8,7 +8,6 @@ import hashlib
 import hmac
 import json
 import os
-import re
 import ssl
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -82,14 +81,13 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, result)
 
 
-# 存在这台上的原件（Cowork 直传，``pearnly_cowork.files.edge``）：``<站点>/originals/<原件名><扩展名>``，原件目录由 ORIGINALS_ROOT 给。
-ORIGINAL_NAME = re.compile(r"[a-z0-9.-]+/originals/[A-Za-z0-9-]+\.[a-z0-9]+")
-
-
+# 存在这台上的原件（原件层，``pearnly_core.originals``）：``<站点>/originals/<原件名><扩展名>``，原件目录由 ORIGINALS_ROOT 给。
 def original_path(name):
-    """对象名 → 磁盘路径；形状不对（越出原件目录）抛 ``ValueError``。"""
+    """对象名 → 磁盘路径；形状不对（越出原件目录）抛 ``ValueError``（与原件层同一份校验）。"""
+    from pearnly_core.originals import links
+
     root = os.environ.get("ORIGINALS_ROOT", "")
-    if not root or not isinstance(name, str) or not ORIGINAL_NAME.fullmatch(name):
+    if not root or not links.valid_object(name):
         raise ValueError("bad original name")
     return os.path.join(root, name)
 

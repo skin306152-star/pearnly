@@ -9,7 +9,7 @@ import io
 import zipfile
 from xml.etree import ElementTree
 
-from pearnly_cowork.ocr.inputs import OcrInputError, TABLE_EXTENSIONS, file_extension, validate_input_metadata
+from pearnly_core.originals.rules import OcrInputError, TABLE_EXTENSIONS, file_extension, validate_input_metadata
 from pearnly_cowork.ocr.schema import Page
 
 from .archive import check_archive

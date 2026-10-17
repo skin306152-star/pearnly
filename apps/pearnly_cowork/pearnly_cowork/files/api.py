@@ -5,7 +5,7 @@ from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.core.api.file import zip_files as native_zip_files
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, service
-from pearnly_cowork.ocr import originals
+from pearnly_core.originals import checks as originals
 
 
 @frappe.whitelist(methods=["POST"])

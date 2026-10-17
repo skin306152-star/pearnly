@@ -1,4 +1,4 @@
-"""甲骨文原件存储的签名地址（ADR-023，纯计算：不依赖 Frappe、无 IO）：生产签、甲骨文验，用同一把密钥（HMAC-SHA256）。
+"""甲骨文原件存储的签名地址（ADR-023 / ADR-024，纯计算：不依赖 Frappe、无 IO）：生产签、甲骨文验，用同一把密钥（HMAC-SHA256）。
 
 浏览器拿着签名地址直接找甲骨文上传、取预览、下载，不经过生产服务器；生产只做权限判定、记访问日志、签地址。
 签名把方法、对象名、过期时间和这次请求的关键参数（上传的字节数；下载的 sha256 与文件名；预览的 sha256、类型、页码）
@@ -12,8 +12,9 @@ from urllib.parse import quote, urlencode
 
 UPLOAD_SECONDS = 15 * 60
 DOWNLOAD_SECONDS = 5 * 60
-# 对象名与谷歌存储时一样：``<站点>/originals/<原件名><扩展名>``；原件名 ``CWS-`` + 48 位十六进制（``files.service``）。
-OBJECT = re.compile(r"(?P<site>[a-z0-9.-]+)/originals/(?P<source>CWS-[0-9a-f]{48})(?P<suffix>\.[a-z0-9]{2,5})")
+# 对象名与谷歌存储时一样：``<站点>/originals/<原件 id><扩展名>``；原件 id = 产品前缀（Cowork ``CWS-``、ERP ``ERO-``）
+# + 48 位十六进制，由产品按工作空间 / 公司 + 上传人 + 幂等键算出（ADR-024）。
+OBJECT = re.compile(r"(?P<site>[a-z0-9.-]+)/originals/(?P<source>(?:CWS|ERO)-[0-9a-f]{48})(?P<suffix>\.[a-z0-9]{2,5})")
 SCHEME = "oracle://"
 
 

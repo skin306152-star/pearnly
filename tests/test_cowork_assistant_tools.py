@@ -1523,8 +1523,10 @@ class OriginalTests(unittest.TestCase):
         service.page_source = lambda name, number: ("SRC", number)
         service.preview_link = lambda source, number: None
         service.render_page = lambda source, number: b"\xff\xd8\xff-page%d" % number
-        originals = types.ModuleType("pearnly_cowork.ocr.originals")
+        originals = types.ModuleType("pearnly_core.originals.checks")
         originals.preview_type = lambda data: "image/jpeg"
+        layer = types.ModuleType("pearnly_core.originals")  # 原件层（ADR-024）的父包
+        layer.checks = originals
         chat = sys.modules.get("pearnly_core.assistant.files") or types.ModuleType("pearnly_core.assistant.files")
         chat.add_to_conversation = lambda name, content, mime: added.append((name, mime)) or "/mnt/x/" + name
         access_log = types.ModuleType("frappe.core.doctype.access_log.access_log")
@@ -1533,7 +1535,8 @@ class OriginalTests(unittest.TestCase):
         requests.RequestException = type("RequestException", (Exception,), {})
         mods = {"requests": requests, "pearnly_cowork.files": files_mod, "pearnly_cowork.files.access": access,
                 "pearnly_cowork.files.service": service, "pearnly_cowork.ocr": types.ModuleType("pearnly_cowork.ocr"),
-                "pearnly_cowork.ocr.originals": originals, "pearnly_core.assistant.files": chat,
+                "pearnly_core.originals": layer, "pearnly_core.originals.checks": originals,
+                "pearnly_core.assistant.files": chat,
                 "frappe.core": types.ModuleType("frappe.core"), "frappe.core.doctype": types.ModuleType("x"),
                 "frappe.core.doctype.access_log": types.ModuleType("y"),
                 "frappe.core.doctype.access_log.access_log": access_log}

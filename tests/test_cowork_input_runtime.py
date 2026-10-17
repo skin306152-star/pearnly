@@ -6,7 +6,7 @@ from unittest.mock import patch
 from PIL import Image
 import pymupdf
 
-from pearnly_cowork.ocr.inputs import OcrInputError
+from pearnly_core.originals.rules import OcrInputError
 from pearnly_cowork.ocr.inputs_runtime import InputRuntimeError, PageSource
 from pearnly_cowork.ocr.inputs_runtime.source import downscale_image_bytes
 

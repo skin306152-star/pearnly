@@ -1,4 +1,4 @@
-"""原件存在谷歌存储（新加坡）时的服务器一侧（ADR-016）：签发上传 / 下载地址、按需读回原件。
+"""原件存在谷歌存储（新加坡）时的服务器一侧（ADR-016，ADR-024 起各产品共用）：签发上传 / 下载地址、按需读回原件。
 
 - 开关：站点配置 ``pearnly_cowork_originals_bucket``（桶名）；同时要开着 Cloud Run 识别（``ocr.remote.forward.settings``），
   因为上传后的检查（页数、sha256）由 Cloud Run 读一遍完成。任一没配就照旧经服务器上传。
@@ -117,6 +117,19 @@ def preview_url(bucket_name, name, generation, content_type):
                        "response-content-disposition": f"inline; filename={filename}"})
 
 
+def upload(bucket_name, name, content, *, http=None):
+    """生产手上已有字节的原件（LINE、CC 对话交来的文件，ADR-024）：直接写进桶（写过一次就不能覆盖；已有返回 ``False``）。"""
+    import requests
+
+    response = (http or requests).post(f"https://{HOST}/upload/storage/v1/b/{quote(bucket_name, safe='')}/o",
+        params={"uploadType": "media", "name": name, "ifGenerationMatch": "0"}, data=content,
+        headers={"Authorization": "Bearer " + _token(), "Content-Type": "application/octet-stream"}, timeout=(10, 120))
+    if response.status_code == 412:
+        return False
+    response.raise_for_status()
+    return True
+
+
 def read(stored, *, http=None):
     """按版本号读回原件字节（预览、本机识别兜底用）。"""
     import requests
@@ -134,7 +147,7 @@ def delete_prefix(bucket_name, prefix, *, http=None):
 
     前缀必须是 ``<站点>/originals/<原件名>`` 或 ``<站点>/previews/<原件名>/`` 这种落到单份原件的形状，绝不会退化成整站或整桶。"""
     parts = str(prefix or "").split("/")
-    if len(parts) < 3 or parts[1] not in ("originals", "previews") or not parts[2].startswith("CWS-") \
+    if len(parts) < 3 or parts[1] not in ("originals", "previews") or not parts[2].startswith(("CWS-", "ERO-")) \
             or "." not in parts[0]:
         raise ValueError("Refusing to delete objects for an unsafe prefix")
     if http is None:

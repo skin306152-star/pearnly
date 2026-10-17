@@ -1,17 +1,17 @@
-"""原件存在甲骨文时的服务器一侧（ADR-023）：选了 Claude 识别的租户，Cowork 直传的原件（PDF / 图片）存甲骨文、页数与预览在
-甲骨文算，与谷歌存储那一套（``files.cloud``，ADR-016）同一个流程：生产只做权限、幂等、记录、签地址，不经手原件字节。
+"""原件存在甲骨文时的服务器一侧（ADR-023 / ADR-024）：选了 Claude 识别的租户，各产品的原件存甲骨文、页数与预览在甲骨文算，
+与谷歌存储那一套（``originals.gcs``，ADR-016）同一个流程：生产只做权限、幂等、记录、签地址，不经手浏览器上传的字节。
+由 ``originals.store`` 按租户路线选用，产品不直接调这里。
 
-- 开关：站点选了 Claude（``claude_ocr.client.uses_claude``）且配了甲骨文原件存储（运行配置 ``PEARNLY_ORIGINALS_PUBLIC_URL``、
-  ``PEARNLY_ORIGINALS_SIGNING_KEY``，以及到甲骨文的内部通道 ``PEARNLY_CLAUDE_OCR_*``）。
+- 配置：运行配置 ``PEARNLY_ORIGINALS_PUBLIC_URL``、``PEARNLY_ORIGINALS_SIGNING_KEY``，以及到甲骨文的内部通道 ``PEARNLY_CLAUDE_OCR_*``。
 - 浏览器经 ``originals.pearnly.com``（Cloudflare 隧道）直传 / 取预览 / 下载；生产经内部通道（只放行生产 IP）请甲骨文核对、
-  删除。甲骨文连不上时页面提示稍后再试（不退回生产存）。
-- 记录里存 ``oracle://对象名#sha256``（``edge_links.url_of``）。
+  存（LINE、CC 交来的字节）、删除。甲骨文连不上时抛 ``Deferred``：页面稍后再试、队列重试（不退回生产存）。
+- 记录里存 ``oracle://对象名#sha256``（``links.url_of``）。
 """
 import base64
 import hashlib
 import os
 
-from pearnly_cowork.files import edge_links
+from pearnly_core.originals import links
 
 
 def _settings():
@@ -21,16 +21,14 @@ def _settings():
 
 
 def enabled():
-    """这个站点的直传原件存甲骨文：选了 Claude 识别、配了甲骨文原件存储。"""
-    from pearnly_core.claude_ocr import client
-
-    return client.uses_claude() and _settings() is not None
+    """配了甲骨文原件存储（选不选用由 ``store.where`` 按租户路线定）。"""
+    return _settings() is not None
 
 
 def upload_target(name, byte_size):
     """浏览器直传：签名 PUT 地址（大小锁定为声明的字节数；同一对象只写一次，写过回 412）。"""
     base, key = _settings()
-    return {"url": edge_links.upload_url(base, key, name, byte_size),
+    return {"url": links.upload_url(base, key, name, byte_size),
             "headers": {"Content-Type": "application/octet-stream"}}
 
 
@@ -42,16 +40,25 @@ def inspect(name, filename):
     return client.internal("/v1/originals/inspect", {"object": name, "filename": filename})
 
 
+def put(name, filename, content):
+    """生产手上已有字节的原件（LINE、CC 对话交来的文件，ADR-024）：经内部通道交给甲骨文存，存完同一份检查核对。
+    回 ``inspect`` 同样的结果；连不上抛 ``Deferred``。"""
+    from pearnly_core.claude_ocr import client
+
+    return client.internal("/v1/originals/put", {"object": name, "filename": filename,
+                                                 "data": base64.b64encode(content).decode()}, timeout=(5, 180))
+
+
 def download_url(stored, filename):
     base, key = _settings()
     name, sha256 = stored
-    return edge_links.download_url(base, key, name, sha256, filename)
+    return links.download_url(base, key, name, sha256, filename)
 
 
 def preview_url(stored, kind, page):
     base, key = _settings()
     name, sha256 = stored
-    return edge_links.preview_url(base, key, name, sha256, kind, page)
+    return links.preview_url(base, key, name, sha256, kind, page)
 
 
 def read(stored):

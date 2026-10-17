@@ -161,7 +161,7 @@ def cowork_read(content, filename, pages, year):
     from pearnly_cowork.ocr.results import prepare_history_batch
     from pearnly_cowork.ocr.schema import PipelineResult
 
-    from pearnly_cowork.ocr import originals
+    from pearnly_core.originals import checks as originals
 
     try:
         originals.inspect(filename, content)  # 上传时同一份检查：有密码的 PDF 等在这里就被拒，到不了识别

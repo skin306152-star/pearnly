@@ -1,12 +1,12 @@
-"""甲骨文上的 Cowork 原件存储（ADR-023，不依赖 Frappe）：选了 Claude 识别的租户，原件存这台、页数与预览在这台算。
+"""甲骨文上的原件存储（ADR-023 / ADR-024，不依赖 Frappe）：选了 Claude 识别的租户，各产品的原件存这台、页数与预览在这台算。
 
 两组接口，同一个存储目录（``ORIGINALS_ROOT``）：
 
 - **对浏览器**（:class:`PublicHandler`，只听本机端口，经 Cloudflare 隧道接 ``originals.pearnly.com``，这台不对外开端口）：
   签名地址上传（PUT，同一对象只写一次，写过回 412）、下载（GET ``/o/``）、预览（GET ``/p/``，按需渲染并存下，下次直接给）。
-  签名由生产签（``edge_links``），这里只验；生产不经手原件字节。
-- **对生产**（:func:`route`，挂在 claude-ocr 服务的 8443 上：只放行生产 IP、钉死证书、带令牌）：上传后核对（与服务器收原件
-  同一份 ``ocr.originals.inspect``，不通过就删掉）、删除（删票后原件与预览一起删）、取回字节（导出打包时用）。
+  签名由生产签（``links``），这里只验；生产不经手原件字节。
+- **对生产**（:func:`route`，挂在 claude-ocr 服务的 8443 上：只放行生产 IP、钉死证书、带令牌）：上传后核对（同一份
+  ``originals.checks.inspect``，不通过就删掉）、交字节来存（LINE、CC）、删除、取回字节（表格解析、导出打包）。
 
 渲染与核对同一时刻最多 ``WORK_SLOTS`` 份，多的稍等；这台 4 核 24G，压测前按这个保守值。
 """
@@ -20,9 +20,9 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
-from pearnly_cowork.files import edge_links
-from pearnly_cowork.ocr import originals
-from pearnly_cowork.ocr.inputs import MAX_FILE_BYTES
+from pearnly_core.originals import links
+from pearnly_core.originals import checks
+from pearnly_core.originals.rules import MAX_FILE_BYTES
 
 PREVIEW_VERSION = "1"  # 画法变了就加一，旧图自然不再用
 WORK_SLOTS = threading.BoundedSemaphore(int(os.environ.get("ORIGINALS_WORK_SLOTS", "3")))
@@ -37,7 +37,7 @@ def root():
 
 
 def path_of(name):
-    if not edge_links.valid_object(name):
+    if not links.valid_object(name):
         raise ValueError("bad object name")
     return os.path.join(root(), name)
 
@@ -56,15 +56,15 @@ def _read(name):
 def inspect(body):
     """上传后核对：读出这份原件，过与服务器收原件同一份检查；不通过就删掉（页面才能用同一个键重传）。"""
     name, filename = body.get("object"), body.get("filename")
-    if not edge_links.valid_object(name):
+    if not links.valid_object(name):
         return 400, {"status": "error", "code": "invalid_request"}
     with WORK_SLOTS:
         content = _read(name)
         if content is None:
             return 200, {"status": "rejected", "code": "original_missing"}
         try:
-            meta = originals.inspect(filename, content)
-        except (originals.Rejected, originals.OcrInputError) as error:
+            meta = checks.inspect(filename, content)
+        except (checks.Rejected, checks.OcrInputError) as error:
             _remove(name)
             return 200, {"status": "rejected", "code": error.code}
     return 200, {"status": "ok", "meta": meta, "md5": hashlib.md5(content).hexdigest()}
@@ -75,13 +75,13 @@ def _remove(name):
         os.remove(path_of(name))
     except FileNotFoundError:
         pass
-    shutil.rmtree(os.path.join(root(), edge_links.preview_prefix(name)), ignore_errors=True)
+    shutil.rmtree(os.path.join(root(), links.preview_prefix(name)), ignore_errors=True)
 
 
 def delete(body):
     """删掉这些原件与它们的预览（删票后，``files.service.purge``）；已经不在的算删过。"""
     names = body.get("objects") or []
-    if not isinstance(names, list) or not all(edge_links.valid_object(name) for name in names):
+    if not isinstance(names, list) or not all(links.valid_object(name) for name in names):
         return 400, {"error": "invalid_request"}
     for name in names:
         _remove(name)
@@ -91,7 +91,7 @@ def delete(body):
 def fetch(body):
     """取回原件字节（导出打包等少数要整份原件的地方）：核对 sha256 后 base64 返回。"""
     name, sha256 = body.get("object"), body.get("sha256")
-    if not edge_links.valid_object(name):
+    if not links.valid_object(name):
         return 400, {"error": "invalid_request"}
     content = _read(name)
     if content is None:
@@ -101,7 +101,38 @@ def fetch(body):
     return 200, {"data": base64.b64encode(content).decode()}
 
 
-ROUTES = {"/v1/originals/inspect": inspect, "/v1/originals/delete": delete, "/v1/originals/fetch": fetch}
+def put(body):
+    """生产手上已有字节的原件（LINE 收单、CC 对话交来的文件）：直接交来存（同一对象只写一次；已有且内容相同算存过），
+    存完照上传后同一份检查核对，不通过就删掉。"""
+    name, filename = body.get("object"), body.get("filename")
+    if not links.valid_object(name):
+        return 400, {"status": "error", "code": "invalid_request"}
+    try:
+        content = base64.b64decode(body.get("data") or "", validate=True)
+    except ValueError:
+        return 400, {"status": "error", "code": "invalid_request"}
+    if not content or len(content) > MAX_FILE_BYTES:
+        return 200, {"status": "rejected", "code": "too_large" if content else "empty"}
+    target = path_of(name)
+    existing = _read(name)
+    if existing is not None and existing != content:
+        return 409, {"status": "error", "code": "original_conflict"}
+    if existing is None:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        temporary = target + f".{os.getpid()}.{threading.get_ident()}.tmp"
+        with open(temporary, "wb") as handle:
+            handle.write(content)
+        try:
+            os.link(temporary, target)
+        except FileExistsError:
+            pass
+        finally:
+            os.remove(temporary)
+    return inspect({"object": name, "filename": filename})
+
+
+ROUTES = {"/v1/originals/inspect": inspect, "/v1/originals/put": put, "/v1/originals/delete": delete,
+          "/v1/originals/fetch": fetch}
 
 
 def route(path, body):
@@ -114,7 +145,7 @@ def route(path, body):
 
 def preview(name, sha256, kind, page):
     """一页预览图：存过就直接给，没有就画（与服务器、Cloud Run 同一份 ``render_page``）并存下。"""
-    folder = os.path.join(root(), edge_links.preview_prefix(name))
+    folder = os.path.join(root(), links.preview_prefix(name))
     cached = os.path.join(folder, f"v{PREVIEW_VERSION}-{sha256[:16]}-p{int(page)}")
     try:
         with open(cached, "rb") as handle:
@@ -125,7 +156,7 @@ def preview(name, sha256, kind, page):
         content = _read(name)
         if content is None or hashlib.sha256(content).hexdigest() != sha256:
             return None
-        picture = originals.render_page(kind, content, int(page))
+        picture = checks.render_page(kind, content, int(page))
     os.makedirs(folder, exist_ok=True)
     temporary = cached + f".{os.getpid()}.{threading.get_ident()}.tmp"
     with open(temporary, "wb") as handle:
@@ -173,7 +204,7 @@ class PublicHandler(BaseHTTPRequestHandler):
         if self.path == "/healthz":
             return self._reply(200, b"ok")
         kind, name, q = self._target()
-        if kind == "o" and edge_links.verify(self.signing_key, "GET", name, q.get("e"), q.get("s"), q.get("h", ""),
+        if kind == "o" and links.verify(self.signing_key, "GET", name, q.get("e"), q.get("s"), q.get("h", ""),
                                              q.get("d", "")):
             content = _read(name)
             if content is None or hashlib.sha256(content).hexdigest() != q.get("h"):
@@ -181,15 +212,15 @@ class PublicHandler(BaseHTTPRequestHandler):
             return self._reply(200, content, "application/octet-stream",
                                [("Content-Disposition", "attachment; filename*=UTF-8''" + quote(q.get("d", ""), safe="")),
                                 ("Cache-Control", "private, no-store")])
-        if kind == "p" and str(q.get("n", "")).isdigit() and edge_links.verify(
+        if kind == "p" and str(q.get("n", "")).isdigit() and links.verify(
                 self.signing_key, "PREVIEW", name, q.get("e"), q.get("s"), q.get("h", ""), q.get("k", ""), int(q["n"])):
             try:
                 picture = preview(name, q.get("h", ""), q.get("k", ""), int(q["n"]))
-            except originals.Rejected as error:
+            except checks.Rejected as error:
                 return self._reply(422, error.code.encode())
             if picture is None:
                 return self._reply(404, b"not found")
-            return self._reply(200, picture, originals.preview_type(picture),
+            return self._reply(200, picture, checks.preview_type(picture),
                                [("Cache-Control", "private, max-age=300"), ("Content-Disposition", "inline")])
         return self._reply(403, b"forbidden")
 
@@ -212,7 +243,7 @@ class PublicHandler(BaseHTTPRequestHandler):
     def do_PUT(self):
         kind, name, q = self._target()
         size = q.get("n", "")
-        if kind != "o" or not size.isdigit() or not edge_links.verify(self.signing_key, "PUT", name, q.get("e"),
+        if kind != "o" or not size.isdigit() or not links.verify(self.signing_key, "PUT", name, q.get("e"),
                                                                        q.get("s"), int(size)):
             return self._reply(403, b"forbidden")
         target = path_of(name)
