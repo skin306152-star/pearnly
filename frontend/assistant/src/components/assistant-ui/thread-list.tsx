@@ -67,11 +67,13 @@ import {
   forgetGroups,
   forgetInGroups,
   forgetPinned,
+  liftInGroup,
   moveBy,
   moveTo,
   setCompanyOrder,
   setGroupOrder,
   setPinnedOrder,
+  takeUnpinnedElsewhere,
   useSidebarOrder,
 } from "@/lib/managed-agents/sidebar-order";
 import {
@@ -336,7 +338,8 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
   const latestGroups = useRef<{
     rowIdsOf: (group: string) => string[];
     saveGroup: (group: string, next: string[] | null, moved?: readonly string[]) => string[] | null;
-  }>({ rowIdsOf: () => [], saveGroup: (_group, next) => next });
+    liftUnpinned: (key: string, tidy: boolean) => void;
+  }>({ rowIdsOf: () => [], saveGroup: (_group, next) => next, liftUnpinned: () => undefined });
   // 「分组和排序」、折叠、手排的顺序按用户记：知道是谁了就换成这个人的
   const user = useProfile()?.user;
   useEffect(() => {
@@ -363,6 +366,25 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     const left = pinnedNow.filter((key) => listed.has(key));
     if (left.length) forgetInGroups(left, true);
   }, [threadIds, itemsById, order.pinned, order.groups, pinning]);
+  // 取消置顶了（行菜单、P 键、手机长按菜单、多选、标题栏菜单，或别的设备上）：这段对话回到它那一组的最上面（用户 10-17；原来
+  // 手排过的组里它不在手排列表里、又比存下时旧，排到手排的后面，组里超过 5 条时被「显示更多」挡住）。按上一次看到的置顶状态比，
+  // 由置顶变成没置顶的才算（刚加载出来的不算）；正在置顶的不算
+  const starredBefore = useRef<Map<string, boolean> | null>(null);
+  useEffect(() => {
+    const before = starredBefore.current;
+    const now = new Map<string, boolean>();
+    const unpinned: string[] = [];
+    for (const id of threadIds) {
+      const item = itemsById.get(id);
+      if (!item) continue;
+      const key = item.remoteId ?? id;
+      const starred = !!item.custom?.starred;
+      now.set(key, starred);
+      if (before?.get(key) === true && !starred && !pinning.has(key)) unpinned.push(key);
+    }
+    starredBefore.current = now;
+    for (const key of unpinned) latestGroups.current.liftUnpinned(key, takeUnpinnedElsewhere(key));
+  }, [threadIds, itemsById, pinning]);
   // 侧栏里没有这家公司了（删了、我在这家没有对话了）：这一组手排的先后整组去掉（公司列表读到了才算；最近 "" 不算）
   useEffect(() => {
     if (!kind) return;
@@ -449,8 +471,21 @@ const CompanyGroups: FC<{ searchQuery: string }> = ({ searchQuery }) => {
     if (next) setGroupOrder(group, next.map(keyOfDrag), stampOf(group), moved.map(keyOfDrag));
     return next;
   };
+  // 取消置顶的那一条回到它那一组的最上面：那一组手排过才动（没手排过照排序方式，本来就按时间排）。按公司分组、那一组显示着：
+  // 同把它拖到组顶（眼前这组的先后整份记下、at 取此刻这组最新的时间，比存下时新的对话也留在它下面）；否则（别的分组方式、
+  // 搜索中只显示命中的、那一组没显示）插到手排列表最前面。
+  // tidy：别的设备上取消的（那一台已经存过）
+  const liftUnpinned = (key: string, tidy: boolean) => {
+    const row = rows.find((entry) => entry.key === key);
+    if (!row) return;
+    const group = projects.some((project) => project.id === row.group) ? row.group : "";
+    if (!useSidebarOrder.getState().groups[group]) return;
+    if (!byCompany || searching || !groupSection(group)) return liftInGroup(group, key, tidy);
+    const shown = rowIdsOf(group).map(keyOfDrag).filter((id) => id !== key);
+    setGroupOrder(group, [key, ...shown], stampOf(group), [key], tidy);
+  };
   // 各组行的拖动范围：同一组、同一搜索状态时是同一份（行不跟着整列每次重画），Alt+↑/↓ 按此刻眼前的行算
-  latestGroups.current = { rowIdsOf, saveGroup };
+  latestGroups.current = { rowIdsOf, saveGroup, liftUnpinned };
   const scopeOf = (group: string): GroupScope => {
     const cache = scopes.current;
     if (cache.searching !== searching) cache.map = new Map();

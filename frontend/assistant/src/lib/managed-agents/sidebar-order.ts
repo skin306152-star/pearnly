@@ -10,7 +10,8 @@
 //            整组去掉（forgetInGroups / forgetGroups）。每组最多记 GROUP_LIMIT 条；拖到更后面时记到落点为止（落点不丢）。
 //            刷新、换设备后服务端第一页把手排列表里的对话一并给（pearnly_core.assistant.sessions 的 _ordered），组顶照手排显示。
 //   置顶   — 已置顶的对话可拖着排先后（三种分组方式都一样）；新置顶的排最上面（取消置顶就从记下的顺序里去掉，再置顶算新的）。
-//            对话拖进「已置顶」= 置顶它，按落点排进这份顺序。
+//            对话拖进「已置顶」= 置顶它，按落点排进这份顺序。取消置顶的对话回到它那一组的最上面（用户 10-17）：那一组手排过
+//            就插到手排列表最前面、照常存与同步（同把它拖到组顶）；没手排过照排序方式（thread-list.tsx 的 liftUnpinned）。
 //   恢复默认设置（「分组和排序」菜单）清掉这三份手排的顺序。在「分组和排序」里选排序方式（含点当前已选的那一项）只清组里的
 //   （clearGroupOrders，回到按排序方式排）；手排过的公司组、置顶仍按手排的先后。
 //
@@ -179,12 +180,36 @@ export function setPinnedOrder(shown: readonly string[]) {
 
 /** 手排后一组里的先后（group：公司编号，最近 ""；shown：拖完眼前这组的先后，之前记下、这次没显示的接在后面）。
  *  at：此刻这组最新的那个时间（调用方按排序方式从这组的行里取，sidebar-groups.ts 的 groupStamp），之后才有动静（新建、新消息）
- *  的对话排在这组最上面。moved：这次挪动的（拖的那一条、多选的整块）：拖到 GROUP_LIMIT 以后时记到它们为止，落点不丢。 */
-export function setGroupOrder(group: string, shown: readonly string[], at: number, moved: readonly string[] = []) {
+ *  的对话排在这组最上面。moved：这次挪动的（拖的那一条、多选的整块）：拖到 GROUP_LIMIT 以后时记到它们为止，落点不丢。
+ *  tidy：按数据收拾的（别的设备上取消置顶，见 liftUnpinned），不是这台上人改的（lib/prefs-sync.ts）。 */
+export function setGroupOrder(group: string, shown: readonly string[], at: number, moved: readonly string[] = [], tidy = false) {
   const { groups } = useSidebarOrder.getState();
   const merged = mergeOrder(shown, groups[group]?.keys ?? []);
   const upTo = Math.max(GROUP_LIMIT, ...moved.map((key) => merged.indexOf(key) + 1));
-  save({ groups: { ...groups, [group]: { keys: merged.slice(0, upTo), at } } }, [groupField(group)]);
+  save({ groups: { ...groups, [group]: { keys: merged.slice(0, upTo), at } } }, [groupField(group)], tidy);
+}
+
+/** 取消置顶的对话（key）放到它那一组手排列表的最前面（眼前的各行不知道时用：不在按公司分组、那一组没显示出来）。
+ *  那一组没手排过不动（照排序方式排）；at 不变。tidy 同 setGroupOrder。 */
+export function liftInGroup(group: string, key: string, tidy = false) {
+  const { groups } = useSidebarOrder.getState();
+  const saved = groups[group];
+  if (!saved?.keys.length || saved.keys[0] === key) return;
+  const keys = [key, ...saved.keys.filter((id) => id !== key)].slice(0, Math.max(GROUP_LIMIT, saved.keys.length));
+  save({ groups: { ...groups, [group]: { keys, at: saved.at } } }, [groupField(group)], tidy);
+}
+
+// 别的设备上取消置顶、经侧栏同步并进本页的对话（list-sync.ts 的 restar 记下，侧栏把它挪到组顶时取走）：那一台已经存过一份
+// 手排的先后，这里按数据收拾（tidy）；本页自己取消的（行菜单、P 键、长按菜单、多选、标题栏菜单）照常存、同步
+const unpinnedElsewhere = new Set<string>();
+
+export function noteUnpinnedElsewhere(key: string) {
+  unpinnedElsewhere.add(key);
+}
+
+/** 这一条是别的设备上取消置顶的（取走记号）。 */
+export function takeUnpinnedElsewhere(key: string): boolean {
+  return unpinnedElsewhere.delete(key);
 }
 
 /** 在「分组和排序」里选了排序方式（含点当前已选的那一项）：各组里手排的先后都不要了，回到按排序方式排。 */

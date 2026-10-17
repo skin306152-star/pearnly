@@ -18,9 +18,13 @@
 //   放下   松手那一下只做一件事：浮层从放手处起播落位（Web Animations 只动 transform，交给合成线程；动效变量），落点在松手时
 //          就量好（空档此刻的位置，排序时加上它让位的位移）；结束拖动（拖动库与调用方的重画：整列重排、存顺序）等落位播完
 //          才做（landOverlay / ReleaseFirst；鼠标、键盘传感器包一层 landFirst）。落到收着的那一列就落到组头并收起；落点在滚动区
-//          可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点就滑回原位；取消（Esc）照旧由
-//          拖动库在结束那次提交里滑回（拖进另一列以后取消：滑回的那一项按拖动编号在此刻的页面里找，原来那一列重挂的那一项
-//          在滑回播完前不显示）。
+//          可见范围外（拖着时又滚走了）就落到可见范围的边上并收起，不飞出列表、列表不跳；没落点就滑回原位；浮层已在落点
+//          （拖到首尾被限位停在落点上）也播这一段（略放大、阴影收回），同样等落定再结束。键盘取消（Esc）同放下一样先滑回
+//          （settleBack：各项去掉让位位移、浮层滑回原位，取消那次提交等滑回播完）；鼠标、手机的取消照旧由拖动库在取消那次
+//          提交里滑回（拖进另一列以后取消：滑回的那一项按拖动编号在此刻的页面里找，原来那一列重挂的那一项在滑回播完前不显示）。
+//          第 9 轮测试机：手机拖公司组头到首尾松手卡 102 / 122ms（浮层已在落点、原来不播就当场结束）；键盘公司组头 Esc
+//          帧间隔约 1 秒（Claude 桌面版内置浏览器里复现，长动画帧记录主线程空闲、对话行同样出现，是那里出帧的问题；Esc 这一帧
+//          本身要重画整列，6 倍节流约 80ms，现在不在 Esc 这一帧做）。
 //          第 4 轮测试机：原来拿起的就是列表里那张卡本身，放下靠自写的 translate 过渡，要等新顺序提交、整列重测之后的下一次样式
 //          计算才开始，手机上卡在放手处停了约 0.4s。第 6 轮测试机：落位原来在结束拖动那次提交里起播、起点又回拨到松手前那一帧，
 //          侧栏松手那一下要重画一整列（无界面 Chrome 6 倍节流实测约 100ms：结束拖动的整列重画 45ms、提交 24ms、量位置前改根节点标记
@@ -204,8 +208,9 @@ const KEYS = {
 // 立即滚到位，每一下都从滚好的位置算，快按每一下都动。不用 "instant"：较晚才进规范，旧的 WebView 不认这个值时 scrollTo 会报错
 export const KEYBOARD_SCROLL: ScrollBehavior = "auto";
 
-/** 放下时先交给它（先播落位，播完才真正结束拖动，见 ReleaseFirst）；没给就照常立即结束。 */
-type EndOptions = { beforeEnd?: (end: () => void) => void };
+/** 放下时先交给 beforeEnd（先播落位，播完才真正结束拖动，见 ReleaseFirst）；没给就照常立即结束。beforeCancel 同理管取消
+ *  （只给键盘：Esc 先滑回、再取消，见 settleBack）。 */
+type EndOptions = { beforeEnd?: (end: () => void) => void; beforeCancel?: (cancel: () => void) => void };
 type HoldOptions = { delay: number; tolerance: number } & EndOptions;
 type Listen = [EventTarget, string, EventListener, AddEventListenerOptions | undefined];
 
@@ -338,13 +343,17 @@ function clickOn(target: EventTarget | null, at: { x: number; y: number }) {
   el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, view: window, detail: 1, clientX: at.x, clientY: at.y }));
 }
 
-/** 拖动库自带的鼠标、键盘传感器加一道：放下时先交给 options.beforeEnd（先播落位，播完才真正结束拖动）。拿起的条件、
- *  移动、取消都不变；静态的 activators / setup 照样继承。 */
+/** 拖动库自带的鼠标、键盘传感器加一道：放下时先交给 options.beforeEnd（先播落位，播完才真正结束拖动）；给了
+ *  options.beforeCancel 时取消也先交给它（键盘 Esc）。拿起的条件、移动都不变；静态的 activators / setup 照样继承。 */
 function landFirst<O extends object>(Base: Sensor<O>): Sensor<O & EndOptions> {
   const Landed = class extends (Base as unknown as new (props: SensorProps<O>) => SensorInstance) {
     constructor(props: SensorProps<O & EndOptions>) {
-      const before = props.options.beforeEnd;
-      super(before ? { ...props, onEnd: () => before(props.onEnd) } : props);
+      const { beforeEnd, beforeCancel } = props.options;
+      super({
+        ...props,
+        ...(beforeEnd ? { onEnd: () => beforeEnd(props.onEnd) } : {}),
+        ...(beforeCancel ? { onCancel: () => beforeCancel(props.onCancel) } : {}),
+      });
     }
   };
   return Landed as unknown as Sensor<O & EndOptions>;
@@ -517,7 +526,9 @@ const early = new WeakMap<HTMLElement, Animation>();
 
 /** 松手那一下起播落位：浮层（overlay，拖动库 DragOverlay 的外层）从此刻的样子落到 node 的落点（见 Into）。只量、只起播
  *  Web Animations（只动 transform，合成线程播；略放大、阴影由 data-dropping 收回），不改版面、不提交 React；从松手这一刻起算
- *  （fromNow）。回 null = 没播（已在落点、量不到、减少动态效果），调用方立即结束拖动。 */
+ *  （fromNow）。浮层已在落点也照样播（位移为 0，略放大、阴影照样在这段时间里收回）：测试窗口第 9 轮，手机把公司组头拖到列表
+ *  首尾，浮层被限位停在的正是落点，原来就不播、当场结束拖动，松手那一帧要重画整列（6 倍节流复现约 90ms，手机实测 102 / 122ms），
+ *  播了就同其他放下一样等落定后再结束。回 null = 没播（量不到、减少动态效果），调用方立即结束拖动。 */
 export function landOverlay(overlay: HTMLElement, node: HTMLElement, transition: Motion | null, into: Into): Animation | null {
   if (!transition || !overlay.isConnected || !node.isConnected) return null;
   const transform = shapeOf(getComputedStyle(overlay).transform);
@@ -529,11 +540,24 @@ export function landOverlay(overlay: HTMLElement, node: HTMLElement, transition:
   const own = getClientRect(node, { ignoreTransform: true });
   const frames = landingFrames(transform, getClientRect(measurable), fold ?? { top: own.top + shift, left: own.left });
   overlay.dataset.dropping = fold ? "into" : "";
-  if (frames[0]!.transform === frames[1]!.transform && !fold) return null;
   const animation = overlay.animate(frames, { duration: transition.duration, easing: transition.easing, fill: STAY });
   fromNow(animation);
   early.set(overlay, animation);
   return animation;
+}
+
+/** 键盘取消（Esc）同放下一样先落位：Esc 那一下只把这一列各项让位的位移去掉（各项行内带着过渡，照旧滑回原位）、浮层从此刻
+ *  滑回那一项的原位（landOverlay）；取消（拖动库与调用方的重画）等滑回播完才做。原来由拖动库在取消那次提交里滑回：那次提交
+ *  要重画整列（各排序项、侧栏整列；6 倍节流约 80ms），Esc 那一帧不出、浮层停在原处（测试窗口第 9 轮报的公司组头 Esc，
+ *  对话行同一条路）。只给键盘：键盘只在本列里挪，那一项没有换列重挂，原位就是它此刻的版面位置。 */
+export function settleBack(overlay: HTMLElement, node: HTMLElement, transition: Motion | null, into: Into): Animation | null {
+  const list = node.dataset.dragList;
+  if (list && typeof document?.querySelectorAll === "function") {
+    for (const el of document.querySelectorAll<HTMLElement>("[data-drag-list]")) {
+      if (el.dataset.dragList === list && el.style.transform) el.style.transform = "";
+    }
+  }
+  return landOverlay(overlay, node, transition, into);
 }
 
 /** 落位从松手的这一刻起算：不回拨到上一帧（主线程在松手前忙过多久就会少播多久），也不等合成线程回报开始（那样头两帧原地
@@ -834,10 +858,21 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
     },
     [],
   );
+  // 键盘取消（Esc）：先滑回原位，滑回播完才取消（settleBack）。鼠标、手机的取消照旧由拖动库在取消那次提交里滑回（指针拖动能
+  // 拖进另一列，那一项在那里重挂过，原位要等原来那一列重挂回来才量得到）
+  const beforeCancel = useMemo(
+    () => (cancel: () => void) => {
+      const { node, overlay } = stash.current;
+      const box = overlay?.current;
+      const animation = node && box ? settleBack(box, node, transition, into) : null;
+      letGo.hold(cancel, animation, landWait, node ? () => freezeScroll(node) : undefined);
+    },
+    [],
+  );
   const sensors = useSensors(
     useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),
     useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),
-    useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd }),
+    useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel }),
   );
   // Alt+↑/↓ 挪一格的播报（第 5 轮：公司组头挪动时读屏什么也没念）：同拖动库的播报区一样是 assertive、整段念；
   // 同一句连着两次（极少）末尾补一个不占位的空格，读屏才会再念
