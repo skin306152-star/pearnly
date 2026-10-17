@@ -5,17 +5,18 @@
  "engine": "InnoDB",
  "autoname": "hash",
  "allow_rename": 0,
- "field_order": ["tenant", "product", "email", "username", "subject", "create_request_hash"],
+ "field_order": ["tenant", "product", "email", "username", "subject", "create_request_hash", "realm"],
  "fields": [
   {"fieldname": "tenant", "fieldtype": "Link", "options": "Pearnly Tenant", "label": "Tenant", "reqd": 1, "read_only": 1},
   {"fieldname": "product", "fieldtype": "Select", "options": "erp\ncowork", "label": "Product", "reqd": 1, "read_only": 1},
   {"fieldname": "email", "fieldtype": "Data", "label": "Email", "reqd": 1, "read_only": 1, "unique": 1},
   {"fieldname": "username", "fieldtype": "Data", "label": "Username", "reqd": 1, "read_only": 1, "unique": 1},
   {"fieldname": "subject", "fieldtype": "Data", "label": "Subject", "read_only": 1, "unique": 1},
-  {"fieldname": "create_request_hash", "fieldtype": "Data", "label": "Create Request Hash", "read_only": 1, "reqd": 1}
+  {"fieldname": "create_request_hash", "fieldtype": "Data", "label": "Create Request Hash", "read_only": 1, "reqd": 1},
+  {"fieldname": "realm", "fieldtype": "Data", "label": "Identity Realm", "read_only": 1}
  ],
  "permissions": [{"role": "System Manager", "read": 1}],
- "modified": "2026-10-18 03:30:00.000000",
+ "modified": "2026-10-18 04:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC"
 }

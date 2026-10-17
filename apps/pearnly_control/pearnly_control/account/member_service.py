@@ -2,6 +2,10 @@
 
 Each product has its own identity realm (Cowork was split from ERP on 2026-09-26).
 The product comes only from the scoped token header, never from the request body.
+An account is created in the realm the site actually signs in to (the site's issuer;
+an old tenant may differ from its product's default realm), and that realm is kept on
+the identity record. Reset and teardown follow the recorded realm; a record without
+one predates this and lives in its product's default realm.
 
 The tenant row serializes member operations. Create/reset intent is durable before
 IO; an ambiguous request cannot silently accept a different password. Keycloak's
@@ -18,7 +22,8 @@ import frappe
 from pearnly_core.account import line_login_contract as line_contract
 
 from pearnly_control.billing_auth import valid_token
-from pearnly_control.account.member_provider import MemberError, MemberProvider, PREFIX, realm_prefix
+from pearnly_control.account.member_provider import (MemberError, MemberProvider, PREFIX, config_prefix,
+    pool_prefix, realm_prefix)
 
 IDENTITY = "Pearnly Member Identity"
 OPERATION = "Pearnly Member Operation"
@@ -68,27 +73,36 @@ def _insert(values):
     return doc.insert(ignore_permissions=True, set_name=values["name"])
 
 
-def create(tenant, email, username, password, product="erp"):
+def _pool_of(row):
+    """登记上的号在哪个池：记着池就按池；没记池的是改动前的老登记，当时按产品默认的池建。"""
+    return realm_prefix(row.realm) if row.realm else config_prefix(row.product)
+
+
+def create(tenant, email, username, password, product="erp", issuer=""):
     if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z0-9]+", username):
         raise MemberError("invalid_request")
+    # 站点实际签到哪个池就建在哪个池（没带签发方按产品）；不认识的池在写任何东西前拒绝。
+    pool = pool_prefix(product, issuer)
+    provider = MemberProvider(prefix=pool)
     key = _member_key(tenant, email, product)
     fingerprint = _digest("member-create-v1", key, username.lower(), password)
     existing = frappe.db.get_value(IDENTITY, key,
-        ["tenant", "product", "email", "username", "subject", "create_request_hash"],
+        ["tenant", "product", "email", "username", "subject", "create_request_hash", "realm"],
         as_dict=True, for_update=True)
     owner = _digest("member-owner-v1", tenant, product, email, username.lower())
-    provider = MemberProvider(product)
     if existing:
         if (existing.tenant != tenant or existing.product != product or existing.email != email
                 or existing.username.lower() != username.lower()
-                or not hmac.compare_digest(existing.create_request_hash, fingerprint)):
+                or not hmac.compare_digest(existing.create_request_hash, fingerprint)
+                or _pool_of(existing) != pool):
             raise MemberError("conflict")
         if existing.subject:
             provider.read_owned(existing.subject, email=email, username=existing.username, owner=owner)
             return {"subject": existing.subject, "email": email, "username": existing.username}
     else:
         _insert({"doctype": IDENTITY, "name": key, "tenant": tenant, "product": product,
-            "email": email, "username": username, "subject": None, "create_request_hash": fingerprint})
+            "email": email, "username": username, "subject": None, "create_request_hash": fingerprint,
+            "realm": provider.realm})
     frappe.db.commit()  # Retain the original create request even if Keycloak times out.
     _lock_tenant(tenant)
     subject = frappe.db.get_value(IDENTITY, key, "subject", for_update=True)
@@ -100,14 +114,18 @@ def create(tenant, email, username, password, product="erp"):
     return {"subject": subject, "email": email, "username": username}
 
 
-def reset_password(tenant, email, password, request_id, product="erp"):
+def reset_password(tenant, email, password, request_id, product="erp", issuer=""):
     if not isinstance(request_id, str) or not re.fullmatch(r"[a-f0-9]{32}", request_id):
         raise MemberError("invalid_request")
     key = _member_key(tenant, email, product)
     member = frappe.db.get_value(IDENTITY, key,
-        ["tenant", "product", "email", "username", "subject"], as_dict=True, for_update=True)
+        ["tenant", "product", "email", "username", "subject", "realm"], as_dict=True, for_update=True)
     if (not member or not member.subject or member.tenant != tenant
             or member.product != product or member.email != email):
+        raise MemberError("not_permitted")
+    # 号在登记记着的池里改；站点带了签发方时，只能改它自己签到的那个池里的号（没带：旧客户端，照登记）。
+    pool = _pool_of(member)
+    if str(issuer or "").strip() and pool_prefix(product, issuer) != pool:
         raise MemberError("not_permitted")
     owner = _digest("member-owner-v1", tenant, product, email, member.username.lower())
     fingerprint = _digest("member-password-v1", key, password)
@@ -133,7 +151,7 @@ def reset_password(tenant, email, password, request_id, product="erp"):
     # Re-read after the intent commit; another request may have finished this one.
     if frappe.db.get_value(OPERATION, operation_key, "status", for_update=True) == "done":
         return {"email": email}
-    MemberProvider(product).reset_password(member.subject, password,
+    MemberProvider(prefix=pool).reset_password(member.subject, password,
         email=email, username=member.username, owner=owner)
     # All same-password recovery attempts refer to the same external effect.
     for name in frappe.get_all(OPERATION,
@@ -259,9 +277,9 @@ def execute(tenant, action, email, password, username="", request_id="", subject
         raise MemberError("invalid_request")
     email = email.strip().lower()
     if action == "create":
-        return create(tenant, email, username, password, product)
+        return create(tenant, email, username, password, product, issuer)
     if action == "reset-password":
-        return reset_password(tenant, email, password, request_id, product)
+        return reset_password(tenant, email, password, request_id, product, issuer)
     raise MemberError("invalid_request")
 
 
@@ -271,28 +289,28 @@ def _purge_preflight(tenant, *, frozen=False):
     if status not in (("deleting",) if frozen else ("active", "suspended", "deleting")):
         raise MemberError("not_permitted")
     rows = frappe.get_all(IDENTITY, filters={"tenant": tenant},
-        fields=["name", "tenant", "product", "email", "username", "subject"], order_by="name asc")
-    if not rows:
-        return [], {}
-    # One provider per product realm; an unknown product fails closed.
+        fields=["name", "tenant", "product", "email", "username", "subject", "realm"], order_by="name asc")
+    # One provider per recorded realm (old rows: the product's realm); an unknown
+    # product or a realm that is no longer configured fails closed.
     providers = {}
     verified = []
     for row in rows:
         if row.tenant != tenant or row.product not in PRODUCTS:
             raise MemberError("conflict")
-        provider = providers.get(row.product) or providers.setdefault(row.product, MemberProvider(row.product))
+        pool = _pool_of(row)
+        provider = providers.get(pool) or providers.setdefault(pool, MemberProvider(prefix=pool))
         owner = _digest("member-owner-v1", tenant, row.product, row.email, row.username.lower())
         subject = provider.lookup_owned(row.subject,
             email=row.email, username=row.username, owner=owner)
-        verified.append((row, subject, owner))
-    return verified, providers
+        verified.append((row, subject, owner, provider))
+    return verified
 
 
 def prepare_purge(tenant):
     """Before scheduling teardown: verify all ownership, then freeze new RPC writes."""
-    members, _providers = _purge_preflight(tenant)
+    members = _purge_preflight(tenant)
     frappe.db.set_value("Pearnly Tenant", tenant, "status", "deleting")
-    return {"members": len(members), "subjects": [subject for _row, subject, _owner in members if subject]}
+    return {"members": len(members), "subjects": [subject for _row, subject, _owner, _provider in members if subject]}
 
 
 def purge_members(tenant):
@@ -302,11 +320,11 @@ def purge_members(tenant):
     deleted subject as absent and safely finishes the remaining verified accounts.
     The calling management transaction owns the final local commit.
     """
-    members, providers = _purge_preflight(tenant, frozen=True)
-    for row, subject, owner in members:
+    members = _purge_preflight(tenant, frozen=True)
+    for row, subject, owner, provider in members:
         if subject:
-            providers[row.product].delete_owned(subject, email=row.email, username=row.username, owner=owner)
-    for row, _subject, _owner in members:
+            provider.delete_owned(subject, email=row.email, username=row.username, owner=owner)
+    for row, _subject, _owner, _provider in members:
         frappe.db.delete(OPERATION, {"member": row.name})
         frappe.db.delete(IDENTITY, {"name": row.name, "tenant": tenant})
     frappe.db.delete(TENANT_IDENTITY, {"tenant": tenant})
