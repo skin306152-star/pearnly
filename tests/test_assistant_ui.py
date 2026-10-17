@@ -6600,9 +6600,6 @@ const { get } = await import("@/lib/frappe");
 await assert.rejects(get("layout"), (error: any) => error instanceof RequestError && error.status === 502);
 """.replace("g.respond", "(globalThis as any).respond"))
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class Round10DragTests(unittest.TestCase):
@@ -6711,3 +6708,7 @@ assert.equal(takeUnpinnedElsewhere("s8"), false);
         self.assertIn("if (!starred && row.remoteId) noteUnpinnedElsewhere(row.remoteId);", sync)
         order = read("lib/managed-agents/sidebar-order.ts")
         self.assertIn("save({ groups: { ...groups, [group]: { keys: merged.slice(0, upTo), at } } }, [groupField(group)], tidy);", order)
+
+
+if __name__ == "__main__":
+    unittest.main()

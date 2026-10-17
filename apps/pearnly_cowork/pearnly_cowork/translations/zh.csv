@@ -998,7 +998,7 @@ Matched Count,已匹配笔数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",已按预设刷卡手续费率匹配 {0} 笔刷卡到账，手续费合计 {1}，单列为银行已扣、总账未记
 Matches,一致
 Matching and saving,逐笔核对并保存
-Max Payload Version,最高载荷版本
+Max Push Data Version,最高推送数据版本
 Member,成员
 Member management,成员管理权限
 Members,成员
@@ -1012,7 +1012,7 @@ Month,月份
 Month paid,支付月份
 Monthly,每月
 Monthly on {0} at {1},每月 {0} {1}
-More than one account set of this company covers the document date.,这家公司有多份账套覆盖单据日期。
+More than one account set of this company covers the document date.,该公司有多份账套覆盖单据日期
 "Most invoice files were still being read when time ran out ({0} of {1} files), so many differences below are only missing invoices. Submit again later.",大部分发票在时限内未读取完成（{1} 份中 {0} 份），以下差异多为发票未读取所致，请稍后重新提交。
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
@@ -1041,7 +1041,7 @@ No CC Desktop credential has been issued for this connection.,此连接尚未签
 No ERP is ready to use,暂无可用的 ERP
 No POS sales export headers were found in this file,文件中找不到 POS 销售导出的表头
 No account set matches “{0}”,没有找到包含「{0}」的账套
-No account set of this company covers the document date.,这家公司没有覆盖单据日期的账套。
+No account set of this company covers the document date.,该公司没有覆盖单据日期的账套
 No account set of this company covers this month,该公司或分店没有覆盖本月的账套
 No account sets yet. Use Reload in New Intake first.,还没有账套目录。请先在新建录入里点重新读取。
 No attachments were given.,没有指定附件。
@@ -1049,7 +1049,7 @@ No cards are assigned to you,暂无分配给你的卡片
 No changes were given.,没有指定要改的内容。
 No computer can reach the account set for the document date.,没有电脑能访问单据日期所在的账套。
 No computer can write,没有能写的电脑
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
+No computer with CC Desktop can write to this account set,没有可写入该账套的电脑
 No documents were given.,没有指定单据。
 No due date,无到期日
 No files were given.,没有指定文件。
@@ -1192,7 +1192,6 @@ Payee tax ID missing,缺收款方税号
 Payees,收款方数
 Payer not clear,付款方不明
 Payload Json,冻结载荷（JSON）
-Payload Version,载荷版本
 Payment,付款方式
 Payment Date,付款日期
 Payment Evidence,付款凭证
@@ -1245,6 +1244,7 @@ Purple,紫
 Push Account Set,推送账套
 Push Attempt,推送尝试
 Push Connection,推送连接
+Push Data Version,推送数据版本
 Push Record,推送记录
 Push choices set for a client company or one of its branches,按客户公司或分店设的推送选择
 Push record not found.,找不到推送记录。
@@ -1332,7 +1332,7 @@ Recurring,重复性
 Red,红
 Reference,参考编号
 Refresh Error Code,刷新错误码
-Refresh Lease Computer,刷新租约电脑
+Refresh Lease Computer,领取刷新的电脑
 Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
 Refresh Lease Generation,刷新租约版本
 Refresh Lease Handle,刷新租约标识
@@ -1684,8 +1684,7 @@ The account balance could not be checked right now. Try again in a moment.,暂�
 The account codes are invalid.,科目号无效。
 The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
-The account set on this computer is not the registered one. Another computer will send it automatically.,这台电脑上的账套不是登记的那一份，将由其他电脑自动推送
-The account set on this computer is not the registered one. Waiting for another computer.,这台电脑上的账套不是登记的那一份，等待其他电脑
+The account set on this computer is not the registered one. Waiting for another computer.,此电脑上的账套与登记的不一致，等待其他电脑
 The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
 The amounts do not add up. Correct them and submit again,金额合计不一致，请更正后重新提交
 The answer is not valid.,回答无效。
@@ -2226,9 +2225,9 @@ cowork.company.period_invalid,月份不对
 cowork.company.title_invalid,请输入 140 字以内的名称
 cowork.company.too_many,公司数量已达上限
 cowork.company.whole_company,全公司
-cowork.folder.account_set_ambiguous,这家公司有多份账套覆盖单据日期。
+cowork.folder.account_set_ambiguous,该公司有多份账套覆盖单据日期
 cowork.folder.account_set_invalid,此账套不在该连接的账套列表中，请在新建录入中重新读取。
-cowork.folder.account_set_none,这家公司没有覆盖单据日期的账套。
+cowork.folder.account_set_none,该公司没有覆盖单据日期的账套
 cowork.folder.account_set_unreachable,没有电脑能访问单据日期所在的账套。
 cowork.folder.agentStale,CC 桌面版不在线或需升级
 cowork.folder.agentStaleHint,此电脑的 CC 桌面版近期未同步，请升级至最新版本。
@@ -3286,7 +3285,7 @@ intake.error.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重�
 intake.error.DUPLICATE_CONTENT_DIFFERS,Express 中已有相同单号但内容不同，请核对；如需另记一张，请点击「仍然推送」
 intake.error.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
 intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,结果未确认，请先在 Express 中核对，再决定是否重新推送
-intake.error.ERR_ACCOUNT_UID_MISMATCH,这台电脑上的账套不是登记的那一份，等待其他电脑
+intake.error.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_LEGACY_MENU_UNVERIFIED,此单据在菜单修复前已推送至 MR.ERP，可能位于未关联日记账的菜单中且未入账。请在 MR.ERP 中核对，核对前请勿重新推送。
@@ -3471,7 +3470,7 @@ push.native_stale_attempt,此推送尝试已失效。
 push.native_state_invalid,当前推送状态不允许此操作。
 push.native_target_changed,推送目标已变更，请重新准备票据。
 push.native_target_mismatch,已冻结的推送目标与授权目标不一致。
-push.no_writer,没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送
+push.no_writer,没有可写入该账套的电脑
 push.original_reference_invalid,原票据引用无效或不可访问。
 push.posting_kind_invalid,过账类型无效。
 push.preparation_cancelled,尚未发送的推送准备已撤销。

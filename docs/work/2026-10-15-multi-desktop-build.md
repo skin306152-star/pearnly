@@ -1266,10 +1266,11 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 | `push/express/company_choices.py` `__all__` | 取并集：本分支的 `WAIT_KINDS`、`held_back`，外壳分支的 `USED_MAX`、`used` |
 | `translations/zh.csv` | 同上次：两边取并集（本分支 T1 的「这家公司没有覆盖单据日期的账套。」+ 外壳分支第 10 轮改的「该公司或分店没有覆盖本月的账套」），再 `python3 scripts/i18n-build.py` 按自动合并好的 `messages.tsv` 重新生成；`--check` PASS；逐个核过改动的翻译包，相对两边都没丢 msgid |
 | `frontend/assistant/src/components/settings.tsx` import | 并集：`postMethod` / `shownError`（本分支「电脑」列表移除、全所可用）+ `giveFocusBack` / `opener`（外壳分支设置关掉还焦点） |
-| `tests/test_assistant_ui.py` 文件末尾 | 两边各在同一处加的测试类都留：本分支 `NoAlwaysOnTests` / `KeepAwakeTests`，外壳分支 `UserAsks20261016Tests` 起到第 8 轮那几类；外壳分支放在 `__main__` 之后的 `Round10DragTests` 原样。核过各测试文件没有重名类 |
+| `tests/test_assistant_ui.py` 文件末尾 | 两边各在同一处加的测试类都留：本分支 `NoAlwaysOnTests` / `KeepAwakeTests`，外壳分支 `UserAsks20261016Tests` 起到第 8 轮那几类；外壳分支放在 `__main__` 之后的 `Round10DragTests` 合并时原样（脚本方式运行时 `unittest.main()` 先退出，这一类 2 项从来不跑；合并审查后已挪到 `__main__` 之前，见下文「合并审查」第 2 条）。核过各测试文件没有重名类 |
 
 自动合并的 `hooks.py`（外壳分支的 `cowork_push_company_choices_saved`，本分支的 `cowork_device_labels` 等都在）、`assistant/tools.py`
-（外壳分支的已入账单不叫人去 Express 改、`written.company_rules` 说明；本分支的 `written.writer`、`intake_options` 的 `cc_desktop_online`）、
+（外壳分支的已入账单不叫人去 Express 改、`written.company_rules` 说明；本分支 `intake_options` 的 `cc_desktop_online`。`written.writer` 合并时
+工具说明里其实没有，只在 `service.py` 的 `_with_writers` 里加进 `written`，合并审查后补上，见下文第 3 条）、
 `companies/service.py`（外壳分支 `with_tax_id`、公司说明带主档编号；本分支 T1 的 `tasks_of` / `_rule_company`）、`company-cards.tsx`、
 `month-ledger.tsx`、`pending.tsx`、`scheduled-tasks.tsx`、`i18n.ts`、`messages.tsv` 逐个看过，没有重复定义或互相覆盖。依赖没变（两边
 `package*.json` 自上次合并都没改），两个工作树的 `node_modules` 都已在，没建符号链接、没装。
@@ -1283,7 +1284,7 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 2. **先没用的公司规则不算「用上的」**：`company_choices.used` 只认来源记成 `company_rule` 的归类键；本分支 `held_back`（科目表没读到先不用）
    的那项来源不是 `company_rule`，不会冻结进 `company_rules`，CC 也不会说「按这条公司规则」。T1 跟到新年度账套、科目表读到后按规则推时照常记上。
 3. **回读同时说电脑和规则**：`written` / `outcomes` 一条成功记录同时有 `writer`（电脑名）与 `company_rules`（带 `still_saved` / `now_value`），
-   两个钩子各查一次，互不依赖。
+   两个钩子各查一次，互不依赖。合并时只是读代码得出的，两边测试各断言一样；合并审查后加了同一条记录同时断言两样的测试（见下文第 6 条）。
 4. **界面没有用外壳删掉的东西**：本分支第 6 批及之后的界面（「电脑」列表、全所可用、读者编号、`AccountSetRow`、跟随公司当年账套、保持唤醒）
    没用 `co.moveTo` / `sb.moveToN` / `MoveToMenu` / 跨组拖动 / 旧卡片的 `allowed` / `denied`（`grep` 与 `tsc --noEmit` 都核过）。「电脑」那一行的
    「···」→「移除」是移除电脑，不是移动对话，用的是设置里连接成员同一个 `menuItem`（外壳分支「菜单只高亮、不加蓝框」随之生效）。
@@ -1293,11 +1294,46 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 
 ### 闸门
 
-完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` 跑了两遍，都是 91 步全过、退出码 0：第一遍在解完冲突的暂存树上；
-加 `FrozenTarget` 一项后在最终代码树（与合并提交相同，之后只加了本节文档）上又整套跑一遍。`cd frontend/assistant && npx tsc --noEmit -p .`
+完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` 以第二遍为准：加 `FrozenTarget` 一项后，在最终代码树（与合并提交相同，
+之后只加了本节文档）上整套跑，91 步全过、退出码 0；所有代码文件的修改都早于这一遍开跑。第一遍跑的时候 `service.py` 和测试文件还在改
+（加测试、去掉三行再还原的变异实验），不算任何一棵固定代码树的证据。`cd frontend/assistant && npx tsc --noEmit -p .`
 无输出通过；`check-architecture.py` 0 违规；`i18n-build.py --check` PASS；`test_cowork_push_direction.py` 17 OK。
 
 没做 / 没验：真实 Site 迁移、测试机与真 Express；外壳分支新界面（侧栏本组排序、审批卡片、手机端）与多电脑界面同屏的点验留给测试机一轮。
-本分支 T1 / 第 3 批新加的几条服务端中文（「这家公司没有覆盖单据日期的账套。」「这家公司有多份账套覆盖单据日期。」「这台电脑上的账套不是登记的
-那一份，等待其他电脑」「没有能写这份账套的电脑。…」）带指示词，外壳第 10 轮按文案闸门把同类的「这家公司（或这个分店）…」改成了「该公司或分店…」；
-这次只合并、没改这几条，要不要照第 10 轮口径改由开发窗口定。
+本分支 T1 / 第 3 批新加的几条服务端中文带指示词，合并时没改；合并审查后已照第 10 轮口径改掉，连同 3 个 DocType 字段标签，见下文第 1 条。
+
+### 合并审查（10-17，追加提交，不改合并提交 `b3aa1df4`）
+
+1. **多电脑新文案按第 10 轮口径改（成立，已改）**。开发窗口的文案闸门（`pearnly/copy-gate` 的 `scripts/check-copy.py`，未进 main）只读跑
+   `--base 630ca3aa` 拦下 9 处，全来自本分支；改后同一命令拦截 0；`--base 7c9bb445`（main 合并基线）只剩外壳分支待用户确认的 2 处 R-CHG
+   （`MESSAGES.needsInput` / `MESSAGES.question`），本分支 0 处。这几条都不在 main 上，闸门判新增，不需要登记用户同意。
+
+   | 词条 | 原中文 | 改为 |
+   |---|---|---|
+   | `cowork.folder.account_set_none` | 这家公司没有覆盖单据日期的账套。 | 该公司没有覆盖单据日期的账套 |
+   | `cowork.folder.account_set_ambiguous` | 这家公司有多份账套覆盖单据日期。 | 该公司有多份账套覆盖单据日期 |
+   | `intake.error.ERR_ACCOUNT_UID_MISMATCH` | 这台电脑上的账套不是登记的那一份，等待其他电脑 | 此电脑上的账套与登记的不一致，等待其他电脑 |
+   | `push.no_writer` | 没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送 | 没有可写入该账套的电脑（英 / 泰 / 日同去掉后半句操作提示） |
+   | 标签 `Max Payload Version`（CC 桌面版电脑 `max_payload_version`） | 最高载荷版本 | `Max Push Data Version` 最高推送数据版本 |
+   | 标签 `Payload Version`（推送记录 `payload_version`） | 载荷版本 | `Push Data Version` 推送数据版本 |
+   | 标签 `Refresh Lease Computer`（ERP 刷新 `lease_device`） | 刷新租约电脑 | 领取刷新的电脑（照已有的 `Lease Computer` 领取的电脑；英文不在锁语境，闸门不拦，msgid 不变） |
+
+   3 个 DocType 权限是 All / Guest 可读，算产品 Desk（强术语拦），所以没走豁免、换成业务说法；两张改了标签的 DocType `modified` 改到
+   `2026-10-17 12:00`，迁移时标签会更新。翻译包按术语表重新生成，同时删掉本分支自己留下、术语表已没有的 4 条旧 msgid 行（两个旧标签、
+   `push.no_writer` 的旧英文、第 5 批改掉的「将由其他电脑自动推送」那条），这几条 main 上都没有。仍标黄、不拦的：`ERR_ACCOUNT_UID_MISMATCH`
+   英 / 泰 / 日是两句（R-SENT）、`push.no_writer` 中英长度差（R-ALIGN）等 9 处。
+2. **`Round10DragTests` 在 `__main__` 之后（成立，已改）**：挪到文件末尾的 `if __name__ == "__main__"` 之前，`python3 tests/test_assistant_ui.py`
+   由 167 项变 169 项，全过。外壳分支 `630ca3aa` 上同样如此，开发窗口下次在外壳分支改或合增量时注意（本次只在本分支追加提交）。
+   全仓另有 `test_cowork_express_sales_mapper`、`test_cowork_recon_scanned_docs`、`test_desk_first_load`、`test_queue_targets` 四个文件 `__main__` 之后
+   还有定义，都是早已存在的，不在本次范围。
+3. **记录说 `tools.py` 有 `written.writer`（成立，已改记录并补说明）**：上文已更正；`WRITTEN_NOTE` 补一句 `written.writer` 是写入 Express
+   的电脑名、用户问哪台电脑写的就给这个名字，`tests/test_cowork_assistant_tools.py` 加一项断言。
+4. **同第 2 条（major）**：一并处理。
+5. **第一遍闸门不算证据（成立，已改记录）**：上文「闸门」一节只以第二遍为准。
+6. **电脑与规则现状没有同一条测试（成立，已补）**：`PushRuleReadbackTests` 加一项：一条带 `written_by_device` 与冻结 `company_rules` 的成功记录，
+   `written()` 与 `outcomes()` 都同时有 `writer` 与 `company_rules[0].still_saved`。把 `written` 里的 `_with_writers` 去掉、或 `outcomes` 不再查规则现状，
+   这项都报错（变异后已还原）。
+
+闸门（追加提交的最终代码树，代码文件都在开跑前改完，跑完核过没有文件比日志新）：`SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>`
+91 步全过、退出码 0；`cd frontend/assistant && npx tsc --noEmit -p .` 通过；`check-architecture.py` 0 违规；`i18n-build.py --check` PASS；
+`test_assistant_ui.py` 169 OK、`test_cowork_assistant_tools.py` 193 OK、`test_cowork_express_dispatch.py` 63 OK；文案闸门只读跑见第 1 条。

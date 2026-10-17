@@ -998,7 +998,7 @@ Matched Count,Matched Count
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger","Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger"
 Matches,Matches
 Matching and saving,Matching and saving
-Max Payload Version,Max Payload Version
+Max Push Data Version,Max Push Data Version
 Member,Member
 Member management,Member management
 Members,Members
@@ -1049,7 +1049,7 @@ No cards are assigned to you,No cards are assigned to you
 No changes were given.,No changes were given.
 No computer can reach the account set for the document date.,No computer can reach the account set for the document date.
 No computer can write,No computer can write
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again","No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
+No computer with CC Desktop can write to this account set,No computer with CC Desktop can write to this account set
 No documents were given.,No documents were given.
 No due date,No due date
 No files were given.,No files were given.
@@ -1192,7 +1192,6 @@ Payee tax ID missing,Payee tax ID missing
 Payees,Payees
 Payer not clear,Payer not clear
 Payload Json,Payload Json
-Payload Version,Payload Version
 Payment,Payment
 Payment Date,Payment Date
 Payment Evidence,Payment Evidence
@@ -1245,6 +1244,7 @@ Purple,Purple
 Push Account Set,Push Account Set
 Push Attempt,Push Attempt
 Push Connection,Push Connection
+Push Data Version,Push Data Version
 Push Record,Push Record
 Push choices set for a client company or one of its branches,Push choices set for a client company or one of its branches
 Push record not found.,Push record not found.
@@ -1684,7 +1684,6 @@ The account balance could not be checked right now. Try again in a moment.,The a
 The account codes are invalid.,The account codes are invalid.
 The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
 The account set cannot be reached right now. It will be sent automatically once connected.,The account set cannot be reached right now. It will be sent automatically once connected.
-The account set on this computer is not the registered one. Another computer will send it automatically.,The account set on this computer is not the registered one. Another computer will send it automatically.
 The account set on this computer is not the registered one. Waiting for another computer.,The account set on this computer is not the registered one. Waiting for another computer.
 The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
 The amounts do not add up. Correct them and submit again,The amounts do not add up. Correct them and submit again
@@ -3471,7 +3470,7 @@ push.native_stale_attempt,This push attempt is no longer current.
 push.native_state_invalid,This action is not allowed in the current push state.
 push.native_target_changed,The push target has changed. Prepare the invoice again.
 push.native_target_mismatch,The frozen push target does not match the authorized target.
-push.no_writer,"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again"
+push.no_writer,No computer with CC Desktop can write to this account set
 push.original_reference_invalid,The original invoice reference is invalid or unavailable.
 push.posting_kind_invalid,Invalid posting type.
 push.preparation_cancelled,The unsent preparation was cancelled.

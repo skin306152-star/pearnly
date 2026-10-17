@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-10-16 18:00:00.000000",
+ "modified": "2026-10-17 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -368,7 +368,7 @@
   },
   {
    "fieldname": "payload_version",
-   "label": "Payload Version",
+   "label": "Push Data Version",
    "fieldtype": "Int",
    "read_only": 1
   },

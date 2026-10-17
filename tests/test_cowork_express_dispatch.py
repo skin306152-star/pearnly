@@ -1006,7 +1006,7 @@ class Ledger(unittest.TestCase):
         self.assertNotIn("queued_at", result)   # 没有 120 秒换手，不再记排队时刻
         self.assertEqual(len(saved), 1)
         self.assertEqual(dispatch.call_args.kwargs, {"mode": "confirm"})
-        # 只有同事的电脑够得到：拒（push.no_writer 的现有文案正好是「请在能打开这份账套的电脑上登录 CC 桌面版」）
+        # 只有同事的电脑够得到：拒（push.no_writer：「没有可写入该账套的电脑」）
         self.reach = {"k1": [B]}
         with self.assertRaisesRegex(_Fail, "push.no_writer"):
             self._confirm(self.target())

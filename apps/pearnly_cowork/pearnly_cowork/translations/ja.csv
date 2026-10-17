@@ -998,7 +998,7 @@ Matched Count,照合済み件数
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",プリセットのカード手数料率でカード入金 {0} 件を照合しました。手数料合計 {1} は銀行差引・元帳未記帳として別行に表示します
 Matches,一致
 Matching and saving,照合して保存中
-Max Payload Version,最大ペイロードバージョン
+Max Push Data Version,送信データの最大バージョン
 Member,メンバー
 Member management,メンバー管理権限
 Members,メンバー
@@ -1049,7 +1049,7 @@ No cards are assigned to you,割り当てられたカードはありません
 No changes were given.,変更内容が指定されていません。
 No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるコンピューターがありません。
 No computer can write,書き込めるコンピューターがありません
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
+No computer with CC Desktop can write to this account set,この会計データに書き込める CC デスクトップのコンピューターがありません
 No documents were given.,書類が指定されていません。
 No due date,期日なし
 No files were given.,ファイルが指定されていません。
@@ -1192,7 +1192,6 @@ Payee tax ID missing,受取人の納税者番号なし
 Payees,受取人数
 Payer not clear,支払者が不明
 Payload Json,固定ペイロードJSON
-Payload Version,ペイロードバージョン
 Payment,支払方法
 Payment Date,支払日
 Payment Evidence,支払証跡
@@ -1245,6 +1244,7 @@ Purple,紫
 Push Account Set,送信先会計データ
 Push Attempt,送信試行
 Push Connection,送信先接続
+Push Data Version,送信データのバージョン
 Push Record,送信記録
 Push choices set for a client company or one of its branches,顧客会社または支店ごとの送信の選択
 Push record not found.,送信記録が見つかりません。
@@ -1332,7 +1332,7 @@ Recurring,繰り返し
 Red,赤
 Reference,参照番号
 Refresh Error Code,更新エラーコード
-Refresh Lease Computer,更新リースのコンピューター
+Refresh Lease Computer,更新を受け取ったコンピューター
 Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
 Refresh Lease Generation,更新リースの世代
 Refresh Lease Handle,更新リース識別子
@@ -1684,7 +1684,6 @@ The account balance could not be checked right now. Try again in a moment.,現�
 The account codes are invalid.,勘定科目コードが無効です。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この帳簿にアクセスできません。接続後に自動で送信します
-The account set on this computer is not the registered one. Another computer will send it automatically.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターから自動で送信します
 The account set on this computer is not the registered one. Waiting for another computer.,このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The amounts do not add up. Correct them and submit again,金額が合いません。直して再送信してください
@@ -3471,7 +3470,7 @@ push.native_stale_attempt,この送信試行は無効になっています。
 push.native_state_invalid,現在の送信状態ではこの操作はできません。
 push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
 push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
-push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください
+push.no_writer,この会計データに書き込める CC デスクトップのコンピューターがありません
 push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
 push.posting_kind_invalid,転記タイプが無効です。
 push.preparation_cancelled,未送信の準備を取り消しました。

@@ -998,7 +998,7 @@ Matched Count,จำนวนที่จับคู่แล้ว
 "Matched {0} card deposits by the preset card fee rate; the fees, {1} in total, are listed as deducted by the bank and not in the ledger",จับคู่ยอดเข้าจากบัตร {0} รายการตามอัตราค่าธรรมเนียมที่ตั้งไว้ ค่าธรรมเนียมรวม {1} แสดงแยกเป็นรายการที่ธนาคารหักแต่ยังไม่บันทึกในบัญชีแยกประเภท
 Matches,ตรงกัน
 Matching and saving,กำลังจับคู่และบันทึก
-Max Payload Version,เวอร์ชันข้อมูลงานสูงสุด
+Max Push Data Version,เวอร์ชันข้อมูลงานสูงสุด
 Member,สมาชิก
 Member management,สิทธิ์จัดการสมาชิก
 Members,สมาชิก
@@ -1049,7 +1049,7 @@ No cards are assigned to you,ยังไม่มีการ์ดที่ม
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
 No computer can reach the account set for the document date.,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
 No computer can write,ไม่มีคอมพิวเตอร์ที่บันทึกได้
-"No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again",ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
+No computer with CC Desktop can write to this account set,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No files were given.,ไม่ได้ระบุไฟล์
@@ -1192,7 +1192,6 @@ Payee tax ID missing,ไม่มีเลขประจำตัวผู้�
 Payees,จำนวนราย
 Payer not clear,ไม่ชัดเจนว่าใครเป็นผู้จ่าย
 Payload Json,ข้อมูลส่งที่ตรึงไว้ (JSON)
-Payload Version,เวอร์ชันข้อมูลงาน
 Payment,วิธีชำระเงิน
 Payment Date,วันที่จ่าย
 Payment Evidence,หลักฐานการชำระเงิน
@@ -1245,6 +1244,7 @@ Purple,ม่วง
 Push Account Set,ชุดบัญชีปลายทาง
 Push Attempt,การพยายามส่ง
 Push Connection,การเชื่อมต่อปลายทาง
+Push Data Version,เวอร์ชันข้อมูลงาน
 Push Record,รายการส่ง
 Push choices set for a client company or one of its branches,ตัวเลือกการส่งที่ตั้งไว้สำหรับบริษัทลูกค้าหรือสาขา
 Push record not found.,ไม่พบรายการส่ง
@@ -1684,7 +1684,6 @@ The account balance could not be checked right now. Try again in a moment.,ไ�
 The account codes are invalid.,รหัสบัญชีไม่ถูกต้อง
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย กรุณารีเฟรชใหม่
 The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
-The account set on this computer is not the registered one. Another computer will send it automatically.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ คอมพิวเตอร์เครื่องอื่นจะส่งให้อัตโนมัติ
 The account set on this computer is not the registered one. Waiting for another computer.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 The amounts do not add up. Correct them and submit again,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
@@ -3471,7 +3470,7 @@ push.native_stale_attempt,การพยายามส่งครั้งน
 push.native_state_invalid,สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้
 push.native_target_changed,ปลายทางการส่งเปลี่ยนแปลงแล้ว กรุณาเตรียมเอกสารใหม่
 push.native_target_mismatch,ปลายทางการส่งที่ล็อกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
-push.no_writer,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่
+push.no_writer,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้
 push.original_reference_invalid,การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้
 push.posting_kind_invalid,ประเภทการลงบัญชีไม่ถูกต้อง
 push.preparation_cancelled,ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว

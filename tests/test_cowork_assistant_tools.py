@@ -2282,6 +2282,26 @@ class PushRuleReadbackTests(unittest.TestCase):
         self.assertNotIn("still_saved", service.written(["PR1"])["PR1"]["company_rules"][0])
         self.assertEqual(logged, ["Cowork push company choices state failed"])
 
+    def test_one_entered_record_carries_both_the_computer_and_the_rule_state(self):
+        # 并入外壳（10-17）：``outcomes`` / ``written`` 同时经 ``_with_writers``（多电脑：由哪台电脑写入）与
+        # ``_entered(row, _rules_now(...))``（外壳：公司规则现在还在不在）；以后再合并覆盖掉其中一个，这里报出来
+        rows = [{**row, "written_by_device": "CCD-2"} for row in self.rows()]
+        service, _queries = _push_service(rows)
+        hooks = {"cowork_device_labels": ["d.labels"], "cowork_push_company_choices_saved": ["p.saved"]}
+        providers = {"d.labels": lambda names: {"CCD-2": "ACC-02"},
+                     "p.saved": lambda ids: {"R-CLEAN": "53-05-02-00"}}
+        service.frappe.get_hooks = lambda name: hooks.get(name, [])
+        service.frappe.get_attr = lambda path: providers[path]
+        for found in (service.written(["PR1"])["PR1"], service.outcomes(["PR1"])["PR1"]["written"]):
+            self.assertEqual(found["writer"], "ACC-02")
+            self.assertEqual(found["docnum"], "HP690920-001")
+            self.assertTrue(found["company_rules"][0]["still_saved"])
+            self.assertEqual(found["account_from"], "company_rule")
+
+    def test_cc_is_told_which_computer_wrote_it(self):
+        self.assertIn("written.writer, when present, is the name of the computer whose CC Desktop wrote it into "
+                      "Express", tools.WRITTEN_NOTE)
+
     def test_cc_is_told_to_name_the_rule_from_written_never_from_client_choices(self):
         note = tools.WRITTEN_NOTE
         self.assertNotIn("see <client_choices>", note)

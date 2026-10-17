@@ -420,7 +420,7 @@ Signed-in User	当前登录账号	ผู้ใช้ที่ลงชื่อ�
 Signed-in Users	登录过的账号	ผู้ใช้ที่เคยลงชื่อเข้าใช้	サインインしたことのあるユーザー
 Computer Name	电脑名称	ชื่อคอมพิวเตอร์	コンピューター名
 Device Key Digest	设备密钥摘要	แฮชคีย์อุปกรณ์	デバイスキーのダイジェスト
-Max Payload Version	最高载荷版本	เวอร์ชันข้อมูลงานสูงสุด	最大ペイロードバージョン
+Max Push Data Version	最高推送数据版本	เวอร์ชันข้อมูลงานสูงสุด	送信データの最大バージョン
 Host Names	主机名	ชื่อโฮสต์	ホスト名
 Index Rebuild Pending	索引待重建	รอสร้างดัชนีใหม่	インデックス再構築待ち
 Retired At (UTC)	移除时间（UTC）	เวลานำออก (UTC)	削除日時 (UTC)
@@ -448,11 +448,11 @@ Seen At (UTC)	上报时间（UTC）	เวลารายงาน (UTC)	報告�
 Account Set Masters	账套主档	ข้อมูลหลักของชุดบัญชี	会計データのマスター
 From Routine Report	来自定期上报	จากรายงานตามรอบ	定期報告から
 Read By Computer	读取的电脑	คอมพิวเตอร์ที่อ่าน	読み取ったコンピューター
-Refresh Lease Computer	刷新租约电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新リースのコンピューター
+Refresh Lease Computer	领取刷新的电脑	คอมพิวเตอร์ที่ถือสิทธิ์การรีเฟรช	更新を受け取ったコンピューター
 Parent Refresh Request	上级刷新请求	คำขอรีเฟรชหลัก	親の更新リクエスト
 Selected Account Set	所选账套	ชุดบัญชีที่เลือก	選択した会計データ
 Entered By	录入人	ผู้บันทึก	入力者
-Payload Version	载荷版本	เวอร์ชันข้อมูลงาน	ペイロードバージョン
+Push Data Version	推送数据版本	เวอร์ชันข้อมูลงาน	送信データのバージョン
 Written By Computer	写入的电脑	คอมพิวเตอร์ที่เขียน	書き込んだコンピューター
 Write Route	写入分派	การมอบหมายการเขียน	書き込みの割り当て
 Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพิวเตอร์	コンピューターの登録者
@@ -1463,7 +1463,7 @@ POS daily sales can only be sent to Express	POS 日汇总只能推送到 Express
 The POS daily total is not in the expected form. Import the POS export again	POS 日汇总的数据格式不对，请重新导入 POS 导出	ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่	POS 日計のデータ形式が正しくありません。POS エクスポートを取り込み直してください	intake.error.POS_INVALID
 Express has this account set open. It is sent automatically once Express is closed	Express 正在使用此账套，关闭后将自动推送	Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express	Express でこの帳簿が開かれています。Express を閉じると自動で送信されます	intake.error.ACCOUNT_BUSY_LOCKED
 The account set cannot be reached right now. It will be sent automatically once connected.	暂时无法访问此账套，连接后将自动推送	ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้	現在この帳簿にアクセスできません。接続後に自動で送信します	intake.error.ACCOUNT_SET_UNREACHABLE
-The account set on this computer is not the registered one. Waiting for another computer.	这台电脑上的账套不是登记的那一份，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
+The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このコンピューターの帳簿は登録されたものではありません。別のコンピューターを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_DOCTYPE
 This document type cannot be written to Express. Check it and submit again.	此单据类型无法写入 Express，请核对后重新提交	ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่	この書類の種類は Express に書き込めません。確認して再送信してください	intake.error.BAD_SALES_DOCTYPE
 This invoice has no lines. Add them and submit again.	此发票没有明细，请补充后重新提交	เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่	この請求書には明細がありません。追加して再送信してください	intake.error.EMPTY_ITEMS
@@ -1574,7 +1574,7 @@ Checked in the ERP: not entered. It can be sent again	已在 ERP 核对：未入
 Recognition was interrupted (not charged). Upload this file again	识别已中断（未扣费），请重新上传此文件	การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง	読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください	cowork.intake.interrupted
 CC Desktop on this PC does not have this account set, or cannot write to it. Check the account set chosen in CC Desktop	此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套	CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป	この PC の CC デスクトップにこの会計データがないか、書き込み権限がありません。CC デスクトップで選んだ会計データを確認してください	intake.error.NO_ACCOUNT_SELECTION
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	push.companion_account_unreported
-No computer with CC Desktop can write to this account set. Sign in to CC Desktop on a computer that has it, then push again	没有能写这份账套的电脑。请在能打开这份账套的电脑上登录 CC 桌面版后重新推送	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้ กรุณาลงชื่อเข้าใช้ CC เดสก์ท็อปบนคอมพิวเตอร์ที่เปิดชุดบัญชีนี้ได้ แล้วส่งใหม่	この会計データに書き込める CC デスクトップのコンピューターがありません。この会計データを開けるコンピューターで CC デスクトップにログインしてから、もう一度送信してください	push.no_writer
+No computer with CC Desktop can write to this account set	没有可写入该账套的电脑	ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้	この会計データに書き込める CC デスクトップのコンピューターがありません	push.no_writer
 CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again	准备推送时 CC 桌面版不在线或尚未上报此账套。请确认 CC 桌面版正在运行后重新推送	ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่	送信準備の時点で CC デスクトップがオフライン、またはこの会計データをまだ報告していませんでした。CC デスクトップが動いていることを確認して、もう一度送信してください	The helper was offline or had not reported this account set when the push was prepared. Make sure the helper is running, then push again
 Add Row	添加行	เพิ่มรายการ	行を追加	
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認	
@@ -1825,8 +1825,8 @@ Update CC Desktop on that computer to read this account set's chart of accounts.
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.	电脑读不到此账套的科目表。请确认那台电脑上的 Express 能打开这本账套。	คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้	パソコンでこの会計データの勘定科目表を読み込めませんでした。そのパソコンの Express でこの会計データを開けるか確認してください。	cowork.masters.failed
 This account set is not on the computer's list of account sets.	电脑上报的账套中没有这本账套。	ไม่พบชุดบัญชีนี้ในรายการชุดบัญชีของคอมพิวเตอร์	パソコンの会計データ一覧にこの会計データがありません。	cowork.masters.unavailable
 CC Desktop is reading this account set's chart of accounts; the invoice will be pushed once it is read.	CC 桌面版正在读取此账套的科目表，读完后推送。	CC เดสก์ท็อปกำลังอ่านผังบัญชีของชุดบัญชีนี้ จะส่งเมื่ออ่านเสร็จ	CC デスクトップがこの会計データの勘定科目表を読み込んでいます。読み込み後に送信します。	cowork.folder.reading_masters
-No account set of this company covers the document date.	这家公司没有覆盖单据日期的账套。	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
-More than one account set of this company covers the document date.	这家公司有多份账套覆盖单据日期。	มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データが複数あります。	cowork.folder.account_set_ambiguous
+No account set of this company covers the document date.	该公司没有覆盖单据日期的账套	ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データがありません。	cowork.folder.account_set_none
+More than one account set of this company covers the document date.	该公司有多份账套覆盖单据日期	มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร	この会社には書類の日付を含む会計データが複数あります。	cowork.folder.account_set_ambiguous
 No computer can reach the account set for the document date.	没有电脑能访问单据日期所在的账套。	ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้	書類の日付の会計データにアクセスできるコンピューターがありません。	cowork.folder.account_set_unreachable
 Computer offline	电脑离线	คอมพิวเตอร์ออฟไลน์	コンピューターがオフライン	intake.agent.state.offline
 No computer can write	没有能写的电脑	ไม่มีคอมพิวเตอร์ที่บันทึกได้	書き込めるコンピューターがありません	intake.agent.state.noWriter
