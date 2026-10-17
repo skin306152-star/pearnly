@@ -265,7 +265,7 @@ multi-desktop-own-computer-rule、copy-changes-need-approval、login-pages-froze
   3. ERP 站点配置：谷歌租户的 ERP 站点补 `pearnly_cowork_ocr_remote`（与 Cowork 同一个 Cloud Run 地址）和 `pearnly_cowork_originals_bucket`（`pearnly-cowork-originals-sg`）；补之前确认 Cloud Run 服务账号接受 ERP 站点的身份令牌（与 Cowork 同一把 ocr.json 就没问题）。没补照旧存本机，不出错。新站点配置要登记（记忆 no-per-tenant-feature-switches）。
   4. 甲骨文 claude-ocr 已部署（向下兼容），这批不动；runtime.env 那 6 项 10-17 已在生产。
   5. 部署后回读：Cowork 新上传原件 `storage_url` 应是 `gs://`；对账临时文件是 `CWS-…bin` 登记（不到 1KB）；ERP 补了配置的话新附件是 `ERO-…bin` 登记；`/private/files/<登记>.bin` 打开应跳转到签名地址。
-  保留：甲骨文 8443 对办公室 IP 124.120.107.105 的放行（见第 1 节）。它的工作树 / 分支它自己清。
+  保留：甲骨文 8443 对办公室 IP 124.120.107.105 的放行（见第 1 节）。它的工作树、本地与远端分支已删并回读。`docs/work/2026-10-18-originals-layer.md` 里「没做：合入 main」那行已过时，下次改这份记录时顺手更新。
   **对其它线的影响**：main 已前进到 669427ca，A–E 各分支落后数都 +1 批；originals-layer 和 D、E 的 3 个共同文件已随它进 main，D1 / E12 并 main 时注意。
 
 ### H. CC 零碎（旧记录里登记、上面 A–G 没列的；10-18 逐条对代码核实过）
@@ -343,11 +343,13 @@ multi-desktop-own-computer-rule、copy-changes-need-approval、login-pages-froze
 | `cc-shell-rebuild` / `pearnly/cc-shell-rebuild`（远端已删） | `ec90fdfc`，已在 main，干净 | 10-18 01:10 前测试机 lab 挂着它的实时源码（现已 lab-stop，不再挂它）；cc-drag-engine、cc-standards 的 node_modules 链到这里 | A、B 两个工作树换成自己的 node_modules 或合入后（并确认 lab 已不挂它） |
 | `f19-push-summary` / `pearnly/f19-push-summary`（远端已删） | `13bb3e69`，已在 main，干净 | copy-gate 的 `frontend/assistant/node_modules` 链到这里（锁文件不同，不能直接改指） | C1 合入或 copy-gate 换成自己的 node_modules 后 |
 | `handoff-2026-10-18` / `pearnly/handoff-2026-10-18` | 交接文档进 main 用 | 本交接 | 快进 main 后旧窗口当场删 |
-| `originals-layer` | 「消息含义理解」窗口的 | 不归本线 | 不动 |
+| ~~`originals-layer`~~ | 已合入 main 669427ca，工作树与本地、远端分支已由「消息含义理解」窗口删除（10-18 回读确认） | — | — |
 | `pensive-blackwell-751d70`（游离 7c9bb445，无分支） | 10-15 建、内容已在 main、干净；两份 node_modules 10-18 经用户同意已删（腾出约 0.5G），只剩约 71M | 测试窗口 10-18 确认不用、同意删；**但手机调试的 adb 服务（10-18 时 pid 72399）当前目录在这里**，测试窗口连 A14 的端口转发靠它 | adb 服务重启后（`adb kill-server` 或重启电脑）用 `git worktree remove` 删，不用强制 |
 | 测试机 cowork / erp lab 与数据卷 | 10-18 借给原件层实测后已还：两个都 lab-stop、配置恢复、testcowork 指向线上 | 第 12 轮、标准化、多电脑第 7 批继续用 | 不删；不用时 lab-stop |
 | 甲骨文 `/opt/pearnly-replay`（9.4G） | 回放数据 | E 线还要重跑 | 第 3 期上线后（E16） |
 | 测试机 `PearnlyExpressRO` 共享、两台桌面映射文件 | 未核实是否还在 | D 线第 7 批 | 第 7 批用完（共享由用户删） |
+
+原件层已收：originals-layer 工作树不存在了，第 7 节其它行照旧。
 
 符号链接一览（删工作树前必查，不能顺着链接删共享目标）：cc-drag-engine、cc-standards → cc-shell-rebuild；copy-gate → f19-push-summary（assistant）与主目录（frontend）；da-phase3 → multi-desktop。
 
