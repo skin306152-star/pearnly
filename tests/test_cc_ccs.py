@@ -555,7 +555,8 @@ class CardRuleTests(unittest.TestCase):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         # 卡内不套滚动：步骤详情自动撑高，长了收起
         self.assertNotRegex(steps, r"max-h-|overflow-(?:y-)?auto|overflow-scroll")
-        self.assertIn("<Clipped text={step.input} />", steps)
+        self.assertIn("{input && <Clipped text={input} />}", steps)
+        # 能点的：内容展开「… N 行」、步骤行、步骤组摘要（允许卡的问话照 Claude 不是按钮，第 10 轮起不再算点按区）
         self.assertEqual(steps.count("cc-tap"), 3)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         pending = thread.split("const PendingSendBubble: FC = () => {", 1)[1].split("\n};", 1)[0]
@@ -563,8 +564,14 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("<Skeleton", pending)
         files = thread.split("const MessageFiles: FC = () => {", 1)[1].split("\n};", 1)[0]
         self.assertIn('className="cc-icon-btn cc-tap"', files)
+        # 提醒卡的「打开通知」在卡片里、底部靠右，用卡片按钮（同允许卡，用户 10-17）；没打开的原因在按钮上方一行
         notice = thread.split("const NoticeMessage: FC = () => {", 1)[1].split("\n};", 1)[0]
-        self.assertIn('className="cc-btn cc-tap"', notice)
+        self.assertNotIn("cc-btn ", notice)
+        card = notice[notice.index('role="note"'):]
+        foot = card[card.index('<div className="cc-ask-foot">'):]
+        self.assertLess(foot.index("push.failure"), foot.index('<div className="cc-card-actions">'))
+        self.assertIn('<button type="button" className="cc-card-btn" onClick={() => void push.enable()}>', foot)
+        self.assertLess(card.index("{noticeTime(createdAt)}"), card.index('<div className="cc-ask-foot">'))
         css = (SRC / "globals.css").read_text(encoding="utf-8")
         self.assertIn("@media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }", css)
         self.assertIn("--cc-tap: 2.75rem;", css)
@@ -575,33 +582,34 @@ class CardRuleTests(unittest.TestCase):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         group = steps[steps.index("export const StepsGroup"):]
         self.assertIn("const title = groupLive(group.status)\n    ? steps.running\n"
-                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t(\"denied\"), asks: labels.ask, failed: steps.failed });", group)
+                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { asks: labels.ask, failed: steps.failed });", group)
         # 第 8 轮：点了「拒绝」的一步没做，摘要与行都写卡片上的问话（去掉问号）加「已拒绝」，不写做完的说法
         self.assertIn("return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool), undone: stepUndone(tool) };", steps)
         self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
                       group)
         # 一张卡片、一步一行：组给卡片，组里的每一步不再各包一层（测试窗口 S2：外卡套内卡）
         self.assertIn('<div className="cc-steps-card">\n          <InStepsGroup.Provider value={true}>{children}</InStepsGroup.Provider>', group)
-        self.assertIn('useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;', steps)
-        # 等批准的那一步不进组（允许 / 拒绝要看得见），也放进同样带环的卡片
+        self.assertIn('if (inGroup) return <>{children}</>;', steps)
+        self.assertIn('return <div className="cc-steps-card">{children}</div>;', steps)
+        # 允许 / 拒绝卡不进组（等回答的要看得见，点完的照 Claude 留在原处），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('<LoneStep>\n                      <ToolFallbackComponent {...part} />', thread)
+        self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
+        self.assertIn('<LoneStep part={part as unknown as CardPart}>\n                        <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)
-        row = steps[steps.index("export const StepRow"):steps.index("/** 工作状态行上这一步的说法")]
+        row = steps[steps.index("const PlainStep"):steps.index("/** 卡片上的问话")]
         self.assertIn("const errored = stepFailed({ result, isError, status });", row)
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}', row)
         self.assertIn('className="cc-step-row cc-tap"', row)
         # 同 Claude Code 实测：行字淡色、一行省略；能展开的行尾 12px 箭头（展开转 90°），失败的「失败」在箭头前；没详情的行没有箭头
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">', row)   # 放不下时悬停滚动（components/ui/marquee.tsx）
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}\n'
-                      '        {/* 重开对话时没有卡片下面那行结论：「已拒绝」写在行尾（同「失败」的位置，淡色） */}\n'
-                      '        {denied && approval?.approved === undefined && <span className="cc-step-denied">{t("denied")}</span>}\n'
                       '        {expandable && <ChevronRightIcon aria-hidden />}\n      </button>', row)
-        self.assertIn("{asking ?? denied ?? undone ?? step.verb}", row)
-        # 第 8 轮审查：点了允许、结果写明没存上（not_saved / failed）的同样写问话，行尾「失败」，不先读到做完的说法
-        self.assertIn("const undoneAsk = !denied && stepUndone({ result }) ? (approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] : undefined;", row)
-        self.assertIn("const denied = stepDenied({ result, approval }) ? askStem((approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] ?? step.verb) : undefined;", row)
+        # 允许 / 拒绝卡（拒绝了、允许了却没存上的也是）不在这里：卡片写问话、点完一行所选那一项（用户 10-17），步骤行不再写「已拒绝」
+        self.assertIn("return card ? <AskStep {...props} card={card} labels={labels} /> : <PlainStep {...props} labels={labels} />;", steps)
+        self.assertNotIn("cc-step-denied", steps)
+        # 出卡片前就核出要拒绝的那一步（没做成）写问话，其余写步骤名（第 10 轮审查，undoneText）
+        self.assertIn("{undone ?? step.verb}\n          {step.target", row)
         # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；
         # 只在展开的行里用，摘要行（按类计数）与工作状态行不用
         self.assertIn("const subject = step.own ? stepSubject(args as Args, output?.text, known) : \"\";", row)
@@ -634,7 +642,7 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0;", rule(".cc-step-row > svg"))
         self.assertIn('  .cc-step-row[aria-expanded="true"] > svg { transform: rotate(90deg); }', css)
         self.assertIn("  .cc-step-failed { flex-shrink: 0; color: var(--cc-danger); }", css)
-        self.assertIn("  .cc-step-denied { flex-shrink: 0; color: var(--cc-ink-3); }", css)
+        self.assertNotIn(".cc-step-denied", css)
         self.assertIn("font-family: var(--cc-font-mono);", rule(".cc-step-detail"))
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -701,7 +709,7 @@ import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } f
 import { steps, t } from "@/i18n";
 const done = { cowork_company_choice_save: "记下了公司选择" };
 const asks = { cowork_company_choice_save: "把这个选择记到公司？" };
-const denial = { word: t("denied"), asks, failed: steps.failed };
+const denial = { word: "已拒绝", asks, failed: steps.failed };
 assert.equal(askStem("把这个选择记到公司？"), "把这个选择记到公司");
 assert.equal(askStem("Save this choice for the company? "), "Save this choice for the company");
 // 本页点了拒绝；重开后按结果认；允许了、还在等的不算

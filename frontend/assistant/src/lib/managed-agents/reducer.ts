@@ -27,6 +27,7 @@
 
 import type { FeedEvent, NoticeEvent, RunStatus, ToolUseEvent } from "./events";
 import { isPersisted, splitAttachmentNote } from "./events";
+import { stepDenied } from "@/lib/step-summary";
 
 // ---------------------------------------------------------------------------
 // Message model (a structural subset of assistant-ui's ThreadMessageLike;
@@ -50,6 +51,10 @@ export type ToolApproval = {
   /** Held Pearnly tool calls: what the step asks ("Save this folder task?") and what it changes. */
   ask?: string;
   preview?: ApprovalChange[];
+  /** 本页点了却没送到（确认请求出错，restoreGates）：按钮上方那一行原因，再点就清掉。 */
+  failure?: string;
+  /** 本页刚点、确认还没送到（乐观定下的）：点完那一行先淡一档，送到（markConfirmed）、回声或结果到了再定下。 */
+  sending?: boolean;
 };
 
 export type TextPart = { type: "text"; text: string };
@@ -276,7 +281,8 @@ function currentAssistantIndex(messages: ThreadMessage[], createdAt?: string | n
 /** A gate the server is no longer waiting on (interrupt, end of turn,
  *  termination) must not keep live Allow/Deny buttons. Strip approvals that
  *  never got an answer; leave answered ones as the record they are, and the
- *  ones in `keep` (the server is still parked on them). */
+ *  ones in `keep` (the server is still parked on them). 已有结果的是别处答过的（别的设备点了、结果先到）：按结果定下
+ *  所选那一项（settleApproval），卡片留着点完的样子，不当没答过撤掉。 */
 function stripUnresolvedApprovals(
   messages: readonly ThreadMessage[],
   keep: ReadonlySet<string> = new Set(),
@@ -289,6 +295,7 @@ function stripUnresolvedApprovals(
       if (part.type !== "tool-call" || !part.approval) return part;
       if (part.approval.approved !== undefined || keep.has(part.approval.id)) return part;
       msgChanged = changed = true;
+      if (part.result !== undefined) return { ...part, approval: settleApproval(part.approval, !stepDenied(part)) };
       const rest = { ...part };
       delete rest.approval;
       return rest;
@@ -296,6 +303,30 @@ function stripUnresolvedApprovals(
     return msgChanged ? { ...msg, content } : msg;
   });
   return changed ? next : messages;
+}
+
+/** 定下一张卡的回答：问话与改动留着（点完的卡片照写问话），上次没送到的原因清掉；sending 只在本页乐观点下时带上。 */
+function settleApproval(
+  approval: ToolApproval | undefined,
+  approved: boolean,
+  id = approval?.id ?? "",
+  reason?: string,
+  sending = false,
+): ToolApproval {
+  const { failure: _failure, reason: _reason, approved: _approved, sending: _sending, ...kept } = approval ?? { id };
+  return { ...kept, id, approved, ...(reason ? { reason } : {}), ...(sending ? { sending } : {}) };
+}
+
+/** 结果到了以后这张卡的回答：以服务端结果为准（写明拒绝就是拒绝；有结果、没写拒绝、不是出错交回的就是允许了，工具照常执行过）。
+ *  本页乐观点的那一项与它不同时改过来（两台设备同时点、确认超时后改点），卡片不再一直写本页点的那一项（第 10 轮审查）。
+ *  还没答的照结果定下；已答且一致的只去掉 sending。没有门回 undefined。 */
+function approvalFromResult(approval: ToolApproval | undefined, result: ToolResultPayload): ToolApproval | undefined {
+  if (!approval) return approval;
+  const denied = stepDenied({ result });
+  if (approval.approved === undefined) return settleApproval(approval, !denied);
+  const approved = !denied && (approval.approved || !result.isError);
+  if (approved !== approval.approved || approval.sending) return settleApproval(approval, approved, approval.id, approval.reason);
+  return approval;
 }
 
 function withContent(message: ThreadMessage, content: ContentPart[]): ThreadMessage {
@@ -739,8 +770,9 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         result,
         isError: result.isError,
         // A result arriving proves the gate was allowed, even if the echoed
-        // confirmation raced past us. Leave an answered approval alone.
-        approval: p.approval && p.approval.approved === undefined ? { ...p.approval, approved: true } : p.approval,
+        // confirmation raced past us. 已答的只去掉「发送中」（自带工具被拒时没有结果）。
+        approval: p.approval && p.approval.approved === undefined ? settleApproval(p.approval, true)
+          : p.approval?.sending ? settleApproval(p.approval, p.approval.approved === true, p.approval.id, p.approval.reason) : p.approval,
       })));
       return { ...state, messages };
     }
@@ -755,16 +787,24 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       if (found) {
         const next = draft(messages);
         const result = toToolResult(event.content, !!event.is_error);
-        updatePart(next, found.mi, found.pi, updateTool({ result }));
+        // 还挂着「允许 / 拒绝」却已有结果：别处答过了（别的设备点的，服务端执行完交回）。按结果定下所选那一项，这边按钮立即消失。
+        // 本页已点过的也以结果为准（approvalFromResult）
+        updatePart(next, found.mi, found.pi, updateTool((p) => ({
+          result,
+          ...(p.approval ? { approval: approvalFromResult(p.approval, result) } : {}),
+        })));
         messages = next;
       }
       const pendingCustomTools = state.pendingCustomTools.filter((x) => x !== id);
+      // 别处答过的卡片也不再等这边点
+      const pendingApprovals = state.pendingApprovals.filter((x) => x !== id);
       return {
         ...state,
         messages,
         answeredCustomTools,
         pendingCustomTools,
-        isRunning: state.isRunning || resumes(state, id, state.pendingApprovals, pendingCustomTools),
+        pendingApprovals,
+        isRunning: state.isRunning || resumes(state, id, pendingApprovals, pendingCustomTools),
       };
     }
 
@@ -773,20 +813,18 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       const id = event.tool_use_id;
       // A persisted (non-optimistic) confirmation is the server's own
       // record of the answer: from here on it can never be reopened.
-      const confirmedIds = event.id.startsWith("optimistic-confirm-")
-        ? state.confirmedIds
-        : new Set(state.confirmedIds).add(id);
+      const optimistic = event.id.startsWith("optimistic-confirm-");
+      const confirmedIds = optimistic ? state.confirmedIds : new Set(state.confirmedIds).add(id);
       let messages: readonly ThreadMessage[] = state.messages;
       const found = findToolPart(messages, id);
       if (found) {
         const next = draft(messages);
-        updatePart(next, found.mi, found.pi, updateTool({
-          approval: {
-            id,
-            approved: event.result === "allow",
-            ...(event.deny_message ? { reason: event.deny_message } : {}),
-          },
-        }));
+        // 已有结果的（结果先到）以结果为准，回声不再改它；本页乐观点下的先标「发送中」
+        updatePart(next, found.mi, found.pi, updateTool((p) => ({
+          approval: p.result !== undefined && p.approval?.approved !== undefined
+            ? p.approval
+            : settleApproval(p.approval, event.result === "allow", id, event.deny_message ?? undefined, optimistic && p.result === undefined),
+        })));
         messages = next;
       }
       const pendingApprovals = state.pendingApprovals.filter((x) => x !== id);
@@ -898,7 +936,15 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
   const isCustom = (id: string) => state.toolUses.get(id)?.type === "agent.custom_tool_use";
   // 还能点的门只留服务端真在等用户的：自带工具的确认、本站拦下等「允许」的 Pearnly 工具
   const gates = new Set(parked.filter((id) => !isCustom(id) || awaiting.has(id)));
-  const messages = draft(stripUnresolvedApprovals(state.messages, gates));
+  // 卡片还在等、本站却已在执行：别的设备上点了「允许」（结果还没回）。定下「允许」，这边按钮立即消失、卡片留着点完的样子
+  const answeredElsewhere = draft(state.messages);
+  for (const id of parked) {
+    const found = isCustom(id) && executing.has(id) ? findToolPart(answeredElsewhere, id) : null;
+    const part = found ? answeredElsewhere[found.mi]!.content[found.pi] : undefined;
+    if (!found || part?.type !== "tool-call" || !part.approval || part.approval.approved !== undefined) continue;
+    updatePart(answeredElsewhere, found.mi, found.pi, updateTool((p) => ({ approval: settleApproval(p.approval, true) })));
+  }
+  const messages = draft(stripUnresolvedApprovals(answeredElsewhere, gates));
   const pendingApprovals: string[] = [];
   const pendingCustomTools: string[] = [];
   let working = false;
@@ -947,8 +993,9 @@ export function applyRunStatus(state: Projection, run: RunStatus): Projection {
  *  it tells us whether the session left the gate meanwhile (an interrupt,
  *  or an answer that landed via the tail even though our fetch errored). A
  *  part that already has a verdict or a result is left alone. If nothing
- *  qualifies, this is a no-op and the settled state stands. */
-export function restoreGates(state: Projection, ids: readonly string[]): Projection {
+ *  qualifies, this is a no-op and the settled state stands. 卡片照原样回来（问话、改动不丢，第 9 轮测试：拦住确认请求后
+ *  卡片变成做完的说法「记下了公司选择」、按钮还挂着），带上 `failure`：按钮上方写一行原因，再点重试。 */
+export function restoreGates(state: Projection, ids: readonly string[], failure?: string): Projection {
   const restorable = ids.filter((id) => state.parkedIds.includes(id));
   if (restorable.length === 0) return state;
   const messages = draft(state.messages);
@@ -963,7 +1010,10 @@ export function restoreGates(state: Projection, ids: readonly string[]): Project
     const part = messages[found.mi]!.content[found.pi]!;
     // Likewise if the tool already ran (result present).
     if (part.type !== "tool-call" || part.result !== undefined) continue;
-    updatePart(messages, found.mi, found.pi, updateTool({ approval: { id } }));
+    updatePart(messages, found.mi, found.pi, updateTool((p) => {
+      const { approved: _approved, reason: _reason, failure: _failure, sending: _sending, ...kept } = p.approval ?? { id };
+      return { approval: { ...kept, id, ...(failure ? { failure } : {}) } };
+    }));
     if (!pendingApprovals.includes(id)) pendingApprovals.push(id);
     changed = true;
   }
@@ -971,6 +1021,22 @@ export function restoreGates(state: Projection, ids: readonly string[]): Project
   // Gates restored means the server is still parked: undo any optimistic
   // "resuming" flag markResuming set when the click looked final.
   return withDerivedStatuses({ ...state, messages, pendingApprovals, isRunning: false });
+}
+
+/** 确认请求有了下文（送到了；或没送到、门已照原样放回 / 服务端早已不在等）：这几张卡不再是「发送中」，点完那一行照常显示。 */
+export function clearSending(state: Projection, ids: readonly string[]): Projection {
+  let messages: ThreadMessage[] | null = null;
+  for (const id of ids) {
+    const found = findToolPart(messages ?? state.messages, id);
+    const part = found ? (messages ?? state.messages)[found.mi]!.content[found.pi] : undefined;
+    if (!found || part?.type !== "tool-call" || !part.approval?.sending) continue;
+    messages ??= draft(state.messages);
+    updatePart(messages, found.mi, found.pi, updateTool((p) => {
+      const { sending: _sending, ...kept } = p.approval!;
+      return { approval: kept };
+    }));
+  }
+  return messages ? { ...state, messages } : state;
 }
 
 /** The server held a Pearnly tool call for the user's Allow/Deny (a tool

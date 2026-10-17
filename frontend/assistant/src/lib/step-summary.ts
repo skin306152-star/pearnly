@@ -18,9 +18,9 @@ export type SummaryCopy = Record<StepKind, (n: number) => string> & {
 /** 一步：工具名、是否失败（stepFailed）、是否点了「拒绝」没做、结果是否写明没做成（stepUndone）。 */
 export type StepPart = { toolName: string; failed: boolean; denied?: boolean; undone?: boolean };
 
-/** 没做的步骤怎么写：「已拒绝」一词（沿用卡片上的词条）、「失败」一词（沿用步骤行行尾的词条）与各工具卡片上的问话
- *  （lib/tool-labels.ts 的 ask）。 */
-export type Denial = { word: string; asks: Readonly<Record<string, string>>; failed?: string };
+/** 没做的步骤怎么写：拒绝时跟在问话后的一词（要点「允许」的步骤是卡片、不进组，组里用不到，可不给）、「失败」一词（沿用步骤行
+ *  行尾的词条）与各工具卡片上的问话（lib/tool-labels.ts 的 ask）。 */
+export type Denial = { word?: string; asks: Readonly<Record<string, string>>; failed?: string };
 
 /** 摘要里的一项：kind 是上面六类之一，或 `own:<工具名>`（本站工具）。 */
 export type SummaryEntry = { kind: string; count: number; failed: number };
@@ -67,16 +67,24 @@ function resultText(result: unknown): string {
   return typeof text === "string" ? text.trim() : "";
 }
 
-/** 本站工具结果里的 status（结果是 JSON 对象时）；没有回空串。 */
-function resultStatus(result: unknown): string {
+/** 本站工具结果（JSON 对象时）里的一个文字字段；没有回空串。 */
+function resultField(result: unknown, field: "status" | "approval"): string {
   const body = resultText(result);
-  if (!body.startsWith("{") || !body.includes('"status"')) return "";
+  if (!body.startsWith("{") || !body.includes(`"${field}"`)) return "";
   try {
-    const status = (JSON.parse(body) as { status?: unknown }).status;
-    return typeof status === "string" ? status : "";
+    const value = (JSON.parse(body) as Record<string, unknown>)[field];
+    return typeof value === "string" ? value : "";
   } catch {
     return "";
   }
+}
+
+/** 本站工具结果里的 status；没有回空串。 */
+const resultStatus = (result: unknown) => resultField(result, "status");
+
+/** 出卡片前就核出要拒绝、没问过用户（结果带 approval: not_asked，pearnly_core tools.not_asked）：那一步没出过卡片。 */
+export function stepNotAsked(part: { result?: unknown }): boolean {
+  return resultField(part.result, "approval") === "not_asked";
 }
 
 // 改成带 status: denied 之前（第 8 轮以前）点「拒绝」交回的结果原文（服务端不翻译这一句）：旧对话重开时照它认
@@ -119,7 +127,7 @@ export function summaryText(
   entries: readonly SummaryEntry[],
   copy: SummaryCopy,
   done: Readonly<Record<string, string>>,
-  denial: Denial = { word: "", asks: {} },
+  denial: Denial = { asks: {} },
 ): string {
   return entries
     .map(({ kind, count, failed }) => {

@@ -8,6 +8,7 @@ import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-s
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { FileTypeIcon, fileTypeLabel, useResults } from "@/components/results-panel";
 import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/tool-uis/steps";
+import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,8 @@ import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/ma
 import { StreamFollower } from "@/lib/follow-scroll";
 import { holdImeEnter } from "@/lib/ime";
 import { useToolLabels } from "@/lib/tool-labels";
+import { approvalCard, type CardPart } from "@/lib/approval-card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createContext,
   useContext,
@@ -164,6 +167,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
             <ThreadScrollToBottom />
             <ThreadFollowupSuggestions />
             <SendFailure />
+            <ApprovalSheet />
             <Composer />
             <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
               <ThreadSuggestions />
@@ -285,24 +289,33 @@ const NoticeMessage: FC = () => {
   const push = usePush();
   return (
     <MessagePrimitive.Root data-slot="cc-notice" data-role="notice" className="flex flex-col items-start gap-2 px-2">
-      <div role="note" aria-label={t("notice")} className="cc-card flex w-full max-w-md gap-3 px-3 py-2.5 font-sans">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
-          <BellIcon className="size-4.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          {title && <div className="font-medium text-ink text-sm">{title}</div>}
-          <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
-          <div className="mt-1 text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+      <div role="note" aria-label={t("notice")} className="cc-card flex w-full max-w-md flex-col gap-2.5 px-3 py-2.5 font-sans">
+        <div className="flex gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
+            <BellIcon className="size-4.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            {title && <div className="font-medium text-ink text-sm">{title}</div>}
+            <div className="wrap-break-word whitespace-pre-line text-ink-2 text-sm">{text}</div>
+            <div className="mt-1 text-ink-3 text-xs">{noticeTime(createdAt)}</div>
+          </div>
         </div>
+        {/* 「打开通知」在卡片底部靠右（卡片按钮，同允许卡）；打开了按钮就没了，没打开原因写在按钮上方一行 */}
+        {push.state === "off" && (
+          <div className="cc-ask-foot">
+            {push.failure && (
+              <div role="alert" className={ERROR_BOX}>
+                <p className="line-clamp-2">{push.failure}</p>
+              </div>
+            )}
+            <div className="cc-card-actions">
+              <button type="button" className="cc-card-btn" onClick={() => void push.enable()}>
+                {st.turnOnNotifications}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      {push.state === "off" && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button type="button" className="cc-btn cc-tap" onClick={() => void push.enable()}>
-            {st.turnOnNotifications}
-          </button>
-          {push.failure && <span className="text-danger text-sm">{push.failure}</span>}
-        </div>
-      )}
     </MessagePrimitive.Root>
   );
 };
@@ -451,22 +464,40 @@ const SendFailure: FC = () => {
   );
 };
 
-// 思考与工具调用连续的一段收成一组「步骤」（同 claude.ai）。停下来等批准的那一步不收进组：
-// 收在折叠里的「允许 / 拒绝」没人看得见，会话就卡住了。
+// 思考与工具调用连续的一段收成一组「步骤」（同 claude.ai）。允许 / 拒绝卡不收进组（lib/approval-card.ts）：等回答的收在折叠里
+// 没人看得见，会话就卡住了；点完的照 Claude 留在对话流原处（当场、切回、重开对话同一个样子）。
 const groupByBase = groupPartByType({
   reasoning: ["group-chainOfThought"],
   "tool-call": ["group-chainOfThought"],
   "standalone-tool-call": [],
 });
-const groupByWithVisibleGates: typeof groupByBase = (part, context) => {
-  if (part.type === "tool-call" && part.approval && part.approval.approved === undefined) {
-    return [];
-  }
-  return groupByBase(part, context);
-};
+function useGroupByWithVisibleGates(): typeof groupByBase {
+  const labels = useToolLabels();
+  return useMemo<typeof groupByBase>(
+    () => (part, context) =>
+      part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context),
+    [labels],
+  );
+}
+
+/** 这条回复要不要等工具名字（lib/tool-labels.ts）取回再画：有本站工具已有结果、本页没有点击记录的那一步（重开对话时），是不是
+ *  点完的卡片要靠它认；没取回前先画会先进折叠的步骤组、取回后再跳出来（第 10 轮审查）。取失败也算取回（按普通步骤画）。 */
+function useWaitForLabels(): boolean {
+  const ready = useToolLabels().ready === true;
+  return useAuiState(
+    (s) =>
+      !ready &&
+      s.message.parts.some((p) => {
+        const part = p as { type: string; result?: unknown; approval?: unknown; toolKind?: string };
+        return part.type === "tool-call" && part.toolKind === "custom" && part.result !== undefined && !part.approval;
+      }),
+  );
+}
 
 const AssistantMessage: FC = () => {
   const { ToolFallback: ToolFallbackComponent = StepRow } = useContext(ThreadComponentsContext);
+  const groupByWithVisibleGates = useGroupByWithVisibleGates();
+  const waitForLabels = useWaitForLabels();
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -483,31 +514,33 @@ const AssistantMessage: FC = () => {
         className="cc-reply px-2 wrap-break-word"
       >
         {/* 「在做什么」统一由对话底部的工作状态行说（RunIndicator），回复里不再另补占位 */}
-        <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
-          {({ part, children }) => {
-            switch (part.type) {
-              case "group-chainOfThought":
-                return <StepsGroup group={part}>{children}</StepsGroup>;
-              case "text":
-                return <MarkdownText />;
-              case "reasoning":
-                return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
-              case "tool-call":
-                // 不进组的只有等批准的那一步：同组里的步骤一样放进带环的卡片，不单独浮在正文里
-                return (
-                  part.toolUI ?? (
-                    <LoneStep>
-                      <ToolFallbackComponent {...part} />
-                    </LoneStep>
-                  )
-                );
-              case "data":
-                return part.dataRendererUI;
-              default:
-                return null;
-            }
-          }}
-        </MessagePrimitive.GroupedParts>
+        {!waitForLabels && (
+          <MessagePrimitive.GroupedParts groupBy={groupByWithVisibleGates} indicator="never">
+            {({ part, children }) => {
+              switch (part.type) {
+                case "group-chainOfThought":
+                  return <StepsGroup group={part}>{children}</StepsGroup>;
+                case "text":
+                  return <MarkdownText />;
+                case "reasoning":
+                  return null; // 引擎不给思考内容；进行中由步骤标题显示「正在思考…」
+                case "tool-call":
+                  // 不进组的只有允许 / 拒绝卡：同组里的步骤一样放进带环的卡片（只一层框），不单独浮在正文里；手机上还在等回答的不画
+                  return (
+                    part.toolUI ?? (
+                      <LoneStep part={part as unknown as CardPart}>
+                        <ToolFallbackComponent {...part} />
+                      </LoneStep>
+                    )
+                  );
+                case "data":
+                  return part.dataRendererUI;
+                default:
+                  return null;
+              }
+            }}
+          </MessagePrimitive.GroupedParts>
+        )}
         <MessageError />
         <MessageFiles />
       </div>
@@ -541,18 +574,31 @@ const LastReplyRunIndicator: FC = () => {
 const thinking = new ThinkingClock();
 
 /** 工作状态行（同 Claude，lib/managed-agents/turn.ts）：发出即出现在用户消息下面，橘色小点在动，旁边「计时 · 在做什么」，
- *  一直在，直到这一轮真正结束；等用户点「允许」时收起，点完再出来。计时从按下发送那一刻起本地每秒走；
+ *  一直在，直到这一轮真正结束；电脑上等用户点「允许」时换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方），点完换回来；
+ *  手机上等回答时由输入框上方的浮层代替（approval-sheet.tsx），这一行不显示。计时从按下发送那一刻起本地每秒走；
  *  想完开始出正文时说「思考了 M秒」；很久收不到服务端消息时改说「连接中断，正在重连」。 */
 const RunIndicator: FC<{ className?: string }> = ({ className }) => {
   const pending = usePendingSend();
   const snapshot = useActiveSessionSnapshot();
   const labels = useToolLabels();
+  const phone = useIsMobile();
   const sending = !!pending; // 临时气泡还在（正式气泡还没画出来）：这一轮刚开始
   const activity = turnActivity(snapshot, sending);
-  const visible = activity.kind !== "hidden";
+  const waiting = activity.kind === "input";
+  const visible = activity.kind !== "hidden" && !waiting;
   const now = useClock(visible);
   const start = turnStartedAt(snapshot.messages, lastSendAt(), sending, now) ?? now;
-  const thought = thinking.note(activity.kind, start, Date.now());
+  // 等用户回答时同以前收起状态行一样记（不计进「思考了几秒」）
+  const thought = thinking.note(waiting ? "hidden" : activity.kind, start, Date.now());
+  if (waiting) {
+    if (phone) return null;
+    return (
+      <div data-slot="cc-run-indicator" data-kind="input" className={cn("flex min-w-0 items-center font-sans", className)}>
+        <span className="cc-needs-input-dot" aria-hidden="true" />
+        <span className="cc-needs-input">{t("needsInput")}</span>
+      </div>
+    );
+  }
   if (!visible) return null;
   const step = activity.kind === "tool" ? runningStepLabel(activity.toolName, activity.args, labels) : "";
   const text = statusText(activity, Math.floor((now - start) / 1000), thought, step);

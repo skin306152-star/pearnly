@@ -23,11 +23,11 @@ import {
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { noticesShown } from "./activity";
-import { attachedFilesOf, createAttachmentAdapter } from "./attachments";
+import { createAttachmentAdapter, filesToSend } from "./attachments";
 import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
-import { attemptSend, type ComposerLike } from "./send-failure";
+import { attemptSend, attemptStop, clearStopFailure, type ComposerLike } from "./send-failure";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
   getSessionController,
@@ -35,6 +35,7 @@ import {
   type SessionController,
 } from "./session-controller";
 import { initialProjection, isBusy, withNotices } from "./reducer";
+import { loadToolLabels } from "@/lib/tool-labels";
 
 // ------------------------------------------------------------- state hookup
 const EMPTY: ControllerSnapshot = {
@@ -119,6 +120,11 @@ function useSessionThreadRuntime() {
   // 发送没成功时原因记在这段对话上，字和附件放回这段对话的输入框（send-failure.ts）
   const threadId = useAuiState((s) => s.threadListItem.id);
   const composer = useRef<ComposerLike | null>(null);
+  // 停止没成功之后这一轮自己结束了（联网后回复给完、别处停了）：那行原因不再留着
+  const running = isBusy(snapshot) || creating;
+  useEffect(() => {
+    if (!running) clearStopFailure(threadId);
+  }, [running, threadId]);
 
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     // Cast is safe: the reducer's message model is a structural subset of
@@ -128,7 +134,7 @@ function useSessionThreadRuntime() {
     isLoading: !snapshot.isLoaded,
     // Busy = the agent is working, or a gate/custom tool is waiting on us,
     // or a brand-new chat is still creating its session to send the first message.
-    isRunning: isBusy(snapshot) || creating,
+    isRunning: running,
     isDisabled: snapshot.isDead,
     adapters: { attachments },
 
@@ -147,8 +153,10 @@ function useSessionThreadRuntime() {
       let ok = false;
       try {
         ok = await attemptSend(threadId, restore, async (sent) => {
+          // 有附件没传上（发送时已重传过一次）：整条不发，先于建会话、发出（attachments.ts 的 filesToSend）
+          const files = filesToSend(message.attachments);
           const send = async (id: string) => {
-            await getSessionController(id).sendMessage(text, attachedFilesOf(message.attachments), pendingShownAs);
+            await getSessionController(id).sendMessage(text, files, pendingShownAs);
             sent();
           };
           // 还没有会话（新对话、没先加附件）：建会话期间就是在跑，期间点停止就在发出后打断（new-chat-send.ts）
@@ -165,9 +173,10 @@ function useSessionThreadRuntime() {
     },
 
     // Stop button: a real interrupt, not just dropping the response.
+    // 打断没成功（断网等）：组件库不接这个错，attemptStop 接住，原因写在输入框上方，停止键还在、再点再试（send-failure.ts）
     onCancel: async () => {
       if (newChat.cancel()) return; // 会话还在建：发出后再打断
-      if (controller) await controller.interrupt();
+      if (controller) await attemptStop(threadId, () => controller.interrupt());
     },
 
     // The Allow/Deny click on a gated tool. approvalId is the tool_use
@@ -190,6 +199,8 @@ export function ManagedAgentsRuntimeProvider({ children }: { children: React.Rea
   // 侧栏多设备同步（list-sync.ts）：别处的新建、改名、星标、归档、删除随推随并；回到前台、恢复、联网、重连时核对一次
   // 第一页，顺带核对侧栏标着在跑的其他对话（开着的那个由它的会话控制器核对）
   useEffect(() => watchList(() => runtime.threads), [runtime]);
+  // 工具名字一开页就取（lib/tool-labels.ts）：重开对话时认卡片要用，打开对话前多半已取回，回复不用等它
+  useEffect(() => void loadToolLabels(), []);
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 
