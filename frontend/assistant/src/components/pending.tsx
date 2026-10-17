@@ -250,7 +250,7 @@ const PendingGroup: FC<{
         ),
       )}
       {hand.length > 0 && (
-        <button type="button" className="cc-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
+        <button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc" onClick={() => ask(hand)}>
           <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>

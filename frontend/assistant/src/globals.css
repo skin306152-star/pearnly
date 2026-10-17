@@ -1269,6 +1269,13 @@
     :root:not([data-cc-variant="desktop"]) :is(.cc-btn, .cc-input) { height: var(--cc-tap); }
     :root:not([data-cc-variant="desktop"]) .cc-btn { padding-inline: 1rem; }
     :root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }
+    /* 触屏平板（网页布局 + 粗指针，iPad 横屏；第 11 轮 D26）：电脑对话顶栏抬到 44，顶栏里的图标钮（展开侧栏、对话选项「···」、
+       文件、右侧栏开关）与对话名、公司名按钮点按区 44，侧栏标题区的收起钮 44（标题区本来就 44 高）；图标大小不变。
+       鼠标（电脑）与 CC 桌面版（desktop 变体）不跟 */
+    :root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
+    :root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }
+    :root[data-cc-variant="web"] .cc-topbar :is(.cc-bar-btn, .cc-title-btn, .cc-title-company) { min-width: var(--cc-tap); height: var(--cc-tap); }
+    :root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }
   }
 
   /* 卡片按钮（照 Claude 的问题卡片，用户 10-17）：允许卡、提醒卡、安装提示共用。底部靠右（.cc-card-actions，间距 8），次要在左
