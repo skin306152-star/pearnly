@@ -642,7 +642,8 @@ WORK_LINE_MAX = 300
 WORK_VALUE_MAX = 80  # 比这长的字符串当作自由文字
 WORK_LIST_SHOWN = 5  # 列表最多列这么多项，其余只给个数
 WORK_LIST_MAX = 50  # 比这多项的列表不带
-WORK_STATUS = {"error": "failed", "denied": "not allowed by the user", "awaiting_approval": "waiting for Allow"}
+WORK_STATUS = {"error": "failed", "denied": "not allowed by the user", "awaiting_approval": "waiting for Allow",
+               "cancelled": "not run, stopped before the user answered"}
 TOOL_NAME = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 INPUT_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,39}$")
 SECRET_KEY = re.compile(r"password|passwd|secret|token|api_?key|credential", re.I)

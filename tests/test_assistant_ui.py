@@ -3336,6 +3336,28 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertNotIn("font-size", drawer)
         self.assertIn('.cc-drawer [data-slot="aui_thread-list-item"] { min-height: var(--cc-row-h);', drawer)
 
+    def test_deleting_chats_asks_once_first(self):
+        """删除对话先确认一次（用户 10-17，同 Claude 手机 app）：标题「删除对话？」/ 多选「删除 N 个对话？」、「取消 / 删除」、
+        不加说明；四个入口和菜单里的 D 键都先问，弹窗挂在页面根上（菜单关、行卸载后仍在）。"""
+        host = (SRC / "components/delete-chats.tsx").read_text(encoding="utf-8")
+        app = (SRC / "assistant.tsx").read_text(encoding="utf-8")
+        rows = (SRC / "components/assistant-ui/thread-list.tsx").read_text(encoding="utf-8")
+        i18n = (SRC / "i18n.ts").read_text(encoding="utf-8")
+        self.assertIn("<DeleteChatsHost />", app)
+        self.assertEqual(app.count("deleteChat(aui.threadListItem())"), 2)  # 电脑标题栏「···」、手机右上「…」
+        self.assertIn("const remove = () => deleteChat(aui.threadListItem());", rows)  # 行「···」与手机长按菜单
+        self.assertIn("askDelete(ids.length, () => void runInOrder(ids,", rows)  # 多选「删除 N」
+        for source in (app, rows):
+            self.assertNotIn("onSelect={() => void aui.threadListItem().delete()}", source)
+        self.assertNotIn("const deleteAll = () => void runInOrder(", rows)
+        self.assertIn('n > 1 ? `删除 ${n} 个对话？` : "删除对话？"', i18n)
+        self.assertIn('n > 1 ? `Delete ${n} chats?` : "Delete chat?"', i18n)
+        self.assertIn('n > 1 ? `ลบ ${n} แชท?` : "ลบแชท?"', i18n)
+        self.assertIn('{t("cancel")}', host)
+        self.assertIn('{t("delete")}', host)
+        self.assertIn('className="sr-only"', host)  # 不加看得见的说明
+        self.assertIn("requestAnimationFrame(", host)  # 等菜单收起再开
+
     def test_multi_select_has_no_bulk_bar_and_runs_one_by_one(self):
         rows = read("components/assistant-ui/thread-list.tsx")
         self.assertNotIn("BulkBar", rows)

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/drag";
 import { GroupHeader, GroupNew, GroupSortMenu, isMenuKey } from "@/components/assistant-ui/sidebar-group";
 import { showShortcuts } from "@/components/shortcut";
+import { askDelete, deleteChat } from "@/components/delete-chats";
 import { useLongPress } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
 import { isImeEnter } from "@/lib/ime";
@@ -1150,7 +1151,7 @@ const ThreadListItemMore: FC<{ open: boolean; onOpenChange: (open: boolean) => v
   const close = () => onOpenChange(false);
   // 取消置顶回到它那一组的最上面（starChat）
   const pin = () => void starChat(aui.threadListItem(), !starred);
-  const remove = () => void aui.threadListItem().delete();
+  const remove = () => deleteChat(aui.threadListItem());
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
@@ -1223,7 +1224,8 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
       back.push(remoteId ?? id);
     }, report).then(clearSelection);
   };
-  const deleteAll = () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection);
+  const deleteAll = () =>
+    askDelete(ids.length, () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection));
   return (
     <DropdownMenu.Content
       side="bottom"

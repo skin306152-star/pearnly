@@ -128,6 +128,16 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     return _finish(conversation, remote, name, use_id, run.tool, json.loads(run.tool_input or "{}"))
 
 
+def cancel_waiting(conversation: str) -> int:
+    """这一轮已经结束（点了停止、出错收尾、会话终止）：本对话还在等「允许」的调用都标成 cancelled。引擎不再等这些结果，
+    别的设备上没刷新的旧卡片事后点「允许」也不会执行（`decide` 只认 awaiting_approval）。返回改了几条。"""
+    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled' WHERE session_id=%s AND status='awaiting_approval'",
+                  (conversation,))
+    changed = frappe.db._cursor.rowcount
+    frappe.db.commit()
+    return changed
+
+
 def _announce(conversation: str, use_id: str, allow: bool) -> None:
     """回答落库后马上推给会话主人自己的房间（`contracts.answer_event`），不等工具执行完：别的设备上开着同一段对话的卡片
     1–2 秒内换成点完的样子（第 10 轮 C22）。推不出去不影响这次回答，那边照旧等结果或补拉。"""

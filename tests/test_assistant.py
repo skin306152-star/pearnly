@@ -378,6 +378,56 @@ class RelayTests(unittest.TestCase):
         self.assertIn("DuplicateEntryError", run)  # 推送线程与页面兜底谁先到谁执行，只执行一遍
         self.assertIn("except Exception", run)  # 意外出错也回结果，不让会话卡住
 
+    def test_a_card_left_unanswered_when_the_turn_ends_never_runs(self):
+        """点了停止、这一轮出错收尾或会话终止：还在等「允许」的调用标成 cancelled，别的设备上没刷新的旧卡片事后点「允许」
+        也不执行（第 11 轮）。停止当场标（推送线程可能已到时限不在了），推送线程看到这一轮结束再标一次。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        rows = {"r1": {"session_id": "conv", "status": "awaiting_approval", "tool": "always", "tool_input": "{}"},
+                "r2": {"session_id": "conv", "status": "done", "tool": "always", "tool_input": "{}"},
+                "r3": {"session_id": "other", "status": "awaiting_approval", "tool": "always", "tool_input": "{}"}}
+        ran = []
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def sql(self, query, values):
+                if "session_id=%s" in query:
+                    hits = [n for n, r in rows.items() if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+                    for n in hits:
+                        rows[n]["status"] = "cancelled"
+                else:
+                    status, name = values
+                    hits = [name] if rows[name]["status"] == "awaiting_approval" else []
+                    for n in hits:
+                        rows[n]["status"] = status
+                self._cursor = types.SimpleNamespace(rowcount=len(hits))
+
+            def get_value(self, doctype, filters, field, as_dict=False):
+                return next((n for n, r in rows.items() if r["session_id"] == filters["session_id"]
+                             and r["status"] == filters["status"]), None)
+
+            def commit(self):
+                pass
+
+        with mock.patch.object(toolrun.frappe, "db", Db(), create=True), \
+                mock.patch.object(toolrun.frappe, "session", types.SimpleNamespace(user="owner@x.test"), create=True), \
+                mock.patch.object(toolrun.tools, "run", lambda name, data: ran.append(name) or ("saved", False)):
+            self.assertEqual(toolrun.cancel_waiting("conv"), 1)
+            self.assertEqual([r["status"] for r in rows.values()], ["cancelled", "done", "awaiting_approval"])
+            self.assertEqual(toolrun.cancel_waiting("conv"), 0)
+            self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "not_waiting")
+        self.assertEqual(ran, [])
+        options = json.loads((CORE / "pearnly_core/doctype/pearnly_assistant_tool_run/pearnly_assistant_tool_run.json")
+                             .read_text(encoding="utf-8"))
+        status = next(f for f in options["fields"] if f["fieldname"] == "status")
+        self.assertIn("cancelled", status["options"].split("\n"))
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        body = source.split("def interrupt(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(body.index('"user.interrupt"'), body.index("toolrun.cancel_waiting(row.session_id)"))
+        relay = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
+        ended = relay.split("def _turn_ended(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("toolrun.cancel_waiting(conversation)", ended)
+
     def test_only_the_relay_thread_may_wait_inside_a_tool(self):
         """推送后等写账结果（用户 2026-10-13 第 9 条）只在推送线程里等：网页请求线程（页面兜底、点「允许」）与 long 队列进程
         （引擎回调）是全站共用的名额，在那里执行的工具要立刻返回。工具从对话信息里读到，执行完清掉。"""

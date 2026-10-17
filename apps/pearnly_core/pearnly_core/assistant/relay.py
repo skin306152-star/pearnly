@@ -62,7 +62,12 @@ def pending_tools(event: dict) -> list[str]:
 
 
 def _turn_ended(conversation):
-    """排侧栏标题的概括只是附带的：出错不影响收线。"""
+    """这一轮结束：没答的「允许」卡片作废（停止、出错收尾时引擎不再等它，`toolrun.cancel_waiting`）；再排侧栏标题的概括。
+    两件都是附带的：出错不影响收线。"""
+    try:
+        toolrun.cancel_waiting(conversation)
+    except Exception as err:
+        print(f"assistant relay {conversation}: cancel {type(err).__name__}", flush=True)
     try:
         titles.turn_ended(conversation)
     except Exception as err:

@@ -98,6 +98,7 @@ import { starChat } from "@/lib/managed-agents/sidebar-order";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
 import { syncPrefs } from "@/lib/prefs-sync";
+import { DeleteChatsHost, deleteChat } from "@/components/delete-chats";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -692,7 +693,7 @@ function MobileChatPill({ onNew }: { onNew: () => void }) {
               {t("rename")}
             </DropdownMenu.Item>
             <MobileFilingItems />
-            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+            <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => deleteChat(aui.threadListItem())}>
               <TrashIcon />
               {t("delete")}
             </DropdownMenu.Item>
@@ -749,7 +750,7 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
+          <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => deleteChat(aui.threadListItem())}>
             <TrashIcon />
             {t("delete")}
           </DropdownMenu.Item>
@@ -1069,6 +1070,7 @@ export function Assistant() {
   return (
     <ManagedAgentsRuntimeProvider>
       <Workspace />
+      <DeleteChatsHost />
     </ManagedAgentsRuntimeProvider>
   );
 }
