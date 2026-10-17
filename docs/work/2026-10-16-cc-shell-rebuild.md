@@ -407,3 +407,22 @@
   - 手机长按菜单点穿：组件库在按下时就关菜单、撤掉整页的 pointer-events: none，手机随后补发的 click 按松手位置找元素，落到了下面那一行。共用菜单（`components/ui/menu.tsx` 的 Content，各处菜单同一个入口）在非鼠标按下关菜单时吞掉紧跟着的那一次 click（800ms 内、下一次按下就作废）；子菜单不吞。电脑鼠标照组件库默认：按下落在页面根上、松开在行上，按下松开不在同一元素上本来就没有 click，同样不穿透。复现（触屏模拟，长按第 4 条出菜单后点第 7 条）：修前菜单关了、第 7 条也打开了；修后只关菜单，再点一次才打开。
   - 417 带完整堆栈：不是开发模式才带。锁定的 Frappe 16.33.0（`utils/response.py` 的 `is_traceback_allowed`）在系统设置「显示完整错误并允许向开发者报告」（`allow_error_traceback`，默认开）且请求人是系统用户时，任何报错（含 `frappe.throw` 的拒收）都把整段堆栈放进 `exc`，生产同样会带。`frappe.throw` 本身就是原生只回消息的抛法，所以改在请求开头：对话页接口（`/api/method/pearnly_core.assistant.`）设 `disable_traceback`（before_request `pearnly_core.assistant.api.no_traceback`，同 pearnly_control 成员接口的做法）；拒收照旧只回 `_server_messages` 原文，堆栈照记错误日志。hooks 变了，测试环境 `testenv.sh live` 会自动迁移。
   - 测试：`test_assistant.SidebarSyncTests.test_only_messages_move_the_last_activity_time`、`test_assistant_errors_carry_no_traceback`；`test_assistant_ui.Round10BTests`（置顶失败不动手排、断网不发请求、点菜单外只关菜单、拖动标记晚一帧、Esc 滑回与 `slideOverlay`、拿起不重画整列、新消息浮顶）。只因旧口径改的断言：行 / 组头 / 菜单改成 memo 后的切分点、`toggleStar`、`data-drag-source` 写法、置顶拖动范围、`themeColor(true)`。真机（A14）与测试机复测还没做。
+- 10-17 第 10 轮 B 段审查（428f21a9 之后，17 条逐条判断；本机测量同上：无界面 Chrome、构建整页 + 假接口、6 倍节流、LoAF ≥50ms，修前 = 428f21a9 的构建，每项 4 轮）：
+  - 手机长按出菜单那一帧（审查 major，成立）：追踪（UpdateLayoutTree + 失效记录）查清是两次整页样式重算（约 940 个元素，6 倍节流各 17–20ms）加组件库模态菜单的整页工作。原因三样：根元素做了 `:has()` 锚点（`html:has(.cc-mshell)`，页面上每次插入节点、改属性都要重查根元素）；通配的相邻兄弟规则（`.cc-reply > * + *`、`.cc-steps-card > * + *`），往 body 末尾挂菜单、拖动浮层时整个 #root 子树失效；模态菜单的禁止滚动样式表、body `pointer-events: none`、其余节点 `aria-hidden`。改：外壳挂上时在根元素标 `data-cc-mshell`（`mobile-shell.tsx`，CSS 改成 `html[data-cc-mshell]`）；两条规则改成 `> :where(:not(:first-child))`（选中的元素与优先级不变）；长按（触屏）开的对话行、公司组头菜单不按模态开（`hooks/use-long-press.ts` 的 `useLongPressMenu`，`modal` 只在打开时定；电脑「···」、右键、键盘照旧模态）。点菜单外仍只关菜单（`menu.tsx` 吞 click，复测：长按第 4 条出菜单后点第 7 条，修前修后都只关菜单，新版 body 不再设 pointer-events）。按住 700ms 再拖（ms）：对话行拿起 69–97 → 55–80，出菜单那一帧 100–143 → 4 轮里 3 轮 <50、1 轮 55，第一次挪动收菜单那一帧 62–71 → 没有 ≥50；组头拿起 71–97 → 55–75，出菜单 108–141 → 3 轮 <50、1 轮 54，收菜单 71–74 → 没有 ≥50。
+  - 电脑：鼠标拿起对话行 78–106 → 68–89，放下后那一帧（无脚本）82–99 → 71–87；键盘拿起组头 83–116 → 70–91；拖进已置顶途中 76–101 → 58–71；Esc 那一帧两版都 <50，紧接着挪回原组那一帧 63–84 → 59–68（审查实测 100–115，环境不同；仍超过一帧，按审查意见如实写：Esc 帧解决了，下一帧仍约 4 帧）。
+  - memo 的实际机制（审查 minor，成立）：省下的是行里的字、行菜单、Marquee 子树；行本身在拿起、落定时仍全部重画（拖动库一开始排序，每项的 transition 从无变成字符串）。注释改成实际机制；三处 `useSensor` 的选项记住（`sensorOptions`），组头、置顶行、组里行的 onMove 只依赖 `drag.moved`。
+  - 主题色缓存（minor，成立）：读到非空值才记 `painted`。
+  - 根节点拖动标记推迟一帧（minor）：不改。CSS 两处修完后拿起后的窗口里没有 ≥50ms 的独立帧。
+  - 挪回原组时第一行先下跳约 16px（minor，原有问题）：不在本次范围，记下以后查 `flowLayout` 的 dy。
+  - 别的设备上取消置顶存反顺序（major，成立）：别处来的回组顶只改本机显示、不存不同步，以发起那一台存的为准；同批（`BATCH_MS` 2 秒内）推来的几条按推来的先后排（`noteUnpinned` 的 after）。
+  - 手排过的组里新消息不浮顶（major，成立，按开发窗口口径「有新消息的照常浮上去」）：`arrangeGroup` 按「上次更新」排时，手排列表里存下以后（组顶那一段是放上去以后）又有动静的照新出现的算；创建日期、名称排时不挪。顺带改了 `test_manual_order_inside_a_group` 的夹具（at 原写成比组里最新的还早，与 `groupStamp` 的不变量不符）。
+  - 取消置顶后置顶顺序不同步（minor，成立）：`unpinChat` 先存那一组、再收拾置顶顺序；`prefs-sync` 排着的「先取再存」不被之后排的只存换掉（`refetch`）。真实 prefs-sync 测：先取、取完一并存上那一组，侧栏再收拾后置顶顺序存成 [s1, s3]。
+  - 出错行（minor，部分成立）：不按公司分组的侧栏（DayGroups）也显示 `SidebarError`。标题栏、手机胶囊菜单失败按设计仍写侧栏出错行（电脑侧栏开着时当场可见；手机打开抽屉可见），不另加页面提示（不加新文案）。
+  - 浮顶用本机时钟（minor，成立）：没有 `processed_at` 不浮，只用服务端时间；推来的消息是引擎记下的事件，带 `processed_at`。
+  - 重新核对不更新最后活动时间（major，成立）：`reconcile` 对已加载的行，服务端 `updated_at` 比本页新就照它浮（`seenActivity`）。
+  - 没加载的对话来了消息（minor，成立）：`list-sync` 订 `onMessage`，本页没有这一行就重拉一次（每段对话只为它拉一次）。
+  - 转发线程不在时 CC 回复不算活动（minor，成立）：读事件时（打开对话、回前台、补拉）顺带补记——这几条里最新的用户消息 / CC 回复比记下的晚就记成那一刻（`context.caught_up`，不多读引擎；已归档的不动）。旧对话被打开时也就此记成真实的最后一条消息时间（不另外批量回填）。页面一直关着、只由引擎回调执行工具后的回复，要等下次打开或发消息。
+  - `context.active` 按条件写清整类缓存（minor，成立）：改按记录名写（send 用 `row.name`，relay 开头查一次 name）。
+  - 不带堆栈的边界（minor）：接受并写进 `api.no_traceback` 说明：进 before_request 之前抛的（如 CSRF）照 Frappe 默认；只认 `/api/method/`。彻底关要改系统设置 `allow_error_traceback`，属改配置，没做。
+  - relay 等锁（minor，成立）：`context.active(wait=False)` 先 `select … for update skip locked`（MariaDB 11.8 支持），锁着就这次不记，不等锁；读事件时补记同样不等。
+  - 测试：`test_assistant_ui.Round11Tests`（6 条）、`test_assistant` 新增 `test_reading_events_catches_up_a_reply_the_relay_missed` 并扩充最后活动时间那条（锁着跳过、按记录名）。只因旧口径改的断言：传感器选项写法、`useLongPressMenu`、onMove 依赖、两条 CSS 规则写法、别处取消置顶不再存、置顶浮顶的 `bump` 写法。真机（A14）与测试机复测都还没做。

@@ -13,6 +13,8 @@
 //     对话：菜单关了、那条对话也打开了）。鼠标不会：按下时落在页面根上（整页还不接指针），按下、松开不在同一个元素上就没有
 //     click（同 Claude）。所以只在非鼠标按下关菜单时吞掉紧跟着的那一次 click（swallowNextClick）。各处菜单都从这里取，一致。
 //     只管整个菜单（Content）：宽屏旁边展开的子菜单开着时点回父菜单的另一项，那一下要照常选中，不吞。
+//     手机长按开的菜单不按模态开（hooks/use-long-press.ts 的 useLongPressMenu：省掉出菜单那一帧的整页样式重算），整页照常接指针，
+//     点菜单外那一下的 click 同样由这里吞掉。
 // 其余部件（Root、Trigger、Item、Separator、Portal …）与组件库同一个。
 
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";

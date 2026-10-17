@@ -426,7 +426,7 @@ assert.equal(pickVariant(false, false), "web");
         self.assertIn("--cc-md-li-indent: 7px;", self.css)
         self.assertNotIn("--cc-md-list-top", self.css)
         # 回复里的块（正文、步骤、文件卡）之间同样只用上外边距；回复下的操作行悬停淡入、没有悬停的设备常显
-        self.assertIn("  .cc-reply > * + * { margin-top: var(--cc-md-block); }", self.css)
+        self.assertIn("  .cc-reply > :where(:not(:first-child)) { margin-top: var(--cc-md-block); }", self.css)
         self.assertIn("  .cc-reply-actions { opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }",
                       self.css)
         self.assertIn('  [data-role="assistant"]:hover .cc-reply-actions, .cc-reply-actions:focus-within { opacity: 1; }', self.css)
@@ -636,7 +636,7 @@ class CardRuleTests(unittest.TestCase):
             self.assertIn(part, summary)
         self.assertIn('  .cc-steps-summary:hover, .cc-steps-summary[aria-expanded="true"] { color: var(--cc-ink-2); }', css)
         self.assertIn("border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);", rule(".cc-steps-card"))
-        self.assertIn("  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
+        self.assertIn("  .cc-steps-card > :where(:not(:first-child)) { border-top: var(--cc-ring-w) solid var(--cc-line); }", css)
         self.assertIn("padding: var(--cc-step-row-py) var(--cc-step-row-px);", rule(".cc-step-row"))
         self.assertIn("color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);", rule(".cc-step-row"))
         self.assertIn("width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0;", rule(".cc-step-row > svg"))

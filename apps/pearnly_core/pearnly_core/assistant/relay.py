@@ -70,11 +70,14 @@ def _turn_ended(conversation):
         print(f"assistant relay {conversation}: title {type(err).__name__}", flush=True)
 
 
-def _active(conversation):
-    """记最后活动时间只是附带的：写不进（例如请求那边正在写同一行）这次不记，不打断转发。"""
+def _active(conversation, name):
+    """记最后活动时间只是附带的：这一行正被别的事务锁着（例如后台任务挂提醒时写同一行）就这次不记、不等锁
+    （`context.active(wait=False)`，等锁会让事件流和逐字预览停住），出错也不打断转发。按记录名写（只清这一条的缓存）。"""
+    if not name:
+        return
     try:
-        context.active(conversation)
-        frappe.db.commit()
+        if context.active(name, wait=False):
+            frappe.db.commit()
     except Exception as err:
         frappe.db.rollback()
         print(f"assistant relay {conversation}: activity {type(err).__name__}", flush=True)
@@ -86,6 +89,7 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
         frappe.connect()
         frappe.set_user(user)  # 工具以会话主人的身份执行
         api = engine.adapter()
+        name = frappe.db.get_value(context.SESSION, {"session_id": conversation}, "name")  # 记最后活动时间用
         deadline = time.monotonic() + MAX_SECONDS
         calls = {}
         for _attempt in range(RECONNECTS + 1):
@@ -96,7 +100,7 @@ def _run(site, sites_path, conversation, remote, user, key, token, ready):
                     if event.get("type") == "span.model_request_end" and context.note(conversation, [event]):
                         frappe.db.commit()
                     if event.get("type") == "agent.message":
-                        _active(conversation)
+                        _active(conversation, name)
                     if event.get("type") == "agent.custom_tool_use":
                         calls[event.get("id")] = event
                     for use_id in pending_tools(event):

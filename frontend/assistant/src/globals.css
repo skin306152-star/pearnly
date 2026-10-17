@@ -1051,8 +1051,10 @@
     font-size: var(--cc-body-size); line-height: var(--cc-body-lh);
     animation: cc-fade-up var(--cc-dur-slow) var(--cc-ease) both;
   }
-  /* 回复里的块（正文、步骤、文件卡）之间只用上外边距（设计文档 3.10） */
-  .cc-reply > * + * { margin-top: var(--cc-md-block); }
+  /* 回复里的块（正文、步骤、文件卡）之间只用上外边距（设计文档 3.10）。写成「不是第一个」而不是 `* + *`：最右边是通配的相邻
+     兄弟规则时，往 body 末尾挂浮层（菜单、拖动浮层）会让整个页面重算样式（审查：手机长按出菜单、拿起时各一次，约 940 个元素）；
+     :where 保持原来的优先级 */
+  .cc-reply > :where(:not(:first-child)) { margin-top: var(--cc-md-block); }
   /* 回复下的操作行（复制）：悬停这条回复或键盘聚焦时淡入；手机、平板等没有悬停的设备常显 */
   .cc-reply-actions { opacity: var(--cc-reveal-rest); transition: opacity var(--cc-reveal) var(--cc-ease); }
   [data-role="assistant"]:hover .cc-reply-actions, .cc-reply-actions:focus-within { opacity: 1; }
@@ -1077,7 +1079,7 @@
   .cc-steps-card {
     margin-top: var(--cc-step-py); overflow: hidden; border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-step-card);
   }
-  .cc-steps-card > * + * { border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-steps-card > :where(:not(:first-child)) { border-top: var(--cc-ring-w) solid var(--cc-line); } /* 同 .cc-reply：不写 `* + *` */
   .cc-step-row {
     display: flex; width: 100%; min-width: 0; align-items: center; gap: 0.5rem; padding: var(--cc-step-row-py) var(--cc-step-row-px);
     color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); text-align: start; outline: none;
@@ -1948,8 +1950,10 @@
   --cc-mprogress: 0; position: fixed; top: var(--cc-vvtop, 0px); left: 0; right: 0; height: var(--cc-viewport-h);
   overflow: hidden; overscroll-behavior: none; background: var(--cc-bg-drawer);
 }
-/* 手机外壳在时整页不能被拉动（iOS 橡皮筋）：只有内容区滚动 */
-html:has(.cc-mshell), html:has(.cc-mshell) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* 手机外壳在时整页不能被拉动（iOS 橡皮筋）：只有内容区滚动。外壳挂上时在根元素上标 data-cc-mshell（components/mobile-shell.tsx），
+   不用 html:has(.cc-mshell)：根元素成了 :has() 的锚点，页面上任何插入节点、改属性（菜单打开、浮层挂上）都让整页重算样式
+   （审查：手机长按出菜单那一帧两次整页样式重算，各约 940 个元素，6 倍节流各 17–20ms） */
+html[data-cc-mshell], html[data-cc-mshell] body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 
 .cc-mshell[data-open="true"] { --cc-mprogress: 1; }
 .cc-mdrawer { position: absolute; inset: 0 auto 0 0; width: var(--cc-sidebar-w-mobile); background: var(--cc-bg-drawer); color: var(--cc-ink); }

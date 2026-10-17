@@ -23,9 +23,10 @@ function themeColor(force = false) {
   const root = document.documentElement;
   const key = `${drawer ? "drawer" : "app"}|${root.className}|${root.dataset.ccVariant ?? ""}`;
   if (!force && key === painted) return;
-  painted = key;
   const value = getComputedStyle(root).getPropertyValue(drawer ? "--cc-bg-drawer" : "--cc-bg-app").trim();
+  // 读到了才记下：样式表还没生效（站点页面运行时插入的模块脚本不等样式表）时读到空，下一次 DOM 变化再读（审查）
   if (!value) return;
+  painted = key;
   // 站点页面按深浅色各放了一个（首屏用）；这里统一改成当前值
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
     if (meta.getAttribute("content") !== value) meta.setAttribute("content", value);

@@ -1,5 +1,5 @@
 import { t } from "@/i18n";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { isDragging } from "@/lib/layers";
 
 // 手机（同 Claude 手机端）：抽屉在底下不动，当前页面是盖在上面的一张卡片。按住页面任意处左右拖，卡片跟着手指走，
@@ -48,9 +48,19 @@ export function MobileShell({
   const changeRef = useRef(onOpenChange);
   changeRef.current = onOpenChange;
 
+  // 外壳在时整页不能被拉动：根元素标 data-cc-mshell（globals.css；不用 html:has(.cc-mshell)，根元素做 :has() 的锚点会让
+  // 页面上每次插入节点、改属性都整页重算样式）。画第一帧前标上
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.ccMshell = "";
+    return () => {
+      delete root.dataset.ccMshell;
+    };
+  }, []);
+
   // 弹出键盘时整页跟着可见区域走（同 Claude 手机端：输入框顶在键盘上方）：外壳是 fixed，高度与上沿取根元素的
   // --cc-viewport-h / --cc-vvtop（lib/viewport.ts 按可见区域写，弹窗也用同一份）。整页本身不让拉动（globals.css 的
-  // :has(.cc-mshell)），只有对话、抽屉里的内容区会滚。
+  // html[data-cc-mshell]），只有对话、抽屉里的内容区会滚。
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;

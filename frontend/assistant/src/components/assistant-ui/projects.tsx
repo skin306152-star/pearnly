@@ -24,7 +24,7 @@ import { GroupHeader, GroupNew, GroupSortMenu, useCloseDrawer } from "@/componen
 import type { DragHandle } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useLongPress } from "@/hooks/use-long-press";
+import { useLongPressMenu } from "@/hooks/use-long-press";
 import { co, t } from "@/i18n";
 import {
   branchShort,
@@ -129,9 +129,9 @@ export const ProjectHeader = memo(function ProjectHeader({
   handle?: DragHandle;
   onMove?: (delta: -1 | 1) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  // 长按（手机）开的菜单不按模态开（useLongPressMenu：出菜单那一帧不再整页重算样式）
+  const { open: menuOpen, setOpen: setMenuOpen, modal: menuModal, press } = useLongPressMenu();
   const { isMobile } = useSidebar();
-  const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   const activity = useGroupActivity(sessions);
   const pending = usePendingCounts((s) => s.companies[project.id] ?? 0);
   const newChatIn = useNewChatIn();
@@ -183,7 +183,7 @@ export const ProjectHeader = memo(function ProjectHeader({
           {pending}
         </button>
       )}
-      <GroupSortMenu open={menuOpen} onOpenChange={setMenuOpen} alignHead={isMobile} />
+      <GroupSortMenu open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} alignHead={isMobile} />
       <GroupNew onClick={onNew} />
     </GroupHeader>
   );

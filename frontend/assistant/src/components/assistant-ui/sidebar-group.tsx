@@ -166,10 +166,13 @@ export function headOffset(trigger: { left: number } | null | undefined, head: {
  *  右对齐，左边缘正好落在组里各行文字起点右边几像素，各行首字从菜单左边露出一点）。菜单盖在列表上照常，只是不再切在字头上。 */
 export const GroupSortMenu = memo(function GroupSortMenu({
   open,
+  modal = true,
   onOpenChange,
   alignHead,
 }: {
   open?: boolean;
+  /** 长按组头开的不按模态（hooks/use-long-press.ts 的 useLongPressMenu） */
+  modal?: boolean;
   onOpenChange?: (open: boolean) => void;
   alignHead?: boolean;
 }) {
@@ -187,7 +190,7 @@ export const GroupSortMenu = memo(function GroupSortMenu({
   }, [alignHead, open]);
   const head = alignHead && offset !== null;
   return (
-    <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>
         <button ref={trigger} type="button" tabIndex={-1} className="cc-row-btn cc-group-more" aria-label={t("more")} title={t("more")}>
           <MoreHorizontalIcon />

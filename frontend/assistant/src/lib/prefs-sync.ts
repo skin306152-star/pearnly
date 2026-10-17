@@ -55,6 +55,8 @@ let stamp = 0;
 // 本机改了还没存上的项：「份.项」→ 第几次改动（存上时只清没再改过的）
 const dirty = new Map<string, number>();
 let timer: ReturnType<typeof setTimeout> | null = null;
+// 排着的那一次是先取再存（收拾时要先取最新的）：之后排的存不把它换掉（取完本来就会存）
+let refetch = false;
 let fetchedAt = -Infinity;
 let listening = false;
 let fetching = false;
@@ -138,10 +140,18 @@ export function applyPrefs(prefs: Record<string, unknown>, who: string) {
   }
 }
 
-const schedule = (run: () => void) => {
+/** 稍等一下存（again：先取最新的再存，syncPrefs 取完会存）。只有一个计时器：排着的先取再存不被之后排的只存换掉（审查：取消置顶时
+ *  先收拾置顶顺序排了取、紧接着存那一组排了存，取被冲掉，服务端的置顶顺序一直留着它）。 */
+function schedule(again: boolean) {
+  refetch ||= again;
   if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(run, SAVE_DELAY);
-};
+  timer = setTimeout(() => {
+    timer = null;
+    const sync = refetch;
+    refetch = false;
+    void (sync ? syncPrefs(user) : flush());
+  }, SAVE_DELAY);
+}
 
 /** 某一份的几项改了（各模块存本机时调；fields 空 = 整份）：稍等一下存到服务端。换成服务端的那份时不算。
  *  tidy：按数据自动收拾的，不是人改的（见文件头「收拾」）。 */
@@ -150,19 +160,21 @@ export function prefChanged(name: string, fields: readonly string[] = [], tidy =
   if (tidy) {
     if (!user || fetching) return; // 只改本机：取回来、知道是谁以后侧栏会照新的那份再收拾
     if (now() - fetchedAt > TIDY_FRESH) {
-      const who = user;
-      schedule(() => void syncPrefs(who)); // 先取最新的，换进来以后再收拾、再存
+      schedule(true); // 先取最新的，换进来以后再收拾、再存
       return;
     }
   }
   mark(name, fields);
-  schedule(() => void flush());
+  schedule(false);
 }
 
 /** 现在就存本机改了还没存上的几项；回存上了没有（没有要存的算存上了）。还不知道是谁时不存（知道了 syncPrefs 会补）。 */
 export async function flush(): Promise<boolean> {
-  if (timer !== null) clearTimeout(timer);
-  timer = null;
+  // 排着先取再存的：留着（取完还会再存一次）；只存的这就做了，不再排
+  if (timer !== null && !refetch) {
+    clearTimeout(timer);
+    timer = null;
+  }
   const who = user;
   if (!who) return false;
   if (!dirty.size) return true;

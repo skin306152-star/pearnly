@@ -605,9 +605,9 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("export const MOUSE_START = { distance: 3 };", drag)
         self.assertIn("export const TOUCH_START = { delay: 250, tolerance: 5 };", drag)
         # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
-        self.assertIn("useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd, beforeCancel }),", drag)
-        self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd, beforeCancel }),", drag)
-        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel }),", drag)
+        self.assertIn("mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },", drag)
+        self.assertIn("touch: { ...TOUCH_START, beforeEnd, beforeCancel },", drag)
+        self.assertIn("keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },", drag)
         self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);", drag)
         self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)

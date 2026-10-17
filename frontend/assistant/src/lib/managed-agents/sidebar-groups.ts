@@ -105,16 +105,26 @@ export function groupStamp(rows: readonly SidebarRow[], sort: SortOptions = UPDA
 /** 一组里的行（已按排序方式排好）按手排的先后摆（用户 10-17）：手排列表里的按列表的先后；不在列表里的，比存下时这组最新的那个
  *  时间（saved.at，groupStamp；按当前排序方式用的时间：创建日期用创建时间，其余用上次更新）还新的排最上面（新对话出现在顶上），
  *  不比它新的（「显示更多」后才取到的）接在后面，各自保持排序方式的先后。取消置顶回到组顶的那一段（saved.top：手排列表的前 n 条）
- *  排在比 at 新的那些之上，只有比 top.at（放上去那一刻）还新的排在它们上面。没手排过原样返回。 */
+ *  排在比 at 新的那些之上，只有比 top.at（放上去那一刻）还新的排在它们上面。没手排过原样返回。
+ *  按「上次更新」排时，手排列表里的对话存下以后又有了动静（新消息、CC 回复、提醒：上次更新比 at 新；组顶那一段的比 top.at 新）
+ *  照新出现的算、照常浮上去（开发窗口定：有新消息的对话照常浮到取消置顶回来的那段之上；审查：拖过一次后组里已加载的都记进手排，
+ *  原来它们有新消息也不再浮顶）——手排只管存下以后没动静的那些。创建日期、名称排时手排的不因新消息挪。 */
 export function arrangeGroup(sorted: readonly SidebarRow[], saved: GroupOrder | undefined, sort: SortOptions = UPDATED_DESC): SidebarRow[] {
   if (!saved?.keys.length) return [...sorted];
   const at = new Map(saved.keys.map((key, i) => [key, i]));
   const keyOf = (row: SidebarRow) => row.key ?? String(row.index);
   const when = timeOf(sort);
-  const known = sorted.filter((row) => at.has(keyOf(row))).sort((a, b) => at.get(keyOf(a))! - at.get(keyOf(b))!);
-  const fresh = sorted.filter((row) => !at.has(keyOf(row)));
-  const top = saved.top ? known.filter((row) => at.get(keyOf(row))! < saved.top!.n) : [];
+  const n = saved.top?.n ?? 0;
   const above = saved.top ? Math.max(saved.top.at, saved.at) : saved.at;
+  // 记在手排里、存下（放上组顶）以后又有动静的
+  const stirred = (row: SidebarRow) => {
+    const index = at.get(keyOf(row));
+    return sort.by === "updated" && index !== undefined && when(row) > (index < n ? above : saved.at);
+  };
+  const kept = (row: SidebarRow) => at.has(keyOf(row)) && !stirred(row);
+  const known = sorted.filter(kept).sort((a, b) => at.get(keyOf(a))! - at.get(keyOf(b))!);
+  const fresh = sorted.filter((row) => !kept(row));
+  const top = known.filter((row) => at.get(keyOf(row))! < n);
   return [
     ...fresh.filter((row) => when(row) > above),
     ...top,

@@ -1014,10 +1014,20 @@ export const DragArea: FC<AreaProps> = ({ children, accepts, onDrop, onOver, onA
     const node = nodeIn(entry.id, entry.list);
     if (node) homeLanded(entry, node);
   });
+  // 传感器的选项记住：拖动库按 [传感器, 选项] 记 useSensor，行内对象字面量每次重画都是新的一份，传感器、把手的事件处理跟着换，
+  // 所有把手（行、组头）的记住都失效（审查：键盘拿起、拖进置顶、挪回原组时 DragArea 重画，整列行与组头跟着重画）
+  const sensorOptions = useMemo(
+    () => ({
+      mouse: { activationConstraint: MOUSE_START, beforeEnd, beforeCancel },
+      touch: { ...TOUCH_START, beforeEnd, beforeCancel },
+      keyboard: { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel },
+    }),
+    [],
+  );
   const sensors = useSensors(
-    useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd, beforeCancel }),
-    useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd, beforeCancel }),
-    useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel }),
+    useSensor(LandingMouseSensor, sensorOptions.mouse),
+    useSensor(HoldTouchSensor, sensorOptions.touch),
+    useSensor(LandingKeyboardSensor, sensorOptions.keyboard),
   );
   // Alt+↑/↓ 挪一格的播报（第 5 轮：公司组头挪动时读屏什么也没念）：同拖动库的播报区一样是 assertive、整段念；
   // 同一句连着两次（极少）末尾补一个不占位的空格，读屏才会再念

@@ -203,13 +203,20 @@ export function setGroupOrder(group: string, shown: readonly string[], at: numbe
 // 置顶失败、组件库撤回乐观更新也是由置顶变成没置顶，会被当成取消置顶留下手排记录）：
 //   本机   — 行菜单、P 键、手机长按菜单、标题栏菜单、多选「取消置顶 N」（unpinChat）：请求发出就先挪（只改本机，不晚一拍），
 //            服务端确认后才存、同步；失败（组件库撤回置顶）撤回这次挪动。
-//   别处   — 别的设备上取消、经侧栏同步推来的（list-sync.ts 的 restar）：按数据收拾（tidy，那一台存过）。服务端那份换进来时还没有
-//            它（那一台还没存上）就再挪一次；服务端那份里那一组已经有它了才算收拾完（confirmLifts）。
+//   别处   — 别的设备上取消、经侧栏同步推来的（list-sync.ts 的 restar）：只改本机显示、不存不同步，以发起那一台存的为准（审查：
+//            这里存的话，同批几条各自当成单独一条回组顶、先后倒过来，再按收拾存上去，谁后写谁赢——测试窗口第 10 轮 B 段电脑多选取消
+//            显示「Express、กฎ」，服务端却存成「กฎ、Express」）。同批（BATCH_MS 内）推来的几条照推来的先后排（后来的排在先来的
+//            后面，同发起那一台逐条做的先后）。服务端那份换进来时还没有它（那一台还没存上）就再挪一次（仍只改本机）；服务端那份里
+//            那一组已经有它了才算收拾完（confirmLifts）。
 //   多选   — 一起取消的按侧栏里原来的先后回到组顶（逐条做，后一条排在同批已经回来的那几条后面）。
 // 记号有时效（LIFT_TTL）：这一行一直没出现在侧栏（别的产品、归档的、没加载的）也不会一直留着。
 export const LIFT_TTL = 30_000;
+/** 别的设备上同批取消置顶（多选）推来的间隔：这么近的算同一批。 */
+export const BATCH_MS = 2_000;
 type Lift = {
   mine: boolean;
+  /** 记下的时刻（clock）。 */
+  noted: number;
   /** 服务端已确认（本机的）。 */
   ok: boolean;
   until: number;
@@ -225,9 +232,14 @@ const clock = () => (typeof performance !== "undefined" ? performance.now() : Da
 export const useLifts = create<{ tick: number }>(() => ({ tick: 0 }));
 const poke = () => useLifts.setState((state) => ({ tick: state.tick + 1 }));
 
-/** 记下这一条取消置顶了；mine：本机人点的（服务端确认前只改本机），否则是别的设备上的。after：同批排在它前面的。 */
+/** 记下这一条取消置顶了；mine：本机人点的（服务端确认前只改本机），否则是别的设备上的。after：同批排在它前面的（别的设备上的
+ *  不给：BATCH_MS 内先推来的几条就是同批排在它前面的）。 */
 export function noteUnpinned(key: string, mine: boolean, after: readonly string[] = []) {
-  lifts.set(key, { mine, ok: !mine, until: clock() + LIFT_TTL, after });
+  const now = clock();
+  const batch = mine
+    ? after
+    : [...lifts].filter(([other, lift]) => other !== key && !lift.mine && now - lift.noted < BATCH_MS).map(([other]) => other);
+  lifts.set(key, { mine, ok: !mine, noted: now, until: now + LIFT_TTL, after: batch });
   poke();
 }
 
@@ -264,8 +276,10 @@ export async function unpinChat(key: string, run: () => Promise<void>, after: re
     unpinSettled(key, false);
     throw error;
   }
-  forgetPinned([key]);
+  // 先存挪好的那一组，再按数据收拾置顶顺序（收拾要先取一次服务端那份时，取完会把已记下没存的那一组一并存上；prefs-sync 也不让
+  // 后排的存把先排的取盖掉——审查：原来先收拾、后存，后排的存把取覆盖了，服务端的置顶顺序一直留着它）
   unpinSettled(key, true);
+  forgetPinned([key]);
 }
 
 // 本机发出、服务端还没回的置顶 / 取消置顶（对话编号）。组件库乐观地先显示成新的样子，失败再撤回：这段时间侧栏不按眼前的样子收拾
@@ -336,8 +350,8 @@ export function applyLifts(spotOf: (key: string) => LiftSpot) {
       continue;
     }
     keep({ ...useSidebarOrder.getState(), groups: { ...groups, [spot.group]: next } });
-    if (!lift.mine) prefChanged("order", [groupField(spot.group)], true);
-    else if (lift.ok) {
+    if (!lift.mine) continue; // 别的设备上的：只改本机显示，以发起那一台存的为准（见上）
+    if (lift.ok) {
       lifts.delete(key);
       prefChanged("order", [groupField(spot.group)]);
     } else lift.moved = { group: spot.group, before: saved, after: next };

@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/drag";
 import { GroupHeader, GroupNew, GroupSortMenu, isMenuKey } from "@/components/assistant-ui/sidebar-group";
 import { showShortcuts } from "@/components/shortcut";
-import { useLongPress } from "@/hooks/use-long-press";
+import { useLongPressMenu } from "@/hooks/use-long-press";
 import { cn } from "@/lib/utils";
 import { isImeEnter } from "@/lib/ime";
 import { isDragging } from "@/lib/layers";
@@ -743,7 +743,9 @@ const CompanyGroup: FC<{
   // 组头记住（memo）：拖动库重画这一组时，把手、开关、挪一格都还是同一份就不重画组头
   const latestMove = useRef(onMove);
   latestMove.current = onMove;
-  const move = useCallback((delta: -1 | 1) => drag.moved(latestMove.current(delta)), [drag]);
+  // 只依赖播报（drag.moved 按名字记住）：整份 drag 在拖动中随位移、过渡变，依赖它组头的 onMove 也跟着变（审查）
+  const said = drag.moved;
+  const move = useCallback((delta: -1 | 1) => said(latestMove.current(delta)), [said]);
   const ref = useCallback(
     (el: HTMLElement | null) => {
       dragRef(el);
@@ -768,7 +770,15 @@ const CompanyGroup: FC<{
   );
 };
 
-const DayGroups: FC<{ searchQuery?: string }> = ({
+// 不按公司分组的产品（ERP / DMS）同样在列表上面显示侧栏出错行（置顶 / 取消置顶失败等，toggleStar；审查：原来只有按公司分组的侧栏有）
+const DayGroups: FC<{ searchQuery?: string }> = (props) => (
+  <>
+    <SidebarError />
+    <DayRows {...props} />
+  </>
+);
+
+const DayRows: FC<{ searchQuery?: string }> = ({
   searchQuery = "",
 }) => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
@@ -978,8 +988,9 @@ const PinnedRow: FC<{ scope: Extract<RowScope, { mode: "pin" }> }> = ({ scope })
   const title = useAuiState((s) => s.threadListItem.title) || t("untitled");
   const id = pinDrag(localId);
   const drag = useSortableItem({ id, kind: "pin", label: title, list: PINS }, { disabled: scope.locked, ownFocus: true, skip: ROW_SKIP });
-  // Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）；同一份回调，行不跟着拖动库每次重画
-  const onMove = useCallback((delta: -1 | 1) => drag.moved(scope.move(id, delta)), [drag, scope, id]);
+  // Alt+↑/↓ 挪完念新位置（同键盘拖动的播报）；只依赖播报（drag.moved），不随拖动中的位移变
+  const said = drag.moved;
+  const onMove = useCallback((delta: -1 | 1) => said(scope.move(id, delta)), [said, scope, id]);
   return <Row drag={drag} onMove={scope.locked ? undefined : onMove} />;
 };
 
@@ -996,18 +1007,21 @@ const GroupRow: FC<{ scope: GroupScope }> = ({ scope }) => {
     { id, kind: "row", label: count ? sb.drag.items(count) : title, list: rowList(scope.group), group: scope.group, count: count || undefined, session: remoteId },
     { disabled: locked, ownFocus: true, skip: ROW_SKIP },
   );
-  const onMove = useCallback((delta: -1 | 1) => drag.moved(scope.move(id, delta)), [drag, scope, id]);
+  const said = drag.moved;
+  const onMove = useCallback((delta: -1 | 1) => said(scope.move(id, delta)), [said, scope, id]);
   return <Row drag={drag} onMove={locked ? undefined : onMove} />;
 };
 
 type RowDrag = { node: { ref: (el: HTMLElement | null) => void } & Record<string, unknown>; handle: DragHandle };
 
-// 记住（memo）：拖动库每次拿起、经过、放下都重画所有能拖的行，这一行的位移与把手没变（useSortableItem 回同一份）就不重画
+// 记住（memo）：省下的是行里的字（RowLabel）、行菜单（ThreadListItemMore）与 Marquee 子树——它们的属性在拖动中不变。行本身在拿起、
+// 落定时仍会全部重画（审查实测）：拖动库一开始排序，每一项的 transition 就从无变成一段字符串，useSortableItem 回的 drag 跟着变；
+// 不在拖动时（实时推送、列表同步重画侧栏）位移、把手、onMove 都是同一份，行不重画
 const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delta: -1 | 1) => void }) {
   const [renaming, setRenaming] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // 长按（手机）开的菜单不按模态开（useLongPressMenu：出菜单那一帧不再整页重算样式）
+  const { open: menuOpen, setOpen: setMenuOpen, modal: menuModal, press } = useLongPressMenu();
   const startRename = useCallback(() => setRenaming(true), []);
-  const press = useLongPress(() => setMenuOpen(true), () => setMenuOpen(false));
   // 点的就是正开着的这个对话（例如手机抽屉里再点一次）：不会切换、也就不会重进，同样向服务端核对一次此刻的状态。
   // 点的是同一段对话的另一行数据：也不切换（切过去会另起一份，输入框里没发的字就没了）
   const id = useAuiState((s) => s.threadListItem.remoteId);
@@ -1079,7 +1093,7 @@ const Row = memo(function Row({ drag, onMove }: { drag?: RowDrag; onMove?: (delt
           >
             <RowLabel />
           </ThreadListItemPrimitive.Trigger>
-          <ThreadListItemMore open={menuOpen} onOpenChange={setMenuOpen} onRename={startRename} />
+          <ThreadListItemMore open={menuOpen} modal={menuModal} onOpenChange={setMenuOpen} onRename={startRename} />
         </>
       )}
     </ThreadListItemPrimitive.Root>
@@ -1186,10 +1200,13 @@ export const ThreadListItemRename: FC<{ onDone: () => void; className?: string }
 // 记住：拖动时整行重画不连带菜单（开关、改名都是稳定的回调）
 const ThreadListItemMore = memo(function ThreadListItemMore({
   open,
+  modal = true,
   onOpenChange,
   onRename,
 }: {
   open: boolean;
+  /** 长按开的不按模态（useLongPressMenu） */
+  modal?: boolean;
   onOpenChange: (open: boolean) => void;
   onRename: () => void;
 }) {
@@ -1205,7 +1222,7 @@ const ThreadListItemMore = memo(function ThreadListItemMore({
   const pin = () => toggleStar(aui.threadListItem(), !starred);
   const remove = () => void aui.threadListItem().delete();
   return (
-    <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>
         <Button
           variant="ghost"

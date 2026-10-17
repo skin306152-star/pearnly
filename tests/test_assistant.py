@@ -1834,7 +1834,8 @@ class NoticeTests(unittest.TestCase):
 
     def test_events_bring_this_conversations_notices(self):
         sessions = self._sessions()
-        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0,
+                   modified=datetime.datetime(2026, 10, 14))
         history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-12T01:00:00Z"},
                    {"id": "sevt_0002", "type": "agent.message", "processed_at": "2026-10-12T01:10:00Z"},
                    {"id": "sevt_0003", "type": "session.status_idle", "processed_at": "2026-10-12T01:11:00Z"}]
@@ -1969,7 +1970,8 @@ class RunStatusTests(unittest.TestCase):
 
     def test_events_carry_the_state_when_asked_and_read_the_engine_once(self):
         sessions = self._sessions()
-        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0,
+                   modified=datetime.datetime(2026, 10, 14))
         history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-13T08:10:00Z"},
                    {"id": "sevt_0002", "type": "session.status_running", "processed_at": "2026-10-13T08:10:01Z"},
                    {"id": "sevt_0003", "type": "agent.message", "processed_at": "2026-10-13T08:23:59Z"}, self.IDLE]
@@ -2016,7 +2018,8 @@ class RunStatusTests(unittest.TestCase):
 
     def test_parked_calls_are_split_by_the_sites_tool_runs(self):
         sessions = self._sessions()
-        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0)
+        row = _Row(name="row1", session_id="sesn_mine1", title="t", archived=0, remote_ids="", context_tokens=0,
+                   modified=datetime.datetime(2026, 10, 14))
         history = [{"id": "sevt_0001", "type": "user.message", "processed_at": "2026-10-13T08:10:00Z"},
                    {"id": "sevt_tool1", "type": "agent.custom_tool_use", "processed_at": "2026-10-13T08:19:00Z"},
                    self.PARKED, {"id": "sevt_0009", "type": "span.model_request_end", "processed_at": "2026-10-13T08:20:01Z"}]
@@ -3375,6 +3378,15 @@ class _SessionDb:
     def commit(self):
         self.commits += 1
 
+    def rollback(self):
+        self.rollbacks = getattr(self, "rollbacks", 0) + 1
+
+    def sql(self, query, *values):
+        """只认 `context.active(wait=False)` 的「锁得到才写」：`busy` 里的记录名当作正被别的事务锁着（SKIP LOCKED 回空）。"""
+        self.queries = getattr(self, "queries", []) + [(query, values)]
+        busy = getattr(self, "busy", set())
+        return [] if values and values[0] in busy else [(values[0] if values else None,)]
+
 
 class SidebarSyncTests(unittest.TestCase):
     """侧栏多设备同步与标题（教程第 7、11 条，2026-10-13）：新建、改名（含自动标题）、星标、归档、删除按用户推一条
@@ -3714,6 +3726,53 @@ class SidebarSyncTests(unittest.TestCase):
                 relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
                            __import__("threading").Event())
             self.assertEqual(len(self.pushed) - pushed, len(stream))  # 照样推到这一轮结束
+            # 审查：那一行正被别的事务锁着（后台任务挂提醒时写同一行）不等锁（SKIP LOCKED），这次不记，照样推完
+            self.db.writes.clear()
+            self.db.busy = {"row1"}
+            commits, pushed = self.db.commits, len(self.pushed)
+            relay._run("t1.example", "/sites", "sesn_first1", "sesn_first1", self.OWNER, "k", "tok",
+                       __import__("threading").Event())
+            self.assertEqual((touched(), self.db.commits), ([], commits))
+            self.assertEqual(len(self.pushed) - pushed, len(stream))
+            self.assertIn("for update skip locked", self.db.queries[-1][0])
+            self.assertEqual(self.db.queries[-1][1], ("row1",))  # 按记录名锁、按记录名写
+        source = (CORE / "assistant/context.py").read_text(encoding="utf-8")
+        # 按记录名写：只清这一条的缓存（按 {session_id: …} 条件写会清整个文档类型的缓存、跑 Redis KEYS）
+        self.assertIn('frappe.db.set_value(SESSION, name, "modified", at or frappe.utils.now_datetime(), '
+                      'update_modified=False)', source)
+        self.assertIn("context.active(row.name)", (CORE / "assistant/sessions.py").read_text(encoding="utf-8"))
+
+    def test_reading_events_catches_up_a_reply_the_relay_missed(self):
+        """审查：转发线程不在时（过了 15 分钟时限、进程重启、页面关着由引擎回调执行工具后接着回的话）CC 的回复不算活动。
+        读事件时（打开对话、回前台、补拉）顺带补记：最新一条用户消息 / CC 回复比记下的晚，就记成那一刻（不多读引擎）。"""
+        context = sys.modules.get("pearnly_core.assistant.context") or _load(
+            "pearnly_core.assistant.context", CORE / "assistant/context.py")
+        row = self.db.rows["row1"]
+        row.update(modified=datetime.datetime(2026, 10, 13, 15, 0), archived=0)  # 站点时区 = 08:00Z
+        events = [{"type": "user.message", "processed_at": "2026-10-13T08:30:00Z"},
+                  {"type": "agent.message", "processed_at": "2026-10-13T08:40:00.250000Z"},
+                  {"type": "session.status_idle", "processed_at": "2026-10-13T08:41:00Z"}]
+        self.assertTrue(context.caught_up(row, events))
+        self.assertEqual(self.db.writes[-1], ("row1", {"modified": datetime.datetime(2026, 10, 13, 15, 40, 0, 250000)},
+                                              False))
+        # 已记得比事件晚（发消息、推送线程记过）：不写
+        self.db.writes.clear()
+        self.assertFalse(context.caught_up(row, events))
+        self.assertFalse(context.caught_up(row, [{"type": "session.status_idle", "processed_at": "2026-10-14T00:00:00Z"}]))
+        # 已归档：modified 是归档时间（列表的 archived_at），不动；那一行锁着：不等，这次不记
+        row.update(modified=datetime.datetime(2026, 10, 13, 15, 0))
+        row.update(archived=1)
+        self.assertFalse(context.caught_up(row, events))
+        row.update(archived=0)
+        self.db.busy = {"row1"}
+        self.assertFalse(context.caught_up(row, events))
+        self.assertEqual(self.db.writes, [])
+        # 读事件的两条路（整段、增量）都经它，写了才提交
+        source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
+        remember = source.split("def _remember_context(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("context.caught_up(row, events_of_current)", remember)
+        self.assertIn("if noted or caught:", remember)
+        self.assertEqual(source.split("def events(", 1)[1].split("\ndef ", 1)[0].count("_remember_context("), 2)
 
     def test_a_new_conversation_is_announced_after_it_is_stored(self):
         api = types.SimpleNamespace(open=lambda handle, metadata: ("sesn_new001", "idle"))
