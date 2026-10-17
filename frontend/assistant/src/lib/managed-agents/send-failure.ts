@@ -9,6 +9,8 @@
 // 发送失败原因，点停止也会先清掉本对话的发送失败原因）；两样都有时显示停止那一行（较新）。
 // 只在确实没发出时放回：发出请求的回应没回来（断网）而服务端已收下（回声已到）的，会话控制器当作发出了、不抛，这里不放回；
 // 新对话发出后补的打断没成功同停止键，只写停止的原因（第 10 轮 E30：放回后再按发送会重复一条）。
+// 回声比失败晚到（第 11 轮 F39：请求断在路上，服务端几秒后才收下）：放回时看不出发没发出，先放回不丢字；之后这条的回声到了
+// （会话控制器的 onDelivered），sendLanded 把放回的字和附件撤掉（用户没改过的才撤）、原因清掉，不会再发第二遍。
 
 import { useSyncExternalStore } from "react";
 import type { CompleteAttachment, CreateAttachment } from "@assistant-ui/react";
@@ -17,13 +19,16 @@ import { isUploaded } from "./attachments";
 
 /** 输入框里要用到的几项（组件库 ThreadComposerRuntime 的子集）。 */
 export type ComposerLike = {
-  getState(): { text: string };
+  getState(): { text: string; attachments?: readonly { id: string }[] };
   setText(text: string): void;
   addAttachment(attachment: CreateAttachment | File): Promise<void>;
+  clearAttachments?(): Promise<void> | void;
 };
 
 /** 各对话的出错原因：send 发送没成功，stop 停止没成功。 */
 const failures = new Map<string, { send?: string; stop?: string }>();
+/** 各对话最近一次放回输入框的：哪个输入框、放回的字、附件编号（回声晚到时撤掉，sendLanded）。 */
+const restored = new Map<string, { composer: ComposerLike; text: string; attachments: string[] }>();
 const listeners = new Set<() => void>();
 
 function note(thread: string, kind: "send" | "stop", message: string | undefined) {
@@ -48,6 +53,7 @@ export function sendFailed(
   emit();
   if (!restore?.composer) return;
   const { composer, text, attachments = [] } = restore;
+  restored.set(thread, { composer, text, attachments: attachments.map((a) => a.id) });
   // 等的这一会儿又打了字：原来那条放在前面，新打的接在后面，两段都不丢
   const typed = composer.getState().text;
   if (text) composer.setText(typed.trim() ? `${text}\n${typed}` : text);
@@ -102,8 +108,31 @@ export function clearStopFailure(thread: string) {
   emit();
 }
 
+/** 放回输入框的那一条服务端其实收下了（回声晚到，会话控制器的 onDelivered；text 是用户打的字）：放回的字还原样在就撤掉（之后
+ *  又打的字留着），放回的附件原样都在就一起撤掉，发送没成功的原因清掉。用户已改过、或这段对话没放回过这一条：不动输入框。 */
+export function sendLanded(thread: string, text: string) {
+  const back = restored.get(thread);
+  if (!back || back.text !== text) return;
+  restored.delete(thread);
+  const { composer, attachments } = back;
+  const now = composer.getState();
+  if (text) {
+    if (now.text === text) composer.setText("");
+    else if (now.text.startsWith(`${text}\n`)) composer.setText(now.text.slice(text.length + 1));
+  }
+  const ids = (now.attachments ?? []).map((a) => a.id);
+  if (attachments.length && ids.length === attachments.length && ids.every((id, i) => id === attachments[i])) {
+    void Promise.resolve(composer.clearAttachments?.()).catch((err) => console.debug("[cc] attachments not cleared:", err));
+  }
+  if (failures.get(thread)?.send) {
+    note(thread, "send", undefined);
+    emit();
+  }
+}
+
 /** 再发送（或别处要清）时清掉这段对话的出错原因（发送、停止两样都清）。 */
 export function clearSendFailure(thread: string) {
+  restored.delete(thread); // 再发送了：放回的已经用掉，晚到的回声不再去动输入框
   if (!failures.has(thread)) return;
   failures.delete(thread);
   emit();

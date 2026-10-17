@@ -799,6 +799,7 @@ g.fetch = siteFetch;
 import { ExternalStoreThreadRuntimeCore } from "@assistant-ui/core/internal";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { attemptStop, clearStopFailure, sendFailed, sendFailureOf } from "@/lib/managed-agents/send-failure";
+import { registerStop, stopRun } from "@/lib/managed-agents/stop-run";
 import { isBusy } from "@/lib/managed-agents/reducer";
 ---
 const unhandled: unknown[] = [];
@@ -821,23 +822,22 @@ c.attach();
 await g.sleep(30);
 assert.equal(isBusy(c.getSnapshot()), true);
 
-// 同 runtime-provider.tsx 的 onCancel：经 attemptStop
-const store: any = {
-  messages: [], isRunning: true, convertMessage: (m: any) => m,
-  onNew: async () => {}, onCancel: () => attemptStop("thread-stop", () => c.interrupt()),
-};
+// 同 runtime-provider.tsx 登记的停止：经 attemptStop；停止键、Esc 调 stopRun（不经组件库的 cancelRun，组件库没有取消能力）
+registerStop("thread-stop", () => attemptStop("thread-stop", () => c.interrupt()));
+const store: any = { messages: [], isRunning: true, convertMessage: (m: any) => m, onNew: async () => {} };
 const core = new ExternalStoreThreadRuntimeCore({ getModelContext: () => ({}), subscribe: () => () => {} } as any, store);
+assert.equal(core.capabilities.cancel, false);
 
 // ① 断网：停止请求失败 → 原因一行（通用句），还在跑（停止钮还在），字不放回
 offline = true;
-core.cancelRun();
+await stopRun("thread-stop");
 await g.sleep(30);
 assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
 assert.equal(isBusy(c.getSnapshot()), true);
 assert.equal(core.composer.text, "");
 // ② 联网后再点停止：打断成功，原因清掉
 offline = false;
-core.cancelRun();
+void stopRun("thread-stop");
 await g.sleep(5);
 assert.equal(sendFailureOf("thread-stop"), "");
 assert.deepEqual(g.calls.filter((x: any) => x.method === "interrupt").map((x: any) => x.body.session_id), [S, S]);  // 断网那次、再点这次
@@ -869,6 +869,357 @@ assert.deepEqual(unhandled, []);                                    // 一个未
 g.respond = respond;
 """)
 
+    # 第 11 轮 F39（lab 9798f54e，电脑内置浏览器）：发出 1 秒后断网（回声还没到）、点停止，字被放回输入框；联网后回复照常给完，
+    # 对话最后多出一条同样的用户气泡（服务端只有一条，刷新后只剩一条）；再点停止控制台未捕获「Entry not available in the store」。
+    # 原因（复刻页按真实顺序复现：断网期间回声没推到，联网后实时通道先推来回复，回声随补拉晚到）：
+    #   1) 停止经组件库的 cancelRun：回复还没出时它把最后那条用户消息从自己的消息仓库里删掉、字放回输入框。我们的对话是外部数据，
+    #      那条消息我们这边还在、服务端也收下了 —— 字放回再按发送就重复；组件库仓库与我们的数据从此对不上，之后按编号取那条就抛错。
+    #   2) 补拉失败（断网）到补齐之间推来的事件直接并：回复先并，晚到的回声排在回复后面；回声又只认「最后一条」乐观气泡，对不上就
+    #      另加一条。
+    # 现在：停止不经组件库（不给 onCancel，停止键与 Esc 走 stopRun），消息留在对话里、字不放回；刚发出还在路上的，等它有了结果
+    # 再打断；补拉失败、实时通道重连之后推来的先压着，等补齐再按先后并；回声认本页还没对上的那个乐观气泡，不论它后面已有什么；
+    # 发出请求断在路上而服务端其实收下了（回声晚到）：放回输入框的字与附件撤掉、原因清掉，不再发第二遍。
+    def test_f39_offline_stop_keeps_the_message_and_one_bubble_after_reconnect(self):
+        self.run_page(r"""
+import { ExternalStoreThreadRuntimeCore } from "@assistant-ui/core/internal";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { attemptSend, attemptStop, clearStopFailure, sendFailureOf, sendLanded } from "@/lib/managed-agents/send-failure";
+import { registerStop, stopRun } from "@/lib/managed-agents/stop-run";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+const unhandled: unknown[] = [];
+process.on("unhandledRejection", (reason) => unhandled.push(reason));
+const S = "sesn_f39";
+const T = "thread-f39";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2),
+  ev("m0", "agent.message", 3, { content: text("hello") }), ev("i0", "session.status_idle", 4, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+
+// 同 runtime-provider.tsx：发送经 attemptSend，停止登记给 stopRun，晚到的回声交给 sendLanded；组件库不给 onCancel
+let core: any;
+const composer = { getState: () => ({ text: core.composer.text, attachments: core.composer.attachments }), setText: (t: string) => core.composer.setText(t),
+  addAttachment: (a: any) => core.composer.addAttachment(a), clearAttachments: () => core.composer.clearAttachments() };
+const textOf = (m: any) => m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n").trim();
+const adapter = () => ({
+  messages: c.getSnapshot().messages, isRunning: isBusy(c.getSnapshot()), convertMessage: (m: any) => m,
+  onNew: async (message: any) => {
+    const typed = textOf(message);
+    await attemptSend(T, { composer, text: typed, attachments: message.attachments }, async (sent) => { await c.sendMessage(typed, []); sent(); });
+  },
+});
+core = new ExternalStoreThreadRuntimeCore({ getModelContext: () => ({}), subscribe: () => () => {} } as any, adapter() as any);
+c.subscribe(() => core.__internal_setAdapter(adapter() as any));
+registerStop(T, () => attemptStop(T, () => c.interrupt()));
+c.onDelivered((typed) => sendLanded(T, typed));
+assert.equal(core.capabilities.cancel, false);   // 组件库自己的停止（cancelRun）用不上
+const roles = () => c.getSnapshot().messages.map((m: any) => `${m.role}:${textOf(m)}`);
+// 组件库眼里的对话（去掉它自己补的「思考中」占位）与我们的数据一致，每一条都取得到（取不到就是 Entry not available）
+const libraryAgrees = () => {
+  const mine = c.getSnapshot().messages.map((m: any) => m.id);
+  const lib = core.messages.filter((m: any) => !m.metadata?.isOptimistic).map((m: any) => m.id);
+  assert.deepEqual(lib, mine);
+  for (const id of mine) assert.ok(core.getMessageById(id), id);
+};
+
+// 发出：服务端几秒后才收下，期间断网
+let offline = false;
+let releaseSend: () => void = () => {};
+const respond = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") {
+    await new Promise<void>((resolve) => { releaseSend = resolve; });
+    // 服务端收下了（回声只在事件记录里：断网期间没推到；正文按服务端 contracts.message_text 去掉首尾空白），回应却断在路上
+    site.log.push(ev("echoF", "user.message", 10, { content: text(String(body.text).trim()) }), ev("r1", "session.status_running", 11));
+    site.engine = "running";
+    throw new TypeError("Failed to fetch");
+  }
+  if (offline) throw new TypeError("Failed to fetch");
+  if (method === "interrupt") {
+    site.engine = "idle";
+    site.log.push(ev("int1", "user.interrupt", 30), ev("i1", "session.status_idle", 31, { stop_reason: { type: "end_turn" } }));
+    return ok();
+  }
+  return respond(method, args, body);
+};
+core.composer.setText("F39 list ten points");
+void core.composer.send();
+await g.sleep(10);
+assert.deepEqual(roles(), ["user:hi", "assistant:hello", "user:F39 list ten points"]);
+assert.equal(core.composer.text, "");
+offline = true;
+g.socket.drop();                         // 断网：实时通道随之断开（再连上时开缺口）
+c.refreshStatus();                       // 补拉也失败
+await g.sleep(10);
+
+// ① 断网点停止：消息留在对话里，字不放回输入框；打断等发出的那条有了结果（服务端还没收下就打断会落空）
+const stopping = stopRun(T);
+await g.sleep(10);
+assert.equal(g.calls.filter((x: any) => x.method === "interrupt").length, 0);
+assert.equal(core.composer.text, "");
+assert.deepEqual(roles(), ["user:hi", "assistant:hello", "user:F39 list ten points"]);
+libraryAgrees();
+// 发出请求断在路上（看不出服务端收没收下）：先当没发出，字放回、写原因；打断随后也因断网没成功
+releaseSend();
+await stopping;
+await g.sleep(10);
+assert.equal(core.composer.text, "F39 list ten points");
+assert.equal(sendFailureOf(T), "出了点问题，请重试。");
+assert.deepEqual(roles(), ["user:hi", "assistant:hello"]);
+libraryAgrees();
+
+// ② 联网：实时通道先推来回复（回声已在事件记录里、没推到），补拉晚一步；推来的压到补齐以后，顺序同服务端
+offline = false;
+let slowEvents = true;
+const online = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && slowEvents) await g.sleep(30);
+  return online(method, args, body);
+};
+g.socket.back();
+g.fire("online");
+await g.sleep(5);
+push(S, ev("m1", "agent.message", 12, { content: text("1. File by the 15th") }));
+push(S, ev("m2", "agent.message", 13, { content: text("2. Keep the invoices") }));
+await g.sleep(120);
+slowEvents = false;
+assert.deepEqual(roles(), ["user:hi", "assistant:hello", "user:F39 list ten points", "assistant:1. File by the 15th\n2. Keep the invoices"]);
+assert.equal(c.getSnapshot().messages.filter((m: any) => m.role === "user" && textOf(m) === "F39 list ten points").length, 1);
+// 服务端其实收下了：放回的字撤掉、发送没成功的原因清掉，不会再发第二遍（还显示的是断网时停止没成功那一句：这一轮还在跑）
+assert.equal(core.composer.text, "");
+clearStopFailure(T);
+assert.equal(sendFailureOf(T), "");
+libraryAgrees();
+
+// ③ 联网后再点停止：打断照常生效，没有未捕获的错误，组件库与我们的数据仍一致
+await stopRun(T);
+await g.sleep(30);
+assert.equal(isBusy(c.getSnapshot()), false);
+assert.equal(g.calls.filter((x: any) => x.method === "interrupt").length, 2);
+libraryAgrees();
+assert.equal(core.composer.text, "");
+
+// ④ 在线时发出后马上点停止：等服务端收下这条再打断（不落空），消息留着、字不放回
+let release2: () => void = () => {};
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") {
+    await new Promise<void>((resolve) => { release2 = resolve; });
+    site.log.push(ev("echo2", "user.message", 40, { content: text(body.text) }), ev("r2", "session.status_running", 41));
+    site.engine = "running";
+    return ok();
+  }
+  return online(method, args, body);
+};
+core.composer.setText("again");
+void core.composer.send();
+await g.sleep(10);
+const before = g.calls.length;
+const stop2 = stopRun(T);
+await g.sleep(10);
+assert.ok(!g.calls.slice(before).some((x: any) => x.method === "interrupt"));
+release2();
+await stop2;
+const order = g.calls.slice(before).map((x: any) => x.method).filter((m: string) => m === "send" || m === "interrupt");
+assert.deepEqual(order, ["interrupt"]);       // send 在停止之前已发出；打断在它回来之后才发
+assert.equal(core.composer.text, "");
+await g.sleep(30);
+assert.equal(c.getSnapshot().messages.filter((m: any) => m.role === "user" && textOf(m) === "again").length, 1);
+libraryAgrees();
+
+await g.sleep(30);
+assert.deepEqual(unhandled, []);
+g.respond = respond;
+""")
+
+    def test_a_failed_backfill_does_not_hold_back_live_pushes(self):
+        # 审查（第 11 轮 F39 修复）：实时通道一直连着、只是一次低频补拉失败（网关 502、列事件接口一时出错），推来的回复与逐字预览
+        # 不压：走的是同一条活着的连接，不会漏推。以前补拉失败就开缺口，回复要压到下一次补拉成功，接口一直坏就一直不出
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_502";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+let failing = true;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && failing) return { ok: false, status: 502, json: async () => ({}) };
+  return respond(method, args, body);
+};
+const before = eventsCalls(S).length;
+c.refreshStatus();
+await g.sleep(20);
+assert.ok(eventsCalls(S).length > before);                                   // 这次补拉发出了、失败了
+const parts = () => c.getSnapshot().messages.flatMap((m: any) => m.content).filter((p: any) => p.type === "text").map((p: any) => p.text);
+preview(S, { type: "event_start", event: { id: "m1", type: "agent.message" } });
+preview(S, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "Fil" } } });
+await g.sleep(5);
+assert.deepEqual(parts(), ["hi", "Fil"]);                                    // 逐字预览当场出
+push(S, ev("m1", "agent.message", 3, { content: text("File by the 15th") }));
+await g.sleep(5);
+assert.deepEqual(parts(), ["hi", "File by the 15th"]);                       // 回复当场出，不等下一次补拉
+failing = false;
+g.respond = respond;
+""")
+
+    def test_an_attachment_only_send_cut_off_in_transit_is_taken_back_when_its_echo_lands(self):
+        # 审查（第 11 轮 F39 修复）：只带附件、不打字发出，请求断在路上而服务端其实收下了。拼出的字以空行开头（附件说明），服务端存的
+        # 去掉了首尾空白，晚到的回声与撤回时记下的对不上，放回的附件与原因一直挂着，再按发送同一份文件发第二条。撤回记下的与回声都按
+        # 服务端口径去掉首尾空白再比
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { attemptSend, sendFailureOf, sendLanded } from "@/lib/managed-agents/send-failure";
+---
+const S = "sesn_att_late";
+const T = "thread-att-late";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const landed: string[] = [];
+c.onDelivered((typed) => { landed.push(typed); sendLanded(T, typed); });
+const state: any = { text: "", attachments: [] as any[] };
+const box = { getState: () => state, setText: (t: string) => { state.text = t; }, addAttachment: async (a: any) => { state.attachments.push({ id: a.id }); },
+  clearAttachments: () => { state.attachments = []; } };
+const respond = g.respond;
+let release: () => void = () => {};
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") {
+    await new Promise<void>((resolve) => { release = resolve; });
+    // 服务端照 contracts.message_text 去掉首尾空白后存下（回声随补拉晚到），回应断在路上
+    site.log.push(ev("echoA", "user.message", 10, { content: text(String(body.text).trim()) }), ev("r1", "session.status_running", 11));
+    site.engine = "running";
+    throw new TypeError("Failed to fetch");
+  }
+  return respond(method, args, body);
+};
+const att = { id: "/mnt/session/uploads/r.pdf", type: "document", name: "r.pdf", contentType: "application/pdf", content: [], status: { type: "complete" } };
+const sending = attemptSend(T, { composer: box, text: "", attachments: [att as any] },
+  async (sent) => { await c.sendMessage("", [{ filename: "r.pdf", mountPath: "/mnt/session/uploads/r.pdf" }]); sent(); });
+await g.sleep(10);
+assert.ok(g.calls.some((x: any) => x.method === "send" && x.body.text.startsWith("\n\n[Attached file")));
+release();
+assert.equal(await sending, false);
+await g.sleep(5);
+assert.deepEqual(state.attachments.map((a: any) => a.id), ["/mnt/session/uploads/r.pdf"]);   // 看不出收没收下：先放回不丢
+assert.equal(sendFailureOf(T), "出了点问题，请重试。");
+// 回声随补拉晚到：放回的附件撤掉、原因清掉，对话里只有这一条
+c.refreshStatus();
+await g.sleep(30);
+assert.deepEqual(landed, [""]);
+assert.equal(state.attachments.length, 0);
+assert.equal(sendFailureOf(T), "");
+assert.equal(c.getSnapshot().messages.filter((m: any) => m.role === "user").length, 2);
+g.respond = respond;
+""")
+
+    def test_a_reconnected_push_channel_waits_for_the_backfill(self):
+        # 实时通道断开又连上（补拉一直正常）：断开期间的事件只在事件记录里，连上后先推来的要等补齐再并（缺口，session-controller 文件头）
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_gap2";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+let slow = false;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && slow) await g.sleep(30);
+  return respond(method, args, body);
+};
+g.socket.drop();
+site.log.push(ev("m1", "agent.message", 3, { content: text("first") }));   // 断开期间：没推到
+slow = true;
+g.socket.back();
+push(S, ev("m2", "agent.message", 4, { content: text("second") }));       // 连上后先推来
+await g.sleep(5);
+const parts = () => c.getSnapshot().messages.flatMap((m: any) => m.content).filter((p: any) => p.type === "text").map((p: any) => p.text);
+assert.deepEqual(parts(), ["hi"]);                                          // 压着，等补齐
+await g.sleep(120);
+slow = false;
+assert.deepEqual(parts(), ["hi", "first", "second"]);
+g.respond = respond;
+""")
+
+    def test_an_echo_pairs_with_its_bubble_wherever_later_events_landed(self):
+        # 回声与回复谁先到取决于推送与补拉的先后：回声认本页还没对上回声的那个乐观气泡（最早的同字那个），不论它后面已经并进了什么；
+        # 已对上的不再认；本页自己的乐观气泡（同字连发）不互认
+        self.run_page(r"""
+import { applyEvent, project } from "@/lib/managed-agents/reducer";
+---
+let s: any = project([ev("u0", "user.message", 1, { content: text("hi") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } })] as any);
+s = applyEvent(s, { type: "user.message", id: "optimistic-1", content: text("ten points"), processed_at: at(3) } as any);
+s = applyEvent(s, { type: "user.message", id: "optimistic-2", content: text("ten points"), processed_at: at(3) } as any);
+assert.deepEqual(s.messages.map((m: any) => m.id), ["u0", "optimistic-1", "optimistic-2"]);   // 同字连发：两条都在
+s = applyEvent(s, ev("m1", "agent.message", 4, { content: text("1. File by the 15th") }) as any);
+s = applyEvent(s, ev("echo1", "user.message", 3.5, { content: text("ten points") }) as any);    // 回复之后才到
+assert.deepEqual(s.messages.map((m: any) => `${m.id}:${m.role}`), ["u0:user", "optimistic-1:user", "optimistic-2:user", "asst-3:assistant"]);
+assert.ok(s.echoedOptimistic.has("optimistic-1") && !s.echoedOptimistic.has("optimistic-2"));
+s = applyEvent(s, ev("echo2", "user.message", 3.6, { content: text("ten points") }) as any);
+assert.equal(s.messages.length, 4);
+assert.ok(s.echoedOptimistic.has("optimistic-2"));
+s = applyEvent(s, ev("u9", "user.message", 9, { content: text("ten points") }) as any);         // 都对上了：别处发的同字照常是新的一条
+assert.deepEqual(s.messages.at(-1).id, "u9");
+""")
+
+    def test_a_late_echo_only_takes_back_what_was_put_back(self):
+        # 放回输入框后用户改过：晚到的回声不动用户的字（只撤原样还在的那段）；附件原样都在才一起撤
+        self.run_page(r"""
+import { sendFailed, sendFailureOf, sendLanded } from "@/lib/managed-agents/send-failure";
+---
+const box = (text: string, ids: string[] = []) => {
+  const state = { text, attachments: ids.map((id) => ({ id })) };
+  return { state, getState: () => state, setText: (t: string) => { state.text = t; }, addAttachment: async (a: any) => { state.attachments.push({ id: a.id ?? "file" }); },
+    clearAttachments: () => { state.attachments = []; } };
+};
+// 原样还在：撤掉、原因清掉
+const a = box("");
+sendFailed("t-a", new TypeError("Failed to fetch"), { composer: a, text: "hello" });
+assert.equal(a.state.text, "hello");
+sendLanded("t-a", "hello");
+assert.equal(a.state.text, "");
+assert.equal(sendFailureOf("t-a"), "");
+// 等的时候又打了字（放回时接在后面）：只撤放回的那段
+const b = box("more");
+sendFailed("t-b", new TypeError("Failed to fetch"), { composer: b, text: "hello" });
+assert.equal(b.state.text, "hello\nmore");
+sendLanded("t-b", "hello");
+assert.equal(b.state.text, "more");
+// 用户改过：不动
+const d = box("");
+sendFailed("t-d", new TypeError("Failed to fetch"), { composer: d, text: "hello" });
+d.state.text = "hello, edited";
+sendLanded("t-d", "hello");
+assert.equal(d.state.text, "hello, edited");
+assert.equal(sendFailureOf("t-d"), "");
+// 别的字的回声：不动
+const e = box("");
+sendFailed("t-e", new TypeError("Failed to fetch"), { composer: e, text: "hello" });
+sendLanded("t-e", "other");
+assert.equal(e.state.text, "hello");
+assert.equal(sendFailureOf("t-e"), "出了点问题，请重试。");
+// 附件：放回的原样都在才撤
+const f = box("");
+const att = { id: "/mnt/session/uploads/r.pdf", type: "document", name: "r.pdf", contentType: "application/pdf", content: [], status: { type: "complete" } };
+sendFailed("t-f", new TypeError("Failed to fetch"), { composer: f, text: "see file", attachments: [att as any] });
+await g.sleep(0);
+assert.deepEqual(f.state.attachments.map((x: any) => x.id), ["/mnt/session/uploads/r.pdf"]);
+sendLanded("t-f", "see file");
+await g.sleep(0);
+assert.deepEqual([f.state.text, f.state.attachments.length], ["", 0]);
+""")
+
     def test_send_failure_wiring(self):
         # onNew 经 attemptSend（不抛出）；原因写在输入框上方，同对话里出错那一行的样子；放回的图片按会话位置取本页预览
         provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
@@ -883,8 +1234,12 @@ g.respond = respond;
         self.assertLess(on_new.index("filesToSend("), on_new.index("const send = async"))
         self.assertIn("sendMessage(text, files, pendingShownAs)", on_new)
         self.assertNotIn("attachedFilesOf", provider)
-        on_cancel = provider.split("onCancel: async () => {", 1)[1].split("\n    },", 1)[0]
-        self.assertIn("if (controller) await attemptStop(threadId, () => controller.interrupt());", on_cancel)
+        # 停止不经组件库（不给 onCancel，第 11 轮 F39）：登记给停止键、Esc，经 attemptStop
+        self.assertNotIn("onCancel:", provider)
+        stop = provider.split("stop.current = async () => {", 1)[1].split("\n  };", 1)[0]
+        self.assertIn("if (newChat.cancel()) return;", stop)
+        self.assertIn("if (controller) await attemptStop(threadId, () => controller.interrupt());", stop)
+        self.assertIn("useEffect(() => registerStop(threadId, () => stop.current()), [threadId]);", provider)
         self.assertIn("if (!running) clearStopFailure(threadId);", provider)
         adapter = (SRC / "lib/managed-agents/attachments.ts").read_text(encoding="utf-8")
         send = adapter.split("async send(attachment): Promise<CompleteAttachment> {", 1)[1]
@@ -967,7 +1322,8 @@ g.respond = respond;
         reply = thread[thread.index("const AssistantMessage"):thread.index("const LastReplyIndicator")]
         self.assertLess(reply.index("<LastReplyIndicator />"), reply.index('data-slot="aui_assistant-message-footer"'))
         self.assertNotIn("<RunIndicator />\n          </div>", thread)
-        self.assertIn("onKeyDown={holdImeEnter", thread)
+        self.assertIn("onKeyDown={keyDown}", thread)
+        self.assertIn("holdImeEnter(event); // Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts", thread)
         self.assertIn("ref={settle.viewport}", thread)
         self.assertIn("pendingLanded(pending, s.thread.messages.map((m) => m.id))", thread)
         # 步骤组：不再另放一个在动的点，只有思考没有工具的不显示

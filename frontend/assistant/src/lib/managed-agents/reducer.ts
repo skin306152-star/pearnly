@@ -515,25 +515,24 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       // bubble; the real echoed event replaces its content but KEEPS the id.
       // assistant-ui keys messages by id: a new id at the same slot reads as
       // a second branch of an edited message (a phantom "2 / 2" picker).
-      const last = messages[messages.length - 1];
       let echoedOptimistic = state.echoedOptimistic;
-      // Reconcile against the trailing optimistic bubble only when this is its
-      // echo: it sits at the end and opens with the same text (the server and
-      // client build the text with the same messageText(), so a genuine echo
-      // matches exactly). No clock comparison, since client and server
-      // clocks disagree; the controller guarantees stored history is fully
-      // folded before any optimistic bubble exists, so a historic message
-      // can't land here after the bubble.
-      const isEcho =
-        !!last &&
-        last.role === "user" &&
-        last.id.startsWith("optimistic-") &&
-        (sameOpening(last.content, bubble.content) || sameAttachments(last, bubble));
-      if (isEcho) {
-        messages[messages.length - 1] = { ...bubble, id: last.id };
+      // 回声认本页还没对上回声的那个乐观气泡（最早的、同样的字或同样的附件），不论它后面已经并进了什么：回声与回复谁先到
+      // 取决于推送与补拉的先后（第 11 轮 F39：断网期间回声没推到，联网后回复先推来、回声随补拉晚到，以前只认「最后一条」，
+      // 对话末尾多出一条同样的用户气泡）。服务端与页面用同一个 messageText() 拼字，真回声逐字相同。不比时钟（两边时钟不一致）；
+      // 会话控制器保证乐观气泡出现前历史已经并完，没见过的用户消息只会是这之后的。
+      const echo = event.id.startsWith("optimistic-") ? -1 : messages.findIndex(
+        (m) =>
+          m.role === "user" &&
+          m.id.startsWith("optimistic-") &&
+          !state.echoedOptimistic.has(m.id) &&
+          (sameOpening(m.content, bubble.content) || sameAttachments(m, bubble)),
+      );
+      if (echo >= 0) {
+        const mine = messages[echo]!;
+        messages[echo] = { ...bubble, id: mine.id };
         // The echo landed: this bubble is delivered, so a late send-failure
         // rollback must never evict it.
-        echoedOptimistic = new Set(state.echoedOptimistic).add(last.id);
+        echoedOptimistic = new Set(state.echoedOptimistic).add(mine.id);
       } else {
         messages.push(bubble);
       }

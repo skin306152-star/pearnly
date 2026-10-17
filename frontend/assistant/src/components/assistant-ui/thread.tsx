@@ -42,6 +42,7 @@ import {
 import { fileUrl } from "@/lib/managed-agents/api";
 import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
 import { useSendFailure } from "@/lib/managed-agents/send-failure";
+import { stopRun } from "@/lib/managed-agents/stop-run";
 import { useActiveSessionSnapshot, useOpenState } from "@/lib/managed-agents/runtime-provider";
 import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
 import { OpenSettler, type OpenState } from "@/lib/follow-scroll";
@@ -59,6 +60,7 @@ import {
   useState,
   type ComponentType,
   type FC,
+  type KeyboardEvent,
   type PropsWithChildren,
 } from "react";
 import { Marquee } from "@/components/ui/marquee";
@@ -407,6 +409,15 @@ const Composer: FC = () => {
   const sent = () => {
     if (dropKeyboard && !emptyNow.current) input.current?.blur();
   };
+  // 在跑时输入框里按 Esc 停止（同停止键，stop-run.ts）；选字中的 Esc 归输入法
+  const thread = useAuiState((s) => s.threadListItem.id);
+  const running = useAuiState((s) => s.thread.isRunning);
+  const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    holdImeEnter(event); // Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts
+    if (event.key !== "Escape" || !running || event.nativeEvent.isComposing || event.defaultPrevented) return;
+    event.preventDefault();
+    void stopRun(thread);
+  };
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col" onSubmit={sent}>
       <ComposerPrimitive.AttachmentDropzone asChild>
@@ -426,7 +437,7 @@ const Composer: FC = () => {
             unstable_focusOnRunStart={!dropKeyboard /* 手机上开跑、点 ↓ 都不把焦点拉回输入框 */}
             unstable_focusOnScrollToBottom={!dropKeyboard}
             enterKeyHint="send"
-            onKeyDown={holdImeEnter /* Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts */}
+            onKeyDown={keyDown}
             onFocus={() => setTyping(true)}
             onBlur={() => setTyping(false)}
             aria-label={placeholder}
@@ -458,14 +469,20 @@ const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
-          <ComposerPrimitive.Cancel asChild>
-            <button type="button" className="aui-composer-cancel cc-send" aria-label={t("stop")} title={t("stop")}>
-              <SquareIcon className="aui-composer-cancel-icon !size-3.5 fill-current" />
-            </button>
-          </ComposerPrimitive.Cancel>
+          <StopButton />
         </AuiIf>
       </div>
     </div>
+  );
+};
+
+/** 停止键：真正的打断，消息留在对话里、字不放回输入框（不经组件库的 cancelRun，stop-run.ts）。 */
+const StopButton: FC = () => {
+  const thread = useAuiState((s) => s.threadListItem.id);
+  return (
+    <button type="button" className="aui-composer-cancel cc-send" aria-label={t("stop")} title={t("stop")} onClick={() => void stopRun(thread)}>
+      <SquareIcon className="aui-composer-cancel-icon !size-3.5 fill-current" />
+    </button>
   );
 };
 

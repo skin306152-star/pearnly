@@ -57,7 +57,7 @@ import { shownError } from "@/lib/frappe";
 
 const report = (error: unknown) => setError(shownError(error));
 
-const COMPOSER_INPUT = "textarea.aui-composer-input";
+export const COMPOSER_INPUT = "textarea.aui-composer-input";
 
 /** 新建对话后光标直接进输入框（同 Claude；侧栏组头「＋」、顶部「新建」、公司页、手机都一样）。点击当下先聚焦一次
  *  （手机上只有在点击当下聚焦才弹键盘），新对话换上来后的下两帧再聚焦一次（输入框可能换了一个）。 */

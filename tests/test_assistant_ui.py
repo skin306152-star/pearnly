@@ -1969,7 +1969,8 @@ g.respond = async (method: string, args: any, body: any) => {
     return ok(page);
   }
   if (method === "send") {
-    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(body.text) }));
+    // 服务端存的正文去掉首尾空白（contracts.message_text），回声同样
+    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(String(body.text).trim()) }));
     return ok();
   }
   if (method === "run_tool") return ok(await site.toolReply(body.tool_use_id));
@@ -3351,7 +3352,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("<DeleteChatsHost />", app)
         self.assertEqual(app.count("deleteChat(aui.threadListItem())"), 2)  # 电脑标题栏「···」、手机右上「…」
         self.assertIn("const remove = () => deleteChat(aui.threadListItem());", rows)  # 行「···」与手机长按菜单
-        self.assertIn("askDelete(ids.length, () => void runInOrder(ids,", rows)  # 多选「删除 N」
+        self.assertIn("askDelete(ids, () => runInOrder(ids,", rows)  # 多选「删除 N」
         for source in (app, rows):
             self.assertNotIn("onSelect={() => void aui.threadListItem().delete()}", source)
         self.assertNotIn("const deleteAll = () => void runInOrder(", rows)
@@ -3360,7 +3361,9 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('n > 1 ? `ลบ ${n} แชท?` : "ลบแชท?"', i18n)
         self.assertIn('{t("cancel")}', host)
         self.assertIn('{t("delete")}', host)
-        self.assertIn('className="sr-only"', host)  # 不加看得见的说明
+        # 不加说明（第 11 轮 E37：原来挂一个和标题一样的隐藏说明，读屏念两遍）
+        self.assertNotIn("Description", host)
+        self.assertIn("aria-describedby={undefined}", host)
         self.assertIn("requestAnimationFrame(", host)  # 等菜单收起再开
 
     def test_multi_select_has_no_bulk_bar_and_runs_one_by_one(self):
@@ -3889,6 +3892,32 @@ assert.equal(choiceAfter(["a"], "a"), "");
         self.assertIn(".cc-choice[data-open] .cc-choice-row:hover { background: transparent; }", css)
         self.assertIn("max-width: 45%;", block(css, ".cc-choice-value {"))
         self.assertNotIn(".cc-panel-card-body .cc-choice-row", css)
+
+    def test_a_saved_choice_says_why_on_its_own_row(self):
+        # 第 11 轮 F40：断网时改「现购 | 赊购」值退回原值，原因「出了点问题，请重试。」写在整张卡最底下（Express 历史下面，右侧栏没滚动
+        # 时在视区外，y=1047 > 768），只看到值跳回去。现在原因写在出错的那一条里：点开着时紧挨按钮下面，收着时在行下面；
+        # 「删除」「设为全公司」没成功同样
+        self.run_page(r"""
+const pay = { key: "k1", source: "express", kind: "payment", subject_label: "ACME", value: "cash", editable: true, year_label: "69", promotable: true };
+const props = (open: boolean, error = "") => ({ choice: pay, open, error, onToggle() {}, onSet() {}, onForget() {}, onPromote() {} });
+const opened = renderToStaticMarkup(createElement(ChoiceRow, props(true, "Something went wrong. Try again.")));
+const alert = '<p role="alert" class="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">Something went wrong. Try again.</p>';
+assert.ok(opened.includes('</button></div>' + alert + '</div></div>'), opened);       // 按钮行（cc-card-actions）紧接着就是原因，在这一条里
+assert.ok(opened.indexOf('data-slot="cc-choice-forget"') < opened.indexOf(alert));
+const closed = renderToStaticMarkup(createElement(ChoiceRow, props(false, "Something went wrong. Try again.")));
+assert.ok(closed.endsWith('</button>' + alert + '</div>'), closed);                    // 收着：行下面
+assert.ok(!renderToStaticMarkup(createElement(ChoiceRow, props(true))).includes('role="alert"'));
+""")
+        cards = read("components/company-cards.tsx")
+        section = cards[cards.index("export const ChoicesSection"):cards.index("export const ruleScope")]
+        # 原因按条记，只交给出错的那一条；卡片底下不再有一行原因
+        self.assertIn('const [error, setError] = useState<{ key: string; message: string } | null>(null);', section)
+        self.assertIn('error={error?.key === c.key ? error.message : ""}', section)
+        self.assertIn("setError({ key, message: shownError(e) });", section)            # 删除、设为全公司
+        self.assertIn("setError({ key: c.key, message: shownError(e) });", section)     # 现 / 赊
+        self.assertNotIn('{error && <p role="alert"', section)
+        css = read("globals.css")
+        self.assertIn(".cc-choice-detail > .cc-choice-error { padding-top: 0.375rem; }", css)
 
     def test_browsers_and_phones_only_read_the_folder(self):
         self.run_page(r"""
@@ -7786,6 +7815,139 @@ class Round11ReviewTests(unittest.TestCase):
         self.assertIn('<button type="button" className="cc-btn me-3" onClick={() => setConnectOpen(a.adapter)}>', tasks)
         self.assertNotIn("cc-card flex items-center justify-between gap-2 px-3 py-2.5", tasks)
 
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class Round11EFTests(unittest.TestCase):
+    """测试窗口第 11 轮 E / F 段（lab 9798f54e）：E37 删除确认读屏念两遍标题、打开时焦点在 ×、关掉后焦点掉到页面最外层；
+    F40「记住的选择」出错的原因写在整张卡最底下（右侧栏没滚动时在视区外）。"""
+    STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\n' + COMPANY_RENDER + body + "\n(globalThis as any).done();\n",
+               stubs={**self.STUBS, "cc-ma-setup": MA_SETUP})
+
+    def test_delete_confirm_says_its_title_once_and_gives_focus_back(self):
+        self.run_page(r"""
+import { backTarget, rowAfterDelete } from "@/components/delete-chats";
+// 极简的元素：closest / querySelector 按选择器认几个固定的 data-slot 与 role
+const el = (attrs: Record<string, string>, parent: any = null, children: any[] = []): any => {
+  const node: any = { attrs, parent, children, dataset: {} as Record<string, string>, isConnected: true,
+    getAttribute: (k: string) => attrs[k] ?? null,
+    matches: (sel: string) => sel.split(",").some((one) => {
+      const m = one.trim().match(/^\[([a-z-]+)(?:="([^"]*)")?\]$/);
+      return !!m && (m[2] === undefined ? m[1] in attrs : attrs[m[1]] === m[2]);
+    }),
+    closest: (sel: string) => { for (let n = node; n; n = n.parent) if (n.matches(sel)) return n; return null; },
+    querySelector: (sel: string) => { for (const c of node.children) { if (c.matches(sel)) return c; const d = c.querySelector(sel); if (d) return d; } return null; },
+  };
+  if (attrs["data-row-id"]) node.dataset.rowId = attrs["data-row-id"];
+  children.forEach((c) => { c.parent = node; });
+  return node;
+};
+const byId: Record<string, any> = {};
+g.document.getElementById = (id: string) => byId[id] ?? null;
+g.document.body = el({});
+// 侧栏行的菜单：触发钮是行尾「···」，回到行本身（行的开关按钮，键盘停的地方）
+const rowTrigger = el({ "data-slot": "aui_thread-list-item-trigger" });
+const more = el({ "data-slot": "aui_thread-list-item-more", id: "radix-1" });
+const row = el({ "data-slot": "aui_thread-list-item", "data-row-id": "t2" }, null, [rowTrigger, more]);
+byId["radix-1"] = more;
+const item = el({ role: "menuitem" }, el({ role: "menu", "aria-labelledby": "radix-1" }));
+assert.deepEqual(backTarget(item), { el: rowTrigger, row: "t2" });
+assert.equal(row.querySelector('[data-slot="aui_thread-list-item-trigger"]'), rowTrigger);
+// 标题栏「···」、手机「…」：回到那个按钮
+const titleMore = el({ id: "radix-9", "aria-haspopup": "menu" });
+byId["radix-9"] = titleMore;
+assert.deepEqual(backTarget(el({ role: "menuitem" }, el({ role: "menu", "aria-labelledby": "radix-9" }))), { el: titleMore, row: "" });
+// 不在菜单里（直接在行上按键）：就是当时的焦点；焦点在页面最外层：没有可回的
+assert.deepEqual(backTarget(rowTrigger), { el: rowTrigger, row: "t2" });
+assert.deepEqual(backTarget(g.document.body), { el: null, row: "" });
+// 删了以后：侧栏里删掉的之后第一条，没有就之前最近一条；侧栏里看不到它们回 ""
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["b"]), "c");
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["b", "c"]), "d");
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["c", "d"]), "b");
+assert.equal(rowAfterDelete(["a", "b", "c", "d"], ["d", "b"]), "c");
+assert.equal(rowAfterDelete(["a"], ["a"]), "");
+assert.equal(rowAfterDelete([], ["a"]), "");
+""")
+        host = read("components/delete-chats.tsx")
+        # 打开时焦点在「取消」；关掉（取消 / Esc / × / 遮罩）回到打开它的地方；删了去下一条（当前对话被删进输入框）
+        self.assertIn("onOpenAutoFocus={(event) => {\n            event.preventDefault();\n            cancel.current?.focus();", host)
+        self.assertIn('<button ref={cancel} type="button" className="cc-btn" data-slot="cc-delete-chats-no">{t("cancel")}</button>', host)
+        close = host.split("onCloseAutoFocus={(event) => {", 1)[1].split("}}", 1)[0]
+        self.assertIn("event.preventDefault();", close)
+        self.assertIn("else focusBack(asked.current?.back);", close)
+        ask = host.split("export function askDelete(", 1)[1].split("\n}\n", 1)[0]
+        self.assertLess(ask.index("const back = backTarget();"), ask.index("requestAnimationFrame("))   # 菜单关之前记下
+        confirm = host.split("const confirm = () => {", 1)[1].split("\n  };\n", 1)[0]
+        self.assertIn("after.current = focusAfterDelete(current.ids, current.back, () => aui.threads().getState().mainThreadId);", confirm)
+        self.assertLess(confirm.index("focusAfterDelete("), confirm.index("current.run();"))   # 删之前算好下一条
+        self.assertLess(confirm.index("close();"), confirm.index("current.run();"))
+        self.assertIn("askDelete([item.getState().id], () => item.delete());", host)
+
+    def test_focus_after_a_delete_lands_on_a_row_or_the_composer(self):
+        # 审查（第 11 轮 E37 修复）：在定时任务 / 公司 / 主档 / 待处理页删掉正开着的对话，这些页没有输入框，焦点掉到页面最外层；
+        # 触屏上删了正开着的对话程序聚焦输入框会弹键盘（手机打开不弹键盘）。现在：对话页（有输入框）、非触屏删了正开着的才进输入框，
+        # 其余去侧栏下一条（没有就上一条），侧栏里看不到就回打开它的地方
+        self.run_page(r"""
+import { focusAfterDelete } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = false;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+const node = (name: string) => ({ name, isConnected: true, focus() { g.document.activeElement = this; } });
+let rows: string[] = [];
+let sidebarShown = true;
+let composer: any = null;
+const triggers: Record<string, any> = {};
+const sidebar = { closest: () => null, querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })) };
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebarShown ? sidebar : null;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && sidebarShown && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`)) : null;
+};
+// 组件库删正开着的：先切到新对话（main 变了），再从侧栏移走
+let main = "";
+const run = async (ids: string[], back: any, opts: { switchTo?: string; composerAfter?: any } = {}) => {
+  g.document.activeElement = g.document.body;
+  const go = focusAfterDelete(ids, back, () => main);
+  go();
+  await g.sleep(3);
+  if (opts.switchTo !== undefined) main = opts.switchTo;
+  if ("composerAfter" in opts) composer = opts.composerAfter;
+  rows = rows.filter((id) => !ids.includes(id));
+  await g.sleep(30);
+  return g.document.activeElement?.name ?? "body";
+};
+const more = node("title-more");
+const input = node("composer");
+
+// ① 电脑、定时任务页（没有输入框）删正开着的 b：去侧栏下一条 c，不掉到 body
+rows = ["a", "b", "c"]; main = "b"; composer = null;
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new" }), "row:c");
+// ② 电脑、对话页删正开着的 b：切到新对话后进输入框
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "composer");
+// ③ 电脑、对话页删正开着的，切过去时视图被切走（没有输入框了）：去侧栏下一条
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: null }), "row:c");
+// ④ 删的不是正开着的（最后一条）：去上一条
+rows = ["a", "b", "c"]; main = "a"; composer = input;
+assert.equal(await run(["c"], { el: more, row: "c" }), "row:b");
+// ⑤ 侧栏里看不到（收起）：回打开它的地方；那里也没了才进输入框
+rows = ["a", "b"]; main = "a"; sidebarShown = false; composer = input;
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
+// ⑥ 触屏：删正开着的不进输入框（不弹键盘）——抽屉开着去下一条，抽屉关着回右上「…」，都没有就不放
+touch = true; sidebarShown = true;
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "row:c");
+sidebarShown = false; rows = ["a", "b"]; main = "b";
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "title-more");
+assert.equal(await run(["a"], { el: { isConnected: false, focus() {} }, row: "" }), "body");
+""")
 
 if __name__ == "__main__":
     unittest.main()
