@@ -152,6 +152,11 @@ Attachments,Attachments
 Attempt Secret,Attempt Secret
 Automatic push withdrawn: the rules changed before writing.,Automatic push withdrawn: the rules changed before writing.
 Automation,Automation
+Automation Checked At (UTC),Automation Checked At (UTC)
+Automation Class,Automation Class
+Automation Proposal,Automation Proposal
+Automation Reasons,Automation Reasons
+Automation Tier,Automation Tier
 Back to list,Back to list
 Balance,Balance
 Balance breaks,Balance breaks
@@ -1536,6 +1541,7 @@ Show on Card,Show on Card
 Show on card,Show on card
 Signed-in User,Signed-in User
 Signed-in Users,Signed-in Users
+Since (UTC),Since (UTC)
 Site,Site
 Site Name,Site Name
 Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
@@ -1959,6 +1965,8 @@ This tax ID is already used by another company.,This tax ID is already used by a
 This tax id is already used by another client.,This tax id is already used by another client.
 This value cannot be chosen for this account set.,This value cannot be chosen for this account set.
 This value is not in this month's account set,This value is not in this month's account set
+Tier,Tier
+Tier Since (UTC),Tier Since (UTC)
 Time left {0},Time left {0}
 Times Used,Times Used
 Title,Title
@@ -2125,6 +2133,8 @@ Work Name,Work Name
 Workbook Revision,Workbook Revision
 Workspace,Workspace
 Writable,Writable
+Write Check,Write Check
+Write Check Detail,Write Check Detail
 Write Route,Write Route
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written By Computer,Written By Computer

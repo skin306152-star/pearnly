@@ -152,6 +152,11 @@ Attachments,附件
 Attempt Secret,尝试密钥
 Automatic push withdrawn: the rules changed before writing.,写入前规则已变，自动推送已撤回。
 Automation,自动化
+Automation Checked At (UTC),判定时间（UTC）
+Automation Class,自动推送类别
+Automation Proposal,自动推送提议
+Automation Reasons,自动推送原因
+Automation Tier,自动推送档位
 Back to list,返回列表
 Balance,余额
 Balance breaks,余额差异
@@ -1536,6 +1541,7 @@ Show on Card,在卡片上显示
 Show on card,显示在卡片正面
 Signed-in User,当前登录账号
 Signed-in Users,登录过的账号
+Since (UTC),起始时间（UTC）
 Site,站点
 Site Name,站点名称
 Skipped {0} row(s) (row: reason),跳过 {0} 行（行号: 原因）
@@ -1959,6 +1965,8 @@ This tax ID is already used by another company.,该税号已被其他公司使�
 This tax id is already used by another client.,该税号已被其他客户使用。
 This value cannot be chosen for this account set.,此账套不能选择该值。
 This value is not in this month's account set,这个值不在本月账套的主档里
+Tier,档位
+Tier Since (UTC),档位起始时间（UTC）
 Time left {0},剩余 {0}
 Times Used,使用次数
 Title,标题
@@ -2125,6 +2133,8 @@ Work Name,后台任务标识
 Workbook Revision,工作簿版本
 Workspace,公司账套
 Writable,可写
+Write Check,写入核对
+Write Check Detail,写入核对明细
 Write Route,写入分派
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written By Computer,写入的电脑

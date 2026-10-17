@@ -220,8 +220,9 @@ def readback_marks(connection, account_set, records) -> dict:
     """推送的钩子（``cowork_push_readback_marks``）：这份账套里几张推成功的单在合格回读里的结果 ``{推送记录: confirmed|changed}``
     （没被合格回读覆盖的不列）。``records``：``[{record, invoice_date, completed_at}]``。账套记忆定的科目、现 / 赊、对方档都要
     最近连续 3 张有证据的同值才算 A（`push.express.automation.memory_evidence`）：凭记忆推出去的单要被合格回读覆盖、没被改才算
-    证据。按整张记录：差异比对（`readback.diff`）比日期、现 / 赊（单据类型）、对方、单号、金额、VAT、分录科目，任一被改就是
-    changed，三类一起断开。只读，不核权限（推送服务已核过录入权限与连接授权）。"""
+    证据。按整张记录：差异比对（`readback.diff`）比日期、现 / 赊（单据类型）、对方、单号、金额、VAT，没写库存行的单再比分录科目
+    （真写了库存行的单不比分录，调用方对这种单的科目不认 confirmed），任一被改就是 changed，三类一起断开。每期的回读在同一个
+    请求 / 后台任务里只取一次（`_month_found`，扫描一批单时各张共用）。只读，不核权限（推送服务已核过录入权限与连接授权）。"""
     key = normalize_express_account_key(account_set)
     if not connection or not key:
         return {}
@@ -232,9 +233,7 @@ def readback_marks(connection, account_set, records) -> dict:
             by_period.setdefault(period, []).append(item)
     out = {}
     for period, items in by_period.items():
-        found = next((row for row in _changes([{"connection": connection, "key": key, "label": ""}], period)
-                      if isinstance(row, dict) and row.get("connection") == connection
-                      and normalize_express_account_key(row.get("key")).casefold() == key.casefold()), None)
+        found = _month_found(connection, key, period)
         if not found:
             continue
         deadline = _deadline(period)
@@ -245,6 +244,27 @@ def readback_marks(connection, account_set, records) -> dict:
             if mark:
                 out[item["record"]] = mark
     return out
+
+
+def _month_found(connection, key, period):
+    """这份账套这一期完成时间最晚的那份回读（`_changes` 的一行，没有回 None），按 (连接, 账套, 期) 缓存在 ``frappe.local``：
+    定时任务 / 扫描一轮判几十张同一账套的单，各张的「最近几张推送」多落在相同的几期，不重复扫回读表（审查处理 10-17）。
+    缓存只活在这一个请求 / 后台任务里；这期间新完成的回读要到下一轮才看得到（只会少认证据、少断开，下一轮补上）。"""
+    local = getattr(frappe, "local", None)
+    cache = getattr(local, "cowork_readback_month_cache", None) if local is not None else None
+    if cache is None:
+        cache = {}
+        if local is not None:
+            try:
+                local.cowork_readback_month_cache = cache
+            except AttributeError:
+                pass
+    slot = (connection, key.casefold(), period)
+    if slot not in cache:
+        cache[slot] = next((row for row in _changes([{"connection": connection, "key": key, "label": ""}], period)
+                            if isinstance(row, dict) and row.get("connection") == connection
+                            and normalize_express_account_key(row.get("key")).casefold() == key.casefold()), None)
+    return cache[slot]
 
 
 def on_readback(connection, account_set_key, period, readback=None) -> dict | None:

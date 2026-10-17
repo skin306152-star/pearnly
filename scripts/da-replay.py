@@ -33,12 +33,20 @@
 的情形（`book_pick`），C 类主因按它拆开真两份同期与估算重叠；两份同期时各挑法的选对率见 `tiebreak`（模拟，不改判档）。
 
 商品单与上传日（10-17 第三段，只在回放里量，线上判档不变）：答案的「走库存」只认库存品（STMAS.STKTYP=0）或有库存影响的明细行
-（STCRD 按单号分组、按 SEQNUM 排、PEOPLE 防撞号），另记有没有明细；``--lines answer`` 把答案明细造进票面（``--line-names``
-``stkdes`` 品名照 Express 是乐观上界、``opaque`` 品名打码只能靠记忆是悲观下界），默认 ``none`` 不造、与第四轮可比；入账方式按载荷
-实际会写什么计分（明细过对账闸才写 STCRD），存货逐行计分、逐行学记忆；每张单记这家供应商之前的 Express 存货历史
-（`stock_history` + 与线上将来共用的 `history_rules.posting_settled`）若用来定档会是什么档；模拟的人替公司选入账方式按
-「第一次交人之前已录单的多数」（``--company-choice prior``，全期多数 ``full`` 作对照）。上传日另按「凭证录入日与税期 ภ.พ.30 截止日
-取早」估一次（`upload_proxy`），只重判日期类核对（``class_alt``），报表在 C 类主因后加一行对照。
+（STCRD 按单号分组、按 SEQNUM 排、PEOPLE 防撞号，进销同号再按明细日期分），另记有没有明细；``--lines answer`` 把答案明细造进票面
+（``--line-names`` ``stkdes`` 品名照 Express 是乐观上界、``opaque`` 品名打码是「同名查找落空、记忆理想命中」的估计），默认 ``none``
+不造；入账方式不造明细时按声明值计分（同第四轮），造了明细按载荷实际会写什么计分（明细过对账闸才写 STCRD），存货逐行计分、逐行
+学记忆；每张单记这家供应商之前的 Express 存货历史（`stock_history` + 与线上将来共用的 `history_rules.posting_settled`）若用来定档会
+是什么档（上界；把之前判成 A / B 的单当 CC 推的剔掉另算一次是下界）；模拟的人替公司选入账方式按「第一次交人之前、会因入账方式交人
+的单里的多数」（``--company-choice prior``，不到 10 张退到全期多数；全期多数 ``full`` 作对照）。上传日另按「凭证录入日与税期 ภ.พ.30
+截止日取早」估一次（`upload_proxy`），只重判日期类核对（``class_alt``），报表在 C 类主因后加一行对照。
+
+账套记忆的证据（10-17 审查处理）：同线上只看这家最新 30 张推送（``--recent-max``，0 不设上限作对照）、回读按整张记录比
+（``--readback-scope record``，``account`` 只比科目作对照）；假定每期都在申报截止日后一天按时做了合格回读。
+
+与第四轮不能直接比：judge 默认 ``--periods strict``、答案的走库存口径、替公司选入账方式的口径、证据的上限与整张记录回读都变了。
+第四轮口径的对照组合是 ``--periods estimated --company-choice full --recent-max 0 --readback-scope account``（`--lines none`），
+仍不同的只有这一轮的规则本身（记忆三类推广、票面写明的现 / 赊不算证据、对方档取写入码）与答案的走库存口径。
 
 金额一律 Decimal；日期按单据所属会计期间（不看墙上时间）。脚本拒绝 ``\\\\`` 与 ``S:`` 开头的路径（不碰局域网真账），读写都拒。
 """
@@ -200,7 +208,8 @@ STOCK_IMPACT = ("PHYBAL", "MREMBAL", "MREMVAL", "LOTBAL", "LOTVAL", "LUNITPR")
 # 录入日读不到（凭证没有 CREDAT）时按单据日期后这么多天当上传日
 ENTRY_LAG_DAYS = 7
 # 存货明细（STCRD）读的列：按 DOCNUM 挂单、SEQNUM 排序、PEOPLE（对方码）防撞号；金额取 NETVAL，空取 TRNVAL
-STCRD_FIELDS = ("DOCNUM", "SEQNUM", "STKCOD", "STKDES", "TRNQTY", "UNITPR", "TRNVAL", "NETVAL", "DISCAMT", "PEOPLE")
+STCRD_FIELDS = ("DOCNUM", "SEQNUM", "DOCDAT", "STKCOD", "STKDES", "TRNQTY", "UNITPR", "TRNVAL", "NETVAL", "DISCAMT",
+                "PEOPLE")
 # 同一天录入（GLJNL.CREDAT）这么多张凭证以上：疑似账套导入或重建（CREDAT 是导入日、不是录入日），盘点与报表单列
 BATCH_DAY_DOCS = 200
 
@@ -221,6 +230,17 @@ def stock_line(line: Line) -> bool:
     """这一行算不算「走库存」（10-17 答案口径）：库存品（STKTYP=0）或有库存影响；非库存品的明细（服务费等挂 STKTYP 3 / 4 / 5）
     不算 —— 与 Pearnly 的 ``stock_item`` 同义。"""
     return line.kind == "stock" or line.moving
+
+
+def _seq(value: Any) -> int:
+    """STCRD.SEQNUM → 行序：字符列（C(3)，``"1"``）取数字；数值列（N 型带小数位，``Decimal("1.00")``）取整，不能拼成 100。"""
+    if isinstance(value, Decimal):
+        try:
+            return int(value)
+        except (ValueError, ArithmeticError):
+            return 0
+    number = re.sub(r"\D", "", str(value or "").split(".")[0])
+    return int(number) if number else 0
 
 
 def digits(value: Any) -> str:
@@ -304,26 +324,37 @@ class Calendars:
 
     def __init__(self):
         self.found: Dict[str, Dict[str, List[Tuple[str, Tuple]]]] = {"export": {}, "testcopy": {}}
+        self.refused: set = set()
 
     def add(self, origin: str, name: str, tax: str, window: Optional[Tuple]) -> None:
         if window:
             self.found[origin].setdefault(name.strip().upper(), []).append((digits(tax), window))
 
     def find(self, name: str, own_tax: str) -> Optional[Tuple[Tuple, str]]:
+        """同税号的优先；没有时只认没写税号、且同名各份期间一样的。写了别的税号的一律不认（``68EXP`` 这类通用目录名各家都有，
+        审查处理 10-17：原先没有同税号、也没有空税号时退到全部行，会把别家的期间当成这家的真 ISPRD）；本方税号也不知道时，只在
+        同名各份期间一样时认。不认的记进 `conflicts`。"""
+        own = digits(own_tax)
+        key = str(name or "").strip().upper()
         for origin in ("export", "testcopy"):
-            rows = self.found[origin].get(str(name or "").strip().upper()) or []
-            # 同税号的优先，再取没写税号的；都没有时只在同名各份期间一样时认（第四轮只按目录名认）
-            mine = [window for tax, window in rows if tax and tax == digits(own_tax)]
-            untaxed = [window for tax, window in rows if not tax]
-            windows = set(mine or untaxed or [window for _tax, window in rows])
+            rows = self.found[origin].get(key) or []
+            if not rows:
+                continue
+            mine = {window for tax, window in rows if tax and tax == own}
+            if own:
+                windows = mine or {window for tax, window in rows if not tax}
+            else:
+                windows = {window for _tax, window in rows}
             if len(windows) == 1:
                 return windows.pop(), origin
+            self.refused.add(f"{origin}:{key}")
         return None
 
     def conflicts(self) -> List[str]:
-        """同名、税号也分不开、期间又不同的账套目录名（这几份不认这一来源，盘点里列出）。"""
-        return sorted(f"{origin}:{name}" for origin, rows in self.found.items() for name, found in rows.items()
-                      if len({window for _tax, window in found}) > 1)
+        """不认这一来源的账套目录名：同名、税号也分不开、期间又不同的，以及 `find` 时只有别家税号、或分不开的（盘点里列出）。"""
+        found = {f"{origin}:{name}" for origin, rows in self.found.items() for name, entries in rows.items()
+                 if len({window for _tax, window in entries}) > 1}
+        return sorted(found | self.refused)
 
 
 def fiscal_calendars(express: Optional[Path], sets: Sequence[Path], isprd: Optional[Path] = None) -> Calendars:
@@ -355,29 +386,41 @@ def fiscal_calendars(express: Optional[Path], sets: Sequence[Path], isprd: Optio
     return found
 
 
-def registered_books(registry: Optional[Path]) -> Optional[set]:
-    """Express 登记表 SCCOMP.DBF（``--registry``，只读导出，文件或含若干 SCCOMP.DBF 的目录）登记的账套目录名（PATH 最后一节，
-    大写）。线上目录只来自登记表（`account_probe.probe_account_sets`），没登记的备份副本、弃用账套线上不在目录里。没给回 None。"""
+def registered_books(registry: Optional[Path]) -> Optional[Dict[str, set]]:
+    """Express 登记表 SCCOMP.DBF（``--registry``，只读导出，文件或含若干 SCCOMP.DBF 的目录）登记的账套 → {目录名（PATH 最后一节，
+    大写）: {本方税号}}。线上目录只来自登记表（`account_probe.probe_account_sets`），没登记的备份副本、弃用账套线上不在目录里。
+    SCCOMP 没有税号列：导出里登记表旁边有那份账套的 ISINFO.DBF（``<根>/<PATH>`` 或 ``<SCCOMP 所在目录>/<PATH>``，Express 的
+    登记表在 ``<根>/secure/``）时取它的 TAXID，取不到记空串（只按目录名认，`is_registered` 放行）。审查处理 10-17：原先只按
+    目录名认，``68EXP`` 这类通用目录名会把别家登记的账套当成这家的。没给回 None。"""
     if not registry:
         return None
     root = refuse_lan(registry)
     tables = [root] if root.is_file() else [path for path in sorted(root.rglob("*"))
                                             if path.name.upper() == "SCCOMP.DBF" and path.is_file()]
-    names = set()
+    names: Dict[str, set] = collections.defaultdict(set)
     for table in tables:
         for row in dbf_rows(table, ["COMPCOD", "PATH"]):
-            tail = re.split(r"[\\/]", str(row.get("PATH") or "").strip().rstrip("\\/"))[-1]
-            if str(row.get("COMPCOD") or "").strip() and tail:
-                names.add(tail.upper())
-    return names
+            parts = [part for part in re.split(r"[\\/]", str(row.get("PATH") or "").strip()) if part]
+            if not str(row.get("COMPCOD") or "").strip() or not parts:
+                continue
+            tax = ""
+            for base in (table.parent.parent, table.parent):
+                info = base.joinpath(parts[-1], "ISINFO.DBF")
+                if not re.match(r"^[A-Za-z]:", parts[0]) and len(parts) > 1:
+                    info = base.joinpath(*parts, "ISINFO.DBF")
+                if info.is_file():
+                    tax = digits((next(dbf_rows(info, ["TAXID"]), None) or {}).get("TAXID"))
+                    break
+            names[parts[-1].upper()].add(tax)
+    return dict(names)
 
 
 def load_book(folder: Path, *, company: str, own_tax: str, key: str, calendar: Optional[Tuple] = None,
-              origin: str = "testcopy", periods: str = "estimated") -> Dict[str, Any]:
+              origin: str = "testcopy", periods: str = "strict") -> Dict[str, Any]:
     """一份账套答案（``答案/<账套>/原表``）→ 判定层要的全部事实。只读。会计期间：答案自带 ``原表/ISPRD.DBF`` 优先，再用
     ``calendar``（(起, 止, 次年止)，来源 ``origin``：export / testcopy，见 `fiscal_calendars`）；都没有时 ``periods`` 为
-    ``estimated`` 按单据日期估（`book_period`，次年止按本年止 + 1 年），``strict`` 不报期间（同线上读不到 ISPRD：该账套的单出
-    ``period_unknown``，同组旧账套退到次年段时核不了新年度账套、选不出）。"""
+    ``estimated`` 按单据日期估（`book_period`，次年止按本年止 + 1 年），``strict``（默认，同 ``judge`` 的默认与线上）不报期间
+    （同线上读不到 ISPRD：该账套的单出 ``period_unknown``，同组旧账套退到次年段时核不了新年度账套、选不出）。"""
     tables = folder / "原表"
     info = next(dbf_rows(tables / "ISINFO.DBF", [*ISINFO_SLOTS.values(), "ORGNUM", "TAXID", "ISPERPETUA"]), {}) or {}
     defaults = {name: str(info.get(slot) or "").strip() for name, slot in ISINFO_SLOTS.items()}
@@ -415,8 +458,8 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str, calendar: O
                    for row in dbf_rows(tables / "ISTAB.DBF", ["TABTYP", "TYPCOD", "TYPDES"])
                    if str(row.get("TABTYP") or "").strip() == "50" and str(row.get("TYPCOD") or "").strip()]
     lines = moving = 0
-    # 存货明细按单号分组（10-17）：(SEQNUM, 文件顺序, PEOPLE, Line)；同样的品名 / 码只留一份字符串（大账套几十万行）
-    detail: Dict[str, List[Tuple[int, int, str, Line]]] = collections.defaultdict(list)
+    # 存货明细按单号分组（10-17）：(SEQNUM, 文件顺序, PEOPLE, DOCDAT, Line)；同样的品名 / 码只留一份字符串（大账套几十万行）
+    detail: Dict[str, List[Tuple[int, int, str, Optional[dt.date], Line]]] = collections.defaultdict(list)
     shared: Dict[str, str] = {}
 
     def text(value: Any) -> str:
@@ -429,27 +472,37 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str, calendar: O
         moving += int(impact)
         code = text(row.get("STKCOD"))
         amount = row.get("NETVAL") if row.get("NETVAL") is not None else row.get("TRNVAL")
-        seq = digits(row.get("SEQNUM"))
         detail[str(row.get("DOCNUM") or "").strip().upper()].append(
-            (int(seq) if seq else 0, index, text(row.get("PEOPLE")),
+            (_seq(row.get("SEQNUM")), index, text(row.get("PEOPLE")),
+             row.get("DOCDAT") if isinstance(row.get("DOCDAT"), dt.date) else None,
              Line(code, text(row.get("STKDES")) or text(product_names.get(code)),
                   "" if row.get("TRNQTY") is None else str(row["TRNQTY"]),
                   "" if row.get("UNITPR") is None else str(row["UNITPR"]),
                   "" if amount is None else str(money(amount)), stock_types.get(code, "unknown"), impact)))
     fingerprint = {"stcrd_lines": lines, "stcrd_lines_moving_stock": moving,
                    "stock_master_count": sum(1 for kind in stock_types.values() if kind == "stock")}
-    # 明细挂单的统计（盘点用，核 PEOPLE 是否总有值、与对方码一致）：挂上的、PEOPLE 空的、PEOPLE 是别家（丢掉）的
+    # 明细挂单的统计（盘点用，核 PEOPLE 是否总有值、与对方码一致）：按挂单次数数（同一行可能被几张同号单各看一次）——挂上的、
+    # PEOPLE 空的、PEOPLE 是别家（丢掉）的、明细日期与单头入账日不同（丢掉）的；``shared_docnum`` 挂到两张以上单的单号数
     stcrd = collections.Counter(lines=lines)
+    attached_to: Dict[str, int] = collections.Counter()
 
-    def doc_lines(docnum: str, party: str) -> Tuple[Line, ...]:
+    def doc_lines(docnum: str, party: str, posted: Optional[dt.date], clash: bool) -> Tuple[Line, ...]:
         found = []
-        for seq, index, people, line in sorted(detail.get(docnum, ()), key=lambda item: item[:2]):
+        for _seq_no, _index, people, day, line in sorted(detail.get(docnum, ()), key=lambda item: item[:2]):
             if people and party and people != party:
                 stcrd["people_other"] += 1  # 单号撞上别家的单：不挂到这张
+                continue
+            if clash and day and isinstance(posted, dt.date) and day != posted:
+                # 进项与销项同一个单号（``clash``）、PEOPLE 又空或进销同一个码：明细日期跟着单头写，不同就不是这张（审查处理
+                # 10-17；只在撞号时看日期，不撞号的单头改过日期也照挂）
+                stcrd["date_other"] += 1
                 continue
             stcrd["attached"] += 1
             stcrd["people_blank"] += int(not people)
             found.append(line)
+        if found:
+            attached_to[docnum] += 1
+            stcrd["shared_docnum"] += int(attached_to[docnum] == 2)
         return tuple(found)
 
     vouchers: Dict[str, Dict[str, Any]] = {}
@@ -503,7 +556,6 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str, calendar: O
             else:
                 booked = {code: amount for code, amount in credit.items() if code not in output_vat}
                 vat_lines = [code for code in credit if code in output_vat]
-            detail_lines = doc_lines(docnum, party_code)
             # 税期（10-17，估上传日用）：税登记的 VATPRD（自然月首日），没有再取单据表头的（销项表头真单恒空，税期记在 ISVAT）
             vat_period = (register or {}).get("VATPRD") or row.get("VATPRD")
             docs.append({
@@ -521,14 +573,18 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str, calendar: O
                 "register": bool(register), "voucher": bool(voucher) and not (voucher or {}).get("cancelled"),
                 "accounts": {code: str(amount) for code, amount in booked.items()},
                 "vat_booked": bool(vat_lines),
-                # 答案口径（10-17）：只有库存品或有库存影响的明细才算走库存（`stock_line`）；``detail`` 有没有任何明细行
-                "stock": any(stock_line(line) for line in detail_lines), "detail": bool(detail_lines),
-                "lines": detail_lines,
                 "vat_period": vat_period if isinstance(vat_period, dt.date) else None,
                 "vat_day": (register or {}).get("VATDAT") if isinstance((register or {}).get("VATDAT"), dt.date)
                 else None,
                 "pearnly": str(row.get("USERID") or "").strip().upper() == "PEARNLY",
             })
+    # 存货明细挂单（10-17）：两张表都读完再挂，进项与销项同号的单才按明细日期分开（`doc_lines`）。答案口径：只有库存品或有库存
+    # 影响的明细才算走库存（`stock_line`）；``detail`` 有没有任何明细行
+    numbers = {way: {doc["docnum"] for doc in docs if doc["direction"] == way} for way in ("purchase", "sales")}
+    clashes = numbers["purchase"] & numbers["sales"]
+    for doc in docs:
+        detail_lines = doc_lines(doc["docnum"], doc["party_code"], doc["posted"], doc["docnum"] in clashes)
+        doc.update(stock=any(stock_line(line) for line in detail_lines), detail=bool(detail_lines), lines=detail_lines)
     own = isprd_window(tables / "ISPRD.DBF")
     if own:
         calendar, origin = own, "answer"
@@ -611,7 +667,8 @@ LINE_NAMES = ("stkdes", "opaque")
 
 def invoice_name(line: Line, names: str = "stkdes") -> str:
     """票面上这一行的品名：``stkdes`` 照会计建档的 STKDES（Express 同名查找全中，乐观上界）；``opaque`` 打码成
-    ``L-`` + STKDES 的 sha1 前 10 位（同名查找永远落空，同一种货每次写法一样、账套记忆学得到，悲观下界）。"""
+    ``L-`` + STKDES 的 sha1 前 10 位：同名查找永远落空，但同一种货每张票写法一模一样、账套记忆次次命中 —— 是「同名查找落空、
+    记忆理想命中」的估计，不是悲观下界（真实发票上同一件货的写法常常不同，记忆实际命中更少，审查处理 10-17）。"""
     if names == "opaque":
         return "L-" + hashlib.sha1((line.name or line.code).encode("utf-8")).hexdigest()[:10]
     return line.name or line.code
@@ -627,8 +684,8 @@ def invoice_items(doc: Mapping[str, Any], names: str = "stkdes") -> List[Dict[st
 def perfect_fields(doc: Mapping[str, Any], book: Mapping[str, Any], lines: str = "none",
                    names: str = "stkdes") -> Dict[str, Any]:
     """答案这张单的「识别全对」票面：单号、日期、对方名称 / 税号 / 分店、本方、三项金额；有税额的是正式税票，
-    没税额的按收据。``lines`` 为 ``none``（默认，与第四轮可比）不造明细行（识别全对的票面也不知道原件上的品名）；``answer`` 把
-    答案的存货明细造进票面（`invoice_items`，品名按 ``names``）。"""
+    没税额的按收据。``lines`` 为 ``none``（默认，同第四轮）不造明细行（识别全对的票面也不知道原件上的品名），入账方式按声明值
+    计分（`payload_values` 的 ``declared``）；``answer`` 把答案的存货明细造进票面（`invoice_items`，品名按 ``names``）。"""
     party, own = ("buyer", "seller") if doc["direction"] == "sales" else ("seller", "buyer")
     vat = Decimal(doc["vat"])
     fields = {
@@ -787,9 +844,11 @@ def fiscal_year(start: Optional[dt.date], day: dt.date) -> int:
 def book_pick(m, shaped: Optional[Sequence[Mapping[str, Any]]], book: Mapping[str, Any],
               picked: Sequence[str], day: dt.date) -> Dict[str, Any]:
     """按日期选出的账套（``picked``，`day_books`）对这份账套是哪种情形（10-17，拆「两份同期」是真是估）：``self`` 正好是这份、
-    ``many`` 多份（``many_keys`` 候选、``many_estimated`` 候选里有按单据估期间的、``many_part`` 候选是本年覆盖 ``current``
-    还是次年段 ``next``）、``none`` 一份都选不出（``none_unknown`` 同分店有期间没报全的账套）、``other`` 另一份
-    （``other_newer`` 那份本年起始晚于这份本年止，即新年度账套已建）。"""
+    ``many`` 多份（``many_keys`` 候选、``many_origins`` 各候选的期间来源（`ORIGINS`）、``many_estimated`` 候选里有按单据估期间的、
+    ``many_parts`` 各候选这一天落在本年覆盖 ``current`` 还是次年段 ``next``，``many_part`` 都是本年 ``current`` / 都是次年段
+    ``next`` / 不一样 ``mixed``——`identity.for_day` 先认本年覆盖的、没有才认次年段，同一次选出的候选总在同一段，``mixed``
+    只是防御）、``none`` 一份都选不出（``none_unknown`` 同分店有期间没报全的账套）、``other``
+    另一份（``other_newer`` 那份本年起始晚于这份本年止，即新年度账套已建）。"""
     mine = book_key(m, book)
     keys = sorted(set(picked))
     found: Dict[str, Any] = {"book_pick": "self" if keys == [mine] else "none" if not keys else
@@ -798,10 +857,13 @@ def book_pick(m, shaped: Optional[Sequence[Mapping[str, Any]]], book: Mapping[st
     by_key = {item["key"]: item for item in group}
     if found["book_pick"] == "many":
         found["many_keys"] = keys
-        found["many_estimated"] = any((by_key.get(key) or {}).get("origin") == "estimated" for key in keys)
-        first = by_key.get(keys[0]) or {}
-        found["many_part"] = "current" if str(first.get("period_start") or "") <= day.isoformat() <= \
-            str(first.get("period_end") or "") else "next"
+        found["many_origins"] = [(by_key.get(key) or {}).get("origin") or "" for key in keys]
+        found["many_estimated"] = "estimated" in found["many_origins"]
+        # 逐份候选看这一天在它的本年还是次年段（审查处理 10-17：原先只看排序后第一份）
+        parts = tuple("current" if str((by_key.get(key) or {}).get("period_start") or "") <= day.isoformat()
+                      <= str((by_key.get(key) or {}).get("period_end") or "") else "next" for key in keys)
+        found["many_parts"] = list(parts)
+        found["many_part"] = parts[0] if len(set(parts)) == 1 else "mixed"
     elif found["book_pick"] == "none":
         found["none_unknown"] = any(not (item.get("period_start") and item.get("period_end"))
                                     for item in group if item["key"] != mine)
@@ -901,10 +963,15 @@ def written_items(payload: Mapping[str, Any]) -> List[Mapping[str, Any]]:
             if isinstance(item, Mapping) and str(item.get("item_mode") or "") in STOCK_ITEM_MODES]
 
 
-def payload_values(payload: Mapping[str, Any], book: Mapping[str, Any], fields: Mapping[str, Any]) -> Dict[str, Any]:
+def payload_values(payload: Mapping[str, Any], book: Mapping[str, Any], fields: Mapping[str, Any],
+                   declared: Optional[str] = None) -> Dict[str, Any]:
     """推出去会是什么：对方档（载荷里的码，没有就按 CC 桌面版找档）、科目、现 / 赊、抵不抵进项；入账方式按载荷实际会写什么
     （有写得进 STCRD 的库存行是 ``stock``，否则 ``service``：声明走库存、明细没过闸的单只写表头，10-17）；存货是这些库存行的码
-    （载荷写定的，没有按同名在全量存货主档里找，再没有记 ``new``），按行序成元组。"""
+    （载荷写定的，没有按同名在全量存货主档里找，再没有记 ``new``），按行序成元组。
+
+    ``declared``：票面没造明细（``--lines none``）时这张单用的入账类型（``stock`` / ``service``），入账方式照它计分。没造明细的
+    载荷本来就写不出库存行，按载荷计会把每张「公司选走库存」的单都算成推错（回放造票面的伪影，真实票面识别得出明细，审查处理
+    10-17），这时只量「公司选的值与会计的记法」这一层，明细过不过对账闸看造了明细的那两遍。"""
     direction = payload.get("direction")
     side, masters = ("customer", book["customers"]) if direction == "sales" else ("supplier", book["suppliers"])
     block = payload.get(side) if isinstance(payload.get(side), Mapping) else {}
@@ -920,7 +987,8 @@ def payload_values(payload: Mapping[str, Any], book: Mapping[str, Any], fields: 
     if direction == "purchase":
         out["vat"] = "claim" if Decimal(str(payload.get("vat_amount") or "0")) > 0 else "expense"
     stock = written_items(payload)
-    out["posting"] = "stock" if stock else "service"
+    out["posting"] = ("stock" if declared == "stock" else "service") if declared is not None else \
+        "stock" if stock else "service"
     if stock:
         from pearnly_cowork.push.express.choices import norm_name
 
@@ -987,50 +1055,88 @@ class Memory:
 
 
 COMPANY_CHOICE_MODES = ("prior", "full")
+# 替公司选入账方式时「此前已录单的多数」至少要这么多张会交人的单，不够退到全期多数（审查处理 10-17：一两张就定，第四轮初跑
+# NEWLINK 那种第一张恰好是服务的会整家选反）
+PRIOR_MIN = 10
+
+
+def posting_population(m, book: Mapping[str, Any], doc: Mapping[str, Any], entered: dt.date,
+                       cache: Optional[Dict[str, bool]] = None) -> bool:
+    """这张单会不会因「永续 / 混合库存账套、没声明入账类型」交人（`goods_posting.blocked` 同一判据：画像拦的账套里，销项全部单、
+    进项不是费用车道的单）：替公司选入账方式时只在这类单里数多数。车道按「识别全对」的票面判，不看这家记过的小票抵进项
+    （那要先回放到那一刻，近似）。画像按账套缓存在 ``cache``（键是账套键）。"""
+    cache = cache if cache is not None else {}
+    blocks = cache.get(book["key"])
+    if blocks is None:
+        blocks = cache[book["key"]] = m["goods_posting"].blocked({}, direction="sales", config=book_config(book),
+                                                                  posting_kind=None, today=entered)
+    if not blocks:
+        return False
+    if doc["direction"] == "sales":
+        return True
+    from pearnly_cowork.push.express.field_rules import lane_verdict
+
+    is_expense, _src = lane_verdict(perfect_fields(doc, book), today=entered)
+    return not is_expense
 
 
 class CompanyChoice:
     """一家公司按公司记的选择（工作空间 ``document_policy`` 的 ``goods_posting|<公司>``，`push.express.goods_posting`）：
     商品单入账方式。模拟的人在第一张因此交人的单上替这家公司选一次，之后这家照此。回放同线上：单都不预先声明入账类型，会交人的
-    全按公司选的走（审查处理 10-16）。人选哪个（`pick`）：``before``（10-17 主口径）这家第一次交人那一刻之前已录进 Express 的单里的
-    多数（会计知道这家记不记库存，但不知道以后）；``preferred`` 全期多数（第四轮口径，带了未来信息，``--company-choice full`` 作对照）；
-    都没有按这张单的答案。第四轮初跑先按第一张单的答案选，NEWLINK 等几家第一张恰好是服务、此后十几万张商品单全被记成费用。"""
+    全按公司选的走（审查处理 10-16）。人选哪个（`pick`）：``before``（10-17 主口径）这家第一次交人那一刻之前已录进 Express、会因
+    入账方式交人的单里的多数（会计知道这家记不记库存，但不知道以后），不到 `PRIOR_MIN` 张退到全期多数（``full_fallback``）；
+    ``preferred`` 全期多数（第四轮口径，带了未来信息，``--company-choice full`` 作对照）；都没有按这张单的答案。第四轮初跑先按第一张
+    单的答案选，NEWLINK 等几家第一张恰好是服务、此后十几万张商品单全被记成费用。"""
 
     def __init__(self, preferred: Optional[str] = None, before=None, full: Optional[str] = None):
         self.goods_posting: Optional[str] = None
         self.preferred = preferred
         self.before = before
-        self.full = full if full is not None else preferred  # 全期多数（只记下作对照）
+        self.full = full if full is not None else preferred  # 全期多数（prior 口径下是不够张数时的退路）
         self.picked_by = ""
         self.prior: Optional[str] = None
+        self.prior_docs = 0
 
     def pick(self, entered: dt.date, doc: Mapping[str, Any]) -> None:
-        """在这张交人的单上选一次（记下选的值、凭什么选、那一刻之前的多数）。"""
-        self.prior = self.before(entered) if self.before else None
+        """在这张交人的单上选一次（记下选的值、凭什么选、那一刻之前的多数与张数）。"""
+        if self.before:
+            self.prior, self.prior_docs = self.before(entered)
         if self.prior:
             self.goods_posting, self.picked_by = self.prior, "prior"
         elif self.preferred:
             self.goods_posting, self.picked_by = self.preferred, "full"
+        elif self.before and self.full:
+            self.goods_posting, self.picked_by = self.full, "full_fallback"
         else:
             self.goods_posting, self.picked_by = ("stock" if doc["stock"] else "service"), "answer"
 
     def summary(self) -> Dict[str, Any]:
-        return {"used": self.goods_posting, "by": self.picked_by, "prior": self.prior, "full": self.full}
+        return {"used": self.goods_posting, "by": self.picked_by, "prior": self.prior, "prior_docs": self.prior_docs,
+                "full": self.full}
 
 
 _READBACK_DAYS: Dict[str, dt.date] = {}
+# 线上取这家最近推成功的单最多这么多张（`push.application.assess.RECENT_MAX`，按上传先后取最新的、再按分店筛；回放不导入
+# assess：它连 Frappe）。``--recent-max 0`` 不设上限（第四轮的口径，对照）
+RECENT_MAX = 30
+READBACK_SCOPES = ("record", "account")
 
 
 def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind: str = "account",
-                    branch: Optional[str] = None) -> List[str]:
+                    branch: Optional[str] = None, limit: int = RECENT_MAX) -> List[str]:
     """回放里这家供应商在这份账套里之前推出去的单（``log`` 按推的先后，``{account, source, payment, payment_source, party,
-    party_source, branch, ok, period, entered}``）→ `automation.memory_evidence` 的 ``kind`` 序列（新的在前），与线上
+    party_source, branch, stock, ok, period, entered}``）→ `automation.memory_evidence` 的 ``kind`` 序列（新的在前），与线上
     `assess._recent` 同口径：推的时候由人或规则定的照记；凭账套记忆推出去的，要这期的合格回读（截止日后一天）在这张单录入之前、
-    而且在那张推出去之后，整张记录（对方档、科目、现 / 赊、抵进项）与会计最终记的都相同才算（``ok``；任一不同就是回读里被改，
-    三类一起断开，同线上 `readback_marks` 按整张记录，10-17：原先只比科目，比线上宽）；还没回读核过的不算证据。``branch``：
-    对方档只数同一分店的。值为 None 的是回放推不出这一类（C 类重出载荷也没出，`judge_document` 的近似），跳过。"""
+    而且在那张推出去之后，整张记录与会计最终记的都相同才算（``ok``，见 `pushed_record`；任一不同就是回读里被改，三类一起断开，
+    同线上 `readback_marks` 按整张记录，10-17）；还没回读核过的不算证据。``branch``：对方档只数同一分店的。值为 None 的是回放推不出
+    这一类（C 类重出载荷也没出，`judge_document` 的近似），跳过。``limit``：同线上只看最新这么多张（先截、再按分店筛，审查处理
+    10-17：原先不设上限，比线上乐观），0 不设上限。回放假定每一期都在申报截止日后一天按时做了合格回读，线上要有人真发起回读才有
+    证据。"""
+    recent = list(reversed(log or ()))
+    if limit and limit > 0:
+        recent = recent[:limit]
     entries = []
-    for record in reversed(log or ()):
+    for record in recent:
         if branch is not None and record.get("branch") != branch:
             continue
         if record.get(kind) is None:
@@ -1044,30 +1150,34 @@ def pushed_evidence(m, log: Sequence[Mapping[str, Any]], entered: dt.date, kind:
         entries.append({"account": record.get("account"), "source": record.get("source") or "",
                         "payment": record.get("payment"), "payment_source": record.get("payment_source") or "",
                         "party": record.get("party"), "party_source": record.get("party_source") or "",
-                        "readback": mark})
+                        "stock": bool(record.get("stock")), "readback": mark})
     return m["automation"].memory_evidence(entries, kind)
 
 
-PUSHED_KINDS = ("party", "account", "payment", "vat")
+PUSHED_KINDS = ("party", "account", "payment", "vat", "posting", "item")
 
 
 def pushed_record(answer: Mapping[str, Any], payload: Optional[Mapping[str, Any]], values: Mapping[str, Any],
-                  needed: Iterable[str]) -> Dict[str, Any]:
-    """这张推出去的单记进 ``pushed`` 的样子（`pushed_evidence` 用）：值与来源取推出去的载荷（对方档取载荷写定的码，同线上
-    `assess._recent`）；这次要人选的类按答案（模拟的人选的）——科目来源记 ``chosen``（推送服务按上传后有人选细分），现 / 赊记
-    ``remembered``（线上人选的先进账套记忆、载荷 ``doctype_src`` 也是 remembered），对方档来源不在载荷里。``ok``：推出去的对方档
-    （CC 桌面版找的档按 `payload_values`）、科目、现 / 赊、抵进项都与答案相同（答案没有这一项不比，一单多科目算不同）——合格回读
-    里整张没被改。没载荷时（推不出）各类记 None，``ok`` 只比要人选的几类（乐观近似）。"""
+                  needed: Iterable[str], scope: str = "record") -> Dict[str, Any]:
+    """这张推出去的单记进 ``pushed`` 的样子（`pushed_evidence` 用）：值与来源取推出去的载荷，对方档取 CC 桌面版实际写的码（载荷
+    写定的码，没写按 CC 桌面版找档 `payload_values`；找不到要新建 / 定不出的记空串，同线上回执 ``meta.party_code``，审查处理
+    10-17）；这次要人选的类按答案（模拟的人选的）——科目来源记 ``chosen``（推送服务按上传后有人选细分），现 / 赊记 ``remembered``
+    （线上人选的先进账套记忆、载荷 ``doctype_src`` 也是 remembered），对方档来源不在载荷里。``stock``：真写了库存行（回读不比分录，
+    科目的 confirmed 不算证据）。``ok``：推出去的对方档、科目、现 / 赊、抵进项、入账方式、存货都与答案相同（答案没有这一项不比，
+    一单多科目算不同）——合格回读里整张没被改；入账方式与存货只在计分的单上比（审查处理 10-17：原先不比，比线上整张记录宽）。
+    ``scope`` 为 ``account`` 时只比科目（第四轮口径，``--readback-scope account`` 对照）。没载荷时（推不出）各类记 None，``ok``
+    只比要人选的几类（乐观近似）。"""
     payload = payload if isinstance(payload, Mapping) else None
     needed = set(needed or ())
-    block = (payload or {}).get("supplier")
-    block = block if isinstance(block, Mapping) else {}
     doctype = str((payload or {}).get("doctype") or "").strip().upper()
-    out = {"account": None, "source": "", "payment": None, "payment_source": "", "party": None, "party_source": ""}
+    out = {"account": None, "source": "", "payment": None, "payment_source": "", "party": None, "party_source": "",
+           "stock": False}
     if payload is not None:
+        party = str(values.get("party") or "").strip()
         out.update(account=str(payload.get("items_account") or "").strip(),
                    source=str(payload.get("account_source") or ""), payment=doctype,
-                   payment_source=str(payload.get("doctype_src") or ""), party=str(block.get("code") or "").strip())
+                   payment_source=str(payload.get("doctype_src") or ""),
+                   party="" if party in ("new", "ambiguous") else party, stock=bool(written_items(payload)))
     pushed = {kind: values.get(kind) for kind in PUSHED_KINDS} if payload is not None else {}
     if "account" in needed:
         out.update(account=str(answer.get("account") or ""), source="chosen")
@@ -1078,10 +1188,12 @@ def pushed_record(answer: Mapping[str, Any], payload: Optional[Mapping[str, Any]
     if "party" in needed:
         out.update(party=str(answer.get("party") or ""), party_source="")
         pushed["party"] = answer.get("party")
-    if "vat" in needed:
-        pushed["vat"] = answer.get("vat")
+    for kind in ("vat", "item"):
+        if kind in needed:
+            pushed[kind] = answer.get(kind)
+    kinds = PUSHED_KINDS if scope == "record" else ("account",)
     out["ok"] = all(answer.get(kind) is None or (kind not in pushed and payload is None)
-                    or (answer[kind] != "*multi" and pushed.get(kind) == answer[kind]) for kind in PUSHED_KINDS)
+                    or (answer[kind] != "*multi" and pushed.get(kind) == answer[kind]) for kind in kinds)
     return out
 
 
@@ -1118,7 +1230,8 @@ def history_index(docs: Sequence[Mapping[str, Any]], norm) -> Dict[str, List[Map
 def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str, Any]]], catalog, history_entries,
                    company: Optional[CompanyChoice] = None, shaped: Optional[Sequence[Mapping[str, Any]]] = None,
                    pushed: Optional[Dict[str, List[Dict[str, Any]]]] = None, lines: str = "none",
-                   names: str = "stkdes"):
+                   names: str = "stkdes", recent_max: int = RECENT_MAX, readback_scope: str = "record",
+                   auto: Optional[set] = None):
     """一张答案单走一遍推送判定 → 判定结果（类别、原因、逐项计分）。C 类由模拟的人按答案选（记进账套记忆）；商品单入账方式
     因没选过交人时，模拟的人按这张单的答案替这家公司选一次（``company``）。``shaped``：这家公司各份账套（`shaped_books`），
     按日期选账套用；没给只认这一份。``pushed``：这份账套里各家供应商（13 位税号）之前推出去的单（科目、现 / 赊、对方档与整张
@@ -1126,7 +1239,11 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     ``pushed_from`` 记 payload / replanned / approx）。``lines`` / ``names``：票面造不造明细行、品名怎么写（`perfect_fields`，
     10-17）；造了明细时存货逐行计分（`answer_items`）、逐行学记忆。每张单另记 ``posting_history``（这家供应商之前的 Express 存货
     历史定下的入账方式，`stock_history` + `history_rules.posting_settled`）与 ``posting_tier_if_history``（按公司选入账方式的单
-    若加上这一层：一致 A、相反 conflict、没定下 B），以及按「录入日与税期截止日取早」估上传日重判日期核对的 ``class_alt``。"""
+    若加上这一层：一致 A、相反 conflict、定成走库存而载荷写不出库存行 no_lines、没定下 B；``auto`` 是之前判成 A / B 的单（``id``），
+    ``posting_history_manual`` / ``posting_tier_if_history_manual`` 把它们当 CC 推的、从历史里剔掉再算一次：用户 10-17 定的口径不含
+    CC 推的单，回放里能被自动推的单线上会是 USERID=PEARNLY、不进历史，所以不剔是上界、全剔是下界），以及按「录入日与税期截止日
+    取早」估上传日重判日期核对的 ``class_alt``。``recent_max`` / ``readback_scope`` 见 `pushed_evidence` / `pushed_record`；
+    ``memory_cap_lost`` 记账套记忆定的哪几类只因「最新 30 张」的上限没到 A（不设上限会到）。"""
     company = company if company is not None else CompanyChoice()
     pushed = pushed if pushed is not None else {}
     automation = m["automation"]
@@ -1161,6 +1278,10 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     settled = m["history_rules"].posting_settled(stock_history(earlier, entered - dt.timedelta(days=365), entered),
                                                  entered, entered) if direction == "purchase" else None
     posting_history = (settled or {}).get("kind") or ""
+    manual = m["history_rules"].posting_settled(stock_history([item for item in earlier if id(item) not in (auto or ())],
+                                                              entered - dt.timedelta(days=365), entered),
+                                                entered, entered) if direction == "purchase" else None
+    posting_manual = (manual or {}).get("kind") or ""
     remembered = {kind: dict(values) for kind, values in memory.kinds.items()}
     # 入账类型：同线上，单都不预先声明（审查处理 10-16：原先答案里没有存货明细的单按「服务」声明，「公司选走库存、单是服务」
     # 这种错推在回放里一张都出不来）；会交人的这家公司选过入账方式就照选的（`goods_posting.resolve`，与推送服务同一份），
@@ -1212,9 +1333,13 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     supplier = digits(doc["party_tax"]) if direction == "purchase" else ""
     branch = branch5(fields.get("seller_branch"))
     log = pushed.get(supplier, []) if len(supplier) == 13 else []
-    recent = {"account": pushed_evidence(m, log, entered), "payment": pushed_evidence(m, log, entered, "payment"),
-              "party": pushed_evidence(m, log, entered, "party", branch)} if direction == "purchase" else \
-        {"account": [], "payment": None, "party": None}
+
+    def evidence(limit):
+        return {"account": pushed_evidence(m, log, entered, limit=limit),
+                "payment": pushed_evidence(m, log, entered, "payment", limit=limit),
+                "party": pushed_evidence(m, log, entered, "party", branch, limit=limit)}
+
+    recent = evidence(recent_max) if direction == "purchase" else {"account": [], "payment": None, "party": None}
     pages = [{"fields": fields, "_layer_chain": ["direct"]}]
     picked = day_books(m, shaped, book, day) if shaped is not None else [book_key(m, book)]
     facts = automation.Facts(
@@ -1229,6 +1354,36 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
         layers=automation.layers(fields, direction=direction, remembered=remembered,
                                  history=(decision.get("history") or {}).get("account")))
     verdict = automation.classify(facts)
+
+    def history_tier(kind: str) -> Optional[str]:
+        """按公司选入账方式的单若加上供应商存货历史这一层的档（只量不判）：没定下 B；与公司选的相反 conflict（线上会交人）；一致、
+        但定成走库存而载荷写不出库存行（没造明细、明细没过对账闸、没出载荷）no_lines（线上要求 `_stock_lines` 为真才给 A，审查处理
+        10-17）；
+        一致 A。"""
+        if posting_from != m["goods_posting"].COMPANY_CHOICE:
+            return None
+        if not kind:
+            return "B"
+        if kind != posting_kind:
+            return "conflict"
+        return "no_lines" if kind == "stock" and not written_items(payload or {}) else "A"
+
+    # 「最新 30 张」的上限丢掉的 A（审查处理 10-17）：记忆定的项判成 B，不设上限的证据却能定下的类
+    cap_lost = []
+    if direction == "purchase" and recent_max and len(log) > recent_max and payload:
+        sources = {"account": payload.get("account_source"), "payment": payload.get("doctype_src"),
+                   "party": (decision.get("decided_by") or {}).get("party")}
+        wanted = {"account": payload.get("items_account"), "payment": str(payload.get("doctype") or "").upper(),
+                  "party": str(((payload.get("supplier") or {}) if isinstance(payload.get("supplier"), Mapping)
+                                else {}).get("code") or "")}
+        loose = None
+        for kind in ("account", "payment", "party"):
+            if sources[kind] != "remembered" or verdict.items.get(kind) != "B" or not wanted[kind]:
+                continue
+            loose = loose or evidence(0)
+            if automation.memory_settled(loose[kind], wanted[kind]):
+                cap_lost.append(kind)
+
     # 上传日另估一次（10-17，`upload_proxy`）：只重判日期类核对（date_stale / day_month / date_future），其余时钟不变
     uploaded_alt, uploaded_src = upload_proxy(m, doc)
     alt = verdict if uploaded_src == "entered" else \
@@ -1237,7 +1392,8 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     if posting_from == m["goods_posting"].COMPANY_CHOICE:
         # 入账方式按公司选的：与答案比（答案有库存品或库存影响的明细 = 走库存，没有 = 记费用；10-17 口径，`stock_line`）
         answer["posting"] = "stock" if doc["stock"] else "service"
-    values = payload_values(payload, book, fields) if payload else {}
+    declared = None if lines == "answer" else posting_kind or "service"
+    values = payload_values(payload, book, fields, declared) if payload else {}
     if lines == "answer" and payload and (posting_from == m["goods_posting"].COMPANY_CHOICE or values.get("item")):
         # 存货逐行计分（10-17）：只计入账方式也计分的单（按公司选的）与载荷写了库存行的单（同入账方式只在按公司选时计分，
         # 不交人的周期制账套不计）；答案的库存行与载荷真会写进 STCRD 的库存行都没有时不计
@@ -1249,15 +1405,17 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     if len(supplier) == 13:
         # 这张推出去的单（A / B 照载荷；C 由模拟的人推：要人选的按答案选，没出载荷的学完记忆、公司选过入账方式后照线上再出一次，
         # 拿到人真正会推出去的载荷；还是出不来的按 `pushed_record` 的乐观近似）
-        pushed_payload, pushed_from = payload, "payload"
+        pushed_payload, pushed_from, _kind = payload, "payload", posting_kind
         if payload is None:
             config = configure()
             remembered = {kind: dict(values) for kind, values in memory.kinds.items()}
             _kind, _origin, _decision, pushed_payload, _ready, _reason = plan()
             pushed_from = "replanned" if pushed_payload else "approx"
         record = pushed_record(answer, pushed_payload,
-                               payload_values(pushed_payload, book, fields) if pushed_payload else {},
-                               [item.get("kind") for item in decision["needed"]])
+                               payload_values(pushed_payload, book, fields,
+                                              None if lines == "answer" else _kind or "service")
+                               if pushed_payload else {},
+                               [item.get("kind") for item in decision["needed"]], readback_scope)
         pushed.setdefault(supplier, []).append(dict(record, branch=branch, period=day.strftime("%Y-%m"),
                                                     entered=entered))
     prior.setdefault(_ref_key(m, fields["invoice_number"]), []).append(
@@ -1281,8 +1439,9 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
             # 商品单（10-17）：答案走不走库存、有没有明细、用的入账类型、载荷明细过没过闸、存货历史与假如按它定档的档
             "answer_stock": bool(doc["stock"]), "detail": bool(doc.get("detail")), "posting_kind": posting_kind or "",
             "items_status": str((payload or {}).get("items_status") or ""), "posting_history": posting_history,
-            "posting_tier_if_history": None if posting_from != m["goods_posting"].COMPANY_CHOICE else
-            "B" if not posting_history else "A" if posting_history == posting_kind else "conflict",
+            "posting_tier_if_history": history_tier(posting_history),
+            "posting_history_manual": posting_manual, "posting_tier_if_history_manual": history_tier(posting_manual),
+            "memory_cap_lost": cap_lost,
             # 估上传日（10-17）：日子、来源（entered / vat_deadline）、按它重判的类别与原因（原因与现行一样时不重复存）
             "uploaded_alt": uploaded_alt.isoformat(), "uploaded_src": uploaded_src, "class_alt": alt.cls,
             **({} if list(alt.reasons) == list(verdict.reasons) else {"reasons_alt": list(alt.reasons)}),
@@ -1322,9 +1481,15 @@ def _covers_next(book: Mapping[str, Any], day: dt.date) -> bool:
     return bool(start and end and following) and end < day <= following
 
 
-def is_registered(book: Mapping[str, Any], registered: Optional[set]) -> bool:
-    """这份账套在不在 Express 登记表里（`registered_books`；没给登记表都算在）。"""
-    return registered is None or Path(str(book.get("folder") or book["key"])).name.upper() in registered
+def is_registered(book: Mapping[str, Any], registered: Optional[Mapping[str, set]]) -> bool:
+    """这份账套在不在 Express 登记表里（`registered_books`；没给登记表都算在）：目录名登记了，且登记的那份税号就是这家（或取不到
+    税号、只能按目录名认）。"""
+    if registered is None:
+        return True
+    taxes = registered.get(Path(str(book.get("folder") or book["key"])).name.upper())
+    if not taxes:
+        return False
+    return "" in taxes or digits(book.get("own_tax")) in taxes
 
 
 def owners(books: Sequence[Mapping[str, Any]], registered: Optional[set] = None) -> Dict[Tuple, str]:
@@ -1363,15 +1528,18 @@ def holders(books: Sequence[Mapping[str, Any]]) -> collections.Counter:
     return found
 
 
-def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[set] = None, *, lines: str = "none",
-                  names: str = "stkdes", choice_mode: str = "prior", choice: Optional[Dict[str, Any]] = None
-                  ) -> Tuple[List[Dict[str, Any]], collections.Counter]:
+def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[Mapping[str, set]] = None, *,
+                  lines: str = "none", names: str = "stkdes", choice_mode: str = "prior",
+                  choice: Optional[Dict[str, Any]] = None, recent_max: int = RECENT_MAX,
+                  readback_scope: str = "record") -> Tuple[List[Dict[str, Any]], collections.Counter]:
     """一家公司（各年度账套）按单据录入日顺序判；每份账套各自一份账套记忆与已推记录。同一张单只在一份账套里回放
     （`owners`）。``registered``（`registered_books`）：给了时按日期选账套与目录只认登记了的账套（线上目录 = 登记表），
     没登记的账套里的单照样判（选出的就不是它）。每行另记 ``unique``（这张单只在一份账套里有，`tiebreak` 只拿这种计分）、
     ``registered`` 与 ``entered_batch``（录入日是这份账套成批录入的日子，`BATCH_DAY_DOCS`）。``lines`` / ``names`` 见
     `perfect_fields`；``choice_mode``：模拟的人替公司选入账方式按 ``prior``（此前已录单的多数，10-17 主口径）或 ``full``（全期
-    多数，对照）；给了 ``choice`` 时把这家选了什么、凭什么（`CompanyChoice.summary`）写进去。"""
+    多数，对照）；两种「多数」都只在会因入账方式交人的单里数（`posting_population`，审查处理 10-17：原先整家全部单都算，费用车道的
+    单偏向 service），此前的不到 `PRIOR_MIN` 张时退到全期多数（``full_fallback``）；给了 ``choice`` 时把这家选了什么、凭什么
+    （`CompanyChoice.summary`）写进去。``recent_max`` / ``readback_scope`` 见 `pushed_evidence` / `pushed_record`。"""
     listed = [book for book in books if is_registered(book, registered)]
     catalog = [account_row(book) for book in listed]
     out, skipped = [], collections.Counter()
@@ -1391,26 +1559,35 @@ def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[se
     memories = collections.defaultdict(Memory)
     priors = collections.defaultdict(dict)
     purchases = {book["key"]: history_index(book["docs"], m["choices"].norm_name) for book in books}
-    stock = sum(1 for item in queue if item[4]["stock"])
-    preferred = "stock" if stock * 2 >= len(queue) else "service"
-    # 此前已录单的多数（10-17）：队列按录入日排好，录入日严格早于这一天的前缀里走库存的占不少于一半就是 stock；一张都没有回 None
-    days = [item[0] for item in queue]
+    profiles: Dict[str, bool] = {}
+    population = [item for item in queue if posting_population(m, item[3], item[4], item[0], profiles)] or queue
+    stock = sum(1 for item in population if item[4]["stock"])
+    preferred = "stock" if stock * 2 >= len(population) else "service"
+    # 此前已录单的多数（10-17）：会交人的那类单按录入日排好，录入日严格早于这一天的前缀里走库存的占不少于一半就是 stock；
+    # 不到 `PRIOR_MIN` 张回 (None, 张数)
+    days = [item[0] for item in population]
     running = [0]
-    for item in queue:
+    for item in population:
         running.append(running[-1] + int(bool(item[4]["stock"])))
 
-    def before(entered: dt.date) -> Optional[str]:
+    def before(entered: dt.date) -> Tuple[Optional[str], int]:
         count = bisect.bisect_left(days, entered)
-        return None if not count else "stock" if running[count] * 2 >= count else "service"
+        if count < PRIOR_MIN:
+            return None, count
+        return ("stock" if running[count] * 2 >= count else "service"), count
 
     # 语料一家公司一个目录：按公司选的入账方式一家一份
     company = CompanyChoice(preferred, full=preferred) if choice_mode == "full" else \
         CompanyChoice(None, before=before, full=preferred)
     shaped = shaped_books(m, listed)
     pushed = collections.defaultdict(dict)  # 每份账套：供应商 → 推出去的单（科目、现 / 赊、对方档，`pushed_evidence`）
+    auto: set = set()  # 判成 A / B 的单（``id``）：存货历史「不含 CC 推的」下界口径从历史里剔掉（`judge_document`）
     for entered, _day, _number, book, doc in queue:
         row = judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
-                             purchases[book["key"]], company, shaped, pushed[book["key"]], lines=lines, names=names)
+                             purchases[book["key"]], company, shaped, pushed[book["key"]], lines=lines, names=names,
+                             recent_max=recent_max, readback_scope=readback_scope, auto=auto)
+        if row["class"] in ("A", "B"):
+            auto.add(id(doc))
         row.update(unique=held[doc_key(doc)] == 1, registered=is_registered(book, registered),
                    entered_batch=isinstance(doc.get("entered"), dt.date) and entered == doc["entered"]
                    and entered in (book.get("batch_days") or {}))
@@ -1436,12 +1613,14 @@ def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, 
     """一家公司的判定行（`judge_company` 的顺序，即录入日顺序）里按日期选出多份账套（``book_pick == many``）的单，各口径会挑
     哪份。只拿只在一份账套里有的单（``unique``）与答案账套（这张单所在的那份）比：``right`` 选对、``wrong`` 选错、``stopped``
     仍停（ask_once 问人那张也算停，``asked`` 另计；问到几份都有的单不记选择、下一张再问）；``shared`` 几份都有、答案账套
-    不唯一的不计分；``freed`` 选对且 C 类原因只剩 ``book_many`` 的（挑对就不再是 C）。"""
+    不唯一的不计分；``freed`` 选对且 C 类原因只剩 ``book_many`` 的（挑对就不再是 C）。recent_push 各挑法各记各的「最近推进去的
+    那份」：挑法选了哪份就记哪份（选错了之后也跟着错），停下由人推的记答案账套（审查处理 10-17：原先一律记答案账套，等于每张都
+    自动纠正，偏乐观）。"""
     by_raw = {book["key"]: book for book in books}
     by_norm = {book_key(m, book): book for book in books}
     out = {name: collections.Counter() for name in strategies}
     asked: Dict[Tuple, str] = {}
-    last_push: Dict[str, int] = {}
+    last_push: Dict[str, Dict[str, int]] = {name: {} for name in strategies}
     for index, row in enumerate(rows):
         book = by_raw[row["book"]]
         own = book_key(m, book)
@@ -1457,10 +1636,11 @@ def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, 
                     winners = [key for key, day in latest.items() if best and day == best]
                     choice = winners[0] if len(winners) == 1 else None
                 elif name == "recent_push":
-                    seen = {key: last_push[key] for key in candidates if key in last_push}
+                    pushed = last_push[name]
+                    seen = {key: pushed[key] for key in candidates if key in pushed}
                     choice = max(seen, key=seen.get) if seen else None
                 elif name == "ask_once":
-                    combo = (book["branch"], row.get("many_part"), tuple(candidates))
+                    combo = (book["branch"], tuple(row.get("many_parts") or [row.get("many_part")]), tuple(candidates))
                     choice = asked.get(combo)
                     if choice is None:
                         out[name]["asked"] += 1
@@ -1478,7 +1658,11 @@ def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, 
                         counter["freed"] += 1
                 else:
                     counter["wrong"] += 1
-        last_push[own] = index  # 这张单推进了它所在的账套（A / B 照推，C 由人推）
+                # 这张单推进了哪份：挑法选了的就是它选的，停下由人推进答案账套
+                last_push[name][choice or own] = index
+        else:
+            for name in strategies:
+                last_push[name][own] = index  # 只选出一份（或选不出、由人推）：推进它所在的账套
     return {name: dict(counter) for name, counter in out.items()}
 
 
@@ -1952,7 +2136,8 @@ def cmd_judge(args) -> int:
         books = [book for _folder, book in pairs]
         choice: Dict[str, Any] = {}
         judged, why = judge_company(m, books, registered, lines=args.lines, names=args.line_names,
-                                    choice_mode=args.company_choice, choice=choice)
+                                    choice_mode=args.company_choice, choice=choice, recent_max=args.recent_max,
+                                    readback_scope=args.readback_scope)
         base = m["automation_rules"].THRESHOLDS
         tiers = {name: timeline(m, judged, value or base) for name, value in THRESHOLD_SETS.items()}
         tiers["A_task"] = timeline(m, judged, base, trigger="task")
@@ -1963,7 +2148,9 @@ def cmd_judge(args) -> int:
                      "origins": {company: dict(collections.Counter(book["period_origin"] for book in books))},
                      "periods": args.periods, "registry": bool(registered is not None),
                      # 商品单（10-17）：票面明细口径、替公司选入账方式的口径与这家选了什么
-                     "lines": lines, "company_choice": args.company_choice, "goods_posting": {company: choice}})
+                     "lines": lines, "company_choice": args.company_choice, "goods_posting": {company: choice},
+                     # 账套记忆的证据口径（审查处理 10-17）：最新几张（0 不设上限）、回读按整张记录还是只比科目
+                     "recent_max": args.recent_max, "readback_scope": args.readback_scope})
         print(f"{company}: {len(judged)} docs, " + ", ".join(
             f"{key} {sum(1 for row in judged if row['class'] == key)}" for key in "ABC"), flush=True)
     return 0
@@ -1974,7 +2161,8 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
     if not files:
         return None
     merged: Dict[str, Any] = {"rows": [], "skipped": {}, "tiers": {}, "tiebreak": {}, "origins": {}, "periods": set(),
-                              "lines": set(), "company_choice": set(), "goods_posting": {}}
+                              "lines": set(), "company_choice": set(), "goods_posting": {}, "recent_max": set(),
+                              "readback_scope": set()}
     for path in files:
         part = json.loads(path.read_text(encoding="utf-8"))
         merged["rows"].extend(part["rows"])
@@ -1986,7 +2174,9 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
         merged["lines"].add(part.get("lines") or "none")  # 第五轮第二段及以前都不造明细
         merged["company_choice"].add(part.get("company_choice") or "full")  # 第四轮按全期多数
         merged["goods_posting"].update(part.get("goods_posting") or {})
-    for key in ("periods", "lines", "company_choice"):
+        merged["recent_max"].add(str(part.get("recent_max", 0)))  # 第五轮第一段及以前不设上限
+        merged["readback_scope"].add(part.get("readback_scope") or "record")
+    for key in ("periods", "lines", "company_choice", "recent_max", "readback_scope"):
         merged[key] = sorted(merged[key])
     return merged
 
@@ -2055,17 +2245,20 @@ def _picked(row: Mapping[str, Any], pick: str) -> bool:
 
 
 # C 类按「主要原因」归一类（按这个顺序取第一个命中的），方便按类修。期间与选账套（10-17）按 `book_pick` 拆开「真两份同期 /
-# 估算重叠 / 新年度已建 / 跨年补抵」；期间外的再按入账日拆：入账日也在期间外是期间快照与答案不同期（回放偏差），只有发票日
+# 估算重叠 / 测试账套期间 / 新年度已建 / 跨年补抵」（70EXP 测试账套是测试窗口可随意改写的副本，它的 ISPRD 不等于线上读到的真
+# ISPRD，单列，审查处理 10-17）；期间外的再按入账日拆：入账日也在期间外是期间快照与答案不同期（回放偏差），只有发票日
 # 在外是补抵的真问题
 CAUSES = (
     ("posting", "商品单没声明入账类型（永续 / 混合库存账套交人）", lambda row: str(row.get("prepare") or "").startswith("posting_needs_review")),
     ("needed", "第一次见、要人选（对方档 / 科目 / 现赊）", lambda row: bool(row.get("needed"))),
     ("period_unknown", "推往账套读不到会计期间（没有 ISPRD；strict 同线上不报期间）",
      lambda row: "period_unknown" in row["reasons"]),
-    ("book_many_real", "按日期选出两份以上同期账套，候选期间都是真 ISPRD（真问题）",
-     lambda row: _picked(row, "many") and not row.get("many_estimated")),
     ("book_many_estimated", "按日期选出两份以上同期账套，候选里有按单据估的期间（回放偏差）",
      lambda row: _picked(row, "many") and bool(row.get("many_estimated"))),
+    ("book_many_testcopy", "按日期选出两份以上同期账套，候选里有 70EXP 测试账套的期间（测试账套可能被改过，待核）",
+     lambda row: _picked(row, "many") and "testcopy" in (row.get("many_origins") or ())),
+    ("book_many_real", "按日期选出两份以上同期账套，候选期间都是答案自带或只读导出的 ISPRD（真问题）",
+     lambda row: _picked(row, "many")),
     ("book_none_unknown", "一份都选不出：同分店有账套期间没报全，核不了新年度账套",
      lambda row: _picked(row, "none") and bool(row.get("none_unknown"))),
     ("book_other_newer", "单据在账套次年段、新年度账套已建（该推往新账套）",
@@ -2115,20 +2308,26 @@ def _posting_answer(row: Mapping[str, Any]) -> str:
 def goods_summary(rows: Sequence[Mapping[str, Any]], choices: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:
     """商品单（10-17 第三段）：按公司选入账方式的单（``posting_from == company_choice``）。
 
-    - ``companies``：每家选了什么（``used``、凭什么 ``by``、那一刻之前的多数 ``prior``、全期多数 ``full``）、这类单张数、答案走库存的、
-      只有非库存明细的（``detail_only``：旧口径算走库存、新口径不算）、与选的值不同的（``disagree_used``）、与全期多数不同的
-      （``disagree_full``）——替换第四轮「0–15% 与会计记法不同」的口径；
-    - ``history``（`posting_tier_if_history`，只量不判）：若加上「这家供应商之前的 Express 存货历史」一层，A（与公司选的一致）/ B（没定下）
-      / conflict（相反）各几张；A 里与答案不同的（``A_wrong``）；现在只因入账方式是 B、会升 A 的（``extra_A``，其中整张推错
+    - ``companies``：每家选了什么（``used``、凭什么 ``by``、那一刻之前的多数 ``prior`` 与张数 ``prior_docs``、全期多数 ``full``）、
+      这类单张数、答案走库存的、只有非库存明细的（``detail_only``：旧口径算走库存、新口径不算）、与选的值不同的（``disagree_used``）、
+      与全期多数不同的（``disagree_full``）——替换第四轮「0–15% 与会计记法不同」的口径；
+    - ``history``（`posting_tier_if_history`，只量不判）：若加上「这家供应商之前的 Express 存货历史」一层，A（与公司选的一致、载荷
+      真写得出库存行）/ no_lines（一致但定成走库存、载荷写不出库存行：线上不给 A）/ B（没定下）/ conflict（相反）各几张；A 里入账方式
+      计分错的（``A_wrong``，按 ``scored["posting"]``，同报表计分口径）；现在只因入账方式是 B、会升 A 的（``extra_A``，其中整张推错
       ``extra_A_wrong``、入账方式本身判错 ``extra_A_posting_wrong``）；相反会多出的 C（``conflict_C``，其中真拦住了入账方式错的
-      ``conflict_caught``）。按家另列一份。"""
+      ``conflict_caught``）。``history_manual`` 同上，只是把之前判成 A / B 的单当 CC 推的剔掉（不含 CC 推的下界；``history`` 是
+      上界）。``--lines none`` 那两遍票面没有明细，定成走库存的都落 no_lines，只看 answer 两遍的 ``extra_A``（审查处理 10-17）。
+      按家另列一份。"""
     chosen = [row for row in rows if row.get("posting_from") == "company_choice"]
 
-    def history(selected) -> Dict[str, int]:
+    def posting_wrong(row) -> bool:
+        return (row.get("scored") or {}).get("posting", "n/a") not in ("ok", "n/a")
+
+    def history(selected, key="posting_tier_if_history") -> Dict[str, int]:
         found = collections.Counter()
         for row in selected:
-            tier = row.get("posting_tier_if_history") or "B"
-            wrong = _posting_answer(row) != row.get("posting_kind")
+            tier = row.get(key) or "B"
+            wrong = posting_wrong(row)
             found[tier] += 1
             if tier == "A":
                 found["A_wrong"] += int(wrong)
@@ -2150,8 +2349,9 @@ def goods_summary(rows: Sequence[Mapping[str, Any]], choices: Mapping[str, Mappi
             "detail_only": sum(1 for row in mine if row.get("detail") and not row.get("answer_stock")),
             "disagree_used": sum(1 for row in mine if _posting_answer(row) != picked.get("used")),
             "disagree_full": sum(1 for row in mine if picked.get("full") and _posting_answer(row) != picked["full"]),
-            "history": history(mine)}
+            "history": history(mine), "history_manual": history(mine, "posting_tier_if_history_manual")}
     return {"docs": len(chosen), "history": history(chosen),
+            "history_manual": history(chosen, "posting_tier_if_history_manual"),
             "items_status": dict(collections.Counter(row.get("items_status") or "-" for row in rows
                                                      if row.get("items_status"))),
             "companies": {company: value for company, value in companies.items() if value["docs"] or value.get("used")}}
@@ -2217,12 +2417,13 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             key = f"{row['direction']}|{item}|{source}"
             items[key]["n"] += 1
             items[key]["wrong"] += int(value != "ok")
-    # 账套记忆定的现 / 赊、对方档（10-17 推广「连续 3 张有证据」）：各家 A / B 张数与 A 里错的（第四轮 ASIA-FA 现 / 赊 260、对方档 65）
+    # 账套记忆定的项（10-17 推广「连续 3 张有证据」）：各家 A / B 张数与 A 里错的（第四轮 ASIA-FA 现 / 赊 260、对方档 65）。
+    # vat 是记过的小票抵进项（``item_src == choice``），还是「记一次就 A」，只量不改（审查处理 10-17，设计文档登记为例外）
     memory: Dict[str, Dict[str, Dict[str, int]]] = {kind: collections.defaultdict(collections.Counter)
-                                                    for kind in ("account", "payment", "party")}
+                                                    for kind in ("account", "payment", "party", "vat")}
     for row in a_rows + b_rows:
         for kind in memory:
-            remembered = (row.get("sources") or {}).get(sources[kind]) == "remembered"
+            remembered = (row.get("sources") or {}).get(sources[kind]) == ("choice" if kind == "vat" else "remembered")
             if not remembered or row["items"].get(kind) not in ("A", "B"):
                 continue
             tier = row["items"][kind]
@@ -2237,7 +2438,8 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
     # 期间与选账套（10-17）：期间口径、各家账套期间来源、按日期选账套的情形（全部 / C 类）、选多份时各挑法的模拟
     picks = {"all": dict(collections.Counter(row.get("book_pick") or "-" for row in rows)),
              "C": dict(collections.Counter(
-                 (row.get("book_pick") or "-") + (":estimated" if row.get("many_estimated") else "")
+                 (row.get("book_pick") or "-") + (":estimated" if row.get("many_estimated") else
+                                                  ":testcopy" if "testcopy" in (row.get("many_origins") or ()) else "")
                  for row in rows if row["class"] == "C"))}
     origins = collections.Counter()
     for found in (data.get("origins") or {}).values():
@@ -2249,6 +2451,7 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
     return {"docs": len(rows), "classes": dict(by_class), "A": _accuracy(a_rows), "B": _accuracy(b_rows),
             "periods": list(data.get("periods") or []), "origins": dict(origins), "book_picks": picks,
             "lines": list(data.get("lines") or []), "company_choice": list(data.get("company_choice") or []),
+            "recent_max": list(data.get("recent_max") or []), "readback_scope": list(data.get("readback_scope") or []),
             "goods": goods_summary(rows, data.get("goods_posting") or {}), "upload_alt": upload_summary(rows),
             "tiebreak": {name: dict(counter) for name, counter in tiebreaks.items()},
             "tiebreak_companies": {company: found for company, found in sorted((data.get("tiebreak") or {}).items())
@@ -2265,6 +2468,10 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
             "AB": _accuracy(a_rows + b_rows), "wrong_items": dict(wrong_items.most_common()),
             "memory_sources": {kind: {company: dict(counter) for company, counter in sorted(found.items())}
                                for kind, found in memory.items()},
+            # 线上只看最新 30 张（`RECENT_MAX`）：记忆定的项因此是 B、不设上限会是 A 的张数（按类、按家）
+            "memory_cap_lost": {kind: dict(collections.Counter(row["company"] for row in rows
+                                                               if kind in (row.get("memory_cap_lost") or ())))
+                                for kind in ("account", "payment", "party")},
             # 回放里「推出去的单」从哪来：payload 照载荷、replanned C 类学完记忆再出的载荷、approx 推不出（乐观近似）
             "pushed_from": dict(collections.Counter(row.get("pushed_from") or "-" for row in rows)),
             "c_reasons": dict(reasons.most_common(30)), "c_causes": dict(causes.most_common()),
@@ -2383,17 +2590,23 @@ def _render_goods(s: Mapping[str, Any]) -> List[str]:
     if not goods:
         return []
     history = goods.get("history") or {}
+    manual = goods.get("history_manual") or {}
     lines = ["### 商品单（按公司选入账方式的单）", "",
              f"票面明细 {'/'.join(s.get('lines') or []) or 'none'}；替公司选入账方式 "
-             f"{'/'.join(s.get('company_choice') or []) or '—'}（prior = 第一次交人之前已录单的多数，full = 全期多数）。答案口径："
+             f"{'/'.join(s.get('company_choice') or []) or '—'}（prior = 第一次交人之前、会因入账方式交人的单里的多数，不到 "
+             f"{PRIOR_MIN} 张退到全期多数 full_fallback；full = 全期多数）。不造明细（none）时入账方式按声明值计分，造了明细按载荷"
+             "实际写什么计分；answer:opaque 是「同名查找落空、记忆理想命中」的估计，不是悲观下界。答案口径："
              "只有库存品（STKTYP=0）或有库存影响的明细才算走库存，只挂非库存品明细的不算（与第四轮不能直接比）。"
              f"这类单 {goods.get('docs', 0)} 张；载荷明细过闸情况 "
              + "、".join(f"{k} {v}" for k, v in sorted((goods.get("items_status") or {}).items())) + "。", "",
              f"若加上「这家供应商之前的 Express 存货历史」一层（只量不判；近 12 个月会计亲手录、只有一种记法且 ≥3 张）：与公司选的一致 "
-             f"{history.get('A', 0)}（其中与答案不同 {history.get('A_wrong', 0)}）、没定下 {history.get('B', 0)}、相反 "
+             f"{history.get('A', 0)}（其中入账方式计错 {history.get('A_wrong', 0)}）、一致但定成走库存而载荷写不出库存行 "
+             f"{history.get('no_lines', 0)}（线上不给 A；不造明细的那两遍都落这里）、没定下 {history.get('B', 0)}、相反 "
              f"{history.get('conflict', 0)}；现在只因入账方式是 B、会升 A 的 {history.get('extra_A', 0)} 张（整张推错 "
              f"{history.get('extra_A_wrong', 0)}、入账方式本身判错 {history.get('extra_A_posting_wrong', 0)}）；相反改交人会多出 C "
-             f"{history.get('conflict_C', 0)} 张（其中真拦住入账方式错的 {history.get('conflict_caught', 0)}）。", "",
+             f"{history.get('conflict_C', 0)} 张（其中真拦住入账方式错的 {history.get('conflict_caught', 0)}）。这是上界：回放里"
+             "能被自动推的单线上会是 CC 写的、不进历史；把之前判成 A / B 的单都当 CC 推的剔掉（下界）时会升 A 的 "
+             f"{manual.get('extra_A', 0)} 张（整张推错 {manual.get('extra_A_wrong', 0)}）、相反 {manual.get('conflict', 0)}。", "",
              "| 公司 | 选的 | 凭 | 此前多数 | 全期多数 | 张数 | 答案走库存 | 只有非库存明细 | 与选的不同 | 与全期多数不同 | 历史 A / 错 | "
              "历史相反 | 会升 A（推错） |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
@@ -2488,7 +2701,11 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                     f"{pct(value['wrong'] / value['n'] if value['n'] else None)} |"
                     for key, value in list(s["item_errors"].items())[:16]], "",
                   "A / B 推错的项：" + "、".join(f"{key} {value}" for key, value in list(s["wrong_items"].items())[:12]), "",
-                  "账套记忆定的项（要最近连续 3 张有证据，10-17 推广到现 / 赊与对方档；按家 A / B / A 里错）：", "",
+                  "账套记忆定的项（科目、现 / 赊、对方档要最近连续 3 张有证据，10-17 推广；vat 是记过的小票抵进项，仍是记一次就 A，"
+                  "只量不改；按家 A / B / A 里错）。回放假定每期都在申报截止日后一天做了合格回读，线上要有人真发起回读才有证据；"
+                  "线上只看最新 30 张，因此丢掉的 A：" + "、".join(
+                      f"{kind} {sum(found.values())}" for kind, found in (s.get("memory_cap_lost") or {}).items()) + "。",
+                  "",
                   "| 项 | 公司 | A | B | A 里错 |", "|---|---|---|---|---|",
                   *[f"| {kind} | {company} | {value.get('A', 0)} | {value.get('B', 0)} | {value.get('A_wrong', 0)} |"
                     for kind, found in (s.get("memory_sources") or {}).items()
@@ -2615,11 +2832,16 @@ def main(argv=None) -> int:
     judge.add_argument("--tiebreak", default=",".join(TIEBREAKS),
                        help="选出多份同期账套时模拟的挑法，逗号隔开：" + " / ".join(TIEBREAKS))
     judge.add_argument("--lines", choices=LINE_MODES, default="none",
-                       help="票面明细：none 不造（默认，与第四轮可比）、answer 按答案的存货明细造")
+                       help="票面明细：none 不造（默认，同第四轮；入账方式按声明值计分）、answer 按答案的存货明细造")
     judge.add_argument("--line-names", choices=LINE_NAMES, default="stkdes",
-                       help="--lines answer 时品名：stkdes 照 Express（乐观上界）、opaque 打码（只能靠记忆，悲观下界）")
+                       help="--lines answer 时品名：stkdes 照 Express（乐观上界）、opaque 打码（同名查找落空、记忆理想命中）")
     judge.add_argument("--company-choice", choices=COMPANY_CHOICE_MODES, default="prior",
-                       help="模拟的人替公司选入账方式：prior 第一次交人之前已录单的多数（默认）、full 全期多数（第四轮，对照）")
+                       help="模拟的人替公司选入账方式：prior 第一次交人之前会交人那类单的多数（默认，不到 10 张退到全期多数）、"
+                            "full 全期多数（第四轮，对照）")
+    judge.add_argument("--recent-max", type=int, default=RECENT_MAX,
+                       help="账套记忆的证据只看最新几张（同线上 30，先截再按分店筛）；0 不设上限（第四轮，对照）")
+    judge.add_argument("--readback-scope", choices=READBACK_SCOPES, default="record",
+                       help="回读里改没改：record 按整张记录（同线上，默认）、account 只比科目（第四轮，对照）")
     judge.add_argument("--out", required=True)
     gate = sub.add_parser("gate")
     gate.add_argument("--gold", required=True)

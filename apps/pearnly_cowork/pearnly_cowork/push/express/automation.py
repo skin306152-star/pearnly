@@ -57,10 +57,13 @@ MEMORY_STREAK = 3
 # 历史已定）；凭账套记忆推出去的单要被合格回读覆盖、没被改才算（CC 自己推的单不能攒成「连续 3 张」，审查处理 10-16）
 EVIDENCE_SOURCES = frozenset({"chosen", "task_default", "company_rule", "express_history"})
 # 现 / 赊、对方档同一个「连续 3 张有证据」（第四轮回放：A 类错 465 张里 ASIA-FA 账套记忆定的现 / 赊 260、对方档 65，记忆只认会计
-# 第一次的选择，开发窗口 10-17 推广）。现 / 赊的证据（载荷 ``doctype_src``）：本票人工裁决、任务默认、公司规则；票面写明 / 票种口径不算
-# （记忆只用在票面没写的单上，写了现金的收据跟没写的单不是同一类）；人在待处理页为这张单选的现 / 赊先进账套记忆、推出去也记
-# ``remembered``，跟凭记忆推的分不开，同样要等回读。对方档的来源不在载荷里（只冻结在推送记录的 ``target_json``），只认回读
+# 第一次的选择，开发窗口 10-17 推广）。现 / 赊的证据（载荷 ``doctype_src``）：本票人工裁决、任务默认、公司规则；人在待处理页为这张单
+# 选的现 / 赊先进账套记忆、推出去也记 ``remembered``，跟凭记忆推的分不开，同样要等回读。对方档的来源不在载荷里（只冻结在推送记录的
+# ``target_json``），只认回读
 PAYMENT_EVIDENCE_SOURCES = frozenset({"manual", "task_default", "company_rule"})
+# 票面写明 / 票种口径定的现 / 赊整条不看（回读核过也不算证据、被改也不断开）：记忆只用在票面没写的单上，写了现金的收据跟没写付款方式
+# 的完整税票不是同一类 —— 三张写明现金、回读核过的收据不能让记忆的现购在下一张税票上升 A（审查处理 10-17）
+PAYMENT_OTHER_CLASS = frozenset({"explicit", "doc_type"})
 PARTY_EVIDENCE_SOURCES: frozenset = frozenset()
 EVIDENCE_BY_KIND = {"account": EVIDENCE_SOURCES, "payment": PAYMENT_EVIDENCE_SOURCES, "party": PARTY_EVIDENCE_SOURCES}
 CONFIRMED, CHANGED = "confirmed", "changed"
@@ -528,6 +531,19 @@ def _master(facts: Facts) -> Tuple[str, str]:
     return C, ""
 
 
+def _branch_printed(facts: Facts) -> bool:
+    """票面印了对方分店号（数字或「总公司」，`account_match.printed_branch`）。"""
+    return bool(account_match.printed_branch(facts.fields.get(f"{_party_side(facts.direction)}_branch")))
+
+
+def _same_tax_rows(facts: Facts) -> int:
+    """这份账套报上来的主档里与票面对方同税号的档数（税号不是 13 位、主档没报上来回 0）。"""
+    tax = _digits(facts.fields.get(f"{_party_side(facts.direction)}_tax"))
+    rows = facts.config.get("reported_customers" if facts.direction == "sales" else "reported_suppliers")
+    rows = rows if isinstance(rows, list) else []
+    return sum(1 for row in rows if isinstance(row, Mapping) and len(tax) == 13 and _digits(row.get("tax_id")) == tax)
+
+
 def _party_code(facts: Facts) -> str:
     """载荷里写定的对方档码（销项 ``customer``、进项 ``supplier``；记忆值是新建时为空）。"""
     block = _payload(facts).get("customer" if facts.direction == "sales" else "supplier")
@@ -538,8 +554,12 @@ def _party_tier(facts: Facts, source: Optional[str]) -> str:
     if source == "remembered":
         # 账套记忆定的对方档：记的正是主档里唯一对上的那一档（规则本来就给 A），或同税号 + 分店最近连续 3 张有证据的同一档才算 A；
         # 记的是新建（码为空）一律 B（10-17 推广「连续 3 张」，第四轮 ASIA-FA 对方档错 65 张）
+        # 票面没印分店号、主档里同税号不止一档（或主档没报上来）：记忆键与连续张数都落在「总店」上，分店票会硬配到总店的档，
+        # 最高 B（`field_clean.clean_branch_no`：没提供的分店号不能当总店，审查处理 10-17）
         code = _party_code(facts)
         tier, master = _master(facts)
+        if code and not _branch_printed(facts) and _same_tax_rows(facts) != 1:
+            return B
         return A if code and ((tier == A and code == master) or memory_settled(facts.party_recent, code)) else B
     if source in RULE_SOURCES:
         return A
@@ -612,12 +632,16 @@ def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account")
 
     - ``account``（默认）：``{account, source, readback}``，载荷记的科目与来源 ``account_source``；证据来源 `EVIDENCE_SOURCES`；
     - ``payment``：``{payment, payment_source, readback}``，载荷 ``doctype`` 大写与来源 ``doctype_src``；证据来源
-      `PAYMENT_EVIDENCE_SOURCES`（本票人工裁决、任务默认、公司规则）；
-    - ``party``：``{party, party_source, readback}``，载荷写定的对方档码；只认回读（`PARTY_EVIDENCE_SOURCES` 为空）。
+      `PAYMENT_EVIDENCE_SOURCES`（本票人工裁决、任务默认、公司规则）；票面写明 / 票种口径定的（`PAYMENT_OTHER_CLASS`）整条跳过，
+      回读核过不算、被改也不断开（不是同一类单）；
+    - ``party``：``{party, party_source, readback}``，CC 桌面版实际写入的对方档码（回执 ``meta.party_code``，没有取载荷写定的）；
+      只认回读（`PARTY_EVIDENCE_SOURCES` 为空）。
 
     ``readback``：合格回读里的结果，`CONFIRMED` 覆盖且整张没被改 / `CHANGED` 被改 / 空 = 还没被合格回读覆盖（按整张记录：科目、
     现 / 赊、对方档任一被改，三类一起断开）。回读里被改的记空串（断开连续）；推的时候由人或规则定的照记；凭账套记忆推出去、
-    还没回读核过的不算证据，跳过。现 / 赊、对方档值为空（没记、对方档是新建或 CC 自己找档）的跳过，不当成换了记法；科目照旧。
+    还没回读核过的不算证据，跳过。现 / 赊、对方档值为空（没记、对方档码取不到）的跳过，不当成换了记法；科目照旧。
+    另两个键：``stock`` 真写了库存行的单（回执 ``line_modes``）回读不比分录（`readback.diff`），科目一类的 confirmed 不算证据（只认
+    推的时候由人或规则定的）；``{kind}_changed`` 这一类在写入时就与推的值不同（对方档：载荷写定 X、桌面版写了 Z），按被改断开。
     推送服务（`push.application.assess._recent`）与回放共用。"""
     sources = EVIDENCE_BY_KIND[kind]
     origin = "source" if kind == "account" else f"{kind}_source"
@@ -625,12 +649,16 @@ def memory_evidence(entries: Iterable[Mapping[str, Any]], kind: str = "account")
     for entry in entries or ():
         if not isinstance(entry, Mapping):
             continue
+        source = str(entry.get(origin) or "")
+        if kind == "payment" and source in PAYMENT_OTHER_CLASS:
+            continue
         value = str(entry.get(kind) or "").strip()
-        if entry.get("readback") == CHANGED:
+        confirmed = entry.get("readback") == CONFIRMED and not (kind == "account" and entry.get("stock"))
+        if entry.get("readback") == CHANGED or entry.get(f"{kind}_changed"):
             out.append("")
         elif not value and kind != "account":
             continue
-        elif str(entry.get(origin) or "") in sources or entry.get("readback") == CONFIRMED:
+        elif source in sources or confirmed:
             out.append(value)
     return out
 

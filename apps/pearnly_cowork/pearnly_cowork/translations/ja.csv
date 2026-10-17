@@ -152,6 +152,11 @@ Attachments,添付ファイル
 Attempt Secret,試行用シークレット
 Automatic push withdrawn: the rules changed before writing.,書き込み前にルールが変わったため、自動送信を取り消しました。
 Automation,自動化
+Automation Checked At (UTC),判定日時（UTC）
+Automation Class,自動送信の区分
+Automation Proposal,自動送信の提案
+Automation Reasons,自動送信の理由
+Automation Tier,自動送信のレベル
 Back to list,一覧に戻る
 Balance,残高
 Balance breaks,残高が合わない箇所
@@ -1536,6 +1541,7 @@ Show on Card,カードに表示
 Show on card,カードに表示
 Signed-in User,サインイン中のユーザー
 Signed-in Users,サインインしたことのあるユーザー
+Since (UTC),開始日時（UTC）
 Site,サイト
 Site Name,サイト名
 Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
@@ -1959,6 +1965,8 @@ This tax ID is already used by another company.,この納税者番号は既に�
 This tax id is already used by another client.,この納税者番号は既に別の顧客で使用されています。
 This value cannot be chosen for this account set.,この帳簿ではこの値を選択できません。
 This value is not in this month's account set,この値は今月の帳簿のマスタにありません
+Tier,レベル
+Tier Since (UTC),レベル開始日時（UTC）
 Time left {0},残り {0}
 Times Used,使用回数
 Title,タイトル
@@ -2125,6 +2133,8 @@ Work Name,バックグラウンドタスク識別子
 Workbook Revision,ワークブック改訂番号
 Workspace,会社帳簿
 Writable,書き込み可
+Write Check,書き込み確認
+Write Check Detail,書き込み確認の詳細
 Write Route,書き込みの割り当て
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written By Computer,書き込んだコンピューター

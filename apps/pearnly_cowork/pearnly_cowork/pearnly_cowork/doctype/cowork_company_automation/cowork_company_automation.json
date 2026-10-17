@@ -8,13 +8,12 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-16 22:00:00.000000",
- "modified": "2026-10-16 22:00:00.000000",
+ "modified": "2026-10-17 12:00:00.000000",
  "sort_field": "modified",
  "sort_order": "DESC",
  "actions": [],
  "links": [],
  "autoname": "field:company",
- "description": "How far CC may push a client company's documents on its own (only proposes / pushes rule-decided documents / whole month). Moves only by measured evidence; there is no manual switch.",
  "field_order": [
   "company",
   "workspace",
@@ -52,7 +51,7 @@
   },
   {
    "fieldname": "since",
-   "label": "Since (UTC)",
+   "label": "Tier Since (UTC)",
    "fieldtype": "Datetime",
    "read_only": 1
   },

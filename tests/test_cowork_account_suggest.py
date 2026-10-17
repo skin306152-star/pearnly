@@ -239,6 +239,10 @@ class SettledRules(unittest.TestCase):
         self.assertIsNone(R.posting_settled({"stock": {"docs": 9, "last": "2025-10-01"}}, self.TODAY))
         self.assertIsNone(R.posting_settled({}, self.TODAY))
         self.assertIsNone(R.posting_settled({"stock": {"docs": "3", "last": "2026-09-30"}}, self.TODAY))
+        # 某种记法给了却没有 docs：按 0 张（审查处理 10-17，原先整份回 None）
+        self.assertEqual(R.posting_settled({"stock": stock["stock"], "service": {}}, self.TODAY)["kind"], "stock")
+        self.assertEqual(R.posting_settled({"stock": stock["stock"], "service": {"last": "2026-10-01"}},
+                                           self.TODAY)["kind"], "stock")
         self.assertIsNotNone(R.posting_settled(stock, self.TODAY, "2026-10-01T00:00:00Z"))
         self.assertIsNone(R.posting_settled(stock, self.TODAY, "2026-09-01T00:00:00Z"))
         self.assertEqual(R.VERSIONS, (1, 2))  # 这一段不改收数的版本

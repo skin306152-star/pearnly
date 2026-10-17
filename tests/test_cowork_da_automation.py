@@ -175,12 +175,29 @@ class ItemTiers(unittest.TestCase):
                                   "payment"), [])
         self.assertEqual(evidence([pay(readback="confirmed"), pay(source="explicit", readback="confirmed"),
                                    pay(readback="changed"), pay(source="manual", readback="changed")], "payment"),
-                         ["RR", "RR", "", ""])
+                         ["RR", "", ""])
+        # 票面写明 / 票种口径定的整条不看（审查处理 10-17）：回读核过不算、被改也不断开 —— 三张写明现金、回读核过的收据
+        # 不能让记忆的现购在下一张没写付款方式的税票上升 A
+        receipts = [pay(source=source, readback=readback, value="HP") for source in ("explicit", "doc_type")
+                    for readback in ("confirmed", "changed")]
+        self.assertEqual(evidence(receipts, "payment"), [])
+        self.assertFalse(auto.memory_settled(evidence([pay(source="explicit", readback="confirmed", value="HP")] * 3,
+                                                      "payment"), "HP"))
+        self.assertEqual(evidence([pay(readback="confirmed"), pay(source="explicit", readback="changed"),
+                                   pay(readback="confirmed"), pay(readback="confirmed")], "payment"), ["RR"] * 3)
+        self.assertEqual(evidence([pay(source=source, readback="confirmed") for source in
+                                   ("profile", "bank", "config_default", "")], "payment"), ["RR"] * 4)
         self.assertEqual(evidence([pay(value=""), pay(value="", readback="confirmed"), pay(source="manual")],
                                   "payment"), ["RR"])
         self.assertEqual(evidence([party(), party(source="company_rule"), party(readback="confirmed"),
                                    party(readback="changed"), party(value="", readback="confirmed")], "party"),
                          ["S2", ""])
+        # 桌面版写入的码与载荷写定的不同（``party_changed``）：断开；真写了库存行的单回读不比分录，科目的 confirmed 不算
+        self.assertEqual(evidence([party(readback="confirmed"), dict(party(), party_changed=True)], "party"), ["S2", ""])
+        stock = {"account": "5310-01", "source": "remembered", "readback": "confirmed", "stock": True}
+        self.assertEqual(evidence([stock, dict(stock, source="chosen"), dict(stock, readback="changed")]),
+                         ["5310-01", ""])
+        self.assertEqual(evidence([dict(stock, payment="RR", payment_source="remembered")], "payment"), ["RR"])
         self.assertEqual(auto.EVIDENCE_BY_KIND["account"], auto.EVIDENCE_SOURCES)
         self.assertEqual(auto.PARTY_EVIDENCE_SOURCES, frozenset())
         # 科目的结果不传 kind 与传 "account" 一样
@@ -229,6 +246,13 @@ class ItemTiers(unittest.TestCase):
         self.assertEqual(tier("S2", ["S2", "", "S2", "S2"]), "B")
         self.assertEqual(tier("S2", None), "B")
         self.assertEqual(tier("", [""] * 3), "B")  # 记的是新建
+        # 票面没印分店号（审查处理 10-17）：同税号几个档时连续张数落在「总店」上，最高 B；同税号只有一档照旧
+        unprinted = _fields(seller_branch="")
+        self.assertEqual(tier("S2", ["S2"] * 3, fields=unprinted), "B")
+        self.assertEqual(tier("S2", ["S2"] * 3, fields=_fields(seller_branch="สำนักงานใหญ่")), "A")
+        one = {"reported_suppliers": [{"code": "S001", "tax_id": SELLER, "branch": "00000"}]}
+        self.assertEqual(tier("S001", None, one, fields=unprinted), "A")
+        self.assertEqual(tier("S001", ["S001"] * 3, {}, fields=unprinted), "B")  # 主档没报上来：分不清
         # 公司规则定的照 A
         self.assertEqual(self.tier("party", decision={"needed": [], "decided_by": {"party": "company_rule"}},
                                    config={"reported_suppliers": two}), "A")

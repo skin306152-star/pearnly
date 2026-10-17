@@ -152,6 +152,11 @@ Attachments,ไฟล์แนบ
 Attempt Secret,ข้อมูลลับของการพยายาม
 Automatic push withdrawn: the rules changed before writing.,ถอนการส่งอัตโนมัติแล้ว เพราะกฎเปลี่ยนก่อนบันทึก
 Automation,ระบบอัตโนมัติ
+Automation Checked At (UTC),เวลาที่ตรวจ (UTC)
+Automation Class,ประเภทการส่งอัตโนมัติ
+Automation Proposal,ข้อเสนอการส่งอัตโนมัติ
+Automation Reasons,เหตุผลการส่งอัตโนมัติ
+Automation Tier,ระดับการส่งอัตโนมัติ
 Back to list,กลับไปยังรายการ
 Balance,ยอดคงเหลือ
 Balance breaks,จุดที่ยอดคงเหลือไม่ต่อเนื่อง
@@ -1536,6 +1541,7 @@ Show on Card,แสดงบนการ์ด
 Show on card,แสดงบนการ์ด
 Signed-in User,ผู้ใช้ที่ลงชื่อเข้าใช้อยู่
 Signed-in Users,ผู้ใช้ที่เคยลงชื่อเข้าใช้
+Since (UTC),ตั้งแต่ (UTC)
 Site,ไซต์
 Site Name,ชื่อไซต์
 Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
@@ -1959,6 +1965,8 @@ This tax ID is already used by another company.,เลขประจำตั�
 This tax id is already used by another client.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับลูกค้ารายอื่นแล้ว
 This value cannot be chosen for this account set.,ไม่สามารถเลือกค่านี้สำหรับชุดบัญชีนี้ได้
 This value is not in this month's account set,ค่านี้ไม่มีในชุดบัญชีของเดือนนี้
+Tier,ระดับ
+Tier Since (UTC),ระดับนี้ตั้งแต่ (UTC)
 Time left {0},เหลือเวลา {0}
 Times Used,จำนวนครั้งที่ใช้
 Title,ชื่อเรื่อง
@@ -2125,6 +2133,8 @@ Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก
 Workspace,ชุดบัญชีบริษัท
 Writable,เขียนได้
+Write Check,ตรวจการบันทึก
+Write Check Detail,รายละเอียดการตรวจการบันทึก
 Write Route,การมอบหมายการเขียน
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written By Computer,คอมพิวเตอร์ที่เขียน

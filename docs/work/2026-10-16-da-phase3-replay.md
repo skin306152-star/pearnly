@@ -3,18 +3,36 @@
 依据 [第 3 期定稿设计](2026-10-16-da-phase3-design.md) 第 15 条。工具 `scripts/da-replay.py`（零费用、只读、只导入纯函数）。
 在办公室测试机 WSL 跑（源码复制到 WSL `/tmp`，跑完删），语料与明细不出测试机。没调识别、没调模型、没写任何账套，没读写局域网 S 盘。
 
-- **第五轮（待跑，10-17）**：账套记忆定的现 / 赊、对方档推广「连续 3 张有证据」（设计第 18 条「第四轮回放后」）。回放工具口径同时变了两处，
-  与第四轮不能直接比：推出去的单在回读里改没改按整张记录（原先只比科目，比线上宽），C 类没出载荷的单学完记忆后再出一次载荷记进推送记录。
-  汇总 `summary.json` 多 `memory_sources`（账套记忆定的科目 / 现 / 赊 / 对方档按家 A、B、A 里错）、`pushed_from`、`item_errors` 里对方档按来源分。
-- **第五轮第三段（待跑，10-17，只在回放里量，线上判档不变）**：商品单与录入晚。口径变化：答案「走库存」只认库存品（STKTYP=0）或有库存影响的
-  明细（第四轮「有任何 STCRD 行」，服务费挂非库存品也算），`detail` 另记；入账方式按载荷实际会写什么计分（明细没过对账闸只写表头 = 记费用，第四轮
-  按声明值），所以 B 类里按公司选的商品单 posting 错数与第四轮不能直接比（A 类不受影响：按公司选的入账方式只给 B）；模拟的人替公司选入账方式
-  按「第一次交人之前已录单的多数」（第四轮全期多数带未来信息，`--company-choice full` 作对照，报表两个都列）。新增只量不判的三项：
-  `--lines answer` × `--line-names stkdes / opaque` 两组作存货一项的上下界（默认 `none` 不造明细，与第四轮可比）；每张按公司选入账方式的单
-  记这家供应商之前的 Express 存货历史（`history_rules.posting_settled`，会计亲手录、近 12 个月、只有一种记法且 ≥3 张）若用来定档的档，汇总
-  `goods.history`（会升 A 多少、错几张、相反改 C 多少，按家）；上传日另按「凭证录入日与税期 ภ.พ.30 截止日取早」估，只重判日期核对
-  （`class_alt`），报表 C 类主因表后加「录入晚 60 天」对照一行、`明细.tsv` 加三列，盘点加各表列名、录入 / 税期滞后分桶、同日成批录入的日子。
-  跑法在开发机 `~/pearnly-devtools/da-phase3-replay-d5/`（`README.md`）。
+- **第五轮（待跑，10-17）**：三段改动加一轮审查处理一起回放，跑法在开发机 `~/pearnly-devtools/da-phase3-replay-d5/`（`README.md`、
+  `run-d5.sh`）。**与第四轮不能直接比**：judge 默认 `--periods strict`、答案的走库存口径、替公司选入账方式的口径、证据只看最新 30 张、
+  回读按整张记录都变了；要和第四轮按家比，用 `d4compat` 那遍（`--periods estimated --lines none --company-choice full --recent-max 0
+  --readback-scope account`，能对齐的口径都对齐，剩下的差别 = 这一轮的规则本身加答案走库存口径），strict 那遍只报绝对数。
+  - 第一段（`c812126d`）：账套记忆定的现 / 赊、对方档推广「连续 3 张有证据」（设计第 18 条「第四轮回放后」）。回放的推送记录按整张记录
+    比回读（原先只比科目，比线上宽），C 类没出载荷的单学完记忆后再出一次载荷记进推送记录。汇总多 `memory_sources`（记忆定的科目 /
+    现 / 赊 / 对方档按家 A、B、A 里错）、`pushed_from`、`item_errors` 里对方档按来源分。
+  - 第二段（`8465b480`）：期间与两份同期。期间同 CC 桌面版读 ISPRD（`isprd_window`：BEG / END × 12 期 × 本年、次年两段逐期容错读），
+    来源依次是答案自带 > `--isprd` 只读导出 > 70EXP 测试账套，每份账套记 `period_origin`；judge 默认 `--periods strict`（读不到 ISPRD
+    不报期间，同线上，出 `period_unknown`），`estimated` 按单据估作对照。每张单记按日期选账套的情形 `book_pick`（self / many / none /
+    other，带 `many_keys`、`many_origins`、`many_parts`、`none_unknown`、`other_newer`）、入账日那一段 `posted_part`、跨年 `crossyear`；
+    C 类主因按它拆成 `period_unknown`、`book_many_estimated`、`book_many_testcopy`、`book_many_real`、`book_none_unknown`、
+    `book_other_newer`、`book_other_crossyear`、`book_other` 与期间外的 `*_snapshot`（入账日也在期间外，回放偏差）。`--tiebreak` 模拟
+    两份同期时 none / recent_entry / recent_push / ask_once 四种挑法（只拿独有单与答案账套比，不改判档）；`--registry` 给了 SCCOMP 导出时
+    目录与选账套只认登记了的账套。盘点加期间来源、入账日期间外、同公司共有单、登记、同分店两两重叠。线上只把原因码 `book` 拆成
+    `book_none` / `book_many` / `book`（仍是 C）。
+  - 第三段（`e63acdc8`，只在回放里量，线上判档不变）：商品单与录入晚。答案「走库存」只认库存品（STKTYP=0）或有库存影响的明细
+    （第四轮「有任何 STCRD 行」，服务费挂非库存品也算），`detail` 另记；`--lines answer` × `--line-names stkdes / opaque` 作存货一项的
+    上界与「同名查找落空、记忆理想命中」的估计（opaque 不是悲观下界：真实发票同一件货写法常常不同）；每张按公司选入账方式的单记这家
+    供应商之前的 Express 存货历史（`history_rules.posting_settled`）若用来定档的档，汇总 `goods.history`；上传日另按「凭证录入日与税期
+    ภ.พ.30 截止日取早」估，只重判日期核对（`class_alt`），报表加「录入晚 60 天」一行、`明细.tsv` 加三列，盘点加各表列名、滞后分桶、
+    成批录入的日子。
+  - 审查处理（10-17，三段之后的提交）对回放口径的改动：入账方式不造明细时按声明值计分（按载荷计会把每张「公司选走库存」的单都算成
+    推错，是造票面的伪影），造了明细按载荷实际写什么计分；推送记录的整张记录也比入账方式与存货，对方档取桌面版写入的码；证据同线上只看
+    最新 30 张、先截再按分店筛（`--recent-max`，汇总 `memory_cap_lost` 量因此丢掉的 A）；票面写明 / 票种口径定的现 / 赊不算现 / 赊的
+    证据（线上同改）；存货历史定成走库存而载荷写不出库存行的记 `no_lines`（线上不给 A），另出把之前判成 A / B 的单当 CC 推的剔掉的
+    下界 `history_manual`（`history` 是上界）；替公司选入账方式的「多数」只在会因入账方式交人的单里数，不到 10 张退到全期多数
+    （`full_fallback`）；期间来源不认写了别家税号的同名账套、登记表旁边有 ISINFO 时按税号认；recent_push 挑法各记各的最近推进去的那份；
+    STCRD 进销同号时按明细日期分、SEQNUM 数值列取整；`memory_sources` 加记过的小票抵进项（vat，仍记一次就 A，只量）。
+  - 回放仍假定每一期都在申报截止日后一天按时做了合格回读；线上要有人真发起回读才有证据，记忆定的项线上会更晚到 A。
 - **第四轮（现行，第三轮审查处理之后）**：见下一节「第四轮」，判定层源码 `a8d53ec1`、识别闸层 `09a8f150`（两者判定层逻辑相同，后者只改了
   判不抵进项的档），明细在 `…\_回放\2026-10-16-d4\`。
 - **第三轮**：见「第三轮」一节，源码 `938cae7c`，明细在 `…\_回放\2026-10-16-d3\`；审查订正写在该节里。

@@ -586,15 +586,32 @@ class CompanyTier(unittest.TestCase):
                    {"record": "R2", "invoice_date": "2026-10-09", "completed_at": dt.datetime(2026, 10, 21, 5, 0)},
                    {"record": "R3", "invoice_date": "2026-10-12", "completed_at": dt.datetime(2026, 11, 25, 5, 0)},
                    {"record": "R4", "invoice_date": "2026-09-30", "completed_at": dt.datetime(2026, 10, 1, 5, 0)}]
+        calls = []
+        hook = module.frappe.get_attr
+
+        def counted(path):
+            found = hook(path)
+            return lambda sets, period: calls.append(period) or found(sets, period)
+
+        module.frappe.get_attr = counted
+
+        def marks(rows):
+            module.frappe.local.cowork_readback_month_cache = {}  # 每次当成新的一轮（缓存只活在一个请求 / 任务里）
+            return module.readback_marks("C1", BOOK, rows)
+
         store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), changes={"R2": "changed"})]
-        found = module.readback_marks("C1", BOOK, records)
+        found = marks(records)
         self.assertEqual(found, {"R1": "confirmed", "R2": "changed", "R4": "confirmed"})
+        # 同一轮里再判别的单：每期的回读只取一次（审查处理 10-17）
+        self.assertEqual(sorted(calls), ["2026-09", "2026-10"])
+        self.assertEqual(module.readback_marks("C1", BOOK, records[:2]), {"R1": "confirmed", "R2": "changed"})
+        self.assertEqual(len(calls), 2)
         store.changes = [self._readback(dt.datetime(2026, 11, 23, 3, 0))]   # 截止日当天发起：不合格
-        self.assertEqual(module.readback_marks("C1", BOOK, records[:2]), {})
+        self.assertEqual(marks(records[:2]), {})
         store.changes = [self._readback(dt.datetime(2026, 11, 24, 3, 0), truncated=True)]
-        self.assertEqual(module.readback_marks("C1", BOOK, records[:1]), {"R1": "changed"})
+        self.assertEqual(marks(records[:1]), {"R1": "changed"})
         store.changes = []
-        self.assertEqual(module.readback_marks("C1", BOOK, records), {})
+        self.assertEqual(marks(records), {})
         self.assertEqual(module.readback_marks("", BOOK, records), {})
 
     def test_a_write_mismatch_drops_to_l0_at_once(self):
@@ -892,11 +909,11 @@ class UploadSweep(unittest.TestCase):
 
 def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), readback="2026-09", trigger="upload",
             prior=(), sql=None, recent=None, posting=(None, ""), marks=None, decided=None, payload_over=None,
-            suppliers=None, direction="purchase"):
+            suppliers=None, direction="purchase", fields_over=None, responses=None):
     fields = {"document_type": "tax_invoice", "direction": "purchase", "seller_name": "ผู้ขาย", "seller_tax": SELLER,
               "seller_branch": "00000", "buyer_name": "ACME", "buyer_tax": OWN, "buyer_branch": "00000",
               "invoice_number": "IV69-001", "date": "2026-10-20", "subtotal": "1000.00", "vat": "70.00",
-              "total_amount": "1070.00"}
+              "total_amount": "1070.00", **(fields_over or {})}
     account = {"source_id": BOOK, "attributes": {"tax_id": OWN, "branch": "00000", "period_start": "2026-01-01",
                                                  "period_end": "2026-12-31"}}
     payload = {"direction": "purchase", "doctype": "RR", "account_set": BOOK, "ref_no": "IV69-001",
@@ -917,8 +934,11 @@ def _assess(*, site_ok=True, capable=True, tier=None, text=True, needed=(), read
     def run_sql(query, values=(), as_dict=False):
         if "INNER JOIN" in query:
             seen.setdefault("recent_sql", []).append((query, values))
+            # 回执（``response_json``）：CC 桌面版实际写的对方档码、各行写入模式；没给的按旧记录（没有这一列）
             return [ns(name=f"R{index}", payload_json=json.dumps(item), completed_at=dt.datetime(2026, 9, 5),
-                       invoice_date=dt.date(2026, 9, 1)) for index, item in enumerate(recent)]
+                       invoice_date=dt.date(2026, 9, 1),
+                       **({"response_json": json.dumps(responses[index])} if responses and responses[index] else {}))
+                    for index, item in enumerate(recent)]
         seen.setdefault("sql", []).append((query, values))
         return [ns(payload_json=json.dumps(item)) for item in prior]
 
@@ -1051,6 +1071,45 @@ class Judging(unittest.TestCase):
         found, seen = _assess(direction="sales", decided={"party": "remembered"}, payload_over=sales)
         self.assertEqual(found["items"]["party"], "B")
         self.assertNotIn("recent_sql", seen)
+
+    def test_the_evidence_follows_what_cc_desktop_wrote(self):
+        """审查处理 10-17：对方档取 CC 桌面版实际写入的码（回执 ``meta.party_code``，回读比的就是它）；载荷写定一档、桌面版写了
+        另一档按断开算；真写了库存行的单回读不比分录，科目一类的 confirmed 不算证据；票面写明现 / 赊的单不算现 / 赊的证据；
+        没出载荷不查库；对方税号不是 13 位时不查库、记忆定的现 / 赊与对方档都按 0 张（B）。"""
+        two = [{"code": code, "tax_id": SELLER, "branch": "00000"} for code in ("S001", "S002")]
+        memory = dict(decided={"account": "remembered", "vat": "remembered", "party": "remembered"},
+                      payload_over={"doctype_src": "remembered", "supplier": {"code": "S002", "tax_id": SELLER}},
+                      suppliers=two)
+        # 推的时候 CC 自己找档（载荷没写码）、桌面版写了 S002，会计也认了：记忆 S002 攒得起来
+        found_by_cc = [{"direction": "purchase", "supplier": {"tax_id": SELLER, "branch": "00000"},
+                        "items_account": "5310-01", "account_source": "remembered", "doctype": "RR",
+                        "doctype_src": "remembered"}] * 3
+        written = [{"meta": {"party_code": "S002"}}] * 3
+        found, _seen = _assess(recent=found_by_cc, responses=written, **memory)
+        self.assertEqual(found["items"]["party"], "A")
+        self.assertEqual(_assess(recent=found_by_cc, **memory)[0]["items"]["party"], "B")  # 旧记录没有回执：码取不到
+        # 载荷写定 S001、桌面版写了 S002：按断开算
+        planned = [{**found_by_cc[0], "supplier": {"tax_id": SELLER, "code": "S002", "branch": "00000"}}] * 3
+        swapped = [{"meta": {"party_code": "S002"}}, {"meta": {"party_code": "S001"}}, {"meta": {"party_code": "S002"}}]
+        self.assertEqual(_assess(recent=planned, responses=swapped, **memory)[0]["items"]["party"], "B")
+        # 真写了库存行的单：科目只认推的时候的来源，回读 confirmed 不算
+        stock = [{"line_modes": [{"seq": 1, "mode": "stock_item"}]}] * 3
+        found, _seen = _assess(responses=stock)
+        self.assertEqual((found["class"], found["items"]["account"]), ("B", "B"))
+        # 票面写明的现 / 赊回读核过也不是现 / 赊的证据
+        explicit = [{**found_by_cc[0], "supplier": {"tax_id": SELLER, "code": "S002", "branch": "00000"},
+                     "doctype_src": "explicit"}] * 3
+        found, _seen = _assess(recent=explicit, **memory)
+        self.assertEqual((found["items"]["payment"], found["items"]["party"]), ("B", "A"))
+        # 没出载荷（要人选）：本来就是 C，不查库
+        found, seen = _assess(needed=[{"kind": "account"}], **memory)
+        self.assertEqual(found["class"], "C")
+        self.assertNotIn("recent_sql", seen)
+        # 对方税号不是 13 位：不查库，记忆定的现 / 赊与对方档按 0 张
+        found, seen = _assess(fields_over={"seller_tax": "123456"}, **memory)
+        self.assertNotIn("recent_sql", seen)
+        self.assertEqual(seen["marks_calls"], 0)
+        self.assertEqual((found["items"]["payment"], found["items"]["party"]), ("B", "B"))
 
     def test_the_company_goods_posting_choice_reaches_the_judgement(self):
         """商品单入账方式按公司选过（`service._posting_decision`）：判定用选的入账类型，posting 一项算 B（审查处理 10-16）。"""

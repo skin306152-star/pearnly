@@ -2265,6 +2265,15 @@ Cowork Company	Cowork 公司主档	Cowork ข้อมูลหลักบร�
 Cowork Company Note	Cowork 公司知识库	Cowork บันทึกบริษัท	Cowork 会社ノート
 Cowork Company Folder	Cowork 公司单据文件夹	Cowork โฟลเดอร์เอกสารบริษัท	Cowork 会社書類フォルダー
 Cowork Company Choice	Cowork 公司选择	Cowork ตัวเลือกของบริษัท	Cowork 会社の選択
+Tier	档位	ระดับ	レベル
+Tier Since (UTC)	档位起始时间（UTC）	ระดับนี้ตั้งแต่ (UTC)	レベル開始日時（UTC）
+Automation Class	自动推送类别	ประเภทการส่งอัตโนมัติ	自動送信の区分
+Automation Tier	自动推送档位	ระดับการส่งอัตโนมัติ	自動送信のレベル
+Automation Reasons	自动推送原因	เหตุผลการส่งอัตโนมัติ	自動送信の理由
+Automation Proposal	自动推送提议	ข้อเสนอการส่งอัตโนมัติ	自動送信の提案
+Automation Checked At (UTC)	判定时间（UTC）	เวลาที่ตรวจ (UTC)	判定日時（UTC）
+Write Check	写入核对	ตรวจการบันทึก	書き込み確認
+Write Check Detail	写入核对明细	รายละเอียดการตรวจการบันทึก	書き込み確認の詳細
 Subject Label	对象名称	ชื่อรายการ	対象名
 Value Label	值名称	ชื่อค่า	値の名称
 Evidence	依据	หลักฐาน	根拠
