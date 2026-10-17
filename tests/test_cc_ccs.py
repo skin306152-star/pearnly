@@ -776,7 +776,11 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('<button type="button" className="cc-card-btn" onClick={() => void push.enable()}>', foot)
         self.assertLess(card.index("{noticeTime(createdAt)}"), card.index('<div className="cc-ask-foot">'))
         css = (SRC / "globals.css").read_text(encoding="utf-8")
-        self.assertIn("@media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }", css)
+        # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，标准化记录 V3）；CC 桌面版在触屏上不改电脑值
+        self.assertIn(":root[data-cc-touch] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }", css)
+        self.assertNotIn("@media (pointer: coarse) { .cc-tap", css)
+        # 月份、分店胶囊外观 28 不变，触屏点按区上下补到 44（V3）
+        self.assertIn(':root[data-cc-touch] .cc-chip-btn::after { content: ""; position: absolute; inset: calc((var(--cc-control-sm) - var(--cc-tap)) / 2) 0; }', css)
         self.assertIn("--cc-tap: 2.75rem;", css)
 
     def test_steps_follow_claude_code(self):

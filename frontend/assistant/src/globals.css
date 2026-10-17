@@ -1536,9 +1536,9 @@
   .cc-btn[data-primary]:hover { opacity: 0.88; }
   .cc-btn[data-danger] { color: var(--cc-danger); }
   .cc-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); flex-shrink: 0; }
-  /* 对话里卡片上的按钮：手机（粗指针）点按区不小于 44pt（官方卡片规矩）；手机变体（窄窗口）同样 */
-  @media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }
-  :root[data-cc-variant="phone"] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }
+  /* 能点的小元素（cc-tap）：触屏点按区不小于 44pt（官方卡片规矩）。触屏 = 手机变体，或粗指针且不是桌面窗口（V3：CC 桌面版在触屏
+     Windows 上也不改电脑值，ccs.md） */
+  :root[data-cc-touch] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }
   /* 手机点按区（按钮排查 G2 / G3，10-17）：文字按钮、输入框与下拉框、图标按钮在手机变体与粗指针上到 44，文字按钮左右 16；
      电脑 32 不变（不改 --cc-control，它还管电脑的面板顶栏、抽屉组操作）。电脑对话顶栏、桌面标题栏里的图标按钮不跟 */
   :root[data-cc-touch] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }
@@ -1573,16 +1573,12 @@
   .cc-card-btn[data-primary]:hover { opacity: 0.88; }
   .cc-card-btn[data-icon] { width: var(--cc-card-btn-h); padding: 0; border-radius: var(--cc-radius-full); color: var(--cc-ink-2); }
   .cc-card-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
-  @media (pointer: coarse) {
-    .cc-card-btn { height: var(--cc-card-btn-h-phone); padding: 0 var(--cc-space-24); border-radius: var(--cc-radius-full); font-size: var(--cc-card-btn-font-phone); }
-    .cc-card-btn[data-icon] { width: var(--cc-card-btn-h-phone); padding: 0; }
-    .cc-card-btn svg { width: var(--cc-card-btn-icon-phone); height: var(--cc-card-btn-icon-phone); }
-  }
-  :root[data-cc-variant="phone"] .cc-card-btn {
+  /* 触屏（手机变体，或粗指针且不是桌面窗口；V3：桌面窗口在触屏上照电脑值）：大号全圆角胶囊 44、16px、图标 22 */
+  :root[data-cc-touch] .cc-card-btn {
     height: var(--cc-card-btn-h-phone); padding: 0 var(--cc-space-24); border-radius: var(--cc-radius-full); font-size: var(--cc-card-btn-font-phone);
   }
-  :root[data-cc-variant="phone"] .cc-card-btn[data-icon] { width: var(--cc-card-btn-h-phone); padding: 0; }
-  :root[data-cc-variant="phone"] .cc-card-btn svg { width: var(--cc-card-btn-icon-phone); height: var(--cc-card-btn-icon-phone); }
+  :root[data-cc-touch] .cc-card-btn[data-icon] { width: var(--cc-card-btn-h-phone); padding: 0; }
+  :root[data-cc-touch] .cc-card-btn svg { width: var(--cc-card-btn-icon-phone); height: var(--cc-card-btn-icon-phone); }
   /* 手机浮层右下的「允许」（8.webp「提交」约 113 宽） */
   .cc-ask-sheet .cc-card-btn[data-primary] { min-width: var(--cc-ask-sheet-btn-min); }
 
@@ -2093,6 +2089,9 @@
   .cc-chip-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-chip-btn[data-chosen] { color: var(--cc-ink); }
   .cc-chip-btn svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); flex-shrink: 0; color: var(--cc-ink-3); }
+  /* 触屏：胶囊外观不变（28），点按区上下用伪元素补到 44（V3，同问候下的胶囊） */
+  :root[data-cc-touch] .cc-chip-btn { position: relative; }
+  :root[data-cc-touch] .cc-chip-btn::after { content: ""; position: absolute; inset: calc((var(--cc-control-sm) - var(--cc-tap)) / 2) 0; }
   .cc-title-company {
     display: inline-flex; min-width: 0; max-width: var(--cc-title-company-max-w); align-items: center; gap: var(--cc-space-2); height: var(--cc-bar-btn); padding-inline: var(--cc-space-8);
     border-radius: var(--cc-radius-sm); color: var(--cc-ink-3); font-size: var(--cc-title-font); line-height: var(--cc-title-lh); outline: none;
@@ -2376,13 +2375,8 @@
   .cc-card-btn[data-ghost] { background: transparent; }
   .cc-card-btn[data-ghost]:hover { background: var(--cc-bg-subtle); }
   .cc-card-btn[data-danger] { color: var(--cc-danger); }
-  @media (pointer: coarse) {
-    .cc-choice-row { min-height: var(--cc-tap); }
-    .cc-choice-seg { border-radius: var(--cc-radius-full); }
-  }
-  :root[data-cc-variant="phone"] .cc-choice-row { min-height: var(--cc-tap); }
-  :root[data-cc-variant="phone"] .cc-choice-seg { border-radius: var(--cc-radius-full); }
-
+  :root[data-cc-touch] .cc-choice-row { min-height: var(--cc-tap); }
+  :root[data-cc-touch] .cc-choice-seg { border-radius: var(--cc-radius-full); }
 }
 
 /* 单行截断的文字（components/ui/marquee.tsx）：放不下时末尾渐隐，不用省略号（用户 2026-10-16「一行放不下时，侧栏末尾是渐隐，

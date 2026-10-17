@@ -1515,10 +1515,11 @@ g.done();
         self.assertIn("  .cc-card-btn:hover { background: var(--cc-alpha-3); }", css)
         self.assertIn("  .cc-card-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }", css)
         self.assertIn("justify-content: flex-end; gap: var(--cc-space-8);", rule(".cc-card-actions"))
-        coarse = css.split("  @media (pointer: coarse) {\n    .cc-card-btn {", 1)[1].split("}", 1)[0]
-        self.assertIn("height: var(--cc-card-btn-h-phone);", coarse)
-        self.assertIn("border-radius: var(--cc-radius-full); font-size: var(--cc-card-btn-font-phone);", coarse)
-        self.assertIn("height: var(--cc-card-btn-h-phone);", rule(':root[data-cc-variant="phone"] .cc-card-btn'))
+        # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，V3 起桌面窗口在触屏上照电脑值）一份
+        touch = rule(':root[data-cc-touch] .cc-card-btn')
+        self.assertIn("height: var(--cc-card-btn-h-phone);", touch)
+        self.assertIn("border-radius: var(--cc-radius-full); font-size: var(--cc-card-btn-font-phone);", touch)
+        self.assertNotIn("@media (pointer: coarse) {\n    .cc-card-btn", css)
         # 问话正文色；等回答时常规字重，点完加粗（照 Claude）；问话不是按钮，没有悬停底与箭头
         question = rule(".cc-ask-q")
         self.assertIn("color: var(--cc-ink);", question)
@@ -3897,7 +3898,7 @@ assert.equal(choiceAfter(["a"], "a"), "");
         # 电脑行约 28（小号控件）、手机 44；点开后的按钮是卡片按钮（手机 48 胶囊）
         css = read("globals.css")
         self.assertIn("min-height: var(--cc-control-sm); padding: var(--cc-space-2) var(--cc-space-4);", block(css, ".cc-choice-row {"))
-        self.assertIn(':root[data-cc-variant="phone"] .cc-choice-row { min-height: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-touch] .cc-choice-row { min-height: var(--cc-tap); }', css)
         self.assertIn(".cc-choice[data-open] { background: var(--cc-bg-hover); }", css)
         # 点开的整块已是悬停底，行自己不再叠一层；值最多占四成五（左边的对方名留得下）
         self.assertIn(".cc-choice[data-open] .cc-choice-row:hover { background: transparent; }", css)
@@ -8355,7 +8356,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn(':root[data-cc-touch] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }', css)
         self.assertIn(':root[data-cc-variant="phone"] .cc-icon-btn { width: var(--cc-tap); height: var(--cc-tap); }', css)
         self.assertIn(':root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }', css)
-        self.assertIn(':root[data-cc-variant="phone"] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-touch] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }', css)
         # 组件里不再用 h-8 把 .cc-btn / .cc-input 钉在 32
         self.assertNotIn("cc-btn h-8", read("components/scheduled-tasks.tsx"))
         self.assertNotIn("cc-input h-8", read("components/assistant-ui/projects.tsx"))
