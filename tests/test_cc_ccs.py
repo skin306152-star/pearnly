@@ -248,12 +248,11 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-ink": "--code-ink-1", "--cc-ink-2": "--code-ink-2", "--cc-ink-3": "--code-ink-3", "--cc-ink-4": "--code-ink-disabled",
             "--cc-bg-app": "--code-surface-1", "--cc-bg-sidebar": "--code-sidebar-web", "--cc-bg-surface": "--code-surface-2",
             "--cc-bg-popover": "--code-surface-popover", "--cc-bg-subtle": "--code-alpha-1",
-            "--cc-bg-hover": "--code-fill-hover", "--cc-bg-active": "--code-fill-selected", "--cc-bg-selected": "--code-fill-selected",
+            "--cc-bg-hover": "--code-fill-hover", "--cc-bg-selected": "--code-fill-selected",
             "--cc-bg-overlay": "--code-backdrop",
             "--cc-alpha-1": "--code-alpha-1", "--cc-alpha-2": "--code-alpha-2", "--cc-alpha-3": "--code-alpha-3",
-            "--cc-fill-hover": "--code-fill-hover", "--cc-fill-selected": "--code-fill-selected",
             "--cc-row-hover": "--code-row-hover", "--cc-row-selected": "--code-row-selected",
-            "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong", "--cc-line-stronger": "--code-line-stronger",
+            "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong",
             "--cc-link": "--code-link", "--cc-code-ink": "--code-code-ink", "--cc-code-bg": "--code-code-bg",
             "--cc-tooltip-bg": "--code-tooltip-bg", "--cc-tooltip-ink": "--code-tooltip-ink", "--cc-search-bg": "--code-search-bg",
             "--cc-focus-ring": "--code-focus", "--cc-bubble-bg": "--cc-alpha-1",
@@ -269,7 +268,7 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-menu-item-h": "--code-menu-item", "--cc-menu-item-py": "--code-menu-item-py", "--cc-menu-item-px": "--code-menu-item-px",
             "--cc-menu-sep": "--code-menu-sep", "--cc-menu-sep-gap": "--code-menu-sep-gap", "--cc-menu-sep-inset": "--code-menu-sep-inset",
             "--cc-ease": "--code-ease", "--cc-ease-fast": "--code-ease-fast", "--cc-ease-out": "--code-ease-out",
-            "--cc-dur-instant": "--code-dur-1", "--cc-dur-fast": "--code-dur-2", "--cc-dur": "--code-dur-3",
+            "--cc-dur-fast": "--code-dur-2", "--cc-dur": "--code-dur-3",
             "--cc-dur-slow": "--code-dur-4", "--cc-dur-pop": "--code-dur-5", "--cc-reveal": "--cc-dur-fast",
             "--cc-radius-composer": "--code-radius-input",
             "--cc-md-block": "--code-prose-block", "--cc-md-heading": "--code-prose-heading",
@@ -282,6 +281,9 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-chin-btn": "--code-chin-btn", "--cc-chin-font": "--code-text-footnote", "--cc-radius-chin": "--code-radius-5",
         }.items():
             self.assertEqual(cc.get(name), f"var({target})", name)
+        # 2.4：没人用的纯同义变量删掉（--cc-bg-active 并到 --cc-bg-selected）
+        for gone in ("--cc-bg-active", "--cc-fill-hover", "--cc-fill-selected", "--cc-dur-instant", "--cc-line-stronger", "--cc-titlebar-h"):
+            self.assertNotIn(gone, self.css, gone)
         # 聚焦：内描 1px 页面色 + 外 1px 蓝描边，没有光晕（用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」）；
         # 光晕变量浅色、深色都删掉，不留不用的变量
         self.assertEqual(cc["--cc-shadow-focus"], "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--cc-focus-ring)")
@@ -291,7 +293,7 @@ class OfficialValuesTests(unittest.TestCase):
         self.assertEqual(cc["--cc-sidebar-float"], "0px")
         # 结构色只在 --code-* 里分深浅：--cc-* 深色块不再另给底色、叠色与弹层阴影；页面底色所有变体（含手机）同一个
         dark = [b for b in re.findall(r"^\.dark \{\n(.*?)\n\}", self.css, re.M | re.S) if "--cc-brand:" in b][0]
-        for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-active", "--cc-shadow-pop",
+        for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-selected", "--cc-shadow-pop",
                      "--cc-shadow-composer:", "--cc-shadow-focus"):
             self.assertNotIn(name, dark, name)
         self.assertEqual(self.css.count("--cc-bg-app:"), 1)
@@ -310,11 +312,12 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-greeting-font": "20px", "--cc-mascot-h": "var(--cc-mascot-h-sm)",
             "--cc-row-h": "var(--code-row-phone)", "--cc-group-h": "var(--code-group-band-phone)", "--cc-reveal-rest": "1",
             "--cc-body-size": "var(--code-text-prose)", "--cc-body-lh": "var(--code-text-prose-lh)",
-            "--cc-menu-item-h": "var(--cc-tap)", "--cc-search-h": "var(--cc-tap)",
         })
-        # 触屏平板（网页布局 + 粗指针，第 11 轮 D26）的对话顶栏高也在这个不分层的变量块里（写在 components 层敌不过 :root，合并审查）
-        self.assertIn('@media (pointer: coarse) {\n  :root:not([data-cc-variant="desktop"]) { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n'
-                      '  :root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }\n}', self.css)
+        # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，标准化记录 B1 合成一份）的菜单项、搜索框 44；触屏平板（网页布局，
+        # 第 11 轮 D26）的对话顶栏高也在这个不分层的变量块里（写在 components 层敌不过 :root，合并审查）
+        self.assertIn(':root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n'
+                      ':root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', self.css)
+        self.assertNotIn("@media (pointer: coarse) {\n  :root", self.css)
         # 桌面窗口：侧栏浮成卡片（离窗口边 8px、卡片阴影）
         self.assertIn(':root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); '
                       "border-inline-width: 0; }", self.css)
@@ -436,7 +439,7 @@ g.done();
         self.assertIn("font-size: var(--cc-body-size); line-height: var(--cc-body-lh);", rule(".cc-reply"))
         self.assertIn("font-family: var(--cc-font-reply);", rule(".cc-reply"))
         bubble = rule(".cc-bubble-user")
-        self.assertIn("padding: 0.5rem 0.75rem;", bubble)
+        self.assertIn("padding: var(--cc-space-8) var(--cc-space-12);", bubble)
         self.assertIn("font-size: var(--cc-body-size); line-height: var(--cc-body-lh);", bubble)
         self.assertIn("--cc-radius-code: var(--code-radius-code);", css)
         theme = css.split("@theme inline {", 1)[1].split("\n}", 1)[0]

@@ -159,8 +159,8 @@ class PanelStylesSourceTests(unittest.TestCase):
         self.assertIn(".cc-panel-card-end > * { grid-area: 1 / 1; }", css)
         self.assertIn(".cc-panel-card-head:is(:hover, :focus-within) .cc-panel-card-tools { opacity: 1; pointer-events: auto; }", css)
         self.assertIn(".cc-panel-card-head:is(:hover, :focus-within) .cc-panel-card-end:has(.cc-panel-card-tools) .cc-panel-card-summary { opacity: 0; }", css)
-        self.assertIn(':root[data-cc-variant="phone"] .cc-panel-card-end { display: flex; gap: 0.25rem; }', css)
-        self.assertIn("@media (hover: none) {\n    .cc-panel-card-end { display: flex; gap: 0.25rem; }", css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-panel-card-end { display: flex; gap: var(--cc-space-4); }', css)
+        self.assertIn("@media (hover: none) {\n    .cc-panel-card-end { display: flex; gap: var(--cc-space-4); }", css)
         # 网页标题栏实高 32（设计文档 3.9）：不再加上下外边距
         topbar = css.split(".cc-topbar {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-topbar-h);", topbar)
@@ -658,7 +658,7 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn('[data-drag-source="gap"] { opacity: 0; }', css)
         self.assertIn("[data-drag-landing] { opacity: 0; }", css)
         self.assertIn("[data-drop-target] { background: var(--cc-row-hover); }", css)
-        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: var(--cc-z-drag-shield); cursor: grabbing; }", css)
         # 抓手光标归共用拖动的把手标记（会话栏卡片把手、侧栏行、置顶行、公司组头同一条，第 5 轮审查）；把手里的输入框是文字光标
         self.assertIn("[data-drag-handle] { cursor: grab; }", css)
         self.assertIn("[data-drag-handle] :is(input, textarea) { cursor: text; }", css)
@@ -712,7 +712,7 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         self.assertIn("onClick={() => setPanelOverlay(true)}", page)
         # 页宽同对话
         css = read("globals.css")
-        self.assertIn("max-width: calc(var(--cc-thread-w) + 2rem);", css.split(".cc-company-page {", 1)[1].split("}", 1)[0])
+        self.assertIn("max-width: calc(var(--cc-thread-w) + var(--cc-page-gutter) * 2);", css.split(".cc-company-page {", 1)[1].split("}", 1)[0])
         for gone in (".cc-tabs", ".cc-tab {", ".cc-company-cols", ".cc-company-pane"):
             self.assertNotIn(gone, css, gone)
 

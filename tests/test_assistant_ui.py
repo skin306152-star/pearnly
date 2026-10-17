@@ -384,9 +384,12 @@ class ShortcutTests(unittest.TestCase):
                                                 "Ctrl + Alt + Space"]))
 
     def test_one_touch_detection_for_the_whole_page(self):
+        # 三种触屏判定各管各的（标准化记录 3.4）：lib/touch.ts 的 touchOnly()（hover: none）管「没有悬停」时的行为；
+        # lib/variant.ts 写 <html data-cc-touch>（粗指针且不是桌面窗口，或手机变体）管尺寸与点按区；别处都不再各写一套
         for name, text in self.sources():
             if name != "lib/touch.ts":
                 self.assertNotIn('matchMedia("(hover', text, name)
+            if name != "lib/variant.ts":
                 self.assertNotIn("pointer: coarse", text, name)
         shortcut = read("components/shortcut.tsx")
         self.assertIn("return isDesktopApp() || !touchOnly();", shortcut)
@@ -1501,16 +1504,17 @@ g.done();
         self.assertIn("--cc-card-btn-font-phone: var(--code-text-prose);", css)
         btn = rule(".cc-card-btn")
         # 次要按钮是一块看得出的浅灰实心（叠色 2），悬停再深一档（叠色 3）：浅色模式下也有悬停反馈（第 10 轮审查）
-        for part in ("height: var(--cc-card-btn-h);", "padding: 0 0.5rem;", "background: var(--cc-alpha-2);", "font-size: var(--cc-text-footnote);",
-                     "font-weight: 500;"):
+        for part in ("height: var(--cc-card-btn-h);", "padding: 0 var(--cc-space-8);", "background: var(--cc-alpha-2);", "font-size: var(--cc-text-footnote);",
+                     "font-weight: var(--cc-weight-medium);"):
             self.assertIn(part, btn)
         self.assertIn(".cc-card-btn[data-icon] { width: var(--cc-card-btn-h);", css)
         # 手机浮层右下的「允许」至少 112 宽（8.webp「提交」约 113）
-        self.assertIn(".cc-ask-sheet .cc-card-btn[data-primary] { min-width: 7rem; }", css)
+        self.assertIn(".cc-ask-sheet .cc-card-btn[data-primary] { min-width: var(--cc-ask-sheet-btn-min); }", css)
+        self.assertIn("--cc-ask-sheet-btn-min: 7rem;", css)
         self.assertNotIn("border:", btn)
         self.assertIn("  .cc-card-btn:hover { background: var(--cc-alpha-3); }", css)
         self.assertIn("  .cc-card-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }", css)
-        self.assertIn("justify-content: flex-end; gap: 0.5rem;", rule(".cc-card-actions"))
+        self.assertIn("justify-content: flex-end; gap: var(--cc-space-8);", rule(".cc-card-actions"))
         coarse = css.split("  @media (pointer: coarse) {\n    .cc-card-btn {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-card-btn-h-phone);", coarse)
         self.assertIn("border-radius: var(--cc-radius-full); font-size: var(--cc-card-btn-font-phone);", coarse)
@@ -1518,8 +1522,8 @@ g.done();
         # 问话正文色；等回答时常规字重，点完加粗（照 Claude）；问话不是按钮，没有悬停底与箭头
         question = rule(".cc-ask-q")
         self.assertIn("color: var(--cc-ink);", question)
-        self.assertIn("font-weight: 400;", question)
-        self.assertIn('  .cc-ask:not([data-phase="ask"]) .cc-ask-q { padding-bottom: 0.125rem; font-weight: 600; }', css)
+        self.assertIn("font-weight: var(--cc-weight-regular);", question)
+        self.assertIn('  .cc-ask:not([data-phase="ask"]) .cc-ask-q { padding-bottom: var(--cc-space-2); font-weight: var(--cc-weight-semibold); }', css)
         self.assertNotIn(".cc-ask-q.cc-step-row", css)
 
     def test_the_answered_card_looks_the_same_live_and_reopened(self):
@@ -1701,7 +1705,7 @@ g.done();
         self.assertIn("border-radius: var(--cc-radius-sheet);", sheet)
         self.assertIn("background: var(--cc-bg-popover);", sheet)
         self.assertIn("--cc-radius-sheet: 1.5rem;", css)   # 8.webp 边缘拟合约 23.5（第 11 轮按钮排查 L9）
-        self.assertIn("font-weight: 600;", css.split("\n  .cc-ask-sheet-q {", 1)[1].split("}", 1)[0])   # 问话粗体（照 Claude 手机端）
+        self.assertIn("font-weight: var(--cc-weight-semibold);", css.split("\n  .cc-ask-sheet-q {", 1)[1].split("}", 1)[0])   # 问话粗体（照 Claude 手机端）
 
     def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
         thread = read("components/assistant-ui/thread.tsx")
@@ -2651,7 +2655,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn("--cc-radius-composer: var(--code-radius-input);", css)
         # 附件一行从输入那一列开始（与输入的字对齐，照 Claude 桌面版 7.webp：离框左约 44、离框顶约 12，下隔 16；第 11 轮按钮排查 M7）
         self.assertIn('grid-template-areas: ". files files" "add input send";', css)
-        self.assertIn("grid-area: files; padding: calc(var(--cc-composer-pad) / 2) var(--cc-composer-pad) 1rem;", css)
+        self.assertIn("grid-area: files; padding: calc(var(--cc-composer-pad) / 2) var(--cc-composer-pad) var(--cc-space-16);", css)
         # 内边距扣掉细线边框：border-box 下单行正好 44，不是 45
         self.assertIn("align-items: end; gap: 0; min-height: var(--cc-composer-h); "
                       "padding: calc(var(--cc-composer-pad) - var(--cc-hairline));", css)
@@ -3217,7 +3221,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('[data-slot="sidebar-inner"]:hover .cc-group-caret', css)
         self.assertIn(".cc-group-row:hover .cc-group-toggle, .cc-group-toggle:focus-visible { color: var(--cc-ink-2); }", css)
         # 触屏平板（宽屏、不能悬停）与手机：箭头、组操作常显
-        self.assertIn('@media (hover: none) {\n  [data-slot="sidebar"] { --cc-reveal-rest: 1; }\n'
+        self.assertIn('@media (hover: none) {\n  [data-slot="sidebar"] { --cc-reveal-rest: 1; /* 现有值·CC 自定：常显 */ }\n'
                       '  [data-slot="sidebar"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }', css)
         self.assertIn(':root[data-cc-variant="phone"] :is(.cc-group-more, .cc-group-new) { display: inline-flex; }', css)
         self.assertNotIn(".cc-project-name", css + projects)
@@ -3237,13 +3241,13 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertLess(header.index("cc-group-name"), header.index("cc-group-caret"))
         self.assertIn(".cc-group-icon { flex-shrink: 0; width: var(--cc-icon-sm); height: var(--cc-icon-sm); margin-inline-end: var(--cc-row-gap); color: var(--cc-ink-3); }", css)
         self.assertIn(".cc-project-row .cc-group-toggle { color: var(--cc-ink-2); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); font-weight: normal; }", css)
-        self.assertIn('[data-slot="cc-project-items"] { --cc-row-indent: calc(var(--cc-icon-sm) + 0.25rem + var(--cc-row-gap)); }', css)
-        self.assertIn(".cc-row-trigger { gap: 0.25rem; padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) 0.25rem; }", css)
-        self.assertIn('.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: calc(0.75rem + var(--cc-row-indent, 0px)); }', css)
-        self.assertIn("margin-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px) - var(--cc-inline-edit-px)) 0.25rem;", css)
+        self.assertIn('[data-slot="cc-project-items"] { --cc-row-indent: calc(var(--cc-icon-sm) + var(--cc-space-4) + var(--cc-row-gap)); }', css)
+        self.assertIn(".cc-row-trigger { gap: var(--cc-space-4); padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) var(--cc-space-4); }", css)
+        self.assertIn('.cc-drawer [data-slot="aui_thread-list-item-trigger"] { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }', css)
+        self.assertIn("margin-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px) - var(--cc-inline-edit-px)) var(--cc-space-4);", css)
         # 「显示更多」也缩进到公司名文字起点（用户 10-16 看预览后定）
         self.assertIn("padding-inline: calc(var(--cc-row-pad) + var(--cc-row-indent, 0px)) var(--cc-row-pad);", css)
-        self.assertIn('.cc-drawer [data-slot="cc-project-items"] .cc-show-more { padding-inline-start: calc(0.75rem + var(--cc-row-indent, 0px)); }', css)
+        self.assertIn('.cc-drawer [data-slot="cc-project-items"] .cc-show-more { padding-inline-start: calc(var(--cc-space-12) + var(--cc-row-indent, 0px)); }', css)
         self.assertEqual(rows.count('data-slot="cc-project-items"'), 1)   # 只有公司组里的行缩进
         self.assertNotIn("icon=", rows.split("const CompanyGroups: FC", 1)[1].split("\nconst DayGroups", 1)[0])
         # B：组名、会话行标题与元数据行放不下时悬停滚动（共用的 Marquee）；行与组标题是触发的「这一行」
@@ -3308,7 +3312,10 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn('<span className="cc-marquee-text">{children}</span>', marquee)
         for line in ("--cc-marquee-delay: 150ms;", "--cc-marquee-speed: 40;", "--cc-marquee-min: 300ms;", "--cc-marquee-fade: var(--code-pad-5);"):
             self.assertIn(line, css)
-        self.assertIn("transform: translateX(var(--cc-marquee-x, 0px)); transition: transform var(--cc-marquee-dur, 0ms) linear;", css)
+        self.assertIn("transform: translateX(var(--cc-marquee-x)); transition: transform var(--cc-marquee-dur) var(--cc-marquee-ease);", css)
+        self.assertIn("--cc-marquee-ease: linear;", css)   # 匀速；运行时写入的平移与时长在运行时层登记了默认值 0
+        self.assertIn("--cc-marquee-x: 0px;", css)
+        self.assertIn("--cc-marquee-dur: 0ms;", css)
         self.assertIn("mask-image: linear-gradient(to right, transparent, black var(--cc-marquee-fade), black calc(100% - var(--cc-marquee-end)), transparent);", css)
         self.assertIn(".cc-marquee, .cc-fade-cell { --cc-marquee-end: var(--cc-row-fade); text-overflow: clip; }", css)   # 右端保留末尾渐隐
         self.assertIn("@media (prefers-reduced-motion: reduce), (hover: none) {\n  .cc-marquee[data-marquee] > .cc-marquee-text { transform: none; transition: none; }", css)
@@ -3336,7 +3343,8 @@ class SidebarShellSourceTests(unittest.TestCase):
         # 标题超长末尾渐隐：同所有单行截断的文字，只在放不下时（[data-overflow]，用户 10-16「统一渐隐」）
         self.assertIn(".cc-row-title { overflow: hidden; white-space: nowrap; }", css)
         self.assertIn(":is(.cc-marquee, .cc-fade-cell)[data-overflow] {\n  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--cc-marquee-end)), transparent);", css)
-        self.assertIn("animation: cc-pulse var(--cc-pulse) ease-in-out infinite;", css)
+        self.assertIn("animation: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;", css)
+        self.assertIn("--cc-ease-pulse: ease-in-out;", css)
         self.assertIn("width: var(--cc-row-pulse); height: var(--cc-row-pulse);", css)
         self.assertIn('[data-slot="aui_thread-list-item"][data-selected] { background: var(--cc-row-selected); color: var(--cc-ink); }', css)
         self.assertIn("[data-jump-hints] .cc-row-end[data-jump]::after { content: attr(data-jump); }", css)
@@ -3888,12 +3896,13 @@ assert.equal(choiceAfter(["a"], "a"), "");
         self.assertEqual(section.count("(rows) => rows.filter((row) => row.key !== c.key), c.key)"), 2)
         # 电脑行约 28（小号控件）、手机 44；点开后的按钮是卡片按钮（手机 48 胶囊）
         css = read("globals.css")
-        self.assertIn("min-height: var(--cc-control-sm); padding: 0.125rem 0.25rem;", block(css, ".cc-choice-row {"))
+        self.assertIn("min-height: var(--cc-control-sm); padding: var(--cc-space-2) var(--cc-space-4);", block(css, ".cc-choice-row {"))
         self.assertIn(':root[data-cc-variant="phone"] .cc-choice-row { min-height: var(--cc-tap); }', css)
         self.assertIn(".cc-choice[data-open] { background: var(--cc-bg-hover); }", css)
         # 点开的整块已是悬停底，行自己不再叠一层；值最多占四成五（左边的对方名留得下）
         self.assertIn(".cc-choice[data-open] .cc-choice-row:hover { background: transparent; }", css)
-        self.assertIn("max-width: 45%;", block(css, ".cc-choice-value {"))
+        self.assertIn("max-width: var(--cc-choice-value-max);", block(css, ".cc-choice-value {"))
+        self.assertIn("--cc-choice-value-max: 45%;", css)
         self.assertNotIn(".cc-panel-card-body .cc-choice-row", css)
 
     def test_a_saved_choice_says_why_on_its_own_row(self):
@@ -3920,7 +3929,7 @@ assert.ok(!renderToStaticMarkup(createElement(ChoiceRow, props(true))).includes(
         self.assertIn("setError({ key: c.key, message: shownError(e) });", section)     # 现 / 赊
         self.assertNotIn('{error && <p role="alert"', section)
         css = read("globals.css")
-        self.assertIn(".cc-choice-detail > .cc-choice-error { padding-top: 0.375rem; }", css)
+        self.assertIn(".cc-choice-detail > .cc-choice-error { padding-top: var(--cc-space-6); }", css)
 
     def test_browsers_and_phones_only_read_the_folder(self):
         self.run_page(r"""
@@ -4298,10 +4307,10 @@ class AttachmentCardSourceTests(unittest.TestCase):
         title = css.split("  .cc-title-edit {", 1)[1].split("}", 1)[0]
         self.assertIn("height: var(--cc-title-lh)", title)
         self.assertIn("font-size: var(--cc-title-font)", title)
-        self.assertIn("font-weight: 500", title)
+        self.assertIn("font-weight: var(--cc-weight-medium)", title)
         self.assertIn("--cc-title-font: var(--code-text-footnote);", css)      # 13
         self.assertIn("--cc-title-lh: var(--code-text-panel-lh);", css)        # 19
-        self.assertIn("font-size: var(--cc-title-font); line-height: var(--cc-title-lh); font-weight: 500;",
+        self.assertIn("font-size: var(--cc-title-font); line-height: var(--cc-title-lh); font-weight: var(--cc-weight-medium);",
                       css.split("  .cc-title-btn {", 1)[1].split("}", 1)[0])
         # 32 的标题栏里、侧栏搜索框：紧凑的里描边，不画会被窗口顶边裁掉的光晕
         self.assertIn("--cc-shadow-focus-inset: inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring);", css)
@@ -5277,8 +5286,10 @@ setDragging(false);
         self.assertIn('overlay.className = "cc-drag-overlay";', overlay)
         self.assertIn("style.zIndex = String(OVERLAY_Z);", overlay)
         css = read("globals.css")
-        menu = re.search(r"\.cc-menu \{\s*z-index: (\d+);", css)
-        phone = re.search(r'\.cc-panel\[data-mode="phone"\] \{\s*position: fixed; inset: 0; z-index: (\d+);', css)
+        # 层级 B1 起写成刻度层的变量（--cc-z-*），按变量取值
+        level = lambda m: m and re.search(r"(?m)^\s*" + re.escape(m.group(1)) + r":\s*(\d+);", css)
+        menu = level(re.search(r"\.cc-menu \{\s*z-index: var\((--cc-z-[\w-]+)\);", css))
+        phone = level(re.search(r'\.cc-panel\[data-mode="phone"\] \{\s*position: fixed; inset: 0; z-index: var\((--cc-z-[\w-]+)\);', css))
         self.assertIsNotNone(menu)
         self.assertIsNotNone(phone)
         self.assertLess(int(phone.group(1)), 55)
@@ -6350,7 +6361,7 @@ class Round5SmallFixesTests(unittest.TestCase):
             self.assertIn(rule, css)
         self.assertIn("focus-visible:shadow-focus", read("components/ui/button.tsx"))
         # 侧栏宽度拖把（分隔条）：键盘聚焦时那根线换成聚焦蓝、1px
-        self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: 1px; }", css)
+        self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: var(--cc-ring-w); }", css)
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
         # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
         # 第 11 轮按钮排查 H26：文字格与图标格一样高 28、手机点按区 44（cc-tap）
@@ -7252,7 +7263,7 @@ assert.equal(shield.hidden, true);
 setDragShield(null);
 """)
         css = read("globals.css")
-        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)   # 整页 grabbing 不变
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: var(--cc-z-drag-shield); cursor: grabbing; }", css)   # 整页 grabbing 不变
         self.assertNotIn(":root[data-cc-drag]", css)
 
     def test_escape_after_dragging_into_pins_slides_back_before_the_redraw(self):
@@ -7705,7 +7716,7 @@ setDragShield(null);
         css = read("globals.css")
         # 浮层不接指针：拿起、落定时整个侧栏不换悬停、不整块重算样式；悬停与光标归挡板
         self.assertIn(".cc-drag-overlay { pointer-events: none; }", css)
-        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: 54; cursor: grabbing; }", css)
+        self.assertIn(".cc-drag-shield { position: fixed; inset: 0; z-index: var(--cc-z-drag-shield); cursor: grabbing; }", css)
         self.assertNotIn(":root[data-cc-drag]", css)
 
     def test_the_mouse_drag_shield_blocks_hover_and_passes_the_wheel_on(self):
@@ -8341,7 +8352,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         css = self.css
         # G2 / G3：文字按钮、输入框、图标按钮手机 44，电脑仍 32（--cc-control 不改）；电脑对话顶栏、桌面标题栏里的图标按钮不跟
         self.assertIn("--cc-control: var(--code-control);", css)
-        self.assertIn(':root[data-cc-variant="phone"] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-touch] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }', css)
         self.assertIn(':root[data-cc-variant="phone"] .cc-icon-btn { width: var(--cc-tap); height: var(--cc-tap); }', css)
         self.assertIn(':root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }', css)
         self.assertIn(':root[data-cc-variant="phone"] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }', css)
@@ -8354,12 +8365,13 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn("min-height: var(--cc-row-h); padding-inline:", block(css, "  .cc-show-more {"))
         self.assertIn(".cc-panel-card-body .cc-show-more { min-height: var(--cc-panel-row); }", css)
         # G5：会话栏手机档（卡头、行尾小按钮 44），电脑 26 / 20 不变
-        self.assertIn(':root[data-cc-variant="phone"] .cc-panel { --cc-panel-head: var(--cc-tap); --cc-panel-btn: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-touch] .cc-panel { --cc-panel-head: var(--cc-tap); --cc-panel-btn: var(--cc-tap); }', css)
         self.assertIn("--cc-panel-head: var(--code-panel-head);", css)
         # G8 / G10：手机胶囊 36（点按区补到 44）、列表页小按钮 44
         self.assertIn("--cc-chin-btn-phone: 2.25rem;", css)
         self.assertIn("inset: calc((var(--cc-chin-btn-phone) - var(--cc-tap)) / 2) 0;", css)
-        self.assertIn("height: var(--cc-tap); padding-inline: 0.875rem; border-radius: var(--cc-radius-full);", css)
+        self.assertIn("height: var(--cc-tap); padding-inline: var(--cc-btn-sm-px-phone); border-radius: var(--cc-radius-full);", css)
+        self.assertIn("--cc-btn-sm-px-phone: 14px;", css)
 
     def test_row_more_only_takes_taps_where_it_can_hover(self):
         # G13：手机、触屏靠长按出菜单，透明的「···」不接点按；能悬停的设备悬停这一行才接
@@ -8377,7 +8389,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # 第 11 轮审查：两侧同宽（取右上胶囊宽），标题长了也在屏幕正中（原来 1fr auto 1fr 时长标题偏左约 20）
         self.assertIn("grid-template-columns: var(--cc-mpill-w) minmax(0, 1fr) var(--cc-mpill-w);", block(self.css, "  .cc-mtopbar {"))
         self.assertNotIn("grid-template-columns: 1fr auto 1fr", block(self.css, "  .cc-mtopbar {"))
-        self.assertIn("--cc-mpill-w: calc(2 * var(--cc-mpill-btn) + 0.5rem + 2 * var(--cc-hairline));", self.css)
+        self.assertIn("--cc-mpill-w: calc(2 * var(--cc-mpill-btn) + 2 * var(--cc-space-4) + 2 * var(--cc-hairline));", self.css)
         self.assertIn("width: var(--cc-mpill-btn); height: 100%;", self.css)
         self.assertIn("--cc-mtitle-font: var(--code-text-prose);", self.css)
         self.assertIn("pointer-events: none;", block(self.css, "  .cc-mtitle {"))
@@ -8397,7 +8409,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn("size-5 rounded-full p-0", tile)
         # 位置写在 globals.css（手机要挪到外角，工具类盖不住）：组件上不再写 end-1.5 top-1.5
         self.assertNotIn("end-1.5 top-1.5", tile)
-        self.assertIn(".cc-compose-x { top: 0.375rem; inset-inline-end: 0.375rem; }", css)
+        self.assertIn(".cc-compose-x { top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); }", css)
         self.assertNotIn("size-14", tile)
         # 图片预览的关闭是自己的圆钮（电脑 32、手机 44）
         self.assertIn("showCloseButton={false}", tile)
@@ -8406,7 +8418,7 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
     def test_keyboard_composer_and_company_composer_on_phone(self):
         # M9：键盘弹出、输入框展开时离屏边 8
         # 第 11 轮复量只借 8 时是 9（页面卡片的细线）：连这条细线一起借
-        self.assertIn("width: calc(100% + 1rem + 2 * var(--cc-hairline)); margin-inline: calc(-0.5rem - var(--cc-hairline));",
+        self.assertIn("width: calc(100% + var(--cc-keyboard-edge) * 2 + 2 * var(--cc-hairline)); margin-inline: calc(var(--cc-keyboard-edge) * -1 - var(--cc-hairline));",
                       block(self.css, ':root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) {'))
         # M10：公司页输入框同对话页，没在输入、也没有字时收成一行胶囊
         page = read("components/company-page.tsx")
@@ -8420,8 +8432,9 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertIn('<span className="cc-new-dot">', read("components/assistant-ui/thread-list.tsx"))
         # L1：托盘用户按钮 32；L2「需要您的输入」上下 1；L3「更换」「移除」20；L5 候选行同侧栏行
         self.assertIn('className="cc-nav-item h-(--cc-tray-btn) min-w-0 flex-1"', read("assistant.tsx"))
-        self.assertIn("padding: 0.0625rem 0.375rem;", block(css, "  .cc-needs-input {"))
-        self.assertIn("height: var(--cc-panel-btn); padding: 0 0.375rem;", block(css, "  .cc-link-btn {"))
+        self.assertIn("padding: var(--cc-needs-input-py) var(--cc-space-6);", block(css, "  .cc-needs-input {"))
+        self.assertIn("--cc-needs-input-py: 1px;", css)
+        self.assertIn("height: var(--cc-panel-btn); padding: 0 var(--cc-space-6);", block(css, "  .cc-link-btn {"))
         self.assertIn('[data-slot="cc-candidates"] .cc-list-row { min-height: var(--cc-row-h);', css)
         # M11：定时任务行「▶」「···」同侧栏行内按钮
         tasks = read("components/scheduled-tasks.tsx")
@@ -8436,18 +8449,17 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 4)
         self.assertIn('<button type="button" className="cc-card-btn self-start" data-slot="cc-hand-to-cc"', read("components/pending.tsx"))
         # D26：触屏平板（网页布局 + 粗指针）对话顶栏 44、顶栏图标钮与侧栏收起钮点按区 44，鼠标与桌面版不跟
-        coarse = css.split("触屏平板（网页布局 + 粗指针", 1)[1].split("\n  }\n", 1)[0]
-        self.assertIn("@media (pointer: coarse) {", css.split("触屏平板（网页布局 + 粗指针", 1)[0][-1200:])
+        # 触屏判定 B1 起统一成 data-cc-touch（手机变体，或粗指针且不是桌面窗口；lib/variant.ts），网页布局再加 data-cc-variant="web"
+        coarse = css.split("触屏平板（网页布局 + 触屏", 1)[1].split("\n\n", 1)[0]
         # 第 11 轮合并审查：顶栏高的变量写在 @layer components 里敌不过不分层的 :root 定义（顶栏仍 32、按钮已 44）——挪到不分层的
-        # 粗指针变量块里，components 层不再给 --cc-topbar-h 赋值
+        # 触屏变量块里，components 层不再给 --cc-topbar-h 赋值
         unlayered = css.split("\n@layer base {", 1)[0]
-        tokens = unlayered.split("\n@media (pointer: coarse) {\n", 1)[1].split("\n}\n", 1)[0]
-        self.assertIn(':root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', tokens)
+        self.assertIn(':root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', unlayered)
         self.assertNotIn("--cc-topbar-h:", coarse)
         layered = css.split("\n@layer components {", 1)[1]
         self.assertNotRegex(layered, r"--cc-topbar-h\s*:")
-        self.assertIn(':root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
-        self.assertIn(':root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
+        self.assertIn(':root[data-cc-touch][data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
+        self.assertIn(':root[data-cc-touch][data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn('data-slot="cc-sidebar-toggle"', read("assistant.tsx"))
         # 第 11 轮重测失效追踪 trace：按属性名做键的通配兄弟选择器（[data-slot=…] ~ *）让 body 下任何增删（菜单 portal 挂上卸下）整页
         # 样式失效，A14 收菜单那一帧约 40ms；改成按类名的紧挨兄弟，body 下的常驻节点（拖动层、拖动播报区）也不用 data-slot 标识
@@ -8470,10 +8482,11 @@ class Round11ReviewTests(unittest.TestCase):
         # 点按区被滚动容器裁成 38×44。现在 × 挪到方块右上外角（伸出 6），点按区只往外 6、往左下 18：44×44，覆盖方块的
         # x 40–72、y 0–32，中心 (36, 36) 不在里面；附件一行上、右各留 12，正好装下伸出去的部分
         css = self.css
-        for scope in (':root[data-cc-variant="phone"]', '  :root:not([data-cc-variant="desktop"])'):
-            self.assertIn(scope.strip() + " .cc-compose-x { top: -0.375rem; inset-inline-end: -0.375rem; }", css)
-        after = block(css, ':root[data-cc-variant="phone"] .cc-compose-x::after {')
-        self.assertIn("inset-block: -0.375rem -1.125rem; inset-inline: -1.125rem -0.375rem;", after)
+        # 手机变体与粗指针（不是桌面窗口）合成一份 :root[data-cc-touch]（标准化记录 B1）；伸出 6、往左下扩 18（= 44 − 20 − 6）
+        self.assertIn(":root[data-cc-touch] .cc-compose-x { top: calc(var(--cc-space-6) * -1); inset-inline-end: calc(var(--cc-space-6) * -1); }", css)
+        after = block(css, ':root[data-cc-touch] .cc-compose-x::after {')
+        self.assertIn("inset-block: calc(var(--cc-space-6) * -1) calc((var(--cc-tap) - var(--cc-control-2xs) - var(--cc-space-6)) * -1);", after)
+        self.assertIn("inset-inline: calc((var(--cc-tap) - var(--cc-control-2xs) - var(--cc-space-6)) * -1) calc(var(--cc-space-6) * -1);", after)
         self.assertNotIn("inset: -0.75rem", css.split(".cc-compose-x {", 1)[1].split("/* 列表页", 1)[0])
         # 点按区几何：× 20、外角伸出 6；往上 6、往右 6、往下 18、往左 18
         tile, x, out = 72, 20, 6
@@ -8482,17 +8495,14 @@ class Round11ReviewTests(unittest.TestCase):
         self.assertEqual((right - left, bottom - top), (44, 44))
         self.assertFalse(left <= tile / 2 <= right and top <= tile / 2 <= bottom)   # 方块中心不归 ×
         self.assertEqual((-top, right - tile), (12, 12))                            # 伸出去的正好是留出的 12
-        for rule in (':root[data-cc-variant="phone"] .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }',
-                     '  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments { padding-block-start: 0.75rem; padding-inline-end: 0.75rem; }'):
-            self.assertIn(rule, css)
+        self.assertIn(':root[data-cc-touch] .cc-composer-inline > .aui-composer-attachments { padding-block-start: var(--cc-space-12); padding-inline-end: var(--cc-space-12); }', css)
         # 触屏这一条要排在电脑附件一行的内边距之后（同样的优先级，后写的生效）
         self.assertLess(css.index(':root:not([data-cc-variant="phone"]) .cc-composer-inline > .aui-composer-attachments {'),
-                        css.index('  :root:not([data-cc-variant="desktop"]) .cc-composer-inline > .aui-composer-attachments {'))
+                        css.index(':root[data-cc-touch] .cc-composer-inline > .aui-composer-attachments {'))
 
     def test_welcome_chips_are_spaced_8_on_phones(self):
         # 审查：G8 写了问候下胶囊间距 4 → 8（手机胶囊 36 带底色后 4 显挤），漏了
-        self.assertIn(':root[data-cc-variant="phone"] .cc-welcome-filing { gap: 0.5rem; }', self.css)
-        self.assertIn('@media (pointer: coarse) { :root:not([data-cc-variant="desktop"]) .cc-welcome-filing { gap: 0.5rem; } }', self.css)
+        self.assertIn(':root[data-cc-touch] .cc-welcome-filing { gap: var(--cc-space-8); }', self.css)
 
     def test_company_composer_folds_on_android_back(self):
         # 审查：公司页输入框加了收成胶囊，却没接安卓返回键收键盘（KEYBOARD_CLOSED），返回后仍是展开的
