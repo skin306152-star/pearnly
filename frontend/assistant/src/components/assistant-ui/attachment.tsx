@@ -1,6 +1,7 @@
 
 // 附件（同 Claude）。
-// - 输入框里：小方块（缩略图 / 文件图标），右上角移除，上传中转圈，上传失败标红并在提示里说原因；图片点开看大图。
+// - 输入框里：方块（照 Claude 桌面版：128 见方，手机 72；图片整张放进方块，其他文件是文件名 + 类型），右上角圆形移除，上传中转圈，
+//   上传失败标红并在提示里说原因；图片点开看大图（右上角圆形关闭）。
 // - 你发出的消息里：每个文件一张卡片（缩略图、文件名一行、类型说明「PDF · N 页」/ 大小），点开在右侧面板预览
 //   （与 CC 产出的文件同一个预览；服务端取本站留存的那份，PDF 也能看）。读屏名字跟页面语言。
 //   缩略图同 Claude：图片是图片本身，PDF 是第一页（服务端画的小图，page_image thumb，第 5 轮测试 1），载不出退回文件图标。
@@ -8,7 +9,6 @@ import { type PropsWithChildren, useEffect, useState, type FC } from "react";
 import {
   XIcon,
   PlusIcon,
-  FileText,
   Loader2Icon,
   AlertCircleIcon,
 } from "lucide-react";
@@ -26,15 +26,11 @@ import {
 } from "@/components/ui/tooltip";
 import {
   Dialog,
+  DialogClose,
   DialogTitle,
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-} from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
 import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
@@ -116,34 +112,40 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       >
         {children}
       </DialogTrigger>
-      <DialogContent className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&_svg]:text-background [&>button]:hover:[&_svg]:text-destructive p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
+      <DialogContent showCloseButton={false} className="aui-attachment-preview-dialog-content p-2 sm:max-w-3xl">
         <DialogTitle className="aui-sr-only sr-only">{t("imagePreview")}</DialogTitle>
         <div className="aui-attachment-preview bg-app relative mx-auto flex max-h-[calc(var(--cc-viewport-h)*0.8)] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
+        {/* 关闭：浮在图片右上角的圆钮（电脑 32、手机 44） */}
+        <DialogClose className="cc-icon-btn cc-tap cc-preview-close" aria-label={t("close")} title={t("close")}>
+          <XIcon />
+        </DialogClose>
       </DialogContent>
     </Dialog>
   );
 };
 
-const AttachmentThumb: FC = () => {
+/** 方块里面：图片整张放进方块（不裁，同 Claude）；其他文件（或图片载不出）左上文件名、左下类型图标 + 类型。 */
+const AttachmentThumb: FC<{ name: string }> = ({ name }) => {
   const src = useAttachmentSrc();
-
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (src && !failed) {
+    return <img src={src} alt="" draggable={false} className="aui-attachment-tile-image" onError={() => setFailed(true)} />;
+  }
   return (
-    <Avatar className="aui-attachment-tile-avatar h-full w-full rounded-none">
-      <AvatarImage
-        src={src}
-        alt=""
-        className="aui-attachment-tile-image object-cover"
-      />
-      <AvatarFallback>
-        <FileText className="aui-attachment-tile-fallback-icon text-muted-foreground size-8" />
-      </AvatarFallback>
-    </Avatar>
+    <span className="cc-compose-file aui-attachment-tile-fallback">
+      <span className="cc-compose-name">{name}</span>
+      <span className="cc-compose-type">
+        <FileTypeIcon filename={name} />
+        {fileTypeLabel(name)}
+      </span>
+    </span>
   );
 };
 
-/** 输入框里的一个附件：小方块 + 移除。 */
+/** 输入框里的一个附件：方块 + 移除。 */
 const ComposerAttachment: FC = () => {
   const name = useAuiState((s) => s.attachment.name);
 
@@ -171,17 +173,15 @@ const ComposerAttachment: FC = () => {
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
             <div
-              className={cn(
-                "aui-attachment-tile bg-subtle border-line relative size-14 cursor-pointer overflow-hidden rounded-md border transition-opacity hover:opacity-75",
-                isError && "border-destructive",
-              )}
+              className="aui-attachment-tile cc-compose-tile"
+              data-error={isError || undefined}
               role="button"
               tabIndex={0}
               aria-label={[t("attachment").replace("{0}", name), isError ? t("uploadFailed") : isUploading ? t("uploading") : ""]
                 .filter(Boolean)
                 .join(" · ")}
             >
-              <AttachmentThumb />
+              <AttachmentThumb name={name} />
               {isUploading && (
                 <div
                   aria-hidden="true"
@@ -218,7 +218,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip={t("removeFile")}
-        className="aui-attachment-tile-remove hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute end-1.5 top-1.5 size-3.5 rounded-full opacity-100 shadow-sm"
+        className="aui-attachment-tile-remove cc-compose-x hover:[&_svg]:text-danger bg-surface hover:bg-surface! [&_svg]:text-ink absolute end-1.5 top-1.5 size-5 rounded-full p-0 opacity-100 shadow-sm"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />

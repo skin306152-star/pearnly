@@ -25,7 +25,9 @@ class NotesSourceTests(unittest.TestCase):
         self.assertIn('{t("cancel")}', editor)
         self.assertIn('{t("save")}', editor)
         self.assertIn('data-primary=""', editor)
-        self.assertIn("cc-tap", editor)  # 手机点按区不小于 44pt（ccs）
+        # 同一栏其他卡片按钮：.cc-card-btn（电脑 24、手机 44 胶囊，第 11 轮按钮排查 L10；手机点按区不小于 44pt 由它保证）
+        self.assertIn('<div className="cc-card-actions">', editor)
+        self.assertEqual(editor.count('className="cc-card-btn"'), 2)
         self.assertNotIn("onBlur", editor)  # 点「取消」先失焦：离开就保存会把取消变成保存
         self.assertIn("setError(shownError(e));", editor)
         self.assertIn("noteKey(e, touchOnly())", editor)
@@ -134,9 +136,9 @@ const g = globalThis as any;
 const html = (initial: string) => renderToStaticMarkup(createElement(NoteEditor, { initial, onSave: async () => {}, onCancel: () => {} }));
 const empty = html("");
 assert.match(empty, /<textarea[^>]*maxLength="500"/);
-assert.match(empty, /<button type="button" class="cc-btn cc-tap">取消<\/button>/);
+assert.match(empty, /<button type="button" class="cc-card-btn">取消<\/button>/);
 // 没有字（或没改）时「保存」不可点
-assert.match(empty, /<button type="button" class="cc-btn cc-tap" data-primary="" disabled="">保存<\/button>/);
+assert.match(empty, /<button type="button" class="cc-card-btn" data-primary="" disabled="">保存<\/button>/);
 assert.match(html("test"), /data-primary="" disabled="">保存</);
 g.done();
 """, stubs=PAGE_STUBS, lang="zh")

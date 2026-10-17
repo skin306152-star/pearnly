@@ -684,7 +684,10 @@ class CompanyPageSkeletonTests(unittest.TestCase):
         self.assertNotIn('from "radix-ui"', page)
         # 输入框同对话：输入框 + 下巴（公司固定，月份胶囊 = 本页的月份，分店胶囊）
         composer = page.split("const CompanyComposer: FC", 1)[1].split("\n};", 1)[0]
-        self.assertIn('<div className="cc-composer cc-composer-inline">', composer)
+        # 手机上同对话页：没在输入、也没有字时收成一行胶囊（第 11 轮按钮排查 M10）；发送钮带 aui-composer-send，收起时藏起来
+        self.assertIn('<div className="cc-composer cc-composer-inline" data-collapsed={!typing && !text ? "" : undefined}>', composer)
+        self.assertIn("onFocus={() => setTyping(true)}\n          onBlur={() => setTyping(false)}", composer)
+        self.assertIn('className="aui-composer-send cc-send"', composer)
         self.assertIn('<div className="cc-composer-chin" data-slot="cc-composer-chin">', composer)
         self.assertIn('<span className="cc-chin-btn cc-chin-fixed" data-slot="cc-chin-company" data-chosen="">', composer)
         self.assertIn('{withPeriod && <PeriodChip look="cc-chin-btn" side="top" value={period} onChange={setPagePeriod} />}', composer)

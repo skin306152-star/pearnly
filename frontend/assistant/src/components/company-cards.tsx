@@ -311,7 +311,7 @@ export const NotesSection: FC<{ company: string; notes: Note[]; reload: () => Pr
             <NoteEditor key={note.id} initial={note.text} onSave={(text) => save(text, note.id)} onCancel={() => setEditing("")} />
           ) : (
             <div key={note.id} className="cc-note group/note">
-              <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setEditing(note.id)}>
+              <button type="button" className="cc-note-text" onClick={() => setEditing(note.id)}>
                 {note.text}
               </button>
               <button
@@ -390,11 +390,12 @@ export const NoteEditor: FC<{ initial: string; onSave: (text: string) => Promise
         className="cc-input h-auto w-full py-1.5"
       />
       {error && <p role="alert" className="text-danger text-sm">{error}</p>}
-      <div className="flex justify-end gap-2">
-        <button type="button" className="cc-btn cc-tap" disabled={busy} onClick={onCancel}>
+      {/* 同一栏其他卡片按钮（记住的选择、允许卡）：.cc-card-btn，电脑 24、手机 44 胶囊 */}
+      <div className="cc-card-actions">
+        <button type="button" className="cc-card-btn" disabled={busy} onClick={onCancel}>
           {t("cancel")}
         </button>
-        <button type="button" className="cc-btn cc-tap" data-primary="" disabled={!canSave} onClick={() => void save()}>
+        <button type="button" className="cc-card-btn" data-primary="" disabled={!canSave} onClick={() => void save()}>
           {t("save")}
         </button>
       </div>

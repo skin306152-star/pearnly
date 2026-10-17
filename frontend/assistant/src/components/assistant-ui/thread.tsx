@@ -662,11 +662,12 @@ const MessageFiles: FC = () => {
   return (
     <div className="flex flex-col gap-2">
       {mine.map((file) => (
+        // 卡片的内边距在「打开」按钮里：除了右边的下载，整张卡都能点（手机点按区，按钮排查 H11）
         <div
           key={file.id}
-          className="cc-card cc-card-hover flex max-w-md items-center gap-3 px-3 py-2.5 font-sans"
+          className="cc-card cc-card-hover flex max-w-md items-center pe-3 font-sans"
         >
-          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+          <button type="button" onClick={() => openFile(file.id)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-md px-3 py-2.5 text-left">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle text-ink-2">
               <FileTypeIcon filename={file.filename} className="size-4.5" />
             </span>
@@ -706,7 +707,7 @@ const AssistantActionBar: FC = () => {
 
 const CopyAction: FC = () => (
   <ActionBarPrimitive.Copy asChild>
-    <TooltipIconButton tooltip={t("copy")}>
+    <TooltipIconButton tooltip={t("copy")} className="cc-tap">
       <AuiIf condition={(s) => s.message.isCopied}>
         <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
       </AuiIf>

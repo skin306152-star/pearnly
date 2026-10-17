@@ -1490,17 +1490,21 @@ g.done();
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
         self.assertNotIn("@/components/ui/button", source)
         self.assertNotIn("lucide-react", source)
-        # 卡片按钮：电脑 28 高（设计系统小号控件）、13px、字重 500、两钮间距 8；手机（粗指针 / 手机外壳）大号全圆角胶囊约 48、16px
+        # 卡片按钮：电脑 24 高（设计系统 xs 档，6.webp「跳过 / 提交」，第 11 轮按钮排查 G4）、左右 8、13px、字重 500、两钮间距 8；
+        # 手机（粗指针 / 手机外壳）大号全圆角胶囊 44（8.webp 约 42–43，取点按区下限）、16px
         css = read("globals.css")
         rule = lambda selector: css.split("\n  " + selector + " {", 1)[1].split("}", 1)[0]
-        self.assertIn("--cc-control-sm: var(--code-control-sm);", css)
-        self.assertIn("--cc-card-btn-h-phone: 3rem;", css)
+        self.assertIn("--cc-card-btn-h: var(--code-control-xs);", css)
+        self.assertIn("--cc-card-btn-h-phone: var(--cc-tap);", css)
         self.assertIn("--cc-card-btn-font-phone: var(--code-text-prose);", css)
         btn = rule(".cc-card-btn")
         # 次要按钮是一块看得出的浅灰实心（叠色 2），悬停再深一档（叠色 3）：浅色模式下也有悬停反馈（第 10 轮审查）
-        for part in ("height: var(--cc-control-sm);", "background: var(--cc-alpha-2);", "font-size: var(--cc-text-footnote);",
+        for part in ("height: var(--cc-card-btn-h);", "padding: 0 0.5rem;", "background: var(--cc-alpha-2);", "font-size: var(--cc-text-footnote);",
                      "font-weight: 500;"):
             self.assertIn(part, btn)
+        self.assertIn(".cc-card-btn[data-icon] { width: var(--cc-card-btn-h);", css)
+        # 手机浮层右下的「允许」至少 112 宽（8.webp「提交」约 113）
+        self.assertIn(".cc-ask-sheet .cc-card-btn[data-primary] { min-width: 7rem; }", css)
         self.assertNotIn("border:", btn)
         self.assertIn("  .cc-card-btn:hover { background: var(--cc-alpha-3); }", css)
         self.assertIn("  .cc-card-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }", css)
@@ -1694,7 +1698,7 @@ g.done();
         sheet = css.split("\n  .cc-ask-sheet {", 1)[1].split("}", 1)[0]
         self.assertIn("border-radius: var(--cc-radius-sheet);", sheet)
         self.assertIn("background: var(--cc-bg-popover);", sheet)
-        self.assertIn("--cc-radius-sheet: 1.75rem;", css)
+        self.assertIn("--cc-radius-sheet: 1.5rem;", css)   # 8.webp 边缘拟合约 23.5（第 11 轮按钮排查 L9）
         self.assertIn("font-weight: 600;", css.split("\n  .cc-ask-sheet-q {", 1)[1].split("}", 1)[0])   # 问话粗体（照 Claude 手机端）
 
     def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
@@ -2637,7 +2641,9 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 输入框（设计文档 3.12，电脑）：一行里「＋」、输入、发送，单行高 44、内边距 8、按钮 28；圆角 14
         self.assertIn('className="cc-composer cc-composer-inline"', thread)
         self.assertIn("--cc-radius-composer: var(--code-radius-input);", css)
-        self.assertIn('grid-template-areas: "files files files" "add input send";', css)
+        # 附件一行从输入那一列开始（与输入的字对齐，照 Claude 桌面版 7.webp：离框左约 44、离框顶约 12，下隔 16；第 11 轮按钮排查 M7）
+        self.assertIn('grid-template-areas: ". files files" "add input send";', css)
+        self.assertIn("grid-area: files; padding: calc(var(--cc-composer-pad) / 2) var(--cc-composer-pad) 1rem;", css)
         # 内边距扣掉细线边框：border-box 下单行正好 44，不是 45
         self.assertIn("align-items: end; gap: 0; min-height: var(--cc-composer-h); "
                       "padding: calc(var(--cc-composer-pad) - var(--cc-hairline));", css)
@@ -3357,9 +3363,13 @@ class SidebarShellSourceTests(unittest.TestCase):
         self.assertIn("const bulk = companies && selection.length > 1 && selection.includes(localId);", rows)
         self.assertIn("selectRange(rowOrder(event.currentTarget), localId, currentRow(event.currentTarget));", rows)
         self.assertIn("const keys = useSidebarKeys(companies);", read("assistant.tsx"))
-        # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）
+        # ERP / DMS 的日期组开关也在 roving 那一组里（↑ ↓ 不跳过、Tab 不单独停）：电脑上同 Cowork 的组标题（GroupHeader 的开关带
+        # data-roving，第 11 轮按钮排查 M6）
         day = rows.split("const DayGroups: FC", 1)[1].split("\n};\n", 1)[0]
-        self.assertIn('data-slot="aui_thread-list-group-label"\n          data-roving=""\n          className="cc-section-label cc-section-toggle"', day)
+        self.assertIn("<GroupHeader label={group.label} open={open} onToggle={() => toggle(group.key)} />", day)
+        self.assertNotIn("cc-section-toggle", day)
+        header = read("components/assistant-ui/sidebar-group.tsx").split("export const GroupHeader", 1)[1].split("\n);", 1)[0]
+        self.assertIn('data-roving=""\n      data-slot="aui_thread-list-group-label"', header)
         # 组标题右侧操作（tabIndex -1）键盘从组开关进：已展开时 →，操作之间 ← →，最左再 ← 回组开关
         self.assertIn('else if (event.key === "ArrowRight") groupActions(target)[0]?.focus();', keys)
         self.assertIn("if (target.matches(GROUP_ACTION)) return onActionKey(event, target);", keys)
@@ -5928,13 +5938,15 @@ class Round5SmallFixesTests(unittest.TestCase):
                       "    box-shadow: var(--cc-shadow-focus);", base)
         # 兜底同时去掉浏览器自带的 outline:auto：原来靠它显示焦点的按钮（待处理组头、任务行、输入框「＋」）不再是两道
         self.assertNotIn("0 0 0 3px", base)
-        # 点名的几处：组头待处理数、记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、组按钮、胶囊、标题栏公司名
+        # 点名的几处：组头待处理数、记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、
+        # 行按钮（侧栏出错 × 第 11 轮起改用 .cc-row-btn，.cc-group-btn 已删）、知识库一条、胶囊、标题栏公司名
         for rule in (".cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      "button.cc-list-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-show-more:focus-visible { box-shadow: var(--cc-shadow-focus); }",
-                     ".cc-group-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-row-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-note-text:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-chip-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-title-company:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      # 消息下面的「复制」、知识库表单的「取消」本来就有（Button 的 focus-visible:shadow-focus、.cc-btn）
@@ -5945,7 +5957,9 @@ class Round5SmallFixesTests(unittest.TestCase):
         self.assertIn(".cc-split:focus-visible::before { background: var(--cc-focus-ring); width: 1px; }", css)
         # 兜底去掉 outline:auto 后，自带阴影（盖过兜底的 box-shadow）的按钮要自己写聚焦描边，否则一点都看不见：
         # 设置里分段选择的选中格（shadow-sm）、手机圆按钮与抽屉「新建」胶囊（手机顶栏 / 抽屉的圆按钮规则不分层，聚焦规则也跟在后面）
-        self.assertIn('"flex items-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",', read("components/settings.tsx"))
+        # 第 11 轮按钮排查 H26：文字格与图标格一样高 28、手机点按区 44（cc-tap）
+        self.assertIn('"cc-tap flex h-7 items-center justify-center rounded-md px-3 py-1 text-sm [&_svg]:size-4 focus-visible:shadow-focus",',
+                      read("components/settings.tsx"))
         self.assertIn(".cc-round-btn:focus-visible, .cc-pill:focus-visible { box-shadow: var(--cc-shadow-focus); }", block(css, "@layer components {"))
         mobile = css.index(".cc-mtopbar .cc-round-btn, .cc-mdrawer .cc-round-btn {")
         self.assertGreater(css.index(".cc-mtopbar .cc-round-btn:focus-visible, .cc-mdrawer .cc-round-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }"), mobile)
@@ -6815,6 +6829,101 @@ assert.deepEqual(users(), ["earlier", "hello"]);
                       "            await attemptStop(threadId, () => getSessionController(id).interrupt());", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
+
+class Round11ButtonsLikeClaudeTests(unittest.TestCase):
+    """第 11 轮：按钮三端照 Claude（排查报告 G1–G15，用户 10-17）。电脑端已和 Claude 一致的值不动，手机档另加两条
+    （手机变体、粗指针且不是桌面窗口）；数值见 docs/work/2026-10-16-cc-shell-design.md 3.18。"""
+
+    def setUp(self):
+        self.css = read("globals.css")
+
+    def test_phone_tap_sizes_for_shared_controls(self):
+        css = self.css
+        # G2 / G3：文字按钮、输入框、图标按钮手机 44，电脑仍 32（--cc-control 不改）；电脑对话顶栏、桌面标题栏里的图标按钮不跟
+        self.assertIn("--cc-control: var(--code-control);", css)
+        self.assertIn(':root[data-cc-variant="phone"] :is(.cc-btn, .cc-input) { height: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-icon-btn { width: var(--cc-tap); height: var(--cc-tap); }', css)
+        self.assertIn(':root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }', css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); }', css)
+        # 组件里不再用 h-8 把 .cc-btn / .cc-input 钉在 32
+        self.assertNotIn("cc-btn h-8", read("components/scheduled-tasks.tsx"))
+        self.assertNotIn("cc-input h-8", read("components/assistant-ui/projects.tsx"))
+        # G6：抽屉组头操作与待处理数 44、不留缝；G7：「显示更多」跟行高
+        self.assertIn(".cc-drawer .cc-group-actions { gap: 0; padding-inline-end: 0; }", css)
+        self.assertIn(".cc-drawer .cc-group-actions .cc-row-btn { width: var(--cc-tap); height: var(--cc-tap); }", css)
+        self.assertIn("min-height: var(--cc-row-h); padding-inline:", block(css, "  .cc-show-more {"))
+        self.assertIn(".cc-panel-card-body .cc-show-more { min-height: var(--cc-panel-row); }", css)
+        # G5：会话栏手机档（卡头、行尾小按钮 44），电脑 26 / 20 不变
+        self.assertIn(':root[data-cc-variant="phone"] .cc-panel { --cc-panel-head: var(--cc-tap); --cc-panel-btn: var(--cc-tap); }', css)
+        self.assertIn("--cc-panel-head: var(--code-panel-head);", css)
+        # G8 / G10：手机胶囊 36（点按区补到 44）、列表页小按钮 44
+        self.assertIn("--cc-chin-btn-phone: 2.25rem;", css)
+        self.assertIn("inset: calc((var(--cc-chin-btn-phone) - var(--cc-tap)) / 2) 0;", css)
+        self.assertIn("height: var(--cc-tap); padding-inline: 0.875rem; border-radius: var(--cc-radius-full);", css)
+
+    def test_row_more_only_takes_taps_where_it_can_hover(self):
+        # G13：手机、触屏靠长按出菜单，透明的「···」不接点按；能悬停的设备悬停这一行才接
+        self.assertIn('[data-slot="aui_thread-list-item-more"]:not([data-state="open"], :focus-visible) { pointer-events: none; }', self.css)
+        self.assertIn('@media (hover: hover) {\n  [data-slot="aui_thread-list-item"]:hover [data-slot="aui_thread-list-item-more"] { pointer-events: auto; }\n}', self.css)
+
+    def test_mobile_chat_title_has_two_lines_and_no_click(self):
+        # M8：手机对话页顶栏中间两行标题（对话名 16 字重 600、公司名 13 淡色），屏幕居中，不可点
+        app = read("assistant.tsx")
+        self.assertIn("{inChat ? <MobileChatTitle /> : <span />}", app)
+        title = read("components/assistant-ui/projects.tsx").split("export const MobileChatTitle: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn('<Marquee className="cc-mtitle-name">{title || t("untitled")}</Marquee>', title)
+        self.assertIn('{kind && project && company && <Marquee className="cc-mtitle-sub">{company}</Marquee>}', title)
+        self.assertNotIn("onClick", title)
+        self.assertIn("grid-template-columns: 1fr auto 1fr;", block(self.css, "  .cc-mtopbar {"))
+        self.assertIn("--cc-mtitle-font: var(--code-text-prose);", self.css)
+        self.assertIn("pointer-events: none;", block(self.css, "  .cc-mtitle {"))
+
+    def test_composer_attachment_tile_like_claude(self):
+        # M7：输入框里的附件方块 128（手机 72），图片整张放进方块，与输入的字对齐；移除 × 20，手机点按区 44
+        css = self.css
+        self.assertIn("--cc-attach-tile: 8rem;", css)
+        self.assertIn("--cc-attach-tile-phone: 4.5rem;", css)
+        self.assertIn("width: var(--cc-attach-tile); height: var(--cc-attach-tile);", block(css, "  .cc-compose-tile {"))
+        self.assertIn(".cc-compose-tile > img { width: 100%; height: 100%; object-fit: contain; }", css)
+        self.assertIn(':root[data-cc-variant="phone"] .cc-compose-x::after { content: ""; position: absolute; inset: -0.75rem; }', css)
+        tile = read("components/assistant-ui/attachment.tsx")
+        self.assertIn('className="aui-attachment-tile cc-compose-tile"', tile)
+        self.assertIn("cc-compose-x", tile)
+        self.assertIn("size-5 rounded-full p-0", tile)
+        self.assertNotIn("size-14", tile)
+        # 图片预览的关闭是自己的圆钮（电脑 32、手机 44）
+        self.assertIn("showCloseButton={false}", tile)
+        self.assertIn('<DialogClose className="cc-icon-btn cc-tap cc-preview-close"', tile)
+
+    def test_keyboard_composer_and_company_composer_on_phone(self):
+        # M9：键盘弹出、输入框展开时离屏边 8
+        self.assertIn(':root[data-cc-keyboard] .cc-mmain .cc-composer:not([data-collapsed]) { width: calc(100% + 1rem); margin-inline: -0.5rem; }', self.css)
+        # M10：公司页输入框同对话页，没在输入、也没有字时收成一行胶囊
+        page = read("components/company-page.tsx")
+        self.assertIn('data-collapsed={!typing && !text ? "" : undefined}', page)
+
+    def test_desktop_fixes(self):
+        css = self.css
+        # M3：桌面标题栏左侧四颗 26、圆角 6、图标 16
+        self.assertIn(".cc-titlebar .cc-icon-btn { width: var(--cc-bar-btn); height: var(--cc-bar-btn); border-radius: var(--cc-radius-row-ctl); }", css)
+        # M5：「新建」28 槽里 20 的圆
+        self.assertIn('<span className="cc-new-dot">', read("components/assistant-ui/thread-list.tsx"))
+        # L1：托盘用户按钮 32；L2「需要您的输入」上下 1；L3「更换」「移除」20；L5 候选行同侧栏行
+        self.assertIn('className="cc-nav-item h-(--cc-tray-btn) min-w-0 flex-1"', read("assistant.tsx"))
+        self.assertIn("padding: 0.0625rem 0.375rem;", block(css, "  .cc-needs-input {"))
+        self.assertIn("height: var(--cc-panel-btn); padding: 0 0.375rem;", block(css, "  .cc-link-btn {"))
+        self.assertIn('[data-slot="cc-candidates"] .cc-list-row { min-height: var(--cc-row-h);', css)
+        # M11：定时任务行「▶」「···」同侧栏行内按钮
+        tasks = read("components/scheduled-tasks.tsx")
+        self.assertEqual(tasks.count('className="cc-row-btn cc-tap"'), 2)
+        # H21 / H24：筛选 ×、「默认值」折叠标题
+        self.assertEqual(tasks.count('className="cc-chip-x"'), 1)
+        self.assertIn('<summary className="cc-disclosure">', tasks)
+        self.assertIn('className="cc-chip-x"', read("components/pending.tsx"))
+        # L10 / H2：知识库编辑与待处理的按钮是卡片按钮
+        self.assertIn('<button type="button" className="cc-card-btn" data-primary="" disabled={!canSave}', read("components/company-cards.tsx"))
+        self.assertEqual(read("components/pending.tsx").count('className="cc-card-btn self-'), 3)
+
 
 if __name__ == "__main__":
     unittest.main()
