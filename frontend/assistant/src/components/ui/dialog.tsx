@@ -4,6 +4,7 @@ import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 
 function Dialog({
@@ -70,7 +71,7 @@ function DialogContent({
           // 默认关闭钮同其他弹窗的 ×：图标按钮（电脑 32、图标 20；手机 44）
           <DialogPrimitive.Close data-slot="dialog-close" className="cc-icon-btn cc-tap absolute end-3 top-3">
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("close")}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -108,7 +109,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{t("close")}</Button>
         </DialogPrimitive.Close>
       )}
     </div>
