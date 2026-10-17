@@ -18,9 +18,9 @@ export type SummaryCopy = Record<StepKind, (n: number) => string> & {
 /** 一步：工具名、是否失败（stepFailed）、是否点了「拒绝」没做、结果是否写明没做成（stepUndone）。 */
 export type StepPart = { toolName: string; failed: boolean; denied?: boolean; undone?: boolean };
 
-/** 没做的步骤怎么写：「已拒绝」一词（沿用卡片上的词条）、「失败」一词（沿用步骤行行尾的词条）与各工具卡片上的问话
- *  （lib/tool-labels.ts 的 ask）。 */
-export type Denial = { word: string; asks: Readonly<Record<string, string>>; failed?: string };
+/** 没做的步骤怎么写：拒绝时跟在问话后的一词（要点「允许」的步骤是卡片、不进组，组里用不到，可不给）、「失败」一词（沿用步骤行
+ *  行尾的词条）与各工具卡片上的问话（lib/tool-labels.ts 的 ask）。 */
+export type Denial = { word?: string; asks: Readonly<Record<string, string>>; failed?: string };
 
 /** 摘要里的一项：kind 是上面六类之一，或 `own:<工具名>`（本站工具）。 */
 export type SummaryEntry = { kind: string; count: number; failed: number };
@@ -119,7 +119,7 @@ export function summaryText(
   entries: readonly SummaryEntry[],
   copy: SummaryCopy,
   done: Readonly<Record<string, string>>,
-  denial: Denial = { word: "", asks: {} },
+  denial: Denial = { asks: {} },
 ): string {
   return entries
     .map(({ kind, count, failed }) => {

@@ -148,7 +148,7 @@ const late = new ThinkingClock();
 assert.equal(late.note("writing", t0, t0 + 20000), 0);
 """)
 
-    def test_the_line_folds_away_while_the_allow_card_waits_and_comes_back_after_the_click(self):
+    def test_the_line_says_needs_input_while_the_allow_card_waits_and_comes_back_after_the_click(self):
         self.run_page(r"""
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { isBusy } from "@/lib/managed-agents/reducer";
@@ -169,13 +169,101 @@ push(S, ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_acti
 await g.sleep(20);
 let s: any = c.getSnapshot();
 assert.deepEqual(s.pendingApprovals, ["tz"]);  // 卡片照常显示
-assert.equal(turnActivity(s).kind, "hidden");  // 轮到用户：状态行收起
+assert.equal(turnActivity(s).kind, "input");  // 轮到用户：状态行换成「需要您的输入」（照 Claude，用户 10-17）
 assert.equal(isBusy(s), true);
 // 点了允许：服务端开始执行，状态行回来，说这一步在做什么
 c.respondToApproval("tz", true);
 s = c.getSnapshot();
 assert.equal(turnActivity(s).kind, "tool");
 assert.equal(isBusy(s), true);
+""")
+
+    def test_a_confirm_that_never_arrived_keeps_the_card_and_says_why(self):
+        # 第 9 轮测试：拦住 assistant.api.confirm 后卡片折成做完的说法「记下了公司选择」、按钮还挂着。确认没送到不能写成功：
+        # 卡片照原样回来（问话、改动都在），按钮可再点，上方一行原因（通用句）；再点送到了才定下
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { approvalCard } from "@/lib/approval-card";
+import { turnActivity } from "@/lib/managed-agents/turn";
+import { t } from "@/i18n";
+---
+const S = "sesn_gate_fail";
+site.echo = false;
+site.runs = { tz: "awaiting_approval" };
+const changes = [{ field: "公司", before: "", after: "A" }];
+site.toolReply = async () => ({ status: "awaiting_approval", ask: "把这个选择记到公司？", preview: changes });
+let confirmFails = true;
+const base = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "confirm" && confirmFails) throw new TypeError("Failed to fetch");
+  return base(method, args, body);
+};
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+push(S, ev("u1", "user.message", 1, { content: text("记到公司") }));
+push(S, ev("r1", "session.status_running", 2));
+push(S, ev("tz", "agent.custom_tool_use", 3, { name: "cowork_company_choice_save", input: { choice: "A" } }));
+push(S, ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } }));
+await g.sleep(20);
+const tz = () => c.getSnapshot().messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === "tz");
+assert.equal(tz().approval.ask, "把这个选择记到公司？");
+c.respondToApproval("tz", true);
+assert.equal(tz().approval.approved, true);      // 点下去先按允许画（乐观）
+await g.sleep(320);
+const confirms = () => g.calls.filter((call: any) => call.method === "confirm").length;
+assert.equal(confirms(), 1);
+let part = tz();
+assert.equal(part.approval.approved, undefined);  // 没送到：不写成功，按钮回来
+assert.equal(part.approval.ask, "把这个选择记到公司？");
+assert.deepEqual(part.approval.preview, changes);
+assert.equal(part.approval.failure, t("somethingWrong"));
+assert.deepEqual(approvalCard(part, { ask: {} }), { phase: "ask" });
+assert.deepEqual(c.getSnapshot().pendingApprovals, ["tz"]);
+assert.equal(turnActivity(c.getSnapshot()).kind, "input");
+// 再点：送到了，定下「允许」，原因清掉
+confirmFails = false;
+c.respondToApproval("tz", true);
+await g.sleep(320);
+assert.equal(confirms(), 2);
+part = tz();
+assert.equal(part.approval.approved, true);
+assert.equal(part.approval.failure, undefined);
+assert.equal(part.approval.ask, "把这个选择记到公司？");
+""")
+
+    def test_a_card_answered_elsewhere_settles_here_at_once(self):
+        # 别的设备上答过：实时事件里这一步已有结论，这边按钮立即消失、变成点完的样子（不用刷新）
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { approvalCard } from "@/lib/approval-card";
+---
+const S = "sesn_gate_else";
+site.echo = false;
+site.runs = { ta: "awaiting_approval", td: "awaiting_approval" };
+site.toolReply = async (id: string) => ({ status: "awaiting_approval", ask: id === "ta" ? "记到公司？" : "删掉？", preview: [] });
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+push(S, ev("u1", "user.message", 1, { content: text("go") }));
+push(S, ev("r1", "session.status_running", 2));
+push(S, ev("ta", "agent.custom_tool_use", 3, { name: "cowork_company_choice_save", input: {} }));
+push(S, ev("td", "agent.custom_tool_use", 4, { name: "cowork_company_choice_delete", input: {} }));
+push(S, ev("tb", "agent.tool_use", 5, { name: "bash", input: { command: "ls" } }));
+push(S, ev("p1", "session.status_idle", 6, { stop_reason: { type: "requires_action", event_ids: ["ta", "td", "tb"] } }));
+await g.sleep(20);
+const find = (id: string) => c.getSnapshot().messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === id);
+assert.deepEqual([...c.getSnapshot().pendingApprovals].sort(), ["ta", "tb", "td"]);
+// 本站工具：别处点了允许 / 拒绝，服务端执行完交回结果
+push(S, ev("ra", "user.custom_tool_result", 7, { custom_tool_use_id: "ta", content: text(JSON.stringify({ status: "saved" })) }));
+push(S, ev("rd", "user.custom_tool_result", 8, { custom_tool_use_id: "td", content: text(JSON.stringify({ status: "denied", message: "x" })) }));
+// 内置工具：别处的确认（服务端记下的）推过来
+push(S, ev("cb", "user.tool_confirmation", 9, { tool_use_id: "tb", result: "allow" }));
+assert.deepEqual(approvalCard(find("ta"), { ask: {} }), { phase: "answered", approved: true, failed: false });
+assert.deepEqual(approvalCard(find("td"), { ask: {} }), { phase: "answered", approved: false, failed: false });
+assert.deepEqual(approvalCard(find("tb"), { ask: {} }), { phase: "answered", approved: true, failed: false });
+assert.equal(find("ta").approval.ask, "记到公司？");   // 点完的卡片照写问话
+assert.deepEqual(c.getSnapshot().pendingApprovals, []);
 """)
 
     def test_silence_while_running_reads_as_reconnecting_and_recovers(self):
@@ -577,7 +665,7 @@ g.respond = respond;
         self.assertLess(on_new.index("if (!ok) return;"), on_new.index("generateTitle()"))   # 没发出去不取标题
         self.assertIn("composer.current = runtime.thread.composer;", provider)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn("<SendFailure />\n            <Composer />", thread)
+        self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <Composer />", thread)
         failure = thread.split("const SendFailure: FC = () => {", 1)[1].split("\n};\n", 1)[0]
         self.assertIn('<div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>', failure)
         self.assertIn('<p className="line-clamp-2">{message}</p>', failure)

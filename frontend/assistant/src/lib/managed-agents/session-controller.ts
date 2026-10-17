@@ -19,6 +19,7 @@
 // 超过 STALL_MS 一条也没有，就标 stalled（状态行改成「连接中断，正在重连」），并重开尾巴：走原有的连上即补拉、带状态
 // 校正那一套，不另加轮询；之后收到任何消息就清掉。页面在后台时不计（回到前台重新计时，尾巴同时补拉一次）。
 
+import { shownError } from "@/lib/frappe";
 import { noteRun } from "./activity";
 import { confirmTools, interruptSession, listEvents, runTool, sendMessage as postMessage } from "./api";
 import { type FeedEvent, messageText, type RelayEnvelope, type RunStatus, type StreamEvent } from "./events";
@@ -557,8 +558,9 @@ export class SessionController {
       // The server never took our answer, so the session is still parked.
       // Undo the optimistic settle by putting those gates back (a replay
       // can't: the parked status_idle is already in `seen` and dedupes out).
+      // 卡片照原样回来，按钮上方写一行原因（同对话里发不出去那一行：服务端原文，没有就用通用的一句），再点重试
       const ids = confirmations.map((c) => c.tool_use_id);
-      const next = restoreGates(this.state, ids);
+      const next = restoreGates(this.state, ids, shownError(err));
       this.mergeProjection({ ...next, transportError: describe(err) });
     } finally {
       this.unacked -= confirmations.length;

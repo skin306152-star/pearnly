@@ -1358,9 +1358,10 @@ for (const blocked of [null, undefined]) {
             self.assertRegex(block(words, "update: {"), r"blocked: \"[^\"]*\{ver\}[^\"]*\"", lang)
 
 
-# ── 「允许」卡片的卡片规矩（用户 2026-10-13 第 5、12 条）──────────────────────────────────────────────────────
-# 一句话改几个定时任务只弹一张卡片，卡片照 Claude 对话里卡片的规矩：按钮最多两个、在底部；改动最多 5 行，多了列前几行
-# + 「还有 N 项」；卡内不套滚动；手机点按区不小于 44pt；颜色只用 globals.css 的变量。用 react-dom/server 渲染真实组件。
+# ── 「允许」卡片的卡片规矩（用户 2026-10-13 第 5、12 条；10-17 照 Claude 的问题卡片）──────────────────────────────────
+# 一句话改几个定时任务只弹一张卡片，卡片照 Claude 对话里卡片的规矩：按钮最多两个、在底部靠右（「拒绝」次要在左、「允许」主要
+# 在右，都不带图标，.cc-card-btn）；改动最多 5 行，多了列前几行 + 「还有 N 项」；卡内不套滚动；手机点按区不小于 44pt；
+# 颜色只用 globals.css 的变量。点完卡片留在原处，按钮行换成所选那一项（当场与重开对话同一个样子）。用 react-dom/server 渲染真实组件。
 
 APPROVAL_CARD = r"""
 import "cc-test-setup";
@@ -1376,12 +1377,48 @@ const rows = (n: number) => Array.from({ length: n }, (_, i) => ({
 const card = (n: number) => renderToStaticMarkup(createElement(ApprovalBar, {
   approval: { id: "sevt_1", preview: rows(n) }, respondToApproval: () => {} }));
 const items = (html: string) => (html.match(/<li/g) ?? []).length;
-const buttons = (html: string) => html.match(/<button[^>]*>/g) ?? [];
+const buttons = (html: string) => html.match(/<button[^>]*>.*?<\/button>/g) ?? [];
 """
+
+# 卡片要的工具名字（站点按语言给的，lib/tool-labels.ts）：存公司选择每次都要允许；库存科目组带了 acccod 才要（服务端 approval: ["acccod"]）
+TOOL_LABELS_STUB = r"""
+export type ToolLabels = any;
+export const LABELS = {
+  done: { cowork_company_choice_save: "记下了公司选择", cowork_stock_group: "Checked the stock account group" },
+  running: {},
+  ask: { cowork_company_choice_save: "把这个选择记到公司？", cowork_stock_group: "Change the inventory account group?" },
+  gate: { cowork_stock_group: ["acccod"] },
+};
+export function useToolLabels() { return LABELS; }
+export function toolLabel(labels: any, toolName: string, running: boolean): string {
+  return (running ? labels.running[toolName] : undefined) ?? labels.done[toolName] ?? toolName;
+}
+"""
+
+# 手机 / 电脑：测试里由 globalThis.phone 定（组件库的 matchMedia 在 node 里没有）
+USE_MOBILE_STUB = r"""
+export const MOBILE_BREAKPOINT = 768;
+export const MOBILE_QUERY = "(max-width: 767px)";
+export function useIsMobile(): boolean { return (globalThis as any).phone === true; }
+"""
+
+# 手机浮层读的是当前对话的状态与控制器：换成测试里给的状态，点击记下来
+SHEET_STUBS = {
+    "@/lib/managed-agents/runtime-provider": r"""
+export function useActiveSessionSnapshot() { return (globalThis as any).snapshot; }
+""",
+    "@/lib/managed-agents/session-controller": r"""
+export function getSessionController(sessionId: string) {
+  return { respondToApproval: (id: string, approved: boolean) => (globalThis as any).answers.push([sessionId, id, approved]) };
+}
+""",
+}
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class ApprovalCardBehaviourTests(unittest.TestCase):
+    STUBS = {"@/lib/tool-labels": TOOL_LABELS_STUB, "@/hooks/use-mobile": USE_MOBILE_STUB}
+
     def test_one_card_for_several_tasks_follows_the_card_rules(self):
         run_ts(APPROVAL_CARD + r"""
 // 教程里的一句话改 3 个任务的提醒：一张卡片全列出，两个按钮在改动下面
@@ -1390,8 +1427,15 @@ assert.equal(items(html), 3);
 assert.doesNotMatch(html, /more/);
 assert.equal(buttons(html).length, 2);
 assert.ok(html.lastIndexOf("</ul>") < html.indexOf("<button"));
-// 手机点按区不小于 44pt（与页面上其它圆按钮同一个尺寸变量）
-for (const button of buttons(html)) assert.match(button, /pointer-coarse:h-\(--cc-mbtn-size\)/);
+// 按钮照 Claude：底部靠右，「拒绝」在左（次要，没有 data-primary）、「允许」在右（主要）；同一个卡片按钮类，不带图标
+assert.match(html, /<div class="cc-card-actions">/);
+const [deny, allow] = buttons(html);
+assert.match(deny!, /^<button type="button" class="cc-card-btn">Deny<\/button>$/);
+assert.match(allow!, /^<button type="button" class="cc-card-btn" data-primary="">Allow<\/button>$/);
+assert.doesNotMatch(html, /<svg/);
+// 改动清单不另套一层带边框的框（卡里只一层框，细线隔开：.cc-ask-changes）
+assert.match(html, /<ul class="cc-ask-changes">/);
+assert.doesNotMatch(html, /rounded-md border/);
 // 卡内不套滚动
 assert.doesNotMatch(card(20), /overflow|max-h/);
 // 正好 5 行：全列；6 行：前 4 行 + 「还有 2 项」，卡片仍是 5 行
@@ -1411,14 +1455,25 @@ assert.deepEqual(cardRows([]), { shown: [], more: 0 });
 html = renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "sevt_2" }, respondToApproval: () => {} }));
 assert.equal(items(html), 0);
 assert.equal(buttons(html).length, 2);
-// 点过以后：结论用 globals.css 的成功 / 危险色
-const verdict = (approved: boolean) => renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "x", approved } }));
-assert.match(verdict(true), /text-success/);
-assert.match(verdict(false), /text-danger/);
+// 点过以后：按钮行换成一行淡色字——所选那一项；没有绿勾红叉、没有红绿色
+const answered = (approved: boolean) => renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "x", approved } }));
+assert.equal(answered(true), '<div data-slot="cc-ask-answer" class="cc-ask-answer">Allow</div>');
+assert.equal(answered(false), '<div data-slot="cc-ask-answer" class="cc-ask-answer">Deny</div>');
+for (const approved of [true, false]) assert.doesNotMatch(answered(approved), /svg|success|danger|button/);
+// 允许了、这一步没做成：所选那一项 + 危险色「失败」
+html = renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "x", approved: true }, card: { phase: "answered", approved: true, failed: true } }));
+assert.equal(html, '<div data-slot="cc-ask-answer" class="cc-ask-answer">Allow · <span class="cc-step-failed">Failed</span></div>');
+// 确认请求没送到：按钮还在、可再点，上方一行原因（同对话里发不出去那一行）
+html = renderToStaticMarkup(createElement(ApprovalBar, {
+  approval: { id: "x", preview: rows(1), failure: "Something went wrong. Try again." }, respondToApproval: () => {} }));
+assert.equal(buttons(html).length, 2);
+assert.ok(html.indexOf('role="alert"') < html.indexOf("<button"));
+assert.match(html, /<p class="line-clamp-2">Something went wrong\. Try again\.<\/p>/);
 g.done();
 """)
         run_ts(APPROVAL_CARD + r"""
 assert.match(card(6), />还有 2 项</);
+assert.match(card(1), />拒绝<\/button><button[^>]*>允许</);
 g.done();
 """, lang="zh")
         run_ts(APPROVAL_CARD + r"""
@@ -1427,6 +1482,179 @@ g.done();
 """, lang="th")
         source = read("components/tool-uis/approval-bar.tsx")
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
+        self.assertNotIn("@/components/ui/button", source)
+        self.assertNotIn("lucide-react", source)
+        # 卡片按钮：电脑 28 高（设计系统小号控件）、13px、字重 500、两钮间距 8；手机（粗指针 / 手机外壳）大号全圆角胶囊约 48、16px
+        css = read("globals.css")
+        rule = lambda selector: css.split("\n  " + selector + " {", 1)[1].split("}", 1)[0]
+        self.assertIn("--cc-control-sm: var(--code-control-sm);", css)
+        self.assertIn("--cc-card-btn-h-phone: 3rem;", css)
+        self.assertIn("--cc-card-btn-font-phone: var(--code-text-prose);", css)
+        btn = rule(".cc-card-btn")
+        for part in ("height: var(--cc-control-sm);", "background: var(--cc-bg-subtle);", "font-size: var(--cc-text-footnote);",
+                     "font-weight: 500;"):
+            self.assertIn(part, btn)
+        self.assertNotIn("border:", btn)
+        self.assertIn("  .cc-card-btn[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }", css)
+        self.assertIn("justify-content: flex-end; gap: 0.5rem;", rule(".cc-card-actions"))
+        coarse = css.split("  @media (pointer: coarse) {\n    .cc-card-btn {", 1)[1].split("}", 1)[0]
+        self.assertIn("height: var(--cc-card-btn-h-phone);", coarse)
+        self.assertIn("border-radius: var(--cc-radius-full); font-size: var(--cc-card-btn-font-phone);", coarse)
+        self.assertIn("height: var(--cc-card-btn-h-phone);", rule(':root[data-cc-variant="phone"] .cc-card-btn'))
+        # 问话正文色、字重 500
+        self.assertIn("color: var(--cc-ink); font-weight: 500;", css.split(".cc-ask-q.cc-step-row {", 1)[1].split("}", 1)[0])
+
+    def test_the_answered_card_looks_the_same_live_and_reopened(self):
+        # 点完卡片留在原处（不进折叠的步骤组）：问话 + 所选那一项。当场点的与重开对话（历史里没有点击记录，按结果认）同一个样子
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { approvalCard, firstPendingApproval, gatedCall } from "@/lib/approval-card";
+import { StepRow } from "@/components/tool-uis/steps";
+import { LABELS } from "@/lib/tool-labels";
+const g = globalThis as any;
+const json = (value: unknown) => ({ text: JSON.stringify(value), isError: false });
+const saved = json({ status: "saved" });
+const denied = json({ status: "denied", message: "The user did not allow this change." });
+const notSaved = json({ status: "not_saved", reason: "x" });
+const step = (extra: any) => renderToStaticMarkup(createElement(StepRow as any, {
+  type: "tool-call", toolCallId: "t1", toolName: "cowork_company_choice_save", args: { choice: "A" }, argsText: "{}",
+  status: { type: "complete" }, respondToApproval: () => {}, ...extra }));
+const ask = "把这个选择记到公司？";
+// 当场 == 重开：允许、拒绝、允许了却没存上
+for (const [live, reopened, want] of [
+  [{ approval: { id: "t1", ask, approved: true }, result: saved }, { result: saved }, "允许"],
+  [{ approval: { id: "t1", ask, approved: false }, result: denied }, { result: denied }, "拒绝"],
+  [{ approval: { id: "t1", ask, approved: true }, result: notSaved }, { result: notSaved }, "允许 · "],
+] as const) {
+  const html = step(live);
+  assert.equal(html, step(reopened), want);
+  assert.match(html, new RegExp(`class="cc-step-row cc-ask-q cc-tap"[^>]*><span[^>]*>${ask}</span>`));
+  assert.match(html, new RegExp(`<div data-slot="cc-ask-answer" class="cc-ask-answer">${want}`));
+  assert.doesNotMatch(html, /<button[^>]*cc-card-btn|已允许|已拒绝|记下了公司选择|text-success/);
+  assert.match(html, /data-phase="answered"/);
+}
+assert.match(step({ result: notSaved }), /允许 · <span class="cc-step-failed">失败<\/span>/);
+// 等回答：问话正文色，下面两个按钮；电脑上在卡片里
+let html = step({ approval: { id: "t1", ask, preview: [{ field: "公司", before: "", after: "A" }] } });
+assert.match(html, /data-phase="ask"/);
+assert.match(html, />拒绝<\/button><button type="button" class="cc-card-btn" data-primary="">允许<\/button>/);
+// 手机：按钮在输入框上方的浮层里，对话流里那一步只列问话与改动、不重复画按钮
+g.phone = true;
+html = step({ approval: { id: "t1", ask, preview: [{ field: "公司", before: "", after: "A" }] } });
+assert.doesNotMatch(html, /cc-card-btn/);
+assert.match(html, />公司</);
+g.phone = false;
+// 哪些是卡片：本页点过的、结果写明拒绝的、要「允许」的本站工具已有结果的；给了要允许的参数才算（同服务端 needs_approval）
+const part = (extra: any) => ({ toolName: "cowork_company_choice_save", args: {}, ...extra });
+assert.deepEqual(approvalCard(part({ approval: { id: "t1" } }), LABELS), { phase: "ask" });
+assert.deepEqual(approvalCard(part({ result: saved }), LABELS), { phase: "answered", approved: true, failed: false });
+assert.deepEqual(approvalCard(part({ result: denied }), LABELS), { phase: "answered", approved: false, failed: false });
+assert.equal(approvalCard(part({}), LABELS), null);                      // 还没结果、没出卡片：照常是一步
+assert.equal(approvalCard(part({ result: { text: "bad", isError: true } }), LABELS), null);   // 出卡片前就核出拒绝：没出过卡片
+assert.equal(approvalCard({ toolName: "bash", args: {}, result: saved }, LABELS), null);    // 不要允许的工具
+assert.equal(gatedCall("cowork_stock_group", { connection: "C1" }, LABELS), false);
+assert.equal(gatedCall("cowork_stock_group", { acccod: "1100" }, LABELS), true);
+assert.equal(gatedCall("cowork_stock_group", { acccod: "" }, LABELS), false);
+assert.equal(approvalCard({ toolName: "cowork_stock_group", args: {}, result: saved }, LABELS), null);
+assert.deepEqual(approvalCard({ toolName: "cowork_stock_group", args: { acccod: "1100" }, result: saved }, LABELS),
+  { phase: "answered", approved: true, failed: false });
+// 手机浮层只浮最早一张还在等的
+const msgs = [
+  { role: "assistant", content: [{ type: "tool-call", toolCallId: "a", approval: { id: "a", approved: true } },
+                                 { type: "tool-call", toolCallId: "b", approval: { id: "b" } }] },
+  { role: "assistant", content: [{ type: "tool-call", toolCallId: "c", approval: { id: "c" } }] },
+];
+assert.equal(firstPendingApproval(msgs as any)?.toolCallId, "b");
+g.done();
+""", stubs=self.STUBS, lang="zh")
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
+
+    def test_phone_sheet_floats_the_earliest_card_and_the_cross_denies(self):
+        # 手机等回答时卡片浮在输入框上方（照 Claude 手机端）：问话大号字、右上圆形 × = 拒绝、右下大号胶囊「允许」，改动照常列；
+        # 多张只浮最早一张；电脑不浮；不是弹窗（Esc / 返回键不当拒绝）
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
+const g = globalThis as any;
+g.answers = [];
+const tool = (id: string, extra: any = {}) => ({ type: "tool-call", toolCallId: id, toolName: "cowork_company_choice_save", args: {}, ...extra });
+g.snapshot = { sessionId: "sesn_1", messages: [
+  { role: "assistant", content: [tool("t0", { approval: { id: "t0", approved: true } }),
+    tool("t1", { approval: { id: "t1", ask: "把这个选择记到公司？", preview: [{ field: "公司", before: "", after: "A" }], failure: "网络不通" } })] },
+  { role: "assistant", content: [tool("t2", { approval: { id: "t2", ask: "第二张？" } })] },
+] };
+// 组件里的钩子在测试里都是普通函数（站点状态、控制器、手机判断换成了桩）：直接调用，拿到画出来的元素树
+const walk = (node: any, out: any[] = []): any[] => {
+  if (Array.isArray(node)) { for (const n of node) walk(n, out); return out; }
+  if (node && typeof node === "object" && node.props) { out.push(node); walk(node.props.children, out); }
+  return out;
+};
+g.phone = false;
+assert.equal(ApprovalSheet(), null);     // 电脑不浮
+g.phone = true;
+const tree = ApprovalSheet() as any;
+assert.equal(tree.props["data-slot"], "cc-ask-sheet");
+assert.equal(tree.props.className, "cc-ask-sheet");
+assert.equal(tree.props["aria-label"], "把这个选择记到公司？");   // 最早一张还在等的
+const nodes = walk(tree);
+const btns = nodes.filter((n) => n.type === "button");
+assert.equal(btns.length, 2);
+const [cross, allow] = btns;
+assert.equal(cross.props["aria-label"], "拒绝");
+assert.equal(cross.props["data-icon"], "");
+assert.equal(allow.props["data-primary"], "");
+assert.equal(allow.props.children, "允许");
+assert.ok(nodes.some((n) => n.props.className === "cc-ask-sheet-q" && n.props.children === "把这个选择记到公司？"));
+assert.ok(nodes.some((n) => n.props.preview?.[0]?.field === "公司"));   // 改动照常列
+assert.ok(nodes.some((n) => n.props.message === "网络不通"));            // 没送到的原因在按钮上方
+cross.props.onClick();
+allow.props.onClick();
+assert.deepEqual(g.answers, [["sesn_1", "t1", false], ["sesn_1", "t1", true]]);
+// 不是弹窗：没有 Esc / 返回键处理，只有 ×
+assert.ok(!nodes.some((n) => n.props.onKeyDown || n.props.role === "dialog"));
+// 答完：浮下一张；都答完浮层消失
+g.snapshot.messages[0].content[1].approval = { id: "t1", approved: true };
+assert.equal((ApprovalSheet() as any).props["aria-label"], "第二张？");
+g.snapshot.messages[1].content[0].approval = { id: "t2", approved: false };
+assert.equal(ApprovalSheet(), null);
+g.done();
+""", stubs={**self.STUBS, **SHEET_STUBS}, lang="zh")
+        thread = read("components/assistant-ui/thread.tsx")
+        # 跟着输入框走：放在对话底部输入框那一块里，输入框正上方
+        self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <Composer />", thread)
+        css = read("globals.css")
+        sheet = css.split("\n  .cc-ask-sheet {", 1)[1].split("}", 1)[0]
+        self.assertIn("border-radius: var(--cc-radius-sheet);", sheet)
+        self.assertIn("background: var(--cc-bg-popover);", sheet)
+        self.assertIn("--cc-radius-sheet: 1.75rem;", css)
+        self.assertIn("font-weight: 500;", css.split("\n  .cc-ask-sheet-q {", 1)[1].split("}", 1)[0])
+
+    def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
+        thread = read("components/assistant-ui/thread.tsx")
+        # 等回答时工作状态行换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方）
+        indicator = thread[thread.index("const RunIndicator: FC"):thread.index("/** 显示时每秒走一次的本页时钟")]
+        self.assertIn('<span className="cc-needs-input-dot" aria-hidden="true" />\n        <span className="cc-needs-input">{t("needsInput")}</span>', indicator)
+        css = read("globals.css")
+        self.assertIn("background: var(--cc-brand);", css.split("\n  .cc-needs-input-dot {", 1)[1].split("}", 1)[0])
+        pill = css.split("\n  .cc-needs-input {", 1)[1].split("}", 1)[0]
+        self.assertIn("background: var(--cc-warning-soft);", pill)
+        self.assertIn("color: var(--cc-warning);", pill)
+        i18n = read("i18n.ts")
+        for word in ('needsInput: "Needs your input"', 'needsInput: "需要您的输入"', 'needsInput: "ต้องการข้อมูลจากคุณ"'):
+            self.assertIn(word, i18n)
+        # 「已允许 / 已拒绝」不再用（点完写所选那一项），词条删掉
+        self.assertNotRegex(i18n, r"\b(allowed|denied):")
+        # 新对话页的安装提示：卡片按钮（「添加」主要、× 次要的圆钮），尺寸同允许卡
+        install = read("components/install-prompt.tsx")
+        banner = install[install.index("export function InstallBanner"):]
+        self.assertIn('<button type="button" className="cc-card-btn" data-primary="" onClick={run}>\n        {LABEL[target]()}', banner)
+        self.assertIn('className="cc-card-btn"\n        data-icon=""', banner)
+        self.assertNotIn("cc-install-main", css + install)
 # ── 结果面板的 Word 预览（2026-10-13 教程第 3 条：「สรุปภาษีแก้วกานดา_ก.ย._2569.docx」只显示下载按钮）────────────────
 # 服务端把 .docx 读成纯数据（pearnly_core.assistant.docx_preview，离线检查在 tests/test_assistant.py），页面用按需载入的
 # document-view 按文字渲染。下面用 react-dom/server 渲染真实组件，看显示出来的 HTML。
@@ -1856,7 +2084,9 @@ snap = c.getSnapshot();
 assert.equal(statusReads(S), 3);
 assert.deepEqual(snap.pendingApprovals, []);
 assert.equal(snap.isRunning, true);
-assert.equal(toolPart(snap, "tz").approval, undefined);
+// 别处答过：这边按钮立即消失，卡片留着点完的样子（定下「允许」，问话照旧，用户 10-17）
+assert.equal(toolPart(snap, "tz").approval.approved, true);
+assert.equal(toolPart(snap, "tz").approval.ask, "Turn it on?");
 assert.equal(toolCalls().length, asked);
 // 从后台缓存恢复（pageshow persisted）也核对一次；没恢复的 pageshow 不算
 g.fire("pageshow", { persisted: false });

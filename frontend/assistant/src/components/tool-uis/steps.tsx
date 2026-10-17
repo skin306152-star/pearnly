@@ -3,20 +3,23 @@
 // 点开是一张细框卡片，一步一行、淡色一句说明（没有图标；本站工具后面带「 · 对象」，lib/step-subject.ts），失败的行尾红字「失败」，
 // 能展开的行尾一个 12px 箭头；再点某一步才看到命令 / 内容与输出（等宽；本站工具只显示给人看的字段，lib/step-detail.ts）。
 // 在做什么、用了多久由对话底部的工作状态行说（thread.tsx 的 RunIndicator），摘要行不再另放一个在动的点。
-// 所有工具共用 StepRow。停下来等用户批准的那一步不收进组（thread.tsx 的 groupBy），直接在行下给「允许 / 拒绝」。
+// 所有工具共用 StepRow。要用户点「允许 / 拒绝」的那一步是一张卡（lib/approval-card.ts）：不收进组（thread.tsx 的 groupBy），
+// 问话正文色、底部靠右两个按钮；点完卡片留在原处，按钮行换成所选那一项（当场、切回、重开对话同一个样子，照 Claude）。
 // 卡片规矩（docs/development/ccs.md）：点开的内容框不在对话里再套一层滚动——长内容先显示前 CLIP_LINES 行，
 // 点「… N 行」整段展开；手机（粗指针）上能点的行点按区不小于 44pt；颜色、尺寸只用 globals.css 的变量（.cc-steps*）。
 
 import { useAuiState, type ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
-import { createContext, useContext, useMemo, useState, type FC, type PropsWithChildren } from "react";
+import { createContext, useContext, useMemo, useState, type ComponentProps, type FC, type PropsWithChildren } from "react";
 import type { ToolApproval, ToolResultPayload } from "@/lib/managed-agents/reducer";
-import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
+import { approvalCard, type CardState } from "@/lib/approval-card";
+import { stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
 import { detailArgs, detailOutput } from "@/lib/step-detail";
 import { knownEntries, parseResult, stepSubject } from "@/lib/step-subject";
 import { toolLabel, useToolLabels, type ToolLabels } from "@/lib/tool-labels";
 import { cn } from "@/lib/utils";
-import { steps, t } from "@/i18n";
+import { steps } from "@/i18n";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ApprovalBar } from "./approval-bar";
 import { TypingDots } from "@/components/typing-dots";
 import { Marquee } from "@/components/ui/marquee";
@@ -62,9 +65,12 @@ const firstLine = (text: string) => {
   return line.length > 90 ? `${line.slice(0, 88)}…` : line;
 };
 
-/** 一步的说明（进行中 / 完成）和点开后显示的内容。 */
-function describe(toolName: string, args: Args, running: boolean, labels: ToolLabels): Step {
-  const pick = (triple: readonly string[]) => (running ? triple[0] : triple[1]) ?? "";
+/** 说法：0 进行中、1 做完、2 卡片上的问法（内置工具的「运行命令」这类）。 */
+type Form = 0 | 1 | 2;
+
+/** 一步的说明（进行中 / 完成 / 问法）和点开后显示的内容。 */
+function describe(toolName: string, args: Args, form: Form, labels: ToolLabels): Step {
+  const pick = (triple: readonly string[]) => triple[form] ?? "";
   switch (toolName) {
     case "bash": {
       const command = str(args?.command);
@@ -88,7 +94,7 @@ function describe(toolName: string, args: Args, running: boolean, labels: ToolLa
     }
     default: {
       // 本站工具：参数只显示给人看的（连接、账套键、记录名、本地路径不显示，lib/step-detail.ts）
-      return { verb: toolLabel(labels, toolName, running), input: detailArgs(args), showOutput: true, own: true };
+      return { verb: toolLabel(labels, toolName, form === 0), input: detailArgs(args), showOutput: true, own: true };
     }
   }
 }
@@ -145,35 +151,39 @@ function useKnownRecords(): ReadonlyMap<string, string> {
   return useAuiState((s) => knownRecords(s.thread.messages as readonly MessageLike[]));
 }
 
-export const StepRow: ToolCallMessagePartComponent = ({
-  toolName,
-  args,
-  result,
-  status,
-  isError,
-  approval,
-  respondToApproval,
-}) => {
-  const [open, setOpen] = useState(false);
-  const labels = useToolLabels();
-  const awaiting = !!approval && approval.approved === undefined;
+/** 一步的内容框（命令 / 内容、输出）：点开行才有。 */
+function useStepDetail(toolName: string, args: Args, result: unknown, form: Form, labels: ToolLabels) {
   const output = outputOf(result);
-  const running = !output && !awaiting && approval?.approved !== false && status.type === "running";
-  const errored = stepFailed({ result, isError, status });
-  const step = describe(toolName, args as Args, running, labels);
-  const known = useKnownRecords();
-  const subject = step.own ? stepSubject(args as Args, output?.text, known) : "";
-  // Held for Allow/Deny: say what it is about to do, not the past-tense label ("Saved …" before anything ran).
-  const asking = awaiting ? (approval as ToolApproval).ask : undefined;
-  // 点了「拒绝」：没做，写卡片上那句问话（下面的结论行写「已拒绝」），不写做完的说法（第 8 轮测试机：仍写「记下了公司选择」）
-  const denied = stepDenied({ result, approval }) ? askStem((approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] ?? step.verb) : undefined;
-  // 点了「允许」但结果写明没存上（not_saved / failed）：同样写问话、行尾「失败」，不先读到做完的说法（第 8 轮审查）
-  const undoneAsk = !denied && stepUndone({ result }) ? (approval as ToolApproval | undefined)?.ask ?? labels.ask[toolName] : undefined;
-  const undone = undoneAsk ? askStem(undoneAsk) : undefined;
+  const step = describe(toolName, args, form, labels);
   // 本站工具的结果只显示给人看的（同参数，lib/step-detail.ts）；内置工具（命令、文件）照原样
   const outputText = step.showOutput ? output?.text ?? "" : "";
   const shownOutput = useMemo(() => (outputText ? (step.own ? detailOutput(outputText) : outputText) : ""), [outputText, step.own]);
-  const expandable = Boolean(step.input || shownOutput);
+  return { step, output, shownOutput, expandable: Boolean(step.input || shownOutput) };
+}
+
+const StepDetail: FC<{ input?: string | undefined; output: string; errored: boolean }> = ({ input, output, errored }) => (
+  <div className="cc-step-detail">
+    {input && <Clipped text={input} />}
+    {output && <Clipped text={output} className={cn(input && "border-line border-t", errored && "text-danger")} />}
+  </div>
+);
+
+export const StepRow: ToolCallMessagePartComponent = (props) => {
+  const labels = useToolLabels();
+  const card = approvalCard(props as Parameters<typeof approvalCard>[0], labels);
+  return card ? <AskStep {...props} card={card} labels={labels} /> : <PlainStep {...props} labels={labels} />;
+};
+
+type StepProps = ComponentProps<ToolCallMessagePartComponent> & { labels: ToolLabels };
+
+/** 普通的一步：步骤组卡片里的一行。 */
+const PlainStep: FC<StepProps> = ({ toolName, args, result, status, isError, labels }) => {
+  const [open, setOpen] = useState(false);
+  const running = !outputOf(result) && status.type === "running";
+  const errored = stepFailed({ result, isError, status });
+  const { step, output, shownOutput, expandable } = useStepDetail(toolName, args as Args, result, running ? 0 : 1, labels);
+  const known = useKnownRecords();
+  const subject = step.own ? stepSubject(args as Args, output?.text, known) : "";
 
   return (
     <div className="aui-step">
@@ -185,32 +195,62 @@ export const StepRow: ToolCallMessagePartComponent = ({
         className="cc-step-row cc-tap"
       >
         <Marquee className="min-w-0 flex-1 truncate">
-          {asking ?? denied ?? undone ?? step.verb}
+          {step.verb}
           {step.target && <span className="cc-step-target">{` ${step.target}`}</span>}
           {subject && <span className="cc-step-target">{` · ${subject}`}</span>}
         </Marquee>
         {running && <TypingDots size="sm" className="shrink-0" />}
         {errored && <span className="cc-step-failed">{steps.failed}</span>}
-        {/* 重开对话时没有卡片下面那行结论：「已拒绝」写在行尾（同「失败」的位置，淡色） */}
-        {denied && approval?.approved === undefined && <span className="cc-step-denied">{t("denied")}</span>}
         {expandable && <ChevronRightIcon aria-hidden />}
       </button>
-      {open && expandable && (
-        <div className="cc-step-detail">
-          {step.input && <Clipped text={step.input} />}
-          {shownOutput && <Clipped text={shownOutput} className={cn(step.input && "border-line border-t", errored && "text-danger")} />}
-        </div>
-      )}
-      {approval && (
-        <ApprovalBar approval={approval} respondToApproval={respondToApproval} className="mx-2 mb-2" />
-      )}
+      {open && expandable && <StepDetail input={step.input} output={shownOutput} errored={errored} />}
+    </div>
+  );
+};
+
+/** 卡片上的问话：等「允许」时服务端带来的（随这次改的内容走），没有就用工具声明的问法；内置工具用「运行命令 …」这类说法。 */
+export function askText(toolName: string, args: Args, ask: string | undefined, labels: ToolLabels): string {
+  const declared = ask ?? (Object.hasOwn(labels.ask, toolName) ? labels.ask[toolName] : undefined);
+  if (declared) return declared;
+  const step = describe(toolName, args, 2, labels);
+  return step.target ? `${step.verb} ${step.target}` : step.verb;
+}
+
+/** 允许 / 拒绝卡（照 Claude 的问题卡片）：问话（正文色）+ 改动 + 底部靠右「拒绝」「允许」；点完只剩问话与所选那一项。
+ *  手机上等回答时按钮在输入框上方的浮层里（approval-sheet.tsx），这里只列问话与改动。 */
+const AskStep: FC<StepProps & { card: CardState }> = ({ toolName, args, result, isError, approval, respondToApproval, card, labels }) => {
+  const [open, setOpen] = useState(false);
+  const phone = useIsMobile();
+  const errored = card.phase === "answered" && card.failed;
+  const { shownOutput, step, expandable } = useStepDetail(toolName, args as Args, result, 1, labels);
+  const question = askText(toolName, args as Args, (approval as ToolApproval | undefined)?.ask, labels);
+
+  return (
+    <div className="aui-step cc-ask" data-phase={card.phase}>
+      <button
+        type="button"
+        disabled={!expandable}
+        aria-expanded={expandable ? open : undefined}
+        onClick={() => setOpen((o) => !o)}
+        className="cc-step-row cc-ask-q cc-tap"
+      >
+        <span className="min-w-0 flex-1 wrap-break-word">{question}</span>
+        {expandable && <ChevronRightIcon aria-hidden />}
+      </button>
+      {open && expandable && <StepDetail input={step.input} output={shownOutput} errored={errored || !!isError} />}
+      <ApprovalBar
+        approval={approval as ToolApproval | undefined}
+        card={card}
+        respondToApproval={respondToApproval}
+        buttons={!phone}
+      />
     </div>
   );
 };
 
 /** 工作状态行上这一步的说法：进行时的步骤名，带上对象（文件名、命令、网址）。 */
 export function runningStepLabel(toolName: string, args: Record<string, unknown> | undefined, labels: ToolLabels): string {
-  const step = describe(toolName, args, true, labels);
+  const step = describe(toolName, args, 0, labels);
   return step.target ? `${step.verb} ${step.target}` : step.verb;
 }
 
@@ -222,7 +262,7 @@ export const groupLive = (status: { type: string }) => status.type === "running"
 /** 在步骤组的卡片里：组里的每一步只是卡片里的一行，不再各自包一层卡片（测试窗口 S2：外卡套内卡）。 */
 const InStepsGroup = createContext(false);
 
-/** 不进组的那一步（等批准的）单独放进同样的带环卡片；在组里时原样渲染（组已经给了卡片）。 */
+/** 不进组的那一步（允许 / 拒绝卡）单独放进同样的带环卡片（卡里只这一层框）；在组里时原样渲染（组已经给了卡片）。 */
 export const LoneStep: FC<PropsWithChildren> = ({ children }) =>
   useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;
 
@@ -237,7 +277,7 @@ export const StepsGroup: FC<PropsWithChildren<{ group: Group }>> = ({ group, chi
   if (!tools.length) return null;
   const title = groupLive(group.status)
     ? steps.running
-    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { word: t("denied"), asks: labels.ask, failed: steps.failed });
+    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { asks: labels.ask, failed: steps.failed });
 
   return (
     <div className="aui-steps cc-steps">

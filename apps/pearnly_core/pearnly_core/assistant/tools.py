@@ -94,9 +94,11 @@ def step_names() -> dict[str, str]:
 def steps() -> dict[str, dict[str, str]]:
     """对话页的步骤名（按当前用户语言）：`done` 做完的说法（同 `labels`），`running` 进行中的说法，`ask` 要点「允许」的工具
     卡片上那句问话（`ask`，没写用步骤名）——点了「拒绝」的那一步照它写成没做的样子，不写成做完的说法（第 8 轮测试机：
-    拒绝存公司规则后，步骤仍写「记下了公司选择」）。"""
+    拒绝存公司规则后，步骤仍写「记下了公司选择」）；`gate` 是带了哪些参数才要「允许」的工具（`approval` 是参数名列表，
+    同 `needs_approval`）：重开对话时页面据此认出哪一步出过卡片，点完的卡片留在原处（用户 10-17，照 Claude）。"""
     return {"done": labels(), "running": {name: _(text) for name, text in step_names().items()},
-            "ask": {t["name"]: _(t.get("ask") or t.get("label") or t["name"]) for t in declared() if t.get("approval")}}
+            "ask": {t["name"]: _(t.get("ask") or t.get("label") or t["name"]) for t in declared() if t.get("approval")},
+            "gate": {t["name"]: list(t["approval"]) for t in declared() if isinstance(t.get("approval"), (list, tuple))}}
 
 
 def _given(values: dict, key: str) -> bool:

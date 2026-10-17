@@ -1187,6 +1187,8 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
         self.assertEqual(steps["ask"], {"p_write": "Save it?", "p_gate": "Changed it"})
+        # 带了哪些参数才要「允许」：重开对话时页面据此认出出过卡片的那一步（同 needs_approval）
+        self.assertEqual(steps["gate"], {"p_gate": ["x"]})
         api = (CORE / "assistant/api.py").read_text(encoding="utf-8")
         self.assertIn("def tool_steps():\n    return tools.steps()", api)
 
