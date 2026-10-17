@@ -3,7 +3,7 @@
 依据 [第 3 期定稿设计](2026-10-16-da-phase3-design.md) 第 15 条。工具 `scripts/da-replay.py`（零费用、只读、只导入纯函数）。
 在办公室测试机 WSL 跑（源码复制到 WSL `/tmp`，跑完删），语料与明细不出测试机。没调识别、没调模型、没写任何账套，没读写局域网 S 盘。
 
-- **第五轮（待跑，10-17）**：三段改动加一轮审查处理一起回放，跑法在开发机 `~/pearnly-devtools/da-phase3-replay-d5/`（`README.md`、
+- **第五轮（已跑完，10-17，见「第五轮」一节）**：按第三期口径（strict；第三期代码未合入 main，生产还没有这套逻辑）A 类 3,914 张（95.55%）；比对齐第四轮口径的 d4compat（11,558 张，96.34%）少的 A 逐张对过全部变成 B、不是判错。补跑 `d4compat-record`（只把回读改按整张记录）后按 estimated 口径逐张拆开 d4compat → estimated 少掉的 7,648 张 A：回读按整张记录挤掉 358 张（其中 241 张原本推错，A 准确率 96.34% → 98.38%），「证据只看最新 30 张」挤掉 7,290 张（7,281 张推对、7,264 张是 Paisarn 888，A 准确率 98.38% → 95.58%，即 estimated）；30 张上限是第三期代码本身的取法、不是回放偏差。各遍都没到 99.5%。本轮改在甲骨文 free-arm 跑、明细取回开发机临时目录（不是测试机 WSL）。三段改动加一轮审查处理一起回放，跑法在开发机 `~/pearnly-devtools/da-phase3-replay-d5/`（`README.md`、
   `run-d5.sh`）。**与第四轮不能直接比**：judge 默认 `--periods strict`、答案的走库存口径、替公司选入账方式的口径、证据只看最新 30 张、
   回读按整张记录都变了；要和第四轮按家比，用 `d4compat` 那遍（`--periods estimated --lines none --company-choice full --recent-max 0
   --readback-scope account`，能对齐的口径都对齐，剩下的差别 = 这一轮的规则本身加答案走库存口径），strict 那遍只报绝对数。
@@ -42,6 +42,360 @@
 - 第二轮与首轮的差别：判定层按审查改了几类档（销项按票种判赊、默认收入科目改 B，本方税号、对方税号原文进核对，文字层逐页判），回放工具
   修了 Express 历史的泄漏（只用这张单录入之前已录的单、不含自己）与来源归因（历史定的记 `express_history`），销项现 / 赊单列、不计入准确率，
   定时任务时间线按新的基线规则，识别闸层按原件页数逐页判、配不上金标的过闸票按错算、本方税号清单必填。
+
+## 第五轮（三段改动 + 审查处理之后，10-17）
+
+源码 `016f1828`（分支 `pearnly/da-phase3`：三段 `c812126d`、`8465b480`、`e63acdc8` 加 10-17 审查处理）。**本轮没按记录开头写的「测试机 WSL 跑、明细不出测试机」**：
+改在甲骨文 free-arm 跑（`/opt/pearnly-replay`），六遍分两组并行（`run-d5-oracle.sh` 第 79–80 行的 G1、G2），每遍内部三路并行（第 62 行），
+跑法 `~/pearnly-devtools/da-phase3-replay-d5/run-d5-oracle.sh`（每遍参数在 case 段）。输入是测试机只读导出的 ISPRD / SCCOMP
+（`isprd-2026-10-17`，登记表同目录）与语料；答案自带 ISPRD 0 份（`run-d5.log` 第 1 行）。识别闸层三段都没改、本轮不重跑。
+六遍之后又补跑一遍 `d4compat-record`（参数在 `run-d5-oracle.sh` 第 53 行），10-17 19:06–20:02 在甲骨文补跑，跑法日志取回在 `…/scratchpad/d5x/out/run-d5-record.log`，
+产物同样四个文件（`out/d4compat-record/`）。
+产物：服务器 `/opt/pearnly-replay/out/2026-10-17-d5/`；开发机取回一份在会话临时目录 `…/scratchpad/d5x/out/`（六遍各有 `报表.md`、`summary.json`、
+`gate.json`、`明细.tsv`，另有 `inventory.log`、`run-d5.log`、`脚本/`；临时目录重启会清空），分析脚本在同级 `analysis/`。本地各遍的 `judge/` 是空目录，
+`明细.tsv` 没有逐张的 `memory_cap_lost`、`book_pick`、`posting_history`，下文按家、按类的拆分受这个限制，标了「推断」的就是这种。
+注意：da-phase3 工作树现在的 HEAD 是 `d517a111`，`scripts/da-replay.py` 比 `016f1828` 改了 41 行（+23 / −18，`git diff --numstat`），各键含义按 `016f1828` 读；
+其中 `history_tier` 在之后的 `2d574063` / `f4c7d350` 改成调线上判据 `automation.posting_by_history`，本轮商品单凭历史升 A 的数是旧口径（见「商品单与入账方式」）。
+**口径说明**：本节说的「线上」（线上口径、线上判据、上线后）都指第三期代码（`pearnly/da-phase3`）合入上线后的行为。这套代码还没合进 main
+（见「源码口径核对」），生产现在没有这套逻辑。
+
+六遍和补跑一遍的意思（参数见 `run-d5-oracle.sh`）：
+
+- `strict`：线上口径（即第三期口径，生产还没有），主口径，只报绝对数，不和第四轮比。
+- `estimated`：同 strict，只把期间改成按单据估（`--periods estimated --lines none`）。
+- `d4compat`：在 estimated 之上加 `--company-choice full --recent-max 0 --readback-scope account`，对齐第四轮口径，只拿它和第四轮比。
+  它和 estimated 只差这三项（两遍都是 `--lines none`）。
+- `d4compat-record`（补跑）：`--periods estimated --lines none --company-choice full --recent-max 0 --readback-scope record`，即 d4compat 只把回读改按整张记录。
+  它夹在 d4compat 与 estimated 中间，用来把两项改动逐张拆开（见「A 类为什么少了」）。
+- `strict-full`：同 strict，只把替公司选入账方式改成全期多数（`--company-choice full`）。
+- `answer-stkdes` / `answer-opaque`：同 strict，按答案造明细行（`--lines answer`，品名按 `stkdes` / `opaque`），量商品单与存货。
+
+### 结论
+
+1. **都没到 99.5%。** 判定层 A 类 strict **95.55%**（下限 94.86%，3,914 张），不算现 / 赊 97.01%（下限 96.43%）。对齐第四轮口径的 d4compat
+   **96.34%**（下限 95.98%，11,558 张；第四轮 95.91% / 11,511）。识别闸层没重跑，仍是独立金标 27 张 92.59%（下限 76.63%）。
+   合并估计 strict **88.48%**（72.69% ～ 94.18%），d4compat 89.20%（73.55% ～ 94.68%）。
+2. **A 类张数掉到三分之一，不是判错变多。** A 占比 d4compat 2.93% → strict 0.99%。补跑 `d4compat-record` 后逐张拆开：d4compat → estimated 少掉的
+   7,648 张 A = **回读改按整张记录 358 张**（`--readback-scope` account → record）+ **证据只看最新 30 张 7,290 张**（`--recent-max` 0 → 30），两段都只有 A→B，
+   没有 A→C、B→A，留在 A 里的单对错一张没变。前一段挤掉的 358 张有 241 张原本推错，A 准确率 96.34% → 98.38%；后一段挤掉的 7,290 张有 7,281 张推对
+   （7,264 张是 Paisarn 888），A 准确率 98.38% → 95.58%——推得准的大批单被挤出分母，剩下那批本来的错率露了出来。`--company-choice` 对 A 一张没影响。
+   30 张上限是第三期代码（`pearnly/da-phase3`）本身的取法、不是回放偏差，但还没合进 main，生产现在没有这套证据逻辑。
+3. **strict 下 A 类剩 174 张错，全是账套记忆定的项**：科目 115、现 / 赊 59、对方档 2，入账方式、抵进项 0。集中在 ASIA-FA 69、ASIA-HA 53、NEWLINK 19。
+4. **ASIA-FA 的现 / 赊记忆错，只改证据口径修不掉，加上回读按整张记录后大多降成 B。** 对齐口径（d4compat，回读只比科目）下 ASIA-FA 现 / 赊 A 错 252（第四轮 260）。
+   按线上口径（回读按整张记录，estimated / strict）其中 195 张降成 B 交人看——这正是分档要的效果，不是改推对了；剩 57 张两遍都还是 A 且都错，全在账套
+   `69ASIAFC` 2026 年（strict 现购 56、赊购 1；`analysis/fa.py`、`join2.py` 的 KEPT A）。strict 的 57 单独报，不和第四轮比。
+5. **商品单凭供应商 Express 历史升 A，只出现在公司选记费用的公司**（13 家里 9 家有升）：answer 两遍上界多出 4,158 张 A（推错 164，96.06%），下界 3,748（推错 155）。
+   这是 `016f1828` 的口径（与公司选的一致、能写出库存行就给 A），没扣掉线上 `automation.posting_by_history` 的 items / named / keyed 降档，相对第三期代码现行判据（未合入 main）偏高。
+   公司选走库存的 12 家一张没升。
+6. **两份同期是 strict 下 C 类第一大主因**（book_many_real 100,695 张）。四种挑法里 ask_once 选错 5,986 张、多于选对 5,361 张，其中 BakeLab 4,087 张
+   （推断：同期单在两份账套里都有录入，模拟的人按第一张独有单选定后一直照选）；recent_push 选对率 92.80%、放出 7,088 张。
+7. **录入晚的 152,190 张里 141,795 张（93%）落在成批录入的日子**（同一天录入 ≥200 张；推断是导入或重建，`strict/报表.md` 第 12、104 行）。
+   「回放把录入日当上传日、偏悲观」第四轮已写过，本轮补的是量化：按「录入日与 ภ.พ.30 截止日取早」估只剩 5,682 张；strict 下能放出 32,237 张 C（销项 26,344），新进 A 只 107 张。
+8. **阈值建议 A**：strict 6 家升 L1、降档 7 次，自动推 2,777、推错 126（95.46%）。d4compat 6 家、降档 8 次，自动推 9,229、推错 137（98.52%；第四轮 8,873 / 137）。
+
+### 判定层
+
+六遍并排（`报表.md` 第 18、19、29 行；`summary.json` 的 `judge.classes`、`judge.A_eval`、`judge.A_without_payment`、`judge.B_eval`）。共 394,499 张。
+另加一列 `d4compat-record`：**是 10-17 19:06–20:02 补跑的**，参数 `--periods estimated --lines none --company-choice full --recent-max 0 --readback-scope record`
+（d4compat 只把回读改按整张记录），数取自它自己的 `报表.md` 同样三行与 `summary.json` 同名键。
+
+| 项 | strict | estimated | d4compat | d4compat-record（补跑） | strict-full | answer-stkdes | answer-opaque |
+|---|---|---|---|---|---|---|---|
+| A | 3,914 | 3,910 | 11,558 | 11,200 | 3,914 | 3,919 | 3,919 |
+| B | 77,169 | 78,988 | 71,350 | 71,708 | 77,176 | 64,635 | 56,274 |
+| C | 313,416 | 311,601 | 311,591 | 311,591 | 313,409 | 325,945 | 334,306 |
+| 占比 A / A+B | 0.99% / 20.55% | 0.99% / 21.01% | 2.93% / 21.02% | 2.84% / 21.02% | 0.99% / 20.56% | 0.99% / 17.38% | 0.99% / 15.26% |
+| A 准确率（下限） | 95.55%（94.86%） | 95.58%（94.88%） | 96.34%（95.98%） | 98.38%（98.12%） | 95.55%（94.86%） | 95.51%（94.81%） | 95.51%（94.81%） |
+| 不算现 / 赊的 A（下限） | 97.01%（96.43%） | 97.03%（96.45%） | 98.54%（98.30%） | 98.88%（98.67%） | 97.01%（96.43%） | 96.96%（96.38%） | 96.96%（96.38%） |
+| B 准确率（下限） | 36.66%（36.32%） | 35.74%（35.40%） | 31.09%（30.76%） | 31.10%（30.76%） | 37.90%（37.55%） | 42.91%（42.53%） | 43.89%（43.48%） |
+
+- 销项 A 六遍都是 0（`judge.by_direction`）。准确率不计本层核不了的销项现 / 赊。
+- 入账方式一项六遍都只出现在 B（公司选的固定是 B，`judge.item_errors` 的 `purchase|posting|company_choice`）；记过的小票抵进项（vat）在
+  `memory_sources` 里六遍都是空，量不到。
+- 期间口径（strict 对 estimated）、替公司选入账方式（strict-full）、造明细（answer 两遍）对 A 几乎没影响：strict 比 estimated 多 4 张 A
+  （estimated 里是 C，TRADER-TUCL 13 / 1 → 17 / 2；`analysis/join.py` 的 estimated→strict：A→A 3,910、C→A 4）；answer 两遍比 strict 多 5 张 A，都是 BakeLab 账套 `66BAKEL`，其中 2 张科目错。
+- strict 的 174 张错 = 只错科目 113 + 只错现 / 赊 57 + 只错对方档 2 + 科目和现 / 赊都错 2（`analysis/v_join2.txt`）。按家（A 张数 / 错）：ASIA-FA 1,508 / 69（现 / 赊 57、科目 10、
+  对方档 2）、ASIA-HA 903 / 53（科目）、NEWLINK 61 / 19（科目）、Paisarn 888 828 / 8（科目）、ASIA SPORT 184 / 6、Asia Bangna 33 / 5、GIZE 76 / 5、
+  Sangjit 37 / 3、TRADER-TUCL 17 / 2、ASIA-RS 1 / 1、GISS 6 / 1、POLYMER 134 / 1、WNF 95 / 1；ASIA MIN 15、PAKORN 15、HENG 1 张都没错。科目错的 115 张全是
+  账套记忆定的（`memory_sources.account` 的 A_wrong 合计 115），Express 历史定的科目错 14 / 19 都在 B。estimated 是 173 张错，只差 TRADER-TUCL。
+
+### A 类为什么少了
+
+补跑的 `d4compat-record` 正好夹在 d4compat 与 estimated 中间：它和 d4compat 只差 `--readback-scope`（account → record），和 estimated 只差
+`--recent-max`（0 → 30）与 `--company-choice`（full → prior）。三遍 `明细.tsv` 各 394,499 张、键完全相同，按（公司、账套、单号、方向）逐张对齐
+（`analysis/rec_split.py`、`rec_split2.py`，输出 `analysis/v_rec_split.txt`，缓存在 `analysis/cache/`；该输出已去掉一对键集合不同、
+跑到断言失败的比较后重跑，引用的数字与重跑前逐字相同）：
+
+| 转移 | d4compat → d4compat-record | d4compat-record → estimated |
+|---|---|---|
+| A→A | 11,200 | 3,910 |
+| A→B | 358 | 7,290 |
+| A→C | 0 | 0 |
+| B→A | 0 | 0 |
+| B→B | 71,350 | 71,698 |
+| B→C | 0 | 10（全是 BPSIAM） |
+| C→C | 311,591 | 311,591 |
+
+358 + 7,290 = 7,648，正好是 d4compat → estimated 少掉的 A（`analysis/join.py`：A→A 3,910、A→B 7,648、B→B 71,340、B→C 10、C→C 311,591）。少掉的全是进项。
+两段都只有 A→B，没有 B→A、没有 A→C；两段里留在 A 的单对错一张没变（11,200 张两遍都错 182，3,910 张两遍都错 173）。所以两次准确率变化都只是哪些单留在 A 里变了，
+不是有单从推对变成推错。
+
+**第一段：回读改按整张记录（d4compat → d4compat-record），少 358 张 A，A 准确率 96.34% → 98.38%。**
+
+| 公司 | 少掉 | 在 d4compat 推对 | 推错 | 账套 |
+|---|---|---|---|---|
+| ASIA-FA | 277 | 78 | 199 | `69ASIAFC` 251（错 195）、`67ASIAFC` 26（错 4） |
+| Asia Bangna | 41 | 1 | 40 | 错的 40 张都在 `69ASIABC` |
+| ASIA MIN | 38 | 36 | 2 | `66ASIM` 32、`68ASIM` 6 |
+| PAKORN | 1 | 1 | 0 | |
+| POLYMER | 1 | 1 | 0 | |
+| **合计** | **358** | **117** | **241** | |
+
+- 在 d4compat-record 里变 B 的原因：358 张都带 `judged:account` 和 `judged:payment`，其中 ASIA-FA 74 张还带 `judged:party`。
+- 241 张推错的错在：只错现 / 赊 197（ASIA-FA 195、ASIA MIN 2），科目和现 / 赊都错 40（Asia Bangna），只错对方档 4（ASIA-FA）；按项合计现 / 赊 237、科目 40、对方档 4。
+- 准确率：d4compat 11,135 / 11,558 = 96.34%（错 423）；挤掉的 358 张只有 32.68% 推对，去掉后 11,018 / 11,200 = 98.38%。这 2.04 个百分点全部来自这一段。
+- 机制：只比科目时，现 / 赊或对方档推错、科目推对的单被当成「回读核过」，错的值反成证据，账套记忆就攒出错的现 / 赊；按整张记录比就是被改，三类的连续一起断开。
+  另 117 张推对的单也一起变 B（原因同为 `judged:account` + `judged:payment`），推测是同一供应商的连续证据跟着断开。
+  （机制是推断：`明细.tsv` 没有供应商税号，117 张推对的是否同一供应商连续证据断开没有逐张核。）
+- 佐证（`judge.memory_sources`，d4compat → d4compat-record）：ASIA-FA 现 / 赊 A 1,858（错 252）→ 1,577（错 57），错少 195；Asia Bangna 科目 A 1,813（错 45）→ 1,198（错 5）、
+  现 / 赊 A 1,837（错 40）→ 1,211（错 0）；ASIA MIN 现 / 赊错 2 → 0；ASIA-FA 对方档错 6 → 2。两遍 `memory_cap_lost` 都为空（不设上限），`pushed_from` 完全相同
+  （载荷 90,849、replanned 7,792、approx 3,250）：只改了回读范围，推出去的单本身没变。
+
+**第二段：证据只看最新 30 张（d4compat-record → estimated），少 7,290 张 A，A 准确率 98.38% → 95.58%。**
+
+| 公司 | 少掉 | 在 d4compat-record 推对 | 推错 | 在 estimated 变 B 的原因 |
+|---|---|---|---|---|
+| Paisarn 888 | 7,264 | 7,255 | 9（都是科目） | 科目 + 现 / 赊 |
+| ASIA-FA | 13 | 13 | 0 | 对方档 |
+| Sangjit | 7 | 7 | 0 | 科目 + 现 / 赊 |
+| ASIA-HA | 3 | 3 | 0 | 对方档 + 科目 + 现 / 赊 |
+| Asia Bangna | 2 | 2 | 0 | 科目 + 现 / 赊 |
+| PAKORN | 1 | 1 | 0 | 对方档 |
+| **合计** | **7,290** | **7,281** | **9** | |
+
+- 按项（含该原因的张数）：科目 7,276、现 / 赊 7,276、对方档 17。Paisarn 888 按账套：`68PAISAR` 2,770、`67PAISAR` 2,664、`69PAISAR` 1,830。
+  这家的 A 从 8,092（错 17）降到 828（错 8），占全部 A 从 72.3% 降到 21.2%。
+- 准确率：挤掉的 7,290 张只错 9 张（99.88%），留下的 3,910 张两遍都错 173 张（95.58%）；estimated 3,737 / 3,910 = 95.58%。推得准的 Paisarn 888 大批单被挤出分母，
+  剩下的主要是 ASIA-FA 69、ASIA-HA 53、NEWLINK 19 这些错，比例就显出来了。
+- 佐证（`estimated/summary.json`）：`judge.memory_cap_lost` 合计科目 7,829、现 / 赊 8,721、对方档 183（`run-d5.log` 第 31 行是 strict 那遍，数相同）；其中 Paisarn 888 科目 7,475、
+  现 / 赊 7,475，Sangjit 7 / 7，ASIA-FA 科目 20、对方档 53，ASIA-HA 科目 23、对方档 74，Asia Bangna 64，PAKORN 对方档 5——少掉 A 的每一家都有对应的 cap_lost。
+  cap_lost 比实际少掉的多（Paisarn 888 多 211 张），因为它是同一遍里只放开这一项证据的反事实计数，包括还有别的 B 原因、放开了也到不了 A 的单；ASIA MIN 152、NEWLINK 72、
+  NATAKORN OIL 现 / 赊 842、MINICE 13、GIZE、SINCERE 有 cap_lost，但单据一级没有少 A。`memory_sources`（d4compat-record → estimated）：Paisarn 888 科目 A 8,098（错 17）→ 834（错 8），
+  正好少 7,264 张、错少 9 张，与逐张结果一致，现 / 赊 8,099 → 835；Sangjit 科目、现 / 赊各少 7；ASIA-HA 三项各少 3。
+- 机制：Paisarn 888 进项 10,837 张（有期间的 40 个月），其中 2024-01 到 2026-08 这 32 个月共 10,805 张、月均约 338 张（单月 285–407，
+  最近一年 297–407）；另 8 个月（2013-01 到 2023-12）零星共 32 张，最多是 2023-12 的 22 张；
+  按 `estimated/明细.tsv` 的期间列数，另有 4 张没期间。回放假定合格回读在申报截止日后一天做，同一家供应商在两次回读之间推了
+  30 张以上时，最新 30 张都还没回读核过，`memory_evidence` 跳过它们，凑不出「最近连续 3 张有证据」，记忆定的项一直 B——是证据不够，不是判错。`assess.py` 第 37–39 行的注释写的就是这个机制。
+  `明细.tsv` 没有供应商税号，「单家供应商每月超过 30 张」是按公司量加 cap_lost 推断的，没逐家供应商核实。
+
+**`--company-choice`（prior / full）对 A 没影响。**
+
+- strict 与 strict-full 只差这一项，A 单据集合逐张相同（3,914 → 3,914，无增无减，各错 174），准确率同为 95.55%；唯一变化是 7 张 C→B。它只改 B 和 `pushed_from`
+  （strict 载荷 88,852、approx 5,244；strict-full 与 d4compat 都是 90,849、3,250）。
+- estimated 这一对（d4compat-record → estimated 同时改了它和 30 张上限）：`judge.goods.companies` 里 prior 与 full 选的入账方式只在 BPSIAM、Bureerum、MANACHAI 三家不同
+  （prior 选记费用、full 选走库存），这三家各遍 A 都是 0；少掉 A 的 6 家里 Paisarn 888、ASIA-FA、Sangjit、ASIA-HA 不在商品单按公司选的名单里，Asia Bangna、PAKORN 两种口径都选记费用。
+  推送记录和账套记忆都按账套分开，不会跨公司传。所以 7,290 张都算到 30 张上限上；company-choice 只造成 BPSIAM 10 张 B→C（原因从 `judged:account,payment,posting` 变成
+  `not_ready,needed`）；`pushed_from` 的 approx 多出 1,994 张（3,250 → 5,244），strict 对 strict-full 是同样的差，所以来自 company-choice；
+  `pushed_from` 在 `summary.json` 里只有全局计数，按家分布没有，推断在那三家。
+- 分不开的部分：没跑「estimated + full + 30」或「estimated + prior + 0」这种只变一个开关的组合，那三家在项一级（`memory_sources` 的 A / B）的变化归哪个开关只能推断，
+  例如 MANACHAI 现 / 赊 A 487、B 41 → 全部 B 528；strict-full 里 MANACHAI 的 `memory_cap_lost` 有现 / 赊 602、对方档 597，strict 里没有。这只影响项一级，单据一级的 A 不受影响。
+
+**源码口径核对**：30 张上限是第三期代码本身的取法，不是回放偏差。
+
+- `apps/pearnly_cowork/pearnly_cowork/push/application/assess.py`（分支 `pearnly/da-phase3`，HEAD `d517a111`）：第 40 行 `RECENT_MAX = 30`；`_recent`（第 188 行起）的 SQL 是
+  `ORDER BY h.creation DESC LIMIT %s`、参数取 `RECENT_MAX`，即按上传先后取这家供应商最新 30 张推成功的单；之后按税号和进项筛，用 `automation_service.readback_marks` 标回读结果，
+  按分店筛对方档，交给 `automation.memory_evidence`（`push/express/automation.py` 第 679 行：凭记忆推的单没回读核过就跳过，回读里被改的断开），`memory_settled`（第 726 行）
+  要求 `MEMORY_STREAK = 3`（第 55 行）。
+- 回放 `analysis/da-replay-016f1828.py` 第 1121 行 `RECENT_MAX = 30`，`pushed_evidence` 先截最新 limit 张、再按分店筛，然后调同一个 `automation.memory_evidence`，与 `_recent` 一致；
+  `016f1828` 在 da-phase3 历史内，这一版 `assess.py` 第 40 行就是 `RECENT_MAX = 30`、第 216 行是同样的 LIMIT，`016f1828` 到 HEAD 之间 `_recent` 没改。
+- **前提更正：生产现在还没有这套证据逻辑。** da-phase3 比 origin/main（`5edbd5e4`）多 143 个提交、未合入。main 上没有 `push/application/assess.py` 和
+  `push/express/automation.py` 这两个文件（自动推整套未合入），全仓也搜不到 `RECENT_MAX`、`memory_evidence`、`posting_by_history`，生产只部署 main。
+  所以全文说的「线上」都指第三期代码上线后的行为（见跑法段的口径说明），不是现在正在跑的生产。
+
+**对上线后能自动推的影响**（按 estimated 口径量化）：进项共 108,934 张（销项不查证据）。有 30 张上限时 A 3,910 张（进项的 3.59%），不设上限（d4compat-record）11,200 张（10.28%），
+上限让可自动推的单少了 7,290 张、约三分之二（65.1%）；少掉的 99.6% 在 Paisarn 888、99.88% 推对。保留上限 A 准确率 95.58%，取消上限 98.38%（下限 98.12%），两种都没到 99.5%。
+strict 口径的 `memory_cap_lost` 按家数字与 estimated 完全相同，影响量级相同；strict 下没跑不设上限的一遍，没有逐张数。这些数都基于「每期都按时做了合格回读」的乐观假定；
+线上回读少时两种取法的 A 都会更少，上限造成的差值会怎么变没有量过（推断），线上单量也和回放不同。
+
+项一级看（`judge.memory_sources`，A、B 是项的档，A_wrong 是整张为 A、这一项错的张数），d4compat → estimated 记忆定的 A（A 里错）：科目 17,708（163）→ 8,188（114）、
+现 / 赊 20,287（296）→ 9,070（59）、对方档 2,314（6）→ 1,559（2）。Paisarn 888 科目 8,098 → 834、现 / 赊 8,099 → 835。A 大约砍一半，A 里的错砍得更多。
+
+**不算现 / 赊的 A 准确率**：对齐口径下 d4compat 98.54%（下限 98.30%；`d4compat/报表.md` 第 29 行、`judge.A_without_payment`），第四轮 98.18%（下限 97.91%；本记录「第四轮」结论第 1 条），
+没有变低。strict 97.01%（下限 96.43%）只报绝对数，不和第四轮比。遍间看 d4compat → strict 掉了 1.5 个百分点，推断原因不是新错，而是错率低、量大的 Paisarn 888
+在 strict 下几乎被挤出分母（d4compat 8,092 张 / 错 17，strict 828 / 错 8），剩下的 A 以 ASIA-FA（1,508 / 69，95.42%）、ASIA-HA（903 / 53，94.13%）为主。
+
+**d4compat 与第四轮按家比**：A 错 465 → 423。ASIA-FA 现 / 赊 A 里错 260 → 252（252 张里 195 张在 estimated 降成 B，57 张两遍都还是 A 且都错；d4compat 里
+`69ASIAFC` 2026 年是现购 250 + 赊购 2 张，`analysis/fa.py`）；对方档 65 → 6；科目 10 → 10。NEWLINK 48 → 19。Asia Bangna 在 d4compat 冒出 45 张 A 错（76 / 45，科目 45、
+现 / 赊 40，其中 40 张两项都错），第四轮点名的四家错数 335 + 53 + 48 + 18 = 454，所以第四轮这家最多 11 张；这 45 张在 estimated 里 40 张降成 B（strict 下这家剩 33 / 5）。
+为什么 d4compat 里增加，本地没有第四轮逐张明细（在服务器 `/opt/pearnly-replay/inputs/_回放/2026-10-16-d4`），`run-d5.log` 里 analysis5 的 `vs_d4` 为空，查不了。
+
+### C 类与两份同期账套
+
+**C 类主因**（每张只算一类，按 CAUSES 顺序取第一个命中；`judge.c_causes`，strict 见 `报表.md` 第 84–102 行）：
+
+| 主因 | strict | estimated | d4compat | strict-full | answer-stkdes | answer-opaque |
+|---|---|---|---|---|---|---|
+| 真两份同期 `book_many_real` | 100,695 | 89,273 | 89,279 | 100,701 | 93,344 | 90,657 |
+| 选不出账套且同分店有期间没报全 `book_none_unknown` | 89,233 | — | — | 91,210 | 87,760 | 81,673 |
+| 估出来的两份同期 `book_many_estimated` | — | 58,503 | 58,507 | — | — | — |
+| 录入晚 `stale` | 64,385 | 90,408 | 90,409 | 64,390 | 60,618 | 54,660 |
+| 对方档 `party` | 24,819 | 32,628 | 32,628 | 24,819 | 26,350 | 22,515 |
+| 第一次见要人选 `needed` | 18,063 | 18,065 | 16,068 | 16,066 | 41,052 | 62,026 |
+| C 合计 | 313,416 | 311,601 | 311,591 | 313,409 | 325,945 | 334,306 |
+
+「—」只表示该遍没有这一类：estimated 系没有 `book_none_unknown`，strict 系没有 `book_many_estimated`。strict 其余：
+`book_many_testcopy` 4,586、number 3,370、day_month 2,755、before_snapshot 1,823、party_tax 1,385、other 908、period_unknown 677、duplicate 318、
+book_other 190、book_other_newer 155、preflight 29、posting 25。
+
+- **期间口径大多只是换归类。** strict − estimated：A +4、B −1,819、C +1,815；`book_none_unknown` +89,233、`book_many_estimated` −58,503、`stale` −26,023、
+  `party` −7,809（`run-d5.log` 第 39 行）。推断：大多是同一批本来就 C 的单换了主因（期间原因在 CAUSES 里排在 stale、party 前）。strict 比 estimated 多 1,815 张 C；
+  补齐 7 份没 ISPRD 的账套后实际放出多少，要导出真 ISPRD 后重跑才知道（estimated 的期间是按单据估的，本身有偏差）。
+- **期间来源**（`judge.origins`）：158 份账套里 146 份有只读导出的 ISPRD，5 份只有 70EXP 测试账套的期间，7 份没有（strict 记 none、estimated 系按单据估）；
+  没登记的 3 份。`period_unknown` 原因码只有 725 张（主因 677），在 4 份账套：Bureerum `68BRTKCC` 685、BPSIAM `66SIAMBP` 22、GIZE `67GIZE` 15、
+  NEWLINK `NLT2565` 3。NEWLINK 的 book_none 82,038 张在 estimated 里也还是 82,038，不全是缺 ISPRD 造成的（推断）。
+- **快照偏差**：ISPRD 是 10-17 的期间快照，146 份导出里 135 份有入账日落在期间外的单，共 37,168 张（`报表.md` 第 9–10 行）；同分店两两重叠 107 对，两边都是
+  真 ISPRD 88 对。推断 `book_many_real` / `book_none` 里有一部分是快照造成的，单列的 `before_snapshot` 只有 1,823 张。
+- **只因选账套进 C 的量**：strict 下 C 类 66.5%（208,505 / 313,416）带选账套问题，但只因选账套一项进 C 的只有 75,238 张（只有 book_many 63,850、只有 book_none
+  11,356、只有 book 32；`analysis/cross.py`）。推断这约等于「账套选得完全对」能放出的量（没证明选对账套后不会冒出新的 C 原因）。只因 book_many 进 C 的按家：GIZE 14,422、NEWLINK 11,093、
+  ASIA SPORT 9,066、NATAKORN OIL 7,267、Bureerum 4,555、SINCERE 4,469、BakeLab 3,894、SPP 2,139。
+- **70EXP 测试账套**：候选里有测试账套的两份同期 strict 4,586 张、estimated 2,165 张。ASIA MIN 的两份同期 ask_once 停 181、recent_push 错 184（`strict/报表.md` 第 124 行），
+  推断答案账套多不在候选里（`明细.tsv` 没有候选账套列，没逐张核）。
+
+**两份同期四种挑法**（strict：只拿只在一份账套里有的 11,600 张计分，几份都有的 98,728 张不计分、不改判档；`judge.tiebreak`，`报表.md` 第 112–117 行）：
+
+| 挑法 | 选对 | 选错 | 停下 | 选对率 | 下手准确率 | 放出 |
+|---|---|---|---|---|---|---|
+| none | 0 | 0 | 11,600 | — | — | — |
+| recent_entry | 9,416 | 90 | 2,094 | 81.17% | 99.05% | 6,567 |
+| recent_push | 10,765 | 835 | 0 | 92.80% | 92.80% | 7,088 |
+| ask_once（已定） | 5,361 | 5,986 | 253 | 46.22% | 47.25% | 3,645 |
+
+下手准确率 = 对 /（对 + 错），自算。none、recent_entry、recent_push 三种的对 / 错 / 停六遍相同；ask_once 的对 / 错 / 停与不计分张数只在 strict、strict-full、answer 两遍相同，
+estimated、d4compat 的 ask_once 是 5,370 / 5,986 / 244（46.29%），问 110,993 次，不计分 144,066（`estimated/`、`d4compat/summary.json` 的 `judge.tiebreak.ask_once`；`run-d5.log` 第 38 行）。
+放出随遍变（ask_once：answer-stkdes 3,083、answer-opaque 2,729；recent_entry / recent_push：answer-stkdes 4,307 / 4,814，answer-opaque 3,429 / 3,890）。
+
+- ask_once 的错集中在 BakeLab 4,087 张（占 68%），其次 SINCERE 1,231、ASIA SPORT 391、SPP 223、Patratida 48（`judge.tiebreak_companies`）。BakeLab 几份都有的 2,044 张、
+  独有 4,097 张（ask_once 对 9 / 错 4,087 / 停 1）；按答案账套分，两份同期单 `67BAKEL` 2,054 张（录入 2026-01-19 ～ 04-27）、`68BAKEL` 4,087 张（录入 2026-02-14 ～ 10-01）
+  （`analysis/bm.py`）。推断：同期单在两份账套里都有录入（可能是会计年中换账套），模拟的人按这一组第一张独有单的答案记住、之后一直照选。
+  剔掉 BakeLab、SINCERE、Patratida，ask_once 84.34%，recent_entry 84.43%，recent_push 95.24%（自算，`analysis/tb.py`）。这个结论对「模拟的人按第一张
+  独有单选」的假设很敏感（推断）。
+- ask_once「问 67,785 次」（strict）不是线上要问的次数：模拟里几份都有的单只问不记、下一张再问；真正停下的独有单 253 张。线上推成了才记，推断实际只按组合问。
+
+**录入晚**（`judge.upload_alt`，`报表.md` 第 104 行）：按录入日当上传日，录入晚 60 天 152,190 张（销项 134,234、进项 17,956）；按「录入日与 ภ.พ.30 截止日
+取早」估剩 5,682 张。能放出：strict 32,237（进项 5,893、销项 26,344），estimated 14,364（4,647 / 9,717）；strict 只有 C→B 32,130 与 C→A 107 两种变化。
+按家几乎全在成批录入的账套（`run-d5.log` 第 57 行）：NEWLINK 117,602 张里 117,560 张是成批录入日，估法下剩 533；GIZE 16,336 → 2,650；BPSIAM 5,723 → 0。
+推断这些账套的录入日是导入或重建的日子，不是会计处理的时间。估法新进 A 的 107 张约 86 张对（约 80%），把 A 拉到 95.15%；这是混合时钟估计，不当新的总准确率。
+
+替公司选入账方式对 C 只是换归类：strict-full 比 strict `needed` 少 1,997、`book_none_unknown` 多 1,977，C 只差 7 张。d4compat 的 C 311,591 张，第四轮 312,179，
+但主因分类不同（第五轮按 book_pick 拆开），不逐项比。
+
+### 商品单与入账方式
+
+**凭供应商 Express 存货历史升 A**（answer 两遍，`judge.goods.history` 上界、`history_manual` 下界的 `extra_A`；两遍数字相同，品名写法不影响这一层）：
+
+| 口径 | 多出 A | 其中整张推错 | 准确率（下限） | 入账方式本身判错 |
+|---|---|---|---|---|
+| 上界 `history` | 4,158 | 164 | 96.06%（95.42%） | 5 |
+| 下界 `history_manual` | 3,748 | 155 | 95.86%（95.18%） | 5 |
+
+- **口径限制**：这些数出自 `016f1828` 的 `history_tier`（与公司选的一致、能写出库存行就给 A）。之后 `2d574063` / `f4c7d350` 让回放改调线上判据
+  `automation.posting_by_history`，多了 items（存货没着落）、named（定成记费用却有库存行或与库存品同名）、keyed（对方没有 13 位税号、按名字对上，封顶 B）三种不给 A 的情形
+  （`git diff 016f1828 d517a111 -- scripts/da-replay.py`；设计第 18 条「②、①第五轮后审查」第 13 条写明回放没有重跑、`extra_A_wrong` 等数要等测试窗口）。所以 4,158 / 3,748 相对第三期代码现行判据（未合入 main）偏高，
+  要拿线上口径的数得用 HEAD 的 `da-replay.py` 重跑 answer 两遍。
+- 推错几乎都来自科目、现 / 赊、对方档，不是入账方式。升出来的 A 全在公司选记费用的 9 家：ASIA MIN 1,840、Asia Bangna 1,094、WNF 552、ASIA-RS 279、PAKORN 185、
+  MINICE 103、POLYMER 72、TRADER-TUCL 29、MRR 4；同样选记费用的 BPSIAM、Bureerum、GISS、MANACHAI 4 家没升（`answer-stkdes/报表.md` 第 152–176 行）。
+- **公司选走库存的 12 家（19EXC、ASIA SPORT、BakeLab、GIZE、NATAKORN OIL、NEWLINK、NIPA EXC、SINCERE、SK、SPP、SUPERRICH、The Artist；answer-stkdes 共 295,931 张商品单）一张没升**
+  （`answer-stkdes/summary.json` 的 `judge.goods.companies[*].used`、`docs`）。这 12 家的单绝大多数是 C，挡住的是选账套、录入晚等别的原因：answer-stkdes 明细里进项 A 326 / B 6,487 / C 53,117，
+  销项 B 28,748 / C 225,478（`analysis/v_fix.py`）。会因科目和入账方式停在 B 的进项单是 5,694 张：带 judged:posting 的进项 B 单 5,694 张全部同时带 judged:account，其中
+  4,171 张还带 judged:payment、676 + 3 张带 judged:party，只差科目和入账方式的 844 张（`analysis/goods_reasons.py`）；公司选记费用、只差入账方式的 4,163 张。
+  进项、走库存、连接默认科目的单 5,694 张、错 4,400，约 22.7% 对（`judge.item_errors` 的 `purchase|account|config_default`）。另一个口径：走库存且载荷真写出库存行的 B 单，
+  进项、销项合计科目对 10,234、错 24,184（约 29.7% 对；`run-d5.log` 第 51 行，opaque 第 54 行 6,731 / 18,426），含销项。
+- **历史与公司选的相反**（线上改交人）15,575 张，几乎都在选走库存的公司（ASIA SPORT 6,077、BakeLab 3,670、SINCERE 2,563、GIZE 1,576、SPP 890、NEWLINK 468）。
+  多数本来就 C：answer-stkdes 多出的 C 只有 295 张（下界 `history_manual` 553），能计分且公司选的确实错、历史对的 7,727 张；answer-opaque 是 186 / 7,729
+  （两遍 `judge.goods.history.conflict_C`、`conflict_caught`）。两遍 `报表.md` 第 150 行写成「多出 C 295 张（其中真拦住入账方式错的 7727）」（opaque 是 186 / 7729）不对：
+  源码 `conflict_caught` 是对全部相反行计数，不是多出 C 那几百张的子集，别照抄。
+- 历史与公司选一致、入账方式仍判错 902 张（answer-stkdes），其中 BPSIAM 741（它的 history A 1,049）；基本是 C，只有 5 张会升 A。原因（供应商改了记法，还是走库存口径不同）未查证。
+- **造明细后**（answer 两遍）B 减少、C 增加：存货第一次见要人选，`needed` 比 strict 多 22,989（stkdes）/ 43,963（opaque）。载荷明细过对账闸：stkdes ok 341,771、
+  empty 3,683、mismatch 156、incomplete 10；opaque ok 327,882、empty 3,683、mismatch 163。A / B 里存货计分错（stkdes，`judge.item_errors`）：进项 9,386 张错 3,748，销项 32,123 张错 6,879。
+  其中按记费用推出、没有存货行而答案是走库存（item=wrong:none，posting=wrong:service）的进项 3,692 张、销项 3,375 张，合计 7,067（`judge.wrong_items` 的 item:none；`analysis/v_fix.py` 逐张）。
+- **替公司选入账方式**：prior（第一次交人之前会交人的单里的多数）比全期多数差。商品单和公司所选不同：strict 64,194（18.33%），strict-full 41,491（11.84%）；
+  差别全部来自三家（strict：BPSIAM 12,264 / 14,315、Bureerum 9,031 / 9,031、MANACHAI 3,459 / 3,459；`strict/报表.md` 第 162 行等，`judge.goods.companies` 的 disagree_used / docs；
+  三家 disagree_used − disagree_full = 10,213 + 9,031 + 3,459 = 22,703 = 64,194 − 41,491）——prior 选了记费用，单子大多走库存。A / B 里进项入账方式计分错
+  strict 10,554 / 25,138、strict-full 9,572 / 25,145。
+
+### 识别闸层与合并估计
+
+识别闸层本轮没重跑：六遍 `gate.json` 的 md5 都是 `29c383b2…`，`summary.json` 的 gate 段六遍相同，数字与第四轮「识别闸层」表一致，没有新证据。
+
+- 独立金标：文字层 PDF 46 张、过闸 27、计分 25、闸后字段错 0、非票据过闸 2（都是 VIDA 进项电子 PDF `6701545`、`6701560`），25 / 27 = 92.59%（76.63% ～ 97.94%）。
+  过闸 25 张的字段覆盖很薄：单号、日期、合计 25 张都核了；对方税号 17、分店 12、未税额与税额各 15，7 项全核到的只有 10 张；其中 BakeLab 销项 8 张。
+  「0 错」主要证明单号、日期、合计。
+- 图片和扫描件一张不过闸（image 186 张、过闸 0），自动推只覆盖文字层 PDF；被拦的独立金标里有字段错的 34 张（扫描 PDF 21、照片 13），闸挡住了这些错。
+- 文字层 PDF 合计（含 Express 答案作金标那组）139 / 107 / 105 / 20，79.44%（下限 70.83%）；20 处不符第四轮逐处查过原件文字层，能确定是识别错的 0 处，不进合并估计。
+- 抵不抵进项（过闸的进项、识别出税额的 21 张）：判 A 的 9 张没有一张与金标不符；判不抵的 9 张不符但都是 B。与第四轮相同，样本仍只 21 张。
+- 闸层要单独过 99%，独立金标 0 错时要约 381 张；现在 27 张即使全对，Wilson 下限也只约 87%（按 `wilson()` 自算）。
+
+**合并估计**（判定层 A 准确率 × 闸层独立金标 25 / 27，区间是两层同侧界相乘；strict、estimated、d4compat、strict-full 在 `报表.md` 第 256 行，answer-stkdes、answer-opaque 在第 258 行）：
+
+| 遍 | 判定层 A | 合并估计（区间） |
+|---|---|---|
+| strict | 3,740 / 3,914 = 95.55% | **88.48%**（72.69% ～ 94.18%） |
+| estimated | 95.58% | 88.50% |
+| d4compat | 11,135 / 11,558 = 96.34% | 89.20%（73.55% ～ 94.68%） |
+| answer 两遍 | 3,743 / 3,919 = 95.51% | 88.43%（72.66% ～ 94.14%） |
+
+第四轮 88.8% 用的是 A 11,511 张，只和 d4compat 比。把凭历史升的 A 加进 answer-stkdes 的 A（推断，自算，同 `combined()` 公式；**旧口径上界**，没扣线上 items / named / keyed 降档）：上界 8,077 张 95.79% → 约 88.7%
+（73.0% ～ 94.2%），下界 7,667 张 95.68% → 约 88.6%；A 占比约 2.05%（下界 1.94%）。这些升出来的 A 没进阈值档位模拟，对自动推张数的影响没量。
+
+### 阈值三档
+
+网页上传 / LINE 入口（strict、estimated、d4compat、strict-full 在 `报表.md` 第 230–232 行，answer 两遍在第 232–234 行）。除 d4compat 外，各遍的升档家数、降档次数、自动推、推错相同；
+提议和停下随该遍的 B、C 变化（建议 A：estimated 80,121 / 311,601，strict-full 78,313 / 313,409，answer-stkdes 65,777 / 325,945，answer-opaque 57,416 / 334,306）：
+
+| 遍 · 阈值 | 升到 L1 的公司 | 降档次数 | 自动推 | 其中推错 | 提议 | 停下 |
+|---|---|---|---|---|---|---|
+| strict · 建议 A（已定） | 6 | 7 | 2,777 | 126 | 78,306 | 313,416 |
+| strict · B 稳 | 3 | 5 | 2,322 | 122 | 78,761 | 313,416 |
+| strict · C 快 | 6 | 6 | 2,964 | 134 | 78,119 | 313,416 |
+| d4compat · 建议 A（已定） | 6 | 8 | 9,229 | 137 | 73,679 | 311,591 |
+| d4compat · B 稳 | 3 | 6 | 7,907 | 134 | 75,001 | 311,591 |
+| d4compat · C 快 | 6 | 6 | 10,084 | 146 | 72,824 | 311,591 |
+| 第四轮 · 建议 A | 6 | 7 | 8,873 | 137 | 73,447 | 312,179 |
+
+- strict 建议 A 升到 L1 的：ASIA SPORT（34 / 2）、ASIA-FA（1,141 / 65）、ASIA-HA（792 / 50）、GIZE（0 / 0）、POLYMER（86 / 1）、Paisarn 888（724 / 8）；没有一家到 L2，
+  期末停在 L1 的 4 家。ASIA-FA（94.30%）、ASIA-HA（93.69%）两家占推错 115 / 126（`analysis/tiers.py`）。
+- strict 与 d4compat 差得最大的是 Paisarn 888：自动推 724 对 7,187（错 8 对 15），A 828 对 8,092。推断 strict 自动推大降主要是「最新 30 张」上限造成的。
+- 定时任务入口（没模拟任务默认值，只换了触发方；strict 系在 `报表.md` 第 234 行，answer 两遍第 236 行）按建议 A：strict / strict-full 自动推 3,420、推错 167；estimated 3,416 / 166；
+  answer 两遍 3,425 / 169；d4compat 10,175 / 219。
+
+### 还差在哪、下一步
+
+- **判定层**：A 准确率卡在 95.5% 左右，剩下的错全是账套记忆定的项，集中在 ASIA-FA（`69ASIAFC` 2026 年的现 / 赊 57 张）、ASIA-HA 与 NEWLINK 的科目。
+  A 的张数在 strict 下只占 0.99%。逐张拆过（estimated 口径）：比不设上限少的 7,290 张 A 全是「最新 30 张」证据窗口挤成 B 的，99.6% 在 Paisarn 888、99.88% 推对——
+  窗口把凭记忆推出去、还没回读的推送也算进去，单量大的公司窗口里全是没核过的单，攒不够证据（这一句机制是推断）。
+- **识别闸层**：没新证据，独立金标 27 张离 381 张很远，合并估计的下限被它卡住。
+- **商品单**：凭历史升 A 只出现在选记费用的公司，且是旧口径上界。走库存的 12 家大多卡在选账套、录入晚等 C 原因；会因科目和入账方式停在 B 的进项单 5,694 张，
+  连接默认科目约 22.7% 对。
+- **两份同期**：C 类第一大主因；只因选账套进 C 的约 7.5 万张；已定的 ask_once 在模拟里选错集中在 BakeLab，结论依赖模拟的人怎么选。
+
+下一步（数据指出、按类可修，未施工）：
+
+1. **证据窗口改为跳过没回读的凭记忆推送再数 30 张（只列方向）。** 现在的「最新 30 张」把凭记忆推出去、还没回读的推送也算进窗口，单量大的公司
+   （Paisarn 888 在 2024-01 到 2026-08 月均约 338 张，单月 285–407）窗口里全是没核过的单，`memory_evidence` 全部跳过，攒不够连续 3 张证据。按 estimated 口径逐张拆，这个窗口挤掉 7,290 张 A，其中 7,281 张推对；
+   不设上限 A 11,200 张、98.38%，设上限 3,910 张、95.58%（`analysis/v_rec_split.txt`）。建议取证据时先跳过凭记忆推出去、还没合格回读核过的推送，再数最新 30 张（推的时候由人或规则定的照常算证据）——即设计第 18 条写明
+   等 `memory_cap_lost` 出数再定的两种取法里的「跳过没回读的再数」。这是推断：「单家供应商两次回读之间超过 30 张」没逐家核实，改法也要改完 `assess.py` 的 `_recent`
+   与回放的 `pushed_evidence` 后重跑 estimated / strict 验证；按「每期都按时合格回读」的乐观假定，能多出的 A 不超过 7,290 张。只改取证据的窗口，不改用户已定事项。
+2. **库存车道的科目要有判据**（如按存货主档或供应商历史定）。按 answer-stkdes 明细，走库存公司里只差科目和入账方式的进项 B 单只有 844 张，且还要同时凭历史定下入账方式才会进 A；
+   其余 4,171 张还卡在现 / 赊、679 张卡在对方档。推断潜力最多约 844 张，未验证。
+3. **商品单凭历史升 A 用 HEAD（`d517a111`）的 `da-replay.py` 重跑 answer 两遍**，拿扣掉 items / named / keyed 之后的线上口径数，替换本轮的 4,158 / 3,748 与合并估计 88.7% / 88.6%。
+4. **录入晚按「录入日与 ภ.พ.30 截止日取早」的口径单独复核**：152,190 张里 93% 落在成批录入的日子，估法只剩 5,682 张（成批录入是导入或重建、现口径偏悲观，都是推断）。
+5. 回放工具：answer-stkdes / answer-opaque `报表.md` 第 150 行 `conflict_caught` 的说法改正；`明细.tsv` 补逐张的 `memory_cap_lost`、`book_pick`、`posting_history`（及两份同期的候选账套），下一轮才能逐张拆。
+
+要用户定：
+
+- **ask_once 要不要加「候选里另一份账套之后有了更新录入就重新问」这类信号。** ask_once 是已定口径（设计第 18 条「第五轮前的审查处理」②与「②接线上（用户 10-17 批准）」，写明不自动挑最近有录入的那份）。
+  模拟里选错集中在 BakeLab（strict `judge.tiebreak_companies`：ask_once 对 9 / 错 4,087 / 停 1），结论依赖「模拟的人按第一张独有单选」；BakeLab 两份账套 2026 年同时有录入
+  （`67BAKEL` 到 04-27、`68BAKEL` 从 02-14 起），这类信号会反复触发，有没有用没有数据。
 
 ## 第四轮（第三轮审查处理之后，10-16）
 
