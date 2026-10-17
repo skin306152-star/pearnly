@@ -16,7 +16,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import { BookOpenIcon, Building2Icon, CalendarIcon, ChevronRightIcon, LoaderIcon, StoreIcon, XIcon } from "lucide-react";
-import { Fragment, type FC, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type FC, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useOpenCompany } from "@/components/assistant-ui/projects";
 import { companyLine } from "@/components/companies";
 import {
@@ -39,8 +39,9 @@ import { branchesOf, branchShort, type Detail, monthLabel, setsForScope } from "
 import { moveCard, type PanelCard as CardId, setCardOrder, setPagePeriod, toggleCard, usePanel, usePanelDetail } from "@/lib/company-panel";
 import { type Filing, NO_FILING, useProjects } from "@/lib/managed-agents/projects";
 import { OPEN_LAYERS } from "@/lib/back-stack";
+import { opener, returnFocusAfterClose } from "@/lib/focus-return";
 import { isDragEscape } from "@/lib/layers";
-import { DragArea, type DragData, DragList, type DragTexts } from "@/components/ui/drag";
+import { DragArea, type DragData, DragList, type DragTexts, spotIn } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 
 export type PanelMode = "docked" | "floating" | "phone";
@@ -99,7 +100,14 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
     () => ({
       collapsed,
       toggle: (id) => toggleCard(id as CardId),
-      move: (id, delta) => setCardOrder(moveCard(usePanel.getState().order, id as CardId, delta, itemsNow.current)),
+      move: (id, delta) => {
+        const shown: readonly string[] = itemsNow.current;
+        const next = moveCard(usePanel.getState().order, id as CardId, delta, shown);
+        setCardOrder(next);
+        // 挪完在看得见的卡片里的位置（Alt+↑/↓ 念它）；到头了没挪不念
+        const visible: string[] = next.filter((card) => shown.includes(card));
+        return shown.indexOf(id) === visible.indexOf(id) ? null : spotIn(visible, id);
+      },
       register,
     }),
     [collapsed, register],
@@ -124,6 +132,9 @@ export const SortableCards: FC<{ cards: Partial<Record<CardId, ReactNode>>; scop
   );
 };
 
+// 会话栏开关（顶栏右侧，assistant.tsx）：关掉浮着的会话栏后焦点的去处
+const PANEL_TOGGLE = '[data-slot="cc-panel-toggle"]';
+
 export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => void; page?: boolean }> = ({ filing, mode, onClose, page = false }) => {
   const { project: company, period, scope } = filing;
   const { detail, error, reload } = usePanelDetail(company, period);
@@ -140,18 +151,33 @@ export const SessionPanel: FC<{ filing: Filing; mode: PanelMode; onClose: () => 
     card.scrollIntoView({ block: "nearest" });
   }, [focus, detail]);
 
-  // 浮层、全屏：Esc 关（菜单、弹窗开着时它们先关）
+  // 浮层、全屏：Esc 关（菜单、弹窗开着时它们先关）。一次只关一层：关了会话栏就标记已处理，侧栏多选（挂在 window 上、随后
+  // 才收到同一个 Esc）这一次不清，再按一次才清（测试窗口第 5 轮：取消拖动后再按 Esc，会话栏和多选被一起清掉）
   useEffect(() => {
     if (mode === "docked") return;
     const onKey = (e: KeyboardEvent) => {
       // 输入法选字时的 Esc 只是取消候选词；拖动中的 Esc 只是取消拖动（鼠标、键盘拖都一样）
       if (e.key !== "Escape" || e.isComposing || e.defaultPrevented || document.querySelector(OPEN_LAYERS)) return;
       if (isDragEscape(e)) return;
+      e.preventDefault();
       onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mode, onClose]);
+
+  // 浮层、全屏关掉（Esc、关闭按钮、换页）以后焦点回到打开它的控件（会话栏开关、「公司名 ›」）；那个不在了就回会话栏开关。
+  // 焦点原来在会话栏里才还（第 6 轮：Esc 关掉后焦点落到 BODY）。只在卸下时（停靠 ↔ 浮层切换不算），在节点拿走之前量
+  const [from] = useState(() => (mode === "docked" ? null : opener()));
+  const floating = useRef(mode !== "docked");
+  floating.current = mode !== "docked";
+  useLayoutEffect(
+    () => () => {
+      if (!floating.current) return;
+      returnFocusAfterClose(!!box.current?.contains(document.activeElement), from, PANEL_TOGGLE);
+    },
+    [from],
+  );
 
   const branches = detail ? branchesOf(detail) : [];
   const multi = branches.length > 1 ? branches : [];

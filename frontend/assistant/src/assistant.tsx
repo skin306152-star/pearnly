@@ -53,7 +53,7 @@ import {
   ConversationCompany,
   MobileCompanyItem,
   MobileFilingItems,
-  MoveToMenu,
+  WelcomeFiling,
 } from "@/components/assistant-ui/projects";
 import { AddCompanyDialog } from "@/components/add-company";
 import { Companies } from "@/components/companies";
@@ -95,6 +95,7 @@ import { Mascot } from "@/components/mascot";
 import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { usePendingCounts, useCompanyNav, watchPendingCounts } from "@/lib/companies";
 import { cssPx, dockFits, loadPanelPrefs, setPanelDocked, setPanelOpen, setPanelOverlay, usePageMonth, usePanel } from "@/lib/company-panel";
+import { syncPrefs } from "@/lib/prefs-sync";
 import { co, greeting, HELP_URL, lang, LANGUAGES, siteUrl, t } from "./i18n";
 
 type Nav = ReturnType<typeof useNavHistory>;
@@ -127,6 +128,8 @@ function Welcome() {
           {name ? `${greeting()}${lang === "zh" ? "，" : ", "}${name}` : greeting()}
         </h1>
       </div>
+      {/* 手机：公司、月份、分店在问候下面（同线上旧版的公司条）；电脑在输入框下巴里 */}
+      <WelcomeFiling />
     </div>
   );
 }
@@ -239,7 +242,7 @@ function UserFooter() {
   return (
     <>
       <UserMenu>
-        <button type="button" className="cc-nav-item min-w-0 flex-1">
+        <button type="button" className="cc-nav-item min-w-0 flex-1" data-slot="cc-user-menu">
           <span className="cc-nav-icon">
             <span className="cc-avatar size-6">{initials(profile)}</span>
           </span>
@@ -249,7 +252,7 @@ function UserFooter() {
           </Marquee>
         </button>
       </UserMenu>
-      <button type="button" className="cc-icon-btn" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
+      <button type="button" className="cc-icon-btn" data-slot="cc-settings-button" onClick={() => openSettings()} aria-label={t("settings")} title={t("settings")}>
         <SettingsIcon />
       </button>
     </>
@@ -602,7 +605,7 @@ function DrawerIcon() {
 
 // 对话区顶部。
 // - 手机（同 Claude 手机端对话页）：左边菜单，右边胶囊（新建对话、「…」对话选项），都浮在内容上。
-// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、移到、删除）；
+// - 电脑（设计文档 3.9 / 4.3，高 32）：对话有内容时左上角「公司名 ›」+ 对话名（点了就地改名）+「···」（置顶、改名、删除）；
 //   右上 26 的按钮：本对话的文件 N（有文件才出现）、右侧会话栏开关（挂了公司的 Cowork 对话才有）。
 // - 桌面端：以上放进自画的标题栏，右边是窗口按钮。
 function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: ReturnType<typeof useMaximized>; chrome: boolean; tools: ReactNode }) {
@@ -651,7 +654,7 @@ function MainTopBar({ nav, window: win, chrome, tools }: { nav: Nav; window: Ret
   );
 }
 
-// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、移到…、处理月份、删除）
+// 手机对话页右上角的胶囊（同 Claude 手机端）：新建对话 + 「…」（公司名 = 打开右侧会话栏、置顶、改名、处理月份、分店、删除）
 function MobileChatPill({ onNew }: { onNew: () => void }) {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
@@ -722,12 +725,10 @@ function ConversationName() {
   );
 }
 
-// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、移到 ▸、删除
+// 对话名旁的「···」（同 Claude Code）：置顶、改名（就地改）、删除（对话不能换公司，用户 10-17 删了「移到 ▸」）
 function ConversationMenu({ onRename }: { onRename: () => void }) {
   const aui = useAui();
   const custom = useAuiState((s) => s.threadListItem.custom);
-  const remoteId = useAuiState((s) => s.threadListItem.remoteId);
-  const localId = useAuiState((s) => s.threadListItem.id);
   const starred = !!custom?.starred;
   return (
     <DropdownMenu.Root>
@@ -745,7 +746,6 @@ function ConversationMenu({ onRename }: { onRename: () => void }) {
             <PencilIcon />
             {t("rename")}
           </DropdownMenu.Item>
-          <MoveToMenu sessionId={remoteId} localId={localId} />
           <DropdownMenu.Item className="cc-menu-item" data-danger="" onSelect={() => void aui.threadListItem().delete()}>
             <TrashIcon />
             {t("delete")}
@@ -874,6 +874,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   // 宽屏并排（开关记在本机）；对话区放不下时浮在对话上、手机盖满屏（点了才开，换对话收起）
   const profile = useProfile();
   useEffect(() => loadPanelPrefs(profile?.user ?? ""), [profile?.user]);
+  // 个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）按人存在服务端：知道是谁了就取，本机记下的先顶着（lib/prefs-sync.ts）
+  useEffect(() => void syncPrefs(profile?.user ?? ""), [profile?.user]);
   const [area, setArea] = useState<HTMLDivElement | null>(null);
   const fits = useDockFits(area);
   const filing = useFiledCompany();
@@ -927,6 +929,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   const panelButton = hasPanel ? (
     <button
       type="button"
+      data-slot="cc-panel-toggle"
       onClick={togglePanel}
       aria-pressed={panelShown}
       title={t(panelShown ? "hidePanel" : "showPanel")}

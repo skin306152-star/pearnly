@@ -59,6 +59,8 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     / awaiting_approval（要用户在对话里点「允许」，`decide`）。"""
     use_id = contracts.event_id(call.get("id"))
     gated = tools.needs_approval(call.get("name"), call.get("input"))
+    refused = _refused_before_card(conversation, call) if gated else None
+    gated = gated and not refused
     try:
         run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": conversation,
                               "user": frappe.session.user, "tool": call.get("name") or "",
@@ -76,7 +78,25 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         return "awaiting_approval" if waiting == "awaiting_approval" else "running"
     if gated:
         return "awaiting_approval"
+    if refused:
+        # 出卡片前就核出要拒绝：不执行工具，把拒绝结果交回模型（按出错），同样留记录。结果带上没问过用户的标记（`tools.not_asked`），
+        # 对话页重开时才分得清它和点了「允许」后没做成的
+        refused = tools.not_asked(refused)
+        engine.adapter().post(remote, [contracts.tool_result(use_id, refused, True)])
+        frappe.db.set_value(TOOL_RUN, run.name, {"status": "error", "result": refused[:60000]})
+        frappe.db.commit()
+        return "error"
     return _finish(conversation, remote, run.name, use_id, call.get("name"), call.get("input"))
+
+
+def _refused_before_card(conversation: str, call: dict) -> str | None:
+    """要「允许」的调用出卡片前的核对（`tools.refusal`），同卡片预览按这段对话现算（产品工具缺省取本对话挂的公司等）。"""
+    before = getattr(frappe.local, "pearnly_assistant", None)
+    frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
+    try:
+        return tools.refusal(call.get("name"), call.get("input"))
+    finally:
+        frappe.local.pearnly_assistant = before
 
 
 def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
@@ -94,7 +114,10 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     if not claimed:
         return "not_waiting"
     if not allow:
-        text = _("The user did not allow this change. Do not try it again unless the user asks.")
+        # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）
+        text = json.dumps({"status": "denied",
+                           "message": _("The user did not allow this change. Do not try it again unless the user asks.")},
+                          ensure_ascii=False)
         engine.adapter().post(remote, [contracts.tool_result(use_id, text, False)])
         frappe.db.set_value(TOOL_RUN, name, "result", text)
         frappe.db.commit()

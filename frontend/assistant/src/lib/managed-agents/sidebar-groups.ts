@@ -9,12 +9,13 @@
 //   不分组（flatSections）：已置顶 → 其余全部（标题「最近」）
 //
 // 组内按排序方式排：上次更新 / 创建日期 / 名称，降序或升序；公司组按同一种方式排（名称 = 公司名）。
-// 手排（用户 10-16，sidebar-order.ts）：公司组拖过以后按手排的顺序（新出现的公司排最上面）；置顶的对话拖过以后按手排的先后
-// （新置顶的排最上面）。组里其余对话照排序方式排。
+// 手排（用户 10-16、10-17，sidebar-order.ts）：公司组拖过以后按手排的顺序（新出现的公司排最上面）；置顶的对话拖过以后按手排的
+// 先后（新置顶的排最上面）；按公司分组时组里的对话拖过以后按手排的先后（arrangeGroup：比存下时这组最新的那个时间还新的排最上面，
+// 不比它新的接在后面）。没手排过的照排序方式排。
 // 搜索同时匹配对话标题和公司名（公司名命中时这家的对话都算）；搜索时每组都显示全部命中的，没命中的组不显示。
 
 import { FIRST_SHOWN, OPEN_FIRST, type ProjectRow, rowActivity } from "./projects";
-import { arrange } from "./sidebar-order";
+import { arrange, type GroupOrder } from "./sidebar-order";
 import type { SortBy } from "./sidebar-view";
 
 /** 侧栏的一行对话：index 是组件库 threadIds 里的位置；created 创建时间（列表带回的，本页新建的没有）、period 处理月份；
@@ -50,9 +51,28 @@ export type SectionOptions = {
   companyOrder?: readonly string[];
   /** 手排的置顶顺序（行的 key；空 = 按排序方式）。 */
   pinnedOrder?: readonly string[];
+  /** 按公司分组时各组里手排的先后（键 = 公司编号，最近 ""）。 */
+  groupOrders?: Readonly<Record<string, GroupOrder>>;
 };
 
 const UPDATED_DESC: SortOptions = { by: "updated", desc: true };
+
+/** 选了文件还没发的空对话（用户 10-16：侧栏里「选了文件但还没发」会多出一条「新对话」）：输入框加附件要先建会话，会话一建就成了
+ *  侧栏普通一行（标题空）。标题空 = 还没发过消息（首条消息一发就有临时标题，session-list-adapter.ts 的 generateTitle），这样的行
+ *  不列；当前打开的那条（按本页编号，或与它同一个服务端编号的另一行）照常显示。只在侧栏拼行时滤，不动服务端列表与组件库的数据：
+ *  侧栏多设备同步（list-sync.ts）会把本该在这一页却没有的当成在别处删了。返回要藏的本页编号。 */
+export function unsentDrafts(
+  items: readonly { id: string; remoteId?: string | undefined; title?: string | undefined }[],
+  mainId: string | undefined,
+): Set<string> {
+  const openRemote = items.find((item) => item.id === mainId)?.remoteId;
+  const hidden = new Set<string>();
+  for (const item of items) {
+    if (item.title?.trim() || item.id === mainId || (openRemote && item.remoteId === openRemote)) continue;
+    hidden.add(item.id);
+  }
+  return hidden;
+}
 
 /** 已置顶的那一组：按排序方式，手排过的按手排的先后（新置顶的在最上面）。 */
 function pinnedIndices(sorted: readonly SidebarRow[], keep: (row: SidebarRow) => boolean, order: readonly string[] | undefined): number[] {
@@ -67,6 +87,32 @@ export function compareRows(sort: SortOptions = UPDATED_DESC): (a: SidebarRow, b
     const order = sort.by === "name" ? a.title.localeCompare(b.title) : key(a) - key(b);
     return (sort.desc ? -order : order) || a.index - b.index;
   };
+}
+
+/** 按排序方式比新旧用的时间：创建日期用创建时间（本页新建的没有，用上次更新），其余用上次更新。 */
+const timeOf = (sort: SortOptions) => (row: SidebarRow) => (sort.by === "created" ? (row.created ?? row.time) : row.time);
+
+/** 存下手排时记的 at：这组此刻各行里最新的那个时间（按排序方式用的时间；没有时间的本页新行不算，都没有为 0）。取自服务端给的
+ *  时间，不用本机时钟（审查：本机时钟快了，存下后几分钟内新建的对话会被当成更旧、排到手排列表后面）。 */
+export function groupStamp(rows: readonly SidebarRow[], sort: SortOptions = UPDATED_DESC): number {
+  const when = timeOf(sort);
+  return rows.reduce((latest, row) => {
+    const time = when(row);
+    return Number.isFinite(time) && time < Number.MAX_SAFE_INTEGER ? Math.max(latest, time) : latest;
+  }, 0);
+}
+
+/** 一组里的行（已按排序方式排好）按手排的先后摆（用户 10-17）：手排列表里的按列表的先后；不在列表里的，比存下时这组最新的那个
+ *  时间（saved.at，groupStamp；按当前排序方式用的时间：创建日期用创建时间，其余用上次更新）还新的排最上面（新对话出现在顶上），
+ *  不比它新的（「显示更多」后才取到的）接在后面，各自保持排序方式的先后。没手排过原样返回。 */
+export function arrangeGroup(sorted: readonly SidebarRow[], saved: GroupOrder | undefined, sort: SortOptions = UPDATED_DESC): SidebarRow[] {
+  if (!saved?.keys.length) return [...sorted];
+  const at = new Map(saved.keys.map((key, i) => [key, i]));
+  const keyOf = (row: SidebarRow) => row.key ?? String(row.index);
+  const when = timeOf(sort);
+  const known = sorted.filter((row) => at.has(keyOf(row))).sort((a, b) => at.get(keyOf(a))! - at.get(keyOf(b))!);
+  const fresh = sorted.filter((row) => !at.has(keyOf(row)));
+  return [...fresh.filter((row) => when(row) > saved.at), ...known, ...fresh.filter((row) => !(when(row) > saved.at))];
 }
 
 function searcher(projects: readonly ProjectRow[], query: string) {
@@ -114,8 +160,12 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
   const anyChats = rows.some((row) => !!groupOf(row)) || Object.keys(options.serverMore ?? {}).length > 0;
   let rank = 0;
   let empties = 0;
+  const inGroup = (group: string) =>
+    arrangeGroup(sorted.filter((row) => !row.starred && groupOf(row) === group && matches(row)), options.groupOrders?.[group], sort).map(
+      (row) => row.index,
+    );
   for (const project of ordered) {
-    const all = sorted.filter((row) => !row.starred && groupOf(row) === project.id && matches(row)).map((row) => row.index);
+    const all = inGroup(project.id);
     if (query && !all.length && !project.title.toLowerCase().includes(query)) continue;
     if (!query && !all.length && options.empty === false) continue;
     const indices = query ? all : all.slice(0, options.shown?.[project.id] ?? FIRST_SHOWN);
@@ -125,11 +175,32 @@ export function companySections(rows: readonly SidebarRow[], projects: readonly 
     sections.push({ type: "project", key: `project:${project.id}`, project, rank: order, indices, all, more });
   }
 
-  const recents = sorted.filter((row) => !row.starred && !groupOf(row) && matches(row)).map((row) => row.index);
+  const recents = inGroup("");
   if (recents.length) sections.push({ type: "recents", key: "recents", indices: recents });
 
   if (query && !sections.length) return null;
   return sections;
+}
+
+/** 拖对话时（按公司分组）眼前没有「已置顶」：补一个空的放在最上面（拖进去 = 置顶；照原来临时补「最近」的做法）。只在指针拖到
+ *  侧栏顶上时才补（thread-list.tsx 的 onPointer：拿起那一刻补会把整列往下推，拿起的那一行离开指针——审查）。 */
+export function withPinned(sections: SidebarSection[]): SidebarSection[] {
+  return sections.some((section) => section.type === "pinned") ? sections : [{ type: "pinned", key: "pinned", indices: [] }, ...sections];
+}
+
+/** 拖动中对话进了「已置顶」（还没放下，共用拖动的 onOver）：把这一行从它那一组拿掉，排进已置顶的第 at 位（眼前的摆法；
+ *  各组的名次、展开、「显示更多」不变）。没有已置顶时先补一个空的。 */
+export function pinGuest(sections: SidebarSection[], index: number, at: number): SidebarSection[] {
+  const without = (list: readonly number[]) => list.filter((i) => i !== index);
+  return withPinned(sections).map((section) => {
+    if (section.type === "pinned") {
+      const indices = without(section.indices);
+      const spot = Math.max(0, Math.min(at, indices.length));
+      return { ...section, indices: [...indices.slice(0, spot), index, ...indices.slice(spot)] };
+    }
+    if (section.type === "project") return { ...section, indices: without(section.indices), all: without(section.all) };
+    return { ...section, indices: without(section.indices) };
+  });
 }
 
 /** 按处理月份：已置顶 → 各月（降序新的在前，升序旧的在前）→ 未指定月份（键 month:）。 */

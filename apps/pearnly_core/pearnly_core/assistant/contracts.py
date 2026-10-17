@@ -225,17 +225,64 @@ def fit_title(text, width: int = TITLE_WIDTH) -> str:
     return "".join(kept)
 
 
-def make_title(ask) -> str:
+def _plain_text(value) -> str:
+    """比对用：小写、去掉空白与标点（只用来判断是否照抄了示例）。"""
+    return "".join(char for char in unicodedata.normalize("NFC", str(value or "")).casefold()
+                   if not char.isspace() and not unicodedata.category(char).startswith("P"))
+
+
+# 示例标题的相邻两字有这么多出现在用户首句里，才算用户自己就在说这件事（第 7 轮审查：只看首句。CC 的回复常带「เดือน 9」
+# 「บริษัท」「ภาษีซื้อ」这些记账常用词，按回复算时示例原文也被当成撑得起，照收成标题）
+EXAMPLE_SUPPORT = 0.8
+# 重问后模型仍回同一句示例：首句撑得起大半就收（例如问「เมื่อคืนเป็นยังไงบ้าง」，两次都起名「ผลงานเมื่อคืน」）
+EXAMPLE_REPEAT_SUPPORT = 0.5
+
+
+def _pairs(text) -> list[str]:
+    clusters = graphemes(text)
+    return ["".join(clusters[i:i + 2]) for i in range(len(clusters) - 1)] or clusters
+
+
+def copies_example(answer, source="", examples=(), support=EXAMPLE_SUPPORT) -> bool:
+    """模型的原话（整段，不只第一行）里照抄了提示里的示例标题，而用户首句（``source``，不含 CC 的回复）撑不起这个话题
+    （示例相邻两字出现在首句里的不到 ``support``）。2026-10-16 测试：一条改科目的对话被起名「ภาษีเดือน 9 สามบริษัท」——
+    标题模型把示例原样抄回来（回的是「示例 + 解释」，第一行就是示例）。``examples`` 是 `engines.base.TITLE_EXAMPLES`
+    （(语言, 标题)），不另存一份。"""
+    said, own = _plain_text(answer), _plain_text(source)
+    for _language, example in examples or ():
+        sample = _plain_text(example)
+        if not sample or sample not in said:
+            continue
+        pairs = _pairs(sample)
+        if sum(pair in own for pair in pairs) < support * len(pairs):
+            return True
+    return False
+
+
+def make_title(ask, source="", examples=()) -> str:
     """向模型要一个侧栏标题。`ask(too_long)` 调一次模型、回原话（第一次 too_long 为空）。
     第一次超宽（或不像标题：超过 TITLE_MAX 字）就带上它重问一次；仍超宽就取两次里较窄的、在词或字形簇边界收短。
+    照抄了提示里的示例（`copies_example`，``source`` 是用户首句）不算标题：重问一次（不带 too_long）；重问回的仍是示例时，
+    首句撑得起大半（`EXAMPLE_REPEAT_SUPPORT`）才收，否则回空串。总共最多问两次。
     第一次没给回空串（调用方保留临时标题）；第二次出错按没给处理；第一次出错照抛，由调用方记下。"""
-    first = clean_title(ask(""))
+    answer = ask("")
+    first = clean_title(answer)
     if not first:
         return ""
+    if copies_example(answer, source, examples):
+        try:
+            answer = ask("")
+        except Exception:
+            return ""
+        first = clean_title(answer)
+        if not first or copies_example(answer, source, examples, EXAMPLE_REPEAT_SUPPORT) or len(first) > TITLE_MAX:
+            return ""
+        return first if title_fits(first) else fit_title(first)
     if len(first) <= TITLE_MAX and title_fits(first):
         return first
     try:
-        second = clean_title(ask(first[:TITLE_MAX].strip()))
+        answer = ask(first[:TITLE_MAX].strip())
+        second = "" if copies_example(answer, source, examples) else clean_title(answer)
     except Exception:
         second = ""
     pool = [title for title in (second, first) if 0 < len(title) <= TITLE_MAX]
@@ -271,7 +318,7 @@ def session_change(change, session, title=None, starred=None) -> dict:
 PROJECT_ID = re.compile(r"^[A-Za-z0-9_-]{4,64}$")
 PERIOD = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 PROJECT_SCOPE = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
-# 实时事件（同 `session_change` 走 `REALTIME_EVENT`，信封 session_id 为空）：对话换组 → move；产品的一项建、改 → upsert；
+# 实时事件（同 `session_change` 走 `REALTIME_EVENT`，信封 session_id 为空）：对话改月份、分店，删公司时回到「最近」 → move；产品的一项建、改 → upsert；
 # 删 → delete（这一项的对话归回「最近」）
 PROJECT_CHANGE = "pearnly.project"
 PROJECT_OPS = frozenset({"upsert", "delete", "move"})

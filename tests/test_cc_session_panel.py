@@ -37,7 +37,7 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn("<ConversationMenu onRename={() => setRenaming(true)} />", name)
         menu = app.split("function ConversationMenu(", 1)[1].split("\nfunction ", 1)[0]
         self.assertIn('<DropdownMenu.Trigger className="cc-row-btn" aria-label={t("conversationMenu")}', menu)
-        self.assertIn("<MoveToMenu sessionId={remoteId} localId={localId} />", menu)
+        self.assertNotIn("MoveToMenu", app)   # 用户 10-17：对话不能换公司，「移到」已删
         self.assertIn('onSelect={onRename}', menu)
         # 「公司名 ›」打开会话栏的公司卡，不再进公司页
         projects = read("components/assistant-ui/projects.tsx")
@@ -109,13 +109,13 @@ class TitleBarSourceTests(unittest.TestCase):
         self.assertIn('showPanel: "显示右侧栏",', i18n)
         self.assertIn('hidePanel: "隐藏右侧栏",', i18n)
         self.assertIn('reorder: "调整顺序",', i18n)
-        self.assertIn('noChats: "还没有对话。"', i18n)
+        self.assertIn('noChats: "暂无对话"', i18n)
         for words in ('notes: (n: number) => `${n} 条`', 'tasks: (n: number) => `${n} 个任务`', 'choices: (n: number) => `${n} 项`',
                       'docs: (n: number) => `${n} 张`', 'drafts: (n: number) => `${n} 份`', 'files: (n: number) => `${n} 个文件`',
                       'sets: (n: number) => `${n} 本`', 'toDo: (n: number) => `需处理 ${n}`',
                       'notes: (n: number) => (n === 1 ? "1 note" : `${n} notes`)'):
             self.assertIn(words, i18n)
-        self.assertIn('chatWaiting: "等你处理"', i18n)
+        self.assertIn('chatWaiting: "需要您的输入"', i18n)
 
 
 class PanelStylesSourceTests(unittest.TestCase):
@@ -437,7 +437,8 @@ const card = (props: any = {}) => createElement(PanelCard, { id: "notes", title:
 const page = renderToStaticMarkup(card());
 assert.match(page, /<button type="button" class="cc-panel-card-toggle" aria-expanded="true" aria-describedby="([^"]+)">/);
 const described = page.match(/aria-describedby="([^"]+)"/)![1];
-assert.ok(page.includes(`<span class="cc-panel-card-end" data-slot="cc-card-end"><span id="${described}" class="cc-panel-card-summary">2 notes</span></span>`));
+// 摘要也是单行截断的文字（放不下时末尾渐隐，同侧栏；用户 10-16「统一渐隐」）
+assert.ok(page.includes(`<span class="cc-panel-card-end" data-slot="cc-card-end"><span class="cc-marquee cc-panel-card-summary" id="${described}"><span class="cc-marquee-text">2 notes</span></span></span>`));
 assert.ok(page.includes(">body<"));
 assert.ok(!page.includes("cc-panel-grip") && !page.includes("cc-card-grip"));
 // 摘要为 0、空不显示（开关也不带说明）
@@ -445,7 +446,7 @@ assert.ok(!renderToStaticMarkup(card({ summary: 0 })).includes("cc-panel-card-su
 assert.ok(!renderToStaticMarkup(card({ summary: "" })).includes("aria-describedby"));
 // 卡头操作与摘要叠在同一格（悬停才出，盖住摘要）；一直显示的控件在标题后面
 const tools = renderToStaticMarkup(card({ action: createElement("button", null, "+"), extra: createElement("b", null, "Sep") }));
-assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span id="[^"]+" class="cc-panel-card-summary">2 notes<\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
+assert.match(tools, /<span class="cc-panel-card-extra"><b>Sep<\/b><\/span><span class="cc-panel-card-end" data-slot="cc-card-end"><span class="cc-marquee cc-panel-card-summary" id="[^"]+"><span class="cc-marquee-text">2 notes<\/span><\/span><span class="cc-panel-card-tools"><button>\+<\/button><\/span><\/span>/);
 // 会话栏里（排序列表里）：折叠记在会话栏（折叠了不画内容）；每张卡最右边都有把手槽，把手接上排序（dnd-kit 的属性）
 const control = { collapsed: ["notes"], toggle() {}, move() {}, register: () => () => {} };
 const texts = { instructions: "", pickedUp: String, movedTo: String, droppedAt: String, cancelled: String };
@@ -455,7 +456,7 @@ const panel = inPanel(card());
 assert.match(panel, /aria-expanded="false"/);
 assert.ok(!panel.includes(">body<"));
 assert.match(panel, /<span class="cc-panel-card-grip" data-slot="cc-card-grip"><button type="button"[^>]*role="button"[^>]*tabindex="0"[^>]*aria-roledescription="sortable"[^>]*class="cc-panel-btn cc-panel-grip" aria-label="Reorder" title="Reorder">/);
-assert.match(panel, /<section data-drag-list="cards" class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移、不留空
+assert.match(panel, /<section data-drag-id="notes" data-drag-list="cards" class="cc-panel-card" data-card="notes">/);   // 没在拖：没有位移、不留空
 assert.ok(!panel.includes("data-drag-source") && !panel.includes("style="));
 // 正在里面新增 / 编辑（forceOpen）：折叠了也展开
 assert.ok(inPanel(card({ forceOpen: true })).includes(">body<"));
@@ -576,7 +577,7 @@ class SortableSourceTests(unittest.TestCase):
     def test_the_panel_uses_the_shared_drag(self):
         panel = read("components/session-panel.tsx")
         # 会话栏卡片走共用拖动：一个拖动区 + 一列（只认同一列的卡片），放下记顺序
-        self.assertIn('import { DragArea, type DragData, DragList, type DragTexts } from "@/components/ui/drag";', panel)
+        self.assertIn('import { DragArea, type DragData, DragList, type DragTexts, spotIn } from "@/components/ui/drag";', panel)
         self.assertIn("<DragArea accepts={sameColumn} onDrop={onDrop} texts={texts}>", panel)
         self.assertIn('<DragList id="cards" items={items}>', panel)
         self.assertIn("const items = useMemo(() => order.filter((id) => id in titles), [order, titles]);", panel)
@@ -603,34 +604,39 @@ class SortableSourceTests(unittest.TestCase):
         # 手感：鼠标按住动 3px、手机长按 250ms（5px 内）、键盘空格拿起 / 空格回车放下 / Esc 取消
         self.assertIn("export const MOUSE_START = { distance: 3 };", drag)
         self.assertIn("export const TOUCH_START = { delay: 250, tolerance: 5 };", drag)
-        self.assertIn("useSensor(MouseSensor, { activationConstraint: MOUSE_START }),", drag)
-        self.assertIn('useSensor(HoldTouchSensor, { ...TOUCH_START, moveToLift: touch === "move" }),', drag)
-        self.assertIn("useSensor(KeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS }),", drag)
+        # 三种传感器放下时都先交给 beforeEnd（第 6 轮：先播落位，播完才结束拖动）；手机侧栏的行、组头与卡片把手同一规则
+        self.assertIn("useSensor(LandingMouseSensor, { activationConstraint: MOUSE_START, beforeEnd }),", drag)
+        self.assertIn("useSensor(HoldTouchSensor, { ...TOUCH_START, beforeEnd }),", drag)
+        self.assertIn("useSensor(LandingKeyboardSensor, { coordinateGetter: coordinates, keyboardCodes: KEYS, scrollBehavior: KEYBOARD_SCROLL, beforeEnd, beforeCancel }),", drag)
+        self.assertIn("export const LandingMouseSensor = landFirst<MouseSensorOptions>(MouseSensor);", drag)
+        self.assertIn("export const LandingKeyboardSensor = landFirst<KeyboardSensorOptions>(KeyboardSensor);", drag)
         self.assertIn("start: [KeyboardCode.Space],", drag)
         self.assertNotIn("PointerSensor", drag)   # 鼠标与触屏分开：触屏要长按，鼠标不用
         # 浮层（克隆原来那一项）跟手，放下用拖动库的落位动画（动效变量），落点那一项在动画播完前不显示
-        self.assertIn('<DragOverlay dropAnimation={dropAnimation} transition={keyboardMove} className="cc-drag-overlay">', drag)
+        self.assertIn('<DragOverlay dropAnimation={drop} transition={keyboardMove} zIndex={OVERLAY_Z} className="cc-drag-overlay">', drag)
         # 浮层挂在 body 上：会话栏、侧栏是滚动区（又可能成了 fixed 的定位基准），挂在里面会跟着滚走
         self.assertIn("createPortal(overlay, document.body)", drag)
-        self.assertIn('landing.node.dataset.dragLanding = "";', drag)
+        # 落点那一项按拖动编号在此刻的页面里找（拖进另一列以后取消，拖动库给的是那一列里已经卸下的那一份）
+        self.assertIn("const node = landingNode(active.id, active.node);", drag)
+        self.assertIn('node.dataset.dragLanding = "";', drag)
         self.assertIn('return { duration: cssMs(css.getPropertyValue("--cc-dur"), 200), easing: css.getPropertyValue("--cc-ease").trim() || "ease" };', drag)
         self.assertIn('if (root.dataset.ccMotion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return null;', drag)
         # 只竖着拖、浮层不出这一列（按版面位置，不含让位的位移），浮层 fixed 不撑大滚动区
         self.assertIn("return { ...transform, x: 0, y: clampToList(transform.y, { top: start.top, height: start.height }, list) };", drag)
         self.assertIn("const rect = getClientRect(node, { ignoreTransform: true });", drag)
-        # 碰撞只认能放的地方：排序最近的中心，拖到别的组看指针（键盘拖时是浮层中心）落在哪一组
-        self.assertIn("if (active.list) return closestCenter({ ...args, droppableContainers });", drag)
-        self.assertIn("return pointerWithin({ ...args, droppableContainers, pointerCoordinates });", drag)
+        # 碰撞只认能放的地方：按 narrowPool 收窄（键盘只在本列；指针进了哪一列的整块就认那一列）后取最近的中心
+        self.assertIn("return closestCenter({ ...args, droppableContainers: pool });", drag)
+        self.assertNotIn("pointerWithin", drag)
         # 拖动标记：Esc 只取消拖动
         self.assertIn("setDragging(true);", drag)
-        self.assertIn("useEffect(() => () => setDragging(false), []);", drag)
+        self.assertIn("letGo.flush(); // 卸下时还在等落位的放下当场结束\n      setDragging(false);", drag)
         # 克隆去掉会被别处按属性找到的标记，整块 inert
-        self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} inert aria-hidden>', drag)
-        for name in ('"data-card"', '"data-row-id"', '"data-roving"', '"data-selected"'):
+        self.assertIn('<div className="cc-drag-float" data-kind={data?.kind} data-peek={peek ? "" : undefined} inert aria-hidden>', drag)
+        for name in ('"data-card"', '"data-row-id"', '"data-drag-id"', '"data-roving"', '"data-selected"'):
             self.assertIn(name, drag.split("const STRIP = [", 1)[1].split("];", 1)[0])
         layers = read("lib/layers.ts")
         self.assertIn('window.addEventListener("keydown", markEscape, true);', layers)
-        self.assertIn("return escapes.has(event) || isDragging();", layers)
+        self.assertIn("return escapes.has(event) || (isDragging() && !released);", layers)   # 已经放手、只等落位的不算（审查）
 
     def test_drag_lift_and_grip_slot_styles(self):
         css = read("globals.css")
@@ -649,6 +655,9 @@ class SortableSourceTests(unittest.TestCase):
         # 抓手光标归共用拖动的把手标记（会话栏卡片把手、侧栏行、置顶行、公司组头同一条，第 5 轮审查）；把手里的输入框是文字光标
         self.assertIn("[data-drag-handle] { cursor: grab; }", css)
         self.assertIn("[data-drag-handle] :is(input, textarea) { cursor: text; }", css)
+        # 侧栏里悬停是手指、不是抓手（用户 10-16，只改光标不改行为）：排在抓手那条后面、选择器更具体
+        self.assertIn(':is([data-slot="sidebar"], .cc-drawer) [data-drag-handle] { cursor: pointer; }', css)
+        self.assertLess(css.index("[data-drag-handle] { cursor: grab; }"), css.index(':is([data-slot="sidebar"], .cc-drawer) [data-drag-handle] { cursor: pointer; }'))
         self.assertIn('"data-drag-handle": "" as const,', read("components/ui/drag.tsx"))
         # 第 4 轮的放下过渡（data-moving / data-landing）删掉了
         for old in ("data-moving", "data-landing", "--cc-land-y", "data-cc-card-drag"):

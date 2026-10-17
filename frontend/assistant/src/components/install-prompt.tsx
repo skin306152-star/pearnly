@@ -1,6 +1,6 @@
 // 「把 CC 装到这台设备」的入口（lib/install.ts 决定装什么）：欢迎页一条可关掉的提示 + 用户菜单里一项（同 Claude 的「获取应用」）。
 // 按钮文字和图标跟着设备走；浏览器调不起安装（iPhone、Mac Safari）时点了给它自己菜单里的准确步骤。
-// 样式在 globals.css 的 .cc-install / .cc-install-guide。
+// 样式在 globals.css 的 .cc-install / .cc-install-guide；欢迎页那一条的按钮是卡片按钮（.cc-card-btn，同允许卡：「添加」主要、× 次要）。
 
 import {
   AppWindowMacIcon,
@@ -133,16 +133,15 @@ export function InstallBanner() {
   const { target, run } = useInstall();
   const [hidden, setHidden] = useState(installDismissed);
   if (!target || hidden) return null;
-  const Icon = ICON[target];
   return (
     <div className="cc-install cc-enter">
-      <button type="button" className="cc-install-main" onClick={run}>
-        <Icon />
+      <button type="button" className="cc-card-btn" data-primary="" onClick={run}>
         {LABEL[target]()}
       </button>
       <button
         type="button"
-        className="cc-install-close"
+        className="cc-card-btn"
+        data-icon=""
         aria-label={t("close")}
         onClick={() => {
           dismissInstall();

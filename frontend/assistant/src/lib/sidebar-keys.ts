@@ -81,7 +81,7 @@ type Letter = "KeyP" | "KeyR" | "KeyD";
 type LetterEvent = { code: string; target: EventTarget | null; currentTarget: EventTarget | null; metaKey: boolean; ctrlKey: boolean; altKey: boolean; preventDefault(): void };
 
 /** 这个键是不是按在这一层菜单本身：子菜单（宽屏旁边展开的 SubContent、窄屏原菜单里换上的那一页）里的键沿组件树冒上来时
- *  不算——组件库在子菜单里按字母跳转不拦冒泡，否则在「移到 ▸」里按 D 想跳到某家公司会删掉对话。 */
+ *  不算——组件库在子菜单里按字母跳转不拦冒泡，否则在子菜单里按 D 想跳到某一项会删掉对话（原来行菜单里的「移到 ▸」，10-17 已删）。 */
 export function ownMenuKey(target: EventTarget | null, menu: EventTarget | null): boolean {
   const el = target as Element | null;
   if (!el || typeof el.closest !== "function") return false;
@@ -271,11 +271,12 @@ function attach(root: HTMLElement, companies: () => boolean): () => void {
   };
 
   // Esc：清空多选（菜单、弹窗开着时 Esc 只关它们；拖动中——鼠标或键盘拖，会话栏卡片或侧栏——Esc 只取消拖动，取消拖动的那一下
-  // Esc 本身也不算，lib/layers.ts 的 isDragEscape）；弹窗、菜单开着时 ⌘ / Ctrl + 数字也不切换后面的对话
+  // Esc 本身也不算，lib/layers.ts 的 isDragEscape）；弹窗、菜单开着时 ⌘ / Ctrl + 数字也不切换后面的对话。
+  // 一次只关一层：这个 Esc 已经被上面一层用掉（关了浮着的会话栏、菜单，取消了改名、编辑、拖动——它们都标记已处理）就不清多选
   const onWindowKey = (event: KeyboardEvent) => {
     const layered = () => !!document.querySelector(OPEN_LAYERS);
     if (event.key === "Escape") {
-      if (useSidebarSelection.getState().ids.length && !event.isComposing && !layered() && !isDragEscape(event)) {
+      if (useSidebarSelection.getState().ids.length && !event.isComposing && !event.defaultPrevented && !layered() && !isDragEscape(event)) {
         clearSelection();
         event.preventDefault();
       }

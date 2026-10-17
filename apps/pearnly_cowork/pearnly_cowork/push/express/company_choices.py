@@ -12,6 +12,9 @@
 - `valid`：一个值能不能用在这份账套（`config` 是推送准备的账套配置，带 CC 桌面版上报的 `reported_*` 主档）。
 - `decided_by` / `finish`：这张单每一类「按什么定的」（`task_default` 任务默认、`remembered` 账套记忆、`company_rule` 公司规则、
   `express_history` Express 历史；同一类几项来源不同记 `mixed`），付款方式由公司规则定时载荷的 `doctype_src` 记成 `company_rule`。
+- `used`：这张单实际用上的公司规则是哪几条（规则编号、对象名、值、范围），推送准备冻结进目标（`company_rules`），CC 说「按哪条
+  公司规则」时照这里说，不去说明里的 `<client_choices>` 猜（2026-10-16 测试：SD-6909-1010 按一条已删的สะอาดดี规则入账，
+  CC 却说成说明里仅剩的ซ่อมไว那条）。
 """
 from __future__ import annotations
 
@@ -142,17 +145,49 @@ def decided_by(trace: Mapping[str, List[Optional[str]]], sources: Mapping[str, M
     return out
 
 
+USED_MAX = 10  # 一张单冻结的公司规则最多这么多条（存货逐行可能多条）
+
+
+def used(trace: Mapping[str, List[Optional[str]]], sources: Mapping[str, Mapping[str, str]],
+         rules: Iterable[Mapping[str, Any]] = (), branch: str = "") -> List[Dict[str, str]]:
+    """这张单实际用上的公司规则 → `[{id, kind, subject, label, value, value_label, branch}]`（按 `trace` 的先后，去重，
+    最多 `USED_MAX` 条）。只认来源记成 `company_rule` 的归类键，规则按 `pick` 同一取法（分店的比全公司的具体）。"""
+    picked = pick(rules, branch)
+    out: List[Dict[str, str]] = []
+    seen = set()
+    for kind, subjects in (trace or {}).items():
+        for subject in subjects or ():
+            if subject is None or (kind, subject) in seen or (sources.get(kind) or {}).get(subject) != "company_rule":
+                continue
+            rule = (picked.get(kind) or {}).get(subject)
+            if not rule:
+                continue
+            seen.add((kind, subject))
+            out.append({"id": str(rule.get("id") or ""), "kind": kind, "subject": subject,
+                        "label": str(rule.get("subject_label") or ""), "value": str(rule.get("value") or ""),
+                        "value_label": str(rule.get("value_label") or ""), "branch": branch_of(rule.get("branch")) or ""})
+            if len(out) >= USED_MAX:
+                return out
+    return out
+
+
 def finish(decision: Dict[str, Any], trace: Mapping[str, List[Optional[str]]],
-           sources: Mapping[str, Mapping[str, str]]) -> Dict[str, Any]:
-    """把「按什么定的」放进 `decision["decided_by"]`；付款方式由公司规则定时，`applied["payment_from"]` 记成 `company_rule`
-    （写进载荷 `doctype_src`，CC 推送结果据此说清，同验收 F19）。就地改并回 `decision`。"""
+           sources: Mapping[str, Mapping[str, str]], rules: Iterable[Mapping[str, Any]] = (),
+           branch: str = "") -> Dict[str, Any]:
+    """把「按什么定的」放进 `decision["decided_by"]`、用上的公司规则放进 `decision["company_rules"]`（`used`）；付款方式由
+    公司规则定时，`applied["payment_from"]` 记成 `company_rule`（写进载荷 `doctype_src`，CC 推送结果据此说清，同验收 F19）。
+    就地改并回 `decision`。"""
     found = decided_by(trace, sources)
     if found:
         decision["decided_by"] = found
+    rules_used = used(trace, sources, rules, branch)
+    if rules_used:
+        decision["company_rules"] = rules_used
     applied = decision.get("applied") or {}
     if found.get("payment") == "company_rule" and applied.get("payment_from") == "remembered":
         applied["payment_from"] = "company_rule"
     return decision
 
 
-__all__ = ["MASTERS", "SOURCES", "WAIT_KINDS", "branch_of", "decided_by", "finish", "held_back", "overlay", "pick", "valid"]
+__all__ = ["MASTERS", "SOURCES", "USED_MAX", "WAIT_KINDS", "branch_of", "decided_by", "finish", "held_back", "overlay", "pick",
+           "used", "valid"]

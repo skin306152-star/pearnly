@@ -206,6 +206,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
     if decision.get("decided_by"):
         # 每一类按什么定的（账套记忆 / 公司规则 / Express 历史 / 任务默认），经 F19 的 written 交给 CC 说清楚
         frozen["decided_by"] = dict(decision["decided_by"])
+    if decision.get("company_rules"):
+        # 用上的是哪几条公司规则（编号、对象、值、范围）：CC 照这里说是哪一条，规则之后删了改了也说得对
+        frozen["company_rules"] = [dict(item) for item in decision["company_rules"]]
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",
@@ -308,7 +311,8 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
     公司规则（第 2 期）：账套记忆之下垫一层这家公司的规则（``account_row`` 是目录里这份账套那一行，按它认公司与分店，
     `push.express.company_choices.overlay`），再往下才是 Express 历史已定；取不到规则（钩子出错）这一张不用历史已定；
     公司规则因这份账套科目表没读到先没用的那一项也不用历史已定（等电脑读到科目表再按规则定）。
-    结果带 ``decided_by`` ``{kind: source}``（准备推送时冻结进目标，CC 据此说清按什么定的）。"""
+    结果带 ``decided_by`` ``{kind: source}`` 与用上的公司规则 ``company_rules``（准备推送时冻结进目标，CC 据此说清按什么定的、
+    按哪一条）。"""
     category = str(flat.get("category") or (flat.get("fields") or {}).get("category") or "").strip()
     _, source = resolve_account_sourced((preparation.get("mappings") or {}).get("accounts") or [], category, None)
     company, rules_read = _company_rules(connection, account_set, account_row)
@@ -337,7 +341,8 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
                                         remembered=remembered, account_resolved=source == SRC_CATEGORY, fixed=fixed,
                                         receipts=receipts, trace=trace)
         decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
-    company_choices.finish(decision, trace, sources)
+    company_choices.finish(decision, trace, sources, (company or {}).get("rules") or (),
+                           (company or {}).get("branch") or "")
     applied = decision["applied"]
     if applied.get("account"):
         applied["account_from"] = _account_from(decision, connection, account_set, fields, direction, since, sources)
@@ -747,7 +752,9 @@ def outcomes(records):
     rows = frappe.db.sql("""SELECT name, status, reason, external_docnum, result_unknown, payload_json, target_json,
         written_by_device FROM `tabCowork Push Record` WHERE actor=%s AND name IN %s""",
         (frappe.session.user, tuple(names)), as_dict=True)
-    written = _with_writers(rows, {row.name: _entered(row) for row in rows if row.status == "success"})
+    successes = [row for row in rows if row.status == "success"]
+    now = _rules_now(successes)
+    written = _with_writers(rows, {row.name: _entered(row, now) for row in successes})
     return {row.name: {"status": row.status, "reason": row.reason or "",
                        "docnum": (row.external_docnum or "") if row.status == "success" else "",
                        "result_unknown": bool(row.result_unknown),
@@ -758,13 +765,38 @@ def outcomes(records):
 WRITTEN_MAX = 50  # 同 CC 列单据一页的上限
 
 
-def _entered(row):
+def _rules_now(rows):
+    """这几条记录冻结的公司规则现在还在不在：``{规则编号: 现在的值}``（删了的不在里面）。经钩子
+    ``cowork_push_company_choices_saved``（`companies.rules.values_now`，push 域不导入 companies）一次查完；没有提供者、
+    出错回 None（``written`` 就不说还在不在）。"""
+    ids = set()
+    for row in rows:
+        target = _loads(getattr(row, "target_json", None))
+        for item in (target.get("company_rules") if isinstance(target, dict) else None) or ():
+            if isinstance(item, dict) and item.get("id"):
+                ids.add(str(item["id"]))
+    if not ids:
+        return {}
+    found = None
+    for path in frappe.get_hooks("cowork_push_company_choices_saved") or []:
+        try:
+            found = {**(found or {}), **(frappe.get_attr(path)(sorted(ids)) or {})}
+        except Exception:  # noqa: BLE001 — 查不到只少说一句「还在不在」，不挡回读
+            frappe.log_error(title="Cowork push company choices state failed", message=frappe.get_traceback()[-1500:])
+            frappe.clear_messages()
+            return None
+    return found
+
+
+def _entered(row, rules_now=None):
     """一条入账成功的记录给 CC 的 ``written``：Express 载荷里怎么写的（`pushed.written`，含冻结目标里的 ``decided_by``，
-    第 2 期按什么定的），加上 ERP 回报的单号 ``docnum``（测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，CC 后来
-    查详情 / 推送结果时只有现赊与科目，没有单号）。不是 Express 的（MR.ERP）只给单号；既没有载荷事实也没有单号回 None。"""
+    第 2 期按什么定的；用上的公司规则 ``company_rules``，带 ``rules_now`` 核的「现在还在不在」），加上 ERP 回报的单号
+    ``docnum``（测试窗口第 3 轮：待处理页当场选完重推、定时任务推的票，CC 后来查详情 / 推送结果时只有现赊与科目，没有单号）。
+    不是 Express 的（MR.ERP）只给单号；既没有载荷事实也没有单号回 None。"""
     target = _loads(getattr(row, "target_json", None))
-    decided_by = target.get("decided_by") if isinstance(target, dict) else None
-    item = dict(pushed_rules.written(_loads(row.payload_json), decided_by) or {})
+    target = target if isinstance(target, dict) else {}
+    item = dict(pushed_rules.written(_loads(row.payload_json), target.get("decided_by"), target.get("company_rules"),
+                                     rules_now) or {})
     docnum = str(getattr(row, "external_docnum", None) or "").strip()
     if docnum:
         item["docnum"] = docnum
@@ -781,7 +813,8 @@ def written(records):
         return {}
     rows = frappe.db.sql("""SELECT name, payload_json, target_json, external_docnum, written_by_device
         FROM `tabCowork Push Record` WHERE status='success' AND name IN %s""", (tuple(names),), as_dict=True)
-    found = _with_writers(rows, {row.name: _entered(row) for row in rows})
+    now = _rules_now(rows)
+    found = _with_writers(rows, {row.name: _entered(row, now) for row in rows})
     return {name: item for name, item in found.items() if item}
 
 

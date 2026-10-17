@@ -411,6 +411,7 @@ Content Hash,แฮชเนื้อหา
 Content Key,คีย์เนื้อหา
 Continues the scheduled task «{0}»; only files put in from now on are processed,ต่อจากงานตามกำหนดเวลา «{0}» ประมวลผลเฉพาะไฟล์ที่วางหลังจากนี้
 Continuous counting,ตรวจนับต่อเนื่อง
+Conversation,การสนทนา
 Copy card,คัดลอกการ์ด
 Copy link,คัดลอกลิงก์
 Copy list,คัดลอกรายการ
@@ -1245,6 +1246,7 @@ Push Account Set,ชุดบัญชีปลายทาง
 Push Attempt,การพยายามส่ง
 Push Connection,การเชื่อมต่อปลายทาง
 Push Record,รายการส่ง
+Push choices set for a client company or one of its branches,ตัวเลือกการส่งที่ตั้งไว้สำหรับบริษัทลูกค้าหรือสาขา
 Push record not found.,ไม่พบรายการส่ง
 Pushed,ตอนส่ง
 Pushed documents,ส่งเอกสารแล้ว

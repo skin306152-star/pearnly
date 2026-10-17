@@ -57,13 +57,21 @@ class NotesSourceTests(unittest.TestCase):
         button = css.split("  .cc-page-title-btn {", 1)[1].split("}", 1)[0]
         self.assertNotIn("overflow", button)                                    # 按钮自己不裁切
         self.assertIn(".cc-page-title[data-editable] { display: flex; overflow: visible; }", css)
-        self.assertIn(".cc-page-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }", css)
-        # 第 5 轮测试 3：「··· → 重命名」后菜单关上时不把焦点还给「···」，改名框直接能输入
+        # 放不下时末尾渐隐（同所有单行截断的文字，用户 10-16「统一渐隐」），不用省略号；块级，列表页的纯文字标题也用它
+        self.assertIn(".cc-page-title-text { display: block; min-width: 0; overflow: hidden; white-space: nowrap; }", css)
+        # 第 5 轮测试 3：「··· → 重命名」后菜单关上时不把焦点还给「···」，改名框直接能输入。第 5 轮复测焦点仍在 body：
+        # 选中那一下就挂上改名框，自动聚焦被菜单的焦点陷阱拉回菜单项。改为菜单关完（onCloseAutoFocus）才挂改名框
         self.assertIn("const renameFromMenu = useRef(false);", header)
-        self.assertIn("renameFromMenu.current = !isMobile;", header)
+        select = header.split("<DropdownMenu.Item\n              className=\"cc-menu-item\"\n              onSelect={() => {", 1)[1].split("}}", 1)[0]
+        self.assertIn("if (isMobile) return rename();", select)
+        self.assertIn("renameFromMenu.current = true;", select)
+        self.assertNotIn("startRename()", select)                              # 菜单开着时不挂改名框
         close = header.split("onCloseAutoFocus={(e) => {", 1)[1].split("}}", 1)[0]
         self.assertIn("if (!renameFromMenu.current) return;", close)
         self.assertIn("e.preventDefault();", close)
+        self.assertIn("startRename();", close)
+        title = page[page.index("const TitleRename: FC"):]
+        self.assertIn("if (el && document.activeElement !== el) el.focus({ preventScroll: true });", title)
         page = read("components/company-cards.tsx")
         choices = page[page.index("const ChoicesSection"):page.index("export const ChoiceRow")]
         self.assertIn("setChoiceShown(rows, c.key, v)", choices)

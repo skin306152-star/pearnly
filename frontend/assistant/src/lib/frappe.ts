@@ -24,6 +24,40 @@ export function siteFetch(url: string, init: RequestInit = {}): Promise<Response
 /** 本站拒收时（frappe.throw）给的原文：已按用户语言翻译，可以直接给用户看。网络等别的失败是普通 Error。 */
 export class SiteError extends Error {}
 
+/** 站点回了错误码、又没有给人看的原文（服务端原始异常、网关错误）：带上 HTTP 状态，调用方据此分辨是不是一时的。 */
+export class RequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+// 一时的失败：网络断开 / 请求没发出去（fetch 抛 TypeError）、网关与服务端错误（5xx、408、429）、数据库死锁或等锁超时
+// （1213 / 1205，2026-10-15 生产公司页出现过）。本站拒收（SiteError，带原文）不是。
+const TRANSIENT_STATUS = new Set([408, 429]);
+const TRANSIENT_DB = /\b(1213|1205)\b|Deadlock found|Lock wait timeout/;
+
+export function transientError(error: unknown): boolean {
+  if (error instanceof SiteError) return false;
+  if (error instanceof TypeError) return true;
+  if (error instanceof RequestError) return error.status >= 500 || TRANSIENT_STATUS.has(error.status) || TRANSIENT_DB.test(error.message);
+  return false;
+}
+
+/** 只读、可重复的请求碰到一时的失败（transientError）时隔一会儿再取，最多 ``tries`` 次；其余失败与最后一次照常抛出。 */
+export async function withRetry<T>(run: () => Promise<T>, tries = 3, waitMs = 600): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run();
+    } catch (error) {
+      if (attempt >= tries || !transientError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, waitMs * attempt));
+    }
+  }
+}
+
 /** 页面上给用户看的报错：本站拒收（SiteError）照原文；别的失败（数据库冲突、网络断开、服务端原始异常，多是英文、带错误码）
  *  只说通用的一句，原文写进控制台（2026-10-15 生产：公司页、定时任务页把「(1213, 'Deadlock found…')」显示成红色横幅）。 */
 export function shownError(error: unknown): string {
@@ -66,7 +100,7 @@ async function parse<T>(res: Response): Promise<T> {
   }
   if (!res.ok) {
     const told = serverMessage(body);
-    throw told ? new SiteError(told) : new Error(errorOf(body, res.status));
+    throw told ? new SiteError(told) : new RequestError(errorOf(body, res.status), res.status);
   }
   return (body as { message: T }).message;
 }

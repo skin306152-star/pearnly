@@ -411,6 +411,7 @@ Content Hash,内容ハッシュ
 Content Key,内容キー
 Continues the scheduled task «{0}»; only files put in from now on are processed,定期タスク「{0}」を引き継ぎ、今後追加されたファイルのみ処理します
 Continuous counting,連続棚卸
+Conversation,会話
 Copy card,カードをコピー
 Copy link,リンクをコピー
 Copy list,リストをコピー
@@ -1245,6 +1246,7 @@ Push Account Set,送信先会計データ
 Push Attempt,送信試行
 Push Connection,送信先接続
 Push Record,送信記録
+Push choices set for a client company or one of its branches,顧客会社または支店ごとの送信の選択
 Push record not found.,送信記録が見つかりません。
 Pushed,送信時
 Pushed documents,書類を送信しました

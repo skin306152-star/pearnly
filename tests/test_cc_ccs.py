@@ -8,6 +8,7 @@
 要跑 clipText 的那一条需要 node 与前端依赖（npm ci --prefix frontend/assistant），没有就跳过。
 """
 import importlib.util
+import json
 import pathlib
 import re
 import subprocess
@@ -32,6 +33,22 @@ def _gate():
 
 
 gate = _gate()
+
+
+def declared_asks():
+    """各产品工具声明的「允许」卡片问话（``ask`` / ``ask_when``，英文原文）连同服务端词条表里的中、泰、日译文。"""
+    found = set()
+    for path in (ROOT / "apps").glob("*/*/**/*.py"):
+        text = path.read_text(encoding="utf-8")
+        for block in re.findall(r'"ask(?:_when)?": (\{[^{}]*\}|"[^"]*")', text):
+            found.update(re.findall(r'"([^"]+\?)"', block))
+    asks = set(found)
+    for table in (ROOT / "apps").glob("*/*/i18n/messages.tsv"):
+        for line in table.read_text(encoding="utf-8").splitlines():
+            cells = line.split("\t")
+            if cells[0] in found:
+                asks.update(cell for cell in cells[1:] if cell)
+    return sorted(asks)
 
 
 def css_block(css, selector):
@@ -116,7 +133,7 @@ CODE_COLORS = {
     "line-stronger": (BLACK.format(0.4), WHITE.format(0.4)),
     "link": ("#184f95", "#6da7ec"), "code-ink": ("#8e2626", "#ec7e7e"), "code-bg": (BLACK.format(0.05), WHITE.format(0.05)),
     "danger": ("#8e2626", "#ec7e7e"), "success": ("#006300", "#0ca30c"), "warning": ("#734500", "#db9300"),
-    "focus": ("#2a78d6", "#2a78d6"), "focus-halo": ("#cde2fb", "rgb(24 79 149 / 0.6)"), "clay": ("#d97757", "#d97757"),
+    "focus": ("#2a78d6", "#2a78d6"), "clay": ("#d97757", "#d97757"),
     "backdrop": (BLACK.format(0.4), BLACK.format(0.5)),
     "tooltip-bg": ("#0b0b0b", "#20201f"), "tooltip-ink": ("#ffffff", "#f0efec"),
     "search-bg": (WHITE.format(0.5), WHITE.format(0.05)),
@@ -232,7 +249,7 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-line": "--code-line", "--cc-line-strong": "--code-line-strong", "--cc-line-stronger": "--code-line-stronger",
             "--cc-link": "--code-link", "--cc-code-ink": "--code-code-ink", "--cc-code-bg": "--code-code-bg",
             "--cc-tooltip-bg": "--code-tooltip-bg", "--cc-tooltip-ink": "--code-tooltip-ink", "--cc-search-bg": "--code-search-bg",
-            "--cc-focus-ring": "--code-focus", "--cc-focus-halo": "--code-focus-halo", "--cc-bubble-bg": "--cc-alpha-1",
+            "--cc-focus-ring": "--code-focus", "--cc-bubble-bg": "--cc-alpha-1",
             "--cc-shadow-card": "--code-shadow-card", "--cc-shadow-float": "--code-shadow-float", "--cc-shadow-pop": "--code-shadow-pop",
             "--cc-shadow-composer": "--code-shadow-composer", "--cc-shadow-search": "--code-shadow-search",
             "--cc-radius-bubble": "--code-radius-10", "--cc-radius-code": "--code-radius-code", "--cc-radius-menu": "--code-radius-menu",
@@ -258,15 +275,17 @@ class OfficialValuesTests(unittest.TestCase):
             "--cc-chin-btn": "--code-chin-btn", "--cc-chin-font": "--code-text-footnote", "--cc-radius-chin": "--code-radius-5",
         }.items():
             self.assertEqual(cc.get(name), f"var({target})", name)
-        # 聚焦：内描 1px 页面色 + 外 1px 蓝 + 6px 光晕
-        self.assertEqual(cc["--cc-shadow-focus"],
-                         "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--code-focus), 0 0 0 6px var(--code-focus-halo)")
+        # 聚焦：内描 1px 页面色 + 外 1px 蓝描边，没有光晕（用户 2026-10-16「全局这种光晕取消掉，可以用边框，但是不能有光晕」）；
+        # 光晕变量浅色、深色都删掉，不留不用的变量
+        self.assertEqual(cc["--cc-shadow-focus"], "inset 0 0 0 1px var(--cc-bg-app), 0 0 0 1px var(--cc-focus-ring)")
+        self.assertEqual(cc["--cc-shadow-focus-inset"], "inset 0 0 0 var(--cc-focus-w) var(--cc-focus-ring)")
+        self.assertNotIn("halo", self.css)
         self.assertEqual(cc["--cc-reveal-rest"], "0")
         self.assertEqual(cc["--cc-sidebar-float"], "0px")
         # 结构色只在 --code-* 里分深浅：--cc-* 深色块不再另给底色、叠色与弹层阴影；页面底色所有变体（含手机）同一个
         dark = [b for b in re.findall(r"^\.dark \{\n(.*?)\n\}", self.css, re.M | re.S) if "--cc-brand:" in b][0]
         for name in ("--cc-bg-app", "--cc-bg-sidebar", "--cc-bg-subtle", "--cc-bg-hover", "--cc-bg-active", "--cc-shadow-pop",
-                     "--cc-shadow-composer:", "--cc-focus-halo"):
+                     "--cc-shadow-composer:", "--cc-shadow-focus"):
             self.assertNotIn(name, dark, name)
         self.assertEqual(self.css.count("--cc-bg-app:"), 1)
         self.assertNotIn("@media (max-width: 767px) { :root", self.css)
@@ -372,9 +391,14 @@ assert.equal(pickVariant(false, false), "web");
 
     def test_components_use_the_focus_shadow_and_body_tokens(self):
         read = lambda rel: (SRC / rel).read_text(encoding="utf-8")
-        for rel in ("components/ui/button.tsx", "components/ui/input.tsx"):
+        for rel in ("components/ui/button.tsx", "components/ui/input.tsx", "components/ui/dialog.tsx", "components/ui/sheet.tsx",
+                    "components/ui/sidebar.tsx"):
             self.assertIn("focus-visible:shadow-focus", read(rel), rel)
-            self.assertNotIn("ring-[3px]", read(rel), rel)
+        # 聚焦不带光晕（用户 10-16）：整个 CC 前端不再有 ring 光晕写法（ring-[3px]、半透明 ring、ring-offset、focus 时的 ring-2）
+        halo = re.compile(r"ring-\[\d|ring-ring|ring-offset|(?:focus|focus-visible|aria-invalid):ring-|ring-[a-z-]+/\d|outline-ring/\d")
+        for path in sorted(SRC.rglob("*.ts*")) + [SRC / "globals.css"]:
+            self.assertIsNone(halo.search(path.read_text(encoding="utf-8")), path)
+        self.assertEqual(read("components/ui/sidebar.tsx").count("focus-visible:shadow-focus"), 5)
         self.assertIn("shadow-pop", read("components/ui/dialog.tsx"))
         self.assertIn("bg-tooltip text-tooltip-ink", read("components/ui/tooltip.tsx"))
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
@@ -531,7 +555,8 @@ class CardRuleTests(unittest.TestCase):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         # 卡内不套滚动：步骤详情自动撑高，长了收起
         self.assertNotRegex(steps, r"max-h-|overflow-(?:y-)?auto|overflow-scroll")
-        self.assertIn("<Clipped text={step.input} />", steps)
+        self.assertIn("{input && <Clipped text={input} />}", steps)
+        # 能点的：内容展开「… N 行」、步骤行、步骤组摘要（允许卡的问话照 Claude 不是按钮，第 10 轮起不再算点按区）
         self.assertEqual(steps.count("cc-tap"), 3)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         pending = thread.split("const PendingSendBubble: FC = () => {", 1)[1].split("\n};", 1)[0]
@@ -539,8 +564,14 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("<Skeleton", pending)
         files = thread.split("const MessageFiles: FC = () => {", 1)[1].split("\n};", 1)[0]
         self.assertIn('className="cc-icon-btn cc-tap"', files)
+        # 提醒卡的「打开通知」在卡片里、底部靠右，用卡片按钮（同允许卡，用户 10-17）；没打开的原因在按钮上方一行
         notice = thread.split("const NoticeMessage: FC = () => {", 1)[1].split("\n};", 1)[0]
-        self.assertIn('className="cc-btn cc-tap"', notice)
+        self.assertNotIn("cc-btn ", notice)
+        card = notice[notice.index('role="note"'):]
+        foot = card[card.index('<div className="cc-ask-foot">'):]
+        self.assertLess(foot.index("push.failure"), foot.index('<div className="cc-card-actions">'))
+        self.assertIn('<button type="button" className="cc-card-btn" onClick={() => void push.enable()}>', foot)
+        self.assertLess(card.index("{noticeTime(createdAt)}"), card.index('<div className="cc-ask-foot">'))
         css = (SRC / "globals.css").read_text(encoding="utf-8")
         self.assertIn("@media (pointer: coarse) { .cc-tap { min-height: var(--cc-tap); min-width: var(--cc-tap); } }", css)
         self.assertIn("--cc-tap: 2.75rem;", css)
@@ -551,18 +582,22 @@ class CardRuleTests(unittest.TestCase):
         steps = (SRC / "components/tool-uis/steps.tsx").read_text(encoding="utf-8")
         group = steps[steps.index("export const StepsGroup"):]
         self.assertIn("const title = groupLive(group.status)\n    ? steps.running\n"
-                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done);", group)
+                      "    : summaryText(summarize(tools.map(toStepPart), labels.done), steps.summary, labels.done, { asks: labels.ask, failed: steps.failed });", group)
+        # 第 8 轮：点了「拒绝」的一步没做，摘要与行都写卡片上的问话（去掉问号）加「已拒绝」，不写做完的说法
+        self.assertIn("return { toolName: tool.toolName, failed: stepFailed(tool), denied: stepDenied(tool), undone: stepUndone(tool) };", steps)
         self.assertIn('<button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="cc-steps-summary cc-tap">',
                       group)
         # 一张卡片、一步一行：组给卡片，组里的每一步不再各包一层（测试窗口 S2：外卡套内卡）
         self.assertIn('<div className="cc-steps-card">\n          <InStepsGroup.Provider value={true}>{children}</InStepsGroup.Provider>', group)
-        self.assertIn('useContext(InStepsGroup) ? <>{children}</> : <div className="cc-steps-card">{children}</div>;', steps)
-        # 等批准的那一步不进组（允许 / 拒绝要看得见），也放进同样带环的卡片
+        self.assertIn('if (inGroup) return <>{children}</>;', steps)
+        self.assertIn('return <div className="cc-steps-card">{children}</div>;', steps)
+        # 允许 / 拒绝卡不进组（等回答的要看得见，点完的照 Claude 留在原处），也放进同样带环的卡片
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
-        self.assertIn('<LoneStep>\n                      <ToolFallbackComponent {...part} />', thread)
+        self.assertIn('part.type === "tool-call" && approvalCard(part as unknown as CardPart, labels) ? [] : groupByBase(part, context)', thread)
+        self.assertIn('<LoneStep part={part as unknown as CardPart}>\n                        <ToolFallbackComponent {...part} />', thread)
         self.assertNotIn('<div className="cc-steps-card">', thread)
         self.assertNotIn("steps.steps(", steps)
-        row = steps[steps.index("export const StepRow"):steps.index("/** 工作状态行上这一步的说法")]
+        row = steps[steps.index("const PlainStep"):steps.index("/** 卡片上的问话")]
         self.assertIn("const errored = stepFailed({ result, isError, status });", row)
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}', row)
         self.assertIn('className="cc-step-row cc-tap"', row)
@@ -570,6 +605,11 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn('<Marquee className="min-w-0 flex-1 truncate">', row)   # 放不下时悬停滚动（components/ui/marquee.tsx）
         self.assertIn('{errored && <span className="cc-step-failed">{steps.failed}</span>}\n'
                       '        {expandable && <ChevronRightIcon aria-hidden />}\n      </button>', row)
+        # 允许 / 拒绝卡（拒绝了、允许了却没存上的也是）不在这里：卡片写问话、点完一行所选那一项（用户 10-17），步骤行不再写「已拒绝」
+        self.assertIn("return card ? <AskStep {...props} card={card} labels={labels} /> : <PlainStep {...props} labels={labels} />;", steps)
+        self.assertNotIn("cc-step-denied", steps)
+        # 出卡片前就核出要拒绝的那一步（没做成）写问话，其余写步骤名（第 10 轮审查，undoneText）
+        self.assertIn("{undone ?? step.verb}\n          {step.target", row)
         # 本站工具的行后面带「 · 对象」（单号、账套文件夹名…，lib/step-subject.ts），同一个工具连调几次也分得清；
         # 只在展开的行里用，摘要行（按类计数）与工作状态行不用
         self.assertIn("const subject = step.own ? stepSubject(args as Args, output?.text, known) : \"\";", row)
@@ -602,6 +642,7 @@ class CardRuleTests(unittest.TestCase):
         self.assertIn("width: var(--cc-step-chevron); height: var(--cc-step-chevron); flex-shrink: 0;", rule(".cc-step-row > svg"))
         self.assertIn('  .cc-step-row[aria-expanded="true"] > svg { transform: rotate(90deg); }', css)
         self.assertIn("  .cc-step-failed { flex-shrink: 0; color: var(--cc-danger); }", css)
+        self.assertNotIn(".cc-step-denied", css)
         self.assertIn("font-family: var(--cc-font-mono);", rule(".cc-step-detail"))
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -656,6 +697,65 @@ assert.equal(summaryText(summarize([{ toolName: "pearnly_save_draft", failed: tr
         }
         for lang, (want, one) in cases.items():
             run_ts(script.replace("__WANT__", repr(want)).replace("__ONE__", repr(one)), lang=lang)
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_a_denied_step_reads_as_not_done(self):
+        # 第 8 轮：规则卡点了「拒绝」，步骤仍写「记下了公司选择」（3 次）。拒绝的一步写卡片上的问话（去掉问号）加「已拒绝」；
+        # 重开对话时没有本页的点击记录，按结果里的 status: denied 认（pearnly_core toolrun.decide）。结果说没存上的算失败
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { askStem, stepDenied, stepFailed, stepUndone, summarize, summaryText } from "@/lib/step-summary";
+import { steps, t } from "@/i18n";
+const done = { cowork_company_choice_save: "记下了公司选择" };
+const asks = { cowork_company_choice_save: "保存为公司选择？" };
+const denial = { word: "已拒绝", asks, failed: steps.failed };
+assert.equal(askStem("保存为公司选择？"), "保存为公司选择");
+assert.equal(askStem("Save this choice for the company? "), "Save this choice for the company");
+// 本页点了拒绝；重开后按结果认；允许了、还在等的不算
+assert.equal(stepDenied({ approval: { approved: false } }), true);
+assert.equal(stepDenied({ result: { text: JSON.stringify({ status: "denied", message: "The user did not allow this change." }), isError: false } }), true);
+assert.equal(stepDenied({ approval: { approved: true }, result: { text: "{\"status\": \"saved\"}", isError: false } }), false);
+assert.equal(stepDenied({ approval: {} }), false);
+assert.equal(stepDenied({ result: { text: "plain", isError: false } }), false);
+// 第 8 轮以前的旧对话：拒绝交回的是那句原文（服务端不翻译），重开时同样认出
+assert.equal(stepDenied({ result: { text: "The user did not allow this change. Do not try it again unless the user asks.", isError: false } }), true);
+// 摘要：拒绝的写问话 + 已拒绝，存上的照旧写做完的说法；几次时 ×n
+const parts = [{ toolName: "cowork_company_choice_save", failed: false, denied: true }];
+assert.equal(summaryText(summarize(parts, done), steps.summary, done, denial), "保存为公司选择 · 已拒绝");
+assert.equal(summaryText(summarize([...parts, ...parts], done), steps.summary, done, denial), "保存为公司选择 ×2 · 已拒绝");
+assert.equal(summaryText(summarize([{ toolName: "cowork_company_choice_save", failed: false }], done), steps.summary, done, denial), "记下了公司选择");
+// 没给问话（不是要允许的工具）：用做完的说法
+assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: false, denied: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了 · 已拒绝");
+// 结果写明没存上（对象对不上回 not_saved、公司认不出回 failed）：算失败；存上了不算
+assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "not_saved", reason: "x" }), isError: false } }), true);
+assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "failed", reason: "x" }), isError: false } }), true);
+assert.equal(stepFailed({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
+assert.equal(stepFailed({ result: { text: "{not json", isError: false } }), false);
+// 第 8 轮审查：结果写明没存上的（点了允许、二次核对没过）不写做完的说法：问话 + 失败；几次 ×n；没有问话的工具照做完的说法加失败数
+const notSaved = { text: JSON.stringify({ status: "not_saved", reason: "x" }), isError: false };
+assert.equal(stepUndone({ result: notSaved }), true);
+assert.equal(stepUndone({ result: { text: JSON.stringify({ status: "saved" }), isError: false } }), false);
+const undone = { toolName: "cowork_company_choice_save", failed: true, undone: true };
+assert.equal(summaryText(summarize([undone], done), steps.summary, done, denial), "保存为公司选择 · 失败");
+assert.equal(summaryText(summarize([undone, undone], done), steps.summary, done, denial), "保存为公司选择 ×2 · 失败");
+assert.equal(summaryText(summarize([{ toolName: "x_tool", failed: true, undone: true }], { x_tool: "做了" }), steps.summary, { x_tool: "做了" }, denial), "做了（1 个失败）");
+assert.equal(summaryText(summarize([undone, ...parts], done), steps.summary, done, denial), "保存为公司选择 · 失败, 保存为公司选择 · 已拒绝");
+// 问话去掉疑问的写法：中文「要…吗」，泰文句末 ไหม / หรือไม่，日文句末「か」（第 8 轮审查：只去问号时读着仍在问）
+assert.equal(askStem("要删除这些定时任务吗？"), "删除这些定时任务");
+assert.equal(askStem("บันทึกตัวเลือกนี้ให้บริษัทไหม"), "บันทึกตัวเลือกนี้ให้บริษัท");
+assert.equal(askStem("ลบงานตามกำหนดเวลาเหล่านี้หรือไม่"), "ลบงานตามกำหนดเวลาเหล่านี้");
+assert.equal(askStem("この選択を会社に保存しますか？"), "この選択を会社に保存します");
+// 各工具声明的问话（四种语言，服务端词条表）去掉后都不再是问句
+const declared = __ASKS__ as string[];
+assert.ok(declared.length >= 40, String(declared.length));
+for (const ask of declared) {
+  const stem = askStem(ask);
+  assert.ok(stem.length > 0, ask);
+  assert.doesNotMatch(stem, /[?？吗]$|ไหม$|หรือไม่$|か$/u, ask);
+}
+(globalThis as any).done();
+""".replace("__ASKS__", json.dumps(declared_asks(), ensure_ascii=False)), lang="zh")
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_step_subject_names_the_record_not_its_internal_name(self):

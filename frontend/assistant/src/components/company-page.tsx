@@ -131,7 +131,9 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
   const [renaming, setRenaming] = useState(false);
   const [value, setValue] = useState(c.title);
   const [error, setError] = useState("");
-  // 从「···」菜单点了重命名：菜单关上时不把焦点还给「···」按钮（第 5 轮测试 3：焦点被抢走，要再点一下改名框才能输入）
+  // 从「···」菜单点了重命名：等菜单关完再出改名框（第 5 轮测试 3，两轮实测焦点都落在 body）。菜单开着时有焦点陷阱：
+  // 在选中那一下就挂上改名框，它自动聚焦会被陷阱拉回菜单项，菜单项随即卸下，焦点掉到 body。组件库在陷阱拆掉之后
+  // （onCloseAutoFocus，卸下后的下一轮）才问焦点该去哪：在那里不还给「···」、改为出改名框，它挂上时已没有陷阱。
   const renameFromMenu = useRef(false);
   const save = async (input: string) => {
     const next = input.trim();
@@ -148,11 +150,12 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
       setError(shownError(e));
     }
   };
+  const startRename = () => {
+    setValue(title);
+    setRenaming(true);
+  };
   const rename = () => {
-    if (!isMobile) {
-      setValue(title);
-      return setRenaming(true);
-    }
+    if (!isMobile) return startRename();
     const next = window.prompt(t("rename"), title);
     if (next) void save(next);
   };
@@ -212,14 +215,16 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
             onCloseAutoFocus={(e) => {
               if (!renameFromMenu.current) return;
               renameFromMenu.current = false;
-              e.preventDefault(); // 焦点留在刚出现的改名框里
+              e.preventDefault(); // 不还给「···」：改名框此刻才挂上，自己拿到焦点
+              startRename();
             }}
           >
             <DropdownMenu.Item
               className="cc-menu-item"
               onSelect={() => {
-                renameFromMenu.current = !isMobile;
-                rename();
+                // 电脑：菜单关完再出改名框（见 renameFromMenu）；手机：系统输入框，照旧当场弹
+                if (isMobile) return rename();
+                renameFromMenu.current = true;
               }}
             >
               <PencilIcon />
@@ -245,6 +250,13 @@ const Header: FC<{ detail: Detail; reload: () => Promise<void> }> = ({ detail, r
  *  回车保存（输入法选字的回车不算）、Esc 放弃（选字时的 Esc 只取消候选词），只结束一次（Esc 卸下输入框时的失焦不再存一遍）。 */
 const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone: (save: boolean) => void }> = ({ value, onChange, onDone }) => {
   const finished = useRef(false);
+  const box = useRef<HTMLInputElement>(null);
+  // 挂上就把光标放进来、全选（不只靠 autoFocus：挂上那一刻别的东西抢过焦点时这里再拿一次）
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && document.activeElement !== el) el.focus({ preventScroll: true });
+    el?.select();
+  }, []);
   const finish = (saveIt: boolean) => {
     if (finished.current) return;
     finished.current = true;
@@ -252,6 +264,7 @@ const TitleRename: FC<{ value: string; onChange: (value: string) => void; onDone
   };
   return (
     <input
+      ref={box}
       autoFocus
       value={value}
       aria-label={t("rename")}
@@ -327,7 +340,7 @@ const CompanyComposer: FC<{ company: string; title: string; period: string; bran
           className="block max-h-72 min-h-6 w-full resize-none overflow-y-auto bg-transparent font-sans outline-none"
         />
         <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-          <button type="button" className="cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
+          <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")} onClick={() => picker.current?.click()}>
             <PlusIcon className="stroke-[1.5px]" />
           </button>
           <input ref={picker} type="file" multiple accept={ACCEPT} hidden onChange={(e) => attach(e.target.files)} />

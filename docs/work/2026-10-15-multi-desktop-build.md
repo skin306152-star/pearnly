@@ -1248,3 +1248,56 @@ CC 页面只有三种语言，服务端 `messages.tsv` 不用加（没有新的�
 
 第 7 批真机补一条：`powercfg /a` 列出「Standby (S0 Low Power Idle)」即现代待机，与日志「这台电脑是 / 不是现代待机」对照；现代待机上开着开关时
 屏幕不自动关、不自动上锁（预期，待用户确认要不要改）。
+
+## 并入外壳（10-17，本地提交，未推送）
+
+`git merge --no-ff pearnly/cc-shell-rebuild`（对方 `630ca3aa`，自上次合并 `f5c04929` 起 34 个提交，含 4 个子分支合并：侧栏对话只在本组排序、
+删「移到」、服务端 `sessions.move` 拒换公司；审批卡片照 Claude；记住的选择一行一条；手机端照 Claude；第 10 轮文案；个人排列跨设备同步；
+发送 / 停止失败说原因；公司规则按哪一条入账 `written.company_rules` 等）进 `pearnly/multi-desktop`（`b9dedf40`，第 6 批界面、谁的活谁的电脑做、
+保持唤醒）。不变基、不改写历史。外壳分支之后的提交由开发窗口再合一次增量。
+
+### 冲突怎么解
+
+| 文件 | 解法 |
+|---|---|
+| `push/application/service.py` `prepare` | 同上次：冻结目标只建一次。外壳分支在载荷之前那份 `frozen` 又多了 `company_rules`（这张单用上的是哪几条公司规则）；整段不要，`company_rules` 加到本分支那一份上（证据 v2 的 `basis_hash`、`ledger.writer_scope` 写者锁 v2、`decided_by` 之后）。不进载荷，不改 `basis_hash` |
+| `push/application/service.py` `_decisions` 文档串 | 两句都留：科目表没读到先没用的公司规则不拿 Express 历史顶替（本分支合并审查第 2 条）+ 结果带用上的公司规则 `company_rules`（外壳分支） |
+| `push/application/service.py` `outcomes` / `written` | 两边都要：查询带 `written_by_device`、结果经 `_with_writers` 加「由哪台电脑写入」`writer`（本分支第 6 批），`_entered(row, now)` 带 `_rules_now` 核的公司规则现在还在不在（外壳分支）。`outcomes` 只拿入账成功的行查规则现状，同外壳分支 |
+| `push/express/company_choices.py` `__all__` | 取并集：本分支的 `WAIT_KINDS`、`held_back`，外壳分支的 `USED_MAX`、`used` |
+| `translations/zh.csv` | 同上次：两边取并集（本分支 T1 的「这家公司没有覆盖单据日期的账套。」+ 外壳分支第 10 轮改的「该公司或分店没有覆盖本月的账套」），再 `python3 scripts/i18n-build.py` 按自动合并好的 `messages.tsv` 重新生成；`--check` PASS；逐个核过改动的翻译包，相对两边都没丢 msgid |
+| `frontend/assistant/src/components/settings.tsx` import | 并集：`postMethod` / `shownError`（本分支「电脑」列表移除、全所可用）+ `giveFocusBack` / `opener`（外壳分支设置关掉还焦点） |
+| `tests/test_assistant_ui.py` 文件末尾 | 两边各在同一处加的测试类都留：本分支 `NoAlwaysOnTests` / `KeepAwakeTests`，外壳分支 `UserAsks20261016Tests` 起到第 8 轮那几类；外壳分支放在 `__main__` 之后的 `Round10DragTests` 原样。核过各测试文件没有重名类 |
+
+自动合并的 `hooks.py`（外壳分支的 `cowork_push_company_choices_saved`，本分支的 `cowork_device_labels` 等都在）、`assistant/tools.py`
+（外壳分支的已入账单不叫人去 Express 改、`written.company_rules` 说明；本分支的 `written.writer`、`intake_options` 的 `cc_desktop_online`）、
+`companies/service.py`（外壳分支 `with_tax_id`、公司说明带主档编号；本分支 T1 的 `tasks_of` / `_rule_company`）、`company-cards.tsx`、
+`month-ledger.tsx`、`pending.tsx`、`scheduled-tasks.tsx`、`i18n.ts`、`messages.tsv` 逐个看过，没有重复定义或互相覆盖。依赖没变（两边
+`package*.json` 自上次合并都没改），两个工作树的 `node_modules` 都已在，没建符号链接、没装。
+
+### 语义核对
+
+1. **冻结目标四件同时成立**：`prepare` 的冻结目标里证据 v2（`basis_hash`）、写者锁 v2（`lock_scheme` / `company_key`）、`decided_by`、
+   `company_rules` 都在同一份里；租约 v2 领取只核 route 与 `basis_hash`，多一项不影响。`tests/test_cowork_push_direction.py` `FrozenTarget`
+   加一项：带 `company_rules` 时它与证据 v2、写者锁 v2、`decided_by` 同在，不进载荷、不改 `basis_hash`；没有时冻结目标不多这一项。去掉
+   `company_rules` 那三行这项失败。
+2. **先没用的公司规则不算「用上的」**：`company_choices.used` 只认来源记成 `company_rule` 的归类键；本分支 `held_back`（科目表没读到先不用）
+   的那项来源不是 `company_rule`，不会冻结进 `company_rules`，CC 也不会说「按这条公司规则」。T1 跟到新年度账套、科目表读到后按规则推时照常记上。
+3. **回读同时说电脑和规则**：`written` / `outcomes` 一条成功记录同时有 `writer`（电脑名）与 `company_rules`（带 `still_saved` / `now_value`），
+   两个钩子各查一次，互不依赖。
+4. **界面没有用外壳删掉的东西**：本分支第 6 批及之后的界面（「电脑」列表、全所可用、读者编号、`AccountSetRow`、跟随公司当年账套、保持唤醒）
+   没用 `co.moveTo` / `sb.moveToN` / `MoveToMenu` / 跨组拖动 / 旧卡片的 `allowed` / `denied`（`grep` 与 `tsc --noEmit` 都核过）。「电脑」那一行的
+   「···」→「移除」是移除电脑，不是移动对话，用的是设置里连接成员同一个 `menuItem`（外壳分支「菜单只高亮、不加蓝框」随之生效）。
+   `AccountSetRow` 是待处理页 / 月结台账的一行（同当场选 `ChooseRow` 那一套），不是对话里的审批卡片，外壳分支没改 `ChooseRow`，所以不跟
+   卡片改。没有用到外壳第 10 轮改掉的旧词（「等你处理」「还没推送」「要人选」等）。
+5. **服务端 `sessions.move` 拒换公司**：本分支没有调用 `move` 的地方（删公司走 `projects.release`），不受影响。
+
+### 闸门
+
+完整本地闸门 `SKIP_NPM_CI=1 bash ~/pearnly-devtools/gate.sh <工作树>` 跑了两遍，都是 91 步全过、退出码 0：第一遍在解完冲突的暂存树上；
+加 `FrozenTarget` 一项后在最终代码树（与合并提交相同，之后只加了本节文档）上又整套跑一遍。`cd frontend/assistant && npx tsc --noEmit -p .`
+无输出通过；`check-architecture.py` 0 违规；`i18n-build.py --check` PASS；`test_cowork_push_direction.py` 17 OK。
+
+没做 / 没验：真实 Site 迁移、测试机与真 Express；外壳分支新界面（侧栏本组排序、审批卡片、手机端）与多电脑界面同屏的点验留给测试机一轮。
+本分支 T1 / 第 3 批新加的几条服务端中文（「这家公司没有覆盖单据日期的账套。」「这家公司有多份账套覆盖单据日期。」「这台电脑上的账套不是登记的
+那一份，等待其他电脑」「没有能写这份账套的电脑。…」）带指示词，外壳第 10 轮按文案闸门把同类的「这家公司（或这个分店）…」改成了「该公司或分店…」；
+这次只合并、没改这几条，要不要照第 10 轮口径改由开发窗口定。

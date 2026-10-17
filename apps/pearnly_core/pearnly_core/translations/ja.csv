@@ -5,6 +5,7 @@
 A DMS customer reference is required before confirming or pushing,DMS顧客参照は確定または送信の前に必要です
 A DMS customer reference is required; otherwise this link means nothing,DMS顧客参照が必要です。なければこの紐付けは意味を持ちません
 A board instance is created only when this is on,有効にした時だけボードを作成します
+A conversation cannot be moved to another company.,会話を別の会社に移すことはできません。
 A disabled operator cannot issue a bind code; enable them first,無効化中のオペレーターは連携コードを発行できません。先に有効化してください
 "A human-readable name, e.g. MR.ERP DMS",人が読むための名前（例: MR.ERP DMS）
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。

@@ -5,6 +5,7 @@
 A DMS customer reference is required before confirming or pushing,确认或推送前必须有 DMS 客户引用
 A DMS customer reference is required; otherwise this link means nothing,DMS 客户引用不能为空
 A board instance is created only when this is on,启用后创建看板实例
+A conversation cannot be moved to another company.,对话不能移到其他公司。
 A disabled operator cannot issue a bind code; enable them first,已停用的操作员无法生成绑定码，请先启用
 "A human-readable name, e.g. MR.ERP DMS",显示名称，例如：MR.ERP DMS
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe 原生 Password 字段，加密存储，接口不回显。

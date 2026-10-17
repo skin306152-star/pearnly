@@ -1,7 +1,8 @@
 // 右侧会话栏（设计文档 3.13 / 4.4，只在 Cowork 挂了公司的对话与公司页里）的状态与数据：
 //
 //   卡片     默认顺序 公司 / 本月（第 1 期月结台账）/ 待处理 / 知识库 / 单据文件夹 / 定时任务 / 记住的选择 / 申报草稿 / 输出文件；
-//            顺序、折叠、开关记在这台设备（键带用户，跨设备不同步），对话与公司页共用同一份。拖动（dnd-kit）或 Alt+↑/↓ 调顺序时
+//            顺序、折叠按人记住、跨设备同步（lib/prefs-sync.ts，本机仍记一份：打开时立刻生效、离线照样能用）；停靠时开着没有
+//            按设备记（键带用户，不同步）。对话与公司页共用同一份。拖动（dnd-kit）或 Alt+↑/↓ 调顺序时
 //            只在看得见的卡片之间挪（空卡不显示，也不占位）。
 //   开关     宽屏停靠时按记下的「开着」显示（公司页同样，默认开着）；窄屏浮在页面上、手机盖满屏时只在点了之后显示
 //            （overlay，换对话、换页就收起），不因为记着「开着」一打开就把页面盖住。
@@ -16,12 +17,13 @@ import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
 import { lang } from "@/i18n";
 import { type Detail, dropCachedDetail, lastMonth, loadDetail, TASK_EVENTS } from "@/lib/companies";
-import { shownError } from "@/lib/frappe";
+import { shownError, withRetry } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
 import type { Activity } from "@/lib/managed-agents/activity";
 import type { RunStatus } from "@/lib/managed-agents/events";
 import { hintTitle, useProjects } from "@/lib/managed-agents/projects";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
+import { prefChanged, registerPref } from "@/lib/prefs-sync";
 
 // ---------------------------------------------------------------- 卡片顺序
 export const PANEL_CARDS = ["company", "month", "pending", "notes", "folders", "tasks", "choices", "drafts", "outputs"] as const;
@@ -87,8 +89,10 @@ type PanelState = PanelPrefs & {
 
 export const usePanel = create<PanelState>(() => ({ ...DEFAULT_PREFS, user: "", overlay: false, docked: true, focus: null }));
 
-function save() {
+/** 记进本机；synced：卡片顺序（order）或开合（collapsed）变了，也存到服务端（停靠时开着没有只记本机）。 */
+function save(synced?: "order" | "collapsed") {
   const { user, open, order, collapsed } = usePanel.getState();
+  if (synced) prefChanged("cards", [synced]);
   if (!user) return; // 还没读到登录资料：本次照样能用，不写进不带人的公共键
   try {
     localStorage.setItem(panelKey(user), JSON.stringify({ open, order, collapsed }));
@@ -96,6 +100,25 @@ function save() {
     // 无痕窗口、存储被禁：本次照样能用，只是不记
   }
 }
+
+const sameCards = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((card, i) => card === b[i]);
+
+registerPref("cards", {
+  read: () => {
+    const { order, collapsed } = usePanel.getState();
+    return { order: [...order], collapsed: [...collapsed] };
+  },
+  changed: () => {
+    const { order, collapsed } = usePanel.getState();
+    return !sameCards(order, DEFAULT_PREFS.order) || collapsed.length > 0;
+  },
+  apply: (value, user) => {
+    if (usePanel.getState().user !== user) loadPanelPrefs(user);
+    const { order, collapsed } = readPrefs(JSON.stringify(value ?? null));
+    usePanel.setState({ order, collapsed });
+    save();
+  },
+});
 
 /** 换了登录的人（或第一次拿到资料）：读这个人在这台设备上记下的。 */
 export function loadPanelPrefs(user: string) {
@@ -122,25 +145,26 @@ export function setPanelOverlay(overlay: boolean) {
 export function toggleCard(card: PanelCard) {
   const { collapsed } = usePanel.getState();
   usePanel.setState({ collapsed: collapsed.includes(card) ? collapsed.filter((c) => c !== card) : [...collapsed, card] });
-  save();
+  save("collapsed");
 }
 
 export function setCardOrder(order: readonly PanelCard[]) {
   usePanel.setState({ order: orderCards(order) });
-  save();
+  save("order");
 }
 
 /** 打开会话栏并展开、滚到这张卡（标题栏「公司名 ›」、输入框下巴的公司胶囊、手机胶囊菜单里的公司名）。
  *  宽屏停靠时记下「开着」；浮层、手机全屏只开这一次，不改宽屏记下的开关。 */
 export function showCard(card: PanelCard = "company") {
   const { collapsed, docked } = usePanel.getState();
+  const opened = collapsed.filter((c) => c !== card);
   usePanel.setState({
     ...(docked ? { open: true } : {}),
     overlay: true,
-    collapsed: collapsed.filter((c) => c !== card),
+    collapsed: opened,
     focus: { card, at: Date.now() },
   });
-  save();
+  save(opened.length !== collapsed.length ? "collapsed" : undefined);
 }
 
 /** 停靠位此刻是不是并排（assistant.tsx 每次停靠方式变了就报）。 */
@@ -214,10 +238,14 @@ function fetchDetail(company: string, period: string): Promise<void> {
   const key = detailKey(company, period);
   const mine = (asked.get(key) ?? 0) + 1;
   asked.set(key, mine);
+  // 再取一次时，上一次留下的报错先收起（还没有详情时显示转圈），这一次也失败才再显示
+  if (useDetails.getState()[key]?.error) useDetails.setState((before) => ({ [key]: { detail: before[key]?.detail ?? null, error: "" } }));
   let run: Promise<void> | null = null;
   run = (async () => {
     try {
-      const next = await loadDetail(company, period);
+      // 一时的失败（网络、网关、数据库死锁）隔一会儿再取，不把「出了点问题」留在刚打开的会话栏上（第 8 轮测试机：手机第一次
+      // 打开公司信息报错，关掉重开就好；同时发出的还有月结、待处理与排列同步的请求）
+      const next = await withRetry(() => loadDetail(company, period));
       if (asked.get(key) !== mine) return;
       details.set(key, next);
       hintTitle(next.company.id, next.company.title);

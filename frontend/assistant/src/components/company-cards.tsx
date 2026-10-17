@@ -7,10 +7,10 @@
 //            折叠、顺序记在本机，拖动（共用拖动 components/ui/drag.tsx）或 Alt+↑/↓ 调顺序；不在会话栏里时各自记折叠、默认展开、没有把手。
 //   各卡     待处理（这家的，当场选沿用 F18 规则）→ 知识库（新增 / 修改有「取消」「保存」，F11e）→ 单据文件夹（只有 CC 桌面版
 //            窗口能选，桥 pick_folder 的结果原样交给 folder_bind）→ 账套（多分店按分店分组，覆盖本月的高亮）→ 定时任务
-//            （点一行跳任务页，「＋」带预填）→ 申报草稿（按分店分组）→ 记住的选择（按类别；付款方式、简易税票抵不抵能直接改，
-//            其余只能删；Express 历史学到的只读可删）。没内容的卡在会话栏里不显示（keepEmpty 时照样显示，公司页用）。
-//   公司规则（数字会计员第 2 期）：「记住的选择」里公司规则的行写明「全公司 / 分店 X」，付款 / 抵进项可用下拉直接改；账套行与
-//            历史行多一个「设为全公司」。公司页知识库是空的时给「让 CC 起草」（新对话里预填、不自动发送）。
+//            （点一行跳任务页，「＋」带预填）→ 申报草稿（按分店分组）→ 记住的选择（按类别，一条一行、点开才有按钮；付款方式、
+//            简易税票抵不抵能直接改，其余只能删；Express 历史学到的只读可删）。没内容的卡在会话栏里不显示（keepEmpty 时照样显示，公司页用）。
+//   公司规则（数字会计员第 2 期）：「记住的选择」里公司规则的行展开后写明「全公司 / 分店 X」，付款 / 抵进项用两段式直接改；
+//            账套行与历史行展开后多一个「设为全公司」。公司页知识库是空的时给「让 CC 起草」（新对话里预填、不自动发送）。
 //
 // 文案走 i18n.ts 的 co；样式只用 globals.css 的 .cc-* 与变量。
 
@@ -25,6 +25,7 @@ import {
   useId,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useStartIn } from "@/components/assistant-ui/projects";
@@ -61,7 +62,7 @@ import { useProjects } from "@/lib/managed-agents/projects";
 import { useView } from "@/lib/nav";
 import { shownError } from "@/lib/frappe";
 import { touchOnly } from "@/lib/touch";
-import { altMove, useSortableItem } from "@/components/ui/drag";
+import { altMove, type MoveSpot, useSortableItem } from "@/components/ui/drag";
 import { Marquee } from "@/components/ui/marquee";
 
 const NOTE_MAX = 500; // 同服务端：每条 ≤500 字
@@ -106,7 +107,8 @@ const SECTION_ORDER = ["party", "account", "payment", "vat", "item", "department
 export type PanelControl = {
   collapsed: readonly string[];
   toggle: (id: string) => void;
-  move: (id: string, delta: number) => void;
+  /** 挪一格；回挪完在看得见的卡片里的位置（到头了没挪回 null），Alt+↑/↓ 据此念。 */
+  move: (id: string, delta: number) => MoveSpot | null;
   register: (id: string, title: string) => () => void;
 };
 export const PanelControlContext = createContext<PanelControl | null>(null);
@@ -156,8 +158,13 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
   const summaryId = useId();
   const collapsed = !forceOpen && (control ? control.collapsed.includes(id) : folded);
   const toggle = () => (control ? control.toggle(id) : setFolded((v) => !v));
-  // Alt+↑/↓ 挪一格（挪动时 React 可能把这个节点摘下再插回，altMove 挪完把焦点放回原来的按钮）
-  const keys = (e: ReactKeyboardEvent) => control !== null && altMove(e, (delta) => control.move(id, delta));
+  // Alt+↑/↓ 挪一格（挪动时 React 可能把这个节点摘下再插回，altMove 挪完把焦点放回原来的按钮）。先挪再念：没有播报也照样挪
+  const keys = (e: ReactKeyboardEvent) =>
+    control !== null &&
+    altMove(e, (delta) => {
+      const spot = control.move(id, delta);
+      sortable?.moved(spot);
+    });
   const shownSummary = summary !== undefined && summary !== null && summary !== "" && summary !== 0;
   return (
     <section {...sortable?.node} className="cc-panel-card" data-card={id} data-slot={slot}>
@@ -176,9 +183,9 @@ const CardFrame: FC<CardProps & { control: PanelControl | null; sortable: Return
         {extra && <span className="cc-panel-card-extra">{extra}</span>}
         <span className="cc-panel-card-end" data-slot="cc-card-end">
           {shownSummary && (
-            <span id={summaryId} className="cc-panel-card-summary">
+            <Marquee id={summaryId} className="cc-panel-card-summary">
               {summary}
-            </span>
+            </Marquee>
           )}
           {action && <span className="cc-panel-card-tools">{action}</span>}
         </span>
@@ -648,6 +655,44 @@ export function setChoiceShown(choices: readonly Choice[], key: string, value: s
   });
 }
 
+/** 一张卡一次只展开一条：点开着的那条收起，点别的换成它。 */
+export const toggleChoice = (open: string, key: string) => (open === key ? "" : key);
+
+/** 值是主档代码的几类：科目（含 Express 历史）、收款科目、对方档、存货、部门。收起时只写代码（280 宽右侧栏里「代码 名称」长串会把
+ *  左边的对方名挤得看不见，对方档的名称又常就是对方名本身），完整的「代码 名称」在点开后的说明里（第 10 轮审查）。 */
+const CODE_KINDS = new Set(["account", "receipt", "party", "item", "department"]);
+
+/** 行尾的值（收起时 12px 淡色、不换行，放不下渐隐）：能改的写选项名（现购 / 赊购），代码类只写代码，POS 版式不写（值是内部的
+ *  auto / person，没有给人看的说法），其余写显示名。 */
+export function choiceValue(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">): string {
+  const option = EDITABLE[choice.kind]?.find((o) => o.value === choice.value);
+  if (option) return option.label();
+  if (CODE_KINDS.has(choice.kind)) return choice.value;
+  if (choice.kind === "pos_layout") return "";
+  return choice.value_label || choice.account_label || choice.value;
+}
+
+/** 代码的完整写法「代码 名称」（名称里已带码的照原样；没有名称只写码）。 */
+export function accountFull(choice: Pick<Choice, "value" | "value_label" | "account_label">): string {
+  const name = choice.account_label || choice.value_label || "";
+  if (!name || name === choice.value) return choice.value;
+  return name.startsWith(choice.value) ? name : `${choice.value} ${name}`;
+}
+
+/** 点开后「对方 → 代码 名称」那一行：只有代码类、且知道名称时才有（Express 账套行只有代码，再写一遍就和收起时重复了）。 */
+export function choiceFullLine(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">, subject: string): string {
+  if (!CODE_KINDS.has(choice.kind)) return "";
+  const full = accountFull(choice);
+  return full === choice.value ? "" : `${subject} → ${full}`;
+}
+
+/** 删掉 / 提升走了一条后焦点放哪一条：下一条，没有下一条就上一条；一条都不剩回 ""。 */
+export function choiceAfter(keys: readonly string[], gone: string): string {
+  const i = keys.indexOf(gone);
+  if (i < 0) return "";
+  return keys[i + 1] ?? keys[i - 1] ?? "";
+}
+
 /** choices：服务端在没有录入权限时给 null，按没有处理。 */
 export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; period: string; reload: () => Promise<void> }> = ({
   company,
@@ -655,24 +700,45 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   period,
   reload,
 }) => {
-  // 页面上显示的：改 / 删成功时先按刚做的改这里（下拉框不弹回旧值），整页重取到了以服务端为准
+  // 页面上显示的：改 / 删成功时先按刚做的改这里（两段式不弹回旧值），整页重取到了以服务端为准
   const [list, setList] = useState(choices ?? []);
   useEffect(() => setList(choices ?? []), [choices]);
   const [error, setError] = useState("");
+  // 展开的那一条（键）；一张卡一次只开一条
+  const [open, setOpen] = useState("");
+  // 请求还没回来的那一条：它的按钮先不能再点（连点「删除」会发两次，第二次回「找不到这条选择」显示成红字，第 10 轮审查）
+  const [busy, setBusy] = useState("");
+  // 删掉 / 提升走了一条后键盘焦点放到哪一条（下一条，没有就上一条）：按钮跟着那一条卸掉了，焦点不能落回页面最外层
+  const [focusKey, setFocusKey] = useState("");
+  const anchor = useRef<HTMLSpanElement>(null);
   const groups = useMemo(() => {
     const map = new Map<string, Choice[]>();
     for (const c of list) map.set(choiceSection(c), [...(map.get(choiceSection(c)) ?? []), c]);
     return [...map.entries()].sort((a, b) => SECTION_ORDER.indexOf(a[0]) - SECTION_ORDER.indexOf(b[0]));
   }, [list]);
+  useEffect(() => {
+    if (!focusKey) return;
+    setFocusKey("");
+    const card = anchor.current?.closest('[data-slot="cc-company-choices"]');
+    const row = [...(card?.querySelectorAll<HTMLElement>("[data-choice-key]") ?? [])].find((el) => el.dataset.choiceKey === focusKey);
+    row?.querySelector<HTMLElement>(".cc-choice-row")?.focus();
+  }, [focusKey, list]);
   if (!list.length) return null;
-  const run = async (work: () => Promise<unknown>, shown: (rows: readonly Choice[]) => Choice[]) => {
+  // gone：这一条做完就不在列表里了（删掉 / 提升成全公司），展开着的话收起，焦点放到它旁边那一条
+  const run = async (key: string, work: () => Promise<unknown>, shown: (rows: readonly Choice[]) => Choice[], gone = "") => {
+    if (busy === key) return;
     setError("");
+    setBusy(key);
     try {
       await work();
+      if (gone) setFocusKey(choiceAfter(groups.flatMap(([, rows]) => rows.map((row) => row.key)), gone));
       setList(shown);
+      if (gone) setOpen((o) => (o === gone ? "" : o));
       void reload();
     } catch (e) {
       setError(shownError(e));
+    } finally {
+      setBusy((b) => (b === key ? "" : b));
     }
   };
   return (
@@ -684,14 +750,18 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
             <ChoiceRow
               key={c.key}
               choice={c}
-              onSet={(v) => void run(() => setChoice(company, c.key, v, period), (rows) => setChoiceShown(rows, c.key, v))}
-              onForget={() => void run(() => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key))}
-              onPromote={() => void run(() => promoteChoice(company, c.key, period), (rows) => rows.filter((row) => row.key !== c.key))}
+              open={open === c.key}
+              busy={busy === c.key}
+              onToggle={() => setOpen((o) => toggleChoice(o, c.key))}
+              onSet={(v) => void run(c.key, () => setChoice(company, c.key, v, period), (rows) => setChoiceShown(rows, c.key, v))}
+              onForget={() => void run(c.key, () => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
+              onPromote={() => void run(c.key, () => promoteChoice(company, c.key, period), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
             />
           ))}
         </div>
       ))}
       {error && <p role="alert" className="text-danger text-sm">{error}</p>}
+      <span ref={anchor} hidden />
     </PanelCard>
   );
 };
@@ -699,47 +769,74 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
 /** 公司规则的范围：全公司 / 分店 X（总公司照分店胶囊写「总公司」）。 */
 export const ruleScope = (choice: Pick<Choice, "branch">) => (choice.branch ? (choice.branch === "00000" ? branchShort(choice.branch) : co.branchN(choice.branch)) : co.wholeCompany);
 
-/** onPromote：账套行、历史行的「设为全公司」（不给就不显示）。 */
-export const ChoiceRow: FC<{ choice: Choice; onSet: (value: string) => void; onForget: () => void; onPromote?: () => void }> = ({
-  choice,
-  onSet,
-  onForget,
-  onPromote,
-}) => {
+type ChoiceRowProps = {
+  choice: Choice;
+  /** 展开着（由卡片管：一次只开一条）；不给按收起。 */
+  open?: boolean;
+  /** 这一条的请求还没回来：按钮先不能点。 */
+  busy?: boolean;
+  onToggle?: () => void;
+  onSet: (value: string) => void;
+  onForget: () => void;
+  /** 账套行、历史行的「设为全公司」（不给就不显示）。 */
+  onPromote?: () => void;
+};
+
+/** 一条记住的选择（用户 10-17 看样子图定）：收起时一行 = 对方名 + 右侧 12px 淡色的值（代码类只写代码，放不下都渐隐），
+ *  不常驻按钮；整行是开合按钮（aria-expanded，回车 / 空格照原生按钮开合）。展开后整块填悬停底，对方名整段换行显示（手机上
+ *  没有悬停滚动，看不全），下面 12px 淡色说明（范围 / 账套 · 谁设的 · 日期；Express 历史写来源与次数；代码类知道名称时再给
+ *  「对方 → 代码 名称」），再下面靠右卡片按钮：能改的现 / 赊两段式、能提升的「设为全公司」、「删除」（幽灵、危险色字）；
+ *  请求没回来时按钮不能点（busy）。不用 hook：状态在卡片上，测试可以直接调它拿元素树。 */
+export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = false, onToggle, onSet, onForget, onPromote }) => {
   const history = choice.source === "history";
   const rule = choice.source === "rule";
   const options = (choice.source === "express" || rule) && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
   const subject = choice.subject_label || choice.supplier_name || "";
-  const value = choice.value_label || choice.account_label || choice.value;
   const meta = history
     ? [co.fromHistory(Number(choice.count) || 0), formatWhen(choice.last_date ?? choice.set_at)]
     : rule
       ? [ruleScope(choice), choice.set_by ?? "", formatWhen(choice.set_at)]
       : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
+  const value = choiceValue(choice);
+  const full = choiceFullLine(choice, subject);
   return (
-    <div className="cc-choice-row" data-slot="cc-choice-row" data-source={choice.source}>
-      <span className="min-w-0 flex-1">
-        <Marquee className="block truncate text-ink">
-          {subject}
-          {!options && <span className="text-ink-3">{` → ${value}`}</span>}
-        </Marquee>
-        <Marquee className="block truncate text-ink-3 text-xs">{meta.filter(Boolean).join(" · ")}</Marquee>
-      </span>
-      {onPromote && choice.promotable && (
-        <button type="button" className="cc-link-btn shrink-0" data-slot="cc-choice-promote" onClick={onPromote}>
-          {co.makeCompanyWide}
-        </button>
-      )}
-      {options && (
-        <select className="cc-input h-8 w-auto" aria-label={subject} value={choice.value} onChange={(e) => onSet(e.target.value)}>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label()}</option>
-          ))}
-        </select>
-      )}
-      <button type="button" className="cc-panel-btn" aria-label={t("delete")} title={t("delete")} onClick={onForget}>
-        <XIcon />
+    <div className="cc-choice" data-slot="cc-choice" data-source={choice.source} data-choice-key={choice.key} data-open={open ? "" : undefined}>
+      <button type="button" className="cc-choice-row" data-slot="cc-choice-row" aria-expanded={open} onClick={onToggle}>
+        {open ? <span className="cc-choice-name">{subject}</span> : <Marquee className="min-w-0 flex-1 truncate">{subject}</Marquee>}
+        {value && <Marquee className="cc-choice-value" data-slot="cc-choice-value">{value}</Marquee>}
       </button>
+      {open && (
+        <div className="cc-choice-detail" data-slot="cc-choice-detail">
+          <Marquee className="block truncate">{meta.filter(Boolean).join(" · ")}</Marquee>
+          {full && <span className="cc-choice-full">{full}</span>}
+          <div className="cc-card-actions">
+            {options && (
+              <div role="group" aria-label={subject} className="cc-choice-seg" data-slot="cc-choice-seg">
+                {options.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    className="cc-card-btn"
+                    aria-pressed={choice.value === o.value}
+                    disabled={busy}
+                    onClick={() => choice.value !== o.value && onSet(o.value)}
+                  >
+                    {o.label()}
+                  </button>
+                ))}
+              </div>
+            )}
+            {onPromote && choice.promotable && (
+              <button type="button" className="cc-card-btn" data-slot="cc-choice-promote" disabled={busy} onClick={onPromote}>
+                {co.makeCompanyWide}
+              </button>
+            )}
+            <button type="button" className="cc-card-btn" data-ghost="" data-danger="" data-slot="cc-choice-forget" disabled={busy} onClick={onForget}>
+              {t("delete")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

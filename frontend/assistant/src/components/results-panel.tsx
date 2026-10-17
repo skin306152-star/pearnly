@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fileUrl, listSessionFiles, pageUrl, previewFile, type FilePreview, type SessionFile } from "@/lib/managed-agents/api";
+import { watchOverflow } from "@/lib/overflow-fade";
 import { touchOnly } from "@/lib/touch";
 import { cn } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -191,9 +192,16 @@ function Loading() {
 const isAmount = (cell: string) => cell.length < 13 && /^-?(0|[1-9][\d,]*)(\.\d+)?$/.test(cell);
 
 function SheetTable({ rows }: { rows: string[][] }) {
+  // 格子放不下时末尾渐隐（同所有单行截断的文字，用户 10-16「统一渐隐」）：最多 500 × 40 格，不给每格各挂一个，整张表一处登记，
+  // 表的尺寸变了（换表、字体载入）就把所有格子重量一遍
+  const table = useRef<HTMLTableElement>(null);
+  useEffect(() => {
+    const el = table.current;
+    return el ? watchOverflow([el], () => el.querySelectorAll<HTMLElement>("td.cc-fade-cell")) : undefined;
+  }, [rows]);
   return (
     <div className="h-full overflow-auto">
-      <table className="border-collapse text-(length:--cc-text-sm)">
+      <table ref={table} className="border-collapse text-(length:--cc-text-sm)">
         <tbody>
           {rows.map((row, r) => (
             <tr key={r} className={r === 0 ? "bg-subtle font-medium" : undefined}>
@@ -201,7 +209,7 @@ function SheetTable({ rows }: { rows: string[][] }) {
                 <td
                   key={c}
                   className={cn(
-                    "max-w-72 truncate border border-line px-2.5 py-1.5",
+                    "cc-fade-cell max-w-72 border border-line px-2.5 py-1.5",
                     isAmount(cell) && "text-right tabular-nums",
                   )}
                   title={cell}

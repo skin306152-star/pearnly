@@ -5,7 +5,9 @@
   过了时限），下一条消息或任一页面在对话空闲时读运行状态时补排。带上首条消息与 CC 第一段回复的开头（从引擎会话读），
   用引擎目录登记的便宜模型，按显示宽度卡长度（`contracts.make_title`：超宽重问一次，仍超宽在词或字形簇边界收短）。
 - 每段对话只概括一次：任务先在行锁下把状态从 message 改成 summarizing 才调模型，同时排了几次也只有一次调到模型。
-  概括不出来（模型出错、没给）保留临时标题，同样算概括过，不再重试。
+  概括不出来（模型出错、没给、照抄提示里的示例标题）保留临时标题，同样算概括过，不再重试。
+- 素材只取这段对话自己的：本行的对话编号读首条消息与第一段回复（`contracts.title_parts`），推给本行记的主人；
+  不读别的对话，提示里的示例标题照抄回来的不收（2026-10-16 测试：「ภาษีเดือน 9 สามบริษัท」是示例原文，不是别的对话串来的）。
 - 用户手动改过名（`title_source = user`，见 `sessions.rename`）就不再自动覆盖：概括期间改了名的，写回前在行锁下核对，
   以用户的名字为准。
 - 标题变了（临时标题、概括出的标题）经 `sidebar` 推给会话主人，各设备的侧栏马上并入。
@@ -14,6 +16,7 @@
 import frappe
 
 from pearnly_core.assistant import config, context, contracts, engine, sidebar
+from pearnly_core.assistant.engines import base as engine_base
 
 SESSION = context.SESSION
 FROM_MESSAGE = "message"  # 临时标题（首条消息原文），等第一轮结束后概括
@@ -66,7 +69,8 @@ def summarize(name: str, legacy_title: str | None = None) -> None:
             message, reply = contracts.title_parts(api.events(row.session_id))
             message = message or row.title or ""
             title = contracts.make_title(
-                lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long), model))
+                lambda too_long: api.summarize(contracts.title_prompt(message, reply, too_long), model),
+                source=message, examples=engine_base.TITLE_EXAMPLES)  # 只按用户首句判断是否照抄示例
         except Exception:
             frappe.log_error(title="Assistant title summary failed")
     _finish(row, title)

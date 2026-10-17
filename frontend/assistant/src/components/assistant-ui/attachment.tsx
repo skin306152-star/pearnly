@@ -68,8 +68,12 @@ const useAttachmentSrc = () => {
     useShallow((s): { file?: File; src?: string } => {
       if (s.attachment.type !== "image") return {};
       if (s.attachment.file) return { file: s.attachment.file };
+      // 发送没成功放回输入框的图片（lib/managed-agents/send-failure.ts）：没有原文件了，按它在会话里的位置取本页留的预览
+      const placed = s.attachment.content?.find((c) => c.type === "file")?.data;
       const src =
-        s.attachment.content?.filter((c) => c.type === "image")[0]?.image ?? localPreview(s.attachment.id);
+        s.attachment.content?.filter((c) => c.type === "image")[0]?.image ??
+        localPreview(s.attachment.id) ??
+        (placed ? localPreview(placed) : undefined);
       if (!src) return {};
       return { src };
     }),

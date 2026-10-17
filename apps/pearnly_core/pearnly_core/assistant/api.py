@@ -22,6 +22,7 @@ def create(project=None, period=None, scope=None):
     return sessions.create(project=project or None, period=period or None, scope=scope or None)
 
 
+# 改对话的处理月份、分店；project 是它现在的公司（不能换公司，见 `sessions.move`）
 @frappe.whitelist(methods=["POST"])
 def move(session_id, project="", period=None, scope=None):
     return sessions.move(session_id, project or "", period=period or None, scope=scope or None)
@@ -112,6 +113,21 @@ def preview(session_id, file_id):
 @frappe.whitelist(methods=["GET"])
 def page_image(session_id, file_id, page=1, size="thumb"):
     return files.page_image(session_id, file_id, page=page, size=size)
+
+
+# 外壳的个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）：按人存、跨设备同步，只读写自己的（`prefs`）
+@frappe.whitelist(methods=["GET"])
+def layout():
+    from pearnly_core.assistant import prefs
+
+    return {"prefs": prefs.read()}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_layout(prefs):
+    from pearnly_core.assistant import prefs as layout_prefs
+
+    return {"prefs": layout_prefs.save(prefs)}
 
 
 @frappe.whitelist(methods=["GET"])

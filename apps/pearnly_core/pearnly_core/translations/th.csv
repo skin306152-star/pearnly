@@ -5,6 +5,7 @@
 A DMS customer reference is required before confirming or pushing,ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง
 A DMS customer reference is required; otherwise this link means nothing,ต้องระบุรหัสอ้างอิงลูกค้า DMS
 A board instance is created only when this is on,สร้างกระดานเมื่อเปิดใช้งานเท่านั้น
+A conversation cannot be moved to another company.,ไม่สามารถย้ายการสนทนาไปยังบริษัทอื่นได้
 A disabled operator cannot issue a bind code; enable them first,พนักงานที่ปิดใช้งานแล้วไม่สามารถสร้างรหัสผูกได้ กรุณาเปิดใช้งานก่อน
 "A human-readable name, e.g. MR.ERP DMS",ชื่อที่แสดง เช่น MR.ERP DMS
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",ฟิลด์ Password ของ Frappe เข้ารหัสเมื่อจัดเก็บ และ API ไม่ส่งค่ากลับ

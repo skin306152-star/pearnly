@@ -123,8 +123,8 @@ def context_rows(company) -> list:
     rows = frappe.get_all(CHOICE, filters={"company": company},
                           fields=["kind", "subject_label", "subject", "value", "value_label", "branch"],
                           order_by="set_at desc, name asc", limit_page_length=CONTEXT_MAX + 1)
-    return [{"kind": row.kind, "subject_label": row.subject_label or "", "value": row.value or "",
-             "value_label": row.value_label or "", "branch": row.branch or ""} for row in rows]
+    return [{"kind": row.kind, "subject_label": row.subject_label or "", "subject": row.subject or "",
+             "value": row.value or "", "value_label": row.value_label or "", "branch": row.branch or ""} for row in rows]
 
 
 def _company_of(connection, account_row) -> tuple:
@@ -147,12 +147,27 @@ def for_push(connection, account_set, account_row) -> dict | None:
     name, branch = _company_of(connection, account_row)
     if not name:
         return None
-    rows = frappe.get_all(CHOICE, filters={"company": name}, fields=["kind", "subject", "value", "branch"],
+    rows = frappe.get_all(CHOICE, filters={"company": name},
+                          fields=["name", "kind", "subject", "subject_label", "value", "value_label", "branch"],
                           limit_page_length=RULES_MAX)
     return {"company": name, "branch": branch,
-            "rules": [{"kind": row.kind, "subject": row.subject, "value": row.value, "branch": row.branch or ""}
+            "rules": [{"id": row.name, "kind": row.kind, "subject": row.subject, "subject_label": row.subject_label or "",
+                       "value": row.value, "value_label": row.value_label or "", "branch": row.branch or ""}
                       for row in rows]}
 
 
+IDS_MAX = 500
+
+
+def values_now(ids) -> dict:
+    """推送回读的钩子（``cowork_push_company_choices_saved``）：推送时用上的这几条规则现在的值 ``{编号: 值}``，删了的不在里面
+    （CC 说「按哪条公司规则」时据此说还在不在）。只回编号与值，不回对象、公司；编号来自已按权限取到的推送记录。"""
+    names = [str(name) for name in ids or () if isinstance(name, str) and 0 < len(name) <= 140][:IDS_MAX]
+    if not names:
+        return {}
+    rows = frappe.get_all(CHOICE, filters={"name": ["in", names]}, fields=["name", "value"], limit_page_length=len(names))
+    return {row.name: row.value or "" for row in rows}
+
+
 __all__ = ["CONTEXT_MAX", "KIND_WORDS", "RULES_MAX", "context_rows", "delete", "for_push", "forget_company", "listing",
-           "one", "rule_key", "save"]
+           "one", "rule_key", "save", "values_now"]

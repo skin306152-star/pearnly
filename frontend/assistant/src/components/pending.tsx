@@ -509,7 +509,7 @@ export const PendingView: FC = () => {
     <div data-slot="cc-scroll" className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="cc-page">
         <div className="cc-page-head">
-          <h1 className="cc-page-title">{co.pending}</h1>
+          <h1 className="cc-page-title"><Marquee className="cc-page-title-text">{co.pending}</Marquee></h1>
         </div>
         <label className="cc-page-search">
           <SearchIcon />

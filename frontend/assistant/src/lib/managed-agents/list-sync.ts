@@ -10,7 +10,7 @@
 // 本页自己刚改过的对话（这次请求发出之后改的）不按这一页改。不另开定时。
 // 一段对话在本页可能有两行数据（本页新建的那行 + 重拉列表后服务端给的那行：组件库按编号各存一份），都改。
 //
-// 公司分组（projects.ts）走同一个通道：pearnly.project 的改名（upsert）、删公司（delete）、移动对话或换月份（move）
+// 公司分组（projects.ts）走同一个通道：pearnly.project 的改名（upsert）、删公司（delete）、对话改月份分店或删公司时回到最近（move）
 // 随推随并；移来的对话本页还没加载就重拉一次列表。核对的那几个时刻同时重取一次 projects()；产品从没有公司分组变成有
 // （或反过来）时整表重拉；侧栏「分组依据」在公司与月份 / 不分组之间换（取的接口跟着换，sidebar-view.ts）时也整表重拉。
 // 按公司分组的第一页里，每一组各按它自己翻到哪儿判断「不在这一页」是不是在别处删了。
@@ -21,6 +21,7 @@ import { noticeReloader } from "./notice-reload";
 import { applyProjectChange, groupOf, refreshProjects, useProjects } from "./projects";
 import { onConnectionChange, onProjectChange, onSessionChange, type SessionChange } from "./realtime";
 import { absorb, firstPage, quietly, touchedSince } from "./session-list-adapter";
+import { noteUnpinnedElsewhere } from "./sidebar-order";
 import { useSidebarView } from "./sidebar-view";
 
 // 推来的几条合成一次重拉
@@ -70,6 +71,8 @@ function retitle(threads: ListThreads, rows: ItemData[], title: string) {
 function restar(threads: ListThreads, rows: ItemData[], starred: boolean) {
   for (const row of rows) {
     if (!!row.custom?.starred !== starred) {
+      // 别的设备上取消置顶：侧栏把它挪到组顶时按数据收拾（那一台已经存过，sidebar-order.ts）
+      if (!starred && row.remoteId) noteUnpinnedElsewhere(row.remoteId);
       void quietly("custom", row.remoteId!, () => threads.getItemById(row.id).updateCustom({ ...row.custom, starred }));
     }
   }
@@ -110,10 +113,12 @@ export function reconcile(threads: ListThreads, page: SessionPage, asked: number
     restar(threads, rows, !!s.starred);
   }
   // 第一页 = 全部置顶的 + 其余最近的一页。没有下一页就是全部；有下一页时，比这一页里最早的还新的也一定在这一页里。
-  // 按公司分组时第一页 = 全部置顶 + 最近一页 + 每家公司最新几条：每一组各按自己的（groups 里有这家 = 这家还有更多）
+  // 按公司分组时第一页 = 全部置顶 + 最近一页 + 每家公司最新几条：每一组各按自己的（groups 里有这家 = 这家还有更多）。
+  // 组里手排过、按手排一并给的（ordered）不算：它们可能很旧，算进来会把这组翻页取到的较新的当成在别处删了
   const grouped = page.groups !== undefined;
+  const early = new Set(page.ordered ?? []);
   const oldestOf = (group: string | null) => {
-    const rest = page.sessions.filter((s) => !s.starred && (group === null || (s.project ?? "") === group));
+    const rest = page.sessions.filter((s) => !s.starred && !early.has(s.id) && (group === null || (s.project ?? "") === group));
     return rest.length ? Math.min(...rest.map((s) => time(s.updated_at))) : Number.POSITIVE_INFINITY;
   };
   const gone = new Set<string>();
@@ -139,7 +144,7 @@ export function watchList(threads: () => ListThreads): () => void {
   };
   const reloader = noticeReloader(() => view, RELOAD_MS);
   const offChange = onSessionChange((change) => applyChange(threads(), change, reloader));
-  // 公司改名、删公司、对话换组：随推随并；移来的对话本页还没有就重拉
+  // 公司改名、删公司、对话改月份分店（删公司时回到最近）：随推随并；本页还没有这段对话就重拉
   const offProject = onProjectChange((change) => {
     const moved = applyProjectChange(change);
     if (moved && !rowsOf(threads(), moved).length) reloader.note(moved);

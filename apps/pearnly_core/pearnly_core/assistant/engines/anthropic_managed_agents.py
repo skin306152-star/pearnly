@@ -45,12 +45,22 @@ LIST_RETRIES = 3
 # 事件流两条事件之间最长等这么久；模型长时间思考时超时由转发线程查状态后重接。
 STREAM_TIMEOUT = 120
 # 侧栏标题只要几个词（泰文、中日文每个字的 token 多些，留足）；后台任务里调用，等不到就放弃（保留临时标题）。
-TITLE_TOKENS = 60
+# 2026-10-16 测试：标题模型默认开着思考，60 个 token 常被空的思考块用完（stop_reason max_tokens、没有文字），标题回空。
+# 起标题明确关掉思考（标题模型在默认思考强度下接受 disabled）；这个模型不接受关思考（400）时不带 thinking 再问一次，
+# 给思考留足 token。只认正常结束（end_turn）的回答，截断的不当标题。
+TITLE_TOKENS = 200
+TITLE_THINKING_TOKENS = 2000
 TITLE_TIMEOUT = 15
 
 
 def _plain(obj) -> dict:
     return obj.to_dict(mode="json")
+
+
+def _mounted_id(mount_path: str) -> str | None:
+    """挂载位置（`{UPLOADS}/<文件编号>/<文件名>`，`attach` 定的）里的文件编号；不是这个写法回 None。"""
+    parts = mount_path[len(UPLOADS) + 1:].split("/") if mount_path.startswith(UPLOADS + "/") else []
+    return parts[0] if len(parts) == 2 and parts[0] and parts[1] else None
 
 
 def _gone(err) -> bool:
@@ -121,10 +131,18 @@ class Adapter(base.Adapter):
         return self.api.beta.sessions.retrieve(conversation).status
 
     def summarize(self, text: str, model: str) -> str | None:
-        reply = self.api.with_options(timeout=TITLE_TIMEOUT).messages.create(
-            model=model or self.model, max_tokens=TITLE_TOKENS, system=base.TITLE_INSTRUCTION,
-            messages=[{"role": "user", "content": text}])
-        return "".join(getattr(part, "text", "") for part in reply.content) or None
+        ask = dict(model=model or self.model, system=base.TITLE_INSTRUCTION, messages=[{"role": "user", "content": text}])
+        api = self.api.with_options(timeout=TITLE_TIMEOUT)
+        try:
+            reply = api.messages.create(max_tokens=TITLE_TOKENS, thinking={"type": "disabled"}, **ask)
+        except anthropic.APIStatusError as err:
+            if getattr(err, "status_code", None) != 400:
+                raise
+            reply = api.messages.create(max_tokens=TITLE_THINKING_TOKENS, **ask)
+        if getattr(reply, "stop_reason", None) != "end_turn":
+            return None
+        return "".join(getattr(part, "text", "") for part in reply.content
+                       if getattr(part, "type", "text") == "text") or None
 
     # 控制台 Manage → Webhooks 订阅这几类；通知只带类型与会话编号，等的是哪些调用再读事件列表（`contracts.pending_calls`）
     WAKE_EVENTS = ("session.status_idled", "session.requires_action", "session.idled")
@@ -175,18 +193,36 @@ class Adapter(base.Adapter):
         return {"file_id": stored.id, "path": path}
 
     def files(self, conversation: str) -> list[dict]:
-        found = {}
-        for f in self.api.beta.files.list(scope_id=conversation, betas=[BETA]):
-            found[f.id] = {"id": f.id, "filename": f.filename, "size_bytes": f.size_bytes, "mime_type": f.mime_type,
-                           "downloadable": bool(getattr(f, "downloadable", False)), "created_at": str(f.created_at),
-                           "kind": "output"}
+        """附件按挂载位置里的编号列（`attach` 返回、随消息记下、本站留存用的都是这个编号）。
+
+        挂进会话时引擎在会话范围里另存一份（另一个编号、不可下载），会话范围的文件列表把它和智能体的结果混在一起列出；
+        第 5 轮测试：刷新后附件被列成 kind = output、编号对不上消息里记的，卡片没有缩略图和页数。这些另存的一份不列成结果：
+        挂载记录上的编号就是它（引擎把挂载记录指向另存的那份时），或同名、不可下载、还没认领的（挂载记录仍是原编号时）。"""
+        uploads, copies = {}, {}
         for r in self.api.beta.sessions.resources.list(conversation):
-            if getattr(r, "type", "") != "file" or r.file_id in found:
+            if getattr(r, "type", "") != "file":
                 continue
-            found[r.file_id] = {"id": r.file_id, "filename": (r.mount_path or "").rsplit("/", 1)[-1] or r.file_id,
-                                "size_bytes": 0, "mime_type": "application/octet-stream", "downloadable": False,
-                                "created_at": str(getattr(r, "created_at", "")), "kind": "upload"}
-        return list(found.values())
+            mount = getattr(r, "mount_path", None) or ""
+            fid = _mounted_id(mount) or r.file_id
+            copies[r.file_id] = fid
+            uploads.setdefault(fid, {"id": fid, "filename": mount.rsplit("/", 1)[-1] or fid, "size_bytes": 0,
+                                     "mime_type": "application/octet-stream", "downloadable": False,
+                                     "created_at": str(getattr(r, "created_at", "")), "kind": "upload"})
+        unclaimed = [item["filename"] for item in uploads.values()]
+        outputs = {}
+        for f in self.api.beta.files.list(scope_id=conversation, betas=[BETA]):
+            downloadable = bool(getattr(f, "downloadable", False))
+            if f.id in uploads or f.id in copies:
+                name = uploads[copies.get(f.id, f.id)]["filename"]
+                if name in unclaimed:
+                    unclaimed.remove(name)
+                continue
+            if not downloadable and f.filename in unclaimed:
+                unclaimed.remove(f.filename)
+                continue
+            outputs[f.id] = {"id": f.id, "filename": f.filename, "size_bytes": f.size_bytes, "mime_type": f.mime_type,
+                             "downloadable": downloadable, "created_at": str(f.created_at), "kind": "output"}
+        return list(uploads.values()) + list(outputs.values())
 
     def read_file(self, conversation: str, file_id: str) -> bytes:
         return self.api.files.download(file_id).read()

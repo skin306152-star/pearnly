@@ -132,10 +132,36 @@ ACCOUNT_FROM = {"chosen": "chosen", "remembered": "remembered", "task_default": 
                 "config_default": "default"}
 
 
-def written(payload: Any, decided_by: Any = None) -> Optional[Dict[str, Any]]:
+def _rules_used(company_rules: Any, rules_now: Any) -> list:
+    """冻结目标里用上的公司规则（`company_choices.used`）→ 给 CC 的 ``[{kind, for, tax_id?, value, value_name?, branch?,
+    still_saved?}]``：``for`` 是这条规则的对象（卖方 / 买方名，存货是品名），``tax_id`` 取自归类键里的 13 位税号。
+    ``rules_now`` ``{规则编号: 现在的值}`` 给了才说 ``still_saved``（编号在、值没变）；值改了另给 ``now_value``。"""
+    out = []
+    for item in company_rules if isinstance(company_rules, list) else ():
+        if not isinstance(item, dict) or item.get("kind") not in DECIDED_KINDS or not str(item.get("value") or ""):
+            continue
+        parts = str(item.get("subject") or "").split("|")
+        rule = {"kind": item["kind"], "for": str(item.get("label") or ""), "value": str(item["value"])}
+        if len(parts) > 1 and len(parts[1]) == 13 and parts[1].isdigit():
+            rule["tax_id"] = parts[1]
+        if item.get("value_label") and item["value_label"] != item["value"]:
+            rule["value_name"] = str(item["value_label"])
+        rule["branch"] = str(item.get("branch") or "") or "whole company"
+        if isinstance(rules_now, dict) and item.get("id"):
+            now = rules_now.get(str(item["id"]))
+            rule["still_saved"] = now == item["value"]
+            if now is not None and now != item["value"]:
+                rule["now_value"] = str(now)
+        out.append(rule)
+    return out
+
+
+def written(payload: Any, decided_by: Any = None, company_rules: Any = None,
+            rules_now: Any = None) -> Optional[Dict[str, Any]]:
     """推送记录里冻结的 Express 载荷 → 这张单是怎么写进 Express 的几项事实（验收 F19：CC 只知道单号，答不出现购还是
     赊购，叫用户去 Express 核对）：{payment, payment_from?, debit_account | revenue_account, account_from?, vat?,
-    decided_by?}。``decided_by`` 是冻结目标里的「每一类按什么定的」（第 2 期），与 ``account_from`` 同一套词。
+    decided_by?, company_rules?}。``decided_by`` 是冻结目标里的「每一类按什么定的」（第 2 期），与 ``account_from`` 同一套词；
+    ``company_rules`` 是冻结目标里用上的是哪几条公司规则（`_rules_used`，``rules_now`` 核现在还在不在）。
     不是 Express 进 / 销项载荷（MR.ERP 等）回 None。不带单号、对方、金额等别的东西，结果要小。"""
     payload = payload if isinstance(payload, dict) else {}
     direction = payload.get("direction")
@@ -166,4 +192,7 @@ def written(payload: Any, decided_by: Any = None) -> Optional[Dict[str, Any]]:
                if kind in DECIDED_KINDS and source in DECIDED_SOURCES}
     if decided:
         out["decided_by"] = decided
+    used = _rules_used(company_rules, rules_now)
+    if used:
+        out["company_rules"] = used
     return out
