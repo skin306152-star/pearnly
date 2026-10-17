@@ -44,7 +44,7 @@ import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePend
 import { useSendFailure } from "@/lib/managed-agents/send-failure";
 import { useActiveSessionSnapshot } from "@/lib/managed-agents/runtime-provider";
 import { statusText, ThinkingClock, turnActivity, turnStartedAt } from "@/lib/managed-agents/turn";
-import { StreamFollower } from "@/lib/follow-scroll";
+import { OpenSettler } from "@/lib/follow-scroll";
 import { holdImeEnter } from "@/lib/ime";
 import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { useToolLabels } from "@/lib/tool-labels";
@@ -115,7 +115,7 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
 const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isLoading }) => {
   const { Welcome = ThreadWelcome, Loading } = useContext(ThreadComponentsContext);
-  const follow = useFollowStream();
+  const settle = useSettleOnOpen();
 
   return (
     <ThreadPrimitive.Root
@@ -125,13 +125,13 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
       }}
     >
       <ThreadPrimitive.Viewport
-        ref={follow.viewport}
+        ref={settle.viewport}
         turnAnchor="top"
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto [scrollbar-gutter:stable] scroll-smooth"
       >
         <div
-          ref={follow.content}
+          ref={settle.content}
           className={cn(
             // 栏宽 768（设计文档 3.10）：内容区左右各留 1rem，正文与输入框正好 --thread-max-width
             "mx-auto flex w-full max-w-[calc(var(--thread-max-width)+2rem)] flex-1 flex-col px-4 pt-4",
@@ -215,34 +215,27 @@ function useShownPending() {
   return landed ? null : pending;
 }
 
-/** 回复在出时跟到底、用户往上翻就不动（lib/follow-scroll.ts）。新的一轮（又发了一条）从跟随开始。 */
-function useFollowStream() {
+/** 打开一段对话停在最新一条（lib/follow-scroll.ts）。回复在出时不跟到底，下面有内容就出 ↓（同 Claude，三端一样）。 */
+function useSettleOnOpen() {
   const [viewport, setViewport] = useState<HTMLDivElement | null>(null);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
-  const live = useRef(false);
-  live.current = useAuiState((s) => s.thread.isRunning);
-  const turn = useAuiState((s) => {
-    for (let i = s.thread.messages.length - 1; i >= 0; i--) if (s.thread.messages[i]!.role === "user") return s.thread.messages[i]!.id;
-    return undefined;
-  });
   // 打开的是哪段对话（消息取回来了才算打开）：换了一段、或这段的消息刚取回，就停到最新一条（follow-scroll 的 settle）
   const opened = useAuiState((s) => (s.thread.messages.length > 0 ? s.threadListItem.id : ""));
   const openedNow = useRef(opened);
   openedNow.current = opened;
-  const follower = useRef<StreamFollower | null>(null);
+  const settler = useRef<OpenSettler | null>(null);
   useEffect(() => {
     if (!viewport || !content) return;
-    const created = new StreamFollower(viewport, content, () => live.current);
-    follower.current = created;
+    const created = new OpenSettler(viewport, content);
+    settler.current = created;
     if (openedNow.current) created.settle();
     return () => {
       created.dispose();
-      if (follower.current === created) follower.current = null;
+      if (settler.current === created) settler.current = null;
     };
   }, [viewport, content]);
-  useEffect(() => follower.current?.resume(), [turn]);
   useEffect(() => {
-    if (opened) follower.current?.settle();
+    if (opened) settler.current?.settle();
   }, [opened]);
   return { viewport: setViewport, content: setContent };
 }
@@ -321,15 +314,17 @@ const NoticeMessage: FC = () => {
   );
 };
 
+/** 下面还有内容时在输入框上方居中出 ↓，点了平滑滚到最新（同 Claude，13.webp / 12.webp）。
+ *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距）；在底部时组件库把它禁用，这里藏起来。 */
 const ThreadScrollToBottom: FC = () => {
   return (
-    <ThreadPrimitive.ScrollToBottom asChild>
+    <ThreadPrimitive.ScrollToBottom asChild behavior="smooth">
       <TooltipIconButton
         tooltip={t("scrollToBottom")}
         variant="outline"
-        className="aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-12 z-10 self-center rounded-full p-4 shadow-[var(--cc-shadow-composer)] disabled:invisible"
+        className="aui-thread-scroll-to-bottom border-line bg-surface hover:bg-hover absolute -top-9 z-10 size-10 self-center rounded-full p-0 shadow-[var(--cc-shadow-composer)] disabled:invisible"
       >
-        <ArrowDownIcon />
+        <ArrowDownIcon className="size-5" />
       </TooltipIconButton>
     </ThreadPrimitive.ScrollToBottom>
   );
@@ -391,8 +386,15 @@ const Composer: FC = () => {
     window.addEventListener(KEYBOARD_CLOSED, closed);
     return () => window.removeEventListener(KEYBOARD_CLOSED, closed);
   }, []);
+  // 手机（触屏或手机外壳）发出去就收起键盘：这一轮顶到上面、下面留空（同 Claude 手机 app，11.webp）；电脑保持焦点接着打字
+  const phone = useIsMobile();
+  const dropKeyboard = TOUCH || phone;
+  const input = useRef<HTMLTextAreaElement>(null);
+  const sent = () => {
+    if (dropKeyboard && !emptyNow.current) input.current?.blur();
+  };
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col" onSubmit={sent}>
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
@@ -402,17 +404,20 @@ const Composer: FC = () => {
           <ComposerAttachments />
           <DraftWatcher />
           <ComposerPrimitive.Input
+            ref={input}
             placeholder={placeholder}
             className="aui-composer-input block max-h-72 min-h-6 w-full resize-none bg-transparent font-sans outline-none"
             rows={1}
             autoFocus={!TOUCH /* 手机上打开不弹键盘（同 Claude 手机 app），点输入框才弹 */}
+            unstable_focusOnRunStart={!dropKeyboard /* 手机上开跑、点 ↓ 都不把焦点拉回输入框 */}
+            unstable_focusOnScrollToBottom={!dropKeyboard}
             enterKeyHint="send"
             onKeyDown={holdImeEnter /* Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts */}
             onFocus={() => setTyping(true)}
             onBlur={() => setTyping(false)}
             aria-label={placeholder}
           />
-          <ComposerAction />
+          <ComposerAction onSend={sent} />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
       {Chin && (
@@ -424,7 +429,7 @@ const Composer: FC = () => {
   );
 };
 
-const ComposerAction: FC = () => {
+const ComposerAction: FC<{ onSend: () => void }> = ({ onSend }) => {
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <AuiIf condition={(s) => s.thread.capabilities.attachments}>
@@ -433,7 +438,7 @@ const ComposerAction: FC = () => {
       <div className="aui-composer-send-slot ms-auto flex items-center gap-1.5">
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send asChild>
-            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")}>
+            <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} onClick={onSend}>
               <ArrowUpIcon className="aui-composer-send-icon" />
             </button>
           </ComposerPrimitive.Send>

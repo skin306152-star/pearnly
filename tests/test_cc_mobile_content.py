@@ -2,7 +2,7 @@
 
 - 主档页知识库：新增、修改都有「取消」「保存」；存好的那一条直接用服务端回的放进列表，不等之后整页重取；失败照 shownError 报；
   同页改名、记住的选择、移除文件夹同样先按服务端的回应显示。
-- 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），不破坏「往上翻不拉回」。
+- 打开一段长对话停在最新一条（lib/follow-scroll.ts 的 settle），用户一碰就交还、不拉回。
 
 做法同 tests/test_assistant_ui.py：源码断言 + 用 esbuild 打包交给 node 跑的行为检查（要先 npm ci --prefix frontend/assistant）。
 """
@@ -92,7 +92,7 @@ class OpenAtBottomSourceTests(unittest.TestCase):
     def test_thread_settles_when_a_conversation_is_opened(self):
         thread = read("components/assistant-ui/thread.tsx")
         self.assertIn("s.thread.messages.length > 0 ? s.threadListItem.id : \"\"", thread)
-        self.assertIn("if (opened) follower.current?.settle();", thread)
+        self.assertIn("if (opened) settler.current?.settle();", thread)
         self.assertIn("if (openedNow.current) created.settle();", thread)
 
 
@@ -191,7 +191,7 @@ g.done();
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { SETTLE_MAX_MS, SETTLE_QUIET_MS, StreamFollower } from "@/lib/follow-scroll";
+import { OpenSettler, SETTLE_MAX_MS, SETTLE_QUIET_MS } from "@/lib/follow-scroll";
 
 const g = globalThis as any;
 let clock = 1000;
@@ -206,8 +206,7 @@ const vp: any = {
 };
 const fire = (type: string, e: any = {}) => (listeners[type] ?? []).forEach((fn) => fn(e));
 let grow: () => void = () => {};
-const live = false;  // 打开的是一段已经结束的对话
-const f = new StreamFollower(vp, {}, () => live, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
+const f = new OpenSettler(vp, {}, () => clock, (_t, onResize) => { grow = onResize; return () => {}; });
 const bottom = () => vp.scrollHeight - vp.clientHeight;
 const more = (px: number, ms = 100) => {
   clock += ms; vp.scrollHeight += px; vp.scrollTop = Math.min(vp.scrollTop, bottom());  // 变矮时浏览器自己把位置收回
@@ -221,7 +220,7 @@ assert.equal(vp.scrollTop, bottom());
 more(1300); assert.equal(vp.scrollTop, bottom());
 more(400, 1200); assert.equal(vp.scrollTop, bottom());
 more(-150); assert.equal(vp.scrollTop, bottom());
-// 静下来 SETTLE_QUIET_MS 之后不再管（对话没在跑，内容再变也不动）
+// 静下来 SETTLE_QUIET_MS 之后不再管（内容再变也不动）
 clock += SETTLE_QUIET_MS;
 let top = vp.scrollTop; more(500); assert.equal(vp.scrollTop, top);
 
