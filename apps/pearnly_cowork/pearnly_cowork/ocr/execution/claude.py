@@ -1,4 +1,4 @@
-"""Cowork 的 Claude 识别路线（ADR-022）：本站点选了 Claude 时，图片 / PDF 整份交共用层 ``pearnly_core.claude_ocr``
+"""Cowork 的 Claude 识别路线（ADR-022）：本站点选了 Claude 时，图片 / PDF 整份（表格文件按逻辑页的文字）交共用层 ``pearnly_core.claude_ocr``
 （Haiku→Opus，不调谷歌），把标准格式转成 ``PipelineResult``（每个实体页一条：该页第一张单放页上、其余进
 ``additional_invoices``；续页按「非发票」留作证据；第 9 页起读不了的页按「读不出」标红），之后存档、推送、扣费照旧。"""
 import hashlib
@@ -130,3 +130,25 @@ def recognize(content, filename, page_count, anchor_year):
         raise Deferred("claude_no_result", delay=30)
     outcome.setdefault("seconds", round(time.monotonic() - started, 2))
     return to_pipeline(outcome, page_count, anchor_year).model_dump_json(), evidence(outcome)
+
+
+def recognize_table(document, anchor_year):
+    """表格文件（Excel / Word，``table_inputs`` 解出的逻辑页）：每个逻辑页的文字交 Claude（与谷歌路线 ``run_table`` 同样按页读），
+    每页的结果放回同一页号。返回 ``(pipeline_json, evidence)``。"""
+    from pearnly_core.execution.errors import Deferred
+    from pearnly_cowork.ocr.engine.runner import page_text
+
+    pages, rows, usd, seconds = [], [], 0.0, 0.0
+    for logical in document.pages:
+        outcome = client.read("voucher", [], text=page_text(logical))
+        if not outcome.get("read"):
+            raise Deferred("claude_no_result", delay=30)
+        page = to_pipeline(outcome, 1, anchor_year).pages[0]
+        page.page_number = logical.page_number
+        pages.append(page)
+        rows += evidence(outcome)
+        usd += outcome.get("usd") or 0
+        seconds += outcome.get("seconds") or 0
+    body = {"pages": [page.model_dump(mode="json") for page in pages], "page_count": document.page_count,
+            "elapsed_ms": int(seconds * 1000), "engine": ENGINE, "estimated_cost_thb": round(usd * 35, 4)}
+    return PipelineResult.model_validate(body, context={"anchor_year": anchor_year}).model_dump_json(), rows

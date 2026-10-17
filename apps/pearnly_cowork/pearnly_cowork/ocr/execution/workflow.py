@@ -103,13 +103,22 @@ def _recognize(doc, frozen, examples, source):
         return _freeze_result(doc, EngineResult(pipeline, ()), frozen, examples)
     from pearnly_core.claude_ocr import client as claude_ocr
 
-    if claude_ocr.uses_claude() and source.kind != "document":
-        # 本租户选了 Claude 识别（ADR-022）：图片 / PDF 整份交 Claude，不调谷歌、不交 Cloud Run；之后照常复核、存档、扣费。
+    if claude_ocr.uses_claude():
+        # 本租户选了 Claude 识别（ADR-022）：图片 / PDF 整份交 Claude，表格文件（Excel / Word）按页的文字交 Claude；
+        # 不调谷歌、不交 Cloud Run；之后照常复核、存档、扣费。
         from pearnly_cowork.ocr.execution import claude
 
+        year = date.fromisoformat(str(doc.anchor_date)).year
         with core_work.step("claude"):
-            pipeline, evidence = claude.recognize(read_bytes(source), source.filename, int(doc.page_count),
-                                                  date.fromisoformat(str(doc.anchor_date)).year)
+            if source.kind == "document":
+                document = extract_table(read_bytes(source), source.filename)
+                validate_document(document)
+                freeze_doc_manifest(source, document)  # 与谷歌路线同样：每次重放都要求输入与清单不变
+                if kind != "excel" or units != document.billing_characters:
+                    frappe.throw(_("Recognition input and ownership cannot be changed."))
+                pipeline, evidence = claude.recognize_table(document, year)
+            else:
+                pipeline, evidence = claude.recognize(read_bytes(source), source.filename, int(doc.page_count), year)
         with core_work.step("freeze"):
             return _freeze_result(doc, None, frozen, examples, remote=(pipeline, evidence))
     environment = frozen["environment"]
