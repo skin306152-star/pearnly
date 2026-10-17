@@ -21,10 +21,12 @@
 // 各项后写的为准：公司组、置顶各是一项，组里的每一组各是一项（group:<公司编号>，最近 group:）——审查：各组合成一项时，一直开着、
 // 没重取过的设备改一组就把整份交上去，冲掉别的设备在其他组排好的；离线改的联网后也整份盖回去。组里的各项以服务端为准：本机没改、
 // 服务端没有的组（别处清掉了、服务端按上限截掉了）本机也去掉（prefs-sync 的 serverOwns）；去掉一组交 null，服务端删这一项。
-// 侧栏各组的折叠（sidebar-fold.ts）仍按设备记。
+// 侧栏各组的折叠（sidebar-fold.ts）仍按设备记。按数据收拾的（forgetPinned / forgetInGroups / forgetGroups）只照不比这份布局旧的
+// 依据做（见下面「按数据收拾」）。
 
 import { create } from "zustand";
-import { prefChanged, registerPref } from "@/lib/prefs-sync";
+import { clock, prefChanged, registerPref, tidyBasis } from "@/lib/prefs-sync";
+import { projectsSeen } from "./projects";
 
 /** 一组里手排的先后：对话编号（keys），存下时这组最新的那个时间（at，毫秒；比它新的不在列表里的对话排最上面）。
  *  top：取消置顶回到组顶的那一段（keys 的前 n 条，at 是放上去那一刻这组最新的时间）：排在比 at 新、不比 top.at 新的对话之上，
@@ -126,10 +128,11 @@ function keep(next: SidebarOrder) {
   }
 }
 
-/** 改了几项：换成 next 并记进本机，交给同步（fields：改了的那几项，见 groupField；tidy：按数据收拾的，lib/prefs-sync.ts）。 */
-function save(patch: Partial<SidebarOrder>, fields: readonly string[], tidy = false) {
+/** 改了几项：换成 next 并记进本机，交给同步（fields：改了的那几项，见 groupField；tidy：按数据收拾的，lib/prefs-sync.ts）。
+ *  回：会存上去（按数据收拾的只改了本机时 false）。 */
+function save(patch: Partial<SidebarOrder>, fields: readonly string[], tidy = false): boolean {
   keep({ ...useSidebarOrder.getState(), ...patch });
-  prefChanged("order", fields, tidy);
+  return prefChanged("order", fields, tidy);
 }
 
 /** 这几组改了（同步时各是一项）。 */
@@ -226,7 +229,6 @@ type Lift = {
   moved?: { group: string; before: GroupOrder; after: GroupOrder };
 };
 const lifts = new Map<string, Lift>();
-const clock = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 /** 等着回组顶的有变化（侧栏据此再挪一遍）。 */
 export const useLifts = create<{ tick: number }>(() => ({ tick: 0 }));
@@ -277,7 +279,9 @@ export async function unpinChat(key: string, run: () => Promise<void>, after: re
     throw error;
   }
   // 先存挪好的那一组，再按数据收拾置顶顺序（收拾要先取一次服务端那份时，取完会把已记下没存的那一组一并存上；prefs-sync 也不让
-  // 后排的存把先排的取盖掉——审查：原来先收拾、后存，后排的存把取覆盖了，服务端的置顶顺序一直留着它）
+  // 后排的存把先排的取盖掉——审查：原来先收拾、后存，后排的存把取覆盖了，服务端的置顶顺序一直留着它）。这一条的置顶标记以服务端
+  // 这一刻的确认为准（按数据收拾的依据，见「按数据收拾」）
+  noteListRead(clock(), [key]);
   unpinSettled(key, true);
   forgetPinned([key]);
 }
@@ -310,6 +314,7 @@ export async function starChat(item: StarItem, starred: boolean, after: readonly
   try {
     if (!starred) return await unpinChat(key, run, after);
     await run();
+    noteListRead(clock(), [key]);
     forgetInGroups([key], true); // 置顶了：从组里手排的先后里去掉（服务端确认后）
   } finally {
     starring.delete(key);
@@ -387,38 +392,94 @@ export function clearGroupOrders() {
   if (Object.keys(groups).length) save({ groups: {} }, groupFields(Object.keys(groups)));
 }
 
-/** 这些对话不在原来那一组里排了（置顶了、删了）：从各组手排的先后里去掉。tidy：按数据收拾的，不是人改的（lib/prefs-sync.ts）。 */
+// ---------------------------------------------------------------- 按数据收拾
+// 侧栏按数据收拾手排的顺序（thread-list.tsx：取消置顶了的从置顶顺序里去掉、置顶了的从组里手排的先后里去掉、侧栏没有这家公司了
+// 整组去掉）依据的是本页的对话列表（置顶标记）与公司列表，它们可能比本机这份布局旧：电脑一直开着，对话列表是打开时读的，拿到
+// 焦点只重取了布局。测试窗口 10-18：手机置顶几条、排好置顶顺序（服务端 5 条），电脑拿到焦点后把手机新置顶的几条当成取消置顶
+// 收拾掉、存上去，服务端只剩 1 条；「置顶了的从组里去掉」、公司组整组去掉同样。每一条按它的依据读到的时刻判断（prefs-sync 的
+// tidyBasis）：
+//   对话 — 读第一页（全部置顶的都在第一页：打开、重拉列表、回前台 / 联网 / 重连时的核对）把本页每一行都对到那次请求发出的时刻
+//          （noteListRead(at)，后读完的为准）；推来的置顶 / 取消置顶、本机置顶 / 取消置顶得到服务端确认、别处删掉的只对到那几行
+//          （noteListRead(at, keys)）。
+//   公司 — 最近读完的一次公司列表（projects.ts 的 projectsSeen）。
+// 依据比布局旧的这次不收拾，本机也不改（只改本机的话本机这份就少了它，对话列表更新以后它照样是置顶的，却排到了最上面）；对话
+// 列表、公司列表更新以后侧栏再收拾时照新的判断。依据够新、要先取一次布局才能存的（tidyBasis 里「刚读到的」），记下这几条
+// （tidied，TIDY_TTL 内）：布局换进来以后侧栏照新的那份再收拾时，它们照这次的判断收拾、存上去。
+export const TIDY_TTL = 30_000;
+let listRead = -Infinity;
+const rowRead = new Map<string, number>();
+
+/** 本页对话列表读到了（at：那次请求发出的时刻，prefs-sync 的 clock）：keys 不给 = 读了第一页，本页每一行都对到这一刻；给了 = 只是这几行。 */
+export function noteListRead(at: number, keys?: readonly string[]) {
+  if (keys) {
+    for (const key of keys) rowRead.set(key, Math.max(at, rowRead.get(key) ?? -Infinity));
+    return;
+  }
+  listRead = at;
+  for (const [key, seen] of [...rowRead]) if (seen <= at) rowRead.delete(key);
+}
+
+const rowSeen = (key: string) => Math.max(listRead, rowRead.get(key) ?? -Infinity);
+
+// 依据够新、要先取一次布局才能存的：编号 → 到什么时候（从置顶顺序里去掉的、从组里去掉的、整组去掉的各记各的）
+const tidied = { pinned: new Map<string, number>(), grouped: new Map<string, number>(), groups: new Map<string, number>() };
+
+/** 这几条这次能收拾的：记下的照收拾，其余看依据（seen）够不够新。 */
+function tidyable(keys: readonly string[], marks: Map<string, number>, seen: (key: string) => number): string[] {
+  const at = clock();
+  return keys.filter((key) => (marks.get(key) ?? -Infinity) > at || tidyBasis(seen(key)));
+}
+
+/** 收拾了这几条：存上了就不再记；只改了本机的记下（布局换进来以后照样收拾）。 */
+function tidiedNow(keys: readonly string[], marks: Map<string, number>, saved: boolean) {
+  const at = clock();
+  for (const key of keys) {
+    if (saved) marks.delete(key);
+    else if (!((marks.get(key) ?? -Infinity) > at)) marks.set(key, at + TIDY_TTL);
+  }
+}
+
+/** 这些对话不在原来那一组里排了（置顶了、删了）：从各组手排的先后里去掉。tidy：按数据收拾的，不是人改的（lib/prefs-sync.ts；
+ *  依据不够新的不去掉，见「按数据收拾」）。 */
 export function forgetInGroups(keys: readonly string[], tidy = false) {
   const { groups } = useSidebarOrder.getState();
+  const listed = new Set(Object.values(groups).flatMap((order) => order.keys));
+  const listedKeys = keys.filter((key) => listed.has(key));
+  const drop = tidy ? tidyable(listedKeys, tidied.grouped, rowSeen) : listedKeys;
   const changed: string[] = [];
   const next: Record<string, GroupOrder> = {};
   for (const [group, order] of Object.entries(groups)) {
-    const kept = order.keys.filter((key) => !keys.includes(key));
+    const kept = order.keys.filter((key) => !drop.includes(key));
     if (kept.length === order.keys.length) {
       next[group] = order;
       continue;
     }
     changed.push(group);
     // 组顶那一段（top）里去掉了几条就少几条，一条不剩就不再有
-    const n = order.top ? order.top.n - order.keys.slice(0, order.top.n).filter((key) => keys.includes(key)).length : 0;
+    const n = order.top ? order.top.n - order.keys.slice(0, order.top.n).filter((key) => drop.includes(key)).length : 0;
     if (kept.length) next[group] = { keys: kept, at: order.at, ...(n > 0 ? { top: { n, at: order.top!.at } } : {}) };
   }
-  if (changed.length) save({ groups: next }, groupFields(changed), tidy);
+  if (!changed.length) return;
+  const saved = save({ groups: next }, groupFields(changed), tidy);
+  if (tidy) tidiedNow(drop, tidied.grouped, saved);
 }
 
-/** 这几组没了（公司删了、侧栏里没有这家了）：整组去掉（按数据收拾的）。 */
+/** 这几组没了（公司删了、侧栏里没有这家了）：整组去掉（按数据收拾的，依据是公司列表）。 */
 export function forgetGroups(gone: readonly string[]) {
   const { groups } = useSidebarOrder.getState();
-  const drop = gone.filter((group) => group in groups);
+  const drop = tidyable(gone.filter((group) => group in groups), tidied.groups, projectsSeen);
   if (!drop.length) return;
-  save({ groups: Object.fromEntries(Object.entries(groups).filter(([group]) => !drop.includes(group))) }, groupFields(drop), true);
+  const rest = Object.fromEntries(Object.entries(groups).filter(([group]) => !drop.includes(group)));
+  tidiedNow(drop, tidied.groups, save({ groups: rest }, groupFields(drop), true));
 }
 
-/** 这些对话不再置顶了：从手排的置顶顺序里去掉，以后再置顶时算新的、排最上面（第 5 轮审查：只增不减时再置顶会回到旧位置）。 */
+/** 这些对话不再置顶了：从手排的置顶顺序里去掉，以后再置顶时算新的、排最上面（第 5 轮审查：只增不减时再置顶会回到旧位置）。
+ *  按数据收拾的，不是人改的（lib/prefs-sync.ts；依据不够新的不去掉，见「按数据收拾」）。 */
 export function forgetPinned(keys: readonly string[]) {
   const { pinned } = useSidebarOrder.getState();
-  const next = pinned.filter((key) => !keys.includes(key));
-  if (next.length !== pinned.length) save({ pinned: next }, ["pinned"], true); // 按数据收拾的，不是人改的（lib/prefs-sync.ts）
+  const gone = tidyable(keys.filter((key) => pinned.includes(key)), tidied.pinned, rowSeen);
+  if (!gone.length) return;
+  tidiedNow(gone, tidied.pinned, save({ pinned: pinned.filter((key) => !gone.includes(key)) }, ["pinned"], true));
 }
 
 /** 「恢复默认设置」：手排的公司组、置顶与组里的顺序都不要了，回到按排序方式排。 */

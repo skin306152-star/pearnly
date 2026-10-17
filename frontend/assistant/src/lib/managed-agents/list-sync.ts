@@ -11,7 +11,9 @@
 // 推来的新消息（user.message / agent.message）属于本页还没加载的对话：同新建一样重拉一次（每段对话本页只为它拉一次：拉完仍不在
 // 列表里的——别的产品的、已归档的——不再为它反复拉）。服务端的列表按最后活动时间翻页，有了新消息的旧对话挪到了已翻过的游标
 // 之前，「显示更多」翻不到它，只能重拉。
-// 本页自己刚改过的对话（这次请求发出之后改的）不按这一页改。不另开定时。
+// 本页自己刚改过的对话（这次请求发出之后改的）不按这一页改。不另开定时。第一页带全部置顶的：本页标着置顶、却不在这一页里的
+// （很旧，在别处取消了置顶）照服务端换成没置顶。核对完、推来的置顶有变化时，记给侧栏按数据收拾手排顺序时判断依据新不新
+// （sidebar-order.ts 的 noteListRead）。拿到焦点（电脑上一直开着的窗口不触发 visibilitychange）不核对。
 // 一段对话在本页可能有两行数据（本页新建的那行 + 重拉列表后服务端给的那行：组件库按编号各存一份），都改。
 //
 // 公司分组（projects.ts）走同一个通道：pearnly.project 的改名（upsert）、删公司（delete）、对话改月份分店或删公司时回到最近（move）
@@ -19,13 +21,14 @@
 // （或反过来）时整表重拉；侧栏「分组依据」在公司与月份 / 不分组之间换（取的接口跟着换，sidebar-view.ts）时也整表重拉。
 // 按公司分组的第一页里，每一组各按它自己翻到哪儿判断「不在这一页」是不是在别处删了。
 
+import { clock } from "@/lib/prefs-sync";
 import type { SessionPage } from "./api";
 import { onMessage, runningSessions, seenActivity } from "./activity";
 import { noticeReloader } from "./notice-reload";
 import { applyProjectChange, groupOf, refreshProjects, useProjects } from "./projects";
 import { onConnectionChange, onProjectChange, onSessionChange, type SessionChange } from "./realtime";
-import { absorb, firstPage, quietly, touchedSince } from "./session-list-adapter";
-import { noteUnpinned } from "./sidebar-order";
+import { absorb, allStarsIn, firstPage, quietly, touchedSince } from "./session-list-adapter";
+import { noteListRead, noteUnpinned, starPending } from "./sidebar-order";
 import { useSidebarView } from "./sidebar-view";
 
 // 推来的几条合成一次重拉
@@ -98,7 +101,10 @@ export function applyChange(threads: ListThreads, change: SessionChange, reloade
   if (change.change === "archived" || change.change === "deleted") return drop(threads, rows, change.change === "archived");
   if (!rows.length) return reloader.note(change.session);
   if (change.change === "titled" && change.title) retitle(threads, rows, change.title);
-  if (change.change === "starred" && change.starred !== undefined) restar(threads, rows, change.starred);
+  if (change.change === "starred" && change.starred !== undefined) {
+    restar(threads, rows, change.starred);
+    noteListRead(clock(), [change.session]);
+  }
 }
 
 const time = (value: Date | string | null | undefined) => (value ? new Date(value).getTime() : Number.NaN);
@@ -129,12 +135,17 @@ export function reconcile(threads: ListThreads, page: SessionPage, asked: number
     return rest.length ? Math.min(...rest.map((s) => time(s.updated_at))) : Number.POSITIVE_INFINITY;
   };
   const gone = new Set<string>();
+  const allStars = allStarsIn(page);
   for (const item of Object.values(threads.getState().threadItems)) {
     const id = item.remoteId;
     if (!id || item.status !== "regular" || listed.has(id) || touchedSince(id, asked)) continue;
     const group = grouped ? groupOf(id) : null;
     const more = group === null || group === "" ? !!page.nextCursor : group in page.groups!;
-    if (more && !(time(item.lastMessageAt) > oldestOf(group))) continue;
+    if (more && !(time(item.lastMessageAt) > oldestOf(group))) {
+      // 可能在后面几页，照旧留着；置顶的都在第一页，它标着置顶就是别处取消了（推送漏了）。本机置顶的请求还没回的不算
+      if (allStars && item.custom?.starred && !starPending(id)) restar(threads, [item], false);
+      continue;
+    }
     gone.add(id);
   }
   for (const id of gone) drop(threads, rowsOf(threads, id), false);
@@ -184,9 +195,11 @@ export function watchList(threads: () => ListThreads): () => void {
     try {
       // 公司跟着重取（别处改名、删了，推送漏了的）；第一页顺带核对侧栏标着在跑的对话（在别处跑完了、推送漏了的不再转圈）
       if (useProjects.getState().loaded) await refreshProjects();
+      const seen = clock();
       const page = await firstPage(runningSessions());
       absorb(page, asked);
       reconcile(threads(), page, asked, reloader);
+      if (allStarsIn(page)) noteListRead(seen);
     } catch {
       // 下一个时刻再核对
     } finally {

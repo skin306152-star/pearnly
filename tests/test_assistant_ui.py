@@ -4398,6 +4398,249 @@ assert.equal(attachmentCard("/mnt/session/uploads/file_011CNew/new.pdf", "new.pd
 """)
 
 
+# 假站点加上个人排列（layout / save_layout，服务端按项合并、交 null 的项删掉）与公司列表（projects）
+PIN_RACE_SITE = r"""
+const merge = (old: any, sent: any) => {
+  const out: any = { ...(old ?? {}) };
+  for (const [part, fields] of Object.entries(sent)) {
+    out[part] = { ...(out[part] ?? {}) };
+    for (const [field, value] of Object.entries(fields as any)) {
+      if (value === null) delete out[part][field];
+      else out[part][field] = value;
+    }
+  }
+  return out;
+};
+let server: any = null;
+let projectsReply: any = null;
+const listingReply = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "layout") return ok({ prefs: server });
+  if (method === "save_layout") { server = merge(server, body.prefs); return ok({ prefs: server }); }
+  if (method === "projects") return ok(projectsReply);
+  return listingReply(method, args, body);
+};
+const saves = () => g.calls.filter((c: any) => c.method === "save_layout").map((c: any) => c.body.prefs);
+const realNow = performance.now.bind(performance);
+let skew = 0;
+(performance as any).now = () => realNow() + skew;
+// 侧栏按数据收拾：照抄 thread-list.tsx CompanyGroups 里那两个副作用（行 = 组件库此刻的对话列表；没有拖进已置顶还没回的）
+const tidy = (core: any) => {
+  const order = useSidebarOrder.getState();
+  const unpinned: string[] = [];
+  const pinnedNow: string[] = [];
+  for (const id of core.threadIds) {
+    const item = core.getItemById(id);
+    if (!item) continue;
+    const key = item.remoteId ?? id;
+    if (starPending(key)) continue;
+    if (item.custom?.starred) pinnedNow.push(key);
+    else unpinned.push(key);
+  }
+  const gone = unpinned.filter((key) => order.pinned.includes(key));
+  if (gone.length) forgetPinned(gone);
+  const listed = new Set(Object.values(order.groups).flatMap((group: any) => group.keys));
+  const left = pinnedNow.filter((key) => listed.has(key));
+  if (left.length) forgetInGroups(left, true);
+};
+const tidyGroups = () => {
+  const { kind, projects } = useProjects.getState();
+  if (!kind) return;
+  const known = new Set(projects.map((project: any) => project.id));
+  const gone = Object.keys(useSidebarOrder.getState().groups).filter((group) => group && !known.has(group));
+  if (gone.length) forgetGroups(gone);
+};
+async function open(sessions: any[], layout: any) {
+  site.sessions = sessions;
+  server = layout;
+  bindOrderUser("u@x");
+  const { core, threads } = sidebar();
+  core.__internal_load();
+  await core.getLoadThreadsPromise();
+  watchList(() => threads);
+  await syncPrefs("u@x");
+  tidy(core);
+  await g.sleep(SAVE_DELAY + 50);
+  assert.deepEqual(saves(), []);
+  return core;
+}
+// 过了一阵（REFETCH_AFTER 以上）：电脑一直开着的窗口拿到焦点（不触发 visibilitychange）/ 回到前台
+async function later(event: "focus" | "visibilitychange") {
+  skew += REFETCH_AFTER + 1000;
+  if (event === "focus") g.fire("focus");
+  else g.document.fire("visibilitychange");
+  await g.sleep(60);
+}
+"""
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class PinOrderRaceTests(unittest.TestCase):
+    """测试窗口 10-18（测试机实测 + lab 日志：02:28:43 手机最后一次 save_layout 回 506 字节，02:29:39 电脑提交一次回 448 字节）：手机置顶
+    几条并排好置顶顺序（服务端 5 条），一直开着的电脑（对话列表是打开时读的）拿到焦点、只重取了布局，侧栏按本页旧的置顶标记把手机
+    新置顶的几条当成「取消置顶了」从置顶顺序里去掉、存上去，服务端只剩 1 条。按数据收拾、要存上去的，依据（对话列表、公司列表）
+    不能比被改的那份布局旧。真的组件库对话列表 + 会话列表接口 + 侧栏同步 + 偏好同步，站点接口是假的；侧栏的收拾照抄 thread-list.tsx。"""
+
+    STUBS = {"cc-ma-setup": MA_SETUP, "socket.io-client": SYNC_SOCKET}
+    IMPORTS = r"""
+import { RemoteThreadListThreadListRuntimeCore } from "@assistant-ui/core/react";
+import { ThreadListRuntimeImpl } from "@assistant-ui/core/internal";
+import { sessionListAdapter } from "@/lib/managed-agents/session-list-adapter";
+import { watchList } from "@/lib/managed-agents/list-sync";
+import { bindOrderUser, forgetGroups, forgetInGroups, forgetPinned, starChat, starPending, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { refreshProjects, useProjects } from "@/lib/managed-agents/projects";
+import { REFETCH_AFTER, SAVE_DELAY, syncPrefs } from "@/lib/prefs-sync";
+"""
+
+    def run_page(self, body):
+        run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n' + self.IMPORTS
+               + "\nconst g = globalThis as any;\n" + SYNC_SITE + PIN_RACE_SITE + body + "\ng.done();\n", stubs=self.STUBS)
+
+    def test_a_stale_chat_list_never_shortens_the_pinned_order_another_device_saved(self):
+        self.run_page(r"""
+const core = await open([row("s1", "One", 1, { starred: true }), row("s2", "Two", 2), row("s3", "Three", 3), row("s4", "Four", 4),
+  row("s5", "Five", 5)], { order: { companies: [], pinned: ["s1"] } });
+// 手机上置顶了 s2–s5、排好置顶顺序（服务端 5 条）；电脑的推送漏了，本页的对话列表还是打开时读的
+site.sessions = site.sessions.map((s: any) => ({ ...s, starred: true }));
+server.order.pinned = ["s3", "s1", "s5", "s2", "s4"];
+await later("focus");
+assert.equal(g.calls.filter((c: any) => c.method === "listing").length, 1);   // 拿到焦点只重取布局，对话列表不重读
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s3", "s1", "s5", "s2", "s4"]);
+tidy(core);                                                                   // 本页 s2–s5 还标着没置顶
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), []);                                                // 不存
+assert.deepEqual(server.order.pinned, ["s3", "s1", "s5", "s2", "s4"]);        // 服务端的置顶顺序不被缩短
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s3", "s1", "s5", "s2", "s4"]);   // 本机也不改：列表更新后照这份排
+// 回到前台：对话列表按服务端核对一次（s2–s4 换成置顶）；这期间手机上又取消了 s5，那一台的收拾没存上
+site.sessions = site.sessions.map((s: any) => (s.id === "s5" ? { ...s, starred: false } : s));
+await later("visibilitychange");
+assert.deepEqual(["s1", "s2", "s3", "s4", "s5"].map((id) => core.getItemById(id).custom.starred), [true, true, true, true, false]);
+tidy(core);                                                                   // 依据比布局新：照常收拾、存上去
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), [{ order: { pinned: ["s3", "s1", "s2", "s4"] } }]);
+assert.deepEqual(server.order.pinned, ["s3", "s1", "s2", "s4"]);
+""")
+        # 照抄的那段与侧栏里的副作用一致
+        rows = read("components/assistant-ui/thread-list.tsx")
+        effect = rows.split("const unpinned: string[] = [];", 1)[1].split("}, [threadIds", 1)[0]
+        for line in ("if (starPending(key)) continue;", "if (item.custom?.starred) pinnedNow.push(key);",
+                     "else if (!pinning.has(key)) unpinned.push(key);",
+                     "const gone = unpinned.filter((key) => order.pinned.includes(key));", "if (gone.length) forgetPinned(gone);",
+                     "const left = pinnedNow.filter((key) => listed.has(key));", "if (left.length) forgetInGroups(left, true);"):
+            self.assertIn(line, effect)
+        groups = rows.split("// 侧栏里没有这家公司了", 1)[1].split("}, [kind, projects, order.groups]);", 1)[0]
+        self.assertIn("if (gone.length) forgetGroups(gone);", groups)
+
+    def test_a_stale_pin_never_takes_a_chat_out_of_the_group_another_device_put_it_back_in(self):
+        # 同一副作用的另一半：本页还标着置顶的，「置顶了的从组里手排的先后里去掉」同样不能拿旧标记存
+        self.run_page(r"""
+const core = await open([row("s1", "One", 1, { starred: true }), row("s7", "Seven", 7), row("s8", "Eight", 8)],
+  { order: { companies: [], pinned: ["s1"], "group:": { keys: ["s7", "s8"], at: 100 } } });
+// 手机上取消置顶 s1：回到它那一组（最近）的最上面，手机存上；电脑的推送漏了，本页 s1 还标着置顶
+site.sessions = site.sessions.map((s: any) => (s.id === "s1" ? { ...s, starred: false } : s));
+server.order = { companies: [], pinned: [], "group:": { keys: ["s1", "s7", "s8"], at: 100, top: { n: 1, at: 200 } } };
+await later("focus");
+assert.deepEqual(useSidebarOrder.getState().groups[""]!.keys, ["s1", "s7", "s8"]);
+tidy(core);
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), []);
+assert.deepEqual(server.order["group:"].keys, ["s1", "s7", "s8"]);
+assert.deepEqual(useSidebarOrder.getState().groups[""]!.keys, ["s1", "s7", "s8"]);
+// 回到前台核对：s1 换成没置顶，留在组顶
+await later("visibilitychange");
+assert.equal(core.getItemById("s1").custom.starred, false);
+tidy(core);
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), []);
+assert.deepEqual(server.order["group:"].keys, ["s1", "s7", "s8"]);
+""")
+
+    def test_the_check_on_coming_back_unpins_what_the_first_page_no_longer_pins(self):
+        # 第一页带全部置顶的：本页标着置顶、却不在这一页里的（很旧，别的设备上取消、推送漏了），核对后照服务端换成没置顶。原来留着
+        # 「置顶」，对话列表核对过、依据算新的，侧栏照样把它从组里去掉、存上去
+        self.run_page(r"""
+const core = await open([row("s1", "One", 1), row("s2", "Two", 2), row("s9", "Nine", 90, { starred: true })],
+  { order: { companies: [], pinned: ["s9"], "group:": { keys: ["s2"], at: 100 } } });
+site.sessions = [row("s1", "One", 1), row("s2", "Two", 2)];
+site.nextCursor = "2026-10-13 12:57:00|x";
+server.order = { companies: [], pinned: [], "group:": { keys: ["s9", "s2"], at: 100, top: { n: 1, at: 200 } } };
+await later("visibilitychange");
+assert.ok(core.threadIds.includes("s9"));                                     // 比这一页最早的还旧：照旧留着（可能在后面几页）
+assert.equal(core.getItemById("s9").custom.starred, false);
+tidy(core);
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), []);
+assert.deepEqual(server.order["group:"].keys, ["s9", "s2"]);
+""")
+
+    def test_own_unpins_and_pushed_unpins_are_still_tidied_and_saved(self):
+        # 本机取消置顶（依据是本机刚得到的服务端确认）、别的设备上取消推过来的：照旧当场收拾；布局很久没取过时先取一次，取回来侧栏
+        # 照新的那份再收拾时照样收拾、存上去（对话列表本身是很久以前读的也一样）
+        self.run_page(r"""
+const core = await open([row("s1", "One", 1, { starred: true }), row("s2", "Two", 2, { starred: true }),
+  row("s3", "Three", 3, { starred: true })], { order: { companies: [], pinned: ["s1", "s2", "s3"] } });
+skew += REFETCH_AFTER * 3;
+const item = (id: string) => ({ getState: () => core.getItemById(id), updateCustom: (custom: any) => core.updateCustom(id, custom) });
+await starChat(item("s2"), false);
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1", "s3"]);           // 当场去掉
+await g.sleep(SAVE_DELAY + 100);                                              // 先取一次布局（它还在）
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1", "s2", "s3"]);
+tidy(core);
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(server.order.pinned, ["s1", "s3"]);
+// 别的设备上取消置顶 s3、推过来（那一台的收拾没存上）
+skew += REFETCH_AFTER * 3;
+push("starred", "s3", { starred: false });
+await g.sleep(20);
+tidy(core);
+assert.deepEqual(useSidebarOrder.getState().pinned, ["s1"]);
+await g.sleep(SAVE_DELAY + 100);
+tidy(core);
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(server.order.pinned, ["s1"]);
+// 本机置顶 s2：确认了从组里手排的先后里去掉，同样先取再存
+server.order["group:"] = { keys: ["s2", "s3"], at: 100 };
+skew += REFETCH_AFTER * 3;
+await syncPrefs("u@x");
+skew += REFETCH_AFTER * 3;
+await starChat(item("s2"), true);
+await g.sleep(SAVE_DELAY + 100);
+tidy(core);
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(server.order["group:"].keys, ["s3"]);
+""")
+
+    def test_a_stale_company_list_never_drops_a_group_another_device_arranged(self):
+        # 公司组整组去掉（侧栏没有这家公司了）同一条：公司列表比布局旧时不收拾；公司列表重取以后照新的收拾、存上去
+        self.run_page(r"""
+projectsReply = { kind: "company", projects: [{ id: "CO-A", title: "A" }, { id: "CO-Y", title: "Y" }] };
+server = { order: { companies: [], pinned: [], "group:CO-A": { keys: ["s1"], at: 1 }, "group:CO-Y": { keys: ["s2"], at: 1 } } };
+bindOrderUser("u@x");
+await refreshProjects();
+await syncPrefs("u@x");
+tidyGroups();
+await g.sleep(SAVE_DELAY + 50);
+assert.deepEqual(saves(), []);
+// 手机上在一家新公司 CO-Z 开了第一段对话、排了这一组；电脑的公司列表是打开时读的，还没有 CO-Z
+server.order["group:CO-Z"] = { keys: ["s3", "s4"], at: 5 };
+await later("focus");
+assert.ok("CO-Z" in useSidebarOrder.getState().groups);
+tidyGroups();
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), []);
+assert.deepEqual(server.order["group:CO-Z"], { keys: ["s3", "s4"], at: 5 });
+assert.ok("CO-Z" in useSidebarOrder.getState().groups);
+// 公司列表重取以后（有了 CO-Z，CO-Y 没了）：照新的收拾、存上去
+projectsReply = { kind: "company", projects: [{ id: "CO-A", title: "A" }, { id: "CO-Z", title: "Z" }] };
+await refreshProjects();
+tidyGroups();
+await g.sleep(SAVE_DELAY + 100);
+assert.deepEqual(saves(), [{ order: { "group:CO-Y": null } }]);
+assert.equal("group:CO-Y" in server.order, false);
+assert.deepEqual(server.order["group:CO-Z"], { keys: ["s3", "s4"], at: 5 });
+""")
+
+
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class SidebarDragTests(unittest.TestCase):
     """侧栏拖动（第 5 轮，用户 10-16 选「公司可拖 + 置顶可拖」）与共用拖动的规则（components/ui/drag.tsx）。"""
@@ -4472,7 +4715,7 @@ assert.deepEqual(useSidebarOrder.getState().companies, ["comp_C"]);
     def test_unpinned_chats_leave_the_manual_order_and_reset_clears_it(self):
         # 第 5 轮审查：取消置顶不从手排顺序里去掉，再置顶时回到旧位置（不在最上面）；「恢复默认设置」也不清手排顺序
         self.run_page(STORAGE_STUB + r"""
-import { bindOrderUser, clearSidebarOrder, forgetPinned, hasManualOrder, orderKey, setCompanyOrder, setGroupOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindOrderUser, clearSidebarOrder, forgetPinned, hasManualOrder, noteListRead, orderKey, setCompanyOrder, setGroupOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { companySections } from "@/lib/managed-agents/sidebar-groups";
 import { DEFAULT_VIEW, resetSidebarView, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 bindOrderUser("skin3@x");
@@ -4480,7 +4723,8 @@ const row = (index: number, key: string, starred: boolean) => ({ index, title: k
 // 置顶 A、B、C，把 A 拖到最后：[B, C, A]
 setPinnedOrder(["sB", "sC", "sA"]);
 const pinnedOf = (rows: any[]) => companySections(rows, [], { pinnedOrder: useSidebarOrder.getState().pinned })!.find((x: any) => x.key === "pinned")!.indices;
-// 取消 A 的置顶 → 从记下的顺序里去掉（不认得的键不动）
+// 取消 A 的置顶 → 从记下的顺序里去掉（不认得的键不动；侧栏刚读过对话列表，按它收拾）
+noteListRead(performance.now());
 forgetPinned(["sA", "nope"]);
 assert.deepEqual(useSidebarOrder.getState().pinned, ["sB", "sC"]);
 assert.deepEqual(JSON.parse(storage.get(orderKey("skin3@x"))!).pinned, ["sB", "sC"]);
@@ -4514,7 +4758,7 @@ assert.equal(storage.has(orderKey("skin3@x")), false);
         # 打开时取、改了就存、后写的为准；本机缓存照样先顶着、离线照样能用；折叠仍按设备；服务端没有时把本机原有的迁上去。
         # 第 7 轮审查：只存改了的项（服务端按项合并），本机改了还没存上的项不被服务端的盖掉，别的项照样换成服务端的
         self.run_page(STORAGE_STUB + r"""
-import { bindOrderUser, forgetInGroups, forgetPinned, orderKey, setCompanyOrder, setGroupOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindOrderUser, forgetInGroups, forgetPinned, noteListRead, orderKey, setCompanyOrder, setGroupOrder, setPinnedOrder, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { bindSidebarViewUser, DEFAULT_VIEW, setSidebarView, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { toggleFold } from "@/lib/managed-agents/sidebar-fold";
 import { loadPanelPrefs, panelKey, setCardOrder, setPanelOpen, toggleCard, usePanel } from "@/lib/company-panel";
@@ -4684,6 +4928,7 @@ let skew = 0;
 skew += REFETCH_AFTER * 3;
 server = { ...server, order: { companies: ["comp_new"], pinned: ["s2", "s1"], "group:": { keys: ["s3"], at: 99 } } };
 g.calls.length = 0;
+noteListRead(performance.now(), ["s1"]);                                          // 推来的（list-sync 记下这一行此刻的置顶标记）
 forgetPinned(["s1"]);
 assert.deepEqual(useSidebarOrder.getState().pinned, ["s2"]);                       // 本机马上去掉
 await g.sleep(SAVE_DELAY + 100);
@@ -4704,7 +4949,7 @@ assert.deepEqual(server.order, { companies: ["comp_new"], pinned: ["s2"], "group
         # 第 7 轮审查第 5、7 条：资料没到之前侧栏先收拾了（取消置顶的从手排顺序里去掉）不算人改的，知道是谁以后照常取、换成服务端的，
         # 不把本机旧的整份存上去；取失败不算取过（联网、拿到焦点时再取）；同时叫几次只取一次
         self.run_page(STORAGE_STUB + r"""
-import { bindOrderUser, forgetPinned, orderKey, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { bindOrderUser, forgetPinned, noteListRead, orderKey, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
 import { bindSidebarViewUser, DEFAULT_VIEW, useSidebarView } from "@/lib/managed-agents/sidebar-view";
 import { loadPanelPrefs } from "@/lib/company-panel";
 import { SAVE_DELAY, syncPrefs } from "@/lib/prefs-sync";
@@ -4726,6 +4971,7 @@ storage.set(orderKey("skin3@x"), JSON.stringify({ companies: ["comp_old"], pinne
 bindOrderUser("skin3@x");
 bindSidebarViewUser("skin3@x");
 loadPanelPrefs("skin3@x");
+noteListRead(performance.now());
 forgetPinned(["sX"]);                                  // 侧栏列表先回来（资料还没到）：只改本机
 assert.deepEqual(useSidebarOrder.getState().pinned, ["s1"]);
 await g.sleep(SAVE_DELAY + 50);
@@ -5403,6 +5649,7 @@ assert.equal(row.attrs.get("data-row-id"), "t1");
         self.run_page(STORAGE_STUB + r"""
 import { arrangeGroup, companySections, groupStamp, pinGuest, withPinned } from "@/lib/managed-agents/sidebar-groups";
 import { bindOrderUser, capList, clearGroupOrders, forgetGroups, forgetInGroups, GROUP_LIMIT, LIST_BYTES, setGroupOrder, SYNC_LIMIT, useSidebarOrder } from "@/lib/managed-agents/sidebar-order";
+import { refreshProjects } from "@/lib/managed-agents/projects";
 const at = (m: number) => Date.UTC(2026, 9, 16, 12, 0) - m * 60000;
 const projects = [{ id: "A", title: "Alpha" }, { id: "B", title: "Beta" }];
 const row = (index: number, key: string, group: string, m: number, extra: any = {}) =>
@@ -5467,6 +5714,7 @@ assert.deepEqual(useSidebarOrder.getState().groups.A, { keys: ["a2", "a1", "a3"]
 forgetInGroups(["a1", "r2"]);
 assert.deepEqual(useSidebarOrder.getState().groups, { A: { keys: ["a2", "a3"], at: 300 } });   // 空了的组整组不要
 setGroupOrder("B", ["b1"], 400);
+await refreshProjects();                                 // 侧栏刚读过公司列表：按它收拾
 forgetGroups(["B", "gone"]);
 assert.deepEqual(Object.keys(useSidebarOrder.getState().groups), ["A"]);
 clearGroupOrders();
@@ -6535,7 +6783,9 @@ const g = globalThis as any;
 g.prefChanges = [] as Array<{ name: string; fields: string[]; tidy: boolean }>;
 g.prefParts = new Map<string, any>();
 export function registerPref(name: string, part: any) { g.prefParts.set(name, part); }
-export function prefChanged(name: string, fields: readonly string[] = [], tidy = false) { g.prefChanges.push({ name, fields: [...fields], tidy }); }
+export function prefChanged(name: string, fields: readonly string[] = [], tidy = false) { g.prefChanges.push({ name, fields: [...fields], tidy }); return true; }
+export const clock = () => performance.now();
+export const tidyBasis = (_seen: number) => true;
 """
 
 

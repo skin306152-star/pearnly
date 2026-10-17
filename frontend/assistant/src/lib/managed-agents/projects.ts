@@ -12,6 +12,7 @@
 
 import { create } from "zustand";
 import { get } from "@/lib/frappe";
+import { clock } from "@/lib/prefs-sync";
 import { type Filing, moveSession } from "./api";
 
 export type { Filing } from "./api";
@@ -70,6 +71,11 @@ const store = useProjects;
 
 // ---------------------------------------------------------------- 读
 let loading: Promise<ProjectKind> | null = null;
+// 最近读完的一次公司列表是哪一刻发出的（prefs-sync 的 clock）：侧栏按「没有这家公司了」收拾手排顺序时看它新不新（sidebar-order.ts）
+let readAt = -Infinity;
+
+/** 最近读完的一次公司列表的请求发出的时刻（还没读过是 -Infinity）。 */
+export const projectsSeen = () => readAt;
 
 type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; projects?: ProjectRow[] };
 
@@ -77,6 +83,7 @@ type ProjectsReply = { kind?: string | null; period?: boolean; scope?: boolean; 
  *  保留已有的，第一次就按没有公司分组。 */
 export function refreshProjects(): Promise<ProjectKind> {
   const asked = Date.now();
+  const seen = clock();
   loading = get<ProjectsReply>("projects")
     .then((out) => {
       const kind: ProjectKind = out?.kind === "company" ? "company" : null;
@@ -96,6 +103,7 @@ export function refreshProjects(): Promise<ProjectKind> {
         scope: !!kind && !!out?.scope,
         projects: sortRows([...kept, ...rows]),
       });
+      readAt = seen;
       return kind;
     })
     .catch(() => {
@@ -394,6 +402,7 @@ export function applyProjectChange(change: ProjectChange): string | undefined {
 /** 测试用：回到页面刚打开的状态。 */
 export function resetProjects() {
   loading = null;
+  readAt = -Infinity;
   moved.clear();
   provisional.clear();
   holds.clear();

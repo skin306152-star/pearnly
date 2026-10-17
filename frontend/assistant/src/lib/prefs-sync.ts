@@ -19,6 +19,9 @@
 //   迁移   — 服务端还没有（第一次用新版本）：本机原来记下过（有一份不是默认的）就把三份整份存上去。
 //   收拾   — 按数据自动收拾的（取消置顶了从手排顺序里去掉，tidy）不是人改的：刚取过（TIDY_FRESH 内）才存上去；否则先取一次，
 //            换成服务端的以后会照新的那份再收拾一遍、那时再存；正在取、还不知道是谁时只改本机。不拿本机可能过时的值盖服务端。
+//            收拾所依据的数据（对话列表的置顶标记、公司列表）也不能比这份布局旧（tidyBasis）：依据是在取这份布局的请求发出以后才读的，
+//            或者是刚读到的（先取一次布局再存）；不然这次不收拾（测试窗口 10-18：电脑的对话列表是打开时读的，回前台只重取了布局，
+//            把手机刚置顶、排好的几条当成取消置顶收拾掉、存上去，服务端的置顶顺序剩 1 条）。
 //   本机缓存 — 各份仍记在 localStorage（键带用户）：打开时立刻按它显示，离线照样能用。
 //
 // 各份由自己的模块登记（registerPref），这里不导入它们（不绕成循环依赖）。
@@ -49,6 +52,9 @@ export const REFETCH_AFTER = 10_000;
 // 自动收拾时，离上次取过这么久以内才算「刚取过」（换成服务端的以后侧栏马上会再收拾一遍）
 export const TIDY_FRESH = 2_000;
 
+/** 此刻（收拾所依据的数据读到的时刻用它记，与这里判断用同一个钟）。 */
+export const clock = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
 let user = "";
 let applying = false;
 let stamp = 0;
@@ -58,6 +64,8 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 // 排着的那一次是先取再存（收拾时要先取最新的）：之后排的存不把它换掉（取完本来就会存）
 let refetch = false;
 let fetchedAt = -Infinity;
+// 本机这份布局是哪一次取的：那次请求发出的时刻（收拾所依据的数据不能比它旧）
+let askedAt = -Infinity;
 let listening = false;
 let fetching = false;
 let syncing: { who: string; done: Promise<void> } | null = null;
@@ -154,18 +162,29 @@ function schedule(again: boolean) {
 }
 
 /** 某一份的几项改了（各模块存本机时调；fields 空 = 整份）：稍等一下存到服务端。换成服务端的那份时不算。
- *  tidy：按数据自动收拾的，不是人改的（见文件头「收拾」）。 */
-export function prefChanged(name: string, fields: readonly string[] = [], tidy = false) {
-  if (applying) return;
+ *  tidy：按数据自动收拾的，不是人改的（见文件头「收拾」）。回：会存上去；按数据收拾的只改了本机（还不知道是谁、正在取、先取最新的）
+ *  回 false。 */
+export function prefChanged(name: string, fields: readonly string[] = [], tidy = false): boolean {
+  if (applying) return false;
   if (tidy) {
-    if (!user || fetching) return; // 只改本机：取回来、知道是谁以后侧栏会照新的那份再收拾
-    if (now() - fetchedAt > TIDY_FRESH) {
+    if (!user || fetching) return false; // 只改本机：取回来、知道是谁以后侧栏会照新的那份再收拾
+    if (clock() - fetchedAt > TIDY_FRESH) {
       schedule(true); // 先取最新的，换进来以后再收拾、再存
-      return;
+      return false;
     }
   }
   mark(name, fields);
   schedule(false);
+  return true;
+}
+
+/** 按数据收拾能不能照这份依据做（seen：依据读到的那次请求发出的时刻，clock()）：依据不比本机这份布局旧（在取这份布局的请求发出以后
+ *  才读的；还没取过时都算），并且这时收拾就能存上（知道是谁、没在取、刚取过），或者依据是刚读到的（TIDY_FRESH 内：先取一次布局，
+ *  换进来以后照这次的判断再收拾、那时再存）。不能的这次不收拾，本机也不改（见文件头「收拾」）。 */
+export function tidyBasis(seen: number): boolean {
+  if (seen < askedAt) return false;
+  const at = clock();
+  return (!!user && !fetching && at - fetchedAt <= TIDY_FRESH) || at - seen <= TIDY_FRESH;
 }
 
 /** 现在就存本机改了还没存上的几项；回存上了没有（没有要存的算存上了）。还不知道是谁时不存（知道了 syncPrefs 会补）。 */
@@ -207,6 +226,7 @@ async function run(who: string): Promise<void> {
     if (user) dirty.clear(); // 换了人：上一个人没存上的记在他自己的键下，这里不带过去
     user = who;
     fetchedAt = -Infinity;
+    askedAt = -Infinity;
     // 知道是谁之前就改过的算这个人的；这台设备上次没存上的接着存
     for (const key of storedDirty(who)) if (!dirty.has(key)) dirty.set(key, ++stamp);
     keepDirty(who);
@@ -214,6 +234,7 @@ async function run(who: string): Promise<void> {
   listen();
   let prefs: Record<string, unknown> | null;
   fetching = true;
+  const asked = clock();
   try {
     prefs = (await get<{ prefs: Record<string, unknown> | null }>("layout"))?.prefs ?? null;
   } catch {
@@ -223,13 +244,12 @@ async function run(who: string): Promise<void> {
     fetching = false;
   }
   if (who !== user) return;
-  fetchedAt = now();
+  askedAt = asked;
+  fetchedAt = clock();
   if (prefs) applyPrefs(prefs, who);
   else if ([...parts.values()].some((part) => part.changed())) for (const name of parts.keys()) mark(name, []);
   await flush();
 }
-
-const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 /** 回到前台、拿到焦点（电脑上一直开着的窗口不触发 visibilitychange）、联网时：没存上的补存，隔 REFETCH_AFTER 以上再取。 */
 function listen() {
@@ -237,7 +257,7 @@ function listen() {
   listening = true;
   const again = () => {
     if (!user || document.visibilityState === "hidden") return;
-    if (dirty.size || now() - fetchedAt >= REFETCH_AFTER) void syncPrefs(user);
+    if (dirty.size || clock() - fetchedAt >= REFETCH_AFTER) void syncPrefs(user);
   };
   document.addEventListener("visibilitychange", again);
   window.addEventListener("focus", again);
