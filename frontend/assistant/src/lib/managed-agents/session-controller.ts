@@ -19,7 +19,7 @@
 // 超过 STALL_MS 一条也没有，就标 stalled（状态行改成「连接中断，正在重连」），并重开尾巴：走原有的连上即补拉、带状态
 // 校正那一套，不另加轮询；之后收到任何消息就清掉。页面在后台时不计（回到前台重新计时，尾巴同时补拉一次）。
 
-import { shownError } from "@/lib/frappe";
+import { shownError, transientError } from "@/lib/frappe";
 import { noteRun } from "./activity";
 import { confirmTools, interruptSession, listEvents, runTool, sendMessage as postMessage } from "./api";
 import { type FeedEvent, messageText, type RelayEnvelope, type RunStatus, type StreamEvent, toolRunEvent } from "./events";
@@ -102,6 +102,12 @@ export class SessionController {
   private unacked = 0;
   // 并完一批事件再答自定义工具：同一页里后面就有这次调用的答复时不再白跑一次（见 fold）
   private answerQueued = false;
+  // 正在发出的那条消息的请求：点停止要等它有了结果再打断（服务端还没收下这条就打断，打断落空、回复照样出来）
+  private sendInFlight: Promise<unknown> | null = null;
+  // 发出请求断在路上（一时的失败）、已撤回并放回输入框的消息：完整的字（同服务端拼的）→ 用户打的字。之后它的回声到了
+  // （服务端其实收下了），告诉页面撤掉放回的（onDelivered）
+  private retracted = new Map<string, string>();
+  private delivered = new Set<(text: string) => void>();
 
   // Confirmation batching: clicks within a short window ride one request,
   // because racing two sends can be rejected mid-resume by the API.
@@ -209,9 +215,11 @@ export class SessionController {
   }
 
   private fold(event: FeedEvent) {
-    const next = applyEvent(this.state, event);
-    if (next === this.state) return;
+    const before = this.state;
+    const next = applyEvent(before, event);
+    if (next === before) return;
     this.mergeProjection(next);
+    if (event.type === "user.message" && this.retracted.size && next.echoedOptimistic === before.echoedOptimistic) this.landedLate(event);
     // Live: answer a custom tool as soon as the session parks on it — after
     // the rest of this batch folds (a poll page delivers its events in one
     // synchronous loop, and the answer is often later in the same page).
@@ -219,6 +227,23 @@ export class SessionController {
     // wait for the fold to finish (replay() calls this once at the end).
     if (!this.replaying) this.queueAnswers();
   }
+
+  /** 一条没对上本页气泡的用户消息：是不是之前撤回、放回输入框的那一条（服务端其实收下了）。是就告诉页面撤掉放回的。 */
+  private landedLate(event: Extract<FeedEvent, { type: "user.message" }>) {
+    const full = event.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+    const typed = this.retracted.get(full);
+    if (typed === undefined) return;
+    this.retracted.delete(full);
+    for (const listener of this.delivered) listener(typed);
+  }
+
+  /** 撤回、放回输入框的那一条后来到了服务端（回声晚到）：listener 收到用户当时打的字。返回取消订阅。 */
+  onDelivered = (listener: (text: string) => void): (() => void) => {
+    this.delivered.add(listener);
+    return () => {
+      this.delivered.delete(listener);
+    };
+  };
 
   private queueAnswers() {
     if (this.answerQueued) return;
@@ -285,6 +310,7 @@ export class SessionController {
     if (this.answerRetryTimer) clearTimeout(this.answerRetryTimer);
     if (this.replayRetryTimer) clearTimeout(this.replayRetryTimer);
     this.listeners.clear();
+    this.delivered.clear();
   }
 
   private openTail(restart = true) {
@@ -489,8 +515,11 @@ export class SessionController {
     onShown?.(optimisticId);
 
     this.unacked++;
+    const full = messageText(text, files);
+    const post = postMessage(this.sessionId, full);
+    this.sendInFlight = post;
     try {
-      await postMessage(this.sessionId, messageText(text, files));
+      await post;
     } catch (err) {
       // 回声已经到了：服务端早已收下（回复可能都在出了），没回来的只是这次请求的回应（中途断网）。这条算发出了：
       // 不撤气泡、不报发送失败，输入框也不放回（第 10 轮 E30：断网点停止约 2.4 秒后那句话被放回输入框，再按发送就重复一条）
@@ -498,10 +527,13 @@ export class SessionController {
         // Nothing was sent: pull the bubble back out of the transcript so it
         // never reads as delivered. (Replay can't do this; it only adds.)
         this.rollbackSend(optimisticId);
+        // 一时的失败（断网、网关）看不出服务端收没收下：先当没发出（放回输入框，不丢字），回声若晚到再告诉页面撤掉放回的
+        if (transientError(err)) this.retracted.set(full, text);
         throw err;
       }
     } finally {
       this.unacked--;
+      if (this.sendInFlight === post) this.sendInFlight = null;
     }
     // 收下之后才要的状态才算数（applyRun 比的就是这个时刻）
     this.localChangeAt = Date.now();
@@ -656,9 +688,11 @@ export class SessionController {
     }
   }
 
-  /** 停止按钮。无论打断成没成，都向服务端核对一次此刻的状态：本页卡在「在回复」而服务端早已空闲时，点一下停止就恢复发送。 */
+  /** 停止按钮。无论打断成没成，都向服务端核对一次此刻的状态：本页卡在「在回复」而服务端早已空闲时，点一下停止就恢复发送。
+   *  刚发出的那条还在路上：等它有了结果再打断（先到的打断落了空，服务端随后收下这条、回复照样出来）；它没发出去也照常核对状态。 */
   async interrupt(): Promise<void> {
     try {
+      await this.sendInFlight?.catch(() => undefined);
       await interruptSession(this.sessionId);
     } finally {
       this.refreshStatus();

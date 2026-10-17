@@ -695,9 +695,12 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
     [...changing.current].reduce<Choice[]>((acc, [key, value]) => setChoiceShown(acc, key, value), [...rows]);
   const [list, setList] = useState(choices ?? []);
   useEffect(() => setList(withChanging(choices ?? [])), [choices]);
-  const [error, setError] = useState("");
+  // 没成功的原因写在出错的那一条里、紧挨着按钮（第 11 轮 F40：以前写在整张卡最底下，右侧栏没滚动时在视区外，只看到值跳回去）
+  const [error, setError] = useState<{ key: string; message: string } | null>(null);
   // 展开的那一条（键）；一张卡一次只开一条
   const [open, setOpen] = useState("");
+  // 开合换了（收起、点开别的一条）：上一条的原因不再留着
+  useEffect(() => setError(null), [open]);
   // 请求还没回来的那一条：再点它的按钮不理（连点「删除」会发两次，第二次回「找不到这条选择」显示成红字，第 10 轮审查）。
   // 按钮不设 disabled：设了刚按的那一格会失焦，键盘焦点掉到页面别处（第 10 轮 D28），只在按钮行标 aria-busy。
   // 同一刻连点两下时 busy 还没重画，另记一份（pending）挡住第二下
@@ -723,7 +726,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
   const start = (key: string) => {
     if (pending.current.has(key)) return false;
     pending.current.add(key);
-    setError("");
+    setError(null);
     setBusy(key);
     return true;
   };
@@ -740,7 +743,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
       if (gone) setOpen((o) => (o === gone ? "" : o));
       void reload();
     } catch (e) {
-      setError(shownError(e));
+      setError({ key, message: shownError(e) });
     } finally {
       end(key);
     }
@@ -758,7 +761,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
     } catch (e) {
       changing.current.delete(c.key);
       setList((rows) => setChoiceShown(rows, c.key, c.value));
-      setError(shownError(e));
+      setError({ key: c.key, message: shownError(e) });
     } finally {
       end(c.key);
     }
@@ -774,6 +777,7 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
               choice={c}
               open={open === c.key}
               busy={busy === c.key}
+              error={error?.key === c.key ? error.message : ""}
               onToggle={() => setOpen((o) => toggleChoice(o, c.key))}
               onSet={(v) => void change(c, v)}
               onForget={() => void run(c.key, () => forgetChoice(company, c.key), (rows) => rows.filter((row) => row.key !== c.key), c.key)}
@@ -782,7 +786,6 @@ export const ChoicesSection: FC<{ company: string; choices: Choice[] | null; per
           ))}
         </div>
       ))}
-      {error && <p role="alert" className="text-danger text-sm">{error}</p>}
       <span ref={anchor} hidden />
     </PanelCard>
   );
@@ -797,6 +800,8 @@ type ChoiceRowProps = {
   open?: boolean;
   /** 这一条的请求还没回来：按钮行标 aria-busy，再点不理（不设 disabled，焦点留在刚按的那一格）。 */
   busy?: boolean;
+  /** 这一条刚才没成功的原因（改现 / 赊、删除、设为全公司）：写在按钮下面，紧挨着刚按的操作；收着时写在行下面。 */
+  error?: string;
   onToggle?: () => void;
   onSet: (value: string) => void;
   onForget: () => void;
@@ -809,7 +814,7 @@ type ChoiceRowProps = {
  *  没有悬停滚动，看不全），下面 12px 淡色说明（范围 / 账套 · 谁设的 · 日期；Express 历史写来源与次数；代码类知道名称时再给
  *  「对方 → 代码 名称」），再下面靠右卡片按钮：能改的现 / 赊两段式、能提升的「设为全公司」、「删除」（幽灵、危险色字）；
  *  请求没回来时（busy）按钮行标 aria-busy、再点不理，不设 disabled（第 10 轮 D28：设了焦点会掉）。不用 hook：状态在卡片上，测试可以直接调它拿元素树。 */
-export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = false, onToggle, onSet, onForget, onPromote }) => {
+export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = false, error = "", onToggle, onSet, onForget, onPromote }) => {
   const history = choice.source === "history";
   const rule = choice.source === "rule";
   const options = (choice.source === "express" || rule) && choice.editable !== false ? EDITABLE[choice.kind] : undefined;
@@ -821,6 +826,7 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
       : [choice.year_label ?? "", choice.set_by ?? "", formatWhen(choice.set_at)];
   const value = choiceValue(choice);
   const full = choiceFullLine(choice, subject);
+  const alert = error ? <p role="alert" className="cc-choice-error text-danger text-sm" data-slot="cc-choice-error">{error}</p> : null;
   return (
     <div className="cc-choice" data-slot="cc-choice" data-source={choice.source} data-choice-key={choice.key} data-open={open ? "" : undefined}>
       <button type="button" className="cc-choice-row" data-slot="cc-choice-row" aria-expanded={open} onClick={onToggle}>
@@ -856,8 +862,10 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
               {t("delete")}
             </button>
           </div>
+          {alert}
         </div>
       )}
+      {!open && alert}
     </div>
   );
 };

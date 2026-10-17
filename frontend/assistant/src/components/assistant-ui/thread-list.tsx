@@ -1288,7 +1288,7 @@ const BulkItems: FC<{ ids: readonly string[]; close: () => void }> = ({ ids: sel
     }, report).then(clearSelection);
   };
   const deleteAll = () =>
-    askDelete(ids.length, () => void runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection));
+    askDelete(ids, () => runInOrder(ids, async (id) => await aui.threads().item({ id }).delete(), report).then(clearSelection));
   return (
     <DropdownMenu.Content
       side="bottom"
