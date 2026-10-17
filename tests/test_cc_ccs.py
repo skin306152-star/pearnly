@@ -315,8 +315,12 @@ class OfficialValuesTests(unittest.TestCase):
         variant = (SRC / "lib/variant.ts").read_text(encoding="utf-8")
         self.assertIn('import { MOBILE_QUERY } from "@/hooks/use-mobile";', variant)
         self.assertIn('import { isDesktopApp } from "@/lib/desktop";', variant)
-        self.assertIn("root.dataset.ccVariant = pickVariant(desktop, narrow.matches);", variant)
+        self.assertIn("const variant = pickVariant(desktop, narrow.matches);\n    root.dataset.ccVariant = variant;", variant)
         self.assertIn('  apply();\n  narrow.addEventListener("change", apply);', variant)  # 桌面窗口拉窄也跟着换
+        # 触屏标记（标准化记录 3.4）：同一次写入、先于首帧；外接鼠标、平板主指针变了跟着换；与原来 @media (pointer: coarse) 同一条查询
+        self.assertIn('export const COARSE_QUERY = "(pointer: coarse)";', variant)
+        self.assertIn('if (pickTouch(variant, coarse.matches)) root.dataset.ccTouch = "";\n    else delete root.dataset.ccTouch;', variant)
+        self.assertIn('  coarse.addEventListener("change", apply);', variant)
         mobile = (SRC / "hooks/use-mobile.ts").read_text(encoding="utf-8")
         self.assertIn("window.matchMedia(MOBILE_QUERY)", mobile)
         self.assertEqual(mobile.count("setIsMobile(mql.matches);"), 2)  # 与变体同一个判断，不用 innerWidth
@@ -329,12 +333,47 @@ class OfficialValuesTests(unittest.TestCase):
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { pickVariant } from "@/lib/variant";
+import { pickTouch, pickVariant } from "@/lib/variant";
 assert.equal(pickVariant(true, false), "desktop");
 assert.equal(pickVariant(true, true), "phone");  // 桌面窗口拉到分界以下换手机外壳，密度跟着换
 assert.equal(pickVariant(false, true), "phone");
 assert.equal(pickVariant(false, false), "web");
+// 触屏标记：手机变体一定是；粗指针且不是桌面窗口（平板、触屏笔记本上的网页）是；桌面窗口在触屏上也不是；鼠标的网页不是
+assert.equal(pickTouch("phone", false), true);
+assert.equal(pickTouch("phone", true), true);
+assert.equal(pickTouch("web", true), true);
+assert.equal(pickTouch("web", false), false);
+assert.equal(pickTouch("desktop", true), false);
+assert.equal(pickTouch("desktop", false), false);
 (globalThis as any).done();
+""", stubs={"@/lib/desktop": "export const isDesktopApp = () => false;"})
+
+    @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+    def test_install_variant_writes_the_touch_marker_and_follows_the_pointer(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { MOBILE_QUERY } from "@/hooks/use-mobile";
+import { installVariant } from "@/lib/variant";
+const g = globalThis as any;
+const listeners: Record<string, Array<() => void>> = {};
+const state: Record<string, boolean> = { [MOBILE_QUERY]: false, "(pointer: coarse)": true };
+g.window.matchMedia = (query: string) => ({
+  get matches() { return state[query] ?? false; },
+  addEventListener: (_: string, f: () => void) => { (listeners[query] ??= []).push(f); },
+});
+const root = { dataset: {} as Record<string, string> } as unknown as HTMLElement;
+installVariant(root);
+assert.equal(root.dataset.ccVariant, "web");
+assert.equal(root.dataset.ccTouch, "");             // 平板上的网页：粗指针、不是桌面窗口
+state["(pointer: coarse)"] = false;                 // 接上鼠标
+for (const f of listeners["(pointer: coarse)"]) f();
+assert.equal("ccTouch" in root.dataset, false);
+state[MOBILE_QUERY] = true;                         // 窗口拉窄成手机外壳：鼠标也按触屏尺寸
+for (const f of listeners[MOBILE_QUERY]) f();
+assert.equal(root.dataset.ccVariant, "phone");
+assert.equal(root.dataset.ccTouch, "");
+g.done();
 """, stubs={"@/lib/desktop": "export const isDesktopApp = () => false;"})
 
     def test_shared_classes_use_the_design_values(self):
