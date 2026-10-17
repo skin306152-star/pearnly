@@ -483,14 +483,14 @@ export const AccountSetRow: FC<{ item: PendingItem; onDone: (document: string) =
               ))}
             </select>
           </label>
-          <button type="button" className="cc-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
+          <button type="button" className="cc-card-btn self-end" data-primary="" disabled={busy || !value} onClick={() => void confirm()}>
             {busy && <LoaderIcon className="size-4 animate-spin" />}
             {co.confirm}
           </button>
         </>
       )}
       {open && sets && !sets.length && (
-        <button type="button" className="cc-btn self-start" onClick={onAsk}>
+        <button type="button" className="cc-card-btn self-start" onClick={onAsk}>
           <SparklesIcon className="size-4" />
           {co.handToCC}
         </button>

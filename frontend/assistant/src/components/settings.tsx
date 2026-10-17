@@ -745,7 +745,7 @@ export function ComputerSection({ row, onRemove, busy = false }: { row: Computer
             <DropdownMenu.Trigger
               disabled={busy}
               aria-label={t("more")}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
+              className="cc-tap flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted data-[state=open]:bg-muted"
             >
               <MoreHorizontalIcon className="size-4" />
             </DropdownMenu.Trigger>
