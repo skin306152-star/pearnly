@@ -29,6 +29,8 @@ export function io() {
   (globalThis as any).socket = {
     drop() { socket.connected = false; (handlers.disconnect ?? []).forEach((fn) => fn()); },
     back() { socket.connected = true; (handlers.connect ?? []).forEach((fn) => fn()); },
+    // 通道其实已断、还没报断开（socket.io 发现断开前的那几秒）
+    lose() { socket.connected = false; },
     ping() { (manager.ping ?? []).forEach((fn) => fn()); },
     pingListeners: () => (manager.ping ?? []).length,
   };
@@ -1149,6 +1151,124 @@ assert.deepEqual(parts(), ["hi"]);                                          // �
 await g.sleep(120);
 slow = false;
 assert.deepEqual(parts(), ["hi", "first", "second"]);
+g.respond = respond;
+""")
+
+    def test_a_backfill_that_could_not_read_the_engine_does_not_close_the_gap(self):
+        # 第 11 轮合并交叉审查 1：实时通道断开又连上（缺口开着），收口的那次补拉碰上引擎「列出事件」超时——服务端回 200、只带本站提醒
+        # （sessions.events 的 except 分支）。以前页面分不出「没有新事件」和「这次没读到引擎」，拿这页收了口，压着的推送先于缺口里的
+        # 引擎事件交出，顺序永久错乱。现在服务端标 partial，这页不收口、不交压着的；下一页读到引擎再按顺序交
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_partial";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+let partial = 0;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && args.after && partial > 0) {
+    partial--;
+    await g.sleep(20);
+    return ok({ events: [], full: false, partial: true });   // 引擎这次没读到：只有提醒（这里没有）
+  }
+  return respond(method, args, body);
+};
+g.socket.drop();
+site.log.push(ev("m1", "agent.message", 3, { content: text("first") }));   // 断开期间：没推到，只在事件记录里
+partial = 1;
+const before = eventsCalls(S).length;
+g.socket.back();                                                           // 重连：开缺口，马上补拉（这次读不到引擎）
+await g.sleep(5);
+push(S, ev("m2", "agent.message", 4, { content: text("second") }));       // 连上后先推来
+const parts = () => c.getSnapshot().messages.flatMap((m: any) => m.content).filter((p: any) => p.type === "text").map((p: any) => p.text);
+await g.sleep(40);
+assert.ok(eventsCalls(S).length > before);                                 // 那次补拉回来了（partial）
+assert.deepEqual(parts(), ["hi"]);                                         // 没读到引擎：不收口，second 仍压着
+g.fire("online");                                                          // 下一次补拉（不等 SLOW_MS）读到引擎
+await g.sleep(30);
+assert.deepEqual(parts(), ["hi", "first", "second"]);                      // first 在前
+g.respond = respond;
+""")
+
+    def test_a_tail_opened_while_the_push_channel_is_down_treats_the_first_connect_as_a_reconnect(self):
+        # 第 11 轮合并交叉审查 2：实时通道断开期间新建的尾巴（看门重开、切走切回恰好断网），之后第一次连上以前不当重连：不开缺口、
+        # 不补拉，断开期间的事件排在连上后推来的后面
+        self.run_page(r"""
+import { PollingSource } from "@/lib/managed-agents/poll-source";
+import { listen } from "@/lib/managed-agents/realtime";
+---
+const S = "sesn_newtail";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+listen();
+g.socket.drop();
+const src = new PollingSource(S);                                          // 建起来时通道不在线
+const got: string[] = [];
+src.onmessage = (msg) => { const e = JSON.parse(msg.data).event; if (e.type === "agent.message") got.push(e.id); };
+await g.sleep(30);
+site.log.push(ev("m1", "agent.message", 3, { content: text("first") }));   // 断开期间：没推到
+const respond = g.respond;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events") await g.sleep(30);
+  return respond(method, args, body);
+};
+g.socket.back();                                                           // 第一次连上：按重连开缺口、马上补拉
+push(S, ev("m2", "agent.message", 4, { content: text("second") }));
+await g.sleep(5);
+assert.deepEqual(got, []);                                                 // 压着，等补齐
+await g.sleep(80);
+assert.deepEqual(got, ["m1", "m2"]);
+src.close();
+g.respond = respond;
+""")
+
+    def test_a_reconnect_while_the_gap_is_open_reopens_it_for_the_backfill_in_flight(self):
+        # 第 11 轮合并交叉审查 2：缺口已开着（补拉失败时通道其实已断、还没报断开）又连上：在途那次补拉发出时推送还不通，它回来
+        # 不算补齐。以前这里只补拉、不换缺口序号，在途那次回来照样收口，连上后推来的先于断开期间的事件交出
+        self.run_page(r"""
+import { PollingSource } from "@/lib/managed-agents/poll-source";
+import { listen } from "@/lib/managed-agents/realtime";
+---
+const S = "sesn_gapopen";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+listen();
+const src = new PollingSource(S);                                          // 建起来时通道在线
+const got: string[] = [];
+src.onmessage = (msg) => { const e = JSON.parse(msg.data).event; if (e.type === "agent.message") got.push(e.id); };
+await g.sleep(30);
+const respond = g.respond;
+let mode = "fail";
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && mode === "fail") return { ok: false, status: 502, json: async () => ({}) };
+  if (method === "events" && mode === "slow") {
+    const page = await respond(method, args, body);                        // 按发出那一刻的事件记录回
+    await g.sleep(30);
+    return page;
+  }
+  return respond(method, args, body);
+};
+g.socket.lose();                                                           // 通道其实已断、还没报断开
+src.refresh();                                                             // 补拉失败、通道不在线：开缺口
+await g.sleep(10);
+mode = "slow";
+src.refresh();                                                             // 在途：发出时 m1 还没有
+await g.sleep(5);
+site.log.push(ev("m1", "agent.message", 3, { content: text("first") }));   // 推送不通期间：只在事件记录里
+g.socket.back();                                                           // 连上（没报过断开）
+push(S, ev("m2", "agent.message", 4, { content: text("second") }));
+await g.sleep(40);
+assert.deepEqual(got, []);                                                 // 在途那次回来不收口，m2 仍压着
+await g.sleep(60);
+assert.deepEqual(got, ["m1", "m2"]);
+src.close();
 g.respond = respond;
 """)
 

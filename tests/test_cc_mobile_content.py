@@ -66,6 +66,48 @@ const open = (turn: string | null, question?: Q | null, height = 6000) => {
 """
 
 
+# 离开前发出的整段重放在回来后才落地（第 11 轮合并交叉审查 3）：在跑的对话，离开前发出一次整段重放（按发出那一刻的事件记录回、
+# 20ms 后才到），离开，这一轮在别处结束，回来（新尾巴的补拉 40ms 才回）。// <open> 处是回来那一刻（打开对话）。
+STALE_REPLAY = r"""
+const S = "sesn_stale1";
+site.log.push(ev("u1", "user.message", 1, { content: text("long question") }), ev("r1", "session.status_running", 2),
+  ev("m1", "agent.message", 3, { content: text("part 1") }));
+site.engine = "running";
+const c = getSessionController(S);
+const turnOf = () => { const s = c.getSnapshot(); return runningTurn(isBusy(s), s.messages); };
+c.attach();
+await g.sleep(30);
+assert.equal(c.getSnapshot().isSynced, true);
+const question = turnOf();
+assert.ok(question);
+const respond = g.respond;
+let delays = [20];
+g.respond = async (method: string, args: any, body: any) => {
+  if (method !== "events") return respond(method, args, body);
+  const page = await respond(method, args, body);   // 按发出那一刻的事件记录与引擎状态回
+  await g.sleep(delays.shift() ?? 40);
+  return page;
+};
+void c.replay();                                    // 离开前发出（读到的是「在跑」）
+c.detach();
+site.log.push(ev("m2", "agent.message", 4, { content: text("part 2") }), ev("i1", "session.status_idle", 5, { stop_reason: { type: "end_turn" } }));
+site.engine = "idle";
+const seen: Array<[boolean, string | null]> = [];
+const off = c.subscribe(() => seen.push([c.getSnapshot().isSynced, turnOf()]));
+c.attach();
+// <open>
+await g.sleep(25);
+assert.equal(c.getSnapshot().isSynced, false);      // 离开前那次已落地：事件照常并入，不算核对过
+assert.equal(turnOf(), question);
+await g.sleep(150);
+off();
+g.respond = respond;
+assert.equal(c.getSnapshot().isSynced, true);
+assert.equal(turnOf(), null);
+assert.equal(seen.some(([synced, turn]) => synced && turn !== null), false);   // 「核对过」从没和旧的「在跑」一起出现
+"""
+
+
 class NotesSourceTests(unittest.TestCase):
     def test_note_editor_has_cancel_and_save_and_no_save_on_blur(self):
         page = read("components/company-cards.tsx")  # 知识库卡片（会话栏与公司页共用，CC 外壳 2026-10-16）
@@ -156,7 +198,9 @@ class OpenAtBottomSourceTests(unittest.TestCase):
         self.assertIn("read().isSynced", hook)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("this.set({ isTailing: false, isSynced: false });", controller)
-        self.assertIn("isSynced: this.source !== null", controller)
+        # 第 11 轮合并审查 3：只认这次接上以后发出的重放（attachEpoch），离开前发出、回来后才落地的不算核对过
+        self.assertIn("const synced = this.source !== null && epoch === this.attachEpoch && !this.rerunNeeded;", controller)
+        self.assertIn("isSynced: synced || (this.source !== null && this.state.isSynced)", controller)
         scroll = read("lib/follow-scroll.ts")
         self.assertNotIn("querySelector(TURN_ANCHOR)", scroll)
 
@@ -459,6 +503,80 @@ assert.equal(seen.some(([synced, turn]) => synced && turn !== null), false);
 c.dispose();
 g.done();
 """, stubs={"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB})
+
+    def test_a_replay_sent_before_leaving_does_not_count_as_checked_after_coming_back(self):
+        # 第 11 轮合并交叉审查 3：离开前发出的整段重放在回来后才落地（新尾巴的那次还没回），以前把 isSynced 置真——带回的是离开前的
+        # 旧「在跑」。打开对话按它停在这一轮开头，之后核对完已结束也不再改去最底下。现在重放发出时记下接上 / 离开的次数，对不上的
+        # 事件照常并入、不算核对过
+        run_ts(r"""
+import "cc-test-setup";
+import "cc-ma-setup";
+import assert from "node:assert/strict";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+import { runningTurn } from "@/lib/follow-scroll";
+const g = globalThis as any;
+""" + FAKE_SITE + STALE_REPLAY + r"""
+c.dispose();
+g.done();
+""", stubs={"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB})
+
+    def test_opening_after_a_stale_replay_lands_still_goes_to_the_bottom_once_checked(self):
+        # 同上（审查 3）的 OpenSettler 场景：回来时显示离开前的旧「在跑」，先停在这一轮开头；离开前的重放先落地（不算核对过），
+        # 新尾巴核对完这一轮已结束、用户没碰过：重新对到最底下。以前旧重放把状态标成核对过的「在跑」，之后一直停在这一轮开头
+        run_ts(SETTLE_RIG + r"""
+import "cc-ma-setup";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { isBusy } from "@/lib/managed-agents/reducer";
+""" + FAKE_SITE + STALE_REPLAY.replace("// <open>", r"""
+questions[question] = { offset: 4200, height: 80 };
+clock += 60_000;
+state = { turn: turnOf(), synced: c.getSnapshot().isSynced };
+vp.scrollHeight = 6000; vp.scrollTop = 0; f.settle();
+assert.equal(vp.scrollTop, 4200);                                // 旧状态：先停在这一轮开头
+c.subscribe(() => { state = { turn: turnOf(), synced: c.getSnapshot().isSynced }; f.recheck(); });
+""") + r"""
+assert.equal(vp.scrollTop, bottom());                            // 核对完已结束：最底下
+f.dispose();
+c.dispose();
+g.done();
+""", stubs={"cc-ma-setup": MA_SETUP, "socket.io-client": SOCKET_STUB})
+
+    def test_wheel_over_the_composer_hands_back(self):
+        # 第 11 轮合并交叉审查 4：在输入框里点、打字、发送、停止不算碰，但在输入框上方滚轮是在翻对话——以前也走了输入框的例外，
+        # 回复还在出的 10 秒里一次次被拉回这一轮开头
+        run_ts(SETTLE_RIG + r"""
+const inComposer = { closest: (sel: string) => (sel === ".aui-composer-root" ? {} : null) };
+open("q14", { offset: 4200, height: 80 });
+assert.equal(vp.scrollTop, 4200);
+fire("pointerdown", { target: inComposer }); fire("keydown", { target: inComposer });
+assert.equal(f.settling, true);                                  // 点输入框、打字不交还
+fire("wheel", { target: inComposer, deltaY: -120 }); vp.scrollTop = 3900;
+assert.equal(f.settling, false);
+questions.q14.offset += 300; more(300); assert.equal(vp.scrollTop, 3900);   // 不拉回
+f.dispose();
+assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
+g.done();
+""")
+
+    def test_a_finger_swipe_over_the_composer_hands_back(self):
+        # 同上（审查 4）：手指按在输入框上往上翻（真挪动了）交还；在输入框里点按时手指的微小抖动不算
+        run_ts(SETTLE_RIG + r"""
+const inComposer = { closest: (sel: string) => (sel === ".aui-composer-root" ? {} : null) };
+open("q14", { offset: 4200, height: 80 });
+fire("touchstart", { target: inComposer, touches: [{ clientX: 100, clientY: 700 }] });
+fire("touchmove", { target: inComposer, touches: [{ clientX: 102, clientY: 704 }] });
+fire("touchend", { target: inComposer });
+assert.equal(f.settling, true);                                  // 点按的抖动：不交还
+questions.q14.offset += 100; more(100); assert.equal(vp.scrollTop, 4300);
+fire("touchstart", { target: inComposer, touches: [{ clientX: 100, clientY: 700 }] });
+fire("touchmove", { target: inComposer, touches: [{ clientX: 100, clientY: 760 }] }); vp.scrollTop = 4000;
+assert.equal(f.settling, false);                                 // 往上翻：交还
+questions.q14.offset += 300; more(300); assert.equal(vp.scrollTop, 4000);
+f.dispose();
+assert.equal(Object.values(listeners).every((l) => l.length === 0), true);
+g.done();
+""")
 
 if __name__ == "__main__":
     unittest.main()

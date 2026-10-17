@@ -12,7 +12,8 @@
 // data-aui-top-anchor-user：那个标记跑完也留着（换回一段已结束的对话时还在），第 0 条提问（新对话第一句）又从来不标。
 // 打开后内容还会变高——消息用 content-visibility 先按估计高度排、滚到哪儿才量出真实高度，正文排版、文件列表取回后的结果
 // 文件卡、缩略图随后才到——所以打开后内容一变高就把位置重新对回去（最底下 / 这一轮开头），直到内容静下来 SETTLE_QUIET_MS
-// （最多 SETTLE_MAX_MS），或用户一碰（滚轮、按下手指 / 鼠标、按键；在输入框里点、打字、发送不算）就交还，之后不再替他滚，
+// （最多 SETTLE_MAX_MS），或用户一碰（滚轮、手指滑动、按下手指 / 鼠标、按键；在输入框里点、打字、发送不算，但在输入框上滚轮、
+// 手指滑动照样算：那是在翻对话）就交还，之后不再替他滚，
 // 也不跟随（出 ↓）。还在对位置时本页或别处发出了新的一轮，就按新这一轮对（它的提问顶在上面，与发出后的落点一致）。
 // 停在这一轮开头以后这一轮跑完了也不改去最底下（不跟随）；只有打开时的状态是离开前留下的旧状态（离开期间这一轮结束了，
 // 回来时还显示在跑）才不算数：等这段对话按服务端核对完（synced），用户还没碰过就按核对后的状态重新对一次。
@@ -60,6 +61,8 @@ export function runningTurn(busy: boolean, messages: ReadonlyArray<{ id: string;
 
 /** 输入框（.aui-composer-root）里的点按、打字、发送：不算碰了对话（不交还），见 OpenSettler 的构造。 */
 const COMPOSER = ".aui-composer-root";
+/** 手指挪了多远算在滑（不是点）：点按时手指的微小抖动不算。 */
+const SWIPE_PX = 10;
 
 const NOT_RUNNING: OpenState = { turn: null, synced: true };
 
@@ -94,16 +97,39 @@ export class OpenSettler {
     private readonly now: () => number = () => Date.now(),
     observe: Observe = observeSize,
   ) {
-    // 只读事件（passive）：不拦浏览器自己的滚动；用户一碰就交还。在输入框里点、打字、发送不算（审查第 3 条：打开后马上
-    // 发出，上一轮晚到的结果文件卡会把新这一轮的提问推下去——还在对位置就按新这一轮对回去）；↓ 等输入框外的按钮照样算
+    // 只读事件（passive）：不拦浏览器自己的滚动；用户一碰就交还。在输入框里点、打字、发送、停止键、Esc 不算（审查第 3 条：
+    // 打开后马上发出，上一轮晚到的结果文件卡会把新这一轮的提问推下去——还在对位置就按新这一轮对回去）；↓ 等输入框外的按钮照样算
     const release = (e: Event) => {
       if ((e.target as Element | null)?.closest?.(COMPOSER)) return;
       this.unsettle();
     };
-    for (const type of ["wheel", "touchstart", "keydown", "pointerdown"]) {
+    for (const type of ["touchstart", "keydown", "pointerdown"]) {
       viewport.addEventListener(type, release, { passive: true });
       this.off.push(() => viewport.removeEventListener(type, release));
     }
+    // 滚轮、手指滑动是在翻对话，不看落在哪儿（第 11 轮合并审查：在输入框上方滚轮或手指往上翻也走了输入框的例外，回复还在出的
+    // 10 秒里被一次次拉回这一轮开头）。手指要真挪动（超过 SWIPE_PX）才算：在输入框里点按时的微小抖动不算
+    const scrolled = () => this.unsettle();
+    let from: { x: number; y: number } | null = null;
+    const point = (e: Event) => {
+      const touch = (e as TouchEvent).touches?.[0];
+      return touch ? { x: touch.clientX ?? 0, y: touch.clientY ?? 0 } : null;
+    };
+    const down = (e: Event) => {
+      from = point(e);
+    };
+    const swiped = (e: Event) => {
+      const at = point(e);
+      if (!from || !at) return;
+      if (Math.abs(at.x - from.x) > SWIPE_PX || Math.abs(at.y - from.y) > SWIPE_PX) this.unsettle();
+    };
+    const listen = (type: string, fn: (e: Event) => void) => {
+      viewport.addEventListener(type, fn, { passive: true });
+      this.off.push(() => viewport.removeEventListener(type, fn));
+    };
+    listen("wheel", scrolled);
+    listen("touchstart", down);
+    listen("touchmove", swiped);
     this.off.push(observe(content, () => this.onResize()));
   }
 

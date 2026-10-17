@@ -8085,7 +8085,14 @@ class Round11ButtonsLikeClaudeTests(unittest.TestCase):
         # D26：触屏平板（网页布局 + 粗指针）对话顶栏 44、顶栏图标钮与侧栏收起钮点按区 44，鼠标与桌面版不跟
         coarse = css.split("触屏平板（网页布局 + 粗指针", 1)[1].split("\n  }\n", 1)[0]
         self.assertIn("@media (pointer: coarse) {", css.split("触屏平板（网页布局 + 粗指针", 1)[0][-1200:])
-        self.assertIn(':root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', coarse)
+        # 第 11 轮合并审查：顶栏高的变量写在 @layer components 里敌不过不分层的 :root 定义（顶栏仍 32、按钮已 44）——挪到不分层的
+        # 粗指针变量块里，components 层不再给 --cc-topbar-h 赋值
+        unlayered = css.split("\n@layer base {", 1)[0]
+        tokens = unlayered.split("\n@media (pointer: coarse) {\n", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn(':root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', tokens)
+        self.assertNotIn("--cc-topbar-h:", coarse)
+        layered = css.split("\n@layer components {", 1)[1]
+        self.assertNotRegex(layered, r"--cc-topbar-h\s*:")
         self.assertIn(':root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn(':root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }', coarse)
         self.assertIn('data-slot="cc-sidebar-toggle"', read("assistant.tsx"))
@@ -8275,6 +8282,65 @@ assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composer
 sidebarShown = false; rows = ["a", "b"]; main = "b";
 assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "title-more");
 assert.equal(await run(["a"], { el: { isConnected: false, focus() {} }, row: "" }), "body");
+""")
+
+    def test_focus_after_a_delete_skips_a_sidebar_that_cannot_be_seen(self):
+        # 第 11 轮合并交叉审查 5：删除后焦点去「侧栏下一条」以前不看侧栏看不看得到——手机抽屉关着（inert）时聚焦不上、焦点掉到
+        # 页面最外层；iPad 侧栏收起时落进屏幕外的侧栏。现在：侧栏在 inert 里或所在侧栏收起时不去侧栏；聚焦后核对真的到了，
+        # 没到就接着回打开它的地方或输入框
+        self.run_page(r"""
+import { focusAfterDelete, sidebarVisible } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+g.matchMedia = () => ({ matches: false });
+let inert = false;
+let collapsed = false;
+const node = (name: string, inertNode = false): any => ({ name, isConnected: true,
+  focus() { if (!(inertNode && inert)) g.document.activeElement = this; } });
+let rows: string[] = [];
+const triggers: Record<string, any> = {};
+const frame = { getAttribute: (k: string) => (k === "data-state" ? (collapsed ? "collapsed" : "expanded") : null) };
+const sidebar = {
+  closest: (sel: string) => (sel === "[inert]" ? (inert ? {} : null) : sel === '[data-slot="sidebar"]' ? frame : null),
+  querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })),
+};
+let composer: any = null;
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`, true)) : null;
+};
+const run = async (ids: string[], back: any) => {
+  g.document.activeElement = g.document.body;
+  focusAfterDelete(ids, back, () => "a")();
+  rows = rows.filter((id) => !ids.includes(id));
+  await g.sleep(20);
+  return g.document.activeElement?.name ?? "body";
+};
+const more = node("title-more");
+// 看得到：照旧去下一条
+rows = ["a", "b", "c"];
+assert.equal(sidebarVisible(sidebar), true);
+assert.equal(await run(["b"], { el: more, row: "" }), "row:c");
+// ① 手机抽屉关着（侧栏在 inert 里）：不去侧栏，回右上「…」
+inert = true; rows = ["a", "b", "c"];
+assert.equal(sidebarVisible(sidebar), false);
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+inert = false;
+// ② iPad / 电脑侧栏收起（在屏幕外）：不落进侧栏，回标题栏「···」；那里也没了进输入框
+collapsed = true; rows = ["a", "b", "c"];
+assert.equal(sidebarVisible(sidebar), false);
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+composer = node("composer"); rows = ["a", "b", "c"];
+assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
+collapsed = false;
+// ③ 侧栏看得到但那一行聚焦不上（例如正在收起）：核对没到，接着回打开它的地方
+rows = ["a", "b", "c"];
+triggers.c.focus = () => {};
+assert.equal(await run(["b"], { el: node("title-more-2"), row: "" }), "title-more-2");
+// 没有侧栏：不可见
+assert.equal(sidebarVisible(null), false);
 """)
 
 if __name__ == "__main__":

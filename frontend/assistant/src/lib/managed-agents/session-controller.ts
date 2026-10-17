@@ -123,6 +123,10 @@ export class SessionController {
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
   // 看门重开尾巴的次数：之前那条尾巴卡住的重放回来时据此作废
   private tailGeneration = 0;
+  // 接上 / 离开的次数（attach 真正开尾巴、detach 各加一）：重放发出时记下，回来时对不上就是离开前（或上一次接上时）发出的，
+  // 它带回的事件照常并入，但不算「接上以后核对过」（isSynced，第 11 轮合并审查：离开前发出的整段重放回来后才落地，把核对标记
+  // 置真，打开对话就按离开前的旧「在跑」停在这一轮开头之后不再改去最底下）
+  private attachEpoch = 0;
   /** 测试里调短。 */
   static stallMs = STALL_MS;
 
@@ -280,6 +284,7 @@ export class SessionController {
   attach(): void {
     if (this.disposed || this.source || this.reopenTimer) return;
     if (this.state.isDead) return; // nothing left to stream or replay
+    this.attachEpoch++;
     this.openTail();
   }
 
@@ -297,6 +302,7 @@ export class SessionController {
     }
     this.source?.close();
     this.source = null;
+    this.attachEpoch++;
     // No tail: nothing left to buffer for, and everything buffered is in
     // the persisted log — the reattach backfill refetches it.
     this.backfilling = false;
@@ -428,6 +434,7 @@ export class SessionController {
       // 整段重放（打开、重进对话、重连）都带一份服务端读回的运行状态：并完历史就按它定在回复 / 等允许 / 已结束，
       // 漏掉的「结束」、去重定住的旧状态、本页乐观标的「在回复」都由它校正（只并没见过的事件做不到）。
       const askedAt = Date.now();
+      const epoch = this.attachEpoch;
       const body = await listEvents(this.sessionId, undefined, true);
       if (stale()) return;
       for (const event of body.events) this.fold(event);
@@ -444,8 +451,11 @@ export class SessionController {
         this.pendingTail = [];
         for (const event of buffered) this.fold(event);
       }
-      // 运行状态（applyRun）已在上面并进去，核对完的标记最后才置：读到「核对过」时在不在跑一定是核对后的
-      this.set({ isLoaded: true, transportError: null, isSynced: this.source !== null });
+      // 运行状态（applyRun）已在上面并进去，核对完的标记最后才置：读到「核对过」时在不在跑一定是核对后的。
+      // 只认这次接上以后发出、且之后没有再要一遍的（rerunNeeded：可能漏了更新的）；离开前发出的照常并入，不算核对过。
+      // 这次接上以后已核对过的不因一次不算数的重放撤回（detach 已把上一次接上的核对清掉）
+      const synced = this.source !== null && epoch === this.attachEpoch && !this.rerunNeeded;
+      this.set({ isLoaded: true, transportError: null, isSynced: synced || (this.source !== null && this.state.isSynced) });
     } catch (err) {
       if (stale()) return;
       this.set({ isLoaded: true, transportError: describe(err) });

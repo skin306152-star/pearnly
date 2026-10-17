@@ -419,10 +419,10 @@ def events(session_id, after=None, status=False) -> dict:
             tap = contracts.StatusTap(api.events(current(row), newest_first=True))
             found = contracts.since(tap, anchor)
         except Exception:
-            # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：这一次当作没有新事件，页面下一轮再取，不报 500；
-            # 本站的提醒照样带上
+            # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：不报 500，本站的提醒照样带上；`partial` 告诉页面这次
+            # 没读到引擎（不是「没有新事件」）：不拿这页收补拉缺口，压着的推送等下一次真读到引擎再交（第 11 轮合并审查）
             frappe.log_error(title="Assistant events fetch failed")
-            return {"events": notices.feed(row.session_id, user, recent=True), "full": False}
+            return {"events": notices.feed(row.session_id, user, recent=True), "full": False, "partial": True}
         if found is not None:
             newer = found[1:]
             _remember_context(row, newer)

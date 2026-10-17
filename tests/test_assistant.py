@@ -1942,9 +1942,9 @@ class NoticeTests(unittest.TestCase):
             # 增量：锚点之后的引擎事件 + 锚点时间之后的提醒
             self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002"), {"events": [history[2], card], "full": False})
             self.assertEqual(fed[-1], ("sesn_mine1", "a@example.com", contracts.instant("2026-10-12T01:10:00Z"), False))
-            # 引擎取事件出错：仍带回最近的提醒
+            # 引擎取事件出错：仍带回最近的提醒，并标明这页没读到引擎（partial，页面不拿它收补拉缺口）
             api.events = mock.Mock(side_effect=TimeoutError())
-            self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002"), {"events": [card], "full": False})
+            self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002"), {"events": [card], "full": False, "partial": True})
             self.assertEqual(fed[-1], ("sesn_mine1", "a@example.com", None, True))
 
     def test_delete_detaches_notices_and_seen_needs_ownership(self):
@@ -2099,7 +2099,8 @@ class RunStatusTests(unittest.TestCase):
             # 取事件就失败：照旧只给提醒，也不读状态
             api.events = mock.Mock(side_effect=TimeoutError())
             api.status = mock.Mock(return_value="idle")
-            self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002", status=True), {"events": [], "full": False})
+            self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002", status=True),
+                             {"events": [], "full": False, "partial": True})
             api.status.assert_not_called()
         self.assertEqual(asked, [])  # 没有停着等的调用就不查执行记录
         # 增量补拉（取到事件的 5 次）各查一次锚点之后改过的执行记录，不按事件逐条查

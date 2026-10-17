@@ -4,7 +4,8 @@ import { get, post, upload } from "@/lib/frappe";
 import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
 
 /** 引擎事件，整段回放与增量补拉都按时间并入本站的提醒（pearnly.notice）。要了状态（status）才带 run（读不到也没有）。 */
-export type EventsPage = { events: FeedEvent[]; full: boolean; run?: RunStatus };
+/** partial：服务端这次没读到引擎（增量补拉时「列出事件」出错，sessions.events），这页只有本站提醒——不是「没有新事件」。 */
+export type EventsPage = { events: FeedEvent[]; full: boolean; partial?: boolean; run?: RunStatus };
 
 /** 侧栏一行。产品有公司分组（Cowork，ADR-020）时多三项：project 所属公司（"" = 最近）、period 处理月份（YYYY-MM，"" = 不指定）、
  *  scope 分店号（5 位，"" = 不指定）；旧服务端、没有公司分组的产品没有这三项。 */

@@ -528,3 +528,27 @@
     - 本次 ≤35ms 的：Esc 那一帧（有置顶）、拿起后盖挡板那一帧（多数轮）、滑回期间（多数轮）、滑回后取消、拖动中、松手那一帧、手机组头落定、键盘 ↓。没到的：拿起（56–94）、落定（50–61）、出菜单（48–70）、收菜单接着拖（36–46）、拖进置顶途中（47–72）、Esc 后挪回原组那次提交（24–48），原因同上段「还剩」：拖动库每次提交重画所有排序项、组件库菜单挂载、侧栏挪行重挂，这次没动。
     - 行为对照（不节流，`41c3b939` 与本次同一套脚本，结果一致）：组内排序（Company 0 第二行拖到第三行后）、拖进置顶后 Esc 回原组原位且只有一份、无置顶时临时已置顶随滑回消失、键盘空格 ↓ 空格挪组头与播报（「ย้าย Company 1 ไปตำแหน่งที่ 3 จาก 14」）、焦点留在组头、手机长按 500ms 出菜单、手指再动收菜单接着拖并排序、拖完松手不误开对话；挡板在放下、Esc、键盘与手机拖动后都是藏着的。
   - 测试：`test_assistant_ui.Round11DragFramesTests` 新增 3 条（不让位的项一次不写且浏览器改写法后不重写、鼠标拖动的挡板压住悬停并转交滚轮、只有整列滑动的区关尺寸观察），改写 2 条（光标只给鼠标且松手就撤、Esc 先不撤到起播滑回再撤）。只因写法变了改的旧断言：`useSortableItem` 的位移写法（`shiftStyle`，两处）、`resizeObserverConfig` 按 `flowArea`、Esc 跨列取消里 `releaseDrag("keep")`、整页 grabbing 由 `.cc-drag-shield` 给（`test_assistant_ui` 两处、`test_cc_session_panel` 一处）、拖动层测试的假元素补了 `appendChild` / `setAttribute`。`tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-architecture`、`test_assistant_ui` 与全部 `test_cc_*`（318 条）通过。真机（A14）与测试机复测、推送、合并都还没做。
+
+## 10-17 第 11 轮合并交叉审查
+
+外壳三段合进 `pearnly/cc-shell-rebuild`（`42d0a2c2`）后的交叉审查，两名核实者都确认的 6 处，一个提交修完（本地提交、未推送、未合并）：
+
+1. 【major】补拉缺口被「没读到引擎」的空页收口（`poll-source.ts`）：服务端 `sessions.events()` 增量分支读引擎失败时回 200、只带本站提醒，页面分不出「没有新事件」和「这次没读到引擎」，F39 缺口被这种空页收口，压着的推送先于缺口里的引擎事件交出，顺序永久错乱（页面在后台时通道断开、回前台后补拉没失败；或实时通道单独断开而 HTTP 正常，收口那次补拉碰上引擎超时）。改法：服务端 except 分支加 `"partial": True`；`api.ts` 的 `EventsPage` 加 `partial?: boolean`；尾巴收口条件加 `!page.partial`，partial 页照常交提醒、照常算有回应（onalive），不当锚点、不收口、不交压着的，缺口开着时下一次补拉 `SLOW_MS`（6 秒）后取、不等在线时的 8 / 30 秒，与「补拉抛错、缺口没收口」同一套。
+2. 【minor】通道断开期间新建的尾巴第一次连上不当重连（`poll-source.ts`）：看门重开、切走切回恰好断网时新建的尾巴 `realtimeLost` 初值是 false，之后第一次连上不开缺口、不补拉，漏掉的事件排在推送后面；缺口已开着又连上的分支只补拉、不换缺口序号，在途那次补拉（发出时推送还不通）回来照样收口。改法：构造时 `realtimeLost = !isConnected()`（在 subscribe 建连接之前看）；缺口开着又连上时先 `openGap()` 再补拉。
+3. 【minor】离开前发出的整段重放回来后才落地被当成核对过（`session-controller.ts`）：它把 `isSynced` 置真，打开对话就按离开前的旧「在跑」停在这一轮开头，之后核对完已结束也不再改去最底下。改法：控制器加 `attachEpoch`（attach 真正开尾巴、detach 各加一），`doReplay` 在 `listEvents` 前记下，落地时 `this.source !== null && epoch === this.attachEpoch && !this.rerunNeeded` 才置核对过；对不上的事件照常并入、不算核对过；这次接上以后已核对过的不因一次不算数的重放撤回。
+4. 【major】输入框上方滚轮、手指往上翻不交还（`follow-scroll.ts`）：C19 补修让输入框里的事件不算「碰」，wheel 与手指也走了同一个例外，回复还在出的 10 秒里在输入框上方往上翻会被一次次拉回这一轮开头。改法：pointerdown、touchstart、keydown 保留输入框例外（点、打字、发送、停止键、Esc 不交还）；wheel 不看落在哪儿直接交还；视口加 passive 的 touchmove，手指从按下处挪动超过 10px（`SWIPE_PX`，点按的抖动不算）就交还；解绑都登记进 `off`。
+5. 【minor】删除后焦点去侧栏下一条不看侧栏看不看得到（`delete-chats.tsx`）：手机抽屉关着（inert）时聚焦不上、焦点掉到 body；iPad 侧栏收起时落进屏幕外的侧栏。改法：`sidebarVisible`——列表不在 `[inert]` 里、所在 `[data-slot="sidebar"]` 不是 `data-state="collapsed"` 才算侧栏里，看不到时 next 为空；聚焦（侧栏行、打开它的地方、归还焦点）后核对 `document.activeElement === el`，没到就接着走打开它的地方或输入框。
+6. 【minor】触屏平板顶栏仍 32（`globals.css`）：D26 的 `--cc-topbar-h` 覆盖写在 `@layer components` 里，敌不过不分层的 `:root` 定义，顶栏仍 32、顶栏按钮已 44。改法：`:root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }` 挪进不分层的 `@media (pointer: coarse)` 变量块，components 层那一行删掉；按钮尺寸规则留在 components 层。
+
+测试（新增的改前都失败，逐条回退源码核过）：
+- `test_cc_run_indicator`：通道重连后第一次补拉回 partial，期间推来的 second 不交出，下一页带回 first 后顺序 first 在前（1）；通道断开时新建的尾巴第一次连上按重连压着、补齐后按 m1、m2 交（2）；缺口开着（通道已断未报）又连上，在途补拉回来不收口（2）。socket 桩加 `lose()`（已断、未报断开）。
+- `test_assistant`：引擎取事件出错的两处断言改为带 `"partial": True`（服务端 except 分支）。
+- `test_cc_mobile_content`：离开前发出的重放回来后先落地不算核对过、核对过从不与旧「在跑」同时出现（3，控制器）；同一场景接 OpenSettler，先停在这一轮开头、核对完已结束改去最底下（3）；输入框上方滚轮交还（4）；输入框上手指滑动交还、点按抖动不交还（4）。源码断言 `isSynced` 改为新写法。
+- `test_assistant_ui`：抽屉关着（inert）、侧栏收起时不去侧栏、回打开它的地方或输入框，侧栏看得到但那一行聚焦不上时接着回打开它的地方（5）；D26 断言改为覆盖在不分层的粗指针块里、components 层不再有 `--cc-topbar-h` 赋值（6）。`test_cc_ccs` 的粗指针变量块断言补上这一行。
+- `tsc`、`check-frontend-tokens`、`check-frontend-viewport-units`、`check-architecture`、`i18n-build --check`，`test_assistant`、`test_assistant_ui`、`test_cc_run_indicator`、`test_cc_mobile_content`、`test_cc_mobile_overlays`、`test_cc_session_panel`、`test_cc_ccs`（474 条）通过。
+
+已知限制：
+- 缺口开着时引擎一直读不到（「列出事件」持续超时），连上后推来的回复会一直压着、每 6 秒补拉一次，直到读到引擎才按顺序交：宁可晚、不可乱。通道在线时补拉读不到引擎而没有缺口的，推送照常当场交，不受影响。
+- 尾巴建起来时通道还没连上（首次打开页面时 socket.io 正在握手）也按重连处理：第一次连上开缺口并马上补拉一次，这次补拉回来之前推来的先压着（多一次请求、首屏回复可能晚一个补拉来回）。
+- 手指滑动以挪动超过 10px 判定，不区分方向（横向滑动同样交还）。
+- 都只在本机打包脚本（esbuild + node，浏览器接口是桩）里验证；真机（A14、iPad）与测试机复测、推送、合并都还没做。

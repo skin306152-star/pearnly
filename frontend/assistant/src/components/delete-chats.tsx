@@ -12,6 +12,8 @@
 // 对话（回到新对话页）落在输入框。不在对话页（定时任务、公司、主档、待处理页没有输入框，删除也不切回对话页）删了正开着的，同样去
 // 侧栏下一条。触屏上不放进输入框（程序聚焦会弹出键盘，同手机打开不弹键盘、右上「新对话」不聚焦，thread.tsx 的 autoFocus），
 // 也去侧栏下一条或打开它的地方。
+// 第 11 轮合并审查：侧栏在页面上但看不到（手机抽屉关着是 inert、iPad 侧栏收起在屏幕外）不算「侧栏里」，不去下一条；聚焦后核对
+// 焦点真的到了（inert 里的元素聚焦不上），没到就接着回打开它的地方或输入框，不让焦点掉到页面最外层或落进屏幕外的侧栏。
 import { useRef, type FC } from "react";
 import { useAui } from "@assistant-ui/react";
 import { XIcon } from "lucide-react";
@@ -26,6 +28,7 @@ import { touchOnly } from "@/lib/touch";
 const ROW = '[data-slot="aui_thread-list-item"]';
 const ROW_TRIGGER = '[data-slot="aui_thread-list-item-trigger"]';
 const SIDEBAR = '[data-slot="aui_thread-list-root"]';
+const SIDEBAR_FRAME = '[data-slot="sidebar"]';
 
 /** 关掉后焦点回到哪：那个元素；侧栏行再记行号（行重画换了元素时按行号找回）。 */
 export type Back = { el: HTMLElement | null; row: string };
@@ -65,16 +68,26 @@ export function rowAfterDelete(order: readonly string[], ids: readonly string[])
   return order.slice(first).find((id) => !gone.has(id)) ?? [...order.slice(0, first)].reverse().find((id) => !gone.has(id)) ?? "";
 }
 
+/** 聚焦一个元素并核对真的到了（inert 里的、看不到的聚焦不上）。 */
+function focused(el: HTMLElement | null | undefined): boolean {
+  if (!el?.isConnected) return false;
+  el.focus();
+  return document.activeElement === el;
+}
+
 function focusRow(row: string): boolean {
-  const el = row ? document.querySelector<HTMLElement>(`${ROW}[data-row-id="${CSS.escape(row)}"] ${ROW_TRIGGER}`) : null;
-  el?.focus();
-  return !!el;
+  return focused(row ? document.querySelector<HTMLElement>(`${ROW}[data-row-id="${CSS.escape(row)}"] ${ROW_TRIGGER}`) : null);
+}
+
+/** 侧栏列表此刻看得到：在页面上、不在 inert 里（手机抽屉关着）、所在的侧栏没收起（电脑 / iPad 收起时移到屏幕外）。 */
+export function sidebarVisible(root: Element | null): boolean {
+  if (!root || root.closest("[inert]")) return false;
+  return root.closest(SIDEBAR_FRAME)?.getAttribute("data-state") !== "collapsed";
 }
 
 function focusBack(back: Back | undefined) {
   if (!back) return;
-  if (back.el?.isConnected) back.el.focus();
-  else focusRow(back.row);
+  if (!focused(back.el)) focusRow(back.row);
 }
 
 /** 删了以后焦点放哪（点「删除」那一刻、删之前调；返回弹窗关掉时执行的那一步）。mainThread 读此刻正开着的对话（本页编号）。
@@ -82,14 +95,14 @@ function focusBack(back: Back | undefined) {
  *  对话：等组件库切到新对话，焦点进新输入框（那时没有输入框就照前面去侧栏）。 */
 export function focusAfterDelete(ids: readonly string[], back: Back, mainThread: () => string): () => void {
   const main = mainThread();
-  // 删掉的那几条这一帧还在侧栏里：先算好下一条，下一帧（已移走）再放
-  const next = rowAfterDelete(rowOrder(document.querySelector(SIDEBAR)), ids);
+  // 删掉的那几条这一帧还在侧栏里：先算好下一条，下一帧（已移走）再放。侧栏看不到时不去侧栏
+  const sidebar = document.querySelector(SIDEBAR);
+  const next = sidebarVisible(sidebar) ? rowAfterDelete(rowOrder(sidebar), ids) : "";
   const typing = !touchOnly();
   const composer = () => document.querySelector<HTMLTextAreaElement>(COMPOSER_INPUT);
   const land = () => {
-    if (focusRow(next)) return;
-    if (back.el?.isConnected) back.el.focus();
-    else if (typing) composer()?.focus({ preventScroll: true });
+    if (focusRow(next) || focused(back.el)) return;
+    if (typing) composer()?.focus({ preventScroll: true });
   };
   if (!(typing && ids.includes(main) && composer())) return () => requestAnimationFrame(land);
   // 组件库先切到新对话再删；切过去以后（新输入框换上来的下两帧，同 focusComposer）进输入框

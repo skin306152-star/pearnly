@@ -784,7 +784,9 @@
   --cc-sidebar-float: var(--code-sidebar-float);
   --cc-search-h: var(--code-search-h-desktop);
 }
-/* 手机变体：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（按钮排查 G1 / G9，10-17）；触屏平板（粗指针）同样，见下一条 */
+/* 手机变体：菜单项、侧栏 / 抽屉搜索框到点按区下限 44（按钮排查 G1 / G9，10-17）；触屏平板（粗指针）同样，见下一条。
+   网页布局的触屏平板（粗指针，第 11 轮 D26）电脑对话顶栏高 44 也在下一条：变量要写在不分层的这里——写在 @layer components 里
+   敌不过上面不分层的 :root 定义（第 11 轮合并审查：顶栏仍 32、按钮已 44）；顶栏里按钮的尺寸规则留在 components 层 */
 :root[data-cc-variant="phone"] {
   --cc-row-h: var(--code-row-phone);
   --cc-group-h: var(--code-group-band-phone);
@@ -796,6 +798,7 @@
 }
 @media (pointer: coarse) {
   :root:not([data-cc-variant="desktop"]) { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }
+  :root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
 }
 :root[data-cc-variant="desktop"] [data-slot="sidebar-container"] { padding: var(--cc-sidebar-float); border-inline-width: 0; }
 :root[data-cc-variant="desktop"] [data-slot="sidebar-inner"] { border-radius: var(--cc-radius-menu); box-shadow: var(--cc-shadow-card); }
@@ -1271,8 +1274,7 @@
     :root:not([data-cc-variant="desktop"]) .cc-icon-btn:not(:is(.cc-topbar, .cc-titlebar) *) { width: var(--cc-tap); height: var(--cc-tap); }
     /* 触屏平板（网页布局 + 粗指针，iPad 横屏；第 11 轮 D26）：电脑对话顶栏抬到 44，顶栏里的图标钮（展开侧栏、对话选项「···」、
        文件、右侧栏开关）与对话名、公司名按钮点按区 44，侧栏标题区的收起钮 44（标题区本来就 44 高）；图标大小不变。
-       鼠标（电脑）与 CC 桌面版（desktop 变体）不跟 */
-    :root[data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
+       鼠标（电脑）与 CC 桌面版（desktop 变体）不跟。顶栏高（--cc-topbar-h）写在文件前面不分层的粗指针变量块里 */
     :root[data-cc-variant="web"] .cc-topbar :is(.cc-icon-btn, .cc-row-btn) { width: var(--cc-tap); height: var(--cc-tap); }
     :root[data-cc-variant="web"] .cc-topbar :is(.cc-bar-btn, .cc-title-btn, .cc-title-company) { min-width: var(--cc-tap); height: var(--cc-tap); }
     :root[data-cc-variant="web"] [data-slot="cc-sidebar-toggle"] { width: var(--cc-tap); height: var(--cc-tap); }
