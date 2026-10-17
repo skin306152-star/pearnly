@@ -1969,7 +1969,8 @@ g.respond = async (method: string, args: any, body: any) => {
     return ok(page);
   }
   if (method === "send") {
-    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(body.text) }));
+    // 服务端存的正文去掉首尾空白（contracts.message_text），回声同样
+    if (site.echo) site.log.push(ev(`echo${site.log.length}`, "user.message", 100 + site.log.length, { content: text(String(body.text).trim()) }));
     return ok();
   }
   if (method === "run_tool") return ok(await site.toolReply(body.tool_use_id));
@@ -7880,11 +7881,73 @@ assert.equal(rowAfterDelete([], ["a"]), "");
         ask = host.split("export function askDelete(", 1)[1].split("\n}\n", 1)[0]
         self.assertLess(ask.index("const back = backTarget();"), ask.index("requestAnimationFrame("))   # 菜单关之前记下
         confirm = host.split("const confirm = () => {", 1)[1].split("\n  };\n", 1)[0]
-        self.assertIn("if (current.ids.includes(main)) {", confirm)
-        self.assertIn("focusComposer(false)", confirm)
-        self.assertIn("const next = rowAfterDelete(rowOrder(document.querySelector(SIDEBAR)), current.ids);", confirm)
+        self.assertIn("after.current = focusAfterDelete(current.ids, current.back, () => aui.threads().getState().mainThreadId);", confirm)
+        self.assertLess(confirm.index("focusAfterDelete("), confirm.index("current.run();"))   # 删之前算好下一条
         self.assertLess(confirm.index("close();"), confirm.index("current.run();"))
         self.assertIn("askDelete([item.getState().id], () => item.delete());", host)
+
+    def test_focus_after_a_delete_lands_on_a_row_or_the_composer(self):
+        # 审查（第 11 轮 E37 修复）：在定时任务 / 公司 / 主档 / 待处理页删掉正开着的对话，这些页没有输入框，焦点掉到页面最外层；
+        # 触屏上删了正开着的对话程序聚焦输入框会弹键盘（手机打开不弹键盘）。现在：对话页（有输入框）、非触屏删了正开着的才进输入框，
+        # 其余去侧栏下一条（没有就上一条），侧栏里看不到就回打开它的地方
+        self.run_page(r"""
+import { focusAfterDelete } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = false;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+const node = (name: string) => ({ name, isConnected: true, focus() { g.document.activeElement = this; } });
+let rows: string[] = [];
+let sidebarShown = true;
+let composer: any = null;
+const triggers: Record<string, any> = {};
+const sidebar = { closest: () => null, querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })) };
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebarShown ? sidebar : null;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && sidebarShown && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`)) : null;
+};
+// 组件库删正开着的：先切到新对话（main 变了），再从侧栏移走
+let main = "";
+const run = async (ids: string[], back: any, opts: { switchTo?: string; composerAfter?: any } = {}) => {
+  g.document.activeElement = g.document.body;
+  const go = focusAfterDelete(ids, back, () => main);
+  go();
+  await g.sleep(3);
+  if (opts.switchTo !== undefined) main = opts.switchTo;
+  if ("composerAfter" in opts) composer = opts.composerAfter;
+  rows = rows.filter((id) => !ids.includes(id));
+  await g.sleep(30);
+  return g.document.activeElement?.name ?? "body";
+};
+const more = node("title-more");
+const input = node("composer");
+
+// ① 电脑、定时任务页（没有输入框）删正开着的 b：去侧栏下一条 c，不掉到 body
+rows = ["a", "b", "c"]; main = "b"; composer = null;
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new" }), "row:c");
+// ② 电脑、对话页删正开着的 b：切到新对话后进输入框
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "composer");
+// ③ 电脑、对话页删正开着的，切过去时视图被切走（没有输入框了）：去侧栏下一条
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: null }), "row:c");
+// ④ 删的不是正开着的（最后一条）：去上一条
+rows = ["a", "b", "c"]; main = "a"; composer = input;
+assert.equal(await run(["c"], { el: more, row: "c" }), "row:b");
+// ⑤ 侧栏里看不到（收起）：回打开它的地方；那里也没了才进输入框
+rows = ["a", "b"]; main = "a"; sidebarShown = false; composer = input;
+assert.equal(await run(["b"], { el: more, row: "" }), "title-more");
+assert.equal(await run(["b"], { el: { isConnected: false, focus() {} }, row: "" }), "composer");
+// ⑥ 触屏：删正开着的不进输入框（不弹键盘）——抽屉开着去下一条，抽屉关着回右上「…」，都没有就不放
+touch = true; sidebarShown = true;
+rows = ["a", "b", "c"]; main = "b"; composer = node("old-composer");
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "row:c");
+sidebarShown = false; rows = ["a", "b"]; main = "b";
+assert.equal(await run(["b"], { el: more, row: "" }, { switchTo: "new", composerAfter: input }), "title-more");
+assert.equal(await run(["a"], { el: { isConnected: false, focus() {} }, row: "" }), "body");
+""")
 
 if __name__ == "__main__":
     unittest.main()

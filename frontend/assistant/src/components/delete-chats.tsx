@@ -8,16 +8,20 @@
 // 读屏与焦点（第 11 轮 E37）：只有标题，不另挂说明（aria-describedby 不指向和标题一样的隐藏说明，读屏不念两遍）。打开时焦点在
 // 「取消」（删除类确认的惯例：最不具破坏性的一项）。取消、Esc、×、点遮罩关掉：焦点回到打开它的地方——点菜单项那一刻（弹窗在下一帧
 // 才开，那时菜单已关）记下那个菜单的触发处：侧栏行的菜单回到那一行（多选菜单同样回到开菜单的那一行），标题栏「···」、手机「…」回到
-// 那个按钮。删了：侧栏里删掉的下一条（没有就上一条）；删的是正开着的对话（回到新对话页）落在输入框。
+// 那个按钮。删了：侧栏里删掉的下一条（没有就上一条），侧栏里看不到（收起、手机抽屉关着）就回打开它的地方；在对话页删的是正开着的
+// 对话（回到新对话页）落在输入框。不在对话页（定时任务、公司、主档、待处理页没有输入框，删除也不切回对话页）删了正开着的，同样去
+// 侧栏下一条。触屏上不放进输入框（程序聚焦会弹出键盘，同手机打开不弹键盘、右上「新对话」不聚焦，thread.tsx 的 autoFocus），
+// 也去侧栏下一条或打开它的地方。
 import { useRef, type FC } from "react";
 import { useAui } from "@assistant-ui/react";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { create } from "zustand";
 
-import { focusComposer } from "@/components/assistant-ui/projects";
+import { COMPOSER_INPUT } from "@/components/assistant-ui/projects";
 import { sb, t } from "@/i18n";
 import { rowOrder } from "@/lib/sidebar-keys";
+import { touchOnly } from "@/lib/touch";
 
 const ROW = '[data-slot="aui_thread-list-item"]';
 const ROW_TRIGGER = '[data-slot="aui_thread-list-item-trigger"]';
@@ -73,6 +77,37 @@ function focusBack(back: Back | undefined) {
   else focusRow(back.row);
 }
 
+/** 删了以后焦点放哪（点「删除」那一刻、删之前调；返回弹窗关掉时执行的那一步）。mainThread 读此刻正开着的对话（本页编号）。
+ *  侧栏下一条（没有就上一条）→ 打开它的地方（在删掉的行里的已跟着移走）→ 输入框（触屏不进，有才进）；在对话页删的是正开着的
+ *  对话：等组件库切到新对话，焦点进新输入框（那时没有输入框就照前面去侧栏）。 */
+export function focusAfterDelete(ids: readonly string[], back: Back, mainThread: () => string): () => void {
+  const main = mainThread();
+  // 删掉的那几条这一帧还在侧栏里：先算好下一条，下一帧（已移走）再放
+  const next = rowAfterDelete(rowOrder(document.querySelector(SIDEBAR)), ids);
+  const typing = !touchOnly();
+  const composer = () => document.querySelector<HTMLTextAreaElement>(COMPOSER_INPUT);
+  const land = () => {
+    if (focusRow(next)) return;
+    if (back.el?.isConnected) back.el.focus();
+    else if (typing) composer()?.focus({ preventScroll: true });
+  };
+  if (!(typing && ids.includes(main) && composer())) return () => requestAnimationFrame(land);
+  // 组件库先切到新对话再删；切过去以后（新输入框换上来的下两帧，同 focusComposer）进输入框
+  return () => {
+    let frames = 0;
+    const toComposer = () => {
+      const input = composer();
+      if (input) input.focus({ preventScroll: true });
+      else land();
+    };
+    const wait = () => {
+      if (mainThread() === main && ++frames <= 120) requestAnimationFrame(wait);
+      else requestAnimationFrame(() => requestAnimationFrame(toComposer));
+    };
+    requestAnimationFrame(wait);
+  };
+}
+
 export const DeleteChatsHost: FC = () => {
   const aui = useAui();
   const ask = useAsk((s) => s.ask);
@@ -85,28 +120,7 @@ export const DeleteChatsHost: FC = () => {
   const confirm = () => {
     const current = asked.current;
     if (!current) return;
-    const main = aui.threads().getState().mainThreadId;
-    if (current.ids.includes(main)) {
-      // 删的是正开着的对话：组件库先切到新对话再删，切过去以后焦点进输入框
-      after.current = () => {
-        let frames = 0;
-        const wait = () => {
-          if (aui.threads().getState().mainThreadId !== main || ++frames > 120) focusComposer(false);
-          else requestAnimationFrame(wait);
-        };
-        requestAnimationFrame(wait);
-      };
-    } else {
-      const next = rowAfterDelete(rowOrder(document.querySelector(SIDEBAR)), current.ids);
-      // 删掉的那几条这一帧还在侧栏里，下一帧（已移走）再放；侧栏里没有可去的（收起、抽屉关着）就回打开它的地方（在删掉的行里的
-      // 已跟着移走），那里也没了就进输入框
-      after.current = () =>
-        requestAnimationFrame(() => {
-          if (focusRow(next)) return;
-          if (current.back.el?.isConnected) current.back.el.focus();
-          else focusComposer(false);
-        });
-    }
+    after.current = focusAfterDelete(current.ids, current.back, () => aui.threads().getState().mainThreadId);
     close();
     current.run();
   };

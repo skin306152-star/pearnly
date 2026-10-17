@@ -924,8 +924,8 @@ const respond = g.respond;
 g.respond = async (method: string, args: any, body: any) => {
   if (method === "send") {
     await new Promise<void>((resolve) => { releaseSend = resolve; });
-    // 服务端收下了（回声只在事件记录里：断网期间没推到），回应却断在路上
-    site.log.push(ev("echoF", "user.message", 10, { content: text(body.text) }), ev("r1", "session.status_running", 11));
+    // 服务端收下了（回声只在事件记录里：断网期间没推到；正文按服务端 contracts.message_text 去掉首尾空白），回应却断在路上
+    site.log.push(ev("echoF", "user.message", 10, { content: text(String(body.text).trim()) }), ev("r1", "session.status_running", 11));
     site.engine = "running";
     throw new TypeError("Failed to fetch");
   }
@@ -943,7 +943,8 @@ await g.sleep(10);
 assert.deepEqual(roles(), ["user:hi", "assistant:hello", "user:F39 list ten points"]);
 assert.equal(core.composer.text, "");
 offline = true;
-c.refreshStatus();                       // 补拉失败：缺口开始
+g.socket.drop();                         // 断网：实时通道随之断开（再连上时开缺口）
+c.refreshStatus();                       // 补拉也失败
 await g.sleep(10);
 
 // ① 断网点停止：消息留在对话里，字不放回输入框；打断等发出的那条有了结果（服务端还没收下就打断会落空）
@@ -970,6 +971,7 @@ g.respond = async (method: string, args: any, body: any) => {
   if (method === "events" && slowEvents) await g.sleep(30);
   return online(method, args, body);
 };
+g.socket.back();
 g.fire("online");
 await g.sleep(5);
 push(S, ev("m1", "agent.message", 12, { content: text("1. File by the 15th") }));
@@ -1021,6 +1023,93 @@ libraryAgrees();
 
 await g.sleep(30);
 assert.deepEqual(unhandled, []);
+g.respond = respond;
+""")
+
+    def test_a_failed_backfill_does_not_hold_back_live_pushes(self):
+        # 审查（第 11 轮 F39 修复）：实时通道一直连着、只是一次低频补拉失败（网关 502、列事件接口一时出错），推来的回复与逐字预览
+        # 不压：走的是同一条活着的连接，不会漏推。以前补拉失败就开缺口，回复要压到下一次补拉成功，接口一直坏就一直不出
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+---
+const S = "sesn_502";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("r0", "session.status_running", 2));
+site.engine = "running";
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const respond = g.respond;
+let failing = true;
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "events" && failing) return { ok: false, status: 502, json: async () => ({}) };
+  return respond(method, args, body);
+};
+const before = eventsCalls(S).length;
+c.refreshStatus();
+await g.sleep(20);
+assert.ok(eventsCalls(S).length > before);                                   // 这次补拉发出了、失败了
+const parts = () => c.getSnapshot().messages.flatMap((m: any) => m.content).filter((p: any) => p.type === "text").map((p: any) => p.text);
+preview(S, { type: "event_start", event: { id: "m1", type: "agent.message" } });
+preview(S, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "Fil" } } });
+await g.sleep(5);
+assert.deepEqual(parts(), ["hi", "Fil"]);                                    // 逐字预览当场出
+push(S, ev("m1", "agent.message", 3, { content: text("File by the 15th") }));
+await g.sleep(5);
+assert.deepEqual(parts(), ["hi", "File by the 15th"]);                       // 回复当场出，不等下一次补拉
+failing = false;
+g.respond = respond;
+""")
+
+    def test_an_attachment_only_send_cut_off_in_transit_is_taken_back_when_its_echo_lands(self):
+        # 审查（第 11 轮 F39 修复）：只带附件、不打字发出，请求断在路上而服务端其实收下了。拼出的字以空行开头（附件说明），服务端存的
+        # 去掉了首尾空白，晚到的回声与撤回时记下的对不上，放回的附件与原因一直挂着，再按发送同一份文件发第二条。撤回记下的与回声都按
+        # 服务端口径去掉首尾空白再比
+        self.run_page(r"""
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { attemptSend, sendFailureOf, sendLanded } from "@/lib/managed-agents/send-failure";
+---
+const S = "sesn_att_late";
+const T = "thread-att-late";
+site.log.length = 0;
+site.log.push(ev("u0", "user.message", 1, { content: text("hi") }), ev("i0", "session.status_idle", 2, { stop_reason: { type: "end_turn" } }));
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+const landed: string[] = [];
+c.onDelivered((typed) => { landed.push(typed); sendLanded(T, typed); });
+const state: any = { text: "", attachments: [] as any[] };
+const box = { getState: () => state, setText: (t: string) => { state.text = t; }, addAttachment: async (a: any) => { state.attachments.push({ id: a.id }); },
+  clearAttachments: () => { state.attachments = []; } };
+const respond = g.respond;
+let release: () => void = () => {};
+g.respond = async (method: string, args: any, body: any) => {
+  if (method === "send") {
+    await new Promise<void>((resolve) => { release = resolve; });
+    // 服务端照 contracts.message_text 去掉首尾空白后存下（回声随补拉晚到），回应断在路上
+    site.log.push(ev("echoA", "user.message", 10, { content: text(String(body.text).trim()) }), ev("r1", "session.status_running", 11));
+    site.engine = "running";
+    throw new TypeError("Failed to fetch");
+  }
+  return respond(method, args, body);
+};
+const att = { id: "/mnt/session/uploads/r.pdf", type: "document", name: "r.pdf", contentType: "application/pdf", content: [], status: { type: "complete" } };
+const sending = attemptSend(T, { composer: box, text: "", attachments: [att as any] },
+  async (sent) => { await c.sendMessage("", [{ filename: "r.pdf", mountPath: "/mnt/session/uploads/r.pdf" }]); sent(); });
+await g.sleep(10);
+assert.ok(g.calls.some((x: any) => x.method === "send" && x.body.text.startsWith("\n\n[Attached file")));
+release();
+assert.equal(await sending, false);
+await g.sleep(5);
+assert.deepEqual(state.attachments.map((a: any) => a.id), ["/mnt/session/uploads/r.pdf"]);   // 看不出收没收下：先放回不丢
+assert.equal(sendFailureOf(T), "出了点问题，请重试。");
+// 回声随补拉晚到：放回的附件撤掉、原因清掉，对话里只有这一条
+c.refreshStatus();
+await g.sleep(30);
+assert.deepEqual(landed, [""]);
+assert.equal(state.attachments.length, 0);
+assert.equal(sendFailureOf(T), "");
+assert.equal(c.getSnapshot().messages.filter((m: any) => m.role === "user").length, 2);
 g.respond = respond;
 """)
 

@@ -104,8 +104,8 @@ export class SessionController {
   private answerQueued = false;
   // 正在发出的那条消息的请求：点停止要等它有了结果再打断（服务端还没收下这条就打断，打断落空、回复照样出来）
   private sendInFlight: Promise<unknown> | null = null;
-  // 发出请求断在路上（一时的失败）、已撤回并放回输入框的消息：完整的字（同服务端拼的）→ 用户打的字。之后它的回声到了
-  // （服务端其实收下了），告诉页面撤掉放回的（onDelivered）
+  // 发出请求断在路上（一时的失败）、已撤回并放回输入框的消息：完整的字（按服务端存的口径去掉首尾空白，contracts.message_text
+  // 的 strip；只带附件时拼出的字以空行开头，回声里没有）→ 用户打的字。之后它的回声到了（服务端其实收下了），告诉页面撤掉放回的（onDelivered）
   private retracted = new Map<string, string>();
   private delivered = new Set<(text: string) => void>();
 
@@ -230,7 +230,7 @@ export class SessionController {
 
   /** 一条没对上本页气泡的用户消息：是不是之前撤回、放回输入框的那一条（服务端其实收下了）。是就告诉页面撤掉放回的。 */
   private landedLate(event: Extract<FeedEvent, { type: "user.message" }>) {
-    const full = event.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+    const full = event.content.map((block) => (block.type === "text" ? block.text : "")).join("").trim();
     const typed = this.retracted.get(full);
     if (typed === undefined) return;
     this.retracted.delete(full);
@@ -528,7 +528,7 @@ export class SessionController {
         // never reads as delivered. (Replay can't do this; it only adds.)
         this.rollbackSend(optimisticId);
         // 一时的失败（断网、网关）看不出服务端收没收下：先当没发出（放回输入框，不丢字），回声若晚到再告诉页面撤掉放回的
-        if (transientError(err)) this.retracted.set(full, text);
+        if (transientError(err)) this.retracted.set(full.trim(), text);
         throw err;
       }
     } finally {
