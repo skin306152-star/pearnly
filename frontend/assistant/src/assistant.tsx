@@ -338,13 +338,14 @@ function useMaximized(enabled: boolean) {
 }
 
 // 标题栏左半：菜单 / 侧栏开关 / 后退 / 前进（侧栏开着时在侧栏顶上，收起时在对话区左上角）
-// navToggle：放在对话区顶栏（侧栏收起时）的那一份，侧栏开关标成顶栏导航钮（删完对话别处放不上焦点时的落点，delete-chats.tsx）
+// navToggle：放在对话区顶栏（侧栏收起时）的那一份，侧栏开关标成顶栏导航钮；侧栏标题栏里那一份标成侧栏的落点（删完对话一行不剩、
+// 侧栏展开时焦点掉了的落点，lib/sidebar-focus.ts）
 function TitleBarLeft({ nav, navToggle = false }: { nav: Nav; navToggle?: boolean }) {
   const { toggleSidebar } = useSidebar();
   return (
     <div className="flex items-center gap-0.5">
       <AppMenu />
-      <button type="button" className="cc-icon-btn" data-slot={navToggle ? "cc-nav-toggle" : undefined} onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+      <button type="button" className="cc-icon-btn" data-slot={navToggle ? "cc-nav-toggle" : undefined} data-cc-nav-fallback={navToggle ? undefined : ""} onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
         <PanelLeftIcon />
       </button>
       <button type="button" className="cc-icon-btn" onClick={nav.back} disabled={!nav.canBack} aria-label={t("back")} title={t("back")}>
@@ -494,7 +495,7 @@ function DesktopSidebar({ nav, window: win, chrome, onResize }: { nav: Nav; wind
               {logo && <img src={logo} alt="" className="cc-logo size-6" />}
               {APP_NAME}
             </span>
-            <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
+            <button type="button" className="cc-row-btn" data-slot="cc-sidebar-toggle" data-cc-nav-fallback="" onClick={toggleSidebar} aria-label={t("sidebar")} title={t("sidebar")}>
               <PanelLeftIcon />
             </button>
           </div>
@@ -533,7 +534,7 @@ function MobileDrawer() {
     >
       <div className="flex items-center justify-between px-4 pt-1 pb-3">
         <span className="cc-drawer-title">{APP_NAME}</span>
-        <button type="button" className="cc-round-btn" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
+        <button type="button" className="cc-round-btn" data-cc-nav-fallback="" onClick={() => setSearching((v) => !v)} aria-label={t("search")}>
           <SearchIcon />
         </button>
       </div>

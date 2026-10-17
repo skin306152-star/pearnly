@@ -18,7 +18,11 @@
 // - 下一条 / 上一条按侧栏里眼前的行算（搜索结果、展开着的组；不占位置的不算），近的先试，一条聚焦不上就试下一条；落到一行后几帧内
 //   那一行被重画换掉（焦点掉到页面最外层）按行号找回（侧栏搜索「删测」删掉结果里最后一条，焦点掉到 body）。
 // - 删的是正开着的对话：先等组件库切到新对话再放（打开它的标题栏「···」、手机「…」随之卸下）。都放不上时（触屏、侧栏看不到、打开处
-//   已不在）落在顶栏的导航钮：手机的菜单钮、侧栏收起时的展开钮（cc-nav-toggle）——看得见、不弹键盘，不再掉到 body。
+//   已不在）落在顶栏的导航钮：手机的菜单钮、侧栏收起时的展开钮（cc-nav-toggle）——看得见、不弹键盘。
+// 第 11 轮 E 段补审：侧栏 / 抽屉看得到、但删完一行不剩（手机抽屉开着搜索只剩一条、iPad 侧栏展开删最后一条可见行、电脑在定时任务 /
+// 公司 / 待处理页删最后一条可见行）时，顶栏导航钮不在（侧栏展开时只有收起钮）或在 inert 里（抽屉开着时的对话区）。现在先试侧栏 /
+// 抽屉里一直在的那一颗（NAV_FALLBACK：侧栏收起钮、桌面端标题栏的侧栏开关、抽屉的圆形搜索钮），再试顶栏导航钮；看不到的那一份在
+// inert 里聚焦不上，自然跳过。不为了放焦点去关抽屉或切页面。
 import { useRef, type FC } from "react";
 import { useAui } from "@assistant-ui/react";
 import { XIcon } from "lucide-react";
@@ -27,6 +31,7 @@ import { create } from "zustand";
 
 import { COMPOSER_INPUT } from "@/components/assistant-ui/projects";
 import { sb, t } from "@/i18n";
+import { NAV_FALLBACK, NAV_TOGGLE } from "@/lib/sidebar-focus";
 import { rowOrder } from "@/lib/sidebar-keys";
 import { touchOnly } from "@/lib/touch";
 
@@ -34,8 +39,8 @@ const ROW = '[data-slot="aui_thread-list-item"]';
 const ROW_TRIGGER = '[data-slot="aui_thread-list-item-trigger"]';
 const SIDEBAR = '[data-slot="aui_thread-list-root"]';
 const SIDEBAR_FRAME = '[data-slot="sidebar"]';
-/** 顶栏的导航钮（手机的菜单钮、侧栏收起时的展开钮，assistant.tsx 的 MainTopBar）：删完别处都放不上时的落点。 */
-export const NAV_TOGGLE = '[data-slot="cc-nav-toggle"]';
+/** 删完别处都放不上时的落点：侧栏 / 抽屉里一直在的那一颗（NAV_FALLBACK），再是顶栏的导航钮（NAV_TOGGLE，lib/sidebar-focus.ts）。 */
+export { NAV_FALLBACK, NAV_TOGGLE };
 // 落到一行后看着它这么多帧：期间那一行被重画换掉（焦点掉到页面最外层）就按行号找回
 const HOLD_FRAMES = 30;
 
@@ -133,7 +138,7 @@ function holdRow(row: string) {
 
 /** 删了以后焦点放哪（点「删除」那一刻、删之前调；返回弹窗关掉时执行的那一步）。mainThread 读此刻正开着的对话（本页编号）。
  *  侧栏眼前的下一条（没有就上一条，聚焦不上就再往外试）→ 打开它的地方（在删掉的行里的已跟着移走）→ 输入框（触屏不进，有才进）→
- *  顶栏的导航钮。删的是正开着的对话：等组件库切到新对话再放（打开它的「···」「…」随之卸下）；在对话页、不是触屏就进新输入框。 */
+ *  侧栏 / 抽屉里的落点 → 顶栏的导航钮。删的是正开着的对话：等组件库切到新对话再放（打开它的「···」「…」随之卸下）；在对话页、不是触屏就进新输入框。 */
 export function focusAfterDelete(ids: readonly string[], back: Back, mainThread: () => string): () => void {
   const main = mainThread();
   // 删掉的那几条这一帧还在侧栏里：先按眼前的先后排好，下一帧（已移走）再放。侧栏看不到时不去侧栏
@@ -153,6 +158,8 @@ export function focusAfterDelete(ids: readonly string[], back: Back, mainThread:
     }
     if (focused(back.el)) return;
     if (typing && toComposer()) return;
+    // 侧栏 / 抽屉看得到但一行不剩：侧栏里的落点；看不到（在 inert 里）聚焦不上，接着试顶栏导航钮
+    if (focused(document.querySelector<HTMLElement>(NAV_FALLBACK))) return;
     focused(document.querySelector<HTMLElement>(NAV_TOGGLE));
   };
   if (!ids.includes(main)) return () => requestAnimationFrame(land);

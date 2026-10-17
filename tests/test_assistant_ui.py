@@ -8491,8 +8491,9 @@ assert.equal(await run(node("pill-more")), "row:c");
         self.assertIn("ref={container}", container[0][-200:])
         self.assertIn("inert={offscreen || undefined}", container[1][:200])
         effect = sidebar.split("React.useLayoutEffect(() => {", 1)[1].split("}, [offscreen]);", 1)[0]
-        self.assertIn("if (!offscreen || !container.current?.contains(document.activeElement)) return;", effect)
-        self.assertIn("document.querySelector<HTMLElement>('[data-slot=\"cc-nav-toggle\"]')?.focus();", effect)
+        self.assertIn("handed.current = handOffSidebarFocus(container.current);", effect)
+        self.assertIn("const NAV_TOGGLE = '[data-slot=\"cc-nav-toggle\"]';", read("lib/sidebar-focus.ts"))
+        self.assertIn("document.querySelector<HTMLElement>(NAV_TOGGLE)?.focus();", read("lib/sidebar-focus.ts"))
         # 展开钮与 ⌘B 不在侧栏里：顶栏展开钮、桌面端标题栏（侧栏收起时那一份）、手机菜单钮都标成顶栏导航钮
         page = read("assistant.tsx")
         bar = page[page.index("function MainTopBar"):page.index("function MobileChatPill")]
@@ -8504,6 +8505,176 @@ assert.equal(await run(node("pill-more")), "row:c");
         self.assertIn('window.addEventListener("keydown", handleKeyDown)', sidebar)
         # 手机抽屉照旧
         self.assertIn('<aside className="cc-mdrawer" aria-hidden={!open} inert={!open || undefined}>', read("components/mobile-shell.tsx"))
+
+    def test_expanding_the_sidebar_gives_focus_back(self):
+        # 第 11 轮 E 段补审：收起时焦点交给顶栏展开钮，但展开钮只在收起时才有，展开当次就卸下，焦点掉到 body（⌘B 收起再 ⌘B 展开、
+        # 在展开钮上按 Enter / 空格展开）。现在：展开那一刻焦点丢了才拿回来——回到收起前那一行（行重画按行号找回），没有就落在侧栏的
+        # 收起钮（NAV_FALLBACK），再没有就是侧栏里第一个能聚焦的；用户展开期间自己放到别处的焦点不动
+        self.run_page(r"""
+import { handOffSidebarFocus, takeBackSidebarFocus, NAV_FALLBACK, NAV_TOGGLE } from "@/lib/sidebar-focus";
+g.CSS = { escape: (s: string) => s };
+g.document.body = { name: "body", isConnected: true };
+g.document.documentElement = { ...g.document.documentElement, isConnected: true };
+let inert = false;   // 收起时侧栏容器 inert
+const inBox = new Set<any>();
+const node = (name: string, opts: { inside?: boolean; row?: string } = {}): any => {
+  const n: any = { name, isConnected: true,
+    focus() { if (this.isConnected && !(opts.inside && inert)) g.document.activeElement = this; },
+    closest: (sel: string) => (sel === '[data-slot="aui_thread-list-item"]' && opts.row ? { dataset: { rowId: opts.row } } : null) };
+  if (opts.inside) inBox.add(n);
+  return n;
+};
+const triggers: Record<string, any> = {};
+let fallback: any = null;
+let first: any = null;
+const box = {
+  contains: (el: any) => inBox.has(el),
+  querySelector: (sel: string) => {
+    const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+    if (m) return triggers[m[1]] ?? null;
+    if (sel === NAV_FALLBACK) return fallback;
+    if (sel.startsWith("button")) return first;
+    return null;
+  },
+};
+let toggle: any = null;
+g.document.querySelector = (sel: string) => (sel === NAV_TOGGLE ? toggle : null);
+// 收起：顶栏展开钮挂上、侧栏 inert（同一次提交），再交接；展开：展开钮卸下（焦点在它上面就掉到 body）、inert 去掉，再拿回
+const collapse = () => { toggle = node("expand"); inert = true; return handOffSidebarFocus(box); };
+const expand = (handed: any) => {
+  inert = false;
+  toggle.isConnected = false;
+  if (g.document.activeElement === toggle) g.document.activeElement = g.document.body;
+  toggle = null;
+  takeBackSidebarFocus(box, handed);
+  return g.document.activeElement?.name ?? "body";
+};
+fallback = node("sidebar-toggle", { inside: true });
+first = node("app-menu", { inside: true });
+
+// ① 焦点在侧栏行上 ⌘B 收起：交给展开钮；再 ⌘B 展开：回到原来那一行（以前掉到 body）
+triggers.b = node("row:b", { inside: true, row: "b" });
+triggers.b.focus();
+let handed = collapse();
+assert.equal(g.document.activeElement.name, "expand");
+assert.equal(expand(handed), "row:b");
+// ② 收起期间那一行被重画换掉：按行号找回新的那一行
+triggers.b.focus();
+handed = collapse();
+triggers.b.isConnected = false;
+inBox.delete(triggers.b);
+triggers.b = node("row:b-new", { inside: true, row: "b" });
+assert.equal(expand(handed), "row:b-new");
+// ③ 收起时焦点不在侧栏（在输入框）：不交接；Tab 到展开钮上按 Enter 展开：落在侧栏收起钮，不在 body
+const composer = node("composer");
+composer.focus();
+handed = collapse();
+assert.equal(handed, null);
+assert.equal(g.document.activeElement.name, "composer");
+toggle.focus();
+assert.equal(expand(handed), "sidebar-toggle");
+// ④ 侧栏里没有标出的落点（例如桌面端标题栏没标）：侧栏里第一个能聚焦的
+fallback = null;
+toggle = null;
+triggers.b.focus();
+handed = collapse();
+triggers.b.isConnected = false;
+delete triggers.b;
+assert.equal(expand(handed), "app-menu");
+fallback = node("sidebar-toggle", { inside: true });
+// ⑤ 收起期间用户自己把焦点放到输入框：展开不抢
+triggers.c = node("row:c", { inside: true, row: "c" });
+triggers.c.focus();
+handed = collapse();
+composer.focus();
+assert.equal(expand(handed), "composer");
+""")
+        sidebar = read("components/ui/sidebar.tsx")
+        effect = sidebar.split("React.useLayoutEffect(() => {", 1)[1].split("}, [offscreen]);", 1)[0]
+        # 只在收起 / 展开那一刻交接（首次挂上不动焦点）；展开时拿回，用完清空
+        self.assertIn("if (wasOffscreen.current === offscreen) return;", effect)
+        self.assertLess(effect.index("wasOffscreen.current = offscreen;"), effect.index("handOffSidebarFocus("))
+        self.assertIn("takeBackSidebarFocus(container.current, handed.current);\n    handed.current = null;", effect)
+        # 三个落点：网页侧栏收起钮（不改 data-slot，globals.css 按它定尺寸）、桌面端侧栏标题栏的侧栏开关、手机抽屉的圆形搜索钮
+        page = read("assistant.tsx")
+        self.assertIn('data-slot="cc-sidebar-toggle" data-cc-nav-fallback="" onClick={toggleSidebar}', page)
+        self.assertIn('data-slot={navToggle ? "cc-nav-toggle" : undefined} data-cc-nav-fallback={navToggle ? undefined : ""}', page)
+        drawer = page[page.index("function MobileDrawer"):page.index("function isTextField")]
+        self.assertIn('className="cc-round-btn" data-cc-nav-fallback="" onClick={() => setSearching((v) => !v)} aria-label={t("search")}', drawer)
+        self.assertIn('[data-slot="cc-sidebar-toggle"]', read("globals.css"))
+
+    def test_deleting_the_last_visible_row_lands_on_the_sidebar_fallback(self):
+        # 第 11 轮 E 段补审：侧栏 / 抽屉看得到、但删完一行不剩（手机抽屉开着搜索只剩一条、iPad 侧栏展开删最后一条可见行、电脑在定时任务
+        # 页删最后一条可见行）时，落点只剩顶栏导航钮，而它此时不在（侧栏展开）或在 inert 里（抽屉开着时的对话区），焦点掉到 body。
+        # 现在先试侧栏 / 抽屉里一直在的那一颗（NAV_FALLBACK），看不到的那份在 inert 里聚焦不上，再试顶栏导航钮
+        self.run_page(r"""
+import { focusAfterDelete, NAV_FALLBACK, NAV_TOGGLE } from "@/components/delete-chats";
+g.CSS = { escape: (s: string) => s };
+g.requestAnimationFrame = (fn: () => void) => setTimeout(fn, 1);
+let touch = true;
+g.matchMedia = (q: string) => ({ matches: q === "(hover: none)" && touch });
+g.document.body = { name: "body" };
+let drawerOpen = true;     // 手机：抽屉开着时对话区 inert，关着时抽屉 inert
+let collapsed = false;     // 电脑 / iPad：侧栏收起时侧栏 inert
+let mobile = true;
+const sidebarInert = () => (mobile ? !drawerOpen : collapsed);
+const mainInert = () => mobile && drawerOpen;
+const node = (name: string, where: "sidebar" | "main"): any => ({ name, isConnected: true,
+  focus() { if (this.isConnected && !(where === "sidebar" ? sidebarInert() : mainInert())) g.document.activeElement = this; } });
+const frame = { getAttribute: (k: string) => (k === "data-state" ? (collapsed ? "collapsed" : "expanded") : null) };
+let rows: string[] = [];
+const triggers: Record<string, any> = {};
+const sidebar = {
+  closest: (sel: string) => (sel === "[inert]" ? (sidebarInert() ? {} : null) : sel === '[data-slot="sidebar"]' && !mobile ? frame : null),
+  querySelectorAll: () => rows.map((id) => ({ dataset: { rowId: id } })),
+};
+let fallback: any = null;
+let toggle: any = null;
+let composer: any = null;
+g.document.querySelector = (sel: string) => {
+  if (sel === '[data-slot="aui_thread-list-root"]') return sidebar;
+  if (sel === NAV_FALLBACK) return fallback;
+  if (sel === NAV_TOGGLE) return toggle;
+  if (sel === "textarea.aui-composer-input") return composer;
+  const m = sel.match(/^\[data-slot="aui_thread-list-item"\]\[data-row-id="([^"]+)"\] \[data-slot="aui_thread-list-item-trigger"\]$/);
+  return m && rows.includes(m[1]) ? (triggers[m[1]] ??= node(`row:${m[1]}`, "sidebar")) : null;
+};
+assert.equal(NAV_FALLBACK, "[data-cc-nav-fallback]");
+// 删的是行里「···」打开的：那一行跟着移走，打开处也没了
+const run = async (id: string, main = "elsewhere") => {
+  const opener = node("row-more", "sidebar");
+  g.document.activeElement = g.document.body;
+  focusAfterDelete([id], { el: opener, row: id }, () => main)();
+  opener.isConnected = false;
+  rows = rows.filter((r) => r !== id);
+  await g.sleep(20);
+  return g.document.activeElement?.name ?? "body";
+};
+
+// ① 手机、抽屉开着、搜索只剩一条：删掉落在抽屉的圆形搜索钮（顶栏菜单钮在 inert 的对话区里，以前掉到 body）
+mobile = true; drawerOpen = true; rows = ["a"];
+fallback = node("drawer-search", "sidebar"); toggle = node("menu", "main"); composer = node("composer", "main");
+assert.equal(await run("a"), "drawer-search");
+// ② iPad（触屏）侧栏展开，删掉最后一条可见行：页面上没有展开钮，落在侧栏收起钮
+mobile = false; drawerOpen = false; collapsed = false; rows = ["a"];
+fallback = node("sidebar-toggle", "sidebar"); toggle = null; composer = node("composer", "main");
+assert.equal(await run("a"), "sidebar-toggle");
+// ③ 电脑在定时任务页（没有输入框）删掉侧栏最后一条可见行：落在侧栏收起钮
+touch = false; rows = ["a"]; composer = null;
+assert.equal(await run("a"), "sidebar-toggle");
+// ④ 侧栏看不到（收起，侧栏落点在 inert 里）：照旧落在顶栏展开钮
+collapsed = true; rows = ["a"]; toggle = node("expand", "main");
+assert.equal(await run("a"), "expand");
+// ⑤ 手机抽屉关着（抽屉落点在 inert 里）删当前对话：照旧落在顶栏菜单钮
+touch = true; mobile = true; drawerOpen = false; collapsed = false; rows = ["a"];
+fallback = node("drawer-search", "sidebar"); toggle = node("menu", "main");
+assert.equal(await run("a"), "menu");
+""")
+        host = read("components/delete-chats.tsx")
+        land = host.split("const land = () => {", 1)[1].split("\n  };\n", 1)[0]
+        self.assertLess(land.index("focused(document.querySelector<HTMLElement>(NAV_FALLBACK))"),
+                        land.index("focused(document.querySelector<HTMLElement>(NAV_TOGGLE))"))
+        self.assertLess(land.index("toComposer()"), land.index("NAV_FALLBACK"))
 
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
