@@ -44,7 +44,7 @@ dbs=""
 for f in $work/db-*.sql.gz; do
   db=$(basename $f .sql.gz); db=${db#db-}; [[ $db == mysql ]] && continue
   t0=$(date +%s); gunzip -c $f | q || finish "失败（导入 $db）"
-  position=$(gunzip -c $f | head -40 | sed -n "s/^-- CHANGE MASTER TO MASTER_LOG_FILE='\([^']*\)', MASTER_LOG_POS=\([0-9]*\);.*/\1 \2/p")
+  position=$(gunzip -c $f 2>/dev/null | head -40 | sed -n "s/^-- CHANGE MASTER TO MASTER_LOG_FILE='\([^']*\)', MASTER_LOG_POS=\([0-9]*\);.*/\1 \2/p")
   if [[ -z $position ]]; then echo "  $db 导入 $(( $(date +%s) - t0 ))s（这份备份没记位置，只能恢复到备份那一刻）"; dbs="$dbs $db"; continue; fi
   read file pos <<< "$position"
   files=$(ls $work/plain | sort | awk -v f=$file '$0>=f')

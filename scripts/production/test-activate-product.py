@@ -130,6 +130,8 @@ elif 'ps' in args:
                 target.chmod(0o755)
             # Capacity is independently tested; replace only this one copied call.
             source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'true')
+            # 宿主 swap 由 ensure-swap.sh 幂等建（要 root、动宿主），测试里不跑
+            source = source.replace('bash ' + str(root) + '/deploy/scripts/production/ensure-swap.sh', 'true')
             # The deploy-vs-image comparison is tested where it runs (server side); stub it here.
             source = source.replace('python3 ' + str(root) + '/deploy/scripts/production/check-deploy-image.py', 'true')
             source = source.replace('python3 "$root/scripts/production/check-deploy-image.py"', 'true')
