@@ -6,13 +6,16 @@
   判定：同一家供应商第一张要人选（C，模拟的人按答案选、记进账套记忆），之后按记忆定（记忆的科目要最近连续 3 张同科目才算 A），
   反事实计分对上答案；科目换了的那张计错；
 - 档位时间线：三套阈值并排、推错即「被改」；
-- 识别闸层：与金标逐字段比（单号只差前缀不算错）、配对、原文核对。
+- 识别闸层：与金标逐字段比（单号只差前缀不算错）、配对、原文核对；
+- 期间与两份同期（10-17）：ISPRD 与 CC 桌面版 `_fiscal_window` 同口径、来源优先级、strict / estimated、按日期选账套的情形
+  与 C 类原因拆分、盘点的期间检验与重叠、登记表、两份同期时各挑法的模拟。
 纯标准库，不连库、不依赖 Frappe。
 """
 import contextlib
 import datetime as dt
 import importlib.util
 import io
+import json
 import pathlib
 import struct
 import sys
@@ -272,7 +275,8 @@ class JudgementLayer(unittest.TestCase):
     def test_next_year_documents_go_into_the_old_book_until_the_new_one_exists(self):
         """新年度账套还没建时，下一年的单记进旧账套的次年段（认 next_end，用户 10-16）；新年度账套一建好就该推往新的。"""
         m = replay._modules()
-        self.assertEqual(self.book["next_end"], dt.date(2026, 12, 31))  # 按单据估的期间：次年段再过一年
+        # 按单据估的期间（estimated，load_book 默认）：次年段再过一年；strict 下没有 ISPRD 不报期间
+        self.assertEqual((self.book["next_end"], self.book["period_origin"]), (dt.date(2026, 12, 31), "estimated"))
         self.assertEqual(replay.account_row(self.book)["attributes"]["next_end"], "2026-12-31")
         doc = dict(self.book["docs"][0], date=dt.date(2026, 2, 3), entered=dt.date(2026, 2, 5))
         old_only = replay.shaped_books(m, [self.book])
@@ -288,7 +292,10 @@ class JudgementLayer(unittest.TestCase):
         found = replay.judge_document(m, doc, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
                                       {}, replay.CompanyChoice(), both)
         self.assertIn("book", found["reasons"])
-        self.assertTrue(next(test for key, _label, test in replay.CAUSES if key == "next_year")(found))
+        # 10-17：按 book_pick 拆，新年度账套已建归 book_other_newer（原 next_year）
+        self.assertEqual((found["book_pick"], found["other_newer"], found["outside"]), ("other", True, "next_year"))
+        self.assertTrue(cause("book_other_newer")(found))
+        self.assertFalse(cause("next_year")(found))
         # 晚于次年段：照旧不在期间里
         late = dict(doc, date=dt.date(2027, 2, 3), entered=dt.date(2027, 2, 5))
         found = replay.judge_document(m, late, self.book, replay.Memory(), {}, [replay.account_row(self.book)],
@@ -422,6 +429,289 @@ class JudgementLayer(unittest.TestCase):
         self.assertEqual(replay.eligible({**doc, "rectyp": "5"}), "rectyp_5")
         self.assertEqual(replay.eligible({**doc, "total": Decimal("0")}), "zero_amount")
         self.assertEqual(replay.eligible({**doc, "pearnly": True}), "pearnly")
+
+
+def cause(key):
+    return next(test for name, _label, test in replay.CAUSES if name == key)
+
+
+def months(year, first=1):
+    """一个会计年 12 期的起止（从 ``first`` 月起）。"""
+    out = []
+    for step in range(12):
+        start = dt.date(year + (first - 1 + step) // 12, (first - 1 + step) % 12 + 1, 1)
+        following = dt.date(start.year + start.month // 12, start.month % 12 + 1, 1)
+        out.append((start, following - dt.timedelta(days=1)))
+    return out
+
+
+def write_isprd(path, current, following=(), skip=()):
+    """ISPRD.DBF（1 行，BEG / END × 12 期 × 本年、次年两段）；``skip`` 里的 (段, 期) 留空。"""
+    row = {}
+    for slot, periods in (("", current), ("NY", following)):
+        for index, (beg, end) in enumerate(periods, start=1):
+            if (slot, index) not in skip:
+                row[f"BEG{index}{slot}"], row[f"END{index}{slot}"] = beg, end
+    write_dbf(path, [(name, "D", 8) for name in replay.PERIOD_FIELDS], [row])
+
+
+def desktop_window(path):
+    """CC 桌面版 `account_probe._fiscal_window` 读同一行的结果（本机没有 dbf 包：借一个空模块导入，读表换成回放的只读读法，
+    逐期取法、取最小最大都是桌面版自己的代码）。"""
+    saved = {name: module for name, module in sys.modules.items() if name == "dbf" or name.split(".")[0] == "companion"}
+    sys.path.insert(0, str(ROOT / "companion/src"))
+    try:
+        try:
+            import dbf  # noqa: F401
+        except ImportError:
+            import types
+            sys.modules["dbf"] = types.ModuleType("dbf")
+        from companion import account_probe, fiscal_period
+        row = next(replay.dbf_rows(path), None) or {}
+        periods = tuple(fiscal_period._read_periods(row))
+        original = fiscal_period.load
+        fiscal_period.load = lambda _dir: fiscal_period.FiscalCalendar(
+            tuple(sorted(periods, key=lambda p: p.beg))) if periods else None
+        try:
+            return account_probe._fiscal_window(str(path.parent))
+        finally:
+            fiscal_period.load = original
+    finally:
+        sys.path.remove(str(ROOT / "companion/src"))
+        for name in [name for name in sys.modules if name == "dbf" or name.split(".")[0] == "companion"]:
+            if name not in saved:
+                del sys.modules[name]
+        sys.modules.update(saved)
+
+
+class Periods(unittest.TestCase):
+    """期间与两份同期（10-17）：期间与 CC 桌面版同口径、来源优先级、strict / estimated、按日期选账套的情形与原因拆分、
+    盘点的期间检验与重叠、登记表、两份同期时各挑法的模拟。"""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.folder.name)
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def test_fiscal_window_matches_the_desktop_reader(self):
+        cases = {
+            # 11 月起账、第 12 期没读出、第 1 / 2 期起止写反顺序（乱序）、有次年段
+            "A": ((lambda cy: [cy[1], cy[0], *cy[2:]])(months(2024, 11)), months(2025, 11), {("", 12), ("NY", 3)}),
+            # 没有次年段：次年止留空（不按本年止 + 1 年补）
+            "B": (months(2025), (), set()),
+        }
+        for name, (current, following, skip) in cases.items():
+            path = self.root / name / "ISPRD.DBF"
+            path.parent.mkdir()
+            write_isprd(path, current, following, skip)
+            found = replay.isprd_window(path)
+            want = desktop_window(path)
+            self.assertEqual(found, (dt.date.fromisoformat(want["period_start"]),
+                                     dt.date.fromisoformat(want["period_end"]),
+                                     dt.date.fromisoformat(want["next_end"]) if "next_end" in want else None), name)
+        self.assertEqual(replay.isprd_window(self.root / "A" / "ISPRD.DBF"),
+                         (dt.date(2024, 11, 1), dt.date(2025, 9, 30), dt.date(2026, 10, 31)))
+        self.assertEqual(replay.isprd_window(self.root / "B" / "ISPRD.DBF")[2], None)
+        self.assertIsNone(replay.isprd_window(self.root / "none" / "ISPRD.DBF"))
+
+    def test_period_sources_in_priority_order(self):
+        """答案自带 ISPRD > 只读导出 > 测试账套 > 估算（strict 不报）；同名账套按本方税号分开。"""
+        docs = [("RR690101-001", dt.date(2026, 1, 10), "S001", "52-01", "100.00", "7.00", "3")]
+        make_book(self.root / "69ACME", docs)
+        export = (dt.date(2025, 1, 1), dt.date(2025, 12, 31), dt.date(2026, 12, 31))
+        book = replay.load_book(self.root / "69ACME", company="ACME", own_tax=OWN, key="69ACME", calendar=export,
+                                origin="export")
+        self.assertEqual((book["period"], book["period_origin"], book["period_source"]),
+                         (export[:2], "export", "ISPRD"))
+        estimated = replay.load_book(self.root / "69ACME", company="ACME", own_tax=OWN, key="69ACME")
+        self.assertEqual((estimated["period"][0], estimated["period_origin"], estimated["estimated"]),
+                         (dt.date(2026, 1, 1), "estimated", True))
+        strict = replay.load_book(self.root / "69ACME", company="ACME", own_tax=OWN, key="69ACME", periods="strict")
+        self.assertEqual((strict["period"], strict["next_end"], strict["period_origin"]), ((None, None), None, "none"))
+        write_isprd(self.root / "69ACME" / "原表" / "ISPRD.DBF", months(2026), months(2027))
+        answer = replay.load_book(self.root / "69ACME", company="ACME", own_tax=OWN, key="69ACME", calendar=export,
+                                  origin="export", periods="strict")
+        self.assertEqual((answer["period"], answer["next_end"], answer["period_origin"]),
+                         ((dt.date(2026, 1, 1), dt.date(2026, 12, 31)), dt.date(2027, 12, 31), "answer"))
+        # 只读导出与测试账套：导出优先；同名两家按税号分开，分不开又不同期的不认
+        exported = self.root / "导出" / "69ACME"
+        exported.mkdir(parents=True)
+        write_isprd(exported / "ISPRD.DBF", months(2025), months(2026))
+        found = replay.fiscal_calendars(None, [], self.root / "导出")
+        self.assertEqual(found.find("69acme", OWN), (export, "export"))
+        calendars = replay.Calendars()
+        calendars.add("testcopy", "69ACME", OWN, export)
+        calendars.add("testcopy", "69ACME", OTHER, (dt.date(2026, 1, 1), dt.date(2026, 12, 31), None))
+        self.assertEqual(calendars.find("69ACME", OWN), (export, "testcopy"))
+        self.assertIsNone(calendars.find("69ACME", SELLER))
+        self.assertEqual(calendars.conflicts(), ["testcopy:69ACME"])
+        with self.assertRaises(SystemExit):
+            replay.fiscal_calendars(None, [], pathlib.Path("S:/2569/ISPRD"))
+
+    def books(self, m, *, two_current=True, strict_other=False):
+        """68ACME（ISPRD 2025、次年段 2026）和 69ACME：``two_current`` 时 69 的 ISPRD 也是 2025（SINCERE 那种两份同期），
+        否则 2026；``strict_other`` 时 69 没有 ISPRD、strict 不报期间。"""
+        days = [dt.date(2025, 1, 10) + dt.timedelta(days=7 * index) for index in range(4)]
+        make_book(self.root / "68ACME", [(f"RR6801{index:02d}-001", day, "S001", "52-01", "1000.00", "70.00", "3")
+                                         for index, day in enumerate(days)])
+        make_book(self.root / "69ACME", [("RR680100-001", days[0], "S001", "52-01", "1000.00", "70.00", "3"),
+                                         *[(f"RR6901{index:02d}-001", dt.date(2026, 2, 10) + dt.timedelta(days=7 * index),
+                                            "S001", "52-01", "1000.00", "70.00", "3") for index in range(3)],
+                                         ("RR700301-001", dt.date(2027, 3, 1), "S001", "52-01", "1000.00", "70.00", "3")])
+        write_isprd(self.root / "68ACME" / "原表" / "ISPRD.DBF", months(2025), months(2026))
+        if not strict_other:
+            year = 2025 if two_current else 2026
+            write_isprd(self.root / "69ACME" / "原表" / "ISPRD.DBF", months(year), months(year + 1))
+        return [replay.load_book(self.root / name, company="ACME", own_tax=OWN, key=f"C:\\PearnlyExpress\\{name}",
+                                 periods="strict") for name in ("68ACME", "69ACME")]
+
+    def test_strict_periods_leave_books_without_isprd_unknown(self):
+        m = replay._modules()
+        old, new = self.books(m, strict_other=True)
+        self.assertEqual((new["period"], new["period_origin"]), ((None, None), "none"))
+        rows, _ = replay.judge_company(m, [old, new])
+        mine = [row for row in rows if row["book"] == new["key"]]
+        self.assertTrue(mine)
+        self.assertTrue(all("period_unknown" in row["reasons"] for row in mine), [row["reasons"] for row in mine])
+        self.assertTrue(all(replay.primary_cause(dict(row, needed=[])) == "period_unknown" for row in mine))
+        # 旧账套的单本年里照选；推到次年段要核新年度账套，同组那份期间没报：选不出
+        later = replay.judge_document(m, dict(old["docs"][0], date=dt.date(2026, 3, 3), entered=dt.date(2026, 3, 5)),
+                                      old, replay.Memory(), {}, [replay.account_row(old)], {}, replay.CompanyChoice(),
+                                      replay.shaped_books(m, [old, new]))
+        self.assertEqual((later["book_pick"], later["none_unknown"], later["outside"]), ("none", True, "next_year"))
+        self.assertIn("book_none", later["reasons"])
+        self.assertEqual(replay.primary_cause(dict(later, needed=[])), "book_none_unknown")
+        self.assertEqual({row["book_pick"] for row in rows if row["book"] == old["key"]}, {"self"})
+
+    def test_book_pick_codes(self):
+        m = replay._modules()
+        old, new = self.books(m)
+        estimated = dict(new, key="C:\\PearnlyExpress\\69ACME-BAK", period_origin="estimated", folder="69ACME-BAK")
+        newer = dict(new, key="C:\\PearnlyExpress\\70ACME", period=(dt.date(2026, 1, 1), dt.date(2026, 12, 31)),
+                     next_end=dt.date(2027, 12, 31))
+        day = dt.date(2025, 5, 1)
+
+        def pick(books, book, when=day):
+            shaped = replay.shaped_books(m, books)
+            return replay.book_pick(m, shaped, book, replay.day_books(m, shaped, book, when), when)
+
+        self.assertEqual(pick([old], old), {"book_pick": "self"})
+        found = pick([old, new], old)
+        self.assertEqual((found["book_pick"], found["many_estimated"], found["many_part"], len(found["many_keys"])),
+                         ("many", False, "current", 2))
+        self.assertTrue(pick([old, estimated], old)["many_estimated"])
+        self.assertEqual(pick([old, new], old, dt.date(2026, 5, 1))["many_part"], "next")
+        self.assertEqual(pick([old, newer], old, dt.date(2026, 5, 1)), {"book_pick": "other", "other_newer": True})
+        self.assertEqual(pick([newer, old], newer, day), {"book_pick": "other", "other_newer": False})
+        self.assertEqual(pick([old], old, dt.date(2028, 1, 1)), {"book_pick": "none", "none_unknown": False})
+        # 回放行带上这些字段、期间来源、入账日那一段与跨年标记
+        row = replay.judge_document(m, old["docs"][0], old, replay.Memory(), {}, [replay.account_row(old)], {},
+                                    replay.CompanyChoice(), replay.shaped_books(m, [old, new]))
+        self.assertEqual((row["book_pick"], row["period_origin"], row["posted_part"], row["crossyear"]),
+                         ("many", "answer", "", False))
+        self.assertIn("book_many", row["reasons"])
+
+    def test_causes_split_real_and_estimated_overlap(self):
+        base = {"reasons": ["book_many"], "needed": [], "prepare": "", "outside": ""}
+        self.assertEqual(replay.primary_cause(dict(base, book_pick="many", many_estimated=False)), "book_many_real")
+        self.assertEqual(replay.primary_cause(dict(base, book_pick="many", many_estimated=True)), "book_many_estimated")
+        other = dict(base, reasons=["book"], book_pick="other")
+        self.assertEqual(replay.primary_cause(dict(other, other_newer=True, outside="next_year")), "book_other_newer")
+        self.assertEqual(replay.primary_cause(dict(other, other_newer=False, crossyear=True)), "book_other_crossyear")
+        self.assertEqual(replay.primary_cause(dict(other, other_newer=False, crossyear=False)), "book_other")
+        # 期间外：入账日也在期间外是期间快照与答案不同期，只有发票日在外是补抵的真问题
+        late = dict(base, reasons=["period", "book_none"], book_pick="none", none_unknown=False)
+        self.assertEqual(replay.primary_cause(dict(late, outside="after", posted_part="after")), "after_snapshot")
+        self.assertEqual(replay.primary_cause(dict(late, outside="after", posted_part="")), "after")
+        self.assertEqual(replay.primary_cause(dict(late, outside="before", posted_part="before")), "before_snapshot")
+        self.assertEqual(replay.primary_cause(dict(late, outside="before", posted_part="next_year")), "before")
+        # 第四轮存档（没有 book_pick）照旧口径
+        self.assertEqual(replay.primary_cause({"reasons": ["book"], "needed": [], "outside": "next_year"}), "next_year")
+
+    def test_inventory_lists_overlaps_and_posted_outside(self):
+        m = replay._modules()
+        corpus = self.root / "corpus"
+        answers = corpus / "有答案" / f"ACME_{OWN}" / "答案"
+        answers.mkdir(parents=True)
+        old, new = self.books(m)
+        for name in ("68ACME", "69ACME"):
+            (self.root / name).rename(answers / name)
+        registry = self.root / "secure" / "SCCOMP.DBF"
+        registry.parent.mkdir()
+        write_dbf(registry, [("COMPCOD", "C", 5), ("COMPNAM", "C", 30), ("PATH", "C", 60)],
+                  [{"COMPCOD": "1", "COMPNAM": "ACME 2568", "PATH": "S:\\2568\\EXP68\\68ACME\\"}])
+        self.assertEqual(replay.registered_books(registry.parent), {"68ACME"})
+        out = self.root / "out"
+        with contextlib.redirect_stdout(io.StringIO()):
+            replay.main(["inventory", "--corpus", str(corpus), "--registry", str(registry), "--out", str(out)])
+        data = json.loads((out / "inventory.json").read_text(encoding="utf-8"))
+        books = {row["book"]: row for row in data["books"]}
+        self.assertEqual({name: (row["period_origin"], row["shared_docs"], row["registered"], row["posted_outside"])
+                          for name, row in books.items()},
+                         {"68ACME": ("answer", 1, True, 0), "69ACME": ("answer", 1, False, 1)})
+        self.assertEqual(books["69ACME"]["last_entered"], "2027-03-03")
+        overlap = data["overlaps"]["ACME"]
+        self.assertEqual(len(overlap), 1)
+        self.assertEqual((overlap[0]["current"], overlap[0]["next"], overlap[0]["only"]),
+                         (["2025-01-01", "2025-12-31"], ["2026-01-01", "2026-12-31"], [{"current": 3}, {"next": 3}]))
+        text = replay.render(None, None, data)
+        self.assertIn("同分店两两期间重叠 1 对", text)
+        # 给了登记表：选账套只认登记了的，没登记那份里的单选出的是另一份
+        rows, _ = replay.judge_company(m, [old, new], {"68ACME"})
+        mine = [row for row in rows if row["book"] == new["key"] and row["period"].startswith("2026")]
+        self.assertTrue(mine)
+        self.assertTrue(all(row["book_pick"] == "other" and row["registered"] is False for row in mine))
+
+    def test_tiebreak_on_two_books_of_the_same_year(self):
+        """SINCERE 那种两份 ISPRD 都是同一年：本年的单选出两份。ask_once 按本年 / 次年段各问一次，之后照选；第一张是两份都有
+        的复制单（回放在单多的 69 里），答案账套说不准，不记、下一张再问。"""
+        m = replay._modules()
+        old, new = self.books(m)
+        rows, skipped = replay.judge_company(m, [old, new])
+        self.assertEqual(skipped["copy_in_other_book"], 1)
+        self.assertEqual({row["book_pick"] for row in rows if row["period"] < "2027"}, {"many"})
+        self.assertTrue(all(replay.primary_cause(dict(row, needed=[])) == "book_many_real"
+                            for row in rows if row["period"] < "2027"))
+        found = replay.tiebreak(m, rows, [old, new])
+        self.assertEqual(found["ask_once"], {"asked": 3, "shared": 1, "right": 4, "stopped": 2, "freed": 4})
+        self.assertEqual(found["none"], {"shared": 1, "stopped": 6})
+
+    def test_tiebreak_simulations(self):
+        m = replay._modules()
+
+        def book(name, entries):
+            return {"key": f"C:\\X\\{name}", "folder": name, "own_tax": OWN, "branch": "00000",
+                    "period": (dt.date(2025, 1, 1), dt.date(2025, 12, 31)), "next_end": None,
+                    "entry_days": sorted(entries)}
+
+        one, two, three = (book("68A", [dt.date(2025, 1, 5)]), book("69A", [dt.date(2025, 1, 3)]),
+                           book("70A", [dt.date(2025, 1, 5)]))
+        key = {item["folder"]: replay.book_key(m, item) for item in (one, two, three)}
+
+        def row(owner, keys, entered, unique=True, reasons=("book_many", "needed")):
+            return {"book": owner["key"], "book_pick": "many", "many_keys": sorted(key[name] for name in keys),
+                    "many_part": "current", "entered": entered, "unique": unique, "class": "C",
+                    "reasons": list(reasons)}
+
+        rows = [row(one, ["68A", "69A"], "2025-01-10"), row(two, ["68A", "69A"], "2025-01-10"),
+                row(one, ["68A", "69A"], "2025-01-04", reasons=("book_many",)), row(one, ["68A", "70A"], "2025-01-10"),
+                row(one, ["68A", "69A"], "2025-01-11", unique=False)]
+        found = replay.tiebreak(m, rows, [one, two, three])
+        self.assertEqual(found["none"], {"stopped": 4, "shared": 1})
+        # 最近有录入：第一张 68A 最近；第三张录入前 68A 还没录入、选了 69A；第四张两份同一天、并列停下
+        self.assertEqual(found["recent_entry"], {"right": 1, "wrong": 2, "stopped": 1, "shared": 1})
+        # 之前推进去的：第一张没有；第二张选 68A 错；第三张 69A 刚推过、错；第四张 68A 对
+        self.assertEqual(found["recent_push"], {"stopped": 1, "wrong": 2, "right": 1, "shared": 1})
+        # 问一次：第一张问人（停）、记下 68A；同组第二张照选错、第三张对（只差这一项、不再是 C）；组合变了重问
+        self.assertEqual(found["ask_once"], {"asked": 2, "stopped": 2, "wrong": 1, "right": 1, "freed": 1,
+                                             "shared": 1})
+        summary = replay.summarize_judge({"rows": [], "skipped": {}, "tiers": {}, "tiebreak": {"ACME": found},
+                                          "origins": {"ACME": {"answer": 2}}, "periods": ["strict"]})
+        text = "\n".join(replay._render_books(summary))
+        self.assertIn("| ask_once | 1 | 1 | 2 | 2 | 25.00% | 1 | 1 |", text)
+        self.assertIn("期间口径 strict", text)
 
 
 class Scoring(unittest.TestCase):

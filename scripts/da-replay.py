@@ -19,17 +19,24 @@
 
 用法（测试机 WSL）::
 
-    python3 da-replay.py inventory --corpus /mnt/c/PearnlyStress/语料/06-录入推送 --gold /mnt/c/PearnlyStress/语料/金标-2026-10 --out OUT
-    python3 da-replay.py judge --corpus ... --out OUT [--company 名称]
+    python3 da-replay.py inventory --corpus /mnt/c/PearnlyStress/语料/06-录入推送 --gold /mnt/c/PearnlyStress/语料/金标-2026-10 --out OUT \
+        [--express 70EXP] [--isprd ISPRD导出] [--registry SCCOMP导出]
+    python3 da-replay.py judge --corpus ... --out OUT [--company 名称] [--express 70EXP] [--isprd ...] [--registry ...] \
+        [--periods strict|estimated] [--tiebreak none,recent_entry,recent_push,ask_once]
     PYTHONPATH=<含 pypdf 的目录> python3 da-replay.py gate --gold ... --originals /mnt/c/PearnlyStress/语料 \
         --manifest /mnt/c/PearnlyStress/语料/06-录入推送/清单.tsv --out OUT
     python3 da-replay.py report --out OUT
+
+会计期间（10-17）：与 CC 桌面版同口径读 ISPRD（`isprd_window`），来源依次是答案自带、``--isprd`` 只读导出、70EXP 测试账套；
+都没有时 judge 默认 ``--periods strict``（同线上读不到 ISPRD：不报期间），``estimated`` 按单据日期估作对照。每张单记下按日期选账套
+的情形（`book_pick`），C 类主因按它拆开真两份同期与估算重叠；两份同期时各挑法的选对率见 `tiebreak`（模拟，不改判档）。
 
 金额一律 Decimal；日期按单据所属会计期间（不看墙上时间）。脚本拒绝 ``\\\\`` 与 ``S:`` 开头的路径（不碰局域网真账），读写都拒。
 """
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import csv
 import datetime as dt
@@ -232,31 +239,112 @@ def next_year_end(end: Optional[dt.date]) -> Optional[dt.date]:
         return end.replace(year=end.year + 1, day=28)
 
 
-def fiscal_calendars(express: Optional[Path], sets: Sequence[Path]) -> Dict[str, Tuple[dt.date, dt.date, Optional[dt.date]]]:
-    """测试机本地 Express 测试账套（``70EXP/T*``，各公司最新账套的副本）的会计期间（ISPRD 本年 CY：BEG1 ～ END12，次年段
-    NY 止 END12NY，与 CC 桌面版上报的 ``period_start`` / ``period_end`` / ``next_end`` 同一来源）：``{来源账套名: (起, 止,
-    次年止)}``。对照表是语料脚本的 ``expsets*.tsv``（税号、年、来源账套、来源路径、测试账套……）。读不到的账套回放时按
-    单据日期估。"""
-    found: Dict[str, Tuple[dt.date, dt.date, Optional[dt.date]]] = {}
-    if not express:
-        return found
-    for table in sets:
-        if not refuse_lan(table).is_file():
-            continue
-        for line in table.read_text(encoding="utf-8-sig").splitlines():
-            parts = line.split("\t")
-            if len(parts) < 5 or not parts[2].strip() or not parts[4].strip():
+PERIOD_FIELDS = [f"{edge}{index}{slot}" for slot in ("", "NY") for index in range(1, 13) for edge in ("BEG", "END")]
+# 账套会计期间从哪来（10-17，按优先级）：答案自带的 ISPRD（与答案同一时刻导出）> ``--isprd`` 只读导出 > 测试机 70EXP 测试账套
+# > 按单据日期估（只在 ``--periods estimated`` 时用；strict 同线上读不到 ISPRD：不报期间）
+ORIGINS = ("answer", "export", "testcopy", "estimated", "none")
+
+
+def isprd_window(path: Path) -> Optional[Tuple[Optional[dt.date], Optional[dt.date], Optional[dt.date]]]:
+    """一张 ISPRD.DBF → (本年起, 本年止, 次年止)，与 CC 桌面版 `account_probe._fiscal_window` 同口径：BEG / END × 12 期 × 本年、
+    次年两段逐期容错读（起止缺一就跳过该期，`fiscal_period._read_periods`），本年起取本年各期起始最小、本年止取最大，次年止取
+    次年各期止最大；没有次年段次年止留空（线上没报就是空，不再按「本年止 + 1 年」补）。表不在、一期都读不出回 None。"""
+    row = next(dbf_rows(path, PERIOD_FIELDS), None)
+    if not row:
+        return None
+    current, following = [], []
+    for slot, bucket in (("", current), ("NY", following)):
+        for index in range(1, 13):
+            beg, end = row.get(f"BEG{index}{slot}"), row.get(f"END{index}{slot}")
+            if isinstance(beg, dt.date) and isinstance(end, dt.date):
+                bucket.append((beg, end))
+    if not current and not following:
+        return None
+    return (min(beg for beg, _end in current) if current else None,
+            max(end for _beg, end in current) if current else None,
+            max(end for _beg, end in following) if following else None)
+
+
+class Calendars:
+    """答案以外的会计期间来源（``--isprd`` 只读导出、70EXP 测试账套），按账套目录名找；同名账套（不同公司）按本方税号分开。
+    `find` 回 ((起, 止, 次年止), 来源) 或 None。"""
+
+    def __init__(self):
+        self.found: Dict[str, Dict[str, List[Tuple[str, Tuple]]]] = {"export": {}, "testcopy": {}}
+
+    def add(self, origin: str, name: str, tax: str, window: Optional[Tuple]) -> None:
+        if window:
+            self.found[origin].setdefault(name.strip().upper(), []).append((digits(tax), window))
+
+    def find(self, name: str, own_tax: str) -> Optional[Tuple[Tuple, str]]:
+        for origin in ("export", "testcopy"):
+            rows = self.found[origin].get(str(name or "").strip().upper()) or []
+            # 同税号的优先，再取没写税号的；都没有时只在同名各份期间一样时认（第四轮只按目录名认）
+            mine = [window for tax, window in rows if tax and tax == digits(own_tax)]
+            untaxed = [window for tax, window in rows if not tax]
+            windows = set(mine or untaxed or [window for _tax, window in rows])
+            if len(windows) == 1:
+                return windows.pop(), origin
+        return None
+
+    def conflicts(self) -> List[str]:
+        """同名、税号也分不开、期间又不同的账套目录名（这几份不认这一来源，盘点里列出）。"""
+        return sorted(f"{origin}:{name}" for origin, rows in self.found.items() for name, found in rows.items()
+                      if len({window for _tax, window in found}) > 1)
+
+
+def fiscal_calendars(express: Optional[Path], sets: Sequence[Path], isprd: Optional[Path] = None) -> Calendars:
+    """答案以外的会计期间（`isprd_window` 口径）：
+
+    - ``isprd``：用户批准的 S 盘只读导出（先复制到 C:，`refuse_lan` 不读 S:），目录下任意深度的 ``<账套目录>/ISPRD.DBF``，
+      按上一层目录名认；同目录有 ISINFO.DBF 时取它的税号分开同名账套；
+    - ``express``：测试机本地 Express 测试账套（``70EXP/T*``，各公司最新账套的副本），对照表是语料脚本的 ``expsets*.tsv``
+      （第 1 列税号、第 3 列来源账套、第 5 列测试账套）。
+    读不到的账套用答案自带的 ISPRD，再没有按 ``--periods`` 估或不报。"""
+    found = Calendars()
+    if isprd:
+        for path in sorted(refuse_lan(isprd).rglob("*")):
+            if path.name.upper() != "ISPRD.DBF" or not path.is_file():
                 continue
-            row = next(dbf_rows(refuse_lan(express) / parts[4].strip() / "ISPRD.DBF", ["BEG1", "END12", "END12NY"]),
-                       None)
-            if row and row.get("BEG1") and row.get("END12"):
-                found[parts[2].strip().upper()] = (row["BEG1"], row["END12"], row.get("END12NY") or None)
+            info = next((item for item in path.parent.iterdir() if item.name.upper() == "ISINFO.DBF"), None)
+            tax = (next(dbf_rows(info, ["TAXID"]), None) or {}).get("TAXID") if info else ""
+            found.add("export", path.parent.name, str(tax or ""), isprd_window(path))
+    if express:
+        for table in sets:
+            if not refuse_lan(table).is_file():
+                continue
+            for line in table.read_text(encoding="utf-8-sig").splitlines():
+                parts = line.split("\t")
+                if len(parts) < 5 or not parts[2].strip() or not parts[4].strip():
+                    continue
+                found.add("testcopy", parts[2], parts[0],
+                          isprd_window(refuse_lan(express) / parts[4].strip() / "ISPRD.DBF"))
     return found
 
 
-def load_book(folder: Path, *, company: str, own_tax: str, key: str,
-              calendar: Optional[Tuple] = None) -> Dict[str, Any]:
-    """一份账套答案（``答案/<账套>/原表``）→ 判定层要的全部事实。只读。"""
+def registered_books(registry: Optional[Path]) -> Optional[set]:
+    """Express 登记表 SCCOMP.DBF（``--registry``，只读导出，文件或含若干 SCCOMP.DBF 的目录）登记的账套目录名（PATH 最后一节，
+    大写）。线上目录只来自登记表（`account_probe.probe_account_sets`），没登记的备份副本、弃用账套线上不在目录里。没给回 None。"""
+    if not registry:
+        return None
+    root = refuse_lan(registry)
+    tables = [root] if root.is_file() else [path for path in sorted(root.rglob("*"))
+                                            if path.name.upper() == "SCCOMP.DBF" and path.is_file()]
+    names = set()
+    for table in tables:
+        for row in dbf_rows(table, ["COMPCOD", "PATH"]):
+            tail = re.split(r"[\\/]", str(row.get("PATH") or "").strip().rstrip("\\/"))[-1]
+            if str(row.get("COMPCOD") or "").strip() and tail:
+                names.add(tail.upper())
+    return names
+
+
+def load_book(folder: Path, *, company: str, own_tax: str, key: str, calendar: Optional[Tuple] = None,
+              origin: str = "testcopy", periods: str = "estimated") -> Dict[str, Any]:
+    """一份账套答案（``答案/<账套>/原表``）→ 判定层要的全部事实。只读。会计期间：答案自带 ``原表/ISPRD.DBF`` 优先，再用
+    ``calendar``（(起, 止, 次年止)，来源 ``origin``：export / testcopy，见 `fiscal_calendars`）；都没有时 ``periods`` 为
+    ``estimated`` 按单据日期估（`book_period`，次年止按本年止 + 1 年），``strict`` 不报期间（同线上读不到 ISPRD：该账套的单出
+    ``period_unknown``，同组旧账套退到次年段时核不了新年度账套、选不出）。"""
     tables = folder / "原表"
     info = next(dbf_rows(tables / "ISINFO.DBF", [*ISINFO_SLOTS.values(), "ORGNUM", "TAXID", "ISPERPETUA"]), {}) or {}
     defaults = {name: str(info.get(slot) or "").strip() for name, slot in ISINFO_SLOTS.items()}
@@ -304,8 +392,11 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str,
                    "stock_master_count": sum(1 for kind in stock_types.values() if kind == "stock")}
 
     vouchers: Dict[str, Dict[str, Any]] = {}
+    entry_days = []  # 这份账套里每张未作废凭证的录入日（GLJNL.CREDAT），`--tiebreak recent_entry` 与盘点 last_entered 用
     for row in dbf_rows(tables / "GLJNL.DBF", ["VOUCHER", "DOCSTAT", "CREDAT", "CREBY"]):
         voucher = str(row.get("VOUCHER") or "").strip().upper()
+        if isinstance(row.get("CREDAT"), dt.date) and str(row.get("DOCSTAT") or "").strip().upper() != CANCELLED:
+            entry_days.append(row["CREDAT"])
         if voucher:
             vouchers[voucher] = {"cancelled": str(row.get("DOCSTAT") or "").strip().upper() == CANCELLED,
                                  "created": row.get("CREDAT"), "debit": collections.Counter(),
@@ -367,14 +458,22 @@ def load_book(folder: Path, *, company: str, own_tax: str, key: str,
                 "vat_booked": bool(vat_lines), "stock": docnum in stock_docs,
                 "pearnly": str(row.get("USERID") or "").strip().upper() == "PEARNLY",
             })
-    period = tuple(calendar[:2]) if calendar else \
-        book_period([doc["date"] for doc in docs if doc["date"] and not doc["cancelled"]])
-    following = (calendar[2] if calendar and len(calendar) > 2 else None) or next_year_end(period[1])
+    own = isprd_window(tables / "ISPRD.DBF")
+    if own:
+        calendar, origin = own, "answer"
+    if calendar:
+        period, following = (calendar[0], calendar[1]), calendar[2] if len(calendar) > 2 else None
+    elif periods == "strict":
+        period, following, origin = (None, None), None, "none"
+    else:
+        period = book_period([doc["date"] for doc in docs if doc["date"] and not doc["cancelled"]])
+        following, origin = next_year_end(period[1]), "estimated"
     return {"key": key, "folder": str(folder), "company": company, "own_tax": own_tax,
             "branch": branch5(info.get("ORGNUM")), "defaults": defaults, "accounts": list(accounts.values()),
             "suppliers": suppliers, "customers": customers, "products": products, "departments": departments,
             "fingerprint": fingerprint, "perpetual": str(info.get("ISPERPETUA") or "").strip().upper() == "Y",
-            "period": period, "next_end": following, "period_source": "ISPRD" if calendar else "estimated",
+            "period": period, "next_end": following, "period_source": "ISPRD" if calendar else origin,
+            "period_origin": origin, "estimated": origin == "estimated", "entry_days": sorted(entry_days),
             "docs": docs}
 
 
@@ -504,8 +603,15 @@ def account_row(book: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def shaped_books(m, books: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
-    """这家公司各份账套给按日期选账套用的样子（`companies.identity.book`，带 ``next_end``）。"""
-    return [m["identity"].book("express", "replay", account_row(item)) for item in books]
+    """这家公司各份账套给按日期选账套用的样子（`companies.identity.book`，带 ``next_end``）；另带回放自己的 ``origin``
+    （期间来源，`ORIGINS`），选账套不看它。"""
+    return [dict(m["identity"].book("express", "replay", account_row(item)), origin=item.get("period_origin") or "")
+            for item in books]
+
+
+def book_key(m, book: Mapping[str, Any]) -> str:
+    """一份账套在目录里的键（与 `shaped_books` 同样规范化）。"""
+    return m["identity"].book("express", "replay", account_row(book))["key"]
 
 
 def day_books(m, shaped: Sequence[Mapping[str, Any]], book: Mapping[str, Any], day: dt.date) -> List[str]:
@@ -513,6 +619,52 @@ def day_books(m, shaped: Sequence[Mapping[str, Any]], book: Mapping[str, Any], d
     `companies.identity.for_day` —— 先本年期间覆盖这天的，没有再用次年段含这天的旧账套）。"""
     identity = m["identity"]
     return [item["key"] for item in identity.for_day(identity.for_branch(shaped, book["branch"]), day.isoformat())]
+
+
+def outside(book: Mapping[str, Any], day: Optional[dt.date]) -> str:
+    """这一天落在这份账套期间的哪一段之外：晚于次年段 ``after``、次年段 ``next_year``、早于本年 ``before``、本年里或期间
+    没报全回空串。"""
+    start, end = book["period"]
+    if not (start and end and isinstance(day, dt.date)):
+        return ""
+    following = book.get("next_end")
+    return "after" if following and day > following else "next_year" if day > end else "before" if day < start else ""
+
+
+def fiscal_year(start: Optional[dt.date], day: dt.date) -> int:
+    """这一天在以 ``start`` 起算的第几个会计年（期间没报按公历年）。"""
+    if not start:
+        return day.year
+    months = (day.year - start.year) * 12 + day.month - start.month - (1 if day.day < start.day else 0)
+    return months // 12
+
+
+def book_pick(m, shaped: Optional[Sequence[Mapping[str, Any]]], book: Mapping[str, Any],
+              picked: Sequence[str], day: dt.date) -> Dict[str, Any]:
+    """按日期选出的账套（``picked``，`day_books`）对这份账套是哪种情形（10-17，拆「两份同期」是真是估）：``self`` 正好是这份、
+    ``many`` 多份（``many_keys`` 候选、``many_estimated`` 候选里有按单据估期间的、``many_part`` 候选是本年覆盖 ``current``
+    还是次年段 ``next``）、``none`` 一份都选不出（``none_unknown`` 同分店有期间没报全的账套）、``other`` 另一份
+    （``other_newer`` 那份本年起始晚于这份本年止，即新年度账套已建）。"""
+    mine = book_key(m, book)
+    keys = sorted(set(picked))
+    found: Dict[str, Any] = {"book_pick": "self" if keys == [mine] else "none" if not keys else
+                             "many" if len(keys) > 1 else "other"}
+    group = m["identity"].for_branch(shaped, book["branch"]) if shaped is not None else []
+    by_key = {item["key"]: item for item in group}
+    if found["book_pick"] == "many":
+        found["many_keys"] = keys
+        found["many_estimated"] = any((by_key.get(key) or {}).get("origin") == "estimated" for key in keys)
+        first = by_key.get(keys[0]) or {}
+        found["many_part"] = "current" if str(first.get("period_start") or "") <= day.isoformat() <= \
+            str(first.get("period_end") or "") else "next"
+    elif found["book_pick"] == "none":
+        found["none_unknown"] = any(not (item.get("period_start") and item.get("period_end"))
+                                    for item in group if item["key"] != mine)
+    elif found["book_pick"] == "other":
+        end = book["period"][1]
+        start = str((by_key.get(keys[0]) or {}).get("period_start") or "")
+        found["other_newer"] = bool(end and start and start > end.isoformat())
+    return found
 
 
 def history_data(entries: Sequence[Mapping[str, Any]], since: dt.date, until: dt.date, read_at: dt.date
@@ -827,12 +979,13 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
               "party": pushed_evidence(m, log, entered, "party", branch)} if direction == "purchase" else \
         {"account": [], "payment": None, "party": None}
     pages = [{"fields": fields, "_layer_chain": ["direct"]}]
+    picked = day_books(m, shaped, book, day) if shaped is not None else [book_key(m, book)]
     facts = automation.Facts(
         direction=direction, fields=fields, decision=decision, payload=payload, config=config, today=entered,
         ready=ready, blocked=reason, pages=pages, review_reasons=(), text=synthetic_text(fields),
         page_texts=[synthetic_text(fields)],
         account=account_row(book), catalog=catalog,
-        day_books=day_books(m, shaped, book, day) if shaped is not None else [book["key"]], uploaded=entered,
+        day_books=picked, uploaded=entered,
         source_total=1, posting_from=posting_from, account_recent=recent["account"],
         payment_recent=recent["payment"], party_recent=recent["party"],
         prior_pushes=prior.get(_ref_key(m, fields["invoice_number"]), []), history_read=entered,
@@ -870,9 +1023,12 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
     return {"company": book["company"], "book": book["key"], "docnum": doc["docnum"], "direction": direction,
             "period": period, "entered": entered.isoformat(), "class": verdict.cls, "reasons": list(verdict.reasons),
             "items": dict(verdict.items), "needed": [item.get("kind") for item in decision["needed"]],
-            "outside": "" if not (book["period"][0] and book["period"][1]) else
-            "after" if book.get("next_end") and day > book["next_end"] else
-            "next_year" if day > book["period"][1] else "before" if day < book["period"][0] else "",
+            # 期间与选账套（10-17）：``outside`` 按单据（发票）日期、``posted_part`` 按入账日（APTRN / ARTRN.DOCDAT）比这份
+            # 账套的期间（同 `outside` 的取值）；``crossyear`` 两个日子落在不同会计年（跨年补抵）；``book_pick`` 等见 `book_pick`
+            "outside": outside(book, day), "posted_part": outside(book, doc.get("posted")),
+            "crossyear": isinstance(doc.get("posted"), dt.date) and
+            fiscal_year(book["period"][0], day) != fiscal_year(book["period"][0], doc["posted"]),
+            **book_pick(m, shaped, book, picked, day), "period_origin": book.get("period_origin") or "",
             "posting_from": posting_from,
             "prepare": reason, "sources": {**{key: (payload or {}).get(key) for key in ("doctype_src", "account_source",
                                                                                          "item_src", "doctype")},
@@ -914,9 +1070,14 @@ def _covers_next(book: Mapping[str, Any], day: dt.date) -> bool:
     return bool(start and end and following) and end < day <= following
 
 
-def owners(books: Sequence[Mapping[str, Any]]) -> Dict[Tuple, str]:
+def is_registered(book: Mapping[str, Any], registered: Optional[set]) -> bool:
+    """这份账套在不在 Express 登记表里（`registered_books`；没给登记表都算在）。"""
+    return registered is None or Path(str(book.get("folder") or book["key"])).name.upper() in registered
+
+
+def owners(books: Sequence[Mapping[str, Any]], registered: Optional[set] = None) -> Dict[Tuple, str]:
     """同一张单在几份账套里都有（Express 新年度账套是上一年复制过来的，带着往年的单；还有备份副本）：只在一份里回放。
-    键 (方向, 单号, 日期, 对方码, 含税额) → 回放它的账套：本年期间盖住单据日期的那份（ISPRD 的优先、再取单多的）；
+    键 (方向, 单号, 日期, 对方码, 含税额) → 回放它的账套：本年期间盖住单据日期的那份（登记了的优先，再 ISPRD 的、单多的）；
     都盖不住（次年段、往年段）取期间最晚的那份。"""
     found: Dict[Tuple, List[Mapping[str, Any]]] = collections.defaultdict(list)
     for book in books:
@@ -930,7 +1091,8 @@ def owners(books: Sequence[Mapping[str, Any]]) -> Dict[Tuple, str]:
         covering = [book for book in holders if _covers(book, day)] or \
             [book for book in holders if _covers_next(book, day)]
         pool = covering or holders
-        pool = sorted(pool, key=lambda book: (book.get("period_source") == "ISPRD", len(book["docs"]),
+        pool = sorted(pool, key=lambda book: (is_registered(book, registered), book.get("period_source") == "ISPRD",
+                                              len(book["docs"]),
                                               book["period"][0] or dt.date.min, book["key"]), reverse=True)
         out[key] = pool[0]["key"]
     return out
@@ -940,13 +1102,27 @@ def doc_key(doc: Mapping[str, Any]) -> Tuple:
     return (doc["direction"], doc["docnum"], doc["date"], doc["party_code"], str(doc["total"]))
 
 
-def judge_company(m, books: Sequence[Mapping[str, Any]]) -> Tuple[List[Dict[str, Any]], collections.Counter]:
+def holders(books: Sequence[Mapping[str, Any]]) -> collections.Counter:
+    """每张单（`doc_key`）在几份账套里有（复制来的新年度账套、备份副本）。"""
+    found = collections.Counter()
+    for book in books:
+        for key in {doc_key(doc) for doc in book["docs"] if doc["date"]}:
+            found[key] += 1
+    return found
+
+
+def judge_company(m, books: Sequence[Mapping[str, Any]], registered: Optional[set] = None
+                  ) -> Tuple[List[Dict[str, Any]], collections.Counter]:
     """一家公司（各年度账套）按单据录入日顺序判；每份账套各自一份账套记忆与已推记录。同一张单只在一份账套里回放
-    （`owners`）。"""
-    catalog = [account_row(book) for book in books]
+    （`owners`）。``registered``（`registered_books`）：给了时按日期选账套与目录只认登记了的账套（线上目录 = 登记表），
+    没登记的账套里的单照样判（选出的就不是它）。每行另记 ``unique``（这张单只在一份账套里有，`tiebreak` 只拿这种计分）与
+    ``registered``。"""
+    listed = [book for book in books if is_registered(book, registered)]
+    catalog = [account_row(book) for book in listed]
     out, skipped = [], collections.Counter()
     queue = []
-    owner = owners(books)
+    owner = owners(books, registered)
+    held = holders(books)
     for book in books:
         for doc in book["docs"]:
             why = eligible(doc)
@@ -962,12 +1138,76 @@ def judge_company(m, books: Sequence[Mapping[str, Any]]) -> Tuple[List[Dict[str,
     purchases = {book["key"]: history_index(book["docs"], m["choices"].norm_name) for book in books}
     stock = sum(1 for item in queue if item[4]["stock"])
     preferred = "stock" if stock * 2 >= len(queue) else "service"
-    company, shaped = CompanyChoice(preferred), shaped_books(m, books)  # 语料一家公司一个目录：按公司选的入账方式一家一份
+    company, shaped = CompanyChoice(preferred), shaped_books(m, listed)  # 语料一家公司一个目录：按公司选的入账方式一家一份
     pushed = collections.defaultdict(dict)  # 每份账套：供应商 → 推出去的单（科目、现 / 赊、对方档，`pushed_evidence`）
     for _entered, _day, _number, book, doc in queue:
-        out.append(judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
-                                  purchases[book["key"]], company, shaped, pushed[book["key"]]))
+        row = judge_document(m, doc, book, memories[book["key"]], priors[book["key"]], catalog,
+                             purchases[book["key"]], company, shaped, pushed[book["key"]])
+        row.update(unique=held[doc_key(doc)] == 1, registered=is_registered(book, registered))
+        out.append(row)
     return out, skipped
+
+
+# 两份以上同期账套时怎么挑（10-17，零费用模拟，不改判档）：none 照线上停下；recent_entry 认这张单录入前 Express 里最近有录入
+# （GLJNL.CREDAT）的那份；recent_push 认之前模拟推进去的那份；ask_once 用户已定的口径：同一家、同一分店、本年或次年段、
+# 同一组候选第一次停下时问人一次（模拟的人按答案选），之后同组照选，候选组合变了重新问
+TIEBREAKS = ("none", "recent_entry", "recent_push", "ask_once")
+
+
+def _last_before(days: Sequence[dt.date], day: dt.date) -> Optional[dt.date]:
+    index = bisect.bisect_left(days, day)
+    return days[index - 1] if index else None
+
+
+def tiebreak(m, rows: Sequence[Mapping[str, Any]], books: Sequence[Mapping[str, Any]],
+             strategies: Sequence[str] = TIEBREAKS) -> Dict[str, Dict[str, int]]:
+    """一家公司的判定行（`judge_company` 的顺序，即录入日顺序）里按日期选出多份账套（``book_pick == many``）的单，各口径会挑
+    哪份。只拿只在一份账套里有的单（``unique``）与答案账套（这张单所在的那份）比：``right`` 选对、``wrong`` 选错、``stopped``
+    仍停（ask_once 问人那张也算停，``asked`` 另计；问到几份都有的单不记选择、下一张再问）；``shared`` 几份都有、答案账套
+    不唯一的不计分；``freed`` 选对且 C 类原因只剩 ``book_many`` 的（挑对就不再是 C）。"""
+    by_raw = {book["key"]: book for book in books}
+    by_norm = {book_key(m, book): book for book in books}
+    out = {name: collections.Counter() for name in strategies}
+    asked: Dict[Tuple, str] = {}
+    last_push: Dict[str, int] = {}
+    for index, row in enumerate(rows):
+        book = by_raw[row["book"]]
+        own = book_key(m, book)
+        if row.get("book_pick") == "many":
+            candidates = list(row.get("many_keys") or ())
+            entered = dt.date.fromisoformat(row["entered"])
+            for name in strategies:
+                choice = None
+                if name == "recent_entry":
+                    latest = {key: _last_before(by_norm[key].get("entry_days") or [], entered)
+                              for key in candidates if key in by_norm}
+                    best = max((day for day in latest.values() if day), default=None)
+                    winners = [key for key, day in latest.items() if best and day == best]
+                    choice = winners[0] if len(winners) == 1 else None
+                elif name == "recent_push":
+                    seen = {key: last_push[key] for key in candidates if key in last_push}
+                    choice = max(seen, key=seen.get) if seen else None
+                elif name == "ask_once":
+                    combo = (book["branch"], row.get("many_part"), tuple(candidates))
+                    choice = asked.get(combo)
+                    if choice is None:
+                        out[name]["asked"] += 1
+                        if own in candidates and row.get("unique"):
+                            # 模拟的人按答案选这份，记下这组候选；几份都有的单答案账套说不准，不记、下一张再问
+                            asked[combo] = own
+                counter = out[name]
+                if not row.get("unique"):
+                    counter["shared"] += 1
+                elif choice is None:
+                    counter["stopped"] += 1
+                elif choice == own:
+                    counter["right"] += 1
+                    if row["class"] == "C" and list(row["reasons"]) == ["book_many"]:
+                        counter["freed"] += 1
+                else:
+                    counter["wrong"] += 1
+        last_push[own] = index  # 这张单推进了它所在的账套（A / B 照推，C 由人推）
+    return {name: dict(counter) for name, counter in out.items()}
 
 
 # ── 档位时间线（三套阈值并排） ───────────────────────────────────────────────────
@@ -1247,25 +1487,86 @@ def _gold(gold_dir: Path) -> Tuple[Dict[str, Any], Dict[str, Dict[str, str]]]:
     return gold, sample
 
 
-def cmd_inventory(args) -> int:
-    corpus, out = refuse_lan(args.corpus), refuse_lan(args.out)
-    books, coverage = [], collections.Counter()
+def load_books(args, corpus: Path, periods: str) -> Tuple[Dict[str, List[Tuple[Path, Dict[str, Any]]]], Calendars]:
+    """按 ``--company`` 读答案账套（`answer_books`）：{公司: [(目录, `load_book`)]}；会计期间来源见 `fiscal_calendars`。"""
     calendars = fiscal_calendars(Path(args.express) if args.express else None,
-                                 [corpus / "_脚本" / name for name in ("expsets.tsv", "expsets7.tsv")])
+                                 [corpus / "_脚本" / name for name in ("expsets.tsv", "expsets7.tsv")],
+                                 Path(args.isprd) if getattr(args, "isprd", None) else None)
     loaded = collections.defaultdict(list)
     for company, tax, folder in answer_books(corpus, args.company):
+        found = calendars.find(folder.name, tax)
         loaded[company].append((folder, load_book(folder, company=company, own_tax=tax, key=folder.name,
-                                                  calendar=calendars.get(folder.name.upper()))))
+                                                  calendar=found[0] if found else None,
+                                                  origin=found[1] if found else "testcopy", periods=periods)))
+    return loaded, calendars
+
+
+def cmd_inventory(args) -> int:
+    """盘点按 estimated 读期间（没有 ISPRD 的按单据估，``period_origin`` 标出），估出来的重叠也列出来。"""
+    corpus, out = refuse_lan(args.corpus), refuse_lan(args.out)
+    books, coverage, overlaps = [], collections.Counter(), {}
+    loaded, calendars = load_books(args, corpus, "estimated")
+    registered = registered_books(Path(args.registry) if args.registry else None)
     for company, pairs in sorted(loaded.items()):
-        owner = owners([book for _folder, book in pairs])
+        owner = owners([book for _folder, book in pairs], registered)
+        keys = {book["key"]: {doc_key(doc) for doc in book["docs"] if doc["date"] and not doc["cancelled"]}
+                for _folder, book in pairs}
         for folder, book in pairs:
-            _inventory_book(company, folder, book, owner, books, coverage)
-    _inventory_real(args, books, coverage, out)
+            others = set().union(*[found for key, found in keys.items() if key != book["key"]])
+            _inventory_book(company, folder, book, owner, books, coverage,
+                            shared=len(keys[book["key"]] & others),
+                            registered=None if registered is None else is_registered(book, registered))
+        overlaps[company] = book_overlaps([book for _folder, book in pairs], keys)
+    _inventory_real(args, books, coverage, out, overlaps, calendars.conflicts())
     return 0
 
 
-def _inventory_book(company, folder, book, owner, books, coverage) -> None:
-    """一份账套的盘点行（只数这份账套「拥有」的单，见 `owners`）。"""
+def _span_overlap(one: Tuple, two: Tuple) -> Optional[Tuple[dt.date, dt.date]]:
+    if not all(one) or not all(two):
+        return None
+    start, end = max(one[0], two[0]), min(one[1], two[1])
+    return (start, end) if start <= end else None
+
+
+def book_overlaps(books: Sequence[Mapping[str, Any]], keys: Mapping[str, set]) -> List[Dict[str, Any]]:
+    """同一家同一分店两两账套的期间重叠（`identity.for_day` 会两份都选出的那种）：本年段与本年段、次年段与次年段各自重叠的
+    起止、两边期间来源，以及重叠段里只在这一份里有的单数（``only``，按 `doc_key`；复制来的往年单两份都有，不算）。"""
+    out = []
+    for index, one in enumerate(books):
+        for two in books[index + 1:]:
+            if one["branch"] != two["branch"]:
+                continue
+            spans = {"current": _span_overlap(one["period"], two["period"]),
+                     "next": _span_overlap((one["period"][1] and one["period"][1] + dt.timedelta(days=1),
+                                            one.get("next_end")),
+                                           (two["period"][1] and two["period"][1] + dt.timedelta(days=1),
+                                            two.get("next_end")))}
+            if not any(spans.values()):
+                continue
+
+            def only(book, other):
+                found = collections.Counter()
+                for doc in book["docs"]:
+                    if doc["cancelled"] or not doc["date"] or doc_key(doc) in keys[other["key"]]:
+                        continue
+                    for part, span in spans.items():
+                        if span and span[0] <= doc["date"] <= span[1]:
+                            found[part] += 1
+                return dict(found)
+
+            out.append({"books": [one["key"], two["key"]], "branch": one["branch"],
+                        "origins": [one.get("period_origin"), two.get("period_origin")],
+                        **{part: [str(day) for day in span] if span else None for part, span in spans.items()},
+                        "only": [only(one, two), only(two, one)]})
+    return out
+
+
+def _inventory_book(company, folder, book, owner, books, coverage, *, shared: int = 0,
+                    registered: Optional[bool] = None) -> None:
+    """一份账套的盘点行（只数这份账套「拥有」的单，见 `owners`）。期间检验（10-17）：``posted_outside`` 入账日
+    （APTRN / ARTRN.DOCDAT）落在本年起～次年止之外的单数（Express 只在 24 期里记账，真 ISPRD 应约等于 0；不为 0 说明期间快照与
+    答案不同期）；``last_entered`` 最后一张凭证录入日；``shared_docs`` 与同公司别的账套相同的单数（复制 / 备份）；
+    ``registered`` 在不在登记表（给了 ``--registry`` 才有）。"""
     tables = folder / "原表"
     present = [name for name in ANSWER_TABLES if (tables / f"{name}.DBF").is_file()]
     docs = book["docs"]
@@ -1273,12 +1574,20 @@ def _inventory_book(company, folder, book, owner, books, coverage) -> None:
     rectyp = collections.Counter(f"{doc['direction']}:{doc['rectyp'] or '-'}" for doc in docs if not doc["cancelled"])
     for doc in usable:
         coverage[(company, doc["date"].strftime("%Y-%m"))] += 1
+    live = [doc for doc in docs if not doc["cancelled"] and isinstance(doc.get("posted"), dt.date)]
     books.append({
         "company": company, "book": folder.name, "tables": present,
         "fields": {name: [field for field in ("ACCNUM", "SUPCOD", "CUSCOD", "RECTYP", "CREDAT", "USERID")
                           if field in dbf_fields(tables / f"{name}.DBF")]
                    for name in ("APTRN", "ARTRN", "GLJNL", "GLJNLIT")},
         "period": [str(day) for day in book["period"]], "period_source": book["period_source"],
+        "next_end": str(book.get("next_end") or ""), "period_origin": book.get("period_origin") or "",
+        "branch": book["branch"],
+        "posted_outside": sum(1 for doc in live if outside(book, doc["posted"]) in ("after", "before")
+                              or (outside(book, doc["posted"]) == "next_year" and not book.get("next_end"))),
+        "posted_checked": len(live) if all(book["period"]) else 0,
+        "last_entered": str((book.get("entry_days") or [""])[-1]),
+        "shared_docs": shared, "registered": registered,
         "in_period": sum(1 for doc in usable if book["period"][0] and book["period"][0] <= doc["date"] <= book["period"][1]),
         "docs": len(docs), "usable": len(usable),
         "purchase": sum(1 for doc in usable if doc["direction"] == "purchase"),
@@ -1296,7 +1605,7 @@ def _inventory_book(company, folder, book, owner, books, coverage) -> None:
     print(f"{company} {folder.name}: {len(usable)}/{len(docs)}", flush=True)
 
 
-def _inventory_real(args, books, coverage, out) -> None:
+def _inventory_real(args, books, coverage, out, overlaps=None, conflicts=()) -> None:
     real = collections.Counter()
     if args.gold:
         gold, sample = _gold(Path(args.gold))
@@ -1305,8 +1614,9 @@ def _inventory_real(args, books, coverage, out) -> None:
             for invoice in item.get("invoices") or []:
                 real[(row.get("公司") or "?", str(invoice.get("date") or "")[:7] or "?", row.get("形态") or "?",
                       row.get("有答案") or "?")] += 1
-    _write_json(out / "inventory.json", {"books": books, "periods": [
-        {"company": company, "period": period, "docs": count} for (company, period), count in sorted(coverage.items())],
+    _write_json(out / "inventory.json", {
+        "books": books, "overlaps": overlaps or {}, "calendar_conflicts": list(conflicts), "periods": [
+            {"company": company, "period": period, "docs": count} for (company, period), count in sorted(coverage.items())],
         "real_results": [{"company": c, "period": p, "form": f, "answers": a, "invoices": n}
                          for (c, p, f, a), n in sorted(real.items())]})
     print(f"books {len(books)}", flush=True)
@@ -1315,20 +1625,24 @@ def _inventory_real(args, books, coverage, out) -> None:
 def cmd_judge(args) -> int:
     m = _modules()
     corpus, out = refuse_lan(args.corpus), refuse_lan(args.out)
-    by_company = collections.defaultdict(list)
-    calendars = fiscal_calendars(Path(args.express) if args.express else None,
-                                 [corpus / "_脚本" / name for name in ("expsets.tsv", "expsets7.tsv")])
-    for company, tax, folder in answer_books(corpus, args.company):
-        by_company[company].append(load_book(folder, company=company, own_tax=tax, key=folder.name,
-                                             calendar=calendars.get(folder.name.upper())))
-    for company, books in sorted(by_company.items()):
-        judged, why = judge_company(m, books)
+    loaded, _calendars = load_books(args, corpus, args.periods)
+    registered = registered_books(Path(args.registry) if args.registry else None)
+    strategies = [name.strip() for name in str(args.tiebreak or "").split(",") if name.strip()]
+    unknown = sorted(set(strategies) - set(TIEBREAKS))
+    if unknown:
+        raise SystemExit(f"unknown --tiebreak {','.join(unknown)} (choose from {','.join(TIEBREAKS)})")
+    for company, pairs in sorted(loaded.items()):
+        books = [book for _folder, book in pairs]
+        judged, why = judge_company(m, books, registered)
         base = m["automation_rules"].THRESHOLDS
         tiers = {name: timeline(m, judged, value or base) for name, value in THRESHOLD_SETS.items()}
         tiers["A_task"] = timeline(m, judged, base, trigger="task")
-        # 一家一个文件（可以分两三路并行跑），`report` 合并
+        # 一家一个文件（可以分两三路并行跑），`report` 合并；期间口径与选账套模拟一并记下
         _write_json(out / "judge" / f"{company.replace('/', '_')}.json",
-                    {"rows": judged, "skipped": {company: dict(why)}, "tiers": {company: tiers}})
+                    {"rows": judged, "skipped": {company: dict(why)}, "tiers": {company: tiers},
+                     "tiebreak": {company: tiebreak(m, judged, books, strategies)},
+                     "origins": {company: dict(collections.Counter(book["period_origin"] for book in books))},
+                     "periods": args.periods, "registry": bool(registered is not None)})
         print(f"{company}: {len(judged)} docs, " + ", ".join(
             f"{key} {sum(1 for row in judged if row['class'] == key)}" for key in "ABC"), flush=True)
     return 0
@@ -1338,12 +1652,16 @@ def load_judge(out: Path) -> Optional[Dict[str, Any]]:
     files = sorted((out / "judge").glob("*.json")) if (out / "judge").is_dir() else []
     if not files:
         return None
-    merged: Dict[str, Any] = {"rows": [], "skipped": {}, "tiers": {}}
+    merged: Dict[str, Any] = {"rows": [], "skipped": {}, "tiers": {}, "tiebreak": {}, "origins": {}, "periods": set()}
     for path in files:
         part = json.loads(path.read_text(encoding="utf-8"))
         merged["rows"].extend(part["rows"])
         merged["skipped"].update(part["skipped"])
         merged["tiers"].update(part["tiers"])
+        merged["tiebreak"].update(part.get("tiebreak") or {})
+        merged["origins"].update(part.get("origins") or {})
+        merged["periods"].add(part.get("periods") or "estimated")  # 第四轮及以前的存档没有这一项：都是估的
+    merged["periods"] = sorted(merged["periods"])
     return merged
 
 
@@ -1402,14 +1720,43 @@ def cmd_gate(args) -> int:
     return 0
 
 
-# C 类按「主要原因」归一类（按这个顺序取第一个命中的），方便按类修
+BOOK_REASONS = {"book", "book_many", "book_none"}
+
+
+def _picked(row: Mapping[str, Any], pick: str) -> bool:
+    """这张 C 单因按日期选账套没选到这份停下，且选法是 ``pick``（`book_pick`）。"""
+    return row.get("book_pick") == pick and bool(BOOK_REASONS & set(row["reasons"]))
+
+
+# C 类按「主要原因」归一类（按这个顺序取第一个命中的），方便按类修。期间与选账套（10-17）按 `book_pick` 拆开「真两份同期 /
+# 估算重叠 / 新年度已建 / 跨年补抵」；期间外的再按入账日拆：入账日也在期间外是期间快照与答案不同期（回放偏差），只有发票日
+# 在外是补抵的真问题
 CAUSES = (
     ("posting", "商品单没声明入账类型（永续 / 混合库存账套交人）", lambda row: str(row.get("prepare") or "").startswith("posting_needs_review")),
     ("needed", "第一次见、要人选（对方档 / 科目 / 现赊）", lambda row: bool(row.get("needed"))),
-    ("next_year", "单据在账套次年段、新年度账套已建（该推往新账套）",
-     lambda row: row.get("outside") == "next_year" and bool({"period", "book"} & set(row["reasons"]))),
-    ("after", "单据晚于账套次年段", lambda row: row.get("outside") == "after"),
-    ("before", "单据早于账套本年", lambda row: row.get("outside") == "before"),
+    ("period_unknown", "推往账套读不到会计期间（没有 ISPRD；strict 同线上不报期间）",
+     lambda row: "period_unknown" in row["reasons"]),
+    ("book_many_real", "按日期选出两份以上同期账套，候选期间都是真 ISPRD（真问题）",
+     lambda row: _picked(row, "many") and not row.get("many_estimated")),
+    ("book_many_estimated", "按日期选出两份以上同期账套，候选里有按单据估的期间（回放偏差）",
+     lambda row: _picked(row, "many") and bool(row.get("many_estimated"))),
+    ("book_none_unknown", "一份都选不出：同分店有账套期间没报全，核不了新年度账套",
+     lambda row: _picked(row, "none") and bool(row.get("none_unknown"))),
+    ("book_other_newer", "单据在账套次年段、新年度账套已建（该推往新账套）",
+     lambda row: _picked(row, "other") and bool(row.get("other_newer"))),
+    ("book_other_crossyear", "选出另一份：发票日与入账日跨会计年（跨年补抵）",
+     lambda row: _picked(row, "other") and bool(row.get("crossyear"))),
+    ("book_other", "选出另一份（其他）", lambda row: _picked(row, "other")),
+    # 第四轮及以前的存档没有 book_pick，照旧口径归类
+    ("next_year", "单据在账套次年段、新年度账套已建（旧存档口径）",
+     lambda row: "book_pick" not in row and row.get("outside") == "next_year"
+     and bool({"period", "book"} & set(row["reasons"]))),
+    ("after_snapshot", "单据晚于账套次年段，入账日也在期间外（期间快照与答案不同期，回放偏差）",
+     lambda row: row.get("outside") == "after" and row.get("posted_part") in ("after", "before")),
+    ("after", "单据晚于账套次年段（入账日在期间内：补抵的真问题）", lambda row: row.get("outside") == "after"),
+    ("before_snapshot", "单据早于账套本年，入账日也在期间外（期间快照与答案不同期，回放偏差）",
+     lambda row: row.get("outside") == "before" and row.get("posted_part") in ("after", "before")),
+    ("before", "单据早于账套本年（入账日在期间内：补抵的真问题）", lambda row: row.get("outside") == "before"),
     ("stale", "录入晚于单据日期 60 天以上", lambda row: "date_stale" in row["reasons"]),
     ("number", "答案没有对方单号", lambda row: "invoice_no_missing" in str(row.get("prepare") or "")),
     ("party", "对方档定不下（无 13 位税号 / 同税号多档 / 分店不符）", lambda row: "item:party" in row["reasons"]),
@@ -1490,7 +1837,23 @@ def summarize_judge(data: Mapping[str, Any]) -> Dict[str, Any]:
                                              if item != "payment") and bool(row["scored"])) for row in a_rows]
     sales_payment = [row for row in a_rows + b_rows if row["direction"] == "sales"
                      and row["scored"].get("payment", "n/a") != "n/a"]
+    # 期间与选账套（10-17）：期间口径、各家账套期间来源、按日期选账套的情形（全部 / C 类）、选多份时各挑法的模拟
+    picks = {"all": dict(collections.Counter(row.get("book_pick") or "-" for row in rows)),
+             "C": dict(collections.Counter(
+                 (row.get("book_pick") or "-") + (":estimated" if row.get("many_estimated") else "")
+                 for row in rows if row["class"] == "C"))}
+    origins = collections.Counter()
+    for found in (data.get("origins") or {}).values():
+        origins.update(found)
+    tiebreaks: Dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    for found in (data.get("tiebreak") or {}).values():
+        for name, counter in found.items():
+            tiebreaks[name].update(counter)
     return {"docs": len(rows), "classes": dict(by_class), "A": _accuracy(a_rows), "B": _accuracy(b_rows),
+            "periods": list(data.get("periods") or []), "origins": dict(origins), "book_picks": picks,
+            "tiebreak": {name: dict(counter) for name, counter in tiebreaks.items()},
+            "tiebreak_companies": {company: found for company, found in sorted((data.get("tiebreak") or {}).items())
+                                   if any(sum(counter.values()) for counter in found.values())},
             "A_eval": _accuracy(a_rows, "correct_eval"), "B_eval": _accuracy(b_rows, "correct_eval"),
             "AB_eval": _accuracy(a_rows + b_rows, "correct_eval"),
             "sales_payment": {"n": len(sales_payment),
@@ -1562,6 +1925,39 @@ def summarize_gate(data: Mapping[str, Any]) -> Dict[str, Any]:
             "by_form": {form: part([row for row in rows if row["form"] == form]) for form in sorted({row["form"] or "?" for row in rows})}}
 
 
+def _rate(counter: Mapping[str, int]) -> str:
+    scored = sum(counter.get(key, 0) for key in ("right", "wrong", "stopped"))
+    return pct(counter.get("right", 0) / scored if scored else None)
+
+
+def _render_books(s: Mapping[str, Any]) -> List[str]:
+    """报表里「期间与选账套」一节（10-17）：期间口径与来源、按日期选账套的情形、选多份时各挑法的模拟（只拿独有单计分）。"""
+    lines = [f"期间口径 {'/'.join(s.get('periods') or []) or '—'}；账套期间来源（份）："
+             + "、".join(f"{key} {value}" for key, value in sorted((s.get("origins") or {}).items())) + "。", "",
+             "按日期选账套（self 正好是推往的这份 / many 多份同期 / none 选不出 / other 另一份）：全部 "
+             + "、".join(f"{key} {value}" for key, value in sorted(((s.get("book_picks") or {}).get("all") or {}).items()))
+             + "；C 类 " + "、".join(f"{key} {value}" for key, value in
+                                    sorted(((s.get("book_picks") or {}).get("C") or {}).items())) + "。", ""]
+    found = s.get("tiebreak") or {}
+    if found:
+        lines += ["选出多份同期账套时各挑法（模拟，只拿只在一份账套里有的单与答案账套比；ask_once = 按公司、分店、本年 / 次年段、"
+                  "候选组合问一次）：", "",
+                  "| 挑法 | 选对 | 选错 | 仍停 | 其中问人 | 选对率 | 选对后不再是 C | 几份都有、不计分 |", "|---|---|---|---|---|---|---|---|",
+                  *[f"| {name} | {value.get('right', 0)} | {value.get('wrong', 0)} | {value.get('stopped', 0)} | "
+                    f"{value.get('asked', 0)} | {_rate(value)} | {value.get('freed', 0)} | {value.get('shared', 0)} |"
+                    for name, value in found.items()], ""]
+        per = s.get("tiebreak_companies") or {}
+        names = list(found)
+        if per:
+            lines += ["按家（选对 / 选错 / 仍停）：", "", "| 公司 | " + " | ".join(names) + " |",
+                      "|---|" + "---|" * len(names),
+                      *[f"| {company} | " + " | ".join(
+                          f"{(value.get(name) or {}).get('right', 0)} / {(value.get(name) or {}).get('wrong', 0)} / "
+                          f"{(value.get(name) or {}).get('stopped', 0)}" for name in names) + " |"
+                        for company, value in per.items()], ""]
+    return lines
+
+
 def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]],
            inventory: Optional[Mapping[str, Any]]) -> str:
     lines = ["# 第 3 期两层回放报表", ""]
@@ -1577,6 +1973,17 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                   f"凭证有录入日 {sum(b['with_entered'] for b in books)}。",
                   f"- 每份账套都有原表：{sum(1 for b in books if set(ANSWER_TABLES) - {'STMAS', 'STCRD', 'ISTAB'} <= set(b['tables']))}"
                   f"/{len(books)} 份齐 ISINFO / APTRN / ARTRN / ISVAT / GLJNL / GLJNLIT / APMAS / ARMAS / GLACC。", ""]
+        origins = collections.Counter(book.get("period_origin") or book.get("period_source") or "?" for book in books)
+        drift = [book for book in books if book.get("period_origin") in ("answer", "export", "testcopy")
+                 and book.get("posted_outside")]
+        overlaps = [item for found in (inventory.get("overlaps") or {}).values() for item in found]
+        lines += ["- 会计期间来源（份）：" + "、".join(f"{key} {value}" for key, value in sorted(origins.items()))
+                  + f"；真 ISPRD 的账套里入账日落在期间外的有 {len(drift)} 份（共 "
+                  f"{sum(book['posted_outside'] for book in drift)} 张，应约等于 0，不为 0 是期间快照与答案不同期）。",
+                  f"- 同分店两两期间重叠 {len(overlaps)} 对（两边都是真 ISPRD "
+                  f"{sum(1 for item in overlaps if 'estimated' not in item['origins'])} 对）；"
+                  + ("登记表里没有的账套 " + str(sum(1 for book in books if book.get("registered") is False)) + " 份。"
+                     if any(book.get("registered") is not None for book in books) else "没给登记表。"), ""]
         real = inventory.get("real_results") or []
         with_answer = [row for row in real if row["answers"] == "是"]
         cells = collections.Counter()
@@ -1625,6 +2032,7 @@ def render(judge: Optional[Mapping[str, Any]], gate: Optional[Mapping[str, Any]]
                   "C 类按主要原因（每张只算一类）：", "", "| 主要原因 | 张数 |", "|---|---|",
                   *[f"| {dict((k, l) for k, l, _t in CAUSES).get(key, '其他')} | {value} |"
                     for key, value in s["c_causes"].items()], "",
+                  *_render_books(s),
                   "C 类全部原因码（一张可多个，前 15）：" + "、".join(f"{key} {value}" for key, value in
                                                          list(s["c_reasons"].items())[:15]), "",
                   "B 类判断项：" + "、".join(f"{key} {value}" for key, value in s["b_judged"].items()), "",
@@ -1722,11 +2130,19 @@ def main(argv=None) -> int:
     inventory.add_argument("--gold")
     inventory.add_argument("--company")
     inventory.add_argument("--express")
+    inventory.add_argument("--isprd")
+    inventory.add_argument("--registry")
     inventory.add_argument("--out", required=True)
     judge = sub.add_parser("judge")
     judge.add_argument("--corpus", required=True)
     judge.add_argument("--company")
     judge.add_argument("--express", help="测试机本地 Express 测试账套根（70EXP），取会计期间 ISPRD")
+    judge.add_argument("--isprd", help="各账套 ISPRD.DBF 的只读导出目录（先复制到 C:），优先于 70EXP")
+    judge.add_argument("--registry", help="Express 登记表 SCCOMP.DBF 的只读导出（文件或目录）：选账套只认登记了的")
+    judge.add_argument("--periods", choices=("strict", "estimated"), default="strict",
+                       help="没有 ISPRD 的账套：strict 不报期间（同线上），estimated 按单据日期估（对照）")
+    judge.add_argument("--tiebreak", default=",".join(TIEBREAKS),
+                       help="选出多份同期账套时模拟的挑法，逗号隔开：" + " / ".join(TIEBREAKS))
     judge.add_argument("--out", required=True)
     gate = sub.add_parser("gate")
     gate.add_argument("--gold", required=True)

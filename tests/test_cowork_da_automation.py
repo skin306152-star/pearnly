@@ -543,11 +543,13 @@ class Checks(unittest.TestCase):
         no_next = {"source_id": BOOK, "attributes": {k: v for k, v in ACCOUNT["attributes"].items() if k != "next_end"}}
         self.assertIn("period", self.reasons(account=no_next, catalog=[no_next], **next_year))
         self.assertIn("period_unknown", self.reasons(account={"source_id": BOOK, "attributes": {"tax_id": OWN}}))
-        # 推往的账套须正好是按这张单日期选出的那份
-        self.assertIn("book", self.reasons(day_books=None))
-        self.assertIn("book", self.reasons(day_books=[]))
-        self.assertIn("book", self.reasons(day_books=[BOOK, BOOK_OLD]))
-        self.assertIn("book", self.reasons(day_books=[BOOK_OLD]))
+        # 推往的账套须正好是按这张单日期选出的那份；选不出、选出多份、选出另一份分开记（10-17 拆码，结果都是 C）
+        for day_books, code in ((None, "book_none"), ([], "book_none"), ([BOOK, BOOK_OLD], "book_many"),
+                                ([BOOK_OLD, BOOK_OLD.lower()], "book"), ([BOOK_OLD], "book")):
+            found = self.reasons(day_books=day_books)
+            self.assertIn(code, found, day_books)
+            self.assertEqual(len({"book", "book_many", "book_none"} & set(found)), 1, found)
+            self.assertEqual(auto.classify(_facts(day_books=day_books)).cls, auto.C)
         self.assertEqual(self.reasons(day_books=["c:/PearnlyExpress/69ACME/"]), [])
         self.assertIn("date_future", self.reasons(today=dt.date(2026, 10, 19), uploaded=dt.date(2026, 10, 19)))
         self.assertIn("date_stale", self.reasons(uploaded=dt.date(2026, 12, 20), today=dt.date(2026, 12, 21)))

@@ -472,8 +472,14 @@ def checks(facts: Facts) -> List[str]:
             found.append("period_unknown")
         elif not start <= day <= end:
             found.append("period")
+        # 按日期选账套的结果分开记（都还是 C，只为从 ``auto_reasons`` 数得出真实的两份同期量，10-17）：选出多份同期
+        # ``book_many``、一份都选不出 ``book_none``（没给、空表、新年度账套核不了）、选出的是另一份 ``book``
         books = None if facts.day_books is None else {normalize_express_account_key(key) for key in facts.day_books}
-        if books is None or books != {_target_key(facts)}:
+        if not books:
+            found.append("book_none")
+        elif len(books) > 1:
+            found.append("book_many")
+        elif books != {_target_key(facts)}:
             found.append("book")
         earliest = (facts.uploaded or facts.today) - dt.timedelta(days=EARLIEST_DAYS)
         if day > facts.today:
