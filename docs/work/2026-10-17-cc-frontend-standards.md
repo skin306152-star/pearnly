@@ -123,6 +123,32 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 ② `shoot()` 开头校验环境名都在 ENVS / EXTRA_ENVS 里，SIGINT 处理时顺带删掉 `out/.profiles`。
 另：第四遍 D 用的是收尾时又改过三处（关 Chrome 等进程退出、删目录重试、attach-menu 去掉菜单期望）的工具，修完后没有再从头连跑两遍新的全矩阵，以 A 对 D 的 0 差为准。
 
+### B1 开工前（10-18，`pearnly/cc-std-b1` 第一个提交，不碰 `src`）
+
+**补修复核留的两条加固**（都做了）：
+
+1. 闸门：任意属性写法里 `var()` 引用的不是 `--cc-*`（`[max-width:var(--thread-max-width)]`、`[width:var(--sidebar-width)]`、`[transition-duration:var(--foo)]`、`[--cc-x:var(--foo)]`）记 R10；用例补进 `tests/test_cc_frontend_gate.py`。
+2. 比对工具：`shoot()` 开头核对环境名、深浅色都在 `ENVS / EXTRA_ENVS / SCHEMES` 里，写错直接报错退出、不清输出目录；Ctrl+C / kill 时除了关 Chrome，还删掉还在用的 profile 目录（`<out>/.profiles`、比对的 `<report>/.profile`）。
+   实测：`--env nope` 报错、退出码 1；全矩阵跑到第 8 秒 Ctrl+C，退出码 130，`.profiles` 已删、Chrome 0 个。
+
+**闸门几种理论漏拦写法**（逐个用 Tailwind 4.3.3 的 `compile()` 现编看会不会生成样式，再定拦还是登记）：
+
+| 写法 | 现编结果 | 处理 |
+| :- | :- | :- |
+| `[z-index:50]`（及 `[line-height:2]`、`[font-weight:600]`） | 生成 `z-index: 50` | 拦：任意属性写不带单位的数，同 `z-[…]` / `leading-[…]` 方括号里必须有变量，按族记 R7 / R6 / R15；`[z-index:calc(var(--cc-z-menu)+1)]`、`[z-index:0]` 放行 |
+| `[width:var(--foo)]`、`[transition-duration:var(--foo)]`、`[--cc-x:var(--foo)]` | 照常生成 | 拦，记 R10（上面第 1 条）；`[--cc-x:…]` 里的 `--cc-x` 没登记另记 R14（原有） |
+| `group-@md:flex` | 不生成（不是合法变体） | 照样拦（R11），顺带查出真正会生成的组合：`not-sm:` → `@media not (width >= 40rem)`、`not-pointer-coarse:` → `@media not (pointer: coarse)`、`not-@md:` → `@container not (…)`。闸门先剥掉 `not- / group- / peer- / in- / has-` 再判断点、输入设备、容器查询，都记 R11；`not-max-md:`、`not-md:` 等于那一条断点，放行 |
+| 常量拼长度 `` `${4}px` `` | — | 拦：模板里 `${…}` 只有数字字面量（`${4}`、`${2 * 100}`）再接单位记 R12（style 块、`.style.x =`、`setProperty` 里的照旧由各自模式记一次）。拼的是常量名（`` `${GAP}px` ``、`` `${n * 8}px` `` 写在 style 以外）机械上判不出，**登记为已知限制**，审查时按 2.6 看（常量也要来自 globals.css 的变量或测试核对过的回退值） |
+
+对真实 src：这几条没有新增命中，`--report` 仍是 1340 处（main 上比 803c483b 多 3 处，都在 R13）。
+
+**比对工具「动作没做完」三处**：
+
+- 桌面版 `session-panel`：桌面版对话名旁的「···」在自画标题栏 `.cc-titlebar` 里，标题栏第一颗 `.cc-row-btn` 是侧栏收起钮；选择器改成 `:is(.cc-topbar, .cc-titlebar) .cc-row-btn[aria-haspopup="menu"]`，并设期望（菜单，或窄屏盖满屏的会话栏）。
+- 窄屏 `chin-month`：手机没有输入框下巴（用户 10-17：基础信息放上面），已有对话的月份在右上「…」的「处理月份」里，窄屏子菜单在原菜单里换页（`data-slot="cc-menu-sub"`）；窄屏改走这条，期望菜单。
+- 767.5 宽 `settings`：不是工具的问题，是风险 3 那条缺陷（767.5 宽时变体判成 web、没有手机顶栏）。B1 把 `MOBILE_QUERY` 改成 `(width < 768px)` 后打得开，作为画面变化 V37 单独提交（见第 7 节）；基点那一遍照旧记「动作没做完」。
+- 试跑：desktop / desktop-coarse / desktop-narrow / phone / tablet-portrait 浅色这两个场景都做完、期望状态都在。
+
 ## 0. 结论
 
 1. **标准只有一个来源：`globals.css`**。`ccs.md` 只写规则和变量名，不抄数值。组件 className 只写布局，外加变量写法（`p-(--cc-space-12)`、`size-(--cc-icon-sm)`）。同一组外观出现两处以上，就收成一个 `cc-*` 类。

@@ -68,7 +68,10 @@ export const SCENES = [
   S("composer-typed", "/assistant?c=sesn_r1", [["type", "textarea", "你好，帮我看一下九月"]]),
   // 「＋」直接调起系统选文件（没有菜单）：这个场景看的是按下后的按钮状态
   S("attach-menu", "/assistant?c=sesn_r1", [["click", ".cc-attach", 0]]),
-  S("chin-month", "/assistant?c=sesn_a1", [["click", ".cc-chin-btn", 1]]),
+  // 月份胶囊：电脑在输入框下巴里；手机没有下巴（用户 10-17：基础信息放上面），已有对话的月份在右上「…」的「处理月份」里
+  // （窄屏的子菜单在原菜单里换页：components/ui/menu.tsx 的 data-slot="cc-menu-sub"）
+  S("chin-month", "/assistant?c=sesn_a1", both([["click", ".cc-chin-btn", 1]],
+    [["click", ".cc-mpill button", 1], ["click", '[data-slot="cc-menu-sub"]', 0], ["wait", 500]]), { expect: MENU }),
   S("tooltip", "/assistant?c=sesn_a1", [["hover", ".cc-titlebar .cc-icon-btn, .cc-topbar .cc-icon-btn, .cc-topbar .cc-row-btn", 0], ["wait", 700]], { layouts: ["wide"] }),
 
   // ── 侧栏 ──
@@ -98,7 +101,10 @@ export const SCENES = [
   S("results-doc", "/assistant?c=sesn_rich", [["click", FILE_CARD, 1], ["wait", 600]]),
   S("results-html", "/assistant?c=sesn_rich", [["click", FILE_CARD, 2], ["wait", 600], ["click", '[role="tab"]', 1]]),
   S("results-pdf", "/assistant?c=sesn_rich", [["click", FILE_CARD, 3], ["wait", 600]], { init: NO_PDF_VIEWER, expect: '[data-slot="cc-pdf-pages"]' }),
-  S("session-panel", "/assistant?c=sesn_a1", both([["click", ".cc-topbar .cc-row-btn", 0]], [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0]])),
+  // 宽屏：会话栏停靠时默认开着，这里点对话名旁的「···」（网页在 .cc-topbar、CC 桌面版在自画标题栏 .cc-titlebar 里；
+  // 标题栏里第一颗 .cc-row-btn 是侧栏收起钮，按 aria-haspopup 找）；窄屏：右上「…」→ 公司名，会话栏盖满屏
+  S("session-panel", "/assistant?c=sesn_a1", both([["click", ':is(.cc-topbar, .cc-titlebar) .cc-row-btn[aria-haspopup="menu"]', 0]],
+    [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0]]), { expect: `${MENU}, .cc-panel[data-mode="phone"]` }),
   S("company-panel", "/assistant?company=C-0001", [["click", ".cc-page-head .cc-icon-btn", 0]]),
 
   // ── 页面 ──
