@@ -22,7 +22,8 @@
 | 批 | 状态 |
 | :- | :- |
 | B0 闸门与比对工具骨架 | 10-18 变基到 main（669427ca，之后只多了交接文档的 249f5928），本地全闸门 87 步全过，推分支等 Development checks 通过后快进合入 main；不碰 `src`，无画面变化，不部署 |
-| B1–B8 | 待开工 |
+| B1 标准层 | `pearnly/cc-std-b1`（基线 c4ab0c3e，工作树 `.claude/worktrees/cc-std-b1`），提交见下面「B1 做了什么」；纯替换 4 个提交逐个比对 0 样式差、0 像素差，画面变化 V2 / V3 / V4 / V6 / V37 逐个比对只差预期的项；本地全闸门 87 步全过。比对报告 `~/pearnly-devtools/cc-std-b1/reports/`，画面变化前后图 `~/pearnly-devtools/cc-std-b1/visual/`。**未推送、未合入 main、未部署；待测试窗口验收**（V3、V4、V37 的触屏与中间宽度要用户手机 / 平板走） |
+| B2–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 main 的 SHA、比对报告位置、测试窗口验收状态。
 
@@ -148,6 +149,66 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 - 窄屏 `chin-month`：手机没有输入框下巴（用户 10-17：基础信息放上面），已有对话的月份在右上「…」的「处理月份」里，窄屏子菜单在原菜单里换页（`data-slot="cc-menu-sub"`）；窄屏改走这条，期望菜单。
 - 767.5 宽 `settings`：不是工具的问题，是风险 3 那条缺陷（767.5 宽时变体判成 web、没有手机顶栏）。B1 把 `MOBILE_QUERY` 改成 `(width < 768px)` 后打得开，作为画面变化 V37 单独提交（见第 7 节）；基点那一遍照旧记「动作没做完」。
 - 试跑：desktop / desktop-coarse / desktop-narrow / phone / tablet-portrait 浅色这两个场景都做完、期望状态都在。
+
+### B1 做了什么（10-18，`pearnly/cc-std-b1`）
+
+基线 `origin/main` c4ab0c3e；分支自己的 `node_modules`（`npm ci --prefix frontend/assistant`、`npm ci --prefix frontend`，真实目录）。动工前核对：`cc-drag-perf`、`cc-scroll-fix`、`cc-ef-fixes` 都已随 cc-shell-rebuild 进了 main；
+正在测试机验收的 `pearnly/cc-drag-engine` 不改 globals.css，改 `drag.tsx`、`test_assistant_ui.py`、`test_cc_session_panel.py`——B1 没碰 `drag.tsx`，两份测试只改了断言 globals.css 写法的那几行。
+
+| 提交 | 内容 | 类 |
+| :- | :- | :- |
+| 3bc9d7f8 | B1 开工前：闸门与比对工具加固（上一节） | 工具 |
+| 95dbf34c | `lib/variant.ts` 在首帧前写 `<html data-cc-touch>`（手机变体，或粗指针且不是桌面窗口），监听主指针变化 | DOM 标记（比对只差根节点属性） |
+| 9f8d7ffa | 标准层：刻度层一块、用途层、运行时层默认值；`@theme` 接实测字阶 9 档、字重 4 档、`--breakpoint-md: 768px`；`cn()` 登记字号、字重名 | 纯替换 |
+| 4acd80ea | globals.css 内部替换：共用类里写死的间距、尺寸、字号、字重、层级、时长全换成同值变量并补出处；运行时变量去掉回退；`@media` 统一写法；13 对手机 / 粗指针成对规则合成 `:root[data-cc-touch]`；`.cc-results` 手机全屏；删无人用的同义变量、tw-shimmer、collapsible 残留；`--cc-bg-active` 并入 `--cc-bg-selected`、`--cc-titlebar-h` 改名 `--cc-win-titlebar-h`；H27 选择器 | 纯替换 |
+| 649bf5aa | 新共用类（2.3 全部）、`.cc-switch` 40×24、`.cc-btn / .cc-new-dot / .cc-send[data-stop]` 的图标规则、减少动效选择器；「每个 `--cc-*` 都有人用或等某批接上」的测试；收紧清单登记 4 个文件 | 纯替换（新类暂无人用） |
+| ee7e697d | V2 默认过渡 | 画面变化 B |
+| 3e019925 | V3 触屏点按区不跟桌面窗口、月份分店胶囊补点按区 | 画面变化 A |
+| d70ba4a9 | V4 图标按钮成对规则以完整的一边合并 | 画面变化 A（预期无可见差异） |
+| 0e7b5bcc | V6 不可用透明度统一 0.4 | 画面变化 B |
+| c0b1c7e8 | V37 `MOBILE_QUERY` 改 `(width < 768px)`，断点三处一致测试 | 画面变化 A（缺陷修复，新增） |
+| 91e59229 | 比对工具：只差像素的场景前、后最多各复拍 3 轮；`--expect-root` 单列预期的根节点属性 | 工具 |
+| （本记录） | ccs.md「尺寸、间距、字号、层级、动效」一节；本记录 | 文档 |
+
+**与方案不同、按依据定的几处**（都在 globals.css 注释里写明）：
+
+1. `--text-4xl` 这一档 **B1 不删**：现在删，Tailwind 会退回自带的 4xl（36/40），`assistant.tsx:129` 的 `md:text-4xl` 让宽屏问候行高 36 → 40，不是纯替换。B3 删掉 `md:text-4xl` 后由 B8 删这一档（属于 B8「删已无人引用的旧名」）。
+2. 不登记 `--cc-skeleton-dur`：V5 把骨架改成 `--cc-pulse`，2s 不会再有人用；改为在 `@theme` 接 `--animate-cc-pulse`（B2 的 Skeleton 写 `animate-cc-pulse`）。
+3. 2.2 的用途变量全部登记；新共用类里在刻度上的值直接用刻度（`--cc-space-8` 等），不另起同义的用途名。还没有组件接上的用途变量列在 `tests/test_cc_ccs.py` 的 `AWAITING` 表里，写明由哪一批接上：表里的变量必须已定义、且确实还没人引用，一接上测试就要求从表里删；B8 时表必须为空。这是待办表，不是豁免——表外的 `--cc-*` 没人引用就失败。
+4. `.cc-dialog` 挪到 `.cc-card` 前面再补外观：添加公司的弹窗现在同时带 `cc-card cc-dialog`，按原位置补圆角 16 会让它在 B1 就变（V14 的一部分提前）；挪到前面后它照旧按 `cc-card` 的 8，B4 去掉 `cc-card` 后才是 16。
+5. 状态点外层叫 `.cc-status-line`（`.cc-status` 已是连接提示条在用的名字）。`.cc-tabs` 这个名字原来是公司页旧页签、已删；B1 起是结果面板的页签（V24），`test_cc_session_panel.py` 那条「旧页签已删」的断言改成核对公司页不用它。
+6. 新增 `--cc-z-drag-shield` 54（拖动挡板，原来写死 54）、`--cc-vw`（整屏宽，系统值）、`--cc-menu-max-none`（菜单默认限高，原来写在 `var()` 回退里的 100vh）。
+7. `.cc-new-dot svg`、`.cc-send[data-stop] svg` 放在分层外，选择器盖得过抽屉导航图标 20、电脑输入框按钮图标 16 那两条分层外的规则——B6 / B7 删掉组件上的 `!size-4 / !size-3.5` 后照旧是 16 / 14。
+8. 触屏合并：13 对规则在纯替换提交里合成；`.cc-tap`、`.cc-card-btn`、`.cc-choice-*` 三处原来只按粗指针、没排除桌面窗口，合到触屏标记就是 V3（画面变化）；图标按钮那一对两边不一样（粗指针那份排除了电脑顶栏、桌面标题栏），是 V4。
+9. V20 在 B1 的部分只是登记 `--cc-card-btn-icon-phone`（22，外壳实测）并让 `.cc-card-btn svg` 用它，画面不变；变化在 B4 删掉 `pending.tsx` 的 `size-4` 时出现。
+10. 比对工具两处补强（`scripts/cc-visual/compare.mjs`）：只差像素的场景前、后各复拍最多 3 轮，前、后出过的图里有一模一样的一对才判光栅抖动；`--expect-root data-cc-touch` 把预期的根节点属性变化单列（触屏标记那个提交用）。
+
+**比对**（`scripts/cc-visual/`，全矩阵 = 7 种环境 + 767.5 宽 × 浅深 = 16 组、757 张，7 条跑道，每遍约 12.6 分钟；产物 `vite build --outDir ~/pearnly-devtools/cc-std-b1/dist-<名>`，截图 `…/shots/<名>`，报告 `…/reports/<前>-vs-<后>/report.md`）：
+
+| 比的两遍 | 结果 | 说明 |
+| :- | :- | :- |
+| 基线 A / 基线 B（同一构建 c4ab0c3e 连跑两遍，新场景表） | 0 差 | 只差像素的 10 个场景复拍判为光栅抖动 |
+| 基线 → 95dbf34c（触屏标记） | 样式 0、像素 0 | 406 个场景只多了根节点 `data-cc-touch`（`--expect-root` 单列）：手机、平板竖屏、触屏网页、桌面版拉窄四种环境；桌面版在触屏上没有，符合规则 |
+| 95dbf34c → 9f8d7ffa（标准层） | 0 差 | 抖动 18 个 |
+| 9f8d7ffa → 4acd80ea（内部替换） | 0 差 | 抖动 13 个 |
+| 4acd80ea → 649bf5aa（新共用类） | 0 差 | 抖动 7 个 |
+| 基线 → 649bf5aa（纯替换整段） | 0 差（预期根节点标记单列） | 抖动 7 个 |
+| V2：649bf5aa → ee7e697d | 样式只有 `transition-duration 0.15s → 0.12s` 与 `transition-timing-function (.4,0,.2,1) → (.32,.72,0,1)` 两种（全量逐场景核对，32862 条） | 静止画面不变；5 个有像素差的场景都是下面那条抖动带，单独多拍几次，改前、改后两份构建都会拍出同样的两种结果 |
+| V3：ee7e697d → 3e019925 | 只有 desktop-coarse（CC 桌面版在触屏 Windows 上）一种环境有差异，102 个场景：卡片按钮从 44 全圆胶囊回到电脑的 24 / 13px，`cc-tap` 的点按区与记住的选择回到电脑高度 | 网页深色 boot-page-menu 有一处悬停残留（侧栏箭头透明度），单独复拍前后 0 差；月份分店胶囊的触屏点按区场景没渲染到，合成节点核对：只多 `position: relative` 与 `::after`，外观不变 |
+| V4：3e019925 → d70ba4a9 | 0 差 | 合成节点核对：只有手机变体里放进电脑顶栏 / 桌面标题栏的图标按钮变化，手机上不存在这两种栏 |
+| V6：d70ba4a9 → 0e7b5bcc | 只有 `opacity 0.35 → 0.4`：不可用的 `.cc-icon-btn`（248 处）与发送钮（186 处），329 个场景 | 网页深色 boot-page-menu 同上那处悬停残留 |
+| V37：0e7b5bcc → c0b1c7e8 | 只有 web-767.5 浅深两组、3 个场景有差异：767.5 宽从「网页布局 + 已收起的侧栏、没有手机顶栏」变成手机外壳；设置场景改前「动作没做完」，改后打得开 | 其余 751 个场景 0 差 |
+
+- **光栅抖动**：窄屏长对话（`sesn_rich`）输入框那一条渐变带，机器忙时会光栅成两种之一；对同一个场景多拍几次，改前、改后两份构建都拍出同样的两张（md5 a0409e01 / 6143bb4e，文字放大那一张 206aa734 / 3f2d3937）。比对工具现在前、后最多各复拍 3 轮，出过一模一样的一对才判抖动。
+- **场景没渲染到的类**（覆盖检查列出的 `.cc-chip-btn`、`.cc-chip-x`、`.cc-choice-detail / -seg / -error`、`.cc-company-empty`、`.cc-disclosure`、`.cc-field`、`.cc-group-dot`、`.cc-install-guide*`、`.cc-loading`、`.cc-month-set`、`.cc-row-edit`、`.cc-show-more`，以及只是关键帧名的 `cc-bob / cc-pulse / cc-tail …`）：没有改场景表（改了就得把 9 份构建全部重拍），改用**合成节点核对**补上——`~/pearnly-devtools/cc-std-b1/class-check.mjs`：两份构建的 CSS 装进同一个合成页面，globals.css 里的每个类、每个 data-slot 在 55 种上下文里各放普通 / 带齐状态属性两个节点，按 6 种组合（网页、桌面窗口、触屏网页、触屏上的桌面窗口、手机、桌面版拉窄）× 浅深色、开 CDP 触屏模拟，比每个节点与伪元素的计算样式（约 90 项）。同一构建自比 0 差。基线 → 4acd80ea 的差异全部是合成页面里才会有的组合：`.cc-results` 的手机全屏规则（实际页面调用处的 `max-md:` 类给的是同一组值，场景比对 0 差）；`.cc-mshell .cc-greeting` 放在非手机变体里（实际只有手机才有手机外壳）；H27 让触屏弹窗里 `.cc-btn / .cc-icon-btn` 的 `min-height / min-width` 成了 44（它们在触屏上本来就是 44 高 / 宽，外框不变）。4acd80ea → 649bf5aa 去掉新类后，差异只有 `.cc-btn svg`、`.cc-new-dot svg`、`.cc-send[data-stop] svg`、`.cc-section-label[data-flush]` 这几条新规则作用在合成节点上（实际组件里的图标都写了 `size-*`，还没有 `data-flush / data-stop`）。报告 `reports/class-check-*.json`。
+- **没有比对的**：悬停、聚焦以外的交互状态，真机字体，Qt WebEngine 与 WSL2 的渲染（5.2 已知局限）。
+
+**画面变化的前后图**（`~/pearnly-devtools/cc-std-b1/visual/<编号>/<环境>-<深浅>/<场景>-前 / -后 / -差异.png`，每个目录带一份比对报告）：V2（网页、桌面窗口、手机 × 深浅，静止画面一致，差在过渡时长）、V3（触屏上的桌面窗口 102 个场景）、V4（无可见差异，留了对照）、V6（网页、桌面窗口、手机 × 深浅里有差异的 164 个场景）、V37（767.5 宽 6 个场景）。
+
+**还缺什么**：测试窗口验收（三种变体 × 深浅色看 V2–V6、V37；V3 要触屏 Windows 上的 CC 桌面版，V4 / V37 要用户手机与平板、浏览器缩放到 767–768 之间走一遍）；推分支、等 Development checks、快进合入 main（按「主线集成」，本次没做）；B2 起各批按 `AWAITING` 表接上用途变量。B2–B7 迁移时如发现用途层缺档或语义不合，按 4.1 登记例外补到 globals.css。
+
+**闸门报数**（`--report`）：范围外 1340 → 854 处（R13 427 → 0、R14 21 → 0、R15 38 → 0，其余各条不变：R4 190、R5 412、R6 4、R7 22、R8 103、R9 27、R10 58、R11 13、R12 25）；收紧清单 4 个文件（`globals.css`、`hooks/use-mobile.ts`、`lib/utils.ts`、`lib/variant.ts`）0 违例。
+
 
 ## 0. 结论
 
@@ -798,13 +859,14 @@ R5 间距 412（+2：`sidebar.tsx:232–233` 的 `start / end-[calc(var(--sideba
 | V34 | B7 | 复制图标切换的时长 | 150 / 200，Tailwind ease-out | `--cc-dur-fast` / `--cc-dur`，加 `ease-cc-out` | B |
 | V35 | B7 | 附件：悬停效果叠了两层；上传遮罩有 1px 模糊 | 两种悬停叠加；有模糊 | 只留 `.cc-compose-tile` 的悬停；去掉模糊 | A |
 | V36 | B2 / B3 / B4 / B7 | `sm:`（640）改 `md:`（768）：`dialog.tsx` 的 `sm:text-start / sm:flex-row`、图片预览的 `sm` 断点、`assistant.tsx:128` 形象 `sm:h-28`、`scheduled-tasks.tsx` 863 / 895 / 995 行的 `sm:grid-cols-2`、`attachment.tsx:115` 的 `sm:max-w-3xl` | 640–767 宽（iPad mini 竖屏 744、CC 桌面版窗口拉窄）按宽屏排 | 只有一条断点 768（与变体同一条），这一段按手机排；640 没有 Claude 依据。验证用 tablet-portrait、desktop-narrow 两种环境 | A |
+| V37 | B1 | 手机 / 电脑分界的查询文本：`hooks/use-mobile.ts` 的 `MOBILE_QUERY` 是 `(max-width: 767px)`，`max-md:` 是 `(width < 48rem)` | 浏览器缩放出 767.5 这类小数宽度时变体判成 web、`max-md:` 的类却生效：侧栏已收起、却没有手机顶栏，设置等入口点不到（B0 比对 web-767.5 实测） | 三处同一段文本 `(width < 768px)` / `(width >= 768px)`（2.1「断点」），767.5 宽按手机外壳排；测试用项目自己的 Tailwind 现编 globals.css 核对 | A（B1 比对时补进本节） |
 
 ## 8. 批次清单
 
 | 批 | 名称 | 依赖 | 画面变化 |
 | :- | :- | :- | :- |
 | B0 | 闸门与比对工具骨架 | 无（现在开工） | 无 |
-| B1 | 标准层（globals.css、@theme、touch 标记、断点、twMerge） | B0、cc-drag-perf 合入、cc-scroll-fix 合入 | V2、V3、V4、V6、V20 |
+| B1 | 标准层（globals.css、@theme、touch 标记、断点、twMerge） | B0、cc-drag-perf 合入、cc-scroll-fix 合入 | V2、V3、V4、V6、V20（B1 部分无可见变化）、V37 |
 | B2 | 组件库与共用 lib | B1 | V5、V7、V9、V11、V18、V36 |
 | B3 | 外壳 | B2 | V1、V8、V16、V36 |
 | B4 | 弹窗与列表页 | B2 | V1、V3、V6、V8、V10、V12、V14、V15、V17、V19、V20、V21、V22、V36 |
