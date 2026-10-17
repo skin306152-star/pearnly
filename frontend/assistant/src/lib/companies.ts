@@ -186,7 +186,7 @@ export function loadAccountSets(item: Pick<PendingItem, "document">): Promise<Ar
 }
 
 /** 换到选的那份账套并重推这一张（assistant.pending_api.choose_account_set）；结果同 answerChoices。
- *  候选是多份同期时，服务端同时把选的那份记成这家公司这一组现用的（之后同一组的单照选，组合变了再问）。 */
+ *  候选是多份同期时，推成了服务端才把选的那份记成这家公司这一组现用的（之后同一组的单照选，组合变了再问）。 */
 export function chooseAccountSet(item: Pick<PendingItem, "document">, key: string): Promise<AnswerResult> {
   return postMethod<AnswerResult>("pearnly_cowork.assistant.pending_api.choose_account_set", { document: item.document, account_set_key: key });
 }

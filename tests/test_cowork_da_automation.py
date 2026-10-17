@@ -672,6 +672,9 @@ class Checks(unittest.TestCase):
         self.assertLessEqual(len(text), 140)
         self.assertTrue(text.startswith("reason_000,reason_001"))
         self.assertEqual(auto.reason_codes(auto.Verdict("A", (), {})), "")
+        # 待处理 / 复核页据 book_many 当场列候选账套：原因再多也排最前、截不掉（第五轮后审查）
+        many = auto.Verdict("C", (*(f"reason_{i:03d}" for i in range(40)), "book_many"), {})
+        self.assertTrue(auto.reason_codes(many).startswith("book_many,reason_000"))
 
 
 class DecideCore(unittest.TestCase):

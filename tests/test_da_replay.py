@@ -618,6 +618,12 @@ class GoodsAndUpload(unittest.TestCase):
         with mock.patch.object(m["automation"], "posting_by_history", return_value="named") as judged:
             same = {row["docnum"]: row for row in replay.judge_company(m, [book], lines="answer")[0]}
         self.assertEqual(same["G04"]["posting_tier_if_history"], "named")
+        # 对方没有 13 位税号（历史按名字对上）：线上封顶 B，回放照线上的 `automation.tiers` 记 keyed（第五轮后审查）
+        capped = {"posting": "B"}
+        with mock.patch.object(m["automation"], "tiers", side_effect=lambda facts: dict(capped)):
+            named = {row["docnum"]: row for row in replay.judge_company(m, [book], lines="answer")[0]}
+        self.assertEqual([named[number]["posting_tier_if_history"] for number in ("G04", "G05", "G06", "G07")],
+                         ["keyed", "keyed", "keyed", "no_lines"])
         self.assertEqual(judged.call_args.args[0].posting_from, "company_choice")
         self.assertIn("「同名查找落空、记忆理想命中」", "\n".join(replay._render_goods(
             replay.summarize_judge({"rows": list(answer.values()), "skipped": {}, "tiers": {}, "goods_posting": choices,

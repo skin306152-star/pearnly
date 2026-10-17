@@ -587,7 +587,8 @@ class WriteCheck(unittest.TestCase):
             self.assertIn("verify=verify", (COMPANION / writer).read_text(encoding="utf-8"), writer)
 
     def test_account_history_v2_leaves_out_what_pearnly_wrote(self):
-        collect = method_source_of(COMPANION / "account_history.py", "collect")
+        # 科目那部分在 _accounts 里读（第五轮审查后入账方式另外读，collect 只把两部分接起来）
+        collect = method_source_of(COMPANION / "account_history.py", "_accounts")
         self.assertIn("_pearnly(text(get(rec, columns, 'USERID')))", collect)
         self.assertIn("_pearnly(text(get(rec, columns, 'CREBY')))", collect)
         self.assertIn("PEARNLY_USERID", (COMPANION / "account_history.py").read_text(encoding="utf-8"))
@@ -619,7 +620,7 @@ class AccountHistory(unittest.TestCase):
                          number_constants(self.READBACK / "history_rules.py", names))
 
     def test_the_server_reads_every_part_the_helper_sends(self):
-        collect = ast.parse(method_source_of(COMPANION / "account_history.py", "collect"))
+        collect = ast.parse(method_source_of(COMPANION / "account_history.py", "_assemble"))
         sent = set()
         for node in ast.walk(collect):
             if isinstance(node, ast.Dict):
@@ -647,10 +648,12 @@ class AccountHistory(unittest.TestCase):
                                                                       ("RESULT_VERSION",))["RESULT_VERSION"])
         parser = method_source_of(self.READBACK / "history_rules.py", "parse")
         self.assertIn("item.get('posting')", parser)  # ast.unparse 用单引号
-        # 两张表都可选：读不到不拒收整份（科目历史照交）
+        # 两张表真可选（审查 10-17）：不进科目那部分一起复制、读坏整份重读的 TABLES，另外复制另外读，出事只是不交 posting；
+        # 读坏、坏行、被占的几条路由 companion 自己的测试锁住（test_account_history）
         tables = number_constants(COMPANION / "account_history.py", ("TABLES", "REQUIRED", "POSTING_TABLES"))
-        self.assertTrue(set(tables["POSTING_TABLES"]) <= set(tables["TABLES"]))
+        self.assertFalse(set(tables["POSTING_TABLES"]) & set(tables["TABLES"]))
         self.assertFalse(set(tables["POSTING_TABLES"]) & set(tables["REQUIRED"]))
+        self.assertIn("_posting_from(folder", method_source_of(COMPANION / "account_history.py", "read_history"))
         push = (ROOT / "apps" / "pearnly_cowork" / "pearnly_cowork" / "push" / "application" / "service.py").read_text(
             encoding="utf-8")
         self.assertIn('.get("posting")', push)

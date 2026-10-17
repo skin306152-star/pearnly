@@ -1520,6 +1520,7 @@ Service or stock?,กรุณาเลือกบริการหรือ�
 Set At,เวลาที่ตั้ง
 Set By,ตั้งโดย
 Set a local folder once; documents are read and entered every month,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
+Set as the account set in use?,ตั้งเป็นชุดบัญชีที่ใช้อยู่หรือไม่
 Set by {0} on {1},ตั้งโดย {0} เมื่อ {1}
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง

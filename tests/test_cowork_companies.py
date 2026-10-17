@@ -1222,6 +1222,16 @@ class PendingTests(unittest.TestCase):
         self.assertTrue(found["key"].startswith(f"current_book|tax:{TAX}|00000|cy|"))
         self.assertIsNone(pending.current_book_choice(rows["c1"], "S:\\68EXP\\ABC"))  # 不在这一组
         self.assertIsNone(pending.current_book_choice(rows["c2"], "S:\\69EXP\\ABC2"))  # 不是待选账套
+        self.assertEqual(len(pending.current_book_options(rows["c1"])), 2)
+        # 记住之后不再停下的单要改选（CC 工具）：按推送去向那一行算同一组、同一个键，只记不推；停下的单不走这里
+        pushed = history("c4", last_push_status="success", last_push_record="PR1")
+        again = pending.current_book_rechoice(pushed, "S:\\69EXP\\ABC")
+        self.assertEqual((again["key"], again["value"]), (found["key"], "s:\\69exp\\abc"))
+        self.assertIsNone(pending.current_book_rechoice(pushed, "S:\\68EXP\\ABC"))  # 不在这一组
+        self.assertIsNone(pending.current_book_rechoice(rows["c1"], "S:\\69EXP\\ABC"))  # 停下的：换这一张并推
+        self.assertIsNone(pending.current_book_rechoice(history("c5", invoice_date="2025-03-01",
+                                                                push_account_set="S:\\68EXP\\ABC"),
+                                                        "S:\\68EXP\\ABC"))  # 那天只有一份
 
     def test_a_task_stopped_for_an_account_set_is_switched_on_the_spot(self):
         # 第 6 批：定时任务跟随公司当年账套停在「待选账套」（T1 三个原因码）→ action account_set，带推送去向
@@ -1400,8 +1410,8 @@ class PendingAnswerTests(unittest.TestCase):
         module, calls = self._answer(doc, {"status": "sent"}, reader="CCD-R")
         fresh_request()
         self.assertEqual(module.choose_account_set("h1", "S:\\69EXP\\ABC2")["status"], "sent")
-        self.assertEqual(calls[1:3], [("reader", "h1", "C1"),
-                                      ("push", "h1", "C1", "s:\\69exp\\abc2", ("route_device", "CCD-R"))])
+        self.assertEqual(calls[:2], [("reader", "h1", "C1"),
+                                     ("push", "h1", "C1", "s:\\69exp\\abc2", ("route_device", "CCD-R"))])
 
     def test_still_needs_a_choice_or_failed_is_reported_and_bad_input_refused(self):
         doc = Row(name="h1", push_connection="C1", push_account_set="")
@@ -1436,12 +1446,12 @@ class PendingAnswerTests(unittest.TestCase):
         self.assertEqual(sorted(item["label"] for item in found)[0][:6], "ABC 69")
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
-        self.assertEqual(out, {"document": "h1", "status": "sent"})
-        # 推往的、推成后抄到票上的都是目录里的那份（同定时任务选到时记的键）；先推、推成了才抄。两份同期：选的那份先记成
-        # 这家公司这一组现用的（用户 2026-10-17「按公司问一次」，无确认步骤）
-        self.assertEqual(calls, [("remember", "WS1", f"current_book|tax:{TAX}|00000|cy", "s:\\69exp\\abc2"),
-                                 ("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
-                                 ("retarget", "h1", "C1", "s:\\69exp\\abc2")])
+        self.assertEqual(out, {"document": "h1", "status": "sent", "current_book": "s:\\69exp\\abc2"})
+        # 推往的、推成后抄到票上的都是目录里的那份（同定时任务选到时记的键）；先推、推成了才抄。两份同期：推成了才把选的
+        # 那份记成这家公司这一组现用的（用户 2026-10-17「按公司问一次」，无确认步骤；第五轮后审查：推不成不记）
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
+                                 ("retarget", "h1", "C1", "s:\\69exp\\abc2"),
+                                 ("remember", "WS1", f"current_book|tax:{TAX}|00000|cy", "s:\\69exp\\abc2")])
         # 不在可换之列（别的年度）、不是待选账套停下的单：回 stale（页面重取可换的），不推、不弹「去新建录入」的错
         calls.clear()
         for key in ("S:\\68EXP\\ABC", "", "S:\\NOPE"):
@@ -1474,8 +1484,8 @@ class PendingAnswerTests(unittest.TestCase):
         fresh_request()
         out = module.choose_account_set("h1", "S:\\69EXP\\ABC2")
         self.assertEqual(out, {"document": "h1", "status": "failed", "reason": "account_match:branch"})
-        self.assertEqual(calls, [("remember", "WS1", f"current_book|tax:{TAX}|00000|cy", "s:\\69exp\\abc2"),
-                                 ("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
+        # 推不成：不记成现用的（第五轮后审查），同一组下一张照旧停下再问
+        self.assertEqual(calls, [("reader", "h1", "C1"), ("push", "h1", "C1", "s:\\69exp\\abc2"),
                                  ("restore", "h1", "cowork.folder.account_set_ambiguous",
                                   ("account_set", "S:\\69EXP\\ABC"), ("connection", "C1"))])
 

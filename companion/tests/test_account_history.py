@@ -264,9 +264,64 @@ def test_v3_sends_no_posting_when_it_cannot_tell(books, monkeypatch):
     _result, data = _read(books)
     assert data["diagnostics"]["posting"] == "tables_missing"
     assert all("posting" not in row for row in data["suppliers"]) and data["suppliers"]
-    # 大账套在时限内扫不完：不交（只扫一半会把走库存的单算成记费用）
+    # 时间不够（整件请求剩下的时间里复制、扫不完）：不交（只扫一半会把走库存的单算成记费用）
     _table(books.acct / "STMAS.DBF", S.TABLE_SPECS["STMAS"], [{"STKCOD": "P01", "STKDES": "กระดาษ A4", "STKTYP": "0"}])
-    monkeypatch.setattr(account_history, "STCRD_SECONDS_MAX", -1)
+    monkeypatch.setattr(account_history, "POSTING_RESERVE_SECONDS", 10 ** 6)
     _result, data = _read(books)
-    assert data["diagnostics"]["posting"] == "stcrd_too_slow"
+    assert data["diagnostics"]["posting"] == "copy_too_slow"
+    assert all("posting" not in row for row in data["suppliers"]) and data["suppliers"]
+    found = account_history.collect(books.acct, SINCE, deadline=0.0)
+    assert found["diagnostics"]["posting"] == "stcrd_too_slow"
+    assert all("posting" not in row for row in found["suppliers"])
+
+
+def _accounts_of(data):
+    return {row["code"]: row["accounts"] for row in data["suppliers"]}
+
+
+def test_v3_a_torn_stcrd_copy_keeps_the_accounts(books):
+    # 复制途中 STCRD 被追加、副本末尾不完整：科目部分照交（v2 能交回的这里也要交回），只是没有 posting（审查 10-17）
+    _result, before = _read(books)
+    _with_stock(books)
+    _append(books.acct / "STCRD.DBF", [_stock_line(f"XX-{n:03d}", "P01", 3, "S001") for n in range(50)])
+    path = books.acct / "STCRD.DBF"
+    path.write_bytes(path.read_bytes()[:-400])
+    result, data = _read(books)
+    assert data["version"] == 3 and result.meta["version"] == 3
+    assert data["diagnostics"]["posting"] in ("stcrd_unreadable", "stcrd_bad_rows")
     assert all("posting" not in row for row in data["suppliers"])
+    assert _accounts_of(data) == _accounts_of(before) and _accounts_of(data)
+
+
+def test_v3_a_bad_stcrd_row_sends_no_posting(books, monkeypatch):
+    # 读不出的坏行可能正是某张单唯一的库存行：整份不交，不把它算成记费用
+    _with_stock(books)
+    real = S.stcrd_no_stock_impact
+
+    def broken(rec):
+        if str(rec["DOCNUM"]).strip() == "RR-001":
+            raise ValueError("bad bytes")
+        return real(rec)
+
+    monkeypatch.setattr(S, "stcrd_no_stock_impact", broken)
+    monkeypatch.setattr(account_history, "STOCK_TYPE", "never")  # 让每行都走到读坏的那一步
+    _result, data = _read(books)
+    assert data["diagnostics"]["posting"] == "stcrd_bad_rows"
+    assert data["diagnostics"]["bad_rows"]["STCRD"] == 1
+    assert all("posting" not in row for row in data["suppliers"]) and _accounts_of(data)
+
+
+def test_v3_a_locked_stcrd_keeps_the_accounts(books, monkeypatch):
+    # STCRD 被独占复制不了：不等、不让整件失败，科目照交
+    _with_stock(books)
+    real = open
+
+    def locked(path, *args, **kwargs):
+        if Path(path).name.upper() == "STCRD.DBF" and "pearnly-posting-" not in str(path):
+            raise PermissionError(path)
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(account_history, "open", locked, raising=False)
+    _result, data = _read(books)
+    assert data["diagnostics"]["posting"] == "copy_busy"
+    assert all("posting" not in row for row in data["suppliers"]) and _accounts_of(data)

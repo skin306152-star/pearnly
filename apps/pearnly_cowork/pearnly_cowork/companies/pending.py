@@ -130,7 +130,9 @@ def month_of(row) -> str:
 
 
 def book_many(row) -> bool:
-    """自动推前判成 C、原因里有「按日期选出多份同期账套」（`push.express.automation` 的 ``book_many``），还没人推过、没别的原因。"""
+    """自动推前判成 C、原因里有「按日期选出多份同期账套」（`push.express.automation` 的 ``book_many``），还没人推过。别的 C 原因
+    不影响：选好账套是人推（照常重判），页面只显示「多份账套」这一句。``book_many`` 在 ``auto_reasons`` 里排最前
+    （`automation.reason_codes`），140 字截断截不掉它。"""
     return (str(row.get("auto_class") or "") == "C" and not row.get("last_push_status")
             and not row.get("last_push_reason") and BOOK_MANY in str(row.get("auto_reasons") or "").split(","))
 
@@ -166,7 +168,7 @@ def _stop_scope(row) -> dict | None:
     那份」筛）。定时任务停下的：出这张单的任务所跟的公司（与分店）在推送去向那条连接上的（同 `tasks.books_of`），找不到任务
     （已删）才退回按这张单现算归属的公司（推送去向账套 → 买方 → 卖方税号，不分店）。自动推判出多份同期的：同判档时
     （`automation.day_scope`，按推送去向账套在目录里那一行认公司与分店）。没有单据日期、归不上公司回 None。"""
-    from pearnly_cowork.companies import automation, service, tasks
+    from pearnly_cowork.companies import tasks
     from pearnly_cowork.companies.access import COMPANY
 
     day = str(row.get("invoice_date") or "")[:10]
@@ -174,13 +176,7 @@ def _stop_scope(row) -> dict | None:
     if not day or not connection:
         return None
     if book_many(row):
-        if not any(item["name"] == connection for item in service.usable_connections()):
-            return None
-        catalog = service.facts(connection).get("account_sets") or []
-        wanted = normalize_express_account_key(row.get("push_account_set"))
-        account_row = next((item for item in catalog if isinstance(item, dict) and wanted
-                            and normalize_express_account_key(item.get("source_id")) == wanted), None)
-        return automation.day_scope(connection, account_row, day, catalog) if account_row else None
+        return _target_scope(row, day)
     company, branch = _task_company(row) or (company_for(row), "")
     if not company:
         return None
@@ -189,6 +185,21 @@ def _stop_scope(row) -> dict | None:
         return None
     found = frappe.db.get_value(COMPANY, company, ["identity", "workspace"], as_dict=True) or {}
     return {"workspace": found.get("workspace"), "identity": found.get("identity"), "books": books}
+
+
+def _target_scope(row, day) -> dict | None:
+    """按推送去向那份账套在目录里那一行认公司与分店（同自动推判档 `automation.day_scope`）：``{"workspace", "identity",
+    "books"}``；连接不是本人能用的、目录里没有这份回 None。"""
+    from pearnly_cowork.companies import automation, service
+
+    connection = row.get("push_connection")
+    if not any(item["name"] == connection for item in service.usable_connections()):
+        return None
+    catalog = service.facts(connection).get("account_sets") or []
+    wanted = normalize_express_account_key(row.get("push_account_set"))
+    account_row = next((item for item in catalog if isinstance(item, dict) and wanted
+                        and normalize_express_account_key(item.get("source_id")) == wanted), None)
+    return automation.day_scope(connection, account_row, day, catalog) if account_row else None
 
 
 def account_sets_for(row) -> list:
@@ -215,6 +226,41 @@ def current_book_choice(row, key) -> dict | None:
     if not wanted or not any(normalize_express_account_key(item["key"]) == wanted for item in books):
         return None
     policy_key = current_book.key_of(found.get("identity"), str(row.get("invoice_date") or "")[:10], books)
+    if not policy_key or not found.get("workspace"):
+        return None
+    return {"workspace": found["workspace"], "key": policy_key, "value": wanted}
+
+
+def current_book_options(row) -> list:
+    """停在「待选账套」、这一组候选能问「哪份是现用的」（多份同期、键算得出：认得出公司、同一段、不跨分店）的单：可选的
+    账套 ``[{"key", "label"}]``；否则空表（只能换这一张，CC 不提「现用账套」）。"""
+    from pearnly_cowork.companies import current_book
+
+    if not account_set_stop(row):
+        return []
+    found = _stop_scope(row) or {}
+    books = found.get("books") or []
+    if not found.get("workspace") or not current_book.key_of(found.get("identity"), str(row.get("invoice_date") or "")[:10],
+                                                              books):
+        return []
+    return [{"key": item["key"], "label": item.get("label") or item["key"]} for item in books]
+
+
+def current_book_rechoice(row, key) -> dict | None:
+    """已经记住、不再停下的单改选现用账套（CC 工具）：推送去向那份账套这一天的候选（:func:`_target_scope`，同自动推判档）是
+    多份同期、``key`` 在其中 → ``{"workspace", "key": 口径键, "value": 规范账套键}``；否则 None。停在「待选账套」的单不走这里
+    （要换这一张并推，走 :func:`current_book_choice`）。"""
+    from pearnly_cowork.companies import current_book
+
+    day = str(row.get("invoice_date") or "")[:10]
+    if account_set_stop(row) or not day or not row.get("push_connection"):
+        return None
+    found = _target_scope(row, day) or {}
+    wanted = normalize_express_account_key(key)
+    books = found.get("books") or []
+    if not wanted or not any(normalize_express_account_key(item["key"]) == wanted for item in books):
+        return None
+    policy_key = current_book.key_of(found.get("identity"), day, books)
     if not policy_key or not found.get("workspace"):
         return None
     return {"workspace": found["workspace"], "key": policy_key, "value": wanted}
@@ -486,4 +532,5 @@ def _titles(names) -> dict:
 
 
 __all__ = ["account_set_stop", "account_sets_for", "book_many", "classify", "company_of", "counts", "current_book_choice",
+           "current_book_options", "current_book_rechoice",
            "digest_text", "is_new", "month_of", "morning", "morning_due", "pending", "pending_counts", "proposal"]

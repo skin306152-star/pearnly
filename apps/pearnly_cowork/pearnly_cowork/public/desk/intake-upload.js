@@ -140,8 +140,9 @@
 	const POLICY_SKIPPED = /^document_policy_skip_/;
 	/** 永续 / 混合库存账套的商品单没声明入账类型：这家公司选一次「走库存 / 记费用」（`push/express/goods_posting.py`）。 */
 	const GOODS_POSTING_NEEDED = /^posting_needs_review/;
-	/** 这家公司有多份账套覆盖单据日期：定时任务停下（T1），或自动推前判出多份同期账套（``book_many``）。列出候选账套，点了换到
-	 * 那份重推，并记成这家公司这一组现用的（`assistant.pending_api.choose_account_set`，同待处理页）。 */
+	/** 这家公司有多份账套覆盖单据日期：定时任务停下（T1），或自动推前判出多份同期账套（``book_many``，服务端排在
+	 * ``auto_reasons`` 最前、截不掉）。列出候选账套，点了换到那份重推，推成了才记成这家公司这一组现用的
+	 * （`assistant.pending_api.choose_account_set`，同待处理页）。 */
 	const ACCOUNT_SET_AMBIGUOUS = "cowork.folder.account_set_ambiguous";
 	const book_many = record => record?.auto_class === "C" && !record.last_push_status && !record.last_push_reason
 		&& String(record.auto_reasons || "").split(",").includes("book_many");
@@ -796,14 +797,22 @@
 			const found = await p.call(PENDING + "account_sets", {document: record.name});
 			if (current?.name !== record.name || !$.contains(document.body, row[0])) return;
 			for (const item of found?.account_sets || []) {
-				$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(item.label || item.key)
-					.on("click", () => void choose_account_set(record, item.key)).appendTo(row);
+				$("<button type='button' class='btn btn-sm btn-default ml-2' data-account-set>").text(item.label || item.key)
+					.on("click", () => void choose_account_set(record, item.key, row)).appendTo(row);
 			}
 		};
 
-		/** 选一份：换到它重推这一张，多份同期时记成这家公司现用的；推不成的原因提示一下，单子回到可再选。 */
-		const choose_account_set = async (record, key) => {
-			const result = await p.call(PENDING + "choose_account_set", {document: record.name, account_set_key: key}, "POST");
+		/** 选一份：换到它重推这一张，推成了且多份同期时记成这家公司现用的；推不成的原因提示一下，单子回到可再选。请求回来前
+		 * 这一行的账套按钮都禁用（连点不重复发；服务端照旧按 stale 兜底）。 */
+		const choose_account_set = async (record, key, row) => {
+			const buttons = row ? row.find("button[data-account-set]") : $();
+			buttons.prop("disabled", true);
+			let result;
+			try {
+				result = await p.call(PENDING + "choose_account_set", {document: record.name, account_set_key: key}, "POST");
+			} finally {
+				buttons.prop("disabled", false);
+			}
 			current = await detail(record.name);
 			fill(current);
 			sync_save();

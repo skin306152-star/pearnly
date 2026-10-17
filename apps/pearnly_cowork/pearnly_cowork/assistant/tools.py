@@ -1423,7 +1423,7 @@ def _detail(doc) -> dict:
         out["handling_choice_needed"] = "goods_posting"  # 这家公司的商品单走库存还是记费用，选一次（`push.express.goods_posting`）
     books = _current_book_options(doc)
     if books:
-        # 两份同期账套：这家公司这一组哪份是现用的，选一次（`assistant.pending_api.remember_current_book`）
+        # 两份同期账套：这家公司这一组哪份是现用的，选一次并推往那份（`assistant.pending_api.choose_account_set`）
         out["handling_choice_needed"] = "current_book"
         out["current_book_options"] = books
     # 用户问「这张是不是现金」时 CC 最常查的就是详情：入账的票带上怎么写进去的（验收 F19 复审 M1），记录名不给
@@ -1437,18 +1437,16 @@ def _detail(doc) -> dict:
 
 
 def _current_book_options(doc):
-    """停在「待选账套」、候选是多份同期的单（T1 多于一份、自动推前判出 ``book_many``）：可选的账套 ``[{key, label}]``；
-    不是这种单回空表（先按原因码粗看，大多数单不读账套目录）。"""
+    """停在「待选账套」、候选能问「哪份是现用的」的单（T1 多于一份、自动推前判出 ``book_many``；多份同期、认得出公司、不跨
+    分店，`companies.pending.current_book_options`）：可选的账套 ``[{key, label}]``；不是这种单回空表（先按原因码粗看，
+    大多数单不读账套目录）。键算不出时不提 ``current_book``（CC 一调就会被拒）。"""
     reason = str(doc.get("last_push_reason") or "")
     if not doc.get("push_connection") or not (reason.startswith("cowork.folder.account_set_")
                                                or "book_many" in str(doc.get("auto_reasons") or "").split(",")):
         return []
     from pearnly_cowork.companies import pending
 
-    if not pending.account_set_stop(doc):
-        return []
-    books = pending.account_sets_for(doc)
-    return books if len(books) > 1 else []
+    return pending.current_book_options(doc)
 
 
 def _automation_of(name):
@@ -1579,10 +1577,7 @@ def choose_document_policy(tool_input) -> str:
     value = tool_input.get("value")
     try:
         if value == CURRENT_BOOK:
-            # 两份同期账套哪份是现用的，按公司按这一组选（待处理 / 复核页当场换账套同一项）
-            result = pending_api.remember_current_book(storage.read(name), str(tool_input.get("account_set_key") or ""))
-            if not result:
-                frappe.throw(_("cowork.policy.invalid"))
+            return _choose_current_book(name, str(tool_input.get("account_set_key") or ""))
         elif value in GOODS_POSTING_VALUES:
             # 商品单入账方式按公司选（复核页「走库存 / 记费用」同一条路）
             result = goods_posting.choose(name, value)
@@ -1594,6 +1589,38 @@ def choose_document_policy(tool_input) -> str:
         frappe.clear_messages()
         return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
     return _json({"status": "saved", **result})
+
+
+def _choose_current_book(name, key) -> str:
+    """两份同期账套哪份是现用的（``current_book``）：停在「待选账套」的单与待处理 / 复核页当场换账套同一条
+    （`pending_api.choose_account_set`：推往选的那份、抄去向、按读它文件夹的电脑写，推成了才记住）；已经记住、不再停下的单
+    只改记（`pending_api.rechoose_current_book`，不推）。"""
+    from pearnly_cowork.assistant import pending_api
+    from pearnly_cowork.companies import pending
+
+    try:
+        doc = storage.read(name)
+        if pending.account_set_stop(storage.project(doc)):
+            pushed = pending_api.choose_account_set(name, key)
+            status = str(pushed.get("status") or "")
+            if status == "stale":
+                frappe.throw(_("cowork.policy.invalid"))
+            out = {"document": name, "status": "saved" if pushed.get("current_book") else "not_saved",
+                   "push_status": status}
+            if pushed.get("current_book"):
+                out["current_book"] = pushed["current_book"]
+            if pushed.get("reason"):
+                out["reason"] = pushed["reason"]
+            return _json(out)
+        result = pending_api.rechoose_current_book(doc, key)
+        if not result:
+            frappe.throw(_("cowork.policy.invalid"))
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return _json({"document": name, "status": "not_saved", "reason": str(error)[:300]})
+    return _json({"document": name, "status": "saved", **result})
 
 
 # ---------------- 推送前要人选的项、结果不明的确认（同复核页） ----------------
@@ -3283,10 +3310,13 @@ def preview_choose_document_policy(tool_input) -> list:
         # 商品单入账方式：「之前」不另查公司（没选过才会停在这一步），只写这次选的
         return [_change("Posting Kind", "", label(tool_input.get("value")))]
     if tool_input.get("value") == CURRENT_BOOK:
-        # 两份同期时现用的账套：写选的那份的名称（交的就是 current_book_options 里的键；认不出的原样写键）
+        # 两份同期时现用的账套：写选的那份的名称（停下的单交的是 current_book_options 里的键；改记的单按推送去向那条连接的
+        # 账套目录取名；都认不出原样写键）
         wanted = str(tool_input.get("account_set_key") or "")
         names = {item["key"]: item["label"] for item in _current_book_options(storage.project(doc))}
-        return [_change("Account Set", "", names.get(wanted) or wanted)]
+        shown = names.get(wanted) or _account_names({}, doc.get("push_connection")).get(_account_key(wanted)) \
+            if wanted else ""
+        return [_change("Account Set", "", shown or wanted)]
     kind = policy_rules.document_class(primary_page_fields(json.loads(doc.pages or "[]")))
     now = document_policy.read(doc.workspace).get(kind)
     return [_change(POLICY_CLASS_LABELS.get(kind, kind or "Document"), label(now), label(tool_input.get("value")))]
@@ -3516,9 +3546,11 @@ TOOLS = [
                     "goods_posting (a goods document of a company that keeps stock in Express): stock enters this "
                     "company's goods documents to stock, service enters them as expense, from now on. For "
                     "handling_choice_needed current_book (two account sets of the company cover the same dates): "
-                    "current_book with account_set_key from current_book_options remembers the one in use for this "
-                    "company and these account sets. Then push the document again (to that account set for "
-                    "current_book).",
+                    "current_book with account_set_key from current_book_options pushes the document to that account "
+                    "set and, once it is entered, remembers it as the one in use for this company and these account "
+                    "sets; do not push it again yourself. If the user wants another one in use later, current_book "
+                    "on a document of that company and date with the other account set's key changes what is "
+                    "remembered without pushing. For the other values push the document again afterwards.",
      "input_schema": {"type": "object", "properties": {"document": {"type": "string"},
                                                         "value": {"type": "string",
                                                                   "enum": ["enter", "skip", "stock", "service",
@@ -3527,6 +3559,8 @@ TOOLS = [
                       "required": ["document", "value"]},
      "approval": True,
      "ask": "Change how this kind of document is handled?",
+     # current_book 才带 account_set_key：问「设为现用账套」，不问「这类单据的处理方式」
+     "ask_when": {"account_set_key": "Set as the account set in use?"},
      "preview": "pearnly_cowork.assistant.tools.preview_choose_document_policy",
      "handler": "pearnly_cowork.assistant.tools.choose_document_policy"},
     {"name": "cowork_document_original", "label": "Opened the original",

@@ -1520,6 +1520,7 @@ Service or stock?,请选择服务或存货
 Set At,设定时间
 Set By,设定人
 Set a local folder once; documents are read and entered every month,设一个本机文件夹，每月自动识别推送
+Set as the account set in use?,设为现用账套？
 Set by {0} on {1},{0} 于 {1} 设定
 Set due date,到期日设为 N 天后
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。

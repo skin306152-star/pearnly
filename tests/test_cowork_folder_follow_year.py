@@ -424,6 +424,21 @@ class BranchTests(Base):
         result = self.send(self.rule(company_branch=""), self.ticket("H3", date(2026, 5, 1)))
         self.assertEqual(result["reason"], folder_contracts.ACCOUNT_SET_AMBIGUOUS)
 
+    def test_no_branch_on_two_branches_is_never_remembered_as_one_in_use(self):
+        """第五轮后审查：任务没记分店时候选跨了分店（各分店各有现用的账套），不当成「两份同期」问、也不记；只换这一张，
+        之后同样的单 T1 照旧停下（不然没印分店的收据会推进另一个分店的账套）。"""
+        patcher = mock.patch.object(pending, "_task_company", lambda row: (self.company, ""))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        history = env.Row(name="H4", invoice_date="2026-05-01", push_connection="C1", push_account_set=Y26,
+                          last_push_reason=folder_contracts.ACCOUNT_SET_AMBIGUOUS, last_push_status="")
+        self.assertEqual(sorted(item["key"] for item in pending.account_sets_for(history)),
+                         sorted([_key(Y26), _key("S:\\70EXP\\B12")]))  # 这一张照样能换
+        self.assertIsNone(pending.current_book_choice(history, "S:\\70EXP\\B12"))
+        self.assertEqual(pending.current_book_options(history), [])
+        result = self.send(self.rule(company_branch=""), self.ticket("H5", date(2026, 5, 1)))
+        self.assertEqual(result["reason"], folder_contracts.ACCOUNT_SET_AMBIGUOUS)
+
 
 class OldTaskTests(Base):
     def test_a_task_without_a_company_pushes_to_its_fixed_account_set(self):
@@ -484,8 +499,9 @@ class CurrentBookTests(Base):
         found = pending.current_book_choice(history, T9)
         self.assertEqual(found, {"workspace": "WS1", "key": remember("cy", T9, T8, T9), "value": _key(T9)})
         self.assertEqual(self.send(self.rule(), self.ticket("H2", date(2025, 6, 30)))["account_set"], _key(T9))
-        # 列可换的账套时列全这一组（选了另一份就是改选），不按记住的筛
+        # 列可换的账套时列全这一组（选了另一份就是改选），不按记住的筛；CC 详情给的「现用账套」候选同这一组
         self.assertEqual(sorted(item["key"] for item in pending.account_sets_for(history)), [_key(T8), _key(T9)])
+        self.assertEqual(sorted(item["key"] for item in pending.current_book_options(history)), [_key(T8), _key(T9)])
         # 只有一份、选的不在候选里、不是停在待选账套的单：不记
         self.assertIsNone(pending.current_book_choice(history, Y26))
         self.assertIsNone(pending.current_book_choice(env.Row(history, invoice_date="2026-03-01"), Y26))
@@ -518,6 +534,13 @@ class CurrentBookTests(Base):
                  {"key": "b", "period_start": "2026-01-01", "period_end": "2026-12-31", "branch": "00000"}]
         self.assertEqual(current_book.key_of("tax:1", "2026-03-01", books), "")
         self.assertEqual(current_book.key_of("tax:1", "2025-03-01", books[:1] * 2), "")
+        # 跨分店不问（第五轮后审查）；同一分店时按分店筛过与没筛（任务没记分店、自动推按那一行的分店）算出同一个键
+        same = [{"key": "a", "period_start": "2025-01-01", "period_end": "2025-12-31", "branch": "00000"},
+                {"key": "b", "period_start": "2025-01-01", "period_end": "2025-12-31", "branch": ""}]
+        self.assertEqual(current_book.key_of("tax:1", "2025-03-01", [same[0], {**same[1], "branch": "00001"}]), "")
+        key = current_book.key_of("tax:1", "2025-03-01", same)
+        self.assertTrue(key.startswith("current_book|tax:1|00000|cy|"))
+        self.assertEqual(current_book.key_of("tax:1", "2025-03-01", identity.for_branch(same, "00000")), key)
 
 
 class DefaultsTests(Base):

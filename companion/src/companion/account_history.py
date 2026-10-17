@@ -14,9 +14,12 @@
 - 结果版本 3（数字会计员第 3 期，用户 10-17）：每家供应商另交 ``posting``，商品单走库存 / 记费用各几张、最后一张的单据日期 ——
   同上那批单（近 12 个月、没作废、不是 Pearnly 写的），在 STCRD 里（按 DOCNUM 挂单，PEOPLE 有值时须是这家供应商的码，防撞号）
   有一行是库存品（STMAS.STKTYP = 0）或有库存影响（``dbf_schema.stcrd_no_stock_impact`` 为假）的记走库存，其余（没有明细、只有
-  非库存品的明细）记费用。STCRD、STMAS 都可选：任一张读不到、或 STCRD 太大在 ``STCRD_SECONDS_MAX`` 秒内扫不完，整份都不交
-  ``posting``（不猜：只扫了一半会把走库存的单算成记费用），原因记在 ``diagnostics.posting``，扫的秒数记 ``stcrd_seconds``。
-  STCRD 要从头扫到尾（行按录入先后排，只读近 12 个月的那部分做不到），大账套的读取时间看 ``read_seconds`` / ``stcrd_seconds``。
+  非库存品的明细）记费用。
+- ``posting`` 真可选（第五轮审查，10-17）：科目那几张表（``TABLES``）先照旧复制读完；STMAS、STCRD（``POSTING_TABLES``）另外
+  单独复制、单独读，在整件请求剩下的时间里做（``LEASE_SECONDS`` 减去交回要留的 ``POSTING_RESERVE_SECONDS``，复制也算在内）。
+  这两张表缺、被占、复制失败、读坏、有读不出的坏行、存货主档为空、时间不够，都只是整份不交 ``posting``（不猜：只扫了一半、
+  漏了一行都可能把走库存的单算成记费用），原因记在 ``diagnostics.posting``，科目部分照常交回；复制与扫描的秒数记
+  ``posting_copy_seconds`` / ``stcrd_seconds``。STCRD 要从头扫到尾（行按录入先后排，只读近 12 个月的那部分做不到）。
 - 交回：每家供应商（代码、名称、税号、分店号）最多 ``ACCOUNTS_PER_SUPPLIER`` 个科目，每个科目记「几张单用过」与最后
   一次的单据日期，以及 ``posting``；按单据数取前 ``SUPPLIERS_MAX`` 家。只交次数，不交金额、不交单据明细。结果是 gzip 后的
   JSON（``RESULT_VERSION``，字段见 ``collect``）。
@@ -27,6 +30,8 @@ from __future__ import annotations
 import datetime as dt
 import gzip
 import json
+import shutil
+import tempfile
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -38,19 +43,21 @@ from . import dbf_schema as S
 from . import express_read
 from .dbf_schema import PEARNLY_USERID
 from .logger import get_logger
-from .request_contract import MAX_BYTES, RequestFailed, Result
+from .request_contract import LEASE_SECONDS, MAX_BYTES, RequestFailed, Result
 
 log = get_logger(__name__)
 
 RESULT_VERSION = 3
-TABLES = ("ISINFO", "APMAS", "APTRN", "GLJNL", "GLJNLIT", "STMAS", "STCRD")
+# 科目那部分要的表（一起复制，读坏整份重读）
+TABLES = ("ISINFO", "APMAS", "APTRN", "GLJNL", "GLJNLIT")
 REQUIRED = ("APTRN", "GLJNLIT")
-# 商品单入账方式（v3）要的两张表：都在才交 ``posting``
+# 商品单入账方式（v3）要的两张表：另外复制、另外读，出什么事都只是不交 ``posting``（见文件头）
 POSTING_TABLES = ("STMAS", "STCRD")
 # 库存品（STMAS.STKTYP）
 STOCK_TYPE = "0"
-# STCRD 最多扫这么久（秒）：扫不完整份不交 ``posting``（请求租约 900 秒，复制与其余几张表也在里面）
-STCRD_SECONDS_MAX = 300
+# 整件请求的租约里给交回结果留的秒数：``posting`` 的复制与扫描要在租约到期前这么久做完，做不完就不交
+POSTING_RESERVE_SECONDS = 120
+COPY_CHUNK = 1024 * 1024
 # ISINFO 里不算「常用科目」的默认科目：现金、进项税、应付（索引含义见 ``account_probe._ISINFO_DEFAULT_SLOTS``）。
 EXCLUDED_SLOTS = ("ACCNUM00", "ACCNUM06", "ACCNUM07")
 SUPPLIERS_MAX = 5000
@@ -80,9 +87,21 @@ def _pearnly(user) -> bool:
     return str(user or "").strip().upper() == PEARNLY_USERID
 
 
-def collect(folder: Path, since: dt.date) -> dict:
-    """从复制出来的账套表汇总「供应商 → 常用科目」（口径见文件头）。"""
+def collect(folder: Path, since: dt.date, *, deadline: float | None = None) -> dict:
+    """从复制出来的账套表汇总「供应商 → 常用科目」与入账方式（同一个文件夹里有 STMAS / STCRD 就读，口径见文件头）。
+    ``deadline``（``time.monotonic()`` 的时刻）是 ``posting`` 的截止；没给按租约减去留给交回的时间算。"""
     started = time.monotonic()
+    state = _accounts(folder, since)
+    deadline = started + _posting_budget() if deadline is None else deadline
+    return _assemble(state, _posting(folder, state["documents"], state["diag"], deadline), since, started)
+
+
+def _posting_budget() -> float:
+    return LEASE_SECONDS["account_history"] - POSTING_RESERVE_SECONDS
+
+
+def _accounts(folder: Path, since: dt.date) -> dict:
+    """科目那部分（``TABLES``）：读坏抛 ``express_read._Unreadable``（调用方整份重读）。回汇总要的中间结果。"""
     diag = {"rows": {}, "bad_rows": {}, "missing_tables": []}
     present = {name for name in TABLES if (folder / f"{name}.DBF").is_file()}
     if any(name not in present for name in REQUIRED):
@@ -144,8 +163,12 @@ def collect(folder: Path, since: dt.date) -> dict:
         return None
 
     express_read._rows(folder, "GLJNLIT", diag, line)
-    posting = _posting(folder, documents, diag)
+    return {"diag": diag, "excluded": excluded, "suppliers": suppliers, "documents": documents, "used": used,
+            "last": last}
 
+
+def _assemble(state: dict, posting, since: dt.date, started: float) -> dict:
+    diag, suppliers, used, last = state["diag"], state["suppliers"], state["used"], state["last"]
     by_party: dict = defaultdict(list)
     party_docs: dict = defaultdict(set)
     for (party, account), docs in used.items():
@@ -168,7 +191,7 @@ def collect(folder: Path, since: dt.date) -> dict:
             row["posting"] = posting.get(party) or _no_posting()
         out.append(row)
     diag["read_seconds"] = round(time.monotonic() - started, 2)
-    return {"version": RESULT_VERSION, "since": since.isoformat(), "excluded": sorted(excluded),
+    return {"version": RESULT_VERSION, "since": since.isoformat(), "excluded": sorted(state["excluded"]),
             "suppliers": out, "documents": len({doc for docs in party_docs.values() for doc in docs}),
             "diagnostics": diag}
 
@@ -177,12 +200,33 @@ def _no_posting() -> dict:
     return {"stock": {"docs": 0, "last": ""}, "service": {"docs": 0, "last": ""}}
 
 
-def _posting(folder: Path, documents: dict, diag: dict):
+def _posting(folder: Path, documents: dict, diag: dict, deadline: float):
     """这批单（``documents``：单号 → (供应商码, 单据日期)）按供应商汇总走库存 / 记费用各几张（口径见文件头）→
-    ``{供应商码: {"stock": {docs, last}, "service": {docs, last}}}``；表读不到或扫不完回 None（不交 ``posting``）。"""
-    if any(not (folder / f"{name}.DBF").is_file() for name in POSTING_TABLES):
-        diag["posting"] = "tables_missing"
+    ``{供应商码: {"stock": {docs, last}, "service": {docs, last}}}``。判不清（表缺、读坏、有坏行、主档为空、过了
+    ``deadline``）回 None，原因记 ``diag["posting"]``；从不往外抛（科目部分照常交回）。"""
+    try:
+        found, reason = _stocked(folder, documents, diag, deadline)
+    except express_read._Unreadable as error:
+        found, reason = None, f"{str(error).split(':', 1)[0].lower()}_unreadable"
+    except Exception:  # noqa: BLE001 — 入账方式是可选的一项：任何意外都只是不交
+        log.exception("入账方式读不出")
+        found, reason = None, "failed"
+    if found is None:
+        diag["posting"] = reason
         return None
+    out: dict = {}
+    for docnum, (party, when) in documents.items():
+        row = out.setdefault(party, _no_posting())["stock" if docnum in found else "service"]
+        row["docs"] += 1
+        row["last"] = max(row["last"], when.isoformat())
+    diag["posting"] = "ok"
+    return out
+
+
+def _stocked(folder: Path, documents: dict, diag: dict, deadline: float):
+    """走库存的单号集合与原因：(集合, "") 或 (None, 原因)。"""
+    if any(not (folder / f"{name}.DBF").is_file() for name in POSTING_TABLES):
+        return None, "tables_missing"
     get, text = express_read._get, express_read._text
     types = {}
 
@@ -192,21 +236,24 @@ def _posting(folder: Path, documents: dict, diag: dict):
             types[code] = text(get(rec, columns, "STKTYP"))
         return None
 
-    express_read._rows(folder, "STMAS", diag, master)
+    try:
+        express_read._rows(folder, "STMAS", diag, master)
+    except express_read._Unreadable:
+        return None, "stmas_unreadable"
+    if diag["bad_rows"].get("STMAS"):
+        return None, "stmas_bad_rows"  # 漏一件库存品就可能把走库存的单算成记费用
     if not types:
-        diag["posting"] = "no_stock_master"  # 存货主档读不出：库存品判不出，不猜
-        return None
+        return None, "no_stock_master"  # 存货主档读不出：库存品判不出，不猜
     stocked = set()
     started = time.monotonic()
     count = bad = 0
-    with express_read._table(folder, "STCRD") as table:
-        columns = {str(item).upper() for item in table.field_names}
-        try:
+    try:
+        with express_read._table(folder, "STCRD") as table:
+            columns = {str(item).upper() for item in table.field_names}
             for rec in table:
-                if time.monotonic() - started > STCRD_SECONDS_MAX:
-                    diag["posting"] = "stcrd_too_slow"
+                if time.monotonic() > deadline:
                     diag["stcrd_seconds"] = round(time.monotonic() - started, 2)
-                    return None
+                    return None, "stcrd_too_slow"
                 if dbf.is_deleted(rec):
                     continue
                 count += 1
@@ -220,43 +267,88 @@ def _posting(folder: Path, documents: dict, diag: dict):
                         continue  # 单号撞上别家（销项、别的供应商）的明细：不挂到这张
                     if types.get(text(get(rec, columns, "STKCOD"))) == STOCK_TYPE or not S.stcrd_no_stock_impact(rec):
                         stocked.add(docnum)
-                except Exception:  # noqa: BLE001 — 坏字节的单行跳过并计数，同 `express_read._rows`
+                except Exception:  # noqa: BLE001 — 坏字节的单行计数，下面整份不交
                     bad += 1
-        except Exception as error:
-            raise express_read._Unreadable(f"STCRD: {type(error).__name__}") from error
+    except express_read._Unreadable:
+        return None, "stcrd_unreadable"
+    except Exception:  # noqa: BLE001 — 读到一半坏了（副本不完整）
+        return None, "stcrd_unreadable"
     diag["rows"]["STCRD"] = count
+    diag["stcrd_seconds"] = round(time.monotonic() - started, 2)
     if bad:
         diag["bad_rows"]["STCRD"] = bad
-    diag["stcrd_seconds"] = round(time.monotonic() - started, 2)
-    out: dict = {}
-    for docnum, (party, when) in documents.items():
-        row = out.setdefault(party, _no_posting())["stock" if docnum in stocked else "service"]
-        row["docs"] += 1
-        row["last"] = max(row["last"], when.isoformat())
-    diag["posting"] = "ok"
-    return out
+        return None, "stcrd_bad_rows"  # 坏行可能正是某张单唯一的库存行：不猜
+    return stocked, ""
+
+
+def _copy_until(source: Path, target: Path, deadline: float) -> str:
+    """一块一块复制，过了 ``deadline`` 停；成功回空串，否则回原因（不重试、不抛）。"""
+    try:
+        with open(source, "rb") as reader, open(target, "wb") as writer:
+            while True:
+                if time.monotonic() > deadline:
+                    return "copy_too_slow"
+                piece = reader.read(COPY_CHUNK)
+                if not piece:
+                    return ""
+                writer.write(piece)
+    except FileNotFoundError:
+        return "tables_missing"
+    except PermissionError:
+        return "copy_busy"  # 被独占（Express 整理 / 压缩账套）
+    except OSError:
+        return "copy_failed"
+
+
+def _posting_from(account_dir: Path, documents: dict, diag: dict, deadline: float):
+    """从账套文件夹单独复制 STMAS / STCRD（含备注文件）到本机再判入账方式；出了事只回 None（见 :func:`_posting`）。"""
+    if not documents:
+        diag["posting"] = "ok"
+        return {}
+    started = time.monotonic()
+    target = Path(tempfile.mkdtemp(prefix="pearnly-posting-"))
+    try:
+        try:
+            sources = express_read._sources(account_dir, POSTING_TABLES)
+        except RequestFailed:
+            diag["posting"] = "copy_failed"
+            return None
+        for name, (source, _stamped) in sources.items():
+            reason = _copy_until(source, target / name, deadline)
+            if reason:
+                diag["posting"] = reason
+                diag["posting_copy_seconds"] = round(time.monotonic() - started, 2)
+                return None
+        diag["posting_copy_seconds"] = round(time.monotonic() - started, 2)
+        return _posting(target, documents, diag, deadline)
+    finally:
+        shutil.rmtree(target, ignore_errors=True)
 
 
 # ── 处理函数（request_worker.HANDLERS["account_history"]）────────────────────
 
 
 def read_history(cfg, params: dict, *, sleep: Callable[[float], None] = time.sleep) -> Result:
-    """{account_set, account_root, since: "YYYY-MM-DD"} → 汇总好的「供应商 → 常用科目」。"""
+    """{account_set, account_root, since: "YYYY-MM-DD"} → 汇总好的「供应商 → 常用科目」与入账方式。"""
+    started = time.monotonic()
     since = _since(params.get("since"))
     folder = express_read.resolve(cfg, params.get("account_set"), params.get("account_root"))
-    data = None
+    state = None
     for attempt in range(express_read.READS):
         try:
             with express_read.snapshot(folder, tables=TABLES, sleep=sleep) as (copy, _changed):
                 # 复制途中有人写了一张单：次数差一张不影响建议，不重读
-                data = collect(copy, since)
+                state = _accounts(copy, since)
             break
         except express_read._Unreadable as error:
             log.info("账套副本读不全，稍后重读: %s", error)
         if attempt < express_read.READS - 1:
             sleep(express_read.REREAD_WAIT)
-    if data is None:
+    if state is None:
         raise RequestFailed("account_unreadable")
+    # 入账方式另外复制、另外读，用整件请求剩下的时间（见文件头）；出了事只是不交 posting
+    posting = _posting_from(folder, state["documents"], state["diag"], started + _posting_budget())
+    data = _assemble(state, posting, since, started)
     data["account_set"] = folder.name
     data["read_at"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     content = gzip.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

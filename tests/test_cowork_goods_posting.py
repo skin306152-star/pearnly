@@ -216,6 +216,10 @@ class History(unittest.TestCase):
     def test_a_supplier_without_a_tax_id_is_at_most_b(self):
         found, verdict = self.judge("service", "service", seller_tax="")
         self.assertEqual((found, verdict.items["posting"]), ("A", "B"))  # 历史按名字对上：判据成立，档位封顶 B
+        # 按名字对上、历史相反：照样交人（保守口径，第五轮后审查定；同名的别家最多多交一张给人）
+        found, verdict = self.judge("service", "stock", seller_tax="")
+        self.assertEqual((found, verdict.cls), ("conflict", "C"))
+        self.assertIn("conflict:posting", verdict.reasons)
 
 
 class Resolve(unittest.TestCase):

@@ -94,6 +94,23 @@ class Sources(unittest.TestCase):
         self.assertIn("if (!code) return text ? __(text) : text;", body)
         self.assertIn("`intake.error.${code.toLowerCase()}`", body)
 
+    def test_the_review_page_offers_account_sets_for_two_books_of_the_same_dates(self):
+        """数字会计员第 3 期（10-17）复核页：自动推判出 book_many（C、没人推过）同定时任务「多于一份」显示同一句、列候选账套；
+        仅识别不给按钮；按钮用 btn-sm（手机点击区），请求回来前整行禁用（第五轮后审查）。"""
+        source = (APP / "public/desk/intake-upload.js").read_text()
+        rule = source[source.index("const book_many = record =>"):source.index("/** 失败原因")]
+        for part in ('record?.auto_class === "C"', "!record.last_push_status", "!record.last_push_reason",
+                     '.split(",").includes("book_many")'):
+            self.assertIn(part, rule)
+        self.assertIn("if (reason === ACCOUNT_SET_AMBIGUOUS && !recognize_only) void show_account_sets(record, row);",
+                      source)
+        self.assertIn("String(record.last_push_reason || ACCOUNT_SET_AMBIGUOUS)", source)
+        shown = source[source.index("const show_account_sets = async"):source.index("const resolve_unknown")]
+        self.assertIn("btn btn-sm btn-default ml-2' data-account-set", shown)
+        self.assertNotIn("btn-xs", shown)
+        self.assertIn('buttons.prop("disabled", true)', shown)
+        self.assertIn('buttons.prop("disabled", false)', shown)
+
     def test_background_steps_pin_the_language(self):
         for name in ("folder_intake/pump.py", "folder_intake/machine.py"):
             self.assertIn("job.lang_resolved = True", (APP / name).read_text(), name)

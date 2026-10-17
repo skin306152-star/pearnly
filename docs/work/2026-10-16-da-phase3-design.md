@@ -247,15 +247,17 @@
         且走库存时载荷真有库存行才 A；②两份同期账套按公司按年度问一次哪份是现用的、记住复用、组合变了再问——回放 `--tiebreak ask_once`
         模拟（线上原先 T1 与自动推遇到两份同期一律停下）。
       - **①接线上（用户 10-17 批准）**：CC 桌面版 1.9.0 `account_history` 结果版本 3，每家供应商另交 `posting`（同一批单里走库存 / 记费用
-        各几张：STCRD 按 DOCNUM 挂单、PEOPLE 有值须是这家，有一行库存品 STKTYP=0 或有库存影响记走库存；STCRD / STMAS 读不到或 300 秒扫
-        不完整份不交，不猜；STCRD 要从头扫到尾，大账套看 `diagnostics.stcrd_seconds`）。服务端 `history_rules` 收 v1–v3（`posting` 只收 v3、
+        各几张：STCRD 按 DOCNUM 挂单、PEOPLE 有值须是这家，有一行库存品 STKTYP=0 或有库存影响记走库存；STMAS / STCRD 在科目那几张表读完后
+        另外复制、另外读，用整件请求租约剩下的时间，表缺、被占、复制失败、读坏、有坏行、时间不够都只是整份不交 `posting`、科目照交，
+        不猜；STCRD 要从头扫到尾，大账套看 `diagnostics.posting_copy_seconds / stcrd_seconds`）。服务端 `history_rules` 收 v1–v3（`posting` 只收 v3、
         只有入账方式没有常用科目的供应商也留下），`supplier_posting` 合并各分店，`history.for_push` 多回 `posting`（`posting_settled` 加版本
         与读的日子，主档页删过的供应商不按历史用）；推送服务 `_posting_history` 只在 `posting_from = company_choice` 的进项单经同一钩子只读
         存着的那份（不请电脑），`assess` 放进 `Facts.posting_kind / posting_history`；`automation.posting_by_history` 判：一致且载荷按它写 A、
         相反 C（`conflict:posting`，不另记 `item:posting`）、其余 B（`no_lines` / `items` / `named` / 没定下），对方没有 13 位税号最高 B；值仍取
         公司选的。回放 `posting_tier_if_history` 改调同一个函数（回放主判定不带这一层，上下界照旧分两列）。
-        **发版顺序**：先部署服务端（收 v3；旧桌面版交 v2 时没有 `posting`，入账方式照旧 B），再发 CC 桌面版 1.9.0；反过来时旧服务端把 v3
-        当不合规记失败、一小时后再请，期间没有历史建议与「已定」科目。
+        **发版顺序**：先部署服务端（收 v3；旧桌面版交 v2 时没有 `posting`，入账方式照旧 B），再发 CC 桌面版 1.9.0。反过来时线上服务端
+        （main 只收 v1）把 v3 当不合规记失败：存着的旧汇总照用、逐渐过期（31 天），电脑每小时重读一次整份（含 STCRD）。`companion_latest`
+        来自服务器上的发布文件、与服务端代码版本无关，所以这个顺序只靠人遵守，没有技术闸（见下「第五轮后审查」第 10 条）。
       - **②接线上（用户 10-17 批准）**：真有两份同期账套时（如 SINCERE 68SINCER / 69SINCER 的 ISPRD 本年都是 2025）按公司问一次哪份是
         现用的。存储复用工作空间 `document_policy`（同 `goods_posting`，不新建 DocType）：键 `current_book|<公司身份>|<分店>|<cy / ny>|<候选
         规范账套键排序后的 sha1 前 12 位>`，值是选中的规范账套键（`contracts.document_policy.current_book_key / current_book`，`_known`
@@ -274,6 +276,44 @@
         `current_book_options`。复核页要读票上的 `auto_class / auto_reasons`：`history.storage.project` 多这两列。
         **有意变化**：T1 两份同期原先一律停下（`test_cowork_folder_follow_year` 两条用例锁住），改为「没选过停下、选过照选」；自动推同一组
         选过之后不再记 `book_many`。已经停下的单不会自动重推，要人在待处理 / 复核页点一次。多电脑记录 T1 一节第 6 条同步登记。
+      - **②、①第五轮后审查（10-17，审查意见 18 条逐条处理）**：
+        1. 跨分店（成立，已修）：`current_book.key_of` 候选报了两个以上不同的分店号时回空串，不问不记、照旧停下（定时任务没记分店、
+           两个分店各有现用账套时，不然没印分店的收据会推进另一个分店的账套）；这一张照样能在待处理 / 复核页换账套，只是不记。
+           CC 详情的 `current_book_options` 改由 `pending.current_book_options` 给，键算不出（跨分店、只有一份、认不出公司、键超长）
+           不提 `current_book`（第 5 条一并修）。同一个分店时定时任务（按任务记的分店）与自动推（按推送去向那一行的分店）候选一样、
+           键一样（第 11 条：已加测试，`identity.for_branch` 筛过与没筛同键）。
+        2. 先记后推（成立，已修，第 4 / 12 / 16 条）：`choose_account_set` 先按停下时的候选算好要记的，**推成了**（进了账本、或停在要人
+           选的项）才 `document_policy.record`；推不成不记，同一组下一张照旧停下再问。回包多 `current_book`（记住了的那份）。
+        3. CC 工具 `current_book` 改走同一条（成立，已修）：停在「待选账套」的单直接调 `pending_api.choose_account_set`（推往选的那份、
+           抄去向、按读它文件夹的电脑写、推成了才记），回 `{status: saved|not_saved, push_status, current_book?, reason?}`，CC 不用再推；
+           工具说明同步改。改选入口：已经记住、不再停下的单，`current_book` 只改记（`pending_api.rechoose_current_book` →
+           `pending.current_book_rechoice`，按推送去向那一行算候选，同自动推判档），不推。审批卡片问句用 `ask_when`（带
+           `account_set_key` 时）新写一句官方短问句「Set as the account set in use? / 设为现用账套？」（四语补齐，文案闸门没有新增
+           拦截与标黄；已有的「Save this choice for the company?」本身被闸门标 R-TALK，没复用）；预览对改记的单按连接的账套目录取名。
+           步骤名「Choosing how a kind of document is handled」框架不能按取值换，**已知措辞偏差**，留给用户定。
+        4. `book_many` 被截断（成立，已修）：`automation.reason_codes` 把 `REASONS_FIRST = ("book_many",)` 排最前，140 字截不掉；
+           `pending.book_many` 文档改为「有别的 C 原因也算」（选好账套是人推，照常重判）。
+        5. 复核页按钮（成立，已修）：候选账套按钮改 `btn-sm`，请求回来前整行禁用（服务端照旧按 stale 兜底）；同一行已有的「走库存 /
+           记费用」等按钮仍是 `btn-xs`，不在本段改。
+        6. 停下原因复用 R-TALK 的「这家公司有多份账套覆盖单据日期。」（成立，不改）：改已有文案要先给用户看，列进待用户确认的文案
+           清单——这句现在还出现在复核页与待处理 / 月结台账 `book_many` 的单上。
+        7. 测试缺口（成立，已补）：`preview_choose_document_policy` 的 current_book（名称 / 认不出原样写键）、CC 工具三条路、
+           Desk `book_many` 判断与只在不是「仅识别」时出按钮、按钮尺寸与禁用、`book_many` 排最前、跨分店不记、改记。
+        8. CC 桌面版 posting 真可选（成立，已修，审查 blocker 与两条 major）：见上①；补测试「截短的 STCRD 仍交 v3、没有 posting、
+           科目照旧」「坏行整份不交」「STCRD 被占科目照交」。时限从固定 300 秒改为整件租约（900 秒）减去留给交回的 120 秒，复制也
+           算在内（一块一块复制、过点即停）。没加「文件太大直接跳过」：没有实测数据定阈值，按时间截止已能兜住。**大账套（NEWLINK 等）
+           的 copy / stcrd / read 秒数仍要测试机实测后再发版。**
+        9. STCRD 坏行（成立，已修）：有坏行整份不交，`diagnostics.posting = stcrd_bad_rows`；STMAS 有坏行同样不交（`stmas_bad_rows`）。
+        10. 发版顺序与文档（成立，已修文档）：README 与上面改为「线上服务端（main）只收 v1」「旧汇总照用、逐渐过期，电脑每小时重读」。
+            可选的技术闸（`read_params` 多发服务端收的版本、桌面版不认 3 时退回 v2）没做：要同时改契约参数集合，且服务端照样要先部署，
+            收益只在人没守顺序时；记为待定。
+        11. 整条分支要迁移（成立，补说明）：本段没有新字段，但 `auto_class / auto_reasons` 等字段 origin/main 的 `Cowork OCR History`
+            里没有，整条分支上线要跑 `bench migrate`。
+        12. 按名字对上、历史相反（定口径）：保留 C（保守：同名的别家最多多交一张给人；一致时才封顶 B），已加测试。
+        13. 入账方式历史在主档页删不掉（部分成立）：供应商有科目行时删那一行（`company_forget`）同时让入账方式也不按历史用；只有入账
+            方式、没有科目「已定」的供应商主档页没有行可删。没补：主档页「记住的选择」现在不列 `document_policy` 一类，加一行是扩展
+            界面，等用户定。回放 `posting_tier_if_history` 已补 13 位税号降档（判据成立但按名字对上记 `keyed`，同线上 `automation.tiers`）；
+            **回放没有重跑**（要在测试机跑，`--tiebreak ask_once` 等参数照旧），`extra_A_wrong` 等数要等测试窗口。
 
 19. **挪到后面 / 不做 / 已知缺口**：
     - 第 4 期：从纠正中学、「要不要记住」、`rule_conflict` 提示。L0 期间人当场选的照旧记进账套记忆，这就是本期的「学习」。

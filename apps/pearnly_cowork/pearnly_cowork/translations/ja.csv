@@ -1520,6 +1520,7 @@ Service or stock?,サービスですか、在庫品ですか？
 Set At,設定日時
 Set By,設定者
 Set a local folder once; documents are read and entered every month,ローカルフォルダーを一度設定すると毎月自動で読み取り・登録
+Set as the account set in use?,使用中の会計データに設定しますか？
 Set by {0} on {1},{0}（{1}）が設定
 Set due date,期日を N 日後に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。

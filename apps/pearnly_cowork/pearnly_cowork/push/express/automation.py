@@ -854,7 +854,9 @@ def conflicts(facts: Facts) -> List[str]:
                   if str(value or "").strip() and (source != "express_history" or fresh)}
         if len(values) >= 2:
             out.append(kind)
-    # 商品单入账方式：公司选的与这家供应商的 Express 历史（31 天内读的，`history_rules.posting_settled` 已核）相反（用户 10-17）
+    # 商品单入账方式：公司选的与这家供应商的 Express 历史（31 天内读的，`history_rules.posting_settled` 已核）相反（用户 10-17）。
+    # 对方没有 13 位税号、历史按名字对上时照样交人（保守口径，第五轮后审查定：同名的别家供应商最多多交一张给人，
+    # 一致时才封顶 B，`tiers`）
     if posting_by_history(facts) == "conflict":
         out.append("posting")
     return out
@@ -876,10 +878,15 @@ def classify(facts: Facts) -> Verdict:
     return Verdict(B if judged else A, judged, items)
 
 
+# 页面据 ``auto_reasons`` 当场给人处理的原因码：排最前，截断截不掉（``book_many`` → 待处理 / 复核页列候选账套，第五轮后审查）
+REASONS_FIRST = ("book_many",)
+
+
 def reason_codes(verdict: Verdict, limit: int = 140) -> str:
-    """存进票上 ``auto_reasons`` 的简表：原因码逗号相连，截到 ``limit`` 字（第 9 条，≤140 字）。"""
+    """存进票上 ``auto_reasons`` 的简表：原因码逗号相连，截到 ``limit`` 字（第 9 条，≤140 字）；``REASONS_FIRST`` 排最前。"""
     text = ""
-    for code in verdict.reasons:
+    first = [code for code in verdict.reasons if code in REASONS_FIRST]
+    for code in [*first, *(code for code in verdict.reasons if code not in REASONS_FIRST)]:
         candidate = f"{text},{code}" if text else code
         if len(candidate) > limit:
             break
@@ -892,6 +899,6 @@ __all__ = ["A", "amount_in_text", "AMOUNT_TOLERANCE", "B", "C", "checks", "claim
            "HISTORY_FRESH_DAYS",
            "IMAGES_ALLOWED", "layers", "memory_evidence", "memory_settled", "MEMORY_STREAK", "memory_streak",
            "no_claim_in_text", "PARTY_EVIDENCE_SOURCES", "PAYMENT_EVIDENCE_SOURCES", "posting_by_history", "prior_entry",
-           "reason_codes",
+           "reason_codes", "REASONS_FIRST",
            "tax_in_text", "TEXT_CHARS_PER_PAGE", "text_layer",
            "tiers", "Verdict"]

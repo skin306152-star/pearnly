@@ -1364,8 +1364,10 @@ def judge_document(m, doc, book, memory: Memory, prior: Dict[str, List[Dict[str,
         ``posting_tier_if_history_manual``。"""
         if posting_from != m["goods_posting"].COMPANY_CHOICE:
             return None
-        found = automation.posting_by_history(dataclasses.replace(facts, posting_kind=posting_kind or "",
-                                                                  posting_history=kind))
+        judged = dataclasses.replace(facts, posting_kind=posting_kind or "", posting_history=kind)
+        found = automation.posting_by_history(judged)
+        if found == "A" and automation.tiers(judged).get("posting") != "A":
+            return "keyed"  # 对方没有 13 位税号、历史按名字对上：线上封顶 B（`automation.tiers`，第五轮后审查）
         return found or None
 
     # 「最新 30 张」的上限丢掉的 A（审查处理 10-17）：记忆定的项判成 B，不设上限的证据却能定下的类
@@ -2313,7 +2315,8 @@ def goods_summary(rows: Sequence[Mapping[str, Any]], choices: Mapping[str, Mappi
       与全期多数不同的（``disagree_full``）——替换第四轮「0–15% 与会计记法不同」的口径；
     - ``history``（`posting_tier_if_history`，线上同一判据 `automation.posting_by_history`，回放主判定不带）：加上「这家供应商之前的
       Express 存货历史」一层，A（与公司选的一致、载荷正好按它写）/ no_lines（一致但定成走库存、载荷写不出库存行）/ items（存货没
-      着落）/ named（定成记费用却有库存行或与库存品同名）/ B（没定下）/ conflict（相反，线上交人）各几张（后三种线上不给 A）；A 里入账方式
+      着落）/ named（定成记费用却有库存行或与库存品同名）/ keyed（判据成立但对方没有 13 位税号、历史按名字对上，线上封顶 B）/
+      B（没定下）/ conflict（相反，线上交人）各几张（no_lines、items、named、keyed 线上不给 A）；A 里入账方式
       计分错的（``A_wrong``，按 ``scored["posting"]``，同报表计分口径）；现在只因入账方式是 B、会升 A 的（``extra_A``，其中整张推错
       ``extra_A_wrong``、入账方式本身判错 ``extra_A_posting_wrong``）；相反会多出的 C（``conflict_C``，其中真拦住了入账方式错的
       ``conflict_caught``）。``history_manual`` 同上，只是把之前判成 A / B 的单当 CC 推的剔掉（不含 CC 推的下界；``history`` 是

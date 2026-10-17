@@ -3,7 +3,8 @@
 Cowork 一个租户一个工作空间、不按公司隔离（用户 2026-09-26），所以记在工作空间上，整个租户一条，复核页选一次。
 同一个字段另记按公司选一次的商品单入账方式（键 ``goods_posting|<公司身份>``，`contracts.document_policy`）：公司身份要按推往的
 账套目录现算，由推送域（`push.application.goods_posting.choose`）核过权限后经 :func:`record` 写；两份同期账套时这家公司现用的那份
-（键 ``current_book|…``）由 `assistant.pending_api.remember_current_book` 按 companies 现算的候选核过后经 :func:`record` 写。
+（键 ``current_book|…``）由 `assistant.pending_api`（`choose_account_set` 推成了才记、`rechoose_current_book` 改记）按
+companies 现算的候选核过后经 :func:`record` 写。
 只经这里写：调用方要有录入权限、能读这张票；读出的值不认得的一律当作没选过。
 """
 import json

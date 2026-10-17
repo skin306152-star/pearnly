@@ -9,11 +9,14 @@
   `tasks.books_of`（T1）与 `automation.day_books`（自动推判档）两处；`identity.covering`（月结台账、主档页、档位统计按月取单）
   不接：它是列单、不是选推往哪份，两份都取才不漏人推进另一份的单。
 - 写：选择只经 `history.document_policy.record` 写（companies 不导入 history）。复核页 / 待处理当场换账套、CC 工具都走
-  `assistant.pending_api`：这里的 :func:`key_of` 按同一组候选现算键，`companies.pending.current_book_choice` 核过这张单确实停在
-  多份同期、选的在候选里。
+  `assistant.pending_api.choose_account_set`：这里的 :func:`key_of` 按同一组候选现算键，`companies.pending.current_book_choice`
+  核过这张单确实停在多份同期、选的在候选里，这张推成了才记（推不成不记，下一张照旧停下再问）。已经记住的要改选：CC 工具对
+  推送去向那份账套这一天有多份同期的单只改记（`companies.pending.current_book_rechoice`，同自动推判档的候选）。
 
-公司身份同 `identity.company_identity` 的 ``key``（建了主档的用主档上的身份）；分店取候选账套报的分店号（多个用逗号连），
-本年 / 次年按 `targets.account_match.fiscal_part`。只读。
+公司身份同 `identity.company_identity` 的 ``key``（建了主档的用主档上的身份）；分店取候选账套报的分店号，本年 / 次年按
+`targets.account_match.fiscal_part`。候选跨了分店（报了两个以上不同的分店号，如定时任务没记分店、两个分店各有自己的现用账套）
+不问不记、照旧停下（第五轮后审查）：不然没印分店的单会被推进另一个分店的账套。同一个分店（含没报分店号的旧年度）两边算出的
+候选一样（定时任务按任务记的分店、自动推按推送去向那一行的分店，`identity.for_branch`），键也一样。只读。
 """
 from __future__ import annotations
 
@@ -36,15 +39,17 @@ def _key(item) -> str:
 
 def key_of(company_identity, day, books) -> str:
     """这组同期候选（`identity.book` 的样子，`identity.for_day` 的结果）问「哪份是现用的」的键；不到两份、日期在各份里
-    不同段（本年 / 次年）、认不出公司回空串。"""
+    不同段（本年 / 次年）、跨了分店、认不出公司回空串。"""
     books = list(books or ())
     if len(books) < 2:
         return ""
+    branches = {str(item.get("branch") or "") for item in books} - {""}
+    if len(branches) > 1:
+        return ""  # 跨分店：各分店各有现用的账套，不当成「两份同期」记
     parts = {account_match.fiscal_part(item.get("period_start"), item.get("period_end"), item.get("next_end"), day)
              for item in books}
     part = PARTS.get(parts.pop()) if len(parts) == 1 else None
-    branch = ",".join(sorted({str(item.get("branch") or "") for item in books} - {""}))
-    return policy_rules.current_book_key(company_identity, branch, part, [_key(item) for item in books])
+    return policy_rules.current_book_key(company_identity, "".join(branches), part, [_key(item) for item in books])
 
 
 def policy(workspace) -> dict:
