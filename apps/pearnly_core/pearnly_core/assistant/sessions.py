@@ -572,7 +572,7 @@ def run_tool(session_id, tool_use_id) -> dict:
     recent = contracts.since(engine.adapter().events(remote, newest_first=True), use_id) or []
     call = recent[0] if recent and recent[0].get("type") == "agent.custom_tool_use" else None
     if not call:
-        frappe.throw(_("Tool call not found"), frappe.DoesNotExistError)
+        frappe.throw(_("Action not found"), frappe.DoesNotExistError)
     if use_id in contracts.answered_tool_uses(recent):
         return {"status": "answered"}
     relay.ensure(row.session_id, remote, frappe.session.user)

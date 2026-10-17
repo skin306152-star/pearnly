@@ -3,7 +3,7 @@
 // 纯函数，不调模型；人给的字（搜索词、月份）原样留着。不是 JSON 的（报错的一句话等）原样显示。
 //
 // 拿掉的：
-//   · 键本身就是内部的：连接、账套键 / 路径、会话、附件 / 批次 / 推送记录的名字（INTERNAL_KEYS）
+//   · 键本身就是内部的：连接、账套键 / 路径、会话、附件 / 批次 / 推送记录的名字、只给模型读的指令（INTERNAL_KEYS）
 //   · 值像内部的字符串：随机名与 CW…- 记录名（looksInternal）、file_ / sesn_ 这类编号、本地路径（盘符、\\共享、/Users/…）
 //   · 拿掉以后空了的列表与对象（原来就空的照留）
 
@@ -18,6 +18,8 @@ const INTERNAL_KEYS = new Set([
   "target_account_set", "account_dir", "account_root", "root", "root_id", "reader", "folder_file", "source_id",
   "session", "session_id", "file_id", "batch", "batches", "record", "records", "last_push_record", "request",
   "request_id", "request_key", "history",
+  // 点了「拒绝」交回模型的英文指令（pearnly_core toolrun.decide）：给用户看的是同一结果里的 message
+  "instruction",
 ]);
 
 /** 编号式的内部名字：Anthropic 的文件 / 会话 / 消息编号等（file_011C…、sesn_01…）。后缀里必须带数字，

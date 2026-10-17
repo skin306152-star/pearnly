@@ -20,6 +20,7 @@ Account balance,口座残高
 Account name,口座名義
 Account number,口座番号
 Account with admin rights,権限アカウント
+Action not found,操作が見つかりません
 Actions,操作
 Adapter,アダプタ
 Add official account,公式アカウントを友だち追加
@@ -92,6 +93,7 @@ Cannot reach the identity service of the target environment ({0}): {1} {2},対�
 Cannot read the remaining time,残り時間を取得できません
 Car models {0},車種 {0}
 Change account,アカウントを変更
+Change declined,この変更は拒否されました
 Change password,パスワード変更
 Change your password and sign out other devices on the account page of the identity service,パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
@@ -135,6 +137,7 @@ Connection OK · {0},接続正常 · {0}
 Connection failed,接続に失敗しました
 Console,コンソール
 Contact support with the record ID,記録番号を添えてサポートへご連絡ください
+Conversation not found,会話が見つかりません
 Copy,コピー
 Could not call the model: {0},モデルを呼び出せません: {0}
 Could not create the OIDC client: {0} {1},OIDCクライアントの作成に失敗: {0} {1}
@@ -401,6 +404,7 @@ No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定で
 No camera was found on this device. Enter the code instead.,このデバイスにカメラが見つかりません。コードを入力してください。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
+No file was received.,ファイルを受信していません。
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
 No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
 No purchase orders yet. Use “New purchase order” in the top right to add the first one.,まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。
@@ -543,6 +547,7 @@ Reorder sidebar,サイドバーの並べ替え
 Request & Response,リクエストと応答
 Request Body,リクエスト内容
 Request failed (HTTP {0}),リクエスト失敗（HTTP {0}）
+Request refused,リクエストが拒否されました
 Requested,申請額
 Requested By,申請者
 Response Body,レスポンス内容
@@ -698,6 +703,7 @@ This ERP account has no company or year to choose.,この ERP アカウントに
 This LINE account is not bound to this account on this site. Sign in with your password.,このLINEはこのサイトのこのアカウントに連携されていません。パスワードでログインしてください。
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 "This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
+This action is not supported on this site,このサイトではこの操作に対応していません
 This advisor is no longer in the current DMS list. Please select again.,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
 "This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",アプリ内のブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
 This attachment is not in this conversation.,この添付ファイルはこの会話にありません。
@@ -819,6 +825,9 @@ account.themeDark,Pearnly ダーク
 account.themeLight,Pearnly ライト
 account.usernameFormat,ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。
 account.usernameTaken,このユーザー名は使用されています。
+assistant.tool.declined,この変更は拒否されました
+assistant.tool.refused,リクエストが拒否されました
+assistant.tool.unavailable,このサイトではこの操作に対応していません
 common.backHome,ホームに戻る
 common.cancel,キャンセル
 common.col.date,日付

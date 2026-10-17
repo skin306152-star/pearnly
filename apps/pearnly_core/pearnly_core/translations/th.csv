@@ -20,6 +20,7 @@ Account balance,ยอดคงเหลือในบัญชี
 Account name,ชื่อบัญชี
 Account number,เลขที่บัญชี
 Account with admin rights,บัญชีที่มีสิทธิ์ผู้ดูแลระบบ
+Action not found,ไม่พบการดำเนินการ
 Actions,การจัดการ
 Adapter,อะแดปเตอร์
 Add official account,เพิ่มบัญชีทางการเป็นเพื่อน
@@ -92,6 +93,7 @@ Cannot reach the identity service of the target environment ({0}): {1} {2},ไ�
 Cannot read the remaining time,ไม่สามารถอ่านเวลาที่เหลือได้
 Car models {0},รุ่นรถ {0}
 Change account,แก้ไขบัญชี
+Change declined,ปฏิเสธการเปลี่ยนแปลงนี้แล้ว
 Change password,เปลี่ยนรหัสผ่าน
 Change your password and sign out other devices on the account page of the identity service,กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน
 Change your password from your account profile using Change Password.,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วย «เปลี่ยนรหัสผ่าน» ในข้อมูลส่วนตัว
@@ -135,6 +137,7 @@ Connection OK · {0},การเชื่อมต่อปกติ · {0}
 Connection failed,เชื่อมต่อไม่สำเร็จ
 Console,คอนโซล
 Contact support with the record ID,กรุณาติดต่อฝ่ายบริการลูกค้าพร้อมแจ้งหมายเลขรายการ
+Conversation not found,ไม่พบการสนทนา
 Copy,คัดลอก
 Could not call the model: {0},เรียกโมเดลไม่สำเร็จ: {0}
 Could not create the OIDC client: {0} {1},สร้าง OIDC client ไม่สำเร็จ: {0} {1}
@@ -401,6 +404,7 @@ No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได
 No camera was found on this device. Enter the code instead.,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงไม่สามารถส่งอีเมลเชิญได้
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่ตรงกันและไม่ได้ระบุรหัสอ้างอิงลูกค้า DMS กรุณายืนยันด้วยตนเองก่อน
+No file was received.,ไม่ได้รับไฟล์
 No operators yet — add one above,ยังไม่มีพนักงาน กรุณาเพิ่มที่ด้านบน
 No provisioning target is available; configure one under “Provisioning Target” first,"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"
 No purchase orders yet. Use “New purchase order” in the top right to add the first one.,"ยังไม่มีเอกสารซื้อ กรุณากด ""สร้างเอกสารซื้อใหม่"" ที่มุมขวาบน"
@@ -543,6 +547,7 @@ Reorder sidebar,จัดลำดับแถบด้านข้าง
 Request & Response,คำขอและการตอบกลับ
 Request Body,เนื้อหาคำขอ
 Request failed (HTTP {0}),คำขอไม่สำเร็จ (HTTP {0})
+Request refused,คำขอถูกปฏิเสธ
 Requested,จำนวนเงินที่ขอ
 Requested By,ผู้ขอ
 Response Body,เนื้อหาการตอบกลับ
@@ -698,6 +703,7 @@ This ERP account has no company or year to choose.,บัญชีผู้ใ�
 This LINE account is not bound to this account on this site. Sign in with your password.,บัญชี LINE นี้ยังไม่ได้ผูกกับบัญชีของเว็บไซต์นี้ กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน
 This Operator's Own DMS Credentials,ข้อมูลรับรอง DMS ของพนักงานรายนี้
 "This account has no identity binding, so it cannot change its own password; contact an admin",บัญชีนี้ยังไม่ได้ผูกตัวตน จึงไม่สามารถเปลี่ยนรหัสผ่านด้วยตนเองได้ กรุณาติดต่อผู้ดูแลระบบ
+This action is not supported on this site,เว็บไซต์นี้ไม่รองรับการดำเนินการนี้
 This advisor is no longer in the current DMS list. Please select again.,ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่
 "This app's built-in browser cannot use the camera. Open this page in Chrome or Safari, or enter the code.",เบราว์เซอร์ในแอปนี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
 This attachment is not in this conversation.,ไฟล์แนบนี้ไม่ได้อยู่ในการสนทนานี้
@@ -819,6 +825,9 @@ account.themeDark,Pearnly โหมดมืด
 account.themeLight,Pearnly โหมดสว่าง
 account.usernameFormat,ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง
 account.usernameTaken,ชื่อผู้ใช้นี้ถูกใช้งานแล้ว
+assistant.tool.declined,ปฏิเสธการเปลี่ยนแปลงนี้แล้ว
+assistant.tool.refused,คำขอถูกปฏิเสธ
+assistant.tool.unavailable,เว็บไซต์นี้ไม่รองรับการดำเนินการนี้
 common.backHome,กลับหน้าหลัก
 common.cancel,ยกเลิก
 common.col.date,วันที่

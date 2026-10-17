@@ -908,6 +908,9 @@ assert.deepEqual(sanitizeDetail({ files: [{ path: "2026-09/inv-01.pdf", name: "i
 assert.equal(detailOutput(JSON.stringify({ document: "CWH-1", connection: "x" })), "");
 assert.equal(detailOutput("Express is offline on CWEC-0003"), "Express is offline on CWEC-0003");
 assert.equal(detailOutput("42"), "42");
+// 点了「拒绝」：给用户看 message（术语表，按用户语言）；只给模型读的英文 instruction 不显示
+assert.deepEqual(JSON.parse(detailOutput(JSON.stringify({ status: "denied", message: "已拒绝此更改",
+  instruction: "Do not try it again unless the user asks." }))), { status: "denied", message: "已拒绝此更改" });
 (globalThis as any).done();
 """)
 

@@ -28,6 +28,8 @@ from pearnly_core.assistant import contracts, engine, tools
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
 WORK_RUNS = 200  # 接续时回看最近这么多次调用，凑工作清单
+# 点了「拒绝」交回模型的指令：只给模型读（tool_result 的 instruction），不是界面文案，不经 _()
+DENIED_INSTRUCTION = "Do not try it again unless the user asks."
 
 
 def _lang_key(conversation: str) -> str:
@@ -140,10 +142,10 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
         return "not_waiting"
     _announce(conversation, use_id, allow)
     if not allow:
-        # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）
-        text = json.dumps({"status": "denied",
-                           "message": _("The user did not allow this change. Do not try it again unless the user asks.")},
-                          ensure_ascii=False)
+        # 带上 status: denied（不随语言变）：对话页重开时照它认出这一步被拒绝、没做，步骤不写成做完的说法（第 8 轮测试机）。
+        # message 是步骤详情里给用户看的（术语表，按用户语言）；给模型的指令另放 instruction，不经 _()，对话页不显示（step-detail）
+        text = json.dumps({"status": "denied", "message": _("assistant.tool.declined"),
+                           "instruction": DENIED_INSTRUCTION}, ensure_ascii=False)
         frappe.db.set_value(TOOL_RUN, name, "result", text)
         frappe.db.commit()
         _publish_run(conversation, use_id, "denied")

@@ -861,6 +861,12 @@ The provisioning target {0} has no account pool for {1}	开户目标 {0} 未配�
 Work	识别作业	งานอ่านเอกสาร	読み取りジョブ	
 Checked your account	已查看账号信息	ตรวจสอบข้อมูลบัญชีแล้ว	アカウント情報を確認しました
 The tool failed. Try again later.	工具执行失败，请稍后再试。	เครื่องมือทำงานไม่สำเร็จ โปรดลองอีกครั้งภายหลัง	ツールの実行に失敗しました。しばらくしてからもう一度お試しください。
+Change declined	已拒绝此更改	ปฏิเสธการเปลี่ยนแปลงนี้แล้ว	この変更は拒否されました	assistant.tool.declined
+This action is not supported on this site	本站不支持此操作	เว็บไซต์นี้ไม่รองรับการดำเนินการนี้	このサイトではこの操作に対応していません	assistant.tool.unavailable
+Request refused	请求被拒绝	คำขอถูกปฏิเสธ	リクエストが拒否されました	assistant.tool.refused
+No file was received.	未收到文件。	ไม่ได้รับไฟล์	ファイルを受信していません。
+Conversation not found	未找到对话	ไม่พบการสนทนา	会話が見つかりません
+Action not found	未找到该操作	ไม่พบการดำเนินการ	操作が見つかりません
 Looked up a tax ID	查了税号	ตรวจสอบเลขประจำตัวผู้เสียภาษีแล้ว	税番号を照会しました
 Head Office	总部	สำนักงานใหญ่	本店
 Branch {0}	分支机构 {0}	สาขา {0}	支店 {0}

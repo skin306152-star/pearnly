@@ -554,7 +554,9 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(len(posted), 2)
         denied = json.loads(rows["r2"]["result"])
         self.assertEqual((rows["r2"]["status"], denied["status"]), ("denied", "denied"))
-        self.assertIn("did not allow this change", denied["message"])
+        # 步骤详情给用户看的走术语键（按用户语言）；给模型的指令另放 instruction、不经 _()（对话页不显示）
+        self.assertEqual((denied["message"], denied["instruction"]),
+                         (toolrun._("assistant.tool.declined"), "Do not try it again unless the user asks."))
         # 卡片在点之前说清改什么：工具的 preview 现算；没写就列参数；ask 没写用步骤名
         declared = [{"name": "always", "label": "Saved", "ask": "Save?", "approval": True, "preview": "x.preview"},
                     {"name": "plain", "label": "Did", "approval": True}]
