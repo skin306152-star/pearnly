@@ -10,7 +10,8 @@
 | 术语表校验 | `i18n-build.py --check` | 不写文件；不带 `--check` 会生成语言包 |
 | Frappe 文案检查 | `check-i18n.py --strict` | 静态检查，有发现则失败 |
 | 前端翻译键检查 | `check-frontend-i18n.py --strict` | 静态检查，不代替界面语言验收 |
-| CC 对话页样式变量检查 | `check-frontend-tokens.py` | 静态检查：`frontend/assistant` 组件不写死颜色 / 圆角 / 阴影（docs/development/ccs.md），不代替截图核对 |
+| CC 前端标准闸门 | `check-frontend-tokens.py [--report]` | 静态检查：`frontend/assistant` 组件不写死颜色 / 圆角 / 阴影（R1–R3，全仓失败）；尺寸、间距、字号、层级、动效等 R4–R15 只在 `frontend-tokens-strict.txt`（已完成清单，不是豁免清单）里的文件失败，范围外只报数（[标准化记录](../docs/work/2026-10-17-cc-frontend-standards.md) 第 3 节）；不代替截图核对 |
+| CC 画面比对 | `cc-visual/shoot.mjs` → `cc-visual/compare.mjs` | 离线：本机假服务端（`cc-visual/server.mjs`，假数据、不连真实服务）+ 本机无界面 Chrome，按 `cc-visual/scenes.mjs` 的 7 种环境 × 浅深色 × 场景对两个构建产物各取计算样式快照与截图，逐项 / 逐像素比；产物用 `vite build --outDir <临时目录>` 构建，不写进仓库；有差异退出码 1。做法见记录 5.2 |
 | Cowork 录入演示数据 | `sample-cowork-intake-demo.py` | 只写本地样板 `cowork-a.localhost`：建原件与识别记录（固定识别结果，不调模型、不计费），请求键固定、重跑幂等 |
 | 定向业务验证 | `sample-verify-*` | 有离线、本地写入、外部读取和外部真写，不能通配符全跑 |
 | Windows 测试环境 | `testenv.sh` | `sync` / `config` / `check` / `smoke` / `urls` 只读；`up`、`sites`、`import`、`migrate`、`reset`、`live` / `live-off` 会改测试环境；`lab-start` / `lab-stop` 会**切换测试租户域名在线上与测试环境之间的指向**，见 [测试环境](../docs/development/test-environment.md) |

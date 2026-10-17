@@ -21,10 +21,60 @@
 
 | 批 | 状态 |
 | :- | :- |
-| B0 闸门与比对工具骨架 | 进行中（本记录定稿后开工） |
+| B0 闸门与比对工具骨架 | 本地完成（`pearnly/cc-standards`，提交见下）；未推送、未合入 cc-shell-rebuild；不碰 `src`，无画面变化 |
 | B1–B8 | 待开工 |
 
 每批完成后在这里补一行：分支、提交、合入 cc-shell-rebuild 的 SHA、比对报告位置、测试窗口验收状态。
+
+### B0 做了什么（10-17）
+
+- **闸门**：`scripts/check-frontend-tokens.py` 原有 `scan()` 与 R1–R3 判据一字未改；新加 `scan_strict()` 判 R4–R15（3.1 表），
+  允许的名字运行时从 globals.css 读（`@theme` 的 `--text-* / --ease-* / --animate-* / --font-weight-* / --font-* / --color-*` 与所有 `--cc-*` 定义）。
+  组件源码先取出字符串与模板字符串（模板里 `${…}` 占位、运行时拼出来的片段不判；JSX 文字里的撇号不吞代码；正则字面量跳过），
+  再按空白切类名、按顶层 `:` 拆变体、识别前置 / 后置 `!` 与负号；globals.css 按语句解析，跳过 `@keyframes` 与 `@font-face`，`@apply` 按组件规则判，
+  `--cc-*` 写数要同行注释里有出处（实测 / 外壳实测 / 系统值 / 现有值·CC 自定 / 运行时写入 / 照搬宣传页）。另加两处 1.2 表里写了但 R 编号没点名的：
+  不受 R4–R9 管的工具类（`grid-cols-[…]`、`aspect-[…]`）的任意值也按 R10 判；组件里整串是长度的字符串（`"3rem"`、`"200px"`）按 R12 判。
+- **收紧范围**：`scripts/frontend-tokens-strict.txt`（已完成清单，初始为空，文件头写明每批加自己的文件、按字母序只增不减、B8 删文件改全仓失败）。
+  默认模式：R1–R3 有违例或范围内有 R4–R15 违例才失败，范围外只打一行报数；`--report` 列各条命中数、示例和按文件 × 规则；`--strict-list` 供测试指定清单。
+- **测试**：新文件 `tests/test_cc_frontend_gate.py` 20 项，R4–R15 每条都有拦和放的用例（含 3.3 点名的全部例子、多行 `cn()`、模板字符串、
+  `[&_svg]:size-4`、运行时变量与模板拼接的 R14、globals.css 的 R13）、范围文件格式、只在范围内失败、旧 `scan()` 不受新判据影响、对真实 src 范围内 0 违例。
+  `tests/test_cc_ccs.py` 不改，23 项照常通过。CI（`development.yml`）在闸门脚本后加跑新测试文件。
+- **Tailwind 4.3.3 解析核对**（用 `node_modules/tailwindcss` 的 `compile()` 现编）：`-mt-(--x)` → `margin-top: calc(var(--x) * -1)`；
+  `z-(--x)`、`duration-(--x)`（同时写 `--tw-duration`）、`text-(length:--x)` → `font-size: var(--x)` 都按预期；`in-data-[cc-touch]:p-0` →
+  `:where([data-cc-touch]) .in-data-\[cc-touch\]\:p-0`（祖先匹配，`<html>` 上的属性可用）；`!px-0` 与 `p-0!` 都生成 `!important`。
+  断点：不写时 `max-md / md` 生成 `(width < 48rem)` / `(width >= 48rem)`；`@theme` 写 `--breakpoint-md: 768px` 后生成 `(width < 768px)` / `(width >= 768px)`，
+  与 2.1 定的那一段文本一致（B1 照此写、测试核对三处一致）。
+- **范围外基线报数**（803c483b 的 src，`python3 scripts/check-frontend-tokens.py --report`）：共 1324 处 / 40 个文件——
+  R4 尺寸 180、R5 间距 410、R6 字号行高 4、R7 层级 22、R8 动效 103、R9 其他数值类 27、R10 任意值与 `!` 58、R11 断点与输入设备 13、
+  R12 JSX 与内联 25（`sideOffset` 等 17、svg 宽高描边 3、内联 style 2、长度字符串 3）、R13 globals.css 自身 423、R14 变量存在性 21、R15 字重 38。
+  文件前几名：globals.css 431、thread.tsx 100、ui/sidebar.tsx 93、settings.tsx 84、scheduled-tasks.tsx 80、assistant.tsx 61。
+  R14 的 21 处全是运行时变量与写入方自设的变量还没在 globals.css 登记（`--cc-menu-max` 6、`--cc-vvtop` 4、`--cc-marquee-x / -dur` 6、`--cc-modal-share` 3、`--cc-vvh` 2），
+  即 3.2 预计的 B0 误报，B1 登记默认值后消失，不为它改规则；R15 的 38 处是 `font-medium / semibold / bold / normal`，B1 在 `@theme` 接上 `--font-weight-*` 后放行。
+  逐条看过各规则的命中种类，没有发现误拦（唯一一处 `addEventListener("blur")` 被当成 `blur` 类，已改为单独一个词的字符串不算）。
+- **画面比对工具** `scripts/cc-visual/`：`server.mjs`（假服务端，固定时刻，十个会话：待允许、富文本 Markdown 表格 / 代码块 / 提醒卡 / 结果文件、运行中、出错、长对话；
+  `__boot=page` 照渲染 `www/assistant.html` 走动态插入资源，`__lang` 定 `<html lang>`，`/__hold` 挂起接口出加载骨架）、
+  `scenes.mjs`（5.2 的 7 种环境 × 浅深色，场景 62 个、全矩阵每遍 681 张：外壳与对话、侧栏、手机、面板、页面、弹窗、加载、根节点状态、泰文浅色、生产页加载方式；另有 767.5 宽环境）、
+  `shoot.mjs`（本机 Chrome 无界面 + CDP；每条跑道自己一个假服务端；时区、Date、Math.random 固定，光标每个场景先挪出画面；每个场景清存储、预置偏好、做交互、停时钟，
+  采计算样式快照——每个元素与伪元素的外框到 0.01px 和 68 个受管属性，含 transition / animation 的时长与曲线、遮罩、合成提示——再截图）、
+  `compare.mjs`（快照逐元素逐属性比、截图字节相同即 0 差否则在 Chrome 里用 canvas `getImageData` 逐像素比并出红色叠图，默认 0 容差；`--git-range` 做覆盖检查；出 report.md / report.json，有差异退出码 1）。
+  与 5.2 原写法的一处不同：5.2 写「截图前注入样式把 animation / transition 设为 0」。实测只在截图前归零不够——过渡和入场动画跑没跑、元素截图时还在不在合成层上，
+  取决于机器忙不忙，并行跑时会面板里转过角度的小箭头抗锯齿差 1（同一构建两遍 142 个场景有差）。现做法：过渡与动画在页面里**从加载起一直归零**，
+  只在采快照那一刻放开、把动画停住（有限的结束、无限的停在 0），记下真实的时长与曲线后再归零截图；减少动效场景不归零，记下截图前仍在跑的动画（转圈要照常转）。
+  另两处同类修正：输入框自动长高用的隐藏量尺（`visibility:hidden`，宽度跟最后量过的输入框走）只记样式不记外框；加载骨架场景挂起的接口按跑道分开（原来一个假服务端多条跑道共用，互相清掉）；
+  子菜单改为点开（悬停打开有延时，触屏模拟下快照与截图之间才弹出）；快照 → 截图 → 再快照，两次快照不一样就整组重来（最多 3 次），一直不稳的写进报告「动作没做完」一栏（触屏点按后浏览器补发的鼠标事件会在快照之后才让某一行显示悬停）。
+  不新增依赖，产物用 `vite build --outDir <临时目录>` 构建，不写进仓库。
+- **自检**（产物 = 本分支 803c483b 的 src 用 `vite build --outDir` 构建到临时目录；本机 Chrome 无界面，7 条跑道并行，每遍约 11.5 分钟）：
+  - 同一构建连跑两遍：681 个场景（14 组环境 × 深浅），**0 个有差异**——样式差异 0 条、差异像素 0（像素容差 0）。
+    第一版工具同样的比法有 142 个场景差（过渡 / 动画时序、悬停残留、共用假服务端的挂起接口、隐藏量尺），按上面几处修正后归零。
+  - 故意改 1px：复制一份产物，只把 CSS 里 `.cc-composer` 的 `padding-top` 从 `.875rem` 改成 `calc(.875rem + 1px)`，与第一遍比：
+    12 个场景报出差异（这条规则生效的窄屏三环境 × 深浅 × 「输入了文字」「键盘弹出」两个场景），每个都是样式 2 条
+    （`div.cc-composer` 的 `padding-top 14px → 15px` 与随之变的外框）加差异像素 878–7537 个；其余 669 个场景 0 差，没有误报。
+  - 动作没做完（两遍一致，覆盖缺口，B1 前补选择器或人工点）：桌面版 `session-panel` 顶栏没有 `.cc-topbar .cc-row-btn`（4 组）、
+    窄屏 `chin-month` 只有一个输入框下按钮（6 组）、触屏宽屏 `delete-confirm` 行尾「···」不显示找不到删除项（4 组）。
+    假服务端没模拟的接口：`pearnly_core.assistant.api.service_worker`、`pearnly_cowork.companies.api.candidates`（返回空，不影响渲染）。
+  - 减少动效场景：截图前在跑的动画记为 4 个 `cc-spin-dot`（四点转圈照常转）。
+- **没做 / 留给后面**：3.3 的「断点三处文本一致」测试要等 B1 改 `MOBILE_QUERY` 与 `@theme` 后才能成立，B1 加；覆盖检查（`--git-range`）已实现，B0 没有 src 改动可测；
+  现有 `TokenGateTests` 留在 `test_cc_ccs.py` 没有搬（B0 不改它）。
 
 ## 0. 结论
 

@@ -1,0 +1,9 @@
+# CC 前端标准闸门的「收紧范围」= 已完成清单，不是豁免清单（docs/work/2026-10-17-cc-frontend-standards.md 3.2）。
+#
+# · 一行一个已迁移完的文件，路径相对 frontend/assistant/src（例：components/ui/button.tsx、globals.css）。
+# · 清单里的文件按新判据 R4–R15 违例就失败；清单外的文件只报数不失败（python3 scripts/check-frontend-tokens.py --report）。
+#   颜色 / 圆角 / 阴影（R1–R3）照旧全仓失败，与本清单无关。
+# · 每批（B1–B7）迁完，在本批的提交里把自己的文件加进来：按字母序、只增不减、不加别批的文件。
+#   tests/test_cc_frontend_gate.py 核对路径存在、已排序、无重复。
+# · B8 删掉本文件，新判据改为全仓失败（测试改成「清单文件不存在」）。
+# · 不设忽略清单、不支持行内禁用注释：违例要么改掉，要么先在 globals.css 补档位并注明出处。
