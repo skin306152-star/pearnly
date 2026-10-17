@@ -3615,16 +3615,17 @@ class CompanyPageBehaviourTests(unittest.TestCase):
                stubs=stubs)
 
     def test_company_choices_show_their_scope_and_rows_can_be_set_for_the_whole_company(self):
-        # 数字会计员第 2 期：公司规则写明「全公司 / 分店 X」、付款可用下拉直接改；账套行与历史行多一个「设为全公司」
+        # 数字会计员第 2 期：公司规则写明「全公司 / 分店 X」、付款可直接改；账套行与历史行多一个「设为全公司」。
+        # 用户 10-17 改版：收起时一条一行（对方名 + 右侧的值），按钮、说明都在点开以后
         self.run_page(r"""
 import { promoteChoice } from "@/lib/companies";
 import { choiceLine, settledView } from "@/components/pending";
-const row = (choice: any, promote = true) => renderToStaticMarkup(createElement(ChoiceRow, { choice, onSet() {}, onForget() {},
+const row = (choice: any, promote = true, open = true) => renderToStaticMarkup(createElement(ChoiceRow, { choice, open, onSet() {}, onForget() {},
   ...(promote ? { onPromote() {} } : {}) }));
 const rule = row({ key: "r1", source: "rule", kind: "payment", subject_label: "ACME", value: "cash", editable: true, branch: "", set_by: "a" });
-assert.ok(rule.includes("<select"));
-assert.deepEqual(text(rule).slice(0, 2), ["ACME", "Whole company · a"]);
-assert.ok(!buttons(rule).includes("Set for whole company"));   // 规则本身不再提升
+assert.ok(!rule.includes("<select"));   // 两段式代替下拉框
+assert.deepEqual(text(rule).slice(0, 3), ["ACME", "Cash", "Whole company · a"]);
+assert.deepEqual(buttons(rule), ["ACME Cash", "Cash", "Credit", "Delete"]);   // 规则本身不再提升
 assert.equal(text(row({ key: "r2", source: "rule", kind: "account", subject_label: "ACME", value: "5300", branch: "00012" }))[2],
   "Branch 00012");
 assert.equal(text(row({ key: "r3", source: "rule", kind: "account", subject_label: "ACME", value: "5300", branch: "00000" }))[2],
@@ -3633,6 +3634,8 @@ const express = { key: "k1", source: "express", kind: "payment", subject_label: 
   year_label: "69", promotable: true };
 assert.ok(buttons(row(express)).includes("Set for whole company"));
 assert.ok(!buttons(row(express, false)).includes("Set for whole company"));   // 不给 onPromote 就不显示
+assert.ok(!buttons(row({ ...express, promotable: false })).includes("Set for whole company"));   // 不能提升的不显示
+assert.deepEqual(buttons(row(express, true, false)), ["ACME Credit"]);   // 收起时只有整行这一个按钮
 const learned = { key: "k2", source: "history", kind: "account", subject_label: "", supplier_name: "ACME", value: "5320",
   count: 9, last_date: "2026-09-30", promotable: true };
 assert.ok(buttons(row(learned)).includes("Set for whole company"));
@@ -3651,6 +3654,71 @@ assert.equal(choiceLine(stuck, { needed: [] } as any), "");
 assert.equal(choiceLine(stuck, { needed: [{ kind: "account", subject: "s" }, { kind: "account", subject: "t" }] } as any), "Expense account");
 assert.equal(choiceLine(stuck, { needed: [], wait: { state: "reading", message: "" } } as any), "Payment · Expense account");
 """)
+
+    def test_saved_choices_are_one_line_each_and_open_one_at_a_time(self):
+        # 用户 10-17「记住的选择照这个样子改」：收起时一条一行、值在右、不常驻按钮；整行是开合按钮（原生按钮，回车 / 空格开合），
+        # 一张卡一次只开一条；点开后两段式改现 / 赊（调 onSet，点已选的那段不调）、删除调 onForget、设为全公司只在能提升时出现
+        self.run_page(r"""
+import { accountFull, choiceValue, toggleChoice } from "@/components/company-cards";
+// 不经渲染直接拿元素树（ChoiceRow 不用 hook），找出按钮按下去
+const walk = (node: any, out: any[] = []): any[] => {
+  if (Array.isArray(node)) node.forEach((n) => walk(n, out));
+  else if (node && typeof node === "object") {
+    if (node.type === "button") out.push(node);
+    walk(node.props?.children, out);
+  }
+  return out;
+};
+const label = (b: any) => [b.props.children].flat().filter((c: any) => typeof c === "string").join("");
+const calls: string[] = [];
+const props = (choice: any, open: boolean, promote = true) => ({ choice, open, onToggle: () => calls.push("toggle"),
+  onSet: (v: string) => calls.push("set:" + v), onForget: () => calls.push("forget"), ...(promote ? { onPromote: () => calls.push("promote") } : {}) });
+const pay = { key: "k1", source: "express", kind: "payment", subject_label: "ACME", value: "cash", editable: true, year_label: "69", promotable: true };
+// 收起：一行、整行一个按钮（aria-expanded=false），值在名字右边；没有说明、没有别的按钮
+const closed = renderToStaticMarkup(createElement(ChoiceRow, props(pay, false)));
+assert.match(closed, /^<div class="cc-choice" data-slot="cc-choice" data-source="express"><button type="button" class="cc-choice-row" data-slot="cc-choice-row" aria-expanded="false">/);
+assert.ok(closed.indexOf("ACME") < closed.indexOf('data-slot="cc-choice-value">Cash<'));
+assert.ok(!closed.includes("cc-choice-detail") && !closed.includes("<select"));
+assert.equal(walk((ChoiceRow as any)(props(pay, false))).length, 1);
+// 点开：整块填底（data-open）、aria-expanded=true；按钮依次是两段式、设为全公司、删除
+const opened = renderToStaticMarkup(createElement(ChoiceRow, props(pay, true)));
+assert.ok(opened.includes('data-open=""') && opened.includes('aria-expanded="true"'));
+const [whole, cash, credit, promote, forget] = walk((ChoiceRow as any)(props(pay, true)));
+assert.deepEqual([cash, credit, promote, forget].map(label), ["Cash", "Credit", "Set for whole company", "Delete"]);
+assert.deepEqual([cash.props["aria-pressed"], credit.props["aria-pressed"]], [true, false]);
+whole.props.onClick(); cash.props.onClick(); credit.props.onClick(); promote.props.onClick(); forget.props.onClick();
+assert.deepEqual(calls, ["toggle", "set:credit", "promote", "forget"]);   // 点已选的「现购」不调 onSet
+// 设为全公司：不能提升、或没给 onPromote 都不出现；只读的（历史）没有两段式，只有删除
+assert.deepEqual(walk((ChoiceRow as any)(props({ ...pay, promotable: false }, true))).map(label).slice(1), ["Cash", "Credit", "Delete"]);
+assert.deepEqual(walk((ChoiceRow as any)(props(pay, true, false))).map(label).slice(1), ["Cash", "Credit", "Delete"]);
+const history = { key: "k2", source: "history", kind: "account", subject_label: "", supplier_name: "ACME", value: "53-05-25-00",
+  value_label: "53-05-25-00 Repairs", account_label: "53-05-25-00 Repairs", count: 6, last_date: "2026-09-30", promotable: true };
+assert.deepEqual(walk((ChoiceRow as any)(props(history, true))).map(label).slice(1), ["Set for whole company", "Delete"]);
+// 值：科目（含 Express 历史）只写科目码，现 / 赊写选项名；完整写法「科目码 科目名」（名称没带码的补上，没有名称只写码）
+assert.equal(choiceValue(history), "53-05-25-00");
+assert.equal(choiceValue({ kind: "payment", value: "credit", value_label: "credit" }), "Credit");
+assert.equal(choiceValue({ kind: "party", value: "S001", value_label: "S001 ACME" }), "S001 ACME");
+assert.equal(accountFull(history), "53-05-25-00 Repairs");
+assert.equal(accountFull({ value: "5300", value_label: "Repairs" }), "5300 Repairs");
+assert.equal(accountFull({ value: "5300", value_label: "5300" }), "5300");
+// 一次只开一条：点开着的收起，点别的换成它
+assert.equal(toggleChoice("", "k1"), "k1");
+assert.equal(toggleChoice("k1", "k1"), "");
+assert.equal(toggleChoice("k1", "k2"), "k2");
+""")
+        # 卡片管展开：一次一条；删掉 / 设为全公司成功后那条不在了，展开着的收起
+        cards = read("components/company-cards.tsx")
+        section = cards[cards.index("export const ChoicesSection"):cards.index("export const ruleScope")]
+        self.assertIn("open={open === c.key}", section)
+        self.assertIn("onToggle={() => setOpen((o) => toggleChoice(o, c.key))}", section)
+        self.assertIn("if (gone) setOpen((o) => (o === gone ? \"\" : o));", section)
+        self.assertEqual(section.count("(rows) => rows.filter((row) => row.key !== c.key), c.key)"), 2)
+        # 电脑行约 28（小号控件）、手机 44；点开后的按钮是卡片按钮（手机 48 胶囊）
+        css = read("globals.css")
+        self.assertIn("min-height: var(--cc-control-sm); padding: 0.125rem 0.25rem;", block(css, ".cc-choice-row {"))
+        self.assertIn(':root[data-cc-variant="phone"] .cc-choice-row { min-height: var(--cc-tap); }', css)
+        self.assertIn(".cc-choice[data-open] { background: var(--cc-bg-hover); }", css)
+        self.assertNotIn(".cc-panel-card-body .cc-choice-row", css)
 
     def test_browsers_and_phones_only_read_the_folder(self):
         self.run_page(r"""
@@ -3811,16 +3879,17 @@ const sets = [{ connection: "c", key: "69HQ", label: "ABC 69", year_label: "69",
 const branches = [{ branch: "00000", label: "", account_sets: [sets[0]] }, { branch: "00001", label: "Rama 9", account_sets: [sets[1]] }];
 assert.deepEqual(text(html(SetsSection, { sets, branches, period: "2026-09" })),
   ["Account sets", "2 account sets", "Head office", "ABC 69", "69", "Rama 9", "ABC 69 B1", "69"]);   // 卡头摘要：账套数
-// 付款方式能直接改（原生下拉）；从 Express 历史学到的只读、可删，写明来源
-const pay = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment", subject_label: "ACME",
-  value: "credit", editable: true, year_label: "69" }, onSet() {}, onForget() {} }));
-assert.ok(pay.includes("<select"));
-assert.deepEqual(text(pay).slice(0, 2), ["ACME", "69"]);
-const learned = renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k2", source: "history", kind: "account",
+// 付款方式能直接改（点开后两段式）；从 Express 历史学到的只读、可删，写明来源；收起时一行 = 对方名 + 值（科目只写科目码）
+const pay = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment",
+  subject_label: "ACME", value: "credit", editable: true, year_label: "69" }, open, onSet() {}, onForget() {} }));
+assert.deepEqual(text(pay(false)), ["ACME", "Credit"]);
+assert.deepEqual(text(pay(true)), ["ACME", "Credit", "69", "Cash", "Credit", "Delete"]);
+assert.ok(pay(true).includes('aria-pressed="true">Credit</button>'));
+const learned = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k2", source: "history", kind: "account",
   subject_label: "", supplier_name: "ACME", value: "5320", account_label: "5320 Utilities", count: 9, last_date: "2026-09-30" },
-  onSet() {}, onForget() {} }));
-assert.ok(!learned.includes("<select"));
-assert.deepEqual(text(learned), ["ACME", "→ 5320 Utilities", "From Express history · 9 · Sep 30, 2026"]);
+  open, onSet() {}, onForget() {} }));
+assert.deepEqual(text(learned(false)), ["ACME", "5320"]);
+assert.deepEqual(text(learned(true)), ["ACME", "5320", "From Express history · 9 · Sep 30, 2026", "ACME → 5320 Utilities", "Delete"]);
 // 服务端给带时区的 UTC：按这台设备的时区显示；不带时区的不猜、原样（原先补 Z，晚 7 小时）
 assert.equal(formatWhen("2026-10-15T02:00:00Z"),
   new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Date.UTC(2026, 9, 15, 2))));
@@ -5613,9 +5682,10 @@ class Round5SmallFixesTests(unittest.TestCase):
                       "    box-shadow: var(--cc-shadow-focus);", base)
         # 兜底同时去掉浏览器自带的 outline:auto：原来靠它显示焦点的按钮（待处理组头、任务行、输入框「＋」）不再是两道
         self.assertNotIn("0 0 0 3px", base)
-        # 点名的几处：组头待处理数、记住的选择「设为全公司」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、组按钮、胶囊、标题栏公司名
+        # 点名的几处：组头待处理数、记住的选择的行（.cc-choice-row）、文件夹「更换… / 移除」（.cc-link-btn）、定时任务卡的任务行（.cc-list-row）、显示更多、组按钮、胶囊、标题栏公司名
         for rule in (".cc-group-count:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",
+                     ".cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      "button.cc-list-row:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-show-more:focus-visible { box-shadow: var(--cc-shadow-focus); }",
                      ".cc-group-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }",

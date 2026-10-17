@@ -1669,7 +1669,7 @@
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
   }
   /* 卡里沿用的主档行（对话、账套、任务、草稿、知识库、文件夹、记住的选择）：按会话栏的行高与字号 */
-  .cc-panel-card-body .cc-list-row, .cc-panel-card-body .cc-note, .cc-panel-card-body .cc-folder-line, .cc-panel-card-body .cc-choice-row {
+  .cc-panel-card-body .cc-list-row, .cc-panel-card-body .cc-note, .cc-panel-card-body .cc-folder-line {
     min-height: var(--cc-panel-row); padding: 0.1875rem 0.25rem; border-radius: var(--cc-radius-row-ctl); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh);
   }
   .cc-panel-card-body .cc-subheading { padding: 0.375rem 0.25rem 0.125rem; }
@@ -1749,8 +1749,40 @@
   .cc-link-btn:hover, .cc-link-btn:focus-visible { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-link-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-link-btn:disabled { opacity: 0.4; pointer-events: none; }
-  .cc-choice-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.625rem; border-radius: var(--cc-radius-sm); }
+  /* 记住的选择（components/company-cards.tsx 的 ChoiceRow；用户 10-17 看样子图定）：收起时一条一行 = 对方名（13 正文色，放不下
+     渐隐、悬停滚动）+ 右侧 12px 淡色的值（科目码 / 现购 / 赊购，不换行），不常驻按钮；整行是开合按钮，电脑约 28、手机 44。
+     点开的那一条整块填悬停底，下面 12px 淡色说明，再下面靠右卡片按钮（.cc-card-btn）：现 / 赊两段式（选中段高亮）、
+     「设为全公司」、「删除」（幽灵、危险色字） */
+  .cc-choice { display: flex; flex-direction: column; border-radius: var(--cc-radius-row-ctl); }
+  .cc-choice[data-open] { background: var(--cc-bg-hover); }
+  .cc-choice-row {
+    display: flex; width: 100%; min-width: 0; align-items: center; gap: 0.5rem; min-height: var(--cc-control-sm); padding: 0.125rem 0.25rem;
+    border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink); text-align: start; outline: none; transition: background-color var(--cc-dur-fast) var(--cc-ease);
+  }
   .cc-choice-row:hover { background: var(--cc-bg-hover); }
+  .cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-choice-value {
+    flex-shrink: 0; max-width: 60%; overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-variant-numeric: tabular-nums;
+  }
+  .cc-choice-detail {
+    display: flex; flex-direction: column; padding: 0 0.25rem 0.375rem; color: var(--cc-ink-3);
+    font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
+  .cc-choice-detail > .cc-card-actions { padding-top: 0.375rem; }
+  .cc-choice-seg { display: inline-flex; overflow: hidden; border-radius: var(--cc-radius-sm); background: var(--cc-bg-subtle); }
+  .cc-choice-seg > .cc-card-btn { background: transparent; color: var(--cc-ink-3); }
+  .cc-choice-seg > .cc-card-btn:hover { color: var(--cc-ink); }
+  .cc-choice-seg > .cc-card-btn[aria-pressed="true"] { background: var(--cc-bg-active); color: var(--cc-ink); }
+  .cc-card-btn[data-ghost] { background: transparent; }
+  .cc-card-btn[data-ghost]:hover { background: var(--cc-bg-subtle); }
+  .cc-card-btn[data-danger] { color: var(--cc-danger); }
+  @media (pointer: coarse) {
+    .cc-choice-row { min-height: var(--cc-tap); }
+    .cc-choice-seg { border-radius: var(--cc-radius-full); }
+  }
+  :root[data-cc-variant="phone"] .cc-choice-row { min-height: var(--cc-tap); }
+  :root[data-cc-variant="phone"] .cc-choice-seg { border-radius: var(--cc-radius-full); }
 }
 
 /* 单行截断的文字（components/ui/marquee.tsx）：放不下时末尾渐隐，不用省略号（用户 2026-10-16「一行放不下时，侧栏末尾是渐隐，
