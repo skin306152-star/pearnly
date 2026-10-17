@@ -551,3 +551,16 @@
 - System Manager 专用 DocType 的 R-HARD（第 14 节）：不进术语表 Desk 就显示英文，维持拦截，补词条。业务角色或 All 可读的 Cowork DocType（第 11 节）同样维持。
 - R-TALK「这个 / 这些 / 这条」：Frappe 官方中文用「此 / 所选 / 该」，维持拦截，按第 5 节改文案。
 - LINE 快捷按钮 R-LINE20：`BTN_REMOVE_SLIP` 真超长且在用，维持；`BTN_RETRY_BOOKING` 已无引用，删行。
+
+## 施工（10-18）
+
+### 按书面改写后登记的行（用户 10-18 夜：「不用有口语」）
+
+清单建议里「到手机…」「回到本页会自动重试」偏口语，泰文「…จะลองใหม่เอง」也偏口语，改成下面的书面写法后登记（只动措辞，步骤与路径不变；泰文同时压在 120 字上限内）。
+
+| 位置 | 登记的写法 |
+|---|---|
+| core `common.scan.denied_android` | 中：相机权限已关闭。请点击地址栏左侧的图标 → 权限 → 相机 → 允许，仍无法打开时，请前往手机「设置 → 应用程序 → 浏览器 → 权限 → 相机」选择「允许」。返回本页后将自动重试。<br>英：Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.<br>泰：กล้องถูกปิด แตะไอคอนซ้ายแถบที่อยู่ → การอนุญาต → กล้อง → อนุญาต หากเปิดไม่ได้ ไปที่ การตั้งค่า → แอปพลิเคชัน → เบราว์เซอร์ → การอนุญาต → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่<br>日：清单建议不变 |
+| core `common.scan.denied_ios` | 中：相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。<br>英：Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.<br>泰：การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่<br>日：清单建议不变 |
+| core `common.scan.in_line_android` | 中：LINE 的相机权限已关闭。请前往手机「设置 → 应用程序 → LINE → 权限 → 相机」选择「允许」，返回 LINE 后将自动重试。 |
+| core `common.scan.in_line_ios` | 中：LINE 的相机权限已关闭。请前往 iPhone「设置 → LINE」开启「相机」，返回 LINE 后将自动重试。 |
