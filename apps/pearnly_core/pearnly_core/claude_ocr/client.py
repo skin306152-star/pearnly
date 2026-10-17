@@ -18,7 +18,10 @@ _direct = None
 
 
 def engine():
-    value = str(frappe.conf.get("pearnly_ocr_engine") or "google").strip().lower()
+    try:
+        value = str(frappe.conf.get("pearnly_ocr_engine") or "google").strip().lower()
+    except RuntimeError:  # 没有站点上下文（离线调用、测试）：按默认的谷歌路线
+        return "google"
     return value if value in ENGINES else "google"
 
 
@@ -26,16 +29,27 @@ def uses_claude():
     return engine() == "claude"
 
 
+def _upright(data, media_type):
+    """识别前转正（与谷歌路线同一个 ``ocr_models.orient``：EXIF + 本地方向模型，免费、约 15 毫秒）：侧拍、倒拍的照片和
+    扫描 PDF 页先转正再交 Claude。转不了就原样送，绝不挡识别。"""
+    from pearnly_core.ocr_models import orient as orienting
+
+    return orienting.orient(data, media_type,
+                            skipped=lambda: frappe.logger("pearnly.ocr").info("orient skipped", exc_info=True))
+
+
 def _jpeg(data, media_type):
-    """图片统一转正、缩到长边 2000、JPEG（评测同一口径）；PDF 每页按 170 DPI 渲染。"""
+    """每页转正、缩到长边 2000、JPEG（评测同一口径）；PDF 每页按 170 DPI 渲染。"""
     from PIL import Image, ImageOps
     out = []
     if media_type == "application/pdf":
         import pymupdf
-        for page in list(pymupdf.open(stream=data, filetype="pdf"))[:claude_engine.MAX_PAGES]:
-            img = Image.open(io.BytesIO(page.get_pixmap(dpi=170).tobytes("png"))).convert("RGB")
-            out.append(_save(img))
+        with pymupdf.open(stream=data, filetype="pdf") as document:
+            for page in list(document)[:claude_engine.MAX_PAGES]:
+                png, mime = _upright(page.get_pixmap(dpi=170).tobytes("png"), "image/png")
+                out.append(_save(Image.open(io.BytesIO(png)).convert("RGB")))
         return out
+    data, media_type = _upright(data, media_type)
     img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
     return [_save(img)]
 
@@ -62,11 +76,7 @@ class GoogleRefused(RuntimeError):
 
 def refuse_google(label):
     """付费谷歌识别调用之前调用（``pearnly_core.execution.provider.post`` 与 Cowork 交 Cloud Run 的 ``forward``）。"""
-    try:
-        claude = uses_claude()
-    except RuntimeError:  # 没有站点上下文（离线调用）
-        return
-    if claude:
+    if uses_claude():
         raise GoogleRefused(f"this site reads with Claude (pearnly_ocr_engine = claude); refusing a Google call ({label})")
 
 
@@ -87,6 +97,11 @@ def _remote(kind, pages, own_tax, text=None):
 
     session = requests.Session()
     session.mount("https://", Pinned())
+    # 自签证书只认钉死的指纹：requests 默认的 CA 校验会盖掉上面的 CERT_NONE，把甲骨文的自签证书拒掉（10-18 闸门实测：
+    # 每次都退回本机直调）。关掉 CA 校验后指纹照样逐次核对，指纹不对照样拒绝连接。
+    session.verify = False
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     body = {"kind": kind, "own_tax": own_tax, "text": text,
             "images": [{"media_type": m, "data": base64.standard_b64encode(d).decode()} for m, d in pages]}
     try:

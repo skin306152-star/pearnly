@@ -97,7 +97,7 @@ ERP 与 Cowork 发票识别都按 [ADR-013](../adr/0013-ocr-read-strategy.md)：
 Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr.orient` 本地转正。各产品只共用这套先后，字段、检查与结果格式各自保留。
 改模型、提示词或规则先用 `scripts/ocr-policy-bench.py` / `ocr-policy-report.py` 在金标语料上比较，并过 [识别改动上线闸门](verification.md#识别改动上线闸门)（`scripts/eval-invoices.py`）。
 
-**Claude 识别路线**（[ADR-022](../adr/0022-claude-ocr-route.md)）：站点配置 `pearnly_ocr_engine` = `claude` 的租户，三个产品的图片 / PDF 识别改走共用层 `pearnly_core.claude_ocr`（Haiku→Opus，硬性自检升级），只调 Anthropic、不调谷歌；运行在甲骨文 `claude-ocr` 服务，连不上时生产本机直调。引擎由控制面租户表单 / 开户单选择（`set_ocr` 写入）。改它的提示词、规则先过金标闸门（评测工具与结果见 [任务记录](../work/2026-10-17-claude-ocr-route.md)）。
+**Claude 识别路线**（[ADR-022](../adr/0022-claude-ocr-route.md)）：站点配置 `pearnly_ocr_engine` = `claude` 的租户，三个产品的全部识别入口（Cowork 录入 / 表格文件 / 销项税核查发票 / 对账三类文档、ERP 采购销售、DMS 身份证）改走共用层 `pearnly_core.claude_ocr`（Haiku→Opus，硬性自检升级），只调 Anthropic、不调谷歌；共用层 `provider.post` 与 Cowork 交 Cloud Run 的 `forward` 对这类站点拒绝任何谷歌调用，新加识别入口必须先看路线（源码守卫在 `tests/test_claude_ocr_rules.py`）；运行在甲骨文 `claude-ocr` 服务，连不上时生产本机直调。引擎由控制面租户表单 / 开户单选择（`set_ocr` 写入）。改它的提示词、规则先过闸门：`scripts/claude-ocr/run-gate.sh` 让语料原件走产品正式代码（结果见 [任务记录](../work/2026-10-17-claude-ocr-route.md)）。
 
 ## 本地控制面与云端开户
 

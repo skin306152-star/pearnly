@@ -5,6 +5,7 @@ PDF 逐页交共用层 ``pearnly_core.claude_ocr``（Haiku 读、本页数字自
 跨页核对（``check_document``）、读不出的页、页上明确印着「无交易」都与原来同样标记，下游对账代码不动。纯计算：不碰数据库。
 """
 import threading
+from decimal import Decimal, InvalidOperation
 
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.enterprise.adapter import PipelineResult, make_page
@@ -26,6 +27,30 @@ def _serial(render):
     return invoke
 
 
+def _money(value):
+    try:
+        return Decimal(str(value).replace(",", "")) if str(value or "").strip() else None
+    except InvalidOperation:
+        return None
+
+
+def _ledger_opening(document):
+    """总账第 1 页没读出期初（Claude 偶尔把只印余额的「ยอดยกมา」行整行略过，10-18 闸门 BBL6764）：按第一笔印的余额倒推
+    —— 第一笔之前的余额，方向（借增 / 贷增）按本页各行余额怎么走定。只用印出来的数；第一笔没印余额就不补。"""
+    rows = document.get("entries") or []
+    first = next((row for row in rows if _money(row.get("balance")) is not None), None)
+    if first is None or rows.index(first) != 0:
+        return ""
+    steps = []
+    for before, row in zip(rows, rows[1:]):
+        a, b = _money(before.get("balance")), _money(row.get("balance"))
+        if a is not None and b is not None:
+            steps.append((b - a, (_money(row.get("debit")) or 0) - (_money(row.get("credit")) or 0)))
+    sign = -1 if sum(abs(m + n) < Decimal("0.01") for m, n in steps) > sum(abs(m - n) < Decimal("0.01") for m, n in steps) else 1
+    net = (_money(first.get("debit")) or 0) - (_money(first.get("credit")) or 0)
+    return str(_money(first["balance"]) - sign * net)
+
+
 def _page(outcome, category, number):
     read = outcome.get("read") if outcome else None
     if read is None:
@@ -35,6 +60,9 @@ def _page(outcome, category, number):
         return page
     document = dict(read)
     no_data = str(document.pop("no_data_printed", "") or "").strip().lower() == "yes"
+    derived = category == "gl" and number == 1 and not str(document.get("opening_balance") or "").strip()
+    if derived:
+        document["opening_balance"] = _ledger_opening(read)
     document = {key: ("" if value is None else value) for key, value in document.items()}
     document["entries"] = [{key: ("" if value is None else value) for key, value in row.items()} | {"page": str(number)}
                            for row in read.get("entries") or []]
@@ -51,7 +79,7 @@ def _page(outcome, category, number):
     page.layer2_input_tokens = sum((s.get("usage") or {}).get("input_tokens", 0) for s in stages)
     page.layer2_output_tokens = sum((s.get("usage") or {}).get("output_tokens", 0) for s in stages)
     page.extraction_audit["claude"] = {"escalated": bool(outcome.get("escalated")), "why": list(outcome.get("why") or []),
-                                       "where": outcome.get("where")}
+                                       "where": outcome.get("where"), "opening_derived": bool(derived and document["opening_balance"])}
     return page
 
 

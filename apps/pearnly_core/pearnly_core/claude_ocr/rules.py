@@ -96,13 +96,9 @@ def _amount_problems(rows, a, b, names):
     return out
 
 
-def bank_problems(read):
-    """一页银行账单：相邻两行都印了余额时，上一行余额 + 存入 − 取出 = 本行余额（第一行接本页的期初）。"""
-    if not read:
-        return ["no_result"]
-    rows = read.get("entries") or []
-    out = _amount_problems(rows, "deposit", "withdrawal", ("deposit", "withdrawal"))
-    previous, pending = money(read.get("opening_balance")), Decimal(0)
+def _bank_breaks(rows, opening):
+    """按印的先后（旧在前）核余额链：上一次印的余额 + 其间存入 − 取出 = 这次印的余额。返回断开的行号。"""
+    breaks, previous, pending = [], opening, Decimal(0)
     for i, row in enumerate(rows):
         deposit, withdrawal = _either(row, "deposit", "withdrawal")
         pending += deposit - withdrawal  # 有的账单一天只在最后一行印余额：中间几行的金额累加到下一次印的余额再核
@@ -110,8 +106,24 @@ def bank_problems(read):
         if balance is None:
             continue
         if previous is not None and abs(previous + pending - balance) > _CENT:
-            out.append(f"entries[{i}].balance does not follow from the previous balance and the amounts since")
+            breaks.append(i)
         previous, pending = balance, Decimal(0)
+    return breaks
+
+
+def bank_problems(read):
+    """一页银行账单：相邻两行都印了余额时，上一行余额 + 存入 − 取出 = 本行余额（第一行接本页的期初）。网银导出常是新的在前
+    （倒序，对账出行时 ``bank_intake.chronological`` 会排回来）：两种顺序都核，取断得少的那种。"""
+    if not read:
+        return ["no_result"]
+    rows = read.get("entries") or []
+    out = _amount_problems(rows, "deposit", "withdrawal", ("deposit", "withdrawal"))
+    opening = money(read.get("opening_balance"))
+    forward = _bank_breaks(rows, opening)
+    # 倒序时期初接在最旧的那一行（印在最后）之前：反过来核，同样从期初接起
+    backward = [len(rows) - 1 - i for i in _bank_breaks(list(reversed(rows)), opening)] if forward else []
+    out += [f"entries[{i}].balance does not follow from the previous balance and the amounts since"
+            for i in (sorted(backward) if forward and len(backward) < len(forward) else forward)]
     closing = money(read.get("closing_balance"))
     last = next((money(r.get("balance")) for r in reversed(rows) if money(r.get("balance")) is not None), None)
     if closing is not None and last is not None and abs(closing - last) > _CENT:

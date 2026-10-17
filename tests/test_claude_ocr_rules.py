@@ -163,6 +163,15 @@ class ReconRules(unittest.TestCase):
         self.assertTrue(any("both deposit and withdrawal" in w for w in rules.bank_problems(both)))
         self.assertEqual(rules.bank_problems(None), ["no_result"])
 
+    def test_newest_first_statement_is_not_a_broken_chain(self):
+        """网银导出常是新的在前（10-18 闸门 BBL6764：3 页都被当成断链交 Opus，白花钱）。"""
+        newest_first = {"entries": [row("2026-02-28", withdrawal="1403.17", balance="-964167.98"),
+                                    row("2026-02-28", withdrawal="120.00", balance="-962764.81"),
+                                    row("2026-02-27", deposit="500.00", balance="-962644.81")]}
+        self.assertEqual(rules.bank_problems(newest_first), [])
+        newest_first["entries"][1]["balance"] = "-962700.00"
+        self.assertTrue(rules.bank_problems(newest_first))
+
     def test_gl_balance_follows_majority_direction(self):
         asset = {"opening_balance": "100", "entries": [gl_row(debit="50", balance="150"), gl_row(credit="20", balance="130")]}
         liability = {"opening_balance": "100", "entries": [gl_row(credit="50", balance="150"), gl_row(debit="20", balance="130")]}

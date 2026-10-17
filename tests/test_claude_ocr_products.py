@@ -110,10 +110,12 @@ class Client(unittest.TestCase):
         env = {"PEARNLY_CLAUDE_OCR_URL": "https://203.0.113.1:8443", "PEARNLY_CLAUDE_OCR_TOKEN": "t",
                "PEARNLY_CLAUDE_OCR_CERT_SHA256": "ab" * 32}
         answer = types.SimpleNamespace(status_code=200, json=lambda: outcome(voucher(doc())))
-        with patch.dict("os.environ", env), patch("requests.Session.post", return_value=answer) as post:
+        with patch.dict("os.environ", env), patch("requests.Session.post", autospec=True, return_value=answer) as post:
             first = client.read("voucher", [(jpeg(), "image/jpeg")])
             second = client.read("voucher", [(jpeg(), "image/jpeg")])
         self.assertEqual(post.call_count, 1)  # 第二次从断点取，不重复付费
+        # 自签证书只认钉死的指纹：默认的 CA 校验会把甲骨文的证书拒掉（10-18 闸门实测），必须关掉、只留指纹
+        self.assertFalse(post.call_args.args[0].verify)
         self.assertEqual((first["where"], second["where"]), ("oracle", "checkpoint"))
         self.assertTrue(post.call_args.kwargs["headers"]["Authorization"].startswith("Bearer "))
 
@@ -139,6 +141,21 @@ class Client(unittest.TestCase):
             client.read("voucher", [(jpeg(), "image/jpeg")])
 
 
+class Upright(unittest.TestCase):
+    def test_photos_and_pdf_pages_are_straightened_before_claude(self):
+        import pymupdf
+        pdf = pymupdf.open()
+        pdf.new_page()
+        calls = []
+
+        def orient(data, mime, **kwargs):
+            calls.append(mime)
+            return data, mime
+        with patch("pearnly_core.ocr_models.orient.orient", side_effect=orient):
+            client.prepare([(jpeg(), "image/jpeg"), (pdf.tobytes(), "application/pdf")])
+        self.assertEqual(calls, ["image/jpeg", "image/png"])
+
+
 class Erp(unittest.TestCase):
     def test_purchase_and_sales_fields(self):
         from pearnly_erp_portal.recognition import claude
@@ -152,6 +169,16 @@ class Erp(unittest.TestCase):
         sales = claude.to_raw(read, read["documents"][0], "sales")
         self.assertEqual((sales["seller_tax_id"], sales["buyer_type"]), (GOOD_TAX, "company"))
         self.assertNotIn("supplier_name", sales)
+
+    def test_non_purchase_kinds_are_not_documents(self):
+        from pearnly_erp_portal.recognition import claude
+        for kind in ("statement", "transfer_slip", "other_non_invoice"):
+            with patch.object(claude.client, "read", return_value=outcome(voucher(doc(), kind=kind, entry="not_invoice"))):
+                [(result, _c, _m)] = claude.read_all([(b"x", "image/jpeg")], structured=dict, review=lambda r: [], label="purchase")
+            self.assertTrue(result["not_document"], kind)
+        with patch.object(claude.client, "read", return_value=outcome(voucher(doc(), kind="quotation", entry="not_invoice"))):
+            [(result, _c, _m)] = claude.read_all([(b"x", "image/jpeg")], structured=dict, review=lambda r: [], label="purchase")
+        self.assertEqual(result["doc_no"], "IV001")  # 报价单对 ERP 仍是采购单据
 
     def test_read_all_multiple_documents(self):
         from pearnly_erp_portal.recognition import claude
@@ -279,6 +306,20 @@ class CoworkRecon(unittest.TestCase):
         self.assertTrue(legacy["pages"][1]["extraction_audit"]["no_data_printed"])
         with self.assertRaises(ContentError):
             self.read("bank_statement", [{"read": None, "stages": []}], 1)
+
+    def test_ledger_opening_from_the_first_printed_balance(self):
+        """总账第 1 页漏读「ยอดยกมา」（10-18 闸门 BBL6764）：按第一笔印的余额与借贷倒推期初。"""
+        gl = {"period_start": None, "period_end": None, "account_name": None, "account_number": "1113-01", "opening_balance": None,
+              "closing_balance": None, "total_debit": None, "total_credit": None, "no_data_printed": None,
+              "entries": [{"transaction_date": "2026-02-02", "transaction_date_raw": None, "voucher_no": "FP1", "account_code": None,
+                           "description": "x", "debit": "0.00", "credit": "20.00", "amount": "20.00", "direction": "credit",
+                           "balance": "-117538.81"},
+                          {"transaction_date": "2026-02-02", "transaction_date_raw": None, "voucher_no": "FP2", "account_code": None,
+                           "description": "y", "debit": "0.00", "credit": "53988.79", "amount": "53988.79", "direction": "credit",
+                           "balance": "-171527.60"}]}
+        legacy, _calls = self.read("general_ledger", [outcome(gl)], 1)
+        self.assertEqual(legacy["pages"][0]["document"]["opening_balance"], "-117518.81")
+        self.assertTrue(legacy["pages"][0]["extraction_audit"]["claude"]["opening_derived"])
 
     def test_ledger_direction_and_vat_rows_kept(self):
         from pearnly_cowork.reconciliation import vat_parse
