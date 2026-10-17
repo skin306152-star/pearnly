@@ -50,7 +50,8 @@ class _Frappe(types.ModuleType):
         self.guidance = []
         self.local = types.SimpleNamespace(site="t1.example", lang="th")
         self.session = types.SimpleNamespace(user="a@example.com")
-        self.utils = types.SimpleNamespace(get_fullname=lambda user: "A", get_system_timezone=lambda: "Asia/Bangkok")
+        self.utils = types.SimpleNamespace(get_fullname=lambda user: "A", get_system_timezone=lambda: "Asia/Bangkok",
+                                           now=lambda: "2026-10-17 17:58:00.000000")
         self.db = types.SimpleNamespace(rollback=lambda: None)
         self.store = {}
         outer = self
@@ -397,13 +398,14 @@ class RelayTests(unittest.TestCase):
                 if query.startswith("SELECT"):
                     return [_Row(name=n, tool_use_id=r.get("tool_use_id"), user=r.get("user")) for n, r in rows.items()
                             if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+                assert "modified=%s" in query, query  # 改状态同时改 modified（增量补拉按改动时间带回执行记录）
                 if "SET status='cancelled'" in query:
                     # 逐条抢占：只改还在等的那一条
-                    hits = [values[0]] if rows[values[0]]["status"] == "awaiting_approval" else []
+                    hits = [values[-1]] if rows[values[-1]]["status"] == "awaiting_approval" else []
                     for n in hits:
                         rows[n]["status"] = "cancelled"
                 else:
-                    status, name = values
+                    status, _, name = values
                     hits = [name] if rows[name]["status"] == "awaiting_approval" else []
                     for n in hits:
                         rows[n]["status"] = status
@@ -501,7 +503,8 @@ class RelayTests(unittest.TestCase):
                 return types.SimpleNamespace(**row) if as_dict else row[field]
 
             def sql(self, query, values):
-                status, name = values
+                assert "modified=%s" in query, query  # 抢占同时改 modified（增量补拉按改动时间带回执行记录）
+                status, _, name = values
                 hit = rows[name]["status"] == "awaiting_approval"
                 if hit:
                     rows[name]["status"] = status
@@ -2035,10 +2038,14 @@ class RunStatusTests(unittest.TestCase):
     def _patched(self, sessions, row, api, runs=()):
         asked = []
 
-        def get_all(doctype, filters=None, fields=None, **kw):
+        def get_all(doctype, filters=None, fields=None, or_filters=None, **kw):
+            if or_filters:  # 增量补拉带回执行记录（`sessions._run_rows` 的 since）：这里只记下，不给记录
+                self.page_runs.append((doctype, filters, or_filters))
+                return []
             asked.append((doctype, filters))
             return [_Row(tool_use_id=i, status=st) for i, st in runs if i in filters["tool_use_id"][1]]
 
+        self.page_runs = []
         # 读到在跑（或本站正在执行停着的调用）时接上推送线程（侧栏同步第 7 条：别处在跑的对话这边也实时跟上）
         self.ensured = []
         return asked, [mock.patch.object(sessions, "owned", return_value=row),
@@ -2095,6 +2102,9 @@ class RunStatusTests(unittest.TestCase):
             self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002", status=True), {"events": [], "full": False})
             api.status.assert_not_called()
         self.assertEqual(asked, [])  # 没有停着等的调用就不查执行记录
+        # 增量补拉（取到事件的 5 次）各查一次锚点之后改过的执行记录，不按事件逐条查
+        self.assertEqual(len(self.page_runs), 5)
+        self.assertTrue(all(o[0][:2] == ["modified", ">="] and len(o) == 1 for _, _, o in self.page_runs))
 
     def test_parked_calls_are_split_by_the_sites_tool_runs(self):
         sessions = self._sessions()
@@ -4399,12 +4409,9 @@ class ToolRunRecordTests(unittest.TestCase):
         api = types.SimpleNamespace(events=lambda remote, newest_first=False:
                                     iter(list(reversed(history)) if newest_first else list(history)))
         asked = []
-        record = {"tool_use_id": "sevt_01UDVUzpwDom3EXfH9XEWYJm", "status": "done",
-                  "modified": datetime.datetime(2026, 10, 17, 17, 57, 54)}
-
-        def get_all(doctype, filters=None, fields=None, **kw):
-            asked.append((doctype, filters, fields))
-            return [_Row(record)] if record["tool_use_id"] in filters["tool_use_id"][1] else []
+        record = {"session_id": row.session_id, "user": "a@example.com", "tool_use_id": "sevt_01UDVUzpwDom3EXfH9XEWYJm",
+                  "status": "done", "modified": datetime.datetime(2026, 10, 17, 17, 57, 54)}
+        get_all = self._store([record], asked)
 
         with mock.patch.object(sessions, "owned", return_value=row), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
@@ -4420,23 +4427,164 @@ class ToolRunRecordTests(unittest.TestCase):
                                                  "processed_at": "2026-10-17T10:57:54Z"})
             self.assertEqual(len(full["events"]), 6)
             self.assertEqual(asked, [(sessions.toolrun.TOOL_RUN, {"session_id": row.session_id, "user": "a@example.com",
-                                      "tool_use_id": ["in", ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]]},
+                                      "tool_use_id": ["in", ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]]}, None,
                                       ["tool_use_id", "status", "modified"])])
-            # 增量：只带这页事件里出现过的调用（这里是那条中断结果引用的调用）
+            # 增量：这页事件里出现过的调用（这里是那条中断结果引用的调用），加上锚点之后改过的，同一次查询、按调用去重
+            asked.clear()
             page = sessions.events(row.session_id, after="sevt_idle_park")
             self.assertEqual([e["id"] for e in page["events"]], ["sevt_01VZ5u2hu3mRxat5JEvW9wcf", "sevt_interrupt",
                                                                   "sevt_idle_end",
                                                                   "ptoolrun_sevt_01UDVUzpwDom3EXfH9XEWYJm_done"])
-            # 这页没有调用：不查执行记录
+            # 锚点 10:57:45.308Z = 站点 17:57:45.308，前推 5 分钟（同提醒的 FEED_SLACK）
+            self.assertEqual(asked, [(sessions.toolrun.TOOL_RUN, {"session_id": row.session_id, "user": "a@example.com"},
+                                      [["modified", ">=", datetime.datetime(2026, 10, 17, 17, 52, 45, 308000)],
+                                       ["tool_use_id", "in", ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]]],
+                                      ["tool_use_id", "status", "modified"])])
+            # 这页没有调用：仍带上锚点之后改过的记录（这条 17:57:54 才改成 done，在锚点 53.110 之后）
             asked.clear()
-            self.assertEqual(sessions.events(row.session_id, after="sevt_interrupt")["events"], [history[-1]])
-            self.assertEqual(asked, [])
+            self.assertEqual([e["id"] for e in sessions.events(row.session_id, after="sevt_interrupt")["events"]],
+                             ["sevt_idle_end", "ptoolrun_sevt_01UDVUzpwDom3EXfH9XEWYJm_done"])
+            self.assertEqual(len(asked), 1)
             # 读不出执行记录：事件照给，不报错
             with mock.patch.object(sessions.frappe, "get_all", mock.Mock(side_effect=RuntimeError("db")), create=True):
                 self.assertEqual(sessions.events(row.session_id)["events"], history)
         self.assertEqual(contracts.tool_use_ids(history), ["sevt_01UDVUzpwDom3EXfH9XEWYJm"])
         with self.assertRaises(contracts.ContractError):
             contracts.tool_run_event("sevt_1", "lost", None)
+
+    @staticmethod
+    def _store(records, asked=None):
+        """执行记录表的 get_all：照 filters（相等 / in）与 or_filters（任一成立；>= / in）筛，同 Frappe。"""
+        def match(record, field, op, value):
+            have = record.get(field)
+            if op == "in":
+                return have in value
+            if op == ">=":
+                return contracts.site_time(have) >= value
+            raise AssertionError(op)
+
+        def get_all(doctype, filters=None, fields=None, or_filters=None, **kw):
+            if asked is not None:
+                asked.append((doctype, filters, or_filters, fields))
+            found = []
+            for record in records:
+                if not all(match(record, k, *v) if isinstance(v, list) else record.get(k) == v
+                           for k, v in (filters or {}).items()):
+                    continue
+                if or_filters and not any(match(record, *f) for f in or_filters):
+                    continue
+                found.append(_Row({k: record.get(k) for k in fields}))
+            return found
+        return get_all
+
+    REAL_PAGE = [
+        {"id": "sevt_01UDVUzpwDom3EXfH9XEWYJm", "type": "agent.custom_tool_use", "name": "cowork_set_folder_task_enabled",
+         "input": {"enabled": False, "task": "fleigbs7p9"}, "processed_at": "2026-10-17T10:57:45.204327Z"},
+        {"id": "sevt_idle_park", "type": "session.status_idle", "processed_at": "2026-10-17T10:57:45.308Z",
+         "stop_reason": {"type": "requires_action", "event_ids": ["sevt_01UDVUzpwDom3EXfH9XEWYJm"]}},
+        {"id": "sevt_01VZ5u2hu3mRxat5JEvW9wcf", "type": "agent.tool_result", "tool_use_id": "sevt_01UDVUzpwDom3EXfH9XEWYJm",
+         "is_error": True, "content": [{"type": "text", "text": "Tool execution was interrupted before completion. Please retry."}],
+         "processed_at": "2026-10-17T10:57:53.063300Z"},
+        {"id": "sevt_interrupt", "type": "user.interrupt", "processed_at": "2026-10-17T10:57:53.110517Z"},
+        {"id": "sevt_idle_end", "type": "session.status_idle", "processed_at": "2026-10-17T10:57:53.213Z",
+         "stop_reason": {"type": "end_turn"}}]
+
+    def _events_env(self, sessions, row, get_all):
+        api = types.SimpleNamespace(events=lambda remote, newest_first=False:
+                                    iter(list(reversed(self.REAL_PAGE)) if newest_first else list(self.REAL_PAGE)))
+        return [mock.patch.object(sessions, "owned", return_value=row),
+                mock.patch.object(sessions.engine, "adapter", return_value=api),
+                mock.patch.object(sessions.notices, "feed", lambda *a, **k: []),
+                mock.patch.object(sessions.frappe, "get_all", get_all, create=True),
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True),
+                mock.patch.object(sessions, "_remember_context", lambda row, events: None)]
+
+    def test_a_poll_past_the_call_still_gets_the_record_that_settles_later(self):
+        """审查：另一台设备只靠补拉（推送漏收）。第 1 页带回中断结果与执行记录 running（工具还在本站执行）；记录随后改成 done，
+        改动时间在引擎收尾（53.213）之后。第 2 页锚点已越过这次调用（这页只剩 end_turn 或为空），仍要带回 done。"""
+        sessions = self._sessions()
+        row = self._row()
+        use = "sevt_01UDVUzpwDom3EXfH9XEWYJm"
+        record = {"session_id": row.session_id, "user": "a@example.com", "tool_use_id": use, "status": "running",
+                  "modified": datetime.datetime(2026, 10, 17, 17, 57, 52)}
+        old = {"session_id": row.session_id, "user": "a@example.com", "tool_use_id": "sevt_earlier", "status": "done",
+               "modified": datetime.datetime(2026, 10, 17, 16, 0)}  # 锚点之前早就定下的：不带
+        other = {**record, "tool_use_id": "sevt_someone_else", "user": "b@example.com"}  # 别人的：不带
+        asked = []
+        with contextlib.ExitStack() as stack:
+            for patch in self._events_env(sessions, row, self._store([record, old, other], asked)):
+                stack.enter_context(patch)
+            first = sessions.events(row.session_id, after="sevt_idle_park")
+            self.assertEqual([e["id"] for e in first["events"]],
+                             ["sevt_01VZ5u2hu3mRxat5JEvW9wcf", "sevt_interrupt", "sevt_idle_end", f"ptoolrun_{use}_running"])
+            # 工具执行完，_finish 落库（set_value 顺带改 modified）
+            record.update(status="done", modified=datetime.datetime(2026, 10, 17, 17, 57, 58))
+            asked.clear()
+            second = sessions.events(row.session_id, after="sevt_interrupt")  # 这页只剩 end_turn
+            self.assertEqual([e["id"] for e in second["events"]], ["sevt_idle_end", f"ptoolrun_{use}_done"])
+            third = sessions.events(row.session_id, after="sevt_idle_end")  # 这页没有引擎事件
+            self.assertEqual(third["events"], [{"type": "pearnly.tool_run", "id": f"ptoolrun_{use}_done", "tool_use_id": use,
+                                                "status": "done", "processed_at": "2026-10-17T10:57:58Z"}])
+            self.assertEqual(len(asked), 2)  # 每页一次查询
+            # 出错的同样补得到
+            record.update(status="error", modified=datetime.datetime(2026, 10, 17, 17, 57, 59))
+            self.assertEqual([e["id"] for e in sessions.events(row.session_id, after="sevt_idle_end")["events"]],
+                             [f"ptoolrun_{use}_error"])
+
+    def test_records_settled_after_end_turn_reach_a_device_back_online(self):
+        """审查：手机收齐到 end_turn（10:57:53.213Z）后断网；工具在本站 end_turn 之后才出错（引擎不再收本站结果，引擎里也不会再有
+        提到这次调用的新事件），另一张等「允许」的卡被 cancel_waiting 作废。手机恢复后按 end_turn 增量补拉，两条记录都要带回；
+        作废也要改 modified，否则按时间会漏掉。"""
+        sessions = self._sessions()
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        row = self._row()
+        use = "sevt_01UDVUzpwDom3EXfH9XEWYJm"
+        records = [
+            {"name": "r1", "session_id": row.session_id, "user": "a@example.com", "tool_use_id": use, "status": "running",
+             "modified": datetime.datetime(2026, 10, 17, 17, 57, 52)},
+            {"name": "r2", "session_id": row.session_id, "user": "a@example.com", "tool_use_id": "sevt_waiting",
+             "status": "awaiting_approval", "modified": datetime.datetime(2026, 10, 17, 17, 40)},
+            {"name": "r3", "session_id": row.session_id, "user": "a@example.com", "tool_use_id": "sevt_long_ago",
+             "status": "denied", "modified": datetime.datetime(2026, 10, 17, 9, 0)}]
+        published = []
+
+        class Db:
+            _cursor = types.SimpleNamespace(rowcount=0)
+
+            def sql(self, query, values, as_dict=False):
+                if query.startswith("SELECT"):
+                    return [_Row(name=r["name"], tool_use_id=r["tool_use_id"], user=r["user"]) for r in records
+                            if r["session_id"] == values[0] and r["status"] == "awaiting_approval"]
+                assert "SET status='cancelled', modified=%s" in query, query
+                now, name = values
+                hit = [r for r in records if r["name"] == name and r["status"] == "awaiting_approval"]
+                for r in hit:
+                    r.update(status="cancelled", modified=contracts.site_time(now))
+                self._cursor = types.SimpleNamespace(rowcount=len(hit))
+
+            def commit(self):
+                pass
+
+        with contextlib.ExitStack() as stack:
+            for patch in self._events_env(sessions, row, self._store(records)):
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(toolrun.frappe, "db", Db(), create=True))
+            stack.enter_context(mock.patch.object(toolrun.frappe, "publish_realtime",
+                                                  lambda event, message, user=None, after_commit=False:
+                                                  published.append(message), create=True))
+            stack.enter_context(mock.patch.object(toolrun.frappe.utils, "now", lambda: "2026-10-17 17:58:01.500000"))
+            # 手机断网前收齐到 end_turn：这时补拉没有新东西（记录都在锚点之前改的，r1 的 running 落在前推余量里照带，无害）
+            self.assertEqual([e["id"] for e in sessions.events(row.session_id, after="sevt_idle_end")["events"]],
+                             [f"ptoolrun_{use}_running"])
+            # 断网期间：工具出错（_finish 用 set_value，顺带改 modified），另一张卡被作废
+            records[0].update(status="error", modified=datetime.datetime(2026, 10, 17, 17, 58, 0))
+            self.assertEqual(toolrun.cancel_waiting(row.session_id), 1)
+            self.assertEqual([m["event"]["status"] for m in published], ["cancelled"])  # 推送漏收了也不要紧
+            page = sessions.events(row.session_id, after="sevt_idle_end")
+        self.assertEqual([e["id"] for e in page["events"]],
+                         [f"ptoolrun_{use}_error", "ptoolrun_sevt_waiting_cancelled"])
+        self.assertEqual(page["events"][1]["processed_at"], "2026-10-17T10:58:01Z")
+        self.assertNotIn("ptoolrun_sevt_long_ago_denied", [e["id"] for e in page["events"]])  # 锚点之前早就定下的不带
 
     def _toolrun_env(self, rows, published, posted, post=None, publish=None):
         toolrun = sys.modules["pearnly_core.assistant.toolrun"]
@@ -4452,7 +4600,8 @@ class ToolRunRecordTests(unittest.TestCase):
                 return types.SimpleNamespace(**row) if as_dict else row[field]
 
             def sql(self, query, values):
-                status, name = values
+                assert "modified=%s" in query, query  # 抢占同时改 modified（增量补拉按改动时间带回执行记录）
+                status, _, name = values
                 hit = rows[name]["status"] == "awaiting_approval"
                 if hit:
                     rows[name]["status"] = status
@@ -4559,7 +4708,8 @@ class ToolRunRecordTests(unittest.TestCase):
                     rows["r1"]["status"] = "running"  # 读完、改之前被点了「允许」
                     return found
                 self.assertIn("WHERE name=%s AND status='awaiting_approval'", query)
-                hit = rows[values[0]]["status"] == "awaiting_approval"
+                self.assertIn("modified=%s", query)
+                hit = rows[values[-1]]["status"] == "awaiting_approval"
                 self._cursor = types.SimpleNamespace(rowcount=int(hit))
 
             def commit(self):

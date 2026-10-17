@@ -105,20 +105,32 @@ def _tool_runs(row, ids) -> dict:
     return {run.tool_use_id: run.status for run in _run_rows(row, ids)}
 
 
-def _run_rows(row, ids) -> list:
-    """这几次调用在本站的执行记录（编号、状态、最后改动时间），一次查询；没有编号不查。"""
-    if not ids:
+def _run_rows(row, ids, since=None) -> list:
+    """这几次调用在本站的执行记录（编号、状态、最后改动时间），一次查询；没有编号不查。
+    `since`（带时区的锚点时间）：再带上锚点之后改过的（前推 `notices.FEED_SLACK`，换算同 `notices.feed`），同一次查询，
+    按调用编号去重。增量补拉用：引擎收尾之后才执行完 / 出错 / 作废的记录，引擎那边再没有提到这次调用的新事件，只按这页的
+    调用查就永远补不到（推送漏收、断网恢复的设备卡片会一直停在淡色「允许」；第 11 轮 A 段审查）。"""
+    ids = list(ids or ())
+    if not ids and since is None:
         return []
-    return frappe.get_all(toolrun.TOOL_RUN, filters={
-        "session_id": row.session_id, "user": _user(), "tool_use_id": ["in", list(ids)]},
-        fields=["tool_use_id", "status", "modified"])
+    filters = {"session_id": row.session_id, "user": _user()}
+    if since is None:
+        return frappe.get_all(toolrun.TOOL_RUN, filters={**filters, "tool_use_id": ["in", ids]},
+                              fields=["tool_use_id", "status", "modified"])
+    or_filters = [["modified", ">=", contracts.local_time(since, frappe.utils.get_system_timezone()) - notices.FEED_SLACK]]
+    if ids:
+        or_filters.append(["tool_use_id", "in", ids])
+    rows = frappe.get_all(toolrun.TOOL_RUN, filters=filters, or_filters=or_filters,
+                          fields=["tool_use_id", "status", "modified"])
+    return list({run.tool_use_id: run for run in rows}.values())
 
 
-def _with_tool_runs(events, row) -> list:
+def _with_tool_runs(events, row, since=None) -> list:
     """这页事件里出现过的调用在本站的执行记录，作为本站事件（`contracts.tool_run_event`）接在这页最后：对话页重开、补拉时
-    按本站记录定下卡片（执行完、出错、拒绝、作废），不靠引擎那边的结果猜（第 11 轮 A 段）。读不出来就不带，不挡取事件。"""
+    按本站记录定下卡片（执行完、出错、拒绝、作废），不靠引擎那边的结果猜（第 11 轮 A 段）。增量补拉给 `since`：锚点之后
+    改过的记录一并带上（`_run_rows`）。读不出来就不带，不挡取事件。"""
     try:
-        runs = _run_rows(row, contracts.tool_use_ids(events))
+        runs = _run_rows(row, contracts.tool_use_ids(events), since)
         return events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None)
                          for run in runs if run.status in contracts.TOOL_RUN_STATES]
     except Exception:
@@ -394,7 +406,8 @@ def segment_for_turn(row, api) -> str:
 
 def events(session_id, after=None, status=False) -> dict:
     """整段重放（after 为空，各段合起来）或只取当前段 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。
-    本对话的提醒一并给：整段时按时间并入，增量时带上锚点时间之后的（对话页按编号去重）。
+    本对话的提醒一并给：整段时按时间并入，增量时带上锚点时间之后的（对话页按编号去重）。本站执行记录同样接在最后
+    （`_with_tool_runs`）：整段带这段出现过的调用的，增量带这页出现过的加锚点之后改过的。
     `status`：对话页在整段重放、回到前台、重连这些时刻要一份此刻的运行状态（`run_state`，放进 `run`）。读完事件再读
     状态，所以状态不比这页事件旧；每次只读一次引擎状态，最新一条状态事件从这次读过的事件里取。"""
     row = owned(session_id, allow_archived=True)
@@ -414,7 +427,7 @@ def events(session_id, after=None, status=False) -> dict:
             newer = found[1:]
             _remember_context(row, newer)
             since = contracts.instant(found[0].get("processed_at"))
-            page = {"events": _with_tool_runs(newer, row) + notices.feed(row.session_id, user, since=since,
+            page = {"events": _with_tool_runs(newer, row, since) + notices.feed(row.session_id, user, since=since,
                                                                           recent=since is None),
                     "full": False}
             return _with_run(page, row, api, tap.latest, found[-1].get("processed_at")) if status else page

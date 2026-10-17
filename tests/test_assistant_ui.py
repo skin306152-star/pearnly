@@ -7417,6 +7417,37 @@ assert.deepEqual(card(applyEvent(after, RECORD("awaiting_approval") as any)), AL
 assert.deepEqual(card(project([RECORD("done"), ...HEAD, ...STOP] as any)), ALLOWED);
 """)
 
+    def test_another_device_polling_gets_the_record_that_settles_after_the_turn_ended(self):
+        """审查（第 11 轮 A 段）：另一台设备 B 没点卡片、推送漏收，只靠补拉。B 读到的页里是中断结果和执行记录 running（工具还在
+        本站执行），随后 user.interrupt、end_turn；记录在引擎收尾之后才改成 done / error，由下一次补拉（服务端按锚点之后改过的记录
+        带回，`sessions._run_rows` 的 since）送来。卡片从淡色「允许」定成「允许」或「允许 · 失败」，不停在淡色。"""
+        self.run_pure(r"""
+const later = (status: string) => RECORD(status, "2026-10-17T10:57:58Z");
+const polled = () => {
+  let b = gateCustomTool(project(HEAD as any), TOOL, ASK);     // B 上卡片还在问（没点）
+  assert.deepEqual(card(b), { phase: "ask" });
+  b = applyEvent(b, STOP[0] as any);                            // 补拉第 1 页：平台代发的中断结果
+  b = applyEvent(b, RECORD("running", "2026-10-17T10:57:52Z") as any);  // 同一页末尾：本站执行记录 running
+  assert.deepEqual(card(b), { ...ALLOWED, sending: true });     // 别处点了「允许」、正在执行：淡色「允许」
+  for (const event of STOP.slice(1)) b = applyEvent(b, event as any);  // user.interrupt、end_turn
+  assert.deepEqual(card(b), { ...ALLOWED, sending: true });
+  assert.equal(b.isRunning, false);
+  assert.deepEqual([b.pendingApprovals, b.pendingCustomTools], [[], []]);
+  return b;
+};
+// 补拉第 2 页（锚点 end_turn，引擎没有新事件）：只带回 done 的记录
+let done = applyEvent(polled(), later("done") as any);
+assert.deepEqual(card(done), ALLOWED);
+assert.equal(tool(done).run, "done");
+// 同一条记录重复带回（锚点前推的余量）：没有副作用
+assert.equal(applyEvent(done, later("done") as any).messages, done.messages);
+// 执行出错：「允许 · 失败」
+assert.deepEqual(card(applyEvent(polled(), later("error") as any)), FAILED);
+// 重开时一样
+assert.deepEqual(card(project([...HEAD, STOP[0], RECORD("running", "2026-10-17T10:57:52Z"), ...STOP.slice(1), later("error")] as any)),
+                 FAILED);
+""")
+
     def test_denied_and_a_stale_card_settled_by_the_record(self):
         self.run_pure(r"""
 // 拒绝：本站交回的拒绝结果 + 执行记录 denied →「拒绝」（本页、重开）

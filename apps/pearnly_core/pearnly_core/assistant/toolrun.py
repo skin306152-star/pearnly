@@ -108,8 +108,9 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool) -> str:
     if not name:
         return "not_waiting"
     # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走
-    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s WHERE name=%s AND status='awaiting_approval'",
-                  ("running" if allow else "denied", name))
+    # 同时改 modified：增量补拉按「锚点之后改过的」带回执行记录（`sessions._run_rows`）
+    frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status=%s, modified=%s WHERE name=%s AND status='awaiting_approval'",
+                  ("running" if allow else "denied", frappe.utils.now(), name))
     claimed = frappe.db._cursor.rowcount == 1
     frappe.db.commit()
     if not claimed:
@@ -137,9 +138,10 @@ def cancel_waiting(conversation: str) -> int:
     runs = frappe.db.sql(f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s "
                          "AND status='awaiting_approval'", (conversation,), as_dict=True)
     changed = []
+    now = frappe.utils.now() if runs else None
     for run in runs:
-        frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled' WHERE name=%s AND status='awaiting_approval'",
-                      (run.name,))
+        frappe.db.sql(f"UPDATE `tab{TOOL_RUN}` SET status='cancelled', modified=%s "
+                      "WHERE name=%s AND status='awaiting_approval'", (now, run.name))
         if frappe.db._cursor.rowcount == 1:
             changed.append(run)
     if runs:

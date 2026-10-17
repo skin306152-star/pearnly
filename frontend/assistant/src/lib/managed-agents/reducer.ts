@@ -22,7 +22,8 @@
 //   pearnly.tool_run                    → 本站执行记录的状态（part.run，按 RUN_RANK 只往前走）：本站拦下的卡片最后的样子以它为准
 //                                          （lib/approval-card.ts）。done →「允许」、error →「允许 · 失败」、denied →「拒绝」、
 //                                          cancelled →「已取消」、running →「允许」（淡）、awaiting_approval → 还在问。推来、读事件时
-//                                          并在这页最后、点「允许 / 拒绝」时 confirm 回的状态都折成这一种；先于调用本身到的记在 toolRuns
+//                                          并在这页最后（整段：这段出现过的调用；增量：这页出现过的加锚点之后改过的，引擎收尾后才定下
+//                                          的也补得到）、点「允许 / 拒绝」时 confirm 回的状态都折成这一种；先于调用本身到的记在 toolRuns
 //   user.interrupt                      → 还没答的门撤掉、标 cancelled（之后补来的出错结果不算点了「允许」）
 //   session.status_idle{requires_action} → approval:{id} on each blocked tool part
 //   session.status_running / idle       → whether the turn is live
