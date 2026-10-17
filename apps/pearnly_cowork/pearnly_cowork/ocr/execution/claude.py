@@ -132,6 +132,19 @@ def recognize(content, filename, page_count, anchor_year):
     return to_pipeline(outcome, page_count, anchor_year).model_dump_json(), evidence(outcome)
 
 
+def recognize_original(stored, filename, page_count, anchor_year):
+    """原件存在甲骨文（ADR-023，``files.service.edge_original``）：只交 ``(对象名, sha256)``，甲骨文读文件、转正、渲染、交 Claude。
+    返回同 :func:`recognize`。甲骨文连不上抛 ``Deferred``（原件就在那台上，等它回来再读）。"""
+    from pearnly_core.execution.errors import Deferred
+
+    started = time.monotonic()
+    outcome = client.read_original("voucher", *stored)
+    if not outcome.get("read"):
+        raise Deferred("claude_no_result", delay=30)
+    outcome.setdefault("seconds", round(time.monotonic() - started, 2))
+    return to_pipeline(outcome, page_count, anchor_year).model_dump_json(), evidence(outcome)
+
+
 def recognize_table(document, anchor_year):
     """表格文件（Excel / Word，``table_inputs`` 解出的逻辑页）：每个逻辑页的文字交 Claude（与谷歌路线 ``run_table`` 同样按页读），
     每页的结果放回同一页号。返回 ``(pipeline_json, evidence)``。"""

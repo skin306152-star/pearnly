@@ -16,7 +16,8 @@ from pearnly_core.execution import pages as core_pages
 from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred
-from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest, preview_record, preview_spec, stored_original
+from pearnly_cowork.files.service import (read_bytes, edge_original, freeze_doc_manifest, preview_record, preview_spec,
+                                          stored_original)
 from pearnly_cowork.files.access import reference_count, reference_kind
 from pearnly_cowork.history import certificates, document_policy
 from pearnly_cowork.history.recognition import persist_batch
@@ -117,6 +118,10 @@ def _recognize(doc, frozen, examples, source):
                 if kind != "excel" or units != document.billing_characters:
                     frappe.throw(_("Recognition input and ownership cannot be changed."))
                 pipeline, evidence = claude.recognize_table(document, year)
+            elif edge_original(source):
+                # 原件存在甲骨文（ADR-023）：只交对象名与 sha256，甲骨文自己读文件、渲染、交 Claude，原件字节不经过这台。
+                pipeline, evidence = claude.recognize_original(edge_original(source), source.filename,
+                                                               int(doc.page_count), year)
             else:
                 pipeline, evidence = claude.recognize(read_bytes(source), source.filename, int(doc.page_count), year)
         with core_work.step("freeze"):

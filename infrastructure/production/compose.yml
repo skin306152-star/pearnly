@@ -37,6 +37,10 @@ x-runtime: &runtime
     PEARNLY_CLAUDE_OCR_TOKEN: ${PEARNLY_CLAUDE_OCR_TOKEN:-}
     PEARNLY_CLAUDE_OCR_CERT_SHA256: ${PEARNLY_CLAUDE_OCR_CERT_SHA256:-}
     PEARNLY_ANTHROPIC_API_KEY: ${PEARNLY_ANTHROPIC_API_KEY:-}
+    # 选了 Claude 识别的租户，Cowork 直传原件存甲骨文（ADR-023，pearnly_cowork.files.edge）：浏览器经 Cloudflare 隧道的地址、
+    # 生产签上传 / 预览 / 下载地址用的密钥（与甲骨文同一把）。没配时这类租户照旧经服务器上传。
+    PEARNLY_ORIGINALS_PUBLIC_URL: ${PEARNLY_ORIGINALS_PUBLIC_URL:-}
+    PEARNLY_ORIGINALS_SIGNING_KEY: ${PEARNLY_ORIGINALS_SIGNING_KEY:-}
 
 x-web: &web
   <<: *runtime

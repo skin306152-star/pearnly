@@ -143,15 +143,30 @@ class HistoryRemoval(unittest.TestCase):
         self.assertEqual(result, {"deleted": 0, "skipped": 2})
 
 
+class OraclePurge(unittest.TestCase):
+    def test_original_on_the_oracle_host_is_removed_there(self):
+        name = "erpcowork.pearnly.com/originals/CWS-" + "a" * 48 + ".jpg"
+        db = FakeDB({"Cowork Source File": {"CWS-o": {"stored_file": "", "storage_url": "oracle://" + name + "#" + "f" * 64}},
+                     "Cowork OCR Batch": {}, "Cowork WHT Certificate": {}, "File": {}})
+        files, frappe = OriginalPurge._files(self, db, bucket=None)
+        self.assertEqual(files.purge(["CWS-o"]), 1)
+        self.assertEqual(db.tables["Cowork Source File"], {})
+        frappe.enqueue.assert_called_once()
+        self.assertEqual(frappe.enqueue.call_args.args[0], "pearnly_cowork.files.service.purge_edge")
+        self.assertEqual(frappe.enqueue.call_args.kwargs["names"], [name])
+
+
 class OriginalPurge(unittest.TestCase):
     def _files(self, db, bucket="pearnly-cowork-originals-sg"):
         frappe = _frappe(db)
         cloud = types.SimpleNamespace(bucket=lambda: bucket, parse_url=lambda v: (
-            (v[5:].split("/", 1)[0], v[5:].split("/", 1)[1].rpartition("#")[0], 7) if v else None))
+            (v[5:].split("/", 1)[0], v[5:].split("/", 1)[1].rpartition("#")[0], 7) if v and v.startswith("gs://") else None))
         package = types.ModuleType("pearnly_cowork.files")
         package.access = types.SimpleNamespace(SOURCE="Cowork Source File", HISTORY="Cowork OCR History")
         package.cloud = cloud
         package.guard = types.SimpleNamespace()
+        package.edge = types.SimpleNamespace()  # 甲骨文原件存储（ADR-023）：删除走后台任务，这里只看排了什么
+        package.edge_links = _load("edge_links_under_test", APP / "files/edge_links.py", {})
         ocr = types.SimpleNamespace(originals=types.SimpleNamespace(),
                                     inputs=types.SimpleNamespace(IMAGE_EXTENSIONS=frozenset(), MAX_FILE_BYTES=1, OcrInputError=Exception))
         modules = {"frappe": frappe, "frappe.utils": types.SimpleNamespace(cint=int),
