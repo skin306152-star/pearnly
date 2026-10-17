@@ -680,6 +680,125 @@ I18N_TS_MULTI = (
 )
 
 
+class NarrowingRound(unittest.TestCase):
+    """存量清单第 15 节（10-18）：误判收窄、盲区补上。每条收窄配一个仍要拦的坏例。"""
+
+    def test_hidden_fields_are_admin_and_only_warn(self):
+        doctype = ('{"doctype": "DocType", "permissions": [{"role": "Accounts User"}], "fields": ['
+                   '{"fieldname": "a", "fieldtype": "Data", "label": "Refresh Lease Owner", "hidden": 1},'
+                   '{"fieldname": "b", "fieldtype": "Data", "label": "Lease Owner"},'
+                   '{"fieldname": "c", "fieldtype": "Data", "label": "Shared Note", "hidden": 1},'
+                   '{"fieldname": "d", "fieldtype": "Data", "label": "Shared Note"}]}')
+        refs = {r.text: r.kind for r in sources.doctype_refs("apps/x/x/x/doctype/d/d.json", doctype)}
+        self.assertEqual(refs["Refresh Lease Owner"], "doctype-hidden")
+        self.assertEqual(refs["Lease Owner"], "doctype-text")  # 显示的字段照拦
+        self.assertEqual(refs["Shared Note"], "doctype-text")  # 同一文字也在显示的字段上：照拦
+        snap = sources.snapshot(FakeTree({}))
+        hidden = rules.check_ref(sources.CodeRef("doctype-hidden", "Refresh Lease Owner", "p", 1), snap, set())
+        shown = rules.check_ref(sources.CodeRef("doctype-text", "Lease Owner", "p", 1), snap, set())
+        self.assertEqual(([f.level for f in hidden], [f.level for f in shown]), (["warn"], ["block"]))
+        # 术语表里同 msgid 的标签：只在 hidden 字段上 → 管理后台（强术语标黄）；也在显示的字段上 → 产品界面（照拦）
+        tree = FakeTree({
+            "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv": TSV_HEAD
+            + "Refresh Lease Owner\t刷新租约持有者\tก\tก\t\nLease Owner\t租约持有者\tก\tก\t\n",
+            "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/d/d.json": doctype,
+        })
+        snap = sources.snapshot(tree)
+        check_copy._assign_roles(snap, WORDS)
+        self.assertNotIn("R-DEV", hits(snap.entries["pearnly_cowork:Refresh Lease Owner"]))
+        self.assertIn("R-DEV", hits(snap.entries["pearnly_cowork:Refresh Lease Owner"], "warn"))
+        self.assertIn("R-DEV", hits(snap.entries["pearnly_cowork:Lease Owner"]))
+
+    def test_retry_signals_are_not_interface_copy(self):
+        code = ("import frappe\n"
+                "def a():\n    raise frappe.QueryDeadlockError('callback reply not recorded')\n"
+                "def b():\n    raise frappe.PermissionError('Only a DMS admin may refresh shared data')\n")
+        bare = {text for kind, text in refs_of("apps/x/x/y.py", code) if kind == "py-bare"}
+        self.assertEqual(bare, {"Only a DMS admin may refresh shared data"})
+
+    def test_frappe_msgid_english_is_not_ours(self):
+        tree = FakeTree({"apps/pearnly_core/pearnly_core/i18n/messages.tsv": TSV_HEAD
+                         + "Guests are not allowed to upload files for {0} Doctype\t访客不能为 {0} 上传文件\tก\tก\t\n"
+                         + "Invalid Filters for field {0}\t字段 {0} 的筛选无效：每个筛选是含 doctype 的列表\tก\tก\t\n"
+                         + "Our own Doctype note\t说明\tก\tก\t\n"})
+        snap = sources.snapshot(tree)
+        upstream = {"Guests are not allowed to upload files for {0} Doctype", "Invalid Filters for field {0}"}
+        check_copy._assign_roles(snap, WORDS, None, upstream)
+        guests = snap.entries["pearnly_core:Guests are not allowed to upload files for {0} Doctype"]
+        self.assertNotIn("R-DEV", hits(guests))  # 英文是 Frappe 的，不判
+        filters = snap.entries["pearnly_core:Invalid Filters for field {0}"]
+        self.assertIn("R-DEV", hits(filters, langs=("zh",)))  # 本仓的中文译文照判
+        self.assertIn("R-DEV", hits(snap.entries["pearnly_core:Our own Doctype note"]))  # 本仓自己的英文照判
+
+    def test_msgids_only_the_control_plane_calls_are_admin(self):
+        files = {
+            "apps/pearnly_core/pearnly_core/i18n/messages.tsv": TSV_HEAD
+            + "The target environment is incomplete: realm is required\t目标环境不完整：缺少 realm\tก\tก\t\n",
+            "apps/pearnly_core/pearnly_core/keycloak_admin.py":
+                "frappe.throw(_(\"The target environment is incomplete: realm is required\"))\n",
+        }
+        snap = sources.snapshot(FakeTree(files))
+        check_copy._assign_roles(snap, WORDS, sources.callsite_roles(FakeTree(files)))
+        item = snap.entries["pearnly_core:The target environment is incomplete: realm is required"]
+        self.assertEqual(item.surface, "admin")
+        self.assertNotIn("R-DEV", hits(item))
+        # 产品代码里也调用：按产品界面判，照拦
+        files["apps/pearnly_dms/pearnly_dms/x.py"] = "frappe.throw(_(\"The target environment is incomplete: realm is required\"))\n"
+        snap = sources.snapshot(FakeTree(files))
+        check_copy._assign_roles(snap, WORDS, sources.callsite_roles(FakeTree(files)))
+        self.assertIn("R-DEV", hits(snap.entries["pearnly_core:The target environment is incomplete: realm is required"]))
+
+    def test_admin_code_modules_are_only_used_by_the_control_plane(self):
+        """ADMIN_CODE 里登记的共用层模块：产品 App 不能引用它（否则那里的 msgid 会被当成管理后台放宽）。"""
+        modules = [path for path in sources.ADMIN_CODE if path.endswith(".py")]
+        for path in modules:
+            name = path.split("/")[-1][:-3]
+            found = subprocess.run(["git", "-C", str(ROOT), "grep", "-l", name, "--", "apps/pearnly_cowork", "apps/pearnly_dms",
+                                    "apps/pearnly_erp_portal", "apps/pearnly_core"], capture_output=True, text=True).stdout.split()
+            users = [f for f in found if f.endswith(".py") and f != path and "/test_" not in f]
+            self.assertEqual(users, [], name)
+
+    def test_tr_accepts_frappe_msgids_only_when_terms_lists_them(self):
+        api = 'TERM_WORDS = ("Company", "Delete {0} item permanently?")\n'
+        self.assertEqual(sources.term_words(api), {"Company", "Delete {0} item permanently?"})
+        snap = sources.snapshot(FakeTree({sources.TERMS_FILE: api}))
+        upstream = {"Delete {0} item permanently?", "Delete all permanently?"}
+        listed = sources.CodeRef("tsx-tr", "Delete {0} item permanently?", "frontend/assistant/src/a.tsx", 1)
+        unlisted = sources.CodeRef("tsx-tr", "Delete all permanently?", "frontend/assistant/src/a.tsx", 1)
+        self.assertEqual(rules.check_ref(listed, snap, set(), upstream), [])
+        self.assertEqual([f.level for f in rules.check_ref(unlisted, snap, set(), upstream)], ["block"])
+
+    def test_inline_page_scripts_are_scanned(self):
+        page = (
+            '<div>{{ _("Change Password") }}</div>\n'
+            '<script src="/assets/x.js"></script>\n'
+            '<script>\n'
+            '  var CSRF = "{{ csrf_token }}";\n'
+            '  var TEXT = { saving: {{ _("Saving...") | tojson }} };\n'
+            '  // 中文注释不算\n'
+            '  msg.textContent = TEXT.saving;\n'
+            '  msg.textContent = t("dms.edit.loading");\n'
+            '  msg.textContent = "提交中…";\n'
+            '  box.innerHTML = "Saving your new password now";\n'
+            '  frappe.msgprint("Could not save the password");\n'
+            '  var mode = "new password";\n'
+            '</script>\n')
+        found = {(r.kind, r.text, r.line) for r in sources.html_refs("apps/x/x/www/p.html", page) if r.kind != "html-msgid"}
+        self.assertEqual(found, {("html-cjk", "提交中…", 9), ("html-hard", "Saving your new password now", 10),
+                                 ("html-hard", "Could not save the password", 11)})
+
+    def test_concat_exemptions_stay_valid_while_the_code_is_there(self):
+        path = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py"
+        code = "def f():\n    return _(\"Please upload a PDF or image\") + \"\\n\" + _(\"Take the photo upright\")\n"
+        ref = next(r for r in sources.code_refs(path, code) if r.kind == "py-concat")
+        pol = policy.Policy([(1, ["代码:" + path, "R-CONCAT", ref.text, "LINE 消息逐行拼接，每行是一句完整文案"])], [],
+                            "exempt", "approved")
+        self.assertEqual(pol.exempt_ref(ref), {"R-CONCAT"})
+        self.assertEqual(pol.validate(sources.snapshot(FakeTree({})), FakeTree({path: code}), "exempt"), [])
+        stale = pol.validate(sources.snapshot(FakeTree({})), FakeTree({path: "def f():\n    return None\n"}), "exempt")
+        self.assertEqual([f.rule for f in stale], ["R-EXEMPT"])
+
+
 class TempRepo(unittest.TestCase):
     """临时 git 仓库里跑真实的分类与判定。"""
 
@@ -913,6 +1032,26 @@ class TempRepo(unittest.TestCase):
         self.edit(tsv, "Old name\t", "Pick one\t要人选\tต้องเลือก\t要選択\tcowork.ledger.choice\nOld name\t")
         self.git("add", "-A")
         self.assertEqual(quiet_main(["--repo", self.dir, "--staged", "--tree", self.snapshot_dir()]), 1)
+
+    def test_merge_commit_only_checks_what_the_merge_adds(self):
+        """提交钩子遇到合并提交（把 main 并进任务分支、解决冲突后提交）：main 已有的行不当成本分支新增；合并时手工新加的照拦。"""
+        tsv = "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv"
+        self.git("checkout", "-q", "-b", "topic")
+        self.write("frontend/assistant/src/a.tsx", "export const A = () => <div>{t(\"stop\")}</div>;\n")
+        self.commit("topic work")
+        self.git("checkout", "-q", "main")
+        self.edit(tsv, "Old name\t", "Not saved yet\t文件暂时保存不了\tยังไม่ได้บันทึก\t未保存\tcowork.files.not_saved\nOld name\t")
+        self.commit("main: a row that main already has")
+        self.git("checkout", "-q", "topic")
+        self.git("merge", "--no-commit", "--no-ff", "-q", "main")
+        self.assertEqual(quiet_main(["--repo", self.dir, "--staged", "--tree", self.snapshot_dir()]), 0)
+        # 同一份暂存内容不当合并看（只比第一父提交）：main 的那行会被当成新增拦下 —— 这就是以前的误拦
+        self.assertEqual(quiet_main(["--repo", self.dir, "--base", "HEAD"]), 1)
+        # 合并时手工新加的违规行照拦
+        self.edit(tsv, "Old name\t", "Pick one\t要人选\tต้องเลือก\t要選択\tcowork.ledger.choice\nOld name\t")
+        self.git("add", "-A")
+        self.assertEqual(quiet_main(["--repo", self.dir, "--staged", "--tree", self.snapshot_dir()]), 1)
+        self.git("merge", "--abort")
 
     def test_doctype_and_companion_code_in_diff(self):
         self.write("apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/wallet/wallet.json",

@@ -26,7 +26,8 @@
   8. CC 网页 TSX / TS：JSX 文本与 {"…"} 子节点、title / aria-label / placeholder / alt / label / content / description /
      message / tooltip / helperText 属性（含 {`…`} 与 {cond ? "a" : "b"}）、toast.*() / alert() / confirm() 的字面量、
      tr("…")、t("…")；相邻 {t(…)}{t(…)} 与模板串里 ≥ 2 个 t( / tr( 插值（R-CONCAT）
-  9. www/*.html、templates/emails/*.html：{{ _("…") }}、写死的中文 / 泰文、标签外 ≥ 2 个英文词的文本与 title / placeholder
+  9. www/*.html、templates/emails/*.html：{{ _("…") }}、写死的中文 / 泰文、标签外 ≥ 2 个英文词的文本与 title / placeholder；
+     页内 <script> 的字符串字面量（中文 / 泰文一律算；英文句子写进 textContent / innerHTML / innerText 或交给 msgprint / alert 时算）
  10. 翻译包 translations/*.csv 里新增的手工行（msgid 在术语表里找不到）
  11. CC 桌面版 companion/src/companion/*.py（i18n.py 除外）：Qt 控件与通知（QLabel / setText / setWindowTitle /
      setToolTip / addAction / showMessage / _notify …）、{"message": "…"} 的写死文案；t("键") 的键不在 _M 里
@@ -34,7 +35,8 @@
 
 不扫（模型读的、写进外部系统的、日志与测试）：见 NOT_SCANNED。
 DocType JSON 同时给同 msgid 的术语表行定角色（label → 标签，description → 字段说明，Select 选项 → 选项），
-只有 System Manager 能读的 DocType 的标签与说明算管理后台。调用点（frappe.throw(_())、placeholder=、subject=、
+只有 System Manager 能读的 DocType 的标签与说明、以及 hidden 字段（Desk 表单不显示）的标签与说明算管理后台；
+hidden 字段新写的标签 / 说明不在术语表只标黄。只被控制面代码（ADMIN_CODE）调用的 msgid 也算管理后台。调用点（frappe.throw(_())、placeholder=、subject=、
 aria-* …）也给词条定角色（callsite_roles），优先于按键名猜。
 """
 
@@ -63,6 +65,17 @@ COMPANION_CODE = re.compile(r"^companion/src/companion/(?!i18n\.py$)[^/]+\.py$")
 # 调用点角色：这些文件里看 frappe.throw(_())、placeholder=、subject=、aria-* … 怎么用一条词条
 CALLSITE_FILES = re.compile(r"^(apps/.*\.(py|js)|frontend/(src|assistant/src)/.*\.(vue|ts|tsx|js))$")
 ADMIN_ROLES = {"System Manager", "Administrator"}
+# 只给控制面用的代码：这里调用的 msgid（且别处没有调用）按管理后台判（开发术语只标黄）。共用层模块登记在这里要写原因，
+# tests/test_check_copy.py 守着它确实只被控制面引用
+ADMIN_CODE = {
+    "apps/pearnly_control/": "控制面 App（发号、开户、部署、钱包），只装在管理后台站点",
+    "apps/pearnly_core/pearnly_core/keycloak_admin.py": "身份服务管理客户端：只有控制面开户 / 拆户与开发脚本调用",
+}
+# CC 网页 tr() 的词条由这里的 terms() 按当前语言给出（TERM_WORDS + 按前缀取的术语表键）：
+# TERM_WORDS 里的 Frappe 自带 msgid 运行时是 Frappe 官方译文，tr() 引用它不算不在字典里
+TERMS_FILE = "apps/pearnly_cowork/pearnly_cowork/folder_intake/api.py"
+# frappe.*Error(…) 里只作重试信号、不会到界面的异常（ocr/remote/callback.py 的 QueryDeadlockError 让任务重排）
+RETRY_SIGNALS = {"QueryDeadlockError", "QueryTimeoutError"}
 
 # keep-cjk.tsv 里整文件豁免（`*`）、但内容本身是给用户看的四语表：按 AST 取模块里以语言为键的 dict。
 # 以后 keep-cjk 再加"规格："整文件豁免，必须登记在这里或 NOT_COPY_SPEC（tests/test_check_copy.py 守着）。
@@ -569,23 +582,29 @@ def table_entries(path: str, text: str) -> list:
 # ── DocType JSON：给术语表行定角色；新写的 label / description / 选项要在字典里 ──────
 
 
-def _doctype_values(data):
-    """[(文字, 角色)]：label → 标签，description → 字段说明，Select 的 options 逐行 → 选项。"""
+def _hidden(node) -> bool:
+    return node.get("hidden") in (1, "1", True)
+
+
+def _doctype_values(data, with_hidden=False):
+    """[(文字, 角色)]：label → 标签，description → 字段说明，Select 的 options 逐行 → 选项。
+    with_hidden：[(文字, 角色, 是否 hidden 字段)]（hidden 字段 Desk 表单不显示）。"""
     out = []
 
     def visit(node):
         if isinstance(node, dict):
             select = node.get("fieldtype") == "Select"
+            hidden = _hidden(node)
             for key, value in node.items():
                 if isinstance(value, str) and value.strip():
                     if key == "description":
-                        out.append((value.strip(), "field_desc"))
+                        out.append((value.strip(), "field_desc", hidden))
                     elif key == "label":
-                        out.append((value.strip(), "label"))
+                        out.append((value.strip(), "label", hidden))
                     elif key == "options" and select:
                         for option in value.split("\n"):
                             if option.strip() and LETTERS.search(option):
-                                out.append((option.strip(), "option"))
+                                out.append((option.strip(), "option", hidden))
                 elif not isinstance(value, str):
                     visit(value)
         elif isinstance(node, list):
@@ -593,21 +612,30 @@ def _doctype_values(data):
                 visit(item)
 
     visit(data)
-    return out
+    return out if with_hidden else [(value, role) for value, role, _hidden_field in out]
 
 
-def doctype_info(text: str):
-    """(角色表 {文字: 角色}, 是否只有 System Manager / Administrator 能读)。"""
+def _only_hidden(values) -> set:
+    """这份 DocType 里只出现在 hidden 字段上的文字。"""
+    shown, hidden = set(), set()
+    for value, _role, is_hidden in values:
+        (hidden if is_hidden else shown).add(value)
+    return hidden - shown
+
+
+def doctype_info(text: str, with_hidden=False):
+    """(角色表 {文字: 角色}, 是否只有 System Manager / Administrator 能读)；with_hidden 时另交回只在 hidden 字段上的文字。"""
     try:
         data = json.loads(text)
     except ValueError:
-        return {}, False
+        return ({}, False, set()) if with_hidden else ({}, False)
     roles = {}
-    for value, role in _doctype_values(data):
+    values = _doctype_values(data, with_hidden=True)
+    for value, role, _hidden_field in values:
         roles.setdefault(value, role)
     perms = {p.get("role") for p in data.get("permissions", []) if isinstance(p, dict)} if isinstance(data, dict) else set()
     admin = bool(perms) and perms <= ADMIN_ROLES
-    return roles, admin
+    return (roles, admin, _only_hidden(values)) if with_hidden else (roles, admin)
 
 
 def doctype_roles(text: str) -> dict:
@@ -621,13 +649,17 @@ def doctype_refs(path: str, text: str) -> list:
     except ValueError:
         return []
     out, seen = [], set()
-    for value, role in _doctype_values(data):
+    values = _doctype_values(data, with_hidden=True)
+    hidden_only = _only_hidden(values)
+    for value, role, _hidden_field in values:
         # Select 选项多是取值码（cowork / erp / zh），Desk 有译文才显示译文：只要求 label 与 description 进字典
         if role == "option" or value in seen or not LETTERS.search(value):
             continue
         seen.add(value)
         pos = text.find(json.dumps(value, ensure_ascii=False)[1:-1])
-        out.append(CodeRef("doctype-text", value, path, _line_of(text, pos) if pos >= 0 else 0))
+        # 只在 hidden 字段上的（Desk 表单不显示）：不在字典里只标黄
+        kind = "doctype-hidden" if value in hidden_only else "doctype-text"
+        out.append(CodeRef(kind, value, path, _line_of(text, pos) if pos >= 0 else 0))
     return out
 
 
@@ -729,6 +761,7 @@ def python_refs(path: str, text: str) -> list:
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id == "frappe"
                 and node.func.attr.endswith("Error")
+                and node.func.attr not in RETRY_SIGNALS
                 and first is not None
             ):
                 bare(node, _literal_text(first), node.lineno)
@@ -1047,9 +1080,55 @@ _HTML_ATTR = re.compile(r"(?<![\w-])(title|placeholder|alt|aria-label)=\"([^\"{}
 _CJK_RUN = re.compile(r"[一-鿿ก-๛　-〿！-｠][^<>\n{}]*")
 
 
+_SCRIPT = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
+# 页内脚本里会显示出来的英文：赋给这些属性，或交给这些调用
+_SCRIPT_SINKS = {"textContent", "innerHTML", "innerText", "outerHTML"}
+_SCRIPT_CALLS = {"msgprint", "alert", "confirm", "show_alert", "throw", "prompt"}
+# 页内脚本自己的取词函数（参数是 msgid / 键，不是写死的文案）
+_SCRIPT_TRANSLATORS = {"t", "tr", "__", "_", "text", "term"}
+
+
+def script_refs(path: str, text: str) -> list:
+    """页内 <script>（不带 src）的字符串字面量：中文 / 泰文一律算写死；英文句子（≥ 2 个词）写进 textContent / innerHTML /
+    innerText 或交给 msgprint / alert / confirm 时算写死。脚本里的 Jinja（{{ _("…") | tojson }}）先换成占位再分词。"""
+    out = []
+    for block in _SCRIPT.finditer(text):
+        if re.search(r"\bsrc\s*=", block.group(1), re.I):
+            continue
+        body = _JINJA.sub(lambda m: "0" + "\n" * m.group(0).count("\n"), block.group(2))
+        offset = _line_of(text, block.start(2)) - 1
+        toks = js_tokens(body)
+        sink = set()
+        for k, tok in enumerate(toks):
+            prev = toks[k - 1] if k else None
+            if tok.kind == "id" and tok.value in _SCRIPT_SINKS and _is(prev, "."):
+                nxt = toks[k + 1] if k + 1 < len(toks) else None
+                if _is(nxt, "=") or (nxt is not None and nxt.kind == "p" and nxt.value == "+"):
+                    j = k + 2
+                    while j < len(toks) and not _is(toks[j], ";") and toks[j].line == tok.line:
+                        sink.add(j)
+                        j += 1
+            elif tok.kind == "id" and tok.value in _SCRIPT_CALLS and k + 2 < len(toks) and _is(toks[k + 1], "("):
+                sink.add(k + 2)
+        for k, tok in enumerate(toks):
+            if tok.kind not in ("str", "tpl"):
+                continue
+            value = " ".join(tok.value.split())
+            if not value or KEY_LIKE.match(value):
+                continue  # 词条键（text("dms.edit.loading")、t('stock.mobile.noTask')）
+            called = toks[k - 2] if k > 1 and _is(toks[k - 1], "(") else None
+            if called is not None and called.kind == "id" and called.value in _SCRIPT_TRANSLATORS:
+                continue
+            if CJK_THAI.search(value):
+                out.append(CodeRef("html-cjk", value[:80], path, offset + tok.line))
+            elif k in sink and _WORDS2.search(_NOT_PROSE.sub(" ", _HTML_TAG.sub(" ", value.replace("{x}", " ")))):
+                out.append(CodeRef("html-hard", value[:80], path, offset + tok.line))
+    return out
+
+
 def html_refs(path: str, text: str) -> list:
     src = _HTML_DROP.sub(lambda m: "\n" * m.group(0).count("\n"), text)
-    out = []
+    out = script_refs(path, text)
     for block in _JINJA.finditer(src):
         for match in _JINJA_MSGID.finditer(block.group(0)):
             out.append(CodeRef("html-msgid", match.group(1) or match.group(2), path, _line_of(src, block.start())))
@@ -1109,6 +1188,23 @@ class Snapshot:
     companion_keys: set = field(default_factory=set)  # CC 桌面版 i18n.py 的 _M 键
     admin_values: set = field(default_factory=set)  # 只出现在 System Manager 专用 DocType 里的 label / description / 选项
     email_msgids: set = field(default_factory=set)  # 邮件模板用到的 msgid
+    term_words: set = field(default_factory=set)  # CC 网页 tr() 词条里直接列出的 msgid（TERMS_FILE 的 TERM_WORDS）
+
+
+def term_words(text: str) -> set:
+    """TERMS_FILE 里 TERM_WORDS = (…) 的字符串。"""
+    try:
+        tree = ast.parse(text or "")
+    except SyntaxError:
+        return set()
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "TERM_WORDS" for t in node.targets):
+            try:
+                value = ast.literal_eval(node.value)
+            except ValueError:
+                return set()
+            return {item for item in value if isinstance(item, str)}
+    return set()
 
 
 def snapshot(tree) -> Snapshot:
@@ -1116,7 +1212,7 @@ def snapshot(tree) -> Snapshot:
     dict_paths = [
         p for p in paths
         if GLOSSARY.match(p) or TRANSLATION.match(p) or KEYCLOAK.match(p) or DOCTYPE_JSON.match(p)
-        or p in (ASSISTANT_I18N, COMPANION_I18N) or p in TABLE_MODULES
+        or p in (ASSISTANT_I18N, COMPANION_I18N, TERMS_FILE) or p in TABLE_MODULES
     ]
     tree.prefetch(dict_paths)
     entries: dict = {}
@@ -1157,10 +1253,11 @@ def snapshot(tree) -> Snapshot:
         elif KEYCLOAK.match(path):
             keycloak_files[path] = text
         elif DOCTYPE_JSON.match(path):
-            found, admin = doctype_info(text)
+            found, admin, hidden_only = doctype_info(text, with_hidden=True)
             for value, role in found.items():
                 roles.setdefault(value, role)
-                admin_seen[value] = admin_seen.get(value, True) and admin
+                # 管理员专用 DocType，或只在 hidden 字段上（Desk 表单不显示）：按管理后台判
+                admin_seen[value] = admin_seen.get(value, True) and (admin or value in hidden_only)
         elif path == ASSISTANT_I18N:
             items = assistant_entries(path, text)
             add(items)
@@ -1198,7 +1295,8 @@ def snapshot(tree) -> Snapshot:
             entry.extra["in_email"] = True
     msgids.discard("")
     return Snapshot(entries, msgids, glossary_msgids, translations, assistant_keys, roles,
-                    glossary_lines, glossary_line_ids, companion_keys, admin_values, in_email)
+                    glossary_lines, glossary_line_ids, companion_keys, admin_values, in_email,
+                    term_words(tree.read(TERMS_FILE)) if TERMS_FILE in paths else set())
 
 
 # ── 调用点角色 ───────────────────────────────────────────────────────────────
@@ -1226,13 +1324,20 @@ def _unquote(match) -> str:
     return re.sub(r"\\(.)", lambda m: {"n": "\n", "t": "\t"}.get(m.group(1), m.group(1)), raw)
 
 
+def admin_code(path: str) -> bool:
+    return any(path == prefix or (prefix.endswith("/") and path.startswith(prefix)) for prefix in ADMIN_CODE)
+
+
 def callsite_roles(tree) -> dict:
-    """{msgid 或键: 角色}；另有 "prop:sr"（交给读屏的对象属性名）、"elsewhere"（邮件模板以外也用到的 msgid）。"""
+    """{msgid 或键: 角色}；另有 "prop:sr"（交给读屏的对象属性名）、"elsewhere"（邮件模板以外也用到的 msgid）、
+    "admin_only"（只在控制面代码 ADMIN_CODE 里调用的 msgid）。"""
     paths = [p for p in tree.paths() if CALLSITE_FILES.match(p) and not excluded(p)]
     tree.prefetch(paths)
     roles: dict = {}
     sr_props: set = set()
     elsewhere: set = set()
+    admin_calls: set = set()
+    other_calls: set = set()
     for path in paths:
         text = tree.read(path)
         if not text:
@@ -1244,9 +1349,12 @@ def callsite_roles(tree) -> dict:
                 if current is None or _ROLE_RANK.get(role, 0) > _ROLE_RANK.get(current, 0):
                     roles[value] = role
         for match in _ANY_TR.finditer(text):
-            elsewhere.add(_unquote(match))
+            value = _unquote(match)
+            elsewhere.add(value)
+            (admin_calls if admin_code(path) else other_calls).add(value)
         for match in _SR_PROPS.finditer(text):
             sr_props |= set(re.findall(r"\.(\w+)", match.group(1)))
     roles["prop:sr"] = sr_props
     roles["elsewhere"] = elsewhere
+    roles["admin_only"] = admin_calls - other_calls
     return roles
