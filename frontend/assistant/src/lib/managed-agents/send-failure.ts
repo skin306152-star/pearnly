@@ -2,6 +2,9 @@
 // 组件库按下发送就清空了输入框，交给我们的发送失败了它不放回，Promise 也没人接（2026-10-16 测试窗口：没配 CC 的站点发第一条，
 // 气泡和「思考中」闪一下就没了，打的字也没了，只有控制台一条未捕获的错误）。这里：原因写在输入框上方（服务端原文，没有原文
 // 用通用的一句，lib/frappe.ts 的 shownError），打的字与附件放回输入框。原因按对话记，同一段对话再发送时清掉。只在本页。
+// 附件没传上（发送时重传一次也没传上，attachments.ts 的 filesToSend）同样算没发出去。
+// 停止没成功（回复中途断网后点停止，2026-10-17 第 9 轮第 16 条：控制台未捕获的 Failed to fetch，页面一直「思考中」）也写在
+// 这里：只说原因，字不放回（消息早已发出）；停止键还在，再点就再试；回复结束（不在跑了）就清掉。
 
 import { useSyncExternalStore } from "react";
 import type { CompleteAttachment, CreateAttachment } from "@assistant-ui/react";
@@ -15,7 +18,7 @@ export type ComposerLike = {
   addAttachment(attachment: CreateAttachment | File): Promise<void>;
 };
 
-let failure: { thread: string; message: string } | null = null;
+let failure: { thread: string; message: string; stop?: boolean } | null = null;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -35,8 +38,8 @@ export function sendFailed(
   // 等的这一会儿又打了字：原来那条放在前面，新打的接在后面，两段都不丢
   const typed = composer.getState().text;
   if (text) composer.setText(typed.trim() ? `${text}\n${typed}` : text);
-  // 已传进会话的：原样放回，编号不变，再发送时照样带上。没传上的（新对话没设置 CC 时选的文件，上传前建会话就被拒了）：
-  // 把原文件放回去重新传，上传中、出错照常显示在那一项上，不当成传好了的
+  // 已传进会话的：原样放回，编号不变，再发送时照样带上。没传上的（新对话没设置 CC 时选的文件，上传前建会话就被拒了；
+  // 发送时重传也没传上的）：把原文件放回去重新传，上传中、出错照常显示在那一项上，不当成传好了的
   for (const a of attachments) {
     const back = isUploaded(a.id) || !a.file
       ? composer.addAttachment({ id: a.id, type: a.type, name: a.name, contentType: a.contentType, content: a.content })
@@ -64,6 +67,24 @@ export async function attemptSend(
     sendFailed(thread, error, delivered ? undefined : restore);
     return false;
   }
+}
+
+/** 停止键（打断这一轮）。没成功：原因写在输入框上方，不放回任何东西、不抛出（组件库调停止不等也不接错）；再点再试。 */
+export async function attemptStop(thread: string, run: () => Promise<void>): Promise<boolean> {
+  clearSendFailure(thread);
+  try {
+    await run();
+    return true;
+  } catch (error) {
+    failure = { thread, message: shownError(error), stop: true };
+    emit();
+    return false;
+  }
+}
+
+/** 这一轮已不在跑：停止没成功的原因不用再留着（发送没成功的留到再发送）。 */
+export function clearStopFailure(thread: string) {
+  if (failure?.thread === thread && failure.stop) clearSendFailure(thread);
 }
 
 /** 再发送（或别处要清）时清掉这段对话的出错原因。 */

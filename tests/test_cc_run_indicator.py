@@ -655,6 +655,195 @@ assert.deepEqual(unhandled, []);                             // 一个未捕获�
 g.respond = respond;
 """)
 
+    def test_a_failed_attachment_is_uploaded_again_on_send_and_never_dropped(self):
+        # 2026-10-17 第 9 轮第 15 条（手机为主）：附件上传失败（红色感叹号）后点发送，页面不重传、不提示，消息不带附件就发出去了，
+        # CC 答的是上一张旧图。现在（组件库真实的输入框与对话运行时 + 本站附件适配器）：发送时先重传；传上了带着发；仍没传上就不发，
+        # 原因写在输入框上方、字和附件留在输入框，没有未捕获的错误。上传中断网（点了发送还在传）走同一条路。
+        self.run_page(r"""
+import { ExternalStoreThreadRuntimeCore } from "@assistant-ui/core/internal";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { attemptSend, sendFailureOf } from "@/lib/managed-agents/send-failure";
+import { createAttachmentAdapter, filesToSend } from "@/lib/managed-agents/attachments";
+---
+const unhandled: unknown[] = [];
+process.on("unhandledRejection", (reason) => unhandled.push(reason));
+g.URL.createObjectURL = () => "blob:local";
+// 上传：表单体不经假站点的 JSON 记录；每次调用按 uploadReply 回（断网就抛 TypeError，同浏览器）
+const siteFetch = g.fetch;
+const uploads: string[] = [];
+let uploadReply: (name: string) => Promise<any> = async () => { throw new TypeError("Failed to fetch"); };
+let n = 0;
+const stored = (name: string) => ok({ fileId: `file_${++n}`, filename: name, mountPath: `/mnt/session/uploads/file_${n}/${name}`, size_bytes: 1 });
+g.fetch = async (url: string, init: any = {}) => {
+  if (String(url).endsWith(".upload")) {
+    const name = (init.body.get("file") as File).name;
+    uploads.push(name);
+    return uploadReply(name);
+  }
+  return siteFetch(url, init);
+};
+const posted = () => g.calls.filter((c: any) => c.method === "send").map((c: any) => c.body.text);
+const textOf = (m: any) => m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n").trim();
+const S = "sesn_att1";
+site.log.length = 0;
+getSessionController(S).attach();
+await g.sleep(30);
+
+// 同 runtime-provider.tsx 的 onNew：附件先过 filesToSend，再发出；都经 attemptSend
+let core: any;
+const composer = {
+  getState: () => ({ text: core.composer.text }),
+  setText: (text: string) => core.composer.setText(text),
+  addAttachment: (a: any) => core.composer.addAttachment(a),
+};
+const store: any = {
+  messages: [], isRunning: false, convertMessage: (m: any) => m,
+  adapters: { attachments: createAttachmentAdapter(async () => S) },
+  onNew: async (message: any) => {
+    const text = textOf(message);
+    await attemptSend("thread-att", { composer, text, attachments: message.attachments }, async (sent) => {
+      const files = filesToSend(message.attachments);
+      await getSessionController(S).sendMessage(text, files);
+      sent();
+    });
+  },
+};
+core = new ExternalStoreThreadRuntimeCore({ getModelContext: () => ({}), subscribe: () => () => {} } as any, store);
+const shown = () => core.composer.attachments.map((a: any) => [a.name, a.status.type]);
+
+// ① 断网时选的图：上传失败，带红色感叹号
+const photo = new File(["x"], "bill.jpg", { type: "image/jpeg" });
+await core.composer.addAttachment(photo);
+assert.deepEqual(shown(), [["bill.jpg", "incomplete"]]);
+// 仍断网时点发送：先重传，仍没传上 → 不发；原因一行，字和附件都回到输入框（原文件放回去再传，仍断网就又标出错）
+core.composer.setText("ดูบิลนี้");
+await core.composer.send();
+await g.sleep(30);
+assert.deepEqual(uploads, ["bill.jpg", "bill.jpg", "bill.jpg"]);  // 选中、发送时重传、放回输入框再传
+assert.deepEqual(posted(), []);                                     // 没有不带附件就发出去
+assert.equal(sendFailureOf("thread-att"), "出了点问题，请重试。");
+assert.equal(core.composer.text, "ดูบิลนี้");
+assert.deepEqual(shown(), [["bill.jpg", "incomplete"]]);
+assert.ok(!getSessionController(S).getSnapshot().messages.some((m: any) => m.role === "user"));
+
+// ② 联网后再点发送：重传成功，带着它发出；原因清掉
+uploadReply = async (name) => stored(name);
+await core.composer.send();
+await g.sleep(30);
+assert.equal(uploads.length, 4);
+assert.equal(posted().length, 1);
+assert.match(posted()[0], /ดูบิลนี้/);
+assert.match(posted()[0], /\/mnt\/session\/uploads\/file_1\/bill\.jpg/);
+assert.equal(sendFailureOf("thread-att"), "");
+assert.equal(core.composer.text, "");
+assert.deepEqual(shown(), []);
+
+// ③ 上传中（限速）点了发送，这时断网：重传一次传上了就带着发，输入框里不冒出一个出错的旧项
+let drop: () => void = () => {};
+uploadReply = () => new Promise((_resolve, reject) => { drop = () => reject(new TypeError("Failed to fetch")); });
+const slow = core.composer.addAttachment(new File(["y"], "slip.pdf", { type: "application/pdf" }));
+await g.sleep(5);
+assert.deepEqual(shown(), [["slip.pdf", "running"]]);
+core.composer.setText("ดูสลิป");
+const sending = core.composer.send();
+await g.sleep(5);
+uploadReply = async (name) => stored(name);
+drop();
+await sending;
+await slow;
+await g.sleep(30);
+assert.equal(posted().length, 2);
+assert.match(posted()[1], /\/mnt\/session\/uploads\/file_2\/slip\.pdf/);
+assert.deepEqual(shown(), []);
+assert.equal(sendFailureOf("thread-att"), "");
+
+// ④ 同上，但重传也没传上：同 ①，不发、说原因、字和附件回到输入框
+uploadReply = () => new Promise((_resolve, reject) => { drop = () => reject(new TypeError("Failed to fetch")); });
+const slow2 = core.composer.addAttachment(new File(["z"], "receipt.png", { type: "image/png" }));
+await g.sleep(5);
+core.composer.setText("ดูใบเสร็จ");
+const sending2 = core.composer.send();
+await g.sleep(5);
+uploadReply = async () => { throw new TypeError("Failed to fetch"); };
+drop();
+await sending2;
+await slow2;
+await g.sleep(30);
+assert.equal(posted().length, 2);
+assert.equal(sendFailureOf("thread-att"), "出了点问题，请重试。");
+assert.equal(core.composer.text, "ดูใบเสร็จ");
+assert.deepEqual(shown(), [["receipt.png", "incomplete"]]);        // 只有一项，不重复
+
+assert.deepEqual(unhandled, []);                                    // 一个未捕获的错误都没有
+g.fetch = siteFetch;
+""")
+
+    def test_a_failed_stop_says_why_and_can_be_pressed_again(self):
+        # 2026-10-17 第 9 轮第 16 条：回复中途断网后按停止，停止请求失败，控制台未捕获的「TypeError: Failed to fetch」，页面一直
+        # 「思考中」+ 停止钮、没有提示。现在：接住，输入框上方同一行原因（通用句），停止钮还在、再点再试；字不放回输入框（已发出）；
+        # 这一轮自己结束了（联网后回复给完）原因就清掉，发送没成功的原因不跟着清。
+        self.run_page(r"""
+import { ExternalStoreThreadRuntimeCore } from "@assistant-ui/core/internal";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
+import { attemptStop, clearStopFailure, sendFailed, sendFailureOf } from "@/lib/managed-agents/send-failure";
+import { isBusy } from "@/lib/managed-agents/reducer";
+---
+const unhandled: unknown[] = [];
+process.on("unhandledRejection", (reason) => unhandled.push(reason));
+const respond = g.respond;
+let offline = true;
+g.respond = async (method: string, args: any, body: any) => {
+  if (offline) throw new TypeError("Failed to fetch");
+  if (method === "interrupt") { site.engine = "idle"; return ok(); }
+  return respond(method, args, body);
+};
+const S = "sesn_stop1";
+site.log.length = 0;
+site.engine = "running";
+site.log.push(ev("u1", "user.message", 1, { content: text("summarise the bank statement") }), ev("r1", "session.status_running", 2),
+  ev("m1", "agent.message", 3, { content: text("Reading page 1") }));
+offline = false;
+const c = getSessionController(S);
+c.attach();
+await g.sleep(30);
+assert.equal(isBusy(c.getSnapshot()), true);
+
+// 同 runtime-provider.tsx 的 onCancel：经 attemptStop
+const store: any = {
+  messages: [], isRunning: true, convertMessage: (m: any) => m,
+  onNew: async () => {}, onCancel: () => attemptStop("thread-stop", () => c.interrupt()),
+};
+const core = new ExternalStoreThreadRuntimeCore({ getModelContext: () => ({}), subscribe: () => () => {} } as any, store);
+
+// ① 断网：停止请求失败 → 原因一行（通用句），还在跑（停止钮还在），字不放回
+offline = true;
+core.cancelRun();
+await g.sleep(30);
+assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
+assert.equal(isBusy(c.getSnapshot()), true);
+assert.equal(core.composer.text, "");
+// ② 联网后再点停止：打断成功，原因清掉
+offline = false;
+core.cancelRun();
+await g.sleep(5);
+assert.equal(sendFailureOf("thread-stop"), "");
+assert.deepEqual(g.calls.filter((x: any) => x.method === "interrupt").map((x: any) => x.body.session_id), [S, S]);  // 断网那次、再点这次
+// ③ 这一轮不在跑了：停止没成功的原因清掉；发送没成功的原因留到再发送
+offline = true;
+await attemptStop("thread-stop", () => c.interrupt());
+assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
+clearStopFailure("thread-stop");
+assert.equal(sendFailureOf("thread-stop"), "");
+sendFailed("thread-stop", new TypeError("Failed to fetch"));
+clearStopFailure("thread-stop");
+assert.equal(sendFailureOf("thread-stop"), "出了点问题，请重试。");
+offline = false;
+
+await g.sleep(30);
+assert.deepEqual(unhandled, []);                                    // 一个未捕获的错误都没有
+g.respond = respond;
+""")
+
     def test_send_failure_wiring(self):
         # onNew 经 attemptSend（不抛出）；原因写在输入框上方，同对话里出错那一行的样子；放回的图片按会话位置取本页预览
         provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
@@ -664,6 +853,18 @@ g.respond = respond;
         self.assertIn("if (!ok) return;", on_new)
         self.assertLess(on_new.index("if (!ok) return;"), on_new.index("generateTitle()"))   # 没发出去不取标题
         self.assertIn("composer.current = runtime.thread.composer;", provider)
+        # 附件先过 filesToSend（有没传上的就整条不发，第 9 轮第 15 条）；停止经 attemptStop（不抛出，第 16 条）
+        self.assertIn("const files = filesToSend(message.attachments);", on_new)
+        self.assertLess(on_new.index("filesToSend("), on_new.index("const send = async"))
+        self.assertIn("sendMessage(text, files, pendingShownAs)", on_new)
+        self.assertNotIn("attachedFilesOf", provider)
+        on_cancel = provider.split("onCancel: async () => {", 1)[1].split("\n    },", 1)[0]
+        self.assertIn("if (controller) await attemptStop(threadId, () => controller.interrupt());", on_cancel)
+        self.assertIn("if (!running) clearStopFailure(threadId);", provider)
+        adapter = (SRC / "lib/managed-agents/attachments.ts").read_text(encoding="utf-8")
+        send = adapter.split("async send(attachment): Promise<CompleteAttachment> {", 1)[1]
+        self.assertNotIn("throw err", send)                 # 发送这一步不抛：组件库不接，抛了就是未捕获的错误
+        self.assertIn("info = await store(attachment.id, attachment.file);", send)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <Composer />", thread)
         failure = thread.split("const SendFailure: FC = () => {", 1)[1].split("\n};\n", 1)[0]
@@ -678,7 +879,8 @@ g.respond = respond;
         # 发送中气泡（pending-send.ts 是整页一个）
         provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
         self.assertIn("const [newChat] = useState(() => new NewChatSend());", provider)
-        self.assertIn("isRunning: isBusy(snapshot) || creating,", provider)
+        self.assertIn("const running = isBusy(snapshot) || creating;", provider)
+        self.assertIn("isRunning: running,", provider)
         self.assertIn("if (newChat.cancel()) return;", provider)
         self.assertIn("if (controller) await send(await ensureSession());", provider)
         self.assertNotIn("usePendingSend", provider)
