@@ -595,9 +595,9 @@ class SortableSourceTests(unittest.TestCase):
         self.assertIn("{...sortable.handle}", cards)
         self.assertIn("if (!keys(e)) sortable.handle.onKeyDown?.(e);", cards)   # Alt+↑/↓ 先，其余交给拖动（空格拿起）
         self.assertIn("useLayoutEffect(() => register(props.id, props.title), [register, props.id, props.title]);", cards)
-        package = read("../package.json")
-        for dep in ('"@dnd-kit/core": "6.3.1"', '"@dnd-kit/sortable": "10.0.0"', '"@dnd-kit/modifiers": "9.0.0"', '"@dnd-kit/utilities": "3.2.2"'):
-            self.assertIn(dep, package)
+        # 拖动是自写的（第 12 轮，components/ui/drag.tsx）：依赖与锁文件里都不再有 dnd-kit，不会被别处悄悄引回来
+        for manifest in ("../package.json", "../package-lock.json"):
+            self.assertNotIn("@dnd-kit", read(manifest), manifest)
 
     def test_shared_drag_rules(self):
         drag = read("components/ui/drag.tsx")
